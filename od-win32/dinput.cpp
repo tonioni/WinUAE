@@ -1562,7 +1562,7 @@ static bool initialize_rawinput (void)
 				continue;
 			}
 
-			write_log (_T("%p %04x/%04x (%d/%d)\n"), h, rdi->hid.dwVendorId, rdi->hid.dwProductId, rdi->hid.usUsage, rdi->hid.usUsagePage);
+			write_log (_T("%p %d %04x/%04x (%d/%d)\n"), h, type, rdi->hid.dwVendorId, rdi->hid.dwProductId, rdi->hid.usUsage, rdi->hid.usUsagePage);
 
 			if (type == RIM_TYPEMOUSE) {
 				if (rdpdevice (buf1))
@@ -1618,7 +1618,7 @@ static bool initialize_rawinput (void)
 			}
 
 			prodname[0] = 0;
-			HANDLE hhid = CreateFile (buf1, 0, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);			
+			HANDLE hhid = CreateFile (buf1, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);			
 			if (hhid != INVALID_HANDLE_VALUE) {
 				if (!HidD_GetProductString (hhid, prodname, sizeof prodname)) {
 					prodname[0] = 0;
@@ -1626,6 +1626,8 @@ static bool initialize_rawinput (void)
 					while (_tcslen (prodname) > 0 && prodname[_tcslen (prodname) - 1] == ' ')
 						prodname[_tcslen (prodname) - 1] = 0;
 				}
+			} else {
+				write_log (_T("HID CreateFile failed %d\n"), GetLastError ());
 			}
 
 			rnum_raw++;
@@ -1645,7 +1647,7 @@ static bool initialize_rawinput (void)
 			did->rawinput = h;
 			did->connection = DIDC_RAW;
 
-			write_log (_T("%p %s: "), h, type == RIM_TYPEHID ? _T("hid") : (type == RIM_TYPEMOUSE ? _T("mouse") : _T("keyboard")));
+			write_log (_T("%p %p %s: "), h, hhid, type == RIM_TYPEHID ? _T("hid") : (type == RIM_TYPEMOUSE ? _T("mouse") : _T("keyboard")));
 			did->sortname = my_strdup (buf1);
 			write_log (_T("'%s'\n"), buf1);
 			did->configname = my_strdup (buf1);

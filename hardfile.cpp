@@ -1697,27 +1697,25 @@ static uae_u32 REGPARAM2 hardfile_open (TrapContext *context)
 	int unit = mangleunit (m68k_dreg (regs, 0));
 	struct hardfileprivdata *hfpd = &hardfpd[unit];
 	int err = IOERR_OPENFAIL;
-	int size = get_word (ioreq + 0x12);
 
-	/* boot device port size == 0!? KS 1.x size = 12??? */
-	if (size >= IOSTDREQ_SIZE || size == 0 || kickstart_version == 0xffff || kickstart_version < 39) {
-		/* Check unit number */
-		if (unit >= 0) {
-			struct hardfiledata *hfd = get_hardfile_data (unit);
-			if (hfd && (hfd->handle_valid || hfd->drive_empty) && start_thread (context, unit)) {
-				put_word (hfpd->base + 32, get_word (hfpd->base + 32) + 1);
-				put_long (ioreq + 24, unit); /* io_Unit */
-				put_byte (ioreq + 31, 0); /* io_Error */
-				put_byte (ioreq + 8, 7); /* ln_type = NT_REPLYMSG */
-				hf_log (_T("hardfile_open, unit %d (%d), OK\n"), unit, m68k_dreg (regs, 0));
-				return 0;
-			}
+	/* boot device port size == 0!? KS 1.x size = 12???
+	 * Ignore message size, too many programs do not set it correct
+	 * int size = get_word (ioreq + 0x12);
+	 */
+	/* Check unit number */
+	if (unit >= 0) {
+		struct hardfiledata *hfd = get_hardfile_data (unit);
+		if (hfd && (hfd->handle_valid || hfd->drive_empty) && start_thread (context, unit)) {
+			put_word (hfpd->base + 32, get_word (hfpd->base + 32) + 1);
+			put_long (ioreq + 24, unit); /* io_Unit */
+			put_byte (ioreq + 31, 0); /* io_Error */
+			put_byte (ioreq + 8, 7); /* ln_type = NT_REPLYMSG */
+			hf_log (_T("hardfile_open, unit %d (%d), OK\n"), unit, m68k_dreg (regs, 0));
+			return 0;
 		}
-		if (unit < 1000 || is_hardfile (unit) == FILESYS_VIRTUAL || is_hardfile (unit) == FILESYS_CD)
-			err = 50; /* HFERR_NoBoard */
-	} else {
-		err = IOERR_BADLENGTH;
 	}
+	if (unit < 1000 || is_hardfile (unit) == FILESYS_VIRTUAL || is_hardfile (unit) == FILESYS_CD)
+		err = 50; /* HFERR_NoBoard */
 	hf_log (_T("hardfile_open, unit %d (%d), ERR=%d\n"), unit, m68k_dreg (regs, 0), err);
 	put_long (ioreq + 20, (uae_u32)err);
 	put_byte (ioreq + 31, (uae_u8)err);

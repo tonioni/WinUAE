@@ -3717,7 +3717,7 @@ static void gen_opcode (unsigned long int opcode)
 		printf ("\ts = (uae_s32)src + 2;\n");
 		if (using_exception_3) {
 			printf ("\tif (src & 1) {\n");
-			printf ("\t\texception3 (opcode, m68k_getpc () + s, 0, 1, m68k_getpc () + s);\n");
+			printf ("\t\texception3b (opcode, m68k_getpc () + s, 0, 1, m68k_getpc () + s);\n");
 			printf ("\t\tgoto %s;\n", endlabelstr);
 			printf ("\t}\n");
 			need_endlabel = 1;

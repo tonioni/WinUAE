@@ -1528,12 +1528,13 @@ static void show_rom_list (void)
 		11, 31, 15, -1, -1, // A1200
 		59, 71, 61, -1, -1, // A3000
 		16, 46, 31, 13, 12, -1, -1, // A4000
+		17, -1, -1, // A4000T
 		18, -1, 19, -1, -1, // CD32
 		20, 21, 22, -1, 6, 32, -1, -1, // CDTV
-		49, 50, 51, -1, 5, 4, -1, -1, // ARCADIA
+		49, 50, 75, 51, 76, 77, -1, 5, 4, -1, -1, // ARCADIA
 		46, 16, 17, 31, 13, 12, -1, -1, // highend, any 3.x A4000
-		53, 54, 55, -1, -1, // A590/A2091
-		//56, 57, -1, -1, // A4091
+		53, 54, 55, 56, -1, -1, // A590/A2091
+		57, 58, -1, -1, // A4091
 		0, 0, 0
 	};
 
@@ -1541,7 +1542,7 @@ static void show_rom_list (void)
 	WIN32GUI_LoadUIString (IDS_ROM_UNAVAILABLE, unavail, sizeof (avail) / sizeof (TCHAR));
 	_tcscat (avail, _T("\n"));
 	_tcscat (unavail, _T("\n"));
-	p1 = _T("A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A4000\0\nCD32\0CDTV\0Arcadia Multi Select\0High end WinUAE\0\nA590/A2091 SCSI Boot ROM\0\0");
+	p1 = _T("A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A4000\0A4000T\0\nCD32\0CDTV\0Arcadia Multi Select\0High end WinUAE\0\nA590/A2091 SCSI Boot ROM\0A4091 SCSI Boot ROM\0\0");
 
 	p = xmalloc (TCHAR, 100000);
 	if (!p)
@@ -2558,6 +2559,14 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		case IDC_CARTFILE:
 			_tcscpy (workprefs.cartfile, full_path);
 			fullpath (workprefs.cartfile, MAX_DPATH);
+			break;
+		case IDC_A2091ROMFILE:
+			_tcscpy (workprefs.a2091romfile, full_path);
+			fullpath (workprefs.a2091romfile, MAX_DPATH);
+			break;
+		case IDC_A4091ROMFILE:
+			_tcscpy (workprefs.a4091romfile, full_path);
+			fullpath (workprefs.a4091romfile, MAX_DPATH);
 			break;
 		case IDC_STATEREC_PLAY:
 		case IDC_STATEREC_RECORD:
@@ -8063,6 +8072,8 @@ static void values_from_kickstartdlg (HWND hDlg)
 	getromfile (hDlg, IDC_ROMFILE, workprefs.romfile, sizeof (workprefs.romfile) / sizeof (TCHAR));
 	getromfile (hDlg, IDC_ROMFILE2, workprefs.romextfile, sizeof (workprefs.romextfile) / sizeof (TCHAR));
 	getromfile (hDlg, IDC_CARTFILE, workprefs.cartfile, sizeof (workprefs.cartfile) / sizeof (TCHAR));
+	getromfile (hDlg, IDC_A2091ROMFILE, workprefs.a2091romfile, sizeof (workprefs.a2091romfile) / sizeof (TCHAR));
+	getromfile (hDlg, IDC_A4091ROMFILE, workprefs.a4091romfile, sizeof (workprefs.a4091romfile) / sizeof (TCHAR));
 }
 
 static void values_to_kickstartdlg (HWND hDlg)
@@ -8077,6 +8088,10 @@ static void values_to_kickstartdlg (HWND hDlg)
 		ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS);
 	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile,
 		ROMTYPE_AR | ROMTYPE_SUPERIV | ROMTYPE_NORDIC | ROMTYPE_XPOWER | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON | ROMTYPE_CD32CART);
+	addromfiles (fkey, hDlg, IDC_A2091ROMFILE, workprefs.a2091romfile,
+		ROMTYPE_A2091BOOT);
+	addromfiles (fkey, hDlg, IDC_A4091ROMFILE, workprefs.a4091romfile,
+		ROMTYPE_A4091BOOT);
 	regclosetree (fkey);
 
 	SetDlgItemText(hDlg, IDC_FLASHFILE, workprefs.flashfile);
@@ -8103,6 +8118,10 @@ static void init_kickstart (HWND hDlg)
 	ew (hDlg, IDC_CARTCHOOSER), FALSE);
 	ew (hDlg, IDC_FLASHCHOOSER), FALSE);
 #endif
+	ew (hDlg, IDC_A4091ROMCHOOSER, workprefs.cs_a4091);
+	ew (hDlg, IDC_A4091ROMFILE, workprefs.cs_a4091);
+	ew (hDlg, IDC_A2091ROMCHOOSER, workprefs.cs_a2091);
+	ew (hDlg, IDC_A2091ROMFILE, workprefs.cs_a2091);
 	if (!regexiststree (NULL , _T("DetectedROMs")))
 		scan_roms (NULL, rp_isactive () ? 0 : 1);
 }
@@ -8131,6 +8150,14 @@ static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, TCHAR *path)
 		DiskSelection(hDlg, IDC_CARTFILE, 6, &workprefs, path);
 		values_to_kickstartdlg (hDlg);
 		break;
+	case IDC_A2091ROMCHOOSER:
+		DiskSelection(hDlg, IDC_A2091ROMFILE, 6, &workprefs, path);
+		values_to_kickstartdlg (hDlg);
+		break;
+	case IDC_A4091ROMCHOOSER:
+		DiskSelection(hDlg, IDC_A4091ROMFILE, 6, &workprefs, path);
+		values_to_kickstartdlg (hDlg);
+		break;
 	}
 }
 
@@ -8143,7 +8170,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	{
 	case WM_INITDIALOG:
 		{
-			int ids[] = { IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, -1 };
+			int ids[] = { IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, IDC_A2091ROMFILE, IDC_A4091ROMFILE, -1 };
 			pages[KICKSTART_ID] = hDlg;
 			currentpage = KICKSTART_ID;
 			init_kickstart (hDlg);
@@ -8180,6 +8207,8 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			case IDC_ROMFILE:
 			case IDC_ROMFILE2:
 			case IDC_CARTFILE:
+			case IDC_A2091ROMFILE:
+			case IDC_A4091ROMFILE:
 				values_from_kickstartdlg (hDlg);
 				break;
 			}
@@ -12254,11 +12283,11 @@ static void init_portsdlg (HWND hDlg)
 
 	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Robocop 3"));
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Leaderboard"));
+	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("RoboCop 3"));
+	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Leader Board"));
 	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("B.A.T. II"));
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Italy'90 Soccer"));
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Dames Grand Maitre"));
+	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Italy '90 Soccer"));
+	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Dames Grand-Maître"));
 	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Rugby Coach"));
 	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Cricket Captain"));
 	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Leviathan"));
@@ -15344,7 +15373,7 @@ static int ignorewindows[] = {
 	-1,
 	IDD_INPUT, IDC_INPUTDEVICE, IDC_INPUTLIST, IDC_INPUTAMIGA,
 	-1,
-	IDD_KICKSTART, IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, IDC_FLASHFILE, IDC_RTCFILE,
+	IDD_KICKSTART, IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, IDC_FLASHFILE, IDC_RTCFILE, IDC_A2091ROMFILE, IDC_A4091ROMFILE,
 	-1,
 	IDD_LOADSAVE, IDC_CONFIGTREE, IDC_EDITNAME, IDC_EDITDESCRIPTION, IDC_CONFIGLINK, IDC_EDITPATH,
 	-1,

@@ -429,6 +429,10 @@ struct uae_prefs {
 	uae_u32 romextfile2addr;
 	TCHAR romextfile2[MAX_DPATH];
 	TCHAR romextident[256];
+	TCHAR a2091romfile[MAX_DPATH];
+	TCHAR a2091romident[256];
+	TCHAR a4091romfile[MAX_DPATH];
+	TCHAR a4091romident[256];
 	TCHAR flashfile[MAX_DPATH];
 	TCHAR rtcfile[MAX_DPATH];
 	TCHAR cartfile[MAX_DPATH];

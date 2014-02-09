@@ -930,6 +930,7 @@ void do_leave_program (void)
 #endif
 #ifdef A2091
 	a2091_free ();
+	a3000scsi_free ();
 #endif
 #ifdef NCR
 	ncr_free ();

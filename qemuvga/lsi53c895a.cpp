@@ -13,7 +13,7 @@
  * as well-behaved operating systems will not try to use them.
  */
 
-/* Hacked to partially support LSI53C710 for UAE by Toni Wilen */
+/* Hacked to support LSI53C710 for UAE by Toni Wilen */
 
 #include <assert.h>
 
@@ -25,8 +25,8 @@
 #include "scsi/scsi.h"
 //#include "sysemu/dma.h"
 
-#define DEBUG_LSI
-#define DEBUG_LSI_REG
+//#define DEBUG_LSI
+//#define DEBUG_LSI_REG
 
 #ifdef DEBUG_LSI
 #define DPRINTF(fmt, ...) \
@@ -45,7 +45,7 @@ do { write_log("lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 #define LSI_SCNTL0_AAP    0x02
 #define LSI_SCNTL0_EPG    0x08
 #define LSI_SCNTL0_EPC    0x08
-#define LSI_SCNTL0_WATN   0x10
+#define LSI_SCNTL0_WATN   0x10,
 #define LSI_SCNTL0_START  0x20
 
 #define LSI_SCNTL1_RCV    0x01
@@ -66,18 +66,14 @@ do { write_log("lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 #define LSI_SCNTL2_CHM    0x40
 #define LSI_SCNTL2_SDU    0x80
 
-#define LSI_ISTAT0_DIP    0x01
-#define LSI_ISTAT0_SIP    0x02
+#define LSI_ISTAT_DIP    0x01
+#define LSI_ISTAT_SIP    0x02
 //#define LSI_ISTAT0_INTF   0x04
-#define LSI_ISTAT0_CON    0x08
+#define LSI_ISTAT_CON    0x08
 //#define LSI_ISTAT0_SEM    0x10
-#define LSI_ISTAT0_SIGP   0x20
-#define LSI_ISTAT0_SRST   0x40
-#define LSI_ISTAT0_ABRT   0x80
-
-#define LSI_ISTAT1_SI     0x01
-#define LSI_ISTAT1_SRUN   0x02
-#define LSI_ISTAT1_FLSH   0x04
+#define LSI_ISTAT_SIGP   0x20
+#define LSI_ISTAT_RST    0x40
+#define LSI_ISTAT_ABRT   0x80
 
 #define LSI_SSTAT1_WOA    0x04
 
@@ -131,11 +127,9 @@ do { write_log("lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 #define LSI_DCNTL_CLSE    0x80
 
 #define LSI_DMODE_MAN     0x01
-#define LSI_DMODE_BOF     0x02
-#define LSI_DMODE_ERMP    0x04
-#define LSI_DMODE_ERL     0x08
-#define LSI_DMODE_DIOM    0x10
-#define LSI_DMODE_SIOM    0x20
+#define LSI_DMODE_UO      0x02
+#define LSI_DMODE_FAM     0x04
+#define LSI_DMODE_PD      0x08
 
 #define LSI_CTEST2_DACK   0x01
 #define LSI_CTEST2_DREQ   0x02
@@ -168,8 +162,6 @@ do { write_log("lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 /* Enable Response to Reselection */
 #define LSI_SCID_RRE      0x60
 
-#define LSI_CCNTL1_40BIT (LSI_CCNTL1_EN64TIBMV|LSI_CCNTL1_64TIMOD)
-
 #define PHASE_DO          0
 #define PHASE_DI          1
 #define PHASE_CMD         2
@@ -199,9 +191,9 @@ typedef struct {
     //PCIDevice parent_obj;
     /*< public >*/
 
-    MemoryRegion mmio_io;
-    MemoryRegion ram_io;
-    MemoryRegion io_io;
+    //MemoryRegion mmio_io;
+    //MemoryRegion ram_io;
+    //MemoryRegion io_io;
 
     int carry; /* ??? Should this be an a visible register somewhere?  */
     int status;
@@ -227,89 +219,62 @@ typedef struct {
     uint32_t temp;
     uint32_t dnad;
     uint32_t dbc;
-    uint8_t istat0;
-    uint8_t istat1;
+    uint8_t istat;
     uint8_t dcmd;
     uint8_t dstat;
     uint8_t dien;
 //    uint8_t sist0;
 //    uint8_t sist1;
     uint8_t sien0;
-//    uint8_t sien1;
-    uint8_t mbox0;
-    uint8_t mbox1;
-    uint8_t dfifo;
     uint8_t ctest2;
     uint8_t ctest3;
     uint8_t ctest4;
     uint8_t ctest5;
-    uint8_t ccntl0;
-    uint8_t ccntl1;
     uint32_t dsp;
     uint32_t dsps;
     uint8_t dmode;
     uint8_t dcntl;
     uint8_t scntl0;
     uint8_t scntl1;
-    uint8_t scntl2;
-    uint8_t scntl3;
     uint8_t sstat0;
     uint8_t sstat1;
     uint8_t scid;
     uint8_t sxfer;
     uint8_t socl;
     uint8_t sdid;
-    uint8_t ssid;
     uint8_t sfbr;
-    uint8_t stest1;
-    uint8_t stest2;
-    uint8_t stest3;
     uint8_t sidl;
-    uint8_t stime0;
-    uint8_t respid0;
-    uint8_t respid1;
-    uint32_t mmrs;
-    uint32_t mmws;
-    uint32_t sfs;
-    uint32_t drs;
-    uint32_t sbms;
-    uint32_t dbms;
-    uint32_t dnad64;
-    uint32_t pmjad1;
-    uint32_t pmjad2;
-    uint32_t rbc;
-    uint32_t ua;
-    uint32_t ia;
     uint32_t sbc;
-    uint32_t csbc;
-    uint32_t scratch[18]; /* SCRATCHA-SCRATCHR */
+    uint32_t scratch;
     uint8_t sbr;
-
-    /* Script ram is stored as 32-bit words in host byteorder.  */
-    uint32_t script_ram[2048];
 
 	uint8_t ctest0;
 	uint8_t ctest1;
 	uint8_t ctest6;
 	uint8_t ctest7;
+	uint8_t ctest8;
+	uint8_t lcrc;
 	uint8_t sstat2;
+	uint8_t dwt;
+	uint8_t script_active;
 } LSIState;
 
-#define TYPE_LSI53C810  "lsi53c810"
-#define TYPE_LSI53C895A "lsi53c895a"
+//#define TYPE_LSI53C810  "lsi53c810"
+//#define TYPE_LSI53C895A "lsi53c895a"
 
 #define LSI53C895A(obj) (LSIState*)obj->lsistate
  //((LSIState*)(OBJECT_CHECK(LSIState, (obj), TYPE_LSI53C895A)))
 
 static inline int lsi_irq_on_rsl(LSIState *s)
 {
-	return 0;//   return (s->sien0 & LSI_SIST0_RSL) && (s->scid & LSI_SCID_RRE);
+	return 0; //return (s->sien0 & LSI_SIST0_RSL) && (s->scid & LSI_SCID_RRE);
 }
 
 static void lsi_soft_reset(LSIState *s)
 {
     DPRINTF("Reset\n");
     s->carry = 0;
+	memset (s, 0, sizeof LSIState);
 
     s->msg_action = 0;
     s->msg_len = 0;
@@ -318,9 +283,8 @@ static void lsi_soft_reset(LSIState *s)
     s->dnad = 0;
     s->dbc = 0;
     s->temp = 0;
-    memset(s->scratch, 0, sizeof(s->scratch));
-    s->istat0 = 0;
-    s->istat1 = 0;
+	s->scratch = 0;
+    s->istat = 0;
     s->dcmd = 0x40;
     s->dstat = LSI_DSTAT_DFE;
     s->dien = 0;
@@ -328,57 +292,31 @@ static void lsi_soft_reset(LSIState *s)
 //    s->sist1 = 0;
     s->sien0 = 0;
 //    s->sien1 = 0;
-    s->mbox0 = 0;
-    s->mbox1 = 0;
-    s->dfifo = 0;
     s->ctest2 = LSI_CTEST2_DACK;
     s->ctest3 = 0;
     s->ctest4 = 0;
     s->ctest5 = 0;
-    s->ccntl0 = 0;
-    s->ccntl1 = 0;
     s->dsp = 0;
     s->dsps = 0;
     s->dmode = 0;
     s->dcntl = 0;
     s->scntl0 = 0xc0;
     s->scntl1 = 0;
-    s->scntl2 = 0;
-    s->scntl3 = 0;
     s->sstat0 = 0;
     s->sstat1 = 0;
 	s->sstat2 = 0;
-    s->scid = 7;
+    s->scid = 0x80;
     s->sxfer = 0;
     s->socl = 0;
     s->sdid = 0;
-    s->ssid = 0;
-    s->stest1 = 0;
-    s->stest2 = 0;
-    s->stest3 = 0;
     s->sidl = 0;
-    s->stime0 = 0;
-    s->respid0 = 0x80;
-    s->respid1 = 0;
-    s->mmrs = 0;
-    s->mmws = 0;
-    s->sfs = 0;
-    s->drs = 0;
-    s->sbms = 0;
-    s->dbms = 0;
-    s->dnad64 = 0;
-    s->pmjad1 = 0;
-    s->pmjad2 = 0;
-    s->rbc = 0;
-    s->ua = 0;
-    s->ia = 0;
     s->sbc = 0;
-    s->csbc = 0;
     s->sbr = 0;
     assert(QTAILQ_EMPTY(&s->queue));
     assert(!s->current);
 }
 
+#if 0
 static int lsi_dma_40bit(LSIState *s)
 {
     if ((s->ccntl1 & LSI_CCNTL1_40BIT) == LSI_CCNTL1_40BIT)
@@ -399,6 +337,7 @@ static int lsi_dma_64bit(LSIState *s)
         return 1;
     return 0;
 }
+#endif
 
 static uint8_t lsi_reg_readb(LSIState *s, int offset);
 static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val);
@@ -415,7 +354,7 @@ static inline uint32_t read_dword(LSIState *s, uint32_t addr)
 
 static void lsi_stop_script(LSIState *s)
 {
-    s->istat1 &= ~LSI_ISTAT1_SRUN;
+    s->script_active = 0;
 }
 
 static void lsi_update_irq(LSIState *s)
@@ -432,20 +371,18 @@ static void lsi_update_irq(LSIState *s)
     if (s->dstat) {
         if (s->dstat & s->dien)
             level = 1;
-        s->istat0 |= LSI_ISTAT0_DIP;
+        s->istat |= LSI_ISTAT_DIP;
     } else {
-        s->istat0 &= ~LSI_ISTAT0_DIP;
+        s->istat &= ~LSI_ISTAT_DIP;
     }
 
     if (s->sstat0) {
         if ((s->sstat0 & s->sien0))
             level = 1;
-        s->istat0 |= LSI_ISTAT0_SIP;
+        s->istat |= LSI_ISTAT_SIP;
     } else {
-        s->istat0 &= ~LSI_ISTAT0_SIP;
+        s->istat &= ~LSI_ISTAT_SIP;
     }
-//    if (s->istat0 & LSI_ISTAT0_INTF)
-//        level = 1;
 
     if (level != last_level) {
         DPRINTF("Update IRQ level %d dstat %02x sist %02x%02x\n",
@@ -500,23 +437,17 @@ static void lsi_script_dma_interrupt(LSIState *s, int stat)
 static inline void lsi_set_phase(LSIState *s, int phase)
 {
     s->sstat2 = (s->sstat2 & ~PHASE_MASK) | phase;
+	s->ctest0 &= ~1;
+	if (phase == PHASE_DI)
+		s->ctest0 |= 1;
 }
 
 static void lsi_bad_phase(LSIState *s, int out, int new_phase)
 {
     /* Trigger a phase mismatch.  */
-    if (s->ccntl0 & LSI_CCNTL0_ENPMJ) {
-        if ((s->ccntl0 & LSI_CCNTL0_PMJCTL)) {
-            s->dsp = out ? s->pmjad1 : s->pmjad2;
-        } else {
-            s->dsp = (s->scntl2 & LSI_SCNTL2_WSR ? s->pmjad2 : s->pmjad1);
-        }
-        DPRINTF("Data phase mismatch jump to %08x\n", s->dsp);
-    } else {
-        DPRINTF("Phase mismatch interrupt\n");
-        lsi_script_scsi_interrupt(s, LSI_SSTAT0_SGE);
-        lsi_stop_script(s);
-    }
+    DPRINTF("Phase mismatch interrupt\n");
+    lsi_script_scsi_interrupt(s, LSI_SSTAT0_MA);
+    lsi_stop_script(s);
     lsi_set_phase(s, new_phase);
 }
 
@@ -569,16 +500,17 @@ static void lsi_do_dma(LSIState *s, int out)
         count = s->current->dma_len;
 
     addr = s->dnad;
-    /* both 40 and Table Indirect 64-bit DMAs store upper bits in dnad64 */
+#if 0
+	/* both 40 and Table Indirect 64-bit DMAs store upper bits in dnad64 */
     if (lsi_dma_40bit(s) || lsi_dma_ti64bit(s))
         addr |= ((uint64_t)s->dnad64 << 32);
     else if (s->dbms)
         addr |= ((uint64_t)s->dbms << 32);
     else if (s->sbms)
         addr |= ((uint64_t)s->sbms << 32);
+#endif
 
     DPRINTF("DMA addr=0x" DMA_ADDR_FMT " len=%d\n", addr, count);
-    s->csbc += count;
     s->dnad += count;
     s->dbc -= count;
      if (s->current->dma_buf == NULL) {
@@ -637,11 +569,11 @@ static void lsi_reselect(LSIState *s, lsi_request *p)
     s->current = p;
 
     id = (p->tag >> 8) & 0xf;
-    s->ssid = id | 0x80;
     /* LSI53C700 Family Compatibility, see LSI53C895A 4-73 */
     if (!(s->dcntl & LSI_DCNTL_COM)) {
         s->sfbr = 1 << (id & 0x7);
     }
+	s->lcrc = 0;
     DPRINTF("Reselected target %d\n", id);
     s->scntl1 |= LSI_SCNTL1_CON;
     lsi_set_phase(s, PHASE_MI);
@@ -708,7 +640,7 @@ static int lsi_queue_req(LSIState *s, SCSIRequest *req, uint32_t len)
        for service from the device driver. */
     if (s->waiting == 1 ||
         (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON) &&
-         !(s->istat0 & (LSI_ISTAT0_SIP | LSI_ISTAT0_DIP)))) {
+         !(s->istat & (LSI_ISTAT_SIP | LSI_ISTAT_DIP)))) {
         /* Reselect device.  */
         lsi_reselect(s, p);
         return 0;
@@ -727,6 +659,7 @@ void lsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid)
 
     out = (s->sstat2 & PHASE_MASK) == PHASE_DO;
     DPRINTF("Command complete status=%d\n", (int)status);
+	s->lcrc = 0;
     s->status = status;
     s->command_complete = 2;
     if (s->waiting && s->dbc != 0) {
@@ -780,6 +713,8 @@ static int idbitstonum(int id)
 		num++;
 		id >>= 1;
 	}
+	if (num > 7)
+		num = -1;
 	return num;
 }
 
@@ -799,6 +734,7 @@ static void lsi_do_command(LSIState *s)
     s->command_complete = 0;
 
     id = (s->select_tag >> 8) & 0xf;
+	s->lcrc = 1 << (id & 0x7);
     dev = scsi_device_find(&s->bus, 0, idbitstonum(id), s->current_lun);
     if (!dev) {
         lsi_bad_selection(s, id);
@@ -1066,11 +1002,11 @@ static void lsi_execute_script(LSIState *s)
 {
     PCIDevice *pci_dev = PCI_DEVICE(s);
     uint32_t insn;
-    uint32_t addr, addr_high;
+    uint32_t addr;
     int opcode;
     int insn_processed = 0;
 
-    s->istat1 |= LSI_ISTAT1_SRUN;
+    s->script_active = 1;
 again:
     insn_processed++;
     insn = read_dword(s, s->dsp);
@@ -1081,7 +1017,6 @@ again:
         goto again;
     }
     addr = read_dword(s, s->dsp + 4);
-    addr_high = 0;
     DPRINTF("SCRIPTS dsp=%08x opcode %08x arg %08x\n", s->dsp, insn, addr);
     s->dsps = addr;
     s->dcmd = insn >> 24;
@@ -1094,9 +1029,6 @@ again:
             break;
         }
         s->dbc = insn & 0xffffff;
-        s->rbc = s->dbc;
-        /* ??? Set ESA.  */
-        s->ia = s->dsp - 8;
         if (insn & (1 << 29)) {
             /* Indirect addressing.  */
             addr = read_dword(s, addr);
@@ -1110,10 +1042,10 @@ again:
             pci_dma_read(pci_dev, s->dsa + offset, buf, 8);
             /* byte count is stored in bits 0:23 only */
             s->dbc = cpu_to_le32(buf[0]) & 0xffffff;
-            s->rbc = s->dbc;
             addr = cpu_to_le32(buf[1]);
 
-            /* 40-bit DMA, upper addr bits [39:32] stored in first DWORD of
+#if 0
+			/* 40-bit DMA, upper addr bits [39:32] stored in first DWORD of
              * table, bits [31:24] */
             if (lsi_dma_40bit(s))
                 addr_high = cpu_to_le32(buf[0]) >> 24;
@@ -1170,6 +1102,7 @@ again:
             s->dbms = read_dword(s, s->dsp);
             s->dsp += 4;
             s->ia = s->dsp - 12;
+#endif
         }
         if ((s->sstat2 & PHASE_MASK) != ((insn >> 24) & 7)) {
             DPRINTF("Wrong phase got %d expected %d\n",
@@ -1178,7 +1111,6 @@ again:
             break;
         }
         s->dnad = addr;
-        s->dnad64 = addr_high;
         switch (s->sstat2 & 0x7) {
         case PHASE_DO:
             s->waiting = 2;
@@ -1208,11 +1140,8 @@ again:
             BADF("Unimplemented phase %d\n", s->sstat2 & PHASE_MASK);
             exit(1);
         }
-        s->dfifo = s->dbc & 0xff;
         s->ctest5 = (s->ctest5 & 0xfc) | ((s->dbc >> 8) & 3);
         s->sbc = s->dbc;
-        s->rbc -= s->dbc;
-        s->ua = addr + s->dbc;
         break;
 
     case 1: /* IO or Read/Write instruction.  */
@@ -1225,10 +1154,11 @@ again:
             } else {
                 id = insn;
             }
-            id = (id >> 16) & 0xf;
+            id = (id >> 16) & 0xff;
             if (insn & (1 << 26)) {
                 addr = s->dsp + sextract32(addr, 0, 24);
             }
+			id &= ~s->scid;
             s->dnad = addr;
             switch (opcode) {
             case 0: /* Select */
@@ -1245,13 +1175,13 @@ again:
                     break;
                 }
                 DPRINTF("Selected target %d%s\n",
-                        id, insn & (1 << 3) ? " ATN" : "");
+                        id, insn & (1 << 24) ? " ATN" : "");
                 /* ??? Linux drivers compain when this is set.  Maybe
                    it only applies in low-level mode (unimplemented).
                 lsi_script_scsi_interrupt(s, LSI_SIST0_CMP, 0); */
                 s->select_tag = id << 8;
                 s->scntl1 |= LSI_SCNTL1_CON;
-                if (insn & (1 << 3)) {
+                if (insn & (1 << 24)) {
                     s->socl |= LSI_SOCL_ATN;
                 }
                 lsi_set_phase(s, PHASE_MO);
@@ -1442,7 +1372,6 @@ again:
                 case 3: /* Interrupt */
                     DPRINTF("Interrupt 0x%08x\n", s->dsps);
                     if ((insn & (1 << 20)) != 0) {
-                        //s->istat0 |= LSI_ISTAT0_INTF;
                         lsi_update_irq(s);
                     } else {
                         lsi_script_dma_interrupt(s, LSI_DSTAT_SIR);
@@ -1506,7 +1435,7 @@ again:
             fprintf(stderr, "inf. loop with UDC masked\n");
         lsi_script_scsi_interrupt(s, LSI_SSTAT0_UDC);
         lsi_disconnect(s);
-    } else if (s->istat1 & LSI_ISTAT1_SRUN && !s->waiting) {
+    } else if (s->script_active && !s->waiting) {
         if (s->dcntl & LSI_DCNTL_SSM) {
             lsi_script_dma_interrupt(s, LSI_DSTAT_SSI);
         } else {
@@ -1720,7 +1649,11 @@ static uint8_t lsi_reg_readb2(LSIState *s, int offset)
 	case 0x05: /* SXFER */
         return s->sxfer;
 
-     case 0xc: /* DSTAT */
+    case 0xb: /* SBCL */
+        /* ??? This is not correct. However it's (hopefully) only
+           used for diagnostics, so should be ok.  */
+        return 0;
+    case 0xc: /* DSTAT */
         tmp = s->dstat | LSI_DSTAT_DFE;
 		s->dstat = 0;
 //        if ((s->istat0 & LSI_ISTAT0_INTF) == 0)
@@ -1736,30 +1669,54 @@ static uint8_t lsi_reg_readb2(LSIState *s, int offset)
         return s->sstat1;
     case 0x0f: /* SSTAT2 */
         return s->sstat2;
+    CASE_GET_REG32(dsa, 0x10)
 	case 0x14: /* CTEST0 */
         return s->ctest0;
+	case 0x15: /* CTEST1 */
+        return 0xf0; // FMT and FFL are always empty
 	case 0x16: /* CTEST2 */
         tmp = s->ctest2 | LSI_CTEST2_DACK;
-        if (s->istat0 & LSI_ISTAT0_SIGP) {
-            s->istat0 &= ~LSI_ISTAT0_SIGP;
+        if (s->istat & LSI_ISTAT_SIGP) {
+            s->istat &= ~LSI_ISTAT_SIGP;
             tmp |= LSI_CTEST2_SIGP;
         }
         return tmp;
+	case 0x17: /* CTEST3 */
+		return s->ctest3;
+	case 0x18: /* CTEST4 */
+		return s->ctest4;
+	case 0x19: /* CTEST5 */
+		return s->ctest5;
+	case 0x1a: /* CTEST6 */
+		return s->ctest6;
 	case 0x1b: /* CTEST7 */
 		return s->ctest7;
+    CASE_GET_REG32(temp, 0x1c)
+    case 0x20: /* DFIFO */
+        return 0;
 	case 0x21: /* ISTAT */
-		return s->istat0;
-
+		return s->istat;
+	case 0x22: /* CTEST8 */
+		return (s->ctest8 | (2 << 4)) & ~0x08; // clear CLF
+	case 0x23: /* LCRC */
+		return s->lcrc;
+    CASE_GET_REG24(dbc, 0x24)
+    case 0x27: /* DCMD */
+        return s->dcmd;
+    CASE_GET_REG32(dnad, 0x28)
+    CASE_GET_REG32(dsp, 0x2c)
     CASE_GET_REG32(dsps, 0x30)
-
+    CASE_GET_REG32(scratch, 0x34)
 	case 0x38: /* DMODE */
         return s->dmode;
+	case 0x3a: /* DWT */
+		return s->dwt;
     case 0x3b: /* DCNTL */
         return s->dcntl;
 	}
 #undef CASE_GET_REG24
 #undef CASE_GET_REG32
-	write_log ("unknown register\n");
+	write_log ("read unknown register %02X\n", offset);
 	return 0;
 }
 static uint8_t lsi_reg_readb(LSIState *s, int offset)
@@ -1826,32 +1783,46 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         return;
     CASE_SET_REG32(dsa, 0x10)
 	case 0x14: /* CTEST0 */
-        s->ctest0 = val;
+        s->ctest0 = (val & 0xfe) | (s->ctest0 & 1);
+        break;
+	case 0x18: /* CTEST4 */
+        s->ctest4 = val;
+        break;
+	case 0x19: /* CTEST5 */
+        s->ctest5 = val;
+        break;
+	case 0x1a: /* CTEST6 */
+        s->ctest6 = val;
         break;
 	case 0x1b: /* CTEST7 */
 		s->ctest7 = val;
 		break;
+    CASE_SET_REG32(temp, 0x1c)
 	
 	case 0x21: /* ISTAT */
-        s->istat0 = (s->istat0 & 0x0f) | (val & 0xf0);
-        if (val & LSI_ISTAT0_ABRT) {
+        s->istat = (s->istat & 0x0f) | (val & 0xf0);
+        if (val & LSI_ISTAT_ABRT) {
             lsi_script_dma_interrupt(s, LSI_DSTAT_ABRT);
         }
-//        if (val & LSI_ISTAT0_INTF) {
-//            s->istat0 &= ~LSI_ISTAT0_INTF;
-//            lsi_update_irq(s);
-//        }
-        if (s->waiting == 1 && (val & LSI_ISTAT0_SIGP)) {
+        if (s->waiting == 1 && (val & LSI_ISTAT_SIGP)) {
             DPRINTF("Woken by SIGP\n");
             s->waiting = 0;
             s->dsp = s->dnad;
             lsi_execute_script(s);
         }
-//        if (val & LSI_ISTAT0_SRST) {
-//            qdev_reset_all(DEVICE(s));
-//        }
+        if (val & LSI_ISTAT_RST) {
+            ;//qdev_reset_all(DEVICE(s));
+        }
         break;
+	case 0x22: /* CTEST8 */
+		s->ctest8 = val;
+	break;
+	case 0x23: /* LCRC */
+		s->lcrc = 0;
+	break;
  
+    CASE_SET_REG24(dbc, 0x24)
+    CASE_SET_REG32(dnad, 0x28)
     case 0x2c: /* DSP[0:7] */
         s->dsp &= 0xffffff00;
         s->dsp |= val;
@@ -1867,11 +1838,12 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
     case 0x2f: /* DSP[24:31] */
         s->dsp &= 0x00ffffff;
         s->dsp |= val << 24;
-        if ((s->dmode & LSI_DMODE_MAN) == 0
-            && (s->istat1 & LSI_ISTAT1_SRUN) == 0)
+        if ((s->dmode & LSI_DMODE_MAN) == 0) {
+			s->waiting = 0;
             lsi_execute_script(s);
+		}
         break;
-
+    CASE_SET_REG32(scratch, 0x34)
 	case 0x38: /* DMODE */
 #if 0
 		if (val & (LSI_DMODE_SIOM | LSI_DMODE_DIOM)) {
@@ -1884,13 +1856,16 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         s->dien = val;
         lsi_update_irq(s);
         break;
+	case 0x3a: /* DWT */
+		s->dwt = val;
+		break;
     case 0x3b: /* DCNTL */
         s->dcntl = val & ~(LSI_DCNTL_PFF | LSI_DCNTL_STD);
-        if ((val & LSI_DCNTL_STD) && (s->istat1 & LSI_ISTAT1_SRUN) == 0)
+		if ((val & LSI_DCNTL_STD) && (s->dmode & LSI_DMODE_MAN) == 0)
             lsi_execute_script(s);
         break;
 	default:
-		write_log ("unknown register\n");
+		write_log ("write unknown register %02X\n", offset);
 	break;
 	}
 #undef CASE_SET_REG24
@@ -2162,7 +2137,6 @@ static const MemoryRegionOps lsi_mmio_ops = {
         1,
     },
 };
-#endif
 
 static void lsi_ram_write(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
@@ -2193,7 +2167,6 @@ static uint64_t lsi_ram_read(void *opaque, hwaddr addr,
     return val & mask;
 }
 
-#if 0
 static const MemoryRegionOps lsi_ram_ops = {
     lsi_ram_read,
     lsi_ram_write,

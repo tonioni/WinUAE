@@ -238,10 +238,10 @@ void mmu_dump_atc(void)
 void mmu_dump_tables(void)
 {
 	write_log(_T("URP: %08x   SRP: %08x  MMUSR: %x  TC: %x\n"), regs.urp, regs.srp, regs.mmusr, regs.tcr);
-	mmu_dump_ttr(L"DTT0", regs.dtt0);
-	mmu_dump_ttr(L"DTT1", regs.dtt1);
-	mmu_dump_ttr(L"ITT0", regs.itt0);
-	mmu_dump_ttr(L"ITT1", regs.itt1);
+	mmu_dump_ttr(_T("DTT0"), regs.dtt0);
+	mmu_dump_ttr(_T("DTT1"), regs.dtt1);
+	mmu_dump_ttr(_T("ITT0"), regs.itt0);
+	mmu_dump_ttr(_T("ITT1"), regs.itt1);
 	mmu_dump_atc();
 #if MMUDEBUG
 	// mmu_dump_table("SRP", regs.srp);
@@ -256,7 +256,7 @@ static ALWAYS_INLINE int mmu_get_fc(bool super, bool data)
 	return (super ? 4 : 0) | (data ? 1 : 2);
 }
 
-static void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32 status)
+void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32 status)
 {
 	if (currprefs.mmu_model == 68040) {
 		uae_u16 ssw = 0;

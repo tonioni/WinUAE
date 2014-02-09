@@ -11,6 +11,26 @@
 
 - restore only single input target to default.
 
+Beta 7:
+
+- A4091 and A4000T NCR53C710 SCSI emulation works now! Now all built-in devices in all supported setups
+  are emulated. I guess last interesting big missing Commodore designed part is CD32 MPEG module.
+- Added A4000T and A4091 to ROM scanner results window.
+- Added A590/A2091 and A4091 boot ROM selection to GUI, if empty, uses old automatic selection.
+- A590/A2091 + Fast RAM: Fast RAM is always first, A590/A2091 second, then other boards (if enabled),
+  now matches real A590/A2091 with fast ram installed.
+- HID RawInput had wrong access mode in device open call, failed if other users of same device
+  used different access modes.
+- 68EC020 "opcode x has faulty prefetch" triggered too easily when program did stupid things.
+  (It is only a debug feature, it will be gone someday)
+- AGA high fetch mode screens with ddfstop near the end of right border were completely blank.
+- DDFSTRT limit should go away if programmed mode or superhires (broke in some previous beta).
+- Reset horizontal display window if it is still active at the end of scanline (even if it is
+  larger than last hpos value) if programmed mode or superhires. Perhaps this is wrong, perhaps not,
+  not bothered to test yet.. (Background "leak" in right edge in some wide programmed mode screens)
+- Accept uaehf.device open call even if ioreq->io.Message.mn_Length is invalid or too small.
+- Renamed some protection dongle names in GUI.
+
 Beta 6:
 
 - Display emulation last horizontal position (plfright) was not correctly updated, caused all kinds of

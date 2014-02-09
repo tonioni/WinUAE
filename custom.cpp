@@ -64,7 +64,7 @@
 
 #define CUSTOM_DEBUG 0
 #define SPRITE_DEBUG 0
-#define SPRITE_DEBUG_MINY 246
+#define SPRITE_DEBUG_MINY 0
 #define SPRITE_DEBUG_MAXY 0x300
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8
@@ -242,7 +242,7 @@ static uae_u8 magic_sprite_mask = 0xff;
 
 static int sprite_vblank_endline = VBLANK_SPRITE_PAL;
 
-static unsigned int sprctl[MAX_SPRITES], sprpos[MAX_SPRITES];
+static uae_u16 sprctl[MAX_SPRITES], sprpos[MAX_SPRITES];
 #ifdef AGA
 static uae_u16 sprdata[MAX_SPRITES][4], sprdatb[MAX_SPRITES][4];
 #else
@@ -389,7 +389,7 @@ static uae_u32 thisline_changed;
 
 static struct decision thisline_decision;
 static int fetch_cycle, fetch_modulo_cycle;
-
+static bool aga_plf_passed_stop2;
 enum plfstate
 {
 	plf_idle,
@@ -612,6 +612,13 @@ STATIC_INLINE int get_equ_vblank_endline (void)
 	return equ_vblank_endline + (equ_vblank_toggle ? (lof_current ? 1 : 0) : 0);
 }
 
+#define HARD_DDF_LIMITS_DISABLED ((beamcon0 & 0x80) || (bplcon0 & 0x40))
+/* The HRM says 0xD8, but that can't work... */
+#define HARD_DDF_STOP (HARD_DDF_LIMITS_DISABLED ? 0xff : 0xd6)
+#define HARD_DDF_START_REAL 0x18
+/* Programmed rates or superhires (!) disable normal DMA limits */
+#define HARD_DDF_START (HARD_DDF_LIMITS_DISABLED ? 0x04 : 0x18)
+
 /* Called to determine the state of the horizontal display window state
 * machine at the current position. It might have changed since we last
 * checked.  */
@@ -638,7 +645,7 @@ static void decide_diw (int hpos)
 				thisline_decision.diwfirstword = diwfirstword < 0 ? PIXEL_XPOS(0) : diwfirstword;
 			hdiwstate = DIW_waiting_stop;
 		}
-		if (lhdiw >= diw_hstop && last_hdiw < diw_hstop && hdiwstate == DIW_waiting_stop) {
+		if (((hpos >= maxhpos && HARD_DDF_LIMITS_DISABLED) || (lhdiw >= diw_hstop && last_hdiw < diw_hstop)) && hdiwstate == DIW_waiting_stop) {
 			if (thisline_decision.diwlastword < 0)
 				thisline_decision.diwlastword = diwlastword < 0 ? 0 : diwlastword;
 			hdiwstate = DIW_waiting_start;
@@ -661,13 +668,6 @@ STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 bc0)
 	int planes = GET_PLANES (bc0);
 	return real_bitplane_number[fetchmode][res][planes];
 }
-
-#define HARD_DDF_LIMITS_DISABLED ((beamcon0 & 0x80) || (bplcon0 & 0x40))
-/* The HRM says 0xD8, but that can't work... */
-#define HARD_DDF_STOP (HARD_DDF_LIMITS_DISABLED ? 0xff : 0xd6)
-#define HARD_DDF_START_REAL 0x18
-/* Programmed rates or superhires (!) disable normal DMA limits */
-#define HARD_DDF_START (HARD_DDF_LIMITS_DISABLED ? 0x04 : 0x18)
 
 static void reset_dbplh (int hpos, int num)
 {
@@ -1056,10 +1056,15 @@ static void compute_toscr_delay (int bplcon1)
 
 static void set_delay_lastcycle (void)
 {
-	delay_lastcycle[0] = ((maxhpos + 1) * 2 + 0) << bplcon0_res;
-	delay_lastcycle[1] = delay_lastcycle[0];
-	if (islinetoggle ())
-		delay_lastcycle[1]++;
+	if (HARD_DDF_LIMITS_DISABLED) {
+		delay_lastcycle[0] = (256 * 2) << bplcon0_res;
+		delay_lastcycle[1] = (256 * 2) << bplcon0_res;
+	} else {
+		delay_lastcycle[0] = ((maxhpos + 1) * 2 + 0) << bplcon0_res;
+		delay_lastcycle[1] = delay_lastcycle[0];
+		if (islinetoggle ())
+			delay_lastcycle[1]++;
+	}
 }
 
 static int bpldmasetuphpos, bpldmasetuphpos_diff;
@@ -2110,6 +2115,11 @@ static void finish_final_fetch (void)
 	if (plfr_state < plf_end)
 		finish_last_fetch (maxhpos, fetchmode, true);
 	plfr_state = plfr_finished;
+
+	// workaround for too long fetches that don't pass plf_passed_stop2 before end of scanline
+	if (aga_plf_passed_stop2 && plf_state >= plf_passed_stop)
+		plf_state = plf_end;
+	
 	// This is really the end of scanline, we can finally flush all remaining data.
 	thisline_decision.plfright += flush_plane_data (fetchmode);
 	thisline_decision.plflinelen = out_offs;
@@ -2154,6 +2164,15 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 			case 5: fetch (2, fm, pos); break;
 			case 6: fetch (4, fm, pos); break;
 			case 7: fetch (0, fm, pos); break;
+#ifdef AGA
+			default:
+			// if AGA: consider plf_passed_stop2 already
+			// active when last plane has been written,
+			// even if there is still idle cycles left
+			if (plf_state == plf_passed_stop)
+				aga_plf_passed_stop2 = true;
+			break;
+#endif
 			}
 			break;
 		case 4:
@@ -2162,12 +2181,24 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 			case 1: fetch (1, fm, pos); break;
 			case 2: fetch (2, fm, pos); break;
 			case 3: fetch (0, fm, pos); break;
+#ifdef AGA
+			default:
+			if (plf_state == plf_passed_stop)
+				aga_plf_passed_stop2 = true;
+			break;
+#endif
 			}
 			break;
 		case 2:
 			switch (cycle_start) {
 			case 0: fetch (1, fm, pos); break;
 			case 1: fetch (0, fm, pos); break;
+#ifdef AGA
+			default:
+			if (plf_state == plf_passed_stop)
+				aga_plf_passed_stop2 = true;
+			break;
+#endif
 			}
 			break;
 		}
@@ -2606,7 +2637,7 @@ STATIC_INLINE void decide_line (int hpos)
 			}
 
 			if (dma) {
-				if (plf_state == plf_active && (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS) || hpos >= 0x18)) {
+				if (plf_state == plf_active && (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS) || hpos >= 0x18 || HARD_DDF_LIMITS_DISABLED)) {
 					start_bpl_dma (hpos, bplstart);
 					last_decide_line_hpos = hpos;
 	#ifndef	CUSTOM_SIMPLE
@@ -3426,6 +3457,7 @@ static void reset_decisions (void)
 		memset (todisplay_aga, 0, sizeof todisplay_aga);
 		memset (todisplay2_aga, 0, sizeof todisplay2_aga);
 	}
+	aga_plf_passed_stop2 = false;
 #endif
 
 	if (bitplane_line_crossing) {
@@ -3439,6 +3471,8 @@ static void reset_decisions (void)
 			beginning_of_plane_block (bitplane_line_crossing, fetchmode);
 		}
 		bitplane_line_crossing = 0;
+	} else {
+		reset_bpl_vars ();
 	}
 
 	last_decide_line_hpos = -1;
@@ -6101,7 +6135,7 @@ STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos, int cyc
 }
 STATIC_INLINE uae_u16 sprite_fetch2 (struct sprite *s, int hpos, int cycle, int mode)
 {
-	uae_u16 data = last_custom_value1 = chipmem_wget_indirect (s->pt);
+	uae_u16 data = chipmem_wget_indirect (s->pt);
 	s->pt += 2;
 	return data;
 }
@@ -6345,6 +6379,7 @@ static void init_hardware_frame (void)
 	autoscale_bordercolors = 0;
 	for (i = 0; i < MAX_SPRITES; i++)
 		spr[i].ptxhpos = MAXHPOS;
+	plf_state = plf_end;
 }
 
 void init_hardware_for_drawing_frame (void)

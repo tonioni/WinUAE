@@ -1558,7 +1558,7 @@ uae_u32 mmu030_ptest_table_search(uaecptr logical_addr, uae_u32 fc, bool write, 
 #define ATC030_PHYS_CI  0x04000000
 #define ATC030_PHYS_BE  0x08000000
 
-static void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc) {
+void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc) {
 	regs.mmu_fault_addr = addr;
 	regs.mmu_ssw = (fc & 1) ? MMU030_SSW_DF | (MMU030_SSW_DF << 1) : (MMU030_SSW_FB | MMU030_SSW_RB);
 	regs.mmu_ssw |= read ? MMU030_SSW_RW : 0;

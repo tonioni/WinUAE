@@ -24,6 +24,7 @@
 #include "scsi.h"
 #include "filesys.h"
 #include "zfile.h"
+#include "blkdev.h"
 #include "qemuvga\qemuuaeglue.h"
 #include "qemuvga\queue.h"
 #include "qemuvga\scsi\scsi.h"
@@ -49,30 +50,37 @@ static int board_mask;
 static int configured;
 static uae_u8 acmemory[100];
 
-struct ncrscsi {
-	TCHAR *name;
-	int be, le;
-};
-
 static DeviceState devobject;
 static SCSIDevice *scsid[8];
+static SCSIBus scsibus;
 
 void pci_set_irq(PCIDevice *pci_dev, int level)
 {
 	if (!level)
 		return;
 	INTREQ (0x8000 | 0x0008);
-	write_log (_T("NCR IRQ\n"));
 }
 
 void scsi_req_continue(SCSIRequest *req)
 {
+	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
+	if (sd->data_len) {
+		lsi_transfer_data (req, sd->data_len);
+	} else {
+		if (sd->direction > 0)
+			scsi_emulate_cmd(sd);
+		lsi_command_complete (req, sd->status, 0);
+	}
 }
 SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun, uint8_t *buf, int len, void *hba_private)
 {
 	SCSIRequest *req = xcalloc(SCSIRequest, 1);
-	req->dev = d;
 	struct scsi_data *sd = (struct scsi_data*)d->handle;
+
+	req->dev = d;
+	req->hba_private = hba_private;
+	req->bus = &scsibus;
+	req->bus->qbus.parent = &devobject;
 	
 	memcpy (sd->cmd, buf, len);
 	sd->cmd_len = len;
@@ -81,26 +89,37 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun, uint8_t *bu
 int32_t scsi_req_enqueue(SCSIRequest *req)
 {
 	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
+
+	sd->data_len = 0;
 	scsi_start_transfer (sd);
 	scsi_emulate_analyze (sd);
-	scsi_emulate_cmd(sd);
+	//write_log (_T("%02x.%02x.%02x.%02x.%02x.%02x\n"), sd->cmd[0], sd->cmd[1], sd->cmd[2], sd->cmd[3], sd->cmd[4], sd->cmd[5]);
+	
+	if (sd->direction < 0)
+		scsi_emulate_cmd(sd);
+	if (sd->direction == 0)
+		return 1;
 	return -sd->direction;
 }
 void scsi_req_unref(SCSIRequest *req)
 {
+	xfree (req);
 }
 uint8_t *scsi_req_get_buf(SCSIRequest *req)
 {
-	return NULL;
+	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
+	sd->data_len = 0;
+	return sd->buffer;
 }
 SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int target, int lun)
 {
-	if (lun != 0)
+	if (lun != 0 || target < 0 || target >= 8)
 		return NULL;
 	return scsid[target];
 }
 void scsi_req_cancel(SCSIRequest *req)
 {
+	write_log (_T("scsi_req_cancel\n"));
 }
 
 
@@ -312,21 +331,6 @@ static void ew (int addr, uae_u32 value)
 	}
 }
 
-void ncr_free (void)
-{
-}
-
-void ncr_reset (void)
-{
-	configured = 0;
-	board_mask = 0xffff;
-	if (currprefs.cs_mbdmac == 2) {
-		configured = -1;
-	}
-	if (devobject.lsistate)
-		lsi_scsi_reset (&devobject);
-}
-
 void ncr_init (void)
 {
 	lsi_scsi_init (&devobject);
@@ -334,9 +338,7 @@ void ncr_init (void)
 
 void ncr_autoconfig_init (void)
 {
-	struct zfile *z;
 	int roms[3];
-	struct romlist *rl;
 	int i;
 
 	configured = 0;
@@ -362,21 +364,24 @@ void ncr_autoconfig_init (void)
 	roms[1] = 57;
 	roms[2] = -1;
 
-	rl = getromlistbyids(roms);
-	if (rl) {
-		struct romdata *rd = rl->rd;
-		z = read_rom (&rd);
-		if (z) {
-			write_log (_T("A4091 BOOT ROM %d.%d\n"), rd->ver, rd->rev);
-			rom = xmalloc (uae_u8, ROM_SIZE * 4);
-			for (i = 0; i < ROM_SIZE; i++) {
-				uae_u8 b;
-				zfile_fread (&b, 1, 1, z);
-				rom[i * 4 + 0] = b;
-				rom[i * 4 + 2] = b << 4;
-			}
-			zfile_fclose(z);
+	struct zfile *z = read_rom_name (currprefs.a4091romfile);
+	if (!z) {
+		struct romlist *rl = getromlistbyids(roms);
+		if (rl) {
+			struct romdata *rd = rl->rd;
+			z = read_rom (&rd);
 		}
+	}
+	if (z) {
+		write_log (_T("A4091 BOOT ROM '%s'\n"), zfile_getname (z));
+		rom = xmalloc (uae_u8, ROM_SIZE * 4);
+		for (i = 0; i < ROM_SIZE; i++) {
+			uae_u8 b;
+			zfile_fread (&b, 1, 1, z);
+			rom[i * 4 + 0] = b;
+			rom[i * 4 + 2] = b << 4;
+		}
+		zfile_fclose(z);
 	} else {
 		romwarning (roms);
 	}
@@ -385,9 +390,39 @@ void ncr_autoconfig_init (void)
 	map_banks (&ncr_bank, 0xe80000 >> 16, 65536 >> 16, 0);
 }
 
+static void freescsi (struct scsi_data *sd)
+{
+	if (!sd)
+		return;
+	hdf_hd_close (sd->hfd);
+	scsi_free (sd);
+}
+
 static void freescsi (SCSIDevice *scsi)
 {
-	xfree (scsi);
+	if (scsi) {
+		freescsi ((struct scsi_data*)scsi->handle);
+		xfree (scsi);
+	}
+}
+
+void ncr_free (void)
+{
+	for (int ch = 0; ch < 8; ch++) {
+		freescsi (scsid[ch]);
+		scsid[ch] = NULL;
+	}
+}
+
+void ncr_reset (void)
+{
+	configured = 0;
+	board_mask = 0xffff;
+	if (currprefs.cs_mbdmac == 2) {
+		configured = -1;
+	}
+	if (devobject.lsistate)
+		lsi_scsi_reset (&devobject);
 }
 
 static int add_scsi_hd (int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level)
@@ -412,23 +447,50 @@ static int add_scsi_hd (int ch, struct hd_hardfiledata *hfd, struct uaedev_confi
 }
 
 
+static int add_scsi_cd (int ch, int unitnum)
+{
+	void *handle;
+	device_func_init (0);
+	freescsi (scsid[ch]);
+	scsid[ch] = NULL;
+	handle = scsi_alloc_cd (ch, unitnum, false);
+	if (!handle)
+		return 0;
+	scsid[ch] = xcalloc (SCSIDevice, 1);
+	scsid[ch]->handle = handle;
+	return scsid[ch] ? 1 : 0;
+}
+
+static int add_scsi_tape (int ch, const TCHAR *tape_directory, bool readonly)
+{
+	void *handle;
+	freescsi (scsid[ch]);
+	scsid[ch] = NULL;
+	handle = scsi_alloc_tape (ch, tape_directory, readonly);
+	if (!handle)
+		return 0;
+	scsid[ch] = xcalloc (SCSIDevice, 1);
+	scsid[ch]->handle = handle;
+	return scsid[ch] ? 1 : 0;
+}
+
 int a4000t_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
-//	if (ci->type == UAEDEV_CD)
-//		return add_scsi_cd (ch, ci->device_emu_unit);
-//	else if (ci->type == UAEDEV_TAPE)
-//		return add_scsi_tape (ch, ci->rootdir, ci->readonly);
-//	else
+	if (ci->type == UAEDEV_CD)
+		return add_scsi_cd (ch, ci->device_emu_unit);
+	else if (ci->type == UAEDEV_TAPE)
+		return add_scsi_tape (ch, ci->rootdir, ci->readonly);
+	else
 		return add_scsi_hd (ch, NULL, ci, 1);
 }
 
 int a4091_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
-//	if (ci->type == UAEDEV_CD)
-//		return add_scsi_cd (ch, ci->device_emu_unit);
-//	else if (ci->type == UAEDEV_TAPE)
-//		return add_scsi_tape (ch, ci->rootdir, ci->readonly);
-//	else
+	if (ci->type == UAEDEV_CD)
+		return add_scsi_cd (ch, ci->device_emu_unit);
+	else if (ci->type == UAEDEV_TAPE)
+		return add_scsi_tape (ch, ci->rootdir, ci->readonly);
+	else
 		return add_scsi_hd (ch, NULL, ci, 1);
 }
 

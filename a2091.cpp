@@ -1849,30 +1849,32 @@ void a2091_init (void)
 
 	rombankswitcher = 0;
 	rombank = 0;
-	rl = getromlistbyids (roms);
-	if (rl) {
-		struct zfile *z;
-		rd = rl->rd; 
-		z = read_rom (&rd);
-		if (z) {
-			int slotsize = 65536;
-			write_log (_T("A590/A2091 BOOT ROM %d.%d\n"), rd->ver, rd->rev);
-			rom_size = rd->size;
-			rom = xmalloc (uae_u8, slotsize);
-			zfile_fread (rom, rom_size, 1, z);
-			zfile_fclose (z);
-			if (rl->rd->id == 56) {
-				rombankswitcher = 1;
-				for (int i = rom_size - 1; i >= 0; i--) {
-					rom[i * 2 + 0] = rom[i];
-					rom[i * 2 + 1] = 0xff;
-				}
-			} else {
-				for (int i = 1; i < slotsize / rom_size; i++)
-					memcpy (rom + i * rom_size, rom, rom_size);
-			}
-			rom_mask = rom_size - 1;
+	struct zfile *z = read_rom_name (currprefs.a2091romfile);
+	if (!z) {
+		rl = getromlistbyids (roms);
+		if (rl) {
+			rd = rl->rd; 
+			z = read_rom (&rd);
 		}
+	}
+	if (z) {
+		int slotsize = 65536;
+		write_log (_T("A590/A2091 BOOT ROM '%s'\n"), zfile_getname (z));
+		rom_size = rd->size;
+		rom = xmalloc (uae_u8, slotsize);
+		zfile_fread (rom, rom_size, 1, z);
+		zfile_fclose (z);
+		if (rl->rd->id == 56) {
+			rombankswitcher = 1;
+			for (int i = rom_size - 1; i >= 0; i--) {
+				rom[i * 2 + 0] = rom[i];
+				rom[i * 2 + 1] = 0xff;
+			}
+		} else {
+			for (int i = 1; i < slotsize / rom_size; i++)
+				memcpy (rom + i * rom_size, rom, rom_size);
+		}
+		rom_mask = rom_size - 1;
 	} else {
 		romwarning (roms);
 	}

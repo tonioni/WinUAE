@@ -769,16 +769,19 @@ static void expamem_init_fastcard (void)
 {
 	uae_u16 mid = (currprefs.cs_a2091 || currprefs.uae_hide) ? commodore : uae_id;
 	uae_u8 pid = (currprefs.cs_a2091 || currprefs.uae_hide) ? commodore_a2091_ram : (currprefs.maprom ? 1 : 81);
+	uae_u8 type = add_memory | zorroII | (currprefs.cs_a2091 ? chainedconfig : 0);
 
 	expamem_init_clear ();
 	if (fastmem_bank.allocated == 0x100000)
-		expamem_write (0x00, Z2_MEM_1MB + add_memory + zorroII);
+		type |= Z2_MEM_1MB;
 	else if (fastmem_bank.allocated == 0x200000)
-		expamem_write (0x00, Z2_MEM_2MB + add_memory + zorroII);
+		type |= Z2_MEM_2MB;
 	else if (fastmem_bank.allocated == 0x400000)
-		expamem_write (0x00, Z2_MEM_4MB + add_memory + zorroII);
+		type |= Z2_MEM_4MB;
 	else if (fastmem_bank.allocated == 0x800000)
-		expamem_write (0x00, Z2_MEM_8MB + add_memory + zorroII);
+		type |= Z2_MEM_8MB;
+
+	expamem_write (0x00, type);
 
 	expamem_write (0x08, care_addr);
 
@@ -1292,6 +1295,7 @@ void expamem_reset (void)
 	}
 	if (need_uae_boot_rom () == 0)
 		do_mount = 0;
+
 	if (fastmem_bank.baseaddr != NULL && currprefs.chipmem_size <= 2 * 1024 * 1024) {
 		if (currprefs.fastmem_autoconfig) {
 			fastmem_bank.name = _T("Fast memory");
@@ -1303,6 +1307,14 @@ void expamem_reset (void)
 			map_banks (&fastmem_bank, 0x00200000 >> 16, fastmem_bank.allocated >> 16, 0);
 		}
 	}
+	// immediately after Z2Fast so that they can be emulated as A590/A2091 with fast ram.
+#ifdef A2091
+	if (currprefs.cs_a2091) {
+		card_name[cardno] = _T("A2091");
+		card_init[cardno] = expamem_init_a2091;
+		card_map[cardno++] = NULL;
+	}
+#endif
 
 #ifdef CDTV
 	if (currprefs.cs_cdtvcd) {
@@ -1320,13 +1332,6 @@ void expamem_reset (void)
 			card_init[cardno] = expamem_init_cd32fmv;
 			card_map[cardno++] = expamem_map_cd32fmv;
 		}
-	}
-#endif
-#ifdef A2091
-	if (currprefs.cs_a2091) {
-		card_name[cardno] = _T("A2091");
-		card_init[cardno] = expamem_init_a2091;
-		card_map[cardno++] = NULL;
 	}
 #endif
 #ifdef A2065

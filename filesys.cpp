@@ -1370,7 +1370,7 @@ static unsigned int fs_write (struct fs_filehandle *fsf, void *b, unsigned int s
 }
 
 /* return value = old position. -1 = error. */
-static uae_u64 fs_lseek64 (struct fs_filehandle *fsf, uae_s64 offset, int whence)
+static uae_s64 fs_lseek64 (struct fs_filehandle *fsf, uae_s64 offset, int whence)
 {
 	if (fsf->fstype == FS_ARCHIVE)
 		return zfile_lseek_archive (fsf->zf, offset, whence);
@@ -1380,11 +1380,14 @@ static uae_u64 fs_lseek64 (struct fs_filehandle *fsf, uae_s64 offset, int whence
 		return isofs_lseek (fsf->isof, offset, whence);
 	return -1;
 }
-static uae_u32 fs_lseek (struct fs_filehandle *fsf, uae_s32 offset, int whence)
+static uae_s32 fs_lseek (struct fs_filehandle *fsf, uae_s32 offset, int whence)
 {
-	return (uae_u32)fs_lseek64 (fsf, offset, whence);
+	uae_s64 v = fs_lseek64 (fsf, offset, whence);
+	if (v < 0 || v > 0x7fffffff)
+		return -1;
+	return (uae_s32)v;
 }
-static uae_u64 fs_fsize64 (struct fs_filehandle *fsf)
+static uae_s64 fs_fsize64 (struct fs_filehandle *fsf)
 {
 	if (fsf->fstype == FS_ARCHIVE)
 		return zfile_fsize_archive (fsf->zf);
@@ -4778,7 +4781,7 @@ static void
 
 			actual = fs_read (k->fd, buf, size);
 
-			if (actual < 0) {
+			if ((uae_s32)actual == -1) {
 				PUT_PCK_RES1 (packet, 0);
 				PUT_PCK_RES2 (packet, dos_errno ());
 			} else {
@@ -4888,7 +4891,7 @@ static void
 	PUT_PCK_RES1 (packet, actual);
 	if (actual != size)
 		PUT_PCK_RES2 (packet, dos_errno ());
-	if (actual >= 0)
+	if ((uae_s32)actual != -1)
 		k->file_pos += actual;
 
 	k->notifyactive = 1;

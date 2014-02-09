@@ -256,6 +256,8 @@ STATIC_INLINE void m68k_setpc (uaecptr newpc)
 	regs.instruction_pc = regs.pc = newpc;
 }
 
+extern void m68k_setpc_normal (uaecptr newpc);
+
 STATIC_INLINE uaecptr m68k_getpc (void)
 {
 	return (uaecptr)(regs.pc + ((uae_u8*)regs.pc_p - (uae_u8*)regs.pc_oldp));
@@ -401,10 +403,11 @@ extern void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr addr, uaecptr *nextp
 extern void sm68k_disasm (TCHAR*, TCHAR*, uaecptr addr, uaecptr *nextpc);
 extern int get_cpu_model (void);
 
+extern void set_cpu_caches (bool flush);
 extern void REGPARAM3 MakeSR (void) REGPARAM;
 extern void REGPARAM3 MakeFromSR (void) REGPARAM;
 extern void REGPARAM3 Exception (int) REGPARAM;
-extern void REGPARAM3 Exception (int, uaecptr) REGPARAM;
+extern void REGPARAM3 ExceptionL (int, uaecptr) REGPARAM;
 extern void NMI (void);
 extern void NMI_delayed (void);
 extern void prepare_interrupt (uae_u32);
@@ -444,8 +447,9 @@ extern void fpux_restore (int*);
 
 extern void exception3 (uae_u32 opcode, uaecptr addr);
 extern void exception3i (uae_u32 opcode, uaecptr addr);
-extern void exception3 (uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc);
-extern void exception2 (uaecptr addr);
+extern void exception3b (uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc);
+extern void exception2 (uaecptr addr, bool read, int size, uae_u32 fc);
+extern void exception2_fake (uaecptr addr);
 extern void cpureset (void);
 extern void cpu_halt (int id);
 

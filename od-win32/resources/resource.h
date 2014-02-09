@@ -629,8 +629,10 @@
 #define IDC_HDF_ADDFSRES                1384
 #define IDC_ROMFILE                     1390
 #define IDC_KEYFILE                     1391
+#define IDC_A2091ROMFILE                1391
 #define IDC_KICKCHOOSER                 1392
 #define IDC_KEYCHOOSER                  1393
+#define IDC_A2091ROMCHOOSER             1393
 #define IDC_ROMFILE2                    1394
 #define IDC_ROMCHOOSER2                 1395
 #define IDC_FLASHCHOOSER                1396
@@ -639,8 +641,8 @@
 #define IDC_CARTCHOOSER                 1399
 #define IDC_SAVE                        1400
 #define IDC_LOAD                        1401
-#define IDC_FLASHCHOOSER2               1401
 #define IDC_RTCCHOOSER                  1401
+#define IDC_A4091ROMCHOOSER             1402
 #define IDC_DELETE                      1403
 #define IDC_CONFIGLIST                  1404
 #define IDC_EDITNAME                    1405
@@ -650,6 +652,7 @@
 #define IDC_EXIT                        1410
 #define IDC_EDITPATH                    1410
 #define IDC_RTCFILE                     1411
+#define IDC_A4091ROMFILE                1412
 #define IDC_HDF_RDB                     1500
 #define IDC_HFSIZE                      1501
 #define IDC_HF_SIZE                     1501
