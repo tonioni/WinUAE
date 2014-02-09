@@ -634,7 +634,7 @@
     <ClCompile Include="..\..\qemuvga\lsi53c895a.cpp">
       <Filter>qemu</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cpuemu_common.cpp">
+    <ClCompile Include="..\..\newcpu_common.cpp">
       <Filter>common</Filter>
     </ClCompile>
   </ItemGroup>

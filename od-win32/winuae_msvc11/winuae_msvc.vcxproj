@@ -790,7 +790,6 @@
     <ClCompile Include="..\..\cpuemu_22.cpp" />
     <ClCompile Include="..\..\cpuemu_32.cpp" />
     <ClCompile Include="..\..\cpuemu_33.cpp" />
-    <ClCompile Include="..\..\cpuemu_common.cpp" />
     <ClCompile Include="..\..\cpummu30.cpp" />
     <ClCompile Include="..\..\ethernet.cpp" />
     <ClCompile Include="..\..\events.cpp" />
@@ -799,6 +798,7 @@
     <ClCompile Include="..\..\inputrecord.cpp" />
     <ClCompile Include="..\..\isofs.cpp" />
     <ClCompile Include="..\..\luascript.cpp" />
+    <ClCompile Include="..\..\newcpu_common.cpp" />
     <ClCompile Include="..\..\qemuvga\cirrus_vga.cpp" />
     <ClCompile Include="..\..\qemuvga\lsi53c895a.cpp" />
     <ClCompile Include="..\..\qemuvga\qemuuaeglue.cpp" />
