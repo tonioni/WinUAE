@@ -299,7 +299,7 @@ static void doscsistatus (uae_u8 status)
 		cdtv_scsi_int ();
 		return;
 	}
-	if (!currprefs.cs_a2091 && currprefs.cs_mbdmac != 1)
+	if (!currprefs.a2091 && currprefs.cs_mbdmac != 1)
 		return;
 	INT2();
 #if A2091_DEBUG > 2 || A3000_DEBUG > 2
@@ -1320,8 +1320,10 @@ static int REGPARAM2 dmac_check (uaecptr addr, uae_u32 size)
 
 static uae_u8 *REGPARAM2 dmac_xlate (uaecptr addr)
 {
-	addr &= rom_mask;
+	addr &= 0xffff;
 	addr += rombank * rom_size;
+	if (addr >= 0x8000)
+		addr = 0x8000;
 	return rom + addr;
 }
 
@@ -1811,9 +1813,9 @@ void a2091_reset (void)
 
 void a2091_init (void)
 {
-	int roms[5];
+	int roms[6];
+	int slotsize;
 	struct romlist *rl;
-	struct romdata *rd;
 
 	init_scsi ();
 	configured = 0;
@@ -1833,50 +1835,46 @@ void a2091_init (void)
 	ew (0x20, 0x00); /* ser.no. Byte 2 */
 	ew (0x24, 0x00); /* ser.no. Byte 3 */
 
-#if 1
 	roms[0] = 55; // 7.0
 	roms[1] = 54; // 6.6
 	roms[2] = 53; // 6.0
-	roms[3] = -1; //roms[3] = 56; // guru
-	roms[4] = -1;
-#else
-	roms[0] = 56; // guru
-	roms[1] = 55; // 7.0
-	roms[2] = 54; // 6.6
-	roms[3] = 53; // 6.0
-	roms[4] = -1;
-#endif
+	roms[3] = 56; // guru
+	roms[4] = 87;
+	roms[5] = -1;
 
 	rombankswitcher = 0;
 	rombank = 0;
-	struct zfile *z = read_rom_name (currprefs.a2091romfile);
-	if (!z) {
-		rl = getromlistbyids (roms);
-		if (rl) {
-			rd = rl->rd; 
-			z = read_rom (&rd);
-		}
-	}
-	if (z) {
-		int slotsize = 65536;
-		write_log (_T("A590/A2091 BOOT ROM '%s'\n"), zfile_getname (z));
-		rom_size = rd->size;
-		rom = xmalloc (uae_u8, slotsize);
-		zfile_fread (rom, rom_size, 1, z);
-		zfile_fclose (z);
-		if (rl->rd->id == 56) {
-			rombankswitcher = 1;
-			for (int i = rom_size - 1; i >= 0; i--) {
-				rom[i * 2 + 0] = rom[i];
-				rom[i * 2 + 1] = 0xff;
+	slotsize = 65536;
+	rom = xmalloc (uae_u8, slotsize);
+	rom_size = 16384;
+	rom_mask = rom_size - 1;
+	if (_tcscmp (currprefs.a2091romfile, _T(":NOROM"))) {
+		struct zfile *z = read_rom_name (currprefs.a2091romfile);
+		if (!z) {
+			rl = getromlistbyids (roms);
+			if (rl) {
+				z = read_rom (&rl->rd);
 			}
-		} else {
-			for (int i = 1; i < slotsize / rom_size; i++)
-				memcpy (rom + i * rom_size, rom, rom_size);
 		}
-		rom_mask = rom_size - 1;
-	} else {
-		romwarning (roms);
+		if (z) {
+			write_log (_T("A590/A2091 BOOT ROM '%s'\n"), zfile_getname (z));
+			rom_size = zfile_size (z);
+			zfile_fread (rom, rom_size, 1, z);
+			zfile_fclose (z);
+			if (rom_size == 32768) {
+				rombankswitcher = 1;
+				for (int i = rom_size - 1; i >= 0; i--) {
+					rom[i * 2 + 0] = rom[i];
+					rom[i * 2 + 1] = 0xff;
+				}
+			} else {
+				for (int i = 1; i < slotsize / rom_size; i++)
+					memcpy (rom + i * rom_size, rom, rom_size);
+			}
+			rom_mask = rom_size - 1;
+		} else {
+			romwarning (roms);
+		}
 	}
 	map_banks (&dmaca2091_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
 }
@@ -1885,7 +1883,7 @@ uae_u8 *save_scsi_dmac (int *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 	
-	if (!currprefs.cs_a2091 && !currprefs.cs_mbdmac)
+	if (!currprefs.a2091 && !currprefs.cs_mbdmac)
 		return NULL;
 	if (dstptr)
 		dstbak = dst = dstptr;

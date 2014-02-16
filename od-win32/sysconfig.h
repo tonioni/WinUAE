@@ -16,6 +16,7 @@
 #define __i386__
 #define WINDOWS
 #define ZLIB_WINAPI
+//#define USE_SOFT_LONG_DOUBLE
 #define PACKAGE_STRING "WinUAE"
 
 #ifndef UAE_MINI

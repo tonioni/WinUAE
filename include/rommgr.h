@@ -23,6 +23,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_BYTESWAP	0x100000
 #define ROMTYPE_CD32		0x200000
 #define ROMTYPE_SCRAMBLED	0x400000
+#define ROMTYPE_NONE		0x800000
 
 #define ROMTYPE_ALL_KICK (ROMTYPE_KICK | ROMTYPE_KICKCD32 | ROMTYPE_CD32)
 #define ROMTYPE_ALL_EXT (ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV)
@@ -58,6 +59,7 @@ struct romlist {
 
 extern struct romdata *getromdatabypath (const TCHAR *path);
 extern struct romdata *getromdatabycrc (uae_u32 crc32);
+extern struct romdata *getromdatabycrc (uae_u32 crc32, bool);
 extern struct romdata *getromdatabydata (uae_u8 *rom, int size);
 extern struct romdata *getromdatabyid (int id);
 extern struct romdata *getromdatabyidgroup (int id, int group, int subitem);

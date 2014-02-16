@@ -11,8 +11,7 @@
 
 #ifdef NCR
 
-#define NCR_LOG 1
-#define NCR_DEBUG 1
+#define NCR_DEBUG 0
 
 #include "options.h"
 #include "uae.h"
@@ -29,9 +28,6 @@
 #include "qemuvga\queue.h"
 #include "qemuvga\scsi\scsi.h"
 
-#define NCRNAME _T("NCR53C710")
-#define NCR_REGS 0x40
-
 #define ROM_VECTOR 0x0200
 #define ROM_OFFSET 0x0000
 #define ROM_SIZE 32768
@@ -39,7 +35,7 @@
 #define BOARD_SIZE 16777216
 
 #define A4091_IO_OFFSET 0x00800000
-#define A4091_IO_SWAP 0x00840000
+#define A4091_IO_ALT 0x00840000
 #define A4091_IO_END 0x00880000
 #define A4091_IO_MASK 0xff
 
@@ -48,7 +44,7 @@
 static uae_u8 *rom;
 static int board_mask;
 static int configured;
-static uae_u8 acmemory[100];
+static uae_u8 acmemory[128];
 
 static DeviceState devobject;
 static SCSIDevice *scsid[8];
@@ -64,7 +60,9 @@ void pci_set_irq(PCIDevice *pci_dev, int level)
 void scsi_req_continue(SCSIRequest *req)
 {
 	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
-	if (sd->data_len) {
+	if (sd->data_len < 0) {
+		lsi_command_complete (req, sd->status, 0);
+	} else if (sd->data_len) {
 		lsi_transfer_data (req, sd->data_len);
 	} else {
 		if (sd->direction > 0)
@@ -122,7 +120,6 @@ void scsi_req_cancel(SCSIRequest *req)
 	write_log (_T("scsi_req_cancel\n"));
 }
 
-
 static uae_u8 read_rombyte (uaecptr addr)
 {
 	uae_u8 v = rom[addr];
@@ -146,7 +143,6 @@ int pci_dma_rw(PCIDevice *dev, dma_addr_t addr, void *buf, dma_addr_t len, DMADi
 	}
 	return 0;
 }
-
 
 static uaecptr beswap (uaecptr addr)
 {
@@ -198,12 +194,12 @@ static uae_u32 REGPARAM2 ncr_lget (uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= board_mask;
-	if (addr >= A4091_IO_SWAP) {
-		v = (ncr_bget2 (addr + 3) << 24) | (ncr_bget2 (addr + 2) << 16) |
-			(ncr_bget2 (addr + 1) << 8) | (ncr_bget2 (addr + 0));
+	if (addr >= A4091_IO_ALT) {
+		v = (ncr_bget2 (addr + 3) << 0) | (ncr_bget2 (addr + 2) << 8) |
+			(ncr_bget2 (addr + 1) << 16) | (ncr_bget2 (addr + 0) << 24);
 	} else {
-		v = (ncr_bget2 (addr + 0) << 24) | (ncr_bget2 (addr + 1) << 16) |
-			(ncr_bget2 (addr + 2) << 8) | (ncr_bget2 (addr + 3));
+		v = (ncr_bget2 (addr + 3) << 0) | (ncr_bget2 (addr + 2) << 8) |
+			(ncr_bget2 (addr + 1) << 16) | (ncr_bget2 (addr + 0) << 24);
 	}
 #if NCR_DEBUG > 0
 	if (addr < ROM_VECTOR)
@@ -253,18 +249,20 @@ static void REGPARAM2 ncr_lput (uaecptr addr, uae_u32 l)
 	if (addr < ROM_VECTOR)
 		write_log (_T("ncr_lput %08X=%08X PC=%08X\n"), addr, l, M68K_GETPC);
 #endif
-	if (addr >= A4091_IO_SWAP) {
+	if (addr >= A4091_IO_ALT) {
 		ncr_bput2 (addr + 3, l >> 0);
 		ncr_bput2 (addr + 2, l >> 8);
 		ncr_bput2 (addr + 1, l >> 16);
 		ncr_bput2 (addr + 0, l >> 24);
 	} else {
-		ncr_bput2 (addr + 0, l >> 24);
-		ncr_bput2 (addr + 1, l >> 16);
-		ncr_bput2 (addr + 2, l >> 8);
 		ncr_bput2 (addr + 3, l >> 0);
+		ncr_bput2 (addr + 2, l >> 8);
+		ncr_bput2 (addr + 1, l >> 16);
+		ncr_bput2 (addr + 0, l >> 24);
 	}
 }
+
+static uae_u32 expamem_hi, expamem_lo;
 
 static void REGPARAM2 ncr_wput (uaecptr addr, uae_u32 w)
 {
@@ -277,18 +275,35 @@ static void REGPARAM2 ncr_wput (uaecptr addr, uae_u32 w)
 	if (addr < ROM_VECTOR)
 		write_log (_T("ncr_wput %04X=%04X PC=%08X\n"), addr, w & 65535, M68K_GETPC);
 #endif
-	if (addr == 0x44 && !configured) {
-		uae_u32 value = gfxmem_bank.start + ((currprefs.rtgmem_size + 0xffffff) & ~0xffffff);
-		if (value < 0x10000000)
-			value = 0x10000000;
-		value >>= 16;
-		chipmem_wput (regs.regs[11] + 0x20, value);
-		chipmem_wput (regs.regs[11] + 0x28, value);
-		map_banks (&ncr_bank, value, BOARD_SIZE >> 16, 0);
-		board_mask = 0x00ffffff;
-		write_log (_T("A4091 Z3 autoconfigured at %04X0000\n"), value);
-		configured = 1;
-		expamem_next();
+	if (!configured) {
+		uae_u32 value;
+		switch (addr)
+		{
+			case 0x44:
+			// yes, this could be much better..
+			if (currprefs.jit_direct_compatible_memory) {
+				value = gfxmem_bank.start + ((currprefs.rtgmem_size + 0xffffff) & ~0xffffff);
+				if (value < 0x10000000) {
+					value = 0x10000000;
+					if (value < z3fastmem_bank.start + currprefs.z3fastmem_size)
+						value = z3fastmem_bank.start + currprefs.z3fastmem_size;
+					if (value < z3fastmem2_bank.start + currprefs.z3fastmem2_size)
+						value = z3fastmem2_bank.start + currprefs.z3fastmem2_size;
+				}
+				value >>= 16;
+				chipmem_wput (regs.regs[11] + 0x20, value);
+				chipmem_wput (regs.regs[11] + 0x28, value);
+			} else {
+				expamem_hi = w & 0xff00;
+				value = expamem_hi | (expamem_lo >> 4);
+			}
+			map_banks (&ncr_bank, value, BOARD_SIZE >> 16, 0);
+			board_mask = 0x00ffffff;
+			write_log (_T("A4091 Z3 autoconfigured at %04X0000\n"), value);
+			configured = 1;
+			expamem_next();
+			break;
+		}
 		return;
 	}
 	ncr_bput2 (addr, w >> 8);
@@ -302,14 +317,20 @@ static void REGPARAM2 ncr_bput (uaecptr addr, uae_u32 b)
 #endif
 	b &= 0xff;
 	addr &= board_mask;
-	if (addr == 0x4c && !configured) {
-		write_log (_T("A4091 AUTOCONFIG SHUT-UP!\n"));
-		configured = 1;
-		expamem_next ();
+	if (!configured) {
+		switch (addr)
+		{
+			case 0x4c:
+			write_log (_T("A4091 AUTOCONFIG SHUT-UP!\n"));
+			configured = 1;
+			expamem_next ();
+			break;
+			case 0x48:
+			expamem_lo = b & 0xff;
+			break;
+		}
 		return;
 	}
-	if (!configured)
-		return;
 	ncr_bput2 (addr, b);
 }
 
@@ -342,27 +363,12 @@ void ncr_autoconfig_init (void)
 	int i;
 
 	configured = 0;
-	memset (acmemory, 0xff, 100);
-	ew (0x00, 0x80 | 0x10 | 0x00);
-	ew (0x08, 0x80 | 0x20 | 0x10);
-
-	/* A4091 hardware id */
-	ew (0x04, 0x54);
-	/* commodore's manufacturer id */
-	ew (0x10, 0x02);
-	ew (0x14, 0x02);
-	/* rom vector */
-	ew (0x28, ROM_VECTOR >> 8);
-	ew (0x2c, ROM_VECTOR);
-
-	ew (0x18, 0x00); /* ser.no. Byte 0 */
-	ew (0x1c, 0x00); /* ser.no. Byte 1 */
-	ew (0x20, 0x00); /* ser.no. Byte 2 */
-	ew (0x24, 0x00); /* ser.no. Byte 3 */
 
 	roms[0] = 58;
 	roms[1] = 57;
 	roms[2] = -1;
+
+	memset (acmemory, 0xff, sizeof acmemory);
 
 	struct zfile *z = read_rom_name (currprefs.a4091romfile);
 	if (!z) {
@@ -380,6 +386,11 @@ void ncr_autoconfig_init (void)
 			zfile_fread (&b, 1, 1, z);
 			rom[i * 4 + 0] = b;
 			rom[i * 4 + 2] = b << 4;
+			if (i < 0x20) {
+				acmemory[i * 4 + 0] = b;
+			} else if (i >= 0x40 && i < 0x60) {
+				acmemory[(i - 0x40) * 4 + 2] = b;
+			}
 		}
 		zfile_fclose(z);
 	} else {

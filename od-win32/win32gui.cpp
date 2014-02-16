@@ -7020,10 +7020,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_CS_DENISE, workprefs.cs_deniserev >= 0);
 	CheckDlgButton (hDlg, IDC_CS_DMAC, workprefs.cs_mbdmac == 1);
 	CheckDlgButton (hDlg, IDC_CS_DMAC2, workprefs.cs_mbdmac == 2);
-	CheckDlgButton (hDlg, IDC_CS_A2091, workprefs.cs_a2091);
-	CheckDlgButton (hDlg, IDC_CS_A4091, workprefs.cs_a4091);
 	CheckDlgButton (hDlg, IDC_CS_CDTVSCSI, workprefs.cs_cdtvscsi);
-	CheckDlgButton (hDlg, IDC_CS_SCSIMODE, workprefs.scsi == 2);
 	CheckDlgButton (hDlg, IDC_CS_PCMCIA, workprefs.cs_pcmcia);
 	CheckDlgButton (hDlg, IDC_CS_SLOWISFAST, workprefs.cs_slowmemisfast);
 	CheckDlgButton (hDlg, IDC_CS_CIATODBUG, workprefs.cs_ciatodbug);
@@ -7097,12 +7094,6 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_mbdmac = ischecked (hDlg, IDC_CS_DMAC) ? 1 : 0;
 	if (workprefs.cs_mbdmac == 0)
 		workprefs.cs_mbdmac = ischecked (hDlg, IDC_CS_DMAC2) ? 2 : 0;
-	workprefs.cs_a2091 = ischecked (hDlg, IDC_CS_A2091) ? 1 : 0;
-	workprefs.cs_a4091 = ischecked (hDlg, IDC_CS_A4091) ? 1 : 0;
-#if 0
-	if (msg == WM_COMMAND && LOWORD(wParam) == IDC_CS_SCSIMODE)
-		workprefs.scsi = ischecked (hDlg, IDC_CS_SCSIMODE) ? 2 : 0;
-#endif
 	workprefs.cs_cdtvscsi = ischecked (hDlg, IDC_CS_CDTVSCSI) ? 1 : 0;
 	workprefs.cs_pcmcia = ischecked (hDlg, IDC_CS_PCMCIA) ? 1 : 0;
 	workprefs.cs_slowmemisfast = ischecked (hDlg, IDC_CS_SLOWISFAST) ? 1 : 0;
@@ -7164,10 +7155,6 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew (hDlg, IDC_CS_IDE2, e);
 	ew (hDlg, IDC_CS_DMAC, e);
 	ew (hDlg, IDC_CS_DMAC2, e);
-	ew (hDlg, IDC_CS_A2091, e);
-	ew (hDlg, IDC_CS_A4091, e);
-	ShowWindow (GetDlgItem(hDlg, IDC_CS_SCSIMODE), SW_HIDE);
-	ew (hDlg, IDC_CS_SCSIMODE, FALSE);
 	ew (hDlg, IDC_CS_CDTVSCSI, e);
 	ew (hDlg, IDC_CS_PCMCIA, e);
 	ew (hDlg, IDC_CS_SLOWISFAST, e);
@@ -7649,6 +7636,10 @@ static void enable_for_expansiondlg (HWND hDlg)
 		CheckDlgButton (hDlg, IDC_RTG_HWSPRITE, FALSE);
 	}
 	ew (hDlg, IDC_RTG_HWSPRITE, rtg3 && workprefs.gfx_api);
+	ShowWindow (GetDlgItem(hDlg, IDC_CS_SCSIMODE), SW_HIDE);
+	ew (hDlg, IDC_CS_A2091, en);
+	ew (hDlg, IDC_CS_A4091, en);
+	ew (hDlg, IDC_CS_SCSIMODE, FALSE);
 }
 
 static void values_to_expansiondlg (HWND hDlg)
@@ -7660,6 +7651,9 @@ static void values_to_expansiondlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
 	CheckDlgButton (hDlg, IDC_SANA2, workprefs.sana2);
 	CheckDlgButton (hDlg, IDC_A2065, workprefs.a2065name[0] ? 1 : 0);
+	CheckDlgButton (hDlg, IDC_CS_A2091, workprefs.a2091);
+	CheckDlgButton (hDlg, IDC_CS_A4091, workprefs.a4091);
+	CheckDlgButton (hDlg, IDC_CS_SCSIMODE, workprefs.scsi == 2);
 	SendDlgItemMessage (hDlg, IDC_RTG_BUFFERCNT, CB_SETCURSEL, workprefs.gfx_apmode[1].gfx_backbuffers == 0 ? 0 : workprefs.gfx_apmode[1].gfx_backbuffers - 1, 0);
 	cw = catweasel_detect ();
 	ew (hDlg, IDC_CATWEASEL, cw);
@@ -7812,6 +7806,12 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				break;
 			case IDC_CATWEASEL:
 				workprefs.catweasel = ischecked (hDlg, IDC_CATWEASEL) ? -1 : 0;
+				break;
+			case IDC_CS_A2091:
+				workprefs.a2091 = ischecked (hDlg, IDC_CS_A2091) ? 1 : 0;
+				break;
+			case IDC_CS_A4091:
+				workprefs.a4091 = ischecked (hDlg, IDC_CS_A4091) ? 1 : 0;
 				break;
 			}
 			if (HIWORD (wParam) == CBN_SELENDOK || HIWORD (wParam) == CBN_KILLFOCUS || HIWORD (wParam) == CBN_EDITCHANGE)  {
@@ -8089,7 +8089,7 @@ static void values_to_kickstartdlg (HWND hDlg)
 	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile,
 		ROMTYPE_AR | ROMTYPE_SUPERIV | ROMTYPE_NORDIC | ROMTYPE_XPOWER | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON | ROMTYPE_CD32CART);
 	addromfiles (fkey, hDlg, IDC_A2091ROMFILE, workprefs.a2091romfile,
-		ROMTYPE_A2091BOOT);
+		ROMTYPE_A2091BOOT | ROMTYPE_NONE);
 	addromfiles (fkey, hDlg, IDC_A4091ROMFILE, workprefs.a4091romfile,
 		ROMTYPE_A4091BOOT);
 	regclosetree (fkey);
@@ -8118,10 +8118,10 @@ static void init_kickstart (HWND hDlg)
 	ew (hDlg, IDC_CARTCHOOSER), FALSE);
 	ew (hDlg, IDC_FLASHCHOOSER), FALSE);
 #endif
-	ew (hDlg, IDC_A4091ROMCHOOSER, workprefs.cs_a4091);
-	ew (hDlg, IDC_A4091ROMFILE, workprefs.cs_a4091);
-	ew (hDlg, IDC_A2091ROMCHOOSER, workprefs.cs_a2091);
-	ew (hDlg, IDC_A2091ROMFILE, workprefs.cs_a2091);
+	ew (hDlg, IDC_A4091ROMCHOOSER, workprefs.a4091);
+	ew (hDlg, IDC_A4091ROMFILE, workprefs.a4091);
+	ew (hDlg, IDC_A2091ROMCHOOSER, workprefs.a2091);
+	ew (hDlg, IDC_A2091ROMFILE, workprefs.a2091);
 	if (!regexiststree (NULL , _T("DetectedROMs")))
 		scan_roms (NULL, rp_isactive () ? 0 : 1);
 }
@@ -10041,7 +10041,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		recursive++;
 		inithdcontroller (hDlg);
 		if (current_tapedlg.ci.controller < HD_CONTROLLER_IDE0)
-			current_tapedlg.ci.controller = (workprefs.cs_a2091 || workprefs.cs_cdtvscsi || workprefs.cs_mbdmac == 1) ? HD_CONTROLLER_SCSI0 : HD_CONTROLLER_IDE0;
+			current_tapedlg.ci.controller = (workprefs.a2091 || workprefs.a4091 || workprefs.cs_cdtvscsi || workprefs.cs_mbdmac >= 1) ? HD_CONTROLLER_SCSI0 : HD_CONTROLLER_IDE0;
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_tapedlg.ci.controller, 0);
 		SetDlgItemText (hDlg, IDC_PATH_NAME, current_tapedlg.ci.rootdir);
 		readonly = my_existsfile (current_tapedlg.ci.rootdir);
@@ -10116,7 +10116,7 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 		recursive++;
 		inithdcontroller (hDlg);
 		if (current_cddlg.ci.controller < HD_CONTROLLER_IDE0)
-			current_cddlg.ci.controller = (workprefs.cs_a2091 || workprefs.cs_cdtvscsi || workprefs.cs_mbdmac == 1) ? HD_CONTROLLER_SCSI0 : HD_CONTROLLER_IDE0;
+			current_cddlg.ci.controller = (workprefs.a2091 || workprefs.a4091 || workprefs.cs_cdtvscsi || workprefs.cs_mbdmac >= 1) ? HD_CONTROLLER_SCSI0 : HD_CONTROLLER_IDE0;
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_cddlg.ci.controller, 0);
 		InitializeListView (hDlg);
 		recursive--;

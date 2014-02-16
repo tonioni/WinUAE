@@ -435,7 +435,7 @@ static uae_u8 *va (uae_u32 offset, uae_u32 len, DWORD alloc, DWORD protect)
 static int doinit_shm (void)
 {
 	uae_u32 size, totalsize, z3size, natmemsize;
-	uae_u32 startbarrier, rtgbarrier, z3chipbarrier, rtgextra;
+	uae_u32 startbarrier;
 	int rounds = 0;
 	ULONG z3rtgmem_size;
 
@@ -448,23 +448,12 @@ static int doinit_shm (void)
 
 		z3size = 0;
 		size = 0x1000000;
-		rtgextra = 0;
-		z3chipbarrier = 0;
 		startbarrier = changed_prefs.mbresmem_high_size == 128 * 1024 * 1024 ? 16 * 1024 * 1024 : 0;
-		rtgbarrier = si.dwPageSize;
 		z3rtgmem_size = gfxboard_is_z3 (changed_prefs.rtgmem_type) ? changed_prefs.rtgmem_size : 0;
 		if (changed_prefs.cpu_model >= 68020)
 			size = 0x10000000;
-		if (changed_prefs.z3fastmem_size || changed_prefs.z3fastmem2_size || changed_prefs.z3chipmem_size) {
+		if (changed_prefs.z3fastmem_size || changed_prefs.z3fastmem2_size || changed_prefs.z3chipmem_size)
 			z3size = changed_prefs.z3fastmem_size + changed_prefs.z3fastmem2_size + changed_prefs.z3chipmem_size + (changed_prefs.z3fastmem_start - 0x10000000);
-			if (z3rtgmem_size) {
-				rtgbarrier = 16 * 1024 * 1024 - ((changed_prefs.z3fastmem_size + changed_prefs.z3fastmem2_size) & 0x00ffffff);
-			}
-			if (changed_prefs.z3chipmem_size && (changed_prefs.z3fastmem_size || changed_prefs.z3fastmem2_size))
-				z3chipbarrier = 16 * 1024 * 1024;
-		} else {
-			rtgbarrier = 0;
-		}
 		totalsize = size + z3size + z3rtgmem_size;
 		while (totalsize > size64) {
 			int change = lowmem ();
@@ -479,13 +468,7 @@ static int doinit_shm (void)
 		}
 		natmemsize = size + z3size;
 
-		if (z3rtgmem_size) {
-			rtgextra = si.dwPageSize;
-		} else {
-			rtgbarrier = 0;
-			rtgextra = 0;
-		}
-		if (startbarrier + natmemsize + z3chipbarrier + rtgbarrier + z3rtgmem_size + rtgextra + 16 * si.dwPageSize <= natmem_size)
+		if (startbarrier + natmemsize + z3rtgmem_size + 16 * si.dwPageSize <= natmem_size)
 			break;
 		write_log (_T("NATMEM: %dM area failed to allocate, err=%d (Z3=%dM,RTG=%dM)\n"),
 			natmemsize >> 20, GetLastError (), (changed_prefs.z3fastmem_size + changed_prefs.z3fastmem2_size + changed_prefs.z3chipmem_size) >> 20, z3rtgmem_size >> 20);
@@ -500,7 +483,7 @@ static int doinit_shm (void)
 	p96mem_offset = NULL;
 	p96mem_size = z3rtgmem_size;
 	if (changed_prefs.rtgmem_size && gfxboard_is_z3 (changed_prefs.rtgmem_type)) {
-		p96mem_offset = natmem_offset + natmemsize + startbarrier + rtgbarrier + z3chipbarrier;
+		p96mem_offset = natmem_offset + natmemsize + startbarrier;
 	} else if (changed_prefs.rtgmem_size && !gfxboard_is_z3 (changed_prefs.rtgmem_type)) {
 		p96mem_offset = natmem_offset + getz2rtgaddr ();
 	}

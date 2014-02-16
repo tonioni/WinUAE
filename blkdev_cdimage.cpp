@@ -92,6 +92,7 @@ struct cdunit {
 	play_subchannel_callback cdda_subfunc;
 	play_status_callback cdda_statusfunc;
 	int cdda_delay, cdda_delay_frames;
+	bool thread_active;
 
 	TCHAR imgname[MAX_DPATH];
 	uae_sem_t sub_sem;
@@ -415,6 +416,8 @@ static void *cdda_play_func (void *v)
 	struct cdunit *cdu = (struct cdunit*)v;
 	int oldtrack = -1;
 
+	cdu->thread_active = true;
+
 	while (cdu->cdda_play == 0)
 		Sleep (10);
 	oldplay = -1;
@@ -530,7 +533,7 @@ static void *cdda_play_func (void *v)
 
 			memset (cda->buffers[bufnum], 0, num_sectors * 2352);
 
-			for (cnt = 0; cnt < num_sectors; cnt++) {
+			for (cnt = 0; cnt < num_sectors && cdu->cdda_play > 0; cnt++) {
 				uae_u8 *dst = cda->buffers[bufnum] + cnt * 2352;
 				uae_u8 subbuf[SUB_CHANNEL_SIZE];
 				sector = cdda_pos;
@@ -609,12 +612,14 @@ static void *cdda_play_func (void *v)
 			bufon[bufnum] = 1;
 			cda->setvolume (currprefs.sound_volume_cd >= 0 ? currprefs.sound_volume_cd : currprefs.sound_volume, cdu->cdda_volume[0], cdu->cdda_volume[1]);
 			if (!cda->play (bufnum)) {
-				setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
+				if (cdu->cdda_play > 0)
+					setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
 				goto end;
 			}
 
 			if (dofinish) {
-				setstate (cdu, AUDIO_STATUS_PLAY_COMPLETE);
+				if (cdu->cdda_play >= 0)
+					setstate (cdu, AUDIO_STATUS_PLAY_COMPLETE);
 				cdu->cdda_play = -1;
 				cdda_pos = cdu->cdda_end + 1;
 			}
@@ -640,6 +645,7 @@ end:
 
 	cdu->cdda_play = 0;
 	write_log (_T("IMAGE CDDA: thread killed\n"));
+	cdu->thread_active = false;
 	return NULL;
 }
 
@@ -648,9 +654,10 @@ static void cdda_stop (struct cdunit *cdu)
 {
 	if (cdu->cdda_play != 0) {
 		cdu->cdda_play = -1;
-		while (cdu->cdda_play) {
+		while (cdu->cdda_play && cdu->thread_active) {
 			Sleep (10);
 		}
+		cdu->cdda_play = 0;
 	}
 	cdu->cdda_paused = 0;
 	cdu->cdda_play_state = 0;
@@ -682,6 +689,12 @@ static int command_play (int unitnum, int startlsn, int endlsn, int scan, play_s
 	struct cdunit *cdu = unitisopen (unitnum);
 	if (!cdu)
 		return 0;
+	if (cdu->cdda_play) {
+		cdu->cdda_play = -1;
+		while (cdu->thread_active)
+			Sleep (10);
+		cdu->cdda_play = 0;
+	}
 	cdu->cd_last_pos = startlsn;
 	cdu->cdda_start = startlsn;
 	cdu->cdda_end = endlsn;
@@ -695,8 +708,11 @@ static int command_play (int unitnum, int startlsn, int endlsn, int scan, play_s
 		setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
 		return 0;
 	}
-	if (!cdu->cdda_play)
+	if (!cdu->thread_active) {
 		uae_start_thread (_T("cdimage_cdda_play"), cdda_play_func, cdu, NULL);
+		while (!cdu->thread_active)
+			Sleep (10);
+	}
 	cdu->cdda_play++;
 	return 1;
 }

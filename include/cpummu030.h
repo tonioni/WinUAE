@@ -15,7 +15,9 @@ extern int mmu030_opcode, mmu030_opcode_stageb;
 extern uae_u16 mmu030_state[3];
 extern uae_u32 mmu030_data_buffer;
 extern uae_u32 mmu030_disp_store[2];
+extern uae_u32 mmu030_fmovem_store[2];
 
+#define MMU030_STATEFLAG1_FMOVEM 0x2000
 #define MMU030_STATEFLAG1_MOVEM1 0x4000
 #define MMU030_STATEFLAG1_MOVEM2 0x8000
 #define MMU030_STATEFLAG1_DISP0 0x0001

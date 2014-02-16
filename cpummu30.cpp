@@ -63,6 +63,7 @@ int mmu030_opcode_stageb;
 uae_u16 mmu030_state[3];
 uae_u32 mmu030_data_buffer;
 uae_u32 mmu030_disp_store[2];
+uae_u32 mmu030_fmovem_store[2];
 struct mmu030_access mmu030_ad[MAX_MMU030_ACCESS];
 
 /* for debugging messages */
@@ -640,7 +641,7 @@ int mmu030_do_match_lrmw_ttr(uae_u32 tt, TT_info comp, uaecptr addr, uae_u32 fc)
             /* Compare actual address with address base using mask */
             if ((comp.addr_base&comp.addr_mask)==(addr&comp.addr_mask)) {
                 
-				return TT_NO_READ; /* TODO: check this! */
+				return TT_OK_MATCH;
             }
 		}
 	}
@@ -2177,7 +2178,10 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 	mmu030_state[2] = get_word_mmu030 (a7 + 0x34);
 	mmu030_disp_store[0] = get_long_mmu030 (a7 + 0x1c);
 	mmu030_disp_store[1] = get_long_mmu030 (a7 + 0x1c + 4);
-
+	if (mmu030_state[1] & MMU030_STATEFLAG1_FMOVEM) {
+		mmu030_fmovem_store[0] = get_long_mmu030 (a7 + 0x5c - (7 + 1) * 4);
+		mmu030_fmovem_store[1] = get_long_mmu030 (a7 + 0x5c - (8 + 1) * 4);
+	}
 	// Rerun "mmu030_opcode" using restored state.
 	mmu030_retry = true;
 

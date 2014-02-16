@@ -116,8 +116,6 @@ uae_u16 customhack_get (struct customhack *ch, int hpos)
 }
 #endif
 
-uae_u16 last_custom_value1;
-
 static unsigned int n_consecutive_skipped = 0;
 static unsigned int total_skipped = 0;
 
@@ -154,7 +152,6 @@ static bool genlockhtoggle;
 static bool genlockvtoggle;
 static bool graphicsbuffer_retry;
 
-
 #define LOF_TOGGLES_NEEDED 3
 //#define NLACE_CNT_NEEDED 50
 static int lof_togglecnt_lace, lof_togglecnt_nlace; //, nlace_cnt;
@@ -187,6 +184,7 @@ static uae_u16 cregs[256];
 uae_u16 intena, intreq;
 uae_u16 dmacon;
 uae_u16 adkcon; /* used by audio code */
+uae_u16 last_custom_value1;
 
 static uae_u32 cop1lc, cop2lc, copcon;
 
@@ -276,7 +274,7 @@ static unsigned int bplcon0d, bplcon0dd, bplcon0_res, bplcon0_planes, bplcon0_pl
 static unsigned int diwstrt, diwstop, diwhigh;
 static int diwhigh_written;
 static unsigned int ddfstrt, ddfstop, ddfstrt_old_hpos;
-static int ddf_change, badmode, diw_change;
+static int line_cyclebased, badmode, diw_change;
 static int bplcon1_fetch;
 
 /* The display and data fetch windows */
@@ -1124,7 +1122,7 @@ static void setup_fmodes (int hpos)
 	if (isocs7planes ()) {
 		toscr_nr_planes_agnus = 6;
 	}
-	ddf_change = vpos;
+	line_cyclebased = vpos;
 }
 
 static void BPLCON0_Denise (int hpos, uae_u16 v, bool);
@@ -1159,7 +1157,7 @@ STATIC_INLINE void maybe_check (int hpos)
 
 static void bpldmainitdelay (int hpos)
 {
-	ddf_change = vpos;
+	line_cyclebased = vpos;
 	if (hpos + BPLCON_AGNUS_DELAY < 0x14) {
 		BPLCON0_Denise (hpos, bplcon0, false);
 		setup_fmodes (hpos);
@@ -1232,7 +1230,7 @@ static void fetch_warn (int nr, int hpos)
 	bitplane_line_crossing = hpos;
 	warned--;
 #if 0
-	ddf_change = vpos;
+	line_cyclebased = vpos;
 	corrupt_offset = (vpos ^ (timeframes << 12)) & 0xff00;
 	for (int i = 0; i < bplcon0_planes_limit; i++) {
 		uae_u16 v;
@@ -2348,7 +2346,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 
 #ifdef SPEEDUP
 	/* Unrolled version of the for loop below.  */
-	if (plf_state < plf_wait_stop && ddf_change != vpos && ddf_change + 1 != vpos
+	if (plf_state < plf_wait_stop && line_cyclebased != vpos && line_cyclebased + 1 != vpos
 		&& dma
 		&& (fetch_cycle & fetchstart_mask) == (fm_maxplane & fetchstart_mask)
 		&& !badmode
@@ -2580,13 +2578,13 @@ STATIC_INLINE void decide_line (int hpos)
 		// A1000 Agnus won't start bitplane DMA if vertical diw is zero.
 		if (vpos > 0 || (vpos == 0 && !currprefs.cs_dipagnus)) {
 			diwstate = DIW_waiting_stop;
-			ddf_change = vpos;
+			line_cyclebased = vpos;
 		}
 	}
 	// last line of field can never have bitplane dma active
 	if (vpos == plflastline || cant_this_last_line ()) {
 		diwstate = DIW_waiting_start;
-		ddf_change = vpos;
+		line_cyclebased = vpos;
 	}
 
 	if (hpos <= last_decide_line_hpos)
@@ -4387,7 +4385,7 @@ static void DMACON (int hpos, uae_u16 v)
 	decide_fetch_safe (hpos);
 
 	setclr (&dmacon, v);
-	dmacon &= 0x1FFF;
+	dmacon &= 0x07FF;
 
 	changed = dmacon ^ oldcon;
 #if 0
@@ -4438,7 +4436,7 @@ static void DMACON (int hpos, uae_u16 v)
 		audio_state_machine ();
 
 	if (changed & (DMA_MASTER | DMA_BITPLANE)) {
-		ddf_change = vpos;
+		line_cyclebased = vpos;
 #if 0
 		if (dmaen (DMA_BITPLANE)) {
 			if (vpos == 0xba)
@@ -4449,7 +4447,6 @@ static void DMACON (int hpos, uae_u16 v)
 		}
 #endif
 	}
-	events_schedule();
 }
 
 static int irq_nmi;
@@ -4710,7 +4707,7 @@ static void BPLxPTH (int hpos, uae_u16 v, int num)
 		dbplpth[num] = (v << 16) & 0xffff0000;
 		dbplpth_on[num] = hpos;
 		dbplpth_on2++;
-		ddf_change = vpos;
+		line_cyclebased = vpos;
 		return;
 	}
 
@@ -4740,7 +4737,7 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
 		dbplptl[num] = v & 0x0000fffe;
 		dbplptl_on[num] = 255;
 		dbplptl_on2 = 1;
-		ddf_change = vpos;
+		line_cyclebased = vpos;
 		return;
 	}
 	bplpt[num] = (bplpt[num] & 0xffff0000) | (v & 0x0000fffe);
@@ -4809,7 +4806,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
 	if (bplcon0 == v)
 		return;
 
-	ddf_change = vpos;
+	line_cyclebased = vpos;
 	decide_diw (hpos);
 	decide_line (hpos);
 	decide_fetch_safe (hpos);
@@ -4836,7 +4833,7 @@ STATIC_INLINE void BPLCON1 (int hpos, uae_u16 v)
 		v &= 0xff;
 	if (bplcon1 == v)
 		return;
-	ddf_change = vpos;
+	line_cyclebased = vpos;
 	decide_line (hpos);
 	decide_fetch_safe (hpos);
 	bplcon1_written = true;
@@ -4992,7 +4989,7 @@ static void DDFSTRT (int hpos, uae_u16 v)
 		v &= 0xfc;
 	if (ddfstrt == v && hpos + 2 != ddfstrt)
 		return;
-	ddf_change = vpos;
+	line_cyclebased = vpos;
 	decide_line (hpos);
 	ddfstrt_old_hpos = hpos;
 	ddfstrt = v;
@@ -5012,7 +5009,7 @@ static void DDFSTOP (int hpos, uae_u16 v)
 		v &= 0xfc;
 	if (ddfstop == v && hpos + 2 != ddfstop)
 		return;
-	ddf_change = vpos;
+	line_cyclebased = vpos;
 	decide_line (hpos);
 	decide_fetch_safe (hpos);
 	ddfstop = v;
@@ -5034,7 +5031,7 @@ static void FMODE (int hpos, uae_u16 v)
 	v &= 0xC00F;
 	if (fmode == v)
 		return;
-	ddf_change = vpos;
+	line_cyclebased = vpos;
 	fmode = v;
 	sprite_width = GET_SPRITEWIDTH (fmode);
 	bpldmainitdelay (hpos);
@@ -6958,13 +6955,13 @@ static void vsync_handler_post (void)
 	uae_lua_run_handler ("on_uae_vsync");
 #endif
 
-	if ((bplcon0 & 2) && currprefs.genlock) {
-		genlockvtoggle = !genlockvtoggle;
-		//lof_store = genlockvtoggle ? 1 : 0;
-	}
 	if (bplcon0 & 4) {
 		lof_store = lof_store ? 0 : 1;
 	}
+	if ((bplcon0 & 2) && currprefs.genlock) {
+		genlockvtoggle = lof_store ? 1 : 0;
+	}
+
 	if (lof_prev_lastline != lof_lastline) {
 		if (lof_togglecnt_lace < LOF_TOGGLES_NEEDED)
 			lof_togglecnt_lace++;
@@ -7374,9 +7371,11 @@ static void hsync_handler_post (bool onvsync)
 	}
 #endif
 
-	// genlock active = TOD pulses only every other line/field
+	// genlock active:
+	// vertical: interlaced = toggles every other field, non-interlaced = both fields (normal)
+	// horizontal: PAL = every line, NTSC = every other line
 	genlockhtoggle = !genlockhtoggle;
-	bool ciahsyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock && genlockhtoggle);
+	bool ciahsyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock && (!currprefs.ntscmode || genlockhtoggle));
 	bool ciavsyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock && genlockvtoggle);
 
 	CIA_hsync_posthandler (ciahsyncs);
@@ -7419,8 +7418,6 @@ static void hsync_handler_post (bool onvsync)
 	}
 
 	inputdevice_hsync ();
-
-	last_custom_value1 = 0xffff; // refresh slots should set this to 0xffff
 
 	if (!nocustom ()) {
 		if (!currprefs.blitter_cycle_exact && bltstate != BLT_done && dmaen (DMA_BITPLANE) && diwstate == DIW_waiting_stop) {
@@ -8068,7 +8065,7 @@ static uae_u32 REGPARAM2 custom_lgeti (uaecptr addr)
 	return custom_lget (addr);
 }
 
-STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput)
+STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput, bool isbyte)
 {
 	uae_u16 v;
 	int missing;
@@ -8131,30 +8128,33 @@ writeonly:
 		* all ones)
 		*/
 		v = last_custom_value1;
+		line_cyclebased = vpos;
 		if (!noput) {
 			int r;
-			uae_u16 old = last_custom_value1;
-			uae_u16 l = currprefs.cpu_compatible && currprefs.cpu_model == 68000 ? regs.irc : ((currprefs.chipset_mask & CSMASK_AGA) ? old : 0xffff);
+			uae_u16 l;
+
+			// last chip bus value (read or write) is written to register
+			if (currprefs.cpu_compatible && currprefs.cpu_model == 68000) {
+				if (isbyte)
+					l = (regs.chipset_latch_rw << 8) | (regs.chipset_latch_rw & 0xff);
+				else
+					l = regs.chipset_latch_rw;
+			} else {
+				l = regs.chipset_latch_rw;
+			}
 			decide_line (hpos);
 			decide_fetch_safe (hpos);
 			debug_wputpeek (0xdff000 + addr, l);
 			r = custom_wput_1 (hpos, addr, l, 1);
-			if (r) { // register don't exist
-				if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
-					v = l;
-				} else {
-					if ((addr & 0x1fe) == 0) {
-						if (is_cycle_ce ())
-							v = last_custom_value1;
-						else
-							v = l;
-					}
-				}
+			
+			// cpu gets back
+			// - if last cycle was DMA cycle: DMA cycle data
+			// - if last cycle was not DMA cycle: FFFF or some ANDed old data.
+			//
+			if (is_bitplane_dma (hpos) || (cycle_line[hpos] & CYCLE_MASK) < CYCLE_CPU) {
+				v = last_custom_value1;
 			} else {
-				if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && !(currprefs.chipset_mask & CSMASK_AGA))
-					v = 0xffff;
-				else
-					v = l;
+				v = 0xffff;
 			}
 #if CUSTOM_DEBUG > 0
 			write_log (_T("%08X read = %04X. Value written=%04X PC=%08x\n"), 0xdff000 | addr, v, l, M68K_GETPC);
@@ -8162,17 +8162,16 @@ writeonly:
 			return v;
 		}
 	}
-	last_custom_value1 = v;
 	return v;
 }
 
-STATIC_INLINE uae_u32 custom_wget2 (uaecptr addr)
+STATIC_INLINE uae_u32 custom_wget2 (uaecptr addr, bool byte)
 {
 	uae_u32 v;
 	int hpos = current_hpos ();
 
 	sync_copper_with_cpu (hpos, 1);
-	v = custom_wget_1 (hpos, addr, 0);
+	v = custom_wget_1 (hpos, addr, 0, byte);
 #ifdef ACTION_REPLAY
 #ifdef ACTION_REPLAY_COMMON
 	addr &= 0x1ff;
@@ -8190,11 +8189,11 @@ static uae_u32 REGPARAM2 custom_wget (uaecptr addr)
 	if (addr & 1) {
 		/* think about move.w $dff005,d0.. (68020+ only) */
 		addr &= ~1;
-		v = custom_wget2 (addr) << 8;
-		v |= custom_wget2 (addr + 2) >> 8;
+		v = custom_wget2 (addr, false) << 8;
+		v |= custom_wget2 (addr + 2, false) >> 8;
 		return v;
 	}
-	return custom_wget2 (addr);
+	return custom_wget2 (addr, false);
 }
 
 static uae_u32 REGPARAM2 custom_bget (uaecptr addr)
@@ -8203,7 +8202,7 @@ static uae_u32 REGPARAM2 custom_bget (uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	v = custom_wget2 (addr & ~1);
+	v = custom_wget2 (addr & ~1, true);
 	v >>= (addr & 1 ? 0 : 8);
 	return v;
 }
@@ -8217,8 +8216,6 @@ static uae_u32 REGPARAM2 custom_lget (uaecptr addr)
 }
 static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int noget)
 {
-	if (!noget)
-		last_custom_value1 = value;
 	addr &= 0x1FE;
 	value &= 0xffff;
 #ifdef ACTION_REPLAY
@@ -8426,7 +8423,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 #if CUSTOM_DEBUG > 0
 			write_log (_T("%04X written %08x\n"), addr, M68K_GETPC);
 #endif
-			custom_wget_1 (hpos, addr, 1);
+			custom_wget_1 (hpos, addr, 1, false);
 		}
 		return 1;
 	}
@@ -8924,8 +8921,8 @@ uae_u8 *restore_custom_extra (uae_u8 *src)
 	currprefs.cs_a1000ram = changed_prefs.cs_a1000ram = RBB;
 	currprefs.cs_slowmemisfast = changed_prefs.cs_slowmemisfast = RBB;
 
-	currprefs.cs_a2091 = changed_prefs.cs_a2091 = RBB;
-	currprefs.cs_a4091 = changed_prefs.cs_a4091 = RBB;
+	currprefs.a2091 = changed_prefs.a2091 = RBB;
+	currprefs.a4091 = changed_prefs.a4091 = RBB;
 	currprefs.cs_cdtvscsi = changed_prefs.cs_cdtvscsi = RBB;
 
 	currprefs.cs_pcmcia = changed_prefs.cs_pcmcia = RBB;
@@ -8975,8 +8972,8 @@ uae_u8 *save_custom_extra (int *len, uae_u8 *dstptr)
 	SB (currprefs.cs_a1000ram ? 1 : 0);
 	SB (currprefs.cs_slowmemisfast ? 1 : 0);
 
-	SB (currprefs.cs_a2091 ? 1 : 0);
-	SB (currprefs.cs_a4091 ? 1 : 0);
+	SB (currprefs.a2091 ? 1 : 0);
+	SB (currprefs.a4091 ? 1 : 0);
 	SB (currprefs.cs_cdtvscsi ? 1 : 0);
 
 	SB (currprefs.cs_pcmcia ? 1 : 0);
@@ -9150,7 +9147,7 @@ STATIC_INLINE void sync_copper (int hpos)
 
 STATIC_INLINE void decide_fetch_ce (int hpos)
 {
-	if ((ddf_change == vpos || ddf_change + 1 == vpos || blitter_dangerous_bpl) && vpos < current_maxvpos ())
+	if ((line_cyclebased == vpos || line_cyclebased + 1 == vpos || blitter_dangerous_bpl) && vpos < current_maxvpos ())
 		decide_fetch (hpos);
 }
 
@@ -9217,6 +9214,10 @@ static void sync_ce020 (void)
 	}
 }
 
+#define SETIFCHIP \
+	if (addr < 0xd80000) \
+		last_custom_value1 = v;
+
 uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 {
 	uae_u32 v = 0;
@@ -9254,6 +9255,7 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 	x_do_cycles_post (CYCLE_UNIT, v);
 
 	regs.chipset_latch_rw = regs.chipset_latch_read = v;
+	SETIFCHIP
 	return v;
 }
 
@@ -9295,6 +9297,7 @@ uae_u32 wait_cpu_cycle_read_ce020 (uaecptr addr, int mode)
 		x_do_cycles_post (CYCLE_UNIT / 2, v);
 
 	regs.chipset_latch_rw = regs.chipset_latch_read = v;
+	SETIFCHIP
 	return v;
 }
 
@@ -9329,6 +9332,7 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 	x_do_cycles_post (CYCLE_UNIT, v);
 
 	regs.chipset_latch_rw = regs.chipset_latch_write = v;
+	SETIFCHIP
 }
 
 void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
@@ -9364,6 +9368,7 @@ void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
 		x_do_cycles_post (CYCLE_UNIT / 2, v);
 
 	regs.chipset_latch_rw = regs.chipset_latch_write = v;
+	SETIFCHIP
 }
 
 void do_cycles_ce (unsigned long cycles)

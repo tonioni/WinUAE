@@ -369,6 +369,8 @@ static void fixthings_mouse (struct didata *did)
 {
 	int i;
 
+	if (did == NULL)
+		return;
 	did->buttons_real = did->buttons;
 	for (i = 0; i < did->axles; i++) {
 		if (did->axissort[i] == -97)
@@ -1870,6 +1872,7 @@ static void initialize_windowsmouse (void)
 	for (i = 0; i < 1; i++) {
 		if (num_mouse >= MAX_INPUT_DEVICES)
 			return;
+		cleardid (did);
 		num_mouse++;
 		name = (i == 0) ? _T("Windows mouse") : _T("Mousehack mouse");
 		did->connection = DIDC_WIN;
@@ -3857,13 +3860,19 @@ static void setid (struct uae_input_device *uid, int i, int slot, int sub, int p
 		uid[i].flags[slot][sub] |= ID_FLAG_INVERTTOGGLE;
 }
 
-int input_get_default_mouse (struct uae_input_device *uid, int i, int port, int af, bool gp, bool wheel)
+int input_get_default_mouse (struct uae_input_device *uid, int i, int port, int af, bool gp, bool wheel, bool joymouseswap)
 {
-	struct didata *did;
+	struct didata *did = NULL;
 
-	if (i >= num_mouse)
-		return 0;
-	did = &di_mouse[i];
+	if (!joymouseswap) {
+		if (i >= num_mouse)
+			return 0;
+		did = &di_mouse[i];
+	} else {
+		if (i >= num_joystick)
+			return 0;
+		did = &di_joystick[i];
+	}
 	setid (uid, i, ID_AXIS_OFFSET + 0, 0, port, port ? INPUTEVENT_MOUSE2_HORIZ : INPUTEVENT_MOUSE1_HORIZ, gp);
 	setid (uid, i, ID_AXIS_OFFSET + 1, 0, port, port ? INPUTEVENT_MOUSE2_VERT : INPUTEVENT_MOUSE1_VERT, gp);
 	if (wheel)
@@ -3886,13 +3895,19 @@ int input_get_default_mouse (struct uae_input_device *uid, int i, int port, int 
 	return 0;
 }
 
-int input_get_default_lightpen (struct uae_input_device *uid, int i, int port, int af, bool gp)
+int input_get_default_lightpen (struct uae_input_device *uid, int i, int port, int af, bool gp, bool joymouseswap)
 {
-	struct didata *did;
+	struct didata *did = NULL;
 
-	if (i >= num_mouse)
-		return 0;
-	did = &di_mouse[i];
+	if (!joymouseswap) {
+		if (i >= num_mouse)
+			return 0;
+		did = &di_mouse[i];
+	} else {
+		if (i >= num_joystick)
+			return 0;
+		did = &di_joystick[i];
+	}
 	setid (uid, i, ID_AXIS_OFFSET + 0, 0, port, INPUTEVENT_LIGHTPEN_HORIZ, gp);
 	setid (uid, i, ID_AXIS_OFFSET + 1, 0, port, INPUTEVENT_LIGHTPEN_VERT, gp);
 	setid (uid, i, ID_BUTTON_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON, gp);
@@ -3901,15 +3916,21 @@ int input_get_default_lightpen (struct uae_input_device *uid, int i, int port, i
 	return 0;
 }
 
-int input_get_default_joystick (struct uae_input_device *uid, int i, int port, int af, int mode, bool gp)
+int input_get_default_joystick (struct uae_input_device *uid, int i, int port, int af, int mode, bool gp, bool joymouseswap)
 {
 	int j;
-	struct didata *did;
+	struct didata *did = NULL;
 	int h, v;
 
-	if (i >= num_joystick)
-		return 0;
-	did = &di_joystick[i];
+	if (joymouseswap) {
+		if (i >= num_mouse)
+			return 0;
+		did = &di_mouse[i];
+	} else {
+		if (i >= num_joystick)
+			return 0;
+		did = &di_joystick[i];
+	}
 	if (mode == JSEM_MODE_MOUSE_CDTV) {
 		h = INPUTEVENT_MOUSE_CDTV_HORIZ;
 		v = INPUTEVENT_MOUSE_CDTV_VERT;
@@ -3943,6 +3964,7 @@ int input_get_default_joystick (struct uae_input_device *uid, int i, int port, i
 			j++;
 		}
 	}
+
 	if (mode == JSEM_MODE_JOYSTICK_CD32) {
 		setid (uid, i, ID_BUTTON_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_CD32_RED : INPUTEVENT_JOY1_CD32_RED, af, gp);
 		if (isrealbutton (did, 1)) {
@@ -3964,14 +3986,20 @@ int input_get_default_joystick (struct uae_input_device *uid, int i, int port, i
 	return 0;
 }
 
-int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int port, int af, bool gp)
+int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int port, int af, bool gp, bool joymouseswap)
 {
 	int j;
 	struct didata *did;
 
-	if (i >= num_joystick)
-		return 0;
-	did = &di_joystick[i];
+	if (joymouseswap) {
+		if (i >= num_mouse)
+			return 0;
+		did = &di_mouse[i];
+	} else {
+		if (i >= num_joystick)
+			return 0;
+		did = &di_joystick[i];
+	}
 	setid (uid, i, ID_AXIS_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_HORIZ_POT : INPUTEVENT_JOY1_HORIZ_POT, gp);
 	setid (uid, i, ID_AXIS_OFFSET + 1, 0, port, port ? INPUTEVENT_JOY2_VERT_POT : INPUTEVENT_JOY1_VERT_POT, gp);
 	setid (uid, i, ID_BUTTON_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_LEFT : INPUTEVENT_JOY1_LEFT, af, gp);
@@ -3981,6 +4009,7 @@ int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int 
 		setid (uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_UP : INPUTEVENT_JOY1_UP, gp);
 	if (isrealbutton (did, 3))
 		setid (uid, i, ID_BUTTON_OFFSET + 3, 0, port, port ? INPUTEVENT_JOY2_DOWN : INPUTEVENT_JOY1_DOWN, gp);
+
 	for (j = 2; j < MAX_MAPPINGS - 1; j++) {
 		int type = did->axistype[j];
 		if (type == AXISTYPE_POV_X) {
@@ -3989,6 +4018,7 @@ int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int 
 			j++;
 		}
 	}
+
 	if (i == 0)
 		return 1;
 	return 0;

@@ -79,14 +79,15 @@ int harddrive_dangerous = 0x1234dead;
 int do_rdbdump;
 static struct uae_driveinfo uae_drives[MAX_FILESYSTEM_UNITS];
 
-#if 0
+#if 1
 static void fixdrive (struct hardfiledata *hfd)
 {
 	uae_u8 data[512];
-	struct zfile *zf = zfile_fopen (_T("d:\\amiga\\hdf\\a500supradrive.hdf"), _T("rb"));
-	for (int i = 0; i < 0x30000 / 512; i++) {
-		zfile_fread (data, 1, 512, zf);
-		hdf_write (hfd, data, i * 512, 512);
+	int i = 0;
+	struct zfile *zf = zfile_fopen (_T("d:\\amiga\\hdf\\test_16MB_hdf.bin"), _T("rb"));
+	while (zfile_fread (data, 1, 512, zf)) {
+		hdf_write (hfd, data, i, 512);
+		i += 512;
 	}
 	zfile_fclose (zf);
 
@@ -688,7 +689,9 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			}
 			hfd->handle_valid = HDF_HANDLE_WIN32;
 			hfd->emptyname = my_strdup (name);
-			//fixdrive (hfd);
+
+			fixdrive (hfd);
+
 		} else {
 			hfd->flags = HFD_FLAGS_REALDRIVE;
 			hfd->drive_empty = -1;

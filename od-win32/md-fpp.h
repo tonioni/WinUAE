@@ -47,13 +47,13 @@ STATIC_INLINE void from_exten(long double src, uae_u32 * wrd1, uae_u32 * wrd2, u
 #define HAVE_to_single
 STATIC_INLINE double to_single (uae_u32 longvalue)
 {
-    double floatfake;
+	double floatfake;
 
-    __asm {
-    fld     dword ptr   longvalue;
-    fstp    qword ptr   floatfake;
+	__asm {
+		fld dword ptr longvalue;
+		fstp qword ptr floatfake;
     }
-    return(floatfake);
+	return floatfake;
 }
 #endif
 
@@ -61,46 +61,60 @@ STATIC_INLINE double to_single (uae_u32 longvalue)
 #define HAVE_from_single
 STATIC_INLINE uae_u32 from_single (double floatfake)
 {
-    uae_u32 longvalue;
+	uae_u32 longvalue;
 
-    __asm {
-    fld     qword ptr   floatfake;
-    fstp    dword ptr   longvalue;
-    }
-    return(longvalue);
+	__asm {
+		fld qword ptr floatfake;
+		fstp dword ptr longvalue;
+	}
+	return longvalue;
 }
 #endif
 
 #ifndef HAVE_to_exten
 #define HAVE_to_exten
-STATIC_INLINE double to_exten(uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
+STATIC_INLINE void to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
-    uae_u32 longarray[] = {wrd3,wrd2,((wrd1>>16)&0xffff)}; // little endian
-    double  extenfake;
+	uae_u32 longarray[] = { wrd3, wrd2, ((wrd1 >> 16) & 0xffff) }; // little endian
+	double  extenfake;
 
-    __asm {
-    fld     tbyte ptr   longarray;
-    fstp    qword ptr   extenfake;
-    }
-    return(extenfake);
+	__asm {
+		fld tbyte ptr longarray;
+		fstp qword ptr extenfake;
+	}
+	fpd->fp = extenfake;
+#ifdef USE_SOFT_LONG_DOUBLE
+	fpd->fpe = ((uae_u64)wrd2 << 32) | wrd3;
+	fpd->fpm = wrd1;
+	fpd->fpx = true;
+#endif
 }
 #endif
 
 #ifndef HAVE_from_exten
 #define HAVE_from_exten
-STATIC_INLINE void from_exten(double src, uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wrd3)
+STATIC_INLINE void from_exten(fpdata *fpd, uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wrd3)
 {
-    uae_u32 longarray[3], *srcarray = (uae_u32 *)&src;
-
-    __asm {
-    fld     qword ptr   src;
-    fstp    tbyte ptr   longarray;
-    }
-    *wrd1 = (longarray[2] & 0xffff) <<16;
-    *wrd2 =  longarray[1];
-    *wrd3 =  longarray[0]; // little endian
-    if (!srcarray[0] && (srcarray[1]==0x7ff00000 || srcarray[1]==0xfff00000))
-	*wrd2 = 0; // The MSB of the mantissa was set wrongly for infinity, causing a NaN
+#ifdef USE_SOFT_LONG_DOUBLE
+	if (fpd->fpx) {
+		*wrd1 = fpd->fpm;
+		*wrd2 = fpd->fpe >> 32;
+		*wrd3 = (uae_u32)fpd->fpe;
+	} else
+#endif
+	{
+		fptype src = fpd->fp;
+		uae_u32 longarray[3], *srcarray = (uae_u32 *)&src;
+		__asm {
+			fld qword ptr src;
+			fstp tbyte ptr longarray;
+		}
+		*wrd1 = (longarray[2] & 0xffff) <<16;
+		*wrd2 =  longarray[1];
+		*wrd3 =  longarray[0]; // little endian
+		if (!srcarray[0] && (srcarray[1] == 0x7ff00000 || srcarray[1] == 0xfff00000))
+			*wrd2 = 0; // The MSB of the mantissa was set wrongly for infinity, causing a NaN
+	}
 }
 #endif
 #endif /* X86_MSVC_ASSEMBLY */

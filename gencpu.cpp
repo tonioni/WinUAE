@@ -425,9 +425,9 @@ static void gen_nextilong2 (char *type, char *name, int flags, int movem)
 				printf ("\t%s |= regs.irc;\n", name);
 				insn_n_cycles += 4;
 			} else {
-				printf ("\t%s = %s (%d);\n", name, prefetch_long, r + 2);
+				printf ("\t%s = %s (%d) << 16;\n", name, prefetch_word, r + 2);
 				count_read++;
-				count_read++;
+				printf ("\t%s |= %s (%d);\n", name, prefetch_word, r + 4);
 				insn_n_cycles += 8;
 			}
 		} else {
@@ -1476,7 +1476,7 @@ static void genamode2x (amodes mode, char *reg, wordsizes size, char *name, int 
 			case sz_long: insn_n_cycles += 8; printf ("\tuae_s32 %s = %s (%sa);\n", name, srcl, name); count_read += 2; break;
 			default: term ();
 			}
-		} else if (using_ce) {
+		} else if (using_ce || using_prefetch) {
 			switch (size) {
 			case sz_byte: printf ("\tuae_s8 %s = %s (%sa);\n", name, srcb, name); count_read++; break;
 			case sz_word: printf ("\tuae_s16 %s = %s (%sa);\n", name, srcw, name); count_read++; break;
@@ -1747,6 +1747,33 @@ static void genastore_2 (char *from, amodes mode, char *reg, wordsizes size, cha
 					printf ("\tdfc%s_put_long (%sa, %s);\n", mmu_postfix, to, from);
 				else
 					printf ("\t%s (%sa, %s);\n", (flags & GF_LRMW) ? dstllrmw : (candormw ? dstlrmw : dstl), to, from);
+				break;
+			default:
+				term ();
+			}
+		} else if (using_prefetch) {
+			switch (size) {
+			case sz_byte:
+				insn_n_cycles += 4;
+				printf ("\t%s (%sa, %s);\n", dstb, to, from);
+				count_write++;
+				break;
+			case sz_word:
+				insn_n_cycles += 4;
+				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
+					term ();
+				printf ("\t%s (%sa, %s);\n", dstw, to, from);
+				count_write++;
+				break;
+			case sz_long:
+				insn_n_cycles += 8;
+				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
+					term ();
+				if (store_dir)
+					printf ("\t%s (%sa + 2, %s); %s (%sa, %s >> 16);\n", dstw, to, from, dstw, to, from);
+				else
+					printf ("\t%s (%sa, %s >> 16); %s (%sa + 2, %s);\n", dstw, to, from, dstw, to, from);
+				count_write += 2;
 				break;
 			default:
 				term ();
@@ -2684,15 +2711,16 @@ static void resetvars (void)
 		dstb = "put_byte_ce000";
 		do_cycles = "do_cycles_ce000";
 	} else if (using_prefetch) {
+		// 68000 prefetch
 		prefetch_word = "get_word_prefetch";
 		prefetch_long = "get_long_prefetch";
-		srcwi = "get_wordi";
-		srcl = "get_long";
-		dstl = "put_long";
-		srcw = "get_word";
-		dstw = "put_word";
-		srcb = "get_byte";
-		dstb = "put_byte";
+		srcwi = "get_wordi_prefetch";
+		srcl = "get_long_prefetch";
+		dstl = "put_long_prefetch";
+		srcw = "get_word_prefetch";
+		dstw = "put_word_prefetch";
+		srcb = "get_byte_prefetch";
+		dstb = "put_byte_prefetch";
 	} else {
 		// generic
 		prefetch_long = "get_ilong";
@@ -3078,7 +3106,7 @@ static void gen_opcode (unsigned long int opcode)
 	case i_BTST:
 		genamodedual (curi,
 			curi->smode, "srcreg", curi->size, "src", 1, 0,
-			curi->dmode, "dstreg", curi->size, "dst", 1, GF_IR2IRC);
+			curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 		//genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		//genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_IR2IRC);
 		fill_prefetch_next ();
@@ -3092,9 +3120,10 @@ static void gen_opcode (unsigned long int opcode)
 		//during instruction's read access CPU data lines appear as zero to outside world,
 		// (normally previously fetched data appears in data lines if reading write-only register)
 		// this allows stupid things like bset #2,$dff096 to work "correctly"
+		// NOTE: above can't be right.
 		genamodedual (curi,
 			curi->smode, "srcreg", curi->size, "src", 1, 0,
-			curi->dmode, "dstreg", curi->size, "dst", 1, GF_IR2IRC | GF_RMW);
+			curi->dmode, "dstreg", curi->size, "dst", 1, GF_RMW);
 		//genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		//genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_IR2IRC | GF_RMW);
 		fill_prefetch_next ();
@@ -3369,7 +3398,7 @@ static void gen_opcode (unsigned long int opcode)
 		break;
 	case i_MVMEL:
 		// confirmed
-		if (using_ce)
+		if (using_ce || using_prefetch)
 			genmovemel_ce (opcode);
 		else
 			genmovemel (opcode);
@@ -3377,7 +3406,7 @@ static void gen_opcode (unsigned long int opcode)
 		break;
 	case i_MVMLE:
 		// confirmed
-		if (using_ce)
+		if (using_ce || using_prefetch)
 			genmovemle_ce (opcode);
 		else
 			genmovemle (opcode);
@@ -3673,9 +3702,9 @@ static void gen_opcode (unsigned long int opcode)
 			m68k_pc_offset = 0;
 			fill_prefetch_1 (0);
 			printf ("\tm68k_areg (regs, 7) -= 4;\n");
-			if (using_ce) {
-				printf ("\tx_put_word (m68k_areg (regs, 7), oldpc >> 16);\n");
-				printf ("\tx_put_word (m68k_areg (regs, 7) + 2, oldpc);\n");
+			if (using_ce || using_prefetch) {
+				printf ("\t%s (m68k_areg (regs, 7), oldpc >> 16);\n", dstw);
+				printf ("\t%s (m68k_areg (regs, 7) + 2, oldpc);\n", dstw);
 			} else {
 				printf ("\t%s (m68k_areg (regs, 7), oldpc);\n", dstl);
 			}
@@ -5260,7 +5289,7 @@ static void generate_one_opcode (int rp, char *extra)
 	}
 	need_endlabel = 0;
 	endlabelno++;
-	sprintf (endlabelstr, "endlabel%d", endlabelno);
+	sprintf (endlabelstr, "l_%d", endlabelno);
 	count_read = count_write = count_ncycles = count_cycles = 0;
 	count_cycles_ce020 = 0;
 	count_read_ea = count_write_ea = count_cycles_ea = 0;
@@ -5445,6 +5474,7 @@ static void generate_cpu (int id, int mode)
 			fprintf (stblfile, "#ifndef CPUEMU_68000_ONLY\n");
 		fprintf (stblfile, "const struct cputbl CPUFUNC(op_smalltbl_%d%s)[] = {\n", postfix, extra);
 	}
+	endlabelno = id * 10000;
 	generate_func (extra);
 	if (generate_stbl) {
 		if ((id > 0 && id < 10) || (id >= 20))

@@ -1140,6 +1140,7 @@ void CDTV_hsync_handler (void)
 		cd_finished = 1;
 		cd_paused = 0;
 		//cd_error = 1;
+		write_log (_T("audio finished\n"));
 		activate_stch = 1;
 	}
 

@@ -840,12 +840,12 @@ static void initialize_mountinfo (void)
 				a4000t_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci);	
 				allocuci (&currprefs, nr, -1);
 #endif
-			} else if (currprefs.cs_a2091) {
+			} else if (currprefs.a2091) {
 #ifdef A2091
 				a2091_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci);
 				allocuci (&currprefs, nr, -1);
 #endif
-			} else if (currprefs.cs_a4091) {
+			} else if (currprefs.a4091) {
 #ifdef NCR
 				a4091_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci);
 				allocuci (&currprefs, nr, -1);

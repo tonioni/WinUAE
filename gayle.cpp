@@ -55,7 +55,7 @@ DE0000 to DEFFFF	64 KB Motherboard resources
 
 /* A4000T NCR */
 #define NCR_OFFSET 0x40
-#define NCR_LONG_OFFSET 0x80
+#define NCR_ALT_OFFSET 0x80
 #define NCR_MASK 0x3f
 
 /* Gayle definitions from Linux drivers and preliminary Gayle datasheet */
@@ -1551,7 +1551,7 @@ static uae_u32 REGPARAM2 gayle_lget (uaecptr addr)
 	if (currprefs.cs_mbdmac == 2 && (addr & 0xffff) == 0x3000)
 		return 0xffffffff; // NCR DIP BANK
 	if (isa4000t (&addr)) {
-		if (addr >= NCR_LONG_OFFSET) {
+		if (addr >= NCR_ALT_OFFSET) {
 			addr &= NCR_MASK;
 			v = (ncr_io_bget (addr + 3) << 0) | (ncr_io_bget (addr + 2) << 8) |
 				(ncr_io_bget (addr + 1) << 16) | (ncr_io_bget (addr + 0) << 24);
@@ -1626,7 +1626,7 @@ static void REGPARAM2 gayle_lput (uaecptr addr, uae_u32 value)
 	special_mem |= S_WRITE;
 #endif
 	if (isa4000t (&addr)) {
-		if (addr >= NCR_LONG_OFFSET) {
+		if (addr >= NCR_ALT_OFFSET) {
 			addr &= NCR_MASK;
 			ncr_io_bput (addr + 3, value >> 0);
 			ncr_io_bput (addr + 2, value >> 8);
@@ -1783,8 +1783,10 @@ static void REGPARAM2 gayle2_bput (uaecptr addr, uae_u32 value)
 }
 
 static uae_u8 ramsey_config;
-static int gary_coldboot, gary_toenb, gary_timeout;
+static int gary_coldboot;
+static int gary_timeout;
 static int garyidoffset;
+int gary_toenb;
 
 static void mbres_write (uaecptr addr, uae_u32 val, int size)
 {

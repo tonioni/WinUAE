@@ -71,6 +71,9 @@ void romlist_add (const TCHAR *path, struct romdata *rd)
 	rl2 = rl + romlist_cnt - 1;
 	rl2->path = my_strdup (path);
 	rl2->rd = rd;
+	struct romdata *rd2 = getromdatabyid (rd->id);
+	if (rd2 != rd && rd2) // replace "X" with parent name
+		rd->name = rd2->name;
 }
 
 
@@ -89,7 +92,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 87
+#define NEXT_ROM_ID 88
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -105,6 +108,8 @@ static struct romheader romheaders[] = {
 static struct romdata roms[] = {
 	{ _T(" AROS KS ROM (built-in)"), 0, 0, 0, 0, _T("AROS\0"), 524288 * 2, 66, 0, 0, ROMTYPE_KICK, 0, 0, NULL,
 	0xffffffff, 0, 0, 0, 0, 0, _T("AROS") },
+	{ _T(" ROM Disabled"), 0, 0, 0, 0, _T("NOROM\0"), 0, 87, 0, 0, ROMTYPE_NONE, 0, 0, NULL,
+	0xffffffff, 0, 0, 0, 0, 0, _T("NOROM") },
 
 	{ _T("Cloanto Amiga Forever ROM key"), 0, 0, 0, 0, 0, 2069, 0, 0, 1, ROMTYPE_KEY, 0, 0, NULL,
 	0x869ae1b1, 0x801bbab3,0x2e3d3738,0x6dd1636d,0x4f1d6fa7,0xe21d5874 },
@@ -751,7 +756,7 @@ STATIC_INLINE int notcrc32 (uae_u32 crc32)
 	return 0;
 }
 
-struct romdata *getromdatabycrc (uae_u32 crc32)
+struct romdata *getromdatabycrc (uae_u32 crc32, bool allowgroup)
 {
 	int i = 0;
 	while (roms[i].name) {
@@ -759,7 +764,19 @@ struct romdata *getromdatabycrc (uae_u32 crc32)
 			return &roms[i];
 		i++;
 	}
+	if (allowgroup) {
+		i = 0;
+		while (roms[i].name) {
+			if (roms[i].group && crc32 == roms[i].crc32 && !notcrc32(crc32))
+				return &roms[i];
+			i++;
+		}
+	}
 	return 0;
+}
+struct romdata *getromdatabycrc (uae_u32 crc32)
+{
+	return getromdatabycrc (crc32, false);
 }
 
 static int cmpsha1 (const uae_u8 *s1, const struct romdata *rd)

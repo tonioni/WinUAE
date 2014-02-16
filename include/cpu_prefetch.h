@@ -1,17 +1,4 @@
 
-STATIC_INLINE uae_u32 get_word_prefetch (int o)
-{
-	uae_u32 v = regs.irc;
-	regs.irc = get_wordi (m68k_getpc () + o);
-	return v;
-}
-STATIC_INLINE uae_u32 get_long_prefetch (int o)
-{
-	uae_u32 v = get_word_prefetch (o) << 16;
-	v |= get_word_prefetch (o + 2);
-	return v;
-}
-
 #ifdef CPUEMU_20
 
 extern uae_u32 get_word_020_prefetch (int);
@@ -226,6 +213,38 @@ extern uae_u32 get_word_ce040_prefetch (int);
 
 #endif
 
+#ifdef CPUEMU_11
+
+STATIC_INLINE uae_u32 get_word_prefetch (int o)
+{
+	uae_u32 v = regs.irc;
+	regs.irc = regs.db = get_wordi (m68k_getpc () + o);
+	return v;
+}
+STATIC_INLINE uae_u32 get_byte_prefetch (uaecptr addr)
+{
+	uae_u32 v = get_byte (addr);
+	regs.db = (v << 8) | v;
+	return v;
+}
+STATIC_INLINE uae_u32 get_word_prefetch (uaecptr addr)
+{
+	uae_u32 v = get_word (addr);
+	regs.db = v;
+	return v;
+}
+STATIC_INLINE void put_byte_prefetch (uaecptr addr, uae_u32 v)
+{
+	regs.db = (v << 8) | v;
+	put_byte (addr, v);
+}
+STATIC_INLINE void put_word_prefetch (uaecptr addr, uae_u32 v)
+{
+	regs.db = v;
+	put_word (addr, v);
+}
+#endif
+
 #ifdef CPUEMU_13
 
 STATIC_INLINE void do_cycles_ce000 (int clocks)
@@ -240,58 +259,77 @@ STATIC_INLINE void ipl_fetch (void)
 
 STATIC_INLINE uae_u32 mem_access_delay_word_read (uaecptr addr)
 {
+	uae_u32 v;
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP16:
 	case CE_MEMBANK_CHIP32:
-		return wait_cpu_cycle_read (addr, 1);
+		v = wait_cpu_cycle_read (addr, 1);
+		break;
 	case CE_MEMBANK_FAST16:
 	case CE_MEMBANK_FAST32:
-		uae_u32 v = get_word (addr);
+		v = get_word (addr);
 		x_do_cycles_post (4 * cpucycleunit, v);
-		return v;
+		break;
+	default:
+		v = get_word (addr);
+		break;
 	}
-	return get_word (addr);
+	regs.db = v;
+	return v;
 }
 STATIC_INLINE uae_u32 mem_access_delay_wordi_read (uaecptr addr)
 {
+	uae_u32 v;
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP16:
 	case CE_MEMBANK_CHIP32:
-		return wait_cpu_cycle_read (addr, 1);
+		v = wait_cpu_cycle_read (addr, 1);
+		break;
 	case CE_MEMBANK_FAST16:
 	case CE_MEMBANK_FAST32:
-		uae_u32 v = get_wordi (addr);
+		v = get_wordi (addr);
 		x_do_cycles_post (4 * cpucycleunit, v);
-		return v;
+		break;
+	default:
+		v = get_wordi (addr);
+		break;
 	}
-	return get_wordi (addr);
+	regs.db = v;
+	return v;
 }
 
 STATIC_INLINE uae_u32 mem_access_delay_byte_read (uaecptr addr)
 {
+	uae_u32  v;
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP16:
 	case CE_MEMBANK_CHIP32:
-		return wait_cpu_cycle_read (addr, 0);
+		v = wait_cpu_cycle_read (addr, 0);
+		break;
 	case CE_MEMBANK_FAST16:
 	case CE_MEMBANK_FAST32:
-		uae_u32 v = get_byte (addr);
+		v = get_byte (addr);
 		x_do_cycles_post (4 * cpucycleunit, v);
-		return v;
+		break;
+	default:
+		v = get_byte (addr);
+		break;
 	}
-	return get_byte (addr);
+	regs.db = (v << 8) | v;
+	return v;
 }
 STATIC_INLINE void mem_access_delay_byte_write (uaecptr addr, uae_u32 v)
 {
+	regs.db = (v << 8)  | v;
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP16:
 	case CE_MEMBANK_CHIP32:
 		wait_cpu_cycle_write (addr, 0, v);
-		return;
+		break;
 	case CE_MEMBANK_FAST16:
 	case CE_MEMBANK_FAST32:
 		put_byte (addr, v);
@@ -302,6 +340,7 @@ STATIC_INLINE void mem_access_delay_byte_write (uaecptr addr, uae_u32 v)
 }
 STATIC_INLINE void mem_access_delay_word_write (uaecptr addr, uae_u32 v)
 {
+	regs.db = v;
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP16:
@@ -338,7 +377,7 @@ STATIC_INLINE uae_u32 get_byte_ce000 (uaecptr addr)
 STATIC_INLINE uae_u32 get_word_ce000_prefetch (int o)
 {
 	uae_u32 v = regs.irc;
-	regs.irc = x_get_iword (o);
+	regs.irc = regs.db = x_get_iword (o);
 	return v;
 }
 

@@ -870,14 +870,23 @@ static void pfield_init_linetoscr (bool border)
 	ham_src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (playfield_start - native_ddf_left);
 	unpainted = res_shift_from_window (unpainted);
 
-	if (sprite_first_x < sprite_last_x) {
-		if (sprite_first_x < 0)
-			sprite_first_x = 0;
-		if (sprite_last_x >= MAX_PIXELS_PER_LINE - 1)
-			sprite_last_x = MAX_PIXELS_PER_LINE - 2;
-		if (sprite_first_x < sprite_last_x)
-			memset (spritepixels + sprite_first_x, 0, sizeof (struct spritepixelsbuf) * (sprite_last_x - sprite_first_x + 1));
+	int first_x = sprite_first_x;
+	int last_x = sprite_last_x;
+	if (first_x < last_x) {
+		if (dp_for_drawing->bordersprite_seen) {
+			if (first_x > visible_left_border)
+				first_x = visible_left_border;
+			if (last_x < visible_right_border)
+				last_x = visible_right_border;
+		}
+		if (first_x < 0)
+			first_x = 0;
+		if (last_x > MAX_PIXELS_PER_LINE - 2)
+			last_x = MAX_PIXELS_PER_LINE - 2;
+		if (first_x < last_x)
+			memset (spritepixels + first_x, 0, sizeof (struct spritepixelsbuf) * (last_x - first_x + 1));
 	}
+
 	sprite_last_x = 0;
 	sprite_first_x = MAX_PIXELS_PER_LINE - 1;
 
@@ -2430,7 +2439,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		if (dip_for_drawing->nr_sprites) {
 			int i;
 #ifdef AGA
-			if (colors_for_drawing.bordersprite)
+			if (colors_for_drawing.bordersprite && dp_for_drawing->bordersprite_seen)
 				clear_bitplane_border_aga ();
 #endif
 
@@ -2445,7 +2454,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		}
 
 #ifdef AGA
-		if (dip_for_drawing->nr_sprites && colors_for_drawing.bordersprite)
+		if (dip_for_drawing->nr_sprites && colors_for_drawing.bordersprite && dp_for_drawing->bordersprite_seen)
 			do_color_changes (pfield_do_linetoscr_bordersprite_aga, pfield_do_linetoscr, lineno);
 		else
 #endif

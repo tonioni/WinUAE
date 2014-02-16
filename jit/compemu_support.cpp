@@ -4496,7 +4496,7 @@ void init_comp(void)
 
 	for (i=0;i<VREGS;i++) {
 		if (i<16) { /* First 16 registers map to 68k registers */
-			live.state[i].mem=((uae_u32*)&regs)+i;
+			live.state[i].mem=&regs.regs[i];
 			live.state[i].needflush=NF_TOMEM;
 			set_status(i,INMEM);
 		}
@@ -4520,7 +4520,7 @@ void init_comp(void)
 
 	for (i=0;i<VFREGS;i++) {
 		if (i<8) { /* First 8 registers map to 68k FPU registers */
-			live.fate[i].mem=(uae_u32*)(((fptype*)regs.fp)+i);
+			live.fate[i].mem=(uae_u32*)(&regs.fp[i].fp);
 			live.fate[i].needflush=NF_TOMEM;
 			live.fate[i].status=INMEM;
 		}

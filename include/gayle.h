@@ -11,5 +11,7 @@ extern void gayle_free_units (void);
 extern void rethink_gayle (void);
 extern void gayle_map_pcmcia (void);
 
+extern int gary_toenb; // non-existing memory access = bus error.
+
 #define PCMCIA_COMMON_START 0x600000
 #define PCMCIA_COMMON_SIZE 0x400000

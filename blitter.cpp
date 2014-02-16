@@ -424,7 +424,7 @@ static void blitter_done (int hpos)
 
 STATIC_INLINE void chipmem_agnus_wput2 (uaecptr addr, uae_u32 w)
 {
-	last_custom_value1 = w;
+	//last_custom_value1 = w; blitter writes are not stored
 	if (!(log_blitter & 4)) {
 		chipmem_wput_indirect (addr, w);
 		debug_wputpeekdma_chipram (addr, w, 0x000);
@@ -649,7 +649,7 @@ STATIC_INLINE void blitter_write (void)
 	if (bltcon0 & 0x200) {
 		if (!dmaen (DMA_BLITTER))
 			return;
-		last_custom_value1 = blt_info.bltddat;
+		//last_custom_value1 = blt_info.bltddat; blitter writes are not stored
 		chipmem_wput_indirect (bltdpt, blt_info.bltddat);
 		debug_wputpeekdma_chipram (bltdpt, blt_info.bltddat, 0x000);
 	}
@@ -963,7 +963,7 @@ STATIC_INLINE void blitter_doddma (int hpos)
 		return;
 	}
 	record_dma_blit (0x00, d, bltdpt, hpos);
-	last_custom_value1 = d;
+	//last_custom_value1 = d; blitter writes are not stored
 	chipmem_agnus_wput2 (bltdpt, d);
 	alloc_cycle_blitter (hpos, &bltdpt, 4);
 	bltdpt += blit_add;

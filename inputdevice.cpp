@@ -209,6 +209,8 @@ static int oldm_axis[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
 static uae_s16 mouse_x[MAX_JPORTS], mouse_y[MAX_JPORTS];
 static uae_s16 mouse_delta[MAX_JPORTS][MOUSE_AXIS_TOTAL];
 static uae_s16 mouse_deltanoreset[MAX_JPORTS][MOUSE_AXIS_TOTAL];
+static uae_s16 lightpen_delta[2];
+static uae_s16 lightpen_deltanoreset[2];
 static int joybutton[MAX_JPORTS];
 static int joydir[MAX_JPORTS];
 static int joydirpot[MAX_JPORTS][2];
@@ -218,9 +220,9 @@ static int mouse_port[NORMAL_JPORTS];
 static int cd32_shifter[NORMAL_JPORTS];
 static int cd32_pad_enabled[NORMAL_JPORTS];
 static int parport_joystick_enabled;
-static int oldmx[MAX_JPORTS], oldmy[MAX_JPORTS];
 static int oleft[MAX_JPORTS], oright[MAX_JPORTS], otop[MAX_JPORTS], obot[MAX_JPORTS];
 static int horizclear[MAX_JPORTS], vertclear[MAX_JPORTS];
+static int relativecount[MAX_JPORTS][2];
 
 uae_u16 potgo_value;
 static int pot_cap[NORMAL_JPORTS][2];
@@ -1857,6 +1859,19 @@ static void mouseupdate (int pct, bool vsync)
 		}
 
 	}
+
+	if (lightpen_delta[0]) {
+		lightpen_x += lightpen_delta[0];
+		if (!lightpen_deltanoreset[0])
+			lightpen_delta[0] = 0;
+	}
+	if (lightpen_delta[1]) {
+		lightpen_y += lightpen_delta[1];
+		if (!lightpen_deltanoreset[1])
+			lightpen_delta[1] = 0;
+	}
+
+
 }
 
 static int input_vpos, input_frame;
@@ -3084,6 +3099,7 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 	{
 	case 5: /* lightpen/gun */
 		{
+			int unit = ie->data & 0x7f;
 			if (!lightpen_active) {
 				lightpen_x = gfxvidinfo.outbuffer->outwidth / 2;
 				lightpen_y = gfxvidinfo.outbuffer->outheight / 2;
@@ -3092,16 +3108,31 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 			lightpen_enabled = true;
 			if (ie->type == 0) {
 				int delta = 0;
-				if (max == 0)
+				if (max == 0) {
 					delta = state * currprefs.input_mouse_speed / 100;
-				else if (state > 0)
-					delta = currprefs.input_joymouse_speed;
-				else if (state < 0)
-					delta = -currprefs.input_joymouse_speed;
+				} else {
+					int deadzone = currprefs.input_joymouse_deadzone * max / 100;
+					if (state <= deadzone && state >= -deadzone) {
+						state = 0;
+						lightpen_deltanoreset[unit] = 0;
+					} else if (state < 0) {
+						state += deadzone;
+						lightpen_deltanoreset[unit] = 1;
+					} else {
+						state -= deadzone;
+						lightpen_deltanoreset[unit] = 1;
+					}
+					max -= deadzone;
+					delta = state * currprefs.input_joymouse_multiplier / (10 * max);
+				}
 				if (ie->data)
 					lightpen_y += delta;
 				else
 					lightpen_x += delta;
+				if (max)
+					lightpen_delta[unit] = delta;
+				else
+					lightpen_delta[unit] += delta;
 			} else {
 				int delta = currprefs.input_joymouse_speed;
 				if (ie->data & DIR_LEFT)
@@ -3240,7 +3271,17 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 					state -= deadzone;
 				}
 				state = state * max / (max - deadzone);
+			} else {
+				max = 100;
+				relativecount[joy][unit] += state;
+				state = relativecount[joy][unit];
+				if (state < -max)
+					state = -max;
+				if (state > max)
+					state = max;
+				relativecount[joy][unit] = state;
 			}
+
 			if (ie->data & IE_INVERT)
 				state = -state;
 
@@ -3303,10 +3344,26 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 				/* "normal" joystick axis */
 				int deadzone = currprefs.input_joystick_deadzone * max / 100;
 				int neg, pos;
-				if (state < deadzone && state > -deadzone)
-					state = 0;
-				neg = state < 0 ? 1 : 0;
-				pos = state > 0 ? 1 : 0;
+				if (max == 0) {
+					int cnt;
+					int mmax = 50, mextra = 10;
+					int unit = (ie->data & (4 | 8)) ? 1 : 0;
+					// relative events
+					relativecount[joy][unit] += state;
+					cnt = relativecount[joy][unit];
+					neg = cnt < -mmax;	
+					pos = cnt > mmax;
+					if (cnt < -(mmax + mextra))
+						cnt = -(mmax + mextra);
+					if (cnt > (mmax + mextra))
+						cnt = (mmax + mextra);
+					relativecount[joy][unit] = cnt;
+				} else {
+					if (state < deadzone && state > -deadzone)
+						state = 0;
+					neg = state < 0 ? 1 : 0;
+					pos = state > 0 ? 1 : 0;
+				}
 				if (ie->data & DIR_LEFT) {
 					left = oleft[joy] = neg;
 					if (horizclear[joy] && left) {
@@ -4853,7 +4910,7 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 
 	for (i = 0; i < MAX_JPORTS; i++) {
 		joymodes[i] = prefs->jports[i].mode;
-		joyinputs[i]= NULL;
+		joyinputs[i] = NULL;
 		// remove all mappings from this port, except if custom
 		if (prefs->jports[i].id != JPORT_CUSTOM) {
 			if (gameports)
@@ -4959,12 +5016,22 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 				case JSEM_MODE_MOUSE:
 				case JSEM_MODE_WHEELMOUSE:
 				default:
-					input_get_default_mouse (mice, joy, i, af, !gameports, mode != JSEM_MODE_MOUSE);
+					input_get_default_mouse (mice, joy, i, af, !gameports, mode != JSEM_MODE_MOUSE, false);
 					joymodes[i] = JSEM_MODE_WHEELMOUSE;
 					break;
 				case JSEM_MODE_LIGHTPEN:
-					input_get_default_lightpen (mice, joy, i, af, !gameports);
+					input_get_default_lightpen (mice, joy, i, af, !gameports, false);
 					joymodes[i] = JSEM_MODE_LIGHTPEN;
+					break;
+				case JSEM_MODE_JOYSTICK:
+				case JSEM_MODE_GAMEPAD:
+				case JSEM_MODE_JOYSTICK_CD32:
+					input_get_default_joystick (mice, joy, i, af, mode, !gameports, true);
+					joymodes[i] = mode;
+					break;
+				case JSEM_MODE_JOYSTICK_ANALOG:
+					input_get_default_joystick_analog (mice, joy, i, af, !gameports, true);
+					joymodes[i] = JSEM_MODE_JOYSTICK_ANALOG;
 					break;
 				}
 				_tcsncpy (prefs->jports[i].name, idev[IDTYPE_MOUSE].get_friendlyname (joy), MAX_JPORTNAME - 1);
@@ -4990,7 +5057,7 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 				default:
 				{
 					bool iscd32 = mode == JSEM_MODE_JOYSTICK_CD32 || (mode == JSEM_MODE_DEFAULT && prefs->cs_cd32cd);
-					input_get_default_joystick (joysticks, joy, i, af, mode, !gameports);
+					input_get_default_joystick (joysticks, joy, i, af, mode, !gameports, false);
 					if (iscd32)
 						joymodes[i] = JSEM_MODE_JOYSTICK_CD32;
 					else if (mode == JSEM_MODE_GAMEPAD)
@@ -5000,21 +5067,21 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 					break;
 				}
 				case JSEM_MODE_JOYSTICK_ANALOG:
-					input_get_default_joystick_analog (joysticks, joy, i, af, !gameports);
+					input_get_default_joystick_analog (joysticks, joy, i, af, !gameports, false);
 					joymodes[i] = JSEM_MODE_JOYSTICK_ANALOG;
 					break;
 				case JSEM_MODE_MOUSE:
 				case JSEM_MODE_WHEELMOUSE:
-					input_get_default_mouse (joysticks, joy, i, af, !gameports, mode == JSEM_MODE_WHEELMOUSE);
+					input_get_default_mouse (joysticks, joy, i, af, !gameports, mode == JSEM_MODE_WHEELMOUSE, true);
 					joymodes[i] = JSEM_MODE_WHEELMOUSE;
 					break;
 				case JSEM_MODE_LIGHTPEN:
-					input_get_default_lightpen (joysticks, joy, i, af, !gameports);
+					input_get_default_lightpen (joysticks, joy, i, af, !gameports, true);
 					joymodes[i] = JSEM_MODE_LIGHTPEN;
 					break;
 				case JSEM_MODE_MOUSE_CDTV:
 					joymodes[i] = JSEM_MODE_MOUSE_CDTV;
-					input_get_default_joystick (joysticks, joy, i, af, mode, !gameports);
+					input_get_default_joystick (joysticks, joy, i, af, mode, !gameports, false);
 					break;
 
 				}
@@ -5124,7 +5191,7 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 			if (joy >= 0) {
 				if (gameports)
 					cleardev (joysticks, joy);
-				input_get_default_joystick (joysticks, joy, i, af, 0, !gameports);
+				input_get_default_joystick (joysticks, joy, i, af, 0, !gameports, false);
 				_tcsncpy (prefs->jports[i].name, idev[IDTYPE_JOYSTICK].get_friendlyname (joy), MAX_JPORTNAME - 1);
 				_tcsncpy (prefs->jports[i].configname, idev[IDTYPE_JOYSTICK].get_uniquename (joy), MAX_JPORTNAME - 1);
 				used[joy] = 1;
@@ -5345,8 +5412,6 @@ static void resetinput (void)
 		oright[i] = 0;
 		otop[i] = 0;
 		obot[i] = 0;
-		oldmx[i] = -1;
-		oldmy[i] = -1;
 		joybutton[i] = 0;
 		joydir[i] = 0;
 		mouse_deltanoreset[i][0] = 0;
@@ -5356,6 +5421,8 @@ static void resetinput (void)
 		mouse_deltanoreset[i][2] = 0;
 		mouse_delta[i][2] = 0;
 	}
+	lightpen_delta[0] = lightpen_delta[1] = 0;
+	lightpen_deltanoreset[0] = lightpen_deltanoreset[0] = 0;
 	memset (keybuf, 0, sizeof keybuf);
 	for (int i = 0; i < INPUT_QUEUE_SIZE; i++)
 		input_queue[i].linecnt = input_queue[i].nextlinecnt = -1;
@@ -7267,5 +7334,6 @@ void clear_inputstate (void)
 	for (int i = 0; i < MAX_JPORTS; i++) {
 		horizclear[i] = 1;
 		vertclear[i] = 1;
+		relativecount[i][0] = relativecount[i][1] = 0;
 	}
 }

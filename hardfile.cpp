@@ -1369,32 +1369,34 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			goto outofbounds;
 		scsi_len = (uae_u32)cmd_writex (hfd, scsi_data, offset, len);
 		break;
-#if 0
-	case 0x2f: /* VERIFY */
+	case 0x2f: /* VERIFY (10) */
 		{
 			int bytchk = cmdbuf[1] & 2;
 			if (nodisk (hfd))
 				goto nodisk;
-			offset = rl (cmdbuf + 2);
-			offset *= hfd->ci.blocksize;
-			len = rl (cmdbuf + 7 - 2) & 0xffff;
-			len *= hfd->ci.blocksize;
-			if (checkbounds (hfd, offset, len)) {
-				uae_u8 *vb = xmalloc (hfd->ci.blocksize);
-				while (len > 0) {
-					int len = cmd_readx (hfd, vb, offset, hfd->ci.blocksize);
-					if (bytchk) {
-						if (memcmp (vb, scsi_data, hfd->ci.blocksize))
+			if (bytchk) {
+				offset = rl (cmdbuf + 2);
+				offset *= hfd->ci.blocksize;
+				len = rl (cmdbuf + 7 - 2) & 0xffff;
+				len *= hfd->ci.blocksize;
+				uae_u8 *vb = xmalloc (uae_u8, hfd->ci.blocksize);
+				if (checkbounds (hfd, offset, len)) {
+					while (len > 0) {
+						int readlen = cmd_readx (hfd, vb, offset, hfd->ci.blocksize);
+						if (readlen != hfd->ci.blocksize || memcmp (vb, scsi_data, hfd->ci.blocksize)) {
+							xfree (vb);
 							goto miscompare;
+						}
 						scsi_data += hfd->ci.blocksize;
+						offset += hfd->ci.blocksize;
+						len -= hfd->ci.blocksize;
 					}
-					offset += hfd->ci.blocksize;
 				}
 				xfree (vb);
 			}
+			scsi_len = 0;
 		}
 		break;
-#endif
 	case 0x35: /* SYNCRONIZE CACHE (10) */
 		if (nodisk (hfd))
 			goto nodisk;

@@ -166,7 +166,6 @@ static void (*x2_do_cycles_pre)(unsigned long);
 static void (*x2_do_cycles_post)(unsigned long, uae_u32);
 
 uae_u32 (*x_prefetch)(int);
-uae_u32 (*x_prefetch_long)(int);
 uae_u32 (*x_next_iword)(void);
 uae_u32 (*x_next_ilong)(void);
 uae_u32 (*x_get_ilong)(int);
@@ -285,7 +284,6 @@ static bool check_trace (void)
 		cputrace.cyclecounter || cputrace.cyclecounter_pre || cputrace.cyclecounter_post)
 		return false;
 	x_prefetch = x2_prefetch;
-	x_prefetch_long = x2_prefetch_long;
 	x_get_ilong = x2_get_ilong;
 	x_get_iword = x2_get_iword;
 	x_get_ibyte = x2_get_ibyte;
@@ -364,23 +362,6 @@ static uae_u32 cputracefunc2_x_prefetch (int o)
 	uae_u32 v;
 	if (get_trace (m68k_getpc () + o, 2, 2, &v)) {
 		v = x2_prefetch (o);
-		check_trace2 ();
-	}
-	return v;
-}
-static uae_u32 cputracefunc_x_prefetch_long (int o)
-{
-	uae_u32 pc = m68k_getpc ();
-	set_trace (pc + o, 2, 4);
-	uae_u32 v = x2_prefetch_long (o);
-	add_trace (pc + o, v, 2, 4);
-	return v;
-}
-static uae_u32 cputracefunc2_x_prefetch_long (int o)
-{
-	uae_u32 v;
-	if (get_trace (m68k_getpc () + o, 2, 4, &v)) {
-		v = x2_prefetch_long (o);
 		check_trace2 ();
 	}
 	return v;
@@ -692,7 +673,6 @@ static void set_x_funcs (void)
 	if (currprefs.mmu_model) {
 		if (currprefs.cpu_model == 68060) {
 			x_prefetch = get_iword_mmu060;
-			x_prefetch_long = get_ilong_mmu060;
 			x_get_ilong = get_ilong_mmu060;
 			x_get_iword = get_iword_mmu060;
 			x_get_ibyte = get_ibyte_mmu060;
@@ -706,7 +686,6 @@ static void set_x_funcs (void)
 			x_get_byte = get_byte_mmu060;
 		} else if (currprefs.cpu_model == 68040) {
 			x_prefetch = get_iword_mmu040;
-			x_prefetch_long = get_ilong_mmu040;
 			x_get_ilong = get_ilong_mmu040;
 			x_get_iword = get_iword_mmu040;
 			x_get_ibyte = get_ibyte_mmu040;
@@ -720,7 +699,6 @@ static void set_x_funcs (void)
 			x_get_byte = get_byte_mmu040;
 		} else {
 			x_prefetch = get_iword_mmu030;
-			x_prefetch_long = get_ilong_mmu030;
 			x_get_ilong = get_ilong_mmu030;
 			x_get_iword = get_iword_mmu030;
 			x_get_ibyte = get_ibyte_mmu030;
@@ -740,7 +718,6 @@ static void set_x_funcs (void)
 		// 68000/010
 		if (currprefs.cpu_cycle_exact) {
 			x_prefetch = get_word_ce000_prefetch;
-			x_prefetch_long = NULL;
 			x_get_ilong = NULL;
 			x_get_iword = get_wordi_ce000;
 			x_get_ibyte = NULL;
@@ -757,7 +734,6 @@ static void set_x_funcs (void)
 			x_do_cycles_post = do_cycles_ce_post;
 		} else if (currprefs.cpu_compatible) {
 			x_prefetch = get_word_prefetch;
-			x_prefetch_long = get_long_prefetch;
 			x_get_ilong = NULL;
 			x_get_iword = get_iword;
 			x_get_ibyte = get_ibyte;
@@ -774,7 +750,6 @@ static void set_x_funcs (void)
 			x_do_cycles_post = do_cycles_post;
 		} else {
 			x_prefetch = NULL;
-			x_prefetch_long = NULL;
 			x_get_ilong = get_ilong;
 			x_get_iword = get_iword;
 			x_get_ibyte = get_ibyte;
@@ -795,7 +770,6 @@ static void set_x_funcs (void)
 		if (currprefs.cpu_compatible) {
 			if (currprefs.cpu_model == 68020 && !currprefs.cachesize) {
 				x_prefetch = get_word_prefetch;
-				x_prefetch_long = get_long_prefetch;
 				x_get_ilong = get_long_020_prefetch;
 				x_get_iword = get_word_020_prefetch;
 				x_get_ibyte = NULL;
@@ -813,7 +787,6 @@ static void set_x_funcs (void)
 			} else {
 				// JIT or 68030+ does not have real prefetch only emulation
 				x_prefetch = NULL;
-				x_prefetch_long = NULL;
 				x_get_ilong = get_ilong;
 				x_get_iword = get_iword;
 				x_get_ibyte = get_ibyte;
@@ -831,7 +804,6 @@ static void set_x_funcs (void)
 			}
 		} else {
 			x_prefetch = NULL;
-			x_prefetch_long = NULL;
 			x_get_ilong = get_ilong;
 			x_get_iword = get_iword;
 			x_get_ibyte = get_ibyte;
@@ -850,7 +822,6 @@ static void set_x_funcs (void)
 		// 68020+ cycle exact
 	} else if (currprefs.cpu_model == 68020) {
 		x_prefetch = get_word_ce020_prefetch;
-		x_prefetch_long = NULL;
 		x_get_ilong = get_long_ce020_prefetch;
 		x_get_iword = get_word_ce020_prefetch;
 		x_get_ibyte = NULL;
@@ -867,7 +838,6 @@ static void set_x_funcs (void)
 		x_do_cycles_post = do_cycles_ce020_post;
 	} else {
 		x_prefetch = get_word_ce030_prefetch;
-		x_prefetch_long = NULL;
 		x_get_ilong = get_long_ce030_prefetch;
 		x_get_iword = get_word_ce030_prefetch;
 		x_get_ibyte = NULL;
@@ -884,7 +854,6 @@ static void set_x_funcs (void)
 		x_do_cycles_post = do_cycles_ce020_post;
 	}
 	x2_prefetch = x_prefetch;
-	x2_prefetch_long = x_prefetch_long;
 	x2_get_ilong = x_get_ilong;
 	x2_get_iword = x_get_iword;
 	x2_get_ibyte = x_get_ibyte;
@@ -902,7 +871,6 @@ static void set_x_funcs (void)
 
 	if (cpu_tracer > 0) {
 		x_prefetch = cputracefunc_x_prefetch;
-		x_prefetch_long = cputracefunc_x_prefetch_long;
 		x_get_ilong = cputracefunc_x_get_ilong;
 		x_get_iword = cputracefunc_x_get_iword;
 		x_get_ibyte = cputracefunc_x_get_ibyte;
@@ -920,7 +888,6 @@ static void set_x_funcs (void)
 	} else if (cpu_tracer < 0) {
 		if (!check_trace ()) {
 			x_prefetch = cputracefunc2_x_prefetch;
-			x_prefetch_long = cputracefunc2_x_prefetch_long;
 			x_get_ilong = cputracefunc2_x_get_ilong;
 			x_get_iword = cputracefunc2_x_get_iword;
 			x_get_ibyte = cputracefunc2_x_get_ibyte;
@@ -2160,8 +2127,16 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
 				x_put_long (m68k_areg (regs, 7), mmu030_ad[i].val);
 			}
 			while (i < 9) {
+				uae_u32 v = 0;
 				m68k_areg (regs, 7) -= 4;
-				x_put_long (m68k_areg (regs, 7), 0);
+				// mmu030_idx is always small enough instruction is FMOVEM.
+				if (mmu030_state[1] & MMU030_STATEFLAG1_FMOVEM) {
+					if (i == 7)
+						v = mmu030_fmovem_store[0];
+					else if (i == 8)
+						v = mmu030_fmovem_store[1];
+				}
+				x_put_long (m68k_areg (regs, 7), v);
 				i++;
 			}
 			 // version & internal information (We store index here)
@@ -2252,6 +2227,11 @@ static void Exception_mmu030 (int nr, uaecptr oldpc)
     newpc = x_get_long (regs.vbr + 4 * nr);
 
 	if (regs.m && nr >= 24 && nr < 32) { /* M + Interrupt */
+        Exception_build_stack_frame (oldpc, currpc, regs.mmu_ssw, nr, 0x0);
+		MakeSR ();
+		regs.m = 0;
+		regs.msp = m68k_areg (regs, 7);
+		m68k_areg (regs, 7) = regs.isp;
         Exception_build_stack_frame (oldpc, currpc, regs.mmu_ssw, nr, 0x1);
     } else if (nr ==5 || nr == 6 || nr == 7 || nr == 9 || nr == 56) {
         Exception_build_stack_frame (oldpc, currpc, regs.mmu_ssw, nr, 0x2);
@@ -2488,6 +2468,7 @@ static void Exception_normal (int nr)
 			x_put_word (m68k_areg (regs, 7), regs.sr);
 			regs.sr |= (1 << 13);
 			regs.msp = m68k_areg (regs, 7);
+			regs.m = 0;
 			m68k_areg (regs, 7) = regs.isp;
 			m68k_areg (regs, 7) -= 2;
 			x_put_word (m68k_areg (regs, 7), 0x1000 + nr * 4);
@@ -4089,7 +4070,7 @@ static void m68k_run_2p (void)
 /* Same thing, but don't use prefetch to get opcode.  */
 static void m68k_run_2 (void)
 {
-	static int done;
+//	static int done;
 	struct regstruct *r = &regs;
 
 	for (;;) {
@@ -4106,8 +4087,8 @@ static void m68k_run_2 (void)
 			used[opcode] = 1;
 		}
 #endif	
-		if (done)
-			write_log (_T("%08x %04X %d "), r->instruction_pc, opcode, cpu_cycles);
+//		if (done)
+//			write_log (_T("%08x %04X %d "), r->instruction_pc, opcode, cpu_cycles);
 
 		do_cycles (cpu_cycles);
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
@@ -4708,7 +4689,7 @@ void m68k_dumpstate (uaecptr pc, uaecptr *nextpc)
 	if (currprefs.fpu_model) {
 		uae_u32 fpsr;
 		for (i = 0; i < 8; i++){
-			console_out_f (_T("FP%d: %g "), i, regs.fp[i]);
+			console_out_f (_T("FP%d: %g "), i, regs.fp[i].fp);
 			if ((i & 3) == 3)
 				console_out_f (_T("\n"));
 		}
@@ -4721,6 +4702,10 @@ void m68k_dumpstate (uaecptr pc, uaecptr *nextpc)
 			(fpsr & 0x1000000) != 0);
 	}
 #endif
+	if (currprefs.mmu_model == 68030) {
+		console_out_f (_T("SRP: %llX CRP: %llX\n"), srp_030, crp_030);
+		console_out_f (_T("TT0: %08X TT1: %08X TC: %08X\n"), tt0_030, tt1_030, tc_030);
+	}
 	if (currprefs.cpu_compatible && currprefs.cpu_model == 68000) {
 		struct instr *dp;
 		struct mnemolookup *lookup1, *lookup2;

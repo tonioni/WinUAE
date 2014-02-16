@@ -1033,7 +1033,7 @@ static void ListboxEndEdit(HWND hwnd, BOOL acceptinput)
 			errno = 0;
 			value = _tcstod(txt, &stopstr);
 			if (_tcslen(stopstr) == 0 && errno == 0)
-				regs.fp[index] = _tcstod(txt, &stopstr);
+				regs.fp[index].fp = _tcstod(txt, &stopstr);
 		}
 		else {
 			int bytes, i, offset = -1;
@@ -1307,14 +1307,14 @@ static void set_fpsr (uae_u32 x)
 	regs.fpsr = x;
 
 	if (x & 0x01000000) {
-		regs.fp_result = *fp_nan;
+		regs.fp_result.fp = *fp_nan;
 	}
 	else if (x & 0x04000000)
-		regs.fp_result = 0;
+		regs.fp_result.fp = 0;
 	else if (x & 0x08000000)
-		regs.fp_result = -1;
+		regs.fp_result.fp = -1;
 	else
-		regs.fp_result = 1;
+		regs.fp_result.fp = 1;
 }
 
 static void ToggleFPSRFlag(HWND hwnd, int x, int y)

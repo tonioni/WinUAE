@@ -16,7 +16,7 @@
 #include "blkdev.h"
 #include "zfile.h"
 
-static int outcmd[] = { 0x0a, 0x2a, 0x2f, 0xaa, 0x15, 0x55, -1 };
+static int outcmd[] = { 0x0a, 0x2a, 0xaa, 0x15, 0x55, -1 };
 static int incmd[] = { 0x01, 0x03, 0x05, 0x08, 0x12, 0x1a, 0x5a, 0x25, 0x28, 0x34, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, 0xbd, -1 };
 static int nonecmd[] = { 0x00, 0x0b, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1e, 0x2b, 0x35, -1 };
 static int scsicmdsizes[] = { 6, 10, 10, 12, 16, 12, 10, 10 };
@@ -52,6 +52,7 @@ void scsi_emulate_analyze (struct scsi_data *sd)
 
 	data_len = sd->data_len;
 	cmd_len = scsicmdsizes[sd->cmd[0] >> 5];
+	sd->cmd_len = cmd_len;
 	switch (sd->cmd[0])
 	{
 	case 0x0a:
@@ -63,8 +64,16 @@ void scsi_emulate_analyze (struct scsi_data *sd)
 	case 0xaa:
 		data_len = ((sd->cmd[6] << 24) | (sd->cmd[7] << 16) | (sd->cmd[8] << 8) | (sd->cmd[9] << 0)) * (uae_s64)sd->blocksize;
 	break;
+	case 0x2f: // VERIFY
+		if (sd->cmd[1] & 2) {
+			sd->data_len = ((sd->cmd[7] << 8) | (sd->cmd[8] << 0)) * (uae_s64)sd->blocksize;
+			sd->direction = 1;
+		} else {
+			sd->data_len = 0;
+			sd->direction = 0;
+		}
+		return;
 	}
-	sd->cmd_len = cmd_len;
 	sd->data_len = data_len;
 	sd->direction = scsi_data_dir (sd);
 }

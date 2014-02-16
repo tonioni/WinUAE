@@ -1312,8 +1312,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, _T("ramsey"), _T("%d"), p->cs_ramseyrev);
 	cfgfile_dwrite_bool (f, _T("pcmcia"), p->cs_pcmcia);
 	cfgfile_dwrite_bool (f, _T("scsi_cdtv"), p->cs_cdtvscsi);
-	cfgfile_dwrite_bool (f, _T("scsi_a2091"), p->cs_a2091);
-	cfgfile_dwrite_bool (f, _T("scsi_a4091"), p->cs_a4091);
+	cfgfile_dwrite_bool (f, _T("scsi_a2091"), p->a2091);
+	cfgfile_dwrite_bool (f, _T("scsi_a4091"), p->a4091);
 	cfgfile_dwrite_bool (f, _T("scsi_a3000"), p->cs_mbdmac == 1);
 	cfgfile_dwrite_bool (f, _T("scsi_a4000t"), p->cs_mbdmac == 2);
 	cfgfile_dwrite_bool (f, _T("bogomem_fast"), p->cs_slowmemisfast);
@@ -1602,8 +1602,6 @@ int cfgfile_rom (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCH
 	TCHAR id[MAX_DPATH];
 	if (!cfgfile_string (option, value, name, id, sizeof id / sizeof (TCHAR)))
 		return 0;
-	if (zfile_exists (location))
-		return 1;
 	TCHAR *p = _tcschr (id, ',');
 	if (p) {
 		TCHAR *endptr, tmp;
@@ -1613,8 +1611,15 @@ int cfgfile_rom (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCH
 		uae_u32 crc32 = _tcstol (id, &endptr, 16) << 16;
 		id[4] = tmp;
 		crc32 |= _tcstol (id + 4, &endptr, 16);
-		struct romdata *rd = getromdatabycrc (crc32);
+		struct romdata *rd = getromdatabycrc (crc32, true);
 		if (rd) {
+			struct romdata *rd2 = getromdatabyid (rd->id);
+			if (rd->group == 0 && rd2 == rd) {
+				if (zfile_exists (location))
+					return 1;
+			}
+			if (rd->group && rd2)
+				rd = rd2;
 			struct romlist *rl = getromlistbyromdata (rd);
 			if (rl) {
 				write_log (_T("%s: %s -> %s\n"), name, location, rl->path);
@@ -3260,8 +3265,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("a1000ram"), &p->cs_a1000ram)
 		|| cfgfile_yesno (option, value, _T("pcmcia"), &p->cs_pcmcia)
 		|| cfgfile_yesno (option, value, _T("scsi_cdtv"), &p->cs_cdtvscsi)
-		|| cfgfile_yesno (option, value, _T("scsi_a4091"), &p->cs_a4091)
-		|| cfgfile_yesno (option, value, _T("scsi_a2091"), &p->cs_a2091)
+		|| cfgfile_yesno (option, value, _T("scsi_a4091"), &p->a4091)
+		|| cfgfile_yesno (option, value, _T("scsi_a2091"), &p->a2091)
 		|| cfgfile_yesno (option, value, _T("cia_overlay"), &p->cs_ciaoverlay)
 		|| cfgfile_yesno (option, value, _T("bogomem_fast"), &p->cs_slowmemisfast)
 		|| cfgfile_yesno (option, value, _T("ksmirror_e0"), &p->cs_ksmirror_e0)
@@ -5025,8 +5030,8 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->cs_agnusrev = -1;
 	p->cs_deniserev = -1;
 	p->cs_mbdmac = 0;
-	p->cs_a2091 = 0;
-	p->cs_a4091 = 0;
+	p->a2091 = 0;
+	p->a4091 = 0;
 	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = false;
 	p->cs_cdtvcd = p->cs_cdtvram = false;
 	p->cs_cdtvcard = 0;
@@ -5275,8 +5280,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->cs_agnusrev = -1;
 	p->cs_deniserev = -1;
 	p->cs_mbdmac = 0;
-	p->cs_a2091 = false;
-	p->cs_a4091 = false;
+	p->a2091 = false;
+	p->a4091 = false;
 	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = false;
 	p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcard = false;
 	p->cs_ide = 0;
@@ -5802,7 +5807,6 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_a1000ram = 0;
 	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
 	p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvscsi = 0;
-	p->cs_a2091 = p->cs_a4091 = 0;
 	p->cs_fatgaryrev = -1;
 	p->cs_ide = 0;
 	p->cs_ramseyrev = -1;

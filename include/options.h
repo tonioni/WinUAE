@@ -413,7 +413,6 @@ struct uae_prefs {
 	int cs_deniserev;
 	int cs_mbdmac;
 	bool cs_cdtvscsi;
-	bool cs_a2091, cs_a4091;
 	bool cs_df0idhw;
 	bool cs_slowmemisfast;
 	bool cs_resetwarning;
@@ -431,8 +430,10 @@ struct uae_prefs {
 	TCHAR romextident[256];
 	TCHAR a2091romfile[MAX_DPATH];
 	TCHAR a2091romident[256];
+	bool a2091;
 	TCHAR a4091romfile[MAX_DPATH];
 	TCHAR a4091romident[256];
+	bool a4091;
 	TCHAR flashfile[MAX_DPATH];
 	TCHAR rtcfile[MAX_DPATH];
 	TCHAR cartfile[MAX_DPATH];

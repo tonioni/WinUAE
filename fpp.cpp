@@ -113,7 +113,24 @@ float  fp_1e0 = 1, fp_1e1 = 10, fp_1e2 = 100, fp_1e4 = 10000;
 #define FFLAG_N	    0x0100
 #define FFLAG_NAN   0x0400
 
-#define MAKE_FPSR(r)  (regs).fp_result=(r)
+#define MAKE_FPSR(r)  (regs).fp_result.fp=(r)
+
+static void fpclear (fpdata *fpd)
+{
+	fpd->fp = 0;
+#ifdef USE_SOFT_LONG_DOUBLE
+	fpd->fpe = 0;
+	fpd->fpm = 0;
+#endif
+}
+static void fpset (fpdata *fpd, fptype f)
+{
+	fpd->fp = f;
+#ifdef USE_SOFT_LONG_DOUBLE
+	fpd->fpe = 0;
+	fpd->fpm = 0;
+#endif
+}
 
 static __inline__ void native_set_fpucw (uae_u32 m68k_cw)
 {
@@ -431,8 +448,6 @@ static int get_fpu_version (void)
 {
 	int v = 0;
 
-	if (currprefs.fpu_revision >= 0)
-		return currprefs.fpu_revision;
 	switch (currprefs.fpu_model)
 	{
 	case 68881:
@@ -455,9 +470,9 @@ static void fpu_null (void)
 	regs.fpsr = 0;
 	regs.fpiar = 0;
 	regs.fpsr_highbyte = 0;
-	regs.fp_result = 0;
+	fpclear (&regs.fp_result);
 	for (int i = 0; i < 8; i++)
-		regs.fp[i] = 0;
+		fpclear (&regs.fp[i]);
 }
 
 #define fp_round_to_minus_infinity(x) fp_floor(x)
@@ -515,14 +530,14 @@ uae_u32 get_fpsr (void)
 {
 	uae_u32 answer = regs.fpsr & 0x00ffffff;
 #ifdef HAVE_ISNAN
-	if (isnan (regs.fp_result))
+	if (isnan (regs.fp_result.fp))
 		answer |= 0x01000000;
 	else
 #endif
 	{
-		if (regs.fp_result == 0)
+		if (regs.fp_result.fp == 0)
 			answer |= 0x04000000;
-		else if (regs.fp_result < 0)
+		else if (regs.fp_result.fp < 0)
 			answer |= 0x08000000;
 #ifdef HAVE_ISINF
 		if (isinf (regs.fp_result))
@@ -537,14 +552,14 @@ STATIC_INLINE void set_fpsr (uae_u32 x)
 	regs.fpsr = x;
 
 	if (x & 0x01000000) {
-		regs.fp_result = *fp_nan;
+		fpset (&regs.fp_result, *fp_nan);
 	}
 	else if (x & 0x04000000)
-		regs.fp_result = 0;
+		fpset (&regs.fp_result, 0);
 	else if (x & 0x08000000)
-		regs.fp_result = -1;
+		fpset (&regs.fp_result, -1);
 	else
-		regs.fp_result = 1;
+		fpset (&regs.fp_result, 1);
 }
 
 /* single   : S  8*E 23*F */
@@ -555,7 +570,7 @@ STATIC_INLINE void set_fpsr (uae_u32 x)
 /* E = MAX & F # 0 -> NotANumber */
 /* E = biased by 127 (single) ,1023 (double) ,16383 (extended) */
 
-STATIC_INLINE fptype to_pack (uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
+static fptype to_pack (uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
 	fptype d;
 	char *cp;
@@ -589,18 +604,27 @@ STATIC_INLINE fptype to_pack (uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 	*cp++ = ((wrd1 >> 20) & 0xf) + '0';
 	*cp++ = ((wrd1 >> 16) & 0xf) + '0';
 	*cp = 0;
+#if USE_LONG_DOUBLE
+	sscanf (str, "%Le", &d);
+#else
 	sscanf (str, "%le", &d);
+#endif
 	return d;
 }
 
-STATIC_INLINE void from_pack (fptype src, uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wrd3)
+// TODO: k-Factor is ignored.
+static void from_pack (fptype src, uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wrd3, int kfactor)
 {
 	int i;
 	int t;
 	char *cp;
 	char str[100];
 
+#if USE_LONG_DOUBLE
+	sprintf (str, "%.16Le", src);
+#else
 	sprintf (str, "%.16e", src);
+#endif
 	cp = str;
 	*wrd1 = *wrd2 = *wrd3 = 0;
 	if (*cp == '-') {
@@ -639,7 +663,7 @@ STATIC_INLINE void from_pack (fptype src, uae_u32 * wrd1, uae_u32 * wrd2, uae_u3
 	}
 }
 
-STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src, uaecptr oldpc)
+STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr oldpc)
 {
 	int size, mode, reg;
 	uae_u32 ad = 0;
@@ -663,16 +687,16 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src, uaec
 			switch (size)
 			{
 				case 6:
-					*src = (fptype) (uae_s8) m68k_dreg (regs, reg);
+					src->fp = (fptype) (uae_s8) m68k_dreg (regs, reg);
 					break;
 				case 4:
-					*src = (fptype) (uae_s16) m68k_dreg (regs, reg);
+					src->fp = (fptype) (uae_s16) m68k_dreg (regs, reg);
 					break;
 				case 0:
-					*src = (fptype) (uae_s32) m68k_dreg (regs, reg);
+					src->fp = (fptype) (uae_s32) m68k_dreg (regs, reg);
 					break;
 				case 1:
-					*src = to_single (m68k_dreg (regs, reg));
+					src->fp = to_single (m68k_dreg (regs, reg));
 					break;
 				default:
 					return 0;
@@ -692,7 +716,7 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src, uaec
 			ad = m68k_areg (regs, reg);
 			break;
 		case 5:
-			ad = m68k_areg (regs, reg) + (uae_s32) (uae_s16) x_next_iword ();
+			ad = m68k_areg (regs, reg) + (uae_s32) (uae_s16) x_cp_next_iword ();
 			break;
 		case 6:
 			ad = x_cp_get_disp_ea_020 (m68k_areg (regs, reg), 0);
@@ -701,14 +725,14 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src, uaec
 			switch (reg)
 			{
 				case 0:
-					ad = (uae_s32) (uae_s16) x_next_iword ();
+					ad = (uae_s32) (uae_s16) x_cp_next_iword ();
 					break;
 				case 1:
-					ad = x_next_ilong ();
+					ad = x_cp_next_ilong ();
 					break;
 				case 2:
 					ad = m68k_getpc ();
-					ad += (uae_s32) (uae_s16) x_next_iword ();
+					ad += (uae_s32) (uae_s16) x_cp_next_iword ();
 					break;
 				case 3:
 					ad = x_cp_get_disp_ea_020 (m68k_getpc (), 0);
@@ -719,23 +743,23 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src, uaec
 					{
 						case 0:
 						case 1:
-						exts[0] = x_next_ilong ();
+						exts[0] = x_cp_next_ilong ();
 						break;
 						case 2:
 						case 3:
-						exts[0] = x_next_ilong ();
-						exts[1] = x_next_ilong ();
-						exts[2] = x_next_ilong ();
+						exts[0] = x_cp_next_ilong ();
+						exts[1] = x_cp_next_ilong ();
+						exts[2] = x_cp_next_ilong ();
 						break;
 						case 4:
-						exts[0] = x_next_iword ();
+						exts[0] = x_cp_next_iword ();
 						break;
 						case 5:
-						exts[0] = x_next_ilong ();
-						exts[1] = x_next_ilong ();
+						exts[0] = x_cp_next_ilong ();
+						exts[1] = x_cp_next_ilong ();
 						break;
 						case 6:
-						exts[0] = x_next_iword ();
+						exts[0] = x_cp_next_iword ();
 						break;
 					}				
 					break;
@@ -750,10 +774,10 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src, uaec
 	switch (size)
 	{
 		case 0:
-			*src = (fptype) (uae_s32) (doext ? exts[0] : x_cp_get_long (ad));
+			src->fp = (fptype) (uae_s32) (doext ? exts[0] : x_cp_get_long (ad));
 			break;
 		case 1:
-			*src = to_single ((doext ? exts[0] : x_cp_get_long (ad)));
+			src->fp = to_single ((doext ? exts[0] : x_cp_get_long (ad)));
 			break;
 		case 2:
 			{
@@ -765,7 +789,7 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src, uaec
 				wrd2 = (doext ? exts[1] : x_cp_get_long (ad));
 				ad += 4;
 				wrd3 = (doext ? exts[2] : x_cp_get_long (ad));
-				*src = to_exten (wrd1, wrd2, wrd3);
+				to_exten (src, wrd1, wrd2, wrd3);
 			}
 			break;
 		case 3:
@@ -778,11 +802,11 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src, uaec
 				wrd2 = (doext ? exts[1] : x_cp_get_long (ad));
 				ad += 4;
 				wrd3 = (doext ? exts[2] : x_cp_get_long (ad));
-				*src = to_pack (wrd1, wrd2, wrd3);
+				src->fp = to_pack (wrd1, wrd2, wrd3);
 			}
 			break;
 		case 4:
-			*src = (fptype) (uae_s16) (doext ? exts[0] : x_cp_get_word (ad));
+			src->fp = (fptype) (uae_s16) (doext ? exts[0] : x_cp_get_word (ad));
 			break;
 		case 5:
 			{
@@ -790,11 +814,11 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src, uaec
 				wrd1 = (doext ? exts[0] : x_cp_get_long (ad));
 				ad += 4;
 				wrd2 = (doext ? exts[1] : x_cp_get_long (ad));
-				*src = to_double (wrd1, wrd2);
+				src->fp = to_double (wrd1, wrd2);
 			}
 			break;
 		case 6:
-			*src = (fptype) (uae_s8) (doext ? exts[0] : x_cp_get_byte (ad));
+			src->fp = (fptype) (uae_s8) (doext ? exts[0] : x_cp_get_byte (ad));
 			break;
 		default:
 			return 0;
@@ -802,7 +826,7 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src, uaec
 	return 1;
 }
 
-STATIC_INLINE int put_fp_value (fptype value, uae_u32 opcode, uae_u16 extra, uaecptr oldpc)
+STATIC_INLINE int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr oldpc)
 {
 	int size, mode, reg;
 	uae_u32 ad = 0;
@@ -813,10 +837,13 @@ STATIC_INLINE int put_fp_value (fptype value, uae_u32 opcode, uae_u16 extra, uae
 	if (!isinrom ())
 		write_log (_T("PUTFP: %f %04X %04X\n"), value, opcode, extra);
 #endif
+#ifdef USE_SOFT_LONG_DOUBLE
+	value->fpx = false;
+#endif
 	if (!(extra & 0x4000)) {
 		if (fault_if_no_fpu (opcode, extra, 0, oldpc))
 			return 1;
-		regs.fp[(extra >> 10) & 7] = value;
+		regs.fp[(extra >> 10) & 7] = *value;
 		return 1;
 	}
 	reg = opcode & 7;
@@ -829,18 +856,18 @@ STATIC_INLINE int put_fp_value (fptype value, uae_u32 opcode, uae_u16 extra, uae
 			switch (size)
 			{
 				case 6:
-					m68k_dreg (regs, reg) = (uae_u32)(((toint (value, -128.0, 127.0) & 0xff)
+					m68k_dreg (regs, reg) = (uae_u32)(((toint (value->fp, -128.0, 127.0) & 0xff)
 						| (m68k_dreg (regs, reg) & ~0xff)));
 					break;
 				case 4:
-					m68k_dreg (regs, reg) = (uae_u32)(((toint (value, -32768.0, 32767.0) & 0xffff)
+					m68k_dreg (regs, reg) = (uae_u32)(((toint (value->fp, -32768.0, 32767.0) & 0xffff)
 						| (m68k_dreg (regs, reg) & ~0xffff)));
 					break;
 				case 0:
-					m68k_dreg (regs, reg) = (uae_u32)toint (value, -2147483648.0, 2147483647.0);
+					m68k_dreg (regs, reg) = (uae_u32)toint (value->fp, -2147483648.0, 2147483647.0);
 					break;
 				case 1:
-					m68k_dreg (regs, reg) = from_single (value);
+					m68k_dreg (regs, reg) = from_single (value->fp);
 					break;
 				default:
 					return 0;
@@ -860,7 +887,7 @@ STATIC_INLINE int put_fp_value (fptype value, uae_u32 opcode, uae_u16 extra, uae
 			ad = m68k_areg (regs, reg);
 			break;
 		case 5:
-			ad = m68k_areg (regs, reg) + (uae_s32) (uae_s16) x_next_iword ();
+			ad = m68k_areg (regs, reg) + (uae_s32) (uae_s16) x_cp_next_iword ();
 			break;
 		case 6:
 			ad = x_cp_get_disp_ea_020 (m68k_areg (regs, reg), 0);
@@ -869,14 +896,14 @@ STATIC_INLINE int put_fp_value (fptype value, uae_u32 opcode, uae_u16 extra, uae
 			switch (reg)
 			{
 				case 0:
-					ad = (uae_s32) (uae_s16) x_next_iword ();
+					ad = (uae_s32) (uae_s16) x_cp_next_iword ();
 					break;
 				case 1:
-					ad = x_next_ilong ();
+					ad = x_cp_next_ilong ();
 					break;
 				case 2:
 					ad = m68k_getpc ();
-					ad += (uae_s32) (uae_s16) x_next_iword ();
+					ad += (uae_s32) (uae_s16) x_cp_next_iword ();
 					break;
 				case 3:
 					ad = x_cp_get_disp_ea_020 (m68k_getpc (), 0);
@@ -898,10 +925,10 @@ STATIC_INLINE int put_fp_value (fptype value, uae_u32 opcode, uae_u16 extra, uae
 	switch (size)
 	{
 		case 0:
-			x_cp_put_long (ad, (uae_u32)toint (value, -2147483648.0, 2147483647.0));
+			x_cp_put_long (ad, (uae_u32)toint (value->fp, -2147483648.0, 2147483647.0));
 			break;
 		case 1:
-			x_cp_put_long (ad, from_single (value));
+			x_cp_put_long (ad, from_single (value->fp));
 			break;
 		case 2:
 			{
@@ -916,12 +943,13 @@ STATIC_INLINE int put_fp_value (fptype value, uae_u32 opcode, uae_u16 extra, uae
 				x_cp_put_long (ad, wrd3);
 			}
 			break;
-		case 3:
+		case 3: // Packed-Decimal Real with Static k-Factor
+		case 7: // Packed-Decimal Real with Dynamic k-Factor (P{Dn}) (reg to memory only)
 			{
 				uae_u32 wrd1, wrd2, wrd3;
 				if (fault_if_4060 (opcode, extra, ad, oldpc, FPU_EXP_UNIMP_DATATYPE))
 					return -1;
-				from_pack (value, &wrd1, &wrd2, &wrd3);
+				from_pack (value->fp, &wrd1, &wrd2, &wrd3, size == 7 ? m68k_dreg (regs, (extra >> 4) & 7) : extra & 127);
 				x_cp_put_long (ad, wrd1);
 				ad += 4;
 				x_cp_put_long (ad, wrd2);
@@ -930,19 +958,19 @@ STATIC_INLINE int put_fp_value (fptype value, uae_u32 opcode, uae_u16 extra, uae
 			}
 			break;
 		case 4:
-			x_cp_put_word (ad, (uae_s16) toint (value, -32768.0, 32767.0));
+			x_cp_put_word (ad, (uae_s16) toint (value->fp, -32768.0, 32767.0));
 			break;
 		case 5:
 			{
 				uae_u32 wrd1, wrd2;
-				from_double (value, &wrd1, &wrd2);
+				from_double (value->fp, &wrd1, &wrd2);
 				x_cp_put_long (ad, wrd1);
 				ad += 4;
 				x_cp_put_long (ad, wrd2);
 			}
 			break;
 		case 6:
-			x_cp_put_byte (ad, (uae_s8)toint (value, -128.0, 127.0));
+			x_cp_put_byte (ad, (uae_s8)toint (value->fp, -128.0, 127.0));
 			break;
 		default:
 			return 0;
@@ -972,7 +1000,7 @@ STATIC_INLINE int get_fp_ad (uae_u32 opcode, uae_u32 * ad)
 			*ad = m68k_areg (regs, reg);
 			break;
 		case 5:
-			*ad = m68k_areg (regs, reg) + (uae_s32) (uae_s16) x_next_iword ();
+			*ad = m68k_areg (regs, reg) + (uae_s32) (uae_s16) x_cp_next_iword ();
 			break;
 		case 6:
 			*ad = x_cp_get_disp_ea_020 (m68k_areg (regs, reg), 0);
@@ -981,14 +1009,14 @@ STATIC_INLINE int get_fp_ad (uae_u32 opcode, uae_u32 * ad)
 			switch (reg)
 			{
 				case 0:
-					*ad = (uae_s32) (uae_s16) x_next_iword ();
+					*ad = (uae_s32) (uae_s16) x_cp_next_iword ();
 					break;
 				case 1:
-					*ad = x_next_ilong ();
+					*ad = x_cp_next_ilong ();
 					break;
 				case 2:
 					*ad = m68k_getpc ();
-					*ad += (uae_s32) (uae_s16) x_next_iword ();
+					*ad += (uae_s32) (uae_s16) x_cp_next_iword ();
 					break;
 				case 3:
 					*ad = x_cp_get_disp_ea_020 (m68k_getpc (), 0);
@@ -1002,12 +1030,12 @@ STATIC_INLINE int get_fp_ad (uae_u32 opcode, uae_u32 * ad)
 
 STATIC_INLINE int fpp_cond (int condition)
 {
-	int N = (regs.fp_result < 0.0);
-	int Z = (regs.fp_result == 0.0);
+	int N = (regs.fp_result.fp < 0.0);
+	int Z = (regs.fp_result.fp == 0.0);
 	int NotANumber = 0;
 
 #ifdef HAVE_ISNAN
-	NotANumber = isnan (regs.fp_result);
+	NotANumber = isnan (regs.fp_result.fp);
 #endif
 
 	if (NotANumber)
@@ -1097,7 +1125,7 @@ void fpuop_dbcc (uae_u32 opcode, uae_u16 extra)
 	if (fault_if_no_6888x (opcode, extra, pc - 4))
 		return;
 
-	disp = (uae_s32) (uae_s16) x_next_iword ();
+	disp = (uae_s32) (uae_s16) x_cp_next_iword ();
 	if (fault_if_no_fpu_u (opcode, extra, pc + disp, pc - 4))
 		return;
 	regs.fpiar = pc - 4;
@@ -1164,9 +1192,9 @@ void fpuop_trapcc (uae_u32 opcode, uaecptr oldpc, uae_u16 extra)
 	cc = fpp_cond (extra & 0x3f);
 	if (cc == -1) {
 		fpu_op_illg (opcode, oldpc);
-	}
-	if (cc)
+	} else if (cc) {
 		Exception (7);
+	}
 }
 
 void fpuop_bcc (uae_u32 opcode, uaecptr oldpc, uae_u32 extra)
@@ -1224,17 +1252,17 @@ void fpuop_save (uae_u32 opcode)
 		uae_u32 frame_id = regs.fpu_state == 0 ? 0x00000000 : 0x00006000;
 		if (incr < 0) {
 			ad -= 4;
-			x_cp_put_long (ad, 0x00000000);
+			x_put_long (ad, 0x00000000);
 			ad -= 4;
-			x_cp_put_long (ad, 0x00000000);
+			x_put_long (ad, 0x00000000);
 			ad -= 4;
-			x_cp_put_long (ad, frame_id);
+			x_put_long (ad, frame_id);
 		} else {
-			x_cp_put_long (ad, frame_id);
+			x_put_long (ad, frame_id);
 			ad += 4;
-			x_cp_put_long (ad, 0x00000000);
+			x_put_long (ad, 0x00000000);
 			ad += 4;
-			x_cp_put_long (ad, 0x00000000);
+			x_put_long (ad, 0x00000000);
 			ad += 4;
 		}
 	} else if (currprefs.fpu_model == 68040) {
@@ -1242,9 +1270,9 @@ void fpuop_save (uae_u32 opcode)
 		uae_u32 frame_id = regs.fpu_state == 0 ? 0 : fpu_version << 24;
 		if (incr < 0) {
 			ad -= 4;
-			x_cp_put_long (ad, frame_id);
+			x_put_long (ad, frame_id);
 		} else {
-			x_cp_put_long (ad, frame_id);
+			x_put_long (ad, frame_id);
 			ad += 4;
 		}
 	} else { /* 68881/68882 */
@@ -1283,15 +1311,15 @@ void fpuop_save (uae_u32 opcode)
 			if (incr < 0) {
 				for (i = 0; i < (frame_size / 4) - 1; i++) {
 					ad -= 4;
-					x_cp_put_long (ad, i == 0 ? 0x70000000 : 0x00000000);
+					x_put_long (ad, i == 0 ? 0x70000000 : 0x00000000);
 				}
 				ad -= 4;
-				x_cp_put_long (ad, frame_id);
+				x_put_long (ad, frame_id);
 			} else {
-				x_cp_put_long (ad, frame_id);
+				x_put_long (ad, frame_id);
 				ad += 4;
 				for (i = 0; i < (frame_size / 4) - 1; i++) {
-					x_cp_put_long (ad, i == (frame_size / 4) - 2 ? 0x70000000 : 0x00000000);
+					x_put_long (ad, i == (frame_size / 4) - 2 ? 0x70000000 : 0x00000000);
 					ad += 4;
 				}
 			}
@@ -1333,9 +1361,9 @@ void fpuop_restore (uae_u32 opcode)
 	uae_u32 pad = ad;
 	if (incr < 0) {
 		ad -= 4;
-		d = x_cp_get_long (ad);
+		d = x_get_long (ad);
 	} else {
-		d = x_cp_get_long (ad);
+		d = x_get_long (ad);
 		ad += 4;
 	}
 
@@ -1369,7 +1397,7 @@ void fpuop_restore (uae_u32 opcode)
 
 static void fround (int reg)
 {
-	regs.fp[reg] = (float)regs.fp[reg];
+	regs.fp[reg].fp = (float)regs.fp[reg].fp;
 }
 
 static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr)
@@ -1378,25 +1406,23 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr)
 	// 68030 MMU state saving is annoying!
 	if (currprefs.mmu_model == 68030) {
 		int idx = 0;
+		uae_u32 wrd[3];
+		mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM1;
 		if (incr < 0) {
 			for (reg = 7; reg >= 0; reg--) {
-				uae_u32 wrd1, wrd2, wrd3;
 				if (list & 0x80) {
-					from_exten (regs.fp[reg], &wrd1, &wrd2, &wrd3);
-					ad -= 4;
-					if (mmu030_state[0] == idx * 3 + 0) {
-						x_put_long (ad, wrd3);
-						mmu030_state[0]++;
-					}
-					ad -= 4;
-					if (mmu030_state[0] == idx * 3 + 1) {
-						x_put_long (ad, wrd2);
-						mmu030_state[0]++;
-					}
-					ad -= 4;
-					if (mmu030_state[0] == idx * 3 + 2) {
-						x_put_long (ad, wrd1);
-						mmu030_state[0]++;
+					from_exten (&regs.fp[reg], &wrd[2], &wrd[1], &wrd[0]);
+					for (int i = 0; i < 3; i++) {
+						ad -= 4;
+						if (mmu030_state[0] == idx * 3 + i) {
+							if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
+								mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
+							} else {
+								mmu030_data_buffer = wrd[i];
+								x_put_long (ad, wrd[i]);
+							}
+							mmu030_state[0]++;
+						}
 					}
 					idx++;
 				}
@@ -1404,24 +1430,20 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr)
 			}
 		} else {
 			for (reg = 0; reg <= 7; reg++) {
-				uae_u32 wrd1, wrd2, wrd3;
 				if (list & 0x80) {
-					from_exten (regs.fp[reg], &wrd1, &wrd2, &wrd3);
-					if (mmu030_state[0] == idx * 3 + 0) {
-						x_put_long (ad, wrd1);
-						mmu030_state[0]++;
+					from_exten (&regs.fp[reg], &wrd[0], &wrd[1], &wrd[2]);
+					for (int i = 0; i < 3; i++) {
+						if (mmu030_state[0] == idx * 3 + i) {
+							if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
+								mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
+							} else {
+								mmu030_data_buffer = wrd[i];
+								x_put_long (ad, wrd[i]);
+							}
+							mmu030_state[0]++;
+						}
+						ad += 4;
 					}
-					ad += 4;
-					if (mmu030_state[0] == idx * 3 + 1) {
-						x_put_long (ad, wrd2);
-						mmu030_state[0]++;
-					}
-					ad += 4;
-					if (mmu030_state[0] == idx * 3 + 2) {
-						x_put_long (ad, wrd3);
-						mmu030_state[0]++;
-					}
-					ad += 4;
 					idx++;
 				}
 				list <<= 1;
@@ -1432,13 +1454,13 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr)
 			for (reg = 7; reg >= 0; reg--) {
 				uae_u32 wrd1, wrd2, wrd3;
 				if (list & 0x80) {
-					from_exten (regs.fp[reg], &wrd1, &wrd2, &wrd3);
+					from_exten (&regs.fp[reg], &wrd1, &wrd2, &wrd3);
 					ad -= 4;
-					x_cp_put_long (ad, wrd3);
+					x_put_long (ad, wrd3);
 					ad -= 4;
-					x_cp_put_long (ad, wrd2);
+					x_put_long (ad, wrd2);
 					ad -= 4;
-					x_cp_put_long (ad, wrd1);
+					x_put_long (ad, wrd1);
 				}
 				list <<= 1;
 			}
@@ -1446,12 +1468,12 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr)
 			for (reg = 0; reg <= 7; reg++) {
 				uae_u32 wrd1, wrd2, wrd3;
 				if (list & 0x80) {
-					from_exten (regs.fp[reg], &wrd1, &wrd2, &wrd3);
-					x_cp_put_long (ad, wrd1);
+					from_exten (&regs.fp[reg], &wrd1, &wrd2, &wrd3);
+					x_put_long (ad, wrd1);
 					ad += 4;
-					x_cp_put_long (ad, wrd2);
+					x_put_long (ad, wrd2);
 					ad += 4;
-					x_cp_put_long (ad, wrd3);
+					x_put_long (ad, wrd3);
 					ad += 4;
 				}
 					list <<= 1;
@@ -1465,26 +1487,32 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr)
 {
 	int reg;
 	if (currprefs.mmu_model == 68030) {
-		static uae_u32 wrd1, wrd2, wrd3;
+		uae_u32 wrd[3];
 		int idx = 0;
+		mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM1 | MMU030_STATEFLAG1_FMOVEM;
+		if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2)
+			ad = mmu030_ad[mmu030_idx].val;
+		else
+			mmu030_ad[mmu030_idx].val = ad;
 		if (incr < 0) {
 			for (reg = 7; reg >= 0; reg--) {
 				if (list & 0x80) {
-					ad -= 4;
-					if (mmu030_state[0] == idx * 3 + 0) {
-						wrd3 = x_get_long (ad);
-						mmu030_state[0]++;
-					}
-					ad -= 4;
-					if (mmu030_state[0] == idx * 3 + 1) {
-						wrd2 = x_get_long (ad);
-						mmu030_state[0]++;
-					}
-					ad -= 4;
-					if (mmu030_state[0] == idx * 3 + 2) {
-						wrd1 = x_get_long (ad);
-						mmu030_state[0]++;
-						regs.fp[reg] = to_exten(wrd1, wrd2, wrd3);
+					for (int i = 0; i < 3; i++) {
+						ad -= 4;
+						if (mmu030_state[0] == idx * 3 + i) {
+							if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
+								mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
+								wrd[i] = mmu030_data_buffer;
+							} else {
+								wrd[i] = x_get_long (ad);
+							}
+							// save first two entries if 2nd or 3rd get_long() faults.
+							if (i == 0 || i == 1)
+								mmu030_fmovem_store[i] = wrd[i];
+							mmu030_state[0]++;
+							if (i == 2)
+								to_exten (&regs.fp[reg], wrd[2], mmu030_fmovem_store[1], mmu030_fmovem_store[0]);
+						}
 					}
 					idx++;
 				}
@@ -1493,22 +1521,22 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr)
 		} else {
 			for (reg = 0; reg <= 7; reg++) {
 				if (list & 0x80) {
-					if (mmu030_state[0] == idx * 3 + 0) {
-						wrd1 = x_get_long (ad);
-						mmu030_state[0]++;
+					for (int i = 0; i < 3; i++) {
+						if (mmu030_state[0] == idx * 3 + i) {
+							if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
+								mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
+								wrd[i] = mmu030_data_buffer;
+							} else {
+								wrd[i] = x_get_long (ad);
+							}
+							if (i == 0 || i == 1)
+								mmu030_fmovem_store[i] = wrd[i];
+							mmu030_state[0]++;
+							if (i == 2)
+								to_exten (&regs.fp[reg], mmu030_fmovem_store[0], mmu030_fmovem_store[1], wrd[2]);
+						}
+						ad += 4;
 					}
-					ad += 4;
-					if (mmu030_state[0] == idx * 3 + 1) {
-						wrd2 = x_get_long (ad);
-						mmu030_state[0]++;
-					}
-					ad += 4;
-					if (mmu030_state[0] == idx * 3 + 2) {
-						wrd3 = x_get_long (ad);
-						mmu030_state[0]++;
-						regs.fp[reg] = to_exten(wrd1, wrd2, wrd3);
-					}
-					ad += 4;
 					idx++;
 				}
 				list <<= 1;
@@ -1520,12 +1548,12 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr)
 				uae_u32 wrd1, wrd2, wrd3;
 				if (list & 0x80) {
 					ad -= 4;
-					wrd3 = x_cp_get_long (ad);
+					wrd3 = x_get_long (ad);
 					ad -= 4;
-					wrd2 = x_cp_get_long (ad);
+					wrd2 = x_get_long (ad);
 					ad -= 4;
-					wrd1 = x_cp_get_long (ad);
-					regs.fp[reg] = to_exten(wrd1, wrd2, wrd3);
+					wrd1 = x_get_long (ad);
+					to_exten (&regs.fp[reg], wrd1, wrd2, wrd3);
 				}
 				list <<= 1;
 			}
@@ -1533,13 +1561,13 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr)
 			for (reg = 0; reg <= 7; reg++) {
 				uae_u32 wrd1, wrd2, wrd3;
 				if (list & 0x80) {
-					wrd1 = x_cp_get_long (ad);
+					wrd1 = x_get_long (ad);
 					ad += 4;
-					wrd2 = x_cp_get_long (ad);
+					wrd2 = x_get_long (ad);
 					ad += 4;
-					wrd3 = x_cp_get_long (ad);
+					wrd3 = x_get_long (ad);
 					ad += 4;
-					regs.fp[reg] = to_exten(wrd1, wrd2, wrd3);
+					to_exten (&regs.fp[reg], wrd1, wrd2, wrd3);
 				}
 				list <<= 1;
 			}
@@ -1552,6 +1580,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 {
 	int reg, v;
 	fptype src;
+	fpdata srcd;
 	uaecptr pc = m68k_getpc () - 4;
 	uaecptr ad = 0;
 
@@ -1565,7 +1594,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 	switch ((extra >> 13) & 0x7)
 	{
 		case 3:
-			if (put_fp_value (regs.fp[(extra >> 7) & 7], opcode, extra, pc) == 0)
+			if (put_fp_value (&regs.fp[(extra >> 7) & 7], opcode, extra, pc) == 0)
 				fpu_noinst (opcode, pc);
 			return;
 
@@ -1616,13 +1645,13 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 					return;
 				if ((extra & 0x2000) == 0) {
 					if (extra & 0x1000) {
-						regs.fpcr = x_next_ilong ();
+						regs.fpcr = x_cp_next_ilong ();
 						native_set_fpucw (regs.fpcr);
 					}
 					if (extra & 0x0800)
-						set_fpsr (x_next_ilong ());
+						set_fpsr (x_cp_next_ilong ());
 					if (extra & 0x0400)
-						regs.fpiar = x_next_ilong ();
+						regs.fpiar = x_cp_next_ilong ();
 				}
 			} else if (extra & 0x2000) {
 				/* FMOVEM FPP->memory */
@@ -1781,82 +1810,85 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 		case 2: /* Extremely common */
 			regs.fpiar =  pc;
 			reg = (extra >> 7) & 7;
+#ifdef USE_SOFT_LONG_DOUBLE
+			regs.fp[reg].fpx = false;
+#endif
 			if ((extra & 0xfc00) == 0x5c00) {
 				if (fault_if_no_fpu (opcode, extra, 0, pc))
 					return;
 				switch (extra & 0x7f)
 				{
 					case 0x00:
-						regs.fp[reg] = *fp_pi;
+						regs.fp[reg].fp = *fp_pi;
 						break;
 					case 0x0b:
-						regs.fp[reg] = *fp_l10_2;
+						regs.fp[reg].fp = *fp_l10_2;
 						break;
 					case 0x0c:
-						regs.fp[reg] = *fp_exp_1;
+						regs.fp[reg].fp = *fp_exp_1;
 						break;
 					case 0x0d:
-						regs.fp[reg] = *fp_l2_e;
+						regs.fp[reg].fp = *fp_l2_e;
 						break;
 					case 0x0e:
-						regs.fp[reg] = *fp_l10_e;
+						regs.fp[reg].fp = *fp_l10_e;
 						break;
 					case 0x0f:
-						regs.fp[reg] = 0.0;
+						regs.fp[reg].fp = 0.0;
 						break;
 					case 0x30:
-						regs.fp[reg] = *fp_ln_2;
+						regs.fp[reg].fp = *fp_ln_2;
 						break;
 					case 0x31:
-						regs.fp[reg] = *fp_ln_10;
+						regs.fp[reg].fp = *fp_ln_10;
 						break;
 					case 0x32:
-						regs.fp[reg] = (fptype)fp_1e0;
+						regs.fp[reg].fp = (fptype)fp_1e0;
 						break;
 					case 0x33:
-						regs.fp[reg] = (fptype)fp_1e1;
+						regs.fp[reg].fp = (fptype)fp_1e1;
 						break;
 					case 0x34:
-						regs.fp[reg] = (fptype)fp_1e2;
+						regs.fp[reg].fp = (fptype)fp_1e2;
 						break;
 					case 0x35:
-						regs.fp[reg] = (fptype)fp_1e4;
+						regs.fp[reg].fp = (fptype)fp_1e4;
 						break;
 					case 0x36:
-						regs.fp[reg] = (fptype)fp_1e8;
+						regs.fp[reg].fp = (fptype)fp_1e8;
 						break;
 					case 0x37:
-						regs.fp[reg] = *fp_1e16;
+						regs.fp[reg].fp = *fp_1e16;
 						break;
 					case 0x38:
-						regs.fp[reg] = *fp_1e32;
+						regs.fp[reg].fp = *fp_1e32;
 						break;
 					case 0x39:
-						regs.fp[reg] = *fp_1e64;
+						regs.fp[reg].fp = *fp_1e64;
 						break;
 					case 0x3a:
-						regs.fp[reg] = *fp_1e128;
+						regs.fp[reg].fp = *fp_1e128;
 						break;
 					case 0x3b:
-						regs.fp[reg] = *fp_1e256;
+						regs.fp[reg].fp = *fp_1e256;
 						break;
 					case 0x3c:
-						regs.fp[reg] = *fp_1e512;
+						regs.fp[reg].fp = *fp_1e512;
 						break;
 					case 0x3d:
-						regs.fp[reg] = *fp_1e1024;
+						regs.fp[reg].fp = *fp_1e1024;
 						break;
 					case 0x3e:
-						regs.fp[reg] = *fp_1e2048;
+						regs.fp[reg].fp = *fp_1e2048;
 						break;
 					case 0x3f:
-						regs.fp[reg] = *fp_1e4096;
+						regs.fp[reg].fp = *fp_1e4096;
 						break;
 					default:
 						fpu_noinst (opcode, pc);
 						return;
 				}
-				MAKE_FPSR (regs.fp[reg]);
+				MAKE_FPSR (regs.fp[reg].fp);
 				return;
 			}
 
@@ -1864,12 +1896,13 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 			if (fault_if_unimplemented_6888x (opcode, extra, pc))
 				return;
 
-			v = get_fp_value (opcode, extra, &src, pc);
+			v = get_fp_value (opcode, extra, &srcd, pc);
 			if (v <= 0) {
 				if (v == 0)
 					fpu_noinst (opcode, pc);
 				return;
 			}
+			src = srcd.fp;
 
 			// get_fp_value() checked this, but only if EA was nonzero (non-register)
 			if (fault_if_unimplemented_680x0 (opcode, extra, 0, pc))
@@ -1882,7 +1915,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 				case 0x00: /* FMOVE */
 				case 0x40: /* Explicit rounding. This is just a quick fix. */
 				case 0x44: /* Same for all other cases that have three choices */
-					regs.fp[reg] = src;        /* Brian King was here. */
+					regs.fp[reg].fp = src;        /* Brian King was here. */
 					/*<ea> to register needs FPSR updated. See Motorola 68K Manual. */
 					if ((extra & 0x44) == 0x40)
 						fround (reg);
@@ -1898,167 +1931,167 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 							frndint
 							fstp LDPTR tmp_fp
 						}
-						regs.fp[reg] = tmp_fp;
+						regs.fp[reg].fp = tmp_fp;
 					}
 #else /* no X86_MSVC */
 					switch ((regs.fpcr >> 4) & 3) {
 				case 0: /* to nearest */
-					regs.fp[reg] = floor (src + 0.5);
+					regs.fp[reg].fp = floor (src + 0.5);
 					break;
 				case 1: /* to zero */
 					if (src >= 0.0)
-						regs.fp[reg] = floor (src);
+						regs.fp[reg].fp = floor (src);
 					else
-						regs.fp[reg] = ceil (src);
+						regs.fp[reg].fp = ceil (src);
 					break;
 				case 2: /* down */
-					regs.fp[reg] = floor (src);
+					regs.fp[reg].fp = floor (src);
 					break;
 				case 3: /* up */
-					regs.fp[reg] = ceil (src);
+					regs.fp[reg].fp = ceil (src);
 					break;
 				default: /* never reached */
-					regs.fp[reg] = src;
+					regs.fp[reg].fp = src;
 					}
 #endif /* X86_MSVC */
 					break;
 				case 0x02: /* FSINH */
-					regs.fp[reg] = sinh (src);
+					regs.fp[reg].fp = sinh (src);
 					break;
 				case 0x03: /* FINTRZ */
-					regs.fp[reg] = fp_round_to_zero (src);
+					regs.fp[reg].fp = fp_round_to_zero (src);
 					break;
 				case 0x04: /* FSQRT */
 				case 0x41: /* FSSQRT */
 				case 0x45: /* FDSQRT */
-					regs.fp[reg] = sqrt (src);
+					regs.fp[reg].fp = sqrt (src);
 					if ((extra & 0x44) == 0x40)
 						fround (reg);
 					break;
 				case 0x06: /* FLOGNP1 */
-					regs.fp[reg] = log (src + 1.0);
+					regs.fp[reg].fp = log (src + 1.0);
 					break;
 				case 0x08: /* FETOXM1 */
-					regs.fp[reg] = exp (src) - 1.0;
+					regs.fp[reg].fp = exp (src) - 1.0;
 					break;
 				case 0x09: /* FTANH */
-					regs.fp[reg] = tanh (src);
+					regs.fp[reg].fp = tanh (src);
 					break;
 				case 0x0a: /* FATAN */
-					regs.fp[reg] = atan (src);
+					regs.fp[reg].fp = atan (src);
 					break;
 				case 0x0c: /* FASIN */
-					regs.fp[reg] = asin (src);
+					regs.fp[reg].fp = asin (src);
 					break;
 				case 0x0d: /* FATANH */
 #if 1	/* The BeBox doesn't have atanh, and it isn't in the HPUX libm either */
-					regs.fp[reg] = 0.5 * log ((1 + src) / (1 - src));
+					regs.fp[reg].fp = 0.5 * log ((1 + src) / (1 - src));
 #else
-					regs.fp[reg] = atanh (src);
+					regs.fp[reg].fp = atanh (src);
 #endif
 					break;
 				case 0x0e: /* FSIN */
-					regs.fp[reg] = sin (src);
+					regs.fp[reg].fp = sin (src);
 					break;
 				case 0x0f: /* FTAN */
-					regs.fp[reg] = tan (src);
+					regs.fp[reg].fp = tan (src);
 					break;
 				case 0x10: /* FETOX */
-					regs.fp[reg] = exp (src);
+					regs.fp[reg].fp = exp (src);
 					break;
 				case 0x11: /* FTWOTOX */
-					regs.fp[reg] = pow (2.0, src);
+					regs.fp[reg].fp = pow (2.0, src);
 					break;
 				case 0x12: /* FTENTOX */
-					regs.fp[reg] = pow (10.0, src);
+					regs.fp[reg].fp = pow (10.0, src);
 					break;
 				case 0x14: /* FLOGN */
-					regs.fp[reg] = log (src);
+					regs.fp[reg].fp = log (src);
 					break;
 				case 0x15: /* FLOG10 */
-					regs.fp[reg] = log10 (src);
+					regs.fp[reg].fp = log10 (src);
 					break;
 				case 0x16: /* FLOG2 */
-					regs.fp[reg] = *fp_l2_e * log (src);
+					regs.fp[reg].fp = *fp_l2_e * log (src);
 					break;
 				case 0x18: /* FABS */
 				case 0x58: /* FSABS */
 				case 0x5c: /* FDABS */
-					regs.fp[reg] = src < 0 ? -src : src;
+					regs.fp[reg].fp = src < 0 ? -src : src;
 					if ((extra & 0x44) == 0x40)
 						fround (reg);
 					break;
 				case 0x19: /* FCOSH */
-					regs.fp[reg] = cosh (src);
+					regs.fp[reg].fp = cosh (src);
 					break;
 				case 0x1a: /* FNEG */
 				case 0x5a: /* FSNEG */
 				case 0x5e: /* FDNEG */
-					regs.fp[reg] = -src;
+					regs.fp[reg].fp = -src;
 					if ((extra & 0x44) == 0x40)
 						fround (reg);
 					break;
 				case 0x1c: /* FACOS */
-					regs.fp[reg] = acos (src);
+					regs.fp[reg].fp = acos (src);
 					break;
 				case 0x1d: /* FCOS */
-					regs.fp[reg] = cos (src);
+					regs.fp[reg].fp = cos (src);
 					break;
 				case 0x1e: /* FGETEXP */
 					{
 						if (src == 0) {
-							regs.fp[reg] = 0;
+							regs.fp[reg].fp = 0;
 						} else {
 							int expon;
 							frexp (src, &expon);
-							regs.fp[reg] = (double) (expon - 1);
+							regs.fp[reg].fp = (double) (expon - 1);
 						}
 					}
 					break;
 				case 0x1f: /* FGETMAN */
 					{
 						if (src == 0) {
-							regs.fp[reg] = 0;
+							regs.fp[reg].fp = 0;
 						} else {
 							int expon;
-							regs.fp[reg] = frexp (src, &expon) * 2.0;
+							regs.fp[reg].fp = frexp (src, &expon) * 2.0;
 						}
 					}
 					break;
 				case 0x20: /* FDIV */
 				case 0x60: /* FSDIV */
 				case 0x64: /* FDADD */
-					regs.fp[reg] /= src;
+					regs.fp[reg].fp /= src;
 					if ((extra & 0x44) == 0x40)
 						fround (reg);
 					break;
 				case 0x21: /* FMOD */
 					{
-						fptype quot = fp_round_to_zero(regs.fp[reg] / src);
-						regs.fp[reg] = regs.fp[reg] - quot * src;
+						fptype quot = fp_round_to_zero(regs.fp[reg].fp / src);
+						regs.fp[reg].fp = regs.fp[reg].fp - quot * src;
 					}
 					break;
 				case 0x22: /* FADD */
 				case 0x62: /* FSADD */
 				case 0x66: /* FDADD */
-					regs.fp[reg] += src;
+					regs.fp[reg].fp += src;
 					if ((extra & 0x44) == 0x40)
 						fround (reg);
 					break;
 				case 0x23: /* FMUL */
 				case 0x63: /* FSMUL */
 				case 0x67: /* FDMUL */
-					regs.fp[reg] *= src;
+					regs.fp[reg].fp *= src;
 					if ((extra & 0x44) == 0x40)
 						fround (reg);
 					break;
 				case 0x24: /* FSGLDIV */
-					regs.fp[reg] /= src;
+					regs.fp[reg].fp /= src;
 					break;
 				case 0x25: /* FREM */
 					{
-						fptype quot = fp_round_to_nearest(regs.fp[reg] / src);
-						regs.fp[reg] = regs.fp[reg] - quot * src;
+						fptype quot = fp_round_to_nearest(regs.fp[reg].fp / src);
+						regs.fp[reg].fp = regs.fp[reg].fp - quot * src;
 					}
 					break;
 				case 0x26: /* FSCALE */
@@ -2066,17 +2099,17 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 #ifdef ldexp
 						regs.fp[reg] = ldexp (regs.fp[reg], (int) src);
 #else
-						regs.fp[reg] *= exp (*fp_ln_2 * (int) src);
+						regs.fp[reg].fp *= exp (*fp_ln_2 * (int) src);
 #endif
 					}
 					break;
 				case 0x27: /* FSGLMUL */
-					regs.fp[reg] *= src;
+					regs.fp[reg].fp *= src;
 					break;
 				case 0x28: /* FSUB */
 				case 0x68: /* FSSUB */
 				case 0x6c: /* FDSUB */
-					regs.fp[reg] -= src;
+					regs.fp[reg].fp -= src;
 					if ((extra & 0x44) == 0x40)
 						fround (reg);
 					break;
@@ -2088,12 +2121,12 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 				case 0x35:
 				case 0x36:
 				case 0x37:
-					regs.fp[extra & 7] = cos (src);
-					regs.fp[reg] = sin (src);
+					regs.fp[extra & 7].fp = cos (src);
+					regs.fp[reg].fp = sin (src);
 					break;
 				case 0x38: /* FCMP */
 					{
-						fptype tmp = regs.fp[reg] - src;
+						fptype tmp = regs.fp[reg].fp - src;
 						regs.fpsr = 0;
 						MAKE_FPSR (tmp);
 					}
@@ -2106,7 +2139,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 					fpu_noinst (opcode, pc);
 					return;
 			}
-			MAKE_FPSR (regs.fp[reg]);
+			MAKE_FPSR (regs.fp[reg].fp);
 			return;
 		default:
 		break;
@@ -2116,6 +2149,12 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 
 void fpuop_arithmetic (uae_u32 opcode, uae_u16 extra)
 {
+	if (opcode == 0xf210 && extra == 0x7c00) {
+//		activate_debugger();
+//		return;
+		write_log (_T("*"));
+	}
+
 	regs.fpsr_highbyte = 0;
 	regs.fpu_state = 1;
 	regs.fp_exception = false;
@@ -2128,11 +2167,11 @@ void fpuop_arithmetic (uae_u32 opcode, uae_u16 extra)
 	}
 }
 
-
 void fpu_reset (void)
 {
 	regs.fpcr = regs.fpsr = regs.fpiar = 0;
-	regs.fp_result = 1;
+	fpset (&regs.fp_result, 1);
+	native_set_fpucw (regs.fpcr);
 	fpux_restore (NULL);
 }
 
@@ -2152,7 +2191,7 @@ uae_u8 *restore_fpu (uae_u8 *src)
 		uae_u32 w1 = restore_u32 ();
 		uae_u32 w2 = restore_u32 ();
 		uae_u32 w3 = restore_u16 ();
-		regs.fp[i] = to_exten (w1, w2, w3);
+		to_exten (&regs.fp[i], w1, w2, w3);
 	}
 	regs.fpcr = restore_u32 ();
 	native_set_fpucw (regs.fpcr);
@@ -2183,7 +2222,7 @@ uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
 	save_u32 (0x80000000 | (regs.fpu_state == 0 ? 1 : 0));
 	for (i = 0; i < 8; i++) {
 		uae_u32 w1, w2, w3;
-		from_exten (regs.fp[i], &w1, &w2, &w3);
+		from_exten (&regs.fp[i], &w1, &w2, &w3);
 		save_u32 (w1);
 		save_u32 (w2);
 		save_u16 (w3);
