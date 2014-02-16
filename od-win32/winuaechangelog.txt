@@ -11,6 +11,40 @@
 
 - restore only single input target to default.
 
+Beta 8:
+
+- 68000 CE/prefetch mode reads of non-existing memory should return correct data in all situations.
+- Reading of write-only register will now write correct data to register. Data that CPU gets back
+  still isn't 100% correct (which can be totally different than what was written to register).
+- ROM image didn't load correctly if ROM image was in multiple parts (odd/even) and merged parent ROM was not found.
+- NCR SCSI: SCSI commands that failed returned wrong status.
+- uaehf.device SCSI Verify (10) implemented. (Does not verify anything)
+- A590/A2091 and A4091 options moved to Expansions panel, they are expansions, not built-in
+  features and not part of internal hardware config (advanced chipset). CDTV SCSI is also technically
+  built-in because driver and DMAC are located on mainboard, CDTV adapter only contains WD SCSI chip.
+- A590/A2091 linear ROM mapping was incorrect (Any CPU mode without "more compatible" fetched bad opcode data).
+  Note that A590/A2091 can't be JIT compatible.
+- Added "ROM disabled" option to A590/A2091 ROM select menu. (ROM disable jumper is for 1.2 compatibility)
+- It was possible to set and get unused DMACON bits 11 and 12.
+- A4091 was not compatible with Z3 Fast.
+- Hardcoded A4091 autoconfig data was replaced with data from ROM image.
+- Border blank didn't override AGA border sprites (broke in some previous beta).
+- 68020/68030 SR M-bit should be cleared (if set) before executing interrupt routine.
+- 68030 MMU FPU FMOVEM instruction continuation state recovery after bus fault was incomplete.
+- Generate bus error when accessing invalid memory if A3000/A4000 Fat Gary based system, MMU emulation active
+  and Gary TOENB register bit is set.
+- Joystick/joypad can be used to control light pen cursor. (Was mouse only previously)
+- Some kind of physical mouse as digital/analog joystick/joypad support. Not that good but perhaps better
+  than nothing.
+- Removed useless address space gaps between Z3 boards.
+- CD image CDA player may have gotten confused in some situations if new track was requested while other
+  track was still playing.
+- 6888x Packed-Decimal Real with Dynamic k-Factor data type was detected as invalid instruction. Allowed
+  now but k-Factor is ignored (Packed-Decimal Real with Static k-Factor was also ignored) but it isn't that
+  important, practically no one uses packed decimal data types.
+- Some CPU and FPU emulation changes to make it more usable with other emulators (I am working with
+  author of Next emulator Previous to get 68030 based Next computer booting)
+
 Beta 7:
 
 - A4091 and A4000T NCR53C710 SCSI emulation works now! Now all built-in devices in all supported setups

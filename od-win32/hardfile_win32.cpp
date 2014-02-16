@@ -79,7 +79,7 @@ int harddrive_dangerous = 0x1234dead;
 int do_rdbdump;
 static struct uae_driveinfo uae_drives[MAX_FILESYSTEM_UNITS];
 
-#if 1
+#if 0
 static void fixdrive (struct hardfiledata *hfd)
 {
 	uae_u8 data[512];
@@ -690,7 +690,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			hfd->handle_valid = HDF_HANDLE_WIN32;
 			hfd->emptyname = my_strdup (name);
 
-			fixdrive (hfd);
+			//fixdrive (hfd);
 
 		} else {
 			hfd->flags = HFD_FLAGS_REALDRIVE;
