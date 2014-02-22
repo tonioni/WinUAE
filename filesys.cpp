@@ -7287,7 +7287,7 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 			if (ci->dostype) { // forced dostype?
 				put_long (parmpacket + 80, ci->dostype); /* dostype */
 			} else if (hdf_read (&uip[unit_no].hf, buf, 0, sizeof buf)) {
-				uae_u32 dt = get_long (rl (buf));
+				uae_u32 dt = rl (buf);
 				if (dt != 0x00000000 && dt != 0xffffffff)
 					put_long (parmpacket + 80, dt);
 			}

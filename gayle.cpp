@@ -196,7 +196,8 @@ struct ide_hdf
 	int data_multi;
 	int direction; // 0 = read, 1 = write
 	bool intdrq;
-	int lba48;
+	bool lba48;
+	bool lba48cmd;
 	uae_u8 multiple_mode;
 	int irq_delay;
 	int irq;
@@ -663,7 +664,7 @@ static void ide_set_features (struct ide_hdf *ide)
 
 static void get_lbachs (struct ide_hdf *ide, uae_u64 *lbap, unsigned int *cyl, unsigned int *head, unsigned int *sec)
 {
-	if (ide->lba48 && (ide->regs.ide_select & 0x40)) {
+	if (ide->lba48 && ide->lba48cmd && (ide->regs.ide_select & 0x40)) {
 		uae_u64 lba;
 		lba = (ide->regs.ide_hcyl << 16) | (ide->regs.ide_lcyl << 8) | ide->regs.ide_sector;
 		lba |= ((ide->regs.ide_hcyl2 << 16) | (ide->regs.ide_lcyl2 << 8) | ide->regs.ide_sector2) << 24;
@@ -682,14 +683,14 @@ static void get_lbachs (struct ide_hdf *ide, uae_u64 *lbap, unsigned int *cyl, u
 
 static int get_nsec (struct ide_hdf *ide)
 {
-	if (ide->lba48)
+	if (ide->lba48 && ide->lba48cmd)
 		return (ide->regs.ide_nsector == 0 && ide->regs.ide_nsector2 == 0) ? 65536 : (ide->regs.ide_nsector2 * 256 + ide->regs.ide_nsector);
 	else
 		return ide->regs.ide_nsector == 0 ? 256 : ide->regs.ide_nsector;
 }
 static int dec_nsec (struct ide_hdf *ide, int v)
 {
-	if (ide->lba48) {
+	if (ide->lba48 && ide->lba48cmd) {
 		uae_u16 nsec;
 		nsec = ide->regs.ide_nsector2 * 256 + ide->regs.ide_nsector;
 		ide->regs.ide_nsector -= v;
@@ -704,7 +705,7 @@ static int dec_nsec (struct ide_hdf *ide, int v)
 
 static void put_lbachs (struct ide_hdf *ide, uae_u64 lba, unsigned int cyl, unsigned int head, unsigned int sec, unsigned int inc)
 {
-	if (ide->lba48) {
+	if (ide->lba48 && ide->lba48cmd) {
 		lba += inc;
 		ide->regs.ide_hcyl = (lba >> 16) & 0xff;
 		ide->regs.ide_lcyl = (lba >> 8) & 0xff;
@@ -915,7 +916,7 @@ static void do_process_rw_command (struct ide_hdf *ide)
 	get_lbachs (ide, &lba, &cyl, &head, &sec);
 	nsec = get_nsec (ide);
 	if (IDE_LOG > 1)
-		write_log (_T("IDE%d off=%d, nsec=%d (%d) lba%d\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, ide->lba48 ? 48 : 28);
+		write_log (_T("IDE%d off=%d, nsec=%d (%d) lba48=%d\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, ide->lba48 + ide->lba48cmd);
 	if (nsec * ide->blocksize > ide->hdhfd.size - lba * ide->blocksize) {
 		nsec = (ide->hdhfd.size - lba * ide->blocksize) / ide->blocksize;
 		if (IDE_LOG > 1)
@@ -955,6 +956,7 @@ static void ide_read_sectors (struct ide_hdf *ide, int flags)
 	uae_u64 lba;
 	int multi = flags & 1;
 
+	ide->lba48cmd = (flags & 2) != 0;
 	if (multi && ide->multiple_mode == 0) {
 		ide_fail (ide);
 		return;
@@ -969,7 +971,7 @@ static void ide_read_sectors (struct ide_hdf *ide, int flags)
 		return;
 	}
 	if (IDE_LOG > 0)
-		write_log (_T("IDE%d read off=%d, sec=%d (%d) lba%d\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, ide->lba48 ? 48 : 28);
+		write_log (_T("IDE%d read off=%d, sec=%d (%d) lba48=%d\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, ide->lba48 + ide->lba48cmd);
 	ide->data_multi = multi ? ide->multiple_mode : 1;
 	ide->data_offset = 0;
 	ide->data_size = nsec * ide->blocksize;
@@ -984,6 +986,7 @@ static void ide_write_sectors (struct ide_hdf *ide, int flags)
 	uae_u64 lba;
 	int multi = flags & 1;
 
+	ide->lba48cmd = (flags & 2) != 0;
 	if (multi && ide->multiple_mode == 0) {
 		ide_fail (ide);
 		return;
@@ -998,7 +1001,7 @@ static void ide_write_sectors (struct ide_hdf *ide, int flags)
 		return;
 	}
 	if (IDE_LOG > 0)
-		write_log (_T("IDE%d write off=%d, sec=%d (%d) lba%d\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, ide->lba48 ? 48 : 28);
+		write_log (_T("IDE%d write off=%d, sec=%d (%d) lba48=%d\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, ide->lba48 + ide->lba48cmd);
 	if (nsec * ide->blocksize > ide->hdhfd.size - lba * ide->blocksize)
 		nsec = (ide->hdhfd.size - lba * ide->blocksize) / ide->blocksize;
 	if (nsec <= 0) {
@@ -1023,6 +1026,7 @@ static void ide_do_command (struct ide_hdf *ide, uae_u8 cmd)
 		write_log (_T("**** IDE%d command %02X\n"), ide->num, cmd);
 	ide->regs.ide_status &= ~ (IDE_STATUS_DRDY | IDE_STATUS_DRQ | IDE_STATUS_ERR);
 	ide->regs.ide_error = 0;
+	ide->lba48cmd = false;
 
 	if (ide->atapi) {
 

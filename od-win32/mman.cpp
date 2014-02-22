@@ -146,6 +146,8 @@ bool preinit_shm (void)
 #endif
 	}
 #endif
+	if (maxmem > max_allowed_mman)
+		max_allowed_mman = maxmem;
 
 	memstats.dwLength = sizeof(memstats);
 	GlobalMemoryStatus(&memstats);

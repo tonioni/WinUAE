@@ -189,6 +189,9 @@ extern uae_u32 mmu_is_super;
 extern uae_u32 mmu_tagmask, mmu_pagemask;
 extern struct mmu_atc_line mmu_atc_array[ATC_TYPE][ATC_WAYS][ATC_SLOTS];
 
+/* Last matched ATC index, next lookup starts from this index as an optimization */
+extern int mmu_atc_ways;
+
 /*
  * mmu access is a 4 step process:
  * if mmu is not enabled just read physical
@@ -199,7 +202,7 @@ extern struct mmu_atc_line mmu_atc_array[ATC_TYPE][ATC_WAYS][ATC_SLOTS];
 static ALWAYS_INLINE bool mmu_lookup(uaecptr addr, bool data, bool write,
 									  struct mmu_atc_line **cl)
 {
-	int way,index;
+	int way, i, index;
 	static int way_miss=0;
 
 	uae_u32 tag = (mmu_is_super | (addr >> 1)) & mmu_tagmask;
@@ -207,7 +210,8 @@ static ALWAYS_INLINE bool mmu_lookup(uaecptr addr, bool data, bool write,
 		index=(addr & 0x0001E000)>>13;
 	else
 		index=(addr & 0x0000F000)>>12;
-	for (way=0;way<ATC_WAYS;way++) {
+	for (i = 0; i < ATC_WAYS; i++) {
+		way = mmu_atc_ways;
 		// if we have this 
 		if ((tag == mmu_atc_array[data][way][index].tag) && (mmu_atc_array[data][way][index].valid)) {
 			*cl=&mmu_atc_array[data][way][index];
@@ -216,6 +220,8 @@ static ALWAYS_INLINE bool mmu_lookup(uaecptr addr, bool data, bool write,
 				return false; 
 			return true;
 		}
+		mmu_atc_ways++;
+		mmu_atc_ways &= (ATC_WAYS - 1);
 	}
 	// we select a random way to void
 	*cl=&mmu_atc_array[data][way_miss%ATC_WAYS][index];
@@ -229,7 +235,7 @@ static ALWAYS_INLINE bool mmu_lookup(uaecptr addr, bool data, bool write,
 static ALWAYS_INLINE bool mmu_user_lookup(uaecptr addr, bool super, bool data,
 										   bool write, struct mmu_atc_line **cl)
 {
-	int way,index;
+	int way, i, index;
 	static int way_miss=0;
 
 	uae_u32 tag = ((super ? 0x80000000 : 0x00000000) | (addr >> 1)) & mmu_tagmask;
@@ -237,7 +243,8 @@ static ALWAYS_INLINE bool mmu_user_lookup(uaecptr addr, bool super, bool data,
 		index=(addr & 0x0001E000)>>13;
 	else
 		index=(addr & 0x0000F000)>>12;
-	for (way=0;way<ATC_WAYS;way++) {
+	for (i = 0; i < ATC_WAYS; i++) {
+		way = mmu_atc_ways;
 		// if we have this 
 		if ((tag == mmu_atc_array[data][way][index].tag) && (mmu_atc_array[data][way][index].valid)) {
 			*cl=&mmu_atc_array[data][way][index];
@@ -246,6 +253,8 @@ static ALWAYS_INLINE bool mmu_user_lookup(uaecptr addr, bool super, bool data,
 				return false; 
 			return true;
 		}
+		mmu_atc_ways++;
+		mmu_atc_ways &= (ATC_WAYS - 1);
 	}
 	// we select a random way to void
 	*cl=&mmu_atc_array[data][way_miss%ATC_WAYS][index];

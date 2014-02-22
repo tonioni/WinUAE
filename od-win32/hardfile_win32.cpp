@@ -75,11 +75,11 @@ struct uae_driveinfo {
 * - block 0 is zeroed
 */
 
-int harddrive_dangerous = 0x1234dead;
+int harddrive_dangerous; // = 0x1234dead; // test only!
 int do_rdbdump;
 static struct uae_driveinfo uae_drives[MAX_FILESYSTEM_UNITS];
 
-#if 0
+#if 1
 static void fixdrive (struct hardfiledata *hfd)
 {
 	uae_u8 data[512];

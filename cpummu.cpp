@@ -53,6 +53,7 @@ bool mmu_restart;
 static bool locked_rmw_cycle;
 static bool ismoves;
 bool mmu_ttr_enabled;
+int mmu_atc_ways;
 
 int mmu040_movem;
 uaecptr mmu040_movem_ea;

@@ -2563,12 +2563,14 @@ static void center_image (void)
 			visible_left_border = max_diwstop - w - (max_diwstop - min_diwstart - w) / 2;
 		visible_left_border &= ~((xshift (1, lores_shift)) - 1);
 
+#if 0
 		/* Would the old value be good enough? If so, leave it as it is if we want to
 		* be clever. */
 		if (currprefs.gfx_xcenter == 2) {
 			if (center_reset || (visible_left_border < prev_x_adjust && prev_x_adjust < min_diwstart && min_diwstart - visible_left_border <= 32))
 				visible_left_border = prev_x_adjust;
 		}
+#endif
 	} else if (gfxvidinfo.drawbuffer.extrawidth) {
 		visible_left_border = max_diwlastword - w;
 		if (gfxvidinfo.drawbuffer.extrawidth > 0)
@@ -2603,12 +2605,14 @@ static void center_image (void)
 		else
 			thisframe_y_adjust = thisframe_first_drawn_line + ((thisframe_last_drawn_line - thisframe_first_drawn_line) - max_drawn_amiga_line) / 2;
 
+#if 0
 		/* Would the old value be good enough? If so, leave it as it is if we want to
 		* be clever. */
 		if (currprefs.gfx_ycenter == 2 && thisframe_y_adjust != prev_y_adjust) {
 			if (center_reset || (prev_y_adjust <= thisframe_first_drawn_line && prev_y_adjust + max_drawn_amiga_line > thisframe_last_drawn_line))
 				thisframe_y_adjust = prev_y_adjust;
 		}
+#endif
 	}
 
 	/* Make sure the value makes sense */

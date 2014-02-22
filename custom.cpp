@@ -4487,12 +4487,12 @@ STATIC_INLINE int use_eventmode (uae_u16 v)
 {
 	if (!currprefs.cpu_cycle_exact)
 		return 0;
+	if (currprefs.cachesize || currprefs.m68k_speed < 0)
+		return 0;
 	if (currprefs.cpu_cycle_exact && currprefs.cpu_model <= 68020)
 		return 1;
 	if (v & 0x8000)
 		return 1;
-	if (currprefs.cachesize || currprefs.m68k_speed < 0)
-		return 0;
 	if (event2_count)
 		return 1;
 	return 0;
@@ -4541,18 +4541,15 @@ static void send_intena_do (uae_u32 v)
 {
 	setclr (&intena_internal, v);
 	doint ();
-	int_recursive++;
-	rethink_intreq ();
-	int_recursive--;
 }
 
 static void send_intreq_do (uae_u32 v)
 {
 	setclr (&intreq_internal, v);
-	doint ();
 	int_recursive++;
 	rethink_intreq ();
 	int_recursive--;
+	doint ();
 }
 
 static void INTENA (uae_u16 v)
@@ -4560,9 +4557,14 @@ static void INTENA (uae_u16 v)
 	uae_u16 old = intena;
 	setclr (&intena, v);
 
-	if (!(v & 0x8000) && old == intena)
+	if (!(v & 0x8000) && old == intena && intena == intena_internal)
 		return;
+
+	//write_log (_T("%04x %04x %04x %04x\n"), intena, intena_internal, intreq, intreq_internal);
+
 	if (use_eventmode (v)) {
+		if (old == intena && intena == intena_internal)
+			return;
 		event2_newevent_xx (-1, INT_PROCESSING_DELAY, v, send_intena_do);
 	} else {
 		intena_internal = intena;
@@ -4622,7 +4624,7 @@ bool INTREQ_0 (uae_u16 v)
 		intreq_internal = intreq;
 		if (old == intreq && old2 == intreq_internal)
 			return false;
-		if ((v & 0x8000) || currprefs.cpu_cycle_exact)
+		if (v & 0x8000)
 			doint ();
 		return true;
 	}
@@ -4694,6 +4696,9 @@ void set_picasso_hack_rate (int hz)
 
 #endif
 
+/* "Dangerous" blitter D-channel: Writing to memory which is also currently
+ * read by bitplane DMA
+ */
 static void dcheck_is_blit_dangerous (void)
 {
 	check_is_blit_dangerous (bplpt, bplcon0_planes, 50 << bplcon0_res);
@@ -7764,7 +7769,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 
 		if (hardreset) {
 			if (!aga_mode) {
-				uae_u16 c = (currprefs.chipset_mask & CSMASK_ECS_DENISE) ? 0xfff : 0x000;
+				uae_u16 c = ((currprefs.chipset_mask & CSMASK_ECS_DENISE) && !(currprefs.chipset_mask & CSMASK_AGA)) ? 0xfff : 0x000;
 				for (i = 0; i < 32; i++) {
 					current_colors.color_regs_ecs[i] = c;
 					current_colors.acolors[i] = getxcolor (c);

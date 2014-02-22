@@ -159,6 +159,15 @@ do { write_log("lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 #define LSI_CCNTL1_DDAC      0x08
 #define LSI_CCNTL1_ZMOD      0x80
 
+#define LSI_SBCL_IO  0x01
+#define LSI_SBCL_CD  0x02
+#define LSI_SBCL_MSG 0x04
+#define LSI_SBCL_ATN 0x08
+#define LSI_SBCL_SEL 0x10
+#define LSI_SBCL_BSY 0x20
+#define LSI_SBCL_ACK 0x40
+#define LSI_SBCL_REQ 0x80
+
 /* Enable Response to Reselection */
 #define LSI_SCID_RRE      0x60
 
@@ -256,6 +265,7 @@ typedef struct {
 	uint8_t lcrc;
 	uint8_t sstat2;
 	uint8_t dwt;
+	uint8_t sbcl;
 	uint8_t script_active;
 } LSIState;
 
@@ -440,6 +450,7 @@ static inline void lsi_set_phase(LSIState *s, int phase)
 	s->ctest0 &= ~1;
 	if (phase == PHASE_DI)
 		s->ctest0 |= 1;
+	s->sbcl &= ~LSI_SBCL_REQ;
 }
 
 static void lsi_bad_phase(LSIState *s, int out, int new_phase)
@@ -449,6 +460,7 @@ static void lsi_bad_phase(LSIState *s, int out, int new_phase)
     lsi_script_scsi_interrupt(s, LSI_SSTAT0_MA);
     lsi_stop_script(s);
     lsi_set_phase(s, new_phase);
+	s->sbcl |= LSI_SBCL_REQ;
 }
 
 
@@ -733,8 +745,8 @@ static void lsi_do_command(LSIState *s)
     s->sfbr = buf[0];
     s->command_complete = 0;
 
-    id = (s->select_tag >> 8) & 0xf;
-	s->lcrc = 1 << (id & 0x7);
+    id = (s->select_tag >> 8) & 0xff;
+	s->lcrc = id; //1 << (id & 0x7);
     dev = scsi_device_find(&s->bus, 0, idbitstonum(id), s->current_lun);
     if (!dev) {
         lsi_bad_selection(s, id);
@@ -1107,7 +1119,8 @@ again:
         if ((s->sstat2 & PHASE_MASK) != ((insn >> 24) & 7)) {
             DPRINTF("Wrong phase got %d expected %d\n",
                     s->sstat2 & PHASE_MASK, (insn >> 24) & 7);
-            lsi_script_scsi_interrupt(s, LSI_SSTAT0_SGE);
+            lsi_script_scsi_interrupt(s, LSI_SSTAT0_MA);
+			s->sbcl |= LSI_SBCL_REQ;
             break;
         }
         s->dnad = addr;
@@ -1158,7 +1171,6 @@ again:
             if (insn & (1 << 26)) {
                 addr = s->dsp + sextract32(addr, 0, 24);
             }
-			id &= ~s->scid;
             s->dnad = addr;
             switch (opcode) {
             case 0: /* Select */
@@ -1648,11 +1660,18 @@ static uint8_t lsi_reg_readb2(LSIState *s, int offset)
         return s->sien0;
 	case 0x05: /* SXFER */
         return s->sxfer;
-
+    case 0x09: /* SIDL */
+        /* This is needed by the linux drivers.  We currently only update it
+           during the MSG IN phase.  */
+        return s->sidl;
     case 0xb: /* SBCL */
-        /* ??? This is not correct. However it's (hopefully) only
-           used for diagnostics, so should be ok.  */
-        return 0;
+		/* NetBSD 1.x checks for REQ */
+	    tmp = s->sstat2 & PHASE_MASK;
+		/* if phase mismatch, REQ is also active */
+		tmp |= s->sbcl;
+		if (s->socl & LSI_SOCL_ATN)
+			tmp |= LSI_SBCL_ATN;
+        return tmp;
     case 0xc: /* DSTAT */
         tmp = s->dstat | LSI_DSTAT_DFE;
 		s->dstat = 0;
@@ -1777,6 +1796,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         s->sxfer = val;
         break;
 	case 0x0b: /* SBCL */
+		lsi_set_phase (s, val & PHASE_MASK);
 		break;
     case 0x0c: case 0x0d: case 0x0e: case 0x0f:
         /* Linux writes to these readonly registers on startup.  */
