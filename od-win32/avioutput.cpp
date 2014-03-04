@@ -39,6 +39,7 @@ Copyright(c) 2001 - 2002; §ane
 #include "xwin.h"
 #include "avioutput.h"
 #include "registry.h"
+#include "fsdb.h"
 #include "threaddep/thread.h"
 
 #define MAX_AVI_SIZE (0x80000000 - 0x1000000)
@@ -67,7 +68,9 @@ int avioutput_fps = VBLANK_HZ_PAL;
 int avioutput_framelimiter = 0, avioutput_nosoundoutput = 0;
 int avioutput_nosoundsync = 1, avioutput_originalsize = 0;
 
-TCHAR avioutput_filename[MAX_DPATH];
+TCHAR avioutput_filename_gui[MAX_DPATH];
+TCHAR avioutput_filename_auto[MAX_DPATH];
+TCHAR avioutput_filename_inuse[MAX_DPATH];
 static TCHAR avioutput_filename_tmp[MAX_DPATH];
 
 extern struct uae_prefs workprefs;
@@ -682,7 +685,7 @@ static void checkAVIsize (int force)
 	if (total_avi_size == 0)
 		return;
 	_tcscpy (fn, avioutput_filename_tmp);
-	_stprintf (avioutput_filename, _T("%s_%d.avi"), fn, tmp_partcnt);
+	_stprintf (avioutput_filename_inuse, _T("%s_%d.avi"), fn, tmp_partcnt);
 	write_log (_T("AVI split %d at %d bytes, %d frames\n"),
 		tmp_partcnt, total_avi_size, frame_count);
 	AVIOutput_End ();
@@ -1131,11 +1134,11 @@ void AVIOutput_Begin (void)
 	} else {
 		ext1 = _T(".avi"); ext2 = _T(".wav");
 	}
-	if (_tcslen (avioutput_filename) >= 4 && !_tcsicmp (avioutput_filename + _tcslen (avioutput_filename) - 4, ext2))
-		avioutput_filename[_tcslen (avioutput_filename) - 4] = 0;
-	if (_tcslen (avioutput_filename) >= 4 && _tcsicmp (avioutput_filename + _tcslen (avioutput_filename) - 4, ext1))
-		_tcscat (avioutput_filename, ext1);
-	_tcscpy (avioutput_filename_tmp, avioutput_filename);
+	if (_tcslen (avioutput_filename_inuse) >= 4 && !_tcsicmp (avioutput_filename_inuse + _tcslen (avioutput_filename_inuse) - 4, ext2))
+		avioutput_filename_inuse[_tcslen (avioutput_filename_inuse) - 4] = 0;
+	if (_tcslen (avioutput_filename_inuse) >= 4 && _tcsicmp (avioutput_filename_inuse + _tcslen (avioutput_filename_inuse) - 4, ext1))
+		_tcscat (avioutput_filename_inuse, ext1);
+	_tcscpy (avioutput_filename_tmp, avioutput_filename_inuse);
 	i = _tcslen (avioutput_filename_tmp) - 1;
 	while (i > 0 && avioutput_filename_tmp[i] != '.') i--;
 	if (i > 0)
@@ -1143,25 +1146,27 @@ void AVIOutput_Begin (void)
 
 	avioutput_needs_restart = 0;
 	avioutput_enabled = avioutput_audio || avioutput_video;
-	if (!avioutput_init || !avioutput_enabled)
+	if (!avioutput_init || !avioutput_enabled) {
+		write_log (_T("No video or audio enabled\n"));
 		goto error;
+	}
 
 	// delete any existing file before writing AVI
-	SetFileAttributes (avioutput_filename, FILE_ATTRIBUTE_ARCHIVE);
-	DeleteFile (avioutput_filename);
+	SetFileAttributes (avioutput_filename_inuse, FILE_ATTRIBUTE_ARCHIVE);
+	DeleteFile (avioutput_filename_inuse);
 
 	if (avioutput_audio == AVIAUDIO_WAV) {
-		wavfile = _tfopen (avioutput_filename, _T("wb"));
+		wavfile = _tfopen (avioutput_filename_inuse, _T("wb"));
 		if (!wavfile) {
 			gui_message (_T("Failed to open wave-file\n\nThis can happen if the path and or file name was entered incorrectly.\n"));
 			goto error;
 		}
 		writewavheader (0);
-		write_log (_T("wave-output to '%s' started\n"), avioutput_filename);
+		write_log (_T("wave-output to '%s' started\n"), avioutput_filename_inuse);
 		return;
 	}
 
-	if (((err = AVIFileOpen (&pfile, avioutput_filename, OF_CREATE | OF_WRITE, NULL)) != 0)) {
+	if (((err = AVIFileOpen (&pfile, avioutput_filename_inuse, OF_CREATE | OF_WRITE, NULL)) != 0)) {
 		gui_message (_T("AVIFileOpen() FAILED (Error %X)\n\nThis can happen if the path and or file name was entered incorrectly.\nRequired *.avi extension.\n"), err);
 		goto error;
 	}
@@ -1272,7 +1277,7 @@ void AVIOutput_Begin (void)
 	init_comm_pipe (&queuefull, 20, 1);
 	alive = -1;
 	uae_start_thread (_T("aviworker"), AVIOutput_worker, NULL, NULL);
-	write_log (_T("AVIOutput enabled: video=%d audio=%d\n"), avioutput_video, avioutput_audio);
+	write_log (_T("AVIOutput enabled: video=%d audio=%d path='%s'\n"), avioutput_video, avioutput_audio, avioutput_filename_inuse);
 	return;
 
 error:
@@ -1359,6 +1364,64 @@ static void *AVIOutput_worker (void *arg)
 	write_log (_T("AVIOutput worker thread killed\n"));
 	alive = 0;
 	return 0;
+}
+
+void AVIOutput_Toggle (int mode, bool immediate)
+{
+	if (mode < 0) {
+		avioutput_requested = !avioutput_requested;
+	} else {
+		if (mode == avioutput_requested)
+			return;
+		avioutput_requested = mode;
+	}
+
+	if (!avioutput_requested)
+		AVIOutput_End ();
+
+	if (immediate && avioutput_requested) {
+		TCHAR tmp[MAX_DPATH];
+		_tcscpy (avioutput_filename_inuse, avioutput_filename_auto);
+		if (!avioutput_filename_inuse[0]) {
+			fetch_path (_T("VideoPath"), avioutput_filename_inuse, sizeof (avioutput_filename_inuse) / sizeof (TCHAR));
+			_tcscat (avioutput_filename_inuse, _T("output.avi"));
+		}
+
+		for (;;) {
+			int num = 0;
+			TCHAR *ext = NULL;
+			TCHAR *p = _tcsrchr (avioutput_filename_inuse, '.');
+			if (p)
+				ext = my_strdup (p);
+			else
+				p = avioutput_filename_inuse + _tcslen (avioutput_filename_inuse);
+			p[0] = 0;
+			if (p > avioutput_filename_inuse && p[-1] >= '0' && p[-1] <= '9') {
+				p--;
+				while (p > avioutput_filename_inuse && p[-1] >= '0' && p[-1] <= '9')
+					p--;
+				num = _tstol (p);
+			} else {
+				*p++ = '_';
+				*p = 0;
+			}
+			num++;
+			_stprintf (p, _T("%u"), num);
+			if (ext)
+				_tcscat (avioutput_filename_inuse, ext);
+			xfree (ext);
+			if (!my_existsfile (avioutput_filename_inuse))
+				break;
+		}
+
+		if (avioutput_audio != AVIAUDIO_WAV) {
+			avioutput_audio = AVIOutput_GetAudioCodec (tmp, sizeof tmp / sizeof (TCHAR));
+			avioutput_video = AVIOutput_GetVideoCodec (tmp, sizeof tmp / sizeof (TCHAR));
+		}
+		AVIOutput_Begin ();
+	} else if (!immediate && avioutput_requested) {
+		_tcscpy (avioutput_filename_inuse, avioutput_filename_gui);
+	}
 }
 
 

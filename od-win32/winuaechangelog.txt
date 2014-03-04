@@ -1,15 +1,30 @@
 
-1 -> 0: 0,1FE,1FE,1FE,..
-1 -> 1: 0,1FE,0,1FE,0,..
-1 -> 2: 0,1FE,70,1FE,70,.. (C-)
-1 -> 9: 0,1FE,0,74,0,74,.. (DA)
-1 -> B: 0,1FE,70,0,74,70,0,74,70,0,74,.. (ACD)
-1 -> C: 0,1FE,72,74,70,72,74,70,72,.. (CBA)
-1 -> D: 0,1FE,72,74,70,72,74,70,72,.. (CBA)
-1 -> E: 0,1FE,70,70,70,70,.. (C)
-1 -> F: 0,1FE,70,70,74,70,70,70,74,70,70,70,74,.. (CCCA)
+1 -> 0 (-)   : 0,1FE,1FE,1FE,..
+1 -> 1 (D)   : 0,1FE,0,1FE,0,..
+1 -> 2 (C)   : 0,1FE,70,1FE,70,.. (C-)
+1 -> 9 (AD)  : 0,1FE,0,74,0,74,.. (DA)
+1 -> B (ACD) : 0,1FE,70,0,74,70,0,74,70,0,74,.. (ACD)
+1 -> C (AB)  : 0,1FE,72,74,70,72,74,70,72,.. (CBA)
+1 -> D (ABD) : 0,1FE,72,74,70,72,74,70,72,.. (CBA)
+1 -> E (ABC) : 0,1FE,70,70,70,70,.. (C)
+1 -> F (ABCD): 0,1FE,70,70,74,70,70,70,74,70,70,70,74,.. (CCCA)
 
 - restore only single input target to default.
+
+Beta 9:
+
+- NCR emulation didn't work with SCSI IDs 4-6.
+- NCR SCRIPTS MOVE command phase bit test mismatch returned wrong interrupt status. (NetBSD 1.x)
+- Added partial hack to NCR emulation that "fixes" NetBSD harmless "Phase mismatch: REQ not asserted!" warnings.
+- IDE emulation: use LBA48 calculations only if command is new LBA48 command (read/write ext).
+  This could have caused unexplained disk error messages if device driver used both lba28 and lba48 commands
+  and HDF was lba48 enabled (>=128G in size)
+- maxmem command line parameter can now also be used to increase natmem limit (if host OS allows it)
+- b5 interrupt update had another problem, CE modes lost interrupts in some situations when using UAE HD controller.
+- Partition hardfile dostype was set to mostly random value with some CPU configs (b1).
+- Disabled "smart centering" (tries to keep old centering parameters if it is "good enough"), it does not seem to
+  work correctly anymore (probably worked only accidentally) and leaves normal WB screen modes non-centered. Will
+  be debugged more if something else breaks, as usual..
 
 Beta 8:
 

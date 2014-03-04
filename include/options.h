@@ -89,6 +89,17 @@ struct jport {
 #define TABLET_MOUSEHACK 1
 #define TABLET_REAL 2
 
+#ifdef WITH_SLIRP
+#define MAX_SLIRP_REDIRS 32
+struct slirp_redir
+{
+	int proto;
+	int srcport;
+	int dstport;
+	unsigned long addr;
+};
+#endif
+
 struct cdslot
 {
 	TCHAR name[MAX_DPATH];
@@ -561,7 +572,9 @@ struct uae_prefs {
 	TCHAR win32_guipage[32];
 	TCHAR win32_guiactivepage[32];
 	bool win32_filesystem_mangle_reserved_names;
-
+#ifdef WITH_SLIRP
+	struct slirp_redir slirp_redirs[MAX_SLIRP_REDIRS]; 
+#endif
 	int statecapturerate, statecapturebuffersize;
 
 	/* input */

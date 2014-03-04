@@ -2,7 +2,8 @@
 
 #define UAENET_NONE 0
 #define UAENET_SLIRP 1
-#define UAENET_PCAP 2
+#define UAENET_SLIRP_INBOUND 2
+#define UAENET_PCAP 3
 
 struct netdriverdata
 {

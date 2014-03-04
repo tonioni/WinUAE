@@ -84,7 +84,7 @@ static int linedbl, linedbld;
 
 int interlace_seen = 0;
 #define AUTO_LORES_FRAMES 10
-static int can_use_lores = 0, frame_res, frame_res_lace, last_max_ypos;
+static int can_use_lores = 0, frame_res, frame_res_lace;
 static int resolution_count[RES_MAX + 1];
 static bool center_reset;
 
@@ -204,7 +204,6 @@ static int hblank_left_start, hblank_right_stop;
 static int linetoscr_x_adjust_bytes;
 static int thisframe_y_adjust;
 static int thisframe_y_adjust_real, max_ypos_thisframe, min_ypos_for_screen;
-static int extra_y_adjust;
 int thisframe_first_drawn_line, thisframe_last_drawn_line;
 
 /* A frame counter that forces a redraw after at least one skipped frame in
@@ -358,6 +357,7 @@ extern int plffirstline_total, plflastline_total;
 extern int first_planes_vpos, last_planes_vpos;
 extern int diwfirstword_total, diwlastword_total;
 extern int ddffirstword_total, ddflastword_total;
+extern bool vertical_changed, horizontal_changed;
 extern int firstword_bplcon1;
 extern int lof_store;
 
@@ -399,6 +399,7 @@ static void reset_custom_limits (void)
 {
 	gclow = gcloh = gclox = gcloy = 0;
 	gclorealh = -1;
+	center_reset = true;
 }
 
 static void set_blanking_limits (void)
@@ -1051,8 +1052,10 @@ STATIC_INLINE void fill_line2 (int startpos, int len)
 static void fill_line (void)
 {
 	int hs = coord_hw_to_window_x (hsyncstartpos * 2);
-	if (hs >= gfxvidinfo.drawbuffer.inwidth || hposblank) {
+	if (hposblank) {
 		hposblank = 3;
+		fill_line2 (visible_left_border, gfxvidinfo.drawbuffer.inwidth);
+	} else if (hs >= gfxvidinfo.drawbuffer.inwidth) {
 		fill_line2 (visible_left_border, gfxvidinfo.drawbuffer.inwidth);
 	} else {
 		fill_line2 (visible_left_border, hs);
@@ -2056,21 +2059,16 @@ void init_aspect_maps (void)
 	for (i = 0; i < maxl; i++) {
 		int v = i - min_ypos_for_screen;
 		if (v >= h && max_drawn_amiga_line < 0)
-			max_drawn_amiga_line = i - min_ypos_for_screen;
+			max_drawn_amiga_line = v;
 		if (i < min_ypos_for_screen || v >= h)
 			v = -1;
 		amiga2aspect_line_map[i] = v;
 	}
 	if (max_drawn_amiga_line < 0)
 		max_drawn_amiga_line = maxl - min_ypos_for_screen;
+	if (max_drawn_amiga_line > gfxvidinfo.drawbuffer.inheight)
+		max_drawn_amiga_line = gfxvidinfo.drawbuffer.inheight;
 	max_drawn_amiga_line >>= linedbl;
-
-	if (currprefs.gfx_ycenter && !currprefs.gfx_filter_autoscale) {
-		/* @@@ verify maxvpos vs. MAXVPOS */
-		extra_y_adjust = (h - (maxvpos_display << linedbl)) >> 1;
-		if (extra_y_adjust < 0)
-			extra_y_adjust = 0;
-	}
 
 	for (i = 0; i < h; i++)
 		native2amiga_line_map[i] = -1;
@@ -2400,6 +2398,9 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		break;
 	}
 
+	if (border && dp_for_drawing->plfleft < -1)
+		border = -1; // interlace mode missing odd line = blank
+
 	dh = dh_line;
 	xlinebuffer = gfxvidinfo.drawbuffer.linemem;
 	if (xlinebuffer == 0 && do_double
@@ -2551,7 +2552,6 @@ static void center_image (void)
 {
 	int prev_x_adjust = visible_left_border;
 	int prev_y_adjust = thisframe_y_adjust;
-	int tmp;
 
 	int w = gfxvidinfo.drawbuffer.inwidth;
 	if (currprefs.gfx_xcenter && !currprefs.gfx_filter_autoscale && max_diwstop > 0) {
@@ -2562,13 +2562,13 @@ static void center_image (void)
 		else
 			visible_left_border = max_diwstop - w - (max_diwstop - min_diwstart - w) / 2;
 		visible_left_border &= ~((xshift (1, lores_shift)) - 1);
-
-#if 0
-		/* Would the old value be good enough? If so, leave it as it is if we want to
-		* be clever. */
-		if (currprefs.gfx_xcenter == 2) {
-			if (center_reset || (visible_left_border < prev_x_adjust && prev_x_adjust < min_diwstart && min_diwstart - visible_left_border <= 32))
-				visible_left_border = prev_x_adjust;
+#if 1
+		if (!center_reset && !vertical_changed) {
+			/* Would the old value be good enough? If so, leave it as it is if we want to be clever. */
+			if (currprefs.gfx_xcenter == 2) {
+				if (visible_left_border < prev_x_adjust && prev_x_adjust < min_diwstart && min_diwstart - visible_left_border <= 32)
+					visible_left_border = prev_x_adjust;
+			}
 		}
 #endif
 	} else if (gfxvidinfo.drawbuffer.extrawidth) {
@@ -2603,44 +2603,39 @@ static void center_image (void)
 		if (thisframe_last_drawn_line - thisframe_first_drawn_line < max_drawn_amiga_line && currprefs.gfx_ycenter == 2)
 			thisframe_y_adjust = (thisframe_last_drawn_line - thisframe_first_drawn_line - max_drawn_amiga_line) / 2 + thisframe_first_drawn_line;
 		else
-			thisframe_y_adjust = thisframe_first_drawn_line + ((thisframe_last_drawn_line - thisframe_first_drawn_line) - max_drawn_amiga_line) / 2;
-
-#if 0
-		/* Would the old value be good enough? If so, leave it as it is if we want to
-		* be clever. */
-		if (currprefs.gfx_ycenter == 2 && thisframe_y_adjust != prev_y_adjust) {
-			if (center_reset || (prev_y_adjust <= thisframe_first_drawn_line && prev_y_adjust + max_drawn_amiga_line > thisframe_last_drawn_line))
-				thisframe_y_adjust = prev_y_adjust;
+			thisframe_y_adjust = thisframe_first_drawn_line;
+#if 1
+		/* Would the old value be good enough? If so, leave it as it is if we want to be clever. */
+		if (!center_reset && !horizontal_changed) {
+			if (currprefs.gfx_ycenter == 2 && thisframe_y_adjust != prev_y_adjust) {
+				if (prev_y_adjust <= thisframe_first_drawn_line && prev_y_adjust + max_drawn_amiga_line > thisframe_last_drawn_line)
+					thisframe_y_adjust = prev_y_adjust;
+			}
 		}
 #endif
 	}
 
 	/* Make sure the value makes sense */
-	if (thisframe_y_adjust + max_drawn_amiga_line > maxvpos_display)
-		thisframe_y_adjust = maxvpos_display - max_drawn_amiga_line;
-	if (thisframe_y_adjust < minfirstline)
-		thisframe_y_adjust = minfirstline;
+	if (thisframe_y_adjust + max_drawn_amiga_line > maxvpos + maxvpos / 2)
+	    thisframe_y_adjust = maxvpos + maxvpos / 2 - max_drawn_amiga_line;
+	if (thisframe_y_adjust < 0)
+		thisframe_y_adjust = 0;
 
 	thisframe_y_adjust_real = thisframe_y_adjust << linedbl;
-	tmp = (maxvpos_display - thisframe_y_adjust + 1) << linedbl;
-	if (tmp != max_ypos_thisframe) {
-		last_max_ypos = tmp;
-		if (last_max_ypos < 0)
-			last_max_ypos = 0;
-	}
-	max_ypos_thisframe = tmp;
+	max_ypos_thisframe = (maxvpos_display - minfirstline + 1) << linedbl;
 
-	/* @@@ interlace_seen used to be (bplcon0 & 4), but this is probably
-	* better.  */
 	if (prev_x_adjust != visible_left_border || prev_y_adjust != thisframe_y_adjust)
-		frame_redraw_necessary |= (interlace_seen > 0 && linedbl) ? 2 : 1;
+		frame_redraw_necessary |= interlace_seen > 0 && linedbl ? 2 : 1;
 
 	max_diwstop = 0;
 	min_diwstart = MAX_STOP;
 
 	gfxvidinfo.drawbuffer.xoffset = (DISPLAY_LEFT_SHIFT << RES_MAX) + (visible_left_border << (RES_MAX - currprefs.gfx_resolution));
 	gfxvidinfo.drawbuffer.yoffset = thisframe_y_adjust << VRES_MAX;
+	
 	center_reset = false;
+	horizontal_changed = false;
+	vertical_changed = false;
 }
 
 static int frame_res_cnt;
@@ -2649,7 +2644,7 @@ static void init_drawing_frame (void)
 	int i, maxline;
 	static int frame_res_old;
 
-	if (currprefs.gfx_autoresolution && !specialmonitoron) {
+	if (currprefs.gfx_autoresolution) {
 		int frame_res_detected;
 		int frame_res_lace_detected = frame_res_lace;
 
@@ -2935,57 +2930,28 @@ static void lightpen_update (struct vidbuffer *vb)
 		lightpen_active = 0;
 }
 
-static int lasti, lastwhere2, lastline;
 struct vidbuffer *xvbin, *xvbout;
 
 static void draw_frame2 (struct vidbuffer *vbin, struct vidbuffer *vbout)
 {
+	int i;
+
 	xvbin = vbin;
 	xvbout = vbout;
 
-	for (int i = 0; i < max_ypos_thisframe; i++) {
+	for (i = 0; i < max_ypos_thisframe; i++) {
 		int i1 = i + min_ypos_for_screen;
 		int line = i + thisframe_y_adjust_real;
-		int where2;
+		int where2 = amiga2aspect_line_map[i1];
 
-		where2 = amiga2aspect_line_map[i1];
 		if (where2 >= vbin->inheight)
 			break;
 		if (where2 < 0)
 			continue;
 
-		lasti = i;
-		lastline = line;
-		lastwhere2 = where2;
-
 		hposblank = 0;
 		pfield_draw_line (vbout, line, where2, amiga2aspect_line_map[i1 + 1]);
 	}
-
-#if 0
-	/* clear possible old garbage at the bottom if emulated area become smaller */
-	for (i = last_max_ypos; i < vb->outheight; i++) {
-		int i1 = i + min_ypos_for_screen;
-		int line = i + thisframe_y_adjust_real;
-		int where2 = amiga2aspect_line_map[i1];
-
-		if (where2 >= gfxvidinfo.drawbuffer.outheight)
-			break;
-		if (where2 < 0)
-			continue;
-
-		hposblank = i > last_max_ypos || i >= max_ypos_thisframe;
-
-		xlinebuffer = vb->linemem;
-		if (xlinebuffer == 0)
-			xlinebuffer = row_map[where2];
-		xlinebuffer -= linetoscr_x_adjust_bytes;
-		fill_line ();
-		if (line < max_ypos_thisframe)
-			linestate[line] = LINE_UNDECIDED;
-		do_flush_line (vb, where2);
-	}
-#endif
 }
 
 bool draw_frame (struct vidbuffer *vb)

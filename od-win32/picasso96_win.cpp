@@ -2497,7 +2497,8 @@ void picasso_enablescreen (int on)
 		init_picasso_screen ();
 
 	picasso_refresh ();
-	checkrtglibrary();
+	if (currprefs.rtgmem_type < GFXBOARD_HARDWARE)
+		checkrtglibrary();
 }
 
 static void resetpalette(void)

@@ -207,6 +207,7 @@ bool programmedmode;
 int syncbase;
 static int fmode;
 uae_u16 beamcon0, new_beamcon0;
+static bool varsync_changed;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
 static int maxvpos_stored, maxhpos_stored;
 static uae_u16 hsstop, hbstrt, hbstop, vsstop, vbstrt, vbstop, hsstrt, vsstrt, hcenter;
@@ -296,9 +297,15 @@ static int last_fetch_hpos, last_sprite_hpos;
 static int diwfirstword, diwlastword;
 static int last_hdiw;
 static enum diw_states diwstate, hdiwstate, ddfstate;
+
 int first_planes_vpos, last_planes_vpos;
+static int first_bplcon0, first_bplcon0_old;
+static int first_planes_vpos_old, last_planes_vpos_old;
 int diwfirstword_total, diwlastword_total;
 int ddffirstword_total, ddflastword_total;
+static int diwfirstword_total_old, diwlastword_total_old;
+static int ddffirstword_total_old, ddflastword_total_old;
+bool vertical_changed, horizontal_changed;
 int firstword_bplcon1;
 
 static int last_copper_hpos;
@@ -2019,8 +2026,6 @@ static void finish_last_fetch (int pos, int fm, bool reallylast)
 {
 	if (thisline_decision.plfleft < 0)
 		return;
-//	if (reallylast)
-//		plf_state = plf_end;
 	if (plfr_state >= plfr_end)
 		return;
 	plfr_state = plfr_end;
@@ -2110,6 +2115,9 @@ end:
 /* make sure fetch that goes beyond maxhpos is finished */
 static void finish_final_fetch (void)
 {
+	if (thisline_decision.plfleft < 0)
+		return;
+
 	if (plfr_state < plf_end)
 		finish_last_fetch (maxhpos, fetchmode, true);
 	plfr_state = plfr_finished;
@@ -2565,9 +2573,7 @@ static void maybe_start_bpl_dma (int hpos)
 
 STATIC_INLINE bool cant_this_last_line (void)
 {
-	if (currprefs.chipset_mask & CSMASK_AGA)
-		return false;
-	return vpos >= maxvpos + lof_store - 1;
+	return vpos + 1 >= maxvpos + lof_store;
 }
 
 /* This function is responsible for turning on datafetch if necessary. */
@@ -2638,9 +2644,9 @@ STATIC_INLINE void decide_line (int hpos)
 				if (plf_state == plf_active && (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS) || hpos >= 0x18 || HARD_DDF_LIMITS_DISABLED)) {
 					start_bpl_dma (hpos, bplstart);
 					last_decide_line_hpos = hpos;
-	#ifndef	CUSTOM_SIMPLE
+#ifndef	CUSTOM_SIMPLE
 					do_sprites (hpos);
-	#endif
+#endif
 					return;
 				}
 			}
@@ -3358,6 +3364,8 @@ static void finish_decisions (void)
 	if (changed) {
 		thisline_changed = 1;
 		*dp = thisline_decision;
+//		if (vpos >= maxvpos)
+//			dp[1].plfleft = -2;
 	} else
 		/* The only one that may differ: */
 		dp->ctable = thisline_decision.ctable;
@@ -3713,7 +3721,7 @@ void compute_framesync (void)
 		int start = hsyncstartpos; //hbstrt;
 		int stop = hsyncendpos; //hbstop;
 
-		gfxvidinfo.drawbuffer.inwidth = ((maxhpos - (maxhpos - start + stop) + 1) * 2) << res2;
+		gfxvidinfo.drawbuffer.inwidth = ((maxhpos - (maxhpos - start + DISPLAY_LEFT_SHIFT / 2) + 1) * 2) << res2;
 		gfxvidinfo.drawbuffer.inxoffset = stop * 2;
 		
 		gfxvidinfo.drawbuffer.extrawidth = 0;
@@ -3832,7 +3840,7 @@ void init_hz (bool fullinit)
 		// (someone poked VPOSW)
 		if (vpos_count < 10)
 			vpos_count = 10;
-		vblank_hz = (isntsc ? 15734 : 15625.0) / vpos_count;
+		vblank_hz = (isntsc ? 15734.0 : 15625.0) / vpos_count;
 		vblank_hz_nom = vblank_hz_shf = vblank_hz_lof = vblank_hz_lace = vblank_hz;
 		maxvpos_nom = vpos_count - (lof_current ? 1 : 0);
 		if ((maxvpos_nom >= 256 && maxvpos_nom <= 313) || (beamcon0 & 0x80)) {
@@ -3843,7 +3851,12 @@ void init_hz (bool fullinit)
 			maxvpos_display = 313;
 		}
 		reset_drawing ();
+	} else if (vpos_count == 0) {
+		// mode reset
+		vpos_count = maxvpos;
+		vpos_count_diff = maxvpos;
 	}
+
 	if (beamcon0 & 0x80) {
 		// programmable scanrates (ECS Agnus)
 		if (vtotal >= MAXVPOS)
@@ -3869,7 +3882,9 @@ void init_hz (bool fullinit)
 		equ_vblank_endline = -1;
 		doublescan = htotal <= 164 ? 1 : 0;
 		programmedmode = true;
-		dumpsync ();
+		varsync_changed = true;
+		vpos_count = maxvpos_nom;
+		vpos_count_diff = maxvpos_nom;
 		hzc = 1;
 	}
 	if (maxvpos_nom >= MAXVPOS)
@@ -3889,13 +3904,13 @@ void init_hz (bool fullinit)
 	set_delay_lastcycle ();
 	if (beamcon0 & 0x80) {
 		if (hbstrt > maxhpos)
-			hsyncstartpos = hbstrt + 1;
+			hsyncstartpos = hbstrt;
 		else
-			hsyncstartpos = maxhpos + hbstrt + 1;
+			hsyncstartpos = maxhpos + hbstrt;
 		if (hbstop > maxhpos)
-			hsyncendpos = maxhpos - hbstop - 1;
+			hsyncendpos = maxhpos - hbstop - 2;
 		else
-			hsyncendpos = hbstop - 1;
+			hsyncendpos = hbstop - 2;
 		if (hsyncendpos < 2)
 			hsyncendpos = 2;
 	} else {
@@ -3929,6 +3944,11 @@ void init_hz (bool fullinit)
 	if (vblank_hz != ovblank)
 		updatedisplayarea ();
 	inputdevice_tablet_strobe ();
+
+	if (varsync_changed) {
+		varsync_changed = false;
+		dumpsync ();
+	}
 
 	if (fullinit)
 		vpos_count_diff = maxvpos_nom;
@@ -4485,15 +4505,7 @@ int intlev (void)
 #define INT_PROCESSING_DELAY (3 * CYCLE_UNIT)
 STATIC_INLINE int use_eventmode (uae_u16 v)
 {
-	if (!currprefs.cpu_cycle_exact)
-		return 0;
-	if (currprefs.cachesize || currprefs.m68k_speed < 0)
-		return 0;
 	if (currprefs.cpu_cycle_exact && currprefs.cpu_model <= 68020)
-		return 1;
-	if (v & 0x8000)
-		return 1;
-	if (event2_count)
 		return 1;
 	return 0;
 }
@@ -4675,8 +4687,7 @@ static void varsync (void)
 #endif
 	if (!(beamcon0 & 0x80))
 		return;
-	vpos_count = 0;
-	dumpsync ();
+	varsync_changed = true;
 }
 
 #ifdef PICASSO96
@@ -6370,6 +6381,30 @@ static void init_hardware_frame (void)
 	nextline_how = nln_normal;
 	diwstate = DIW_waiting_start;
 	ddfstate = DIW_waiting_start;
+
+	if (first_bplcon0 != first_bplcon0_old) {
+		vertical_changed = horizontal_changed = true;
+	}
+	first_bplcon0_old = first_bplcon0;
+
+	if (first_planes_vpos != first_planes_vpos_old ||
+		last_planes_vpos != last_planes_vpos_old) {
+		vertical_changed = true;
+	}
+	first_planes_vpos_old = first_planes_vpos;
+	last_planes_vpos_old = last_planes_vpos;
+	
+	if (diwfirstword_total != diwfirstword_total_old ||
+		diwlastword_total != diwlastword_total_old ||
+		ddffirstword_total != ddffirstword_total_old ||
+		ddflastword_total != ddflastword_total_old) {
+		horizontal_changed = true;
+	}
+	diwfirstword_total_old = diwfirstword_total;
+	diwlastword_total_old = diwlastword_total;
+	ddffirstword_total_old = ddffirstword_total;
+	ddflastword_total_old = ddflastword_total;
+
 	first_planes_vpos = 0;
 	last_planes_vpos = 0;
 	diwfirstword_total = max_diwlastword;
@@ -6378,7 +6413,9 @@ static void init_hardware_frame (void)
 	ddflastword_total = 0;
 	plflastline_total = 0;
 	plffirstline_total = current_maxvpos ();
+	first_bplcon0 = 0;
 	autoscale_bordercolors = 0;
+
 	for (i = 0; i < MAX_SPRITES; i++)
 		spr[i].ptxhpos = MAXHPOS;
 	plf_state = plf_end;
@@ -7040,7 +7077,7 @@ static void vsync_handler_post (void)
 		gfxboard_vsync_handler ();
 #endif
 
-	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80))) {
+	if (varsync_changed || (beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80))) {
 		init_hz ();
 	} else if (vpos_count > 0 && abs (vpos_count - vpos_count_diff) > 1) {
 		init_hz ();
@@ -7092,6 +7129,9 @@ static void hsync_scandoubler (void)
 	int i, idx1;
 	struct draw_info *dip1;
 	uaecptr bpltmp[8], bpltmpx[8];
+
+	if (vpos >= maxvpos - 1)
+		return;
 
 	next_lineno++;
 	scandoubled_line = 1;
@@ -7560,7 +7600,7 @@ static void hsync_handler_post (bool onvsync)
 		nextline_how = nln_normal;
 		if (doflickerfix () && interlace_seen > 0) {
 			lineno *= 2;
-		} else if (currprefs.gfx_vresolution && currprefs.gfx_scanlines >= 2) {
+		} else if ((doublescan <= 0 || interlace_seen > 0) && currprefs.gfx_vresolution && currprefs.gfx_scanlines >= 2) {
 			lineno *= 2;
 			nextline_how = currprefs.gfx_vresolution > VRES_NONDOUBLE && (currprefs.gfx_scanlines & 1) == 0 ? nln_doubled : nln_nblack;
 			if (interlace_seen) {
@@ -7627,6 +7667,8 @@ static void hsync_handler_post (bool onvsync)
 	//copper_check (2);
 
 	if (GET_PLANES (bplcon0) > 0 && dmaen (DMA_BITPLANE)) {
+		if (first_bplcon0 == 0)
+			first_bplcon0 = bplcon0;
 		if (vpos > last_planes_vpos)
 			last_planes_vpos = vpos;
 		if (vpos >= minfirstline && first_planes_vpos == 0) {

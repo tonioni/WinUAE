@@ -355,7 +355,7 @@ STATIC_INLINE uae_u32 get_lrmw_long_mmu030_state (uaecptr addr)
 STATIC_INLINE uae_u32 get_ibyte_mmu030_state (int o)
 {
  	uae_u32 v;
-    uae_u32 addr = m68k_getpc () + o;
+    uae_u32 addr = m68k_getpci () + o;
 	ACCESS_CHECK_GET
     v = uae_mmu030_get_iword (addr);
 	ACCESS_EXIT_GET
@@ -364,7 +364,7 @@ STATIC_INLINE uae_u32 get_ibyte_mmu030_state (int o)
 STATIC_INLINE uae_u32 get_iword_mmu030_state (int o)
 {
  	uae_u32 v;
-    uae_u32 addr = m68k_getpc () + o;
+    uae_u32 addr = m68k_getpci () + o;
 	ACCESS_CHECK_GET
     v = uae_mmu030_get_iword (addr);
 	ACCESS_EXIT_GET
@@ -373,7 +373,7 @@ STATIC_INLINE uae_u32 get_iword_mmu030_state (int o)
 STATIC_INLINE uae_u32 get_ilong_mmu030_state (int o)
 {
  	uae_u32 v;
-    uae_u32 addr = m68k_getpc () + o;
+    uae_u32 addr = m68k_getpci () + o;
 	ACCESS_CHECK_GET
     v = uae_mmu030_get_ilong (addr);
 	ACCESS_EXIT_GET
@@ -382,7 +382,7 @@ STATIC_INLINE uae_u32 get_ilong_mmu030_state (int o)
 STATIC_INLINE uae_u32 next_iword_mmu030_state (void)
 {
  	uae_u32 v;
-    uae_u32 addr = m68k_getpc ();
+    uae_u32 addr = m68k_getpci ();
 	ACCESS_CHECK_GET_PC(2);
     v = uae_mmu030_get_iword (addr);
     m68k_incpci (2);
@@ -392,7 +392,7 @@ STATIC_INLINE uae_u32 next_iword_mmu030_state (void)
 STATIC_INLINE uae_u32 next_ilong_mmu030_state (void)
 {
  	uae_u32 v;
-    uae_u32 addr = m68k_getpc ();
+    uae_u32 addr = m68k_getpci ();
 	ACCESS_CHECK_GET_PC(4);
     v = uae_mmu030_get_ilong (addr);
     m68k_incpci (4);
@@ -428,23 +428,23 @@ STATIC_INLINE void put_long_mmu030 (uaecptr addr, uae_u32 v)
 
 STATIC_INLINE uae_u32 get_ibyte_mmu030 (int o)
 {
-    uae_u32 pc = m68k_getpc () + o;
+    uae_u32 pc = m68k_getpci () + o;
     return uae_mmu030_get_iword (pc);
 }
 STATIC_INLINE uae_u32 get_iword_mmu030 (int o)
 {
-    uae_u32 pc = m68k_getpc () + o;
+    uae_u32 pc = m68k_getpci () + o;
     return uae_mmu030_get_iword (pc);
 }
 STATIC_INLINE uae_u32 get_ilong_mmu030 (int o)
 {
-    uae_u32 pc = m68k_getpc () + o;
+    uae_u32 pc = m68k_getpci () + o;
     return uae_mmu030_get_ilong (pc);
 }
 STATIC_INLINE uae_u32 next_iword_mmu030 (void)
 {
  	uae_u32 v;
-    uae_u32 pc = m68k_getpc ();
+    uae_u32 pc = m68k_getpci ();
     v = uae_mmu030_get_iword (pc);
     m68k_incpci (2);
 	return v;
@@ -452,7 +452,7 @@ STATIC_INLINE uae_u32 next_iword_mmu030 (void)
 STATIC_INLINE uae_u32 next_ilong_mmu030 (void)
 {
  	uae_u32 v;
-    uae_u32 pc = m68k_getpc ();
+    uae_u32 pc = m68k_getpci ();
     v = uae_mmu030_get_ilong (pc);
     m68k_incpci (4);
 	return v;

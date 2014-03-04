@@ -1,3 +1,4 @@
+
 #include "slirp.h"
 
 /* host address */
@@ -120,22 +121,17 @@ static int get_dns_addr(struct in_addr *pdns_addr)
 
 #endif
 
-#ifdef _WIN32
-void __cdecl slirp_cleanup(void)
-{
-    WSACleanup();
-}
-#endif
+static int inited;
 
 int slirp_init(void)
 {
     //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
     
 #ifdef _WIN32
-    {
+	if (!inited) {
         WSADATA Data;
         WSAStartup(MAKEWORD(2,0), &Data);
-	atexit(slirp_cleanup);
+		inited = 1;
     }
 #endif
 
@@ -157,6 +153,13 @@ int slirp_init(void)
 	alias_addr.s_addr = special_addr.s_addr | htonl(CTL_ALIAS);
 	getouraddr();
     return 0;
+}
+
+void slirp_cleanup(void)
+{
+    ip_cleanup();
+    m_cleanup();
+	link_up = 0;
 }
 
 #define CONN_CANFSEND(so) (((so)->so_state & (SS_FCANTSENDMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)
@@ -299,6 +302,32 @@ int slirp_select_fill(int *pnfds,
 				UPD_NFDS(so->s);
 			}
 		}
+
+        /*
+         * ICMP sockets
+         */
+        for (so = icmp.so_next; so != &icmp; so = so_next) {
+            so_next = so->so_next;
+
+            /*
+             * See if it's timed out
+             */
+            if (so->so_expire) {
+                if (so->so_expire <= curtime) {
+                    icmp_detach(so);
+                    continue;
+                } else {
+                    do_slowtimo = 1; /* Let socket expire */
+                }
+            }
+
+            if (so->so_state & SS_ISFCONNECTED) {
+				FD_SET(so->s, readfds);
+				UPD_NFDS(so->s);
+            }
+        }
+
+
 	}
 	
 	/*
@@ -496,9 +525,21 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 			so_next = so->so_next;
 			
 			if (so->s != -1 && FD_ISSET(so->s, readfds)) {
-                            sorecvfrom(so);
-                        }
+				sorecvfrom(so);
+			}
 		}
+
+        /*
+         * Check incoming ICMP relies.
+         */
+        for (so = icmp.so_next; so != &icmp; so = so_next) {
+            so_next = so->so_next;
+
+			if (so->s != -1 && FD_ISSET(so->s, readfds)) {
+                icmp_receive(so);
+            }
+        }
+
 	}
 	
 	/*

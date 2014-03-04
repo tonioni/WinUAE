@@ -237,6 +237,7 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 #include "tcp_var.h"
 #include "tcpip.h"
 #include "udp.h"
+#include "ip_icmp.h"
 #include "icmp_var.h"
 #include "mbuf.h"
 #include "sbuf.h"
@@ -319,6 +320,7 @@ void if_output _P((struct socket *, struct mbuf *));
 
 /* ip_input.c */
 void ip_init _P((void));
+void ip_cleanup _P((void));
 void ip_input _P((struct mbuf *));
 struct ip * ip_reass _P((register struct ipasfrag *, register struct ipq *));
 void ip_freef _P((struct ipq *));
@@ -343,6 +345,7 @@ void tcp_setpersist _P((register struct tcpcb *));
 
 /* tcp_subr.c */
 void tcp_init _P((void));
+void tcp_cleanup _P((void));
 void tcp_template _P((struct tcpcb *));
 void tcp_respond _P((struct tcpcb *, register struct tcpiphdr *, register struct mbuf *, tcp_seq, tcp_seq, int));
 struct tcpcb * tcp_newtcpcb _P((struct socket *));

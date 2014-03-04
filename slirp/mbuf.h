@@ -131,6 +131,7 @@ extern struct mbuf m_freelist, m_usedlist;
 extern int mbuf_max;
 
 void m_init _P((void));
+void m_cleanup _P((void));
 void msize_init _P((void));
 struct mbuf * m_get _P((void));
 void m_free _P((struct mbuf *));

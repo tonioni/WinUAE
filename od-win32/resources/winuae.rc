@@ -1874,6 +1874,7 @@ BEGIN
     IDS_INPUTQUALIFIER      "Qualifiers"
     IDS_GENERIC             "Generic"
     IDS_AUTODETECT          "Autodetect"
+    IDS_OFF                 "off"
 END
 
 STRINGTABLE

@@ -80,6 +80,7 @@
 #define WITH_CHD
 #define WITH_LUA /* lua scripting */
 #define WITH_UAENATIVE
+#define WITH_SLIRP
 
 #else
 

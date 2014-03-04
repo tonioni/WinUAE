@@ -3579,6 +3579,18 @@ static void set_lventry_input (HWND list, int index)
 	_tcscpy (invert, _T("-"));
 	if (flags & IDEV_MAPPED_INVERT)
 		WIN32GUI_LoadUIString (IDS_YES, invert, sizeof invert / sizeof (TCHAR));
+	if (flags & IDEV_MAPPED_SET_ONOFF) {
+		_tcscat (name, _T(" ("));
+		TCHAR val[32];
+		if (flags & IDEV_MAPPED_SET_ONOFF_VAL) {
+			WIN32GUI_LoadUIString (IDS_ON, val, sizeof val / sizeof (TCHAR));
+		} else {
+			WIN32GUI_LoadUIString (IDS_OFF, val, sizeof val / sizeof (TCHAR));
+		}
+		_tcscat (name, val);
+		_tcscat (name, _T(")"));
+	}
+	
 	ListView_SetItemText (list, index, 1, custom[0] ? custom : name);
 	ListView_SetItemText (list, index, 2, af);
 	ListView_SetItemText (list, index, 3, toggle);
@@ -13664,6 +13676,34 @@ static void ports_remap (HWND hDlg, int port)
 	}
 }
 
+static void input_togglesetmode (void)
+{
+	int evtnum;
+	uae_u64 flags;
+	TCHAR name[256];
+	TCHAR custom[MAX_DPATH];
+
+	if (input_selected_device < 0 || input_selected_widget < 0)
+		return;
+	evtnum = inputdevice_get_mapping (input_selected_device, input_selected_widget,
+		&flags, NULL, name, custom, input_selected_sub_num);
+	if (evtnum) {
+		struct inputevent *evt = inputdevice_get_eventinfo (evtnum);
+		if (evt && (evt->allow_mask & AM_SETTOGGLE)) {
+			if ((flags & (IDEV_MAPPED_SET_ONOFF | IDEV_MAPPED_SET_ONOFF_VAL)) == (IDEV_MAPPED_SET_ONOFF | IDEV_MAPPED_SET_ONOFF_VAL)) {
+				flags &= ~(IDEV_MAPPED_SET_ONOFF | IDEV_MAPPED_SET_ONOFF_VAL);
+			} else if (flags & IDEV_MAPPED_SET_ONOFF) {
+				flags |= IDEV_MAPPED_SET_ONOFF_VAL;
+			} else {
+				flags |= IDEV_MAPPED_SET_ONOFF;
+				flags &= ~IDEV_MAPPED_SET_ONOFF_VAL;
+			}
+			inputdevice_set_mapping (input_selected_device, input_selected_widget,
+				name, custom, flags, -1, input_selected_sub_num);
+		}
+	}
+}
+
 static void input_toggleautofire (void)
 {
 	int evt;
@@ -14043,6 +14083,8 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 					input_selected_widget = entry;
 					if (column == 0 && entry == oldentry && dblclick) {
 						input_restoredefault ();
+					} else if (column == 1 && entry == oldentry) {
+						input_togglesetmode ();
 					} else if (column == 2 && entry == oldentry) {
 						input_toggleautofire ();
 					} else if (column == 3 && entry == oldentry) {
@@ -14965,7 +15007,7 @@ static void values_to_avioutputdlg (HWND hDlg)
 {
 
 	updatewinfsmode (&workprefs);
-	SetDlgItemText (hDlg, IDC_AVIOUTPUT_FILETEXT, avioutput_filename);
+	SetDlgItemText (hDlg, IDC_AVIOUTPUT_FILETEXT, avioutput_filename_gui);
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT, avioutput_nosoundoutput ? TRUE : FALSE);
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDSYNC, avioutput_nosoundsync ? TRUE : FALSE);
@@ -15058,10 +15100,11 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		AVIOutput_GetSettings ();
 		regqueryint (NULL, _T("Screenshot_Original"), &screenshot_originalsize);
 		enable_for_avioutputdlg (hDlg);
-		if (!avioutput_filename[0]) {
-			fetch_path (_T("VideoPath"), avioutput_filename, sizeof (avioutput_filename) / sizeof (TCHAR));
-			_tcscat (avioutput_filename, _T("output.avi"));
+		if (!avioutput_filename_gui[0]) {
+			fetch_path (_T("VideoPath"), avioutput_filename_gui, sizeof (avioutput_filename_gui) / sizeof (TCHAR));
+			_tcscat (avioutput_filename_gui, _T("output.avi"));
 		}
+		_tcscpy (avioutput_filename_auto, avioutput_filename_gui);
 		SendDlgItemMessage (hDlg, IDC_STATEREC_RATE, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_STATEREC_RATE, CB_ADDSTRING, 0, (LPARAM)_T("-"));
 		SendDlgItemMessage (hDlg, IDC_STATEREC_RATE, CB_ADDSTRING, 0, (LPARAM)_T("1"));
@@ -15183,9 +15226,7 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			break;
 
 		case IDC_AVIOUTPUT_ACTIVATED:
-			avioutput_requested = !avioutput_requested;
-			if (!avioutput_requested)
-				AVIOutput_End ();
+			AVIOutput_Toggle (!avioutput_requested, false);
 			break;
 		case IDC_SCREENSHOT:
 			screenshot(1, 0);
@@ -15229,7 +15270,7 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				ofn.lpstrCustomFilter = NULL;
 				ofn.nMaxCustFilter = 0;
 				ofn.nFilterIndex = 0;
-				ofn.lpstrFile = avioutput_filename;
+				ofn.lpstrFile = avioutput_filename_gui;
 				ofn.nMaxFile = MAX_DPATH;
 				ofn.lpstrFileTitle = NULL;
 				ofn.nMaxFileTitle = 0;
@@ -15244,8 +15285,9 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				if (ofn.nFilterIndex == 2) {
 					avioutput_audio = AVIAUDIO_WAV;
 					avioutput_video = 0;
-					if (_tcslen (avioutput_filename) > 4 && !_tcsicmp (avioutput_filename + _tcslen (avioutput_filename) - 4, _T(".avi")))
-						_tcscpy (avioutput_filename + _tcslen (avioutput_filename) - 4, _T(".wav"));
+					if (_tcslen (avioutput_filename_gui) > 4 && !_tcsicmp (avioutput_filename_gui + _tcslen (avioutput_filename_gui) - 4, _T(".avi")))
+						_tcscpy (avioutput_filename_gui + _tcslen (avioutput_filename_gui) - 4, _T(".wav"));
+					_tcscpy (avioutput_filename_auto, avioutput_filename_gui);
 				}
 				break;
 			}

@@ -221,7 +221,7 @@ static ALWAYS_INLINE bool mmu_lookup(uaecptr addr, bool data, bool write,
 			return true;
 		}
 		mmu_atc_ways++;
-		mmu_atc_ways &= (ATC_WAYS - 1);
+		mmu_atc_ways %= ATC_WAYS;
 	}
 	// we select a random way to void
 	*cl=&mmu_atc_array[data][way_miss%ATC_WAYS][index];
@@ -254,7 +254,7 @@ static ALWAYS_INLINE bool mmu_user_lookup(uaecptr addr, bool super, bool data,
 			return true;
 		}
 		mmu_atc_ways++;
-		mmu_atc_ways &= (ATC_WAYS - 1);
+		mmu_atc_ways %= ATC_WAYS;
 	}
 	// we select a random way to void
 	*cl=&mmu_atc_array[data][way_miss%ATC_WAYS][index];
@@ -855,56 +855,56 @@ STATIC_INLINE uae_u32 get_lrmw_long_mmu040 (uaecptr addr)
 
 STATIC_INLINE uae_u32 get_ibyte_mmu040 (int o)
 {
-    uae_u32 pc = m68k_getpc () + o;
+    uae_u32 pc = m68k_getpci () + o;
     return uae_mmu040_get_iword (pc);
 }
 STATIC_INLINE uae_u32 get_iword_mmu040 (int o)
 {
-    uae_u32 pc = m68k_getpc () + o;
+    uae_u32 pc = m68k_getpci () + o;
     return uae_mmu040_get_iword (pc);
 }
 STATIC_INLINE uae_u32 get_ilong_mmu040 (int o)
 {
-    uae_u32 pc = m68k_getpc () + o;
+    uae_u32 pc = m68k_getpci () + o;
     return uae_mmu040_get_ilong (pc);
 }
 STATIC_INLINE uae_u32 next_iword_mmu040 (void)
 {
-    uae_u32 pc = m68k_getpc ();
+    uae_u32 pc = m68k_getpci ();
     m68k_incpci (2);
     return uae_mmu040_get_iword (pc);
 }
 STATIC_INLINE uae_u32 next_ilong_mmu040 (void)
 {
-    uae_u32 pc = m68k_getpc ();
+    uae_u32 pc = m68k_getpci ();
     m68k_incpci (4);
     return uae_mmu040_get_ilong (pc);
 }
 
 STATIC_INLINE uae_u32 get_ibyte_mmu060 (int o)
 {
-    uae_u32 pc = m68k_getpc () + o;
+    uae_u32 pc = m68k_getpci () + o;
     return uae_mmu060_get_iword (pc);
 }
 STATIC_INLINE uae_u32 get_iword_mmu060 (int o)
 {
-    uae_u32 pc = m68k_getpc () + o;
+    uae_u32 pc = m68k_getpci () + o;
     return uae_mmu060_get_iword (pc);
 }
 STATIC_INLINE uae_u32 get_ilong_mmu060 (int o)
 {
-    uae_u32 pc = m68k_getpc () + o;
+    uae_u32 pc = m68k_getpci () + o;
     return uae_mmu060_get_ilong (pc);
 }
 STATIC_INLINE uae_u32 next_iword_mmu060 (void)
 {
-    uae_u32 pc = m68k_getpc ();
+    uae_u32 pc = m68k_getpci ();
     m68k_incpci (2);
     return uae_mmu060_get_iword (pc);
 }
 STATIC_INLINE uae_u32 next_ilong_mmu060 (void)
 {
-    uae_u32 pc = m68k_getpc ();
+    uae_u32 pc = m68k_getpci ();
     m68k_incpci (4);
     return uae_mmu060_get_ilong (pc);
 }

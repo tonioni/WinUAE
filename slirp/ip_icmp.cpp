@@ -34,6 +34,8 @@
 #include "ip_icmp.h"
 
 struct icmpstat icmpstat;
+struct socket icmp; 
+struct socket *icmp_last_so;
 
 /* The message sent when emulating PING */
 /* Be nice and tell them it's just a psuedo-ping packet */
@@ -61,6 +63,59 @@ static int icmp_flush[19] = {
 /* ADDR MASK (17) */     0,
 /* ADDR MASK REPLY (18) */ 0 
 };
+
+void icmp_init(void)
+{
+    icmp.so_next = icmp.so_prev = &icmp;
+    icmp_last_so = &icmp;
+}
+
+void icmp_cleanup(void)
+{
+    while (icmp.so_next != &icmp) {
+        icmp_detach(icmp.so_next);
+    }
+}
+
+static int icmp_send(struct socket *so, struct mbuf *m, int hlen)
+{
+    struct ip *ip = mtod(m, struct ip *);
+    struct sockaddr_in addr;
+
+    so->s = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+    if (so->s == -1) {
+        return -1;
+    }
+
+    so->so_m = m;
+    so->so_faddr = ip->ip_dst;
+    so->so_laddr = ip->ip_src;
+    so->so_iptos = ip->ip_tos;
+    so->so_type = IPPROTO_ICMP;
+    so->so_state = SS_ISFCONNECTED;
+    so->so_expire = curtime + SO_EXPIRE;
+
+    addr.sin_family = AF_INET;
+    addr.sin_addr = so->so_faddr;
+
+    insque(so, &icmp);
+
+    if (sendto(so->s, m->m_data + hlen, m->m_len - hlen, 0,
+               (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+        DEBUG_MISC(("icmp_input icmp sendto tx errno = %d-%s\n",
+                    errno, strerror(errno)));
+        icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_NET, 0, strerror(errno));
+        icmp_detach(so);
+    }
+
+    return 0;
+}
+
+void icmp_detach(struct socket *so)
+{
+    closesocket(so->s);
+    sofree(so);
+}
 
 /*
  * Process a received ICMP message.
@@ -113,6 +168,8 @@ void icmp_input(struct mbuf *m, int hlen)
       struct socket *so;
       struct sockaddr_in addr;
       if ((so = socreate()) == NULL) goto freeit;
+      if (icmp_send(so, m, hlen) == 0)
+        return;
       if(udp_attach(so) == -1) {
 	DEBUG_MISC(("icmp_input udp_attach errno = %d-%s\n", 
 		    errno,strerror(errno)));
@@ -357,4 +414,40 @@ void icmp_reflect(struct mbuf *m)
   (void ) ip_output((struct socket *)NULL, m);
 
   icmpstat.icps_reflect++;
+}
+
+void icmp_receive(struct socket *so)
+{
+    struct mbuf *m = so->so_m;
+    struct ip *ip = mtod(m, struct ip *);
+    int hlen = ip->ip_hl << 2;
+    u_char error_code;
+    struct icmp *icp;
+    int id, len;
+
+    m->m_data += hlen;
+    m->m_len -= hlen;
+    icp = mtod(m, struct icmp *);
+
+    id = icp->icmp_id;
+    len = recv(so->s, (char*)icp, m->m_len, 0);
+    icp->icmp_id = id;
+
+    m->m_data -= hlen;
+    m->m_len += hlen;
+
+    if (len == -1 || len == 0) {
+        if (errno == ENETUNREACH) {
+            error_code = ICMP_UNREACH_NET;
+        } else {
+            error_code = ICMP_UNREACH_HOST;
+        }
+        DEBUG_MISC((" udp icmp rx errno = %d-%s\n", errno,
+                    strerror(errno)));
+        icmp_error(so->so_m, ICMP_UNREACH, error_code, 0, strerror(errno));
+    } else {
+        icmp_reflect(so->so_m);
+        so->so_m = NULL; /* Don't m_free() it again! */
+    }
+    icmp_detach(so);
 }

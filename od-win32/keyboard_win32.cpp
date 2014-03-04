@@ -399,9 +399,18 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	}
 #endif
 #if 0
-	if (scancode == DIK_F10) {
-		extern bool showoverlay;
-		showoverlay = !showoverlay;
+	if (scancode == DIK_F1) {
+		if (newstate) {
+			extern int paska;
+			paska++;
+		}
+		return;
+	}
+	if (scancode == DIK_F2) {
+		if (newstate) {
+			extern int paska;
+			paska--;
+		}
 		return;
 	}
 #endif

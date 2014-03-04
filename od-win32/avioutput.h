@@ -14,8 +14,11 @@ extern int avioutput_framelimiter, avioutput_nosoundoutput;
 extern int avioutput_nosoundsync, avioutput_originalsize;
 extern int screenshot_originalsize;
 
-extern TCHAR avioutput_filename[MAX_DPATH];
+extern TCHAR avioutput_filename_gui[MAX_DPATH];
+extern TCHAR avioutput_filename_auto[MAX_DPATH];
+extern TCHAR avioutput_filename_inuse[MAX_DPATH];
 
+extern void AVIOutput_Toggle (int mode, bool immediate);
 extern void AVIOutput_WriteAudio (uae_u8 *sndbuffer, int sndbufsize);
 extern void AVIOutput_WriteVideo (void);
 extern int AVIOutput_ChooseAudioCodec (HWND hwnd,TCHAR*,int);

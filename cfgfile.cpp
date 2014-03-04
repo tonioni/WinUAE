@@ -1060,6 +1060,35 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("bsdsocket_emu"), p->socket_emu);
 	if (p->a2065name[0])
 		cfgfile_write_str (f, _T("a2065"), p->a2065name);
+	tmp[0] = 0;
+	for (i = 0; i < MAX_SLIRP_REDIRS; i++) {
+		struct slirp_redir *sr = &p->slirp_redirs[i];
+		if (sr->proto && !sr->srcport) {
+			TCHAR *p = tmp + _tcslen (tmp);
+			if (p > tmp)
+				*p++ = ',';
+			_stprintf (p, _T("%d"), sr->dstport);
+		}
+	}
+	if (tmp[0])
+		cfgfile_write_str (f, _T("slirp_ports"), tmp);
+	for (i = 0; i < MAX_SLIRP_REDIRS; i++) {
+		struct slirp_redir *sr = &p->slirp_redirs[i];
+		if (sr->proto && sr->srcport) {
+			uae_u32 v = htonl (sr->addr);
+			if (v) {
+				_stprintf (tmp, _T("%s:%d:%d:%d.%d.%d.%d"),
+					sr->proto == 1 ? _T("tcp") : _T("udp"),
+					sr->dstport, sr->srcport,
+					(v >> 24) & 0xff, (v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff);
+			} else {
+				_stprintf (tmp, _T("%s:%d:%d"),
+					sr->proto == 1 ? _T("tcp") : _T("udp"),
+					sr->dstport, sr->srcport);
+			}
+			cfgfile_write_str (f, _T("slirp_redir"), tmp);
+		}
+	}
 
 	cfgfile_write_bool (f, _T("synchronize_clock"), p->tod_hack);
 	cfgfile_write (f, _T("maprom"), _T("0x%x"), p->maprom);
@@ -2590,6 +2619,74 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		}
 		return 1;
 	}
+
+#ifdef WITH_SLIRP
+	if (cfgfile_string (option, value, _T("slirp_ports"), tmpbuf, sizeof (tmpbuf) / sizeof TCHAR)) {
+		TCHAR *tmpp2 = tmpbuf;
+		_tcscat (tmpbuf, _T(","));
+		for (;;) {
+			tmpp = _tcschr (tmpp2, ',');
+			if (!tmpp)
+				break;
+			*tmpp++= 0;
+			for (i = 0; i < MAX_SLIRP_REDIRS; i++) {
+				struct slirp_redir *sr = &p->slirp_redirs[i];
+				if (sr->proto == 0) {
+					sr->dstport = _tstol (tmpp2);
+					sr->proto = 1;
+					break;
+				}
+			}
+			tmpp2 = tmpp;
+		}
+		return 1;
+	}
+	if (cfgfile_string (option, value, _T("slirp_redir"), tmpbuf, sizeof (tmpbuf) / sizeof TCHAR)) {
+		TCHAR *tmpp2 = tmpbuf;
+		_tcscat (tmpbuf, _T(":"));
+		for (i = 0; i < MAX_SLIRP_REDIRS; i++) {
+			struct slirp_redir *sr = &p->slirp_redirs[i];
+			if (sr->proto == 0) {
+				char *s;
+				tmpp = _tcschr (tmpp2, ':');
+				if (!tmpp)
+					break;
+				*tmpp++= 0;
+				if (!_tcsicmp (tmpp2, _T("tcp")))
+					sr->proto = 1;
+				else if (!_tcsicmp (tmpp2, _T("udp")))
+					sr->proto = 2;
+				else
+					break;
+				tmpp2 = tmpp;
+				tmpp = _tcschr (tmpp2, ':');
+				if (!tmpp) {
+					sr->proto = 0;
+					break;
+				}
+				*tmpp++= 0;
+				sr->dstport = _tstol (tmpp2);
+				tmpp2 = tmpp;
+				tmpp = _tcschr (tmpp2, ':');
+				if (!tmpp) {
+					sr->proto = 0;
+					break;
+				}
+				*tmpp++= 0;
+				sr->srcport = _tstol (tmpp2);
+				tmpp2 = tmpp;
+				tmpp = _tcschr (tmpp2, ':');
+				if (!tmpp)
+					break;
+				*tmpp++= 0;
+				s = ua (tmpp2);
+				sr->addr = inet_addr (s);
+				xfree (s);
+			}
+		}
+		return 1;
+	}
+#endif
 
 	return 0;
 }

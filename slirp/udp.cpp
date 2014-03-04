@@ -62,6 +62,14 @@ void udp_init(void)
 {
 	udb.so_next = udb.so_prev = &udb;
 }
+
+void udp_cleanup(void)
+{
+    while (udb.so_next != &udb) {
+        udp_detach(udb.so_next);
+    }
+}
+
 /* m->m_data  points at ip packet header 
  * m->m_len   length ip packet 
  * ip->ip_len length data (IPDU)

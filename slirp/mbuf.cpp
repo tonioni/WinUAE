@@ -33,6 +33,27 @@ void m_init(void)
 	msize_init();
 }
 
+void m_cleanup(void)
+{
+    struct mbuf *m, *next;
+
+    m = m_usedlist.m_next;
+    while (m != &m_usedlist) {
+        next = m->m_next;
+        if (m->m_flags & M_EXT) {
+            free(m->m_ext);
+        }
+        free(m);
+        m = next;
+    }
+    m = m_freelist.m_next;
+    while (m != &m_freelist) {
+        next = m->m_next;
+        free(m);
+        m = next;
+    }
+}
+
 void msize_init(void)
 {
 	/*

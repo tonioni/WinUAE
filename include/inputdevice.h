@@ -82,6 +82,8 @@ struct inputevent {
 #define ID_FLAG_INVERTTOGGLE 16
 #define ID_FLAG_INVERT 32
 #define ID_FLAG_RESERVEDGAMEPORTSCUSTOM 64
+#define ID_FLAG_SET_ONOFF 128
+#define ID_FLAG_SET_ONOFF_VAL 256
 
 #define ID_FLAG_GAMEPORTSCUSTOM_MASK (ID_FLAG_GAMEPORTSCUSTOM1 | ID_FLAG_GAMEPORTSCUSTOM2)
 #define ID_FLAG_AUTOFIRE_MASK (ID_FLAG_TOGGLE | ID_FLAG_INVERTTOGGLE | ID_FLAG_AUTOFIRE)
@@ -104,6 +106,10 @@ struct inputevent {
 #define ID_FLAG_QUALIFIER_MASK      0xfffffff00000000
 #define ID_FLAG_QUALIFIER_MASK_R    0xaaaaaaa00000000
 
+#define ID_FLAG_SAVE_MASK_CONFIG 0x000001ff
+#define ID_FLAG_SAVE_MASK_QUALIFIERS ID_FLAG_QUALIFIER_MASK
+#define ID_FLAG_SAVE_MASK_FULL (ID_FLAG_SAVE_MASK_CONFIG | ID_FLAG_SAVE_MASK_QUALIFIERS)
+
 #define IDEV_WIDGET_NONE 0
 #define IDEV_WIDGET_BUTTON 1
 #define IDEV_WIDGET_AXIS 2
@@ -117,6 +123,9 @@ struct inputevent {
 #define IDEV_MAPPED_GAMEPORTSCUSTOM1 16
 #define IDEV_MAPPED_GAMEPORTSCUSTOM2 32
 #define IDEV_MAPPED_INVERT 64
+#define IDEV_MAPPED_SET_ONOFF 128
+#define IDEV_MAPPED_SET_ONOFF_VAL 256
+
 #define IDEV_MAPPED_QUALIFIER1          0x000000100000000
 #define IDEV_MAPPED_QUALIFIER2          0x000000400000000
 #define IDEV_MAPPED_QUALIFIER3          0x000001000000000
@@ -132,12 +141,30 @@ struct inputevent {
 #define IDEV_MAPPED_QUALIFIER_WIN       0x100000000000000
 #define IDEV_MAPPED_QUALIFIER_MASK      0xfffffff00000000
 
+#define SET_ONOFF_ON_VALUE  0x7fffff01
+#define SET_ONOFF_OFF_VALUE 0x7fffff00
+
 #define ID_BUTTON_OFFSET 0
 #define ID_BUTTON_TOTAL 32
 #define ID_AXIS_OFFSET 32
 #define ID_AXIS_TOTAL 32
 
 #define MAX_COMPA_INPUTLIST 30
+
+/* event masks */
+#define AM_KEY 1 /* keyboard allowed */
+#define AM_JOY_BUT 2 /* joystick buttons allowed */
+#define AM_JOY_AXIS 4 /* joystick axis allowed */
+#define AM_MOUSE_BUT 8 /* mouse buttons allowed */
+#define AM_MOUSE_AXIS 16 /* mouse direction allowed */
+#define AM_AF 32 /* supports autofire */
+#define AM_INFO 64 /* information data for gui */
+#define AM_DUMMY 128 /* placeholder */
+#define AM_CUSTOM 256 /* custom event */
+#define AM_SETTOGGLE 512 /* on/off/toggle */
+#define AM_K (AM_KEY|AM_JOY_BUT|AM_MOUSE_BUT|AM_AF) /* generic button/switch */
+#define AM_KK (AM_KEY|AM_JOY_BUT|AM_MOUSE_BUT)
+#define AM_KT (AM_K|AM_SETTOGGLE)
 
 extern int inputdevice_iterate (int devnum, int num, TCHAR *name, int *af);
 extern bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int num, int evtnum, uae_u64 flags, int port, int input_selected_setting);

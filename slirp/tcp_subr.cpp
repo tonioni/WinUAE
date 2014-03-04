@@ -56,6 +56,7 @@ void tcp_init(void)
 {
 	tcp_iss = 1;		/* wrong */
 	tcb.so_next = tcb.so_prev = &tcb;
+	tcp_last_so = &tcb;
 	
 	/* tcp_rcvspace = our Window we advertise to the remote */
 	tcp_rcvspace = TCP_RCVSPACE;
@@ -64,6 +65,13 @@ void tcp_init(void)
 	/* Make sure tcp_sndspace is at least 2*MSS */
 	if (tcp_sndspace < 2*(min(if_mtu, if_mru) - sizeof(struct tcpiphdr)))
 		tcp_sndspace = 2*(min(if_mtu, if_mru) - sizeof(struct tcpiphdr));
+}
+
+void tcp_cleanup(void)
+{
+    while (tcb.so_next != &tcb) {
+        tcp_close(sototcpcb(tcb.so_next));
+    }
 }
 
 /*

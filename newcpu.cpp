@@ -929,14 +929,6 @@ static void set_x_funcs (void)
 
 }
 
-void m68k_setpc_normal (uaecptr pc)
-{
-	if (currprefs.mmu_model)
-		m68k_setpc_mmu (pc);
-	else
-		m68k_setpc (pc);
-}
-
 bool can_cpu_tracer (void)
 {
 	return (currprefs.cpu_model == 68000 || currprefs.cpu_model == 68020) && currprefs.cpu_cycle_exact;
@@ -2129,7 +2121,7 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
 			while (i < 9) {
 				uae_u32 v = 0;
 				m68k_areg (regs, 7) -= 4;
-				// mmu030_idx is always small enough instruction is FMOVEM.
+				// mmu030_idx is always small enough if instruction is FMOVEM.
 				if (mmu030_state[1] & MMU030_STATEFLAG1_FMOVEM) {
 					if (i == 7)
 						v = mmu030_fmovem_store[0];
@@ -2253,7 +2245,7 @@ static void Exception_mmu030 (int nr, uaecptr oldpc)
 			exception3 (regs.ir, newpc);
 		return;
 	}
-	m68k_setpc_mmu (newpc);
+	m68k_setpci (newpc);
 	fill_prefetch ();
 	exception_trace (nr);
 }
@@ -2313,7 +2305,7 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 			exception3 (regs.ir, newpc);
 		return;
 	}
-	m68k_setpc_mmu (newpc);
+	m68k_setpci (newpc);
 	fill_prefetch ();
 	exception_trace (nr);
 }
@@ -2592,6 +2584,8 @@ void NMI (void)
 
 static void m68k_reset (bool hardreset)
 {
+	uae_u32 v;
+
 	regs.spcflags = 0;
 	regs.ipl = regs.ipl_pin = 0;
 #ifdef SAVESTATE
@@ -2615,8 +2609,10 @@ static void m68k_reset (bool hardreset)
 		return;
 	}
 #endif
+	v = get_long (4);
 	m68k_areg (regs, 7) = get_long (0);
-	m68k_setpc_normal (get_long (4));
+	m68k_setpc (v);
+	m68k_setpci (v);
 	regs.s = 1;
 	regs.m = 0;
 	regs.stopped = 0;
@@ -2700,7 +2696,7 @@ uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
 
 	if (cloanto_rom && (opcode & 0xF100) == 0x7100) {
 		m68k_dreg (regs, (opcode >> 9) & 7) = (uae_s8)(opcode & 0xFF);
-		m68k_incpc (2);
+		m68k_incpc_normal (2);
 		fill_prefetch ();
 		return 4;
 	}
@@ -2721,7 +2717,7 @@ uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
 
 	if ((opcode & 0xF000) == 0xA000 && inrt) {
 		/* Calltrap. */
-		m68k_incpc (2);
+		m68k_incpc_normal (2);
 		m68k_handle_trap (opcode & 0xFFF);
 		fill_prefetch ();
 		return 4;
@@ -3684,7 +3680,7 @@ retry:
 		}
 	} CATCH (prb) {
 
-		m68k_setpc_mmu (regs.instruction_pc);
+		m68k_setpci (regs.instruction_pc);
 		regflags.cznv = f.cznv;
 		regflags.x = f.x;
 
@@ -3746,7 +3742,7 @@ retry:
 			/* restore state if instruction restart */
 			regflags.cznv = f.cznv;
 			regflags.x = f.x;
-			m68k_setpc_mmu (regs.instruction_pc);
+			m68k_setpci (regs.instruction_pc);
 		}
 
 		if (mmufixup[0].reg >= 0) {
@@ -3830,7 +3826,7 @@ insretry:
 		regflags.cznv = f.cznv;
 		regflags.x = f.x;
 
-		m68k_setpc_mmu (regs.instruction_pc);
+		m68k_setpci (regs.instruction_pc);
 
 		if (mmufixup[0].reg >= 0) {
 			m68k_areg (regs, mmufixup[0].reg) = mmufixup[0].value;

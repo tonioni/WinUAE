@@ -14,6 +14,7 @@ extern "C" {
 #endif
 
 int slirp_init(void);
+void slirp_cleanup(void);
 
 int slirp_select_fill(int *pnfds, 
 					  fd_set *readfds, fd_set *writefds, fd_set *xfds);

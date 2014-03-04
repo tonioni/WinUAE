@@ -55,7 +55,15 @@ void ip_init(void)
 	ip_id = tt.tv_sec & 0xffff;
 	udp_init();
 	tcp_init();
+	icmp_init();
 	ip_defttl = IPDEFTTL;
+}
+
+void ip_cleanup(void)
+{
+    udp_cleanup();
+    tcp_cleanup();
+    icmp_cleanup();
 }
 
 /*

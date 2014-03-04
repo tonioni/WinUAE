@@ -266,8 +266,6 @@ STATIC_INLINE void m68k_setpc (uaecptr newpc)
 	regs.instruction_pc = regs.pc = newpc;
 }
 
-extern void m68k_setpc_normal (uaecptr newpc);
-
 STATIC_INLINE uaecptr m68k_getpc (void)
 {
 	return (uaecptr)(regs.pc + ((uae_u8*)regs.pc_p - (uae_u8*)regs.pc_oldp));
@@ -284,11 +282,6 @@ STATIC_INLINE void m68k_incpc (int o)
 	regs.pc_p += o;
 }
 
-STATIC_INLINE void m68k_setpc_mmu (uaecptr newpc)
-{
-	regs.instruction_pc = regs.pc = newpc;
-	regs.pc_p = regs.pc_oldp = 0;
-}
 STATIC_INLINE void m68k_setpci (uaecptr newpc)
 {
 	regs.instruction_pc = regs.pc = newpc;
@@ -302,10 +295,33 @@ STATIC_INLINE void m68k_incpci (int o)
 	regs.pc += o;
 }
 
+STATIC_INLINE void m68k_incpc_normal (int o)
+{
+	if (currprefs.mmu_model || currprefs.cpu_compatible)
+		m68k_incpci (o);
+	else
+		m68k_incpc (o);
+}
+
+STATIC_INLINE void m68k_setpc_normal (uaecptr pc)
+{
+	if (currprefs.mmu_model || currprefs.cpu_compatible)
+		m68k_setpci (pc);
+	else
+		m68k_setpc (pc);
+}
+
 STATIC_INLINE void m68k_do_rts (void)
 {
 	uae_u32 newpc = get_long (m68k_areg (regs, 7));
 	m68k_setpc (newpc);
+	m68k_areg (regs, 7) += 4;
+}
+
+STATIC_INLINE void m68k_do_rtsi (void)
+{
+	uae_u32 newpc = get_long (m68k_areg (regs, 7));
+	m68k_setpci (newpc);
 	m68k_areg (regs, 7) += 4;
 }
 
@@ -314,6 +330,13 @@ STATIC_INLINE void m68k_do_bsr (uaecptr oldpc, uae_s32 offset)
 	m68k_areg (regs, 7) -= 4;
 	put_long (m68k_areg (regs, 7), oldpc);
 	m68k_incpc (offset);
+}
+
+STATIC_INLINE void m68k_do_bsri (uaecptr oldpc, uae_s32 offset)
+{
+	m68k_areg (regs, 7) -= 4;
+	put_long (m68k_areg (regs, 7), oldpc);
+	m68k_incpci (offset);
 }
 
 STATIC_INLINE uae_u32 get_ibyte (int o)
