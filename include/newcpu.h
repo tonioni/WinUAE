@@ -71,10 +71,6 @@ extern void REGPARAM3 op_unimpl (uae_u16) REGPARAM;
 typedef uae_u8 flagtype;
 
 #ifdef FPUEMU
-/* You can set this to long double to be more accurate. However, the
-resulting alignment issues will cost a lot of performance in some
-apps */
-#define USE_LONG_DOUBLE 0
 
 #if USE_LONG_DOUBLE
 typedef long double fptype;
