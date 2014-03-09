@@ -202,6 +202,7 @@ STATIC_INLINE void from_exten(fpdata *fpd, uae_u32 * wrd1, uae_u32 * wrd2, uae_u
 {
     int expon;
     double frac;
+	fptype v;
 
 #ifdef USE_SOFT_LONG_DOUBLE
 	if (fpd->fpx) {
@@ -211,19 +212,20 @@ STATIC_INLINE void from_exten(fpdata *fpd, uae_u32 * wrd1, uae_u32 * wrd2, uae_u
 	} else
 #endif
 	{
-		if (fpd->fp == 0.0) {
+		v = fpd->fp;
+		if (v == 0.0) {
 			*wrd1 = 0;
 			*wrd2 = 0;
 			*wrd3 = 0;
 			return;
 		}
-		if (fpd->fp < 0) {
+		if (v < 0) {
 			*wrd1 = 0x80000000;
-			fpd->fp = -fpd->fp;
+			v = -v;
 		} else {
 			*wrd1 = 0;
 		}
-		frac = frexp (fpd->fp, &expon);
+		frac = frexp (v, &expon);
 		frac += 0.5 / (twoto32 * twoto32);
 		if (frac >= 1.0) {
 			frac /= 2.0;
