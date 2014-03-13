@@ -173,7 +173,7 @@ STATIC_INLINE void from_double(double src, uae_u32 * wrd1, uae_u32 * wrd2)
 }
 #endif
 
-static double twoto32 = 4294967296.0;
+static const double twoto32 = 4294967296.0;
 #ifndef HAVE_to_exten
 #define HAVE_to_exten
 STATIC_INLINE void to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
