@@ -277,8 +277,6 @@ void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32
 		}
 
 		ssw |= fc & MMU_SSW_TM;				/* TM = FC */
-		regs.wb3_status = write ? 0x80 | (ssw & 0x7f) : 0;
-		regs.wb2_status = 0;
 
 		switch (size) {
 		case sz_byte:
@@ -290,7 +288,14 @@ void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32
 		case sz_long:
 			ssw |= MMU_SSW_SIZE_L;
 			break;
-		case 16: // MOVE16
+		}
+
+		regs.wb3_status = write ? 0x80 | (ssw & 0x7f) : 0;
+		regs.wb2_status = 0;
+		if (!write)
+			ssw |= MMU_SSW_RW;
+
+		if (size == 16) { // MOVE16
 			ssw |= MMU_SSW_SIZE_L; // ?? maybe MMU_SSW_SIZE_CL?
 			ssw |= MMU_SSW_TT0;
 			regs.mmu_effective_addr &= ~15;
@@ -302,11 +307,7 @@ void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32
 				regs.wb2_address = regs.mmu_effective_addr;
 				write_log (_T("040 MMU MOVE16 WRITE FAULT!\n"));
 			}
-			break;
 		}
-
-		if (!write)
-			ssw |= MMU_SSW_RW;
 
 		if (mmu040_movem) {
 			ssw |= MMU_SSW_CM;
