@@ -47,6 +47,7 @@ extern int mmu060_state;
 
 extern int mmu040_movem;
 extern uaecptr mmu040_movem_ea;
+extern uae_u32 mmu040_move16[4];
 
 extern bool mmu_pagesize_8k;
 extern uae_u16 mmu_opcode;
@@ -384,20 +385,8 @@ static ALWAYS_INLINE uaecptr mmu_get_real_address(uaecptr addr, struct mmu_atc_l
     return cl->phys | (addr & mmu_pagemask);
 }
 
-static ALWAYS_INLINE void mmu_get_move16(uaecptr addr, uae_u32 *v, bool data, int size)
-{
-	struct mmu_atc_line *cl;
-	for (int i = 0; i < 4; i++) {
-		uaecptr addr2 = addr + i * 4;
-		//                                       addr,super,data
-		if ((!regs.mmu_enabled) || (mmu_match_ttr(addr2,regs.s != 0,data,false)!=TTR_NO_MATCH))
-			v[i] = phys_get_long(addr2);
-		else if (likely(mmu_lookup(addr2, data, false, &cl)))
-			v[i] = phys_get_long(mmu_get_real_address(addr2, cl));
-		else
-			v[i] = mmu_get_long_slow(addr2, regs.s != 0, data, size, false, cl);
-	}
-}
+extern void mmu_get_move16(uaecptr addr, uae_u32 *v, bool data, int size);
+extern void mmu_put_move16(uaecptr addr, uae_u32 *val, bool data, int size);
 
 static ALWAYS_INLINE uae_u32 mmu_get_long(uaecptr addr, bool data, int size, bool rmw)
 {
@@ -448,21 +437,6 @@ static ALWAYS_INLINE void mmu_put_long(uaecptr addr, uae_u32 val, bool data, int
 		phys_put_long(mmu_get_real_address(addr, cl), val);
 	else
 		mmu_put_long_slow(addr, val, regs.s != 0, data, size, rmw, cl);
-}
-
-static ALWAYS_INLINE void mmu_put_move16(uaecptr addr, uae_u32 *val, bool data, int size)
-{
-	struct mmu_atc_line *cl;
-	for (int i = 0; i < 4; i++) {
-		uaecptr addr2 = addr + i * 4;
-		//                                        addr,super,data
-		if ((!regs.mmu_enabled) || (mmu_match_ttr_write(addr2,regs.s != 0,data,val[i],size,false)==TTR_OK_MATCH))
-			phys_put_long(addr2,val[i]);
-		else if (likely(mmu_lookup(addr2, data, true, &cl)))
-			phys_put_long(mmu_get_real_address(addr2, cl), val[i]);
-		else
-			mmu_put_long_slow(addr2, val[i], regs.s != 0, data, size, false, cl);
-	}
 }
 
 static ALWAYS_INLINE void mmu_put_word(uaecptr addr, uae_u16 val, bool data, int size, bool rmw)

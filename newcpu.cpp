@@ -2062,24 +2062,37 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
             x_put_long (m68k_areg (regs, 7), oldpc);
             break;
         case 0x7: // access error stack frame (68040)
-            for (i = 0 ; i < 7 ; i++) {
+
+			for (i = 3; i >= 0; i--) {
+				// WB1D/PD0,PD1,PD2,PD3
                 m68k_areg (regs, 7) -= 4;
-                x_put_long (m68k_areg (regs, 7), 0);
-            }
+                x_put_long (m68k_areg (regs, 7), mmu040_move16[i]);
+			}
+
             m68k_areg (regs, 7) -= 4;
-            x_put_long (m68k_areg (regs, 7), regs.wb3_data);
+            x_put_long (m68k_areg (regs, 7), 0); // WB1A
+			m68k_areg (regs, 7) -= 4;
+            x_put_long (m68k_areg (regs, 7), 0); // WB2D
             m68k_areg (regs, 7) -= 4;
-            x_put_long (m68k_areg (regs, 7), regs.mmu_fault_addr);
+            x_put_long (m68k_areg (regs, 7), regs.wb2_address); // WB2A
+			m68k_areg (regs, 7) -= 4;
+            x_put_long (m68k_areg (regs, 7), regs.wb3_data); // WB3D
             m68k_areg (regs, 7) -= 4;
-            x_put_long (m68k_areg (regs, 7), regs.mmu_fault_addr);
-            m68k_areg (regs, 7) -= 2;
+            x_put_long (m68k_areg (regs, 7), regs.mmu_fault_addr); // WB3A
+
+			m68k_areg (regs, 7) -= 4;
+            x_put_long (m68k_areg (regs, 7), regs.mmu_fault_addr); // FA
+            
+			m68k_areg (regs, 7) -= 2;
             x_put_word (m68k_areg (regs, 7), 0);
             m68k_areg (regs, 7) -= 2;
-            x_put_word (m68k_areg (regs, 7), 0);
+            x_put_word (m68k_areg (regs, 7), regs.wb2_status);
+            regs.wb2_status = 0;
             m68k_areg (regs, 7) -= 2;
             x_put_word (m68k_areg (regs, 7), regs.wb3_status);
             regs.wb3_status = 0;
-            m68k_areg (regs, 7) -= 2;
+
+			m68k_areg (regs, 7) -= 2;
 			x_put_word (m68k_areg (regs, 7), ssw);
             m68k_areg (regs, 7) -= 4;
             x_put_long (m68k_areg (regs, 7), regs.mmu_effective_addr);

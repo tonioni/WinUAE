@@ -57,6 +57,7 @@ int mmu_atc_ways;
 
 int mmu040_movem;
 uaecptr mmu040_movem_ea;
+uae_u32 mmu040_move16[4];
 
 static void mmu_dump_ttr(const TCHAR * label, uae_u32 ttr)
 {
@@ -276,6 +277,9 @@ void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32
 		}
 
 		ssw |= fc & MMU_SSW_TM;				/* TM = FC */
+		regs.wb3_status = write ? 0x80 | (ssw & 0x7f) : 0;
+		regs.wb2_status = 0;
+
 		switch (size) {
 		case sz_byte:
 			ssw |= MMU_SSW_SIZE_B;
@@ -287,13 +291,20 @@ void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32
 			ssw |= MMU_SSW_SIZE_L;
 			break;
 		case 16: // MOVE16
-			ssw |= MMU_SSW_SIZE_L; // ??
+			ssw |= MMU_SSW_SIZE_L; // ?? maybe MMU_SSW_SIZE_CL?
 			ssw |= MMU_SSW_TT0;
-			write_log (_T("040 MMU MOVE16 FAULT!\n"));
+			regs.mmu_effective_addr &= ~15;
+			if (write) {
+				// clear normal writeback if MOVE16 write
+				regs.wb3_status &= ~0x80;
+				// wb2 = cacheline size writeback
+				regs.wb2_status = 0x80 | MMU_SSW_SIZE_CL | (ssw & 0x1f);
+				regs.wb2_address = regs.mmu_effective_addr;
+				write_log (_T("040 MMU MOVE16 WRITE FAULT!\n"));
+			}
 			break;
 		}
 
-		regs.wb3_status = write ? 0x80 | (ssw & 0x7f) : 0;
 		if (!write)
 			ssw |= MMU_SSW_RW;
 
@@ -966,6 +977,39 @@ void REGPARAM2 dfc_put_byte(uaecptr addr, uae_u8 val)
 	} ENDTRY
 	ismoves = false;
 }
+
+void mmu_get_move16(uaecptr addr, uae_u32 *v, bool data, int size)
+{
+	struct mmu_atc_line *cl;
+	addr &= ~15;
+	for (int i = 0; i < 4; i++) {
+		uaecptr addr2 = addr + i * 4;
+		//                                       addr,super,data
+		if ((!regs.mmu_enabled) || (mmu_match_ttr(addr2,regs.s != 0,data,false)!=TTR_NO_MATCH))
+			v[i] = phys_get_long(addr2);
+		else if (likely(mmu_lookup(addr2, data, false, &cl)))
+			v[i] = phys_get_long(mmu_get_real_address(addr2, cl));
+		else
+			v[i] = mmu_get_long_slow(addr2, regs.s != 0, data, size, false, cl);
+	}
+}
+
+void mmu_put_move16(uaecptr addr, uae_u32 *val, bool data, int size)
+{
+	struct mmu_atc_line *cl;
+	addr &= ~15;
+	for (int i = 0; i < 4; i++) {
+		uaecptr addr2 = addr + i * 4;
+		//                                        addr,super,data
+		if ((!regs.mmu_enabled) || (mmu_match_ttr_write(addr2,regs.s != 0,data,val[i],size,false)==TTR_OK_MATCH))
+			phys_put_long(addr2,val[i]);
+		else if (likely(mmu_lookup(addr2, data, true, &cl)))
+			phys_put_long(mmu_get_real_address(addr2, cl), val[i]);
+		else
+			mmu_put_long_slow(addr2, val[i], regs.s != 0, data, size, false, cl);
+	}
+}
+
 
 void REGPARAM2 mmu_op_real(uae_u32 opcode, uae_u16 extra)
 {

@@ -4976,12 +4976,15 @@ static void gen_opcode (unsigned long int opcode)
 				printf ("\tuae_u32 v[4];\n");
 				genamode (curi, curi->smode, "srcreg", curi->size, "mems", 0, 2, 0);
 				genamode (curi, curi->dmode, "dstreg", curi->size, "memd", 0, 2, 0);
-				printf ("\tmemsa &= ~15;\n");
-				printf ("\tmemda &= ~15;\n");
-				if (using_mmu >= 68040) {
+				if (using_mmu == 68040) {
+					printf ("\tget_move16_mmu (memsa, mmu040_move16);\n");
+					printf ("\tput_move16_mmu (memda, mmu040_move16);\n");
+				} else if (using_mmu == 68060) {
 					printf ("\tget_move16_mmu (memsa, v);\n");
 					printf ("\tput_move16_mmu (memda, v);\n");
 				} else {
+					printf ("\tmemsa &= ~15;\n");
+					printf ("\tmemda &= ~15;\n");
 					printf ("\tv[0] = %s (memsa);\n", srcl);
 					printf ("\tv[1] = %s (memsa + 4);\n", srcl);
 					printf ("\tv[2] = %s (memsa + 8);\n", srcl);

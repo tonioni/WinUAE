@@ -83,6 +83,7 @@ typedef  int m68k_exception;
 #define MMU_SSW_SIZE_B	0x0020
 #define MMU_SSW_SIZE_W	0x0040
 #define MMU_SSW_SIZE_L	0x0000
+#define MMU_SSW_SIZE_CL	0x0060
 #define MMU_SSW_RW		0x0100
 #define MMU_SSW_LK		0x0200
 #define MMU_SSW_ATC		0x0400
