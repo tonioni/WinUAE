@@ -1247,6 +1247,7 @@ static void cdtv_reset_int (void)
 	cd_finished = 0;
 	cd_led = 0;
 	stch = 1;
+	frontpanel = 1;
 }
 
 static uae_u32 dmac_bget2 (uaecptr addr)
@@ -1761,6 +1762,7 @@ void cdtv_init (void)
 	/* KS autoconfig handles the rest */
 	map_banks (&dmac_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
 	if (!savestate_state) {
+		cdtv_reset_int ();
 		configured = 0;
 		tp_a = tp_b = tp_c = tp_ad = tp_bd = tp_cd = 0;
 		tp_imask = tp_cr = tp_air = tp_ilatch = 0;
