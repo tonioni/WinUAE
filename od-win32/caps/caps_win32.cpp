@@ -15,6 +15,8 @@
 #include "ComType.h"
 #include "CapsAPI.h"
 
+#define CAPS_TRACKTIMING 1
+
 static SDWORD caps_cont[4]= {-1, -1, -1, -1};
 static int caps_locked[4];
 static int caps_flags = DI_LOCK_DENVAR|DI_LOCK_DENNOISE|DI_LOCK_NOISE|DI_LOCK_UPDATEFD|DI_LOCK_TYPE|DI_LOCK_OVLBIT;
@@ -41,6 +43,10 @@ typedef SDWORD (__cdecl* CAPSUNLOCKALLTRACKS)(SDWORD);
 static CAPSUNLOCKALLTRACKS pCAPSUnlockAllTracks;
 typedef SDWORD (__cdecl* CAPSGETVERSIONINFO)(PCAPSVERSIONINFO,UDWORD);
 static CAPSGETVERSIONINFO pCAPSGetVersionInfo;
+typedef SDWORD (__cdecl* CAPSGETINFO)(PVOID pinfo, SDWORD id, UDWORD cylinder, UDWORD head, UDWORD inftype, UDWORD infid);
+static CAPSGETINFO pCAPSGetInfo;
+typedef SDWORD (__cdecl* CAPSSETREVOLUTION)(SDWORD id, UDWORD value);
+static CAPSSETREVOLUTION pCAPSSetRevolution;
 
 int caps_init (void)
 {
@@ -84,6 +90,9 @@ int caps_init (void)
 	pCAPSUnlockTrack = (CAPSUNLOCKTRACK)GetProcAddress (h, "CAPSUnlockTrack");
 	pCAPSUnlockAllTracks = (CAPSUNLOCKALLTRACKS)GetProcAddress (h, "CAPSUnlockAllTracks");
 	pCAPSGetVersionInfo = (CAPSGETVERSIONINFO)GetProcAddress (h, "CAPSGetVersionInfo");
+	pCAPSGetInfo = (CAPSGETINFO)GetProcAddress (h, "CAPSGetInfo");
+	pCAPSSetRevolution = (CAPSSETREVOLUTION)GetProcAddress (h, "CAPSSetRevolution");
+
 	init = 1;
 	cvi.type = 1;
 	pCAPSGetVersionInfo (&cvi, 0);
@@ -196,7 +205,7 @@ static void mfmcopy (uae_u16 *mfm, uae_u8 *data, int len)
 	}
 }
 
-static int load (struct CapsTrackInfoT2 *ci, int drv, int track, bool seed)
+static int load (struct CapsTrackInfoT2 *ci, int drv, int track, bool seed, bool newtrack)
 {
 	int flags;
 	
@@ -210,17 +219,21 @@ static int load (struct CapsTrackInfoT2 *ci, int drv, int track, bool seed)
 	} else {
 		ci->type = 1;
 	}
+#if 0
+	if (newtrack)
+		flags |= DI_LOCK_NOUPDATE;
+#endif
 	if (pCAPSLockTrack ((PCAPSTRACKINFO)ci, caps_cont[drv], track / 2, track & 1, flags) != imgeOk)
 		return 0;
 	return 1;
 }
 
-int caps_loadrevolution (uae_u16 *mfmbuf, int drv, int track, int *tracklength)
+int caps_loadrevolution (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, int *tracklength, int *nextrev)
 {
 	int len;
 	struct CapsTrackInfoT2 ci;
 
-	if (!load (&ci, drv, track, false))
+	if (!load (&ci, drv, track, false, false))
 		return 0;
 	if (oldlib)
 		len = ci.tracklen * 8;
@@ -228,18 +241,52 @@ int caps_loadrevolution (uae_u16 *mfmbuf, int drv, int track, int *tracklength)
 		len = ci.tracklen;
 	*tracklength = len;
 	mfmcopy (mfmbuf, ci.trackbuf, len);
+#if CAPS_TRACKTIMING
+	if (ci.timelen > 0 && tracktiming) {
+		for (int i = 0; i < ci.timelen; i++)
+			tracktiming[i] = (uae_u16)ci.timebuf[i];
+	}
+#endif
+	if (nextrev && pCAPSGetInfo) {
+		CapsRevolutionInfo  pinfo;
+		*nextrev = 0;
+		pCAPSGetInfo(&pinfo, caps_cont[drv], track / 2, track & 1, cgiitRevolution, 0);
+		//write_log (_T("get next rev = %d\n"), pinfo.next);
+		if (pinfo.max > 0)
+			*nextrev = pinfo.next;
+	}
 	return 1;
 }
 
-int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, int *tracklength, int *multirev, int *gapoffset)
+int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, int *tracklength, int *multirev, int *gapoffset, int *nextrev, bool sametrack)
 {
 	int len;
 	struct CapsTrackInfoT2 ci;
+	CapsRevolutionInfo  pinfo;
 
 	if (tracktiming)
 		*tracktiming = 0;
-	if (!load (&ci, drv, track, true))
+
+	if (nextrev && pCAPSSetRevolution) {
+		if (sametrack) {
+			pCAPSSetRevolution(caps_cont[drv], *nextrev);
+			//write_log (_T("set rev = %d\n"), *nextrev);
+		} else {
+			pCAPSSetRevolution(caps_cont[drv], 0);
+		}
+	}
+
+	if (!load (&ci, drv, track, true, sametrack != true))
 		return 0;
+
+	if (nextrev && sametrack && pCAPSGetInfo) {
+		*nextrev = 0;
+		pCAPSGetInfo(&pinfo, caps_cont[drv], track / 2, track & 1, cgiitRevolution, 0);
+		//write_log (_T("get next rev = %d\n"), pinfo.next);
+		if (pinfo.max > 0)
+			*nextrev = pinfo.next;
+	}
+
 	*multirev = (ci.type & CTIT_FLAG_FLAKEY) ? 1 : 0;
 	if (oldlib) {
 		len = ci.tracklen * 8;
@@ -258,10 +305,12 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
 		fclose (f);
 	}
 #endif
+#if CAPS_TRACKTIMING
 	if (ci.timelen > 0 && tracktiming) {
 		for (int i = 0; i < ci.timelen; i++)
 			tracktiming[i] = (uae_u16)ci.timebuf[i];
 	}
+#endif
 #if 0
 	write_log (_T("caps: drive:%d track:%d len:%d multi:%d timing:%d type:%d overlap:%d\n"),
 		drv, track, len, *multirev, ci.timelen, type, ci.overlap);

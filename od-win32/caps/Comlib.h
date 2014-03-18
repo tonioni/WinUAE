@@ -15,6 +15,6 @@
 
 #endif
 
-#define ExtSub
-#define ExtVar
+#define ExtSub extern "C" DllSub
+#define ExtVar extern "C" DllVar
 

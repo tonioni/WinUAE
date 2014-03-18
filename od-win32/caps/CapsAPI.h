@@ -135,15 +135,52 @@ struct CapsTrackInfoT2 {
 
 typedef struct CapsTrackInfoT2 *PCAPSTRACKINFOT2;
 
+// disk sector information block
+struct CapsSectorInfo {
+	UDWORD descdatasize; // data size in bits from IPF descriptor
+	UDWORD descgapsize;  // gap size in bits from IPF descriptor
+	UDWORD datasize;     // data size in bits from decoder
+	UDWORD gapsize;      // gap size in bits from decoder
+	UDWORD datastart;    // data start position in bits from decoder
+	UDWORD gapstart;     // gap start position in bits from decoder
+	UDWORD gapsizews0;   // gap size before write splice
+	UDWORD gapsizews1;   // gap size after write splice
+	UDWORD gapws0mode;   // gap size mode before write splice
+	UDWORD gapws1mode;   // gap size mode after write splice
+	UDWORD celltype;     // bitcell type
+	UDWORD enctype;      // encoder type
+};
+
+typedef struct CapsSectorInfo *PCAPSSECTORINFO;
+
+// disk data information block
+struct CapsDataInfo {
+	UDWORD type;  // data type
+	UDWORD start; // start position
+	UDWORD size;  // size in bits
+};
+
+typedef struct CapsDataInfo *PCAPSDATAINFO;
+
+// disk data information block
+struct CapsRevolutionInfo {
+	SDWORD next; // the revolution number used by the next track lock call
+	SDWORD last; // the revolution number used by the lack track lock call
+	SDWORD real; // the real revolution number used by the last track lock call
+	SDWORD max; // the maximum revolution available for the selected track, <0 unlimited/randomized, 0 empty
+};
+
+typedef struct CapsRevolutionInfo *PCAPSREVOLUTIONINFO;
+
 #pragma pack(pop)
 
-// image type
+// CapsImageInfo.image type
 enum {
 	ciitNA=0, // invalid image type
 	ciitFDD   // floppy disk
 };
 
-// platform IDs, not about configuration, but intended use
+// CapsImageInfo.platform IDs, not about configuration, but intended use
 enum {
 	ciipNA=0, // invalid platform (dummy entry)
 	ciipAmiga,
@@ -157,12 +194,46 @@ enum {
 	ciipAtari8
 };
 
-// track type
+// CapsTrackInfo.track type
 enum {
 	ctitNA=0,  // invalid type
 	ctitNoise, // cells are unformatted (random size)
 	ctitAuto,  // automatic cell size, according to track size
 	ctitVar    // variable density
+};
+
+// CapsSectorInfo.bitcell type
+enum {
+	csicNA=0, // invalid cell type
+	csic2us   // 2us cells
+};
+
+// CapsSectorInfo.encoder type
+enum {
+	csieNA=0, // undefined encoder
+	csieMFM,  // MFM
+	csieRaw   // no encoder used, test data only
+};
+
+// CapsSectorInfo.gap size mode
+enum {
+	csiegmFixed=0,  // fixed size, can't be changed
+	csiegmAuto,     // size can be changed, resize information calculated automatically
+	csiegmResize    // size can be changed, resize information is scripted
+};
+
+// CapsDataInfo.data type
+enum {
+	cditNA=0, // undefined
+	cditWeak  // weak bits
+};
+
+// CAPSGetInfo inftype
+enum {
+	cgiitNA=0,      // illegal
+	cgiitSector,    // CapsSectorInfo
+	cgiitWeak,      // CapsDataInfo, weak bits
+	cgiitRevolution // CapsRevolutionInfo
 };
 
 // image error status
