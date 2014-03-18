@@ -637,6 +637,12 @@
     <ClCompile Include="..\..\newcpu_common.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\scp.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\tabletlibrary.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

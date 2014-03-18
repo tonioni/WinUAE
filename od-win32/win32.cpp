@@ -1606,7 +1606,7 @@ static int canstretch (void)
 	if (isfullscreen () != 0)
 		return 0;
 	if (!WIN32GFX_IsPicassoScreen ()) {
-		if (currprefs.gfx_filter_autoscale == AUTOSCALE_RESIZE)
+		if (currprefs.gf[APMODE_NATIVE].gfx_filter_autoscale == AUTOSCALE_RESIZE)
 			return 0;
 		return 1;
 	} else {
@@ -3102,8 +3102,10 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_commandpathend[0] = 0;
 		p->win32_statusbar = 1;
 		p->gfx_api = os_vista ? 1 : 0;
-		if (p->gfx_filter == 0 && p->gfx_api)
-			p->gfx_filter = 1;
+		if (p->gf[APMODE_NATIVE].gfx_filter == 0 && p->gfx_api)
+			p->gf[APMODE_NATIVE].gfx_filter = 1;
+		if (p->gf[APMODE_RTG].gfx_filter == 0 && p->gfx_api)
+			p->gf[APMODE_RTG].gfx_filter = 1;
 		WIN32GUI_LoadUIString (IDS_INPUT_CUSTOM, buf, sizeof buf / sizeof (TCHAR));
 		for (int i = 0; i < GAMEPORT_INPUT_SETTINGS; i++)
 			_stprintf (p->input_config_name[i], buf, i + 1);

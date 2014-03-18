@@ -245,6 +245,30 @@ struct apmode
 
 #define MAX_LUA_STATES 16
 
+
+struct gfx_filterdata
+{
+	int gfx_filter;
+	TCHAR gfx_filtershader[2 * MAX_FILTERSHADERS + 1][MAX_DPATH];
+	TCHAR gfx_filtermask[2 * MAX_FILTERSHADERS + 1][MAX_DPATH];
+	TCHAR gfx_filteroverlay[MAX_DPATH];
+	struct wh gfx_filteroverlay_pos;
+	int gfx_filteroverlay_overscan;
+	int gfx_filter_scanlines;
+	int gfx_filter_scanlineratio;
+	int gfx_filter_scanlinelevel;
+	float gfx_filter_horiz_zoom, gfx_filter_vert_zoom;
+	float gfx_filter_horiz_zoom_mult, gfx_filter_vert_zoom_mult;
+	float gfx_filter_horiz_offset, gfx_filter_vert_offset;
+	int gfx_filter_filtermode;
+	int gfx_filter_bilinear;
+	int gfx_filter_noise, gfx_filter_blur;
+	int gfx_filter_saturation, gfx_filter_luminance, gfx_filter_contrast, gfx_filter_gamma;
+	int gfx_filter_keep_aspect, gfx_filter_aspect;
+	int gfx_filter_autoscale;
+	int gfx_filter_keep_autoscale_aspect;
+};
+
 struct uae_prefs {
 
 	struct strlist *all_lines;
@@ -328,7 +352,7 @@ struct uae_prefs {
 	int gfx_resolution;
 	int gfx_vresolution;
 	int gfx_lores_mode;
-	int gfx_scanlines;
+	int gfx_pscanlines, gfx_iscanlines;
 	int gfx_xcenter, gfx_ycenter;
 	int gfx_xcenter_pos, gfx_ycenter_pos;
 	int gfx_xcenter_size, gfx_ycenter_size;
@@ -340,25 +364,7 @@ struct uae_prefs {
 	int gfx_extrawidth;
 	bool lightboost_strobo;
 
-	int gfx_filter;
-	TCHAR gfx_filtershader[2 * MAX_FILTERSHADERS + 1][MAX_DPATH];
-	TCHAR gfx_filtermask[2 * MAX_FILTERSHADERS + 1][MAX_DPATH];
-	TCHAR gfx_filteroverlay[MAX_DPATH];
-	struct wh gfx_filteroverlay_pos;
-	int gfx_filteroverlay_overscan;
-	int gfx_filter_scanlines;
-	int gfx_filter_scanlineratio;
-	int gfx_filter_scanlinelevel;
-	float gfx_filter_horiz_zoom, gfx_filter_vert_zoom;
-	float gfx_filter_horiz_zoom_mult, gfx_filter_vert_zoom_mult;
-	float gfx_filter_horiz_offset, gfx_filter_vert_offset;
-	int gfx_filter_filtermode;
-	int gfx_filter_bilinear;
-	int gfx_filter_noise, gfx_filter_blur;
-	int gfx_filter_saturation, gfx_filter_luminance, gfx_filter_contrast, gfx_filter_gamma;
-	int gfx_filter_keep_aspect, gfx_filter_aspect;
-	int gfx_filter_autoscale;
-	int gfx_filter_keep_autoscale_aspect;
+	struct gfx_filterdata gf[2];
 
 	float rtg_horiz_zoom_mult;
 	float rtg_vert_zoom_mult;
@@ -590,6 +596,7 @@ struct uae_prefs {
 	int input_autofire_linecnt;
 	int input_mouse_speed;
 	int input_tablet;
+	bool tablet_library;
 	bool input_magic_mouse;
 	int input_magic_mouse_cursor;
 	int input_keyboard_type;

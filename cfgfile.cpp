@@ -128,7 +128,12 @@ static const TCHAR *guimode1[] = { _T("no"), _T("yes"), _T("nowait"), 0 };
 static const TCHAR *guimode2[] = { _T("false"), _T("true"), _T("nowait"), 0 };
 static const TCHAR *guimode3[] = { _T("0"), _T("1"), _T("nowait"), 0 };
 static const TCHAR *csmode[] = { _T("ocs"), _T("ecs_agnus"), _T("ecs_denise"), _T("ecs"), _T("aga"), 0 };
-static const TCHAR *linemode[] = { _T("none"), _T("none"), _T("double"), _T("scanlines"), _T("double2"), _T("scanlines2"), _T("double3"), _T("scanlines3"), 0 };
+static const TCHAR *linemode[] = {
+	_T("none"),
+	_T("double"), _T("scanlines"), _T("scanlines2p"), _T("scanlines3p"),
+	_T("double2"), _T("scanlines2"), _T("scanlines2p2"), _T("scanlines2p3"),
+	_T("double3"), _T("scanlines3"), _T("scanlines3p2"), _T("scanlines3p3"),
+	0 };
 static const TCHAR *speedmode[] = { _T("max"), _T("real"), 0 };
 static const TCHAR *colormode1[] = { _T("8bit"), _T("15bit"), _T("16bit"), _T("8bit_dither"), _T("4bit_dither"), _T("32bit"), 0 };
 static const TCHAR *colormode2[] = { _T("8"), _T("15"), _T("16"), _T("8d"), _T("4d"), _T("32"), 0 };
@@ -203,6 +208,7 @@ static const TCHAR *waitblits[] = { _T("disabled"), _T("automatic"), _T("noidleo
 static const TCHAR *autoext2[] = { _T("disabled"), _T("copy"), _T("replace"), 0 };
 static const TCHAR *leds[] = { _T("power"), _T("df0"), _T("df1"), _T("df2"), _T("df3"), _T("hd"), _T("cd"), _T("fps"), _T("cpu"), _T("snd"), _T("md"), 0 };
 static int leds_order[] = { 3, 6, 7, 8, 9, 4, 5, 2, 1, 0, 9 };
+static const TCHAR *lacer[] = { _T("off"), _T("i"), _T("p"), 0 };
 
 static const TCHAR *obsolete[] = {
 	_T("accuracy"), _T("gfx_opengl"), _T("gfx_32bit_blits"), _T("32bit_blits"),
@@ -522,16 +528,24 @@ static size_t cfg_write (const void *b, struct zfile *z)
 
 #define UTF8NAME _T(".utf8")
 
-static void cfg_dowrite (struct zfile *f, const TCHAR *option, const TCHAR *value, int d, int target)
+static void cfg_dowrite (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *value, int d, int target)
 {
 	char lf = 10;
-	TCHAR tmp[CONFIG_BLEN];
+	TCHAR tmp[CONFIG_BLEN], tmpext[CONFIG_BLEN];
+	const TCHAR *optionp;
 	char tmpa[CONFIG_BLEN];
 	char *tmp1, *tmp2;
 	int utf8;
 
 	if (value == NULL)
 		return;
+	if (optionext) {
+		_tcscpy (tmpext, option);
+		_tcscat (tmpext, optionext);
+		optionp = tmpext;
+	} else {
+		optionp = option;
+	}
 	utf8 = 0;
 	tmp1 = ua (value);
 	tmp2 = uutf8 (value);
@@ -539,14 +553,14 @@ static void cfg_dowrite (struct zfile *f, const TCHAR *option, const TCHAR *valu
 		utf8 = 1;
 
 	if (target)
-		_stprintf (tmp, _T("%s.%s=%s"), TARGET_NAME, option, value);
+		_stprintf (tmp, _T("%s.%s=%s"), TARGET_NAME, optionp, value);
 	else
-		_stprintf (tmp, _T("%s=%s"), option, value);
+		_stprintf (tmp, _T("%s=%s"), optionp, value);
 	if (d && isdefault (tmp))
 		goto end;
 	cfg_write (tmp, f);
 	if (utf8 && !unicode_config) {
-		char *opt = ua (option);
+		char *opt = ua (optionp);
 		if (target) {
 			char *tna = ua (TARGET_NAME);
 			sprintf (tmpa, "%s.%s.utf8=%s", tna, opt, tmp2);
@@ -562,7 +576,10 @@ end:
 	xfree (tmp2);
 	xfree (tmp1);
 }
-
+static void cfg_dowrite (struct zfile *f, const TCHAR *option, const TCHAR *value, int d, int target)
+{
+	cfg_dowrite (f, option, NULL, value, d, target);
+}
 void cfgfile_write_bool (struct zfile *f, const TCHAR *option, bool b)
 {
 	cfg_dowrite (f, option, b ? _T("true") : _T("false"), 0, 0);
@@ -570,6 +587,10 @@ void cfgfile_write_bool (struct zfile *f, const TCHAR *option, bool b)
 void cfgfile_dwrite_bool (struct zfile *f, const TCHAR *option, bool b)
 {
 	cfg_dowrite (f, option, b ? _T("true") : _T("false"), 1, 0);
+}
+void cfgfile_dwrite_bool (struct zfile *f, const TCHAR *option, const TCHAR *optionext, bool b)
+{
+	cfg_dowrite (f, option, optionext, b ? _T("true") : _T("false"), 1, 0);
 }
 void cfgfile_dwrite_bool (struct zfile *f, const TCHAR *option, int b)
 {
@@ -579,9 +600,17 @@ void cfgfile_write_str (struct zfile *f, const TCHAR *option, const TCHAR *value
 {
 	cfg_dowrite (f, option, value, 0, 0);
 }
+void cfgfile_write_str (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *value)
+{
+	cfg_dowrite (f, option, optionext, value, 0, 0);
+}
 void cfgfile_dwrite_str (struct zfile *f, const TCHAR *option, const TCHAR *value)
 {
 	cfg_dowrite (f, option, value, 1, 0);
+}
+void cfgfile_dwrite_str (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *value)
+{
+	cfg_dowrite (f, option, optionext, value, 1, 0);
 }
 
 void cfgfile_target_write_bool (struct zfile *f, const TCHAR *option, bool b)
@@ -601,6 +630,20 @@ void cfgfile_target_dwrite_str (struct zfile *f, const TCHAR *option, const TCHA
 	cfg_dowrite (f, option, value, 1, 1);
 }
 
+void cfgfile_write (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *format,...)
+{
+	va_list parms;
+	TCHAR tmp[CONFIG_BLEN], tmp2[CONFIG_BLEN];
+
+	if (optionext) {
+		_tcscpy (tmp2, option);
+		_tcscat (tmp2, optionext);
+	}
+	va_start (parms, format);
+	_vsntprintf (tmp, CONFIG_BLEN, format, parms);
+	cfg_dowrite (f, optionext ? tmp2 : option, tmp, 0, 0);
+	va_end (parms);
+}
 void cfgfile_write (struct zfile *f, const TCHAR *option, const TCHAR *format,...)
 {
 	va_list parms;
@@ -609,6 +652,20 @@ void cfgfile_write (struct zfile *f, const TCHAR *option, const TCHAR *format,..
 	va_start (parms, format);
 	_vsntprintf (tmp, CONFIG_BLEN, format, parms);
 	cfg_dowrite (f, option, tmp, 0, 0);
+	va_end (parms);
+}
+void cfgfile_dwrite (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *format,...)
+{
+	va_list parms;
+	TCHAR tmp[CONFIG_BLEN], tmp2[CONFIG_BLEN];
+
+	if (optionext) {
+		_tcscpy (tmp2, option);
+		_tcscat (tmp2, optionext);
+	}
+	va_start (parms, format);
+	_vsntprintf (tmp, CONFIG_BLEN, format, parms);
+	cfg_dowrite (f, optionext ? tmp2 : option, tmp, 1, 0);
 	va_end (parms);
 }
 void cfgfile_dwrite (struct zfile *f, const TCHAR *option, const TCHAR *format,...)
@@ -1102,6 +1159,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, _T("magic_mouse"), p->input_magic_mouse);
 	cfgfile_dwrite_str (f, _T("magic_mousecursor"), magiccursors[p->input_magic_mouse_cursor]);
 	cfgfile_dwrite_str (f, _T("absolute_mouse"), abspointers[p->input_tablet]);
+	cfgfile_dwrite_bool (f, _T("tablet_library"), p->tablet_library);
 	cfgfile_dwrite_bool (f, _T("clipboard_sharing"), p->clipboard_sharing);
 	cfgfile_dwrite_bool (f, _T("native_code"), p->native_code);
 
@@ -1137,7 +1195,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_str (f, _T("gfx_resolution"), lorestype1[p->gfx_resolution]);
 	cfgfile_write_str (f, _T("gfx_lores_mode"), loresmode[p->gfx_lores_mode]);
 	cfgfile_write_bool (f, _T("gfx_flickerfixer"), p->gfx_scandoubler);
-	cfgfile_write_str (f, _T("gfx_linemode"), p->gfx_scanlines >= 2 ? linemode[4 + (p->gfx_scanlines - 2)] : linemode[p->gfx_vresolution * 2 + (p->gfx_scanlines ? 1 : 0)]);
+	cfgfile_write_str (f, _T("gfx_linemode"), p->gfx_vresolution > 0 ? linemode[p->gfx_iscanlines * 4 + p->gfx_pscanlines + 1] : linemode[0]);
 	cfgfile_write_str (f, _T("gfx_fullscreen_amiga"), fullmodes[p->gfx_apmode[0].gfx_fullscreen]);
 	cfgfile_write_str (f, _T("gfx_fullscreen_picasso"), fullmodes[p->gfx_apmode[1].gfx_fullscreen]);
 	cfgfile_write_str (f, _T("gfx_center_horizontal"), centermode1[p->gfx_xcenter]);
@@ -1149,86 +1207,75 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, _T("gfx_horizontal_tweak"), _T("%d"), p->gfx_extrawidth);
 
 #ifdef GFXFILTER
-	for (int i = 0; i <MAX_FILTERSHADERS; i++) {
-		if (p->gfx_filtershader[i][0])
-			cfgfile_write (f, _T("gfx_filter_pre"), _T("D3D:%s"), p->gfx_filtershader[i]);
-		if (p->gfx_filtermask[i][0])
-			cfgfile_write_str (f, _T("gfx_filtermask_pre"), p->gfx_filtermask[i]);
-	}
-	for (int i = 0; i <MAX_FILTERSHADERS; i++) {
-		if (p->gfx_filtershader[i + MAX_FILTERSHADERS][0])
-			cfgfile_write (f, _T("gfx_filter_post"), _T("D3D:%s"), p->gfx_filtershader[i + MAX_FILTERSHADERS]);
-		if (p->gfx_filtermask[i + MAX_FILTERSHADERS][0])
-			cfgfile_write_str (f, _T("gfx_filtermask_post"), p->gfx_filtermask[i + MAX_FILTERSHADERS]);
-	}
-	cfgfile_dwrite_str (f, _T("gfx_filter_mask"), p->gfx_filtermask[2 * MAX_FILTERSHADERS]);
-	{
-		bool d3dfound = false;
-		if (p->gfx_filtershader[2 * MAX_FILTERSHADERS][0] && p->gfx_api) {
-			cfgfile_dwrite (f, _T("gfx_filter"), _T("D3D:%s"), p->gfx_filtershader[2 * MAX_FILTERSHADERS]);
-			d3dfound = true;
+	for (int j = 0; j < 2; j++) {
+		struct gfx_filterdata *gf = &p->gf[j];
+		const TCHAR *ext = j == 0 ? NULL : _T("_rtg");
+		for (int i = 0; i <MAX_FILTERSHADERS; i++) {
+			if (gf->gfx_filtershader[i][0])
+				cfgfile_write (f, _T("gfx_filter_pre"), ext, _T("D3D:%s"), gf->gfx_filtershader[i]);
+			if (gf->gfx_filtermask[i][0])
+				cfgfile_write_str (f, _T("gfx_filtermask_pre"), ext, gf->gfx_filtermask[i]);
 		}
-		if (!d3dfound) {
-			if (p->gfx_filter > 0) {
-				int i = 0;
-				struct uae_filter *uf;
-				while (uaefilters[i].name) {
-					uf = &uaefilters[i];
-					if (uf->type == p->gfx_filter) {
-						cfgfile_dwrite_str (f, _T("gfx_filter"), uf->cfgname);
+		for (int i = 0; i <MAX_FILTERSHADERS; i++) {
+			if (gf->gfx_filtershader[i + MAX_FILTERSHADERS][0])
+				cfgfile_write (f, _T("gfx_filter_post"), ext, _T("D3D:%s"), gf->gfx_filtershader[i + MAX_FILTERSHADERS]);
+			if (gf->gfx_filtermask[i + MAX_FILTERSHADERS][0])
+				cfgfile_write_str (f, _T("gfx_filtermask_post"), ext, gf->gfx_filtermask[i + MAX_FILTERSHADERS]);
+		}
+		cfgfile_dwrite_str (f, _T("gfx_filter_mask"), ext, gf->gfx_filtermask[2 * MAX_FILTERSHADERS]);
+		{
+			bool d3dfound = false;
+			if (gf->gfx_filtershader[2 * MAX_FILTERSHADERS][0] && p->gfx_api) {
+				cfgfile_dwrite (f, _T("gfx_filter"), ext, _T("D3D:%s"), gf->gfx_filtershader[2 * MAX_FILTERSHADERS]);
+				d3dfound = true;
+			}
+			if (!d3dfound) {
+				if (gf->gfx_filter > 0) {
+					int i = 0;
+					struct uae_filter *uf;
+					while (uaefilters[i].name) {
+						uf = &uaefilters[i];
+						if (uf->type == gf->gfx_filter) {
+							cfgfile_dwrite_str (f, _T("gfx_filter"), ext, uf->cfgname);
+						}
+						i++;
 					}
-					i++;
+				} else {
+					cfgfile_dwrite (f, _T("gfx_filter"), ext, _T("no"));
 				}
-			} else {
-				cfgfile_dwrite (f, _T("gfx_filter"), _T("no"));
 			}
 		}
+		cfgfile_dwrite_str (f, _T("gfx_filter_mode"), ext, filtermode2[gf->gfx_filter_filtermode]);
+		cfgfile_dwrite (f, _T("gfx_filter_vert_zoomf"), ext, _T("%f"), gf->gfx_filter_vert_zoom);
+		cfgfile_dwrite (f, _T("gfx_filter_horiz_zoomf"), ext, _T("%f"), gf->gfx_filter_horiz_zoom);
+		cfgfile_dwrite (f, _T("gfx_filter_vert_zoom_multf"), ext, _T("%f"), gf->gfx_filter_vert_zoom_mult);
+		cfgfile_dwrite (f, _T("gfx_filter_horiz_zoom_multf"), ext, _T("%f"), gf->gfx_filter_horiz_zoom_mult);
+		cfgfile_dwrite (f, _T("gfx_filter_vert_offsetf"), ext, _T("%f"), gf->gfx_filter_vert_offset);
+		cfgfile_dwrite (f, _T("gfx_filter_horiz_offsetf"), ext, _T("%f"), gf->gfx_filter_horiz_offset);
+		cfgfile_dwrite (f, _T("gfx_filter_scanlines"), ext, _T("%d"), gf->gfx_filter_scanlines);
+		cfgfile_dwrite (f, _T("gfx_filter_scanlinelevel"), ext, _T("%d"), gf->gfx_filter_scanlinelevel);
+		cfgfile_dwrite (f, _T("gfx_filter_scanlineratio"), ext, _T("%d"), gf->gfx_filter_scanlineratio);
+		cfgfile_dwrite (f, _T("gfx_filter_luminance"), ext, _T("%d"), gf->gfx_filter_luminance);
+		cfgfile_dwrite (f, _T("gfx_filter_contrast"), ext, _T("%d"), gf->gfx_filter_contrast);
+		cfgfile_dwrite (f, _T("gfx_filter_saturation"), ext, _T("%d"), gf->gfx_filter_saturation);
+		cfgfile_dwrite (f, _T("gfx_filter_gamma"), ext, _T("%d"), gf->gfx_filter_gamma);
+		cfgfile_dwrite (f, _T("gfx_filter_blur"), ext, _T("%d"), gf->gfx_filter_blur);
+		cfgfile_dwrite (f, _T("gfx_filter_noise"), ext, _T("%d"), gf->gfx_filter_noise);
+		cfgfile_dwrite_bool (f, _T("gfx_filter_bilinear"), ext, gf->gfx_filter_bilinear != 0);
+		cfgfile_dwrite (f, _T("gfx_filter_keep_autoscale_aspect"), ext, _T("%d"), gf->gfx_filter_keep_autoscale_aspect);
+		cfgfile_dwrite_str (f, _T("gfx_filter_keep_aspect"), ext, aspects[gf->gfx_filter_keep_aspect]);
+		cfgfile_dwrite_str (f, _T("gfx_filter_autoscale"), ext, autoscale[gf->gfx_filter_autoscale]);
+		cfgfile_dwrite (f, _T("gfx_filter_aspect_ratio"), ext, _T("%d:%d"),
+			gf->gfx_filter_aspect >= 0 ? (gf->gfx_filter_aspect / ASPECTMULT) : -1,
+			gf->gfx_filter_aspect >= 0 ? (gf->gfx_filter_aspect & (ASPECTMULT - 1)) : -1);
+		if (gf->gfx_filteroverlay[0]) {
+			cfgfile_dwrite (f, _T("gfx_filter_overlay"), ext, _T("%s%s"),
+				gf->gfx_filteroverlay, _tcschr (gf->gfx_filteroverlay, ',') ? _T(",") : _T(""));
+		}
 	}
-	cfgfile_dwrite_str (f, _T("gfx_filter_mode"), filtermode2[p->gfx_filter_filtermode]);
-	cfgfile_dwrite (f, _T("gfx_filter_vert_zoomf"), _T("%f"), p->gfx_filter_vert_zoom);
-	cfgfile_dwrite (f, _T("gfx_filter_horiz_zoomf"), _T("%f"), p->gfx_filter_horiz_zoom);
-	cfgfile_dwrite (f, _T("gfx_filter_vert_zoom_multf"), _T("%f"), p->gfx_filter_vert_zoom_mult);
-	cfgfile_dwrite (f, _T("gfx_filter_horiz_zoom_multf"), _T("%f"), p->gfx_filter_horiz_zoom_mult);
-	cfgfile_dwrite (f, _T("gfx_filter_vert_offsetf"), _T("%f"), p->gfx_filter_vert_offset);
-	cfgfile_dwrite (f, _T("gfx_filter_horiz_offsetf"), _T("%f"), p->gfx_filter_horiz_offset);
-	cfgfile_dwrite (f, _T("gfx_filter_scanlines"), _T("%d"), p->gfx_filter_scanlines);
-	cfgfile_dwrite (f, _T("gfx_filter_scanlinelevel"), _T("%d"), p->gfx_filter_scanlinelevel);
-	cfgfile_dwrite (f, _T("gfx_filter_scanlineratio"), _T("%d"), p->gfx_filter_scanlineratio);
-	cfgfile_dwrite (f, _T("gfx_filter_luminance"), _T("%d"), p->gfx_filter_luminance);
-	cfgfile_dwrite (f, _T("gfx_filter_contrast"), _T("%d"), p->gfx_filter_contrast);
-	cfgfile_dwrite (f, _T("gfx_filter_saturation"), _T("%d"), p->gfx_filter_saturation);
-	cfgfile_dwrite (f, _T("gfx_filter_gamma"), _T("%d"), p->gfx_filter_gamma);
-	cfgfile_dwrite (f, _T("gfx_filter_blur"), _T("%d"), p->gfx_filter_blur);
-	cfgfile_dwrite (f, _T("gfx_filter_noise"), _T("%d"), p->gfx_filter_noise);
-	cfgfile_dwrite_bool (f, _T("gfx_filter_bilinear"), p->gfx_filter_bilinear != 0);
-	cfgfile_dwrite (f, _T("gfx_filter_keep_autoscale_aspect"), _T("%d"), p->gfx_filter_keep_autoscale_aspect);
-	cfgfile_dwrite_str (f, _T("gfx_filter_keep_aspect"), aspects[p->gfx_filter_keep_aspect]);
-	cfgfile_dwrite_str (f, _T("gfx_filter_autoscale"), autoscale[p->gfx_filter_autoscale]);
-	cfgfile_dwrite (f, _T("gfx_filter_aspect_ratio"), _T("%d:%d"),
-		p->gfx_filter_aspect >= 0 ? (p->gfx_filter_aspect / ASPECTMULT) : -1,
-		p->gfx_filter_aspect >= 0 ? (p->gfx_filter_aspect & (ASPECTMULT - 1)) : -1);
 	cfgfile_dwrite (f, _T("gfx_luminance"), _T("%d"), p->gfx_luminance);
 	cfgfile_dwrite (f, _T("gfx_contrast"), _T("%d"), p->gfx_contrast);
 	cfgfile_dwrite (f, _T("gfx_gamma"), _T("%d"), p->gfx_gamma);
-	if (p->gfx_filteroverlay[0]) {
-		cfgfile_dwrite (f, _T("gfx_filter_overlay"), _T("%s%s"),
-			p->gfx_filteroverlay, _tcschr (p->gfx_filteroverlay, ',') ? _T(",") : _T(""));
-
-#if 0
-		cfgfile_dwrite (f, _T("gfx_filter_overlay"), _T("%s,%d%s:%d%s:%d%s:%d%s:%d%%"),
-			p->gfx_filteroverlay,
-			p->gfx_filteroverlay_pos.x >= -24000 ? p->gfx_filteroverlay_pos.x : -p->gfx_filteroverlay_pos.x - 30000,
-			p->gfx_filteroverlay_pos.x >= -24000 ? _T("") : _T("%"),
-			p->gfx_filteroverlay_pos.y >= -24000 ? p->gfx_filteroverlay_pos.y : -p->gfx_filteroverlay_pos.y - 30000,
-			p->gfx_filteroverlay_pos.y >= -24000 ? _T("") : _T("%"),
-			p->gfx_filteroverlay_pos.width >= -24000 ? p->gfx_filteroverlay_pos.width : -p->gfx_filteroverlay_pos.width - 30000,
-			p->gfx_filteroverlay_pos.width >= -24000 ? _T("") : _T("%"),
-			p->gfx_filteroverlay_pos.height >= -24000 ? p->gfx_filteroverlay_pos.height : -p->gfx_filteroverlay_pos.height - 30000,
-			p->gfx_filteroverlay_pos.height >= -24000 ? _T("") : _T("%"),
-			p->gfx_filteroverlay_overscan
-			);
-#endif
-	}
 
 	cfgfile_dwrite (f, _T("gfx_center_horizontal_position"), _T("%d"), p->gfx_xcenter_pos);
 	cfgfile_dwrite (f, _T("gfx_center_vertical_position"), _T("%d"), p->gfx_ycenter_pos);
@@ -1491,22 +1538,47 @@ int cfgfile_doubleval (const TCHAR *option, const TCHAR *value, const TCHAR *nam
 	return 1;
 }
 
-int cfgfile_floatval (const TCHAR *option, const TCHAR *value, const TCHAR *name, float *location)
+int cfgfile_floatval (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, float *location)
 {
 	int base = 10;
 	TCHAR *endptr;
-	if (name != NULL && _tcscmp (option, name) != 0)
+	if (name == NULL)
 		return 0;
+	if (nameext) {
+		TCHAR tmp[MAX_DPATH];
+		_tcscpy (tmp, name);
+		_tcscat (tmp, nameext);
+		if (_tcscmp (tmp, option) != 0)
+			return 0;
+	} else {
+		if (_tcscmp (option, name) != 0)
+			return 0;
+	}
 	*location = (float)_tcstod (value, &endptr);
 	return 1;
 }
+int cfgfile_floatval (const TCHAR *option, const TCHAR *value, const TCHAR *name, float *location)
+{
+	return cfgfile_floatval (option, NULL, value, name, location);
+}
 
-int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, unsigned int *location, int scale)
+int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, unsigned int *location, int scale)
 {
 	int base = 10;
 	TCHAR *endptr;
-	if (name != NULL && _tcscmp (option, name) != 0)
+	TCHAR tmp[MAX_DPATH];
+
+	if (name == NULL)
 		return 0;
+	if (nameext) {
+		_tcscpy (tmp, name);
+		_tcscat (tmp, nameext);
+		if (_tcscmp (tmp, option) != 0)
+			return 0;
+	} else {
+		if (_tcscmp (option, name) != 0)
+			return 0;
+	}
 	/* I guess octal isn't popular enough to worry about here...  */
 	if (value[0] == '0' && _totupper (value[1]) == 'X')
 		value += 2, base = 16;
@@ -1521,27 +1593,49 @@ int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 			*location = 1;
 			return 1;
 		}
-		write_log (_T("Option '%s' requires a numeric argument but got '%s'\n"), option, value);
+		write_log (_T("Option '%s' requires a numeric argument but got '%s'\n"), nameext ? tmp : option, value);
 		return -1;
 	}
 	return 1;
 }
-
+int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, unsigned int *location, int scale)
+{
+	return cfgfile_intval (option, value, name, NULL, location, scale);
+}
 int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location, int scale)
 {
 	unsigned int v = 0;
-	int r = cfgfile_intval (option, value, name, &v, scale);
+	int r = cfgfile_intval (option, value, name, NULL, &v, scale);
+	if (!r)
+		return 0;
+	*location = (int)v;
+	return r;
+}
+int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, int *location, int scale)
+{
+	unsigned int v = 0;
+	int r = cfgfile_intval (option, value, name, nameext, &v, scale);
 	if (!r)
 		return 0;
 	*location = (int)v;
 	return r;
 }
 
-int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location, const TCHAR *table[], int more)
+int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, int *location, const TCHAR *table[], int more)
 {
 	int val;
-	if (name != NULL && _tcscmp (option, name) != 0)
+	TCHAR tmp[MAX_DPATH];
+	if (name == NULL)
 		return 0;
+	if (nameext) {
+		_tcscpy (tmp, name);
+		_tcscat (tmp, nameext);
+		if (_tcscmp (tmp, option) != 0)
+			return 0;
+	} else {
+		if (_tcscmp (option, name) != 0)
+			return 0;
+	}
 	val = match_string (table, value);
 	if (val == -1) {
 		if (more)
@@ -1551,12 +1645,16 @@ int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 		} else if  (!strcasecmp (value, _T("no")) || !strcasecmp (value, _T("false"))) {
 			val = 0;
 		} else {
-			write_log (_T("Unknown value ('%s') for option '%s'.\n"), value, option);
+			write_log (_T("Unknown value ('%s') for option '%s'.\n"), value, nameext ? tmp : option);
 			return -1;
 		}
 	}
 	*location = val;
 	return 1;
+}
+int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location, const TCHAR *table[], int more)
+{
+	return cfgfile_strval (option, value, name, NULL, location, table, more);
 }
 
 int cfgfile_strboolval (const TCHAR *option, const TCHAR *value, const TCHAR *name, bool *location, const TCHAR *table[], int more)
@@ -1576,6 +1674,23 @@ int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 	location[maxsz - 1] = '\0';
 	return 1;
 }
+int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, TCHAR *location, int maxsz)
+{
+	if (nameext) {
+		TCHAR tmp[MAX_DPATH];
+		_tcscpy (tmp, name);
+		_tcscat (tmp, nameext);
+		if (_tcscmp (tmp, option) != 0)
+			return 0;
+	} else {
+		if (_tcscmp (option, name) != 0)
+			return 0;
+	}
+	_tcsncpy (location, value, maxsz - 1);
+	location[maxsz - 1] = '\0';
+	return 1;
+}
+
 
 int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz, struct multipath *mp)
 {
@@ -1895,36 +2010,17 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("gfx_center_horizontal_size"), &p->gfx_xcenter_size, 1)
 		|| cfgfile_intval (option, value, _T("gfx_center_vertical_size"), &p->gfx_ycenter_size, 1)
 
-#ifdef GFXFILTER
-		|| cfgfile_floatval (option, value, _T("gfx_filter_vert_zoomf"), &p->gfx_filter_vert_zoom)
-		|| cfgfile_floatval (option, value, _T("gfx_filter_horiz_zoomf"), &p->gfx_filter_horiz_zoom)
-		|| cfgfile_floatval (option, value, _T("gfx_filter_vert_zoom_multf"), &p->gfx_filter_vert_zoom_mult)
-		|| cfgfile_floatval (option, value, _T("gfx_filter_horiz_zoom_multf"), &p->gfx_filter_horiz_zoom_mult)
-		|| cfgfile_floatval (option, value, _T("gfx_filter_vert_offsetf"), &p->gfx_filter_vert_offset)
-		|| cfgfile_floatval (option, value, _T("gfx_filter_horiz_offsetf"), &p->gfx_filter_horiz_offset)
-		|| cfgfile_intval (option, value, _T("gfx_filter_scanlines"), &p->gfx_filter_scanlines, 1)
-		|| cfgfile_intval (option, value, _T("gfx_filter_scanlinelevel"), &p->gfx_filter_scanlinelevel, 1)
-		|| cfgfile_intval (option, value, _T("gfx_filter_scanlineratio"), &p->gfx_filter_scanlineratio, 1)
-		|| cfgfile_intval (option, value, _T("gfx_filter_luminance"), &p->gfx_filter_luminance, 1)
-		|| cfgfile_intval (option, value, _T("gfx_filter_contrast"), &p->gfx_filter_contrast, 1)
-		|| cfgfile_intval (option, value, _T("gfx_filter_saturation"), &p->gfx_filter_saturation, 1)
-		|| cfgfile_intval (option, value, _T("gfx_filter_gamma"), &p->gfx_filter_gamma, 1)
-		|| cfgfile_intval (option, value, _T("gfx_filter_blur"), &p->gfx_filter_blur, 1)
-		|| cfgfile_intval (option, value, _T("gfx_filter_noise"), &p->gfx_filter_noise, 1)
-		|| cfgfile_intval (option, value, _T("gfx_filter_bilinear"), &p->gfx_filter_bilinear, 1)
-		|| cfgfile_intval (option, value, _T("gfx_luminance"), &p->gfx_luminance, 1)
-		|| cfgfile_intval (option, value, _T("gfx_contrast"), &p->gfx_contrast, 1)
-		|| cfgfile_intval (option, value, _T("gfx_gamma"), &p->gfx_gamma, 1)
-		|| cfgfile_intval (option, value, _T("gfx_filter_keep_autoscale_aspect"), &p->gfx_filter_keep_autoscale_aspect, 1)
-		|| cfgfile_intval (option, value, _T("gfx_horizontal_tweak"), &p->gfx_extrawidth, 1)
-		|| cfgfile_string (option, value, _T("gfx_filter_mask"), p->gfx_filtermask[2 * MAX_FILTERSHADERS], sizeof p->gfx_filtermask[2 * MAX_FILTERSHADERS] / sizeof (TCHAR))
 		|| cfgfile_intval (option, value, _T("filesys_max_size"), &p->filesys_limit, 1)
 		|| cfgfile_intval (option, value, _T("filesys_max_name_length"), &p->filesys_max_name, 1)
 		|| cfgfile_intval (option, value, _T("filesys_max_file_size"), &p->filesys_max_file_size, 1)
 
+		|| cfgfile_intval (option, value, _T("gfx_luminance"), &p->gfx_luminance, 1)
+		|| cfgfile_intval (option, value, _T("gfx_contrast"), &p->gfx_contrast, 1)
+		|| cfgfile_intval (option, value, _T("gfx_gamma"), &p->gfx_gamma, 1)
 		|| cfgfile_floatval (option, value, _T("rtg_vert_zoom_multf"), &p->rtg_vert_zoom_mult)
 		|| cfgfile_floatval (option, value, _T("rtg_horiz_zoom_multf"), &p->rtg_horiz_zoom_mult)
-#endif
+		|| cfgfile_intval (option, value, _T("gfx_horizontal_tweak"), &p->gfx_extrawidth, 1)
+
 		|| cfgfile_intval (option, value, _T("floppy0sound"), &p->floppyslots[0].dfxclick, 1)
 		|| cfgfile_intval (option, value, _T("floppy1sound"), &p->floppyslots[1].dfxclick, 1)
 		|| cfgfile_intval (option, value, _T("floppy2sound"), &p->floppyslots[2].dfxclick, 1)
@@ -1962,6 +2058,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno (option, value, _T("headless"), &p->headless)
 		|| cfgfile_yesno (option, value, _T("clipboard_sharing"), &p->clipboard_sharing)
 		|| cfgfile_yesno (option, value, _T("native_code"), &p->native_code)
+		|| cfgfile_yesno (option, value, _T("tablet_library"), &p->tablet_library)
 		|| cfgfile_yesno (option, value, _T("bsdsocket_emu"), &p->socket_emu))
 		return 1;
 
@@ -1988,12 +2085,39 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_strval (option, value, _T("gfx_color_mode"), &p->color_mode, colormode2, 0)
 		|| cfgfile_strval (option, value, _T("gfx_max_horizontal"), &p->gfx_max_horizontal, maxhoriz, 0)
 		|| cfgfile_strval (option, value, _T("gfx_max_vertical"), &p->gfx_max_vertical, maxvert, 0)
-		|| cfgfile_strval (option, value, _T("gfx_filter_autoscale"), &p->gfx_filter_autoscale, autoscale, 0)
 		|| cfgfile_strval (option, value, _T("gfx_api"), &p->gfx_api, filterapi, 0)
 		|| cfgfile_strval (option, value, _T("magic_mousecursor"), &p->input_magic_mouse_cursor, magiccursors, 0)
-		|| cfgfile_strval (option, value, _T("gfx_filter_keep_aspect"), &p->gfx_filter_keep_aspect, aspects, 0)
 		|| cfgfile_strval (option, value, _T("absolute_mouse"), &p->input_tablet, abspointers, 0))
 		return 1;
+
+#ifdef GFXFILTER
+	for (int j = 0; j < 2; j++) {
+		struct gfx_filterdata *gf = &p->gf[j];
+		const TCHAR *ext = j == 0 ? NULL : _T("_rtg");
+		if (cfgfile_strval (option, value, _T("gfx_filter_autoscale"), ext, &gf->gfx_filter_autoscale, autoscale, 0)
+			|| cfgfile_strval (option, value, _T("gfx_filter_keep_aspect"), ext, &gf->gfx_filter_keep_aspect, aspects, 0))
+			return 1;
+		if (cfgfile_floatval (option, value, _T("gfx_filter_vert_zoomf"), ext, &gf->gfx_filter_vert_zoom)
+			|| cfgfile_floatval (option, value, _T("gfx_filter_horiz_zoomf"), ext, &gf->gfx_filter_horiz_zoom)
+			|| cfgfile_floatval (option, value, _T("gfx_filter_vert_zoom_multf"), ext, &gf->gfx_filter_vert_zoom_mult)
+			|| cfgfile_floatval (option, value, _T("gfx_filter_horiz_zoom_multf"), ext, &gf->gfx_filter_horiz_zoom_mult)
+			|| cfgfile_floatval (option, value, _T("gfx_filter_vert_offsetf"), ext, &gf->gfx_filter_vert_offset)
+			|| cfgfile_floatval (option, value, _T("gfx_filter_horiz_offsetf"), ext, &gf->gfx_filter_horiz_offset)
+			|| cfgfile_intval (option, value, _T("gfx_filter_scanlines"), ext, &gf->gfx_filter_scanlines, 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_scanlinelevel"), ext, &gf->gfx_filter_scanlinelevel, 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_scanlineratio"), ext, &gf->gfx_filter_scanlineratio, 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_luminance"), ext, &gf->gfx_filter_luminance, 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_contrast"), ext, &gf->gfx_filter_contrast, 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_saturation"), ext, &gf->gfx_filter_saturation, 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_gamma"), ext, &gf->gfx_filter_gamma, 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_blur"), ext, &gf->gfx_filter_blur, 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_noise"), ext, &gf->gfx_filter_noise, 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_bilinear"), ext, &gf->gfx_filter_bilinear, 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_keep_autoscale_aspect"), ext, &gf->gfx_filter_keep_autoscale_aspect, 1)
+			|| cfgfile_string (option, value, _T("gfx_filter_mask"), ext, gf->gfx_filtermask[2 * MAX_FILTERSHADERS], sizeof gf->gfx_filtermask[2 * MAX_FILTERSHADERS] / sizeof (TCHAR)))
+			return 1;
+	}
+#endif
 
 	if (_tcscmp (option, _T("gfx_width_windowed")) == 0) {
 		if (!_tcscmp (value, _T("native"))) {
@@ -2075,13 +2199,13 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	if (_tcscmp (option, _T("gfx_linemode")) == 0) {
 		int v;
 		p->gfx_vresolution = VRES_DOUBLE;
-		p->gfx_scanlines = 0;
+		p->gfx_pscanlines = 0;
+		p->gfx_iscanlines = 0;
 		if (cfgfile_strval (option, value, _T("gfx_linemode"), &v, linemode, 0)) {
-			if (v >= 4) {
-				p->gfx_scanlines = (v - 4) + 2;
-			} else {
-				p->gfx_scanlines = v & 1;
-				p->gfx_vresolution = v / 2;
+			if (v > 0) {
+				p->gfx_iscanlines = (v - 1) / 4;
+				p->gfx_pscanlines = (v - 1) % 4;
+				p->gfx_vresolution = 1;
 			}
 		}
 		return 1;
@@ -2165,159 +2289,135 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	}
 
 #ifdef GFXFILTER
-	if (_tcscmp (option, _T("gfx_filter_overlay")) == 0) {
-		TCHAR *s = _tcschr (value, ',');
-		p->gfx_filteroverlay_overscan = 0;
-		p->gfx_filteroverlay_pos.x = 0;
-		p->gfx_filteroverlay_pos.y = 0;
-		p->gfx_filteroverlay_pos.width = 0;
-		p->gfx_filteroverlay_pos.height = 0;
-		if (s)
-			*s = 0;
-		while (s) {
-			*s++ = 0;
-			p->gfx_filteroverlay_overscan = _tstol (s);
-			s = _tcschr (s, ':');
-			if (!s)
-				break;
-#if 0
-			p->gfx_filteroverlay_pos.x = _tstol (s);
-			s = _tcschr (s, ',');
-			if (!s)
-				break;
-			if (s[-1] == '%')
-				p->gfx_filteroverlay_pos.x = -30000 - p->gfx_filteroverlay_pos.x;
-			*s++ = 0;
-			p->gfx_filteroverlay_pos.y = _tstol (s);
-			s = _tcschr (s, ',');
-			if (!s)
-				break;
-			if (s[-1] == '%')
-				p->gfx_filteroverlay_pos.y = -30000 - p->gfx_filteroverlay_pos.y;
-			*s++ = 0;
-			p->gfx_filteroverlay_pos.width = _tstol (s);
-			s = _tcschr (s, ',');
-			if (!s)
-				break;
-			if (s[-1] == '%')
-				p->gfx_filteroverlay_pos.width = -30000 - p->gfx_filteroverlay_pos.width;
-			*s++ = 0;
-			p->gfx_filteroverlay_pos.height = _tstol (s);
-			s = _tcschr (s, ',');
-			if (!s)
-				break;
-			if (s[-1] == '%')
-				p->gfx_filteroverlay_pos.height = -30000 - p->gfx_filteroverlay_pos.height;
-			*s++ = 0;
-			p->gfx_filteroverlay_overscan = _tstol (s);
-			TCHAR *s2 = _tcschr (s, ',');
-			if (s2)
-				*s2 = 0;
-#endif
-			break;
-		}
-		_tcsncpy (p->gfx_filteroverlay, value, sizeof p->gfx_filteroverlay / sizeof (TCHAR) - 1);
-		p->gfx_filteroverlay[sizeof p->gfx_filteroverlay / sizeof (TCHAR) - 1] = 0;
-		return 1;
-	}
-
-	if (_tcscmp (option, _T("gfx_filtermask_pre")) == 0 || _tcscmp (option, _T("gfx_filtermask_post")) == 0) {
-		if (_tcscmp (option, _T("gfx_filtermask_pre")) == 0) {
-			for (int i = 0; i < MAX_FILTERSHADERS; i++) {
-				if (p->gfx_filtermask[i][0] == 0) {
-					_tcscpy (p->gfx_filtermask[i], value);
+	for (int j = 0; j < 2; j++) {
+		struct gfx_filterdata *gf = &p->gf[j];
+		if ((j == 0 && _tcscmp (option, _T("gfx_filter_overlay")) == 0) || (j == 1 && _tcscmp (option, _T("gfx_filter_overlay_rtg")) == 0)) {
+			TCHAR *s = _tcschr (value, ',');
+			gf->gfx_filteroverlay_overscan = 0;
+			gf->gfx_filteroverlay_pos.x = 0;
+			gf->gfx_filteroverlay_pos.y = 0;
+			gf->gfx_filteroverlay_pos.width = 0;
+			gf->gfx_filteroverlay_pos.height = 0;
+			if (s)
+				*s = 0;
+			while (s) {
+				*s++ = 0;
+				gf->gfx_filteroverlay_overscan = _tstol (s);
+				s = _tcschr (s, ':');
+				if (!s)
 					break;
-				}
+				break;
 			}
-		} else {
-			for (int i = 0; i < MAX_FILTERSHADERS; i++) {
-				if (p->gfx_filtermask[i + MAX_FILTERSHADERS][0] == 0) {
-					_tcscpy (p->gfx_filtermask[i + MAX_FILTERSHADERS], value);
-					break;
-				}
-			}
+			_tcsncpy (gf->gfx_filteroverlay, value, sizeof gf->gfx_filteroverlay / sizeof (TCHAR) - 1);
+			gf->gfx_filteroverlay[sizeof gf->gfx_filteroverlay / sizeof (TCHAR) - 1] = 0;
+			return 1;
 		}
-		return 1;
-	}
 
-	if (_tcscmp (option, _T("gfx_filter_pre")) == 0 || _tcscmp (option, _T("gfx_filter_post")) == 0) {
-		TCHAR *s = _tcschr (value, ':');
-		if (s) {
-			*s++ = 0;
-			if (!_tcscmp (value, _T("D3D"))) {
-				p->gfx_api = 1;
-				if (_tcscmp (option, _T("gfx_filter_pre")) == 0) {
-					for (int i = 0; i < MAX_FILTERSHADERS; i++) {
-						if (p->gfx_filtershader[i][0] == 0) {
-							_tcscpy (p->gfx_filtershader[i], s);
-							break;
-						}
+		if ((j == 0 && (_tcscmp (option, _T("gfx_filtermask_pre")) == 0 || _tcscmp (option, _T("gfx_filtermask_post")) == 0)) ||
+			(j == 1 && (_tcscmp (option, _T("gfx_filtermask_pre_rtg")) == 0 || _tcscmp (option, _T("gfx_filtermask_post_rtg")) == 0))) {
+			if (_tcscmp (option, _T("gfx_filtermask_pre")) == 0 || _tcscmp (option, _T("gfx_filtermask_pre_rtg")) == 0) {
+				for (int i = 0; i < MAX_FILTERSHADERS; i++) {
+					if (gf->gfx_filtermask[i][0] == 0) {
+						_tcscpy (gf->gfx_filtermask[i], value);
+						break;
 					}
-				} else {
-					for (int i = 0; i < MAX_FILTERSHADERS; i++) {
-						if (p->gfx_filtershader[i + MAX_FILTERSHADERS][0] == 0) {
-							_tcscpy (p->gfx_filtershader[i + MAX_FILTERSHADERS], s);
-							break;
+				}
+			} else {
+				for (int i = 0; i < MAX_FILTERSHADERS; i++) {
+					if (gf->gfx_filtermask[i + MAX_FILTERSHADERS][0] == 0) {
+						_tcscpy (gf->gfx_filtermask[i + MAX_FILTERSHADERS], value);
+						break;
+					}
+				}
+			}
+			return 1;
+		}
+
+		if ((j == 0 && (_tcscmp (option, _T("gfx_filter_pre")) == 0 || _tcscmp (option, _T("gfx_filter_post")) == 0)) ||
+			(j == 1 && (_tcscmp (option, _T("gfx_filter_pre_rtg")) == 0 || _tcscmp (option, _T("gfx_filter_post_rtg")) == 0))) {
+			TCHAR *s = _tcschr (value, ':');
+			if (s) {
+				*s++ = 0;
+				if (!_tcscmp (value, _T("D3D"))) {
+					p->gfx_api = 1;
+					if (_tcscmp (option, _T("gfx_filter_pre")) == 0) {
+						for (int i = 0; i < MAX_FILTERSHADERS; i++) {
+							if (gf->gfx_filtershader[i][0] == 0) {
+								_tcscpy (gf->gfx_filtershader[i], s);
+								break;
+							}
+						}
+					} else {
+						for (int i = 0; i < MAX_FILTERSHADERS; i++) {
+							if (gf->gfx_filtershader[i + MAX_FILTERSHADERS][0] == 0) {
+								_tcscpy (gf->gfx_filtershader[i + MAX_FILTERSHADERS], s);
+								break;
+							}
 						}
 					}
 				}
 			}
+			return 1;
 		}
-		return 1;
-	}
 
-	if (_tcscmp (option, _T("gfx_filter")) == 0) {
-		TCHAR *s = _tcschr (value, ':');
-		p->gfx_filter = 0;
-		if (s) {
-			*s++ = 0;
-			if (!_tcscmp (value, _T("D3D"))) {
-				p->gfx_api = 1;
-				_tcscpy (p->gfx_filtershader[2 * MAX_FILTERSHADERS], s);
-				for (int i = 0; i < 2 * MAX_FILTERSHADERS; i++) {
-					if (!_tcsicmp (p->gfx_filtershader[i], s)) {
-						p->gfx_filtershader[i][0] = 0;
-						p->gfx_filtermask[i][0] = 0;
+		if ((j == 0 && _tcscmp (option, _T("gfx_filter")) == 0) || (j == 1 && _tcscmp (option, _T("gfx_filter_rtg")) == 0)) {
+			TCHAR *s = _tcschr (value, ':');
+			gf->gfx_filter = 0;
+			if (s) {
+				*s++ = 0;
+				if (!_tcscmp (value, _T("D3D"))) {
+					p->gfx_api = 1;
+					_tcscpy (gf->gfx_filtershader[2 * MAX_FILTERSHADERS], s);
+					for (int i = 0; i < 2 * MAX_FILTERSHADERS; i++) {
+						if (!_tcsicmp (gf->gfx_filtershader[i], s)) {
+							gf->gfx_filtershader[i][0] = 0;
+							gf->gfx_filtermask[i][0] = 0;
+						}
 					}
 				}
 			}
-		}
-		if (!_tcscmp (value, _T("direct3d"))) {
-			p->gfx_api = 1; // forwards compatibiity
-		} else {
-			int i = 0;
-			while(uaefilters[i].name) {
-				if (!_tcscmp (uaefilters[i].cfgname, value)) {
-					p->gfx_filter = uaefilters[i].type;
-					break;
+			if (!_tcscmp (value, _T("direct3d"))) {
+				p->gfx_api = 1; // forwards compatibiity
+			} else {
+				int i = 0;
+				while(uaefilters[i].name) {
+					if (!_tcscmp (uaefilters[i].cfgname, value)) {
+						gf->gfx_filter = uaefilters[i].type;
+						break;
+					}
+					i++;
 				}
-				i++;
 			}
+			return 1;
 		}
-		return 1;
-	}
-	if (_tcscmp (option, _T("gfx_filter_mode")) == 0) {
-		cfgfile_strval (option, value, _T("gfx_filter_mode"), &p->gfx_filter_filtermode, filtermode2, 0);
-		return 1;
-	}
-
-	if (cfgfile_string (option, value, _T("gfx_filter_aspect_ratio"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
-		int v1, v2;
-		TCHAR *s;
-
-		p->gfx_filter_aspect = -1;
-		v1 = _tstol (tmpbuf);
-		s = _tcschr (tmpbuf, ':');
-		if (s) {
-			v2 = _tstol (s + 1);
-			if (v1 < 0 || v2 < 0)
-				p->gfx_filter_aspect = -1;
-			else if (v1 == 0 || v2 == 0)
-				p->gfx_filter_aspect = 0;
-			else
-				p->gfx_filter_aspect = v1 * ASPECTMULT + v2;
+		if (j == 0 && _tcscmp (option, _T("gfx_filter_mode")) == 0) {
+			cfgfile_strval (option, value, _T("gfx_filter_mode"), &gf->gfx_filter_filtermode, filtermode2, 0);
+			return 1;
 		}
-		return 1;
+		if (j == 1 && _tcscmp (option, _T("gfx_filter_mode_rtg")) == 0) {
+			cfgfile_strval (option, value, _T("gfx_filter_mode_rtg"), &gf->gfx_filter_filtermode, filtermode2, 0);
+			return 1;
+		}
+
+		if ((j == 0 && cfgfile_string (option, value, _T("gfx_filter_aspect_ratio"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) ||
+			(j == 1 && cfgfile_string (option, value, _T("gfx_filter_aspect_ratio_rtg"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR)))) {
+			int v1, v2;
+			TCHAR *s;
+
+			gf->gfx_filter_aspect = -1;
+			v1 = _tstol (tmpbuf);
+			s = _tcschr (tmpbuf, ':');
+			if (s) {
+				v2 = _tstol (s + 1);
+				if (v1 < 0 || v2 < 0)
+					gf->gfx_filter_aspect = -1;
+				else if (v1 == 0 || v2 == 0)
+					gf->gfx_filter_aspect = 0;
+				else
+					gf->gfx_filter_aspect = v1 * ASPECTMULT + v2;
+			}
+			return 1;
+		}
 	}
 #endif
 
@@ -3400,7 +3500,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("comp_midopt"), &p->comp_midopt)
 		|| cfgfile_yesno (option, value, _T("comp_lowopt"), &p->comp_lowopt)
 		|| cfgfile_yesno (option, value, _T("rtg_nocustom"), &p->picasso96_nocustom)
-		|| cfgfile_yesno (option, value, _T("floppy_write_protected"), &p->floppy_read_only)
+		|| cfgfile_yesno (option, value, _T("floppy_write_protect"), &p->floppy_read_only)
 		|| cfgfile_yesno (option, value, _T("uae_hide_autoconfig"), &p->uae_hide_autoconfig)
 		|| cfgfile_yesno (option, value, _T("uaeserial"), &p->uaeserial))
 		return 1;
@@ -4200,8 +4300,8 @@ static void parse_gfx_specs (struct uae_prefs *p, const TCHAR *spec)
 	p->gfx_xcenter = _tcschr (x2, 'x') != 0 ? 1 : _tcschr (x2, 'X') != 0 ? 2 : 0;
 	p->gfx_ycenter = _tcschr (x2, 'y') != 0 ? 1 : _tcschr (x2, 'Y') != 0 ? 2 : 0;
 	p->gfx_vresolution = _tcschr (x2, 'd') != 0 ? VRES_DOUBLE : VRES_NONDOUBLE;
-	p->gfx_scanlines = _tcschr (x2, 'D') != 0;
-	if (p->gfx_scanlines)
+	p->gfx_pscanlines = _tcschr (x2, 'D') != 0;
+	if (p->gfx_pscanlines)
 		p->gfx_vresolution = VRES_DOUBLE;
 	p->gfx_apmode[0].gfx_fullscreen = _tcschr (x2, 'a') != 0;
 	p->gfx_apmode[1].gfx_fullscreen = _tcschr (x2, 'p') != 0;
@@ -4988,9 +5088,9 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->config_hardware_path[0] = 0;
 	p->config_host_path[0] = 0;
 
-	p->gfx_scandoubler = 0;
-	p->start_gui = 1;
-	p->start_debugger = 0;
+	p->gfx_scandoubler = false;
+	p->start_gui = true;
+	p->start_debugger = false;
 
 	p->all_lines = 0;
 	/* Note to porters: please don't change any of these options! UAE is supposed
@@ -5142,20 +5242,23 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->cs_resetwarning = 1;
 	p->cs_ciatodbug = false;
 
-	p->gfx_filter = 0;
-	for (int i = 0; i <= 2 * MAX_FILTERSHADERS; i++) {
-		p->gfx_filtershader[i][0] = 0;
-		p->gfx_filtermask[i][0] = 0;
+	for (int i = APMODE_NATIVE; i <= APMODE_RTG; i++) {
+		struct gfx_filterdata *f = &p->gf[i];
+		f->gfx_filter = 0;
+		f->gfx_filter_scanlineratio = (1 << 4) | 1;
+		for (int j = 0; j <= 2 * MAX_FILTERSHADERS; j++) {
+			f->gfx_filtershader[i][0] = 0;
+			f->gfx_filtermask[i][0] = 0;
+		}
+		f->gfx_filter_horiz_zoom_mult = 1.0;
+		f->gfx_filter_vert_zoom_mult = 1.0;
+		f->gfx_filter_bilinear = 0;
+		f->gfx_filter_filtermode = 0;
+		f->gfx_filter_keep_aspect = 0;
+		f->gfx_filter_autoscale = AUTOSCALE_STATIC_AUTO;
+		f->gfx_filter_keep_autoscale_aspect = false;
+		f->gfx_filteroverlay_overscan = 0;
 	}
-	p->gfx_filter_horiz_zoom_mult = 1.0;
-	p->gfx_filter_vert_zoom_mult = 1.0;
-	p->gfx_filter_bilinear = 0;
-	p->gfx_filter_filtermode = 0;
-	p->gfx_filter_scanlineratio = (1 << 4) | 1;
-	p->gfx_filter_keep_aspect = 0;
-	p->gfx_filter_autoscale = AUTOSCALE_STATIC_AUTO;
-	p->gfx_filter_keep_autoscale_aspect = false;
-	p->gfx_filteroverlay_overscan = 0;
 
 	p->rtg_horiz_zoom_mult = 1.0;
 	p->rtg_vert_zoom_mult = 1.0;
@@ -5245,6 +5348,7 @@ void default_prefs (struct uae_prefs *p, int type)
 #endif
 
 	p->input_tablet = TABLET_OFF;
+	p->tablet_library = false;
 	p->input_magic_mouse = 0;
 	p->input_magic_mouse_cursor = 0;
 

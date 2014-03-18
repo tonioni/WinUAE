@@ -40,6 +40,7 @@ int tablet_log = 0;
 #include "dxwrap.h"
 #include "akiko.h"
 #include "clipboard.h"
+#include "tabletlibrary.h"
 
 #include <winioctl.h>
 #include <ntddkbd.h>
@@ -635,6 +636,8 @@ static void tablet_send (void)
 		return;
 	inputdevice_tablet (tablet_x, tablet_y, tablet_z, tablet_pressure, tablet_buttons, tablet_proximity,
 		tablet_ax, tablet_ay, tablet_az);
+	tabletlib_tablet (tablet_x, tablet_y, tablet_z, tablet_pressure, tablet_buttons, tablet_proximity,
+		tablet_ax, tablet_ay, tablet_az);
 }
 
 void send_tablet_proximity (int inproxi)
@@ -754,6 +757,7 @@ void *open_tablet (HWND hwnd)
 	tablet_proximity = -1;
 	tablet_x = -1;
 	inputdevice_tablet_info (xmax, ymax, zmax, axmax, aymax, azmax, xres, yres);
+	tabletlib_tablet_info (xmax, ymax, zmax, axmax, aymax, azmax, xres, yres);
 	initialized = 1;
 	return WTOpen (hwnd, &lc, TRUE);
 #else

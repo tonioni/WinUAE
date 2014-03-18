@@ -54,6 +54,7 @@
 #ifdef AVIOUTPUT
 #include "avioutput.h"
 #endif
+#include "tabletlibrary.h"
 
 // 01 = host events
 // 02 = joystick
@@ -1444,6 +1445,12 @@ static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 	p[MH_E] = 0xc0 | 1;
 	p[MH_CNT]++;
 	tablet_data = 1;
+
+	if (inputdevice_is_tablet () <= 0) {
+		tabletlib_tablet_info (1000, 1000, 0, 0, 0, 0, 1000, 1000);
+		tabletlib_tablet (x, y, 0, 0, buttonbits, -1, 0, 0, 0);
+	}
+
 }
 
 #if 0

@@ -496,27 +496,27 @@ static void fixup_size (struct uae_prefs *prefs)
 	write_log(_T("fixup_size(%d,%d)\n"), prefs->gfx_xcenter_size, prefs->gfx_ycenter_size);
 	if (prefs->gfx_xcenter_size > 0) {
 		int hres = prefs->gfx_resolution;
-		if (prefs->gfx_filter) {
-			if (prefs->gfx_filter_horiz_zoom_mult)
-				hres += prefs->gfx_filter_horiz_zoom_mult - 1;
-			hres += uaefilters[prefs->gfx_filter].intmul - 1;
+		if (prefs->gf[0].gfx_filter) {
+			if (prefs->gf[0].gfx_filter_horiz_zoom_mult)
+				hres += prefs->gf[0].gfx_filter_horiz_zoom_mult - 1;
+			hres += uaefilters[prefs->gf[0].gfx_filter].intmul - 1;
 		}
 		if (hres > max_horiz_dbl)
 			hres = max_horiz_dbl;
 		prefs->gfx_size_win.width = prefs->gfx_xcenter_size >> (RES_MAX - hres);
-		prefs->gfx_filter_autoscale = 0;
+		prefs->gf[0].gfx_filter_autoscale = 0;
 	}
 	if (prefs->gfx_ycenter_size > 0) {
 		int vres = prefs->gfx_vresolution;
-		if (prefs->gfx_filter) {
-			if (prefs->gfx_filter_vert_zoom_mult)
-				vres += prefs->gfx_filter_vert_zoom_mult - 1;
-			vres += uaefilters[prefs->gfx_filter].intmul - 1;
+		if (prefs->gf[0].gfx_filter) {
+			if (prefs->gf[0].gfx_filter_vert_zoom_mult)
+				vres += prefs->gf[0].gfx_filter_vert_zoom_mult - 1;
+			vres += uaefilters[prefs->gf[0].gfx_filter].intmul - 1;
 		}
 		if (vres > max_vert_dbl)
 			vres = max_vert_dbl;
 		prefs->gfx_size_win.height = (prefs->gfx_ycenter_size * 2) >> (VRES_QUAD - vres);
-		prefs->gfx_filter_autoscale = 0;
+		prefs->gf[0].gfx_filter_autoscale = 0;
 	}
 	write_log(_T("-> %dx%d\n"), prefs->gfx_size_win.width, prefs->gfx_size_win.height);
 }
@@ -604,8 +604,8 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 		}
 		write_log (_T("GET_RPSM: %d %d %d %d\n"), rx, ry, rw, rh);
 
-		hmult = p->gfx_filter_horiz_zoom_mult;
-		vmult = p->gfx_filter_vert_zoom_mult;
+		hmult = p->gf[0].gfx_filter_horiz_zoom_mult;
+		vmult = p->gf[0].gfx_filter_vert_zoom_mult;
 
 		full = p->gfx_apmode[0].gfx_fullscreen;
 
@@ -639,12 +639,12 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 			sm->lClipHeight = p->gfx_ycenter_size <= 0 ? -1 : p->gfx_ycenter_size;
 		}
 
-		if (p->gfx_filter_scanlines || p->gfx_scanlines)
+		if (p->gf[0].gfx_filter_scanlines || p->gfx_pscanlines)
 			m |= RP_SCREENMODE_SCANLINES;
 
 		if (p->gfx_xcenter_pos == 0 && p->gfx_ycenter_pos == 0)
 			cf |= RP_CLIPFLAGS_NOCLIP;
-		else if (p->gfx_filter_autoscale == AUTOSCALE_RESIZE || p->gfx_filter_autoscale == AUTOSCALE_NORMAL)
+		else if (p->gf[0].gfx_filter_autoscale == AUTOSCALE_RESIZE || p->gf[0].gfx_filter_autoscale == AUTOSCALE_NORMAL)
 			cf |= RP_CLIPFLAGS_AUTOCLIP;
 	}
 	if (full) {
@@ -707,7 +707,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		else
 			fs = 1;
 	}
-	p->gfx_filter_autoscale = AUTOSCALE_CENTER;
+	p->gf[0].gfx_filter_autoscale = AUTOSCALE_CENTER;
 	disp = getdisplay (p);
 
 	if (log_rp & 2) {
@@ -842,7 +842,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			hmult = vmult = 0;
 		} else if (integerscale) {
 			hmult = vmult = 1;
-			p->gfx_filter_autoscale = AUTOSCALE_INTEGER;
+			p->gf[0].gfx_filter_autoscale = AUTOSCALE_INTEGER;
 			if (sm->dwClipFlags & RP_CLIPFLAGS_AUTOCLIP) {
 				p->gfx_xcenter_pos = -1;
 				p->gfx_ycenter_pos = -1;
@@ -857,25 +857,25 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		}
 
 		if (keepaspect) {
-			p->gfx_filter_aspect = -1;
-			p->gfx_filter_keep_aspect = 1;
+			p->gf[0].gfx_filter_aspect = -1;
+			p->gf[0].gfx_filter_keep_aspect = 1;
 		} else {
-			p->gfx_filter_aspect = 0;
-			p->gfx_filter_keep_aspect = 0;
+			p->gf[0].gfx_filter_aspect = 0;
+			p->gf[0].gfx_filter_keep_aspect = 0;
 		}
 
 		if (!integerscale) {
 			if (sm->dwClipFlags & RP_CLIPFLAGS_AUTOCLIP) {
 				if (!forcesize)
-					p->gfx_filter_autoscale = AUTOSCALE_RESIZE;
+					p->gf[0].gfx_filter_autoscale = AUTOSCALE_RESIZE;
 				else
-					p->gfx_filter_autoscale = AUTOSCALE_NORMAL;
+					p->gf[0].gfx_filter_autoscale = AUTOSCALE_NORMAL;
 				p->gfx_xcenter_pos = -1;
 				p->gfx_ycenter_pos = -1;
 				p->gfx_xcenter_size = -1;
 				p->gfx_ycenter_size = -1;
 			} else if (sm->dwClipFlags & RP_CLIPFLAGS_NOCLIP) {
-				p->gfx_filter_autoscale = AUTOSCALE_STATIC_MAX;
+				p->gf[0].gfx_filter_autoscale = AUTOSCALE_STATIC_MAX;
 				p->gfx_xcenter_pos = -1;
 				p->gfx_ycenter_pos = -1;
 				p->gfx_xcenter_size = -1;
@@ -892,20 +892,21 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 				p->gfx_ycenter_size = sm->lClipHeight;
 
 			if ((p->gfx_xcenter_pos >= 0 && p->gfx_ycenter_pos >= 0) || (p->gfx_xcenter_size > 0 && p->gfx_ycenter_size > 0)) {
-				p->gfx_filter_autoscale = AUTOSCALE_MANUAL;
+				p->gf[0].gfx_filter_autoscale = AUTOSCALE_MANUAL;
 			}
 		}
 
-		p->gfx_filter_horiz_zoom_mult = hmult;
-		p->gfx_filter_vert_zoom_mult = vmult;
+		p->gf[0].gfx_filter_horiz_zoom_mult = hmult;
+		p->gf[0].gfx_filter_vert_zoom_mult = vmult;
 
-		p->gfx_filter_scanlines = 0;
-		p->gfx_scanlines = 0;
+		p->gf[0].gfx_filter_scanlines = 0;
+		p->gfx_iscanlines = 0;
+		p->gfx_pscanlines = 0;
 		if (sm->dwScreenMode & RP_SCREENMODE_SCANLINES) {
-			p->gfx_scanlines = 1;
-			p->gfx_filter_scanlines = 8;
-			p->gfx_filter_scanlinelevel = 8;
-			p->gfx_filter_scanlineratio = (1 << 4) | 1;
+			p->gfx_pscanlines = 1;
+			p->gf[0].gfx_filter_scanlines = 8;
+			p->gf[0].gfx_filter_scanlinelevel = 8;
+			p->gf[0].gfx_filter_scanlineratio = (1 << 4) | 1;
 		}
 	}
 
@@ -921,10 +922,10 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			write_log (_T("WW=%d WH=%d FW=%d FH=%d HM=%.1f VM=%.1f XP=%d YP=%d XS=%d YS=%d AS=%d AR=%d,%d\n"),
 				p->gfx_size_win.width, p->gfx_size_win.height,
 				p->gfx_size_fs.width, p->gfx_size_fs.height,
-				p->gfx_filter_horiz_zoom_mult, p->gfx_filter_vert_zoom_mult,
+				p->gf[0].gfx_filter_horiz_zoom_mult, p->gf[0].gfx_filter_vert_zoom_mult,
 				p->gfx_xcenter_pos, p->gfx_ycenter_pos,
 				p->gfx_xcenter_size, p->gfx_ycenter_size,
-				p->gfx_filter_autoscale, p->gfx_filter_aspect, p->gfx_filter_keep_aspect);
+				p->gf[0].gfx_filter_autoscale, p->gf[0].gfx_filter_aspect, p->gf[0].gfx_filter_keep_aspect);
 		}
 	}
 
@@ -1347,11 +1348,11 @@ void rp_fixup_options (struct uae_prefs *p)
 	sendenum ();
 
 	changed_prefs.win32_borderless = currprefs.win32_borderless = 1;
-	rp_filter_default = rp_filter = currprefs.gfx_filter;
+	rp_filter_default = rp_filter = currprefs.gf[0].gfx_filter;
 	if (rp_filter == 0) {
 		rp_filter = UAE_FILTER_NULL;
 		if (currprefs.gfx_api)
-			changed_prefs.gfx_filter = currprefs.gfx_filter = rp_filter;
+			changed_prefs.gf[0].gfx_filter = currprefs.gf[0].gfx_filter = rp_filter;
 	}
 
 	fixup_size (p);

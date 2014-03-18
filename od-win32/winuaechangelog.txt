@@ -1,15 +1,44 @@
 
 1 -> 0 (-)   : 0,1FE,1FE,1FE,..
 1 -> 1 (D)   : 0,1FE,0,1FE,0,..
-1 -> 2 (C)   : 0,1FE,70,1FE,70,.. (C-)
-1 -> 9 (AD)  : 0,1FE,0,74,0,74,.. (DA)
-1 -> B (ACD) : 0,1FE,70,0,74,70,0,74,70,0,74,.. (ACD)
-1 -> C (AB)  : 0,1FE,72,74,70,72,74,70,72,.. (CBA)
-1 -> D (ABD) : 0,1FE,72,74,70,72,74,70,72,.. (CBA)
-1 -> E (ABC) : 0,1FE,70,70,70,70,.. (C)
-1 -> F (ABCD): 0,1FE,70,70,74,70,70,70,74,70,70,70,74,.. (CCCA)
+1 -> 2 (C)   : 0,1FE,70,1FE,70,.. 							(C-)
+1 -> 9 (AD)  : 0,1FE,0,74,0,74,.. 							(DA)
+1 -> B (ACD) : 0,1FE,70,0,74,70,0,74,70,0,74,..				(CDA)
+1 -> C (AB)  : 0,1FE,72,74,70,72,74,70,72,..				(CBA)
+1 -> D (ABD) : 0,1FE,72,74,70,72,74,70,72,..				(CBA)
+1 -> E (ABC) : 0,1FE,70,70,70,70,..							(C)
+1 -> F (ABCD): 0,1FE,70,70,74,70,70,70,74,70,70,70,74,..	(CCCA)
 
 - restore only single input target to default.
+
+Beta 10:
+
+- Programmed display mode positioning bug fixed, should fix remaining problems with clipped left or right edges.
+- Switching between interlace PAL and interlace NTSC modes calculated wrong vertical line count.
+- Some CPU emulation optimization, only modify linear memory address in getpc/setpc/incpc functions if mode
+  is not prefetch/ce/mmu.
+- Added slirp inbound port configuration, config file slirp_redir=<proto>:<port>:<internal port>:<internal ip>,
+  multiple entries supported, internal ip part is optional.
+- Added simple slirp inbound port configuration, config file slirp_ports=port1,port2,.. (TCP ports only,
+  internal address is default 10.0.2.15, host port equals internal port)
+- Added quick slirp inbound port selection to GUI, opens TCP ports 21, 22, 23 and 80. (Same as slirp_ports=21,22,23,80)
+- Added missing slirp cleanup code from QEMU.
+- 6888x Packed-Decimal Real negative k-factor values fully emulated (Previous confirmed, required by NeXTSTEP OS),
+  positive non-zero values not emulated yet which needs Fortran "E" scientific notation format string that C does
+  not directly support.
+- First and last drawn scanlines were always detected incorrectly since few major versions ago, breaking vertical centering.
+- Input device autoswitch by using analog directions now only work with X or Y axis, other directions may work
+  differently and can cause accidental switches.
+- Force recalculation of horiz and vert centering (if enabled) when screen mode is detected (guessed) as changed.
+- Toggle input events (warp mode, mute etc..) now also support setting to on or off state without toggling.
+  Input panel only, click on input event name to change mode
+- Added audio/video recording input event, supports also new toggle/on/off modes. If recording is started using
+  input event (not from GUI), number is appended to filename and it is increased each time recording is started.
+
+SLiRP inbound ports note: all ports will be opened when network hardware is initialized, there is no way to know
+when something actually starts listening for some port. This also means you won't get exactly same behavior as
+"real" low level network emulation, mainly you won't ever get connection refused if port is open but not actually
+listening on the Amiga side, connection opens and then closes immediately.
 
 Beta 9:
 

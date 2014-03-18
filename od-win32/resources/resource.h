@@ -478,9 +478,8 @@
 #define IDC_GFXCARDTEXT                 1191
 #define IDC_LM_SCANLINES                1191
 #define IDC_INPUTSPEEDM                 1191
-#define IDC_P96RAM                      1192
-#define IDC_P96MEM                      1193
-#define IDC_DA_SLIDER                   1193
+#define IDC_LM_PDOUBLED2                1192
+#define IDC_LM_PDOUBLED3                1193
 #define IDC_FRAMERATE2                  1194
 #define IDC_RATE2TEXT                   1195
 #define IDC_DA_TEXT                     1196
@@ -1110,6 +1109,7 @@
 #define IDC_RTG_SCALE_ALLOW             1791
 #define IDC_CPU_FREQUENCY               1791
 #define IDC_LOGENABLE2                  1791
+#define IDC_PORT_TABLET_LIBRARY         1791
 #define IDC_RTG_SCALE_ASPECTRATIO       1792
 #define IDC_ASSOCIATE_ON                1792
 #define IDC_DD_SURFACETYPE2             1792
@@ -1170,6 +1170,10 @@
 #define IDC_ERRORLOGCLEAR               1836
 #define IDC_DISKINFOBOX                 1837
 #define IDC_SAVEBOOTBLOCK               1838
+#define IDC_P96RAM                      1839
+#define IDC_FILTER_NATIVERTG            1839
+#define IDC_P96MEM                      1840
+#define IDC_DA_SLIDER                   1841
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1211,7 +1215,6 @@
 #define ID_ST_CDEJECTALL                40047
 #define ID_CDDRIVES_CD                  40048
 #define ID_ST_CD0                       40049
-#define IDC_STATIC                      -1
 
 // Next default values for new objects
 // 
@@ -1221,7 +1224,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        391
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1839
+#define _APS_NEXT_CONTROL_VALUE         1840
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -144,7 +144,7 @@ static void video_calc_gammatable (void)
 	con = ((float)(currprefs.gfx_contrast + 1000)) / 1000.0f;
 	gam = ((float)(1000 - currprefs.gfx_gamma)) / 1000.0f;
 
-	lf = 64 * currprefs.gfx_filter_blur / 1000;
+	lf = 64 * currprefs.gf[picasso_on].gfx_filter_blur / 1000;
 	hf = 256 - lf * 2;
 
 	for (i = 0; i < (256 * 3); i++) {
@@ -163,7 +163,7 @@ static void video_calc_gammatable (void)
 
 static uae_u32 limit256 (double v)
 {
-	v = v * (double)(currprefs.gfx_filter_contrast + 1000) / 1000.0 + currprefs.gfx_filter_luminance / 10.0;
+	v = v * (double)(currprefs.gf[picasso_on].gfx_filter_contrast + 1000) / 1000.0 + currprefs.gf[picasso_on].gfx_filter_luminance / 10.0;
 	if (v < 0)
 		v = 0;
 	if (v > 255)
@@ -172,7 +172,7 @@ static uae_u32 limit256 (double v)
 }
 static uae_u32 limit256rb (double v)
 {
-	v *= (double)(currprefs.gfx_filter_saturation + 1000) / 1000.0;
+	v *= (double)(currprefs.gf[picasso_on].gfx_filter_saturation + 1000) / 1000.0;
 	if (v < -128)
 		v = -128;
 	if (v > 127)

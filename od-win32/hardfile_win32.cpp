@@ -583,7 +583,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 					NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
 				DWORD err = GetLastError ();
 				if (h == INVALID_HANDLE_VALUE && err == ERROR_FILE_NOT_FOUND)
-					goto end;
+					goto emptyreal;
 			}
 		}
 		if (h != INVALID_HANDLE_VALUE) {
@@ -693,6 +693,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			//fixdrive (hfd);
 
 		} else {
+emptyreal:
 			hfd->flags = HFD_FLAGS_REALDRIVE;
 			hfd->drive_empty = -1;
 			hfd->emptyname = my_strdup (name);

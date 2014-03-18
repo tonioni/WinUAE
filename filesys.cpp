@@ -57,6 +57,7 @@
 #include "isofs_api.h"
 #include "scsi.h"
 #include "uaenative.h"
+#include "tabletlibrary.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -6315,6 +6316,9 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 #endif
 #ifdef UAESERIAL
 	resaddr = uaeserialdev_startup (resaddr);
+#endif
+#ifdef WITH_TABLETLIBRARY
+	resaddr = tabletlib_startup (resaddr);
 #endif
 
 	/* scan for Residents and return pointer to array of them */

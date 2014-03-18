@@ -1743,28 +1743,32 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_api != changed_prefs.gfx_api ? (1|8|32) : 0;
 	c |= currprefs.lightboost_strobo != changed_prefs.lightboost_strobo ? (2|16) : 0;
 
-	for (int i = 0; i <= 2 * MAX_FILTERSHADERS; i++) {
-		c |= _tcscmp (currprefs.gfx_filtershader[i], changed_prefs.gfx_filtershader[i]) ? (2|8) : 0;
-		c |= _tcscmp (currprefs.gfx_filtermask[i], changed_prefs.gfx_filtermask[i]) ? (2|8) : 0;
-	}
+	for (int j = 0; j < 2; j++) {
+		struct gfx_filterdata *gf = &currprefs.gf[j];
+		struct gfx_filterdata *gfc = &changed_prefs.gf[j];
+		for (int i = 0; i <= 2 * MAX_FILTERSHADERS; i++) {
+			c |= _tcscmp (gf->gfx_filtershader[i], gfc->gfx_filtershader[i]) ? (2|8) : 0;
+			c |= _tcscmp (gf->gfx_filtermask[i], gfc->gfx_filtermask[i]) ? (2|8) : 0;
+		}
 
-	c |= currprefs.gfx_filter != changed_prefs.gfx_filter ? (2|8) : 0;
-	c |= _tcscmp (currprefs.gfx_filteroverlay, changed_prefs.gfx_filteroverlay) ? (2|8) : 0;
-	c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? (2|8) : 0;
-	c |= currprefs.gfx_filter_bilinear != changed_prefs.gfx_filter_bilinear ? (2|8) : 0;
-	c |= currprefs.gfx_filter_horiz_zoom_mult != changed_prefs.gfx_filter_horiz_zoom_mult ? (1) : 0;
-	c |= currprefs.gfx_filter_vert_zoom_mult != changed_prefs.gfx_filter_vert_zoom_mult ? (1) : 0;
-	c |= currprefs.gfx_filter_noise != changed_prefs.gfx_filter_noise ? (1) : 0;
-	c |= currprefs.gfx_filter_blur != changed_prefs.gfx_filter_blur ? (1) : 0;
-	c |= currprefs.gfx_filter_scanlines != changed_prefs.gfx_filter_scanlines ? (1|8) : 0;
-	c |= currprefs.gfx_filter_scanlinelevel != changed_prefs.gfx_filter_scanlinelevel ? (1|8) : 0;
-	c |= currprefs.gfx_filter_scanlineratio != changed_prefs.gfx_filter_scanlineratio ? (1|8) : 0;
-	c |= currprefs.gfx_filter_aspect != changed_prefs.gfx_filter_aspect ? (1) : 0;
-	c |= currprefs.gfx_filter_luminance != changed_prefs.gfx_filter_luminance ? (1) : 0;
-	c |= currprefs.gfx_filter_contrast != changed_prefs.gfx_filter_contrast ? (1) : 0;
-	c |= currprefs.gfx_filter_saturation != changed_prefs.gfx_filter_saturation ? (1) : 0;
-	c |= currprefs.gfx_filter_gamma != changed_prefs.gfx_filter_gamma ? (1) : 0;
-	//c |= currprefs.gfx_filter_ != changed_prefs.gfx_filter_ ? (1|8) : 0;
+		c |= gf->gfx_filter != gfc->gfx_filter ? (2|8) : 0;
+		c |= _tcscmp (gf->gfx_filteroverlay, gfc->gfx_filteroverlay) ? (2|8) : 0;
+		c |= gf->gfx_filter_filtermode != gfc->gfx_filter_filtermode ? (2|8) : 0;
+		c |= gf->gfx_filter_bilinear != gfc->gfx_filter_bilinear ? (2|8) : 0;
+		c |= gf->gfx_filter_horiz_zoom_mult != gfc->gfx_filter_horiz_zoom_mult ? (1) : 0;
+		c |= gf->gfx_filter_vert_zoom_mult != gfc->gfx_filter_vert_zoom_mult ? (1) : 0;
+		c |= gf->gfx_filter_noise != gfc->gfx_filter_noise ? (1) : 0;
+		c |= gf->gfx_filter_blur != gfc->gfx_filter_blur ? (1) : 0;
+		c |= gf->gfx_filter_scanlines != gfc->gfx_filter_scanlines ? (1|8) : 0;
+		c |= gf->gfx_filter_scanlinelevel != gfc->gfx_filter_scanlinelevel ? (1|8) : 0;
+		c |= gf->gfx_filter_scanlineratio != gfc->gfx_filter_scanlineratio ? (1|8) : 0;
+		c |= gf->gfx_filter_aspect != gfc->gfx_filter_aspect ? (1) : 0;
+		c |= gf->gfx_filter_luminance != gfc->gfx_filter_luminance ? (1) : 0;
+		c |= gf->gfx_filter_contrast != gfc->gfx_filter_contrast ? (1) : 0;
+		c |= gf->gfx_filter_saturation != gfc->gfx_filter_saturation ? (1) : 0;
+		c |= gf->gfx_filter_gamma != gfc->gfx_filter_gamma ? (1) : 0;
+		//c |= gf->gfx_filter_ != gfc->gfx_filter_ ? (1|8) : 0;
+	}
 
 	c |= currprefs.rtg_horiz_zoom_mult != changed_prefs.rtg_horiz_zoom_mult ? (1) : 0;
 	c |= currprefs.rtg_vert_zoom_mult != changed_prefs.rtg_vert_zoom_mult ? (1) : 0;
@@ -1777,7 +1781,8 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_vresolution != changed_prefs.gfx_vresolution ? (128) : 0;
 	c |= currprefs.gfx_autoresolution_minh != changed_prefs.gfx_autoresolution_minh ? (128) : 0;
 	c |= currprefs.gfx_autoresolution_minv != changed_prefs.gfx_autoresolution_minv ? (128) : 0;
-	c |= currprefs.gfx_scanlines != changed_prefs.gfx_scanlines ? (2 | 8) : 0;
+	c |= currprefs.gfx_iscanlines != changed_prefs.gfx_iscanlines ? (2 | 8) : 0;
+	c |= currprefs.gfx_pscanlines != changed_prefs.gfx_pscanlines ? (2 | 8) : 0;
 	c |= currprefs.monitoremu != changed_prefs.monitoremu ? (2 | 8) : 0;
 
 	c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? (2 | 8) : 0;
@@ -1837,28 +1842,32 @@ int check_prefs_changed_gfx (void)
 			display_change_requested = 0;
 		}
 
-		for (int i = 0; i <= 2 * MAX_FILTERSHADERS; i++) {
-			_tcscpy (currprefs.gfx_filtershader[i], changed_prefs.gfx_filtershader[i]);
-			_tcscpy (currprefs.gfx_filtermask[i], changed_prefs.gfx_filtermask[i]);
+		for (int j = 0; j < 2; j++) {
+			struct gfx_filterdata *gf = &currprefs.gf[j];
+			struct gfx_filterdata *gfc = &changed_prefs.gf[j];
+			for (int i = 0; i <= 2 * MAX_FILTERSHADERS; i++) {
+				_tcscpy (gf->gfx_filtershader[i], gfc->gfx_filtershader[i]);
+				_tcscpy (gf->gfx_filtermask[i], gfc->gfx_filtermask[i]);
+			}
+			gf->gfx_filter = gfc->gfx_filter;
+			gf->gfx_filter_scanlines = gfc->gfx_filter_scanlines;
+			gf->gfx_filter_scanlinelevel = gfc->gfx_filter_scanlinelevel;
+			gf->gfx_filter_scanlineratio = gfc->gfx_filter_scanlineratio;
+			_tcscpy (gf->gfx_filteroverlay, gfc->gfx_filteroverlay);
+			gf->gfx_filter_filtermode = gfc->gfx_filter_filtermode;
+			gf->gfx_filter_bilinear = gfc->gfx_filter_bilinear;
+			gf->gfx_filter_horiz_zoom_mult = gfc->gfx_filter_horiz_zoom_mult;
+			gf->gfx_filter_vert_zoom_mult = gfc->gfx_filter_vert_zoom_mult;
+			gf->gfx_filter_noise = gfc->gfx_filter_noise;
+			gf->gfx_filter_blur = gfc->gfx_filter_blur;
+			gf->gfx_filter_aspect = gfc->gfx_filter_aspect;
+			gf->gfx_filter_luminance = gfc->gfx_filter_luminance;
+			gf->gfx_filter_contrast = gfc->gfx_filter_contrast;
+			gf->gfx_filter_saturation = gfc->gfx_filter_saturation;
+			gf->gfx_filter_gamma = gfc->gfx_filter_gamma;
+			gf->gfx_filter_autoscale = gfc->gfx_filter_autoscale;
+			//gf->gfx_filter_ = gfc->gfx_filter_;
 		}
-		currprefs.gfx_filter = changed_prefs.gfx_filter;
-		_tcscpy (currprefs.gfx_filteroverlay, changed_prefs.gfx_filteroverlay);
-		currprefs.gfx_filter_filtermode = changed_prefs.gfx_filter_filtermode;
-		currprefs.gfx_filter_bilinear = changed_prefs.gfx_filter_bilinear;
-		currprefs.gfx_filter_horiz_zoom_mult = changed_prefs.gfx_filter_horiz_zoom_mult;
-		currprefs.gfx_filter_vert_zoom_mult = changed_prefs.gfx_filter_vert_zoom_mult;
-		currprefs.gfx_filter_noise = changed_prefs.gfx_filter_noise;
-		currprefs.gfx_filter_blur = changed_prefs.gfx_filter_blur;
-		currprefs.gfx_filter_scanlines = changed_prefs.gfx_filter_scanlines;
-		currprefs.gfx_filter_scanlinelevel = changed_prefs.gfx_filter_scanlinelevel;
-		currprefs.gfx_filter_scanlineratio = changed_prefs.gfx_filter_scanlineratio;
-		currprefs.gfx_filter_aspect = changed_prefs.gfx_filter_aspect;
-		currprefs.gfx_filter_luminance = changed_prefs.gfx_filter_luminance;
-		currprefs.gfx_filter_contrast = changed_prefs.gfx_filter_contrast;
-		currprefs.gfx_filter_saturation = changed_prefs.gfx_filter_saturation;
-		currprefs.gfx_filter_gamma = changed_prefs.gfx_filter_gamma;
-		currprefs.gfx_filter_autoscale = changed_prefs.gfx_filter_autoscale;
-		//currprefs.gfx_filter_ = changed_prefs.gfx_filter_;
 
 		currprefs.rtg_horiz_zoom_mult = changed_prefs.rtg_horiz_zoom_mult;
 		currprefs.rtg_vert_zoom_mult = changed_prefs.rtg_vert_zoom_mult;
@@ -1871,7 +1880,8 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_vresolution = changed_prefs.gfx_vresolution;
 		currprefs.gfx_autoresolution_minh = changed_prefs.gfx_autoresolution_minh;
 		currprefs.gfx_autoresolution_minv = changed_prefs.gfx_autoresolution_minv;
-		currprefs.gfx_scanlines = changed_prefs.gfx_scanlines;
+		currprefs.gfx_iscanlines = changed_prefs.gfx_iscanlines;
+		currprefs.gfx_pscanlines = changed_prefs.gfx_pscanlines;
 		currprefs.monitoremu = changed_prefs.monitoremu;
 
 		currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
@@ -1977,7 +1987,7 @@ int check_prefs_changed_gfx (void)
 		return 1;
 	}
 
-	if (currprefs.gfx_filter_autoscale != changed_prefs.gfx_filter_autoscale ||
+	if (currprefs.gf[0].gfx_filter_autoscale != changed_prefs.gf[0].gfx_filter_autoscale ||
 		currprefs.gfx_xcenter_pos != changed_prefs.gfx_xcenter_pos ||
 		currprefs.gfx_ycenter_pos != changed_prefs.gfx_ycenter_pos ||
 		currprefs.gfx_xcenter_size != changed_prefs.gfx_xcenter_size ||
@@ -1991,7 +2001,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_ycenter_size = changed_prefs.gfx_ycenter_size;
 		currprefs.gfx_xcenter = changed_prefs.gfx_xcenter;
 		currprefs.gfx_ycenter = changed_prefs.gfx_ycenter;
-		currprefs.gfx_filter_autoscale = changed_prefs.gfx_filter_autoscale;
+		currprefs.gf[0].gfx_filter_autoscale = changed_prefs.gf[0].gfx_filter_autoscale;
 
 		get_custom_limits (NULL, NULL, NULL, NULL, NULL);
 		fixup_prefs_dimensions (&changed_prefs);
@@ -2500,10 +2510,10 @@ static void gfxmode_reset (void)
 {
 #ifdef GFXFILTER
 	usedfilter = 0;
-	if (currprefs.gfx_filter > 0) {
+	if (currprefs.gf[picasso_on].gfx_filter > 0) {
 		int i = 0;
 		while (uaefilters[i].name) {
-			if (uaefilters[i].type == currprefs.gfx_filter) {
+			if (uaefilters[i].type == currprefs.gf[picasso_on].gfx_filter) {
 				usedfilter = &uaefilters[i];
 				break;
 			}
@@ -4176,7 +4186,7 @@ static BOOL doInit (void)
 
 	if (!screen_is_picasso) {
 
-		if (currprefs.gfx_api == 0 && currprefs.gfx_filter == 0) {
+		if (currprefs.gfx_api == 0 && currprefs.gf[0].gfx_filter == 0) {
 			allocsoftbuffer (_T("draw"), &gfxvidinfo.drawbuffer, currentmode->flags,
 				currentmode->native_width, currentmode->native_height, currentmode->current_depth);
 		} else {
@@ -4197,12 +4207,12 @@ static BOOL doInit (void)
 	S2X_free ();
 	oldtex_w = oldtex_h = -1;
 	if (currentmode->flags & DM_D3D) {
-		const TCHAR *err = D3D_init (hAmigaWnd, currentmode->native_width, currentmode->native_height, currentmode->current_depth, &currentmode->freq, screen_is_picasso ? 1 : currprefs.gfx_filter_filtermode + 1);
+		const TCHAR *err = D3D_init (hAmigaWnd, currentmode->native_width, currentmode->native_height, currentmode->current_depth, &currentmode->freq, screen_is_picasso ? 1 : currprefs.gf[picasso_on].gfx_filter_filtermode + 1);
 		if (err) {
 			D3D_free (true);
 			gui_message (err);
 			changed_prefs.gfx_api = currprefs.gfx_api = 0;
-			changed_prefs.gfx_filter = currprefs.gfx_filter = 0;
+			changed_prefs.gf[picasso_on].gfx_filter = currprefs.gf[picasso_on].gfx_filter = 0;
 			currentmode->current_depth = currentmode->native_depth;
 			gfxmode_reset ();
 			DirectDraw_Start ();

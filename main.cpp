@@ -57,6 +57,7 @@
 #include "gfxboard.h"
 #include "luascript.h"
 #include "uaenative.h"
+#include "tabletlibrary.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -201,14 +202,13 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 			if (ap->gfx_backbuffers >= 2)
 				ap->gfx_vflip = -1;
 		}
-	}
-
-	if (prefs->gfx_filter == 0 && ((prefs->gfx_filter_autoscale && !prefs->gfx_api) || (prefs->gfx_apmode[0].gfx_vsyncmode))) {
-		prefs->gfx_filter = 1;
-	}
-	if (prefs->gfx_filter == 0 && prefs->monitoremu) {
-		error_log (_T("A2024 and Graffiti require at least null filter enabled."));
-		prefs->gfx_filter = 1;
+		if (prefs->gf[i].gfx_filter == 0 && ((prefs->gf[i].gfx_filter_autoscale && !prefs->gfx_api) || (prefs->gfx_apmode[APMODE_NATIVE].gfx_vsyncmode))) {
+			prefs->gf[i].gfx_filter = 1;
+		}
+		if (i == 0 && prefs->gf[i].gfx_filter == 0 && prefs->monitoremu) {
+			error_log (_T("A2024 and Graffiti require at least null filter enabled."));
+			prefs->gf[i].gfx_filter = 1;
+		}
 	}
 }
 
@@ -1008,6 +1008,9 @@ void virtualdevice_init (void)
 #endif
 #ifdef WITH_UAENATIVE
 	uaenative_install ();
+#endif
+#ifdef WITH_TABLETLIBRARY
+	tabletlib_install ();
 #endif
 }
 

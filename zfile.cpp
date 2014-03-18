@@ -259,7 +259,7 @@ static bool checkwrite (struct zfile *zf, int *retcode)
 
 
 static uae_u8 exeheader[]={ 0x00,0x00,0x03,0xf3,0x00,0x00,0x00,0x00 };
-static TCHAR *diskimages[] = { _T("adf"), _T("adz"), _T("ipf"), _T("fdi"), _T("dms"), _T("wrp"), _T("dsq"), 0 };
+static TCHAR *diskimages[] = { _T("adf"), _T("adz"), _T("ipf"), _T("scp"), _T("fdi"), _T("dms"), _T("wrp"), _T("dsq"), 0 };
 
 int zfile_gettype (struct zfile *z)
 {
@@ -295,6 +295,16 @@ int zfile_gettype (struct zfile *z)
 	zfile_fread (buf, 8, 1, z);
 	zfile_fseek (z, -8, SEEK_CUR);
 	if (!memcmp (buf, exeheader, sizeof (buf)))
+		return ZFILE_DISKIMAGE;
+	if (!memcmp (buf, "CAPS", 4))
+		return ZFILE_DISKIMAGE;
+	if (!memcmp (buf, "SCP", 3))
+		return ZFILE_DISKIMAGE;
+	if (!memcmp (buf, "UAE--ADF", 8))
+		return ZFILE_DISKIMAGE;
+	if (!memcmp (buf, "UAE-1ADF", 8))
+		return ZFILE_DISKIMAGE;
+	if (!memcmp (buf, "Formatte", 89))
 		return ZFILE_DISKIMAGE;
 	if (!memcmp (buf, "RDSK", 4))
 		return ZFILE_HDFRDB;
@@ -900,7 +910,7 @@ static struct zfile *ipf (struct zfile *z, int index, int *retcode)
 		for (i = 0; i < tracks; i++) {
 			uae_u8 *buf, *p;
 			int mrev, gapo;
-			caps_loadtrack (mfm, NULL, 0, i, &len, &mrev, &gapo);
+			caps_loadtrack (mfm, NULL, 0, i, &len, &mrev, &gapo, NULL, true);
 			//write_log (_T("%d: %d %d %d\n"), i, mrev, gapo, len);
 			len /= 8;
 			buf = p = xmalloc (uae_u8, len);
@@ -1267,7 +1277,7 @@ end:
 const TCHAR *uae_ignoreextensions[] =
 { _T(".gif"), _T(".jpg"), _T(".png"), _T(".xml"), _T(".pdf"), _T(".txt"), 0 };
 const TCHAR *uae_diskimageextensions[] =
-{ _T(".adf"), _T(".adz"), _T(".ipf"), _T(".fdi"), _T(".exe"), _T(".dms"), _T(".wrp"), _T(".dsq"), 0 };
+{ _T(".adf"), _T(".adz"), _T(".ipf"), _T(".scp"), _T(".fdi"), _T(".exe"), _T(".dms"), _T(".wrp"), _T(".dsq"), 0 };
 
 int zfile_is_ignore_ext (const TCHAR *name)
 {

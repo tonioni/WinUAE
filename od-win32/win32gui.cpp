@@ -99,7 +99,7 @@
 
 #define ARCHIVE_STRING _T("*.zip;*.7z;*.rar;*.lha;*.lzh;*.lzx")
 
-#define DISK_FORMAT_STRING _T("(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe;*.ima;*.wrp;*.dsq;*.st;") ARCHIVE_STRING _T("\0")
+#define DISK_FORMAT_STRING _T("(*.adf;*.adz;*.gz;*.dms;*.ipf;*.scp;*.fdi;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.ipf;*.scp;*.fdi;*.exe;*.ima;*.wrp;*.dsq;*.st;*.raw;") ARCHIVE_STRING _T("\0")
 #define ROM_FORMAT_STRING _T("(*.rom;*.roz)\0*.rom;*.roz;") ARCHIVE_STRING _T("\0")
 #define USS_FORMAT_STRING_RESTORE _T("(*.uss)\0*.uss;*.gz;") ARCHIVE_STRING _T("\0")
 #define USS_FORMAT_STRING_SAVE _T("(*.uss)\0*.uss\0")
@@ -5955,6 +5955,8 @@ static void enable_for_displaydlg (HWND hDlg)
 	ew (hDlg, IDC_LM_NORMAL, !workprefs.gfx_autoresolution);
 	ew (hDlg, IDC_LM_DOUBLED, !workprefs.gfx_autoresolution);
 	ew (hDlg, IDC_LM_SCANLINES, !workprefs.gfx_autoresolution);
+	ew (hDlg, IDC_LM_PDOUBLED2, !workprefs.gfx_autoresolution);
+	ew (hDlg, IDC_LM_PDOUBLED3, !workprefs.gfx_autoresolution);
 
 	ew (hDlg, IDC_LM_INORMAL, !workprefs.gfx_autoresolution && !isdouble);
 	ew (hDlg, IDC_LM_IDOUBLED, !workprefs.gfx_autoresolution && isdouble);
@@ -6355,8 +6357,8 @@ static void values_to_displaydlg (HWND hDlg)
 	v = workprefs.cpu_cycle_exact ? 1 : workprefs.gfx_framerate;
 	SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETPOS, TRUE, (int)v);
 
-	CheckRadioButton (hDlg, IDC_LM_NORMAL, IDC_LM_SCANLINES, IDC_LM_NORMAL + (workprefs.gfx_vresolution ? 1 : 0) + ((workprefs.gfx_scanlines & 1) ? 1 : 0));
-	CheckRadioButton (hDlg, IDC_LM_INORMAL, IDC_LM_IDOUBLED3, IDC_LM_INORMAL + (workprefs.gfx_scanlines >= 2 ? workprefs.gfx_scanlines / 2 + 1: (workprefs.gfx_vresolution ? 1 : 0)));
+	CheckRadioButton (hDlg, IDC_LM_NORMAL, IDC_LM_PDOUBLED3, IDC_LM_NORMAL + (workprefs.gfx_vresolution ? 1 : 0) + workprefs.gfx_pscanlines);
+	CheckRadioButton (hDlg, IDC_LM_INORMAL, IDC_LM_IDOUBLED3, IDC_LM_INORMAL + (workprefs.gfx_iscanlines ? workprefs.gfx_iscanlines + 1 : (workprefs.gfx_vresolution ? 1 : 0)));
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_RESETCONTENT, 0, 0);
@@ -6563,21 +6565,27 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	workprefs.gfx_blackerthanblack = ischecked (hDlg, IDC_BLACKER_THAN_BLACK);
 	
 	int vres = workprefs.gfx_vresolution;
-	int vscan = workprefs.gfx_scanlines;
+	int viscan = workprefs.gfx_iscanlines;
+	int vpscan = workprefs.gfx_pscanlines;
 	
-	workprefs.gfx_vresolution = (ischecked (hDlg, IDC_LM_DOUBLED) || ischecked (hDlg, IDC_LM_SCANLINES)) ? VRES_DOUBLE : VRES_NONDOUBLE;
-	workprefs.gfx_scanlines = 0;
+	workprefs.gfx_vresolution = (ischecked (hDlg, IDC_LM_DOUBLED) || ischecked (hDlg, IDC_LM_SCANLINES) || ischecked (hDlg, IDC_LM_PDOUBLED2) || ischecked (hDlg, IDC_LM_PDOUBLED3)) ? VRES_DOUBLE : VRES_NONDOUBLE;
+	workprefs.gfx_iscanlines = 0;
+	workprefs.gfx_pscanlines = 0;
 	if (workprefs.gfx_vresolution >= VRES_DOUBLE) {
 		if (ischecked (hDlg, IDC_LM_IDOUBLED2))
-			workprefs.gfx_scanlines = 2;
+			workprefs.gfx_iscanlines = 1;
 		if (ischecked (hDlg, IDC_LM_IDOUBLED3))
-			workprefs.gfx_scanlines = 4;
+			workprefs.gfx_iscanlines = 2;
+		if (ischecked (hDlg, IDC_LM_SCANLINES))
+			workprefs.gfx_pscanlines = 1;
+		if (ischecked (hDlg, IDC_LM_PDOUBLED2))
+			workprefs.gfx_pscanlines = 2;
+		if (ischecked (hDlg, IDC_LM_PDOUBLED3))
+			workprefs.gfx_pscanlines = 3;
 	}
-	workprefs.gfx_scanlines |= ischecked (hDlg, IDC_LM_SCANLINES) ? 1 : 0;
-
-	if (vres != workprefs.gfx_vresolution || vscan != workprefs.gfx_scanlines) {
-		CheckRadioButton (hDlg, IDC_LM_NORMAL, IDC_LM_SCANLINES, IDC_LM_NORMAL + (workprefs.gfx_vresolution ? 1 : 0) + ((workprefs.gfx_scanlines & 1) ? 1 : 0));
-		CheckRadioButton (hDlg, IDC_LM_INORMAL, IDC_LM_IDOUBLED3, IDC_LM_INORMAL + (workprefs.gfx_scanlines >= 2 ? workprefs.gfx_scanlines / 2 + 1: (workprefs.gfx_vresolution ? 1 : 0)));
+	if (vres != workprefs.gfx_vresolution || viscan != workprefs.gfx_iscanlines || vpscan != workprefs.gfx_pscanlines) {
+		CheckRadioButton (hDlg, IDC_LM_NORMAL, IDC_LM_PDOUBLED3, IDC_LM_NORMAL + (workprefs.gfx_vresolution ? 1 : 0) + workprefs.gfx_pscanlines);
+		CheckRadioButton (hDlg, IDC_LM_INORMAL, IDC_LM_IDOUBLED3, IDC_LM_INORMAL + (workprefs.gfx_iscanlines ? workprefs.gfx_iscanlines + 1: (workprefs.gfx_vresolution ? 1 : 0)));
 	}
 
 	workprefs.gfx_apmode[0].gfx_backbuffers = SendDlgItemMessage (hDlg, IDC_DISPLAY_BUFFERCNT, CB_GETCURSEL, 0, 0);
@@ -11892,6 +11900,7 @@ static void enable_for_gameportsdlg (HWND hDlg)
 {
 	int v = full_property_sheet;
 	ew (hDlg, IDC_PORT_TABLET_FULL, v && is_tablet () && workprefs.input_tablet > 0);
+	//ew (hDlg, IDC_PORT_TABLET_LIBRARY, v && is_tablet () && workprefs.input_tablet > 0);
 	ew (hDlg, IDC_PORT_TABLET_CURSOR, v && workprefs.input_tablet > 0);
 	ew (hDlg, IDC_PORT_TABLET, v);
 }
@@ -11954,6 +11963,7 @@ static void updatejoyport (HWND hDlg, int changedport)
 	SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_SETCURSEL, workprefs.input_magic_mouse_cursor, 0);
 	CheckDlgButton (hDlg, IDC_PORT_TABLET, workprefs.input_tablet > 0);
 	CheckDlgButton (hDlg, IDC_PORT_TABLET_FULL, workprefs.input_tablet == TABLET_REAL);
+	CheckDlgButton (hDlg, IDC_PORT_TABLET_LIBRARY, workprefs.tablet_library);
 
 	if (joyxprevious[0] < 0)
 		joyxprevious[0] = inputdevice_get_device_total (IDTYPE_JOYSTICK) + 1;
@@ -12032,6 +12042,7 @@ static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 			if (ischecked (hDlg, IDC_PORT_TABLET_FULL))
 				workprefs.input_tablet = TABLET_REAL;
 		}
+		workprefs.tablet_library = ischecked (hDlg, IDC_PORT_TABLET_LIBRARY);
 		return;
 	}
 
@@ -14118,10 +14129,11 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 static int scanlineratios[] = { 1,1,1,2,1,3, 2,1,2,2,2,3, 3,1,3,2,3,3, 0,0 };
 static int scanlineindexes[100];
 static int filterpreset_selected = -1, filterpreset_builtin = -1;
+static int filter_nativertg;
 
 static void enable_for_hw3ddlg (HWND hDlg)
 {
-	int v = workprefs.gfx_filter ? TRUE : FALSE;
+	int v = workprefs.gf[filter_nativertg].gfx_filter ? TRUE : FALSE;
 	int vv = FALSE, vv2 = FALSE, vv3 = FALSE;
 	int as = FALSE;
 	struct uae_filter *uf;
@@ -14131,7 +14143,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	uf = &uaefilters[0];
 	i = 0;
 	while (uaefilters[i].name) {
-		if (workprefs.gfx_filter == uaefilters[i].type) {
+		if (workprefs.gf[filter_nativertg].gfx_filter == uaefilters[i].type) {
 			uf = &uaefilters[i];
 			isfilter = 1;
 			break;
@@ -14145,6 +14157,9 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	if (workprefs.gfx_api)
 		v = vv = vv2 = vv3 = TRUE;
 
+	if (filter_nativertg)
+		v = FALSE;
+
 	ew (hDlg, IDC_FILTERHZ, v);
 	ew (hDlg, IDC_FILTERVZ, v);
 	ew (hDlg, IDC_FILTERHZMULT, v && !as);
@@ -14155,13 +14170,12 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	ew (hDlg, IDC_FILTERXL, vv2);
 	ew (hDlg, IDC_FILTERXLV, vv2);
 	ew (hDlg, IDC_FILTERXTRA, vv2);
-	ew (hDlg, IDC_FILTERDEFAULT, v);
 	ew (hDlg, IDC_FILTERFILTER, workprefs.gfx_api);
 	ew (hDlg, IDC_FILTERSTACK, workprefs.gfx_api);
 	ew (hDlg, IDC_FILTERKEEPASPECT, v);
 	ew (hDlg, IDC_FILTERASPECT, v);
-	ew (hDlg, IDC_FILTERASPECT2, v && workprefs.gfx_filter_keep_aspect);
-	ew (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT, (workprefs.gfx_filter_autoscale == AUTOSCALE_NORMAL || workprefs.gfx_filter_autoscale == AUTOSCALE_INTEGER_AUTOSCALE));
+	ew (hDlg, IDC_FILTERASPECT2, v && workprefs.gf[filter_nativertg].gfx_filter_keep_aspect);
+	ew (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT, (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_NORMAL || workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_INTEGER_AUTOSCALE));
 	ew (hDlg, IDC_FILTEROVERLAY, workprefs.gfx_api);
 	ew (hDlg, IDC_FILTEROVERLAYTYPE, workprefs.gfx_api);
 
@@ -14175,8 +14189,8 @@ static TCHAR *filtermultnames[] = {
 };
 static float filtermults[] = { 0, 0.25f, 0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f, 6.0f, 8.0f };
 struct filterxtra {
-	TCHAR *label;
-	int *varw, *varc;
+	const TCHAR *label;
+	int *varw[2], *varc[2];
 	int min, max, step;
 };
 static struct filterxtra *filter_extra[4], *filter_selected;
@@ -14184,20 +14198,20 @@ static int filter_selected_num;
 
 static struct filterxtra filter_pal_extra[] =
 {
-	_T("Brightness"), &workprefs.gfx_filter_luminance, &currprefs.gfx_filter_luminance, -1000, 1000, 10,
-	_T("Contrast"), &workprefs.gfx_filter_contrast, &currprefs.gfx_filter_contrast, -1000, 1000, 10,
-	_T("Saturation"), &workprefs.gfx_filter_saturation, &currprefs.gfx_filter_saturation, -1000, 1000, 10,
-	_T("Gamma"), &workprefs.gfx_gamma, &currprefs.gfx_gamma, -1000, 1000, 10,
-	_T("Scanlines"), &workprefs.gfx_filter_scanlines, &currprefs.gfx_filter_scanlines, 0, 100, 1,
-	_T("Blurriness"), &workprefs.gfx_filter_blur, &currprefs.gfx_filter_blur,0, 2000, 10,
-	_T("Noise"), &workprefs.gfx_filter_noise, &currprefs.gfx_filter_noise,0, 100, 10,
+	_T("Brightness"), &workprefs.gf[0].gfx_filter_luminance, NULL, &currprefs.gf[0].gfx_filter_luminance, NULL, -1000, 1000, 10,
+	_T("Contrast"), &workprefs.gf[0].gfx_filter_contrast, NULL, &currprefs.gf[0].gfx_filter_contrast, NULL, -1000, 1000, 10,
+	_T("Saturation"), &workprefs.gf[0].gfx_filter_saturation, NULL, &currprefs.gf[0].gfx_filter_saturation, NULL, -1000, 1000, 10,
+	_T("Gamma"), &workprefs.gfx_gamma, NULL, &currprefs.gfx_gamma, NULL, -1000, 1000, 10,
+	_T("Scanlines"), &workprefs.gf[0].gfx_filter_scanlines, NULL, &currprefs.gf[0].gfx_filter_scanlines, NULL, 0, 100, 1,
+	_T("Blurriness"), &workprefs.gf[0].gfx_filter_blur, NULL, &currprefs.gf[0].gfx_filter_blur, NULL, 0, 2000, 10,
+	_T("Noise"), &workprefs.gf[0].gfx_filter_noise, NULL, &currprefs.gf[0].gfx_filter_noise, NULL, 0, 100, 10,
 	NULL
 };
 static struct filterxtra filter_3d_extra[] =
 {
-	_T("Point/Bilinear"), &workprefs.gfx_filter_bilinear, &currprefs.gfx_filter_bilinear, 0, 1, 1,
-	_T("Scanline opacity"), &workprefs.gfx_filter_scanlines, &currprefs.gfx_filter_scanlines, 0, 100, 10,
-	_T("Scanline level"), &workprefs.gfx_filter_scanlinelevel, &currprefs.gfx_filter_scanlinelevel, 0, 100, 10,
+	_T("Point/Bilinear"), &workprefs.gf[0].gfx_filter_bilinear, &workprefs.gf[1].gfx_filter_bilinear, &currprefs.gf[0].gfx_filter_bilinear, &currprefs.gf[1].gfx_filter_bilinear, 0, 1, 1,
+	_T("Scanline opacity"), &workprefs.gf[0].gfx_filter_scanlines, &workprefs.gf[1].gfx_filter_scanlines, &currprefs.gf[0].gfx_filter_scanlines, &currprefs.gf[1].gfx_filter_scanlines, 0, 100, 10,
+	_T("Scanline level"), &workprefs.gf[0].gfx_filter_scanlinelevel, &workprefs.gf[1].gfx_filter_scanlinelevel, &currprefs.gf[0].gfx_filter_scanlinelevel, &currprefs.gf[1].gfx_filter_scanlinelevel, 0, 100, 10,
 	NULL
 };
 static int dummy_in, dummy_out;
@@ -14216,31 +14230,31 @@ static int filtertypes[] = {
 	-1
 };	
 static void *filtervars[] = {
-	&workprefs.gfx_filter, &workprefs.gfx_filter_filtermode,
-	&workprefs.gfx_filter_vert_zoom, &workprefs.gfx_filter_horiz_zoom,
-	&workprefs.gfx_filter_vert_zoom_mult, &workprefs.gfx_filter_horiz_zoom_mult,
-	&workprefs.gfx_filter_vert_offset, &workprefs.gfx_filter_horiz_offset,
-	&workprefs.gfx_filter_scanlines, &workprefs.gfx_filter_scanlinelevel, &workprefs.gfx_filter_scanlineratio,
-	&workprefs.gfx_resolution, &workprefs.gfx_vresolution, &workprefs.gfx_scanlines,
+	&workprefs.gf[0].gfx_filter, &workprefs.gf[0].gfx_filter_filtermode,
+	&workprefs.gf[0].gfx_filter_vert_zoom, &workprefs.gf[0].gfx_filter_horiz_zoom,
+	&workprefs.gf[0].gfx_filter_vert_zoom_mult, &workprefs.gf[0].gfx_filter_horiz_zoom_mult,
+	&workprefs.gf[0].gfx_filter_vert_offset, &workprefs.gf[0].gfx_filter_horiz_offset,
+	&workprefs.gf[0].gfx_filter_scanlines, &workprefs.gf[0].gfx_filter_scanlinelevel, &workprefs.gf[0].gfx_filter_scanlineratio,
+	&workprefs.gfx_resolution, &workprefs.gfx_vresolution, &workprefs.gfx_iscanlines,
 	&workprefs.gfx_xcenter, &workprefs.gfx_ycenter,
-	&workprefs.gfx_filter_luminance, &workprefs.gfx_filter_contrast, &workprefs.gfx_filter_saturation,
-	&workprefs.gfx_filter_gamma, &workprefs.gfx_filter_blur, &workprefs.gfx_filter_noise,
-	&workprefs.gfx_filter_keep_aspect, &workprefs.gfx_filter_aspect,
-	&workprefs.gfx_filter_autoscale, &workprefs.gfx_filter_bilinear,
+	&workprefs.gf[0].gfx_filter_luminance, &workprefs.gf[0].gfx_filter_contrast, &workprefs.gf[0].gfx_filter_saturation,
+	&workprefs.gf[0].gfx_filter_gamma, &workprefs.gf[0].gfx_filter_blur, &workprefs.gf[0].gfx_filter_noise,
+	&workprefs.gf[0].gfx_filter_keep_aspect, &workprefs.gf[0].gfx_filter_aspect,
+	&workprefs.gf[0].gfx_filter_autoscale, &workprefs.gf[0].gfx_filter_bilinear,
 	NULL
 };
 static void *filtervars2[] = {
-	NULL, &currprefs.gfx_filter_filtermode,
-	&currprefs.gfx_filter_vert_zoom, &currprefs.gfx_filter_horiz_zoom,
-	&currprefs.gfx_filter_vert_zoom_mult, &currprefs.gfx_filter_horiz_zoom_mult,
-	&currprefs.gfx_filter_vert_offset, &currprefs.gfx_filter_horiz_offset,
-	&currprefs.gfx_filter_scanlines, &currprefs.gfx_filter_scanlinelevel, &currprefs.gfx_filter_scanlineratio,
-	&currprefs.gfx_resolution, &currprefs.gfx_vresolution, &currprefs.gfx_scanlines,
+	NULL, &currprefs.gf[0].gfx_filter_filtermode,
+	&currprefs.gf[0].gfx_filter_vert_zoom, &currprefs.gf[0].gfx_filter_horiz_zoom,
+	&currprefs.gf[0].gfx_filter_vert_zoom_mult, &currprefs.gf[0].gfx_filter_horiz_zoom_mult,
+	&currprefs.gf[0].gfx_filter_vert_offset, &currprefs.gf[0].gfx_filter_horiz_offset,
+	&currprefs.gf[0].gfx_filter_scanlines, &currprefs.gf[0].gfx_filter_scanlinelevel, &currprefs.gf[0].gfx_filter_scanlineratio,
+	&currprefs.gfx_resolution, &currprefs.gfx_vresolution, &currprefs.gfx_iscanlines,
 	&currprefs.gfx_xcenter, &currprefs.gfx_ycenter,
-	&currprefs.gfx_filter_luminance, &currprefs.gfx_filter_contrast, &currprefs.gfx_filter_saturation,
-	&currprefs.gfx_filter_gamma, &currprefs.gfx_filter_blur, &currprefs.gfx_filter_noise,
-	&currprefs.gfx_filter_keep_aspect, &currprefs.gfx_filter_aspect,
-	&currprefs.gfx_filter_autoscale, &currprefs.gfx_filter_bilinear,
+	&currprefs.gf[0].gfx_filter_luminance, &currprefs.gf[0].gfx_filter_contrast, &currprefs.gf[0].gfx_filter_saturation,
+	&currprefs.gf[0].gfx_filter_gamma, &currprefs.gf[0].gfx_filter_blur, &currprefs.gf[0].gfx_filter_noise,
+	&currprefs.gf[0].gfx_filter_keep_aspect, &currprefs.gf[0].gfx_filter_aspect,
+	&currprefs.gf[0].gfx_filter_autoscale, &currprefs.gf[0].gfx_filter_bilinear,
 	NULL
 };
 
@@ -14298,8 +14312,8 @@ static void setfiltermult2 (HWND hDlg, int id, float val)
 
 static void setfiltermult (HWND hDlg)
 {
-	setfiltermult2 (hDlg, IDC_FILTERHZMULT, workprefs.gfx_filter_horiz_zoom_mult);
-	setfiltermult2 (hDlg, IDC_FILTERVZMULT, workprefs.gfx_filter_vert_zoom_mult);
+	setfiltermult2 (hDlg, IDC_FILTERHZMULT, workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult);
+	setfiltermult2 (hDlg, IDC_FILTERVZMULT, workprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult);
 }
 
 static void values_to_hw3ddlg (HWND hDlg)
@@ -14311,15 +14325,15 @@ static void values_to_hw3ddlg (HWND hDlg)
 	UAEREG *fkey;
 
 	SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_SETCURSEL,
-		(workprefs.gfx_filter_aspect == 0) ? 0 :
-		(workprefs.gfx_filter_aspect < 0) ? 1 :
-		getaspectratioindex (workprefs.gfx_filter_aspect) + 2, 0);
+		(workprefs.gf[filter_nativertg].gfx_filter_aspect == 0) ? 0 :
+		(workprefs.gf[filter_nativertg].gfx_filter_aspect < 0) ? 1 :
+		getaspectratioindex (workprefs.gf[filter_nativertg].gfx_filter_aspect) + 2, 0);
 
-	CheckDlgButton (hDlg, IDC_FILTERKEEPASPECT, workprefs.gfx_filter_keep_aspect);
-	CheckDlgButton (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT, workprefs.gfx_filter_keep_autoscale_aspect != 0);
+	CheckDlgButton (hDlg, IDC_FILTERKEEPASPECT, workprefs.gf[filter_nativertg].gfx_filter_keep_aspect);
+	CheckDlgButton (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT, workprefs.gf[filter_nativertg].gfx_filter_keep_autoscale_aspect != 0);
 
 	SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_SETCURSEL,
-		workprefs.gfx_filter_keep_aspect, 0);
+		workprefs.gf[filter_nativertg].gfx_filter_keep_aspect, 0);
 
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_RESETCONTENT, 0, 0L);
 	WIN32GUI_LoadUIString (IDS_AUTOSCALE_DISABLED, txt, sizeof (txt) / sizeof (TCHAR));
@@ -14342,16 +14356,16 @@ static void values_to_hw3ddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 	WIN32GUI_LoadUIString (IDS_AUTOSCALE_INTEGER_AUTOSCALE, txt, sizeof (txt) / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
-	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_SETCURSEL, workprefs.gfx_filter_autoscale, 0);
+	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_SETCURSEL, workprefs.gf[filter_nativertg].gfx_filter_autoscale, 0);
 
 	SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_RESETCONTENT, 0, 0);
 	for (i = -MAX_FILTERSHADERS; i < MAX_FILTERSHADERS; i++) {
 		j = i < 0 ? i : i + 1;
 		if (i == 0) {
-			_stprintf (tmp, _T("%d%s"), 0, workprefs.gfx_filtershader[2 * MAX_FILTERSHADERS][0] ? _T(" *") : _T(""));
+			_stprintf (tmp, _T("%d%s"), 0, workprefs.gf[filter_nativertg].gfx_filtershader[2 * MAX_FILTERSHADERS][0] ? _T(" *") : _T(""));
 			SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
-		_stprintf (tmp, _T("%d%s"), j, workprefs.gfx_filtershader[i + 4][0] ? _T(" *") : _T(""));
+		_stprintf (tmp, _T("%d%s"), j, workprefs.gf[filter_nativertg].gfx_filtershader[i + 4][0] ? _T(" *") : _T(""));
 		SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_ADDSTRING, 0, (LPARAM)tmp);
 	}
 
@@ -14362,8 +14376,8 @@ static void values_to_hw3ddlg (HWND hDlg)
 		i++;
 	SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_SETCURSEL, i, 0);
 
-	int range1 = workprefs.gfx_filter_autoscale == AUTOSCALE_MANUAL ? -1 : -9999;
-	int range2 = workprefs.gfx_filter_autoscale == AUTOSCALE_MANUAL ? 1800 : 9999;
+	int range1 = workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_MANUAL ? -1 : -9999;
+	int range2 = workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_MANUAL ? 1800 : 9999;
 
 	SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (range1, range2));
 	SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPAGESIZE, 0, 1);
@@ -14375,6 +14389,9 @@ static void values_to_hw3ddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETPAGESIZE, 0, 1);
 
 	SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_RESETCONTENT, 0, 0L);
+
+	SendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_SETCURSEL, filter_nativertg, 0);
+
 	SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_RESETCONTENT, 0, 0L);
 	WIN32GUI_LoadUIString (IDS_NONE, tmp, MAX_DPATH);
 	SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
@@ -14382,8 +14399,12 @@ static void values_to_hw3ddlg (HWND hDlg)
 	fltnum = 0;
 	i = 0; j = 1;
 	while (uaefilters[i].name) {
+		if (filter_nativertg && uaefilters[i].type > 1) {
+			i++;
+			continue;
+		}
 		SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)uaefilters[i].name);
-		if (uaefilters[i].type == workprefs.gfx_filter) {
+		if (uaefilters[i].type == workprefs.gf[filter_nativertg].gfx_filter) {
 			uf = &uaefilters[i];
 			fltnum = j;
 		}
@@ -14404,7 +14425,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 				_stprintf (tmp2, _T("D3D: %s"), wfd.cFileName);
 				tmp2[_tcslen (tmp2) - 3] = 0;
 				SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp2);
-				if (workprefs.gfx_api && !_tcscmp (workprefs.gfx_filtershader[filterstackpos], wfd.cFileName)) {
+				if (workprefs.gfx_api && !_tcscmp (workprefs.gf[filter_nativertg].gfx_filtershader[filterstackpos], wfd.cFileName)) {
 					fltnum = j;
 					gotit = true;
 				}
@@ -14416,7 +14437,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 			}
 		}
 		for (int i = 1; i < 2 * MAX_FILTERSHADERS; i++) {
-			if (workprefs.gfx_filtershader[i][0] && !gotit)
+			if (workprefs.gf[filter_nativertg].gfx_filtershader[i][0] && !gotit)
 				fltnum = UAE_FILTER_NULL;
 		}
 	}
@@ -14439,7 +14460,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 				!_tcsicmp (ext, _T(".bmp"))))
 			{
 				SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)wfd.cFileName);
-				if (!_tcsicmp (wfd.cFileName, overlaytype == 0 ? workprefs.gfx_filteroverlay : workprefs.gfx_filtermask[filterstackpos]))
+				if (!_tcsicmp (wfd.cFileName, overlaytype == 0 ? workprefs.gf[filter_nativertg].gfx_filteroverlay : workprefs.gf[filter_nativertg].gfx_filtermask[filterstackpos]))
 					SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, j, 0);
 				j++;
 
@@ -14508,12 +14529,14 @@ static void values_to_hw3ddlg (HWND hDlg)
 		SendDlgItemMessage (hDlg, IDC_FILTERXTRA, CB_SETCURSEL, filter_selected_num, 0);
 		SendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETRANGE, TRUE, MAKELONG (filter_selected->min, filter_selected->max));
 		SendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETPAGESIZE, 0, filter_selected->step);
-		SendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETPOS, TRUE, *(filter_selected->varw));
-		SetDlgItemInt (hDlg, IDC_FILTERXLV, *(filter_selected->varw), TRUE);
+		if (filter_selected->varw[filter_nativertg]) {
+			SendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETPOS, TRUE, *(filter_selected->varw[filter_nativertg]));
+			SetDlgItemInt (hDlg, IDC_FILTERXLV, *(filter_selected->varw[filter_nativertg]), TRUE);
+		}
 	}
-	if (workprefs.gfx_filter_filtermode >= filtermodenum)
-		workprefs.gfx_filter_filtermode = 0;
-	SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_SETCURSEL, workprefs.gfx_filter_filtermode, 0);
+	if (workprefs.gf[filter_nativertg].gfx_filter_filtermode >= filtermodenum)
+		workprefs.gf[filter_nativertg].gfx_filter_filtermode = 0;
+	SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_SETCURSEL, workprefs.gf[filter_nativertg].gfx_filter_filtermode, 0);
 	setfiltermult (hDlg);
 
 	SendDlgItemMessage (hDlg, IDC_FILTERSLR, CB_RESETCONTENT, 0, 0L);
@@ -14521,7 +14544,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 	while (scanlineratios[i * 2]) {
 		int sl = scanlineratios[i * 2] * 16 + scanlineratios[i * 2 + 1];
 		_stprintf (txt, _T("%d:%d"), scanlineratios[i * 2], scanlineratios[i * 2 + 1]);
-		if (workprefs.gfx_filter_scanlineratio == sl)
+		if (workprefs.gf[filter_nativertg].gfx_filter_scanlineratio == sl)
 			j = i;
 		SendDlgItemMessage (hDlg, IDC_FILTERSLR, CB_ADDSTRING, 0, (LPARAM)txt);
 		scanlineindexes[i] = sl;
@@ -14556,16 +14579,16 @@ static void values_to_hw3ddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_SETCURSEL, filterpreset_selected, 0);
 
 	float ho, vo, hz, vz;
-	if (workprefs.gfx_filter_autoscale == AUTOSCALE_MANUAL) {
+	if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_MANUAL) {
 		hz = workprefs.gfx_xcenter_size;
 		vz = workprefs.gfx_ycenter_size;
 		ho = workprefs.gfx_xcenter_pos;
 		vo = workprefs.gfx_ycenter_pos;
 	} else {
-		hz = workprefs.gfx_filter_horiz_zoom;
-		vz = workprefs.gfx_filter_vert_zoom;
-		ho = workprefs.gfx_filter_horiz_offset;
-		vo = workprefs.gfx_filter_vert_offset;
+		hz = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom;
+		vz = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom;
+		ho = workprefs.gf[filter_nativertg].gfx_filter_horiz_offset;
+		vo = workprefs.gf[filter_nativertg].gfx_filter_vert_offset;
 	}
 
 	SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, (int)hz);
@@ -14697,41 +14720,41 @@ static void filter_handle (HWND hDlg)
 	LRESULT item = SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_GETCURSEL, 0, 0L);
 	if (item != CB_ERR) {
 		TCHAR tmp[MAX_DPATH], oldsh[MAX_DPATH];
-		int of = workprefs.gfx_filter;
-		int off = workprefs.gfx_filter_filtermode;
+		int of = workprefs.gf[filter_nativertg].gfx_filter;
+		int off = workprefs.gf[filter_nativertg].gfx_filter_filtermode;
 		tmp[0] = 0;
-		_tcscpy (oldsh, workprefs.gfx_filtershader[filterstackpos]);
+		_tcscpy (oldsh, workprefs.gf[filter_nativertg].gfx_filtershader[filterstackpos]);
 		SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_GETLBTEXT, (WPARAM)item, (LPARAM)tmp);
-		workprefs.gfx_filtershader[filterstackpos][0] = 0;
-		workprefs.gfx_filter = 0;
-		workprefs.gfx_filter_filtermode = 0;
+		workprefs.gf[filter_nativertg].gfx_filtershader[filterstackpos][0] = 0;
+		workprefs.gf[filter_nativertg].gfx_filter = 0;
+		workprefs.gf[filter_nativertg].gfx_filter_filtermode = 0;
 		if (workprefs.gfx_api) {
 			LRESULT item2 = SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_GETCURSEL, 0, 0L);
 			if (item2 != CB_ERR)
-				workprefs.gfx_filter_filtermode = (int)item2;
+				workprefs.gf[filter_nativertg].gfx_filter_filtermode = (int)item2;
 		}
 		if (item > 0) {
 			if (item > UAE_FILTER_LAST) {
-				_stprintf (workprefs.gfx_filtershader[filterstackpos], _T("%s.fx"), tmp + 5);
+				_stprintf (workprefs.gf[filter_nativertg].gfx_filtershader[filterstackpos], _T("%s.fx"), tmp + 5);
 			} else {
 				item--;
-				workprefs.gfx_filter = uaefilters[item].type;
+				workprefs.gf[filter_nativertg].gfx_filter = uaefilters[item].type;
 			}
-			if (of != workprefs.gfx_filter || off != workprefs.gfx_filter_filtermode) {
+			if (of != workprefs.gf[filter_nativertg].gfx_filter || off != workprefs.gf[filter_nativertg].gfx_filter_filtermode) {
 				values_to_hw3ddlg (hDlg);
 				hw3d_changed = 1;
 			}
 		}
 		for (int i = 1; i < MAX_FILTERSHADERS; i++) {
-			if (workprefs.gfx_filtershader[i][0])
-				workprefs.gfx_filter = UAE_FILTER_NULL;
+			if (workprefs.gf[filter_nativertg].gfx_filtershader[i][0])
+				workprefs.gf[filter_nativertg].gfx_filter = UAE_FILTER_NULL;
 		}
-		if (workprefs.gfx_filter == 0 && !workprefs.gfx_api)
-			workprefs.gfx_filter_autoscale = 0;
+		if (workprefs.gf[filter_nativertg].gfx_filter == 0 && !workprefs.gfx_api)
+			workprefs.gf[filter_nativertg].gfx_filter_autoscale = 0;
 	}
 
 	int overlaytype = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_GETCURSEL, 0, 0L);
-	TCHAR *filterptr = overlaytype == 0 ? workprefs.gfx_filteroverlay : workprefs.gfx_filtermask[filterstackpos];
+	TCHAR *filterptr = overlaytype == 0 ? workprefs.gf[filter_nativertg].gfx_filteroverlay : workprefs.gf[filter_nativertg].gfx_filtermask[filterstackpos];
 	item = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_GETCURSEL, 0, 0L);
 	if (item != CB_ERR) {
 		TCHAR tmp[MAX_DPATH];
@@ -14775,6 +14798,10 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)_T("VGA"));
 		SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)_T("TV"));
 
+		SendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_RESETCONTENT, 0, 0L);
+		SendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_ADDSTRING, 0, (LPARAM)_T("Native"));
+		SendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_ADDSTRING, 0, (LPARAM)_T("RTG"));
+
 		SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_RESETCONTENT, 0, 0L);
 		SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_RESETCONTENT, 0, 0L);
 		for (i = 0; filtermultnames[i]; i++) {
@@ -14788,7 +14815,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		WIN32GUI_LoadUIString (IDS_FILTEROVERLAYTYPE_MASKS, tmp, sizeof tmp / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 		if (filteroverlaypos < 0) {
-			if (!workprefs.gfx_filteroverlay[0])
+			if (!workprefs.gf[filter_nativertg].gfx_filteroverlay[0])
 				filteroverlaypos = 1;
 			else
 				filteroverlaypos = 0;
@@ -14812,12 +14839,12 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		switch (wParam)
 		{
 		case IDC_FILTERDEFAULT:
-			currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = 0;
-			currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = 0;
-			currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = 0;
-			currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = 0;
-			currprefs.gfx_filter_horiz_zoom_mult = workprefs.gfx_filter_horiz_zoom_mult = 1.0;
-			currprefs.gfx_filter_vert_zoom_mult = workprefs.gfx_filter_vert_zoom_mult = 1.0;
+			currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom = 0;
+			currprefs.gf[filter_nativertg].gfx_filter_vert_zoom = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom = 0;
+			currprefs.gf[filter_nativertg].gfx_filter_horiz_offset = workprefs.gf[filter_nativertg].gfx_filter_horiz_offset = 0;
+			currprefs.gf[filter_nativertg].gfx_filter_vert_offset = workprefs.gf[filter_nativertg].gfx_filter_vert_offset = 0;
+			currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = 1.0;
+			currprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = 1.0;
 			values_to_hw3ddlg (hDlg);
 			updatedisplayarea ();
 			break;
@@ -14831,16 +14858,16 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		case IDC_FILTERKEEPASPECT:
 			{
 				if (ischecked (hDlg, IDC_FILTERKEEPASPECT))
-					currprefs.gfx_filter_keep_aspect = workprefs.gfx_filter_keep_aspect = 1;
+					currprefs.gf[filter_nativertg].gfx_filter_keep_aspect = workprefs.gf[filter_nativertg].gfx_filter_keep_aspect = 1;
 				else
-					currprefs.gfx_filter_keep_aspect = workprefs.gfx_filter_keep_aspect = 0;
+					currprefs.gf[filter_nativertg].gfx_filter_keep_aspect = workprefs.gf[filter_nativertg].gfx_filter_keep_aspect = 0;
 				enable_for_hw3ddlg (hDlg);
 				values_to_hw3ddlg (hDlg);
 				updatedisplayarea ();
 			}
 		case IDC_FILTERKEEPAUTOSCALEASPECT:
 			{
-				workprefs.gfx_filter_keep_autoscale_aspect = currprefs.gfx_filter_keep_autoscale_aspect = ischecked (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT) ? 1 : 0;
+				workprefs.gf[filter_nativertg].gfx_filter_keep_autoscale_aspect = currprefs.gf[filter_nativertg].gfx_filter_keep_autoscale_aspect = ischecked (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT) ? 1 : 0;
 				enable_for_hw3ddlg (hDlg);
 				values_to_hw3ddlg (hDlg);
 				updatedisplayarea ();
@@ -14850,6 +14877,14 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
 				switch (LOWORD (wParam))
 				{
+				case IDC_FILTER_NATIVERTG:
+					item = SendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_GETCURSEL, 0, 0L);
+					if (item != CB_ERR) {
+						filter_nativertg = item;
+						values_to_hw3ddlg (hDlg);
+						enable_for_hw3ddlg (hDlg);
+					}
+					break;
 				case IDC_FILTERSTACK:
 					item = SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {
@@ -14866,9 +14901,9 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				case IDC_FILTERAUTOSCALE:
 					item = SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {
-						workprefs.gfx_filter_autoscale = item;
-						if (workprefs.gfx_filter_autoscale && workprefs.gfx_filter == 0 && !workprefs.gfx_api)
-							workprefs.gfx_filter = 1; // NULL
+						workprefs.gf[filter_nativertg].gfx_filter_autoscale = item;
+						if (workprefs.gf[filter_nativertg].gfx_filter_autoscale && workprefs.gf[filter_nativertg].gfx_filter == 0 && !workprefs.gfx_api)
+							workprefs.gf[filter_nativertg].gfx_filter = 1; // NULL
 						values_to_hw3ddlg (hDlg);
 						enable_for_hw3ddlg (hDlg);
 					}
@@ -14882,7 +14917,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				case IDC_FILTERSLR:
 					item = SendDlgItemMessage (hDlg, IDC_FILTERSLR, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {
-						currprefs.gfx_filter_scanlineratio = workprefs.gfx_filter_scanlineratio = scanlineindexes[item];
+						currprefs.gf[filter_nativertg].gfx_filter_scanlineratio = workprefs.gf[filter_nativertg].gfx_filter_scanlineratio = scanlineindexes[item];
 						updatedisplayarea ();
 					}
 					break;
@@ -14900,11 +14935,11 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					values_to_hw3ddlg (hDlg);
 					break;
 				case IDC_FILTERHZMULT:
-					currprefs.gfx_filter_horiz_zoom_mult = workprefs.gfx_filter_horiz_zoom_mult = getfiltermult (hDlg, IDC_FILTERHZMULT);
+					currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = getfiltermult (hDlg, IDC_FILTERHZMULT);
 					updatedisplayarea ();
 					break;
 				case IDC_FILTERVZMULT:
-					currprefs.gfx_filter_vert_zoom_mult = workprefs.gfx_filter_vert_zoom_mult = getfiltermult (hDlg, IDC_FILTERVZMULT);
+					currprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = getfiltermult (hDlg, IDC_FILTERVZMULT);
 					updatedisplayarea ();
 					break;
 				case IDC_FILTERASPECT:
@@ -14919,7 +14954,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 							else if (v >= 2)
 								v2 = getaspectratio (v - 2);
 						}
-						currprefs.gfx_filter_aspect = workprefs.gfx_filter_aspect = v2;
+						currprefs.gf[filter_nativertg].gfx_filter_aspect = workprefs.gf[filter_nativertg].gfx_filter_aspect = v2;
 						updatedisplayarea ();
 					}
 					break;
@@ -14927,7 +14962,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					{
 						int v = SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_GETCURSEL, 0, 0L);
 						if (v != CB_ERR)
-							currprefs.gfx_filter_keep_aspect = workprefs.gfx_filter_keep_aspect = v;
+							currprefs.gf[filter_nativertg].gfx_filter_keep_aspect = workprefs.gf[filter_nativertg].gfx_filter_keep_aspect = v;
 						updatedisplayarea ();
 					}
 					break;
@@ -14947,7 +14982,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			if (recursive)
 				break;
 			recursive++;
-			if (currprefs.gfx_filter_autoscale == AUTOSCALE_MANUAL) {
+			if (currprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_MANUAL) {
 				currprefs.gfx_xcenter_size = workprefs.gfx_xcenter_size = (int)SendMessage (hz, TBM_GETPOS, 0, 0);
 				currprefs.gfx_ycenter_size = workprefs.gfx_ycenter_size = (int)SendMessage (vz, TBM_GETPOS, 0, 0);
 				currprefs.gfx_xcenter_pos = workprefs.gfx_xcenter_pos = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
@@ -14958,28 +14993,28 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				SetDlgItemInt (hDlg, IDC_FILTERVZV, workprefs.gfx_ycenter_size, TRUE);
 			} else {
 				if (h == hz) {
-					currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = (int)SendMessage (hz, TBM_GETPOS, 0, 0);
-					if (workprefs.gfx_filter_keep_aspect) {
-						currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = currprefs.gfx_filter_horiz_zoom;
-						SendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_vert_zoom);
+					currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom = (int)SendMessage (hz, TBM_GETPOS, 0, 0);
+					if (workprefs.gf[filter_nativertg].gfx_filter_keep_aspect) {
+						currprefs.gf[filter_nativertg].gfx_filter_vert_zoom = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom = currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom;
+						SendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, workprefs.gf[filter_nativertg].gfx_filter_vert_zoom);
 					}
 				} else if (h == vz) {
-					currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = (int)SendMessage (vz, TBM_GETPOS, 0, 0);
-					if (workprefs.gfx_filter_keep_aspect) {
-						currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = currprefs.gfx_filter_vert_zoom;
-						SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_horiz_zoom);
+					currprefs.gf[filter_nativertg].gfx_filter_vert_zoom = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom = (int)SendMessage (vz, TBM_GETPOS, 0, 0);
+					if (workprefs.gf[filter_nativertg].gfx_filter_keep_aspect) {
+						currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom = currprefs.gf[filter_nativertg].gfx_filter_vert_zoom;
+						SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom);
 					}
 				}
-				currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
-				currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
-				SetDlgItemInt (hDlg, IDC_FILTERHOV, (int)workprefs.gfx_filter_horiz_offset, TRUE);
-				SetDlgItemInt (hDlg, IDC_FILTERVOV, (int)workprefs.gfx_filter_vert_offset, TRUE);
-				SetDlgItemInt (hDlg, IDC_FILTERHZV, (int)workprefs.gfx_filter_horiz_zoom, TRUE);
-				SetDlgItemInt (hDlg, IDC_FILTERVZV, (int)workprefs.gfx_filter_vert_zoom, TRUE);
+				currprefs.gf[filter_nativertg].gfx_filter_horiz_offset = workprefs.gf[filter_nativertg].gfx_filter_horiz_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
+				currprefs.gf[filter_nativertg].gfx_filter_vert_offset = workprefs.gf[filter_nativertg].gfx_filter_vert_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
+				SetDlgItemInt (hDlg, IDC_FILTERHOV, (int)workprefs.gf[filter_nativertg].gfx_filter_horiz_offset, TRUE);
+				SetDlgItemInt (hDlg, IDC_FILTERVOV, (int)workprefs.gf[filter_nativertg].gfx_filter_vert_offset, TRUE);
+				SetDlgItemInt (hDlg, IDC_FILTERHZV, (int)workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom, TRUE);
+				SetDlgItemInt (hDlg, IDC_FILTERVZV, (int)workprefs.gf[filter_nativertg].gfx_filter_vert_zoom, TRUE);
 			}
-			if (filter_selected) {
-				int *pw = filter_selected->varw;
-				int *pc = filter_selected->varc;
+			if (filter_selected && filter_selected->varw[filter_nativertg]) {
+				int *pw = filter_selected->varw[filter_nativertg];
+				int *pc = filter_selected->varc[filter_nativertg];
 				int v = (int)SendMessage (GetDlgItem(hDlg, IDC_FILTERXL), TBM_GETPOS, 0, 0);
 				if (v < filter_selected->min)
 					v = filter_selected->min;

@@ -47,6 +47,7 @@
 #define UAESERIAL /* uaeserial.device emulation */
 #define FPUEMU /* FPU emulation */
 #define FPU_UAE
+#define USE_LONG_DOUBLE 0
 #define MMUEMU /* Aranym 68040 MMU */
 #define FULLMMU /* Aranym 68040 MMU */
 #define CPUEMU_0 /* generic 680x0 emulation */
@@ -63,6 +64,7 @@
 #define UAEGFX_INTERNAL /* built-in libs:picasso96/uaegfx.card */
 #define BSDSOCKET /* bsdsocket.library emulation */
 #define CAPS /* CAPS-image support */
+#define SCP /* SuperCardPro */
 #define FDI2RAW /* FDI 1.0 and 2.x image support */
 #define AVIOUTPUT /* Avioutput support */
 #define PROWIZARD /* Pro-Wizard module ripper */
@@ -81,6 +83,7 @@
 #define WITH_LUA /* lua scripting */
 #define WITH_UAENATIVE
 #define WITH_SLIRP
+#define WITH_TABLETLIBRARY
 
 #else
 

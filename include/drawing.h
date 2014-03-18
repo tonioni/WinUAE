@@ -266,7 +266,9 @@ enum nln_how {
 	/* This line normal, next one black.  */
 	nln_nblack,
 	nln_upper_black,
-	nln_lower_black
+	nln_lower_black,
+	nln_upper_black_always,
+	nln_lower_black_always
 };
 
 extern void hsync_record_line_state (int lineno, enum nln_how, int changed);

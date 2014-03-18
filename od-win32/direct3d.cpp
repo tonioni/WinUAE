@@ -43,6 +43,8 @@ int forcedframelatency = -1;
 
 static TCHAR *D3DHEAD = _T("-");
 static int psEnabled, psActive, shaderon;
+static struct gfx_filterdata *filterd3d;
+static int filterd3didx;
 
 static bool showoverlay = true;
 
@@ -1313,20 +1315,20 @@ static void createscanlines (int force)
 	uae_u8 *sld, *p;
 	int bpp;
 
-	if (osl1 == currprefs.gfx_filter_scanlines && osl3 == currprefs.gfx_filter_scanlinelevel && osl2 == currprefs.gfx_filter_scanlineratio && !force)
+	if (osl1 == filterd3d->gfx_filter_scanlines && osl3 == filterd3d->gfx_filter_scanlinelevel && osl2 == filterd3d->gfx_filter_scanlineratio && !force)
 		return;
 	bpp = t_depth < 32 ? 2 : 4;
-	osl1 = currprefs.gfx_filter_scanlines;
-	osl3 = currprefs.gfx_filter_scanlinelevel;
-	osl2 = currprefs.gfx_filter_scanlineratio;
-	sl4 = currprefs.gfx_filter_scanlines * 16 / 100;
-	sl42 = currprefs.gfx_filter_scanlinelevel * 16 / 100;
+	osl1 = filterd3d->gfx_filter_scanlines;
+	osl3 = filterd3d->gfx_filter_scanlinelevel;
+	osl2 = filterd3d->gfx_filter_scanlineratio;
+	sl4 = filterd3d->gfx_filter_scanlines * 16 / 100;
+	sl42 = filterd3d->gfx_filter_scanlinelevel * 16 / 100;
 	if (sl4 > 15)
 		sl4 = 15;
 	if (sl42 > 15)
 		sl42 = 15;
-	l1 = (currprefs.gfx_filter_scanlineratio >> 0) & 15;
-	l2 = (currprefs.gfx_filter_scanlineratio >> 4) & 15;
+	l1 = (filterd3d->gfx_filter_scanlineratio >> 0) & 15;
+	l2 = (filterd3d->gfx_filter_scanlineratio >> 4) & 15;
 
 	if (l1 + l2 <= 0)
 		return;
@@ -2047,42 +2049,42 @@ static int restoredeviceobjects (void)
 			break;
 		}
 		for (int i = 0; i < MAX_FILTERSHADERS; i++) {
-			if (currprefs.gfx_filtershader[i][0]) {
+			if (filterd3d->gfx_filtershader[i][0]) {
 				struct shaderdata *s = allocshaderslot (SHADERTYPE_BEFORE);
-				if (!psEffect_LoadEffect (currprefs.gfx_filtershader[i], true, s, i)) {
-					currprefs.gfx_filtershader[i][0] = changed_prefs.gfx_filtershader[i][0] = 0;
+				if (!psEffect_LoadEffect (filterd3d->gfx_filtershader[i], true, s, i)) {
+					filterd3d->gfx_filtershader[i][0] = changed_prefs.gf[filterd3didx].gfx_filtershader[i][0] = 0;
 					break;
 				}
 			}
-			if (currprefs.gfx_filtermask[i][0]) {
+			if (filterd3d->gfx_filtermask[i][0]) {
 				struct shaderdata *s = allocshaderslot (SHADERTYPE_MASK_BEFORE);
-				createmasktexture (currprefs.gfx_filtermask[i], s);
+				createmasktexture (filterd3d->gfx_filtermask[i], s);
 			}
 		}
-		if (currprefs.gfx_filtershader[2 * MAX_FILTERSHADERS][0]) {
+		if (filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS][0]) {
 			struct shaderdata *s = allocshaderslot (SHADERTYPE_MIDDLE);
-			if (!psEffect_LoadEffect (currprefs.gfx_filtershader[2 * MAX_FILTERSHADERS], true, s, 2 * MAX_FILTERSHADERS)) {
-				currprefs.gfx_filtershader[2 * MAX_FILTERSHADERS][0] = changed_prefs.gfx_filtershader[2 * MAX_FILTERSHADERS][0] = 0;
+			if (!psEffect_LoadEffect (filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS], true, s, 2 * MAX_FILTERSHADERS)) {
+				filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS][0] = changed_prefs.gf[filterd3didx].gfx_filtershader[2 * MAX_FILTERSHADERS][0] = 0;
 			}
 		}
-		if (currprefs.gfx_filtermask[2 * MAX_FILTERSHADERS][0]) {
+		if (filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS][0]) {
 			struct shaderdata *s = allocshaderslot (SHADERTYPE_MASK_AFTER);
-			createmasktexture (currprefs.gfx_filtermask[2 * MAX_FILTERSHADERS], s);
+			createmasktexture (filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS], s);
 		}
 		for (int i = 0; i < MAX_FILTERSHADERS; i++) {
-			if (currprefs.gfx_filtershader[i + MAX_FILTERSHADERS][0]) {
+			if (filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS][0]) {
 				struct shaderdata *s = allocshaderslot (SHADERTYPE_AFTER);
-				if (!psEffect_LoadEffect (currprefs.gfx_filtershader[i + MAX_FILTERSHADERS], true, s, i + MAX_FILTERSHADERS)) {
-					currprefs.gfx_filtershader[i + MAX_FILTERSHADERS][0] = changed_prefs.gfx_filtershader[i + MAX_FILTERSHADERS][0] = 0;
+				if (!psEffect_LoadEffect (filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS], true, s, i + MAX_FILTERSHADERS)) {
+					filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS][0] = changed_prefs.gf[filterd3didx].gfx_filtershader[i + MAX_FILTERSHADERS][0] = 0;
 					break;
 				}
 			}
-			if (currprefs.gfx_filtermask[i + MAX_FILTERSHADERS][0]) {
+			if (filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS][0]) {
 				struct shaderdata *s = allocshaderslot (SHADERTYPE_MASK_AFTER);
-				createmasktexture (currprefs.gfx_filtermask[i + MAX_FILTERSHADERS], s);
+				createmasktexture (filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS], s);
 			}
 		}
-		if (currprefs.gfx_filter_scanlines > 0) {
+		if (filterd3d->gfx_filter_scanlines > 0) {
 			createsltexture ();
 			createscanlines (1);
 		}
@@ -2091,7 +2093,7 @@ static int restoredeviceobjects (void)
 	if (wasshader && !shaderon)
 		write_log (_T("Falling back to non-shader mode\n"));
 
-	createmask2texture (currprefs.gfx_filteroverlay);
+	createmask2texture (filterd3d->gfx_filteroverlay);
 
 	createledtexture ();
 
@@ -2228,6 +2230,9 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 	int vsync = isvsync ();
 	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
 	D3DADAPTER_IDENTIFIER9 did;
+
+	filterd3didx = picasso_on;
+	filterd3d = &currprefs.gf[filterd3didx];
 
 	D3D_free2 ();
 	if (!currprefs.gfx_api) {
@@ -2483,11 +2488,11 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 
 	required_sl_texture_w = w_w;
 	required_sl_texture_h = w_h;
-	if (currprefs.gfx_filter_scanlines > 0 && (max_texture_w < w_w || max_texture_h < w_h)) {
+	if (filterd3d->gfx_filter_scanlines > 0 && (max_texture_w < w_w || max_texture_h < w_h)) {
 		gui_message (_T("%s: %d * %d or bigger texture support required for scanlines (max is only %d * %d)\n"),
 			D3DHEAD, _T("Scanlines disabled."),
 			required_sl_texture_w, required_sl_texture_h, max_texture_w, max_texture_h);
-		changed_prefs.gfx_filter_scanlines = currprefs.gfx_filter_scanlines = 0;
+		changed_prefs.gf[filterd3didx].gfx_filter_scanlines = filterd3d->gfx_filter_scanlines = 0;
 	}
 
 	switch (depth)
@@ -2933,7 +2938,7 @@ static void D3D_render2 (void)
 			if (FAILED (hr = postEffect->SetTechnique (postTechniquePlain)))
 				write_log (_T("%s: SetTechnique(postTechniquePlain) failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 		}
-		hr = postEffect->SetInt (postFilterMode, currprefs.gfx_filter_bilinear ? D3DTEXF_LINEAR : D3DTEXF_POINT);
+		hr = postEffect->SetInt (postFilterMode, filterd3d->gfx_filter_bilinear ? D3DTEXF_LINEAR : D3DTEXF_POINT);
 
 		if (FAILED (hr = postEffect->SetTexture (postSourceTextureHandle, srctex)))
 			write_log (_T("%s: SetTexture(srctex) failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
@@ -2986,7 +2991,7 @@ static void D3D_render2 (void)
 		hr = d3ddev->SetTransform (D3DTS_WORLD, &m_matWorld);
 		hr = d3ddev->SetTexture (0, srctex);
 		hr = d3ddev->DrawPrimitive (D3DPT_TRIANGLESTRIP, 0, 2);
-		int bl = currprefs.gfx_filter_bilinear ? D3DTEXF_LINEAR : D3DTEXF_POINT;
+		int bl = filterd3d->gfx_filter_bilinear ? D3DTEXF_LINEAR : D3DTEXF_POINT;
 		hr = d3ddev->SetSamplerState (0, D3DSAMP_MINFILTER, bl);
 		hr = d3ddev->SetSamplerState (0, D3DSAMP_MAGFILTER, bl);
 
@@ -3047,20 +3052,20 @@ static void D3D_render2 (void)
 			MatrixScaling (&t, w, h, 0);
 
 			v.x = 0;
-			if (currprefs.gfx_filteroverlay_pos.x == -1)
+			if (filterd3d->gfx_filteroverlay_pos.x == -1)
 				v.x = (window_w - (mask2texture_w * w)) / 2;
-			else if (currprefs.gfx_filteroverlay_pos.x > -24000)
-				v.x = currprefs.gfx_filteroverlay_pos.x;
+			else if (filterd3d->gfx_filteroverlay_pos.x > -24000)
+				v.x = filterd3d->gfx_filteroverlay_pos.x;
 			else
-				v.x = (window_w - (mask2texture_w * w)) / 2 + (-currprefs.gfx_filteroverlay_pos.x - 30100) * window_w / 100.0;
+				v.x = (window_w - (mask2texture_w * w)) / 2 + (-filterd3d->gfx_filteroverlay_pos.x - 30100) * window_w / 100.0;
 
 			v.y = 0;
-			if (currprefs.gfx_filteroverlay_pos.y == -1)
+			if (filterd3d->gfx_filteroverlay_pos.y == -1)
 				v.y = (window_h - (mask2texture_h * h)) / 2;
-			else if (currprefs.gfx_filteroverlay_pos.y > -24000)
-				v.y = currprefs.gfx_filteroverlay_pos.y;
+			else if (filterd3d->gfx_filteroverlay_pos.y > -24000)
+				v.y = filterd3d->gfx_filteroverlay_pos.y;
 			else
-				v.y = (window_h - (mask2texture_h * h)) / 2 + (-currprefs.gfx_filteroverlay_pos.y - 30100) * window_h / 100.0;
+				v.y = (window_h - (mask2texture_h * h)) / 2 + (-filterd3d->gfx_filteroverlay_pos.y - 30100) * window_h / 100.0;
 
 			v.x /= w;
 			v.y /= h;

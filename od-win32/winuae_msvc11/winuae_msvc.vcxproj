@@ -803,6 +803,7 @@
     <ClCompile Include="..\..\qemuvga\lsi53c895a.cpp" />
     <ClCompile Include="..\..\qemuvga\qemuuaeglue.cpp" />
     <ClCompile Include="..\..\qemuvga\vga.cpp" />
+    <ClCompile Include="..\..\scp.cpp" />
     <ClCompile Include="..\..\scsitape.cpp" />
     <ClCompile Include="..\..\slirp\bootp.cpp" />
     <ClCompile Include="..\..\slirp\cksum.cpp" />
@@ -824,6 +825,7 @@
     <ClCompile Include="..\..\slirp\udp.cpp" />
     <ClCompile Include="..\..\specialmonitors.cpp" />
     <ClCompile Include="..\..\statusline.cpp" />
+    <ClCompile Include="..\..\tabletlibrary.cpp" />
     <ClCompile Include="..\..\uaenative.cpp" />
     <ClCompile Include="..\ahidsound_dsonly.cpp" />
     <ClCompile Include="..\ahidsound_new.cpp" />

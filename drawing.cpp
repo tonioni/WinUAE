@@ -85,7 +85,7 @@ static int linedbl, linedbld;
 int interlace_seen = 0;
 #define AUTO_LORES_FRAMES 10
 static int can_use_lores = 0, frame_res, frame_res_lace;
-static int resolution_count[RES_MAX + 1];
+static int resolution_count[RES_MAX + 1], lines_count;
 static bool center_reset;
 
 /* Lookup tables for dual playfields.  The dblpf_*1 versions are for the case
@@ -827,7 +827,7 @@ static void pfield_init_linetoscr (bool border)
 	// Sprite hpos don't include DIW_DDF_OFFSET and can appear 1 lores pixel
 	// before first bitplane pixel appears.
 	// This means "bordersprite" condition is possible under OCS/ECS too. Argh!
-	if (dip_for_drawing->nr_sprites) {
+	if (dip_for_drawing->nr_sprites && !colors_for_drawing.borderblank) {
 		/* bordersprite off or not supported: sprites are visible until diw_end */
 		if (playfield_end < linetoscr_diw_end && hblank_right_stop > playfield_end) {
 			playfield_end = linetoscr_diw_end;
@@ -841,7 +841,7 @@ static void pfield_init_linetoscr (bool border)
 	}
 
 #ifdef AGA
-	if (dp_for_drawing->bordersprite_seen && dip_for_drawing->nr_sprites) {
+	if (dp_for_drawing->bordersprite_seen && !colors_for_drawing.borderblank && dip_for_drawing->nr_sprites) {
 		int min = visible_right_border, max = visible_left_border, i;
 		for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
 			int x;
@@ -874,7 +874,7 @@ static void pfield_init_linetoscr (bool border)
 	int first_x = sprite_first_x;
 	int last_x = sprite_last_x;
 	if (first_x < last_x) {
-		if (dp_for_drawing->bordersprite_seen) {
+		if (dp_for_drawing->bordersprite_seen && !colors_for_drawing.borderblank) {
 			if (first_x > visible_left_border)
 				first_x = visible_left_border;
 			if (last_x < visible_right_border)
@@ -1579,6 +1579,11 @@ static void pfield_do_linetoscr (int start, int stop, bool blank)
 // left or right AGA border sprite
 static void pfield_do_linetoscr_bordersprite_aga (int start, int stop, bool blank)
 {
+	if (blank) {
+		pfield_do_fill_line (start, stop, blank);
+		return;
+	}
+
 	if (res_shift == 0) {
 		switch (gfxvidinfo.drawbuffer.pixbytes) {
 		case 2: src_pixel = linetoscr_16_aga_spronly (LTPARMS); break;
@@ -2354,7 +2359,10 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 	dp_for_drawing = line_decisions + lineno;
 	dip_for_drawing = curr_drawinfo + lineno;
 
-	resolution_count[dp_for_drawing->bplres]++;
+	if (dp_for_drawing->plfleft >= 0) {
+		lines_count++;
+		resolution_count[dp_for_drawing->bplres]++;
+	}
 
 	switch (linestate[lineno])
 	{
@@ -2398,8 +2406,10 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		break;
 	}
 
+#if 0
 	if (border && dp_for_drawing->plfleft < -1)
-		border = -1; // interlace mode missing odd line = blank
+		border = -1; // blank last "missing" line
+#endif
 
 	dh = dh_line;
 	xlinebuffer = gfxvidinfo.drawbuffer.linemem;
@@ -2440,7 +2450,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		if (dip_for_drawing->nr_sprites) {
 			int i;
 #ifdef AGA
-			if (colors_for_drawing.bordersprite && dp_for_drawing->bordersprite_seen)
+			if (colors_for_drawing.bordersprite && dp_for_drawing->bordersprite_seen && !colors_for_drawing.borderblank)
 				clear_bitplane_border_aga ();
 #endif
 
@@ -2455,7 +2465,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		}
 
 #ifdef AGA
-		if (dip_for_drawing->nr_sprites && colors_for_drawing.bordersprite && dp_for_drawing->bordersprite_seen)
+		if (dip_for_drawing->nr_sprites && colors_for_drawing.bordersprite && !colors_for_drawing.borderblank && dp_for_drawing->bordersprite_seen)
 			do_color_changes (pfield_do_linetoscr_bordersprite_aga, pfield_do_linetoscr, lineno);
 		else
 #endif
@@ -2475,7 +2485,6 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 
 		if (dip_for_drawing->nr_sprites)
 			pfield_erase_hborder_sprites ();
-
 	} else if (border > 0) {
 		// border > 0: top or bottom border
 		bool dosprites = false;
@@ -2483,7 +2492,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		adjust_drawing_colors (dp_for_drawing->ctable, 0);
 
 #ifdef AGA /* this makes things complex.. */
-		if (dp_for_drawing->bordersprite_seen && dip_for_drawing->nr_sprites) {
+		if (dp_for_drawing->bordersprite_seen && !colors_for_drawing.borderblank && dip_for_drawing->nr_sprites) {
 			dosprites = true;
 			pfield_expand_dp_bplcon ();
 			pfield_init_linetoscr (true);
@@ -2539,8 +2548,9 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 
 	} else {
 
+		// top or bottom blanking region
 		int tmp = hposblank;
-		hposblank = colors_for_drawing.borderblank;
+		hposblank = 1;
 		fill_line ();
 		do_flush_line (vb, gfx_ypos);
 		hposblank = tmp;
@@ -2554,7 +2564,7 @@ static void center_image (void)
 	int prev_y_adjust = thisframe_y_adjust;
 
 	int w = gfxvidinfo.drawbuffer.inwidth;
-	if (currprefs.gfx_xcenter && !currprefs.gfx_filter_autoscale && max_diwstop > 0) {
+	if (currprefs.gfx_xcenter && !currprefs.gf[0].gfx_filter_autoscale && max_diwstop > 0) {
 
 		if (max_diwstop - min_diwstart < w && currprefs.gfx_xcenter == 2)
 			/* Try to center. */
@@ -2598,7 +2608,7 @@ static void center_image (void)
 		visible_right_border = max_diwlastword;
 
 	thisframe_y_adjust = minfirstline;
-	if (currprefs.gfx_ycenter && thisframe_first_drawn_line >= 0 && !currprefs.gfx_filter_autoscale) {
+	if (currprefs.gfx_ycenter && thisframe_first_drawn_line >= 0 && !currprefs.gf[0].gfx_filter_autoscale) {
 
 		if (thisframe_last_drawn_line - thisframe_first_drawn_line < max_drawn_amiga_line && currprefs.gfx_ycenter == 2)
 			thisframe_y_adjust = (thisframe_last_drawn_line - thisframe_first_drawn_line - max_drawn_amiga_line) / 2 + thisframe_first_drawn_line;
@@ -2617,7 +2627,7 @@ static void center_image (void)
 
 	/* Make sure the value makes sense */
 	if (thisframe_y_adjust + max_drawn_amiga_line > maxvpos + maxvpos / 2)
-	    thisframe_y_adjust = maxvpos + maxvpos / 2 - max_drawn_amiga_line;
+		thisframe_y_adjust = maxvpos + maxvpos / 2 - max_drawn_amiga_line;
 	if (thisframe_y_adjust < 0)
 		thisframe_y_adjust = 0;
 
@@ -2632,7 +2642,7 @@ static void center_image (void)
 
 	gfxvidinfo.drawbuffer.xoffset = (DISPLAY_LEFT_SHIFT << RES_MAX) + (visible_left_border << (RES_MAX - currprefs.gfx_resolution));
 	gfxvidinfo.drawbuffer.yoffset = thisframe_y_adjust << VRES_MAX;
-	
+
 	center_reset = false;
 	horizontal_changed = false;
 	vertical_changed = false;
@@ -2644,7 +2654,7 @@ static void init_drawing_frame (void)
 	int i, maxline;
 	static int frame_res_old;
 
-	if (currprefs.gfx_autoresolution) {
+	if (currprefs.gfx_autoresolution && lines_count > 0) {
 		int frame_res_detected;
 		int frame_res_lace_detected = frame_res_lace;
 
@@ -2662,13 +2672,21 @@ static void init_drawing_frame (void)
 
 		if (currprefs.gfx_autoresolution == 1)
 			frame_res_detected = largest_res;
-		else if (largest_count * 100 / maxvpos >= currprefs.gfx_autoresolution)
+		else if (largest_count * 100 / lines_count >= currprefs.gfx_autoresolution)
 			frame_res_detected = largest_count_res;
 		else
 			frame_res_detected = largest_count_res - 1;
 		if (frame_res_detected < 0)
 			frame_res_detected = 0;
-
+#if 0
+		static int delay;
+		delay--;
+		if (delay < 0) {
+			delay = 50;
+			write_log (_T("%d %d, %d %d %d, %d %d, %d %d\n"), currprefs.gfx_autoresolution, lines_count, resolution_count[0], resolution_count[1], resolution_count[2],
+				largest_count, largest_count_res, frame_res_detected, frame_res_lace_detected);
+		}
+#endif
 		if (frame_res_detected >= 0 && frame_res_lace_detected >= 0) {
 			if (frame_res_cnt > 0 && frame_res_old == frame_res_detected * 2 + frame_res_lace_detected) {
 				frame_res_cnt--;
@@ -2677,7 +2695,7 @@ static void init_drawing_frame (void)
 					struct wh *dst = currprefs.gfx_apmode[0].gfx_fullscreen ? &changed_prefs.gfx_size_fs : &changed_prefs.gfx_size_win;
 					while (m < 3 * 2) {
 						struct wh *src = currprefs.gfx_apmode[0].gfx_fullscreen ? &currprefs.gfx_size_fs_xtra[m] : &currprefs.gfx_size_win_xtra[m];
-						if ((src->width > 0 && src->height > 0) || (currprefs.gfx_api || currprefs.gfx_filter > 0)) {
+						if ((src->width > 0 && src->height > 0) || (currprefs.gfx_api || currprefs.gf[0].gfx_filter > 0)) {
 							int nr = m >> 1;
 							int nl = (m & 1) == 0 ? 0 : 1;
 							int nr_o = nr;
@@ -2732,6 +2750,7 @@ static void init_drawing_frame (void)
 	}
 	for (int i = 0; i <= RES_MAX; i++)
 		resolution_count[i] = 0;
+	lines_count = 0;
 	frame_res = -1;
 	frame_res_lace = 0;
 
@@ -2803,7 +2822,7 @@ void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq)
 	case 4:
 		{
 			int i;
-			if (1 || opaq || currprefs.gfx_filter == 0) {
+			if (1 || opaq || currprefs.gf[0].gfx_filter == 0) {
 				uae_u32 *p = (uae_u32*)buf + x;
 				*p = c8;
 			} else {
@@ -3144,7 +3163,7 @@ bool vsync_handle_check (void)
 void vsync_handle_redraw (int long_field, int lof_changed, uae_u16 bplcon0p, uae_u16 bplcon3p)
 {
 	last_redraw_point++;
-	if (lof_changed || interlace_seen <= 0 || (currprefs.gfx_scanlines >= 2 && interlace_seen > 0) || last_redraw_point >= 2 || long_field || doublescan < 0) {
+	if (lof_changed || interlace_seen <= 0 || (currprefs.gfx_iscanlines && interlace_seen > 0) || last_redraw_point >= 2 || long_field || doublescan < 0) {
 		last_redraw_point = 0;
 
 		if (framecnt == 0)
@@ -3228,25 +3247,23 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 			|| state[1] == LINE_AS_PREVIOUS)
 			state[1] = LINE_DECIDED; //LINE_BLACK;
 		break;
+	case nln_lower_black_always:
+		state[1] = LINE_BLACK;
+		*state = LINE_DECIDED;
+		break;
 	case nln_lower_black:
-		if (currprefs.gfx_scanlines >= 4) {
-			state[1] = LINE_BLACK;
-			*state = LINE_DECIDED;
-		} else {
-			changed += state[0] != LINE_DONE;
-			state[1] = LINE_DONE;
-			*state = changed ? LINE_DECIDED : LINE_DONE;
-		}
+		changed += state[0] != LINE_DONE;
+		state[1] = LINE_DONE;
+		*state = changed ? LINE_DECIDED : LINE_DONE;
+		break;
+	case nln_upper_black_always:
+		*state = LINE_DECIDED;
+		state[-1] = LINE_BLACK;
 		break;
 	case nln_upper_black:
-		if (currprefs.gfx_scanlines >= 4) {
-			*state = LINE_DECIDED;
-			state[-1] = LINE_BLACK;
-		} else {
-			changed += state[0] != LINE_DONE;
-			*state = changed ? LINE_DECIDED : LINE_DONE;
-			state[-1] = LINE_DONE;
-		}
+		changed += state[0] != LINE_DONE;
+		*state = changed ? LINE_DECIDED : LINE_DONE;
+		state[-1] = LINE_DONE;
 		break;
 	}
 }
