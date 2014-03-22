@@ -11,6 +11,59 @@
 
 - restore only single input target to default.
 
+Beta 12:
+
+- Config file writing created corrupted (and harmless) config file lines, most common being
+  uaehf line which fortunately isn't important config line entry. (b11)
+- BCHG/BCLR/BSET allowed PC-relative addressing modes, broken since the beginning. (from Hatari)
+- If program read disk by polling DSKBYTR (not using DMA), index emulation was unstable.
+- Switching bitplane DMA on few cycles (not yet confirmed, I assume range that makes sense is 1 to 3)
+  cycles before DDFSTOP will also trigger ECS/AGA "passed plfstop" state change. (Death Trap)
+- Full tablet emulation boot division by zero guru fix.
+- Tablet.library emulation now works but at least dpaint5 does not seem to do anything with pressure
+  data. It reads pressure tag contents but nothing seems to happen.
+
+Beta 11:
+
+- Borderblank + bordersprite caused border glitches in some situations.
+- CDTV front panel buttons' default state after reset should be enabled, not disabled.
+- Added new double options to non-lace modes. Not really useful, maybe be moved somewhere else later..
+- 68040 MOVE16 write access error stack frame is now correct.
+- Editing non-existing new style real harddrive config entry opened hardfile properties dialog.
+- Separate filter options for native and RTG modes. Currently only following settings are RTG compatible:
+  Direct3D shader filters (no software filter support and never will be), masks, overlays, scanlines.
+- New automatic resolution option was unreliable in some situations.
+- Do not detect modes with VTOTAL=350 or less as scandoubled to fix Super72 halved height.
+- tablet.library emulation, totally untested, do not enable.
+- After long field to short field change last line still showed old background color(s) if line had any
+  background color changes before field mode was changed.
+- Master floppy write protection config option was not loaded from config. (wrong config entry name..)
+- Disk emulation multirevolution support was unstable, disk revolution data stream change was not always bit perfect.
+- Added Super Card Pro (scp) image file support. (Don't ask me if images don't work, I didn't implement it originally)
+- Added support for raw dumps from Softpres Capture Tool and KryoFlux using new capslib v0.5.
+
+Yes, above two changes in same beta is only a strange coincidence. Note that both are raw dumps which
+can't be confirmed easily, don't bother me if there are compatibility problems.
+
+FPU improvements (Mostly low level stuff that only makes difference if unimplemented checkbox is not ticked, much
+more important for Previous emulator, NextStep OS requires FPU and uses it heavily):
+
+- 6888x any FPU instruction (except FSAVE/FRESTORE) causes null state to idle state transition but
+  68040+ conditional FPU instructions won't affect null state.
+- 68040 unimplemented FPU instruction emulation was broken, FSAVE exception frame was not emulated, 68040.library
+  emulation code needs it for proper operation.
+- 68040/060 FPU FMOVECR is now unimplemented instruction.
+- 68040/060 unimplemented packed-decimal data type exception is now emulated.
+- 68060 FMOVEM.X with dynamic list now causes unimplemented effective address exception.
+- 68060 F<op>.X #imm,FPn and F<op>.P #imm,FPn now causes unimplemented effective address exception.
+- 68060 FMOVEM.L #imm,<more than 1 control register> now causes unimplemented effective address exception.
+- FMOVEM.X with dynamic list and -(An) and (An)+ effective address overrides static/dynamic post/pred state.
+  (for example FMOVEM.X Dn,-(An) uses pre-decrement even if mode bits are set to dynamic post-increment)
+- All FPU FPSR register (overflow, div by zero etc..) status bits emulated. (May not be fully reliable)
+- 6888x Packed-Decimal Real k-factor support fully implemented. (May still have rounding bugs)
+
+This should complete emulation all FPU features except arithmetic exceptions (that no one seems to use)
+
 Beta 10:
 
 - Programmed display mode positioning bug fixed, should fix remaining problems with clipped left or right edges.

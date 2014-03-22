@@ -630,7 +630,7 @@ void cfgfile_target_dwrite_str (struct zfile *f, const TCHAR *option, const TCHA
 	cfg_dowrite (f, option, value, 1, 1);
 }
 
-void cfgfile_write (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *format,...)
+void cfgfile_write_ext (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *format,...)
 {
 	va_list parms;
 	TCHAR tmp[CONFIG_BLEN], tmp2[CONFIG_BLEN];
@@ -654,7 +654,7 @@ void cfgfile_write (struct zfile *f, const TCHAR *option, const TCHAR *format,..
 	cfg_dowrite (f, option, tmp, 0, 0);
 	va_end (parms);
 }
-void cfgfile_dwrite (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *format,...)
+void cfgfile_dwrite_ext (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *format,...)
 {
 	va_list parms;
 	TCHAR tmp[CONFIG_BLEN], tmp2[CONFIG_BLEN];
@@ -1212,13 +1212,13 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		const TCHAR *ext = j == 0 ? NULL : _T("_rtg");
 		for (int i = 0; i <MAX_FILTERSHADERS; i++) {
 			if (gf->gfx_filtershader[i][0])
-				cfgfile_write (f, _T("gfx_filter_pre"), ext, _T("D3D:%s"), gf->gfx_filtershader[i]);
+				cfgfile_write_ext (f, _T("gfx_filter_pre"), ext, _T("D3D:%s"), gf->gfx_filtershader[i]);
 			if (gf->gfx_filtermask[i][0])
 				cfgfile_write_str (f, _T("gfx_filtermask_pre"), ext, gf->gfx_filtermask[i]);
 		}
 		for (int i = 0; i <MAX_FILTERSHADERS; i++) {
 			if (gf->gfx_filtershader[i + MAX_FILTERSHADERS][0])
-				cfgfile_write (f, _T("gfx_filter_post"), ext, _T("D3D:%s"), gf->gfx_filtershader[i + MAX_FILTERSHADERS]);
+				cfgfile_write_ext (f, _T("gfx_filter_post"), ext, _T("D3D:%s"), gf->gfx_filtershader[i + MAX_FILTERSHADERS]);
 			if (gf->gfx_filtermask[i + MAX_FILTERSHADERS][0])
 				cfgfile_write_str (f, _T("gfx_filtermask_post"), ext, gf->gfx_filtermask[i + MAX_FILTERSHADERS]);
 		}
@@ -1226,7 +1226,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		{
 			bool d3dfound = false;
 			if (gf->gfx_filtershader[2 * MAX_FILTERSHADERS][0] && p->gfx_api) {
-				cfgfile_dwrite (f, _T("gfx_filter"), ext, _T("D3D:%s"), gf->gfx_filtershader[2 * MAX_FILTERSHADERS]);
+				cfgfile_dwrite_ext (f, _T("gfx_filter"), ext, _T("D3D:%s"), gf->gfx_filtershader[2 * MAX_FILTERSHADERS]);
 				d3dfound = true;
 			}
 			if (!d3dfound) {
@@ -1241,35 +1241,35 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 						i++;
 					}
 				} else {
-					cfgfile_dwrite (f, _T("gfx_filter"), ext, _T("no"));
+					cfgfile_dwrite_ext (f, _T("gfx_filter"), ext, _T("no"));
 				}
 			}
 		}
 		cfgfile_dwrite_str (f, _T("gfx_filter_mode"), ext, filtermode2[gf->gfx_filter_filtermode]);
-		cfgfile_dwrite (f, _T("gfx_filter_vert_zoomf"), ext, _T("%f"), gf->gfx_filter_vert_zoom);
-		cfgfile_dwrite (f, _T("gfx_filter_horiz_zoomf"), ext, _T("%f"), gf->gfx_filter_horiz_zoom);
-		cfgfile_dwrite (f, _T("gfx_filter_vert_zoom_multf"), ext, _T("%f"), gf->gfx_filter_vert_zoom_mult);
-		cfgfile_dwrite (f, _T("gfx_filter_horiz_zoom_multf"), ext, _T("%f"), gf->gfx_filter_horiz_zoom_mult);
-		cfgfile_dwrite (f, _T("gfx_filter_vert_offsetf"), ext, _T("%f"), gf->gfx_filter_vert_offset);
-		cfgfile_dwrite (f, _T("gfx_filter_horiz_offsetf"), ext, _T("%f"), gf->gfx_filter_horiz_offset);
-		cfgfile_dwrite (f, _T("gfx_filter_scanlines"), ext, _T("%d"), gf->gfx_filter_scanlines);
-		cfgfile_dwrite (f, _T("gfx_filter_scanlinelevel"), ext, _T("%d"), gf->gfx_filter_scanlinelevel);
-		cfgfile_dwrite (f, _T("gfx_filter_scanlineratio"), ext, _T("%d"), gf->gfx_filter_scanlineratio);
-		cfgfile_dwrite (f, _T("gfx_filter_luminance"), ext, _T("%d"), gf->gfx_filter_luminance);
-		cfgfile_dwrite (f, _T("gfx_filter_contrast"), ext, _T("%d"), gf->gfx_filter_contrast);
-		cfgfile_dwrite (f, _T("gfx_filter_saturation"), ext, _T("%d"), gf->gfx_filter_saturation);
-		cfgfile_dwrite (f, _T("gfx_filter_gamma"), ext, _T("%d"), gf->gfx_filter_gamma);
-		cfgfile_dwrite (f, _T("gfx_filter_blur"), ext, _T("%d"), gf->gfx_filter_blur);
-		cfgfile_dwrite (f, _T("gfx_filter_noise"), ext, _T("%d"), gf->gfx_filter_noise);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_vert_zoomf"), ext, _T("%f"), gf->gfx_filter_vert_zoom);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_horiz_zoomf"), ext, _T("%f"), gf->gfx_filter_horiz_zoom);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_vert_zoom_multf"), ext, _T("%f"), gf->gfx_filter_vert_zoom_mult);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_horiz_zoom_multf"), ext, _T("%f"), gf->gfx_filter_horiz_zoom_mult);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_vert_offsetf"), ext, _T("%f"), gf->gfx_filter_vert_offset);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_horiz_offsetf"), ext, _T("%f"), gf->gfx_filter_horiz_offset);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_scanlines"), ext, _T("%d"), gf->gfx_filter_scanlines);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_scanlinelevel"), ext, _T("%d"), gf->gfx_filter_scanlinelevel);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_scanlineratio"), ext, _T("%d"), gf->gfx_filter_scanlineratio);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_luminance"), ext, _T("%d"), gf->gfx_filter_luminance);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_contrast"), ext, _T("%d"), gf->gfx_filter_contrast);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_saturation"), ext, _T("%d"), gf->gfx_filter_saturation);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_gamma"), ext, _T("%d"), gf->gfx_filter_gamma);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_blur"), ext, _T("%d"), gf->gfx_filter_blur);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_noise"), ext, _T("%d"), gf->gfx_filter_noise);
 		cfgfile_dwrite_bool (f, _T("gfx_filter_bilinear"), ext, gf->gfx_filter_bilinear != 0);
-		cfgfile_dwrite (f, _T("gfx_filter_keep_autoscale_aspect"), ext, _T("%d"), gf->gfx_filter_keep_autoscale_aspect);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_keep_autoscale_aspect"), ext, _T("%d"), gf->gfx_filter_keep_autoscale_aspect);
 		cfgfile_dwrite_str (f, _T("gfx_filter_keep_aspect"), ext, aspects[gf->gfx_filter_keep_aspect]);
 		cfgfile_dwrite_str (f, _T("gfx_filter_autoscale"), ext, autoscale[gf->gfx_filter_autoscale]);
-		cfgfile_dwrite (f, _T("gfx_filter_aspect_ratio"), ext, _T("%d:%d"),
+		cfgfile_dwrite_ext (f, _T("gfx_filter_aspect_ratio"), ext, _T("%d:%d"),
 			gf->gfx_filter_aspect >= 0 ? (gf->gfx_filter_aspect / ASPECTMULT) : -1,
 			gf->gfx_filter_aspect >= 0 ? (gf->gfx_filter_aspect & (ASPECTMULT - 1)) : -1);
 		if (gf->gfx_filteroverlay[0]) {
-			cfgfile_dwrite (f, _T("gfx_filter_overlay"), ext, _T("%s%s"),
+			cfgfile_dwrite_ext(f, _T("gfx_filter_overlay"), ext, _T("%s%s"),
 				gf->gfx_filteroverlay, _tcschr (gf->gfx_filteroverlay, ',') ? _T(",") : _T(""));
 		}
 	}

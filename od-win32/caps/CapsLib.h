@@ -31,5 +31,7 @@ ExtSub SDWORD __cdecl CAPSFdcInvalidateTrack(PCAPSFDC pc, SDWORD drive);
 ExtSub SDWORD __cdecl CAPSFormatDataToMFM(PVOID pformattrack, UDWORD flag);
 ExtSub SDWORD __cdecl CAPSGetInfo(PVOID pinfo, SDWORD id, UDWORD cylinder, UDWORD head, UDWORD inftype, UDWORD infid);
 ExtSub SDWORD __cdecl CAPSSetRevolution(SDWORD id, UDWORD value);
+ExtSub SDWORD __cdecl CAPSGetImageType(PCHAR name);
+ExtSub SDWORD __cdecl CAPSGetImageTypeMemory(PUBYTE buffer, UDWORD length);
 
 #endif

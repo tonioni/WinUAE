@@ -2624,10 +2624,10 @@ STATIC_INLINE void decide_line (int hpos)
 			}
 
 			if (dmaecs) {
-				// did we just match ddfstop but missed ddfstrt? DMA starts from passed plfstop state.
+				// did we just match ddfstop - 3 but missed ddfstrt? DMA starts from passed plfstop state.
 				if (last_decide_line_hpos > plfstrt && (plf_state == plf_active || plf_state == plf_wait_stop) && diwstate == DIW_waiting_stop) {
 					int stop = get_ddfstop_to_test (last_decide_line_hpos);
-					if (last_decide_line_hpos < stop && hpos >= stop) {
+					if (last_decide_line_hpos < stop && hpos >= stop - 3) {
 						if (dma) {
 							// we did, fetches start!
 							bplstart = plfstop;

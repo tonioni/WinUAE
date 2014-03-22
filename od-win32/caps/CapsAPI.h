@@ -236,6 +236,16 @@ enum {
 	cgiitRevolution // CapsRevolutionInfo
 };
 
+// recognized image types
+enum {
+	citError=0,  // error preventing the type identification
+	citUnknown,  // unknown image type
+	citIPF,      // IPF image
+	citCTRaw,    // CT Raw image
+	citKFStream, // KryoFlux stream files
+	citDraft     // Draft image
+};
+
 // image error status
 enum {
 	imgeOk=0,

@@ -101,15 +101,15 @@
 - 0 0 4 fiea
 0000 1000 01ss sSSS:000:--Z--:-----:13: BCHG    #1,s[Dreg]
 - 6 0 6
-0000 1000 01ss sSSS:000:--Z--:-----:13: BCHG    #1,s[!Areg,Dreg,Immd]
+0000 1000 01ss sSSS:000:--Z--:-----:13: BCHG    #1,s[!Areg,Dreg,Immd,PC8r,PC16]
 - 0 0 6 fiea
 0000 1000 10ss sSSS:000:--Z--:-----:13: BCLR    #1,s[Dreg]
 - 6 0 6
-0000 1000 10ss sSSS:000:--Z--:-----:13: BCLR    #1,s[!Areg,Dreg,Immd]
+0000 1000 10ss sSSS:000:--Z--:-----:13: BCLR    #1,s[!Areg,Dreg,Immd,PC8r,PC16]
 - 0 0 6 fiea
 0000 1000 11ss sSSS:000:--Z--:-----:13: BSET    #1,s[Dreg]
 - 6 0 6
-0000 1000 11ss sSSS:000:--Z--:-----:13: BSET    #1,s[!Areg,Dreg,Immd]
+0000 1000 11ss sSSS:000:--Z--:-----:13: BSET    #1,s[!Areg,Dreg,Immd,PC8r,PC16]
 - 0 0 6 fiea
 
 0000 1010 0011 1100:000:XNZVC:XNZVC:10: EORSR.B #1
@@ -144,15 +144,15 @@
 - 0 0 4 fea
 0000 rrr1 01ss sSSS:000:--Z--:-----:13: BCHG    Dr,s[Dreg]
 - 6 0 6
-0000 rrr1 01ss sSSS:000:--Z--:-----:13: BCHG    Dr,s[!Areg,Dreg,Immd]
+0000 rrr1 01ss sSSS:000:--Z--:-----:13: BCHG    Dr,s[!Areg,Dreg,Immd,PC8r,PC16]
 - 0 0 6 fea
 0000 rrr1 10ss sSSS:000:--Z--:-----:13: BCLR    Dr,s[Dreg]
 - 6 0 6
-0000 rrr1 10ss sSSS:000:--Z--:-----:13: BCLR    Dr,s[!Areg,Dreg,Immd]
+0000 rrr1 10ss sSSS:000:--Z--:-----:13: BCLR    Dr,s[!Areg,Dreg,Immd,PC8r,PC16]
 - 0 0 6 fea
 0000 rrr1 11ss sSSS:000:--Z--:-----:13: BSET    Dr,s[Dreg]
 - 6 0 6
-0000 rrr1 11ss sSSS:000:--Z--:-----:13: BSET    Dr,s[!Areg,Dreg,Immd]
+0000 rrr1 11ss sSSS:000:--Z--:-----:13: BSET    Dr,s[!Areg,Dreg,Immd,PC8r,PC16]
 - 0 0 6 fea
 
 % Move cycles are special cased in gencpu.c

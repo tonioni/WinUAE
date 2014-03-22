@@ -1063,7 +1063,10 @@ static int lastmx, lastmy;
 static uaecptr magicmouse_ibase, magicmouse_gfxbase;
 static int dimensioninfo_width, dimensioninfo_height, dimensioninfo_dbl;
 static int vp_xoffset, vp_yoffset, mouseoffset_x, mouseoffset_y;
-static int tablet_maxx, tablet_maxy, tablet_data;
+static int tablet_maxx, tablet_maxy, tablet_maxz;
+static int tablet_resx, tablet_resy;
+static int tablet_maxax, tablet_maxay, tablet_maxaz;
+static int tablet_data;
 
 int mousehack_alive (void)
 {
@@ -1207,6 +1210,33 @@ static bool mousehack_enable (void)
 	return true;
 }
 
+static void inputdevice_update_tablet_params(void)
+{
+	uae_u8 *p;
+	if (inputdevice_is_tablet() <= 0 || !mousehack_address)
+		return;
+	p = get_real_address(mousehack_address);
+
+	p[MH_MAXX] = tablet_maxx >> 8;
+	p[MH_MAXX + 1] = tablet_maxx;
+	p[MH_MAXY] = tablet_maxy >> 8;
+	p[MH_MAXY + 1] = tablet_maxy;
+	p[MH_MAXZ] = tablet_maxz >> 8;
+	p[MH_MAXZ + 1] = tablet_maxz;
+
+	p[MH_RESX] = tablet_resx >> 8;
+	p[MH_RESX + 1] = tablet_resx;
+	p[MH_RESY] = tablet_resy >> 8;
+	p[MH_RESY + 1] = tablet_resy;
+
+	p[MH_MAXAX] = tablet_maxax >> 8;
+	p[MH_MAXAX + 1] = tablet_maxax;
+	p[MH_MAXAY] = tablet_maxay >> 8;
+	p[MH_MAXAY + 1] = tablet_maxay;
+	p[MH_MAXAZ] = tablet_maxaz >> 8;
+	p[MH_MAXAZ + 1] = tablet_maxaz;
+}
+
 void input_mousehack_mouseoffset (uaecptr pointerprefs)
 {
 	mouseoffset_x = (uae_s16)get_word (pointerprefs + 28);
@@ -1220,6 +1250,7 @@ int input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr
 	} else if (mode == 5) {
 		mousehack_address = m68k_dreg (regs, 0);
 		mousehack_enable ();
+		inputdevice_update_tablet_params ();
 	} else if (mode == 0) {
 		if (mousehack_address) {
 			uae_u8 v = get_byte (mousehack_address + MH_E);
@@ -1340,11 +1371,6 @@ void inputdevice_tablet (int x, int y, int z, int pressure, uae_u32 buttonbits, 
 	p[MH_AZ] = az >> 8;
 	p[MH_AZ + 1] = az;
 
-	p[MH_MAXX] = tablet_maxx >> 8;
-	p[MH_MAXX + 1] = tablet_maxx;
-	p[MH_MAXY] = tablet_maxy >> 8;
-	p[MH_MAXY + 1] = tablet_maxy;
-
 	p[MH_PRESSURE] = pressure >> 8;
 	p[MH_PRESSURE + 1] = pressure;
 
@@ -1381,32 +1407,16 @@ void inputdevice_tablet (int x, int y, int z, int pressure, uae_u32 buttonbits, 
 
 void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay, int maxaz, int xres, int yres)
 {
-	uae_u8 *p;
-
-	if (!uae_boot_rom || !mousehack_address)
-		return;
-	p = get_real_address (mousehack_address);
-
 	tablet_maxx = maxx;
 	tablet_maxy = maxy;
-	p[MH_MAXX] = maxx >> 8;
-	p[MH_MAXX + 1] = maxx;
-	p[MH_MAXY] = maxy >> 8;
-	p[MH_MAXY + 1] = maxy;
-	p[MH_MAXZ] = maxz >> 8;
-	p[MH_MAXZ + 1] = maxz;
+	tablet_maxz = maxz;
 
-	p[MH_RESX] = xres >> 8;
-	p[MH_RESX + 1] = xres;
-	p[MH_RESY] = yres >> 8;
-	p[MH_RESY + 1] = yres;
-
-	p[MH_MAXAX] = maxax >> 8;
-	p[MH_MAXAX + 1] = maxax;
-	p[MH_MAXAY] = maxay >> 8;
-	p[MH_MAXAY + 1] = maxay;
-	p[MH_MAXAZ] = maxaz >> 8;
-	p[MH_MAXAZ + 1] = maxaz;
+	tablet_resx = xres;
+	tablet_resy = yres;
+	tablet_maxax = maxax;
+	tablet_maxay = maxay;
+	tablet_maxaz = maxaz;
+	inputdevice_update_tablet_params();
 }
 
 
@@ -1446,11 +1456,12 @@ static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 	p[MH_CNT]++;
 	tablet_data = 1;
 
+#if 0
 	if (inputdevice_is_tablet () <= 0) {
 		tabletlib_tablet_info (1000, 1000, 0, 0, 0, 0, 1000, 1000);
 		tabletlib_tablet (x, y, 0, 0, buttonbits, -1, 0, 0, 0);
 	}
-
+#endif
 }
 
 #if 0

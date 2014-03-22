@@ -16,8 +16,10 @@
 #include "CapsAPI.h"
 
 #define CAPS_TRACKTIMING 1
+#define LOG_REVOLUTION 0
 
 static SDWORD caps_cont[4]= {-1, -1, -1, -1};
+static bool caps_revolution_hack[4];
 static int caps_locked[4];
 static int caps_flags = DI_LOCK_DENVAR|DI_LOCK_DENNOISE|DI_LOCK_NOISE|DI_LOCK_UPDATEFD|DI_LOCK_TYPE|DI_LOCK_OVLBIT;
 static struct CapsVersionInfo cvi;
@@ -47,6 +49,8 @@ typedef SDWORD (__cdecl* CAPSGETINFO)(PVOID pinfo, SDWORD id, UDWORD cylinder, U
 static CAPSGETINFO pCAPSGetInfo;
 typedef SDWORD (__cdecl* CAPSSETREVOLUTION)(SDWORD id, UDWORD value);
 static CAPSSETREVOLUTION pCAPSSetRevolution;
+typedef SDWORD (__cdecl* CAPSGETIMAGETYPEMEMORY)(PUBYTE buffer, UDWORD length);
+static CAPSGETIMAGETYPEMEMORY pCAPSGetImageTypeMemory;
 
 int caps_init (void)
 {
@@ -91,7 +95,8 @@ int caps_init (void)
 	pCAPSUnlockAllTracks = (CAPSUNLOCKALLTRACKS)GetProcAddress (h, "CAPSUnlockAllTracks");
 	pCAPSGetVersionInfo = (CAPSGETVERSIONINFO)GetProcAddress (h, "CAPSGetVersionInfo");
 	pCAPSGetInfo = (CAPSGETINFO)GetProcAddress (h, "CAPSGetInfo");
-	pCAPSSetRevolution = (CAPSSETREVOLUTION)GetProcAddress (h, "CAPSSetRevolution");
+	pCAPSSetRevolution = (CAPSSETREVOLUTION)GetProcAddress(h, "CAPSSetRevolution");
+	pCAPSGetImageTypeMemory = (CAPSGETIMAGETYPEMEMORY)GetProcAddress(h, "CAPSGetImageTypeMemory");
 
 	init = 1;
 	cvi.type = 1;
@@ -123,6 +128,7 @@ int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
 	uae_u8 *buf;
 	TCHAR s1[100];
 	struct CapsDateTimeExt *cdt;
+	int type;
 
 	if (!caps_init ())
 		return 0;
@@ -130,11 +136,25 @@ int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
 	zfile_fseek (zf, 0, SEEK_END);
 	len = zfile_ftell (zf);
 	zfile_fseek (zf, 0, SEEK_SET);
+	if (len <= 0)
+		return 0;
 	buf = xmalloc (uae_u8, len);
 	if (!buf)
 		return 0;
 	if (zfile_fread (buf, len, 1, zf) == 0)
 		return 0;
+	type = -1;
+	if (pCAPSGetImageTypeMemory) {
+		type = pCAPSGetImageTypeMemory(buf, len);
+		if (type == citError || type == citUnknown) {
+			write_log(_T("caps: CAPSGetImageTypeMemory() returned %d\n"), type);
+			return 0;
+		}
+		if (type == citKFStream || type == citDraft) {
+			write_log(_T("caps: CAPSGetImageTypeMemory() returned unsupported image type %d\n"), type);
+			return 0;
+		}
+	}
 	ret = pCAPSLockImageMemory (caps_cont[drv], buf, len, 0);
 	xfree (buf);
 	if (ret != imgeOk) {
@@ -164,10 +184,10 @@ int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
 	}
 
 	ret = pCAPSLoadImage(caps_cont[drv], caps_flags);
+	caps_revolution_hack[drv] = type == citCTRaw;
 	cdt = &ci.crdt;
 	_stprintf (s1, _T("%d.%d.%d %d:%d:%d"), cdt->day, cdt->month, cdt->year, cdt->hour, cdt->min, cdt->sec);
-	write_log (_T("caps: type:%d date:%s rel:%d rev:%d\n"),
-		ci.type, s1, ci.release, ci.revision);
+	write_log (_T("caps: type:%d imagetype:%d date:%s rel:%d rev:%d\n"), ci.type, type, s1, ci.release, ci.revision);
 	return 1;
 }
 
@@ -228,11 +248,17 @@ static int load (struct CapsTrackInfoT2 *ci, int drv, int track, bool seed, bool
 	return 1;
 }
 
-int caps_loadrevolution (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, int *tracklength, int *nextrev)
+int caps_loadrevolution (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, int *tracklength, int *nextrev, bool track_access_done)
 {
 	int len;
 	struct CapsTrackInfoT2 ci;
 
+	if (!track_access_done && caps_revolution_hack[drv]) {
+#if LOG_REVOLUTION
+		write_log(_T("%03d skipped revolution increase\n"), track);
+#endif
+		return 1;
+	}
 	if (!load (&ci, drv, track, false, false))
 		return 0;
 	if (oldlib)
@@ -251,7 +277,9 @@ int caps_loadrevolution (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int tra
 		CapsRevolutionInfo  pinfo;
 		*nextrev = 0;
 		pCAPSGetInfo(&pinfo, caps_cont[drv], track / 2, track & 1, cgiitRevolution, 0);
-		//write_log (_T("get next rev = %d\n"), pinfo.next);
+#if LOG_REVOLUTION
+		write_log (_T("%03d load next rev = %d\n"), track, pinfo.next);
+#endif
 		if (pinfo.max > 0)
 			*nextrev = pinfo.next;
 	}
@@ -270,20 +298,28 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
 	if (nextrev && pCAPSSetRevolution) {
 		if (sametrack) {
 			pCAPSSetRevolution(caps_cont[drv], *nextrev);
-			//write_log (_T("set rev = %d\n"), *nextrev);
+#if LOG_REVOLUTION
+			write_log(_T("%03d set rev = %d\n"), track, *nextrev);
+#endif
 		} else {
 			pCAPSSetRevolution(caps_cont[drv], 0);
+#if LOG_REVOLUTION
+			write_log(_T("%03d clear rev\n"), track, *nextrev);
+#endif
 		}
 	}
 
 	if (!load (&ci, drv, track, true, sametrack != true))
 		return 0;
 
-	if (nextrev && sametrack && pCAPSGetInfo) {
-		*nextrev = 0;
+	if (pCAPSGetInfo) {
+		if (nextrev)
+			*nextrev = 0;
 		pCAPSGetInfo(&pinfo, caps_cont[drv], track / 2, track & 1, cgiitRevolution, 0);
-		//write_log (_T("get next rev = %d\n"), pinfo.next);
-		if (pinfo.max > 0)
+#if LOG_REVOLUTION
+		write_log(_T("%03d get next rev = %d\n"), track, pinfo.next);
+#endif
+		if (nextrev && sametrack && pinfo.max > 0)
 			*nextrev = pinfo.next;
 	}
 

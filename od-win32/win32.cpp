@@ -1569,7 +1569,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	case WT_PACKET:
 		{
 			PACKET pkt;
-			if (inputdevice_is_tablet () <= 0) {
+			if (inputdevice_is_tablet () <= 0 && !currprefs.tablet_library) {
 				close_tablet (tablet);
 				tablet = NULL;
 				return 0;
