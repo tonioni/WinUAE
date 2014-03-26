@@ -16,7 +16,7 @@ extern "C" {
 int slirp_init(void);
 void slirp_cleanup(void);
 
-int slirp_select_fill(int *pnfds, 
+int slirp_select_fill(SOCKET *pnfds, 
 					  fd_set *readfds, fd_set *writefds, fd_set *xfds);
 
 void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds);

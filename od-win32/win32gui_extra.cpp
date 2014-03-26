@@ -210,7 +210,7 @@ static INT_PTR CALLBACK DummyProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 
 extern int full_property_sheet;
 
-struct newresource *scaleresource (struct newresource *res, HWND parent, int resize)
+struct newresource *scaleresource (struct newresource *res, HWND parent, int resize, DWORD exstyle)
 {
 	DLGTEMPLATEEX *d, *s;
 	DLGTEMPLATEEX_END *d2, *s2;
@@ -248,6 +248,7 @@ struct newresource *scaleresource (struct newresource *res, HWND parent, int res
 	}
 	if (full_property_sheet)
 		d->style |= WS_MINIMIZEBOX;
+	d->exStyle |= exstyle;
 
 	d2 = (DLGTEMPLATEEX_END*)ns->resource;
 	p = (BYTE*)d + sizeof (DLGTEMPLATEEX);
@@ -450,7 +451,7 @@ static void getbaseunits (void)
 		abort();
 	}
 	multx = multy = 100;
-	nr2 = scaleresource (nr, NULL, -1);
+	nr2 = scaleresource (nr, NULL, -1, 0);
 	hwnd = CreateDialogIndirect (nr2->inst, nr2->resource, NULL, TestProc);
 	if (hwnd) {
 		DestroyWindow (hwnd);

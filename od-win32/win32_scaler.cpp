@@ -880,6 +880,9 @@ void S2X_render (void)
 
 	if (usedfilter->type == UAE_FILTER_SCALE2X) { /* 16+32/2X */
 
+		if (dptr + pitch * ah * 2 >= enddptr)
+			ah = (enddptr - dptr) / (pitch * 2);
+
 		if (amiga_depth == 16 && dst_depth == 16) {
 			AdMame2x (sptr, vb->rowbytes, dptr, pitch, aw, ah);
 			ok = 1;
@@ -933,6 +936,9 @@ void S2X_render (void)
 
 	} else if (usedfilter->type == UAE_FILTER_SUPEREAGLE) { /* 16/32/2X */
 
+		if (dptr + pitch * ah * 2 >= enddptr)
+			ah = (enddptr - dptr) / (pitch * 2);
+
 		if (scale == 2 && amiga_depth == 16) {
 			if (dst_depth == 16) {
 				SuperEagle_16 (sptr, vb->rowbytes, dptr, pitch, aw, ah);
@@ -945,6 +951,9 @@ void S2X_render (void)
 
 	} else if (usedfilter->type == UAE_FILTER_SUPER2XSAI) { /* 16/32/2X */
 
+		if (dptr + pitch * ah * 2 >= enddptr)
+			ah = (enddptr - dptr) / (pitch * 2);
+
 		if (scale == 2 && amiga_depth == 16) {
 			if (dst_depth == 16) {
 				Super2xSaI_16 (sptr, vb->rowbytes, dptr, pitch, aw, ah);
@@ -956,6 +965,9 @@ void S2X_render (void)
 		}
 
 	} else if (usedfilter->type == UAE_FILTER_2XSAI) { /* 16/32/2X */
+
+		if (dptr + pitch * ah * 2 >= enddptr)
+			ah = (enddptr - dptr) / (pitch * 2);
 
 		if (scale == 2 && amiga_depth == 16) {
 			if (dst_depth == 16) {

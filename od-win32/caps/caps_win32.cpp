@@ -255,7 +255,9 @@ int caps_loadrevolution (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int tra
 
 	if (!track_access_done && caps_revolution_hack[drv]) {
 #if LOG_REVOLUTION
-		write_log(_T("%03d skipped revolution increase\n"), track);
+		CapsRevolutionInfo  pinfo;
+		pCAPSGetInfo(&pinfo, caps_cont[drv], track / 2, track & 1, cgiitRevolution, 0);
+		write_log(_T("%03d skipped revolution increase. Next = %d\n"), track, pinfo.next);
 #endif
 		return 1;
 	}

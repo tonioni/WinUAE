@@ -352,7 +352,7 @@ struct tcpcb * tcp_newtcpcb _P((struct socket *));
 struct tcpcb * tcp_close _P((register struct tcpcb *));
 void tcp_drain _P((void));
 void tcp_sockclosed _P((struct tcpcb *));
-int tcp_fconnect _P((struct socket *));
+SOCKET tcp_fconnect _P((struct socket *));
 void tcp_connect _P((struct socket *));
 int tcp_attach _P((struct socket *));
 u_int8_t tcp_tos _P((struct socket *));

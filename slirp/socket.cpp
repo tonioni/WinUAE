@@ -516,7 +516,7 @@ struct socket *solisten(u_int port, u_int32_t laddr, u_int lport, int flags)
 {
 	struct sockaddr_in addr;
 	struct socket *so;
-	int s;
+	SOCKET s;
 	socklen_t addrlen = sizeof(addr);
 	int opt = 1;
 

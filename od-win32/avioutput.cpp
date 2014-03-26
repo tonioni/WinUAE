@@ -384,7 +384,7 @@ static int AVIOutput_GetAudioFromRegistry (WAVEFORMATEX *wft)
 				ok = 1;
 		}
 	}
-	if (ok < 0)
+	if (ok < 0 || !wft)
 		regdelete (avikey, _T("AudioConfigurationVars"));
 	regclosetree (avikey);
 	return ok;
@@ -404,7 +404,7 @@ int AVIOutput_GetAudioCodec (TCHAR *name, int len)
 		return AVIOutput_GetAudioCodecName (pwfxDst, name, len);
 	if (!AVIOutput_AllocateAudio ())
 		return 0;
-	if (AVIOutput_GetAudioFromRegistry (pwfxDst)) {
+	if (AVIOutput_GetAudioFromRegistry (pwfxDst) > 0) {
 		AVIOutput_GetAudioCodecName (pwfxDst, name, len);
 		return 1;
 	}
@@ -576,7 +576,7 @@ static int AVIOutput_GetCOMPVARSFromRegistry (COMPVARS *pcv)
 			}
 		}
 	}
-	if (ok < 0) {
+	if (ok < 0 || !pcv) {
 		regdelete (avikey, _T("VideoConfigurationVars"));
 		regdelete (avikey, _T("VideoConfigurationState"));
 	}
@@ -609,7 +609,7 @@ int AVIOutput_GetVideoCodec (TCHAR *name, int len)
 	if (!AVIOutput_AllocateVideo ())
 		return 0;
 	AVIOutput_FreeCOMPVARS (pcompvars);
-	if (AVIOutput_GetCOMPVARSFromRegistry (pcompvars)) {
+	if (AVIOutput_GetCOMPVARSFromRegistry (pcompvars) > 0) {
 		AVIOutput_GetVideoCodecName (pcompvars, name, len);
 		return 1;
 	}

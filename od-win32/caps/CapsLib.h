@@ -33,5 +33,6 @@ ExtSub SDWORD __cdecl CAPSGetInfo(PVOID pinfo, SDWORD id, UDWORD cylinder, UDWOR
 ExtSub SDWORD __cdecl CAPSSetRevolution(SDWORD id, UDWORD value);
 ExtSub SDWORD __cdecl CAPSGetImageType(PCHAR name);
 ExtSub SDWORD __cdecl CAPSGetImageTypeMemory(PUBYTE buffer, UDWORD length);
+ExtSub SDWORD __cdecl CAPSGetDebugRequest();
 
 #endif

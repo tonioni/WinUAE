@@ -298,7 +298,7 @@ STATIC_INLINE void m68k_incpci (int o)
 
 STATIC_INLINE void m68k_incpc_normal (int o)
 {
-	if (currprefs.mmu_model || currprefs.cpu_compatible)
+	if ((currprefs.mmu_model || currprefs.cpu_compatible) && !currprefs.cachesize)
 		m68k_incpci (o);
 	else
 		m68k_incpc (o);
@@ -306,8 +306,8 @@ STATIC_INLINE void m68k_incpc_normal (int o)
 
 STATIC_INLINE void m68k_setpc_normal (uaecptr pc)
 {
-	if (currprefs.mmu_model || currprefs.cpu_compatible)
-		m68k_setpci (pc);
+	if ((currprefs.mmu_model || currprefs.cpu_compatible) && !currprefs.cachesize)
+		m68k_setpci(pc);
 	else
 		m68k_setpc (pc);
 }

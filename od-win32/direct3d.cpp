@@ -81,6 +81,7 @@ struct shaderdata
 	D3DXHANDLE m_MatWorldViewProjEffectHandle;
 	// Texture Handles
 	D3DXHANDLE m_SourceDimsEffectHandle;
+	D3DXHANDLE m_InputDimsEffectHandle;
 	D3DXHANDLE m_TexelSizeEffectHandle;
 	D3DXHANDLE m_SourceTextureEffectHandle;
 	D3DXHANDLE m_WorkingTexture1EffectHandle;
@@ -382,9 +383,11 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DX
 				else if(strcmpi(ParamDesc.Semantic, "worldviewprojection") == 0)
 					s->m_MatWorldViewProjEffectHandle = hParam;
 			} else if(ParamDesc.Class == D3DXPC_VECTOR && ParamDesc.Type == D3DXPT_FLOAT) {
-				if(strcmpi(ParamDesc.Semantic, "sourcedims") == 0)
+				if (strcmpi(ParamDesc.Semantic, "sourcedims") == 0)
 					s->m_SourceDimsEffectHandle = hParam;
-				else if(strcmpi(ParamDesc.Semantic, "texelsize") == 0)
+				if (strcmpi(ParamDesc.Semantic, "inputdims") == 0)
+					s->m_InputDimsEffectHandle = hParam;
+				else if (strcmpi(ParamDesc.Semantic, "texelsize") == 0)
 					s->m_TexelSizeEffectHandle = hParam;
 			} else if(ParamDesc.Class == D3DXPC_SCALAR && ParamDesc.Type == D3DXPT_FLOAT) {
 				if(strcmpi(ParamDesc.Semantic, "SCALING") == 0)
@@ -1024,9 +1027,16 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, struct shaderdata 
 	fTexelSize.y = 1.0f / fDims.y;
 
 	if (s->m_SourceDimsEffectHandle) {
-		hr = s->pEffect->SetVector (s->m_SourceDimsEffectHandle, &fDims);
-		if (FAILED (hr)) {
-			write_log (_T("%s: SetTextures:SetVector:Source %s\n"), D3DHEAD, D3D_ErrorString (hr));
+		hr = s->pEffect->SetVector(s->m_SourceDimsEffectHandle, &fDims);
+		if (FAILED(hr)) {
+			write_log(_T("%s: SetTextures:SetVector:Source %s\n"), D3DHEAD, D3D_ErrorString(hr));
+			return 0;
+		}
+	}
+	if (s->m_InputDimsEffectHandle) {
+		hr = s->pEffect->SetVector(s->m_InputDimsEffectHandle, &fDims);
+		if (FAILED(hr)) {
+			write_log(_T("%s: SetTextures:SetVector:Source %s\n"), D3DHEAD, D3D_ErrorString(hr));
 			return 0;
 		}
 	}

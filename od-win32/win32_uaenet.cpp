@@ -443,7 +443,8 @@ static void *slirp_receive_func(void *arg)
 	while (slirp_thread_active) {
 		// Wait for packets to arrive
 		fd_set rfds, wfds, xfds;
-		int nfds, ret, timeout;
+		SOCKET nfds;
+		int ret, timeout;
 
 		// ... in the output queue
 		nfds = -1;

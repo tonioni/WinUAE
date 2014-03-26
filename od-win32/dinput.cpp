@@ -611,6 +611,16 @@ static int keyhack (int scancode, int pressed, int num)
 	return scancode;
 }
 
+static HMODULE wintab;
+typedef UINT(API* WTINFOW)(UINT, UINT, LPVOID);
+static WTINFOW pWTInfoW;
+typedef BOOL(API* WTCLOSE)(HCTX);
+static WTCLOSE pWTClose;
+typedef HCTX(API* WTOPENW)(HWND, LPLOGCONTEXTW, BOOL);
+static WTOPENW pWTOpenW;
+typedef BOOL(API* WTPACKET)(HCTX, UINT, LPVOID);
+WTPACKET pWTPacket;
+
 static int tablet;
 static int axmax, aymax, azmax;
 static int xmax, ymax, zmax;
@@ -700,7 +710,6 @@ static int gettabletres (AXIS *a)
 
 void *open_tablet (HWND hwnd)
 {
-#ifndef _WIN64
 	static int initialized;
 	LOGCONTEXT lc;
 	AXIS tx = { 0 }, ty = { 0 }, tz = { 0 };
@@ -712,16 +721,16 @@ void *open_tablet (HWND hwnd)
 	xmax = -1;
 	ymax = -1;
 	zmax = -1;
-	WTInfo (WTI_DEFCONTEXT, 0, &lc);
-	WTInfo (WTI_DEVICES, DVC_X, &tx);
-	WTInfo (WTI_DEVICES, DVC_Y, &ty);
-	WTInfo (WTI_DEVICES, DVC_NPRESSURE, &pres);
-	WTInfo (WTI_DEVICES, DVC_XMARGIN, &xm);
-	WTInfo (WTI_DEVICES, DVC_YMARGIN, &ym);
-	WTInfo (WTI_DEVICES, DVC_ZMARGIN, &zm);
+	pWTInfoW (WTI_DEFCONTEXT, 0, &lc);
+	pWTInfoW (WTI_DEVICES, DVC_X, &tx);
+	pWTInfoW (WTI_DEVICES, DVC_Y, &ty);
+	pWTInfoW (WTI_DEVICES, DVC_NPRESSURE, &pres);
+	pWTInfoW (WTI_DEVICES, DVC_XMARGIN, &xm);
+	pWTInfoW (WTI_DEVICES, DVC_YMARGIN, &ym);
+	pWTInfoW (WTI_DEVICES, DVC_ZMARGIN, &zm);
 	xmax = tx.axMax;
 	ymax = ty.axMax;
-	if (WTInfo (WTI_DEVICES, DVC_Z, &tz))
+	if (pWTInfoW (WTI_DEVICES, DVC_Z, &tz))
 		zmax = tz.axMax;
 	lc.lcOptions |= CXO_MESSAGES;
 	lc.lcPktData = PACKETDATA;
@@ -759,24 +768,26 @@ void *open_tablet (HWND hwnd)
 	inputdevice_tablet_info (xmax, ymax, zmax, axmax, aymax, azmax, xres, yres);
 	tabletlib_tablet_info (xmax, ymax, zmax, axmax, aymax, azmax, xres, yres);
 	initialized = 1;
-	return WTOpen (hwnd, &lc, TRUE);
-#else
-	return 0;
-#endif
+	return pWTOpenW (hwnd, &lc, TRUE);
 }
 
 int close_tablet (void *ctx)
 {
-#ifndef _WIN64
+	if (!wintab)
+		return 0;
 	if (ctx != NULL)
-		WTClose ((HCTX)ctx);
+		pWTClose ((HCTX)ctx);
 	ctx = NULL;
+	if (wintab)
+		FreeModule(wintab);
+	wintab = NULL;
+	pWTOpenW = NULL;
+	pWTClose = NULL;
+	pWTInfoW = NULL;
+	pWTPacket = NULL;
 	if (!tablet)
 		return 0;
 	return 1;
-#else
-	return 0;
-#endif
 }
 
 int is_tablet (void)
@@ -786,26 +797,38 @@ int is_tablet (void)
 
 static int initialize_tablet (void)
 {
-#ifndef _WIN64
-	HMODULE h;
 	TCHAR name[MAX_DPATH];
 	struct tagAXIS ori[3];
 	int tilt = 0;
 
-	h = LoadLibrary (_T("wintab32.dll"));
-	if (h == NULL) {
-		write_log (_T("Tablet: no wintab32.dll\n"));
+	wintab = WIN32_LoadLibrary(_T("wintab32.dll"));
+	if (wintab == NULL) {
+		write_log(_T("Tablet: no wintab32.dll\n"));
 		return 0;
 	}
-	FreeLibrary (h);
-	if (!WTInfo (0, 0, NULL)) {
-		write_log (_T("Tablet: WTInfo() returned failure\n"));
+
+	pWTOpenW = (WTOPENW)GetProcAddress(wintab, "WTOpenW");
+	pWTClose = (WTCLOSE)GetProcAddress(wintab, "WTClose");
+	pWTInfoW = (WTINFOW)GetProcAddress(wintab, "WTInfoW");
+	pWTPacket = (WTPACKET)GetProcAddress(wintab, "WTPacket");
+
+	if (!pWTOpenW || !pWTClose || !pWTInfoW || !pWTPacket) {
+		write_log(_T("Tablet: wintab32.dll has missing functions!\n"));
+		FreeModule(wintab);
+		wintab = NULL;
+		return 0;
+	}
+
+	if (!pWTInfoW(0, 0, NULL)) {
+		write_log(_T("Tablet: WTInfo() returned failure\n"));
+		FreeModule(wintab);
+		wintab = NULL;
 		return 0;
 	}
 	name[0] = 0;
-	WTInfo (WTI_DEVICES, DVC_NAME, name);
+	pWTInfoW (WTI_DEVICES, DVC_NAME, name);
 	axmax = aymax = azmax = -1;
-	tilt = WTInfo (WTI_DEVICES, DVC_ORIENTATION, &ori);
+	tilt = pWTInfoW (WTI_DEVICES, DVC_ORIENTATION, ori);
 	if (tilt) {
 		if (ori[0].axMax > 0)
 			axmax = ori[0].axMax;
@@ -818,9 +841,6 @@ static int initialize_tablet (void)
 	tabletname = my_strdup (name);
 	tablet = TRUE;
 	return 1;
-#else
-	return 0;
-#endif
 }
 
 #if 0

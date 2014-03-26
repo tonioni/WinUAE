@@ -1560,7 +1560,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			}
 		}
 
-#ifndef _WIN64
 	case WT_PROXIMITY:
 		{
 			send_tablet_proximity (LOWORD (lParam) ? 1 : 0);
@@ -1568,13 +1567,15 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		}
 	case WT_PACKET:
 		{
+			typedef BOOL(API* WTPACKET)(HCTX, UINT, LPVOID);
+			extern WTPACKET pWTPacket;
 			PACKET pkt;
 			if (inputdevice_is_tablet () <= 0 && !currprefs.tablet_library) {
 				close_tablet (tablet);
 				tablet = NULL;
 				return 0;
 			}
-			if (WTPacket ((HCTX)lParam, wParam, &pkt)) {
+			if (pWTPacket ((HCTX)lParam, wParam, &pkt)) {
 				int x, y, z, pres, proxi;
 				DWORD buttons;
 				ORIENTATION ori;
@@ -1593,7 +1594,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			}
 			return 0;
 		}
-#endif
+
 	default:
 		break;
 	}

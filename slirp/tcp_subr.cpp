@@ -382,15 +382,16 @@ void tcp_sockclosed(struct tcpcb *tp)
  * nonblocking.  Connect returns after the SYN is sent, and does 
  * not wait for ACK+SYN.
  */
-int tcp_fconnect(struct socket *so)
+SOCKET tcp_fconnect(struct socket *so)
 {
-  int ret=0;
+  SOCKET ret=0;
   
   DEBUG_CALL("tcp_fconnect");
   DEBUG_ARG("so = %lx", (long )so);
 
   if( (ret=so->s=socket(AF_INET,SOCK_STREAM,0)) >= 0) {
-    int opt, s=so->s;
+	int opt;
+	SOCKET s = so->s;
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(struct sockaddr_in));
 
@@ -448,7 +449,8 @@ void tcp_connect(struct socket *inso)
 	struct sockaddr_in addr;
 	socklen_t addrlen = sizeof(struct sockaddr_in);
 	struct tcpcb *tp;
-	int s, opt;
+	SOCKET s;
+	int opt;
 
 	DEBUG_CALL("tcp_connect");
 	DEBUG_ARG("inso = %lx", (long)inso);

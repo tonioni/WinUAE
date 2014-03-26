@@ -35,6 +35,7 @@
 #include "inputrecord.h"
 #include "inputdevice.h"
 #include "audio.h"
+#include "md-fpp.h"
 #ifdef JIT
 #include "jit/compemu.h"
 #include <signal.h>
@@ -1542,8 +1543,32 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 			pc += 2;
 			break;
 		case sz_long:
-			_stprintf (buffer, _T("#$%08lx"), (unsigned long)(get_ilong_debug (pc)));
+			_stprintf(buffer, _T("#$%08lx"), (unsigned long)(get_ilong_debug(pc)));
 			pc += 4;
+			break;
+		case sz_single:
+			_stprintf(buffer, _T("#%e"), to_single(get_ilong_debug(pc)));
+			pc += 4;
+			break;
+		case sz_double:
+			_stprintf(buffer, _T("#%e"), to_double(get_ilong_debug(pc), get_ilong_debug(pc + 4)));
+			pc += 8;
+			break;
+		case sz_extended:
+		{
+			fpdata fp;
+			to_exten(&fp, get_ilong_debug(pc), get_ilong_debug(pc + 4), get_ilong_debug(pc + 8));
+#if USE_LONG_DOUBLE
+			_stprintf(buffer, _T("#%Le"), fp.fp);
+#else
+			_stprintf(buffer, _T("#%e"), fp.fp);
+#endif
+			pc += 12;
+			break;
+		}
+		case sz_packed:
+			_stprintf(buffer, _T("#$%08lx%08lx%08lx"), (unsigned long)(get_ilong_debug(pc)), (unsigned long)(get_ilong_debug(pc + 4)), (unsigned long)(get_ilong_debug(pc + 8)));
+			pc += 12;
 			break;
 		default:
 			break;
@@ -4339,8 +4364,112 @@ static void m68k_verify (uaecptr addr, uaecptr *nextpc)
 #endif
 
 static const TCHAR *ccnames[] =
-{ _T("T "),_T("F "),_T("HI"),_T("LS"),_T("CC"),_T("CS"),_T("NE"),_T("EQ"),
-_T("VC"),_T("VS"),_T("PL"),_T("MI"),_T("GE"),_T("LT"),_T("GT"),_T("LE") };
+{
+	_T("T "),_T("F "),_T("HI"),_T("LS"),_T("CC"),_T("CS"),_T("NE"),_T("EQ"),
+	_T("VC"),_T("VS"),_T("PL"),_T("MI"),_T("GE"),_T("LT"),_T("GT"),_T("LE")
+};
+static const TCHAR *fpccnames[] =
+{
+	_T("F"),
+	_T("EQ"),
+	_T("OGT"),
+	_T("OGE"),
+	_T("OLT"),
+	_T("OLE"),
+	_T("OGL"),
+	_T("OR"),
+	_T("UN"),
+	_T("UEQ"),
+	_T("UGT"),
+	_T("UGE"),
+	_T("ULT"),
+	_T("ULE"),
+	_T("NE"),
+	_T("T"),
+	_T("SF"),
+	_T("SEQ"),
+	_T("GT"),
+	_T("GE"),
+	_T("LT"),
+	_T("LE"),
+	_T("GL"),
+	_T("GLE"),
+	_T("NGLE"),
+	_T("NGL"),
+	_T("NLE"),
+	_T("NLT"),
+	_T("NGE"),
+	_T("NGT"),
+	_T("SNE"),
+	_T("ST")
+};
+static const TCHAR *fpuopcodes[] =
+{
+	_T("FMOVE"),
+	_T("FINT"),
+	_T("FSINH"),
+	_T("FINTRZ"),
+	_T("FSQRT"),
+	NULL,
+	_T("FLOGNP1"),
+	NULL,
+	_T("FETOXM1"),
+	_T("FTANH"),
+	_T("FATAN"),
+	NULL,
+	_T("FASIN"),
+	_T("FATANH"),
+	_T("FSIN"),
+	_T("FTAN"),
+	_T("FETOX"),	// 0x10
+	_T("FTWOTOX"),
+	_T("FTENTOX"),
+	NULL,
+	_T("FLOGN"),
+	_T("FLOG10"),
+	_T("FLOG2"),
+	NULL,
+	_T("FABS"),
+	_T("FCOSH"),
+	_T("FNEG"),
+	NULL,
+	_T("FACOS"),
+	_T("FCOS"),
+	_T("FGETEXP"),
+	_T("FGETMAN"),
+	_T("FDIV"),		// 0x20
+	_T("FMOD"),
+	_T("FADD"),
+	_T("FMUL"),
+	_T("FSGLDIV"),
+	_T("FREM"),
+	_T("FSCALE"),
+	_T("FSGLMUL"),
+	_T("FSUB"),
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	_T("FSINCOS"),	// 0x30
+	_T("FSINCOS"),
+	_T("FSINCOS"),
+	_T("FSINCOS"),
+	_T("FSINCOS"),
+	_T("FSINCOS"),
+	_T("FSINCOS"),
+	_T("FSINCOS"),
+	_T("FCMP"),
+	NULL,
+	_T("FTST"),
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL
+};
 
 static void addmovemreg (TCHAR *out, int *prevreg, int *lastreg, int *first, int reg)
 {
@@ -4390,6 +4519,27 @@ static void movemout (TCHAR *out, uae_u16 mask, int mode)
 	addmovemreg (out, &prevreg, &lastreg, &first, -1);
 }
 
+static const TCHAR *fpsizes[] = {
+	_T("L"),
+	_T("S"),
+	_T("X"),
+	_T("P"),
+	_T("W"),
+	_T("D"),
+	_T("B"),
+	_T("?")
+};
+static const int fpsizeconv[] = {
+	sz_long,
+	sz_single,
+	sz_extended,
+	sz_packed,
+	sz_word,
+	sz_double,
+	sz_byte,
+	0
+};
+
 static void disasm_size (TCHAR *instrname, struct instr *dp)
 {
 #if 0
@@ -4437,6 +4587,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 		TCHAR instrname[100], *ccpt;
 		int i;
 		uae_u32 opcode;
+		uae_u16 extra;
 		struct mnemolookup *lookup;
 		struct instr *dp;
 		int oldpc;
@@ -4446,6 +4597,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 		seaddr2 = deaddr2 = 0;
 		oldpc = pc;
 		opcode = get_word_debug (pc);
+		extra = get_word_debug (pc + 2);
 		if (cpufunctbl[opcode] == op_illg_1 || cpufunctbl[opcode] == op_unimpl_1) {
 			m68kpc_illg = pc + 2;
 			illegal = TRUE;
@@ -4470,12 +4622,15 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			_tcscpy (instrname, lookup->name);
 		ccpt = _tcsstr (instrname, _T("cc"));
 		if (ccpt != 0) {
-			_tcsncpy (ccpt, ccnames[dp->cc], 2);
+			if ((opcode & 0xf000) == 0xf000)
+				_tcscpy (ccpt, fpccnames[extra & 0x1f]);
+			else
+				_tcsncpy (ccpt, ccnames[dp->cc], 2);
 		}
 		disasm_size (instrname, dp);
 
 		if (lookup->mnemo == i_MOVEC2 || lookup->mnemo == i_MOVE2C) {
-			uae_u16 imm = get_word_debug (pc);
+			uae_u16 imm = extra;
 			uae_u16 creg = imm & 0x0fff;
 			uae_u16 r = imm >> 12;
 			TCHAR regs[16], *cname = _T("?");
@@ -4498,18 +4653,61 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			}
 			pc += 2;
 		} else if (lookup->mnemo == i_MVMEL) {
-			uae_u16 mask = get_word_debug (pc);
+			uae_u16 mask = extra;
 			pc += 2;
 			pc = ShowEA (0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
 			_tcscat (instrname, _T(","));
 			movemout (instrname, mask, dp->dmode);
 		} else if (lookup->mnemo == i_MVMLE) {
-			uae_u16 mask = get_word_debug (pc);
+			uae_u16 mask = extra;
 			pc += 2;
-			movemout (instrname, mask, dp->dmode);
-			_tcscat (instrname, _T(","));
-			pc = ShowEA (0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
-		} else {
+			movemout(instrname, mask, dp->dmode);
+			_tcscat(instrname, _T(","));
+			pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
+		} else if (lookup->mnemo == i_DIVL || lookup->mnemo == i_MULL) {
+			TCHAR *p;
+			pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &deaddr2, safemode);
+			extra = get_word_debug(pc);
+			pc += 2;
+			p = instrname + _tcslen(instrname);
+			if (extra & 0x0400)
+				_stprintf(p, _T(",D%d:D%d"), extra & 7, (extra >> 12) & 7);
+			else
+				_stprintf(p, _T(",D%d"), (extra >> 12) & 7);
+		} else if (lookup->mnemo == i_FPP) {
+			TCHAR *p;
+			int ins = extra & 0x3f;
+			int size = (extra >> 10) & 7;
+
+			pc += 2;
+			if (fpuopcodes[ins])
+				_tcscpy(instrname, fpuopcodes[ins]);
+			else
+				_tcscpy(instrname, _T("F?"));
+
+			if ((extra & 0xe000) == 0x6000) { // FMOVE to memory
+				_tcscat(instrname, _T("."));
+				_tcscat(instrname, fpsizes[size]);
+				_tcscat(instrname, _T(" "));
+				p = instrname + _tcslen(instrname);
+				_stprintf(p, _T("FP%d,"), (extra >> 10) & 7);
+				pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, fpsizeconv[size], instrname, &deaddr2, safemode);
+			} else if (extra & 0x4000) {
+				_tcscat(instrname, _T("."));
+				_tcscat(instrname, fpsizes[size]);
+				_tcscat(instrname, _T(" "));
+				pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, fpsizeconv[size], instrname, &seaddr2, safemode);
+				p = instrname + _tcslen(instrname);
+				_stprintf(p, _T(",FP%d"), (extra >> 7) & 7);
+			} else if (ins == 0 || (extra & 0x20)) {
+				p = instrname + _tcslen(instrname);
+				_stprintf(p, _T(".X FP%d,FP%d"), (extra >> 10) & 7, (extra >> 7) & 7);
+			} else {
+				p = instrname + _tcslen(instrname);
+				_stprintf(p, _T(".X FP%d"), (extra >> 10) & 7);
+			}
+		}
+		else {
 			if (dp->suse) {
 				pc = ShowEA (0, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, &seaddr2, safemode);
 			}

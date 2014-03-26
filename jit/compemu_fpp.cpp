@@ -141,6 +141,19 @@ STATIC_INLINE int comp_fp_get (uae_u32 opcode, uae_u16 extra, int treg)
 			case 3: /* (d8,PC,Xn) or (bd,PC,Xn) or ([bd,PC,Xn],od) or ([bd,PC],Xn,od) */
 			return -1; /* rarely used, fallback to non-JIT */
 			case 4: /* # < data >; Constants should be converted just once by the JIT */
+#if 1
+			{
+				uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+
+					m68k_pc_offset;
+				uae_u32 ad=S1;
+				if (size == 6)
+					address++;
+				mov_l_ri(ad,address);
+				m68k_pc_offset+=sz2[size];
+				break;
+			}
+#else
+			/* disable until rare bug is found */
 			m68k_pc_offset += sz2[size];
 			switch (size) {
 				case 0:
@@ -169,10 +182,12 @@ STATIC_INLINE int comp_fp_get (uae_u32 opcode, uae_u16 extra, int treg)
 				return 0;
 				case 4:
 				{
+					extern uae_u8 *natmem_offset;
+
 					uae_s16 w = (uae_s16) comp_get_iword (m68k_pc_offset - 2);
 					float si = (float)w;
 
-					//write_log (_T("converted immediate WORD constant %d to SINGLE %f, %x\n"), w, si, m68k_getpc());
+					write_log(_T("converted immediate WORD constant %d to SINGLE %f, %08x %d (%08X)\n"), w, si, m68k_getpc(), m68k_pc_offset, comp_pc_p + m68k_pc_offset - NATMEM_OFFSET);
 					fmovs_ri (treg, *(uae_u32 *) &si);
 					return 1;
 				}
@@ -193,7 +208,7 @@ STATIC_INLINE int comp_fp_get (uae_u32 opcode, uae_u16 extra, int treg)
 				}
 				case 6:
 				{
-					float si = (float) (uae_s8) comp_get_ibyte (m68k_pc_offset - 1);
+					float si = (float) (uae_s8) comp_get_ibyte (m68k_pc_offset - 2);
 
 					//write_log (_T("immediate BYTE constant converted to SINGLE\n"));
 					fmovs_ri (treg, *(uae_u32 *) &si);
@@ -202,6 +217,7 @@ STATIC_INLINE int comp_fp_get (uae_u32 opcode, uae_u16 extra, int treg)
 				default: /* never reached */
 				return -1;
 			}
+#endif
 			default: /* never reached */
 			return -1;
 		}
@@ -456,8 +472,6 @@ void comp_fdbcc_opp (uae_u32 opcode, uae_u16 extra)
 
 void comp_fscc_opp (uae_u32 opcode, uae_u16 extra)
 {
-	uae_u32 ad;
-	int cc;
 	int reg;
 
 	if (!currprefs.compfpu) {
@@ -774,7 +788,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 			uae_u32 list = 0;
 			int incr = 0;
 			if (extra & 0x2000) {
-				uae_u32 ad;
+				int ad;
 
 				/* FMOVEM FPP->memory */
 				switch ((extra >> 11) & 3) { /* Get out early if failure */
@@ -847,7 +861,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 			else {
 				/* FMOVEM memory->FPP */
 
-				uae_u32 ad;
+				int ad;
 				switch ((extra >> 11) & 3) { /* Get out early if failure */
 					case 0:
 					case 2:

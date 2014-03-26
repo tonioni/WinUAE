@@ -18,6 +18,7 @@ int disk_debug_logging = 0;
 int disk_debug_mode = 0;
 int disk_debug_track = -1;
 
+#define REVOLUTION_DEBUG 0
 #define MFM_VALIDATOR 0
 
 #include "uae.h"
@@ -2939,7 +2940,7 @@ static void fetchnextrevolution (drive *drv)
 	if (drv->revolution_check)
 		return;
 	drv->trackspeed = get_floppy_speed2 (drv);
-#if 0
+#if REVOLUTION_DEBUG
 	if (1 || drv->mfmpos != 0) {
 		write_log (_T("REVOLUTION: DMA=%d %d %d/%d %d %d %d\n"), dskdmaen, drv->trackspeed, drv->mfmpos, drv->tracklen, drv->indexoffset, drv->floppybitcounter);
 	}
@@ -2969,7 +2970,7 @@ static void fetchnextrevolution (drive *drv)
 
 static void do_disk_index (void)
 {
-#if 0
+#if REVOLUTION_DEBUG
 	write_log(_T("INDEX %d\n"), indexdecay);
 #endif
 	if (!indexdecay) {
@@ -3344,6 +3345,10 @@ uae_u16 DSKBYTR (int hpos)
 			continue;
 		if (!(selected & (1 << dr))) {
 			drv->lastdataacesstrack = drv->cyl * 2 + side;
+#if REVOLUTION_DEBUG
+			if (!drv->track_access_done)
+				write_log(_T("DSKBYTR\n"));
+#endif
 			drv->track_access_done = true;
 			if (disk_debug_mode & DISK_DEBUG_PIO) {
 				if (disk_debug_track < 0 || disk_debug_track == 2 * drv->cyl + side) {
@@ -3370,11 +3375,6 @@ static void DISK_start (void)
 		if (!(selected & (1 << dr))) {
 			int tr = drv->cyl * 2 + side;
 			trackid *ti = drv->trackdata + tr;
-
-			if (dskdmaen == DSKDMA_READ) {
-				drv->lastdataacesstrack = drv->cyl * 2 + side;
-				drv->track_access_done = true;
-			}
 
 			if (dskdmaen == DSKDMA_WRITE) {
 				drv->tracklen = longwritemode ? FLOPPY_WRITE_MAXLEN : FLOPPY_WRITE_LEN * drv->ddhd * 8 * 2;
@@ -3538,6 +3538,21 @@ void DSKLEN (uae_u16 v, int hpos)
 		}
 		dskdmaen = DSKDMA_WRITE;
 		DISK_start ();
+	}
+
+	for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
+		drive *drv = &floppy[dr];
+		if (drv->motoroff)
+			continue;
+		if (selected & (1 << dr))
+			continue;
+		if (dskdmaen == DSKDMA_READ) {
+			drv->lastdataacesstrack = drv->cyl * 2 + side;
+			drv->track_access_done = true;
+#if REVOLUTION_DEBUG
+			write_log(_T("DMA\n"));
+#endif
+		}
 	}
 
 	if (((disk_debug_mode & DISK_DEBUG_DMA_READ) && dskdmaen == DSKDMA_READ) ||

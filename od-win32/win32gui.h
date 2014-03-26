@@ -31,7 +31,7 @@ struct newresource
 #define GUI_INTERNAL_HEIGHT 600
 #define GUI_INTERNAL_FONT 8
 
-extern struct newresource *scaleresource (struct newresource *res, HWND, int);
+extern struct newresource *scaleresource (struct newresource *res, HWND, int, DWORD);
 extern void freescaleresource (struct newresource*);
 extern void scaleresource_setmult (HWND hDlg, int w, int h);
 extern void scaleresource_getmult (int *mx, int *my);

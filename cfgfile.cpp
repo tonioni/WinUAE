@@ -1559,7 +1559,7 @@ int cfgfile_floatval (const TCHAR *option, const TCHAR *value, const TCHAR *name
 }
 int cfgfile_floatval (const TCHAR *option, const TCHAR *value, const TCHAR *name, float *location)
 {
-	return cfgfile_floatval (option, NULL, value, name, location);
+	return cfgfile_floatval (option, value, name, NULL, location);
 }
 
 int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, unsigned int *location, int scale)
@@ -2201,11 +2201,12 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		p->gfx_vresolution = VRES_DOUBLE;
 		p->gfx_pscanlines = 0;
 		p->gfx_iscanlines = 0;
-		if (cfgfile_strval (option, value, _T("gfx_linemode"), &v, linemode, 0)) {
+		if (cfgfile_strval(option, value, _T("gfx_linemode"), &v, linemode, 0)) {
+			p->gfx_vresolution = VRES_NONDOUBLE;
 			if (v > 0) {
 				p->gfx_iscanlines = (v - 1) / 4;
 				p->gfx_pscanlines = (v - 1) % 4;
-				p->gfx_vresolution = 1;
+				p->gfx_vresolution = VRES_DOUBLE;
 			}
 		}
 		return 1;

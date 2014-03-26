@@ -15650,7 +15650,7 @@ static HWND updatePanel (int id)
 	gui_height = r2c.bottom;
 
 	fullpanel = ppage[id].fullpanel;
-	tres = scaleresource (ppage[id].nres, hDlg, -1);
+	tres = scaleresource (ppage[id].nres, hDlg, -1, 0);
 	panelDlg = CreateDialogIndirectParam (tres->inst, tres->resource, hDlg, ppage[id].dlgproc, id);
 	freescaleresource(tres);
 	scaleresource_setfont (panelDlg);
@@ -16394,7 +16394,7 @@ INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc)
 	res = getresource (templ);
 	if (!res)
 		return h;
-	r = scaleresource (res, hDlg, -1);
+	r = scaleresource (res, hDlg, -1, 0);
 	if (r) {
 		h = DialogBoxIndirect (r->inst, r->resource, hDlg, proc);
 		freescaleresource (r);
@@ -16413,7 +16413,7 @@ HWND CustomCreateDialog (int templ, HWND hDlg, DLGPROC proc)
 	res = getresource (templ);
 	if (!res)
 		return h;
-	r = scaleresource (res, hDlg, -1);
+	r = scaleresource (res, hDlg, -1, 0);
 	if (r) {
 		h = CreateDialogIndirect (r->inst, r->resource, hDlg, proc);
 		freescaleresource (r);
@@ -16661,7 +16661,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			}
 		}
 
-		tres = scaleresource (panelresource, hwnd, gui_resize_enabled);
+		tres = scaleresource (panelresource, hwnd, gui_resize_enabled, workprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0);
 		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, isfullscreen () > 0 ? hwnd : NULL, DialogProc);
 		dialog_rect.top = dialog_rect.left = 0;
 		dialog_rect.right = tres->width;

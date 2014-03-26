@@ -2118,7 +2118,7 @@ static void finish_final_fetch (void)
 	if (thisline_decision.plfleft < 0)
 		return;
 
-	if (plfr_state < plf_end)
+	if (plfr_state < plfr_end)
 		finish_last_fetch (maxhpos, fetchmode, true);
 	plfr_state = plfr_finished;
 
