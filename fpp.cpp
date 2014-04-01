@@ -164,6 +164,84 @@ static void fpset (fpdata *fpd, fptype f)
 #endif
 }
 
+bool fpu_get_constant(fpdata *fp, int cr)
+{
+	fptype f;
+	switch (cr & 0x7f)
+	{
+		case 0x00:
+		f = *fp_pi;
+		break;
+		case 0x0b:
+		f = *fp_l10_2;
+		break;
+		case 0x0c:
+		f = *fp_exp_1;
+		break;
+		case 0x0d:
+		f = *fp_l2_e;
+		break;
+		case 0x0e:
+		f = *fp_l10_e;
+		break;
+		case 0x0f:
+		f = 0.0;
+		break;
+		case 0x30:
+		f = *fp_ln_2;
+		break;
+		case 0x31:
+		f = *fp_ln_10;
+		break;
+		case 0x32:
+		f = (fptype)fp_1e0;
+		break;
+		case 0x33:
+		f = (fptype)fp_1e1;
+		break;
+		case 0x34:
+		f = (fptype)fp_1e2;
+		break;
+		case 0x35:
+		f = (fptype)fp_1e4;
+		break;
+		case 0x36:
+		f = (fptype)fp_1e8;
+		break;
+		case 0x37:
+		f = *fp_1e16;
+		break;
+		case 0x38:
+		f = *fp_1e32;
+		break;
+		case 0x39:
+		f = *fp_1e64;
+		break;
+		case 0x3a:
+		f = *fp_1e128;
+		break;
+		case 0x3b:
+		f = *fp_1e256;
+		break;
+		case 0x3c:
+		f = *fp_1e512;
+		break;
+		case 0x3d:
+		f = *fp_1e1024;
+		break;
+		case 0x3e:
+		f = *fp_1e2048;
+		break;
+		case 0x3f:
+		f = *fp_1e4096;
+		break;
+		default:
+		return false;
+	}
+	fp->fp = f;
+	return true;
+}
+
 static __inline__ void native_set_fpucw (uae_u32 m68k_cw)
 {
 #ifdef NATIVE_FPUCW
@@ -537,7 +615,10 @@ static int get_fpu_version (void)
 		v = 0x20;
 		break;
 	case 68040:
-		v = 0x41;
+		if (currprefs.fpu_revision == 0x40)
+			v = 0x40;
+		else
+			v = 0x41;
 		break;
 	}
 	return v;
@@ -1276,7 +1357,7 @@ STATIC_INLINE int get_fp_ad (uae_u32 opcode, uae_u32 * ad)
 	return 1;
 }
 
-STATIC_INLINE int fpp_cond (int condition)
+int fpp_cond (int condition)
 {
 	int N = (regs.fp_result.fp < 0.0);
 	int Z = (regs.fp_result.fp == 0.0);
@@ -1545,8 +1626,8 @@ void fpuop_save (uae_u32 opcode)
 				ad += 4;
 			}
 		} else {
-			/* 52 byte 68040 unimplemented instruction frame */
-			int frame_size = 0x34;
+			/* 44 (rev $40) and 52 (rev $41) byte 68040 unimplemented instruction frame */
+			int frame_size = fpu_version >= 0x41 ? 0x34 : 0x2c;
 			uae_u32 frame_id = ((fpu_version << 8) | (frame_size - 4)) << 16;
 			uae_u32 src1[3], src2[3];
 			uae_u32 extra = regs.exp_extra;
@@ -1557,18 +1638,25 @@ void fpuop_save (uae_u32 opcode)
 				ad -= frame_size;
 			x_put_long (ad, frame_id);
 			ad += 4;
-			x_put_long (ad, ((extra & (0x200 | 0x100 | 0x80)) | (extra & (0x40 | 0x02 ||0x01)) | ((extra >> 1) & (0x04 | 0x08 | 0x10)) | ((extra & 0x04) ? 0x20 : 0x00)) << 16); // CMDREG3B
-			ad += 4;
-			x_put_long (ad, 0);
-			ad += 4;
+			if (fpu_version >= 0x41) {
+				x_put_long (ad, ((extra & (0x200 | 0x100 | 0x80)) | (extra & (0x40 | 0x02 ||0x01)) | ((extra >> 1) & (0x04 | 0x08 | 0x10)) | ((extra & 0x04) ? 0x20 : 0x00)) << 16); // CMDREG3B
+				ad += 4;
+				x_put_long (ad, 0);
+				ad += 4;
+			}
 			x_put_long (ad, get_ftag (&regs.exp_src1) << 29); // STAG
 			ad += 4;
 			x_put_long (ad, extra << 16); // CMDREG1B
 			ad += 4;
 			x_put_long (ad, get_ftag (&regs.exp_src2) << 29); // DTAG
 			ad += 4;
-			x_put_long (ad, (regs.exp_type == FPU_EXP_UNIMP_DATATYPE_PACKED_PRE ? 1 << 26 : 0) | (regs.exp_type == FPU_EXP_UNIMP_DATATYPE_PACKED_POST ? 1 << 20 : 0)); // E1 and T
-			ad += 4;
+			if (fpu_version >= 0x41) {
+				x_put_long(ad, (regs.exp_type == FPU_EXP_UNIMP_DATATYPE_PACKED_PRE ? 1 << 26 : 0) | (regs.exp_type == FPU_EXP_UNIMP_DATATYPE_PACKED_POST ? 1 << 20 : 0)); // E1 and T
+				ad += 4;
+			} else {
+				x_put_long(ad, (regs.exp_type == FPU_EXP_UNIMP_DATATYPE_PACKED_PRE || regs.exp_type == FPU_EXP_UNIMP_DATATYPE_PACKED_POST) ? 1 << 26 : 0); // E1
+				ad += 4;
+			}
 			if (regs.exp_type == FPU_EXP_UNIMP_DATATYPE_PACKED_PRE) {
 				x_put_long (ad, 0); // FPTS/FPTE
 				ad += 4;
@@ -2154,77 +2242,9 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 				if (fault_if_unimplemented_680x0 (opcode, extra, ad, pc, &srcd, reg))
 					return;
 				CLEAR_STATUS ();
-				switch (extra & 0x7f)
-				{
-					case 0x00:
-						regs.fp[reg].fp = *fp_pi;
-						break;
-					case 0x0b:
-						regs.fp[reg].fp = *fp_l10_2;
-						break;
-					case 0x0c:
-						regs.fp[reg].fp = *fp_exp_1;
-						break;
-					case 0x0d:
-						regs.fp[reg].fp = *fp_l2_e;
-						break;
-					case 0x0e:
-						regs.fp[reg].fp = *fp_l10_e;
-						break;
-					case 0x0f:
-						regs.fp[reg].fp = 0.0;
-						break;
-					case 0x30:
-						regs.fp[reg].fp = *fp_ln_2;
-						break;
-					case 0x31:
-						regs.fp[reg].fp = *fp_ln_10;
-						break;
-					case 0x32:
-						regs.fp[reg].fp = (fptype)fp_1e0;
-						break;
-					case 0x33:
-						regs.fp[reg].fp = (fptype)fp_1e1;
-						break;
-					case 0x34:
-						regs.fp[reg].fp = (fptype)fp_1e2;
-						break;
-					case 0x35:
-						regs.fp[reg].fp = (fptype)fp_1e4;
-						break;
-					case 0x36:
-						regs.fp[reg].fp = (fptype)fp_1e8;
-						break;
-					case 0x37:
-						regs.fp[reg].fp = *fp_1e16;
-						break;
-					case 0x38:
-						regs.fp[reg].fp = *fp_1e32;
-						break;
-					case 0x39:
-						regs.fp[reg].fp = *fp_1e64;
-						break;
-					case 0x3a:
-						regs.fp[reg].fp = *fp_1e128;
-						break;
-					case 0x3b:
-						regs.fp[reg].fp = *fp_1e256;
-						break;
-					case 0x3c:
-						regs.fp[reg].fp = *fp_1e512;
-						break;
-					case 0x3d:
-						regs.fp[reg].fp = *fp_1e1024;
-						break;
-					case 0x3e:
-						regs.fp[reg].fp = *fp_1e2048;
-						break;
-					case 0x3f:
-						regs.fp[reg].fp = *fp_1e4096;
-						break;
-					default:
-						fpu_noinst (opcode, pc);
-						return;
+				if (!fpu_get_constant(&regs.fp[reg], extra)) {
+					fpu_noinst(opcode, pc);
+					return;
 				}
 				MAKE_FPSR (&regs.fp[reg].fp);
 				return;
