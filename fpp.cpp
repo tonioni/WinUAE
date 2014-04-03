@@ -720,7 +720,7 @@ uae_u32 get_fpsr (void)
 		answer |= 0x80; // IOP = SNAN | OPERR
 	if (answer & (1 << 12))
 		answer |= 0x40; // OVFL = OVFL
-	if (answer & (1 << 11) | (1 << 9))
+	if (answer & ((1 << 11) | (1 << 9)))
 		answer |= 0x20; // UNFL = UNFL | INEX2
 	if (answer & (1 << 10))
 		answer |= 0x10; // DZ = DZ
@@ -1639,7 +1639,7 @@ void fpuop_save (uae_u32 opcode)
 			x_put_long (ad, frame_id);
 			ad += 4;
 			if (fpu_version >= 0x41) {
-				x_put_long (ad, ((extra & (0x200 | 0x100 | 0x80)) | (extra & (0x40 | 0x02 ||0x01)) | ((extra >> 1) & (0x04 | 0x08 | 0x10)) | ((extra & 0x04) ? 0x20 : 0x00)) << 16); // CMDREG3B
+				x_put_long (ad, ((extra & (0x200 | 0x100 | 0x80)) | (extra & (0x40 | 0x02 | 0x01)) | ((extra >> 1) & (0x04 | 0x08 | 0x10)) | ((extra & 0x04) ? 0x20 : 0x00)) << 16); // CMDREG3B
 				ad += 4;
 				x_put_long (ad, 0);
 				ad += 4;
@@ -1829,92 +1829,69 @@ static void fround (int reg)
 	regs.fp[reg].fp = (float)regs.fp[reg].fp;
 }
 
-static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr)
+static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr, int regdir)
 {
 	int reg;
+
 	// 68030 MMU state saving is annoying!
 	if (currprefs.mmu_model == 68030) {
 		int idx = 0;
 		uae_u32 wrd[3];
 		mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM1;
-		if (incr < 0) {
-			for (reg = 7; reg >= 0; reg--) {
-				if (list & 0x80) {
-					from_exten (&regs.fp[reg], &wrd[2], &wrd[1], &wrd[0]);
-					for (int i = 0; i < 3; i++) {
-						ad -= 4;
-						if (mmu030_state[0] == idx * 3 + i) {
-							if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
-								mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
-							} else {
-								mmu030_data_buffer = wrd[i];
-								x_put_long (ad, wrd[i]);
-							}
-							mmu030_state[0]++;
+		for (int r = 0; r < 8; r++) {
+			if (regdir < 0)
+				reg = 7 - r;
+			else
+				reg = r;
+			if (list & 0x80) {
+				from_exten(&regs.fp[reg], &wrd[0], &wrd[1], &wrd[2]);
+				if (incr < 0)
+					ad -= 3 * 4;
+				for (int i = 0; i < 3; i++) {
+					if (mmu030_state[0] == idx * 3 + i) {
+						if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
+							mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
 						}
-					}
-					idx++;
-				}
-				list <<= 1;
-			}
-		} else {
-			for (reg = 0; reg <= 7; reg++) {
-				if (list & 0x80) {
-					from_exten (&regs.fp[reg], &wrd[0], &wrd[1], &wrd[2]);
-					for (int i = 0; i < 3; i++) {
-						if (mmu030_state[0] == idx * 3 + i) {
-							if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
-								mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
-							} else {
-								mmu030_data_buffer = wrd[i];
-								x_put_long (ad, wrd[i]);
-							}
-							mmu030_state[0]++;
+						else {
+							mmu030_data_buffer = wrd[i];
+							x_put_long(ad + i * 4, wrd[i]);
 						}
-						ad += 4;
+						mmu030_state[0]++;
 					}
-					idx++;
 				}
-				list <<= 1;
+				if (incr > 0)
+					ad += 3 * 4;
+				idx++;
 			}
+			list <<= 1;
 		}
 	} else {
-		if (incr < 0) {
-			for (reg = 7; reg >= 0; reg--) {
-				uae_u32 wrd1, wrd2, wrd3;
-				if (list & 0x80) {
-					from_exten (&regs.fp[reg], &wrd1, &wrd2, &wrd3);
-					ad -= 4;
-					x_put_long (ad, wrd3);
-					ad -= 4;
-					x_put_long (ad, wrd2);
-					ad -= 4;
-					x_put_long (ad, wrd1);
-				}
-				list <<= 1;
+		for (int r = 0; r < 8; r++) {
+			uae_u32 wrd1, wrd2, wrd3;
+			if (regdir < 0)
+				reg = 7 - r;
+			else
+				reg = r;
+			if (list & 0x80) {
+				from_exten(&regs.fp[reg], &wrd1, &wrd2, &wrd3);
+				if (incr < 0)
+					ad -= 3 * 4;
+				x_put_long(ad + 0, wrd1);
+				x_put_long(ad + 4, wrd2);
+				x_put_long(ad + 8, wrd3);
+				if (incr > 0)
+					ad += 3 * 4;
 			}
-		} else {
-			for (reg = 0; reg <= 7; reg++) {
-				uae_u32 wrd1, wrd2, wrd3;
-				if (list & 0x80) {
-					from_exten (&regs.fp[reg], &wrd1, &wrd2, &wrd3);
-					x_put_long (ad, wrd1);
-					ad += 4;
-					x_put_long (ad, wrd2);
-					ad += 4;
-					x_put_long (ad, wrd3);
-					ad += 4;
-				}
-					list <<= 1;
-			}
+			list <<= 1;
 		}
 	}
 	return ad;
 }
 
-static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr)
+static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr, int regdir)
 {
 	int reg;
+
 	if (currprefs.mmu_model == 68030) {
 		uae_u32 wrd[3];
 		int idx = 0;
@@ -1923,83 +1900,54 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr)
 			ad = mmu030_ad[mmu030_idx].val;
 		else
 			mmu030_ad[mmu030_idx].val = ad;
-		if (incr < 0) {
-			for (reg = 7; reg >= 0; reg--) {
-				if (list & 0x80) {
-					for (int i = 0; i < 3; i++) {
-						ad -= 4;
-						if (mmu030_state[0] == idx * 3 + i) {
-							if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
-								mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
-								wrd[i] = mmu030_data_buffer;
-							} else {
-								wrd[i] = x_get_long (ad);
-							}
-							// save first two entries if 2nd or 3rd get_long() faults.
-							if (i == 0 || i == 1)
-								mmu030_fmovem_store[i] = wrd[i];
-							mmu030_state[0]++;
-							if (i == 2)
-								to_exten (&regs.fp[reg], wrd[2], mmu030_fmovem_store[1], mmu030_fmovem_store[0]);
+		for (int r = 0; r < 8; r++) {
+			if (regdir < 0)
+				reg = 7 - r;
+			else
+				reg = r;
+			if (list & 0x80) {
+				if (incr < 0)
+					ad -= 3 * 4;
+				for (int i = 0; i < 3; i++) {
+					if (mmu030_state[0] == idx * 3 + i) {
+						if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
+							mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
+							wrd[i] = mmu030_data_buffer;
+						} else {
+							wrd[i] = x_get_long (ad + i * 4);
 						}
+						// save first two entries if 2nd or 3rd get_long() faults.
+						if (i == 0 || i == 1)
+							mmu030_fmovem_store[i] = wrd[i];
+						mmu030_state[0]++;
+						if (i == 2)
+							to_exten (&regs.fp[reg], mmu030_fmovem_store[0], mmu030_fmovem_store[1], wrd[2]);
 					}
-					idx++;
 				}
-				list <<= 1;
+				if (incr > 0)
+					ad += 3 * 4;
+				idx++;
 			}
-		} else {
-			for (reg = 0; reg <= 7; reg++) {
-				if (list & 0x80) {
-					for (int i = 0; i < 3; i++) {
-						if (mmu030_state[0] == idx * 3 + i) {
-							if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
-								mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
-								wrd[i] = mmu030_data_buffer;
-							} else {
-								wrd[i] = x_get_long (ad);
-							}
-							if (i == 0 || i == 1)
-								mmu030_fmovem_store[i] = wrd[i];
-							mmu030_state[0]++;
-							if (i == 2)
-								to_exten (&regs.fp[reg], mmu030_fmovem_store[0], mmu030_fmovem_store[1], wrd[2]);
-						}
-						ad += 4;
-					}
-					idx++;
-				}
-				list <<= 1;
-			}
+			list <<= 1;
 		}
 	} else {
-		if (incr < 0) {
-			for (reg = 7; reg >= 0; reg--) {
-				uae_u32 wrd1, wrd2, wrd3;
-				if (list & 0x80) {
-					ad -= 4;
-					wrd3 = x_get_long (ad);
-					ad -= 4;
-					wrd2 = x_get_long (ad);
-					ad -= 4;
-					wrd1 = x_get_long (ad);
-					to_exten (&regs.fp[reg], wrd1, wrd2, wrd3);
-				}
-				list <<= 1;
+		for (int r = 0; r < 8; r++) {
+			uae_u32 wrd1, wrd2, wrd3;
+			if (regdir < 0)
+				reg = 7 - r;
+			else
+				reg = r;
+			if (list & 0x80) {
+				if (incr < 0)
+					ad -= 3 * 4;
+				wrd1 = x_get_long (ad + 0);
+				wrd2 = x_get_long (ad + 4);
+				wrd3 = x_get_long (ad + 8);
+				if (incr > 0)
+					ad += 3 * 4;
+				to_exten (&regs.fp[reg], wrd1, wrd2, wrd3);
 			}
-		} else {
-			for (reg = 0; reg <= 7; reg++) {
-				uae_u32 wrd1, wrd2, wrd3;
-				if (list & 0x80) {
-					wrd1 = x_get_long (ad);
-					ad += 4;
-					wrd2 = x_get_long (ad);
-					ad += 4;
-					wrd3 = x_get_long (ad);
-					ad += 4;
-					to_exten (&regs.fp[reg], wrd1, wrd2, wrd3);
-				}
-				list <<= 1;
-			}
+			list <<= 1;
 		}
 	}
 	return ad;
@@ -2182,7 +2130,8 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 		case 7:
 			{
 				uae_u32 ad, list = 0;
-				int incr = 0;
+				int incr = 1;
+				int regdir = 1;
 				if (get_fp_ad (opcode, &ad) == 0) {
 					fpu_noinst (opcode, pc);
 					return;
@@ -2193,36 +2142,31 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 				{
 					case 0:	/* static pred */
 						list = extra & 0xff;
-						incr = -1;
+						regdir = -1;
 						break;
 					case 1:	/* dynamic pred */
 						if (fault_if_60 (opcode, extra, ad, pc, FPU_EXP_UNIMP_EA))
 							return;
 						list = m68k_dreg (regs, (extra >> 4) & 3) & 0xff;
-						incr = -1;
+						regdir = -1;
 						break;
 					case 2:	/* static postinc */
 						list = extra & 0xff;
-						incr = 1;
 						break;
 					case 3:	/* dynamic postinc */
 						if (fault_if_60 (opcode, extra, ad, pc, FPU_EXP_UNIMP_EA))
 							return;
 						list = m68k_dreg (regs, (extra >> 4) & 3) & 0xff;
-						incr = 1;
 						break;
 				}
-				// (an)+ and -(an) override incr
-				if ((opcode & 0x38) == 0x18)
-					incr = 1;
-				if ((opcode & 0x38) == 0x20)
+				if ((opcode & 0x38) == 0x20) // -(an)
 					incr = -1;
 				if (extra & 0x2000) {
 					/* FMOVEM FPP->memory */
-					ad = fmovem2mem (ad, list, incr);
+					ad = fmovem2mem (ad, list, incr, regdir);
 				} else {
 					/* FMOVEM memory->FPP */
-					ad = fmovem2fpp (ad, list, incr);
+					ad = fmovem2fpp (ad, list, incr, regdir);
 				}
 				if ((opcode & 0x38) == 0x18 || (opcode & 0x38) == 0x20)
 					m68k_areg (regs, opcode & 7) = ad;
