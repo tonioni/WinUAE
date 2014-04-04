@@ -367,7 +367,7 @@ static void fpu_op_unimp (uae_u16 opcode, uae_u16 extra, uae_u32 ea, uaecptr old
 			m68k_areg (regs, 7) -= 2;
 			x_put_word (m68k_areg (regs, 7), 0x2000 + vector * 4);
 		} else if (type == FPU_EXP_UNIMP_DATATYPE_PACKED_PRE || type == FPU_EXP_UNIMP_DATATYPE_PACKED_POST) {
-			regs.fpu_exp_state = 2;
+			regs.fpu_exp_state = 2; // EXC frame
 			// PC = next instruction
 			vector = 55;
 			m68k_areg (regs, 7) -= 4;
@@ -405,6 +405,7 @@ static void fpu_op_unimp (uae_u16 opcode, uae_u16 extra, uae_u32 ea, uaecptr old
 			x_put_long (m68k_areg (regs, 7), ea);
 			m68k_areg (regs, 7) -= 2;
 			x_put_word (m68k_areg (regs, 7), 0x2000 + vector * 4);
+			regs.fpu_exp_state = 2; // BUSY frame
 		}
 	}
 	oldpc = newpc;
@@ -1627,7 +1628,8 @@ void fpuop_save (uae_u32 opcode)
 			}
 		} else {
 			/* 44 (rev $40) and 52 (rev $41) byte 68040 unimplemented instruction frame */
-			int frame_size = fpu_version >= 0x41 ? 0x34 : 0x2c;
+			/* 96 byte 68040 busy frame */
+			int frame_size = regs.fpu_exp_state == 2 ? 0x64 : (fpu_version >= 0x41 ? 0x34 : 0x2c);
 			uae_u32 frame_id = ((fpu_version << 8) | (frame_size - 4)) << 16;
 			uae_u32 src1[3], src2[3];
 			uae_u32 extra = regs.exp_extra;
@@ -1638,7 +1640,34 @@ void fpuop_save (uae_u32 opcode)
 				ad -= frame_size;
 			x_put_long (ad, frame_id);
 			ad += 4;
-			if (fpu_version >= 0x41) {
+			if (regs.fpu_exp_state == 2) {
+				/* BUSY frame */
+				x_put_long(ad, 0);
+				ad += 4;
+				x_put_long(ad, 0); // CU_SAVEPC (Software shouldn't care)
+				ad += 4;
+				x_put_long(ad, 0);
+				ad += 4;
+				x_put_long(ad, 0);
+				ad += 4;
+				x_put_long(ad, 0);
+				ad += 4;
+				x_put_long(ad, 0); // WBTS/WBTE (No E3 emulated yet)
+				ad += 4;
+				x_put_long(ad, 0); // WBTM
+				ad += 4;
+				x_put_long(ad, 0); // WBTM
+				ad += 4;
+				x_put_long(ad, 0);
+				ad += 4;
+				x_put_long(ad, pc); // FPIARCU (same as PC or something else?)
+				ad += 4;
+				x_put_long(ad, 0);
+				ad += 4;
+				x_put_long(ad, 0);
+				ad += 4;
+			}
+			if (fpu_version >= 0x41 || regs.fpu_exp_state == 2) {
 				x_put_long (ad, ((extra & (0x200 | 0x100 | 0x80)) | (extra & (0x40 | 0x02 | 0x01)) | ((extra >> 1) & (0x04 | 0x08 | 0x10)) | ((extra & 0x04) ? 0x20 : 0x00)) << 16); // CMDREG3B
 				ad += 4;
 				x_put_long (ad, 0);
@@ -1650,7 +1679,7 @@ void fpuop_save (uae_u32 opcode)
 			ad += 4;
 			x_put_long (ad, get_ftag (&regs.exp_src2) << 29); // DTAG
 			ad += 4;
-			if (fpu_version >= 0x41) {
+			if (fpu_version >= 0x41 || regs.fpu_exp_state == 2) {
 				x_put_long(ad, (regs.exp_type == FPU_EXP_UNIMP_DATATYPE_PACKED_PRE ? 1 << 26 : 0) | (regs.exp_type == FPU_EXP_UNIMP_DATATYPE_PACKED_POST ? 1 << 20 : 0)); // E1 and T
 				ad += 4;
 			} else {
