@@ -1590,7 +1590,7 @@ void fpuop_save (uae_u32 opcode)
 		return;
 
 	if (currprefs.fpu_model == 68060) {
-		/* 12 byte 68060 NULL/IDLE frame.  */
+		/* 12 byte 68060 NULL/IDLE/EXCP frame.  */
 		int frame_size = 12;
 		uae_u32 frame_id, frame_v1, frame_v2;
 		
@@ -1600,6 +1600,15 @@ void fpuop_save (uae_u32 opcode)
 			frame_id = 0x0000e000 | src1[0];
 			frame_v1 = src1[1];
 			frame_v2 = src1[2];
+
+#if EXCEPTION_FPP
+#if USE_LONG_DOUBLE
+			write_log(_T("68060 FSAVE EXCP %Le\n"), regs.exp_src1);
+#else
+			write_log(_T("68060 FSAVE EXCP %e\n"), regs.exp_src1);
+#endif
+#endif
+
 		} else {
 			frame_id = regs.fpu_state == 0 ? 0x00000000 : 0x00006000;
 			frame_v1 = 0;
@@ -1632,10 +1641,30 @@ void fpuop_save (uae_u32 opcode)
 			int frame_size = regs.fpu_exp_state == 2 ? 0x64 : (fpu_version >= 0x41 ? 0x34 : 0x2c);
 			uae_u32 frame_id = ((fpu_version << 8) | (frame_size - 4)) << 16;
 			uae_u32 src1[3], src2[3];
+			uae_u32 stag, dtag;
 			uae_u32 extra = regs.exp_extra;
 
-			from_exten (&regs.exp_src1, &src1[0], &src1[1], &src1[2]);
-			from_exten (&regs.exp_src2, &src2[0], &src2[1], &src2[2]);
+			from_exten(&regs.exp_src1, &src1[0], &src1[1], &src1[2]);
+			from_exten(&regs.exp_src2, &src2[0], &src2[1], &src2[2]);
+			stag = get_ftag(&regs.exp_src1);
+			dtag = get_ftag(&regs.exp_src2);
+			if ((extra & 0x7f) == 4) // FSQRT 4->5
+				extra |= 1;
+
+#if EXCEPTION_FPP
+			write_log(_T("68040 FSAVE %d (%d), CMDREG=%04X"), regs.exp_type, frame_size, extra);
+			if (regs.exp_type == FPU_EXP_UNIMP_DATATYPE_PACKED_PRE) {
+				write_log(_T(" PACKED %08x-%08x-%08x"), regs.exp_pack[0], regs.exp_pack[1], regs.exp_pack[2]);
+			} else {
+#if USE_LONG_DOUBLE
+				write_log(_T(" SRC=%Le (%d), DST=%Le (%d)"), regs.exp_src1, stag, regs.exp_src2, dtag);
+#else
+				write_log(_T(" SRC=%e (%d), DST=%e (%d)"), regs.exp_src1, stag, regs.exp_src2, dtag);
+#endif
+			}
+			write_log(_T("\n"));
+#endif
+
 			if (incr < 0)
 				ad -= frame_size;
 			x_put_long (ad, frame_id);
@@ -1660,7 +1689,7 @@ void fpuop_save (uae_u32 opcode)
 				ad += 4;
 				x_put_long(ad, 0);
 				ad += 4;
-				x_put_long(ad, pc); // FPIARCU (same as PC or something else?)
+				x_put_long(ad, regs.fpiar); // FPIARCU (same as FPU PC or something else?)
 				ad += 4;
 				x_put_long(ad, 0);
 				ad += 4;
@@ -1673,11 +1702,11 @@ void fpuop_save (uae_u32 opcode)
 				x_put_long (ad, 0);
 				ad += 4;
 			}
-			x_put_long (ad, get_ftag (&regs.exp_src1) << 29); // STAG
+			x_put_long (ad, stag << 29); // STAG
 			ad += 4;
 			x_put_long (ad, extra << 16); // CMDREG1B
 			ad += 4;
-			x_put_long (ad, get_ftag (&regs.exp_src2) << 29); // DTAG
+			x_put_long (ad, dtag << 29); // DTAG
 			ad += 4;
 			if (fpu_version >= 0x41 || regs.fpu_exp_state == 2) {
 				x_put_long(ad, (regs.exp_type == FPU_EXP_UNIMP_DATATYPE_PACKED_PRE ? 1 << 26 : 0) | (regs.exp_type == FPU_EXP_UNIMP_DATATYPE_PACKED_POST ? 1 << 20 : 0)); // E1 and T
