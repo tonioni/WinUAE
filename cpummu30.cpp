@@ -2170,6 +2170,13 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 	uae_u16 frame = format >> 12;
 	uae_u16 ssw = get_word_mmu030 (a7 + 10);
 
+	// Fetch last word, real CPU does it to allow OS bus handler to map
+	// the page if frame crosses pages and following page is not resident.
+	if (frame == 0xb)
+		get_word_mmu030(a7 + 92 - 2);
+	else
+		get_word_mmu030(a7 + 32 - 2);
+
 	// Internal register, our opcode storage area
 	mmu030_opcode = get_long_mmu030 (a7 + 0x14);
 	// Misc state data

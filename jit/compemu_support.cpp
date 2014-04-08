@@ -3998,38 +3998,6 @@ MENDFUNC(1,fcuts_r,(FRW r))
 }
 MENDFUNC(1,fcut_r,(FRW r))
 
-	MIDFUNC(2,fmovl_ri,(FW r, IMMS i))
-{
-	r=f_writereg(r);
-	raw_fmovl_ri(r,i);
-	f_unlock(r);
-}
-MENDFUNC(2,fmovl_ri,(FW r, IMMS i))
-
-	MIDFUNC(2,fmovs_ri,(FW r, IMM i))
-{
-	r=f_writereg(r);
-	raw_fmovs_ri(r,i);
-	f_unlock(r);
-}
-MENDFUNC(2,fmovs_ri,(FW r, IMM i))
-
-	MIDFUNC(3,fmov_ri,(FW r, IMM i1, IMM i2))
-{
-	r=f_writereg(r);
-	raw_fmov_ri(r,i1,i2);
-	f_unlock(r);
-}
-MENDFUNC(3,fmov_ri,(FW r, IMM i1, IMM i2))
-
-	MIDFUNC(4,fmov_ext_ri,(FW r, IMM i1, IMM i2, IMM i3))
-{
-	r=f_writereg(r);
-	raw_fmov_ext_ri(r,i1,i2,i3);
-	f_unlock(r);
-}
-MENDFUNC(4,fmov_ext_ri,(FW r, IMM i1, IMM i2, IMM i3))
-
 	MIDFUNC(2,fmov_ext_mr,(MEMW m, FR r))
 {
 	r=f_readreg(r);

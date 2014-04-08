@@ -1451,8 +1451,7 @@ static void action_replay_setbanks (void)
 		switch (armodel) {
 		case 2:
 		case 3:
-			if (currprefs.cpu_cycle_exact)
-				chipmem_bank.wput = chipmem_wput_actionreplay23;
+			chipmem_bank.wput = chipmem_wput_actionreplay23;
 			chipmem_bank.lput = chipmem_lput_actionreplay23;
 			break;
 		case 1:

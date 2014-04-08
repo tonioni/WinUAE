@@ -550,7 +550,6 @@ struct uae_prefs {
 	bool win32_iconified_nosound;
 
 	bool win32_rtgmatchdepth;
-	int win32_rtgscalemode;
 	bool win32_rtgallowscaling;
 	int win32_rtgscaleaspectratio;
 	int win32_rtgvblankrate;

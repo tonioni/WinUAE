@@ -142,8 +142,8 @@ static void fpnan (fpdata *fpd)
 {
 	fpd->fp = *fp_nan;
 #ifdef USE_SOFT_LONG_DOUBLE
-	fpd->fpe = ((uae_u64)dhex_nan[0] << 32) | dhex_nan[1];
-	fpd->fpm = dhex_nan[2];
+	fpd->fpe = ((uae_u64)xhex_nan[0] << 32) | xhex_nan[1];
+	fpd->fpm = xhex_nan[2];
 #endif
 }
 
@@ -766,18 +766,25 @@ STATIC_INLINE void set_fpsr (uae_u32 x)
 		fpset (&regs.fp_result, 1);
 }
 
-uae_u32 get_ftag (fpdata *fp)
+uae_u32 get_ftag (uae_u32 w1, uae_u32 w2, uae_u32 w3)
 {
-	uae_u32 sr;
-	regs.fp_result = *fp;
-	sr = get_fpsr ();
-	if (sr & 0x01000000)
-		return 3;
-	if (sr & 0x02000000)
-		return 2;
-	if (sr & 0x04000000)
-		return 1;
-	return 0;
+	int exp = (w1 >> 16) & 0x7fff;
+	
+	if (exp == 0) {
+		if (!w2 && !w3)
+			return 1; // ZERO
+		return 4; // DENORMAL or UNNORMAL
+	} else if (exp == 0x7fff)  {
+		int s = w2 >> 30;
+		int z = (w2 & 0x3fffffff) == 0 && w3 == 0;
+		if ((s == 0 && !z) || (s == 2 && !z))
+			return 2; // INF
+		return 3; // NAN
+	} else {
+		if (!(w2 & 0x80000000))
+			return 4; // UNNORMAL
+		return 0; // NORMAL
+	}
 }
 
 /* single   : S  8*E 23*F */
@@ -1603,9 +1610,9 @@ void fpuop_save (uae_u32 opcode)
 
 #if EXCEPTION_FPP
 #if USE_LONG_DOUBLE
-			write_log(_T("68060 FSAVE EXCP %Le\n"), regs.exp_src1);
+			write_log(_T("68060 FSAVE EXCP %Le\n"), regs.exp_src1.fp);
 #else
-			write_log(_T("68060 FSAVE EXCP %e\n"), regs.exp_src1);
+			write_log(_T("68060 FSAVE EXCP %e\n"), regs.exp_src1.fp);
 #endif
 #endif
 
@@ -1646,8 +1653,8 @@ void fpuop_save (uae_u32 opcode)
 
 			from_exten(&regs.exp_src1, &src1[0], &src1[1], &src1[2]);
 			from_exten(&regs.exp_src2, &src2[0], &src2[1], &src2[2]);
-			stag = get_ftag(&regs.exp_src1);
-			dtag = get_ftag(&regs.exp_src2);
+			stag = get_ftag(src1[0], src1[1], src1[2]);
+			dtag = get_ftag(src2[0], src2[1], src2[2]);
 			if ((extra & 0x7f) == 4) // FSQRT 4->5
 				extra |= 1;
 
@@ -1657,9 +1664,9 @@ void fpuop_save (uae_u32 opcode)
 				write_log(_T(" PACKED %08x-%08x-%08x"), regs.exp_pack[0], regs.exp_pack[1], regs.exp_pack[2]);
 			} else {
 #if USE_LONG_DOUBLE
-				write_log(_T(" SRC=%Le (%d), DST=%Le (%d)"), regs.exp_src1, stag, regs.exp_src2, dtag);
+				write_log(_T(" SRC=%Le (%08x-%08x-%08x %d), DST=%Le (%08x-%08x-%08x %d)"), regs.exp_src1.fp, src1[0], src1[1], src1[2], stag, regs.exp_src2.fp, src2[0], src2[1], src2[2], dtag);
 #else
-				write_log(_T(" SRC=%e (%d), DST=%e (%d)"), regs.exp_src1, stag, regs.exp_src2, dtag);
+				write_log(_T(" SRC=%e (%08x-%08x-%08x %d), DST=%e (%08x-%08x-%08x %d)"), regs.exp_src1.fp, src1[0], src1[1], src1[2], stag, regs.exp_src2.fp, src2[0], src2[1], src2[2], dtag);
 #endif
 			}
 			write_log(_T("\n"));
@@ -2532,15 +2539,16 @@ void fpu_reset (void)
 
 uae_u8 *restore_fpu (uae_u8 *src)
 {
+	uae_u32 w1, w2, w3;
 	int i;
 	uae_u32 flags;
 
 	changed_prefs.fpu_model = currprefs.fpu_model = restore_u32 ();
 	flags = restore_u32 ();
 	for (i = 0; i < 8; i++) {
-		uae_u32 w1 = restore_u32 ();
-		uae_u32 w2 = restore_u32 ();
-		uae_u32 w3 = restore_u16 ();
+		w1 = restore_u32 ();
+		w2 = restore_u32 ();
+		w3 = restore_u16 ();
 		to_exten (&regs.fp[i], w1, w2, w3);
 	}
 	regs.fpcr = restore_u32 ();
@@ -2551,15 +2559,34 @@ uae_u8 *restore_fpu (uae_u8 *src)
 		restore_u32 ();
 		restore_u32 ();
 	}
+	if (flags & 0x40000000) {
+		w1 = restore_u32();
+		w2 = restore_u32();
+		w3 = restore_u16();
+		to_exten(&regs.exp_src1, w1, w2, w3);
+		w1 = restore_u32();
+		w2 = restore_u32();
+		w3 = restore_u16();
+		to_exten(&regs.exp_src2, w1, w2, w3);
+		regs.exp_pack[0] = restore_u32();
+		regs.exp_pack[1] = restore_u32();
+		regs.exp_pack[2] = restore_u32();
+		regs.exp_opcode = restore_u16();
+		regs.exp_extra = restore_u16();
+		regs.exp_type = restore_u16();
+	}
 	regs.fpu_state = (flags & 1) ? 0 : 1;
 	regs.fpu_exp_state = (flags & 2) ? 1 : 0;
-	write_log (_T("FPU: %d\n"), currprefs.fpu_model);
+	if (flags & 4)
+		regs.fpu_exp_state = 2;
+	write_log(_T("FPU: %d\n"), currprefs.fpu_model);
 	return src;
 }
 
 uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
 {
-	uae_u8 *dstbak,*dst;
+	uae_u32 w1, w2, w3;
+	uae_u8 *dstbak, *dst;
 	int i;
 
 	*len = 0;
@@ -2570,9 +2597,8 @@ uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
 	else
 		dstbak = dst = xmalloc (uae_u8, 4+4+8*10+4+4+4+4+4);
 	save_u32 (currprefs.fpu_model);
-	save_u32 (0x80000000 | (regs.fpu_state == 0 ? 1 : 0) | (regs.fpu_exp_state ? 2 : 0));
+	save_u32 (0x80000000 | 0x40000000 | (regs.fpu_state == 0 ? 1 : 0) | (regs.fpu_exp_state ? 2 : 0) | (regs.fpu_exp_state > 1 ? 4 : 0));
 	for (i = 0; i < 8; i++) {
-		uae_u32 w1, w2, w3;
 		from_exten (&regs.fp[i], &w1, &w2, &w3);
 		save_u32 (w1);
 		save_u32 (w2);
@@ -2581,8 +2607,25 @@ uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
 	save_u32 (regs.fpcr);
 	save_u32 (regs.fpsr);
 	save_u32 (regs.fpiar);
+
 	save_u32 (-1);
 	save_u32 (0);
+
+	from_exten(&regs.exp_src1, &w1, &w2, &w3);
+	save_u32(w1);
+	save_u32(w2);
+	save_u16(w3);
+	from_exten(&regs.exp_src2, &w1, &w2, &w3);
+	save_u32(w1);
+	save_u32(w2);
+	save_u16(w3);
+	save_u32(regs.exp_pack[0]);
+	save_u32(regs.exp_pack[1]);
+	save_u32(regs.exp_pack[2]);
+	save_u16(regs.exp_opcode);
+	save_u16(regs.exp_extra);
+	save_u16(regs.exp_type);
+
 	*len = dst - dstbak;
 	return dstbak;
 }

@@ -1611,7 +1611,7 @@ static int canstretch (void)
 			return 0;
 		return 1;
 	} else {
-		if (currprefs.win32_rtgallowscaling || currprefs.win32_rtgscalemode)
+		if (currprefs.win32_rtgallowscaling || currprefs.gf[1].gfx_filter_autoscale)
 			return 1;
 	}
 	return 0;
@@ -3094,7 +3094,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_powersavedisabled = true;
 		p->sana2 = 0;
 		p->win32_rtgmatchdepth = 1;
-		p->win32_rtgscalemode = 1;
+		p->gf[APMODE_RTG].gfx_filter_autoscale = RTG_MODE_SCALE;
 		p->win32_rtgallowscaling = 0;
 		p->win32_rtgscaleaspectratio = -1;
 		p->win32_rtgvblankrate = 0;
@@ -3191,8 +3191,8 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_bool (f, _T("midirouter"), p->win32_midirouter);
 			
 	cfgfile_target_dwrite_bool (f, _T("rtg_match_depth"), p->win32_rtgmatchdepth);
-	cfgfile_target_dwrite_bool (f, _T("rtg_scale_small"), p->win32_rtgscalemode == 1);
-	cfgfile_target_dwrite_bool (f, _T("rtg_scale_center"), p->win32_rtgscalemode == 2);
+	cfgfile_target_dwrite_bool(f, _T("rtg_scale_small"), p->gf[1].gfx_filter_autoscale == 1);
+	cfgfile_target_dwrite_bool(f, _T("rtg_scale_center"), p->gf[1].gfx_filter_autoscale == 2);
 	cfgfile_target_dwrite_bool (f, _T("rtg_scale_allow"), p->win32_rtgallowscaling);
 	cfgfile_target_dwrite (f, _T("rtg_scale_aspect_ratio"), _T("%d:%d"),
 		p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio / ASPECTMULT) : -1,
@@ -3321,12 +3321,12 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 	if (cfgfile_yesno (option, value, _T("rtg_match_depth"), &p->win32_rtgmatchdepth))
 		return 1;
 	if (cfgfile_yesno (option, value, _T("rtg_scale_small"), &tbool)) {
-		p->win32_rtgscalemode = tbool ? RTG_MODE_SCALE : 0;
+		p->gf[1].gfx_filter_autoscale = tbool ? RTG_MODE_SCALE : 0;
 		return 1;
 	}
 	if (cfgfile_yesno (option, value, _T("rtg_scale_center"), &tbool)) {
 		if (tbool)
-			p->win32_rtgscalemode = RTG_MODE_CENTER;
+			p->gf[1].gfx_filter_autoscale = RTG_MODE_CENTER;
 		return 1;
 	}
 	if (cfgfile_yesno (option, value, _T("rtg_scale_allow"), &p->win32_rtgallowscaling))

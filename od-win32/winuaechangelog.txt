@@ -11,6 +11,50 @@
 
 - restore only single input target to default.
 
+Beta 14:
+
+- FSINCOS second register supported in disassembler.
+- FMOVEM and FMOVECR disassembler support. Disassembler should now support all FPU instructions.
+- Added missing special case 68020+ instruction disassembler support: bit fields, MOVES.
+- Disassembler output improved, most unsized instructions don't have .L size extension anymore.
+- Action Replay 2/3 was incompatible with b8 cpu emulation changes.
+- CPU mode (JIT/more compatible/cycle-exact) on the fly switching was unstable since b8.
+- Mirror Expansion panel RTG scale options in Filter panel. (More options will be added in future)
+- Removed some forced inlining that only increased size of executable and wasted CPU cache space.
+- Added support for early 68040 revision that has slightly different FPU stack frames and version
+  id. (Config file fpu_revision=0x40). Not much use in Amiga emulation but first 68040 based Next
+  systems came with first revision 68040's and NextStep 2.0 unimplemented emulation code only
+  supported first revision unimplemented stack frame type.
+- FMOVEM predec/postinc mode bit emulation fixed again, now it really works correctly.
+- Implemented (partial) 68040 FPU BUSY stack frame.
+- Pre filters in RTG mode loaded incorrectly from config file.
+- Implemented FPU exception state statefile support.
+- b13 JIT FPU bug workaround replaced with fixed optimization (Peter Keunecke)
+- Attempt to automatically select correct resolution (hires/shres) when programmed mode is active.
+  Always active if resolution setting is hires or larger and doubling is enabled. No more programmed
+  modes that are 2x wide or half width without manually changing resolution setting, note that currently
+  "wrong" mode is visible at least 1 frame before mode changes.
+- Arcadia game Aaargh supported.
+
+Beta 13:
+
+- Canceling video or audio codec selection dialog will disable audio or video recording.
+  This has been broken for long time, it was impossible to record video only or audio only
+  (except in wav mode).
+- 64-bit build now also supports wintab tablet API.
+- Fixed some slirp Windows specific 64-bit compilation issues.
+- Fixed JIT + more compatible enabled emulated Amiga crash. (b9)
+- If "always on top" option is enabled, GUI is also opened with "always on top" flag.
+- gfx_linemode=none (no doubling) was loaded as doubled mode.
+- Check and limit 2x software filter height value if size is larger than allocated buffer size,
+  preventing display buffer overflow crash.
+- Debugger now disassembles most FPU instructions correctly but some of them may look strange..
+- Disassembler MULL and DIVL fully decoded.
+- Support "INPUTDIMS" D3D shader variable. Used by some shaders.
+- JIT FPU rare bug workaround, FPU constant optimization introduced in 1200b3 disabled.
+  (Code looks correct, it works correctly except in some very rare situations, real cause may be
+  some unknown JIT side-effect)
+
 Beta 12:
 
 - Config file writing created corrupted (and harmless) config file lines, most common being

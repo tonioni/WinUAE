@@ -2831,6 +2831,7 @@ LENDFUNC(NONE,WRITE,2,raw_fmovs_mr,(MEMW m, FR r))
 	emit_byte(0xd9);
 	emit_byte(0x04);
 	emit_byte(0x24); /* fld load r as SINGLE from [esp] */
+	emit_byte(0x9b); /* let the CPU wait on FPU exceptions */
 	emit_byte(0x83);
 	emit_byte(0xc4);
 	emit_byte(0x04); /* add +4 to esp */
@@ -2849,73 +2850,12 @@ LENDFUNC(NONE,NONE,1,raw_fcuts_r,(FRW r))
 	emit_byte(0xdd);
 	emit_byte(0x04);
 	emit_byte(0x24); /* fld load r as DOUBLE from [esp] */
+	emit_byte(0x9b); /* let the CPU wait on FPU exceptions */
 	emit_byte(0x83);
 	emit_byte(0xc4);
 	emit_byte(0x08); /* add +8 to esp */
 }
 LENDFUNC(NONE,NONE,1,raw_fcut_r,(FRW r))
-
-	LOWFUNC(NONE,READ,2,raw_fmovl_ri,(FW r, IMMS i))
-{
-	emit_byte(0x68);
-	emit_long(i);    /* push immediate32 onto [esp] */
-	emit_byte(0xdb);
-	emit_byte(0x04);
-	emit_byte(0x24); /* fild load m32int from [esp] */
-	emit_byte(0x83);
-	emit_byte(0xc4);
-	emit_byte(0x04); /* add +4 to esp */
-	tos_make(r);
-}
-LENDFUNC(NONE,READ,2,raw_fmovl_ri,(FW r, IMMS i))
-
-	LOWFUNC(NONE,READ,2,raw_fmovs_ri,(FW r, IMM i))
-{
-	emit_byte(0x68);
-	emit_long(i);    /* push immediate32 onto [esp] */
-	emit_byte(0xd9);
-	emit_byte(0x04);
-	emit_byte(0x24); /* fld load m32real from [esp] */
-	emit_byte(0x83);
-	emit_byte(0xc4);
-	emit_byte(0x04); /* add +4 to esp */
-	tos_make(r);
-}
-LENDFUNC(NONE,READ,2,raw_fmovs_ri,(FW r, IMM i))
-
-	LOWFUNC(NONE,READ,3,raw_fmov_ri,(FW r, IMM i1, IMM i2))
-{
-	emit_byte(0x68);
-	emit_long(i2);   /* push immediate32 onto [esp] */
-	emit_byte(0x68);
-	emit_long(i1);   /* push immediate32 onto [esp] */
-	emit_byte(0xdd);
-	emit_byte(0x04);
-	emit_byte(0x24); /* fld load m64real from [esp] */
-	emit_byte(0x83);
-	emit_byte(0xc4);
-	emit_byte(0x08); /* add +8 to esp */
-	tos_make(r);
-}
-LENDFUNC(NONE,READ,3,raw_fmov_ri,(FW r, IMM i1, IMM i2))
-
-	LOWFUNC(NONE,READ,4,raw_fmov_ext_ri,(FW r, IMM i1, IMM i2, IMM i3))
-{
-	emit_byte(0x68);
-	emit_long(i3);   /* push immediate32 onto [esp] */
-	emit_byte(0x68);
-	emit_long(i2);   /* push immediate32 onto [esp] */
-	emit_byte(0x68);
-	emit_long(i1);   /* push immediate32 onto [esp] */
-	emit_byte(0xdb);
-	emit_byte(0x2c);
-	emit_byte(0x24); /* fld load m80real from [esp] */
-	emit_byte(0x83);
-	emit_byte(0xc4);
-	emit_byte(0x0c); /* add +12 to esp */
-	tos_make(r);
-}
-LENDFUNC(NONE,READ,4,raw_fmov_ext_ri,(FW r, IMM i1, IMM i2, IMMi3))
 
 	LOWFUNC(NONE,WRITE,2,raw_fmov_ext_mr,(MEMW m, FR r))
 {
@@ -3671,13 +3611,13 @@ LENDFUNC(NONE,NONE,2,raw_fatanh_rr,(FW d, FR s))
 		emit_byte(0xdb);
 		emit_byte(0x2c);
 		emit_byte(0x24); /* fld load temp-reg from [esp] */
-		emit_byte(0x83);
-		emit_byte(0xc4);
-		emit_byte(0x0c); /* add +12 to esp */
 		emit_byte(0xd9);
 		emit_byte(0xca); /* fxch swap temp-reg with e^-x in tr */
 		emit_byte(0xde);
 		emit_byte(0xe9); /* fsubp (e^x)-(e^-x) */
+		emit_byte(0x83);
+		emit_byte(0xc4);
+		emit_byte(0x0c); /* delayed add +12 to esp */
 	}
 	else {
 		emit_byte(0xde);
@@ -3766,11 +3706,11 @@ LENDFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
 		emit_byte(0xdb);
 		emit_byte(0x2c);
 		emit_byte(0x24); /* fld load temp-reg from [esp] */
-		emit_byte(0x83);
-		emit_byte(0xc4);
-		emit_byte(0x0c); /* add +12 to esp */
 		emit_byte(0xd9);
 		emit_byte(0xca); /* fxch swap temp-reg with e^-x in tr */
+		emit_byte(0x83);
+		emit_byte(0xc4);
+		emit_byte(0x0c); /* delayed add +12 to esp */
 	}
 	emit_byte(0xde);
 	emit_byte(0xc1);     /* faddp (e^x)+(e^-x) */
@@ -3863,13 +3803,13 @@ LENDFUNC(NONE,NONE,2,raw_fcosh_rr,(FW d, FR s))
 		emit_byte(0xdb);
 		emit_byte(0x2c);
 		emit_byte(0x24); /* fld load temp-reg from [esp] */
-		emit_byte(0x83);
-		emit_byte(0xc4);
-		emit_byte(0x0c); /* add +12 to esp */
 		emit_byte(0xd9);
 		emit_byte(0xca); /* fxch swap temp-reg with e^-x in tr */
 		emit_byte(0xde);
 		emit_byte(0xf9); /* fdivp ((e^x)-(e^-x))/((e^x)+(e^-x)) */
+		emit_byte(0x83);
+		emit_byte(0xc4);
+		emit_byte(0x0c); /* delayed add +12 to esp */
 	}
 	else {
 		emit_byte(0xde);

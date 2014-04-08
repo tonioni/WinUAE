@@ -252,7 +252,9 @@ out1:
 		int pos = 0;
 		int mnp = 0;
 		int bitno = 0;
+		int unsized = 1;
 		TCHAR mnemonic[10];
+		int mnemo;
 
 		wordsizes sz = sz_long;
 		int srcgather = 0, dstgather = 0;
@@ -301,6 +303,7 @@ out1:
 		while (opcstr[pos] && !_istspace(opcstr[pos])) {
 			if (opcstr[pos] == '.') {
 				pos++;
+				unsized = 0;
 				switch (opcstr[pos]) {
 
 				case 'B': sz = sz_byte; break;
@@ -711,14 +714,21 @@ endofline:
 			table68k[opc].mnemo = lookuptab[find].mnemo;
 		}
 		table68k[opc].cc = bitval[bitc];
-		if (table68k[opc].mnemo == i_BTST
-			|| table68k[opc].mnemo == i_BSET
-			|| table68k[opc].mnemo == i_BCLR
-			|| table68k[opc].mnemo == i_BCHG)
+		mnemo = table68k[opc].mnemo;
+		if (mnemo == i_BTST
+			|| mnemo == i_BSET
+			|| mnemo == i_BCLR
+			|| mnemo == i_BCHG)
 		{
 			sz = destmode == Dreg ? sz_long : sz_byte;
+			unsized = 0;
 		}
+		if (mnemo == i_JSR || mnemo == i_JMP) {
+			unsized = 1;
+		}
+
 		table68k[opc].size = sz;
+		table68k[opc].unsized = unsized;
 		table68k[opc].sduse = id.sduse;
 		table68k[opc].sreg = srcreg;
 		table68k[opc].dreg = destreg;

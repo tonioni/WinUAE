@@ -677,7 +677,7 @@ static void mouseupdate (void)
 
 	if (!currprefs.gfx_api)
 		return;
-	if (currprefs.win32_rtgscalemode == RTG_MODE_CENTER) {
+	if (currprefs.gf[1].gfx_filter_autoscale == RTG_MODE_CENTER) {
 		D3D_setcursor (x, y, WIN32GFX_GetWidth (), WIN32GFX_GetHeight(), cursorvisible, scalepicasso == 2);
 	} else {
 		D3D_setcursor (x, y, picasso96_state.Width, picasso96_state.Height, cursorvisible, false);

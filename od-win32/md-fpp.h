@@ -21,12 +21,20 @@
 #define FPCR_PRECISION_EXTENDED	0x00000000
 
 #if USE_LONG_DOUBLE
-STATIC_INLINE void to_exten(fpdata *fp, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
+STATIC_INLINE void to_exten(fpdata *dst, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
-	uae_u32 longarray[] = { wrd3, wrd2, ((wrd1 >> 16) & 0xffff) }; // little endian
-	long double *longdoublewords = (long double*)longarray;
-
-	fp->fp = *longdoublewords;
+	// force correct long double alignment
+	union
+	{
+		long double lf;
+		uae_u32 longarray[3];
+	} uld;
+	// little endian order
+	uld.longarray[0] = wrd3;
+	uld.longarray[1] = wrd2;
+	uld.longarray[2] = wrd1 >> 16;
+	long double *longdoublewords = (long double *)uld.longarray;
+	dst->fp = *longdoublewords;
 }
 #define HAVE_to_exten
 
@@ -186,7 +194,7 @@ STATIC_INLINE void to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd
 	fpd->fpx = true;
 #endif
 	if ((wrd1 & 0x7fff0000) == 0 && wrd2 == 0 && wrd3 == 0) {
-		fpd->fp = 0.0;
+		fpd->fp = (wrd1 & 0x80000000) ? -0.0 : +0.0;
 		return;
 	}
 	frac = ((double)wrd2 + ((double)wrd3 / twoto32)) / 2147483648.0;

@@ -76,6 +76,8 @@ cd ..
 
 cd genlinetoscr_msvc
 rm -f genlinetoscr.exe
+rm -f *.cpp
+rm -f *.h
 rm -rf debug
 rm -rf release
 rm -rf fullrelease
@@ -84,6 +86,8 @@ cd ..
 
 cd build68k_msvc
 rm -f build68k.exe
+rm -f *.cpp
+rm -f *.h
 rm -rf debug
 rm -rf release
 rm -rf fullrelease
@@ -92,6 +96,8 @@ cd ..
 
 cd genblitter_msvc
 rm -f genblitter.exe 
+rm -f *.cpp
+rm -f *.h
 rm -rf debug
 rm -rf release
 rm -rf fullrelease
@@ -100,6 +106,8 @@ cd ..
 
 cd gencomp_msvc
 rm -f gencomp.exe
+rm -f *.cpp
+rm -f *.h
 rm -rf debug
 rm -rf release
 rm -rf fullrelease
@@ -108,6 +116,8 @@ cd ..
 
 cd gencpu_msvc
 rm -f gencpu.exe
+rm -f *.cpp
+rm -f *.h
 rm -rf debug
 rm -rf release
 rm -rf fullrelease

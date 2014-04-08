@@ -778,13 +778,6 @@ int close_tablet (void *ctx)
 	if (ctx != NULL)
 		pWTClose ((HCTX)ctx);
 	ctx = NULL;
-	if (wintab)
-		FreeModule(wintab);
-	wintab = NULL;
-	pWTOpenW = NULL;
-	pWTClose = NULL;
-	pWTInfoW = NULL;
-	pWTPacket = NULL;
 	if (!tablet)
 		return 0;
 	return 1;

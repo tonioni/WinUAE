@@ -819,9 +819,9 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 		int m = 1;
 		if (fs == 2) {
-			p->win32_rtgscalemode = 1;
+			p->gf[1].gfx_filter_autoscale = 1;
 		} else {
-			p->win32_rtgscalemode = 0;
+			p->gf[1].gfx_filter_autoscale = 0;
 			if (smm == RP_SCREENMODE_SCALE_2X) {
 				m = 2;
 			} else if (smm == RP_SCREENMODE_SCALE_3X) {

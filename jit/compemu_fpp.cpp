@@ -141,83 +141,75 @@ STATIC_INLINE int comp_fp_get (uae_u32 opcode, uae_u16 extra, int treg)
 			case 3: /* (d8,PC,Xn) or (bd,PC,Xn) or ([bd,PC,Xn],od) or ([bd,PC],Xn,od) */
 			return -1; /* rarely used, fallback to non-JIT */
 			case 4: /* # < data >; Constants should be converted just once by the JIT */
-#if 1
-			{
-				uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+
-					m68k_pc_offset;
-				uae_u32 ad=S1;
-				if (size == 6)
-					address++;
-				mov_l_ri(ad,address);
-				m68k_pc_offset+=sz2[size];
-				break;
-			}
-#else
-			/* disable until rare bug is found */
 			m68k_pc_offset += sz2[size];
 			switch (size) {
 				case 0:
 				{
-					uae_s32 li = comp_get_ilong (m68k_pc_offset - 4);
-					float si = (float) li;
+					uae_s32 li = comp_get_ilong(m68k_pc_offset - 4);
+					float si = (float)li;
 
-					if (li == (int) si) {
-						//write_log (_T("converted immediate LONG constant to SINGLE\n"));
-						fmovs_ri (treg, *(uae_u32 *) &si);
+					if (li == (int)si) {
+						//write_log ("converted immediate LONG constant to SINGLE\n");
+						mov_l_mi((uae_u32)temp_fp, *(uae_u32 *)&si);
+						fmovs_rm(treg, (uae_u32)temp_fp);
 						return 1;
 					}
-					//write_log (_T("immediate LONG constant\n"));
-					fmovl_ri (treg, li);
+					//write_log ("immediate LONG constant\n");
+					mov_l_mi((uae_u32)temp_fp, *(uae_u32 *)&li);
+					fmovi_rm(treg, (uae_u32)temp_fp);
 					return 2;
 				}
 				case 1:
 				//write_log (_T("immediate SINGLE constant\n"));
-				fmovs_ri (treg, comp_get_ilong (m68k_pc_offset - 4));
+				mov_l_mi((uae_u32)temp_fp, comp_get_ilong(m68k_pc_offset - 4));
+				fmovs_rm(treg, (uae_u32)temp_fp);
 				return 1;
 				case 2:
 				//write_log (_T("immediate LONG DOUBLE constant\n"));
-				fmov_ext_ri (treg, comp_get_ilong (m68k_pc_offset - 4),
-							 comp_get_ilong (m68k_pc_offset - 8),
-							 (comp_get_ilong (m68k_pc_offset - 12) >> 16) & 0xffff);
+				mov_l_mi((uae_u32)temp_fp, comp_get_ilong(m68k_pc_offset - 4));
+				mov_l_mi(((uae_u32)temp_fp) + 4, comp_get_ilong(m68k_pc_offset - 8));
+				mov_l_mi(((uae_u32)temp_fp) + 8, (uae_u32)comp_get_iword(m68k_pc_offset - 12));
+				fmov_ext_rm(treg, (uae_u32)temp_fp);
 				return 0;
 				case 4:
 				{
-					extern uae_u8 *natmem_offset;
+					float si = (float)(uae_s16)comp_get_iword(m68k_pc_offset-2);
 
-					uae_s16 w = (uae_s16) comp_get_iword (m68k_pc_offset - 2);
-					float si = (float)w;
-
-					write_log(_T("converted immediate WORD constant %d to SINGLE %f, %08x %d (%08X)\n"), w, si, m68k_getpc(), m68k_pc_offset, comp_pc_p + m68k_pc_offset - NATMEM_OFFSET);
-					fmovs_ri (treg, *(uae_u32 *) &si);
+					//write_log (_T("converted immediate WORD constant %f to SINGLE\n"), si);
+					mov_l_mi((uae_u32)temp_fp,*(uae_u32 *)&si);
+					fmovs_rm(treg,(uae_u32)temp_fp);
 					return 1;
 				}
 				case 5:
 				{
-					uae_u32 longarray[] = { comp_get_ilong (m68k_pc_offset - 4),
-						comp_get_ilong (m68k_pc_offset - 8) };
-					float si = (float) *(double *) longarray;
+					uae_u32 longarray[] = { comp_get_ilong(m68k_pc_offset - 4),
+						comp_get_ilong(m68k_pc_offset - 8) };
+					float si = (float)*(double *)longarray;
 
-					if (*(double *) longarray == (double) si) {
+					if (*(double *)longarray == (double)si) {
 						//write_log (_T("SPEED GAIN: converted a DOUBLE constant to SINGLE\n"));
-						fmovs_ri (treg, *(uae_u32 *) &si);
+						mov_l_mi((uae_u32)temp_fp, *(uae_u32 *)&si);
+						fmovs_rm(treg, (uae_u32)temp_fp);
 						return 1;
 					}
 					//write_log (_T("immediate DOUBLE constant\n"));
-					fmov_ri (treg, longarray[0], longarray[1]);
+					mov_l_mi((uae_u32)temp_fp, longarray[0]);
+					mov_l_mi(((uae_u32)temp_fp) + 4, longarray[1]);
+					fmov_rm(treg, (uae_u32)temp_fp);
 					return 2;
 				}
 				case 6:
 				{
-					float si = (float) (uae_s8) comp_get_ibyte (m68k_pc_offset - 2);
+					float si = (float)(uae_s8)comp_get_ibyte(m68k_pc_offset - 2);
 
-					//write_log (_T("immediate BYTE constant converted to SINGLE\n"));
-					fmovs_ri (treg, *(uae_u32 *) &si);
+					//write_log (_T("converted immediate BYTE constant to SINGLE\n"));
+					mov_l_mi((uae_u32)temp_fp, *(uae_u32 *)&si);
+					fmovs_rm(treg, (uae_u32)temp_fp);
 					return 1;
 				}
 				default: /* never reached */
 				return -1;
 			}
-#endif
 			default: /* never reached */
 			return -1;
 		}
@@ -239,10 +231,10 @@ STATIC_INLINE int comp_fp_get (uae_u32 opcode, uae_u16 extra, int treg)
 		mov_w_mr (((uae_u32) temp_fp) + 8, S2);
 		add_l_ri (S1, 4);
 		readlong (S1, S2, S3);
-		mov_l_mr ((uae_u32) (temp_fp) +4, S2);
+		mov_l_mr (((uae_u32) temp_fp) + 4, S2);
 		add_l_ri (S1, 4);
 		readlong (S1, S2, S3);
-		mov_l_mr ((uae_u32) (temp_fp), S2);
+		mov_l_mr (((uae_u32) temp_fp), S2);
 		fmov_ext_rm (treg, (uae_u32) (temp_fp));
 		return 0;
 		case 4: /* Word */
@@ -256,8 +248,8 @@ STATIC_INLINE int comp_fp_get (uae_u32 opcode, uae_u16 extra, int treg)
 		mov_l_mr (((uae_u32) temp_fp) + 4, S2);
 		add_l_ri (S1, 4);
 		readlong (S1, S2, S3);
-		mov_l_mr ((uae_u32) (temp_fp), S2);
-		fmov_rm (treg, (uae_u32) (temp_fp));
+		mov_l_mr (((uae_u32) temp_fp), S2);
+		fmov_rm (treg, (uae_u32) temp_fp);
 		return 2;
 		case 6: /* Byte */
 		readbyte (S1, S2, S3);
@@ -835,8 +827,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 						}
 						list <<= 1;
 					}
-				}
-				else { /* Postincrement */
+				} else { /* Postincrement */
 					for (reg = 0; reg <= 7; reg++) {
 						if (list & 0x80) {
 							fmov_ext_mr ((uintptr) temp_fp, reg);
@@ -857,8 +848,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 					mov_l_rr ((opcode & 7) + 8, ad);
 				if ((opcode & 0x38) == 0x20)
 					mov_l_rr ((opcode & 7) + 8, ad);
-			}
-			else {
+			} else {
 				/* FMOVEM memory->FPP */
 
 				int ad;
@@ -908,8 +898,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 						}
 						list <<= 1;
 					}
-				}
-				else {
+				} else {
 					for (reg = 0; reg <= 7; reg++) {
 						if (list & 0x80) {
 							readword (ad, S2, S3);

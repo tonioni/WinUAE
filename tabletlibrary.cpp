@@ -111,6 +111,12 @@ static uae_u32 REGPARAM2 lib_expungefunc (TrapContext *context)
 {
 	return 0;
 }
+
+#define TAG_DONE   (0L)		/* terminates array of TagItems. ti_Data unused */
+#define TAG_IGNORE (1L)		/* ignore this item, not end of array */
+#define TAG_MORE   (2L)		/* ti_Data is pointer to another array of TagItems */
+#define TAG_SKIP   (3L)		/* skip this and the next ti_Data items */
+
 static uae_u32 REGPARAM2 lib_allocfunc (TrapContext *context)
 {
 	uae_u32 tags = m68k_areg (regs, 0);
@@ -120,6 +126,24 @@ static uae_u32 REGPARAM2 lib_allocfunc (TrapContext *context)
 	mem = CallLib (context, get_long (4), -0xC6); /* AllocMem */
 	if (!mem)
 		return 0;
+	for (;;) {
+		uae_u32 t = get_long(tags);
+		if (t == TAG_DONE)
+			break;
+		if (t == TAG_SKIP) {
+			tags += 8 + get_long(tags + 4) * 8;
+		} else if (t == TAG_MORE) {
+			tags = get_long(tags + 4);
+		} else if (t == TAG_IGNORE) {
+			tags += 8;
+		} else {
+			t -= 0x8003a000;
+			// clear "unknown" tags
+			if (t != 6 && t != 8)
+				put_long(tags, TAG_IGNORE);
+			tags += 8;
+		}
+	}
 	put_long (mem + 20, tablettags);
 	filltags (mem);
 	return mem;

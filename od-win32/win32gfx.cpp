@@ -1254,8 +1254,9 @@ void getrtgfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_hei
 		int mul = divx > divy ? divy : divx;
 		int xx = srcwidth * mul;
 		int yy = srcheight * mul;
-		SetRect (sr, 0, 0, currentmode->native_width / mul, currentmode->native_height / mul);
-		SetRect (dr, 0, 0, currentmode->native_width, currentmode->native_height);
+		SetRect (dr, 0, 0, currentmode->native_width / mul, currentmode->native_height / mul);
+		//picasso_offset_x = -(picasso96_state.Width - xx) / 2;
+		//picasso_offset_y = -(currentmode->native_height - srcheight) / 2;
 	} else if (scalepicasso == RTG_MODE_CENTER) {
 		int xx = (currentmode->native_width - srcwidth) / 2;
 		int yy = (currentmode->native_height - srcheight) / 2;
@@ -1533,29 +1534,29 @@ static void update_gfxparams (void)
 	scalepicasso = 0;
 	if (screen_is_picasso) {
 		if (isfullscreen () < 0) {
-			if ((currprefs.win32_rtgscalemode == RTG_MODE_CENTER || currprefs.win32_rtgscalemode == RTG_MODE_SCALE || currprefs.win32_rtgallowscaling) && (picasso96_state.Width != currentmode->native_width || picasso96_state.Height != currentmode->native_height))
+			if ((currprefs.gf[1].gfx_filter_autoscale == RTG_MODE_CENTER || currprefs.gf[1].gfx_filter_autoscale == RTG_MODE_SCALE || currprefs.win32_rtgallowscaling) && (picasso96_state.Width != currentmode->native_width || picasso96_state.Height != currentmode->native_height))
 				scalepicasso = 1;
-			if (currprefs.win32_rtgscalemode == RTG_MODE_CENTER)
-				scalepicasso = currprefs.win32_rtgscalemode;
+			if (currprefs.gf[1].gfx_filter_autoscale == RTG_MODE_CENTER)
+				scalepicasso = currprefs.gf[1].gfx_filter_autoscale;
 			if (!scalepicasso && currprefs.win32_rtgscaleaspectratio)
 				scalepicasso = -1;
 		} else if (isfullscreen () > 0) {
 			if (!currprefs.win32_rtgmatchdepth) { // can't scale to different color depth
 				if (currentmode->native_width > picasso96_state.Width && currentmode->native_height > picasso96_state.Height) {
-					if (currprefs.win32_rtgscalemode)
+					if (currprefs.gf[1].gfx_filter_autoscale)
 						scalepicasso = 1;
 				}
-				if (currprefs.win32_rtgscalemode == RTG_MODE_CENTER)
-					scalepicasso = currprefs.win32_rtgscalemode;
+				if (currprefs.gf[1].gfx_filter_autoscale == RTG_MODE_CENTER)
+					scalepicasso = currprefs.gf[1].gfx_filter_autoscale;
 				if (!scalepicasso && currprefs.win32_rtgscaleaspectratio)
 					scalepicasso = -1;
 			}
 		} else if (isfullscreen () == 0) {
-			if (currprefs.win32_rtgscalemode == RTG_MODE_INTEGER_SCALE) {
+			if (currprefs.gf[1].gfx_filter_autoscale == RTG_MODE_INTEGER_SCALE) {
 				scalepicasso = RTG_MODE_INTEGER_SCALE;
 				currentmode->current_width = currprefs.gfx_size.width;
 				currentmode->current_height = currprefs.gfx_size.height;
-			} else if (currprefs.win32_rtgscalemode == RTG_MODE_CENTER) {
+			} else if (currprefs.gf[1].gfx_filter_autoscale == RTG_MODE_CENTER) {
 				if (currprefs.gfx_size.width < picasso96_state.Width || currprefs.gfx_size.height < picasso96_state.Height) {
 					if (!currprefs.win32_rtgallowscaling) {
 						;
@@ -1569,7 +1570,7 @@ static void update_gfxparams (void)
 					currentmode->current_width = currprefs.gfx_size.width;
 					currentmode->current_height = currprefs.gfx_size.height;
 				}
-			} else if (currprefs.win32_rtgscalemode == RTG_MODE_SCALE) {
+			} else if (currprefs.gf[1].gfx_filter_autoscale == RTG_MODE_SCALE) {
 				if (currprefs.gfx_size.width > picasso96_state.Width || currprefs.gfx_size.height > picasso96_state.Height)
 					scalepicasso = 1;
 				if ((currprefs.gfx_size.width != picasso96_state.Width || currprefs.gfx_size.height != picasso96_state.Height) && currprefs.win32_rtgallowscaling) {
@@ -1707,6 +1708,11 @@ static int getstatuswindowheight (void)
 	return wi.rcWindow.bottom - wi.rcWindow.top;
 }
 
+void graphics_reset(void)
+{
+	display_change_requested = 2;
+}
+
 void WIN32GFX_DisplayChangeRequested (int mode)
 {
 	display_change_requested = mode;
@@ -1800,7 +1806,7 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 32 : 0;
 	c |= currprefs.win32_blankmonitors != changed_prefs.win32_blankmonitors ? 32 : 0;
 	c |= currprefs.win32_rtgmatchdepth != changed_prefs.win32_rtgmatchdepth ? 2 : 0;
-	c |= currprefs.win32_rtgscalemode != changed_prefs.win32_rtgscalemode ? (2 | 8 | 64) : 0;
+//	c |= currprefs.win32_rtgscalemode != changed_prefs.win32_rtgscalemode ? (2 | 8 | 64) : 0;
 	c |= currprefs.win32_rtgallowscaling != changed_prefs.win32_rtgallowscaling ? (2 | 8 | 64) : 0;
 	c |= currprefs.win32_rtgscaleaspectratio != changed_prefs.win32_rtgscaleaspectratio ? (8 | 64) : 0;
 	c |= currprefs.win32_rtgvblankrate != changed_prefs.win32_rtgvblankrate ? 8 : 0;
@@ -1900,7 +1906,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.win32_blankmonitors = changed_prefs.win32_blankmonitors;
 		currprefs.win32_statusbar = changed_prefs.win32_statusbar;
 		currprefs.win32_rtgmatchdepth = changed_prefs.win32_rtgmatchdepth;
-		currprefs.win32_rtgscalemode = changed_prefs.win32_rtgscalemode;
+//		currprefs.win32_rtgscalemode = changed_prefs.win32_rtgscalemode;
 		currprefs.win32_rtgallowscaling = changed_prefs.win32_rtgallowscaling;
 		currprefs.win32_rtgscaleaspectratio = changed_prefs.win32_rtgscaleaspectratio;
 		currprefs.win32_rtgvblankrate = changed_prefs.win32_rtgvblankrate;
@@ -2391,7 +2397,7 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 			if (picasso96_state.BytesPerPixel > 1 && picasso96_state.BytesPerPixel * 8 != wc->current_depth && currprefs.win32_rtgmatchdepth)
 				return -1;
 			if (picasso96_state.Width < wc->current_width && picasso96_state.Height < wc->current_height) {
-				if ((currprefs.win32_rtgscalemode == 1 || (currprefs.win32_rtgscalemode == 2 && currprefs.win32_rtgallowscaling)) && !currprefs.win32_rtgmatchdepth)
+				if ((currprefs.gf[1].gfx_filter_autoscale == 1 || (currprefs.gf[1].gfx_filter_autoscale == 2 && currprefs.win32_rtgallowscaling)) && !currprefs.win32_rtgmatchdepth)
 					return 0;
 			}
 			if (picasso96_state.Width != wc->current_width ||
@@ -2421,7 +2427,7 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 		DirectDraw_Fill (NULL, 0);
 		DirectDraw_BlitToPrimary (NULL);
 		if (screen_is_picasso) {
-			if (currprefs.win32_rtgscalemode && ((wc->native_width > picasso96_state.Width && wc->native_height >= picasso96_state.Height) || (wc->native_height > picasso96_state.Height && wc->native_width >= picasso96_state.Width)))
+			if (currprefs.gf[1].gfx_filter_autoscale && ((wc->native_width > picasso96_state.Width && wc->native_height >= picasso96_state.Height) || (wc->native_height > picasso96_state.Height && wc->native_width >= picasso96_state.Width)))
 				return -1;
 			if (currprefs.win32_rtgallowscaling && (picasso96_state.Width != wc->native_width || picasso96_state.Height != wc->native_height))
 				return -1;

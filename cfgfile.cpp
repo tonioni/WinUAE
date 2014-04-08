@@ -178,6 +178,7 @@ static const TCHAR *maxvert[] = { _T("nointerlace"), _T("interlace"), 0 };
 static const TCHAR *abspointers[] = { _T("none"), _T("mousehack"), _T("tablet"), 0 };
 static const TCHAR *magiccursors[] = { _T("both"), _T("native"), _T("host"), 0 };
 static const TCHAR *autoscale[] = { _T("none"), _T("auto"), _T("standard"), _T("max"), _T("scale"), _T("resize"), _T("center"), _T("manual"), _T("integer"), _T("integer_auto"), 0 };
+static const TCHAR *autoscale_rtg[] = { _T("resize"), _T("scale"), _T("center"), _T("integer"), 0 };
 static const TCHAR *joyportmodes[] = { _T(""), _T("mouse"), _T("mousenowheel"), _T("djoy"), _T("gamepad"), _T("ajoy"), _T("cdtvjoy"), _T("cd32joy"), _T("lightpen"), 0 };
 static const TCHAR *joyaf[] = { _T("none"), _T("normal"), _T("toggle"), 0 };
 static const TCHAR *epsonprinter[] = { _T("none"), _T("ascii"), _T("epson_matrix_9pin"), _T("epson_matrix_24pin"), _T("epson_matrix_48pin"), 0 };
@@ -1216,7 +1217,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			if (gf->gfx_filtermask[i][0])
 				cfgfile_write_str (f, _T("gfx_filtermask_pre"), ext, gf->gfx_filtermask[i]);
 		}
-		for (int i = 0; i <MAX_FILTERSHADERS; i++) {
+		for (int i = 0; i < MAX_FILTERSHADERS; i++) {
 			if (gf->gfx_filtershader[i + MAX_FILTERSHADERS][0])
 				cfgfile_write_ext (f, _T("gfx_filter_post"), ext, _T("D3D:%s"), gf->gfx_filtershader[i + MAX_FILTERSHADERS]);
 			if (gf->gfx_filtermask[i + MAX_FILTERSHADERS][0])
@@ -1264,7 +1265,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_dwrite_bool (f, _T("gfx_filter_bilinear"), ext, gf->gfx_filter_bilinear != 0);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_keep_autoscale_aspect"), ext, _T("%d"), gf->gfx_filter_keep_autoscale_aspect);
 		cfgfile_dwrite_str (f, _T("gfx_filter_keep_aspect"), ext, aspects[gf->gfx_filter_keep_aspect]);
-		cfgfile_dwrite_str (f, _T("gfx_filter_autoscale"), ext, autoscale[gf->gfx_filter_autoscale]);
+		cfgfile_dwrite_str(f, _T("gfx_filter_autoscale"), ext, ext == NULL ? autoscale[gf->gfx_filter_autoscale] : autoscale_rtg[gf->gfx_filter_autoscale]);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_aspect_ratio"), ext, _T("%d:%d"),
 			gf->gfx_filter_aspect >= 0 ? (gf->gfx_filter_aspect / ASPECTMULT) : -1,
 			gf->gfx_filter_aspect >= 0 ? (gf->gfx_filter_aspect & (ASPECTMULT - 1)) : -1);
@@ -2094,7 +2095,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	for (int j = 0; j < 2; j++) {
 		struct gfx_filterdata *gf = &p->gf[j];
 		const TCHAR *ext = j == 0 ? NULL : _T("_rtg");
-		if (cfgfile_strval (option, value, _T("gfx_filter_autoscale"), ext, &gf->gfx_filter_autoscale, autoscale, 0)
+		if (cfgfile_strval (option, value, _T("gfx_filter_autoscale"), ext, &gf->gfx_filter_autoscale, j == 0 ? autoscale : autoscale_rtg, 0)
 			|| cfgfile_strval (option, value, _T("gfx_filter_keep_aspect"), ext, &gf->gfx_filter_keep_aspect, aspects, 0))
 			return 1;
 		if (cfgfile_floatval (option, value, _T("gfx_filter_vert_zoomf"), ext, &gf->gfx_filter_vert_zoom)
@@ -2341,7 +2342,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 				*s++ = 0;
 				if (!_tcscmp (value, _T("D3D"))) {
 					p->gfx_api = 1;
-					if (_tcscmp (option, _T("gfx_filter_pre")) == 0) {
+					if (_tcscmp (option, _T("gfx_filter_pre")) == 0 || _tcscmp (option, _T("gfx_filter_pre_rtg")) == 0) {
 						for (int i = 0; i < MAX_FILTERSHADERS; i++) {
 							if (gf->gfx_filtershader[i][0] == 0) {
 								_tcscpy (gf->gfx_filtershader[i], s);
@@ -4914,7 +4915,7 @@ uae_u32 cfgfile_modify (uae_u32 index, TCHAR *parms, uae_u32 size, TCHAR *out, u
 				}
 			}
 			set_config_changed ();
-			set_special (SPCFLAG_BRK);
+			set_special(SPCFLAG_MODE_CHANGE);
 			i++;
 		}
 	}
@@ -5295,7 +5296,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->cpu_frequency = 0;
 	p->mmu_model = 0;
 	p->cpu060_revision = 6;
-	p->fpu_revision = -1;
+	p->fpu_revision = 0;
 	p->fpu_no_unimplemented = false;
 	p->int_no_unimplemented = false;
 	p->m68k_speed = 0;
@@ -5616,8 +5617,10 @@ static int bip_a4000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->mbresmem_low_size = 8 * 1024 * 1024;
 	p->cpu_model = 68030;
 	p->fpu_model = 68882;
-	if (config > 0)
-		p->cpu_model = p->fpu_model = 68040;
+	if (config > 0) {
+		p->cpu_model = 68040;
+		p->fpu_model = 68040;
+	}
 	p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
 	p->cpu_compatible = p->address_space_24 = 0;
 	p->m68k_speed = -1;
@@ -5648,8 +5651,10 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->mbresmem_low_size = 8 * 1024 * 1024;
 	p->cpu_model = 68030;
 	p->fpu_model = 68882;
-	if (config > 0)
-		p->cpu_model = p->fpu_model = 68040;
+	if (config > 0) {
+		p->cpu_model = 68040;
+		p->fpu_model = 68040;
+	}
 	p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
 	p->cpu_compatible = p->address_space_24 = 0;
 	p->m68k_speed = -1;

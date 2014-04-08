@@ -247,6 +247,7 @@ STATIC_INLINE uae_u32 munge24 (uae_u32 x)
 extern int mmu_enabled, mmu_triggered;
 extern int cpu_cycles;
 extern int cpucycleunit;
+extern bool m68k_pc_indirect;
 STATIC_INLINE void set_special (uae_u32 x)
 {
 	regs.spcflags |= x;
@@ -298,18 +299,20 @@ STATIC_INLINE void m68k_incpci (int o)
 
 STATIC_INLINE void m68k_incpc_normal (int o)
 {
-	if ((currprefs.mmu_model || currprefs.cpu_compatible) && !currprefs.cachesize)
-		m68k_incpci (o);
+	if (m68k_pc_indirect)
+		m68k_incpci(o);
 	else
 		m68k_incpc (o);
 }
 
 STATIC_INLINE void m68k_setpc_normal (uaecptr pc)
 {
-	if ((currprefs.mmu_model || currprefs.cpu_compatible) && !currprefs.cachesize)
+	if (m68k_pc_indirect) {
+		regs.pc_p = regs.pc_oldp = 0;
 		m68k_setpci(pc);
-	else
-		m68k_setpc (pc);
+	} else {
+		m68k_setpc(pc);
+	}
 }
 
 STATIC_INLINE void m68k_do_rts (void)
@@ -477,6 +480,8 @@ extern uae_u32 fpp_get_fpsr (void);
 extern void fpu_reset (void);
 extern void fpux_save (int*);
 extern void fpux_restore (int*);
+extern bool fpu_get_constant(fpdata *fp, int cr);
+extern int fpp_cond(int condition);
 
 extern void exception3 (uae_u32 opcode, uaecptr addr);
 extern void exception3i (uae_u32 opcode, uaecptr addr);

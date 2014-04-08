@@ -15,7 +15,8 @@ struct arcadiarom {
     const TCHAR *name, *romid1, *romid2;
     int type, extra;
     int b7, b6, b5, b4, b3, b2, b1, b0;
-	const TCHAR *exts[16 + 1];
+	const TCHAR *ext;
+	const TCHAR *exts[24 + 1];
 };
 
 extern struct arcadiarom *arcadia_bios, *arcadia_game;

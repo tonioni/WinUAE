@@ -44,6 +44,10 @@
 * - ar_dlta
 * - ar_pm
 *
+* mame 0.153
+*
+* - ar_argh
+
 */
 
 static void multigame (int);
@@ -54,33 +58,33 @@ struct arcadiarom *arcadia_bios, *arcadia_game;
 static struct arcadiarom roms[]	= {
 
 	// oneplay 2.11
-	{ 49, _T("ar_bios.zip"), _T("scpa_01_v2.11"), _T("scpa_01"),ARCADIA_BIOS, 3, 6, 1, 0, 2, 3, 4, 5, 7, { _T("_v2.11.u12"), _T("_v2.11.u16") } },
+	{ 49, _T("ar_bios.zip"), _T("scpa_01_v2.11"), _T("scpa_01"),ARCADIA_BIOS, 3, 6, 1, 0, 2, 3, 4, 5, 7, _T("_v2.11."), { _T("u12"), _T("u16") } },
 	// tenplay 2.11
 	{ 50, _T("ar_bios.zip"), _T("gcp"), _T("gcp-"),				ARCADIA_BIOS, 7, 7, 6, 5, 4, 3, 2, 1, 0 },
 	// oneplay 2.20
-	{ 75, _T("ar_bios.zip"), _T("scpa_01_v2.20"), _T("scpa_01"),ARCADIA_BIOS, 3, 6, 1, 0, 2, 3, 4, 5, 7, { _T("_v2.20.u12"), _T("_v2.20.u16") } },
+	{ 75, _T("ar_bios.zip"), _T("scpa_01_v2.20"), _T("scpa_01"),ARCADIA_BIOS, 3, 6, 1, 0, 2, 3, 4, 5, 7, _T("_v2.20."), { _T("u12"), _T("u16") } },
 	// oneplay 3.00
-	{ 51, _T("ar_bios.zip"), _T("scpa_01_v3.00"), _T("scpa_01"),ARCADIA_BIOS, 3, 6, 1, 0, 2, 3, 4, 5, 7, { _T("_v3.0.u12"), _T("_v3.0.u16") } },
+	{ 51, _T("ar_bios.zip"), _T("scpa_01_v3.00"), _T("scpa_01"),ARCADIA_BIOS, 3, 6, 1, 0, 2, 3, 4, 5, 7, _T("_v3.0."), { _T("u12"), _T("u16") } },
 	// tenplay 3.11
-	{ 76, _T("ar_bios.zip"), _T("gcp_v11"), _T("gcp_v311_"),	ARCADIA_BIOS, 7, 7, 6, 5, 4, 3, 2, 1, 0, { _T(".u16"), _T(".u11"), _T(".u17"), _T(".u12") } },
+	{ 76, _T("ar_bios.zip"), _T("gcp_v11"), _T("gcp_v311_"),	ARCADIA_BIOS, 7, 7, 6, 5, 4, 3, 2, 1, 0, NULL, { _T(".u16"), _T(".u11"), _T(".u17"), _T(".u12") } },
 	// tenplay 4.00
-	{ 77, _T("ar_bios.zip"), _T("gcp_v400"), _T("gcp_v400_"),	ARCADIA_BIOS, 7, 7, 6, 5, 4, 3, 2, 1, 0, { _T(".u16"), _T(".u11"), _T(".u17"), _T(".u12") } },
+	{ 77, _T("ar_bios.zip"), _T("gcp_v400"), _T("gcp_v400_"),	ARCADIA_BIOS, 7, 7, 6, 5, 4, 3, 2, 1, 0, NULL, { _T(".u16"), _T(".u11"), _T(".u17"), _T(".u12") } },
 
 	{ 33, _T("ar_airh.zip"), _T("airh"), _T("airh_"),			ARCADIA_GAME, 5|16, 5, 0, 2, 4, 7, 6, 1, 3 },
-	{ 81, _T("ar_airh2.zip"), _T("airh2"), _T("arcadia4"),		ARCADIA_GAME, 0, 5, 0, 2, 4, 7, 6, 1, 3, { _T(".u10"), _T(".u6") } },
+	{ 81, _T("ar_airh2.zip"), _T("airh2"), _T("arcadia4"),		ARCADIA_GAME, 0, 5, 0, 2, 4, 7, 6, 1, 3, NULL, { _T(".u10"), _T(".u6") } },
 	{ 34, _T("ar_bowl.zip"), _T("bowl"), _T("bowl_"),			ARCADIA_GAME, 5|16, 7, 6, 0, 1, 2, 3, 4, 5 },
 	{ 35, _T("ar_dart.zip"), _T("dart"), _T("dart_"),			ARCADIA_GAME, 5|16, 4, 0, 7, 6, 3, 1, 2, 5 },
-	{ 82, _T("ar_dart2.zip"), _T("dart2"), _T("arcadia3"),		ARCADIA_GAME, 0, 4, 0, 7, 6, 3, 1, 2, 5, { _T(".u10"), _T(".u6"), _T(".u11"), _T(".u7"), _T(".u12"), _T(".u8"), _T(".u13"), _T(".u9"), _T(".u19"), _T(".u15"), _T(".u20"), _T(".u16") } },
-	{ 36, _T("ar_fast.zip"), _T("fast-v28"), _T("fast-v28_"),	ARCADIA_GAME, 7, 7, 6, 5, 4, 3, 2, 1, 0, { _T(".u11"), _T(".u15"), _T(".u10"), _T(".u14"), _T(".u9"), _T(".u13"), _T(".u20"), _T(".u24"), _T(".u19"), _T(".u23"), _T(".u18"), _T(".u22"), _T(".u17"), _T(".u21"), _T(".u28"), _T(".u32")  } },
-	{ 83, _T("ar_fasta.zip"), _T("fast-v27"), _T("fast-v27_"),	ARCADIA_GAME, 7, 7, 6, 5, 4, 3, 2, 1, 0, { _T(".u11"), _T(".u15"), _T(".u10"), _T(".u14"), _T(".u9"), _T(".u13"), _T(".u20"), _T(".u24"), _T(".u19"), _T(".u23"), _T(".u18"), _T(".u22"), _T(".u17"), _T(".u21"), _T(".u28"), _T(".u32")  } },
-	{ 37, _T("ar_ldrba.zip"), _T("ldra"), _T("leader_board_0"),	ARCADIA_GAME, 7, 7, 6, 5, 4, 3, 2, 1, 0, { _T("_v2.4.u11"), _T("_v2.4.u15"), _T("_v2.4.u10"), _T("_v2.4.u14"), _T("_v2.4.u9"), _T("_v2.4.u13"), _T("_v2.4.u20"), _T("_v2.4.u24"), _T("_v2.4.u19"), _T("_v2.4.u23"), _T("_v2.4.u18"), _T("_v2.4.u22"), _T("_v2.4.u17"), _T("_v2.4.u21"), _T("_v2.4.u28"), _T("_v2.4.u32")  } },
-	{ 38, _T("ar_ldrbb.zip"),_T("ldrbb"), _T("ldrb_"),			ARCADIA_GAME, 5, 7, 6, 5, 4, 3, 2, 1, 0, { _T(".u11"), _T("_gcp_22.u15"), _T(".u10"), _T(".u14"), _T(".u9"), _T(".u13"), _T(".u20"), _T(".u24"), _T(".u19"), _T(".u23"), _T(".u18"), _T(".u22"), _T(".u17"), _T(".u21"), _T(".u28"), _T(".u32")  } },
-	{ 86, _T("ar_ldrb.zip"),_T("ldrb"), _T("leader_board_0"),	ARCADIA_GAME, 7, 2, 3, 4, 1, 0, 7, 5, 6, { _T("_v2.5.u11"), _T("_v2.5.u15"), _T("_v2.5.u10"), _T("_v2.5.u14"), _T("_v2.5.u9"), _T("_v2.5.u13"), _T("_v2.5.u20"), _T("_v2.5.u24"), _T("_v2.5.u19"), _T("_v2.5.u23"), _T("_v2.5.u18"), _T("_v2.5.u22"), _T("_v2.5.u17"), _T("_v2.5.u21"), _T("_v2.5.u28"), _T("_v2.5.u32")  } },
+	{ 82, _T("ar_dart2.zip"), _T("dart2"), _T("arcadia3"),		ARCADIA_GAME, 0, 4, 0, 7, 6, 3, 1, 2, 5, NULL, { _T(".u10"), _T(".u6"), _T(".u11"), _T(".u7"), _T(".u12"), _T(".u8"), _T(".u13"), _T(".u9"), _T(".u19"), _T(".u15"), _T(".u20"), _T(".u16") } },
+	{ 36, _T("ar_fast.zip"), _T("fast-v28"), _T("fast-v28_"),	ARCADIA_GAME, 7, 7, 6, 5, 4, 3, 2, 1, 0, NULL, { _T(".u11"), _T(".u15"), _T(".u10"), _T(".u14"), _T(".u9"), _T(".u13"), _T(".u20"), _T(".u24"), _T(".u19"), _T(".u23"), _T(".u18"), _T(".u22"), _T(".u17"), _T(".u21"), _T(".u28"), _T(".u32")  } },
+	{ 83, _T("ar_fasta.zip"), _T("fast-v27"), _T("fast-v27_"),	ARCADIA_GAME, 7, 7, 6, 5, 4, 3, 2, 1, 0, NULL, { _T(".u11"), _T(".u15"), _T(".u10"), _T(".u14"), _T(".u9"), _T(".u13"), _T(".u20"), _T(".u24"), _T(".u19"), _T(".u23"), _T(".u18"), _T(".u22"), _T(".u17"), _T(".u21"), _T(".u28"), _T(".u32")  } },
+	{ 37, _T("ar_ldrba.zip"), _T("ldra"), _T("leader_board_0"),	ARCADIA_GAME, 7, 7, 6, 5, 4, 3, 2, 1, 0, _T("_v2.4."), { _T("u11"), _T("u15"), _T("u10"), _T("u14"), _T("u9"), _T("u13"), _T("u20"), _T("u24"), _T("u19"), _T("u23"), _T("u18"), _T("u22"), _T("u17"), _T("u21"), _T("u28"), _T("u32")  } },
+	{ 38, _T("ar_ldrbb.zip"),_T("ldrbb"), _T("ldrb_"),			ARCADIA_GAME, 5, 7, 6, 5, 4, 3, 2, 1, 0, NULL, { _T(".u11"), _T("_gcp_22.u15"), _T(".u10"), _T(".u14"), _T(".u9"), _T(".u13"), _T(".u20"), _T(".u24"), _T(".u19"), _T(".u23"), _T(".u18"), _T(".u22"), _T(".u17"), _T(".u21"), _T(".u28"), _T(".u32")  } },
+	{ 86, _T("ar_ldrb.zip"),_T("ldrb"), _T("leader_board_0"),	ARCADIA_GAME, 7, 2, 3, 4, 1, 0, 7, 5, 6, _T("_v2.5."), { _T("u11"), _T("u15"), _T("u10"), _T("u14"), _T("u9"), _T("u13"), _T("u20"), _T("u24"), _T("u19"), _T("u23"), _T("u18"), _T("u22"), _T("u17"), _T("u21"), _T("u28"), _T("u32")  } },
 	{ 39, _T("ar_ninj.zip"), _T("ninj"), _T("ninj_"),			ARCADIA_GAME, 5|16, 1, 6, 5, 7, 4, 2, 0, 3 },
-	{ 84, _T("ar_ninj2.zip"), _T("ninj2"), _T("arcadia5"),		ARCADIA_GAME, 0, 1, 6, 5, 7, 4, 2, 0, 3, { _T(".u10"), _T(".u6"), _T(".u11"), _T(".u7"), _T(".u12"), _T(".u8"), _T(".u13"), _T(".u9"), _T(".u19"), _T(".u15"), _T(".u20"), _T(".u16") } },
+	{ 84, _T("ar_ninj2.zip"), _T("ninj2"), _T("arcadia5"),		ARCADIA_GAME, 0, 1, 6, 5, 7, 4, 2, 0, 3, NULL, { _T(".u10"), _T(".u6"), _T(".u11"), _T(".u7"), _T(".u12"), _T(".u8"), _T(".u13"), _T(".u9"), _T(".u19"), _T(".u15"), _T(".u20"), _T(".u16") } },
 	{ 40, _T("ar_rdwr.zip"), _T("rdwr"), _T("rdwr_"),			ARCADIA_GAME, 5|16, 3, 1, 6, 4, 0, 5, 2, 7 },
 	{ 41, _T("ar_sdwr.zip"), _T("sdwr"), _T("sdwr_"),			ARCADIA_GAME, 5|16, 6, 3, 4, 5, 2, 1, 0, 7 },
-	{ 85, _T("ar_sdwr2.zip"), _T("sdwr2"), _T("arcadia1"),		ARCADIA_GAME, 0, 6, 3, 4, 5, 2, 1, 0, 7, { _T(".u10"), _T(".u6"), _T(".u11"), _T(".u7"), _T(".u12"), _T(".u8"), _T(".u13"), _T(".u9"), _T(".u19"), _T(".u15"), _T(".u20"), _T(".u16") } },
+	{ 85, _T("ar_sdwr2.zip"), _T("sdwr2"), _T("arcadia1"),		ARCADIA_GAME, 0, 6, 3, 4, 5, 2, 1, 0, 7, NULL, { _T(".u10"), _T(".u6"), _T(".u11"), _T(".u7"), _T(".u12"), _T(".u8"), _T(".u13"), _T(".u9"), _T(".u19"), _T(".u15"), _T(".u20"), _T(".u16") } },
 	{ 42, _T("ar_spot.zip"), _T("spotv2"), _T("spotv2."),		ARCADIA_GAME, 5, 7, 6, 5, 4, 3, 2, 1, 0 },
 	{ 43, _T("ar_sprg.zip"), _T("sprg"), _T("sprg_"),			ARCADIA_GAME, 5|16, 4, 7, 3, 0, 6, 5, 2, 1 },
 	{ 44, _T("ar_xeon.zip"), _T("xeon"), _T("xeon_"),			ARCADIA_GAME, 5|16, 3, 1, 2, 4, 0, 5, 6, 7 },
@@ -88,6 +92,7 @@ static struct arcadiarom roms[]	= {
 	{ 78, _T("ar_blast.zip"), _T("blsb-v2-1"),_T("blsb-v2-1_"),	ARCADIA_GAME, 7|16, 4, 1, 7, 6, 2, 0, 3, 5 },
 	{ 79, _T("ar_dlta.zip"),  _T("dlta_v3"), _T("dlta_v3_"),	ARCADIA_GAME, 7|16, 4, 1, 7, 6, 2, 0, 3, 5 },
 	{ 80, _T("ar_pm.zip"), _T("pm"), _T("pm-"),					ARCADIA_GAME, 2|4|16, 7, 6, 5, 4, 3, 2, 1, 0 },
+	{ 88, _T("ar_argh.zip"), _T("argh"), _T("argh-"),			ARCADIA_GAME, 7, 5, 0, 2, 4, 7, 6, 1, 3, _T("-11-28-87"), { _T(".u12"), _T(".u16"), _T(".u11"), _T(".u15"), _T(".u10"), _T(".u14"), _T(".u9"), _T(".u13"), _T(".u20"), _T(".u24"), _T(".u19"), _T(".u23"), _T(".u18"), _T(".u22"), _T(".u17"), _T(".u21"), _T(".u28"), _T(".u32"), _T(".u27"), _T(".u31"), _T(".u26"), _T(".u30"), _T(".u25"), _T(".u29") } },
 
 	{ -1 }
 };
@@ -109,7 +114,7 @@ static int boot_read;
 
 static int nvwrite;
 
-static int load_rom8 (const TCHAR *xpath, uae_u8 *mem, int extra, const TCHAR **ext)
+static int load_rom8 (const TCHAR *xpath, uae_u8 *mem, int extra, const TCHAR *ext, const TCHAR **exts)
 {
 	struct zfile *zf;
 	TCHAR path[MAX_DPATH];
@@ -120,10 +125,12 @@ static int load_rom8 (const TCHAR *xpath, uae_u8 *mem, int extra, const TCHAR **
 	extra &= 3;
 	memset (tmp, 0xff, 131072);
 	_stprintf (path, _T("%s%s%s"), xpath, extra == 3 ? _T("-hi") : (extra == 2 ? _T("hi") : (extra == 1 ? _T("h") : _T(""))), bin);
-	if (ext) {
-		if (ext[0] == NULL)
+	if (ext)
+		_tcscat(path, ext);
+	if (exts) {
+		if (exts[0] == NULL)
 			goto end;
-		_tcscat (path, ext[0]);
+		_tcscat (path, exts[0]);
 	}
 	//write_log (_T("%s\n"), path);
 	zf = zfile_fopen (path, _T("rb"), ZFD_NORMAL);
@@ -134,7 +141,9 @@ static int load_rom8 (const TCHAR *xpath, uae_u8 *mem, int extra, const TCHAR **
 	zfile_fclose (zf);
 	_stprintf (path, _T("%s%s%s"), xpath, extra == 3 ? _T("-lo") : (extra == 2 ? _T("lo") : (extra == 1 ? _T("l") : _T(""))), bin);
 	if (ext)
-		_tcscat (path, ext[1]);
+		_tcscat(path, ext);
+	if (exts)
+		_tcscat (path, exts[1]);
 	//write_log (_T("%s\n"), path);
 	zf = zfile_fopen (path, _T("rb"), ZFD_NORMAL);
 	if (!zf)
@@ -189,10 +198,13 @@ static int load_roms (struct arcadiarom *rom)
 	int i, offset;
 	TCHAR *xpath;
 
-	if (rom->type == ARCADIA_BIOS)
+	offset = 0;
+	if (rom->type == ARCADIA_BIOS) {
 		xpath = currprefs.romextfile;
-	else
+		offset = bios_offset;
+	} else {
 		xpath = currprefs.cartfile;
+	}
 
 	_tcscpy (path3, xpath);
 	p = path3 + _tcslen (path3) - 1;
@@ -210,16 +222,13 @@ static int load_roms (struct arcadiarom *rom)
 	_tcscat (path3, FSDB_DIR_SEPARATOR_S);
 	_tcscat (path3, rom->romid2);
 
-	offset = 0;
-	if (rom->type == ARCADIA_BIOS)
-		offset = bios_offset;
 	i = 0;
 	for (;;) {
 		if (rom->extra & 4)
 			_stprintf (path, _T("%s%d"), xpath, i + 1);
 		else
 			_tcscpy (path, xpath);
-		if (!load_rom8 (path, arbmemory + 2 * 65536 * i + offset, rom->extra, rom->exts && rom->exts[0] ? &rom->exts[i * 2] : NULL)) {
+		if (!load_rom8 (path, arbmemory + 2 * 65536 * i + offset, rom->extra, rom->ext, rom->exts && rom->exts[0] ? &rom->exts[i * 2] : NULL)) {
 			if (i == 0)
 				write_log (_T("Arcadia: %s rom load failed ('%s')\n"), rom->type == ARCADIA_BIOS ? _T("bios") : _T("game"), path);
 			break;
@@ -260,6 +269,9 @@ static void decrypt_roms (struct arcadiarom *rom)
 			rom->b7,rom->b6,rom->b5,rom->b4,rom->b3,rom->b2,rom->b1,rom->b0);
 		if (rom->extra == 2)
 			arbmemory[i - 1] = bswap (arbmemory[i - 1],7,6,5,4,3,2,1,0);
+	}
+	if (rom->romid == 88) {
+		memcpy(arbmemory + bios_offset, arbmemory, 524288);
 	}
 }
 
@@ -460,7 +472,7 @@ int arcadia_map_banks (void)
 {
 	if (!arcadia_bios)
 		return 0;
-	arbmemory = xmalloc (uae_u8, allocated_arbmemory);
+	arbmemory = xmalloc (uae_u8, allocated_arbmemory + allocated_arbbmemory);
 	arbbmemory = arbmemory + bios_offset;
 	memset (arbmemory, 0, allocated_arbmemory);
 	if (!load_roms (arcadia_bios)) {

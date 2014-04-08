@@ -60,6 +60,7 @@ static int last_instructionaccess_for_exception_3;
 int mmu_enabled, mmu_triggered;
 int cpu_cycles;
 static int baseclock;
+bool m68k_pc_indirect;
 
 int cpucycleunit;
 int cpu_tracer;
@@ -1199,6 +1200,9 @@ static void build_cpufunctbl (void)
 #ifdef JIT
 	build_comp ();
 #endif
+	m68k_pc_indirect = (currprefs.mmu_model || currprefs.cpu_compatible) && !currprefs.cachesize;
+	if (tbl == op_smalltbl_0_ff || tbl == op_smalltbl_1_ff || tbl == op_smalltbl_2_ff || tbl == op_smalltbl_3_ff || tbl == op_smalltbl_4_ff || tbl == op_smalltbl_5_ff)
+		m68k_pc_indirect = false;
 	set_cpu_caches (true);
 }
 
@@ -1282,9 +1286,11 @@ void check_prefs_changed_cpu (void)
 		|| currprefs.cpu_compatible != changed_prefs.cpu_compatible
 		|| currprefs.cpu_cycle_exact != changed_prefs.cpu_cycle_exact) {
 
+			uaecptr pc = m68k_getpc();
 			prefs_changed_cpu ();
 			build_cpufunctbl ();
-			fill_prefetch ();
+			m68k_setpc_normal(pc);
+			fill_prefetch();
 			changed = true;
 	}
 	if (changed
@@ -1302,7 +1308,7 @@ void check_prefs_changed_cpu (void)
 		currprefs.cpu_idle = changed_prefs.cpu_idle;
 	}
 	if (changed) {
-		set_special (SPCFLAG_BRK);
+		set_special (SPCFLAG_MODE_CHANGE);
 		reset_frame_rate_hack ();
 	}
 
@@ -2592,7 +2598,7 @@ void REGPARAM2 ExceptionL (int nr, uaecptr address)
 	ExceptionX (nr, address);
 }
 
-STATIC_INLINE void do_interrupt (int nr)
+static void do_interrupt (int nr)
 {
 	if (debug_dma)
 		record_dma_event (DMA_EVENT_CPUIRQ, current_hpos (), vpos);
@@ -3088,9 +3094,13 @@ void doint (void)
 
 #define IDLETIME (currprefs.cpu_idle * sleep_resolution / 1000)
 
-STATIC_INLINE int do_specialties (int cycles)
+static int do_specialties (int cycles)
 {
-		regs.instruction_pc = m68k_getpc ();
+	if (regs.spcflags & SPCFLAG_MODE_CHANGE)
+		return 1;
+	
+	regs.instruction_pc = m68k_getpc();
+
 #ifdef ACTION_REPLAY
 #ifdef ACTION_REPLAY_HRTMON
 	if ((regs.spcflags & SPCFLAG_ACTION_REPLAY) && hrtmon_flag != ACTION_REPLAY_INACTIVE) {
@@ -3196,7 +3206,7 @@ STATIC_INLINE int do_specialties (int cycles)
 			}
 		}
 
-		if ((regs.spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE))) {
+		if (regs.spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE)) {
 			unset_special (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
 			// SPCFLAG_BRK breaks STOP condition, need to prefetch
 			m68k_resumestopped ();
@@ -3251,8 +3261,9 @@ STATIC_INLINE int do_specialties (int cycles)
 		set_special (SPCFLAG_INT);
 	}
 
-	if ((regs.spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE)))
+	if (regs.spcflags & SPCFLAG_BRK)
 		return 1;
+
 	return 0;
 }
 
@@ -4471,7 +4482,38 @@ static const TCHAR *fpuopcodes[] =
 	NULL
 };
 
-static void addmovemreg (TCHAR *out, int *prevreg, int *lastreg, int *first, int reg)
+static const TCHAR *movemregs[] =
+{
+	_T("D0"),
+	_T("D1"),
+	_T("D2"),
+	_T("D3"),
+	_T("D4"),
+	_T("D5"),
+	_T("D6"),
+	_T("D7"),
+	_T("A0"),
+	_T("A1"),
+	_T("A2"),
+	_T("A3"),
+	_T("A4"),
+	_T("A5"),
+	_T("A6"),
+	_T("A7"),
+	_T("FP0"),
+	_T("FP1"),
+	_T("FP2"),
+	_T("FP3"),
+	_T("FP4"),
+	_T("FP5"),
+	_T("FP6"),
+	_T("FP7"),
+	_T("FPCR"),
+	_T("FPSR"),
+	_T("FPIAR")
+};
+
+static void addmovemreg (TCHAR *out, int *prevreg, int *lastreg, int *first, int reg, int fpmode)
 {
 	TCHAR *p = out + _tcslen (out);
 	if (*prevreg < 0) {
@@ -4479,13 +4521,13 @@ static void addmovemreg (TCHAR *out, int *prevreg, int *lastreg, int *first, int
 		*lastreg = reg;
 		return;
 	}
-	if ((*prevreg) + 1 != reg || (reg & 8) != ((*prevreg & 8))) {
-		_stprintf (p, _T("%s%c%d"), (*first) ? _T("") : _T("/"), (*lastreg) < 8 ? 'D' : 'A', (*lastreg) & 7);
+	if (reg < 0 || fpmode == 2 || (*prevreg) + 1 != reg || (reg & 8) != ((*prevreg & 8))) {
+		_stprintf (p, _T("%s%s"), (*first) ? _T("") : _T("/"), movemregs[*lastreg]);
 		p = p + _tcslen (p);
 		if ((*lastreg) + 2 == reg) {
-			_stprintf (p, _T("/%c%d"), (*prevreg) < 8 ? 'D' : 'A', (*prevreg) & 7);
+			_stprintf (p, _T("/%s"), movemregs[*prevreg]);
 		} else if ((*lastreg) != (*prevreg)) {
-			_stprintf (p, _T("-%c%d"), (*prevreg) < 8 ? 'D' : 'A', (*prevreg) & 7);
+			_stprintf (p, _T("-%s"), movemregs[*prevreg]);
 		}
 		*lastreg = reg;
 		*first = 0;
@@ -4493,18 +4535,20 @@ static void addmovemreg (TCHAR *out, int *prevreg, int *lastreg, int *first, int
 	*prevreg = reg;
 }
 
-static void movemout (TCHAR *out, uae_u16 mask, int mode)
+static void movemout (TCHAR *out, uae_u16 mask, int mode, int fpmode)
 {
 	unsigned int dmask, amask;
 	int prevreg = -1, lastreg = -1, first = 1;
 
-	if (mode == Apdi) {
-		int i;
-		uae_u8 dmask2 = (mask >> 8) & 0xff;
-		uae_u8 amask2 = mask & 0xff;
+	if (mode == Apdi && !fpmode) {
+		uae_u8 dmask2;
+		uae_u8 amask2;
+		
+		amask2 = mask & 0xff;
+		dmask2 = (mask >> 8) & 0xff;
 		dmask = 0;
 		amask = 0;
-		for (i = 0; i < 8; i++) {
+		for (int i = 0; i < 8; i++) {
 			if (dmask2 & (1 << i))
 				dmask |= 1 << (7 - i);
 			if (amask2 & (1 << i))
@@ -4513,10 +4557,22 @@ static void movemout (TCHAR *out, uae_u16 mask, int mode)
 	} else {
 		dmask = mask & 0xff;
 		amask = (mask >> 8) & 0xff;
+		if (fpmode == 1 && mode != Apdi) {
+			uae_u8 dmask2 = dmask;
+			dmask = 0;
+			for (int i = 0; i < 8; i++) {
+				if (dmask2 & (1 << i))
+					dmask |= 1 << (7 - i);
+			}
+		}
 	}
-	while (dmask) { addmovemreg (out, &prevreg, &lastreg, &first, movem_index1[dmask]); dmask = movem_next[dmask]; }
-	while (amask) { addmovemreg (out, &prevreg, &lastreg, &first, movem_index1[amask] + 8); amask = movem_next[amask]; }
-	addmovemreg (out, &prevreg, &lastreg, &first, -1);
+	if (fpmode) {
+		while (dmask) { addmovemreg(out, &prevreg, &lastreg, &first, movem_index1[dmask] + (fpmode == 2 ? 24 : 16), fpmode); dmask = movem_next[dmask]; }
+	} else {
+		while (dmask) { addmovemreg (out, &prevreg, &lastreg, &first, movem_index1[dmask], fpmode); dmask = movem_next[dmask]; }
+		while (amask) { addmovemreg (out, &prevreg, &lastreg, &first, movem_index1[amask] + 8, fpmode); amask = movem_next[amask]; }
+	}
+	addmovemreg(out, &prevreg, &lastreg, &first, -1, fpmode);
 }
 
 static const TCHAR *fpsizes[] = {
@@ -4527,7 +4583,7 @@ static const TCHAR *fpsizes[] = {
 	_T("W"),
 	_T("D"),
 	_T("B"),
-	_T("?")
+	_T("P")
 };
 static const int fpsizeconv[] = {
 	sz_long,
@@ -4537,26 +4593,15 @@ static const int fpsizeconv[] = {
 	sz_word,
 	sz_double,
 	sz_byte,
-	0
+	sz_packed
 };
 
 static void disasm_size (TCHAR *instrname, struct instr *dp)
 {
-#if 0
-	int i, size;
-	uae_u16 mnemo = dp->mnemo;
-
-	size = dp->size;
-	for (i = 0; i < 65536; i++) {
-		struct instr *in = &table68k[i];
-		if (in->mnemo == mnemo && in != dp) {
-			if (size != in->size)
-				break;
-		}
+	if (dp->unsized) {
+		_tcscat(instrname, _T("   "));
+		return;
 	}
-	if (i == 65536)
-		size = -1;
-#endif
 	switch (dp->size)
 	{
 	case sz_byte:
@@ -4657,16 +4702,16 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			pc += 2;
 			pc = ShowEA (0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
 			_tcscat (instrname, _T(","));
-			movemout (instrname, mask, dp->dmode);
+			movemout (instrname, mask, dp->dmode, 0);
 		} else if (lookup->mnemo == i_MVMLE) {
 			uae_u16 mask = extra;
 			pc += 2;
-			movemout(instrname, mask, dp->dmode);
+			movemout(instrname, mask, dp->dmode, 0);
 			_tcscat(instrname, _T(","));
 			pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
 		} else if (lookup->mnemo == i_DIVL || lookup->mnemo == i_MULL) {
 			TCHAR *p;
-			pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &deaddr2, safemode);
+			pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, safemode);
 			extra = get_word_debug(pc);
 			pc += 2;
 			p = instrname + _tcslen(instrname);
@@ -4674,40 +4719,144 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 				_stprintf(p, _T(",D%d:D%d"), extra & 7, (extra >> 12) & 7);
 			else
 				_stprintf(p, _T(",D%d"), (extra >> 12) & 7);
+		} else if (lookup->mnemo == i_MOVES) {
+			TCHAR *p;
+			pc += 2;
+			if (extra & 0x1000) {
+				pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, safemode);
+				p = instrname + _tcslen(instrname);
+				_stprintf(p, _T(",%c%d"), (extra & 0x8000) ? 'A' : 'D', (extra >> 12) & 7);
+			} else {
+				p = instrname + _tcslen(instrname);
+				_stprintf(p, _T("%c%d,"), (extra & 0x8000) ? 'A' : 'D', (extra >> 12) & 7);
+				pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, safemode);
+			}
+		} else if (lookup->mnemo == i_BFEXTS || lookup->mnemo == i_BFEXTU ||
+				   lookup->mnemo == i_BFCHG || lookup->mnemo == i_BFCLR ||
+				   lookup->mnemo == i_BFFFO || lookup->mnemo == i_BFINS ||
+				   lookup->mnemo == i_BFSET || lookup->mnemo == i_BFTST) {
+			TCHAR *p;
+			int reg = -1;
+
+			pc += 2;
+			p = instrname + _tcslen(instrname);
+			if (lookup->mnemo == i_BFEXTS || lookup->mnemo == i_BFEXTU || lookup->mnemo == i_BFFFO || lookup->mnemo == i_BFINS)
+				reg = (extra >> 12) & 7;
+			if (lookup->mnemo == i_BFINS)
+				_stprintf(p, _T("D%d,"), reg);
+			pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, safemode);
+			_tcscat(instrname, _T(" {"));
+			p = instrname + _tcslen(instrname);
+			if (extra & 0x0800)
+				_stprintf(p, _T("D%d"), (extra >> 6) & 7);
+			else
+				_stprintf(p, _T("%d"), (extra >> 6) & 31);
+			_tcscat(instrname, _T(":"));
+			p = instrname + _tcslen(instrname);
+			if (extra & 0x0020)
+				_stprintf(p, _T("D%d"), extra & 7);
+			else
+				_stprintf(p, _T("%d"), extra  & 31);
+			_tcscat(instrname, _T("}"));
+			p = instrname + _tcslen(instrname);
+			if (lookup->mnemo == i_BFFFO || lookup->mnemo == i_BFEXTS || lookup->mnemo == i_BFEXTU)
+				_stprintf(p, _T(",D%d"), reg);
 		} else if (lookup->mnemo == i_FPP) {
 			TCHAR *p;
 			int ins = extra & 0x3f;
 			int size = (extra >> 10) & 7;
 
 			pc += 2;
-			if (fpuopcodes[ins])
-				_tcscpy(instrname, fpuopcodes[ins]);
-			else
-				_tcscpy(instrname, _T("F?"));
-
-			if ((extra & 0xe000) == 0x6000) { // FMOVE to memory
-				_tcscat(instrname, _T("."));
-				_tcscat(instrname, fpsizes[size]);
-				_tcscat(instrname, _T(" "));
+			if ((extra & 0xfc00) == 0x5c00) { // FMOVECR (=i_FPP with source specifier = 7)
+				fpdata fp;
+				if (fpu_get_constant(&fp, extra))
+#if USE_LONG_DOUBLE
+					_stprintf(instrname, _T("FMOVECR.X #%Le,FP%d"), fp.fp, (extra >> 7) & 7);
+#else
+					_stprintf(instrname, _T("FMOVECR.X #%e,FP%d"), fp.fp, (extra >> 7) & 7);
+#endif
+				else
+					_stprintf(instrname, _T("FMOVECR.X #?,FP%d"), (extra >> 7) & 7);
+			} else if ((extra & 0x8000) == 0x8000) { // FMOVEM
+				int dr = (extra >> 13) & 1;
+				int mode;
+				int dreg = (extra >> 4) & 7;
+				int regmask, fpmode;
+				
+				if (extra & 0x4000) {
+					mode = (extra >> 11) & 3;
+					regmask = extra & 0xff;  // FMOVEM FPx
+					fpmode = 1;
+					_tcscpy(instrname, _T("FMOVEM.X "));
+				} else {
+					mode = 0;
+					regmask = (extra >> 10) & 7;  // FMOVEM control
+					fpmode = 2;
+					_tcscpy(instrname, _T("FMOVEM.L "));
+					if (regmask == 1 || regmask == 2 || regmask == 4)
+						_tcscpy(instrname, _T("FMOVE.L "));
+				}
 				p = instrname + _tcslen(instrname);
-				_stprintf(p, _T("FP%d,"), (extra >> 10) & 7);
-				pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, fpsizeconv[size], instrname, &deaddr2, safemode);
-			} else if (extra & 0x4000) {
-				_tcscat(instrname, _T("."));
-				_tcscat(instrname, fpsizes[size]);
-				_tcscat(instrname, _T(" "));
-				pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, fpsizeconv[size], instrname, &seaddr2, safemode);
-				p = instrname + _tcslen(instrname);
-				_stprintf(p, _T(",FP%d"), (extra >> 7) & 7);
-			} else if (ins == 0 || (extra & 0x20)) {
-				p = instrname + _tcslen(instrname);
-				_stprintf(p, _T(".X FP%d,FP%d"), (extra >> 10) & 7, (extra >> 7) & 7);
+				if (dr) {
+					if (mode & 1)
+						_stprintf(instrname, _T("D%d"), dreg);
+					else
+						movemout(instrname, regmask, dp->dmode, fpmode);
+					_tcscat(instrname, _T(","));
+					pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
+				} else {
+					pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
+					_tcscat(instrname, _T(","));
+					p = instrname + _tcslen(instrname);
+					if (mode & 1)
+						_stprintf(p, _T("D%d"), dreg);
+					else
+						movemout(p, regmask, dp->dmode, fpmode);
+				}
 			} else {
-				p = instrname + _tcslen(instrname);
-				_stprintf(p, _T(".X FP%d"), (extra >> 10) & 7);
+				if (fpuopcodes[ins])
+					_tcscpy(instrname, fpuopcodes[ins]);
+				else
+					_tcscpy(instrname, _T("F?"));
+
+				if ((extra & 0xe000) == 0x6000) { // FMOVE to memory
+					int kfactor = extra & 0x7f;
+					_tcscpy(instrname, _T("FMOVE."));
+					_tcscat(instrname, fpsizes[size]);
+					_tcscat(instrname, _T(" "));
+					p = instrname + _tcslen(instrname);
+					_stprintf(p, _T("FP%d,"), (extra >> 10) & 7);
+					pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, fpsizeconv[size], instrname, &deaddr2, safemode);
+					p = instrname + _tcslen(instrname);
+					if (size == 7) {
+						_stprintf(p, _T(" {D%d}"), (kfactor >> 4));
+					} else if (kfactor) {
+						if (kfactor & 0x40)
+							kfactor |= ~0x3f;
+						_stprintf(p, _T(" {%d}"), kfactor);
+					}
+				} else {
+					if (extra & 0x4000) { // source is EA
+						_tcscat(instrname, _T("."));
+						_tcscat(instrname, fpsizes[size]);
+						_tcscat(instrname, _T(" "));
+						pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, fpsizeconv[size], instrname, &seaddr2, safemode);
+					} else { // source is FPx
+						p = instrname + _tcslen(instrname);
+						_stprintf(p, _T(".X FP%d"), (extra >> 10) & 7);
+					}
+					p = instrname + _tcslen(instrname);
+					if ((extra & 0x4000) || (((extra >> 7) & 7) != ((extra >> 10) & 7)))
+						_stprintf(p, _T(",FP%d"), (extra >> 7) & 7);
+					if (ins >= 0x30 && ins < 0x38) { // FSINCOS
+						p = instrname + _tcslen(instrname);
+						_stprintf(p, _T(",FP%d"), extra & 7);
+					}
+				}
 			}
-		}
-		else {
+		} else if ((opcode & 0xf000) == 0xa000) {
+			_tcscpy(instrname, _T("A-LINE"));
+		} else {
 			if (dp->suse) {
 				pc = ShowEA (0, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, &seaddr2, safemode);
 			}
@@ -4718,7 +4867,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			}
 		}
 
-		for (i = 0; i < (pc - oldpc) / 2; i++) {
+		for (i = 0; i < (pc - oldpc) / 2 && i < 5; i++) {
 			buf = buf_out (buf, &bufsize, _T("%04x "), get_word_debug (oldpc + i * 2));
 		}
 		while (i++ < 5)
@@ -4734,10 +4883,19 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			uaecptr addr2 = deaddr2 ? deaddr2 : seaddr2;
 			if (deaddr)
 				*deaddr = pc;
-			if (cctrue (dp->cc))
-				buf = buf_out (buf, &bufsize, _T(" == $%08x (T)"), addr2);
-			else
-				buf = buf_out (buf, &bufsize, _T(" == $%08x (F)"), addr2);
+			if ((opcode & 0xf000) == 0xf000) {
+				if (fpp_cond(dp->cc)) {
+					buf = buf_out(buf, &bufsize, _T(" == $%08x (T)"), addr2);
+				} else {
+					buf = buf_out(buf, &bufsize, _T(" == $%08x (F)"), addr2);
+				}
+			} else {
+				if (cctrue (dp->cc)) {
+					buf = buf_out (buf, &bufsize, _T(" == $%08x (T)"), addr2);
+				} else {
+					buf = buf_out (buf, &bufsize, _T(" == $%08x (F)"), addr2);
+				}
+			}
 		} else if ((opcode & 0xff00) == 0x6100) { /* BSR */
 			if (deaddr)
 				*deaddr = pc;
@@ -5937,7 +6095,7 @@ STATIC_INLINE void update_cache030 (struct cache030 *c, uae_u32 val, uae_u32 tag
 	c->data[lws] = val;
 }
 
-STATIC_INLINE void fill_icache030 (uae_u32 addr)
+static void fill_icache030 (uae_u32 addr)
 {
 	int lws;
 	uae_u32 tag;
