@@ -164,6 +164,33 @@ static void fpset (fpdata *fpd, fptype f)
 #endif
 }
 
+#if 0
+static void normalize(uae_u32 *pwrd1, uae_u32 *pwrd2, uae_u32 *pwrd3)
+{
+	uae_u32 wrd1 = *pwrd1;
+	uae_u32 wrd2 = *pwrd2;
+	uae_u32 wrd3 = *pwrd3;
+	int exp = (wrd1 >> 16) & 0x7fff;
+	// Normalize if unnormal.
+	if (exp != 0 && exp != 0x7fff && !(wrd2 & 0x80000000)) {
+		while (!(wrd2 & 0x80000000) && (wrd2 || wrd3)) {
+			wrd2 <<= 1;
+			if (wrd3 & 0x80000000)
+				wrd2 |= 1;
+			wrd3 <<= 1;
+			exp--;
+		}
+		if (exp < 0)
+			exp = 0;
+		if (!wrd2 && !wrd3)
+			exp = 0;
+		*pwrd1 = (wrd1 & 0x80000000) | (exp << 16);
+		*pwrd2 = wrd2;
+		*pwrd3 = wrd3;
+	}
+}
+#endif
+
 bool fpu_get_constant(fpdata *fp, int cr)
 {
 	fptype f;
@@ -2595,7 +2622,7 @@ uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
-		dstbak = dst = xmalloc (uae_u8, 4+4+8*10+4+4+4+4+4);
+		dstbak = dst = xmalloc (uae_u8, 4+4+8*10+4+4+4+4+4+2*10+3*(4+2));
 	save_u32 (currprefs.fpu_model);
 	save_u32 (0x80000000 | 0x40000000 | (regs.fpu_state == 0 ? 1 : 0) | (regs.fpu_exp_state ? 2 : 0) | (regs.fpu_exp_state > 1 ? 4 : 0));
 	for (i = 0; i < 8; i++) {

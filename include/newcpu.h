@@ -262,134 +262,157 @@ STATIC_INLINE void unset_special (uae_u32 x)
 #define m68k_dreg(r,num) ((r).regs[(num)])
 #define m68k_areg(r,num) (((r).regs + 8)[(num)])
 
-STATIC_INLINE void m68k_setpc (uaecptr newpc)
+
+/* direct (regs.pc_p) access */
+
+STATIC_INLINE void m68k_setpc(uaecptr newpc)
 {
-	regs.pc_p = regs.pc_oldp = get_real_address (newpc);
+	regs.pc_p = regs.pc_oldp = get_real_address(newpc);
 	regs.instruction_pc = regs.pc = newpc;
 }
-
-STATIC_INLINE uaecptr m68k_getpc (void)
+STATIC_INLINE uaecptr m68k_getpc(void)
 {
 	return (uaecptr)(regs.pc + ((uae_u8*)regs.pc_p - (uae_u8*)regs.pc_oldp));
 }
 #define M68K_GETPC m68k_getpc()
-
-STATIC_INLINE uaecptr m68k_getpc_p (uae_u8 *p)
+STATIC_INLINE uaecptr m68k_getpc_p(uae_u8 *p)
 {
 	return (uaecptr)(regs.pc + ((uae_u8*)p - (uae_u8*)regs.pc_oldp));
 }
-
-STATIC_INLINE void m68k_incpc (int o)
+STATIC_INLINE void m68k_incpc(int o)
 {
 	regs.pc_p += o;
 }
 
-STATIC_INLINE void m68k_setpci (uaecptr newpc)
+STATIC_INLINE uae_u32 get_dibyte(int o)
+{
+	return do_get_mem_byte((uae_u8 *)((regs).pc_p + (o) + 1));
+}
+STATIC_INLINE uae_u32 get_diword(int o)
+{
+	return do_get_mem_word((uae_u16 *)((regs).pc_p + (o)));
+}
+STATIC_INLINE uae_u32 get_dilong(int o)
+{
+	return do_get_mem_long((uae_u32 *)((regs).pc_p + (o)));
+}
+STATIC_INLINE uae_u32 next_diword(void)
+{
+	uae_u32 r = do_get_mem_word((uae_u16 *)((regs).pc_p));
+	m68k_incpc(2);
+	return r;
+}
+STATIC_INLINE uae_u32 next_dilong(void)
+{
+	uae_u32 r = do_get_mem_long((uae_u32 *)((regs).pc_p));
+	m68k_incpc(4);
+	return r;
+}
+
+STATIC_INLINE void m68k_do_bsr(uaecptr oldpc, uae_s32 offset)
+{
+	m68k_areg(regs, 7) -= 4;
+	put_long(m68k_areg(regs, 7), oldpc);
+	m68k_incpc(offset);
+}
+STATIC_INLINE void m68k_do_rts(void)
+{
+	uae_u32 newpc = get_long(m68k_areg(regs, 7));
+	m68k_setpc(newpc);
+	m68k_areg(regs, 7) += 4;
+}
+
+/* indirect (regs.pc) access */
+
+STATIC_INLINE void m68k_setpci(uaecptr newpc)
 {
 	regs.instruction_pc = regs.pc = newpc;
 }
-STATIC_INLINE uaecptr m68k_getpci (void)
+STATIC_INLINE uaecptr m68k_getpci(void)
 {
 	return regs.pc;
 }
-STATIC_INLINE void m68k_incpci (int o)
+STATIC_INLINE void m68k_incpci(int o)
 {
 	regs.pc += o;
 }
 
-STATIC_INLINE void m68k_incpc_normal (int o)
+STATIC_INLINE uae_u32 get_iibyte(int o)
+{
+	return get_wordi(m68k_getpci() + (o) + 1);
+}
+STATIC_INLINE uae_u32 get_iiword(int o)
+{
+	return get_wordi(m68k_getpci() + (o));
+}
+STATIC_INLINE uae_u32 get_iilong(int o)
+{
+	return get_longi(m68k_getpci () + (o));
+}
+
+STATIC_INLINE uae_u32 next_iibyte (void)
+{
+	uae_u32 r = get_iibyte (0);
+	m68k_incpci (2);
+	return r;
+}
+STATIC_INLINE uae_u32 next_iiword (void)
+{
+	uae_u32 r = get_iiword (0);
+	m68k_incpci (2);
+	return r;
+}
+STATIC_INLINE uae_u32 next_iiwordi (void)
+{
+	uae_u32 r = get_wordi(m68k_getpci());
+	m68k_incpci (2);
+	return r;
+}
+STATIC_INLINE uae_u32 next_iilong (void)
+{
+	uae_u32 r = get_iilong(0);
+	m68k_incpci (4);
+	return r;
+}
+STATIC_INLINE uae_u32 next_iilongi (void)
+{
+	uae_u32 r = get_longi (m68k_getpci ());
+	m68k_incpci (4);
+	return r;
+}
+
+STATIC_INLINE void m68k_do_bsri(uaecptr oldpc, uae_s32 offset)
+{
+	m68k_areg(regs, 7) -= 4;
+	put_long(m68k_areg(regs, 7), oldpc);
+	m68k_incpci(offset);
+}
+STATIC_INLINE void m68k_do_rtsi(void)
+{
+	uae_u32 newpc = get_long(m68k_areg(regs, 7));
+	m68k_setpci(newpc);
+	m68k_areg(regs, 7) += 4;
+}
+
+/* common access */
+
+STATIC_INLINE void m68k_incpc_normal(int o)
 {
 	if (m68k_pc_indirect)
 		m68k_incpci(o);
 	else
-		m68k_incpc (o);
+		m68k_incpc(o);
 }
 
-STATIC_INLINE void m68k_setpc_normal (uaecptr pc)
+STATIC_INLINE void m68k_setpc_normal(uaecptr pc)
 {
 	if (m68k_pc_indirect) {
 		regs.pc_p = regs.pc_oldp = 0;
 		m68k_setpci(pc);
-	} else {
+	}
+	else {
 		m68k_setpc(pc);
 	}
-}
-
-STATIC_INLINE void m68k_do_rts (void)
-{
-	uae_u32 newpc = get_long (m68k_areg (regs, 7));
-	m68k_setpc (newpc);
-	m68k_areg (regs, 7) += 4;
-}
-
-STATIC_INLINE void m68k_do_rtsi (void)
-{
-	uae_u32 newpc = get_long (m68k_areg (regs, 7));
-	m68k_setpci (newpc);
-	m68k_areg (regs, 7) += 4;
-}
-
-STATIC_INLINE void m68k_do_bsr (uaecptr oldpc, uae_s32 offset)
-{
-	m68k_areg (regs, 7) -= 4;
-	put_long (m68k_areg (regs, 7), oldpc);
-	m68k_incpc (offset);
-}
-
-STATIC_INLINE void m68k_do_bsri (uaecptr oldpc, uae_s32 offset)
-{
-	m68k_areg (regs, 7) -= 4;
-	put_long (m68k_areg (regs, 7), oldpc);
-	m68k_incpci (offset);
-}
-
-STATIC_INLINE uae_u32 get_ibyte (int o)
-{
-	return do_get_mem_byte((uae_u8 *)((regs).pc_p + (o) + 1));
-}
-STATIC_INLINE uae_u32 get_iword (int o)
-{
-	return do_get_mem_word((uae_u16 *)((regs).pc_p + (o)));
-}
-STATIC_INLINE uae_u32 get_ilong (int o)
-{
-	return do_get_mem_long((uae_u32 *)((regs).pc_p + (o)));
-}
-
-#define get_iwordi(o) get_wordi(o)
-#define get_ilongi(o) get_longi(o)
-
-/* These are only used by the 68020/68881 code, and therefore don't
-* need to handle prefetch.  */
-STATIC_INLINE uae_u32 next_ibyte (void)
-{
-	uae_u32 r = get_ibyte (0);
-	m68k_incpc (2);
-	return r;
-}
-STATIC_INLINE uae_u32 next_iword (void)
-{
-	uae_u32 r = get_iword (0);
-	m68k_incpc (2);
-	return r;
-}
-STATIC_INLINE uae_u32 next_iwordi (void)
-{
-	uae_u32 r = get_iwordi (m68k_getpci ());
-	m68k_incpc (2);
-	return r;
-}
-STATIC_INLINE uae_u32 next_ilong (void)
-{
-	uae_u32 r = get_ilong (0);
-	m68k_incpc (4);
-	return r;
-}
-STATIC_INLINE uae_u32 next_ilongi (void)
-{
-	uae_u32 r = get_ilongi (m68k_getpci ());
-	m68k_incpc (4);
-	return r;
 }
 
 extern uae_u32 (*x_prefetch)(int);

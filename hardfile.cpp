@@ -1533,8 +1533,9 @@ static int handle_scsi (uaecptr request, struct hardfiledata *hfd)
 		scsi_log (_T("RD:"));
 		i = 0;
 		while (i < reply_len) {
-			if (i < 24)
+			if (i < 24) {
 				scsi_log (_T("%02X%c"), reply[i], i < reply_len - 1 ? '.' : ' ');
+			}
 			put_byte (scsi_data + i, reply[i]);
 			i++;
 		}
@@ -1662,8 +1663,9 @@ static void abort_async (struct hardfileprivdata *hfpd, uaecptr request, int err
 		i++;
 	}
 	i = release_async_request (hfpd, request);
-	if (i >= 0)
+	if (i >= 0) {
 		hf_log (_T("asyncronous request=%08X aborted, error=%d\n"), request, errcode);
+	}
 }
 
 static void *hardfile_thread (void *devs);
@@ -2059,8 +2061,9 @@ static uae_u32 REGPARAM2 hardfile_beginio (TrapContext *context)
 	canquick = hardfile_canquick (hfd, request);
 	if (((flags & 1) && canquick) || (canquick < 0)) {
 		hf_log (_T("hf quickio unit=%d request=%p cmd=%d\n"), unit, request, cmd);
-		if (hardfile_do_io (hfd, hfpd, request))
+		if (hardfile_do_io(hfd, hfpd, request)) {
 			hf_log2 (_T("uaehf.device cmd %d bug with IO_QUICK\n"), cmd);
+		}
 		if (!(flags & 1))
 			uae_ReplyMsg (request);
 		return get_byte (request + 31);

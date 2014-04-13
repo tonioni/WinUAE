@@ -390,7 +390,7 @@ void REGPARAM2 x_put_bitfield (uae_u32 dst, uae_u32 bdata[2], uae_u32 val, uae_s
 
 uae_u32 REGPARAM2 get_disp_ea_020 (uae_u32 base, int idx)
 {
-	uae_u16 dp = next_iword ();
+	uae_u16 dp = next_diword ();
 	int reg = (dp >> 12) & 15;
 	uae_s32 regd = regs.regs[reg];
 	if ((dp & 0x800) == 0)
@@ -402,14 +402,14 @@ uae_u32 REGPARAM2 get_disp_ea_020 (uae_u32 base, int idx)
 		if (dp & 0x40) regd = 0;
 
 		if ((dp & 0x30) == 0x20)
-			base += (uae_s32)(uae_s16) next_iword ();
+			base += (uae_s32)(uae_s16) next_diword ();
 		if ((dp & 0x30) == 0x30)
-			base += next_ilong ();
+			base += next_dilong ();
 
 		if ((dp & 0x3) == 0x2)
-			outer = (uae_s32)(uae_s16) next_iword ();
+			outer = (uae_s32)(uae_s16) next_diword ();
 		if ((dp & 0x3) == 0x3)
-			outer = next_ilong ();
+			outer = next_dilong ();
 
 		if ((dp & 0x4) == 0)
 			base += regd;

@@ -2679,7 +2679,7 @@ static void init_drawing_frame (void)
 				graphics_reset();
 			}
 			int newres = largest_res;
-			if (htotal < 200)
+			if (htotal < 190)
 				newres = largest_res + 1;
 			if (newres < RES_HIRES)
 				newres = RES_HIRES;
@@ -2687,8 +2687,8 @@ static void init_drawing_frame (void)
 				newres = RES_MAX;
 			if (changed_prefs.gfx_resolution != newres) {
 				autoswitch_old_resolution = RES_HIRES;
+				write_log(_T("Programmed mode autores = %d -> %d (%d)\n"), changed_prefs.gfx_resolution, newres, largest_res);
 				changed_prefs.gfx_resolution = newres;
-				write_log(_T("NEWRES = %d\n"), newres);
 			}
 		} else if (autoswitch_old_resolution == 1) {
 			changed_prefs.gfx_resolution = RES_HIRES;

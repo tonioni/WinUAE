@@ -20,6 +20,20 @@
 #define	FPCR_PRECISION_DOUBLE	0x00000080
 #define FPCR_PRECISION_EXTENDED	0x00000000
 
+STATIC_INLINE void exten_zeronormalize(uae_u32 *pwrd1, uae_u32 *pwrd2, uae_u32 *pwrd3)
+{
+	uae_u32 wrd1 = *pwrd1;
+	uae_u32 wrd2 = *pwrd2;
+	uae_u32 wrd3 = *pwrd3;
+	int exp = (wrd1 >> 16) & 0x7fff;
+	// Force zero if mantissa is zero but exponent is non-zero
+	// M68k FPU automatically convert them to plain zeros.
+	// x86 FPU considers them invalid values
+	if (exp != 0 && exp != 0x7fff && !wrd2 && !wrd3) {
+		*pwrd1 = (wrd1 & 0x80000000);
+	}
+}
+
 #if USE_LONG_DOUBLE
 STATIC_INLINE void to_exten(fpdata *dst, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
@@ -29,6 +43,7 @@ STATIC_INLINE void to_exten(fpdata *dst, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd
 		long double lf;
 		uae_u32 longarray[3];
 	} uld;
+	exten_zeronormalize(&wrd1, &wrd2, &wrd3);
 	// little endian order
 	uld.longarray[0] = wrd3;
 	uld.longarray[1] = wrd2;
@@ -83,8 +98,13 @@ STATIC_INLINE uae_u32 from_single (double floatfake)
 #define HAVE_to_exten
 STATIC_INLINE void to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
-	uae_u32 longarray[] = { wrd3, wrd2, ((wrd1 >> 16) & 0xffff) }; // little endian
+	uae_u32 longarray[3];
 	double  extenfake;
+
+	exten_normalize(&wrd1, &wrd2, &wrd3);
+	longarray[0] = wrd3; // littlen endian
+	longarray[1] = wrd2;
+	longarray[2] = wrd2 >> 16;
 
 	__asm {
 		fld tbyte ptr longarray;
@@ -193,6 +213,7 @@ STATIC_INLINE void to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd
 	fpd->fpm = wrd1;
 	fpd->fpx = true;
 #endif
+	exten_zeronormalize(&wrd1, &wrd2, &wrd3);
 	if ((wrd1 & 0x7fff0000) == 0 && wrd2 == 0 && wrd3 == 0) {
 		fpd->fp = (wrd1 & 0x80000000) ? -0.0 : +0.0;
 		return;
@@ -222,7 +243,7 @@ STATIC_INLINE void from_exten(fpdata *fpd, uae_u32 * wrd1, uae_u32 * wrd2, uae_u
 	{
 		v = fpd->fp;
 		if (v == 0.0) {
-			*wrd1 = 0;
+			*wrd1 = signbit(v) ? 0x80000000 : 0;
 			*wrd2 = 0;
 			*wrd3 = 0;
 			return;

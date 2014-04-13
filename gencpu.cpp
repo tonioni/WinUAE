@@ -2730,13 +2730,13 @@ static void resetvars (void)
 		getpc = "m68k_getpci ()";
 	} else {
 		// generic
-		prefetch_long = "get_ilong";
-		prefetch_word = "get_iword";
-		nextw = "next_iword";
-		nextl = "next_ilong";
-		srcli = "get_ilong";
-		srcwi = "get_iword";
-		srcbi = "get_ibyte";
+		prefetch_long = "get_dilong";
+		prefetch_word = "get_diword";
+		nextw = "next_diword";
+		nextl = "next_dilong";
+		srcli = "get_dilong";
+		srcwi = "get_diword";
+		srcbi = "get_dibyte";
 		srcl = "get_long";
 		dstl = "put_long";
 		srcw = "get_word";

@@ -11,6 +11,19 @@
 
 - restore only single input target to default.
 
+Beta 15:
+
+- Finally bumped version to 2.8.0. This isn't small 2.7.0 update (Should have been done since b6 or so..)
+- FPU register negative zero transformed to positive zero when it was written to or read from memory
+  in extended FP format (FMOVE.X FPx,<ea> or FMOVE.X <ea>,FPx or FMOVEM). No one should care as usual.
+- When loading FPU register from memory in extended format, normalize any "unnormal" zero.
+  (non-zero exponent but zero mantissa part). Motorola FPUs do this automatically, x86 FPU
+  does not seem to like them. (Another mostly Next specific update)
+- Programmed mode autoresolution should now work with strange modes like highgfx.
+- Only allow CPU mode changes between instructions, previously change sometimes happened mid-instruction
+  (during instruction internal memory read/write) which wasn't safe.
+- Small tweak to recent sprite update (Hybris)
+
 Beta 14:
 
 - FSINCOS second register supported in disassembler.

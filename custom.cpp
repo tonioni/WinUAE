@@ -3883,6 +3883,9 @@ void init_hz (bool fullinit)
 		maxvpos_display = maxvpos;
 		equ_vblank_endline = -1;
 		doublescan = htotal <= 164 && vtotal >= 350 ? 1 : 0;
+		// if superhires and wide enough: not doublescan
+		if (doublescan && htotal >= 140 && (bplcon0 & 0x0040))
+			doublescan = 0;
 		programmedmode = true;
 		varsync_changed = true;
 		vpos_count = maxvpos_nom;
@@ -5359,7 +5362,7 @@ static void SPRxDATA (int hpos, uae_u16 v, int num)
 }
 static void SPRxDATB (int hpos, uae_u16 v, int num)
 {
-	int hp = hpos == 0 ? 0 : hpos - 1;
+	int hp = hpos;
 	decide_sprites (hp);
 	SPRxDATB_1 (v, num, hp);
 }
