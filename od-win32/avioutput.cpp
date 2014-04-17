@@ -560,19 +560,17 @@ static int AVIOutput_GetCOMPVARSFromRegistry (COMPVARS *pcv)
 			pcv->lpbiIn = pcv->lpbiOut = 0;
 			pcv->cbState = 0;
 			if (regquerydatasize (avikey, _T("VideoConfigurationState"), &ss)) {
+				LPBYTE state = NULL;
 				if (ss > 0) {
-					LPBYTE state = xmalloc (BYTE, ss);
-					if (regquerydata (avikey, _T("VideoConfigurationState"), state, &ss)) {
-						pcv->hic = ICOpen (pcv->fccType, pcv->fccHandler, ICMODE_COMPRESS);
-						if (pcv->hic) {
-							ok = 1;
-							ICSetState (pcv->hic, state, ss);
-						}
-					}
-					xfree (state);
-				} else {
-					ok = 1;
+					state = xmalloc (BYTE, ss);
+					regquerydata(avikey, _T("VideoConfigurationState"), state, &ss);
 				}
+				pcv->hic = ICOpen (pcv->fccType, pcv->fccHandler, ICMODE_COMPRESS);
+				if (pcv->hic) {
+					ok = 1;
+					ICSetState (pcv->hic, state, ss);
+				}
+				xfree (state);
 			}
 		}
 	}

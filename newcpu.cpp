@@ -1305,7 +1305,7 @@ static int check_prefs_changed_cpu2(void)
 	int changed = 0;
 
 #ifdef JIT
-	changed = check_prefs_changed_comp ();
+	changed = check_prefs_changed_comp() ? 1 : 0;
 #endif
 	if (changed
 		|| currprefs.cpu_model != changed_prefs.cpu_model
@@ -1322,8 +1322,6 @@ static int check_prefs_changed_cpu2(void)
 		|| currprefs.m68k_speed_throttle != changed_prefs.m68k_speed_throttle
 		|| currprefs.cpu_clock_multiplier != changed_prefs.cpu_clock_multiplier
 		|| currprefs.cpu_frequency != changed_prefs.cpu_frequency) {
-			currprefs.m68k_speed = changed_prefs.m68k_speed;
-			currprefs.m68k_speed_throttle = changed_prefs.m68k_speed_throttle;
 			changed |= 2;
 	}
 	return changed;
@@ -4307,6 +4305,7 @@ void m68k_go (int may_quit)
 				fill_prefetch();
 			}
 			if (v & 2) {
+				fixup_cpu(&changed_prefs);
 				currprefs.m68k_speed = changed_prefs.m68k_speed;
 				currprefs.m68k_speed_throttle = changed_prefs.m68k_speed_throttle;
 				update_68k_cycles();

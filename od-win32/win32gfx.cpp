@@ -1769,6 +1769,8 @@ int check_prefs_changed_gfx (void)
 		c |= gf->gfx_filter_scanlinelevel != gfc->gfx_filter_scanlinelevel ? (1|8) : 0;
 		c |= gf->gfx_filter_scanlineratio != gfc->gfx_filter_scanlineratio ? (1|8) : 0;
 		c |= gf->gfx_filter_aspect != gfc->gfx_filter_aspect ? (1) : 0;
+		c |= gf->gfx_filter_keep_aspect != gfc->gfx_filter_keep_aspect ? (1) : 0;
+		c |= gf->gfx_filter_keep_autoscale_aspect != gfc->gfx_filter_keep_autoscale_aspect ? (1) : 0;
 		c |= gf->gfx_filter_luminance != gfc->gfx_filter_luminance ? (1) : 0;
 		c |= gf->gfx_filter_contrast != gfc->gfx_filter_contrast ? (1) : 0;
 		c |= gf->gfx_filter_saturation != gfc->gfx_filter_saturation ? (1) : 0;
@@ -1867,6 +1869,8 @@ int check_prefs_changed_gfx (void)
 			gf->gfx_filter_noise = gfc->gfx_filter_noise;
 			gf->gfx_filter_blur = gfc->gfx_filter_blur;
 			gf->gfx_filter_aspect = gfc->gfx_filter_aspect;
+			gf->gfx_filter_keep_aspect = gfc->gfx_filter_keep_aspect;
+			gf->gfx_filter_keep_autoscale_aspect = gfc->gfx_filter_keep_autoscale_aspect;
 			gf->gfx_filter_luminance = gfc->gfx_filter_luminance;
 			gf->gfx_filter_contrast = gfc->gfx_filter_contrast;
 			gf->gfx_filter_saturation = gfc->gfx_filter_saturation;

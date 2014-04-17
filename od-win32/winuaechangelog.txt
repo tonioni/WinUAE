@@ -11,6 +11,15 @@
 
 - restore only single input target to default.
 
+Beta 16:
+
+- Borderblank blanked sprites incorrectly in some situations (b11, Roots AGA)
+- SPRxDATx/SPRxPOS copper write/Denise internal sprite behavior should now fully match real hardware.
+- Ancient (and recently non-working) Superfrog flashing intro bee hack removed, properly emulated now.
+- gfx_filter_keep_autoscale_aspect and gfx_filter_keep_aspect config entry change was not detected
+  when using using uae-configuration.
+- Last used AVI codec was not restored from registry if ICGetState() returned zero size data block.
+
 Beta 15:
 
 - Finally bumped version to 2.8.0. This isn't small 2.7.0 update (Should have been done since b6 or so..)

@@ -217,8 +217,6 @@ static int diw_hcounter;
 
 #define HSYNCTIME (maxhpos * CYCLE_UNIT);
 
-/* This is but an educated guess. It seems to be correct, but this stuff
-* isn't documented well. */
 struct sprite {
 	uaecptr pt;
 	int xpos;
@@ -229,6 +227,7 @@ struct sprite {
 	int dmastate;
 	int dmacycle;
 	int ptxhpos;
+	int ptxhpos2, ptxvpos2;
 };
 
 static struct sprite spr[MAX_SPRITES];
@@ -250,6 +249,7 @@ static uae_u16 sprdata[MAX_SPRITES][1], sprdatb[MAX_SPRITES][1];
 static int sprite_last_drawn_at[MAX_SPRITES];
 static int last_sprite_point, nr_armed;
 static int sprite_width, sprres;
+static int sprite_sprctlmask;
 int sprite_buffer_res;
 
 #ifdef CPUEMU_13
@@ -515,6 +515,12 @@ static void update_mirrors (void)
 {
 	aga_mode = (currprefs.chipset_mask & CSMASK_AGA) != 0;
 	direct_rgb = aga_mode;
+	if (currprefs.chipset_mask & CSMASK_AGA)
+		sprite_sprctlmask = 0x01 | 0x08 | 0x10;
+	else if (currprefs.chipset_mask & CSMASK_ECS_DENISE)
+		sprite_sprctlmask = 0x01 | 0x10;
+	else
+		sprite_sprctlmask = 0x01;
 }
 
 STATIC_INLINE uae_u8 *pfield_xlateptr (uaecptr plpt, int bytecount)
@@ -3156,11 +3162,11 @@ static void calcsprite (void)
 	}
 }
 
-static void decide_sprites (int hpos)
+static void decide_sprites (int hpos, bool usepointx)
 {
 	int nrs[MAX_SPRITES * 2], posns[MAX_SPRITES * 2];
 	int count, i;
-	int point = hpos * 2 + 1;
+	int point = hpos * 2 + 0;
 	int width = sprite_width;
 	int sscanmask = 0x100 << sprite_buffer_res;
 	int gotdata = 0;
@@ -3179,6 +3185,7 @@ static void decide_sprites (int hpos)
 	for (i = 0; i < MAX_SPRITES; i++) {
 		int sprxp = (fmode & 0x8000) ? (spr[i].xpos & ~sscanmask) : spr[i].xpos;
 		int hw_xp = sprxp >> sprite_buffer_res;
+		int pointx = usepointx && (sprctl[i] & sprite_sprctlmask) ? 0 : 1;
 
 		if (spr[i].xpos < 0)
 			continue;
@@ -3189,15 +3196,17 @@ static void decide_sprites (int hpos)
 		if (! spr[i].armed)
 			continue;
 
-		if (hw_xp > last_sprite_point && hw_xp <= point)
+		if (hw_xp > last_sprite_point && hw_xp <= point + pointx) {
 			add_sprite (&count, i, sprxp, posns, nrs);
+		}
 
 		/* SSCAN2-bit is fun.. */
 		if ((fmode & 0x8000) && !(sprxp & sscanmask)) {
 			sprxp |= sscanmask;
 			hw_xp = sprxp >> sprite_buffer_res;
-			if (hw_xp > last_sprite_point && hw_xp <= point)
+			if (hw_xp > last_sprite_point && hw_xp <= point + pointx) {
 				add_sprite (&count, MAX_SPRITES + i, sprxp, posns, nrs);
+			}
 		}
 	}
 
@@ -3236,6 +3245,10 @@ static void decide_sprites (int hpos)
 			plflastline_total = vpos;
 	}
 #endif
+}
+static void decide_sprites(int hpos)
+{
+	decide_sprites(hpos, false);
 }
 
 static int sprites_differ (struct draw_info *dip, struct draw_info *dip_old)
@@ -5350,25 +5363,64 @@ static void SPRxDATB_1(uae_u16 v, int num, int hpos)
 #endif
 }
 
-// hpos - 1 is a hack! There is 1 cycle delay before SPRxPOS matches and DATx are copied to
-// shift register, it is easier and much faster to emulate this way, than to separate
-// decide_sprites() in two parts.
-// Shed Tears / Ozone scroller
+/*
+ SPRxDATA and SPRxDATB is moved to shift register when SPRxPOS matches.
+
+ When copper writes to SPRxDATx exactly when SPRxPOS matches:
+ - If sprite low x bit (SPRCTL bit 0) is not set, shift register copy
+   is done first (previously loaded SPRxDATx value is shown) and then
+   new SPRxDATx gets stored for future use.
+ - If sprite low x bit is set, new SPRxDATx is stored, then SPRxPOS
+   matches and value written to SPRxDATx is visible.
+
+ - Writing to SPRxPOS when SPRxPOS matches: shift register
+   copy is always done first, then new SPRxPOS value is stored
+   for future use. (SPRxCTL not tested)
+*/
+
 static void SPRxDATA (int hpos, uae_u16 v, int num)
 {
-	int hp = hpos == 0 ? 0 : hpos - 1;
-	decide_sprites (hp);
-	SPRxDATA_1 (v, num, hp);
+	decide_sprites(hpos, true);
+	SPRxDATA_1(v, num, hpos);
 }
 static void SPRxDATB (int hpos, uae_u16 v, int num)
 {
-	int hp = hpos;
-	decide_sprites (hp);
-	SPRxDATB_1 (v, num, hp);
+	decide_sprites(hpos, true);
+	SPRxDATB_1(v, num, hpos);
 }
 
-static void SPRxCTL (int hpos, uae_u16 v, int num) { decide_sprites (hpos); SPRxCTL_1 (v, num, hpos); }
-static void SPRxPOS (int hpos, uae_u16 v, int num) { decide_sprites (hpos); SPRxPOS_1 (v, num, hpos); }
+static void SPRxCTL (int hpos, uae_u16 v, int num)
+{
+#if SPRITE_DEBUG > 0
+	if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY && (SPRITE_DEBUG & (1 << num))) {
+		write_log(_T("%d:%d:SPR%dCTLC %06X\n"), vpos, hpos, num, spr[num].pt);
+	}
+#endif
+
+	decide_sprites(hpos);
+	SPRxCTL_1(v, num, hpos);
+}
+static void SPRxPOS (int hpos, uae_u16 v, int num)
+{
+	struct sprite *s = &spr[num];
+	int oldvpos;
+#if SPRITE_DEBUG > 0
+	if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY && (SPRITE_DEBUG & (1 << num))) {
+		write_log(_T("%d:%d:SPR%dPOSC %06X\n"), vpos, hpos, num, s->pt);
+	}
+#endif
+	decide_sprites(hpos);
+	oldvpos = s->vstart;
+	SPRxPOS_1(v, num, hpos);
+	// Superfrog flashing intro bees fix.
+	// if SPRxPOS is written one cycle before sprite's first DMA slot and sprite's vstart matches after
+	// SPRxPOS write, current line's DMA slot's stay idle. DMA decision seems to be done 4 cycles earlier.
+	if (hpos >= SPR0_HPOS + num * 4 - 4 && hpos <= SPR0_HPOS + num * 4 - 1 && oldvpos != vpos) {
+		s->ptxvpos2 = vpos;
+		s->ptxhpos2 = hpos + 4;
+	}
+}
+
 static void SPRxPTH (int hpos, uae_u16 v, int num)
 {
 	decide_sprites (hpos);
@@ -5657,8 +5709,12 @@ static int customdelay[]= {
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 16 */
 	/* SPRxPTH/SPRxPTL */
 	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 16 */
+
 	/* SPRxPOS/SPRxCTL/SPRxDATA/SPRxDATB */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+//	1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,
+//	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+
 	/* COLORxx */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	/* RESERVED */
@@ -5886,12 +5942,7 @@ static void update_copper (int until_hpos)
 						cop_state.movedata = data;
 						cop_state.movedelay = customdelay[cop_state.moveaddr / 2];
 					} else {
-						int hpos2 = old_hpos;
-						custom_wput_copper (hpos2, reg, data, 0);
-						hpos2++;
-						if (!nocustom () && reg >= 0x140 && reg < 0x180 && hpos2 >= SPR0_HPOS && hpos2 < SPR0_HPOS + 4 * MAX_SPRITES) {
-							do_sprites (hpos2);
-						}
+						custom_wput_copper (old_hpos, reg, data, 0);
 					}
 #endif
 				}
@@ -6185,6 +6236,8 @@ static void do_sprites_1(int num, int cycle, int hpos)
 			write_log (_T("%d:%d:SPR%d START\n"), vpos, hpos, num);
 #endif
 		s->dmastate = 1;
+		if (s->ptxvpos2 == vpos && hpos < s->ptxhpos2)
+			return;
 		if (num == 0 && cycle == 0)
 			cursorsprite ();
 	}
@@ -6194,19 +6247,10 @@ static void do_sprites_1(int num, int cycle, int hpos)
 			write_log (_T("%d:%d:SPR%d STOP\n"), vpos, hpos, num);
 #endif
 		s->dmastate = 0;
-#if 0
-		// roots 2.0 flower zoomer bottom part missing if this enabled
-		if (vpos == s->vstop) {
-			spr_arm (num, 0);
-			//return;
-		}
-#endif
 	}
 
 	if (!isdma)
 		return;
-	if (cycle && !s->dmacycle)
-		return; /* Superfrog intro flashing bee fix */
 
 	dma = hpos < plfstrt_sprite || diwstate != DIW_waiting_stop;
 	if (vpos == s->vstop || vpos == sprite_vblank_endline) {
@@ -6421,8 +6465,10 @@ static void init_hardware_frame (void)
 	first_bplcon0 = 0;
 	autoscale_bordercolors = 0;
 
-	for (i = 0; i < MAX_SPRITES; i++)
+	for (i = 0; i < MAX_SPRITES; i++) {
 		spr[i].ptxhpos = MAXHPOS;
+		spr[i].ptxvpos2 = -1;
+	}
 	plf_state = plf_end;
 }
 

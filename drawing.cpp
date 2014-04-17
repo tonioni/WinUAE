@@ -827,16 +827,22 @@ static void pfield_init_linetoscr (bool border)
 	// Sprite hpos don't include DIW_DDF_OFFSET and can appear 1 lores pixel
 	// before first bitplane pixel appears.
 	// This means "bordersprite" condition is possible under OCS/ECS too. Argh!
-	if (dip_for_drawing->nr_sprites && !colors_for_drawing.borderblank) {
-		/* bordersprite off or not supported: sprites are visible until diw_end */
-		if (playfield_end < linetoscr_diw_end && hblank_right_stop > playfield_end) {
-			playfield_end = linetoscr_diw_end;
-		}
-		int left = coord_hw_to_window_x (dp_for_drawing->plfleft * 2);
-		if (left < visible_left_border)
-			left = visible_left_border;
-		if (left < playfield_start && left >= linetoscr_diw_start) {
-			playfield_start = left;
+	if (dip_for_drawing->nr_sprites) {
+		if (!colors_for_drawing.borderblank) {
+			/* bordersprite off or not supported: sprites are visible until diw_end */
+			if (playfield_end < linetoscr_diw_end && hblank_right_stop > playfield_end) {
+				playfield_end = linetoscr_diw_end;
+			}
+			int left = coord_hw_to_window_x (dp_for_drawing->plfleft * 2);
+			if (left < visible_left_border)
+				left = visible_left_border;
+			if (left < playfield_start && left >= linetoscr_diw_start) {
+				playfield_start = left;
+			}
+		} else {
+			if (playfield_end < linetoscr_diw_end && hblank_right_stop > playfield_end) {
+				playfield_end = linetoscr_diw_end;
+			}
 		}
 	}
 
@@ -2656,9 +2662,6 @@ static void init_drawing_frame (void)
 	static int frame_res_old;
 
 	if (lines_count > 0) {
-		int frame_res_detected;
-		int frame_res_lace_detected = frame_res_lace;
-
 		int largest_count = 0;
 		int largest_count_res = 0;
 		int largest_res = 0;
@@ -2696,6 +2699,8 @@ static void init_drawing_frame (void)
 		}
 
 		if (currprefs.gfx_autoresolution) {
+			int frame_res_detected;
+			int frame_res_lace_detected = frame_res_lace;
 
 			if (currprefs.gfx_autoresolution == 1 || currprefs.gfx_autoresolution >= 100)
 				frame_res_detected = largest_res;
