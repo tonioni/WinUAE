@@ -1345,18 +1345,16 @@ void check_prefs_changed_cpu(void)
 
 void init_m68k (void)
 {
-	int i;
-
 	prefs_changed_cpu ();
 	update_68k_cycles ();
 
-	for (i = 0 ; i < 256 ; i++) {
+	for (int i = 0 ; i < 256 ; i++) {
 		int j;
 		for (j = 0 ; j < 8 ; j++) {
 			if (i & (1 << j)) break;
 		}
 		movem_index1[i] = j;
-		movem_index2[i] = 7-j;
+		movem_index2[i] = 7 - j;
 		movem_next[i] = i & (~(1 << j));
 	}
 
@@ -3205,10 +3203,8 @@ static int do_specialties (int cycles)
 			}
 		}
 
-		if (regs.spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE)) {
-			unset_special (SPCFLAG_BRK);
-			// SPCFLAG_BRK breaks STOP condition, need to prefetch
-			m68k_resumestopped ();
+		if (regs.spcflags & SPCFLAG_MODE_CHANGE) {
+			m68k_resumestopped();
 			return 1;
 		}
 
@@ -3260,8 +3256,13 @@ static int do_specialties (int cycles)
 		set_special (SPCFLAG_INT);
 	}
 
-	if (regs.spcflags & SPCFLAG_BRK)
-		return 1;
+	if (regs.spcflags & SPCFLAG_BRK) {
+		unset_special(SPCFLAG_BRK);
+#ifdef DEBUGGER
+		if (debugging)
+			debug();
+#endif
+	}
 
 	return 0;
 }
@@ -4344,7 +4345,8 @@ void m68k_go (int may_quit)
 #if 0
 		}
 #endif
-		unset_special(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
+		unset_special(SPCFLAG_MODE_CHANGE);
+		unset_special(SPCFLAG_BRK);
 		//activate_debugger();
 		run_func();
 	}
@@ -4607,7 +4609,7 @@ static const int fpsizeconv[] = {
 static void disasm_size (TCHAR *instrname, struct instr *dp)
 {
 	if (dp->unsized) {
-		_tcscat(instrname, _T("   "));
+		_tcscat(instrname, _T(" "));
 		return;
 	}
 	switch (dp->size)
@@ -4622,7 +4624,7 @@ static void disasm_size (TCHAR *instrname, struct instr *dp)
 		_tcscat (instrname, _T(".L "));
 		break;
 	default:
-		_tcscat (instrname, _T("   "));
+		_tcscat (instrname, _T(" "));
 		break;
 	}
 }
@@ -4769,6 +4771,19 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			p = instrname + _tcslen(instrname);
 			if (lookup->mnemo == i_BFFFO || lookup->mnemo == i_BFEXTS || lookup->mnemo == i_BFEXTU)
 				_stprintf(p, _T(",D%d"), reg);
+		} else if (lookup->mnemo == i_CPUSHA || lookup->mnemo == i_CPUSHL || lookup->mnemo == i_CPUSHP) {
+			if ((opcode & 0xc0) == 0xc0)
+				_tcscat(instrname, _T("BC"));
+			else if (opcode & 0x80)
+				_tcscat(instrname, _T("IC"));
+			else if (opcode & 0x40)
+				_tcscat(instrname, _T("DC"));
+			else
+				_tcscat(instrname, _T("?"));
+			if (lookup->mnemo == i_CPUSHL || lookup->mnemo == i_CPUSHP) {
+				TCHAR *p = instrname + _tcslen(instrname);
+				_stprintf(p, _T(",(A%d)"), opcode & 7);
+			}
 		} else if (lookup->mnemo == i_FPP) {
 			TCHAR *p;
 			int ins = extra & 0x3f;

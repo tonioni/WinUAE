@@ -916,7 +916,7 @@ static int getdeepfavdiskimage (TCHAR *imgpath, struct favitems *fitem, int idx)
 	_tcscat (mask, _T("*.*"));
 	myd = my_opendir (path, mask);
 	int cnt = 0;
-	while (cnt < 30) {
+	while (myd && cnt < 30) {
 		TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
 		if (!my_readdir (myd, tmp))
 			break;
@@ -1799,7 +1799,7 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 		discard_prefs (p, 0);
 	}
 	type2 = type;
-	if (type == 0) {
+	if (type == 0 || type == 3) {
 		default_prefs (p, type);
 #if 0
 		if (isdefault == 0) {
@@ -14391,8 +14391,18 @@ static void values_to_hw3ddlg (HWND hDlg)
 		i++;
 	SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_SETCURSEL, i, 0);
 
-	int range1 = workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_MANUAL ? -1 : -9999;
-	int range2 = workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_MANUAL ? 1800 : 9999;
+	int range1, range2;
+	
+	if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_MANUAL) {
+		range1 = -1;
+		range2 = 1800;
+	} else if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_INTEGER || workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_INTEGER_AUTOSCALE) {
+		range1 = -99;
+		range2 = 99;
+	} else {
+		range1 = -9999;
+		range2 = 9999;
+	}
 
 	SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (range1, range2));
 	SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPAGESIZE, 0, 1);
@@ -16253,7 +16263,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			dialogreturn = 0;
 			if (allow_quit) {
 				quit_program = UAE_QUIT;
-				regs.spcflags |= SPCFLAG_BRK;
+				regs.spcflags |= SPCFLAG_MODE_CHANGE;
 			}
 		}
 		return TRUE;
@@ -16340,7 +16350,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				DestroyWindow (hDlg);
 				if (allow_quit) {
 					quit_program = UAE_QUIT;
-					regs.spcflags |= SPCFLAG_BRK;
+					regs.spcflags |= SPCFLAG_MODE_CHANGE;
 				}
 				guiDlg = NULL;
 				return TRUE;

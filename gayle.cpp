@@ -1787,18 +1787,22 @@ static void REGPARAM2 gayle2_bput (uaecptr addr, uae_u32 value)
 }
 
 static uae_u8 ramsey_config;
-static int gary_coldboot;
-static int gary_timeout;
 static int garyidoffset;
+static int gary_coldboot;
+int gary_timeout;
 int gary_toenb;
 
 static void mbres_write (uaecptr addr, uae_u32 val, int size)
 {
-	addr &= 0xffff;
+	if ((addr & 0xffff) >= 0x8000) {
+		dummy_put(addr, size, val);
+		return;
+	}
 
+	addr &= 0xffff;
 	if (MBRES_LOG > 0)
 		write_log (_T("MBRES_WRITE %08X=%08X (%d) PC=%08X S=%d\n"), addr, val, size, M68K_GETPC, regs.s);
-	if (1 || regs.s) { /* CPU FC = supervisor only */
+	if (addr < 0x8000 && (1 || regs.s)) { /* CPU FC = supervisor only */
 		uae_u32 addr2 = addr & 3;
 		uae_u32 addr64 = (addr >> 6) & 3;
 		if (addr == 0x1002)
@@ -1817,6 +1821,10 @@ static void mbres_write (uaecptr addr, uae_u32 val, int size)
 static uae_u32 mbres_read (uaecptr addr, int size)
 {
 	uae_u32 v = 0;
+
+	if ((addr & 0xffff) >= 0x8000)
+		return dummy_get(addr, size, false);
+
 	addr &= 0xffff;
 
 	if (1 || regs.s) { /* CPU FC = supervisor only (only newest ramsey/gary? never implemented?) */

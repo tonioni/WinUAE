@@ -115,17 +115,27 @@ static void getmanualpos (int *cxp, int *cyp, int *cwp, int *chp)
 		cy = (v >> (VRES_MAX - currprefs.gfx_vresolution)) - cy;
 
 	v = currprefs.gfx_xcenter_size;
-	if (v <= 0)
-		cw = native ? AMIGA_WIDTH_MAX * 4 : gfxvidinfo.outbuffer->outwidth;
-	else
+	if (v <= 0) {
+		if (programmedmode && native) {
+			cw = gfxvidinfo.outbuffer->outwidth << (RES_MAX - currprefs.gfx_resolution);
+		} else {
+			cw = native ? AMIGA_WIDTH_MAX << RES_MAX : gfxvidinfo.outbuffer->outwidth;
+		}
+	} else {
 		cw = v;
+	}
 	cw >>=  (RES_MAX - currprefs.gfx_resolution);
 
 	v = currprefs.gfx_ycenter_size;
-	if (v <= 0)
-		ch = native ? AMIGA_HEIGHT_MAX * 2 : gfxvidinfo.outbuffer->outheight;
-	else
+	if (v <= 0) {
+		if (programmedmode && native) {
+			ch = gfxvidinfo.outbuffer->outheight << (VRES_MAX - currprefs.gfx_vresolution);
+		} else {
+			ch = native ? AMIGA_HEIGHT_MAX << VRES_MAX : gfxvidinfo.outbuffer->outheight;
+		}
+	} else {
 		ch = v;
+	}
 	ch >>= (VRES_MAX - currprefs.gfx_vresolution);
 
 	*cxp = cx;
@@ -288,8 +298,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					store_custom_limits (cw, ch, cx, cy);
 				}
 
-				int cw2 = cw + filter_horiz_zoom;
-				int ch2 = ch + filter_vert_zoom;
+				int cw2 = cw + cw * filter_horiz_zoom;
+				int ch2 = ch + ch * filter_vert_zoom;
 
 				extraw = 0;
 				extrah = 0;

@@ -1008,7 +1008,7 @@ static void pfield_do_fill_line (int start, int stop, bool blank)
 	}
 }
 
-STATIC_INLINE void fill_line2 (int startpos, int len)
+static void fill_line2 (int startpos, int len)
 {
 	int shift;
 	int nints, nrem;
@@ -1055,18 +1055,36 @@ STATIC_INLINE void fill_line2 (int startpos, int len)
 	}
 }
 
-static void fill_line (void)
+static void fill_line_border (void)
 {
-	int hs = coord_hw_to_window_x (hsyncstartpos * 2);
+	int lastpos = visible_left_border;
+	int endpos = visible_left_border + gfxvidinfo.drawbuffer.inwidth;
+
+	// full hblank
 	if (hposblank) {
 		hposblank = 3;
-		fill_line2 (visible_left_border, gfxvidinfo.drawbuffer.inwidth);
-	} else if (hs >= gfxvidinfo.drawbuffer.inwidth) {
-		fill_line2 (visible_left_border, gfxvidinfo.drawbuffer.inwidth);
-	} else {
-		fill_line2 (visible_left_border, hs);
-		hposblank = 2;
-		fill_line2 (visible_left_border + hs, gfxvidinfo.drawbuffer.inwidth);
+		fill_line2(lastpos, gfxvidinfo.drawbuffer.inwidth);
+		return;
+	}
+	// hblank not visible
+	if (hblank_left_start <= lastpos && hblank_right_stop >= endpos) {
+		fill_line2(lastpos, gfxvidinfo.drawbuffer.inwidth);
+		return;
+	}
+
+	// left, right or both hblanks visible
+	if (lastpos < hblank_left_start) {
+		int t = hblank_left_start < endpos ? hblank_left_start : endpos;
+		pfield_do_fill_line(lastpos, t, true);
+		lastpos = t;
+	}
+	if (lastpos < hblank_right_stop) {
+		int t = hblank_right_stop < endpos ? hblank_right_stop : endpos;
+		pfield_do_fill_line(lastpos, t, false);
+		lastpos = t;
+	}
+	if (lastpos < endpos) {
+		pfield_do_fill_line(lastpos, endpos, true);
 	}
 }
 
@@ -2491,8 +2509,9 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 
 		if (dip_for_drawing->nr_sprites)
 			pfield_erase_hborder_sprites ();
-	} else if (border > 0) {
-		// border > 0: top or bottom border
+
+	} else if (border > 0) { // border > 0: top or bottom border
+
 		bool dosprites = false;
 
 		adjust_drawing_colors (dp_for_drawing->ctable, 0);
@@ -2507,13 +2526,13 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 #endif
 
 		if (!dosprites && dip_for_drawing->nr_color_changes == 0) {
-			fill_line ();
+			fill_line_border ();
 			do_flush_line (vb, gfx_ypos);
 
 			if (do_double) {
 				if (dh == dh_buf) {
 					xlinebuffer = row_map[follow_ypos] - linetoscr_x_adjust_bytes;
-					fill_line ();
+					fill_line_border ();
 				}
 				/* If dh == dh_line, do_flush_line will re-use the rendered line
 				* from linemem.  */
@@ -2557,7 +2576,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		// top or bottom blanking region
 		int tmp = hposblank;
 		hposblank = 1;
-		fill_line ();
+		fill_line_border ();
 		do_flush_line (vb, gfx_ypos);
 		hposblank = tmp;
 
@@ -2996,6 +3015,7 @@ static void draw_frame2 (struct vidbuffer *vbin, struct vidbuffer *vbout)
 	xvbin = vbin;
 	xvbout = vbout;
 
+//	int largest = 0;
 	for (i = 0; i < max_ypos_thisframe; i++) {
 		int i1 = i + min_ypos_for_screen;
 		int line = i + thisframe_y_adjust_real;
@@ -3006,9 +3026,12 @@ static void draw_frame2 (struct vidbuffer *vbin, struct vidbuffer *vbout)
 		if (where2 < 0)
 			continue;
 
+//		if (largest < where2)
+//			largest = where2;
 		hposblank = 0;
 		pfield_draw_line (vbout, line, where2, amiga2aspect_line_map[i1 + 1]);
 	}
+	//write_log (_T("%d\n"), largest);
 }
 
 bool draw_frame (struct vidbuffer *vb)

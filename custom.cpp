@@ -8294,6 +8294,8 @@ static uae_u32 REGPARAM2 custom_wget (uaecptr addr)
 {
 	uae_u32 v;
 
+	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0)
+		return dummy_get(addr, 2, false);
 	if (addr & 1) {
 		/* think about move.w $dff005,d0.. (68020+ only) */
 		addr &= ~1;
@@ -8310,6 +8312,8 @@ static uae_u32 REGPARAM2 custom_bget (uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
+	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0)
+		return dummy_get(addr, 1, false);
 	v = custom_wget2 (addr & ~1, true);
 	v >>= (addr & 1 ? 0 : 8);
 	return v;
@@ -8320,6 +8324,8 @@ static uae_u32 REGPARAM2 custom_lget (uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
+	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0)
+		return dummy_get(addr, 4, false);
 	return ((uae_u32)custom_wget (addr) << 16) | custom_wget (addr + 2);
 }
 static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int noget)
@@ -8544,6 +8550,11 @@ static void REGPARAM2 custom_wput (uaecptr addr, uae_u32 value)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
+
+	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0) {
+		dummy_put(addr, 2, value);
+		return;
+	}
 #if CUSTOM_DEBUG > 2
 	write_log (_T("%d:%d:wput: %04X %04X pc=%p\n"), hpos, vpos, addr & 0x01fe, value & 0xffff, m68k_getpc ());
 #endif
@@ -8562,6 +8573,10 @@ static void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 	static int warned;
 	uae_u16 rval;
 
+	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0) {
+		dummy_put(addr, 1, value);
+		return;
+	}
 	if (currprefs.chipset_mask & CSMASK_AGA) {
 		if (addr & 1) {
 			rval = value & 0xff;
@@ -8590,6 +8605,10 @@ static void REGPARAM2 custom_lput (uaecptr addr, uae_u32 value)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
+	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0) {
+		dummy_put(addr, 4, value);
+		return;
+	}
 	custom_wput (addr & 0xfffe, value >> 16);
 	custom_wput ((addr + 2) & 0xfffe, (uae_u16)value);
 }
