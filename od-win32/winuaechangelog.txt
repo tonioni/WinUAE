@@ -11,6 +11,20 @@
 
 - restore only single input target to default.
 
+Beta 18:
+
+- 0xFFFF was not returned when reading write-only or non-existing custom register and previous cycle was
+  idle cycle. Not exactly 100% correct but more compatible with programs that accidentally read wrong
+  custom registers.
+- Cirrus Logic emulation had some useless logging enabled.
+- Added GUI option to enable/disable new automatic programmed mode resolution selection to Display
+  panel, enabled by default. (For example if you want to use superhires all the time and use filter
+  panel to scale the display back to correct aspect ratio)
+- Unexpanded A1200 also reads last fetched opcode word when accessing non-existing memory, similar
+  to unexpanded A500. (more compatible and cycle-exact only)
+- Last possible displayable line was incorrectly drawn in border color in some situations when short
+  field mode was active.
+
 Beta 17:
 
 - Debugger breakpoints work again. (b14)

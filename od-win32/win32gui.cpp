@@ -5950,6 +5950,13 @@ static void enable_for_displaydlg (HWND hDlg)
 	ew (hDlg, IDC_FRAMERATE, !workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_LORES, !workprefs.gfx_autoresolution);
 
+	ew(hDlg, IDC_AUTORESOLUTIONVGA, workprefs.gfx_resolution >= RES_HIRES && workprefs.gfx_vresolution >= VRES_DOUBLE);
+	if (workprefs.gfx_resolution < RES_HIRES || workprefs.gfx_vresolution < VRES_DOUBLE) {
+		workprefs.gfx_autoresolution_vga = false;
+		CheckDlgButton (hDlg, IDC_AUTORESOLUTIONVGA, workprefs.gfx_autoresolution_vga);
+	}
+
+
 	bool isdouble = workprefs.gfx_vresolution > 0;
 
 	ew (hDlg, IDC_LM_NORMAL, !workprefs.gfx_autoresolution);
@@ -6442,6 +6449,7 @@ static void values_to_displaydlg (HWND hDlg)
 	else
 		SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_SETCURSEL, 5, 0);
 
+	CheckDlgButton (hDlg, IDC_AUTORESOLUTIONVGA, workprefs.gfx_autoresolution_vga);
 	CheckDlgButton (hDlg, IDC_BLACKER_THAN_BLACK, workprefs.gfx_blackerthanblack);
 	CheckDlgButton (hDlg, IDC_LORES_SMOOTHED, workprefs.gfx_lores_mode);
 	CheckDlgButton (hDlg, IDC_FLICKERFIXER, workprefs.gfx_scandoubler);
@@ -6565,6 +6573,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	workprefs.gfx_lores_mode = ischecked (hDlg, IDC_LORES_SMOOTHED);
 	workprefs.gfx_scandoubler = ischecked (hDlg, IDC_FLICKERFIXER);
 	workprefs.gfx_blackerthanblack = ischecked (hDlg, IDC_BLACKER_THAN_BLACK);
+	workprefs.gfx_autoresolution_vga = ischecked (hDlg, IDC_AUTORESOLUTIONVGA);
 	
 	int vres = workprefs.gfx_vresolution;
 	int viscan = workprefs.gfx_iscanlines;

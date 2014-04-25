@@ -1,7 +1,7 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource.h"
 #include "winres.h"
+#include "resource.h"
 /////////////////////////////////////////////////////////////////////////////
 // English resources
 
@@ -131,9 +131,9 @@ BEGIN
     RTEXT           "RTG:",IDC_STATIC,8,115,49,15,SS_CENTERIMAGE
     COMBOBOX        IDC_SCREENMODE_RTG,61,118,71,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_SCREENMODE_RTG2,142,118,127,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Blacker than black",IDC_BLACKER_THAN_BLACK,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_TABSTOP,11,140,142,10
-    CONTROL         "Filtered low resolution",IDC_LORES_SMOOTHED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,159,140,116,10
-    CONTROL         "Remove interlace artifacts",IDC_FLICKERFIXER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,154,142,10
+    CONTROL         "Blacker than black [] Borderblanked black is blacker than display area black.",IDC_BLACKER_THAN_BLACK,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_TABSTOP,11,140,139,10
+    CONTROL         "Filtered low resolution [] When scaling hires to lores or superhires to hires, show average color of pixel instead of dropping every other pixel.",IDC_LORES_SMOOTHED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,155,140,123,10
+    CONTROL         "Remove interlace artifacts [] Emulates interlace mode internally as progressive, removing all interlace artifacts. Not compatible with all software.",IDC_FLICKERFIXER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,154,139,10
     RTEXT           "Resolution:",IDC_STATIC,24,170,110,8,SS_CENTERIMAGE
     COMBOBOX        IDC_LORES,142,169,127,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Resolution autoswitch:",IDC_STATIC,92,190,110,8,SS_CENTERIMAGE
@@ -163,6 +163,8 @@ BEGIN
     CONTROL         "Double, frames",IDC_LM_IDOUBLED,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,251,90,10
     CONTROL         "Double, fields",IDC_LM_IDOUBLED2,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,264,90,10
     CONTROL         "Double, fields+",IDC_LM_IDOUBLED3,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,277,90,10
+    CONTROL         "VGA mode resolution autoswitch [] Automatically selects between hires and superhires in programmed display modes, keeping correct aspect ratio.",IDC_AUTORESOLUTIONVGA,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,155,154,124,10
 END
 
 IDD_MEMORY DIALOGEX 0, 0, 396, 206

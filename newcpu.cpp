@@ -5841,8 +5841,10 @@ uae_u32 get_word_ce020_prefetch (int o)
 		regs.prefetch020[0] = regs.prefetch020[1];
 		fill_icache020 (pc + 2 + 4, mem_access_delay_longi_read_ce020);
 		regs.prefetch020[1] = regs.cacheholdingdata020;
+		regs.db = regs.prefetch020[0] >> 16;
 	} else {
 		v = regs.prefetch020[0] >> 16;
+		regs.db = regs.prefetch020[0];
 	}
 	do_cycles_ce020 (2);
 	return v;
@@ -5858,8 +5860,10 @@ uae_u32 get_word_020_prefetch (int o)
 		regs.prefetch020[0] = regs.prefetch020[1];
 		fill_icache020 (pc + 2 + 4, get_longi);
 		regs.prefetch020[1] = regs.cacheholdingdata020;
+		regs.db = regs.prefetch020[0] >> 16;
 	} else {
 		v = regs.prefetch020[0] >> 16;
+		regs.db = regs.prefetch020[0];
 	}
 	return v;
 }

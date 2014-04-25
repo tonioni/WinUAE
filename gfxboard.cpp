@@ -11,7 +11,7 @@
 #define MEMLOGR 0
 #define MEMLOGW 0
 #define MEMLOGINDIRECT 0
-#define MEMDEBUG 1
+#define MEMDEBUG 0
 #define MEMDEBUGMASK 0x7fffff
 #define MEMDEBUGTEST 0x1ff000
 #define PICASSOIV_DEBUG_IO 0

@@ -197,7 +197,9 @@ static void gary_wait(uaecptr addr, int size)
 
 static bool gary_nonrange(uaecptr addr)
 {
-	if (addr <= 0xb80000)
+	if (currprefs.cs_fatgaryrev < 0)
+		return false;
+	if (addr < 0xb80000)
 		return false;
 	if (addr >= 0xd00000 && addr < 0xdc0000)
 		return true;
@@ -240,11 +242,16 @@ uae_u32 dummy_get (uaecptr addr, int size, bool inst)
 		addr &= 0x00ffffff;
 	if (addr >= 0x10000000)
 		return v;
-	if (currprefs.cpu_model == 68000) {
+	if ((currprefs.cpu_model <= 68010) || (currprefs.cpu_model == 68020 && (currprefs.chipset_mask & CSMASK_AGA) && currprefs.address_space_24)) {
 		if (size == 4) {
-			v = (regs.db << 16) | regs.db;
+			v = regs.db & 0xffff;
+			if (addr & 1)
+				v = (v << 8) | (v >> 8);
+			v = (v << 16) | v;
 		} else if (size == 2) {
 			v = regs.db & 0xffff;
+			if (addr & 1)
+				v = (v << 8) | (v >> 8);
 		} else {
 			v = regs.db;
 			v = (addr & 1) ? (v & 0xff) : ((v >> 8) & 0xff);

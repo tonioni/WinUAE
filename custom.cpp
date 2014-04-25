@@ -3773,7 +3773,7 @@ void compute_framesync (void)
 	memset (line_decisions, 0, sizeof line_decisions);
 	memset (line_drawinfo, 0, sizeof line_drawinfo);
 	for (int i = 0; i < sizeof (line_decisions) / sizeof *line_decisions; i++) {
-		line_decisions[i].plfleft = -1;
+		line_decisions[i].plfleft = -2;
 	}
 
 	compute_vsynctime ();
@@ -8238,7 +8238,7 @@ writeonly:
 		v = last_custom_value1;
 		line_cyclebased = vpos;
 		if (!noput) {
-			int r;
+			int r, c, bmdma;
 			uae_u16 l;
 
 			// last chip bus value (read or write) is written to register
@@ -8259,9 +8259,13 @@ writeonly:
 			// - if last cycle was DMA cycle: DMA cycle data
 			// - if last cycle was not DMA cycle: FFFF or some ANDed old data.
 			//
-			if (is_bitplane_dma (hpos) || (cycle_line[hpos] & CYCLE_MASK) < CYCLE_CPU) {
+			c = cycle_line[hpos] & CYCLE_MASK;
+			bmdma = is_bitplane_dma(hpos);
+			if (bmdma || (c > CYCLE_REFRESH && c < CYCLE_CPU)) {
 				v = last_custom_value1;
 			} else {
+				// refresh checked because refresh cycles do not always
+				// set last_custom_value1 for performance reasons.
 				v = 0xffff;
 			}
 #if CUSTOM_DEBUG > 0

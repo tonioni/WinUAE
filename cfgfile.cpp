@@ -1183,6 +1183,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, _T("gfx_autoresolution_delay"), _T("%d"), p->gfx_autoresolution_delay);
 	cfgfile_dwrite (f, _T("gfx_autoresolution_min_vertical"), vertmode[p->gfx_autoresolution_minv + 1]);
 	cfgfile_dwrite (f, _T("gfx_autoresolution_min_horizontal"), horizmode[p->gfx_autoresolution_minh + 1]);
+	cfgfile_write_bool (f, _T("gfx_autoresolution_vga"), p->gfx_autoresolution_vga);
 
 	cfgfile_write (f, _T("gfx_backbuffers"), _T("%d"), p->gfx_apmode[0].gfx_backbuffers);
 	cfgfile_write (f, _T("gfx_backbuffers_rtg"), _T("%d"), p->gfx_apmode[1].gfx_backbuffers);
@@ -2054,6 +2055,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno (option, value, _T("gfx_blacker_than_black"), &p->gfx_blackerthanblack)
 		|| cfgfile_yesno (option, value, _T("gfx_black_frame_insertion"), &p->lightboost_strobo)
 		|| cfgfile_yesno (option, value, _T("gfx_flickerfixer"), &p->gfx_scandoubler)
+		|| cfgfile_yesno (option, value, _T("gfx_autoresolution_vga"), &p->gfx_autoresolution_vga)
 		|| cfgfile_yesno (option, value, _T("magic_mouse"), &p->input_magic_mouse)
 		|| cfgfile_yesno (option, value, _T("warp"), &p->turbo_emulation)
 		|| cfgfile_yesno (option, value, _T("headless"), &p->headless)
@@ -5194,6 +5196,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_autoresolution_minh = 0;
 	p->color_mode = 2;
 	p->gfx_blackerthanblack = 0;
+	p->gfx_autoresolution_vga = true;
 	p->gfx_apmode[0].gfx_backbuffers = 2;
 	p->gfx_apmode[1].gfx_backbuffers = 1;
 

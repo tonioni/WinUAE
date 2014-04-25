@@ -466,6 +466,8 @@
 #define IDC_AUTORESOLUTIONSELECT        1178
 #define IDC_LORES_SMOOTHED              1179
 #define IDC_FLICKERFIXER                1180
+#define IDC_PROGRAMMED_AUTO             1181
+#define IDC_AUTORESOLUTIONVGA           1181
 #define IDC_RATE2ENABLE                 1182
 #define IDC_FRAMERATE                   1185
 #define IDC_XSIZE                       1187

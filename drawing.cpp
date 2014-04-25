@@ -2430,11 +2430,6 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		break;
 	}
 
-#if 0
-	if (border && dp_for_drawing->plfleft < -1)
-		border = -1; // blank last "missing" line
-#endif
-
 	dh = dh_line;
 	xlinebuffer = gfxvidinfo.drawbuffer.linemem;
 	if (xlinebuffer == 0 && do_double
@@ -2525,10 +2520,18 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		}
 #endif
 
-		if (!dosprites && dip_for_drawing->nr_color_changes == 0) {
-			fill_line_border ();
+		if (!dosprites && (dip_for_drawing->nr_color_changes == 0 || (dip_for_drawing->nr_color_changes == 1 && curr_color_changes[dip_for_drawing->first_color_change].regno == -1))) {
+			if (dp_for_drawing->plfleft < -1) {
+				// blanked border line
+				int tmp = hposblank;
+				hposblank = 1;
+				fill_line_border ();
+				hposblank = tmp;
+			} else {
+				// normal border line
+				fill_line_border ();
+			}
 			do_flush_line (vb, gfx_ypos);
-
 			if (do_double) {
 				if (dh == dh_buf) {
 					xlinebuffer = row_map[follow_ypos] - linetoscr_x_adjust_bytes;
@@ -2693,7 +2696,7 @@ static void init_drawing_frame (void)
 			}
 		}
 
-		if (programmedmode && gfxvidinfo.gfx_resolution_reserved >= RES_HIRES && gfxvidinfo.gfx_vresolution_reserved >= VRES_DOUBLE) {
+		if (currprefs.gfx_autoresolution_vga && programmedmode && gfxvidinfo.gfx_resolution_reserved >= RES_HIRES && gfxvidinfo.gfx_vresolution_reserved >= VRES_DOUBLE) {
 			if (largest_res == RES_SUPERHIRES && (gfxvidinfo.gfx_resolution_reserved < RES_SUPERHIRES || gfxvidinfo.gfx_vresolution_reserved < 1)) {
 				// enable full doubling/superhires support if programmed mode. It may be "half-width" only and may fit in normal display window.
 				gfxvidinfo.gfx_resolution_reserved = RES_SUPERHIRES;
