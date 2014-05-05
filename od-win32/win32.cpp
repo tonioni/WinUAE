@@ -3059,7 +3059,7 @@ void target_fixup_options (struct uae_prefs *p)
 void target_default_options (struct uae_prefs *p, int type)
 {
 	TCHAR buf[MAX_DPATH];
-	if (type == 2 || type == 0) {
+	if (type == 2 || type == 0 || type == 3) {
 		p->win32_middle_mouse = 1;
 		p->win32_logfile = 0;
 		p->win32_active_nocapture_pause = 0;
@@ -3111,7 +3111,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		for (int i = 0; i < GAMEPORT_INPUT_SETTINGS; i++)
 			_stprintf (p->input_config_name[i], buf, i + 1);
 	}
-	if (type == 1 || type == 0) {
+	if (type == 1 || type == 0 || type == 3) {
 		p->win32_uaescsimode = UAESCSI_CDEMU;
 		p->win32_midioutdev = -2;
 		p->win32_midiindev = 0;

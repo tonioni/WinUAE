@@ -28,11 +28,51 @@
           <Directory Id="DOCS" Name="Docs"/>
         </Directory>
       </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="WinUAE"/>
+      </Directory>
+      <Directory Id="DesktopFolder" Name="Desktop">
+      </Directory>
     </Directory>
 
     <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
       <Component Id="winuae.exe" Guid="AE2CD6FB-A066-43B4-8C96-C75E3948367F">
-        <File Source="$(var.winuae.TargetPath)" KeyPath="yes" Checksum="yes"/>
+        <File Id="winuae.exe" Source="$(var.winuae.TargetPath)" KeyPath="yes" Checksum="yes"/>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="ApplicationDesktopShortcut" Guid="920BC800-12FC-4630-A612-39230FD4B4B7">
+        <Shortcut Id="ApplicationDesktopShortcut"
+          Name="WinUAE"
+          Description="WinUAE Amiga emulator"
+          Target="[#winuae.exe]"
+          WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
+        <RegistryValue Root="HKCU" Key="Software\Arabuusimiehet\WinUAE" Name="InstalledApplicationDesktopShortcut" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="469F7AC3-E634-49EE-BDAF-DAAD2134D7E2">
+        <Shortcut Id="ApplicationStartMenuShortcut"
+          Name="WinUAE"
+          Description="WinUAE Amiga emulator"
+          Target="[#winuae.exe]"
+          WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
+        <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\Arabuusimiehet\WinUAE" Name="InstalledApplicationShortcut" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+      <Component Id="DocsShortcut" Guid="7677FF51-F357-4657-B5DD-49801175E66B">
+        <Shortcut Id="DocsStartMenuShortcut"
+                  Name="Documents"
+                  Target="[DOCS]"/>
+        <RegistryValue Root="HKCU" Key="Software\Arabuusimiehet\WinUAE" Name="InstalledDocsShortcut" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalShortcut" Guid="9CD64D3C-96DA-4862-8E9E-6329A6296AFA">
+        <Shortcut Id="AdditionalStartMenuShortcut"
+                  Name="Amiga Programs"
+                  Target="[AMIGAPROGRAMS]"/>
+        <RegistryValue Root="HKCU" Key="Software\Arabuusimiehet\WinUAE" Name="InstalledAdditionalShortcut" Type="integer" Value="1" KeyPath="yes"/>
       </Component>
     </DirectoryRef>
 
@@ -148,6 +188,8 @@
     
     <Feature Id="MainApplication" Title="WinUAE" Description="WinUAE executable" Level="1" ConfigurableDirectory="APPLICATIONROOTDIRECTORY" Absent="disallow" AllowAdvertise="no">
       <ComponentRef Id="winuae.exe" />
+      <ComponentRef Id="ApplicationShortcut" />
+      <ComponentRef Id="ApplicationDesktopShortcut" />
       <ComponentRef Id="RegistryEntries" />
     </Feature>
 
@@ -158,6 +200,7 @@
       <ComponentRef Id="Docs4" />
       <ComponentRef Id="Docs5" />
       <ComponentRef Id="Docs6" />
+      <ComponentRef Id="DocsShortcut" />
     </Feature>
 
     <Feature Id="ConfigFiles" Title="Configuration files" Description="Example host configuration files" Level="1" AllowAdvertise="no">
@@ -189,6 +232,7 @@
       <ComponentRef Id="AdditionalFiles19" />
       <ComponentRef Id="AdditionalFiles20" />
       <ComponentRef Id="AdditionalFiles21" />
+      <ComponentRef Id="AdditionalShortcut" />
     </Feature>
 
 

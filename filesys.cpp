@@ -5722,7 +5722,7 @@ static void action_get_file_position64 (Unit *unit, dpacket packet)
 	PUT_PCK64_RES0 (packet, DP64_INIT);
 
 	if (k == 0) {
-		PUT_PCK64_RES1 (packet, DOS_FALSE);
+		PUT_PCK64_RES1 (packet, -1);
 		PUT_PCK64_RES2 (packet, ERROR_INVALID_LOCK);
 		return;
 	}
@@ -5792,7 +5792,7 @@ static void action_get_file_size64 (Unit *unit, dpacket packet)
 	PUT_PCK64_RES0 (packet, DP64_INIT);
 
 	if (k == 0) {
-		PUT_PCK64_RES1 (packet, DOS_FALSE);
+		PUT_PCK64_RES1 (packet, -1);
 		PUT_PCK64_RES2 (packet, ERROR_INVALID_LOCK);
 		return;
 	}
@@ -5803,7 +5803,7 @@ static void action_get_file_size64 (Unit *unit, dpacket packet)
 		PUT_PCK64_RES2 (packet, 0);
 		return;
 	}
-	PUT_PCK64_RES1 (packet, DOS_FALSE);
+	PUT_PCK64_RES1 (packet, -1);
 	PUT_PCK64_RES2 (packet, ERROR_SEEK_ERROR);
 }
 
@@ -6326,14 +6326,14 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 	while (tmp < residents && tmp > start) {
 		if (get_word (tmp) == 0x4AFC &&
 			get_long (tmp + 0x2) == tmp) {
-				put_word (resaddr, 0x227C);         /* movea.l #tmp,a1 */
+				put_word (resaddr, 0x227C);         /* move.l #tmp,a1 */
 				put_long (resaddr + 2, tmp);
-				put_word (resaddr + 6, 0x7200);     /* moveq.l #0,d1 */
+				put_word (resaddr + 6, 0x7200);     /* moveq #0,d1 */
 				put_long (resaddr + 8, 0x4EAEFF9A); /* jsr -$66(a6) ; InitResident */
 				resaddr += 12;
 				tmp = get_long (tmp + 0x6);
 		} else {
-			tmp++;
+			tmp += 2;
 		}
 	}
 	/* call setup_exter */
@@ -6342,7 +6342,7 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 	put_word (resaddr +  6, 0xd1fc);
 	put_long (resaddr +  8, rtarea_base + bootrom_header); /* add.l #RTAREA_BASE+bootrom_header,a0 */
 	put_word (resaddr + 12, 0x4e90); /* jsr (a0) */
-	put_word (resaddr + 14, 0x7001); /* moveq.l #1,d0 */
+	put_word (resaddr + 14, 0x7001); /* moveq #1,d0 */
 	put_word (resaddr + 16, RTS);
 
 	m68k_areg (regs, 0) = residents;

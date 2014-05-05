@@ -823,13 +823,17 @@ static void expamem_map_filesys (void)
 	org (a);
 }
 
+#define FILESYS_DIAGPOINT 0x01e0
+#define FILESYS_BOOTPOINT 0x01e6
+#define FILESYS_DIAGAREA 0x2000
+
 static void expamem_init_filesys (void)
 {
 	/* struct DiagArea - the size has to be large enough to store several device ROMTags */
 	uae_u8 diagarea[] = { 0x90, 0x00, /* da_Config, da_Flags */
 		0x02, 0x00, /* da_Size */
-		0x01, 0x00, /* da_DiagPoint */
-		0x01, 0x06  /* da_BootPoint */
+		FILESYS_DIAGPOINT >> 8, FILESYS_DIAGPOINT & 0xff,
+		FILESYS_BOOTPOINT >> 8, FILESYS_BOOTPOINT & 0xff
 	};
 
 	expamem_init_clear ();
@@ -853,15 +857,15 @@ static void expamem_init_filesys (void)
 	expamem_write (0x40, 0x00); /* Ctrl/Statusreg.*/
 
 	/* Build a DiagArea */
-	memcpy (expamem + 0x2000, diagarea, sizeof diagarea);
+	memcpy (expamem + FILESYS_DIAGAREA, diagarea, sizeof diagarea);
 
 	/* Call DiagEntry */
-	do_put_mem_word ((uae_u16 *)(expamem + 0x2100), 0x4EF9); /* JMP */
-	do_put_mem_long ((uae_u32 *)(expamem + 0x2102), ROM_filesys_diagentry);
+	do_put_mem_word ((uae_u16 *)(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT), 0x4EF9); /* JMP */
+	do_put_mem_long ((uae_u32 *)(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT + 2), ROM_filesys_diagentry);
 
 	/* What comes next is a plain bootblock */
-	do_put_mem_word ((uae_u16 *)(expamem + 0x2106), 0x4EF9); /* JMP */
-	do_put_mem_long ((uae_u32 *)(expamem + 0x2108), EXPANSION_bootcode);
+	do_put_mem_word ((uae_u16 *)(expamem + FILESYS_DIAGAREA + FILESYS_BOOTPOINT), 0x4EF9); /* JMP */
+	do_put_mem_long ((uae_u32 *)(expamem + FILESYS_DIAGAREA + FILESYS_BOOTPOINT + 2), EXPANSION_bootcode);
 
 	memcpy (filesysory, expamem, 0x3000);
 }

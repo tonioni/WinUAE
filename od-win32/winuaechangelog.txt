@@ -11,6 +11,20 @@
 
 - restore only single input target to default.
 
+2.8.0
+
+- Lowered floppy drive step limit again a bit more, fixes Elektrica / Cascade.
+- Sound timing calculation used hardware maxvpos, not possibly currently active "fake 60hz"
+  method maxvpos. (2.7.0b13)
+
+Beta 19:
+
+- Increased space for UAE boot ROM extension resident module structures, it was too small and overflowed
+  (causing boot crash) if too many UAE resident module expansions were enabled simultaneously.
+- Windows specific configuration defaults were not set if config was command line or double click loaded
+  (missed in b17 fix)
+- AROS ROM updated.
+
 Beta 18:
 
 - 0xFFFF was not returned when reading write-only or non-existing custom register and previous cycle was

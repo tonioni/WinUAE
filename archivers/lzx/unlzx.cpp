@@ -701,6 +701,11 @@ struct zfile *archive_access_lzx (struct znode *zn)
 				crc_calc (&d, pdest, d.decrunch_length);
 			} else {
 				write_log (_T("LZX corrupt compressed data %s\n"), zn->name);
+#if 0
+				struct zfile *x = zfile_fopen(_T("c:\\temp\\1.dat"),_T("wb"));
+				zfile_fwrite(dbuf,1,outsize, x);
+				zfile_fclose(x);
+#endif				
 				goto end;
 			}
 		}

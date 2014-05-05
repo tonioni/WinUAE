@@ -211,7 +211,7 @@ typedef struct {
 #endif
 } drive;
 
-#define MIN_STEPLIMIT_CYCLE (CYCLE_UNIT * 210)
+#define MIN_STEPLIMIT_CYCLE (CYCLE_UNIT * 140)
 
 static uae_u16 bigmfmbufw[0x4000 * DDHDMULT];
 static drive floppy[MAX_FLOPPY_DRIVES];
@@ -1294,7 +1294,7 @@ static void drive_step (drive * drv, int step_direction)
 		drv->dskchange = 0;
 	if (drv->steplimit && get_cycles() - drv->steplimitcycle < MIN_STEPLIMIT_CYCLE) {
 		if (disk_debug_logging > 1)
-			write_log (_T(" step ignored drive %d, %d"),
+			write_log (_T(" step ignored drive %d, %d\n"),
 			drv - floppy, (get_cycles() - drv->steplimitcycle) / CYCLE_UNIT);
 		return;
 	}
