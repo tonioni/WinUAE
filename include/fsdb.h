@@ -18,6 +18,7 @@
 /* AmigaOS errors */
 #define ERROR_NO_FREE_STORE			103
 #define ERROR_BAD_NUMBER			115
+#define ERROR_LINE_TOO_LONG			120
 #define ERROR_OBJECT_IN_USE			202
 #define ERROR_OBJECT_EXISTS			203
 #define ERROR_DIR_NOT_FOUND			204

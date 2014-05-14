@@ -13,6 +13,7 @@
 #define MAX_LINEWIDTH 100
 
 extern int debugging;
+extern int memwatch_enabled;
 extern int exception_debugging;
 extern int debug_copper;
 extern int debug_dma;
@@ -57,26 +58,56 @@ struct breakpoint_node {
 };
 extern struct breakpoint_node bpnodes[BREAKPOINT_TOTAL];
 
+#define MW_MASK_CPU				0x00000001
+#define MW_MASK_BLITTER_A		0x00000002
+#define MW_MASK_BLITTER_B		0x00000004
+#define MW_MASK_BLITTER_C		0x00000008
+#define MW_MASK_BLITTER_D		0x00000010
+#define MW_MASK_COPPER			0x00000020
+#define MW_MASK_DISK			0x00000040
+#define MW_MASK_AUDIO_0			0x00000080
+#define MW_MASK_AUDIO_1			0x00000100
+#define MW_MASK_AUDIO_2			0x00000200
+#define MW_MASK_AUDIO_3			0x00000400
+#define MW_MASK_BPL_0			0x00000800
+#define MW_MASK_BPL_1			0x00001000
+#define MW_MASK_BPL_2			0x00002000
+#define MW_MASK_BPL_3			0x00004000
+#define MW_MASK_BPL_4			0x00008000
+#define MW_MASK_BPL_5			0x00010000
+#define MW_MASK_BPL_6			0x00020000
+#define MW_MASK_BPL_7			0x00040000
+#define MW_MASK_SPR_0			0x00080000
+#define MW_MASK_SPR_1			0x00100000
+#define MW_MASK_SPR_2			0x00200000
+#define MW_MASK_SPR_3			0x00400000
+#define MW_MASK_SPR_4			0x00800000
+#define MW_MASK_SPR_5			0x01000000
+#define MW_MASK_SPR_6			0x02000000
+#define MW_MASK_SPR_7			0x04000000
+#define MW_MASK_ALL				(0x08000000 - 1)
+
 #define MEMWATCH_TOTAL 20
 struct memwatch_node {
 	uaecptr addr;
 	int size;
 	int rwi;
-	uae_u32 val, val_mask;
+	uae_u32 val, val_mask, access_mask;
 	int val_size, val_enabled;
 	int mustchange;
 	uae_u32 modval;
 	int modval_written;
 	int frozen;
+	uae_u32 reg;
 	uaecptr pc;
 };
 extern struct memwatch_node mwnodes[MEMWATCH_TOTAL];
 
 extern void memwatch_dump2 (TCHAR *buf, int bufsize, int num);
 
-uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v, int reg);
-uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v, int reg);
-uae_u16 debug_wputpeekdma_chipset (uaecptr addr, uae_u32 v, int reg);
+uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg);
+uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg);
+uae_u16 debug_wputpeekdma_chipset (uaecptr addr, uae_u32 v, uae_u32 mask, int reg);
 void debug_lgetpeek (uaecptr addr, uae_u32 v);
 void debug_wgetpeek (uaecptr addr, uae_u32 v);
 void debug_bgetpeek (uaecptr addr, uae_u32 v);
@@ -97,7 +128,7 @@ void debugtest (enum debugtest_item, const TCHAR *, ...);
 struct dma_rec
 {
     uae_u16 reg;
-    uae_u16 dat;
+    uae_u32 dat;
     uae_u32 addr;
     uae_u16 evt;
     int type;

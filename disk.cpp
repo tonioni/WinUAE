@@ -994,18 +994,18 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 		return 0;
 	}
 
-	if (!fake)
+	if (!fake) {
 		inprec_recorddiskchange (dnum, fname, drv->wrprot);
-
-	_tcsncpy (currprefs.floppyslots[dnum].df, fname, 255);
-	currprefs.floppyslots[dnum].df[255] = 0;
-	currprefs.floppyslots[dnum].forcedwriteprotect = forcedwriteprotect;
-	_tcsncpy (changed_prefs.floppyslots[dnum].df, fname, 255);
-	changed_prefs.floppyslots[dnum].df[255] = 0;
-	changed_prefs.floppyslots[dnum].forcedwriteprotect = forcedwriteprotect;
-	_tcscpy (drv->newname, fname);
-	drv->newnamewriteprotected = forcedwriteprotect;
-	gui_filename (dnum, fname);
+		_tcsncpy (currprefs.floppyslots[dnum].df, fname, 255);
+		currprefs.floppyslots[dnum].df[255] = 0;
+		currprefs.floppyslots[dnum].forcedwriteprotect = forcedwriteprotect;
+		_tcsncpy (changed_prefs.floppyslots[dnum].df, fname, 255);
+		changed_prefs.floppyslots[dnum].df[255] = 0;
+		changed_prefs.floppyslots[dnum].forcedwriteprotect = forcedwriteprotect;
+		_tcscpy (drv->newname, fname);
+		drv->newnamewriteprotected = forcedwriteprotect;
+		gui_filename (dnum, fname);
+	}
 
 	memset (buffer, 0, sizeof buffer);
 	size = 0;
@@ -1240,11 +1240,13 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 	drv->mfmpos |= (uaerand () << 16);
 	drv->mfmpos %= drv->tracklen;
 	drv->prevtracklen = 0;
+	if (!fake) {
 #ifdef DRIVESOUND
-	if (isfloppysound (drv))
-		driveclick_insert (drv - floppy, 0);
+		if (isfloppysound (drv))
+			driveclick_insert (drv - floppy, 0);
 #endif
-	update_drive_gui (drv - floppy, false);
+		update_drive_gui (drv - floppy, false);
+	}
 	return 1;
 }
 
@@ -1351,6 +1353,7 @@ static int drive_writeprotected (drive * drv)
 	if (drv->catweasel)
 		return 1;
 #endif
+	//write_log(_T("df%d: %d %d %d %x %s\n"), drv-&floppy[0],currprefs.floppy_read_only, drv->wrprot, drv->forcedwrprot, drv->diskfile, drv->diskfile ? zfile_getname(drv->diskfile) : _T("none"));
 	return currprefs.floppy_read_only || drv->wrprot || drv->forcedwrprot || drv->diskfile == NULL;
 }
 
@@ -2463,14 +2466,20 @@ static void diskfile_readonly (const TCHAR *name, bool readonly)
 	struct mystat st;
 	int mode, oldmode;
 
-	if (!my_stat (name, &st))
+	if (!my_stat (name, &st)) {
+		write_log (_T("failed to access '%s'\n"), name);
 		return;
+	}
+	write_log(_T("'%s': old mode = %x\n"), name, st.mode);
 	oldmode = mode = st.mode;
 	mode &= ~FILEFLAG_WRITE;
 	if (!readonly)
 		mode |= FILEFLAG_WRITE;
-	if (mode != oldmode)
-		my_chmod (name, mode);
+	if (mode != oldmode) {
+		if (!my_chmod (name, mode))
+			write_log(_T("chmod failed!\n"));
+	}
+	write_log(_T("'%s': new mode = %x\n"), name, mode);
 }
 
 static void setdskchangetime (drive *drv, int dsktime)
@@ -2504,10 +2513,15 @@ int disk_setwriteprotect (struct uae_prefs *p, int num, const TCHAR *name, bool 
 	TCHAR *name2;
 	drive_type drvtype;
 
+	write_log(_T("disk_setwriteprotect %d '%s' %d\n"), num, name, writeprotected);
+
 	oldprotect = diskfile_iswriteprotect (p, name, &needwritefile, &drvtype);
 	DISK_validate_filename (p, name, 1, &wrprot1, NULL, &zf1);
 	if (!zf1)
 		return 0;
+
+	write_log(_T("old = %d writeprot = %d master = %d\n"), oldprotect, wrprot1, p->floppy_read_only);
+
 	if (wrprot1 && p->floppy_read_only)
 		return 0;
 	if (zfile_iscompressed (zf1))

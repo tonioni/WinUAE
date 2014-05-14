@@ -7,7 +7,7 @@ extern void D3D_refresh (void);
 extern bool D3D_renderframe (bool);
 extern void D3D_showframe (void);
 extern void D3D_showframe_special (int);
-extern uae_u8 *D3D_locktexture(int*, bool);
+extern uae_u8 *D3D_locktexture(int*, int*, bool);
 extern void D3D_unlocktexture(void);
 extern void D3D_flushtexture (int miny, int maxy);
 extern void D3D_guimode (bool);

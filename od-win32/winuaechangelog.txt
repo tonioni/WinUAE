@@ -11,6 +11,33 @@
 
 - restore only single input target to default.
 
+Beta 1:
+
+- Audio DMA CPU wait hack (that tries to prevent missing samples if program has CPU timed audio DMA wait)
+  improved, now compatible with programs that really need delay after DMA switch off (for example switches
+  DMA off, then clears interrupt request, and then finally waits for audio interrupt).
+- CPU on the fly mode changes were unreliable (2.8.0b15)
+- Fixed some GUI strings that didn't support translation.
+- .ccd CD images didn't automatically load from archive if file was not in archive root.
+- Disk insert after emulation has been started may have internally set disk as write protected even
+  if disk image is write enabled. (broken since GUI "?" button was added)
+- Added DMA channel support to memwatch points. Add DMA channel name (or more than one) at the end of
+  debugger w command line, for example COP, BLT (or BLTA if you only want A channel reads) and so on..
+  No parameter = CPU accesses only.
+- Null filter didn't check display bounds, fixes possible DirectDraw mode crash when display size changes.
+- Directory filesystem ACTION SET FILE SIZE will now fail if target file size is >= 2G. (Prevents accidental
+  truncation if program does not support large files)
+- Added directory filesystem MorphOS compatible 64-bit file size packets: ACTION_SEEK64, ACTION_SET_FILE_SIZE64,
+  ACTION_LOCK_RECORD64, ACTION_FREE_RECORD64, ACTION_EXAMINE_OBJECT64, ACTION_EXAMINE_NEXT64, ACTION_EXAMINE_FH64 and
+  ACTION_EXAMINE_ALL ED_SIZE64. (OS4 packets were implemented long time ago)
+- AGA and reading non-existing or write-only custom registers work differently than on A500, don't use new more
+  A500 compatible method added in 2.8.0 with AGA configurations. (This is far from accurate)
+- Mouse device autoswitching was unreliable if rawinput was not supported or was disabled.
+- If Quickstart mode and sound filter is set to A500 or A1200 emulated or always on: automatically match it with
+  selected config.
+- DMA debugger now shows CPU and DMA 32-bit chip ram accesses, previously data was truncated to 16-bits. 64-bit
+  DMA is stil truncated to 32-bit.
+
 2.8.0
 
 - Lowered floppy drive step limit again a bit more, fixes Elektrica / Cascade.

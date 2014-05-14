@@ -226,7 +226,7 @@ extern void expamem_init (void);
 extern void expamem_reset (void);
 extern void expamem_next (void);
 
-extern uae_u16 last_custom_value1;
+extern uae_u32 last_custom_value1;
 
 /* Default memory access functions */
 

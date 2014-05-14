@@ -269,7 +269,7 @@ extern void read_inputdevice_config (struct uae_prefs *p, const TCHAR *option, T
 extern void reset_inputdevice_config (struct uae_prefs *pr);
 extern void store_inputdevice_config (struct uae_prefs *pr);
 extern void restore_inputdevice_config (struct uae_prefs *p, int portnum);
-extern int inputdevice_joyport_config (struct uae_prefs *p, const TCHAR *value, int portnum, int mode, int type);
+extern int inputdevice_joyport_config (struct uae_prefs *p, const TCHAR *value, int portnum, int mode, int type, bool validate);
 extern int inputdevice_getjoyportdevice (int port, int val);
 extern void inputdevice_validate_jports (struct uae_prefs *p, int changedport);
 

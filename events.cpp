@@ -176,3 +176,13 @@ void event2_newevent_xx (int no, evt t, uae_u32 data, evfunc2 func)
 	MISC_handler ();
 }
 
+int current_hpos (void)
+{
+	int hp = current_hpos_safe ();
+	if (hp < 0 || hp >= 256) {
+		gui_message(_T("hpos = %d!?\n"), hp);
+		hp = 0;
+	}
+	return hp;
+}
+

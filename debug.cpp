@@ -46,7 +46,8 @@ static int skipaddr_doskip;
 static uae_u32 skipins;
 static int do_skip;
 static int debug_rewind;
-static int memwatch_enabled, memwatch_triggered;
+static int memwatch_triggered;
+int memwatch_enabled;
 static uae_u16 sr_bpmask, sr_bpvalue;
 int debugging;
 int exception_debugging;
@@ -1190,6 +1191,7 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 		for (i = 0; i < cols && h < maxh; i++, h++, dr++) {
 			int cl = i * col, cl2;
 			int r = dr->reg;
+			bool longsize = false;
 			TCHAR *sr;
 
 			sr = _T("    ");
@@ -1215,8 +1217,10 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 						_tcscpy (l2 + cl, _T("  CPU-R  "));
 					else if ((r & 0x0100) == 0x0100)
 						_tcscpy (l2 + cl, _T("  CPU-W  "));
-					if ((r & 0xff) == 4)
+					if ((r & 0xff) == 4) {
 						l2[cl + 7] = 'L';
+						longsize = true;
+					}
 					if ((r & 0xff) == 2)
 						l2[cl + 7] = 'W';
 					if ((r & 0xff) == 1)
@@ -1224,7 +1228,7 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 				} else {
 					_stprintf (l2 + cl, _T("%4s %03X"), sr, r);
 				}
-				_stprintf (l3 + cl, _T("    %04X"), dr->dat);
+				_stprintf (l3 + cl, longsize ? _T("%08X") : _T("    %04X"), dr->dat);
 				if (dr->addr != 0xffffffff)
 					_stprintf (l4 + cl, _T("%08X"), dr->addr & 0x00ffffff);
 			} else {
@@ -2004,6 +2008,8 @@ uae_u8 *save_debug_memwatch (int *len, uae_u8 *dstptr)
 		save_u32 (m->val_size);
 		save_u32 (m->val);
 		save_u32 (m->pc);
+		save_u32 (m->access_mask);
+		save_u32 (m->reg);
 		save_store_size ();
 	}
 	*len = dst - dstbak;
@@ -2031,6 +2037,8 @@ uae_u8 *restore_debug_memwatch (uae_u8 *src)
 		m->val_size = restore_u32 ();
 		m->val = restore_u32 ();
 		m->pc = restore_u32 ();
+		m->access_mask = restore_u32();
+		m->reg = restore_u32();
 		restore_store_size ();
 	}
 	return src;
@@ -2048,7 +2056,7 @@ void restore_debug_memwatch_finish (void)
 	}
 }
 
-static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
+static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u32 accessmask, uae_u32 reg)
 {
 	int i, brk;
 	uae_u32 val = *valp;
@@ -2075,6 +2083,9 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 			continue;
 		if (!(rwi & rwi2))
 			continue;
+		if (!(m->access_mask & accessmask))
+			continue;
+
 		if (addr >= addr2 && addr < addr3)
 			brk = 1;
 		if (!brk && size == 2 && (addr + 1 >= addr2 && addr + 1 < addr3))
@@ -2173,6 +2184,8 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 		mwhit.rwi = rwi;
 		mwhit.size = size;
 		mwhit.val = 0;
+		mwhit.access_mask = accessmask;
+		mwhit.reg = reg;
 		if (mwhit.rwi & 2)
 			mwhit.val = val;
 		memwatch_triggered = i + 1;
@@ -2233,7 +2246,7 @@ static uae_u32 REGPARAM2 debug_lget (uaecptr addr)
 	uae_u32 off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->lget (addr);
-	memwatch_func (addr, 1, 4, &v);
+	memwatch_func (addr, 1, 4, &v, MW_MASK_CPU, 0);
 	return v;
 }
 static uae_u32 REGPARAM2 mmu_lgeti (uaecptr addr)
@@ -2258,7 +2271,7 @@ static uae_u32 REGPARAM2 debug_wget (uaecptr addr)
 	int off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->wget (addr);
-	memwatch_func (addr, 1, 2, &v);
+	memwatch_func (addr, 1, 2, &v, MW_MASK_CPU, 0);
 	return v;
 }
 static uae_u32 REGPARAM2 debug_bget (uaecptr addr)
@@ -2266,7 +2279,7 @@ static uae_u32 REGPARAM2 debug_bget (uaecptr addr)
 	int off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->bget (addr);
-	memwatch_func (addr, 1, 1, &v);
+	memwatch_func (addr, 1, 1, &v, MW_MASK_CPU, 0);
 	return v;
 }
 static uae_u32 REGPARAM2 debug_lgeti (uaecptr addr)
@@ -2274,7 +2287,7 @@ static uae_u32 REGPARAM2 debug_lgeti (uaecptr addr)
 	int off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->lgeti (addr);
-	memwatch_func (addr, 4, 4, &v);
+	memwatch_func (addr, 4, 4, &v, MW_MASK_CPU, 0);
 	return v;
 }
 static uae_u32 REGPARAM2 debug_wgeti (uaecptr addr)
@@ -2282,25 +2295,25 @@ static uae_u32 REGPARAM2 debug_wgeti (uaecptr addr)
 	int off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->wgeti (addr);
-	memwatch_func (addr, 4, 2, &v);
+	memwatch_func (addr, 4, 2, &v, MW_MASK_CPU, 0);
 	return v;
 }
 static void REGPARAM2 debug_lput (uaecptr addr, uae_u32 v)
 {
 	int off = debug_mem_off (&addr);
-	if (memwatch_func (addr, 2, 4, &v))
+	if (memwatch_func (addr, 2, 4, &v, MW_MASK_CPU, 0))
 		debug_mem_banks[off]->lput (addr, v);
 }
 static void REGPARAM2 debug_wput (uaecptr addr, uae_u32 v)
 {
 	int off = debug_mem_off (&addr);
-	if (memwatch_func (addr, 2, 2, &v))
+	if (memwatch_func (addr, 2, 2, &v, MW_MASK_CPU, 0))
 		debug_mem_banks[off]->wput (addr, v);
 }
 static void REGPARAM2 debug_bput (uaecptr addr, uae_u32 v)
 {
 	int off = debug_mem_off (&addr);
-	if (memwatch_func (addr, 2, 1, &v))
+	if (memwatch_func (addr, 2, 1, &v, MW_MASK_CPU, 0))
 		debug_mem_banks[off]->bput (addr, v);
 }
 static int REGPARAM2 debug_check (uaecptr addr, uae_u32 size)
@@ -2312,16 +2325,16 @@ static uae_u8 *REGPARAM2 debug_xlate (uaecptr addr)
 	return debug_mem_banks[munge24 (addr) >> 16]->xlateaddr (addr);
 }
 
-uae_u16 debug_wputpeekdma_chipset (uaecptr addr, uae_u32 v, int reg)
+uae_u16 debug_wputpeekdma_chipset (uaecptr addr, uae_u32 v, uae_u32 mask, int reg)
 {
 	if (!memwatch_enabled)
 		return v;
 	addr &= 0x1fe;
 	addr += 0xdff000;
-	memwatch_func (addr, 2, 2, &v);
+	memwatch_func (addr, 2, 2, &v, mask, reg);
 	return v;
 }
-uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v, int reg)
+uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg)
 {
 	if (!memwatch_enabled)
 		return v;
@@ -2329,10 +2342,10 @@ uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v, int reg)
 		return v;
 	if (!currprefs.z3chipmem_size)
 		addr &= chipmem_bank.mask;
-	memwatch_func (addr & chipmem_bank.mask, 2, 2, &v);
+	memwatch_func (addr & chipmem_bank.mask, 2, 2, &v, mask, reg);
 	return v;
 }
-uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v, int reg)
+uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg)
 {
 	uae_u32 vv = v;
 	if (!memwatch_enabled)
@@ -2341,7 +2354,7 @@ uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v, int reg)
 		return v;
 	if (!currprefs.z3chipmem_size)
 		addr &= chipmem_bank.mask;
-	memwatch_func (addr, 1, 2, &vv);
+	memwatch_func (addr, 1, 2, &vv, mask, reg);
 	return vv;
 }
 
@@ -2349,40 +2362,40 @@ void debug_putlpeek (uaecptr addr, uae_u32 v)
 {
 	if (!memwatch_enabled)
 		return;
-	memwatch_func (addr, 2, 4, &v);
+	memwatch_func (addr, 2, 4, &v, MW_MASK_CPU, 0);
 }
 void debug_wputpeek (uaecptr addr, uae_u32 v)
 {
 	if (!memwatch_enabled)
 		return;
-	memwatch_func (addr, 2, 2, &v);
+	memwatch_func (addr, 2, 2, &v, MW_MASK_CPU, 0);
 }
 void debug_bputpeek (uaecptr addr, uae_u32 v)
 {
 	if (!memwatch_enabled)
 		return;
-	memwatch_func (addr, 2, 1, &v);
+	memwatch_func (addr, 2, 1, &v, MW_MASK_CPU, 0);
 }
 void debug_bgetpeek (uaecptr addr, uae_u32 v)
 {
 	uae_u32 vv = v;
 	if (!memwatch_enabled)
 		return;
-	memwatch_func (addr, 1, 1, &vv);
+	memwatch_func (addr, 1, 1, &vv, MW_MASK_CPU, 0);
 }
 void debug_wgetpeek (uaecptr addr, uae_u32 v)
 {
 	uae_u32 vv = v;
 	if (!memwatch_enabled)
 		return;
-	memwatch_func (addr, 1, 2, &vv);
+	memwatch_func (addr, 1, 2, &vv, MW_MASK_CPU, 0);
 }
 void debug_lgetpeek (uaecptr addr, uae_u32 v)
 {
 	uae_u32 vv = v;
 	if (!memwatch_enabled)
 		return;
-	memwatch_func (addr, 1, 4, &vv);
+	memwatch_func (addr, 1, 4, &vv, MW_MASK_CPU, 0);
 }
 
 struct membank_store
@@ -2570,6 +2583,53 @@ int debug_bankchange (int mode)
 	return -1;
 }
 
+struct mw_acc
+{
+	uae_u32 mask;
+	const TCHAR *name;
+};
+
+static const struct mw_acc memwatch_access_masks[] =
+{
+	{ MW_MASK_ALL, _T("ALL") },
+	{ MW_MASK_ALL & ~MW_MASK_CPU, _T("DMA") },
+	{ MW_MASK_BLITTER_A | MW_MASK_BLITTER_B | MW_MASK_BLITTER_C | MW_MASK_BLITTER_D, _T("BLT") },
+	{ MW_MASK_AUDIO_0 | MW_MASK_AUDIO_1 | MW_MASK_AUDIO_2 | MW_MASK_AUDIO_3, _T("AUD") },
+	{ MW_MASK_BPL_0 | MW_MASK_BPL_1 | MW_MASK_BPL_2 | MW_MASK_BPL_3 | 
+	  MW_MASK_BPL_4 | MW_MASK_BPL_5 | MW_MASK_BPL_6 | MW_MASK_BPL_7 , _T("BPL") },
+	{ MW_MASK_SPR_0 | MW_MASK_SPR_1 | MW_MASK_SPR_2 | MW_MASK_SPR_3 |
+	  MW_MASK_SPR_4 | MW_MASK_SPR_5 | MW_MASK_SPR_6 | MW_MASK_SPR_7, _T("SPR") },
+	
+	{ MW_MASK_CPU, _T("CPU") },
+	{ MW_MASK_COPPER, _T("COP") },
+	{ MW_MASK_BLITTER_A, _T("BLTA") },
+	{ MW_MASK_BLITTER_B, _T("BLTB") },
+	{ MW_MASK_BLITTER_C, _T("BLTC") },
+	{ MW_MASK_BLITTER_D, _T("BLTD") },
+	{ MW_MASK_DISK, _T("DSK") },
+	{ MW_MASK_AUDIO_0, _T("AUD0") },
+	{ MW_MASK_AUDIO_1, _T("AUD1") },
+	{ MW_MASK_AUDIO_2, _T("AUD2") },
+	{ MW_MASK_AUDIO_3, _T("AUD3") },
+	{ MW_MASK_BPL_0, _T("BPL0") },
+	{ MW_MASK_BPL_1, _T("BPL1") },
+	{ MW_MASK_BPL_2, _T("BPL2") },
+	{ MW_MASK_BPL_3, _T("BPL3") },
+	{ MW_MASK_BPL_4, _T("BPL4") },
+	{ MW_MASK_BPL_5, _T("BPL5") },
+	{ MW_MASK_BPL_6, _T("BPL6") },
+	{ MW_MASK_BPL_7, _T("BPL7") },
+	{ MW_MASK_SPR_0, _T("SPR0") },
+	{ MW_MASK_SPR_1, _T("SPR1") },
+	{ MW_MASK_SPR_2, _T("SPR2") },
+	{ MW_MASK_SPR_3, _T("SPR3") },
+	{ MW_MASK_SPR_4, _T("SPR4") },
+	{ MW_MASK_SPR_5, _T("SPR5") },
+	{ MW_MASK_SPR_6, _T("SPR6") },
+	{ MW_MASK_SPR_7, _T("SPR7") },
+	NULL
+};
+
 static TCHAR *getsizechar (int size)
 {
 	if (size == 4)
@@ -2592,6 +2652,7 @@ void memwatch_dump2 (TCHAR *buf, int bufsize, int num)
 		memset (buf, 0, bufsize * sizeof (TCHAR));
 	for (i = 0; i < MEMWATCH_TOTAL; i++) {
 		if ((num >= 0 && num == i) || (num < 0)) {
+			uae_u32 usedmask = 0;
 			mwn = &mwnodes[i];
 			if (mwn->size == 0)
 				continue;
@@ -2599,13 +2660,21 @@ void memwatch_dump2 (TCHAR *buf, int bufsize, int num)
 				i, mwn->addr, mwn->addr + (mwn->size - 1), mwn->size,
 				(mwn->rwi & 1) ? 'R' : ' ', (mwn->rwi & 2) ? 'W' : ' ', (mwn->rwi & 4) ? 'I' : ' ');
 			if (mwn->frozen)
-				buf = buf_out (buf, &bufsize, _T("F"));
+				buf = buf_out (buf, &bufsize, _T(" F"));
 			if (mwn->val_enabled)
 				buf = buf_out (buf, &bufsize, _T(" =%X%s"), mwn->val, getsizechar (mwn->val_size));
 			if (mwn->modval_written)
 				buf = buf_out (buf, &bufsize, _T(" =M"));
 			if (mwn->mustchange)
 				buf = buf_out (buf, &bufsize, _T(" C"));
+			for (int j = 0; memwatch_access_masks[j].mask; j++) {
+				uae_u32 mask = memwatch_access_masks[j].mask;
+				if ((mwn->access_mask & mask) == mask && (usedmask & mask) == 0) {
+					buf = buf_out(buf, &bufsize, _T(" "));
+					buf = buf_out(buf, &bufsize, memwatch_access_masks[j].name);
+					usedmask |= mask;
+				}
+			}
 			buf = buf_out (buf, &bufsize, _T("\n"));
 		}
 	}
@@ -2693,6 +2762,9 @@ static void memwatch (TCHAR **c)
 	mwn->rwi = 7;
 	mwn->val_enabled = 0;
 	mwn->val_mask = 0xffffffff;
+	mwn->val = 0;
+	mwn->access_mask = 0;
+	mwn->reg = 0xffffffff;
 	mwn->frozen = 0;
 	mwn->modval_written = 0;
 	ignore_ws (c);
@@ -2700,25 +2772,45 @@ static void memwatch (TCHAR **c)
 		mwn->size = readhex (c);
 		ignore_ws (c);
 		if (more_params (c)) {
-			for (;;) {
-				TCHAR ncc = peek_next_char(c);
-				TCHAR nc = _totupper (next_char (c));
-				if (mwn->rwi == 7)
-					mwn->rwi = 0;
-				if (nc == 'F')
-					mwn->frozen = 1;
-				if (nc == 'W')
-					mwn->rwi |= 2;
-				if (nc == 'I')
-					mwn->rwi |= 4;
-				if (nc == 'R')
-					mwn->rwi |= 1;
-				if (ncc == ' ')
-					break;
-				if (!more_params(c))
-					break;
+			TCHAR *cs = *c;
+			while (*cs) {
+				for (int i = 0; memwatch_access_masks[i].mask; i++) {
+					const TCHAR *n = memwatch_access_masks[i].name;
+					int len = _tcslen(n);
+					if (!_tcsnicmp(cs, n, len)) {
+						if (cs[len] == 0 || cs[len] == 10 || cs[len] == 13) {
+							mwn->access_mask |= memwatch_access_masks[i].mask;
+							while (len > 0) {
+								len--;
+								cs[len] = ' ';
+							}
+						}
+					}
+				}
+				cs++;
 			}
 			ignore_ws (c);
+			if (more_params(c)) {
+				for (;;) {
+					TCHAR ncc = peek_next_char(c);
+					TCHAR nc = _totupper (next_char (c));
+					if (mwn->rwi == 7)
+						mwn->rwi = 0;
+					if (nc == 'F')
+						mwn->frozen = 1;
+					if (nc == 'W')
+						mwn->rwi |= 2;
+					if (nc == 'I')
+						mwn->rwi |= 4;
+					if (nc == 'R')
+						mwn->rwi |= 1;
+					if (ncc == ' ')
+						break;
+					if (!more_params(c))
+						break;
+				}
+				ignore_ws (c);
+			}
 			if (more_params (c)) {
 				if (_totupper (**c) == 'M') {
 					mwn->modval_written = 1;
@@ -2731,6 +2823,8 @@ static void memwatch (TCHAR **c)
 			}
 		}
 	}
+	if (!mwn->access_mask)
+		mwn->access_mask = MW_MASK_CPU;
 	if (mwn->frozen && mwn->rwi == 0)
 		mwn->rwi = 3;
 	memwatch_setup ();
@@ -4346,10 +4440,14 @@ void debug (void)
 			}
 		}
 	} else {
-		console_out_f (_T("Memwatch %d: break at %08X.%c %c%c%c %08X PC=%08X\n"), memwatch_triggered - 1, mwhit.addr,
+		console_out_f (_T("Memwatch %d: break at %08X.%c %c%c%c %08X PC=%08X "), memwatch_triggered - 1, mwhit.addr,
 			mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'),
 			(mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
 			mwhit.val, mwhit.pc);
+		for (i = 0; memwatch_access_masks[i].mask; i++) {
+			if (mwhit.access_mask == memwatch_access_masks[i].mask)
+				console_out_f (_T("%s (%03x)\n"), memwatch_access_masks[i].name, mwhit.reg);
+		}
 		memwatch_triggered = 0;
 	}
 	if (skipaddr_doskip > 0) {

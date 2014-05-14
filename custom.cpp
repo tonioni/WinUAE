@@ -131,6 +131,7 @@ static int rpt_did_reset;
 struct ev eventtab[ev_max];
 struct ev2 eventtab2[ev2_max];
 
+int hpos_offset;
 int vpos;
 static int vpos_count, vpos_count_diff;
 int lof_store; // real bit in custom registers
@@ -141,6 +142,7 @@ static int next_lineno, prev_lineno;
 static enum nln_how nextline_how;
 static int lof_changed = 0, lof_changing = 0, interlace_changed = 0;
 static int lof_changed_previous_field;
+static int vposw_change;
 static bool lof_lace;
 static bool bplcon0_interlace_seen;
 static int scandoubled_line;
@@ -184,7 +186,7 @@ static uae_u16 cregs[256];
 uae_u16 intena, intreq;
 uae_u16 dmacon;
 uae_u16 adkcon; /* used by audio code */
-uae_u16 last_custom_value1;
+uae_u32 last_custom_value1;
 
 static uae_u32 cop1lc, cop2lc, copcon;
 
@@ -215,7 +217,7 @@ static int ciavsyncmode;
 static int diw_hstrt, diw_hstop;
 static int diw_hcounter;
 
-#define HSYNCTIME (maxhpos * CYCLE_UNIT);
+#define HSYNCTIME (maxhpos * CYCLE_UNIT)
 
 struct sprite {
 	uaecptr pt;
@@ -528,7 +530,7 @@ STATIC_INLINE uae_u8 *pfield_xlateptr (uaecptr plpt, int bytecount)
 	if (!chipmem_check_indirect (plpt, bytecount)) {
 		static int count = 0;
 		if (!count)
-			count++, write_log (_T("Warning: Bad playfield pointer\n"));
+			count++, write_log (_T("Warning: Bad playfield pointer %08x\n"), plpt);
 		return NULL;
 	}
 	return chipmem_xlate_indirect (plpt);
@@ -1274,6 +1276,8 @@ static void fetch (int nr, int fm, int hpos)
 #ifdef DEBUGGER
 		if (debug_dma)
 			record_dma (0x110 + nr * 2, chipmem_wget_indirect (p), p, hpos, vpos, DMARECORD_BITPLANE);
+		if (memwatch_enabled)
+			debug_wgetpeekdma_chipram(p, chipmem_wget_indirect (p), MW_MASK_BPL_0 << nr, 0x110 + nr * 2);
 #endif
 		switch (fm)
 		{
@@ -1284,12 +1288,14 @@ static void fetch (int nr, int fm, int hpos)
 #ifdef AGA
 		case 1:
 			fetched_aga[nr] = chipmem_lget_indirect (p);
-			last_custom_value1 = fetched[nr] = (uae_u16)fetched_aga[nr];
+			last_custom_value1 = fetched_aga[nr];
+			fetched[nr] = (uae_u16)fetched_aga[nr];
 			break;
 		case 2:
 			fetched_aga[nr] = ((uae_u64)chipmem_lget_indirect (p)) << 32;
 			fetched_aga[nr] |= chipmem_lget_indirect (p + 4);
-			last_custom_value1 = fetched[nr] = (uae_u16)fetched_aga[nr];
+			last_custom_value1 = (uae_u32)fetched_aga[nr];
+			fetched[nr] = (uae_u16)fetched_aga[nr];
 			break;
 #endif
 		}
@@ -3935,6 +3941,7 @@ void init_hz (bool fullinit)
 		hsyncstartpos = maxhpos_short + 13;
 		hsyncendpos = 24;
 	}
+	hpos_offset = 0;
 	eventtab[ev_hsync].oldcycles = get_cycles ();
 	eventtab[ev_hsync].evtime = get_cycles () + HSYNCTIME;
 	events_schedule ();
@@ -4214,6 +4221,8 @@ static void VPOSW (uae_u16 v)
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		v &= 1;
 	vpos |= v << 8;
+	if (vpos != oldvpos)
+		vposw_change++;
 	if (vpos < oldvpos)
 		vpos = oldvpos;
 }
@@ -4222,24 +4231,49 @@ static void VPOSW (uae_u16 v)
 static void VHPOSW (uae_u16 v)
 {
 	int oldvpos = vpos;
+	bool changed = false;
 #if 0
 	if (M68K_GETPC < 0xf00000 || 1)
 		write_log (_T("VHPOSW %04X PC=%08x\n"), v, M68K_GETPC);
 #endif
+
 #if 0
-	int hp = v & 0xff;
-	int oldhp = current_hpos ();
-	if (hp != oldhp) {
-		if (hp >= maxhpos)
-			hp = maxhpos - 1;
-		eventtab[ev_hsync].oldcycles = get_cycles () - hp * CYCLE_UNIT;
-		eventtab[ev_hsync].evtime = eventtab[ev_hsync].oldcycles + HSYNCTIME;
-		events_schedule ();
+	/* This is not that easy, need to decouple denise and paula hpos counters
+	 * from master counter.
+	 * All this just to fix Upfront-CoolFridge Smooth Copper part..
+	 */
+	if (oldhpos != newhpos) {
+		oldhpos = current_hpos();
+		int newhpos = v & 0xff;
+		if (newhpos >= maxhpos)
+			newhpos = maxhpos - 1;
+		hpos_offset = newhpos - oldhpos;
+		eventtab[ev_hsync].evtime = get_cycles() + HSYNCTIME - (newhpos * CYCLE_UNIT);
+		eventtab[ev_hsync].oldcycles = get_cycles() - newhpos * CYCLE_UNIT;
+		events_schedule();
+		newhpos2 = current_hpos();
+#ifdef CPUEMU_13
+		if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
+			memset(cycle_line + newhpos, 0, maxhpos - newhpos);
+			int hp = maxhpos - 1, i;
+			for (i = 0; i < 4; i++) {
+				alloc_cycle (hp, i == 0 ? CYCLE_STROBE : CYCLE_REFRESH);
+			hp += 2;
+			if (hp >= maxhpos)
+				hp -= maxhpos;
+		}
 	}
 #endif
-	v >>= 8; // lets ignore hpos for now
+		vposw_change++;
+		changed = true;
+	}
+#endif
+
+	v >>= 8;
 	vpos &= 0xff00;
 	vpos |= v;
+	if (vpos != oldvpos && !changed)
+		vposw_change++;
 	if (vpos < oldvpos) {
 		vpos = oldvpos;
 	} else if (vpos < minfirstline && oldvpos < minfirstline) {
@@ -5675,7 +5709,7 @@ static int custom_wput_copper (int hpos, uaecptr addr, uae_u32 value, int noget)
 {
 	int v;
 
-	value = debug_wputpeekdma_chipset (0xdff000 + addr, value, 0x08c);
+	value = debug_wputpeekdma_chipset (0xdff000 + addr, value, MW_MASK_COPPER, 0x08c);
 	copper_access = 1;
 	v = custom_wput_1 (hpos, addr, value, noget);
 	copper_access = 0;
@@ -5798,6 +5832,8 @@ static void update_copper (int until_hpos)
 #ifdef DEBUGGER
 			if (debug_dma)
 				record_dma (0x8c, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER);
+			if (memwatch_enabled)
+				debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect (cop_state.ip), MW_MASK_COPPER, 0x8c);
 #endif
 			if (old_hpos == maxhpos - 2) {
 				// if COP_strobe_delay2 would cross scanlines (positioned immediately
@@ -5822,6 +5858,8 @@ static void update_copper (int until_hpos)
 #ifdef DEBUGGER
 				if (debug_dma)
 					record_dma (0x1fe, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER);
+				if (memwatch_enabled)
+					debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect (cop_state.ip), MW_MASK_COPPER, 0x1fe);
 #endif
 			}
 			cop_state.state = COP_read1;
@@ -5848,6 +5886,8 @@ static void update_copper (int until_hpos)
 #ifdef DEBUGGER
 			if (debug_dma)
 				record_dma (0x1fe, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER);
+			if (memwatch_enabled)
+				debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect (cop_state.ip), MW_MASK_COPPER, 0x1fe);
 #endif
 			cop_state.state = COP_read1;
 			// Next cycle finally reads from new pointer
@@ -5869,6 +5909,8 @@ static void update_copper (int until_hpos)
 #ifdef DEBUGGER
 			if (debug_dma)
 				record_dma (0x1fe, cop_state.i1, cop_state.ip, old_hpos, vpos, DMARECORD_COPPER);
+			if (memwatch_enabled)
+				debug_wgetpeekdma_chipram(cop_state.ip, cop_state.i1, MW_MASK_COPPER, 0x1fe);
 #endif
 			cop_state.ip = cop1lc;
 			break;
@@ -5881,6 +5923,8 @@ static void update_copper (int until_hpos)
 #ifdef DEBUGGER
 			if (debug_dma)
 				record_dma (0x8c, cop_state.i1, cop_state.ip, old_hpos, vpos, DMARECORD_COPPER);
+			if (memwatch_enabled)
+				debug_wgetpeekdma_chipram(cop_state.ip, cop_state.i1, MW_MASK_COPPER, 0x8c);
 #endif
 			cop_state.ip += 2;
 			cop_state.state = COP_read2;
@@ -5905,6 +5949,8 @@ static void update_copper (int until_hpos)
 #ifdef DEBUGGER
 				if (debug_dma)
 					record_dma (0x8c, cop_state.i2, cop_state.ip - 2, old_hpos, vpos, DMARECORD_COPPER);
+				if (memwatch_enabled)
+					debug_wgetpeekdma_chipram(cop_state.ip - 2, cop_state.i2, MW_MASK_COPPER, 0x8c);
 #endif
 			} else { // MOVE
 #ifdef DEBUGGER
@@ -5916,6 +5962,8 @@ static void update_copper (int until_hpos)
 #ifdef DEBUGGER
 				if (debug_dma)
 					record_dma (reg, data, cop_state.ip - 2, old_hpos, vpos, DMARECORD_COPPER);
+				if (memwatch_enabled)
+					debug_wgetpeekdma_chipram(cop_state.ip - 2, data, MW_MASK_COPPER, reg);
 #endif
 				test_copper_dangerous (reg);
 				if (! copper_enabled_thisline)
@@ -6197,6 +6245,8 @@ static uae_u16 sprite_fetch(struct sprite *s, int dma, int hpos, int cycle, int 
 #ifdef DEBUGGER
 		if (debug_dma)
 			record_dma ((s - &spr[0]) * 8 + 0x140 + mode * 4 + cycle * 2, data, s->pt, hpos, vpos, DMARECORD_SPRITE);
+		if (memwatch_enabled)
+			debug_wgetpeekdma_chipram(s->pt, data, MW_MASK_SPR_0 << (s - &spr[0]), (s - &spr[0]) * 8 + 0x140 + mode * 4 + cycle * 2);
 #endif
 	}
 	s->pt += 2;
@@ -7130,13 +7180,14 @@ static void vsync_handler_post (void)
 
 	if (varsync_changed || (beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80))) {
 		init_hz ();
-	} else if (vpos_count > 0 && abs (vpos_count - vpos_count_diff) > 1) {
+	} else if (vpos_count > 0 && abs (vpos_count - vpos_count_diff) > 1 && vposw_change < 4) {
 		init_hz ();
 	} else if (interlace_changed || changed_chipset_refresh () || lof_changed) {
 		compute_framesync ();
 	}
 
 	lof_changed = 0;
+	vposw_change = 0;
 	bplcon0_interlace_seen = false;
 
 	COPJMP (1, 1);
@@ -7264,6 +7315,8 @@ static void dmal_emu (uae_u32 v)
 #ifdef DEBUGGER
 		if (debug_dma)
 			record_dma (0xaa + nr * 16, dat, pt, hpos, vpos, DMARECORD_AUDIO);
+		if (memwatch_enabled)
+			debug_wgetpeekdma_chipram(pt, dat, MW_MASK_AUDIO_0 << nr, 0xaa + nr * 16);
 #endif
 		last_custom_value1 = dat;
 		AUDxDAT (nr, dat, pt);
@@ -7289,6 +7342,8 @@ static void dmal_emu (uae_u32 v)
 #ifdef DEBUGGER
 		if (debug_dma)
 			record_dma (w ? 0x26 : 0x08, dat, pt, hpos, vpos, DMARECORD_DISK);
+		if (memwatch_enabled)
+			debug_wgetpeekdma_chipram(pt, dat, MW_MASK_DISK, w ? 0x26 : 0x08);
 #endif
 	}
 }
@@ -7367,6 +7422,7 @@ static bool is_custom_vsync (void)
 static void set_hpos (void)
 {
 	maxhpos = maxhpos_short + lol;
+	hpos_offset = 0;
 	eventtab[ev_hsync].evtime = get_cycles () + HSYNCTIME;
 	eventtab[ev_hsync].oldcycles = get_cycles ();
 }
@@ -8231,9 +8287,8 @@ writeonly:
 		* OCS-only special case: DFF000 (BLTDDAT) will always return whatever was left in bus
 		*
 		* AGA:
-		* only writes to custom registers change last value, read returns
-		* last value which then changes to all ones (following read will return
-		* all ones)
+		* Can also return last CPU accessed value
+		* Remembers old last_custom_value1
 		*/
 		v = last_custom_value1;
 		line_cyclebased = vpos;
@@ -8241,32 +8296,46 @@ writeonly:
 			int r, c, bmdma;
 			uae_u16 l;
 
-			// last chip bus value (read or write) is written to register
-			if (currprefs.cpu_compatible && currprefs.cpu_model == 68000) {
-				if (isbyte)
-					l = (regs.chipset_latch_rw << 8) | (regs.chipset_latch_rw & 0xff);
-				else
-					l = regs.chipset_latch_rw;
+			if (currprefs.chipset_mask & CSMASK_AGA) {
+				l = 0;
 			} else {
-				l = regs.chipset_latch_rw;
+				// last chip bus value (read or write) is written to register
+				if (currprefs.cpu_compatible && currprefs.cpu_model == 68000) {
+					if (isbyte)
+						l = (regs.chipset_latch_rw << 8) | (regs.chipset_latch_rw & 0xff);
+					else
+						l = regs.chipset_latch_rw;
+				} else {
+					l = regs.chipset_latch_rw;
+				}
 			}
 			decide_line (hpos);
 			decide_fetch_safe (hpos);
 			debug_wputpeek (0xdff000 + addr, l);
 			r = custom_wput_1 (hpos, addr, l, 1);
 			
-			// cpu gets back
+			// CPU gets back (OCS/ECS only):
 			// - if last cycle was DMA cycle: DMA cycle data
 			// - if last cycle was not DMA cycle: FFFF or some ANDed old data.
 			//
 			c = cycle_line[hpos] & CYCLE_MASK;
 			bmdma = is_bitplane_dma(hpos);
-			if (bmdma || (c > CYCLE_REFRESH && c < CYCLE_CPU)) {
-				v = last_custom_value1;
+			if (currprefs.chipset_mask & CSMASK_AGA) {
+				if (bmdma || (c > CYCLE_REFRESH && c < CYCLE_CPU)) {
+					v = last_custom_value1;
+				} else if (c == CYCLE_CPU) {
+					v = regs.db;
+				} else {
+					v = last_custom_value1 >> ((addr & 2) ? 0 : 16);
+				}
 			} else {
-				// refresh checked because refresh cycles do not always
-				// set last_custom_value1 for performance reasons.
-				v = 0xffff;
+				if (bmdma || (c > CYCLE_REFRESH && c < CYCLE_CPU)) {
+					v = last_custom_value1;
+				} else {
+					// refresh checked because refresh cycles do not always
+					// set last_custom_value1 for performance reasons.
+					v = 0xffff;
+				}
 			}
 #if CUSTOM_DEBUG > 0
 			write_log (_T("%08X read = %04X. Value written=%04X PC=%08x\n"), 0xdff000 | addr, v, l, M68K_GETPC);

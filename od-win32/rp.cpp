@@ -377,7 +377,7 @@ static int port_insert (int inputmap_port, int devicetype, DWORD flags, const TC
 	inputdevice_compa_clear (&changed_prefs, inputmap_port);
 	
 	if (_tcslen (name) == 0) {
-		inputdevice_joyport_config (&changed_prefs, _T("none"), inputmap_port, 0, 0);
+		inputdevice_joyport_config (&changed_prefs, _T("none"), inputmap_port, 0, 0, true);
 		return TRUE;
 	}
 	devicetype2 = -1;
@@ -399,10 +399,10 @@ static int port_insert (int inputmap_port, int devicetype, DWORD flags, const TC
 		_stprintf (tmp2, _T("KeyboardLayout%d"), i);
 		if (!_tcscmp (tmp2, name)) {
 			_stprintf (tmp2, _T("kbd%d"), i + 1);
-			return inputdevice_joyport_config (&changed_prefs, tmp2, inputmap_port, devicetype2, 0);
+			return inputdevice_joyport_config (&changed_prefs, tmp2, inputmap_port, devicetype2, 0, true);
 		}
 	}
-	return inputdevice_joyport_config (&changed_prefs, name, inputmap_port, devicetype2, 1);
+	return inputdevice_joyport_config (&changed_prefs, name, inputmap_port, devicetype2, 1, true);
 }
 
 static int cd_insert (int num, const TCHAR *name)

@@ -994,10 +994,22 @@ struct hardfiledata *get_hardfile_data (int nr)
 
 #define ACTION_READ_LINK		1024
 
+/* OS4 64-bit filesize packets */
 #define ACTION_CHANGE_FILE_POSITION64  8001
 #define ACTION_GET_FILE_POSITION64     8002
 #define ACTION_CHANGE_FILE_SIZE64      8003
 #define ACTION_GET_FILE_SIZE64         8004
+
+/* MOS 64-bit filesize packets */
+#define ACTION_SEEK64			26400
+#define ACTION_SET_FILE_SIZE64	26401
+#define ACTION_LOCK_RECORD64	26402
+#define ACTION_FREE_RECORD64	26403
+#define ACTION_QUERY_ATTR		26407
+#define ACTION_EXAMINE_OBJECT64	26408
+#define ACTION_EXAMINE_NEXT64	26409
+#define ACTION_EXAMINE_FH64		26410
+
 
 /* not supported */
 #define ACTION_MAKE_LINK		1021
@@ -1018,8 +1030,8 @@ struct lockrecord
 {
 	struct lockrecord *next;
 	uae_u32 packet;
-	uae_u32 pos;
-	uae_u32 len;
+	uae_u64 pos;
+	uae_u64 len;
 	uae_u32 mode;
 	uae_u32 timeout;
 	uae_u32 msg;
@@ -1130,6 +1142,20 @@ typedef struct _unit {
 } Unit;
 
 static uae_u32 a_uniq, key_uniq;
+
+static void set_quadp(uaecptr p, uae_s64 v)
+{
+	if (!valid_address(p, 8))
+		return;
+	put_long(p, v >> 32);
+	put_long(p + 4, (uae_u64)v);
+}
+static uae_u64 get_quadp(uaecptr p)
+{
+	if (!valid_address(p, 8))
+		return 0;
+	return ((uae_u64)get_long(p) << 32) | get_long(p + 4);
+}
 
 typedef uaecptr dpacket;
 #define PUT_PCK_RES1(p,v) do { put_long ((p) + dp_Res1, (v)); } while (0)
@@ -3643,27 +3669,32 @@ static void move_exkeys (Unit *unit, a_inode *from, a_inode *to)
 	from->locked_children = 0;
 }
 
+static bool get_statinfo(Unit *unit, a_inode *aino, struct mystat *statbuf)
+{
+	bool ok = true;
+	memset (statbuf, 0, sizeof statbuf);
+	/* No error checks - this had better work. */
+	if (unit->volflags & MYVOLUMEINFO_ARCHIVE)
+		ok = zfile_stat_archive (aino->nname, statbuf) != 0;
+	else if (unit->volflags & MYVOLUMEINFO_CDFS)
+		ok = isofs_stat (unit->ui.cdfs_superblock, aino->uniq_external, statbuf);
+	else
+		my_stat (aino->nname, statbuf);
+	return ok;
+}
+
 static void
-	get_fileinfo (Unit *unit, dpacket packet, uaecptr info, a_inode *aino)
+	get_fileinfo (Unit *unit, dpacket packet, uaecptr info, a_inode *aino, bool longfilesize)
 {
 	struct mystat statbuf;
 	int days, mins, ticks;
 	int i, n, entrytype, blocksize;
+	uae_s64 numblocks;
 	int fsdb_can = fsdb_cando (unit);
 	TCHAR *xs;
 	char *x, *x2;
-	bool ok = true;
 
-	memset (&statbuf, 0, sizeof statbuf);
-	/* No error checks - this had better work. */
-	if (unit->volflags & MYVOLUMEINFO_ARCHIVE)
-		ok = zfile_stat_archive (aino->nname, &statbuf) != 0;
-	else if (unit->volflags & MYVOLUMEINFO_CDFS)
-		ok = isofs_stat (unit->ui.cdfs_superblock, aino->uniq_external, &statbuf);
-	else
-		my_stat (aino->nname, &statbuf);
-
-	if (!ok) {
+	if (!get_statinfo(unit, aino, &statbuf)) {
 		PUT_PCK_RES1 (packet, DOS_FALSE);
 		PUT_PCK_RES2 (packet, ERROR_NOT_A_DOS_DISK);
 		return;
@@ -3699,13 +3730,27 @@ static void
 	xfree (x2);
 
 	put_long (info + 116, fsdb_can ? aino->amigaos_mode : fsdb_mode_supported (aino));
-	put_long (info + 124, statbuf.size > MAXFILESIZE32 ? MAXFILESIZE32 : (uae_u32)statbuf.size);
-#ifdef HAVE_ST_BLOCKS
-	put_long (info + 128, statbuf.st_blocks);
-#else
+
+	if (kickstart_version >= 36) {
+		put_word (info + 224, 0); // OwnerUID
+		put_word (info + 226, 0); // OwnerGID
+	}
+
 	blocksize = (unit->volflags & MYVOLUMEINFO_CDFS) ? 2048 : 512;
-	put_long (info + 128, (statbuf.size + blocksize - 1) / blocksize);
-#endif
+	numblocks = (statbuf.size + blocksize - 1) / blocksize;
+	put_long (info + 128, numblocks > MAXFILESIZE32 ? MAXFILESIZE32 : numblocks);
+
+	if (longfilesize) {
+		/* MorphOS 64-bit file length support */
+		put_long (info + 124, statbuf.size > MAXFILESIZE32 ? 0 : (uae_u32)statbuf.size);
+		put_long (info + 228, statbuf.size >> 32);
+		put_long (info + 232, (uae_u32)statbuf.size);
+		put_long (info + 236, numblocks >> 32);
+		put_long (info + 240, (uae_u32)numblocks);
+	} else {
+		put_long (info + 124, statbuf.size > MAXFILESIZE32 ? MAXFILESIZE32 : (uae_u32)statbuf.size);
+	}
+
 	timeval_to_amiga (&statbuf.mtime, &days, &mins, &ticks);
 	put_long (info + 132, days);
 	put_long (info + 136, mins);
@@ -3747,13 +3792,12 @@ int get_native_path (uae_u32 lock, TCHAR *out)
 	return -1;
 }
 
-
 #define REC_EXCLUSIVE 0
 #define REC_EXCLUSIVE_IMMED 1
 #define REC_SHARED 2
 #define REC_SHARED_IMMED 3
 
-static struct lockrecord *new_record (uae_u32 packet, uae_u32 pos, uae_u32 len, uae_u32 mode, uae_u32 timeout, uae_u32 msg)
+static struct lockrecord *new_record (uae_u32 packet, uae_u64 pos, uae_u64 len, uae_u32 mode, uae_u32 timeout, uae_u32 msg)
 {
 	struct lockrecord *lr = xcalloc (struct lockrecord, 1);
 	lr->packet = packet;
@@ -3765,7 +3809,7 @@ static struct lockrecord *new_record (uae_u32 packet, uae_u32 pos, uae_u32 len, 
 	return lr;
 }
 
-static bool record_hit (Unit *unit, Key *k, uae_u32 pos, uae_u32 len, uae_u32 mode)
+static bool record_hit (Unit *unit, Key *k, uae_u64 pos, uae_u64 len, uae_u32 mode)
 {
 	bool exclusive = mode == REC_EXCLUSIVE || mode == REC_EXCLUSIVE_IMMED;
 	for (Key *k2 = unit->keys; k2; k2 = k2->next) {
@@ -3775,10 +3819,10 @@ static bool record_hit (Unit *unit, Key *k, uae_u32 pos, uae_u32 len, uae_u32 mo
 			for (struct lockrecord *lr = k2->record; lr; lr = lr->next) {
 				bool exclusive2 = lr->mode == REC_EXCLUSIVE || lr->mode == REC_EXCLUSIVE_IMMED;
 				if (exclusive || exclusive2) {
-					uae_u32 a1 = pos;
-					uae_u32 a2 = pos + len;
-					uae_u32 b1 = lr->pos;
-					uae_u32 b2 = lr->pos + lr->len;
+					uae_u64 a1 = pos;
+					uae_u64 a2 = pos + len;
+					uae_u64 b1 = lr->pos;
+					uae_u64 b2 = lr->pos + lr->len;
 					if (len && lr->len) {
 						bool hit = (a1 >= b1 && a1 < b2) || (a2 > b1 && a2 < b2) || (b1 >= a1 && b1 < a2) || (b2 > a1 && b2 < a2);
 						if (hit)
@@ -3810,7 +3854,7 @@ static void record_timeout (Unit *unit)
 					prev->next = lr->next;
 				else
 					unit->waitingrecords = lr->next;
-				write_log (_T("queued record timed out '%s',%d,%d,%d,%d\n"), k ? k->aino->nname : _T("NULL"), lr->pos, lr->len, lr->mode, lr->timeout);
+				write_log (_T("queued record timed out '%s',%lld,%lld,%d,%d\n"), k ? k->aino->nname : _T("NULL"), lr->pos, lr->len, lr->mode, lr->timeout);
 				xfree (lr);
 				retry = true;
 				break;
@@ -4022,6 +4066,9 @@ static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaec
 		uid = 0;
 		gid = 0;
 	}
+	if (type >= 8) {
+		size2 += 8;
+	}
 
 	i = get_long (control + 0);
 	while (i > 0) {
@@ -4068,6 +4115,11 @@ static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaec
 		put_word (exp + 36, uid);
 		put_word (exp + 38, gid);
 	}
+	if (type >= 8) {
+		put_long (exp + 40, statbuf.size >> 32);
+		put_long (exp + 44, (uae_u32)statbuf.size);
+	}
+
 	put_long (control + 0, get_long (control + 0) + 1);
 	ret = 1;
 end:
@@ -4190,7 +4242,7 @@ static int action_examine_all (Unit *unit, dpacket packet)
 	if (kickstart_version < 36)
 		return 0;
 
-	if (type == 0 || type > 7) {
+	if (type == 0 || type > 8) {
 		doserr = ERROR_BAD_NUMBER;
 		goto fail;
 	}
@@ -4334,7 +4386,7 @@ static void action_examine_object (Unit *unit, dpacket packet)
 	if (aino == 0)
 		aino = &unit->rootnode;
 
-	get_fileinfo (unit, packet, info, aino);
+	get_fileinfo (unit, packet, info, aino, false);
 	if (aino->dir) {
 		put_long (info, 0xFFFFFFFF);
 	} else
@@ -4389,14 +4441,14 @@ static void populate_directory (Unit *unit, a_inode *base)
 	fs_closedir (d);
 }
 
-static void do_examine (Unit *unit, dpacket packet, ExamineKey *ek, uaecptr info)
+static void do_examine (Unit *unit, dpacket packet, ExamineKey *ek, uaecptr info, bool longfilesize)
 {
 	for (;;) {
 		TCHAR *name;
 		if (ek->curr_file == 0)
 			break;
 		name = ek->curr_file->nname;
-		get_fileinfo (unit, packet, info, ek->curr_file);
+		get_fileinfo (unit, packet, info, ek->curr_file, longfilesize);
 		ek->curr_file = ek->curr_file->sibling;
 		if (!(unit->volflags & (MYVOLUMEINFO_ARCHIVE | MYVOLUMEINFO_CDFS)) && !fsdb_exists(name)) {
 			TRACE ((_T("%s orphaned"), name));
@@ -4412,7 +4464,7 @@ static void do_examine (Unit *unit, dpacket packet, ExamineKey *ek, uaecptr info
 	PUT_PCK_RES2 (packet, ERROR_NO_MORE_ENTRIES);
 }
 
-static void action_examine_next (Unit *unit, dpacket packet)
+static void action_examine_next (Unit *unit, dpacket packet, bool largefilesize)
 {
 	uaecptr lock = GET_PCK_ARG1 (packet) << 2;
 	uaecptr info = GET_PCK_ARG2 (packet) << 2;
@@ -4420,7 +4472,7 @@ static void action_examine_next (Unit *unit, dpacket packet)
 	ExamineKey *ek;
 	uae_u32 uniq;
 
-	TRACE((_T("ACTION_EXAMINE_NEXT(0x%lx,0x%lx)\n"), lock, info));
+	TRACE((_T("ACTION_EXAMINE_NEXT(0x%lx,0x%lx,%d)\n"), lock, info, largefilesize));
 	gui_flicker_led (UNIT_LED(unit), unit->unit, 1);
 	DUMPLOCK(unit, lock);
 
@@ -4460,7 +4512,7 @@ static void action_examine_next (Unit *unit, dpacket packet)
 		if (!ek->curr_file)
 			goto no_more_entries;
 	}
-	do_examine (unit, packet, ek, info);
+	do_examine (unit, packet, ek, info, largefilesize);
 	return;
 
 no_more_entries:
@@ -4931,7 +4983,7 @@ static void
 		temppos = pos;
 	if (whence == SEEK_END)
 		temppos = filesize + pos;
-	if (filesize < temppos) {
+	if (filesize < temppos || temppos < 0) {
 		PUT_PCK_RES1 (packet, -1);
 		PUT_PCK_RES2 (packet, ERROR_SEEK_ERROR);
 		return;
@@ -5235,14 +5287,14 @@ static void
 }
 
 static void
-	action_examine_fh (Unit *unit, dpacket packet)
+	action_examine_fh (Unit *unit, dpacket packet, bool largefilesize)
 {
 	Key *k;
 	a_inode *aino = 0;
 	uaecptr info = GET_PCK_ARG2 (packet) << 2;
 
-	TRACE((_T("ACTION_EXAMINE_FH(0x%lx,0x%lx)\n"),
-		GET_PCK_ARG1 (packet), GET_PCK_ARG2 (packet) ));
+	TRACE((_T("ACTION_EXAMINE_FH(0x%lx,0x%lx,%d)\n"),
+		GET_PCK_ARG1 (packet), GET_PCK_ARG2 (packet), largefilesize ));
 
 	k = lookup_key (unit, GET_PCK_ARG1 (packet));
 	if (k != 0)
@@ -5250,7 +5302,7 @@ static void
 	if (aino == 0)
 		aino = &unit->rootnode;
 
-	get_fileinfo (unit, packet, info, aino);
+	get_fileinfo (unit, packet, info, aino, largefilesize);
 	if (aino->dir)
 		put_long (info, 0xFFFFFFFF);
 	else
@@ -5283,6 +5335,13 @@ static void
 		return;
 	}
 
+	/* Fail if file is >=2G, it is not safe operation. */
+	if (fs_fsize64 (k->fd) > MAXFILESIZE32) {
+		PUT_PCK_RES1 (packet, DOS_TRUE);
+		PUT_PCK_RES2 (packet, ERROR_BAD_NUMBER); /* ? */
+		return;
+	}
+
 	gui_flicker_led (UNIT_LED(unit), unit->unit, 1);
 	k->notifyactive = 1;
 	/* If any open files have file pointers beyond this size, truncate only
@@ -5307,7 +5366,7 @@ static void
 	 * the requested size, the truncate guarantees that it can't be larger.
 	 * If we were to write one byte earlier we'd clobber file data.  */
 	if (my_truncate (k->aino->nname, offset) == -1) {
-		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES1 (packet, DOS_TRUE);
 		PUT_PCK_RES2 (packet, dos_errno ());
 		return;
 	}
@@ -5659,6 +5718,8 @@ static void
 	}
 }
 
+/* OS4 */
+
 static void action_change_file_position64 (Unit *unit, dpacket packet)
 {
 	Key *k = lookup_key (unit, GET_PCK64_ARG1 (packet));
@@ -5712,7 +5773,6 @@ static void action_change_file_position64 (Unit *unit, dpacket packet)
 		k->file_pos = fs_lseek64 (k->fd, 0, SEEK_CUR);
 	}
 	TRACE((_T("= oldpos %lld newpos %lld\n"), cur, k->file_pos));
-
 }
 
 static void action_get_file_position64 (Unit *unit, dpacket packet)
@@ -5783,7 +5843,6 @@ static void action_change_file_size64 (Unit *unit, dpacket packet)
 	PUT_PCK64_RES2 (packet, 0);
 }
 
-
 static void action_get_file_size64 (Unit *unit, dpacket packet)
 {
 	Key *k = lookup_key (unit, GET_PCK64_ARG1 (packet));
@@ -5805,6 +5864,217 @@ static void action_get_file_size64 (Unit *unit, dpacket packet)
 	}
 	PUT_PCK64_RES1 (packet, -1);
 	PUT_PCK64_RES2 (packet, ERROR_SEEK_ERROR);
+}
+
+/* MOS */
+
+static void action_examine_object64(Unit *unit, dpacket packet)
+{
+	uaecptr lock = GET_PCK_ARG1 (packet) << 2;
+	uaecptr info = GET_PCK_ARG2 (packet) << 2;
+	a_inode *aino = 0;
+
+	TRACE((_T("ACTION_EXAMINE_OBJECT(0x%lx,0x%lx)\n"), lock, info));
+	DUMPLOCK(unit, lock);
+
+	if (lock != 0)
+		aino = aino_from_lock (unit, lock);
+	if (aino == 0)
+		aino = &unit->rootnode;
+
+	get_fileinfo (unit, packet, info, aino, true);
+	if (aino->dir) {
+		put_long (info, 0xFFFFFFFF);
+	} else
+		put_long (info, 0);
+}
+
+static void action_set_file_size64(Unit *unit, dpacket packet)
+{
+	Key *k, *k1;
+	uae_s64 offset = get_quadp(GET_PCK_ARG2 (packet));
+	long mode = (uae_s32)GET_PCK_ARG3 (packet);
+	int whence = SEEK_CUR;
+
+	if (mode > 0)
+		whence = SEEK_END;
+	if (mode < 0)
+		whence = SEEK_SET;
+
+	TRACE((_T("ACTION_SET_FILE_SIZE64(0x%lx, %lld, 0x%x)\n"), GET_PCK_ARG1 (packet), offset, mode));
+
+	k = lookup_key (unit, GET_PCK_ARG1 (packet));
+	if (k == 0) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
+		return;
+	}
+
+	gui_flicker_led (UNIT_LED(unit), unit->unit, 1);
+	k->notifyactive = 1;
+	/* If any open files have file pointers beyond this size, truncate only
+	* so far that these pointers do not become invalid.  */
+	for (k1 = unit->keys; k1; k1 = k1->next) {
+		if (k != k1 && k->aino == k1->aino) {
+			if (k1->file_pos > offset)
+				offset = k1->file_pos;
+		}
+	}
+
+	/* Write one then truncate: that should give the right size in all cases.  */
+	fs_lseek (k->fd, offset, whence);
+	offset = fs_lseek64 (k->fd, offset, whence);
+	fs_write (k->fd, /* whatever */(uae_u8*)&k1, 1);
+	if (k->file_pos > offset)
+		k->file_pos = offset;
+	fs_lseek64 (k->fd, k->file_pos, SEEK_SET);
+
+	if (my_truncate (k->aino->nname, offset) == -1) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, dos_errno ());
+		return;
+	}
+
+	PUT_PCK_RES1 (packet, DOS_TRUE);
+	set_quadp(GET_PCK_ARG4(packet), offset);
+}
+
+static void action_seek64(Unit *unit, dpacket packet)
+{
+	Key *k = lookup_key(unit, GET_PCK_ARG1(packet));
+	uae_s64 pos = get_quadp(GET_PCK64_ARG2(packet));
+	long mode = GET_PCK_ARG3(packet);
+	long whence = SEEK_CUR;
+	uae_s64 res, cur;
+
+	if (k == 0) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_INVALID_LOCK);
+		return;
+	}
+
+	if (mode > 0)
+		whence = SEEK_END;
+	if (mode < 0)
+		whence = SEEK_SET;
+
+	TRACE((_T("ACTION_SEEK64(%s,%lld,%d)\n"), k->aino->nname, pos, mode));
+	gui_flicker_led (UNIT_LED(unit), unit->unit, 1);
+
+	cur = k->file_pos;
+	{
+		uae_s64 temppos;
+		uae_s64 filesize = fs_fsize64 (k->fd);
+
+		if (whence == SEEK_CUR)
+			temppos = cur + pos;
+		if (whence == SEEK_SET)
+			temppos = pos;
+		if (whence == SEEK_END)
+			temppos = filesize + pos;
+		if (filesize < temppos) {
+			res = -1;
+			PUT_PCK_RES1 (packet, res);
+			PUT_PCK_RES2 (packet, ERROR_SEEK_ERROR);
+			return;
+		}
+	}
+	res = fs_lseek64 (k->fd, pos, whence);
+
+	if (-1 == res) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_SEEK_ERROR);
+	} else {
+		PUT_PCK_RES1 (packet, TRUE);
+		set_quadp(GET_PCK_ARG3(packet), cur);
+		k->file_pos = fs_lseek64 (k->fd, 0, SEEK_CUR);
+	}
+	TRACE((_T("= oldpos %lld newpos %lld\n"), cur, k->file_pos));
+}
+
+static int action_lock_record64(Unit *unit, dpacket packet, uae_u32 msg)
+{
+	Key *k = lookup_key(unit, GET_PCK_ARG1(packet));
+	uae_u64 pos = get_quadp(GET_PCK_ARG2(packet));
+	uae_u64 len = get_quadp(GET_PCK_ARG3(packet));
+	uae_u32 mode = GET_PCK_ARG4(packet);
+	uae_u32 timeout = GET_PCK_ARG5(packet);
+
+	bool exclusive = mode == REC_EXCLUSIVE || mode == REC_EXCLUSIVE_IMMED;
+
+	write_log (_T("action_lock_record64('%s',%lld,%lld,%d,%d)\n"), k ? k->aino->nname : _T("null"), pos, len, mode, timeout);
+
+	if (!k || mode > REC_SHARED_IMMED) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_OBJECT_WRONG_TYPE);
+		return 1;
+	}
+
+	if (mode == REC_EXCLUSIVE_IMMED || mode == REC_SHARED_IMMED)
+		timeout = 0;
+
+	if (record_hit (unit, k, pos, len, mode)) {
+		if (timeout && msg) {
+			// queue it and do not reply
+			struct lockrecord *lr = new_record (packet, pos, len, mode, timeout, msg);
+			if (unit->waitingrecords) {
+				lr->next = unit->waitingrecords;
+				unit->waitingrecords = lr;
+			} else {
+				unit->waitingrecords = lr;
+			}
+			write_log (_T("-> collision, timeout queued\n"));
+			return -1;
+		}
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_LOCK_COLLISION);
+		write_log (_T("-> ERROR_LOCK_COLLISION\n"));
+		return 1;
+	}
+
+	struct lockrecord *lr = new_record (GET_PCK_ARG1(packet), pos, len, mode, timeout, 0);
+	if (k->record) {
+		lr->next = k->record;
+		k->record = lr;
+	} else {
+		k->record = lr;
+	}
+	PUT_PCK_RES1 (packet, DOS_TRUE);
+	write_log (_T("-> OK\n"));
+	return 1;
+}
+
+static void action_free_record64(Unit *unit, dpacket packet)
+{
+	Key *k = lookup_key(unit, GET_PCK_ARG1(packet));
+	uae_u64 pos = get_quadp(GET_PCK_ARG2(packet));
+	uae_u64 len = get_quadp(GET_PCK_ARG3 (packet));
+
+	write_log (_T("action_free_record('%s',%lld,%lld)\n"), k ? k->aino->nname : _T("null"), pos, len);
+
+	if (!k) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_OBJECT_WRONG_TYPE);
+		return;
+	}
+
+	struct lockrecord *prev = NULL;
+	for (struct lockrecord *lr = k->record; lr; lr = lr->next) {
+		if (lr->pos == pos && lr->len == len) {
+			if (prev)
+				prev->next = lr->next;
+			else
+				k->record = lr->next;
+			xfree (lr);
+			write_log (_T("->OK\n"));
+			record_check_waiting (unit);
+			PUT_PCK_RES1 (packet, DOS_TRUE);
+			return;
+		}
+	}
+	write_log (_T("-> ERROR_RECORD_NOT_LOCKED\n"));
+	PUT_PCK_RES1 (packet, DOS_FALSE);
+	PUT_PCK_RES2 (packet, ERROR_RECORD_NOT_LOCKED);
 }
 
 /* We don't want multiple interrupts to be active at the same time. I don't
@@ -5982,7 +6252,7 @@ static int handle_packet (Unit *unit, dpacket pck, uae_u32 msg)
 	case ACTION_DISK_INFO: action_disk_info (unit, pck); break;
 	case ACTION_INFO: action_info (unit, pck); break;
 	case ACTION_EXAMINE_OBJECT: action_examine_object (unit, pck); break;
-	case ACTION_EXAMINE_NEXT: action_examine_next (unit, pck); break;
+	case ACTION_EXAMINE_NEXT: action_examine_next (unit, pck, false); break;
 	case ACTION_FIND_INPUT: action_find_input (unit, pck); break;
 	case ACTION_FIND_WRITE: action_find_write (unit, pck); break;
 	case ACTION_FIND_OUTPUT: action_find_output (unit, pck); break;
@@ -6008,7 +6278,7 @@ static int handle_packet (Unit *unit, dpacket pck, uae_u32 msg)
 
 		/* 2.0+ packet types */
 	case ACTION_SET_FILE_SIZE: action_set_file_size (unit, pck); break;
-	case ACTION_EXAMINE_FH: action_examine_fh (unit, pck); break;
+	case ACTION_EXAMINE_FH: action_examine_fh (unit, pck, false); break;
 	case ACTION_FH_FROM_LOCK: action_fh_from_lock (unit, pck); break;
 	case ACTION_COPY_DIR_FH: action_lock_from_fh (unit, pck); break;
 	case ACTION_CHANGE_MODE: action_change_mode (unit, pck); break;
@@ -6022,11 +6292,20 @@ static int handle_packet (Unit *unit, dpacket pck, uae_u32 msg)
 	case ACTION_READ_LINK: action_read_link (unit, pck); break;
 	case ACTION_MAKE_LINK: action_make_link (unit, pck); break;
 
-		/* OS4+ packet types */
+		/* OS4 packet types */
 	case ACTION_CHANGE_FILE_POSITION64: action_change_file_position64 (unit, pck); break;
 	case ACTION_GET_FILE_POSITION64: action_get_file_position64 (unit, pck); break;
 	case ACTION_CHANGE_FILE_SIZE64: action_change_file_size64 (unit, pck); break;
 	case ACTION_GET_FILE_SIZE64: action_get_file_size64 (unit, pck); break;
+
+		/* MOS packet types */
+	case ACTION_SEEK64: action_seek64(unit, pck); break;
+	case ACTION_SET_FILE_SIZE64: action_set_file_size64(unit, pck); break;
+	case ACTION_EXAMINE_OBJECT64: action_examine_object64(unit, pck); break;
+	case ACTION_EXAMINE_NEXT64: action_examine_next(unit, pck, true); break;
+	case ACTION_EXAMINE_FH64: action_examine_fh(unit, pck, true); break;
+	case ACTION_LOCK_RECORD64: return action_lock_record64(unit, pck, msg); break;
+	case ACTION_FREE_RECORD64: action_free_record64(unit, pck); break;
 
 		/* unsupported packets */
 	case ACTION_FORMAT:

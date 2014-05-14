@@ -3074,6 +3074,8 @@ static void read_mouse (void)
 
 static int get_mouse_flags (int num)
 {
+	if (!rawinput_enabled_mouse && !num)
+		return 1;
 	if (di_mouse[num].rawinput || !rawinput_enabled_mouse)
 		return 0;
 	if (di_mouse[num].catweasel)

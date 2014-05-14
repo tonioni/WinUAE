@@ -44,6 +44,7 @@ static int count_read_ea, count_write_ea, count_cycles_ea;
 static const char *mmu_postfix;
 static int memory_cycle_cnt;
 static int did_prefetch;
+static int ipl_fetched;
 
 static int optimized_flags;
 
@@ -517,8 +518,11 @@ static void makefromsr (void)
 
 static void check_ipl (void)
 {
+	if (ipl_fetched)
+		return;
 	if (using_ce || using_ce020)
 		printf ("\tipl_fetch ();\n");
+	ipl_fetched = true;
 }
 
 static void irc2ir (bool dozero)
@@ -5042,6 +5046,7 @@ static void gen_opcode (unsigned long int opcode)
 		fill_prefetch_finish ();
 	sync_m68k_pc ();
 	did_prefetch = 0;
+	ipl_fetched = 0;
 }
 
 static void generate_includes (FILE * f, int id)

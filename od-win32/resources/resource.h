@@ -381,6 +381,17 @@
 #define IDD_DISKINFO                    390
 #define IDS_SELECTTAPE                  391
 #define IDS_TAPE                        392
+#define IDS_SCREEN_NATIVE               392
+#define IDS_STRING393                   393
+#define IDS_SCREEN_RTG                  393
+#define IDS_DISPLAYMODE_NATIVE          394
+#define IDS_CURRENT_CONFIGURATION       395
+#define IDS_SELECT_MENU                 396
+#define IDS_SCSI_EMULATION              397
+#define IDS_SLIRP                       398
+#define IDS_SLIRP_INBOUND               399
+#define IDS_FILTER_PAL_EXTRA            400
+#define IDS_FILTER_3D_EXTRA             401
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -1224,7 +1235,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        391
+#define _APS_NEXT_RESOURCE_VALUE        398
 #define _APS_NEXT_COMMAND_VALUE         40050
 #define _APS_NEXT_CONTROL_VALUE         1840
 #define _APS_NEXT_SYMED_VALUE           101

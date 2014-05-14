@@ -844,7 +844,7 @@ void S2X_render (void)
 	int ok = 0;
 	RECT sr, dr, zr;
 	DDSURFACEDESC2 desc;
-	int pitch;
+	int pitch, surf_height;
 	uae_u8 *surfstart;
 
 	aw = amiga_width;
@@ -862,7 +862,7 @@ void S2X_render (void)
 	bufmem_ptr = sptr;
 
 	if (d3d) {
-		surfstart = D3D_locktexture (&pitch, true);
+		surfstart = D3D_locktexture (&pitch, &surf_height, true);
 		if (surfstart == NULL)
 			return;
 	} else {
@@ -876,9 +876,10 @@ void S2X_render (void)
 			return;
 		pitch = desc.lPitch;
 		surfstart = (uae_u8*)desc.lpSurface;
+		surf_height = desc.dwHeight;
 	}
 	dptr = surfstart;
-	enddptr = dptr + pitch * temp_height;
+	enddptr = dptr + pitch * surf_height;
 	if (!d3d) {
 		dptr = getfilterrect1 (&sr, &dr, dst_width, dst_height, dst_depth, aw, ah, scale, temp_width, temp_height, dptr, pitch);
 	}
@@ -1003,8 +1004,9 @@ void S2X_render (void)
 
 		if (amiga_depth == dst_depth) {
 			int y;
-			for (y = 0; y < ah; y++) {
-				memcpy (dptr, sptr, aw * dst_depth / 8);
+			int w = aw * dst_depth / 8;
+			for (y = 0; y < ah && dptr + w <= enddptr; y++) {
+				memcpy (dptr, sptr, w);
 				sptr += vb->rowbytes;
 				dptr += pitch;
 			}

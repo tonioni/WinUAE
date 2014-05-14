@@ -1301,7 +1301,7 @@ static int parseccd (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 	TCHAR fname[MAX_DPATH];
 	
 	write_log (_T("CCD TOC: '%s'\n"), img);
-	_tcscpy (fname, img);
+	_tcscpy (fname, zfile_getname(zcue));
 	TCHAR *ext = _tcsrchr (fname, '.');
 	if (ext)
 		*ext = 0;

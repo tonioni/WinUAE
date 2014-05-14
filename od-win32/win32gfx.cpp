@@ -1120,7 +1120,7 @@ int lockscr (struct vidbuffer *vb, bool fullupdate)
 			ret = 1;
 		} else {
 			ret = 0;
-			vb->bufmem = D3D_locktexture (&vb->rowbytes, fullupdate);
+			vb->bufmem = D3D_locktexture (&vb->rowbytes, NULL, fullupdate);
 			if (vb->bufmem) {
 				init_row_map ();
 				ret = 1;
@@ -1301,7 +1301,7 @@ static uae_u8 *gfx_lock_picasso2 (bool fullupdate)
 {
 	if (currprefs.gfx_api) {
 		int pitch;
-		uae_u8 *p = D3D_locktexture (&pitch, fullupdate);
+		uae_u8 *p = D3D_locktexture (&pitch, NULL, fullupdate);
 		picasso_vidinfo.rowbytes = pitch;
 		return p;
 	} else {

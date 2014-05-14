@@ -273,6 +273,16 @@ STATIC_INLINE void record_dma_blit (uae_u16 reg, uae_u16 dat, uae_u32 addr, int 
 		type = DMARECORD_BLITTER;
 	if (debug_dma)
 		record_dma (reg, dat, addr, hpos, vpos, type);
+	if (memwatch_enabled) {
+		if (reg == 0)
+			debug_wputpeekdma_chipram(addr, dat, MW_MASK_BLITTER_D, reg);
+		else if (reg == 0x70)
+			debug_wgetpeekdma_chipram(addr, dat, MW_MASK_BLITTER_C, reg);
+		else if (reg == 0x72)
+			debug_wgetpeekdma_chipram(addr, dat, MW_MASK_BLITTER_B, reg);
+		else if (reg == 0x74)
+			debug_wgetpeekdma_chipram(addr, dat, MW_MASK_BLITTER_A, reg);
+	}
 #endif
 }
 
@@ -427,7 +437,7 @@ STATIC_INLINE void chipmem_agnus_wput2 (uaecptr addr, uae_u32 w)
 	//last_custom_value1 = w; blitter writes are not stored
 	if (!(log_blitter & 4)) {
 		chipmem_wput_indirect (addr, w);
-		debug_wputpeekdma_chipram (addr, w, 0x000);
+		debug_wputpeekdma_chipram (addr, w, MW_MASK_BLITTER_D, 0x000);
 	}
 }
 
@@ -636,6 +646,7 @@ STATIC_INLINE void blitter_read (void)
 		if (!dmaen (DMA_BLITTER))
 			return;
 		blt_info.bltcdat = chipmem_wget_indirect (bltcpt);
+		debug_wgetpeekdma_chipram (bltcpt, blt_info.bltcdat, MW_MASK_BLITTER_C, 0x070);
 		last_custom_value1 = blt_info.bltcdat;
 	}
 	bltstate = BLT_work;
@@ -651,7 +662,7 @@ STATIC_INLINE void blitter_write (void)
 			return;
 		//last_custom_value1 = blt_info.bltddat; blitter writes are not stored
 		chipmem_wput_indirect (bltdpt, blt_info.bltddat);
-		debug_wputpeekdma_chipram (bltdpt, blt_info.bltddat, 0x000);
+		debug_wputpeekdma_chipram (bltdpt, blt_info.bltddat, MW_MASK_BLITTER_D, 0x000);
 	}
 	bltstate = BLT_next;
 }

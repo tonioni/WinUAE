@@ -3183,7 +3183,7 @@ void D3D_flushtexture (int miny, int maxy)
 	}
 }
 
-uae_u8 *D3D_locktexture (int *pitch, bool fullupdate)
+uae_u8 *D3D_locktexture (int *pitch, int *height, bool fullupdate)
 {
 	D3DLOCKED_RECT lock;
 	HRESULT hr;
@@ -3219,6 +3219,8 @@ uae_u8 *D3D_locktexture (int *pitch, bool fullupdate)
 	locked = 1;
 	fulllocked = fullupdate;
 	*pitch = lock.Pitch;
+	if (height)
+		*height = tin_h;
 	return (uae_u8*)lock.pBits;
 }
 

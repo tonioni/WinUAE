@@ -5210,7 +5210,8 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		SendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_ADDSTRING, 0, (LPARAM)_T("winuaebootlog.txt"));
 		SendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_ADDSTRING, 0, (LPARAM)_T("winuaelog.txt"));
-		SendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Current configuration"));
+		WIN32GUI_LoadUIString (IDS_CURRENT_CONFIGURATION, tmp, sizeof tmp / sizeof (TCHAR));
+		SendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
 		SendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_SETCURSEL, 0, 0);
 		CheckDlgButton (hDlg, IDC_LOGENABLE, winuaelog_temporary_enable || (full_property_sheet == 0 && currprefs.win32_logfile));
 		ew (hDlg, IDC_LOGENABLE, winuaelog_temporary_enable == false && full_property_sheet);
@@ -6472,7 +6473,7 @@ static void values_to_displaydlg (HWND hDlg)
 static void init_resolution_combo (HWND hDlg)
 {
 	int i, idx;
-	TCHAR tmp[64];
+	TCHAR tmp[MAX_DPATH];
 	struct MultiDisplay *md = getdisplay (&workprefs);
 
 	idx = -1;
@@ -6486,7 +6487,8 @@ static void init_resolution_combo (HWND hDlg)
 			idx = md->DisplayModes[i].residx;
 		}
 	}
-	SendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_ADDSTRING, 0, (LPARAM)_T("Native"));
+	WIN32GUI_LoadUIString (IDS_DISPLAYMODE_NATIVE, tmp, sizeof tmp / sizeof (TCHAR));
+	SendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_ADDSTRING, 0, (LPARAM)tmp);
 }
 
 static void init_displays_combo (HWND hDlg, bool rtg)
@@ -7709,6 +7711,18 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 		if (!enumerated) {
 			ethernet_enumerate (ndd, NULL);
+			for (int i = 0; ndd[i]; i++) {
+				struct netdriverdata *n = ndd[i];
+				if (!n->active)
+					continue;
+				if (n->type == UAENET_SLIRP) {
+					WIN32GUI_LoadUIString (IDS_SLIRP, tmp, sizeof tmp / sizeof (TCHAR));
+					n->desc = my_strdup(tmp);
+				} else if (n->type == UAENET_SLIRP_INBOUND) {
+					WIN32GUI_LoadUIString (IDS_SLIRP_INBOUND, tmp, sizeof tmp / sizeof (TCHAR));
+					n->desc = my_strdup(tmp);
+				}
+			}
 			enumerated = 1;
 		}
 		expansion_net (hDlg);
@@ -8391,8 +8405,11 @@ static void misc_addpri (HWND hDlg, int v, int pri)
 
 static void misc_scsi (HWND hDlg)
 {
+	TCHAR tmp[MAX_DPATH];
+
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)_T("SCSI Emulation *"));
+	WIN32GUI_LoadUIString (IDS_SCSI_EMULATION, tmp, sizeof tmp / sizeof (TCHAR));
+	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)_T("SPTI"));
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)_T("SPTI + SCSI SCAN"));
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_SETCURSEL, workprefs.win32_uaescsimode, 0);
@@ -8426,7 +8443,8 @@ static void misc_lang (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_SETCURSEL, idx, 0);
 
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("Select"));
+	WIN32GUI_LoadUIString (IDS_SELECT_MENU, tmp, sizeof tmp / sizeof (TCHAR));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("140%"));
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("130%"));
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("120%"));
@@ -14810,13 +14828,38 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 {
 	static int recursive;
 	LRESULT item;
-	TCHAR tmp[100];
+	TCHAR tmp[MAX_DPATH];
 	int i;
 	static int filteroverlaypos = -1;
+	static bool firstinit;
 
 	switch (msg)
 	{
 	case WM_INITDIALOG:
+		if (!firstinit) {
+			WIN32GUI_LoadUIString (IDS_FILTER_PAL_EXTRA, tmp, sizeof tmp / sizeof (TCHAR));
+			TCHAR *p1 = tmp;
+			for (i = 0; filter_pal_extra[i].label; i++) {
+				TCHAR *p2 = _tcschr (p1, '\n');
+				if (!p2 || *p2 == 0)
+					break;
+				*p2++ = 0;
+				filter_pal_extra[i].label = my_strdup(p1);
+				p1 = p2;
+			}
+			WIN32GUI_LoadUIString (IDS_FILTER_3D_EXTRA, tmp, sizeof tmp / sizeof (TCHAR));
+			p1 = tmp;
+			for (i = 0; filter_3d_extra[i].label; i++) {
+				TCHAR *p2 = _tcschr (p1, '\n');
+				if (!p2 || *p2 == 0)
+					break;
+				*p2++ = 0;
+				filter_3d_extra[i].label = my_strdup(p1);
+				p1 = p2;
+			}
+			firstinit = true;
+		}
+
 		pages[HW3D_ID] = hDlg;
 		currentpage = HW3D_ID;
 		SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_RESETCONTENT, 0, 0);
@@ -14833,8 +14876,10 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)_T("TV"));
 
 		SendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_RESETCONTENT, 0, 0L);
-		SendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_ADDSTRING, 0, (LPARAM)_T("Native"));
-		SendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_ADDSTRING, 0, (LPARAM)_T("RTG"));
+		WIN32GUI_LoadUIString (IDS_SCREEN_NATIVE, tmp, sizeof tmp / sizeof (TCHAR));
+		SendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_ADDSTRING, 0, (LPARAM)tmp);
+		WIN32GUI_LoadUIString (IDS_SCREEN_RTG, tmp, sizeof tmp / sizeof (TCHAR));
+		SendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_ADDSTRING, 0, (LPARAM)tmp);
 
 		SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_RESETCONTENT, 0, 0L);
 		SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_RESETCONTENT, 0, 0L);
