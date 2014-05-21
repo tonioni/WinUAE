@@ -1323,15 +1323,10 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 					int myy = (amigawin_rect.bottom - amigawin_rect.top) / 2;
 					mx = mx - mxx;
 					my = my - myy;
-					if (abs(mx) < windowmouse_max_w && abs(my) < windowmouse_max_h) {
-						//write_log (_T("%d:%dx%d\n"), dinput_winmouse(), mx, my);
-						setmousestate (dinput_winmouse (), 0, mx, 0);
-						setmousestate (dinput_winmouse (), 1, my, 0);
-					}  else {
-						;//write_log (_T("!!! %d:%dx%d\n"), dinput_winmouse(), mx, my);
-					}
+					setmousestate (dinput_winmouse (), 0, mx, 0);
+					setmousestate (dinput_winmouse (), 1, my, 0);
 				}
-			} else if (isfocus () < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
+		} else if (isfocus () < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
 				setmousestate (0, 0, mx, 1);
 				setmousestate (0, 1, my, 1);
 			}

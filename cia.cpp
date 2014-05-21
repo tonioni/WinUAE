@@ -105,39 +105,47 @@ static void setclr (unsigned int *p, unsigned int val)
 	}
 }
 
+/* delay interrupt after current CIA register access if
+ * interrupt would have triggered mid access
+ */
 static int cia_interrupt_disabled;
-
-static bool access_last_eclock(void)
-{
-	if (!currprefs.cpu_cycle_exact)
-		return false;
-	return true;
-}
+static int cia_interrupt_delay;
 
 static void ICR (uae_u32 data)
 {
 	INTREQ_0 (0x8000 | data);
 }
+
 static void ICRA (uae_u32 data)
 {
-	if (cia_interrupt_disabled & 1) {
-		event2_newevent_xx (-1, 4 * CYCLE_UNIT, data, ICRA);
-		return;
-	}
-	ICR (data);
 	ciaaicr |= 0x40;
-}
-static void ICRB (uae_u32 data)
-{
-	if (cia_interrupt_disabled & 2) {
+#if 1
+	if (currprefs.cpu_cycle_exact && !(ciaaicr & 0x20) && (cia_interrupt_disabled & 1)) {
+		cia_interrupt_delay |= 1;
 #if CIAB_DEBUG_IRQ
 		write_log(_T("ciab interrupt disabled ICR=%02X PC=%x\n"), ciabicr, M68K_GETPC);
 #endif
-		event2_newevent_xx (-1, 4 * CYCLE_UNIT, data, ICRB);
 		return;
 	}
-	ICR (data);
+#endif
+	ciaaicr |= 0x20;
+	ICR (0x0008);
+}
+
+static void ICRB (uae_u32 data)
+{
 	ciabicr |= 0x40;
+#if 1
+	if (currprefs.cpu_cycle_exact && !(ciabicr & 0x20) && (cia_interrupt_disabled & 2)) {
+		cia_interrupt_delay |= 2;
+#if CIAB_DEBUG_IRQ
+		write_log(_T("ciab interrupt disabled ICR=%02X PC=%x\n"), ciabicr, M68K_GETPC);
+#endif
+		return;
+	}
+#endif
+	ciabicr |= 0x20;
+	ICR (0x2000);
 }
 
 static void RethinkICRA (void)
@@ -149,7 +157,7 @@ static void RethinkICRA (void)
 		if (!(ciaaicr & 0x80)) {
 			ciaaicr |= 0x80;
 			if (currprefs.cpu_cycle_exact) {
-				event2_newevent_xx (-1, DIV10 + 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0x0008, ICRA);
+				event2_newevent_xx (-1, DIV10 + 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0, ICRA);
 			} else {
 				ICRA (0x0008);
 			}
@@ -166,9 +174,9 @@ static void RethinkICRB (void)
 		if (!(ciabicr & 0x80)) {
 			ciabicr |= 0x80;
 			if (currprefs.cpu_cycle_exact) {
-				event2_newevent_xx (-1, DIV10 + 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0x2000, ICRB);
+				event2_newevent_xx (-1, DIV10 + 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0, ICRB);
 			} else {
-				ICRB (0x2000);
+				ICRB (0);
 			}
 		}
 	}
@@ -177,9 +185,9 @@ static void RethinkICRB (void)
 void rethink_cias (void)
 {
 	if (ciaaicr & 0x40)
-		ICRA (0x0008);
+		ICRA (0);
 	if (ciabicr & 0x40)
-		ICRB (0x2000);
+		ICRB (0);
 }
 
 /* Figure out how many CIA timer cycles have passed for each timer since the
@@ -1029,7 +1037,7 @@ static uae_u8 ReadCIAA (unsigned int addr)
 #endif
 		return ciaasdr;
 	case 13:
-		tmp = ciaaicr & ~0x40;
+		tmp = ciaaicr & ~(0x40 | 0x20);
 		ciaaicr = 0;
 		return tmp;
 	case 14:
@@ -1151,7 +1159,7 @@ static uae_u8 ReadCIAB (unsigned int addr)
 		if (ciabicr & (0x80 | 0x40))
 			write_log (_T("CIAB IRQ cleared PC=%x\n"), M68K_GETPC);
 #endif
-		tmp = ciabicr & ~0x40;
+		tmp = ciabicr & ~(0x40 | 0x20);
 		ciabicr = 0;
 		return tmp;
 	case 14:
@@ -1645,7 +1653,23 @@ static void cia_wait_post (int cianummask, uae_u32 value)
 			do_cycles (c);
 		if (currprefs.cpu_cycle_exact) {
 			cia_interrupt_disabled &= ~cianummask;
+			if ((cia_interrupt_delay & cianummask) & 1) {
+				cia_interrupt_delay &= ~1;
+				ICR(0x0008);
+			}
+			if ((cia_interrupt_delay & cianummask) & 2) {
+				cia_interrupt_delay &= ~2;
+				ICR(0x2000);
+			}
 		}
+	}
+	if (!currprefs.cpu_cycle_exact && cia_interrupt_delay) {
+		int v = cia_interrupt_delay;
+		cia_interrupt_delay = 0;
+		if (v & 1)
+			ICR(0x0008);
+		if (v & 2)
+			ICR(0x2000);
 	}
 }
 

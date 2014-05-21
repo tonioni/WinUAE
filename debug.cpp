@@ -1095,6 +1095,7 @@ void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int height, u
 	putpixel (buf, bpp, dx + 3, 0);
 }
 
+#define HEATMAP_COUNT 50
 static struct memory_heatmap *heatmap;
 struct memory_heatmap
 {
@@ -1108,11 +1109,10 @@ static void memwatch_heatmap (uaecptr addr, int rwi, int size)
 
 static void record_dma_heatmap (uaecptr addr, int type)
 {
-	if (currprefs.address_space_24 || !heatmap)
+	if (addr >= 0x01000000 || !heatmap)
 		return;
 	struct memory_heatmap *hp = &heatmap[addr / 2];
-	if (hp->type != type)
-		hp->cnt = 0;
+	hp->cnt = HEATMAP_COUNT;
 	hp->type = type;
 }
 

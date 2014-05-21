@@ -1780,6 +1780,13 @@ static void decode_ham (int pix, int stoppos, bool blank)
 	}
 }
 
+static void decode_ham_border(int pix, int stoppos, bool blank)
+{
+	int todraw_amiga = res_shift_from_window (stoppos - pix);
+	while (todraw_amiga-- > 0)
+		ham_linebuf[ham_decode_pixel++] = 0;
+}
+
 static void gen_pfield_tables (void)
 {
 	int i;
@@ -2367,6 +2374,12 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 	}
 
 }
+
+STATIC_INLINE bool have_color_changes(struct draw_info *di)
+{
+	return (di->nr_color_changes == 0 || (di->nr_color_changes == 1 && curr_color_changes[di->first_color_change].regno == -1));
+}
+
 enum double_how {
 	dh_buf,
 	dh_line,
@@ -2451,13 +2464,13 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		sprites. */
 		if (dp_for_drawing->ham_seen) {
 			init_ham_decoding ();
-			if (dip_for_drawing->nr_color_changes == 0) {
+			if (!have_color_changes(dip_for_drawing)) {
 				/* The easy case: need to do HAM decoding only once for the
 				* full line. */
 				decode_ham (visible_left_border, visible_right_border, false);
 			} else /* Argh. */ {
 				int ohposblank = hposblank;
-				do_color_changes (dummy_worker, decode_ham, lineno);
+				do_color_changes (decode_ham_border, decode_ham, lineno);
 				hposblank = ohposblank;
 				// reset colors to state before above do_color_changes()
 				adjust_drawing_colors (dp_for_drawing->ctable, (dp_for_drawing->ham_seen || bplehb) ? -1 : 0);
@@ -2520,7 +2533,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		}
 #endif
 
-		if (!dosprites && (dip_for_drawing->nr_color_changes == 0 || (dip_for_drawing->nr_color_changes == 1 && curr_color_changes[dip_for_drawing->first_color_change].regno == -1))) {
+		if (!dosprites && have_color_changes(dip_for_drawing)) {
 			if (dp_for_drawing->plfleft < -1) {
 				// blanked border line
 				int tmp = hposblank;

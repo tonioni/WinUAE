@@ -9,7 +9,28 @@
 1 -> E (ABC) : 0,1FE,70,70,70,70,..							(C)
 1 -> F (ABCD): 0,1FE,70,70,74,70,70,70,74,70,70,70,74,..	(CCCA)
 
+Things that may happen in 2015:
+
+- Minium Windows version will be Windows 7.
+- CPU must be SSE 2 capable.
+- DirectDraw support will be removed.
+- and more
+
 - restore only single input target to default.
+
+Beta 2:
+
+- Quickstart GUI disk eject button was unreliable.
+- HAM mode right border in some situations (Uridium 2 title screeen in some filter modes), also restored
+  proper operation (got broken long time ago) of original "fast mode" if HAM scanline does not have any
+  color register changes.
+- CIA update (which I forgot to mention in b1 changelog) improved, was not fully compatible if CPU was faster
+  than 68000 , do not trigger CIA interrupt while CPU is accessing any CIA register (not 100% confirmed but
+  seems to be true), this also made b1 CPU mode switching unreliable.
+- Reduced diskready (motor rotating at full speed) activation time by small amount, fixes Critical Mass / Parallax.
+- Disk inserted (if replacing existing disk) and disk ready bit setting time is now more "random", now delay time
+  counts scanlines, previously it counted vblanks (=disk was always inserted at vblank)
+- Removed 270b16 Windows 8.1 mouse bug workaround, bug seems to be fixed.
 
 Beta 1:
 

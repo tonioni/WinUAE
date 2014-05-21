@@ -11542,25 +11542,25 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			break;
 		case IDC_EJECT0:
 		case IDC_EJECT0Q:
-			SetDlgItemText (hDlg, IDC_DF0TEXT, _T(""));
-			SetDlgItemText (hDlg, IDC_DF0TEXTQ, _T(""));
+			SendDlgItemMessage (hDlg, IDC_DF0TEXT, CB_SETCURSEL, -1, 0);
+			SendDlgItemMessage (hDlg, IDC_DF0TEXTQ, CB_SETCURSEL, -1, 0);
 			ejectfloppy (0);
 			addfloppytype (hDlg, 0);
 			break;
 		case IDC_EJECT1:
 		case IDC_EJECT1Q:
-			SetDlgItemText (hDlg, IDC_DF1TEXT, _T(""));
-			SetDlgItemText (hDlg, IDC_DF1TEXTQ, _T(""));
+			SendDlgItemMessage (hDlg, IDC_DF1TEXT, CB_SETCURSEL, -1, 0);
+			SendDlgItemMessage (hDlg, IDC_DF1TEXTQ, CB_SETCURSEL, -1, 0);
 			ejectfloppy (1);
 			addfloppytype (hDlg, 1);
 			break;
 		case IDC_EJECT2:
-			SetDlgItemText (hDlg, IDC_DF2TEXT, _T(""));
+			SendDlgItemMessage (hDlg, IDC_DF2TEXT, CB_SETCURSEL, -1, 0);
 			ejectfloppy (2);
 			addfloppytype (hDlg, 2);
 			break;
 		case IDC_EJECT3:
-			SetDlgItemText (hDlg, IDC_DF3TEXT, _T(""));
+			SendDlgItemMessage (hDlg, IDC_DF3TEXT, CB_SETCURSEL, -1, 0);
 			ejectfloppy (3);
 			addfloppytype (hDlg, 3);
 			break;
