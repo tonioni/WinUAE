@@ -18,6 +18,20 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 3:
+
+- Do not show "hpos = 256!?" error dialog if something writes very bad values to programmed display
+  mode registers.
+- "Magic mouse" now stays disabled unless there is at least one open Intuition Screen.
+- If relative path mode, support also relative paths that point outside of winuae root directory.
+- BPLCON2 KILLEHB bit still required AGA instead of ECS Denise. This was supposed to be fixed in 1.4.5.
+  (But no one cares, pre-AGA it was only meant for genlock stuff)
+- Removed "Unimplemented error" dialog if directory filesystem returns unhandled/unknown win32 disk error
+  codes, adds log message, returns ERROR_OBJECT_NOT_AROUND. (Most common causes are network filesystem problems,
+  file/directory errors due security problems etc, no new missing errors reported for long time)
+- On the fly (not using GUI) switching from Automatic resize filter to another filter mode may have incorrectly
+  changed window size in some situations.
+
 Beta 2:
 
 - Quickstart GUI disk eject button was unreliable.

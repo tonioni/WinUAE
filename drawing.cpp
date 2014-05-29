@@ -2197,7 +2197,7 @@ static void pfield_expand_dp_bplcon (void)
 	bplplanecnt = dp_for_drawing->nr_planes;
 	bplham = dp_for_drawing->ham_seen;
 	bplehb = dp_for_drawing->ehb_seen;
-	if ((currprefs.chipset_mask & CSMASK_AGA) && (dp_for_drawing->bplcon2 & 0x0200))
+	if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) && (dp_for_drawing->bplcon2 & 0x0200))
 		bplehb = 0;
 	issprites = dip_for_drawing->nr_sprites > 0;
 #ifdef ECS_DENISE

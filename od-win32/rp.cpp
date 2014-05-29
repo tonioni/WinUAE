@@ -919,9 +919,9 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 				p->gfx_size_fs.width, p->gfx_size_fs.height,
 				p->rtg_horiz_zoom_mult, p->rtg_vert_zoom_mult);
 		} else {
-			write_log (_T("WW=%d WH=%d FW=%d FH=%d HM=%.1f VM=%.1f XP=%d YP=%d XS=%d YS=%d AS=%d AR=%d,%d\n"),
-				p->gfx_size_win.width, p->gfx_size_win.height,
-				p->gfx_size_fs.width, p->gfx_size_fs.height,
+			write_log (_T("WW=%d (%d) WH=%d (%d) FW=%d (%d) FH=%d (%d) HM=%.1f VM=%.1f XP=%d YP=%d XS=%d YS=%d AS=%d AR=%d,%d\n"),
+				p->gfx_size_win.width, currprefs.gfx_size_win.width, p->gfx_size_win.height, currprefs.gfx_size.height,
+				p->gfx_size_fs.width, currprefs.gfx_size_fs.width, p->gfx_size_fs.height, currprefs.gfx_size_fs.height,
 				p->gf[0].gfx_filter_horiz_zoom_mult, p->gf[0].gfx_filter_vert_zoom_mult,
 				p->gfx_xcenter_pos, p->gfx_ycenter_pos,
 				p->gfx_xcenter_size, p->gfx_ycenter_size,
@@ -932,6 +932,15 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	updatewinfsmode (p);
 	hwndset = 0;
 	set_config_changed ();
+
+	write_log (_T("AFTER WW=%d (%d) WH=%d (%d) FW=%d (%d) FH=%d (%d) HM=%.1f VM=%.1f XP=%d YP=%d XS=%d YS=%d AS=%d AR=%d,%d\n"),
+		p->gfx_size_win.width, currprefs.gfx_size_win.width, p->gfx_size_win.height, currprefs.gfx_size.height,
+		p->gfx_size_fs.width, currprefs.gfx_size_fs.width, p->gfx_size_fs.height, currprefs.gfx_size_fs.height,
+		p->gf[0].gfx_filter_horiz_zoom_mult, p->gf[0].gfx_filter_vert_zoom_mult,
+		p->gfx_xcenter_pos, p->gfx_ycenter_pos,
+		p->gfx_xcenter_size, p->gfx_ycenter_size,
+		p->gf[0].gfx_filter_autoscale, p->gf[0].gfx_filter_aspect, p->gf[0].gfx_filter_keep_aspect);
+	write_log (_T("AFTER W=%d (%d) H=%d (%d)\n"), p->gfx_size.width, currprefs.gfx_size.width, p->gfx_size.height, currprefs.gfx_size.height);
 }
 
 static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM lParam,

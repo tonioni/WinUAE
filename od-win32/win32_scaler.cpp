@@ -223,6 +223,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	}
 
 	int scalemode = currprefs.gf[picasso_on].gfx_filter_autoscale;
+	int oscalemode = changed_prefs.gf[picasso_on].gfx_filter_autoscale;
 
 	if (!specialmode && scalemode == AUTOSCALE_STATIC_AUTO) {
 		if (currprefs.gfx_apmode[0].gfx_fullscreen) {
@@ -463,13 +464,15 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					ww = currprefs.gfx_xcenter_size;
 				if (currprefs.gfx_ycenter_size >= 0)
 					hh = currprefs.gfx_ycenter_size;
-				int oldwinw = currprefs.gfx_size_win.width;
-				int oldwinh = currprefs.gfx_size_win.height;
-				changed_prefs.gfx_size_win.width = ww;
-				changed_prefs.gfx_size_win.height = hh;
-				fixup_prefs_dimensions (&changed_prefs);
-				if (oldwinw != changed_prefs.gfx_size_win.width || oldwinh != changed_prefs.gfx_size_win.height)
-					set_config_changed ();
+				if (scalemode == oscalemode) {
+					int oldwinw = currprefs.gfx_size_win.width;
+					int oldwinh = currprefs.gfx_size_win.height;
+					changed_prefs.gfx_size_win.width = ww;
+					changed_prefs.gfx_size_win.height = hh;
+					fixup_prefs_dimensions (&changed_prefs);
+					if (oldwinw != changed_prefs.gfx_size_win.width || oldwinh != changed_prefs.gfx_size_win.height)
+						set_config_changed ();
+				}
 				OffsetRect (zr, -(changed_prefs.gfx_size_win.width - ww + 1) / 2, -(changed_prefs.gfx_size_win.height - hh + 1) / 2);
 				filteroffsetx = -zr->left / scale;
 				filteroffsety = -zr->top / scale;

@@ -255,7 +255,7 @@ static int sprite_sprctlmask;
 int sprite_buffer_res;
 
 #ifdef CPUEMU_13
-uae_u8 cycle_line[256];
+uae_u8 cycle_line[256 + 1];
 #endif
 
 static bool bpl1dat_written, bpl1dat_written_at_least_once;
@@ -267,8 +267,6 @@ static uaecptr bplpt[8], bplptx[8];
 static uaecptr dbplptl[8], dbplpth[8];
 static int dbplptl_on[8], dbplpth_on[8], dbplptl_on2, dbplpth_on2;
 static int bitplane_line_crossing;
-
-/*static int blitcount[256];  blitter debug */
 
 static struct color_entry current_colors;
 unsigned int bplcon0;

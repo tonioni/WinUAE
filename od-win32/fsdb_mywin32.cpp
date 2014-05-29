@@ -502,13 +502,9 @@ int dos_errno (void)
 		return ERROR_SEEK_ERROR;
 
 	default:
-		{
-			static int done;
-			if (!done)
-				gui_message (_T("Unimplemented error %d\nContact author!"), e);
-			done = 1;
-		}
-		return ERROR_NOT_IMPLEMENTED;
+		write_log (_T("Unimplemented error %d\n"), e);
+		/* most common */
+		return ERROR_OBJECT_NOT_AROUND;
 	}
 }
 
@@ -777,7 +773,7 @@ void my_canonicalize_path(const TCHAR *path, TCHAR *out, int size)
 		out[size - 1] = 0;
 		return;
 	}
-	PathCanonicalize(out, tmp);
+	GetFullPathName(tmp, size, out, NULL);
 }
 
 int my_issamevolume(const TCHAR *path1, const TCHAR *path2, TCHAR *path)

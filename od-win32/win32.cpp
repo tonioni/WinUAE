@@ -2595,12 +2595,19 @@ void fullpath (TCHAR *path, int size)
 		int ret = GetFullPathName (path, sizeof tmp2 / sizeof (TCHAR), tmp2, NULL);
 		if (ret == 0 || ret >= sizeof tmp2 / sizeof (TCHAR))
 			return;
-		if (_tcsnicmp (tmp1, tmp2, _tcslen (tmp1)) == 0) { // tmp2 is inside tmp1
+		if (_tcslen(tmp1) > 2 && _tcsnicmp(tmp1, tmp2, 3) == 0 && tmp1[1] == ':' && tmp1[2] == '\\') {
+			// same drive letter
+			if (PathRelativePathTo(path, tmp1, FILE_ATTRIBUTE_DIRECTORY, tmp2, tmp2[_tcslen(tmp2) - 1] == '\\' ? FILE_ATTRIBUTE_DIRECTORY : 0))
+				goto done;
+		}
+		if (_tcsnicmp (tmp1, tmp2, _tcslen (tmp1)) == 0) {
+			// tmp2 is inside tmp1
 			_tcscpy (path, _T(".\\"));
 			_tcscat (path, tmp2 + _tcslen (tmp1));
 		} else {
 			_tcscpy (path, tmp2);
 		}
+done:;
 	} else {
 		TCHAR tmp[MAX_DPATH];
 		_tcscpy (tmp, path);
