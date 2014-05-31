@@ -1029,6 +1029,20 @@ int isfocus (void)
 	return 0;
 }
 
+static void activationtoggle (bool inactiveonly)
+{
+	if (isfullscreen () > 0)
+		minimizewindow ();
+	if (isfullscreen () < 0 && currprefs.win32_minimize_inactive)
+		minimizewindow ();
+	if (mouseactive) {
+		setmouseactive (0);
+	} else {
+		if (!inactiveonly)
+			setmouseactive (1);
+	}
+}
+
 static void handleXbutton (WPARAM wParam, int updown)
 {
 	int b = GET_XBUTTON_WPARAM (wParam);
@@ -1152,14 +1166,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	case WM_MBUTTONDOWN:
 	case WM_MBUTTONDBLCLK:
 		if (currprefs.win32_middle_mouse) {
-#ifndef _DEBUG
-			if (isfullscreen () > 0)
-				minimizewindow ();
-#endif
-			if (isfullscreen () < 0 && currprefs.win32_minimize_inactive)
-				minimizewindow ();
-			if (mouseactive)
-				setmouseactive (0);
+			activationtoggle(true);
 		} else {
 			if (dinput_winmouse () >= 0 && isfocus () > 0)
 				setmousebuttonstate (dinput_winmouse (), 2, 1);
@@ -2290,7 +2297,6 @@ HMODULE language_load (WORD language)
 #if LANG_DLL > 0
 	TCHAR dllbuf[MAX_DPATH];
 	TCHAR *dllname;
-	bool nosubrev = false;
 
 	if (language <= 0) {
 		/* new user-specific Windows ME/2K/XP method to get UI language */
@@ -2325,7 +2331,7 @@ HMODULE language_load (WORD language)
 							if (vsFileInfo &&
 								HIWORD(vsFileInfo->dwProductVersionMS) == UAEMAJOR
 								&& LOWORD(vsFileInfo->dwProductVersionMS) == UAEMINOR
-								&& (nosubrev || (HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV))) {
+								&& (!LANG_DLL_FULL_VERSION_MATCH || (HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV))) {
 									success = TRUE;
 									write_log (_T("Translation DLL '%s' loaded and enabled\n"), dllbuf);
 							} else {
@@ -2423,6 +2429,7 @@ int debuggable (void)
 
 void toggle_mousegrab (void)
 {
+	activationtoggle(false);
 }
 
 
@@ -2597,8 +2604,23 @@ void fullpath (TCHAR *path, int size)
 			return;
 		if (_tcslen(tmp1) > 2 && _tcsnicmp(tmp1, tmp2, 3) == 0 && tmp1[1] == ':' && tmp1[2] == '\\') {
 			// same drive letter
-			if (PathRelativePathTo(path, tmp1, FILE_ATTRIBUTE_DIRECTORY, tmp2, tmp2[_tcslen(tmp2) - 1] == '\\' ? FILE_ATTRIBUTE_DIRECTORY : 0))
+			path[0] = 0;
+			if (PathRelativePathTo(path, tmp1, FILE_ATTRIBUTE_DIRECTORY, tmp2, tmp2[_tcslen(tmp2) - 1] == '\\' ? FILE_ATTRIBUTE_DIRECTORY : 0)) {
+				if (path[0]) {
+					if (path[0] == '.' && path[1] == 0) {
+						_tcscpy(path, _T(".\\"));
+					} else if (path[0] == '\\') {
+						_tcscpy(tmp1, path + 1);
+						_stprintf(path, _T(".\\%s"), tmp1);
+					} else if (path[0] != '.') {
+						_tcscpy(tmp1, path);
+						_stprintf(path, _T(".\\%s"), tmp1);
+					}
+				} else {
+					_tcscpy (path, tmp2);		
+				}
 				goto done;
+			}
 		}
 		if (_tcsnicmp (tmp1, tmp2, _tcslen (tmp1)) == 0) {
 			// tmp2 is inside tmp1

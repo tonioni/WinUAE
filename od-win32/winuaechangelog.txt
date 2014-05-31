@@ -18,6 +18,14 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 4:
+
+- New relative path mode worked badly under Windows XP, possibly up to Windows 7 without SP1.
+- "Toggle between mouse grabbed and un-grabbed" input event has not done anything at all for ages (if ever).
+- "Switch between audio interpolation methods" input event probably has never done anything at all, probably
+  totally useless (custom events works as well) but at least it works now..
+- 2.8.0 translation dlls are accepted now.
+
 Beta 3:
 
 - Do not show "hpos = 256!?" error dialog if something writes very bad values to programmed display

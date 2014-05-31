@@ -2953,10 +2953,16 @@ static bool inputdevice_handle_inputcode2 (int code, int state)
 		toggle_fullscreen (2);
 		break;
 	case AKS_TOGGLEMOUSEGRAB:
-		toggle_mousegrab ();
+		toggle_mousegrab();
 		break;
 	case AKS_TOGGLERTG:
 		toggle_rtg (newstate);
+		break;
+	case AKS_SWITCHINTERPOL:
+		changed_prefs.sound_interpol++;
+		if (changed_prefs.sound_interpol > 4)
+			changed_prefs.sound_interpol = 0;
+		set_config_changed ();
 		break;
 	case AKS_ENTERDEBUGGER:
 		activate_debugger ();
