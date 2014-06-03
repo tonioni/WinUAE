@@ -470,7 +470,7 @@ static void expamem_init_cd32fmv (void)
 		return;
 	write_log (_T("CD32 FMV ROM '%s' %d.%d\n"), rl->path, rl->rd->ver, rl->rd->rev);
 	rd = rl->rd;
-	z = read_rom (&rd);
+	z = read_rom (rd);
 	if (z) {
 		zfile_fread (expamem, 128, 1, z);
 		zfile_fclose (z);

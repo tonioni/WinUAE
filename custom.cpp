@@ -941,6 +941,9 @@ static int toscr_delay[2], toscr_delay_adjusted[2];
 static int delay_cycles, delay_lastcycle[2];
 static bool bplcon1_written;
 
+#define PLANE_RESET_HPOS 8
+static int planesactiveatresetpoint;
+
 /* The number of bits left from the last fetched words.
 This is an optimization - conceptually, we have to make sure the result is
 the same as if toscr is called in each clock cycle.  However, to speed this
@@ -3469,7 +3472,7 @@ static void reset_decisions (void)
 	}
 
 	memset (outword, 0, sizeof outword);
-	//memset (fetched, 0, sizeof fetched); // This must remain between scanlines
+	// fetched must not be cleared (Sony VX-90 / Royal Amiga Force)
 	todisplay_fetched[0] = todisplay_fetched[1] = false;
 	memset (todisplay, 0, sizeof todisplay);
 	memset (todisplay2, 0, sizeof todisplay2);
@@ -4142,9 +4145,11 @@ static bool hsyncdelay (void)
 	return false;
 }
 
+#define CPU_ACCURATE (currprefs.cpu_model < 68020 || (currprefs.cpu_model == 68020 && currprefs.cpu_cycle_exact))
+
 // DFF006 = 0.W must be valid result but better do this only in 68000 modes (whdload black screen!)
 // HPOS is shifted by 3 cycles and VPOS increases when shifted HPOS==1
-#define HPOS_OFFSET ((currprefs.cpu_model < 68020 || (currprefs.cpu_model == 68020 && currprefs.cpu_cycle_exact)) ? HPOS_SHIFT : 0)
+#define HPOS_OFFSET (CPU_ACCURATE ? HPOS_SHIFT : 0)
 #define VPOS_INC_DELAY (HPOS_OFFSET ? 1 : 0)
 
 static uae_u16 VPOSR (void)
@@ -4152,7 +4157,13 @@ static uae_u16 VPOSR (void)
 	unsigned int csbit = 0;
 	uae_u16 vp = GETVPOS ();
 	uae_u16 hp = GETHPOS ();
+	int lof = lof_store;
 
+	if (vp + 1 == maxvpos + lof_store && (hp == maxhpos - 1 || hp == maxhpos - 2)) {
+		// lof toggles 2 cycles before maxhpos, so do fake toggle here.
+		if ((bplcon0 & 4) && CPU_ACCURATE)
+			lof = lof ? 0 : 1;
+	}
 	if (hp + HPOS_OFFSET >= maxhpos + VPOS_INC_DELAY) {
 		vp++;
 		if (vp >= maxvpos + lof_store)
@@ -4177,7 +4188,7 @@ static uae_u16 VPOSR (void)
 
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		vp &= 1;
-	vp |= (lof_store ? 0x8000 : 0) | csbit;
+	vp |= (lof ? 0x8000 : 0) | csbit;
 	if (currprefs.chipset_mask & CSMASK_ECS_AGNUS)
 		vp |= lol ? 0x80 : 0;
 	hsyncdelay ();
@@ -4404,7 +4415,7 @@ static void compute_spcflag_copper (int hpos);
 static void COPJMP (int num, int vblank)
 {
 	int oldstrobe = cop_state.strobe;
-	bool wasstopped = cop_state.state == COP_stop;
+	bool wasstopped = cop_state.state == COP_stop && !vblank;
 
 #if CUSTOM_DEBUG > 0
 	if (dmaen (DMA_COPPER) && (cop_state.saved_i1 != 0xffff || cop_state.saved_i2 != 0xfffe))
@@ -4992,20 +5003,19 @@ static void BPL2MOD (int hpos, uae_u16 v)
 static void BPLxDAT (int hpos, int num, uae_u16 v)
 {
 	// only BPL0DAT access can do anything visible
-	if (num == 0 && hpos >= 7) {
+	if (num == 0 && hpos >= 8) {
 		decide_line (hpos);
 		decide_fetch_safe (hpos);
 	}
 	flush_display (fetchmode);
 	fetched[num] = v;
 	fetched_aga[num] = v;
-	if (num == 0 && hpos >= 7) {
+	if (num == 0 && hpos >= 8) {
 		bpl1dat_written = true;
 		bpl1dat_written_at_least_once = true;
 		if (thisline_decision.plfleft < 0) {
-			thisline_decision.plfleft = (hpos + 3) & ~1;
+			thisline_decision.plfleft = hpos;
 			reset_bpl_vars ();
-			update_denise (hpos);
 		}
 		beginning_of_plane_block (hpos, fetchmode);
 	}
@@ -5738,15 +5748,13 @@ static int customdelay[]= {
 	/* BPLxPTH/BPLxPTL */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 16 */
 	/* BPLCON0-3,BPLMOD1-2 */
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 16 */
+	0,0,0,0,0,0,0,0, /* 8 */
+	/* BPLxDAT */
+	1,1,1,1,1,1,1,1, /* 8 */
 	/* SPRxPTH/SPRxPTL */
 	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 16 */
-
 	/* SPRxPOS/SPRxCTL/SPRxDATA/SPRxDATB */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//	1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,
-//	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-
 	/* COLORxx */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	/* RESERVED */

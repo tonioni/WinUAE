@@ -767,6 +767,13 @@ void my_canonicalize_path(const TCHAR *path, TCHAR *out, int size)
 {
 	TCHAR tmp[MAX_DPATH];
 	int v;
+
+	// don't attempt to validate and canonicalize invalid or fake paths
+	if (path[0] == ':' || path[0] == 0 || _tcscmp(path, _T("\\")) == 0 || _tcscmp(path, _T("/")) == 0) {
+		_tcsncpy (out, path, size);
+		out[size - 1] = 0;
+		return;
+	}
 	v = GetLongPathName (path, tmp, sizeof tmp / sizeof (TCHAR));
 	if (!v || v > sizeof tmp / sizeof (TCHAR)) {
 		_tcsncpy (out, path, size);
@@ -987,6 +994,7 @@ bool my_createshortcut(const TCHAR *source, const TCHAR *target, const TCHAR *de
 bool my_resolvesoftlink(TCHAR *linkfile, int size)
 {
 	TCHAR tmp[MAX_DPATH];
+
 	int v = my_resolvessymboliclink2(linkfile, size);
 	if (v > 0)
 		return true;

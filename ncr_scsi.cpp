@@ -377,7 +377,7 @@ void ncr_autoconfig_init (void)
 		struct romlist *rl = getromlistbyids(roms);
 		if (rl) {
 			struct romdata *rd = rl->rd;
-			z = read_rom (&rd);
+			z = read_rom (rd);
 		}
 	}
 	if (z) {

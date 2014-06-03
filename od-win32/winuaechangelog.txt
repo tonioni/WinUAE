@@ -18,6 +18,17 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 5:
+
+- Relative path improvement broke CDFS CD mounting in some configurations.
+- Ungrab (b4) event didn't disable mouse capture when it was activated in fullscreen modes.
+- VPOS LOF bit toggles (if interlace) exactly 2 cycles before first refresh slot. Logic analyzer tested.
+- Copper vblank strobe also stopped the copper if DMA was disabled and second strobe register was accessed
+  previously. Broke in 280b1. (Sequential / Andromeda first screen)
+- More accurate BPL1DAT emulation.(Glitches appeared in Sequential / Andromeda magnet part's
+  left border when one pixel gap in Rink a Dink / Lemon rotozoomer part white border was fixed)
+- 8-bit split (odd/even) roms didn't load if merged parent was missing.
+
 Beta 4:
 
 - New relative path mode worked badly under Windows XP, possibly up to Windows 7 without SP1.
@@ -488,7 +499,7 @@ Huge changelog, mostly technical stuff.
 - It seems ECS Denise color palette is full white after power up but full black if OCS. (Small Intro / TWW)
 - Reading byte from CIA address that has valid CIA A/B select bit but bit 0 inverted (Active 8 bits of
   16-bit data bus not driven by CIAs) didn't read prefetch buffer contents in 68000 CE/prefetch mode.
-  (Copper Bandwaggon / New Age)
+  (Copper Bandwagon / New Age)
 - 68020 CE mode 6888x exceptions didn't skip instruction prefetch, broke for example KS 1.3 FPU detection.
 - 68020 CE last prefetch word load after branch or exception used incorrect (too fast) non-ce fetch call.
 

@@ -605,9 +605,9 @@ static void setcursorshape (void)
 
 static void releasecapture (void)
 {
+	//write_log (_T("releasecapture %d\n"), showcursor);
 	if (!showcursor)
 		return;
-	//write_log (_T("releasecapture\n"));
 	ClipCursor (NULL);
 	ReleaseCapture ();
 	ShowCursor (TRUE);
@@ -723,6 +723,7 @@ static void setmouseactive2 (int active, bool allowpause)
 	if (mouseactive) {
 		if (focus) {
 			if (!showcursor) {
+				//write_log(_T("setcapture\n"));
 				ShowCursor (FALSE);
 				SetCapture (hAmigaWnd);
 				updatewinrect (false);
@@ -1031,15 +1032,16 @@ int isfocus (void)
 
 static void activationtoggle (bool inactiveonly)
 {
-	if (isfullscreen () > 0)
-		minimizewindow ();
-	if (isfullscreen () < 0 && currprefs.win32_minimize_inactive)
-		minimizewindow ();
 	if (mouseactive) {
-		setmouseactive (0);
+		if ((isfullscreen () > 0) || (isfullscreen () < 0 && currprefs.win32_minimize_inactive)) {
+			disablecapture();
+			minimizewindow();
+		} else {
+			setmouseactive(0);
+		}
 	} else {
 		if (!inactiveonly)
-			setmouseactive (1);
+			setmouseactive(1);
 	}
 }
 

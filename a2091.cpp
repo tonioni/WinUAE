@@ -1853,7 +1853,7 @@ void a2091_init (void)
 		if (!z) {
 			rl = getromlistbyids (roms);
 			if (rl) {
-				z = read_rom (&rl->rd);
+				z = read_rom (rl->rd);
 			}
 		}
 		if (z) {
