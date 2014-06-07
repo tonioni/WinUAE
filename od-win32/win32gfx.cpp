@@ -1752,22 +1752,27 @@ int check_prefs_changed_gfx (void)
 	for (int j = 0; j < 2; j++) {
 		struct gfx_filterdata *gf = &currprefs.gf[j];
 		struct gfx_filterdata *gfc = &changed_prefs.gf[j];
+
+		c |= gf->gfx_filter != gfc->gfx_filter ? (2|8) : 0;
+
 		for (int i = 0; i <= 2 * MAX_FILTERSHADERS; i++) {
 			c |= _tcscmp (gf->gfx_filtershader[i], gfc->gfx_filtershader[i]) ? (2|8) : 0;
 			c |= _tcscmp (gf->gfx_filtermask[i], gfc->gfx_filtermask[i]) ? (2|8) : 0;
 		}
-
-		c |= gf->gfx_filter != gfc->gfx_filter ? (2|8) : 0;
 		c |= _tcscmp (gf->gfx_filteroverlay, gfc->gfx_filteroverlay) ? (2|8) : 0;
-		c |= gf->gfx_filter_filtermode != gfc->gfx_filter_filtermode ? (2|8) : 0;
-		c |= gf->gfx_filter_bilinear != gfc->gfx_filter_bilinear ? (2|8) : 0;
-		c |= gf->gfx_filter_horiz_zoom_mult != gfc->gfx_filter_horiz_zoom_mult ? (1) : 0;
-		c |= gf->gfx_filter_vert_zoom_mult != gfc->gfx_filter_vert_zoom_mult ? (1) : 0;
-		c |= gf->gfx_filter_noise != gfc->gfx_filter_noise ? (1) : 0;
-		c |= gf->gfx_filter_blur != gfc->gfx_filter_blur ? (1) : 0;
+
 		c |= gf->gfx_filter_scanlines != gfc->gfx_filter_scanlines ? (1|8) : 0;
 		c |= gf->gfx_filter_scanlinelevel != gfc->gfx_filter_scanlinelevel ? (1|8) : 0;
 		c |= gf->gfx_filter_scanlineratio != gfc->gfx_filter_scanlineratio ? (1|8) : 0;
+
+		c |= gf->gfx_filter_horiz_zoom_mult != gfc->gfx_filter_horiz_zoom_mult ? (1) : 0;
+		c |= gf->gfx_filter_vert_zoom_mult != gfc->gfx_filter_vert_zoom_mult ? (1) : 0;
+
+		c |= gf->gfx_filter_filtermode != gfc->gfx_filter_filtermode ? (2|8) : 0;
+		c |= gf->gfx_filter_bilinear != gfc->gfx_filter_bilinear ? (2|8) : 0;
+		c |= gf->gfx_filter_noise != gfc->gfx_filter_noise ? (1) : 0;
+		c |= gf->gfx_filter_blur != gfc->gfx_filter_blur ? (1) : 0;
+
 		c |= gf->gfx_filter_aspect != gfc->gfx_filter_aspect ? (1) : 0;
 		c |= gf->gfx_filter_keep_aspect != gfc->gfx_filter_keep_aspect ? (1) : 0;
 		c |= gf->gfx_filter_keep_autoscale_aspect != gfc->gfx_filter_keep_autoscale_aspect ? (1) : 0;
@@ -1853,30 +1858,7 @@ int check_prefs_changed_gfx (void)
 		for (int j = 0; j < 2; j++) {
 			struct gfx_filterdata *gf = &currprefs.gf[j];
 			struct gfx_filterdata *gfc = &changed_prefs.gf[j];
-			for (int i = 0; i <= 2 * MAX_FILTERSHADERS; i++) {
-				_tcscpy (gf->gfx_filtershader[i], gfc->gfx_filtershader[i]);
-				_tcscpy (gf->gfx_filtermask[i], gfc->gfx_filtermask[i]);
-			}
-			gf->gfx_filter = gfc->gfx_filter;
-			gf->gfx_filter_scanlines = gfc->gfx_filter_scanlines;
-			gf->gfx_filter_scanlinelevel = gfc->gfx_filter_scanlinelevel;
-			gf->gfx_filter_scanlineratio = gfc->gfx_filter_scanlineratio;
-			_tcscpy (gf->gfx_filteroverlay, gfc->gfx_filteroverlay);
-			gf->gfx_filter_filtermode = gfc->gfx_filter_filtermode;
-			gf->gfx_filter_bilinear = gfc->gfx_filter_bilinear;
-			gf->gfx_filter_horiz_zoom_mult = gfc->gfx_filter_horiz_zoom_mult;
-			gf->gfx_filter_vert_zoom_mult = gfc->gfx_filter_vert_zoom_mult;
-			gf->gfx_filter_noise = gfc->gfx_filter_noise;
-			gf->gfx_filter_blur = gfc->gfx_filter_blur;
-			gf->gfx_filter_aspect = gfc->gfx_filter_aspect;
-			gf->gfx_filter_keep_aspect = gfc->gfx_filter_keep_aspect;
-			gf->gfx_filter_keep_autoscale_aspect = gfc->gfx_filter_keep_autoscale_aspect;
-			gf->gfx_filter_luminance = gfc->gfx_filter_luminance;
-			gf->gfx_filter_contrast = gfc->gfx_filter_contrast;
-			gf->gfx_filter_saturation = gfc->gfx_filter_saturation;
-			gf->gfx_filter_gamma = gfc->gfx_filter_gamma;
-			gf->gfx_filter_autoscale = gfc->gfx_filter_autoscale;
-			//gf->gfx_filter_ = gfc->gfx_filter_;
+			memcpy(gf, gfc, sizeof(struct gfx_filterdata));
 		}
 
 		currprefs.rtg_horiz_zoom_mult = changed_prefs.rtg_horiz_zoom_mult;

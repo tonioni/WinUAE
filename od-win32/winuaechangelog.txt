@@ -18,6 +18,15 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 6:
+
+- b2 HAM update was incomplete and broken, nr_color_changes check was not fully working. (b2)
+- Display panel missing translations added (autoresolution and brightness/contrast/gamma)
+- Some file operations (zipped files, possibly something else too) didn't support recently introduced
+  relative "..\" path part update.
+- Copper emulation state was not fully reset when restoring state file, in some situations copper
+  may have modified restored custom register in next cycle after state was restored.
+
 Beta 5:
 
 - Relative path improvement broke CDFS CD mounting in some configurations.

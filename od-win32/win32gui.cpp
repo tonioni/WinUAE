@@ -6169,10 +6169,21 @@ static void handle_da (HWND hDlg)
 void init_da (HWND hDlg)
 {
 	int *p;
+	TCHAR tmp[MAX_DPATH], *p1, *p2;
+
+	WIN32GUI_LoadUIString(IDS_DISPLAY_ATTRIBUTES, tmp, sizeof tmp / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)_T("Brightness"));
-	SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)_T("Contrast"));
-	SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)_T("Gamma"));
+	_tcscat (tmp, _T("\n"));
+	p1 = tmp;
+	for (;;) {
+		p2 = _tcschr (p1, '\n');
+		if (p2 && _tcslen (p2) > 0) {
+			*p2++ = 0;
+			SendDlgItemMessage (hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)p1);
+			p1 = p2;
+		} else
+			break;
+	}
 	if (da_mode_selected == CB_ERR)
 		da_mode_selected = 0;
 	SendDlgItemMessage (hDlg, IDC_DA_MODE, CB_SETCURSEL, da_mode_selected, 0);
@@ -6432,8 +6443,12 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_LORES, CB_SETCURSEL, workprefs.gfx_resolution, 0);
 
 	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Disabled"));
-	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Always on"));
+
+
+	WIN32GUI_LoadUIString(IDS_DISABLED, buffer, sizeof buffer / sizeof (TCHAR));
+	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_ADDSTRING, 0, (LPARAM)buffer);
+	WIN32GUI_LoadUIString(IDS_ALWAYS_ON, buffer, sizeof buffer / sizeof (TCHAR));
+	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_ADDSTRING, 0, (LPARAM)buffer);
 	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_ADDSTRING, 0, (LPARAM)_T("10%"));
 	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_ADDSTRING, 0, (LPARAM)_T("33%"));
 	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_ADDSTRING, 0, (LPARAM)_T("66%"));

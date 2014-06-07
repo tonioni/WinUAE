@@ -1630,7 +1630,7 @@ static struct zfile *openzip (const TCHAR *pname)
 	_tcscpy (name, pname);
 	i = _tcslen (name) - 2;
 	while (i > 0) {
-		if (name[i] == '/' || name[i] == '\\' && i > 4) {
+		if ((name[i] == '/' || name[i] == '\\') && i > 4) {
 			v = name[i];
 			name[i] = 0;
 			for (j = 0; plugins_7z[j]; j++) {
@@ -2592,7 +2592,7 @@ static struct zvolume *zvolume_alloc_2 (const TCHAR *name, struct zfile *z, unsi
 	root->volume = zv;
 	root->type = ZNODE_DIR;
 	i = 0;
-	if (name[0] != '/' && name[0] != '\\' && _tcsncmp (name, _T(".\\"), 2) != 0) {
+	if (name[0] != '/' && name[0] != '\\' && _tcsncmp(name, _T(".\\"), 2) != 0 && _tcsncmp(name, _T("..\\"), 3) != 0) {
 		if (_tcschr (name, ':') == 0) {
 			for (i = _tcslen (name) - 1; i > 0; i--) {
 				if (name[i] == FSDB_DIR_SEPARATOR) {
