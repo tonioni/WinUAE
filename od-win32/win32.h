@@ -20,15 +20,22 @@
 #define LANG_DLL_FULL_VERSION_MATCH 0
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("6")
+#define WINUAEBETA _T("7")
 #else
 #define WINUAEBETA _T("")
 #endif
-#define WINUAEDATE MAKEBD(2014, 6, 7)
-#define WINUAEEXTRA _T("")
+
+#define WINUAEDATE MAKEBD(2014, 6, 13)
+
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
+
+#ifndef WINUAEEXTRA
+#define WINUAEEXTRA _T("")
+#endif
+#ifndef WINUAEREV
 #define WINUAEREV _T("")
+#endif
 
 #define IHF_WINDOWHIDDEN 6
 #define WINUAEAPPNAME _T("Arabuusimiehet.WinUAE")

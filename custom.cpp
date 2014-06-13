@@ -3555,7 +3555,7 @@ void compute_vsynctime (void)
 			svpos += 1.0;
 		}
 		double clk = svpos * shpos * fake_vblank_hz;
-		write_log (_T("SNDRATE %.1f*%.1f*%.6f=%.6f\n"), svpos, shpos, fake_vblank_hz, clk);
+		//write_log (_T("SNDRATE %.1f*%.1f*%.6f=%.6f\n"), svpos, shpos, fake_vblank_hz, clk);
 		update_sound (clk);
 	}
 }
@@ -5012,10 +5012,8 @@ static void BPLxDAT (int hpos, int num, uae_u16 v)
 	if (num == 0 && hpos >= 8) {
 		bpl1dat_written = true;
 		bpl1dat_written_at_least_once = true;
-		if (thisline_decision.plfleft < 0) {
-			thisline_decision.plfleft = hpos;
+		if (thisline_decision.plfleft < 0)
 			reset_bpl_vars ();
-		}
 		beginning_of_plane_block (hpos, fetchmode);
 	}
 }
@@ -5749,7 +5747,7 @@ static int customdelay[]= {
 	/* BPLCON0-3,BPLMOD1-2 */
 	0,0,0,0,0,0,0,0, /* 8 */
 	/* BPLxDAT */
-	1,1,1,1,1,1,1,1, /* 8 */
+	0,0,0,0,0,0,0,0, /* 8 */
 	/* SPRxPTH/SPRxPTL */
 	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 16 */
 	/* SPRxPOS/SPRxCTL/SPRxDATA/SPRxDATB */
@@ -9578,6 +9576,7 @@ void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
 
 void do_cycles_ce (unsigned long cycles)
 {
+	cycles += extra_cycle;
 	while (cycles >= CYCLE_UNIT) {
 		int hpos = current_hpos () + 1;
 		decide_line (hpos);
@@ -9588,6 +9587,7 @@ void do_cycles_ce (unsigned long cycles)
 		do_cycles (1 * CYCLE_UNIT);
 		cycles -= CYCLE_UNIT;
 	}
+	extra_cycle = cycles;
 }
 
 void do_cycles_ce020 (unsigned long cycles)

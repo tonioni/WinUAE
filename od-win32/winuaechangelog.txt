@@ -18,6 +18,15 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 7:
+
+- Yet another BPLxDAT update. If BPL1DAT is written when sprite is already active and no planes enabled in
+  BPLCON0, "sprites visible 1 lores pixel before first bitplane pixel" feature is not active. Previous
+  update was not correct and broke some other demos. (Real fix for Rink A Dink / Lemon extra pixel in
+  rotozoomer part)
+- 68000 CE with 8x (or higher) clock multiplier was really fast (270b4)
+- AROS ROM updated.
+
 Beta 6:
 
 - b2 HAM update was incomplete and broken, nr_color_changes check was not fully working. (b2)

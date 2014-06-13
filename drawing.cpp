@@ -742,6 +742,7 @@ All of these are forced into the visible window (VISIBLE_LEFT_BORDER .. VISIBLE_
 PLAYFIELD_START and PLAYFIELD_END are in window coordinates.  */
 static int playfield_start, playfield_end;
 static int real_playfield_start, real_playfield_end;
+static int sprite_playfield_start;
 static int linetoscr_diw_start, linetoscr_diw_end;
 static int native_ddf_left, native_ddf_right;
 
@@ -821,8 +822,9 @@ static void pfield_init_linetoscr (bool border)
 	if (playfield_end > visible_right_border)
 		playfield_end = visible_right_border;
 
-	real_playfield_end = playfield_end;
 	real_playfield_start = playfield_start;
+	sprite_playfield_start = playfield_start;
+	real_playfield_end = playfield_end;
 
 	// Sprite hpos don't include DIW_DDF_OFFSET and can appear 1 lores pixel
 	// before first bitplane pixel appears.
@@ -840,6 +842,7 @@ static void pfield_init_linetoscr (bool border)
 				playfield_start = left;
 			}
 		} else {
+			sprite_playfield_start = 0;
 			if (playfield_end < linetoscr_diw_end && hblank_right_stop > playfield_end) {
 				playfield_end = linetoscr_diw_end;
 			}
@@ -1088,7 +1091,7 @@ static void fill_line_border (void)
 }
 
 #define SPRITE_DEBUG 0
-STATIC_INLINE uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga)
+static uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga)
 {
 	struct spritepixelsbuf *spb = &spritepixels[pos];
 	unsigned int v = spb->data;
@@ -1101,7 +1104,8 @@ STATIC_INLINE uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga
 	maskshift = shift_lookup[apixel];
 	plfmask = (plf_sprite_mask >> maskshift) >> maskshift;
 	v &= ~plfmask;
-	if (v != 0 || SPRITE_DEBUG) {
+	/* Extra 1 sprite pixel at DDFSTRT is only possible if at least 1 plane is active */
+	if ((bplplanecnt > 0 || pos >= sprite_playfield_start) && (v != 0 || SPRITE_DEBUG)) {
 		unsigned int vlo, vhi, col;
 		unsigned int v1 = v & 255;
 		/* OFFS determines the sprite pair with the highest priority that has
