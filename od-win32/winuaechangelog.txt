@@ -18,6 +18,14 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 8:
+
+- Tweaked 68020 reading from non-existing memory behavior.
+- Added *.a500, *.a600, *.a1200 and *.a4000 extensions to ROM dialog file name filter.
+- AVIOutput didn't use (slow) reads from VRAM even when it should have been used it, resulting in
+  tiny non-scaled video output if "capture before filtering" was not ticked and resolution was large enough.
+- AROS ROM updated.
+
 Beta 7:
 
 - Yet another BPLxDAT update. If BPL1DAT is written when sprite is already active and no planes enabled in
@@ -108,7 +116,7 @@ Beta 1:
 - If Quickstart mode and sound filter is set to A500 or A1200 emulated or always on: automatically match it with
   selected config.
 - DMA debugger now shows CPU and DMA 32-bit chip ram accesses, previously data was truncated to 16-bits. 64-bit
-  DMA is stil truncated to 32-bit.
+  DMA is still truncated to 32-bit.
 
 2.8.0
 

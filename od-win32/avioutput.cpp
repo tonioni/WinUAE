@@ -50,7 +50,6 @@ static volatile int alive;
 static volatile int avioutput_failed;
 
 static int avioutput_init = 0;
-static int actual_width = 320, actual_height = 256;
 static int avioutput_needs_restart;
 
 static int frame_start; // start frame
@@ -830,7 +829,7 @@ static int getFromDC (struct avientry *avie)
 	// probably not the best idea to use slow GDI functions for this,
 	// locking the surfaces and copying them by hand would be more efficient perhaps
 	// draw centered in frame
-	BitBlt (hdcMem, (avioutput_width / 2) - (actual_width / 2), (avioutput_height / 2) - (actual_height / 2), actual_width, actual_height, hdc, 0, 0, SRCCOPY);
+	BitBlt (hdcMem, 0, 0, avioutput_width, avioutput_height, hdc, 0, 0, SRCCOPY);
 	SelectObject (hdcMem, hbitmapOld);
 	if (GetDIBits (hdc, hbitmap, 0, avioutput_height, avie->lpVideo, (LPBITMAPINFO)lpbi, DIB_RGB_COLORS) == 0) {
 		gui_message (_T("GetDIBits() FAILED (%X)\n"), GetLastError ());
@@ -946,14 +945,7 @@ void AVIOutput_WriteVideo (void)
 	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen ()) {
 		v = getFromBuffer (ae, 1);
 	} else {
-#if defined (GFXFILTER)
-		if (!usedfilter)
-			v = getFromDC (ae);
-		else
-			v = getFromBuffer (ae, 0);
-#else
-		v = getFromDC (avie);
-#endif
+		v = getFromDC (ae);
 	}
 	if (v)
 		queueavientry (ae);
@@ -970,9 +962,6 @@ static int AVIOutput_AVIWriteVideo_Thread (struct avientry *ae)
 
 		if (!avioutput_init)
 			goto error;
-
-		actual_width = gfxvidinfo.outbuffer->outwidth;
-		actual_height = gfxvidinfo.outbuffer->outheight;
 
 		// GetDIBits tends to change this and ruins palettized output
 		ae->lpbi->biClrUsed = (avioutput_bits <= 8) ? 1 << avioutput_bits : 0;

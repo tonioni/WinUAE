@@ -646,7 +646,7 @@ static void tablet_send (void)
 		return;
 	inputdevice_tablet (tablet_x, tablet_y, tablet_z, tablet_pressure, tablet_buttons, tablet_proximity,
 		tablet_ax, tablet_ay, tablet_az);
-	tabletlib_tablet (tablet_x, tablet_y, tablet_z, tablet_pressure, tablet_buttons, tablet_proximity,
+	tabletlib_tablet (tablet_x, tablet_y, tablet_z, tablet_pressure, maxpres, tablet_buttons, tablet_proximity,
 		tablet_ax, tablet_ay, tablet_az);
 }
 

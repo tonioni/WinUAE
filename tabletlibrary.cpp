@@ -26,11 +26,11 @@ static int tablet_pressure, tablet_buttonbits, tablet_inproximity;
 static int tablet_maxx, tablet_maxy, tablet_maxz;
 static int ksversion;
 
-void tabletlib_tablet (int x, int y, int z, int pressure, uae_u32 buttonbits, int inproximity, int ax, int ay, int az)
+void tabletlib_tablet (int x, int y, int z, int pressure, int maxpres, uae_u32 buttonbits, int inproximity, int ax, int ay, int az)
 {
 	tablet_x = x;
 	tablet_y = y;
-	tablet_pressure = pressure;
+	tablet_pressure = pressure << 15;
 	tablet_buttonbits = buttonbits;
 	tablet_inproximity = inproximity;
 }
@@ -55,7 +55,7 @@ static void filltags (uaecptr tabletdata)
 	put_long (tabletdata + 12, tablet_maxx);
 	put_long (tabletdata + 16, tablet_maxy);
 
-	//write_log(_T("P=%d BUT=%08X\n"), tablet_pressure, tablet_buttonbits);
+	//write_log(_T("P=%08X BUT=%08X\n"), tablet_pressure, tablet_buttonbits);
 
 	// pressure
 	put_long (p, 0x8003a000 + 6);

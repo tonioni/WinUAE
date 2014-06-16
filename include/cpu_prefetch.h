@@ -109,8 +109,11 @@ extern uae_u32 get_word_ce020_prefetch (int);
 STATIC_INLINE uae_u32 get_long_ce020_prefetch (int o)
 {
 	uae_u32 v;
+	uae_u16 tmp;
 	v = get_word_ce020_prefetch (o) << 16;
+	tmp = regs.db;
 	v |= get_word_ce020_prefetch (o + 2);
+	regs.db = tmp;
 	return v;
 }
 
@@ -329,7 +332,7 @@ STATIC_INLINE void mem_access_delay_byte_write (uaecptr addr, uae_u32 v)
 	case CE_MEMBANK_CHIP16:
 	case CE_MEMBANK_CHIP32:
 		wait_cpu_cycle_write (addr, 0, v);
-		break;
+		return;
 	case CE_MEMBANK_FAST16:
 	case CE_MEMBANK_FAST32:
 		put_byte (addr, v);
