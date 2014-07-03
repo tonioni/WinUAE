@@ -18,6 +18,69 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 1:
+
+- Debugger TR command didn't handle linked resident lists correctly (inverted mask..).
+- TO debugger command also lists FileSysStartupMsg and DosEnvec of mounted devices.
+- Slow down 68EC020 RTE instruction, fast clock rate multiplier modes could have executed MOVE to
+  INTREQ + RTE combination too quickly (before Paula had cleared the interrupt) causing interrupt to
+  re-trigger immediately after RTE.
+- Added SCSI controller selection to GUI and config file. ("SCSI (Auto)" does same as old plain
+  SCSI selection = use first enabled SCSI controller).
+- More than 1 SCSI controller can be now active simultaneously. (For example A4000T + A4091)
+- Added support for two A590/A2091 and two A4091 boards, both (or even all 4) can be active at the same time.
+- Secondary A590/A2091 and A4091 share primary board's boot ROM by default. a2091_2_rom_file and
+  a4091_2_rom_file config file entry can be used to select other ROM version.
+- 280b7 sprite update missed AGA bordersprite condition, causing clipped sprites in some situations
+  (Silicon Graphics 2 / WFMH)
+- Rewritten directory filesystem Examine Next logic, now returned fib_DiskKey always have file/directory
+  entry specific unique value. Some programs check fib_DiskKey and (incorrectly) assume that it is unique
+  value and may also assume file must be same if both file's have same fib_DiskKey. Now also C:List KEY output
+  looks "correct". This needs testing because original (Tripos?) directory enumeration packet design is
+  not that good..
+- AGA border sprite bit set and if same scanline had at least 1 sprite that was outside of playfield and at
+  least 1 bitplane was active and BPLCON4 palette XOR value was non-zero: wrong background color was visible
+  in some situations. (Nexus 7 / Andromeda "shade cluster" part)
+- Some BEAMCON0 programmed mode emulation updates. VBSTRT/VBSTOP register values only affect screen if
+  VARVBEN bit is set.
+- Use also value stored in VBSTRT (vertical blank start) register when setting up programmed mode vertical
+  size, some weird modes can have (much) smaller VBSTRT than VSSTRT (vertical sync start). (Jtxrules by Illusion)
+- HBSTRT/HBSTOP register values are only used if BPLCON3 EXTBLKEN bit is set. (Demos Contactro and Jtxrules by Illusion)
+- BEAMCON0 HARDDIS bit also disables DDFSTRT hardware limit. (Weird stuff, VARBEAMEN disables it too,
+  even superhires mode disables it..)
+- Fixed "CPU trace blahblah" error after 68020+ state file was loaded and loaded program used bitfield instructions
+  later.
+- Split ROM images didn't load (again..) correctly if relative path mode was active.
+- Added support for missing Z2 RAM board sizes (64k/128k/256k/512k). Note that small boards (256k and less) can
+  be mapped at IO autoconfig base (0xe90000+) which makes predicting final address difficult: JIT (if enabled)
+  can't use direct mode to access this RAM board.
+- Added support for second Z2 fast RAM board. Size must be smaller or same as first board. (Makes JIT
+  board address calculation simpler)
+- Above two changes mean it is now possible to have total 6M of Z2 RAM in 24 bit addressing config with 2M gfx
+  board config (4M + 2M and 2M gfx) or less useful 8M fast + extra 256k of fast config...
+- Z2 gfx board JIT direct calculation didn't correctly align the board base address if Z2 RAM size was less than
+  Z2 gfx board size.
+- Implemented no-hack Z3 memory mapping, lets OS handle Z3 autoconfig without patching base addressess from
+  >=0x40000000 to >=0x10000000. This mode is not JIT Direct compatible. Option in Memory panel. Do not enable
+  unless you know what are you doing and you really need 100% matching real hardware Z3 address mapping.
+- Use no-hack Z3 allocation automatically if all configured boards fit in official Z3 space, fully JIT Direct
+  compatible. Requires 64-bit Windows and available space will be about 300M to 500M. RAM panel text string
+  shows free space. 32-bit Chip RAM does not count, it is not Z3 board and it is always located at 0x10000000.
+- Added 384M and 768M 32-bit Chip RAM size options. (768M fits perfectly at 0x10000000-0x3fffffff)
+- Added Z3 autoconfig advanced chipset option. If ticked (or A3000/A3000T/A4000/A4000T chipset extra selected),
+  Z33 boards will now appear at Z3 autoconfig space (0xFF000000), previously Z2 space was always used.
+  Z2 space is supported by AOS but most real, but not all, Z3 boards use Z3 space. Optional because not all
+  KS ROMs (for example A1200) support Z3 autoconfig space but do support Z3 boards.
+- Try to keep number of cylinders under 65536 when generating default geometry even if partition hardfile
+  is very large (>100G) for better old AOS compatibility. (Helps my big partition PFS3 testing..)
+- Hardware (Cirrus Logic) RTG board emulation incorrectly required UAE boot ROM.
+- 68030 MMU update from Previous, fixes some supervisor/write protect edge cases.
+- Added "history" menu to filesystem, hardfile and tape path selection text boxes.
+- Added portable mode (.ini) on/off state to Paths panel. Read-only, enabling it on the fly would cause
+  all kinds of side-effects. Unsupported warning removed.
+
+2.8.1
+
 Beta 8:
 
 - Tweaked 68020 reading from non-existing memory behavior.

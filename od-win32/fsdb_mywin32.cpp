@@ -763,6 +763,16 @@ bool my_createsoftlink(const TCHAR *path, const TCHAR *target)
 	return CreateSymbolicLink(path, target, my_existsdir (target) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0) != 0;
 }
 
+bool my_issamepath(const TCHAR *path1, const TCHAR *path2)
+{
+	TCHAR path1o[MAX_DPATH], path2o[MAX_DPATH];
+	my_canonicalize_path(path1, path1o, sizeof path1o / sizeof(TCHAR));
+	my_canonicalize_path(path2, path2o, sizeof path2o / sizeof(TCHAR));
+	if (!_tcsicmp(path1o, path2o))
+		return true;
+	return false;
+}
+
 void my_canonicalize_path(const TCHAR *path, TCHAR *out, int size)
 {
 	TCHAR tmp[MAX_DPATH];

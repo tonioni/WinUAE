@@ -5,7 +5,7 @@
 *
 * Copyright 1995-2002 Bernd Schmidt
 * Copyright 1995 Alessandro Bissacco
-* Copyright 2000-2010 Toni Wilen
+* Copyright 2000-2014 Toni Wilen
 */
 
 #include "sysconfig.h"
@@ -50,6 +50,7 @@
 #endif
 #include "gayle.h"
 #include "gfxfilter.h"
+#include "threaddep/thread.h"
 #include "a2091.h"
 #include "a2065.h"
 #include "gfxboard.h"
@@ -148,7 +149,6 @@ static bool bplcon0_interlace_seen;
 static int scandoubled_line;
 static bool vsync_rendered, frame_rendered, frame_shown;
 static int vsynctimeperline;
-static int jitcount = 0;
 static int frameskiptime;
 static bool genlockhtoggle;
 static bool genlockvtoggle;
@@ -198,6 +198,7 @@ int maxvpos_display = MAXVPOS_PAL; // value used for display size
 int hsyncendpos, hsyncstartpos;
 static int maxvpos_total = 511;
 int minfirstline = VBLANK_ENDLINE_PAL;
+int firstblankedline;
 static int equ_vblank_endline = EQU_ENDLINE_PAL;
 static bool equ_vblank_toggle = true;
 double vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_hz_stored, vblank_hz_nom;
@@ -451,7 +452,6 @@ uae_u32 get_copper_address (int copno)
 
 void reset_frame_rate_hack (void)
 {
-	jitcount = 0;
 	if (currprefs.m68k_speed >= 0)
 		return;
 
@@ -621,7 +621,7 @@ STATIC_INLINE int get_equ_vblank_endline (void)
 	return equ_vblank_endline + (equ_vblank_toggle ? (lof_current ? 1 : 0) : 0);
 }
 
-#define HARD_DDF_LIMITS_DISABLED ((beamcon0 & 0x80) || (bplcon0 & 0x40))
+#define HARD_DDF_LIMITS_DISABLED ((beamcon0 & 0x80) || (beamcon0 & 0x4000) || (bplcon0 & 0x40))
 /* The HRM says 0xD8, but that can't work... */
 #define HARD_DDF_STOP (HARD_DDF_LIMITS_DISABLED ? 0xff : 0xd6)
 #define HARD_DDF_START_REAL 0x18
@@ -2540,20 +2540,6 @@ static void start_bpl_dma (int hpos, int hstart)
 	estimate_last_fetch_cycle (hstart);
 
 	last_fetch_hpos = hstart;
-
-
-#if 0
-	/* If someone already wrote BPL1DAT, clear the area between that point and
-	the real fetch start.  */
-	if (!nodraw ()) {
-		if (thisline_decision.plfleft >= 0) {
-			out_nbits = (plfstrt - thisline_decision.plfleft) << (1 + toscr_res);
-			out_offs = out_nbits >> 5;
-			out_nbits &= 31;
-		}
-		update_toscr_planes ();
-	}
-#endif
 }
 
 #if 0
@@ -3744,7 +3730,7 @@ void compute_framesync (void)
 		gfxvidinfo.drawbuffer.extrawidth = 0;
 		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.inwidth;
 
-		gfxvidinfo.drawbuffer.inheight = (maxvpos - minfirstline + 1) << vres2;
+		gfxvidinfo.drawbuffer.inheight = ((firstblankedline < maxvpos ? firstblankedline : maxvpos) - minfirstline + 1) << vres2;
 		gfxvidinfo.drawbuffer.inheight2 = gfxvidinfo.drawbuffer.inheight;
 
 	} else {
@@ -3877,12 +3863,14 @@ void init_hz (bool fullinit)
 		vpos_count = maxvpos;
 		vpos_count_diff = maxvpos;
 	}
+	firstblankedline = maxvpos + 1;
 
 	if (beamcon0 & 0x80) {
 		// programmable scanrates (ECS Agnus)
 		if (vtotal >= MAXVPOS)
 			vtotal = MAXVPOS - 1;
 		maxvpos = vtotal + 1;
+		firstblankedline = maxvpos + 1;
 		if (htotal >= MAXHPOS)
 			htotal = MAXHPOS - 1;
 		maxhpos = htotal + 1;
@@ -3890,13 +3878,31 @@ void init_hz (bool fullinit)
 		vblank_hz_shf = vblank_hz;
 		vblank_hz_lof = 227.0 * 313.0 * 50.0 / (maxvpos * maxhpos);;
 		vblank_hz_lace = 227.0 * 312.5 * 50.0 / (maxvpos * maxhpos);;
-		minfirstline = vsstop > vbstop ? vsstop : vbstop;
-		if (minfirstline > maxvpos / 2) 
-			minfirstline = vsstop > vbstop ? vbstop : vsstop;
+
+		if ((beamcon0 & 0x1000) && (beamcon0 & 0x0200)) { // VARVBEN + VARVSYEN
+			minfirstline = vsstop > vbstop ? vsstop : vbstop;
+			if (minfirstline > maxvpos / 2) 
+				minfirstline = vsstop > vbstop ? vbstop : vsstop;
+			firstblankedline = vbstrt;
+		} else if (beamcon0 & 0x0200) {
+			minfirstline = vsstop;
+			if (minfirstline > maxvpos / 2) 
+				minfirstline = 0;
+		} else if (beamcon0 & 0x1000) {
+			minfirstline = vbstop;
+			if (minfirstline > maxvpos / 2) 
+				minfirstline = 0;
+			firstblankedline = vbstrt;
+		}
+		
 		if (minfirstline < 2)
 			minfirstline = 2;
 		if (minfirstline >= maxvpos)
 			minfirstline = maxvpos - 1;
+
+		if (firstblankedline < minfirstline)
+			firstblankedline = maxvpos + 1;
+
 		sprite_vblank_endline = minfirstline - 2;
 		maxvpos_nom = maxvpos;
 		maxvpos_display = maxvpos;
@@ -3926,15 +3932,35 @@ void init_hz (bool fullinit)
 		vblank_hz = 300;
 	maxhpos_short = maxhpos;
 	set_delay_lastcycle ();
-	if (beamcon0 & 0x80) {
-		if (hbstrt > maxhpos)
-			hsyncstartpos = hbstrt;
-		else
-			hsyncstartpos = maxhpos + hbstrt;
-		if (hbstop > maxhpos)
-			hsyncendpos = maxhpos - hbstop - 2;
-		else
-			hsyncendpos = hbstop - 2;
+	if ((beamcon0 & 0x80) && (beamcon0 & 0x0100)) {
+
+		hsyncstartpos = hsstrt;
+		hsyncendpos = hsstop;
+
+		if ((bplcon0 & 1) && (bplcon3 & 1)) {
+
+			if (hbstrt > maxhpos / 2) {
+				if (hsyncstartpos < hbstrt)
+					hsyncstartpos = hbstrt;
+			} else {
+				if (hsyncstartpos > hbstrt)
+					hsyncstartpos = hbstrt;
+			}
+
+			if (hbstop > maxhpos / 2) {
+				if (hsyncendpos > hbstop)
+					hsyncendpos = hbstop;
+			} else {
+				if (hsyncendpos < hbstop)
+					hsyncendpos = hbstop;
+			}
+		}
+
+		if (hsyncstartpos < hsyncendpos)
+			hsyncstartpos = maxhpos + hsyncstartpos;
+
+		hsyncendpos--;
+
 		if (hsyncendpos < 2)
 			hsyncendpos = 2;
 	} else {
@@ -4730,6 +4756,7 @@ static void BEAMCON0 (uae_u16 v)
 			if (v & ~0x20)
 				write_log (_T("warning: %04X written to BEAMCON0 PC=%08X\n"), v, M68K_GETPC);
 		}
+		calcdiw();
 	}
 }
 
@@ -4840,14 +4867,6 @@ static void BPLCON0_Denise (int hpos, uae_u16 v, bool immediate)
 	// fake unused 0x0080 bit as an EHB bit (see below)
 	if (isehb (bplcon0d, bplcon2))
 		v |= 0x80;
-#if 0
-	if (hpos >= 0x18 && is_bitplane_dma (hpos - 2) == 1) {
-		for (int i = 0; i < MAX_PLANES; i++) {
-			if (i >= GET_PLANES (bplcon0))
-				todisplay[i][0] = 0;
-		}
-	}
-#endif
 	if (immediate) {
 		record_register_change (hpos, 0x100, v);
 	} else {
@@ -5001,7 +5020,7 @@ static void BPL2MOD (int hpos, uae_u16 v)
  */
 static void BPLxDAT (int hpos, int num, uae_u16 v)
 {
-	// only BPL0DAT access can do anything visible
+	// only BPL1DAT access can do anything visible
 	if (num == 0 && hpos >= 8) {
 		decide_line (hpos);
 		decide_fetch_safe (hpos);
@@ -8591,7 +8610,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 	case 0x1C0: if (htotal != value) { htotal = value & (MAXHPOS_ROWS - 1); varsync (); } break;
 	case 0x1C2: if (hsstop != value) { hsstop = value & (MAXHPOS_ROWS - 1); varsync (); } break;
 	case 0x1C4: if (hbstrt != value) { hbstrt = value & (MAXHPOS_ROWS - 1); varsync (); } break;
-	case 0x1C6: if (hbstop != value) { hbstop = value & (MAXHPOS_ROWS - 1); varsync (); } break;
+	case 0x1C6:	if (hbstop != value) { hbstop = value & (MAXHPOS_ROWS - 1); varsync ();} break;
 	case 0x1C8: if (vtotal != value) { vtotal = value & (MAXVPOS_LINES_ECS - 1); varsync (); } break;
 	case 0x1CA: if (vsstop != value) { vsstop = value & (MAXVPOS_LINES_ECS - 1); varsync (); } break;
 	case 0x1CC: if (vbstrt < value || vbstrt > (value & (MAXVPOS_LINES_ECS - 1)) + 1) { vbstrt = value & (MAXVPOS_LINES_ECS - 1); varsync (); } break;
@@ -9154,6 +9173,7 @@ uae_u8 *restore_custom_extra (uae_u8 *src)
 	currprefs.cs_ksmirror_a8 = changed_prefs.cs_ksmirror_a8 = RBB;
 	currprefs.cs_ksmirror_e0 = changed_prefs.cs_ksmirror_e0 = RBB;
 	currprefs.cs_resetwarning = changed_prefs.cs_resetwarning = RBB;
+	currprefs.cs_z3autoconfig = changed_prefs.cs_z3autoconfig = RBB;
 
 	return src;
 }
@@ -9205,6 +9225,7 @@ uae_u8 *save_custom_extra (int *len, uae_u8 *dstptr)
 	SB (currprefs.cs_ksmirror_a8 ? 1 : 0);
 	SB (currprefs.cs_ksmirror_e0 ? 1 : 0);
 	SB (currprefs.cs_resetwarning ? 1 : 0);
+	SB (currprefs.cs_z3autoconfig ? 1 : 0);
 
 	*len = dst - dstbak;
 	return dstbak;
@@ -9319,6 +9340,7 @@ void check_prefs_changed_custom (void)
 	currprefs.cs_slowmemisfast = changed_prefs.cs_slowmemisfast;
 	currprefs.cs_dipagnus = changed_prefs.cs_dipagnus;
 	currprefs.cs_denisenoehb = changed_prefs.cs_denisenoehb;
+	currprefs.cs_z3autoconfig = changed_prefs.cs_z3autoconfig;
 
 	if (currprefs.chipset_mask != changed_prefs.chipset_mask ||
 		currprefs.picasso96_nocustom != changed_prefs.picasso96_nocustom ||

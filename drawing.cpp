@@ -743,6 +743,7 @@ PLAYFIELD_START and PLAYFIELD_END are in window coordinates.  */
 static int playfield_start, playfield_end;
 static int real_playfield_start, real_playfield_end;
 static int sprite_playfield_start;
+static bool may_require_hard_way;
 static int linetoscr_diw_start, linetoscr_diw_end;
 static int native_ddf_left, native_ddf_right;
 
@@ -850,6 +851,7 @@ static void pfield_init_linetoscr (bool border)
 	}
 
 #ifdef AGA
+	may_require_hard_way = false;
 	if (dp_for_drawing->bordersprite_seen && !colors_for_drawing.borderblank && dip_for_drawing->nr_sprites) {
 		int min = visible_right_border, max = visible_left_border, i;
 		for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
@@ -873,6 +875,8 @@ static void pfield_init_linetoscr (bool border)
 			playfield_end = max;
 		if (playfield_end > visible_right_border)
 			playfield_end = visible_right_border;
+		sprite_playfield_start = 0;
+		may_require_hard_way = true;
 	}
 #endif
 
@@ -1930,6 +1934,10 @@ static void weird_bitplane_fix (int start, int end)
 	}
 }
 
+/* We use the compiler's inlining ability to ensure that PLANES is in effect a compile time
+constant.  That will cause some unnecessary code to be optimized away.
+Don't touch this if you don't know what you are doing.  */
+
 #define MERGE(a,b,mask,shift) do {\
 	uae_u32 tmp = mask & (a ^ (b >> shift)); \
 	a ^= tmp; \
@@ -1938,9 +1946,6 @@ static void weird_bitplane_fix (int start, int end)
 
 #define GETLONG(P) (*(uae_u32 *)P)
 
-/* We use the compiler's inlining ability to ensure that PLANES is in effect a compile time
-constant.  That will cause some unnecessary code to be optimized away.
-Don't touch this if you don't know what you are doing.  */
 STATIC_INLINE void pfield_doline_1 (uae_u32 *pixels, int wordcount, int planes)
 {
 	while (wordcount-- > 0) {
@@ -2303,6 +2308,24 @@ static void adjust_drawing_colors (int ctable, int need_full)
 	}
 }
 
+static void playfield_hard_way(line_draw_func worker_pfield, int first, int last)
+{
+	if (first < real_playfield_start)  {
+		int next = last < real_playfield_start ? last : real_playfield_start;
+		int diff = next - first;
+		pfield_do_linetoscr_bordersprite_aga(first, next, false);
+		if (res_shift >= 0)
+			diff >>= res_shift;
+		else
+			diff <<= res_shift;
+		src_pixel += diff;
+		first = next;
+	}
+	(*worker_pfield)(first, last < real_playfield_end ? last : real_playfield_end, false);
+	if (last > real_playfield_end)
+		pfield_do_linetoscr_bordersprite_aga(real_playfield_end, last, false);
+}
+
 static void do_color_changes (line_draw_func worker_border, line_draw_func worker_pfield, int vp)
 {
 	int i;
@@ -2342,7 +2365,10 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 			int t = nextpos_in_range <= playfield_end ? nextpos_in_range : playfield_end;
 			if (plf2pri > 5 && bplplanecnt == 5 && !(currprefs.chipset_mask & CSMASK_AGA))
 				weird_bitplane_fix (lastpos, t);
-			(*worker_pfield) (lastpos, t, false);
+			if (bplxor && may_require_hard_way && worker_pfield != pfield_do_linetoscr_bordersprite_aga)
+				playfield_hard_way(worker_pfield, lastpos, t);
+			else
+				(*worker_pfield) (lastpos, t, false);
 			lastpos = t;
 		}
 

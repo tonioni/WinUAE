@@ -1322,12 +1322,12 @@ static int gethdnum (int n)
 {
 	struct uaedev_config_data *uci = &currprefs.mountconfig[n];
 	int num = -1;
-	if (uci->ci.controller == HD_CONTROLLER_UAE) {
+	if (uci->ci.controller_type == HD_CONTROLLER_TYPE_UAE) {
 		num = n;
-	} else if (uci->ci.controller <= HD_CONTROLLER_IDE3 ) {
-		num = uci->ci.controller - HD_CONTROLLER_IDE0;
-	} else if (uci->ci.controller <= HD_CONTROLLER_SCSI6) {
-		num = uci->ci.controller - HD_CONTROLLER_SCSI0;
+	} else if (uci->ci.controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && uci->ci.controller_type <= HD_CONTROLLER_TYPE_IDE_LAST) {
+		num = uci->ci.controller_unit;
+	} else if (uci->ci.controller_type >= HD_CONTROLLER_TYPE_SCSI_FIRST && uci->ci.controller_type <= HD_CONTROLLER_TYPE_SCSI_LAST) {
+		num = uci->ci.controller_unit;
 	}
 	return num;
 }

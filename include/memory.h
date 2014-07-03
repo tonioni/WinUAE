@@ -106,7 +106,87 @@ typedef struct {
 #define CE_MEMBANK_FAST16 4
 extern uae_u8 ce_banktype[65536], ce_cachable[65536];
 
-#define MEMORY_LGET(name) \
+#ifdef JIT
+#define MEMORY_LGET(name, nojit) \
+static uae_u32 REGPARAM3 name ## _lget (uaecptr) REGPARAM; \
+static uae_u32 REGPARAM2 name ## _lget (uaecptr addr) \
+{ \
+	uae_u8 *m; \
+	if (nojit) special_mem |= S_READ; \
+	addr -= name ## _bank.start & name ## _bank.mask; \
+	addr &= name ## _bank.mask; \
+	m = name ## _bank.baseaddr + addr; \
+	return do_get_mem_long ((uae_u32 *)m); \
+}
+#define MEMORY_WGET(name, nojit) \
+static uae_u32 REGPARAM3 name ## _wget (uaecptr) REGPARAM; \
+static uae_u32 REGPARAM2 name ## _wget (uaecptr addr) \
+{ \
+	uae_u8 *m; \
+	if (nojit) special_mem |= S_READ; \
+	addr -= name ## _bank.start & name ## _bank.mask; \
+	addr &= name ## _bank.mask; \
+	m = name ## _bank.baseaddr + addr; \
+	return do_get_mem_word ((uae_u16 *)m); \
+}
+#define MEMORY_BGET(name, nojit) \
+static uae_u32 REGPARAM3 name ## _bget (uaecptr) REGPARAM; \
+static uae_u32 REGPARAM2 name ## _bget (uaecptr addr) \
+{ \
+	if (nojit) special_mem |= S_READ; \
+	addr -= name ## _bank.start & name ## _bank.mask; \
+	addr &= name ## _bank.mask; \
+	return name ## _bank.baseaddr[addr]; \
+}
+#define MEMORY_LPUT(name, nojit) \
+static void REGPARAM3 name ## _lput (uaecptr, uae_u32) REGPARAM; \
+static void REGPARAM2 name ## _lput (uaecptr addr, uae_u32 l) \
+{ \
+	uae_u8 *m;  \
+	if (nojit) special_mem |= S_WRITE; \
+	addr -= name ## _bank.start & name ## _bank.mask; \
+	addr &= name ## _bank.mask; \
+	m = name ## _bank.baseaddr + addr; \
+	do_put_mem_long ((uae_u32 *)m, l); \
+}
+#define MEMORY_WPUT(name, nojit) \
+static void REGPARAM3 name ## _wput (uaecptr, uae_u32) REGPARAM; \
+static void REGPARAM2 name ## _wput (uaecptr addr, uae_u32 w) \
+{ \
+	uae_u8 *m;  \
+	if (nojit) special_mem |= S_WRITE; \
+	addr -= name ## _bank.start & name ## _bank.mask; \
+	addr &= name ## _bank.mask; \
+	m = name ## _bank.baseaddr + addr; \
+	do_put_mem_word ((uae_u16 *)m, w); \
+}
+#define MEMORY_BPUT(name, nojit) \
+static void REGPARAM3 name ## _bput (uaecptr, uae_u32) REGPARAM; \
+static void REGPARAM2 name ## _bput (uaecptr addr, uae_u32 b) \
+{ \
+	if (nojit) special_mem |= S_WRITE; \
+	addr -= name ## _bank.start & name ## _bank.mask; \
+	addr &= name ## _bank.mask; \
+	name ## _bank.baseaddr[addr] = b; \
+}
+#define MEMORY_CHECK(name) \
+static int REGPARAM3 name ## _check (uaecptr addr, uae_u32 size) REGPARAM; \
+static int REGPARAM2 name ## _check (uaecptr addr, uae_u32 size) \
+{ \
+	addr -= name ## _bank.start & name ## _bank.mask; \
+	addr &= name ## _bank.mask; \
+	return (addr + size) <= name ## _bank.allocated; \
+}
+#define MEMORY_XLATE(name) \
+static uae_u8 *REGPARAM3 name ## _xlate (uaecptr addr) REGPARAM; \
+static uae_u8 *REGPARAM2 name ## _xlate (uaecptr addr) \
+{ \
+	addr -= name ## _bank.start & name ## _bank.mask; \
+	addr &= name ## _bank.mask; \
+	return name ## _bank.baseaddr + addr; \
+}
+#else
+#define MEMORY_LGET(name, nojit) \
 static uae_u32 REGPARAM3 name ## _lget (uaecptr) REGPARAM; \
 static uae_u32 REGPARAM2 name ## _lget (uaecptr addr) \
 { \
@@ -116,7 +196,7 @@ static uae_u32 REGPARAM2 name ## _lget (uaecptr addr) \
 	m = name ## _bank.baseaddr + addr; \
 	return do_get_mem_long ((uae_u32 *)m); \
 }
-#define MEMORY_WGET(name) \
+#define MEMORY_WGET(name, nojit) \
 static uae_u32 REGPARAM3 name ## _wget (uaecptr) REGPARAM; \
 static uae_u32 REGPARAM2 name ## _wget (uaecptr addr) \
 { \
@@ -126,7 +206,7 @@ static uae_u32 REGPARAM2 name ## _wget (uaecptr addr) \
 	m = name ## _bank.baseaddr + addr; \
 	return do_get_mem_word ((uae_u16 *)m); \
 }
-#define MEMORY_BGET(name) \
+#define MEMORY_BGET(name, nojit) \
 static uae_u32 REGPARAM3 name ## _bget (uaecptr) REGPARAM; \
 static uae_u32 REGPARAM2 name ## _bget (uaecptr addr) \
 { \
@@ -134,7 +214,7 @@ static uae_u32 REGPARAM2 name ## _bget (uaecptr addr) \
 	addr &= name ## _bank.mask; \
 	return name ## _bank.baseaddr[addr]; \
 }
-#define MEMORY_LPUT(name) \
+#define MEMORY_LPUT(name, nojit) \
 static void REGPARAM3 name ## _lput (uaecptr, uae_u32) REGPARAM; \
 static void REGPARAM2 name ## _lput (uaecptr addr, uae_u32 l) \
 { \
@@ -144,7 +224,7 @@ static void REGPARAM2 name ## _lput (uaecptr addr, uae_u32 l) \
 	m = name ## _bank.baseaddr + addr; \
 	do_put_mem_long ((uae_u32 *)m, l); \
 }
-#define MEMORY_WPUT(name) \
+#define MEMORY_WPUT(name, nojit) \
 static void REGPARAM3 name ## _wput (uaecptr, uae_u32) REGPARAM; \
 static void REGPARAM2 name ## _wput (uaecptr addr, uae_u32 w) \
 { \
@@ -154,7 +234,7 @@ static void REGPARAM2 name ## _wput (uaecptr addr, uae_u32 w) \
 	m = name ## _bank.baseaddr + addr; \
 	do_put_mem_word ((uae_u16 *)m, w); \
 }
-#define MEMORY_BPUT(name) \
+#define MEMORY_BPUT(name, nojit) \
 static void REGPARAM3 name ## _bput (uaecptr, uae_u32) REGPARAM; \
 static void REGPARAM2 name ## _bput (uaecptr addr, uae_u32 b) \
 { \
@@ -178,14 +258,24 @@ static uae_u8 *REGPARAM2 name ## _xlate (uaecptr addr) \
 	addr &= name ## _bank.mask; \
 	return name ## _bank.baseaddr + addr; \
 }
+#endif
 
 #define MEMORY_FUNCTIONS(name) \
-MEMORY_LGET(name); \
-MEMORY_WGET(name); \
-MEMORY_BGET(name); \
-MEMORY_LPUT(name); \
-MEMORY_WPUT(name); \
-MEMORY_BPUT(name); \
+MEMORY_LGET(name, 0); \
+MEMORY_WGET(name, 0); \
+MEMORY_BGET(name, 0); \
+MEMORY_LPUT(name, 0); \
+MEMORY_WPUT(name, 0); \
+MEMORY_BPUT(name, 0); \
+MEMORY_CHECK(name); \
+MEMORY_XLATE(name);
+#define MEMORY_FUNCTIONS_NOJIT(name) \
+MEMORY_LGET(name, 1); \
+MEMORY_WGET(name, 1); \
+MEMORY_BGET(name, 1); \
+MEMORY_LPUT(name, 1); \
+MEMORY_WPUT(name, 1); \
+MEMORY_BPUT(name, 1); \
 MEMORY_CHECK(name); \
 MEMORY_XLATE(name);
 
@@ -202,6 +292,9 @@ extern addrbank cia_bank;
 extern addrbank rtarea_bank;
 extern addrbank expamem_bank;
 extern addrbank fastmem_bank;
+extern addrbank fastmem_nojit_bank;
+extern addrbank fastmem2_bank;
+extern addrbank fastmem2_nojit_bank;
 extern addrbank gfxmem_bank;
 extern addrbank gayle_bank;
 extern addrbank gayle2_bank;
@@ -270,7 +363,7 @@ extern void map_banks_cond (addrbank *bank, int first, int count, int realsize);
 extern void map_overlay (int chip);
 extern void memory_hardreset (int);
 extern void memory_clear (void);
-extern void free_fastmemory (void);
+extern void free_fastmemory (int);
 
 #define longget(addr) (call_mem_get_func(get_mem_bank(addr).lget, addr))
 #define wordget(addr) (call_mem_get_func(get_mem_bank(addr).wget, addr))

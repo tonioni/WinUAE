@@ -130,6 +130,7 @@ struct SCSIBus {
 
     SCSISense unit_attention;
     const SCSIBusInfo *info;
+	void *privdata;
 };
 
 //void scsi_bus_new(SCSIBus *bus, size_t bus_size, DeviceState *host,

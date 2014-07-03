@@ -1942,7 +1942,7 @@ int win32_hardfile_media_change (const TCHAR *drvname, int inserted)
 		extern struct hd_hardfiledata *pcmcia_sram;
 		int reopen = 0;
 		struct uaedev_config_data *uci = &currprefs.mountconfig[i];
-		if (uci->ci.controller == HD_CONTROLLER_PCMCIA_SRAM) {
+		if (uci->ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA_SRAM) {
 			hmc_check (&pcmcia_sram->hfd, uci, &rescanned, &reopen, &gotinsert, drvname, inserted);
 		}
 	}

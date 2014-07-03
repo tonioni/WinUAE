@@ -215,7 +215,7 @@ typedef struct {
 
 static uae_u16 bigmfmbufw[0x4000 * DDHDMULT];
 static drive floppy[MAX_FLOPPY_DRIVES];
-static TCHAR dfxhistory[2][MAX_PREVIOUS_FLOPPIES][MAX_DPATH];
+static TCHAR dfxhistory[HISTORY_MAX][MAX_PREVIOUS_IMAGES][MAX_DPATH];
 
 static uae_u8 exeheader[]={0x00,0x00,0x03,0xf3,0x00,0x00,0x00,0x00};
 static uae_u8 bootblock_ofs[]={
@@ -2561,51 +2561,55 @@ int DISK_history_add (const TCHAR *name, int idx, int type, int donotcheck)
 {
 	int i;
 
-	if (idx >= MAX_PREVIOUS_FLOPPIES)
+	if (idx >= MAX_PREVIOUS_IMAGES)
 		return 0;
 	if (name == NULL) {
+		if (idx < 0)
+			return 0;
 		dfxhistory[type][idx][0] = 0;
 		return 1;
 	}
 	if (name[0] == 0)
 		return 0;
+#if 0
 	if (!donotcheck) {
 		if (!zfile_exists (name)) {
-			for (i = 0; i < MAX_PREVIOUS_FLOPPIES; i++) {
+			for (i = 0; i < MAX_PREVIOUS_IMAGES; i++) {
 				if (!_tcsicmp (dfxhistory[type][i], name)) {
-					while (i < MAX_PREVIOUS_FLOPPIES - 1) {
+					while (i < MAX_PREVIOUS_IMAGES - 1) {
 						_tcscpy (dfxhistory[type][i], dfxhistory[type][i + 1]);
 						i++;
 					}
-					dfxhistory[type][MAX_PREVIOUS_FLOPPIES - 1][0] = 0;
+					dfxhistory[type][MAX_PREVIOUS_IMAGES - 1][0] = 0;
 					break;
 				}
 			}
 			return 0;
 		}
 	}
+#endif
 	if (idx >= 0) {
-		if (idx >= MAX_PREVIOUS_FLOPPIES)
+		if (idx >= MAX_PREVIOUS_IMAGES)
 			return 0;
 		dfxhistory[type][idx][0] = 0;
-		for (i = 0; i < MAX_PREVIOUS_FLOPPIES; i++) {
+		for (i = 0; i < MAX_PREVIOUS_IMAGES; i++) {
 			if (!_tcsicmp (dfxhistory[type][i], name))
 				return 0;
 		}
 		_tcscpy (dfxhistory[type][idx], name);
 		return 1;
 	}
-	for (i = 0; i < MAX_PREVIOUS_FLOPPIES; i++) {
+	for (i = 0; i < MAX_PREVIOUS_IMAGES; i++) {
 		if (!_tcscmp (dfxhistory[type][i], name)) {
-			while (i < MAX_PREVIOUS_FLOPPIES - 1) {
+			while (i < MAX_PREVIOUS_IMAGES - 1) {
 				_tcscpy (dfxhistory[type][i], dfxhistory[type][i + 1]);
 				i++;
 			}
-			dfxhistory[type][MAX_PREVIOUS_FLOPPIES - 1][0] = 0;
+			dfxhistory[type][MAX_PREVIOUS_IMAGES - 1][0] = 0;
 			break;
 		}
 	}
-	for (i = MAX_PREVIOUS_FLOPPIES - 2; i >= 0; i--)
+	for (i = MAX_PREVIOUS_IMAGES - 2; i >= 0; i--)
 		_tcscpy (dfxhistory[type][i + 1], dfxhistory[type][i]);
 	_tcscpy (dfxhistory[type][0], name);
 	return 1;
@@ -2613,7 +2617,7 @@ int DISK_history_add (const TCHAR *name, int idx, int type, int donotcheck)
 
 TCHAR *DISK_history_get (int idx, int type)
 {
-	if (idx >= MAX_PREVIOUS_FLOPPIES)
+	if (idx >= MAX_PREVIOUS_IMAGES)
 		return NULL;
 	return dfxhistory[type][idx];
 }
@@ -3512,7 +3516,10 @@ void DSKLEN (uae_u16 v, int hpos)
 
 	DISK_update (hpos);
 
-	if ((v & 0x8000) && (dsklen & 0x8000)) {
+	dsklen = v;
+	dsklength2 = dsklength = dsklen & 0x3fff;
+
+	if ((dsklen & 0x8000) && (prev & 0x8000)) {
 		dskdmaen = DSKDMA_READ;
 		DISK_start ();
 	}
@@ -3534,8 +3541,6 @@ void DSKLEN (uae_u16 v, int hpos)
 			dskdmaen = DSKDMA_OFF;
 		}
 	}
-	dsklen = v;
-	dsklength2 = dsklength = dsklen & 0x3fff;
 
 	if (dskdmaen == DSKDMA_OFF)
 		return;

@@ -359,7 +359,6 @@ int regexiststree (UAEREG *root, const TCHAR *name)
 	}
 }
 
-
 UAEREG *regcreatetree (UAEREG *root, const TCHAR *name)
 {
 	UAEREG *fkey;
@@ -407,14 +406,9 @@ void regclosetree (UAEREG *key)
 	xfree (key);
 }
 
-static uae_u8 crcok[20] = { 0xaf,0xb7,0x36,0x15,0x05,0xca,0xe6,0x9d,0x23,0x17,0x4d,0x50,0x2b,0x5c,0xc3,0x64,0x38,0xb8,0x4e,0xfc };
-
 int reginitializeinit (TCHAR **pppath)
 {
 	UAEREG *r = NULL;
-	TCHAR tmp1[1000];
-	uae_u8 crc[20];
-	int s, v1, v2, v3;
 	TCHAR path[MAX_DPATH], fpath[MAX_PATH];
 	FILE *f;
 	TCHAR *ppath = *pppath;
@@ -451,29 +445,6 @@ int reginitializeinit (TCHAR **pppath)
 	inipath = my_strdup (fpath);
 	if (!regexists (NULL, _T("Version")))
 		goto fail;
-	r = regcreatetree (NULL, _T("Warning"));
-	if (!r)
-		goto fail;
-	memset (tmp1, 0, sizeof tmp1);
-	s = 200;
-	if (!regquerystr (r, _T("info1"), tmp1, &s))
-		goto fail;
-	if (!regquerystr (r, _T("info2"), tmp1 + 200, &s))
-		goto fail;
-	get_sha1 (tmp1, sizeof tmp1, crc);
-	if (memcmp (crc, crcok, sizeof crcok))
-		goto fail;
-	v1 = v2 = -1;
-	regsetint (r, _T("check"), 1);
-	regqueryint (r, _T("check"), &v1);
-	regsetint (r, _T("check"), 3);
-	regqueryint (r, _T("check"), &v2);
-	regdelete (r, _T("check"));
-	if (regqueryint (r, _T("check"), &v3))
-		goto fail;
-	if (v1 != 1 || v2 != 3)
-		goto fail;
-	regclosetree (r);
 	return 1;
 fail:
 	regclosetree (r);
@@ -487,12 +458,6 @@ fail:
 		fwrite (bom, sizeof (bom), 1, f);
 		fclose (f);
 	}
-	r = regcreatetree (NULL, _T("Warning"));
-	if (!r)
-		goto end;
-	regsetstr (r, _T("info1"), _T("This is unsupported file. Compatibility between versions is not guaranteed."));
-	regsetstr (r, _T("info2"), _T("Incompatible ini-files may be re-created from scratch!"));
-	regclosetree (r);
 	if (*pppath == NULL)
 		*pppath = my_strdup (path);
 	return 1;
@@ -505,10 +470,12 @@ end:
 void regstatus (void)
 {
 	if (inimode)
-		write_log (_T("WARNING: Unsupported '%s' enabled\n"), inipath);
+		write_log (_T("'%s' enabled\n"), inipath);
 }
 
 int getregmode (void)
 {
+	if (!inimode)
+		return 0;
 	return inimode;
 }

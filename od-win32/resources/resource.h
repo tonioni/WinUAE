@@ -435,6 +435,7 @@
 #define IDC_DISPLAY_BUFFERCNT           1028
 #define IDC_PORT0_JOYSMODE              1029
 #define IDC_SCREENMODE_NATIVE2          1029
+#define IDC_FASTMEM2                    1029
 #define IDC_SLOWMEM                     1030
 #define IDC_PORT1_JOYSMODE              1030
 #define IDC_SCREENMODE_RTG2             1030
@@ -450,6 +451,7 @@
 #define IDC_CHIPRAM                     1045
 #define IDC_SLOWRAM                     1046
 #define IDC_Z3TEXT                      1047
+#define IDC_FASTRAM2                    1047
 #define IDC_Z3FASTRAM                   1048
 #define IDC_Z3FASTMEM                   1049
 #define IDC_MBRAM1                      1050
@@ -679,6 +681,7 @@
 #define IDC_HDF_CONTROLLER              1504
 #define IDC_RESETAMIGA                  1504
 #define IDC_QUITEMU                     1505
+#define IDC_HDF_CONTROLLER_UNIT         1505
 #define IDC_MAPDRIVES                   1507
 #define IDC_CPUTEXT                     1508
 #define IDC_MAPDRIVES_NET               1508
@@ -686,7 +689,6 @@
 #define IDC_CACHETEXT                   1509
 #define IDC_SWAP                        1509
 #define IDC_MAPDRIVES_CD                1509
-#define IDC_RESTARTEMU2                 1509
 #define IDC_ERRORLOG                    1509
 #define IDC_SELECTRESTEXT               1510
 #define IDC_FLUSHPRINTER                1510
@@ -1066,6 +1068,7 @@
 #define IDC_CS_RESETWARNING2            1752
 #define IDC_CS_CIATODBUG                1752
 #define IDC_DBG_MEMINPUT                1753
+#define IDC_CS_Z3AUTOCONFIG             1753
 #define IDC_DBG_MEMDOWN                 1754
 #define IDC_DBG_MEMUP                   1755
 #define IDC_DBG_MEM                     1756
@@ -1129,6 +1132,7 @@
 #define IDC_ASSOCIATE_ON                1792
 #define IDC_DD_SURFACETYPE2             1792
 #define IDC_DXMODE                      1792
+#define IDC_REGISTRYMODE                1792
 #define IDC_RTG_VBLANKRATE              1793
 #define IDC_DF0WPTEXTQ                  1793
 #define IDC_WINDOWEDMODE                1793
@@ -1155,6 +1159,7 @@
 #define IDC_CD_SELECT                   1807
 #define IDC_FASTMEMAUTOCONFIG           1808
 #define IDC_RTG_DISPLAYSELECT           1809
+#define IDC_Z3REALMAPPING               1809
 #define IDC_MISCLIST                    1810
 #define IDC_STATENAME                   1811
 #define IDC_SAMPLER_STEREO              1812

@@ -305,13 +305,27 @@ void fixup_prefs (struct uae_prefs *p)
 		p->chipmem_size = 0x200000;
 		err = 1;
 	}
+
 	if ((p->fastmem_size & (p->fastmem_size - 1)) != 0
-		|| (p->fastmem_size != 0 && (p->fastmem_size < 0x100000 || p->fastmem_size > 0x800000)))
-{
+		|| (p->fastmem_size != 0 && (p->fastmem_size < 0x10000 || p->fastmem_size > 0x800000)))
+	{
 		error_log (_T("Unsupported fastmem size %d (0x%x)."), p->fastmem_size, p->fastmem_size);
 		p->fastmem_size = 0;
 		err = 1;
 	}
+	if ((p->fastmem2_size & (p->fastmem2_size - 1)) != 0 || (p->fastmem_size + p->fastmem2_size) > 0x800000 + 262144
+		|| (p->fastmem2_size != 0 && (p->fastmem2_size < 0x10000 || p->fastmem_size > 0x800000)))
+	{
+		error_log (_T("Unsupported fastmem2 size %d (0x%x)."), p->fastmem2_size, p->fastmem2_size);
+		p->fastmem2_size = 0;
+		err = 1;
+	}
+	if (p->fastmem2_size > p->fastmem_size) {
+		error_log (_T("fastmem2 size can't be larger than fastmem1."));
+		p->fastmem2_size = 0;
+		err = 1;
+	}
+
 	if (p->rtgmem_size > max_z3fastmem && p->rtgmem_type == GFXBOARD_UAE_Z3) {
 		error_log (_T("Graphics card memory size %d (0x%x) larger than maximum reserved %d (0x%x)."), p->rtgmem_size, p->rtgmem_size, max_z3fastmem, max_z3fastmem);
 		p->rtgmem_size = max_z3fastmem;
@@ -359,9 +373,9 @@ void fixup_prefs (struct uae_prefs *p)
 		p->z3chipmem_size = max_z3fastmem;
 		err = 1;
 	}
-	if ((p->z3chipmem_size & (p->z3chipmem_size - 1)) != 0 || (p->z3chipmem_size != 0 && p->z3chipmem_size < 0x100000))
+	if (((p->z3chipmem_size & (p->z3chipmem_size - 1)) != 0 &&  p->z3chipmem_size != 0x18000000 && p->z3chipmem_size != 0x30000000) || (p->z3chipmem_size != 0 && p->z3chipmem_size < 0x100000))
 	{
-		error_log (_T("Unsupported Zorro III fake chipmem size %d (0x%x)."), p->z3chipmem_size, p->z3chipmem_size);
+		error_log (_T("Unsupported 32-bit chipmem size %d (0x%x)."), p->z3chipmem_size, p->z3chipmem_size);
 		p->z3chipmem_size = 0;
 		err = 1;
 	}
@@ -381,7 +395,7 @@ void fixup_prefs (struct uae_prefs *p)
 		p->bogomem_size = 0x180000;
 		error_log (_T("Possible Gayle bogomem conflict fixed."));
 	}
-	if (p->chipmem_size > 0x200000 && p->fastmem_size != 0) {
+	if (p->chipmem_size > 0x200000 && p->fastmem_size > 262144) {
 		error_log (_T("You can't use fastmem and more than 2MB chip at the same time."));
 		p->fastmem_size = 0;
 		err = 1;
@@ -449,6 +463,14 @@ void fixup_prefs (struct uae_prefs *p)
 	if (p->cachesize < 0 || p->cachesize > 16384) {
 		error_log (_T("Bad value for cachesize parameter: value must be within 0..16384."));
 		p->cachesize = 0;
+		err = 1;
+	}
+	if (!p->jit_direct_compatible_memory && p->comptrustbyte) {
+		error_log(_T("JIT direct compatible memory option is disabled, disabling JIT direct."));
+		p->comptrustbyte = 0;
+		p->comptrustlong = 0;
+		p->comptrustlong = 0;
+		p->comptrustnaddr = 0;
 		err = 1;
 	}
 	if ((p->z3fastmem_size || p->z3fastmem2_size || p->z3chipmem_size) && (p->address_space_24 || p->cpu_model < 68020)) {
@@ -519,6 +541,9 @@ void fixup_prefs (struct uae_prefs *p)
 	if (p->genlock && p->monitoremu) {
 		error_log (_T("Genlock and A2024 or Graffiti can't be active simultaneously."));
 		p->genlock = false;
+	}
+	if (p->cs_hacks) {
+		error_log (_T("chipset_hacks is nonzero."));
 	}
 
 	fixup_prefs_dimensions (p);

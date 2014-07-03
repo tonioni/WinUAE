@@ -29,6 +29,7 @@
 #include "akiko.h"
 #include "arcadia.h"
 #include "enforcer.h"
+#include "threaddep/thread.h"
 #include "a2091.h"
 #include "gayle.h"
 #include "debug.h"
@@ -757,9 +758,9 @@ static void REGPARAM3 kickmem_lput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 kickmem_wput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 kickmem_bput (uaecptr, uae_u32) REGPARAM;
 
-MEMORY_BGET(kickmem);
-MEMORY_WGET(kickmem);
-MEMORY_LGET(kickmem);
+MEMORY_BGET(kickmem, 0);
+MEMORY_WGET(kickmem, 0);
+MEMORY_LGET(kickmem, 0);
 MEMORY_CHECK(kickmem);
 MEMORY_XLATE(kickmem);
 
@@ -879,9 +880,9 @@ static void REGPARAM3 extendedkickmem_lput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 extendedkickmem_wput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 extendedkickmem_bput (uaecptr, uae_u32) REGPARAM;
 
-MEMORY_BGET(extendedkickmem);
-MEMORY_WGET(extendedkickmem);
-MEMORY_LGET(extendedkickmem);
+MEMORY_BGET(extendedkickmem, 0);
+MEMORY_WGET(extendedkickmem, 0);
+MEMORY_LGET(extendedkickmem, 0);
 MEMORY_CHECK(extendedkickmem);
 MEMORY_XLATE(extendedkickmem);
 
@@ -915,9 +916,9 @@ static void REGPARAM3 extendedkickmem2_lput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 extendedkickmem2_wput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 extendedkickmem2_bput (uaecptr, uae_u32) REGPARAM;
 
-MEMORY_BGET(extendedkickmem2);
-MEMORY_WGET(extendedkickmem2);
-MEMORY_LGET(extendedkickmem2);
+MEMORY_BGET(extendedkickmem2, 0);
+MEMORY_WGET(extendedkickmem2, 0);
+MEMORY_LGET(extendedkickmem2, 0);
 MEMORY_CHECK(extendedkickmem2);
 MEMORY_XLATE(extendedkickmem2);
 
@@ -1646,9 +1647,10 @@ uae_u8 *mapped_malloc (size_t s, const TCHAR *file)
 	int id;
 	void *answer;
 	shmpiece *x;
+	bool rtgmem = !_tcsicmp(file, _T("z3_gfx")) || !_tcsicmp(file, _T("z2_gfx"));
 	static int recurse;
 
-	if (!needmman ()) {
+	if (!needmman () && (!rtgmem || currprefs.cpu_model < 68020)) {
 		nocanbang ();
 		return xcalloc (uae_u8, s + 4);
 	}
@@ -1745,8 +1747,12 @@ static void allocate_memory (void)
 		int memsize;
 		mapped_free (chipmem_bank.baseaddr);
 		chipmem_bank.baseaddr = 0;
-		if (currprefs.chipmem_size > 2 * 1024 * 1024)
-			free_fastmemory ();
+		if (currprefs.chipmem_size > 2 * 1024 * 1024) {
+			if (currprefs.fastmem_size >= 524288)
+				free_fastmemory (0);
+			if (currprefs.fastmem2_size >= 524288)
+				free_fastmemory (1);
+		}
 
 		memsize = chipmem_bank.allocated = chipmem_full_size = currprefs.chipmem_size;
 		chipmem_full_mask = chipmem_bank.mask = chipmem_bank.allocated - 1;

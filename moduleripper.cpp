@@ -53,6 +53,8 @@ void moduleripper (void)
 	p += currprefs.chipmem_size;
 	mc (p, fastmem_bank.start, currprefs.fastmem_size);
 	p += currprefs.fastmem_size;
+	mc (p, fastmem2_bank.start, currprefs.fastmem2_size);
+	p += currprefs.fastmem2_size;
 	mc (p, bogomem_bank.start, currprefs.bogomem_size);
 	p += currprefs.bogomem_size;
 	mc (p, a3000lmem_bank.start, currprefs.mbresmem_low_size);

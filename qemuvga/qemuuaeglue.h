@@ -299,7 +299,7 @@ typedef unsigned long dma_addr_t;
 
 void pci_set_irq(PCIDevice *pci_dev, int level);
 void lsi_scsi_init(DeviceState *dev);
-void lsi_scsi_reset(DeviceState *dev);
+void lsi_scsi_reset(DeviceState *dev, void*);
 
 static inline int32_t sextract32(uint32_t value, int start, int length)
 {

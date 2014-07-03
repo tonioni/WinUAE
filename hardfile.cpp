@@ -168,8 +168,9 @@ static void getchsgeometry2 (uae_u64 size, int *pcyl, int *phead, int *psectorsp
 		sptt[3] = -1;
 
 		for (i = 0; sptt[i] >= 0; i++) {
+			int maxhead = sptt[i] < 255 ? 16 : 255;
 			spt = sptt[i];
-			for (head = 4; head <= 16;head++) {
+			for (head = 4; head <= maxhead; head++) {
 				cyl = total / (head * spt);
 				if (size <= 512 * 1024 * 1024) {
 					if (cyl <= 1023)
@@ -182,12 +183,18 @@ static void getchsgeometry2 (uae_u64 size, int *pcyl, int *phead, int *psectorsp
 					if (cyl <= 65535)
 						break;
 				}
+				if (maxhead > 16) {
+					head *= 2;
+					head--;
+				}
 			}
 			if (head <= 16)
 				break;
 		}
 
 	}
+	if (head > 16)
+		head--;
 
 	*pcyl = cyl;
 	*phead = head;
@@ -1587,10 +1594,10 @@ void hardfile_do_disk_change (struct uaedev_config_data *uci, bool insert)
 	int fsid = uci->configoffset;
 	struct hardfiledata *hfd;
 
-	if (uci->ci.controller == HD_CONTROLLER_PCMCIA_SRAM) {
+	if (uci->ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA_SRAM) {
 		gayle_modify_pcmcia_sram_unit (uci->ci.rootdir, uci->ci.readonly, insert);
 		return;
-	} else if (uci->ci.controller == HD_CONTROLLER_PCMCIA_IDE) {
+	} else if (uci->ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA_IDE) {
 		gayle_modify_pcmcia_ide_unit (uci->ci.rootdir, uci->ci.readonly, insert);
 		return;
 	}

@@ -195,6 +195,31 @@ void (*x_do_cycles)(unsigned long);
 void (*x_do_cycles_pre)(unsigned long);
 void (*x_do_cycles_post)(unsigned long, uae_u32);
 
+static void set_x_cp_funcs(void)
+{
+	x_cp_put_long = x_put_long;
+	x_cp_put_word = x_put_word;
+	x_cp_put_byte = x_put_byte;
+	x_cp_get_long = x_get_long;
+	x_cp_get_word = x_get_word;
+	x_cp_get_byte = x_get_byte;
+	x_cp_next_iword = x_next_iword;
+	x_cp_next_ilong = x_next_ilong;
+	x_cp_get_disp_ea_020 = x_get_disp_ea_020;
+
+	if (currprefs.mmu_model == 68030) {
+		x_cp_put_long = put_long_mmu030_state;
+		x_cp_put_word = put_word_mmu030_state;
+		x_cp_put_byte = put_byte_mmu030_state;
+		x_cp_get_long = get_long_mmu030_state;
+		x_cp_get_word = get_word_mmu030_state;
+		x_cp_get_byte = get_byte_mmu030_state;
+		x_cp_next_iword = next_iword_mmu030_state;
+		x_cp_next_ilong = next_ilong_mmu030_state;
+		x_cp_get_disp_ea_020 = get_disp_ea_020_mmu030;
+	}
+}
+
 static struct cputracestruct cputrace;
 
 #if CPUTRACE_DEBUG
@@ -301,6 +326,7 @@ static bool check_trace (void)
 	x_do_cycles = x2_do_cycles;
 	x_do_cycles_pre = x2_do_cycles_pre;
 	x_do_cycles_post = x2_do_cycles_post;
+	set_x_cp_funcs();
 	write_log (_T("CPU tracer playback complete. STARTCYCLES=%08x NOWCYCLES=%08x\n"), cputrace.startcycles, get_cycles ());
 	cputrace.needendcycles = 1;
 	cpu_tracer = 0;
@@ -908,27 +934,7 @@ static void set_x_funcs (void)
 		}
 	}
 
-	x_cp_put_long = x_put_long;
-	x_cp_put_word = x_put_word;
-	x_cp_put_byte = x_put_byte;
-	x_cp_get_long = x_get_long;
-	x_cp_get_word = x_get_word;
-	x_cp_get_byte = x_get_byte;
-	x_cp_next_iword = x_next_iword;
-	x_cp_next_ilong = x_next_ilong;
-	x_cp_get_disp_ea_020 = x_get_disp_ea_020;
-
-	if (currprefs.mmu_model == 68030) {
-		x_cp_put_long = put_long_mmu030_state;
-		x_cp_put_word = put_word_mmu030_state;
-		x_cp_put_byte = put_byte_mmu030_state;
-		x_cp_get_long = get_long_mmu030_state;
-		x_cp_get_word = get_word_mmu030_state;
-		x_cp_get_byte = get_byte_mmu030_state;
-		x_cp_next_iword = next_iword_mmu030_state;
-		x_cp_next_ilong = next_ilong_mmu030_state;
-		x_cp_get_disp_ea_020 = get_disp_ea_020_mmu030;
-	}
+	set_x_cp_funcs();
 
 }
 
@@ -2899,7 +2905,7 @@ static void mmu_op30fake_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecpt
 		write_log (_T(" PC=%08X\n"), pc);
 	}
 #endif
-	if (currprefs.cs_mbdmac == 1 && currprefs.mbresmem_low_size > 0) {
+	if ((currprefs.cs_mbdmac & 1) && currprefs.mbresmem_low_size > 0) {
 		if (otc != fake_tc_030) {
 			a3000_fakekick (fake_tc_030 & 0x80000000);
 		}

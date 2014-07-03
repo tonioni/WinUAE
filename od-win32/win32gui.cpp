@@ -195,7 +195,7 @@ static TCHAR quickstart_cddrive[16];
 static int quickstart_ok, quickstart_ok_floppy;
 static void addfloppytype (HWND hDlg, int n);
 static void addfloppyhistory (HWND hDlg);
-static void addfloppyhistory_2 (HWND hDlg, int n, int f_text, int type);
+static void addhistorymenu (HWND hDlg, const TCHAR*, int f_text, int type, bool manglepath);
 static void addcdtype (HWND hDlg, int id);
 static void getfloppyname (HWND hDlg, int n, int cd, int f_text);
 
@@ -557,17 +557,30 @@ int DirectorySelection (HWND hDlg, const GUID *guid, TCHAR *path)
 	return val;
 }
 
+static const TCHAR *historytypes[] =
+{
+	_T("DiskImageMRUList"),
+	_T("CDImageMRUList"),
+	_T("DirFileSysMRUList"),
+	_T("HardfileMRUList"),
+	_T("FileSysMRUList"),
+	_T("TapeImageMRUList")
+};
+static int regread;
+
 static void write_disk_history2 (int type)
 {
 	int i, j;
 	TCHAR tmp[16];
 	UAEREG *fkey;
 
-	fkey = regcreatetree (NULL, type ? _T("CDImageMRUList") : _T("DiskImageMRUList"));
+	if (!(regread & (1 << type)))
+		return;
+	fkey = regcreatetree (NULL, historytypes[type]);
 	if (fkey == NULL)
 		return;
 	j = 1;
-	for (i = 0; i <= MAX_PREVIOUS_FLOPPIES; i++) {
+	for (i = 0; i <= MAX_PREVIOUS_IMAGES; i++) {
 		TCHAR *s = DISK_history_get (i, type);
 		if (s == 0 || _tcslen (s) == 0)
 			continue;
@@ -575,7 +588,7 @@ static void write_disk_history2 (int type)
 		regsetstr (fkey, tmp, s);
 		j++;
 	}
-	while (j <= MAX_PREVIOUS_FLOPPIES) {
+	while (j <= MAX_PREVIOUS_IMAGES) {
 		TCHAR *s = _T("");
 		_stprintf (tmp, _T("Image%02d"), j);
 		regsetstr (fkey, tmp, s);
@@ -587,29 +600,39 @@ void write_disk_history (void)
 {
 	write_disk_history2 (HISTORY_FLOPPY);
 	write_disk_history2 (HISTORY_CD);
+	write_disk_history2 (HISTORY_DIR);
+	write_disk_history2 (HISTORY_HDF);
+	write_disk_history2 (HISTORY_FS);
+	write_disk_history2 (HISTORY_TAPE);
 }
 
 void reset_disk_history (void)
 {
-	int i;
+	int i, rrold;
 
-	for (i = 0; i < MAX_PREVIOUS_FLOPPIES; i++) {
+	for (i = 0; i < MAX_PREVIOUS_IMAGES; i++) {
 		DISK_history_add (NULL, i, HISTORY_FLOPPY, 0);
 		DISK_history_add (NULL, i, HISTORY_CD, 0);
+		DISK_history_add (NULL, i, HISTORY_DIR, 0);
+		DISK_history_add (NULL, i, HISTORY_HDF, 0);
+		DISK_history_add (NULL, i, HISTORY_FS, 0);
+		DISK_history_add (NULL, i, HISTORY_TAPE, 0);
 	}
+	rrold = regread;
+	regread = (1 << HISTORY_MAX) - 1;
 	write_disk_history ();
+	regread = rrold;
 }
 
 UAEREG *read_disk_history (int type)
 {
-	static int regread;
-	TCHAR tmp2[1000];
+	TCHAR tmp2[MAX_DPATH];
 	int size, size2;
 	int idx, idx2;
 	UAEREG *fkey;
-	TCHAR tmp[1000];
+	TCHAR tmp[MAX_DPATH];
 
-	fkey = regcreatetree (NULL, type ? _T("CDImageMRUList") : _T("DiskImageMRUList"));
+	fkey = regcreatetree (NULL, historytypes[type]);
 	if (fkey == NULL || (regread & (1 << type)))
 		return fkey;
 
@@ -622,7 +645,7 @@ UAEREG *read_disk_history (int type)
 		if (_tcslen (tmp) == 7) {
 			idx2 = _tstol (tmp + 5) - 1;
 			if (idx2 >= 0)
-				DISK_history_add (tmp2, idx2, type, TRUE);
+				DISK_history_add (tmp2, idx2, type, type != HISTORY_FLOPPY && type != HISTORY_CD);
 		}
 		idx++;
 	}
@@ -1208,16 +1231,76 @@ static int drag_move (HWND hWnd, LPARAM lParam)
 
 static HWND cachedlist = NULL;
 
+static const TCHAR *memsize_names[] = {
+	/* 0 */ szNone.c_str(),
+	/* 1 */ _T("64 KB"),
+	/* 2 */ _T("128 KB"),
+	/* 3 */ _T("256 KB"),
+	/* 4 */ _T("512 KB"),
+	/* 5 */ _T("1 MB"),
+	/* 6 */ _T("2 MB"),
+	/* 7 */ _T("4 MB"),
+	/* 8 */ _T("8 MB"),
+	/* 9 */ _T("16 MB"),
+	/* 10*/ _T("32 MB"),
+	/* 11*/ _T("64 MB"),
+	/* 12*/ _T("128 MB"),
+	/* 13*/ _T("256 MB"),
+	/* 14*/ _T("512 MB"),
+	/* 15*/ _T("1 GB"),
+	/* 16*/ _T("1.5MB"),
+	/* 17*/ _T("1.8MB"),
+	/* 18*/ _T("2 GB"),
+	/* 19*/ _T("384 MB"),
+	/* 20*/ _T("768 MB"),
+	/* 21*/ _T("1.5 GB"),
+	/* 22*/ _T("2.5 GB"),
+	/* 23*/ _T("3 GB")
+};
+
+static unsigned long memsizes[] = {
+	/* 0 */ 0,
+	/* 1 */ 0x00010000, /*  64K */
+	/* 2 */ 0x00020000, /* 128K */
+	/* 3 */ 0x00040000, /* 256K */
+	/* 4 */ 0x00080000, /* 512K */
+	/* 5 */ 0x00100000, /* 1M */
+	/* 6 */ 0x00200000, /* 2M */
+	/* 7 */ 0x00400000, /* 4M */
+	/* 8 */ 0x00800000, /* 8M */
+	/* 9 */ 0x01000000, /* 16M */
+	/* 10*/ 0x02000000, /* 32M */
+	/* 11*/ 0x04000000, /* 64M */
+	/* 12*/ 0x08000000, //128M
+	/* 13*/ 0x10000000, //256M
+	/* 14*/ 0x20000000, //512M
+	/* 15*/ 0x40000000, //1GB
+	/* 16*/ 0x00180000, //1.5MB
+	/* 17*/ 0x001C0000, //1.8MB
+	/* 18*/ 0x80000000, //2GB
+	/* 19*/ 0x18000000, //384M
+	/* 20*/ 0x30000000, //768M
+	/* 21*/ 0x60000000, //1.5GB
+	/* 22*/ 0xA8000000, //2.5GB
+	/* 23*/ 0xC0000000, //3GB
+};
+
+static int msi_chip[] = { 3, 4, 5, 16, 6, 7, 8 };
+static int msi_bogo[] = { 0, 4, 5, 16, 17 };
+static int msi_fast[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+static int msi_z3fast[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 19, 14, 20, 15, 21, 18, 22, 23 };
+static int msi_z3chip[] = { 0, 9, 10, 11, 12, 13, 19, 14, 20, 15 };
+static int msi_gfx[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+
 #define MIN_CHIP_MEM 0
 #define MAX_CHIP_MEM 6
 #define MIN_FAST_MEM 0
-#define MAX_FAST_MEM 4
+#define MAX_FAST_MEM 8
 #define MIN_SLOW_MEM 0
 #define MAX_SLOW_MEM 4
 #define MIN_Z3_MEM 0
-//#define MAX_Z3_MEM ((max_z3fastmem >> 20) < 512 ? 12 : ((max_z3fastmem >> 20) < 1024 ? 13 : ((max_z3fastmem >> 20) < 2048) ? 14 : ((max_z3fastmem >> 20) < 2560) ? 15 : ((max_z3fastmem >> 20) < 3072) ? 16 : 17))
 #define MAX_Z3_MEM ((max_z3fastmem >> 20) < 512 ? 12 : ((max_z3fastmem >> 20) < 1024 ? 13 : ((max_z3fastmem >> 20) < 2048) ? 14 : 15))
-#define MAX_Z3_CHIPMEM 7
+#define MAX_Z3_CHIPMEM 9
 #define MIN_P96_MEM 0
 #define MAX_P96_MEM_Z3 ((max_z3fastmem >> 20) < 512 ? 8 : ((max_z3fastmem >> 20) < 1024 ? 9 : ((max_z3fastmem >> 20) < 2048) ? 10 : 11))
 #define MAX_P96_MEM_Z2 4
@@ -2728,63 +2811,6 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, TCHAR *dostype, TCHAR *newp
 	return result;
 }
 
-static const TCHAR *memsize_names[] = {
-	/* 0 */ szNone.c_str(),
-	/* 1 */ _T("256 K"),
-	/* 2 */ _T("512 K"),
-	/* 3 */ _T("1 MB"),
-	/* 4 */ _T("2 MB"),
-	/* 5 */ _T("4 MB"),
-	/* 6 */ _T("8 MB"),
-	/* 7 */ _T("16 MB"),
-	/* 8 */ _T("32 MB"),
-	/* 9 */ _T("64 MB"),
-	/* 10*/ _T("128 MB"),
-	/* 11*/ _T("256 MB"),
-	/* 12*/ _T("512 MB"),
-	/* 13*/ _T("1 GB"),
-	/* 14*/ _T("1.5MB"),
-	/* 15*/ _T("1.8MB"),
-	/* 16*/ _T("2 GB"),
-	/* 17*/ _T("384 MB"),
-	/* 18*/ _T("768 MB"),
-	/* 19*/ _T("1.5 GB"),
-	/* 20*/ _T("2.5 GB"),
-	/* 21*/ _T("3 GB")
-};
-
-static unsigned long memsizes[] = {
-	/* 0 */ 0,
-	/* 1 */ 0x00040000, /* 256K */
-	/* 2 */ 0x00080000, /* 512K */
-	/* 3 */ 0x00100000, /* 1M */
-	/* 4 */ 0x00200000, /* 2M */
-	/* 5 */ 0x00400000, /* 4M */
-	/* 6 */ 0x00800000, /* 8M */
-	/* 7 */ 0x01000000, /* 16M */
-	/* 8 */ 0x02000000, /* 32M */
-	/* 9 */ 0x04000000, /* 64M */
-	/* 10*/ 0x08000000, //128M
-	/* 11*/ 0x10000000, //256M
-	/* 12*/ 0x20000000, //512M
-	/* 13*/ 0x40000000, //1GB
-	/* 14*/ 0x00180000, //1.5MB
-	/* 15*/ 0x001C0000, //1.8MB
-	/* 16*/ 0x80000000, //2GB
-	/* 17*/ 0x18000000, //384M
-	/* 18*/ 0x30000000, //768M
-	/* 19*/ 0x60000000, //1.5GB
-	/* 20*/ 0xA8000000, //2.5GB
-	/* 21*/ 0xC0000000, //3GB
-};
-
-static int msi_chip[] = { 1, 2, 3, 14, 4, 5, 6 };
-static int msi_bogo[] = { 0, 2, 3, 14, 15 };
-static int msi_fast[] = { 0, 3, 4, 5, 6 };
-static int msi_z3fast[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 17, 12, 18, 13, 19, 16, 20, 21 };
-static int msi_z3chip[] = { 0, 7, 8, 9, 10, 11, 12, 13 };
-static int msi_gfx[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
-
 static int CalculateHardfileSize (HWND hDlg)
 {
 	BOOL Translated = FALSE;
@@ -4141,7 +4167,7 @@ void InitializeListView (HWND hDlg)
 		{
 			struct uaedev_config_data *uci = &workprefs.mountconfig[i];
 			struct uaedev_config_info *ci = &uci->ci;
-			int nosize = 0, type;
+			int nosize = 0, type, ctype;
 			struct mountedinfo mi;
 			TCHAR *rootdir, *rootdirp;
 
@@ -4172,24 +4198,35 @@ void InitializeListView (HWND hDlg)
 			else
 				_stprintf (size_str, _T("%.1fM"), ((double)(uae_u32)(mi.size / (1024))) / 1024.0);
 
-			if (ci->controller >= HD_CONTROLLER_IDE0 && ci->controller <= HD_CONTROLLER_IDE3) {
+			ctype = ci->controller_type;
+			if (ctype >= HD_CONTROLLER_TYPE_IDE_FIRST && ctype <= HD_CONTROLLER_TYPE_IDE_LAST) {
 				_stprintf (blocksize_str, _T("%d"), ci->blocksize);
-				_stprintf (devname_str, _T("*IDE%d*"), ci->controller - HD_CONTROLLER_IDE0);
+				_stprintf (devname_str, _T("IDE:%d"), ci->controller_unit);
 				harddisktype (volname_str, ci);
 				_tcscpy (bootpri_str, _T("n/a"));
-			} else if (ci->controller >= HD_CONTROLLER_SCSI0 && ci->controller <= HD_CONTROLLER_SCSI6) {
+			} else if (ctype >= HD_CONTROLLER_TYPE_SCSI_FIRST && ctype <= HD_CONTROLLER_TYPE_SCSI_LAST) {
+				const TCHAR *scsidevs[] = {
+					_T("SCSI:%d"),
+					_T("A2091:%d"),
+					_T("A2091 2nd:%d"),
+					_T("A4091:%d"),
+					_T("A4091 2nd:%d"),
+					_T("A3000:%d"),
+					_T("A4000T:%d"),
+					_T("CDTV:%d")
+				};
 				_stprintf (blocksize_str, _T("%d"), ci->blocksize);
-				_stprintf (devname_str, _T("*SCSI%d*"), ci->controller - HD_CONTROLLER_SCSI0);
+				_stprintf (devname_str, scsidevs[ctype - HD_CONTROLLER_TYPE_SCSI_FIRST], ci->controller_unit);
 				harddisktype (volname_str, ci);
 				_tcscpy (bootpri_str, _T("n/a"));
-			} else if (ci->controller == HD_CONTROLLER_PCMCIA_SRAM) {
+			} else if (ctype == HD_CONTROLLER_TYPE_PCMCIA_SRAM) {
 				_tcscpy (blocksize_str, _T("n/a"));
-				_tcscpy(devname_str, _T("*SRAM*"));
+				_tcscpy(devname_str, _T("SRAM:0"));
 				_tcscpy (volname_str, _T("PCMCIA"));
 				_tcscpy (bootpri_str, _T("n/a"));
-			} else if (ci->controller == HD_CONTROLLER_PCMCIA_IDE) {
+			} else if (ctype == HD_CONTROLLER_TYPE_PCMCIA_IDE) {
 				_tcscpy (blocksize_str, _T("n/a"));
-				_tcscpy(devname_str, _T("*IDE*"));
+				_tcscpy(devname_str, _T("IDE:0"));
 				_tcscpy (volname_str, _T("PCMCIA"));
 				_tcscpy (bootpri_str, _T("n/a"));
 			} else if (type == FILESYS_HARDFILE) {
@@ -4197,14 +4234,14 @@ void InitializeListView (HWND hDlg)
 				_tcscpy (devname_str, ci->devname);
 				_tcscpy (volname_str, _T("n/a"));
 				_stprintf (bootpri_str, _T("%d"), ci->bootpri);
-			} else if (type == FILESYS_HARDFILE_RDB || type == FILESYS_HARDDRIVE || ci->controller) {
+			} else if (type == FILESYS_HARDFILE_RDB || type == FILESYS_HARDDRIVE || ci->controller_type != HD_CONTROLLER_TYPE_UAE) {
 				_stprintf (blocksize_str, _T("%d"), ci->blocksize);
-				_tcscpy (devname_str, _T("*UAE*"));
+				_tcscpy (devname_str, _T("UAE"));
 				_tcscpy (volname_str, _T("n/a"));
 				_tcscpy (bootpri_str, _T("n/a"));
 			} else if (type == FILESYS_TAPE) {
 				_stprintf (blocksize_str, _T("%d"), ci->blocksize);
-				_tcscpy (devname_str, _T("*UAE*"));
+				_tcscpy (devname_str, _T("UAE"));
 				harddisktype (volname_str, ci);
 				_tcscpy (bootpri_str, _T("n/a"));
 			} else {
@@ -4227,7 +4264,7 @@ void InitializeListView (HWND hDlg)
 
 			lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
 			lvstruct.pszText  = mi.ismedia == false ? _T("E") : (nosize && mi.size >= 0 ? _T("X") : (mi.ismounted ? _T("*") : _T(" ")));
-			if (ci->controller && mi.ismedia)
+			if (ci->controller_type != HD_CONTROLLER_TYPE_UAE && mi.ismedia)
 				lvstruct.pszText = _T(" ");
 			lvstruct.lParam   = 0;
 			lvstruct.iItem    = i;
@@ -5175,6 +5212,8 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		setac (hDlg, IDC_PATHS_RIP);
 		CheckDlgButton(hDlg, IDC_PATHS_CONFIGCACHE, configurationcache);
 		CheckDlgButton(hDlg, IDC_PATHS_RELATIVE, relativepaths);
+		CheckDlgButton(hDlg, IDC_REGISTRYMODE, getregmode() != 0);
+		ew(hDlg, IDC_REGISTRYMODE, FALSE);
 		currentpage = PATHS_ID;
 		ShowWindow (GetDlgItem (hDlg, IDC_RESETREGISTRY), FALSE);
 		numtypes = 0;
@@ -5404,7 +5443,6 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				relativepaths = ischecked (hDlg, IDC_PATHS_RELATIVE) ? 1 : 0;
 				regsetint (NULL, _T("RelativePaths"), relativepaths);
 				break;
-
 			}
 		}
 		recursive--;
@@ -7068,12 +7106,13 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_CS_FATGARY, workprefs.cs_fatgaryrev >= 0);
 	CheckDlgButton (hDlg, IDC_CS_AGNUS, workprefs.cs_agnusrev >= 0);
 	CheckDlgButton (hDlg, IDC_CS_DENISE, workprefs.cs_deniserev >= 0);
-	CheckDlgButton (hDlg, IDC_CS_DMAC, workprefs.cs_mbdmac == 1);
-	CheckDlgButton (hDlg, IDC_CS_DMAC2, workprefs.cs_mbdmac == 2);
+	CheckDlgButton (hDlg, IDC_CS_DMAC, workprefs.cs_mbdmac & 1);
+	CheckDlgButton (hDlg, IDC_CS_DMAC2, workprefs.cs_mbdmac & 2);
 	CheckDlgButton (hDlg, IDC_CS_CDTVSCSI, workprefs.cs_cdtvscsi);
 	CheckDlgButton (hDlg, IDC_CS_PCMCIA, workprefs.cs_pcmcia);
 	CheckDlgButton (hDlg, IDC_CS_SLOWISFAST, workprefs.cs_slowmemisfast);
 	CheckDlgButton (hDlg, IDC_CS_CIATODBUG, workprefs.cs_ciatodbug);
+	CheckDlgButton (hDlg, IDC_CS_Z3AUTOCONFIG, workprefs.cs_z3autoconfig);
 	CheckDlgButton (hDlg, IDC_CS_IDE1, workprefs.cs_ide > 0 && (workprefs.cs_ide & 1));
 	CheckDlgButton (hDlg, IDC_CS_IDE2, workprefs.cs_ide > 0 && (workprefs.cs_ide & 2));
 	txt[0] = 0;
@@ -7142,11 +7181,11 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_ramseyrev = ischecked (hDlg, IDC_CS_RAMSEY) ? 0x0f : -1;
 	workprefs.cs_fatgaryrev = ischecked (hDlg, IDC_CS_FATGARY) ? 0x00 : -1;
 	workprefs.cs_mbdmac = ischecked (hDlg, IDC_CS_DMAC) ? 1 : 0;
-	if (workprefs.cs_mbdmac == 0)
-		workprefs.cs_mbdmac = ischecked (hDlg, IDC_CS_DMAC2) ? 2 : 0;
+	workprefs.cs_mbdmac |= ischecked (hDlg, IDC_CS_DMAC2) ? 2 : 0;
 	workprefs.cs_cdtvscsi = ischecked (hDlg, IDC_CS_CDTVSCSI) ? 1 : 0;
 	workprefs.cs_pcmcia = ischecked (hDlg, IDC_CS_PCMCIA) ? 1 : 0;
 	workprefs.cs_slowmemisfast = ischecked (hDlg, IDC_CS_SLOWISFAST) ? 1 : 0;
+	workprefs.cs_z3autoconfig = ischecked (hDlg, IDC_CS_Z3AUTOCONFIG) ? 1 : 0;
 	workprefs.cs_ide = ischecked (hDlg, IDC_CS_IDE1) ? 1 : (ischecked (hDlg, IDC_CS_IDE2) ? 2 : 0);
 	workprefs.cs_ciaatod = ischecked (hDlg, IDC_CS_CIAA_TOD1) ? 0
 		: (ischecked (hDlg, IDC_CS_CIAA_TOD2) ? 1 : 2);
@@ -7218,6 +7257,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew (hDlg, IDC_CS_CIATODBUG, e);
 	ew (hDlg, IDC_CS_NOEHB, e);
 	ew (hDlg, IDC_CS_DIPAGNUS, e);
+	ew (hDlg, IDC_CS_Z3AUTOCONFIG, e);
 	ew (hDlg, IDC_CS_KSMIRROR_E0, e);
 	ew (hDlg, IDC_CS_KSMIRROR_A8, e);
 	ew (hDlg, IDC_CS_CIAOVERLAY, e);
@@ -7262,7 +7302,7 @@ static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPA
 
 static void enable_for_memorydlg (HWND hDlg)
 {
-	int fast = workprefs.chipmem_size <= 0x200000;
+	int fast = true;
 	int z3 = true;
 
 #ifndef AUTOCONFIG
@@ -7276,7 +7316,10 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_Z3CHIPMEM, z3);
 	ew (hDlg, IDC_FASTMEM, fast);
 	ew (hDlg, IDC_FASTRAM, fast);
+	ew (hDlg, IDC_FASTMEM2, fast);
+	ew (hDlg, IDC_FASTRAM2, fast);
 	ew (hDlg, IDC_FASTMEMAUTOCONFIG, fast);
+	ew (hDlg, IDC_Z3REALMAPPING, z3);
 	ew (hDlg, IDC_FASTTEXT, fast);
 	ew (hDlg, IDC_GFXCARDTEXT, z3);
 	ew (hDlg, IDC_MBRAM1, z3);
@@ -7289,18 +7332,23 @@ extern uae_u32 natmem_size;
 static void setmax32bitram (HWND hDlg)
 {
 	TCHAR tmp[100];
-	uae_u32 size, rtgz3size;
+	uae_u32 size, rtgz3size, z3size;
+	uae_u32 sizealign = 16 * 1024 * 1024 - 1;
 
 	rtgz3size = gfxboard_is_z3 (workprefs.rtgmem_type) ? workprefs.rtgmem_size : 0;
-	size = workprefs.z3fastmem_size + workprefs.z3fastmem2_size +
-		workprefs.z3chipmem_size + rtgz3size;
-	if (workprefs.z3chipmem_size && workprefs.z3fastmem_size)
+	size = ((workprefs.z3fastmem_size + sizealign) & ~sizealign) + ((workprefs.z3fastmem2_size + sizealign) & ~sizealign) +
+		((rtgz3size + sizealign) & ~sizealign);
+	if (currprefs.a4091)
+		size += 2 * 16 * 1024 * 1024;
+	if (changed_prefs.mbresmem_high_size == 128 * 1024 * 1024 && (size || workprefs.z3chipmem_size))
 		size += 16 * 1024 * 1024;
-	if ((workprefs.z3fastmem_size || workprefs.z3chipmem_size) && rtgz3size)
-		size += 16 * 1024 * 1024;
-
-	_stprintf (tmp, L"Total configured 32-bit RAM: %dM, reserved: %dM",
-		size / (1024 * 1024), (natmem_size - 256 * 1024 * 1024) / (1024 * 1024));
+	if (natmem_size > 0x40000000)
+		z3size = natmem_size - 0x40000000;
+	else
+		z3size = 0;
+	size += ((workprefs.z3chipmem_size + sizealign) & ~sizealign);
+	_stprintf (tmp, L"Configured 32-bit RAM: %dM, reserved: %dM, true Z3 address space available: %dM",
+		size / (1024 * 1024), (natmem_size - 256 * 1024 * 1024) / (1024 * 1024), z3size / (1024 * 1024));
 	SetDlgItemText (hDlg, IDC_MAX32RAM, tmp);
 }
 
@@ -7339,14 +7387,34 @@ static void values_to_memorydlg (HWND hDlg)
 	mem_size = 0;
 	switch (workprefs.fastmem_size) {
 	case 0x00000000: mem_size = 0; break;
-	case 0x00100000: mem_size = 1; break;
-	case 0x00200000: mem_size = 2; break;
-	case 0x00400000: mem_size = 3; break;
-	case 0x00800000: mem_size = 4; break;
-	case 0x01000000: mem_size = 5; break;
+	case 0x00010000: mem_size = 1; break;
+	case 0x00020000: mem_size = 2; break;
+	case 0x00040000: mem_size = 3; break;
+	case 0x00080000: mem_size = 4; break;
+	case 0x00100000: mem_size = 5; break;
+	case 0x00200000: mem_size = 6; break;
+	case 0x00400000: mem_size = 7; break;
+	case 0x00800000: mem_size = 8; break;
+	case 0x01000000: mem_size = 9; break;
 	}
 	SendDlgItemMessage (hDlg, IDC_FASTMEM, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText (hDlg, IDC_FASTRAM, memsize_names[msi_fast[mem_size]]);
+
+	mem_size = 0;
+	switch (workprefs.fastmem2_size) {
+	case 0x00000000: mem_size = 0; break;
+	case 0x00010000: mem_size = 1; break;
+	case 0x00020000: mem_size = 2; break;
+	case 0x00040000: mem_size = 3; break;
+	case 0x00080000: mem_size = 4; break;
+	case 0x00100000: mem_size = 5; break;
+	case 0x00200000: mem_size = 6; break;
+	case 0x00400000: mem_size = 7; break;
+	case 0x00800000: mem_size = 8; break;
+	case 0x01000000: mem_size = 9; break;
+	}
+	SendDlgItemMessage (hDlg, IDC_FASTMEM2, TBM_SETPOS, TRUE, mem_size);
+	SetDlgItemText (hDlg, IDC_FASTRAM2, memsize_names[msi_fast[mem_size]]);
 
 	mem_size = 0;
 	switch (workprefs.bogomem_size) {
@@ -7412,12 +7480,16 @@ static void values_to_memorydlg (HWND hDlg)
 		mem_size = 3;
 	else if (v < 0x10000000)
 		mem_size = 4;
-	else if (v < 0x20000000)
+	else if (v < 0x18000000)
 		mem_size = 5;
-	else if (v < 0x40000000)
+	else if (v < 0x20000000)
 		mem_size = 6;
-	else
+	else if (v < 0x30000000)
 		mem_size = 7;
+	else if (v < 0x40000000)
+		mem_size = 8;
+	else
+		mem_size = 9;
 	int min_mem = MIN_P96_MEM;
 	int max_mem = MAX_P96_MEM_Z3;
 	if (!gfxboard_is_z3 (workprefs.rtgmem_type)) {
@@ -7566,8 +7638,16 @@ static void values_to_memorydlg (HWND hDlg)
 
 static void fix_values_memorydlg (void)
 {
-	if (workprefs.chipmem_size > 0x200000)
+	if (workprefs.chipmem_size <= 0x200000)
+		return;
+	if (workprefs.fastmem_size > 262144)
+		workprefs.fastmem_size = 262144;
+	if (workprefs.fastmem2_size > 262144)
+		workprefs.fastmem2_size = 262144;
+	if (workprefs.fastmem_size + workprefs.fastmem2_size > 262144) {
 		workprefs.fastmem_size = 0;
+		workprefs.fastmem2_size = 0;
+	}
 }
 static void updatez3 (uae_u32 *size1p, uae_u32 *size2p)
 {
@@ -8023,16 +8103,19 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		currentpage = MEMORY_ID;
 		SendDlgItemMessage (hDlg, IDC_CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CHIP_MEM, MAX_CHIP_MEM));
 		SendDlgItemMessage (hDlg, IDC_FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_FAST_MEM, MAX_FAST_MEM));
+		SendDlgItemMessage (hDlg, IDC_FASTMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_FAST_MEM, MAX_FAST_MEM - 1));
 		SendDlgItemMessage (hDlg, IDC_SLOWMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_SLOW_MEM, MAX_SLOW_MEM));
 		SendDlgItemMessage (hDlg, IDC_Z3FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_MEM));
 		SendDlgItemMessage (hDlg, IDC_Z3CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_CHIPMEM));
 		SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MBL_MEM));
 		SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MBH_MEM));
 		CheckDlgButton(hDlg, IDC_FASTMEMAUTOCONFIG, workprefs.fastmem_autoconfig);
+		CheckDlgButton(hDlg, IDC_Z3REALMAPPING, workprefs.jit_direct_compatible_memory);
 
 
 	case WM_USER:
 		workprefs.fastmem_autoconfig = ischecked (hDlg, IDC_FASTMEMAUTOCONFIG);
+		workprefs.jit_direct_compatible_memory = ischecked (hDlg, IDC_Z3REALMAPPING);
 		fix_values_memorydlg ();
 		values_to_memorydlg (hDlg);
 		enable_for_memorydlg (hDlg);
@@ -8042,6 +8125,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	case WM_COMMAND:
 		recursive++;
 		workprefs.fastmem_autoconfig = ischecked (hDlg, IDC_FASTMEMAUTOCONFIG);
+		workprefs.jit_direct_compatible_memory = ischecked (hDlg, IDC_Z3REALMAPPING);
 		recursive--;
 		break;
 
@@ -8049,6 +8133,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		workprefs.chipmem_size = memsizes[msi_chip[SendMessage (GetDlgItem (hDlg, IDC_CHIPMEM), TBM_GETPOS, 0, 0)]];
 		workprefs.bogomem_size = memsizes[msi_bogo[SendMessage (GetDlgItem (hDlg, IDC_SLOWMEM), TBM_GETPOS, 0, 0)]];
 		workprefs.fastmem_size = memsizes[msi_fast[SendMessage (GetDlgItem (hDlg, IDC_FASTMEM), TBM_GETPOS, 0, 0)]];
+		workprefs.fastmem2_size = memsizes[msi_fast[SendMessage (GetDlgItem (hDlg, IDC_FASTMEM2), TBM_GETPOS, 0, 0)]];
 		workprefs.z3fastmem_size = memsizes[msi_z3fast[SendMessage (GetDlgItem (hDlg, IDC_Z3FASTMEM), TBM_GETPOS, 0, 0)]];
 		updatez3 (&workprefs.z3fastmem_size, &workprefs.z3fastmem2_size);
 		workprefs.z3chipmem_size = memsizes[msi_z3chip[SendMessage (GetDlgItem (hDlg, IDC_Z3CHIPMEM), TBM_GETPOS, 0, 0)]];
@@ -9688,7 +9773,7 @@ static void hardfile_testrdb (struct hfdlg_vals *hdf)
 		for (i = 0; i < 16; i++) {
 			hdf_read_rdb (&hfd, id, i * 512, 512);
 			if (i == 0 && !memcmp (id + 2, "CIS", 3)) {
-				hdf->ci.controller = HD_CONTROLLER_PCMCIA_SRAM;
+				hdf->ci.controller_type = HD_CONTROLLER_TYPE_PCMCIA_SRAM;
 				break;
 			}
 			if (!memcmp (id, "RDSK\0\0\0", 7) || !memcmp (id, "CDSK\0\0\0", 7) || !memcmp (id, "DRKS\0\0", 6) || (id[0] == 0x53 && id[1] == 0x10 && id[2] == 0x9b && id[3] == 0x13 && id[4] == 0 && id[5] == 0)) {
@@ -9722,12 +9807,14 @@ static void default_tapedlg (struct tapedlg_vals *f)
 }
 static void default_hfdlg (struct hfdlg_vals *f, bool rdb)
 {
-	int ctrl = f->ci.controller;
+	int ctrl = f->ci.controller_type;
+	int unit = f->ci.controller_unit;
 	memset (f, 0, sizeof (struct hfdlg_vals));
 	uci_set_defaults (&f->ci, rdb);
 	f->original = true;
 	f->ci.type = UAEDEV_HDF;
-	f->ci.controller = ctrl;
+	f->ci.controller_type = ctrl;
+	f->ci.controller_unit = unit;
 }
 static void default_rdb_hfdlg (struct hfdlg_vals *f, const TCHAR *filename)
 {
@@ -9776,6 +9863,7 @@ static void volumeselectdir (HWND hDlg, int newdir)
 		WIN32GUI_LoadUIString (IDS_SELECTFILESYSROOT, szTitle, MAX_DPATH);
 		if (DirectorySelection (hDlg, &volumeguid, directory_path)) {
 			newdir = 1;
+			DISK_history_add (directory_path, -1, HISTORY_DIR, 1);
 			regsetstr (NULL, _T("FilesystemDirectoryPath"), directory_path);
 		}
 	}
@@ -9799,10 +9887,10 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 			else if (my_existsdir (current_fsvdlg.ci.rootdir))
 				archivehd = 0;
 			recursive++;
-			setac (hDlg, IDC_PATH_NAME);
+			setautocomplete (hDlg, IDC_PATH_NAME);
+			addhistorymenu(hDlg, current_fsvdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_DIR, false);
 			SetDlgItemText (hDlg, IDC_VOLUME_NAME, current_fsvdlg.ci.volname);
 			SetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.ci.devname);
-			SetDlgItemText (hDlg, IDC_PATH_NAME, current_fsvdlg.ci.rootdir);
 			SetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, current_fsvdlg.ci.bootpri, TRUE);
 			if (archivehd > 0)
 				current_fsvdlg.ci.readonly = true;
@@ -9886,7 +9974,7 @@ STATIC_INLINE bool is_hdf_rdb (void)
 static void sethardfile (HWND hDlg)
 {
 	bool rdb = is_hdf_rdb ();
-	bool disables = !rdb || (rdb && current_hfdlg.ci.controller == HD_CONTROLLER_UAE);
+	bool disables = !rdb || (rdb && current_hfdlg.ci.controller_type == HD_CONTROLLER_TYPE_UAE);
 
 	if (!disables)
 		current_hfdlg.ci.bootpri = 0;
@@ -9906,28 +9994,43 @@ static void sethardfile (HWND hDlg)
 	ew (hDlg, IDC_HDF_DONOTMOUNT, disables);
 	hide (hDlg, IDC_HDF_AUTOBOOT, !disables);
 	hide (hDlg, IDC_HDF_DONOTMOUNT, !disables);
-	hide (hDlg, IDC_HARDFILE_BOOTPRI, !disables);
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.ci.controller, 0);
+	ew (hDlg, IDC_HARDFILE_BOOTPRI, disables);
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.ci.controller_type, 0);
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_unit, 0);
 }
 
-static void inithdcontroller (HWND hDlg)
+static void inithdcontroller (HWND hDlg, int ctype)
 {
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("UAE"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("IDE0"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("IDE1"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("IDE2"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("IDE3"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("SCSI0"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("SCSI1"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("SCSI2"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("SCSI3"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("SCSI4"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("SCSI5"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("SCSI6"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("SCSRAM"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("SC IDE"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, 0, 0);
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("IDE"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("SCSI (Auto)"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A590/A2091 SCSI"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A590/A2091 #2 SCSI"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A4091 SCSI"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A4091 #2 SCSI"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A3000 SCSI"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A4000T SCSI"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("CDTV SCSI"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("PCMCIA SRAM"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("PCMCIA IDE"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, ctype, 0);
+
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_RESETCONTENT, 0, 0);
+	if (ctype >= HD_CONTROLLER_TYPE_IDE_FIRST && ctype <= HD_CONTROLLER_TYPE_SCSI_LAST) {
+		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("0"));
+		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("1"));
+		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("2"));
+		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("3"));
+		if (ctype >= HD_CONTROLLER_TYPE_SCSI_FIRST && ctype <= HD_CONTROLLER_TYPE_SCSI_LAST) {
+			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("4"));
+			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("5"));
+			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("6"));
+		}
+		ew(hDlg, IDC_HDF_CONTROLLER_UNIT, TRUE);
+	} else {
+		ew(hDlg, IDC_HDF_CONTROLLER_UNIT, FALSE);
+	}
 }
 
 static void inithardfile (HWND hDlg)
@@ -9936,15 +10039,19 @@ static void inithardfile (HWND hDlg)
 
 	ew (hDlg, IDC_HF_DOSTYPE, FALSE);
 	ew (hDlg, IDC_HF_CREATE, FALSE);
-	inithdcontroller (hDlg);
+	inithdcontroller (hDlg, current_hfdlg.ci.controller_type);
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString (IDS_HF_FS_CUSTOM, tmp, sizeof (tmp) / sizeof (TCHAR));
-	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("OFS/FFS/RDB"));
+	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("RDB/OFS/FFS"));
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("PFS3"));
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("PDS3"));
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("SFS"));
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_SETCURSEL, 0, 0);
+	setautocomplete (hDlg, IDC_PATH_NAME);
+	setautocomplete (hDlg, IDC_PATH_FILESYS);
+	addhistorymenu(hDlg, current_hfdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_HDF, false);
+	addhistorymenu(hDlg, current_hfdlg.ci.filesys, IDC_PATH_FILESYS, HISTORY_FS, false);
 }
 
 static void sethfdostype (HWND hDlg, int idx)
@@ -10003,7 +10110,7 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 		}
 		if (defaults) {
 			if (hfd.flags & HFD_FLAGS_REALDRIVE) {
-				if (current_hfdlg.ci.controller >= HD_CONTROLLER_IDE0 && current_hfdlg.ci.controller <= HD_CONTROLLER_IDE3) {
+				if (current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_IDE_LAST) {
 					getchspgeometry (bsize, &current_hfdlg.ci.pcyls, &current_hfdlg.ci.pheads, &current_hfdlg.ci.psecs, true);
 					if (current_hfdlg.forcedcylinders == 0)
 						current_hfdlg.forcedcylinders = current_hfdlg.ci.pcyls;
@@ -10064,10 +10171,13 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 	}
 }
 
-static void hardfileselecthdf (HWND hDlg, TCHAR *newpath)
+static void hardfileselecthdf (HWND hDlg, TCHAR *newpath, bool ask)
 {
-	DiskSelection (hDlg, IDC_PATH_NAME, 2, &workprefs, newpath);
-	GetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.ci.rootdir, sizeof current_hfdlg.ci.rootdir / sizeof (TCHAR));
+	if (ask) {
+		DiskSelection (hDlg, IDC_PATH_NAME, 2, &workprefs, newpath);
+		GetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.ci.rootdir, sizeof current_hfdlg.ci.rootdir / sizeof (TCHAR));
+		DISK_history_add(current_hfdlg.ci.rootdir, -1, HISTORY_HDF, 1);
+	}
 	fullpath (current_hfdlg.ci.rootdir, sizeof current_hfdlg.ci.rootdir / sizeof (TCHAR));
 	inithardfile (hDlg);
 	hardfile_testrdb (&current_hfdlg);
@@ -10105,11 +10215,12 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 
 	case WM_INITDIALOG:
 		recursive++;
-		inithdcontroller (hDlg);
-		if (current_tapedlg.ci.controller < HD_CONTROLLER_IDE0)
-			current_tapedlg.ci.controller = (workprefs.a2091 || workprefs.a4091 || workprefs.cs_cdtvscsi || workprefs.cs_mbdmac >= 1) ? HD_CONTROLLER_SCSI0 : HD_CONTROLLER_IDE0;
-		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_tapedlg.ci.controller, 0);
-		SetDlgItemText (hDlg, IDC_PATH_NAME, current_tapedlg.ci.rootdir);
+		if (current_tapedlg.ci.controller_type < HD_CONTROLLER_TYPE_SCSI_AUTO)
+			current_tapedlg.ci.controller_type = HD_CONTROLLER_TYPE_SCSI_AUTO;
+		inithdcontroller (hDlg, current_tapedlg.ci.controller_type);
+		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_tapedlg.ci.controller_unit, 0);
+		setautocomplete (hDlg, IDC_PATH_NAME);
+		addhistorymenu(hDlg, current_tapedlg.ci.rootdir, IDC_PATH_NAME, HISTORY_TAPE, false);
 		readonly = my_existsfile (current_tapedlg.ci.rootdir);
 		CheckDlgButton (hDlg, IDC_TAPE_RW, current_tapedlg.ci.readonly == 0 && !readonly);
 		ew (hDlg, IDC_TAPE_RW, !readonly);
@@ -10126,6 +10237,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		case IDC_TAPE_SELECT_FILE:
 			DiskSelection (hDlg, IDC_PATH_NAME, 18, &workprefs, NULL);
 			GetDlgItemText (hDlg, IDC_PATH_NAME, current_tapedlg.ci.rootdir, sizeof current_tapedlg.ci.rootdir / sizeof (TCHAR));
+			DISK_history_add(current_tapedlg.ci.rootdir, -1, HISTORY_TAPE, 1);
 			fullpath (current_tapedlg.ci.rootdir, sizeof current_tapedlg.ci.rootdir / sizeof (TCHAR));
 			readonly = my_existsfile (current_tapedlg.ci.rootdir);
 			ew (hDlg, IDC_TAPE_RW, !readonly);
@@ -10146,6 +10258,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				SetDlgItemText (hDlg, IDC_PATH_NAME, directory_path);
 			}
 			_tcscpy (current_tapedlg.ci.rootdir, directory_path);
+			DISK_history_add(current_tapedlg.ci.rootdir, -1, HISTORY_TAPE, 1);
 			readonly = my_existsfile (current_tapedlg.ci.rootdir);
 			ew (hDlg, IDC_TAPE_RW, !readonly);
 			if (readonly)
@@ -10160,8 +10273,16 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			break;
 		case IDC_HDF_CONTROLLER:
 			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
+			if (posn != CB_ERR) {
+				current_tapedlg.ci.controller_type = posn;
+				inithdcontroller (hDlg, current_tapedlg.ci.controller_type);
+				SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_tapedlg.ci.controller_unit, 0);
+			}
+			break;
+		case IDC_HDF_CONTROLLER_UNIT:
+			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_GETCURSEL, 0, 0);
 			if (posn != CB_ERR)
-				current_tapedlg.ci.controller = posn;
+				current_tapedlg.ci.controller_unit = posn;
 			break;
 		}
 		current_tapedlg.ci.readonly = !ischecked (hDlg, IDC_TAPE_RW);
@@ -10180,10 +10301,10 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 
 	case WM_INITDIALOG:
 		recursive++;
-		inithdcontroller (hDlg);
-		if (current_cddlg.ci.controller < HD_CONTROLLER_IDE0)
-			current_cddlg.ci.controller = (workprefs.a2091 || workprefs.a4091 || workprefs.cs_cdtvscsi || workprefs.cs_mbdmac >= 1) ? HD_CONTROLLER_SCSI0 : HD_CONTROLLER_IDE0;
-		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_cddlg.ci.controller, 0);
+		if (current_cddlg.ci.controller_type == HD_CONTROLLER_TYPE_UAE)
+			current_cddlg.ci.controller_type = (workprefs.a2091 || workprefs.a4091 || workprefs.cs_cdtvscsi || (workprefs.cs_mbdmac & 3)) ? HD_CONTROLLER_TYPE_SCSI_AUTO : HD_CONTROLLER_TYPE_IDE_AUTO;
+		inithdcontroller (hDlg, current_cddlg.ci.controller_type);
+		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_cddlg.ci.controller_unit, 0);
 		InitializeListView (hDlg);
 		recursive--;
 		customDlgType = IDD_CDDRIVE;
@@ -10210,8 +10331,16 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 			break;
 		case IDC_HDF_CONTROLLER:
 			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
+			if (posn != CB_ERR) {
+				current_cddlg.ci.controller_type = posn;
+				inithdcontroller (hDlg, current_cddlg.ci.controller_type);
+				SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_cddlg.ci.controller_unit, 0);
+			}
+			break;
+		case IDC_HDF_CONTROLLER_UNIT:
+			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_GETCURSEL, 0, 0);
 			if (posn != CB_ERR)
-				current_cddlg.ci.controller = posn;
+				current_cddlg.ci.controller_unit = posn;
 			break;
 		}
 		recursive--;
@@ -10225,7 +10354,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	static int recursive = 0;
 	LRESULT res, posn;
 	TCHAR tmp[MAX_DPATH], fs[MAX_DPATH], dev[MAX_DPATH];
-	int hdctrlr;
+	int hdctrlr, hdunit;
 	int v;
 
 	switch (msg) {
@@ -10252,7 +10381,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				TCHAR path[MAX_DPATH];
 				_tcscpy (path, s);
 				xfree (s);
-				hardfileselecthdf (hDlg, path);
+				hardfileselecthdf (hDlg, path, true);
 			}
 		} else if (GetDlgCtrlID ((HWND)wParam) == IDC_FILESYS_SELECTOR) {
 			TCHAR *s = favoritepopup (hDlg);
@@ -10278,6 +10407,31 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			break;
 		recursive++;
 
+		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
+			switch (LOWORD (wParam)) {
+			case IDC_PATH_NAME:
+				GetDlgItemText (hDlg, IDC_PATH_NAME, tmp, sizeof tmp / sizeof (TCHAR));
+				if (_tcscmp (tmp, current_hfdlg.ci.rootdir)) {
+					_tcscpy (current_hfdlg.ci.rootdir, tmp);
+					hardfileselecthdf (hDlg, NULL, false);
+				}
+				break;
+			case IDC_HDF_CONTROLLER:
+				posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
+				if (posn != CB_ERR) {
+					current_hfdlg.ci.controller_type = posn;
+					sethardfile (hDlg);
+				}
+				break;
+			case IDC_HDF_CONTROLLER_UNIT:
+				posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_GETCURSEL, 0, 0);
+				if (posn != CB_ERR) {
+					current_hfdlg.ci.controller_unit = posn;
+					sethardfile (hDlg);
+				}
+				break;
+			}
+		}
 		switch (LOWORD (wParam)) {
 		case IDC_HF_SIZE:
 			ew (hDlg, IDC_HF_CREATE, CalculateHardfileSize (hDlg) > 0);
@@ -10299,19 +10453,22 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				_tcscpy (dev, current_hfdlg.ci.devname);
 				bool rw = current_hfdlg.ci.readonly;
 				int bootpri = current_hfdlg.ci.bootpri;
-				hdctrlr = current_hfdlg.ci.controller;
+				hdctrlr = current_hfdlg.ci.controller_type;
+				hdunit = current_hfdlg.ci.controller_unit;
 				default_hfdlg (&current_hfdlg, false);
 				_tcscpy (current_hfdlg.ci.filesys, fs);
 				_tcscpy (current_hfdlg.ci.devname, dev);
-				current_hfdlg.ci.controller = hdctrlr;
+				current_hfdlg.ci.controller_type = hdctrlr;
+				current_hfdlg.ci.controller_unit = hdunit;
 				current_hfdlg.ci.bootpri = bootpri;
 				current_hfdlg.ci.readonly = rw;
-				hardfileselecthdf (hDlg, NULL);
+				hardfileselecthdf (hDlg, NULL, true);
 			}
 			break;
 		case IDC_FILESYS_SELECTOR:
 			DiskSelection (hDlg, IDC_PATH_FILESYS, 12, &workprefs, 0);
 			GetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.ci.filesys, sizeof current_hfdlg.ci.filesys / sizeof (TCHAR));
+			DISK_history_add(current_hfdlg.ci.filesys, -1, HISTORY_FS, 1);
 			break;
 		case IDOK:
 			EndDialog (hDlg, 1);
@@ -10394,20 +10551,6 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		case IDC_HARDFILE_DEVICE:
 			GetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, current_hfdlg.ci.devname, sizeof current_hfdlg.ci.devname / sizeof (TCHAR));
 			break;
-		case IDC_HDF_CONTROLLER:
-			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
-			if (posn != CB_ERR) {
-				current_hfdlg.ci.controller = posn;
-				sethardfile (hDlg);
-			}
-			break;
-		case IDC_PATH_NAME:
-			GetDlgItemText (hDlg, IDC_PATH_NAME, tmp, sizeof tmp / sizeof (TCHAR));
-			if (_tcscmp (tmp, current_hfdlg.ci.rootdir)) {
-				_tcscpy (current_hfdlg.ci.rootdir, tmp);
-				updatehdfinfo (hDlg, true, false);
-			}
-			break;
 		}
 		recursive--;
 
@@ -10431,13 +10574,12 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			oposn = -1;
 			hdf_init_target ();
 			recursive++;
-			inithdcontroller (hDlg);
+			inithdcontroller (hDlg, current_hfdlg.ci.controller_type);
 			CheckDlgButton (hDlg, IDC_HDF_RW, !current_hfdlg.ci.readonly);
 			SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_RESETCONTENT, 0, 0);
 			ew (hDlg, IDC_HARDDRIVE_IMAGE, FALSE);
 			ew (hDlg, IDOK, FALSE);
 			ew (hDlg, IDC_HDF_RW, FALSE);
-			ew (hDlg, IDC_HDF_CONTROLLER, FALSE);
 			index = -1;
 			for (i = 0; i < hdf_getnumharddrives (); i++) {
 				SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_ADDSTRING, 0, (LPARAM)hdf_getnameharddrive (i, 1, NULL, NULL));
@@ -10449,7 +10591,8 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			}
 			if (index >= 0) {
 				SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_SETCURSEL, index, 0);
-				SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.ci.controller, 0);
+				SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.ci.controller_type, 0);
+				SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_unit, 0);
 			}
 			recursive--;
 			return TRUE;
@@ -10500,23 +10643,32 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 					current_hfdlg.forcedcylinders = 0;
 					current_hfdlg.ci.cyls = current_hfdlg.ci.highcyl = current_hfdlg.ci.sectors = current_hfdlg.ci.surfaces = 0;
 					ew (hDlg, IDC_HDF_CONTROLLER, ena);
+					ew (hDlg, IDC_HDF_CONTROLLER_UNIT, ena);
 					SetDlgItemText (hDlg, IDC_HDFINFO, _T(""));
 					SetDlgItemText (hDlg, IDC_HDFINFO2, _T(""));
 					updatehdfinfo (hDlg, true, true);
-					SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.ci.controller, 0);
+					SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.ci.controller_type, 0);
+					SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_unit, 0);
 					CheckDlgButton(hDlg, IDC_HDF_RW, !current_hfdlg.ci.readonly);
 					_tcscpy (current_hfdlg.ci.rootdir, hdf_getnameharddrive ((int)posn, 4, &current_hfdlg.ci.blocksize, NULL));
 				}
 			}
 		} else if (LOWORD (wParam) == IDC_HDF_CONTROLLER) {
 			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
-			if (posn != CB_ERR) {
-				current_hfdlg.ci.controller = posn;
+			if (posn != CB_ERR && current_hfdlg.ci.controller_type != posn) {
+				current_hfdlg.ci.controller_type = posn;
 				current_hfdlg.forcedcylinders = 0;
 				current_hfdlg.ci.cyls = current_hfdlg.ci.highcyl = current_hfdlg.ci.sectors = current_hfdlg.ci.surfaces = 0;
 				SetDlgItemText (hDlg, IDC_HDFINFO, _T(""));
 				SetDlgItemText (hDlg, IDC_HDFINFO2, _T(""));
 				updatehdfinfo (hDlg, true, true);
+				inithdcontroller (hDlg, current_hfdlg.ci.controller_type);
+				SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_unit, 0);
+			}
+		} else if (LOWORD(wParam) == IDC_HDF_CONTROLLER_UNIT) {
+			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
+			if (posn != CB_ERR) {
+				current_hfdlg.ci.controller_unit = posn;
 			}
 		}
 		recursive--;
@@ -10543,7 +10695,8 @@ static void new_cddrive (HWND hDlg, int entry)
 {
 	struct uaedev_config_info ci = { 0 };
 	ci.device_emu_unit = 0;
-	ci.controller = current_cddlg.ci.controller;
+	ci.controller_type = current_cddlg.ci.controller_type;
+	ci.controller_unit = current_cddlg.ci.controller_unit;
 	ci.type = UAEDEV_CD;
 	ci.readonly = true;
 	ci.blocksize = 2048;
@@ -10554,7 +10707,8 @@ static void new_tapedrive (HWND hDlg, int entry)
 {
 	struct uaedev_config_data *uci;
 	struct uaedev_config_info ci = { 0 };
-	ci.controller = current_tapedlg.ci.controller;
+	ci.controller_type = current_tapedlg.ci.controller_type;
+	ci.controller_unit = current_tapedlg.ci.controller_unit;
 	ci.readonly = current_tapedlg.ci.readonly;
 	_tcscpy (ci.rootdir, current_tapedlg.ci.rootdir);
 	ci.type = UAEDEV_TAPE;
@@ -10844,7 +10998,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		CheckDlgButton (hDlg, IDC_MAPDRIVES_LIMIT, workprefs.filesys_limit != 0);
 		InitializeListView (hDlg);
 		setautocomplete (hDlg, IDC_CD_TEXT);
-		addfloppyhistory_2 (hDlg, 0, IDC_CD_TEXT, HISTORY_CD);
+		addhistorymenu (hDlg, workprefs.cdslots[0].name, IDC_CD_TEXT, HISTORY_CD, true);
 		addcdtype (hDlg, IDC_CD_TYPE);
 		hilitehd (hDlg);
 		break;
@@ -10877,7 +11031,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			if (full_property_sheet)
 				workprefs.cdslots[0].type = SCSI_UNIT_DEFAULT;
 			addcdtype (hDlg, IDC_CD_TYPE);
-			addfloppyhistory_2 (hDlg, 0, IDC_CD_TEXT, HISTORY_CD);
+			addhistorymenu (hDlg, workprefs.cdslots[0].name, IDC_CD_TEXT, HISTORY_CD, true);
 			InitializeListView (hDlg);
 			hilitehd (hDlg);
 			break;
@@ -10907,7 +11061,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 					}
 				}
 				addcdtype (hDlg, IDC_CD_TYPE);
-				addfloppyhistory_2 (hDlg, 0, IDC_CD_TEXT, HISTORY_CD);
+				addhistorymenu (hDlg, workprefs.cdslots[0].name, IDC_CD_TEXT, HISTORY_CD, true);
 				InitializeListView (hDlg);
 				hilitehd (hDlg);
 			}
@@ -11002,23 +11156,17 @@ static void floppytooltip (HWND hDlg, int num, uae_u32 crc32)
 	SendMessage (ToolTipHWND, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
 }
 
-static void addfloppyhistory_2 (HWND hDlg, int n, int f_text, int type)
+static void addhistorymenu(HWND hDlg, const TCHAR *text, int f_text, int type, bool manglepath)
 {
 	int i, j;
-	TCHAR *s, *text;
+	TCHAR *s;
 	UAEREG *fkey;
-	int nn, curidx;
+	int nn = 1;
+	int curidx;
 
 	if (f_text < 0)
 		return;
 	SendDlgItemMessage (hDlg, f_text, CB_RESETCONTENT, 0, 0);
-	if (type == HISTORY_CD) {
-		nn = 1;
-		text = workprefs.cdslots[0].name;
-	} else {
-		nn = workprefs.floppyslots[n].dfxtype + 1;
-		text = workprefs.floppyslots[n].df;
-	}
 	SendDlgItemMessage (hDlg, f_text, WM_SETTEXT, 0, (LPARAM)text);
 	fkey = read_disk_history (type);
 	if (fkey == NULL)
@@ -11026,37 +11174,40 @@ static void addfloppyhistory_2 (HWND hDlg, int n, int f_text, int type)
 	curidx = -1;
 	i = 0;
 	while (s = DISK_history_get (i, type)) {
-		TCHAR tmpname[MAX_DPATH], tmppath[MAX_DPATH], *p, *p2;
+		TCHAR tmpname[MAX_DPATH];
 		if (_tcslen (s) == 0)
 			break;
 		i++;
-		_tcscpy (tmppath, s);
-		p = tmppath + _tcslen (tmppath) - 1;
-		for (j = 0; uae_archive_extensions[j]; j++) {
-			p2 = _tcsstr (tmppath, uae_archive_extensions[j]);
-			if (p2) {
-				p = p2;
-				break;
+		if (manglepath) {
+			TCHAR tmppath[MAX_DPATH], *p, *p2;
+			_tcscpy (tmppath, s);
+			p = tmppath + _tcslen (tmppath) - 1;
+			for (j = 0; uae_archive_extensions[j]; j++) {
+				p2 = _tcsstr (tmppath, uae_archive_extensions[j]);
+				if (p2) {
+					p = p2;
+					break;
+				}
 			}
-		}
-		while (p > tmppath) {
-			if (*p == '\\' || *p == '/')
-				break;
-			p--;
-		}
-		_tcscpy (tmpname, p + 1);
-		*++p = 0;
-		if (tmppath[0]) {
-			_tcscat (tmpname, _T(" { "));
-			_tcscat (tmpname, tmppath);
-			_tcscat (tmpname, _T(" }"));
+			while (p > tmppath) {
+				if (*p == '\\' || *p == '/')
+					break;
+				p--;
+			}
+			_tcscpy (tmpname, p + 1);
+			*++p = 0;
+			if (tmppath[0]) {
+				_tcscat (tmpname, _T(" { "));
+				_tcscat (tmpname, tmppath);
+				_tcscat (tmpname, _T(" }"));
+			}
+		} else {
+			_tcscpy (tmpname, s);
 		}
 		if (f_text >= 0)
 			SendDlgItemMessage (hDlg, f_text, CB_ADDSTRING, 0, (LPARAM)tmpname);
 		if (!_tcscmp (text, s))
 			curidx = i - 1;
-		if (nn <= 0)
-			break;
 	}
 	if (f_text >= 0 && curidx >= 0)
 		SendDlgItemMessage (hDlg, f_text, CB_SETCURSEL, curidx, 0);
@@ -11083,7 +11234,7 @@ static void addfloppyhistory (HWND hDlg)
 		else
 			f_text = IDC_DISKTEXT;
 		if (f_text >= 0)
-			addfloppyhistory_2 (hDlg, n, f_text, iscd (n) ? HISTORY_CD : HISTORY_FLOPPY);
+			addhistorymenu (hDlg, workprefs.floppyslots[n].df, f_text, iscd (n) ? HISTORY_CD : HISTORY_FLOPPY, true);
 	}
 }
 

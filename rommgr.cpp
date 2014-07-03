@@ -15,6 +15,7 @@
 #include "memory.h"
 #include "zfile.h"
 #include "crc32.h"
+#include "fsdb.h"
 
 #include "autoconf.h"
 
@@ -86,7 +87,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 			if (!_tcscmp(path + 1, rd->configname))
 				return rd;
 		}
-		if (!_tcscmp(rl[i].path, path))
+		if (my_issamepath(rl[i].path, path))
 			return rl[i].rd;
 	}
 	return NULL;
@@ -1236,7 +1237,7 @@ struct zfile *read_rom_name (const TCHAR *filename)
 	struct zfile *f;
 
 	for (i = 0; i < romlist_cnt; i++) {
-		if (!_tcsicmp (filename, rl[i].path)) {
+		if (my_issamepath(filename, rl[i].path)) {
 			struct romdata *rd = rl[i].rd;
 			f = read_rom (rd);
 			if (f)

@@ -158,7 +158,8 @@ typedef struct {
 	bool unknown_media; /* ID_UNREADABLE_DISK */
 	int bootpri; /* boot priority. -128 = no autoboot, -129 = no mount */
 	int devno;
-	int controller;
+	int controller_type;
+	int controller_unit;
 	bool wasisempty; /* if true, this unit was created empty */
 	bool canremove; /* if true, this unit can be safely ejected and remounted */
 	bool configureddrive; /* if true, this is drive that was manually configured */
@@ -213,12 +214,12 @@ int nr_directory_units (struct uae_prefs *p)
 	int i, cnt = 0;
 	if (p) {
 		for (i = 0; i < p->mountitems; i++) {
-			if (p->mountconfig[i].ci.controller == 0)
+			if (p->mountconfig[i].ci.controller_type == HD_CONTROLLER_TYPE_UAE)
 				cnt++;
 		}
 	} else {
 		for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
-			if (mountinfo.ui[i].open > 0 && mountinfo.ui[i].controller == 0)
+			if (mountinfo.ui[i].open > 0 && mountinfo.ui[i].controller_type == HD_CONTROLLER_TYPE_UAE)
 				cnt++;
 		}
 	}
@@ -358,7 +359,7 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 #endif
 		}
 	} else if (uci->ci.type != UAEDEV_TAPE) {
-		if (!ui->controller || (ui->controller && p->cs_ide)) {
+		if (ui->controller_type == HD_CONTROLLER_TYPE_UAE) { // what is this? || (ui->controller && p->cs_ide)) {
 			mi->ismounted = 1;
 			if (uci->ci.type == UAEDEV_HDF)
 				mi->ismedia = ui->hf.drive_empty ? false : true;
@@ -580,7 +581,7 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 		}
 	}
 
-	if (ci->controller || ci->type == UAEDEV_TAPE) {
+	if (ci->controller_type != HD_CONTROLLER_TYPE_UAE || ci->type == UAEDEV_TAPE) {
 		ui = &mountinfo.ui[nr];
 		memset (ui, 0, sizeof (UnitInfo));
 		memcpy (&ui->hf.ci, &c, sizeof (struct uaedev_config_info));
@@ -721,7 +722,7 @@ int kill_filesys_unitconfig (struct uae_prefs *p, int nr)
 		return 0;
 	uci = getuci (p->mountconfig, nr);
 	hardfile_do_disk_change (uci, 0);
-	if (uci->configoffset >= 0 && uci->ci.controller == 0)
+	if (uci->configoffset >= 0 && uci->ci.controller_type == HD_CONTROLLER_TYPE_UAE)
 		filesys_media_change (uci->ci.rootdir, 0, uci);
 	while (nr < MOUNT_CONFIG_SIZE) {
 		memmove (&p->mountconfig[nr], &p->mountconfig[nr + 1], sizeof (struct uaedev_config_data));
@@ -777,7 +778,7 @@ static void initialize_mountinfo (void)
 
 	for (nr = 0; nr < currprefs.mountitems; nr++) {
 		struct uaedev_config_data *uci = &currprefs.mountconfig[nr];
-		if (uci->ci.controller == HD_CONTROLLER_UAE && (uci->ci.type == UAEDEV_DIR || uci->ci.type == UAEDEV_HDF)) {
+		if (uci->ci.controller_type == HD_CONTROLLER_TYPE_UAE && (uci->ci.type == UAEDEV_DIR || uci->ci.type == UAEDEV_HDF)) {
 			struct uaedev_config_info ci;
 			memcpy (&ci, &uci->ci, sizeof (struct uaedev_config_info));
 			ci.flags = MYVOLUMEINFO_REUSABLE;
@@ -810,7 +811,7 @@ static void initialize_mountinfo (void)
 
 	for (nr = 0; nr < currprefs.mountitems; nr++) {
 		struct uaedev_config_data *uci = &currprefs.mountconfig[nr];
-		if (uci->ci.controller == HD_CONTROLLER_UAE) {
+		if (uci->ci.controller_type == HD_CONTROLLER_TYPE_UAE) {
 			if (uci->ci.type == UAEDEV_TAPE) {
 				struct uaedev_config_info ci;
 				memcpy (&ci, &uci->ci, sizeof (struct uaedev_config_info));
@@ -825,50 +826,103 @@ static void initialize_mountinfo (void)
 
 	for (nr = 0; nr < currprefs.mountitems; nr++) {
 		struct uaedev_config_info *uci = &currprefs.mountconfig[nr].ci;
-		if (uci->controller == HD_CONTROLLER_UAE) {
+		int type = uci->controller_type;
+		int unit = uci->controller_unit;
+		bool added = false;
+		if (type == HD_CONTROLLER_TYPE_UAE) {
 			continue;
-		} else if (uci->controller <= HD_CONTROLLER_IDE3) {
-			gayle_add_ide_unit (uci->controller - HD_CONTROLLER_IDE0, uci);
-			allocuci (&currprefs, nr, -1);
-		} else if (uci->controller <= HD_CONTROLLER_SCSI6) {
+		} else if (type >= HD_CONTROLLER_TYPE_IDE_FIRST && type <= HD_CONTROLLER_TYPE_IDE_LAST) {
+			gayle_add_ide_unit (unit, uci);
+			added = true;
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_A2091) {
+#ifdef A2091
+			if (currprefs.a2091) {
+				a2091_add_scsi_unit (unit, uci, 0);
+				added = true;
+			}
+#endif
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_A2091_2) {
+#ifdef A2091
+			if (currprefs.a2091) {
+				a2091_add_scsi_unit (unit, uci, 1);
+				added = true;
+			}
+#endif
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_A3000) {
+#ifdef A2091
+			if (currprefs.cs_mbdmac == 1) {
+				a3000_add_scsi_unit (unit, uci);
+				added = true;
+			}
+#endif
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_A4091) {
+#ifdef NCR
+			if (currprefs.a4091) {
+				a4091_add_scsi_unit (unit, uci, 0);
+				added = true;
+			}
+#endif
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_A4091_2) {
+#ifdef NCR
+			if (currprefs.a4091) {
+				a4091_add_scsi_unit (unit, uci, 1);
+				added = true;
+			}
+#endif
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_A4000T) {
+#ifdef NCR
+			if (currprefs.cs_mbdmac == 2) {
+				a4000t_add_scsi_unit (unit, uci);
+				added = true;
+			}
+#endif
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_CDTV) {
+#ifdef CDTV
+			if (currprefs.cs_cdtvscsi) {
+				cdtv_add_scsi_hd_unit (unit, uci);
+				added = true;
+			}
+#endif
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_AUTO) {
 			if (currprefs.cs_mbdmac == 1) {
 #ifdef A2091
-				a3000_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci);
-				allocuci (&currprefs, nr, -1);
+				a3000_add_scsi_unit (unit, uci);
+				added = true;
 #endif
 			} else if (currprefs.cs_mbdmac == 2) {
 #ifdef NCR
-				a4000t_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci);	
-				allocuci (&currprefs, nr, -1);
+				a4000t_add_scsi_unit (unit, uci);	
+				added = true;
 #endif
 			} else if (currprefs.a2091) {
 #ifdef A2091
-				a2091_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci);
-				allocuci (&currprefs, nr, -1);
+				a2091_add_scsi_unit (unit, uci, 0);
+				added = true;
 #endif
 			} else if (currprefs.a4091) {
 #ifdef NCR
-				a4091_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci);
-				allocuci (&currprefs, nr, -1);
+				a4091_add_scsi_unit (unit, uci, 0);
+				added = true;
 #endif
 			} else if (currprefs.cs_cdtvscsi) {
 #ifdef CDTV
-				cdtv_add_scsi_hd_unit (uci->controller - HD_CONTROLLER_SCSI0, uci);
-				allocuci (&currprefs, nr, -1);
+				cdtv_add_scsi_hd_unit (unit, uci);
+				added = true;
 #endif
 			}
-		} else if (uci->controller == HD_CONTROLLER_PCMCIA_SRAM) {
+		} else if (type == HD_CONTROLLER_TYPE_PCMCIA_SRAM) {
 			gayle_add_pcmcia_sram_unit (uci->rootdir, uci->readonly);
-			allocuci (&currprefs, nr, -1);
-		} else if (uci->controller == HD_CONTROLLER_PCMCIA_IDE) {
+			added = true;
+		} else if (type == HD_CONTROLLER_TYPE_PCMCIA_IDE) {
 			gayle_add_pcmcia_ide_unit (uci->rootdir, uci->readonly);
-			allocuci (&currprefs, nr, -1);
+			added = true;
 		}
+		if (added)
+			allocuci (&currprefs, nr, -1);
 	}
 	
 
 }
-
 
 int sprintf_filesys_unit (TCHAR *buffer, int num)
 {
@@ -3635,13 +3689,15 @@ static ExamineKey *new_exkey (Unit *unit, a_inode *aino)
 	ek = oldest_ek;
 found:
 
-	uniq = unit->next_exkey;
+	uniq = aino->uniq;
+#if 0
 	if (uniq >= 0xFFFFFFFE) {
 		/* Things will probably go wrong, but most likely the Amiga will crash
 		* before this happens because of something else. */
 		uniq = 1;
 	}
 	unit->next_exkey = uniq + 1;
+#endif
 	ek->aino = aino;
 	ek->curr_file = 0;
 	ek->uniq = uniq;
@@ -3700,6 +3756,7 @@ static void
 		return;
 	}
 
+	put_long(info + 0, aino->uniq);
 	if (aino->parent == 0) {
 		/* Guru book says ST_ROOT = 1 (root directory, not currently used)
 		* but some programs really expect 2 from root dir..
@@ -4387,10 +4444,6 @@ static void action_examine_object (Unit *unit, dpacket packet)
 		aino = &unit->rootnode;
 
 	get_fileinfo (unit, packet, info, aino, false);
-	if (aino->dir) {
-		put_long (info, 0xFFFFFFFF);
-	} else
-		put_long (info, 0);
 }
 
 /* Read a directory's contents, create a_inodes for each file, and
@@ -4482,30 +4535,34 @@ static void action_examine_next (Unit *unit, dpacket packet, bool largefilesize)
 		aino = &unit->rootnode;
 	for(;;) {
 		uniq = get_long (info);
-		if (uniq == 0) {
-			write_log (_T("ExNext called for a file! (Houston?)\n"));
-			goto no_more_entries;
-		} else if (uniq == 0xFFFFFFFE)
-			goto no_more_entries;
-		else if (uniq == 0xFFFFFFFF) {
+		if (uniq == aino->uniq) {
+			// first exnext
+			if (!aino->dir) {
+				write_log (_T("ExNext called for a file! (Houston?)\n"));
+				goto no_more_entries;
+			}
 			TRACE((_T("Creating new ExKey\n")));
 			ek = new_exkey (unit, aino);
 			if (ek) {
 				if (aino->exnext_count++ == 0)
 					populate_directory (unit, aino);
+				if (!aino->child) {
+					free_exkey (unit, ek);
+					goto no_more_entries;
+				}
 				ek->curr_file = aino->child;
 				TRACE((_T("Initial curr_file: %p %s\n"), ek->curr_file,
 					ek->curr_file ? ek->curr_file->aname : _T("NULL")));
+				uniq = ek->curr_file->uniq;
 			}
 		} else {
 			TRACE((_T("Looking up ExKey\n")));
-			ek = lookup_exkey (unit, get_long (info));
+			ek = lookup_exkey(unit, aino->uniq);
 		}
 		if (ek == 0) {
 			write_log (_T("Couldn't find a matching ExKey. Prepare for trouble.\n"));
 			goto no_more_entries;
 		}
-		put_long (info, ek->uniq);
 		if (!ek->curr_file || ek->curr_file->mountcount == unit->mountcount)
 			break;
 		ek->curr_file = ek->curr_file->sibling;
@@ -5303,10 +5360,6 @@ static void
 		aino = &unit->rootnode;
 
 	get_fileinfo (unit, packet, info, aino, largefilesize);
-	if (aino->dir)
-		put_long (info, 0xFFFFFFFF);
-	else
-		put_long (info, 0);
 }
 
 /* For a nice example of just how contradictory documentation can be, see the
@@ -5883,10 +5936,6 @@ static void action_examine_object64(Unit *unit, dpacket packet)
 		aino = &unit->rootnode;
 
 	get_fileinfo (unit, packet, info, aino, true);
-	if (aino->dir) {
-		put_long (info, 0xFFFFFFFF);
-	} else
-		put_long (info, 0);
 }
 
 static void action_set_file_size64(Unit *unit, dpacket packet)
@@ -6918,6 +6967,7 @@ static void dump_partinfo (struct hardfiledata *hfd, uae_u8 *pp)
 		spt, reserved, lowcyl, highcyl, (uae_u32)(size >> 20));
 	write_log (_T("Buffers: %d, BufMemType: %08x, MaxTransfer: %08x, Mask: %08x, BootPri: %d\n"),
 		rl (pp + 44), rl (pp + 48), rl (pp + 52), rl (pp + 56), rl (pp + 60));
+	write_log (_T("Total blocks: %d, Total disk blocks: %d\n"), surfaces * spt * (highcyl - lowcyl + 1), hfd->virtsize / blocksize);
 
 	if (hfd->drive_empty) {
 		write_log (_T("Empty drive\n"));

@@ -3093,10 +3093,36 @@ static void show_exec_lists (TCHAR *t)
 				TCHAR *name = getfrombstr (get_long_debug (doslist + 40));
 				console_out_f (_T("%08x: %d %08x '%s'\n"), doslist, type, msgport, name);
 				if (type == 0) {
+					uaecptr fssm = get_long_debug(doslist + 28) << 2;
 					console_out_f (_T(" - H=%08x Stack=%5d Pri=%2d Start=%08x Seg=%08x GV=%08x\n"),
 						get_long_debug (doslist + 16) << 2, get_long_debug (doslist + 20),
-						get_long_debug (doslist + 24), get_long_debug (doslist + 28),
+						get_long_debug (doslist + 24), fssm,
 						get_long_debug (doslist + 32) << 2, get_long_debug (doslist + 36));
+					if (fssm >= 0x100 && (fssm & 3) == 0) {
+						TCHAR *unitname = getfrombstr(get_long_debug(fssm + 4));
+						console_out_f (_T("   %s:%d %08x\n"), unitname, get_long_debug(fssm), get_long_debug(fssm + 8));
+						uaecptr de = get_long_debug(fssm + 8) << 2;
+						if (de) {
+							console_out_f (_T("    TableSize       %u\n"), get_long_debug(de + 0));
+							console_out_f (_T("    SizeBlock       %u\n"), get_long_debug(de + 4));
+							console_out_f (_T("    SecOrg          %u\n"), get_long_debug(de + 8));
+							console_out_f (_T("    Surfaces        %u\n"), get_long_debug(de + 12));
+							console_out_f (_T("    SectorPerBlock  %u\n"), get_long_debug(de + 16));
+							console_out_f (_T("    BlocksPerTrack  %u\n"), get_long_debug(de + 20));
+							console_out_f (_T("    Reserved        %u\n"), get_long_debug(de + 24));
+							console_out_f (_T("    PreAlloc        %u\n"), get_long_debug(de + 28));
+							console_out_f (_T("    Interleave      %u\n"), get_long_debug(de + 32));
+							console_out_f (_T("    LowCyl          %u\n"), get_long_debug(de + 36));
+							console_out_f (_T("    HighCyl         %u (Total %u)\n"), get_long_debug(de + 40), get_long_debug(de + 40) - get_long_debug(de + 36) + 1);
+							console_out_f (_T("    NumBuffers      %u\n"), get_long_debug(de + 44));
+							console_out_f (_T("    BufMemType      0x%08x\n"), get_long_debug(de + 48));
+							console_out_f (_T("    MaxTransfer     0x%08x\n"), get_long_debug(de + 52));
+							console_out_f (_T("    Mask            0x%08x\n"), get_long_debug(de + 56));
+							console_out_f (_T("    BootPri         %d\n"), get_long_debug(de + 60));
+							console_out_f (_T("    DosType         0x%08x\n"), get_long_debug(de + 64));
+						}
+						xfree(unitname);
+					}
 				}
 				xfree (name);
 				doslist = get_long_debug (doslist) << 2;
@@ -3163,8 +3189,8 @@ static void show_exec_lists (TCHAR *t)
 			if (!resident)
 				break;
 			if (resident & 0x80000000) {
-				write_log (_T("-> %08X\n"), resident & ~0x7fffffff);
-				list = resident & ~0x7fffffff;
+				console_out_f (_T("-> %08X\n"), resident & 0x7fffffff);
+				list = resident & 0x7fffffff;
 				continue;
 			}
 			uae_u8 *addr;

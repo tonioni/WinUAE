@@ -9,8 +9,6 @@
 *
 */
 
-//#define ROMHACK
-//#define ROMHACK2
 //#define CDTV_SUB_DEBUG
 //#define CDTV_DEBUG
 //#define CDTV_DEBUG_CMD
@@ -92,13 +90,6 @@ static int cdrom_command_cnt_in;
 
 static uae_u8 tp_a, tp_b, tp_c, tp_ad, tp_bd, tp_cd;
 static uae_u8 tp_imask, tp_cr, tp_air, tp_ilatch, tp_ilatch2;
-
-#ifdef ROMHACK
-#define ROM_VECTOR 0x2000
-#define ROM_OFFSET 0x2000
-static int rom_size, rom_mask;
-static uae_u8 *rom;
-#endif
 
 static void do_stch (void);
 
@@ -1050,7 +1041,7 @@ static void dmac_start_dma (void)
 	if (!(dmac_cntr & CNTR_PDMD)) { // non-scsi dma
 		write_comm_pipe_u32 (&requests, 0x0100, 1);
 	} else {
-		scsi_dmac_start_dma ();
+		scsi_dmac_start_dma (&wd_cdtv);
 	}
 }
 static void dmac_stop_dma (void)
@@ -1058,7 +1049,7 @@ static void dmac_stop_dma (void)
 	if (!(dmac_cntr & CNTR_PDMD)) { // non-scsi dma
 		;
 	} else {
-		scsi_dmac_stop_dma ();
+		scsi_dmac_stop_dma (&wd_cdtv);
 	}
 }
 
@@ -1071,7 +1062,7 @@ static void checkint (void)
 {
 	int irq = 0;
 
-	if (currprefs.cs_cdtvscsi && (wdscsi_getauxstatus () & 0x80)) {
+	if (currprefs.cs_cdtvscsi && (wdscsi_getauxstatus (&wd_cdtv) & 0x80)) {
 		dmac_istr |= ISTR_INTS;
 		if ((dmac_cntr & CNTR_INTEN) && (dmac_istr & ISTR_INTS))
 			irq = 1;
@@ -1226,16 +1217,6 @@ static void do_stch (void)
 	}
 }
 
-void bleh (void)
-{
-#if 0
-	cd_playing = cd_finished = cd_motor = cd_media = 1;
-	cd_isready = 0;
-	cd_playing = 0;
-	do_stch();
-#endif
-}
-
 static void cdtv_reset_int (void)
 {
 	write_log (_T("CDTV: reset\n"));
@@ -1261,16 +1242,6 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 	if (addr >= 0xb0 && addr < 0xc0)
 		return tp_bget ((addr - 0xb0) / 2);
 
-#ifdef ROMHACK
-	if (addr >= ROM_OFFSET) {
-		if (rom) {
-			int off = addr & rom_mask;
-			return rom[off];
-		}
-		return 0;
-	}
-#endif
-
 	switch (addr)
 	{
 	case 0x41:
@@ -1284,11 +1255,11 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 		break;
 	case 0x91:
 		if (currprefs.cs_cdtvscsi)
-			v = wdscsi_getauxstatus ();
+			v = wdscsi_getauxstatus (&wd_cdtv);
 		break;
 	case 0x93:
 		if (currprefs.cs_cdtvscsi) {
-			v = wdscsi_get ();
+			v = wdscsi_get (&wd_cdtv);
 			checkint ();
 		}
 		break;
@@ -1391,13 +1362,13 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 		break;
 	case 0x91:
 		if (currprefs.cs_cdtvscsi) {
-			wdscsi_sasr (b);
+			wdscsi_sasr (&wd_cdtv, b);
 			checkint ();
 		}
 		break;
 	case 0x93:
 		if (currprefs.cs_cdtvscsi) {
-			wdscsi_put (b);
+			wdscsi_put (&wd_cdtv, b);
 			checkint ();
 		}
 		break;
@@ -1560,11 +1531,6 @@ static uae_u32 REGPARAM2 dmac_wgeti (uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-#ifdef ROMHACK
-	addr &= 65535;
-	if (addr >= ROM_OFFSET)
-		v = (rom[addr & rom_mask] << 8) | rom[(addr + 1) & rom_mask];
-#endif
 	return v;
 }
 static uae_u32 REGPARAM2 dmac_lgeti (uaecptr addr)
@@ -1572,10 +1538,6 @@ static uae_u32 REGPARAM2 dmac_lgeti (uaecptr addr)
 	uae_u32 v = 0xffff;
 #ifdef JIT
 	special_mem |= S_READ;
-#endif
-#ifdef ROMHACK
-	addr &= 65535;
-	v = (dmac_wgeti(addr) << 16) | dmac_wgeti(addr + 2);
 #endif
 	return v;
 }
@@ -1673,7 +1635,7 @@ uae_u8 cdtv_battram_read (int addr)
 
 int cdtv_add_scsi_hd_unit (int ch, struct uaedev_config_info *ci)
 {
-	return add_scsi_hd (ch, NULL, ci, 1);
+	return add_wd_scsi_hd (&wd_cdtv, ch, NULL, ci, 1);
 }
 
 void cdtv_free (void)
@@ -1691,47 +1653,6 @@ void cdtv_free (void)
 	close_unit ();
 	configured = 0;
 }
-
-
-#ifdef ROMHACK2
-static void romhack (void)
-{
-	struct zfile *z;
-	int roms[5];
-	struct romlist *rl;
-	int rom_size;
-	uae_u8 *rom, *p;
-
-	extendedkickmemory[0x558c] = 0xff;
-
-	roms[0] = 55;
-	roms[1] = 54;
-	roms[2] = 53;
-	roms[3] = -1;
-
-	rl = getromlistbyids(roms);
-	if (rl) {
-		write_log (_T("A590/A2091 BOOT ROM '%s' %d.%d\n"), rl->path, rl->rd->ver, rl->rd->rev);
-		z = zfile_fopen(rl->path, "rb", ZFD_NORMAL);
-		if (z) {
-			rom_size = 16384;
-			rom = (uae_u8*)xmalloc (rom_size);
-			zfile_fread (rom, rom_size, 1, z);
-			rom[0x2071] = 0xe0; rom[0x2072] |= 0x40;
-			rom[0x2075] = 0xe0; rom[0x2076] |= 0x40;
-			rom[0x207d] = 0xe0; rom[0x207e] |= 0x40;
-			rom[0x2081] = 0xe0; rom[0x2082] |= 0x40;
-			rom[0x2085] = 0xe0; rom[0x2086] |= 0x40;
-			rom[0x207b] = 0x32;
-			p = cardmemory + 0x4000;
-			memcpy (p, rom + 0x2000, 0x2000);
-			memcpy (p + 0x2000, rom, 0x2000);
-		}
-		zfile_fclose(z);
-	}
-	//kickmemory[0x3592c] = 0xff;
-}
-#endif
 
 void cdtv_init (void)
 {
@@ -1775,8 +1696,9 @@ void cdtv_init (void)
 	cdtv_battram_reset ();
 	open_unit ();
 	gui_flicker_led (LED_CD, 0, -1);
-	if (currprefs.cs_cdtvscsi)
-		init_scsi ();
+	if (currprefs.cs_cdtvscsi) {
+		init_scsi (&wd_cdtv);
+	}
 }
 
 void cdtv_check_banks (void)

@@ -304,7 +304,7 @@ int zfile_gettype (struct zfile *z)
 		return ZFILE_DISKIMAGE;
 	if (!memcmp (buf, "UAE-1ADF", 8))
 		return ZFILE_DISKIMAGE;
-	if (!memcmp (buf, "Formatte", 89))
+	if (!memcmp (buf, "Formatte", 8))
 		return ZFILE_DISKIMAGE;
 	if (!memcmp (buf, "RDSK", 4))
 		return ZFILE_HDFRDB;

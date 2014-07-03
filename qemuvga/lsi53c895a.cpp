@@ -2218,11 +2218,12 @@ static const MemoryRegionOps lsi_io_ops = {
 };
 #endif
 
-void lsi_scsi_reset(DeviceState *dev)
+void lsi_scsi_reset(DeviceState *dev, void *privdata)
 {
     LSIState *s = LSI53C895A(dev);
 
     lsi_soft_reset(s);
+	s->bus.privdata = privdata;
 }
 
 void lsi_scsi_init(DeviceState *dev)

@@ -63,6 +63,8 @@
 #include "filesys.h"
 #include "inputrecord.h"
 #include "disk.h"
+#include "threaddep/thread.h"
+#include "a2091.h"
 
 int savestate_state = 0;
 static int savestate_first_capture;
@@ -552,7 +554,10 @@ void restore_state (const TCHAR *filename)
 			continue;
 #ifdef AUTOCONFIG
 		} else if (!_tcscmp (name, _T("FRAM"))) {
-			restore_fram (totallen, filepos);
+			restore_fram (totallen, filepos, 0);
+			continue;
+		} else if (!_tcscmp (name, _T("FRA2"))) {
+			restore_fram (totallen, filepos, 1);
 			continue;
 		} else if (!_tcscmp (name, _T("ZRAM"))) {
 			restore_zram (totallen, filepos, z3num++);
@@ -680,9 +685,17 @@ void restore_state (const TCHAR *filename)
 			end = restore_cdtv_dmac (chunk);
 #endif
 		else if (!_tcscmp (name, _T("DMC2")))
-			end = restore_scsi_dmac (chunk);
-		else if (!_tcscmp (name, _T("SCSI")))
-			end = restore_scsi_device (chunk);
+			end = restore_scsi_dmac (WDTYPE_A3000, chunk);
+		else if (!_tcscmp (name, _T("DMC3")))
+			end = restore_scsi_dmac (WDTYPE_A2091, chunk);
+		else if (!_tcscmp (name, _T("DMC3")))
+			end = restore_scsi_dmac (WDTYPE_A2091_2, chunk);
+		else if (!_tcscmp (name, _T("SCS2")))
+			end = restore_scsi_device (WDTYPE_A3000, chunk);
+		else if (!_tcscmp (name, _T("SCS3")))
+			end = restore_scsi_device (WDTYPE_A2091, chunk);
+		else if (!_tcscmp (name, _T("SCS4")))
+			end = restore_scsi_device (WDTYPE_A2091_2, chunk);
 		else if (!_tcscmp (name, _T("SCSD")))
 			end = restore_scsidev (chunk);
 		else if (!_tcscmp (name, _T("GAYL")))
@@ -788,8 +801,10 @@ static void save_rams (struct zfile *f, int comp)
 	dst = save_a3000hram (&len);
 	save_chunk (f, dst, len, _T("A3K2"), comp);
 #ifdef AUTOCONFIG
-	dst = save_fram (&len);
+	dst = save_fram (&len, 0);
 	save_chunk (f, dst, len, _T("FRAM"), comp);
+	dst = save_fram (&len, 1);
+	save_chunk (f, dst, len, _T("FRA2"), comp);
 	dst = save_zram (&len, 0);
 	save_chunk (f, dst, len, _T("ZRAM"), comp);
 	dst = save_zram (&len, 1);
@@ -969,13 +984,23 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	save_chunk (f, dst, len, _T("DMAC"), 0);
 	xfree (dst);
 #endif
-	dst = save_scsi_dmac (&len, NULL);
+	dst = save_scsi_dmac (WDTYPE_A3000, &len, NULL);
 	save_chunk (f, dst, len, _T("DMC2"), 0);
 	xfree (dst);
 	for (i = 0; i < 8; i++) {
-		dst = save_scsi_device (i, &len, NULL);
-		save_chunk (f, dst, len, _T("SCSI"), 0);
+		dst = save_scsi_device (WDTYPE_A3000, i, &len, NULL);
+		save_chunk (f, dst, len, _T("SCS2"), 0);
 		xfree (dst);
+	}
+	for (int ii = 0; ii < 2; ii++) {
+		dst = save_scsi_dmac (ii == 0 ? WDTYPE_A2091 : WDTYPE_A2091_2, &len, NULL);
+		save_chunk (f, dst, len, ii == 0 ? _T("DMC3") : _T("DMC4"), 0);
+		xfree (dst);
+		for (i = 0; i < 8; i++) {
+			dst = save_scsi_device (ii == 0 ? WDTYPE_A2091 : WDTYPE_A2091_2, i, &len, NULL);
+			save_chunk (f, dst, len, ii == 0 ? _T("SCS3") : _T("SCS4"), 0);
+			xfree (dst);
+		}
 	}
 	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 		dst = save_scsidev (i, &len, NULL);
@@ -1274,7 +1299,7 @@ void savestate_rewind (void)
 	p += len;
 #ifdef AUTOCONFIG
 	len = restore_u32_func (&p);
-	memcpy (save_fram (&dummy), p, currprefs.fastmem_size > len ? len : currprefs.fastmem_size);
+	memcpy (save_fram (&dummy, 0), p, currprefs.fastmem_size > len ? len : currprefs.fastmem_size);
 	p += len;
 	len = restore_u32_func (&p);
 	memcpy (save_zram (&dummy, 0), p, currprefs.z3fastmem_size > len ? len : currprefs.z3fastmem_size);
@@ -1297,7 +1322,9 @@ void savestate_rewind (void)
 		p = restore_cdtv_dmac (p);
 #endif
 	if (restore_u32_func (&p))
-		p = restore_scsi_dmac (p);
+		p = restore_scsi_dmac (WDTYPE_A2091, p);
+	if (restore_u32_func (&p))
+		p = restore_scsi_dmac (WDTYPE_A3000, p);
 	if (restore_u32_func (&p))
 		p = restore_gayle (p);
 	for (i = 0; i < 4; i++) {
@@ -1569,7 +1596,7 @@ retry2:
 	tlen += len + 4;
 	p += len;
 #ifdef AUTOCONFIG
-	dst = save_fram (&len);
+	dst = save_fram (&len, 0);
 	if (bufcheck (st, p, len))
 		goto retry;
 	save_u32_func (&p, len);
@@ -1645,7 +1672,17 @@ retry2:
 	p3 = p;
 	save_u32_func (&p, 0);
 	tlen += 4;
-	if (save_scsi_dmac (&len, p)) {
+	if (save_scsi_dmac (WDTYPE_A2091, &len, p)) {
+		save_u32_func (&p3, 1);
+		tlen += len;
+		p += len;
+	}
+	if (bufcheck (st, p, 0))
+		goto retry;
+	p3 = p;
+	save_u32_func (&p, 0);
+	tlen += 4;
+	if (save_scsi_dmac (WDTYPE_A3000, &len, p)) {
 		save_u32_func (&p3, 1);
 		tlen += len;
 		p += len;
