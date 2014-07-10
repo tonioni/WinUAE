@@ -1087,6 +1087,8 @@
 #define IDC_CS_DMAC2                    1769
 #define IDC_CS_A4091                    1770
 #define IDC_CS_CDTVSCSI                 1771
+#define IDC_CS_A4092                    1771
+#define IDC_CS_CD32FMV                  1771
 #define IDC_CS_SCSIMODE                 1772
 #define IDC_DF0ENABLE                   1773
 #define IDC_DF1ENABLE                   1774
@@ -1235,6 +1237,7 @@
 #define ID_ST_CDEJECTALL                40047
 #define ID_CDDRIVES_CD                  40048
 #define ID_ST_CD0                       40049
+#define IDC_STATIC                      -1
 
 // Next default values for new objects
 // 

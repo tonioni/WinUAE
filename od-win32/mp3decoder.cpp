@@ -38,11 +38,185 @@ static int mp3_samplesperframe[] = {
 	1152,  576,  576
 };
 
+struct mpegaudio_header
+{
+	int ver;
+	int layer;
+	int bitrate;
+	int freq;
+	int padding;
+	int iscrc;
+	int samplerate;
+	int channelmode;
+	int modeext;
+	int isstereo;
+	int framesize;
+	int firstframe;
+};
+
+static int get_header(struct zfile *zf, struct mpegaudio_header *head, bool keeplooking)
+{
+	for (;;) {
+		int bitindex, bitrateidx;
+		uae_u8 header[4];
+
+		if (zfile_fread(header, sizeof header, 1, zf) != 1)
+			return -1;
+		if (header[0] != 0xff || ((header[1] & (0x80 | 0x40 | 0x20)) != (0x80 | 0x40 | 0x20))) {
+			zfile_fseek(zf, -3, SEEK_CUR);
+			if (keeplooking)
+				continue;
+			return 0;
+		}
+		if (head->firstframe < 0)
+			head->firstframe = zfile_ftell(zf);
+
+		head->ver = (header[1] >> 3) & 3;
+		if (head->ver == 1) {
+			write_log(_T("MP3: ver==1?!\n"));
+			return 0;
+		}
+		if (head->ver == 0)
+			head->ver = 2;
+		else if (head->ver == 2)
+			head->ver = 1;
+		else if (head->ver == 3)
+			head->ver = 0;
+		head->layer = 4 - ((header[1] >> 1) & 3);
+		if (head->layer == 4) {
+			write_log(_T("MP3: layer==4?!\n"));
+			if (keeplooking)
+				continue;
+			return 0;
+		}
+		head->iscrc = ((header[1] >> 0) & 1) ? 0 : 2;
+		bitrateidx = (header[2] >> 4) & 15;
+		head->freq = mp3_frequencies[(header[2] >> 2) & 3];
+		if (!head->freq) {
+			write_log(_T("MP3: reserved frequency?!\n"));
+			if (keeplooking)
+				continue;
+			return 0;
+		}
+		head->channelmode = (header[3] >> 6) & 3;
+		head->modeext = (header[3] >> 4) & 3;
+		head->isstereo = head->channelmode != 3;
+		if (head->ver == 0) {
+			bitindex = head->layer - 1;
+		} else {
+			if (head->layer == 1)
+				bitindex = 3;
+			else
+				bitindex = 4;
+		}
+		head->bitrate = mp3_bitrates[bitindex * 16 + bitrateidx] * 1000;
+		if (head->bitrate <= 0) {
+			write_log(_T("MP3: reserved bitrate?!\n"));
+			return 0;
+		}
+		head->padding = (header[2] >> 1) & 1;
+		head->samplerate = mp3_samplesperframe[(head->layer - 1) * 3 + head->ver];
+		switch (head->layer)
+		{
+		case 1:
+			head->framesize = (12 * head->bitrate / head->freq + head->padding) * 4;
+			break;
+		case 2:
+		case 3:
+			head->framesize = 144 * head->bitrate / head->freq + head->padding;
+			break;
+		}
+		if (head->framesize <= 4) {
+			write_log(_T("MP3: too small frame size?!\n"));
+			if (keeplooking)
+				continue;
+			return 0;
+		}
+		return 1;
+	}
+}
+
 mp3decoder::~mp3decoder()
 {
 	if (g_mp3stream)
 		acmStreamClose((HACMSTREAM)g_mp3stream, 0);
 	g_mp3stream = NULL;
+}
+
+mp3decoder::mp3decoder(struct zfile *zf)
+{
+	MMRESULT mmr;
+	LPWAVEFORMATEX waveFormat, inwave;
+	LPMPEGLAYER3WAVEFORMAT mp3format;
+	LPMPEG1WAVEFORMAT mp2format;
+	DWORD maxFormatSize;
+	struct mpegaudio_header head;
+
+	if (get_header(zf, &head, true) <= 0) {
+		write_log(_T("MPA: couldn't find mpeg audio header\n"));
+		throw exception();
+	}
+	// find the biggest format size
+	maxFormatSize = 0;
+	mmr = acmMetrics(NULL, ACM_METRIC_MAX_SIZE_FORMAT, &maxFormatSize);
+
+	// define desired output format
+	waveFormat = (LPWAVEFORMATEX)LocalAlloc(LPTR, maxFormatSize);
+	waveFormat->wFormatTag = WAVE_FORMAT_PCM;
+	waveFormat->nChannels = head.isstereo ? 2 : 1;
+	waveFormat->nSamplesPerSec = 44100;
+	waveFormat->wBitsPerSample = 16; // 16 bits
+	waveFormat->nBlockAlign = 2 * waveFormat->nChannels;
+	waveFormat->nAvgBytesPerSec = waveFormat->nBlockAlign * waveFormat->nSamplesPerSec; // byte-rate
+	waveFormat->cbSize = 0; // no more data to follow
+
+	if (head.layer == 3) {
+		// define MP3 input format
+		mp3format = (LPMPEGLAYER3WAVEFORMAT)LocalAlloc(LPTR, maxFormatSize);
+		inwave = &mp3format->wfx;
+		inwave->cbSize = MPEGLAYER3_WFX_EXTRA_BYTES;
+		inwave->wFormatTag = WAVE_FORMAT_MPEGLAYER3;
+		mp3format->fdwFlags = MPEGLAYER3_FLAG_PADDING_OFF;
+		mp3format->nBlockSize = MP3_BLOCK_SIZE;             // voodoo value #1
+		mp3format->nFramesPerBlock = 1;                     // MUST BE ONE
+		mp3format->nCodecDelay = 1393;                      // voodoo value #2
+		mp3format->wID = MPEGLAYER3_ID_MPEG;
+	} else {
+		// There is no Windows MP2 ACM codec. This code is totally useless.
+		mp2format = (LPMPEG1WAVEFORMAT)LocalAlloc(LPTR, maxFormatSize);
+		inwave = &mp2format->wfx;
+		mp2format->dwHeadBitrate = head.bitrate;
+		mp2format->fwHeadMode = head.isstereo ? (head.channelmode == 1 ? ACM_MPEG_JOINTSTEREO : ACM_MPEG_STEREO) : ACM_MPEG_SINGLECHANNEL;
+		mp2format->fwHeadLayer = head.layer == 1 ? ACM_MPEG_LAYER1 : ACM_MPEG_LAYER2;
+		mp2format->fwHeadFlags = ACM_MPEG_ID_MPEG1;
+		mp2format->fwHeadModeExt = 0x0f;
+		mp2format->wHeadEmphasis = 1;
+		inwave->cbSize = sizeof(MPEG1WAVEFORMAT) - sizeof(WAVEFORMATEX);
+		inwave->wFormatTag = WAVE_FORMAT_MPEG;
+	}
+	inwave->nBlockAlign = 1;
+	inwave->wBitsPerSample = 0;                  // MUST BE ZERO
+	inwave->nChannels = head.isstereo ? 2 : 1;
+	inwave->nSamplesPerSec = head.freq;
+	inwave->nAvgBytesPerSec = head.bitrate / 8;
+
+	mmr = acmStreamOpen((LPHACMSTREAM)&g_mp3stream,               // open an ACM conversion stream
+		NULL,                       // querying all ACM drivers
+		(LPWAVEFORMATEX)inwave,		// converting from MP3
+		waveFormat,                 // to WAV
+		NULL,                       // with no filter
+		0,                          // or async callbacks
+		0,                          // (and no data for the callback)
+		0                           // and no flags
+		);
+
+	LocalFree(mp3format);
+	LocalFree(mp2format);
+	LocalFree(waveFormat);
+	if (mmr != MMSYSERR_NOERROR) {
+		write_log(_T("MP3: couldn't open ACM mp3 decoder, %d\n"), mmr);
+		throw exception();
+	}
 }
 
 mp3decoder::mp3decoder()
@@ -214,81 +388,26 @@ uae_u32 mp3decoder::getsize (struct zfile *zf)
 		zfile_fseek(zf, -(int)sizeof id3, SEEK_CUR);
 	}
 
-
 	for (;;) {
-		int ver, layer, bitrate, freq, padding, bitindex, iscrc;
-		int samplerate, framelen, bitrateidx, channelmode;
-		int isstereo;
-		uae_u8 header[4];
-
-		if (zfile_fread(header, sizeof header, 1, zf) != 1)
+		struct mpegaudio_header mh;
+		mh.firstframe = -1;
+		int v = get_header(zf, &mh, true);
+		if (v < 0)
 			return size;
-		if (header[0] != 0xff || ((header[1] & (0x80 | 0x40 | 0x20)) != (0x80 | 0x40 | 0x20))) {
-			zfile_fseek (zf, -3, SEEK_CUR);
-			continue;
-		}
-		if (firstframe < 0)
-			firstframe = zfile_ftell (zf);
-
-		ver = (header[1] >> 3) & 3;
-		if (ver == 1) {
-			write_log (_T("MP3: ver==1?!\n"));
-			return 0;
-		}
-		if (ver == 0)
-			ver = 2;
-		else if (ver == 2)
-			ver = 1;
-		else if (ver == 3)
-			ver = 0;
-		layer = 4 - ((header[1] >> 1) & 3);
-		if (layer == 4) {
-			write_log (_T("MP3: layer==4?!\n"));
-			return 0;
-		}
-		iscrc = ((header[1] >> 0) & 1) ? 0 : 2;
-		bitrateidx = (header[2] >> 4) & 15;
-		freq = mp3_frequencies[(header[2] >> 2) & 3];
-		if (!freq) {
-			write_log (_T("MP3: reserved frequency?!\n"));
-			return 0;
-		}
-		channelmode = (header[3] >> 6) & 3;
-		isstereo = channelmode != 3;
-		if (ver == 0) {
-			bitindex = layer - 1;
-		} else {
-			if (layer == 1)
-				bitindex = 3;
-			else
-				bitindex = 4;
-		}
-		bitrate = mp3_bitrates[bitindex * 16 + bitrateidx] * 1000;
-		if (bitrate <= 0) {
-			write_log (_T("MP3: reserved bitrate?!\n"));
-			return 0;
-		}
-		padding = (header[2] >> 1) & 1;
-		samplerate = mp3_samplesperframe[(layer - 1) * 3 + ver];
-		framelen = ((samplerate / 8 * bitrate) / freq) + padding;
-		if (framelen <= 4) {
-			write_log (_T("MP3: too small frame size?!\n"));
-			return 0;
-		}
-		zfile_fseek(zf, framelen - 4, SEEK_CUR);
+		zfile_fseek(zf, mh.framesize - 4, SEEK_CUR);
 		frames++;
 		if (timelen > 0) {
-			size = ((uae_u64)timelen * freq * 2 * (isstereo ? 2 : 1)) / 1000;
+			size = ((uae_u64)timelen * mh.freq * 2 * (mh.isstereo ? 2 : 1)) / 1000;
 			break;
 		}
-		size += samplerate * 2 * (isstereo ? 2 : 1);
-		if (bitrate != oldbitrate) {
-			oldbitrate = bitrate;
+		size += mh.samplerate * 2 * (mh.isstereo ? 2 : 1);
+		if (mh.bitrate != oldbitrate) {
+			oldbitrate = mh.bitrate;
 			sameframes++;
 		}
 		if (sameframes == 0 && frames > 100) {
 			// assume this is CBR MP3
-			size = samplerate * 2 * (isstereo ? 2 : 1) * ((zfile_size (zf) - firstframe) / ((samplerate / 8 * bitrate) / freq));
+			size = mh.samplerate * 2 * (mh.isstereo ? 2 : 1) * ((zfile_size(zf) - firstframe) / ((mh.samplerate / 8 * mh.bitrate) / mh.freq));
 			break;
 		}
 	}

@@ -4740,7 +4740,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 		} else if (lookup->mnemo == i_MOVES) {
 			TCHAR *p;
 			pc += 2;
-			if (extra & 0x1000) {
+			if (!(extra & 0x1000)) {
 				pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, safemode);
 				p = instrname + _tcslen(instrname);
 				_stprintf(p, _T(",%c%d"), (extra & 0x8000) ? 'A' : 'D', (extra >> 12) & 7);

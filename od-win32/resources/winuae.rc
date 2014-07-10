@@ -1108,15 +1108,16 @@ BEGIN
     CONTROL         "uaescsi.device",IDC_SCSIDEVICE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,229,147,11
     CONTROL         "A590/A2091 WD33C93 SCSI",IDC_CS_A2091,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,242,147,11
     CONTROL         "A4091 NCR53C710 SCSI",IDC_CS_A4091,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,255,151,11
-    CONTROL         "Include host SCSI devices",IDC_CS_SCSIMODE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,268,147,11
+    CONTROL         "Include host SCSI devices",IDC_CS_SCSIMODE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,271,147,11
     GROUPBOX        "Network",IDC_STATIC,181,197,213,86
     CONTROL         "bsdsocket.library [] bsdsocket network library emulation.",IDC_SOCKETS,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,216,187,11
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,215,187,11
     CONTROL         "uaenet.device [] Sana 2 compatible network device emulation.",IDC_SANA2,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,229,187,11
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,228,187,11
     CONTROL         "A2065 Z2 [] A2065 Ethernet Zorro II card emulation.",IDC_A2065,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,242,187,11
-    COMBOBOX        IDC_NETDEVICE,202,257,178,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,241,187,11
+    COMBOBOX        IDC_NETDEVICE,202,256,178,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "CD32 Full Motion Video cartridge",IDC_CS_CD32FMV,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,268,151,11
 END
 
 IDD_INPUTMAP DIALOGEX 0, 0, 421, 341
@@ -1817,7 +1818,7 @@ BEGIN
     IDS_QS_MODEL_A600       "Basic non-expanded configuration\nThe A600 is smaller than the A500+ and has an updated 2.0 ROM.\n2 MB Chip RAM expanded configuration\n\n4 MB Fast RAM expanded configuration\n"
     IDS_QS_MODEL_A1000      "512 KB Chip RAM\nThe A1000 was the first model produced, with a configuration equivalent to that of an A500 with OCS chipset. You normally don't need to use this configuration, unless you are nostalgic and would like to hear the short A1000 boot tune\n""ICS"" Denise without EHB support\nVery first A1000 models had Denise without EHB capability.\n256 KB Chip RAM\n Unexpanded A1000. All later A1000 models were sold with a 256 KB RAM expansion built-in."
     IDS_QS_MODEL_A1200      "Basic non-expanded configuration\nUse this configuration to run most AGA demos and games\n4 MB Fast RAM expanded configuration\nSome newer AGA games and demos need an expanded A1200 to run."
-    IDS_QS_MODEL_CD32       "CD32\nThe CD32 was one the first 32-bit consoles on the market. It is basically an A1200 with a built-in CD-ROM drive. Insert your CD32 or CDTV CD-ROM into a free CD-ROM drive before starting the emulation.\nCD32 + MPEG Full Motion Video Cartridge (not emulated yet)\n"
+    IDS_QS_MODEL_CD32       "CD32\nThe CD32 was one the first 32-bit consoles on the market. It is basically an A1200 with a built-in CD-ROM drive. Insert your CD32 or CDTV CD-ROM into a free CD-ROM drive before starting the emulation.\nCD32 with Full Motion Video cartridge\n"
     IDS_QS_MODEL_CDTV       "CDTV\nThe CDTV was the first model with a built-in CD-ROM drive. Looking like a black CD player, it featured a configuration equivalent to that of an A500 with 1 MB RAM and an ECS chipset.\nFloppy drive and 64KB SRAM card expanded CDTV\n"
 END
 

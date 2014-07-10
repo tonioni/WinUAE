@@ -1006,12 +1006,13 @@ void S2X_render (void)
 	} else { /* null */
 
 		if (amiga_depth == dst_depth) {
+			uae_u8 *d = dptr, *s = sptr;
 			int y;
 			int w = aw * dst_depth / 8;
-			for (y = 0; y < ah && dptr + w <= enddptr; y++) {
-				memcpy (dptr, sptr, w);
-				sptr += vb->rowbytes;
-				dptr += pitch;
+			for (y = 0; y < ah && d + w <= enddptr; y++) {
+				memcpy (d, s, w);
+				s += vb->rowbytes;
+				d += pitch;
 			}
 		}
 		ok = 1;

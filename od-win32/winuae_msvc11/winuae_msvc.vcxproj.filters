@@ -50,6 +50,9 @@
     <Filter Include="qemu">
       <UniqueIdentifier>{fc42f311-daf2-48de-a851-8ad3a4aad22e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="unpackers\mp2">
+      <UniqueIdentifier>{61d78a16-0513-4885-b23d-534829071ac0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ahidsound_dsonly.cpp">
@@ -641,6 +644,12 @@
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\tabletlibrary.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\mp2\kjmp2.cpp">
+      <Filter>unpackers\mp2</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cd32_fmv_genlock.cpp">
       <Filter>common</Filter>
     </ClCompile>
   </ItemGroup>

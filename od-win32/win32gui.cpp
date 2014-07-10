@@ -1613,6 +1613,7 @@ static void show_rom_list (void)
 		16, 46, 31, 13, 12, -1, -1, // A4000
 		17, -1, -1, // A4000T
 		18, -1, 19, -1, -1, // CD32
+		18, -1, 19, -1, 74, 23, -1, -1,  // CD32 FMV
 		20, 21, 22, -1, 6, 32, -1, -1, // CDTV
 		49, 50, 75, 51, 76, 77, -1, 5, 4, -1, -1, // ARCADIA
 		46, 16, 17, 31, 13, 12, -1, -1, // highend, any 3.x A4000
@@ -1625,7 +1626,7 @@ static void show_rom_list (void)
 	WIN32GUI_LoadUIString (IDS_ROM_UNAVAILABLE, unavail, sizeof (avail) / sizeof (TCHAR));
 	_tcscat (avail, _T("\n"));
 	_tcscat (unavail, _T("\n"));
-	p1 = _T("A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A4000\0A4000T\0\nCD32\0CDTV\0Arcadia Multi Select\0High end WinUAE\0\nA590/A2091 SCSI Boot ROM\0A4091 SCSI Boot ROM\0\0");
+	p1 = _T("A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A4000\0A4000T\0CD32\0CD32 FMV\0CDTV\0Arcadia Multi Select\0High end WinUAE\0A590/A2091 SCSI Boot ROM\0A4091 SCSI Boot ROM\0\0");
 
 	p = xmalloc (TCHAR, 100000);
 	if (!p)
@@ -1635,14 +1636,11 @@ static void show_rom_list (void)
 
 	rp = romtable;
 	while(rp[0]) {
-		int ok = 0;
+		int ok = 1;
 		p2 = p1 + _tcslen (p1) + 1;
 		_tcscat (p, _T(" "));
 		_tcscat (p, p1); _tcscat (p, _T(": "));
-		if (listrom (rp))
-			ok = 1;
-		while(*rp++ != -1);
-		if (*rp != -1) {
+		while (*rp != -1) {
 			if (ok) {
 				ok = 0;
 				if (listrom (rp))
@@ -1652,7 +1650,9 @@ static void show_rom_list (void)
 		}
 		rp++;
 		if (ok)
-			_tcscat (p, avail); else _tcscat (p, unavail);
+			_tcscat (p, avail);
+		else
+			_tcscat (p, unavail);
 		p1 = p2;
 	}
 
@@ -7012,8 +7012,8 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		WIN32GUI_LoadUIString(IDS_GENERIC, buffer, sizeof buffer / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)buffer);
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("CDTV"));
-		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("CD32"));
-		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("A500"));
+		SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("CD32"));
+		SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("A500"));
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("A500+"));
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("A600"));
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("A1000"));
@@ -7769,6 +7769,7 @@ static void enable_for_expansiondlg (HWND hDlg)
 	ShowWindow (GetDlgItem(hDlg, IDC_CS_SCSIMODE), SW_HIDE);
 	ew (hDlg, IDC_CS_A2091, en);
 	ew (hDlg, IDC_CS_A4091, en);
+	ew(hDlg, IDC_CS_CD32FMV, en);
 	ew (hDlg, IDC_CS_SCSIMODE, FALSE);
 }
 
@@ -7782,8 +7783,9 @@ static void values_to_expansiondlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_SANA2, workprefs.sana2);
 	CheckDlgButton (hDlg, IDC_A2065, workprefs.a2065name[0] ? 1 : 0);
 	CheckDlgButton (hDlg, IDC_CS_A2091, workprefs.a2091);
-	CheckDlgButton (hDlg, IDC_CS_A4091, workprefs.a4091);
-	CheckDlgButton (hDlg, IDC_CS_SCSIMODE, workprefs.scsi == 2);
+	CheckDlgButton(hDlg, IDC_CS_A4091, workprefs.a4091);
+	CheckDlgButton(hDlg, IDC_CS_CD32FMV, workprefs.cs_cd32fmv);
+	CheckDlgButton(hDlg, IDC_CS_SCSIMODE, workprefs.scsi == 2);
 	SendDlgItemMessage (hDlg, IDC_RTG_BUFFERCNT, CB_SETCURSEL, workprefs.gfx_apmode[1].gfx_backbuffers == 0 ? 0 : workprefs.gfx_apmode[1].gfx_backbuffers - 1, 0);
 	cw = catweasel_detect ();
 	ew (hDlg, IDC_CATWEASEL, cw);
@@ -7953,7 +7955,10 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				workprefs.a2091 = ischecked (hDlg, IDC_CS_A2091) ? 1 : 0;
 				break;
 			case IDC_CS_A4091:
-				workprefs.a4091 = ischecked (hDlg, IDC_CS_A4091) ? 1 : 0;
+				workprefs.a4091 = ischecked(hDlg, IDC_CS_A4091) ? 1 : 0;
+				break;
+			case IDC_CS_CD32FMV:
+				workprefs.cs_cd32fmv = ischecked(hDlg, IDC_CS_CD32FMV) ? 1 : 0;
 				break;
 			}
 			if (HIWORD (wParam) == CBN_SELENDOK || HIWORD (wParam) == CBN_KILLFOCUS || HIWORD (wParam) == CBN_EDITCHANGE)  {
@@ -11233,8 +11238,12 @@ static void addfloppyhistory (HWND hDlg)
 			f_text = floppybuttons[n][0];
 		else
 			f_text = IDC_DISKTEXT;
-		if (f_text >= 0)
-			addhistorymenu (hDlg, workprefs.floppyslots[n].df, f_text, iscd (n) ? HISTORY_CD : HISTORY_FLOPPY, true);
+		if (f_text >= 0) {
+			TCHAR *name = workprefs.floppyslots[n].df;
+			if (iscd(n))
+				name = workprefs.cdslots[0].name;
+			addhistorymenu (hDlg, name, f_text, iscd (n) ? HISTORY_CD : HISTORY_FLOPPY, true);
+		}
 	}
 }
 

@@ -1780,6 +1780,8 @@ int check_prefs_changed_gfx (void)
 		c |= gf->gfx_filter_contrast != gfc->gfx_filter_contrast ? (1) : 0;
 		c |= gf->gfx_filter_saturation != gfc->gfx_filter_saturation ? (1) : 0;
 		c |= gf->gfx_filter_gamma != gfc->gfx_filter_gamma ? (1) : 0;
+		if (j && gf->gfx_filter_autoscale != gfc->gfx_filter_autoscale)
+			c |= 8 | 64;
 		//c |= gf->gfx_filter_ != gfc->gfx_filter_ ? (1|8) : 0;
 	}
 
@@ -4185,7 +4187,7 @@ static BOOL doInit (void)
 			allocsoftbuffer (_T("draw"), &gfxvidinfo.drawbuffer, currentmode->flags,
 				1600, 1280, currentmode->current_depth);
 		}
-		if (currprefs.monitoremu) {
+		if (currprefs.monitoremu || currprefs.cs_cd32fmv) {
 			allocsoftbuffer (_T("monemu"), &gfxvidinfo.tempbuffer, currentmode->flags,
 				currentmode->amiga_width > 1024 ? currentmode->amiga_width : 1024,
 				currentmode->amiga_height > 1024 ? currentmode->amiga_height : 1024,
