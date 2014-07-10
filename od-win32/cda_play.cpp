@@ -52,15 +52,16 @@ cda_audio::~cda_audio()
 	}
 }
 
-cda_audio::cda_audio(int num_sectors)
+cda_audio::cda_audio(int num_sectors, int sectorsize)
 {
 	active = false;
 	playing = false;
 	volume[0] = volume[1] = 0;
 
-	bufsize = num_sectors * 2352;
+	bufsize = num_sectors * sectorsize;
+	this->sectorsize = sectorsize;
 	for (int i = 0; i < 2; i++) {
-		buffers[i] = xcalloc (uae_u8, num_sectors * 4096);
+		buffers[i] = xcalloc (uae_u8, num_sectors * ((bufsize + 4095) & ~4095));
 	}
 
 	WAVEFORMATEX wav;
@@ -152,7 +153,7 @@ cda_audio::cda_audio(int num_sectors)
 	this->num_sectors = num_sectors;
 	for (int i = 0; i < 2; i++) {
 		memset (&whdr[i], 0, sizeof WAVEHDR);
-		whdr[i].dwBufferLength = 2352 * num_sectors;
+		whdr[i].dwBufferLength = sectorsize * num_sectors;
 		whdr[i].lpData = (LPSTR)buffers[i];
 		mmr = waveOutPrepareHeader (wavehandle, &whdr[i], sizeof (WAVEHDR));
 		if (mmr != MMSYSERR_NOERROR) {
@@ -215,7 +216,7 @@ bool cda_audio::play(int bufnum)
 	return true;
 #else
 	uae_s16 *p = (uae_s16*)(buffers[bufnum]);
-	for (int i = 0; i < num_sectors * 2352 / 4; i++) {
+	for (int i = 0; i < num_sectors * sectorsize / 4; i++) {
 		p[i * 2 + 0] = p[i * 2 + 0] * volume[0] / 32768;
 		p[i * 2 + 1] = p[i * 2 + 1] * volume[1] / 32768;
 	}
@@ -238,4 +239,11 @@ void cda_audio::wait(int bufnum)
 	while (!(whdr[bufnum].dwFlags & WHDR_DONE))
 		Sleep (10);
 #endif
+}
+
+bool cda_audio::isplaying(int bufnum)
+{
+	if (!active || !playing)
+		return false;
+	return (whdr[bufnum].dwFlags & WHDR_DONE) == 0;
 }

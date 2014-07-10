@@ -502,7 +502,7 @@ static void *cdda_play (void *v)
 	bufnum = 0;
 	buffered = 0;
 
-	cda_audio *cda = new cda_audio (num_sectors);
+	cda_audio *cda = new cda_audio (num_sectors, 2352);
 
 	while (ciw->cdda_play > 0) {
 
