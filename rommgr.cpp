@@ -196,10 +196,10 @@ static struct romdata roms[] = {
 	/* real CD32 rom dump 391640-03 */
 	ALTROMPN(64, 1, 1, 2 * 524288, ROMTYPE_CD32, _T("391640-03"), 0xa4fbc94a, 0x816ce6c5,0x07787585,0x0c7d4345,0x2230a9ba,0x3a2902db )
 
-	{ _T("CD32 MPEG Cartridge ROM"), 3, 1, 40, 30, _T("CD32FMV\0"), 262144, 23, 1, 0, ROMTYPE_CD32CART, 0, 0, NULL,
+	{ _T("CD32 Full Motion Video Cartridge ROM"), 3, 1, 40, 30, _T("CD32FMV\0"), 262144, 23, 1, 0, ROMTYPE_CD32CART, 0, 0, NULL,
 	0xc35c37bf, 0x03ca81c7,0xa7b259cf,0x64bc9582,0x863eca0f,0x6529f435 },
-	{ _T("CD32 MPEG Cartridge ROM"), 3, 1, 40, 22, _T("CD32FMV\0"), 262144, 74, 1, 0, ROMTYPE_CD32CART, 0, 0, _T("391777-01"),
-	0xc2002d08, 0xa1ca2d71,0x7efb6c60,0xb9bfabeb,0x0280ae97,0xe82b0cb9 },
+	{ _T("CD32 Full Motion Video Cartridge ROM"), 3, 1, 40, 22, _T("CD32FMV\0"), 262144, 74, 1, 0, ROMTYPE_CD32CART, 0, 0, _T("391777-01"),
+	0xf11158eb, 0x94e469a7,0x6030dcb2,0x99ebc752,0x0aaeef9d,0xb54284cf },
 
 	{ _T("CDTV extended ROM v1.00"), 1, 0, 1, 0, _T("CDTV\0"), 262144, 20, 0, 0, ROMTYPE_EXTCDTV, 0, 0, NULL,
 	0x42baa124, 0x7BA40FFA,0x17E500ED,0x9FED041F,0x3424BD81,0xD9C907BE },
@@ -1204,6 +1204,8 @@ struct zfile *read_rom (struct romdata *prd)
 				byteswap (buf, size);
 				if (get_crc32 (buf, size) == crc32)
 					ok = 1;
+				if (!ok)
+					byteswap(buf, size);
 			}
 			if (ok) {
 				struct zfile *zf = zfile_fopen_empty (NULL, name, size);
