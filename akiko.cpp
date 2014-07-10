@@ -737,7 +737,7 @@ static int get_cdrom_toc (void)
 		d[10] = tobcd ((msf >> 0) & 0xff);
 		if (s->point == 1 && (s->control & 0x0c) == 0x04)
 			datatrack = 1;
-		if (s->point == 2)
+		if (s->point >= 2 && s->point < 100 && (s->control & 0x0c) != 0x04 && !secondtrack)
 			secondtrack = addr;
 	}
 	cdrom_toc_crc = get_crc32 (cdrom_toc_buffer, cdrom_toc_cd_buffer.points * 13);
