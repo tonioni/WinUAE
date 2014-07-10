@@ -176,7 +176,7 @@ struct uaedev_config_data
 	int unitnum; // scsi unit number (if tape currently)
 };
 
-enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
+enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_CD32FMV, CP_A500, CP_A500P, CP_A600, CP_A1000,
 	CP_A1200, CP_A2000, CP_A3000, CP_A3000T, CP_A4000, CP_A4000T };
 
 #define IDE_A600A1200 1
@@ -420,6 +420,7 @@ struct uae_prefs {
 	bool cs_cd32cd;
 	bool cs_cd32c2p;
 	bool cs_cd32nvram;
+	bool cs_cd32fmv;
 	bool cs_cdtvcd;
 	bool cs_cdtvram;
 	int cs_cdtvcard;

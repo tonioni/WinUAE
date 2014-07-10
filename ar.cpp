@@ -1643,6 +1643,8 @@ int action_replay_load (void)
 
 	if (_tcslen (currprefs.cartfile) == 0)
 		return 0;
+	if (currprefs.cs_cd32fmv)
+		return 0;
 	rd = getromdatabypath (currprefs.cartfile);
 	if (rd) {
 		if (rd->id == 62)

@@ -128,6 +128,7 @@ extern int maxvpos, maxvpos_nom, maxvpos_display;
 extern int hsyncstartpos, hsyncendpos;
 extern int minfirstline, vblank_endline, numscrlines;
 extern double vblank_hz, fake_vblank_hz;
+extern double hblank_hz;
 extern int vblank_skip, doublescan;
 extern bool programmedmode;
 

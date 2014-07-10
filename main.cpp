@@ -38,6 +38,7 @@
 #include "scsidev.h"
 #include "uaeserial.h"
 #include "akiko.h"
+#include "cd32_fmv.h"
 #include "cdtv.h"
 #include "savestate.h"
 #include "filesys.h"
@@ -205,9 +206,15 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 		if (prefs->gf[i].gfx_filter == 0 && ((prefs->gf[i].gfx_filter_autoscale && !prefs->gfx_api) || (prefs->gfx_apmode[APMODE_NATIVE].gfx_vsyncmode))) {
 			prefs->gf[i].gfx_filter = 1;
 		}
-		if (i == 0 && prefs->gf[i].gfx_filter == 0 && prefs->monitoremu) {
-			error_log (_T("A2024 and Graffiti require at least null filter enabled."));
-			prefs->gf[i].gfx_filter = 1;
+		if (i == 0) {
+			if (prefs->gf[i].gfx_filter == 0 && prefs->monitoremu) {
+				error_log(_T("A2024 and Graffiti require at least null filter enabled."));
+				prefs->gf[i].gfx_filter = 1;
+			}
+			if (prefs->gf[i].gfx_filter == 0 && prefs->cs_cd32fmv) {
+				error_log(_T("CD32 MPEG module overlay support require at least null filter enabled."));
+				prefs->gf[i].gfx_filter = 1;
+			}
 		}
 	}
 }
@@ -962,6 +969,7 @@ void do_leave_program (void)
 #endif
 #ifdef CD32
 	akiko_free ();
+	cd32_fmv_free();
 #endif
 	if (! no_gui)
 		gui_exit ();

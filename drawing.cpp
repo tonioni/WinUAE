@@ -49,6 +49,7 @@ happening, all ports should restrict window widths to be multiples of 16 pixels.
 #include "statusline.h"
 #include "inputdevice.h"
 #include "debug.h"
+#include "cd32_fmv.h"
 
 extern bool emulate_specialmonitors (struct vidbuffer*, struct vidbuffer*);
 
@@ -3125,6 +3126,16 @@ bool draw_frame (struct vidbuffer *vb)
 	return true;
 }
 
+static void setnativeposition(struct vidbuffer *vb)
+{
+	vb->inwidth = gfxvidinfo.drawbuffer.inwidth;
+	vb->inheight = gfxvidinfo.drawbuffer.inheight;
+	vb->inwidth2 = gfxvidinfo.drawbuffer.inwidth2;
+	vb->inheight2 = gfxvidinfo.drawbuffer.inheight2;
+	vb->outwidth = gfxvidinfo.drawbuffer.outwidth;
+	vb->outheight = gfxvidinfo.drawbuffer.outheight;
+}
+
 static void finish_drawing_frame (void)
 {
 	int i;
@@ -3172,14 +3183,8 @@ static void finish_drawing_frame (void)
 	if (currprefs.monitoremu && gfxvidinfo.tempbuffer.bufmem_allocated) {
 		if (emulate_specialmonitors (vb, &gfxvidinfo.tempbuffer)) {
 			vb = gfxvidinfo.outbuffer = &gfxvidinfo.tempbuffer;
-			if (vb->nativepositioning) {
-				vb->inwidth = gfxvidinfo.drawbuffer.inwidth;
-				vb->inheight = gfxvidinfo.drawbuffer.inheight;
-				vb->inwidth2 = gfxvidinfo.drawbuffer.inwidth2;
-				vb->inheight2 = gfxvidinfo.drawbuffer.inheight2;
-				vb->outwidth = gfxvidinfo.drawbuffer.outwidth;
-				vb->outheight = gfxvidinfo.drawbuffer.outheight;
-			}
+			if (vb->nativepositioning)
+				setnativeposition(vb);
 			gfxvidinfo.drawbuffer.tempbufferinuse = true;
 			if (!specialmonitoron)
 				compute_framesync ();
@@ -3191,6 +3196,19 @@ static void finish_drawing_frame (void)
 			if (specialmonitoron)
 				compute_framesync ();
 			specialmonitoron = false;
+		}
+	}
+
+	if (!currprefs.monitoremu && gfxvidinfo.tempbuffer.bufmem_allocated && currprefs.cs_cd32fmv) {
+		if (cd32_fmv_active) {
+			cd32_fmv_genlock(vb, &gfxvidinfo.tempbuffer);
+			vb = gfxvidinfo.outbuffer = &gfxvidinfo.tempbuffer;
+			setnativeposition(vb);
+			gfxvidinfo.drawbuffer.tempbufferinuse = true;
+			do_flush_screen(vb, 0, vb->outheight);
+			didflush = true;
+		} else {
+			gfxvidinfo.drawbuffer.tempbufferinuse = false;
 		}
 	}
 

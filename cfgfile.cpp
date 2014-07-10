@@ -180,7 +180,7 @@ static const TCHAR *magiccursors[] = { _T("both"), _T("native"), _T("host"), 0 }
 static const TCHAR *autoscale[] = { _T("none"), _T("auto"), _T("standard"), _T("max"), _T("scale"), _T("resize"), _T("center"), _T("manual"), _T("integer"), _T("integer_auto"), 0 };
 static const TCHAR *autoscale_rtg[] = { _T("resize"), _T("scale"), _T("center"), _T("integer"), 0 };
 static const TCHAR *joyportmodes[] = { _T(""), _T("mouse"), _T("mousenowheel"), _T("djoy"), _T("gamepad"), _T("ajoy"), _T("cdtvjoy"), _T("cd32joy"), _T("lightpen"), 0 };
-static const TCHAR *joyaf[] = { _T("none"), _T("normal"), _T("toggle"), 0 };
+static const TCHAR *joyaf[] = { _T("none"), _T("normal"), _T("toggle"), _T("always"), 0 };
 static const TCHAR *epsonprinter[] = { _T("none"), _T("ascii"), _T("epson_matrix_9pin"), _T("epson_matrix_24pin"), _T("epson_matrix_48pin"), 0 };
 static const TCHAR *aspects[] = { _T("none"), _T("vga"), _T("tv"), 0 };
 static const TCHAR *vsyncmodes[] = { _T("false"), _T("true"), _T("autoswitch"), 0 };
@@ -1391,8 +1391,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, _T("ksmirror_a8"), p->cs_ksmirror_a8);
 	cfgfile_dwrite_bool (f, _T("cd32cd"), p->cs_cd32cd);
 	cfgfile_dwrite_bool (f, _T("cd32c2p"), p->cs_cd32c2p);
-	cfgfile_dwrite_bool (f, _T("cd32nvram"), p->cs_cd32nvram);
-	cfgfile_dwrite_bool (f, _T("cdtvcd"), p->cs_cdtvcd);
+	cfgfile_dwrite_bool(f, _T("cd32nvram"), p->cs_cd32nvram);
+	cfgfile_dwrite_bool(f, _T("cd32fmv"), p->cs_cd32fmv);
+	cfgfile_dwrite_bool(f, _T("cdtvcd"), p->cs_cdtvcd);
 	cfgfile_dwrite_bool (f, _T("cdtvram"), p->cs_cdtvram);
 	cfgfile_dwrite (f, _T("cdtvramcard"), _T("%d"), p->cs_cdtvcard);
 	cfgfile_dwrite_str (f, _T("ide"), p->cs_ide == IDE_A600A1200 ? _T("a600/a1200") : (p->cs_ide == IDE_A4000 ? _T("a4000") : _T("none")));
@@ -3514,8 +3515,9 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("cpu_no_unimplemented"), &p->int_no_unimplemented)
 		|| cfgfile_yesno (option, value, _T("cd32cd"), &p->cs_cd32cd)
 		|| cfgfile_yesno (option, value, _T("cd32c2p"), &p->cs_cd32c2p)
-		|| cfgfile_yesno (option, value, _T("cd32nvram"), &p->cs_cd32nvram)
-		|| cfgfile_yesno (option, value, _T("cdtvcd"), &p->cs_cdtvcd)
+		|| cfgfile_yesno(option, value, _T("cd32nvram"), &p->cs_cd32nvram)
+		|| cfgfile_yesno(option, value, _T("cd32fmv"), &p->cs_cd32fmv)
+		|| cfgfile_yesno(option, value, _T("cdtvcd"), &p->cs_cdtvcd)
 		|| cfgfile_yesno (option, value, _T("cdtvram"), &p->cs_cdtvram)
 		|| cfgfile_yesno (option, value, _T("a1000ram"), &p->cs_a1000ram)
 		|| cfgfile_yesno (option, value, _T("pcmcia"), &p->cs_pcmcia)
@@ -5308,7 +5310,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->cs_mbdmac = 0;
 	p->a2091 = 0;
 	p->a4091 = 0;
-	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = false;
+	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = p->cs_cd32fmv = false;
 	p->cs_cdtvcd = p->cs_cdtvram = false;
 	p->cs_cdtvcard = 0;
 	p->cs_pcmcia = 0;
@@ -5562,7 +5564,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->cs_mbdmac = 0;
 	p->a2091 = false;
 	p->a4091 = false;
-	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = false;
+	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = p->cs_cd32fmv = false;
 	p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcard = false;
 	p->cs_ide = 0;
 	p->cs_pcmcia = 0;
@@ -5810,10 +5812,10 @@ static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
 
 static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
 {
-	int roms[2];
+	int roms[3];
 
 	buildin_default_prefs_68020 (p);
-	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 1;
+	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = true;
 	p->nr_floppies = 0;
 	p->floppyslots[0].dfxtype = DRV_NONE;
 	p->floppyslots[1].dfxtype = DRV_NONE;
@@ -5834,7 +5836,10 @@ static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
 			return 0;
 	}
 	if (config > 0) {
-		roms[0] = 23;
+		p->cs_cd32fmv = true;
+		roms[0] = 74;
+		roms[1] = 23;
+		roms[2] = -1;
 		if (!configure_rom (p, roms, romcheck))
 			return 0;
 	}
@@ -6135,7 +6140,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ksmirror_e0 = 0;
 		break;
 	case CP_CD32: // CD32
-		p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 1;
+		p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = true;
 		p->cs_ksmirror_e0 = 0;
 		p->cs_ksmirror_a8 = 1;
 		p->cs_ciaoverlay = 0;

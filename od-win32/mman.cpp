@@ -538,11 +538,17 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 			shmaddr=natmem_offset + 0xf00000;
 			got = TRUE;
 			readonly = TRUE;
-		} else if(!_tcscmp (shmids[shmid].name, _T("rtarea"))) {
-			shmaddr=natmem_offset + rtarea_base;
+		} else if (!_tcscmp(shmids[shmid].name, _T("rtarea"))) {
+			shmaddr = natmem_offset + rtarea_base;
 			got = TRUE;
 			readonly = TRUE;
 			readonlysize = RTAREA_TRAPS;
+		} else if (!_tcscmp(shmids[shmid].name, _T("fmv_rom"))) {
+			got = TRUE;
+			shmaddr = natmem_offset + 0x200000;
+		} else if (!_tcscmp(shmids[shmid].name, _T("fmv_ram"))) {
+			got = TRUE;
+			shmaddr = natmem_offset + 0x280000;
 		} else if(!_tcscmp (shmids[shmid].name, _T("fast"))) {
 			got = TRUE;
 			if (size < 524288) {

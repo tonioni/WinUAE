@@ -44,6 +44,7 @@
 #endif
 #include "debug.h"
 #include "akiko.h"
+#include "cd32_fmv.h"
 #include "cdtv.h"
 #if defined(ENFORCER)
 #include "enforcer.h"
@@ -202,6 +203,7 @@ int firstblankedline;
 static int equ_vblank_endline = EQU_ENDLINE_PAL;
 static bool equ_vblank_toggle = true;
 double vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_hz_stored, vblank_hz_nom;
+double hblank_hz;
 static float vblank_hz_lof, vblank_hz_shf, vblank_hz_lace;
 static int vblank_hz_mult, vblank_hz_state;
 static struct chipset_refresh *stored_chipset_refresh;
@@ -3504,6 +3506,9 @@ int vsynctimebase_orig;
 
 void compute_vsynctime (void)
 {
+	double svpos = maxvpos_nom;
+	double shpos = maxhpos_short;
+
 	fake_vblank_hz = 0;
 	vblank_hz_mult = 0;
 	vblank_hz_state = 1;
@@ -3529,21 +3534,20 @@ void compute_vsynctime (void)
 		updatedisplayarea ();
 	}
 #endif
+	if (islinetoggle ()) {
+		shpos += 0.5;
+	}
+	if (interlace_seen) {
+		svpos += 0.5;
+	} else if (lof_current) {
+		svpos += 1.0;
+	}
 	if (currprefs.produce_sound > 1) {
-		double svpos = maxvpos_nom;
-		double shpos = maxhpos_short;
-		if (islinetoggle ()) {
-			shpos += 0.5;
-		}
-		if (interlace_seen) {
-			svpos += 0.5;
-		} else if (lof_current) {
-			svpos += 1.0;
-		}
 		double clk = svpos * shpos * fake_vblank_hz;
 		//write_log (_T("SNDRATE %.1f*%.1f*%.6f=%.6f\n"), svpos, shpos, fake_vblank_hz, clk);
 		update_sound (clk);
 	}
+	cd32_fmv_set_sync(svpos);
 }
 
 
@@ -3770,12 +3774,14 @@ void compute_framesync (void)
 
 	compute_vsynctime ();
 
+	hblank_hz = (double)(currprefs.ntscmode ? CHIPSET_CLOCK_NTSC : CHIPSET_CLOCK_PAL) / (maxhpos + (islinetoggle() ? 0.5 : 0));
+
 	write_log (_T("%s mode%s%s V=%.4fHz H=%0.4fHz (%dx%d+%d) IDX=%d (%s) D=%d RTG=%d/%d\n"),
 		isntsc ? _T("NTSC") : _T("PAL"),
 		islace ? _T(" lace") : (lof_lace ? _T(" loflace") : _T("")),
 		doublescan > 0 ? _T(" dblscan") : _T(""),
 		vblank_hz,
-		(double)(currprefs.ntscmode ? CHIPSET_CLOCK_NTSC : CHIPSET_CLOCK_PAL) / (maxhpos + (islinetoggle () ? 0.5 : 0)),
+		hblank_hz,
 		maxhpos, maxvpos, lof_store ? 1 : 0,
 		cr ? cr->index : -1,
 		cr != NULL && cr->label != NULL ? cr->label : _T("<?>"),
@@ -4611,6 +4617,7 @@ static void rethink_intreq (void)
 #endif
 #ifdef CD32
 	rethink_akiko ();
+	rethink_cd32fmv();
 #endif
 	rethink_gayle ();
 }
@@ -7064,6 +7071,9 @@ static void vsync_handler_pre (void)
 #ifdef RETROPLATFORM
 	rp_vsync ();
 #endif
+#ifdef CD32
+	cd32_fmv_vsync_handler();
+#endif
 
 	if (!vsync_rendered) {
 		frame_time_t start, end;
@@ -7483,6 +7493,7 @@ static void hsync_handler_pre (bool onvsync)
 #endif
 #ifdef CD32
 	AKIKO_hsync_handler ();
+	cd32_fmv_hsync_handler();
 #endif
 #ifdef CDTV
 	CDTV_hsync_handler ();
