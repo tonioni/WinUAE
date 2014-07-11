@@ -2073,12 +2073,20 @@ void gfxboard_init_memory (void)
 	ew (0x00, type);
 
 	if (ISP4()) {
+		int roms[] = { 91, -1 };
+		struct romlist *rl = getromlistbyids (roms);
 		TCHAR path[MAX_DPATH];
 		fetch_rompath (path, sizeof path / sizeof (TCHAR));
-		_tcscat (path, _T("picasso_iv_flash.rom"));
-		p4rom = read_rom_name (path);
-		if (!p4rom)
-			p4rom = read_rom_name (_T("picasso_iv_flash.rom"));
+
+		if (rl) {
+			p4rom = read_rom (rl->rd);
+		}
+		if (!p4rom) {
+			_tcscat (path, _T("picasso_iv_flash.rom"));
+			p4rom = read_rom_name (path);
+			if (!p4rom)
+				p4rom = read_rom_name (_T("picasso_iv_flash.rom"));
+		}
 		if (p4rom) {
 			zfile_fread (p4autoconfig, sizeof p4autoconfig, 1, p4rom);
 			copyp4autoconfig (board->z3 ? 192 : 0);
