@@ -1057,6 +1057,7 @@ static uae_u32 dmac_read_word (struct wd_state *wd, uaecptr addr)
 	case 0xc2:
 	case 0xc4:
 	case 0xc6:
+		write_log(_T("READ XT IO %02x PC=%08x\n"), addr, M68K_GETPC);
 		v = 0xffff;
 		break;
 	case 0xe0:
@@ -1158,6 +1159,15 @@ static void dmac_write_word (struct wd_state *wd, uaecptr addr, uae_u32 b)
 	case 0x8e:
 		wd->dmac_dawr = b;
 		break;
+		break;
+	case 0xa0:
+	case 0xa2:
+	case 0xa4:
+	case 0xa6:
+	case 0xc2:
+	case 0xc4:
+	case 0xc6:
+		write_log(_T("WRITE XT IO %02x = %04x PC=%08x\n"), addr, b, M68K_GETPC);
 		break;
 	case 0xe0:
 		if (wd->dmac_dma <= 0)
@@ -1416,6 +1426,9 @@ addrbank dmaca2091_2_bank = {
 	dmac_a20912_xlate, dmac_a20912_check, NULL, _T("A2091/A590 #2"),
 	dmac_a20912_lgeti, dmac_a20912_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
+
+
+/* SUPERDMAC */
 
 static void mbdmac_write_word (struct wd_state *wd, uae_u32 addr, uae_u32 val)
 {
@@ -1747,7 +1760,6 @@ static void freescsi (struct scsi_data *sd)
 
 int add_wd_scsi_hd (struct wd_state *wd, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level)
 {
-	init_scsi (wd);
 	freescsi (wd->scsis[ch]);
 	wd->scsis[ch] = NULL;
 	if (!hfd) {
@@ -1763,7 +1775,6 @@ int add_wd_scsi_hd (struct wd_state *wd, int ch, struct hd_hardfiledata *hfd, st
 
 int add_wd_scsi_cd (struct wd_state *wd, int ch, int unitnum)
 {
-	init_scsi (wd);
 	device_func_init (0);
 	freescsi (wd->scsis[ch]);
 	wd->scsis[ch] = scsi_alloc_cd (ch, unitnum, false);
@@ -1772,7 +1783,6 @@ int add_wd_scsi_cd (struct wd_state *wd, int ch, int unitnum)
 
 int add_wd_scsi_tape (struct wd_state *wd, int ch, const TCHAR *tape_directory, bool readonly)
 {
-	init_scsi (wd);
 	freescsi (wd->scsis[ch]);
 	wd->scsis[ch] = scsi_alloc_tape (ch, tape_directory, readonly);
 	return wd->scsis[ch] ? 1 : 0;
@@ -1837,7 +1847,6 @@ static void addnativescsi (struct wd_state *wd)
 int a3000_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
 	struct wd_state *wd = &wd_a3000;
-	init_scsi (wd);
 	if (ci->type == UAEDEV_CD)
 		return add_wd_scsi_cd (wd, ch, ci->device_emu_unit);
 	else if (ci->type == UAEDEV_TAPE)
@@ -1850,6 +1859,7 @@ void a3000scsi_reset (void)
 {
 	struct wd_state *wd = &wd_a3000;
 	init_scsi (wd);
+	wd->enabled = true;
 	wd->configured = -1;
 	wd->superdmac = 1;
 	map_banks (&mbdmac_a3000_bank, 0xDD, 1, 0);
@@ -1922,11 +1932,12 @@ void a2091_init (int devnum)
 	int slotsize;
 	struct romlist *rl;
 
-	if (!wd->enabled) {
+	if (devnum > 0 && !wd->enabled) {
 		expamem_next();
 		return;
 	}
 
+	init_scsi(wd);
 	wd->configured = 0;
 	wd->autoconfig = true;
 	memset (wd->dmacmemory, 0xff, sizeof wd->dmacmemory);

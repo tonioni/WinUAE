@@ -454,10 +454,11 @@ void ncr_autoconfig_init (int devnum)
 	int roms[3];
 	int i;
 
-	if (!ncr->enabled) {
+	if (!ncr->enabled && devnum > 0) {
 		expamem_next();
 		return;
 	}
+	ncr->enabled = true;
 
 	roms[0] = 58;
 	roms[1] = 57;
@@ -533,8 +534,10 @@ void ncr_reset (void)
 	ncr_reset_board(&ncr_a4091);
 	ncr_reset_board(&ncr_a4091_2);
 	ncr_reset_board(&ncr_a4000t);
-	if (currprefs.cs_mbdmac & 2)
+	if (currprefs.cs_mbdmac & 2) {
 		ncr_a4000t.configured = -1;
+		ncr_a4000t.enabled = true;
+	}
 }
 
 static int add_ncr_scsi_hd (struct ncr_state *ncr, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level)
