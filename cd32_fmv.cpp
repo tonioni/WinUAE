@@ -173,7 +173,7 @@ static int fmv_video_debug = 0;
 #define CL_INT_GOP		(1 <<  2)
 #define CL_INT_PIC_V	(1 <<  1)
 #define CL_INT_SEQ_V	(1 <<  3)
-// CL450 DRAM resident variabels (WORD address)
+// CL450 DRAM resident variables (WORD address)
 #define CL_DRAM_SEQ_SEM			0x10
 #define CL_DRAM_SEQ_CONTROL		0x11
 #define CL_DRAM_H_SIZE			0x12
@@ -227,6 +227,7 @@ struct cl450_videoram
 {
 	int width;
 	int height;
+	int depth;
 	uae_u8 data[CL450_VIDEO_BUFFER_SIZE];
 };
 static struct cl450_videoram *videoram;
@@ -245,7 +246,8 @@ static struct cl450_newpacket cl450_newpacket_buffer[CL450_NEWPACKET_BUFFER_SIZE
 static int cl450_newpacket_offset_write;
 static int cl450_newpacket_offset_read;
 
-static int cl450_frame_rate;
+static int cl450_frame_rate, cl450_frame_pixbytes;
+static int cl450_frame_width, cl450_frame_height;
 static int cl450_video_hsync_wait;
 static int cl450_videoram_read;
 static int cl450_videoram_write;
@@ -804,12 +806,15 @@ static void cl450_parse_frame(void)
 			}
 			break;
 			case STATE_SEQUENCE:
-				mpeg2_convert(mpeg_decoder, mpeg2convert_rgb32, NULL);
+				cl450_frame_pixbytes = currprefs.color_mode != 5 ? 2 : 4;
+				mpeg2_convert(mpeg_decoder, cl450_frame_pixbytes == 2 ? mpeg2convert_rgb16 : mpeg2convert_rgb32, NULL);
 				cl450_set_status(CL_INT_SEQ_V);
 				cl450_frame_rate = mpeg_info->sequence->frame_period ? 27000000 / mpeg_info->sequence->frame_period : 0;
+				cl450_frame_width = mpeg_info->sequence->width;
+				cl450_frame_height = mpeg_info->sequence->height;
 				cl450_write_dram(CL_DRAM_PICTURE_RATE, cl450_frame_rate);
-				cl450_write_dram(CL_DRAM_H_SIZE, mpeg_info->sequence->width);
-				cl450_write_dram(CL_DRAM_V_SIZE, mpeg_info->sequence->height);
+				cl450_write_dram(CL_DRAM_H_SIZE, cl450_frame_width);
+				cl450_write_dram(CL_DRAM_V_SIZE, cl450_frame_height);
 				break;
 			case STATE_PICTURE:
 				break;
@@ -820,9 +825,10 @@ static void cl450_parse_frame(void)
 			case STATE_SLICE:
 			case STATE_END:
 				if (mpeg_info->display_fbuf) {
-					memcpy(videoram[cl450_videoram_write].data, mpeg_info->display_fbuf->buf[0], CL450_VIDEO_BUFFER_SIZE);
-					videoram[cl450_videoram_write].width = mpeg_info->sequence->width;
-					videoram[cl450_videoram_write].height = mpeg_info->sequence->height;
+					memcpy(videoram[cl450_videoram_write].data, mpeg_info->display_fbuf->buf[0], cl450_frame_width * cl450_frame_height * cl450_frame_pixbytes);
+					videoram[cl450_videoram_write].width = cl450_frame_width;
+					videoram[cl450_videoram_write].height = cl450_frame_height;
+					videoram[cl450_videoram_write].depth = cl450_frame_pixbytes;
 					cl450_videoram_write++;
 					cl450_videoram_write &= CL450_VIDEO_BUFFERS - 1;
 					cl450_videoram_cnt++;
@@ -1339,7 +1345,8 @@ void cd32_fmv_hsync_handler(void)
 	if (cl450_video_hsync_wait == 0) {
 		cl450_set_status(CL_INT_PIC_D);
 		if (cl450_videoram_cnt > 0) {
-			cd32_fmv_new_image(videoram[cl450_videoram_read].width, videoram[cl450_videoram_read].height, cl450_blank ? NULL : videoram[cl450_videoram_read].data);
+			cd32_fmv_new_image(videoram[cl450_videoram_read].width, videoram[cl450_videoram_read].height, 
+				videoram[cl450_videoram_read].depth, cl450_blank ? NULL : videoram[cl450_videoram_read].data);
 			cl450_videoram_read++;
 			cl450_videoram_read &= CL450_VIDEO_BUFFERS - 1;
 			cl450_videoram_cnt--;
