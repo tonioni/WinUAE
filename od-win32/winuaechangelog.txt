@@ -18,6 +18,56 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 3:
+
+- Selected chipset extra didn't match what dialog box shows (b2). This broke many configs..
+- CD32 FMV 16-bit display mode support.
+- A590/A2091, A3000, A4000T and A4091 SCSI was not initialized unless at least one device was connected (b1).
+- Added Picasso IV flash rom v7.4 image to rom scanner. It does not need to be called picasso_iv_flash.rom anymore.
+- Added Blizzard 1230-IV and 1240/1260 Boot ROMs to rom scanner. (Coming soon Blizzard 1230/40/60 unique memory
+  layout and maprom emulation. It can be useful for developers and for testing without real board. This was
+  supposed to be implemented in this beta but chipset extra bug required quick update)
+- .bin extension added to ROM scanner.
+
+Beta 2:
+
+- Pointless CD32 Full Motion Video cartridge emulation! (Check notes below)
+- CD32 FMV 40.22 ROM image rom scanner checksum fixed (was from byteswapped image). ROM rescan required.
+- Added CD32 FMV option to Expansion panel.
+- Added CD32 FMV to ROM scanner result dialog.
+- GamePorts panel autofire always-option crashed.
+- CD image emulation didn't support 2336 to 2352 sector size conversion.
+- CD image emulation didn't return correct data if image had 2 data tracks back to back and
+  tracks from second data track was requested. (Cannon Fodder CD32 FMV track)
+- Debugger MOVES instruction's source and destination was swapped.
+- Quickstart CD image selection text box become empty after image was selected (b1)
+- RTG scale options didn't work on the fly. (2.8.0)
+
+CD32 FMV notes:
+
+- ROM requests won't be allowed and will be deleted. ("Find" it yourself or get AmigaForever or something)
+- Only supports CL450 MPEG decoder commands that basic playback needs.
+- VCD quality is not that good: MPEG-1 with 352x288 (PAL) or 352x240 (NTSC) resolution, MPEG-1 layer 2 audio.
+- Requires at least null filter. (Automatically enabled)
+- Requires 32-bit display mode, 16-bit will work in future. (Not automatically enabled)
+- Tested with CD32 FMV 40.22 and 40.30 ROM versions.
+- Tested only with Cannon Fodder CD32 video track and one VCD movie.
+- Rewind or fast forward hangs the player software. (No idea why. No CL450 commands sent.)
+- AV sync may not be that good.
+- Sound buffer underflows will happen.
+- CL450 video window size and position values ignored, video window is always centered and automatically
+  1x/2x/4x scaled.
+- Video is 1:1 pixel mapped, aspect ratio is ignored.
+- Before reporting anything: make sure your Cannon Fodder CD32 image is correct. It must have 2 data
+  tracks, check .cue file using any text editor. Plain iso also can't work.
+- Config must be based on "CD32 with Full Motion Video cartridge". Do not load old CD32 config and tick
+  CD32 FMV expansion option. If you do it, you are on your own.
+
+- Only obvious bugs (very jittery video, nothing happens etc..) will be accepted.
+  Everything else will be ignored until I get my own FMV cartridge.
+  I won't pay for it. Exception is getting enough donations.
+  WinUAE is not a video player!
+
 Beta 1:
 
 - Debugger TR command didn't handle linked resident lists correctly (inverted mask..).

@@ -1450,7 +1450,7 @@ static int isromext (const TCHAR *path, bool deepscan)
 		return 0;
 	ext++;
 
-	if (!_tcsicmp (ext, _T("rom")) ||  !_tcsicmp (ext, _T("adf")) || !_tcsicmp (ext, _T("key"))
+	if (!_tcsicmp (ext, _T("rom")) || !_tcsicmp (ext, _T("bin")) ||  !_tcsicmp (ext, _T("adf")) || !_tcsicmp (ext, _T("key"))
 		|| !_tcsicmp (ext, _T("a500")) || !_tcsicmp (ext, _T("a1200")) || !_tcsicmp (ext, _T("a4000")) || !_tcsicmp (ext, _T("cd32")))
 		return 1;
 	if (_tcslen (ext) >= 2 && toupper(ext[0]) == 'U' && isdigit (ext[1]))

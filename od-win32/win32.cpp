@@ -3059,15 +3059,17 @@ void target_fixup_options (struct uae_prefs *p)
 			p->gfx_size_fs.special = 0;
 	}
 	/* switch from 32 to 16 or vice versa if mode does not exist */
-	int depth = p->color_mode == 5 ? 4 : 2;
-	for (int i = 0; md->DisplayModes[i].depth >= 0; i++) {
-		if (md->DisplayModes[i].depth == depth) {
-			depth = 0;
-			break;
+	if (1 || isfullscreen() > 0) {
+		int depth = p->color_mode == 5 ? 4 : 2;
+		for (int i = 0; md->DisplayModes[i].depth >= 0; i++) {
+			if (md->DisplayModes[i].depth == depth) {
+				depth = 0;
+				break;
+			}
 		}
-	}
-	if (depth) {
-		p->color_mode = p->color_mode == 5 ? 2 : 5;
+		if (depth) {
+			p->color_mode = p->color_mode == 5 ? 2 : 5;
+		}
 	}
 	if (p->rtg_hardwaresprite && !p->gfx_api) {
 		error_log (_T("DirectDraw is not RTG hardware sprite compatible."));
