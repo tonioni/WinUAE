@@ -131,12 +131,12 @@ static uae_u32 nscmd_cmd;
 static struct devstruct devst[MAX_TOTAL_DEVICES];
 static uae_sem_t change_sem, async_sem;
 
-static TCHAR *getdevname (void)
+static const TCHAR *getdevname (void)
 {
 	return _T("uaeserial.device");
 }
 
-static void io_log (TCHAR *msg, uaecptr request)
+static void io_log (const TCHAR *msg, uaecptr request)
 {
 	if (log_uaeserial)
 		write_log (_T("%s: %08X %d %08X %d %d io_actual=%d io_error=%d\n"),
@@ -313,7 +313,6 @@ static uae_u32 REGPARAM2 dev_expunge (TrapContext *context)
 static struct asyncreq *get_async_request (struct devstruct *dev, uaecptr request, int ready)
 {
 	struct asyncreq *ar;
-	int ret = 0;
 
 	uae_sem_wait (&async_sem);
 	ar = dev->ar;
@@ -404,7 +403,6 @@ void uaeser_signal (void *vdev, int sigmask)
 {
 	struct devstruct *dev = (struct devstruct*)vdev;
 	struct asyncreq *ar;
-	int i = 0;
 
 	uae_sem_wait (&async_sem);
 	ar = dev->ar;
