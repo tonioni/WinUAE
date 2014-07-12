@@ -8,7 +8,7 @@
 
 struct wd_state {
 	bool enabled;
-	TCHAR *name;
+	const TCHAR *name;
 	int configured;
 	bool autoconfig;
 	uae_u8 dmacmemory[100];
