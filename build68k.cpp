@@ -6,16 +6,15 @@
  * Copyright 1995,1996 Bernd Schmidt
  */
 
+#include "sysconfig.h"
+#include "sysdeps.h"
+
 #include <stdlib.h>
 #include <tchar.h>
 #include <assert.h>
 #include <ctype.h>
 
 #define TCHAR char
-
-#include "sysconfig.h"
-#include "sysdeps.h"
-
 
 #include "readcpu.h"
 
@@ -227,7 +226,9 @@ int main(int argc, char **argv)
 		if (nextch != ':')
 			abort();
 
-		fgets(opcstr, 250, tablef);
+		if (fgets(opcstr, 250, tablef) != opcstr) {
+			abort();
+		}
 		getnextch();
 
 		if (nextch == '-') {
@@ -268,7 +269,9 @@ int main(int argc, char **argv)
 				nextch = fgetc (tablef);
 			}
 			if (nextch == ' ') {
-				fgets(fm, sizeof fm, tablef);
+				if (fgets(fm, sizeof fm, tablef) != fm) {
+					abort();
+				}
 				if (!strnicmp(fm, "fea", 3))
 					fetchmode = 1;
 				if (!strnicmp(fm, "cea", 3))
