@@ -13,7 +13,7 @@
 
 #include "options.h"
 #include "uae.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "rommgr.h"
 #include "ersatz.h"
 #include "zfile.h"

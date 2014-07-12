@@ -37,7 +37,7 @@ happening, all ports should restrict window widths to be multiples of 16 pixels.
 #include "options.h"
 #include "threaddep/thread.h"
 #include "uae.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "custom.h"
 #include "newcpu.h"
 #include "xwin.h"

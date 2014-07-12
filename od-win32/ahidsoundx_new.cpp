@@ -23,7 +23,7 @@
 #include "sysdeps.h"
 #include "options.h"
 #include "audio.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "events.h"
 #include "custom.h"
 #include "newcpu.h"

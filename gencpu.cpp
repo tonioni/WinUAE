@@ -5058,7 +5058,7 @@ static void generate_includes (FILE * f, int id)
 	fprintf (f, "#include \"sysconfig.h\"\n");
 	fprintf (f, "#include \"sysdeps.h\"\n");
 	fprintf (f, "#include \"options.h\"\n");
-	fprintf (f, "#include \"memory.h\"\n");
+	fprintf (f, "#include \"memory_uae.h\"\n");
 	fprintf (f, "#include \"custom.h\"\n");
 	fprintf (f, "#include \"events.h\"\n");
 	fprintf (f, "#include \"newcpu.h\"\n");

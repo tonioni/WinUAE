@@ -3,7 +3,7 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 #include "sys/mman.h"
-#include "include/memory.h"
+#include "include/memory_uae.h"
 #include "options.h"
 #include "autoconf.h"
 

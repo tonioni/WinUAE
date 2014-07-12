@@ -29,7 +29,7 @@
 #include "custom.h"
 #include "xwin.h"
 #include "drawing.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "events.h"
 #include "newcpu.h"
 #include "uae.h"

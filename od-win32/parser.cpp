@@ -34,7 +34,7 @@
 #include "gensound.h"
 #include "events.h"
 #include "uae.h"
-#include "include/memory.h"
+#include "include/memory_uae.h"
 #include "custom.h"
 #include "autoconf.h"
 #include "newcpu.h"

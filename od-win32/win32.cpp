@@ -46,7 +46,7 @@
 #include "audio.h"
 #include "sound.h"
 #include "uae.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "rommgr.h"
 #include "custom.h"
 #include "events.h"

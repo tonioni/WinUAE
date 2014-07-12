@@ -12,7 +12,7 @@
 #ifdef PROWIZARD
 
 #include "options.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "moduleripper.h"
 #include "gui.h"
 #include "uae.h"

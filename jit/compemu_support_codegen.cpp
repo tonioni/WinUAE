@@ -71,7 +71,7 @@
 
 //#include "machdep/m68k.h"
 #include "custom.h"
-#include "memory.h"
+#include "memory_uae.h"
 //#include "readcpu.h"
 #include "newcpu.h"
 #include "comptbl.h"

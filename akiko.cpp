@@ -15,7 +15,7 @@
 #include "sysdeps.h"
 
 #include "options.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "events.h"
 #include "savestate.h"
 #include "blkdev.h"

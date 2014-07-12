@@ -6,7 +6,7 @@
 #include "zfile.h"
 #include "amax.h"
 #include "custom.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "newcpu.h"
 
 static int data_scramble[8] = { 3, 2, 4, 5, 7, 6, 0, 1 };
