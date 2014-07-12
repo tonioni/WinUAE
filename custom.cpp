@@ -3666,7 +3666,7 @@ void compute_framesync (void)
 					changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = vblank_hz;
 					cfgfile_parse_lines (&changed_prefs, cr->commands, -1);
 					if (cr->commands[0])
-						write_log (L"CMD1: '%s'\n", cr->commands);
+						write_log (_T("CMD1: '%s'\n"), cr->commands);
 					break;
 				} else {
 					v = cr->rate;
@@ -3678,7 +3678,7 @@ void compute_framesync (void)
 				changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = v;
 				cfgfile_parse_lines (&changed_prefs, cr->commands, -1);
 				if (cr->commands[0])
-					write_log (L"CMD2: '%s'\n", cr->commands);
+					write_log (_T("CMD2: '%s'\n"), cr->commands);
 			}
 		} else {
 			if (cr->locked == false)
@@ -3688,7 +3688,7 @@ void compute_framesync (void)
 			changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = v;
 			cfgfile_parse_lines (&changed_prefs, cr->commands, -1);
 			if (cr->commands[0])
-				write_log (L"CMD3: '%s'\n", cr->commands);
+				write_log (_T("CMD3: '%s'\n"), cr->commands);
 		}
 		found = true;
 		break;
@@ -5372,11 +5372,11 @@ static void SPRxCTLPOS(int num)
 
 static void SPRxCTL_1(uae_u16 v, int num, int hpos)
 {
-	struct sprite *s = &spr[num];
 	sprctl[num] = v;
 	spr_arm (num, 0);
 	SPRxCTLPOS (num);
 #if SPRITE_DEBUG > 0
+	struct sprite *s = &spr[num];
 	if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY && (SPRITE_DEBUG & (1 << num))) {
 		write_log (_T("%d:%d:SPR%dCTL %04X P=%06X VSTRT=%d VSTOP=%d HSTRT=%d D=%d A=%d CP=%x PC=%x\n"),
 			vpos, hpos, num, v, s->pt, s->vstart, s->vstop, s->xpos, spr[num].dmastate, spr[num].armed, cop_state.ip, M68K_GETPC);
@@ -5386,10 +5386,10 @@ static void SPRxCTL_1(uae_u16 v, int num, int hpos)
 }
 static void SPRxPOS_1(uae_u16 v, int num, int hpos)
 {
-	struct sprite *s = &spr[num];
 	sprpos[num] = v;
 	SPRxCTLPOS (num);
 #if SPRITE_DEBUG > 0
+	struct sprite *s = &spr[num];
 	if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY && (SPRITE_DEBUG & (1 << num))) {
 		write_log (_T("%d:%d:SPR%dPOS %04X P=%06X VSTRT=%d VSTOP=%d HSTRT=%d D=%d A=%d CP=%x PC=%x\n"),
 			vpos, hpos, num, v, s->pt, s->vstart, s->vstop, s->xpos, spr[num].dmastate, spr[num].armed, cop_state.ip, M68K_GETPC);
@@ -5747,7 +5747,7 @@ static int custom_wput_copper (int hpos, uaecptr addr, uae_u32 value, int noget)
 	return v;
 }
 
-static void dump_copper (TCHAR *error, int until_hpos)
+static void dump_copper (const TCHAR *error, int until_hpos)
 {
 	write_log (_T("\n"));
 	write_log (_T("%s: vpos=%d until_hpos=%d vp=%d\n"),
@@ -6583,8 +6583,6 @@ void init_hardware_for_drawing_frame (void)
 	next_sprite_forced = 1;
 }
 
-static void do_savestate(void);
-
 static int rpt_vsync (int adjust)
 {
 	frame_time_t curr_time = read_processor_time ();
@@ -6968,7 +6966,6 @@ static bool framewait (void)
 			vsynctimeperline = vstb / 3;
 		
 		frame_shown = true;
-
 	}
 	return status != 0;
 }
@@ -7503,11 +7500,12 @@ static void hsync_handler_pre (bool onvsync)
 #ifdef PICASSO96
 	picasso_handle_hsync ();
 #endif
+#ifdef AHI
 	{
 		void ahi_hsync (void);
 		ahi_hsync ();
 	}
-
+#endif
 	DISK_hsync ();
 	if (currprefs.produce_sound)
 		audio_hsync ();
@@ -7936,7 +7934,6 @@ void custom_prepare (void)
 void custom_reset (bool hardreset, bool keyboardreset)
 {
 	int i;
-	int zero = 0;
 
 	target_reset ();
 	reset_all_systems ();
@@ -8676,7 +8673,6 @@ static void REGPARAM2 custom_wput (uaecptr addr, uae_u32 value)
 
 static void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 {
-	static int warned;
 	uae_u16 rval;
 
 	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0) {
