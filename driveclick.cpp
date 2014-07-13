@@ -50,7 +50,15 @@ uae_s16 *decodewav (uae_u8 *s, int *lenp)
 			s += 4;
 			len = s[0] | (s[1] << 8) | (s[2] << 16) | (s[3] << 24);
 			dst = xmalloc (uae_s16, len / 2);
+#ifdef WORDS_BIGENDIAN
+			int8_t *dst8 = (int8_t *) dst;
+			for (int i = 0; i < len; i += 2) {
+				dst8[i] = s[i + 1];
+				dst8[i + 1] = s[i];
+			}
+#else
 			memcpy (dst, s + 4, len);
+#endif
 			*lenp = len / 2;
 			return dst;
 		}
@@ -96,14 +104,13 @@ static void freesample (struct drvsample *s)
 
 static void processclicks (struct drvsample *ds)
 {
-	unsigned int n = 0;
 	unsigned int nClick = 0;
 
-	for (n = 0; n < CLICK_TRACKS; n++)  {
+	for (int n = 0; n < CLICK_TRACKS; n++)  {
 		ds->indexes[n] = 0;
 		ds->lengths[n] = 0;
 	}
-	for(n = 0; n < ds->len; n++) {
+	for(int n = 0; n < ds->len; n++) {
 		uae_s16 smp = ds->p[n];
 		if (smp > 0x6ff0 && nClick < CLICK_TRACKS)  {
 			ds->indexes[nClick] = n - 128;
@@ -113,19 +120,19 @@ static void processclicks (struct drvsample *ds)
 		}
 	}
 	if (nClick == 0) {
-		for(n = 0; n < CLICK_TRACKS; n++) {
+		for(int n = 0; n < CLICK_TRACKS; n++) {
 			ds->indexes[n] = 0;
 			ds->lengths[n] = ds->len;
 		}
 	} else {
 		if (nClick == 1) {
 			ds->lengths[0] = ds->len - ds->indexes[0];
-			for(n = 1; n < CLICK_TRACKS; n++) {
+			for(int n = 1; n < CLICK_TRACKS; n++) {
 				ds->indexes[n] = ds->indexes[0];
 				ds->lengths[n] = ds->lengths[0];
 			}
 		} else  {
-			for(n = nClick; n < CLICK_TRACKS; n++) {
+			for(int n = nClick; n < CLICK_TRACKS; n++) {
 				ds->indexes[n] = ds->indexes[nClick-1];
 				ds->lengths[n] = ds->lengths[nClick-1];
 			}
@@ -147,8 +154,8 @@ void driveclick_init (void)
 			drvs[i][DS_CLICK].lengths[j] = 0;
 		}
 		if (fs->dfxclick) {
+			v = 0;
 			if (fs->dfxclick > 0) {
-				v = 0;
 				switch(fs->dfxclick)
 				{
 				case 1:
