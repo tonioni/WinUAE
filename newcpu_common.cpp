@@ -6,7 +6,7 @@
 #define MOVEC_DEBUG 0
 
 #include "options.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "newcpu.h"
 #include "cpummu.h"
 #include "cpummu030.h"

@@ -27,7 +27,7 @@ static bool memlogw = false;
 
 #include "options.h"
 #include "uae.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "debug.h"
 #include "custom.h"
 #include "newcpu.h"

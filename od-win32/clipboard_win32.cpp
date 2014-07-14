@@ -11,7 +11,7 @@
 #include "clipboard.h"
 
 #include "threaddep/thread.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "native2amiga_api.h"
 
 #define DEBUG_CLIP 0

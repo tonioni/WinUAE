@@ -12,7 +12,7 @@
 #include "uae.h"
 #include "gui.h"
 #include "rommgr.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "zfile.h"
 #include "crc32.h"
 #include "fsdb.h"

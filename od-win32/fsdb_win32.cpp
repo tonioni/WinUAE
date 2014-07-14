@@ -12,7 +12,7 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 #include "options.h"
-#include "memory.h"
+#include "memory_uae.h"
 
 #include "fsdb.h"
 #include "win32.h"

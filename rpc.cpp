@@ -13,7 +13,7 @@
 #include "config.h"
 #include "options.h"
 #include "threaddep/thread.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "custom.h"
 #include "keyboard.h"
 #include "xwin.h"

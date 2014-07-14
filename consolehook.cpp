@@ -4,7 +4,7 @@
 #include "sysdeps.h"
 
 #include "options.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "execlib.h"
 #include "disk.h"
 #include "rommgr.h"

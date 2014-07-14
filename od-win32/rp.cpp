@@ -19,7 +19,7 @@
 #include "disk.h"
 #include "xwin.h"
 #include "custom.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "newcpu.h"
 #include "picasso96_win.h"
 #include "win32.h"

@@ -20,7 +20,7 @@
 #include "fsdb.h"
 #include "uae.h"
 #include "custom.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "newcpu.h"
 
 #include "cpu_small.h"

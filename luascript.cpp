@@ -13,7 +13,7 @@
 
 #include "options.h"
 #include "savestate.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "debug.h"
 #include "identify.h"
 #include "luascript.h"

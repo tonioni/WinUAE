@@ -23,7 +23,7 @@ int disk_debug_track = -1;
 
 #include "uae.h"
 #include "options.h"
-#include "memory.h"
+#include "memory_uae.h"
 #include "events.h"
 #include "custom.h"
 #include "ersatz.h"
