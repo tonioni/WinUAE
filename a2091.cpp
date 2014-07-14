@@ -186,7 +186,7 @@ static struct wd_state *wda2091[] = {
 		&wd_a2091_2,
 };
 
-static struct wd_state *wdscsi[] {
+static struct wd_state *wdscsi[] = {
 		&wd_a2091,
 		&wd_a2091_2,
 		&wd_a3000,
@@ -332,6 +332,7 @@ static bool canwddma (struct wd_state *wd)
 	return mode == 4 || mode == 1;
 }
 
+#if WD33C93_DEBUG > 0
 static TCHAR *scsitostring (struct wd_state *wd)
 {
 	static TCHAR buf[200];
@@ -350,6 +351,7 @@ static TCHAR *scsitostring (struct wd_state *wd)
 	}
 	return buf;
 }
+#endif
 
 static void dmacheck (struct wd_state *wd)
 {
@@ -375,7 +377,9 @@ static bool do_dma (struct wd_state *wd)
 	if (wd->scsi->direction == 0) {
 		write_log (_T("%s DMA but no data!?\n"), WD33C93);
 	} else if (wd->scsi->direction < 0) {
+#if WD33C93_DEBUG > 0
 		uaecptr odmac_acr = wd->dmac_acr;
+#endif
 		for (;;) {
 			uae_u8 v;
 			int status = scsi_receive_data (wd->scsi, &v);
@@ -393,7 +397,9 @@ static bool do_dma (struct wd_state *wd)
 #endif
 		return true;
 	} else if (wd->scsi->direction > 0) {
+#if WD33C93_DEBUG > 0
 		uaecptr odmac_acr = wd->dmac_acr;
+#endif
 		for (;;) {
 			int status;
 			uae_u8 v = get_byte (wd->dmac_acr);
