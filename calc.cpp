@@ -272,6 +272,7 @@ static double docalc1(TCHAR op, struct calcstack *sv1, double v2)
 	return docalcx (op, v1, v2);
 }
 
+#if CALC_DEBUG
 static TCHAR *stacktostr(struct calcstack *st)
 {
 	static TCHAR out[256];
@@ -280,6 +281,7 @@ static TCHAR *stacktostr(struct calcstack *st)
 	_stprintf(out, _T("%f"), st->val);
 	return out;
 }
+#endif
 
 static TCHAR *chartostack(TCHAR c)
 {
@@ -294,7 +296,7 @@ static bool execution_order(const TCHAR *input, double *outval)
     const TCHAR *strpos = input, *strend = input + _tcslen(input);
     TCHAR c, res[4];
     unsigned int sl = 0, rn = 0;
-	struct calcstack stack[STACK_SIZE] = { 0 }, *sc, *sc2;
+	struct calcstack stack[STACK_SIZE] = { { 0 } }, *sc, *sc2;
 	double val = 0;
 	int i;
 	bool ok = false;
