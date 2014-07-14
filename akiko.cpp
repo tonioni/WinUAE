@@ -1811,7 +1811,7 @@ static void patchrom (void)
 				p[i + 8] = 0x4e;
 				p[i + 9] = 0x71;
 				protect_roms (true);
-				write_log (_T("extended rom delay loop patched at 0x%p\n"), i + 6 + 0xe00000);
+				write_log (_T("extended rom delay loop patched at 0x%08x\n"), i + 6 + 0xe00000);
 				return;
 			}
 		}
