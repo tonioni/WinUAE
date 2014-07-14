@@ -41,7 +41,6 @@
 #include <signal.h>
 #else
 /* Need to have these somewhere */
-static void build_comp (void) {}
 bool check_prefs_changed_comp (void) { return false; }
 #endif
 /* For faster JIT cycles handling */
@@ -228,7 +227,7 @@ static void validate_trace (void)
 	for (int i = 0; i < cputrace.memoryoffset; i++) {
 		struct cputracememory *ctm = &cputrace.ctm[i];
 		if (ctm->data == 0xdeadf00d) {
-			write_log (L"unfinished write operation %d %08x\n", i, ctm->addr);
+			write_log (_T("unfinished write operation %d %08x\n"), i, ctm->addr);
 		}
 	}
 }
@@ -270,7 +269,7 @@ static void add_trace (uaecptr addr, uae_u32 val, int accessmode, int size)
 {
 	if (cputrace.memoryoffset < 1) {
 #if CPUTRACE_DEBUG
-		write_log (L"add_trace memoryoffset=%d!\n", cputrace.memoryoffset);
+		write_log (_T("add_trace memoryoffset=%d!\n"), cputrace.memoryoffset);
 #endif
 		return;
 	}
@@ -303,7 +302,7 @@ static bool check_trace (void)
 		return true;
 	if (!cputrace.readcounter && !cputrace.writecounter && !cputrace.cyclecounter) {
 		if (cpu_tracer != -2) {
-			write_log (_T("CPU trace: dma_cycle() enabled. %08x %08x NOW=%08X\n"),
+			write_log (_T("CPU trace: dma_cycle() enabled. %08x %08x NOW=%08lx\n"),
 				cputrace.cyclecounter_pre, cputrace.cyclecounter_post, get_cycles ());
 			cpu_tracer = -2; // dma_cycle() allowed to work now
 		}
@@ -327,7 +326,7 @@ static bool check_trace (void)
 	x_do_cycles_pre = x2_do_cycles_pre;
 	x_do_cycles_post = x2_do_cycles_post;
 	set_x_cp_funcs();
-	write_log (_T("CPU tracer playback complete. STARTCYCLES=%08x NOWCYCLES=%08x\n"), cputrace.startcycles, get_cycles ());
+	write_log (_T("CPU tracer playback complete. STARTCYCLES=%08x NOWCYCLES=%08lx\n"), cputrace.startcycles, get_cycles ());
 	cputrace.needendcycles = 1;
 	cpu_tracer = 0;
 	return true;
@@ -340,7 +339,7 @@ static bool get_trace (uaecptr addr, int accessmode, int size, uae_u32 *data)
 		struct cputracememory *ctm = &cputrace.ctm[i];
 		if (ctm->addr == addr && ctm->mode == mode) {
 			ctm->mode = 0;
-			write_log (_T("CPU trace: GET %d: PC=%08x %08x=%08x %d %d %08x/%08x/%08x %d/%d (%08X)\n"),
+			write_log (_T("CPU trace: GET %d: PC=%08x %08x=%08x %d %d %08x/%08x/%08x %d/%d (%08lx)\n"),
 				i, cputrace.pc, addr, ctm->data, accessmode, size,
 				cputrace.cyclecounter, cputrace.cyclecounter_pre, cputrace.cyclecounter_post,
 				cputrace.readcounter, cputrace.writecounter, get_cycles ());
@@ -649,7 +648,7 @@ static void cputracefunc_x_do_cycles_post (unsigned long cycles, uae_u32 v)
 {
 	if (cputrace.memoryoffset < 1) {
 #if CPUTRACE_DEBUG
-		write_log (L"cputracefunc_x_do_cycles_post memoryoffset=%d!\n", cputrace.memoryoffset);
+		write_log (_T("cputracefunc_x_do_cycles_post memoryoffset=%d!\n"), cputrace.memoryoffset);
 #endif
 		return;
 	}
@@ -1476,7 +1475,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 			if (dp & 4) base += dispreg;
 
 			addr = base + outer;
-			_stprintf (buffer, _T("(%s%c%d.%c*%d+%ld)+%ld == $%08lx"), name,
+			_stprintf (buffer, _T("(%s%c%d.%c*%d+%d)+%d == $%08lx"), name,
 				dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W',
 				1 << ((dp >> 9) & 3),
 				disp, outer,
@@ -1521,7 +1520,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 			if (dp & 4) base += dispreg;
 
 			addr = base + outer;
-			_stprintf (buffer, _T("(%s%c%d.%c*%d+%ld)+%ld == $%08lx"), name,
+			_stprintf (buffer, _T("(%s%c%d.%c*%d+%d)+%d == $%08lx"), name,
 				dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W',
 				1 << ((dp >> 9) & 3),
 				disp, outer,
@@ -2241,8 +2240,7 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
 static void Exception_mmu030 (int nr, uaecptr oldpc)
 {
     uae_u32 currpc = m68k_getpc (), newpc;
-    int sv = regs.s;
-    
+
     exception_debug (nr);
     MakeSR ();
     
@@ -2303,7 +2301,6 @@ static void Exception_mmu030 (int nr, uaecptr oldpc)
 static void Exception_mmu (int nr, uaecptr oldpc)
 {
 	uae_u32 currpc = m68k_getpc (), newpc;
-	int sv = regs.s;
 
 	exception_debug (nr);
 	MakeSR ();
@@ -2582,7 +2579,6 @@ static void ExceptionX (int nr, uaecptr address)
 		}
 
 	if (debug_illegal && !in_rom (M68K_GETPC)) {
-		int v = nr;
 		if (nr <= 63 && (debug_illegal_mask & ((uae_u64)1 << nr))) {
 			write_log (_T("Exception %d breakpoint\n"), nr);
 			activate_debugger ();
@@ -2802,15 +2798,13 @@ uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
 
 #ifdef CPUEMU_0
 
-static TCHAR *mmu30regs[] = { _T("TCR"), _T(""), _T("SRP"), _T("CRP"), _T(""), _T(""), _T(""), _T("") };
-
 static void mmu_op30fake_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 {
 	int mode = (opcode >> 3) & 7;
 	int preg = (next >> 10) & 31;
 	int rw = (next >> 9) & 1;
 	int fd = (next >> 8) & 1;
-	TCHAR *reg = NULL;
+	const TCHAR *reg = NULL;
 	uae_u32 otc = fake_tc_030;
 	int siz;
 
@@ -3502,7 +3496,7 @@ static void m68k_run_1_ce (void)
 cont:
 		if (cputrace.needendcycles) {
 			cputrace.needendcycles = 0;
-			write_log (_T("STARTCYCLES=%08x ENDCYCLES=%08x\n"), cputrace.startcycles, get_cycles ());
+			write_log (_T("STARTCYCLES=%08x ENDCYCLES=%08lx\n"), cputrace.startcycles, get_cycles ());
 			log_dma_record ();
 		}
 
@@ -4696,7 +4690,8 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			uae_u16 imm = extra;
 			uae_u16 creg = imm & 0x0fff;
 			uae_u16 r = imm >> 12;
-			TCHAR regs[16], *cname = _T("?");
+			TCHAR regs[16];
+			const TCHAR *cname = _T("?");
 			int i;
 			for (i = 0; m2cregs[i].regname; i++) {
 				if (m2cregs[i].regno == creg)
@@ -5023,25 +5018,25 @@ void sm68k_disasm (TCHAR *instrname, TCHAR *instrcode, uaecptr addr, uaecptr *ne
 }
 
 struct cpum2c m2cregs[] = {
-	0, _T("SFC"),
-	1, _T("DFC"),
-	2, _T("CACR"),
-	3, _T("TC"),
-	4, _T("ITT0"),
-	5, _T("ITT1"),
-	6, _T("DTT0"),
-	7, _T("DTT1"),
-	8, _T("BUSC"),
-	0x800, _T("USP"),
-	0x801, _T("VBR"),
-	0x802, _T("CAAR"),
-	0x803, _T("MSP"),
-	0x804, _T("ISP"),
-	0x805, _T("MMUS"),
-	0x806, _T("URP"),
-	0x807, _T("SRP"),
-	0x808, _T("PCR"),
-	-1, NULL
+	{ 0, _T("SFC") },
+	{ 1, _T("DFC") },
+	{ 2, _T("CACR") },
+	{ 3, _T("TC") },
+	{ 4, _T("ITT0") },
+	{ 5, _T("ITT1") },
+	{ 6, _T("DTT0") },
+	{ 7, _T("DTT1") },
+	{ 8, _T("BUSC") },
+	{ 0x800, _T("USP") },
+	{ 0x801, _T("VBR") },
+	{ 0x802, _T("CAAR") },
+	{ 0x803, _T("MSP") },
+	{ 0x804, _T("ISP") },
+	{ 0x805, _T("MMUS") },
+	{ 0x806, _T("URP") },
+	{ 0x807, _T("SRP") },
+	{ 0x808, _T("PCR") },
+    { -1, NULL }
 };
 
 void m68k_dumpstate (uaecptr pc, uaecptr *nextpc)
