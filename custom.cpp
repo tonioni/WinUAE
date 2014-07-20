@@ -59,10 +59,12 @@
 #include "blkdev.h"
 #include "sampler.h"
 #include "clipboard.h"
+#include "cpuboard.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
 #include "luascript.h"
+#include "statusline.h"
 
 #define CUSTOM_DEBUG 0
 #define SPRITE_DEBUG 0
@@ -75,6 +77,8 @@
 #define AUTOSCALE_SPRITES 1
 
 #define SPRBORDER 0
+
+extern uae_u16 serper;
 
 STATIC_INLINE bool nocustom (void)
 {
@@ -7074,6 +7078,8 @@ static void vsync_handler_pre (void)
 #ifdef CD32
 	cd32_fmv_vsync_handler();
 #endif
+	cpuboard_vsync();
+	statusline_vsync();
 
 	if (!vsync_rendered) {
 		frame_time_t start, end;
@@ -8108,6 +8114,9 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		CLXCON (clxcon);
 		CLXCON2 (clxcon2);
 		calcdiw ();
+		v = serper;
+		serper = 0;
+		SERPER(v);
 		for (i = 0; i < 8; i++) {
 			SPRxCTLPOS (i);
 			nr_armed += spr[i].armed != 0;
@@ -8773,7 +8782,7 @@ uae_u8 *restore_custom (uae_u8 *src)
 	RW;						/* 02C VHPOSW */
 	COPCON (RW);			/* 02E COPCON */
 	RW;						/* 030 SERDAT* */
-	RW;						/* 032 SERPER* */
+	serper = RW;			/* 032 SERPER* */
 	potgo_value = 0; POTGO (RW); /* 034 POTGO */
 	RW;						/* 036 JOYTEST* */
 	RW;						/* 038 STREQU */
@@ -8889,8 +8898,6 @@ uae_u8 *restore_custom (uae_u8 *src)
 #define SW save_u16
 #define SL save_u32
 
-extern uae_u16 serper;
-
 uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 {
 	uae_u8 *dstbak, *dst;
@@ -8929,8 +8936,8 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 	SW ((lof_store ? 0x8001 : 0) | (lol ? 0x0080 : 0));/* 02A VPOSW */
 	SW (0);					/* 02C VHPOSW */
 	SW (copcon);			/* 02E COPCON */
-	SW (serper);			/* 030 SERDAT * */
-	SW (serdat);			/* 032 SERPER * */
+	SW (serdat);			/* 030 SERDAT * */
+	SW (serper);			/* 032 SERPER * */
 	SW (potgo_value);		/* 034 POTGO */
 	SW (0);					/* 036 JOYTEST * */
 	SW (0);					/* 038 STREQU */

@@ -36,6 +36,7 @@
 #include "inputdevice.h"
 #include "audio.h"
 #include "md-fpp.h"
+#include "statusline.h"
 #ifdef JIT
 #include "jit/compemu.h"
 #include <signal.h>
@@ -1398,7 +1399,7 @@ void init_m68k (void)
 
 struct regstruct regs, mmu_backup_regs;
 struct flag_struct regflags;
-static long int m68kpc_offset;
+static int m68kpc_offset;
 
 #if 0
 #define get_ibyte_1(o) get_byte (regs.pc + (regs.pc_p - regs.pc_oldp) + (o) + 1)
@@ -4263,6 +4264,7 @@ void m68k_go (int may_quit)
 				savestate_check ();
 			if (input_record == INPREC_RECORD_START)
 				input_record = INPREC_RECORD_NORMAL;
+			statusline_clear();
 		} else {
 			if (input_record == INPREC_RECORD_START) {
 				input_record = INPREC_RECORD_NORMAL;
@@ -4348,8 +4350,6 @@ void m68k_go (int may_quit)
 		}
 #endif
 		unset_special(SPCFLAG_MODE_CHANGE);
-		unset_special(SPCFLAG_BRK);
-		//activate_debugger();
 		run_func();
 	}
 	protect_roms (false);

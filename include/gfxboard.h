@@ -2,9 +2,9 @@
 extern addrbank gfxboard_bank_memory;
 extern addrbank gfxboard_bank_registers;
 
-extern void gfxboard_init_memory (void);
-extern void gfxboard_init_memory_p4_z2 (void);
-extern void gfxboard_init_registers (void);
+extern addrbank *gfxboard_init_memory (void);
+extern addrbank *gfxboard_init_memory_p4_z2(void);
+extern addrbank *gfxboard_init_registers(void);
 extern void gfxboard_free (void);
 extern void gfxboard_reset (void);
 extern void gfxboard_vsync_handler (void);

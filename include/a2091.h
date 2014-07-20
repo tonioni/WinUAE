@@ -38,6 +38,17 @@ struct wd_state {
 	int superdmac;
 	int wd33c93_ver;// 0 or 1
 
+	uae_u8 xt_control;
+	uae_u8 xt_status;
+	uae_u16 xt_cyls, xt_heads, xt_sectors;
+
+	bool xt_irq;
+	int xt_offset;
+	int xt_datalen;
+	uae_u8 xt_cmd[6];
+	uae_u8 xt_statusbyte;
+
+	// unit 7 = XT
 	struct scsi_data *scsis[8];
 	struct scsi_data *scsi;
 
@@ -51,7 +62,7 @@ extern void init_scsi (struct wd_state*);
 extern void scsi_dmac_start_dma (struct wd_state*);
 extern void scsi_dmac_stop_dma (struct wd_state*);
 
-extern void a2091_init (int devnum);
+extern addrbank *a2091_init (int devnum);
 extern void a2091_free (void);
 extern void a2091_reset (void);
 
@@ -74,9 +85,8 @@ extern void scsi_hsync (void);
 
 #define WD33C93 _T("WD33C93")
 
-extern int a2091_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum);
-extern int a3000_add_scsi_unit (int ch, struct uaedev_config_info *ci);
-
+extern int a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci, int devnum);
+extern int a3000_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 
 extern int add_wd_scsi_hd (struct wd_state *wd, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level);
 extern int add_wd_scsi_cd (struct wd_state *wd, int ch, int unitnum);

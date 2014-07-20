@@ -295,6 +295,21 @@ void fixup_cpu (struct uae_prefs *p)
 	}
 	if (p->cpu_cycle_exact)
 		p->cpu_compatible = true;
+
+	if (p->cpuboard_type && !p->comptrustbyte) {
+		error_log(_T("JIT direct is not compatible with emulated accelerator boards."));
+		p->comptrustbyte = 1;
+		p->comptrustlong = 1;
+		p->comptrustlong = 1;
+		p->comptrustnaddr = 1;
+	}
+	if (!p->jit_direct_compatible_memory && !p->comptrustbyte) {
+		error_log(_T("JIT direct compatible memory option is disabled, disabling JIT direct."));
+		p->comptrustbyte = 1;
+		p->comptrustlong = 1;
+		p->comptrustlong = 1;
+		p->comptrustnaddr = 1;
+	}
 }
 
 void fixup_prefs (struct uae_prefs *p)
@@ -472,14 +487,6 @@ void fixup_prefs (struct uae_prefs *p)
 		p->cachesize = 0;
 		err = 1;
 	}
-	if (!p->jit_direct_compatible_memory && p->comptrustbyte) {
-		error_log(_T("JIT direct compatible memory option is disabled, disabling JIT direct."));
-		p->comptrustbyte = 0;
-		p->comptrustlong = 0;
-		p->comptrustlong = 0;
-		p->comptrustnaddr = 0;
-		err = 1;
-	}
 	if ((p->z3fastmem_size || p->z3fastmem2_size || p->z3chipmem_size) && (p->address_space_24 || p->cpu_model < 68020)) {
 		error_log (_T("Z3 fast memory can't be used with a 68000/68010 emulation. Turning off Z3 fast memory."));
 		p->z3fastmem_size = 0;
@@ -550,7 +557,7 @@ void fixup_prefs (struct uae_prefs *p)
 		p->genlock = false;
 	}
 	if (p->cs_hacks) {
-		error_log (_T("chipset_hacks is nonzero."));
+		error_log (_T("chipset_hacks is nonzero (0x%04x)."), p->cs_hacks);
 	}
 
 	fixup_prefs_dimensions (p);

@@ -58,6 +58,7 @@
 #include "scsi.h"
 #include "uaenative.h"
 #include "tabletlibrary.h"
+#include "cpuboard.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -866,6 +867,13 @@ static void initialize_mountinfo (void)
 #ifdef NCR
 			if (currprefs.a4091) {
 				a4091_add_scsi_unit (unit, uci, 1);
+				added = true;
+			}
+#endif
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_WARPENGINE) {
+#ifdef NCR
+			if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
+				warpengine_add_scsi_unit(unit, uci);
 				added = true;
 			}
 #endif

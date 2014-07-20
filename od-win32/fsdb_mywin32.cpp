@@ -1018,3 +1018,16 @@ bool my_resolvesoftlink(TCHAR *linkfile, int size)
 	}
 	return false;
 }
+
+const TCHAR *my_getfilepart(const TCHAR *filename)
+{
+	const TCHAR *p;
+
+	p = _tcsrchr(filename, '\\');
+	if (p)
+		return p + 1;
+	p = _tcsrchr(filename, '/');
+	if (p)
+		return p + 1;
+	return p;
+}

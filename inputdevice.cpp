@@ -55,6 +55,7 @@
 #include "avioutput.h"
 #endif
 #include "tabletlibrary.h"
+#include "statusline.h"
 
 // 01 = host events
 // 02 = joystick
@@ -3582,7 +3583,7 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 	int ismouse = 0;
 	int newport = 0;
 	int flags = 0;
-	TCHAR *name = NULL;
+	TCHAR *name = NULL, *fname = NULL;
 	int otherbuttonpressed = 0;
 	int acc = input_acquired;
 
@@ -3596,9 +3597,12 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 	if (rp_isactive ())
 		return 0;
 #endif
+	if (!ismouseactive())
+		return 0;
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 		if (id == &joysticks[i]) {
 			name = idev[IDTYPE_JOYSTICK].get_uniquename (i);
+			fname = idev[IDTYPE_JOYSTICK].get_friendlyname (i);
 			newport = num == 0 ? 1 : 0;
 			flags = idev[IDTYPE_JOYSTICK].get_flags (i);
 			for (j = 0; j < MAX_INPUT_DEVICES; j++) {
@@ -3612,6 +3616,7 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 		if (id == &mice[i]) {
 			ismouse = 1;
 			name = idev[IDTYPE_MOUSE].get_uniquename (i);
+			fname = idev[IDTYPE_MOUSE].get_friendlyname (i);
 			newport = num == 0 ? 0 : 1;
 			flags = idev[IDTYPE_MOUSE].get_flags (i);
 		}
@@ -3672,6 +3677,7 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 				if (supermouse >= 0 && nummouse == 1) {
 					TCHAR *oldname = name;
 					name = idev[IDTYPE_MOUSE].get_uniquename (supermouse);
+					fname = idev[IDTYPE_MOUSE].get_friendlyname(supermouse);
 					issupermouse = true;
 #if SWITCHDEBUG_DEBUG
 					write_log (_T("inputdevice gameports change '%s' -> '%s'\n"), oldname, name);
@@ -3679,10 +3685,12 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 				}
 			}
 #endif
-#if SWITCHDEBUG_DEBUG
+#if 1
 			write_log (_T("inputdevice gameports change '%s':%d->%d %d,%d\n"), name, num, newport, currprefs.input_selected_setting, currprefs.jports[newport].id);
 #endif
 			inputdevice_unacquire ();
+			if (fname)
+				statusline_add_message(_T("Port %d: %s"), newport, fname);
 
 			if (currprefs.input_selected_setting != GAMEPORT_INPUT_SETTINGS && currprefs.jports[newport].id > JPORT_NONE) {
 				// disable old device
@@ -3815,6 +3823,8 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 		}
 		write_log (_T("inputdevice input change '%s':%d->%d\n"), name, num, newport);
 		inputdevice_unacquire ();
+		if (fname)
+			statusline_add_message(_T("Port %d: %s"), newport, fname);
 		inputdevice_copyconfig (&currprefs, &changed_prefs);
 		inputdevice_validate_jports (&changed_prefs, -1);
 		inputdevice_copyconfig (&changed_prefs, &currprefs);
@@ -6742,26 +6752,44 @@ void inputdevice_acquire (int allmode)
 	input_acquired = 1;
 }
 
-void inputdevice_unacquire (void)
+void inputdevice_unacquire(bool emulationactive, int inputmask)
 {
 	int i;
 
-	//write_log (_T("inputdevice_unacquire\n"));
+	//write_log (_T("inputdevice_unacquire %d %d\n"), emulationactive, inputmask);
 
-	for (i = 0; i < MAX_INPUT_DEVICES; i++)
-		idev[IDTYPE_JOYSTICK].unacquire (i);
-	for (i = 0; i < MAX_INPUT_DEVICES; i++)
-		idev[IDTYPE_MOUSE].unacquire (i);
-	for (i = 0; i < MAX_INPUT_DEVICES; i++)
-		idev[IDTYPE_KEYBOARD].unacquire (i);
+	if (!emulationactive)
+		inputmask = 0;
+
+
+	if (!(inputmask & 4)) {
+		for (i = 0; i < MAX_INPUT_DEVICES; i++)
+			idev[IDTYPE_JOYSTICK].unacquire(i);
+	}
+	if (!(inputmask & 2)) {
+		for (i = 0; i < MAX_INPUT_DEVICES; i++)
+			idev[IDTYPE_MOUSE].unacquire(i);
+	}
+	if (!(inputmask & 1)) {
+		for (i = 0; i < MAX_INPUT_DEVICES; i++)
+			idev[IDTYPE_KEYBOARD].unacquire(i);
+	}
 
 	if (!input_acquired)
 		return;
 
 	input_acquired = 0;
-	idev[IDTYPE_JOYSTICK].unacquire (-1);
-	idev[IDTYPE_MOUSE].unacquire (-1);
-	idev[IDTYPE_KEYBOARD].unacquire (-1);
+	if (!(inputmask & 4))
+		idev[IDTYPE_JOYSTICK].unacquire(-1);
+	if (!(inputmask & 2))
+		idev[IDTYPE_MOUSE].unacquire(-1);
+	if (!(inputmask & 1))
+		idev[IDTYPE_KEYBOARD].unacquire(-1);
+}
+
+void inputdevice_unacquire(void)
+{
+	inputdevice_unacquire(false, 0);
 }
 
 void inputdevice_testrecord (int type, int num, int wtype, int wnum, int state, int max)

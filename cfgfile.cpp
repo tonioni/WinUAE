@@ -205,6 +205,7 @@ static const TCHAR *rtgtype[] = {
 	_T("Spectrum28/24_Z2"), _T("Spectrum28/24_Z3"),
 	_T("PicassoIV_Z2"), _T("PicassoIV_Z3"),
 	0 };
+static const TCHAR *cpuboards[] = {	_T("none"), _T("Blizzard1230IV"), _T("Blizzard1260"), _T("Blizzard2060"), _T("WarpEngineA4000"), NULL };
 static const TCHAR *waitblits[] = { _T("disabled"), _T("automatic"), _T("noidleonly"), _T("always"), 0 };
 static const TCHAR *autoext2[] = { _T("disabled"), _T("copy"), _T("replace"), 0 };
 static const TCHAR *leds[] = { _T("power"), _T("df0"), _T("df1"), _T("df2"), _T("df3"), _T("hd"), _T("cd"), _T("fps"), _T("cpu"), _T("snd"), _T("md"), 0 };
@@ -213,7 +214,8 @@ static const TCHAR *lacer[] = { _T("off"), _T("i"), _T("p"), 0 };
 static const TCHAR *hdcontrollers[] = {
 	_T("uae"),
 	_T("ide%d"),
-	_T("scsi%d"), _T("scsi%d_a2091"),  _T("scsi%d_a2091-2"), _T("scsi%d_a4091"),  _T("scsi%d_a4091-2"), _T("scsi%d_a3000"),  _T("scsi%d_a4000t"),  _T("scsi%d_cdtv"),
+	_T("scsi%d"), _T("scsi%d_a2091"),  _T("scsi%d_a2091-2"), _T("scsi%d_a4091"),  _T("scsi%d_a4091-2"),
+	_T("scsi%d_a3000"),  _T("scsi%d_a4000t"),  _T("scsi%d_cdtv"), _T("scsi%d_warpengine"),
 	_T("scsram"), _T("scide")
 };
 static const TCHAR *obsolete[] = {
@@ -1431,10 +1433,13 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, _T("z3mem_size"), _T("%d"), p->z3fastmem_size / 0x100000);
 	cfgfile_dwrite (f, _T("z3mem2_size"), _T("%d"), p->z3fastmem2_size / 0x100000);
 	cfgfile_write (f, _T("z3mem_start"), _T("0x%x"), p->z3fastmem_start);
-	cfgfile_write (f, _T("bogomem_size"), _T("%d"), p->bogomem_size / 0x40000);
-	cfgfile_write (f, _T("gfxcard_size"), _T("%d"), p->rtgmem_size / 0x100000);
-	cfgfile_write_str (f, _T("gfxcard_type"), rtgtype[p->rtgmem_type]);
-	cfgfile_write_bool (f, _T("gfxcard_hardware_vblank"), p->rtg_hardwareinterrupt);
+	cfgfile_write(f, _T("bogomem_size"), _T("%d"), p->bogomem_size / 0x40000);
+	cfgfile_dwrite_str(f, _T("cpuboard_type"), cpuboards[p->cpuboard_type]);
+	cfgfile_dwrite(f, _T("cpuboardmem1_size"), _T("%d"), p->cpuboardmem1_size / 0x100000);
+	cfgfile_dwrite(f, _T("cpuboardmem2_size"), _T("%d"), p->cpuboardmem2_size / 0x100000);
+	cfgfile_write(f, _T("gfxcard_size"), _T("%d"), p->rtgmem_size / 0x100000);
+	cfgfile_write_str(f, _T("gfxcard_type"), rtgtype[p->rtgmem_type]);
+	cfgfile_write_bool(f, _T("gfxcard_hardware_vblank"), p->rtg_hardwareinterrupt);
 	cfgfile_write_bool (f, _T("gfxcard_hardware_sprite"), p->rtg_hardwaresprite);
 	cfgfile_write (f, _T("chipmem_size"), _T("%d"), p->chipmem_size == 0x20000 ? -1 : (p->chipmem_size == 0x40000 ? 0 : p->chipmem_size / 0x80000));
 	cfgfile_dwrite (f, _T("megachipmem_size"), _T("%d"), p->z3chipmem_size / 0x100000);
@@ -3032,6 +3037,8 @@ static void get_filesys_controller (const TCHAR *hdc, int *type, int *num)
 				hdcv = HD_CONTROLLER_TYPE_SCSI_A4000T;
 			if (!_tcsicmp(ext, _T("cdtv")))
 				hdcv = HD_CONTROLLER_TYPE_SCSI_CDTV;
+			if (!_tcsicmp(ext, _T("warpengine")))
+				hdcv = HD_CONTROLLER_TYPE_SCSI_WARPENGINE;
 		}
 	} else if (_tcslen (hdc) >= 6 && !_tcsncmp (hdc, _T("scsram"), 6)) {
 		hdcv = HD_CONTROLLER_TYPE_PCMCIA_SRAM;
@@ -3577,8 +3584,10 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval (option, value, _T("fatgary"), &p->cs_fatgaryrev, 1)
 		|| cfgfile_intval (option, value, _T("ramsey"), &p->cs_ramseyrev, 1)
 		|| cfgfile_doubleval (option, value, _T("chipset_refreshrate"), &p->chipset_refreshrate)
-		|| cfgfile_intval (option, value, _T("fastmem_size"), &p->fastmem_size, 0x100000)
-		|| cfgfile_intval (option, value, _T("fastmem_size_k"), &p->fastmem_size, 1024)
+		|| cfgfile_intval(option, value, _T("cpuboardmem1_size"), &p->cpuboardmem1_size, 0x100000)
+		|| cfgfile_intval(option, value, _T("cpuboardmem2_size"), &p->cpuboardmem2_size, 0x100000)
+		|| cfgfile_intval(option, value, _T("fastmem_size"), &p->fastmem_size, 0x100000)
+		|| cfgfile_intval(option, value, _T("fastmem_size_k"), &p->fastmem_size, 1024)
 		|| cfgfile_intval (option, value, _T("fastmem2_size"), &p->fastmem2_size, 0x100000)
 		|| cfgfile_intval (option, value, _T("fastmem2_size_k"), &p->fastmem2_size, 1024)
 		|| cfgfile_intval (option, value, _T("a3000mem_size"), &p->mbresmem_low_size, 0x100000)
@@ -3589,8 +3598,9 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval (option, value, _T("z3mem_start"), &p->z3fastmem_start, 1)
 		|| cfgfile_intval (option, value, _T("bogomem_size"), &p->bogomem_size, 0x40000)
 		|| cfgfile_intval (option, value, _T("gfxcard_size"), &p->rtgmem_size, 0x100000)
-		|| cfgfile_strval (option, value, _T("gfxcard_type"), &p->rtgmem_type, rtgtype, 0)
-		|| cfgfile_intval (option, value, _T("rtg_modes"), &p->picasso96_modeflags, 1)
+		|| cfgfile_strval(option, value, _T("gfxcard_type"), &p->rtgmem_type, rtgtype, 0)
+		|| cfgfile_strval(option, value, _T("cpuboard_type"), &p->cpuboard_type, cpuboards, 0)
+		|| cfgfile_intval(option, value, _T("rtg_modes"), &p->picasso96_modeflags, 1)
 		|| cfgfile_intval (option, value, _T("floppy_speed"), &p->floppy_speed, 1)
 		|| cfgfile_intval (option, value, _T("floppy_write_length"), &p->floppy_write_length, 1)
 		|| cfgfile_intval (option, value, _T("floppy_random_bits_min"), &p->floppy_random_bits_min, 1)

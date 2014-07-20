@@ -87,6 +87,7 @@
 #include "blkdev.h"
 #include "inputrecord.h"
 #include "gfxboard.h"
+#include "statusline.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #include "cloanto/RetroPlatformIPC.h"
@@ -114,7 +115,7 @@ static int logging_started;
 static MINIDUMP_TYPE minidumpmode = MiniDumpNormal;
 static int doquit;
 static int console_started;
-void *globalipc, *serialipc;
+void *globalipc;
 
 int qpcdivisor = 0;
 int cpu_mmx = 1;
@@ -848,19 +849,23 @@ static void winuae_inactive (HWND hWnd, int minimized)
 	wait_keyrelease ();
 	setmouseactive (0);
 	clipboard_active (hAmigaWnd, 0);
-	inputdevice_unacquire ();
 	pri = &priorities[currprefs.win32_inactive_priority];
 	if (!quit_program) {
 		if (minimized) {
 			pri = &priorities[currprefs.win32_iconified_priority];
 			if (currprefs.win32_iconified_pause) {
-				setpaused (1);
+				inputdevice_unacquire();
+				setpaused(1);
 				sound_closed = 1;
 			} else if (currprefs.win32_iconified_nosound) {
-				setsoundpaused ();
+				inputdevice_unacquire(true, currprefs.win32_iconified_input);
+				setsoundpaused();
 				sound_closed = -1;
+			} else {
+				inputdevice_unacquire(true, currprefs.win32_iconified_input);
 			}
 		} else if (mouseactive) {
+			inputdevice_unacquire();
 			if (currprefs.win32_active_nocapture_pause) {
 				setpaused (2);
 				sound_closed = 1;
@@ -870,13 +875,19 @@ static void winuae_inactive (HWND hWnd, int minimized)
 			}
 		} else {
 			if (currprefs.win32_inactive_pause) {
-				setpaused (2);
+				inputdevice_unacquire();
+				setpaused(2);
 				sound_closed = 1;
 			} else if (currprefs.win32_inactive_nosound) {
-				setsoundpaused ();
+				inputdevice_unacquire(true, currprefs.win32_inactive_input);
+				setsoundpaused();
 				sound_closed = -1;
+			} else {
+				inputdevice_unacquire(true, currprefs.win32_inactive_input);
 			}
 		}
+	} else {
+		inputdevice_unacquire();
 	}
 	setpriority (pri);
 #ifdef FILESYS
@@ -1821,7 +1832,21 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	{
 		LPDRAWITEMSTRUCT lpDIS = (LPDRAWITEMSTRUCT)lParam;
 		if (lpDIS->hwndItem == hStatusWnd) {
-			if (lpDIS->itemID > 0 && lpDIS->itemID <= window_led_joy_start) {
+			if (lpDIS->itemID == window_led_msg_start) {
+				COLORREF oc;
+				int x = lpDIS->rcItem.left + 1;
+				int y = (lpDIS->rcItem.bottom - lpDIS->rcItem.top + 1) / 2 + lpDIS->rcItem.top - 1;
+				const TCHAR *txt = statusline_fetch();
+				int flags = DT_VCENTER | DT_SINGLELINE | DT_LEFT;
+
+				FillRect(lpDIS->hDC, &lpDIS->rcItem, (HBRUSH)(COLOR_3DFACE + 1));
+				if (txt) {
+					SetBkMode(lpDIS->hDC, TRANSPARENT);
+					oc = SetTextColor(lpDIS->hDC, RGB(0x00, 0x00, 0x00));
+					DrawText(lpDIS->hDC, txt, _tcslen(txt), &lpDIS->rcItem, flags);
+					SetTextColor(lpDIS->hDC, oc);
+				}
+			} else if (lpDIS->itemID > 0 && lpDIS->itemID <= window_led_joy_start) {
 				int port = lpDIS->itemID - 1;
 				int x = (lpDIS->rcItem.right - lpDIS->rcItem.left + 1) / 2 + lpDIS->rcItem.left - 1;
 				int y = (lpDIS->rcItem.bottom - lpDIS->rcItem.top + 1) / 2 + lpDIS->rcItem.top - 1;
@@ -3029,19 +3054,24 @@ void target_fixup_options (struct uae_prefs *p)
 		p->scsi = UAESCSI_SPTI;
 	bool paused = false;
 	bool nosound = false;
+	bool nojoy = true;
 	if (!paused) {
 		paused = p->win32_active_nocapture_pause;
 		nosound = p->win32_active_nocapture_nosound;
 	} else {
 		p->win32_active_nocapture_pause = p->win32_active_nocapture_nosound = true;
 		nosound = true;
+		nojoy = false;
 	}
 	if (!paused) {
 		paused = p->win32_inactive_pause;
 		nosound = p->win32_inactive_nosound;
+		nojoy = (p->win32_inactive_input & 4) == 0;
 	} else {
 		p->win32_inactive_pause = p->win32_inactive_nosound = true;
+		p->win32_inactive_input = 0;
 		nosound = true;
+		nojoy = true;
 	}
 	
 	struct MultiDisplay *md = getdisplay (p);
@@ -3094,8 +3124,10 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_active_nocapture_nosound = 0;
 		p->win32_iconified_nosound = 1;
 		p->win32_iconified_pause = 1;
+		p->win32_iconified_input = 0;
 		p->win32_inactive_nosound = 0;
 		p->win32_inactive_pause = 0;
+		p->win32_inactive_input = 0;
 		p->win32_ctrl_F11_is_quit = 0;
 		p->win32_soundcard = 0;
 		p->win32_samplersoundcard = -1;
@@ -3190,11 +3222,13 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_bool (f, _T("active_not_captured_pause"), p->win32_active_nocapture_pause);
 	cfgfile_target_dwrite (f, _T("inactive_priority"), _T("%d"), priorities[p->win32_inactive_priority].value);
 	cfgfile_target_dwrite_bool (f, _T("inactive_nosound"), p->win32_inactive_nosound);
-	cfgfile_target_dwrite_bool (f, _T("inactive_pause"), p->win32_inactive_pause);
-	cfgfile_target_dwrite (f, _T("iconified_priority"), _T("%d"), priorities[p->win32_iconified_priority].value);
+	cfgfile_target_dwrite_bool(f, _T("inactive_pause"), p->win32_inactive_pause);
+	cfgfile_target_dwrite(f, _T("inactive_input"), _T("%d"), p->win32_inactive_input);
+	cfgfile_target_dwrite(f, _T("iconified_priority"), _T("%d"), priorities[p->win32_iconified_priority].value);
 	cfgfile_target_dwrite_bool (f, _T("iconified_nosound"), p->win32_iconified_nosound);
-	cfgfile_target_dwrite_bool (f, _T("iconified_pause"), p->win32_iconified_pause);
-	cfgfile_target_dwrite_bool (f, _T("inactive_iconify"), p->win32_minimize_inactive);
+	cfgfile_target_dwrite_bool(f, _T("iconified_pause"), p->win32_iconified_pause);
+	cfgfile_target_dwrite(f, _T("iconified_input"), _T("%d"), p->win32_iconified_input);
+	cfgfile_target_dwrite_bool(f, _T("inactive_iconify"), p->win32_minimize_inactive);
 	cfgfile_target_dwrite_bool (f, _T("start_iconified"), p->win32_start_minimized);
 	cfgfile_target_dwrite_bool (f, _T("start_not_captured"), p->win32_start_uncaptured);
 
@@ -3320,9 +3354,11 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_yesno (option, value, _T("active_not_captured_nosound"), &p->win32_active_nocapture_nosound)
 		|| cfgfile_yesno (option, value, _T("inactive_pause"), &p->win32_inactive_pause)
 		|| cfgfile_yesno (option, value, _T("inactive_nosound"), &p->win32_inactive_nosound)
-		|| cfgfile_yesno (option, value, _T("iconified_pause"), &p->win32_iconified_pause)
+		|| cfgfile_intval(option, value, _T("inactive_input"), &p->win32_inactive_input, 1)
+		|| cfgfile_yesno(option, value, _T("iconified_pause"), &p->win32_iconified_pause)
 		|| cfgfile_yesno (option, value, _T("iconified_nosound"), &p->win32_iconified_nosound)
-		|| cfgfile_yesno (option, value, _T("ctrl_f11_is_quit"), &p->win32_ctrl_F11_is_quit)
+		|| cfgfile_intval(option, value, _T("iconified_input"), &p->win32_iconified_input, 1)
+		|| cfgfile_yesno(option, value, _T("ctrl_f11_is_quit"), &p->win32_ctrl_F11_is_quit)
 		|| cfgfile_yesno (option, value, _T("no_recyclebin"), &p->win32_norecyclebin)
 		|| cfgfile_intval (option, value, _T("midi_device"), &p->win32_midioutdev, 1)
 		|| cfgfile_intval (option, value, _T("midiout_device"), &p->win32_midioutdev, 1)
@@ -5582,7 +5618,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 			paraport_mask = paraport_init ();
 #endif
 			globalipc = createIPC (_T("WinUAE"), 0);
-			serialipc = createIPC (COMPIPENAME, 1);
+			shmem_serial_create();
 			enumserialports ();
 			enummidiports ();
 			real_main (argc, argv);
@@ -5590,7 +5626,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	}
 end:
 	closeIPC (globalipc);
-	closeIPC (serialipc);
+	shmem_serial_delete();
 	write_disk_history ();
 	timeend ();
 #ifdef AVIOUTPUT
@@ -6323,11 +6359,15 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 #endif
 
 	log_open (NULL, 0, -1, NULL);
-	
+
+#ifdef NDEBUG
 	__try {
+#endif
 		WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);
+#ifdef NDEBUG
 	} __except(WIN32_ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
 	}
+#endif
 	//SetThreadAffinityMask (thread, original_affinity);
 	return FALSE;
 }

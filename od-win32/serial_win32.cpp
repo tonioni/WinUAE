@@ -26,6 +26,131 @@
 
 #include "od-win32/parser.h"
 
+#define SERMAP_SIZE 256
+struct sermap_buffer
+{
+	volatile ULONG version;
+	volatile uae_u32 active_read;
+	volatile uae_u32 active_write;
+	volatile uae_u32 read_offset;
+	volatile uae_u32 write_offset;
+	volatile uae_u16 data[SERMAP_SIZE];
+};
+static struct sermap_buffer *sermap1, *sermap2;
+static HANDLE sermap_handle;
+static uae_u8 *sermap_data;
+static bool sermap_master;
+static bool sermap_enabled;
+
+#define SER_MEMORY_MAPPING _T("WinUAE_Serial")
+
+static void shmem_serial_send(uae_u16 data)
+{
+	uae_u32 v;
+
+	sermap1->active_write = true;
+	if (!sermap1->active_read)
+		return;
+	v = sermap1->write_offset;
+	if (((v + 1) & (SERMAP_SIZE - 1)) == sermap1->read_offset) {
+		write_log(_T("Shared serial port memory overflow!\n"));
+		return;
+	}
+	sermap1->data[v] = data;
+	v++;
+	v &= (SERMAP_SIZE - 1);
+	sermap1->write_offset = v;
+}
+static uae_u16 shmem_serial_receive(void)
+{
+	uae_u32 v;
+	uae_u16 data;
+	sermap2->active_read = true;
+	if (!sermap2->active_write)
+		return 0xffff;
+	v = sermap2->read_offset;
+	if (v == sermap2->write_offset)
+		return 0xffff;
+	data = sermap2->data[v];
+	v++;
+	v &= (SERMAP_SIZE - 1);
+	sermap2->read_offset = v;
+	return data;
+}
+
+static void sermap_deactivate(void)
+{
+	sermap_enabled = false;
+	if (sermap1) {
+		sermap1->active_write = 0;
+		sermap1->write_offset = sermap1->read_offset;
+	}
+	if (sermap2) {
+		sermap2->active_read = 0;
+		sermap2->read_offset = sermap2->write_offset;
+	}
+}
+
+int shmem_serial_state(void)
+{
+	if (!sermap_handle)
+		return 0;
+	if (sermap_master)
+		return 1;
+	return 2;
+}
+
+void shmem_serial_delete(void)
+{
+	sermap_deactivate();
+	sermap_master = false;
+	if (sermap_data)
+		UnmapViewOfFile(sermap_data);
+	if (sermap_handle)
+		CloseHandle(sermap_handle);
+	sermap_data = NULL;
+	sermap_handle = NULL;
+	sermap1 = sermap2 = NULL;
+}
+
+bool shmem_serial_create(void)
+{
+	shmem_serial_delete();
+	sermap_handle = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, SER_MEMORY_MAPPING);
+	if (!sermap_handle) {
+		sermap_handle = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, sizeof(struct sermap_buffer) * 2, SER_MEMORY_MAPPING);
+		if (!sermap_handle) {
+			write_log(_T("Failed to create shared serial port memory: %d\n"), GetLastError());
+			return false;
+		}
+		sermap_master = true;
+		write_log(_T("Created internal serial port shared memory\n"));
+	} else {
+		write_log(_T("Found already existing serial port shared memory\n"));
+	}
+	sermap_data = (uae_u8*)MapViewOfFile(sermap_handle, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(struct sermap_buffer) * 2);
+	if (!sermap_data) {
+		write_log(_T("Shared serial port memory MapViewOfFile() failed: %d\n"), GetLastError());
+		return false;
+	}
+	if (sermap_master) {
+		sermap1 = (struct sermap_buffer*)sermap_data;
+		sermap2 = (struct sermap_buffer*)(sermap_data + sizeof(struct sermap_buffer));
+		sermap1->version = version;
+		sermap2->version = version;
+	}
+	else {
+		sermap2 = (struct sermap_buffer*)sermap_data;
+		sermap1 = (struct sermap_buffer*)(sermap_data + sizeof(struct sermap_buffer));
+		if (sermap2->version != version || sermap1->version != version) {
+			write_log(_T("Shared serial port memory version mismatch %08x != %08x\n"), sermap1->version, version);
+			shmem_serial_delete();
+			return false;
+		}
+	}
+	return true;
+}
+
 #define SERIALLOGGING 0
 #define SERIALDEBUG 0 /* 0, 1, 2 3 */
 #define SERIALHSDEBUG 0
@@ -39,6 +164,8 @@ static int ovrun;
 static int dtr;
 static int serial_period_hsyncs, serial_period_hsync_counter;
 static int ninebit;
+static int lastbitcycle_active_hsyncs;
+static unsigned int lastbitcycle;
 int serdev;
 int seriallog = 0, log_sercon = 0;
 int serial_enet;
@@ -80,7 +207,7 @@ void SERPER (uae_u16 w)
 		i++;
 	baud = allowed_baudrates[i];
 
-	serial_period_hsyncs = (((serper & 0x7fff) + 1) * 10) / maxhpos;
+	serial_period_hsyncs = (((serper & 0x7fff) + 1) * (1 + 8 + ninebit + 1 - 1)) / maxhpos;
 	if (serial_period_hsyncs <= 0)
 		serial_period_hsyncs = 1;
 
@@ -122,23 +249,10 @@ static TCHAR dochar (int v)
 static void checkreceive_enet (int mode)
 {
 #ifdef SERIAL_ENET
-	static uae_u32 lastchartime;
-	struct timeval tv;
 	uae_u16 recdata;
 
 	if (!enet_readseravail ())
 		return;
-	if (data_in_serdatr) {
-		/* probably not needed but there may be programs that expect OVRUNs.. */
-		gettimeofday (&tv, NULL);
-		if (tv.tv_sec > lastchartime) {
-			ovrun = 1;
-			INTREQ (0x8000 | 0x0800);
-			while (enet_readser (&recdata));
-			write_log (_T("SERIAL: overrun\n"));
-		}
-		return;
-	}
 	if (!enet_readser (&recdata))
 		return;
 	serdatr = recdata & 0x1ff;
@@ -146,8 +260,6 @@ static void checkreceive_enet (int mode)
 		serdatr |= 0x200;
 	else
 		serdatr |= 0x100;
-	gettimeofday (&tv, NULL);
-	lastchartime = tv.tv_sec + 5;
 	data_in_serdatr = 1;
 	serial_check_irq ();
 #if SERIALDEBUG > 2
@@ -159,25 +271,11 @@ static void checkreceive_enet (int mode)
 static void checkreceive_serial (int mode)
 {
 #ifdef SERIAL_PORT
-	static uae_u32 lastchartime;
 	static int ninebitdata;
-	struct timeval tv;
 	int recdata;
 
-	if (!readseravail ())
+	if (!readseravail())
 		return;
-
-	if (data_in_serdatr) {
-		/* probably not needed but there may be programs that expect OVRUNs.. */
-		gettimeofday (&tv, NULL);
-		if (tv.tv_sec > lastchartime) {
-			ovrun = 1;
-			INTREQ (0x8000 | 0x0800);
-			while (readser (&recdata));
-			write_log (_T("SERIAL: overrun\n"));
-		}
-		return;
-	}
 
 	if (ninebit) {
 		for (;;) {
@@ -205,8 +303,6 @@ static void checkreceive_serial (int mode)
 		serdatr = recdata;
 		serdatr |= 0x100;
 	}
-	gettimeofday (&tv, NULL);
-	lastchartime = tv.tv_sec + 5;
 	data_in_serdatr = 1;
 	serial_check_irq ();
 #if SERIALDEBUG > 2
@@ -215,42 +311,89 @@ static void checkreceive_serial (int mode)
 #endif
 }
 
-static void checksend (int mode)
-{
-	int bufstate = 0;
 
-#ifdef SERIAL_PORT
-	bufstate = checkserwrite ();
-#endif
-#ifdef SERIAL_ENET
-	if (serial_enet)
-		bufstate = 1;
-#endif
-	if (!data_in_serdat && !data_in_sershift)
+static void serdatcopy(void);
+
+static void checksend(void)
+{
+	if (data_in_sershift != 1)
 		return;
 
-	if (data_in_sershift && mode == 0 && bufstate)
-		data_in_sershift = 0;
-
-	if (data_in_serdat && !data_in_sershift) {
-		data_in_sershift = 1;
-		serdatshift = serdat;
+	if (sermap_data && sermap_enabled)
+		shmem_serial_send(serdatshift);
 #ifdef SERIAL_ENET
-		if (serial_enet) {
-			enet_writeser (serdatshift);
-		}
+	if (serial_enet)
+		enet_writeser(serdatshift);
 #endif
 #ifdef SERIAL_PORT
+	if (checkserwrite()) {
 		if (ninebit)
-			writeser (((serdatshift >> 8) & 1) | 0xa8);
-		writeser (serdatshift);
-#endif
-		data_in_serdat = 0;
-		INTREQ (0x8000 | 0x0001);
-#if SERIALDEBUG > 2
-		write_log (_T("SERIAL: send %04X (%c)\n"), serdatshift, dochar (serdatshift));
-#endif
+			writeser(((serdatshift >> 8) & 1) | 0xa8);
+		writeser(serdatshift);
 	}
+#endif
+	data_in_sershift = 2;
+
+#if SERIALDEBUG > 2
+		write_log(_T("SERIAL: send %04X (%c)\n"), serdatshift, dochar(serdatshift));
+#endif
+}
+
+static void sersend_ce(uae_u32 v)
+{
+	checksend();
+	data_in_sershift = 0;
+	serdatcopy();
+	lastbitcycle = get_cycles() + ((serper & 0x7fff) + 1) * CYCLE_UNIT;
+	lastbitcycle_active_hsyncs = ((serper & 0x7fff) + 1) / maxhpos + 2;
+}
+
+static void serdatcopy(void)
+{
+	if (data_in_sershift || !data_in_serdat)
+		return;
+	serdatshift = serdat;
+	data_in_sershift = 1;
+	data_in_serdat = 0;
+	INTREQ(0x8000 | 0x0001); // Transmit buffer empty
+	checksend();
+
+	if (seriallog)
+		write_log(_T("%c"), dochar(serdatshift));
+
+	if (serper == 372) {
+		if (enforcermode & 2) {
+			console_out_f(_T("%c"), dochar(serdatshift));
+			if (serdatshift == 256 + 10)
+				console_out(_T("\n"));
+		}
+	}
+
+	// if someone uses serial port as some kind of timer..
+	if (currprefs.cpu_cycle_exact) {
+		int per, bits;
+
+		bits = 16 + 1;
+		for (int i = 15; i >= 0; i--) {
+			if (serdatshift & (1 << i))
+				break;
+			bits--;
+		}
+		// assuming when last bit goes out, transmit buffer
+		// becomes empty, not when last bit has finished
+		// transmitting.
+		per = ((serper & 0x7fff) + 1) * (bits - 1);
+		if (lastbitcycle_active_hsyncs) {
+			// if last bit still transmitting, add remaining time.
+			int extraper = (lastbitcycle - get_cycles()) / CYCLE_UNIT;
+			if (extraper > 0)
+				per += extraper;
+		}
+		if (per < 4)
+			per = 4;
+		event2_newevent_x(-1, per, 0, sersend_ce);
+	}
+
 }
 
 void serial_hsynchandler (void)
@@ -259,6 +402,16 @@ void serial_hsynchandler (void)
 	extern void hsyncstuff(void);
 	hsyncstuff();
 #endif
+	if (lastbitcycle_active_hsyncs > 0)
+		lastbitcycle_active_hsyncs--;
+	if (sermap2 && sermap_enabled && !data_in_serdatr) {
+		uae_u16 v = shmem_serial_receive();
+		if (v != 0xffff) {
+			serdatr = v;
+			data_in_serdatr = 1;
+			serial_check_irq();
+		}
+	}
 	if (serial_period_hsyncs == 0)
 		return;
 	serial_period_hsync_counter++;
@@ -266,15 +419,20 @@ void serial_hsynchandler (void)
 		checkreceive_serial (0);
 		checkreceive_enet (0);
 	}
-	if ((serial_period_hsync_counter % serial_period_hsyncs) == 0)
-		checksend (0);
+	if ((serial_period_hsync_counter % serial_period_hsyncs) == 0 && !currprefs.cpu_cycle_exact) {
+		checksend();
+		if (data_in_sershift == 2) {
+			data_in_sershift = 0;
+			serdatcopy();
+		}
+	}
 }
 
 void SERDAT (uae_u16 w)
 {
 	serdat = w;
 
-	if (!(w & 0x3ff)) {
+	if (!w) {
 #if SERIALDEBUG > 1
 		write_log (_T("SERIAL: zero serial word written?! PC=%x\n"), M68K_GETPC);
 #endif
@@ -287,26 +445,12 @@ void SERDAT (uae_u16 w)
 	}
 #endif
 
-	if (seriallog)
-		write_log (_T("%c"), dochar (w));
-
-	if (serper == 372) {
-		if (enforcermode & 2) {
-			console_out_f (_T("%c"), dochar (w));
-			if (w == 256 + 10)
-				console_out (_T("\n"));
-		}
-	}
-
 	data_in_serdat = 1;
-	if (!data_in_sershift)
-		checksend (1);
+	serdatcopy();
 
 #if SERIALDEBUG > 2
 	write_log (_T("SERIAL: wrote 0x%04x (%c) PC=%x\n"), w, dochar (w), M68K_GETPC);
 #endif
-
-	return;
 }
 
 uae_u16 SERDATR (void)
@@ -511,6 +655,8 @@ void serial_open (void)
 	serper = 0;
 	if (enet_is (currprefs.sername)) {
 		enet_open (currprefs.sername);
+	} else if (!_tcsicmp(currprefs.sername, SERIAL_INTERNAL)) {
+		sermap_enabled = true;
 	} else {
 		if(!openser (currprefs.sername)) {
 			write_log (_T("SERIAL: Could not open device %s\n"), currprefs.sername);
@@ -527,6 +673,7 @@ void serial_close (void)
 	closeser ();
 	enet_close ();
 	serdev = 0;
+	sermap_deactivate();
 #endif
 }
 

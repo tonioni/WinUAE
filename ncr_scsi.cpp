@@ -28,18 +28,22 @@
 #include "qemuvga\queue.h"
 #include "qemuvga\scsi\scsi.h"
 
-#define ROM_VECTOR 0x0200
-#define ROM_OFFSET 0x0000
-#define ROM_SIZE 32768
-#define ROM_MASK (ROM_SIZE - 1)
 #define BOARD_SIZE 16777216
+#define IO_MASK 0xff
+
+#define A4091_ROM_VECTOR 0x0200
+#define A4091_ROM_OFFSET 0x0000
+#define A4091_ROM_SIZE 32768
+#define A4091_ROM_MASK (A4091_ROM_SIZE - 1)
 
 #define A4091_IO_OFFSET 0x00800000
 #define A4091_IO_ALT 0x00840000
 #define A4091_IO_END 0x00880000
-#define A4091_IO_MASK 0xff
 
 #define A4091_DIP_OFFSET 0x008c0003
+
+#define WARP_ENGINE_IO_OFFSET 0x40000
+#define WARP_ENGINE_IO_END 0x80000
 
 struct ncr_state
 {
@@ -54,11 +58,24 @@ struct ncr_state
 	uae_u32 expamem_lo;
 	int configured;
 	bool enabled;
+	int rom_start, rom_end, rom_offset;
+	int io_start, io_end;
+	addrbank *bank;
 };
 
 static struct ncr_state ncr_a4091;
 static struct ncr_state ncr_a4091_2;
 static struct ncr_state ncr_a4000t;
+static struct ncr_state ncr_we;
+
+static struct ncr_state *ncrs[] =
+{
+	&ncr_a4091,
+	&ncr_a4091_2,
+	&ncr_a4000t,
+	&ncr_we,
+	NULL
+};
 
 static struct ncr_state *ncra4091[] =
 {
@@ -169,7 +186,7 @@ static uaecptr beswap (uaecptr addr)
 
 void ncr_io_bput (struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 {
-	addr &= A4091_IO_MASK;
+	addr &= IO_MASK;
 	lsi_mmio_write (ncr->devobject.lsistate, beswap (addr), val, 1);
 }
 
@@ -177,14 +194,14 @@ static void ncr_bput2 (struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 {
 	uae_u32 v = val;
 	addr &= ncr->board_mask;
-	if (addr < A4091_IO_OFFSET || addr >= A4091_IO_END)
+	if (addr < ncr->io_start || addr >= ncr->io_end)
 		return;
 	ncr_io_bput (ncr, addr, val);
 }
 
 uae_u32 ncr_io_bget (struct ncr_state *ncr, uaecptr addr)
 {
-	addr &= A4091_IO_MASK;
+	addr &= IO_MASK;
 	return lsi_mmio_read (ncr->devobject.lsistate, beswap (addr), 1);
 }
 
@@ -193,13 +210,13 @@ static uae_u32 ncr_bget2 (struct ncr_state *ncr, uaecptr addr)
 	uae_u32 v = 0;
 
 	addr &= ncr->board_mask;
-	if (ncr->rom && addr >= ROM_VECTOR && addr < A4091_IO_OFFSET)
-		return read_rombyte (ncr, addr);
+	if (ncr->rom && addr >= ncr->rom_start && addr < ncr->rom_end)
+		return read_rombyte (ncr, addr - ncr->rom_offset);
 	if (addr == A4091_DIP_OFFSET)
 		return 0xff;
-	if (addr < A4091_IO_OFFSET || addr >= A4091_IO_END)
+	if (addr < ncr->io_start || addr >= ncr->io_end)
 		return v;
-	addr &= A4091_IO_MASK;
+	addr &= IO_MASK;
 	return ncr_io_bget (ncr, addr);
 }
 
@@ -302,7 +319,7 @@ static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
 				ncr->expamem_hi = w & 0xff00;
 				value = ncr->expamem_hi | (ncr->expamem_lo >> 4);
 			}
-			map_banks (ncr == &ncr_a4091 ? &ncr_bank_a4091 : &ncr_bank_a4091_2, value, BOARD_SIZE >> 16, 0);
+			map_banks (ncr->bank, value, BOARD_SIZE >> 16, 0);
 			ncr->board_mask = 0x00ffffff;
 			write_log (_T("%s Z3 autoconfigured at %04X0000\n"), ncr->name, value);
 			ncr->configured = 1;
@@ -398,6 +415,31 @@ static uae_u32 REGPARAM2 ncr42_lget (uaecptr addr)
 	return ncr_lget(&ncr_a4091_2, addr);
 }
 
+static void REGPARAM2 we_bput (uaecptr addr, uae_u32 b)
+{
+	ncr_bput(&ncr_we, addr, b);
+}
+static void REGPARAM2 we_wput (uaecptr addr, uae_u32 b)
+{
+	ncr_wput(&ncr_we, addr, b);
+}
+static void REGPARAM2 we_lput (uaecptr addr, uae_u32 b)
+{
+	ncr_lput(&ncr_we, addr, b);
+}
+static uae_u32 REGPARAM2 we_bget (uaecptr addr)
+{
+	return ncr_bget(&ncr_we, addr);
+}
+static uae_u32 REGPARAM2 we_wget (uaecptr addr)
+{
+	return ncr_wget(&ncr_we, addr);
+}
+static uae_u32 REGPARAM2 we_lget (uaecptr addr)
+{
+	return ncr_lget(&ncr_we, addr);
+}
+
 static addrbank ncr_bank_a4091 = {
 	ncr4_lget, ncr4_wget, ncr4_bget,
 	ncr4_lput, ncr4_wput, ncr4_bput,
@@ -412,8 +454,15 @@ static addrbank ncr_bank_a4091_2 = {
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
+static addrbank ncr_bank_warpengine = {
+	we_lget, we_wget, we_bget,
+	we_lput, we_wput, we_bput,
+	default_xlate, default_check, NULL, _T("Warp Engine"),
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
 
-static void ew (struct ncr_state *ncr, int addr, uae_u32 value)
+
+static void ew (struct ncr_state *ncr, int addr, uae_u8 value)
 {
 	if (addr == 00 || addr == 02 || addr == 0x40 || addr == 0x42) {
 		ncr->acmemory[addr] = (value & 0xf0);
@@ -426,12 +475,10 @@ static void ew (struct ncr_state *ncr, int addr, uae_u32 value)
 
 void ncr_init (void)
 {
-	if (!ncr_a4091.devobject.lsistate)
-		lsi_scsi_init (&ncr_a4091.devobject);
-	if (!ncr_a4091_2.devobject.lsistate)
-		lsi_scsi_init (&ncr_a4091_2.devobject);
-	if (!ncr_a4000t.devobject.lsistate)
-		lsi_scsi_init (&ncr_a4000t.devobject);
+	for (int i = 0; ncrs[i]; i++) {
+		if (!ncrs[i]->devobject.lsistate)
+			lsi_scsi_init (&ncrs[i]->devobject);
+	}
 }
 
 static void ncr_reset_board (struct ncr_state *ncr)
@@ -440,31 +487,97 @@ static void ncr_reset_board (struct ncr_state *ncr)
 	ncr->board_mask = 0xffff;
 	if (ncr->devobject.lsistate)
 		lsi_scsi_reset (&ncr->devobject, ncr);
-	if (ncr == &ncr_a4000t)
+	if (ncr == &ncr_a4000t) {
 		ncr->name = _T("A4000T NCR SCSI");
-	if (ncr == &ncr_a4091)
+		ncr->bank = NULL;
+	}
+	if (ncr == &ncr_a4091) {
 		ncr->name = _T("A4091 SCSI");
-	if (ncr == &ncr_a4091_2)
+		ncr->bank = &ncr_bank_a4091;
+	}
+	if (ncr == &ncr_a4091_2) {
 		ncr->name = _T("A4091 SCSI #2");
+		ncr->bank = &ncr_bank_a4091_2;
+	}
+	if (ncr == &ncr_we) {
+		ncr->name = _T("Warp Engine");
+		ncr->bank = &ncr_bank_warpengine;
+	}
 }
 
-void ncr_autoconfig_init (int devnum)
+static const uae_u8 warpengine_a4000_autoconfig[16] = {
+	0x90, 0x13, 0x75, 0x00, 0x08, 0x9b, 0x00, 0x19, 0x01, 0x01, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00
+};
+#define WARP_ENGINE_ROM_SIZE 32768
+
+addrbank *ncr_warpengine_autoconfig_init(void)
+{
+	int roms[2];
+	struct ncr_state *ncr = &ncr_we;
+	struct zfile *z = NULL;
+
+	roms[0] = 93;
+	roms[1] = -1;
+
+	ncr->enabled = true;
+	memset (ncr->acmemory, 0xff, sizeof ncr->acmemory);
+	ncr->rom_start = 0x10;
+	ncr->rom_offset = 0;
+	ncr->rom_end = WARP_ENGINE_ROM_SIZE * 4;
+	ncr->io_start = WARP_ENGINE_IO_OFFSET;
+	ncr->io_start = WARP_ENGINE_IO_END;
+
+	struct romlist *rl = getromlistbyids(roms);
+	if (rl) {
+		struct romdata *rd = rl->rd;
+		z = read_rom (rd);
+	}
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = warpengine_a4000_autoconfig[i];
+		ew(ncr, i * 4, b);
+	}
+	ncr->rom = xcalloc (uae_u8, WARP_ENGINE_ROM_SIZE * 4);
+	if (z) {
+		for (int i = 0; i < WARP_ENGINE_ROM_SIZE; i++) {
+			uae_u8 b;
+			zfile_fread(&b, 1, 1, z);
+			ncr->rom[i * 4 + 0] = b | 0x0f;
+			ncr->rom[i * 4 + 1] = 0xff;
+			ncr->rom[i * 4 + 2] = (b << 4) | 0x0f;
+			ncr->rom[i * 4 + 3] = 0xff;
+		}
+		zfile_fclose(z);
+	} else {
+		romwarning (roms);
+	}
+
+	ncr_init ();
+	ncr_reset_board(ncr);
+
+	return &ncr_bank_warpengine;
+}
+
+addrbank *ncr_a4091_autoconfig_init (int devnum)
 {
 	struct ncr_state *ncr = ncra4091[devnum];
 	int roms[3];
-	int i;
 
 	if (!ncr->enabled && devnum > 0) {
 		expamem_next();
-		return;
+		return NULL;
 	}
-	ncr->enabled = true;
 
 	roms[0] = 58;
 	roms[1] = 57;
 	roms[2] = -1;
 
+	ncr->enabled = true;
 	memset (ncr->acmemory, 0xff, sizeof ncr->acmemory);
+	ncr->rom_start = A4091_ROM_VECTOR;
+	ncr->rom_offset = A4091_ROM_OFFSET;
+	ncr->rom_end = A4091_IO_OFFSET;
+	ncr->io_start = A4091_IO_OFFSET;
+	ncr->io_end = A4091_IO_END;
 
 	struct zfile *z = read_rom_name (devnum && currprefs.a4091romfile2[0] ? currprefs.a4091romfile2 : currprefs.a4091romfile);
 	if (!z) {
@@ -476,8 +589,8 @@ void ncr_autoconfig_init (int devnum)
 	}
 	if (z) {
 		write_log (_T("%s BOOT ROM '%s'\n"), ncr->name, zfile_getname (z));
-		ncr->rom = xmalloc (uae_u8, ROM_SIZE * 4);
-		for (i = 0; i < ROM_SIZE; i++) {
+		ncr->rom = xmalloc (uae_u8, A4091_ROM_SIZE * 4);
+		for (int i = 0; i < A4091_ROM_SIZE; i++) {
 			uae_u8 b;
 			zfile_fread (&b, 1, 1, z);
 			ncr->rom[i * 4 + 0] = b;
@@ -495,7 +608,8 @@ void ncr_autoconfig_init (int devnum)
 
 	ncr_init ();
 	ncr_reset_board(ncr);
-	map_banks (ncr == &ncr_a4091 ? &ncr_bank_a4091 : &ncr_bank_a4091_2, 0xe80000 >> 16, 65536 >> 16, 0);
+
+	return ncr == &ncr_a4091 ? &ncr_bank_a4091 : &ncr_bank_a4091_2;
 }
 
 static void freescsi_hdf (struct scsi_data *sd)
@@ -524,16 +638,16 @@ void ncr_free2(struct ncr_state *ncr)
 
 void ncr_free(void)
 {
-	ncr_free2(&ncr_a4000t);
-	ncr_free2(&ncr_a4091);
-	ncr_free2(&ncr_a4091_2);
+	for (int i = 0; ncrs[i]; i++) {
+		ncr_free2(ncrs[i]);
+	}
 }
 
 void ncr_reset (void)
 {
-	ncr_reset_board(&ncr_a4091);
-	ncr_reset_board(&ncr_a4091_2);
-	ncr_reset_board(&ncr_a4000t);
+	for (int i = 0; ncrs[i]; i++) {
+		ncr_reset_board(ncrs[i]);
+	}
 	if (currprefs.cs_mbdmac & 2) {
 		ncr_a4000t.configured = -1;
 		ncr_a4000t.enabled = true;
@@ -602,6 +716,16 @@ int a4000t_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 		return add_ncr_scsi_tape (&ncr_a4000t, ch, ci->rootdir, ci->readonly);
 	else
 		return add_ncr_scsi_hd (&ncr_a4000t, ch, NULL, ci, 1);
+}
+
+int warpengine_add_scsi_unit (int ch, struct uaedev_config_info *ci)
+{
+	if (ci->type == UAEDEV_CD)
+		return add_ncr_scsi_cd (&ncr_we, ch, ci->device_emu_unit);
+	else if (ci->type == UAEDEV_TAPE)
+		return add_ncr_scsi_tape (&ncr_we, ch, ci->rootdir, ci->readonly);
+	else
+		return add_ncr_scsi_hd (&ncr_we, ch, NULL, ci, 1);
 }
 
 int a4091_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)

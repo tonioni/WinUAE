@@ -3766,6 +3766,8 @@ void picasso_statusline (uae_u8 *dst)
 		dst_width = picasso_vidinfo.width;
 	pitch = picasso_vidinfo.rowbytes;
 	statusline_getpos (&slx, &sly, picasso96_state.Width, dst_height);
+	if (currprefs.gfx_api)
+		statusline_render(dst + sly * pitch, picasso_vidinfo.pixbytes, pitch, dst_width, dst_height, p96rc, p96gc, p96bc, NULL);
 	yy = 0;
 	for (y = 0; y < TD_TOTAL_HEIGHT; y++) {
 		uae_u8 *buf = dst + (y + sly) * pitch;
@@ -4249,8 +4251,9 @@ bool picasso_flushpixels (uae_u8 *src, int off)
 				lock = 1;
 		}
 		if (dst) {
-			if (!(currprefs.leds_on_screen & STATUSLINE_TARGET))
+			if (!(currprefs.leds_on_screen & STATUSLINE_TARGET)) {
 				picasso_statusline (dst);
+			}
 			maxy = picasso_vidinfo.height;
 			if (miny > picasso_vidinfo.height - TD_TOTAL_HEIGHT)
 				miny = picasso_vidinfo.height - TD_TOTAL_HEIGHT;

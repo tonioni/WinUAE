@@ -1111,7 +1111,7 @@ void writeser (int c)
 		BYTE outchar = (BYTE)c;
 		Midi_Parse (midi_output, &outchar);
 	} else {
-		if (!currprefs.use_serial)
+		if (hCom == INVALID_HANDLE_VALUE || !currprefs.use_serial)
 			return;
 		if (datainoutput + 1 < sizeof (outputbuffer)) {
 			outputbuffer[datainoutput++] = c;
@@ -1516,6 +1516,14 @@ int enumserialports (void)
 		}
 	}
 
+
+	if (cnt < MAX_SERPAR_PORTS) {
+		comports[cnt] = xcalloc(struct serparportinfo, 1);
+		comports[cnt]->dev = my_strdup (SERIAL_INTERNAL);
+		comports[cnt]->cfgname = my_strdup (comports[cnt]->dev);
+		comports[cnt]->name = my_strdup (_T("WinUAE inter-process serial port"));
+		cnt++;
+	}
 
 	if (cnt < MAX_SERPAR_PORTS) {
 		comports[cnt] = xcalloc(struct serparportinfo, 1);

@@ -370,9 +370,6 @@
     <ClCompile Include="..\..\uaeexe.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\uaeipc.cpp">
-      <Filter>common</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\uaelib.cpp">
       <Filter>common</Filter>
     </ClCompile>
@@ -651,6 +648,15 @@
     </ClCompile>
     <ClCompile Include="..\..\cd32_fmv_genlock.cpp">
       <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpuboard.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\uaeipc.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\statusline_win32.cpp">
+      <Filter>win32</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

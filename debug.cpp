@@ -2930,7 +2930,7 @@ static void memory_map_dump_2 (int log)
 			size = (i - j) << (16 - 10);
 			size_out = size;
 			size_ext = 'K';
-			if (j >= 256) {
+			if (j >= 256 && size_out >= 1024) {
 				size_out /= 1024;
 				size_ext = 'M';
 			}

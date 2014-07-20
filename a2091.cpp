@@ -2,13 +2,15 @@
 * UAE - The Un*x Amiga Emulator
 *
 * A590/A2091/A3000/CDTV SCSI expansion (DMAC/SuperDMAC + WD33C93) emulation
+* Includes A590 + XT drive emulation.
 *
-* Copyright 2007-2013 Toni Wilen
+* Copyright 2007-2014 Toni Wilen
 *
 */
 
 #define A2091_DEBUG 0
 #define A2091_DEBUG_IO 0
+#define XT_DEBUG 0
 #define A3000_DEBUG 0
 #define A3000_DEBUG_IO 0
 #define WD33C93_DEBUG 0
@@ -52,9 +54,8 @@
 #define CNTR_INTEN	(1<<4)
 #define CNTR_DDIR	(1<<3)
 /* ISTR bits. */
-#define ISTR_INTX	(1<<8)	/* XT/AT Interrupt pending */
 #define ISTR_INT_F	(1<<7)	/* Interrupt Follow */
-#define ISTR_INTS	(1<<6)	/* SCSI Peripheral Interrupt */
+#define ISTR_INTS	(1<<6)	/* SCSI or XT Peripheral Interrupt */
 #define ISTR_E_INT	(1<<5)	/* End-Of-Process Interrupt */
 #define ISTR_INT_P	(1<<4)	/* Interrupt Pending */
 #define ISTR_UE_INT	(1<<3)	/* Under-Run FIFO Error Interrupt */
@@ -67,17 +68,29 @@
 #define WD_CONTROL		0x01
 #define WD_TIMEOUT_PERIOD	0x02
 #define WD_CDB_1		0x03
+#define WD_T_SECTORS	0x03
 #define WD_CDB_2		0x04
+#define WD_T_HEADS		0x04
 #define WD_CDB_3		0x05
+#define WD_T_CYLS_0		0x05
 #define WD_CDB_4		0x06
+#define WD_T_CYLS_1		0x06
 #define WD_CDB_5		0x07
+#define WD_L_ADDR_0		0x07
 #define WD_CDB_6		0x08
+#define WD_L_ADDR_1		0x08
 #define WD_CDB_7		0x09
+#define WD_L_ADDR_2		0x09
 #define WD_CDB_8		0x0a
+#define WD_L_ADDR_3		0x0a
 #define WD_CDB_9		0x0b
+#define WD_SECTOR		0x0b
 #define WD_CDB_10		0x0c
+#define WD_HEAD			0x0c
 #define WD_CDB_11		0x0d
+#define WD_CYL_0		0x0d
 #define WD_CDB_12		0x0e
+#define WD_CYL_1		0x0e
 #define WD_TARGET_LUN		0x0f
 #define WD_COMMAND_PHASE	0x10
 #define WD_SYNCHRONOUS_TRANSFER 0x11
@@ -120,6 +133,7 @@
 /* successful completion interrupts */
 #define CSR_RESELECT		0x10
 #define CSR_SELECT			0x11
+#define CSR_TRANS_ADDR		0x15
 #define CSR_SEL_XFER_DONE	0x16
 #define CSR_XFER_DONE		0x18
 /* terminated interrupts */
@@ -176,6 +190,48 @@
 #define MSG_NOP 0x08
 #define MSG_IDENTIFY 0x80
 
+/* XT hard disk controller registers */
+#define XD_DATA         0x00    /* data RW register */
+#define XD_RESET        0x01    /* reset WO register */
+#define XD_STATUS       0x01    /* status RO register */
+#define XD_SELECT       0x02    /* select WO register */
+#define XD_JUMPER       0x02    /* jumper RO register */
+#define XD_CONTROL      0x03    /* DMAE/INTE WO register */
+#define XD_RESERVED     0x03    /* reserved */
+
+/* XT hard disk controller commands (incomplete list) */
+#define XT_CMD_TESTREADY   0x00    /* test drive ready */
+#define XT_CMD_RECALIBRATE 0x01    /* recalibrate drive */
+#define XT_CMD_SENSE       0x03    /* request sense */
+#define XT_CMD_FORMATDRV   0x04    /* format drive */
+#define XT_CMD_VERIFY      0x05    /* read verify */
+#define XT_CMD_FORMATTRK   0x06    /* format track */
+#define XT_CMD_FORMATBAD   0x07    /* format bad track */
+#define XT_CMD_READ        0x08    /* read */
+#define XT_CMD_WRITE       0x0A    /* write */
+#define XT_CMD_SEEK        0x0B    /* seek */
+/* Controller specific commands */
+#define XT_CMD_DTCSETPARAM 0x0C    /* set drive parameters (DTC 5150X & CX only?) */
+
+/* Bits for command status byte */
+#define XT_CSB_ERROR       0x02    /* error */
+#define XT_CSB_LUN         0x20    /* logical Unit Number */
+
+/* XT hard disk controller status bits */
+#define XT_STAT_READY      0x01    /* controller is ready */
+#define XT_STAT_INPUT      0x02    /* data flowing from controller to host */
+#define XT_STAT_COMMAND    0x04    /* controller in command phase */
+#define XT_STAT_SELECT     0x08    /* controller is selected */
+#define XT_STAT_REQUEST    0x10    /* controller requesting data */
+#define XT_STAT_INTERRUPT  0x20    /* controller requesting interrupt */
+
+/* XT hard disk controller control bits */
+#define XT_INT          0x02    /* Interrupt enable */
+#define XT_DMA_MODE     0x01    /* DMA enable */
+
+#define XT_UNIT 7
+#define XT_SECTORS 17 /* hardwired */
+
 static struct wd_state wd_a2091;
 static struct wd_state wd_a2091_2;
 static struct wd_state wd_a3000;
@@ -199,9 +255,15 @@ static int isirq (struct wd_state *wd)
 	if (!wd->enabled)
 		return 0;
 	if (wd->superdmac) {
+		if (wd->auxstatus & ASR_INT)
+			wd->dmac_istr |= ISTR_INTS;
 		if ((wd->dmac_cntr & SCNTR_INTEN) && (wd->dmac_istr & (ISTR_INTS | ISTR_E_INT)))
 			return 1;
 	} else {
+		if (wd->xt_irq)
+			wd->dmac_istr |= ISTR_INTS;
+		if (wd->auxstatus & ASR_INT)
+			wd->dmac_istr |= ISTR_INTS;
 		if ((wd->dmac_cntr & CNTR_INTEN) && (wd->dmac_istr & (ISTR_INTS | ISTR_E_INT)))
 			return 1;
 	}
@@ -220,14 +282,22 @@ void rethink_a2091 (void)
 	}
 }
 
-static void INT2 (struct wd_state *wd)
+static void dmac_scsi_int(struct wd_state *wd)
 {
 	if (!wd->enabled)
 		return;
 	if (!(wd->auxstatus & ASR_INT))
 		return;
-	wd->dmac_istr |= ISTR_INTS;
 	if (isirq (wd))
+		uae_int_requested |= 2;
+}
+
+static void dmac_xt_int(struct wd_state *wd)
+{
+	if (!wd->enabled)
+		return;
+	wd->xt_irq = true;
+	if (isirq(wd))
 		uae_int_requested |= 2;
 }
 
@@ -283,7 +353,7 @@ static void doscsistatus (struct wd_state *wd, uae_u8 status)
 		cdtv_scsi_int ();
 		return;
 	}
-	INT2(wd);
+	dmac_scsi_int(wd);
 #if A2091_DEBUG > 2 || A3000_DEBUG > 2
 	write_log (_T("Interrupt\n"));
 #endif
@@ -722,22 +792,6 @@ static void wd_cmd_trans_info (struct wd_state *wd)
 		settc (wd, 1);
 	wd->wd_dataoffset = 0;
 
-
-//	if (wd->wdregs[WD_COMMAND_PHASE] >= 0x36 && wd->wdregs[WD_COMMAND_PHASE] <= 0x3f) {
-//		wd->wdregs[WD_COMMAND_PHASE] = 0x45;
-//	} else if (wd->wdregs[WD_COMMAND_PHASE] == 0x41) {
-//		wd->wdregs[WD_COMMAND_PHASE] = 0x46;
-//	}
-
-#if 0
-	if (wd->wdregs[WD_COMMAND_PHASE] >= 0x40 && wd->scsi->direction < 0) {
-		if (wd->wd_tc > wd->scsi->data_len) {
-			wd->wd_tc = wd->scsi->data_len;
-			if (wd->wd_tc < 0)
-				wd->wd_tc = 0;
-		}
-	}
-#endif
 	if (wd->wdregs[WD_COMMAND_PHASE] == 0x30) {
 		wd->scsi->direction = 2; // command
 		wd->scsi->cmd_len = wd->scsi->data_len = gettc (wd);
@@ -769,6 +823,40 @@ static void wd_cmd_trans_info (struct wd_state *wd)
 
 }
 
+/* Weird stuff, XT driver (which has nothing to do with SCSI or WD33C93) uses this WD33C93 command! */
+static void wd_cmd_trans_addr(struct wd_state *wd)
+{
+	uae_u32 tcyls = (wd->wdregs[WD_T_CYLS_0] << 8) | wd->wdregs[WD_T_CYLS_1];
+	uae_u32 theads = wd->wdregs[WD_T_HEADS];
+	uae_u32 tsectors = wd->wdregs[WD_T_SECTORS];
+	uae_u32 lba = (wd->wdregs[WD_L_ADDR_0] << 24) | (wd->wdregs[WD_L_ADDR_1] << 16) |
+		(wd->wdregs[WD_L_ADDR_2] << 8) | (wd->wdregs[WD_L_ADDR_3] << 0);
+	uae_u32 cyls, heads, sectors;
+
+	cyls = lba / (theads * tsectors);
+	heads = (lba - ((cyls * theads * tsectors))) / tsectors;
+	sectors = (lba - ((cyls * theads * tsectors))) % tsectors;
+
+	//write_log(_T("WD TRANS ADDR: LBA=%d TC=%d TH=%d TS=%d -> C=%d H=%d S=%d\n"), lba, tcyls, theads, tsectors, cyls, heads, sectors);
+
+	wd->wdregs[WD_CYL_0] = cyls >> 8;
+	wd->wdregs[WD_CYL_1] = cyls;
+	wd->wdregs[WD_HEAD] = heads;
+	wd->wdregs[WD_SECTOR] = sectors;
+
+	// This is cheating, sector value hardwired on MFM drives. This hack allows to mount hardfiles
+	// that are created using incompatible geometry. (XT MFM/RLL drives have real physical geometry)
+	if (wd->xt_sectors != tsectors && wd->scsis[XT_UNIT]) {
+		write_log(_T("XT drive sector value patched from %d to %d\n"), wd->xt_sectors, tsectors);
+		wd->xt_sectors = tsectors;
+	}
+
+	if (cyls >= tcyls)
+		set_status(wd, CSR_BAD_STATUS);
+	else
+		set_status(wd, CSR_TRANS_ADDR);
+}
+
 static void wd_cmd_sel (struct wd_state *wd, bool atn)
 {
 #if WD33C93_DEBUG > 0
@@ -778,7 +866,7 @@ static void wd_cmd_sel (struct wd_state *wd, bool atn)
 	wd->wdregs[WD_COMMAND_PHASE] = 0;
 
 	wd->scsi = wd->scsis[wd->wdregs[WD_DESTINATION_ID] & 7];
-	if (!wd->scsi) {
+	if (!wd->scsi || (wd->wdregs[WD_DESTINATION_ID] & 7) == 7) {
 #if WD33C93_DEBUG > 0
 		write_log (_T("%s no drive\n"), WD33C93);
 #endif
@@ -832,8 +920,11 @@ static void wd_cmd_abort (struct wd_state *wd)
 #endif
 }
 
+static void xt_command_done(struct wd_state *wd);
+
 static void scsi_hsync2 (struct wd_state *wd)
 {
+	bool irq = false;
 	if (!wd->enabled)
 		return;
 	if (wd->wd_data_avail < 0 && wd->dmac_dma > 0) {
@@ -854,6 +945,13 @@ static void scsi_hsync2 (struct wd_state *wd)
 			wd->dmac_dma = -1;
 		}
 	}
+	if (wd->dmac_dma > 0 && (wd->xt_status & (XT_STAT_INPUT | XT_STAT_REQUEST))) {
+		wd->scsi = wd->scsis[XT_UNIT];
+		if (do_dma(wd)) {
+			xt_command_done(wd);
+		}
+	}
+
 	if (wd->auxstatus & ASR_INT)
 		return;
 	for (int i = 0; i < WD_STATUS_QUEUE; i++) {
@@ -948,7 +1046,7 @@ void wdscsi_put (struct wd_state *wd, uae_u8 d)
 		}
 	} else if (wd->sasr == WD_COMMAND) {
 		wd->wd_busy = true;
-		write_comm_pipe_u32 (&wd->requests, makecmd (wd->scsi, 0, d), 1);
+		write_comm_pipe_u32(&wd->requests, makecmd(wd->scsis[wd->wdregs[WD_DESTINATION_ID] & 7], 0, d), 1);
 		if (wd->scsi && wd->scsi->cd_emu_unit >= 0)
 			gui_flicker_led (LED_CD, wd->scsi->id, 1);
 	}
@@ -1015,6 +1113,254 @@ uae_u8 wdscsi_get (struct wd_state *wd)
 	return v;
 }
 
+/* XT */
+
+static void xt_default_geometry(struct wd_state *wd)
+{
+	wd->xt_cyls = wd->scsi->hfd->cyls > 1023 ? 1023 : wd->scsi->hfd->cyls;
+	wd->xt_heads = wd->scsi->hfd->heads > 31 ? 31 : wd->scsi->hfd->heads;
+}
+
+
+static void xt_set_status(struct wd_state *wd, uae_u8 state)
+{
+	wd->xt_status = state;
+	wd->xt_status |= XT_STAT_SELECT;
+	wd->xt_status |= XT_STAT_READY;
+}
+
+static void xt_reset(struct wd_state *wd)
+{
+	wd->scsi = wd->scsis[XT_UNIT];
+	if (!wd->scsi)
+		return;
+	wd->xt_control = 0;
+	wd->xt_datalen = 0;
+	wd->xt_status = 0;
+	xt_default_geometry(wd);
+	write_log(_T("XT reset\n"));
+}
+
+static void xt_command_done(struct wd_state *wd)
+{
+	switch (wd->xt_cmd[0])
+	{
+		case XT_CMD_DTCSETPARAM:
+			wd->xt_heads = wd->scsi->buffer[2] & 0x1f;
+			wd->xt_cyls = ((wd->scsi->buffer[0] & 3) << 8) | (wd->scsi->buffer[1]);
+			wd->xt_sectors = XT_SECTORS;
+			if (!wd->xt_heads || !wd->xt_cyls)
+				xt_default_geometry(wd);
+			write_log(_T("XT SETPARAM: cyls=%d heads=%d\n"), wd->xt_cyls, wd->xt_heads);
+			break;
+		case XT_CMD_WRITE:
+			scsi_emulate_cmd(wd->scsi);
+			break;
+
+	}
+
+	xt_set_status(wd, XT_STAT_INTERRUPT);
+	if (wd->xt_control & XT_INT)
+		dmac_xt_int(wd);
+	wd->xt_datalen = 0;
+	wd->xt_statusbyte = 0;
+#if XT_DEBUG > 0
+	write_log(_T("XT command %02x done\n"), wd->xt_cmd[0]);
+#endif
+}
+
+static void xt_wait_data(struct wd_state *wd, int len)
+{
+	xt_set_status(wd, XT_STAT_REQUEST);
+	wd->xt_offset = 0;
+	wd->xt_datalen = len;
+}
+
+static void xt_sense(struct wd_state *wd)
+{
+	wd->xt_datalen = 4;
+	wd->xt_offset = 0;
+	memset(wd->scsi->buffer, 0, wd->xt_datalen);
+}
+
+static void xt_readwrite(struct wd_state *wd, int rw)
+{
+	struct scsi_data *scsi = wd->scsis[XT_UNIT];
+	int transfer_len;
+	uae_u32 lba;
+	// 1 = head
+	// 2 = bits 6,7: cyl high, bits 0-5: sectors
+	// 3 = cyl (low)
+	// 4 = transfer count
+	lba = ((wd->xt_cmd[3] | ((wd->xt_cmd[2] << 2) & 0x300))) * (wd->xt_heads * wd->xt_sectors) +
+		(wd->xt_cmd[1] & 0x1f) * wd->xt_sectors +
+		(wd->xt_cmd[2] & 0x3f);
+
+	wd->scsi = scsi;
+	wd->xt_offset = 0;
+	transfer_len = wd->xt_cmd[4] == 0 ? 256 : wd->xt_cmd[4];
+	wd->xt_datalen = transfer_len * 512;
+
+#if XT_DEBUG > 0
+	write_log(_T("XT %s block %d, %d\n"), rw ? _T("WRITE") : _T("READ"), lba, transfer_len);
+#endif
+
+	scsi->cmd[0] = rw ? 0x0a : 0x08; /* WRITE(6) / READ (6) */
+	scsi->cmd[1] = lba >> 16;
+	scsi->cmd[2] = lba >> 8;
+	scsi->cmd[3] = lba >> 0;
+	scsi->cmd[4] = transfer_len;
+	scsi->cmd[5] = 0;
+	scsi_emulate_analyze(wd->scsi);
+	if (rw) {
+		wd->scsi->direction = 1;
+		xt_set_status(wd, XT_STAT_REQUEST);
+	} else {
+		wd->scsi->direction = -1;
+		scsi_emulate_cmd(scsi);
+		xt_set_status(wd, XT_STAT_INPUT);
+	}
+	scsi_start_transfer(scsi);
+	settc(wd, scsi->data_len);
+
+	if (!(wd->xt_control & XT_DMA_MODE))
+		xt_command_done(wd);
+}
+
+static void xt_command(struct wd_state *wd)
+{
+	wd->scsi = wd->scsis[XT_UNIT];
+	switch(wd->xt_cmd[0])
+	{
+	case XT_CMD_READ:
+		xt_readwrite(wd, 0);
+		break;
+	case XT_CMD_WRITE:
+		xt_readwrite(wd, 1);
+		break;
+	case XT_CMD_SEEK:
+		xt_command_done(wd);
+		break;
+	case XT_CMD_VERIFY:
+		xt_command_done(wd);
+		break;
+	case XT_CMD_FORMATBAD:
+	case XT_CMD_FORMATTRK:
+		xt_command_done(wd);
+		break;
+	case XT_CMD_TESTREADY:
+		xt_command_done(wd);
+		break;
+	case XT_CMD_RECALIBRATE:
+		xt_command_done(wd);
+		break;
+	case XT_CMD_SENSE:
+		xt_sense(wd);
+		break;
+	case XT_CMD_DTCSETPARAM:
+		xt_wait_data(wd, 8);
+		break;
+	default:
+		write_log(_T("XT unknown command %02X\n"), wd->xt_cmd[0]);
+		xt_command_done(wd);
+		wd->xt_status |= XT_STAT_INPUT;
+		wd->xt_datalen = 1;
+		wd->xt_statusbyte = XT_CSB_ERROR;
+		break;
+	}
+}
+
+static uae_u8 read_xt_reg(struct wd_state *wd, int reg)
+{
+	uae_u8 v = 0xff;
+
+	wd->scsi = wd->scsis[XT_UNIT];
+	if (!wd->scsi)
+		return v;
+
+	switch(reg)
+	{
+	case XD_DATA:
+		if (wd->xt_status & XT_STAT_INPUT) {
+			v = wd->scsi->buffer[wd->xt_offset];
+			wd->xt_offset++;
+			if (wd->xt_offset >= wd->xt_datalen) {
+				xt_command_done(wd);
+			}
+		} else {
+			v = wd->xt_statusbyte;
+		}
+		break;
+	case XD_STATUS:
+		v = wd->xt_status;
+		break;
+	case XD_JUMPER:
+		// 20M: 0 40M: 2, xt.device checks it.
+		v = wd->scsi->hfd->size >= 41615 * 2 * 512 ? 2 : 0;
+		break;
+	case XD_RESERVED:
+		break;
+	}
+#if XT_DEBUG > 2
+	write_log(_T("XT read %d: %02X\n"), reg, v);
+#endif
+	return v;
+}
+
+static void write_xt_reg(struct wd_state *wd, int reg, uae_u8 v)
+{
+	wd->scsi = wd->scsis[XT_UNIT];
+	if (!wd->scsi)
+		return;
+
+#if XT_DEBUG > 2
+	write_log(_T("XT write %d: %02X\n"), reg, v);
+#endif
+
+	switch (reg)
+	{
+	case XD_DATA:
+#if XT_DEBUG > 1
+		write_log(_T("XT data write %02X\n"), v);
+#endif
+		if (!(wd->xt_status & XT_STAT_REQUEST)) {
+			wd->xt_offset = 0;
+			xt_set_status(wd, XT_STAT_COMMAND | XT_STAT_REQUEST);
+		}
+		if (wd->xt_status & XT_STAT_REQUEST) {
+			if (wd->xt_status & XT_STAT_COMMAND) {
+				wd->xt_cmd[wd->xt_offset++] = v;
+				xt_set_status(wd, XT_STAT_COMMAND | XT_STAT_REQUEST);
+				if (wd->xt_offset == 6) {
+					xt_command(wd);
+				}
+			} else {
+				wd->scsi->buffer[wd->xt_offset] = v;
+				wd->xt_offset++;
+				if (wd->xt_offset >= wd->xt_datalen) {
+					xt_command_done(wd);
+				}
+			}
+		}
+		break;
+	case XD_RESET:
+		xt_reset(wd);
+		break;
+	case XD_SELECT:
+#if XT_DEBUG > 1
+		write_log(_T("XT select %02X\n"), v);
+#endif
+		xt_set_status(wd, XT_STAT_SELECT);
+		break;
+	case XD_CONTROL:
+		wd->xt_control = v;
+		wd->xt_irq = 0;
+		break;
+	}
+}
+
+/* DMAC */
+
 static uae_u32 dmac_read_word (struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v = 0;
@@ -1037,7 +1383,7 @@ static uae_u32 dmac_read_word (struct wd_state *wd, uaecptr addr)
 	{
 	case 0x40:
 		v = wd->dmac_istr;
-		if (v)
+		if (v && (wd->dmac_cntr & CNTR_INTEN))
 			v |= ISTR_INT_P;
 		wd->dmac_istr &= ~0xf;
 		break;
@@ -1055,15 +1401,9 @@ static uae_u32 dmac_read_word (struct wd_state *wd, uaecptr addr)
 	case 0xc0:
 		v = 0xf8 | (1 << 0) | (1 << 1) | (1 << 2); // bits 0-2 = dip-switches
 		break;
-		/* XT IO */
-	case 0xa0:
-	case 0xa2:
-	case 0xa4:
-	case 0xa6:
 	case 0xc2:
 	case 0xc4:
 	case 0xc6:
-		write_log(_T("READ XT IO %02x PC=%08x\n"), addr, M68K_GETPC);
 		v = 0xffff;
 		break;
 	case 0xe0:
@@ -1112,6 +1452,12 @@ static uae_u32 dmac_read_byte (struct wd_state *wd, uaecptr addr)
 		break;
 	case 0x93:
 		v = wdscsi_get (wd);
+		break;
+	case 0xa1:
+	case 0xa3:
+	case 0xa5:
+	case 0xa7:
+		v = read_xt_reg(wd, (addr - 0xa0) / 2);
 		break;
 	default:
 		v = dmac_read_word (wd, addr);
@@ -1166,14 +1512,9 @@ static void dmac_write_word (struct wd_state *wd, uaecptr addr, uae_u32 b)
 		wd->dmac_dawr = b;
 		break;
 		break;
-	case 0xa0:
-	case 0xa2:
-	case 0xa4:
-	case 0xa6:
 	case 0xc2:
 	case 0xc4:
 	case 0xc6:
-		write_log(_T("WRITE XT IO %02x = %04x PC=%08x\n"), addr, b, M68K_GETPC);
 		break;
 	case 0xe0:
 		if (wd->dmac_dma <= 0)
@@ -1210,6 +1551,12 @@ static void dmac_write_byte (struct wd_state *wd, uaecptr addr, uae_u32 b)
 		break;
 	case 0x93:
 		wdscsi_put (wd, b);
+		break;
+	case 0xa1:
+	case 0xa3:
+	case 0xa5:
+	case 0xa7:
+		write_xt_reg(wd, (addr - 0xa0) / 2, b);
 		break;
 	default:
 		if (addr & 1)
@@ -1696,6 +2043,7 @@ static void *scsi_thread (void *wdv)
 		int cmd = v & 0x7f;
 		int msg = (v >> 8) & 0xff;
 		int unit = (v >> 24) & 0xff;
+		wd->scsi = wd->scsis[unit];
 		//write_log (_T("scsi_thread got msg=%d cmd=%d\n"), msg, cmd);
 		if (msg == 0) {
 			if (WD33C93_DEBUG > 0)
@@ -1722,6 +2070,9 @@ static void *scsi_thread (void *wdv)
 				break;
 			case WD_CMD_TRANS_INFO:
 				wd_cmd_trans_info (wd);
+				break;
+			case WD_CMD_TRANS_ADDR:
+				wd_cmd_trans_addr(wd);
 				break;
 			default:
 				wd->wd_busy = false;
@@ -1797,7 +2148,7 @@ int add_wd_scsi_tape (struct wd_state *wd, int ch, const TCHAR *tape_directory, 
 static void freenativescsi (struct wd_state *wd)
 {
 	int i;
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < 8; i++) {
 		freescsi (wd->scsis[i]);
 		wd->scsis[i] = NULL;
 	}
@@ -1886,15 +2237,16 @@ void a3000scsi_free (void)
 	}
 }
 
-int a2091_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
+int a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci, int devnum)
 {
 	struct wd_state *wd = wda2091[devnum];
+
 	if (ci->type == UAEDEV_CD)
-		return add_wd_scsi_cd (wd, ch, ci->device_emu_unit);
+		return add_wd_scsi_cd(wd, ch, ci->device_emu_unit);
 	else if (ci->type == UAEDEV_TAPE)
-		return add_wd_scsi_tape (wd, ch, ci->rootdir, ci->readonly);
+		return add_wd_scsi_tape(wd, ch, ci->rootdir, ci->readonly);
 	else
-		return add_wd_scsi_hd (wd, ch, NULL, ci, 1);
+		return add_wd_scsi_hd(wd, ch, NULL, ci, 1);
 }
 
 void a2091_free_device (struct wd_state *wd)
@@ -1923,6 +2275,7 @@ static void a2091_reset_device(struct wd_state *wd)
 		wd->name = _T("A2091/A590");
 	if (wd == &wd_a2091_2)
 		wd->name = _T("A2091/A590 #2");
+	xt_reset(wd);
 }
 
 void a2091_reset (void)
@@ -1931,7 +2284,7 @@ void a2091_reset (void)
 	a2091_reset_device(&wd_a2091_2);
 }
 
-void a2091_init (int devnum)
+addrbank *a2091_init (int devnum)
 {
 	struct wd_state *wd = wda2091[devnum];
 	int roms[6];
@@ -1940,7 +2293,7 @@ void a2091_init (int devnum)
 
 	if (devnum > 0 && !wd->enabled) {
 		expamem_next();
-		return;
+		return NULL;
 	}
 
 	init_scsi(wd);
@@ -2003,7 +2356,7 @@ void a2091_init (int devnum)
 			romwarning (roms);
 		}
 	}
-	map_banks (wd == &wd_a2091 ? &dmaca2091_bank : &dmaca2091_2_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
+	return wd == &wd_a2091 ? &dmaca2091_bank : &dmaca2091_2_bank;
 }
 
 uae_u8 *save_scsi_dmac (int wdtype, int *len, uae_u8 *dstptr)
@@ -2081,6 +2434,13 @@ uae_u8 *save_scsi_device (int wdtype, int num, int *len, uae_u8 *dstptr)
 		save_u32 (s->hfd->hfd.ci.reserved);
 		save_u32 (s->hfd->hfd.ci.bootpri);
 		save_u32 (s->hfd->ansi_version);
+		if (num == 7) {
+			save_u16(wd->xt_cyls);
+			save_u16(wd->xt_heads);
+			save_u16(wd->xt_sectors);
+			save_u8(wd->xt_status);
+			save_u8(wd->xt_control);
+		}
 	break;
 	case UAEDEV_CD:
 		save_u32 (s->cd_emu_unit);
@@ -2131,6 +2491,13 @@ uae_u8 *restore_scsi_device (int wdtype, uae_u8 *src)
 		s->hfd->hfd.ci.bootpri = restore_u32 ();
 		s->hfd->ansi_version = restore_u32 ();
 		s->hfd->hfd.ci.blocksize = blocksize;
+		if (num == 7) {
+			wd->xt_cyls = restore_u16();
+			wd->xt_heads = restore_u8();
+			wd->xt_sectors = restore_u8();
+			wd->xt_status = restore_u8();
+			wd->xt_control = restore_u8();
+		}
 		if (size)
 			add_wd_scsi_hd (wd, num, hfd, NULL, s->hfd->ansi_version);
 		xfree (path);

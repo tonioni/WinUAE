@@ -12,6 +12,8 @@
 #include "drawing.h"
 #include "statusline.h"
 
+#define STATUSLINE_MS 3000
+
 /*
 * Some code to put status information on the screen.
 */
@@ -256,4 +258,117 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 			}
 		}
 	}
+}
+
+#define MAX_STATUSLINE_QUEUE 8
+static TCHAR *statusline_text[MAX_STATUSLINE_QUEUE];
+static TCHAR *statusline_text_active;
+static int statusline_delay;
+static bool statusline_had_changed;
+
+bool has_statusline_updated(void)
+{
+	bool v = statusline_had_changed;
+	statusline_had_changed = false;
+	return v;
+}
+
+static void statusline_update_notification(void)
+{
+	statusline_had_changed = true;
+	statusline_updated();
+}
+
+void statusline_clear(void)
+{
+	statusline_text_active = NULL;
+	statusline_delay = 0;
+	for (int i = 0; i < MAX_STATUSLINE_QUEUE; i++) {
+		xfree(statusline_text[i]);
+		statusline_text[i] = NULL;
+	}
+	statusline_update_notification();
+}
+
+const TCHAR *statusline_fetch(void)
+{
+	return statusline_text_active;
+}
+
+void statusline_add_message(const TCHAR *format, ...)
+{
+	va_list parms;
+	TCHAR buffer[256];
+
+	if (isguiactive())
+		return;
+
+	va_start(parms, format);
+	buffer[0] = ' ';
+	_vsntprintf(buffer + 1, 256 - 2, format, parms);
+	_tcscat(buffer, _T(" "));
+
+	if (statusline_text[1]) {
+		for (int i = 0; i < MAX_STATUSLINE_QUEUE; i++) {
+			if (statusline_text[i] && !_tcscmp(statusline_text[i], buffer)) {
+				xfree(statusline_text[i]);
+				for (int j = i + 1; j < MAX_STATUSLINE_QUEUE; j++) {
+					statusline_text[j - 1] = statusline_text[j];
+				}
+				statusline_text[MAX_STATUSLINE_QUEUE - 1] = NULL;
+				i = 0;
+			}
+		}
+	} else if (statusline_text[0]) {
+		if (!_tcscmp(statusline_text[0], buffer))
+			return;
+	}
+
+	for (int i = 0; i < MAX_STATUSLINE_QUEUE; i++) {
+		if (statusline_text[i] == NULL) {
+			statusline_text[i] = my_strdup(buffer);
+			if (i == 0)
+				statusline_delay = STATUSLINE_MS * vblank_hz / (1000 * 1);
+			statusline_text_active = statusline_text[0];
+			statusline_update_notification();
+			return;
+		}
+	}
+	statusline_text_active = NULL;
+	xfree(statusline_text[0]);
+	for (int i = 1; i < MAX_STATUSLINE_QUEUE; i++) {
+		statusline_text[i - 1] = statusline_text[i];
+	}
+	statusline_text[MAX_STATUSLINE_QUEUE - 1] = my_strdup(buffer);
+	statusline_text_active = statusline_text[0];
+	statusline_update_notification();
+	va_end(parms);
+}
+
+void statusline_vsync(void)
+{
+	if (!statusline_text[0])
+		return;
+	if (statusline_delay == 0)
+		statusline_delay = STATUSLINE_MS * vblank_hz / (1000 * 1);
+	if (statusline_delay > STATUSLINE_MS * vblank_hz / (1000 * 1))
+		statusline_delay = STATUSLINE_MS * vblank_hz / (1000 * 1);
+	if (statusline_delay > STATUSLINE_MS * vblank_hz / (1000 * 2) && statusline_text[1])
+		statusline_delay = STATUSLINE_MS * vblank_hz / (1000 * 2);
+	statusline_delay--;
+	if (statusline_delay)
+		return;
+	statusline_text_active = NULL;
+	xfree(statusline_text[0]);
+	for (int i = 1; i < MAX_STATUSLINE_QUEUE; i++) {
+		statusline_text[i - 1] = statusline_text[i];
+	}
+	statusline_text[MAX_STATUSLINE_QUEUE - 1] = NULL;
+	statusline_text_active = statusline_text[0];
+	statusline_update_notification();
+}
+
+void statusline_single_erase(uae_u8 *buf, int bpp, int y, int totalwidth)
+{
+	memset(buf, 0, bpp * totalwidth);
 }

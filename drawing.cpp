@@ -2910,6 +2910,9 @@ static void init_drawing_frame (void)
 	drawing_color_matches = -1;
 }
 
+static int lightpen_y1, lightpen_y2;
+static int statusbar_y1, statusbar_y2;
+
 void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq)
 {
 	if (x <= 0)
@@ -2949,20 +2952,26 @@ void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq)
 	}
 }
 
-static void draw_status_line (int line, int statusy)
+static uae_u8 *status_line_ptr(int line)
 {
-	int bpp, y;
-	uae_u8 *buf;
+	int y;
 
-	if (!(currprefs.leds_on_screen & STATUSLINE_CHIPSET) || (currprefs.leds_on_screen & STATUSLINE_TARGET))
-		return;
-	bpp = gfxvidinfo.drawbuffer.pixbytes;
 	y = line - (gfxvidinfo.drawbuffer.outheight - TD_TOTAL_HEIGHT);
 	xlinebuffer = gfxvidinfo.drawbuffer.linemem;
 	if (xlinebuffer == 0)
 		xlinebuffer = row_map[line];
-	buf = xlinebuffer;
-	draw_status_line_single (buf, bpp, statusy, gfxvidinfo.drawbuffer.outwidth, xredcolors, xgreencolors, xbluecolors, NULL);
+	return xlinebuffer;
+}
+
+static void draw_status_line (int line, int statusy)
+{
+	uae_u8 *buf = status_line_ptr(line);
+	if (!buf)
+		return;
+	if (statusy < 0)
+		statusline_render(buf, gfxvidinfo.drawbuffer.pixbytes, gfxvidinfo.drawbuffer.rowbytes, gfxvidinfo.drawbuffer.outwidth, TD_TOTAL_HEIGHT, xredcolors, xgreencolors, xbluecolors, NULL);
+	else
+		draw_status_line_single(buf, gfxvidinfo.drawbuffer.pixbytes, statusy, gfxvidinfo.drawbuffer.outwidth, xredcolors, xgreencolors, xbluecolors, NULL);
 }
 
 static void draw_debug_status_line (int line)
@@ -3010,8 +3019,6 @@ static void draw_lightpen_cursor (int x, int y, int line, int onscreen)
 		p++;
 	}
 }
-
-static int lightpen_y1, lightpen_y2;
 
 static void lightpen_update (struct vidbuffer *vb)
 {
@@ -3160,9 +3167,12 @@ static void finish_drawing_frame (void)
 
 	draw_frame2 (vb, vb);
 
-	if (currprefs.leds_on_screen) {
+	if (currprefs.leds_on_screen && ((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !(currprefs.leds_on_screen & STATUSLINE_TARGET))) {
 		int slx, sly;
-		statusline_getpos (&slx, &sly, vb->outwidth, vb->outheight);
+		statusline_getpos(&slx, &sly, vb->outwidth, vb->outheight);
+		statusbar_y1 = sly + min_ypos_for_screen - 1;
+		statusbar_y2 = statusbar_y1 + TD_TOTAL_HEIGHT + 1;
+		draw_status_line(sly, -1);
 		for (i = 0; i < TD_TOTAL_HEIGHT; i++) {
 			int line = sly + i;
 			draw_status_line (line, i);
@@ -3349,7 +3359,10 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 		return;
 
 	state = linestate + lineno;
-	changed += frame_redraw_necessary + ((lineno >= lightpen_y1 && lineno <= lightpen_y2) ? 1 : 0);
+	changed += frame_redraw_necessary + ((
+		(lineno >= lightpen_y1 && lineno < lightpen_y2) ||
+		(lineno >= statusbar_y1 && lineno < statusbar_y2))
+		? 1 : 0);
 
 	switch (how) {
 	case nln_normal:

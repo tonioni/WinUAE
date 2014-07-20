@@ -17,8 +17,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_CD32CART	0x00004000
 #define ROMTYPE_SPECIALKICK	0x00008000
 #define ROMTYPE_PIV			0x00010000
-#define ROMTYPE_BLIZ1230	0x00020000
-#define ROMTYPE_BLIZ1240	0x00040000
+#define ROMTYPE_CPUBOARD	0x00020000
 #define ROMTYPE_MASK		0x001fffff
 #define ROMTYPE_EVEN		0x02000000
 #define ROMTYPE_ODD			0x04000000

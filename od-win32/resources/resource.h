@@ -459,6 +459,7 @@
 #define IDC_Z3CHIPMEM                   1052
 #define IDC_Z3CHIPRAM                   1053
 #define IDC_MAX32RAM                    1054
+#define IDC_CPUBOARDRAM                 1055
 #define IDC_UAEHOME                     1070
 #define IDC_PICASSOHOME                 1071
 #define IDC_AMIGAHOME                   1072
@@ -738,11 +739,13 @@
 #define IDC_MINIMIZED_NOSOUND           1530
 #define IDC_MINIMIZED_PAUSE             1531
 #define IDC_STATEREC_RECORD             1532
+#define IDC_INACTIVE_NOJOY              1532
 #define IDC_KBLED_USB                   1533
 #define IDC_ACTIVE_PAUSE                1534
 #define IDC_KBLED_USB2                  1534
 #define IDC_ACTIVE_NOSOUND              1535
 #define IDC_STATECLEAR                  1536
+#define IDC_MINIMIZED_NOJOY             1537
 #define IDC_SER_SHARED                  1553
 #define IDC_GUI_RESIZE                  1553
 #define IDC_SER_CTSRTS                  1554
@@ -910,6 +913,7 @@
 #define IDC_SOUNDCARDLIST               1651
 #define IDC_STATE_BUFFERSIZE2           1651
 #define IDC_STATEREC_BUFFERSIZE         1651
+#define IDC_DISKLISTREMOVEALL           1651
 #define IDC_SOUNDFREQ                   1652
 #define IDC_STATEREC_AUTOPLAY           1652
 #define IDC_SOUNDFREQTXT                1653
@@ -1196,6 +1200,8 @@
 #define IDC_FILTER_NATIVERTG            1839
 #define IDC_P96MEM                      1840
 #define IDC_DA_SLIDER                   1841
+#define IDC_CPUBOARD_TYPE               1842
+#define IDC_CPUBOARDMEM                 1843
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1247,7 +1253,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        398
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1840
+#define _APS_NEXT_CONTROL_VALUE         1841
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

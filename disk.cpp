@@ -54,6 +54,7 @@ int disk_debug_track = -1;
 #include "rp.h"
 #endif
 #include "fsdb.h"
+#include "statusline.h"
 
 #undef CATWEASEL
 
@@ -179,6 +180,7 @@ typedef struct {
 	int trackspeed;
 	int num_tracks, write_num_tracks, num_secs;
 	int hard_num_cyls;
+	bool dskeject;
 	bool dskchange;
 	int dskchange_time;
 	bool dskready;
@@ -635,9 +637,9 @@ static void drive_image_free (drive *drv)
 	}
 	drv->filetype = ADF_NONE;
 	zfile_fclose (drv->diskfile);
-	drv->diskfile = 0;
+	drv->diskfile = NULL;
 	zfile_fclose (drv->writediskfile);
-	drv->writediskfile = 0;
+	drv->writediskfile = NULL;
 }
 
 static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR *fname, bool fake, bool writeprotected);
@@ -981,6 +983,8 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 	drv->tracktiming[0] = 0;
 	drv->useturbo = 0;
 	drv->indexoffset = 0;
+	if (!fake)
+		drv->dskeject = false;
 
 	gui_disk_image_change (dnum, fname, drv->wrprot);
 
@@ -1247,6 +1251,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 #endif
 		update_drive_gui (drv - floppy, false);
 	}
+	statusline_add_message(_T("DF%d: %s"), drv - floppy, my_getfilepart(fname));
 	return 1;
 }
 
@@ -2294,8 +2299,11 @@ static void drive_eject (drive * drv)
 	if (isfloppysound (drv))
 		driveclick_insert (drv - floppy, 1);
 #endif
-	gui_disk_image_change (drv - floppy, NULL, drv->wrprot);
+	if (drv->diskfile || drv->filetype)
+		statusline_add_message(_T("DF%d: -"), drv - floppy);
+	gui_disk_image_change(drv - floppy, NULL, drv->wrprot);
 	drive_image_free (drv);
+	drv->dskeject = false;
 	drv->dskchange = true;
 	drv->ddhd = 1;
 	drv->dskchange_time = 0;
@@ -2632,7 +2640,8 @@ static void disk_insert_2 (int num, const TCHAR *name, bool forced, bool forcedw
 	}
 	if (!_tcscmp (currprefs.floppyslots[num].df, name))
 		return;
-	_tcscpy (drv->newname, name);
+	drv->dskeject = false;
+	_tcscpy(drv->newname, name);
 	drv->newnamewriteprotected = forcedwriteprotect;
 	_tcscpy (currprefs.floppyslots[num].df, name);
 	currprefs.floppyslots[num].forcedwriteprotect = forcedwriteprotect;
@@ -2640,12 +2649,8 @@ static void disk_insert_2 (int num, const TCHAR *name, bool forced, bool forcedw
 	if (name[0] == 0) {
 		disk_eject (num);
 	} else if (!drive_empty(drv) || drv->dskchange_time > 0) {
-		drive_eject (drv);
-		/* set dskchange_time, disk_insert() will be
-		* called from DISK_check_change() after 2 second delay
-		* this makes sure that all programs detect disk change correctly
-		*/
-		setdskchangetime (drv, 2 * 50 * 312);
+		// delay eject so that it is always called when emulation is active
+		drv->dskeject = true;
 	} else {
 		setdskchangetime (drv, 1 * 312);
 	}
@@ -2677,6 +2682,14 @@ static void DISK_check_change (void)
 		currprefs.floppy_read_only = changed_prefs.floppy_read_only;
 	for (int i = 0; i < MAX_FLOPPY_DRIVES; i++) {
 		drive *drv = floppy + i;
+		if (drv->dskeject) {
+			drive_eject(drv);
+			/* set dskchange_time, disk_insert() will be
+			* called from DISK_check_change() after 2 second delay
+			* this makes sure that all programs detect disk change correctly
+			*/
+			setdskchangetime(drv, 2 * 50 * 312);
+		}
 		if (currprefs.floppyslots[i].dfxtype != changed_prefs.floppyslots[i].dfxtype) {
 			currprefs.floppyslots[i].dfxtype = changed_prefs.floppyslots[i].dfxtype;
 			reset_drive (i);

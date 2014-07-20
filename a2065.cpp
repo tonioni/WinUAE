@@ -884,7 +884,7 @@ static addrbank a2065_bank = {
 	a2065_lgeti, a2065_wgeti, ABFLAG_IO
 };
 
-static void a2065_config (void)
+static addrbank *a2065_config (void)
 {
 	memset (config, 0xff, sizeof config);
 	ew (0x00, 0xc0 | 0x01);
@@ -927,8 +927,9 @@ static void a2065_config (void)
 			map_banks (&a2065_bank, configured, 0x10000 >> 16, 0x10000);
 	} else {
 		/* KS autoconfig handles the rest */
-		map_banks (&a2065_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
+		return &a2065_bank;
 	}
+	return NULL;
 }
 
 uae_u8 *save_a2065 (int *len, uae_u8 *dstptr)
@@ -963,8 +964,8 @@ void restore_a2065_finish (void)
 		a2065_config ();
 }
 
-void a2065_init (void)
+addrbank *a2065_init (void)
 {
 	configured = 0;
-	a2065_config ();
+	return a2065_config ();
 }

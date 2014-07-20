@@ -1,6 +1,4 @@
 
-#define COMPIPENAME _T("WinUAE_COM")
-
 extern void *createIPC (const TCHAR *name, int);
 extern void closeIPC (void*);
 extern int checkIPC (void*,struct uae_prefs*);

@@ -462,7 +462,6 @@ static int cdrom_command_length;
 static int cdrom_checksum_error, cdrom_unknown_command;
 static int cdrom_data_offset, cdrom_speed, cdrom_sector_counter;
 static int cdrom_current_sector, cdrom_seek_delay;
-static int cdrom_data_end;
 static int cdrom_audiotimeout;
 static int cdrom_led;
 static int cdrom_receive_length, cdrom_receive_offset;
@@ -722,7 +721,6 @@ static int get_cdrom_toc (void)
 	if (!sys_command_cd_toc (unitnum, &cdrom_toc_cd_buffer))
 		return 1;
 	memset (cdrom_toc_buffer, 0, MAX_TOC_ENTRIES * 13);
-	cdrom_data_end = -1;
 	for (j = 0; j < cdrom_toc_cd_buffer.points; j++) {
 		struct cd_toc *s = &cdrom_toc_cd_buffer.toc[j];
 		uae_u8 *d = &cdrom_toc_buffer[j * 13];
@@ -741,14 +739,22 @@ static int get_cdrom_toc (void)
 			secondtrack = addr;
 	}
 	cdrom_toc_crc = get_crc32 (cdrom_toc_buffer, cdrom_toc_cd_buffer.points * 13);
-	if (datatrack) {
-		if (secondtrack)
-			cdrom_data_end = secondtrack;
-		else
-			cdrom_data_end = cdrom_toc_cd_buffer.lastaddress;
-	}
 	return 0;
 }
+static bool is_valid_data_sector(int sector)
+{
+	for (int i = 0; i < cdrom_toc_cd_buffer.points; i++) {
+		struct cd_toc *s = &cdrom_toc_cd_buffer.toc[i];
+		if (s->point < 1 || s->point > 99)
+			continue;
+		if ((s->control & 0x0c) != 4)
+			continue;
+		if (sector >= s->paddress && (sector < s[1].paddress || s[1].point >= 0xa1))
+			return true;
+	}
+	return false;
+}
+
 
 /* open device */
 static int sys_cddev_open (void)
@@ -1439,24 +1445,29 @@ static void *akiko_thread (void *null)
 			if (sector_buffer_info_1[i] == 0xff)
 				break;
 		}
-		if (cdrom_data_end > 0 && sector >= 0 &&
+		if (sector >= 0 && is_valid_data_sector(sector) &&
 			(sector_buffer_sector_1 < 0 || sector < sector_buffer_sector_1 || sector >= sector_buffer_sector_1 + SECTOR_BUFFER_SIZE * 2 / 3 || i != SECTOR_BUFFER_SIZE)) {
 				int blocks;
 				memset (sector_buffer_info_2, 0, SECTOR_BUFFER_SIZE);
 #if AKIKO_DEBUG_IO_CMD
-				write_log (_T("filling buffer sector=%d (max=%d)\n"), sector, cdrom_data_end);
+				write_log (_T("filling buffer sector=%d\n"), sector);
 #endif
 				sector_buffer_sector_2 = sector;
-				if (sector + SECTOR_BUFFER_SIZE >= cdrom_data_end)
-					blocks = cdrom_data_end - sector;
-				else
+				if (!is_valid_data_sector(sector + SECTOR_BUFFER_SIZE)) {
+					for (blocks = SECTOR_BUFFER_SIZE; blocks > 0; blocks--) {
+						if (is_valid_data_sector(sector + blocks))
+							break;
+					}
+				} else {
 					blocks = SECTOR_BUFFER_SIZE;
+				}
+				if (blocks) {
 				int ok = sys_command_cd_rawread (unitnum, sector_buffer_2, sector, blocks, 2352);
 				if (!ok) {
 					int offset = 0;
 					while (offset < SECTOR_BUFFER_SIZE) {
 						int ok = 0;
-						if (sector < cdrom_data_end)
+							if (is_valid_data_sector(sector))
 							ok = sys_command_cd_rawread (unitnum, sector_buffer_2 + offset * 2352, sector, 1, 2352);
 						sector_buffer_info_2[offset] = ok ? 3 : 0;
 						offset++;
@@ -1475,6 +1486,7 @@ static void *akiko_thread (void *null)
 				tmp3 = sector_buffer_sector_1;
 				sector_buffer_sector_1 = sector_buffer_sector_2;
 				sector_buffer_sector_2 = tmp3;
+			}
 		}
 		uae_sem_post (&akiko_sem);
 		sleep_millis (10);

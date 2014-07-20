@@ -505,6 +505,9 @@ struct uae_prefs {
 	uae_u32 mbresmem_low_size;
 	uae_u32 mbresmem_high_size;
 	uae_u32 rtgmem_size;
+	int cpuboard_type;
+	uae_u32 cpuboardmem1_size;
+	uae_u32 cpuboardmem2_size;
 	bool rtg_hardwareinterrupt;
 	bool rtg_hardwaresprite;
 	int rtgmem_type;
@@ -554,9 +557,11 @@ struct uae_prefs {
 	int win32_inactive_priority;
 	bool win32_inactive_pause;
 	bool win32_inactive_nosound;
+	int win32_inactive_input;
 	int win32_iconified_priority;
 	bool win32_iconified_pause;
 	bool win32_iconified_nosound;
+	int win32_iconified_input;
 
 	bool win32_rtgmatchdepth;
 	bool win32_rtgallowscaling;

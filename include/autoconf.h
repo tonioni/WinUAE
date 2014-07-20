@@ -92,6 +92,7 @@ extern void emulib_install (void);
 extern void expansion_init (void);
 extern void expansion_cleanup (void);
 extern void expansion_clear (void);
+extern void expansion_autoconfig_put(int, uae_u8);
 
 extern void uaegfx_install_code (uaecptr);
 

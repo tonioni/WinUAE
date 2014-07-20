@@ -141,6 +141,11 @@ static TCHAR stored_path[MAX_DPATH];
 static int gui_size_changed;
 static int filterstackpos = 2 * MAX_FILTERSHADERS;
 
+bool isguiactive(void)
+{
+	return gui_active > 0;
+}
+
 static const int defaultaspectratios[] = {
 		5, 4, 4, 3, 16, 10, 15, 9, 27, 16, 128, 75, 16, 9, 256, 135, 21, 9, 16, 3,
 		-1
@@ -1307,6 +1312,8 @@ static int msi_gfx[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
 #define MIN_MB_MEM 0
 #define MAX_MBL_MEM 7
 #define MAX_MBH_MEM 8
+#define MIN_CB_MEM 0
+#define MAX_CB_MEM 8
 
 #define MIN_M68K_PRIORITY 1
 #define MAX_M68K_PRIORITY 16
@@ -4205,18 +4212,24 @@ void InitializeListView (HWND hDlg)
 				harddisktype (volname_str, ci);
 				_tcscpy (bootpri_str, _T("n/a"));
 			} else if (ctype >= HD_CONTROLLER_TYPE_SCSI_FIRST && ctype <= HD_CONTROLLER_TYPE_SCSI_LAST) {
+				TCHAR sid[8];
 				const TCHAR *scsidevs[] = {
-					_T("SCSI:%d"),
-					_T("A2091:%d"),
-					_T("A2091 2nd:%d"),
-					_T("A4091:%d"),
-					_T("A4091 2nd:%d"),
-					_T("A3000:%d"),
-					_T("A4000T:%d"),
-					_T("CDTV:%d")
+					_T("SCSI:%s"),
+					_T("A2091:%s"),
+					_T("A2091 2nd:%s"),
+					_T("A4091:%s"),
+					_T("A4091 2nd:%s"),
+					_T("A3000:%s"),
+					_T("A4000T:%s"),
+					_T("CDTV:%s"),
+					_T("WarpEngine:%s")
 				};
+				if (ci->controller_unit == 7 && (ctype == HD_CONTROLLER_TYPE_SCSI_A2091 || ctype == HD_CONTROLLER_TYPE_SCSI_A2091_2))
+					_tcscpy(sid, _T("XT"));
+				else
+					_stprintf(sid, _T("%d"), ci->controller_unit);
 				_stprintf (blocksize_str, _T("%d"), ci->blocksize);
-				_stprintf (devname_str, scsidevs[ctype - HD_CONTROLLER_TYPE_SCSI_FIRST], ci->controller_unit);
+				_stprintf (devname_str, scsidevs[ctype - HD_CONTROLLER_TYPE_SCSI_FIRST], sid);
 				harddisktype (volname_str, ci);
 				_tcscpy (bootpri_str, _T("n/a"));
 			} else if (ctype == HD_CONTROLLER_TYPE_PCMCIA_SRAM) {
@@ -7326,6 +7339,9 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_MBMEM1, z3);
 	ew (hDlg, IDC_MBRAM2, z3);
 	ew (hDlg, IDC_MBMEM2, z3);
+	ew(hDlg, IDC_CPUBOARDMEM, workprefs.cpuboard_type > 0);
+	ew(hDlg, IDC_CPUBOARDRAM, workprefs.cpuboard_type > 0);
+	ew(hDlg, IDC_CPUBOARD_TYPE, workprefs.address_space_24 == false);
 }
 
 extern uae_u32 natmem_size;
@@ -7631,6 +7647,22 @@ static void values_to_memorydlg (HWND hDlg)
 	}
 	SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText (hDlg, IDC_MBRAM2, memsize_names[msi_gfx[mem_size]]);
+
+	mem_size = 0;
+	switch (workprefs.cpuboardmem1_size) {
+	case 0x00000000: mem_size = 0; break;
+	case 0x00100000: mem_size = 1; break;
+	case 0x00200000: mem_size = 2; break;
+	case 0x00400000: mem_size = 3; break;
+	case 0x00800000: mem_size = 4; break;
+	case 0x01000000: mem_size = 5; break;
+	case 0x02000000: mem_size = 6; break;
+	case 0x04000000: mem_size = 7; break;
+	case 0x08000000: mem_size = 8; break;
+	}
+	SendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETPOS, TRUE, mem_size);
+	SetDlgItemText (hDlg, IDC_CPUBOARDRAM, memsize_names[msi_gfx[mem_size]]);
+	SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_SETCURSEL, workprefs.cpuboard_type, 0);
 
 	setmax32bitram (hDlg);
 
@@ -8100,6 +8132,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
+	int v;
 
 	switch (msg)
 	{
@@ -8114,9 +8147,15 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		SendDlgItemMessage (hDlg, IDC_Z3CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_CHIPMEM));
 		SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MBL_MEM));
 		SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MBH_MEM));
+		SendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CB_MEM, MAX_CB_MEM));
 		CheckDlgButton(hDlg, IDC_FASTMEMAUTOCONFIG, workprefs.fastmem_autoconfig);
 		CheckDlgButton(hDlg, IDC_Z3REALMAPPING, workprefs.jit_direct_compatible_memory);
-
+		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("-"));
+		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 1230 IV"));
+		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 1260"));
+		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 2060 (Do not use)"));
+		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Warp Engine A4000"));
 
 	case WM_USER:
 		workprefs.fastmem_autoconfig = ischecked (hDlg, IDC_FASTMEMAUTOCONFIG);
@@ -8129,6 +8168,18 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 
 	case WM_COMMAND:
 		recursive++;
+		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
+			switch (LOWORD (wParam))
+			{
+				case IDC_CPUBOARD_TYPE:
+				v = SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_GETCURSEL, 0, 0L);
+				if (v != CB_ERR) {
+					workprefs.cpuboard_type = v;
+					enable_for_memorydlg(hDlg);
+				}
+				break;
+			}
+		}
 		workprefs.fastmem_autoconfig = ischecked (hDlg, IDC_FASTMEMAUTOCONFIG);
 		workprefs.jit_direct_compatible_memory = ischecked (hDlg, IDC_Z3REALMAPPING);
 		recursive--;
@@ -8144,6 +8195,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		workprefs.z3chipmem_size = memsizes[msi_z3chip[SendMessage (GetDlgItem (hDlg, IDC_Z3CHIPMEM), TBM_GETPOS, 0, 0)]];
 		workprefs.mbresmem_low_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM1), TBM_GETPOS, 0, 0)]];
 		workprefs.mbresmem_high_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM2), TBM_GETPOS, 0, 0)]];
+		workprefs.cpuboardmem1_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_CPUBOARDMEM), TBM_GETPOS, 0, 0)]];
 		fix_values_memorydlg ();
 		values_to_memorydlg (hDlg);
 		enable_for_memorydlg (hDlg);
@@ -8413,6 +8465,7 @@ static void enable_for_miscdlg (HWND hDlg)
 
 	bool paused = false;
 	bool nosound = false;
+	bool nojoy = (workprefs.win32_inactive_input & 4) == 0;
 	ew (hDlg, IDC_ACTIVE_PAUSE, paused == false);
 	ew (hDlg, IDC_ACTIVE_NOSOUND, nosound == false && paused == false);
 	if (!paused) {
@@ -8424,29 +8477,42 @@ static void enable_for_miscdlg (HWND hDlg)
 	} else {
 		workprefs.win32_active_nocapture_pause = workprefs.win32_active_nocapture_nosound = true;
 		nosound = true;
+		nojoy = true;
 	}
 	if (paused)
 		CheckDlgButton (hDlg, IDC_INACTIVE_PAUSE, TRUE);
 	if (nosound || paused)
-		CheckDlgButton (hDlg, IDC_INACTIVE_NOSOUND, TRUE);
-	ew (hDlg, IDC_INACTIVE_PAUSE, paused == false);
-	ew (hDlg, IDC_INACTIVE_NOSOUND, nosound == false && paused == false);
+		CheckDlgButton(hDlg, IDC_INACTIVE_NOSOUND, TRUE);
+	if (paused || nojoy)
+		CheckDlgButton(hDlg, IDC_INACTIVE_NOJOY, TRUE);
+	ew(hDlg, IDC_INACTIVE_PAUSE, paused == false);
+	ew(hDlg, IDC_INACTIVE_NOSOUND, nosound == false && paused == false);
+	ew(hDlg, IDC_INACTIVE_NOJOY, paused == false);
 	if (!paused) {
 		paused = workprefs.win32_inactive_pause;
 		if (!nosound)
 			nosound = workprefs.win32_inactive_nosound;
 		else
 			workprefs.win32_inactive_nosound = true;
+		if (!nojoy)
+			nojoy = (workprefs.win32_inactive_input & 4) == 0;
+		else
+			workprefs.win32_inactive_input = 0;
 	} else {
 		workprefs.win32_inactive_pause = workprefs.win32_inactive_nosound = true;
+		workprefs.win32_inactive_input = workprefs.win32_inactive_input = 0;
 		nosound = true;
+		nojoy = true;
 	}
 	if (paused)
 		CheckDlgButton (hDlg, IDC_MINIMIZED_PAUSE, TRUE);
 	if (nosound || paused)
 		CheckDlgButton (hDlg, IDC_MINIMIZED_NOSOUND, TRUE);
-	ew (hDlg, IDC_MINIMIZED_PAUSE, paused == false);
-	ew (hDlg, IDC_MINIMIZED_NOSOUND, nosound == false && paused == false);
+	if (paused || nojoy)
+		CheckDlgButton(hDlg, IDC_MINIMIZED_NOJOY, TRUE);
+	ew(hDlg, IDC_MINIMIZED_PAUSE, paused == false);
+	ew(hDlg, IDC_MINIMIZED_NOSOUND, nosound == false && paused == false);
+	ew(hDlg, IDC_MINIMIZED_NOJOY, nojoy == false && paused == false);
 	if (!paused) {
 		paused = workprefs.win32_iconified_pause;
 		if (!nosound)
@@ -8455,7 +8521,9 @@ static void enable_for_miscdlg (HWND hDlg)
 			workprefs.win32_iconified_nosound = true;
 	} else {
 		workprefs.win32_iconified_pause = workprefs.win32_iconified_nosound = true;
+		workprefs.win32_iconified_input = workprefs.win32_iconified_input = 0;
 		nosound = true;
+		nojoy = true;
 	}
 }
 
@@ -8641,15 +8709,17 @@ static void values_to_miscdlg (HWND hDlg)
 
 	} else if (currentpage == MISC2_ID) {
 
-		CheckDlgButton (hDlg, IDC_ACTIVE_PAUSE, workprefs.win32_active_nocapture_pause);
-		CheckDlgButton (hDlg, IDC_ACTIVE_NOSOUND, workprefs.win32_active_nocapture_nosound || workprefs.win32_active_nocapture_pause);
-		CheckDlgButton (hDlg, IDC_INACTIVE_PAUSE, workprefs.win32_inactive_pause);
-		CheckDlgButton (hDlg, IDC_INACTIVE_NOSOUND, workprefs.win32_inactive_nosound || workprefs.win32_inactive_pause);
-		CheckDlgButton (hDlg, IDC_MINIMIZED_PAUSE, workprefs.win32_iconified_pause);
-		CheckDlgButton (hDlg, IDC_MINIMIZED_NOSOUND, workprefs.win32_iconified_nosound || workprefs.win32_iconified_pause);
-		misc_addpri (hDlg, IDC_ACTIVE_PRIORITY, workprefs.win32_active_capture_priority);
-		misc_addpri (hDlg, IDC_INACTIVE_PRIORITY, workprefs.win32_inactive_priority);
-		misc_addpri (hDlg, IDC_MINIMIZED_PRIORITY, workprefs.win32_iconified_priority);
+		CheckDlgButton(hDlg, IDC_ACTIVE_PAUSE, workprefs.win32_active_nocapture_pause);
+		CheckDlgButton(hDlg, IDC_ACTIVE_NOSOUND, workprefs.win32_active_nocapture_nosound || workprefs.win32_active_nocapture_pause);
+		CheckDlgButton(hDlg, IDC_INACTIVE_PAUSE, workprefs.win32_inactive_pause);
+		CheckDlgButton(hDlg, IDC_INACTIVE_NOSOUND, workprefs.win32_inactive_nosound || workprefs.win32_inactive_pause);
+		CheckDlgButton(hDlg, IDC_INACTIVE_NOJOY, (workprefs.win32_inactive_input & 4) == 0 || workprefs.win32_inactive_pause);
+		CheckDlgButton(hDlg, IDC_MINIMIZED_PAUSE, workprefs.win32_iconified_pause);
+		CheckDlgButton(hDlg, IDC_MINIMIZED_NOSOUND, workprefs.win32_iconified_nosound || workprefs.win32_iconified_pause);
+		CheckDlgButton(hDlg, IDC_MINIMIZED_NOJOY, (workprefs.win32_iconified_input & 4) == 0 || workprefs.win32_iconified_pause);
+		misc_addpri(hDlg, IDC_ACTIVE_PRIORITY, workprefs.win32_active_capture_priority);
+		misc_addpri(hDlg, IDC_INACTIVE_PRIORITY, workprefs.win32_inactive_priority);
+		misc_addpri(hDlg, IDC_MINIMIZED_PRIORITY, workprefs.win32_iconified_priority);
 
 	}
 }
@@ -8873,15 +8943,21 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			_tcscpy (workprefs.statefile, savestate_fname);
 			setstatefilename (hDlg);
 			break;
+		case IDC_INACTIVE_NOJOY:
+			if (!ischecked(hDlg, IDC_INACTIVE_NOJOY))
+				CheckDlgButton(hDlg, IDC_INACTIVE_PAUSE, BST_UNCHECKED);
 		case IDC_INACTIVE_NOSOUND:
-			if (!ischecked (hDlg, IDC_INACTIVE_NOSOUND))
-				CheckDlgButton (hDlg, IDC_INACTIVE_PAUSE, BST_UNCHECKED);
+			if (!ischecked(hDlg, IDC_INACTIVE_NOSOUND))
+				CheckDlgButton(hDlg, IDC_INACTIVE_PAUSE, BST_UNCHECKED);
 		case IDC_INACTIVE_PAUSE:
 			workprefs.win32_inactive_pause = ischecked (hDlg, IDC_INACTIVE_PAUSE);
-			if (workprefs.win32_inactive_pause)
-				CheckDlgButton (hDlg, IDC_INACTIVE_NOSOUND, BST_CHECKED);
-			workprefs.win32_inactive_nosound = ischecked (hDlg, IDC_INACTIVE_NOSOUND);
-			enable_for_miscdlg (hDlg);
+			if (workprefs.win32_inactive_pause) {
+				CheckDlgButton(hDlg, IDC_INACTIVE_NOSOUND, BST_CHECKED);
+				CheckDlgButton(hDlg, IDC_INACTIVE_NOJOY, BST_CHECKED);
+			}
+			workprefs.win32_inactive_nosound = ischecked(hDlg, IDC_INACTIVE_NOSOUND);
+			workprefs.win32_inactive_input = ischecked(hDlg, IDC_INACTIVE_NOJOY) ? 0 : 4;
+			enable_for_miscdlg(hDlg);
 			break;
 		case IDC_ACTIVE_NOSOUND:
 			if (!ischecked (hDlg, IDC_ACTIVE_NOSOUND))
@@ -8893,15 +8969,21 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			workprefs.win32_active_nocapture_nosound = ischecked (hDlg, IDC_ACTIVE_NOSOUND);
 			enable_for_miscdlg (hDlg);
 			break;
+		case IDC_MINIMIZED_NOJOY:
+			if (!ischecked(hDlg, IDC_MINIMIZED_NOJOY))
+				CheckDlgButton(hDlg, IDC_MINIMIZED_PAUSE, BST_UNCHECKED);
 		case IDC_MINIMIZED_NOSOUND:
-			if (!ischecked (hDlg, IDC_MINIMIZED_NOSOUND))
-				CheckDlgButton (hDlg, IDC_MINIMIZED_PAUSE, BST_UNCHECKED);
+			if (!ischecked(hDlg, IDC_MINIMIZED_NOSOUND))
+				CheckDlgButton(hDlg, IDC_MINIMIZED_PAUSE, BST_UNCHECKED);
 		case IDC_MINIMIZED_PAUSE:
 			workprefs.win32_iconified_pause = ischecked (hDlg, IDC_MINIMIZED_PAUSE);
-			if (workprefs.win32_iconified_pause)
-				CheckDlgButton (hDlg, IDC_MINIMIZED_NOSOUND, BST_CHECKED);
-			workprefs.win32_iconified_nosound = ischecked (hDlg, IDC_MINIMIZED_NOSOUND);
-			enable_for_miscdlg (hDlg);
+			if (workprefs.win32_iconified_pause) {
+				CheckDlgButton(hDlg, IDC_MINIMIZED_NOSOUND, BST_CHECKED);
+				CheckDlgButton(hDlg, IDC_MINIMIZED_NOJOY, BST_CHECKED);
+			}
+			workprefs.win32_iconified_nosound = ischecked(hDlg, IDC_MINIMIZED_NOSOUND);
+			workprefs.win32_iconified_input = ischecked(hDlg, IDC_MINIMIZED_NOJOY) ? 0 : 4;
+			enable_for_miscdlg(hDlg);
 			break;
 		case IDC_KBLED_USB:
 			workprefs.win32_kbledmode = ischecked (hDlg, IDC_KBLED_USB) ? 1 : 0;
@@ -10004,7 +10086,7 @@ static void sethardfile (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_unit, 0);
 }
 
-static void inithdcontroller (HWND hDlg, int ctype)
+static void inithdcontroller (HWND hDlg, int ctype, int devtype)
 {
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("UAE"));
@@ -10017,6 +10099,7 @@ static void inithdcontroller (HWND hDlg, int ctype)
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A3000 SCSI"));
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A4000T SCSI"));
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("CDTV SCSI"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Warp Engine SCSI"));
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("PCMCIA SRAM"));
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("PCMCIA IDE"));
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, ctype, 0);
@@ -10031,6 +10114,8 @@ static void inithdcontroller (HWND hDlg, int ctype)
 			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("4"));
 			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("5"));
 			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("6"));
+			if (devtype == UAEDEV_HDF && (ctype == HD_CONTROLLER_TYPE_SCSI_A2091 || ctype == HD_CONTROLLER_TYPE_SCSI_A2091_2))
+				SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("XT"));
 		}
 		ew(hDlg, IDC_HDF_CONTROLLER_UNIT, TRUE);
 	} else {
@@ -10044,7 +10129,7 @@ static void inithardfile (HWND hDlg)
 
 	ew (hDlg, IDC_HF_DOSTYPE, FALSE);
 	ew (hDlg, IDC_HF_CREATE, FALSE);
-	inithdcontroller (hDlg, current_hfdlg.ci.controller_type);
+	inithdcontroller (hDlg, current_hfdlg.ci.controller_type, UAEDEV_HDF);
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString (IDS_HF_FS_CUSTOM, tmp, sizeof (tmp) / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("RDB/OFS/FFS"));
@@ -10222,7 +10307,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		recursive++;
 		if (current_tapedlg.ci.controller_type < HD_CONTROLLER_TYPE_SCSI_AUTO)
 			current_tapedlg.ci.controller_type = HD_CONTROLLER_TYPE_SCSI_AUTO;
-		inithdcontroller (hDlg, current_tapedlg.ci.controller_type);
+		inithdcontroller(hDlg, current_tapedlg.ci.controller_type, UAEDEV_TAPE);
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_tapedlg.ci.controller_unit, 0);
 		setautocomplete (hDlg, IDC_PATH_NAME);
 		addhistorymenu(hDlg, current_tapedlg.ci.rootdir, IDC_PATH_NAME, HISTORY_TAPE, false);
@@ -10280,7 +10365,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
 			if (posn != CB_ERR) {
 				current_tapedlg.ci.controller_type = posn;
-				inithdcontroller (hDlg, current_tapedlg.ci.controller_type);
+				inithdcontroller(hDlg, current_tapedlg.ci.controller_type, UAEDEV_TAPE);
 				SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_tapedlg.ci.controller_unit, 0);
 			}
 			break;
@@ -10308,7 +10393,7 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 		recursive++;
 		if (current_cddlg.ci.controller_type == HD_CONTROLLER_TYPE_UAE)
 			current_cddlg.ci.controller_type = (workprefs.a2091 || workprefs.a4091 || workprefs.cs_cdtvscsi || (workprefs.cs_mbdmac & 3)) ? HD_CONTROLLER_TYPE_SCSI_AUTO : HD_CONTROLLER_TYPE_IDE_AUTO;
-		inithdcontroller (hDlg, current_cddlg.ci.controller_type);
+		inithdcontroller(hDlg, current_cddlg.ci.controller_type, UAEDEV_CD);
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_cddlg.ci.controller_unit, 0);
 		InitializeListView (hDlg);
 		recursive--;
@@ -10338,7 +10423,7 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
 			if (posn != CB_ERR) {
 				current_cddlg.ci.controller_type = posn;
-				inithdcontroller (hDlg, current_cddlg.ci.controller_type);
+				inithdcontroller(hDlg, current_cddlg.ci.controller_type, UAEDEV_CD);
 				SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_cddlg.ci.controller_unit, 0);
 			}
 			break;
@@ -10425,7 +10510,8 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
 				if (posn != CB_ERR) {
 					current_hfdlg.ci.controller_type = posn;
-					sethardfile (hDlg);
+					inithdcontroller(hDlg, current_hfdlg.ci.controller_type, UAEDEV_HDF);
+					sethardfile(hDlg);
 				}
 				break;
 			case IDC_HDF_CONTROLLER_UNIT:
@@ -10579,7 +10665,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			oposn = -1;
 			hdf_init_target ();
 			recursive++;
-			inithdcontroller (hDlg, current_hfdlg.ci.controller_type);
+			inithdcontroller(hDlg, current_hfdlg.ci.controller_type, UAEDEV_HDF);
 			CheckDlgButton (hDlg, IDC_HDF_RW, !current_hfdlg.ci.readonly);
 			SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_RESETCONTENT, 0, 0);
 			ew (hDlg, IDC_HARDDRIVE_IMAGE, FALSE);
@@ -10667,7 +10753,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				SetDlgItemText (hDlg, IDC_HDFINFO, _T(""));
 				SetDlgItemText (hDlg, IDC_HDFINFO2, _T(""));
 				updatehdfinfo (hDlg, true, true);
-				inithdcontroller (hDlg, current_hfdlg.ci.controller_type);
+				inithdcontroller(hDlg, current_hfdlg.ci.controller_type, UAEDEV_HDF);
 				SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_unit, 0);
 			}
 		} else if (LOWORD(wParam) == IDC_HDF_CONTROLLER_UNIT) {
@@ -11851,7 +11937,7 @@ static void addswapperfile (HWND hDlg, int entry, TCHAR *newpath)
 		TCHAR dpath[MAX_DPATH];
 		loopmulti (path, NULL);
 		while (loopmulti (path, dpath) && entry < MAX_SPARE_DRIVES) {
-			diskswapper_addfile (&workprefs, path);
+			diskswapper_addfile (&workprefs, dpath);
 			lastentry = entry;
 			entry++;
 		}
@@ -12005,7 +12091,6 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 					}
 				}
 				break;
-
 			case IDC_DISKLISTREMOVE:
 				if (entry >= 0) {
 					workprefs.dfxlist[entry][0] = 0;
@@ -12013,6 +12098,15 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 					swapperhili (hDlg, entry);
 				}
 				break;
+			case IDC_DISKLISTREMOVEALL:
+			{
+				for (int i = 0; i < MAX_SPARE_DRIVES; i++) {
+					workprefs.dfxlist[i][0] = 0;
+				}
+				InitializeListView (hDlg);
+				swapperhili (hDlg, entry);
+				break;
+			}
 			case IDC_UP:
 				if (entry > 0) {
 					_tcscpy (tmp, workprefs.dfxlist[entry - 1]);
@@ -12524,7 +12618,23 @@ static void init_portsdlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
 	for (port = 0; port < MAX_SERPAR_PORTS && comports[port]; port++) {
-		SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)comports[port]->name);
+		if (!_tcsicmp(comports[port]->dev, SERIAL_INTERNAL)) {
+			_tcscpy(tmp, comports[port]->name);
+			if (!shmem_serial_state())
+				shmem_serial_create();
+			switch(shmem_serial_state())
+			{
+				case 1:
+				_tcscat(tmp, _T(" [Master]"));
+				break;
+				case 2:
+				_tcscat(tmp, _T(" [Slave]"));
+				break;
+			}
+			SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)tmp);
+		} else {
+			SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)comports[port]->name);
+		}
 	}
 
 	SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_RESETCONTENT, 0, 0L);

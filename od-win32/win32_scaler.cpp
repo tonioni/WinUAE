@@ -703,6 +703,7 @@ static void statusline (void)
 	SetRect (&dr, slx, sly, slx + lx, sly + TD_TOTAL_HEIGHT);
 	DirectDraw_BlitRect (tempsurf, &sr, NULL, &dr);
 	if (DirectDraw_LockSurface (tempsurf, &desc)) {
+		statusline_render((uae_u8*)desc.lpSurface, dst_depth / 8, desc.lPitch, lx, ly, rc, gc, bc, NULL);
 		for (y = 0; y < TD_TOTAL_HEIGHT; y++) {
 			uae_u8 *buf = (uae_u8*)desc.lpSurface + y * desc.lPitch;
 			draw_status_line_single (buf, dst_depth / 8, y, lx, rc, gc, bc, NULL);

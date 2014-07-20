@@ -1287,7 +1287,11 @@ static void updateleds (void)
 	}
 	for (y = 0; y < TD_TOTAL_HEIGHT; y++) {
 		uae_u8 *buf = (uae_u8*)locked.pBits + y * locked.Pitch;
-		memset (buf, 0, ledwidth * 4);
+		statusline_single_erase(buf, 32 / 8, y, ledwidth);
+	}
+	statusline_render((uae_u8*)locked.pBits, 32 / 8, locked.Pitch, ledwidth, ledheight, rc, gc, bc, a);
+	for (y = 0; y < TD_TOTAL_HEIGHT; y++) {
+		uae_u8 *buf = (uae_u8*)locked.pBits + y * locked.Pitch;
 		draw_status_line_single (buf, 32 / 8, y, ledwidth, rc, gc, bc, a);
 	}
 	ledtexture->UnlockRect (0);

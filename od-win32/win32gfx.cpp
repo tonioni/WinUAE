@@ -55,6 +55,7 @@
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
+#include "statusline.h"
 
 #define DM_DX_FULLSCREEN 1
 #define DM_W_FULLSCREEN 2
@@ -100,6 +101,7 @@ static int display_change_requested;
 int window_led_drives, window_led_drives_end;
 int window_led_hd, window_led_hd_end;
 int window_led_joys, window_led_joys_end, window_led_joy_start;
+int window_led_msg, window_led_msg_end, window_led_msg_start;
 extern int console_logging;
 int window_extra_width, window_extra_height;
 
@@ -199,7 +201,7 @@ static void changevblankthreadmode_fast (int newmode)
 
 int WIN32GFX_IsPicassoScreen (void)
 {
-	return screen_is_picasso;
+	return screen_is_picasso ? 1 : 0;
 }
 
 int isscreen (void)
@@ -1421,6 +1423,7 @@ static void close_hwnds (void)
 	rp_set_hwnd (NULL);
 #endif
 	closeblankwindows ();
+	deletestatusline();
 	if (hStatusWnd) {
 		ShowWindow (hStatusWnd, SW_HIDE);
 		DestroyWindow (hStatusWnd);
@@ -1646,22 +1649,26 @@ static int open_windows (bool mousecapture)
 	bool startactive = (started && mouseactive) || (!started && !currprefs.win32_start_uncaptured && !currprefs.win32_start_minimized);
 	bool startpaused = !started && ((currprefs.win32_start_minimized && currprefs.win32_iconified_pause) || (currprefs.win32_start_uncaptured && currprefs.win32_inactive_pause && isfullscreen () <= 0));
 	bool startminimized = !started && currprefs.win32_start_minimized && isfullscreen () <= 0;
+	int input = 0;
 
 	if (!rp_isactive () && mousecapture && startactive)
 		setmouseactive (-1);
 
-	bool upd = false;
+	int upd = 0;
 	if (startactive) {
 		setpriority (&priorities[currprefs.win32_active_capture_priority]);
-		upd = true;
+		upd = 2;
 	} else if (startminimized) {
 		setpriority (&priorities[currprefs.win32_iconified_priority]);
 		setminimized ();
+		input = currprefs.win32_inactive_input;
+		upd = 1;
 	} else {
 		setpriority (&priorities[currprefs.win32_inactive_priority]);
-		upd = true;
+		input = currprefs.win32_inactive_input;
+		upd = 2;
 	}
-	if (upd) {
+	if (upd > 1) {
 		for (i = 0; i < NUM_LEDS; i++)
 			gui_flicker_led (i, -1, -1);
 		gui_led (LED_POWER, gui_data.powerled);
@@ -1670,8 +1677,11 @@ static int open_windows (bool mousecapture)
 			if (currprefs.floppyslots[i].dfxtype >= 0)
 				gui_led (LED_DF0 + i, 0);
 		}
-		if (isfocus ())
-			inputdevice_acquire (TRUE);
+	}
+	if (upd > 0) {
+		inputdevice_acquire(TRUE);
+		if (!isfocus())
+			inputdevice_unacquire(true, input);
 	}
 
 	if (startpaused)
@@ -2027,8 +2037,10 @@ int check_prefs_changed_gfx (void)
 		currprefs.win32_active_nocapture_pause != changed_prefs.win32_active_nocapture_pause ||
 		currprefs.win32_inactive_nosound != changed_prefs.win32_inactive_nosound ||
 		currprefs.win32_inactive_pause != changed_prefs.win32_inactive_pause ||
+		currprefs.win32_inactive_input != changed_prefs.win32_inactive_input ||
 		currprefs.win32_iconified_nosound != changed_prefs.win32_iconified_nosound ||
 		currprefs.win32_iconified_pause != changed_prefs.win32_iconified_pause ||
+		currprefs.win32_iconified_input != changed_prefs.win32_iconified_input ||
 		currprefs.win32_ctrl_F11_is_quit != changed_prefs.win32_ctrl_F11_is_quit)
 	{
 		currprefs.win32_minimize_inactive = changed_prefs.win32_minimize_inactive;
@@ -2044,8 +2056,10 @@ int check_prefs_changed_gfx (void)
 		currprefs.win32_active_nocapture_pause = changed_prefs.win32_active_nocapture_pause;
 		currprefs.win32_inactive_nosound = changed_prefs.win32_inactive_nosound;
 		currprefs.win32_inactive_pause = changed_prefs.win32_inactive_pause;
+		currprefs.win32_inactive_input = changed_prefs.win32_inactive_input;
 		currprefs.win32_iconified_nosound = changed_prefs.win32_iconified_nosound;
 		currprefs.win32_iconified_pause = changed_prefs.win32_iconified_pause;
+		currprefs.win32_iconified_input = changed_prefs.win32_iconified_input;
 		currprefs.win32_ctrl_F11_is_quit = changed_prefs.win32_ctrl_F11_is_quit;
 		inputdevice_unacquire ();
 		currprefs.keyboard_leds_in_use = changed_prefs.keyboard_leds_in_use = (currprefs.keyboard_leds[0] | currprefs.keyboard_leds[1] | currprefs.keyboard_leds[2]) != 0;
@@ -2601,7 +2615,7 @@ static void createstatuswindow (void)
 	LPINT lpParts;
 	int drive_width, hd_width, cd_width, power_width, fps_width, idle_width, snd_width, joy_width;
 	int joys = currprefs.win32_statusbar > 1 ? 2 : 0;
-	int num_parts = 11 + joys;
+	int num_parts = 11 + joys + 1;
 	double scaleX, scaleY;
 	WINDOWINFO wi;
 	int extra;
@@ -2644,6 +2658,10 @@ static void createstatuswindow (void)
 	if (hloc) {
 		int i = 0, i1, j;
 		lpParts = (LPINT)LocalLock (hloc);
+		// left side, msg area
+		lpParts[i] = rc.left + 2;
+		i++;
+		window_led_msg_start = i;
 		/* Calculate the right edge coordinate for each part, and copy the coords to the array.  */
 		int startx = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - snd_width - joys * joy_width - extra;
 		for (j = 0; j < joys; j++) {
@@ -2652,6 +2670,8 @@ static void createstatuswindow (void)
 			startx += joy_width;
 		}
 		window_led_joy_start = i;
+		if (lpParts[0] >= startx)
+			lpParts[0] = startx - 1;
 		// snd
 		lpParts[i] = startx;
 		i++;
@@ -2686,8 +2706,10 @@ static void createstatuswindow (void)
 		// edge
 		lpParts[i] = lpParts[i - 1] + drive_width;
 
-		window_led_joys = lpParts[0];
-		window_led_joys_end = lpParts[1];
+		window_led_msg = lpParts[window_led_msg_start - 1];
+		window_led_msg_end = lpParts[window_led_msg_start - 1 + 1];
+		window_led_joys = lpParts[window_led_joy_start - joys];
+		window_led_joys_end = lpParts[window_led_joy_start - joys + 1];
 		window_led_hd = lpParts[i1];
 		window_led_hd_end = lpParts[i1 + 1];
 		window_led_drives = lpParts[i1 + 2];
@@ -3806,7 +3828,8 @@ static int create_windows_2 (void)
 			x = nx;
 			y = ny;
 		}
-		createstatuswindow ();
+		createstatuswindow();
+		createstatusline();
 		updatewinrect (false);
 		GetWindowRect (hMainWnd, &mainwin_rect);
 		if (d3dfs || dxfs)
@@ -3900,7 +3923,8 @@ static int create_windows_2 (void)
 			GetWindowRect (hMainWnd, &rc2);
 			window_extra_width = rc2.right - rc2.left - currentmode->current_width;
 			window_extra_height = rc2.bottom - rc2.top - currentmode->current_height;
-			createstatuswindow ();
+			createstatuswindow();
+			createstatusline();
 		} else {
 			x = rc.left;
 			y = rc.top;
@@ -4218,6 +4242,7 @@ static BOOL doInit (void)
 	}
 
 	screen_is_initialized = 1;
+	createstatusline();
 	picasso_refresh ();
 #ifdef RETROPLATFORM
 	rp_set_hwnd_delayed ();
@@ -4424,3 +4449,6 @@ void releasehdc (HDC hdc)
 #endif
 	DirectDraw_ReleaseDC (hdc);
 }
+
+
+

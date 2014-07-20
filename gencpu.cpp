@@ -2258,12 +2258,12 @@ static void genflags_normal (flagtypes type, wordsizes size, char *value, char *
 
 	case flag_add:
 		start_brace ();
-		printf ("uae_u32 %s = %s + %s;\n", value, dstr, sstr);
+		printf ("uae_u32 %s = %s + %s;\n", value, udstr, usstr);
 		break;
 	case flag_sub:
 	case flag_cmp:
 		start_brace ();
-		printf ("uae_u32 %s = %s - %s;\n", value, dstr, sstr);
+		printf ("uae_u32 %s = %s - %s;\n", value, udstr, usstr);
 		break;
 	}
 

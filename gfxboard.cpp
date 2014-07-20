@@ -394,14 +394,16 @@ void gfxboard_vsync_handler (void)
 		gfx_unlock_picasso (true);
 	gfxboard_surface = NULL;
 
-	// Vertical Sync End Register, 0x20 = Disable Vertical Intgerrupt, 0x10 = Clear Vertical Interrupt.
-	if (board->irq && (!(vga.vga.cr[0x11] & 0x20) && (vga.vga.cr[0x11] & 0x10) && !(vga.vga.gr[0x17] & 4))) {
-		if (gfxboard_intena) {
-			gfxboard_vblank = true;
-			if (board->irq == 2)
-				INTREQ (0x8000 | 0x0008);
-			else
-				INTREQ (0x8000 | 0x2000);
+	// Vertical Sync End Register, 0x20 = Disable Vertical Interrupt, 0x10 = Clear Vertical Interrupt.
+	if (board->irq) {
+		if ((!(vga.vga.cr[0x11] & 0x20) && (vga.vga.cr[0x11] & 0x10) && !(vga.vga.gr[0x17] & 4))) {
+			if (gfxboard_intena) {
+				gfxboard_vblank = true;
+				if (board->irq == 2)
+					INTREQ (0x8000 | 0x0008);
+				else
+					INTREQ (0x8000 | 0x2000);
+			}
 		}
 	}
 
@@ -2036,7 +2038,7 @@ static void ew (int addr, uae_u32 value)
 	}
 }
 
-void gfxboard_init_memory (void)
+addrbank *gfxboard_init_memory (void)
 {
 	int bank;
 	uae_u8 z2_flags, z3_flags, type;
@@ -2120,24 +2122,24 @@ void gfxboard_init_memory (void)
 	gfxboard_bank_memory.bget = gfxboard_bget_mem_autoconfig;
 	gfxboard_bank_memory.bput = gfxboard_bput_mem_autoconfig;
 
-	map_banks (&gfxboard_bank_memory, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
+	return &gfxboard_bank_memory;
 }
 
-void gfxboard_init_memory_p4_z2 (void)
+addrbank *gfxboard_init_memory_p4_z2 (void)
 {
 	if (board->z3) {
 		expamem_next ();
-		return;
+		return NULL;
 	}
 	copyp4autoconfig (64);
-	map_banks (&gfxboard_bank_memory, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
+	return &gfxboard_bank_memory;
 }
 
-void gfxboard_init_registers (void)
+addrbank *gfxboard_init_registers (void)
 {
 	if (!board->model_registers) {
 		expamem_next ();
-		return;
+		return NULL;
 	}
 	memset (automemory, 0xff, GFXBOARD_AUTOCONFIG_SIZE);
 	ew (0x00, 0xc0 | 0x01); // 64k Z2
@@ -2164,5 +2166,5 @@ void gfxboard_init_registers (void)
 	gfxboard_bank_registers.bget = gfxboard_bget_regs_autoconfig;
 	gfxboard_bank_registers.bput = gfxboard_bput_regs_autoconfig;
 
-	map_banks (&gfxboard_bank_registers, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
+	return &gfxboard_bank_registers;
 }
