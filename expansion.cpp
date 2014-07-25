@@ -142,7 +142,7 @@ static bool chipdone;
 
 static addrbank* (*card_init[MAX_EXPANSION_BOARDS]) (void);
 static void (*card_map[MAX_EXPANSION_BOARDS]) (void);
-static TCHAR *card_name[MAX_EXPANSION_BOARDS];
+static const TCHAR *card_name[MAX_EXPANSION_BOARDS];
 static int card_flags[MAX_EXPANSION_BOARDS];
 
 static int ecard, cardno, z3num;
@@ -347,7 +347,7 @@ static uae_u32 REGPARAM2 expamem_lget (uaecptr addr)
 static uae_u32 REGPARAM2 expamem_wget (uaecptr addr)
 {
 	uae_u32 v = (expamem_bget (addr) << 8) | expamem_bget (addr + 1);
-	write_log (_T("warning: READ.W from address $%lx=%04x PC=%x\n"), addr, v & 0xffff, M68K_GETPC);
+	write_log (_T("warning: READ.W from address $%x=%04x PC=%x\n"), addr, v & 0xffff, M68K_GETPC);
 	return v;
 }
 
@@ -404,7 +404,7 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 	if (ecard >= cardno)
 		return;
 	if (expamem_type () != zorroIII) {
-		write_log (_T("warning: WRITE.W to address $%lx : value $%x\n"), addr, value);
+		write_log (_T("warning: WRITE.W to address $%x : value $%x\n"), addr, value);
 	} else {
 		switch (addr & 0xff) {
 		case 0x44:
@@ -818,7 +818,7 @@ static void REGPARAM2 filesys_lput (uaecptr addr, uae_u32 l)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	write_log (_T("filesys_lput called PC=%p\n"), M68K_GETPC);
+	write_log (_T("filesys_lput called PC=%08x\n"), M68K_GETPC);
 }
 
 static void REGPARAM2 filesys_wput (uaecptr addr, uae_u32 w)
@@ -826,7 +826,7 @@ static void REGPARAM2 filesys_wput (uaecptr addr, uae_u32 w)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	write_log (_T("filesys_wput called PC=%p\n"), M68K_GETPC);
+	write_log (_T("filesys_wput called PC=%08x\n"), M68K_GETPC);
 }
 
 static void REGPARAM2 filesys_bput (uaecptr addr, uae_u32 b)
@@ -972,7 +972,7 @@ static void expamem_map_filesys (void)
 
 	filesys_start = ((expamem_hi | (expamem_lo >> 4)) << 16);
 	map_banks (&filesys_bank, filesys_start >> 16, 1, 0);
-	write_log (_T("Filesystem: mapped memory @$%lx.\n"), filesys_start);
+	write_log (_T("Filesystem: mapped memory @$%x.\n"), filesys_start);
 	/* 68k code needs to know this. */
 	a = here ();
 	org (rtarea_base + RTAREA_FSBOARD);
@@ -1430,77 +1430,69 @@ uaecptr need_uae_boot_rom (void)
 	return v;
 }
 
+#ifdef A2065
 static addrbank *expamem_init_a2065(void)
 {
-#ifdef A2065
 	return a2065_init ();
-#else
-	return NULL;
-#endif
 }
+#endif
+
+#ifdef CDTV
 static addrbank *expamem_init_cdtv(void)
 {
-#ifdef CDTV
 	cdtv_init ();
-#endif
 	return NULL;
 }
+#endif
+
+#ifdef A2091
 static addrbank *expamem_init_a2091(void)
 {
-#ifdef A2091
 	return a2091_init (0);
-#else
-	return NULL;
-#endif
 }
+#endif
+
+#ifdef A2091
 static addrbank *expamem_init_a2091_2(void)
 {
-#ifdef A2091
 	return a2091_init (1);
-#else
-	return NULL;
-#endif
 }
+#endif
+
+#ifdef NCR
 static addrbank *expamem_init_a4091(void)
 {
-#ifdef NCR
 	return ncr710_a4091_autoconfig_init (0);
-#else
-	return NULL;
-#endif
 }
+#endif
+
+#ifdef NCR
 static addrbank *expamem_init_a4091_2(void)
 {
-#ifdef NCR
 	return ncr710_a4091_autoconfig_init (1);
-#else
-	return NULL;
-#endif
 }
+#endif
+
+#ifdef NCR
 static addrbank *expamem_init_warpengine(void)
 {
-#ifdef NCR
 	return ncr710_warpengine_autoconfig_init();
-#else
-	return NULL;
-#endif
 }
+#endif
+
+#ifdef GFXBOARD
 static addrbank *expamem_init_gfxboard_memory(void)
 {
-#ifdef GFXBOARD
 	return gfxboard_init_memory ();
-#else
-	return NULL;
-#endif
 }
+#endif
+
+#ifdef GFXBOARD
 static addrbank *expamem_init_gfxboard_registers(void)
 {
-#ifdef GFXBOARD
 	return gfxboard_init_registers ();
-#else
-	return NULL;
-#endif
 }
+#endif
 
 void expamem_reset (void)
 {
