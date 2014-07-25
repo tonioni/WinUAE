@@ -329,6 +329,7 @@ struct uae_prefs {
 	bool comp_midopt;
 	bool comp_lowopt;
 	bool fpu_strict;
+	bool fpu_softfloat;
 
 	bool comp_hardflush;
 	bool comp_constjump;

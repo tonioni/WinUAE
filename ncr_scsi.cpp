@@ -24,6 +24,7 @@
 #include "filesys.h"
 #include "zfile.h"
 #include "blkdev.h"
+#include "cpuboard.h"
 #include "qemuvga\qemuuaeglue.h"
 #include "qemuvga\queue.h"
 #include "qemuvga\scsi\scsi.h"
@@ -45,14 +46,20 @@
 #define WARP_ENGINE_IO_OFFSET 0x40000
 #define WARP_ENGINE_IO_END 0x80000
 
+#define CYBERSTORM_SCSI_RAM_OFFSET 0x1000
+#define CYBERSTORM_SCSI_RAM_SIZE 0x2000
+#define CYBERSTORM_SCSI_RAM_MASK 0x1fff
+
 struct ncr_state
 {
+	bool newncr;
 	TCHAR *name;
 	DeviceState devobject;
 	SCSIDevice *scsid[8];
 	SCSIBus scsibus;
 	uae_u32 board_mask;
 	uae_u8 *rom;
+	int ramsize;
 	uae_u8 acmemory[128];
 	uae_u32 expamem_hi;
 	uae_u32 expamem_lo;
@@ -61,6 +68,8 @@ struct ncr_state
 	int rom_start, rom_end, rom_offset;
 	int io_start, io_end;
 	addrbank *bank;
+	bool irq;
+	void (*irq_func)(int);
 };
 
 static struct ncr_state ncr_a4091;
@@ -68,12 +77,16 @@ static struct ncr_state ncr_a4091_2;
 static struct ncr_state ncr_a4000t;
 static struct ncr_state ncr_we;
 
+static struct ncr_state ncr_cs;
+static struct ncr_state ncr_bppc;
+
 static struct ncr_state *ncrs[] =
 {
 	&ncr_a4091,
 	&ncr_a4091_2,
 	&ncr_a4000t,
 	&ncr_we,
+	&ncr_bppc,
 	NULL
 };
 
@@ -83,24 +96,47 @@ static struct ncr_state *ncra4091[] =
 	&ncr_a4091_2
 };
 
+extern void cyberstorm_irq(int);
+extern void blizzardppc_irq(int);
+
+static void set_irq2(int level)
+{
+	if (level)
+		INTREQ(0x8000 | 0x0008);
+}
+
+void ncr_rethink(void)
+{
+	for (int i = 0; ncrs[i]; i++) {
+		if (ncrs[i]->irq)
+			INTREQ(0x8000 | 0x0008);
+	}
+	if (ncr_cs.irq)
+		cyberstorm_irq(1);
+}
+
+/* 720+ */
+
 void pci_set_irq(PCIDevice *pci_dev, int level)
 {
-	if (!level)
-		return;
-	INTREQ (0x8000 | 0x0008);
+	struct ncr_state *ncr = (struct ncr_state*)pci_dev;
+	ncr->irq = level != 0;
+	ncr->irq_func(ncr->irq);
 }
 
 void scsi_req_continue(SCSIRequest *req)
 {
 	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
 	if (sd->data_len < 0) {
-		lsi_command_complete (req, sd->status, 0);
-	} else if (sd->data_len) {
-		lsi_transfer_data (req, sd->data_len);
-	} else {
+		lsi_command_complete(req, sd->status, 0);
+	}
+	else if (sd->data_len) {
+		lsi_transfer_data(req, sd->data_len);
+	}
+	else {
 		if (sd->direction > 0)
 			scsi_emulate_cmd(sd);
-		lsi_command_complete (req, sd->status, 0);
+		lsi_command_complete(req, sd->status, 0);
 	}
 }
 SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun, uint8_t *buf, int len, void *hba_private)
@@ -113,8 +149,8 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun, uint8_t *bu
 	req->hba_private = hba_private;
 	req->bus = &ncr->scsibus;
 	req->bus->qbus.parent = &ncr->devobject;
-	
-	memcpy (sd->cmd, buf, len);
+
+	memcpy(sd->cmd, buf, len);
 	sd->cmd_len = len;
 	return req;
 }
@@ -123,10 +159,10 @@ int32_t scsi_req_enqueue(SCSIRequest *req)
 	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
 
 	sd->data_len = 0;
-	scsi_start_transfer (sd);
-	scsi_emulate_analyze (sd);
+	scsi_start_transfer(sd);
+	scsi_emulate_analyze(sd);
 	//write_log (_T("%02x.%02x.%02x.%02x.%02x.%02x\n"), sd->cmd[0], sd->cmd[1], sd->cmd[2], sd->cmd[3], sd->cmd[4], sd->cmd[5]);
-	
+
 	if (sd->direction < 0)
 		scsi_emulate_cmd(sd);
 	if (sd->direction == 0)
@@ -135,7 +171,7 @@ int32_t scsi_req_enqueue(SCSIRequest *req)
 }
 void scsi_req_unref(SCSIRequest *req)
 {
-	xfree (req);
+	xfree(req);
 }
 uint8_t *scsi_req_get_buf(SCSIRequest *req)
 {
@@ -152,17 +188,101 @@ SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int target, int lun)
 }
 void scsi_req_cancel(SCSIRequest *req)
 {
-	write_log (_T("scsi_req_cancel\n"));
-}
-
-static uae_u8 read_rombyte (struct ncr_state *ncr, uaecptr addr)
-{
-	uae_u8 v = ncr->rom[addr];
-	//write_log (_T("%08X = %02X PC=%08X\n"), addr, v, M68K_GETPC);
-	return v;
+	write_log(_T("scsi_req_cancel\n"));
 }
 
 int pci_dma_rw(PCIDevice *dev, dma_addr_t addr, void *buf, dma_addr_t len, DMADirection dir)
+{
+	int i = 0;
+	uae_u8 *p = (uae_u8*)buf;
+	while (len > 0) {
+		if (!dir) {
+			*p = get_byte(addr);
+		}
+		else {
+			put_byte(addr, *p);
+		}
+		p++;
+		len--;
+		addr++;
+	}
+	return 0;
+}
+/* 710 */
+
+void pci710_set_irq(PCIDevice *pci_dev, int level)
+{
+	struct ncr_state *ncr = (struct ncr_state*)pci_dev;
+	ncr->irq = level != 0;
+	ncr->irq_func(ncr->irq);
+}
+
+void scsi710_req_continue(SCSIRequest *req)
+{
+	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
+	if (sd->data_len < 0) {
+		lsi710_command_complete(req, sd->status, 0);
+	} else if (sd->data_len) {
+		lsi710_transfer_data(req, sd->data_len);
+	} else {
+		if (sd->direction > 0)
+			scsi_emulate_cmd(sd);
+		lsi710_command_complete(req, sd->status, 0);
+	}
+}
+SCSIRequest *scsi710_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun, uint8_t *buf, int len, void *hba_private)
+{
+	SCSIRequest *req = xcalloc(SCSIRequest, 1);
+	struct scsi_data *sd = (struct scsi_data*)d->handle;
+	struct ncr_state *ncr = (struct ncr_state*)sd->privdata;
+
+	req->dev = d;
+	req->hba_private = hba_private;
+	req->bus = &ncr->scsibus;
+	req->bus->qbus.parent = &ncr->devobject;
+	
+	memcpy (sd->cmd, buf, len);
+	sd->cmd_len = len;
+	return req;
+}
+int32_t scsi710_req_enqueue(SCSIRequest *req)
+{
+	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
+
+	sd->data_len = 0;
+	scsi_start_transfer (sd);
+	scsi_emulate_analyze (sd);
+	//write_log (_T("%02x.%02x.%02x.%02x.%02x.%02x\n"), sd->cmd[0], sd->cmd[1], sd->cmd[2], sd->cmd[3], sd->cmd[4], sd->cmd[5]);
+	
+	if (sd->direction < 0)
+		scsi_emulate_cmd(sd);
+	if (sd->direction == 0)
+		return 1;
+	return -sd->direction;
+}
+void scsi710_req_unref(SCSIRequest *req)
+{
+	xfree (req);
+}
+uint8_t *scsi710_req_get_buf(SCSIRequest *req)
+{
+	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
+	sd->data_len = 0;
+	return sd->buffer;
+}
+SCSIDevice *scsi710_device_find(SCSIBus *bus, int channel, int target, int lun)
+{
+	struct ncr_state *ncr = (struct ncr_state*)bus->privdata;
+	if (lun != 0 || target < 0 || target >= 8)
+		return NULL;
+	return ncr->scsid[target];
+}
+void scsi710_req_cancel(SCSIRequest *req)
+{
+	write_log (_T("scsi_req_cancel\n"));
+}
+
+int pci710_dma_rw(PCIDevice *dev, dma_addr_t addr, void *buf, dma_addr_t len, DMADirection dir)
 {
 	int i = 0;
 	uae_u8 *p = (uae_u8*)buf;
@@ -179,30 +299,56 @@ int pci_dma_rw(PCIDevice *dev, dma_addr_t addr, void *buf, dma_addr_t len, DMADi
 	return 0;
 }
 
-static uaecptr beswap (uaecptr addr)
+static uae_u8 read_rombyte(struct ncr_state *ncr, uaecptr addr)
+{
+	uae_u8 v = ncr->rom[addr];
+	//write_log (_T("%08X = %02X PC=%08X\n"), addr, v, M68K_GETPC);
+	return v;
+}
+
+static uaecptr beswap(uaecptr addr)
 {
 	return (addr & ~3) | (3 - (addr & 3));
 }
 
-void ncr_io_bput (struct ncr_state *ncr, uaecptr addr, uae_u32 val)
+void ncr_io_bput(struct ncr_state *ncr, uaecptr addr, uae_u32 val)
+{
+	if (addr >= CYBERSTORM_SCSI_RAM_OFFSET && ncr->ramsize) {
+		cyberstorm_scsi_ram_put(addr, val);
+		return;
+	}
+	addr &= IO_MASK;
+	lsi_mmio_write(ncr->devobject.lsistate, beswap(addr), val, 1);
+}
+void ncr710_io_bput(struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 {
 	addr &= IO_MASK;
-	lsi_mmio_write (ncr->devobject.lsistate, beswap (addr), val, 1);
+	lsi710_mmio_write(ncr->devobject.lsistate, beswap(addr), val, 1);
 }
 
 static void ncr_bput2 (struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 {
 	uae_u32 v = val;
 	addr &= ncr->board_mask;
-	if (addr < ncr->io_start || addr >= ncr->io_end)
+	if (ncr->io_end && (addr < ncr->io_start || addr >= ncr->io_end))
 		return;
-	ncr_io_bput (ncr, addr, val);
+	if (ncr->newncr)
+		ncr_io_bput(ncr, addr, val);
+	else
+		ncr710_io_bput(ncr, addr, val);
 }
 
-uae_u32 ncr_io_bget (struct ncr_state *ncr, uaecptr addr)
+uae_u32 ncr_io_bget(struct ncr_state *ncr, uaecptr addr)
+{
+	if (addr >= CYBERSTORM_SCSI_RAM_OFFSET && ncr->ramsize)
+		return cyberstorm_scsi_ram_get(addr);
+	addr &= IO_MASK;
+	return lsi_mmio_read(ncr->devobject.lsistate, beswap(addr), 1);
+}
+uae_u32 ncr710_io_bget(struct ncr_state *ncr, uaecptr addr)
 {
 	addr &= IO_MASK;
-	return lsi_mmio_read (ncr->devobject.lsistate, beswap (addr), 1);
+	return lsi710_mmio_read(ncr->devobject.lsistate, beswap(addr), 1);
 }
 
 static uae_u32 ncr_bget2 (struct ncr_state *ncr, uaecptr addr)
@@ -214,10 +360,12 @@ static uae_u32 ncr_bget2 (struct ncr_state *ncr, uaecptr addr)
 		return read_rombyte (ncr, addr - ncr->rom_offset);
 	if (addr == A4091_DIP_OFFSET)
 		return 0xff;
-	if (addr < ncr->io_start || addr >= ncr->io_end)
+	if (ncr->io_end && (addr < ncr->io_start || addr >= ncr->io_end))
 		return v;
-	addr &= IO_MASK;
-	return ncr_io_bget (ncr, addr);
+	if (ncr->newncr)
+		return ncr_io_bget(ncr, addr);
+	else
+		return ncr710_io_bget(ncr, addr);
 }
 
 static uae_u32 REGPARAM2 ncr_lget (struct ncr_state *ncr, uaecptr addr)
@@ -243,6 +391,8 @@ static uae_u32 REGPARAM2 ncr_wget (struct ncr_state *ncr, uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
+	if (ncr->newncr)
+		return 0;
 	addr &= ncr->board_mask;
 	v = (ncr_bget2 (ncr, addr) << 8) | ncr_bget2 (ncr, addr + 1);
 	return v;
@@ -328,7 +478,9 @@ static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
 		}
 		return;
 	}
-	ncr_bput2 (ncr, addr, w >> 8);
+	if (ncr->newncr)
+		return;
+	ncr_bput2(ncr, addr, w >> 8);
 	ncr_bput2 (ncr, addr + 1, w);
 }
 
@@ -356,13 +508,13 @@ static void REGPARAM2 ncr_bput (struct ncr_state *ncr, uaecptr addr, uae_u32 b)
 	ncr_bput2 (ncr, addr, b);
 }
 
-void ncr_io_bput_a4000t(uaecptr addr, uae_u32 v)
+void ncr710_io_bput_a4000t(uaecptr addr, uae_u32 v)
 {
-	ncr_io_bput(&ncr_a4000t, addr, v);
+	ncr710_io_bput(&ncr_a4000t, addr, v);
 }
-uae_u32 ncr_io_bget_a4000t(uaecptr addr)
+uae_u32 ncr710_io_bget_a4000t(uaecptr addr)
 {
-	return ncr_io_bget(&ncr_a4000t, addr);
+	return ncr710_io_bget(&ncr_a4000t, addr);
 }
 
 static void REGPARAM2 ncr4_bput (uaecptr addr, uae_u32 b)
@@ -440,6 +592,57 @@ static uae_u32 REGPARAM2 we_lget (uaecptr addr)
 	return ncr_lget(&ncr_we, addr);
 }
 
+static void REGPARAM2 cs_bput(uaecptr addr, uae_u32 b)
+{
+	ncr_bput(&ncr_cs, addr, b);
+}
+static void REGPARAM2 cs_wput(uaecptr addr, uae_u32 b)
+{
+	ncr_wput(&ncr_cs, addr, b);
+}
+static void REGPARAM2 cs_lput(uaecptr addr, uae_u32 b)
+{
+	ncr_lput(&ncr_cs, addr, b);
+}
+static uae_u32 REGPARAM2 cs_bget(uaecptr addr)
+{
+	return ncr_bget(&ncr_cs, addr);
+}
+static uae_u32 REGPARAM2 cs_wget(uaecptr addr)
+{
+	return ncr_wget(&ncr_cs, addr);
+}
+static uae_u32 REGPARAM2 cs_lget(uaecptr addr)
+{
+	return ncr_lget(&ncr_cs, addr);
+}
+
+
+static void REGPARAM2 bppc_bput(uaecptr addr, uae_u32 b)
+{
+	ncr_bput(&ncr_bppc, addr, b);
+}
+static void REGPARAM2 bppc_wput(uaecptr addr, uae_u32 b)
+{
+	ncr_wput(&ncr_bppc, addr, b);
+}
+static void REGPARAM2 bppc_lput(uaecptr addr, uae_u32 b)
+{
+	ncr_lput(&ncr_bppc, addr, b);
+}
+static uae_u32 REGPARAM2 bppc_bget(uaecptr addr)
+{
+	return ncr_bget(&ncr_bppc, addr);
+}
+static uae_u32 REGPARAM2 bppc_wget(uaecptr addr)
+{
+	return ncr_wget(&ncr_bppc, addr);
+}
+static uae_u32 REGPARAM2 bppc_lget(uaecptr addr)
+{
+	return ncr_lget(&ncr_bppc, addr);
+}
+
 static addrbank ncr_bank_a4091 = {
 	ncr4_lget, ncr4_wget, ncr4_bget,
 	ncr4_lput, ncr4_wput, ncr4_bput,
@@ -457,9 +660,24 @@ static addrbank ncr_bank_a4091_2 = {
 static addrbank ncr_bank_warpengine = {
 	we_lget, we_wget, we_bget,
 	we_lput, we_wput, we_bput,
-	default_xlate, default_check, NULL, _T("Warp Engine"),
+	default_xlate, default_check, NULL, _T("Warp Engine SCSI"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
+
+addrbank ncr_bank_cyberstorm = {
+	cs_lget, cs_wget, cs_bget,
+	cs_lput, cs_wput, cs_bput,
+	cyberstorm_scsi_ram_xlate, cyberstorm_scsi_ram_check, NULL, _T("CyberStorm SCSI"),
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
+
+addrbank ncr_bank_blizzardppc = {
+	bppc_lget, bppc_wget, bppc_bget,
+	bppc_lput, bppc_wput, bppc_bput,
+	default_xlate, default_check, NULL, _T("Blizzard PPC SCSI"),
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
+
 
 
 static void ew (struct ncr_state *ncr, int addr, uae_u8 value)
@@ -473,20 +691,42 @@ static void ew (struct ncr_state *ncr, int addr, uae_u8 value)
 	}
 }
 
-void ncr_init (void)
+void ncr_init(void)
+{
+	ncr_cs.newncr = true;
+	if (!ncr_cs.devobject.lsistate)
+		lsi_scsi_init(&ncr_cs.devobject);
+	ncr_cs.ramsize = CYBERSTORM_SCSI_RAM_SIZE;
+}
+
+void ncr710_init (void)
 {
 	for (int i = 0; ncrs[i]; i++) {
+		ncrs[i]->newncr = false;
 		if (!ncrs[i]->devobject.lsistate)
-			lsi_scsi_init (&ncrs[i]->devobject);
+			lsi710_scsi_init (&ncrs[i]->devobject);
 	}
 }
 
-static void ncr_reset_board (struct ncr_state *ncr)
+static void ncr_reset_board(struct ncr_state *ncr)
 {
 	ncr->configured = 0;
 	ncr->board_mask = 0xffff;
+	ncr->irq = false;
 	if (ncr->devobject.lsistate)
-		lsi_scsi_reset (&ncr->devobject, ncr);
+		lsi_scsi_reset(&ncr->devobject, ncr);
+	ncr->bank = &ncr_bank_cyberstorm;
+	ncr->irq_func = cyberstorm_irq;
+}
+
+static void ncr710_reset_board (struct ncr_state *ncr)
+{
+	ncr->configured = 0;
+	ncr->board_mask = 0xffff;
+	ncr->irq = false;
+	ncr->irq_func = set_irq2;
+	if (ncr->devobject.lsistate)
+		lsi710_scsi_reset (&ncr->devobject, ncr);
 	if (ncr == &ncr_a4000t) {
 		ncr->name = _T("A4000T NCR SCSI");
 		ncr->bank = NULL;
@@ -500,8 +740,13 @@ static void ncr_reset_board (struct ncr_state *ncr)
 		ncr->bank = &ncr_bank_a4091_2;
 	}
 	if (ncr == &ncr_we) {
-		ncr->name = _T("Warp Engine");
+		ncr->name = _T("Warp Engine SCSI");
 		ncr->bank = &ncr_bank_warpengine;
+	}
+	if (ncr == &ncr_bppc) {
+		ncr->name = _T("Blizzard PPC SCSI");
+		ncr->bank = &ncr_bank_blizzardppc;
+		ncr->irq_func = blizzardppc_irq;
 	}
 }
 
@@ -510,7 +755,7 @@ static const uae_u8 warpengine_a4000_autoconfig[16] = {
 };
 #define WARP_ENGINE_ROM_SIZE 32768
 
-addrbank *ncr_warpengine_autoconfig_init(void)
+addrbank *ncr710_warpengine_autoconfig_init(void)
 {
 	int roms[2];
 	struct ncr_state *ncr = &ncr_we;
@@ -551,13 +796,13 @@ addrbank *ncr_warpengine_autoconfig_init(void)
 		romwarning (roms);
 	}
 
-	ncr_init ();
-	ncr_reset_board(ncr);
+	ncr710_init ();
+	ncr710_reset_board(ncr);
 
 	return &ncr_bank_warpengine;
 }
 
-addrbank *ncr_a4091_autoconfig_init (int devnum)
+addrbank *ncr710_a4091_autoconfig_init (int devnum)
 {
 	struct ncr_state *ncr = ncra4091[devnum];
 	int roms[3];
@@ -606,8 +851,8 @@ addrbank *ncr_a4091_autoconfig_init (int devnum)
 		romwarning (roms);
 	}
 
-	ncr_init ();
-	ncr_reset_board(ncr);
+	ncr710_init ();
+	ncr710_reset_board(ncr);
 
 	return ncr == &ncr_a4091 ? &ncr_bank_a4091 : &ncr_bank_a4091_2;
 }
@@ -628,7 +873,7 @@ static void freescsi (SCSIDevice *scsi)
 	}
 }
 
-void ncr_free2(struct ncr_state *ncr)
+static void ncr_free2(struct ncr_state *ncr)
 {
 	for (int ch = 0; ch < 8; ch++) {
 		freescsi (ncr->scsid[ch]);
@@ -636,22 +881,38 @@ void ncr_free2(struct ncr_state *ncr)
 	}
 }
 
-void ncr_free(void)
+void ncr710_free(void)
 {
 	for (int i = 0; ncrs[i]; i++) {
 		ncr_free2(ncrs[i]);
 	}
 }
 
-void ncr_reset (void)
+void ncr_free(void)
+{
+	ncr_free2(&ncr_cs);
+}
+
+void ncr710_reset(void)
 {
 	for (int i = 0; ncrs[i]; i++) {
-		ncr_reset_board(ncrs[i]);
+		ncr710_reset_board(ncrs[i]);
 	}
 	if (currprefs.cs_mbdmac & 2) {
 		ncr_a4000t.configured = -1;
 		ncr_a4000t.enabled = true;
 	}
+	if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC) {
+		ncr_bppc.configured = -1;
+		ncr_bppc.enabled = true;
+	}
+}
+
+void ncr_reset(void)
+{
+	ncr_reset_board(&ncr_cs);
+	ncr_cs.configured = -1;
+	ncr_cs.enabled = true;
 }
 
 static int add_ncr_scsi_hd (struct ncr_state *ncr, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level)
@@ -739,6 +1000,25 @@ int a4091_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
 		return add_ncr_scsi_hd (ncr, ch, NULL, ci, 1);
 }
 
+int cyberstorm_add_scsi_unit(int ch, struct uaedev_config_info *ci)
+{
+	if (ci->type == UAEDEV_CD)
+		return add_ncr_scsi_cd(&ncr_cs, ch, ci->device_emu_unit);
+	else if (ci->type == UAEDEV_TAPE)
+		return add_ncr_scsi_tape(&ncr_cs, ch, ci->rootdir, ci->readonly);
+	else
+		return add_ncr_scsi_hd(&ncr_cs, ch, NULL, ci, 1);
+}
+
+int blizzardppc_add_scsi_unit(int ch, struct uaedev_config_info *ci)
+{
+	if (ci->type == UAEDEV_CD)
+		return add_ncr_scsi_cd(&ncr_bppc, ch, ci->device_emu_unit);
+	else if (ci->type == UAEDEV_TAPE)
+		return add_ncr_scsi_tape(&ncr_bppc, ch, ci->rootdir, ci->readonly);
+	else
+		return add_ncr_scsi_hd(&ncr_bppc, ch, NULL, ci, 1);
+}
 
 
 #endif

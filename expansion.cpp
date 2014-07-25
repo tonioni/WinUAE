@@ -1433,9 +1433,10 @@ uaecptr need_uae_boot_rom (void)
 static addrbank *expamem_init_a2065(void)
 {
 #ifdef A2065
-	a2065_init ();
-#endif
+	return a2065_init ();
+#else
 	return NULL;
+#endif
 }
 static addrbank *expamem_init_cdtv(void)
 {
@@ -1463,7 +1464,7 @@ static addrbank *expamem_init_a2091_2(void)
 static addrbank *expamem_init_a4091(void)
 {
 #ifdef NCR
-	return ncr_a4091_autoconfig_init (0);
+	return ncr710_a4091_autoconfig_init (0);
 #else
 	return NULL;
 #endif
@@ -1471,7 +1472,7 @@ static addrbank *expamem_init_a4091(void)
 static addrbank *expamem_init_a4091_2(void)
 {
 #ifdef NCR
-	return ncr_a4091_autoconfig_init (1);
+	return ncr710_a4091_autoconfig_init (1);
 #else
 	return NULL;
 #endif
@@ -1479,7 +1480,7 @@ static addrbank *expamem_init_a4091_2(void)
 static addrbank *expamem_init_warpengine(void)
 {
 #ifdef NCR
-	return ncr_warpengine_autoconfig_init();
+	return ncr710_warpengine_autoconfig_init();
 #else
 	return NULL;
 #endif
@@ -1531,7 +1532,7 @@ void expamem_reset (void)
 	if (need_uae_boot_rom () == 0)
 		do_mount = 0;
 
-	if (currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV || currprefs.cpuboard_type == BOARD_BLIZZARD_1260) {
+	if (currprefs.cpuboard_type) {
 		// This requires first 128k slot.
 		card_flags[cardno] = 1;
 		card_name[cardno] = _T("Blizzard");

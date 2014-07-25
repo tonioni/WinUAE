@@ -1601,7 +1601,7 @@ void mmu030_put_long_atc(uaecptr addr, uae_u32 val, int l, uae_u32 fc) {
         return;
     }
 
-    phys_put_long(physical_addr, val);
+    x_phys_put_long(physical_addr, val);
 }
 
 void mmu030_put_word_atc(uaecptr addr, uae_u16 val, int l, uae_u32 fc) {
@@ -1620,7 +1620,7 @@ void mmu030_put_word_atc(uaecptr addr, uae_u16 val, int l, uae_u32 fc) {
         return;
     }
 
-    phys_put_word(physical_addr, val);
+    x_phys_put_word(physical_addr, val);
 }
 
 void mmu030_put_byte_atc(uaecptr addr, uae_u8 val, int l, uae_u32 fc) {
@@ -1639,7 +1639,7 @@ void mmu030_put_byte_atc(uaecptr addr, uae_u8 val, int l, uae_u32 fc) {
         return;
     }
 
-    phys_put_byte(physical_addr, val);
+    x_phys_put_byte(physical_addr, val);
 }
 
 uae_u32 mmu030_get_long_atc(uaecptr addr, int l, uae_u32 fc) {
@@ -1658,7 +1658,25 @@ uae_u32 mmu030_get_long_atc(uaecptr addr, int l, uae_u32 fc) {
         return 0;
     }
 
-    return phys_get_long(physical_addr);
+    return x_phys_get_long(physical_addr);
+}
+uae_u32 mmu030_get_ilong_atc(uaecptr addr, int l, uae_u32 fc) {
+	uae_u32 page_index = addr & mmu030.translation.page.mask;
+	uae_u32 addr_mask = mmu030.translation.page.imask;
+
+	uae_u32 physical_addr = mmu030.atc[l].physical.addr&addr_mask;
+#if MMU030_ATC_DBG_MSG
+	write_log(_T("ATC match(%i): page addr = %08X, index = %08X (lget %08X)\n"), l,
+		physical_addr, page_index, phys_get_long(physical_addr + page_index));
+#endif
+	physical_addr += page_index;
+
+	if (mmu030.atc[l].physical.bus_error) {
+		mmu030_page_fault(addr, true, MMU030_SSW_SIZE_L, fc);
+		return 0;
+	}
+
+	return x_phys_get_ilong(physical_addr);
 }
 
 uae_u16 mmu030_get_word_atc(uaecptr addr, int l, uae_u32 fc) {
@@ -1677,7 +1695,26 @@ uae_u16 mmu030_get_word_atc(uaecptr addr, int l, uae_u32 fc) {
         return 0;
     }
     
-    return phys_get_word(physical_addr);
+    return x_phys_get_word(physical_addr);
+}
+
+uae_u16 mmu030_get_iword_atc(uaecptr addr, int l, uae_u32 fc) {
+	uae_u32 page_index = addr & mmu030.translation.page.mask;
+	uae_u32 addr_mask = mmu030.translation.page.imask;
+
+	uae_u32 physical_addr = mmu030.atc[l].physical.addr&addr_mask;
+#if MMU030_ATC_DBG_MSG
+	write_log(_T("ATC match(%i): page addr = %08X, index = %08X (wget %04X)\n"), l,
+		physical_addr, page_index, phys_get_word(physical_addr + page_index));
+#endif
+	physical_addr += page_index;
+
+	if (mmu030.atc[l].physical.bus_error) {
+		mmu030_page_fault(addr, true, MMU030_SSW_SIZE_W, fc);
+		return 0;
+	}
+
+	return x_phys_get_iword(physical_addr);
 }
 
 uae_u8 mmu030_get_byte_atc(uaecptr addr, int l, uae_u32 fc) {
@@ -1696,7 +1733,7 @@ uae_u8 mmu030_get_byte_atc(uaecptr addr, int l, uae_u32 fc) {
         return 0;
     }
 
-    return phys_get_byte(physical_addr);
+    return x_phys_get_byte(physical_addr);
 }
 
 /* Generic versions of above */
@@ -1716,11 +1753,11 @@ void mmu030_put_atc_generic(uaecptr addr, uae_u32 val, int l, uae_u32 fc, int si
         return;
     }
 	if (size == sz_byte)
-	    phys_put_byte(physical_addr, val);
+	    x_phys_put_byte(physical_addr, val);
 	else if (size == sz_word)
-	    phys_put_word(physical_addr, val);
+	    x_phys_put_word(physical_addr, val);
 	else
-	    phys_put_long(physical_addr, val);
+	    x_phys_put_long(physical_addr, val);
 
 }
 uae_u32 mmu030_get_atc_generic(uaecptr addr, int l, uae_u32 fc, int size, int flags, bool checkwrite) {
@@ -1739,10 +1776,10 @@ uae_u32 mmu030_get_atc_generic(uaecptr addr, int l, uae_u32 fc, int size, int fl
         return 0;
     }
 	if (size == sz_byte)
-		return phys_get_byte(physical_addr);
+		return x_phys_get_byte(physical_addr);
 	else if (size == sz_word)
-		return phys_get_word(physical_addr);
-	return phys_get_long(physical_addr);
+		return x_phys_get_word(physical_addr);
+	return x_phys_get_long(physical_addr);
 }
 
 
@@ -1815,7 +1852,7 @@ void mmu030_put_long(uaecptr addr, uae_u32 val, uae_u32 fc) {
     
 	//                                        addr,super,write
 	if ((!mmu030.enabled) || (mmu030_match_ttr_access(addr,fc,true)) || (fc==7)) {
-		phys_put_long(addr,val);
+		x_phys_put_long(addr,val);
 		return;
     }
 
@@ -1833,7 +1870,7 @@ void mmu030_put_word(uaecptr addr, uae_u16 val, uae_u32 fc) {
     
 	//                                        addr,super,write
 	if ((!mmu030.enabled) || (mmu030_match_ttr_access(addr,fc,true)) || (fc==7)) {
-		phys_put_word(addr,val);
+		x_phys_put_word(addr,val);
 		return;
     }
     
@@ -1851,7 +1888,7 @@ void mmu030_put_byte(uaecptr addr, uae_u8 val, uae_u32 fc) {
     
 	//                                        addr,super,write
 	if ((!mmu030.enabled) || (mmu030_match_ttr_access(addr, fc, true)) || (fc==7)) {
-		phys_put_byte(addr,val);
+		x_phys_put_byte(addr,val);
 		return;
     }
     
@@ -1865,6 +1902,23 @@ void mmu030_put_byte(uaecptr addr, uae_u8 val, uae_u32 fc) {
     }
 }
 
+uae_u32 mmu030_get_ilong(uaecptr addr, uae_u32 fc) {
+
+	//                                        addr,super,write
+	if ((!mmu030.enabled) || (mmu030_match_ttr_access(addr, fc, false)) || (fc == 7)) {
+		return x_phys_get_ilong(addr);
+	}
+
+	int atc_line_num = mmu030_logical_is_in_atc(addr, fc, false);
+
+	if (atc_line_num >= 0) {
+		return mmu030_get_ilong_atc(addr, atc_line_num, fc);
+	}
+	else {
+		mmu030_table_search(addr, fc, false, 0);
+		return mmu030_get_ilong_atc(addr, mmu030_logical_is_in_atc(addr, fc, false), fc);
+	}
+}
 uae_u32 mmu030_get_long(uaecptr addr, uae_u32 fc) {
     
 	//                                        addr,super,write
@@ -1882,6 +1936,23 @@ uae_u32 mmu030_get_long(uaecptr addr, uae_u32 fc) {
     }
 }
 
+uae_u16 mmu030_get_iword(uaecptr addr, uae_u32 fc) {
+
+	//                                        addr,super,write
+	if ((!mmu030.enabled) || (mmu030_match_ttr_access(addr, fc, false)) || (fc == 7)) {
+		return x_phys_get_iword(addr);
+	}
+
+	int atc_line_num = mmu030_logical_is_in_atc(addr, fc, false);
+
+	if (atc_line_num >= 0) {
+		return mmu030_get_iword_atc(addr, atc_line_num, fc);
+	}
+	else {
+		mmu030_table_search(addr, fc, false, 0);
+		return mmu030_get_iword_atc(addr, mmu030_logical_is_in_atc(addr, fc, false), fc);
+	}
+}
 uae_u16 mmu030_get_word(uaecptr addr, uae_u32 fc) {
     
 	//                                        addr,super,write
@@ -1903,7 +1974,7 @@ uae_u8 mmu030_get_byte(uaecptr addr, uae_u32 fc) {
     
 	//                                        addr,super,write
 	if ((!mmu030.enabled) || (mmu030_match_ttr_access(addr,fc,false)) || (fc==7)) {
-		return phys_get_byte(addr);
+		return x_phys_get_byte(addr);
     }
     
     int atc_line_num = mmu030_logical_is_in_atc(addr, fc, false);
@@ -1923,11 +1994,11 @@ void mmu030_put_generic(uaecptr addr, uae_u32 val, uae_u32 fc, int size, int acc
 	//                                        addr,super,write
 	if ((!mmu030.enabled) || (mmu030_match_ttr_access(addr, fc, true)) || (fc==7)) {
 		if (size == sz_byte)
-			phys_put_byte(addr, val);
+			x_phys_put_byte(addr, val);
 		else if (size == sz_word)
-			phys_put_word(addr, val);
+			x_phys_put_word(addr, val);
 		else
-			phys_put_long(addr, val);
+			x_phys_put_long(addr, val);
 		return;
     }
     
@@ -2048,6 +2119,23 @@ uae_u16 REGPARAM2 mmu030_get_word_unaligned(uaecptr addr, uae_u32 fc, int flags)
 	return res;
 }
 
+uae_u32 REGPARAM2 mmu030_get_ilong_unaligned(uaecptr addr, uae_u32 fc, int flags)
+{
+	uae_u32 res;
+
+	res = (uae_u32)mmu030_get_iword(addr, fc) << 16;
+	SAVE_EXCEPTION;
+	TRY(prb) {
+		res |= mmu030_get_iword(addr + 2, fc);
+		RESTORE_EXCEPTION;
+	}
+	CATCH(prb) {
+		RESTORE_EXCEPTION;
+		THROW_AGAIN(prb);
+	} ENDTRY
+	return res;
+}
+
 uae_u32 REGPARAM2 mmu030_get_long_unaligned(uaecptr addr, uae_u32 fc, int flags)
 {
 	uae_u32 res;
@@ -2150,6 +2238,31 @@ uaecptr mmu030_translate(uaecptr addr, bool super, bool data, bool write)
     }
 }
 
+static uae_u32 get_dcache_byte(uaecptr addr)
+{
+	return read_dcache030(addr, 0);
+}
+static uae_u32 get_dcache_word(uaecptr addr)
+{
+	return read_dcache030(addr, 1);
+}
+static uae_u32 get_dcache_long(uaecptr addr)
+{
+	return read_dcache030(addr, 2);
+}
+static void put_dcache_byte(uaecptr addr, uae_u32 v)
+{
+	write_dcache030(addr, v, 0);
+}
+static void put_dcache_word(uaecptr addr, uae_u32 v)
+{
+	write_dcache030(addr, v, 1);
+}
+static void put_dcache_long(uaecptr addr, uae_u32 v)
+{
+	write_dcache030(addr, v, 2);
+}
+
 /* MMU Reset */
 void mmu030_reset(int hardreset)
 {
@@ -2164,6 +2277,25 @@ void mmu030_reset(int hardreset)
 		tt0_030 = tt1_030 = tc_030 = 0;
         mmusr_030 = 0;
         mmu030_flush_atc_all();
+	}
+	if (currprefs.cpu_cycle_exact || currprefs.cpu_compatible) {
+		x_phys_get_iword = get_word_icache030;
+		x_phys_get_ilong = get_long_icache030;
+		x_phys_get_byte = get_dcache_byte;
+		x_phys_get_word = get_dcache_word;
+		x_phys_get_long = get_dcache_long;
+		x_phys_put_byte = put_dcache_byte;
+		x_phys_put_word = put_dcache_word;
+		x_phys_put_long = put_dcache_long;
+	} else {
+		x_phys_get_iword = phys_get_word;
+		x_phys_get_ilong = phys_get_long;
+		x_phys_get_byte = phys_get_byte;
+		x_phys_get_word = phys_get_word;
+		x_phys_get_long = phys_get_long;
+		x_phys_put_byte = phys_put_byte;
+		x_phys_put_word = phys_put_word;
+		x_phys_put_long = phys_put_long;
 	}
 }
 

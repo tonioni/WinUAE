@@ -870,10 +870,16 @@ static void initialize_mountinfo (void)
 				added = true;
 			}
 #endif
-		} else if (type == HD_CONTROLLER_TYPE_SCSI_WARPENGINE) {
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_CPUBOARD) {
 #ifdef NCR
 			if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
 				warpengine_add_scsi_unit(unit, uci);
+				added = true;
+			} else if (currprefs.cpuboard_type == BOARD_CSMK3 || currprefs.cpuboard_type == BOARD_CSPPC) {
+				cyberstorm_add_scsi_unit(unit, uci);
+				added = true;
+			} else if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC) {
+				blizzardppc_add_scsi_unit(unit, uci);
 				added = true;
 			}
 #endif
@@ -2619,7 +2625,7 @@ static a_inode *lookup_child_aino_for_exnext (Unit *unit, a_inode *base, TCHAR *
 	init_child_aino (unit, base, c);
 
 	recycle_aino (unit, c);
-	TRACE((_T("created aino %x, exnext\n"), c->uniq));
+	TRACE((_T("created aino %s:%d, exnext\n"), c->nname, c->uniq));
 
 	return c;
 }
@@ -3642,91 +3648,18 @@ static void
 	action_dup_lock_2 (unit, packet, k->aino->uniq);
 }
 
-static void free_exkey (Unit *unit, ExamineKey *ek)
+static void free_exkey (Unit *unit, a_inode *aino)
 {
-	if (--ek->aino->exnext_count == 0) {
+	if (--aino->exnext_count == 0) {
 		TRACE ((_T("Freeing ExKey and reducing total_locked from %d by %d\n"),
-			unit->total_locked_ainos, ek->aino->locked_children));
-		unit->total_locked_ainos -= ek->aino->locked_children;
-		ek->aino->locked_children = 0;
+			unit->total_locked_ainos, aino->locked_children));
+		unit->total_locked_ainos -= aino->locked_children;
+		aino->locked_children = 0;
 	}
-	ek->aino = 0;
-	ek->uniq = 0;
-}
-
-static ExamineKey *lookup_exkey (Unit *unit, uae_u32 uniq)
-{
-	ExamineKey *ek;
-	int i;
-
-	ek = unit->examine_keys;
-	for (i = 0; i < EXKEYS; i++, ek++) {
-		/* Did we find a free one? */
-		if (ek->uniq == uniq)
-			return ek;
-	}
-	write_log (_T("Houston, we have a BIG problem.\n"));
-	return 0;
-}
-
-/* This is so sick... who invented ACTION_EXAMINE_NEXT? What did he THINK??? */
-static ExamineKey *new_exkey (Unit *unit, a_inode *aino)
-{
-	uae_u32 uniq;
-	uae_u32 oldest = 0xFFFFFFFE;
-	ExamineKey *ek, *oldest_ek = 0;
-	int i;
-
-	ek = unit->examine_keys;
-	for (i = 0; i < EXKEYS; i++, ek++) {
-		/* Did we find a free one? */
-		if (ek->aino == 0)
-			continue;
-		if (ek->uniq < oldest)
-			oldest = (oldest_ek = ek)->uniq;
-	}
-	ek = unit->examine_keys;
-	for (i = 0; i < EXKEYS; i++, ek++) {
-		/* Did we find a free one? */
-		if (ek->aino == 0)
-			goto found;
-	}
-	/* This message should usually be harmless. */
-	write_log (_T("Houston, we have a problem (%s).\n"), aino->nname);
-	free_exkey (unit, oldest_ek);
-	ek = oldest_ek;
-found:
-
-	uniq = aino->uniq;
-#if 0
-	if (uniq >= 0xFFFFFFFE) {
-		/* Things will probably go wrong, but most likely the Amiga will crash
-		* before this happens because of something else. */
-		uniq = 1;
-	}
-	unit->next_exkey = uniq + 1;
-#endif
-	ek->aino = aino;
-	ek->curr_file = 0;
-	ek->uniq = uniq;
-	return ek;
 }
 
 static void move_exkeys (Unit *unit, a_inode *from, a_inode *to)
 {
-	int i;
-	unsigned long tmp = 0;
-	for (i = 0; i < EXKEYS; i++) {
-		ExamineKey *k = unit->examine_keys + i;
-		if (k->uniq == 0)
-			continue;
-		if (k->aino == from) {
-			k->aino = to;
-			tmp++;
-		}
-	}
-	if (tmp != from->exnext_count)
-		write_log (_T("filesys.c: Bug in ExNext bookkeeping.  BAD.\n"));
 	to->exnext_count = from->exnext_count;
 	to->locked_children = from->locked_children;
 	from->exnext_count = 0;
@@ -4473,8 +4406,8 @@ static void populate_directory (Unit *unit, a_inode *base)
 		base->locked_children++;
 		unit->total_locked_ainos++;
 	}
-	TRACE3((_T("Populating directory, child %p, locked_children %d\n"),
-		base->child, base->locked_children));
+	TRACE3((_T("Populating directory, child %s, locked_children %d\n"),
+		base->child->nname, base->locked_children));
 	for (;;) {
 		uae_u64 uniq = 0;
 		TCHAR fn[MAX_DPATH];
@@ -4502,35 +4435,32 @@ static void populate_directory (Unit *unit, a_inode *base)
 	fs_closedir (d);
 }
 
-static void do_examine (Unit *unit, dpacket packet, ExamineKey *ek, uaecptr info, bool longfilesize)
+static bool do_examine (Unit *unit, dpacket packet, a_inode *aino, uaecptr info, bool longfilesize)
 {
 	for (;;) {
 		TCHAR *name;
-		if (ek->curr_file == 0)
+		if (!aino)
 			break;
-		name = ek->curr_file->nname;
-		get_fileinfo (unit, packet, info, ek->curr_file, longfilesize);
-		ek->curr_file = ek->curr_file->sibling;
+		name = aino->nname;
+		get_fileinfo (unit, packet, info, aino, longfilesize);
 		if (!(unit->volflags & (MYVOLUMEINFO_ARCHIVE | MYVOLUMEINFO_CDFS)) && !fsdb_exists(name)) {
 			TRACE ((_T("%s orphaned"), name));
-			continue;
+			return false;
 		}
-		TRACE ((_T("curr_file set to %p %s\n"), ek->curr_file,
-			ek->curr_file ? ek->curr_file->aname : _T("NULL")));
-		return;
+		return true;
 	}
 	TRACE((_T("no more entries\n")));
-	free_exkey (unit, ek);
+	free_exkey (unit, aino->parent);
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	PUT_PCK_RES2 (packet, ERROR_NO_MORE_ENTRIES);
+	return true;
 }
 
 static void action_examine_next (Unit *unit, dpacket packet, bool largefilesize)
 {
 	uaecptr lock = GET_PCK_ARG1 (packet) << 2;
 	uaecptr info = GET_PCK_ARG2 (packet) << 2;
-	a_inode *aino = 0;
-	ExamineKey *ek;
+	a_inode *aino = 0, *daino = 0;
 	uae_u32 uniq;
 
 	TRACE((_T("ACTION_EXAMINE_NEXT(0x%lx,0x%lx,%d)\n"), lock, info, largefilesize));
@@ -4541,47 +4471,48 @@ static void action_examine_next (Unit *unit, dpacket packet, bool largefilesize)
 		aino = aino_from_lock (unit, lock);
 	if (aino == 0)
 		aino = &unit->rootnode;
-	for(;;) {
-		uniq = get_long (info);
+	uniq = get_long(info);
+	for (;;) {
 		if (uniq == aino->uniq) {
 			// first exnext
 			if (!aino->dir) {
-				write_log (_T("ExNext called for a file! (Houston?)\n"));
+				write_log (_T("ExNext called for a file! %s:%d (Houston?)\n"), aino->nname, uniq);
 				goto no_more_entries;
 			}
-			TRACE((_T("Creating new ExKey\n")));
-			ek = new_exkey (unit, aino);
-			if (ek) {
-				if (aino->exnext_count++ == 0)
-					populate_directory (unit, aino);
-				if (!aino->child) {
-					free_exkey (unit, ek);
-					goto no_more_entries;
-				}
-				ek->curr_file = aino->child;
-				TRACE((_T("Initial curr_file: %p %s\n"), ek->curr_file,
-					ek->curr_file ? ek->curr_file->aname : _T("NULL")));
-				uniq = ek->curr_file->uniq;
-			}
+			if (aino->exnext_count++ == 0)
+				populate_directory (unit, aino);
+			if (!aino->child)
+				goto no_more_entries;
+			daino = aino->child;
 		} else {
-			TRACE((_T("Looking up ExKey\n")));
-			ek = lookup_exkey(unit, aino->uniq);
+			daino = lookup_aino(unit, uniq);
+			if (!daino) {
+				// deleted? Look for next larger uniq in same directory
+				daino = aino->child;
+				while (daino && daino->uniq < uniq) {
+					daino = daino->sibling;
+				}
+			} else {
+				daino = daino->sibling;
+			}
 		}
-		if (ek == 0) {
-			write_log (_T("Couldn't find a matching ExKey. Prepare for trouble.\n"));
+		if (!daino)
+			goto no_more_entries;
+		if (daino->parent != aino) {
+			write_log(_T("Houston, we have a BIG problem. %s is not parent of %s\n"), daino->nname, aino->nname);
 			goto no_more_entries;
 		}
-		if (!ek->curr_file || ek->curr_file->mountcount == unit->mountcount)
-			break;
-		ek->curr_file = ek->curr_file->sibling;
-		if (!ek->curr_file)
-			goto no_more_entries;
+		uniq = daino->uniq;
+		if (daino->mountcount != unit->mountcount)
+			continue;
+		if (!do_examine (unit, packet, daino, info, largefilesize))
+			continue;
+		return;
 	}
-	do_examine (unit, packet, ek, info, largefilesize);
-	return;
 
 no_more_entries:
-	PUT_PCK_RES1 (packet, DOS_FALSE);
+	free_exkey(unit, aino);
+	PUT_PCK_RES1(packet, DOS_FALSE);
 	PUT_PCK_RES2 (packet, ERROR_NO_MORE_ENTRIES);
 }
 
@@ -7854,7 +7785,7 @@ static uae_u8 *restore_filesys_hardfile (UnitInfo *ui, uae_u8 *src)
 	_tcscpy (hfd->product_rev, s);
 	xfree (s);
 	s = restore_string ();
-	_tcscpy (hfd->device_name, s);
+	_tcscpy (hfd->ci.devname, s);
 	xfree (s);
 	return src;
 }
@@ -7878,7 +7809,7 @@ static uae_u8 *save_filesys_hardfile (UnitInfo *ui, uae_u8 *dst)
 	save_string (hfd->vendor_id);
 	save_string (hfd->product_id);
 	save_string (hfd->product_rev);
-	save_string (hfd->device_name);
+	save_string (hfd->ci.devname);
 	return dst;
 }
 

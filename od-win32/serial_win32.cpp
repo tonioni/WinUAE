@@ -385,9 +385,9 @@ static void serdatcopy(void)
 		per = ((serper & 0x7fff) + 1) * (bits - 1);
 		if (lastbitcycle_active_hsyncs) {
 			// if last bit still transmitting, add remaining time.
-			int extraper = (lastbitcycle - get_cycles()) / CYCLE_UNIT;
+			int extraper = lastbitcycle - get_cycles();
 			if (extraper > 0)
-				per += extraper;
+				per += extraper / CYCLE_UNIT;
 		}
 		if (per < 4)
 			per = 4;

@@ -341,9 +341,9 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	pl(rdb, 37, 0); // autopark
 	pl(rdb, 38, 2); // highrdskblock
 	pl(rdb, 39, -1); // res
-	ua_copy ((char*)rdb + 40 * 4, -1, hfd->vendor_id);
-	ua_copy ((char*)rdb + 42 * 4, -1, hfd->product_id);
-	ua_copy ((char*)rdb + 46 * 4, -1, _T("UAE"));
+	ua_copy ((char*)rdb + 40 * 4, 8, hfd->vendor_id);
+	ua_copy ((char*)rdb + 42 * 4, 16, hfd->product_id);
+	ua_copy ((char*)rdb + 46 * 4, 4, _T("UAE"));
 	rdb_crc (rdb);
 
 	pl(part, 0, 0x50415254);
@@ -355,8 +355,8 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	pl(part, 6, -1);
 	pl(part, 7, -1);
 	pl(part, 8, 0); // devflags
-	part[9 * 4] = _tcslen (hfd->device_name);
-	ua_copy ((char*)part + 9 * 4 + 1, -1, hfd->device_name);
+	part[9 * 4] = _tcslen (hfd->ci.devname);
+	ua_copy ((char*)part + 9 * 4 + 1, 30, hfd->ci.devname);
 
 	denv = part + 128;
 	pl(denv, 0, 80);

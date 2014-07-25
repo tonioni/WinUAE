@@ -147,24 +147,19 @@ STATIC_INLINE void m68k_do_rts_ce020 (void)
 
 #ifdef CPUEMU_22
 
-extern uae_u32 get_word_ce030_prefetch (int);
-extern void write_dcache030 (uaecptr, uae_u32, int);
-extern uae_u32 read_dcache030 (uaecptr, int);
+extern uae_u32 get_word_ce030_prefetch(int);
 
 STATIC_INLINE void put_long_ce030 (uaecptr addr, uae_u32 v)
 {
 	write_dcache030 (addr, v, 2);
-	mem_access_delay_long_write_ce020 (addr, v);
 }
 STATIC_INLINE void put_word_ce030 (uaecptr addr, uae_u32 v)
 {
 	write_dcache030 (addr, v, 1);
-	mem_access_delay_word_write_ce020 (addr, v);
 }
 STATIC_INLINE void put_byte_ce030 (uaecptr addr, uae_u32 v)
 {
 	write_dcache030 (addr, v, 0);
-	mem_access_delay_byte_write_ce020 (addr, v);
 }
 STATIC_INLINE uae_u32 get_long_ce030 (uaecptr addr)
 {
@@ -211,8 +206,6 @@ STATIC_INLINE void m68k_do_rts_ce030 (void)
 	m68k_setpc (get_long_ce030 (m68k_areg (regs, 7)));
 	m68k_areg (regs, 7) += 4;
 }
-
-extern uae_u32 get_word_ce040_prefetch (int);
 
 #endif
 

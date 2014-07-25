@@ -2299,7 +2299,7 @@ static void drive_eject (drive * drv)
 	if (isfloppysound (drv))
 		driveclick_insert (drv - floppy, 1);
 #endif
-	if (drv->diskfile || drv->filetype)
+	if (drv->diskfile || drv->filetype >= 0)
 		statusline_add_message(_T("DF%d: -"), drv - floppy);
 	gui_disk_image_change(drv - floppy, NULL, drv->wrprot);
 	drive_image_free (drv);

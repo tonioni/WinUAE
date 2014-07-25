@@ -136,7 +136,7 @@ struct SCSIBus {
 //void scsi_bus_new(SCSIBus *bus, size_t bus_size, DeviceState *host,
 //                  const SCSIBusInfo *info, const char *bus_name);
 
-static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
+static inline SCSIBus *scsi710_bus_from_device(SCSIDevice *d)
 {
     return NULL; //return DO_UPCAST(SCSIBus, qbus, d->qdev.parent_bus);
 }
@@ -205,12 +205,12 @@ uint32_t scsi_data_cdb_length(uint8_t *buf);
 uint32_t scsi_cdb_length(uint8_t *buf);
 int scsi_sense_valid(SCSISense sense);
 int scsi_build_sense(uint8_t *in_buf, int in_len,
-                     uint8_t *buf, int len, bool fixed);
+	uint8_t *buf, int len, bool fixed);
 
 SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
-                            uint32_t tag, uint32_t lun, void *hba_private);
+	uint32_t tag, uint32_t lun, void *hba_private);
 SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
-                          uint8_t *buf, int len, void *hba_private);
+	uint8_t *buf, int len, void *hba_private);
 int32_t scsi_req_enqueue(SCSIRequest *req);
 void scsi_req_free(SCSIRequest *req);
 SCSIRequest *scsi_req_ref(SCSIRequest *req);
@@ -233,11 +233,50 @@ int scsi_device_get_sense(SCSIDevice *dev, uint8_t *buf, int len, bool fixed);
 SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int target, int lun);
 
 /* scsi-generic.c. */
-extern const SCSIReqOps scsi_generic_req_ops;
+extern const SCSIReqOps scsi710_generic_req_ops;
 
 void lsi_request_cancelled(SCSIRequest *req);
 void lsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid);
 void lsi_transfer_data(SCSIRequest *req, uint32_t len);
+
+
+uint32_t scsi710_data_cdb_length(uint8_t *buf);
+uint32_t scsi710_cdb_length(uint8_t *buf);
+int scsi710_sense_valid(SCSISense sense);
+int scsi710_build_sense(uint8_t *in_buf, int in_len,
+                     uint8_t *buf, int len, bool fixed);
+
+SCSIRequest *scsi710_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
+                            uint32_t tag, uint32_t lun, void *hba_private);
+SCSIRequest *scsi710_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
+                          uint8_t *buf, int len, void *hba_private);
+int32_t scsi710_req_enqueue(SCSIRequest *req);
+void scsi710_req_free(SCSIRequest *req);
+SCSIRequest *scsi710_req_ref(SCSIRequest *req);
+void scsi710_req_unref(SCSIRequest *req);
+
+void scsi710_req_build_sense(SCSIRequest *req, SCSISense sense);
+void scsi710_req_print(SCSIRequest *req);
+void scsi710_req_continue(SCSIRequest *req);
+void scsi710_req_data(SCSIRequest *req, int len);
+void scsi710_req_complete(SCSIRequest *req, int status);
+uint8_t *scsi710_req_get_buf(SCSIRequest *req);
+int scsi710_req_get_sense(SCSIRequest *req, uint8_t *buf, int len);
+void scs710i_req_abort(SCSIRequest *req, int status);
+void scsi710_req_cancel(SCSIRequest *req);
+void scsi710_req_retry(SCSIRequest *req);
+void scsi710_device_purge_requests(SCSIDevice *sdev, SCSISense sense);
+void scsi710_device_set_ua(SCSIDevice *sdev, SCSISense sense);
+void scsi710_device_report_change(SCSIDevice *dev, SCSISense sense);
+int scsi710_device_get_sense(SCSIDevice *dev, uint8_t *buf, int len, bool fixed);
+SCSIDevice *scsi710_device_find(SCSIBus *bus, int channel, int target, int lun);
+
+/* scsi-generic.c. */
+extern const SCSIReqOps scsi710_generic_req_ops;
+
+void lsi710_request_cancelled(SCSIRequest *req);
+void lsi710_command_complete(SCSIRequest *req, uint32_t status, size_t resid);
+void lsi710_transfer_data(SCSIRequest *req, uint32_t len);
 
 
 #endif

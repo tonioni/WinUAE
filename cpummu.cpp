@@ -33,6 +33,8 @@
 #include "cpummu.h"
 #include "debug.h"
 
+#define MMUDUMP 0
+
 #define DBG_MMU_VERBOSE	1
 #define DBG_MMU_SANITY	1
 #if 0
@@ -40,7 +42,6 @@
 #endif
 
 #ifdef FULLMMU
-
 
 uae_u32 mmu_is_super;
 uae_u32 mmu_tagmask, mmu_pagemask, mmu_pagemaski;
@@ -108,7 +109,7 @@ void mmu_tt_modified (void)
 }
 
 
-#if 0
+#if MMUDUMP
 /* {{{ mmu_dump_table */
 static void mmu_dump_table(const char * label, uaecptr root_ptr)
 {
@@ -124,7 +125,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 	uaecptr ptr_des_addr, page_addr,
 		root_log, ptr_log, page_log;
 
-	write_log(_T("%s: root=%lx\n", label, root_ptr);
+	write_log(_T("%s: root=%lx\n"), label, root_ptr);
 
 	for (root_idx = 0; root_idx < ROOT_TABLE_SIZE; root_idx++) {
 		root_des = phys_get_long(root_ptr + root_idx);
@@ -132,7 +133,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 		if ((root_des & 2) == 0)
 			continue;	/* invalid */
 
-		write_log(_T("ROOT: %03d U=%d W=%d UDT=%02d\n", root_idx,
+		write_log(_T("ROOT: %03d U=%d W=%d UDT=%02d\n"), root_idx,
 				root_des & 8 ? 1 : 0,
 				root_des & 4 ? 1 : 0,
 				root_des & 3
@@ -187,7 +188,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 			if (n_pages_used == -1)
 				continue;
 
-			write_log(_T(" PTR: %03d U=%d W=%d UDT=%02d\n", ptr_idx,
+			write_log(_T(" PTR: %03d U=%d W=%d UDT=%02d\n"), ptr_idx,
 				ptr_des & 8 ? 1 : 0,
 				ptr_des & 4 ? 1 : 0,
 				ptr_des & 3
@@ -198,7 +199,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 				page_des = page_info[page_idx].match;
 
 				if ((page_des & MMU_PDT_MASK) == 2) {
-					write_log(_T("  PAGE: %03d-%03d log=%08lx INDIRECT --> addr=%08lx\n",
+					write_log(_T("  PAGE: %03d-%03d log=%08lx INDIRECT --> addr=%08lx\n"),
 							page_info[page_idx].start_idx,
 							page_info[page_idx].start_idx + page_info[page_idx].n_pages - 1,
 							page_info[page_idx].log,
@@ -206,7 +207,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 						  );
 
 				} else {
-					write_log(_T("  PAGE: %03d-%03d log=%08lx addr=%08lx UR=%02d G=%d U1/0=%d S=%d CM=%d M=%d U=%d W=%d\n",
+					write_log(_T("  PAGE: %03d-%03d log=%08lx addr=%08lx UR=%02d G=%d U1/0=%d S=%d CM=%d M=%d U=%d W=%d\n"),
 							page_info[page_idx].start_idx,
 							page_info[page_idx].start_idx + page_info[page_idx].n_pages - 1,
 							page_info[page_idx].log,
@@ -245,8 +246,8 @@ void mmu_dump_tables(void)
 	mmu_dump_ttr(_T("ITT0"), regs.itt0);
 	mmu_dump_ttr(_T("ITT1"), regs.itt1);
 	mmu_dump_atc();
-#if MMUDEBUG
-	// mmu_dump_table("SRP", regs.srp);
+#if MMUDUMP
+	mmu_dump_table("SRP", regs.srp);
 #endif
 }
 /* }}} */
@@ -665,6 +666,26 @@ uae_u32 REGPARAM2 mmu_get_long_unaligned(uaecptr addr, bool data, bool rmw)
 	return res;
 }
 
+uae_u32 REGPARAM2 mmu_get_ilong_unaligned(uaecptr addr)
+{
+	uae_u32 res;
+
+	if (likely(!(addr & 1))) {
+		res = (uae_u32)mmu_get_iword(addr, sz_long) << 16;
+		SAVE_EXCEPTION;
+		TRY(prb) {
+			res |= mmu_get_iword(addr + 2, sz_long);
+			RESTORE_EXCEPTION;
+		}
+		CATCH(prb) {
+			RESTORE_EXCEPTION;
+			misalignednotfirst(addr);
+			THROW_AGAIN(prb);
+		} ENDTRY
+	}
+	return res;
+}
+
 uae_u16 REGPARAM2 mmu_get_lrmw_word_unaligned(uaecptr addr)
 {
 	uae_u16 res;
@@ -724,7 +745,7 @@ uae_u8 REGPARAM2 mmu_get_byte_slow(uaecptr addr, bool super, bool data,
 		mmu_bus_error(addr, mmu_get_fc(super, data), 0, size, rmw, status);
 		return 0;
 	}
-	return phys_get_byte(mmu_get_real_address(addr, cl));
+	return x_phys_get_byte(mmu_get_real_address(addr, cl));
 }
 
 uae_u16 REGPARAM2 mmu_get_word_slow(uaecptr addr, bool super, bool data,
@@ -735,7 +756,17 @@ uae_u16 REGPARAM2 mmu_get_word_slow(uaecptr addr, bool super, bool data,
 		mmu_bus_error(addr, mmu_get_fc(super, data), 0, size, rmw, status);
 		return 0;
 	}
-	return phys_get_word(mmu_get_real_address(addr, cl));
+	return x_phys_get_word(mmu_get_real_address(addr, cl));
+}
+uae_u16 REGPARAM2 mmu_get_iword_slow(uaecptr addr, bool super,
+	int size, struct mmu_atc_line *cl)
+{
+	uae_u32 status;
+	if (!mmu_fill_atc_try(addr, super, false, 0, cl, &status)) {
+		mmu_bus_error(addr, mmu_get_fc(super, false), 0, size, false, status);
+		return 0;
+	}
+	return x_phys_get_iword(mmu_get_real_address(addr, cl));
 }
 
 uae_u32 REGPARAM2 mmu_get_long_slow(uaecptr addr, bool super, bool data,
@@ -746,7 +777,17 @@ uae_u32 REGPARAM2 mmu_get_long_slow(uaecptr addr, bool super, bool data,
 		mmu_bus_error(addr, mmu_get_fc(super, data), 0, size, rmw, status);
 		return 0;
 	}
-	return phys_get_long(mmu_get_real_address(addr, cl));
+	return x_phys_get_long(mmu_get_real_address(addr, cl));
+}
+uae_u32 REGPARAM2 mmu_get_ilong_slow(uaecptr addr, bool super,
+	int size, struct mmu_atc_line *cl)
+{
+	uae_u32 status;
+	if (!mmu_fill_atc_try(addr, super, false, 0, cl, &status)) {
+		mmu_bus_error(addr, mmu_get_fc(super, false), 0, size, false, status);
+		return 0;
+	}
+	return x_phys_get_ilong(mmu_get_real_address(addr, cl));
 }
 
 void REGPARAM2 mmu_put_long_unaligned(uaecptr addr, uae_u32 val, bool data, bool rmw)
@@ -797,7 +838,7 @@ void REGPARAM2 mmu_put_byte_slow(uaecptr addr, uae_u8 val, bool super, bool data
 		mmu_bus_error(addr, mmu_get_fc(super, data), 1, size, rmw, status);
 		return;
 	}
-	phys_put_byte(mmu_get_real_address(addr, cl), val);
+	x_phys_put_byte(mmu_get_real_address(addr, cl), val);
 }
 
 void REGPARAM2 mmu_put_word_slow(uaecptr addr, uae_u16 val, bool super, bool data,
@@ -809,7 +850,7 @@ void REGPARAM2 mmu_put_word_slow(uaecptr addr, uae_u16 val, bool super, bool dat
 		mmu_bus_error(addr, mmu_get_fc(super, data), 1, size, rmw, status);
 		return;
 	}
-	phys_put_word(mmu_get_real_address(addr, cl), val);
+	x_phys_put_word(mmu_get_real_address(addr, cl), val);
 }
 
 void REGPARAM2 mmu_put_long_slow(uaecptr addr, uae_u32 val, bool super, bool data,
@@ -821,7 +862,7 @@ void REGPARAM2 mmu_put_long_slow(uaecptr addr, uae_u32 val, bool super, bool dat
 		mmu_bus_error(addr, mmu_get_fc(super, data), 1, size, rmw, status);
 		return;
 	}
-	phys_put_long(mmu_get_real_address(addr, cl), val);
+	x_phys_put_long(mmu_get_real_address(addr, cl), val);
 }
 
 uae_u32 REGPARAM2 sfc_get_long(uaecptr addr)
@@ -987,9 +1028,9 @@ void mmu_get_move16(uaecptr addr, uae_u32 *v, bool data, int size)
 		uaecptr addr2 = addr + i * 4;
 		//                                       addr,super,data
 		if ((!regs.mmu_enabled) || (mmu_match_ttr(addr2,regs.s != 0,data,false)!=TTR_NO_MATCH))
-			v[i] = phys_get_long(addr2);
+			v[i] = x_phys_get_long(addr2);
 		else if (likely(mmu_lookup(addr2, data, false, &cl)))
-			v[i] = phys_get_long(mmu_get_real_address(addr2, cl));
+			v[i] = x_phys_get_long(mmu_get_real_address(addr2, cl));
 		else
 			v[i] = mmu_get_long_slow(addr2, regs.s != 0, data, size, false, cl);
 	}
@@ -1003,9 +1044,9 @@ void mmu_put_move16(uaecptr addr, uae_u32 *val, bool data, int size)
 		uaecptr addr2 = addr + i * 4;
 		//                                        addr,super,data
 		if ((!regs.mmu_enabled) || (mmu_match_ttr_write(addr2,regs.s != 0,data,val[i],size,false)==TTR_OK_MATCH))
-			phys_put_long(addr2,val[i]);
+			x_phys_put_long(addr2,val[i]);
 		else if (likely(mmu_lookup(addr2, data, true, &cl)))
-			phys_put_long(mmu_get_real_address(addr2, cl), val[i]);
+			x_phys_put_long(mmu_get_real_address(addr2, cl), val[i]);
 		else
 			mmu_put_long_slow(addr2, val[i], regs.s != 0, data, size, false, cl);
 	}
@@ -1140,6 +1181,26 @@ void REGPARAM2 mmu_flush_atc_all(bool global)
 void REGPARAM2 mmu_reset(void)
 {
 	mmu_flush_atc_all(true);
+
+	if (currprefs.cpu_cycle_exact || currprefs.cpu_compatible) {
+		x_phys_get_iword = get_word_icache040;
+		x_phys_get_ilong = get_long_icache040;
+		x_phys_get_byte = get_byte_cache_040;
+		x_phys_get_word = get_word_cache_040;
+		x_phys_get_long = get_long_cache_040;
+		x_phys_put_byte = put_byte_cache_040;
+		x_phys_put_word = put_word_cache_040;
+		x_phys_put_long = put_long_cache_040;
+	} else {
+		x_phys_get_iword = phys_get_word;
+		x_phys_get_ilong = phys_get_long;
+		x_phys_get_byte = phys_get_byte;
+		x_phys_get_word = phys_get_word;
+		x_phys_get_long = phys_get_long;
+		x_phys_put_byte = phys_put_byte;
+		x_phys_put_word = phys_put_word;
+		x_phys_put_long = phys_put_long;
+	}
 }
 
 
@@ -1154,7 +1215,11 @@ void REGPARAM2 mmu_set_tc(uae_u16 tc)
 
 	mmu_flush_atc_all(true);
 
-	write_log(_T("%d MMU: enabled=%d page8k=%d\n"), currprefs.mmu_model, regs.mmu_enabled, mmu_pagesize_8k);
+	write_log(_T("%d MMU: enabled=%d page8k=%d PC=%08x\n"), currprefs.mmu_model, regs.mmu_enabled, mmu_pagesize_8k, m68k_getpc());
+#if MMUDUMP
+	if (regs.mmu_enabled)
+		mmu_dump_tables();
+#endif
 }
 
 void REGPARAM2 mmu_set_super(bool super)

@@ -45,6 +45,8 @@ int special_mem;
 #endif
 static int mem_hardreset;
 
+#define FLASHEMU 0
+
 static bool isdirectjit (void)
 {
 	return currprefs.cachesize && !currprefs.comptrustbyte;
@@ -216,6 +218,10 @@ static bool gary_nonrange(uaecptr addr)
 
 void dummy_put (uaecptr addr, int size, uae_u32 val)
 {
+#if FLASHEMU
+	if (addr >= 0xf00000 && addr < 0xf80000 && size < 2)
+		flash_write(addr, val);
+#endif
 	if (gary_nonrange(addr) || (size > 1 && gary_nonrange(addr + size - 1))) {
 		if (gary_timeout)
 			gary_wait (addr, size, true);
@@ -228,15 +234,11 @@ uae_u32 dummy_get (uaecptr addr, int size, bool inst)
 {
 	uae_u32 v = NONEXISTINGDATA;
 
-#if 0
-	if (addr == 0xf00000 && size < 2) {
-		return 0xff;
-	}
-	if (addr >= 0xf60000 && addr < 0xf80000 && size < 2) {
-		//activate_debugger();
-		if (addr == 0xf60020)
-			return 0x8;
-		return v;
+#if FLASHEMU
+	if (addr >= 0xf00000 && addr < 0xf80000 && size < 2) {
+		if (addr < 0xf60000)
+			return flash_read(addr);
+		return 8;
 	}
 #endif
 
@@ -977,7 +979,6 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 #if defined(ENFORCER)
 			enforcer_disable ();
 #endif
-
 			if (be_cnt < 3) {
 				int i, j;
 				uaecptr a2 = a - 32;

@@ -1557,12 +1557,12 @@ static uae_u32 REGPARAM2 gayle_lget (uaecptr addr)
 	if (isa4000t (&addr)) {
 		if (addr >= NCR_ALT_OFFSET) {
 			addr &= NCR_MASK;
-			v = (ncr_io_bget_a4000t (addr + 3) << 0) | (ncr_io_bget_a4000t (addr + 2) << 8) |
-				(ncr_io_bget_a4000t (addr + 1) << 16) | (ncr_io_bget_a4000t (addr + 0) << 24);
+			v = (ncr710_io_bget_a4000t(addr + 3) << 0) | (ncr710_io_bget_a4000t(addr + 2) << 8) |
+				(ncr710_io_bget_a4000t(addr + 1) << 16) | (ncr710_io_bget_a4000t(addr + 0) << 24);
 		} else if (addr >= NCR_OFFSET) {
 			addr &= NCR_MASK;
-			v = (ncr_io_bget_a4000t (addr + 3) << 0) | (ncr_io_bget_a4000t (addr + 2) << 8) |
-				(ncr_io_bget_a4000t (addr + 1) << 16) | (ncr_io_bget_a4000t (addr + 0) << 24);
+			v = (ncr710_io_bget_a4000t(addr + 3) << 0) | (ncr710_io_bget_a4000t(addr + 2) << 8) |
+				(ncr710_io_bget_a4000t(addr + 1) << 16) | (ncr710_io_bget_a4000t(addr + 0) << 24);
 		}
 		return v;
 	}
@@ -1591,7 +1591,7 @@ static uae_u32 REGPARAM2 gayle_wget (uaecptr addr)
 	if (isa4000t (&addr)) {
 		if (addr >= NCR_OFFSET) {
 			addr &= NCR_MASK;
-			v = (ncr_io_bget_a4000t (addr) << 8) | ncr_io_bget_a4000t (addr + 1);
+			v = (ncr710_io_bget_a4000t(addr) << 8) | ncr710_io_bget_a4000t(addr + 1);
 		}
 		return v;
 	}
@@ -1614,7 +1614,7 @@ static uae_u32 REGPARAM2 gayle_bget (uaecptr addr)
 	if (isa4000t (&addr)) {
 		if (addr >= NCR_OFFSET) {
 			addr &= NCR_MASK;
-			return ncr_io_bget_a4000t (addr);
+			return ncr710_io_bget_a4000t(addr);
 		}
 		return 0;
 	}
@@ -1632,16 +1632,16 @@ static void REGPARAM2 gayle_lput (uaecptr addr, uae_u32 value)
 	if (isa4000t (&addr)) {
 		if (addr >= NCR_ALT_OFFSET) {
 			addr &= NCR_MASK;
-			ncr_io_bput_a4000t (addr + 3, value >> 0);
-			ncr_io_bput_a4000t (addr + 2, value >> 8);
-			ncr_io_bput_a4000t (addr + 1, value >> 16);
-			ncr_io_bput_a4000t (addr + 0, value >> 24);
+			ncr710_io_bput_a4000t(addr + 3, value >> 0);
+			ncr710_io_bput_a4000t(addr + 2, value >> 8);
+			ncr710_io_bput_a4000t(addr + 1, value >> 16);
+			ncr710_io_bput_a4000t(addr + 0, value >> 24);
 		} else if (addr >= NCR_OFFSET) {
 			addr &= NCR_MASK;
-			ncr_io_bput_a4000t (addr + 3, value >> 0);
-			ncr_io_bput_a4000t (addr + 2, value >> 8);
-			ncr_io_bput_a4000t (addr + 1, value >> 16);
-			ncr_io_bput_a4000t (addr + 0, value >> 24);
+			ncr710_io_bput_a4000t(addr + 3, value >> 0);
+			ncr710_io_bput_a4000t(addr + 2, value >> 8);
+			ncr710_io_bput_a4000t(addr + 1, value >> 16);
+			ncr710_io_bput_a4000t(addr + 0, value >> 24);
 		}
 		return;
 	}
@@ -1665,8 +1665,8 @@ static void REGPARAM2 gayle_wput (uaecptr addr, uae_u32 value)
 	if (isa4000t (&addr)) {
 		if (addr >= NCR_OFFSET) {
 			addr &= NCR_MASK;
-			ncr_io_bput_a4000t (addr, value >> 8);
-			ncr_io_bput_a4000t (addr + 1, value);
+			ncr710_io_bput_a4000t(addr, value >> 8);
+			ncr710_io_bput_a4000t(addr + 1, value);
 		}
 		return;
 	}
@@ -1689,7 +1689,7 @@ static void REGPARAM2 gayle_bput (uaecptr addr, uae_u32 value)
 	if (isa4000t (&addr)) {
 		if (addr >= NCR_OFFSET) {
 			addr &= NCR_MASK;
-			ncr_io_bput_a4000t (addr, value);
+			ncr710_io_bput_a4000t(addr, value);
 		}
 		return;
 	}
@@ -2287,9 +2287,9 @@ static void initsramattr (int size, int readonly)
 	*p++= 4; /* PCMCIA 2.1 */
 	*p++= 1;
 	if (real) {
-		ua_copy ((char*)p, -1, hfd->product_id);
+		ua_copy ((char*)p, 8, hfd->product_id);
 		p += strlen ((char*)p) + 1;
-		ua_copy ((char*)p, -1, hfd->product_rev);
+		ua_copy ((char*)p, 16, hfd->product_rev);
 	} else {
 		strcpy ((char*)p, "UAE");
 		p += strlen ((char*)p) + 1;
@@ -2841,8 +2841,8 @@ void gayle_reset (int hardreset)
 #ifdef NCR
 	if (currprefs.cs_mbdmac == 2) {
 		_tcscat (bankname, _T(" + NCR53C710 SCSI"));
-		ncr_init ();
-		ncr_reset ();
+		ncr710_init();
+		ncr710_reset();
 	}
 #endif
 	gayle_bank.name = bankname;

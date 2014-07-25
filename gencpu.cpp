@@ -181,10 +181,26 @@ static void cpulimit (void)
 	printf ("#ifndef CPUEMU_68000_ONLY\n");
 }
 
+static bool isce020(void)
+{
+	if (!using_ce020)
+		return false;
+	if (using_ce020 >= 3)
+		return false;
+	return true;
+}
+static bool isprefetch020(void)
+{
+	if (!using_prefetch_020)
+		return false;
+	if (using_prefetch_020 >= 3)
+		return false;
+	return true;
+}
 
 static void addcycles_ce020 (int cycles, char *s)
 {
-	if (!using_ce020)
+	if (!isce020())
 		return;
 	if (cycles > 0) {
 		if (s == NULL)
@@ -202,21 +218,21 @@ static void addcycles_ce020 (int cycles)
 
 static void get_prefetch_020 (void)
 {
-	if (!using_prefetch_020 || no_prefetch_ce020)
+	if (!isprefetch020() || no_prefetch_ce020)
 		return;
 	printf ("\tregs.irc = %s (%d);\n", prefetch_word, m68k_pc_offset);
 }
 static void get_prefetch_020_0 (void)
 {
-	if (!using_prefetch_020 || no_prefetch_ce020)
+	if (!isprefetch020() || no_prefetch_ce020)
 		return;
 	printf ("\tregs.irc = %s (0);\n", prefetch_word);
 }
 
 static void returntail (bool iswrite)
 {
-	if (!using_ce020) {
-		if (using_prefetch_020) {
+	if (!isce020()) {
+		if (isprefetch020()) {
 			if (!tail_ce020_done) {
 				if (!did_prefetch)
 					get_prefetch_020 ();
@@ -285,7 +301,7 @@ static void returncycles (char *s, int cycles)
 
 static void addcycles_ce020 (char *name, int head, int tail, int cycles)
 {
-	if (!using_ce020)
+	if (!isce020())
 		return;
 	if (!head && !tail && !cycles)
 		return;
@@ -293,7 +309,7 @@ static void addcycles_ce020 (char *name, int head, int tail, int cycles)
 }
 static void addcycles_ce020 (char *name, int head, int tail, int cycles, int ophead)
 {
-	if (!using_ce020)
+	if (!isce020())
 		return;
 	if (!head && !tail && !cycles && !ophead) {
 		printf ("\t/* OP zero */\n");
@@ -512,7 +528,7 @@ static const char *gen_nextibyte (int flags)
 static void makefromsr (void)
 {
 	printf ("\tMakeFromSR();\n");
-	if (using_ce || using_ce020)
+	if (using_ce || isce020())
 		printf ("\tregs.ipl_pin = intlev ();\n");
 }
 
@@ -520,7 +536,7 @@ static void check_ipl (void)
 {
 	if (ipl_fetched)
 		return;
-	if (using_ce || using_ce020)
+	if (using_ce || isce020())
 		printf ("\tipl_fetch ();\n");
 	ipl_fetched = true;
 }
@@ -570,7 +586,7 @@ static void fill_prefetch_full (void)
 		fill_prefetch_1 (0);
 		irc2ir ();
 		fill_prefetch_1 (2);
-	} else if (using_prefetch_020) {
+	} else if (isprefetch020()) {
 		did_prefetch = 2;
 		total_ce020 -= 4;
 		returntail (false);
@@ -749,7 +765,7 @@ static void head_cycs (int h)
 
 static void add_head_cycs (int h)
 {
-	if (!using_ce020)
+	if (!isce020())
 		return;
 	head_ce020_cycs_done = false;
 	head_cycs (h);
@@ -842,7 +858,7 @@ static void addopcycles_ce20 (int h, int t, int c, int subhead)
 
 static void addop_ce020 (instr *curi, int subhead)
 {
-	if (!using_ce020)
+	if (!isce020())
 		return;
 	int h = curi->head;
 	int t = curi->tail;
@@ -1555,7 +1571,7 @@ static void genamode (instr *curi, amodes mode, char *reg, wordsizes size, char 
 {
 	int oldfixup = mmufixupstate;
 	int subhead = 0;
-	if (using_ce020 && curi) {
+	if (isce020() && curi) {
 		switch (curi->fetchmode)
 		{
 		case fetchmode_fea:
@@ -1576,7 +1592,7 @@ static void genamode (instr *curi, amodes mode, char *reg, wordsizes size, char 
 		// we have fixup already active = this genamode call is destination mode and we can now clear previous source fixup.
 		clearmmufixup (0);
 	}
-	if (using_ce020 && curi)
+	if (isce020() && curi)
 		addop_ce020 (curi, subhead);
 }
 
@@ -1596,7 +1612,7 @@ static void genamodedual (instr *curi, amodes smode, char *sreg, wordsizes ssize
 	int subhead = 0;
 	bool eadmode = false;
 
-	if (using_ce020) {
+	if (isce020()) {
 		switch (curi->fetchmode)
 		{
 		case fetchmode_fea:
@@ -2578,6 +2594,23 @@ static void resetvars (void)
 			do_cycles = "do_cycles_ce020";
 			nextw = "next_iword_030ce";
 			nextl = "next_ilong_030ce";
+		} else if (using_ce020 == 3) {
+			// 68040/060 CE
+			disp020 = "x_get_disp_ea_040";
+			prefetch_long = "get_ilong_cache_040";
+			prefetch_word = "get_iword_cache_040";
+			srcli = "x_get_ilong";
+			srcwi = "x_get_iword";
+			srcbi = "x_get_ibyte";
+			srcl = "x_get_long";
+			dstl = "x_put_long";
+			srcw = "x_get_word";
+			dstw = "x_put_word";
+			srcb = "x_get_byte";
+			dstb = "x_put_byte";
+			do_cycles = "do_cycles_ce020";
+			nextw = "next_iword_cache040";
+			nextl = "next_ilong_cache040";
 		} else if (using_prefetch_020) {
 			disp020 = "x_get_disp_ea_020";
 			prefetch_word = "get_word_020_prefetch";
@@ -3229,7 +3262,7 @@ static void gen_opcode (unsigned long int opcode)
 			* - move.x xxx,[at least 1 extension word here] = fetch 1 extension word before (xxx)
 			*
 			*/
-			if (using_ce020) {
+			if (isce020()) {
 				// MOVE is too complex to handle in table68k
 				int h = 0, t = 0, c = 0, subhead = 0;
 				bool fea = false;
@@ -3749,7 +3782,7 @@ static void gen_opcode (unsigned long int opcode)
 		break;
 	case i_BSR:
 		// .b/.w = idle cycle, store high, store low, 2xprefetch
-		if (using_ce020)
+		if (isce020())
 			no_prefetch_ce020 = true;
 		printf ("\tuae_s32 s;\n");
 		if (curi->size == sz_long) {
@@ -5402,7 +5435,7 @@ static void generate_cpu (int id, int mode)
 	}
 
 	postfix = id;
-	if (id == 0 || id == 11 || id == 13 || id == 20 || id == 21 || id == 22 || id == 31 || id == 32 || id == 33) {
+	if (id == 0 || id == 11 || id == 13 || id == 20 || id == 21 || id == 22 || id == 23 || id == 31 || id == 32 || id == 33) {
 		if (generate_stbl)
 			fprintf (stblfile, "#ifdef CPUEMU_%d%s\n", postfix, extraup);
 		postfix2 = postfix;
@@ -5457,13 +5490,21 @@ static void generate_cpu (int id, int mode)
 		read_counts ();
 		for (rp = 0; rp < nr_cpuop_funcs; rp++)
 			opcode_next_clev[rp] = cpu_level;
-	} else if (id == 22 || id == 23 || id == 24) { // 68030/040/60 "cycle-exact"
-		cpu_level = 3 + (24 - id);
+	} else if (id == 22) { // 68030 "cycle-exact"
+		cpu_level = 3;
 		using_ce020 = 2;
 		using_prefetch_020 = 2;
 		memory_cycle_cnt = 2;
-		if (id == 22) {
-			read_counts ();
+		read_counts ();
+		for (rp = 0; rp < nr_cpuop_funcs; rp++)
+			opcode_next_clev[rp] = cpu_level;
+	} else if (id == 23 || id == 24) { // 68040/060 "cycle-exact"
+		cpu_level = id == 23 ? 5 : 4;
+		using_ce020 = 3;
+		using_prefetch_020 = 3;
+		memory_cycle_cnt = 0;
+		if (id == 23) {
+			read_counts();
 			for (rp = 0; rp < nr_cpuop_funcs; rp++)
 				opcode_next_clev[rp] = cpu_level;
 		}

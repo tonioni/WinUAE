@@ -323,12 +323,19 @@ extern void REGPARAM3 mmu060_put_rmw_bitfield (uae_u32 dst, uae_u32 bdata[2], ua
 extern uae_u16 REGPARAM3 mmu_get_word_unaligned(uaecptr addr, bool data, bool rmw) REGPARAM;
 extern uae_u32 REGPARAM3 mmu_get_long_unaligned(uaecptr addr, bool data, bool rmw) REGPARAM;
 
+extern uae_u32 REGPARAM3 mmu_get_ilong_unaligned(uaecptr addr) REGPARAM;
+
 extern uae_u8 REGPARAM3 mmu_get_byte_slow(uaecptr addr, bool super, bool data,
 										  int size, bool rmw, struct mmu_atc_line *cl) REGPARAM;
 extern uae_u16 REGPARAM3 mmu_get_word_slow(uaecptr addr, bool super, bool data,
 										   int size, bool rmw, struct mmu_atc_line *cl) REGPARAM;
 extern uae_u32 REGPARAM3 mmu_get_long_slow(uaecptr addr, bool super, bool data,
 										   int size, bool rmw, struct mmu_atc_line *cl) REGPARAM;
+
+extern uae_u16 REGPARAM3 mmu_get_iword_slow(uaecptr addr, bool super,
+										   int size, struct mmu_atc_line *cl) REGPARAM;
+extern uae_u32 REGPARAM3 mmu_get_ilong_slow(uaecptr addr, bool super,
+										   int size, struct mmu_atc_line *cl) REGPARAM;
 
 extern void REGPARAM3 mmu_put_word_unaligned(uaecptr addr, uae_u16 val, bool data, bool rmw) REGPARAM;
 extern void REGPARAM3 mmu_put_long_unaligned(uaecptr addr, uae_u32 val, bool data, bool rmw) REGPARAM;
@@ -394,10 +401,22 @@ static ALWAYS_INLINE uae_u32 mmu_get_long(uaecptr addr, bool data, int size, boo
 
 	//                                       addr,super,data
 	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,regs.s != 0,data,rmw)!=TTR_NO_MATCH))
-		return phys_get_long(addr);
+		return x_phys_get_long(addr);
 	if (likely(mmu_lookup(addr, data, false, &cl)))
-		return phys_get_long(mmu_get_real_address(addr, cl));
+		return x_phys_get_long(mmu_get_real_address(addr, cl));
 	return mmu_get_long_slow(addr, regs.s != 0, data, size, rmw, cl);
+}
+
+static ALWAYS_INLINE uae_u32 mmu_get_ilong(uaecptr addr, int size)
+{
+	struct mmu_atc_line *cl;
+
+	//                                       addr,super,data
+	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr, regs.s != 0, false, false) != TTR_NO_MATCH))
+		return x_phys_get_ilong(addr);
+	if (likely(mmu_lookup(addr, false, false, &cl)))
+		return x_phys_get_ilong(mmu_get_real_address(addr, cl));
+	return mmu_get_ilong_slow(addr, regs.s != 0, size, cl);
 }
 
 static ALWAYS_INLINE uae_u16 mmu_get_word(uaecptr addr, bool data, int size, bool rmw)
@@ -406,10 +425,22 @@ static ALWAYS_INLINE uae_u16 mmu_get_word(uaecptr addr, bool data, int size, boo
 
 	//                                       addr,super,data
 	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,regs.s != 0,data,rmw)!=TTR_NO_MATCH))
-		return phys_get_word(addr);
+		return x_phys_get_word(addr);
 	if (likely(mmu_lookup(addr, data, false, &cl)))
-		return phys_get_word(mmu_get_real_address(addr, cl));
+		return x_phys_get_word(mmu_get_real_address(addr, cl));
 	return mmu_get_word_slow(addr, regs.s != 0, data, size, rmw, cl);
+}
+
+static ALWAYS_INLINE uae_u16 mmu_get_iword(uaecptr addr, int size)
+{
+	struct mmu_atc_line *cl;
+
+	//                                       addr,super,data
+	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr, regs.s != 0, false, false) != TTR_NO_MATCH))
+		return x_phys_get_iword(addr);
+	if (likely(mmu_lookup(addr, false, false, &cl)))
+		return x_phys_get_iword(mmu_get_real_address(addr, cl));
+	return mmu_get_iword_slow(addr, regs.s != 0, size, cl);
 }
 
 static ALWAYS_INLINE uae_u8 mmu_get_byte(uaecptr addr, bool data, int size, bool rmw)
@@ -418,9 +449,9 @@ static ALWAYS_INLINE uae_u8 mmu_get_byte(uaecptr addr, bool data, int size, bool
 
 	//                                       addr,super,data
 	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,regs.s != 0,data,rmw)!=TTR_NO_MATCH))
-		return phys_get_byte(addr);
+		return x_phys_get_byte(addr);
 	if (likely(mmu_lookup(addr, data, false, &cl)))
-		return phys_get_byte(mmu_get_real_address(addr, cl));
+		return x_phys_get_byte(mmu_get_real_address(addr, cl));
 	return mmu_get_byte_slow(addr, regs.s != 0, data, size, rmw, cl);
 }
 
@@ -430,11 +461,11 @@ static ALWAYS_INLINE void mmu_put_long(uaecptr addr, uae_u32 val, bool data, int
 
 	//                                        addr,super,data
 	if ((!regs.mmu_enabled) || mmu_match_ttr_write(addr,regs.s != 0,data,val,size,rmw)==TTR_OK_MATCH) {
-		phys_put_long(addr,val);
+		x_phys_put_long(addr,val);
 		return;
 	}
 	if (likely(mmu_lookup(addr, data, true, &cl)))
-		phys_put_long(mmu_get_real_address(addr, cl), val);
+		x_phys_put_long(mmu_get_real_address(addr, cl), val);
 	else
 		mmu_put_long_slow(addr, val, regs.s != 0, data, size, rmw, cl);
 }
@@ -445,11 +476,11 @@ static ALWAYS_INLINE void mmu_put_word(uaecptr addr, uae_u16 val, bool data, int
 
 	//                                        addr,super,data
 	if ((!regs.mmu_enabled) || (mmu_match_ttr_write(addr,regs.s != 0,data,val,size,rmw)==TTR_OK_MATCH)) {
-		phys_put_word(addr,val);
+		x_phys_put_word(addr,val);
 		return;
 	}
 	if (likely(mmu_lookup(addr, data, true, &cl)))
-		phys_put_word(mmu_get_real_address(addr, cl), val);
+		x_phys_put_word(mmu_get_real_address(addr, cl), val);
 	else
 		mmu_put_word_slow(addr, val, regs.s != 0, data, size, rmw, cl);
 }
@@ -460,11 +491,11 @@ static ALWAYS_INLINE void mmu_put_byte(uaecptr addr, uae_u8 val, bool data, int 
 
 	//                                        addr,super,data
 	if ((!regs.mmu_enabled) || (mmu_match_ttr_write(addr,regs.s != 0,data,val,size,rmw)==TTR_OK_MATCH)) {
-		phys_put_byte(addr,val);
+		x_phys_put_byte(addr,val);
 		return;
 	}
 	if (likely(mmu_lookup(addr, data, true, &cl)))
-		phys_put_byte(mmu_get_real_address(addr, cl), val);
+		x_phys_put_byte(mmu_get_real_address(addr, cl), val);
 	else
 		mmu_put_byte_slow(addr, val, regs.s != 0, data, size, rmw, cl);
 }
@@ -475,9 +506,9 @@ static ALWAYS_INLINE uae_u32 mmu_get_user_long(uaecptr addr, bool super, bool da
 
 	//                                       addr,super,data
 	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,super,data,false)!=TTR_NO_MATCH))
-		return phys_get_long(addr);
+		return x_phys_get_long(addr);
 	if (likely(mmu_user_lookup(addr, super, data, write, &cl)))
-		return phys_get_long(mmu_get_real_address(addr, cl));
+		return x_phys_get_long(mmu_get_real_address(addr, cl));
 	return mmu_get_long_slow(addr, super, data, size, false, cl);
 }
 
@@ -487,9 +518,9 @@ static ALWAYS_INLINE uae_u16 mmu_get_user_word(uaecptr addr, bool super, bool da
 
 	//                                       addr,super,data
 	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,super,data,false)!=TTR_NO_MATCH))
-		return phys_get_word(addr);
+		return x_phys_get_word(addr);
 	if (likely(mmu_user_lookup(addr, super, data, write, &cl)))
-		return phys_get_word(mmu_get_real_address(addr, cl));
+		return x_phys_get_word(mmu_get_real_address(addr, cl));
 	return mmu_get_word_slow(addr, super, data, size, false, cl);
 }
 
@@ -499,9 +530,9 @@ static ALWAYS_INLINE uae_u8 mmu_get_user_byte(uaecptr addr, bool super, bool dat
 
 	//                                       addr,super,data
 	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,super,data,false)!=TTR_NO_MATCH))
-		return phys_get_byte(addr);
+		return x_phys_get_byte(addr);
 	if (likely(mmu_user_lookup(addr, super, data, write, &cl)))
-		return phys_get_byte(mmu_get_real_address(addr, cl));
+		return x_phys_get_byte(mmu_get_real_address(addr, cl));
 	return mmu_get_byte_slow(addr, super, data, size, false, cl);
 }
 
@@ -511,11 +542,11 @@ static ALWAYS_INLINE void mmu_put_user_long(uaecptr addr, uae_u32 val, bool supe
 
 	//                                        addr,super,data
 	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,super,data,false)==TTR_OK_MATCH)) {
-		phys_put_long(addr,val);
+		x_phys_put_long(addr,val);
 		return;
 	}
 	if (likely(mmu_user_lookup(addr, super, data, true, &cl)))
-		phys_put_long(mmu_get_real_address(addr, cl), val);
+		x_phys_put_long(mmu_get_real_address(addr, cl), val);
 	else
 		mmu_put_long_slow(addr, val, super, data, size, false, cl);
 }
@@ -526,11 +557,11 @@ static ALWAYS_INLINE void mmu_put_user_word(uaecptr addr, uae_u16 val, bool supe
 
 	//                                        addr,super,data
 	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,super,data,false)==TTR_OK_MATCH)) {
-		phys_put_word(addr,val);
+		x_phys_put_word(addr,val);
 		return;
 	}
 	if (likely(mmu_user_lookup(addr, super, data, true, &cl)))
-		phys_put_word(mmu_get_real_address(addr, cl), val);
+		x_phys_put_word(mmu_get_real_address(addr, cl), val);
 	else
 		mmu_put_word_slow(addr, val, super, data, size, false, cl);
 }
@@ -541,11 +572,11 @@ static ALWAYS_INLINE void mmu_put_user_byte(uaecptr addr, uae_u8 val, bool super
 
 	//                                        addr,super,data
 	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,super,data,false)==TTR_OK_MATCH)) {
-		phys_put_byte(addr,val);
+		x_phys_put_byte(addr,val);
 		return;
 	}
 	if (likely(mmu_user_lookup(addr, super, data, true, &cl)))
-		phys_put_byte(mmu_get_real_address(addr, cl), val);
+		x_phys_put_byte(mmu_get_real_address(addr, cl), val);
 	else
 		mmu_put_byte_slow(addr, val, super, data, size, false, cl);
 }
@@ -579,14 +610,12 @@ static ALWAYS_INLINE uae_u32 HWget_b(uaecptr addr)
 static ALWAYS_INLINE uae_u32 uae_mmu040_get_ilong(uaecptr addr)
 {
 	if (unlikely(is_unaligned(addr, 4)))
-		return mmu_get_long_unaligned(addr, false, false);
-	return mmu_get_long(addr, false, sz_long, false);
+		return mmu_get_ilong_unaligned(addr);
+	return mmu_get_ilong(addr, sz_long);
 }
 static ALWAYS_INLINE uae_u16 uae_mmu040_get_iword(uaecptr addr)
 {
-	if (unlikely(is_unaligned(addr, 2)))
-		return mmu_get_word_unaligned(addr, false, false);
-	return mmu_get_word(addr, false, sz_word, false);
+	return mmu_get_iword(addr, sz_word);
 }
 static ALWAYS_INLINE uae_u16 uae_mmu040_get_ibyte(uaecptr addr)
 {
@@ -632,14 +661,12 @@ static ALWAYS_INLINE void uae_mmu040_put_long(uaecptr addr, uae_u32 val)
 static ALWAYS_INLINE uae_u32 uae_mmu060_get_ilong(uaecptr addr)
 {
 	if (unlikely(is_unaligned(addr, 4)))
-		return mmu_get_long_unaligned(addr, false, false);
-	return mmu_get_long(addr, false, sz_long, false);
+		return mmu_get_ilong_unaligned(addr);
+	return mmu_get_ilong(addr, sz_long);
 }
 static ALWAYS_INLINE uae_u16 uae_mmu060_get_iword(uaecptr addr)
 {
-	if (unlikely(is_unaligned(addr, 2)))
-		return mmu_get_word_unaligned(addr, false, false);
-	return mmu_get_word(addr, false, sz_word, false);
+	return mmu_get_iword(addr, sz_word);
 }
 static ALWAYS_INLINE uae_u16 uae_mmu060_get_ibyte(uaecptr addr)
 {

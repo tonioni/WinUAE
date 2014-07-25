@@ -10,6 +10,10 @@
 #include "machdep/m68k.h"
 #include "events.h"
 
+#ifdef WITH_SOFTFLOAT
+#include <softfloat.h>
+#endif
+
 #ifndef SET_CFLG
 
 #define SET_CFLG(x) (CFLG() = (x))
@@ -72,7 +76,7 @@ typedef uae_u8 flagtype;
 
 #ifdef FPUEMU
 
-#if USE_LONG_DOUBLE
+#ifdef USE_LONG_DOUBLE
 typedef long double fptype;
 #define LDPTR tbyte ptr
 #else
@@ -105,16 +109,15 @@ struct cache030
 	uae_u32 tag;
 };
 
-#if 0
 #define CACHESETS040 64
 #define CACHELINES040 4
 struct cache040
 {
 	uae_u32 data[CACHELINES040][4];
+	bool dirty[CACHELINES040][4];
 	bool valid[CACHELINES040];
 	uae_u32 tag[CACHELINES040];
 };
-#endif
 
 struct mmufixup
 {
@@ -126,10 +129,8 @@ extern struct mmufixup mmufixup[2];
 typedef struct
 {
 	fptype fp;
-#ifdef USE_SOFT_LONG_DOUBLE
-	bool fpx;
-	uae_u32 fpm;
-	uae_u64 fpe;
+#ifdef WITH_SOFTFLOAT
+	floatx80 fpx;
 #endif
 } fpdata;
 
@@ -174,6 +175,7 @@ struct regstruct
 	fpdata exp_src1, exp_src2;
 	uae_u32 exp_pack[3];
 	uae_u16 exp_opcode, exp_extra, exp_type;
+	uae_u16 exp_size;
 	bool fp_exception;
 #endif
 #ifndef CPUEMU_68000_ONLY
@@ -204,6 +206,7 @@ struct regstruct
 	bool ce020memcycle_data;
 	int ce020_tail;
 	frame_time_t ce020_tail_cycles;
+	int memory_waitstate_cycles;
 };
 
 extern struct regstruct regs;
@@ -439,6 +442,25 @@ extern uae_u32 (*x_cp_next_ilong)(void);
 
 extern uae_u32 (REGPARAM3 *x_cp_get_disp_ea_020)(uae_u32 base, int idx) REGPARAM;
 
+extern void write_dcache030(uaecptr, uae_u32, int);
+extern uae_u32 read_dcache030(uaecptr, int);
+extern uae_u32 get_word_icache030(uaecptr addr);
+extern uae_u32 get_long_icache030(uaecptr addr);
+
+uae_u32 fill_icache040(uae_u32 addr);
+extern void put_long_cache_040(uaecptr, uae_u32);
+extern void put_word_cache_040(uaecptr, uae_u32);
+extern void put_byte_cache_040(uaecptr, uae_u32);
+extern uae_u32 get_ilong_cache_040(int);
+extern uae_u32 get_iword_cache_040(int);
+extern uae_u32 get_long_cache_040(uaecptr);
+extern uae_u32 get_word_cache_040(uaecptr);
+extern uae_u32 get_byte_cache_040(uaecptr);
+extern uae_u32 next_iword_cache040(void);
+extern uae_u32 next_ilong_cache040(void);
+extern uae_u32 get_word_icache040(uaecptr addr);
+extern uae_u32 get_long_icache040(uaecptr addr);
+
 extern void (*x_do_cycles)(unsigned long);
 extern void (*x_do_cycles_pre)(unsigned long);
 extern void (*x_do_cycles_post)(unsigned long, uae_u32);
@@ -446,6 +468,7 @@ extern void (*x_do_cycles_post)(unsigned long, uae_u32);
 extern uae_u32 REGPARAM3 x_get_disp_ea_020 (uae_u32 base, int idx) REGPARAM;
 extern uae_u32 REGPARAM3 x_get_disp_ea_ce020 (uae_u32 base, int idx) REGPARAM;
 extern uae_u32 REGPARAM3 x_get_disp_ea_ce030 (uae_u32 base, int idx) REGPARAM;
+extern uae_u32 REGPARAM3 x_get_disp_ea_040(uae_u32 base, int idx) REGPARAM;
 extern uae_u32 REGPARAM3 x_get_bitfield (uae_u32 src, uae_u32 bdata[2], uae_s32 offset, int width) REGPARAM;
 extern void REGPARAM3 x_put_bitfield (uae_u32 dst, uae_u32 bdata[2], uae_u32 val, uae_s32 offset, int width) REGPARAM;
 
@@ -511,6 +534,7 @@ extern void exception3i (uae_u32 opcode, uaecptr addr);
 extern void exception3b (uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc);
 extern void exception2 (uaecptr addr, bool read, int size, uae_u32 fc);
 extern void exception2_fake (uaecptr addr);
+extern void m68k_reset (void);
 extern void cpureset (void);
 extern void cpu_halt (int id);
 
@@ -522,15 +546,15 @@ extern void fill_prefetch_030 (void);
 
 /* 68060 */
 extern const struct cputbl op_smalltbl_0_ff[];
-extern const struct cputbl op_smalltbl_22_ff[]; // CE
+extern const struct cputbl op_smalltbl_23_ff[]; // CE
 extern const struct cputbl op_smalltbl_33_ff[]; // MMU
 /* 68040 */
 extern const struct cputbl op_smalltbl_1_ff[];
-extern const struct cputbl op_smalltbl_23_ff[]; // CE
+extern const struct cputbl op_smalltbl_24_ff[]; // CE
 extern const struct cputbl op_smalltbl_31_ff[]; // MMU
 /* 68030 */
 extern const struct cputbl op_smalltbl_2_ff[];
-extern const struct cputbl op_smalltbl_24_ff[]; // CE
+extern const struct cputbl op_smalltbl_22_ff[]; // CE
 extern const struct cputbl op_smalltbl_32_ff[]; // MMU
 /* 68020 */
 extern const struct cputbl op_smalltbl_3_ff[];

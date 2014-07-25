@@ -292,10 +292,14 @@ struct DeviceState
 };
 
 #define QEMUFile void*
-#define PCIDevice void*
+#define PCIDevice void
 typedef unsigned long dma_addr_t;
-#define PCI_DEVICE(s) (void**)s
+#define PCI_DEVICE(s) ((void*)(s->bus.privdata))
 #define DMA_ADDR_FMT "%08x"
+
+void pci710_set_irq(PCIDevice *pci_dev, int level);
+void lsi710_scsi_init(DeviceState *dev);
+void lsi710_scsi_reset(DeviceState *dev, void*);
 
 void pci_set_irq(PCIDevice *pci_dev, int level);
 void lsi_scsi_init(DeviceState *dev);
@@ -328,18 +332,30 @@ typedef enum {
     DMA_DIRECTION_FROM_DEVICE = 1,
 } DMADirection;
 
+int pci710_dma_rw(PCIDevice *dev, dma_addr_t addr, void *buf, dma_addr_t len, DMADirection dir);
+
+static inline int pci710_dma_read(PCIDevice *dev, dma_addr_t addr,
+                               void *buf, dma_addr_t len)
+{
+    return pci710_dma_rw(dev, addr, buf, len, DMA_DIRECTION_TO_DEVICE);
+}
+static inline int pci710_dma_write(PCIDevice *dev, dma_addr_t addr,
+                                const void *buf, dma_addr_t len)
+{
+    return pci710_dma_rw(dev, addr, (void *) buf, len, DMA_DIRECTION_FROM_DEVICE);
+}
+
 int pci_dma_rw(PCIDevice *dev, dma_addr_t addr, void *buf, dma_addr_t len, DMADirection dir);
 
 static inline int pci_dma_read(PCIDevice *dev, dma_addr_t addr,
-                               void *buf, dma_addr_t len)
+	void *buf, dma_addr_t len)
 {
-    return pci_dma_rw(dev, addr, buf, len, DMA_DIRECTION_TO_DEVICE);
+	return pci_dma_rw(dev, addr, buf, len, DMA_DIRECTION_TO_DEVICE);
 }
-
 static inline int pci_dma_write(PCIDevice *dev, dma_addr_t addr,
-                                const void *buf, dma_addr_t len)
+	const void *buf, dma_addr_t len)
 {
-    return pci_dma_rw(dev, addr, (void *) buf, len, DMA_DIRECTION_FROM_DEVICE);
+	return pci_dma_rw(dev, addr, (void *)buf, len, DMA_DIRECTION_FROM_DEVICE);
 }
 
 struct BusState {
@@ -352,6 +368,9 @@ struct BusState {
 //    QLIST_ENTRY(BusState) sibling;
 };
 
+
+extern void lsi710_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+extern uint64_t lsi710_mmio_read(void *opaque, hwaddr addr, unsigned size);
 
 extern void lsi_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);
 extern uint64_t lsi_mmio_read(void *opaque, hwaddr addr, unsigned size);

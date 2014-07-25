@@ -18,6 +18,53 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+- New statusline showed disk eject messages even if drive was already empty.
+- Added optional FPU emulation that uses softfloat library, another feature not for normal use.
+  Full 80-bit FP accuracy, bit-perfect results (not including trigonometric functions), supports FPU
+  arithmetic exceptions, much slower (Uses integer algorithms, host FPU is not used).
+- 270b6 "JIT MOVEM used direct mode if memory was direct capable but direct mode was disabled." was wrong
+  fix, original code probably was done to work around some JIT indirect bug.. (AmiKit crash during boot
+  if JIT is in indirect mode)
+
+
+Beta 4:
+
+- Added Blizzard 1230-IV and Blizzard 1260 board options. Do not use if you only want to run
+  WB and other programs, it is not JIT direct compatible due to memory address space aliasing.
+  Only emulates memory layout (which is Blizzard unique), matching CPU is not 100% required if you want to try
+  weird configs. Map ROM is also emulated, old map rom checkbox in ROM panel enables Blizzard hardware maprom
+  if Blizzard board is selected. Requires matching Blizzard flash ROM images. (Only difference between 1230IV
+  and 1240/1260 is slightly different boot rom, hardware ram addresses appear to be exact same)
+  Mostly useless, mainly meant to help development and testing. (Useful for aros m68k testing for me at least)
+- Added Warp Engine board emulation (It has already emulated 53C710 SCSI), autoconfig works, ROM code runs,
+  SCSI (53C710) does not work yet, not yet sure how jumpers are mapped to board address space.
+- Really fixed CD32 data track checks. (CD32 Commodore Demo Disc 2.0 MPEG tracks)
+- Disk Swapper panel drag'n'drop or file dialog multiselect mangled file names strangely.
+- Added A590 XT drive emulation. A590 emulation is now complete :)
+  WARNING: XT drives use real physical CHS geometry, don't attempt to use hardfiles formatted using other
+  controller, it won't work in real world. (Emulation includes work around hack) Largest XT
+  drive was 40M and protocol max limit is 511 cylinders, 15 heads and 63 sectors = ~235M.
+  Both SCSI and XT drive can be active at the same time in same controller.
+  Interesting fact about ROM xt.device: It uses WD33C93 Translate Address command to convert LBA to CHS
+  which means WD33C93 chip needs to be inserted and working or XT (which has nothing to with SCSI) port
+  won't work.
+- Fixed A590/A2091 SCSI emulation crash if SCSI ID was non-zero.
+- Z3 autoconfig was broken (b1).
+- Serial port data rate register (SERPER) was not saved correctly to statefile.
+- Serial port transmit interrupt and transmit related status bits are now more accurately timed in cycle-exact
+  CPU modes. (If some software really cares, probably not)
+- Inter-process serial port emulation added, when selected, automatically creates virtual null modem cable
+  between two winuae processes. Uses shared memory, no latency. (Says "Master" in serial port selection menu
+  if WinUAE instance created shared memory and "Slave" if shared memory was already created by some other instance.
+  If nothing = something failed)
+- Added support for short text messages, appears in OSD bar's unused space and windowed mode bottom bar. Currently
+  only shows disk image eject/insert and input device autoswitch information.
+  OSD messages won't appear in following configurations: native mode + DirectDraw + no filter and RTG
+  mode + DirectDraw. (In DirectDraw mode status bar is drawn directly to target surface, erasing gets annoying
+  because it should not be read. In D3D mode it is another texture, hardware does the rest)
+- Added remove all button to Disk Swapper panel.
+- Game controllers can be now optionally kept active when winuae window is not active or minimized.
+
 Beta 3:
 
 - Selected chipset extra didn't match what dialog box shows (b2). This broke many configs..

@@ -588,10 +588,13 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 			if (!a3000hmem_bank.start)
 				size += BARRIER;
 			got = TRUE;
-		} else if(!_tcscmp (shmids[shmid].name, _T("ramsey_high"))) {
-			shmaddr=natmem_offset + a3000hmem_bank.start;
+		} else if (!_tcscmp(shmids[shmid].name, _T("cyberstorm"))) {
+			shmaddr = natmem_offset + 0x0c000000;
 			got = TRUE;
-		} else if(!_tcscmp (shmids[shmid].name, _T("z3"))) {
+		} else if (!_tcscmp(shmids[shmid].name, _T("cyberstormmaprom"))) {
+			shmaddr = natmem_offset + 0xfff00000;
+			got = TRUE;
+		} else if (!_tcscmp(shmids[shmid].name, _T("z3"))) {
 			shmaddr=natmem_offset + z3fastmem_bank.start;
 			if (!currprefs.z3fastmem2_size)
 				size += BARRIER;

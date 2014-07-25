@@ -4623,6 +4623,10 @@ static void rethink_intreq (void)
 	rethink_akiko ();
 	rethink_cd32fmv();
 #endif
+#ifdef NCR
+	ncr_rethink();
+#endif
+	cpuboard_rethink();
 	rethink_gayle ();
 }
 
@@ -8028,7 +8032,8 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	gfxboard_reset ();
 #endif
 #ifdef NCR
-	ncr_reset ();
+	ncr710_reset();
+	ncr_reset();
 #endif
 #ifdef JIT
 	compemu_reset ();

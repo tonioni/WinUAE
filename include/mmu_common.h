@@ -147,4 +147,13 @@ static ALWAYS_INLINE uae_u32 phys_get_byte(uaecptr addr)
     return byteget (addr);
 }
 
+extern uae_u32(*x_phys_get_iword)(uaecptr);
+extern uae_u32(*x_phys_get_ilong)(uaecptr);
+extern uae_u32(*x_phys_get_byte)(uaecptr);
+extern uae_u32(*x_phys_get_word)(uaecptr);
+extern uae_u32(*x_phys_get_long)(uaecptr);
+extern void(*x_phys_put_byte)(uaecptr, uae_u32);
+extern void(*x_phys_put_word)(uaecptr, uae_u32);
+extern void(*x_phys_put_long)(uaecptr, uae_u32);
+
 #endif

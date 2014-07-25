@@ -715,60 +715,60 @@ genmovemel (uae_u16 opcode)
     comprintf ("\tint offset=0;\n");
     genamode (table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, 1);
 	if (table68k[opcode].size == sz_long)
-	    comprintf("\tif (!currprefs.comptrustlong && !special_mem) {\n");
+	    comprintf("\tif (1 && !special_mem) {\n");
 	else
-	    comprintf("\tif (!currprefs.comptrustword && !special_mem) {\n");
+	    comprintf("\tif (1 && !special_mem) {\n");
 
     /* Fast but unsafe...  */
-    comprintf("\tget_n_addr(srca,native,scratchie);\n");
+    comprintf("\t\tget_n_addr(srca,native,scratchie);\n");
 
 
-    comprintf("\tfor (i=0;i<16;i++) {\n"
-	      "\t\tif ((mask>>i)&1) {\n");
+    comprintf("\t\tfor (i=0;i<16;i++) {\n"
+	      "\t\t\tif ((mask>>i)&1) {\n");
     switch(table68k[opcode].size) {
      case sz_long:
-	comprintf("\t\t\tmov_l_rR(i,native,offset);\n"
-		  "\t\t\tgen_bswap_32(i);\n"
-		  "\t\t\toffset+=4;\n");
+	comprintf("\t\t\t\tmov_l_rR(i,native,offset);\n"
+		  "\t\t\t\tgen_bswap_32(i);\n"
+		  "\t\t\t\toffset+=4;\n");
 	break;
      case sz_word:
-	comprintf("\t\t\tmov_w_rR(i,native,offset);\n"
-		  "\t\t\tgen_bswap_16(i);\n"
-		  "\t\t\tsign_extend_16_rr(i,i);\n"
-		  "\t\t\toffset+=2;\n");
+	comprintf("\t\t\t\tmov_w_rR(i,native,offset);\n"
+		  "\t\t\t\tgen_bswap_16(i);\n"
+		  "\t\t\t\tsign_extend_16_rr(i,i);\n"
+		  "\t\t\t\toffset+=2;\n");
 	break;
      default: abort();
     }
-    comprintf("\t\t}\n"
-	      "\t}");
+    comprintf("\t\t\t}\n"
+	      "\t\t}\n");
     if (table68k[opcode].dmode == Aipi) {
-	comprintf("\t\t\tlea_l_brr(8+dstreg,srca,offset);\n");
+	comprintf("\t\tlea_l_brr(8+dstreg,srca,offset);\n");
     }
     /* End fast but unsafe.   */
 
     comprintf("\t} else {\n");
 
-    comprintf ("\tint tmp=scratchie++;\n");
+    comprintf ("\t\tint tmp=scratchie++;\n");
 
-    comprintf("\tmov_l_rr(tmp,srca);\n");
-    comprintf("\tfor (i=0;i<16;i++) {\n"
-	      "\t\tif ((mask>>i)&1) {\n");
+    comprintf("\t\tmov_l_rr(tmp,srca);\n");
+    comprintf("\t\tfor (i=0;i<16;i++) {\n"
+	      "\t\t\tif ((mask>>i)&1) {\n");
     switch(table68k[opcode].size) {
     case sz_long:
-	comprintf("\t\t\treadlong(tmp,i,scratchie);\n"
-		  "\t\t\tadd_l_ri(tmp,4);\n");
+	comprintf("\t\t\t\treadlong(tmp,i,scratchie);\n"
+		  "\t\t\t\tadd_l_ri(tmp,4);\n");
 	break;
     case sz_word:
-	comprintf("\t\t\treadword(tmp,i,scratchie);\n"
-		  "\t\t\tadd_l_ri(tmp,2);\n");
+	comprintf("\t\t\t\treadword(tmp,i,scratchie);\n"
+		  "\t\t\t\tadd_l_ri(tmp,2);\n");
 	break;
     default: abort();
     }
 
-    comprintf("\t\t}\n"
-	      "\t}");
+    comprintf("\t\t\t}\n"
+	      "\t\t}\n");
     if (table68k[opcode].dmode == Aipi) {
-	comprintf("\t\t\tmov_l_rr(8+dstreg,tmp);\n");
+	comprintf("\t\tmov_l_rr(8+dstreg,tmp);\n");
     }
     comprintf("\t}\n");
 
@@ -791,9 +791,9 @@ genmovemle (uae_u16 opcode)
        act of cleverness means that movmle must pay attention to special_mem,
        or Genetic Species is a rather boring-looking game ;-) */
 	if (table68k[opcode].size == sz_long)
-	    comprintf("\tif (!currprefs.comptrustlong && !special_mem) {\n");
+	    comprintf("\tif (1 && !special_mem) {\n");
 	else
-	    comprintf("\tif (!currprefs.comptrustword && !special_mem) {\n");
+	    comprintf("\tif (1 && !special_mem) {\n");
     comprintf("\tget_n_addr(srca,native,scratchie);\n");
 
     if (table68k[opcode].dmode!=Apdi) {

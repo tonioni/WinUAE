@@ -353,8 +353,8 @@ void statusline_vsync(void)
 		statusline_delay = STATUSLINE_MS * vblank_hz / (1000 * 1);
 	if (statusline_delay > STATUSLINE_MS * vblank_hz / (1000 * 1))
 		statusline_delay = STATUSLINE_MS * vblank_hz / (1000 * 1);
-	if (statusline_delay > STATUSLINE_MS * vblank_hz / (1000 * 2) && statusline_text[1])
-		statusline_delay = STATUSLINE_MS * vblank_hz / (1000 * 2);
+	if (statusline_delay > STATUSLINE_MS * vblank_hz / (1000 * 3) && statusline_text[1])
+		statusline_delay = STATUSLINE_MS * vblank_hz / (1000 * 3);
 	statusline_delay--;
 	if (statusline_delay)
 		return;

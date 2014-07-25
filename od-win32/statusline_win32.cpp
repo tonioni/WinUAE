@@ -11,6 +11,8 @@
 #include "picasso96_win.h"
 #include "win32gfx.h"
 #include "statusline.h"
+#include "gui.h"
+#include "xwin.h"
 
 static HDC statusline_hdc;
 static HBITMAP statusline_bitmap;
@@ -112,22 +114,32 @@ void statusline_render(uae_u8 *buf, int bpp, int pitch, int width, int height, u
 	uae_u32 white = rc[0xff] | gc[0xff] | bc[0xff] | (alpha ? alpha[0xff] : 0);
 	uae_u32 back = rc[0x00] | gc[0x00] | bc[0x00] | (alpha ? alpha[0xa0] : 0);
 	const TCHAR *text;
-	int y = -1;
-	int x = 10;
+	int y = -1, x = 10, textwidth = 0;
+	int bar_xstart;
 
-	if (currprefs.gf[WIN32GFX_IsPicassoScreen()].gfx_filter == 0)
+	if (currprefs.gf[WIN32GFX_IsPicassoScreen()].gfx_filter == 0 && !currprefs.gfx_api)
 		return;
 	text = statusline_fetch();
 	//text = _T("Testing string 123!");
 	if (!text)
 		return;
 	BitBlt(statusline_hdc, 0, 0, statusline_width, statusline_height, NULL, 0, 0, BLACKNESS);
-#if 0
+
 	SIZE size;
 	if (GetTextExtentPoint32(statusline_hdc, text, _tcslen(text), &size)) {
-		int w = size.cx;
+		textwidth = size.cx;
+		if (isfullscreen()) {
+			if (td_pos & TD_RIGHT) {
+				bar_xstart = width - TD_PADX - VISIBLE_LEDS * TD_WIDTH;
+				x = bar_xstart - textwidth - TD_LED_WIDTH;
+			} else {
+				bar_xstart = TD_PADX;
+				x = bar_xstart + textwidth + TD_LED_WIDTH;
+			}
+		}
 	}
-#endif
+	if (x < 0)
+		x = 0;
 	TextOut(statusline_hdc, x, y, text, _tcslen(text));
 
 	for (int y = 0; y < height && y < statusline_height; y++) {

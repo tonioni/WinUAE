@@ -4222,7 +4222,7 @@ void InitializeListView (HWND hDlg)
 					_T("A3000:%s"),
 					_T("A4000T:%s"),
 					_T("CDTV:%s"),
-					_T("WarpEngine:%s")
+					_T("Accelerator:%s")
 				};
 				if (ci->controller_unit == 7 && (ctype == HD_CONTROLLER_TYPE_SCSI_A2091 || ctype == HD_CONTROLLER_TYPE_SCSI_A2091_2))
 					_tcscpy(sid, _T("XT"));
@@ -7659,6 +7659,7 @@ static void values_to_memorydlg (HWND hDlg)
 	case 0x02000000: mem_size = 6; break;
 	case 0x04000000: mem_size = 7; break;
 	case 0x08000000: mem_size = 8; break;
+	case 0x10000000: mem_size = 9; break;
 	}
 	SendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText (hDlg, IDC_CPUBOARDRAM, memsize_names[msi_gfx[mem_size]]);
@@ -8154,8 +8155,11 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("-"));
 		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 1230 IV"));
 		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 1260"));
-		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 2060 (Do not use)"));
-		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Warp Engine A4000"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 2060 (Do not use)"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("CyberStorm MK III"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("CyberStorm PPC (NO PPC CPU!)"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard PPC (NO PPC CPU!)"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Warp Engine A4000"));
 
 	case WM_USER:
 		workprefs.fastmem_autoconfig = ischecked (hDlg, IDC_FASTMEMAUTOCONFIG);
@@ -9019,9 +9023,9 @@ static void enable_for_cpudlg (HWND hDlg)
 
 	ew (hDlg, IDC_SPEED, !workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_COMPATIBLE24, workprefs.cpu_model == 68020);
-	ew (hDlg, IDC_CS_HOST, !workprefs.cpu_cycle_exact);
-	ew (hDlg, IDC_CS_68000, !workprefs.cpu_cycle_exact);
-	ew (hDlg, IDC_CS_ADJUSTABLE, !workprefs.cpu_cycle_exact);
+	//ew (hDlg, IDC_CS_HOST, !workprefs.cpu_cycle_exact);
+	//ew (hDlg, IDC_CS_68000, !workprefs.cpu_cycle_exact);
+	//ew (hDlg, IDC_CS_ADJUSTABLE, !workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_CPUIDLE, workprefs.m68k_speed != 0 ? TRUE : FALSE);
 #if !defined(CPUEMU_0) || defined(CPUEMU_68000_ONLY)
 	ew (hDlg, IDC_CPU1, FALSE);
@@ -9168,8 +9172,8 @@ static void values_from_cpudlg (HWND hDlg)
 		if (workprefs.cpu_compatible || workprefs.cpu_cycle_exact)
 			workprefs.fpu_model = 0;
 		workprefs.address_space_24 = 1;
-		if (newcpu == 0 && workprefs.cpu_cycle_exact)
-			workprefs.m68k_speed = 0;
+//		if (newcpu == 0 && workprefs.cpu_cycle_exact)
+//			workprefs.m68k_speed = 0;
 		break;
 	case 68020:
 		workprefs.fpu_model = newfpu == 0 ? 0 : (newfpu == 2 ? 68882 : 68881);
@@ -10099,8 +10103,8 @@ static void inithdcontroller (HWND hDlg, int ctype, int devtype)
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A3000 SCSI"));
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A4000T SCSI"));
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("CDTV SCSI"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Warp Engine SCSI"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("PCMCIA SRAM"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Accelerator board SCSI"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("PCMCIA SRAM"));
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("PCMCIA IDE"));
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, ctype, 0);
 
