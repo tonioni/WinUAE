@@ -54,7 +54,7 @@ static void log_error(int track)
 	write_log (_T("DMS: Ignored error on track %d!\n"), track);
 }
 
-static void addextra(TCHAR *name, struct zfile **extra, uae_u8 *p, int size)
+static void addextra(const TCHAR *name, struct zfile **extra, uae_u8 *p, int size)
 {
 	int i;
 	struct zfile *zf = NULL;
@@ -244,7 +244,6 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 		else {
 			Init_Decrunchers();
 			for (;;) {
-				int ok = 0;
 				ret = Process_Track(fi,fo,b1,b2,cmd,opt,geninfo,extra);
 				if (ret == DMS_FILE_END)
 					break;
@@ -252,6 +251,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 					continue;
 				break;
 #if 0
+				int ok = 0;
 				while (!ok) {
 					uae_u8 b1[THLEN];
 
