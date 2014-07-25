@@ -173,7 +173,7 @@ static void REGPARAM2 blizzardram_nojit_bput(uaecptr addr, uae_u32 b)
 	blizzardram_nojit_bank.baseaddr[addr] = b;
 }
 
-static addrbank blizzardram_nojit_bank = {
+addrbank blizzardram_nojit_bank = {
 	blizzardram_nojit_lget, blizzardram_nojit_wget, blizzardram_nojit_bget,
 	blizzardram_nojit_lput, blizzardram_nojit_wput, blizzardram_nojit_bput,
 	blizzardram_nojit_xlate, blizzardram_nojit_check, NULL, _T("CPUBoard RAM"),
@@ -237,7 +237,7 @@ static void REGPARAM2 blizzardmaprom_bput(uaecptr addr, uae_u32 b)
 	}
 }
 
-static addrbank blizzardmaprom_bank = {
+addrbank blizzardmaprom_bank = {
 	blizzardmaprom_lget, blizzardmaprom_wget, blizzardmaprom_bget,
 	blizzardmaprom_lput, blizzardmaprom_wput, blizzardmaprom_bput,
 	blizzardmaprom_xlate, blizzardmaprom_check, NULL, _T("CPUBoard MAPROM"),
@@ -254,7 +254,7 @@ MEMORY_LGET(blizzardea, 0);
 MEMORY_CHECK(blizzardea);
 MEMORY_XLATE(blizzardea);
 
-static addrbank blizzardea_bank = {
+addrbank blizzardea_bank = {
 	blizzardea_lget, blizzardea_wget, blizzardea_bget,
 	blizzardea_lput, blizzardea_wput, blizzardea_bput,
 	blizzardea_xlate, blizzardea_check, NULL, _T("Blizzard EA Autoconfig"),
@@ -276,7 +276,7 @@ static uae_u8 *REGPARAM2 blizzarde8_xlate(uaecptr addr)
 	return NULL;
 }
 
-static addrbank blizzarde8_bank = {
+addrbank blizzarde8_bank = {
 	blizzarde8_lget, blizzarde8_wget, blizzarde8_bget,
 	blizzarde8_lput, blizzarde8_wput, blizzarde8_bput,
 	blizzarde8_xlate, blizzarde8_check, NULL, _T("Blizzard E8 Autoconfig"),
@@ -397,7 +397,7 @@ static void REGPARAM2 blizzardf0_bput(uaecptr addr, uae_u32 b)
 MEMORY_CHECK(blizzardf0);
 MEMORY_XLATE(blizzardf0);
 
-static addrbank blizzardf0_bank = {
+addrbank blizzardf0_bank = {
 	blizzardf0_lget, blizzardf0_wget, blizzardf0_bget,
 	blizzardf0_lput, blizzardf0_wput, blizzardf0_bput,
 	blizzardf0_xlate, blizzardf0_check, NULL, _T("CPUBoard F00000"),
@@ -685,7 +685,7 @@ static void REGPARAM2 blizzardio_lput(uaecptr addr, uae_u32 v)
 		write_log(_T("CS IO LPUT %08x %08x\n"), addr, v);
 	}
 }
-static addrbank blizzardio_bank = {
+addrbank blizzardio_bank = {
 	blizzardio_lget, blizzardio_wget, blizzardio_bget,
 	blizzardio_lput, blizzardio_wput, blizzardio_bput,
 	default_xlate, default_check, NULL, _T("CPUBoard IO"),
@@ -953,7 +953,7 @@ addrbank *cpuboard_autoconfig_init(void)
 	}
 
 	if (!autoconfig_rom && roms[0] != -1) {
-		write_log (_T("ROM id %d not found for CPU board emulation\n"));
+		write_log (_T("ROM id %d not found for CPU board emulation\n"), roms[0]);
 		expamem_next();
 		return NULL;
 	}
