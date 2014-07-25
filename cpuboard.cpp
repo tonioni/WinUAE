@@ -115,19 +115,24 @@ static bool is_blizzardppc(void)
 	return currprefs.cpuboard_type == BOARD_BLIZZARDPPC;
 }
 
-extern addrbank blizzardram_bank;
-extern addrbank blizzardram_nojit_bank;
-extern addrbank blizzardmaprom_bank;
-extern addrbank blizzardea_bank;
-extern addrbank blizzardf0_bank;
+DECLARE_MEMORY_FUNCTIONS(blizzardram);
 
-MEMORY_FUNCTIONS(blizzardram);
-
-addrbank blizzardram_bank = {
+static addrbank blizzardram_bank = {
 	blizzardram_lget, blizzardram_wget, blizzardram_bget,
 	blizzardram_lput, blizzardram_wput, blizzardram_bput,
 	blizzardram_xlate, blizzardram_check, NULL, _T("CPUBoard RAM"),
 	blizzardram_lget, blizzardram_wget, ABFLAG_RAM
+};
+
+MEMORY_FUNCTIONS(blizzardram);
+
+DECLARE_MEMORY_FUNCTIONS(blizzardram_nojit);
+
+static addrbank blizzardram_nojit_bank = {
+	blizzardram_nojit_lget, blizzardram_nojit_wget, blizzardram_nojit_bget,
+	blizzardram_nojit_lput, blizzardram_nojit_wput, blizzardram_nojit_bput,
+	blizzardram_nojit_xlate, blizzardram_nojit_check, NULL, _T("CPUBoard RAM"),
+	blizzardram_nojit_lget, blizzardram_nojit_wget, ABFLAG_RAM
 };
 
 MEMORY_BGET(blizzardram_nojit, 1);
@@ -173,11 +178,13 @@ static void REGPARAM2 blizzardram_nojit_bput(uaecptr addr, uae_u32 b)
 	blizzardram_nojit_bank.baseaddr[addr] = b;
 }
 
-addrbank blizzardram_nojit_bank = {
-	blizzardram_nojit_lget, blizzardram_nojit_wget, blizzardram_nojit_bget,
-	blizzardram_nojit_lput, blizzardram_nojit_wput, blizzardram_nojit_bput,
-	blizzardram_nojit_xlate, blizzardram_nojit_check, NULL, _T("CPUBoard RAM"),
-	blizzardram_nojit_lget, blizzardram_nojit_wget, ABFLAG_RAM
+DECLARE_MEMORY_FUNCTIONS(blizzardmaprom);
+
+static addrbank blizzardmaprom_bank = {
+	blizzardmaprom_lget, blizzardmaprom_wget, blizzardmaprom_bget,
+	blizzardmaprom_lput, blizzardmaprom_wput, blizzardmaprom_bput,
+	blizzardmaprom_xlate, blizzardmaprom_check, NULL, _T("CPUBoard MAPROM"),
+	blizzardmaprom_lget, blizzardmaprom_wget, ABFLAG_RAM
 };
 
 MEMORY_BGET(blizzardmaprom, 1);
@@ -237,16 +244,14 @@ static void REGPARAM2 blizzardmaprom_bput(uaecptr addr, uae_u32 b)
 	}
 }
 
-addrbank blizzardmaprom_bank = {
-	blizzardmaprom_lget, blizzardmaprom_wget, blizzardmaprom_bget,
-	blizzardmaprom_lput, blizzardmaprom_wput, blizzardmaprom_bput,
-	blizzardmaprom_xlate, blizzardmaprom_check, NULL, _T("CPUBoard MAPROM"),
-	blizzardmaprom_lget, blizzardmaprom_wget, ABFLAG_RAM
-};
+DECLARE_MEMORY_FUNCTIONS(blizzardea);
 
-static void REGPARAM3 blizzardea_lput(uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 blizzardea_wput(uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 blizzardea_bput(uaecptr, uae_u32) REGPARAM;
+static addrbank blizzardea_bank = {
+	blizzardea_lget, blizzardea_wget, blizzardea_bget,
+	blizzardea_lput, blizzardea_wput, blizzardea_bput,
+	blizzardea_xlate, blizzardea_check, NULL, _T("Blizzard EA Autoconfig"),
+	blizzardea_lget, blizzardea_wget, ABFLAG_IO | ABFLAG_SAFE
+};
 
 MEMORY_BGET(blizzardea, 0);
 MEMORY_WGET(blizzardea, 0);
@@ -254,19 +259,15 @@ MEMORY_LGET(blizzardea, 0);
 MEMORY_CHECK(blizzardea);
 MEMORY_XLATE(blizzardea);
 
-addrbank blizzardea_bank = {
-	blizzardea_lget, blizzardea_wget, blizzardea_bget,
-	blizzardea_lput, blizzardea_wput, blizzardea_bput,
-	blizzardea_xlate, blizzardea_check, NULL, _T("Blizzard EA Autoconfig"),
-	blizzardea_lget, blizzardea_wget, ABFLAG_IO | ABFLAG_SAFE
+DECLARE_MEMORY_FUNCTIONS(blizzarde8);
+
+static addrbank blizzarde8_bank = {
+	blizzarde8_lget, blizzarde8_wget, blizzarde8_bget,
+	blizzarde8_lput, blizzarde8_wput, blizzarde8_bput,
+	blizzarde8_xlate, blizzarde8_check, NULL, _T("Blizzard E8 Autoconfig"),
+	blizzarde8_lget, blizzarde8_wget, ABFLAG_IO | ABFLAG_SAFE
 };
 
-static void REGPARAM3 blizzarde8_lput(uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 blizzarde8_wput(uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 blizzarde8_bput(uaecptr, uae_u32) REGPARAM;
-static uae_u32 REGPARAM3 blizzarde8_lget(uaecptr) REGPARAM;
-static uae_u32 REGPARAM3 blizzarde8_wget(uaecptr) REGPARAM;
-static uae_u32 REGPARAM3 blizzarde8_bget(uaecptr) REGPARAM;
 static int REGPARAM2 blizzarde8_check(uaecptr addr, uae_u32 size)
 {
 	return 0;
@@ -276,11 +277,13 @@ static uae_u8 *REGPARAM2 blizzarde8_xlate(uaecptr addr)
 	return NULL;
 }
 
-addrbank blizzarde8_bank = {
-	blizzarde8_lget, blizzarde8_wget, blizzarde8_bget,
-	blizzarde8_lput, blizzarde8_wput, blizzarde8_bput,
-	blizzarde8_xlate, blizzarde8_check, NULL, _T("Blizzard E8 Autoconfig"),
-	blizzarde8_lget, blizzarde8_wget, ABFLAG_IO | ABFLAG_SAFE
+DECLARE_MEMORY_FUNCTIONS(blizzardf0);
+
+static addrbank blizzardf0_bank = {
+	blizzardf0_lget, blizzardf0_wget, blizzardf0_bget,
+	blizzardf0_lput, blizzardf0_wput, blizzardf0_bput,
+	blizzardf0_xlate, blizzardf0_check, NULL, _T("CPUBoard F00000"),
+	blizzardf0_lget, blizzardf0_wget, ABFLAG_ROM
 };
 
 static uae_u32 REGPARAM2 blizzardf0_lget(uaecptr addr)
@@ -396,13 +399,6 @@ static void REGPARAM2 blizzardf0_bput(uaecptr addr, uae_u32 b)
 
 MEMORY_CHECK(blizzardf0);
 MEMORY_XLATE(blizzardf0);
-
-addrbank blizzardf0_bank = {
-	blizzardf0_lget, blizzardf0_wget, blizzardf0_bget,
-	blizzardf0_lput, blizzardf0_wput, blizzardf0_bput,
-	blizzardf0_xlate, blizzardf0_check, NULL, _T("CPUBoard F00000"),
-	blizzardf0_lget, blizzardf0_wget, ABFLAG_ROM
-};
 
 static void REGPARAM2 blizzardea_lput(uaecptr addr, uae_u32 b)
 {
@@ -534,6 +530,14 @@ void blizzardppc_irq(int level)
 	cpuboard_rethink();
 }
 
+DECLARE_MEMORY_FUNCTIONS(blizzardio);
+
+static addrbank blizzardio_bank = {
+	blizzardio_lget, blizzardio_wget, blizzardio_bget,
+	blizzardio_lput, blizzardio_wput, blizzardio_bput,
+	default_xlate, default_check, NULL, _T("CPUBoard IO"),
+	blizzardio_wget, blizzardio_bget, ABFLAG_IO
+};
 
 static uae_u32 REGPARAM2 blizzardio_bget(uaecptr addr)
 {
@@ -685,12 +689,6 @@ static void REGPARAM2 blizzardio_lput(uaecptr addr, uae_u32 v)
 		write_log(_T("CS IO LPUT %08x %08x\n"), addr, v);
 	}
 }
-addrbank blizzardio_bank = {
-	blizzardio_lget, blizzardio_wget, blizzardio_bget,
-	blizzardio_lput, blizzardio_wput, blizzardio_bput,
-	default_xlate, default_check, NULL, _T("CPUBoard IO"),
-	blizzardio_wget, blizzardio_bget, ABFLAG_IO
-};
 
 void cpuboard_vsync(void)
 {
