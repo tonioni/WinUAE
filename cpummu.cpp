@@ -110,6 +110,69 @@ void mmu_tt_modified (void)
 
 
 #if MMUDUMP
+
+/* This dump output makes much more sense than old one */
+
+#define LEVELA_SIZE 7
+#define LEVELB_SIZE 7
+#define LEVELC_SIZE 6
+#define PAGE_SIZE 12 // = 1 << 12 = 4096
+
+#define LEVELA_VAL(x) ((((uae_u32)(x)) >> (32 - (LEVELA_SIZE                            ))) & ((1 << LEVELA_SIZE) - 1))
+#define LEVELB_VAL(x) ((((uae_u32)(x)) >> (32 - (LEVELA_SIZE + LEVELB_SIZE              ))) & ((1 << LEVELB_SIZE) - 1))
+#define LEVELC_VAL(x) ((((uae_u32)(x)) >> (32 - (LEVELA_SIZE + LEVELB_SIZE + LEVELC_SIZE))) & ((1 << LEVELC_SIZE) - 1))
+
+#define LEVELA(root, x) (get_long(root + LEVELA_VAL(x) * 4))
+#define LEVELB(a, x) (get_long((((uae_u32)a) & ~((1 << (LEVELB_SIZE + 2)) - 1)) + LEVELB_VAL(x) * 4))
+#define LEVELC(b, x) (get_long((((uae_u32)b) & ~((1 << (LEVELC_SIZE + 2)) - 1)) + LEVELC_VAL(x) * 4))
+
+#define ISINVALID(x) ((((ULONG)x) & 3) == 0)
+
+static uae_u32 getdesc(uae_u32 root, uae_u32 addr)
+{
+	ULONG desc;
+
+	desc = LEVELA(root, addr);
+	if (ISINVALID(desc))
+		return desc;
+	desc = LEVELB(desc, addr);
+	if (ISINVALID(desc))
+		return desc;
+	desc = LEVELC(desc, addr);
+	return desc;
+}
+static void mmu_dump_table(const char * label, uaecptr root_ptr)
+{
+	ULONG i;
+	ULONG startaddr;
+	ULONG odesc;
+	ULONG totalpages;
+	ULONG pagemask = (1 << PAGE_SIZE) - 1;
+
+	console_out_f(_T("MMU dump start. Root = %08x\n"), root_ptr);
+	totalpages = 1 << (32 - PAGE_SIZE);
+	startaddr = 0;
+	odesc = getdesc(root_ptr, startaddr);
+	for (i = 0; i <= totalpages; i++) {
+		ULONG addr = i << PAGE_SIZE;
+		ULONG desc = 0;
+		if (i < totalpages)
+			desc = getdesc(root_ptr, addr);
+		if ((desc & pagemask) != (odesc & pagemask) || i == totalpages) {
+			uae_u8 cm, sp;
+			cm = (odesc >> 5) & 3;
+			sp = (odesc >> 7) & 1;
+			console_out_f(_T("%08x - %08x: %08x WP=%d S=%d CM=%d (%08x)\n"),
+				startaddr, addr - 1, odesc & ~((1 << PAGE_SIZE) - 1),
+				(odesc & 4) ? 1 : 0, sp, cm, odesc);
+			startaddr = addr;
+			odesc = desc;
+		}
+	}
+	console_out_f(_T("MMU dump end\n"));
+}			
+
+#else
 /* {{{ mmu_dump_table */
 static void mmu_dump_table(const char * label, uaecptr root_ptr)
 {
@@ -125,7 +188,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 	uaecptr ptr_des_addr, page_addr,
 		root_log, ptr_log, page_log;
 
-	write_log(_T("%s: root=%lx\n"), label, root_ptr);
+	console_out_f(_T("%s: root=%lx\n"), label, root_ptr);
 
 	for (root_idx = 0; root_idx < ROOT_TABLE_SIZE; root_idx++) {
 		root_des = phys_get_long(root_ptr + root_idx);
@@ -133,7 +196,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 		if ((root_des & 2) == 0)
 			continue;	/* invalid */
 
-		write_log(_T("ROOT: %03d U=%d W=%d UDT=%02d\n"), root_idx,
+		console_out_f(_T("ROOT: %03d U=%d W=%d UDT=%02d\n"), root_idx,
 				root_des & 8 ? 1 : 0,
 				root_des & 4 ? 1 : 0,
 				root_des & 3
@@ -188,7 +251,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 			if (n_pages_used == -1)
 				continue;
 
-			write_log(_T(" PTR: %03d U=%d W=%d UDT=%02d\n"), ptr_idx,
+			console_out_f(_T(" PTR: %03d U=%d W=%d UDT=%02d\n"), ptr_idx,
 				ptr_des & 8 ? 1 : 0,
 				ptr_des & 4 ? 1 : 0,
 				ptr_des & 3
@@ -199,7 +262,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 				page_des = page_info[page_idx].match;
 
 				if ((page_des & MMU_PDT_MASK) == 2) {
-					write_log(_T("  PAGE: %03d-%03d log=%08lx INDIRECT --> addr=%08lx\n"),
+					console_out_f(_T("  PAGE: %03d-%03d log=%08lx INDIRECT --> addr=%08lx\n"),
 							page_info[page_idx].start_idx,
 							page_info[page_idx].start_idx + page_info[page_idx].n_pages - 1,
 							page_info[page_idx].log,
@@ -207,7 +270,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 						  );
 
 				} else {
-					write_log(_T("  PAGE: %03d-%03d log=%08lx addr=%08lx UR=%02d G=%d U1/0=%d S=%d CM=%d M=%d U=%d W=%d\n"),
+					console_out_f(_T("  PAGE: %03d-%03d log=%08lx addr=%08lx UR=%02d G=%d U1/0=%d S=%d CM=%d M=%d U=%d W=%d\n"),
 							page_info[page_idx].start_idx,
 							page_info[page_idx].start_idx + page_info[page_idx].n_pages - 1,
 							page_info[page_idx].log,
