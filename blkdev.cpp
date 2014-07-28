@@ -134,27 +134,22 @@ int isdatatrack (struct cd_toc_head *th, int block)
 
 static int cdscsidevicetype[MAX_TOTAL_SCSI_DEVICES];
 
-#ifdef _WIN32
-
-#include "od-win32/win32.h"
-
-extern struct device_functions devicefunc_win32_spti;
-extern struct device_functions devicefunc_win32_ioctl;
-
-#endif
-
-extern struct device_functions devicefunc_cdimage;
-
 static struct device_functions *devicetable[] = {
 	NULL,
 	&devicefunc_cdimage,
-#ifdef _WIN32
-	&devicefunc_win32_ioctl,
-	&devicefunc_win32_spti,
+#ifdef WITH_SCSI_IOCTL
+	&devicefunc_scsi_ioctl,
+#else
+        NULL,
 #endif
-	NULL
+#ifdef WITH_SCSI_SPTI
+	&devicefunc_scsi_spti,
+#else
+        NULL,
+#endif
 };
-static int driver_installed[6];
+#define NUM_DEVICE_TABLE_ENTRIES 4
+static int driver_installed[NUM_DEVICE_TABLE_ENTRIES];
 
 static void install_driver (int flags)
 {
@@ -194,7 +189,10 @@ static void install_driver (int flags)
 		}
 	}
 
-	for (int j = 1; devicetable[j]; j++) {
+	for (int j = 1; j < NUM_DEVICE_TABLE_ENTRIES; j++) {
+		if (devicetable[j] == NULL) {
+		    continue;
+		}
 		if (!driver_installed[j]) {
 			for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 				struct blkdevstate *st = &state[i];
@@ -1263,7 +1261,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 	sys_command_info (unitnum, &di, 1);
 
 	if (log_scsiemu) {
-		write_log (_T("SCSIEMU %d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X CMDLEN=%d DATA=%08X LEN=%d\n"), unitnum,
+		write_log (_T("SCSIEMU %d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X CMDLEN=%d DATA=%p LEN=%d\n"), unitnum,
 			cmdbuf[0], cmdbuf[1], cmdbuf[2], cmdbuf[3], cmdbuf[4], cmdbuf[5], cmdbuf[6], 
 			cmdbuf[7], cmdbuf[8], cmdbuf[9], cmdbuf[10], cmdbuf[11],
 			scsi_cmd_len, scsi_data, dlen);
@@ -1272,7 +1270,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 	// media changed and not inquiry
 	if (st->mediawaschanged && cmd != 0x12) {
 		if (log_scsiemu) {
-			write_log (_T("SCSIEMU %d: MEDIUM MAY HAVE CHANGED STATE\n"));
+			write_log (_T("SCSIEMU %d: MEDIUM MAY HAVE CHANGED STATE\n"), unitnum);
 		}
 		lr = -1;
 		status = 2; /* CHECK CONDITION */

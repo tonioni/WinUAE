@@ -106,6 +106,9 @@
 
 #endif
 
+#define WITH_SCSI_IOCTL
+#define WITH_SCSI_SPTI
+
 #define A_ZIP
 #define A_RAR
 #define A_7Z

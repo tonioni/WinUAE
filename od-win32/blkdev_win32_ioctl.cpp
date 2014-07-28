@@ -1530,7 +1530,7 @@ static int ioctl_scsiemu (int unitnum, uae_u8 *cmd)
 	return -1;
 }
 
-struct device_functions devicefunc_win32_ioctl = {
+struct device_functions devicefunc_scsi_ioctl = {
 	_T("IOCTL"),
 	open_bus, close_bus, open_device, close_device, info_device,
 	0, 0, 0,
