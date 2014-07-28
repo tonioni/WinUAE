@@ -39,7 +39,7 @@
  */
 
 #include <stdlib.h>
-#include <slirp.h>
+#include "slirp.h"
 #include "ip_icmp.h"
 
 struct udpstat udpstat;

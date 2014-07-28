@@ -86,6 +86,7 @@
 #define WITH_UAENATIVE
 #define WITH_SLIRP
 #define WITH_TABLETLIBRARY
+#define WITH_UAENET_PCAP
 
 #else
 
@@ -553,3 +554,6 @@
 
 #define FSDB_DIR_SEPARATOR '\\'
 #define FSDB_DIR_SEPARATOR_S _T("\\")
+
+/* Define to 1 if `S_un' is a member of `struct in_addr'. */
+#define HAVE_STRUCT_IN_ADDR_S_UN 1

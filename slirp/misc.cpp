@@ -7,7 +7,7 @@
 
 #define WANT_SYS_IOCTL_H
 #include <stdlib.h>
-#include <slirp.h>
+#include "slirp.h"
 
 u_int curtime, time_fasttimo, last_slowtimo, detach_time;
 u_int detach_wait = 600000;	/* 10 minutes */
@@ -212,8 +212,7 @@ fork_exec(struct socket *so, char *ex, int do_pty)
 #else
 
 int
-slirp_openpty(amaster, aslave)
-     int *amaster, *aslave;
+slirp_openpty(int *amaster, int *aslave)
 {
 	register int master, slave;
 
@@ -288,10 +287,7 @@ slirp_openpty(amaster, aslave)
  * do_ptr = 2   Fork/exec using pty
  */
 int
-fork_exec(so, ex, do_pty)
-	struct socket *so;
-	char *ex;
-	int do_pty;
+fork_exec(struct socket *so, char *ex, int do_pty)
 {
 	int s;
 	struct sockaddr_in addr;

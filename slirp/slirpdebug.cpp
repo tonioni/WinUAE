@@ -6,7 +6,7 @@
  * terms and conditions of the copyright.
  */
 
-#include <slirp.h>
+#include "slirp.h"
 
 FILE *dfd = NULL;
 #ifdef DEBUG

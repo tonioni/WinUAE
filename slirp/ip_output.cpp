@@ -38,7 +38,7 @@
  * terms and conditions of the copyright.
  */
 
-#include <slirp.h>
+#include "slirp.h"
 
 u_int16_t ip_id;
 
