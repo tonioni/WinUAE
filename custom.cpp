@@ -6977,7 +6977,6 @@ static bool framewait (void)
 			vsynctimeperline = vstb / 3;
 		
 		frame_shown = true;
-
 	}
 	return status != 0;
 }
