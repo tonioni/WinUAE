@@ -695,7 +695,7 @@ void CIA_hsync_prehandler (void)
 static void keyreq (void)
 {
 #if KB_DEBUG
-	write_log (_T("code=%x\n"), kbcode);
+	write_log (_T("code=%02x (%02x)\n"), kbcode, (uae_u8)(~((kbcode >> 1) | (kbcode << 7))));
 #endif
 	ciaasdr = kbcode;
 	kblostsynccnt = 8 * maxvpos * 8; // 8 frames * 8 bits.
@@ -761,22 +761,9 @@ void CIAB_tod_handler (int hoffset)
 	}
 }
 
-void CIA_hsync_posthandler (bool dotod)
+static void check_keyboard(void)
 {
-	// Previous line was supposed to increase TOD but
-	// no one cared. Do it now.
-	if (ciab_tod_event_state == 1)
-		CIAB_tod_inc (false);
-	ciab_tod_event_state = 0;
-
-	if (currprefs.tod_hack && ciaatodon)
-		do_tod_hack (dotod);
-
-	if (resetwarning_phase) {
-		resetwarning_check ();
-		while (keys_available ())
-			get_next_key ();
-	} else if ((keys_available () || kbstate < 3) && !kblostsynccnt && (hsync_counter & 15) == 0) {
+	if ((keys_available () || kbstate < 3) && !kblostsynccnt ) {
 		switch (kbstate)
 		{
 			case 0:
@@ -796,6 +783,27 @@ void CIA_hsync_posthandler (bool dotod)
 				break;
 		}
 		keyreq ();
+	}
+}
+
+void CIA_hsync_posthandler (bool dotod)
+{
+	// Previous line was supposed to increase TOD but
+	// no one cared. Do it now.
+	if (ciab_tod_event_state == 1)
+		CIAB_tod_inc (false);
+	ciab_tod_event_state = 0;
+
+	if (currprefs.tod_hack && ciaatodon)
+		do_tod_hack (dotod);
+
+	if (resetwarning_phase) {
+		resetwarning_check ();
+		while (keys_available ())
+			get_next_key ();
+	} else {
+		if ((hsync_counter & 15) == 0)
+			check_keyboard();
 	}
 }
 
@@ -1319,9 +1327,14 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val)
 		val &= 0x7f; /* bit 7 is unused */
 		if ((val & 1) && !(ciaacra & 1))
 			ciaastarta = CIASTARTCYCLESCRA;
+		if ((val & 0x40) != 0 (ciaacra & 0x40)) {
+			if (m68k_getpc() >= 0xf00000 && m68k_getpc() < 0xf80000)
+				check_keyboard();
+		}
 		if ((val & 0x40) == 0 && (ciaacra & 0x40) != 0) {
 			/* todo: check if low to high or high to low only */
 			kblostsynccnt = 0;
+			/* bleh, Phase5 CPU timed early boot key check fix.. */
 #if KB_DEBUG
 			write_log (_T("KB_ACK %02x->%02x\n"), ciaacra, val);
 #endif
