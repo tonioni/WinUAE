@@ -669,7 +669,7 @@ static void lsi_request_free(LSIState *s, lsi_request *p)
     g_free(p);
 }
 
-static void lsi_request_cancelled(SCSIRequest *req)
+void lsi_request_cancelled(SCSIRequest *req)
 {
     LSIState *s = LSI53C895A(req->bus->qbus.parent);
 	lsi_request *p = (lsi_request*)req->hba_private;
