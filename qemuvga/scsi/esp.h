@@ -1,8 +1,6 @@
 #ifndef QEMU_HW_ESP_H
 #define QEMU_HW_ESP_H
 
-#include "hw/scsi/scsi.h"
-
 /* esp.c */
 #define ESP_MAX_DEVS 7
 typedef void (*ESPDMAMemoryReadWriteFunc)(void *opaque, uint8_t *buf, int len);
@@ -128,5 +126,27 @@ void esp_hard_reset(ESPState *s);
 uint64_t esp_reg_read(ESPState *s, uint32_t saddr);
 void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val);
 extern const VMStateDescription vmstate_esp;
+
+extern void esp_irq_raise(qemu_irq);
+extern void esp_irq_lower(qemu_irq);
+
+void scsiesp_req_continue(SCSIRequest *req);
+SCSIRequest *scsiesp_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun, uint8_t *buf, void *hba_private);
+int32_t scsiesp_req_enqueue(SCSIRequest *req);
+void scsiesp_req_unref(SCSIRequest *req);
+uint8_t *scsiesp_req_get_buf(SCSIRequest *req);
+SCSIDevice *scsiesp_device_find(SCSIBus *bus, int channel, int target, int lun);
+void scsiesp_req_cancel(SCSIRequest *req);
+
+uint64_t esp_reg_read(void *s, uint32_t saddr);
+void esp_reg_write(void *s, uint32_t saddr, uint64_t val);
+
+void esp_dma_enable(void *opaque, int level);
+
+void esp_request_cancelled(SCSIRequest *req);
+void esp_command_complete(SCSIRequest *req, uint32_t status, size_t resid);
+void esp_transfer_data(SCSIRequest *req, uint32_t len);
+void esp_scsi_init(DeviceState *dev, ESPDMAMemoryReadWriteFunc read, ESPDMAMemoryReadWriteFunc write);
+void esp_scsi_reset(DeviceState *dev, void *privdata);
 
 #endif

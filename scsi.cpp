@@ -314,3 +314,99 @@ int scsi_receive_data(struct scsi_data *sd, uae_u8 *b)
 		return 1; // requested length got
 	return 0;
 }
+
+// raw scsi
+#define SCSI_SIGNAL_PHASE_DATA_OUT 0
+#define SCSI_SIGNAL_PHASE_DATA_IN 1
+#define SCSI_SIGNAL_PHASE_COMMAND 2
+#define SCSI_SIGNAL_PHASE_STATUS 3
+#define SCSI_SIGNAL_PHASE_MESSAGE_OUT 6
+#define SCSI_SIGNAL_PHASE_MESSAGE_IN 7
+
+#define SCSI_BUS_PHASE_FREE 0
+#define SCSI_BUS_PHASE_ARBITRATION 1
+#define SCSI_BUS_PHASE_SELECTION 2
+#define SCSI_BUS_PHASE_RESELECTION 3
+#define SCSI_BUS_PHASE_COMMAND 4
+#define SCSI_BUS_PHASE_DATA_IN 5
+#define SCSI_BUS_PHASE_DATA_OUT 6
+#define SCSI_BUS_PHASE_STATUS 7
+#define SCSI_BUS_PHASE_MESSAGE_IN 8
+#define SCSI_BUS_PHASE_MESSAGE_OUT 9
+
+struct raw_scsi_device
+{
+	int x;
+	int id;
+};
+struct raw_scsi
+{
+	int signal_phase;
+	int old_signal_phase;
+	int bus_phase;
+	uae_u8 data;
+	int initiator;
+	int target;
+	uae_u8 cmd[16];
+	int len;
+	struct raw_scsi_device *device[8];
+};
+
+struct raw_scsi *new_raw_scsi(void)
+{
+	struct raw_scsi *rs = xcalloc(struct raw_scsi, 1);
+	return rs;
+}
+
+void free_raw_scsi(struct raw_scsi *rs)
+{
+	if (!rs)
+		return;
+	for (int i = 0; i < 8; i++)
+		xfree(rs->device[i]);
+	xfree(rs);
+}
+
+struct raw_scsi_device *new_raw_scsi_device(struct raw_scsi *rs, int id)
+{
+	rs->device[id] = xcalloc(struct raw_scsi_device, 1);
+	rs->device[id]->id = id;
+	return rs->device[id];
+}
+
+void free_raw_scsi_device(struct raw_scsi *rs, struct raw_scsi_device *dev)
+{
+	if (!dev)
+		return;
+	rs->device[dev->id] = NULL;
+	xfree(dev);
+}
+
+int raw_scsi_get_signal_phase(struct raw_scsi *rs, struct raw_scsi_device *dev)
+{
+	return rs->signal_phase;
+}
+
+void raw_scsi_put_signal_phase(struct raw_scsi *rs, struct raw_scsi_device *dev, uae_u8 phase)
+{
+	if (rs->signal_phase == phase)
+		return;
+	rs->old_signal_phase = rs->signal_phase;
+	rs->signal_phase = phase;
+	switch(rs->bus_phase)
+	{
+	case SCSI_BUS_PHASE_FREE:
+
+		break;
+	
+	}
+}
+
+uae_u16 raw_scsi_get_data(struct raw_scsi *rs, struct raw_scsi_device *dev)
+{
+	return rs->data;
+}
+
+void raw_scsi_put_data(struct raw_scsi *rs, struct raw_scsi_device *dev, uae_u16 data)
+{
+}

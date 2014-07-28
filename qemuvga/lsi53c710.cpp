@@ -284,7 +284,7 @@ static void lsi_soft_reset(LSIState *s)
 {
     DPRINTF("Reset\n");
     s->carry = 0;
-	memset (s, 0, sizeof LSIState);
+	memset (s, 0, sizeof(LSIState));
 
     s->msg_action = 0;
     s->msg_len = 0;
@@ -625,7 +625,7 @@ static void lsi_request_free(LSIState *s, lsi_request *p)
     g_free(p);
 }
 
-void lsi_request_cancelled(SCSIRequest *req)
+void lsi710_request_cancelled(SCSIRequest *req)
 {
     LSIState *s = LSI53C895A(req->bus->qbus.parent);
     lsi_request *p = (lsi_request*)req->hba_private;

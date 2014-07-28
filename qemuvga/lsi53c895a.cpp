@@ -34,7 +34,7 @@ do { write_log("lsi_scsi: error: " fmt , ## __VA_ARGS__); } while (0)
 #else
 #define DPRINTF(fmt, ...) do {} while(0)
 #define BADF(fmt, ...) \
-do { write_log("lsi_scsi: error: " fmt , ## __VA_ARGS__); activate_debugger();} while (0)
+do { write_log("lsi_scsi: error: " fmt , ## __VA_ARGS__); } while (0)
 #endif
 
 #define LSI_MAX_DEVS 7

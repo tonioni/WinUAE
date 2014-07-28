@@ -374,3 +374,9 @@ extern uint64_t lsi710_mmio_read(void *opaque, hwaddr addr, unsigned size);
 
 extern void lsi_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);
 extern uint64_t lsi_mmio_read(void *opaque, hwaddr addr, unsigned size);
+
+// ESP
+
+typedef void *qemu_irq;
+typedef void* SysBusDevice;
+

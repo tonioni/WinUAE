@@ -278,5 +278,4 @@ void lsi710_request_cancelled(SCSIRequest *req);
 void lsi710_command_complete(SCSIRequest *req, uint32_t status, size_t resid);
 void lsi710_transfer_data(SCSIRequest *req, uint32_t len);
 
-
 #endif

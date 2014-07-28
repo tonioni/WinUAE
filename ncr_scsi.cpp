@@ -163,7 +163,7 @@ int32_t scsi_req_enqueue(SCSIRequest *req)
 	scsi_emulate_analyze(sd);
 	//write_log (_T("%02x.%02x.%02x.%02x.%02x.%02x\n"), sd->cmd[0], sd->cmd[1], sd->cmd[2], sd->cmd[3], sd->cmd[4], sd->cmd[5]);
 
-	if (sd->direction < 0)
+	if (sd->direction <= 0)
 		scsi_emulate_cmd(sd);
 	if (sd->direction == 0)
 		return 1;
@@ -254,7 +254,7 @@ int32_t scsi710_req_enqueue(SCSIRequest *req)
 	scsi_emulate_analyze (sd);
 	//write_log (_T("%02x.%02x.%02x.%02x.%02x.%02x\n"), sd->cmd[0], sd->cmd[1], sd->cmd[2], sd->cmd[3], sd->cmd[4], sd->cmd[5]);
 	
-	if (sd->direction < 0)
+	if (sd->direction <= 0)
 		scsi_emulate_cmd(sd);
 	if (sd->direction == 0)
 		return 1;
@@ -375,12 +375,18 @@ static uae_u32 REGPARAM2 ncr_lget (struct ncr_state *ncr, uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= ncr->board_mask;
-	if (addr >= A4091_IO_ALT) {
-		v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
-			(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
+	if (ncr == &ncr_we) {
+		addr &= ~0x80;
+		v = (ncr_bget2(ncr, addr + 3) << 0) | (ncr_bget2(ncr, addr + 2) << 8) |
+			(ncr_bget2(ncr, addr + 1) << 16) | (ncr_bget2(ncr, addr + 0) << 24);
 	} else {
-		v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
-			(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
+		if (addr >= A4091_IO_ALT) {
+			v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
+				(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
+		} else {
+			v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
+				(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
+		}
 	}
 	return v;
 }
@@ -420,16 +426,24 @@ static void REGPARAM2 ncr_lput (struct ncr_state *ncr, uaecptr addr, uae_u32 l)
 	special_mem |= S_WRITE;
 #endif
 	addr &= ncr->board_mask;
-	if (addr >= A4091_IO_ALT) {
-		ncr_bput2 (ncr, addr + 3, l >> 0);
-		ncr_bput2 (ncr, addr + 2, l >> 8);
-		ncr_bput2 (ncr, addr + 1, l >> 16);
-		ncr_bput2 (ncr, addr + 0, l >> 24);
+	if (ncr == &ncr_we) {
+		addr &= ~0x80;
+		ncr_bput2(ncr, addr + 3, l >> 0);
+		ncr_bput2(ncr, addr + 2, l >> 8);
+		ncr_bput2(ncr, addr + 1, l >> 16);
+		ncr_bput2(ncr, addr + 0, l >> 24);
 	} else {
-		ncr_bput2 (ncr, addr + 3, l >> 0);
-		ncr_bput2 (ncr, addr + 2, l >> 8);
-		ncr_bput2 (ncr, addr + 1, l >> 16);
-		ncr_bput2 (ncr, addr + 0, l >> 24);
+		if (addr >= A4091_IO_ALT) {
+			ncr_bput2 (ncr, addr + 3, l >> 0);
+			ncr_bput2 (ncr, addr + 2, l >> 8);
+			ncr_bput2 (ncr, addr + 1, l >> 16);
+			ncr_bput2 (ncr, addr + 0, l >> 24);
+		} else {
+			ncr_bput2 (ncr, addr + 3, l >> 0);
+			ncr_bput2 (ncr, addr + 2, l >> 8);
+			ncr_bput2 (ncr, addr + 1, l >> 16);
+			ncr_bput2 (ncr, addr + 0, l >> 24);
+		}
 	}
 }
 
@@ -751,7 +765,7 @@ static void ncr710_reset_board (struct ncr_state *ncr)
 }
 
 static const uae_u8 warpengine_a4000_autoconfig[16] = {
-	0x90, 0x13, 0x75, 0x00, 0x08, 0x9b, 0x00, 0x19, 0x01, 0x01, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00
+	0x90, 0x13, 0x75, 0x00, 0x08, 0x9b, 0x00, 0x19, 0x02, 0x0e, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00
 };
 #define WARP_ENGINE_ROM_SIZE 32768
 
@@ -770,7 +784,7 @@ addrbank *ncr710_warpengine_autoconfig_init(void)
 	ncr->rom_offset = 0;
 	ncr->rom_end = WARP_ENGINE_ROM_SIZE * 4;
 	ncr->io_start = WARP_ENGINE_IO_OFFSET;
-	ncr->io_start = WARP_ENGINE_IO_END;
+	ncr->io_end = WARP_ENGINE_IO_END;
 
 	struct romlist *rl = getromlistbyids(roms);
 	if (rl) {
@@ -784,7 +798,7 @@ addrbank *ncr710_warpengine_autoconfig_init(void)
 	ncr->rom = xcalloc (uae_u8, WARP_ENGINE_ROM_SIZE * 4);
 	if (z) {
 		for (int i = 0; i < WARP_ENGINE_ROM_SIZE; i++) {
-			uae_u8 b;
+			uae_u8 b = 0xff;
 			zfile_fread(&b, 1, 1, z);
 			ncr->rom[i * 4 + 0] = b | 0x0f;
 			ncr->rom[i * 4 + 1] = 0xff;
@@ -807,10 +821,8 @@ addrbank *ncr710_a4091_autoconfig_init (int devnum)
 	struct ncr_state *ncr = ncra4091[devnum];
 	int roms[3];
 
-	if (!ncr->enabled && devnum > 0) {
-		expamem_next();
-		return NULL;
-	}
+	if (!ncr->enabled && devnum > 0)
+		return &expamem_null;
 
 	roms[0] = 58;
 	roms[1] = 57;
