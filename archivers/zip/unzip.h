@@ -49,6 +49,10 @@ extern "C" {
 #include "zlib.h"
 #endif
 
+#ifndef OF
+#define OF(args) args
+#endif
+
 typedef int (ZEXPORT *INFLATEINIT2)(z_streamp strm, int windowBits, const char *version, int stream_size);
 typedef int (ZEXPORT *INFLATEINIT)(z_streamp strm, const char *version, int stream_size);
 typedef int (ZEXPORT *INFLATEEND)(z_streamp strm);

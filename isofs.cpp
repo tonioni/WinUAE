@@ -1546,10 +1546,10 @@ static TCHAR *get_joliet_filename(struct iso_directory_record * de, struct inode
  */
 static int isofs_get_blocks(struct inode *inode, uae_u32 iblock, struct buffer_head *bh, unsigned long nblocks)
 {
-	unsigned long b_off = iblock;
+	unsigned int b_off = iblock;
 	unsigned offset, sect_size;
 	unsigned int firstext;
-	unsigned long nextblk, nextoff;
+	unsigned int nextblk, nextoff;
 	int section, rv, error;
 	struct iso_inode_info *ei = ISOFS_I(inode);
 
