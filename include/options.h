@@ -409,6 +409,7 @@ struct uae_prefs {
 	int filesys_limit;
 	int filesys_max_name;
 	int filesys_max_file_size;
+	bool reset_delay;
 
 	int cs_compatible;
 	int cs_ciaatod;

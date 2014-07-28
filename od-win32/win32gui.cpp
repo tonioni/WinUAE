@@ -77,6 +77,7 @@
 #include "gfxfilter.h"
 #include "driveclick.h"
 #include "scsi.h"
+#include "cpuboard.h"
 #ifdef PROWIZARD
 #include "moduleripper.h"
 #endif
@@ -3845,6 +3846,7 @@ static struct miscentry misclist[] = {
 	{ 0, 1, _T("Always on top"), &workprefs.win32_alwaysontop },
 	{ 0, 1, _T("Disable screensaver"), &workprefs.win32_powersavedisabled },
 	{ 0, 0, _T("Synchronize clock"), &workprefs.tod_hack },
+	{ 0, 1, _T("One second reboot pause"), &workprefs.reset_delay },
 	{ 0, 1, _T("Faster RTG"), &workprefs.picasso96_nocustom },
 	{ 0, 0, _T("Clipboard sharing"), &workprefs.clipboard_sharing },
 	{ 0, 1, _T("Allow native code"), &workprefs.native_code },
@@ -7317,6 +7319,10 @@ static void enable_for_memorydlg (HWND hDlg)
 {
 	int fast = true;
 	int z3 = true;
+	int mbram2 = z3;
+
+	if (cpuboard_08000000(&workprefs))
+		mbram2 = false;
 
 #ifndef AUTOCONFIG
 	z3 = FALSE;
@@ -7337,8 +7343,8 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_GFXCARDTEXT, z3);
 	ew (hDlg, IDC_MBRAM1, z3);
 	ew (hDlg, IDC_MBMEM1, z3);
-	ew (hDlg, IDC_MBRAM2, z3);
-	ew (hDlg, IDC_MBMEM2, z3);
+	ew (hDlg, IDC_MBRAM2, mbram2);
+	ew (hDlg, IDC_MBMEM2, mbram2);
 	ew(hDlg, IDC_CPUBOARDMEM, workprefs.cpuboard_type > 0);
 	ew(hDlg, IDC_CPUBOARDRAM, workprefs.cpuboard_type > 0);
 	ew(hDlg, IDC_CPUBOARD_TYPE, workprefs.address_space_24 == false);
@@ -7632,6 +7638,9 @@ static void values_to_memorydlg (HWND hDlg)
 	}
 	SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText (hDlg, IDC_MBRAM1, memsize_names[msi_gfx[mem_size]]);
+
+	if (cpuboard_08000000(&workprefs))
+		workprefs.mbresmem_high_size = workprefs.cpuboardmem1_size;
 
 	mem_size = 0;
 	switch (workprefs.mbresmem_high_size) {
@@ -8153,9 +8162,13 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		CheckDlgButton(hDlg, IDC_Z3REALMAPPING, workprefs.jit_direct_compatible_memory);
 		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("-"));
-		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 1230 IV"));
-		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 1260"));
-		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 2060 (Do not use)"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 1230 IV"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 1230 IV + SCSI"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 1260"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 1260 + SCSI"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 2060"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("CyberStorm MK I"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("CyberStorm MK II"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("CyberStorm MK III"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("CyberStorm PPC (NO PPC CPU!)"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard PPC (NO PPC CPU!)"));

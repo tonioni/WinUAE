@@ -46,6 +46,7 @@
 #include "savestate.h"
 #include "a2091.h"
 #include "ncr_scsi.h"
+#include "ncr9x_scsi.h"
 #include "cdtv.h"
 #include "sana2.h"
 #include "bsdsocket.h"
@@ -881,6 +882,13 @@ static void initialize_mountinfo (void)
 			} else if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC) {
 				blizzardppc_add_scsi_unit(unit, uci);
 				added = true;
+			} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_2060 ||
+				currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV_SCSI ||
+				currprefs.cpuboard_type == BOARD_BLIZZARD_1260_SCSI ||
+				currprefs.cpuboard_type == BOARD_CSMK1 ||
+				currprefs.cpuboard_type == BOARD_CSMK2) {
+					cpuboard_ncr9x_add_scsi_unit(unit, uci);
+					added = true;
 			}
 #endif
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_A4000T) {

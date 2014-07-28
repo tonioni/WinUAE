@@ -177,6 +177,8 @@ bool preinit_shm (void)
 	if (natmem_size < 17 * 1024 * 1024)
 		natmem_size = 17 * 1024 * 1024;
 
+	//natmem_size = 257 * 1024 * 1024;
+
 	write_log (_T("Total physical RAM %lluM, all RAM %lluM. Attempting to reserve: %uM.\n"), totalphys64 >> 20, total64 >> 20, natmem_size >> 20);
 	natmem_offset_allocated = 0;
 	if (natmem_size <= 768 * 1024 * 1024) {
@@ -587,6 +589,12 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 			shmaddr=natmem_offset + a3000lmem_bank.start;
 			if (!a3000hmem_bank.start)
 				size += BARRIER;
+			got = TRUE;
+		} else if (!_tcscmp(shmids[shmid].name, _T("csmk1_maprom"))) {
+			shmaddr = natmem_offset + 0x07f80000;
+			got = TRUE;
+		} else if (!_tcscmp(shmids[shmid].name, _T("ramsey_high"))) {
+			shmaddr = natmem_offset + 0x08000000;
 			got = TRUE;
 		} else if (!_tcscmp(shmids[shmid].name, _T("cyberstorm"))) {
 			shmaddr = natmem_offset + 0x0c000000;

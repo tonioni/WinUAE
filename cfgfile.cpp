@@ -205,7 +205,21 @@ static const TCHAR *rtgtype[] = {
 	_T("Spectrum28/24_Z2"), _T("Spectrum28/24_Z3"),
 	_T("PicassoIV_Z2"), _T("PicassoIV_Z3"),
 	0 };
-static const TCHAR *cpuboards[] = {	_T("none"), _T("Blizzard1230IV"), _T("Blizzard1260"), _T("Blizzard2060"), _T("CyberStormMK3"), _T("CyberStormPPC"), _T("BlizzardPPC"), _T("WarpEngineA4000"), NULL };
+static const TCHAR *cpuboards[] = {
+	_T("none"),
+	_T("Blizzard1230IV"),
+	_T("Blizzard1230IV+SCSI"),
+	_T("Blizzard1260"),
+	_T("Blizzard1260+SCSI"),
+	_T("Blizzard2060"),
+	_T("CyberStormMK1"),
+	_T("CyberStormMK2"),
+	_T("CyberStormMK3"),
+	_T("CyberStormPPC"),
+	_T("BlizzardPPC"),
+	_T("WarpEngineA4000"),
+	NULL
+};
 static const TCHAR *waitblits[] = { _T("disabled"), _T("automatic"), _T("noidleonly"), _T("always"), 0 };
 static const TCHAR *autoext2[] = { _T("disabled"), _T("copy"), _T("replace"), 0 };
 static const TCHAR *leds[] = { _T("power"), _T("df0"), _T("df1"), _T("df2"), _T("df3"), _T("hd"), _T("cd"), _T("fps"), _T("cpu"), _T("snd"), _T("md"), 0 };
@@ -1466,6 +1480,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("cpu_compatible"), p->cpu_compatible);
 	cfgfile_write_bool (f, _T("cpu_24bit_addressing"), p->address_space_24);
 	/* do not reorder end */
+	cfgfile_dwrite_bool(f, _T("cpu_reset_pause"), p->reset_delay);
 
 	if (p->cpu_cycle_exact) {
 		if (p->cpu_frequency)
@@ -3554,8 +3569,9 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("sana2"), &p->sana2)
 		|| cfgfile_yesno (option, value, _T("genlock"), &p->genlock)
 		|| cfgfile_yesno (option, value, _T("cpu_compatible"), &p->cpu_compatible)
-		|| cfgfile_yesno (option, value, _T("cpu_24bit_addressing"), &p->address_space_24)
-		|| cfgfile_yesno (option, value, _T("parallel_on_demand"), &p->parallel_demand)
+		|| cfgfile_yesno(option, value, _T("cpu_24bit_addressing"), &p->address_space_24)
+		|| cfgfile_yesno(option, value, _T("cpu_reset_pause"), &p->reset_delay)
+		|| cfgfile_yesno(option, value, _T("parallel_on_demand"), &p->parallel_demand)
 		|| cfgfile_yesno (option, value, _T("parallel_postscript_emulation"), &p->parallel_postscript_emulation)
 		|| cfgfile_yesno (option, value, _T("parallel_postscript_detection"), &p->parallel_postscript_detection)
 		|| cfgfile_yesno (option, value, _T("serial_on_demand"), &p->serial_demand)

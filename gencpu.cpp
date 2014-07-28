@@ -4982,6 +4982,7 @@ static void gen_opcode (unsigned long int opcode)
 	case i_CPUSHL:
 	case i_CPUSHP:
 	case i_CPUSHA:
+		printf ("\tflush_cpu_caches_040(opcode);\n");
 		if (using_mmu)
 			printf ("\tflush_mmu%s(m68k_areg (regs, opcode & 3), (opcode >> 6) & 3);\n", mmu_postfix);
 		printf ("\tif (opcode & 0x80)\n");

@@ -486,6 +486,8 @@ extern void sm68k_disasm (TCHAR*, TCHAR*, uaecptr addr, uaecptr *nextpc);
 extern int get_cpu_model (void);
 
 extern void set_cpu_caches (bool flush);
+extern void flush_cpu_caches(bool flush);
+extern void flush_cpu_caches_040(uae_u16 opcode);
 extern void REGPARAM3 MakeSR (void) REGPARAM;
 extern void REGPARAM3 MakeFromSR (void) REGPARAM;
 extern void REGPARAM3 Exception (int) REGPARAM;

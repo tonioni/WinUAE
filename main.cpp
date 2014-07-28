@@ -46,6 +46,7 @@
 #include "a2091.h"
 #include "a2065.h"
 #include "ncr_scsi.h"
+#include "ncr9x_scsi.h"
 #include "scsi.h"
 #include "sana2.h"
 #include "blkdev.h"
@@ -59,6 +60,7 @@
 #include "luascript.h"
 #include "uaenative.h"
 #include "tabletlibrary.h"
+#include "cpuboard.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -315,6 +317,9 @@ void fixup_prefs (struct uae_prefs *p)
 
 	built_in_chipset_prefs (p);
 	fixup_cpu (p);
+
+	if (cpuboard_08000000(p))
+		p->mbresmem_high_size = p->cpuboardmem1_size;
 
 	if (((p->chipmem_size & (p->chipmem_size - 1)) != 0 && p->chipmem_size != 0x180000)
 		|| p->chipmem_size < 0x20000
@@ -974,6 +979,9 @@ void do_leave_program (void)
 	ncr710_free();
 	ncr_free();
 #endif
+#ifdef NCR9X
+	ncr9x_free();
+#endif
 #ifdef CD32
 	akiko_free ();
 	cd32_fmv_free();
@@ -1055,6 +1063,9 @@ void virtualdevice_init (void)
 #ifdef NCR
 	ncr710_init();
 	ncr_init();
+#endif
+#ifdef NCR9X
+	ncr9x_init();
 #endif
 }
 

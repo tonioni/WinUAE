@@ -142,7 +142,7 @@ static bool chipdone;
 
 static addrbank* (*card_init[MAX_EXPANSION_BOARDS]) (void);
 static void (*card_map[MAX_EXPANSION_BOARDS]) (void);
-static TCHAR *card_name[MAX_EXPANSION_BOARDS];
+static const TCHAR *card_name[MAX_EXPANSION_BOARDS];
 static int card_flags[MAX_EXPANSION_BOARDS];
 
 static int ecard, cardno, z3num;
@@ -231,6 +231,7 @@ static void addextrachip (uae_u32 sysbase)
 	}
 }
 
+addrbank expamem_null;
 
 static uae_u32 REGPARAM3 expamem_lget (uaecptr) REGPARAM;
 static uae_u32 REGPARAM3 expamem_wget (uaecptr) REGPARAM;
@@ -295,8 +296,13 @@ static addrbank *expamem_init_last (void)
 static void call_card_init(int index)
 {	
 	addrbank *ab;
-	expamem_bank.name = card_name[ecard] ? card_name[ecard] : (TCHAR*)_T("None");
+
+	expamem_bank.name = card_name[ecard] ? card_name[ecard] : _T("None");
 	ab = (*card_init[ecard]) ();
+	if (ab == &expamem_null) {
+		expamem_next();
+		return;
+	}
 	if (ab) {
 		// non-NULL: not using expamem_bank
 		if ((card_flags[ecard] & 1) && currprefs.cs_z3autoconfig) {
@@ -340,14 +346,14 @@ static int REGPARAM2 expamem_type (void)
 
 static uae_u32 REGPARAM2 expamem_lget (uaecptr addr)
 {
-	write_log (_T("warning: Z2 READ.L from address $%lx PC=%x\n"), addr, M68K_GETPC);
+	write_log (_T("warning: Z2 READ.L from address $%08x PC=%x\n"), addr, M68K_GETPC);
 	return (expamem_wget (addr) << 16) | expamem_wget (addr + 2);
 }
 
 static uae_u32 REGPARAM2 expamem_wget (uaecptr addr)
 {
 	uae_u32 v = (expamem_bget (addr) << 8) | expamem_bget (addr + 1);
-	write_log (_T("warning: READ.W from address $%lx=%04x PC=%x\n"), addr, v & 0xffff, M68K_GETPC);
+	write_log (_T("warning: READ.W from address $%08x=%04x PC=%x\n"), addr, v & 0xffff, M68K_GETPC);
 	return v;
 }
 
@@ -389,7 +395,7 @@ static void REGPARAM2 expamem_lput (uaecptr addr, uae_u32 value)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	write_log (_T("warning: Z2 WRITE.L to address $%lx : value $%lx\n"), addr, value);
+	write_log (_T("warning: Z2 WRITE.L to address $%08x : value $%08x\n"), addr, value);
 }
 
 static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
@@ -404,7 +410,7 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 	if (ecard >= cardno)
 		return;
 	if (expamem_type () != zorroIII) {
-		write_log (_T("warning: WRITE.W to address $%lx : value $%x\n"), addr, value);
+		write_log (_T("warning: WRITE.W to address $%08x : value $%x\n"), addr, value);
 	} else {
 		switch (addr & 0xff) {
 		case 0x44:
@@ -511,12 +517,12 @@ static uae_u32 REGPARAM2 expamemz3_bget (uaecptr addr)
 static uae_u32 REGPARAM2 expamemz3_wget (uaecptr addr)
 {
 	uae_u32 v = (expamemz3_bget (addr) << 8) | expamemz3_bget (addr + 1);
-	write_log (_T("warning: Z3 READ.W from address $%lx=%04x PC=%x\n"), addr, v & 0xffff, M68K_GETPC);
+	write_log (_T("warning: Z3 READ.W from address $%08x=%04x PC=%x\n"), addr, v & 0xffff, M68K_GETPC);
 	return v;
 }
 static uae_u32 REGPARAM2 expamemz3_lget (uaecptr addr)
 {
-	write_log (_T("warning: Z3 READ.L from address $%lx PC=%x\n"), addr, M68K_GETPC);
+	write_log (_T("warning: Z3 READ.L from address $%08x PC=%x\n"), addr, M68K_GETPC);
 	return (expamemz3_wget (addr) << 16) | expamemz3_wget (addr + 2);
 }
 static void REGPARAM2 expamemz3_bput (uaecptr addr, uae_u32 value)
@@ -544,7 +550,7 @@ static void REGPARAM2 expamemz3_lput (uaecptr addr, uae_u32 value)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	write_log (_T("warning: Z3 WRITE.L to address $%lx : value $%lx\n"), addr, value);
+	write_log (_T("warning: Z3 WRITE.L to address $%08x : value $%08x\n"), addr, value);
 }
 
 #ifdef CD32
@@ -717,7 +723,7 @@ static void expamem_map_catweasel (void)
 	catweasel_start = ((expamem_hi | (expamem_lo >> 4)) << 16);
 	if (catweasel_start) {
 		map_banks (&catweasel_bank, catweasel_start >> 16, 1, 0);
-		write_log (_T("Catweasel MK%d: mapped @$%lx\n"), cwc.type, catweasel_start);
+		write_log (_T("Catweasel MK%d: mapped @$%08x\n"), cwc.type, catweasel_start);
 	}
 }
 
@@ -818,7 +824,7 @@ static void REGPARAM2 filesys_lput (uaecptr addr, uae_u32 l)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	write_log (_T("filesys_lput called PC=%p\n"), M68K_GETPC);
+	write_log (_T("filesys_lput called PC=%08x\n"), M68K_GETPC);
 }
 
 static void REGPARAM2 filesys_wput (uaecptr addr, uae_u32 w)
@@ -826,7 +832,7 @@ static void REGPARAM2 filesys_wput (uaecptr addr, uae_u32 w)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	write_log (_T("filesys_wput called PC=%p\n"), M68K_GETPC);
+	write_log (_T("filesys_wput called PC=%08x\n"), M68K_GETPC);
 }
 
 static void REGPARAM2 filesys_bput (uaecptr addr, uae_u32 b)
@@ -889,9 +895,9 @@ static void expamem_map_fastcard_2 (int boardnum)
 	if (ab->start) {
 		map_banks (ab, ab->start >> 16, ab->allocated >> 16, 0);
 		if (ab->allocated <= 524288)
-		write_log (_T("%s: mapped @$%lx: %dKB fast memory\n"), ab->name, ab->start, ab->allocated >> 10);
+		write_log (_T("%s: mapped @$%08x: %dKB fast memory\n"), ab->name, ab->start, ab->allocated >> 10);
 		else
-		write_log (_T("%s: mapped @$%lx: %dMB fast memory\n"), ab->name, ab->start, ab->allocated >> 20);
+		write_log (_T("%s: mapped @$%08x: %dMB fast memory\n"), ab->name, ab->start, ab->allocated >> 20);
 	}
 }
 
@@ -972,7 +978,7 @@ static void expamem_map_filesys (void)
 
 	filesys_start = ((expamem_hi | (expamem_lo >> 4)) << 16);
 	map_banks (&filesys_bank, filesys_start >> 16, 1, 0);
-	write_log (_T("Filesystem: mapped memory @$%lx.\n"), filesys_start);
+	write_log (_T("Filesystem: mapped memory @$%08x.\n"), filesys_start);
 	/* 68k code needs to know this. */
 	a = here ();
 	org (rtarea_base + RTAREA_FSBOARD);
@@ -1128,7 +1134,7 @@ static void expamem_map_gfxcard (void)
 	gfxmem_bank.start = (expamem_hi | (expamem_lo >> 4)) << 16;
 	if (gfxmem_bank.start) {
 		map_banks (&gfxmem_bank, gfxmem_bank.start >> 16, gfxmem_bank.allocated >> 16, gfxmem_bank.allocated);
-		write_log (_T("%sUAEGFX-card: mapped @$%lx, %d MB RTG RAM\n"), currprefs.rtgmem_type ? _T("Z3") : _T("Z2"), gfxmem_bank.start, gfxmem_bank.allocated / 0x100000);
+		write_log (_T("%sUAEGFX-card: mapped @$%08x, %d MB RTG RAM\n"), currprefs.rtgmem_type ? _T("Z3") : _T("Z2"), gfxmem_bank.start, gfxmem_bank.allocated / 0x100000);
 	}
 }
 
@@ -1385,6 +1391,9 @@ static uaecptr check_boot_rom (void)
 		b = RTAREA_BACKUP;
 	if (currprefs.cs_mbdmac == 1 || currprefs.cpuboard_type)
 		b = RTAREA_BACKUP;
+	// CSPPC enables MMU at boot and remaps 0xea0000->0xeffff.
+	if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC)
+		b = RTAREA_BACKUP_2;
 	ab = &get_mem_bank (RTAREA_DEFAULT);
 	if (ab) {
 		if (valid_address (RTAREA_DEFAULT, 65536))
@@ -1430,77 +1439,56 @@ uaecptr need_uae_boot_rom (void)
 	return v;
 }
 
+#ifdef A2065
 static addrbank *expamem_init_a2065(void)
 {
-#ifdef A2065
 	return a2065_init ();
-#else
-	return NULL;
-#endif
 }
+#endif
+#ifdef CDTV
 static addrbank *expamem_init_cdtv(void)
 {
-#ifdef CDTV
-	cdtv_init ();
-#endif
-	return NULL;
+	return cdtv_init ();
 }
+#endif
+#ifdef A2091
 static addrbank *expamem_init_a2091(void)
 {
-#ifdef A2091
 	return a2091_init (0);
-#else
-	return NULL;
-#endif
 }
+#endif
+#ifdef A2091
 static addrbank *expamem_init_a2091_2(void)
 {
-#ifdef A2091
 	return a2091_init (1);
-#else
-	return NULL;
-#endif
 }
+#endif
+#ifdef NCR
 static addrbank *expamem_init_a4091(void)
 {
-#ifdef NCR
 	return ncr710_a4091_autoconfig_init (0);
-#else
-	return NULL;
-#endif
 }
 static addrbank *expamem_init_a4091_2(void)
 {
-#ifdef NCR
 	return ncr710_a4091_autoconfig_init (1);
-#else
-	return NULL;
-#endif
 }
 static addrbank *expamem_init_warpengine(void)
 {
-#ifdef NCR
 	return ncr710_warpengine_autoconfig_init();
-#else
-	return NULL;
-#endif
 }
+#endif
+#ifdef GFXBOARD
 static addrbank *expamem_init_gfxboard_memory(void)
 {
-#ifdef GFXBOARD
 	return gfxboard_init_memory ();
-#else
-	return NULL;
-#endif
 }
+#endif
+#ifdef GFXBOARD
 static addrbank *expamem_init_gfxboard_registers(void)
 {
-#ifdef GFXBOARD
 	return gfxboard_init_registers ();
-#else
-	return NULL;
-#endif
 }
+#endif
 
 void expamem_reset (void)
 {
@@ -1533,9 +1521,9 @@ void expamem_reset (void)
 		do_mount = 0;
 
 	if (currprefs.cpuboard_type) {
-		// This requires first 128k slot.
+		// This may require first 128k slot.
 		card_flags[cardno] = 1;
-		card_name[cardno] = _T("Blizzard");
+		card_name[cardno] = _T("CPUBoard");
 		card_init[cardno] = cpuboard_autoconfig_init;
 		card_map[cardno++] = NULL;
 	}
@@ -1909,7 +1897,7 @@ uae_u8 *restore_expansion (uae_u8 *src)
 	gfxmem_bank.start = restore_u32 ();
 	rtarea_base = restore_u32 ();
 	fastmem2_bank.start = restore_u32 ();
-	if (rtarea_base != 0 && rtarea_base != RTAREA_DEFAULT && rtarea_base != RTAREA_BACKUP)
+	if (rtarea_base != 0 && rtarea_base != RTAREA_DEFAULT && rtarea_base != RTAREA_BACKUP && rtarea_base != RTAREA_BACKUP_2)
 		rtarea_base = 0;
 	return src;
 }

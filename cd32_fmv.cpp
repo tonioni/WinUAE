@@ -22,10 +22,9 @@
 #include "custom.h"
 
 #include "cda_play.h"
-#include "archivers\mp2\kjmp2.h"
+#include "archivers/mp2/kjmp2.h"
 #include "mpeg2.h"
 #include "mpeg2convert.h"
-
 
 #define FMV_DEBUG 0
 static int fmv_audio_debug = 0;
@@ -1432,7 +1431,7 @@ void cd32_fmv_vsync_handler(void)
 	l64111_regs[A_CB_STATUS] -= PCM_SECTORS;
 }
 
-static addrbank fmv_bank = {
+addrbank fmv_bank = {
 	fmv_lget, fmv_wget, fmv_bget,
 	fmv_lput, fmv_wput, fmv_bput,
 	default_xlate, default_check, NULL, _T("CD32 FMV IO"),
@@ -1441,7 +1440,7 @@ static addrbank fmv_bank = {
 
 MEMORY_FUNCTIONS_NOJIT(fmv_rom);
 
-static addrbank fmv_rom_bank = {
+addrbank fmv_rom_bank = {
 	fmv_rom_lget, fmv_rom_wget, fmv_rom_bget,
 	fmv_rom_lput, fmv_rom_wput, fmv_rom_bput,
 	fmv_rom_xlate, fmv_rom_check, NULL, _T("CD32 FMV ROM"),
@@ -1451,7 +1450,7 @@ static addrbank fmv_rom_bank = {
 
 MEMORY_FUNCTIONS_NOJIT(fmv_ram);
 
-static addrbank fmv_ram_bank = {
+addrbank fmv_ram_bank = {
 	fmv_ram_lget, fmv_ram_wget, fmv_ram_bget,
 	fmv_ram_lput, fmv_ram_wput, fmv_ram_bput,
 	fmv_ram_xlate, fmv_ram_check, NULL, _T("CD32 FMV RAM"),

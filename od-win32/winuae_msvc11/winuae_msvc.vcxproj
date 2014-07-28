@@ -804,8 +804,10 @@
     <ClCompile Include="..\..\inputrecord.cpp" />
     <ClCompile Include="..\..\isofs.cpp" />
     <ClCompile Include="..\..\luascript.cpp" />
+    <ClCompile Include="..\..\ncr9x_scsi.cpp" />
     <ClCompile Include="..\..\newcpu_common.cpp" />
     <ClCompile Include="..\..\qemuvga\cirrus_vga.cpp" />
+    <ClCompile Include="..\..\qemuvga\esp.cpp" />
     <ClCompile Include="..\..\qemuvga\lsi53c710.cpp" />
     <ClCompile Include="..\..\qemuvga\lsi53c895a.cpp" />
     <ClCompile Include="..\..\qemuvga\qemuuaeglue.cpp" />

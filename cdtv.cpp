@@ -1654,7 +1654,7 @@ void cdtv_free (void)
 	configured = 0;
 }
 
-void cdtv_init (void)
+addrbank *cdtv_init (void)
 {
 	close_unit ();
 	if (!thread_alive) {
@@ -1681,7 +1681,6 @@ void cdtv_init (void)
 	ew (0x24, 0x00); /* ser.no. Byte 3 */
 
 	/* KS autoconfig handles the rest */
-	map_banks (&dmac_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
 	if (!savestate_state) {
 		cdtv_reset_int ();
 		configured = 0;
@@ -1699,6 +1698,7 @@ void cdtv_init (void)
 	if (currprefs.cs_cdtvscsi) {
 		init_scsi (&wd_cdtv);
 	}
+	return &dmac_bank;
 }
 
 void cdtv_check_banks (void)

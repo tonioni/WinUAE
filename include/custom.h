@@ -81,6 +81,7 @@ STATIC_INLINE int dmaen (unsigned int dmamask)
 #ifdef JIT
 #define SPCFLAG_END_COMPILE 16384
 #endif
+#define SPCFLAG_CHECK 32768
 
 extern uae_u16 adkcon;
 

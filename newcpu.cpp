@@ -62,6 +62,7 @@ int cpu_cycles;
 static int baseclock;
 bool m68k_pc_indirect;
 bool m68k_interrupt_delay;
+static bool m68k_reset_delay;
 static int cpu_prefs_changed_flag;
 
 int cpucycleunit;
@@ -1010,10 +1011,75 @@ bool set_cpu_tracer (bool state)
 	return is_cpu_tracer ();
 }
 
+void flush_cpu_caches(bool force)
+{
+	bool doflush = currprefs.cpu_compatible || currprefs.cpu_cycle_exact;
+
+	if (currprefs.cpu_model == 68020) {
+		if (regs.cacr & 0x08) { // clear instr cache
+			for (int i = 0; i < CACHELINES020; i++)
+				caches020[i].valid = 0;
+			regs.cacr &= ~0x08;
+		}
+		if (regs.cacr & 0x04) { // clear entry in instr cache
+			caches020[(regs.caar >> 2) & (CACHELINES020 - 1)].valid = 0;
+			regs.cacr &= ~0x04;
+		}
+	} else if (currprefs.cpu_model == 68030) {
+		if (regs.cacr & 0x08) { // clear instr cache
+			if (doflush) {
+				for (int i = 0; i < CACHELINES030; i++) {
+					icaches030[i].valid[0] = 0;
+					icaches030[i].valid[1] = 0;
+					icaches030[i].valid[2] = 0;
+					icaches030[i].valid[3] = 0;
+				}
+			}
+			regs.cacr &= ~0x08;
+		}
+		if (regs.cacr & 0x04) { // clear entry in instr cache
+			icaches030[(regs.caar >> 4) & (CACHELINES030 - 1)].valid[(regs.caar >> 2) & 3] = 0;
+			regs.cacr &= ~0x04;
+		}
+		if (regs.cacr & 0x800) { // clear data cache
+			if (doflush) {
+				for (int i = 0; i < CACHELINES030; i++) {
+					dcaches030[i].valid[0] = 0;
+					dcaches030[i].valid[1] = 0;
+					dcaches030[i].valid[2] = 0;
+					dcaches030[i].valid[3] = 0;
+				}
+			}
+			regs.cacr &= ~0x800;
+		}
+		if (regs.cacr & 0x400) { // clear entry in data cache
+			dcaches030[(regs.caar >> 4) & (CACHELINES030 - 1)].valid[(regs.caar >> 2) & 3] = 0;
+			regs.cacr &= ~0x400;
+		}
+	} else if (currprefs.cpu_model >= 68040) {
+		icachelinecnt = 0;
+		dcachelinecnt = 0;
+		if (doflush) {
+			for (int i = 0; i < CACHESETS040; i++) {
+				icaches040[i].valid[0] = 0;
+				icaches040[i].valid[1] = 0;
+				icaches040[i].valid[2] = 0;
+				icaches040[i].valid[3] = 0;
+			}
+		}
+	}
+}
+
+void flush_cpu_caches_040(uae_u16 opcode)
+{
+	int cache = (opcode >> 6) & 3;
+	if (!(cache & 2))
+			return;
+	flush_cpu_caches(true);
+}
+
 void set_cpu_caches (bool flush)
 {
-	int i;
-
 	regs.prefetch020addr = 0xffffffff;
 	regs.cacheholdingaddr020 = 0xffffffff;
 
@@ -1029,54 +1095,7 @@ void set_cpu_caches (bool flush)
 		}
 	}
 #endif
-	if (currprefs.cpu_model == 68020) {
-		if ((regs.cacr & 0x08) || flush) { // clear instr cache
-			for (i = 0; i < CACHELINES020; i++)
-				caches020[i].valid = 0;
-		}
-		if (regs.cacr & 0x04) { // clear entry in instr cache
-			caches020[(regs.caar >> 2) & (CACHELINES020 - 1)].valid = 0;
-			regs.cacr &= ~0x04;
-		}
-	} else if (currprefs.cpu_model == 68030) {
-		//regs.cacr |= 0x100;
-		if ((regs.cacr & 0x08) || flush) { // clear instr cache
-			for (i = 0; i < CACHELINES030; i++) {
-				icaches030[i].valid[0] = 0;
-				icaches030[i].valid[1] = 0;
-				icaches030[i].valid[2] = 0;
-				icaches030[i].valid[3] = 0;
-			}
-		}
-		if (regs.cacr & 0x04) { // clear entry in instr cache
-			icaches030[(regs.caar >> 4) & (CACHELINES030 - 1)].valid[(regs.caar >> 2) & 3] = 0;
-			regs.cacr &= ~0x04;
-		}
-		if ((regs.cacr & 0x800) || flush) { // clear data cache
-			for (i = 0; i < CACHELINES030; i++) {
-				dcaches030[i].valid[0] = 0;
-				dcaches030[i].valid[1] = 0;
-				dcaches030[i].valid[2] = 0;
-				dcaches030[i].valid[3] = 0;
-			}
-			regs.cacr &= ~0x800;
-		}
-		if (regs.cacr & 0x400) { // clear entry in data cache
-			dcaches030[(regs.caar >> 4) & (CACHELINES030 - 1)].valid[(regs.caar >> 2) & 3] = 0;
-			regs.cacr &= ~0x400;
-		}
-	} else if (currprefs.cpu_model == 68040) {
-		icachelinecnt = 0;
-		dcachelinecnt = 0;
-		if (!(regs.cacr & 0x8000)) {
-			for (i = 0; i < CACHESETS040; i++) {
-				icaches040[i].valid[0] = 0;
-				icaches040[i].valid[1] = 0;
-				icaches040[i].valid[2] = 0;
-				icaches040[i].valid[3] = 0;
-			}
-		}
-	}
+	flush_cpu_caches(flush);
 }
 
 STATIC_INLINE void count_instr (unsigned int opcode)
@@ -1356,6 +1375,7 @@ static void prefs_changed_cpu (void)
 	currprefs.int_no_unimplemented = changed_prefs.int_no_unimplemented;
 	currprefs.fpu_no_unimplemented = changed_prefs.fpu_no_unimplemented;
 	currprefs.blitter_cycle_exact = changed_prefs.blitter_cycle_exact;
+	currprefs.reset_delay = changed_prefs.reset_delay;
 }
 
 
@@ -1380,6 +1400,7 @@ static int check_prefs_changed_cpu2(void)
 		|| currprefs.m68k_speed != changed_prefs.m68k_speed
 		|| currprefs.m68k_speed_throttle != changed_prefs.m68k_speed_throttle
 		|| currprefs.cpu_clock_multiplier != changed_prefs.cpu_clock_multiplier
+		|| currprefs.reset_delay != changed_prefs.reset_delay
 		|| currprefs.cpu_frequency != changed_prefs.cpu_frequency) {
 			cpu_prefs_changed_flag |= 2;
 	}
@@ -2693,6 +2714,8 @@ static void m68k_reset2(bool hardreset)
 	uae_u32 v;
 
 	regs.spcflags = 0;
+	m68k_reset_delay = true;
+	set_special(SPCFLAG_CHECK);
 	regs.ipl = regs.ipl_pin = 0;
 #ifdef SAVESTATE
 	if (isrestore ()) {
@@ -3162,6 +3185,24 @@ static int do_specialties (int cycles)
 	if (regs.spcflags & SPCFLAG_MODE_CHANGE)
 		return 1;
 	
+	if (regs.spcflags & SPCFLAG_CHECK) {
+		if (m68k_reset_delay) {
+			int vsynccnt = 60;
+			int vsyncstate = -1;
+			m68k_reset_delay = 0;
+			while (vsynccnt > 0 && !quit_program) {
+				x_do_cycles(8 * CYCLE_UNIT);
+				if (regs.spcflags & SPCFLAG_COPPER)
+					do_copper();
+				if (timeframes != vsyncstate) {
+					vsyncstate = timeframes;
+					vsynccnt--;
+				}
+			}
+		}
+		unset_special(SPCFLAG_CHECK);
+	}
+
 	regs.instruction_pc = m68k_getpc();
 
 #ifdef ACTION_REPLAY
@@ -5848,7 +5889,9 @@ void cpureset (void)
 	uae_u16 ins;
 	addrbank *ab;
 
-	send_internalevent (INTERNALEVENT_CPURESET);
+	m68k_reset_delay = true;
+	set_special(SPCFLAG_CHECK);
+	send_internalevent(INTERNALEVENT_CPURESET);
 	if ((currprefs.cpu_compatible || currprefs.cpu_cycle_exact) && currprefs.cpu_model <= 68020) {
 		custom_reset (false, false);
 		return;

@@ -1914,7 +1914,7 @@ BEGIN
     IDS_WSTYLE_STANDARD     "Standard"
     IDS_WSTYLE_EXTENDED     "Extended"
     IDS_MISCLISTITEMS1      "Untrap = middle button\nShow GUI on startup\nUse CTRL-F11 to quit\nDon't show taskbar button\nDon't show notification icon\n"
-    IDS_MISCLISTITEMS2      "Always on top\nDisable screensaver\nSynchronize clock\nFaster RTG\nClipboard sharing\nAllow native code\n"
+    IDS_MISCLISTITEMS2      "Always on top\nDisable screensaver\nSynchronize clock\nOne second reboot pause\nFaster RTG\nClipboard sharing\nAllow native code\n"
     IDS_MISCLISTITEMS3      "Native on-screen display\nRTG on-screen display\nCreate winuaelog.txt log\nLog illegal memory accesses\nBlank unused displays\nStart mouse uncaptured\nStart minimized\nMinimize when focus is lost\n100/120Hz VSync black frame insertion\nMaster floppy write protection\nHide all UAE autoconfig boards\n"
     IDS_JOYMODE_WHEELMOUSE  "Wheel Mouse"
     IDS_NUMSG_KS68030PLUS   "The selected system ROM requires a 68030 or higher CPU."
