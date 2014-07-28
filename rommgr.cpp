@@ -93,7 +93,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 94
+#define NEXT_ROM_ID 95
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -298,6 +298,8 @@ static struct romdata roms[] = {
 	0xf88ae0f1, 0xf69aca4b,0xb13e3389,0x04676f0c,0x8616f8db,0x074c313d },
 	{ _T("Blizzard 2060 ROM"), 8, 5, 8, 5, _T("B2060\0"), 65536, 92, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
 	0xce270bc0, 0xe043c1aa,0x3bb06e06,0xd4dabff3,0x0a8c6317,0xabfef2bb },
+	{ _T("Blizzard SCSI Kit IV ROM"), 8, 5, 8, 5, _T("BSCSIIV\0"), 32768, 94, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
+	0xf53a0fca, 0xefe17ca5,0x88c44a7f,0x0f8c62be,0x20f23278,0xcfe06727 },
 	ALTROMPN(92, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xa6023f20, 0xdfb048d6, 0xbdc03587, 0x241e8121, 0x26aba603, 0xd69b0238)
 	ALTROMPN(92, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x9635a9cd, 0x47578b27, 0xc4ba6e54, 0x891930dd, 0xcb4b6a45, 0x5d6b31b2)
 	{ _T("Warp Engine A4000 ROM"), 0, 0, 0, 0, _T("WARPENGINE\0WARPENGINEA4000\0"), 32768, 93, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
@@ -1120,6 +1122,7 @@ struct zfile *read_rom (struct romdata *prd)
 {
 	struct romdata *rd2 = prd;
 	struct romdata *rd = prd;
+	struct romdata *rdpair = NULL;
 	TCHAR *name;
 	int id = rd->id;
 	uae_u32 crc32;
@@ -1163,6 +1166,12 @@ struct zfile *read_rom (struct romdata *prd)
 				int romsize = size / 2;
 				if (i)
 					odd = !odd;
+				if (rd->id == rd[1].id)
+					rdpair = &rd[1];
+				else if (rd != roms)
+					rdpair = &rd[-1];
+				else
+					rdpair = rd;
 				if (flags & ROMTYPE_8BIT) {
 					read_rom_file (buf2, rd);
 					if (flags & ROMTYPE_BYTESWAP)
@@ -1171,7 +1180,7 @@ struct zfile *read_rom (struct romdata *prd)
 						descramble (rd, buf2, romsize, odd);
 					for (j = 0; j < size; j += 2)
 						buf[j + odd] = buf2[j / 2];
-					read_rom_file (buf2, rd + 1);
+					read_rom_file (buf2, rdpair);
 					if (flags & ROMTYPE_BYTESWAP)
 						byteswap (buf2, romsize);
 					if (flags & ROMTYPE_SCRAMBLED)
@@ -1188,7 +1197,7 @@ struct zfile *read_rom (struct romdata *prd)
 						buf[j + 2 * odd + 0] = buf2[j / 2 + 0];
 						buf[j + 2 * odd + 1] = buf2[j / 2 + 1];
 					}
-					read_rom_file (buf2, rd + 1);
+					read_rom_file (buf2, rdpair);
 					if (flags & ROMTYPE_BYTESWAP)
 						byteswap (buf2, romsize);
 					if (flags & ROMTYPE_SCRAMBLED)
