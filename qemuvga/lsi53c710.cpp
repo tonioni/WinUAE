@@ -2349,9 +2349,9 @@ static const struct SCSIBusInfo lsi_scsi_info = {
     .max_target = LSI_MAX_DEVS,
     .max_lun = 0,  /* LUN support is buggy */
 
-    .transfer_data = lsi_transfer_data,
-    .complete = lsi_command_complete,
-    .cancel = lsi_request_cancelled
+    .transfer_data = lsi710_transfer_data,
+    .complete = lsi710_command_complete,
+    .cancel = lsi710_request_cancelled
 };
 
 static int lsi_scsi_init(PCIDevice *dev)
