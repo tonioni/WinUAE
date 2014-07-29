@@ -169,7 +169,7 @@ static int enforcer_decode_hunk_and_offset (TCHAR *buf, uae_u32 pc)
 					} else {
 						native_name = my_strdup (_T("Unknown"));
 					}
-					_stprintf (buf, _T("----> %08x - \"%s\" Hunk %04lx Offset %08x\n"), pc, native_name, hunk, offset);
+					_stprintf (buf, _T("----> %08x - \"%s\" Hunk %04x Offset %08x\n"), pc, native_name, hunk, offset);
 					xfree (native_name);
 					return 1;
 				}
@@ -260,7 +260,7 @@ static void enforcer_display_hit (const TCHAR *addressmode, uae_u32 pc, uaecptr 
 	enforcer_buf_ptr += _tcslen (enforcer_buf_ptr);
 
 	_stprintf (buf, _T("Illegal %s: %08x"), addressmode, addr);
-	_stprintf (enforcer_buf_ptr, _T("%-48sPC: %0x\n"), buf, pc);
+	_stprintf (enforcer_buf_ptr, _T("%-48sPC: %08x\n"), buf, pc);
 	enforcer_buf_ptr += _tcslen (enforcer_buf_ptr);
 
 	/* Data registers */
