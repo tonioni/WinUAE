@@ -82,7 +82,7 @@ struct device_info {
 	TCHAR vendorid[10];
 	TCHAR productid[18];
 	TCHAR revision[6];
-	TCHAR *backend;
+	const TCHAR *backend;
 	struct cd_toc_head toc;
 };
 
@@ -202,6 +202,8 @@ extern void blkdev_default_prefs (struct uae_prefs *p);
 extern void blkdev_fix_prefs (struct uae_prefs *p);
 extern int isaudiotrack (struct cd_toc_head*, int block);
 extern int isdatatrack (struct cd_toc_head*, int block);
+void sub_to_interleaved (const uae_u8 *s, uae_u8 *d);
+void sub_to_deinterleaved (const uae_u8 *s, uae_u8 *d);
 
 enum cd_standard_unit { CD_STANDARD_UNIT_DEFAULT, CD_STANDARD_UNIT_AUDIO, CD_STANDARD_UNIT_CDTV, CD_STANDARD_UNIT_CD32 };
 
@@ -213,5 +215,9 @@ extern void blkdev_entergui (void);
 extern void blkdev_exitgui (void);
 
 bool filesys_do_disk_change (int, bool);
+
+extern struct device_functions devicefunc_scsi_ioctl;
+extern struct device_functions devicefunc_scsi_spti;
+extern struct device_functions devicefunc_cdimage;
 
 #endif /* BLKDEV_H */
