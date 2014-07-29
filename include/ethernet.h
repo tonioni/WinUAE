@@ -1,4 +1,5 @@
-
+#ifndef _UAE_ETHERNET_H_
+#define _UAE_ETHERNET_H_
 
 #define UAENET_NONE 0
 #define UAENET_SLIRP 1
@@ -8,11 +9,11 @@
 struct netdriverdata
 {
 	int type;
-    TCHAR *name;
-    TCHAR *desc;
-    int mtu;
-    uae_u8 mac[6];
-    int active;
+	const TCHAR *name;
+	const TCHAR *desc;
+	int mtu;
+	uae_u8 mac[6];
+	int active;
 };
 
 
@@ -33,3 +34,5 @@ extern void ethernet_trigger (void*);
 
 extern bool slirp_start (void);
 extern void slirp_end (void);
+
+#endif // _UAE_ETHERNET_H_

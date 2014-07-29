@@ -22,8 +22,10 @@
  * THE SOFTWARE.
  */
 
-#include <slirp.h>
+#include "slirp.h"
+#ifdef _WIN32
 #include <io.h>
+#endif
 
 struct tftp_session {
     int in_use;

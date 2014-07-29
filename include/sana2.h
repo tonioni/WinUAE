@@ -6,6 +6,8 @@
   * (c) 2007 Toni Wilen
   */
 
+#define MAX_TOTAL_NET_DEVICES 10
+
 uaecptr netdev_startup (uaecptr resaddr);
 void netdev_install (void);
 void netdev_reset (void);

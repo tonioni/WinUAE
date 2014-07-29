@@ -79,9 +79,11 @@ void ethernet_trigger (void *vsd)
 			}
 		}
 		return;
+#ifdef WITH_UAENET_PCAP
 		case UAENET_PCAP:
 		uaenet_trigger (vsd);
 		return;
+#endif
 	}
 }
 
@@ -107,7 +109,11 @@ int ethernet_open (struct netdriverdata *ndd, void *vsd, void *user, ethernet_go
 					    inet_aton("10.0.2.15", &a);
 						slirp_redir (0, sr->dstport, a, sr->dstport);
 					} else {
+#ifdef HAVE_STRUCT_IN_ADDR_S_UN
 						a.S_un.S_addr = sr->addr;
+#else
+						a.s_addr = sr->addr;
+#endif
 						slirp_redir (sr->proto == 1 ? 0 : 1, sr->dstport, a, sr->srcport);
 					}
 				}
@@ -130,8 +136,10 @@ int ethernet_open (struct netdriverdata *ndd, void *vsd, void *user, ethernet_go
 			slirp_start ();
 		}
 		return 1;
+#ifdef WITH_UAENET_PCAP
 		case UAENET_PCAP:
 		return uaenet_open (vsd, ndd, user, gotfunc, getfunc, promiscuous);
+#endif
 	}
 	return 0;
 }
@@ -152,14 +160,18 @@ void ethernet_close (struct netdriverdata *ndd, void *vsd)
 			uae_sem_destroy (&slirp_sem2);
 		}
 		return;
+#ifdef WITH_UAENET_PCAP
 		case UAENET_PCAP:
 		return uaenet_close (vsd);
+#endif
 	}
 }
 
 void ethernet_enumerate_free (void)
 {
+#ifdef WITH_UAENET_PCAP
 	uaenet_enumerate_free ();
+#endif
 }
 
 bool ethernet_enumerate (struct netdriverdata **nddp, const TCHAR *name)
@@ -173,8 +185,10 @@ bool ethernet_enumerate (struct netdriverdata **nddp, const TCHAR *name)
 			*nddp = &slirpd;
 		if (!_tcsicmp (slirpd2.name, name))
 			*nddp = &slirpd2;
+#ifdef WITH_UAENET_PCAP
 		if (*nddp == NULL)
 			*nddp = uaenet_enumerate (name);
+#endif
 		if (*nddp) {
 			netmode = (*nddp)->type;
 			return true;
@@ -184,12 +198,14 @@ bool ethernet_enumerate (struct netdriverdata **nddp, const TCHAR *name)
 	j = 0;
 	nddp[j++] = &slirpd;
 	nddp[j++] = &slirpd2;
+#ifdef WITH_UAENET_PCAP
 	nd = uaenet_enumerate (NULL);
 	if (nd) {
 		for (int i = 0; i < nd[i].active; i++) {
 			nddp[j++] = nd;
 		}
 	}
+#endif
 	nddp[j] = NULL;
 	return true;
 }
@@ -201,8 +217,10 @@ void ethernet_close_driver (struct netdriverdata *ndd)
 		case UAENET_SLIRP:
 		case UAENET_SLIRP_INBOUND:
 		return;
+#ifdef WITH_UAENET_PCAP
 		case UAENET_PCAP:
 		return uaenet_close_driver (ndd);
+#endif
 	}
 	netmode = 0;
 }
@@ -214,8 +232,10 @@ int ethernet_getdatalenght (struct netdriverdata *ndd)
 		case UAENET_SLIRP:
 		case UAENET_SLIRP_INBOUND:
 		return sizeof (struct ethernet_data);
+#ifdef WITH_UAENET_PCAP
 		case UAENET_PCAP:
 		return uaenet_getdatalenght ();
+#endif
 	}
 	return 0;
 }
