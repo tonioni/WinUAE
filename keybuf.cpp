@@ -56,10 +56,7 @@ int record_key (int kc)
 
 int record_key_direct (int kc)
 {
-	int fs = 0;
 	int kpb_next = kpb_first + 1;
-	int k = kc >> 1;
-	int b = !(kc & 1);
 
 	//write_log (_T("got kc %02X\n"), ((kc << 7) | (kc >> 1)) & 0xff);
 	if (kpb_next == KEYBUF_SIZE)

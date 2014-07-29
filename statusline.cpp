@@ -94,7 +94,7 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 	for (led = 0; led < LED_MAX; led++) {
 		int side, pos, num1 = -1, num2 = -1, num3 = -1, num4 = -1;
 		int x, c, on = 0, am = 2;
-		xcolnr on_rgb, on_rgb2, off_rgb, pen_rgb;
+		xcolnr on_rgb = 0, on_rgb2 = 0, off_rgb = 0, pen_rgb = 0;
 		int half = 0;
 
 		if (!(currprefs.leds_on_screen_mask[picasso_on ? 1 : 0] & (1 << led)))

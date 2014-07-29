@@ -122,7 +122,7 @@ static struct priv_devstruct *getpdevstruct (uaecptr request)
 	return &pdevst[i];
 }
 
-static TCHAR *getdevname (int type)
+static const TCHAR *getdevname (int type)
 {
 	switch (type) {
 	case UAEDEV_SCSI_ID:

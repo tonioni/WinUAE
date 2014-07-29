@@ -134,7 +134,7 @@ void MISC_handler (void)
 			}
 		}
 	}
-	if (mintime != ~0L) {
+	if (mintime != ~0UL) {
 		eventtab[ev_misc].active = true;
 		eventtab[ev_misc].oldcycles = ct;
 		eventtab[ev_misc].evtime = ct + mintime;

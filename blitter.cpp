@@ -1520,7 +1520,7 @@ static void do_blitter2 (int hpos, int copper)
 				ch++;
 			if (blit_ch & 8)
 				ch++;
-			write_log (_T("blitstart: %dx%d ch=%d %d*%d=%d d=%d f=%02X n=%d pc=%p l=%d dma=%04X %s\n"),
+			write_log (_T("blitstart: %dx%d ch=%d %d*%d=%d d=%d f=%02x n=%d pc=%08x l=%d dma=%04x %s\n"),
 				blt_info.hblitsize, blt_info.vblitsize, ch, blit_diag[0], cycles, blit_diag[0] * cycles,
 				blitdesc ? 1 : 0, blitfill, dmaen (DMA_BLITPRI) ? 1 : 0, M68K_GETPC, blitline,
 				dmacon, ((dmacon & (DMA_MASTER | DMA_BLITTER)) == (DMA_MASTER | DMA_BLITTER)) ? _T("") : _T(" off!"));

@@ -6,6 +6,9 @@
   * (c) 1996 Samuel Devulder
   */
 
+#ifndef_UAE_ZFILE_H
+#define UAE_ZFILE_H
+
 struct zfile;
 struct zvolume;
 struct zdirectory;
@@ -147,3 +150,5 @@ struct mystat
 };
 extern void timeval_to_amiga (struct mytimeval *tv, int* days, int* mins, int* ticks);
 extern void amiga_to_timeval (struct mytimeval *tv, int days, int mins, int ticks);
+
+#endif // UAE_ZFILE_H

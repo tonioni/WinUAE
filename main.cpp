@@ -716,7 +716,7 @@ static int diskswapper_cb (struct zfile *f, void *vrsd)
 static void parse_diskswapper (const TCHAR *s)
 {
 	TCHAR *tmp = my_strdup (s);
-	TCHAR *delim = _T(",");
+	const TCHAR *delim = _T(",");
 	TCHAR *p1, *p2;
 	int num = 0;
 

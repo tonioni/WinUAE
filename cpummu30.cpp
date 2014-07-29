@@ -96,7 +96,7 @@ typedef struct {
 
 
 /* MMU struct for 68030 */
-struct {
+static struct {
     
     /* Translation tables */
     struct {
