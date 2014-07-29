@@ -25,14 +25,14 @@
 #include "zfile.h"
 #include "blkdev.h"
 #include "cpuboard.h"
-#include "qemuvga\qemuuaeglue.h"
-#include "qemuvga\queue.h"
-#include "qemuvga\scsi\scsi.h"
-#include "qemuvga\scsi\esp.h"
+#include "qemuvga/qemuuaeglue.h"
+#include "qemuvga/queue.h"
+#include "qemuvga/scsi/scsi.h"
+#include "qemuvga/scsi/esp.h"
 
 struct ncr9x_state
 {
-	TCHAR *name;
+	const TCHAR *name;
 	DeviceState devobject;
 	SCSIDevice *scsid[8];
 	SCSIBus scsibus;

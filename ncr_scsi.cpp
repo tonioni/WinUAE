@@ -25,9 +25,9 @@
 #include "zfile.h"
 #include "blkdev.h"
 #include "cpuboard.h"
-#include "qemuvga\qemuuaeglue.h"
-#include "qemuvga\queue.h"
-#include "qemuvga\scsi\scsi.h"
+#include "qemuvga/qemuuaeglue.h"
+#include "qemuvga/queue.h"
+#include "qemuvga/scsi/scsi.h"
 
 #define BOARD_SIZE 16777216
 #define IO_MASK 0xff
@@ -53,7 +53,7 @@
 struct ncr_state
 {
 	bool newncr;
-	TCHAR *name;
+	const TCHAR *name;
 	DeviceState devobject;
 	SCSIDevice *scsid[8];
 	SCSIBus scsibus;
@@ -447,8 +447,23 @@ static void REGPARAM2 ncr_lput (struct ncr_state *ncr, uaecptr addr, uae_u32 l)
 	}
 }
 
-extern addrbank ncr_bank_a4091;
-extern addrbank ncr_bank_a4091_2;
+DECLARE_MEMORY_FUNCTIONS(ncr4)
+
+static addrbank ncr_bank_a4091 = {
+	ncr4_lget, ncr4_wget, ncr4_bget,
+	ncr4_lput, ncr4_wput, ncr4_bput,
+	default_xlate, default_check, NULL, _T("A4091"),
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
+
+DECLARE_MEMORY_FUNCTIONS(ncr42)
+
+static addrbank ncr_bank_a4091_2 = {
+	ncr42_lget, ncr42_wget, ncr42_bget,
+	ncr42_lput, ncr42_wput, ncr42_bput,
+	default_xlate, default_check, NULL, _T("A4091 #2"),
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
 
 static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
 {
@@ -656,20 +671,6 @@ static uae_u32 REGPARAM2 bppc_lget(uaecptr addr)
 {
 	return ncr_lget(&ncr_bppc, addr);
 }
-
-static addrbank ncr_bank_a4091 = {
-	ncr4_lget, ncr4_wget, ncr4_bget,
-	ncr4_lput, ncr4_wput, ncr4_bput,
-	default_xlate, default_check, NULL, _T("A4091"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
-};
-
-static addrbank ncr_bank_a4091_2 = {
-	ncr42_lget, ncr42_wget, ncr42_bget,
-	ncr42_lput, ncr42_wput, ncr42_bput,
-	default_xlate, default_check, NULL, _T("A4091 #2"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
-};
 
 static addrbank ncr_bank_warpengine = {
 	we_lget, we_wget, we_bget,
