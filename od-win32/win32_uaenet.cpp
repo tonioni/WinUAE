@@ -428,9 +428,7 @@ void uaenet_close_driver (struct netdriverdata *tc)
 	}
 }
 
-
 static volatile int slirp_thread_active;
-static HANDLE slirp_thread;
 static uae_thread_id slirp_tid;
 extern uae_sem_t slirp_sem2;
 
