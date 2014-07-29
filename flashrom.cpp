@@ -9,8 +9,11 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#include "options.h"
 #include "zfile.h"
 #include "flashrom.h"
+#include "memory.h"
+#include "newcpu.h"
 #include "debug.h"
 
 #define FLASH_LOG 0
@@ -66,7 +69,7 @@ bool flash_write(void *fdv, uaecptr addr, uae_u8 v)
 	if (!fd)
 		return false;
 #if FLASH_LOG
-	write_log(_T("flash write %08x %02x (%d)\n"), addr, v, fd->state);
+	write_log(_T("flash write %08x %02x (%d) PC=%08x\n"), addr, v, fd->state, m68k_getpc());
 #endif
 
 	addr &= fd->mask;
@@ -110,7 +113,7 @@ bool flash_write(void *fdv, uaecptr addr, uae_u8 v)
 		fd->state = 6;
 	if (addr2 == 0x5555 && fd->state == 6 && v == 0x10) {
 		memset(fd->rom, 0xff, fd->allocsize);
-		fd->state = 100;
+		fd->state = 200;
 		fd->modified = 1;
 #if FLASH_LOG
 		write_log(_T("flash chip erased\n"), addr);
@@ -120,7 +123,7 @@ bool flash_write(void *fdv, uaecptr addr, uae_u8 v)
 		int saddr = addr & ~0x3fff;
 		if (saddr < fd->allocsize)
 			memset(fd->rom + saddr, 0xff, 0x4000);
-		fd->state = 100;
+		fd->state = 200;
 		fd->modified = 1;
 #if FLASH_LOG
 		write_log(_T("flash sector %d erased (%08x)\n"), saddr / 0x4000, addr);
@@ -141,32 +144,40 @@ uae_u32 flash_read(void *fdv, uaecptr addr)
 	if (!fd)
 		return 0;
 
-#if FLASH_LOG
-	write_log(_T("flash read %08x (%d)\n"), addr, fd->state);
-#endif
-
 	addr &= fd->mask;
 	if (fd->state == 3) {
 		uae_u8 a = addr & 0xff;
 		if (a == 0)
-			return 0x01;
+			v = 0x01;
 		if (a == 1)
-			return 0x20;
+			v = 0x20;
 		if (a == 2)
-			return 0x00;
-	}
-
-	if (fd->state >= 100) {
-		v = fd->rom[addr] ^ 0x80;
+			v = 0x00;
+	} else if (fd->state >= 200) {
+		v = 0;
+		if (fd->state & 1)
+			v ^= 0x40;
+		fd->state++;
+		if (fd->state >= 210)
+			fd->state = 0;
+		v |= 0x08;
+	} else if (fd->state >= 100) {
+		v = (fd->rom[addr] & 0x80) ^ 0x80;
+		if (fd->state & 1)
+			v ^= 0x40;
 		fd->state++;
 		if (fd->state >= 110)
 			fd->state = 0;
-		return v;
+	} else {
+		fd->state = 0;
+		if (addr >= fd->allocsize)
+			v = 0xff;
+		else
+			v = fd->rom[addr];
 	}
+#if FLASH_LOG
+	write_log(_T("flash read %08x = %02X (%d) PC=%08x\n"), addr, v, fd->state, m68k_getpc());
+#endif
 
-	fd->state = 0;
-	if (addr >= fd->allocsize)
-		return 0xff;
-
-	return fd->rom[addr];
+	return v;
 }
