@@ -78,6 +78,7 @@
 #include "driveclick.h"
 #include "scsi.h"
 #include "cpuboard.h"
+#include "sana2.h"
 #ifdef PROWIZARD
 #include "moduleripper.h"
 #endif

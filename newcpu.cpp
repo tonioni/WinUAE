@@ -1375,9 +1375,7 @@ static void prefs_changed_cpu (void)
 	currprefs.int_no_unimplemented = changed_prefs.int_no_unimplemented;
 	currprefs.fpu_no_unimplemented = changed_prefs.fpu_no_unimplemented;
 	currprefs.blitter_cycle_exact = changed_prefs.blitter_cycle_exact;
-	currprefs.reset_delay = changed_prefs.reset_delay;
 }
-
 
 static int check_prefs_changed_cpu2(void)
 {
@@ -1407,21 +1405,19 @@ static int check_prefs_changed_cpu2(void)
 	return cpu_prefs_changed_flag;
 }
 
-
 void check_prefs_changed_cpu(void)
 {
 	if (!config_changed)
 		return;
 
-	if (currprefs.cpu_idle != changed_prefs.cpu_idle) {
-		currprefs.cpu_idle = changed_prefs.cpu_idle;
-	}
+	currprefs.cpu_idle = changed_prefs.cpu_idle;
+	currprefs.reset_delay = changed_prefs.reset_delay;
+
 	if (check_prefs_changed_cpu2()) {
 		set_special(SPCFLAG_MODE_CHANGE);
 		reset_frame_rate_hack();
 	}
 }
-
 
 void init_m68k (void)
 {
@@ -2918,7 +2914,7 @@ static void mmu_op30fake_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecpt
 		siz = 8;
 		if (rw) {
 			x_put_long (extra, fake_srp_030 >> 32);
-			x_put_long (extra + 4, fake_srp_030);
+			x_put_long (extra + 4, (uae_u32)fake_srp_030);
 		} else {
 			fake_srp_030 = (uae_u64)x_get_long (extra) << 32;
 			fake_srp_030 |= x_get_long (extra + 4);
@@ -2929,7 +2925,7 @@ static void mmu_op30fake_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecpt
 		siz = 8;
 		if (rw) {
 			x_put_long (extra, fake_crp_030 >> 32);
-			x_put_long (extra + 4, fake_crp_030);
+			x_put_long (extra + 4, (uae_u32)fake_crp_030);
 		} else {
 			fake_crp_030 = (uae_u64)x_get_long (extra) << 32;
 			fake_crp_030 |= x_get_long (extra + 4);

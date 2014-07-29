@@ -18,14 +18,116 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
-- New statusline showed disk eject messages even if drive was already empty.
+Beta 7:
+
+- NCR93C94/FAS216 SCSI emulation write didn't work correct and wrote corrupted data, fixed. Added also check
+  that aborts transfer if SCSI chip and DMA controller data directions don't match (should never happen but...)
+- Flash chip emulation didn't emulate all "chip is still erasing" status bits, broke CSMK3/CSPPC/BPCC flasher.
+  Worked only accidentally in older version.
+- SCSI Kit rom checksum data was in wrong position, broke Blizzard 2060 odd/even rom loading.
+- CyberStorm MK2 flash update was not written back to rom file.
+- "JIT Direct compatible Z3 memory mapping" option with RTG enabled worked only in some configurations.
+
+Beta 6:
+
+- Added NCR53C94/FAS216 SCSI chip emulation (from QEMU)
+- Added Blizzard1230IV/Blizzard1260 + Blizzard SCSI Kit IV emulation. SCSI Kit v8.5 ROM added to rom scanner.
+- Added CyberStorm MK1 and CyberStorm MK2 emulation, map rom and SCSI included.
+- Blizzard 2060 (map rom not emulated) and Warp Engine works now.
+- CyberStorm PPC and Blizzard PPC 0xFFF00000 mapping improved, now switches correctly between KS map rom and
+  PPC boot code locations. BPPC now correctly attempts to start flash built-in PPC support code during boot
+  and hangs because PPC won't respond.
+- Added warning message when BlizzardPPC or CyberStormPPC PPC CPU gets booted.
+- Remap UAE Boot ROM (if needed) to secondary backup location if Blizzard PPC is enabled, if MMU emulation is
+  enabled BPPC will remap normal boot ROM backup location causing boot hang.
+- Added CyberStorm MK2 flash rom chip emulation, map rom and disable key support (=HALT4).
+- Added CyberStorm MK2 full 128k rom image support (64k of autoconfig rom and 64k of diag rom)
+- Flash chip emulation compatibility improved, fixed CSMK2 flasher infinite loop.
+- Accelerator memory option now automatically changes CPU board memory if accelerator uses same memory type.
+- Added keyboard hack to help Phase5 boot rom key detection, it still wasn't realiable enough with some boards.
+- Added one second boot delay option to misc panel, allows easy access to boot menus without need to
+  slow CPU emulation speed.
+- Added 'Te' command to debugger, shows expansion autoconfig board information.
+- CPU slot memory region was accidentally removed from mman list, causing random crashes in some JIT configurations.
+- 68040+ more compatible / "cycle-exact" mode cache flush instructions didn't do anything.
+
+About PPC emulation. It is now possible, at least technically, all other pieces are now done (at least partially).
+QEMU has license compatible and apparently very good PPC CPU emulator, including MMU and dynamic translation and
+it is proven to boot at least Linux.
+
+Only need someone who knows QEMU inside out and can create standalone PPC emulator module that is black box
+that only needs few functions: read physical address, write physical address, reset PPC, set interrupt level,
+set CPU parameters. There appears to be some kind of CPU API/class but because it is unstable, internal only API,
+there is no documentation.
+
+Note that I still don't care what happens will happens in PPC side. If/when Blizzard PPC/CyberStorm PPC can run
+some small PPC programs = it is done.
+
+Beta 5:
+
+Big accelerator board emulation update:
+
+Added CyberStorm MK3, CyberStorm PPC and Blizzard PPC. ! There is no PPC CPU ! Technically it emulates board
+with PPC CPU removed. (Which surprisingly does not seem to cause any problems, at least under emulation, real
+hardware may get confused if PPC chip is removed). SCSI fully supported, boot menu works, boot menu options
+can be modified and saved to flash, flash updater works. Map rom should work, including BlizKick.
+
+Boot menu config is saved to flash rom which means selected flash rom will be modified, only use copy of your
+flash rom image (If it is writable, files inside archives are never modified).
+
+You need to be really fast or select slower CPU mode if you want to enter boot menu (ESC key). This needs some
+emulator updates to allow easier way to press keys when starting emulation.
+
+Map ROM is software selectable in boot menu, map rom option in GUI does nothing when using these boards.
+
+Flash ROM images must have following names and must be in ROM directory because checksum based ROM detection can't work:
+- CyberStorm MK3: cyberstormmk3.rom
+- CyberStorm PPC: cyberstormppc.rom (emulates Phase5 version that has 128k flash, DCE 512k flash version not tested)
+- Blizzard PPC: blizzardppc.rom (Note: flash is 512k but second half is only used for config, if rom image
+is 256k (size you get if you simply dump the F0 space from real hardware), it gets extended to 512k after
+onfig save or flash update). ROM images uploaded to the zone.
+
+GUI/config file ROM selection will be added later. Note that real flash rom images also contain some card
+specific information (PPC CPU speed, serial number which also includes card type). This area is blank in rom
+images uploaded to the zone (they are from official flash updater, old serial is kept when flashing). blank
+serial does not seem to cause any problems but some software probably gets confused.
+
+NOTE: Only Blizzards use Accelerator board memory slider, other boards use CPU Board memory slider and Accelerator
+board slider still needs to be set to some non-zero memory amount. (Will be fixed later).
+
+Blizzard PPC seems to have something else in F50000 which may be important. (I only have CyberStorm PPC for
+testing). Blizzard is (and can't be) JIT compatible due to high RAM addresses and RAM mirroring, CyberStorms
+are much more JIT friendly but it is not guaranteed to be safe. Blizzard also does not boot if MMU emulation
+is enabled.
+
 - Added optional FPU emulation that uses softfloat library, another feature not for normal use.
   Full 80-bit FP accuracy, bit-perfect results (not including trigonometric functions), supports FPU
   arithmetic exceptions, much slower (Uses integer algorithms, host FPU is not used).
+- Added mostly unmodified Qemu 53c895a SCSI emulation (originally heavily modified for 53c710 emulation). It is
+  53c770 compatible, 53c770 is used in CyberStorm MK3 and CyberStorm PPC.
+- Some 53c710 updates, Blizzard PPC SCSI driver didn't work.
+- Added simple flash rom emulator.
+- Fastest possible CPU option is now available for cycle-exact modes. CPU internal cycles are not counted,
+  only (mainboard) memory accesses are cycle exact (DMA steals cycles from CPU) in this mode.
+- 68040/060 "cycle-exact" mode is back, emulates only Amiga mainboard memory accesses cycle-exactly, includes
+  instruction(*) cache emulation. Any 32-bit fast ram or cached access is still immediate. (Which is still
+  much closer to real 040/060 than old behavior, 040/060 is heavily bottle-necked when accessing mainboard)
+- 68040/060 "compatible" mode now adds instruction cache emulation.
+- 68030/040/60 MMU mode "more compatible" (68030: adds both instruction and data cache emulation, 68040/060:
+  instruction cache only) and "cycle-exact" modes supported. (more compatible + mainboard access slowed down)
+- 68030: data cache support is temporarily disabled. (Didn't work with MMU for some reasonm)
+- DFx: eject messages appeared in new status bar even if drive was already empty.
+- Right-align status messages in fullscreen mode.
+- A2065 autoconfig was broken (b4)
+- b1 directory filesystem change rewritten again, removed also lots of unneeded complexity from original code.
+- On screen CPU halt message reason code was always 1.
+- Generated virtual RDB (when IDE/SCSI mounting partition hardfile) created empty string for device name.
 - 270b6 "JIT MOVEM used direct mode if memory was direct capable but direct mode was disabled." was wrong
   fix, original code probably was done to work around some JIT indirect bug.. (AmiKit crash during boot
   if JIT is in indirect mode)
 
+*) Instruction cache only? because emulating data cache would not make any useful difference (except to slow
+down emulation), data cache normally does not cache any mainboard addresses anyway.
 
 Beta 4:
 

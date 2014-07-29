@@ -209,7 +209,6 @@ BEGIN
     RTEXT           "Accelerator board memory:",IDC_STATIC,138,257,104,15,SS_CENTERIMAGE
     CONTROL         "",IDC_CPUBOARDMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,251,253,68,20
     EDITTEXT        IDC_CPUBOARDRAM,326,256,40,12,ES_CENTER | ES_READONLY
-    CTEXT           "Accelerator board emulation is not JIT Direct compatible.",IDC_STATIC,25,238,341,15,SS_CENTERIMAGE
 END
 
 IDD_CPU DIALOGEX 0, 0, 396, 283

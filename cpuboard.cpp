@@ -1331,6 +1331,10 @@ addrbank *cpuboard_autoconfig_init(void)
 		earom_size = 131072;
 		f0rom_size = 65536;
 		zfile_fread(blizzardea_bank.baseaddr, earom_size, 1, autoconfig_rom);
+		if (zfile_needwrite(autoconfig_rom)) {
+			flashrom_file = autoconfig_rom;
+			autoconfig_rom = NULL;
+		}
 		flashrom = flash_new(blizzardea_bank.baseaddr, earom_size, earom_size, flashrom_file);
 		memcpy(blizzardf0_bank.baseaddr, blizzardea_bank.baseaddr + 65536, 65536);
 	} else if (is_csmk3() || is_blizzardppc()) {

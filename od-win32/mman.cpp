@@ -359,11 +359,12 @@ static int doinit_shm (void)
 		if (changed_prefs.jit_direct_compatible_memory) {
 			p96mem_offset = natmem_offset + p96base_offset;
 		} else {
+			// calculate Z3 alignment (argh, I thought only Z2 needed this..)
+			p96base_offset = (0x40000000 + changed_prefs.z3fastmem_size + changed_prefs.rtgmem_size - 1) & ~(changed_prefs.rtgmem_size - 1);			
 			// adjust p96mem_offset to beginning of natmem
 			// by subtracting start of original p96mem_offset from natmem_offset
 			if (p96base_offset >= 0x10000000) {
-				natmem_offset = natmem_offset_allocated - 0x40000000 - (p96base_offset - 0x10000000);
-				p96base_offset += 0x40000000 - 0x10000000;
+				natmem_offset = natmem_offset_allocated - p96base_offset;
 				p96mem_offset = natmem_offset + p96base_offset;
 			}
 		}
