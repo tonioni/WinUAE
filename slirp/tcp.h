@@ -170,6 +170,6 @@ struct tcphdr {
 
 extern tcp_seq tcp_iss;                /* tcp initial send seq # */
 
-extern char *tcpstates[];
+extern const char *tcpstates[];
 
 #endif

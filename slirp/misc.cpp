@@ -380,8 +380,8 @@ fork_exec(struct socket *so, char *ex, int do_pty)
 		bptr = strdup(ex); /* No need to free() this */
 		if (do_pty == 1) {
 			/* Setup "slirp.telnetd -x" */
-			argv[i++] = "slirp.telnetd";
-			argv[i++] = "-x";
+			argv[i++] = strdup("slirp.telnetd");
+			argv[i++] = strdup("-x");
 			argv[i++] = bptr;
 		} else
 		   do {
