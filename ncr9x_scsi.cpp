@@ -124,6 +124,10 @@ void esp_irq_lower(qemu_irq irq)
 static void cyberstorm_mk1_mk2_dma_read(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
+	if (!(ncr->dma_ptr & 0x00000001)) {
+		write_log(_T("cyberstorm_dma_read mismatched direction!\n"));
+		return;
+	}
 	while (len > 0) {
 		uae_u16 v = get_word(ncr->dma_ptr & ~1);
 		*buf++ = v >> 8;
@@ -138,6 +142,10 @@ static void cyberstorm_mk1_mk2_dma_read(void *opaque, uint8_t *buf, int len)
 static void cyberstorm_mk1_mk2_dma_write(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
+	if (ncr->dma_ptr & 0x00000001) {
+		write_log(_T("cyberstorm_dma_write mismatched direction!\n"));
+		return;
+	}
 	while (len > 0) {
 		uae_u16 v;
 		v = *buf++;
@@ -155,6 +163,10 @@ static void cyberstorm_mk1_mk2_dma_write(void *opaque, uint8_t *buf, int len)
 static void blizzard_dma_read(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
+	if (!(ncr->dma_ptr & 0x80000000)) {
+		write_log(_T("blizzard_dma_read mismatched direction!\n"));
+		return;
+	}
 	while (len > 0) {
 		uae_u16 v = get_word((ncr->dma_ptr & 0x7fffffff) * 2);
 		*buf++ = v >> 8;
@@ -169,6 +181,10 @@ static void blizzard_dma_read(void *opaque, uint8_t *buf, int len)
 static void blizzard_dma_write(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
+	if (ncr->dma_ptr & 0x80000000) {
+		write_log(_T("blizzard_dma_write mismatched direction!\n"));
+		return;
+	}
 	while (len > 0) {
 		uae_u16 v;
 		v = *buf++;
@@ -239,6 +255,8 @@ int32_t scsiesp_req_enqueue(SCSIRequest *req)
 		scsi_emulate_cmd(sd);
 	if (sd->direction == 0)
 		return 1;
+	if (sd->direction > 0)
+		return -sd->data_len;
 	return sd->data_len;
 }
 void scsiesp_req_unref(SCSIRequest *req)
