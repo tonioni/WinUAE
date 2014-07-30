@@ -141,7 +141,7 @@ struct color_entry colors_for_drawing;
 /* The size of these arrays is pretty arbitrary; it was chosen to be "more
 than enough".  The coordinates used for indexing into these arrays are
 almost, but not quite, Amiga coordinates (there's a constant offset).  */
-union {
+static union {
 	/* Let's try to align this thing. */
 	double uupzuq;
 	long int cruxmedo;
@@ -275,7 +275,7 @@ static void xlinecheck (unsigned int start, unsigned int end)
 	}
 }
 #else
-#define xlinecheck
+#define xlinecheck(start, end)
 #endif
 
 static void clearbuffer (struct vidbuffer *dst)
@@ -2204,8 +2204,6 @@ static void do_flush_screen (struct vidbuffer *vb, int start, int stop)
 * form. */
 static void pfield_expand_dp_bplcon (void)
 {
-	static int b2;
-
 	bplres = dp_for_drawing->bplres;
 	bplplanecnt = dp_for_drawing->nr_planes;
 	bplham = dp_for_drawing->ham_seen;

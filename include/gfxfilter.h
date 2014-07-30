@@ -70,7 +70,7 @@ extern "C"
 struct uae_filter
 {
     int type, yuv, intmul;
-    TCHAR *name, *cfgname;
+    const TCHAR *name, *cfgname;
     int flags;
 };
 

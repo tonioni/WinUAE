@@ -2000,7 +2000,6 @@ static void write_battclock (void)
 		return;
 	struct zfile *f = zfile_fopen (currprefs.rtcfile, _T("wb"));
 	if (f) {
-		uae_u8 zero[13] = { 0 };
 		struct tm *ct;
 		time_t t = time (0);
 		t += currprefs.cs_rtc_adjust;

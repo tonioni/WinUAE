@@ -15,7 +15,7 @@
 
 TCHAR *my_strdup (const TCHAR *s)
 {
-	TCHAR *x = (char*)xmalloc(strlen((TCHAR *)s) + 1);
+	TCHAR *x = (char*)malloc(strlen((TCHAR *)s) + 1);
 	strcpy(x, (TCHAR *)s);
 	return x;
 }
