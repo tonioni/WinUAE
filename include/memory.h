@@ -89,7 +89,7 @@ typedef struct {
 	ourselves. This holds the memory address where the start of memory is
 	for this particular bank. */
 	uae_u8 *baseaddr;
-	TCHAR *name;
+	const TCHAR *name;
 	/* for instruction opcode/operand fetches */
 	mem_get_func lgeti, wgeti;
 	int flags;
@@ -262,7 +262,9 @@ static uae_u8 *REGPARAM2 name ## _xlate (uaecptr addr) \
 
 #define DECLARE_MEMORY_FUNCTIONS(name) \
  static uae_u32 REGPARAM3 name ## _lget (uaecptr) REGPARAM; \
+ static uae_u32 REGPARAM3 name ## _lgeti (uaecptr) REGPARAM; \
  static uae_u32 REGPARAM3 name ## _wget (uaecptr) REGPARAM; \
+ static uae_u32 REGPARAM3 name ## _wgeti (uaecptr) REGPARAM; \
  static uae_u32 REGPARAM3 name ## _bget (uaecptr) REGPARAM; \
  static void REGPARAM3 name ## _lput (uaecptr, uae_u32) REGPARAM; \
  static void REGPARAM3 name ## _wput (uaecptr, uae_u32) REGPARAM; \

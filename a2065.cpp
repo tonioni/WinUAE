@@ -828,7 +828,14 @@ static void REGPARAM2 a2065_lput (uaecptr addr, uae_u32 l)
 	a2065_wput (addr + 2, l);
 }
 
-extern addrbank a2065_bank;
+DECLARE_MEMORY_FUNCTIONS(a2065);
+
+static addrbank a2065_bank = {
+	a2065_lget, a2065_wget, a2065_bget,
+	a2065_lput, a2065_wput, a2065_bput,
+	default_xlate, default_check, NULL, _T("A2065 Z2 Ethernet"),
+	a2065_lgeti, a2065_wgeti, ABFLAG_IO
+};
 
 static void REGPARAM2 a2065_bput (uaecptr addr, uae_u32 b)
 {
@@ -876,13 +883,6 @@ static uae_u32 REGPARAM2 a2065_lgeti (uaecptr addr)
 	v = (a2065_wgeti (addr) << 16) | a2065_wgeti (addr + 2);
 	return v;
 }
-
-static addrbank a2065_bank = {
-	a2065_lget, a2065_wget, a2065_bget,
-	a2065_lput, a2065_wput, a2065_bput,
-	default_xlate, default_check, NULL, _T("A2065 Z2 Ethernet"),
-	a2065_lgeti, a2065_wgeti, ABFLAG_IO
-};
 
 static addrbank *a2065_config (void)
 {
