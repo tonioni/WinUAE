@@ -1205,13 +1205,12 @@ void CDTV_hsync_handler (void)
 
 static void do_stch (void)
 {
-	static int stch_cnt;
-
 	if ((tp_cr & 1) && !(tp_air & (1 << 2))) {
 		stch = 1;
 		activate_stch = 0;
 		tp_check_interrupts ();
 #ifdef CDTV_DEBUG
+		static int stch_cnt;
 		write_log (_T("STCH %d\n"), stch_cnt++);
 #endif
 	}
@@ -1788,7 +1787,7 @@ uae_u8 *save_cdtv (int *len, uae_u8 *dstptr)
 	save_u32 (last_play_pos);
 	save_u32 (last_play_end);
 	save_u64 (dma_wait);
-	for (int i = 0; i < sizeof cdrom_command_input; i++)
+	for (int i = 0; i < sizeof (cdrom_command_input); i++)
 		save_u8 (cdrom_command_input[i]);
 	save_u8 (cdrom_command_cnt_in);
 	save_u16 (cdtv_sectorsize);
@@ -1839,7 +1838,7 @@ uae_u8 *restore_cdtv (uae_u8 *src)
 	last_play_pos = restore_u32 ();
 	last_play_end = restore_u32 ();
 	dma_wait = restore_u64 ();
-	for (int i = 0; i < sizeof cdrom_command_input; i++)
+	for (int i = 0; i < sizeof (cdrom_command_input); i++)
 		cdrom_command_input[i] = restore_u8 ();
 	cdrom_command_cnt_in = restore_u8 ();
 	cdtv_sectorsize = restore_u16 ();
