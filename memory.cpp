@@ -78,7 +78,7 @@ static void nocanbang (void)
 uae_u8 ce_banktype[65536];
 uae_u8 ce_cachable[65536];
 
-static size_t bootrom_filepos, chip_filepos, bogo_filepos, rom_filepos, a3000lmem_filepos, a3000hmem_filepos;
+static size_t bootrom_filepos, chip_filepos, bogo_filepos, a3000lmem_filepos, a3000hmem_filepos;
 
 /* Set if we notice during initialization that settings changed,
 and we must clear all memory to prevent bogus contents from confusing
@@ -1165,7 +1165,8 @@ void a3000_fakekick (int map)
 	protect_roms (true);
 }
 
-static uae_char *kickstring = "exec.library";
+static const uae_char *kickstring = "exec.library";
+
 static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int noalias)
 {
 	uae_char buffer[20];
@@ -1336,7 +1337,7 @@ static int patch_shapeshifter (uae_u8 *kickmemory)
 static int patch_residents (uae_u8 *kickmemory, int size)
 {
 	int i, j, patched = 0;
-	uae_char *residents[] = { "NCR scsi.device", 0 };
+	const uae_char *residents[] = { "NCR scsi.device", NULL };
 	// "scsi.device", "carddisk.device", "card.resource" };
 	uaecptr base = size == ROM_SIZE_512 ? 0xf80000 : 0xfc0000;
 
@@ -1422,7 +1423,6 @@ static int load_kickstart (void)
 {
 	struct zfile *f;
 	TCHAR tmprom[MAX_DPATH], tmprom2[MAX_DPATH];
-	int patched = 0;
 
 	cloanto_rom = 0;
 	if (!_tcscmp (currprefs.romfile, _T(":AROS")))
@@ -1573,7 +1573,7 @@ static shmpiece *find_shmpiece (uae_u8 *base, bool safe)
 	if (!x) {
 		if (safe || bogomem_aliasing)
 			return 0;
-		write_log (_T("NATMEM: Failure to find mapping at %08X, %p\n"), base - NATMEM_OFFSET, base);
+		write_log (_T("NATMEM: Failure to find mapping at %08lx, %p\n"), base - NATMEM_OFFSET, base);
 		nocanbang ();
 		return 0;
 	}
@@ -1708,9 +1708,8 @@ uae_u8 *mapped_malloc (size_t s, const TCHAR *file)
 
 static void init_mem_banks (void)
 {
-	int i;
-
-	for (i = 0; i < MEMORY_BANKS; i++)
+	// unsigned so i << 16 won't overflow to negative when i >= 32768
+	for (unsigned int i = 0; i < MEMORY_BANKS; i++)
 		put_mem_bank (i << 16, &dummy_bank, 0);
 #ifdef NATMEM_OFFSET
 	delete_shmmaps (0, 0xFFFF0000);
@@ -2459,7 +2458,6 @@ static void map_banks2 (addrbank *bank, int start, int size, int realsize, int q
 {
 	int bnr, old;
 	unsigned long int hioffs = 0, endhioffs = 0x100;
-	addrbank *orgbank = bank;
 	uae_u32 realstart = start;
 
 	if (quick <= 0)
