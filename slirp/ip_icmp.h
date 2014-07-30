@@ -158,7 +158,7 @@ struct icmp {
 void icmp_init(void);
 void icmp_cleanup(void);
 void icmp_input _P((struct mbuf *, int));
-void icmp_error _P((struct mbuf *, u_char, u_char, int, char *));
+void icmp_error _P((struct mbuf *, u_char, u_char, int, const char *));
 void icmp_reflect _P((struct mbuf *));
 void icmp_receive(struct socket *so);
 void icmp_detach(struct socket *so);
