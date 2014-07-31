@@ -479,13 +479,18 @@ static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
 			case 0x44:
 			// yes, this could be much better..
 			if (currprefs.jit_direct_compatible_memory) {
-				value = gfxmem_bank.start + ((currprefs.rtgmem_size + 0xffffff) & ~0xffffff);
-				if (value < 0x10000000) {
+				if (ncr == &ncr_we) {
+					// warp engine needs to be first
 					value = 0x10000000;
-					if (value < z3fastmem_bank.start + currprefs.z3fastmem_size)
-						value = z3fastmem_bank.start + currprefs.z3fastmem_size;
-					if (value < z3fastmem2_bank.start + currprefs.z3fastmem2_size)
-						value = z3fastmem2_bank.start + currprefs.z3fastmem2_size;
+				} else {
+					value = gfxmem_bank.start + ((currprefs.rtgmem_size + 0xffffff) & ~0xffffff);
+					if (value < 0x10000000) {
+						value = 0x10000000;
+						if (value < z3fastmem_bank.start + currprefs.z3fastmem_size)
+							value = z3fastmem_bank.start + currprefs.z3fastmem_size;
+						if (value < z3fastmem2_bank.start + currprefs.z3fastmem2_size)
+							value = z3fastmem2_bank.start + currprefs.z3fastmem2_size;
+					}
 				}
 				if (value < 0x40000000 && max_z3fastmem >= 0x41000000)
 					value = 0x40000000;

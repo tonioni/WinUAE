@@ -1327,7 +1327,7 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val)
 		val &= 0x7f; /* bit 7 is unused */
 		if ((val & 1) && !(ciaacra & 1))
 			ciaastarta = CIASTARTCYCLESCRA;
-		if ((val & 0x40) != (ciaacra & 0x40)) {
+		if (currprefs.cpuboard_type != 0 && (val & 0x40) != (ciaacra & 0x40)) {
 			/* bleh, Phase5 CPU timed early boot key check fix.. */
 			if (m68k_getpc() >= 0xf00000 && m68k_getpc() < 0xf80000)
 				check_keyboard();

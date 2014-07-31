@@ -11,6 +11,7 @@
 #include "options.h"
 #include "autoconf.h"
 #include "gfxboard.h"
+#include "cpuboard.h"
 #include "win32.h"
 
 #if defined(NATMEM_OFFSET)
@@ -341,7 +342,9 @@ static int doinit_shm (void)
 	if ((changed_prefs.z3fastmem_start == 0x10000000 || changed_prefs.z3fastmem_start == 0x40000000) && !changed_prefs.force_0x10000000_z3) {
 		if (natmem_size > 0x40000000 && natmem_size - 0x40000000 >= (totalsize - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align)) && changed_prefs.z3chipmem_size <= 512 * 1024 * 1024) {
 			changed_prefs.z3fastmem_start = currprefs.z3fastmem_start = 0x40000000;
-			z3offset += 0x40000000 - 0x10000000 -  ((changed_prefs.z3chipmem_size + align) & ~align);
+			z3offset += 0x40000000 - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align);
+			if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000)
+				z3offset += 0x01000000;
 		} else {
 			changed_prefs.z3fastmem_start = currprefs.z3fastmem_start = 0x10000000;
 		}
@@ -360,7 +363,15 @@ static int doinit_shm (void)
 			p96mem_offset = natmem_offset + p96base_offset;
 		} else {
 			// calculate Z3 alignment (argh, I thought only Z2 needed this..)
-			p96base_offset = (0x40000000 + changed_prefs.z3fastmem_size + changed_prefs.rtgmem_size - 1) & ~(changed_prefs.rtgmem_size - 1);			
+			uae_u32 addr = 0x40000000;
+			if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
+				addr = expansion_startaddress(addr, 0x01000000);
+				addr += 0x01000000;
+			}
+			addr = expansion_startaddress(addr, changed_prefs.z3fastmem_size);
+			addr += changed_prefs.z3fastmem_size;
+			addr = expansion_startaddress(addr, changed_prefs.rtgmem_size);
+			p96base_offset = addr;
 			// adjust p96mem_offset to beginning of natmem
 			// by subtracting start of original p96mem_offset from natmem_offset
 			if (p96base_offset >= 0x10000000) {

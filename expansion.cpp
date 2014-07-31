@@ -416,9 +416,9 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 		case 0x44:
 			if (expamem_type () == zorroIII) {
 				if (currprefs.jit_direct_compatible_memory) {
-					uae_u32 p2 = 0;
+					uae_u32 p2 = value;
 					// +Bernd Roesch & Toni Wilen
-					if (expamem[0] & add_memory) {
+					if ((card_flags[ecard] & 2) && (expamem[0] & add_memory)) {
 						// Z3 RAM expansion
 						p2 = 0;
 						while (!p2 && z3num < 2) {
@@ -430,7 +430,7 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 								z3num++;
 						}
 						z3num++;
-					} else {
+					} else if (card_flags[ecard] & 4) {
 						// Z3 P96 RAM
 						if (gfxmem_bank.start & 0xff000000)
 							p2 = gfxmem_bank.start >> 16;
@@ -1236,6 +1236,12 @@ static bool mapped_malloc_dynamic (uae_u32 *currpsize, uae_u32 *changedpsize, ad
 	return false;
 }
 
+uaecptr expansion_startaddress(uaecptr addr, uae_u32 size)
+{
+	if (!currprefs.jit_direct_compatible_memory)
+		return (addr + size - 1) & ~(size - 1);
+	return addr;
+}
 
 static void allocate_expamem (void)
 {
@@ -1253,6 +1259,10 @@ static void allocate_expamem (void)
 		z3chipmem_bank.start += 16 * 1024 * 1024;
 	if (!currprefs.jit_direct_compatible_memory)
 		z3fastmem_bank.start = 0x40000000;
+	if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
+		z3fastmem_bank.start += 0x01000000;
+		z3fastmem_bank.start = expansion_startaddress(z3fastmem_bank.start, currprefs.z3fastmem_size);
+	}
 	if (z3fastmem_bank.start == 0x10000000) {
 		if (currprefs.mbresmem_high_size == 128 * 1024 * 1024)
 			z3fastmem_bank.start += 16 * 1024 * 1024;
@@ -1605,7 +1615,7 @@ void expamem_reset (void)
 #endif
 #ifdef PICASSO96
 	if (currprefs.rtgmem_type == GFXBOARD_UAE_Z2 && gfxmem_bank.baseaddr != NULL) {
-		card_flags[cardno] = 0;
+		card_flags[cardno] = 4;
 		card_name[cardno] = _T("Z2RTG");
 		card_init[cardno] = expamem_init_gfxcard_z2;
 		card_map[cardno++] = expamem_map_gfxcard;
@@ -1613,7 +1623,7 @@ void expamem_reset (void)
 #endif
 #ifdef GFXBOARD
 	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && !gfxboard_is_z3 (currprefs.rtgmem_type)) {
-		card_flags[cardno] = 0;
+		card_flags[cardno] = 4;
 		card_name[cardno] = _T("Gfxboard VRAM Zorro II");
 		card_init[cardno] = expamem_init_gfxboard_memory;
 		card_map[cardno++] = NULL;
@@ -1636,19 +1646,20 @@ void expamem_reset (void)
 	if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
 		card_flags[cardno] = 1;
 		card_name[cardno] = _T("Warp Engine");
-		card_init[cardno++] = expamem_init_warpengine;
+		card_init[cardno] = expamem_init_warpengine;
+		card_map[cardno++] = NULL;
 	}
 
 	if (z3fastmem_bank.baseaddr != NULL) {
 		z3num = 0;
-		card_flags[cardno] = 1;
+		card_flags[cardno] = 2 | 1;
 		card_name[cardno] = _T("Z3Fast");
 		card_init[cardno] = expamem_init_z3fastmem;
 		card_map[cardno++] = expamem_map_z3fastmem;
 		if (currprefs.jit_direct_compatible_memory)
 			map_banks (&z3fastmem_bank, z3fastmem_bank.start >> 16, currprefs.z3fastmem_size >> 16, z3fastmem_bank.allocated);
 		if (z3fastmem2_bank.baseaddr != NULL) {
-			card_flags[cardno] = 1;
+			card_flags[cardno] = 2 | 1;
 			card_name[cardno] = _T("Z3Fast2");
 			card_init[cardno] = expamem_init_z3fastmem2;
 			card_map[cardno++] = expamem_map_z3fastmem2;
@@ -1660,7 +1671,7 @@ void expamem_reset (void)
 		map_banks (&z3chipmem_bank, z3chipmem_bank.start >> 16, currprefs.z3chipmem_size >> 16, z3chipmem_bank.allocated);
 #ifdef PICASSO96
 	if (currprefs.rtgmem_type == GFXBOARD_UAE_Z3 && gfxmem_bank.baseaddr != NULL) {
-		card_flags[cardno] = 1;
+		card_flags[cardno] = 4 | 1;
 		card_name[cardno] = _T("Z3RTG");
 		card_init[cardno] = expamem_init_gfxcard_z3;
 		card_map[cardno++] = expamem_map_gfxcard;
@@ -1668,7 +1679,7 @@ void expamem_reset (void)
 #endif
 #ifdef GFXBOARD
 	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_is_z3 (currprefs.rtgmem_type)) {
-		card_flags[cardno] = 0;
+		card_flags[cardno] = 4;
 		card_name[cardno] = _T ("Gfxboard VRAM Zorro III");
 		card_init[cardno] = expamem_init_gfxboard_memory;
 		card_map[cardno++] = NULL;

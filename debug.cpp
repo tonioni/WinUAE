@@ -2419,7 +2419,7 @@ static void memwatch_reset (void)
 	}
 	for (int i = 0; membank_stores[i].addr; i++) {
 		struct membank_store *ms = &membank_stores[i];
-		xfree (ms->newbank.name);
+		xfree ((char*)ms->newbank.name);
 		memset (ms, 0, sizeof (struct membank_store));
 		ms->addr = NULL;
 	}
@@ -2911,7 +2911,7 @@ static void memory_map_dump_2 (int log)
 			int k, mirrored, mirrored2, size, size_out;
 			TCHAR size_ext;
 			uae_u8 *caddr;
-			TCHAR *name;
+			const TCHAR *name;
 			TCHAR tmp[MAX_DPATH];
 
 			name = a1->name;

@@ -284,10 +284,12 @@ void fixup_cpu (struct uae_prefs *p)
 		p->m68k_speed = 0;
 #endif
 
+#if 0
 	if (p->immediate_blits && p->blitter_cycle_exact) {
 		error_log (_T("Cycle-exact and immediate blitter can't be enabled simultaneously.\n"));
 		p->immediate_blits = false;
 	}
+#endif
 	if (p->immediate_blits && p->waiting_blits) {
 		error_log (_T("Immediate blitter and waiting blits can't be enabled simultaneously.\n"));
 		p->waiting_blits = 0;

@@ -2560,7 +2560,7 @@ static void resetvars (void)
 			dstw = "x_put_word";
 			srcb = "x_get_byte";
 			dstb = "x_put_byte";
-			do_cycles = "do_cycles_ce000";
+			do_cycles = "do_cycles_ce000_internal";
 		} else if (using_ce020 == 1) {
 			/* x_ not used if it redirects to
 			 * get_word_ce020_prefetch()
@@ -2577,7 +2577,7 @@ static void resetvars (void)
 			dstw = "x_put_word";
 			srcb = "x_get_byte";
 			dstb = "x_put_byte";
-			do_cycles = "do_cycles_ce020";
+			do_cycles = "do_cycles_ce020_internal";
 			nextw = "next_iword_020ce";
 			nextl = "next_ilong_020ce";
 		} else if (using_ce020 == 2) {
@@ -2594,7 +2594,7 @@ static void resetvars (void)
 			dstw = "x_put_word";
 			srcb = "x_get_byte";
 			dstb = "x_put_byte";
-			do_cycles = "do_cycles_ce020";
+			do_cycles = "do_cycles_ce020_internal";
 			nextw = "next_iword_030ce";
 			nextl = "next_ilong_030ce";
 		} else if (using_ce020 == 3) {
@@ -2611,7 +2611,7 @@ static void resetvars (void)
 			dstw = "x_put_word";
 			srcb = "x_get_byte";
 			dstb = "x_put_byte";
-			do_cycles = "do_cycles_ce020";
+			do_cycles = "do_cycles_ce020_internal";
 			nextw = "next_iword_cache040";
 			nextl = "next_ilong_cache040";
 		} else if (using_prefetch_020) {

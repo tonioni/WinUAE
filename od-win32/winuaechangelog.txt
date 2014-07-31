@@ -18,6 +18,17 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 8:
+
+- When loading old config which has both cycle-exact and fastest possible enabled: disable fastest possible.
+  Previously this combination was invalid but some for some reason old configs can have both set.
+- One second boot delay was always active, even when restoring statefile..
+- "Fastest possible" with cycle-exact now works as designed, removes all CPU internal processing cycles, only
+  affecs 68000, 68020 and 68030 models. (68040+ and 68030 MMU is always internally immediate). This should be
+  better option (uses less CPU time) than using MHz adjustment if you want fast CPU in cycle-exact mode.
+- Immediate blitter is now selectable in cycle-exact modes.
+- Some more Z3 autoconfig mapping tweaks. (Warp Engine..)
+
 Beta 7:
 
 - NCR93C94/FAS216 SCSI emulation write didn't work correct and wrote corrupted data, fixed. Added also check

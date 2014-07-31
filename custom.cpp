@@ -6879,7 +6879,7 @@ static bool framewait (void)
 	int clockadjust = 0;
 	int vstb = vsynctimebase;
 
-	if (currprefs.m68k_speed < 0) {
+	if (currprefs.m68k_speed < 0 && !currprefs.cpu_cycle_exact) {
 
 #if 0
 		static uae_u32 prevtick;
@@ -7688,7 +7688,7 @@ static void hsync_handler_post (bool onvsync)
 		port_get_custom (1, out);
 	}
 #endif
-	if (currprefs.m68k_speed < 0) {
+	if (currprefs.m68k_speed < 0 && !currprefs.cpu_cycle_exact) {
 		if (is_last_line ()) {
 			/* really last line, just run the cpu emulation until whole vsync time has been used */
 			if (currprefs.m68k_speed_throttle) {

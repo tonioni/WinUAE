@@ -6,7 +6,7 @@
   * (c) 1996 Samuel Devulder
   */
 
-#ifndef_UAE_ZFILE_H
+#ifndef UAE_ZFILE_H
 #define UAE_ZFILE_H
 
 struct zfile;

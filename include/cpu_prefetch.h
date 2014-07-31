@@ -35,8 +35,10 @@ STATIC_INLINE uae_u32 get_long_020_prefetch (int o)
 #define CE020_COUNTCYCLES()
 
 // only for CPU internal cycles
-STATIC_INLINE void do_cycles_ce020 (int clocks)
+STATIC_INLINE void do_cycles_ce020_internal(int clocks)
 {
+	if (currprefs.m68k_speed < 0)
+		return;
 	int cycs = clocks * cpucycleunit;
 	if (regs.ce020memcycles > 0) {
 		if (regs.ce020memcycles >= cycs) {
@@ -243,6 +245,12 @@ STATIC_INLINE void put_word_prefetch (uaecptr addr, uae_u32 v)
 
 #ifdef CPUEMU_13
 
+STATIC_INLINE void do_cycles_ce000_internal(int clocks)
+{
+	if (currprefs.m68k_speed < 0)
+		return;
+	x_do_cycles (clocks * cpucycleunit);
+}
 STATIC_INLINE void do_cycles_ce000 (int clocks)
 {
 	x_do_cycles (clocks * cpucycleunit);

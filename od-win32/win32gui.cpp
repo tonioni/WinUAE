@@ -6034,11 +6034,13 @@ static void enable_for_chipsetdlg (HWND hDlg)
 	ew (hDlg, IDC_CYCLEEXACT, FALSE);
 #endif
 	ew (hDlg, IDC_GENLOCK, full_property_sheet);
+#if 0
 	ew (hDlg, IDC_BLITIMM, enable);
 	if (enable == FALSE) {
 		workprefs.immediate_blits = 0;
 		CheckDlgButton (hDlg, IDC_BLITIMM, FALSE);
 	}
+#endif
 	if (workprefs.immediate_blits && workprefs.waiting_blits) {
 		workprefs.waiting_blits = 0;
 		CheckDlgButton (hDlg, IDC_BLITWAIT, FALSE);
@@ -6984,7 +6986,7 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		if (n) {
 			if (workprefs.cpu_model == 68000)
 				workprefs.cpu_compatible = 1;
-			if (workprefs.cpu_model <= 68020)
+			if (workprefs.cpu_model <= 68030)
 				workprefs.m68k_speed = 0;
 			workprefs.immediate_blits = 0;
 			workprefs.gfx_framerate = 1;

@@ -528,7 +528,10 @@ static int selectfont(Bit16u style)
 	if (curFont) {
 		SelectObject (memHDC, curFont);
 		int size = GetOutlineTextMetrics (memHDC, 0, NULL);
-		if (size > 0) {
+		if (size == 0) {
+			DeleteObject(curFont);
+			curFont = NULL;
+		} else {
 			otm = (LPOUTLINETEXTMETRIC)xmalloc (uae_u8, size);
 			GetOutlineTextMetrics (memHDC, size, otm);
 		}

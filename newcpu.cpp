@@ -2710,8 +2710,7 @@ static void m68k_reset2(bool hardreset)
 	uae_u32 v;
 
 	regs.spcflags = 0;
-	m68k_reset_delay = true;
-	set_special(SPCFLAG_CHECK);
+	m68k_reset_delay = 0;
 	regs.ipl = regs.ipl_pin = 0;
 #ifdef SAVESTATE
 	if (isrestore ()) {
@@ -2732,6 +2731,9 @@ static void m68k_reset2(bool hardreset)
 		else
 			m68k_areg (regs, 7) = regs.usp;
 		return;
+	} else {
+		m68k_reset_delay = currprefs.reset_delay;
+		set_special(SPCFLAG_CHECK);
 	}
 #endif
 	v = get_long (4);
@@ -3185,7 +3187,6 @@ static int do_specialties (int cycles)
 		if (m68k_reset_delay) {
 			int vsynccnt = 60;
 			int vsyncstate = -1;
-			m68k_reset_delay = 0;
 			while (vsynccnt > 0 && !quit_program) {
 				x_do_cycles(8 * CYCLE_UNIT);
 				if (regs.spcflags & SPCFLAG_COPPER)
@@ -3196,6 +3197,7 @@ static int do_specialties (int cycles)
 				}
 			}
 		}
+		m68k_reset_delay = 0;
 		unset_special(SPCFLAG_CHECK);
 	}
 
@@ -5885,7 +5887,7 @@ void cpureset (void)
 	uae_u16 ins;
 	addrbank *ab;
 
-	m68k_reset_delay = true;
+	m68k_reset_delay = currprefs.reset_delay;
 	set_special(SPCFLAG_CHECK);
 	send_internalevent(INTERNALEVENT_CPURESET);
 	if ((currprefs.cpu_compatible || currprefs.cpu_cycle_exact) && currprefs.cpu_model <= 68020) {
