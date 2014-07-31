@@ -33,7 +33,7 @@
 #include "gayle.h"
 #include "cpuboard.h"
 
-#define MAX_EXPANSION_BOARDS 8
+#define MAX_EXPANSION_BOARDS 11
 
 /* ********************************************************** */
 /* 00 / 02 */
