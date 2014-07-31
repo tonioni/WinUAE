@@ -1238,6 +1238,10 @@ static bool mapped_malloc_dynamic (uae_u32 *currpsize, uae_u32 *changedpsize, ad
 
 uaecptr expansion_startaddress(uaecptr addr, uae_u32 size)
 {
+	if (!size)
+		return addr;
+	if (size < 16 * 1024 * 1024)
+		size = 16 * 1024 * 1024;
 	if (!currprefs.jit_direct_compatible_memory)
 		return (addr + size - 1) & ~(size - 1);
 	return addr;
