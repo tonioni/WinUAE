@@ -1281,8 +1281,12 @@ static void build_cpufunctbl (void)
 	}
 	m68k_interrupt_delay = false;
 	if (currprefs.cpu_cycle_exact) {
-		if (tbl == op_smalltbl_13_ff ||	tbl == op_smalltbl_21_ff || tbl == op_smalltbl_22_ff)
+		if (tbl == op_smalltbl_13_ff
+				|| tbl == op_smalltbl_14_ff
+				|| tbl == op_smalltbl_21_ff
+				|| tbl == op_smalltbl_22_ff) {
 			m68k_interrupt_delay = true;
+		}
 	}
 
 	if (currprefs.cpu_cycle_exact) {
