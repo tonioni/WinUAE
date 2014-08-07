@@ -3510,7 +3510,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		if (p->cpu_model >= 68020 && p->cachesize > 0)
 			p->cpu_cycle_exact = p->blitter_cycle_exact = false;
 		// if old version and CE and fastest possible: set to approximate
-		if (p->config_version < ((2 << 16) | (8 << 8) | (2 << 0)) && p->m68k_speed < 0)
+		if (p->cpu_cycle_exact && p->config_version < ((2 << 16) | (8 << 8) | (2 << 0)) && p->m68k_speed < 0)
 			p->m68k_speed = 0;
 		return 1;
 	}

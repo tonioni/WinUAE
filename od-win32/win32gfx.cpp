@@ -52,6 +52,7 @@
 #include "lcd.h"
 #include "sampler.h"
 #include "gfxboard.h"
+#include "cpuboard.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -2650,6 +2651,8 @@ static void createstatuswindow (void)
 	power_width = (int)(42 * scaleX);
 	fps_width = (int)(64 * scaleX);
 	idle_width = (int)(64 * scaleX);
+	if (is_ppc_cpu())
+		idle_width = 136;
 	snd_width = (int)(72 * scaleX);
 	joy_width = (int)(24 * scaleX);
 	GetClientRect (hMainWnd, &rc);

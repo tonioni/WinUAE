@@ -4285,7 +4285,7 @@ MEMORY_FUNCTIONS(gfxmem);
 addrbank gfxmem_bank = {
 	gfxmem_lget, gfxmem_wget, gfxmem_bget,
 	gfxmem_lput, gfxmem_wput, gfxmem_bput,
-	gfxmem_xlate, gfxmem_check, NULL, _T("RTG RAM"),
+	gfxmem_xlate, gfxmem_check, NULL, NULL, _T("RTG RAM"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_RAM
 };
 

@@ -1595,19 +1595,11 @@ void dumpcia (void)
 
 /* CIA memory access */
 
-static uae_u32 REGPARAM3 cia_lget (uaecptr) REGPARAM;
-static uae_u32 REGPARAM3 cia_wget (uaecptr) REGPARAM;
-static uae_u32 REGPARAM3 cia_bget (uaecptr) REGPARAM;
-static uae_u32 REGPARAM3 cia_lgeti (uaecptr) REGPARAM;
-static uae_u32 REGPARAM3 cia_wgeti (uaecptr) REGPARAM;
-static void REGPARAM3 cia_lput (uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 cia_wput (uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 cia_bput (uaecptr, uae_u32) REGPARAM;
-
+DECLARE_MEMORY_FUNCTIONS(cia);
 addrbank cia_bank = {
 	cia_lget, cia_wget, cia_bget,
 	cia_lput, cia_wput, cia_bput,
-	default_xlate, default_check, NULL, _T("CIA"),
+	default_xlate, default_check, NULL, NULL, _T("CIA"),
 	cia_lgeti, cia_wgeti, ABFLAG_IO, 0x3f01, 0xbfc000
 };
 
@@ -1909,7 +1901,7 @@ static void REGPARAM3 clock_bput (uaecptr, uae_u32) REGPARAM;
 addrbank clock_bank = {
 	clock_lget, clock_wget, clock_bget,
 	clock_lput, clock_wput, clock_bput,
-	default_xlate, default_check, NULL, _T("Battery backed up clock (none)"),
+	default_xlate, default_check, NULL, NULL, _T("Battery backed up clock (none)"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO, 0x3f, 0xd80000
 };
 

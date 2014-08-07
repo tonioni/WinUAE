@@ -27,29 +27,20 @@ uaecptr EXPANSION_bootcode, EXPANSION_nullfunc;
 
 /* ROM tag area memory access */
 
-uae_u8 *rtarea;
 uaecptr rtarea_base = RTAREA_DEFAULT;
 
-static uae_u32 REGPARAM3 rtarea_lget (uaecptr) REGPARAM;
-static uae_u32 REGPARAM3 rtarea_wget (uaecptr) REGPARAM;
-static uae_u32 REGPARAM3 rtarea_bget (uaecptr) REGPARAM;
-static void REGPARAM3 rtarea_lput (uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 rtarea_wput (uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 rtarea_bput (uaecptr, uae_u32) REGPARAM;
-static uae_u8 *REGPARAM3 rtarea_xlate (uaecptr) REGPARAM;
-static int REGPARAM3 rtarea_check (uaecptr addr, uae_u32 size) REGPARAM;
-
+DECLARE_MEMORY_FUNCTIONS(rtarea);
 addrbank rtarea_bank = {
 	rtarea_lget, rtarea_wget, rtarea_bget,
 	rtarea_lput, rtarea_wput, rtarea_bput,
-	rtarea_xlate, rtarea_check, NULL, _T("UAE Boot ROM"),
+	rtarea_xlate, rtarea_check, NULL, _T("rtarea"), _T("UAE Boot ROM"),
 	rtarea_lget, rtarea_wget, ABFLAG_ROMIN
 };
 
 static uae_u8 *REGPARAM2 rtarea_xlate (uaecptr addr)
 {
 	addr &= 0xFFFF;
-	return rtarea + addr;
+	return rtarea_bank.baseaddr + addr;
 }
 
 static int REGPARAM2 rtarea_check (uaecptr addr, uae_u32 size)
@@ -72,7 +63,7 @@ static uae_u32 REGPARAM2 rtarea_wget (uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= 0xFFFF;
-	return (rtarea[addr] << 8) + rtarea[addr + 1];
+	return (rtarea_bank.baseaddr[addr] << 8) + rtarea_bank.baseaddr[addr + 1];
 }
 static uae_u32 REGPARAM2 rtarea_bget (uaecptr addr)
 {
@@ -80,7 +71,7 @@ static uae_u32 REGPARAM2 rtarea_bget (uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= 0xFFFF;
-	return rtarea[addr];
+	return rtarea_bank.baseaddr[addr];
 }
 
 #define RTAREA_WRITEOFFSET 0xfff0
@@ -93,7 +84,7 @@ static void REGPARAM2 rtarea_bput (uaecptr addr, uae_u32 value)
 	addr &= 0xffff;
 	if (addr < RTAREA_WRITEOFFSET)
 		return;
-	rtarea[addr] = value;
+	rtarea_bank.baseaddr[addr] = value;
 }
 static void REGPARAM2 rtarea_wput (uaecptr addr, uae_u32 value)
 {
@@ -132,27 +123,27 @@ uae_u32 addr (int ptr)
 
 void db (uae_u8 data)
 {
-	rtarea[rt_addr++] = data;
+	rtarea_bank.baseaddr[rt_addr++] = data;
 }
 
 void dw (uae_u16 data)
 {
-	rtarea[rt_addr++] = (uae_u8)(data >> 8);
-	rtarea[rt_addr++] = (uae_u8)data;
+	rtarea_bank.baseaddr[rt_addr++] = (uae_u8)(data >> 8);
+	rtarea_bank.baseaddr[rt_addr++] = (uae_u8)data;
 }
 
 void dl (uae_u32 data)
 {
-	rtarea[rt_addr++] = data >> 24;
-	rtarea[rt_addr++] = data >> 16;
-	rtarea[rt_addr++] = data >> 8;
-	rtarea[rt_addr++] = data;
+	rtarea_bank.baseaddr[rt_addr++] = data >> 24;
+	rtarea_bank.baseaddr[rt_addr++] = data >> 16;
+	rtarea_bank.baseaddr[rt_addr++] = data >> 8;
+	rtarea_bank.baseaddr[rt_addr++] = data;
 }
 
 uae_u8 dbg (uaecptr addr)
 {
 	addr -= rtarea_base;
-	return rtarea[addr];
+	return rtarea_bank.baseaddr[addr];
 }
 
 /* store strings starting at the end of the rt area and working
@@ -167,7 +158,7 @@ uae_u32 ds_ansi (const uae_char *str)
 		return addr (rt_straddr);
 	len = strlen (str) + 1;
 	rt_straddr -= len;
-	strcpy ((uae_char*)rtarea + rt_straddr, str);
+	strcpy ((uae_char*)rtarea_bank.baseaddr + rt_straddr, str);
 	return addr (rt_straddr);
 }
 
@@ -187,8 +178,8 @@ uae_u32 ds_bstr_ansi (const uae_char *str)
 	rt_straddr -= len;
 	while (rt_straddr & 3)
 		rt_straddr--;
-	rtarea[rt_straddr] = len - 2;
-	strcpy ((uae_char*)rtarea + rt_straddr + 1, str);
+	rtarea_bank.baseaddr[rt_straddr] = len - 2;
+	strcpy ((uae_char*)rtarea_bank.baseaddr + rt_straddr + 1, str);
 	return addr (rt_straddr) >> 2;
 }
 
@@ -235,12 +226,11 @@ static uae_u32 REGPARAM2 uae_puts (TrapContext *context)
 
 void rtarea_init_mem (void)
 {
-	rtarea = mapped_malloc (RTAREA_SIZE, _T("rtarea"));
-	if (!rtarea) {
+	rtarea_bank.allocated = RTAREA_SIZE;
+	if (!mapped_malloc (&rtarea_bank)) {
 		write_log (_T("virtual memory exhausted (rtarea)!\n"));
 		abort ();
 	}
-	rtarea_bank.baseaddr = rtarea;
 }
 
 void rtarea_init (void)
@@ -254,7 +244,7 @@ void rtarea_init (void)
 	init_traps ();
 
 	rtarea_init_mem ();
-	memset (rtarea, 0, RTAREA_SIZE);
+	memset (rtarea_bank.baseaddr, 0, RTAREA_SIZE);
 
 	_stprintf (uaever, _T("uae-%d.%d.%d"), UAEMAJOR, UAEMINOR, UAESUBREV);
 
@@ -304,7 +294,7 @@ volatile int uae_int_requested = 0;
 
 void set_uae_int_flag (void)
 {
-	rtarea[RTAREA_INT] = uae_int_requested & 1;
+	rtarea_bank.baseaddr[RTAREA_INT] = uae_int_requested & 1;
 }
 
 void rtarea_setup (void)

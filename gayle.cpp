@@ -1514,17 +1514,11 @@ static void gayle_write (uaecptr addr, int val)
 		gayle_write2 (addr, val);
 }
 
-static uae_u32 REGPARAM3 gayle_lget (uaecptr) REGPARAM;
-static uae_u32 REGPARAM3 gayle_wget (uaecptr) REGPARAM;
-static uae_u32 REGPARAM3 gayle_bget (uaecptr) REGPARAM;
-static void REGPARAM3 gayle_lput (uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 gayle_wput (uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 gayle_bput (uaecptr, uae_u32) REGPARAM;
-
+DECLARE_MEMORY_FUNCTIONS(gayle);
 addrbank gayle_bank = {
 	gayle_lget, gayle_wget, gayle_bget,
 	gayle_lput, gayle_wput, gayle_bput,
-	default_xlate, default_check, NULL, _T("Gayle (low)"),
+	default_xlate, default_check, NULL, NULL, _T("Gayle (low)"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
@@ -1715,17 +1709,11 @@ static uae_u32 gayle2_read (uaecptr addr)
 	return v;
 }
 
-static uae_u32 REGPARAM3 gayle2_lget (uaecptr) REGPARAM;
-static uae_u32 REGPARAM3 gayle2_wget (uaecptr) REGPARAM;
-static uae_u32 REGPARAM3 gayle2_bget (uaecptr) REGPARAM;
-static void REGPARAM3 gayle2_lput (uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 gayle2_wput (uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 gayle2_bput (uaecptr, uae_u32) REGPARAM;
-
+DECLARE_MEMORY_FUNCTIONS(gayle2);
 addrbank gayle2_bank = {
 	gayle2_lget, gayle2_wget, gayle2_bget,
 	gayle2_lput, gayle2_wput, gayle2_bput,
-	default_xlate, default_check, NULL, _T("Gayle (high)"),
+	default_xlate, default_check, NULL, NULL, _T("Gayle (high)"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
@@ -1931,7 +1919,7 @@ static void REGPARAM2 mbres_bput (uaecptr addr, uae_u32 value)
 addrbank mbres_bank = {
 	mbres_lget, mbres_wget, mbres_bget,
 	mbres_lput, mbres_wput, mbres_bput,
-	default_xlate, default_check, NULL, _T("Motherboard Resources"),
+	default_xlate, default_check, NULL, NULL, _T("Motherboard Resources"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
@@ -2509,7 +2497,7 @@ static uae_u8 *REGPARAM2 gayle_common_xlate (uaecptr addr)
 static addrbank gayle_common_bank = {
 	gayle_common_lget, gayle_common_wget, gayle_common_bget,
 	gayle_common_lput, gayle_common_wput, gayle_common_bput,
-	gayle_common_xlate, gayle_common_check, NULL, _T("Gayle PCMCIA Common"),
+	gayle_common_xlate, gayle_common_check, NULL, NULL, _T("Gayle PCMCIA Common"),
 	gayle_common_lget, gayle_common_wget, ABFLAG_RAM | ABFLAG_SAFE
 };
 
@@ -2521,10 +2509,10 @@ static void REGPARAM3 gayle_attr_lput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 gayle_attr_wput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 gayle_attr_bput (uaecptr, uae_u32) REGPARAM;
 
-addrbank gayle_attr_bank = {
+static addrbank gayle_attr_bank = {
 	gayle_attr_lget, gayle_attr_wget, gayle_attr_bget,
 	gayle_attr_lput, gayle_attr_wput, gayle_attr_bput,
-	default_xlate, default_check, NULL, _T("Gayle PCMCIA Attribute/Misc"),
+	default_xlate, default_check, NULL, NULL, _T("Gayle PCMCIA Attribute/Misc"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 

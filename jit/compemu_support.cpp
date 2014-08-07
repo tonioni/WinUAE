@@ -102,10 +102,6 @@ extern const struct cputbl op_smalltbl_4_nf[];
 extern const struct cputbl op_smalltbl_5_nf[];
 #endif
 
-static void flush_icache_hard(uae_u32 ptr, int n);
-
-
-
 static bigstate live;
 static smallstate empty_ss;
 static smallstate default_ss;
@@ -5797,7 +5793,7 @@ void build_comp(void)
 }
 
 
-static void flush_icache_hard(uae_u32 ptr, int n)
+void flush_icache_hard(uaecptr ptr, int n)
 {
 	blockinfo* bi;
 

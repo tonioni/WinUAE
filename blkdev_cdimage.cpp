@@ -873,36 +873,34 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 			goto end;
 		}
 
-		if (isaudiotrack (&cdu->di.toc, sector)) {
-			if (sectortype != 0 && sectortype != 1) {
-				ret = -2;
-				goto end;
-			}
-			if (t->size != 2352) {
-				ret = -1;
-				goto end;
-			}
-			for (int i = 0; i < size; i++) {
-				do_read (cdu, t, data, sector, 0, t->size);
-				uae_u8 *p = data + t->size;
-				if (subs) {
-					uae_u8 subdata[SUB_CHANNEL_SIZE];
-					getsub_deinterleaved (subdata, cdu, t, sector);
-					if (subs == 4) { // all, de-interleaved
-						memcpy (p, subdata, SUB_CHANNEL_SIZE);
-						p += SUB_CHANNEL_SIZE;
-					} else if (subs == 2) { // q-only
-						memcpy (p, subdata + SUB_ENTRY_SIZE, SUB_ENTRY_SIZE);
-						p += SUB_ENTRY_SIZE;
-					} else if (subs == 1) { // all, interleaved
-						sub_to_interleaved (subdata, p);
-						p += SUB_CHANNEL_SIZE;
-					}
+		if (sectortype != 0 && sectortype != 1) {
+			ret = -2;
+			goto end;
+		}
+		if (t->size != 2352) {
+			ret = -1;
+			goto end;
+		}
+		for (int i = 0; i < size; i++) {
+			do_read (cdu, t, data, sector, 0, t->size);
+			uae_u8 *p = data + t->size;
+			if (subs) {
+				uae_u8 subdata[SUB_CHANNEL_SIZE];
+				getsub_deinterleaved (subdata, cdu, t, sector);
+				if (subs == 4) { // all, de-interleaved
+					memcpy (p, subdata, SUB_CHANNEL_SIZE);
+					p += SUB_CHANNEL_SIZE;
+				} else if (subs == 2) { // q-only
+					memcpy (p, subdata + SUB_ENTRY_SIZE, SUB_ENTRY_SIZE);
+					p += SUB_ENTRY_SIZE;
+				} else if (subs == 1) { // all, interleaved
+					sub_to_interleaved (subdata, p);
+					p += SUB_CHANNEL_SIZE;
 				}
-				ret += p - data;
-				data = p;
-				sector++;
 			}
+			ret += p - data;
+			data = p;
+			sector++;
 		}
 	}
 end:

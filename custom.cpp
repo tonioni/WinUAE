@@ -8263,7 +8263,7 @@ static void REGPARAM3 custom_bput (uaecptr, uae_u32) REGPARAM;
 addrbank custom_bank = {
 	custom_lget, custom_wget, custom_bget,
 	custom_lput, custom_wput, custom_bput,
-	default_xlate, default_check, NULL, _T("Custom chipset"),
+	default_xlate, default_check, NULL, NULL, _T("Custom chipset"),
 	custom_lgeti, custom_wgeti, ABFLAG_IO, 0x1ff, 0xdff000
 };
 

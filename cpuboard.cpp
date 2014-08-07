@@ -26,6 +26,10 @@
 #include "debug.h"
 #include "flashrom.h"
 #include "uae.h"
+#include "ppc.h"
+
+#define CPUBOARD_IO_LOG 0
+#define CPUBOARD_IRQ_LOG 0
 
 #define F0_WAITSTATES (2 * CYCLE_UNIT)
 
@@ -39,57 +43,85 @@
 #define CSIII_REG_SHADOW	0x03 // 0x18
 #define CSIII_REG_LOCK		0x04 // 0x20
 #define CSIII_REG_INT		0x05 // 0x28
-#define CSIII_IPL_EMU		0x06 // 0x30
-#define CSIII_INT_LVL		0x07 // 0x38
-#define BPPC_MAGIC			0x13
+#define CSIII_REG_IPL_EMU	0x06 // 0x30
+#define CSIII_REG_INT_LVL	0x07 // 0x38
+
+// BPPC only
+#define BPPC_MAPROM_ON		0x12
+#define BPPC_MAPROM_OFF		0x13
+#define BPPC_UNLOCK_FLASH	0x92
+#define BPPC_LOCK_FLASH		0x93
+#define BPPC_MAGIC_UNLOCK	0x42
 
 /* bit definitions */
-#define	P5_SET_CLEAR	0x80
-/* REQ_RESET */
-#define	P5_PPC_RESET	0x10
-#define	P5_M68K_RESET	0x08
-#define	P5_AMIGA_RESET	0x04
-#define	P5_AUX_RESET	0x02
-#define	P5_SCSI_RESET	0x01
-/* REG_IRQ */
-#define P5_IRQ_SCSI		0x01
-#define P5_IRQ_SCSI_EN	0x02
-#define P5_IRQ_PPC_1	0x08
-#define P5_IRQ_PPC_2	0x10
-/* REG_WAITSTATE */
-#define	P5_PPC_WRITE	0x08
-#define	P5_PPC_READ	0x04
-#define	P5_M68K_WRITE	0x02
-#define	P5_M68K_READ	0x01
-/* REG_SHADOW */
-#define	P5_SELF_RESET	0x40
-#define P5_UNK		0x04 // something to do with flash chip
-#define	P5_SHADOW	0x01 // 1 = ks map rom to 0xfff80000
-/* REG_LOCK */
-#define	P5_MAGIC1	0x60 // REG_SHADOW and flash write protection unlock sequence
-#define	P5_MAGIC2	0x50
-#define	P5_MAGIC3	0x30
-#define	P5_MAGIC4	0x70
-/* REG_INT */
-#define	P5_ENABLE_IPL	0x02
-#define	P5_INT_MASTER	0x01 // 1=m68k gets interrupts, 0=ppc gets interrupts.
-/* IPL_EMU */
-#define	P5_DISABLE_INT	0x40 // if set: all CPU interrupts disabled
-#define	P5_M68K_IPL2	0x20
-#define	P5_M68K_IPL1	0x10
-#define	P5_M68K_IPL0	0x08
-#define	P5_PPC_IPL2	0x04
-#define	P5_PPC_IPL1	0x02
-#define	P5_PPC_IPL0	0x01
-#define P5_IPL_MASK	0x07
-/* INT_LVL */
-#define	P5_LVL7		0x40
-#define	P5_LVL6		0x20
-#define	P5_LVL5		0x10
-#define	P5_LVL4		0x08
-#define	P5_LVL3		0x04
-#define	P5_LVL2		0x02
-#define	P5_LVL1		0x01
+#define	P5_SET_CLEAR		0x80
+
+/* REQ_RESET 0x00 */
+#define	P5_PPC_RESET		0x10
+#define	P5_M68K_RESET		0x08
+#define	P5_AMIGA_RESET		0x04
+#define	P5_AUX_RESET		0x02
+#define	P5_SCSI_RESET		0x01
+
+/* REG_IRQ 0x08 */
+#define P5_IRQ_SCSI			0x01
+#define P5_IRQ_SCSI_EN		0x02
+// 0x04
+#define P5_IRQ_PPC_1		0x08
+#define P5_IRQ_PPC_2		0x10
+// 0x20
+// 0x40 always cleared
+
+/* REG_WAITSTATE 0x10 */
+#define	P5_PPC_WRITE		0x08
+#define	P5_PPC_READ			0x04
+#define	P5_M68K_WRITE		0x02
+#define	P5_M68K_READ		0x01
+
+/* REG_SHADOW 0x18 */
+#define	P5_SELF_RESET		0x40
+// 0x20
+// 0x10
+// 0x08 always set
+#define P5_FLASH			0x04 // Flash writable (CSMK3,CSPPC only)
+// 0x02 (can be modified even when locked)
+#define	P5_SHADOW			0x01 // KS MAP ROM
+
+/* REG_LOCK 0x20. CSMK3,CSPPC only */
+#define	P5_MAGIC1			0x60 // REG_SHADOW and flash write protection unlock sequence
+#define	P5_MAGIC2			0x50
+#define	P5_MAGIC3			0x30
+#define	P5_MAGIC4			0x70
+#define P5_GEN_INT2			0x01
+
+/* REG_INT 0x28 */
+// 0x40 always set
+// 0x20
+// 0x10 always cleared
+// 0x08
+// 0x04
+#define	P5_ENABLE_IPL		0x02
+#define	P5_INT_MASTER		0x01 // 1=m68k gets interrupts, 0=ppc gets interrupts.
+
+/* IPL_EMU 0x30 */
+#define	P5_DISABLE_INT		0x40 // if set: all CPU interrupts disabled?
+#define	P5_M68K_IPL2		0x20
+#define	P5_M68K_IPL1		0x10
+#define	P5_M68K_IPL0		0x08
+#define P5_M68k_IPL_MASK	0x38
+#define	P5_PPC_IPL2			0x04
+#define	P5_PPC_IPL1			0x02
+#define	P5_PPC_IPL0			0x01
+#define P5_PPC_IPL_MASK		0x07
+
+/* INT_LVL 0x38 */
+#define	P5_LVL7				0x40
+#define	P5_LVL6				0x20
+#define	P5_LVL5				0x10
+#define	P5_LVL4				0x08
+#define	P5_LVL3				0x04
+#define	P5_LVL2				0x02
+#define	P5_LVL1				0x01
 
 #define CS_RAM_BASE 0x0c000000
 
@@ -113,7 +145,80 @@ static void *flashrom;
 static struct zfile *flashrom_file;
 static int flash_unlocked;
 static int csmk2_flashaddressing;
-static bool blizzardmaprom_bank_mapped;
+static bool blizzardmaprom_bank_mapped, blizzardmaprom2_bank_mapped;
+
+static int ppc_irq_pending;
+static bool ppc_int_interrupt;
+
+static void set_ppc_interrupt(int level)
+{
+	if (ppc_irq_pending > level)
+		return;
+#if CPUBOARD_IRQ_LOG > 0
+	write_log(_T("PPC interrupt set (%d)\n"), level);
+#endif
+	ppc_interrupt(true);
+	ppc_irq_pending = level;
+}
+static void clear_ppc_interrupt(void)
+{
+	if (!ppc_irq_pending)
+		return;
+#if CPUBOARD_IRQ_LOG > 0
+	write_log(_T("PPC interrupt clear\n"));
+#endif
+	ppc_interrupt(false);
+	ppc_irq_pending = 0;
+}
+
+static void check_ppc_int_lvl(void)
+{
+	uae_u8 ipl;
+	uae_u8 il;
+	if (!(io_reg[CSIII_REG_INT] & P5_ENABLE_IPL)) {
+		ipl = (~io_reg[CSIII_REG_IPL_EMU]) & P5_PPC_IPL_MASK;
+		if (ipl < 7) {
+			il = (~io_reg[CSIII_REG_INT_LVL]) & 0x7f;
+			if (il) {
+				for (int i = ipl; i < 7; i++) {
+					if (il & (1 << i)) {
+						set_ppc_interrupt(i + 1);
+						return;
+					}
+				}
+			}
+		}
+	}
+	clear_ppc_interrupt();
+}
+
+bool ppc_interrupt(int new_m68k_ipl)
+{
+	uae_u8 ppcipl;
+	bool m68kint = (io_reg[CSIII_REG_INT] & P5_INT_MASTER) != 0;
+	bool active = (io_reg[CSIII_REG_IPL_EMU] & P5_DISABLE_INT) == 0;
+	bool iplemu = (io_reg[CSIII_REG_INT] & P5_ENABLE_IPL) == 0;
+
+	if (!active)
+		return false;
+
+	if (new_m68k_ipl < 0)
+		new_m68k_ipl = 0;
+	ppcipl = (io_reg[CSIII_REG_IPL_EMU] ^ 7) & 7;
+
+	if (!m68kint && iplemu && active) {
+		if (new_m68k_ipl > ppcipl) {
+			set_ppc_interrupt(new_m68k_ipl);
+		} else {
+			clear_ppc_interrupt();
+		}
+		io_reg[CSIII_REG_IPL_EMU] &= ~P5_M68k_IPL_MASK;
+		io_reg[CSIII_REG_IPL_EMU] |= (new_m68k_ipl << 3) ^ P5_M68k_IPL_MASK;
+	}
+
+	return m68kint;
+}
+
 
 static bool is_blizzard(void)
 {
@@ -150,7 +255,7 @@ DECLARE_MEMORY_FUNCTIONS(blizzardio);
 static addrbank blizzardio_bank = {
 	blizzardio_lget, blizzardio_wget, blizzardio_bget,
 	blizzardio_lput, blizzardio_wput, blizzardio_bput,
-	default_xlate, default_check, NULL, _T("CPUBoard IO"),
+	default_xlate, default_check, NULL, NULL, _T("CPUBoard IO"),
 	blizzardio_wget, blizzardio_bget, ABFLAG_IO
 };
 
@@ -158,7 +263,7 @@ DECLARE_MEMORY_FUNCTIONS(blizzardram);
 static addrbank blizzardram_bank = {
 	blizzardram_lget, blizzardram_wget, blizzardram_bget,
 	blizzardram_lput, blizzardram_wput, blizzardram_bput,
-	blizzardram_xlate, blizzardram_check, NULL, _T("CPUBoard RAM"),
+	blizzardram_xlate, blizzardram_check, NULL, NULL, _T("CPUBoard RAM"),
 	blizzardram_lget, blizzardram_wget, ABFLAG_RAM
 };
 
@@ -166,7 +271,7 @@ DECLARE_MEMORY_FUNCTIONS(blizzardea);
 static addrbank blizzardea_bank = {
 	blizzardea_lget, blizzardea_wget, blizzardea_bget,
 	blizzardea_lput, blizzardea_wput, blizzardea_bput,
-	blizzardea_xlate, blizzardea_check, NULL, _T("CPUBoard EA Autoconfig"),
+	blizzardea_xlate, blizzardea_check, NULL, _T("rom_ea"), _T("CPUBoard EA Autoconfig"),
 	blizzardea_lget, blizzardea_wget, ABFLAG_IO | ABFLAG_SAFE
 };
 
@@ -174,7 +279,7 @@ DECLARE_MEMORY_FUNCTIONS(blizzarde8);
 static addrbank blizzarde8_bank = {
 	blizzarde8_lget, blizzarde8_wget, blizzarde8_bget,
 	blizzarde8_lput, blizzarde8_wput, blizzarde8_bput,
-	blizzarde8_xlate, blizzarde8_check, NULL, _T("CPUBoard E8 Autoconfig"),
+	blizzarde8_xlate, blizzarde8_check, NULL, NULL, _T("CPUBoard E8 Autoconfig"),
 	blizzarde8_lget, blizzarde8_wget, ABFLAG_IO | ABFLAG_SAFE
 };
 
@@ -182,7 +287,7 @@ DECLARE_MEMORY_FUNCTIONS(blizzardf0);
 static addrbank blizzardf0_bank = {
 	blizzardf0_lget, blizzardf0_wget, blizzardf0_bget,
 	blizzardf0_lput, blizzardf0_wput, blizzardf0_bput,
-	blizzardf0_xlate, blizzardf0_check, NULL, _T("CPUBoard F00000"),
+	blizzardf0_xlate, blizzardf0_check, NULL, _T("rom_f0"), _T("CPUBoard F00000"),
 	blizzardf0_lget, blizzardf0_wget, ABFLAG_ROM
 };
 
@@ -190,7 +295,7 @@ DECLARE_MEMORY_FUNCTIONS(blizzardram_nojit);
 static addrbank blizzardram_nojit_bank = {
 	blizzardram_nojit_lget, blizzardram_nojit_wget, blizzardram_nojit_bget,
 	blizzardram_nojit_lput, blizzardram_nojit_wput, blizzardram_nojit_bput,
-	blizzardram_nojit_xlate, blizzardram_nojit_check, NULL, _T("CPUBoard RAM"),
+	blizzardram_nojit_xlate, blizzardram_nojit_check, NULL, NULL, _T("CPUBoard RAM"),
 	blizzardram_nojit_lget, blizzardram_nojit_wget, ABFLAG_RAM
 };
 
@@ -198,17 +303,43 @@ DECLARE_MEMORY_FUNCTIONS(blizzardmaprom);
 static addrbank blizzardmaprom_bank = {
 	blizzardmaprom_lget, blizzardmaprom_wget, blizzardmaprom_bget,
 	blizzardmaprom_lput, blizzardmaprom_wput, blizzardmaprom_bput,
-	blizzardmaprom_xlate, blizzardmaprom_check, NULL, _T("CPUBoard MAPROM"),
+	blizzardmaprom_xlate, blizzardmaprom_check, NULL, _T("maprom"), _T("CPUBoard MAPROM"),
 	blizzardmaprom_lget, blizzardmaprom_wget, ABFLAG_RAM
 };
 DECLARE_MEMORY_FUNCTIONS(blizzardmaprom2);
 static addrbank blizzardmaprom2_bank = {
 	blizzardmaprom2_lget, blizzardmaprom2_wget, blizzardmaprom2_bget,
 	blizzardmaprom2_lput, blizzardmaprom2_wput, blizzardmaprom2_bput,
-	blizzardmaprom2_xlate, blizzardmaprom2_check, NULL, _T("CPUBoard MAPROM2"),
+	blizzardmaprom2_xlate, blizzardmaprom2_check, NULL, _T("maprom2"), _T("CPUBoard MAPROM2"),
 	blizzardmaprom2_lget, blizzardmaprom2_wget, ABFLAG_RAM
 };
 
+// hack to map F41000 SCSI SCRIPTS RAM to JIT friendly address
+void cyberstorm_scsi_ram_put(uaecptr addr, uae_u32 v)
+{
+	addr &= 0xffff;
+	addr += (CSIII_NCR & 0x7ffff);
+	blizzardf0_bank.baseaddr[addr] = v;
+}
+uae_u32 cyberstorm_scsi_ram_get(uaecptr addr)
+{
+	uae_u32 v;
+	addr &= 0xffff;
+	addr += (CSIII_NCR & 0x7ffff);
+	v = blizzardf0_bank.baseaddr[addr];
+	return v;
+}
+uae_u8 *REGPARAM2 cyberstorm_scsi_ram_xlate(uaecptr addr)
+{
+	addr &= 0xffff;
+	addr += (CSIII_NCR & 0x7ffff);
+	return blizzardf0_bank.baseaddr + addr;
+}
+int REGPARAM2 cyberstorm_scsi_ram_check(uaecptr a, uae_u32 b)
+{
+	a &= 0xffff;
+	return a >= 0x1000 && a + b < 0x3000;
+}
 
 MEMORY_FUNCTIONS(blizzardram);
 
@@ -266,37 +397,11 @@ static void no_rom_protect(void)
 MEMORY_BGET(blizzardmaprom2, 1);
 MEMORY_WGET(blizzardmaprom2, 1);
 MEMORY_LGET(blizzardmaprom2, 1);
+MEMORY_BPUT(blizzardmaprom2, 1);
+MEMORY_WPUT(blizzardmaprom2, 1);
+MEMORY_LPUT(blizzardmaprom2, 1);
 MEMORY_CHECK(blizzardmaprom2);
 MEMORY_XLATE(blizzardmaprom2);
-
-static void REGPARAM2 blizzardmaprom2_lput(uaecptr addr, uae_u32 l)
-{
-	uae_u32 *m;
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
-	addr &= blizzardmaprom2_bank.mask;
-	m = (uae_u32 *)(blizzardmaprom2_bank.baseaddr + addr);
-	do_put_mem_long(m, l);
-}
-static void REGPARAM2 blizzardmaprom2_wput(uaecptr addr, uae_u32 w)
-{
-	uae_u16 *m;
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
-	addr &= blizzardmaprom2_bank.mask;
-	m = (uae_u16 *)(blizzardmaprom2_bank.baseaddr + addr);
-	do_put_mem_word(m, w);
-}
-static void REGPARAM2 blizzardmaprom2_bput(uaecptr addr, uae_u32 b)
-{
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
-	addr &= blizzardmaprom2_bank.mask;
-	blizzardmaprom2_bank.baseaddr[addr] = b;
-}
 
 MEMORY_BGET(blizzardmaprom, 1);
 MEMORY_WGET(blizzardmaprom, 1);
@@ -356,7 +461,6 @@ static void REGPARAM2 blizzardmaprom_bput(uaecptr addr, uae_u32 b)
 MEMORY_CHECK(blizzardea);
 MEMORY_XLATE(blizzardea);
 
-
 static int REGPARAM2 blizzarde8_check(uaecptr addr, uae_u32 size)
 {
 	return 0;
@@ -373,10 +477,9 @@ static uae_u32 REGPARAM2 blizzardf0_lget(uaecptr addr)
 #endif
 	uae_u32 *m;
 
-	regs.memory_waitstate_cycles += F0_WAITSTATES * 6;
+	//write_log(_T("F0 LONGGET %08x\n"), addr);
 
-	if (is_blizzardppc() && (flash_unlocked & 2))
-		addr += 262144;
+	regs.memory_waitstate_cycles += F0_WAITSTATES * 6;
 
 	addr &= blizzardf0_bank.mask;
 	m = (uae_u32 *)(blizzardf0_bank.baseaddr + addr);
@@ -390,9 +493,6 @@ static uae_u32 REGPARAM2 blizzardf0_wget(uaecptr addr)
 	uae_u16 *m, v;
 
 	regs.memory_waitstate_cycles += F0_WAITSTATES * 3;
-
-	if (is_blizzardppc() && (flash_unlocked & 2))
-		addr += 262144;
 
 	addr &= blizzardf0_bank.mask;
 	m = (uae_u16 *)(blizzardf0_bank.baseaddr + addr);
@@ -409,42 +509,21 @@ static uae_u32 REGPARAM2 blizzardf0_bget(uaecptr addr)
 	regs.memory_waitstate_cycles += F0_WAITSTATES * 1;
 
 	if (is_csmk3() || is_blizzardppc()) {
-		if (is_blizzardppc() && (flash_unlocked & 2))
-			addr += 262144;
 		if (flash_unlocked) {
 			return flash_read(flashrom, addr);
 		}
+	} else if (is_csmk2()) {
+		addr &= 65535;
+		addr += 65536;
+		return flash_read(flashrom, addr);
+	} else if (is_csmk1()) {
+		addr &= 65535;
+		addr += 65536;
+		return flash_read(flashrom, addr);
 	}
 	addr &= blizzardf0_bank.mask;
 	v = blizzardf0_bank.baseaddr[addr];
 	return v;
-}
-
-// hack to map F41000 SCSI SCRIPTS RAM to JIT friendly address
-void cyberstorm_scsi_ram_put(uaecptr addr, uae_u32 v)
-{
-	addr &= 0xffff;
-	addr += (CSIII_NCR & 0x7ffff);
-	blizzardf0_bank.baseaddr[addr] = v;
-}
-uae_u32 cyberstorm_scsi_ram_get(uaecptr addr)
-{
-	uae_u32 v;
-	addr &= 0xffff;
-	addr += (CSIII_NCR & 0x7ffff);
-	v = blizzardf0_bank.baseaddr[addr];
-	return v;
-}
-uae_u8 *REGPARAM2 cyberstorm_scsi_ram_xlate (uaecptr addr)
-{
-	addr &= 0xffff;
-	addr += (CSIII_NCR & 0x7ffff);
-	return blizzardf0_bank.baseaddr + addr;
-}
-int REGPARAM2 cyberstorm_scsi_ram_check (uaecptr a, uae_u32 b)
-{
-	a &= 0xffff;
-	return a >= 0x1000 && a + b < 0x3000;
 }
 
 static void REGPARAM2 blizzardf0_lput(uaecptr addr, uae_u32 b)
@@ -470,10 +549,18 @@ static void REGPARAM2 blizzardf0_bput(uaecptr addr, uae_u32 b)
 
 	if (is_csmk3() || is_blizzardppc()) {
 		if (flash_unlocked) {
-			if (is_blizzardppc() && (flash_unlocked & 2))
-				addr += 262144;
 			flash_write(flashrom, addr, b);
 		}
+	} else if (is_csmk2()) {
+		addr &= 65535;
+		addr += 65536;
+		addr &= ~3;
+		addr |= csmk2_flashaddressing;
+		flash_write(flashrom, addr, b);
+	} else if (is_csmk1()) {
+		addr &= 65535;
+		addr += 65536;
+		flash_write(flashrom, addr, b);
 	}
 }
 
@@ -518,6 +605,8 @@ static uae_u32 REGPARAM2 blizzardea_bget(uaecptr addr)
 	} else if (is_csmk1()) {
 		if (addr >= CYBERSTORM_MK1_SCSI_OFFSET) {
 			v = cpuboard_ncr9x_scsi_get(addr);
+		} else if (flash_active(flashrom, addr)) {
+			v = flash_read(flashrom, addr);
 		} else {
 			v = blizzardea_bank.baseaddr[addr];
 		}
@@ -561,6 +650,8 @@ static void REGPARAM2 blizzardea_bput(uaecptr addr, uae_u32 b)
 	} else if (is_csmk1()) {
 		if (addr >= CYBERSTORM_MK1_SCSI_OFFSET) {
 			cpuboard_ncr9x_scsi_put(addr, b);
+		} else {
+			flash_write(flashrom, addr, b);
 		}
 	} else if (is_csmk2()) {
 		if (addr >= CYBERSTORM_MK2_SCSI_OFFSET) {
@@ -676,8 +767,13 @@ static void cyberstormmk1_copymaprom(void)
 void cpuboard_rethink(void)
 {
 	if (is_csmk3() || is_blizzardppc()) {
-		if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_SCSI_EN | P5_IRQ_SCSI)))
+		if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_SCSI_EN | P5_IRQ_SCSI))) {
 			INTREQ(0x8000 | 0x0008);
+		}
+		if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_PPC_1 | P5_IRQ_PPC_2))) {
+			INTREQ(0x8000 | 0x0008);
+		}
+		ppc_interrupt(intlev());
 	}
 }
 
@@ -733,12 +829,28 @@ static uae_u32 REGPARAM2 blizzardio_bget(uaecptr addr)
 		if (bank == 0) {
 			int reg = (addr & 0xff) / 8;
 			v = io_reg[reg];
-			if (reg == CSIII_REG_LOCK && is_blizzardppc())
-				v |= 0x08; // BPPC special bit
+			if (reg == CSIII_REG_LOCK) {
+				v = 0x10;
+				if (is_blizzardppc())
+					v |= 0x08; // BPPC identification
+				if (!ppc_irq_pending)
+					v |= 0x01;
+			} else if (reg == CSIII_REG_IRQ)  {
+				v &= 0x3f;
+			} else if (reg == CSIII_REG_INT) {
+				v |= 0x40;
+				v &= ~0x10;
+			} else if (reg == CSIII_REG_SHADOW) {
+				v |= 0x08;
+			}
+#if CPUBOARD_IO_LOG > 1
 			if (reg != CSIII_REG_IRQ)
 				write_log(_T("CS IO BGET %08x=%02X PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
+#endif
 		} else {
+#if CPUBOARD_IO_LOG > 1
 			write_log(_T("CS IO BGET %08x=%02X PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
+#endif
 		}
 	}
 	return v;
@@ -774,12 +886,14 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	//write_log(_T("CS IO XBPUT %08x %02x PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
+#if CPUBOARD_IO_LOG > 2
+	write_log(_T("CS IO XBPUT %08x %02x PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
+#endif
 	if (is_csmk2()) {
 		csmk2_flashaddressing = addr & 3;
 		if (addr == 0x880000e3 && v == 0x2a) {
 			maprom_state = 1;
-			write_log(_T("CSMKII MAPROM enabled\n"));
+			write_log(_T("CSMKII: MAPROM enabled\n"));
 			cyberstormmk2_copymaprom();
 		}
 	} else if (is_blizzard()) {
@@ -787,83 +901,155 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 			if (v != 0x42 || maprom_state || !currprefs.maprom)
 				return;
 			maprom_state = 1;
-			write_log(_T("Blizzard MAPROM enabled\n"));
+			write_log(_T("Blizzard: MAPROM enabled\n"));
 			blizzard_copymaprom();
 		}
 	} else if (is_csmk3() || is_blizzardppc()) {
+#if CPUBOARD_IO_LOG > 1
 		write_log(_T("CS IO BPUT %08x %02x PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
+#endif
 		uae_u32 bank = addr & 0x10000;
 		if (bank == 0) {
 			addr &= 0xff;
 			if (is_blizzardppc()) {
-				if (addr == 0x92 && v == 0x42)
-					flash_unlocked |= 1;
-				if (addr == 0x93)
-					flash_unlocked &= ~1;
-				if (addr == 0x12) {
+				if (addr == BPPC_UNLOCK_FLASH && v == BPPC_MAGIC_UNLOCK) {
+					flash_unlocked = 1;
+					write_log(_T("BPPC: flash unlocked\n"));
+				} else 	if (addr == BPPC_LOCK_FLASH) {
+					flash_unlocked = 0;
+					write_log(_T("BPPC: flash locked\n"));
+				} else if (addr == BPPC_MAPROM_ON) {
+					write_log(_T("BPPC: maprom enabled\n"));
 					maprom_state = 1;
 					cyberstorm_copymaprom();
+					blizzardppc_maprom();
+				} else if (addr == BPPC_MAPROM_OFF) {
+					write_log(_T("BPPC: maprom disabled\n"));
+					maprom_state = 0;
 					blizzardppc_maprom();
 				}
 			}
 			addr /= 8;
 			uae_u8 oldval = io_reg[addr];
 			if (addr == CSIII_REG_LOCK) {
+				uae_u8 regval = io_reg[CSIII_REG_LOCK] & 0x0f;
 				if (v == P5_MAGIC1)
-					io_reg[CSIII_REG_LOCK] = v;
-				else if (v == P5_MAGIC2 && io_reg[CSIII_REG_LOCK] == P5_MAGIC1)
-					io_reg[CSIII_REG_LOCK] = v;
-				else if (v == P5_MAGIC3 && io_reg[CSIII_REG_LOCK] == P5_MAGIC2)
-					io_reg[CSIII_REG_LOCK] = v;
-				else if (v == P5_MAGIC4 && io_reg[CSIII_REG_LOCK] == P5_MAGIC3)
-					io_reg[CSIII_REG_LOCK] = v;
-				else
-					io_reg[CSIII_REG_LOCK] = 0;
-				if (io_reg[CSIII_REG_LOCK] == P5_MAGIC3)
-					flash_unlocked |= 2;
+					regval |= P5_MAGIC1;
+				else if ((v & 0x70) == P5_MAGIC2 && (io_reg[CSIII_REG_LOCK] & 0x70) == P5_MAGIC1)
+					regval |= P5_MAGIC2;
+				else if ((v & 0x70) == P5_MAGIC3 && (io_reg[CSIII_REG_LOCK] & 0x70) == P5_MAGIC2)
+					regval |= P5_MAGIC3;
+				else if ((v & 0x70) == P5_MAGIC4 && (io_reg[CSIII_REG_LOCK] & 0x70) == P5_MAGIC3)
+					regval |= P5_MAGIC4;
+				if ((regval & 0x70) == P5_MAGIC3)
+					flash_unlocked = 1;
 				else
 					flash_unlocked &= ~2;
+				if (v & P5_GEN_INT2) {
+					if (v & 0x80)
+						regval |= P5_GEN_INT2;
+					else
+						regval &= ~P5_GEN_INT2;
+					write_log(_T("CSIII_REG_LOCK bit 0 = %d!\n"), (v & 0x80) ? 1 : 0);
+					ppc_int_interrupt = (v & 0x80) ? false : true;
+					if (ppc_int_interrupt) {
+						set_ppc_interrupt(2);
+					} else {
+						clear_ppc_interrupt();
+					}
+				}
+				io_reg[CSIII_REG_LOCK] = regval;
 			} else {
 				uae_u32 regval;
-				if (addr == CSIII_REG_SHADOW && io_reg[CSIII_REG_LOCK] != P5_MAGIC3)
-					return;
+				// reg shadow is only writable if unlock sequence is active
+				if (addr == CSIII_REG_SHADOW) {
+					if (v & 2) {
+						// for some reason this unknown bit can be modified even when locked
+						io_reg[CSIII_REG_LOCK] &= ~2;
+						if (v & 0x80)
+							io_reg[CSIII_REG_LOCK] |= 2;
+					}
+					if (is_blizzardppc())
+						return;
+					if ((io_reg[CSIII_REG_LOCK] & 0x70) != P5_MAGIC3)
+						return;
+				}
 				if (v & 0x80)
 					io_reg[addr] |= v & 0x7f;
 				else
 					io_reg[addr] &= ~v;
 				regval = io_reg[addr];
 				if (addr == CSIII_REG_RESET) {
+					map_banks(&dummy_bank, 0xf00000 >> 16, 0x80000 >> 16, 0);
+					map_banks(&blizzardio_bank, 0xf60000 >> 16, 0x10000 >> 16, 0);
 					if (regval & P5_SCSI_RESET) {
-						if (is_blizzardppc())
-							map_banks(&ncr_bank_blizzardppc, 0xf40000 >> 16, 65536 >> 16, 0);
-						else
-							map_banks(&ncr_bank_cyberstorm, 0xf40000 >> 16, 65536 >> 16, 0);
+						map_banks(&blizzardf0_bank, 0xf00000 >> 16, 0x40000 >> 16, 0);
+						if (is_blizzardppc()) {
+							map_banks(&ncr_bank_blizzardppc, 0xf40000 >> 16, 0x10000 >> 16, 0);
+						} else {
+							map_banks(&ncr_bank_cyberstorm, 0xf40000 >> 16, 0x10000 >> 16, 0);
+							map_banks(&blizzardio_bank, 0xf50000 >> 16, 0x10000 >> 16, 0);
+						}
 					} else {
-						map_banks(&dummy_bank, 0xf40000 >> 16, 65536 >> 16, 0);
+						map_banks(&blizzardf0_bank, 0xf00000 >> 16, 0x60000 >> 16, 0);
 					}
 					if (!(regval & P5_AMIGA_RESET)) {
 						uae_reset(0, 0);
 						io_reg[addr] |= P5_AMIGA_RESET;
-						write_log(_T("CPUBoard Amiga Reset\n"));
+						write_log(_T("CS: Amiga Reset\n"));
 					}
-					if (!(oldval & P5_PPC_RESET) && (regval & P5_PPC_RESET)) {
-						static int warned;
-						write_log(_T("PPC reset cleared. Someone wants to run PPC programs..\n"));
-						if (!warned) {
-							gui_message(_T("WARNING: unemulated PPC CPU started!"));
-							warned = 1;
+					if ((oldval & P5_PPC_RESET) && !(regval & P5_PPC_RESET)) {
+						ppc_stop();
+					} else if (!(oldval & P5_PPC_RESET) && (regval & P5_PPC_RESET)) {
+						ppc_reboot();
+					}
+					if ((regval & P5_M68K_RESET) && !(oldval & P5_M68K_RESET)) {
+						m68k_reset();
+						write_log(_T("CS: M68K Reset\n"));
+					} else if (!(regval & P5_M68K_RESET) && (oldval & P5_M68K_RESET)) {
+						write_log(_T("CS: M68K Halted\n"));
+						if (!(regval & P5_PPC_RESET)) {
+							write_log(_T("CS: PPC is also halted. STOP.\n"));
+							cpu_halt(5);
+						} else {
+							// halt 68k, leave ppc message processing active.
+							cpu_halt(-1);
 						}
 					}
-					if (!(regval & P5_M68K_RESET)) {
-						m68k_reset();
-						io_reg[addr] |= P5_M68K_RESET;
-						write_log(_T("CPUBoard M68K Reset\n"));
-					}
+				} else if (addr == CSIII_REG_IPL_EMU) {
+#if CPUBOARD_IRQ_LOG > 0
+					regval &= ~P5_M68k_IPL_MASK;
+					regval |= oldval & P5_M68k_IPL_MASK;
+					io_reg[addr] = regval;
+					if ((regval & P5_DISABLE_INT) != (oldval & P5_DISABLE_INT))
+						write_log(_T("CS: interrupt state: %s\n"), (regval & P5_DISABLE_INT) ? _T("disabled") : _T("enabled"));
+					if ((regval & P5_PPC_IPL_MASK) != (oldval & P5_PPC_IPL_MASK))
+						write_log(_T("CS: PPC IPL %02x\n"), (~regval) & P5_PPC_IPL_MASK);
+#endif
+					check_ppc_int_lvl();
+				} else if (addr == CSIII_REG_INT) {
+#if CPUBOARD_IRQ_LOG > 0
+					if ((regval & P5_INT_MASTER) != (oldval & P5_INT_MASTER))
+						write_log(_T("CS: interrupt master: %s\n"), (regval & P5_INT_MASTER) ? _T("m68k") : _T("ppc"));
+					if ((regval & P5_ENABLE_IPL) != (oldval & P5_ENABLE_IPL))
+						write_log(_T("CS: IPL state: %s\n"), (regval & P5_ENABLE_IPL) ? _T("disabled") : _T("enabled"));
+#endif
+					check_ppc_int_lvl();
+				} else if (addr == CSIII_REG_INT_LVL) {
+#if CPUBOARD_IRQ_LOG > 0
+					if (regval != oldval)
+						write_log(_T("CS: interrupt level: %02x\n"), regval);
+#endif
+					check_ppc_int_lvl();
 				} else if (addr == CSIII_REG_SHADOW) {
 					if (is_csmk3() && ((oldval ^ regval) & 1)) {
 						maprom_state = (regval & 1) ? 0 : 1;
 						cyberstorm_copymaprom();
 						cyberstorm_maprom();
+					}
+					if ((regval & P5_FLASH) != (oldval & P5_FLASH)) {
+						flash_unlocked = (regval & P5_FLASH) ? 0 : 1;
+						write_log(_T("CS: Flash writable = %d\n"), flash_unlocked);
 					}
 //					if ((oldval ^ regval) & 7) {
 //						activate_debugger();
@@ -884,7 +1070,7 @@ static void REGPARAM2 blizzardio_wput(uaecptr addr, uae_u32 v)
 		if((addr & 65535) == (BLIZZARD_BOARD_DISABLE & 65535)) {
 			if (v != 0xcafe)
 				return;
-			write_log(_T("Blizzard board disable!\n"));
+			write_log(_T("Blizzard: board disable!\n"));
 			cpu_halt(4); // not much choice..
 		}
 	} else if (is_csmk3() || is_blizzardppc()) {
@@ -894,7 +1080,7 @@ static void REGPARAM2 blizzardio_wput(uaecptr addr, uae_u32 v)
 		if (addr == CSMK2_BOARD_DISABLE) {
 			if (v != 0xcafe)
 				return;
-			write_log(_T("CSMK2 board disable!\n"));
+			write_log(_T("CSMK2: board disable!\n"));
 			cpu_halt(4); // not much choice..
 		}
 	}
@@ -958,12 +1144,11 @@ void cpuboard_map(void)
 		} else {
 			map_banks(&blizzardf0_bank, 0xf00000 >> 16, 0x60000 >> 16, 0);
 			map_banks(&blizzardio_bank, 0xf60000 >> 16, (2 * 65536) >> 16, 0);
-			map_banks(&blizzardf0_bank, 0xf70000 >> 16, 0x10000 >> 16, 0);
 			blizzardppc_maprom();
 		}
 	}
 	if (is_csmk3()) {
-		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 262144 >> 16, 0);
+		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 0x40000 >> 16, 0);
 		map_banks(&blizzardio_bank, 0xf50000 >> 16, (3 * 65536) >> 16, 0);
 		cyberstorm_maprom();
 		if (!(io_reg[CSIII_REG_SHADOW] & P5_SHADOW))
@@ -1002,6 +1187,8 @@ void cpuboard_reset(bool hardreset)
 			memset(io_reg, 0x7f, sizeof io_reg);
 		io_reg[CSIII_REG_RESET] = 0x7f;
 		io_reg[CSIII_REG_IRQ] = 0x7f;
+		io_reg[CSIII_REG_IPL_EMU] = 0x40;
+		io_reg[CSIII_REG_LOCK] = 0x0;
 	}
 	flash_unlocked = 0;
 
@@ -1022,27 +1209,32 @@ void cpuboard_cleanup(void)
 	flashrom_file = NULL;
 
 	if (blizzard_jit) {
-		mapped_free(blizzardram_bank.baseaddr);
+		mapped_free(&blizzardram_bank);
 	} else {
 		xfree(blizzardram_nojit_bank.baseaddr);
 	}
 	if (blizzardmaprom_bank_mapped)
-		mapped_free(blizzardmaprom_bank.baseaddr);
+		mapped_free(&blizzardmaprom_bank);
+	if (blizzardmaprom2_bank_mapped)
+		mapped_free(&blizzardmaprom2_bank);
 
 	blizzardram_bank.baseaddr = NULL;
 	blizzardram_nojit_bank.baseaddr = NULL;
 	blizzardmaprom_bank.baseaddr = NULL;
 	blizzardmaprom2_bank.baseaddr = NULL;
 	blizzardmaprom_bank_mapped = false;
+	blizzardmaprom2_bank_mapped = false;
 
-	mapped_free(blizzardf0_bank.baseaddr);
+	mapped_free(&blizzardf0_bank);
 	blizzardf0_bank.baseaddr = NULL;
 
-	mapped_free(blizzardea_bank.baseaddr);
+	mapped_free(&blizzardea_bank);
 	blizzardea_bank.baseaddr = NULL;
 
 	cpuboard_size = cpuboard2_size = -1;
 
+	blizzardmaprom_bank.flags &= ~(ABFLAG_INDIRECT | ABFLAG_NOALLOC);
+	blizzardmaprom2_bank.flags &= ~(ABFLAG_INDIRECT | ABFLAG_NOALLOC);
 }
 
 void cpuboard_init(void)
@@ -1069,8 +1261,10 @@ void cpuboard_init(void)
 
 		blizzard_jit = 0 && BLIZZARD_RAM_BASE + blizzardram_bank.allocated <= max_z3fastmem && currprefs.jit_direct_compatible_memory;
 		if (blizzard_jit) {
-			if (cpuboard_size)
-				blizzardram_bank.baseaddr = mapped_malloc(blizzardram_bank.allocated, _T("blizzard"));
+			if (cpuboard_size) {
+				blizzardram_bank.label = _T("blizzard");
+				mapped_malloc(&blizzardram_bank);
+			}
 		} else {
 			if (cpuboard_size)
 				blizzardram_bank.baseaddr = xmalloc(uae_u8, blizzardram_bank.allocated);
@@ -1082,13 +1276,13 @@ void cpuboard_init(void)
 		blizzardf0_bank.start = 0x00f00000;
 		blizzardf0_bank.allocated = 524288;
 		blizzardf0_bank.mask = blizzardf0_bank.allocated - 1;
-		blizzardf0_bank.baseaddr = mapped_malloc(blizzardf0_bank.allocated, _T("rom_f0"));
+		mapped_malloc(&blizzardf0_bank);
 
 		if (!is_blizzardppc()) {
 			blizzardea_bank.allocated = 2 * 65536;
 			blizzardea_bank.mask = blizzardea_bank.allocated - 1;
 			// Blizzard 12xx autoconfig ROM must be mapped at $ea0000-$ebffff, board requires it.
-			blizzardea_bank.baseaddr = mapped_malloc(blizzardea_bank.allocated, _T("rom_ea"));
+			mapped_malloc(&blizzardea_bank);
 		}
 
 		if (cpuboard_size > 2 * 524288) {
@@ -1097,15 +1291,24 @@ void cpuboard_init(void)
 				blizzardmaprom_bank.start = BLIZZARD_MAPROM_BASE;
 				blizzardmaprom_bank.allocated = 524288;
 				blizzardmaprom_bank.mask = 524288 - 1;
+				blizzardmaprom_bank.flags |= ABFLAG_INDIRECT | ABFLAG_NOALLOC;
+				mapped_malloc(&blizzardmaprom_bank);
+				blizzardmaprom_bank_mapped = true;
 			} else {
 				blizzardmaprom_bank.baseaddr = blizzardram_bank.baseaddr + cpuboard_size - 524288;
 				blizzardmaprom_bank.start = CYBERSTORM_MAPROM_BASE;
 				blizzardmaprom_bank.allocated = 524288;
 				blizzardmaprom_bank.mask = 524288 - 1;
+				blizzardmaprom_bank.flags |= ABFLAG_INDIRECT | ABFLAG_NOALLOC;
+				mapped_malloc(&blizzardmaprom_bank);
+				blizzardmaprom_bank_mapped = true;
 				blizzardmaprom2_bank.baseaddr = blizzardram_bank.baseaddr + cpuboard_size - 2 * 524288;
 				blizzardmaprom2_bank.start = CYBERSTORM_MAPROM_BASE;
 				blizzardmaprom2_bank.allocated = 524288;
 				blizzardmaprom2_bank.mask = 524288 - 1;
+				blizzardmaprom2_bank.flags |= ABFLAG_INDIRECT | ABFLAG_NOALLOC;
+				mapped_malloc(&blizzardmaprom2_bank);
+				blizzardmaprom2_bank_mapped = true;
 			}
 		}
 
@@ -1114,14 +1317,15 @@ void cpuboard_init(void)
 		blizzardf0_bank.start = 0x00f00000;
 		blizzardf0_bank.allocated = 65536;
 		blizzardf0_bank.mask = blizzardf0_bank.allocated - 1;
-		blizzardf0_bank.baseaddr = mapped_malloc(blizzardf0_bank.allocated, _T("rom_f0"));
 
-		blizzardea_bank.allocated = 65536;
+		mapped_malloc(&blizzardf0_bank);
+
+		blizzardea_bank.allocated = 2 * 65536;
 		blizzardea_bank.mask = blizzardea_bank.allocated - 1;
-		blizzardea_bank.baseaddr = mapped_malloc(blizzardea_bank.allocated, _T("rom_ea"));
+		mapped_malloc(&blizzardea_bank);
 
 		blizzardmaprom_bank.allocated = 524288;
-		blizzardmaprom_bank.baseaddr = mapped_malloc(blizzardmaprom_bank.allocated, _T("csmk1_maprom"));
+		mapped_malloc(&blizzardmaprom_bank);
 		blizzardmaprom_bank.start = 0x07f80000;
 		blizzardmaprom_bank.mask = 524288 - 1;
 		blizzardmaprom_bank_mapped = true;
@@ -1130,46 +1334,61 @@ void cpuboard_init(void)
 
 		blizzardea_bank.allocated = 2 * 65536;
 		blizzardea_bank.mask = blizzardea_bank.allocated - 1;
-		blizzardea_bank.baseaddr = mapped_malloc(blizzardea_bank.allocated, _T("rom_ea"));
+		mapped_malloc(&blizzardea_bank);
 
 		blizzardf0_bank.start = 0x00f00000;
 		blizzardf0_bank.allocated = 65536;
 		blizzardf0_bank.mask = blizzardf0_bank.allocated - 1;
-		blizzardf0_bank.baseaddr = mapped_malloc(blizzardf0_bank.allocated, _T("rom_f0"));
+		mapped_malloc(&blizzardf0_bank);
 
 		blizzardmaprom_bank.baseaddr = a3000hmem_bank.baseaddr + a3000hmem_bank.allocated - 524288;
 		blizzardmaprom_bank.start = a3000hmem_bank.start + a3000hmem_bank.allocated - 524288;
 		blizzardmaprom_bank.allocated = 524288;
 		blizzardmaprom_bank.mask = 524288 - 1;
+		blizzardmaprom_bank.flags |= ABFLAG_INDIRECT | ABFLAG_NOALLOC;
+		mapped_malloc(&blizzardmaprom_bank);
 
 	} else if (is_csmk3()) {
 	
 		blizzardram_bank.start = CS_RAM_BASE;
 		blizzardram_bank.allocated = cpuboard_size;
 		blizzardram_bank.mask = blizzardram_bank.allocated - 1;
-		if (cpuboard_size)
-			blizzardram_bank.baseaddr = mapped_malloc(blizzardram_bank.allocated, _T("cyberstorm"));
+		if (cpuboard_size) {
+			blizzardram_bank.label = _T("cyberstorm");
+			mapped_malloc(&blizzardram_bank);
+		}
 
 		blizzardf0_bank.start = 0x00f00000;
 		blizzardf0_bank.allocated = 524288;
 		blizzardf0_bank.mask = blizzardf0_bank.allocated - 1;
-		blizzardf0_bank.baseaddr = mapped_malloc(blizzardf0_bank.allocated, _T("rom_f0"));
+		mapped_malloc(&blizzardf0_bank);
 
 		if (a3000hmem_bank.allocated > 2 * 524288) {
+			blizzardmaprom_bank.flags |= ABFLAG_INDIRECT | ABFLAG_NOALLOC;
 			blizzardmaprom_bank.baseaddr = a3000hmem_bank.baseaddr + a3000hmem_bank.allocated - 1 * 524288;
 			blizzardmaprom_bank.start = CYBERSTORM_MAPROM_BASE;
 			blizzardmaprom_bank.allocated = 524288;
 			blizzardmaprom_bank.mask = 524288 - 1;
+			mapped_malloc(&blizzardmaprom_bank);
+			blizzardmaprom_bank_mapped = true;
+			blizzardmaprom2_bank.flags |= ABFLAG_INDIRECT | ABFLAG_NOALLOC;
 			blizzardmaprom2_bank.baseaddr = a3000hmem_bank.baseaddr + a3000hmem_bank.allocated - 2 * 524288;
 			blizzardmaprom2_bank.start = CYBERSTORM_MAPROM_BASE;
 			blizzardmaprom2_bank.allocated = 524288;
 			blizzardmaprom2_bank.mask = 524288 - 1;
+			mapped_malloc(&blizzardmaprom2_bank);
+			blizzardmaprom2_bank_mapped = true;
 		}
 	}
 }
 
 void cpuboard_clear(void)
 {
+}
+
+bool is_ppc_cpu(void)
+{
+	return currprefs.cpuboard_type == BOARD_CSPPC || currprefs.cpuboard_type == BOARD_BLIZZARDPPC;
 }
 
 bool cpuboard_maprom(void)
@@ -1195,11 +1414,35 @@ bool cpuboard_08000000(struct uae_prefs *p)
 		case BOARD_CSMK2:
 		case BOARD_CSMK3:
 		case BOARD_CSPPC:
-		case BOARD_BLIZZARDPPC:
 		case BOARD_WARPENGINE_A4000:
 		return true;
 	}
 	return false;
+}
+
+static void fixserial(uae_u8 *rom, int size)
+{
+	uae_u32 cksum;
+	int i;
+	uae_u8 type = rom[16];
+	uae_u8 bclock = rom[17]; // A=60MHz,BCD=66MHz
+	uae_u8 newtype = 0;
+
+	if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC) {
+		if (type == 'H' || type == 'I')
+			return;
+		newtype = 'H';
+	} else if (currprefs.cpuboard_type == BOARD_CSPPC) {
+		if (type == 'E')
+			return;
+		newtype = 'E';
+	} else if (currprefs.cpuboard_type == BOARD_CSMK3) {
+		if (type == 'F')
+			return;
+		newtype = 'F';
+	}
+	if (!newtype)
+		return;
 }
 
 static struct zfile *flashfile_open(const TCHAR *name)
@@ -1319,7 +1562,7 @@ addrbank *cpuboard_autoconfig_init(void)
 			blizzardea_bank.baseaddr[i * 2 + 0] = b;
 		}
 	} else if (is_csmk1()) {
-		f0rom_size = 65536;
+		f0rom_size = 131072;
 		earom_size = 65536;
 		for (int i = 0; i < 32768; i++) {
 			uae_u8 b = 0xff;
@@ -1327,6 +1570,13 @@ addrbank *cpuboard_autoconfig_init(void)
 			blizzardea_bank.baseaddr[i * 2 + 0] = b;
 			blizzardea_bank.baseaddr[i * 2 + 1] = 0xff;
 		}
+		zfile_fread(blizzardea_bank.baseaddr + 65536, 65536, 1, autoconfig_rom);
+		if (zfile_needwrite(autoconfig_rom)) {
+			flashrom_file = autoconfig_rom;
+			autoconfig_rom = NULL;
+		}
+		flashrom = flash_new(blizzardea_bank.baseaddr, earom_size, earom_size, 0x20, flashrom_file);
+		memcpy(blizzardf0_bank.baseaddr, blizzardea_bank.baseaddr + 65536, 65536);
 	} else if (is_csmk2()) {
 		earom_size = 131072;
 		f0rom_size = 65536;
@@ -1335,19 +1585,23 @@ addrbank *cpuboard_autoconfig_init(void)
 			flashrom_file = autoconfig_rom;
 			autoconfig_rom = NULL;
 		}
-		flashrom = flash_new(blizzardea_bank.baseaddr, earom_size, earom_size, flashrom_file);
+		flashrom = flash_new(blizzardea_bank.baseaddr, earom_size, earom_size, 0x20, flashrom_file);
 		memcpy(blizzardf0_bank.baseaddr, blizzardea_bank.baseaddr + 65536, 65536);
 	} else if (is_csmk3() || is_blizzardppc()) {
 		f0rom_size = is_blizzardppc() ? 524288 : 131072;
 		earom_size = 0;
-		memset(blizzardf0_bank.baseaddr, 0xff, f0rom_size);
+		// empty rom space must be cleared
+		memset(blizzardf0_bank.baseaddr, 0x00, f0rom_size);
+		if (is_blizzardppc()) // but empty config data must be 0xFF
+			memset(blizzardf0_bank.baseaddr + 0x50000, 0xff, 0x10000);
 		zfile_fread(blizzardf0_bank.baseaddr, f0rom_size, 1, autoconfig_rom);
 		autoconf = false;
 		if (zfile_needwrite(autoconfig_rom)) {
 			flashrom_file = autoconfig_rom;
 			autoconfig_rom = NULL;
 		}
-		flashrom = flash_new(blizzardf0_bank.baseaddr, f0rom_size, f0rom_size, flashrom_file);
+		fixserial(blizzardf0_bank.baseaddr, f0rom_size);
+		flashrom = flash_new(blizzardf0_bank.baseaddr, f0rom_size, f0rom_size, is_blizzardppc() ? 0xa4 : 0x20, flashrom_file);
 	} else {
 		// 1230 MK IV / 1240/60
 		f0rom_size = 65536;

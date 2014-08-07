@@ -461,19 +461,19 @@ static uae_u8 *REGPARAM2 hrtmem_xlate (uaecptr addr)
 static addrbank hrtmem_bank = {
 	hrtmem_lget, hrtmem_wget, hrtmem_bget,
 	hrtmem_lput, hrtmem_wput, hrtmem_bput,
-	hrtmem_xlate, hrtmem_check, NULL, _T("Cartridge Bank"),
+	hrtmem_xlate, hrtmem_check, NULL, NULL, _T("Cartridge Bank"),
 	hrtmem_lget, hrtmem_wget, ABFLAG_RAM
 };
 static addrbank hrtmem2_bank = {
 	hrtmem2_lget, hrtmem2_wget, hrtmem2_bget,
 	hrtmem2_lput, hrtmem2_wput, hrtmem2_bput,
-	hrtmem2_xlate, hrtmem2_check, NULL, _T("Cartridge Bank 2"),
+	hrtmem2_xlate, hrtmem2_check, NULL, NULL, _T("Cartridge Bank 2"),
 	hrtmem2_lget, hrtmem2_wget, ABFLAG_RAM
 };
 static addrbank hrtmem3_bank = {
 	hrtmem3_lget, hrtmem3_wget, hrtmem3_bget,
 	hrtmem3_lput, hrtmem3_wput, hrtmem3_bput,
-	hrtmem3_xlate, hrtmem3_check, NULL, _T("Cartridge Bank 3"),
+	hrtmem3_xlate, hrtmem3_check, NULL, NULL, _T("Cartridge Bank 3"),
 	hrtmem3_lget, hrtmem3_wget, ABFLAG_RAM
 };
 
@@ -876,13 +876,13 @@ static uae_u8 *REGPARAM2 arrom_xlate (uaecptr addr)
 static addrbank arrom_bank = {
 	arrom_lget, arrom_wget, arrom_bget,
 	arrom_lput, arrom_wput, arrom_bput,
-	arrom_xlate, arrom_check, NULL, _T("Action Replay ROM"),
+	arrom_xlate, arrom_check, NULL, NULL, _T("Action Replay ROM"),
 	arrom_lget, arrom_wget, ABFLAG_ROM
 };
 static addrbank arram_bank = {
 	arram_lget, arram_wget, arram_bget,
 	arram_lput, arram_wput, arram_bput,
-	arram_xlate, arram_check, NULL, _T("Action Replay RAM"),
+	arram_xlate, arram_check, NULL, NULL, _T("Action Replay RAM"),
 	arram_lget, arram_wget, ABFLAG_RAM
 };
 
@@ -1571,7 +1571,11 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
 	if (hrtmem2_size && !hrtmem2_size2)
 		hrtmem2_size2 = hrtmem2_size;
 
-	hrtmemory = mapped_malloc (hrtmem_size, memname1);
+	hrtmem_bank.allocated = hrtmem_size;
+	hrtmem_bank.label = memname1;
+	hrtmem_mask = hrtmem_size - 1;
+	mapped_malloc (&hrtmem_bank);
+	hrtmemory = hrtmem_bank.baseaddr;
 	memset (hrtmemory, 0x00, hrtmem_size);
 	if (f) {
 		zfile_fseek (f, 0, SEEK_SET);
@@ -1579,20 +1583,23 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
 		zfile_fclose (f);
 	}
 
-	hrtmem_mask = hrtmem_size - 1;
 	hrtmem2_mask = hrtmem2_size - 1;
-	hrtmem3_mask = hrtmem3_size - 1;
+	hrtmem2_bank.allocated = hrtmem2_size;
+	hrtmem2_bank.label = memname2;
 	if (hrtmem2_size) {
-		hrtmemory2 = mapped_malloc (hrtmem2_size, memname2);
+		mapped_malloc (&hrtmem2_bank);
+		hrtmemory2 = hrtmem2_bank.baseaddr;
 		memset(hrtmemory2, 0, hrtmem2_size);
 	}
+
+	hrtmem3_bank.allocated = hrtmem3_size;
+	hrtmem3_bank.label = memname3;
+	hrtmem3_mask = hrtmem3_size - 1;
 	if (hrtmem3_size) {
-		hrtmemory3 = mapped_malloc (hrtmem3_size, memname3);
+		mapped_malloc (&hrtmem3_bank);
+		hrtmemory3 = hrtmem3_bank.baseaddr;
 		memset(hrtmemory3, 0, hrtmem3_size);
 	}
-	hrtmem3_bank.baseaddr = hrtmemory3;
-	hrtmem2_bank.baseaddr = hrtmemory2;
-	hrtmem_bank.baseaddr = hrtmemory;
 
 	if (flags & ROMTYPE_XPOWER) {
 		hrtmon_custom = hrtmemory2 + 0xfc00;
@@ -1725,12 +1732,9 @@ void action_replay_cleanup()
 		free (armemory_rom);
 	if (armemory_ram)
 		free (armemory_ram);
-	if (hrtmemory)
-		mapped_free (hrtmemory);
-	if (hrtmemory2)
-		mapped_free (hrtmemory2);
-	if (hrtmemory3)
-		mapped_free (hrtmemory3);
+	mapped_free (&hrtmem_bank);
+	mapped_free (&hrtmem2_bank);
+	mapped_free (&hrtmem3_bank);
 
 	armemory_rom = 0;
 	armemory_ram = 0;
@@ -1838,7 +1842,10 @@ int hrtmon_load (void)
 #endif
 		cart_type = CART_HRTMON;
 	}
-	hrtmemory = mapped_malloc (hrtmem_size, _T("hrtmem"));
+	hrtmem_bank.allocated = hrtmem_size;
+	hrtmem_bank.label = _T("hrtmem");
+	mapped_malloc (&hrtmem_bank);
+	hrtmemory = hrtmem_bank.baseaddr;
 	memset (hrtmemory, 0xff, 0x80000);
 	zfile_fseek (f, 0, SEEK_SET);
 	zfile_fread (hrtmemory, 1, 524288, f);

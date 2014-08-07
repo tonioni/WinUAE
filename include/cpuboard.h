@@ -9,6 +9,9 @@ extern void cpuboard_clear(void);
 extern void cpuboard_vsync(void);
 extern void cpuboard_rethink(void);
 extern bool cpuboard_08000000(struct uae_prefs *p);
+extern bool is_ppc_cpu(void);
+
+extern bool ppc_interrupt(int new_m68k_ipl);
 
 extern void cyberstorm_scsi_ram_put(uaecptr addr, uae_u32);
 extern uae_u32 cyberstorm_scsi_ram_get(uaecptr addr);

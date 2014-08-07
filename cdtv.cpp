@@ -1545,7 +1545,7 @@ static uae_u32 REGPARAM2 dmac_lgeti (uaecptr addr)
 addrbank dmac_bank = {
 	dmac_lget, dmac_wget, dmac_bget,
 	dmac_lput, dmac_wput, dmac_bput,
-	default_xlate, default_check, NULL, _T("CDTV DMAC/CD Controller"),
+	default_xlate, default_check, NULL, NULL, _T("CDTV DMAC/CD Controller"),
 	dmac_lgeti, dmac_wgeti, ABFLAG_IO
 };
 

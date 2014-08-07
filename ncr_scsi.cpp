@@ -452,7 +452,7 @@ DECLARE_MEMORY_FUNCTIONS(ncr4)
 static addrbank ncr_bank_a4091 = {
 	ncr4_lget, ncr4_wget, ncr4_bget,
 	ncr4_lput, ncr4_wput, ncr4_bput,
-	default_xlate, default_check, NULL, _T("A4091"),
+	default_xlate, default_check, NULL, NULL, _T("A4091"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
@@ -461,7 +461,7 @@ DECLARE_MEMORY_FUNCTIONS(ncr42)
 static addrbank ncr_bank_a4091_2 = {
 	ncr42_lget, ncr42_wget, ncr42_bget,
 	ncr42_lput, ncr42_wput, ncr42_bput,
-	default_xlate, default_check, NULL, _T("A4091 #2"),
+	default_xlate, default_check, NULL, NULL, _T("A4091 #2"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
@@ -680,21 +680,21 @@ static uae_u32 REGPARAM2 bppc_lget(uaecptr addr)
 static addrbank ncr_bank_warpengine = {
 	we_lget, we_wget, we_bget,
 	we_lput, we_wput, we_bput,
-	default_xlate, default_check, NULL, _T("Warp Engine SCSI"),
+	default_xlate, default_check, NULL, NULL, _T("Warp Engine SCSI"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
 addrbank ncr_bank_cyberstorm = {
 	cs_lget, cs_wget, cs_bget,
 	cs_lput, cs_wput, cs_bput,
-	cyberstorm_scsi_ram_xlate, cyberstorm_scsi_ram_check, NULL, _T("CyberStorm SCSI"),
+	cyberstorm_scsi_ram_xlate, cyberstorm_scsi_ram_check, NULL, NULL, _T("CyberStorm SCSI"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
 addrbank ncr_bank_blizzardppc = {
 	bppc_lget, bppc_wget, bppc_bget,
 	bppc_lput, bppc_wput, bppc_bput,
-	default_xlate, default_check, NULL, _T("Blizzard PPC SCSI"),
+	default_xlate, default_check, NULL, NULL, _T("Blizzard PPC SCSI"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 

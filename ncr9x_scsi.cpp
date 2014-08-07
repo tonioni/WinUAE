@@ -515,7 +515,7 @@ static uae_u32 REGPARAM2 bncr9x_lget(uaecptr addr)
 static addrbank ncr9x_bank_blizzard = {
 	bncr9x_lget, bncr9x_wget, bncr9x_bget,
 	bncr9x_lput, bncr9x_wput, bncr9x_bput,
-	default_xlate, default_check, NULL, _T("53C94/FAS216"),
+	default_xlate, default_check, NULL, NULL, _T("53C94/FAS216"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 

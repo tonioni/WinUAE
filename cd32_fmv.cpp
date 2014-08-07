@@ -187,7 +187,7 @@ static int fmv_video_debug = 0;
 #define CL_DRAM_PID				0xa1 // 0x0002
 #define CL_DRAM_CPU_PC			0xa2
 
-static uae_u8 *rom, *ram, *audioram;
+static uae_u8 *audioram;
 static const int fmv_rom_size = 262144;
 static const int fmv_ram_size = 524288;
 static const uaecptr fmv_start = 0x00200000;
@@ -316,12 +316,38 @@ static bool cl450_checkint(bool enabled)
 
 void rethink_cd32fmv(void)
 {
-	if (!ram)
+	if (!fmv_ram_bank.baseaddr)
 		return;
 	cl450_checkint(true);
 	l64111_checkint(true);
 }
 
+DECLARE_MEMORY_FUNCTIONS(fmv);
+static addrbank fmv_bank = {
+	fmv_lget, fmv_wget, fmv_bget,
+	fmv_lput, fmv_wput, fmv_bput,
+	default_xlate, default_check, NULL, NULL, _T("CD32 FMV IO"),
+	fmv_lget, fmv_wget, ABFLAG_IO
+};
+
+DECLARE_MEMORY_FUNCTIONS(fmv_rom);
+static addrbank fmv_rom_bank = {
+	fmv_rom_lget, fmv_rom_wget, fmv_rom_bget,
+	fmv_rom_lput, fmv_rom_wput, fmv_rom_bput,
+	fmv_rom_xlate, fmv_rom_check, NULL, _T("fmv_rom"), _T("CD32 FMV ROM"),
+	fmv_rom_lget, fmv_rom_wget, ABFLAG_ROM
+};
+
+DECLARE_MEMORY_FUNCTIONS(fmv_ram);
+static addrbank fmv_ram_bank = {
+	fmv_ram_lget, fmv_ram_wget, fmv_ram_bget,
+	fmv_ram_lput, fmv_ram_wput, fmv_ram_bput,
+	fmv_ram_xlate, fmv_ram_check, NULL, _T("fmv_ram"), _T("CD32 FMV RAM"),
+	fmv_ram_lget, fmv_ram_wget, ABFLAG_RAM
+};
+
+MEMORY_FUNCTIONS_NOJIT(fmv_rom);
+MEMORY_FUNCTIONS_NOJIT(fmv_ram);
 
 #define L64111_FIFO_LOOKUP 96
 #define L64111_FIFO_BYTES 128
@@ -359,6 +385,8 @@ static void l64111_setvolume(void)
 	int volume = 32768;
 	if (l64111_regs[A_CONTROL2] & (1 << 5) || (io_reg & IO_L64111_MUTE))
 		volume = 0;
+	if (!pcmaudio)
+		return;
 	write_log(_T("L64111 mute %d\n"), volume ? 0 : 1);
 	if (cda)
 		cda->setvolume(currprefs.sound_volume_cd >= 0 ? currprefs.sound_volume_cd : currprefs.sound_volume, volume, volume);
@@ -501,9 +529,10 @@ static void l64111_reset(void)
 	l64111_regs[A_CONTROL3] = 1 << 7; // AUDIO STREAM_ID_IGNORE=1
 	l64111_init();
 	l64111_setvolume();
-	if (pcmaudio)
+	if (pcmaudio) {
 		memset(pcmaudio, 0, sizeof(struct fmv_pcmaudio) * L64111_CHANNEL_BUFFERS);
-	write_log(_T("L64111 reset\n"));
+		write_log(_T("L64111 reset\n"));
+	}
 }
 
 static uae_u8 *parse_audio_header(uae_u8 *p)
@@ -751,10 +780,10 @@ static void cl450_set_status(uae_u16 mask)
 
 static void cl450_write_dram(int addr, uae_u16 w)
 {
-	if (!ram)
+	if (!fmv_ram_bank.baseaddr)
 		return;
-	ram[addr * 2 + 0] = w >> 8;
-	ram[addr * 2 + 1] = w;
+	fmv_ram_bank.baseaddr[addr * 2 + 0] = w >> 8;
+	fmv_ram_bank.baseaddr[addr * 2 + 1] = w;
 }
 
 #if DUMP_VIDEO
@@ -796,8 +825,8 @@ static void cl450_parse_frame(void)
 					videodump = zfile_fopen(_T("c:\\temp\\1.mpg"), _T("wb"));
 				zfile_fwrite(&ram[CL450_MPEG_BUFFER], 1, cl450_buffer_offset, videodump);
 #endif
-				memcpy(&ram[CL450_MPEG_DECODE_BUFFER] + libmpeg_offset, &ram[CL450_MPEG_BUFFER], cl450_buffer_offset);
-				mpeg2_buffer(mpeg_decoder, &ram[CL450_MPEG_DECODE_BUFFER] + libmpeg_offset, &ram[CL450_MPEG_DECODE_BUFFER] + libmpeg_offset + cl450_buffer_offset);
+				memcpy(&fmv_ram_bank.baseaddr[CL450_MPEG_DECODE_BUFFER] + libmpeg_offset, &fmv_ram_bank.baseaddr[CL450_MPEG_BUFFER], cl450_buffer_offset);
+				mpeg2_buffer(mpeg_decoder, &fmv_ram_bank.baseaddr[CL450_MPEG_DECODE_BUFFER] + libmpeg_offset, &fmv_ram_bank.baseaddr[CL450_MPEG_DECODE_BUFFER] + libmpeg_offset + cl450_buffer_offset);
 				libmpeg_offset += cl450_buffer_offset;
 				if (libmpeg_offset >= CL450_MPEG_DECODE_BUFFER_SIZE - CL450_MPEG_BUFFER_SIZE)
 					libmpeg_offset = 0;
@@ -842,7 +871,6 @@ static void cl450_parse_frame(void)
 
 static void cl450_reset(void)
 {
-	write_log(_T("CL450 reset\n"));
 	cl450_play = 0;
 	cl450_pending_interrupts = 0;
 	cl450_interruptmask = 0;
@@ -861,8 +889,10 @@ static void cl450_reset(void)
 	memset(cl450_regs, 0, sizeof cl450_regs);
 	if (mpeg_decoder)
 		mpeg2_reset(mpeg_decoder, 1);
-	if (ram)
-		memset(ram, 0, 0x100);
+	if (fmv_ram_bank.baseaddr) {
+		memset(fmv_ram_bank.baseaddr, 0, 0x100);
+		write_log(_T("CL450 reset\n"));
+	}
 	cl450_write_dram(CL_DRAM_VER, 0x0200);
 	cl450_write_dram(CL_DRAM_PID, 0x0002);
 }
@@ -882,7 +912,7 @@ static void cl450_init(void)
 	cl450_scr = 0;
 	cl450_write_dram(CL_DRAM_VER, 0x0200);
 	cl450_write_dram(CL_DRAM_PID, 0x0002);
-	memset(ram + 0x10, 0, 0x100 - 0x10);
+	memset(fmv_ram_bank.baseaddr + 0x10, 0, 0x100 - 0x10);
 }
 
 static void cl450_newpacket(void)
@@ -1084,8 +1114,8 @@ static uae_u16 cl450_wget (uaecptr addr)
 
 static void cl450_data_wput(uae_u16 v)
 {
-	ram[CL450_MPEG_BUFFER + cl450_buffer_offset + 0] = v >> 8;
-	ram[CL450_MPEG_BUFFER + cl450_buffer_offset + 1] = v;
+	fmv_ram_bank.baseaddr[CL450_MPEG_BUFFER + cl450_buffer_offset + 0] = v >> 8;
+	fmv_ram_bank.baseaddr[CL450_MPEG_BUFFER + cl450_buffer_offset + 1] = v;
 	if (cl450_buffer_offset < CL450_MPEG_BUFFER_SIZE - 2)
 		cl450_buffer_offset += 2;
 }
@@ -1333,7 +1363,7 @@ void cd32_fmv_set_sync(double svpos)
 
 void cd32_fmv_hsync_handler(void)
 {
-	if (!ram)
+	if (!fmv_ram_bank.baseaddr)
 		return;
 
 	if (cl450_play > 0)
@@ -1384,7 +1414,7 @@ void cd32_fmv_vsync_handler(void)
 	int offset, needsectors;
 	bool play0, play1;
 
-	if (!ram)
+	if (!fmv_ram_bank.baseaddr)
 		return;
 
 	if (cl450_buffer_offset == 0) {
@@ -1431,45 +1461,17 @@ void cd32_fmv_vsync_handler(void)
 	l64111_regs[A_CB_STATUS] -= PCM_SECTORS;
 }
 
-addrbank fmv_bank = {
-	fmv_lget, fmv_wget, fmv_bget,
-	fmv_lput, fmv_wput, fmv_bput,
-	default_xlate, default_check, NULL, _T("CD32 FMV IO"),
-	fmv_lget, fmv_wget, ABFLAG_IO
-};
-
-MEMORY_FUNCTIONS_NOJIT(fmv_rom);
-
-addrbank fmv_rom_bank = {
-	fmv_rom_lget, fmv_rom_wget, fmv_rom_bget,
-	fmv_rom_lput, fmv_rom_wput, fmv_rom_bput,
-	fmv_rom_xlate, fmv_rom_check, NULL, _T("CD32 FMV ROM"),
-	fmv_rom_lget, fmv_rom_wget, ABFLAG_ROM
-};
-
-
-MEMORY_FUNCTIONS_NOJIT(fmv_ram);
-
-addrbank fmv_ram_bank = {
-	fmv_ram_lget, fmv_ram_wget, fmv_ram_bget,
-	fmv_ram_lput, fmv_ram_wput, fmv_ram_bput,
-	fmv_ram_xlate, fmv_ram_check, NULL, _T("CD32 FMV RAM"),
-	fmv_ram_lget, fmv_ram_wget, ABFLAG_RAM
-};
-
 void cd32_fmv_reset(void)
 {
-	if (ram)
-		memset(ram, 0, fmv_ram_size);
+	if (fmv_ram_bank.baseaddr)
+		memset(fmv_ram_bank.baseaddr, 0, fmv_ram_bank.allocated);
 	cd32_fmv_state(0);
 }
 
 void cd32_fmv_free(void)
 {
-	mapped_free(rom);
-	rom = NULL;
-	mapped_free(ram);
-	ram = NULL;
+	mapped_free(&fmv_rom_bank);
+	mapped_free(&fmv_ram_bank);
 	xfree(audioram);
 	audioram = NULL;
 	xfree(videoram);
@@ -1510,15 +1512,19 @@ void cd32_fmv_init (uaecptr start)
 			z = read_rom (rd);
 		}
 	}
+	fmv_rom_bank.mask = fmv_rom_size - 1;
+	fmv_rom_bank.allocated = fmv_rom_size;
+	fmv_ram_bank.mask = fmv_ram_size - 1;
+	fmv_ram_bank.allocated = fmv_ram_size;
+
 	if (z) {
-		rom = mapped_malloc(fmv_rom_size, _T("fmv_rom"));
-		if (rom) {
+		if (mapped_malloc(&fmv_rom_bank)) {
 			int size = zfile_size(z);
-			zfile_fread (rom, size > fmv_rom_size ? fmv_rom_size : size, 1, z);
+			zfile_fread (fmv_rom_bank.baseaddr, size > fmv_rom_size ? fmv_rom_size : size, 1, z);
 		}
 		zfile_fclose (z);
 	}
-	if (!rom) {
+	if (!fmv_rom_bank.baseaddr) {
 		write_log(_T("CD32 FMV without ROM is not supported.\n"));
 		return;
 	}
@@ -1526,8 +1532,7 @@ void cd32_fmv_init (uaecptr start)
 		audioram = xmalloc(uae_u8, 262144);
 	if (!videoram)
 		videoram = xmalloc(struct cl450_videoram, CL450_VIDEO_BUFFERS);
-	if (!ram)
-		ram = mapped_malloc(fmv_ram_size, _T("fmv_ram"));
+	mapped_malloc(&fmv_ram_bank);
 	if (!pcmaudio)
 		pcmaudio = xcalloc(struct fmv_pcmaudio, L64111_CHANNEL_BUFFERS);
 
@@ -1541,12 +1546,6 @@ void cd32_fmv_init (uaecptr start)
 		mpeg_info = mpeg2_info(mpeg_decoder);
 	}
 
-	fmv_rom_bank.mask = fmv_rom_size - 1;
-	fmv_rom_bank.baseaddr = rom;
-	fmv_rom_bank.allocated = fmv_rom_size;
-	fmv_ram_bank.mask = fmv_ram_size - 1;
-	fmv_ram_bank.baseaddr = ram;
-	fmv_ram_bank.allocated = fmv_ram_size;
 	fmv_bank.mask = fmv_board_size - 1;
 	map_banks(&fmv_rom_bank, (fmv_start + ROM_BASE) >> 16, fmv_rom_size >> 16, 0);
 	map_banks(&fmv_ram_bank, (fmv_start + RAM_BASE) >> 16, fmv_ram_size >> 16, 0);

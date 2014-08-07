@@ -6422,11 +6422,11 @@ error2:
 
 static void init_filesys_diagentry (void)
 {
-	do_put_mem_long ((uae_u32 *)(filesysory + 0x2100), EXPANSION_explibname);
-	do_put_mem_long ((uae_u32 *)(filesysory + 0x2104), filesys_configdev);
-	do_put_mem_long ((uae_u32 *)(filesysory + 0x2108), EXPANSION_doslibname);
-	do_put_mem_word ((uae_u16 *)(filesysory + 0x210e), nr_units ());
-	do_put_mem_word ((uae_u16 *)(filesysory + 0x210c), 0);
+	do_put_mem_long ((uae_u32 *)(filesys_bank.baseaddr + 0x2100), EXPANSION_explibname);
+	do_put_mem_long ((uae_u32 *)(filesys_bank.baseaddr + 0x2104), filesys_configdev);
+	do_put_mem_long ((uae_u32 *)(filesys_bank.baseaddr + 0x2108), EXPANSION_doslibname);
+	do_put_mem_word ((uae_u16 *)(filesys_bank.baseaddr + 0x210e), nr_units ());
+	do_put_mem_word ((uae_u16 *)(filesys_bank.baseaddr + 0x210c), 0);
 	native2amiga_startup ();
 }
 

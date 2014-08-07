@@ -18,6 +18,48 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 9:
+
+- PearPC PPC emulator core added. Only because it was very easy to add, it may not be compatible enough.
+  (and it isn't, at least not fully compatible, at least it has some unimplemented instructions, some
+  programs or operating system surely won't work)
+- PPC disassembler added to debugger ("dp", PPC mode is remembered, use "do" to switch back to m68k)
+- Windowed mode status bar shows PPC state (if CyberStorm PPC or Blizzard PPC selected). Shows 4 possible states:
+  STOP (inactive), RUN (executing instructions), SLEEP (low power state, waiting for interrupt), CRASH
+  (CPU emulator detected something bad, like invalid instruction etc)
+- BlizzardPPC memory GUI adjustment fixed.
+- Fixed 68020/030 CE + fastest possible hang if program executed loop that didn't do any memory accesses.
+- 68040/060 CINVx instruction was still disassembled strangely.
+- Adjusted 68040/060 "cycle-exact" mode timing, also if data cache is enabled, emulate all data memory accesses as
+  immediate. (until data cache is emulated fully)
+- CyberStorm MKII F0 ROM section of flash rom is now flashable. (third party mk2diag flash updater works)
+- Blizzard PPC flash rom chip emulation now works correctly (was wrong mapping and wrong flash chip device code..)
+- Added special JIT indirect CPU core that supports code execution from non-linear and/or aliased memory. Technically also
+  should allow to emulate A2091/A590 but it still crashes for some reason. (But at least now it executes some ROM code before
+  accessing invalid memory. A2091/A590 is perfect test case because it does not copy driver code from autoconfig ROM to RAM like
+  most other HD controller drivers do, code runs directly from ROM and same memory "bank" also has IO registers)
+- Memory allocation source clean up. Can break nearly anything.. 
+- SCSI CD READ CD command didn't read audio tracks 2+.
+- Entering debugger forze the emulator if m68k CPU was stopped with STOP instruction and all interrupts disabled.
+- NCR53C770 emulation tweaks, fixes netbsd hang. Now it gets unexpected interrupt, no fix available yet.
+- Version bumped to 2.9.0
+
+PPC Notes:
+
+Only a proof of concept currently.
+Automatically enabled when CyberStorm PPC or Blizzard PPC emulation is selected.
+Only PearPC interpretive PPC emulation is currently supported. Speed is totally irrelevant at this point.
+PPC emulator runs in separate thread, it requires special handling with PPC IO accesses, IO accesses are serialized and sent to m68k-side.
+Plain memory accesses are direct. (This assumes M68K is still doing Amiga housekeeping duties and PPC is mainly used as a co-processor,
+probably will cause huge performance hit if PPC does everything, for example when running PPC-only operating systems)
+Should be fully m68k JIT compatible, at least in indirect mode.
+Dual core CPU or better required. If you don't have one, you are not allowed to report anything, sorry.
+PowerUP kernel does not work (hardware is not fully emulated). WarpOS appears to work.
+Do not use BlizzardPPC, it has (currently incompatible) PowerUP in flash and it runs at boot.
+Make sure CPU speed is fastest possible. PPC IO access serialization will be slowed down if m68k is waiting for
+chipset.
+
+
 Beta 8:
 
 - When loading old config which has both cycle-exact and fastest possible enabled: disable fastest possible.

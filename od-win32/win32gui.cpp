@@ -91,6 +91,7 @@
 #include "zarchive.h"
 #include "gfxboard.h"
 #include "win32_uaenet.h"
+#include "ppc.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -8173,8 +8174,8 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("CyberStorm MK I"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("CyberStorm MK II"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("CyberStorm MK III"));
-		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("CyberStorm PPC (NO PPC CPU!)"));
-		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard PPC (NO PPC CPU!)"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("CyberStorm PPC"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard PPC"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Warp Engine A4000"));
 
 	case WM_USER:
@@ -17290,10 +17291,11 @@ void gui_fps (int fps, int idle, int color)
 	gui_led (LED_SND, (gui_data.sndbuf_status > 1 || gui_data.sndbuf_status < 0) ? 0 : 1);
 }
 
+#define LED_STRING_WIDTH 40
 void gui_led (int led, int on)
 {
 	WORD type;
-	static TCHAR drive_text[NUM_LEDS * 16];
+	static TCHAR drive_text[NUM_LEDS * LED_STRING_WIDTH];
 	static TCHAR dfx[4][300];
 	TCHAR *ptr, *tt, *p;
 	int pos = -1, j;
@@ -17316,7 +17318,7 @@ void gui_led (int led, int on)
 	tt = NULL;
 	if (led >= LED_DF0 && led <= LED_DF3) {
 		pos = 6 + (led - LED_DF0);
-		ptr = drive_text + pos * 16;
+		ptr = drive_text + pos * LED_STRING_WIDTH;
 		if (gui_data.drive_disabled[led - 1])
 			_tcscpy (ptr, _T(""));
 		else
@@ -17339,17 +17341,17 @@ void gui_led (int led, int on)
 			writing = 1;
 	} else if (led == LED_POWER) {
 		pos = 3;
-		ptr = _tcscpy (drive_text + pos * 16, _T("Power"));
+		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("Power"));
 		center = 1;
 	} else if (led == LED_HD) {
 		pos = 4;
-		ptr = _tcscpy (drive_text + pos * 16, _T("HD"));
+		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("HD"));
 		center = 1;
 		if (on > 1)
 			writing = 1;
 	} else if (led == LED_CD) {
 		pos = 5;
-		ptr = _tcscpy (drive_text + pos * 16, _T("CD"));
+		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("CD"));
 		center = 1;
 		if (on >= 0) {
 			if (on & LED_CD_AUDIO)
@@ -17362,14 +17364,14 @@ void gui_led (int led, int on)
 		double fps = (double)gui_data.fps / 10.0;
 		extern double p96vblank;
 		pos = 2;
-		ptr = drive_text + pos * 16;
+		ptr = drive_text + pos * LED_STRING_WIDTH;
 		if (fps > 999.9)
 			fps = 999.9;
 		if (picasso_on)
 			_stprintf (ptr, _T("%.1f [%.1f]"), p96vblank, fps);
 		else
 			_stprintf (ptr, _T("FPS: %.1f"), fps);
-		if (gui_data.cpu_halted) {
+		if (gui_data.cpu_halted > 0) {
 			_stprintf (ptr, _T("HALT%d"), gui_data.cpu_halted);
 			center = 1;
 		}
@@ -17380,15 +17382,36 @@ void gui_led (int led, int on)
 		on = 1;
 	} else if (led == LED_CPU) {
 		pos = 1;
-		ptr = drive_text + pos * 16;
-		_stprintf (ptr, _T("CPU: %.0f%%"), (double)((gui_data.idle) / 10.0));
+		ptr = drive_text + pos * LED_STRING_WIDTH;
 		if (pause_emulation)
 			on = 0;
 		else
 			on = 1;
+		if (is_ppc_cpu()) {
+			_tcscpy(ptr, _T("PPC: "));
+			if (ppc_state == PPC_STATE_ACTIVE)
+				_tcscat(ptr, _T("RUN"));
+			else if (ppc_state == PPC_STATE_CRASH)
+				_tcscat(ptr, _T("CRASH"));
+			else if (ppc_state == PPC_STATE_SLEEP)
+				_tcscat(ptr, _T("SLEEP"));
+			else
+				_tcscat(ptr, _T("STOP"));
+			p = ptr + _tcslen(ptr);
+			if (gui_data.cpu_halted < 0)
+				_tcscpy(p, _T(" 68K: STOP"));
+			else
+				_stprintf(p, _T(" 68K: %.0f%%"), (double)((gui_data.idle) / 10.0));
+		} else {
+			if (gui_data.cpu_halted < 0) {
+				_tcscpy(ptr, _T("STOP"));
+			} else {
+				_stprintf(ptr, _T("CPU: %.0f%%"), (double)((gui_data.idle) / 10.0));
+			}
+		}
 	} else if (led == LED_SND && gui_data.drive_disabled[3]) {
 		pos = 0;
-		ptr = drive_text + pos * 16;
+		ptr = drive_text + pos * LED_STRING_WIDTH;
 		if (gui_data.sndbuf_status < 3 && !pause_emulation) {
 			_stprintf (ptr, _T("SND: %+.0f%%"), (double)((gui_data.sndbuf) / 10.0));
 		} else {
@@ -17398,7 +17421,7 @@ void gui_led (int led, int on)
 		}
 	} else if (led == LED_MD) {
 		pos = 6 + 3;
-		ptr = _tcscpy (drive_text + pos * 16, _T("NV"));
+		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("NV"));
 	}
 
 	if (on < 0)

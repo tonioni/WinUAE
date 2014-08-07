@@ -327,7 +327,7 @@ static uae_u8 *REGPARAM2 arbb_xlate (uaecptr addr)
 static addrbank arcadia_boot_bank = {
 	arbb_lget, arbb_wget, arbb_bget,
 	arbb_lput, arbb_wput, arbb_bput,
-	arbb_xlate, arbb_check, NULL, _T("Arcadia BIOS"),
+	arbb_xlate, arbb_check, NULL, NULL, _T("Arcadia BIOS"),
 	arbb_lget, arbb_wget, ABFLAG_ROM | ABFLAG_SAFE,
 	arbb_mask
 };
@@ -407,7 +407,7 @@ static uae_u8 *REGPARAM2 arb_xlate (uaecptr addr)
 static addrbank arcadia_rom_bank = {
 	arb_lget, arb_wget, arb_bget,
 	arb_lput, arb_wput, arb_bput,
-	arb_xlate, arb_check, NULL, _T("Arcadia Game ROM"),
+	arb_xlate, arb_check, NULL, NULL, _T("Arcadia Game ROM"),
 	arb_lget, arb_wget, ABFLAG_ROM | ABFLAG_SAFE,
 	arb_mask
 };

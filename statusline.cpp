@@ -170,12 +170,12 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 			on_rgb = 0xcc0000;
 			off_rgb = 0x000000;
 			if (gui_data.cpu_halted) {
-				on_rgb = 0xcccc00;
+				on_rgb = gui_data.cpu_halted < 0 ? 0x444444 : 0xcccc00;
 				idle = 0;
 				on = 1;
 				num1 = -1;
 				num2 = 11;
-				num3 = gui_data.cpu_halted;
+				num3 = gui_data.cpu_halted < 0 ? 15 : gui_data.cpu_halted;
 				am = 2;
 			} else {
 				num1 = idle / 100;

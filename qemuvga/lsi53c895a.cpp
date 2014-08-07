@@ -279,6 +279,8 @@ typedef struct {
     uint32_t csbc;
     uint32_t scratch[18]; /* SCRATCHA-SCRATCHR */
     uint8_t sbr;
+	uint8_t chip_rev;
+	int last_level;
 
     /* Script ram is stored as 32-bit words in host byteorder.  */
     uint32_t script_ram[2048];
@@ -410,7 +412,6 @@ static void lsi_update_irq(LSIState *s)
 {
     PCIDevice *d = PCI_DEVICE(s);
     int level;
-    static int last_level;
     lsi_request *p;
 
     /* It's unclear whether the DIP/SIP bits should be cleared when the
@@ -435,10 +436,10 @@ static void lsi_update_irq(LSIState *s)
     if (s->istat0 & LSI_ISTAT0_INTF)
         level = 1;
 
-    if (level != last_level) {
+    if (level != s->last_level) {
         DPRINTF("Update IRQ level %d dstat %02x sist %02x%02x\n",
                 level, s->dstat, s->sist1, s->sist0);
-        last_level = level;
+        s->last_level = level;
     }
     pci_set_irq(d, level);
 
@@ -1557,7 +1558,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
     case 0x18: /* CTEST0 */
         return 0xff;
     case 0x19: /* CTEST1 */
-        return 0;
+        return 0xf0; // dma fifo empty
     case 0x1a: /* CTEST2 */
         tmp = s->ctest2 | LSI_CTEST2_DACK | LSI_CTEST2_CM;
         if (s->istat0 & LSI_ISTAT0_SIGP) {
@@ -1566,7 +1567,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         }
         return tmp;
     case 0x1b: /* CTEST3 */
-        return s->ctest3;
+        return (s->ctest3 & (0x08 | 0x02 | 0x01)) | s->chip_rev;
     CASE_GET_REG32(temp, 0x1c)
     case 0x20: /* DFIFO */
         return 0;
@@ -1606,7 +1607,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         lsi_update_irq(s);
         return tmp;
     case 0x46: /* MACNTL */
-        return 0x0f;
+        return 0x0f | s->chip_rev;
     case 0x47: /* GPCNTL0 */
         return 0x0f;
     case 0x48: /* STIME0 */
@@ -1753,6 +1754,10 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             lsi_execute_script(s);
         }
         if (val & LSI_ISTAT0_SRST) {
+			if (s->last_level)
+				pci_set_irq(PCI_DEVICE(s), 0);
+			s->last_level = 0;
+			lsi_soft_reset(s);
             ;//qdev_reset_all(DEVICE(s));
         }
         break;
@@ -1998,6 +2003,7 @@ void lsi_scsi_reset(DeviceState *dev, void *privdata)
 
     lsi_soft_reset(s);
 	s->bus.privdata = privdata;
+	s->chip_rev = 0x20;
 }
 
 void lsi_scsi_init(DeviceState *dev)

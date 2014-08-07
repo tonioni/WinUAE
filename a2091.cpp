@@ -1658,6 +1658,8 @@ static uae_u32 REGPARAM2 dmac_wgeti (struct wd_state *wd, uaecptr addr)
 	addr &= 65535;
 	if (addr >= ROM_OFFSET)
 		v = (wd->rom[addr & wd->rom_mask] << 8) | wd->rom[(addr + 1) & wd->rom_mask];
+	else
+		write_log(_T("Invalid DMAC instruction access %08x\n"), addr);
 	return v;
 }
 static uae_u32 REGPARAM2 dmac_lgeti (struct wd_state *wd, uaecptr addr)
@@ -1667,7 +1669,8 @@ static uae_u32 REGPARAM2 dmac_lgeti (struct wd_state *wd, uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= 65535;
-	v = (dmac_wgeti (wd, addr) << 16) | dmac_wgeti (wd, addr + 2);
+	v = dmac_wgeti (wd, addr) << 16;
+	v |= dmac_wgeti (wd, addr + 2);
 	return v;
 }
 
@@ -1770,13 +1773,13 @@ static void REGPARAM2 dmac_a20912_lput (uaecptr addr, uae_u32 b)
 addrbank dmaca2091_bank = {
 	dmac_a2091_lget, dmac_a2091_wget, dmac_a2091_bget,
 	dmac_a2091_lput, dmac_a2091_wput, dmac_a2091_bput,
-	dmac_a2091_xlate, dmac_a2091_check, NULL, _T("A2091/A590"),
+	dmac_a2091_xlate, dmac_a2091_check, NULL, NULL, _T("A2091/A590"),
 	dmac_a2091_lgeti, dmac_a2091_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 addrbank dmaca2091_2_bank = {
 	dmac_a20912_lget, dmac_a20912_wget, dmac_a20912_bget,
 	dmac_a20912_lput, dmac_a20912_wput, dmac_a20912_bput,
-	dmac_a20912_xlate, dmac_a20912_check, NULL, _T("A2091/A590 #2"),
+	dmac_a20912_xlate, dmac_a20912_check, NULL, NULL, _T("A2091/A590 #2"),
 	dmac_a20912_lgeti, dmac_a20912_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 
@@ -2017,7 +2020,7 @@ static void REGPARAM2 mbdmac_bput (uaecptr addr, uae_u32 b)
 addrbank mbdmac_a3000_bank = {
 	mbdmac_lget, mbdmac_wget, mbdmac_bget,
 	mbdmac_lput, mbdmac_wput, mbdmac_bput,
-	default_xlate, default_check, NULL, _T("A3000 DMAC"),
+	default_xlate, default_check, NULL, NULL, _T("A3000 DMAC"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 

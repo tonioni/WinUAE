@@ -69,7 +69,7 @@ extern uaecptr rtarea_base;
 
 extern uae_u8* baseaddr[];
 
-enum { ABFLAG_UNK = 0, ABFLAG_RAM = 1, ABFLAG_ROM = 2, ABFLAG_ROMIN = 4, ABFLAG_IO = 8, ABFLAG_NONE = 16, ABFLAG_SAFE = 32 };
+enum { ABFLAG_UNK = 0, ABFLAG_RAM = 1, ABFLAG_ROM = 2, ABFLAG_ROMIN = 4, ABFLAG_IO = 8, ABFLAG_NONE = 16, ABFLAG_SAFE = 32, ABFLAG_INDIRECT = 64, ABFLAG_NOALLOC = 128 };
 typedef struct {
 	/* These ones should be self-explanatory... */
 	mem_get_func lget, wget, bget;
@@ -89,6 +89,7 @@ typedef struct {
 	ourselves. This holds the memory address where the start of memory is
 	for this particular bank. */
 	uae_u8 *baseaddr;
+	const TCHAR *label;
 	const TCHAR *name;
 	/* for instruction opcode/operand fetches */
 	mem_get_func lgeti, wgeti;
@@ -292,9 +293,6 @@ MEMORY_BPUT(name, 1); \
 MEMORY_CHECK(name); \
 MEMORY_XLATE(name);
 
-extern uae_u8 *filesysory;
-extern uae_u8 *rtarea;
-
 extern addrbank chipmem_bank;
 extern addrbank chipmem_agnus_bank;
 extern addrbank chipmem_bank_ce2;
@@ -303,6 +301,7 @@ extern addrbank custom_bank;
 extern addrbank clock_bank;
 extern addrbank cia_bank;
 extern addrbank rtarea_bank;
+extern addrbank filesys_bank;
 extern addrbank expamem_bank;
 extern addrbank expamem_null;
 extern addrbank fastmem_bank;
@@ -539,8 +538,8 @@ extern shmpiece *shm_start;
 
 #endif
 
-extern uae_u8 *mapped_malloc (size_t, const TCHAR*);
-extern void mapped_free (uae_u8 *);
+extern bool mapped_malloc (addrbank*);
+extern void mapped_free (addrbank*);
 extern void clearexec (void);
 extern void mapkick (void);
 extern void a3000_fakekick (int);

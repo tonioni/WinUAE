@@ -214,7 +214,10 @@ static void init_board (void)
 	vram_offset[0] = vram_offset[1] = 0;
 	vram_enabled = true;
 	vram_offset_enabled = false;
-	vram = mapped_malloc (vramsize, board->z3 ? _T("z3_gfx") : _T("z2_gfx"));
+	gfxmem_bank.label = board->z3 ? _T("z3_gfx") : _T("z2_gfx");
+	gfxmem_bank.allocated = vramsize;
+	mapped_malloc (&gfxmem_bank);
+	vram = gfxmem_bank.baseaddr;
 	vramrealstart = vram;
 	vram += vram_start_offset;
 	gfxmem_bank.baseaddr = vram;
@@ -1512,8 +1515,8 @@ void gfxboard_reset (void)
 		gfxmem_bank.mask = currprefs.rtgmem_size - 1;
 	}
 	if (vram) {
-		mapped_free (vramrealstart);
-		gfxmem_bank.baseaddr = NULL;
+		gfxmem_bank.baseaddr = vramrealstart;
+		mapped_free (&gfxmem_bank);
 	}
 	vram = NULL;
 	vramrealstart = NULL;
@@ -1538,38 +1541,38 @@ void gfxboard_reset (void)
 static addrbank gfxboard_bank_memory = {
 	gfxboard_lget_mem, gfxboard_wget_mem, gfxboard_bget_mem,
 	gfxboard_lput_mem, gfxboard_wput_mem, gfxboard_bput_mem,
-	gfxboard_xlate, gfxboard_check, NULL, NULL,
+	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
 	gfxboard_lget_mem, gfxboard_wget_mem, ABFLAG_RAM
 };
 static addrbank gfxboard_bank_memory_nojit = {
 	gfxboard_lget_mem_nojit, gfxboard_wget_mem_nojit, gfxboard_bget_mem_nojit,
 	gfxboard_lput_mem_nojit, gfxboard_wput_mem_nojit, gfxboard_bput_mem_nojit,
-	gfxboard_xlate, gfxboard_check, NULL, NULL,
+	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
 	gfxboard_lget_mem_nojit, gfxboard_wget_mem_nojit, ABFLAG_RAM
 };
 
 static addrbank gfxboard_bank_wbsmemory = {
 	gfxboard_lget_wbsmem, gfxboard_wget_wbsmem, gfxboard_bget_bsmem,
 	gfxboard_lput_wbsmem, gfxboard_wput_wbsmem, gfxboard_bput_bsmem,
-	gfxboard_xlate, gfxboard_check, NULL, NULL,
+	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
 	gfxboard_lget_wbsmem, gfxboard_wget_wbsmem, ABFLAG_RAM
 };
 static addrbank gfxboard_bank_lbsmemory = {
 	gfxboard_lget_lbsmem, gfxboard_wget_lbsmem, gfxboard_bget_bsmem,
 	gfxboard_lput_lbsmem, gfxboard_wput_lbsmem, gfxboard_bput_bsmem,
-	gfxboard_xlate, gfxboard_check, NULL, NULL,
+	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
 	gfxboard_lget_lbsmem, gfxboard_wget_lbsmem, ABFLAG_RAM
 };
 static addrbank gfxboard_bank_nbsmemory = {
 	gfxboard_lget_nbsmem, gfxboard_wget_nbsmem, gfxboard_bget_bsmem,
 	gfxboard_lput_nbsmem, gfxboard_wput_nbsmem, gfxboard_bput_bsmem,
-	gfxboard_xlate, gfxboard_check, NULL, _T("Picasso IV banked VRAM"),
+	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("Picasso IV banked VRAM"),
 	gfxboard_lget_nbsmem, gfxboard_wget_nbsmem, ABFLAG_RAM
 };
 static addrbank gfxboard_bank_registers = {
 	gfxboard_lget_regs, gfxboard_wget_regs, gfxboard_bget_regs,
 	gfxboard_lput_regs, gfxboard_wput_regs, gfxboard_bput_regs,
-	default_xlate, default_check, NULL, NULL,
+	default_xlate, default_check, NULL, NULL, NULL,
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 
@@ -1918,7 +1921,7 @@ static void REGPARAM2 gfxboards_bput_regs (uaecptr addr, uae_u32 v)
 addrbank gfxboard_bank_special = {
 	gfxboards_lget_regs, gfxboards_wget_regs, gfxboards_bget_regs,
 	gfxboards_lput_regs, gfxboards_wput_regs, gfxboards_bput_regs,
-	default_xlate, default_check, NULL, _T("Picasso IV MISC"),
+	default_xlate, default_check, NULL, NULL, _T("Picasso IV MISC"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 bool gfxboard_is_z3 (int type)
@@ -2127,20 +2130,18 @@ addrbank *gfxboard_init_memory (void)
 
 addrbank *gfxboard_init_memory_p4_z2 (void)
 {
-	if (board->z3) {
-		expamem_next ();
-		return NULL;
-	}
+	if (board->z3)
+		return &expamem_null;
+
 	copyp4autoconfig (64);
 	return &gfxboard_bank_memory;
 }
 
 addrbank *gfxboard_init_registers (void)
 {
-	if (!board->model_registers) {
-		expamem_next ();
-		return NULL;
-	}
+	if (!board->model_registers)
+		return &expamem_null;
+
 	memset (automemory, 0xff, GFXBOARD_AUTOCONFIG_SIZE);
 	ew (0x00, 0xc0 | 0x01); // 64k Z2
 	ew (0x04, board->model_registers);

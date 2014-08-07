@@ -26,10 +26,12 @@ struct flashrom_data
 	int mask;
 	int state;
 	int modified;
+	int sectorsize;
+	uae_u8 devicecode;
 	struct zfile *zf;
 };
 
-void *flash_new(uae_u8 *rom, int flashsize, int allocsize, struct zfile *zf)
+void *flash_new(uae_u8 *rom, int flashsize, int allocsize, uae_u8 devicecode, struct zfile *zf)
 {
 	struct flashrom_data *fd = xcalloc(struct flashrom_data, 1);
 	fd->flashsize = flashsize;
@@ -37,6 +39,8 @@ void *flash_new(uae_u8 *rom, int flashsize, int allocsize, struct zfile *zf)
 	fd->mask = fd->flashsize - 1;
 	fd->zf = zf;
 	fd->rom = rom;
+	fd->devicecode = devicecode;
+	fd->sectorsize = devicecode == 0x20 ? 16384 : 65536;
 	return fd;
 }
 
@@ -120,13 +124,13 @@ bool flash_write(void *fdv, uaecptr addr, uae_u8 v)
 #endif
 		return true;
 	} else if (fd->state == 6 && v == 0x30) {
-		int saddr = addr & ~0x3fff;
+		int saddr = addr & ~(fd->sectorsize - 1);
 		if (saddr < fd->allocsize)
-			memset(fd->rom + saddr, 0xff, 0x4000);
+			memset(fd->rom + saddr, 0xff, fd->sectorsize);
 		fd->state = 200;
 		fd->modified = 1;
 #if FLASH_LOG
-		write_log(_T("flash sector %d erased (%08x)\n"), saddr / 0x4000, addr);
+		write_log(_T("flash sector %d erased (%08x)\n"), saddr / fd->sectorsize, addr);
 #endif
 		return true;
 	}
@@ -150,7 +154,7 @@ uae_u32 flash_read(void *fdv, uaecptr addr)
 		if (a == 0)
 			v = 0x01;
 		if (a == 1)
-			v = 0x20;
+			v = fd->devicecode;
 		if (a == 2)
 			v = 0x00;
 	} else if (fd->state >= 200) {

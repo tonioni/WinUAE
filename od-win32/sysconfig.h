@@ -11,7 +11,7 @@
 #define DRIVESOUND
 #define GFXFILTER
 #define X86_MSVC_ASSEMBLY
-//#define X86_MSVC_ASSEMBLY_MEMACCESS
+#define X86_MSVC_ASSEMBLY_MEMACCESS
 #define OPTIMIZED_FLAGS
 #define __i386__
 #define WINDOWS
@@ -50,7 +50,7 @@
 #define WITH_SOFTFLOAT
 #define MMUEMU /* Aranym 68040 MMU */
 #define FULLMMU /* Aranym 68040 MMU */
-#define CPUEMU_0 /* generic 680x0 emulation */
+#define CPUEMU_0 /* generic 680x0 emulation with direct memory access */
 #define CPUEMU_11 /* 68000/68010 prefetch emulation */
 #define CPUEMU_13 /* 68000/68010 cycle-exact cpu&blitter */
 #define CPUEMU_20 /* 68020 prefetch */
@@ -60,6 +60,7 @@
 #define CPUEMU_31 /* Aranym 68040 MMU */
 #define CPUEMU_32 /* Previous 68030 MMU */
 #define CPUEMU_33 /* 68060 MMU */
+#define CPUEMU_40 /* generic 680x0 with indirect memory access */
 #define ACTION_REPLAY /* Action Replay 1/2/3 support */
 #define PICASSO96 /* Picasso96 display card emulation */
 #define UAEGFX_INTERNAL /* built-in libs:picasso96/uaegfx.card */
@@ -87,6 +88,7 @@
 #define WITH_SLIRP
 #define WITH_TABLETLIBRARY
 #define WITH_UAENET_PCAP
+#define WITH_PPC
 
 #else
 
@@ -138,6 +140,7 @@
 #include <stdint.h>
 
 #ifdef WIN64
+#undef X86_MSVC_ASSEMBLY_MEMACCESS
 #undef X86_MSVC_ASSEMBLY
 #undef JIT
 #define X64_MSVC_ASSEMBLY

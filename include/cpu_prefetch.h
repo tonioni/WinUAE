@@ -37,8 +37,10 @@ STATIC_INLINE uae_u32 get_long_020_prefetch (int o)
 // only for CPU internal cycles
 STATIC_INLINE void do_cycles_ce020_internal(int clocks)
 {
-	if (currprefs.m68k_speed < 0)
+	if (currprefs.m68k_speed < 0) {
+		regs.ce020extracycles += clocks;
 		return;
+	}
 	int cycs = clocks * cpucycleunit;
 	if (regs.ce020memcycles > 0) {
 		if (regs.ce020memcycles >= cycs) {

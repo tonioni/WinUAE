@@ -833,7 +833,7 @@ DECLARE_MEMORY_FUNCTIONS(a2065);
 static addrbank a2065_bank = {
 	a2065_lget, a2065_wget, a2065_bget,
 	a2065_lput, a2065_wput, a2065_bput,
-	default_xlate, default_check, NULL, _T("A2065 Z2 Ethernet"),
+	default_xlate, default_check, NULL, NULL, _T("A2065 Z2 Ethernet"),
 	a2065_lgeti, a2065_wgeti, ABFLAG_IO
 };
 
