@@ -36,7 +36,7 @@
 #define exp2(x)	pow(2, x)
 #endif /* HAS_EXP2 */
 
-#include "debug/tracers.h"
+#include "tracers.h"
 #include "ppc_cpu.h"
 #include "ppc_dec.h"
 #include "ppc_fpu.h"

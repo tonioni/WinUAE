@@ -33,7 +33,7 @@
 //#include "io/pci/pci.h"
 //#include "io/cuda/cuda.h"
 //#include "io/nvram/nvram.h"
-#include "debug/tracers.h"
+#include "tracers.h"
 
 #define IO_MEM_ACCESS_OK	0
 #define IO_MEM_ACCESS_EXC	1

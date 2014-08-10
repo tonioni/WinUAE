@@ -1379,6 +1379,10 @@ static struct romdata *scan_single_rom_2 (struct zfile *f)
 		}
 	}
 	if (!rd) {
+		const TCHAR *name = my_getfilepart(zfile_getname(f));
+		rd = getfrombydefaultname(name, size);
+	}
+	if (!rd) {
 		write_log (_T("!: Name='%s':%d\nCRC32=%08X SHA1=%s\n"),
 			zfile_getname (f), size, get_crc32 (rombuf, size), get_sha1_txt (rombuf, size));
 	} else {
@@ -2660,6 +2664,14 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		case IDC_A4091ROMFILE:
 			_tcscpy (workprefs.a4091romfile, full_path);
 			fullpath (workprefs.a4091romfile, MAX_DPATH);
+			break;
+		case IDC_CPUBOARDROMFILE:
+			_tcscpy(workprefs.acceleratorromfile, full_path);
+			fullpath(workprefs.acceleratorromfile, MAX_DPATH);
+			break;
+		case IDC_CPUBOARDEXTROMFILE:
+			_tcscpy(workprefs.acceleratorextromfile, full_path);
+			fullpath(workprefs.acceleratorextromfile, MAX_DPATH);
 			break;
 		case IDC_STATEREC_PLAY:
 		case IDC_STATEREC_RECORD:
@@ -8196,6 +8208,11 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 				v = SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_GETCURSEL, 0, 0L);
 				if (v != CB_ERR) {
 					workprefs.cpuboard_type = v;
+					if (is_ppc_cpu(&workprefs)) {
+						workprefs.ppc_mode = 2;
+					} else if (workprefs.ppc_mode == 2) {
+						workprefs.ppc_mode = 0;
+					}
 					enable_for_memorydlg(hDlg);
 				}
 				break;
@@ -8299,6 +8316,8 @@ static void values_from_kickstartdlg (HWND hDlg)
 	getromfile (hDlg, IDC_CARTFILE, workprefs.cartfile, sizeof (workprefs.cartfile) / sizeof (TCHAR));
 	getromfile (hDlg, IDC_A2091ROMFILE, workprefs.a2091romfile, sizeof (workprefs.a2091romfile) / sizeof (TCHAR));
 	getromfile (hDlg, IDC_A4091ROMFILE, workprefs.a4091romfile, sizeof (workprefs.a4091romfile) / sizeof (TCHAR));
+	getromfile(hDlg, IDC_CPUBOARDROMFILE, workprefs.acceleratorromfile, sizeof(workprefs.acceleratorromfile) / sizeof(TCHAR));
+	getromfile(hDlg, IDC_CPUBOARDEXTROMFILE, workprefs.acceleratorextromfile, sizeof(workprefs.acceleratorextromfile) / sizeof(TCHAR));
 }
 
 static void values_to_kickstartdlg (HWND hDlg)
@@ -8317,7 +8336,11 @@ static void values_to_kickstartdlg (HWND hDlg)
 		ROMTYPE_A2091BOOT | ROMTYPE_NONE);
 	addromfiles (fkey, hDlg, IDC_A4091ROMFILE, workprefs.a4091romfile,
 		ROMTYPE_A4091BOOT);
-	regclosetree (fkey);
+	addromfiles(fkey, hDlg, IDC_CPUBOARDROMFILE, workprefs.acceleratorromfile,
+		ROMTYPE_CPUBOARD);
+	addromfiles(fkey, hDlg, IDC_CPUBOARDEXTROMFILE, workprefs.acceleratorextromfile,
+		ROMTYPE_CPUBOARDEXT);
+	regclosetree(fkey);
 
 	SetDlgItemText(hDlg, IDC_FLASHFILE, workprefs.flashfile);
 	SetDlgItemText(hDlg, IDC_RTCFILE, workprefs.rtcfile);
@@ -8347,7 +8370,9 @@ static void init_kickstart (HWND hDlg)
 	ew (hDlg, IDC_A4091ROMFILE, workprefs.a4091);
 	ew (hDlg, IDC_A2091ROMCHOOSER, workprefs.a2091);
 	ew (hDlg, IDC_A2091ROMFILE, workprefs.a2091);
-	if (!regexiststree (NULL , _T("DetectedROMs")))
+	ew(hDlg, IDC_CPUBOARDROMFILE, workprefs.cpuboard_type != 0);
+	ew(hDlg, IDC_CPUBOARDEXTROMFILE, workprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV_SCSI || workprefs.cpuboard_type == BOARD_BLIZZARD_1260_SCSI);
+	if (!regexiststree(NULL, _T("DetectedROMs")))
 		scan_roms (NULL, rp_isactive () ? 0 : 1);
 }
 
@@ -8381,7 +8406,15 @@ static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, TCHAR *path)
 		break;
 	case IDC_A4091ROMCHOOSER:
 		DiskSelection(hDlg, IDC_A4091ROMFILE, 6, &workprefs, path);
-		values_to_kickstartdlg (hDlg);
+		values_to_kickstartdlg(hDlg);
+		break;
+	case IDC_CPUBOARDROMCHOOSER:
+		DiskSelection(hDlg, IDC_CPUBOARDROMFILE, 6, &workprefs, path);
+		values_to_kickstartdlg(hDlg);
+		break;
+	case IDC_CPUBOARDEXTROMCHOOSER:
+		DiskSelection(hDlg, IDC_CPUBOARDEXTROMFILE, 6, &workprefs, path);
+		values_to_kickstartdlg(hDlg);
 		break;
 	}
 }
@@ -9076,13 +9109,14 @@ static void enable_for_cpudlg (HWND hDlg)
 #if 0
 	ew (hDlg, IDC_CPU_MULTIPLIER, workprefs.cpu_cycle_exact);
 #endif
-	ew (hDlg, IDC_CPU_FREQUENCY, workprefs.cpu_cycle_exact);
-	ew (hDlg, IDC_CPU_FREQUENCY2, workprefs.cpu_cycle_exact && !workprefs.cpu_clock_multiplier);
+	ew (hDlg, IDC_CPU_FREQUENCY, workprefs.cpu_cycle_exact && workprefs.m68k_speed >= 0);
+	ew (hDlg, IDC_CPU_FREQUENCY2, workprefs.cpu_cycle_exact && !workprefs.cpu_clock_multiplier && workprefs.m68k_speed >= 0);
 
 	ew (hDlg, IDC_FPU1, workprefs.cpu_model < 68040 && (workprefs.cpu_model >= 68020 || !workprefs.cpu_compatible));
 	ew (hDlg, IDC_FPU2, workprefs.cpu_model < 68040 && (workprefs.cpu_model >= 68020 || !workprefs.cpu_compatible));
 	ew (hDlg, IDC_FPU3, workprefs.cpu_model >= 68040);
 	ew (hDlg, IDC_MMUENABLE, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0);
+	ew (hDlg, IDC_CPU_PPC, workprefs.cpu_model >= 68040 && (workprefs.ppc_mode == 1 || (workprefs.ppc_mode == 0 && !is_ppc_cpu(&workprefs))));
 
 	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, workprefs.m68k_speed < 0 ? MAKELONG (-9, 0) : MAKELONG (-9, 50));
 	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPAGESIZE, 0, 1);
@@ -9137,6 +9171,7 @@ static void values_to_cpudlg (HWND hDlg)
 		(workprefs.cpu_model == 68040 && workprefs.mmu_model == 68040) ||
 		(workprefs.cpu_model == 68030 && workprefs.mmu_model == 68030)) &&
 		workprefs.cachesize == 0);
+	CheckDlgButton(hDlg, IDC_CPU_PPC, workprefs.ppc_mode || is_ppc_cpu(&workprefs));
 
 	if (workprefs.cpu_cycle_exact) {
 		if (workprefs.cpu_clock_multiplier) {
@@ -9251,6 +9286,15 @@ static void values_from_cpudlg (HWND hDlg)
 	if (oldcache == 0 && candirect && workprefs.cachesize > 0)
 		canbang = 1;
 #endif
+	if (ischecked(hDlg, IDC_CPU_PPC)) {
+		if (workprefs.ppc_mode == 0)
+			workprefs.ppc_mode = 1;
+		if (workprefs.ppc_mode == 1 && workprefs.cpu_model < 68040)
+			workprefs.ppc_mode = 0;
+	} else if (!ischecked(hDlg, IDC_CPU_PPC) && workprefs.ppc_mode == 1) {
+		workprefs.ppc_mode = 0;
+	}
+
 	workprefs.cpu_idle = SendMessage (GetDlgItem (hDlg, IDC_CPUIDLE), TBM_GETPOS, 0, 0);
 	if (workprefs.cpu_idle > 0)
 		workprefs.cpu_idle = (12 - workprefs.cpu_idle) * 15;
@@ -17387,7 +17431,7 @@ void gui_led (int led, int on)
 			on = 0;
 		else
 			on = 1;
-		if (is_ppc_cpu()) {
+		if (is_ppc_cpu(&currprefs)) {
 			_tcscpy(ptr, _T("PPC: "));
 			if (ppc_state == PPC_STATE_ACTIVE)
 				_tcscat(ptr, _T("RUN"));

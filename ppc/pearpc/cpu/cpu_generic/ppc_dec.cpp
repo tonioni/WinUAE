@@ -89,9 +89,9 @@ static void ppc_opc_invalid()
 		return;
 	}
 #endif
-	ht_printf("[PPC/DEC] Bad opcode: %08x (%u:%u)\n",
+	ht_printf("[PPC/DEC] Bad opcode: %08x (%u:%u) PC=%08x\n",
 		gCPU.current_opc, PPC_OPC_MAIN(gCPU.current_opc),
-		PPC_OPC_EXT(gCPU.current_opc));
+		PPC_OPC_EXT(gCPU.current_opc), gCPU.pc);
 
 	SINGLESTEP("unknown instruction\n");
 }

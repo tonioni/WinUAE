@@ -267,24 +267,24 @@ typedef struct {
 	uint8_t dwt;
 	uint8_t sbcl;
 	uint8_t script_active;
-} LSIState;
+} LSIState710;
 
 //#define TYPE_LSI53C810  "lsi53c810"
 //#define TYPE_LSI53C895A "lsi53c895a"
 
-#define LSI53C895A(obj) (LSIState*)obj->lsistate
- //((LSIState*)(OBJECT_CHECK(LSIState, (obj), TYPE_LSI53C895A)))
+#define LSI53C895A(obj) (LSIState710*)obj->lsistate
+ //((LSIState710*)(OBJECT_CHECK(LSIState710, (obj), TYPE_LSI53C895A)))
 
-static inline int lsi_irq_on_rsl(LSIState *s)
+static inline int lsi_irq_on_rsl(LSIState710 *s)
 {
 	return 0; //return (s->sien0 & LSI_SIST0_RSL) && (s->scid & LSI_SCID_RRE);
 }
 
-static void lsi_soft_reset(LSIState *s)
+static void lsi_soft_reset(LSIState710 *s)
 {
     DPRINTF("Reset\n");
     s->carry = 0;
-	memset (s, 0, sizeof(LSIState));
+	memset (s, 0, sizeof(LSIState710));
 
     s->msg_action = 0;
     s->msg_len = 0;
@@ -327,21 +327,21 @@ static void lsi_soft_reset(LSIState *s)
 }
 
 #if 0
-static int lsi_dma_40bit(LSIState *s)
+static int lsi_dma_40bit(LSIState710 *s)
 {
     if ((s->ccntl1 & LSI_CCNTL1_40BIT) == LSI_CCNTL1_40BIT)
         return 1;
     return 0;
 }
 
-static int lsi_dma_ti64bit(LSIState *s)
+static int lsi_dma_ti64bit(LSIState710 *s)
 {
     if ((s->ccntl1 & LSI_CCNTL1_EN64TIBMV) == LSI_CCNTL1_EN64TIBMV)
         return 1;
     return 0;
 }
 
-static int lsi_dma_64bit(LSIState *s)
+static int lsi_dma_64bit(LSIState710 *s)
 {
     if ((s->ccntl1 & LSI_CCNTL1_EN64DBMV) == LSI_CCNTL1_EN64DBMV)
         return 1;
@@ -349,12 +349,12 @@ static int lsi_dma_64bit(LSIState *s)
 }
 #endif
 
-static uint8_t lsi_reg_readb(LSIState *s, int offset);
-static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val);
-static void lsi_execute_script(LSIState *s);
-static void lsi_reselect(LSIState *s, lsi_request *p);
+static uint8_t lsi_reg_readb(LSIState710 *s, int offset);
+static void lsi_reg_writeb(LSIState710 *s, int offset, uint8_t val);
+static void lsi_execute_script(LSIState710 *s);
+static void lsi_reselect(LSIState710 *s, lsi_request *p);
 
-static inline uint32_t read_dword(LSIState *s, uint32_t addr)
+static inline uint32_t read_dword(LSIState710 *s, uint32_t addr)
 {
     uint32_t buf;
 
@@ -362,12 +362,12 @@ static inline uint32_t read_dword(LSIState *s, uint32_t addr)
     return cpu_to_le32(buf);
 }
 
-static void lsi_stop_script(LSIState *s)
+static void lsi_stop_script(LSIState710 *s)
 {
     s->script_active = 0;
 }
 
-static void lsi_update_irq(LSIState *s)
+static void lsi_update_irq(LSIState710 *s)
 {
     PCIDevice *d = PCI_DEVICE(s);
     int level;
@@ -414,7 +414,7 @@ static void lsi_update_irq(LSIState *s)
 }
 
 /* Stop SCRIPTS execution and raise a SCSI interrupt.  */
-static void lsi_script_scsi_interrupt(LSIState *s, int stat0)
+static void lsi_script_scsi_interrupt(LSIState710 *s, int stat0)
 {
     uint32_t mask0;
     //uint32_t mask1;
@@ -436,7 +436,7 @@ static void lsi_script_scsi_interrupt(LSIState *s, int stat0)
 }
 
 /* Stop SCRIPTS execution and raise a DMA interrupt.  */
-static void lsi_script_dma_interrupt(LSIState *s, int stat)
+static void lsi_script_dma_interrupt(LSIState710 *s, int stat)
 {
     DPRINTF("DMA Interrupt 0x%x prev 0x%x\n", stat, s->dstat);
     s->dstat |= stat;
@@ -444,7 +444,7 @@ static void lsi_script_dma_interrupt(LSIState *s, int stat)
     lsi_stop_script(s);
 }
 
-static inline void lsi_set_phase(LSIState *s, int phase)
+static inline void lsi_set_phase(LSIState710 *s, int phase)
 {
     s->sstat2 = (s->sstat2 & ~PHASE_MASK) | phase;
 	s->ctest0 &= ~1;
@@ -453,7 +453,7 @@ static inline void lsi_set_phase(LSIState *s, int phase)
 	s->sbcl &= ~LSI_SBCL_REQ;
 }
 
-static void lsi_bad_phase(LSIState *s, int out, int new_phase)
+static void lsi_bad_phase(LSIState710 *s, int out, int new_phase)
 {
     /* Trigger a phase mismatch.  */
     DPRINTF("Phase mismatch interrupt\n");
@@ -465,7 +465,7 @@ static void lsi_bad_phase(LSIState *s, int out, int new_phase)
 
 
 /* Resume SCRIPTS execution after a DMA operation.  */
-static void lsi_resume_script(LSIState *s)
+static void lsi_resume_script(LSIState710 *s)
 {
     if (s->waiting != 2) {
         s->waiting = 0;
@@ -475,13 +475,13 @@ static void lsi_resume_script(LSIState *s)
     }
 }
 
-static void lsi_disconnect(LSIState *s)
+static void lsi_disconnect(LSIState710 *s)
 {
     s->scntl1 &= ~LSI_SCNTL1_CON;
     s->sstat2 &= ~PHASE_MASK;
 }
 
-static void lsi_bad_selection(LSIState *s, uint32_t id)
+static void lsi_bad_selection(LSIState710 *s, uint32_t id)
 {
     DPRINTF("Selected absent target %d\n", id);
     lsi_script_scsi_interrupt(s, LSI_SSTAT0_STO);
@@ -489,7 +489,7 @@ static void lsi_bad_selection(LSIState *s, uint32_t id)
 }
 
 /* Initiate a SCSI layer data transfer.  */
-static void lsi_do_dma(LSIState *s, int out)
+static void lsi_do_dma(LSIState710 *s, int out)
 {
     PCIDevice *pci_dev;
     uint32_t count;
@@ -546,7 +546,7 @@ static void lsi_do_dma(LSIState *s, int out)
 
 
 /* Add a command to the queue.  */
-static void lsi_queue_command(LSIState *s)
+static void lsi_queue_command(LSIState710 *s)
 {
     lsi_request *p = s->current;
 
@@ -561,7 +561,7 @@ static void lsi_queue_command(LSIState *s)
 }
 
 /* Queue a byte for a MSG IN phase.  */
-static void lsi_add_msg_byte(LSIState *s, uint8_t data)
+static void lsi_add_msg_byte(LSIState710 *s, uint8_t data)
 {
     if (s->msg_len >= LSI_MAX_MSGIN_LEN) {
         BADF("MSG IN data too long\n");
@@ -572,7 +572,7 @@ static void lsi_add_msg_byte(LSIState *s, uint8_t data)
 }
 
 /* Perform reselection to continue a command.  */
-static void lsi_reselect(LSIState *s, lsi_request *p)
+static void lsi_reselect(LSIState710 *s, lsi_request *p)
 {
     int id;
 
@@ -602,7 +602,7 @@ static void lsi_reselect(LSIState *s, lsi_request *p)
     }
 }
 
-static lsi_request *lsi_find_by_tag(LSIState *s, uint32_t tag)
+static lsi_request *lsi_find_by_tag(LSIState710 *s, uint32_t tag)
 {
     lsi_request *p;
 
@@ -615,7 +615,7 @@ static lsi_request *lsi_find_by_tag(LSIState *s, uint32_t tag)
     return NULL;
 }
 
-static void lsi_request_free(LSIState *s, lsi_request *p)
+static void lsi_request_free(LSIState710 *s, lsi_request *p)
 {
     if (p == s->current) {
         s->current = NULL;
@@ -627,7 +627,7 @@ static void lsi_request_free(LSIState *s, lsi_request *p)
 
 void lsi710_request_cancelled(SCSIRequest *req)
 {
-    LSIState *s = LSI53C895A(req->bus->qbus.parent);
+    LSIState710 *s = LSI53C895A(req->bus->qbus.parent);
     lsi_request *p = (lsi_request*)req->hba_private;
 
     req->hba_private = NULL;
@@ -637,7 +637,7 @@ void lsi710_request_cancelled(SCSIRequest *req)
 
 /* Record that data is available for a queued command.  Returns zero if
    the device was reselected, nonzero if the IO is deferred.  */
-static int lsi_queue_req(LSIState *s, SCSIRequest *req, uint32_t len)
+static int lsi_queue_req(LSIState710 *s, SCSIRequest *req, uint32_t len)
 {
     lsi_request *p = (lsi_request*)req->hba_private;
 
@@ -666,7 +666,7 @@ static int lsi_queue_req(LSIState *s, SCSIRequest *req, uint32_t len)
  /* Callback to indicate that the SCSI layer has completed a command.  */
 void lsi710_command_complete(SCSIRequest *req, uint32_t status, size_t resid)
 {
-    LSIState *s = LSI53C895A(req->bus->qbus.parent);
+    LSIState710 *s = LSI53C895A(req->bus->qbus.parent);
     int out;
 
     out = (s->sstat2 & PHASE_MASK) == PHASE_DO;
@@ -692,7 +692,7 @@ void lsi710_command_complete(SCSIRequest *req, uint32_t status, size_t resid)
  /* Callback to indicate that the SCSI layer has completed a transfer.  */
 void lsi710_transfer_data(SCSIRequest *req, uint32_t len)
 {
-    LSIState *s = LSI53C895A(req->bus->qbus.parent);
+    LSIState710 *s = LSI53C895A(req->bus->qbus.parent);
     int out;
 
     assert(req->hba_private);
@@ -730,7 +730,7 @@ static int idbitstonum(int id)
 	return num;
 }
 
-static void lsi_do_command(LSIState *s)
+static void lsi_do_command(LSIState710 *s)
 {
     SCSIDevice *dev;
     uint8_t buf[16];
@@ -783,7 +783,7 @@ static void lsi_do_command(LSIState *s)
     }
 }
 
-static void lsi_do_status(LSIState *s)
+static void lsi_do_status(LSIState710 *s)
 {
     uint8_t status;
     DPRINTF("Get status len=%d status=%d\n", s->dbc, s->status);
@@ -798,7 +798,7 @@ static void lsi_do_status(LSIState *s)
     lsi_add_msg_byte(s, 0); /* COMMAND COMPLETE */
 }
 
-static void lsi_do_msgin(LSIState *s)
+static void lsi_do_msgin(LSIState710 *s)
 {
     int len;
     DPRINTF("Message in len=%d/%d\n", s->dbc, s->msg_len);
@@ -835,7 +835,7 @@ static void lsi_do_msgin(LSIState *s)
 }
 
 /* Read the next byte during a MSGOUT phase.  */
-static uint8_t lsi_get_msgbyte(LSIState *s)
+static uint8_t lsi_get_msgbyte(LSIState710 *s)
 {
     uint8_t data;
 	pci710_dma_read(PCI_DEVICE(s), s->dnad, &data, 1);
@@ -845,13 +845,13 @@ static uint8_t lsi_get_msgbyte(LSIState *s)
 }
 
 /* Skip the next n bytes during a MSGOUT phase. */
-static void lsi_skip_msgbytes(LSIState *s, unsigned int n)
+static void lsi_skip_msgbytes(LSIState710 *s, unsigned int n)
 {
     s->dnad += n;
     s->dbc  -= n;
 }
 
-static void lsi_do_msgout(LSIState *s)
+static void lsi_do_msgout(LSIState710 *s)
 {
     uint8_t msg;
     int len;
@@ -976,7 +976,7 @@ bad:
 }
 
 #define LSI_BUF_SIZE 4096
-static void lsi_memcpy(LSIState *s, uint32_t dest, uint32_t src, int count)
+static void lsi_memcpy(LSIState710 *s, uint32_t dest, uint32_t src, int count)
 {
     PCIDevice *d = PCI_DEVICE(s);
     int n;
@@ -993,7 +993,7 @@ static void lsi_memcpy(LSIState *s, uint32_t dest, uint32_t src, int count)
     }
 }
 
-static void lsi_wait_reselect(LSIState *s)
+static void lsi_wait_reselect(LSIState710 *s)
 {
     lsi_request *p;
 
@@ -1010,7 +1010,7 @@ static void lsi_wait_reselect(LSIState *s)
     }
 }
 
-static void lsi_execute_script(LSIState *s)
+static void lsi_execute_script(LSIState710 *s)
 {
     PCIDevice *pci_dev = PCI_DEVICE(s);
     uint32_t insn;
@@ -1456,7 +1456,7 @@ again:
 }
 
 #if 0
-static uint8_t lsi_reg_readb(LSIState *s, int offset)
+static uint8_t lsi_reg_readb(LSIState710 *s, int offset)
 {
     uint8_t tmp;
 #define CASE_GET_REG24(name, addr) \
@@ -1631,7 +1631,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
 }
 #endif
 
-static uint8_t lsi_reg_readb2(LSIState *s, int offset)
+static uint8_t lsi_reg_readb2(LSIState710 *s, int offset)
 {
     uint8_t tmp;
 #define CASE_GET_REG24(name, addr) \
@@ -1740,7 +1740,7 @@ static uint8_t lsi_reg_readb2(LSIState *s, int offset)
 	write_log ("read unknown register %02X\n", offset);
 	return 0;
 }
-static uint8_t lsi_reg_readb(LSIState *s, int offset)
+static uint8_t lsi_reg_readb(LSIState710 *s, int offset)
 {
 	uint8_t v = lsi_reg_readb2(s, offset);
 #ifdef DEBUG_LSI_REG
@@ -1749,7 +1749,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
 	return v;
 }
 
-static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
+static void lsi_reg_writeb(LSIState710 *s, int offset, uint8_t val)
 {
 #define CASE_SET_REG24(name, addr) \
     case addr    : s->name &= 0xffffff00; s->name |= val;       break; \
@@ -1902,7 +1902,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
 }
 
 #if 0
-static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
+static void lsi_reg_writeb(LSIState710 *s, int offset, uint8_t val)
 {
 #define CASE_SET_REG24(name, addr) \
     case addr    : s->name &= 0xffffff00; s->name |= val;       break; \
@@ -2143,7 +2143,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
 void lsi710_mmio_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
-    LSIState *s = (LSIState*)opaque;
+    LSIState710 *s = (LSIState710*)opaque;
 
     lsi_reg_writeb(s, addr & 0xff, val);
 }
@@ -2151,7 +2151,7 @@ void lsi710_mmio_write(void *opaque, hwaddr addr,
 uint64_t lsi710_mmio_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    LSIState *s = (LSIState*)opaque;
+    LSIState710 *s = (LSIState710*)opaque;
 
     return lsi_reg_readb(s, addr & 0xff);
 }
@@ -2170,7 +2170,7 @@ static const MemoryRegionOps lsi_mmio_ops = {
 static void lsi_ram_write(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
-    LSIState *s = (LSIState*)opaque;
+    LSIState710 *s = (LSIState710*)opaque;
     uint32_t newval;
     uint32_t mask;
     int shift;
@@ -2186,7 +2186,7 @@ static void lsi_ram_write(void *opaque, hwaddr addr,
 static uint64_t lsi_ram_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
-    LSIState *s = (LSIState*)opaque;
+    LSIState710 *s = (LSIState710*)opaque;
     uint32_t val;
     uint32_t mask;
 
@@ -2205,14 +2205,14 @@ static const MemoryRegionOps lsi_ram_ops = {
 static uint64_t lsi_io_read(void *opaque, hwaddr addr,
                             unsigned size)
 {
-    LSIState *s = (LSIState*)opaque;
+    LSIState710 *s = (LSIState710*)opaque;
     return lsi_reg_readb(s, addr & 0xff);
 }
 
 static void lsi_io_write(void *opaque, hwaddr addr,
                          uint64_t val, unsigned size)
 {
-    LSIState *s = (LSIState*)opaque;
+    LSIState710 *s = (LSIState710*)opaque;
     lsi_reg_writeb(s, addr & 0xff, val);
 }
 
@@ -2229,7 +2229,7 @@ static const MemoryRegionOps lsi_io_ops = {
 
 void lsi710_scsi_reset(DeviceState *dev, void *privdata)
 {
-    LSIState *s = LSI53C895A(dev);
+    LSIState710 *s = LSI53C895A(dev);
 
     lsi_soft_reset(s);
 	s->bus.privdata = privdata;
@@ -2237,13 +2237,13 @@ void lsi710_scsi_reset(DeviceState *dev, void *privdata)
 
 void lsi710_scsi_init(DeviceState *dev)
 {
-	dev->lsistate = calloc (sizeof(LSIState), 1);
+	dev->lsistate = calloc (sizeof(LSIState710), 1);
 }
 
 #if 0
 static void lsi_pre_save(void *opaque)
 {
-    LSIState *s = opaque;
+    LSIState710 *s = opaque;
 
     if (s->current) {
         assert(s->current->dma_buf == NULL);
@@ -2259,85 +2259,85 @@ static const VMStateDescription vmstate_lsi_scsi = {
     .minimum_version_id_old = 0,
     .pre_save = lsi_pre_save,
     .fields      = (VMStateField []) {
-        VMSTATE_PCI_DEVICE(parent_obj, LSIState),
+        VMSTATE_PCI_DEVICE(parent_obj, LSIState710),
 
-        VMSTATE_INT32(carry, LSIState),
-        VMSTATE_INT32(status, LSIState),
-        VMSTATE_INT32(msg_action, LSIState),
-        VMSTATE_INT32(msg_len, LSIState),
-        VMSTATE_BUFFER(msg, LSIState),
-        VMSTATE_INT32(waiting, LSIState),
+        VMSTATE_INT32(carry, LSIState710),
+        VMSTATE_INT32(status, LSIState710),
+        VMSTATE_INT32(msg_action, LSIState710),
+        VMSTATE_INT32(msg_len, LSIState710),
+        VMSTATE_BUFFER(msg, LSIState710),
+        VMSTATE_INT32(waiting, LSIState710),
 
-        VMSTATE_UINT32(dsa, LSIState),
-        VMSTATE_UINT32(temp, LSIState),
-        VMSTATE_UINT32(dnad, LSIState),
-        VMSTATE_UINT32(dbc, LSIState),
-        VMSTATE_UINT8(istat0, LSIState),
-        VMSTATE_UINT8(istat1, LSIState),
-        VMSTATE_UINT8(dcmd, LSIState),
-        VMSTATE_UINT8(dstat, LSIState),
-        VMSTATE_UINT8(dien, LSIState),
-        VMSTATE_UINT8(sist0, LSIState),
-        VMSTATE_UINT8(sist1, LSIState),
-        VMSTATE_UINT8(sien0, LSIState),
-        VMSTATE_UINT8(sien1, LSIState),
-        VMSTATE_UINT8(mbox0, LSIState),
-        VMSTATE_UINT8(mbox1, LSIState),
-        VMSTATE_UINT8(dfifo, LSIState),
-        VMSTATE_UINT8(ctest2, LSIState),
-        VMSTATE_UINT8(ctest3, LSIState),
-        VMSTATE_UINT8(ctest4, LSIState),
-        VMSTATE_UINT8(ctest5, LSIState),
-        VMSTATE_UINT8(ccntl0, LSIState),
-        VMSTATE_UINT8(ccntl1, LSIState),
-        VMSTATE_UINT32(dsp, LSIState),
-        VMSTATE_UINT32(dsps, LSIState),
-        VMSTATE_UINT8(dmode, LSIState),
-        VMSTATE_UINT8(dcntl, LSIState),
-        VMSTATE_UINT8(scntl0, LSIState),
-        VMSTATE_UINT8(scntl1, LSIState),
-        VMSTATE_UINT8(scntl2, LSIState),
-        VMSTATE_UINT8(scntl3, LSIState),
-        VMSTATE_UINT8(sstat0, LSIState),
-        VMSTATE_UINT8(sstat1, LSIState),
-        VMSTATE_UINT8(scid, LSIState),
-        VMSTATE_UINT8(sxfer, LSIState),
-        VMSTATE_UINT8(socl, LSIState),
-        VMSTATE_UINT8(sdid, LSIState),
-        VMSTATE_UINT8(ssid, LSIState),
-        VMSTATE_UINT8(sfbr, LSIState),
-        VMSTATE_UINT8(stest1, LSIState),
-        VMSTATE_UINT8(stest2, LSIState),
-        VMSTATE_UINT8(stest3, LSIState),
-        VMSTATE_UINT8(sidl, LSIState),
-        VMSTATE_UINT8(stime0, LSIState),
-        VMSTATE_UINT8(respid0, LSIState),
-        VMSTATE_UINT8(respid1, LSIState),
-        VMSTATE_UINT32(mmrs, LSIState),
-        VMSTATE_UINT32(mmws, LSIState),
-        VMSTATE_UINT32(sfs, LSIState),
-        VMSTATE_UINT32(drs, LSIState),
-        VMSTATE_UINT32(sbms, LSIState),
-        VMSTATE_UINT32(dbms, LSIState),
-        VMSTATE_UINT32(dnad64, LSIState),
-        VMSTATE_UINT32(pmjad1, LSIState),
-        VMSTATE_UINT32(pmjad2, LSIState),
-        VMSTATE_UINT32(rbc, LSIState),
-        VMSTATE_UINT32(ua, LSIState),
-        VMSTATE_UINT32(ia, LSIState),
-        VMSTATE_UINT32(sbc, LSIState),
-        VMSTATE_UINT32(csbc, LSIState),
-        VMSTATE_BUFFER_UNSAFE(scratch, LSIState, 0, 18 * sizeof(uint32_t)),
-        VMSTATE_UINT8(sbr, LSIState),
+        VMSTATE_UINT32(dsa, LSIState710),
+        VMSTATE_UINT32(temp, LSIState710),
+        VMSTATE_UINT32(dnad, LSIState710),
+        VMSTATE_UINT32(dbc, LSIState710),
+        VMSTATE_UINT8(istat0, LSIState710),
+        VMSTATE_UINT8(istat1, LSIState710),
+        VMSTATE_UINT8(dcmd, LSIState710),
+        VMSTATE_UINT8(dstat, LSIState710),
+        VMSTATE_UINT8(dien, LSIState710),
+        VMSTATE_UINT8(sist0, LSIState710),
+        VMSTATE_UINT8(sist1, LSIState710),
+        VMSTATE_UINT8(sien0, LSIState710),
+        VMSTATE_UINT8(sien1, LSIState710),
+        VMSTATE_UINT8(mbox0, LSIState710),
+        VMSTATE_UINT8(mbox1, LSIState710),
+        VMSTATE_UINT8(dfifo, LSIState710),
+        VMSTATE_UINT8(ctest2, LSIState710),
+        VMSTATE_UINT8(ctest3, LSIState710),
+        VMSTATE_UINT8(ctest4, LSIState710),
+        VMSTATE_UINT8(ctest5, LSIState710),
+        VMSTATE_UINT8(ccntl0, LSIState710),
+        VMSTATE_UINT8(ccntl1, LSIState710),
+        VMSTATE_UINT32(dsp, LSIState710),
+        VMSTATE_UINT32(dsps, LSIState710),
+        VMSTATE_UINT8(dmode, LSIState710),
+        VMSTATE_UINT8(dcntl, LSIState710),
+        VMSTATE_UINT8(scntl0, LSIState710),
+        VMSTATE_UINT8(scntl1, LSIState710),
+        VMSTATE_UINT8(scntl2, LSIState710),
+        VMSTATE_UINT8(scntl3, LSIState710),
+        VMSTATE_UINT8(sstat0, LSIState710),
+        VMSTATE_UINT8(sstat1, LSIState710),
+        VMSTATE_UINT8(scid, LSIState710),
+        VMSTATE_UINT8(sxfer, LSIState710),
+        VMSTATE_UINT8(socl, LSIState710),
+        VMSTATE_UINT8(sdid, LSIState710),
+        VMSTATE_UINT8(ssid, LSIState710),
+        VMSTATE_UINT8(sfbr, LSIState710),
+        VMSTATE_UINT8(stest1, LSIState710),
+        VMSTATE_UINT8(stest2, LSIState710),
+        VMSTATE_UINT8(stest3, LSIState710),
+        VMSTATE_UINT8(sidl, LSIState710),
+        VMSTATE_UINT8(stime0, LSIState710),
+        VMSTATE_UINT8(respid0, LSIState710),
+        VMSTATE_UINT8(respid1, LSIState710),
+        VMSTATE_UINT32(mmrs, LSIState710),
+        VMSTATE_UINT32(mmws, LSIState710),
+        VMSTATE_UINT32(sfs, LSIState710),
+        VMSTATE_UINT32(drs, LSIState710),
+        VMSTATE_UINT32(sbms, LSIState710),
+        VMSTATE_UINT32(dbms, LSIState710),
+        VMSTATE_UINT32(dnad64, LSIState710),
+        VMSTATE_UINT32(pmjad1, LSIState710),
+        VMSTATE_UINT32(pmjad2, LSIState710),
+        VMSTATE_UINT32(rbc, LSIState710),
+        VMSTATE_UINT32(ua, LSIState710),
+        VMSTATE_UINT32(ia, LSIState710),
+        VMSTATE_UINT32(sbc, LSIState710),
+        VMSTATE_UINT32(csbc, LSIState710),
+        VMSTATE_BUFFER_UNSAFE(scratch, LSIState710, 0, 18 * sizeof(uint32_t)),
+        VMSTATE_UINT8(sbr, LSIState710),
 
-        VMSTATE_BUFFER_UNSAFE(script_ram, LSIState, 0, 2048 * sizeof(uint32_t)),
+        VMSTATE_BUFFER_UNSAFE(script_ram, LSIState710, 0, 2048 * sizeof(uint32_t)),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static void lsi_scsi_uninit(PCIDevice *d)
 {
-    LSIState *s = LSI53C895A(d);
+    LSIState710 *s = LSI53C895A(d);
 
     memory_region_destroy(&s->mmio_io);
     memory_region_destroy(&s->ram_io);
@@ -2356,7 +2356,7 @@ static const struct SCSIBusInfo lsi_scsi_info = {
 
 static int lsi_scsi_init(PCIDevice *dev)
 {
-    LSIState *s = LSI53C895A(dev);
+    LSIState710 *s = LSI53C895A(dev);
     DeviceState *d = DEVICE(dev);
     uint8_t *pci_conf;
     Error *err = NULL;
@@ -2410,7 +2410,7 @@ static void lsi_class_init(ObjectClass *klass, void *data)
 static const TypeInfo lsi_info = {
     .name          = TYPE_LSI53C895A,
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(LSIState),
+    .instance_size = sizeof(LSIState710),
     .class_init    = lsi_class_init,
 };
 

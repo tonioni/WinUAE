@@ -258,6 +258,19 @@ void fixup_cpu (struct uae_prefs *p)
 		break;
 	}
 
+	// 1 = "automatic" PPC config
+	if (p->ppc_mode == 1) {
+		p->cpuboard_type = BOARD_CSPPC;
+		if (p->cs_compatible == CP_A1200) {
+			p->cpuboard_type = BOARD_BLIZZARDPPC;
+		} else if (p->cs_compatible != CP_A4000 && p->cs_compatible != CP_A4000T && p->cs_compatible != CP_A3000 && p->cs_compatible != CP_A3000T) {
+			if ((p->cs_ide == IDE_A600A1200 || p->cs_pcmcia) && p->cs_mbdmac <= 0)
+				p->cpuboard_type = BOARD_BLIZZARDPPC;
+		}
+		if (p->cpuboardmem1_size < 8 * 1024 * 1024)
+			p->cpuboardmem1_size = 8 * 1024 * 1024;
+	}
+
 	if (p->cpu_model < 68020 && p->cachesize) {
 		p->cachesize = 0;
 		error_log (_T("JIT requires 68020 or better CPU."));
@@ -423,17 +436,22 @@ void fixup_prefs (struct uae_prefs *p)
 		error_log (_T("Possible Gayle bogomem conflict fixed."));
 	}
 	if (p->chipmem_size > 0x200000 && p->fastmem_size > 262144) {
-		error_log (_T("You can't use fastmem and more than 2MB chip at the same time."));
-		p->fastmem_size = 0;
+		error_log(_T("You can't use fastmem and more than 2MB chip at the same time."));
+		p->chipmem_size = 0x200000;
+		err = 1;
+	}
+	if (p->chipmem_size > 0x200000 && p->rtgmem_size && !gfxboard_is_z3(p->rtgmem_type)) {
+		error_log(_T("You can't use Zorro II RTG and more than 2MB chip at the same time."));
+		p->chipmem_size = 0x200000;
 		err = 1;
 	}
 	if (p->mbresmem_low_size > 0x04000000 || (p->mbresmem_low_size & 0xfffff)) {
 		p->mbresmem_low_size = 0;
-		error_log (_T("Unsupported A3000 MB RAM size"));
+		error_log (_T("Unsupported Mainboard RAM size"));
 	}
 	if (p->mbresmem_high_size > 0x08000000 || (p->mbresmem_high_size & 0xfffff)) {
 		p->mbresmem_high_size = 0;
-		error_log (_T("Unsupported Motherboard RAM size."));
+		error_log (_T("Unsupported CPU Board RAM size."));
 	}
 
 	if (p->rtgmem_type >= GFXBOARD_HARDWARE) {
@@ -628,7 +646,7 @@ void fixup_prefs (struct uae_prefs *p)
 #endif
 	if (p->maprom && !p->address_space_24)
 		p->maprom = 0x0f000000;
-	if (((p->maprom & 0xff000000) && p->address_space_24) || p->mbresmem_high_size == 0x08000000) {
+	if (((p->maprom & 0xff000000) && p->address_space_24) || (p->maprom && p->mbresmem_high_size == 0x08000000)) {
 		p->maprom = 0x00e00000;
 	}
 	if (p->tod_hack && p->cs_ciaatod == 0)
@@ -906,7 +924,7 @@ void reset_all_systems (void)
 	dongle_reset ();
 	sampler_init ();
 #ifdef WITH_PPC
-	ppc_stop();
+	uae_ppc_reset(false);
 #endif
 }
 
@@ -1177,12 +1195,14 @@ static int real_main2 (int argc, TCHAR **argv)
 #ifdef AUTOCONFIG
 	native2amiga_install ();
 #endif
-
 	custom_init (); /* Must come after memory_init */
 #ifdef SERIAL_PORT
 	serial_init ();
 #endif
 	DISK_init ();
+#ifdef WITH_PPC
+	uae_ppc_reset(true);
+#endif
 
 	reset_frame_rate_hack ();
 	init_m68k (); /* must come after reset_frame_rate_hack (); */

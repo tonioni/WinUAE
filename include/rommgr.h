@@ -18,6 +18,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_SPECIALKICK	0x00008000
 #define ROMTYPE_PIV			0x00010000
 #define ROMTYPE_CPUBOARD	0x00020000
+#define ROMTYPE_CPUBOARDEXT	0x00040000
 #define ROMTYPE_MASK		0x001fffff
 #define ROMTYPE_EVEN		0x02000000
 #define ROMTYPE_ODD			0x04000000
@@ -52,6 +53,7 @@ struct romdata {
 	uae_u32 crc32;
 	uae_u32 sha1[5];
 	TCHAR *configname;
+	TCHAR *defaultfilename;
 };
 
 struct romlist {
@@ -66,6 +68,7 @@ extern struct romdata *getromdatabydata (uae_u8 *rom, int size);
 extern struct romdata *getromdatabyid (int id);
 extern struct romdata *getromdatabyidgroup (int id, int group, int subitem);
 extern struct romdata *getromdatabyzfile (struct zfile *f);
+extern struct romdata *getfrombydefaultname(const TCHAR *name, int size);
 extern struct romlist **getarcadiaroms (void);
 extern struct romdata *getarcadiarombyname (const TCHAR *name);
 extern struct romlist **getromlistbyident (int ver, int rev, int subver, int subrev, const TCHAR *model, int romflags, bool all);

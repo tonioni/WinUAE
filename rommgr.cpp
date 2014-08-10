@@ -93,7 +93,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 95
+#define NEXT_ROM_ID 100
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -300,10 +300,21 @@ static struct romdata roms[] = {
 	0xce270bc0, 0xe043c1aa,0x3bb06e06,0xd4dabff3,0x0a8c6317,0xabfef2bb },
 	ALTROMPN(92, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xa6023f20, 0xdfb048d6, 0xbdc03587, 0x241e8121, 0x26aba603, 0xd69b0238)
 	ALTROMPN(92, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x9635a9cd, 0x47578b27, 0xc4ba6e54, 0x891930dd, 0xcb4b6a45, 0x5d6b31b2)
-	{ _T("Blizzard SCSI Kit IV ROM"), 8, 5, 8, 5, _T("BSCSIIV\0"), 32768, 94, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
+	{ _T("Blizzard SCSI Kit IV ROM"), 8, 5, 8, 5, _T("BSCSIIV\0"), 32768, 94, 0, 0, ROMTYPE_CPUBOARDEXT, 0, 0, NULL,
 	0xf53a0fca, 0xefe17ca5,0x88c44a7f,0x0f8c62be,0x20f23278,0xcfe06727 },
 	{ _T("Warp Engine A4000 ROM"), 0, 0, 0, 0, _T("WARPENGINE\0WARPENGINEA4000\0"), 32768, 93, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
 	0x4deb574a, 0x6e6c95ff,0xe8448391,0xd36c5b68,0xc9065cb0,0x702a7d27 },
+
+	{ _T("CyberStorm MK I"), 0, 0, 0, 0, _T("CSMKI\0"), 65536, 95, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
+	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1.rom") },
+	{ _T("CyberStorm MK II"), 0, 0, 0, 0, _T("CSMKII\0"), 131072, 96, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
+	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk2.rom") },
+	{ _T("CyberStorm MK III"), 0, 0, 0, 0, _T("CSMKIII\0"), 131072, 97, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
+	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk3.rom") },
+	{ _T("CyberStorm PPC"), 0, 0, 0, 0, _T("CSPPC\0"), 131072, 98, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
+	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormppc.rom") },
+	{ _T("Blizzard PPC"), 0, 0, 0, 0, _T("BPPC\0"), 524288, 99, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
+	  0, 0, 0, 0, 0, 0, NULL, _T("blizzardppc.rom") },
 
 	{ _T("Picasso IV ROM"), 7, 4, 7, 4, _T("PIV\0"), 131072, 91, 0, 0, ROMTYPE_PIV, 0, 0, NULL,
 	0xa8133e7e, 0xcafafb91,0x6f16b9f3,0xec9b49aa,0x4b40eb4e,0xeceb5b5b },
@@ -813,6 +824,18 @@ static int cmpsha1 (const uae_u8 *s1, const struct romdata *rd)
 	return 0;
 }
 
+struct romdata *getfrombydefaultname(const TCHAR *name, int size)
+{
+	int i = 0;
+	while (roms[i].name) {
+		if (notcrc32(roms[i].crc32) && roms[i].size >= size && roms[i].defaultfilename && !_tcsicmp(roms[i].defaultfilename, name)) {
+			return &roms[i];
+		}
+		i++;
+	}
+	return NULL;
+}
+
 static struct romdata *checkromdata (const uae_u8 *sha1, int size, uae_u32 mask)
 {
 	int i = 0;
@@ -1031,7 +1054,7 @@ void romwarning (const int *ids)
 			_tcscat (tmp2, _T("- "));
 			_tcscat (tmp2, tmp1);
 			_tcscat (tmp2, _T("\n"));
-			if (rd->type & (ROMTYPE_A2091BOOT | ROMTYPE_A4091BOOT))
+			if (rd->type & (ROMTYPE_A2091BOOT | ROMTYPE_A4091BOOT | ROMTYPE_CPUBOARDEXT | ROMTYPE_CPUBOARD | ROMTYPE_CD32CART))
 				exp++;
 		}
 		i++;
@@ -1209,7 +1232,7 @@ struct zfile *read_rom (struct romdata *prd)
 				}
 				add = 2;
 			}
-			if (get_crc32 (buf, size) == crc32) {
+			if (notcrc32(crc32) || get_crc32(buf, size) == crc32) {
 				ok = 1;
 			}
 			if (!ok && (rd->type & ROMTYPE_AR)) {

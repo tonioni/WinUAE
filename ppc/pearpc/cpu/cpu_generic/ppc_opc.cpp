@@ -19,7 +19,7 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "debug/tracers.h"
+#include "tracers.h"
 #include "cpu/debug.h"
 //#include "io/pic/pic.h"
 #include "info.h"
@@ -29,7 +29,7 @@
 #include "ppc_opc.h"
 #include "ppc_dec.h"
 
-extern void ppc_doze(void);
+extern void uae_ppc_doze(void);
 
 void ppc_set_msr(uint32 newmsr)
 {
@@ -52,7 +52,7 @@ void ppc_set_msr(uint32 newmsr)
 		PPC_CPU_ERR("unsupported bits in MSR set: %08x @%08x\n", newmsr & PPC_CPU_UNSUPPORTED_MSR_BITS, gCPU.pc);
 	}
 	if (newmsr & MSR_POW) {
-		ppc_doze();
+		uae_ppc_doze();
 		// doze();
 		newmsr &= ~MSR_POW;
 	}
@@ -275,7 +275,8 @@ void ppc_opc_mcrfs()
  */
 void ppc_opc_mcrxr()
 {
-	PPC_OPC_ERR("mcrxr unimplemented.\n");
+	gCPU.xer = 0; //no, this is not correct
+	//PPC_OPC_ERR("mcrxr unimplemented.\n");
 }
 /*
  *	mfcr		Move from Condition Register
@@ -666,6 +667,7 @@ void ppc_opc_mtspr()
 		case 22: {
 			gCPU.dec = gCPU.gpr[rS];
 			gCPU.pdec = gCPU.dec;
+			//ht_printf("pdec = %llx %08x\n", gCPU.pdec, gCPU.pc);
 			gCPU.pdec *= TB_TO_PTB_FACTOR;
 			return;
 		}

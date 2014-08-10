@@ -18,6 +18,29 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 10:
+
+- Added CyberStormI/II/II/PPC and Blizzard PPC flash rom images to rom scanner, name based detection only.
+  (Remember to click ROM rescan button) Now opens usual ROM missing dialog when flash rom image can't be opened.
+- Added GUI support for manual accelerator board ROM image selection.
+- NCR53C770 emulation spurious interrupt fix.
+- Reset/exit froze the emulation if PPC CPU was in sleeping state.
+- Map ROM checkbox was checked if 128M CPU slot memory was configured (old bug).
+- 68030 more compatible/CE with MMU does not use data cache anymore, 68030 caches logical addresses (which
+  will get really difficult and complex to emulate), 68040+ caches physical addresses.
+- CyberStorm PPC/Blizzard PPC board emulation improved, PowerUP also works.
+- Do not map PPC board FFF00000 memory mirror if no on-board RAM installed.
+- Generate CyberStorm/BPPC fake flash rom hardware idenfication data and serial if it is missing.
+- If CyberStorm MK3/PPC flash image is 256k or larger, map it like BPPC does it. (Not sure if this is correct)
+- Reset with Picasso IV enabled forced hard reset.
+- Z2 RTG crash fixed (some configurations).
+- Added PPC GUI option to CPU panel. If ticked, selects matching board automatically. Becomes ticked and disabled
+  if board was already selected. 68040/060 only. (CSPPC/BPPC flash boot code uses 68040+ only instructions)
+- Move PPC thread to main thread when m68k gets disabled, improves performance of native PPC operating systems.
+  (No need to move IO access messages between threads)
+- Disable RTG board if >2M chip ram configured and Z2 RTG configured. (Forgotten address conflict check)
+- OSD CPU led changes to "PPC" when PPC is active and m68k is disabled.
+
 Beta 9:
 
 - PearPC PPC emulator core added. Only because it was very easy to add, it may not be compatible enough.
@@ -40,7 +63,7 @@ Beta 9:
   most other HD controller drivers do, code runs directly from ROM and same memory "bank" also has IO registers)
 - Memory allocation source clean up. Can break nearly anything.. 
 - SCSI CD READ CD command didn't read audio tracks 2+.
-- Entering debugger forze the emulator if m68k CPU was stopped with STOP instruction and all interrupts disabled.
+- Entering debugger force the emulator if m68k CPU was stopped with STOP instruction and all interrupts disabled.
 - NCR53C770 emulation tweaks, fixes netbsd hang. Now it gets unexpected interrupt, no fix available yet.
 - Version bumped to 2.9.0
 

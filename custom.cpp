@@ -66,6 +66,7 @@
 #endif
 #include "luascript.h"
 #include "statusline.h"
+#include "ppc.h"
 
 #define CUSTOM_DEBUG 0
 #define SPRITE_DEBUG 0
@@ -7519,6 +7520,9 @@ static void hsync_handler_pre (bool onvsync)
 		void ahi_hsync (void);
 		ahi_hsync ();
 	}
+#endif
+#ifdef WITH_PPC
+	uae_ppc_hsync_handler();
 #endif
 	DISK_hsync ();
 	if (currprefs.produce_sound)

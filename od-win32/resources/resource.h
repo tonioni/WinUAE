@@ -533,6 +533,7 @@
 #define IDC_SOUNDSETTINGS               1229
 #define IDC_CPU_UNIMPLEMENTED           1229
 #define IDC_8BIT                        1230
+#define IDC_CPU_PPC                     1230
 #define IDC_16BIT                       1231
 #define IDC_11KHZ                       1232
 #define IDC_22KHZ                       1233
@@ -662,7 +663,9 @@
 #define IDC_RTCCHOOSER                  1401
 #define IDC_A4091ROMCHOOSER             1402
 #define IDC_DELETE                      1403
+#define IDC_CPUBOARDROMCHOOSER          1403
 #define IDC_CONFIGLIST                  1404
+#define IDC_CPUBOARDEXTROMCHOOSER       1404
 #define IDC_EDITNAME                    1405
 #define IDC_EDITDESCRIPTION             1406
 #define IDC_QUICKSAVE                   1408
@@ -671,6 +674,8 @@
 #define IDC_EDITPATH                    1410
 #define IDC_RTCFILE                     1411
 #define IDC_A4091ROMFILE                1412
+#define IDC_CPUBOARDEXTROMFILE          1413
+#define IDC_CPUBOARDROMFILE             1414
 #define IDC_HDF_RDB                     1500
 #define IDC_HFSIZE                      1501
 #define IDC_HF_SIZE                     1501
@@ -701,6 +706,7 @@
 #define IDC_WINDOWEDTEXT                1512
 #define IDC_MAPDRIVES_LIMIT             1512
 #define IDC_HEIGHTTEXT                  1513
+#define IDC_MAPDRIVES_NET2              1513
 #define IDC_SETTINGSTEXT                1514
 #define IDC_REFRESHTEXT                 1515
 #define IDC_SETTINGSTEXT2               1515

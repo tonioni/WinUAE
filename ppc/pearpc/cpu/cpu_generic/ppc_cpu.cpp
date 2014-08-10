@@ -25,13 +25,12 @@
 #include "system/systhread.h"
 #include "system/arch/sysendian.h"
 //#include "tools/snprintf.h"
-#include "debug/tracers.h"
 #include "cpu/cpu.h"
 #include "cpu/debug.h"
 #include "info.h"
 //#include "io/pic/pic.h"
 //#include "debug/debugger.h"
-#include "debug/tracers.h"
+#include "tracers.h"
 #include "ppc_cpu.h"
 #include "ppc_dec.h"
 #include "ppc_fpu.h"
@@ -78,40 +77,43 @@ void ppc_cpu_atomic_raise_dec_exception()
 	sys_unlock_mutex(exception_mutex);
 }
 
-void ppc_cpu_wakeup()
-{
-}
 
 extern int ppc_cycle_count;
-void ppc_hsync_handler(void)
+
+static void ppc_do_dec(int val)
 {
-#if 0
-	if (!ppc_state)
-		return;
-	uint64 oldpdec = gCPU.pdec;
-	//gCPU.ptb += ppc_cycle_count;
-	gCPU.pdec -= ppc_cycle_count;
-	if (gCPU.pdec > oldpdec) {
-		ppc_wakeup();
-		sys_lock_mutex(exception_mutex);
+	if (gCPU.pdec == 0) {
 		gCPU.exception_pending = true;
 		gCPU.dec_exception = true;
-		gCPU.pdec=(uint64)0xffffffff*TB_TO_PTB_FACTOR;
-		sys_unlock_mutex(exception_mutex);
+		gCPU.pdec = (uint64)0xffffffff * TB_TO_PTB_FACTOR;
+		uae_ppc_wakeup();
+	} else {
+		uint64 oldpdec = gCPU.pdec;
+		gCPU.pdec -= val;
+		if (gCPU.pdec > oldpdec) {
+			gCPU.pdec = 0;
+		}
 	}
-#endif
 }
 
-void ppc_cpu_run()
+void uae_ppc_hsync_handler(void)
 {
-//	gDebugger = new Debugger();
-//	gDebugger->mAlwaysShowRegs = true;
-	PPC_CPU_TRACE("execution started at %08x\n", gCPU.pc);
-	uint ops=0;
-	gCPU.effective_code_page = 0xffffffff;
-//	ppc_fpu_test();
-//	return;
-	while (true) {
+	if (ppc_state != PPC_STATE_SLEEP)
+		return;
+	if (gCPU.pdec == 0) {
+		uae_ppc_wakeup();
+	} else {
+		ppc_do_dec(ppc_cycle_count);
+	}
+}
+
+static uint ops = 0;
+
+void ppc_cpu_run_single(int count)
+{
+	while (count != 0) {
+		if (count > 0)
+			count--;
 		gCPU.npc = gCPU.pc+4;
 		if ((gCPU.pc & ~0xfff) == gCPU.effective_code_page) {
 			gCPU.current_opc = ppc_word_from_BE(*((uint32*)(&gCPU.physical_code_page[gCPU.pc & 0xfff])));
@@ -133,15 +135,7 @@ void ppc_cpu_run()
 		ppc_exec_opc();
 		ops++;
 		gCPU.ptb++;
-#if 1
-		if (gCPU.pdec == 0) {
-			gCPU.exception_pending = true;
-			gCPU.dec_exception = true;
-			gCPU.pdec=(uint64)0xffffffff*TB_TO_PTB_FACTOR;
-		} else {
-			gCPU.pdec--;
-		}
-#endif
+		ppc_do_dec(1);
 		if ((ops & 0x3ffff)==0) {
 /*			if (pic_check_interrupt()) {
 				gCPU.exception_pending = true;
@@ -179,7 +173,7 @@ void ppc_cpu_run()
 		
 		extern int debugger_active, pause_emulation;
 		extern void sleep_millis(int);
-		while (debugger_active || pause_emulation) {
+		while ((debugger_active || pause_emulation) && count < 0) {
 			sleep_millis(10);
 		}
 
@@ -202,6 +196,7 @@ void ppc_cpu_run()
 				if (gCPU.dec_exception) {
 					ppc_exception(PPC_EXC_DEC);
 					gCPU.dec_exception = false;
+					//ht_printf("pdec exp %08x\n", gCPU.pc);
 					gCPU.pc = gCPU.npc;
 					gCPU.exception_pending = false;
 					sys_unlock_mutex(exception_mutex);
@@ -223,6 +218,14 @@ void ppc_cpu_run()
 		}
 #endif
 	}
+}
+
+void ppc_cpu_run_continuous(void)
+{
+	PPC_CPU_TRACE("execution started at %08x\n", gCPU.pc);
+	gCPU.effective_code_page = 0xffffffff;
+	ops = 0;
+	ppc_cpu_run_single(-1);
 }
 
 void ppc_cpu_stop()
@@ -269,9 +272,15 @@ void	ppc_cpu_set_msr(int cpu, uint32 newvalue)
 	gCPU.msr = newvalue;
 }
 
+// Handle as CPU reset
 void	ppc_cpu_set_pc(int cpu, uint32 newvalue)
 {
+	gCPU.srr[0] = gCPU.pc;
+	gCPU.srr[1] = gCPU.msr & 0xff73;
 	gCPU.pc = newvalue;
+	gCPU.msr &= MSR_ILE | MSR_ME | MSR_IP;
+	if (gCPU.msr & MSR_ILE)
+		gCPU.msr |= MSR_LE;
 }
 
 uint32	ppc_cpu_get_pc(int cpu)
@@ -301,7 +310,7 @@ void ppc_set_singlestep_v(bool v, const char *file, int line, const char *format
 	vsprintf(buffer, format, arg);
 	ht_printf("%s\n", buffer);
 	va_end(arg);
-	ppc_crash();
+	uae_ppc_crash();
 	gSinglestep = v;
 }
 
@@ -319,6 +328,7 @@ bool ppc_cpu_init(uint32 pvr)
 	memset(&gCPU, 0, sizeof gCPU);
 	gCPU.pvr = pvr; //gConfig->getConfigInt(CPU_KEY_PVR);
 	gCPU.hid[1] = 0x80000000;
+	gCPU.msr = 1 << MSR_IP;
 	
 	ppc_dec_init();
 	// initialize srs (mostly for prom)
@@ -333,6 +343,11 @@ bool ppc_cpu_init(uint32 pvr)
 	PPC_CPU_WARN("no just-in-time compiler for your platform.\n");
 	
 	return true;
+}
+
+void ppc_cpu_free(void)
+{
+	sys_destroy_mutex(&exception_mutex);
 }
 
 #if 0

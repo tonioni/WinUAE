@@ -371,12 +371,14 @@ static int doinit_shm (void)
 			addr = expansion_startaddress(addr, changed_prefs.z3fastmem_size);
 			addr += changed_prefs.z3fastmem_size;
 			addr = expansion_startaddress(addr, changed_prefs.rtgmem_size);
-			p96base_offset = addr;
-			// adjust p96mem_offset to beginning of natmem
-			// by subtracting start of original p96mem_offset from natmem_offset
-			if (p96base_offset >= 0x10000000) {
-				natmem_offset = natmem_offset_allocated - p96base_offset;
-				p96mem_offset = natmem_offset + p96base_offset;
+			if (gfxboard_is_z3(changed_prefs.rtgmem_type)) {
+				p96base_offset = addr;
+				// adjust p96mem_offset to beginning of natmem
+				// by subtracting start of original p96mem_offset from natmem_offset
+				if (p96base_offset >= 0x10000000) {
+					natmem_offset = natmem_offset_allocated - p96base_offset;
+					p96mem_offset = natmem_offset + p96base_offset;
+				}
 			}
 		}
 	}

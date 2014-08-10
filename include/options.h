@@ -461,6 +461,10 @@ struct uae_prefs {
 	TCHAR a4091romfile2[MAX_DPATH];
 	TCHAR a4091romident2[256];
 	bool a4091;
+	TCHAR acceleratorromfile[MAX_DPATH];
+	TCHAR acceleratorromident[256];
+	TCHAR acceleratorextromfile[MAX_DPATH];
+	TCHAR acceleratorextromident[256];
 	TCHAR flashfile[MAX_DPATH];
 	TCHAR rtcfile[MAX_DPATH];
 	TCHAR cartfile[MAX_DPATH];
@@ -489,6 +493,7 @@ struct uae_prefs {
 	int cpu060_revision;
 	int fpu_model;
 	int fpu_revision;
+	int ppc_mode;
 	bool cpu_compatible;
 	bool int_no_unimplemented;
 	bool fpu_no_unimplemented;

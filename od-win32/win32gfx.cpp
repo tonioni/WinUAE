@@ -2651,7 +2651,7 @@ static void createstatuswindow (void)
 	power_width = (int)(42 * scaleX);
 	fps_width = (int)(64 * scaleX);
 	idle_width = (int)(64 * scaleX);
-	if (is_ppc_cpu())
+	if (is_ppc_cpu(&currprefs))
 		idle_width = 136;
 	snd_width = (int)(72 * scaleX);
 	joy_width = (int)(24 * scaleX);

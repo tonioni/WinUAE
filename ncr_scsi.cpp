@@ -397,9 +397,6 @@ static uae_u32 REGPARAM2 ncr_wget (struct ncr_state *ncr, uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	if (ncr->newncr)
-		return 0;
-	addr &= ncr->board_mask;
 	v = (ncr_bget2 (ncr, addr) << 8) | ncr_bget2 (ncr, addr + 1);
 	return v;
 }
@@ -512,8 +509,6 @@ static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
 		}
 		return;
 	}
-	if (ncr->newncr)
-		return;
 	ncr_bput2(ncr, addr, w >> 8);
 	ncr_bput2 (ncr, addr + 1, w);
 }

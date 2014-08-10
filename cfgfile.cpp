@@ -978,6 +978,12 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_dwrite_str (f, _T("a4091_rom"), p->a4091romident);
 	if (p->a4091romident2[0])
 		cfgfile_dwrite_str (f, _T("a4091_2_rom"), p->a4091romident2);
+	cfgfile_write_rom(f, &p->path_rom, p->acceleratorromfile, _T("cpuboard_rom_file"));
+	if (p->acceleratorromident[0])
+		cfgfile_dwrite_str(f, _T("cpuboard_rom"), p->acceleratorromident);
+	cfgfile_write_rom(f, &p->path_rom, p->acceleratorextromfile, _T("cpuboard_ext_rom_file"));
+	if (p->acceleratorextromident[0])
+		cfgfile_dwrite_str(f, _T("cpuboard_ext_rom"), p->acceleratorextromident);
 
 	cfgfile_write_path (f, &p->path_rom, _T("flash_file"), p->flashfile);
 	cfgfile_write_path (f, &p->path_rom, _T("cart_file"), p->cartfile);
@@ -1477,6 +1483,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_write (f, _T("fpu_model"), _T("%d"), p->fpu_model);
 	if (p->mmu_model)
 		cfgfile_write (f, _T("mmu_model"), _T("%d"), p->mmu_model);
+	if (p->ppc_mode)
+		cfgfile_write_str(f, _T("ppc_model"), p->ppc_mode == 1 ? _T("automatic") : _T("manual"));
 	cfgfile_write_bool (f, _T("cpu_compatible"), p->cpu_compatible);
 	cfgfile_write_bool (f, _T("cpu_24bit_addressing"), p->address_space_24);
 	/* do not reorder end */
@@ -3661,13 +3669,17 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_path (option, value, _T("a2091_2_rom_file"), p->a2091romfile2, sizeof p->a2091romfile2 / sizeof (TCHAR), &p->path_rom)
 		|| cfgfile_path (option, value, _T("a4091_rom_file"), p->a4091romfile, sizeof p->a4091romfile / sizeof (TCHAR), &p->path_rom)
 		|| cfgfile_path (option, value, _T("a4091_2_rom_file"), p->a4091romfile2, sizeof p->a4091romfile2 / sizeof (TCHAR), &p->path_rom)
-		|| cfgfile_rom (option, value, _T("kickstart_rom_file_id"), p->romfile, sizeof p->romfile / sizeof (TCHAR))
+		|| cfgfile_path(option, value, _T("cpuboard_rom_file"), p->acceleratorromfile, sizeof p->acceleratorromfile / sizeof(TCHAR), &p->path_rom)
+		|| cfgfile_path(option, value, _T("cpuboard_ext_rom_file"), p->acceleratorextromfile, sizeof p->acceleratorextromfile / sizeof(TCHAR), &p->path_rom)
+		|| cfgfile_rom(option, value, _T("kickstart_rom_file_id"), p->romfile, sizeof p->romfile / sizeof(TCHAR))
 		|| cfgfile_rom (option, value, _T("kickstart_ext_rom_file_id"), p->romextfile, sizeof p->romextfile / sizeof (TCHAR))
 		|| cfgfile_rom (option, value, _T("a2091_rom_file_id"), p->a2091romfile, sizeof p->a2091romfile / sizeof (TCHAR))
 		|| cfgfile_rom (option, value, _T("a2091_2_rom_file_id"), p->a2091romfile2, sizeof p->a2091romfile2 / sizeof (TCHAR))
 		|| cfgfile_rom (option, value, _T("a4091_rom_file_id"), p->a4091romfile, sizeof p->a4091romfile / sizeof (TCHAR))
 		|| cfgfile_rom (option, value, _T("a4091_2_rom_file_id"), p->a4091romfile2, sizeof p->a4091romfile2 / sizeof (TCHAR))
-		|| cfgfile_path (option, value, _T("amax_rom_file"), p->amaxromfile, sizeof p->amaxromfile / sizeof (TCHAR))
+		|| cfgfile_rom(option, value, _T("cpuboard_rom_file_id"), p->acceleratorromfile, sizeof p->acceleratorromfile / sizeof(TCHAR))
+		|| cfgfile_rom(option, value, _T("cpuboard_ext_rom_file_id"), p->acceleratorextromfile, sizeof p->acceleratorextromfile / sizeof(TCHAR))
+		|| cfgfile_path(option, value, _T("amax_rom_file"), p->amaxromfile, sizeof p->amaxromfile / sizeof(TCHAR))
 		|| cfgfile_path (option, value, _T("flash_file"), p->flashfile, sizeof p->flashfile / sizeof (TCHAR), &p->path_rom)
 		|| cfgfile_path (option, value, _T("cart_file"), p->cartfile, sizeof p->cartfile / sizeof (TCHAR), &p->path_rom)
 		|| cfgfile_path (option, value, _T("rtc_file"), p->rtcfile, sizeof p->rtcfile / sizeof (TCHAR), &p->path_rom)
@@ -3761,6 +3773,15 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 	if (cfgfile_string (option, value, _T("cpu_model"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
 		p->cpu_model = _tstol (tmpbuf);
 		p->fpu_model = 0;
+		return 1;
+	}
+
+	if (cfgfile_string(option, value, _T("ppc_model"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
+		p->ppc_mode = 0;
+		if (!_tcsicmp(tmpbuf, _T("automatic")))
+			p->ppc_mode = 1;
+		else if (!_tcsicmp(tmpbuf, _T("manual")))
+			p->ppc_mode = 2;
 		return 1;
 	}
 
@@ -4276,7 +4297,9 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 	subst (p->path_rom.path[0], p->a2091romfile, sizeof p->a2091romfile / sizeof (TCHAR));
 	subst (p->path_rom.path[0], p->a2091romfile2, sizeof p->a2091romfile2 / sizeof (TCHAR));
 	subst (p->path_rom.path[0], p->a4091romfile, sizeof p->a4091romfile / sizeof (TCHAR));
-	subst (p->path_rom.path[0], p->a4091romfile2, sizeof p->a4091romfile2 / sizeof (TCHAR));
+	subst (p->path_rom.path[0], p->a4091romfile2, sizeof p->a4091romfile2 / sizeof(TCHAR));
+	subst(p->path_rom.path[0], p->acceleratorromfile, sizeof p->acceleratorromfile / sizeof(TCHAR));
+	subst(p->path_rom.path[0], p->acceleratorextromfile, sizeof p->acceleratorextromfile / sizeof(TCHAR));
 
 	return 1;
 }
@@ -5613,6 +5636,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	_tcscpy (p->a2091romfile2, _T(""));
 	_tcscpy (p->a4091romfile, _T(""));
 	_tcscpy (p->a4091romfile2, _T(""));
+	_tcscpy (p->acceleratorromfile, _T(""));
+	_tcscpy (p->acceleratorextromfile, _T(""));
 	_tcscpy (p->flashfile, _T(""));
 	_tcscpy (p->cartfile, _T(""));
 	_tcscpy (p->rtcfile, _T(""));

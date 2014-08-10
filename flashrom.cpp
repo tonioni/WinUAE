@@ -56,6 +56,14 @@ void flash_free(void *fdv)
 	xfree(fdv);
 }
 
+int flash_size(void *fdv)
+{
+	struct flashrom_data *fd = (struct flashrom_data*)fdv;
+	if (!fd)
+		return 0;
+	return fd->flashsize;
+}
+
 bool flash_active(void *fdv, uaecptr addr)
 {
 	struct flashrom_data *fd = (struct flashrom_data*)fdv;
@@ -67,12 +75,13 @@ bool flash_active(void *fdv, uaecptr addr)
 bool flash_write(void *fdv, uaecptr addr, uae_u8 v)
 {
 	struct flashrom_data *fd = (struct flashrom_data*)fdv;
-	int oldstate = fd->state;
+	int oldstate;
 	uae_u32 addr2;
 
 	if (!fd)
 		return false;
-#if FLASH_LOG
+	oldstate = fd->state;
+#if FLASH_LOG > 1
 	write_log(_T("flash write %08x %02x (%d) PC=%08x\n"), addr, v, fd->state, m68k_getpc());
 #endif
 
@@ -179,7 +188,7 @@ uae_u32 flash_read(void *fdv, uaecptr addr)
 		else
 			v = fd->rom[addr];
 	}
-#if FLASH_LOG
+#if FLASH_LOG > 1
 	write_log(_T("flash read %08x = %02X (%d) PC=%08x\n"), addr, v, fd->state, m68k_getpc());
 #endif
 

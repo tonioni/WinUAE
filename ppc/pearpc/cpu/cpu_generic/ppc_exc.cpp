@@ -25,7 +25,7 @@
  */
 
 #include "tools/snprintf.h"
-#include "debug/tracers.h"
+#include "tracers.h"
 #include "cpu/debug.h"
 #include "info.h"
 #include "ppc_cpu.h"

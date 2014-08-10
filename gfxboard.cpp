@@ -205,6 +205,7 @@ static void init_board (void)
 {
 	int vramsize = board->vrammax;
 
+	mapped_free(&gfxmem_bank);
 	vram_start_offset = 0;
 	if (ISP4() && !p4z2) // JIT direct compatibility hack
 		vram_start_offset = 0x01000000;
@@ -221,6 +222,7 @@ static void init_board (void)
 	vramrealstart = vram;
 	vram += vram_start_offset;
 	gfxmem_bank.baseaddr = vram;
+	gfxmem_bank.allocated = currprefs.rtgmem_size;
 	vga.vga.vram_size_mb = currprefs.rtgmem_size >> 20;
 	vgaioregion.opaque = &vgaioregionptr;
 	vgavramregion.opaque = &vgavramregionptr;

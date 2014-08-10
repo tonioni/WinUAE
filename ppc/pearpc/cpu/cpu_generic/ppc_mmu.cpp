@@ -29,7 +29,7 @@
 #include <cstring>
 #include "system/arch/sysendian.h"
 //#include "tools/snprintf.h"
-#include "debug/tracers.h"
+#include "tracers.h"
 //#include "io/prom/prom.h"
 #include "io/io.h"
 #include "ppc_cpu.h"
@@ -225,12 +225,14 @@ inline int FASTCALL ppc_effective_to_physical(uint32 addr, int flags, uint32 &re
 //					ht_printf("TLB: STORE %d: %08x -> %08x\n", gCPU.tlb_last, addr, pap);
 #endif
 					// update access bits
+					uint32 opte = pte;
 					if (flags & PPC_MMU_WRITE) {
 						pte |= PTE2_C | PTE2_R;
 					} else {
 						pte |= PTE2_R;
 					}
-					ppc_write_physical_word(pteg_addr+4, pte);
+					if (pte != opte)
+						ppc_write_physical_word(pteg_addr+4, pte);
 					return PPC_MMU_OK;
 				}
 			}
@@ -287,12 +289,14 @@ inline int FASTCALL ppc_effective_to_physical(uint32 addr, int flags, uint32 &re
 					result = PTE2_RPN(pte) | offset;
 					
 					// update access bits
+					uint32 opte = pte;
 					if (flags & PPC_MMU_WRITE) {
 						pte |= PTE2_C | PTE2_R;
 					} else {
 						pte |= PTE2_R;
 					}
-					ppc_write_physical_word(pteg_addr+4, pte);
+					if (pte != opte)
+						ppc_write_physical_word(pteg_addr+4, pte);
 //					PPC_MMU_WARN("hash function 2 used!\n");
 //					gSinglestep = true;
 					return PPC_MMU_OK;

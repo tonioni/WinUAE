@@ -408,9 +408,19 @@ static void lsi_stop_script(LSIState *s)
     s->istat1 &= ~LSI_ISTAT1_SRUN;
 }
 
-static void lsi_update_irq(LSIState *s)
+static void do_irq(LSIState *s, int level)
 {
     PCIDevice *d = PCI_DEVICE(s);
+    if (level != s->last_level) {
+        DPRINTF("Update IRQ level %d dstat %02x sist %02x%02x\n",
+                level, s->dstat, s->sist1, s->sist0);
+        s->last_level = level;
+    }
+    pci_set_irq(d, level);
+}
+
+static void lsi_update_irq(LSIState *s)
+{
     int level;
     lsi_request *p;
 
@@ -436,12 +446,7 @@ static void lsi_update_irq(LSIState *s)
     if (s->istat0 & LSI_ISTAT0_INTF)
         level = 1;
 
-    if (level != s->last_level) {
-        DPRINTF("Update IRQ level %d dstat %02x sist %02x%02x\n",
-                level, s->dstat, s->sist1, s->sist0);
-        s->last_level = level;
-    }
-    pci_set_irq(d, level);
+	do_irq(s, level);
 
     if (!level && lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON)) {
         DPRINTF("Handled IRQs & disconnected, looking for pending "
@@ -1492,7 +1497,7 @@ again:
     DPRINTF("SCRIPTS execution stopped\n");
 }
 
-static uint8_t lsi_reg_readb(LSIState *s, int offset)
+static uint8_t lsi_reg_readb2(LSIState *s, int offset)
 {
     uint8_t tmp;
 #define CASE_GET_REG24(name, addr) \
@@ -1506,9 +1511,6 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
     case addr + 2: return (s->name >> 16) & 0xff; \
     case addr + 3: return (s->name >> 24) & 0xff;
 
-#ifdef DEBUG_LSI_REG
-    DPRINTF("Read reg %x\n", offset);
-#endif
     switch (offset) {
     case 0x00: /* SCNTL0 */
         return s->scntl0;
@@ -1667,6 +1669,15 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
 #undef CASE_GET_REG32
 }
 
+static uint8_t lsi_reg_readb(LSIState *s, int offset)
+{
+	uint8_t v = lsi_reg_readb2(s, offset);
+#ifdef DEBUG_LSI_REG
+    DPRINTF("Read reg %02x = %02x\n", offset, v);
+#endif
+	return v;
+}
+
 static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
 {
 #define CASE_SET_REG24(name, addr) \
@@ -1681,7 +1692,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
     case addr + 3: s->name &= 0x00ffffff; s->name |= val << 24; break;
 
 #ifdef DEBUG_LSI_REG
-    DPRINTF("Write reg %x = %02x\n", offset, val);
+    DPRINTF("Write reg %02x = %02x\n", offset, val);
 #endif
     switch (offset) {
     case 0x00: /* SCNTL0 */
@@ -1740,7 +1751,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
     CASE_SET_REG32(dsa, 0x10)
     case 0x14: /* ISTAT0 */
         s->istat0 = (s->istat0 & 0x0f) | (val & 0xf0);
-        if (val & LSI_ISTAT0_ABRT) {
+        if ((val & LSI_ISTAT0_ABRT) && !(val & LSI_ISTAT0_SRST)) {
             lsi_script_dma_interrupt(s, LSI_DSTAT_ABRT);
         }
         if (val & LSI_ISTAT0_INTF) {
@@ -1754,9 +1765,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             lsi_execute_script(s);
         }
         if (val & LSI_ISTAT0_SRST) {
-			if (s->last_level)
-				pci_set_irq(PCI_DEVICE(s), 0);
-			s->last_level = 0;
+			do_irq(s, 0);
 			lsi_soft_reset(s);
             ;//qdev_reset_all(DEVICE(s));
         }

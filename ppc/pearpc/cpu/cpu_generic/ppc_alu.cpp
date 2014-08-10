@@ -18,7 +18,7 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "debug/tracers.h"
+#include "tracers.h"
 #include "cpu/debug.h"
 #include "ppc_alu.h"
 #include "ppc_dec.h"
