@@ -34,6 +34,7 @@
 #include "debug.h"
 #include "calc.h"
 #include "gfxboard.h"
+#include "cpuboard.h"
 #include "luascript.h"
 
 static int config_newfilesystem;
@@ -3725,6 +3726,14 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		decode_rom_ident (p->a4091romident2, sizeof p->a4091romident2 / sizeof (TCHAR), p->a4091romident2, ROMTYPE_A4091BOOT);
 		return 1;
 	}
+	if (cfgfile_string (option, value, _T("cpuboard_rom"), p->acceleratorromident, sizeof p->acceleratorromident / sizeof (TCHAR))) {
+		decode_rom_ident (p->acceleratorromident, sizeof p->acceleratorromident / sizeof (TCHAR), p->acceleratorromident, ROMTYPE_CPUBOARD);
+		return 1;
+	}
+	if (cfgfile_string (option, value, _T("cpuboard_ext_rom"), p->acceleratorextromident, sizeof p->acceleratorextromident / sizeof (TCHAR))) {
+		decode_rom_ident (p->acceleratorextromident, sizeof p->acceleratorextromident / sizeof (TCHAR), p->acceleratorextromident, ROMTYPE_CPUBOARDEXT);
+		return 1;
+	}
 	if (cfgfile_string (option, value, _T("cart"), p->cartident, sizeof p->cartident / sizeof (TCHAR))) {
 		decode_rom_ident (p->cartfile, sizeof p->cartfile / sizeof (TCHAR), p->cartident, ROMTYPE_ALL_CART);
 		return 1;
@@ -6285,6 +6294,58 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_z3autoconfig = true;
 		break;
 	}
+	return 1;
+}
+
+int built_in_cpuboard_prefs(struct uae_prefs *p)
+{
+	int roms[2], roms2[2];
+	
+	roms[0] = -1;
+	roms[1] = -1;
+	roms2[0] = -1;
+	roms2[1] = -1;
+
+	switch(p->cpuboard_type)
+	{
+	case BOARD_BLIZZARD_1230_IV_SCSI:
+		roms2[0] = 94;
+	case BOARD_BLIZZARD_1230_IV:
+		roms[0] = 89;
+		break;
+	case BOARD_BLIZZARD_1260_SCSI:
+		roms2[0] = 94;
+	case BOARD_BLIZZARD_1260:
+		roms[0] = 90;
+		break;
+	case BOARD_BLIZZARD_2060:
+		roms[0] = 92;
+		break;
+	case BOARD_WARPENGINE_A4000:
+		roms[0] = 93;
+		break;
+	case BOARD_CSMK1:
+		roms[0] = p->cpu_model == 68040 ? 95 : 101;
+		break;
+	case BOARD_CSMK2:
+		roms[0] = 96;
+		break;
+	case BOARD_CSMK3:
+		roms[0] = 97;
+		break;
+	case BOARD_CSPPC:
+		roms[0] = 98;
+		break;
+	case BOARD_BLIZZARDPPC:
+		roms[0] = p->cpu_model == 68040 ? 99 : 100;
+		break;
+	}
+	p->acceleratorromfile[0] = 0;
+	p->acceleratorextromfile[0] = 0;
+	if (!configure_rom(p, roms, 0))
+		return 0;
+	if (!configure_rom(p, roms2, 0))
+		return 0;
 	return 1;
 }
 

@@ -75,6 +75,7 @@ extern struct romlist **getromlistbyident (int ver, int rev, int subver, int sub
 extern void getromname (const struct romdata*, TCHAR*);
 extern struct romdata *getromdatabyname (const TCHAR*);
 extern struct romlist *getromlistbyids (const int *ids);
+extern struct romdata *getromlistbyidsallroms (const int *ids);
 extern void romwarning(const int *ids);
 extern struct romlist *getromlistbyromdata (const struct romdata *rd);
 extern void romlist_add (const TCHAR *path, struct romdata *rd);

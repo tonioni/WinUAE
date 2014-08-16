@@ -1648,6 +1648,8 @@ static int cirrus_vga_read_cr(CirrusVGAState * s, unsigned reg_index)
 	return s->vga.cr[s->vga.cr_index];
     case 0x26:			// Attribute Controller Index Readback (R)
 	return s->vga.ar_index & 0x3f;
+	case 0x3f:
+	return 0;			// Miscellaneous video control
 	break;
     default:
 #ifdef DEBUG_CIRRUS

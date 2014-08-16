@@ -116,6 +116,24 @@ void ppc_opc_addcox()
 	// update XER flags
 	PPC_ALU_ERR("addcox unimplemented\n");
 }
+
+/*
+ *	addcox		Add Carrying with Overflow
+ *	.522 ***** TW
+ */
+void ppc_opc_addco()
+{
+	int rD, rA, rB;
+	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
+	uint32 a = gCPU.gpr[rA];
+	gCPU.gpr[rD] = a + gCPU.gpr[rB];
+	if (gCPU.current_opc & PPC_OPC_Rc) {
+		// update cr0 flags
+		ppc_update_cr0(gCPU.gpr[rD]);
+	}
+}
+
+
 /*
  *	addex		Add Extended
  *	.424
@@ -644,6 +662,7 @@ void ppc_opc_divwx()
 	if (!gCPU.gpr[rB]) {
 		PPC_ALU_WARN("division by zero @%08x\n", gCPU.pc);
 		SINGLESTEP("");
+		return;
 	}
 	sint32 a = gCPU.gpr[rA];
 	sint32 b = gCPU.gpr[rB];
@@ -663,6 +682,7 @@ void ppc_opc_divwox()
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
 	if (!gCPU.gpr[rB]) {
 		PPC_ALU_ERR("division by zero\n");
+		return;
 	}
 	sint32 a = gCPU.gpr[rA];
 	sint32 b = gCPU.gpr[rB];
@@ -685,6 +705,7 @@ void ppc_opc_divwux()
 	if (!gCPU.gpr[rB]) {
 		PPC_ALU_WARN("division by zero @%08x\n", gCPU.pc);
 		SINGLESTEP("");
+		return;
 	}
 	gCPU.gpr[rD] = gCPU.gpr[rA] / gCPU.gpr[rB];
 	if (gCPU.current_opc & PPC_OPC_Rc) {
@@ -701,7 +722,8 @@ void ppc_opc_divwuox()
 	int rD, rA, rB;
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
 	if (!gCPU.gpr[rB]) {
-//		PPC_ALU_ERR("division by zero\n");
+		PPC_ALU_ERR("division by zero\n");
+		return;
 	}
 	gCPU.gpr[rD] = gCPU.gpr[rA] / gCPU.gpr[rB];
 	if (gCPU.current_opc & PPC_OPC_Rc) {
@@ -710,6 +732,46 @@ void ppc_opc_divwuox()
 	}
 	// update XER flags
 	PPC_ALU_ERR("divwuox unimplemented\n");
+}
+
+/*
+ *	divwuo		Divide Word Unsigned with Overflow
+ *	.971 ***** TW
+ */
+void ppc_opc_divwuo()
+{
+	int rD, rA, rB;
+	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
+	if (!gCPU.gpr[rB]) {
+		PPC_ALU_ERR("division by zero\n");
+		return;
+	}
+	gCPU.gpr[rD] = gCPU.gpr[rA] / gCPU.gpr[rB];
+	if (gCPU.current_opc & PPC_OPC_Rc) {
+		// update cr0 flags
+		ppc_update_cr0(gCPU.gpr[rD]);
+	}
+}
+
+/*
+ *	divwo		Divide Word with Overflow
+ *	.1003 ***** TW
+ */
+void ppc_opc_divwo()
+{
+	int rD, rA, rB;
+	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
+	if (!gCPU.gpr[rB]) {
+		PPC_ALU_ERR("division by zero\n");
+		return;
+	}
+	sint32 a = gCPU.gpr[rA];
+	sint32 b = gCPU.gpr[rB];
+	gCPU.gpr[rD] = a / b;
+	if (gCPU.current_opc & PPC_OPC_Rc) {
+		// update cr0 flags
+		ppc_update_cr0(gCPU.gpr[rD]);
+	}
 }
 
 /*
@@ -831,6 +893,21 @@ void ppc_opc_mullwx()
 	if (gCPU.current_opc & PPC_OPC_OE) {
 		// update XER flags
 		PPC_ALU_ERR("mullwx unimplemented\n");
+	}
+}
+
+/*
+ *	mullwo		Multiply Low Word with Overflow
+ *	.747 ***** TW
+ */
+void ppc_opc_mullwo()
+{
+	int rD, rA, rB;
+	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
+	gCPU.gpr[rD] = gCPU.gpr[rA] * gCPU.gpr[rB];
+	if (gCPU.current_opc & PPC_OPC_Rc) {
+		// update cr0 flags
+		ppc_update_cr0(gCPU.gpr[rD]);
 	}
 }
 
@@ -1174,6 +1251,24 @@ void ppc_opc_subfcox()
 	// update XER flags
 	PPC_ALU_ERR("subfcox unimplemented\n");
 }
+
+/*
+ *	subfcox		Subtract From Carrying with Overflow
+ *	.520 ***** TW
+ */
+void ppc_opc_subfco()
+{
+	int rD, rA, rB;
+	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
+	uint32 a = gCPU.gpr[rA];
+	uint32 b = gCPU.gpr[rB];
+	gCPU.gpr[rD] = ~a + b + 1;
+	if (gCPU.current_opc & PPC_OPC_Rc) {
+		// update cr0 flags
+		ppc_update_cr0(gCPU.gpr[rD]);
+	}
+}
+
 /*
  *	subfex		Subtract From Extended
  *	.668

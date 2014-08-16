@@ -30,6 +30,7 @@ void ppc_opc_addic_();
 void ppc_opc_addis();
 void ppc_opc_addmex();
 void ppc_opc_addzex();
+void ppc_opc_addco(); // TW
 
 void ppc_opc_andx();
 void ppc_opc_andcx();
@@ -54,6 +55,8 @@ void ppc_opc_crxor();
 
 void ppc_opc_divwx();
 void ppc_opc_divwux();
+void ppc_opc_divwo(); // TW
+void ppc_opc_divwuo(); // TW
 
 void ppc_opc_eqvx();
 
@@ -64,6 +67,7 @@ void ppc_opc_mulhwx();
 void ppc_opc_mulhwux();
 void ppc_opc_mulli();
 void ppc_opc_mullwx();
+void ppc_opc_mullwo(); // TW
 
 void ppc_opc_nandx();
 
@@ -90,6 +94,7 @@ void ppc_opc_subfex();
 void ppc_opc_subfic();
 void ppc_opc_subfmex();
 void ppc_opc_subfzex();
+void ppc_opc_subfco(); // TW
 
 void ppc_opc_xorx();
 void ppc_opc_xori();

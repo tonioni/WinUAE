@@ -72,6 +72,9 @@ static int ppc_pte_protection[] = {
 
 inline int FASTCALL ppc_effective_to_physical(uint32 addr, int flags, uint32 &result)
 {
+	static int lastibatcnt;
+	static int lastdbatcnt;
+
 	if (flags & PPC_MMU_CODE) {
 		if (!(gCPU.msr & MSR_IR)) {
 			result = addr;
@@ -83,22 +86,26 @@ inline int FASTCALL ppc_effective_to_physical(uint32 addr, int flags, uint32 &re
 
 		uint32 batu = (gCPU.msr & MSR_PR ? BATU_Vp : BATU_Vs);		
 
-		for (int i=0; i<4; i++) {
-			uint32 bl17 = gCPU.ibat_bl17[i];
-			uint32 addr2 = addr & (bl17 | 0xf001ffff);
-			if (BATU_BEPI(addr2) == BATU_BEPI(gCPU.ibatu[i])) {
+		for (int ii=0; ii<4; ii++) {
+			int i = lastibatcnt;
+			uint32 bl17 = gCPU.ibat_bl17[i] | 0xf001ffff;
+			uint32 addr2 = addr & bl17;
+			uint32 addr3 = gCPU.ibatu[i] & bl17;
+			if (BATU_BEPI(addr2) == BATU_BEPI(addr3)) {
 				// bat applies to this address
 				if (gCPU.ibatu[i] & batu) {
 					// bat entry valid
 					uint32 offset = BAT_EA_OFFSET(addr);
 					uint32 page = BAT_EA_11(addr);
-					page &= ~bl17;
-					page |= BATL_BRPN(gCPU.ibatl[i]);
+					page &= ~gCPU.ibat_bl17[i];
+					page |= BATL_BRPN(gCPU.ibatl[i] & bl17);
 					// fixme: check access rights
 					result = page | offset;
 					return PPC_MMU_OK;
 				}
 			}
+			lastibatcnt++;
+			lastibatcnt &= 3;
 		}
 	} else {
 		if (!(gCPU.msr & MSR_DR)) {
@@ -111,22 +118,26 @@ inline int FASTCALL ppc_effective_to_physical(uint32 addr, int flags, uint32 &re
 
 		uint32 batu = (gCPU.msr & MSR_PR ? BATU_Vp : BATU_Vs);
 
-		for (int i=0; i<4; i++) {
-			uint32 bl17 = gCPU.dbat_bl17[i];
-			uint32 addr2 = addr & (bl17 | 0xf001ffff);
-			if (BATU_BEPI(addr2) == BATU_BEPI(gCPU.dbatu[i])) {
+		for (int ii=0; ii<4; ii++) {
+			int i = lastdbatcnt;
+			uint32 bl17 = gCPU.dbat_bl17[i] | 0xf001ffff;
+			uint32 addr2 = addr & bl17;
+			uint32 addr3 = gCPU.dbatu[i] & bl17;
+			if (BATU_BEPI(addr2) == BATU_BEPI(addr3)) {
 				// bat applies to this address
 				if (gCPU.dbatu[i] & batu) {
 					// bat entry valid
 					uint32 offset = BAT_EA_OFFSET(addr);
 					uint32 page = BAT_EA_11(addr);
-					page &= ~bl17;
-					page |= BATL_BRPN(gCPU.dbatl[i]);
+					page &= ~gCPU.dbat_bl17[i];
+					page |= BATL_BRPN(gCPU.dbatl[i] & bl17);
 					// fixme: check access rights
 					result = page | offset;
 					return PPC_MMU_OK;
 				}
 			}
+			lastdbatcnt++;
+			lastdbatcnt &= 3;
 		}
 	}
 	

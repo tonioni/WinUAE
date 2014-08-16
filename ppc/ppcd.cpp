@@ -92,6 +92,7 @@ static void ill(void)
 static char * simm(int val, int hex, int s)
 {
     static char out[16];
+	hex = 1;
     if( ((val >= -256) && (val <= 256)) && !hex) sprintf(out, "%i", val);
     else
     {

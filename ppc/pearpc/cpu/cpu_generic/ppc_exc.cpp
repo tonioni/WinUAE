@@ -114,9 +114,11 @@ bool FASTCALL ppc_exception(uint32 type, uint32 flags, uint32 a)
 		return false;
 	}
 	ppc_mmu_tlb_invalidate();
-	if (1 || (gCPU.msr & MSR_IP))
+	// MSR_IP: 0=0x000xxxxx 1=0xfffxxxxx
+	if (gCPU.msr & MSR_IP)
 		type |= 0xfff00000;
-	gCPU.msr = 0;
+	// MSR_IP is not cleared when exception starts (was wrong in original PearPC)
+	gCPU.msr &= MSR_IP;
 	gCPU.npc = type;
 	return true;
 }

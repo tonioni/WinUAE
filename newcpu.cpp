@@ -820,11 +820,11 @@ static void set_x_funcs (void)
 			x_do_cycles_post = do_cycles_post;
 		} else {
 			x_prefetch = NULL;
-			x_get_ilong = get_iilong;
-			x_get_iword = get_iiword;
-			x_get_ibyte = get_iibyte;
-			x_next_iword = next_iiword;
-			x_next_ilong = next_iilong;
+			x_get_ilong = get_dilong;
+			x_get_iword = get_diword;
+			x_get_ibyte = get_dibyte;
+			x_next_iword = next_diword;
+			x_next_ilong = next_dilong;
 			x_put_long = put_long;
 			x_put_word = put_word;
 			x_put_byte = put_byte;
@@ -4404,6 +4404,10 @@ static void m68k_run_2 (void)
 
 	for (;;) {
 		r->instruction_pc = m68k_getpc ();
+
+//		if (r->instruction_pc >= 0x01000000)
+//			activate_debugger();
+
 		uae_u16 opcode = x_get_iword(0);
 		count_instr (opcode);
 
@@ -6005,6 +6009,8 @@ void exception2 (uaecptr addr, bool read, int size, uae_u32 fc)
 
 void exception2_fake (uaecptr addr)
 {
+	if (regs.halted)
+		return;
 	write_log (_T("delayed exception2!\n"));
 	regs.panic_pc = m68k_getpc ();
 	regs.panic_addr = addr;

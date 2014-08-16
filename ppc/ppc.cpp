@@ -33,9 +33,11 @@ static bool ppc_init_done;
 static void uae_ppc_cpu_reset(void)
 {
 	if (!ppc_init_done) {
+		write_log(_T("PPC: Hard reset\n"));
 		ppc_cpu_init(currprefs.cpuboard_type == BOARD_BLIZZARDPPC ? BLIZZPPC_PVR : CSPPC_PVR);
 		ppc_init_done = true;
 	}
+	write_log(_T("PPC: Init\n"));
 	ppc_cpu_set_pc(0, 0xfff00100);
 	ppc_cycle_count = 2000;
 	ppc_state = PPC_STATE_ACTIVE;
@@ -313,6 +315,7 @@ void uae_ppc_cpu_stop(void)
 			uae_ppc_poll_queue();
 		}
 		read_comm_pipe_u32_blocking(&ppcreturn);
+		ppc_state = PPC_STATE_STOP;
 		write_log(_T("PPC stopped.\n"));
 	}
 }

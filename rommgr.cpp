@@ -93,7 +93,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 100
+#define NEXT_ROM_ID 102
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -305,16 +305,20 @@ static struct romdata roms[] = {
 	{ _T("Warp Engine A4000 ROM"), 0, 0, 0, 0, _T("WARPENGINE\0WARPENGINEA4000\0"), 32768, 93, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
 	0x4deb574a, 0x6e6c95ff,0xe8448391,0xd36c5b68,0xc9065cb0,0x702a7d27 },
 
-	{ _T("CyberStorm MK I"), 0, 0, 0, 0, _T("CSMKI\0"), 65536, 95, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
-	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1.rom") },
+	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
+	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },
+	{ _T("CyberStorm MK I 68060"), 0, 0, 0, 0, _T("CSMKI\0"), 65536, 101, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
+	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_060.rom") },
 	{ _T("CyberStorm MK II"), 0, 0, 0, 0, _T("CSMKII\0"), 131072, 96, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk2.rom") },
 	{ _T("CyberStorm MK III"), 0, 0, 0, 0, _T("CSMKIII\0"), 131072, 97, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk3.rom") },
 	{ _T("CyberStorm PPC"), 0, 0, 0, 0, _T("CSPPC\0"), 131072, 98, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormppc.rom") },
-	{ _T("Blizzard PPC"), 0, 0, 0, 0, _T("BPPC\0"), 524288, 99, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
-	  0, 0, 0, 0, 0, 0, NULL, _T("blizzardppc.rom") },
+	{ _T("Blizzard PPC 68040"), 0, 0, 0, 0, _T("BPPC\0"), 524288, 99, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
+	  0, 0, 0, 0, 0, 0, NULL, _T("blizzardppc_040.rom") },
+	{ _T("Blizzard PPC 68060"), 0, 0, 0, 0, _T("BPPC\0"), 524288, 100, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
+	  0, 0, 0, 0, 0, 0, NULL, _T("blizzardppc_060.rom") },
 
 	{ _T("Picasso IV ROM"), 7, 4, 7, 4, _T("PIV\0"), 131072, 91, 0, 0, ROMTYPE_PIV, 0, 0, NULL,
 	0xa8133e7e, 0xcafafb91,0x6f16b9f3,0xec9b49aa,0x4b40eb4e,0xeceb5b5b },
@@ -828,7 +832,7 @@ struct romdata *getfrombydefaultname(const TCHAR *name, int size)
 {
 	int i = 0;
 	while (roms[i].name) {
-		if (notcrc32(roms[i].crc32) && roms[i].size >= size && roms[i].defaultfilename && !_tcsicmp(roms[i].defaultfilename, name)) {
+		if (notcrc32(roms[i].crc32) && size >= roms[i].size && roms[i].defaultfilename && !_tcsicmp(roms[i].defaultfilename, name)) {
 			return &roms[i];
 		}
 		i++;
@@ -966,7 +970,7 @@ struct romdata *getromdatabydata (uae_u8 *rom, int size)
 			ret = checkromdata (sha1, size, ROMTYPE_AR);
 			memcpy (rom, tmp, 4);
 		}
-	}
+	}//9 
 	xfree (tmpbuf);
 	return ret;
 }
@@ -1033,6 +1037,21 @@ struct romlist *getromlistbyids (const int *ids)
 					return &rl[j];
 			}
 		}
+		i++;
+	}
+	return NULL;
+}
+
+struct romdata *getromlistbyidsallroms (const int *ids)
+{
+	struct romdata *rd;
+	int i;
+
+	i = 0;
+	while (ids[i] >= 0) {
+		rd = getromdatabyid (ids[i]);
+		if (rd)
+			return rd;
 		i++;
 	}
 	return NULL;
@@ -1394,6 +1413,8 @@ int configure_rom (struct uae_prefs *p, const int *rom, int msg)
 	TCHAR *path = 0;
 	int i;
 
+	if (rom[0] < 0)
+		return 1;
 	i = 0;
 	while (rom[i] >= 0) {
 		rd = getromdatabyid (rom[i]);
@@ -1417,5 +1438,9 @@ int configure_rom (struct uae_prefs *p, const int *rom, int msg)
 		_tcscpy (p->romextfile, path);
 	if (rd->type & (ROMTYPE_CD32CART | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON | ROMTYPE_XPOWER | ROMTYPE_NORDIC | ROMTYPE_AR | ROMTYPE_SUPERIV))
 		_tcscpy (p->cartfile, path);
+	if (rd->type & ROMTYPE_CPUBOARD)
+		_tcscpy (p->acceleratorromfile, path);
+	if (rd->type & ROMTYPE_CPUBOARDEXT)
+		_tcscpy (p->acceleratorextromfile, path);
 	return 1;
 }

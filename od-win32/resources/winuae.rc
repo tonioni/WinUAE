@@ -258,7 +258,7 @@ BEGIN
     CONTROL         "More compatible [] More compatible but slower FPU emulation.",IDC_COMPATIBLE_FPU,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,259,117,10
     CONTROL         "Unimplemented FPU emu [] Emulate FPU unimplemented instructions",IDC_FPU_UNIMPLEMENTED,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,277,116,10
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,272,116,10
     GROUPBOX        "Advanced JIT Settings",IDC_STATIC,136,188,258,99
     RTEXT           "Cache size:",IDC_STATIC,143,207,66,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_CACHE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,212,201,115,20
@@ -269,7 +269,8 @@ BEGIN
     CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,243,234,68,11
     CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,315,234,72,10
     CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,315,248,72,10
-    CONTROL         "PPC [] Automatically configure CyberStorm PPC or Blizzard PPC setup.",IDC_CPU_PPC,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,169,118,10
+    CONTROL         "PPC [] Automatically configure CyberStorm PPC or Blizzard PPC setup.",IDC_CPU_PPC,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,169,118,10
 END
 
 IDD_FLOPPY DIALOGEX 0, 0, 396, 261
@@ -1370,7 +1371,7 @@ GUIDELINES DESIGNINFO
 BEGIN
     IDD_KICKSTART, DIALOG
     BEGIN
-        BOTTOMMARGIN, 243
+        BOTTOMMARGIN, 275
     END
 
     IDD_DISPLAY, DIALOG

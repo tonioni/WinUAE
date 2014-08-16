@@ -173,7 +173,7 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 				idle = 0;
 				on = 1;
 				if (gui_data.cpu_halted < 0) {
-					on_rgb = 0xcc0000;
+					on_rgb = 0x000000;
 					num1 = 16; // PPC
 					num2 = 16;
 					num3 = 10;

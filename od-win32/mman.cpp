@@ -339,7 +339,7 @@ static int doinit_shm (void)
 	}
 
 	z3offset = 0;
-	if ((changed_prefs.z3fastmem_start == 0x10000000 || changed_prefs.z3fastmem_start == 0x40000000) && !changed_prefs.force_0x10000000_z3) {
+	if ((changed_prefs.z3fastmem_start == 0x10000000 || changed_prefs.z3fastmem_start == 0x40000000) && !changed_prefs.force_0x10000000_z3 && !cpuboard_blizzardram(&changed_prefs)) {
 		if (natmem_size > 0x40000000 && natmem_size - 0x40000000 >= (totalsize - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align)) && changed_prefs.z3chipmem_size <= 512 * 1024 * 1024) {
 			changed_prefs.z3fastmem_start = currprefs.z3fastmem_start = 0x40000000;
 			z3offset += 0x40000000 - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align);

@@ -108,6 +108,7 @@ void uae_ppc_hsync_handler(void)
 }
 
 static uint ops = 0;
+static int ppc_trace;
 
 void ppc_cpu_run_single(int count)
 {
@@ -131,7 +132,8 @@ void ppc_cpu_run_single(int count)
 			gCPU.effective_code_page = gCPU.pc & ~0xfff;
 			continue;
 		}
-		//ht_printf("%08x %04x\n", gCPU.pc, gCPU.current_opc);
+		if (ppc_trace)
+			ht_printf("%08x %04x\n", gCPU.pc, gCPU.current_opc);
 		ppc_exec_opc();
 		ops++;
 		gCPU.ptb++;
@@ -145,7 +147,7 @@ void ppc_cpu_run_single(int count)
 //				uint32 j=0;
 //				ppc_read_effective_word(0xc046b2f8, j);
 
-				ht_printf("@%08x (%u ops) pdec: %08x lr: %08x\n", gCPU.pc, ops, gCPU.pdec, gCPU.lr);
+				//ht_printf("@%08x (%u ops) pdec: %08x lr: %08x\n", gCPU.pc, ops, gCPU.pdec, gCPU.lr);
 #if 0
 				extern uint32 PIC_enable_low;
 				extern uint32 PIC_enable_high;
@@ -293,6 +295,7 @@ uint32	ppc_cpu_get_pvr(int cpu)
 	return gCPU.pvr;
 }
 
+#if 0
 void ppc_cpu_map_framebuffer(uint32 pa, uint32 ea)
 {
 	// use BAT for framebuffer
@@ -300,6 +303,7 @@ void ppc_cpu_map_framebuffer(uint32 pa, uint32 ea)
 	gCPU.dbat_bl17[0] = ~(BATU_BL(gCPU.dbatu[0])<<17);
 	gCPU.dbatl[0] = pa;
 }
+#endif
 
 void ppc_set_singlestep_v(bool v, const char *file, int line, const char *format, ...)
 {
@@ -328,13 +332,13 @@ bool ppc_cpu_init(uint32 pvr)
 	memset(&gCPU, 0, sizeof gCPU);
 	gCPU.pvr = pvr; //gConfig->getConfigInt(CPU_KEY_PVR);
 	gCPU.hid[1] = 0x80000000;
-	gCPU.msr = 1 << MSR_IP;
+	gCPU.msr = MSR_IP;
 	
 	ppc_dec_init();
 	// initialize srs (mostly for prom)
-	for (int i=0; i<16; i++) {
-		gCPU.sr[i] = 0x2aa*i;
-	}
+//	for (int i=0; i<16; i++) {
+//		gCPU.sr[i] = 0x2aa*i;
+//	}
 	sys_create_mutex(&exception_mutex);
 
 	PPC_CPU_WARN("You are using the generic CPU!\n");

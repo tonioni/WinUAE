@@ -696,6 +696,7 @@ extern uae_u32 cfgfile_modify (uae_u32 index, TCHAR *parms, uae_u32 size, TCHAR 
 extern void cfgfile_addcfgparam (TCHAR *);
 extern int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck);
 extern int built_in_chipset_prefs (struct uae_prefs *p);
+extern int built_in_cpuboard_prefs(struct uae_prefs *p);
 extern int cmdlineparser (const TCHAR *s, TCHAR *outp[], int max);
 extern int cfgfile_configuration_change (int);
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);

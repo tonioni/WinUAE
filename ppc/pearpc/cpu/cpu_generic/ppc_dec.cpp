@@ -237,6 +237,13 @@ static void ppc_opc_init_group2()
 	ppc_opc_table_group2[983] = ppc_opc_stfiwx;
 	ppc_opc_table_group2[1014] = ppc_opc_dcbz;
 
+	// missing variants (TW)
+	ppc_opc_table_group2[520] = ppc_opc_subfco;
+	ppc_opc_table_group2[522] = ppc_opc_addco;
+	ppc_opc_table_group2[747] = ppc_opc_mullwo;
+	ppc_opc_table_group2[971] = ppc_opc_divwuo;
+	ppc_opc_table_group2[1003] = ppc_opc_divwo;
+
 	if ((ppc_cpu_get_pvr(0) & 0xffff0000) == 0x000c0000) {
 		/* Added for Altivec support */
 		ppc_opc_table_group2[6] = ppc_opc_lvsl;

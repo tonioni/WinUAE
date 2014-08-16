@@ -276,7 +276,7 @@ void ppc_opc_mcrfs()
 void ppc_opc_mcrxr()
 {
 	gCPU.xer = 0; //no, this is not correct
-	//PPC_OPC_ERR("mcrxr unimplemented.\n");
+	PPC_OPC_ERR("mcrxr unimplemented.\n");
 }
 /*
  *	mfcr		Move from Condition Register

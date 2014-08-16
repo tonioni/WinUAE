@@ -18,9 +18,51 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 11:
+
+- P5_AMIGA_RESET CSMK3/CSPPC/BPPC bit can be only changed if P5_SELF_RESET is cleared first.
+- Never use normal Z3 autoconfig mapping if Blizzard board is emulated to reduce address space
+  conflicts with Blizzard RAM mirror at 0x48000000. Note that this is impossible config, there is no
+  way to have any Z3 boards with BPPC in real world.
+- Blizzard PPC rom name renamed to blizzardppc_060.rom and added blizzardppc_040.rom. 68040 and 68060
+  variants have different (and incompatible) flash rom contents.
+- 68000 + no cycle exact and no "more compatible" used wrong memory access method. (b9)
+- RTD instruction was set as 68000 compatible (should be 68010+). Incorrect since the beginning.
+- Accelerator board ROM select menus didn't select anything.
+- Added full CyberStorm MK1 image ($F00000 ROM code is 68060-only), added another 68040 compatible ROM
+  that simulates boards with boot rom jumper disabled or boot rom chip removed. (Original non-flash based
+  boards had separate ROM chip for boot and diag ROMs and boot was only installed if CPU was 68060)
+- CyberStorm MK1 SCSI works again.
+- Automatically update accelerator board ROM settings when board type is changed in GUI.
+- PPC BAT register handling fixed (Technically not emulation bug but OS bug, PPC documentation says
+  '... BEPI and BRPN fields must have at least as many low-order zeros as there are ones in BL.', BEPI and BRPN
+  needs to be masked with BL instead of trusting software doing as documentation says..)
+- Added missing PearPC divwu, divwuo, addco, subfco PPC instructions. (Variants of already existing
+  instructions).
+
+Last two updates allows AmigaOS 4.1 Classic to boot.
+
+OS4 note: If you enable Z3 RTG board, it must be mapped at real Z3 space (0x40000000+), "JIT Direct compatible
+Z3 memory mapping" must be unticked or you must have large enough host address space (=64-bit Windows). OS4 resets
+the system and autoconfigures all boards, m68k hacks can't work. (NetBSD and Linux work because they read board
+config data from AOS expansion.library before taking over the system)
+
+Next topic:
+
+PearPC CPU emulator is a dead-end. Missing instructions, only partially emulated instructions, no support
+for integer overflows, division by zero, illegal instruction exceptions and so on.. (Which means any buggy or
+badly behaving program can crash the emulator or hang or crash emulated operating system). It did its job, allowed
+easy and quick PPC emulation test. It would not have happened with any other more complex ores.
+
+It seems most compatible PPC CPU emulation is in QEMU. Dolphin only have experimental MMU support which is not
+supported in JIT modes. But QEMU is complex, very complex..
+
+What does this mean? It means all PPC CPU related bugs will be ignored until PPC CPU emulator core is replaced
+(timeframe: unknown. Not going to happen without help.), only exception is bugs that didn't exist in b10.
+
 Beta 10:
 
-- Added CyberStormI/II/II/PPC and Blizzard PPC flash rom images to rom scanner, name based detection only.
+- Added CyberStormI/II/III/PPC and Blizzard PPC flash rom images to rom scanner, name based detection only.
   (Remember to click ROM rescan button) Now opens usual ROM missing dialog when flash rom image can't be opened.
 - Added GUI support for manual accelerator board ROM image selection.
 - NCR53C770 emulation spurious interrupt fix.
