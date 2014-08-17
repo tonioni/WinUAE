@@ -1898,6 +1898,7 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 	type2 = type;
 	if (type == 0 || type == 3) {
 		default_prefs (p, type);
+		write_log(_T("config reset\n"));
 #if 0
 		if (isdefault == 0) {
 			fetch_configurationpath (tmp1, sizeof (tmp1) / sizeof (TCHAR));
@@ -2623,7 +2624,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			}
 			break;
 		case IDC_LOAD:
-			if (target_cfgfile_load (&workprefs, full_path, 0, 0) == 0) {
+			if (target_cfgfile_load (&workprefs, full_path, CONFIG_TYPE_DEFAULT, 0) == 0) {
 				TCHAR szMessage[MAX_DPATH];
 				WIN32GUI_LoadUIString (IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH);
 				pre_gui_message (szMessage);
@@ -16551,7 +16552,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			_tcscpy (prefs->flashfile, file);
 			break;
 		case ZFILE_CONFIGURATION:
-			if (target_cfgfile_load (&workprefs, file, 0, 0)) {
+			if (target_cfgfile_load (&workprefs, file, CONFIG_TYPE_DEFAULT, 0)) {
 				if (full_property_sheet) {
 					inputdevice_updateconfig (NULL, &workprefs);
 					if (!workprefs.start_gui)

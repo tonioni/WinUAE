@@ -157,7 +157,7 @@ static void fixup_prefs_dim2 (struct wh *wh)
 	if (wh->special)
 		return;
 	if (wh->width < 160) {
-		error_log (_T("Width (%d) must be at least 128."), wh->width);
+		error_log (_T("Width (%d) must be at least 160."), wh->width);
 		wh->width = 160;
 	}
 	if (wh->height < 128) {
@@ -786,6 +786,7 @@ static TCHAR *parsetextpath (const TCHAR *s)
 static void parse_cmdline (int argc, TCHAR **argv)
 {
 	int i;
+	bool firstconfig = true;
 
 	for (i = 1; i < argc; i++) {
 		if (!_tcsncmp (argv[i], _T("-diskswapper="), 13)) {
@@ -800,8 +801,9 @@ static void parse_cmdline (int argc, TCHAR **argv)
 		} else if (_tcsncmp (argv[i], _T("-config="), 8) == 0) {
 			TCHAR *txt = parsetextpath (argv[i] + 8);
 			currprefs.mountitems = 0;
-			target_cfgfile_load (&currprefs, txt, -1, 0);
+			target_cfgfile_load (&currprefs, txt, firstconfig ? CONFIG_TYPE_ALL : CONFIG_TYPE_HARDWARE | CONFIG_TYPE_HOST | CONFIG_TYPE_NORESET, 0);
 			xfree (txt);
+			firstconfig = false;
 		} else if (_tcsncmp (argv[i], _T("-statefile="), 11) == 0) {
 			TCHAR *txt = parsetextpath (argv[i] + 11);
 			savestate_state = STATE_DORESTORE;
@@ -814,8 +816,9 @@ static void parse_cmdline (int argc, TCHAR **argv)
 			} else {
 				TCHAR *txt = parsetextpath (argv[++i]);
 				currprefs.mountitems = 0;
-				target_cfgfile_load (&currprefs, txt, -1, 0);
+				target_cfgfile_load (&currprefs, txt, firstconfig ? CONFIG_TYPE_ALL : CONFIG_TYPE_HARDWARE | CONFIG_TYPE_HOST | CONFIG_TYPE_NORESET, 0);
 				xfree (txt);
+				firstconfig = false;
 			}
 		} else if (_tcscmp (argv[i], _T("-s")) == 0) {
 			if (i + 1 == argc)
@@ -868,12 +871,12 @@ static void parse_cmdline_and_init_file (int argc, TCHAR **argv)
 
 	_tcscat (optionsfile, restart_config);
 
-	if (! target_cfgfile_load (&currprefs, optionsfile, 0, default_config)) {
+	if (! target_cfgfile_load (&currprefs, optionsfile, CONFIG_TYPE_DEFAULT, default_config)) {
 		write_log (_T("failed to load config '%s'\n"), optionsfile);
 #ifdef OPTIONS_IN_HOME
 		/* sam: if not found in $HOME then look in current directory */
 		_tcscpy (optionsfile, restart_config);
-		target_cfgfile_load (&currprefs, optionsfile, 0, default_config);
+		target_cfgfile_load (&currprefs, optionsfile, CONFIG_TYPE_DEFAULT, default_config);
 #endif
 	}
 	fixup_prefs (&currprefs);

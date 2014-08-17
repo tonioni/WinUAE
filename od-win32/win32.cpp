@@ -1519,20 +1519,21 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 					{
 						LPNMMOUSE lpnm = (LPNMMOUSE) lParam;
 						int num = (int)lpnm->dwItemSpec;
-						if (num >= 7 && num <= 10) { // DF0-DF3
-							num -= 7;
+						int df0 = 8;
+						if (num >= df0 && num <= df0 + 3) { // DF0-DF3
+							num -= df0;
 							if (nm->code == NM_RCLICK) {
 								disk_eject (num);
 							} else if (changed_prefs.floppyslots[num].dfxtype >= 0) {
 								DiskSelection (hWnd, IDC_DF0 + num, 0, &changed_prefs, 0);
 								disk_insert (num, changed_prefs.floppyslots[num].df);
 							}
-						} else if (num == 4) {
+						} else if (num == 5) {
 							if (nm->code == NM_CLICK) // POWER
 								inputdevice_add_inputcode (AKS_ENTERGUI, 1);
 							else
 								uae_reset (0, 1);
-						} else if (num == 3) {
+						} else if (num == 4) {
 							if (pause_emulation) {
 								resumepaused (9);
 								setmouseactive (1);

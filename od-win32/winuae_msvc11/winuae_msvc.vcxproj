@@ -754,11 +754,16 @@
     <ClCompile Include="..\..\archivers\chd\chd.cpp" />
     <ClCompile Include="..\..\archivers\chd\chdcdrom.cpp" />
     <ClCompile Include="..\..\archivers\chd\chdcodec.cpp" />
+    <ClCompile Include="..\..\archivers\chd\chdglue.cpp" />
+    <ClCompile Include="..\..\archivers\chd\corealloc.cpp" />
     <ClCompile Include="..\..\archivers\chd\flac.cpp" />
+    <ClCompile Include="..\..\archivers\chd\harddisk.cpp" />
     <ClCompile Include="..\..\archivers\chd\hashing.cpp" />
     <ClCompile Include="..\..\archivers\chd\huffman.cpp" />
     <ClCompile Include="..\..\archivers\chd\md5.cpp" />
     <ClCompile Include="..\..\archivers\chd\sha1.cpp" />
+    <ClCompile Include="..\..\archivers\chd\windows\wintime.cpp" />
+    <ClCompile Include="..\..\archivers\chd\windows\winwork.cpp" />
     <ClCompile Include="..\..\archivers\dms\crc_csum.cpp" />
     <ClCompile Include="..\..\archivers\dms\getbits.cpp" />
     <ClCompile Include="..\..\archivers\dms\maketbl.cpp" />

@@ -359,7 +359,7 @@ static int doinit_shm (void)
 		p96base_offset = getz2rtgaddr (changed_prefs.rtgmem_size);
 	}
 	if (p96base_offset) {
-		if (changed_prefs.jit_direct_compatible_memory) {
+		if (expamem_z3hack(&changed_prefs)) {
 			p96mem_offset = natmem_offset + p96base_offset;
 		} else {
 			// calculate Z3 alignment (argh, I thought only Z2 needed this..)

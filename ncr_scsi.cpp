@@ -475,7 +475,7 @@ static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
 		{
 			case 0x44:
 			// yes, this could be much better..
-			if (currprefs.jit_direct_compatible_memory) {
+			if (expamem_z3hack(&currprefs)) {
 				if (ncr == &ncr_we) {
 					// warp engine needs to be first
 					value = 0x10000000;

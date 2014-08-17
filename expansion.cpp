@@ -177,6 +177,11 @@ static uae_u8 expamem[65536];
 static uae_u8 expamem_lo;
 static uae_u16 expamem_hi;
 
+bool expamem_z3hack(struct uae_prefs *p)
+{
+	return p->jit_direct_compatible_memory || cpuboard_blizzardram(p);
+}
+
 /* Ugly hack for >2M chip RAM in single pool
  * We can't add it any later or early boot menu
  * stops working because it sets kicktag at the end
@@ -403,7 +408,7 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 		switch (addr & 0xff) {
 		case 0x44:
 			if (expamem_type () == zorroIII) {
-				if (currprefs.jit_direct_compatible_memory) {
+				if (expamem_z3hack(&currprefs)) {
 					uae_u32 p2 = value;
 					// +Bernd Roesch & Toni Wilen
 					if ((card_flags[ecard] & 2) && (expamem[0] & add_memory)) {
@@ -1019,7 +1024,7 @@ static void expamem_map_z3fastmem_2 (addrbank *bank, uaecptr *startp, uae_u32 si
 	int z3fs = ((expamem_hi | (expamem_lo >> 4)) << 16);
 	int start = *startp;
 
-	if (currprefs.jit_direct_compatible_memory) {
+	if (expamem_z3hack(&currprefs)) {
 		if (z3fs && start != z3fs) {
 			write_log (_T("WARNING: Z3MEM mapping changed from $%08x to $%08x\n"), start, z3fs);
 			map_banks (&dummy_bank, start >> 16, size >> 16, allocated);
@@ -1211,7 +1216,7 @@ uaecptr expansion_startaddress(uaecptr addr, uae_u32 size)
 		return addr;
 	if (size < 16 * 1024 * 1024)
 		size = 16 * 1024 * 1024;
-	if (!currprefs.jit_direct_compatible_memory)
+	if (!expamem_z3hack(&currprefs))
 		return (addr + size - 1) & ~(size - 1);
 	return addr;
 }
@@ -1230,7 +1235,7 @@ static void allocate_expamem (void)
 	z3fastmem_bank.start = currprefs.z3fastmem_start;
 	if (currprefs.mbresmem_high_size == 128 * 1024 * 1024)
 		z3chipmem_bank.start += 16 * 1024 * 1024;
-	if (!currprefs.jit_direct_compatible_memory)
+	if (!expamem_z3hack(&currprefs))
 		z3fastmem_bank.start = 0x40000000;
 	if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
 		z3fastmem_bank.start += 0x01000000;
@@ -1624,14 +1629,14 @@ void expamem_reset (void)
 		card_name[cardno] = _T("Z3Fast");
 		card_init[cardno] = expamem_init_z3fastmem;
 		card_map[cardno++] = expamem_map_z3fastmem;
-		if (currprefs.jit_direct_compatible_memory)
+		if (expamem_z3hack(&currprefs))
 			map_banks (&z3fastmem_bank, z3fastmem_bank.start >> 16, currprefs.z3fastmem_size >> 16, z3fastmem_bank.allocated);
 		if (z3fastmem2_bank.baseaddr != NULL) {
 			card_flags[cardno] = 2 | 1;
 			card_name[cardno] = _T("Z3Fast2");
 			card_init[cardno] = expamem_init_z3fastmem2;
 			card_map[cardno++] = expamem_map_z3fastmem2;
-			if (currprefs.jit_direct_compatible_memory)
+			if (expamem_z3hack(&currprefs))
 				map_banks (&z3fastmem2_bank, z3fastmem2_bank.start >> 16, currprefs.z3fastmem2_size >> 16, z3fastmem2_bank.allocated);
 		}
 	}

@@ -144,11 +144,27 @@ static struct cdtoc *findtoc (struct cdunit *cdu, int *sectorp, bool data)
 	return NULL;
 }
 
-static int do_read (struct cdunit *cdu, struct cdtoc *t, uae_u8 *data, int sector, int offset, int size)
+static int do_read (struct cdunit *cdu, struct cdtoc *t, uae_u8 *data, int sector, int offset, int size, bool audio)
 {
 	if (t->enctype == ENC_CHD) {
 #ifdef WITH_CHD
-		return read_partial_sector(cdu->chd_cdf, data, sector + t->offset, 0, offset, size) == CHDERR_NONE;
+		int type = CD_TRACK_MODE1_RAW;
+		switch (size)
+		{
+			default:
+			case 2352:
+			type = CD_TRACK_MODE1_RAW;
+			break;
+			case 2336:
+			type = CD_TRACK_MODE2;
+			break;
+			case 2048:
+			type = CD_TRACK_MODE1;
+			break;
+		}
+		if (audio && size == 2352)
+			type = CD_TRACK_AUDIO;
+		return cdrom_read_data(cdu->chd_cdf, sector + t->offset, data, type, true) != 0;
 #endif
 	} else if (t->handle) {
 		int ssize = t->size + t->skipsize;
@@ -280,8 +296,7 @@ static int getsub_deinterleaved (uae_u8 *dst, struct cdunit *cdu, struct cdtoc *
 		if (t->enctype == ENC_CHD) {
 #ifdef WITH_CHD
 			const cdrom_track_info *cti = t->chdtrack;
-			ret = do_read (cdu, t, dst, sector, cti->datasize, cti->subsize);
-			if (ret)
+			if (cdrom_read_subcode(cdu->chd_cdf, sector, dst, false))
 				ret = t->subcode;
 #endif
 		} else if (t->subhandle) {
@@ -551,7 +566,7 @@ static void *cdda_play_func (void *v)
 					if (!(t->ctrl & 4)) {
 						if (t->enctype == ENC_CHD) {
 #ifdef WITH_CHD
-							do_read (cdu, t, dst, sector, 0, t->size);
+							do_read (cdu, t, dst, sector, 0, t->size, true);
 							for (int i = 0; i < 2352; i+=2) {
 								uae_u8 p;
 								p = dst[i + 0];
@@ -805,7 +820,7 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 				data[13] = tobcd((uae_u8)((address / 75) % 60));
 				data[14] = tobcd((uae_u8)(address % 75));
 				data[15] = 2; /* MODE2 */
-				do_read(cdu, t, data + 16, sector, 0, t->size);
+				do_read(cdu, t, data + 16, sector, 0, t->size, false);
 				sector++;
 				asector++;
 				data += sectorsize;
@@ -815,7 +830,7 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 			// 2048 -> 2352
 			while (size-- > 0) {
 				memset (data, 0, 16);
-				do_read (cdu, t, data + 16, sector, 0, 2048);
+				do_read (cdu, t, data + 16, sector, 0, 2048, false);
 				encode_l2 (data, sector + 150);
 				sector++;
 				asector++;
@@ -826,8 +841,8 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 			// 2352 -> 2048
 			while (size-- > 0) {
 				uae_u8 b = 0;
-				do_read (cdu, t, &b, sector, 15, 1);
-				do_read (cdu, t, data, sector, b == 2 ? 24 : 16, sectorsize);
+				do_read (cdu, t, &b, sector, 15, 1, false);
+				do_read (cdu, t, data, sector, b == 2 ? 24 : 16, sectorsize, false);
 				sector++;
 				asector++;
 				data += sectorsize;
@@ -837,10 +852,10 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 			// 2352 -> 2336
 			while (size-- > 0) {
 				uae_u8 b = 0;
-				do_read (cdu, t, &b, sector, 15, 1);
+				do_read (cdu, t, &b, sector, 15, 1, false);
 				if (b != 2 && b != 0) // MODE0 or MODE2 only allowed
 					return 0;
-				do_read (cdu, t, data, sector, 16, sectorsize);
+				do_read (cdu, t, data, sector, 16, sectorsize, false);
 				sector++;
 				asector++;
 				data += sectorsize;
@@ -849,7 +864,7 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 		} else if (sectorsize == t->size) {
 			// no change
 			while (size -- > 0) {
-				do_read (cdu, t, data, sector, 0, sectorsize);
+				do_read (cdu, t, data, sector, 0, sectorsize, false);
 				sector++;
 				asector++;
 				data += sectorsize;
@@ -882,7 +897,7 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 			goto end;
 		}
 		for (int i = 0; i < size; i++) {
-			do_read (cdu, t, data, sector, 0, t->size);
+			do_read (cdu, t, data, sector, 0, t->size, true);
 			uae_u8 *p = data + t->size;
 			if (subs) {
 				uae_u8 subdata[SUB_CHANNEL_SIZE];
@@ -919,7 +934,7 @@ static int command_read (int unitnum, uae_u8 *data, int sector, int numsectors)
 	cdda_stop (cdu);
 	if (t->size == 2048) {
 		while (numsectors-- > 0) {
-			do_read (cdu, t, data, sector, 0, 2048);
+			do_read (cdu, t, data, sector, 0, 2048, false);
 			data += 2048;
 			sector++;
 		}
@@ -927,11 +942,11 @@ static int command_read (int unitnum, uae_u8 *data, int sector, int numsectors)
 		while (numsectors-- > 0) {
 			if (t->size == 2352) {
 				uae_u8 b = 0;
-				do_read (cdu, t, &b, sector, 15, 1);
+				do_read (cdu, t, &b, sector, 15, 1, false);
 				// 2 = MODE2
-				do_read (cdu, t, data, sector, b == 2 ? 24 : 16, 2048);
+				do_read (cdu, t, data, sector, b == 2 ? 24 : 16, 2048, false);
 			} else {
-				do_read (cdu, t, data, sector, 16, 2048);
+				do_read (cdu, t, data, sector, 16, 2048, false);
 			}
 			data += 2048;
 			sector++;
@@ -1225,7 +1240,7 @@ static int parsechd (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 	if (!f)
 		return 0;
 	chd_file *cf = new chd_file();
-	err = cf->open(f, false, NULL);
+	err = cf->open(*f, false, NULL);
 	if (err != CHDERR_NONE) {
 		write_log (_T("CHD '%s' err=%d\n"), zfile_getname (zcue), err);
 		zfile_fclose (f);
@@ -1732,15 +1747,18 @@ static int parse_image (struct cdunit *cdu, const TCHAR *img)
 		if (p > curdir)
 			my_setcurrentdir (curdir, oldcurdir);
 
-		if (!_tcsicmp (ext, _T("cue")))
+		if (!_tcsicmp (ext, _T("cue"))) {
 			parsecue (cdu, zcue, img);
-		else if (!_tcsicmp (ext, _T("ccd")))
+		} else if (!_tcsicmp (ext, _T("ccd"))) {
 			parseccd (cdu, zcue, img);
-		else if (!_tcsicmp (ext, _T("mds")))
+		} else if (!_tcsicmp (ext, _T("mds"))) {
 			parsemds (cdu, zcue, img);
 #ifdef WITH_CHD
-		else if (!_tcsicmp (ext, _T("chd")))
+		} else if (!_tcsicmp (ext, _T("chd"))) {
+			if (oldcurdir[0])
+				my_setcurrentdir (oldcurdir, NULL);
 			parsechd (cdu, zcue, img);
+		}
 #endif
 
 		if (oldcurdir[0])

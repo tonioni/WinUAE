@@ -18,6 +18,19 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 12:
+
+- Windowed mode status bar button mouse click off-by-one fix.
+- If command line has more than one -f/-config= parameters, config will be now reset to built-in defaults
+  only once, before first config file is loaded.
+- Updated CHD support, uncompressed CHD write support added, can be mounted as read-write hardfile.
+  (CD subchannel support may or may not work, there does not appear to be easy way to convert ccd/sub/img
+  combination to chd)
+- CSPPC/BPPC IPL_EMU register's M68K_IPL bits only change when PPC is interrupt master.
+- b11 Blizzard accelerator Z3 autoconfig hack didn't work correctly.
+- BlizzardPPC flash mapping fixed (b11)
+- 68000 mode, without CE and more compatible, RTE instruction didn't check for odd program counter.
+
 Beta 11:
 
 - P5_AMIGA_RESET CSMK3/CSPPC/BPPC bit can be only changed if P5_SELF_RESET is cleared first.
@@ -52,13 +65,13 @@ Next topic:
 PearPC CPU emulator is a dead-end. Missing instructions, only partially emulated instructions, no support
 for integer overflows, division by zero, illegal instruction exceptions and so on.. (Which means any buggy or
 badly behaving program can crash the emulator or hang or crash emulated operating system). It did its job, allowed
-easy and quick PPC emulation test. It would not have happened with any other more complex ores.
+easy and quick PPC emulation test. It would not have happened with any other more complex cores.
 
 It seems most compatible PPC CPU emulation is in QEMU. Dolphin only have experimental MMU support which is not
 supported in JIT modes. But QEMU is complex, very complex..
 
 What does this mean? It means all PPC CPU related bugs will be ignored until PPC CPU emulator core is replaced
-(timeframe: unknown. Not going to happen without help.), only exception is bugs that didn't exist in b10.
+(timeframe: unknown.), only exception is bugs that didn't exist in b10.
 
 Beta 10:
 

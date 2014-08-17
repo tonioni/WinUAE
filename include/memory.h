@@ -331,6 +331,7 @@ extern void rtarea_setup (void);
 extern void expamem_init (void);
 extern void expamem_reset (void);
 extern void expamem_next (void);
+extern bool expamem_z3hack(struct uae_prefs*);
 
 extern uae_u32 last_custom_value1;
 

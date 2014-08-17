@@ -850,6 +850,10 @@ static uae_u32 REGPARAM2 blizzardio_bget(uaecptr addr)
 				v |= 0x08;
 			} else if (reg == CSIII_REG_RESET) {
 				v &= 0x1f;
+			} else if (reg == CSIII_REG_IPL_EMU) {
+				// PPC not master: m68k IPL = all ones
+				if (io_reg[CSIII_REG_INT] & P5_INT_MASTER)
+					v |= P5_M68k_IPL_MASK;
 			}
 #if CPUBOARD_IO_LOG > 0
 			if (reg != CSIII_REG_IRQ || CPUBOARD_IO_LOG > 2)
@@ -1727,7 +1731,7 @@ addrbank *cpuboard_autoconfig_init(void)
 	zfile_fclose(autoconfig_rom);
 
 	if (f0rom_size)
-		map_banks(&blizzardf0_bank, 0xf00000 >> 16, f0rom_size >> 16, 0);
+		map_banks(&blizzardf0_bank, 0xf00000 >> 16, (f0rom_size > 262144 ? 262144 : f0rom_size) >> 16, 0);
 	if (!autoconf)
 		return &expamem_null;
 	return &blizzarde8_bank;

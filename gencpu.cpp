@@ -3541,6 +3541,10 @@ static void gen_opcode (unsigned int opcode)
 			genamode (NULL, Aipi, "7", sz_word, "sr", 1, 0, GF_NOREFILL);
 			genamode (NULL, Aipi, "7", sz_long, "pc", 1, 0, GF_NOREFILL);
 			printf ("\tregs.sr = sr;\n");
+			printf ("\tif (pc & 1) {\n");
+			printf ("\t\texception3i (0x%04X, pc);\n", opcode);
+			printf ("\t\tgoto %s;\n", endlabelstr);
+			printf ("\t}\n");
 			setpc ("pc");
 			makefromsr ();
 		} else if (cpu_level == 1 && using_prefetch) {
@@ -3633,10 +3637,6 @@ static void gen_opcode (unsigned int opcode)
 			genamode (NULL, Aipi, "7", sz_long, "pc", 1, 0, 0);
 			genamode (curi, curi->smode, "srcreg", curi->size, "offs", 1, 0, 0);
 			printf ("\tm68k_areg (regs, 7) += offs;\n");
-			printf ("\tif (pc & 1) {\n");
-			printf ("\t\texception3i (0x%04X, pc);\n", opcode);
-			printf ("\t\tgoto %s;\n", endlabelstr);
-			printf ("\t}\n");
 		}
 	    printf ("\tif (pc & 1) {\n");
 	    printf ("\t\texception3i (0x%04X, pc);\n", opcode);
