@@ -1,41 +1,11 @@
 #include "chdtypes.h"
-
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     flac.c
 
     FLAC compression wrappers
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -65,7 +35,7 @@ flac_encoder::flac_encoder(void *buffer, UINT32 buflength)
 }
 
 
-flac_encoder::flac_encoder(struct zfile *file)
+flac_encoder::flac_encoder(core_file &file)
 {
 	init_common();
 	reset(file);
@@ -130,12 +100,12 @@ bool flac_encoder::reset(void *buffer, UINT32 buflength)
 //  reset - reset state with new file parameters
 //-------------------------------------------------
 
-bool flac_encoder::reset(struct zfile *file)
+bool flac_encoder::reset(core_file &file)
 {
 	// configure the output
 	m_compressed_start = NULL;
 	m_compressed_length = 0;
-	m_file = file;
+	m_file = &file;
 	return reset();
 }
 
@@ -215,7 +185,7 @@ UINT32 flac_encoder::finish()
 {
 	// process the data and return the amount written
 	FLAC__stream_encoder_finish(m_encoder);
-	return (m_file != NULL) ? zfile_ftell(m_file) : m_compressed_offset;
+	return (m_file != NULL) ? core_ftell(m_file) : m_compressed_offset;
 }
 
 
@@ -282,7 +252,7 @@ FLAC__StreamEncoderWriteStatus flac_encoder::write_callback(const FLAC__byte buf
 		{
 			int count = bytes - offset;
 			if (m_file != NULL)
-				zfile_fwrite(buffer, count, 1, m_file);
+				core_fwrite(m_file, buffer, count);
 			else
 			{
 				if (m_compressed_offset + count <= m_compressed_length)
@@ -296,7 +266,6 @@ FLAC__StreamEncoderWriteStatus flac_encoder::write_callback(const FLAC__byte buf
 }
 
 
-
 //**************************************************************************
 //  FLAC DECODER
 //**************************************************************************
@@ -307,12 +276,12 @@ FLAC__StreamEncoderWriteStatus flac_encoder::write_callback(const FLAC__byte buf
 
 flac_decoder::flac_decoder()
 	: m_decoder(FLAC__stream_decoder_new()),
-	  m_file(NULL),
-	  m_compressed_offset(0),
-	  m_compressed_start(NULL),
-	  m_compressed_length(0),
-	  m_compressed2_start(NULL),
-	  m_compressed2_length(0)
+		m_file(NULL),
+		m_compressed_offset(0),
+		m_compressed_start(NULL),
+		m_compressed_length(0),
+		m_compressed2_start(NULL),
+		m_compressed2_length(0)
 {
 }
 
@@ -323,12 +292,12 @@ flac_decoder::flac_decoder()
 
 flac_decoder::flac_decoder(const void *buffer, UINT32 length, const void *buffer2, UINT32 length2)
 	: m_decoder(FLAC__stream_decoder_new()),
-	  m_file(NULL),
-	  m_compressed_offset(0),
-	  m_compressed_start(reinterpret_cast<const FLAC__byte *>(buffer)),
-	  m_compressed_length(length),
-	  m_compressed2_start(reinterpret_cast<const FLAC__byte *>(buffer2)),
-	  m_compressed2_length(length2)
+		m_file(NULL),
+		m_compressed_offset(0),
+		m_compressed_start(reinterpret_cast<const FLAC__byte *>(buffer)),
+		m_compressed_length(length),
+		m_compressed2_start(reinterpret_cast<const FLAC__byte *>(buffer2)),
+		m_compressed2_length(length2)
 {
 	reset();
 }
@@ -338,14 +307,14 @@ flac_decoder::flac_decoder(const void *buffer, UINT32 length, const void *buffer
 //  flac_decoder - constructor
 //-------------------------------------------------
 
-flac_decoder::flac_decoder(struct zfile *file)
+flac_decoder::flac_decoder(core_file &file)
 	: m_decoder(FLAC__stream_decoder_new()),
-	  m_file(file),
-	  m_compressed_offset(0),
-	  m_compressed_start(NULL),
-	  m_compressed_length(0),
-	  m_compressed2_start(NULL),
-	  m_compressed2_length(0)
+		m_file(&file),
+		m_compressed_offset(0),
+		m_compressed_start(NULL),
+		m_compressed_length(0),
+		m_compressed2_start(NULL),
+		m_compressed2_length(0)
 {
 	reset();
 }
@@ -379,7 +348,7 @@ bool flac_decoder::reset()
 				&flac_decoder::metadata_callback_static,
 				&flac_decoder::error_callback_static, this) != FLAC__STREAM_DECODER_INIT_STATUS_OK)
 		return false;
-	return FLAC__stream_decoder_process_until_end_of_metadata(m_decoder) != 0;
+	return FLAC__stream_decoder_process_until_end_of_metadata(m_decoder);
 }
 
 
@@ -408,19 +377,19 @@ bool flac_decoder::reset(UINT32 sample_rate, UINT8 num_channels, UINT32 block_si
 	// modify the template header with our parameters
 	static const UINT8 s_header_template[0x2a] =
 	{
-		0x66, 0x4C, 0x61, 0x43, 						// +00: 'fLaC' stream header
-		0x80,											// +04: metadata block type 0 (STREAMINFO),
+		0x66, 0x4C, 0x61, 0x43,                         // +00: 'fLaC' stream header
+		0x80,                                           // +04: metadata block type 0 (STREAMINFO),
 														//      flagged as last block
-		0x00, 0x00, 0x22,								// +05: metadata block length = 0x22
-		0x00, 0x00, 									// +08: minimum block size
-		0x00, 0x00,										// +0A: maximum block size
-		0x00, 0x00, 0x00,								// +0C: minimum frame size (0 == unknown)
-		0x00, 0x00, 0x00,								// +0F: maximum frame size (0 == unknown)
+		0x00, 0x00, 0x22,                               // +05: metadata block length = 0x22
+		0x00, 0x00,                                     // +08: minimum block size
+		0x00, 0x00,                                     // +0A: maximum block size
+		0x00, 0x00, 0x00,                               // +0C: minimum frame size (0 == unknown)
+		0x00, 0x00, 0x00,                               // +0F: maximum frame size (0 == unknown)
 		0x0A, 0xC4, 0x42, 0xF0, 0x00, 0x00, 0x00, 0x00, // +12: sample rate (0x0ac44 == 44100),
 														//      numchannels (2), sample bits (16),
 														//      samples in stream (0 == unknown)
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // +1A: MD5 signature (0 == none)
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00	//
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  //
 														// +2A: start of stream data
 	};
 	memcpy(m_custom_header, s_header_template, sizeof(s_header_template));
@@ -444,9 +413,9 @@ bool flac_decoder::reset(UINT32 sample_rate, UINT8 num_channels, UINT32 block_si
 //  reset - reset state with new file parameter
 //-------------------------------------------------
 
-bool flac_decoder::reset(struct zfile *file)
+bool flac_decoder::reset(core_file &file)
 {
-	m_file = file;
+	m_file = &file;
 	m_compressed_start = NULL;
 	m_compressed_length = 0;
 	m_compressed2_start = NULL;
@@ -541,7 +510,7 @@ FLAC__StreamDecoderReadStatus flac_decoder::read_callback(FLAC__byte buffer[], s
 
 	// if a file, just read
 	if (m_file != NULL)
-		*bytes = zfile_fread(buffer, 1, expected, m_file);
+		*bytes = core_fread(m_file, buffer, expected);
 
 	// otherwise, copy from memory
 	else

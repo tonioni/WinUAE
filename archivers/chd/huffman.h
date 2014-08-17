@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     huffman.h
 
     Static Huffman compression and decompression helpers.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -78,11 +49,11 @@ protected:
 	// a node in the huffman tree
 	struct node_t
 	{
-		node_t *			m_parent;				// pointer to parent node
-		UINT32				m_count;				// number of hits on this node
-		UINT32				m_weight;				// assigned weight of this node
-		UINT32				m_bits;					// bits used to encode the node
-		UINT8				m_numbits;				// number of bits needed for this node
+		node_t *            m_parent;               // pointer to parent node
+		UINT32              m_count;                // number of hits on this node
+		UINT32              m_weight;               // assigned weight of this node
+		UINT32              m_bits;                 // bits used to encode the node
+		UINT8               m_numbits;              // number of bits needed for this node
 	};
 
 	// construction/destruction
@@ -108,13 +79,13 @@ protected:
 
 protected:
 	// internal state
-	UINT32					m_numcodes;				// number of total codes being processed
-	UINT8					m_maxbits;				// maximum bits per code
-	UINT8					m_prevdata;				// value of the previous data (for delta-RLE encoding)
-	int						m_rleremaining;			// number of RLE bytes remaining (for delta-RLE encoding)
-	lookup_value *			m_lookup;				// pointer to the lookup table
-	UINT32 *				m_datahisto;			// histogram of data values
-	node_t *				m_huffnode;				// array of nodes
+	UINT32                  m_numcodes;             // number of total codes being processed
+	UINT8                   m_maxbits;              // maximum bits per code
+	UINT8                   m_prevdata;             // value of the previous data (for delta-RLE encoding)
+	int                     m_rleremaining;         // number of RLE bytes remaining (for delta-RLE encoding)
+	lookup_value *          m_lookup;               // pointer to the lookup table
+	UINT32 *                m_datahisto;            // histogram of data values
+	node_t *                m_huffnode;             // array of nodes
 };
 
 
@@ -141,8 +112,8 @@ public:
 
 private:
 	// array versions of the info we need
-	UINT32					m_datahisto_array[_NumCodes];
-	node_t					m_huffnode_array[_NumCodes * 2];
+	UINT32                  m_datahisto_array[_NumCodes];
+	node_t                  m_huffnode_array[_NumCodes * 2];
 };
 
 
@@ -166,8 +137,8 @@ public:
 
 private:
 	// array versions of the info we need
-	node_t					m_huffnode_array[_NumCodes];
-	lookup_value			m_lookup_array[1 << _MaxBits];
+	node_t                  m_huffnode_array[_NumCodes];
+	lookup_value            m_lookup_array[1 << _MaxBits];
 };
 
 

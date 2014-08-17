@@ -1,42 +1,11 @@
-
 #include "chdtypes.h"
-
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     huffman.c
 
     Static Huffman compression and decompression helpers.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************
 
@@ -139,7 +108,7 @@
 //  MACROS
 //**************************************************************************
 
-#define MAKE_LOOKUP(code,bits)	(((code) << 5) | ((bits) & 0x1f))
+#define MAKE_LOOKUP(code,bits)  (((code) << 5) | ((bits) & 0x1f))
 
 
 
@@ -154,12 +123,12 @@
 
 huffman_context_base::huffman_context_base(int numcodes, int maxbits, lookup_value *lookup, UINT32 *histo, node_t *nodes)
 	: m_numcodes(numcodes),
-	  m_maxbits(maxbits),
-	  m_prevdata(0),
-	  m_rleremaining(0),
-	  m_lookup(lookup),
-	  m_datahisto(histo),
-	  m_huffnode(nodes)
+		m_maxbits(maxbits),
+		m_prevdata(0),
+		m_rleremaining(0),
+		m_lookup(lookup),
+		m_datahisto(histo),
+		m_huffnode(nodes)
 {
 	// limit to 24 bits
 	if (maxbits > 24)
@@ -347,7 +316,7 @@ huffman_error huffman_context_base::import_tree_huffman(bitstream_in &bitbuf)
 huffman_error huffman_context_base::export_tree_huffman(bitstream_out &bitbuf)
 {
 	// first RLE compress the lengths of all the nodes
-	dynamic_array<UINT8> rle_data(m_numcodes);
+	dynamic_buffer rle_data(m_numcodes);
 	UINT8 *dest = rle_data;
 	dynamic_array<UINT16> rle_lengths(m_numcodes/3);
 	UINT16 *lengths = rle_lengths;
@@ -539,9 +508,9 @@ int CLIB_DECL huffman_context_base::tree_node_compare(const void *item1, const v
 	const node_t *node1 = *(const node_t **)item1;
 	const node_t *node2 = *(const node_t **)item2;
 	if (node2->m_weight != node1->m_weight)
-	    return node2->m_weight - node1->m_weight;
+		return node2->m_weight - node1->m_weight;
 	if (node2->m_bits - node1->m_bits == 0)
-	    fprintf(stderr, "identical node sort keys, should not happen!\n");
+		fprintf(stderr, "identical node sort keys, should not happen!\n");
 	return (int)node1->m_bits - (int)node2->m_bits;
 }
 
