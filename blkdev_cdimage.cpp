@@ -149,9 +149,11 @@ static int do_read (struct cdunit *cdu, struct cdtoc *t, uae_u8 *data, int secto
 	if (t->enctype == ENC_CHD) {
 #ifdef WITH_CHD
 		int type = CD_TRACK_MODE1_RAW;
+		uae_u8 tmpbuf[2352];
+		if (size > 2352)
+			return 0;
 		switch (size)
 		{
-			default:
 			case 2352:
 			type = CD_TRACK_MODE1_RAW;
 			break;
@@ -164,7 +166,11 @@ static int do_read (struct cdunit *cdu, struct cdtoc *t, uae_u8 *data, int secto
 		}
 		if (audio && size == 2352)
 			type = CD_TRACK_AUDIO;
-		return cdrom_read_data(cdu->chd_cdf, sector + t->offset, data, type, true) != 0;
+		if (cdrom_read_data(cdu->chd_cdf, sector + t->offset, tmpbuf, type, true)) {
+			memcpy(data, tmpbuf + offset, size);
+			return 1;
+		}
+		return 0;
 #endif
 	} else if (t->handle) {
 		int ssize = t->size + t->skipsize;

@@ -69,10 +69,10 @@ struct hardfileprivdata {
 	uaecptr changeint;
 };
 
-#define HFD_VHD_DYNAMIC 4
-#define HFD_VHD_FIXED 3
-#define HFD_CHD_OTHER 2
-#define HFD_CHD_HD 1
+#define HFD_CHD_OTHER 5
+#define HFD_CHD_HD 4
+#define HFD_VHD_DYNAMIC 3
+#define HFD_VHD_FIXED 2
 
 STATIC_INLINE uae_u32 gl (uae_u8 *p)
 {
@@ -486,13 +486,19 @@ int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 			zf = zfile_fopen (nametmp, _T("rb"));
 		}
 		if (zf) {
-			int err;
+			int err = CHDERR_FILE_NOT_WRITEABLE;
 			hard_disk_file *chdf;
 			chd_file *cf = new chd_file();
-			err = cf->open(*zf, false, NULL);
+			if (!chd_readonly)
+				err = cf->open(*zf, true, NULL);
+			if (err == CHDERR_FILE_NOT_WRITEABLE) {
+				chd_readonly = true;
+				err = cf->open(*zf, false, NULL);
+			}
 			if (err != CHDERR_NONE) {
 				zfile_fclose (zf);
-				goto nonvhd;
+				delete cf;
+				goto end;
 			}
 			chdf = hard_disk_open(cf);
 			if (!chdf) {
@@ -503,7 +509,7 @@ int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 				hfd->hfd_type = HFD_CHD_HD;
 				hfd->chd_handle = chdf;
 			}
-			if (cf->compressed() || chd_readonly)
+			if (chd_readonly)
 				hfd->ci.readonly = true;
 			hfd->virtsize = cf->logical_bytes ();
 			hfd->handle_valid = -1;

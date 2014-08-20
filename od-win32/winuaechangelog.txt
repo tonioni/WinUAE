@@ -18,6 +18,17 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 13:
+
+- Fixed vhd hardfiles. (b12)
+- Emulated strange OCS/ECS feature similar to "SWIV scoreboard" feature (plane color > 16 becomes 16 when PF2PRI
+  is set to invalid value). It gets more interesting if mode is dual playfield and PF2P2 is invalid: odd planes
+  become transparent and it still hides even planes behind it if PF2PRI is set! (Running Man / Scoopex)
+- A2065 buffer ram is now directly accessible, if someone wants to do some weird stuff with it (xlate and check
+  memory functions supported)
+- ROM scanner result window redesigned, all expansions that need rom images added.
+- Fixed CHD CD crash when sector size conversion was required.
+
 Beta 12:
 
 - Windowed mode status bar button mouse click off-by-one fix.

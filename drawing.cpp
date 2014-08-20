@@ -1824,6 +1824,14 @@ static void gen_pfield_tables (void)
 		dblpf_ind1[i] = i >= 128 ? i & 0x7F : (plane1 == 0 ? plane2 : plane1);
 		dblpf_ind2[i] = i >= 128 ? i & 0x7F : (plane2 == 0 ? plane1 : plane2);
 
+		// Hack for OCS/ECS-only dualplayfield chipset bug.
+		// If PF2P2 is invalid (>5), playfield color becomes transparent but
+		// playfield still hides playfield under it! (if plfpri is set)
+		if (i & 64) {
+			dblpf_ind2[i] = 0;
+			dblpf_ind1[i] = 0;
+		}
+
 		sprite_offs[i] = (i & 15) ? 0 : 2;
 
 		clxtab[i] = ((((i & 3) && (i & 12)) << 9)
@@ -1922,16 +1930,29 @@ static void clear_bitplane_border_aga (void)
 }
 #endif
 
-/* emulate OCS/ECS only undocumented "SWIV" hardware feature */
 static void weird_bitplane_fix (int start, int end)
 {
-	int i;
 	int sh = lores_shift;
 	uae_u8 *p = pixdata.apixels + pixels_offset;
 
-	for (i = start >> sh; i < end >> sh; i++) {
-		if (p[i] > 16)
-			p[i] = 16;
+	start >>= sh;
+	end >>= sh;
+	if (bplplanecnt == 5 && !bpldualpf) {
+		/* emulate OCS/ECS only undocumented "SWIV" hardware feature */
+		for (int i = start; i < end; i++) {
+			if (p[i] & 16)
+				p[i] = 16;
+		}
+	} else if (bpldualpf && bpldualpfpri) {
+		/* in dualplayfield mode this feature is even more strange.. */
+		for (int i = start; i < end; i++) {
+			if (p[i] & (2 | 8 | 32))
+				p[i] |= 0x40;
+		}
+	} else if (bpldualpf && !bpldualpfpri) {
+		for (int i = start; i < end; i++) {
+			p[i] &= ~(2 | 8 | 32);
+		}
 	}
 }
 
@@ -2362,7 +2383,7 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 		// playfield
 		if (nextpos_in_range > lastpos && lastpos >= playfield_start && lastpos < playfield_end) {
 			int t = nextpos_in_range <= playfield_end ? nextpos_in_range : playfield_end;
-			if (plf2pri > 5 && bplplanecnt == 5 && !(currprefs.chipset_mask & CSMASK_AGA))
+			if (plf2pri > 5 && !(currprefs.chipset_mask & CSMASK_AGA))
 				weird_bitplane_fix (lastpos, t);
 			if (bplxor && may_require_hard_way && worker_pfield != pfield_do_linetoscr_bordersprite_aga)
 				playfield_hard_way(worker_pfield, lastpos, t);

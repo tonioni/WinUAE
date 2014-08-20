@@ -1613,9 +1613,9 @@ static int listrom (int *roms)
 static void show_rom_list (void)
 {
 	TCHAR *p;
-	TCHAR unavail[MAX_DPATH], avail[MAX_DPATH];
 	TCHAR *p1, *p2;
 	int *rp;
+	bool first = true;
 	int romtable[] = {
 		5, 4, -1, -1, // A500 1.2
 		6, 32, -1, -1, // A500 1.3
@@ -1627,20 +1627,54 @@ static void show_rom_list (void)
 		16, 46, 31, 13, 12, -1, -1, // A4000
 		17, -1, -1, // A4000T
 		18, -1, 19, -1, -1, // CD32
-		18, -1, 19, -1, 74, 23, -1, -1,  // CD32 FMV
 		20, 21, 22, -1, 6, 32, -1, -1, // CDTV
-		49, 50, 75, 51, 76, 77, -1, 5, 4, -1, -1, // ARCADIA
-		46, 16, 17, 31, 13, 12, -1, -1, // highend, any 3.x A4000
+		49, 50, 75, 51, 76, 77, -1, 5, 4, -1, -2, // ARCADIA
+
 		53, 54, 55, 56, -1, -1, // A590/A2091
 		57, 58, -1, -1, // A4091
+		18, -1, 19, -1, 74, 23, -1, -1,  // CD32 FMV
+		91, -1, -2, // Picasso IV
+
+		89, -1, -1, // 1230-IV
+		89, -1, 94, -1, -1, // 1230-IV SCSI
+		90, -1, -1, // 1260
+		90, -1, 94, -1, -1, // 1260 SCSI
+		92, -1, -1, // 2060
+		93, -1, -1, // Warp Engine
+		95, 101, -1, -1, // CS MK I
+		96, -1, -1, // CS MK II
+		97, -1, -1, // CS MK III
+		99, 100, -1, -1, // BPPC
+		98, -1 ,-2, // CSPPC
+
+		69, 67, 70, -1, -1, // nordic power
+		65, 68, -1, -1, // x-power
+		62, 60, -1, -1, // action cartridge
+		52, 25, -1, -1, // ar 1
+		26, 27, 28, -1, -1, // ar 2
+		29, 30, -1, -1, // ar 3
+
 		0, 0, 0
 	};
 
-	WIN32GUI_LoadUIString (IDS_ROM_AVAILABLE, avail, sizeof (avail) / sizeof (TCHAR));
-	WIN32GUI_LoadUIString (IDS_ROM_UNAVAILABLE, unavail, sizeof (avail) / sizeof (TCHAR));
-	_tcscat (avail, _T("\n"));
-	_tcscat (unavail, _T("\n"));
-	p1 = _T("A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A4000\0A4000T\0CD32\0CD32 FMV\0CDTV\0Arcadia Multi Select\0High end WinUAE\0A590/A2091 SCSI Boot ROM\0A4091 SCSI Boot ROM\0\0");
+	p1 = _T("A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A4000\0A4000T\0")
+		_T("CD32\0CDTV\0Arcadia Multi Select\0")
+
+		_T("A590/A2091 SCSI\0A4091 SCSI\0")
+		_T("CD32 Full Motion Video\0")
+		_T("Picasso IV\0")
+
+		_T("Blizzard 1230-IV\0Blizzard 1260\0")
+		_T("Blizzard 1230-IV/SCSI\0Blizzard 1260/SCSI\0")
+		_T("Blizzard 2060\0Warp Engine\0")
+		_T("CyberStorm MK I\0CyberStorm MK II\0CyberStorm MK III\0")
+		_T("Blizzard PPC\0CyberStorm PPC\0")
+		
+		_T("Nordic Power\0X-Power Professional 500\0Action Cartridge Super IV Professional\0")
+		_T("Action Replay MK I\0Action Replay MK II\0Action Replay MK III\0")
+		_T("Action Replay 1200\0")
+		
+		_T("\0");
 
 	p = xmalloc (TCHAR, 100000);
 	if (!p)
@@ -1652,21 +1686,25 @@ static void show_rom_list (void)
 	while(rp[0]) {
 		int ok = 1;
 		p2 = p1 + _tcslen (p1) + 1;
-		_tcscat (p, _T(" "));
-		_tcscat (p, p1); _tcscat (p, _T(": "));
-		while (*rp != -1) {
+		while (*rp >= 0) {
 			if (ok) {
 				ok = 0;
 				if (listrom (rp))
 					ok = 1;
 			}
-			while(*rp++ != -1);
+			while(*rp++ >= 0);
+		}
+		if (ok) {
+			if (!first)
+				_tcscat (p, _T(", "));
+			first = false;
+			_tcscat (p, p1);
+		}
+		if (*rp == -2) {
+			_tcscat(p, _T("\n\n"));
+			first = true;
 		}
 		rp++;
-		if (ok)
-			_tcscat (p, avail);
-		else
-			_tcscat (p, unavail);
 		p1 = p2;
 	}
 
