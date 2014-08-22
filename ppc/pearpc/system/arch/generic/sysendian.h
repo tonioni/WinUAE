@@ -22,7 +22,7 @@
 #define __SYSTEM_ARCH_SPECIFIC_SYSENDIAN_H__
 
 #include "system/types.h"
-#include "config.h"
+#include "pearpc_config.h"
 
 static inline FUNCTION_CONST uint32 ppc_bswap_word(uint32 data)
 {

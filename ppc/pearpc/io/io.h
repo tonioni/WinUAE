@@ -39,10 +39,7 @@
 #define IO_MEM_ACCESS_EXC	1
 #define IO_MEM_ACCESS_FATAL	2
 
-extern bool uae_ppc_io_mem_write(uint32, uint32, int);
-extern bool uae_ppc_io_mem_read(uint32, uint32&, int);
-extern bool uae_ppc_io_mem_write64(uint32, uint64);
-extern bool uae_ppc_io_mem_read64(uint32, uint64&);
+#include "ppc.h"
 
 static inline int io_mem_write(uint32 addr, uint32 data, int size)
 {
@@ -97,7 +94,7 @@ static inline int io_mem_write(uint32 addr, uint32 data, int size)
 
 static inline int io_mem_read(uint32 addr, uint32 &data, int size)
 {
-	if (uae_ppc_io_mem_read(addr, data, size))
+	if (uae_ppc_io_mem_read(addr, &data, size))
 		return IO_MEM_ACCESS_OK;
 
 #if 0
@@ -168,7 +165,7 @@ static inline int io_mem_write64(uint32 addr, uint64 data)
 
 static inline int io_mem_read64(uint32 addr, uint64 &data)
 {
-	if (uae_ppc_io_mem_read64(addr, data))
+	if (uae_ppc_io_mem_read64(addr, &data))
 		return IO_MEM_ACCESS_OK;
 
 #if 0

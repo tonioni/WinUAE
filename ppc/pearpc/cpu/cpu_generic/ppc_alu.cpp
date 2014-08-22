@@ -60,7 +60,7 @@ void ppc_opc_addx()
  *	addox		Add with Overflow
  *	.422
  */
-void ppc_opc_addox()
+static void ppc_opc_addox()
 {
 	int rD, rA, rB;
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
@@ -97,7 +97,7 @@ void ppc_opc_addcx()
  *	addcox		Add Carrying with Overflow
  *	.423
  */
-void ppc_opc_addcox()
+static void ppc_opc_addcox()
 {
 	int rD, rA, rB;
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
@@ -161,7 +161,7 @@ void ppc_opc_addex()
  *	addeox		Add Extended with Overflow
  *	.424
  */
-void ppc_opc_addeox()
+static void ppc_opc_addeox()
 {
 	int rD, rA, rB;
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
@@ -268,7 +268,7 @@ void ppc_opc_addmex()
  *	addmeox		Add to Minus One Extended with Overflow
  *	.429
  */
-void ppc_opc_addmeox()
+static void ppc_opc_addmeox()
 {
 	int rD, rA, rB;
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
@@ -315,7 +315,7 @@ void ppc_opc_addzex()
  *	addzeox		Add to Zero Extended with Overflow
  *	.430
  */
-void ppc_opc_addzeox()
+static void ppc_opc_addzeox()
 {
 	int rD, rA, rB;
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
@@ -676,7 +676,7 @@ void ppc_opc_divwx()
  *	divwox		Divide Word with Overflow
  *	.470
  */
-void ppc_opc_divwox()
+static void ppc_opc_divwox()
 {
 	int rD, rA, rB;
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
@@ -717,7 +717,7 @@ void ppc_opc_divwux()
  *	divwuox		Divide Word Unsigned with Overflow
  *	.472
  */
-void ppc_opc_divwuox()
+static void ppc_opc_divwuox()
 {
 	int rD, rA, rB;
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
@@ -945,7 +945,7 @@ void ppc_opc_negx()
  *	negox		Negate with Overflow
  *	.601
  */
-void ppc_opc_negox()
+static void ppc_opc_negox()
 {
 	int rD, rA, rB;
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
@@ -1193,7 +1193,7 @@ void ppc_opc_subfx()
  *	subfox		Subtract From with Overflow
  *	.666
  */
-void ppc_opc_subfox()
+static void ppc_opc_subfox()
 {
 	int rD, rA, rB;
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
@@ -1231,7 +1231,7 @@ void ppc_opc_subfcx()
  *	subfcox		Subtract From Carrying with Overflow
  *	.667
  */
-void ppc_opc_subfcox()
+static void ppc_opc_subfcox()
 {
 	int rD, rA, rB;
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
@@ -1296,7 +1296,7 @@ void ppc_opc_subfex()
  *	subfeox		Subtract From Extended with Overflow
  *	.668
  */
-void ppc_opc_subfeox()
+static void ppc_opc_subfeox()
 {
 	int rD, rA, rB;
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
@@ -1362,7 +1362,7 @@ void ppc_opc_subfmex()
  *	subfmeox	Subtract From Minus One Extended with Overflow
  *	.670
  */
-void ppc_opc_subfmeox()
+static void ppc_opc_subfmeox()
 {
 	int rD, rA, rB;
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);
@@ -1409,7 +1409,7 @@ void ppc_opc_subfzex()
  *	subfzeox	Subtract From Zero Extended with Overflow
  *	.671
  */
-void ppc_opc_subfzeox()
+static void ppc_opc_subfzeox()
 {
 	int rD, rA, rB;
 	PPC_OPC_TEMPL_XO(gCPU.current_opc, rD, rA, rB);

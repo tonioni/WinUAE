@@ -24,7 +24,7 @@
 
 #define HAVE_CONFIG_H
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "pearpc_config.h"
 #endif
 
 #ifdef MIN
@@ -40,6 +40,7 @@
  *	compiler magic
  */
 
+
 #ifdef __GNUC__
 
 	// FIXME: configure
@@ -53,7 +54,9 @@
 #	define PACKED		__attribute__((packed))
 #	define UNUSED		__attribute__((unused))
 #	define DEPRECATED	__attribute__((deprecated))
+#ifndef NORETURN
 #	define NORETURN		__attribute__((noreturn))
+#endif
 #	define ALIGN_STRUCT(n)	__attribute__((aligned(n)))
 #	define FORCE_INLINE	__attribute__((always_inline)) 
 

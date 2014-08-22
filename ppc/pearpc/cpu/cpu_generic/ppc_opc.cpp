@@ -31,7 +31,7 @@
 
 extern void uae_ppc_doze(void);
 
-void ppc_set_msr(uint32 newmsr)
+static void ppc_set_msr(uint32 newmsr)
 {
 /*	if ((newmsr & MSR_EE) && !(gCPU.msr & MSR_EE)) {
 		if (pic_check_interrupt()) {

@@ -21,7 +21,7 @@
 #ifndef __SYSTEM_ARCH_SYSFEATURES_H__
 #define __SYSTEM_ARCH_SYSFEATURES_H__
 
-#include "config.h"
+#include "pearpc_config.h"
 
 #include SYSTEM_ARCH_SPECIFIC_FEATURES_DIR
 
