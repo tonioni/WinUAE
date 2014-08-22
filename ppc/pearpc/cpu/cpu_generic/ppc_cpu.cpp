@@ -69,7 +69,7 @@ void ppc_cpu_atomic_cancel_ext_exception()
 	sys_unlock_mutex(exception_mutex);
 }
 
-void ppc_cpu_atomic_raise_dec_exception()
+static void ppc_cpu_atomic_raise_dec_exception()
 {
 	sys_lock_mutex(exception_mutex);
 	gCPU.dec_exception = true;
@@ -77,8 +77,6 @@ void ppc_cpu_atomic_raise_dec_exception()
 	sys_unlock_mutex(exception_mutex);
 }
 
-
-extern int ppc_cycle_count;
 
 static void ppc_do_dec(int val)
 {
@@ -96,15 +94,14 @@ static void ppc_do_dec(int val)
 	}
 }
 
-void uae_ppc_hsync_handler(void)
+uint64_t ppc_cpu_get_dec(void)
 {
-	if (ppc_state != PPC_STATE_SLEEP)
-		return;
-	if (gCPU.pdec == 0) {
-		uae_ppc_wakeup();
-	} else {
-		ppc_do_dec(ppc_cycle_count);
-	}
+	return gCPU.pdec;
+}
+
+void ppc_cpu_do_dec(int val)
+{
+	ppc_do_dec(val);
 }
 
 static uint ops = 0;
@@ -351,7 +348,7 @@ bool ppc_cpu_init(uint32 pvr)
 
 void ppc_cpu_free(void)
 {
-	sys_destroy_mutex(&exception_mutex);
+	sys_destroy_mutex(exception_mutex);
 }
 
 #if 0
