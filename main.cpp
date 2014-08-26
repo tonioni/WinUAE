@@ -61,7 +61,7 @@
 #include "uaenative.h"
 #include "tabletlibrary.h"
 #include "cpuboard.h"
-#include "ppc.h"
+#include "uae/ppc.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif

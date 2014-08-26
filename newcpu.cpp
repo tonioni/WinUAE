@@ -37,7 +37,7 @@
 #include "audio.h"
 #include "md-fpp.h"
 #include "statusline.h"
-#include "ppc.h"
+#include "uae/ppc.h"
 #include "cpuboard.h"
 #ifdef JIT
 #include "jit/compemu.h"
