@@ -64,8 +64,8 @@ void esp_dma_enable(void *opaque, int level)
 	if (level) {
         s->dma_enabled = 1;
         if (s->dma_cb) {
-            s->dma_cb(s);
-            s->dma_cb = NULL;
+            if (s->dma_cb(s))
+				s->dma_cb = NULL;
         }
     } else {
         s->dma_enabled = 0;
@@ -134,10 +134,13 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
     datalen = scsiesp_req_enqueue(s->current_req);
     s->ti_size = datalen;
     if (datalen != 0) {
-        s->rregs[ESP_RSTAT] = STAT_TC;
-        s->dma_left = 0;
-        s->dma_counter = 0;
-        if (datalen > 0) {
+		s->rregs[ESP_RSTAT] = 0;
+		if (s->dma) {
+	        s->rregs[ESP_RSTAT] = STAT_TC;
+	        s->dma_left = 0;
+	        s->dma_counter = 0;
+		}
+		if (datalen > 0) {
             s->rregs[ESP_RSTAT] |= STAT_DI;
         } else {
             s->rregs[ESP_RSTAT] |= STAT_DO;
@@ -156,40 +159,42 @@ static void do_cmd(ESPState *s, uint8_t *buf)
     do_busid_cmd(s, &buf[1], busid);
 }
 
-static void handle_satn(ESPState *s)
+static int handle_satn(ESPState *s)
 {
     uint8_t buf[32];
     int len;
 
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_satn;
-        return;
+        return 1;
     }
     len = get_cmd(s, buf);
     if (len)
         do_cmd(s, buf);
+	return 1;
 }
 
-static void handle_s_without_atn(ESPState *s)
+static int handle_s_without_atn(ESPState *s)
 {
     uint8_t buf[32];
     int len;
 
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_s_without_atn;
-        return;
+        return 1;
     }
     len = get_cmd(s, buf);
     if (len) {
         do_busid_cmd(s, buf, 0);
     }
+	return 1;
 }
 
-static void handle_satn_stop(ESPState *s)
+static int handle_satn_stop(ESPState *s)
 {
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_satn_stop;
-        return;
+        return 1;
     }
     s->cmdlen = get_cmd(s, s->cmdbuf);
     if (s->cmdlen) {
@@ -199,6 +204,7 @@ static void handle_satn_stop(ESPState *s)
         s->rregs[ESP_RSEQ] = SEQ_CD;
         esp_raise_irq(s);
     }
+	return 1;
 }
 
 static void write_response(ESPState *s)
@@ -231,9 +237,9 @@ static void esp_dma_done(ESPState *s)
     esp_raise_irq(s);
 }
 
-static void esp_do_dma(ESPState *s)
+static int esp_do_dma(ESPState *s)
 {
-    uint32_t len;
+    uint32_t len, len2;
     int to_device;
 
     to_device = (s->ti_size < 0);
@@ -244,20 +250,23 @@ static void esp_do_dma(ESPState *s)
         s->cmdlen = 0;
         s->do_cmd = 0;
         do_cmd(s, s->cmdbuf);
-        return;
+        return 1;
     }
     if (s->async_len == 0) {
         /* Defer until data is available.  */
-        return;
+        return 1;
     }
     if (len > s->async_len) {
         len = s->async_len;
     }
+	len2 = len;
     if (to_device) {
-        s->dma_memory_read(s->dma_opaque, s->async_buf, len);
+        len = s->dma_memory_read(s->dma_opaque, s->async_buf, len2);
     } else {
-        s->dma_memory_write(s->dma_opaque, s->async_buf, len);
+        len = s->dma_memory_write(s->dma_opaque, s->async_buf, len2);
     }
+	if (len < 0)
+		len = len2;
     s->dma_left -= len;
     s->async_buf += len;
     s->async_len -= len;
@@ -271,12 +280,16 @@ static void esp_do_dma(ESPState *s)
            complete the DMA operation immediately.  Otherwise defer
            until the scsi layer has completed.  */
         if (to_device || s->dma_left != 0 || s->ti_size == 0) {
-            return;
+            return 1;
         }
     }
 
+	if (len2 > len && s->dma_left > 0)
+		return 0;
+
     /* Partially filled a scsi buffer. Complete immediately.  */
     esp_dma_done(s);
+	return 1;
 }
 
 void esp_command_complete(SCSIRequest *req, uint32_t status,
@@ -312,20 +325,20 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
     }
 }
 
-static void handle_ti(ESPState *s)
+static int handle_ti(ESPState *s)
 {
     uint32_t dmalen, minlen;
 
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_ti;
-        return;
+        return 1;
     }
 
     dmalen = s->rregs[ESP_TCLO];
     dmalen |= s->rregs[ESP_TCMID] << 8;
     dmalen |= s->rregs[ESP_TCHI] << 16;
-    if (dmalen==0) {
-      dmalen=0x10000;
+    if (dmalen == 0) {
+        dmalen = 0x10000;
     }
     s->dma_counter = dmalen;
 
@@ -336,16 +349,27 @@ static void handle_ti(ESPState *s)
     else
         minlen = (dmalen < s->ti_size) ? dmalen : s->ti_size;
     if (s->dma) {
-        s->dma_left = minlen;
+		if (s->dma == 1)
+			s->dma_left = minlen;
+		s->dma = 2;
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
-        esp_do_dma(s);
+        if (!esp_do_dma(s)) {
+	        s->dma_cb = handle_ti;
+			return 0;
+		}
+		return 1;
     } else if (s->do_cmd) {
         s->ti_size = 0;
         s->cmdlen = 0;
         s->do_cmd = 0;
         do_cmd(s, s->cmdbuf);
-        return;
-    }
+        return 1;
+    } else {
+		// no dma
+		s->rregs[ESP_RINTR] = INTR_BS;
+		esp_raise_irq(s);
+	}
+	return 1;
 }
 
 void esp_hard_reset(ESPState *s)
@@ -384,18 +408,25 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
     case ESP_FIFO:
         if (s->ti_size > 0) {
             s->ti_size--;
-            if ((s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0) {
+            if ((s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0 || s->pio_on) {
                 /* Data out.  */
-                write_log("esp: PIO data read not implemented\n");
-                s->rregs[ESP_FIFO] = 0;
+                //write_log("esp: PIO data read not implemented\n");
+                s->rregs[ESP_FIFO] = s->async_buf[s->ti_rptr++];
+				s->pio_on = 1;
+				if (s->ti_size == 1) {
+					scsiesp_req_continue(s->current_req);
+				}
+//					esp_command_complete(s);
+				//activate_debugger();
             } else {
                 s->rregs[ESP_FIFO] = s->ti_buf[s->ti_rptr++];
             }
-            esp_raise_irq(s);
+			esp_raise_irq(s);
         }
         if (s->ti_size == 0) {
             s->ti_rptr = 0;
             s->ti_wptr = 0;
+			s->pio_on = 0;
         }
         break;
     case ESP_RINTR:

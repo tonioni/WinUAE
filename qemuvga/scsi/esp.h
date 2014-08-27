@@ -3,7 +3,7 @@
 
 /* esp.c */
 #define ESP_MAX_DEVS 7
-typedef void (*ESPDMAMemoryReadWriteFunc)(void *opaque, uint8_t *buf, int len);
+typedef int (*ESPDMAMemoryReadWriteFunc)(void *opaque, uint8_t *buf, int len);
 void esp_init(hwaddr espaddr, int it_shift,
               ESPDMAMemoryReadWriteFunc dma_memory_read,
               ESPDMAMemoryReadWriteFunc dma_memory_write,
@@ -38,6 +38,7 @@ struct ESPState {
        progress.  */
     uint32_t dma_counter;
     int dma_enabled;
+	int pio_on;
 
     uint32_t async_len;
     uint8_t *async_buf;
@@ -45,7 +46,7 @@ struct ESPState {
     ESPDMAMemoryReadWriteFunc dma_memory_read;
     ESPDMAMemoryReadWriteFunc dma_memory_write;
     void *dma_opaque;
-    void (*dma_cb)(ESPState *s);
+    int (*dma_cb)(ESPState *s);
 };
 
 #define ESP_TCLO   0x0
