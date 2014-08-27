@@ -66,7 +66,7 @@
 #endif
 #include "luascript.h"
 #include "statusline.h"
-#include "ppc.h"
+#include "uae/ppc.h"
 
 #define CUSTOM_DEBUG 0
 #define SPRITE_DEBUG 0

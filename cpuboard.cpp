@@ -26,7 +26,7 @@
 #include "debug.h"
 #include "flashrom.h"
 #include "uae.h"
-#include "ppc.h"
+#include "uae/ppc.h"
 
 #define CPUBOARD_IO_LOG 0
 #define CPUBOARD_IRQ_LOG 0

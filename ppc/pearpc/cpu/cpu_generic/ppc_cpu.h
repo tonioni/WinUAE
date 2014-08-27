@@ -106,8 +106,10 @@ struct PPC_CPU_State {
 
 extern PPC_CPU_State gCPU;
 
-void ppc_cpu_atomic_raise_ext_exception();
-void ppc_cpu_atomic_cancel_ext_exception();
+#include "uae/ppc.h"
+
+void PPCCALL ppc_cpu_atomic_raise_ext_exception();
+void PPCCALL ppc_cpu_atomic_cancel_ext_exception();
 
 extern uint32 gBreakpoint;
 extern uint32 gBreakpoint2;

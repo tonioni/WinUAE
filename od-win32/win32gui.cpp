@@ -91,7 +91,7 @@
 #include "zarchive.h"
 #include "gfxboard.h"
 #include "win32_uaenet.h"
-#include "ppc.h"
+#include "uae/ppc.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif

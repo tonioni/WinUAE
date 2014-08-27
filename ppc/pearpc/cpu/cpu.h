@@ -22,16 +22,17 @@
 #define __CPU_H__
 
 #include "system/types.h"
+#include "uae/ppc.h"
 
 uint64	ppc_get_clock_frequency(int cpu);
 uint64	ppc_get_bus_frequency(int cpu);
 uint64	ppc_get_timebase_frequency(int cpu);
 
-bool	ppc_cpu_init(uint32);
+bool PPCCALL ppc_cpu_init(uint32);
 void	ppc_cpu_init_config();
-void	ppc_cpu_free(void);
+void PPCCALL ppc_cpu_free(void);
 
-void	ppc_cpu_stop();
+void PPCCALL ppc_cpu_stop();
 void	ppc_cpu_wakeup();
 
 void	ppc_machine_check_exception();
@@ -43,12 +44,12 @@ void	ppc_cpu_cancel_ext_exception();
  * May only be called from within a CPU thread.
  */
 
-void	ppc_cpu_run_continuous();
-void	ppc_cpu_run_single(int);
+void PPCCALL ppc_cpu_run_continuous();
+void PPCCALL ppc_cpu_run_single(int);
 uint32	ppc_cpu_get_gpr(int cpu, int i);
 void	ppc_cpu_set_gpr(int cpu, int i, uint32 newvalue);
 void	ppc_cpu_set_msr(int cpu, uint32 newvalue);
-void	ppc_cpu_set_pc(int cpu, uint32 newvalue);
+void PPCCALL ppc_cpu_set_pc(int cpu, uint32 newvalue);
 uint32	ppc_cpu_get_pc(int cpu);
 uint32	ppc_cpu_get_pvr(int cpu);
 

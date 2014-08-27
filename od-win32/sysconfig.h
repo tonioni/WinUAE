@@ -89,6 +89,8 @@
 #define WITH_TABLETLIBRARY
 #define WITH_UAENET_PCAP
 #define WITH_PPC
+#define WITH_PEARPC_CPU
+#define WITH_QEMU_CPU
 
 #else
 
