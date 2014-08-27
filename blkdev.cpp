@@ -1223,7 +1223,7 @@ static int scsi_read_cd_data (int unitnum, uae_u8 *scsi_data, uae_u32 offset, ua
 		*scsi_len = 0;
 		return 0;
 	} else {
-		if (len * di->bytespersector > SCSI_DATA_BUFFER_SIZE)
+		if (len * di->bytespersector > SCSI_DEFAULT_DATA_BUFFER_SIZE)
 			return -3;
 		if (offset >= di->sectorspertrack * di->cylinders * di->trackspercylinder)
 			return -1;
@@ -1261,7 +1261,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 	sys_command_info (unitnum, &di, 1);
 
 	if (log_scsiemu) {
-		write_log (_T("SCSIEMU %d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X CMDLEN=%d DATA=%p LEN=%d\n"), unitnum,
+		write_log (_T("SCSIEMU CD %d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X CMDLEN=%d DATA=%p LEN=%d\n"), unitnum,
 			cmdbuf[0], cmdbuf[1], cmdbuf[2], cmdbuf[3], cmdbuf[4], cmdbuf[5], cmdbuf[6], 
 			cmdbuf[7], cmdbuf[8], cmdbuf[9], cmdbuf[10], cmdbuf[11],
 			scsi_cmd_len, scsi_data, dlen);
