@@ -61,7 +61,7 @@
 #include "uaenative.h"
 #include "tabletlibrary.h"
 #include "cpuboard.h"
-#include "ppc.h"
+#include "uae/ppc.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -228,21 +228,19 @@ void fixup_cpu (struct uae_prefs *p)
 		p->cpu_frequency = 0;
 
 	if (p->cpu_model >= 68030 && p->address_space_24) {
-		error_log (_T("24-bit address space is not supported in 68030/040/060 configurations."));
+		error_log (_T("24-bit address space is not supported with 68030/040/060 configurations."));
 		p->address_space_24 = 0;
 	}
 	if (p->cpu_model < 68020 && p->fpu_model && (p->cpu_compatible || p->cpu_cycle_exact)) {
-		error_log (_T("FPU is not supported in 68000/010 configurations."));
+		error_log (_T("FPU is not supported with 68000/010 configurations."));
 		p->fpu_model = 0;
 	}
 
 	switch (p->cpu_model)
 	{
 	case 68000:
-		p->address_space_24 = 1;
 		break;
 	case 68010:
-		p->address_space_24 = 1;
 		break;
 	case 68020:
 		break;
@@ -404,9 +402,9 @@ void fixup_prefs (struct uae_prefs *p)
 		err = 1;
 	}
 
-	p->z3fastmem_start &= ~0xffff;
-	if (p->z3fastmem_start < 0x1000000)
-		p->z3fastmem_start = 0x1000000;
+	p->z3autoconfig_start &= ~0xffff;
+	if (p->z3autoconfig_start < 0x1000000)
+		p->z3autoconfig_start = 0x1000000;
 
 	if (p->z3chipmem_size > max_z3fastmem) {
 		error_log (_T("Zorro III fake chipmem size %d (0x%x) larger than max reserved %d (0x%x)."), p->z3chipmem_size, p->z3chipmem_size, max_z3fastmem, max_z3fastmem);
@@ -510,15 +508,15 @@ void fixup_prefs (struct uae_prefs *p)
 		p->cachesize = 0;
 		err = 1;
 	}
-	if ((p->z3fastmem_size || p->z3fastmem2_size || p->z3chipmem_size) && (p->address_space_24 || p->cpu_model < 68020)) {
-		error_log (_T("Z3 fast memory can't be used with a 68000/68010 emulation. Turning off Z3 fast memory."));
+	if ((p->z3fastmem_size || p->z3fastmem2_size || p->z3chipmem_size) && p->address_space_24) {
+		error_log (_T("Z3 fast memory can't be used if address space is 24-bit."));
 		p->z3fastmem_size = 0;
 		p->z3fastmem2_size = 0;
 		p->z3chipmem_size = 0;
 		err = 1;
 	}
-	if (p->rtgmem_size > 0 && p->rtgmem_type == GFXBOARD_UAE_Z3 && (p->cpu_model < 68020 || p->address_space_24)) {
-		error_log (_T("UAEGFX RTG can't be used with a 68000/68010 or 68EC020 emulation. Turning off RTG."));
+	if ((p->rtgmem_size > 0 && p->rtgmem_type == GFXBOARD_UAE_Z3) && p->address_space_24) {
+		error_log (_T("UAEGFX RTG can't be used if address space is 24-bit."));
 		p->rtgmem_size = 0;
 		err = 1;
 	}
