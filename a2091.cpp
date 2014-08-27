@@ -1630,17 +1630,16 @@ static void REGPARAM2 dmac_bput (struct wd_state *wd, uaecptr addr, uae_u32 b)
 	b &= 0xff;
 	addr &= 65535;
 	if (wd->autoconfig) {
+		addrbank *ab = wd == &wd_a2091 ? &dmaca2091_bank : &dmaca2091_2_bank;
 		if (addr == 0x48 && !wd->configured) {
-			map_banks (wd == &wd_a2091 ? &dmaca2091_bank : &dmaca2091_2_bank, b, 0x10000 >> 16, 0x10000);
-			write_log (_T("%s Z2 autoconfigured at %02X0000\n"), wd->name, b);
+			map_banks (ab, b, 0x10000 >> 16, 0x10000);
 			wd->configured = 1;
-			expamem_next ();
+			expamem_next (ab, NULL);
 			return;
 		}
 		if (addr == 0x4c && !wd->configured) {
-			write_log (_T("%s DMAC AUTOCONFIG SHUT-UP!\n"), wd->name);
 			wd->configured = 1;
-			expamem_next ();
+			expamem_shutup(ab);
 			return;
 		}
 		if (!wd->configured)
@@ -2294,10 +2293,8 @@ addrbank *a2091_init (int devnum)
 	int slotsize;
 	struct romlist *rl;
 
-	if (devnum > 0 && !wd->enabled) {
-		expamem_next();
-		return NULL;
-	}
+	if (devnum > 0 && !wd->enabled)
+		return &expamem_null;
 
 	init_scsi(wd);
 	wd->configured = 0;
@@ -2331,8 +2328,8 @@ addrbank *a2091_init (int devnum)
 	wd->rom = xmalloc (uae_u8, slotsize);
 	wd->rom_size = 16384;
 	wd->rom_mask = wd->rom_size - 1;
-	if (_tcscmp (currprefs.a2091romfile, _T(":NOROM"))) {
-		struct zfile *z = read_rom_name (devnum && currprefs.a2091romfile2[0] ? currprefs.a2091romfile2 : currprefs.a2091romfile);
+	if (_tcscmp (currprefs.a2091rom.roms[0].romfile, _T(":NOROM"))) {
+		struct zfile *z = read_rom_name (devnum && currprefs.a2091rom.roms[1].romfile[0] ? currprefs.a2091rom.roms[1].romfile : currprefs.a2091rom.roms[0].romfile);
 		if (!z) {
 			rl = getromlistbyids (roms);
 			if (rl) {

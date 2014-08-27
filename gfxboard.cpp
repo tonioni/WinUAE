@@ -1258,16 +1258,14 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 		} else {
 			map_banks (&gfxboard_bank_memory, gfxmem_bank.start >> 16, board->banksize >> 16, currprefs.rtgmem_size);
 		}
-		write_log (_T("%s autoconfigured at 0x%04X0000\n"), gfxboard_bank_memory.name, gfxmem_bank.start >> 16);
 		configured_mem = gfxmem_bank.start >> 16;
 		gfxboardmem_start = gfxmem_bank.start;
-		expamem_next ();
+		expamem_next (&gfxboard_bank_memory, NULL);
 		return;
 	}
 	if (addr == 0x4c) {
-		write_log (_T("%s AUTOCONFIG SHUT-UP!\n"), gfxboard_bank_memory.name);
 		configured_mem = 0xff;
-		expamem_next ();
+		expamem_shutup(&gfxboard_bank_memory);
 		return;
 	}
 }
@@ -1281,8 +1279,10 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 	addr &= 65535;
 	if (addr == 0x48) {
 		if (!board->z3) {
+			addrbank *ab;
 			if (ISP4()) {
-				map_banks (&gfxboard_bank_nbsmemory, b, 0x00200000 >> 16, 0x00200000);
+				ab = &gfxboard_bank_nbsmemory;
+				map_banks (ab, b, 0x00200000 >> 16, 0x00200000);
 				if (configured_mem == 0) {
 					configured_mem = b;
 					gfxboardmem_start = b << 16;
@@ -1291,23 +1291,22 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gfxboard_bank_memory.bput = gfxboard_bput_mem;
 				}
 			} else {
+				ab = &gfxboard_bank_memory;
 				gfxboard_bank_memory.bget = gfxboard_bget_mem;
 				gfxboard_bank_memory.bput = gfxboard_bput_mem;
-				map_banks (&gfxboard_bank_memory, b, board->banksize >> 16, currprefs.rtgmem_size);
+				map_banks (ab, b, board->banksize >> 16, currprefs.rtgmem_size);
 				configured_mem = b;
 				gfxboardmem_start = b << 16;
 			}
-			expamem_next ();
-			write_log (_T("%s autoconfigured at 0x00%02X0000\n"), gfxboard_bank_memory.name, b);
+			expamem_next (ab, NULL);
 		} else {
 			expamem_lo = b & 0xff;
 		}
 		return;
 	}
 	if (addr == 0x4c) {
-		write_log (_T("%s AUTOCONFIG SHUT-UP!\n"), gfxboard_bank_memory.name);
 		configured_mem = 0xff;
-		expamem_next ();
+		expamem_shutup(&gfxboard_bank_memory);
 		return;
 	}
 }
@@ -1483,6 +1482,7 @@ static uae_u32 REGPARAM2 gfxboard_bget_regs_autoconfig (uaecptr addr)
 
 static void REGPARAM2 gfxboard_bput_regs_autoconfig (uaecptr addr, uae_u32 b)
 {
+	addrbank *ab;
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
@@ -1492,20 +1492,20 @@ static void REGPARAM2 gfxboard_bput_regs_autoconfig (uaecptr addr, uae_u32 b)
 		gfxboard_bank_registers.bget = gfxboard_bget_regs;
 		gfxboard_bank_registers.bput = gfxboard_bput_regs;
 		if (p4z2) {
-			map_banks (&gfxboard_bank_special, b, gfxboard_bank_special.allocated >> 16, gfxboard_bank_special.allocated);
+			ab = &gfxboard_bank_special;
+			map_banks (ab, b, gfxboard_bank_special.allocated >> 16, gfxboard_bank_special.allocated);
 		} else {
-			map_banks (&gfxboard_bank_registers, b, gfxboard_bank_registers.allocated >> 16, gfxboard_bank_registers.allocated);
+			ab = &gfxboard_bank_registers;
+			map_banks (ab, b, gfxboard_bank_registers.allocated >> 16, gfxboard_bank_registers.allocated);
 		}
-		write_log (_T("%s autoconfigured at 0x00%02X0000\n"), gfxboard_bank_registers.name, b);
 		configured_regs = b;
 		init_board ();
-		expamem_next ();
+		expamem_next (ab, NULL);
 		return;
 	}
 	if (addr == 0x4c) {
-		write_log (_T("%s AUTOCONFIG SHUT-UP!\n"), gfxboard_bank_registers.name);
 		configured_regs = 0xff;
-		expamem_next ();
+		expamem_next (NULL, NULL);
 		return;
 	}
 }

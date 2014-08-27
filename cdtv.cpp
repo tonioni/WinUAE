@@ -1482,15 +1482,13 @@ static void REGPARAM2 dmac_bput (uaecptr addr, uae_u32 b)
 	b &= 0xff;
 	if (addr == 0x48) {
 		map_banks (&dmac_bank, b, 0x10000 >> 16, 0x10000);
-		write_log (_T("CDTV DMAC autoconfigured at %02X0000\n"), b);
 		configured = b;
-		expamem_next ();
+		expamem_next(&dmac_bank, NULL);
 		return;
 	}
 	if (addr == 0x4c) {
-		write_log (_T("CDTV DMAC AUTOCONFIG SHUT-UP!\n"));
 		configured = -1;
-		expamem_next ();
+		expamem_shutup(&dmac_bank);
 		return;
 	}
 	if (configured <= 0)

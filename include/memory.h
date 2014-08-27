@@ -69,7 +69,7 @@ extern uaecptr rtarea_base;
 
 extern uae_u8* baseaddr[];
 
-enum { ABFLAG_UNK = 0, ABFLAG_RAM = 1, ABFLAG_ROM = 2, ABFLAG_ROMIN = 4, ABFLAG_IO = 8, ABFLAG_NONE = 16, ABFLAG_SAFE = 32, ABFLAG_INDIRECT = 64, ABFLAG_NOALLOC = 128 };
+enum { ABFLAG_UNK = 0, ABFLAG_RAM = 1, ABFLAG_ROM = 2, ABFLAG_ROMIN = 4, ABFLAG_IO = 8, ABFLAG_NONE = 16, ABFLAG_SAFE = 32, ABFLAG_INDIRECT = 64, ABFLAG_NOALLOC = 128, ABFLAG_RTG = 256 };
 typedef struct {
 	/* These ones should be self-explanatory... */
 	mem_get_func lget, wget, bget;
@@ -330,8 +330,11 @@ extern void rtarea_init_mem (void);
 extern void rtarea_setup (void);
 extern void expamem_init (void);
 extern void expamem_reset (void);
-extern void expamem_next (void);
+extern void expamem_next (addrbank *mapped, addrbank *next);
+extern void expamem_shutup (addrbank *mapped);
 extern bool expamem_z3hack(struct uae_prefs*);
+extern uaecptr expamem_z3_pointer, expamem_z2_pointer;
+extern uae_u32 expamem_z3_size, expamem_z2_size;
 
 extern uae_u32 last_custom_value1;
 
