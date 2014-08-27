@@ -211,8 +211,12 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 				dst -= dpitch;
 			}
 		}
-		if (WIN32GFX_IsPicassoScreen () && !vb)
-			freertgbuffer (mem);
+		if (!vb) {
+			if (WIN32GFX_IsPicassoScreen ())
+				freertgbuffer (mem);
+			else
+				freefilterbuffer(mem);
+		}
 
 	} else {
 donormal:

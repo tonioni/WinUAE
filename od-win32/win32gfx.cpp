@@ -1108,6 +1108,27 @@ static uae_u8 *ddraw_dolock (void)
 	return gfxvidinfo.outbuffer->bufmem;
 }
 
+bool lockscr3d(struct vidbuffer *vb)
+{
+	if (currentmode->flags & DM_D3D) {
+		if (!(currentmode->flags & DM_SWSCALE)) {
+			vb->bufmem = D3D_locktexture(&vb->rowbytes, NULL, false);
+			if (vb->bufmem) 
+				return true;
+		}
+	}
+	return false;
+}
+
+void unlockscr3d(struct vidbuffer *vb)
+{
+	if (currentmode->flags & DM_D3D) {
+		if (!(currentmode->flags & DM_SWSCALE)) {
+			D3D_unlocktexture();
+		}
+	}
+}
+
 int lockscr (struct vidbuffer *vb, bool fullupdate)
 {
 	int ret = 0;

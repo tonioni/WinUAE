@@ -650,6 +650,15 @@ end:
 
 }
 
+void freefilterbuffer(uae_u8 *buf)
+{
+	struct vidbuffer *vb = gfxvidinfo.outbuffer;
+
+	if (usedfilter == NULL) {
+		unlockscr3d(vb);
+	}
+}
+
 uae_u8 *getfilterbuffer (int *widthp, int *heightp, int *pitch, int *depth)
 {
 	struct vidbuffer *vb = gfxvidinfo.outbuffer;
@@ -657,8 +666,11 @@ uae_u8 *getfilterbuffer (int *widthp, int *heightp, int *pitch, int *depth)
 	*widthp = 0;
 	*heightp = 0;
 	*depth = amiga_depth;
-	if (usedfilter == NULL)
-		return NULL;
+	if (usedfilter == NULL) {
+		if (!lockscr3d(vb)) {
+			return NULL;
+		}
+	}
 	*widthp = vb->outwidth;
 	*heightp = vb->outheight;
 	if (pitch)

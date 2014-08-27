@@ -38,6 +38,9 @@ extern int is3dmode (void);
 extern void gfx_lock (void);
 extern void gfx_unlock (void);
 
+extern bool lockscr3d(struct vidbuffer *vb);
+extern void unlockscr3d(struct vidbuffer *vb);
+
 void DX_Fill (int dstx, int dsty, int width, int height, uae_u32 color);
 void DX_Blit (int x, int y, int w, int h);
 void centerdstrect (RECT *);
