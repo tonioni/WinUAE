@@ -27,6 +27,7 @@
 #include "uae.h"
 #include "custom.h"
 #include "newcpu.h"
+#include "flashrom.h"
 
 #define AKIKO_DEBUG_NVRAM 0
 #define AKIKO_DEBUG_IO 0
@@ -54,208 +55,55 @@ static void irq (void)
 * 0xb80030: bit 7 = SCL (clock), 6 = SDA (data)
 * 0xb80032: 0xb80030 data direction register (0 = input, 1 = output)
 *
-* Because I don't have any experience on I2C, following code may be
-* unnecessarily complex and not 100% correct..
 */
 
-enum i2c { I2C_WAIT, I2C_START, I2C_DEVICEADDR,	I2C_WORDADDR, I2C_DATA };
-
-/* size of EEPROM, don't try to change,
-* (hardcoded in Kickstart)
-*/
 #define NVRAM_SIZE 1024
-/* max size of one write request */
-#define NVRAM_PAGE_SIZE 16
-
-static uae_u8 cd32_nvram[NVRAM_SIZE], nvram_writetmp[NVRAM_PAGE_SIZE];
-static int nvram_address, nvram_writeaddr;
-static int nvram_rw;
-static int bitcounter = -1, direction = -1;
-static uae_u8 nvram_byte;
-static int scl_out, scl_in, scl_dir, oscl, sda_out, sda_in, sda_dir, osda;
-static int sda_dir_nvram;
-static int state = I2C_WAIT;
-
-static void nvram_write (int offset, int len)
-{
-	struct zfile *f;
-
-	if (!currprefs.cs_cd32nvram)
-		return;
-	f = zfile_fopen (currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
-	if (!f) {
-		f = zfile_fopen (currprefs.flashfile, _T("wb"), 0);
-		if (!f) return;
-		zfile_fwrite (cd32_nvram, NVRAM_SIZE, 1, f);
-	}
-	zfile_fseek (f, offset, SEEK_SET);
-	zfile_fwrite (cd32_nvram + offset, len, 1, f);
-	zfile_fclose (f);
-}
+static uae_u8 cd32_nvram[NVRAM_SIZE];
+static void *cd32_eeprom;
+static uae_u8 cd32_i2c_direction;
+static bool cd32_i2c_data_scl, cd32_i2c_data_sda;
 
 static void nvram_read (void)
 {
 	struct zfile *f;
 
+	eeprom_free(cd32_eeprom);
+	cd32_eeprom = NULL;
+	cd32_i2c_data_scl = cd32_i2c_data_sda = true;
+	cd32_i2c_direction = 0;
 	if (!currprefs.cs_cd32nvram)
 		return;
-	f = zfile_fopen (currprefs.flashfile, _T("rb"), ZFD_NORMAL);
-	memset (cd32_nvram, 0, NVRAM_SIZE);
-	if (!f) return;
-	zfile_fread (cd32_nvram, NVRAM_SIZE, 1, f);
-	zfile_fclose (f);
-}
-
-static void i2c_do (void)
-{
-#if AKIKO_DEBUG_NVRAM
-	int i;
-#endif
-	sda_in = 1;
-	if (!sda_dir_nvram && scl_out && oscl) {
-		if (!sda_out && osda) { /* START-condition? */
-			state = I2C_DEVICEADDR;
-			bitcounter = 0;
-			direction = -1;
-#if AKIKO_DEBUG_NVRAM
-			write_log (_T("START\n"));
-#endif
-			return;
-		} else if(sda_out && !osda) { /* STOP-condition? */
-			state = I2C_WAIT;
-			bitcounter = -1;
-#if AKIKO_DEBUG_NVRAM
-			write_log (_T("STOP\n"));
-#endif
-			if (direction > 0) {
-				memcpy (cd32_nvram + (nvram_address & ~(NVRAM_PAGE_SIZE - 1)), nvram_writetmp, NVRAM_PAGE_SIZE);
-				nvram_write (nvram_address & ~(NVRAM_PAGE_SIZE - 1), NVRAM_PAGE_SIZE);
-				direction = -1;
-				gui_flicker_led (LED_MD, 0, 2);
-#if AKIKO_DEBUG_NVRAM
-				write_log (_T("NVRAM write address %04X:"), nvram_address & ~(NVRAM_PAGE_SIZE - 1));
-				for (i = 0; i < NVRAM_PAGE_SIZE; i++)
-					write_log (_T("%02X"), nvram_writetmp[i]);
-				write_log (_T("\n"));
-
-#endif
-			}
-			return;
-		}
+	memset(cd32_nvram, 0, sizeof(cd32_nvram));
+	f = zfile_fopen (currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
+	if (!f)
+		f = zfile_fopen (currprefs.flashfile, _T("rb"), ZFD_NORMAL);
+	if (f) {
+		int size = zfile_fread(cd32_nvram, 1, NVRAM_SIZE, f);
+		if (size < NVRAM_SIZE)
+			zfile_fwrite(cd32_nvram + size, 1, NVRAM_SIZE - size, f);
 	}
-	if (bitcounter >= 0) {
-		if (direction) {
-			/* Amiga -> NVRAM */
-			if (scl_out && !oscl) {
-				if (bitcounter == 8) {
-#if AKIKO_DEBUG_NVRAM
-					write_log (_T("RB %02X "), nvram_byte, M68K_GETPC);
-#endif
-					sda_in = 0; /* ACK */
-					if (direction > 0) {
-						nvram_writetmp[nvram_writeaddr++] = nvram_byte;
-						nvram_writeaddr &= 15;
-						bitcounter = 0;
-					} else {
-						bitcounter = -1;
-					}
-				} else {
-					//write_log (_T("NVRAM received bit %d, offset %d\n"), sda_out, bitcounter);
-					nvram_byte <<= 1;
-					nvram_byte |= sda_out;
-					bitcounter++;
-				}
-			}
-		} else {
-			/* NVRAM -> Amiga */
-			if (scl_out && !oscl && bitcounter < 8) {
-				if (bitcounter == 0)
-					nvram_byte = cd32_nvram[nvram_address];
-				sda_dir_nvram = 1;
-				sda_in = (nvram_byte & 0x80) ? 1 : 0;
-				//write_log (_T("NVRAM sent bit %d, offset %d\n"), sda_in, bitcounter);
-				nvram_byte <<= 1;
-				bitcounter++;
-				if (bitcounter == 8) {
-#if AKIKO_DEBUG_NVRAM
-					write_log (_T("NVRAM sent byte %02X address %04X PC=%08X\n"), cd32_nvram[nvram_address], nvram_address, M68K_GETPC);
-#endif
-					nvram_address++;
-					nvram_address &= NVRAM_SIZE - 1;
-					sda_dir_nvram = 0;
-				}
-			}
-			if(!sda_out && sda_dir && !scl_out) /* ACK from Amiga */
-				bitcounter = 0;
-		}
-		if (bitcounter >= 0) return;
-	}
-	switch (state)
-	{
-	case I2C_DEVICEADDR:
-		if ((nvram_byte & 0xf0) != 0xa0) {
-			write_log (_T("WARNING: I2C_DEVICEADDR: device address != 0xA0\n"));
-			state = I2C_WAIT;
-			return;
-		}
-		nvram_rw = (nvram_byte & 1) ? 0 : 1;
-		if (nvram_rw) {
-			/* 2 high address bits, only fetched if WRITE = 1 */
-			nvram_address &= 0xff;
-			nvram_address |= ((nvram_byte >> 1) & 3) << 8;
-			state = I2C_WORDADDR;
-			direction = -1;
-		} else {
-			state = I2C_DATA;
-			direction = 0;
-			sda_dir_nvram = 1;
-		}
-		bitcounter = 0;
-#if AKIKO_DEBUG_NVRAM
-		write_log (_T("I2C_DEVICEADDR: rw %d, address %02Xxx PC=%08X\n"), nvram_rw, nvram_address >> 8, M68K_GETPC);
-#endif
-		break;
-	case I2C_WORDADDR:
-		nvram_address &= 0x300;
-		nvram_address |= nvram_byte;
-#if AKIKO_DEBUG_NVRAM
-		write_log (_T("I2C_WORDADDR: address %04X PC=%08X\n"), nvram_address, M68K_GETPC);
-#endif
-		if (direction < 0) {
-			memcpy (nvram_writetmp, cd32_nvram + (nvram_address & ~(NVRAM_PAGE_SIZE - 1)), NVRAM_PAGE_SIZE);
-			nvram_writeaddr = nvram_address & (NVRAM_PAGE_SIZE - 1);
-			gui_flicker_led (LED_MD, 0, 1);
-		}
-		state = I2C_DATA;
-		bitcounter = 0;
-		direction = 1;
-		break;
-	}
+	cd32_eeprom = eeprom_new(cd32_nvram, NVRAM_SIZE, f);
 }
 
 static void akiko_nvram_write (int offset, uae_u32 v)
 {
-	int sda;
 	switch (offset)
 	{
 	case 0:
-		oscl = scl_out;
-		scl_out = (v & 0x80) ? 1 : 0;
-		osda = sda_out;
-		sda_out = (v & 0x40) ? 1 : 0;
+		if (cd32_i2c_direction & 0x80)
+			cd32_i2c_data_scl = (v & 0x80) != 0;
+		else
+			cd32_i2c_data_scl = true;
+		eeprom_i2c_set(cd32_eeprom, BITBANG_I2C_SCL, cd32_i2c_data_scl);
+		if (cd32_i2c_direction & 0x40)
+			cd32_i2c_data_sda = (v & 0x40) != 0;
+		else
+			cd32_i2c_data_sda = true;
+		eeprom_i2c_set(cd32_eeprom, BITBANG_I2C_SDA, cd32_i2c_data_sda);
 		break;
 	case 2:
-		scl_dir = (v & 0x80) ? 1 : 0;
-		sda_dir = (v & 0x40) ? 1 : 0;
+		cd32_i2c_direction = v;
 		break;
-	default:
-		return;
-	}
-	sda = sda_out;
-	if (oscl != scl_out || osda != sda) {
-		i2c_do ();
-		oscl = scl_out;
-		osda = sda;
 	}
 }
 
@@ -265,18 +113,11 @@ static uae_u32 akiko_nvram_read (int offset)
 	switch (offset)
 	{
 	case 0:
-		if (!scl_dir)
-			v |= scl_in ? 0x80 : 0x00;
-		else
-			v |= scl_out ? 0x80 : 0x00;
-		if (!sda_dir)
-			v |= sda_in ? 0x40 : 0x00;
-		else
-			v |= sda_out ? 0x40 : 0x00;
+		v |= eeprom_i2c_set(cd32_eeprom, BITBANG_I2C_SCL, cd32_i2c_data_scl) ? 0x80 : 0x00;
+		v |= eeprom_i2c_set(cd32_eeprom, BITBANG_I2C_SDA, cd32_i2c_data_sda) ? 0x40 : 0x00;
 		break;
 	case 2:
-		v |= scl_dir ? 0x80 : 0x00;
-		v |= sda_dir ? 0x40 : 0x00;
+		v = cd32_i2c_direction;
 		break;
 	}
 	return v;
@@ -1848,9 +1689,7 @@ void akiko_reset (void)
 {
 	cdaudiostop_do ();
 	nvram_read ();
-	state = I2C_WAIT;
-	bitcounter = -1;
-	direction = -1;
+	eeprom_reset(cd32_eeprom);
 
 	cdrom_speed = 1;
 	cdrom_current_sector = -1;
@@ -1948,7 +1787,7 @@ uae_u8 *save_akiko (int *len, uae_u8 *dstptr)
 	save_u32 (cdrom_flags);
 	save_u32 (0);
 	save_u32 (0);
-	save_u32 ((scl_dir ? 0x8000 : 0) | (sda_dir ? 0x4000 : 0));
+	save_u32 (cd32_i2c_direction << 8);
 	save_u32 (0);
 	save_u32 (0);
 
@@ -2011,8 +1850,7 @@ uae_u8 *restore_akiko (uae_u8 *src)
 	restore_u32 ();
 	restore_u32 ();
 	v = restore_u32 ();
-	scl_dir = (v & 0x8000) ? 1 : 0;
-	sda_dir = (v & 0x4000) ? 1 : 0;
+	cd32_i2c_direction = v >> 8;
 	restore_u32 ();
 	restore_u32 ();
 
