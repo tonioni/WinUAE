@@ -245,7 +245,7 @@ uae_u32 dummy_get (uaecptr addr, int size, bool inst)
 	if (gary_nonrange(addr) || (size > 1 && gary_nonrange(addr + size - 1))) {
 		if (gary_timeout)
 			gary_wait (addr, size, false);
-		if (gary_toenb && currprefs.mmu_model)
+		if (gary_toenb)
 			exception2 (addr, false, size, (regs.s ? 4 : 0) | (inst ? 0 : 1));
 		return v;
 	}
@@ -1660,7 +1660,7 @@ bool mapped_malloc (addrbank *ab)
 	int id;
 	void *answer;
 	shmpiece *x;
-	bool rtgmem = ab->label && (!_tcsicmp(ab->label, _T("z3_gfx")) || !_tcsicmp(ab->label, _T("z2_gfx")));
+	bool rtgmem = (ab->flags & ABFLAG_RTG) != 0;
 	static int recurse;
 
 	ab->startmask = ab->start;

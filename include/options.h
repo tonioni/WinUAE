@@ -7,8 +7,8 @@
 * Copyright 1995-2001 Bernd Schmidt
 */
 
-#ifndef OPTIONS_H
-#define OPTIONS_H
+#ifndef UAE_OPTIONS_H
+#define UAE_OPTIONS_H
 
 #define UAEMAJOR 2
 #define UAEMINOR 9
@@ -273,6 +273,20 @@ struct gfx_filterdata
 	int gfx_filter_keep_autoscale_aspect;
 };
 
+struct romconfig
+{
+	TCHAR romfile[MAX_DPATH];
+	TCHAR romident[256];
+	uae_u32 board_ram_size;
+};
+#define MAX_BOARD_ROMS 2
+struct boardromconfig
+{
+	struct romconfig roms[MAX_BOARD_ROMS];
+	bool enabled;
+};
+
+
 struct uae_prefs {
 
 	struct strlist *all_lines;
@@ -448,22 +462,17 @@ struct uae_prefs {
 	bool cs_z3autoconfig;
 	int cs_hacks;
 
+	struct boardromconfig a2091rom;
+	struct boardromconfig a4091rom;
+	struct boardromconfig fastlanerom;
+	struct boardromconfig oktagonrom;
+
 	TCHAR romfile[MAX_DPATH];
 	TCHAR romident[256];
 	TCHAR romextfile[MAX_DPATH];
 	uae_u32 romextfile2addr;
 	TCHAR romextfile2[MAX_DPATH];
 	TCHAR romextident[256];
-	TCHAR a2091romfile[MAX_DPATH];
-	TCHAR a2091romident[256];
-	TCHAR a2091romfile2[MAX_DPATH];
-	TCHAR a2091romident2[256];
-	bool a2091;
-	TCHAR a4091romfile[MAX_DPATH];
-	TCHAR a4091romident[256];
-	TCHAR a4091romfile2[MAX_DPATH];
-	TCHAR a4091romident2[256];
-	bool a4091;
 	TCHAR acceleratorromfile[MAX_DPATH];
 	TCHAR acceleratorromident[256];
 	TCHAR acceleratorextromfile[MAX_DPATH];
@@ -504,8 +513,8 @@ struct uae_prefs {
 	bool picasso96_nocustom;
 	int picasso96_modeflags;
 
+	uae_u32 z3autoconfig_start;
 	uae_u32 z3fastmem_size, z3fastmem2_size;
-	uae_u32 z3fastmem_start;
 	uae_u32 z3chipmem_size;
 	uae_u32 z3chipmem_start;
 	uae_u32 fastmem_size, fastmem2_size;
@@ -518,6 +527,7 @@ struct uae_prefs {
 	int cpuboard_type;
 	uae_u32 cpuboardmem1_size;
 	uae_u32 cpuboardmem2_size;
+	int ppc_implementation;
 	bool rtg_hardwareinterrupt;
 	bool rtg_hardwaresprite;
 	int rtgmem_type;
@@ -689,13 +699,13 @@ extern int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, 
 extern int cfgfile_save (struct uae_prefs *p, const TCHAR *filename, int);
 extern void cfgfile_parse_line (struct uae_prefs *p, TCHAR *, int);
 extern void cfgfile_parse_lines (struct uae_prefs *p, const TCHAR *, int);
-extern int cfgfile_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value, int);
+extern int cfgfile_parse_option (struct uae_prefs *p, const TCHAR *option, TCHAR *value, int);
 extern int cfgfile_get_description (const TCHAR *filename, TCHAR *description, TCHAR *hostlink, TCHAR *hardwarelink, int *type);
 extern void cfgfile_show_usage (void);
 extern int cfgfile_searchconfig(const TCHAR *in, int index, TCHAR *out, int outsize);
 extern uae_u32 cfgfile_uaelib (int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen);
 extern uae_u32 cfgfile_uaelib_modify (uae_u32 mode, uae_u32 parms, uae_u32 size, uae_u32 out, uae_u32 outsize);
-extern uae_u32 cfgfile_modify (uae_u32 index, TCHAR *parms, uae_u32 size, TCHAR *out, uae_u32 outsize);
+extern uae_u32 cfgfile_modify (uae_u32 index, const TCHAR *parms, uae_u32 size, TCHAR *out, uae_u32 outsize);
 extern void cfgfile_addcfgparam (TCHAR *);
 extern int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck);
 extern int built_in_chipset_prefs (struct uae_prefs *p);
@@ -717,4 +727,4 @@ extern struct uae_prefs currprefs, changed_prefs;
 extern int machdep_init (void);
 extern void machdep_free (void);
 
-#endif /* OPTIONS_H */
+#endif /* UAE_OPTIONS_H */

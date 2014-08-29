@@ -93,7 +93,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 102
+#define NEXT_ROM_ID 104
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -301,7 +301,11 @@ static struct romdata roms[] = {
 	ALTROMPN(92, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xa6023f20, 0xdfb048d6, 0xbdc03587, 0x241e8121, 0x26aba603, 0xd69b0238)
 	ALTROMPN(92, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x9635a9cd, 0x47578b27, 0xc4ba6e54, 0x891930dd, 0xcb4b6a45, 0x5d6b31b2)
 	{ _T("Blizzard SCSI Kit IV ROM"), 8, 5, 8, 5, _T("BSCSIIV\0"), 32768, 94, 0, 0, ROMTYPE_CPUBOARDEXT, 0, 0, NULL,
-	0xf53a0fca, 0xefe17ca5,0x88c44a7f,0x0f8c62be,0x20f23278,0xcfe06727 },
+	0xf53a0fca, 0xefe17ca5,0x88c44a7f,0x0f8c62be,0x20f23278,0xcfe06727, NULL, _T("blizzard_scsi_kit_iv.rom") },
+	{ _T("Fastlane ROM"), 8, 5, 8, 5, _T("FASTLANE\0"), 20788, 102, 0, 0, ROMTYPE_FASTLANE, 0, 0, NULL,
+	0xe4f485a5, 0x20bf7de5,0x05e45d0a,0xc411cfd2,0x806d0fd8,0xe46276de, NULL, _T("fastlanez3.rom") },
+	{ _T("Oktagon 2008 ROM"), 6, 12, 6, 12, _T("OKTAGON\0"), 32768, 103, 0, 0, ROMTYPE_OKTAGON, 0, 0, NULL,
+	0xbb0d2f6a, 0x56c441fa,0x37d19339,0x3081b2e8,0xceae823b,0xc7e97e49, NULL, _T("oktagon2008.rom") },
 	{ _T("Warp Engine A4000 ROM"), 0, 0, 0, 0, _T("WARPENGINE\0WARPENGINEA4000\0"), 32768, 93, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
 	0x4deb574a, 0x6e6c95ff,0xe8448391,0xd36c5b68,0xc9065cb0,0x702a7d27 },
 
@@ -1042,7 +1046,7 @@ struct romlist *getromlistbyids (const int *ids)
 	return NULL;
 }
 
-struct romdata *getromlistbyidsallroms (const int *ids)
+struct romdata *getromdatabyids (const int *ids)
 {
 	struct romdata *rd;
 	int i;
@@ -1073,7 +1077,7 @@ void romwarning (const int *ids)
 			_tcscat (tmp2, _T("- "));
 			_tcscat (tmp2, tmp1);
 			_tcscat (tmp2, _T("\n"));
-			if (rd->type & (ROMTYPE_A2091BOOT | ROMTYPE_A4091BOOT | ROMTYPE_CPUBOARDEXT | ROMTYPE_CPUBOARD | ROMTYPE_CD32CART))
+			if (rd->type & (ROMTYPE_SCSI | ROMTYPE_CPUBOARD | ROMTYPE_CD32CART))
 				exp++;
 		}
 		i++;

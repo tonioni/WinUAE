@@ -25,7 +25,7 @@
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2014, 8, 20)
+#define WINUAEDATE MAKEBD(2014, 8, 29)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")

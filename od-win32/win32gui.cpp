@@ -91,7 +91,7 @@
 #include "zarchive.h"
 #include "gfxboard.h"
 #include "win32_uaenet.h"
-#include "ppc.h"
+#include "uae/ppc.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -178,6 +178,22 @@ static void addaspectratios (HWND hDlg, int id)
 		SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 	}
 }
+
+static int scsiromselected;
+struct scsiromselect
+{
+	TCHAR *name;
+	int mask;
+};
+static struct scsiromselect scsiromdata[] =
+{
+	{ workprefs.a2091rom.roms[0].romfile, ROMTYPE_A2091BOOT | ROMTYPE_NONE },
+	{ workprefs.a4091rom.roms[0].romfile, ROMTYPE_A4091BOOT },
+	{ workprefs.fastlanerom.roms[0].romfile, ROMTYPE_FASTLANE },
+	{ workprefs.oktagonrom.roms[0].romfile, ROMTYPE_OKTAGON },
+	{ workprefs.acceleratorextromfile, ROMTYPE_CPUBOARDEXT },
+	{ NULL, 0 }
+};
 
 #define Error(x) MessageBox (NULL, (x), _T("WinUAE Error"), MB_OK)
 
@@ -1632,6 +1648,8 @@ static void show_rom_list (void)
 
 		53, 54, 55, 56, -1, -1, // A590/A2091
 		57, 58, -1, -1, // A4091
+		102, -1, -1, // Fastlane
+		103, -1, -1, // Oktagon
 		18, -1, 19, -1, 74, 23, -1, -1,  // CD32 FMV
 		91, -1, -2, // Picasso IV
 
@@ -1660,7 +1678,7 @@ static void show_rom_list (void)
 	p1 = _T("A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A4000\0A4000T\0")
 		_T("CD32\0CDTV\0Arcadia Multi Select\0")
 
-		_T("A590/A2091 SCSI\0A4091 SCSI\0")
+		_T("A590/A2091 SCSI\0A4091 SCSI\0Fastlane\0Oktagon 2008\0")
 		_T("CD32 Full Motion Video\0")
 		_T("Picasso IV\0")
 
@@ -2696,21 +2714,18 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			_tcscpy (workprefs.cartfile, full_path);
 			fullpath (workprefs.cartfile, MAX_DPATH);
 			break;
-		case IDC_A2091ROMFILE:
-			_tcscpy (workprefs.a2091romfile, full_path);
-			fullpath (workprefs.a2091romfile, MAX_DPATH);
+		case IDC_SCSIROMFILE:
+		{
+			int val = SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_GETCURSEL, 0, 0L);
+			if (val != CB_ERR) {
+				_tcscpy (scsiromdata[val].name, full_path);
+				fullpath (scsiromdata[val].name, MAX_DPATH);
+			}
 			break;
-		case IDC_A4091ROMFILE:
-			_tcscpy (workprefs.a4091romfile, full_path);
-			fullpath (workprefs.a4091romfile, MAX_DPATH);
-			break;
+		}
 		case IDC_CPUBOARDROMFILE:
 			_tcscpy(workprefs.acceleratorromfile, full_path);
 			fullpath(workprefs.acceleratorromfile, MAX_DPATH);
-			break;
-		case IDC_CPUBOARDEXTROMFILE:
-			_tcscpy(workprefs.acceleratorextromfile, full_path);
-			fullpath(workprefs.acceleratorextromfile, MAX_DPATH);
 			break;
 		case IDC_STATEREC_PLAY:
 		case IDC_STATEREC_RECORD:
@@ -4274,6 +4289,10 @@ void InitializeListView (HWND hDlg)
 					_T("A2091 2nd:%s"),
 					_T("A4091:%s"),
 					_T("A4091 2nd:%s"),
+					_T("Fastlane:%s"),
+					_T("Fastlane 2nd:%s"),
+					_T("Oktagon:%s"),
+					_T("Oktagon 2nd:%s"),
 					_T("A3000:%s"),
 					_T("A4000T:%s"),
 					_T("CDTV:%s"),
@@ -7415,7 +7434,7 @@ static void setmax32bitram (HWND hDlg)
 	rtgz3size = gfxboard_is_z3 (workprefs.rtgmem_type) ? workprefs.rtgmem_size : 0;
 	size = ((workprefs.z3fastmem_size + sizealign) & ~sizealign) + ((workprefs.z3fastmem2_size + sizealign) & ~sizealign) +
 		((rtgz3size + sizealign) & ~sizealign);
-	if (currprefs.a4091)
+	if (currprefs.a4091rom.enabled)
 		size += 2 * 16 * 1024 * 1024;
 	if (changed_prefs.mbresmem_high_size == 128 * 1024 * 1024 && (size || workprefs.z3chipmem_size))
 		size += 16 * 1024 * 1024;
@@ -7879,8 +7898,8 @@ static void values_to_expansiondlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
 	CheckDlgButton (hDlg, IDC_SANA2, workprefs.sana2);
 	CheckDlgButton (hDlg, IDC_A2065, workprefs.a2065name[0] ? 1 : 0);
-	CheckDlgButton (hDlg, IDC_CS_A2091, workprefs.a2091);
-	CheckDlgButton(hDlg, IDC_CS_A4091, workprefs.a4091);
+	CheckDlgButton (hDlg, IDC_CS_A2091, workprefs.a2091rom.enabled);
+	CheckDlgButton(hDlg, IDC_CS_A4091, workprefs.a4091rom.enabled);
 	CheckDlgButton(hDlg, IDC_CS_CD32FMV, workprefs.cs_cd32fmv);
 	CheckDlgButton(hDlg, IDC_CS_SCSIMODE, workprefs.scsi == 2);
 	SendDlgItemMessage (hDlg, IDC_RTG_BUFFERCNT, CB_SETCURSEL, workprefs.gfx_apmode[1].gfx_backbuffers == 0 ? 0 : workprefs.gfx_apmode[1].gfx_backbuffers - 1, 0);
@@ -8049,10 +8068,10 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				workprefs.catweasel = ischecked (hDlg, IDC_CATWEASEL) ? -1 : 0;
 				break;
 			case IDC_CS_A2091:
-				workprefs.a2091 = ischecked (hDlg, IDC_CS_A2091) ? 1 : 0;
+				workprefs.a2091rom.enabled = ischecked (hDlg, IDC_CS_A2091) ? 1 : 0;
 				break;
 			case IDC_CS_A4091:
-				workprefs.a4091 = ischecked(hDlg, IDC_CS_A4091) ? 1 : 0;
+				workprefs.a4091rom.enabled = ischecked(hDlg, IDC_CS_A4091) ? 1 : 0;
 				break;
 			case IDC_CS_CD32FMV:
 				workprefs.cs_cd32fmv = ischecked(hDlg, IDC_CS_CD32FMV) ? 1 : 0;
@@ -8283,7 +8302,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	return FALSE;
 }
 
-static void addromfiles (UAEREG *fkey, HWND hDlg, DWORD d, TCHAR *path, int type)
+static void addromfiles (UAEREG *fkey, HWND hDlg, DWORD d, const TCHAR *path, int type)
 {
 	int idx;
 	TCHAR tmp[MAX_DPATH];
@@ -8311,7 +8330,7 @@ static void addromfiles (UAEREG *fkey, HWND hDlg, DWORD d, TCHAR *path, int type
 			}
 			if (idx2 >= 0) {
 				struct romdata *rd = getromdatabyidgroup (idx2, group, subitem);
-				if (rd && (rd->type & type)) {
+				if (rd && ((rd->type & ROMTYPE_GROUP_MASK) & (type & ROMTYPE_GROUP_MASK)) && (rd->type & ROMTYPE_SUB_MASK) == (type & ROMTYPE_SUB_MASK)) {
 					getromname (rd, tmp);
 					if (SendDlgItemMessage (hDlg, d, CB_FINDSTRING, (WPARAM)-1, (LPARAM)tmp) < 0)
 						SendDlgItemMessage(hDlg, d, CB_ADDSTRING, 0, (LPARAM)tmp);
@@ -8351,13 +8370,11 @@ static void getromfile (HWND hDlg, DWORD d, TCHAR *path, int size)
 
 static void values_from_kickstartdlg (HWND hDlg)
 {
-	getromfile (hDlg, IDC_ROMFILE, workprefs.romfile, sizeof (workprefs.romfile) / sizeof (TCHAR));
-	getromfile (hDlg, IDC_ROMFILE2, workprefs.romextfile, sizeof (workprefs.romextfile) / sizeof (TCHAR));
-	getromfile (hDlg, IDC_CARTFILE, workprefs.cartfile, sizeof (workprefs.cartfile) / sizeof (TCHAR));
-	getromfile (hDlg, IDC_A2091ROMFILE, workprefs.a2091romfile, sizeof (workprefs.a2091romfile) / sizeof (TCHAR));
-	getromfile (hDlg, IDC_A4091ROMFILE, workprefs.a4091romfile, sizeof (workprefs.a4091romfile) / sizeof (TCHAR));
+	getromfile(hDlg, IDC_ROMFILE, workprefs.romfile, sizeof (workprefs.romfile) / sizeof (TCHAR));
+	getromfile(hDlg, IDC_ROMFILE2, workprefs.romextfile, sizeof (workprefs.romextfile) / sizeof (TCHAR));
+	getromfile(hDlg, IDC_CARTFILE, workprefs.cartfile, sizeof (workprefs.cartfile) / sizeof (TCHAR));
+	getromfile(hDlg, IDC_SCSIROMFILE, scsiromdata[scsiromselected].name, MAX_DPATH / sizeof (TCHAR));
 	getromfile(hDlg, IDC_CPUBOARDROMFILE, workprefs.acceleratorromfile, sizeof(workprefs.acceleratorromfile) / sizeof(TCHAR));
-	getromfile(hDlg, IDC_CPUBOARDEXTROMFILE, workprefs.acceleratorextromfile, sizeof(workprefs.acceleratorextromfile) / sizeof(TCHAR));
 }
 
 static void values_to_kickstartdlg (HWND hDlg)
@@ -8371,21 +8388,18 @@ static void values_to_kickstartdlg (HWND hDlg)
 	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile,
 		ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS);
 	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile,
-		ROMTYPE_AR | ROMTYPE_SUPERIV | ROMTYPE_NORDIC | ROMTYPE_XPOWER | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON | ROMTYPE_CD32CART);
-	addromfiles (fkey, hDlg, IDC_A2091ROMFILE, workprefs.a2091romfile,
-		ROMTYPE_A2091BOOT | ROMTYPE_NONE);
-	addromfiles (fkey, hDlg, IDC_A4091ROMFILE, workprefs.a4091romfile,
-		ROMTYPE_A4091BOOT);
+		ROMTYPE_FREEZER | ROMTYPE_ARCADIAGAME | ROMTYPE_CD32CART);
+	addromfiles (fkey, hDlg, IDC_SCSIROMFILE, scsiromdata[scsiromselected].name,
+		scsiromdata[scsiromselected].mask);
 	addromfiles(fkey, hDlg, IDC_CPUBOARDROMFILE, workprefs.acceleratorromfile,
 		ROMTYPE_CPUBOARD);
-	addromfiles(fkey, hDlg, IDC_CPUBOARDEXTROMFILE, workprefs.acceleratorextromfile,
-		ROMTYPE_CPUBOARDEXT);
 	regclosetree(fkey);
 
 	SetDlgItemText(hDlg, IDC_FLASHFILE, workprefs.flashfile);
 	SetDlgItemText(hDlg, IDC_RTCFILE, workprefs.rtcfile);
 	CheckDlgButton(hDlg, IDC_KICKSHIFTER, workprefs.kickshifter);
 	CheckDlgButton(hDlg, IDC_MAPROM, workprefs.maprom);
+	SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_SETCURSEL, scsiromselected, 0);
 }
 
 static void init_kickstart (HWND hDlg)
@@ -8406,14 +8420,33 @@ static void init_kickstart (HWND hDlg)
 	ew (hDlg, IDC_CARTCHOOSER), FALSE);
 	ew (hDlg, IDC_FLASHCHOOSER), FALSE);
 #endif
-	ew (hDlg, IDC_A4091ROMCHOOSER, workprefs.a4091);
-	ew (hDlg, IDC_A4091ROMFILE, workprefs.a4091);
-	ew (hDlg, IDC_A2091ROMCHOOSER, workprefs.a2091);
-	ew (hDlg, IDC_A2091ROMFILE, workprefs.a2091);
 	ew(hDlg, IDC_CPUBOARDROMFILE, workprefs.cpuboard_type != 0);
-	ew(hDlg, IDC_CPUBOARDEXTROMFILE, workprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV_SCSI || workprefs.cpuboard_type == BOARD_BLIZZARD_1260_SCSI);
+
+	SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("A590/A2091"));
+	SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("A4091"));
+	SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Fastlane"));
+	SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Oktagon 2008"));
+	SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard SCSI Kit IV"));
+
+	int found = -1;
+	for (int i = 0; scsiromdata[i].name; i++) {
+		if (scsiromdata[i].name[0]) {
+			if (found == -1)
+				found = i;
+			else
+				found = -2;
+		}
+	}
+	if (found >= 0) {
+		scsiromselected = found;
+		SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_SETCURSEL, scsiromselected, 0);
+	}
+
 	if (!regexiststree(NULL, _T("DetectedROMs")))
 		scan_roms (NULL, rp_isactive () ? 0 : 1);
+
+
 }
 
 static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, TCHAR *path)
@@ -8440,20 +8473,12 @@ static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, TCHAR *path)
 		DiskSelection(hDlg, IDC_CARTFILE, 6, &workprefs, path);
 		values_to_kickstartdlg (hDlg);
 		break;
-	case IDC_A2091ROMCHOOSER:
-		DiskSelection(hDlg, IDC_A2091ROMFILE, 6, &workprefs, path);
+	case IDC_SCSIROMCHOOSER:
+		DiskSelection(hDlg, IDC_SCSIROMCHOOSER, 6, &workprefs, path);
 		values_to_kickstartdlg (hDlg);
-		break;
-	case IDC_A4091ROMCHOOSER:
-		DiskSelection(hDlg, IDC_A4091ROMFILE, 6, &workprefs, path);
-		values_to_kickstartdlg(hDlg);
 		break;
 	case IDC_CPUBOARDROMCHOOSER:
 		DiskSelection(hDlg, IDC_CPUBOARDROMFILE, 6, &workprefs, path);
-		values_to_kickstartdlg(hDlg);
-		break;
-	case IDC_CPUBOARDEXTROMCHOOSER:
-		DiskSelection(hDlg, IDC_CPUBOARDEXTROMFILE, 6, &workprefs, path);
 		values_to_kickstartdlg(hDlg);
 		break;
 	}
@@ -8462,13 +8487,14 @@ static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, TCHAR *path)
 static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive;
+	int val;
 	TCHAR tmp[MAX_DPATH];
 
 	switch (msg)
 	{
 	case WM_INITDIALOG:
 		{
-			int ids[] = { IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, IDC_A2091ROMFILE, IDC_A4091ROMFILE, IDC_CPUBOARDROMFILE, IDC_CPUBOARDEXTROMFILE, -1 };
+			int ids[] = { IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, IDC_SCSIROMFILE, IDC_CPUBOARDROMFILE, -1 };
 			pages[KICKSTART_ID] = hDlg;
 			currentpage = KICKSTART_ID;
 			init_kickstart (hDlg);
@@ -8505,11 +8531,19 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			case IDC_ROMFILE:
 			case IDC_ROMFILE2:
 			case IDC_CARTFILE:
-			case IDC_A2091ROMFILE:
-			case IDC_A4091ROMFILE:
+			case IDC_SCSIROMFILE:
 			case IDC_CPUBOARDROMFILE:
-			case IDC_CPUBOARDEXTROMFILE:
 				values_from_kickstartdlg (hDlg);
+				break;
+			case IDC_SCSIROMSELECT:
+				val = SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_GETCURSEL, 0, 0L);
+				if (val != CB_ERR) {
+					UAEREG *fkey = regcreatetree (NULL, _T("DetectedROMs"));
+					scsiromselected = val;
+					addromfiles (fkey, hDlg, IDC_SCSIROMFILE, scsiromdata[scsiromselected].name,
+						scsiromdata[scsiromselected].mask);
+					regclosetree(fkey);
+				}
 				break;
 			}
 		}
@@ -9114,7 +9148,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	BOOL cpu_based_enable = FALSE;
 
 	ew (hDlg, IDC_SPEED, !workprefs.cpu_cycle_exact);
-	ew (hDlg, IDC_COMPATIBLE24, workprefs.cpu_model == 68020);
+	ew (hDlg, IDC_COMPATIBLE24, workprefs.cpu_model <= 68020);
 	//ew (hDlg, IDC_CS_HOST, !workprefs.cpu_cycle_exact);
 	//ew (hDlg, IDC_CS_68000, !workprefs.cpu_cycle_exact);
 	//ew (hDlg, IDC_CS_ADJUSTABLE, !workprefs.cpu_cycle_exact);
@@ -9229,7 +9263,7 @@ static void values_to_cpudlg (HWND hDlg)
 
 static void values_from_cpudlg (HWND hDlg)
 {
-	int newcpu, newfpu, newtrust, oldcache, jitena, idx;
+	int newcpu, oldcpu, newfpu, newtrust, oldcache, jitena, idx;
 	static int cachesize_prev, trust_prev;
 
 	workprefs.cpu_compatible = workprefs.cpu_cycle_exact | (ischecked (hDlg, IDC_COMPATIBLE) ? 1 : 0);
@@ -9254,6 +9288,7 @@ static void values_from_cpudlg (HWND hDlg)
 		: ischecked (hDlg, IDC_FPU3) ? 3 : 0;
 
 	/* When switching away from 68000, disable 24 bit addressing.  */
+	oldcpu = workprefs.cpu_model;
 	if (workprefs.cpu_model != newcpu && newcpu <= 68010)
 		newfpu = 0;
 	workprefs.cpu_model = newcpu;
@@ -9265,9 +9300,8 @@ static void values_from_cpudlg (HWND hDlg)
 		workprefs.fpu_model = newfpu == 0 ? 0 : (newfpu == 2 ? 68882 : 68881);
 		if (workprefs.cpu_compatible || workprefs.cpu_cycle_exact)
 			workprefs.fpu_model = 0;
-		workprefs.address_space_24 = 1;
-//		if (newcpu == 0 && workprefs.cpu_cycle_exact)
-//			workprefs.m68k_speed = 0;
+		if (newcpu != oldcpu)
+			workprefs.address_space_24 = 1;
 		break;
 	case 68020:
 		workprefs.fpu_model = newfpu == 0 ? 0 : (newfpu == 2 ? 68882 : 68881);
@@ -10203,6 +10237,10 @@ static void inithdcontroller (HWND hDlg, int ctype, int devtype)
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A590/A2091 #2 SCSI"));
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A4091 SCSI"));
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A4091 #2 SCSI"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Fastlane SCSI"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Fastlane #2 SCSI"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Oktagon 2008 SCSI"));
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Oktagon 2008 #2 SCSI"));
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A3000 SCSI"));
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A4000T SCSI"));
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("CDTV SCSI"));
@@ -10499,7 +10537,7 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 	case WM_INITDIALOG:
 		recursive++;
 		if (current_cddlg.ci.controller_type == HD_CONTROLLER_TYPE_UAE)
-			current_cddlg.ci.controller_type = (workprefs.a2091 || workprefs.a4091 || workprefs.cs_cdtvscsi || (workprefs.cs_mbdmac & 3)) ? HD_CONTROLLER_TYPE_SCSI_AUTO : HD_CONTROLLER_TYPE_IDE_AUTO;
+			current_cddlg.ci.controller_type = (workprefs.a2091rom.enabled || workprefs.a4091rom.enabled || workprefs.cs_cdtvscsi || (workprefs.cs_mbdmac & 3)) ? HD_CONTROLLER_TYPE_SCSI_AUTO : HD_CONTROLLER_TYPE_IDE_AUTO;
 		inithdcontroller(hDlg, current_cddlg.ci.controller_type, UAEDEV_CD);
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_cddlg.ci.controller_unit, 0);
 		InitializeListView (hDlg);
@@ -15921,7 +15959,7 @@ static int ignorewindows[] = {
 	-1,
 	IDD_INPUT, IDC_INPUTDEVICE, IDC_INPUTLIST, IDC_INPUTAMIGA,
 	-1,
-	IDD_KICKSTART, IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, IDC_FLASHFILE, IDC_RTCFILE, IDC_A2091ROMFILE, IDC_A4091ROMFILE, IDC_CPUBOARDROMFILE, IDC_CPUBOARDEXTROMFILE,
+	IDD_KICKSTART, IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, IDC_FLASHFILE, IDC_RTCFILE, IDC_SCSIROMSELECT, IDC_SCSIROMFILE, IDC_CPUBOARDROMFILE,
 	-1,
 	IDD_LOADSAVE, IDC_CONFIGTREE, IDC_EDITNAME, IDC_EDITDESCRIPTION, IDC_CONFIGLINK, IDC_EDITPATH,
 	-1,

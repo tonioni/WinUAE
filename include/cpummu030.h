@@ -66,6 +66,9 @@ uae_u32 mmu030_get_long_atc(uaecptr addr, int l, uae_u32 fc);
 uae_u16 mmu030_get_word_atc(uaecptr addr, int l, uae_u32 fc);
 uae_u8 mmu030_get_byte_atc(uaecptr addr, int l, uae_u32 fc);
 
+void mmu030_put_atc_generic(uaecptr addr, uae_u32 val, int l, uae_u32 fc, int size, int flags);
+uae_u32 mmu030_get_atc_generic(uaecptr addr, int l, uae_u32 fc, int size, int flags, bool checkwrite);
+
 void mmu030_flush_atc_fc(uae_u32 fc_base, uae_u32 fc_mask);
 void mmu030_flush_atc_page(uaecptr logical_addr);
 void mmu030_flush_atc_page_fc(uaecptr logical_addr, uae_u32 fc_base, uae_u32 fc_mask);
@@ -75,7 +78,7 @@ uaecptr mmu030_translate(uaecptr addr, bool super, bool data, bool write);
 
 int mmu030_match_ttr(uaecptr addr, uae_u32 fc, bool write);
 int mmu030_match_ttr_access(uaecptr addr, uae_u32 fc, bool write);
-int mmu030_match_lrmw_ttr(uaecptr addr, uae_u32 fc);
+int mmu030_match_lrmw_ttr_access(uaecptr addr, uae_u32 fc);
 int mmu030_do_match_ttr(uae_u32 tt, TT_info masks, uaecptr addr, uae_u32 fc, bool write);
 int mmu030_do_match_lrmw_ttr(uae_u32 tt, TT_info masks, uaecptr addr, uae_u32 fc);
 
@@ -91,6 +94,7 @@ uae_u16 mmu030_get_iword(uaecptr addr, uae_u32 fc);
 uae_u32 uae_mmu030_get_lrmw(uaecptr addr, int size);
 void uae_mmu030_put_lrmw(uaecptr addr, uae_u32 val, int size);
 
+void mmu030_put_generic(uaecptr addr, uae_u32 val, uae_u32 fc, int size, int accesssize, int flags);
 uae_u32 mmu030_get_generic(uaecptr addr, uae_u32 fc, int size, int accesssize, int flags);
 
 extern uae_u16 REGPARAM3 mmu030_get_word_unaligned(uaecptr addr, uae_u32 fc, int flags) REGPARAM;

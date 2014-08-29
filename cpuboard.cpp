@@ -26,7 +26,7 @@
 #include "debug.h"
 #include "flashrom.h"
 #include "uae.h"
-#include "ppc.h"
+#include "uae/ppc.h"
 
 #define CPUBOARD_IO_LOG 0
 #define CPUBOARD_IRQ_LOG 0
@@ -689,13 +689,13 @@ static void REGPARAM2 blizzarde8_bput(uaecptr addr, uae_u32 b)
 		map_banks(&blizzardea_bank, b, 0x20000 >> 16, 0x20000);
 		write_log(_T("Blizzard/CyberStorm Z2 autoconfigured at %02X0000\n"), b);
 		configured = 1;
-		expamem_next();
+		expamem_next (&blizzardea_bank, NULL);
 		return;
 	}
 	if (addr == 0x4c && !configured) {
 		write_log(_T("Blizzard Z2 SHUT-UP!\n"));
 		configured = 1;
-		expamem_next();
+		expamem_next (NULL, NULL);
 		return;
 	}
 }
@@ -1534,7 +1534,7 @@ static struct zfile *board_rom_open(int *roms, const TCHAR *name)
 	struct romlist *rl = getromlistbyids(roms);
 	if (rl)
 		zf = read_rom(rl->rd);
-	if (!zf) {
+	if (!zf && name) {
 		TCHAR path[MAX_DPATH];
 		fetch_rompath(path, sizeof path / sizeof(TCHAR));
 		_tcscat(path, name);
@@ -1600,7 +1600,7 @@ addrbank *cpuboard_autoconfig_init(void)
 
 	struct romlist *rl = getromlistbyids(roms);
 	if (!rl) {
-		rd = getromlistbyidsallroms(roms);
+		rd = getromdatabyids(roms);
 		if (!rd)
 			return &expamem_null;
 	} else {
@@ -1608,7 +1608,18 @@ addrbank *cpuboard_autoconfig_init(void)
 	}
 	defaultromname = rd->defaultfilename;
 	if (rl && !isflashrom) {
-		autoconfig_rom = zfile_fopen(romname, _T("rb"));
+		if (romname)
+			autoconfig_rom = zfile_fopen(romname, _T("rb"));
+		if (!autoconfig_rom && defaultromname)
+			autoconfig_rom = zfile_fopen(defaultromname, _T("rb"));
+		if (autoconfig_rom) {
+			struct romdata *rd2 = getromdatabyids(roms);
+			// Do not use image if it is not long enough (odd or even only?)
+			if (!rd2 || zfile_size(autoconfig_rom) < rd2->size) {
+				zfile_fclose(autoconfig_rom);
+				autoconfig_rom = NULL;
+			}
+		}
 		if (!autoconfig_rom)
 			autoconfig_rom = read_rom(rl->rd);
 	} else if (isflashrom) {
@@ -1631,6 +1642,7 @@ addrbank *cpuboard_autoconfig_init(void)
 		write_log (_T("ROM id %d not found for CPU board emulation\n"), roms[0]);
 		return &expamem_null;
 	}
+
 	protect_roms(false);
 	if (is_blizzard2060()) {
 		f0rom_size = 65536;
@@ -1714,7 +1726,6 @@ addrbank *cpuboard_autoconfig_init(void)
 		zfile_fclose(autoconfig_rom);
 		autoconfig_rom = NULL;
 		if (roms2[0] != -1) {
-			defaultromname = _T("blizzard_scsi_kit_iv.rom");
 			autoconfig_rom = board_rom_open(roms2, currprefs.acceleratorextromfile);
 			if (!autoconfig_rom)
 				autoconfig_rom = board_rom_open(roms2, defaultromname);

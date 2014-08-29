@@ -1,32 +1,43 @@
 extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 
-#define ROMTYPE_KICK		0x00000001
-#define ROMTYPE_KICKCD32	0x00000002
-#define ROMTYPE_EXTCD32		0x00000004
-#define ROMTYPE_EXTCDTV		0x00000008
-#define ROMTYPE_A2091BOOT	0x00000010
-#define ROMTYPE_A4091BOOT	0x00000020
-#define ROMTYPE_AR			0x00000040
-#define ROMTYPE_SUPERIV		0x00000080
-#define ROMTYPE_KEY			0x00000100
-#define ROMTYPE_ARCADIABIOS	0x00000200
-#define ROMTYPE_ARCADIAGAME	0x00000400
-#define ROMTYPE_HRTMON		0x00000800
-#define ROMTYPE_NORDIC		0x00001000
-#define ROMTYPE_XPOWER		0x00002000
-#define ROMTYPE_CD32CART	0x00004000
-#define ROMTYPE_SPECIALKICK	0x00008000
-#define ROMTYPE_PIV			0x00010000
-#define ROMTYPE_CPUBOARD	0x00020000
-#define ROMTYPE_CPUBOARDEXT	0x00040000
-#define ROMTYPE_MASK		0x001fffff
+#define ROMTYPE_SUB_MASK    0x000000ff
+#define ROMTYPE_GROUP_MASK  0x00ffff00
+#define ROMTYPE_MASK		0x00ffffff
+
+#define ROMTYPE_KICK		0x00000100
+#define ROMTYPE_KICKCD32	0x00000200
+#define ROMTYPE_EXTCD32		0x00000400
+#define ROMTYPE_EXTCDTV		0x00000800
+#define ROMTYPE_KEY			0x00001000
+#define ROMTYPE_ARCADIABIOS	0x00002000
+#define ROMTYPE_ARCADIAGAME	0x00004000
+#define ROMTYPE_CD32CART	0x00008000
+#define ROMTYPE_SPECIALKICK	0x00010000
+#define ROMTYPE_PIV			0x00020000
+#define ROMTYPE_CPUBOARD	0x00040000
+
+#define ROMTYPE_FREEZER		0x00080000
+#define ROMTYPE_AR			0x00080001
+#define ROMTYPE_HRTMON		0x00080002
+#define ROMTYPE_NORDIC		0x00080003
+#define ROMTYPE_XPOWER		0x00080004
+#define ROMTYPE_SUPERIV		0x00080005
+
+#define ROMTYPE_SCSI		0x00100000
+#define ROMTYPE_A2091BOOT	0x00100001
+#define ROMTYPE_A4091BOOT	0x00100002
+#define ROMTYPE_CPUBOARDEXT	0x00100003
+#define ROMTYPE_FASTLANE	0x00100004
+#define ROMTYPE_OKTAGON		0x00100005
+
+#define ROMTYPE_NONE		0x00800000
+
 #define ROMTYPE_EVEN		0x02000000
 #define ROMTYPE_ODD			0x04000000
 #define ROMTYPE_8BIT		0x08000000
 #define ROMTYPE_BYTESWAP	0x10000000
 #define ROMTYPE_CD32		0x20000000
 #define ROMTYPE_SCRAMBLED	0x40000000
-#define ROMTYPE_NONE		0x80000000
 
 #define ROMTYPE_ALL_KICK (ROMTYPE_KICK | ROMTYPE_KICKCD32 | ROMTYPE_CD32)
 #define ROMTYPE_ALL_EXT (ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV)
@@ -75,7 +86,7 @@ extern struct romlist **getromlistbyident (int ver, int rev, int subver, int sub
 extern void getromname (const struct romdata*, TCHAR*);
 extern struct romdata *getromdatabyname (const TCHAR*);
 extern struct romlist *getromlistbyids (const int *ids);
-extern struct romdata *getromlistbyidsallroms (const int *ids);
+extern struct romdata *getromdatabyids (const int *ids);
 extern void romwarning(const int *ids);
 extern struct romlist *getromlistbyromdata (const struct romdata *rd);
 extern void romlist_add (const TCHAR *path, struct romdata *rd);

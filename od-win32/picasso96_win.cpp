@@ -4286,7 +4286,7 @@ addrbank gfxmem_bank = {
 	gfxmem_lget, gfxmem_wget, gfxmem_bget,
 	gfxmem_lput, gfxmem_wput, gfxmem_bput,
 	gfxmem_xlate, gfxmem_check, NULL, NULL, _T("RTG RAM"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_RAM
+	dummy_lgeti, dummy_wgeti, ABFLAG_RAM | ABFLAG_RTG
 };
 
 /* Call this function first, near the beginning of code flow

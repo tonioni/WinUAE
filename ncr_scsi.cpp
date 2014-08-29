@@ -129,11 +129,9 @@ void scsi_req_continue(SCSIRequest *req)
 	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
 	if (sd->data_len < 0) {
 		lsi_command_complete(req, sd->status, 0);
-	}
-	else if (sd->data_len) {
+	} else if (sd->data_len) {
 		lsi_transfer_data(req, sd->data_len);
-	}
-	else {
+	} else {
 		if (sd->direction > 0)
 			scsi_emulate_cmd(sd);
 		lsi_command_complete(req, sd->status, 0);
@@ -470,41 +468,13 @@ static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
 	w &= 0xffff;
 	addr &= ncr->board_mask;
 	if (!ncr->configured) {
-		uae_u32 value;
 		switch (addr)
 		{
 			case 0x44:
-			// yes, this could be much better..
-			if (expamem_z3hack(&currprefs)) {
-				if (ncr == &ncr_we) {
-					// warp engine needs to be first
-					value = 0x10000000;
-				} else {
-					value = gfxmem_bank.start + ((currprefs.rtgmem_size + 0xffffff) & ~0xffffff);
-					if (value < 0x10000000) {
-						value = 0x10000000;
-						if (value < z3fastmem_bank.start + currprefs.z3fastmem_size)
-							value = z3fastmem_bank.start + currprefs.z3fastmem_size;
-						if (value < z3fastmem2_bank.start + currprefs.z3fastmem2_size)
-							value = z3fastmem2_bank.start + currprefs.z3fastmem2_size;
-					}
-				}
-				if (value < 0x40000000 && max_z3fastmem >= 0x41000000)
-					value = 0x40000000;
-				if (ncr == &ncr_a4091_2)
-					value += 16 * 1024 * 1024;
-				value >>= 16;
-				chipmem_wput (regs.regs[11] + 0x20, value);
-				chipmem_wput (regs.regs[11] + 0x28, value);
-			} else {
-				ncr->expamem_hi = w & 0xff00;
-				value = ncr->expamem_hi | (ncr->expamem_lo >> 4);
-			}
-			map_banks (ncr->bank, value, BOARD_SIZE >> 16, 0);
+			map_banks (ncr->bank, expamem_z3_pointer >> 16, BOARD_SIZE >> 16, 0);
 			ncr->board_mask = 0x00ffffff;
-			write_log (_T("%s Z3 autoconfigured at %04X0000\n"), ncr->name, value);
 			ncr->configured = 1;
-			expamem_next();
+			expamem_next (ncr->bank, NULL);
 			break;
 		}
 		return;
@@ -524,9 +494,8 @@ static void REGPARAM2 ncr_bput (struct ncr_state *ncr, uaecptr addr, uae_u32 b)
 		switch (addr)
 		{
 			case 0x4c:
-			write_log (_T("A4091 AUTOCONFIG SHUT-UP!\n"));
 			ncr->configured = 1;
-			expamem_next ();
+			expamem_shutup(ncr->bank);
 			break;
 			case 0x48:
 			ncr->expamem_lo = b & 0xff;
@@ -776,6 +745,9 @@ addrbank *ncr710_warpengine_autoconfig_init(void)
 	struct ncr_state *ncr = &ncr_we;
 	struct zfile *z = NULL;
 
+	xfree(ncr->rom);
+	ncr->rom = NULL;
+
 	roms[0] = 93;
 	roms[1] = -1;
 
@@ -822,6 +794,9 @@ addrbank *ncr710_a4091_autoconfig_init (int devnum)
 	struct ncr_state *ncr = ncra4091[devnum];
 	int roms[3];
 
+	xfree(ncr->rom);
+	ncr->rom = NULL;
+
 	if (!ncr->enabled && devnum > 0)
 		return &expamem_null;
 
@@ -837,7 +812,10 @@ addrbank *ncr710_a4091_autoconfig_init (int devnum)
 	ncr->io_start = A4091_IO_OFFSET;
 	ncr->io_end = A4091_IO_END;
 
-	struct zfile *z = read_rom_name (devnum && currprefs.a4091romfile2[0] ? currprefs.a4091romfile2 : currprefs.a4091romfile);
+	ncr710_init ();
+	ncr710_reset_board(ncr);
+
+	struct zfile *z = read_rom_name (devnum && currprefs.a4091rom.roms[1].romfile[0] ? currprefs.a4091rom.roms[1].romfile : currprefs.a4091rom.roms[0].romfile);
 	if (!z) {
 		struct romlist *rl = getromlistbyids(roms);
 		if (rl) {
@@ -851,8 +829,8 @@ addrbank *ncr710_a4091_autoconfig_init (int devnum)
 		for (int i = 0; i < A4091_ROM_SIZE; i++) {
 			uae_u8 b;
 			zfile_fread (&b, 1, 1, z);
-			ncr->rom[i * 4 + 0] = b;
-			ncr->rom[i * 4 + 2] = b << 4;
+			ncr->rom[i * 4 + 0] = b | 0x0f;
+			ncr->rom[i * 4 + 2] = (b << 4) | 0x0f;
 			if (i < 0x20) {
 				ncr->acmemory[i * 4 + 0] = b;
 			} else if (i >= 0x40 && i < 0x60) {
@@ -863,9 +841,6 @@ addrbank *ncr710_a4091_autoconfig_init (int devnum)
 	} else {
 		romwarning (roms);
 	}
-
-	ncr710_init ();
-	ncr710_reset_board(ncr);
 
 	return ncr == &ncr_a4091 ? &ncr_bank_a4091 : &ncr_bank_a4091_2;
 }

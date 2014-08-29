@@ -312,8 +312,10 @@ static int doinit_shm (void)
 		if (changed_prefs.cpu_model >= 68020)
 			size = 0x10000000;
 		z3size = ((changed_prefs.z3fastmem_size + align) & ~align) + ((changed_prefs.z3fastmem2_size + align) & ~align) + ((changed_prefs.z3chipmem_size + align) & ~align);
-		if (currprefs.a4091)
+		if (currprefs.a4091rom.enabled)
 			othersize += 2 * 16 * 1024 * 1024;
+		if (currprefs.fastlanerom.enabled)
+			othersize += 2 * 32 * 1024 * 1024;
 		totalsize = size + z3size + z3rtgmem_size + othersize;
 		while (totalsize > size64) {
 			int change = lowmem ();
@@ -339,14 +341,14 @@ static int doinit_shm (void)
 	}
 
 	z3offset = 0;
-	if ((changed_prefs.z3fastmem_start == 0x10000000 || changed_prefs.z3fastmem_start == 0x40000000) && !changed_prefs.force_0x10000000_z3 && !cpuboard_blizzardram(&changed_prefs)) {
-		if (natmem_size > 0x40000000 && natmem_size - 0x40000000 >= (totalsize - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align)) && changed_prefs.z3chipmem_size <= 512 * 1024 * 1024) {
-			changed_prefs.z3fastmem_start = currprefs.z3fastmem_start = 0x40000000;
+	if ((changed_prefs.z3autoconfig_start == 0x10000000 || changed_prefs.z3autoconfig_start == 0x40000000) && !changed_prefs.force_0x10000000_z3 && !cpuboard_blizzardram(&changed_prefs)) {
+		if (1 && natmem_size > 0x40000000 && natmem_size - 0x40000000 >= (totalsize - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align)) && changed_prefs.z3chipmem_size <= 512 * 1024 * 1024) {
+			changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = 0x40000000;
 			z3offset += 0x40000000 - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align);
 			if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000)
 				z3offset += 0x01000000;
 		} else {
-			changed_prefs.z3fastmem_start = currprefs.z3fastmem_start = 0x10000000;
+			changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = 0x10000000;
 		}
 	}
 

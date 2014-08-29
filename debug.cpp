@@ -684,7 +684,7 @@ static uaecptr nextaddr2 (uaecptr addr, int *next)
 		*next = -1;
 		return 0xffffffff;
 	}
-	prev = currprefs.z3fastmem_start + currprefs.z3fastmem_size;
+	prev = currprefs.z3autoconfig_start + currprefs.z3fastmem_size;
 	size = currprefs.z3fastmem2_size;
 
 	if (currprefs.z3fastmem_size) {
@@ -1908,7 +1908,7 @@ static void smc_detect_init (TCHAR **c)
 	smc_free ();
 	smc_size = 1 << 24;
 	if (currprefs.z3fastmem_size)
-		smc_size = currprefs.z3fastmem_start + currprefs.z3fastmem_size;
+		smc_size = currprefs.z3autoconfig_start + currprefs.z3fastmem_size;
 	smc_size += 4;
 	smc_table = xmalloc (struct smc_item, smc_size);
 	if (!smc_table)
@@ -3078,10 +3078,8 @@ static TCHAR *getfrombstr(uaecptr pp)
 }
 
 // read one byte from expansion autoconfig ROM
-static void copyromdata(uae_u8 bustype, uaecptr rom, uae_u8 *out, int size)
+static void copyromdata(uae_u8 bustype, uaecptr rom, int offset, uae_u8 *out, int size)
 {
-	int offset = 0;
-
 	switch (bustype & 0xc0)
 	{
 	case 0x00: // nibble
@@ -3229,12 +3227,12 @@ static void show_exec_lists (TCHAR *t)
 					get_word_debug(list + 16 + 4), get_byte_debug(list + 16 + 1),
 					get_long_debug(list + 16 + 6), rom_vector,
 					get_word_debug(list + 16 + 4), get_byte_debug(list + 16 + 1));
-				if (type & 0x10) {
+				if (1 || (type & 0x10)) {
 					uae_u8 diagarea[32];
 					uae_u16 nameoffset;
 					uaecptr rom = addr + rom_vector;
 					uae_u8 config = get_byte_debug(rom);
-					copyromdata(config, rom, diagarea, 16);
+					copyromdata(config, rom, 0, diagarea, 16);
 					nameoffset = (diagarea[8] << 8) | diagarea[9];
 					console_out_f(_T(" %02x %02x Size %04x Diag %04x Boot %04x Name %04x %04x %04x\n"),
 						diagarea[0], diagarea[1],
@@ -3245,10 +3243,10 @@ static void show_exec_lists (TCHAR *t)
 						(diagarea[10] << 8) | diagarea[11],
 						(diagarea[12] << 8) | diagarea[13]);
 					if (nameoffset != 0 && nameoffset != 0xffff) {
-						copyromdata(config, rom + nameoffset, diagarea, 32);
+						copyromdata(config, rom, nameoffset, diagarea, 32);
 						diagarea[31] = 0;
 						TCHAR *str = au((char*)diagarea);
-						console_out_f(_T(" '%s'"), str);
+						console_out_f(_T(" '%s'\n"), str);
 						xfree(str);
 					}
 				}

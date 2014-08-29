@@ -79,8 +79,11 @@ extern struct uae_filter *usedfilter;
 
 void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height, int aw, int ah, int scale, int temp_width, int temp_height);
 void getfilteroffset (float *dx, float *dy, float *mx, float *my);
-uae_u8 *getfilterbuffer (int *widthp, int *heightp, int *pitch, int *depth);
 uae_u8 *getfilterbuffer3d (int *widthp, int *heightp, int *pitch, int *depth);
+
+uae_u8 *getfilterbuffer (int *widthp, int *heightp, int *pitch, int *depth);
+void freefilterbuffer(uae_u8*);
+
 uae_u8 *getrtgbuffer (int *widthp, int *heightp, int *pitch, int *depth, uae_u8 *palette);
 void freertgbuffer (uae_u8 *dst);
 
