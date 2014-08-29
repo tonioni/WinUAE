@@ -771,6 +771,31 @@ static void allocuci (struct uae_prefs *p, int nr, int idx)
 	allocuci (p, nr, idx, -1);
 }
 
+static bool add_cpuboard_scsi(int unit, struct uaedev_config_info *uci)
+{
+	bool added = false;
+#ifdef NCR
+	if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
+		warpengine_add_scsi_unit(unit, uci);
+		added = true;
+	} else if (currprefs.cpuboard_type == BOARD_CSMK3 || currprefs.cpuboard_type == BOARD_CSPPC) {
+		cyberstorm_add_scsi_unit(unit, uci);
+		added = true;
+	} else if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC) {
+		blizzardppc_add_scsi_unit(unit, uci);
+		added = true;
+	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_2060 ||
+		currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV_SCSI ||
+		currprefs.cpuboard_type == BOARD_BLIZZARD_1260_SCSI ||
+		currprefs.cpuboard_type == BOARD_CSMK1 ||
+		currprefs.cpuboard_type == BOARD_CSMK2) {
+			cpuboard_ncr9x_add_scsi_unit(unit, uci);
+			added = true;
+	}
+#endif
+	return added;
+}
+
 static void initialize_mountinfo (void)
 {
 	int nr;
@@ -838,14 +863,14 @@ static void initialize_mountinfo (void)
 			added = true;
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_A2091) {
 #ifdef A2091
-			if (currprefs.a2091) {
+			if (currprefs.a2091rom.enabled) {
 				a2091_add_scsi_unit (unit, uci, 0);
 				added = true;
 			}
 #endif
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_A2091_2) {
 #ifdef A2091
-			if (currprefs.a2091) {
+			if (currprefs.a2091rom.enabled) {
 				a2091_add_scsi_unit (unit, uci, 1);
 				added = true;
 			}
@@ -859,38 +884,50 @@ static void initialize_mountinfo (void)
 #endif
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_A4091) {
 #ifdef NCR
-			if (currprefs.a4091) {
+			if (currprefs.a4091rom.enabled) {
 				a4091_add_scsi_unit (unit, uci, 0);
 				added = true;
 			}
 #endif
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_A4091_2) {
 #ifdef NCR
-			if (currprefs.a4091) {
+			if (currprefs.a4091rom.enabled) {
 				a4091_add_scsi_unit (unit, uci, 1);
 				added = true;
 			}
 #endif
-		} else if (type == HD_CONTROLLER_TYPE_SCSI_CPUBOARD) {
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_FASTLANE) {
 #ifdef NCR
-			if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
-				warpengine_add_scsi_unit(unit, uci);
+			if (currprefs.fastlanerom.enabled) {
+				fastlane_add_scsi_unit (unit, uci, 0);
 				added = true;
-			} else if (currprefs.cpuboard_type == BOARD_CSMK3 || currprefs.cpuboard_type == BOARD_CSPPC) {
-				cyberstorm_add_scsi_unit(unit, uci);
-				added = true;
-			} else if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC) {
-				blizzardppc_add_scsi_unit(unit, uci);
-				added = true;
-			} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_2060 ||
-				currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV_SCSI ||
-				currprefs.cpuboard_type == BOARD_BLIZZARD_1260_SCSI ||
-				currprefs.cpuboard_type == BOARD_CSMK1 ||
-				currprefs.cpuboard_type == BOARD_CSMK2) {
-					cpuboard_ncr9x_add_scsi_unit(unit, uci);
-					added = true;
 			}
 #endif
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_FASTLANE_2) {
+#ifdef NCR
+			if (currprefs.fastlanerom.enabled) {
+				fastlane_add_scsi_unit (unit, uci, 1);
+				added = true;
+			}
+#endif
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_OKTAGON) {
+#ifdef NCR
+			if (currprefs.oktagonrom.enabled) {
+				oktagon_add_scsi_unit (unit, uci, 0);
+				added = true;
+			}
+#endif
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_OKTAGON_2) {
+#ifdef NCR
+			if (currprefs.oktagonrom.enabled) {
+				oktagon_add_scsi_unit (unit, uci, 1);
+				added = true;
+			}
+#endif
+		} else if (type == HD_CONTROLLER_TYPE_SCSI_CPUBOARD) {
+
+			added = add_cpuboard_scsi(unit, uci);
+
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_A4000T) {
 #ifdef NCR
 			if (currprefs.cs_mbdmac == 2) {
@@ -916,12 +953,12 @@ static void initialize_mountinfo (void)
 				a4000t_add_scsi_unit (unit, uci);	
 				added = true;
 #endif
-			} else if (currprefs.a2091) {
+			} else if (currprefs.a2091rom.enabled) {
 #ifdef A2091
 				a2091_add_scsi_unit (unit, uci, 0);
 				added = true;
 #endif
-			} else if (currprefs.a4091) {
+			} else if (currprefs.a4091rom.enabled) {
 #ifdef NCR
 				a4091_add_scsi_unit (unit, uci, 0);
 				added = true;
@@ -931,6 +968,9 @@ static void initialize_mountinfo (void)
 				cdtv_add_scsi_hd_unit (unit, uci);
 				added = true;
 #endif
+			} else if (currprefs.cpuboard_type) {
+			
+				added = add_cpuboard_scsi(unit, uci);
 			}
 		} else if (type == HD_CONTROLLER_TYPE_PCMCIA_SRAM) {
 			gayle_add_pcmcia_sram_unit (uci->rootdir, uci->readonly);

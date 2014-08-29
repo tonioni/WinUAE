@@ -25,10 +25,44 @@
 #include "zfile.h"
 #include "blkdev.h"
 #include "cpuboard.h"
+#include "flashrom.h"
 #include "qemuvga/qemuuaeglue.h"
 #include "qemuvga/queue.h"
 #include "qemuvga/scsi/scsi.h"
 #include "qemuvga/scsi/esp.h"
+
+#define FASTLANE_BOARD_SIZE (2 * 16777216)
+#define FASTLANE_ROM_SIZE 32768
+#define FASTLANE_HARDBITS 0x01000041
+#define FASTLANE_RESETDMA 0x01000081
+
+/* NetBSD Fastlane definitions */
+#define FLSC_HB_DISABLED	0x01
+#define FLSC_HB_BUSID6		0x02
+#define FLSC_HB_SEAGATE		0x04
+#define FLSC_HB_SLOW		0x08
+#define FLSC_HB_SYNCHRON	0x10
+#define FLSC_HB_CREQ		0x20
+#define FLSC_HB_IACT		0x40
+#define FLSC_HB_MINT		0x80
+
+#define FLSC_PB_ESI		0x01
+#define FLSC_PB_EDI		0x02
+#define FLSC_PB_ENABLE_DMA	0x04
+#define FLSC_PB_DMA_WRITE	0x08
+#define FLSC_PB_LED		0x10
+
+#define OKTAGON_BOARD_SIZE 65536
+#define OKTAGON_ROM_SIZE 32768
+#define OKTAGON_ROM_OFFSET 0x100
+
+#define OKTAGON_ESP_ADDR 0x03000
+#define OKTAGON_DMA_START 0x01000
+#define OKTAGON_DMA_END 0x2000
+#define OKTAGON_INTENA 0x8000
+#define OKTAGON_EEPROM_SCL 0x8010
+#define OKTAGON_EEPROM_SDA 0x8018
+#define OKTAGON_EEPROM_SIZE 512
 
 struct ncr9x_state
 {
@@ -40,15 +74,24 @@ struct ncr9x_state
 	uae_u8 *rom;
 	uae_u8 acmemory[128];
 	int configured;
+	uae_u32 expamem_hi;
+	uae_u32 expamem_lo;
 	bool enabled;
 	int rom_start, rom_end, rom_offset;
 	int io_start, io_end;
 	addrbank *bank;
-	bool irq;
-	void (*irq_func)(int);
+	bool chipirq, boardirq;
+	void (*irq_func)(struct ncr9x_state*);
 	int led;
 	uaecptr dma_ptr;
 	int dma_cnt;
+	int state;
+	uae_u8 data;
+	bool data_valid;
+	void *eeprom;
+	uae_u8 eeprom_data[512];
+	bool romisoddonly;
+	bool romisevenonly;
 };
 
 
@@ -85,48 +128,107 @@ struct ncr9x_state
 	
 */
 
-static struct ncr9x_state blizzard_scsi;
+static struct ncr9x_state ncr_blizzard_scsi;
+static struct ncr9x_state ncr_fastlane_scsi[MAX_BOARD_ROMS];
+static struct ncr9x_state ncr_oktagon2008_scsi[MAX_BOARD_ROMS];
 
 
 static struct ncr9x_state *ncrs[] =
 {
-	&blizzard_scsi,
+	&ncr_blizzard_scsi,
+	&ncr_fastlane_scsi[0],
+	&ncr_fastlane_scsi[1],
+	&ncr_oktagon2008_scsi[0],
+	&ncr_oktagon2008_scsi[1],
 	NULL
 };
-
-static void set_irq2(int level)
-{
-	if (level)
-		INTREQ(0x8000 | 0x0008);
-}
 
 void ncr9x_rethink(void)
 {
 	for (int i = 0; ncrs[i]; i++) {
-		if (ncrs[i]->irq)
+		if (ncrs[i]->boardirq)
 			INTREQ(0x8000 | 0x0008);
+	}
+}
+
+static void set_irq2(struct ncr9x_state *ncr)
+{
+	if (ncr->chipirq && !ncr->boardirq) {
+		ncr->boardirq= true;
+		ncr9x_rethink();
+	}
+}
+
+static void set_irq2_oktagon(struct ncr9x_state *ncr)
+{
+	if (!(ncr->state & 0x80))
+		ncr->boardirq = false;
+	if (ncr->chipirq && !ncr->boardirq && (ncr->state & 0x80)) {
+		ncr->boardirq = true;
+		ncr9x_rethink();
+	}
+}
+
+
+static void set_irq2_fastlane(struct ncr9x_state *ncr)
+{
+	if (!ncr->chipirq || !(ncr->state & FLSC_PB_ESI)) {
+		ncr->state |= FLSC_HB_MINT;
+		ncr->boardirq = false;
+		return;
+	}
+	ncr->state |= FLSC_HB_CREQ;
+	ncr->state &= ~FLSC_HB_MINT;
+	if (ncr->state & FLSC_PB_ESI) {
+		if (!ncr->boardirq) {
+			ncr->boardirq = true;
+			ncr9x_rethink();
+		}
 	}
 }
 
 void esp_irq_raise(qemu_irq irq)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)irq;
-	ncr->irq = true;
-	ncr->irq_func(ncr->irq);
+	ncr->chipirq = true;
+	ncr->irq_func(ncr);
 }
 void esp_irq_lower(qemu_irq irq)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)irq;
-	ncr->irq = false;
-	ncr->irq_func(ncr->irq);
+	ncr->chipirq = false;
+	ncr->boardirq = false;
+	ncr->irq_func(ncr);
 }
 
-static void cyberstorm_mk1_mk2_dma_read(void *opaque, uint8_t *buf, int len)
+static int oktagon_dma_read(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
-	if (!(ncr->dma_ptr & 0x00000001)) {
-		write_log(_T("cyberstorm_dma_read mismatched direction!\n"));
-		return;
+	esp_dma_enable(ncr->devobject.lsistate, 0);
+	if (ncr->data_valid) {
+		*buf = ncr->data;
+		ncr->data_valid = false;
+	}
+	return 1;
+}
+static int oktagon_dma_write(void *opaque, uint8_t *buf, int len)
+{
+	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
+	esp_dma_enable(ncr->devobject.lsistate, 0);
+	if (!ncr->data_valid) {
+		ncr->data = *buf;
+		ncr->data_valid = true;
+		return 1;
+	}
+	return 0;
+}
+
+static int fastlane_dma_read(void *opaque, uint8_t *buf, int len)
+{
+	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
+	if (!(ncr->state & FLSC_PB_DMA_WRITE)) {
+		write_log(_T("fastlane_dma_read mismatched direction!\n"));
+		return -1;
 	}
 	while (len > 0) {
 		uae_u16 v = get_word(ncr->dma_ptr & ~1);
@@ -138,13 +240,14 @@ static void cyberstorm_mk1_mk2_dma_read(void *opaque, uint8_t *buf, int len)
 		}
 		ncr->dma_ptr += 2;
 	}
+	return -1;
 }
-static void cyberstorm_mk1_mk2_dma_write(void *opaque, uint8_t *buf, int len)
+static int fastlane_dma_write(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
-	if (ncr->dma_ptr & 0x00000001) {
-		write_log(_T("cyberstorm_dma_write mismatched direction!\n"));
-		return;
+	if (ncr->state & FLSC_PB_DMA_WRITE) {
+		write_log(_T("fastlane_dma_write mismatched direction!\n"));
+		return -1;
 	}
 	while (len > 0) {
 		uae_u16 v;
@@ -158,14 +261,56 @@ static void cyberstorm_mk1_mk2_dma_write(void *opaque, uint8_t *buf, int len)
 		put_word(ncr->dma_ptr & ~1, v);
 		ncr->dma_ptr += 2;
 	}
+	return -1;
 }
 
-static void blizzard_dma_read(void *opaque, uint8_t *buf, int len)
+static int cyberstorm_mk1_mk2_dma_read(void *opaque, uint8_t *buf, int len)
+{
+	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
+	if (!(ncr->dma_ptr & 0x00000001)) {
+		write_log(_T("cyberstorm_dma_read mismatched direction!\n"));
+		return -1;
+	}
+	while (len > 0) {
+		uae_u16 v = get_word(ncr->dma_ptr & ~1);
+		*buf++ = v >> 8;
+		len--;
+		if (len > 0) {
+			*buf++ = v;
+			len--;
+		}
+		ncr->dma_ptr += 2;
+	}
+	return -1;
+}
+static int cyberstorm_mk1_mk2_dma_write(void *opaque, uint8_t *buf, int len)
+{
+	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
+	if (ncr->dma_ptr & 0x00000001) {
+		write_log(_T("cyberstorm_dma_write mismatched direction!\n"));
+		return -1;
+	}
+	while (len > 0) {
+		uae_u16 v;
+		v = *buf++;
+		len--;
+		v <<= 8;
+		if (len > 0) {
+			v |= *buf++;
+			len--;
+		}
+		put_word(ncr->dma_ptr & ~1, v);
+		ncr->dma_ptr += 2;
+	}
+	return -1;
+}
+
+static int blizzard_dma_read(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
 	if (!(ncr->dma_ptr & 0x80000000)) {
 		write_log(_T("blizzard_dma_read mismatched direction!\n"));
-		return;
+		return -1;
 	}
 	while (len > 0) {
 		uae_u16 v = get_word((ncr->dma_ptr & 0x7fffffff) * 2);
@@ -177,13 +322,14 @@ static void blizzard_dma_read(void *opaque, uint8_t *buf, int len)
 		}
 		ncr->dma_ptr++;
 	}
+	return -1;
 }
-static void blizzard_dma_write(void *opaque, uint8_t *buf, int len)
+static int blizzard_dma_write(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
 	if (ncr->dma_ptr & 0x80000000) {
 		write_log(_T("blizzard_dma_write mismatched direction!\n"));
-		return;
+		return -1;
 	}
 	while (len > 0) {
 		uae_u16 v;
@@ -197,6 +343,7 @@ static void blizzard_dma_write(void *opaque, uint8_t *buf, int len)
 		put_word((ncr->dma_ptr & 0x7fffffff) * 2, v);
 		ncr->dma_ptr++;
 	}
+	return -1;
 }
 
 static int get_scb_len(uae_u8 cmd)
@@ -217,8 +364,7 @@ void scsiesp_req_continue(SCSIRequest *req)
 	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
 	if (sd->data_len < 0) {
 		esp_command_complete(req, sd->status, 0);
-	}
-	else if (sd->data_len) {
+	} else if (sd->data_len) {
 		esp_transfer_data(req, sd->data_len);
 	} else {
 		if (sd->direction > 0)
@@ -249,8 +395,9 @@ int32_t scsiesp_req_enqueue(SCSIRequest *req)
 	sd->data_len = 0;
 	scsi_start_transfer(sd);
 	scsi_emulate_analyze(sd);
-	//write_log (_T("%02x.%02x.%02x.%02x.%02x.%02x\n"), sd->cmd[0], sd->cmd[1], sd->cmd[2], sd->cmd[3], sd->cmd[4], sd->cmd[5]);
-
+#if 0
+	write_log (_T("%02x.%02x.%02x.%02x.%02x.%02x\n"), sd->cmd[0], sd->cmd[1], sd->cmd[2], sd->cmd[3], sd->cmd[4], sd->cmd[5]);
+#endif
 	if (sd->direction <= 0)
 		scsi_emulate_cmd(sd);
 	if (sd->direction == 0)
@@ -281,7 +428,7 @@ void scsiesp_req_cancel(SCSIRequest *req)
 	write_log(_T("scsi_req_cancel\n"));
 }
 
-#define IO_MASK 0xff
+#define IO_MASK 0x3f
 
 static uaecptr beswap(uaecptr addr)
 {
@@ -290,8 +437,53 @@ static uaecptr beswap(uaecptr addr)
 
 static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 {
+	int reg_shift = 2;
 	addr &= ncr->board_mask;
-	if (currprefs.cpuboard_type == BOARD_BLIZZARD_2060) {
+	if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+		if (addr == OKTAGON_EEPROM_SCL) {
+			eeprom_i2c_set(ncr->eeprom, BITBANG_I2C_SCL, (val & 0x80) != 0);
+		} else if (addr == OKTAGON_EEPROM_SDA) {
+			eeprom_i2c_set(ncr->eeprom, BITBANG_I2C_SDA, (val & 0x80) != 0);
+		} else if (addr >= OKTAGON_DMA_START && addr < OKTAGON_DMA_END) {
+			ncr->data = val;
+			ncr->data_valid = true;
+			esp_dma_enable(ncr->devobject.lsistate, 1);
+			return;
+		} else if (addr == OKTAGON_INTENA) {
+			ncr->state = val;
+			set_irq2_oktagon(ncr);
+			return;
+		}
+		if (addr < OKTAGON_ESP_ADDR || addr >= OKTAGON_ESP_ADDR + 0x100) {
+			return;
+		}
+		reg_shift = 1;
+	} else if (ncr == &ncr_fastlane_scsi[0] || ncr == &ncr_fastlane_scsi[1]) {
+		if (addr >= FASTLANE_HARDBITS) {
+			if (addr == FASTLANE_HARDBITS) {
+				int oldstate = ncr->state;
+				ncr->state = val;
+				if (!(oldstate & FLSC_PB_ENABLE_DMA) && (ncr->state & FLSC_PB_ENABLE_DMA))
+					esp_dma_enable(ncr->devobject.lsistate, 1);
+				else if ((oldstate & FLSC_PB_ENABLE_DMA) && !(ncr->state & FLSC_PB_ENABLE_DMA))
+					esp_dma_enable(ncr->devobject.lsistate, 0);
+				set_irq2_fastlane(ncr);
+			} else if (addr == FASTLANE_RESETDMA) {
+				ncr->dma_cnt = 4;
+				ncr->dma_ptr = 0;
+			}
+			return;
+		} else if (addr < 0x01000000) {
+			addr &= 3;
+			addr = 3 - addr;
+			ncr->dma_ptr &= ~(0xff << (addr * 8));
+			ncr->dma_ptr |= (val & 0xff) << (addr * 8);
+			ncr->dma_cnt--;
+			if (ncr->dma_cnt == 0 && (ncr->state & FLSC_PB_ENABLE_DMA))
+				esp_dma_enable(ncr->devobject.lsistate, 1);
+			return;
+		}
+	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_2060) {
 		if (addr >= BLIZZARD_2060_DMA_OFFSET) {
 			//write_log (_T("Blizzard DMA PUT %08x %02X\n"), addr, (uae_u8)val);
 			addr &= 0xf;
@@ -353,14 +545,45 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			 return;
 		 }
 	}
+	addr >>= reg_shift;
 	addr &= IO_MASK;
-	addr >>= 2;
+#if 0
+	write_log(_T("ESP write %02X %02X %08X\n"), addr, val & 0xff, M68K_GETPC);
+#endif
 	esp_reg_write(ncr->devobject.lsistate, (addr), val);
 }
+
 uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 {
+	uae_u8 v;
+	int reg_shift = 2;
 	addr &= ncr->board_mask;
-	if (currprefs.cpuboard_type == BOARD_BLIZZARD_2060) {
+	if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+		if (addr == OKTAGON_EEPROM_SCL) {
+			return eeprom_i2c_set(ncr->eeprom, BITBANG_I2C_SCL, -1) ? 0x80 : 0x00;
+		} else if (addr == OKTAGON_EEPROM_SDA) {
+			return eeprom_i2c_set(ncr->eeprom, BITBANG_I2C_SDA, -1) ? 0x80 : 0x00;
+		} else if (addr >= OKTAGON_DMA_START && addr < OKTAGON_DMA_END) {
+			esp_dma_enable(ncr->devobject.lsistate, 1);
+			v = ncr->data;
+			ncr->data_valid = false;
+			return v;
+		} else if (addr == OKTAGON_INTENA) {
+			return ncr->state;
+		}
+		if (addr < OKTAGON_ESP_ADDR || addr >= OKTAGON_ESP_ADDR + 0x100)
+			return 0xff;
+		reg_shift = 1;
+	} else if (ncr == &ncr_fastlane_scsi[0] || ncr == &ncr_fastlane_scsi[1]) {
+		if (addr >= FASTLANE_HARDBITS) {
+			if (addr == FASTLANE_HARDBITS) {
+				uae_u8 v = ncr->state;
+				v &= ~(FLSC_HB_DISABLED | FLSC_HB_BUSID6 | FLSC_HB_SEAGATE | FLSC_HB_SLOW | FLSC_HB_SYNCHRON);
+				return v;
+			}
+			return 0;
+		}
+	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_2060) {
 		if (addr >= BLIZZARD_2060_DMA_OFFSET) {
 			write_log(_T("Blizzard DMA GET %08x\n"), addr);
 			return 0;
@@ -385,9 +608,23 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 			return ncr->led;
 		}
 	}
+	addr >>= reg_shift;
 	addr &= IO_MASK;
-	addr >>= 2;
-	return esp_reg_read(ncr->devobject.lsistate, (addr));
+	v = esp_reg_read(ncr->devobject.lsistate, (addr));
+#if 0
+	write_log(_T("ESP read %02X %02X %08X\n"), addr, v, M68K_GETPC);
+#endif
+	return v;
+}
+
+static uae_u8 read_rombyte(struct ncr9x_state *ncr, uaecptr addr)
+{
+	uae_u8 v = ncr->rom[addr];
+#if 0
+	if (addr == 0x104)
+		activate_debugger();
+#endif
+	return v;
 }
 
 static uae_u32 ncr9x_bget2(struct ncr9x_state *ncr, uaecptr addr)
@@ -395,10 +632,15 @@ static uae_u32 ncr9x_bget2(struct ncr9x_state *ncr, uaecptr addr)
 	uae_u32 v = 0;
 
 	addr &= ncr->board_mask;
+	if (ncr->rom && addr >= ncr->rom_start && addr < ncr->rom_end) {
+		if (addr < ncr->io_start || (!ncr->romisoddonly && !ncr->romisevenonly) || (ncr->romisoddonly && (addr & 1)) || (ncr->romisevenonly && (addr & 1)))
+			return read_rombyte (ncr, addr - ncr->rom_offset);
+	}
 	if (ncr->io_end && (addr < ncr->io_start || addr >= ncr->io_end))
 		return v;
 	return ncr9x_io_bget(ncr, addr);
 }
+
 static void ncr9x_bput2(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 {
 	uae_u32 v = val;
@@ -415,8 +657,17 @@ static uae_u32 REGPARAM2 ncr9x_lget(struct ncr9x_state *ncr, uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= ncr->board_mask;
-	v = (ncr9x_bget2(ncr, addr + 3) << 0) | (ncr9x_bget2(ncr, addr + 2) << 8) |
-		(ncr9x_bget2(ncr, addr + 1) << 16) | (ncr9x_bget2(ncr, addr + 0) << 24);
+	if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+		v =  ncr9x_io_bget(ncr, addr + 0) << 24;
+		v |= ncr9x_io_bget(ncr, addr + 1) << 16;
+		v |= ncr9x_io_bget(ncr, addr + 2) <<  8;
+		v |= ncr9x_io_bget(ncr, addr + 3) <<  0;
+	} else {
+		v =  ncr9x_bget2(ncr, addr + 0) << 24;
+		v |= ncr9x_bget2(ncr, addr + 1) << 16;
+		v |= ncr9x_bget2(ncr, addr + 2) <<  8;
+		v |= ncr9x_bget2(ncr, addr + 3) <<  0;
+	}
 	return v;
 }
 
@@ -427,7 +678,13 @@ static uae_u32 REGPARAM2 ncr9x_wget(struct ncr9x_state *ncr, uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= ncr->board_mask;
-	v = (ncr9x_bget2(ncr, addr) << 8) | ncr9x_bget2(ncr, addr + 1);
+	if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+		v = ncr9x_io_bget(ncr, addr) << 8;
+		v |= ncr9x_io_bget(ncr, addr + 1);
+	} else {
+		v = ncr9x_bget2(ncr, addr) << 8;
+		v |= ncr9x_bget2(ncr, addr + 1);
+	}
 	return v;
 }
 
@@ -454,10 +711,17 @@ static void REGPARAM2 ncr9x_lput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 	special_mem |= S_WRITE;
 #endif
 	addr &= ncr->board_mask;
-	ncr9x_bput2(ncr, addr + 3, l >> 0);
-	ncr9x_bput2(ncr, addr + 2, l >> 8);
-	ncr9x_bput2(ncr, addr + 1, l >> 16);
-	ncr9x_bput2(ncr, addr + 0, l >> 24);
+	if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+		ncr9x_io_bput(ncr, addr + 0, l >> 24);
+		ncr9x_io_bput(ncr, addr + 1, l >> 16);
+		ncr9x_io_bput(ncr, addr + 2, l >>  8);
+		ncr9x_io_bput(ncr, addr + 3, l >>  0);
+	} else {
+		ncr9x_bput2(ncr, addr + 0, l >> 24);
+		ncr9x_bput2(ncr, addr + 1, l >> 16);
+		ncr9x_bput2(ncr, addr + 2, l >>  8);
+		ncr9x_bput2(ncr, addr + 3, l >>  0);
+	}
 }
 
 
@@ -468,10 +732,24 @@ static void REGPARAM2 ncr9x_wput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 #endif
 	w &= 0xffff;
 	addr &= ncr->board_mask;
-	if (!ncr->configured)
+	if (!ncr->configured) {
+		switch (addr)
+		{
+			case 0x44:
+			map_banks (ncr->bank, expamem_z3_pointer >> 16, FASTLANE_BOARD_SIZE >> 16, 0);
+			ncr->configured = 1;
+			expamem_next (ncr->bank, NULL);
+			break;
+		}
 		return;
-	ncr9x_bput2(ncr, addr, w >> 8);
-	ncr9x_bput2(ncr, addr + 1, w);
+	}
+	if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+		ncr9x_io_bput(ncr, addr, w >> 8);
+		ncr9x_io_bput(ncr, addr + 1, w);
+	} else {
+		ncr9x_bput2(ncr, addr, w >> 8);
+		ncr9x_bput2(ncr, addr + 1, w);
+	}
 }
 
 static void REGPARAM2 ncr9x_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 b)
@@ -482,35 +760,26 @@ static void REGPARAM2 ncr9x_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 	b &= 0xff;
 	addr &= ncr->board_mask;
 	if (!ncr->configured) {
+		switch (addr)
+		{
+			case 0x48:
+			if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+				map_banks (ncr->bank, expamem_z2_pointer >> 16, OKTAGON_BOARD_SIZE >> 16, 0);
+				ncr->configured = 1;
+				expamem_next (ncr->bank, NULL);
+			}
+			break;
+			case 0x4c:
+			ncr->configured = 1;
+			expamem_shutup(ncr->bank);
+			break;
+		}
 		return;
 	}
 	ncr9x_bput2(ncr, addr, b);
 }
 
-static void REGPARAM2 bncr9x_bput(uaecptr addr, uae_u32 b)
-{
-	ncr9x_bput(&blizzard_scsi, addr, b);
-}
-static void REGPARAM2 bncr9x_wput(uaecptr addr, uae_u32 b)
-{
-	ncr9x_wput(&blizzard_scsi, addr, b);
-}
-static void REGPARAM2 bncr9x_lput(uaecptr addr, uae_u32 b)
-{
-	ncr9x_lput(&blizzard_scsi, addr, b);
-}
-static uae_u32 REGPARAM2 bncr9x_bget(uaecptr addr)
-{
-	return ncr9x_bget(&blizzard_scsi, addr);
-}
-static uae_u32 REGPARAM2 bncr9x_wget(uaecptr addr)
-{
-	return ncr9x_wget(&blizzard_scsi, addr);
-}
-static uae_u32 REGPARAM2 bncr9x_lget(uaecptr addr)
-{
-	return ncr9x_lget(&blizzard_scsi, addr);
-}
+SCSI_MEMORY_FUNCTIONS(bncr9x, ncr9x, ncr_blizzard_scsi);
 
 static addrbank ncr9x_bank_blizzard = {
 	bncr9x_lget, bncr9x_wget, bncr9x_bget,
@@ -521,11 +790,11 @@ static addrbank ncr9x_bank_blizzard = {
 
 uae_u32 cpuboard_ncr9x_scsi_get(uaecptr addr)
 {
-	return ncr9x_io_bget(&blizzard_scsi, addr);
+	return ncr9x_io_bget(&ncr_blizzard_scsi, addr);
 }
 void cpuboard_ncr9x_scsi_put(uaecptr addr, uae_u32 v)
 {
-	ncr9x_io_bput(&blizzard_scsi, addr, v);
+	ncr9x_io_bput(&ncr_blizzard_scsi, addr, v);
 }
 
 static void ew(struct ncr9x_state *ncr, int addr, uae_u8 value)
@@ -533,11 +802,229 @@ static void ew(struct ncr9x_state *ncr, int addr, uae_u8 value)
 	if (addr == 00 || addr == 02 || addr == 0x40 || addr == 0x42) {
 		ncr->acmemory[addr] = (value & 0xf0);
 		ncr->acmemory[addr + 2] = (value & 0x0f) << 4;
-	}
-	else {
+	} else {
 		ncr->acmemory[addr] = ~(value & 0xf0);
 		ncr->acmemory[addr + 2] = ~((value & 0x0f) << 4);
 	}
+}
+
+SCSI_MEMORY_FUNCTIONS(ncr_fastlane, ncr9x, ncr_fastlane_scsi[0]);
+SCSI_MEMORY_FUNCTIONS(ncr2_fastlane, ncr9x, ncr_fastlane_scsi[1]);
+DECLARE_MEMORY_FUNCTIONS(ncr_fastlane)
+static addrbank ncr_bank_fastlane = {
+	ncr_fastlane_lget, ncr_fastlane_wget, ncr_fastlane_bget,
+	ncr_fastlane_lput, ncr_fastlane_wput, ncr_fastlane_bput,
+	default_xlate, default_check, NULL, NULL, _T("Fastlane"),
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
+DECLARE_MEMORY_FUNCTIONS(ncr2_fastlane)
+static addrbank ncr_bank_fastlane_2 = {
+	ncr2_fastlane_lget, ncr2_fastlane_wget, ncr2_fastlane_bget,
+	ncr2_fastlane_lput, ncr2_fastlane_wput, ncr2_fastlane_bput,
+	default_xlate, default_check, NULL, NULL, _T("Fastlane #2"),
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
+
+SCSI_MEMORY_FUNCTIONS(ncr_oktagon, ncr9x, ncr_oktagon2008_scsi[0]);
+SCSI_MEMORY_FUNCTIONS(ncr2_oktagon, ncr9x, ncr_oktagon2008_scsi[1]);
+DECLARE_MEMORY_FUNCTIONS(ncr_oktagon2008)
+static addrbank ncr_bank_oktagon = {
+	ncr_oktagon_lget, ncr_oktagon_wget, ncr_oktagon_bget,
+	ncr_oktagon_lput, ncr_oktagon_wput, ncr_oktagon_bput,
+	default_xlate, default_check, NULL, NULL, _T("Oktagon 2008"),
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
+};
+DECLARE_MEMORY_FUNCTIONS(ncr2_oktagon2008)
+static addrbank ncr_bank_oktagon_2 = {
+	ncr2_oktagon_lget, ncr2_oktagon_wget, ncr2_oktagon_bget,
+	ncr2_oktagon_lput, ncr2_oktagon_wput, ncr2_oktagon_bput,
+	default_xlate, default_check, NULL, NULL, _T("Oktagon 2008 #2"),
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
+
+
+static void ncr9x_reset_board(struct ncr9x_state *ncr)
+{
+	ncr->configured = 0;
+	if (currprefs.cpuboard_type == BOARD_CSMK1)
+		ncr->board_mask = 0xffff;
+	else
+		ncr->board_mask = 0x1ffff;
+	ncr->boardirq = false;
+	ncr->chipirq = false;
+	if (ncr->devobject.lsistate)
+		esp_scsi_reset(&ncr->devobject, ncr);
+	ncr->irq_func = set_irq2;
+	if (ncr == &ncr_blizzard_scsi) {
+		ncr->bank = &ncr9x_bank_blizzard;
+	} else if (ncr == &ncr_fastlane_scsi[0]) {
+		ncr->bank = &ncr_bank_fastlane;
+		ncr->board_mask = FASTLANE_BOARD_SIZE - 1;
+		ncr->irq_func = set_irq2_fastlane;
+	} else if (ncr == &ncr_fastlane_scsi[1]) {
+		ncr->bank = &ncr_bank_fastlane_2;
+		ncr->board_mask = FASTLANE_BOARD_SIZE - 1;
+		ncr->irq_func = set_irq2_fastlane;
+	} else if (ncr == &ncr_oktagon2008_scsi[0]) {
+		ncr->bank = &ncr_bank_oktagon;
+		ncr->board_mask = OKTAGON_BOARD_SIZE - 1;
+		ncr->irq_func = set_irq2_fastlane;
+	} else if (ncr == &ncr_oktagon2008_scsi[1]) {
+		ncr->bank = &ncr_bank_oktagon_2;
+		ncr->board_mask = OKTAGON_BOARD_SIZE - 1;
+		ncr->irq_func = set_irq2_fastlane;
+	}
+	ncr->name = ncr->bank->name;
+}
+
+void ncr9x_reset(void)
+{
+	for (int i = 0; ncrs[i]; i++) {
+		ncr9x_reset_board(ncrs[i]);
+		ncrs[i]->configured = 0;
+		ncrs[i]->enabled = false;
+	}
+	ncr_blizzard_scsi.configured = -1;
+	ncr_blizzard_scsi.enabled = true;
+}
+
+addrbank *ncr_fastlane_autoconfig_init(int devnum)
+{
+	int roms[2];
+	struct ncr9x_state *ncr = &ncr_fastlane_scsi[devnum];
+
+	xfree(ncr->rom);
+	ncr->rom = NULL;
+
+	if (!ncr->enabled && devnum > 0)
+		return &expamem_null;
+
+	roms[0] = 102;
+	roms[1] = -1;
+
+	ncr->enabled = true;
+	memset (ncr->acmemory, 0xff, sizeof ncr->acmemory);
+	ncr->rom_start = 0x800;
+	ncr->rom_offset = 0;
+	ncr->rom_end = FASTLANE_ROM_SIZE * 4;
+	ncr->io_start = 0;
+	ncr->io_end = 0;
+
+	ncr9x_init ();
+	ncr9x_reset_board(ncr);
+
+	struct zfile *z = read_rom_name (devnum && currprefs.fastlanerom.roms[1].romfile[0] ? currprefs.fastlanerom.roms[1].romfile : currprefs.fastlanerom.roms[0].romfile);
+	if (!z) {
+		struct romlist *rl = getromlistbyids(roms);
+		if (rl) {
+			struct romdata *rd = rl->rd;
+			z = read_rom (rd);
+		}
+	}
+
+	ncr->rom = xcalloc (uae_u8, FASTLANE_ROM_SIZE * 4);
+	if (z) {
+		// memory board at offset 0x100
+		int autoconfig_offset = 0;
+		write_log (_T("%s BOOT ROM '%s'\n"), ncr->name, zfile_getname (z));
+		memset(ncr->rom, 0xff, FASTLANE_ROM_SIZE * 4);
+		for (int i = 0; i < FASTLANE_ROM_SIZE; i++) {
+			int ia = i - autoconfig_offset;
+			uae_u8 b;
+			zfile_fread (&b, 1, 1, z);
+			ncr->rom[i * 4 + 0] = b | 0x0f;
+			ncr->rom[i * 4 + 2] = (b << 4) | 0x0f;
+			if (ia >= 0 && ia < 0x20) {
+				ncr->acmemory[ia * 4 + 0] = b;
+			} else if (ia >= 0x40 && ia < 0x60) {
+				ncr->acmemory[(ia - 0x40) * 4 + 2] = b;
+			}
+		}
+		zfile_fclose(z);
+	}
+
+	return ncr == &ncr_fastlane_scsi[0] ? &ncr_bank_fastlane : &ncr_bank_fastlane_2;
+}
+
+static const uae_u8 oktagon_autoconfig[16] = {
+	0xd1, 0x05, 0x00, 0x00, 0x08, 0x2c, 0x00, 0x00, 0x00, 0x00, OKTAGON_ROM_OFFSET >> 8, OKTAGON_ROM_OFFSET & 0xff
+};
+
+// Only offsets 0x100 to 0x10f contains non-FF data
+static const uae_u8 oktagon_eeprom[16] =
+{
+	0x0b, 0xf4, 0x3f, 0x0a, 0xff, 0x06, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x50, 0xaf, 0xff
+};
+
+addrbank *ncr_oktagon_autoconfig_init(int devnum)
+{
+	int roms[2];
+	struct ncr9x_state *ncr = &ncr_oktagon2008_scsi[devnum];
+
+	xfree(ncr->rom);
+	ncr->rom = NULL;
+	eeprom_free(ncr->eeprom);
+	ncr->eeprom = NULL;
+
+	if (!ncr->enabled && devnum > 0)
+		return &expamem_null;
+
+	roms[0] = 103;
+	roms[1] = -1;
+
+	ncr->enabled = true;
+	memset (ncr->acmemory, 0xff, sizeof ncr->acmemory);
+	ncr->rom_start = 0;
+	ncr->rom_offset = 0;
+	ncr->rom_end = OKTAGON_ROM_SIZE * 2;
+	ncr->io_start = 0x2000;
+	ncr->io_end = ncr->rom_end;
+	ncr->romisoddonly = true;
+
+	memset(ncr->eeprom_data, 0xff, OKTAGON_EEPROM_SIZE);
+	memcpy(ncr->eeprom_data + 0x100, oktagon_eeprom, 16);
+	ncr->eeprom = eeprom_new(ncr->eeprom_data, OKTAGON_EEPROM_SIZE, NULL);
+
+	ncr9x_init ();
+	ncr9x_reset_board(ncr);
+
+	struct zfile *z = read_rom_name (devnum && currprefs.oktagonrom.roms[1].romfile[0] ? currprefs.oktagonrom.roms[1].romfile : currprefs.oktagonrom.roms[0].romfile);
+	if (!z) {
+		struct romlist *rl = getromlistbyids(roms);
+		if (rl) {
+			struct romdata *rd = rl->rd;
+			z = read_rom (rd);
+		}
+	}
+	ncr->rom = xcalloc (uae_u8, OKTAGON_ROM_SIZE * 6);
+	if (z) {
+		// memory board at offset 0x100
+		int autoconfig_offset = 0;
+		write_log (_T("%s BOOT ROM '%s'\n"), ncr->name, zfile_getname (z));
+		memset(ncr->rom, 0xff, OKTAGON_ROM_SIZE * 4);
+		for (int i = 0; i < 0x1000 / 2; i++) {
+			uae_u8 b;
+			zfile_fread(&b, 1, 1, z);
+			ncr->rom[OKTAGON_ROM_OFFSET + i * 4 + 0] = b;
+			zfile_fread(&b, 1, 1, z);
+			ncr->rom[OKTAGON_ROM_OFFSET + i * 4 + 2] = b;
+		}
+		for (int i = 0; i < OKTAGON_ROM_SIZE - 0x1000; i++) {
+			uae_u8 b;
+			zfile_fread(&b, 1, 1, z);
+			ncr->rom[0x2000 + i * 4 + 1] = b;
+			zfile_fread(&b, 1, 1, z);
+			ncr->rom[0x2000 + i * 4 + 3] = b;
+		}
+
+		for (int i = 0; i < 16; i++) {
+			uae_u8 b = oktagon_autoconfig[i];
+			ew(ncr, i * 4, b);
+		}
+		zfile_fclose(z);
+	}
+
+	return ncr == &ncr_oktagon2008_scsi[0] ? &ncr_bank_oktagon : &ncr_bank_oktagon_2;
 }
 
 
@@ -567,41 +1054,24 @@ static void ncr9x_free2(struct ncr9x_state *ncr)
 
 void ncr9x_free(void)
 {
-	ncr9x_free2(&blizzard_scsi);
+	for (int i = 0; ncrs[i]; i++) {
+		ncr9x_free2(ncrs[i]);
+	}
 }
 
 void ncr9x_init(void)
 {
-	if (!blizzard_scsi.devobject.lsistate) {
+	if (!ncr_blizzard_scsi.devobject.lsistate) {
 		if (currprefs.cpuboard_type == BOARD_CSMK2 || currprefs.cpuboard_type == BOARD_CSMK1)
-			esp_scsi_init(&blizzard_scsi.devobject, cyberstorm_mk1_mk2_dma_read, cyberstorm_mk1_mk2_dma_write);
+			esp_scsi_init(&ncr_blizzard_scsi.devobject, cyberstorm_mk1_mk2_dma_read, cyberstorm_mk1_mk2_dma_write);
 		else
-			esp_scsi_init(&blizzard_scsi.devobject, blizzard_dma_read, blizzard_dma_write);
+			esp_scsi_init(&ncr_blizzard_scsi.devobject, blizzard_dma_read, blizzard_dma_write);
+		esp_scsi_init(&ncr_fastlane_scsi[0].devobject, fastlane_dma_read, fastlane_dma_write);
+		esp_scsi_init(&ncr_fastlane_scsi[1].devobject, fastlane_dma_read, fastlane_dma_write);
+		esp_scsi_init(&ncr_oktagon2008_scsi[0].devobject, oktagon_dma_read, oktagon_dma_write);
+		esp_scsi_init(&ncr_oktagon2008_scsi[1].devobject, oktagon_dma_read, oktagon_dma_write);
 	}
 }
-
-static void ncr9x_reset_board(struct ncr9x_state *ncr)
-{
-	ncr->configured = 0;
-	if (currprefs.cpuboard_type == BOARD_CSMK1)
-		ncr->board_mask = 0xffff;
-	else
-		ncr->board_mask = 0x1ffff;
-	ncr->irq = false;
-	if (ncr->devobject.lsistate)
-		esp_scsi_reset(&ncr->devobject, ncr);
-	ncr->bank = &ncr9x_bank_blizzard;
-	ncr->name = ncr->bank->name;
-	ncr->irq_func = set_irq2;
-}
-
-void ncr9x_reset(void)
-{
-	ncr9x_reset_board(&blizzard_scsi);
-	blizzard_scsi.configured = -1;
-	blizzard_scsi.enabled = true;
-}
-
 
 static int add_ncr_scsi_hd(struct ncr9x_state *ncr, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level)
 {
@@ -660,11 +1130,33 @@ static int add_ncr_scsi_tape(struct ncr9x_state *ncr, int ch, const TCHAR *tape_
 int cpuboard_ncr9x_add_scsi_unit(int ch, struct uaedev_config_info *ci)
 {
 	if (ci->type == UAEDEV_CD)
-		return add_ncr_scsi_cd(&blizzard_scsi, ch, ci->device_emu_unit);
+		return add_ncr_scsi_cd(&ncr_blizzard_scsi, ch, ci->device_emu_unit);
 	else if (ci->type == UAEDEV_TAPE)
-		return add_ncr_scsi_tape(&blizzard_scsi, ch, ci->rootdir, ci->readonly);
+		return add_ncr_scsi_tape(&ncr_blizzard_scsi, ch, ci->rootdir, ci->readonly);
 	else
-		return add_ncr_scsi_hd(&blizzard_scsi, ch, NULL, ci, 1);
+		return add_ncr_scsi_hd(&ncr_blizzard_scsi, ch, NULL, ci, 1);
+}
+
+int fastlane_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
+{
+	struct ncr9x_state *ncr = &ncr_fastlane_scsi[devnum];
+	if (ci->type == UAEDEV_CD)
+		return add_ncr_scsi_cd (ncr, ch, ci->device_emu_unit);
+	else if (ci->type == UAEDEV_TAPE)
+		return add_ncr_scsi_tape (ncr, ch, ci->rootdir, ci->readonly);
+	else
+		return add_ncr_scsi_hd (ncr, ch, NULL, ci, 1);
+}
+
+int oktagon_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
+{
+	struct ncr9x_state *ncr = &ncr_oktagon2008_scsi[devnum];
+	if (ci->type == UAEDEV_CD)
+		return add_ncr_scsi_cd (ncr, ch, ci->device_emu_unit);
+	else if (ci->type == UAEDEV_TAPE)
+		return add_ncr_scsi_tape (ncr, ch, ci->rootdir, ci->readonly);
+	else
+		return add_ncr_scsi_hd (ncr, ch, NULL, ci, 1);
 }
 
 #endif
