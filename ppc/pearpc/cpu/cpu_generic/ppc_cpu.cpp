@@ -37,7 +37,7 @@
 #include "ppc_exc.h"
 #include "ppc_mmu.h"
 #include "ppc_tools.h"
-#include "ppc.h"
+#include "uae/ppc.h"
 
 //#include "io/graphic/gcard.h"
 
@@ -53,7 +53,7 @@ static inline void ppc_debug_hook()
 
 sys_mutex exception_mutex;
 
-void ppc_cpu_atomic_raise_ext_exception()
+void PPCCALL ppc_cpu_atomic_raise_ext_exception()
 {
 	sys_lock_mutex(exception_mutex);
 	gCPU.ext_exception = true;
@@ -61,7 +61,7 @@ void ppc_cpu_atomic_raise_ext_exception()
 	sys_unlock_mutex(exception_mutex);
 }
 
-void ppc_cpu_atomic_cancel_ext_exception()
+void PPCCALL ppc_cpu_atomic_cancel_ext_exception()
 {
 	sys_lock_mutex(exception_mutex);
 	gCPU.ext_exception = false;
@@ -94,12 +94,12 @@ static void ppc_do_dec(int val)
 	}
 }
 
-uint64_t ppc_cpu_get_dec(void)
+uint64_t PPCCALL ppc_cpu_get_dec(void)
 {
 	return gCPU.pdec;
 }
 
-void ppc_cpu_do_dec(int val)
+void PPCCALL ppc_cpu_do_dec(int val)
 {
 	ppc_do_dec(val);
 }
@@ -107,7 +107,7 @@ void ppc_cpu_do_dec(int val)
 static uint ops = 0;
 static int ppc_trace;
 
-void ppc_cpu_run_single(int count)
+void PPCCALL ppc_cpu_run_single(int count)
 {
 	while (count != 0) {
 		if (count > 0)
@@ -219,7 +219,7 @@ void ppc_cpu_run_single(int count)
 	}
 }
 
-void ppc_cpu_run_continuous(void)
+void PPCCALL ppc_cpu_run_continuous(void)
 {
 	PPC_CPU_TRACE("execution started at %08x\n", gCPU.pc);
 	gCPU.effective_code_page = 0xffffffff;
@@ -227,7 +227,7 @@ void ppc_cpu_run_continuous(void)
 	ppc_cpu_run_single(-1);
 }
 
-void ppc_cpu_stop()
+void PPCCALL ppc_cpu_stop()
 {
 	sys_lock_mutex(exception_mutex);
 	gCPU.stop_exception = true;
@@ -272,7 +272,7 @@ void	ppc_cpu_set_msr(int cpu, uint32 newvalue)
 }
 
 // Handle as CPU reset
-void	ppc_cpu_set_pc(int cpu, uint32 newvalue)
+void PPCCALL ppc_cpu_set_pc(int cpu, uint32 newvalue)
 {
 	gCPU.srr[0] = gCPU.pc;
 	gCPU.srr[1] = gCPU.msr & 0xff73;
@@ -324,7 +324,7 @@ void ppc_set_singlestep_nonverbose(bool v)
 
 //#include "configparser.h"
 
-bool ppc_cpu_init(uint32 pvr)
+bool PPCCALL ppc_cpu_init(uint32 pvr)
 {
 	memset(&gCPU, 0, sizeof gCPU);
 	gCPU.pvr = pvr; //gConfig->getConfigInt(CPU_KEY_PVR);
@@ -346,7 +346,7 @@ bool ppc_cpu_init(uint32 pvr)
 	return true;
 }
 
-void ppc_cpu_free(void)
+void PPCCALL ppc_cpu_free(void)
 {
 	sys_destroy_mutex(exception_mutex);
 }

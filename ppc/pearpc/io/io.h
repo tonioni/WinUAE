@@ -39,7 +39,7 @@
 #define IO_MEM_ACCESS_EXC	1
 #define IO_MEM_ACCESS_FATAL	2
 
-#include "ppc.h"
+#include "uae/ppc.h"
 
 static inline int io_mem_write(uint32 addr, uint32 data, int size)
 {
