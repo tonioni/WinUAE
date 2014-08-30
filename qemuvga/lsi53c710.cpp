@@ -1890,7 +1890,7 @@ static void lsi_reg_writeb(LSIState710 *s, int offset, uint8_t val)
 		break;
     case 0x3b: /* DCNTL */
         s->dcntl = val & ~(LSI_DCNTL_PFF | LSI_DCNTL_STD);
-		if ((val & LSI_DCNTL_STD) && (s->dmode & LSI_DMODE_MAN) == 0)
+		if ((val & LSI_DCNTL_STD) && (s->dmode & LSI_DMODE_MAN) != 0)
             lsi_execute_script(s);
         break;
 	default:
