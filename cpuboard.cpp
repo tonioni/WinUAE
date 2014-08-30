@@ -1473,6 +1473,7 @@ bool cpuboard_08000000(struct uae_prefs *p)
 		case BOARD_CSMK3:
 		case BOARD_CSPPC:
 		case BOARD_WARPENGINE_A4000:
+		case BOARD_TEKMAGIC:
 		return true;
 	}
 	return false;

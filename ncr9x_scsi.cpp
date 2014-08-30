@@ -1127,36 +1127,29 @@ static int add_ncr_scsi_tape(struct ncr9x_state *ncr, int ch, const TCHAR *tape_
 	return ncr->scsid[ch] ? 1 : 0;
 }
 
-int cpuboard_ncr9x_add_scsi_unit(int ch, struct uaedev_config_info *ci)
+static int ncr9x_add_scsi_unit(struct ncr9x_state *ncr, int ch, struct uaedev_config_info *ci)
 {
 	if (ci->type == UAEDEV_CD)
-		return add_ncr_scsi_cd(&ncr_blizzard_scsi, ch, ci->device_emu_unit);
+		return add_ncr_scsi_cd (ncr, ch, ci->device_emu_unit);
 	else if (ci->type == UAEDEV_TAPE)
-		return add_ncr_scsi_tape(&ncr_blizzard_scsi, ch, ci->rootdir, ci->readonly);
+		return add_ncr_scsi_tape (ncr, ch, ci->rootdir, ci->readonly);
 	else
-		return add_ncr_scsi_hd(&ncr_blizzard_scsi, ch, NULL, ci, 1);
+		return add_ncr_scsi_hd (ncr, ch, NULL, ci, 1);
+}
+
+int cpuboard_ncr9x_add_scsi_unit(int ch, struct uaedev_config_info *ci)
+{
+	return ncr9x_add_scsi_unit(&ncr_blizzard_scsi, ch, ci);
 }
 
 int fastlane_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
 {
-	struct ncr9x_state *ncr = &ncr_fastlane_scsi[devnum];
-	if (ci->type == UAEDEV_CD)
-		return add_ncr_scsi_cd (ncr, ch, ci->device_emu_unit);
-	else if (ci->type == UAEDEV_TAPE)
-		return add_ncr_scsi_tape (ncr, ch, ci->rootdir, ci->readonly);
-	else
-		return add_ncr_scsi_hd (ncr, ch, NULL, ci, 1);
+	return ncr9x_add_scsi_unit(&ncr_fastlane_scsi[devnum], ch, ci);
 }
 
 int oktagon_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
 {
-	struct ncr9x_state *ncr = &ncr_oktagon2008_scsi[devnum];
-	if (ci->type == UAEDEV_CD)
-		return add_ncr_scsi_cd (ncr, ch, ci->device_emu_unit);
-	else if (ci->type == UAEDEV_TAPE)
-		return add_ncr_scsi_tape (ncr, ch, ci->rootdir, ci->readonly);
-	else
-		return add_ncr_scsi_hd (ncr, ch, NULL, ci, 1);
+	return ncr9x_add_scsi_unit(&ncr_oktagon2008_scsi[devnum], ch, ci);
 }
 
 #endif
