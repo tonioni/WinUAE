@@ -219,6 +219,7 @@ static const TCHAR *cpuboards[] = {
 	_T("CyberStormPPC"),
 	_T("BlizzardPPC"),
 	_T("WarpEngineA4000"),
+	_T("TekMagic"),
 	NULL
 };
 static const TCHAR *ppc_implementations[] = {
@@ -908,9 +909,6 @@ static void write_resolution (struct zfile *f, const TCHAR *ws, const TCHAR *hs,
 static void cfgfile_write_board_rom(struct zfile *f, struct multipath *mp, struct boardromconfig *br, const TCHAR *name)
 {
 	TCHAR buf[256];
-
-	_stprintf(buf, _T("scsi_%s"), name);
-	cfgfile_dwrite_bool (f, buf, br->enabled);
 
 	for (int i = 0; i < MAX_BOARD_ROMS; i++) {
 		_stprintf(buf, _T("%s_rom_file"), name);
@@ -3520,12 +3518,22 @@ invalid_fs:
 	return 0;
 }
 
+bool cfgfile_board_enabled(struct boardromconfig *br)
+{
+	for (int i = 0; i < MAX_BOARD_ROMS; i++) {
+		if (br->roms[i].romfile[0])
+			return true;
+	}
+	return false;
+}
+
 static bool cfgfile_read_board_rom(const TCHAR *option, const TCHAR *value, struct multipath *mp, struct boardromconfig *br, const TCHAR *name, int mask)
 {
 	TCHAR buf[256], buf2[MAX_DPATH];
+	bool dummy;
 
 	_stprintf(buf, _T("scsi_%s"), name);
-	if (cfgfile_yesno(option, value, buf, &br->enabled))
+	if (cfgfile_yesno(option, value, buf, &dummy))
 		return true;
 	for (int i = 0; i < MAX_BOARD_ROMS; i++) {
 

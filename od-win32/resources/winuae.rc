@@ -1116,8 +1116,6 @@ BEGIN
     CONTROL         "Catweasel Z2 emulation [] Catweasel MK2 Zorro II card emulation. Physical Windows compatible Catweasel card and drivers required.",IDC_CATWEASEL,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,216,147,11
     CONTROL         "uaescsi.device",IDC_SCSIDEVICE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,229,147,11
-    CONTROL         "A590/A2091 WD33C93 SCSI",IDC_CS_A2091,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,242,147,11
-    CONTROL         "A4091 NCR53C710 SCSI",IDC_CS_A4091,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,255,151,11
     CONTROL         "Include host SCSI devices",IDC_CS_SCSIMODE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,271,147,11
     GROUPBOX        "Network",IDC_STATIC,181,197,213,86
     CONTROL         "bsdsocket.library [] bsdsocket network library emulation.",IDC_SOCKETS,
@@ -1127,7 +1125,7 @@ BEGIN
     CONTROL         "A2065 Z2 [] A2065 Ethernet Zorro II card emulation.",IDC_A2065,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,241,187,11
     COMBOBOX        IDC_NETDEVICE,202,256,178,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "CD32 Full Motion Video cartridge",IDC_CS_CD32FMV,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,268,151,11
+    CONTROL         "CD32 Full Motion Video cartridge",IDC_CS_CD32FMV,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,242,151,11
 END
 
 IDD_INPUTMAP DIALOGEX 0, 0, 421, 341

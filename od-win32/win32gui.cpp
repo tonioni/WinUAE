@@ -1659,6 +1659,7 @@ static void show_rom_list (void)
 		90, -1, 94, -1, -1, // 1260 SCSI
 		92, -1, -1, // 2060
 		93, -1, -1, // Warp Engine
+		105, -1, -1, // TekMagic
 		95, 101, -1, -1, // CS MK I
 		96, -1, -1, // CS MK II
 		97, -1, -1, // CS MK III
@@ -1671,6 +1672,7 @@ static void show_rom_list (void)
 		52, 25, -1, -1, // ar 1
 		26, 27, 28, -1, -1, // ar 2
 		29, 30, -1, -1, // ar 3
+		47, -1, -1, // action replay 1200
 
 		0, 0, 0
 	};
@@ -1684,7 +1686,7 @@ static void show_rom_list (void)
 
 		_T("Blizzard 1230-IV\0Blizzard 1260\0")
 		_T("Blizzard 1230-IV/SCSI\0Blizzard 1260/SCSI\0")
-		_T("Blizzard 2060\0Warp Engine\0")
+		_T("Blizzard 2060\0Warp Engine\0TekMagic 2040/2060\0")
 		_T("CyberStorm MK I\0CyberStorm MK II\0CyberStorm MK III\0")
 		_T("Blizzard PPC\0CyberStorm PPC\0")
 		
@@ -7434,7 +7436,7 @@ static void setmax32bitram (HWND hDlg)
 	rtgz3size = gfxboard_is_z3 (workprefs.rtgmem_type) ? workprefs.rtgmem_size : 0;
 	size = ((workprefs.z3fastmem_size + sizealign) & ~sizealign) + ((workprefs.z3fastmem2_size + sizealign) & ~sizealign) +
 		((rtgz3size + sizealign) & ~sizealign);
-	if (currprefs.a4091rom.enabled)
+	if (cfgfile_board_enabled(&currprefs.a4091rom))
 		size += 2 * 16 * 1024 * 1024;
 	if (changed_prefs.mbresmem_high_size == 128 * 1024 * 1024 && (size || workprefs.z3chipmem_size))
 		size += 16 * 1024 * 1024;
@@ -7883,8 +7885,6 @@ static void enable_for_expansiondlg (HWND hDlg)
 	}
 	ew (hDlg, IDC_RTG_HWSPRITE, rtg3 && workprefs.gfx_api);
 	ShowWindow (GetDlgItem(hDlg, IDC_CS_SCSIMODE), SW_HIDE);
-	ew (hDlg, IDC_CS_A2091, en);
-	ew (hDlg, IDC_CS_A4091, en);
 	ew(hDlg, IDC_CS_CD32FMV, en);
 	ew (hDlg, IDC_CS_SCSIMODE, FALSE);
 }
@@ -7898,8 +7898,6 @@ static void values_to_expansiondlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
 	CheckDlgButton (hDlg, IDC_SANA2, workprefs.sana2);
 	CheckDlgButton (hDlg, IDC_A2065, workprefs.a2065name[0] ? 1 : 0);
-	CheckDlgButton (hDlg, IDC_CS_A2091, workprefs.a2091rom.enabled);
-	CheckDlgButton(hDlg, IDC_CS_A4091, workprefs.a4091rom.enabled);
 	CheckDlgButton(hDlg, IDC_CS_CD32FMV, workprefs.cs_cd32fmv);
 	CheckDlgButton(hDlg, IDC_CS_SCSIMODE, workprefs.scsi == 2);
 	SendDlgItemMessage (hDlg, IDC_RTG_BUFFERCNT, CB_SETCURSEL, workprefs.gfx_apmode[1].gfx_backbuffers == 0 ? 0 : workprefs.gfx_apmode[1].gfx_backbuffers - 1, 0);
@@ -8066,12 +8064,6 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				break;
 			case IDC_CATWEASEL:
 				workprefs.catweasel = ischecked (hDlg, IDC_CATWEASEL) ? -1 : 0;
-				break;
-			case IDC_CS_A2091:
-				workprefs.a2091rom.enabled = ischecked (hDlg, IDC_CS_A2091) ? 1 : 0;
-				break;
-			case IDC_CS_A4091:
-				workprefs.a4091rom.enabled = ischecked(hDlg, IDC_CS_A4091) ? 1 : 0;
 				break;
 			case IDC_CS_CD32FMV:
 				workprefs.cs_cd32fmv = ischecked(hDlg, IDC_CS_CD32FMV) ? 1 : 0;
@@ -8246,7 +8238,8 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("CyberStorm MK III"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("CyberStorm PPC"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard PPC"));
-		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Warp Engine A4000"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Warp Engine"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Tek Magic"));
 
 	case WM_USER:
 		workprefs.fastmem_autoconfig = ischecked (hDlg, IDC_FASTMEMAUTOCONFIG);
@@ -10537,7 +10530,7 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 	case WM_INITDIALOG:
 		recursive++;
 		if (current_cddlg.ci.controller_type == HD_CONTROLLER_TYPE_UAE)
-			current_cddlg.ci.controller_type = (workprefs.a2091rom.enabled || workprefs.a4091rom.enabled || workprefs.cs_cdtvscsi || (workprefs.cs_mbdmac & 3)) ? HD_CONTROLLER_TYPE_SCSI_AUTO : HD_CONTROLLER_TYPE_IDE_AUTO;
+			current_cddlg.ci.controller_type = (cfgfile_board_enabled(&workprefs.a2091rom) || cfgfile_board_enabled(&workprefs.a4091rom) || workprefs.cs_cdtvscsi || (workprefs.cs_mbdmac & 3)) ? HD_CONTROLLER_TYPE_SCSI_AUTO : HD_CONTROLLER_TYPE_IDE_AUTO;
 		inithdcontroller(hDlg, current_cddlg.ci.controller_type, UAEDEV_CD);
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_cddlg.ci.controller_unit, 0);
 		InitializeListView (hDlg);

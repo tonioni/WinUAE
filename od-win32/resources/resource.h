@@ -1090,9 +1090,7 @@
 #define IDC_DBG_MISC                    1765
 #define IDC_DBG_CUSTOM                  1766
 #define IDC_DBG_MISCCPU                 1767
-#define IDC_CS_A2091                    1768
 #define IDC_CS_DMAC2                    1769
-#define IDC_CS_A4091                    1770
 #define IDC_CS_CDTVSCSI                 1771
 #define IDC_CS_CD32FMV                  1771
 #define IDC_CS_SCSIMODE                 1772

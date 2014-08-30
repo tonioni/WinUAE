@@ -9173,8 +9173,10 @@ uae_u8 *restore_custom_extra (uae_u8 *src)
 	currprefs.cs_a1000ram = changed_prefs.cs_a1000ram = RBB;
 	currprefs.cs_slowmemisfast = changed_prefs.cs_slowmemisfast = RBB;
 
-	currprefs.a2091rom.enabled = changed_prefs.a2091rom.enabled = RBB;
-	currprefs.a4091rom.enabled = changed_prefs.a4091rom.enabled = RBB;
+	//currprefs.a2091rom.enabled = changed_prefs.a2091rom.enabled = RBB;
+	//currprefs.a4091rom.enabled = changed_prefs.a4091rom.enabled = RBB;
+	RBB;
+	RBB;
 	currprefs.cs_cdtvscsi = changed_prefs.cs_cdtvscsi = RBB;
 
 	currprefs.cs_pcmcia = changed_prefs.cs_pcmcia = RBB;
@@ -9225,8 +9227,8 @@ uae_u8 *save_custom_extra (int *len, uae_u8 *dstptr)
 	SB (currprefs.cs_a1000ram ? 1 : 0);
 	SB (currprefs.cs_slowmemisfast ? 1 : 0);
 
-	SB (currprefs.a2091rom.enabled ? 1 : 0);
-	SB (currprefs.a4091rom.enabled ? 1 : 0);
+	SB (cfgfile_board_enabled(&currprefs.a2091rom) ? 1 : 0);
+	SB (cfgfile_board_enabled(&currprefs.a4091rom) ? 1 : 0);
 	SB (currprefs.cs_cdtvscsi ? 1 : 0);
 
 	SB (currprefs.cs_pcmcia ? 1 : 0);

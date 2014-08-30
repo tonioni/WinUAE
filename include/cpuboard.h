@@ -30,5 +30,7 @@ extern uae_u8 *REGPARAM3 cyberstorm_scsi_ram_xlate(uaecptr addr) REGPARAM;
 #define BOARD_CSPPC 9
 #define BOARD_BLIZZARDPPC 10
 #define BOARD_WARPENGINE_A4000 11
+#define BOARD_TEKMAGIC 12
+
 
 

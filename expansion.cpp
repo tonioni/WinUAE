@@ -535,12 +535,16 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 				}
 				expamem_board_pointer = expamem_z3_pointer;
 			}
-			if (card_map[ecard])
+			if (card_map[ecard]) {
 				expamem_next((*card_map[ecard])(), NULL);
+				return;
+			}
 			break;
 		case 0x4c:
-			if (card_map[ecard])
+			if (card_map[ecard]) {
 				expamem_next (NULL, NULL);
+				return;
+			}
 			break;
 		}
 	}
@@ -565,8 +569,10 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 			expamem_hi = value & 0xff;
 			expamem_z2_pointer = (expamem_hi | (expamem_lo >> 4)) << 16; 
 			expamem_board_pointer = expamem_z2_pointer;
-			if (card_map[ecard])
+			if (card_map[ecard]) {
 				expamem_next((*card_map[ecard]) (), NULL);
+				return;
+			}
 		} else {
 			expamem_lo = value & 0xff;
 		}
@@ -578,8 +584,10 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 		break;
 
 	case 0x4c:
-		if (card_map[ecard])
+		if (card_map[ecard]) {
 			expamem_next(expamem_bank_current, NULL);
+			return;
+		}
 		break;
 	}
 
@@ -995,9 +1003,9 @@ static addrbank *expamem_map_fastcard_2 (int boardnum)
 
 static addrbank *expamem_init_fastcard_2 (int boardnum)
 {
-	uae_u16 mid = (currprefs.a2091rom.enabled || currprefs.uae_hide) ? commodore : uae_id;
-	uae_u8 pid = (currprefs.a2091rom.enabled || currprefs.uae_hide) ? commodore_a2091_ram : (currprefs.maprom && !currprefs.cpuboard_type ? 1 : 81);
-	uae_u8 type = add_memory | zorroII | (currprefs.a2091rom.enabled && !boardnum ? chainedconfig : 0);
+	uae_u16 mid = (cfgfile_board_enabled(&currprefs.a2091rom) || currprefs.uae_hide) ? commodore : uae_id;
+	uae_u8 pid = (cfgfile_board_enabled(&currprefs.a2091rom) || currprefs.uae_hide) ? commodore_a2091_ram : (currprefs.maprom && !currprefs.cpuboard_type ? 1 : 81);
+	uae_u8 type = add_memory | zorroII | (cfgfile_board_enabled(&currprefs.a2091rom) && !boardnum ? chainedconfig : 0);
 	int allocated = boardnum ? fastmem2_bank.allocated : fastmem_bank.allocated;
 
 	expamem_init_clear ();
@@ -1662,7 +1670,7 @@ void expamem_reset (void)
 	}
 	// immediately after Z2Fast so that they can be emulated as A590/A2091 with fast ram.
 #ifdef A2091
-	if (currprefs.a2091rom.enabled) {
+	if (cfgfile_board_enabled(&currprefs.a2091rom)) {
 		card_flags[cardno] = 0;
 		card_name[cardno] = _T("A2091");
 		card_init[cardno] = expamem_init_a2091;
@@ -1673,7 +1681,7 @@ void expamem_reset (void)
 	}
 #endif
 #ifdef NCR
-	if (currprefs.oktagonrom.enabled) {
+	if (cfgfile_board_enabled(&currprefs.oktagonrom)) {
 		card_name[cardno] = _T("Oktagon 2008");
 		card_init[cardno] = expamem_init_oktagon;
 		card_map[cardno++] = NULL;
@@ -1798,7 +1806,7 @@ void expamem_reset (void)
 	}
 #endif
 #ifdef NCR
-	if (currprefs.a4091rom.enabled) {
+	if (cfgfile_board_enabled(&currprefs.a4091rom)) {
 		card_flags[cardno] = 1;
 		card_name[cardno] = _T("A4091");
 		card_init[cardno] = expamem_init_a4091;
@@ -1808,7 +1816,7 @@ void expamem_reset (void)
 		card_init[cardno] = expamem_init_a4091_2;
 		card_map[cardno++] = NULL;
 	}
-	if (currprefs.fastlanerom.enabled) {
+	if (cfgfile_board_enabled(&currprefs.fastlanerom)) {
 		card_flags[cardno] = 1;
 		card_name[cardno] = _T("Fastlane");
 		card_init[cardno] = expamem_init_fastlane;

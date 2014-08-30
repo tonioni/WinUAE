@@ -16,8 +16,13 @@ extern void ncr710_free(void);
 extern void ncr710_reset(void);
 extern void ncr_rethink(void);
 
+void cpuboard_ncr710_io_bput(uaecptr addr, uae_u32 v);
+uae_u32 cpuboard_ncr710_io_bget(uaecptr addr);
+
 extern int a4000t_add_scsi_unit (int ch, struct uaedev_config_info *ci);
 extern int warpengine_add_scsi_unit(int ch, struct uaedev_config_info *ci);
+extern int tekmagic_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 extern int cyberstorm_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 extern int blizzardppc_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 extern int a4091_add_scsi_unit(int ch, struct uaedev_config_info *ci, int devnum);
+

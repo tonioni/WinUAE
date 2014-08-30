@@ -76,6 +76,7 @@ static struct ncr_state ncr_a4091;
 static struct ncr_state ncr_a4091_2;
 static struct ncr_state ncr_a4000t;
 static struct ncr_state ncr_we;
+static struct ncr_state ncr_cpuboard;
 
 static struct ncr_state ncr_cs;
 static struct ncr_state ncr_bppc;
@@ -86,6 +87,7 @@ static struct ncr_state *ncrs[] =
 	&ncr_a4091_2,
 	&ncr_a4000t,
 	&ncr_we,
+	&ncr_cpuboard,
 	&ncr_bppc,
 	NULL
 };
@@ -309,7 +311,7 @@ static uaecptr beswap(uaecptr addr)
 	return (addr & ~3) | (3 - (addr & 3));
 }
 
-void ncr_io_bput(struct ncr_state *ncr, uaecptr addr, uae_u32 val)
+static void ncr_io_bput(struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 {
 	if (addr >= CYBERSTORM_SCSI_RAM_OFFSET && ncr->ramsize) {
 		cyberstorm_scsi_ram_put(addr, val);
@@ -318,10 +320,14 @@ void ncr_io_bput(struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 	addr &= IO_MASK;
 	lsi_mmio_write(ncr->devobject.lsistate, beswap(addr), val, 1);
 }
-void ncr710_io_bput(struct ncr_state *ncr, uaecptr addr, uae_u32 val)
+static void ncr710_io_bput(struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 {
 	addr &= IO_MASK;
 	lsi710_mmio_write(ncr->devobject.lsistate, beswap(addr), val, 1);
+}
+void cpuboard_ncr710_io_bput(uaecptr addr, uae_u32 v)
+{
+	ncr710_io_bput(&ncr_cpuboard, addr, v);
 }
 
 static void ncr_bput2 (struct ncr_state *ncr, uaecptr addr, uae_u32 val)
@@ -336,17 +342,21 @@ static void ncr_bput2 (struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 		ncr710_io_bput(ncr, addr, val);
 }
 
-uae_u32 ncr_io_bget(struct ncr_state *ncr, uaecptr addr)
+static uae_u32 ncr_io_bget(struct ncr_state *ncr, uaecptr addr)
 {
 	if (addr >= CYBERSTORM_SCSI_RAM_OFFSET && ncr->ramsize)
 		return cyberstorm_scsi_ram_get(addr);
 	addr &= IO_MASK;
 	return lsi_mmio_read(ncr->devobject.lsistate, beswap(addr), 1);
 }
-uae_u32 ncr710_io_bget(struct ncr_state *ncr, uaecptr addr)
+static uae_u32 ncr710_io_bget(struct ncr_state *ncr, uaecptr addr)
 {
 	addr &= IO_MASK;
 	return lsi710_mmio_read(ncr->devobject.lsistate, beswap(addr), 1);
+}
+uae_u32 cpuboard_ncr710_io_bget(uaecptr addr)
+{
+	return ncr710_io_bget(&ncr_cpuboard, addr);
 }
 
 static uae_u32 ncr_bget2 (struct ncr_state *ncr, uaecptr addr)
@@ -448,7 +458,7 @@ static addrbank ncr_bank_a4091 = {
 	ncr4_lget, ncr4_wget, ncr4_bget,
 	ncr4_lput, ncr4_wput, ncr4_bput,
 	default_xlate, default_check, NULL, NULL, _T("A4091"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 
 DECLARE_MEMORY_FUNCTIONS(ncr42)
@@ -457,7 +467,7 @@ static addrbank ncr_bank_a4091_2 = {
 	ncr42_lget, ncr42_wget, ncr42_bget,
 	ncr42_lput, ncr42_wput, ncr42_bput,
 	default_xlate, default_check, NULL, NULL, _T("A4091 #2"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 
 static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
@@ -806,7 +816,7 @@ addrbank *ncr710_a4091_autoconfig_init (int devnum)
 
 	ncr->enabled = true;
 	memset (ncr->acmemory, 0xff, sizeof ncr->acmemory);
-	ncr->rom_start = A4091_ROM_VECTOR;
+	ncr->rom_start = 0;
 	ncr->rom_offset = A4091_ROM_OFFSET;
 	ncr->rom_end = A4091_IO_OFFSET;
 	ncr->io_start = A4091_IO_OFFSET;
@@ -957,29 +967,8 @@ static int add_ncr_scsi_tape (struct ncr_state *ncr, int ch, const TCHAR *tape_d
 	return ncr->scsid[ch] ? 1 : 0;
 }
 
-int a4000t_add_scsi_unit (int ch, struct uaedev_config_info *ci)
+static int ncr_add_scsi_unit(struct ncr_state *ncr, int ch, struct uaedev_config_info *ci)
 {
-	if (ci->type == UAEDEV_CD)
-		return add_ncr_scsi_cd (&ncr_a4000t, ch, ci->device_emu_unit);
-	else if (ci->type == UAEDEV_TAPE)
-		return add_ncr_scsi_tape (&ncr_a4000t, ch, ci->rootdir, ci->readonly);
-	else
-		return add_ncr_scsi_hd (&ncr_a4000t, ch, NULL, ci, 1);
-}
-
-int warpengine_add_scsi_unit (int ch, struct uaedev_config_info *ci)
-{
-	if (ci->type == UAEDEV_CD)
-		return add_ncr_scsi_cd (&ncr_we, ch, ci->device_emu_unit);
-	else if (ci->type == UAEDEV_TAPE)
-		return add_ncr_scsi_tape (&ncr_we, ch, ci->rootdir, ci->readonly);
-	else
-		return add_ncr_scsi_hd (&ncr_we, ch, NULL, ci, 1);
-}
-
-int a4091_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
-{
-	struct ncr_state *ncr = ncra4091[devnum];
 	if (ci->type == UAEDEV_CD)
 		return add_ncr_scsi_cd (ncr, ch, ci->device_emu_unit);
 	else if (ci->type == UAEDEV_TAPE)
@@ -988,26 +977,34 @@ int a4091_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
 		return add_ncr_scsi_hd (ncr, ch, NULL, ci, 1);
 }
 
+int a4000t_add_scsi_unit (int ch, struct uaedev_config_info *ci)
+{
+	return ncr_add_scsi_unit(&ncr_a4000t, ch, ci);
+}
+
+int warpengine_add_scsi_unit (int ch, struct uaedev_config_info *ci)
+{
+	return ncr_add_scsi_unit(&ncr_we, ch, ci);
+}
+
+int tekmagic_add_scsi_unit (int ch, struct uaedev_config_info *ci)
+{
+	return ncr_add_scsi_unit(&ncr_cpuboard, ch, ci);
+}
+
+int a4091_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
+{
+	return ncr_add_scsi_unit(ncra4091[devnum], ch, ci);
+}
+
 int cyberstorm_add_scsi_unit(int ch, struct uaedev_config_info *ci)
 {
-	if (ci->type == UAEDEV_CD)
-		return add_ncr_scsi_cd(&ncr_cs, ch, ci->device_emu_unit);
-	else if (ci->type == UAEDEV_TAPE)
-		return add_ncr_scsi_tape(&ncr_cs, ch, ci->rootdir, ci->readonly);
-	else
-		return add_ncr_scsi_hd(&ncr_cs, ch, NULL, ci, 1);
+	return ncr_add_scsi_unit(&ncr_cs, ch, ci);
 }
 
 int blizzardppc_add_scsi_unit(int ch, struct uaedev_config_info *ci)
 {
-	if (ci->type == UAEDEV_CD)
-		return add_ncr_scsi_cd(&ncr_bppc, ch, ci->device_emu_unit);
-	else if (ci->type == UAEDEV_TAPE)
-		return add_ncr_scsi_tape(&ncr_bppc, ch, ci->rootdir, ci->readonly);
-	else
-		return add_ncr_scsi_hd(&ncr_bppc, ch, NULL, ci, 1);
+	return ncr_add_scsi_unit(&ncr_bppc, ch, ci);
 }
 
-
 #endif
-

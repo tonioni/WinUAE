@@ -778,6 +778,9 @@ static bool add_cpuboard_scsi(int unit, struct uaedev_config_info *uci)
 	if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
 		warpengine_add_scsi_unit(unit, uci);
 		added = true;
+	} else if (currprefs.cpuboard_type == BOARD_TEKMAGIC) {
+		tekmagic_add_scsi_unit(unit, uci);
+		added = true;
 	} else if (currprefs.cpuboard_type == BOARD_CSMK3 || currprefs.cpuboard_type == BOARD_CSPPC) {
 		cyberstorm_add_scsi_unit(unit, uci);
 		added = true;
@@ -863,14 +866,14 @@ static void initialize_mountinfo (void)
 			added = true;
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_A2091) {
 #ifdef A2091
-			if (currprefs.a2091rom.enabled) {
+			if (cfgfile_board_enabled(&currprefs.a2091rom)) {
 				a2091_add_scsi_unit (unit, uci, 0);
 				added = true;
 			}
 #endif
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_A2091_2) {
 #ifdef A2091
-			if (currprefs.a2091rom.enabled) {
+			if (cfgfile_board_enabled(&currprefs.a2091rom)) {
 				a2091_add_scsi_unit (unit, uci, 1);
 				added = true;
 			}
@@ -884,42 +887,42 @@ static void initialize_mountinfo (void)
 #endif
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_A4091) {
 #ifdef NCR
-			if (currprefs.a4091rom.enabled) {
+			if (cfgfile_board_enabled(&currprefs.a4091rom)) {
 				a4091_add_scsi_unit (unit, uci, 0);
 				added = true;
 			}
 #endif
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_A4091_2) {
 #ifdef NCR
-			if (currprefs.a4091rom.enabled) {
+			if (cfgfile_board_enabled(&currprefs.a4091rom)) {
 				a4091_add_scsi_unit (unit, uci, 1);
 				added = true;
 			}
 #endif
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_FASTLANE) {
 #ifdef NCR
-			if (currprefs.fastlanerom.enabled) {
+			if (cfgfile_board_enabled(&currprefs.fastlanerom)) {
 				fastlane_add_scsi_unit (unit, uci, 0);
 				added = true;
 			}
 #endif
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_FASTLANE_2) {
 #ifdef NCR
-			if (currprefs.fastlanerom.enabled) {
+			if (cfgfile_board_enabled(&currprefs.fastlanerom)) {
 				fastlane_add_scsi_unit (unit, uci, 1);
 				added = true;
 			}
 #endif
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_OKTAGON) {
 #ifdef NCR
-			if (currprefs.oktagonrom.enabled) {
+			if (cfgfile_board_enabled(&currprefs.oktagonrom)) {
 				oktagon_add_scsi_unit (unit, uci, 0);
 				added = true;
 			}
 #endif
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_OKTAGON_2) {
 #ifdef NCR
-			if (currprefs.oktagonrom.enabled) {
+			if (cfgfile_board_enabled(&currprefs.oktagonrom)) {
 				oktagon_add_scsi_unit (unit, uci, 1);
 				added = true;
 			}
@@ -953,12 +956,12 @@ static void initialize_mountinfo (void)
 				a4000t_add_scsi_unit (unit, uci);	
 				added = true;
 #endif
-			} else if (currprefs.a2091rom.enabled) {
+			} else if (cfgfile_board_enabled(&currprefs.a2091rom)) {
 #ifdef A2091
 				a2091_add_scsi_unit (unit, uci, 0);
 				added = true;
 #endif
-			} else if (currprefs.a4091rom.enabled) {
+			} else if (cfgfile_board_enabled(&currprefs.a4091rom)) {
 #ifdef NCR
 				a4091_add_scsi_unit (unit, uci, 0);
 				added = true;
