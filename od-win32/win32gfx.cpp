@@ -295,26 +295,76 @@ void desktop_coords (int *dw, int *dh, int *ax, int *ay, int *aw, int *ah)
 
 int target_get_display (const TCHAR *name)
 {
+	int found, found2;
+
+	found = -1;
+	found2 = -1;
 	for (int i = 0; Displays[i].monitorname; i++) {
 		struct MultiDisplay *md = &Displays[i];
-		if (!_tcscmp (md->monitorid, name))
-			return i + 1;
+		if (!_tcscmp (md->monitorid, name)) {
+			if (found < 0) {
+				found = i + 1;
+			} else {
+				found2 = found;
+				found = -1;
+				break;
+			}
+		}
 	}
+	if (found >= 0)
+		return found;
+
+	found = -1;
 	for (int i = 0; Displays[i].monitorname; i++) {
 		struct MultiDisplay *md = &Displays[i];
-		if (!_tcscmp (md->adapterid, name))
-			return i + 1;
+		if (!_tcscmp (md->adapterid, name)) {
+			if (found < 0) {
+				found = i + 1;
+			} else {
+				if (found2 < 0)
+					found2 = found;
+				found = -1;
+				break;
+			}
+		}
 	}
+	if (found >= 0)
+		return found;
+
 	for (int i = 0; Displays[i].monitorname; i++) {
 		struct MultiDisplay *md = &Displays[i];
-		if (!_tcscmp (md->adaptername, name))
-			return i + 1;
+		if (!_tcscmp (md->adaptername, name)) {
+			if (found < 0) {
+				found = i + 1;
+			} else {
+				if (found2 < 0)
+					found2 = found;
+				found = -1;
+				break;
+			}
+		}
 	}
+	if (found >= 0)
+		return found;
+
 	for (int i = 0; Displays[i].monitorname; i++) {
 		struct MultiDisplay *md = &Displays[i];
-		if (!_tcscmp (md->adapterid, name))
-			return i + 1;
+		if (!_tcscmp (md->monitorname, name)) {
+			if (found < 0) {
+				found = i + 1;
+			} else {
+				if (found2 < 0)
+					found2 = found;
+				found = -1;
+				break;
+			}
+		}
 	}
+	if (found >= 0)
+		return found;
+	if (found2 >= 0)
+		return found2;
+
 	return -1;
 }
 const TCHAR *target_get_display_name (int num, bool friendlyname)
