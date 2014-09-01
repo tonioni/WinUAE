@@ -1223,8 +1223,6 @@ static int scsi_read_cd_data (int unitnum, uae_u8 *scsi_data, uae_u32 offset, ua
 		*scsi_len = 0;
 		return 0;
 	} else {
-		if (len * di->bytespersector > SCSI_DEFAULT_DATA_BUFFER_SIZE)
-			return -3;
 		if (offset >= di->sectorspertrack * di->cylinders * di->trackspercylinder)
 			return -1;
 		int v = cmd_readx (unitnum, scsi_data, offset, len) * di->bytespersector;
@@ -1548,8 +1546,6 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				goto outofbounds;
 			if (v == -2)
 				goto readerr;
-			if (v == -3)
-				goto toolarge;
 		} else {
 			goto notdatatrack;
 		}
@@ -1583,8 +1579,6 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				goto outofbounds;
 			if (v == -2)
 				goto readerr;
-			if (v == -3)
-				goto toolarge;
 		} else {
 			goto notdatatrack;
 		}
@@ -1606,8 +1600,6 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				goto outofbounds;
 			if (v == -2)
 				goto readerr;
-			if (v == -3)
-				goto toolarge;
 		} else {
 			goto notdatatrack;
 		}
@@ -1986,14 +1978,6 @@ outofbounds:
 		s[0] = 0x70;
 		s[2] = 5; /* ILLEGAL REQUEST */
 		s[12] = 0x21; /* LOGICAL BLOCK OUT OF RANGE */
-		ls = 0x12;
-	break;
-toolarge:
-		write_log (_T("CDEMU: too large scsi data tranfer %d > %d\n"), len, dlen);
-		status = 2; /* CHECK CONDITION */
-		s[0] = 0x70;
-		s[2] = 2; /* NOT READY */
-		s[12] = 0x11; /* UNRECOVERED READ ERROR */
 		ls = 0x12;
 	break;
 errreq:

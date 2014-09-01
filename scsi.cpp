@@ -63,7 +63,7 @@ static int scsi_data_dir(struct scsi_data *sd)
 
 void scsi_emulate_analyze (struct scsi_data *sd)
 {
-	int cmd_len, data_len, data_len2;
+	int cmd_len, data_len, data_len2, tmp_len;
 
 	data_len = sd->data_len;
 	data_len2 = 0;
@@ -71,29 +71,36 @@ void scsi_emulate_analyze (struct scsi_data *sd)
 	sd->cmd_len = cmd_len;
 	switch (sd->cmd[0])
 	{
-	case 0x08:
+	case 0x08: // READ(6)
 		data_len2 = sd->cmd[4] * sd->blocksize;
 		scsi_grow_buffer(sd, data_len2);
 	break;
-	case 0x28:
+	case 0x28: // READ(10)
 		data_len2 = ((sd->cmd[7] << 8) | (sd->cmd[8] << 0)) * (uae_s64)sd->blocksize;
 		scsi_grow_buffer(sd, data_len2);
 	break;
-	case 0xa8:
+	case 0xa8: // READ(12)
 		data_len2 = ((sd->cmd[6] << 24) | (sd->cmd[7] << 16) | (sd->cmd[8] << 8) | (sd->cmd[9] << 0)) * (uae_s64)sd->blocksize;
 		scsi_grow_buffer(sd, data_len2);
 	break;
-	case 0x0a:
+	case 0x0a: // WRITE(6)
 		data_len = sd->cmd[4] * sd->blocksize;
 		scsi_grow_buffer(sd, data_len);
 	break;
-	case 0x2a:
+	case 0x2a: // WRITE(10)
 		data_len = ((sd->cmd[7] << 8) | (sd->cmd[8] << 0)) * (uae_s64)sd->blocksize;
 		scsi_grow_buffer(sd, data_len);
 	break;
-	case 0xaa:
+	case 0xaa: // WRITE(12)
 		data_len = ((sd->cmd[6] << 24) | (sd->cmd[7] << 16) | (sd->cmd[8] << 8) | (sd->cmd[9] << 0)) * (uae_s64)sd->blocksize;
 		scsi_grow_buffer(sd, data_len);
+	break;
+	case 0xbe: // READ CD
+	case 0xb9: // READ CD MSF
+		tmp_len = (sd->cmd[6] << 16) | (sd->cmd[7] << 8) | sd->cmd[8];
+		// max block transfer size, it is usually smaller.
+		tmp_len *= 2352 + 96;
+		scsi_grow_buffer(sd, tmp_len);
 	break;
 	case 0x2f: // VERIFY
 		if (sd->cmd[1] & 2) {
