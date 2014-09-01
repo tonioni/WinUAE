@@ -18,6 +18,49 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 14:
+
+QEMU PPC is still work in progress (by Frode and me), QEMU-side is not yet included. It run for the first time
+few days ago. It is not stable enough yet but hopefully soon...
+
+- Autoconfig stopped immediately after first A590/A2091 board was configured.
+- If VHD check/validation failed after VHD type was fetched (static vs dynamic), VHD was still accepted as valid,
+  possibly crashing soon after. HDF type variable was not cleared, bug since VHD support was added.
+- Automatically extend internal SCSI emulation buffer size if larger than current buffer size transfer is requested.
+- If 68060 and "Unimplemented CPU emu" is ticked: 68060 unimplemented instructions that are completely unimplemented
+  (CHK2/CMP2/CAS2/MOVEP) still triggered illegal instruction exceptions.
+- 68000/010 configuration with 32-bit address space is now allowed.
+- Blizzard 2060 ROM loading special case handling didn't work. (Has odd/even parts, others don't)
+- Redesigned GUI SCSI expansion ROM selection, easier to add new boards in future.
+- Fastlane Z3 SCSI board emulation implemented, another FAS216 based SCSI controller. z3scsi.device from
+  phase5.a1k.org in rom scanner, but it would be nicer to have full dump. SCSI part only, memory part ignored.
+- Oktagon 2008 SCSI board emulated. This was interesting, it has "software DMA" (SCSI chip is told to do DMA
+  transfer but "DMA controller" is IO space that CPU reads or writes), it also have 512 byte serial EEPROM used
+  to store config (with only 15 bytes used). EEPROM data is internal, not saved to any file. 6.12 (last release?)
+  boot ROM added to rom scanner. Autoconfig data is currently not confirmed. Support added only because it was
+  quite different than most other SCSI controllers.
+- TekMagic 2040/2060 board added. 1.0 tekscsi2.device ROM added to ROM scanner, both odd/even pair and merged
+  rom supported. NOTE: tekscsi2.device has a bug that does not allow RDB filesystem loading. Fast RAM expansion
+  is not supported, it seems TekMagic fast RAM can also start from 0x02000000, not the usual 0x08000000.
+  tools/showconfig output needed.
+- NCR53C710 SCRIPTS DMA wasn't correctly started when in manual start mode. (tekscsi2.device)
+- Added support for non-MMU bus error caused by invalid memory accesses, including 68000/010/020 models which
+  normally can't generate bus errors but perhaps some expansion hardware will need it in future.
+- Screenshot with D3D shader filter + take screenshot before filtering ticked saved final D3D output, not original
+  unfiltered buffer.
+- "SCSI (auto)" now works with all SCSI boards. Selects first SCSI board that is enabled. (In same order as
+  select menu lists SCSI controllers)
+
+Some code restructuring:
+
+- Autoconfig board handling rewritten yet again, removed lots of code duplication and moved most duplicated
+  autoconfig logic from board specific files to common expansion.cpp.
+- Autoconfig board ROM config handling reorganized, now it is much easier to add new Z2/Z3 boards.
+- Replaced my hacky serial EEPROM emulation with better one from QEMU, made it generic (previously only used
+  in CD32 emulation).
+- Removed A590/A2091 and A4091 Expansion panel checkboxes, enable/disable is now ROM selection. (ROM selected =
+  enabled, ROM selection empty = not enabled)
+
 Beta 13:
 
 - Fixed vhd hardfiles. (b12)
