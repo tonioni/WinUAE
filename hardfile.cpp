@@ -1183,6 +1183,8 @@ static int checkbounds (struct hardfiledata *hfd, uae_u64 offset, uae_u64 len)
 		return 0;
 	if (offset + len > hfd->virtsize)
 		return 0;
+	if (offset > 0xffffffff && (uae_s64)offset < 0)
+		return 0;
 	return 1;
 }
 
@@ -1897,7 +1899,7 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 			unaligned (cmd, offset64, len, hfd->ci.blocksize);
 			goto bad_len;
 		}
-		if (len + offset64 > hfd->virtsize) {
+		if (len + offset64 > hfd->virtsize || (uae_s64)offset64 < 0) {
 			outofbounds (cmd, offset64, len, hfd->virtsize);
 			goto bad_len;
 		}
@@ -1948,7 +1950,7 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 				unaligned (cmd, offset64, len, hfd->ci.blocksize);
 				goto bad_len;
 			}
-			if (len + offset64 > hfd->virtsize) {
+			if (len + offset64 > hfd->virtsize || (uae_s64)offset64 < 0) {
 				outofbounds (cmd, offset64, len, hfd->virtsize);
 				goto bad_len;
 			}
