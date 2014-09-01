@@ -558,4 +558,30 @@ extern void memcpyah (uae_u8 *dst, uaecptr src, int size);
 extern uae_s32 getz2size (struct uae_prefs *p);
 extern ULONG getz2endaddr (void);
 
+#define UAE_MEMORY_REGIONS_MAX 64
+#define UAE_MEMORY_REGION_NAME_LENGTH 64
+
+#define UAE_MEMORY_REGION_RAM (1 << 0)
+#define UAE_MEMORY_REGION_ALIAS (1 << 1)
+#define UAE_MEMORY_REGION_MIRROR (1 << 2)
+
+/* Get a list of memory regions in the Amiga address space */
+
+typedef struct UaeMemoryRegion {
+	uaecptr start;
+	int size;
+	TCHAR name[UAE_MEMORY_REGION_NAME_LENGTH];
+	TCHAR rom_name[UAE_MEMORY_REGION_NAME_LENGTH];
+	uaecptr alias;
+	int flags;
+	uae_u8 *memory;
+} UaeMemoryRegion;
+
+typedef struct UaeMemoryMap {
+	UaeMemoryRegion regions[UAE_MEMORY_REGIONS_MAX];
+	int num_regions;
+} UaeMemoryMap;
+
+void uae_memory_map(UaeMemoryMap *map);
+
 #endif /* MEMORY_H */

@@ -8,11 +8,16 @@
 #include <dlfcn.h>
 #endif
 
-UAE_DLHANDLE uae_dlopen(const TCHAR *path) {
-#ifdef _WIN32
-	UAE_DLHANDLE result = LoadLibrary(path);
+UAE_DLHANDLE uae_dlopen(const TCHAR *path)
+{
+	UAE_DLHANDLE result;
+#ifdef WINUAE
+	extern HMODULE WIN32_LoadLibrary(const TCHAR *name);
+	result = WIN32_LoadLibrary(path);
+#elif _WIN32
+	result = LoadLibrary(path);
 #else
-	UAE_DLHANDLE result = dlopen(path, RTLD_NOW);
+	result = dlopen(path, RTLD_NOW);
 	const char *error = dlerror();
 	if (error != NULL)  {
 		write_log("uae_dlopen failed: %s\n", error);

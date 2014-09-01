@@ -35,11 +35,17 @@ bool uae_ppc_poll_queue(void);
 void uae_ppc_interrupt(bool active);
 void uae_ppc_cpu_lock(void);
 bool uae_ppc_cpu_unlock(void);
-void uae_ppc_to_main_thread(void);
+bool uae_ppc_to_main_thread(void);
 void uae_ppc_emulate(void);
 void uae_ppc_reset(bool hardreset);
 void uae_ppc_hsync_handler(void);
 void uae_ppc_wakeup(void);
+/**
+ * Pauses the PPC emulation (for some implementations). Currently triggers
+ * a simple pause implementation intended only for debugging.
+ * @param pause Whether to pause (1) or not (0).
+ */
+void uae_ppc_pause(int pause);
 
 #ifdef __cplusplus
 bool uae_ppc_direct_physical_memory_handle(uint32_t addr, uint8_t *&ptr);
@@ -75,17 +81,26 @@ extern uae_ppc_io_mem_write64_function uae_ppc_io_mem_write64;
 
 /* Prototypes for PPC CPU implementation, used by PearPC and QEmu */
 
+typedef struct PPCMemoryRegion {
+    uint32_t start;
+    uint32_t size;
+    void *memory;
+    const char *name;
+    uint32_t alias;
+} PPCMemoryRegion;
+
 bool PPCCALL ppc_cpu_init(uint32_t pvr);
 void PPCCALL ppc_cpu_free(void);
 void PPCCALL ppc_cpu_stop(void);
 void PPCCALL ppc_cpu_atomic_raise_ext_exception(void);
 void PPCCALL ppc_cpu_atomic_cancel_ext_exception(void);
-void PPCCALL ppc_cpu_map_memory(uint32_t addr, uint32_t size, void *memory, const char *name);
+void PPCCALL ppc_cpu_map_memory(PPCMemoryRegion *regions, int count);
 void PPCCALL ppc_cpu_set_pc(int cpu, uint32_t value);
 void PPCCALL ppc_cpu_run_continuous(void);
 void PPCCALL ppc_cpu_run_single(int count);
 uint64_t PPCCALL ppc_cpu_get_dec(void);
 void PPCCALL ppc_cpu_do_dec(int value);
+void PPCCALL ppc_cpu_pause(int pause);
 
 /* Other PPC defines */
 

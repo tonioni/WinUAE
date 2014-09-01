@@ -3169,9 +3169,10 @@ static void uae_ppc_poll_check(void)
 static bool haltloop(void)
 {
 #ifdef WITH_PPC
+	bool ppc_main_thread = false;
 	// m68k stopped? Move PPC emulator to main thread.
 	if (regs.halted < 0) {
-		uae_ppc_to_main_thread();
+		ppc_main_thread = uae_ppc_to_main_thread();
 	}
 #endif
 
@@ -3193,7 +3194,7 @@ static bool haltloop(void)
 			do_copper();
 
 #ifdef WITH_PPC
-		if (regs.halted < 0)
+		if (ppc_main_thread && regs.halted < 0)
 			uae_ppc_emulate();
 		else
 			uae_ppc_poll_check();
