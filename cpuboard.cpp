@@ -1597,6 +1597,7 @@ addrbank *cpuboard_autoconfig_init(void)
 	roms[1] = -1;
 	roms2[0] = -1;
 	roms2[1] = -1;
+	cpuboard_non_byte_ea = false;
 	switch (currprefs.cpuboard_type)
 	{
 	case BOARD_BLIZZARD_1230_IV_SCSI:
@@ -1685,13 +1686,17 @@ addrbank *cpuboard_autoconfig_init(void)
 		write_log (_T("ROM id %d not found for CPU board emulation\n"), roms[0]);
 		return &expamem_null;
 	}
+	if (autoconfig_rom)
+		write_log(_T("CPUBoard ROM '%s' %lld loaded\n"), zfile_getname(autoconfig_rom), zfile_size(autoconfig_rom));
 
 	protect_roms(false);
+	cpuboard_non_byte_ea = true;
 	if (is_tekmagic()) {
 		earom_size = 65536;
 		f0rom_size = 131072;
 		zfile_fread(blizzardf0_bank.baseaddr, 1, f0rom_size, autoconfig_rom);
 		autoconf = false;
+		cpuboard_non_byte_ea = false;
 	} else if (is_blizzard2060()) {
 		f0rom_size = 65536;
 		earom_size = 131072;
