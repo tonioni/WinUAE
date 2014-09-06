@@ -41,6 +41,7 @@
 #include "uaeserial.h"
 #include "fsdb.h"
 #include "zfile.h"
+#include "zarchive.h"
 #include "gui.h"
 #include "gayle.h"
 #include "savestate.h"
@@ -447,23 +448,27 @@ static void fixcharset (TCHAR *s)
 	au_fs_copy (s, strlen (tmp) + 1, tmp);
 }
 
-TCHAR *validatevolumename (TCHAR *s)
+TCHAR *validatevolumename (TCHAR *s, const TCHAR *def)
 {
 	stripsemicolon (s);
 	fixcharset (s);
 	striplength (s, 30);
+	if (_tcslen(s) == 0 && def)
+		_tcscpy(s, def);
 	return s;
 }
-TCHAR *validatedevicename (TCHAR *s)
+TCHAR *validatedevicename (TCHAR *s, const TCHAR *def)
 {
 	stripsemicolon (s);
 	stripspace (s);
 	fixcharset (s);
 	striplength (s, 30);
+	if (_tcslen(s) == 0 && def)
+		_tcscpy(s, def);
 	return s;
 }
 
-TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, const TCHAR *def)
+TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, struct zvolume *zv, const TCHAR *def)
 {
 	TCHAR *nvol = NULL;
 	int i, archivehd;
@@ -474,6 +479,12 @@ TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, const 
 		archivehd = 1;
 	else if (my_existsdir (rootdir))
 		archivehd = 0;
+
+	if (zv && zv->volumename && _tcslen(zv->volumename) > 0) {
+		nvol = my_strdup(zv->volumename);
+		validatevolumename (nvol, def);
+		return nvol;
+	}
 
 	if ((!volname || _tcslen (volname) == 0) && rootdir && archivehd >= 0) {
 		p = my_strdup (rootdir);
@@ -510,7 +521,7 @@ TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, const 
 		else
 			nvol = my_strdup (_T(""));
 	}
-	validatevolumename (nvol);
+	validatevolumename (nvol, def);
 	xfree (p);
 	return nvol;
 }
@@ -620,7 +631,7 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 			if (set_filesys_volume (c.rootdir, &flags, &c.readonly, &emptydrive, &ui->zarchive) < 0)
 				return -1;
 		}
-		ui->volname = filesys_createvolname (c.volname, c.rootdir, _T("harddrive"));
+		ui->volname = filesys_createvolname (c.volname, c.rootdir, ui->zarchive, _T("harddrive"));
 		ui->volflags = flags;
 	} else {
 		ui->unit_type = UNIT_FILESYSTEM;
@@ -1802,7 +1813,7 @@ static uae_u32 filesys_media_change_reply (TrapContext *ctx, int mode)
 				if (emptydrive)
 					return 0;
 				xfree (u->ui.volname);
-				ui->volname = u->ui.volname = filesys_createvolname (u->mount_volume, u->mount_rootdir, _T("removable"));
+				ui->volname = u->ui.volname = filesys_createvolname (u->mount_volume, u->mount_rootdir, u->zarchive, _T("removable"));
 #ifdef RETROPLATFORM
 				rp_harddrive_image_change (nr, u->mount_readonly, u->mount_rootdir);
 #endif
@@ -1900,7 +1911,7 @@ int filesys_media_change (const TCHAR *rootdir, int inserted, struct uaedev_conf
 			}
 		}
 		if (!volptr) {
-			volptr = filesys_createvolname (NULL, rootdir, _T("removable"));
+			volptr = filesys_createvolname (NULL, rootdir, NULL, _T("removable"));
 			_tcscpy (volname, volptr);
 			xfree (volptr);
 			volptr = volname;

@@ -3007,8 +3007,8 @@ struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, s
 		return NULL;
 
 	memcpy (&uci->ci, ci, sizeof (struct uaedev_config_info));
-	validatedevicename (uci->ci.devname);
-	validatevolumename (uci->ci.volname);
+	validatedevicename (uci->ci.devname, NULL);
+	validatevolumename (uci->ci.volname, NULL);
 	if (!uci->ci.devname[0] && ci->type != UAEDEV_CD && ci->type != UAEDEV_TAPE) {
 		TCHAR base[32];
 		TCHAR base2[32];
@@ -3027,10 +3027,10 @@ struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, s
 			}
 		}
 		_tcscpy (uci->ci.devname, base2);
-		validatedevicename (uci->ci.devname);
+		validatedevicename (uci->ci.devname, NULL);
 	}
 	if (ci->type == UAEDEV_DIR) {
-		TCHAR *s = filesys_createvolname (uci->ci.volname, uci->ci.rootdir, _T("Harddrive"));
+		TCHAR *s = filesys_createvolname (uci->ci.volname, uci->ci.rootdir, NULL, _T("Harddrive"));
 		_tcscpy (uci->ci.volname, s);
 		xfree (s);
 	}

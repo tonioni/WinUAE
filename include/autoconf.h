@@ -64,14 +64,14 @@ extern int add_filesys_unitconfig (struct uae_prefs *p, int index, TCHAR *error)
 extern int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo*);
 extern int kill_filesys_unitconfig (struct uae_prefs *p, int nr);
 extern int move_filesys_unitconfig (struct uae_prefs *p, int nr, int to);
-extern TCHAR *validatedevicename (TCHAR *s);
-extern TCHAR *validatevolumename (TCHAR *s);
+extern TCHAR *validatedevicename (TCHAR *s, const TCHAR *def);
+extern TCHAR *validatevolumename (TCHAR *s, const TCHAR *def);
 
 int filesys_insert (int nr, const TCHAR *volume, const TCHAR *rootdir, bool readonly, int flags);
 int filesys_eject (int nr);
 int filesys_media_change (const TCHAR *rootdir, int inserted, struct uaedev_config_data *uci);
 
-extern TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, const TCHAR *def);
+extern TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, struct zvolume *zv, const TCHAR *def);
 extern int target_get_volume_name (struct uaedev_mount_info *mtinf, const TCHAR *volumepath, TCHAR *volumename, int size, bool inserted, bool fullcheck);
 
 extern int sprintf_filesys_unit (TCHAR *buffer, int num);

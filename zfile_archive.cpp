@@ -1343,7 +1343,6 @@ struct zvolume *archive_directory_adf (struct znode *parent, struct zfile *z)
 {
 	struct zvolume *zv;
 	struct adfhandle *adf;
-	TCHAR *volname = NULL;
 	TCHAR name[MAX_DPATH];
 	int gotroot = 0;
 
@@ -1412,10 +1411,10 @@ struct zvolume *archive_directory_adf (struct znode *parent, struct zfile *z)
 			goto fail;
 		adf->blocksize = bs;
 		adf->highblock = adf->size / adf->blocksize;
-		volname = getBSTR (adf->block + adf->blocksize - 20 * 4);
 		zv = zvolume_alloc (z, ArchiveFormatADF, NULL, NULL);
 		zv->method = ArchiveFormatADF;
 		zv->handle = adf;
+		zv->volumename = getBSTR (adf->block + adf->blocksize - 20 * 4);
 
 		name[0] = 0;
 		recurseadf (&zv->root, adf->rootblock, name);
@@ -1467,8 +1466,6 @@ struct zvolume *archive_directory_adf (struct znode *parent, struct zfile *z)
 		goto fail;
 	}
 
-
-	xfree (volname);
 	return zv;
 fail:
 	xfree (adf);

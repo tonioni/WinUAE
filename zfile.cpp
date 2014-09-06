@@ -3186,7 +3186,8 @@ void zfile_fclose_archive (struct zvolume *zv)
 			v = v->next;
 		}
 	}
-	xfree (zv);
+	xfree(zv->volumename);
+	xfree(zv);
 }
 
 struct zdirectory {
