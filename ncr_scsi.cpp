@@ -28,6 +28,7 @@
 #include "qemuvga/qemuuaeglue.h"
 #include "qemuvga/queue.h"
 #include "qemuvga/scsi/scsi.h"
+#include "gui.h"
 
 #define BOARD_SIZE 16777216
 #define IO_MASK 0xff
@@ -248,6 +249,9 @@ SCSIRequest *scsi710_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun, uint8_t 
 int32_t scsi710_req_enqueue(SCSIRequest *req)
 {
 	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
+
+	if (sd->device_type == UAEDEV_CD)
+		gui_flicker_led (LED_CD, sd->id, 1);
 
 	sd->data_len = 0;
 	scsi_start_transfer (sd);
@@ -658,11 +662,37 @@ static addrbank ncr_bank_warpengine = {
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
-addrbank ncr_bank_cyberstorm = {
+static addrbank ncr_bank_cs_scsi_ram = {
 	cs_lget, cs_wget, cs_bget,
 	cs_lput, cs_wput, cs_bput,
-	cyberstorm_scsi_ram_xlate, cyberstorm_scsi_ram_check, NULL, NULL, _T("CyberStorm SCSI"),
+	cyberstorm_scsi_ram_xlate, cyberstorm_scsi_ram_check, NULL, NULL, _T("CyberStorm SCSI RAM"),
+	cs_lget, cs_wget, ABFLAG_IO
+};
+static addrbank ncr_bank_cs_scsi_io = {
+	cs_lget, cs_wget, cs_bget,
+	cs_lput, cs_wput, cs_bput,
+	default_xlate, default_check, NULL, NULL, _T("CyberStorm SCSI IO"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
+
+static struct addrbank_sub ncr_sub_bank_cs[] = {
+	{ &ncr_bank_cs_scsi_io,  0x0000, 0x0000 },
+	{ &ncr_bank_cs_scsi_ram, 0x1000, 0x0000 },
+	{ &ncr_bank_cs_scsi_ram, 0x3000, 0x2000 },
+	{ &ncr_bank_cs_scsi_ram, 0x5000, 0x4000 },
+	{ &ncr_bank_cs_scsi_ram, 0x7000, 0x6000 },
+	{ &ncr_bank_cs_scsi_ram, 0x9000, 0x8000 },
+	{ &ncr_bank_cs_scsi_ram, 0xb000, 0xa000 },
+	{ &ncr_bank_cs_scsi_ram, 0xd000, 0xc000 },
+	{ &ncr_bank_cs_scsi_ram, 0xf000, 0xe000 },
+	{ NULL }
+};
+
+addrbank ncr_bank_cyberstorm = {
+	sub_bank_lget, sub_bank_wget, sub_bank_bget,
+	sub_bank_lput, sub_bank_wput, sub_bank_bput,
+	sub_bank_xlate, sub_bank_check, NULL, NULL, _T("CyberStorm SCSI"),
+	sub_bank_lgeti, sub_bank_wgeti, ABFLAG_IO, ncr_sub_bank_cs
 };
 
 addrbank ncr_bank_blizzardppc = {

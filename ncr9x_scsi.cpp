@@ -30,6 +30,7 @@
 #include "qemuvga/queue.h"
 #include "qemuvga/scsi/scsi.h"
 #include "qemuvga/scsi/esp.h"
+#include "gui.h"
 
 #define FASTLANE_BOARD_SIZE (2 * 16777216)
 #define FASTLANE_ROM_SIZE 32768
@@ -391,6 +392,9 @@ SCSIRequest *scsiesp_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun, uint8_t 
 int32_t scsiesp_req_enqueue(SCSIRequest *req)
 {
 	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
+
+	if (sd->device_type == UAEDEV_CD)
+		gui_flicker_led (LED_CD, sd->id, 1);
 
 	sd->data_len = 0;
 	scsi_start_transfer(sd);

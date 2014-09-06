@@ -1600,7 +1600,7 @@ addrbank cia_bank = {
 	cia_lget, cia_wget, cia_bget,
 	cia_lput, cia_wput, cia_bput,
 	default_xlate, default_check, NULL, NULL, _T("CIA"),
-	cia_lgeti, cia_wgeti, ABFLAG_IO, 0x3f01, 0xbfc000
+	cia_lgeti, cia_wgeti, ABFLAG_IO, NULL, 0x3f01, 0xbfc000
 };
 
 // Gayle or Fat Gary does not enable CIA /CS lines if both CIAs are selected
@@ -1902,7 +1902,7 @@ addrbank clock_bank = {
 	clock_lget, clock_wget, clock_bget,
 	clock_lput, clock_wput, clock_bput,
 	default_xlate, default_check, NULL, NULL, _T("Battery backed up clock (none)"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO, 0x3f, 0xd80000
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO, NULL, 0x3f, 0xd80000
 };
 
 static unsigned int clock_control_d;

@@ -94,11 +94,21 @@ typedef struct {
 	/* for instruction opcode/operand fetches */
 	mem_get_func lgeti, wgeti;
 	int flags;
+	struct addrbank_sub *sub_banks;
 	uae_u32 mask;
 	uae_u32 startmask;
 	uae_u32 start;
 	uae_u32 allocated;
 } addrbank;
+
+struct addrbank_sub
+{
+	addrbank *bank;
+	uae_u32 offset;
+	uae_u32 suboffset;
+	uae_u32 mask;
+	uae_u32 maskval;
+};
 
 #define CE_MEMBANK_FAST32 0
 #define CE_MEMBANK_CHIP16 1
@@ -348,6 +358,19 @@ extern uae_u8 *REGPARAM3 default_xlate(uaecptr addr) REGPARAM;
 /* 680x0 opcode fetches */
 extern uae_u32 REGPARAM3 dummy_lgeti (uaecptr addr) REGPARAM;
 extern uae_u32 REGPARAM3 dummy_wgeti (uaecptr addr) REGPARAM;
+
+/* sub bank support */
+extern uae_u32 REGPARAM3 sub_bank_lget (uaecptr) REGPARAM;
+extern uae_u32 REGPARAM3 sub_bank_wget(uaecptr) REGPARAM;
+extern uae_u32 REGPARAM3 sub_bank_bget(uaecptr) REGPARAM;
+extern void REGPARAM3 sub_bank_lput(uaecptr, uae_u32) REGPARAM;
+extern void REGPARAM3 sub_bank_wput(uaecptr, uae_u32) REGPARAM;
+extern void REGPARAM3 sub_bank_bput(uaecptr, uae_u32) REGPARAM;
+extern uae_u32 REGPARAM3 sub_bank_lgeti(uaecptr) REGPARAM;
+extern uae_u32 REGPARAM3 sub_bank_wgeti(uaecptr) REGPARAM;
+extern int REGPARAM3 sub_bank_check(uaecptr addr, uae_u32 size) REGPARAM;
+extern uae_u8 *REGPARAM3 sub_bank_xlate(uaecptr addr) REGPARAM;
+extern addrbank *get_sub_bank(uaecptr *addr);
 
 #define bankindex(addr) (((uaecptr)(addr)) >> 16)
 

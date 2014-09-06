@@ -1779,11 +1779,6 @@ int gary_toenb;
 
 static void mbres_write (uaecptr addr, uae_u32 val, int size)
 {
-	if ((addr & 0xffff) >= 0x8000) {
-		dummy_put(addr, size, val);
-		return;
-	}
-
 	addr &= 0xffff;
 	if (MBRES_LOG > 0)
 		write_log (_T("MBRES_WRITE %08X=%08X (%d) PC=%08X S=%d\n"), addr, val, size, M68K_GETPC, regs.s);
@@ -1806,9 +1801,6 @@ static void mbres_write (uaecptr addr, uae_u32 val, int size)
 static uae_u32 mbres_read (uaecptr addr, int size)
 {
 	uae_u32 v = 0;
-
-	if ((addr & 0xffff) >= 0x8000)
-		return dummy_get(addr, size, false);
 
 	addr &= 0xffff;
 
@@ -1916,11 +1908,24 @@ static void REGPARAM2 mbres_bput (uaecptr addr, uae_u32 value)
 	mbres_write (addr, value, 1);
 }
 
-addrbank mbres_bank = {
+static addrbank mbres_sub_bank = {
 	mbres_lget, mbres_wget, mbres_bget,
 	mbres_lput, mbres_wput, mbres_bput,
 	default_xlate, default_check, NULL, NULL, _T("Motherboard Resources"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
+
+static struct addrbank_sub mbres_sub_banks[] = {
+	{ &mbres_sub_bank, 0x0000 },
+	{ &dummy_bank,     0x8000 },
+	{ NULL }
+};
+
+addrbank mbres_bank = {
+	sub_bank_lget, sub_bank_wget, sub_bank_bget,
+	sub_bank_lput, sub_bank_wput, sub_bank_bput,
+	sub_bank_xlate, sub_bank_check, NULL, NULL, _T("Motherboard Resources"),
+	sub_bank_lgeti, sub_bank_wgeti, ABFLAG_IO, mbres_sub_banks
 };
 
 void gayle_hsync (void)

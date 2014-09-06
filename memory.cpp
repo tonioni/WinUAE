@@ -384,6 +384,80 @@ static uae_u32 REGPARAM2 ones_get (uaecptr addr)
 	return 0xffffffff;
 }
 
+addrbank *get_sub_bank(uaecptr *paddr)
+{
+	int i;
+	uaecptr addr = *paddr;
+	addrbank *ab = &get_mem_bank(addr);
+	struct addrbank_sub *sb = ab->sub_banks;
+	if (!sb)
+		return &dummy_bank;
+	for (i = 0; sb[i].bank; i++) {
+		int offset = addr & 65535;
+		if (offset < sb[i + 1].offset) {
+			uae_u32 mask = sb[i].mask;
+			uae_u32 maskval = sb[i].maskval;
+			if ((offset & mask) == maskval) {
+				*paddr = addr - sb[i].suboffset;
+				return sb[i].bank;
+			}
+		}
+	}
+	*paddr = addr - sb[i - 1].suboffset;
+	return sb[i - 1].bank;
+}
+uae_u32 REGPARAM3 sub_bank_lget (uaecptr addr) REGPARAM
+{
+	addrbank *ab = get_sub_bank(&addr);
+	return ab->lget(addr);
+}
+uae_u32 REGPARAM3 sub_bank_wget(uaecptr addr) REGPARAM
+{
+	addrbank *ab = get_sub_bank(&addr);
+	return ab->wget(addr);
+}
+uae_u32 REGPARAM3 sub_bank_bget(uaecptr addr) REGPARAM
+{
+	addrbank *ab = get_sub_bank(&addr);
+	return ab->bget(addr);
+}
+void REGPARAM3 sub_bank_lput(uaecptr addr, uae_u32 v) REGPARAM
+{
+	addrbank *ab = get_sub_bank(&addr);
+	ab->lput(addr, v);
+}
+void REGPARAM3 sub_bank_wput(uaecptr addr, uae_u32 v) REGPARAM
+{
+	addrbank *ab = get_sub_bank(&addr);
+	ab->wput(addr, v);
+}
+void REGPARAM3 sub_bank_bput(uaecptr addr, uae_u32 v) REGPARAM
+{
+	addrbank *ab = get_sub_bank(&addr);
+	ab->bput(addr, v);
+}
+uae_u32 REGPARAM3 sub_bank_lgeti(uaecptr addr) REGPARAM
+{
+	addrbank *ab = get_sub_bank(&addr);
+	return ab->lgeti(addr);
+}
+uae_u32 REGPARAM3 sub_bank_wgeti(uaecptr addr) REGPARAM
+{
+	addrbank *ab = get_sub_bank(&addr);
+	return ab->wgeti(addr);
+}
+int REGPARAM3 sub_bank_check(uaecptr addr, uae_u32 size) REGPARAM
+{
+	addrbank *ab = get_sub_bank(&addr);
+	return ab->check(addr, size);
+}
+uae_u8 *REGPARAM3 sub_bank_xlate(uaecptr addr) REGPARAM
+{
+	addrbank *ab = get_sub_bank(&addr);
+	return ab->xlateaddr(addr);
+}
+
+
 /* Chip memory */
 
 static uae_u32 chipmem_full_mask;
