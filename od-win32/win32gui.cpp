@@ -8323,7 +8323,8 @@ static void addromfiles (UAEREG *fkey, HWND hDlg, DWORD d, const TCHAR *path, in
 			}
 			if (idx2 >= 0) {
 				struct romdata *rd = getromdatabyidgroup (idx2, group, subitem);
-				if (rd && ((rd->type & ROMTYPE_GROUP_MASK) & (type & ROMTYPE_GROUP_MASK)) && (rd->type & ROMTYPE_SUB_MASK) == (type & ROMTYPE_SUB_MASK)) {
+				if (rd && ((((rd->type & ROMTYPE_GROUP_MASK) & (type & ROMTYPE_GROUP_MASK)) && (rd->type & ROMTYPE_SUB_MASK) == (type & ROMTYPE_SUB_MASK)) ||
+					(rd->type & type) == ROMTYPE_NONE)) {
 					getromname (rd, tmp);
 					if (SendDlgItemMessage (hDlg, d, CB_FINDSTRING, (WPARAM)-1, (LPARAM)tmp) < 0)
 						SendDlgItemMessage(hDlg, d, CB_ADDSTRING, 0, (LPARAM)tmp);
@@ -10053,7 +10054,7 @@ static void volumeselectfile (HWND hDlg)
 		regquerystr (NULL, _T("FilesystemFilePath"), directory_path, &out);
 	}
 	if (DiskSelection (hDlg, 0, 14, &workprefs, directory_path)) {
-		TCHAR *s = filesys_createvolname (NULL, directory_path, _T("Harddrive"));
+		TCHAR *s = filesys_createvolname (NULL, directory_path, NULL, _T("Harddrive"));
 		SetDlgItemText (hDlg, IDC_PATH_NAME, directory_path);
 		SetDlgItemText (hDlg, IDC_VOLUME_NAME, s);
 		xfree (s);
@@ -16579,6 +16580,8 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 				default_fsvdlg (&current_fsvdlg);
 				_tcscpy (current_fsvdlg.ci.rootdir, file);
 				add_filesys_config (&workprefs, -1, &current_fsvdlg.ci);
+			} else if (harddrive) {
+				do_filesys_insert (file);
 			} else {
 				drv = floppyslot_addfile (prefs, file, drv, firstdrv, i);
 				if (drv < 0)
