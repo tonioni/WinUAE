@@ -3155,24 +3155,20 @@ static void do_trace (void)
 #ifdef WITH_PPC
 static void uae_ppc_poll_check(void)
 {
-	static int checkcnt;
-
-	checkcnt--;
-	if (checkcnt > 0)
-		return;
 	uae_ppc_poll_queue();
-	checkcnt = 128;
-	return;
 }
 #endif
 
 static bool haltloop(void)
 {
 #ifdef WITH_PPC
-	bool ppc_main_thread = false;
+	int lastintr = -1;
 	// m68k stopped? Move PPC emulator to main thread.
 	if (regs.halted < 0) {
-		ppc_main_thread = uae_ppc_to_main_thread();
+		uae_ppc_to_main_thread();
+		uae_ppc_spinlock_reset();
+		uae_ppc_spinlock_get();
+		write_log(_T("Entered m68k haltloop with PPC active\n"));
 	}
 #endif
 
@@ -3187,21 +3183,15 @@ static bool haltloop(void)
 				prevvpos = 1;
 			x_do_cycles(8 * CYCLE_UNIT);
 		} else {
-			x_do_cycles(16 * CYCLE_UNIT);
+			x_do_cycles(32 * CYCLE_UNIT);
 		}
 
 		if (regs.spcflags & SPCFLAG_COPPER)
 			do_copper();
 
 #ifdef WITH_PPC
-		if (ppc_main_thread && regs.halted < 0)
+		if (regs.halted < 0)
 			uae_ppc_emulate();
-		else
-			uae_ppc_poll_check();
-		if (ppc_state) {
-			int intr = intlev();
-			ppc_interrupt(intr);
-		}
 #endif
 
 		if (regs.spcflags) {

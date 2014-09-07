@@ -13,6 +13,11 @@
 
 #include "options.h"
 #include "events.h"
+#include "memory.h"
+#include "newcpu.h"
+#include "uae/ppc.h"
+
+static const int pissoff_nojit_value = 256 * CYCLE_UNIT;
 
 unsigned long int event_cycles, nextevent, currcycle;
 int is_syncline, is_syncline_end;
@@ -62,14 +67,41 @@ void do_cycles_slow (unsigned long cycles_to_add)
 						v = 0;
 					}
 					if (v < 0 && v2 < 0) {
-						pissoff = pissoff_value;
+#ifdef WITH_PPC
+						if (regs.halted < 0) {
+
+							uae_ppc_execute_quick();
+
+						} else {
+#endif
+							if (currprefs.cachesize)
+								pissoff = pissoff_value;
+							else
+								pissoff = pissoff_nojit_value;
+#ifdef WITH_PPC
+						}
+#endif
 						return;
 					}
 				} else if (is_syncline < 0) {
 					int rpt = read_processor_time ();
 					int v = rpt - is_syncline_end;
 					if (v < 0) {
-						pissoff = pissoff_value;
+#ifdef WITH_PPC
+						if (regs.halted < 0) {
+
+							if (v < -vsynctimebase / 20)
+								uae_ppc_execute_quick();
+
+						} else {
+#endif
+							if (currprefs.cachesize)
+								pissoff = pissoff_value;
+							else
+								pissoff = pissoff_nojit_value;
+#ifdef WITH_PPC
+						}
+#endif
 						return;
 					}
 				}

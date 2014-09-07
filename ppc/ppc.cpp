@@ -1,3 +1,4 @@
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -12,6 +13,9 @@
 
 #include "uae/ppc.h"
 
+#define PPC_DEBUG_ADDR_FROM 0xf00000
+#define PPC_DEBUG_ADDR_TO   0xf40000
+
 #ifdef WITH_PEARPC_CPU
 #include "pearpc/cpu/cpu.h"
 #include "pearpc/io/io.h"
@@ -23,6 +27,29 @@
 
 #define TRACE(format, ...) write_log(_T("PPC: ---------------- ") format, ## __VA_ARGS__)
 
+
+volatile uae_u32 ppc_spinlock;
+
+void uae_ppc_spinlock_get(void)
+{
+#ifdef _WIN32
+	int exchange = 1, compare = 0;
+	while (true)
+	{
+		if(InterlockedCompareExchange(&ppc_spinlock, exchange, compare) == 0)
+			break;
+	}
+#endif
+}
+void uae_ppc_spinlock_release(void)
+{
+	ppc_spinlock = 0;
+}
+void uae_ppc_spinlock_reset(void)
+{
+	uae_ppc_spinlock_release();
+}
+
 volatile int ppc_state;
 
 static volatile bool ppc_thread_running;
@@ -32,6 +59,8 @@ int ppc_cycle_count;
 static volatile bool ppc_access;
 static volatile int ppc_cpu_lock_state;
 static bool ppc_main_thread;
+static bool ppc_io_pipe;
+static bool ppc_use_spinlock;
 static bool ppc_init_done;
 static int ppc_implementation;
 
@@ -272,6 +301,9 @@ static void *ppc_thread(void *v)
 		uae_u32 v = read_comm_pipe_u32_blocking(&ppcrequests);
 		if (v == 0xffffffff)
 			break;
+		uae_ppc_spinlock_reset();
+		ppc_io_pipe = true;
+		ppc_use_spinlock = false;
 		uae_ppc_cpu_reset();
 		g_ppc_cpu_run_continuous();
 		if (ppc_state == PPC_STATE_ACTIVE || ppc_state == PPC_STATE_SLEEP)
@@ -288,9 +320,12 @@ bool uae_ppc_to_main_thread(void)
 {
 	TRACE(_T("uae_ppc_to_main_thread\n"));
 
-	// QEMU: not yet supported
-	if (ppc_implementation == PPC_IMPLEMENTATION_QEMU)
-		return false;
+	// QEMU: keep using thread
+	if (ppc_implementation == PPC_IMPLEMENTATION_QEMU) {
+		ppc_io_pipe = false;
+		ppc_use_spinlock = true;
+		return true;
+	}
 
 	if (ppc_thread_running) {
 		write_log(_T("PPC: transferring PPC emulation to main thread.\n"));
@@ -304,18 +339,40 @@ bool uae_ppc_to_main_thread(void)
 	}
 	ppc_state = PPC_STATE_ACTIVE;
 	ppc_main_thread = true;
+	ppc_io_pipe = false;
 	return true;
+}
+
+void uae_ppc_execute_quick(void)
+{
+	uae_ppc_spinlock_release();
+	sleep_millis(1);
+	uae_ppc_spinlock_get();
 }
 
 void uae_ppc_emulate(void)
 {
+	if (ppc_implementation == PPC_IMPLEMENTATION_QEMU)
+		return;
+
+	ppc_interrupt(intlev());
+
 	//TRACE(_T("uae_ppc_emulate\n"));
 	if (ppc_state == PPC_STATE_ACTIVE || ppc_state == PPC_STATE_SLEEP)
 		g_ppc_cpu_run_single(10);
 }
 
+static bool ppc_safe_addr(uaecptr addr)
+{
+	if (addr >= 0x08000000 && addr < 0x10000000)
+		return true;
+	return false;
+}
+
 bool uae_ppc_poll_queue(void)
 {
+	if (!ppc_io_pipe)
+		return true;
 	// ppc locked?
 	if (ppc_cpu_lock_state < 0)
 		return false;
@@ -394,9 +451,10 @@ bool uae_ppc_direct_physical_memory_handle(uint32_t addr, uint8_t *&ptr)
 
 bool UAECALL uae_ppc_io_mem_write(uint32_t addr, uint32_t data, int size)
 {
+	bool valid = false;
 	while (ppc_thread_running && ppc_cpu_lock_state < 0 && ppc_state);
 
-	if (ppc_thread_running && !valid_address(addr, size)) {
+	if (ppc_io_pipe && !valid_address(addr, size)) {
 		write_comm_pipe_u32(&ppcquery, addr, 0);
 		write_comm_pipe_u32(&ppcquery, size | 0x80, 0);
 		write_comm_pipe_u32(&ppcquery, data, 1);
@@ -411,10 +469,16 @@ bool UAECALL uae_ppc_io_mem_write(uint32_t addr, uint32_t data, int size)
 		return true;
 	}
 #if PPC_ACCESS_LOG > 0
-	if (!ppc_thread_running && !valid_address(addr, size)) {
-		write_log(_T("PPC io write %08x = %08x %d\n"), addr, data, size);
+	if (!ppc_io_pipe && !valid_address(addr, size)) {
+		if (addr >= PPC_DEBUG_ADDR_FROM && addr < PPC_DEBUG_ADDR_TO)
+			write_log(_T("PPC io write %08x = %08x %d\n"), addr, data, size);
 	}
 #endif
+	if (ppc_use_spinlock) {
+		valid = valid_address(addr, size) != 0;
+		if (!valid)
+			uae_ppc_spinlock_get();
+	}
 	switch (size)
 	{
 	case 4:
@@ -426,9 +490,13 @@ bool UAECALL uae_ppc_io_mem_write(uint32_t addr, uint32_t data, int size)
 	case 1:
 		put_byte(addr, data);
 		break;
-	default:
-		write_log(_T("unknown ppc write %d %08x\n"), addr, size);
-		return false;
+	}
+	if (ppc_use_spinlock && !valid) {
+		if (addr == 0xdff09c || addr == 0xdff09a) {
+			int lev = intlev();
+			ppc_interrupt(lev);
+		}
+		uae_ppc_spinlock_release();
 	}
 #if PPC_ACCESS_LOG > 2
 	write_log(_T("PPC mem write %08x = %08x %d\n"), addr, data, size);
@@ -439,10 +507,11 @@ bool UAECALL uae_ppc_io_mem_write(uint32_t addr, uint32_t data, int size)
 bool UAECALL uae_ppc_io_mem_read(uint32_t addr, uint32_t *data, int size)
 {
 	uint32_t v;
+	bool valid = false;
 
 	while (ppc_thread_running && ppc_cpu_lock_state < 0 && ppc_state);
 
-	if (ppc_thread_running && !valid_address(addr, size)) {
+	if (ppc_io_pipe && !valid_address(addr, size)) {
 		write_comm_pipe_u32(&ppcquery, addr, 0);
 		write_comm_pipe_u32(&ppcquery, size, 1);
 		v = read_comm_pipe_u32_blocking(&ppcreply);
@@ -452,6 +521,12 @@ bool UAECALL uae_ppc_io_mem_read(uint32_t addr, uint32_t *data, int size)
 #endif
 		*data = v;
 		return true;
+	}
+
+	if (ppc_use_spinlock) {
+		valid = valid_address(addr, size) != 0;
+		if (!valid)
+			uae_ppc_spinlock_get();
 	}
 	switch (size)
 	{
@@ -464,15 +539,15 @@ bool UAECALL uae_ppc_io_mem_read(uint32_t addr, uint32_t *data, int size)
 	case 1:
 		v = get_byte(addr);
 		break;
-	default:
-		write_log(_T("unknown ppc read %d %08x\n"), addr, size);
-		return false;
 	}
 	*data = v;
+	if (ppc_use_spinlock && !valid)
+		uae_ppc_spinlock_release();
 
 #if PPC_ACCESS_LOG > 0
-	if (!ppc_thread_running && !valid_address(addr, size)) {
-		write_log(_T("PPC io read %08x=%08x %d\n"), addr, v, size);
+	if (!ppc_io_pipe && !valid_address(addr, size)) {
+		if (addr >= PPC_DEBUG_ADDR_FROM && addr < PPC_DEBUG_ADDR_TO)
+			write_log(_T("PPC io read %08x=%08x %d\n"), addr, v, size);
 	}
 #endif
 #if PPC_ACCESS_LOG > 2
@@ -483,9 +558,10 @@ bool UAECALL uae_ppc_io_mem_read(uint32_t addr, uint32_t *data, int size)
 
 bool UAECALL uae_ppc_io_mem_write64(uint32_t addr, uint64_t data)
 {
+	bool valid = false;
 	while (ppc_thread_running && ppc_cpu_lock_state < 0 && ppc_state);
 
-	if (ppc_thread_running && !valid_address(addr, 8)) {
+	if (ppc_io_pipe && !valid_address(addr, 8)) {
 #if PPC_ACCESS_LOG > 0
 		write_log(_T("PPC io write64 %08x = %08llx\n"), addr, (unsigned long long) data);
 #endif
@@ -500,8 +576,15 @@ bool UAECALL uae_ppc_io_mem_write64(uint32_t addr, uint64_t data)
 #endif
 		return true;
 	}
+	if (ppc_use_spinlock) {
+		valid = valid_address(addr, 8) != 0;
+		if (!valid)
+			uae_ppc_spinlock_get();
+	}
 	put_long(addr + 0, data >> 32);
 	put_long(addr + 4, data & 0xffffffff);
+	if (ppc_use_spinlock && !valid)
+		uae_ppc_spinlock_release();
 #if PPC_ACCESS_LOG > 2
 	write_log(_T("PPC mem write64 %08x = %08llx\n"), addr, data);
 #endif
@@ -510,11 +593,12 @@ bool UAECALL uae_ppc_io_mem_write64(uint32_t addr, uint64_t data)
 
 bool UAECALL uae_ppc_io_mem_read64(uint32_t addr, uint64_t *data)
 {
+	bool valid = false;
 	uint32_t v1, v2;
 
 	while (ppc_thread_running && ppc_cpu_lock_state < 0 && ppc_state);
 
-	if (ppc_thread_running && !valid_address(addr, 8)) {
+	if (ppc_io_pipe && !valid_address(addr, 8)) {
 		write_comm_pipe_u32(&ppcquery, addr, 0);
 		write_comm_pipe_u32(&ppcquery, 8, 0);
 		v1 = read_comm_pipe_u32_blocking(&ppcreply);
@@ -525,9 +609,16 @@ bool UAECALL uae_ppc_io_mem_read64(uint32_t addr, uint64_t *data)
 #endif
 		return true;
 	}
+	if (ppc_use_spinlock) {
+		valid = valid_address(addr, 8) != 0;
+		if (!valid)
+			uae_ppc_spinlock_get();
+	}
 	v1 = get_long(addr + 0);
 	v2 = get_long(addr + 4);
 	*data = ((uint64_t)v1 << 32) | v2;
+	if (ppc_use_spinlock && !valid)
+		uae_ppc_spinlock_release();
 #if PPC_ACCESS_LOG > 2
 	write_log(_T("PPC mem read64 %08x = %08llx\n"), addr, *data);
 #endif

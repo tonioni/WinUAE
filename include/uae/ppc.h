@@ -40,6 +40,12 @@ void uae_ppc_emulate(void);
 void uae_ppc_reset(bool hardreset);
 void uae_ppc_hsync_handler(void);
 void uae_ppc_wakeup(void);
+
+void uae_ppc_execute_quick(void);
+void uae_ppc_spinlock_reset(void);
+void uae_ppc_spinlock_get(void);
+void uae_ppc_spinlock_release(void);
+
 /**
  * Pauses the PPC emulation (for some implementations). Currently triggers
  * a simple pause implementation intended only for debugging.
