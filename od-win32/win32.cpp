@@ -92,6 +92,7 @@
 #include "rp.h"
 #include "cloanto/RetroPlatformIPC.h"
 #endif
+#include "uae/ppc.h"
 
 extern int harddrive_dangerous, do_rdbdump, no_rawinput, no_directinput;
 extern int force_directsound;
@@ -491,6 +492,9 @@ bool resumepaused (int priority)
 #ifdef RETROPLATFORM
 	rp_pause (pause_emulation);
 #endif
+#ifdef WITH_PPC
+	uae_ppc_pause(0);
+#endif
 	setsystime ();
 	return true;
 }
@@ -500,6 +504,9 @@ bool setpaused (int priority)
 	if (pause_emulation > priority)
 		return false;
 	pause_emulation = priority;
+#ifdef WITH_PPC
+	uae_ppc_pause(1);
+#endif
 	setsoundpaused ();
 	blkdev_entergui ();
 	pausemouseactive = 1;
