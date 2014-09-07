@@ -40,6 +40,8 @@ static bool memlogw = false;
 #include "qemuvga/qemuuaeglue.h"
 #include "qemuvga/vga.h"
 
+#define MONITOR_SWITCH_DELAY 25
+
 #define GFXBOARD_AUTOCONFIG_SIZE 131072
 
 #define BOARD_REGISTERS_SIZE 0x00010000
@@ -183,9 +185,9 @@ static CirrusVGAState vga;
 static uae_u8 *vram, *vramrealstart;
 static int vram_start_offset;
 static uae_u32 gfxboardmem_start;
-static bool monswitch;
-static bool oldswitch;
+static bool monswitch_current, monswitch_new;
 static bool monswitch_reset;
+static int monswitch_delay;
 static int fullrefresh;
 static bool modechanged;
 static uae_u8 *gfxboard_surface, *vram_address, *fakesurface_surface;
@@ -238,15 +240,17 @@ bool gfxboard_toggle (int mode)
 {
 	if (vram == NULL)
 		return false;
-	if (monswitch) {
-		monswitch = false;
+	if (monswitch_current) {
+		monswitch_new = false;
+		monswitch_delay = 1;
 		picasso_requested_on = 0;
 		return true;
 	} else {
 		int width, height;
 		vga.vga.get_resolution (&vga.vga, &width, &height);
 		if (width > 16 && height > 16) {
-			monswitch = true;
+			monswitch_new = true;
+			monswitch_delay = 1;
 			picasso_requested_on = 1;
 			return true;
 		}
@@ -357,7 +361,7 @@ void gfxboard_vsync_handler (void)
 	if (!configured_mem || !configured_regs)
 		return;
 
-	if (monswitch && (modechanged || gfxboard_checkchanged ())) {
+	if (monswitch_current && (modechanged || gfxboard_checkchanged ())) {
 		if (!gfxboard_setmode ()) {
 			picasso_requested_on = 0;
 			return;
@@ -368,14 +372,20 @@ void gfxboard_vsync_handler (void)
 		return;
 	}
 
-	if (monswitch != oldswitch) {
-		if (!monswitch)
-			picasso_requested_on = monswitch;
-		oldswitch = monswitch;
-		write_log (_T("GFXBOARD ACTIVE=%d\n"), monswitch);
+	if (monswitch_new != monswitch_current) {
+		if (monswitch_delay > 0)
+			monswitch_delay--;
+		if (monswitch_delay == 0) {
+			if (!monswitch_new)
+				picasso_requested_on = 0;
+			monswitch_current = monswitch_new;
+			write_log (_T("GFXBOARD ACTIVE=%d\n"), monswitch_current);
+		}
+	} else {
+		monswitch_delay = 0;
 	}
 
-	if (monswitch) {
+	if (monswitch_current) {
 		picasso_getwritewatch (vram_start_offset);
 		if (fullrefresh)
 			vga.vga.graphic_mode = -1;
@@ -562,6 +572,14 @@ static void reset_pci (void)
 	cirrus_pci[0x13] &= ~1; // memory
 }
 
+static void set_monswitch(bool newval)
+{
+	if (monswitch_new == newval)
+		return;
+	monswitch_new = newval; 
+	monswitch_delay = MONITOR_SWITCH_DELAY;
+}
+
 static void picassoiv_checkswitch (void)
 {
 	if (ISP4()) {
@@ -571,7 +589,7 @@ static void picassoiv_checkswitch (void)
 		if (monswitch_reset && rtg_active)
 			return;
 		monswitch_reset = false;
-		monswitch = rtg_active; 
+		set_monswitch(rtg_active);
 	}
 }
 
@@ -1453,16 +1471,17 @@ static void REGPARAM2 gfxboard_bput_regs (uaecptr addr, uae_u32 b)
 			{
 				if ((addr & 1) == 0) {
 					int idx = addr >> 12;
-					if (idx == 0x0b || idx == 0x09)
-						monswitch = false;
-					else if (idx == 0x0a || idx == 0x08)
-						monswitch = true;
+					if (idx == 0x0b || idx == 0x09) {
+						set_monswitch(false);
+					} else if (idx == 0x0a || idx == 0x08) {
+						set_monswitch(true);
+					}
 				}
 			}
 		break;
 		case BOARD_MANUFACTURER_PICCOLO:
 		case BOARD_MANUFACTURER_SPECTRUM:
-			monswitch = (b & 0x20) != 0;
+			set_monswitch((b & 0x20) != 0);
 			gfxboard_intena = (b & 0x40) != 0;
 		break;
 		}
@@ -1533,8 +1552,9 @@ void gfxboard_reset (void)
 	fakesurface_surface = NULL;
 	configured_mem = 0;
 	configured_regs = 0;
-	monswitch = false;
-	oldswitch = false;
+	monswitch_new = false;
+	monswitch_current = false;
+	monswitch_delay = -1;
 	monswitch_reset = true;
 	modechanged = false;
 	gfxboard_vblank = false;
@@ -1552,41 +1572,39 @@ static addrbank gfxboard_bank_memory = {
 	gfxboard_lget_mem, gfxboard_wget_mem, gfxboard_bget_mem,
 	gfxboard_lput_mem, gfxboard_wput_mem, gfxboard_bput_mem,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
-	gfxboard_lget_mem, gfxboard_wget_mem, ABFLAG_RAM
+	gfxboard_lget_mem, gfxboard_wget_mem, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 static addrbank gfxboard_bank_memory_nojit = {
 	gfxboard_lget_mem_nojit, gfxboard_wget_mem_nojit, gfxboard_bget_mem_nojit,
 	gfxboard_lput_mem_nojit, gfxboard_wput_mem_nojit, gfxboard_bput_mem_nojit,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
-	gfxboard_lget_mem_nojit, gfxboard_wget_mem_nojit, ABFLAG_RAM
+	gfxboard_lget_mem_nojit, gfxboard_wget_mem_nojit, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 
 static addrbank gfxboard_bank_wbsmemory = {
 	gfxboard_lget_wbsmem, gfxboard_wget_wbsmem, gfxboard_bget_bsmem,
 	gfxboard_lput_wbsmem, gfxboard_wput_wbsmem, gfxboard_bput_bsmem,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
-	gfxboard_lget_wbsmem, gfxboard_wget_wbsmem, ABFLAG_RAM
+	gfxboard_lget_wbsmem, gfxboard_wget_wbsmem, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 static addrbank gfxboard_bank_lbsmemory = {
 	gfxboard_lget_lbsmem, gfxboard_wget_lbsmem, gfxboard_bget_bsmem,
 	gfxboard_lput_lbsmem, gfxboard_wput_lbsmem, gfxboard_bput_bsmem,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
-	gfxboard_lget_lbsmem, gfxboard_wget_lbsmem, ABFLAG_RAM
+	gfxboard_lget_lbsmem, gfxboard_wget_lbsmem, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 static addrbank gfxboard_bank_nbsmemory = {
 	gfxboard_lget_nbsmem, gfxboard_wget_nbsmem, gfxboard_bget_bsmem,
 	gfxboard_lput_nbsmem, gfxboard_wput_nbsmem, gfxboard_bput_bsmem,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("Picasso IV banked VRAM"),
-	gfxboard_lget_nbsmem, gfxboard_wget_nbsmem, ABFLAG_RAM
+	gfxboard_lget_nbsmem, gfxboard_wget_nbsmem, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 static addrbank gfxboard_bank_registers = {
 	gfxboard_lget_regs, gfxboard_wget_regs, gfxboard_bget_regs,
 	gfxboard_lput_regs, gfxboard_wput_regs, gfxboard_bput_regs,
 	default_xlate, default_check, NULL, NULL, NULL,
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE | ABFLAG_THREADSAFE
 };
-
-
 
 static uae_u32 REGPARAM2 gfxboards_lget_regs (uaecptr addr)
 {
@@ -1932,7 +1950,7 @@ addrbank gfxboard_bank_special = {
 	gfxboards_lget_regs, gfxboards_wget_regs, gfxboards_bget_regs,
 	gfxboards_lput_regs, gfxboards_wput_regs, gfxboards_bput_regs,
 	default_xlate, default_check, NULL, NULL, _T("Picasso IV MISC"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE | ABFLAG_THREADSAFE
 };
 bool gfxboard_is_z3 (int type)
 {

@@ -4,6 +4,7 @@
 * Misc accelerator board special features
 * Blizzard 1230 IV, 1240/1260, 2040/2060, PPC
 * CyberStorm MK1, MK2, MK3, PPC.
+* TekMagic
 * Warp Engine
 *
 * Copyright 2014 Toni Wilen
@@ -262,7 +263,7 @@ static addrbank blizzardio_bank = {
 	blizzardio_lget, blizzardio_wget, blizzardio_bget,
 	blizzardio_lput, blizzardio_wput, blizzardio_bput,
 	default_xlate, default_check, NULL, NULL, _T("CPUBoard IO"),
-	blizzardio_wget, blizzardio_bget, ABFLAG_IO
+	blizzardio_wget, blizzardio_bget, ABFLAG_IO | ABFLAG_THREADSAFE
 };
 
 DECLARE_MEMORY_FUNCTIONS(blizzardram);
@@ -270,7 +271,7 @@ static addrbank blizzardram_bank = {
 	blizzardram_lget, blizzardram_wget, blizzardram_bget,
 	blizzardram_lput, blizzardram_wput, blizzardram_bput,
 	blizzardram_xlate, blizzardram_check, NULL, NULL, _T("CPUBoard RAM"),
-	blizzardram_lget, blizzardram_wget, ABFLAG_RAM
+	blizzardram_lget, blizzardram_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 
 DECLARE_MEMORY_FUNCTIONS(blizzardea);
@@ -302,7 +303,7 @@ static addrbank blizzardram_nojit_bank = {
 	blizzardram_nojit_lget, blizzardram_nojit_wget, blizzardram_nojit_bget,
 	blizzardram_nojit_lput, blizzardram_nojit_wput, blizzardram_nojit_bput,
 	blizzardram_nojit_xlate, blizzardram_nojit_check, NULL, NULL, _T("CPUBoard RAM"),
-	blizzardram_nojit_lget, blizzardram_nojit_wget, ABFLAG_RAM
+	blizzardram_nojit_lget, blizzardram_nojit_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 
 DECLARE_MEMORY_FUNCTIONS(blizzardmaprom);

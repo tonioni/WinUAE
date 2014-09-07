@@ -718,25 +718,25 @@ addrbank fastmem_bank = {
 	fastmem_lget, fastmem_wget, fastmem_bget,
 	fastmem_lput, fastmem_wput, fastmem_bput,
 	fastmem_xlate, fastmem_check, NULL, _T("fast"), _T("Fast memory"),
-	fastmem_lget, fastmem_wget, ABFLAG_RAM
+	fastmem_lget, fastmem_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 addrbank fastmem_nojit_bank = {
 	fastmem_nojit_lget, fastmem_nojit_wget, fastmem_bget,
 	fastmem_nojit_lput, fastmem_nojit_wput, fastmem_bput,
 	fastmem_nojit_xlate, fastmem_nojit_check, NULL, NULL, _T("Fast memory (nojit)"),
-	fastmem_nojit_lget, fastmem_nojit_wget, ABFLAG_RAM
+	fastmem_nojit_lget, fastmem_nojit_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 addrbank fastmem2_bank = {
 	fastmem2_lget, fastmem2_wget, fastmem2_bget,
 	fastmem2_lput, fastmem2_wput, fastmem2_bput,
 	fastmem2_xlate, fastmem2_check, NULL,_T("fast2"), _T("Fast memory 2"),
-	fastmem2_lget, fastmem2_wget, ABFLAG_RAM
+	fastmem2_lget, fastmem2_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 addrbank fastmem2_nojit_bank = {
 	fastmem2_nojit_lget, fastmem2_nojit_wget, fastmem2_nojit_bget,
 	fastmem2_nojit_lput, fastmem2_nojit_wput, fastmem2_nojit_bput,
 	fastmem2_nojit_xlate, fastmem2_nojit_check, NULL, NULL, _T("Fast memory #2 (nojit)"),
-	fastmem2_nojit_lget, fastmem2_nojit_wget, ABFLAG_RAM
+	fastmem2_nojit_lget, fastmem2_nojit_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 
 static addrbank *fastbanks[] = 
@@ -969,19 +969,19 @@ addrbank z3fastmem_bank = {
 	z3fastmem_lget, z3fastmem_wget, z3fastmem_bget,
 	z3fastmem_lput, z3fastmem_wput, z3fastmem_bput,
 	z3fastmem_xlate, z3fastmem_check, NULL, _T("z3"), _T("Zorro III Fast RAM"),
-	z3fastmem_lget, z3fastmem_wget, ABFLAG_RAM
+	z3fastmem_lget, z3fastmem_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 addrbank z3fastmem2_bank = {
 	z3fastmem2_lget, z3fastmem2_wget, z3fastmem2_bget,
 	z3fastmem2_lput, z3fastmem2_wput, z3fastmem2_bput,
 	z3fastmem2_xlate, z3fastmem2_check, NULL, _T("z3_2"), _T("Zorro III Fast RAM #2"),
-	z3fastmem2_lget, z3fastmem2_wget, ABFLAG_RAM
+	z3fastmem2_lget, z3fastmem2_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 addrbank z3chipmem_bank = {
 	z3chipmem_lget, z3chipmem_wget, z3chipmem_bget,
 	z3chipmem_lput, z3chipmem_wput, z3chipmem_bput,
 	z3chipmem_xlate, z3chipmem_check, NULL, _T("z3_chip"), _T("MegaChipRAM"),
-	z3chipmem_lget, z3chipmem_wget, ABFLAG_RAM
+	z3chipmem_lget, z3chipmem_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 
 /* ********************************************************** */

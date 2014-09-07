@@ -465,7 +465,7 @@ static addrbank ncr_bank_a4091 = {
 	ncr4_lget, ncr4_wget, ncr4_bget,
 	ncr4_lput, ncr4_wput, ncr4_bput,
 	default_xlate, default_check, NULL, NULL, _T("A4091"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE | ABFLAG_THREADSAFE
 };
 
 DECLARE_MEMORY_FUNCTIONS(ncr42)
@@ -474,7 +474,7 @@ static addrbank ncr_bank_a4091_2 = {
 	ncr42_lget, ncr42_wget, ncr42_bget,
 	ncr42_lput, ncr42_wput, ncr42_bput,
 	default_xlate, default_check, NULL, NULL, _T("A4091 #2"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE | ABFLAG_THREADSAFE
 };
 
 static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
@@ -662,20 +662,20 @@ static addrbank ncr_bank_warpengine = {
 	we_lget, we_wget, we_bget,
 	we_lput, we_wput, we_bput,
 	default_xlate, default_check, NULL, NULL, _T("Warp Engine SCSI"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_THREADSAFE
 };
 
 static addrbank ncr_bank_cs_scsi_ram = {
 	cs_lget, cs_wget, cs_bget,
 	cs_lput, cs_wput, cs_bput,
 	cyberstorm_scsi_ram_xlate, cyberstorm_scsi_ram_check, NULL, NULL, _T("CyberStorm SCSI RAM"),
-	cs_lget, cs_wget, ABFLAG_IO
+	cs_lget, cs_wget, ABFLAG_IO | ABFLAG_THREADSAFE
 };
 static addrbank ncr_bank_cs_scsi_io = {
 	cs_lget, cs_wget, cs_bget,
 	cs_lput, cs_wput, cs_bput,
 	default_xlate, default_check, NULL, NULL, _T("CyberStorm SCSI IO"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_THREADSAFE
 };
 
 static struct addrbank_sub ncr_sub_bank_cs[] = {
@@ -695,14 +695,14 @@ addrbank ncr_bank_cyberstorm = {
 	sub_bank_lget, sub_bank_wget, sub_bank_bget,
 	sub_bank_lput, sub_bank_wput, sub_bank_bput,
 	sub_bank_xlate, sub_bank_check, NULL, NULL, _T("CyberStorm SCSI"),
-	sub_bank_lgeti, sub_bank_wgeti, ABFLAG_IO, ncr_sub_bank_cs
+	sub_bank_lgeti, sub_bank_wgeti, ABFLAG_IO | ABFLAG_THREADSAFE, ncr_sub_bank_cs
 };
 
 addrbank ncr_bank_blizzardppc = {
 	bppc_lget, bppc_wget, bppc_bget,
 	bppc_lput, bppc_wput, bppc_bput,
 	default_xlate, default_check, NULL, NULL, _T("Blizzard PPC SCSI"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_THREADSAFE
 };
 
 
