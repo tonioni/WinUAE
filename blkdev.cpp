@@ -20,6 +20,7 @@
 #include "execio.h"
 #include "zfile.h"
 #include "scsi.h"
+#include "statusline.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -612,6 +613,9 @@ static void check_changes (int unitnum)
 			}
 		}
 		write_log (_T("CD: eject (%s) open=%d\n"), pollmode ? _T("slow") : _T("fast"), st->wasopen ? 1 : 0);
+		if (wasimage)
+			statusline_add_message(_T("CD%d: -"), unitnum);
+
 #ifdef RETROPLATFORM
 		rp_cd_image_change (unitnum, NULL); 
 #endif
@@ -632,6 +636,8 @@ static void check_changes (int unitnum)
 	currprefs.cdslots[unitnum].inuse = changed_prefs.cdslots[unitnum].inuse = st->cdimagefileinuse;
 	st->newimagefile[0] = 0;
 	write_log (_T("CD: delayed insert '%s' (open=%d,unit=%d)\n"), currprefs.cdslots[unitnum].name[0] ? currprefs.cdslots[unitnum].name : _T("<EMPTY>"), st->wasopen ? 1 : 0, unitnum);
+	if (currprefs.cdslots[unitnum].name[0])
+		statusline_add_message(_T("CD%d: %s"), unitnum, currprefs.cdslots[unitnum].name);
 	device_func_init (0);
 	if (st->wasopen) {
 		if (!st->device_func->opendev (unitnum, currprefs.cdslots[unitnum].name, 0)) {
