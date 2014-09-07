@@ -185,6 +185,7 @@ static int vram_start_offset;
 static uae_u32 gfxboardmem_start;
 static bool monswitch;
 static bool oldswitch;
+static bool monswitch_reset;
 static int fullrefresh;
 static bool modechanged;
 static uae_u8 *gfxboard_surface, *vram_address, *fakesurface_surface;
@@ -564,7 +565,13 @@ static void reset_pci (void)
 static void picassoiv_checkswitch (void)
 {
 	if (ISP4()) {
-		monswitch = (picassoiv_flifi & 1) == 0 || (vga.vga.cr[0x51] & 8) == 0;
+		bool rtg_active = (picassoiv_flifi & 1) == 0 || (vga.vga.cr[0x51] & 8) == 0;
+		// do not switch to P4 RTG until monitor switch is set to native at least
+		// once after reset.
+		if (monswitch_reset && rtg_active)
+			return;
+		monswitch_reset = false;
+		monswitch = rtg_active; 
 	}
 }
 
@@ -1528,6 +1535,7 @@ void gfxboard_reset (void)
 	configured_regs = 0;
 	monswitch = false;
 	oldswitch = false;
+	monswitch_reset = true;
 	modechanged = false;
 	gfxboard_vblank = false;
 	gfxboard_intena = false;
