@@ -74,7 +74,6 @@ void do_cycles_slow (unsigned long cycles_to_add)
 								uae_ppc_execute_quick(0);
 							} else {
 								uae_ppc_execute_quick(1);
-								pissoff = pissoff_value;
 							}
 
 						} else {

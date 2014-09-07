@@ -28,25 +28,37 @@
 #define TRACE(format, ...) write_log(_T("PPC: ---------------- ") format, ## __VA_ARGS__)
 
 
-volatile uae_u32 ppc_spinlock;
+#ifdef _WIN32
+static volatile unsigned int ppc_spinlock, spinlock_cnt;
+#endif
 
 void uae_ppc_spinlock_get(void)
 {
 #ifdef _WIN32
-	int exchange = 1, compare = 0;
 	while (true)
 	{
-		if(InterlockedCompareExchange(&ppc_spinlock, exchange, compare) == 0)
+		if(InterlockedCompareExchange(&ppc_spinlock, 1, 0) == 0) {
+			if (spinlock_cnt)
+				write_log(_T("uae_ppc_spinlock_get %d!\n"), spinlock_cnt);
+			spinlock_cnt = 1;
 			break;
+		}
 	}
+#else
 #endif
 }
 void uae_ppc_spinlock_release(void)
 {
-	ppc_spinlock = 0;
+#ifdef _WIN32
+	if (--spinlock_cnt)
+		write_log(_T("uae_ppc_spinlock_release %d!\n"), spinlock_cnt);
+	InterlockedExchange(&ppc_spinlock, 0);
+#else
+#endif
 }
 void uae_ppc_spinlock_reset(void)
 {
+	spinlock_cnt = 1;
 	uae_ppc_spinlock_release();
 }
 
@@ -322,8 +334,17 @@ bool uae_ppc_to_main_thread(void)
 
 	// QEMU: keep using thread
 	if (ppc_implementation == PPC_IMPLEMENTATION_QEMU) {
-		ppc_io_pipe = false;
+		// already done?
+		if (ppc_io_pipe == false)
+			return true;
+		// make sure no new messages added to queue
+		ppc_cpu_lock_state = 1;
 		ppc_use_spinlock = true;
+		// empty queue
+		while (comm_pipe_has_data(&ppcquery))
+			uae_ppc_poll_queue();
+		ppc_io_pipe = false;
+		ppc_cpu_lock_state = 0;
 		return true;
 	}
 

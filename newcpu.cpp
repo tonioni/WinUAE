@@ -3165,9 +3165,9 @@ static bool haltloop(void)
 	int lastintr = -1;
 	// m68k stopped? Move PPC emulator to main thread.
 	if (regs.halted < 0) {
-		uae_ppc_to_main_thread();
 		uae_ppc_spinlock_reset();
 		uae_ppc_spinlock_get();
+		uae_ppc_to_main_thread();
 		write_log(_T("Entered m68k haltloop with PPC active\n"));
 	}
 #endif
