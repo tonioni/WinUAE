@@ -1513,7 +1513,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("cpu_24bit_addressing"), p->address_space_24);
 	/* do not reorder end */
 	cfgfile_dwrite_bool(f, _T("cpu_reset_pause"), p->reset_delay);
-	cfgfile_dwrite_str(f, _T("ppc_implementation"), ppc_implementations[p->ppc_implementation]);
+	if (p->ppc_mode)
+		cfgfile_write_str(f, _T("ppc_implementation"), ppc_implementations[p->ppc_implementation]);
 
 	if (p->cpu_cycle_exact) {
 		if (p->cpu_frequency)
