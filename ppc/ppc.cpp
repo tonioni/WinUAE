@@ -13,17 +13,17 @@
 
 #include "uae/ppc.h"
 
-#define PPC_DEBUG_ADDR_FROM 0xf00000
-#define PPC_DEBUG_ADDR_TO   0xf40000
+#define PPC_SYNC_WRITE 0
+#define PPC_ACCESS_LOG 0
+
+#define PPC_DEBUG_ADDR_FROM 0x000000
+#define PPC_DEBUG_ADDR_TO   0xffffff
 
 #ifdef WITH_PEARPC_CPU
 #include "pearpc/cpu/cpu.h"
 #include "pearpc/io/io.h"
 #include "pearpc/cpu/cpu_generic/ppc_cpu.h"
 #endif
-
-#define PPC_SYNC_WRITE 0
-#define PPC_ACCESS_LOG 0
 
 #define TRACE(format, ...) write_log(_T("PPC: ---------------- ") format, ## __VA_ARGS__)
 
@@ -343,11 +343,18 @@ bool uae_ppc_to_main_thread(void)
 	return true;
 }
 
-void uae_ppc_execute_quick(void)
+void uae_ppc_execute_quick(int linetype)
 {
-	uae_ppc_spinlock_release();
-	sleep_millis(1);
-	uae_ppc_spinlock_get();
+	if (linetype == 0) {
+		for (int i = 0; i < 2; i++) {
+			uae_ppc_spinlock_release();
+			uae_ppc_spinlock_get();
+		}
+	} else {
+		uae_ppc_spinlock_release();
+		sleep_millis(1);
+		uae_ppc_spinlock_get();
+	}
 }
 
 void uae_ppc_emulate(void)
@@ -360,13 +367,6 @@ void uae_ppc_emulate(void)
 	//TRACE(_T("uae_ppc_emulate\n"));
 	if (ppc_state == PPC_STATE_ACTIVE || ppc_state == PPC_STATE_SLEEP)
 		g_ppc_cpu_run_single(10);
-}
-
-static bool ppc_safe_addr(uaecptr addr)
-{
-	if (addr >= 0x08000000 && addr < 0x10000000)
-		return true;
-	return false;
 }
 
 bool uae_ppc_poll_queue(void)
@@ -546,7 +546,7 @@ bool UAECALL uae_ppc_io_mem_read(uint32_t addr, uint32_t *data, int size)
 
 #if PPC_ACCESS_LOG > 0
 	if (!ppc_io_pipe && !valid_address(addr, size)) {
-		if (addr >= PPC_DEBUG_ADDR_FROM && addr < PPC_DEBUG_ADDR_TO)
+		if (addr >= PPC_DEBUG_ADDR_FROM && addr < PPC_DEBUG_ADDR_TO && addr != 0xdff006)
 			write_log(_T("PPC io read %08x=%08x %d\n"), addr, v, size);
 	}
 #endif

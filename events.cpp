@@ -70,7 +70,12 @@ void do_cycles_slow (unsigned long cycles_to_add)
 #ifdef WITH_PPC
 						if (regs.halted < 0) {
 
-							uae_ppc_execute_quick();
+							if (is_syncline == 1) {
+								uae_ppc_execute_quick(0);
+							} else {
+								uae_ppc_execute_quick(1);
+								pissoff = pissoff_value;
+							}
 
 						} else {
 #endif
@@ -90,8 +95,7 @@ void do_cycles_slow (unsigned long cycles_to_add)
 #ifdef WITH_PPC
 						if (regs.halted < 0) {
 
-							if (v < -vsynctimebase / 20)
-								uae_ppc_execute_quick();
+							uae_ppc_execute_quick(0);
 
 						} else {
 #endif

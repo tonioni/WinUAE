@@ -7701,7 +7701,7 @@ static void hsync_handler_post (bool onvsync)
 			} else {
 				vsyncmintime = vsyncmaxtime; /* emulate if still time left */
 				is_syncline_end = read_processor_time () + vsynctimebase; /* far enough in future, we never wait that long */
-				is_syncline = 1;
+				is_syncline = 2;
 			}
 		} else {
 			static int linecounter;

@@ -3223,6 +3223,12 @@ STATIC_INLINE bool time_for_interrupt (void)
 
 void doint (void)
 {
+#ifdef WITH_PPC
+	if (ppc_state) {
+		if (!ppc_interrupt(intlev()))
+			return;
+	}
+#endif
 	if (m68k_interrupt_delay) {
 		regs.ipl_pin = intlev ();
 		unset_special (SPCFLAG_INT);

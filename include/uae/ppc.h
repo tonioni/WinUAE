@@ -41,7 +41,7 @@ void uae_ppc_reset(bool hardreset);
 void uae_ppc_hsync_handler(void);
 void uae_ppc_wakeup(void);
 
-void uae_ppc_execute_quick(void);
+void uae_ppc_execute_quick(int linetype);
 void uae_ppc_spinlock_reset(void);
 void uae_ppc_spinlock_get(void);
 void uae_ppc_spinlock_release(void);
