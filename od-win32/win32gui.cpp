@@ -11573,7 +11573,7 @@ static void addfloppytype (HWND hDlg, int n)
 	if (f_text >= 0)
 		ew (hDlg, f_text, state);
 	if (f_eject >= 0)
-		ew (hDlg, f_eject, workprefs.floppyslots[n].df[0] != 0);
+		ew (hDlg, f_eject, text[0] != 0);
 	if (f_drive >= 0)
 		ew (hDlg, f_drive, state);
 	if (f_enable >= 0) {
@@ -11588,7 +11588,7 @@ static void addfloppytype (HWND hDlg, int n)
 	if (f_wp >= 0)
 		CheckDlgButton (hDlg, f_wp, chk);
 	if (f_info >= 0)
-		ew (hDlg, f_info, workprefs.floppyslots[n].df[0] != 0);
+		ew (hDlg, f_info, text[0] != 0);
 	chk = !showcd && state && DISK_validate_filename (&workprefs, text, 0, NULL, NULL, NULL) ? TRUE : FALSE;
 	if (f_wp >= 0) {
 		ew (hDlg, f_wp, chk && !workprefs.floppy_read_only);
@@ -17395,7 +17395,8 @@ void gui_flicker_led (int led, int unitnum, int status)
 	if (led < 0) {
 		gui_flicker_led2 (LED_HD, 0, 0);
 		gui_flicker_led2 (LED_CD, 0, 0);
-		gui_flicker_led2 (LED_MD, 0, 0);
+		if (gui_data.md >= 0)
+			gui_flicker_led2 (LED_MD, 0, 0);
 	} else {
 		gui_flicker_led2 (led, unitnum, status);
 	}

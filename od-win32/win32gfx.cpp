@@ -1745,6 +1745,8 @@ static int open_windows (bool mousecapture)
 			gui_flicker_led (i, -1, -1);
 		gui_led (LED_POWER, gui_data.powerled);
 		gui_fps (0, 0, 0);
+		if (gui_data.md >= 0)
+			gui_led (LED_MD, 0);
 		for (i = 0; i < 4; i++) {
 			if (currprefs.floppyslots[i].dfxtype >= 0)
 				gui_led (LED_DF0 + i, 0);
