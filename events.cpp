@@ -68,23 +68,19 @@ void do_cycles_slow (unsigned long cycles_to_add)
 					}
 					if (v < 0 && v2 < 0) {
 #ifdef WITH_PPC
-						if (regs.halted < 0) {
-
+						if (ppc_state) {
 							if (is_syncline == 1) {
 								uae_ppc_execute_quick(0);
 							} else {
 								uae_ppc_execute_quick(1);
 							}
-
-						} else {
-#endif
-							if (currprefs.cachesize)
-								pissoff = pissoff_value;
-							else
-								pissoff = pissoff_nojit_value;
-#ifdef WITH_PPC
 						}
+
 #endif
+						if (currprefs.cachesize)
+							pissoff = pissoff_value;
+						else
+							pissoff = pissoff_nojit_value;
 						return;
 					}
 				} else if (is_syncline < 0) {
@@ -92,19 +88,14 @@ void do_cycles_slow (unsigned long cycles_to_add)
 					int v = rpt - is_syncline_end;
 					if (v < 0) {
 #ifdef WITH_PPC
-						if (regs.halted < 0) {
-
+						if (ppc_state) {
 							uae_ppc_execute_quick(0);
-
-						} else {
-#endif
-							if (currprefs.cachesize)
-								pissoff = pissoff_value;
-							else
-								pissoff = pissoff_nojit_value;
-#ifdef WITH_PPC
 						}
 #endif
+						if (currprefs.cachesize)
+							pissoff = pissoff_value;
+						else
+							pissoff = pissoff_nojit_value;
 						return;
 					}
 				}

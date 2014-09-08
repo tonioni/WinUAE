@@ -3152,26 +3152,8 @@ static void do_trace (void)
 }
 
 
-#ifdef WITH_PPC
-static void uae_ppc_poll_check(void)
-{
-	uae_ppc_poll_queue();
-}
-#endif
-
 static bool haltloop(void)
 {
-#ifdef WITH_PPC
-	int lastintr = -1;
-	// m68k stopped? Move PPC emulator to main thread.
-	if (regs.halted < 0) {
-		uae_ppc_spinlock_reset();
-		uae_ppc_spinlock_get();
-		uae_ppc_to_main_thread();
-		write_log(_T("Entered m68k haltloop with PPC active\n"));
-	}
-#endif
-
 	while (regs.halted) {
 		if (regs.halted >= 0) {
 			static int prevvpos;
@@ -3205,7 +3187,6 @@ static bool haltloop(void)
 #ifdef WITH_PPC
 static bool uae_ppc_poll_check_halt(void)
 {
-	uae_ppc_poll_check();
 	if (regs.halted) {
 		if (haltloop())
 			return true;
@@ -3463,19 +3444,6 @@ static int do_specialties (int cycles)
 
 	return 0;
 }
-
-#ifdef WITH_PPC
-static void do_ppc(void)
-{
-	while (ppc_state && uae_ppc_poll_queue()) {
-		if (regs.spcflags) {
-			if (do_specialties(0)) {
-				return;
-			}
-		}
-	}
-}
-#endif
 
 //static uae_u32 pcs[1000];
 
@@ -3885,9 +3853,6 @@ static void m68k_run_jit (void)
 			INTREQ_f (0x8008);
 			set_special (SPCFLAG_INT);
 		}
-#ifdef WITH_PPC
-		do_ppc();
-#endif
 		if (regs.spcflags) {
 			if (do_specialties (0)) {
 				return;
@@ -3977,10 +3942,6 @@ retry:
 
 			cpu_cycles = adjust_cycles (cpu_cycles);
 
-#ifdef WITH_PPC
-			do_ppc();
-#endif
-
 			if (regs.spcflags) {
 				if (do_specialties (cpu_cycles))
 					return;
@@ -4037,10 +3998,6 @@ retry:
 			count_instr (regs.opcode);
 			cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode);
 			cpu_cycles = adjust_cycles (cpu_cycles);
-
-#ifdef WITH_PPC
-			do_ppc();
-#endif
 
 			if (regs.spcflags) {
 				if (do_specialties (cpu_cycles))
@@ -4179,10 +4136,6 @@ retry:
 
 			(*cpufunctbl[r->opcode])(r->opcode);
 
-	#ifdef WITH_PPC
-			do_ppc();
-	#endif
-
 			if (r->spcflags) {
 				if (do_specialties (0))
 					exit = true;
@@ -4219,10 +4172,6 @@ retry:
 			cpu_cycles = 1 * CYCLE_UNIT;
 			cycles = adjust_cycles(cpu_cycles);
 			do_cycles(cycles);
-
-	#ifdef WITH_PPC
-			do_ppc();
-	#endif
 
 			if (r->spcflags) {
 				if (do_specialties(0))
@@ -4457,10 +4406,6 @@ retry:
 
 			cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode);
 			cpu_cycles = adjust_cycles (cpu_cycles);
-
-	#ifdef WITH_PPC
-			do_ppc();
-	#endif
 
 			if (r->spcflags) {
 				if (do_specialties (cpu_cycles)) {

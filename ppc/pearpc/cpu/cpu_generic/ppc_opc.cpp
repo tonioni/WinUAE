@@ -855,7 +855,6 @@ void ppc_opc_sc()
 	ppc_exception(PPC_EXC_SC);
 }
 
-extern void uae_ppc_sync(void);
 /*
  *	sync		Synchronize
  *	.672
@@ -863,7 +862,6 @@ extern void uae_ppc_sync(void);
 void ppc_opc_sync()
 {
 	// NO-OP
-	uae_ppc_sync();
 }
 
 /*
