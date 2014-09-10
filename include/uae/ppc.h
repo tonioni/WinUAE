@@ -94,6 +94,7 @@ typedef struct PPCMemoryRegion {
 } PPCMemoryRegion;
 
 bool PPCCALL ppc_cpu_init(uint32_t pvr);
+bool PPCCALL ppc_cpu_init_with_model(const char *model);
 void PPCCALL ppc_cpu_free(void);
 void PPCCALL ppc_cpu_stop(void);
 void PPCCALL ppc_cpu_atomic_raise_ext_exception(void);
