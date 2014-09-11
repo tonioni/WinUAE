@@ -1228,9 +1228,16 @@ static addrbank *expamem_init_z3fastmem2(void)
 *  Fake Graphics Card (ZORRO III) - BDK
 */
 
-static addrbank *expamem_map_gfxcard (void)
+static addrbank *expamem_map_gfxcard_z3 (void)
 {
 	gfxmem_bank.start = expamem_z3_pointer;
+	map_banks (&gfxmem_bank, gfxmem_bank.start >> 16, gfxmem_bank.allocated >> 16, gfxmem_bank.allocated);
+	return &gfxmem_bank;
+}
+
+static addrbank *expamem_map_gfxcard_z2 (void)
+{
+	gfxmem_bank.start = expamem_z2_pointer;
 	map_banks (&gfxmem_bank, gfxmem_bank.start >> 16, gfxmem_bank.allocated >> 16, gfxmem_bank.allocated);
 	return &gfxmem_bank;
 }
@@ -1735,7 +1742,7 @@ void expamem_reset (void)
 		card_flags[cardno] = 4;
 		card_name[cardno] = _T("Z2RTG");
 		card_init[cardno] = expamem_init_gfxcard_z2;
-		card_map[cardno++] = expamem_map_gfxcard;
+		card_map[cardno++] = expamem_map_gfxcard_z2;
 	}
 #endif
 #ifdef GFXBOARD
@@ -1791,7 +1798,7 @@ void expamem_reset (void)
 		card_flags[cardno] = 4 | 1;
 		card_name[cardno] = _T("Z3RTG");
 		card_init[cardno] = expamem_init_gfxcard_z3;
-		card_map[cardno++] = expamem_map_gfxcard;
+		card_map[cardno++] = expamem_map_gfxcard_z3;
 	}
 #endif
 #ifdef GFXBOARD
