@@ -3161,20 +3161,20 @@ static uaecptr get_base (const uae_char *name, int offset)
 	uaecptr v = get_long_debug (4);
 	addrbank *b = &get_mem_bank(v);
 
-	if (!b || !b->check (v, 400) || b->flags != ABFLAG_RAM)
+	if (!b || !b->check (v, 400) || !(b->flags & ABFLAG_RAM))
 		return 0;
 	v += offset;
 	while (v = get_long_debug (v)) {
 		uae_u32 v2;
 		uae_u8 *p;
 		b = &get_mem_bank (v);
-		if (!b || !b->check (v, 32) || (b->flags != ABFLAG_RAM && b->flags != ABFLAG_ROMIN))
+		if (!b || !b->check (v, 32) || (!(b->flags & ABFLAG_RAM) && !(b->flags & ABFLAG_ROMIN)))
 			goto fail;
 		v2 = get_long_debug (v + 10); // name
 		b = &get_mem_bank (v2);
 		if (!b || !b->check (v2, 20))
 			goto fail;
-		if (b->flags == ABFLAG_ROM || b->flags == ABFLAG_RAM || b->flags == ABFLAG_ROMIN) {
+		if ((b->flags & ABFLAG_ROM) || (b->flags & ABFLAG_RAM) || (b->flags & ABFLAG_ROMIN)) {
 			p = b->xlateaddr (v2);
 			if (!memcmp (p, name, strlen (name) + 1))
 				return v;
