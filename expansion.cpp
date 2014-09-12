@@ -1672,7 +1672,7 @@ void expamem_reset (void)
 		}
 		if (fastmem2_bank.baseaddr != NULL) {
 			fastmem2_bank.name = _T("Fast memory 2 (non-autoconfig)");
-			map_banks(&fastmem2_bank, (0x00200000 + fastmem2_bank.allocated) >> 16, fastmem2_bank.allocated >> 16, 0);
+			map_banks(&fastmem2_bank, (0x00200000 + fastmem_bank.allocated) >> 16, fastmem2_bank.allocated >> 16, 0);
 		}
 	}
 	// immediately after Z2Fast so that they can be emulated as A590/A2091 with fast ram.
@@ -1773,7 +1773,6 @@ void expamem_reset (void)
 		card_init[cardno] = expamem_init_warpengine;
 		card_map[cardno++] = NULL;
 	}
-
 	if (z3fastmem_bank.baseaddr != NULL) {
 		z3num = 0;
 		card_flags[cardno] = 2 | 1;
@@ -1987,7 +1986,7 @@ void restore_fram (int len, size_t filepos, int num)
 	}
 }
 
-void restore_fram2 (int len, size_t filepos)
+static void restore_fram2 (int len, size_t filepos)
 {
 	fast2_filepos = filepos;
 	changed_prefs.fastmem2_size = len;
