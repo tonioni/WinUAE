@@ -2779,7 +2779,7 @@ int MultiDiskSelection (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *pr
 	int multi = 0;
 	return DiskSelection_2 (hDlg, wParam, flag, prefs, path_out, &multi);
 }
-static int loopmulti (TCHAR *s, TCHAR *out)
+static int loopmulti (const TCHAR *s, TCHAR *out)
 {
 	static int index;
 
@@ -2802,7 +2802,7 @@ static int loopmulti (TCHAR *s, TCHAR *out)
 	return 1;
 }
 
-static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, TCHAR *dostype, TCHAR *newpath, TCHAR *outpath)
+static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, const TCHAR *dostype, TCHAR *newpath, TCHAR *outpath)
 {
 	HANDLE hf;
 	int i = 0;
@@ -10306,7 +10306,7 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 {
 	static uae_u64 bsize;
 	static uae_u8 id[512];
-	int blocks, cyls, i;
+	uae_u32 blocks, cyls, i;
 	TCHAR tmp[200], tmp2[200];
 	TCHAR idtmp[17];
 
@@ -10346,7 +10346,7 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 				} else {
 					getchspgeometry (bsize, &current_hfdlg.ci.pcyls, &current_hfdlg.ci.pheads, &current_hfdlg.ci.psecs, false);
 				}
-			} else if (current_hfdlg.ci.blocksize * current_hfdlg.ci.sectors * current_hfdlg.ci.surfaces) {
+			} else if (current_hfdlg.ci.blocksize && current_hfdlg.ci.sectors && current_hfdlg.ci.surfaces) {
 				getchsgeometry_hdf (open ? &hfd : NULL, bsize, &current_hfdlg.ci.cyls, &current_hfdlg.ci.surfaces, &current_hfdlg.ci.sectors);
 				current_hfdlg.original = 0;
 			}
@@ -10358,7 +10358,7 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 	}
 
 	cyls = current_hfdlg.forcedcylinders;
-	if (!cyls && current_hfdlg.ci.blocksize * current_hfdlg.ci.sectors * current_hfdlg.ci.surfaces) {
+	if (!cyls && current_hfdlg.ci.blocksize && current_hfdlg.ci.sectors && current_hfdlg.ci.surfaces) {
 		cyls = bsize / (current_hfdlg.ci.blocksize * current_hfdlg.ci.sectors * current_hfdlg.ci.surfaces);
 	}
 	blocks = cyls * (current_hfdlg.ci.sectors * current_hfdlg.ci.surfaces);

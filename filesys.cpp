@@ -6952,7 +6952,7 @@ static void dump_partinfo (struct hardfiledata *hfd, uae_u8 *pp)
 		spt, reserved, lowcyl, highcyl, (uae_u32)(size >> 20));
 	write_log (_T("Buffers: %d, BufMemType: %08x, MaxTransfer: %08x, Mask: %08x, BootPri: %d\n"),
 		rl (pp + 44), rl (pp + 48), rl (pp + 52), rl (pp + 56), rl (pp + 60));
-	write_log (_T("Total blocks: %d, Total disk blocks: %d\n"), surfaces * spt * (highcyl - lowcyl + 1), hfd->virtsize / blocksize);
+	write_log (_T("Total blocks: %lld, Total disk blocks: %lld\n"), (uae_s64)surfaces * spt * (highcyl - lowcyl + 1), hfd->virtsize / blocksize);
 
 	if (hfd->drive_empty) {
 		write_log (_T("Empty drive\n"));
