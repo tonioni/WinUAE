@@ -35,6 +35,7 @@
 #include "debug.h"
 #include "gfxboard.h"
 #include "cpuboard.h"
+#include "uae/ppc.h"
 
 bool canbang;
 int candirect = -1;
@@ -2592,17 +2593,49 @@ static void map_banks2 (addrbank *bank, int start, int size, int realsize, int q
 	fill_ce_banks ();
 }
 
+#ifdef WITH_PPC
+static void ppc_generate_map_banks(addrbank *bank, int start, int size)
+{
+	uae_u32 bankaddr = start << 16;
+	uae_u32 banksize = size << 16;
+	if (bank->sub_banks) {
+		uae_u32 subbankaddr = bankaddr;
+		addrbank *ab = NULL;
+		for (int i = 0; i <= 65536; i += MEMORY_MIN_SUBBANK) {
+			uae_u32 addr = bankaddr + i;
+			addrbank *ab2 = get_sub_bank(&addr);
+			if (ab2 != ab && ab != NULL) {
+				ppc_map_banks(subbankaddr, (bankaddr + i) - subbankaddr, ab->name, ab->baseaddr, ab == &dummy_bank);
+				subbankaddr = bankaddr + i;
+			}
+			ab = ab2;
+		}
+	} else {
+		ppc_map_banks(bankaddr, banksize, bank->name, bank->baseaddr, bank == &dummy_bank);
+	}
+}
+#endif
+
 void map_banks (addrbank *bank, int start, int size, int realsize)
 {
 	map_banks2 (bank, start, size, realsize, 0);
+#ifdef WITH_PPC
+	ppc_generate_map_banks(bank, start, size);
+#endif
 }
 void map_banks_quick (addrbank *bank, int start, int size, int realsize)
 {
 	map_banks2 (bank, start, size, realsize, 1);
+#ifdef WITH_PPC
+	ppc_generate_map_banks(bank, start, size);
+#endif
 }
 void map_banks_nojitdirect (addrbank *bank, int start, int size, int realsize)
 {
 	map_banks2 (bank, start, size, realsize, -1);
+#ifdef WITH_PPC
+	ppc_generate_map_banks(bank, start, size);
+#endif
 }
 
 #ifdef SAVESTATE

@@ -106,6 +106,7 @@ typedef struct {
 	uae_u32 allocated;
 } addrbank;
 
+#define MEMORY_MIN_SUBBANK 1024
 struct addrbank_sub
 {
 	addrbank *bank;

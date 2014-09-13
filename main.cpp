@@ -886,6 +886,9 @@ void reset_all_systems (void)
 {
 	init_eventtab ();
 
+#ifdef WITH_PPC
+	uae_ppc_reset(false);
+#endif
 #ifdef PICASSO96
 	picasso_reset ();
 #endif
@@ -924,9 +927,6 @@ void reset_all_systems (void)
 	native2amiga_reset ();
 	dongle_reset ();
 	sampler_init ();
-#ifdef WITH_PPC
-	uae_ppc_reset(false);
-#endif
 }
 
 /* Okay, this stuff looks strange, but it is here to encourage people who

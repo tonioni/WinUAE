@@ -2966,7 +2966,7 @@ static void memory_map_dump_3(UaeMemoryMap *map, int log)
 					a1 = get_sub_bank(&daddr);
 					name = a1->name;
 					for (;;) {
-						bankoffset2++;
+						bankoffset2 += MEMORY_MIN_SUBBANK;
 						if (bankoffset2 >= 65536)
 							break;
 						daddr = (j << 16) | bankoffset2;
@@ -2996,7 +2996,7 @@ static void memory_map_dump_3(UaeMemoryMap *map, int log)
 					mirrored, mirrored ? size_out / mirrored : size_out, size_ext, name);
 #endif
 				tmp[0] = 0;
-				if (a1->flags == ABFLAG_ROM && mirrored) {
+				if ((a1->flags & ABFLAG_ROM) && mirrored) {
 					TCHAR *p = txt + _tcslen (txt);
 					uae_u32 crc = get_crc32 (a1->xlateaddr((j << 16) | bankoffset), (size * 1024) / mirrored);
 					struct romdata *rd = getromdatabycrc (crc);
@@ -3008,24 +3008,26 @@ static void memory_map_dump_3(UaeMemoryMap *map, int log)
 					}
 				}
 
-				for (int m = 0; m < mirrored2; m++) {
-					UaeMemoryRegion *r = &map->regions[map->num_regions];
-					r->start = (j << 16) + bankoffset + region_size * m;
-					r->size = region_size;
-					r->flags = 0;
-					r->memory = NULL;
-					r->memory = dump_xlate((j << 16) | bankoffset);
-					if (r->memory)
-						r->flags |= UAE_MEMORY_REGION_RAM;
-					/* just to make it easier to spot in debugger */
-					r->alias = 0xffffffff;
-					if (m >= 0) {
-						r->alias = j << 16;
-						r->flags |= UAE_MEMORY_REGION_ALIAS | UAE_MEMORY_REGION_MIRROR;
+				if (a1 != &dummy_bank) {
+					for (int m = 0; m < mirrored2; m++) {
+						UaeMemoryRegion *r = &map->regions[map->num_regions];
+						r->start = (j << 16) + bankoffset + region_size * m;
+						r->size = region_size;
+						r->flags = 0;
+						r->memory = NULL;
+						r->memory = dump_xlate((j << 16) | bankoffset);
+						if (r->memory)
+							r->flags |= UAE_MEMORY_REGION_RAM;
+						/* just to make it easier to spot in debugger */
+						r->alias = 0xffffffff;
+						if (m >= 0) {
+							r->alias = j << 16;
+							r->flags |= UAE_MEMORY_REGION_ALIAS | UAE_MEMORY_REGION_MIRROR;
+						}
+						_stprintf(r->name, _T("%s"), name);
+						_stprintf(r->rom_name, _T("%s"), tmp);
+						map->num_regions += 1;
 					}
-					_stprintf(r->name, _T("%s"), name);
-					_stprintf(r->rom_name, _T("%s"), tmp);
-					map->num_regions += 1;
 				}
 
 #if 1
