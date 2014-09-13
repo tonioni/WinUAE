@@ -360,7 +360,7 @@ void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32
 			ssw |= MMU_SSW_RW;
 
 		if (size == 16) { // MOVE16
-			ssw |= MMU_SSW_SIZE_L; // ?? maybe MMU_SSW_SIZE_CL?
+			ssw |= MMU_SSW_SIZE_CL;
 			ssw |= MMU_SSW_TT0;
 			regs.mmu_effective_addr &= ~15;
 			if (write) {
@@ -373,7 +373,8 @@ void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32
 			}
 		}
 
-		if (mmu040_movem) {
+		if (mmu040_movem && !write) {
+			// save EA when MOVEM is something like
 			ssw |= MMU_SSW_CM;
 			regs.mmu_effective_addr = mmu040_movem_ea;
 			mmu040_movem = 0;
@@ -382,7 +383,8 @@ void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32
 #endif
 		}
 		if (locked_rmw_cycle) {
-			ssw |= MMU_SSW_LK | MMU_SSW_RW;
+			ssw |= MMU_SSW_LK;
+			ssw &= ~MMU_SSW_RW;
 			locked_rmw_cycle = false;
 #if MMUDEBUGMISC > 0
 			write_log (_T("040 MMU_SSW_LK!\n"));
@@ -1163,15 +1165,15 @@ void REGPARAM2 mmu_op_real(uae_u32 opcode, uae_u16 extra)
 			uae_u32 desc;
 			bool data = (regs.dfc & 3) != 2;
 
-			if (mmu_match_ttr(addr,super,data, false)!=TTR_NO_MATCH) 
+			if (mmu_match_ttr(addr,super,data, false)!=TTR_NO_MATCH) {
 				regs.mmusr = MMU_MMUSR_T | MMU_MMUSR_R;
-			else {
+			} else {
 				uae_u32 status;
 				mmu_user_lookup(addr, super, data, write, &l);
 				desc = mmu_fill_atc(addr, super, data, write, l, &status);
-				if (!(l->valid))
+				if (!(l->valid)) {
 					regs.mmusr = MMU_MMUSR_B;
-				else {
+				} else {
 					regs.mmusr = desc & (~0xfff|MMU_MMUSR_G|MMU_MMUSR_Ux|MMU_MMUSR_S|
 										 MMU_MMUSR_CM|MMU_MMUSR_M|MMU_MMUSR_W);
 					regs.mmusr |= MMU_MMUSR_R;
