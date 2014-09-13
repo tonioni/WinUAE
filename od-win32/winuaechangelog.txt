@@ -18,6 +18,40 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 16:
+
+- GUI (and log) showed wrong size for very large drives (>1T). Visual problem only.
+- Fixed F12/pause hang when PPC was active.
+- Fixed uaegfx RTG in Z2 mode memory mapping (b14)
+- 68040 MMU MOVE16 fault size was wrong. (Cache line, not long)
+- 68060 MMU read-modify-write fault had inverted read/write status.
+- QEMU PPC vs UAE side memory banks are now dynamically mapped.
+- PPC CPU HID1 set to more correct value, detected CPU clock is not same as bus clock anymore.
+- QEMU TCG (JIT) buffer was too small, real world PPC programs run now much faster.
+
+Beta 15:
+
+- "ROM disabled" A2091/A590 ROM option was not visible (b14)
+- Blizzard board ROM code was ignored (b14)
+- Log window was opened when PPC CPU started (b14)
+- Dragging adf file over window mode bottom bar HD led didn't mount it as a harddrive.
+- Mounting adf as a harddrive uses adf's real volume name instead of host-side file name.
+- Added support for sub memory banks, can divide normal 64k UAE memory bank in to smaller sub memory
+  banks. Mainly needed to properly map PPC CyberStorm MK3/PPC SCSI IO and SCRIPTS RAM for QEMU PPC.
+- SCSI CD emulation via NCR SCSI (53C94/FAS216 or NCR53C710+) chip didn't flash CD led.
+- Added hack that prevents Picasso IV switching temporarily to RTG mode immediately after reset.
+  (Picasso IV does not use simple signal passthrough like other cards)
+- Switch to/from hardware RTG mode only after mode has been stable at least 0.5 seconds.
+- Show CD insert/eject messages in new status bar message area. (Should it show real volume name instead
+  of file name?)
+- Quickstart CD eject button was always disabled.
+- Status bar NVRAM led also shows accelerator board flash write accesses. Includes also writes that only
+  enable chip ID read mode.
+
+- PPC IO access completely rewritten, most IO areas are now directly accessible and only special regions
+  (custom chipset and CIA require locking. Very slow IO message passing system is completely gone.
+- QEMU PPC core support. Read separate notes!
+
 Beta 14:
 
 QEMU PPC is still work in progress (by Frode and me), QEMU-side is not yet included. It run for the first time

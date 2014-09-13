@@ -1617,7 +1617,7 @@ addrbank *cpuboard_autoconfig_init(void)
 	case BOARD_WARPENGINE_A4000:
 		return &expamem_null;
 	case BOARD_TEKMAGIC:
-		roms[0] = 105;
+		roms[0] = 104;
 		break;
 	case BOARD_CSMK1:
 		roms[0] = currprefs.cpu_model == 68040 ? 95 : 101;

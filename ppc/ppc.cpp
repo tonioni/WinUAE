@@ -354,15 +354,13 @@ static void set_and_wait_for_state(int state, int unlock)
 {
 	if (using_qemu()) {
 		impl.set_state(state);
+		if (unlock)
+			uae_ppc_spinlock_release();
 		while (!impl.check_state(state)) {
-			if (unlock) {
-				uae_ppc_spinlock_release();
-			}
 			sleep_millis(1);
-			if (unlock) {
-				uae_ppc_spinlock_get();
-			}
 		}
+		if (unlock)
+			uae_ppc_spinlock_get();
 	}
 }
 
