@@ -5563,7 +5563,7 @@ static void resetinput (void)
 		mouse_delta[i][2] = 0;
 	}
 	lightpen_delta[0] = lightpen_delta[1] = 0;
-	lightpen_deltanoreset[0] = lightpen_deltanoreset[0] = 0;
+	lightpen_deltanoreset[0] = lightpen_deltanoreset[1] = 0;
 	memset (keybuf, 0, sizeof keybuf);
 	for (int i = 0; i < INPUT_QUEUE_SIZE; i++)
 		input_queue[i].linecnt = input_queue[i].nextlinecnt = -1;
