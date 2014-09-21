@@ -194,15 +194,18 @@ bool preinit_shm (void)
 		}
 	}
 	if (!natmem_offset_allocated) {
+		DWORD vaflags = MEM_RESERVE | MEM_WRITE_WATCH;
+		if (!os_vista)
+			vaflags |= MEM_TOP_DOWN;
 		for (;;) {
-			natmem_offset_allocated = (uae_u8*)VirtualAlloc (NULL, natmem_size, MEM_RESERVE | MEM_WRITE_WATCH | MEM_TOP_DOWN, PAGE_READWRITE);
+			natmem_offset_allocated = (uae_u8*)VirtualAlloc (NULL, natmem_size, vaflags, PAGE_READWRITE);
 			if (natmem_offset_allocated)
 				break;
 			natmem_size -= 128 * 1024 * 1024;
 			if (!natmem_size) {
 				write_log (_T("Can't allocate 257M of virtual address space!?\n"));
 				natmem_size = 17 * 1024 * 1024;
-				natmem_offset_allocated = (uae_u8*)VirtualAlloc (NULL, natmem_size, MEM_RESERVE | MEM_WRITE_WATCH | MEM_TOP_DOWN, PAGE_READWRITE);
+				natmem_offset_allocated = (uae_u8*)VirtualAlloc (NULL, natmem_size, vaflags, PAGE_READWRITE);
 				if (!natmem_size) {
 					write_log (_T("Can't allocate 17M of virtual address space!? Something is seriously wrong\n"));
 					return false;
@@ -307,7 +310,7 @@ static int doinit_shm (void)
 		z3size = 0;
 		othersize = 0;
 		size = 0x1000000;
-		startbarrier = changed_prefs.mbresmem_high_size == 128 * 1024 * 1024 ? 16 * 1024 * 1024 : 0;
+		startbarrier = changed_prefs.mbresmem_high_size >= 128 * 1024 * 1024 ? (changed_prefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024 : 0;
 		z3rtgmem_size = gfxboard_is_z3 (changed_prefs.rtgmem_type) ? changed_prefs.rtgmem_size : 0;
 		if (changed_prefs.cpu_model >= 68020)
 			size = 0x10000000;
@@ -340,6 +343,7 @@ static int doinit_shm (void)
 		}
 	}
 
+	set_expamem_z3_hack_override(false);
 	z3offset = 0;
 	if ((changed_prefs.z3autoconfig_start == 0x10000000 || changed_prefs.z3autoconfig_start == 0x40000000) && !changed_prefs.force_0x10000000_z3 && !cpuboard_blizzardram(&changed_prefs)) {
 		if (1 && natmem_size > 0x40000000 && natmem_size - 0x40000000 >= (totalsize - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align)) && changed_prefs.z3chipmem_size <= 512 * 1024 * 1024) {
@@ -347,6 +351,9 @@ static int doinit_shm (void)
 			z3offset += 0x40000000 - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align);
 			if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000)
 				z3offset += 0x01000000;
+			set_expamem_z3_hack_override(true);
+			startbarrier = 0;
+			write_log(_T("Z3 autoconfig option automatically disabled\n"));
 		} else {
 			changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = 0x10000000;
 		}
@@ -361,7 +368,7 @@ static int doinit_shm (void)
 		p96base_offset = getz2rtgaddr (changed_prefs.rtgmem_size);
 	}
 	if (p96base_offset) {
-		if (expamem_z3hack(&changed_prefs)) {
+		if (changed_prefs.jit_direct_compatible_memory) {
 			p96mem_offset = natmem_offset + p96base_offset;
 		} else {
 			// calculate Z3 alignment (argh, I thought only Z2 needed this..)
@@ -573,6 +580,11 @@ void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 			shmaddr=natmem_offset + 0xf00000;
 			got = TRUE;
 			readonly = TRUE;
+		} else if(!_tcscmp (shmids[shmid].name, _T("rom_f0_ppc"))) {
+			// this is flash and also contains IO
+			shmaddr=natmem_offset + 0xf00000;
+			got = TRUE;
+			readonly = FALSE;
 		} else if (!_tcscmp(shmids[shmid].name, _T("rtarea"))) {
 			shmaddr = natmem_offset + rtarea_base;
 			got = TRUE;

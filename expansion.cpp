@@ -33,6 +33,7 @@
 #include "debug.h"
 #include "gayle.h"
 #include "cpuboard.h"
+#include "uae/ppc.h"
 
 #define MAX_EXPANSION_BOARDS 11
 
@@ -184,9 +185,21 @@ uae_u32 expamem_z3_size;
 uae_u32 expamem_z2_size;
 static uae_u32 expamem_board_size;
 static uae_u32 expamem_board_pointer;
+static bool z3hack_override;
+
+void set_expamem_z3_hack_override(bool overridenoz3hack)
+{
+	z3hack_override = overridenoz3hack;
+}
 
 bool expamem_z3hack(struct uae_prefs *p)
 {
+	if (z3hack_override)
+		return false;
+#ifdef WITH_PPC
+	if (regs.halted && ppc_state)
+		return false;
+#endif
 	return p->jit_direct_compatible_memory || cpuboard_blizzardram(p);
 }
 
@@ -346,8 +359,8 @@ static void call_card_init(int index)
 
 		if (expamem_z3_sum < 0x10000000) {
 			expamem_z3_sum = currprefs.z3autoconfig_start;
-			if (currprefs.mbresmem_high_size == 128 * 1024 * 1024)
-				expamem_z3_sum += 16 * 1024 * 1024;
+			if (currprefs.mbresmem_high_size >= 128 * 1024 * 1024 && expamem_z3_sum == 0x10000000)
+				expamem_z3_sum += (currprefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024;
 			if (!expamem_z3hack(&currprefs))
 				expamem_z3_sum = 0x40000000;
 			if (expamem_z3_sum == 0x10000000) {
@@ -1358,17 +1371,19 @@ static void allocate_expamem (void)
 
 	z3chipmem_bank.start = 0x10000000;
 	z3fastmem_bank.start = currprefs.z3autoconfig_start;
-	if (currprefs.mbresmem_high_size == 128 * 1024 * 1024)
-		z3chipmem_bank.start += 16 * 1024 * 1024;
+	if (currprefs.mbresmem_high_size >= 128 * 1024 * 1024)
+		z3chipmem_bank.start += (currprefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024;
 	if (!expamem_z3hack(&currprefs))
 		z3fastmem_bank.start = 0x40000000;
-	if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
-		z3fastmem_bank.start += 0x01000000;
-		z3fastmem_bank.start = expansion_startaddress(z3fastmem_bank.start, currprefs.z3fastmem_size);
+	if (z3fastmem_bank.start == 0x40000000) {
+		if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
+			z3fastmem_bank.start += 0x01000000;
+			z3fastmem_bank.start = expansion_startaddress(z3fastmem_bank.start, currprefs.z3fastmem_size);
+		}
 	}
 	if (z3fastmem_bank.start == 0x10000000) {
-		if (currprefs.mbresmem_high_size == 128 * 1024 * 1024)
-			z3fastmem_bank.start += 16 * 1024 * 1024;
+		if (currprefs.mbresmem_high_size >= 128 * 1024 * 1024)
+			z3fastmem_bank.start += (currprefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024;
 		z3fastmem_bank.start += currprefs.z3chipmem_size;
 	}
 	z3fastmem2_bank.start = z3fastmem_bank.start + currprefs.z3fastmem_size;

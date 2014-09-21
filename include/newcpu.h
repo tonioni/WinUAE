@@ -552,6 +552,7 @@ extern void divbyzero_special (bool issigned, uae_s32 dst);
 extern void m68k_do_rte (void);
 extern void protect_roms (bool);
 extern void unprotect_maprom (void);
+extern bool is_hardreset(void);
 
 extern void mmu_op (uae_u32, uae_u32);
 extern void mmu_op30 (uaecptr, uae_u32, uae_u16, uaecptr);
@@ -578,6 +579,7 @@ extern void exception2_fake (uaecptr addr);
 extern void m68k_reset (void);
 extern void cpureset (void);
 extern void cpu_halt (int id);
+extern void cpu_sleep_millis(int ms);
 
 extern void fill_prefetch (void);
 extern void fill_prefetch_020 (void);

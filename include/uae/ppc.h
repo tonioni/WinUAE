@@ -40,7 +40,8 @@ void uae_ppc_hsync_handler(void);
 void uae_ppc_wakeup(void);
 void ppc_map_banks(uae_u32, uae_u32, const TCHAR*, void*, bool);
 
-void uae_ppc_execute_quick(int linetype);
+void uae_ppc_execute_quick(void);
+void uae_ppc_execute_check(void);
 void uae_ppc_spinlock_reset(void);
 void uae_ppc_spinlock_get(void);
 void uae_ppc_spinlock_release(void);

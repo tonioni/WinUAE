@@ -408,6 +408,7 @@ struct uae_prefs {
 	bool uaeserial;
 	int catweasel;
 	int cpu_idle;
+	int ppc_cpu_idle;
 	bool cpu_cycle_exact;
 	int cpu_clock_multiplier;
 	int cpu_frequency;
@@ -505,6 +506,7 @@ struct uae_prefs {
 	int fpu_model;
 	int fpu_revision;
 	int ppc_mode;
+	TCHAR ppc_model[32];
 	bool cpu_compatible;
 	bool int_no_unimplemented;
 	bool fpu_no_unimplemented;

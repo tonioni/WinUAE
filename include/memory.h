@@ -349,6 +349,7 @@ extern void expamem_reset (void);
 extern void expamem_next (addrbank *mapped, addrbank *next);
 extern void expamem_shutup (addrbank *mapped);
 extern bool expamem_z3hack(struct uae_prefs*);
+extern void set_expamem_z3_hack_override(bool);
 extern uaecptr expamem_z3_pointer, expamem_z2_pointer;
 extern uae_u32 expamem_z3_size, expamem_z2_size;
 
@@ -411,6 +412,7 @@ extern void map_overlay (int chip);
 extern void memory_hardreset (int);
 extern void memory_clear (void);
 extern void free_fastmemory (int);
+extern void set_roms_modified (void);
 
 #define longget(addr) (call_mem_get_func(get_mem_bank(addr).lget, addr))
 #define wordget(addr) (call_mem_get_func(get_mem_bank(addr).wget, addr))

@@ -6827,7 +6827,7 @@ static bool framewait (void)
 			now = read_processor_time ();
 
 			if (extraframewait && !currprefs.turbo_emulation)
-				sleep_millis_main (extraframewait);
+				cpu_sleep_millis(extraframewait);
 
 			adjust = (int)now - (int)curr_time;
 			int adjustx = adjust;
@@ -6917,7 +6917,7 @@ static bool framewait (void)
 				if ((int)vsyncwaittime  - (int)curr_time <= 0 || (int)vsyncwaittime  - (int)curr_time > 2 * vsynctimebase)
 					break;
 				rtg_vsynccheck ();
-				sleep_millis_main (1);
+				cpu_sleep_millis(1);
 			}
 		} else {
 			curr_time = read_processor_time ();
@@ -6957,7 +6957,7 @@ static bool framewait (void)
 			if (v >= -4)
 				break;
 			rtg_vsynccheck ();
-			sleep_millis_main (2);
+			cpu_sleep_millis(2);
 		}
 		curr_time = start = read_processor_time ();
 		while (rpt_vsync (clockadjust) < 0)
@@ -7523,6 +7523,7 @@ static void hsync_handler_pre (bool onvsync)
 #endif
 #ifdef WITH_PPC
 	uae_ppc_hsync_handler();
+	cpuboard_hsync();
 #endif
 	DISK_hsync ();
 	if (currprefs.produce_sound)
@@ -7739,7 +7740,7 @@ static void hsync_handler_post (bool onvsync)
 				frame_time_t rpt = read_processor_time ();
 				// sleep if more than 2ms "free" time
 				while (!vsync_isdone () && (int)vsyncmintime - (int)(rpt + vsynctimebase / 10) > 0 && (int)vsyncmintime - (int)rpt < vsynctimebase) {
-					sleep_millis_main (1);
+					cpu_sleep_millis(1);
 					rpt = read_processor_time ();
 					//write_log (_T("*"));
 				}

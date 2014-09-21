@@ -2,11 +2,12 @@
 extern addrbank *cpuboard_autoconfig_init(void);
 extern bool cpuboard_maprom(void);
 extern void cpuboard_map(void);
-extern void cpuboard_reset(bool);
+extern void cpuboard_reset(void);
 extern void cpuboard_cleanup(void);
 extern void cpuboard_init(void);
 extern void cpuboard_clear(void);
 extern void cpuboard_vsync(void);
+extern void cpuboard_hsync(void);
 extern void cpuboard_rethink(void);
 extern bool cpuboard_08000000(struct uae_prefs *p);
 extern bool cpuboard_blizzardram(struct uae_prefs *p);

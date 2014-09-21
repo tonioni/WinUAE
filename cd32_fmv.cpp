@@ -257,7 +257,7 @@ static uae_u16 l64111_regs[32];
 static uae_u16 l64111intmask[2], l64111intstatus[2];
 #define L64111_CHANNEL_BUFFERS 128
 
-static uae_u16 io_reg;
+static uae_u16 mpeg_io_reg;
 
 static mpeg2dec_t *mpeg_decoder;
 static const mpeg2_info_t *mpeg_info;
@@ -383,7 +383,7 @@ static void l64111_set_status(int num, uae_u16 mask)
 static void l64111_setvolume(void)
 {
 	int volume = 32768;
-	if (l64111_regs[A_CONTROL2] & (1 << 5) || (io_reg & IO_L64111_MUTE))
+	if (l64111_regs[A_CONTROL2] & (1 << 5) || (mpeg_io_reg & IO_L64111_MUTE))
 		volume = 0;
 	if (!pcmaudio)
 		return;
@@ -1260,9 +1260,9 @@ static void io_wput(uaecptr addr, uae_u16 v)
 	if (addr != 0)
 		return;
 	write_log(_T("FMV: IO=%04x\n"), v);
-	io_reg = v;
+	mpeg_io_reg = v;
 	l64111_setvolume();
-	cd32_fmv_state((io_reg & IO_CL450_VIDEO) ? 1 : 0);
+	cd32_fmv_state((mpeg_io_reg & IO_CL450_VIDEO) ? 1 : 0);
 }
 
 static uae_u32 REGPARAM2 fmv_wget (uaecptr addr)

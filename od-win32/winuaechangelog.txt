@@ -18,6 +18,29 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 17:
+
+- Hard reset now forces reload of KS ROM if maprom is active, previously map rom mapped image
+  was still in use after hard reset.
+- Fixed some more Z3 autoconfig bugs introduced in recent betas autoconfig updates.
+- Only add VirtualAlloc() MEM_TOP_DOWN flag when OS is XP. For some unknown reason with MEM_TOP_DOWN my system
+  suddenly started giving less address space than without it..
+- A1000 with full KS ROM configured (instead of A1000 boot strap ROM) didn't boot since b9.
+- Reset didn't clear QEMU PPC JIT translation buffer, fixes mysterious hangs after reset.
+- Added main thread sleep option slider to GUI, reduces CPU usage when M68K is stopped and only PPC is active.
+- PPC CPU model can be manually configured using ppc_model=<name> config entry. Can be any QEMU supported
+  PPC CPU model name string. (Model strings are in qemu source file target-ppc/cpu-models.c)
+- Automatically disable m68k JIT autoconfig hack if only PPC CPU is active when autoconfig starts after reset.
+- Fixed WarpOS (possible PowerUP too) semi-random program hang caused by lost PPC interrupt(s).
+- Allow m68k JIT direct with accelerator board if board is not Blizzard model (no Blizzard memory aliases)
+  CyberStorm PPC + m68k JIT direct at least seems to work, no guarantees.
+
+Important:
+
+- QEMU PPC libraries are now loaded from <winuae path>\plugins\qemu\. Old location is not supported
+  anymore. Move all qemu dependency libraries and qemu-uae.dll to new path.
+
+
 Beta 16:
 
 - GUI (and log) showed wrong size for very large drives (>1T). Visual problem only.
@@ -28,6 +51,8 @@ Beta 16:
 - QEMU PPC vs UAE side memory banks are now dynamically mapped.
 - PPC CPU HID1 set to more correct value, detected CPU clock is not same as bus clock anymore.
 - QEMU TCG (JIT) buffer was too small, real world PPC programs run now much faster.
+
+NOTE: Reset when PPC CPU is active still does not work 100% correctly.
 
 Beta 15:
 
@@ -49,7 +74,7 @@ Beta 15:
   enable chip ID read mode.
 
 - PPC IO access completely rewritten, most IO areas are now directly accessible and only special regions
-  (custom chipset and CIA require locking. Very slow IO message passing system is completely gone.
+  (custom chipset and CIA) require locking. Very slow IO message passing system is completely gone.
 - QEMU PPC core support. Read separate notes!
 
 Beta 14:

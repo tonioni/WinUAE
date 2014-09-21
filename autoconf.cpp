@@ -185,7 +185,7 @@ uae_u32 ds_bstr_ansi (const uae_char *str)
 
 void calltrap (uae_u32 n)
 {
-	dw (0xA000 + n);
+	dw(0xA000 + n);
 }
 
 void org (uae_u32 a)

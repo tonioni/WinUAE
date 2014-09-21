@@ -7438,8 +7438,8 @@ static void setmax32bitram (HWND hDlg)
 		((rtgz3size + sizealign) & ~sizealign);
 	if (cfgfile_board_enabled(&currprefs.a4091rom))
 		size += 2 * 16 * 1024 * 1024;
-	if (changed_prefs.mbresmem_high_size == 128 * 1024 * 1024 && (size || workprefs.z3chipmem_size))
-		size += 16 * 1024 * 1024;
+	if (changed_prefs.mbresmem_high_size >= 128 * 1024 * 1024 && (size || workprefs.z3chipmem_size))
+		size += (changed_prefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024;
 	if (natmem_size > 0x40000000)
 		z3size = natmem_size - 0x40000000;
 	else
@@ -9147,6 +9147,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	//ew (hDlg, IDC_CS_68000, !workprefs.cpu_cycle_exact);
 	//ew (hDlg, IDC_CS_ADJUSTABLE, !workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_CPUIDLE, workprefs.m68k_speed != 0 ? TRUE : FALSE);
+	ew (hDlg, IDC_PPC_CPUIDLE, workprefs.ppc_mode != 0);
 #if !defined(CPUEMU_0) || defined(CPUEMU_68000_ONLY)
 	ew (hDlg, IDC_CPU1, FALSE);
 	ew (hDlg, IDC_CPU2, FALSE);
@@ -9214,6 +9215,7 @@ static void values_to_cpudlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_FPU_UNIMPLEMENTED, !workprefs.fpu_no_unimplemented || workprefs.cachesize);
 	CheckDlgButton (hDlg, IDC_CPU_UNIMPLEMENTED, !workprefs.int_no_unimplemented || workprefs.cachesize);
 	SendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.cpu_idle == 0 ? 0 : 12 - workprefs.cpu_idle / 15);
+	SendDlgItemMessage (hDlg, IDC_PPC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.ppc_cpu_idle);
 	cpu = (workprefs.cpu_model - 68000) / 10;
 	if (cpu >= 5)
 		cpu--;
@@ -9368,6 +9370,7 @@ static void values_from_cpudlg (HWND hDlg)
 	workprefs.cpu_idle = SendMessage (GetDlgItem (hDlg, IDC_CPUIDLE), TBM_GETPOS, 0, 0);
 	if (workprefs.cpu_idle > 0)
 		workprefs.cpu_idle = (12 - workprefs.cpu_idle) * 15;
+	workprefs.ppc_cpu_idle = SendMessage (GetDlgItem (hDlg, IDC_PPC_CPUIDLE), TBM_GETPOS, 0, 0);
 
 	if (pages[KICKSTART_ID])
 		SendMessage (pages[KICKSTART_ID], WM_USER, 0, 0);
@@ -9410,6 +9413,8 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		SendDlgItemMessage (hDlg, IDC_CACHE, TBM_SETPAGESIZE, 0, 1);
 		SendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETRANGE, TRUE, MAKELONG (0, 10));
 		SendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETPAGESIZE, 0, 1);
+		SendDlgItemMessage (hDlg, IDC_PPC_CPUIDLE, TBM_SETRANGE, TRUE, MAKELONG (0, 10));
+		SendDlgItemMessage (hDlg, IDC_PPC_CPUIDLE, TBM_SETPAGESIZE, 0, 1);
 
 		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("1x"));

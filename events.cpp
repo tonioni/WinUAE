@@ -25,6 +25,7 @@ long cycles_to_next_event;
 long max_cycles_to_next_event;
 long cycles_to_hsync_event;
 unsigned long start_cycles;
+bool event_wait;
 
 frame_time_t vsyncmintime, vsyncmaxtime, vsyncwaittime;
 int vsynctimebase;
@@ -66,16 +67,16 @@ void do_cycles_slow (unsigned long cycles_to_add)
 					if (v > vsynctimebase || v < -vsynctimebase) {
 						v = 0;
 					}
-					if (v < 0 && v2 < 0) {
+					if (v < 0 && v2 < 0 && event_wait) {
+
 #ifdef WITH_PPC
 						if (ppc_state) {
 							if (is_syncline == 1) {
-								uae_ppc_execute_quick(0);
+								uae_ppc_execute_check();
 							} else {
-								uae_ppc_execute_quick(1);
+								uae_ppc_execute_quick();
 							}
 						}
-
 #endif
 						if (currprefs.cachesize)
 							pissoff = pissoff_value;
@@ -86,10 +87,11 @@ void do_cycles_slow (unsigned long cycles_to_add)
 				} else if (is_syncline < 0) {
 					int rpt = read_processor_time ();
 					int v = rpt - is_syncline_end;
-					if (v < 0) {
+					if (v < 0 && event_wait) {
+
 #ifdef WITH_PPC
 						if (ppc_state) {
-							uae_ppc_execute_quick(0);
+							uae_ppc_execute_check();
 						}
 #endif
 						if (currprefs.cachesize)

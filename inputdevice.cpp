@@ -2689,6 +2689,17 @@ void inputdevice_release_all_keys (void)
 	}
 }
 
+static bool inputdevice_handle_inputcode_immediate(int code, int state)
+{
+	switch(code)
+	{
+		case AKS_ENTERDEBUGGER:
+			activate_debugger ();
+			return true;
+	}
+	return false;
+}
+
 
 void inputdevice_add_inputcode (int code, int state)
 {
@@ -2698,8 +2709,10 @@ void inputdevice_add_inputcode (int code, int state)
 	}
 	for (int i = 0; i < MAX_PENDING_EVENTS; i++) {
 		if (inputcode_pending[i] == 0) {
-			inputcode_pending[i] = code;
-			inputcode_pending_state[i] = state;
+			if (!inputdevice_handle_inputcode_immediate(code, state)) {
+				inputcode_pending[i] = code;
+				inputcode_pending_state[i] = state;
+			}
 			return;
 		}
 	}

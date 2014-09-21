@@ -6107,7 +6107,7 @@ HMODULE WIN32_LoadLibrary_2 (const TCHAR *name, int expand)
 	if (!newname)
 		return NULL;
 	for (round = 0; round < 6; round++) {
-		TCHAR s[MAX_DPATH];
+		TCHAR s[MAX_DPATH], dir[MAX_DPATH], dir2[MAX_DPATH];
 		_tcscpy (newname, name);
 #ifdef CPU_64_BIT
 		switch(round)
@@ -6143,12 +6143,22 @@ HMODULE WIN32_LoadLibrary_2 (const TCHAR *name, int expand)
 #endif
 		get_plugin_path (s, sizeof s / sizeof (TCHAR), NULL);
 		_tcscat (s, newname);
+		GetDllDirectory(sizeof(dir2) / sizeof TCHAR, dir2);
+		getpathpart(dir, sizeof(dir) / sizeof TCHAR, s);
+		stripslashes(dir);
+		if (dir[0])
+			SetDllDirectory(dir);
 		m = LoadLibrary (s);
 		LLError (m ,s);
-		if (m)
+		if (m) {
+			if (dir2[0])
+				SetDllDirectory(dir2);
 			goto end;
+		}
 		m = LoadLibrary (newname);
 		LLError (m, newname);
+		if (dir2[0])
+			SetDllDirectory(dir2);
 		if (m)
 			goto end;
 #ifndef CPU_64_BIT

@@ -535,6 +535,7 @@
 #define IDC_8BIT                        1230
 #define IDC_CPU_PPC                     1230
 #define IDC_16BIT                       1231
+#define IDC_PPC_CPUIDLE                 1231
 #define IDC_11KHZ                       1232
 #define IDC_22KHZ                       1233
 #define IDC_44KHZ                       1234

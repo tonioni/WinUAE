@@ -229,6 +229,20 @@ static const TCHAR *ppc_implementations[] = {
 	_T("qemu"),
 	NULL
 };
+static const TCHAR *ppc_cpu_idle[] = {
+	_T("disabled"),
+	_T("1"),
+	_T("2"),
+	_T("3"),
+	_T("4"),
+	_T("5"),
+	_T("6"),
+	_T("7"),
+	_T("8"),
+	_T("9"),
+	_T("max"),
+	NULL
+};
 static const TCHAR *waitblits[] = { _T("disabled"), _T("automatic"), _T("noidleonly"), _T("always"), 0 };
 static const TCHAR *autoext2[] = { _T("disabled"), _T("copy"), _T("replace"), 0 };
 static const TCHAR *leds[] = { _T("power"), _T("df0"), _T("df1"), _T("df2"), _T("df3"), _T("hd"), _T("cd"), _T("fps"), _T("cpu"), _T("snd"), _T("md"), 0 };
@@ -1507,8 +1521,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_write (f, _T("fpu_model"), _T("%d"), p->fpu_model);
 	if (p->mmu_model)
 		cfgfile_write (f, _T("mmu_model"), _T("%d"), p->mmu_model);
-	if (p->ppc_mode)
-		cfgfile_write_str(f, _T("ppc_model"), p->ppc_mode == 1 ? _T("automatic") : _T("manual"));
+	if (p->ppc_mode) {
+		cfgfile_write_str(f, _T("ppc_model"), p->ppc_model[0] ? p->ppc_model : (p->ppc_mode == 1 ? _T("automatic") : _T("manual")));
+		cfgfile_write_str(f, _T("ppc_cpu_idle"), ppc_cpu_idle[p->ppc_cpu_idle]);
+	}
 	cfgfile_write_bool (f, _T("cpu_compatible"), p->cpu_compatible);
 	cfgfile_write_bool (f, _T("cpu_24bit_addressing"), p->address_space_24);
 	/* do not reorder end */
@@ -3831,12 +3847,21 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 	if (cfgfile_string(option, value, _T("ppc_model"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
 		p->ppc_mode = 0;
-		if (!_tcsicmp(tmpbuf, _T("automatic")))
+		p->ppc_model[0] = 0;
+		if (!_tcsicmp(tmpbuf, _T("automatic"))) {
 			p->ppc_mode = 1;
-		else if (!_tcsicmp(tmpbuf, _T("manual")))
+		} else if (!_tcsicmp(tmpbuf, _T("manual"))) {
 			p->ppc_mode = 2;
+		} else {
+			if (tmpbuf[0] && _tcslen(tmpbuf) < sizeof(p->ppc_model) / sizeof(TCHAR)) {
+				_tcscpy(p->ppc_model, tmpbuf);
+				p->ppc_mode = 2;
+			}
+		}
 		return 1;
 	}
+	if (cfgfile_strval(option, value, _T("ppc_cpu_idle"), &p->ppc_cpu_idle, ppc_cpu_idle, 0))
+		return 1;
 
 	/* old-style CPU configuration */
 	if (cfgfile_string (option, value, _T("cpu_type"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {

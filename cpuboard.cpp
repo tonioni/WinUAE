@@ -71,7 +71,7 @@
 // 0x04
 #define P5_IRQ_PPC_1		0x08
 #define P5_IRQ_PPC_2		0x10
-// 0x20
+#define P5_IRQ_PPC_3		0x20 // MOS sets this bit
 // 0x40 always cleared
 
 /* REG_WAITSTATE 0x10 */
@@ -102,7 +102,7 @@
 // 0x20
 // 0x10 always cleared
 // 0x08
-// 0x04
+// 0x04 // MOS sets this bit
 #define	P5_ENABLE_IPL		0x02
 #define	P5_INT_MASTER		0x01 // 1=m68k gets interrupts, 0=ppc gets interrupts.
 
@@ -177,12 +177,10 @@ static void clear_ppc_interrupt(void)
 
 static void check_ppc_int_lvl(void)
 {
-	uae_u8 ipl;
-	uae_u8 il;
 	if (!(io_reg[CSIII_REG_INT] & P5_ENABLE_IPL)) {
-		ipl = (~io_reg[CSIII_REG_IPL_EMU]) & P5_PPC_IPL_MASK;
+		uae_u8 ipl = (~io_reg[CSIII_REG_IPL_EMU]) & P5_PPC_IPL_MASK;
 		if (ipl < 7) {
-			il = (~io_reg[CSIII_REG_INT_LVL]) & 0x7f;
+			uae_u8 il = (~io_reg[CSIII_REG_INT_LVL]) & 0x7f;
 			if (il) {
 				for (int i = ipl; i < 7; i++) {
 					if (il & (1 << i)) {
@@ -198,17 +196,18 @@ static void check_ppc_int_lvl(void)
 
 bool ppc_interrupt(int new_m68k_ipl)
 {
-	uae_u8 ppcipl;
 	bool m68kint = (io_reg[CSIII_REG_INT] & P5_INT_MASTER) != 0;
 	bool active = (io_reg[CSIII_REG_IPL_EMU] & P5_DISABLE_INT) == 0;
 	bool iplemu = (io_reg[CSIII_REG_INT] & P5_ENABLE_IPL) == 0;
+	uae_u8 ppcipl = (~io_reg[CSIII_REG_IPL_EMU]) & P5_PPC_IPL_MASK;
 
 	if (!active)
 		return false;
 
 	if (new_m68k_ipl < 0)
 		new_m68k_ipl = 0;
-	ppcipl = (io_reg[CSIII_REG_IPL_EMU] ^ 7) & 7;
+
+	//bool xirq =  !(io_reg[CSIII_REG_IRQ] & P5_IRQ_PPC_2) && (io_reg[CSIII_REG_IRQ] & P5_IRQ_PPC_3);
 
 	if (!m68kint && iplemu && active) {
 		if (new_m68k_ipl > ppcipl) {
@@ -222,7 +221,6 @@ bool ppc_interrupt(int new_m68k_ipl)
 
 	return m68kint;
 }
-
 
 static bool is_blizzard(void)
 {
@@ -294,7 +292,7 @@ DECLARE_MEMORY_FUNCTIONS(blizzardf0);
 static addrbank blizzardf0_bank = {
 	blizzardf0_lget, blizzardf0_wget, blizzardf0_bget,
 	blizzardf0_lput, blizzardf0_wput, blizzardf0_bput,
-	blizzardf0_xlate, blizzardf0_check, NULL, _T("rom_f0"), _T("CPUBoard F00000"),
+	blizzardf0_xlate, blizzardf0_check, NULL, _T("rom_f0_ppc"), _T("CPUBoard F00000"),
 	blizzardf0_lget, blizzardf0_wget, ABFLAG_ROM
 };
 
@@ -758,6 +756,7 @@ static void blizzard_copymaprom(void)
 	protect_roms(false);
 	memcpy(dst, src, 524288);
 	protect_roms(true);
+	set_roms_modified();
 }
 static void cyberstorm_copymaprom(void)
 {
@@ -767,6 +766,7 @@ static void cyberstorm_copymaprom(void)
 		protect_roms(false);
 		memcpy(dst, src, 524288);
 		protect_roms(true);
+		set_roms_modified();
 	}
 }
 static void cyberstormmk2_copymaprom(void)
@@ -777,6 +777,7 @@ static void cyberstormmk2_copymaprom(void)
 		protect_roms(false);
 		memcpy(dst, src, 524288);
 		protect_roms(true);
+		set_roms_modified();
 	}
 }
 static void cyberstormmk1_copymaprom(void)
@@ -787,6 +788,7 @@ static void cyberstormmk1_copymaprom(void)
 		protect_roms(false);
 		memcpy(dst, src, 524288);
 		protect_roms(true);
+		set_roms_modified();
 	}
 }
 
@@ -799,6 +801,7 @@ void cpuboard_rethink(void)
 		if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_PPC_1 | P5_IRQ_PPC_2))) {
 			INTREQ(0x8000 | 0x0008);
 		}
+		check_ppc_int_lvl();
 		ppc_interrupt(intlev());
 	}
 }
@@ -1069,7 +1072,6 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 					if ((regval & P5_PPC_IPL_MASK) != (oldval & P5_PPC_IPL_MASK))
 						write_log(_T("CS: PPC IPL %02x\n"), (~regval) & P5_PPC_IPL_MASK);
 #endif
-					check_ppc_int_lvl();
 				} else if (addr == CSIII_REG_INT) {
 #if CPUBOARD_IRQ_LOG > 0
 					if ((regval & P5_INT_MASTER) != (oldval & P5_INT_MASTER))
@@ -1077,13 +1079,11 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 					if ((regval & P5_ENABLE_IPL) != (oldval & P5_ENABLE_IPL))
 						write_log(_T("CS: IPL state: %s\n"), (regval & P5_ENABLE_IPL) ? _T("disabled") : _T("enabled"));
 #endif
-					check_ppc_int_lvl();
 				} else if (addr == CSIII_REG_INT_LVL) {
 #if CPUBOARD_IRQ_LOG > 0
 					if (regval != oldval)
 						write_log(_T("CS: interrupt level: %02x\n"), regval);
 #endif
-					check_ppc_int_lvl();
 				} else if (addr == CSIII_REG_SHADOW) {
 					if (is_csmk3() && ((oldval ^ regval) & 1)) {
 						maprom_state = (regval & 1) ? 0 : 1;
@@ -1147,6 +1147,16 @@ static void REGPARAM2 blizzardio_lput(uaecptr addr, uae_u32 v)
 		} else {
 			maprom_state = 1;
 		}
+	}
+}
+
+void cpuboard_hsync(void)
+{
+	// we should call check_ppc_int_lvl() immediately
+	// after PPC CPU's interrupt flag is cleared but this
+	// should be fast enough for now
+	if (is_csmk3() || is_blizzardppc()) {
+		check_ppc_int_lvl();
 	}
 }
 
@@ -1219,8 +1229,9 @@ void cpuboard_map(void)
 	}
 }
 
-void cpuboard_reset(bool hardreset)
+void cpuboard_reset(void)
 {
+	bool hardreset = is_hardreset();
 	if (is_blizzard() || is_blizzardppc())
 		canbang = 0;
 	configured = false;
@@ -1443,6 +1454,12 @@ void cpuboard_init(void)
 
 void cpuboard_clear(void)
 {
+	if (blizzardmaprom_bank.baseaddr)
+		memset(blizzardmaprom_bank.baseaddr, 0, 524288);
+	if (blizzardmaprom2_bank.baseaddr)
+		memset(blizzardmaprom2_bank.baseaddr, 0, 524288);
+	if (is_csmk3()) // SCSI RAM
+		memset(blizzardf0_bank.baseaddr + 0x40000, 0, 0x10000);
 }
 
 bool is_ppc_cpu(struct uae_prefs *p)
