@@ -86,7 +86,7 @@ void tcp_template(struct tcpcb *tp)
 	struct socket *so = tp->t_socket;
 	struct tcpiphdr *n = &tp->t_template;
 
-	n->ti_next = n->ti_prev = 0;
+	n->ti_mbuf = NULL;
 	n->ti_x1 = 0;
 	n->ti_pr = IPPROTO_TCP;
 	n->ti_len = htons(sizeof (struct tcpiphdr) - sizeof (struct ip));
@@ -163,7 +163,7 @@ void tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m, tcp_seq 
 	tlen += sizeof (struct tcpiphdr);
 	m->m_len = tlen;
 
-	ti->ti_next = ti->ti_prev = 0;
+	ti->ti_mbuf = 0;
 	ti->ti_x1 = 0;
 	ti->ti_seq = htonl(seq);
 	ti->ti_ack = htonl(ack);
@@ -201,7 +201,7 @@ struct tcpcb *tcp_newtcpcb(struct socket *so)
 		return ((struct tcpcb *)0);
 	
 	memset((char *) tp, 0, sizeof(struct tcpcb));
-	tp->seg_next = tp->seg_prev = (tcpiphdrp_32)tp;
+	tp->seg_next = tp->seg_prev = (struct tcpiphdr*)tp;
 	tp->t_maxseg = tcp_mssdflt;
 	
 	tp->t_flags = tcp_do_rfc1323 ? (TF_REQ_SCALE|TF_REQ_TSTMP) : 0;
@@ -275,11 +275,11 @@ struct tcpcb *tcp_close(struct tcpcb *tp)
 	DEBUG_ARG("tp = %lx", (long )tp);
 	
 	/* free the reassembly queue, if any */
-	t = (struct tcpiphdr *) tp->seg_next;
-	while (t != (struct tcpiphdr *)tp) {
-		t = (struct tcpiphdr *)t->ti_next;
-		m = (struct mbuf *) REASS_MBUF((struct tcpiphdr *)t->ti_prev);
-		remque_32((struct tcpiphdr *) t->ti_prev);
+	t = tcpfrag_list_first(tp);
+	while (!tcpfrag_list_end(t, tp)) {
+		t = tcpiphdr_next(t);
+		m = tcpiphdr_prev(t)->ti_mbuf;
+		remque(tcpiphdr2qlink(tcpiphdr_prev(t)));
 		m_freem(m);
 	}
 	/* It's static */
