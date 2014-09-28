@@ -1522,7 +1522,7 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
 {
 	uae_u32 chip = currprefs.chipmem_size - 0x10000;
 	int subtype = rd->id;
-	int flags = rd->type;
+	int flags = rd->type & ROMTYPE_MASK;
 	const TCHAR *memname1, *memname2, *memname3;
 
 	memname1 = memname2 = memname3 = NULL;
@@ -1533,7 +1533,7 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
 	hrtmon_ciaa = 0;
 	hrtmon_ciab = 0;
 
-	if (flags & ROMTYPE_XPOWER) { /* xpower */
+	if (flags == ROMTYPE_XPOWER) { /* xpower */
 		hrtmem_start = 0xe20000;
 		hrtmem_size = 0x20000;
 		hrtmem2_start = 0xf20000;
@@ -1541,7 +1541,7 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
 		hrtmem_rom = 1;
 		memname1 = _T("xpower_e2");
 		memname2 = _T("xpower_f2");
-	} else if (flags & ROMTYPE_NORDIC) { /* nordic */
+	} else if (flags == ROMTYPE_NORDIC) { /* nordic */
 		hrtmem_start = 0xf00000;
 		hrtmem_size = 0x10000;
 		hrtmem_end = 0xf20000;
@@ -1601,7 +1601,7 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
 		memset(hrtmemory3, 0, hrtmem3_size);
 	}
 
-	if (flags & ROMTYPE_XPOWER) {
+	if (flags == ROMTYPE_XPOWER) {
 		hrtmon_custom = hrtmemory2 + 0xfc00;
 		hrtmon_ciaa = hrtmemory2 + 0xfc00;
 		hrtmon_ciab = hrtmemory2 + 0xfc01;
@@ -1611,7 +1611,7 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
 		hrtmemory2[0xfc81] = chip >> 16;
 		hrtmemory2[0xfc82] = chip >> 8;
 		hrtmemory2[0xfc83] = chip >> 0;
-	} else if (flags & ROMTYPE_NORDIC) {
+	} else if (flags == ROMTYPE_NORDIC) {
 		hrtmon_custom = hrtmemory2 + 0x3c00;
 		hrtmon_ciaa = hrtmemory2 + 0x3c00;
 		hrtmon_ciab = hrtmemory2 + 0x3c01;
@@ -1641,17 +1641,18 @@ int action_replay_load (void)
 
 	armodel = 0;
 	action_replay_flag = ACTION_REPLAY_INACTIVE;
-	write_log_debug (_T("Entered action_replay_load ()\n"));
 	/* Don't load a rom if one is already loaded. Use action_replay_unload () first. */
 	if (armemory_rom || hrtmemory) {
 		write_log (_T("action_replay_load () ROM already loaded.\n"));
 		return 0;
 	}
-
 	if (_tcslen (currprefs.cartfile) == 0)
 		return 0;
 	if (currprefs.cs_cd32fmv)
 		return 0;
+
+	write_log_debug (_T("Entered action_replay_load ()\n"));
+
 	rd = getromdatabypath (currprefs.cartfile);
 	if (rd) {
 		if (rd->id == 62)
@@ -1668,7 +1669,8 @@ int action_replay_load (void)
 	if (!rd) {
 		write_log (_T("Unknown cartridge ROM\n"));
 	} else {
-		if (rd->type & (ROMTYPE_SUPERIV | ROMTYPE_NORDIC | ROMTYPE_XPOWER)) {
+		int type = rd->type & ROMTYPE_MASK;
+		if (type == ROMTYPE_SUPERIV || rd->type == ROMTYPE_NORDIC || rd->type == ROMTYPE_XPOWER) {
 			return superiv_init (rd, f);
 		}
 	}

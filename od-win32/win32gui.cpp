@@ -8323,7 +8323,7 @@ static void addromfiles (UAEREG *fkey, HWND hDlg, DWORD d, const TCHAR *path, in
 			}
 			if (idx2 >= 0) {
 				struct romdata *rd = getromdatabyidgroup (idx2, group, subitem);
-				if (rd && ((((rd->type & ROMTYPE_GROUP_MASK) & (type & ROMTYPE_GROUP_MASK)) && (rd->type & ROMTYPE_SUB_MASK) == (type & ROMTYPE_SUB_MASK)) ||
+				if (rd && ((((rd->type & ROMTYPE_GROUP_MASK) & (type & ROMTYPE_GROUP_MASK)) && ((rd->type & ROMTYPE_SUB_MASK) == (type & ROMTYPE_SUB_MASK) || !(type & ROMTYPE_SUB_MASK))) ||
 					(rd->type & type) == ROMTYPE_NONE)) {
 					getromname (rd, tmp);
 					if (SendDlgItemMessage (hDlg, d, CB_FINDSTRING, (WPARAM)-1, (LPARAM)tmp) < 0)
