@@ -256,7 +256,7 @@
       <AdditionalOptions>%(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\slirp;..\..\ppc\pearpc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0500;_DEBUG;WIN32_IE=0x0700;WIN32;WIN64;_CRT_SECURE_NO_WARNINGS;D3D_DEBUG_INFO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0500;_DEBUG;WIN32_IE=0x0700;WIN32;WIN64;PTR64;UAE;WINUAE;_CRT_SECURE_NO_WARNINGS;D3D_DEBUG_INFO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>Sync</ExceptionHandling>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -476,7 +476,7 @@
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\slirp;..\..\ppc\pearpc;..\..\ppc\pearpc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;PTR64;UAE;WINUAE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>Sync</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -541,20 +541,20 @@
       <TypeLibraryName>.\Release/winuae_msvc.tlb</TypeLibraryName>
     </Midl>
     <ClCompile>
-      <Optimization>Full</Optimization>
+      <Optimization>Disabled</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <OmitFramePointers>true</OmitFramePointers>
+      <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
+      <OmitFramePointers>false</OmitFramePointers>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\slirp;..\..\ppc\pearpc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;PTR64;UAE;WINUAE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>Sync</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <FunctionLevelLinking>false</FunctionLevelLinking>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
       <FloatingPointModel>Precise</FloatingPointModel>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
@@ -566,7 +566,7 @@
       <ProgramDataBaseFileName>$(Platform)\$(Configuration)\</ProgramDataBaseFileName>
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <CallingConvention>StdCall</CallingConvention>
+      <CallingConvention>FastCall</CallingConvention>
       <CompileAs>Default</CompileAs>
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
@@ -577,7 +577,7 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;packet.lib;wpcap.lib;openal32.lib;libpng15.lib;lglcd.lib;wtsapi32.lib;enet_x64.lib;prowizard_x64.lib;lzmalib.lib;libFLAC_static.lib;avrt.lib;hid.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;packet.lib;wpcap.lib;openal32.lib;libpng15.lib;lglcd.lib;wtsapi32.lib;enet_x64.lib;prowizard_x64.lib;lzmalib.lib;libFLAC_static.lib;avrt.lib;hid.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff.lib;softfloat_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -694,7 +694,7 @@
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\slirp;..\..\ppc\pearpc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;PTR64;UAE;WINUAE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>Sync</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -814,15 +814,6 @@
     <ClCompile Include="..\..\luascript.cpp" />
     <ClCompile Include="..\..\ncr9x_scsi.cpp" />
     <ClCompile Include="..\..\newcpu_common.cpp" />
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_alu.cpp" />
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_cpu.cpp" />
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_dec.cpp" />
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_exc.cpp" />
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_fpu.cpp" />
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_mmu.cpp" />
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_opc.cpp" />
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_vec.cpp" />
-    <ClCompile Include="..\..\ppc\pearpc\uaeglue.cpp" />
     <ClCompile Include="..\..\ppc\ppc.cpp" />
     <ClCompile Include="..\..\ppc\ppcd.cpp" />
     <ClCompile Include="..\..\qemuvga\cirrus_vga.cpp" />

@@ -90,7 +90,6 @@
 #define WITH_UAENET_PCAP
 #define WITH_PPC
 #define WITH_QEMU_CPU
-#define WITH_PEARPC_CPU
 
 #else
 

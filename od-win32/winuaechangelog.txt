@@ -18,6 +18,17 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 18:
+
+- "Pause emulation when xyz" option remained forever stuck in pause mode if PPC CPU was active.
+- PearPC PPC emulation removed.
+- Freezer cartridge ROMs had disappeared from GUI.
+- Freezer cartridges didn't work.
+- Force Direct3D mode if hardware RTG board + PPC enabled. DirectDraw has glitches. (Will also have
+  glitches in non-PPC mode but there is no need to change it yet)
+- CSPPC/BPPC interrupt controller IO address accesses were not thread safe, caused random lost or stuck
+  interrupts.
+
 Beta 17:
 
 - Hard reset now forces reload of KS ROM if maprom is active, previously map rom mapped image
@@ -39,7 +50,6 @@ Important:
 
 - QEMU PPC libraries are now loaded from <winuae path>\plugins\qemu\. Old location is not supported
   anymore. Move all qemu dependency libraries and qemu-uae.dll to new path.
-
 
 Beta 16:
 

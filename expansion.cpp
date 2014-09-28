@@ -424,12 +424,12 @@ static void boardmessage(addrbank *mapped, bool success)
 		sizemod = 'M';
 		size /= 1024;
 	}
-	write_log (_T("Card %d: Z%d 0x%08x %4d%c %s %s %s.\n"),
+	write_log (_T("Card %d: Z%d 0x%08x %4d%c %s %s%s\n"),
 		ecard + 1, (type & 0xc0) == zorroII ? 2 : 3,
 		expamem_board_pointer, size, sizemod,
 		type & rom_card ? _T("ROM") : (type & add_memory ? _T("RAM") : _T("IO ")),
 		mapped->name,
-		success ? _T("ok") : _T("shut up"));
+		success ? _T("") : _T(" SHUT UP"));
 }
 
 void expamem_shutup(addrbank *mapped)

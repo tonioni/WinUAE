@@ -56,9 +56,6 @@
     <Filter Include="ppc">
       <UniqueIdentifier>{a238ed36-3d5f-4fd0-afd7-a34029119da7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ppc\pearpc">
-      <UniqueIdentifier>{f8cdc857-41a2-400a-a2e1-9a9eb3ac9d04}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ahidsound_dsonly.cpp">
@@ -708,33 +705,6 @@
     </ClCompile>
     <ClCompile Include="..\..\logging.cpp">
       <Filter>common</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\ppc\pearpc\uaeglue.cpp">
-      <Filter>ppc\pearpc</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_alu.cpp">
-      <Filter>ppc\pearpc</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_cpu.cpp">
-      <Filter>ppc\pearpc</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_dec.cpp">
-      <Filter>ppc\pearpc</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_exc.cpp">
-      <Filter>ppc\pearpc</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_fpu.cpp">
-      <Filter>ppc\pearpc</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_mmu.cpp">
-      <Filter>ppc\pearpc</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_opc.cpp">
-      <Filter>ppc\pearpc</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\ppc\pearpc\cpu\cpu_generic\ppc_vec.cpp">
-      <Filter>ppc\pearpc</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

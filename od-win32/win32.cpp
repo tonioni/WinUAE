@@ -3119,6 +3119,11 @@ void target_fixup_options (struct uae_prefs *p)
 		p->win32_rtgmatchdepth = false;
 		if (gfxboard_need_byteswap (p->rtgmem_type))
 			p->color_mode = 5;
+		if (p->ppc_model && !p->gfx_api) {
+			error_log (_T("Graphics board and PPC: Direct3D enabled."));
+			p->gfx_api = 1;
+		}
+
 	}
 }
 

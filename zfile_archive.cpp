@@ -707,7 +707,7 @@ static int canrar (void)
 	return israr < 0 ? 0 : 1;
 }
 
-static int CALLBACK RARCallbackProc (UINT msg,LONG UserData,LONG P1,LONG P2)
+static int CALLBACK RARCallbackProc (UINT msg, LONG UserData, LONG P1, LONG P2)
 {
 	if (msg == UCM_PROCESSDATA) {
 		zfile_fwrite ((uae_u8*)P1, 1, P2, rarunpackzf);
@@ -1538,8 +1538,8 @@ static struct zfile *archive_access_adf (struct znode *zn)
 	struct zfile *z = NULL;
 	int root, ffs;
 	struct adfhandle *adf = (struct adfhandle*)zn->volume->handle;
-	int size, bs;
-	int i;
+	uae_s64 size;
+	int i, bs;
 	uae_u8 *dst;
 
 	size = zn->size;
@@ -1556,7 +1556,7 @@ static struct zfile *archive_access_adf (struct znode *zn)
 		for (;;) {
 			adf_read_block (adf, root);
 			for (i = bs / 4 - 51; i >= 6; i--) {
-				int bsize = ffs ? bs : bs - 24;
+				uae_s64 bsize = ffs ? bs : bs - 24;
 				int block = gl (adf, i * 4);
 				if (size < bsize)
 					bsize = size;
@@ -1578,7 +1578,7 @@ static struct zfile *archive_access_adf (struct znode *zn)
 
 		struct sfsblock *sfsblocks;
 		int sfsblockcnt, sfsmaxblockcnt, i;
-		int bsize;
+		uae_s64 bsize;
 		int block = zn->offset;
 		int dblock;
 		int btree, version, sfs2;
@@ -1752,7 +1752,8 @@ static struct zfile *archive_access_rdb (struct znode *zn)
 	struct zfile *zf;
 	uae_u8 buf[512] = { 0 };
 	int surf, spb, spt, lowcyl, highcyl;
-	int size, block, blocksize;
+	int block, blocksize;
+	uae_s64 size;
 	uae_u8 *p;
 
 	if (zn->offset) {
@@ -2015,12 +2016,12 @@ static struct zfile *archive_access_fat (struct znode *zn)
 {
 	uae_u8 buf[512] = { 0 };
 	int fatbits = 12;
-	int size = zn->size;
+	uae_s64 size = zn->size;
 	struct zfile *sz, *dz;
 	int rootdir, reserved, sectorspercluster;
 	int numfats, sectorsperfat, rootentries;
-	int dataregion;
-	int offset, cluster;
+	int dataregion, cluster;
+	uae_s64 offset;
 
 	sz = zn->volume->archive;
 
@@ -2044,7 +2045,7 @@ static struct zfile *archive_access_fat (struct znode *zn)
 	offset = 0;
 	cluster = zn->offset;
 	while (size && cluster >= 2) {
-		int left = size > sectorspercluster * 512 ? sectorspercluster * 512 : size;
+		uae_s64 left = size > sectorspercluster * 512 ? sectorspercluster * 512 : size;
 		int sector = dataregion + (cluster - 2) * sectorspercluster;
 		zfile_fseek (sz, sector * 512, SEEK_SET);
 		zfile_fread (dz->data + offset, 1, left, sz);
