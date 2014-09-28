@@ -569,9 +569,9 @@ int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 		hfd->vhd_sectormapblock = -1;
 		hfd->vhd_bitmapsize = ((hfd->vhd_blocksize / (8 * 512)) + 511) & ~511;
 	}
-	write_log (_T("HDF is VHD %s image, virtual size=%lldK\n"),
+	write_log (_T("HDF is VHD %s image, virtual size=%lldK (%llx %lld)\n"),
 		hfd->hfd_type == HFD_VHD_FIXED ? _T("fixed") : _T("dynamic"),
-		hfd->virtsize / 1024);
+		hfd->virtsize / 1024, hfd->virtsize, hfd->virtsize);
 	hdf_init_cache (hfd);
 	return 1;
 nonvhd:
@@ -1179,12 +1179,13 @@ static uae_u64 cmd_write (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 off
 
 static int checkbounds (struct hardfiledata *hfd, uae_u64 offset, uae_u64 len)
 {
-	if (offset >= hfd->virtsize)
+	uae_u64 max = hfd->virtsize;
+	if (offset >= max || offset + len > max || (offset > 0xffffffff && (uae_s64)offset < 0)) {
+		write_log (_T("UAEHF SCSI: out of bounds, %08X-%08X + %08X-%08X > %08X-%08X\n"),
+			(uae_u32)(offset >> 32),(uae_u32)offset,(uae_u32)(len >> 32),(uae_u32)len,
+			(uae_u32)(max >> 32),(uae_u32)max);
 		return 0;
-	if (offset + len > hfd->virtsize)
-		return 0;
-	if (offset > 0xffffffff && (uae_s64)offset < 0)
-		return 0;
+	}
 	return 1;
 }
 
