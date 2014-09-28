@@ -4631,8 +4631,9 @@ static void rethink_intreq (void)
 #ifdef NCR9X
 	ncr9x_rethink();
 #endif
-	cpuboard_rethink();
 	rethink_gayle ();
+	/* cpuboard_rethink must be last */
+	cpuboard_rethink();
 }
 
 static void send_interrupt_do (uae_u32 v)
@@ -8173,6 +8174,7 @@ void dumpcustom (void)
 {
 	console_out_f (_T("DMACON: %04x INTENA: %04x (%04x) INTREQ: %04x (%04x) VPOS: %x HPOS: %x\n"), DMACONR (current_hpos ()),
 		intena, intena_internal, intreq, intreq_internal, vpos, current_hpos ());
+	console_out_f (_T("INT: %04x IPL: %d\n"), intena & intreq, intlev());
 	console_out_f (_T("COP1LC: %08lx, COP2LC: %08lx COPPTR: %08lx\n"), (unsigned long)cop1lc, (unsigned long)cop2lc, cop_state.ip);
 	console_out_f (_T("DIWSTRT: %04x DIWSTOP: %04x DDFSTRT: %04x DDFSTOP: %04x\n"),
 		(unsigned int)diwstrt, (unsigned int)diwstop, (unsigned int)ddfstrt, (unsigned int)ddfstop);

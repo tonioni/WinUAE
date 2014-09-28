@@ -151,47 +151,44 @@ static int csmk2_flashaddressing;
 static bool blizzardmaprom_bank_mapped, blizzardmaprom2_bank_mapped;
 static bool cpuboard_non_byte_ea;
 
-static int ppc_irq_pending;
+static bool ppc_irq_pending;
 
-static void set_ppc_interrupt(int level)
+static void set_ppc_interrupt(void)
 {
-	if (ppc_irq_pending > level)
+	if (ppc_irq_pending)
 		return;
-#if CPUBOARD_IRQ_LOG > 0
-	if (ppc_irq_pending != level)
-		write_log(_T("PPC interrupt set (%d)\n"), level);
-#endif
 	uae_ppc_interrupt(true);
-	ppc_irq_pending = level;
+	ppc_irq_pending = true;
 }
 static void clear_ppc_interrupt(void)
 {
 	if (!ppc_irq_pending)
 		return;
-#if CPUBOARD_IRQ_LOG > 0
-	write_log(_T("PPC interrupt clear\n"));
-#endif
 	uae_ppc_interrupt(false);
-	ppc_irq_pending = 0;
+	ppc_irq_pending = false;
 }
 
 static void check_ppc_int_lvl(void)
 {
-	if (!(io_reg[CSIII_REG_INT] & P5_ENABLE_IPL)) {
-		uae_u8 ipl = (~io_reg[CSIII_REG_IPL_EMU]) & P5_PPC_IPL_MASK;
-		if (ipl < 7) {
-			uae_u8 il = (~io_reg[CSIII_REG_INT_LVL]) & 0x7f;
-			if (il) {
-				for (int i = ipl; i < 7; i++) {
-					if (il & (1 << i)) {
-						set_ppc_interrupt(i + 1);
+	bool m68kint = (io_reg[CSIII_REG_INT] & P5_INT_MASTER) != 0;
+	bool active = (io_reg[CSIII_REG_IPL_EMU] & P5_DISABLE_INT) == 0;
+	bool iplemu = (io_reg[CSIII_REG_INT] & P5_ENABLE_IPL) == 0;
+
+	if (m68kint && iplemu && active) {
+		uae_u8 ppcipl = (~io_reg[CSIII_REG_IPL_EMU]) & P5_PPC_IPL_MASK;
+		if (ppcipl < 7) {
+			uae_u8 ilvl = (~io_reg[CSIII_REG_INT_LVL]) & 0x7f;
+			if (ilvl) {
+				for (int i = ppcipl; i < 7; i++) {
+					if (ilvl & (1 << i)) {
+						set_ppc_interrupt();
 						return;
 					}
 				}
 			}
 		}
+		clear_ppc_interrupt();
 	}
-	clear_ppc_interrupt();
 }
 
 bool ppc_interrupt(int new_m68k_ipl)
@@ -199,24 +196,21 @@ bool ppc_interrupt(int new_m68k_ipl)
 	bool m68kint = (io_reg[CSIII_REG_INT] & P5_INT_MASTER) != 0;
 	bool active = (io_reg[CSIII_REG_IPL_EMU] & P5_DISABLE_INT) == 0;
 	bool iplemu = (io_reg[CSIII_REG_INT] & P5_ENABLE_IPL) == 0;
-	uae_u8 ppcipl = (~io_reg[CSIII_REG_IPL_EMU]) & P5_PPC_IPL_MASK;
 
 	if (!active)
 		return false;
 
-	if (new_m68k_ipl < 0)
-		new_m68k_ipl = 0;
-
-	//bool xirq =  !(io_reg[CSIII_REG_IRQ] & P5_IRQ_PPC_2) && (io_reg[CSIII_REG_IRQ] & P5_IRQ_PPC_3);
-
 	if (!m68kint && iplemu && active) {
-		if (new_m68k_ipl > ppcipl) {
-			set_ppc_interrupt(new_m68k_ipl);
-		} else if (!new_m68k_ipl) {
-			clear_ppc_interrupt();
-		}
+		uae_u8 ppcipl = (~io_reg[CSIII_REG_IPL_EMU]) & P5_PPC_IPL_MASK;
+		if (new_m68k_ipl < 0)
+			new_m68k_ipl = 0;
 		io_reg[CSIII_REG_IPL_EMU] &= ~P5_M68k_IPL_MASK;
 		io_reg[CSIII_REG_IPL_EMU] |= (new_m68k_ipl << 3) ^ P5_M68k_IPL_MASK;
+		if (new_m68k_ipl > ppcipl) {
+			set_ppc_interrupt();
+		} else {
+			clear_ppc_interrupt();
+		}
 	}
 
 	return m68kint;
@@ -261,7 +255,7 @@ static addrbank blizzardio_bank = {
 	blizzardio_lget, blizzardio_wget, blizzardio_bget,
 	blizzardio_lput, blizzardio_wput, blizzardio_bput,
 	default_xlate, default_check, NULL, NULL, _T("CPUBoard IO"),
-	blizzardio_wget, blizzardio_bget, ABFLAG_IO | ABFLAG_THREADSAFE
+	blizzardio_wget, blizzardio_bget, ABFLAG_IO
 };
 
 DECLARE_MEMORY_FUNCTIONS(blizzardram);
@@ -796,10 +790,10 @@ void cpuboard_rethink(void)
 {
 	if (is_csmk3() || is_blizzardppc()) {
 		if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_SCSI_EN | P5_IRQ_SCSI))) {
-			INTREQ(0x8000 | 0x0008);
+			INTREQ_0(0x8000 | 0x0008);
 		}
 		if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_PPC_1 | P5_IRQ_PPC_2))) {
-			INTREQ(0x8000 | 0x0008);
+			INTREQ_0(0x8000 | 0x0008);
 		}
 		check_ppc_int_lvl();
 		ppc_interrupt(intlev());
@@ -1063,10 +1057,14 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 						io_reg[CSIII_REG_RESET] |= oldval & P5_AMIGA_RESET;
 					}
 				} else if (addr == CSIII_REG_IPL_EMU) {
-#if CPUBOARD_IRQ_LOG > 0
+					// M68K_IPL_MASK is read-only
 					regval &= ~P5_M68k_IPL_MASK;
 					regval |= oldval & P5_M68k_IPL_MASK;
+					bool active = (regval & P5_DISABLE_INT) == 0;
+					if (!active)
+						clear_ppc_interrupt();
 					io_reg[addr] = regval;
+#if CPUBOARD_IRQ_LOG > 0
 					if ((regval & P5_DISABLE_INT) != (oldval & P5_DISABLE_INT))
 						write_log(_T("CS: interrupt state: %s\n"), (regval & P5_DISABLE_INT) ? _T("disabled") : _T("enabled"));
 					if ((regval & P5_PPC_IPL_MASK) != (oldval & P5_PPC_IPL_MASK))

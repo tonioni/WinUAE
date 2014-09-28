@@ -148,7 +148,7 @@ void ncr9x_rethink(void)
 {
 	for (int i = 0; ncrs[i]; i++) {
 		if (ncrs[i]->boardirq)
-			INTREQ(0x8000 | 0x0008);
+			INTREQ_0(0x8000 | 0x0008);
 	}
 }
 

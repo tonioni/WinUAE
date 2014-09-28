@@ -112,6 +112,7 @@ static volatile int ppc_cpu_lock_state;
 static bool ppc_init_done;
 static bool ppc_cpu_init_done;
 static int ppc_implementation;
+static bool ppc_paused;
 
 #define CSPPC_PVR 0x00090204
 #define BLIZZPPC_PVR 0x00070101
@@ -121,7 +122,7 @@ static int ppc_implementation;
 
 /* Dummy PPC implementation */
 
-static void PPCCALL dummy_ppc_cpu_free(void) { }
+static void PPCCALL dummy_ppc_cpu_close(void) { }
 static void PPCCALL dummy_ppc_cpu_stop(void) { }
 static void PPCCALL dummy_ppc_cpu_atomic_raise_ext_exception(void) { }
 static void PPCCALL dummy_ppc_cpu_atomic_cancel_ext_exception(void) { }
@@ -148,7 +149,7 @@ static void PPCCALL dummy_ppc_cpu_pause(int pause)
 typedef void (PPCCALL *ppc_cpu_version_function)(int *major, int *minor, int *revision);
 typedef bool (PPCCALL *ppc_cpu_init_function)(const char *model, uint32_t hid1);
 typedef bool (PPCCALL *ppc_cpu_init_pvr_function)(uint32_t pvr);
-typedef void (PPCCALL *ppc_cpu_free_function)(void);
+typedef void (PPCCALL *ppc_cpu_close_function)(void);
 typedef void (PPCCALL *ppc_cpu_stop_function)(void);
 typedef void (PPCCALL *ppc_cpu_atomic_raise_ext_exception_function)(void);
 typedef void (PPCCALL *ppc_cpu_atomic_cancel_ext_exception_function)(void);
@@ -165,7 +166,7 @@ typedef void (PPCCALL *ppc_cpu_reset_function)(void);
 
 /* Function pointers to active PPC implementation */
 
-static struct {
+static struct impl {
 	/* Common */
 	ppc_cpu_atomic_raise_ext_exception_function atomic_raise_ext_exception;
 	ppc_cpu_atomic_cancel_ext_exception_function atomic_cancel_ext_exception;
@@ -174,7 +175,7 @@ static struct {
 	/* PearPC */
 	ppc_cpu_init_pvr_function init_pvr;
 	ppc_cpu_pause_function pause;
-	ppc_cpu_free_function free;
+	ppc_cpu_close_function close;
 	ppc_cpu_stop_function stop;
 	ppc_cpu_set_pc_function set_pc;
 	ppc_cpu_run_single_function run_single;
@@ -194,7 +195,7 @@ static void load_dummy_implementation()
 {
 	write_log(_T("PPC: Loading dummy implementation\n"));
 	memset(&impl, 0, sizeof(impl));
-	impl.free = dummy_ppc_cpu_free;
+	impl.close = dummy_ppc_cpu_close;
 	impl.stop = dummy_ppc_cpu_stop;
 	impl.atomic_raise_ext_exception = dummy_ppc_cpu_atomic_raise_ext_exception;
 	impl.atomic_cancel_ext_exception = dummy_ppc_cpu_atomic_cancel_ext_exception;
@@ -295,7 +296,7 @@ static bool load_pearpc_implementation()
 	memset(&impl, 0, sizeof(impl));
 
 	impl.init_pvr = ppc_cpu_init;
-	impl.free = ppc_cpu_free;
+	impl.close = ppc_cpu_close;
 	impl.stop = ppc_cpu_stop;
 	impl.atomic_raise_ext_exception = ppc_cpu_atomic_raise_ext_exception;
 	impl.atomic_cancel_ext_exception = ppc_cpu_atomic_cancel_ext_exception;
@@ -387,6 +388,17 @@ static void map_banks(void)
 
 static void set_and_wait_for_state(int state, int unlock)
 {
+	if (state == PPC_CPU_STATE_PAUSED) {
+		if (ppc_paused)
+			return;
+		ppc_paused = true;
+	} else if (state == PPC_CPU_STATE_RUNNING) {
+		if (!ppc_paused)
+			return;
+		ppc_paused = false;
+	} else {
+		return;
+	}
 	if (using_qemu()) {
 		impl.set_state(state);
 		if (unlock)
@@ -560,13 +572,6 @@ bool UAECALL uae_ppc_io_mem_write(uint32_t addr, uint32_t data, int size)
 #endif
 
 	locked = spinlock_pre(addr);
-	if (addr >= 0xdff000 && addr < 0xe00000) {
-		// shortcuts for common registers
-		if (addr == 0xdff09c) { // INTREQ
-			INTREQ_0(data);
-			size = 0;
-		}
-	}
 	switch (size)
 	{
 	case 4:
@@ -724,7 +729,7 @@ void uae_ppc_reset(bool hardreset)
 		uae_ppc_cpu_stop();
 		if (hardreset) {
 			if (ppc_init_done)
-				impl.free();
+				impl.close();
 			ppc_init_done = false;
 		}
 	}
