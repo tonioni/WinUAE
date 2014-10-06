@@ -31,9 +31,9 @@ extern jmp_buf __exbuf;
 extern int     __exvalue;
 #define TRY(DUMMY)       __exvalue=setjmp(__exbuf);       \
                   if (__exvalue==0) { __pushtry(&__exbuf);
-#define CATCH(x)  __poptry(); } else { fprintf(stderr,"Gotcha! %d %s in %d\n",__exvalue,__FILE__,__LINE__);
+#define CATCH(x)  __poptry(); } else {m68k_exception x=__exvalue; 
 #define ENDTRY    __poptry();}
-#define THROW(x) if (__is_catched()) {fprintf(stderr,"Longjumping %s in %d\n",__FILE__,__LINE__);longjmp(__exbuf,x);}
+#define THROW(x) if (__is_catched()) {longjmp(__exbuf,x);}
 #define THROW_AGAIN(var) if (__is_catched()) longjmp(*__poptry(),__exvalue)
 #define SAVE_EXCEPTION
 #define RESTORE_EXCEPTION

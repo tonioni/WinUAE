@@ -463,8 +463,6 @@ bool check_prefs_changed_comp (void)
 		alloc_cache();
 		changed = 1;
 	}
-	if (!candirect)
-		canbang = 0;
 
 	// Turn off illegal-mem logging when using JIT...
 	if(currprefs.cachesize)

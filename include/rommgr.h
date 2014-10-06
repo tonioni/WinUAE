@@ -84,7 +84,7 @@ extern struct romdata *getarcadiarombyname (const TCHAR *name);
 extern struct romlist **getromlistbyident (int ver, int rev, int subver, int subrev, const TCHAR *model, int romflags, bool all);
 extern void getromname (const struct romdata*, TCHAR*);
 extern struct romdata *getromdatabyname (const TCHAR*);
-extern struct romlist *getromlistbyids (const int *ids);
+extern struct romlist *getromlistbyids (const int *ids, const TCHAR *romname);
 extern struct romdata *getromdatabyids (const int *ids);
 extern void romwarning(const int *ids);
 extern struct romlist *getromlistbyromdata (const struct romdata *rd);

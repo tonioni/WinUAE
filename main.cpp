@@ -309,7 +309,7 @@ void fixup_cpu (struct uae_prefs *p)
 	if (p->cpu_cycle_exact)
 		p->cpu_compatible = true;
 
-	if (cpuboard_blizzardram(p) && !p->comptrustbyte) {
+	if (cpuboard_memorytype(p) == BOARD_MEMORY_BLIZZARD && !p->comptrustbyte) {
 		error_log(_T("JIT direct is not compatible with emulated Blizzard accelerator boards."));
 		p->comptrustbyte = 1;
 		p->comptrustlong = 1;
@@ -332,8 +332,10 @@ void fixup_prefs (struct uae_prefs *p)
 	built_in_chipset_prefs (p);
 	fixup_cpu (p);
 
-	if (cpuboard_08000000(p))
+	if (cpuboard_memorytype(p) == BOARD_MEMORY_HIGHMEM)
 		p->mbresmem_high_size = p->cpuboardmem1_size;
+	else if (cpuboard_memorytype(p) == BOARD_MEMORY_Z2)
+		p->fastmem_size = p->cpuboardmem1_size;
 
 	if (((p->chipmem_size & (p->chipmem_size - 1)) != 0 && p->chipmem_size != 0x180000)
 		|| p->chipmem_size < 0x20000
@@ -952,10 +954,6 @@ void do_start_program (void)
 {
 	if (quit_program == -UAE_QUIT)
 		return;
-	if (!canbang && candirect < 0)
-		candirect = 0;
-	if (canbang && candirect < 0)
-		candirect = 1;
 	/* Do a reset on startup. Whether this is elegant is debatable. */
 	inputdevice_updateconfig (&changed_prefs, &currprefs);
 	if (quit_program >= 0)
@@ -1030,6 +1028,10 @@ void do_leave_program (void)
 #ifdef WITH_LUA
 	uae_lua_free ();
 #endif
+#ifdef WITH_PPC
+	uae_ppc_free();
+#endif
+	gfxboard_free();
 	savestate_free ();
 	memory_cleanup ();
 	free_shm ();

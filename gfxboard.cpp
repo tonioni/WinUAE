@@ -1536,12 +1536,8 @@ static void REGPARAM2 gfxboard_bput_regs_autoconfig (uaecptr addr, uae_u32 b)
 	}
 }
 
-void gfxboard_reset (void)
+void gfxboard_free(void)
 {
-	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE) {
-		board = &boards[currprefs.rtgmem_type - GFXBOARD_HARDWARE];
-		gfxmem_bank.mask = currprefs.rtgmem_size - 1;
-	}
 	if (vram) {
 		gfxmem_bank.baseaddr = vramrealstart;
 		mapped_free (&gfxmem_bank);
@@ -1560,6 +1556,15 @@ void gfxboard_reset (void)
 	gfxboard_vblank = false;
 	gfxboard_intena = false;
 	picassoiv_bank = 0;
+}
+
+void gfxboard_reset (void)
+{
+	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE) {
+		board = &boards[currprefs.rtgmem_type - GFXBOARD_HARDWARE];
+		gfxmem_bank.mask = currprefs.rtgmem_size - 1;
+	}
+	gfxboard_free();
 	if (board) {
 		if (board->z3)
 			gfxboard_bank_memory.wput = gfxboard_wput_mem_autoconfig;
@@ -1754,7 +1759,12 @@ static uae_u32 REGPARAM2 gfxboards_bget_regs (uaecptr addr)
 	if (picassoiv_bank & PICASSOIV_BANK_UNMAPFLASH) {
 		v = 0;
 		if (addr == 0x404) {
-			v = 0x7c; // FLIFI revision
+			v = 0x70; // FLIFI revision
+			// FLIFI type in use
+			if (currprefs.chipset_mask & CSMASK_AGA)
+				v |= 4 | 8;
+			else
+				v |= 8;
 		} else if (addr == 0x408) {
 			v = gfxboard_vblank ? 0x80 : 0;
 		} else if (p4z2 && addr >= 0x10000) {
@@ -2107,7 +2117,7 @@ addrbank *gfxboard_init_memory (void)
 
 	if (ISP4()) {
 		int roms[] = { 91, -1 };
-		struct romlist *rl = getromlistbyids (roms);
+		struct romlist *rl = getromlistbyids (roms, NULL);
 		TCHAR path[MAX_DPATH];
 		fetch_rompath (path, sizeof path / sizeof (TCHAR));
 

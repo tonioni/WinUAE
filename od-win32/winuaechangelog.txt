@@ -18,6 +18,19 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 19:
+
+- Restartarting and loading another config crashed if PPC or RTG without JIT direct was active.
+- After restarting non-JIT config, JIT direct was not available (old restriction that should have been gone
+  few official releases ago)
+- Added A2620/A2630 emulation and two rom images to rom scanner. (390282-06/390283-06 and 390282-07/390283-07)
+  Not JIT direct compatible. 68000 fall back mode causes HALT4 status. ROM special feature: right mouse button
+  at boot = enter boot menu, in boot menu shift+m and right mouse button: enter rom monitor.
+- A590/A2091 word writes to DMAC WD SCSI byte registers and Z2 autoconfig registers supported. A2630 boot
+  rom likes to do word writes to byte-size registers.
+- PicassoIV AGA flifi bit was set even when using non-AGA hardware. No functional changes.
+- Fixed RTG hardware emulation crash in some situations when switching (fullscreen) modes.
+
 Beta 18:
 
 - "Pause emulation when xyz" option remained forever stuck in pause mode if PPC CPU was active.

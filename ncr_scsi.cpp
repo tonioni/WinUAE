@@ -802,7 +802,7 @@ addrbank *ncr710_warpengine_autoconfig_init(void)
 	ncr->io_start = WARP_ENGINE_IO_OFFSET;
 	ncr->io_end = WARP_ENGINE_IO_END;
 
-	struct romlist *rl = getromlistbyids(roms);
+	struct romlist *rl = getromlistbyids(roms, NULL);
 	if (rl) {
 		struct romdata *rd = rl->rd;
 		z = read_rom (rd);
@@ -836,6 +836,7 @@ addrbank *ncr710_a4091_autoconfig_init (int devnum)
 {
 	struct ncr_state *ncr = ncra4091[devnum];
 	int roms[3];
+	const TCHAR *romname;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
@@ -858,9 +859,10 @@ addrbank *ncr710_a4091_autoconfig_init (int devnum)
 	ncr710_init ();
 	ncr710_reset_board(ncr);
 
-	struct zfile *z = read_rom_name (devnum && currprefs.a4091rom.roms[1].romfile[0] ? currprefs.a4091rom.roms[1].romfile : currprefs.a4091rom.roms[0].romfile);
+	romname = devnum && currprefs.a4091rom.roms[1].romfile[0] ? currprefs.a4091rom.roms[1].romfile : currprefs.a4091rom.roms[0].romfile;
+	struct zfile *z = read_rom_name (romname);
 	if (!z) {
-		struct romlist *rl = getromlistbyids(roms);
+		struct romlist *rl = getromlistbyids(roms, romname);
 		if (rl) {
 			struct romdata *rd = rl->rd;
 			z = read_rom (rd);

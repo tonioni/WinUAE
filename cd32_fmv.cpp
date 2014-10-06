@@ -1505,7 +1505,7 @@ addrbank *cd32_fmv_init (uaecptr start)
 	if (!z) {
 		int ids[] = { 74, 23, -1 };
 		struct romdata *rd;
-		struct romlist *rl = getromlistbyids (ids);
+		struct romlist *rl = getromlistbyids (ids, NULL);
 		if (rl) {
 			rd = rl->rd;
 			write_log (_T("CD32 FMV ROM %d.%d\n"), rd->ver, rd->rev);

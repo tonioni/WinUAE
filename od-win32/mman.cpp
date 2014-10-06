@@ -29,7 +29,6 @@ uae_u8 *natmem_offset_allocated, *natmem_offset, *natmem_offset_end;
 static uae_u8 *p96mem_offset;
 static int p96mem_size;
 static uae_u32 p96base_offset;
-static void *rtgmem_mapped_memory;
 static SYSTEM_INFO si;
 int maxmem;
 uae_u32 natmem_size;
@@ -299,6 +298,8 @@ static int doinit_shm (void)
 	int rounds = 0;
 	ULONG z3rtgmem_size;
 
+	canbang = 1;
+	natmem_offset = natmem_offset_allocated;
 	for (;;) {
 		int lowround = 0;
 		uae_u8 *blah = NULL;
@@ -345,7 +346,7 @@ static int doinit_shm (void)
 
 	set_expamem_z3_hack_override(false);
 	z3offset = 0;
-	if ((changed_prefs.z3autoconfig_start == 0x10000000 || changed_prefs.z3autoconfig_start == 0x40000000) && !changed_prefs.force_0x10000000_z3 && !cpuboard_blizzardram(&changed_prefs)) {
+	if ((changed_prefs.z3autoconfig_start == 0x10000000 || changed_prefs.z3autoconfig_start == 0x40000000) && !changed_prefs.force_0x10000000_z3 && cpuboard_memorytype(&changed_prefs) != BOARD_MEMORY_BLIZZARD) {
 		if (1 && natmem_size > 0x40000000 && natmem_size - 0x40000000 >= (totalsize - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align)) && changed_prefs.z3chipmem_size <= 512 * 1024 * 1024) {
 			changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = 0x40000000;
 			z3offset += 0x40000000 - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align);
@@ -456,16 +457,8 @@ void mapped_free (addrbank *ab)
 	if (ab->baseaddr == NULL)
 		return;
 
-	if (!currprefs.jit_direct_compatible_memory && !rtgmem) {
-		if (!(ab->flags & ABFLAG_NOALLOC)) {
-			xfree(ab->baseaddr);
-			ab->baseaddr = NULL;
-		}
-		return;
-	}
-
-	if (ab->baseaddr == rtgmem_mapped_memory)
-		rtgmem_mapped_memory = NULL;
+	if (rtgmem)
+		write_log(_T("x"));
 
 	if (ab->flags & ABFLAG_INDIRECT) {
 		while(x) {
@@ -485,6 +478,17 @@ void mapped_free (addrbank *ab)
 			x = x->next;
 		}
 		ab->baseaddr = NULL;
+		ab->flags &= ~ABFLAG_DIRECTMAP;
+		write_log(_T("mapped_free indirect %s\n"), ab->name);
+		return;
+	}
+
+	if (!(ab->flags & ABFLAG_DIRECTMAP)) {
+		if (!(ab->flags & ABFLAG_NOALLOC)) {
+			xfree(ab->baseaddr);
+			ab->baseaddr = NULL;
+		}
+		write_log(_T("mapped_free nondirect %s\n"), ab->name);
 		return;
 	}
 
@@ -503,6 +507,7 @@ void mapped_free (addrbank *ab)
 		x = x->next;
 	}
 	ab->baseaddr = NULL;
+	write_log(_T("mapped_free direct %s\n"), ab->name);
 }
 
 static key_t get_next_shmkey (void)
@@ -627,7 +632,6 @@ void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 			p96special = TRUE;
 			shmaddr = natmem_offset + start;
 			gfxmem_bank.start = start;
-			rtgmem_mapped_memory = shmaddr;
 			if (start + currprefs.rtgmem_size < 10 * 1024 * 1024)
 				size += BARRIER;
 		} else if(!_tcscmp (shmids[shmid].name, _T("ramsey_low"))) {
@@ -665,7 +669,6 @@ void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 			p96special = TRUE;
 			gfxmem_bank.start = p96mem_offset - natmem_offset;
 			shmaddr = natmem_offset + gfxmem_bank.start;
-			rtgmem_mapped_memory = shmaddr;
 			size += BARRIER;
 		} else if(!_tcscmp (shmids[shmid].name, _T("bogo"))) {
 			shmaddr=natmem_offset+0x00C00000;
@@ -745,14 +748,14 @@ void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 		result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, PAGE_READWRITE);
 		if (result == NULL) {
 			result = (void*)-1;
-			error_log (_T("Memory %s failed to allocate: VA %08X - %08X %x (%dk). Error %d."),
-				shmids[shmid].name,
+			error_log (_T("Memory %s failed to allocate %p: VA %08X - %08X %x (%dk). Error %d."),
+				shmids[shmid].name, shmaddr, 
 				(uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
 				size, size >> 10, GetLastError ());
 		} else {
 			shmids[shmid].attached = result;
-			write_log (_T("VA %08X - %08X %x (%dk) ok (%08X)%s\n"),
-				(uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
+			write_log (_T("%p: VA %08X - %08X %x (%dk) ok (%08X)%s\n"),
+				shmaddr, (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
 				size, size >> 10, shmaddr, p96special ? _T(" P96") : _T(""));
 		}
 	}
@@ -773,7 +776,7 @@ void unprotect_maprom (void)
 			continue;
 		shm->maprom = -1;
 		if (!VirtualProtect (shm->attached, shm->rosize, protect ? PAGE_READONLY : PAGE_READWRITE, &old)) {
-			write_log (_T("VP %08X - %08X %x (%dk) failed %d\n"),
+			write_log (_T("unprotect_maprom VP %08X - %08X %x (%dk) failed %d\n"),
 				(uae_u8*)shm->attached - natmem_offset, (uae_u8*)shm->attached - natmem_offset + shm->size,
 				shm->size, shm->size >> 10, GetLastError ());
 		}
@@ -797,7 +800,7 @@ void protect_roms (bool protect)
 		if (shm->maprom < 0 && protect)
 			continue;
 		if (!VirtualProtect (shm->attached, shm->rosize, protect ? PAGE_READONLY : PAGE_READWRITE, &old)) {
-			write_log (_T("VP %08X - %08X %x (%dk) failed %d\n"),
+			write_log (_T("protect_roms VP %08X - %08X %x (%dk) failed %d\n"),
 				(uae_u8*)shm->attached - natmem_offset, (uae_u8*)shm->attached - natmem_offset + shm->size,
 				shm->size, shm->size >> 10, GetLastError ());
 		}

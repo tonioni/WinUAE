@@ -1653,6 +1653,7 @@ static void show_rom_list (void)
 		18, -1, 19, -1, 74, 23, -1, -1,  // CD32 FMV
 		91, -1, -2, // Picasso IV
 
+		105, 106, -1, -1, // A2630
 		89, -1, -1, // 1230-IV
 		89, -1, 94, -1, -1, // 1230-IV SCSI
 		90, -1, -1, // 1260
@@ -1684,6 +1685,7 @@ static void show_rom_list (void)
 		_T("CD32 Full Motion Video\0")
 		_T("Picasso IV\0")
 
+		_T("A2620/A2630\0")
 		_T("Blizzard 1230-IV\0Blizzard 1260\0")
 		_T("Blizzard 1230-IV/SCSI\0Blizzard 1260/SCSI\0")
 		_T("Blizzard 2060\0Warp Engine\0TekMagic 2040/2060\0")
@@ -7397,8 +7399,10 @@ static void enable_for_memorydlg (HWND hDlg)
 	int z3 = true;
 	int mbram2 = z3;
 
-	if (cpuboard_08000000(&workprefs))
+	if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_HIGHMEM)
 		mbram2 = false;
+	if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_Z2)
+		fast = false;
 
 #ifndef AUTOCONFIG
 	z3 = FALSE;
@@ -7481,6 +7485,12 @@ static void values_to_memorydlg (HWND hDlg)
 	}
 	SendDlgItemMessage (hDlg, IDC_CHIPMEM, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText (hDlg, IDC_CHIPRAM, memsize_names[msi_chip[mem_size]]);
+
+	if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_Z2) {
+		if (workprefs.cpuboardmem1_size > 8 * 1024 * 1024)
+			workprefs.cpuboardmem1_size = 8 * 1024 * 1024;
+		workprefs.fastmem_size = workprefs.cpuboardmem1_size;
+	}
 
 	mem_size = 0;
 	switch (workprefs.fastmem_size) {
@@ -7715,7 +7725,7 @@ static void values_to_memorydlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText (hDlg, IDC_MBRAM1, memsize_names[msi_gfx[mem_size]]);
 
-	if (cpuboard_08000000(&workprefs))
+	if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_HIGHMEM)
 		workprefs.mbresmem_high_size = workprefs.cpuboardmem1_size;
 
 	mem_size = 0;
@@ -8240,6 +8250,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard PPC"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Warp Engine"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Tek Magic"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("A2620/A2630"));
 
 	case WM_USER:
 		workprefs.fastmem_autoconfig = ischecked (hDlg, IDC_FASTMEMAUTOCONFIG);
@@ -9355,7 +9366,7 @@ static void values_from_cpudlg (HWND hDlg)
 	}
 	if (!workprefs.cachesize)
 		setchecked (hDlg, IDC_JITENABLE, false);
-	if (oldcache == 0 && candirect && workprefs.cachesize > 0)
+	if (oldcache == 0 && workprefs.cachesize > 0)
 		canbang = 1;
 #endif
 	if (ischecked(hDlg, IDC_CPU_PPC)) {

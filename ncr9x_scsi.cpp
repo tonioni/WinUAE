@@ -896,6 +896,7 @@ addrbank *ncr_fastlane_autoconfig_init(int devnum)
 {
 	int roms[2];
 	struct ncr9x_state *ncr = &ncr_fastlane_scsi[devnum];
+	const TCHAR *romname;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
@@ -917,9 +918,10 @@ addrbank *ncr_fastlane_autoconfig_init(int devnum)
 	ncr9x_init ();
 	ncr9x_reset_board(ncr);
 
-	struct zfile *z = read_rom_name (devnum && currprefs.fastlanerom.roms[1].romfile[0] ? currprefs.fastlanerom.roms[1].romfile : currprefs.fastlanerom.roms[0].romfile);
+	romname = devnum && currprefs.fastlanerom.roms[1].romfile[0] ? currprefs.fastlanerom.roms[1].romfile : currprefs.fastlanerom.roms[0].romfile;
+	struct zfile *z = read_rom_name (romname);
 	if (!z) {
-		struct romlist *rl = getromlistbyids(roms);
+		struct romlist *rl = getromlistbyids(roms, romname);
 		if (rl) {
 			struct romdata *rd = rl->rd;
 			z = read_rom (rd);
@@ -964,6 +966,7 @@ addrbank *ncr_oktagon_autoconfig_init(int devnum)
 {
 	int roms[2];
 	struct ncr9x_state *ncr = &ncr_oktagon2008_scsi[devnum];
+	const TCHAR *romname;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
@@ -992,9 +995,10 @@ addrbank *ncr_oktagon_autoconfig_init(int devnum)
 	ncr9x_init ();
 	ncr9x_reset_board(ncr);
 
-	struct zfile *z = read_rom_name (devnum && currprefs.oktagonrom.roms[1].romfile[0] ? currprefs.oktagonrom.roms[1].romfile : currprefs.oktagonrom.roms[0].romfile);
+	romname = devnum && currprefs.oktagonrom.roms[1].romfile[0] ? currprefs.oktagonrom.roms[1].romfile : currprefs.oktagonrom.roms[0].romfile;
+	struct zfile *z = read_rom_name (romname);
 	if (!z) {
-		struct romlist *rl = getromlistbyids(roms);
+		struct romlist *rl = getromlistbyids(roms, romname);
 		if (rl) {
 			struct romdata *rd = rl->rd;
 			z = read_rom (rd);

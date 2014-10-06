@@ -38,7 +38,6 @@
 #include "uae/ppc.h"
 
 bool canbang;
-int candirect = -1;
 static bool rom_write_enabled;
 #ifdef JIT
 /* Set by each memory handler that does not simply access real memory. */
@@ -1732,6 +1731,8 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
 	shm_start = y;
 }
 
+#define MAPPED_MALLOC_DEBUG 1
+
 bool mapped_malloc (addrbank *ab)
 {
 	int id;
@@ -1743,9 +1744,17 @@ bool mapped_malloc (addrbank *ab)
 	ab->startmask = ab->start;
 	if (!needmman () && (!rtgmem || currprefs.cpu_model < 68020)) {
 		nocanbang ();
-		if (ab->flags & ABFLAG_NOALLOC)
+		ab->flags &= ~ABFLAG_DIRECTMAP;
+		if (ab->flags & ABFLAG_NOALLOC) {
+#if MAPPED_MALLOC_DEBUG
+			write_log(_T("mapped_malloc noalloc %s\n"), ab->name);
+#endif
 			return true;
+		}
 		ab->baseaddr = xcalloc (uae_u8, ab->allocated + 4);
+#if MAPPED_MALLOC_DEBUG
+		write_log(_T("mapped_malloc nodirect %s %p\n"), ab->name, ab->baseaddr);
+#endif
 		return ab->baseaddr != NULL;
 	}
 
@@ -1777,6 +1786,10 @@ bool mapped_malloc (addrbank *ab)
 			x->next->prev = x;
 		shm_start = x;
 		ab->baseaddr = x->native_address;
+		ab->flags |= ABFLAG_DIRECTMAP;
+#if MAPPED_MALLOC_DEBUG
+		write_log(_T("mapped_malloc direct %s %p\n"), ab->name, ab->baseaddr);
+#endif
 		return ab->baseaddr != NULL;
 	}
 	if (recurse)
@@ -1785,6 +1798,9 @@ bool mapped_malloc (addrbank *ab)
 	recurse++;
 	mapped_malloc (ab);
 	recurse--;
+#if MAPPED_MALLOC_DEBUG
+	write_log(_T("mapped_malloc indirect %s %p\n"), ab->name, ab->baseaddr);
+#endif
 	return ab->baseaddr != NULL;
 }
 
@@ -2088,6 +2104,7 @@ void map_overlay (int chip)
 		map_banks (rb, 0, size, 0x80000);
 	}
 	fill_ce_banks ();
+	cpuboard_overlay_override();
 	if (!isrestore () && valid_address (regs.pc, 4))
 		m68k_setpc_normal (m68k_getpc ());
 }

@@ -200,7 +200,7 @@ bool expamem_z3hack(struct uae_prefs *p)
 	if (regs.halted && ppc_state)
 		return false;
 #endif
-	return p->jit_direct_compatible_memory || cpuboard_blizzardram(p);
+	return p->jit_direct_compatible_memory || cpuboard_memorytype(p) == BOARD_MEMORY_BLIZZARD;
 }
 
 /* Ugly hack for >2M chip RAM in single pool
@@ -466,6 +466,10 @@ static uae_u32 REGPARAM2 expamem_wget (uaecptr addr)
 {
 	if (expamem_bank_current && expamem_bank_current != &expamem_bank)
 		return expamem_bank_current->wget(addr);
+	if (expamem_type() != zorroIII) {
+		if (expamem_bank_current && expamem_bank_current != &expamem_bank)
+			return expamem_bank_current->bget(addr) << 8;
+	}
 	uae_u32 v = (expamem_bget (addr) << 8) | expamem_bget (addr + 1);
 	write_log (_T("warning: READ.W from address $%08x=%04x PC=%x\n"), addr, v & 0xffff, M68K_GETPC);
 	return v;
@@ -527,39 +531,61 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 	special_mem |= S_WRITE;
 #endif
 	value &= 0xffff;
+	if ((addr & 0xff) == 0x40) {
+		if (currprefs.cpuboard_type == BOARD_A2630) {
+			/* ARGH! Word write to E80040 always goes to A2630 special IO address! */
+			cpuboard_io_special_write(addr, value);
+			return;
+		}
+	}
 	if (ecard >= cardno)
 		return;
 	if (expamem_type () != zorroIII) {
-		write_log (_T("warning: WRITE.W to address $%08x : value $%x\n"), addr, value);
-	} else {
-		switch (addr & 0xff) {
-		case 0x44:
-			if (expamem_type() == zorroIII) {
-				uaecptr addr;
-				expamem_hi = value & 0xff00;
-				addr = (expamem_hi | (expamem_lo >> 4)) << 16;;
-				if (!expamem_z3hack(&currprefs)) {
-					expamem_z3_pointer = addr;
-				} else {
-					if (addr != expamem_z3_pointer) {
-						put_word (regs.regs[11] + 0x20, expamem_z3_pointer >> 16);
-						put_word (regs.regs[11] + 0x28, expamem_z3_pointer >> 16);
-					}
-				}
-				expamem_board_pointer = expamem_z3_pointer;
-			}
+		write_log (_T("warning: WRITE.W to address $%08x : value $%x PC=%08x\n"), addr, value, M68K_GETPC);
+	}
+	switch (addr & 0xff) {
+	case 0x48:
+		// A2630 boot rom writes WORDs to Z2 boards!
+		if (expamem_type() == zorroII) {
+			expamem_hi = (value >> 8) & 0xff;
+			expamem_z2_pointer = (expamem_hi | (expamem_lo >> 4)) << 16; 
+			expamem_board_pointer = expamem_z2_pointer;
 			if (card_map[ecard]) {
-				expamem_next((*card_map[ecard])(), NULL);
+				expamem_next((*card_map[ecard]) (), NULL);
 				return;
 			}
-			break;
-		case 0x4c:
-			if (card_map[ecard]) {
-				expamem_next (NULL, NULL);
+			if (expamem_bank_current && expamem_bank_current != &expamem_bank) {
+				expamem_bank_current->bput(addr, value >> 8);
 				return;
 			}
-			break;
 		}
+		break;
+	case 0x44:
+		if (expamem_type() == zorroIII) {
+			uaecptr addr;
+			expamem_hi = value & 0xff00;
+			addr = (expamem_hi | (expamem_lo >> 4)) << 16;;
+			if (!expamem_z3hack(&currprefs)) {
+				expamem_z3_pointer = addr;
+			} else {
+				if (addr != expamem_z3_pointer) {
+					put_word (regs.regs[11] + 0x20, expamem_z3_pointer >> 16);
+					put_word (regs.regs[11] + 0x28, expamem_z3_pointer >> 16);
+				}
+			}
+			expamem_board_pointer = expamem_z3_pointer;
+		}
+		if (card_map[ecard]) {
+			expamem_next((*card_map[ecard])(), NULL);
+			return;
+		}
+		break;
+	case 0x4c:
+		if (card_map[ecard]) {
+			expamem_next (NULL, NULL);
+			return;
+		}
+		break;
 	}
 	if (expamem_bank_current && expamem_bank_current != &expamem_bank)
 		expamem_bank_current->wput(addr, value);
@@ -696,7 +722,7 @@ static addrbank *expamem_map_cd32fmv (void)
 static addrbank *expamem_init_cd32fmv (void)
 {
 	int ids[] = { 23, -1 };
-	struct romlist *rl = getromlistbyids (ids);
+	struct romlist *rl = getromlistbyids (ids, NULL);
 	struct romdata *rd;
 	struct zfile *z;
 
@@ -1014,10 +1040,12 @@ static addrbank *expamem_map_fastcard_2 (int boardnum)
 	return ab;
 }
 
+static const uae_u8 a2630_autoconfig[] = { 0xe7, 0x51, 0x40, 0x00, 0x02, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
 static addrbank *expamem_init_fastcard_2 (int boardnum)
 {
-	uae_u16 mid = (cfgfile_board_enabled(&currprefs.a2091rom) || currprefs.uae_hide) ? commodore : uae_id;
-	uae_u8 pid = (cfgfile_board_enabled(&currprefs.a2091rom) || currprefs.uae_hide) ? commodore_a2091_ram : (currprefs.maprom && !currprefs.cpuboard_type ? 1 : 81);
+	uae_u16 mid;
+	uae_u8 pid;
 	uae_u8 type = add_memory | zorroII | (cfgfile_board_enabled(&currprefs.a2091rom) && !boardnum ? chainedconfig : 0);
 	int allocated = boardnum ? fastmem2_bank.allocated : fastmem_bank.allocated;
 
@@ -1038,6 +1066,21 @@ static addrbank *expamem_init_fastcard_2 (int boardnum)
 		type |= Z2_MEM_4MB;
 	else if (allocated == 0x800000)
 		type |= Z2_MEM_8MB;
+
+	if (currprefs.cpuboard_type == BOARD_A2630) {
+		for (int i = 1; i < 16; i++)
+			expamem_write(i * 4, a2630_autoconfig[i]);
+		type &= 7;
+		type |= a2630_autoconfig[0] & ~7;
+		expamem_write(0, type);
+		return NULL;
+	} else if (cfgfile_board_enabled(&currprefs.a2091rom) || currprefs.uae_hide) {
+		pid = commodore_a2091_ram;
+		mid = commodore;
+	} else {
+		pid = currprefs.maprom && !currprefs.cpuboard_type ? 1 : 81;
+		mid = uae_id;
+	}
 
 	expamem_write (0x00, type);
 

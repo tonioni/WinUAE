@@ -93,7 +93,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 105
+#define NEXT_ROM_ID 107
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -312,6 +312,14 @@ static struct romdata roms[] = {
 	0x9e9781d5, 0xf65b60d1,0x4300c50f,0x2ed17cf4,0x4dcfdef9,0x16697bc9, NULL,  _T("tekmagic2060.rom") },
 	ALTROMPN(104, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x888da4cf, 0x6ae85f3a, 0x65331ba4, 0xaaba67ae, 0x34763d70, 0x2bde0495)
 	ALTROMPN(104, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xaf1f47db, 0x28d5bed0, 0xbc517d46, 0x500e8159, 0x723e0b64, 0x4733c26a)
+	{ _T("A2620/A2630 -07 ROM"), 0, 0, 0, 0, _T("A2620\0A2630\0"), 65536, 105, 0, 0, ROMTYPE_CPUBOARD, 0, 0, _T("390282-07/390283-07"),
+	0x169d80e9, 0x41f518cb,0x41c1dc1f,0xcc6363832,0x0676af5,0x4969010c, NULL, NULL },
+	ALTROMPN(105, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390282-07"), 0xf2904058, 0x33695119, 0x5fdf5d56, 0x095a696b, 0x0ba2641d, 0x334845df)
+	ALTROMPN(105, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("390283-07"), 0xf697d458, 0x09fe260b, 0x03784e87, 0x3351dbec, 0x5146a455, 0x814383d1)
+	{ _T("A2620/A2630 -06 ROM"), 0, 0, 0, 0, _T("A2620\0A2630\0"), 65536, 106, 0, 0, ROMTYPE_CPUBOARD, 0, 0, _T("390282-06/390283-06"),
+	0xeb31fd9e, 0x2d6a5c68,0x1040f98d,0x7e63ad089,0x0da9e83,0x2b5c704d, NULL, NULL },
+	ALTROMPN(106, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390282-06"), 0xd6ae582c, 0x47b3dea3, 0x31db76e6, 0x1380a3d6, 0x9f191657, 0xdd1cd4b3)
+	ALTROMPN(106, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("390283-06"), 0xcd379634, 0x65e251e2, 0xf6961c8e, 0x33a86c3d, 0x01248f70, 0xa159823b)
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },
@@ -1028,14 +1036,29 @@ struct romlist *getromlistbyromdata (const struct romdata *rd)
 
 	ids[0] = rd->id;
 	ids[1] = 0;
-	return getromlistbyids(ids);
+	return getromlistbyids(ids, NULL);
 }
 
-struct romlist *getromlistbyids (const int *ids)
+struct romlist *getromlistbyids (const int *ids, const TCHAR *romname)
 {
 	struct romdata *rd;
 	int i, j;
 
+	i = 0;
+	if (romname) {
+		while (ids[i] >= 0) {
+			rd = getromdatabyid (ids[i]);
+			if (rd) {
+				for (j = 0; j < romlist_cnt; j++) {
+					if (rl[j].rd->id == rd->id) {
+						if (my_issamepath(rl[j].path, romname))
+							return &rl[j];
+					}
+				}
+			}
+			i++;
+		}
+	}
 	i = 0;
 	while (ids[i] >= 0) {
 		rd = getromdatabyid (ids[i]);

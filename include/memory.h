@@ -26,7 +26,6 @@ bool init_shm (void);
 void free_shm (void);
 bool preinit_shm (void);
 extern bool canbang;
-extern int candirect;
 
 #ifdef ADDRESS_SPACE_24BIT
 #define MEMORY_BANKS 256
@@ -73,7 +72,7 @@ enum
 {
 	ABFLAG_UNK = 0, ABFLAG_RAM = 1, ABFLAG_ROM = 2, ABFLAG_ROMIN = 4, ABFLAG_IO = 8,
 	ABFLAG_NONE = 16, ABFLAG_SAFE = 32, ABFLAG_INDIRECT = 64, ABFLAG_NOALLOC = 128,
-	ABFLAG_RTG = 256, ABFLAG_THREADSAFE = 512
+	ABFLAG_RTG = 256, ABFLAG_THREADSAFE = 512, ABFLAG_DIRECTMAP = 1024
 };
 typedef struct {
 	/* These ones should be self-explanatory... */

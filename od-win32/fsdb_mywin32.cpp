@@ -785,11 +785,13 @@ void my_canonicalize_path(const TCHAR *path, TCHAR *out, int size)
 		return;
 	}
 	v = GetLongPathName (path, tmp, sizeof tmp / sizeof (TCHAR));
-	if (!v || v > sizeof tmp / sizeof (TCHAR)) {
+	if (v > sizeof tmp / sizeof (TCHAR)) {
 		_tcsncpy (out, path, size);
 		out[size - 1] = 0;
 		return;
 	}
+	if (!v)
+		_tcscpy(tmp, path);
 	GetFullPathName(tmp, size, out, NULL);
 }
 

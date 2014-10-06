@@ -8025,9 +8025,6 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	}
 
 	gayle_reset (hardreset);
-#ifdef AUTOCONFIG
-	expamem_reset ();
-#endif
 	a1000_reset ();
 	DISK_reset ();
 	CIA_reset ();
@@ -8047,6 +8044,9 @@ void custom_reset (bool hardreset, bool keyboardreset)
 #endif
 #ifdef JIT
 	compemu_reset ();
+#endif
+#ifdef AUTOCONFIG
+	expamem_reset ();
 #endif
 	unset_special (~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE));
 

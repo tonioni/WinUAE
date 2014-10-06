@@ -36,6 +36,7 @@ void uae_ppc_cpu_lock(void);
 bool uae_ppc_cpu_unlock(void);
 void uae_ppc_emulate(void);
 void uae_ppc_reset(bool hardreset);
+void uae_ppc_free(void);
 void uae_ppc_hsync_handler(void);
 void uae_ppc_wakeup(void);
 void ppc_map_banks(uae_u32, uae_u32, const TCHAR*, void*, bool);

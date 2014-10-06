@@ -1422,6 +1422,8 @@ static void vga_draw_text(VGACommonState *s, int full_update)
     vga_draw_glyph9 = vga_draw_glyph9_table[depth_index];
 
     dest = surface_data(surface);
+	if (!dest)
+		return;
     linesize = surface_stride(surface);
     ch_attr_ptr = s->last_ch_attr;
     line = 0;
@@ -1817,6 +1819,8 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     page_min = -1;
     page_max = 0;
     d = surface_data(surface);
+	if (!d)
+		return;
     linesize = surface_stride(surface);
     y1 = 0;
     for(y = 0; y < height; y++) {
@@ -1906,6 +1910,8 @@ static void vga_draw_blank(VGACommonState *s, int full_update)
     }
     w = s->last_scr_width * surface_bytes_per_pixel(surface);
     d = surface_data(surface);
+	if (!d)
+		return;
     for(i = 0; i < s->last_scr_height; i++) {
         memset(d, val, w);
         d += surface_stride(surface);

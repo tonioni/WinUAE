@@ -1398,6 +1398,12 @@ static uae_u32 dmac_read_word (struct wd_state *wd, uaecptr addr)
 		if (wd->old_dmac)
 			v = wd->dmac_wtc & 0xffff;
 		break;
+	case 0x90:
+		v = wdscsi_getauxstatus(wd);
+		break;
+	case 0x92:
+		v = wdscsi_get(wd);
+		break;
 	case 0xc0:
 		v = 0xf8 | (1 << 0) | (1 << 1) | (1 << 2); // bits 0-2 = dip-switches
 		break;
@@ -1511,6 +1517,11 @@ static void dmac_write_word (struct wd_state *wd, uaecptr addr, uae_u32 b)
 	case 0x8e:
 		wd->dmac_dawr = b;
 		break;
+	case 0x90:
+		wdscsi_sasr (wd, b);
+		break;
+	case 0x92:
+		wdscsi_put (wd, b);
 		break;
 	case 0xc2:
 	case 0xc4:
@@ -1837,6 +1848,14 @@ static void mbdmac_write_word (struct wd_state *wd, uae_u32 addr, uae_u32 val)
 	case 0x3e:
 		scsi_dmac_stop_dma (wd);
 		break;
+	case 0x40:
+	case 0x48:
+		wd->sasr = val;
+		break;
+	case 0x42:
+	case 0x46:
+		wdscsi_put(wd, val);
+		break;
 	}
 }
 
@@ -1850,8 +1869,6 @@ static void mbdmac_write_byte (struct wd_state *wd, uae_u32 addr, uae_u32 val)
 	{
 
 	case 0x41:
-		wd->sasr = val;
-		break;
 	case 0x49:
 		wd->sasr = val;
 		break;
@@ -1916,6 +1933,14 @@ static uae_u32 mbdmac_read_word (struct wd_state *wd, uae_u32 addr)
 			wd->dmac_istr |= ISTR_FE_FLG;
 		}
 		v = 0;
+		break;
+	case 0x40:
+	case 0x48:
+		v = wdscsi_getauxstatus(wd);
+		break;
+	case 0x42:
+	case 0x46:
+		v = wdscsi_get(wd);
 		break;
 	}
 #if A3000_DEBUG_IO > 1
@@ -2329,9 +2354,10 @@ addrbank *a2091_init (int devnum)
 	wd->rom_size = 16384;
 	wd->rom_mask = wd->rom_size - 1;
 	if (_tcscmp (currprefs.a2091rom.roms[0].romfile, _T(":NOROM"))) {
-		struct zfile *z = read_rom_name (devnum && currprefs.a2091rom.roms[1].romfile[0] ? currprefs.a2091rom.roms[1].romfile : currprefs.a2091rom.roms[0].romfile);
+		const TCHAR *romname = devnum && currprefs.a2091rom.roms[1].romfile[0] ? currprefs.a2091rom.roms[1].romfile : currprefs.a2091rom.roms[0].romfile;
+		struct zfile *z = read_rom_name (romname);
 		if (!z) {
-			rl = getromlistbyids (roms);
+			rl = getromlistbyids (roms, romname);
 			if (rl) {
 				z = read_rom (rl->rd);
 			}
