@@ -1644,6 +1644,7 @@ static void show_rom_list (void)
 		17, -1, -1, // A4000T
 		18, -1, 19, -1, -1, // CD32
 		20, 21, 22, -1, 6, 32, -1, -1, // CDTV
+		9, 10, -1, 107, -1, -1, // CDTV-CR
 		49, 50, 75, 51, 76, 77, -1, 5, 4, -1, -2, // ARCADIA
 
 		53, 54, 55, 56, -1, -1, // A590/A2091
@@ -1679,7 +1680,7 @@ static void show_rom_list (void)
 	};
 
 	p1 = _T("A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A4000\0A4000T\0")
-		_T("CD32\0CDTV\0Arcadia Multi Select\0")
+		_T("CD32\0CDTV\0CDTV-CR\0Arcadia Multi Select\0")
 
 		_T("A590/A2091 SCSI\0A4091 SCSI\0Fastlane\0Oktagon 2008\0")
 		_T("CD32 Full Motion Video\0")
@@ -5556,6 +5557,7 @@ static struct amigamodels amodels[] = {
 	{ 0, }, //{ 1, IDS_QS_MODEL_A4000T }, // "Amiga 4000T"
 	{ 3, IDS_QS_MODEL_CD32 }, // "CD32"
 	{ 4, IDS_QS_MODEL_CDTV }, // "CDTV"
+	{ 4, IDS_QS_MODEL_CDTVCR }, // "CDTVCR"
 	{ 4, IDS_QS_MODEL_ARCADIA }, // "Arcadia"
 	{ 1, IDS_QS_MODEL_UAE }, // "Expanded UAE example configuration"
 	{ -1 }
@@ -5574,7 +5576,7 @@ static void load_quickstart (HWND hDlg, int romcheck)
 	workprefs.nr_floppies = quickstart_floppy;
 	quickstart_ok = built_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
 	workprefs.ntscmode = quickstart_ntsc != 0;
-	quickstart_cd = workprefs.floppyslots[1].dfxtype == DRV_NONE && (quickstart_model == 8 || quickstart_model == 9);
+	quickstart_cd = workprefs.floppyslots[1].dfxtype == DRV_NONE && (quickstart_model == 8 || quickstart_model == 9 || quickstart_model == 10);
 	enable_for_quickstart (hDlg);
 	addfloppytype (hDlg, 0);
 	addfloppytype (hDlg, 1);
@@ -7105,6 +7107,7 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		WIN32GUI_LoadUIString(IDS_GENERIC, buffer, sizeof buffer / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)buffer);
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("CDTV"));
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("CDTV-CR"));
 		SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("CD32"));
 		SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("A500"));
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("A500+"));

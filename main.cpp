@@ -40,6 +40,7 @@
 #include "akiko.h"
 #include "cd32_fmv.h"
 #include "cdtv.h"
+#include "cdtvcr.h"
 #include "savestate.h"
 #include "filesys.h"
 #include "parallel.h"
@@ -992,7 +993,8 @@ void do_leave_program (void)
 	serial_exit ();
 #endif
 #ifdef CDTV
-	cdtv_free ();
+	cdtv_free();
+	cdtvcr_free();
 #endif
 #ifdef A2091
 	a2091_free ();
@@ -1093,6 +1095,9 @@ void virtualdevice_init (void)
 #endif
 #ifdef NCR9X
 	ncr9x_init();
+#endif
+#ifdef CDTV
+	cdtvcr_reset();
 #endif
 }
 

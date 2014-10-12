@@ -1826,7 +1826,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_QS_MODELS           "A500\nA500+\nA600\nA1000\nA1200\nA3000\nA4000\nCD32\nCDTV\nArcadia Multi Select system\nExpanded WinUAE example configuration"
+    IDS_QS_MODELS           "A500\nA500+\nA600\nA1000\nA1200\nA3000\nA4000\nCD32\nCDTV\nCDTV-CR\nArcadia Multi Select system\nExpanded WinUAE example configuration"
     IDS_QS_MODEL_A500       "1.3 ROM, OCS, 512 KB Chip + 512 KB Slow RAM (most common)\nThis configuration is capable of running most games and demos produced for first-generation hardware. Only few exceptions need a different configuration (e.g. the oldest games tend to be incompatible with this configuration).\n1.3 ROM, ECS Agnus, 512 KB Chip RAM + 512 KB Slow RAM\nLater hardware revision of the A500. Nearly 100% compatible with the previous configuration.\n1.3 ROM, ECS Agnus, 1 MB Chip RAM\nFew newer games and demos require this configuration.\n1.3 ROM, OCS Agnus, 512 KB Chip RAM\nVery old (e.g. pre-1988) games and demos may require this configuration.\n1.2 ROM, OCS Agnus, 512 KB Chip RAM\nAs available for the A1000, and installed on the first A500 and A2000 series. Some very old programs only work correctly with this configuration. Note: This system ROM version can only boot from floppy disk (no hard disk boot support).\n1.2 ROM, OCS Agnus, 512 KB Chip RAM + 512 KB Slow RAM\nThis configuration adds expansion memory to the first A500 produced. Try this if your game does not work with newer configurations, but works with the previous one. It could add some features to the game, including faster loading times. Note: This system ROM version can only boot from floppy disk (no hard disk boot support)."
     IDS_QS_MODEL_A500P      "Basic non-expanded configuration\nThe A500+ adds an ECS Agnus chip, 1 MB of Chip RAM and a 2.0 ROM to the A500. Many A500 games and demos don't work properly on an A500+.\n2 MB Chip RAM expanded configuration\n\n4 MB Fast RAM expanded configuration\n"
     IDS_QS_MODEL_A600       "Basic non-expanded configuration\nThe A600 is smaller than the A500+ and has an updated 2.0 ROM.\n2 MB Chip RAM expanded configuration\n\n4 MB Fast RAM expanded configuration\n"
@@ -1843,6 +1843,7 @@ BEGIN
     IDS_QS_MODEL_A3000      "1.4 ROM, 2MB Chip + 8MB Fast\n\n2.04 ROM, 2MB Chip + 8MB Fast\n\n3.1 ROM, 2MB Chip + 8MB Fast\n"
     IDS_QS_MODEL_A4000      "68030, 3.1 ROM, 2MB Chip + 8MB Fast\n\n68040, 3.1 ROM, 2MB Chip + 8MB Fast\n"
     IDS_QS_MODEL_A4000T     "A4000T (test)\nA4000T"
+    IDS_QS_MODEL_CDTVCR     "CDTV-CR\nCDTV-CR"
 END
 
 STRINGTABLE

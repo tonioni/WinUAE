@@ -328,6 +328,7 @@ extern addrbank gayle_bank;
 extern addrbank gayle2_bank;
 extern addrbank mbres_bank;
 extern addrbank akiko_bank;
+extern addrbank cdtvcr_bank;
 extern addrbank cardmem_bank;
 extern addrbank bogomem_bank;
 extern addrbank z3fastmem_bank;
@@ -412,6 +413,7 @@ extern void memory_hardreset (int);
 extern void memory_clear (void);
 extern void free_fastmemory (int);
 extern void set_roms_modified (void);
+extern void reload_roms(void);
 
 #define longget(addr) (call_mem_get_func(get_mem_bank(addr).lget, addr))
 #define wordget(addr) (call_mem_get_func(get_mem_bank(addr).wget, addr))
