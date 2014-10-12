@@ -793,6 +793,7 @@
     <ClCompile Include="..\..\aros.rom.cpp" />
     <ClCompile Include="..\..\calc.cpp" />
     <ClCompile Include="..\..\cd32_fmv_genlock.cpp" />
+    <ClCompile Include="..\..\cdtvcr.cpp" />
     <ClCompile Include="..\..\cpuboard.cpp" />
     <ClCompile Include="..\..\cpuemu_13.cpp" />
     <ClCompile Include="..\..\cpuemu_21.cpp" />

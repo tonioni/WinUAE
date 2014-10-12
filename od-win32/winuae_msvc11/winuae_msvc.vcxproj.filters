@@ -706,6 +706,9 @@
     <ClCompile Include="..\..\logging.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\cdtvcr.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

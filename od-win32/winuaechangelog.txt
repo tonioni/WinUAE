@@ -18,9 +18,19 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 20:
+
+- A2630 rom was not unmapped completely (only first half)
+- CSMK3/CSPPC/BPPC Amiga reset bit should stop the PPC before reseting the system to prevent random hangs.
+- CSMK3/CSPPC/BPPC switching off maprom programmatically (not hard reset) didn't restore original KS ROM.
+- Added preliminary CDTV-CR emulation. Boots to title screen, preferences screen also works. Only clock
+  and 4k (nonvolatile?) RAM emulated. No CD, no nothing else. v3.32 extended ROM added to ROM scanner,
+  CDTV-CR option added to Quickstart.
+- PPC interrupt/thread-safety hang problems should be fixed.
+
 Beta 19:
 
-- Restartarting and loading another config crashed if PPC or RTG without JIT direct was active.
+- Restarting and loading another config crashed if PPC or RTG without JIT direct was active.
 - After restarting non-JIT config, JIT direct was not available (old restriction that should have been gone
   few official releases ago)
 - Added A2620/A2630 emulation and two rom images to rom scanner. (390282-06/390283-06 and 390282-07/390283-07)
