@@ -165,11 +165,11 @@ static const TCHAR *rtctype[] = { _T("none"), _T("MSM6242B"), _T("RP5C01A"), _T(
 static const TCHAR *ciaatodmode[] = { _T("vblank"), _T("50hz"), _T("60hz"), 0 };
 static const TCHAR *ksmirrortype[] = { _T("none"), _T("e0"), _T("a8+e0"), 0 };
 static const TCHAR *cscompa[] = {
-	_T("-"), _T("Generic"), _T("CDTV"), _T("CD32"), _T("A500"), _T("A500+"), _T("A600"),
+	_T("-"), _T("Generic"), _T("CDTV"), _T("CDTV-CR"), _T("CD32"), _T("A500"), _T("A500+"), _T("A600"),
 	_T("A1000"), _T("A1200"), _T("A2000"), _T("A3000"), _T("A3000T"), _T("A4000"), _T("A4000T"), 0
 };
 static const TCHAR *qsmodes[] = {
-	_T("A500"), _T("A500+"), _T("A600"), _T("A1000"), _T("A1200"), _T("A3000"), _T("A4000"), _T(""), _T("CD32"), _T("CDTV"), _T("ARCADIA"), NULL };
+	_T("A500"), _T("A500+"), _T("A600"), _T("A1000"), _T("A1200"), _T("A3000"), _T("A4000"), _T(""), _T("CD32"), _T("CDTV"), _T("CDTV-CR"), _T("ARCADIA"), NULL };
 /* 3-state boolean! */
 static const TCHAR *fullmodes[] = { _T("false"), _T("true"), /* "FILE_NOT_FOUND", */ _T("fullwindow"), 0 };
 /* bleh for compatibility */
@@ -5903,6 +5903,38 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	return configure_rom (p, roms, romcheck);
 }
 
+static int bip_cdtvcr (struct uae_prefs *p, int config, int compa, int romcheck)
+{
+	int roms[4];
+
+	p->bogomem_size = 0;
+	p->chipmem_size = 0x100000;
+	p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
+	p->cs_cdtvcd = p->cs_cdtvram = true;
+	p->cs_cdtvcr = true;
+	p->cs_rtc = 1;
+	p->nr_floppies = 0;
+	p->floppyslots[0].dfxtype = DRV_NONE;
+	if (config > 0)
+		p->floppyslots[0].dfxtype = DRV_35_DD;
+	p->floppyslots[1].dfxtype = DRV_NONE;
+	set_68000_compa (p, compa);
+	p->cs_compatible = CP_CDTVCR;
+	built_in_chipset_prefs (p);
+	fetch_datapath (p->flashfile, sizeof (p->flashfile) / sizeof (TCHAR));
+	_tcscat (p->flashfile, _T("cdtv-cr.nvr"));
+	roms[0] = 9;
+	roms[1] = 10;
+	roms[2] = -1;
+	if (!configure_rom (p, roms, romcheck))
+		return 0;
+	roms[0] = 107;
+	roms[1] = -1;
+	if (!configure_rom (p, roms, romcheck))
+		return 0;
+	return 1;
+}
+
 static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
 {
 	int roms[4];
@@ -6207,9 +6239,12 @@ int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int r
 		v = bip_cdtv (p, config, compa, romcheck);
 		break;
 	case 10:
-		v = bip_arcadia (p, config , compa, romcheck);
+		v = bip_cdtvcr(p, config, compa, romcheck);
 		break;
 	case 11:
+		v = bip_arcadia (p, config , compa, romcheck);
+		break;
+	case 12:
 		v = bip_super (p, config, compa, romcheck);
 		break;
 	}
@@ -6229,7 +6264,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 
 	p->cs_a1000ram = 0;
 	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
-	p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvscsi = 0;
+	p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvscsi = p->cs_cdtvcr = 0;
 	p->cs_fatgaryrev = -1;
 	p->cs_ide = 0;
 	p->cs_ramseyrev = -1;
@@ -6266,6 +6301,19 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_cdtvcd = p->cs_cdtvram = 1;
 		p->cs_df0idhw = 1;
 		p->cs_ksmirror_e0 = 0;
+		break;
+	case CP_CDTVCR: // CDTV-CR
+		p->cs_rtc = 1;
+		p->cs_cdtvcd = p->cs_cdtvram = 1;
+		p->cs_cdtvcr = true;
+		p->cs_df0idhw = 1;
+		p->cs_ksmirror_e0 = 0;
+		p->cs_ide = IDE_A600A1200;
+		p->cs_pcmcia = 1;
+		p->cs_ksmirror_a8 = 1;
+		p->cs_ciaoverlay = 0;
+		p->cs_resetwarning = 0;
+		p->cs_ciatodbug = true;
 		break;
 	case CP_CD32: // CD32
 		p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = true;
