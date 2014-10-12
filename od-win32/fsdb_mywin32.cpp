@@ -751,7 +751,7 @@ bool my_utime (const TCHAR *name, struct mytimeval *tv)
 		tv2.tv_usec = tv->tv_usec;
 		tolocal = 1;
 	}
-	timeval_to_amiga (&tv2, &days, &mins, &ticks);
+	timeval_to_amiga (&tv2, &days, &mins, &ticks, 50);
 	if (setfiletime (name, days, mins, ticks, tolocal))
 		return true;
 

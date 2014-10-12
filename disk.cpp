@@ -286,7 +286,7 @@ static void disk_date (uae_u8 *p)
 	tv.tv_sec -= _timezone;
 	mtv.tv_sec = tv.tv_sec;
 	mtv.tv_usec = tv.tv_usec;
-	timeval_to_amiga (&mtv, &days, &mins, &ticks);
+	timeval_to_amiga (&mtv, &days, &mins, &ticks, 50);
 	if (days == pdays && mins == pmins && ticks == pticks) {
 		ticks++;
 		if (ticks >= 50 * 60) {

@@ -1375,7 +1375,7 @@ static TCHAR *bstr_cut (Unit *unit, uaecptr addr)
 static const uae_s64 msecs_per_day = 24 * 60 * 60 * 1000;
 static const uae_s64 diff = ((8 * 365 + 2) * (24 * 60 * 60)) * (uae_u64)1000;
 
-void timeval_to_amiga (struct mytimeval *tv, int *days, int *mins, int *ticks)
+void timeval_to_amiga (struct mytimeval *tv, int *days, int *mins, int *ticks, int tickcount)
 {
 	/* tv.tv_sec is secs since 1-1-1970 */
 	/* days since 1-1-1978 */
@@ -1390,10 +1390,10 @@ void timeval_to_amiga (struct mytimeval *tv, int *days, int *mins, int *ticks)
 	t -= *days * msecs_per_day;
 	*mins = t / (60 * 1000);
 	t -= *mins * (60 * 1000);
-	*ticks = t / (1000 / 50);
+	*ticks = t / (1000 / tickcount);
 }
 
-void amiga_to_timeval (struct mytimeval *tv, int days, int mins, int ticks)
+void amiga_to_timeval (struct mytimeval *tv, int days, int mins, int ticks, int tickcount)
 {
 	uae_s64 t;
 
@@ -1403,7 +1403,7 @@ void amiga_to_timeval (struct mytimeval *tv, int days, int mins, int ticks)
 		days = 9900 * 365; // in future far enough?
 	if (mins < 0 || mins >= 24 * 60)
 		mins = 0;
-	if (ticks < 0 || ticks >= 60 * 50)
+	if (ticks < 0 || ticks >= 60 * tickcount)
 		ticks = 0;
 
 	t = ticks * 20;
@@ -1564,7 +1564,7 @@ static void set_volume_name (Unit *unit, struct mytimeval *tv)
 	put_byte (unit->volume + 45 + namelen, 0);
 	if (tv && (tv->tv_sec || tv->tv_usec)) {
 		int days, mins, ticks;
-		timeval_to_amiga (tv, &days, &mins, &ticks);
+		timeval_to_amiga (tv, &days, &mins, &ticks, 50);
 		put_long (unit->volume + 16, days);
 		put_long (unit->volume + 20, mins);
 		put_long (unit->volume + 24, ticks);
@@ -3795,7 +3795,7 @@ static void
 		put_long (info + 124, statbuf.size > MAXFILESIZE32 ? MAXFILESIZE32 : (uae_u32)statbuf.size);
 	}
 
-	timeval_to_amiga (&statbuf.mtime, &days, &mins, &ticks);
+	timeval_to_amiga (&statbuf.mtime, &days, &mins, &ticks, 50);
 	put_long (info + 132, days);
 	put_long (info + 136, mins);
 	put_long (info + 140, ticks);
@@ -4092,7 +4092,7 @@ static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaec
 		size2 += 4;
 	}
 	if (type >= 5) {
-		timeval_to_amiga (&statbuf.mtime, &days, &mins, &ticks);
+		timeval_to_amiga (&statbuf.mtime, &days, &mins, &ticks, 50);
 		size2 += 12;
 	}
 	if (type >= 6) {
@@ -5550,7 +5550,7 @@ static void
 		handle_softlink (unit, packet, a);
 		return;
 	}
-	amiga_to_timeval (&tv, get_long (date), get_long (date + 4), get_long (date + 8));
+	amiga_to_timeval (&tv, get_long (date), get_long (date + 4), get_long (date + 8), 50);
 	//write_log (_T("%llu.%u (%d,%d,%d) %s\n"), tv.tv_sec, tv.tv_usec, get_long (date), get_long (date + 4), get_long (date + 8), a->nname);
 	if (!my_utime (a->nname, &tv))
 		err = dos_errno ();
