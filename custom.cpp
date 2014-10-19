@@ -46,6 +46,7 @@
 #include "akiko.h"
 #include "cd32_fmv.h"
 #include "cdtv.h"
+#include "cdtvcr.h"
 #if defined(ENFORCER)
 #include "enforcer.h"
 #endif
@@ -4619,7 +4620,8 @@ static void rethink_intreq (void)
 	rethink_a2091 ();
 #endif
 #ifdef CDTV
-	rethink_cdtv ();
+	rethink_cdtv();
+	rethink_cdtvcr();
 #endif
 #ifdef CD32
 	rethink_akiko ();
@@ -7510,6 +7512,7 @@ static void hsync_handler_pre (bool onvsync)
 #endif
 #ifdef CDTV
 	CDTV_hsync_handler ();
+	CDTVCR_hsync_handler ();
 #endif
 	decide_blitter (-1);
 

@@ -10,6 +10,8 @@ extern void cpuboard_vsync(void);
 extern void cpuboard_hsync(void);
 extern void cpuboard_rethink(void);
 extern int cpuboard_memorytype(struct uae_prefs *p);
+extern int cpuboard_maxmemory(struct uae_prefs *p);
+extern bool cpuboard_jitdirectompatible(struct uae_prefs *p);
 extern bool is_ppc_cpu(struct uae_prefs *);
 extern void cpuboard_io_special_write(uaecptr addr, uae_u32 val);
 extern void cpuboard_overlay_override(void);
@@ -24,7 +26,8 @@ extern uae_u8 *REGPARAM3 cyberstorm_scsi_ram_xlate(uaecptr addr) REGPARAM;
 #define BOARD_MEMORY_Z2 1
 #define BOARD_MEMORY_Z3 2
 #define BOARD_MEMORY_HIGHMEM 3
-#define BOARD_MEMORY_BLIZZARD 4
+#define BOARD_MEMORY_BLIZZARD_12xx 4
+#define BOARD_MEMORY_BLIZZARD_PPC 5
 
 #define BOARD_BLIZZARD_1230_IV 1
 #define BOARD_BLIZZARD_1230_IV_SCSI 2

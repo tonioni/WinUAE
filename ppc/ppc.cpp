@@ -477,6 +477,13 @@ static void set_and_wait_for_state(int state, int unlock)
 	}
 }
 
+bool uae_self_is_ppc(void)
+{
+	if (ppc_state == PPC_STATE_INACTIVE)
+		return false;
+	return impl.in_cpu_thread();
+}
+
 void ppc_map_banks(uae_u32 start, uae_u32 size, const TCHAR *name, void *addr, bool remove)
 {
 	if (ppc_state == PPC_STATE_INACTIVE || !impl.map_memory)

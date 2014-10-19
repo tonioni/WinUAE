@@ -1184,7 +1184,7 @@ static void mousehack_reset (void)
 	mousehack_alive_cnt = 0;
 	vp_xoffset = vp_yoffset = 0;
 	tablet_data = 0;
-	if (mousehack_address)
+	if (mousehack_address && valid_address(mousehack_address + MH_E, 1))
 		put_byte (mousehack_address + MH_E, 0);
 	mousehack_address = 0;
 	mousehack_enabled = false;
@@ -1203,7 +1203,7 @@ static bool mousehack_enable (void)
 		mode |= 1;
 	if (inputdevice_is_tablet () > 0)
 		mode |= 2;
-	if (mousehack_address) {
+	if (mousehack_address && valid_address(mousehack_address + MH_E, 1)) {
 		write_log (_T("Mouse driver enabled (%s)\n"), ((mode & 3) == 3 ? _T("tablet+mousehack") : ((mode & 3) == 2) ? _T("tablet") : _T("mousehack")));
 		put_byte (mousehack_address + MH_E, mode);
 		mousehack_enabled = true;
@@ -1419,7 +1419,6 @@ void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay
 	tablet_maxaz = maxaz;
 	inputdevice_update_tablet_params();
 }
-
 
 void getgfxoffset (float *dx, float *dy, float*, float*);
 

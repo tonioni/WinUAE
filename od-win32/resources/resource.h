@@ -407,7 +407,6 @@
 #define IDS_QS_MODEL_A3000              1010
 #define IDS_QS_MODEL_A4000              1011
 #define IDS_QS_MODEL_A4000T             1012
-#define IDS_QS_MODEL_CDTVCR             1013
 #define IDC_RESOLUTION                  1021
 #define IDC_SERIAL                      1022
 #define IDC_REFRESHRATE                 1022
@@ -1068,6 +1067,8 @@
 #define IDC_DBG_AMEM                    1745
 #define IDC_CS_DIPAGNUS                 1745
 #define IDC_DBG_SP_VBR                  1746
+#define IDC_CS_CDTVRAMEXP2              1746
+#define IDC_CS_CDTVCR                   1746
 #define IDC_DBG_MMISC                   1747
 #define IDC_DBG_PC                      1748
 #define IDC_DBG_PREFETCH                1749

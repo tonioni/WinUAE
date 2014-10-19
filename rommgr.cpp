@@ -93,7 +93,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 108
+#define NEXT_ROM_ID 109
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -215,6 +215,8 @@ static struct romdata roms[] = {
 	ALTROM(21, 1, 2, 131072, ROMTYPE_ODD  | ROMTYPE_8BIT, 0x8a54f362,0x03df800f,0x032046fd,0x892f6e7e,0xec08b76d,0x33981e8c)
 	{ _T("CDTV-CR extended ROM v3.32"), 3, 32, 3, 32, _T("CDTVCR\0"), 262144, 107, 0, 0, ROMTYPE_EXTCDTV, 0, 0, NULL,
 	0x581a85cf, 0xd6b8d3f2,0x854eba9b,0x2d514579,0x9529e8b3,0x3b85e0b4 },
+	{ _T("CDTV-CR extended ROM v3.44"), 3, 44, 3, 44, _T("CDTVCR\0"), 262144, 108, 0, 0, ROMTYPE_EXTCDTV, 0, 0, NULL,
+	0x0b7bd64f, 0x3b160c5a,0xbe79f10a,0xe6924332,0x8004bb9e,0x3162b648 },
 
 	{ _T("A1000 bootstrap ROM"), 0, 0, 0, 0, _T("A1000\0"), 65536, 24, 0, 0, ROMTYPE_KICK, 0, 0, NULL,
 	0x0b1ad2d0, 0xBA93B8B8,0x5CA0D83A,0x68225CC3,0x3B95050D,0x72D2FDD7 },

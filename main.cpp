@@ -310,7 +310,7 @@ void fixup_cpu (struct uae_prefs *p)
 	if (p->cpu_cycle_exact)
 		p->cpu_compatible = true;
 
-	if (cpuboard_memorytype(p) == BOARD_MEMORY_BLIZZARD && !p->comptrustbyte) {
+	if (p->cpuboard_type && cpuboard_jitdirectompatible(p) && !p->comptrustbyte) {
 		error_log(_T("JIT direct is not compatible with emulated Blizzard accelerator boards."));
 		p->comptrustbyte = 1;
 		p->comptrustlong = 1;
@@ -333,10 +333,16 @@ void fixup_prefs (struct uae_prefs *p)
 	built_in_chipset_prefs (p);
 	fixup_cpu (p);
 
-	if (cpuboard_memorytype(p) == BOARD_MEMORY_HIGHMEM)
+
+	if (p->cpuboard_type && p->cpuboardmem1_size > cpuboard_maxmemory(p)) {
+		error_log(_T("Unsupported accelerator board memory size %d (0x%x).\n"), p->cpuboardmem1_size, p->cpuboardmem1_size);
+		p->cpuboardmem1_size = cpuboard_maxmemory(p);
+	}
+	if (cpuboard_memorytype(p) == BOARD_MEMORY_HIGHMEM) {
 		p->mbresmem_high_size = p->cpuboardmem1_size;
-	else if (cpuboard_memorytype(p) == BOARD_MEMORY_Z2)
+	} else if (cpuboard_memorytype(p) == BOARD_MEMORY_Z2) {
 		p->fastmem_size = p->cpuboardmem1_size;
+	}
 
 	if (((p->chipmem_size & (p->chipmem_size - 1)) != 0 && p->chipmem_size != 0x180000)
 		|| p->chipmem_size < 0x20000

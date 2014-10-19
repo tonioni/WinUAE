@@ -200,7 +200,7 @@ bool expamem_z3hack(struct uae_prefs *p)
 	if (regs.halted && ppc_state)
 		return false;
 #endif
-	return p->jit_direct_compatible_memory || cpuboard_memorytype(p) == BOARD_MEMORY_BLIZZARD;
+	return p->jit_direct_compatible_memory || cpuboard_memorytype(p) == BOARD_MEMORY_BLIZZARD_12xx;
 }
 
 /* Ugly hack for >2M chip RAM in single pool
@@ -1756,7 +1756,7 @@ void expamem_reset (void)
 	}
 #endif
 #ifdef CDTV
-	if (currprefs.cs_cdtvcd) {
+	if (currprefs.cs_cdtvcd && !currprefs.cs_cdtvcr) {
 		card_flags[cardno] = 0;
 		card_name[cardno] = _T("CDTV DMAC");
 		card_init[cardno] = expamem_init_cdtv;

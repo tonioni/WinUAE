@@ -1046,8 +1046,9 @@ int REGPARAM2 default_check (uaecptr a, uae_u32 b)
 
 static int be_cnt;
 
-uae_u8 *REGPARAM2 default_xlate (uaecptr a)
+uae_u8 *REGPARAM2 default_xlate (uaecptr addr)
 {
+	int size = currprefs.cpu_model >= 68020 ? 4 : 2;
 	if (quit_program == 0) {
 		/* do this only in 68010+ mode, there are some tricky A500 programs.. */
 		if ((currprefs.cpu_model > 68000 || !currprefs.cpu_compatible) && !currprefs.mmu_model) {
@@ -1056,9 +1057,9 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 #endif
 			if (be_cnt < 3) {
 				int i, j;
-				uaecptr a2 = a - 32;
+				uaecptr a2 = addr - 32;
 				uaecptr a3 = m68k_getpc () - 32;
-				write_log (_T("Your Amiga program just did something terribly stupid %08X PC=%08X\n"), a, M68K_GETPC);
+				write_log (_T("Your Amiga program just did something terribly stupid %08X PC=%08X\n"), addr, M68K_GETPC);
 				if (debugging || DEBUG_STUPID) {
 					activate_debugger ();
 					m68k_dumpstate (0);
@@ -1073,15 +1074,10 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 				}
 				memory_map_dump ();
 			}
-			be_cnt++;
-			if (regs.s || be_cnt > 1000) {
-				cpu_halt (3);
-				be_cnt = 0;
+			if (0 || (gary_toenb && (gary_nonrange(addr) || (size > 1 && gary_nonrange(addr + size - 1))))) {
+				exception2 (addr, false, size, regs.s ? 4 : 0);
 			} else {
-				regs.panic = 4;
-				regs.panic_pc = m68k_getpc ();
-				regs.panic_addr = a;
-				set_special (SPCFLAG_BRK);
+				cpu_halt(3);
 			}
 		}
 	}
@@ -2332,10 +2328,11 @@ void memory_reset (void)
 	}
 #endif
 #ifdef CDTV
-	if (currprefs.cs_cdtvcr)
+	if (currprefs.cs_cdtvcr) {
 		map_banks(&cdtvcr_bank, 0xB8, 1, 0);
-	if (currprefs.cs_cdtvcd)
+	} else if (currprefs.cs_cdtvcd) {
 		cdtv_check_banks ();
+	}
 #endif
 #ifdef A2091
 	if (currprefs.cs_mbdmac == 1)

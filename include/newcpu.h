@@ -196,9 +196,6 @@ struct regstruct
 	uae_u32 pcr;
 	uae_u32 address_space_mask;
 
-	uae_u8 panic;
-	uae_u32 panic_pc, panic_addr;
-
 	uae_u32 prefetch020[CPU_PIPELINE_MAX];
 	uae_u32 prefetch020addr;
 	uae_u32 cacheholdingdata020;

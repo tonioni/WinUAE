@@ -1093,7 +1093,7 @@ void CDTV_hsync_handler (void)
 {
 	static int subqcnt;
 
-	if (!currprefs.cs_cdtvcd || configured <= 0)
+	if (!currprefs.cs_cdtvcd || configured <= 0 || currprefs.cs_cdtvcr)
 		return;
 
 	cdtv_hsync++;
@@ -1710,7 +1710,7 @@ uae_u8 *save_cdtv_dmac (int *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 	
-	if (!currprefs.cs_cdtvcd)
+	if (!currprefs.cs_cdtvcd || currprefs.cs_cdtvcr)
 		return NULL;
 	if (dstptr)
 		dstbak = dst = dstptr;
@@ -1750,7 +1750,7 @@ uae_u8 *save_cdtv (int *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 
-	if (!currprefs.cs_cdtvcd)
+	if (!currprefs.cs_cdtvcd || currprefs.cs_cdtvcr)
 		return NULL;
 
 	if (dstptr) 
@@ -1846,7 +1846,7 @@ uae_u8 *restore_cdtv (uae_u8 *src)
 
 void restore_cdtv_finish (void)
 {
-	if (!currprefs.cs_cdtvcd)
+	if (!currprefs.cs_cdtvcd || currprefs.cs_cdtvcr)
 		return;
 	cdtv_init ();
 	get_toc ();

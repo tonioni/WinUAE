@@ -18,6 +18,24 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 21:
+
+- Moved CDTV-CR under original CDTV Quickstart option.
+- Added 3.44 CDTV-CR extended ROM.
+- CDTV-CR now boots CDTV CDs. CD audio player does not yet work and some games that play CD audio will hang.
+  Also CD reading speed is currently unlimited.
+- Added 256M (max possible) Blizzard accelerator board RAM size support. Works with 1230, 1260 and PPC.
+- CSPPC P5_SELF_RESET bit emulation fixed, M68K can only reset PPC and PPC can only reset M68K if
+  P5_SELF_RESET is not active. (Blizkick reset hang)
+- When switching quickstart modes, extended ROM was not reset if new mode didn't use extended ROM.
+- Switching Quickstart models now remembers previously selected model configuration setting.
+- Disable tablet mode if tablet name query returns error or empty name. WTInfo() with null parameters is
+  supposed to return error if tablet is not connected but it does not seem to be true with all drivers.
+  (Fixes division by zero guru at boot if tablet emulation is emulated)
+- default_xlate() system halt didn't work, broke probably when 1 second boot delay option was added.
+- default_xlate() now also generates bus error if Gary bus error bit is set instead of halting.
+- Include approximate exception startup time in non-cycle exact 68000 emulation modes.
+
 Beta 20:
 
 - A2630 rom was not unmapped completely (only first half)

@@ -58,7 +58,8 @@
 #define	P5_SET_CLEAR		0x80
 
 /* REQ_RESET 0x00 */
-// 0x10/0x08/0x04 only work if P5_SELF_RESET is cleared
+// M68K can only reset PPC and vice versa
+// if P5_SELF_RESET is not active.
 #define	P5_PPC_RESET		0x10
 #define	P5_M68K_RESET		0x08
 #define	P5_AMIGA_RESET		0x04
@@ -128,8 +129,10 @@
 
 #define CS_RAM_BASE 0x0c000000
 
-#define BLIZZARD_RAM_BASE 0x68000000
-#define BLIZZARD_RAM_ALIAS_BASE 0x48000000
+#define BLIZZARD_RAM_BASE_48 0x48000000
+#define BLIZZARD_RAM_BASE_68 0x68000000
+#define BLIZZARD_RAM_256M_BASE_40 0x40000000
+#define BLIZZARD_RAM_256M_BASE_70 0x70000000
 #define BLIZZARD_MAPROM_BASE 0x4ff80000
 #define BLIZZARD_MAPROM_ENABLE 0x80ffff00
 #define BLIZZARD_BOARD_DISABLE 0x80fa0000
@@ -1078,23 +1081,33 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 							write_log(_T("CS: SCSI reset\n"));
 						map_banks(&blizzardf0_bank, 0xf00000 >> 16, 0x60000 >> 16, 0);
 					}
-					if ((oldval & P5_PPC_RESET) && !(regval & P5_PPC_RESET)) {
-						uae_ppc_cpu_stop();
-					} else if (!(oldval & P5_PPC_RESET) && (regval & P5_PPC_RESET)) {
-						uae_ppc_cpu_reboot();
-					}
-					if ((regval & P5_M68K_RESET) && !(oldval & P5_M68K_RESET)) {
-						m68k_reset();
-						write_log(_T("CS: M68K Reset\n"));
-					} else if (!(regval & P5_M68K_RESET) && (oldval & P5_M68K_RESET)) {
-						write_log(_T("CS: M68K Halted\n"));
-						if (!(regval & P5_PPC_RESET)) {
-							write_log(_T("CS: PPC is also halted. STOP.\n"));
-							cpu_halt(5);
-						} else {
-							// halt 68k, leave ppc message processing active.
-							cpu_halt(-1);
+					if (!(io_reg[CSIII_REG_SHADOW] & P5_SELF_RESET) || uae_self_is_ppc() == false) {
+						if ((oldval & P5_PPC_RESET) && !(regval & P5_PPC_RESET)) {
+							uae_ppc_cpu_stop();
+						} else if (!(oldval & P5_PPC_RESET) && (regval & P5_PPC_RESET)) {
+							uae_ppc_cpu_reboot();
 						}
+					} else {
+						io_reg[CSIII_REG_RESET] &= ~P5_PPC_RESET;
+						io_reg[CSIII_REG_RESET] |= oldval & P5_PPC_RESET;
+					}
+					if (!(io_reg[CSIII_REG_SHADOW] & P5_SELF_RESET) || uae_self_is_ppc() == true) {
+						if ((regval & P5_M68K_RESET) && !(oldval & P5_M68K_RESET)) {
+							m68k_reset();
+							write_log(_T("CS: M68K Reset\n"));
+						} else if (!(regval & P5_M68K_RESET) && (oldval & P5_M68K_RESET)) {
+							write_log(_T("CS: M68K Halted\n"));
+							if (!(regval & P5_PPC_RESET)) {
+								write_log(_T("CS: PPC is also halted. STOP.\n"));
+								cpu_halt(5);
+							} else {
+								// halt 68k, leave ppc message processing active.
+								cpu_halt(-1);
+							}
+						}
+					} else {
+						io_reg[CSIII_REG_RESET] &= ~P5_M68K_RESET;
+						io_reg[CSIII_REG_RESET] |= oldval & P5_M68K_RESET;
 					}
 					if (!(io_reg[CSIII_REG_SHADOW] & P5_SELF_RESET)) {
 						if (!(regval & P5_AMIGA_RESET)) {
@@ -1224,20 +1237,24 @@ void cpuboard_map(void)
 		return;
 	if (is_blizzard() || is_blizzardppc()) {
 		if (cpuboard_size) {
-			if (blizzard_jit) {
-				map_banks(&blizzardram_bank, blizzardram_bank.start >> 16, cpuboard_size >> 16, 0);
-				map_banks(&blizzardram_bank, BLIZZARD_RAM_BASE >> 16, cpuboard_size >> 16, 0);
-			} else {
-				for (int i = 0; i < 0x08000000; i += cpuboard_size) {
-					map_banks_nojitdirect(&blizzardram_nojit_bank, (BLIZZARD_RAM_ALIAS_BASE + i)  >> 16, cpuboard_size >> 16, 0);
-					map_banks_nojitdirect(&blizzardram_nojit_bank, (BLIZZARD_RAM_BASE + i) >> 16, cpuboard_size >> 16, 0);
-				}
-				if (currprefs.maprom && !is_blizzardppc()) {
+			if (cpuboard_size < 256 * 1024 * 1024) {
+				if (blizzard_jit) {
+					map_banks(&blizzardram_bank, blizzardram_bank.start >> 16, cpuboard_size >> 16, 0);
+					map_banks(&blizzardram_bank, BLIZZARD_RAM_BASE_68 >> 16, cpuboard_size >> 16, 0);
+				} else {
 					for (int i = 0; i < 0x08000000; i += cpuboard_size) {
-						map_banks_nojitdirect(&blizzardmaprom_bank, (BLIZZARD_RAM_ALIAS_BASE + i + cpuboard_size - 524288) >> 16, 524288 >> 16, 0);
-						map_banks_nojitdirect(&blizzardmaprom_bank, (BLIZZARD_RAM_BASE + i + cpuboard_size - 524288) >> 16, 524288 >> 16, 0);
+						map_banks_nojitdirect(&blizzardram_nojit_bank, (BLIZZARD_RAM_BASE_48 + i)  >> 16, cpuboard_size >> 16, 0);
+						map_banks_nojitdirect(&blizzardram_nojit_bank, (BLIZZARD_RAM_BASE_68 + i) >> 16, cpuboard_size >> 16, 0);
+					}
+					if (currprefs.maprom && !is_blizzardppc()) {
+						for (int i = 0; i < 0x08000000; i += cpuboard_size) {
+							map_banks_nojitdirect(&blizzardmaprom_bank, (BLIZZARD_RAM_BASE_48 + i + cpuboard_size - 524288) >> 16, 524288 >> 16, 0);
+							map_banks_nojitdirect(&blizzardmaprom_bank, (BLIZZARD_RAM_BASE_68 + i + cpuboard_size - 524288) >> 16, 524288 >> 16, 0);
+						}
 					}
 				}
+			} else {
+				map_banks(&blizzardram_bank, blizzardram_bank.start >> 16, cpuboard_size >> 16, 0);
 			}
 		}
 		if (!is_blizzardppc()) {
@@ -1381,10 +1398,22 @@ void cpuboard_init(void)
 		mapped_malloc(&blizzardea_bank);
 
 	} else if (is_blizzard() || is_blizzardppc()) {
-		blizzardram_bank.start = BLIZZARD_RAM_ALIAS_BASE;
-		blizzardram_bank.allocated = cpuboard_size;
-		blizzardram_bank.mask = blizzardram_bank.allocated - 1;
-		blizzardram_bank.startmask = BLIZZARD_RAM_BASE;
+		if (cpuboard_size < 256 * 1024 * 1024) {
+			blizzardram_bank.start = BLIZZARD_RAM_BASE_48;
+			blizzardram_bank.allocated = cpuboard_size;
+			blizzardram_bank.mask = blizzardram_bank.allocated - 1;
+			blizzardram_bank.startmask = BLIZZARD_RAM_BASE_68;
+		} else if (currprefs.z3autoconfig_start <= 0x10000000) {
+			blizzardram_bank.start = BLIZZARD_RAM_256M_BASE_40;
+			blizzardram_bank.allocated = cpuboard_size;
+			blizzardram_bank.mask = blizzardram_bank.allocated - 1;
+			blizzardram_bank.startmask = BLIZZARD_RAM_256M_BASE_40;
+		} else {
+			blizzardram_bank.start = BLIZZARD_RAM_256M_BASE_70;
+			blizzardram_bank.allocated = cpuboard_size;
+			blizzardram_bank.mask = blizzardram_bank.allocated - 1;
+			blizzardram_bank.startmask = BLIZZARD_RAM_256M_BASE_70;
+		}
 
 		blizzardram_nojit_bank.start = blizzardram_bank.start;
 		blizzardram_nojit_bank.allocated = blizzardram_bank.allocated;
@@ -1392,10 +1421,13 @@ void cpuboard_init(void)
 		blizzardram_nojit_bank.startmask = blizzardram_bank.startmask;
 
 
-		blizzard_jit = 0 && BLIZZARD_RAM_BASE + blizzardram_bank.allocated <= max_z3fastmem && currprefs.jit_direct_compatible_memory;
+		blizzard_jit = cpuboard_jitdirectompatible(&currprefs);
 		if (blizzard_jit) {
 			if (cpuboard_size) {
-				blizzardram_bank.label = _T("blizzard");
+				if (cpuboard_size < 256 * 1024 * 1024)
+					blizzardram_bank.label = _T("blizzard");
+				else
+					blizzardram_bank.label = _T("blizzard_70");
 				mapped_malloc(&blizzardram_bank);
 			}
 		} else {
@@ -1550,6 +1582,13 @@ bool cpuboard_maprom(void)
 	}
 	return true;
 }
+bool cpuboard_jitdirectompatible(struct uae_prefs *p)
+{
+	if (cpuboard_memorytype(p) == BOARD_MEMORY_BLIZZARD_12xx || cpuboard_memorytype(p) == BOARD_MEMORY_BLIZZARD_PPC) {
+		return false;
+	}
+	return true;
+}
 
 int cpuboard_memorytype(struct uae_prefs *p)
 {
@@ -1568,12 +1607,34 @@ int cpuboard_memorytype(struct uae_prefs *p)
 		case BOARD_A2630:
 		return BOARD_MEMORY_Z2;
 		case BOARD_BLIZZARD_1230_IV:
+		case BOARD_BLIZZARD_1230_IV_SCSI:
 		case BOARD_BLIZZARD_1260:
+		case BOARD_BLIZZARD_1260_SCSI:
+		return BOARD_MEMORY_BLIZZARD_12xx;
 		case BOARD_BLIZZARDPPC:
-		return BOARD_MEMORY_BLIZZARD;
+		return BOARD_MEMORY_BLIZZARD_PPC;
 		default:
 		write_log(_T("Missing board type %d!\n"), p->cpuboard_type);
 		return BOARD_MEMORY_HIGHMEM;
+	}
+}
+
+int cpuboard_maxmemory(struct uae_prefs *p)
+{
+	if (p->cpuboard_type == BOARD_BLIZZARDPPC)
+		return 256 * 1024 * 1024;
+	int type = cpuboard_memorytype(p);
+	switch (type)
+	{
+		case BOARD_MEMORY_BLIZZARD_12xx:
+		case BOARD_MEMORY_BLIZZARD_PPC:
+		return 256 * 1024 * 1024;
+		case BOARD_MEMORY_HIGHMEM:
+		return 128 * 1024 * 1024;
+		case BOARD_MEMORY_Z2:
+		return 8 * 1024 * 1024;
+		default:
+		return 0;
 	}
 }
 

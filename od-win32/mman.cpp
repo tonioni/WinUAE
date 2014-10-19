@@ -346,7 +346,7 @@ static int doinit_shm (void)
 
 	set_expamem_z3_hack_override(false);
 	z3offset = 0;
-	if ((changed_prefs.z3autoconfig_start == 0x10000000 || changed_prefs.z3autoconfig_start == 0x40000000) && !changed_prefs.force_0x10000000_z3 && cpuboard_memorytype(&changed_prefs) != BOARD_MEMORY_BLIZZARD) {
+	if ((changed_prefs.z3autoconfig_start == 0x10000000 || changed_prefs.z3autoconfig_start == 0x40000000) && !changed_prefs.force_0x10000000_z3 && cpuboard_memorytype(&changed_prefs) != BOARD_MEMORY_BLIZZARD_12xx) {
 		if (1 && natmem_size > 0x40000000 && natmem_size - 0x40000000 >= (totalsize - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align)) && changed_prefs.z3chipmem_size <= 512 * 1024 * 1024) {
 			changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = 0x40000000;
 			z3offset += 0x40000000 - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align);
@@ -644,6 +644,18 @@ void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 			got = TRUE;
 		} else if (!_tcscmp(shmids[shmid].name, _T("ramsey_high"))) {
 			shmaddr = natmem_offset + 0x08000000;
+			got = TRUE;
+		} else if (!_tcscmp(shmids[shmid].name, _T("blizzard_40"))) {
+			shmaddr = natmem_offset + 0x40000000;
+			got = TRUE;
+		} else if (!_tcscmp(shmids[shmid].name, _T("blizzard_48"))) {
+			shmaddr = natmem_offset + 0x48000000;
+			got = TRUE;
+		} else if (!_tcscmp(shmids[shmid].name, _T("blizzard_68"))) {
+			shmaddr = natmem_offset + 0x68000000;
+			got = TRUE;
+		} else if (!_tcscmp(shmids[shmid].name, _T("blizzard_70"))) {
+			shmaddr = natmem_offset + 0x70000000;
 			got = TRUE;
 		} else if (!_tcscmp(shmids[shmid].name, _T("cyberstorm"))) {
 			shmaddr = natmem_offset + 0x0c000000;

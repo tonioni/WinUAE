@@ -213,6 +213,7 @@ void WIN32GUI_LoadUIString (DWORD id, TCHAR *string, DWORD dwStringLen)
 }
 
 static int quickstart_model = 0, quickstart_conf = 0, quickstart_compa = 1;
+static int quickstart_model_confstore[16];
 static int quickstart_floppy = 1, quickstart_cd = 0, quickstart_ntsc = 0;
 static int quickstart_cdtype = 0;
 static TCHAR quickstart_cddrive[16];
@@ -1315,6 +1316,7 @@ static int msi_fast[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
 static int msi_z3fast[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 19, 14, 20, 15, 21, 18, 22, 23 };
 static int msi_z3chip[] = { 0, 9, 10, 11, 12, 13, 19, 14, 20, 15 };
 static int msi_gfx[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+static int msi_cpuboard[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
 
 #define MIN_CHIP_MEM 0
 #define MAX_CHIP_MEM 6
@@ -1332,7 +1334,9 @@ static int msi_gfx[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
 #define MAX_MBL_MEM 7
 #define MAX_MBH_MEM 8
 #define MIN_CB_MEM 0
-#define MAX_CB_MEM 8
+#define MAX_CB_MEM_Z2 4
+#define MAX_CB_MEM_128M 8
+#define MAX_CB_MEM_256M 9
 
 #define MIN_M68K_PRIORITY 1
 #define MAX_M68K_PRIORITY 16
@@ -1644,7 +1648,7 @@ static void show_rom_list (void)
 		17, -1, -1, // A4000T
 		18, -1, 19, -1, -1, // CD32
 		20, 21, 22, -1, 6, 32, -1, -1, // CDTV
-		9, 10, -1, 107, -1, -1, // CDTV-CR
+		9, 10, -1, 107, 108, -1, -1, // CDTV-CR
 		49, 50, 75, 51, 76, 77, -1, 5, 4, -1, -2, // ARCADIA
 
 		53, 54, 55, 56, -1, -1, // A590/A2091
@@ -5557,7 +5561,6 @@ static struct amigamodels amodels[] = {
 	{ 0, }, //{ 1, IDS_QS_MODEL_A4000T }, // "Amiga 4000T"
 	{ 3, IDS_QS_MODEL_CD32 }, // "CD32"
 	{ 4, IDS_QS_MODEL_CDTV }, // "CDTV"
-	{ 4, IDS_QS_MODEL_CDTVCR }, // "CDTVCR"
 	{ 4, IDS_QS_MODEL_ARCADIA }, // "Arcadia"
 	{ 1, IDS_QS_MODEL_UAE }, // "Expanded UAE example configuration"
 	{ -1 }
@@ -5576,7 +5579,7 @@ static void load_quickstart (HWND hDlg, int romcheck)
 	workprefs.nr_floppies = quickstart_floppy;
 	quickstart_ok = built_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
 	workprefs.ntscmode = quickstart_ntsc != 0;
-	quickstart_cd = workprefs.floppyslots[1].dfxtype == DRV_NONE && (quickstart_model == 8 || quickstart_model == 9 || quickstart_model == 10);
+	quickstart_cd = workprefs.floppyslots[1].dfxtype == DRV_NONE && (quickstart_model == 8 || quickstart_model == 9);
 	enable_for_quickstart (hDlg);
 	addfloppytype (hDlg, 0);
 	addfloppytype (hDlg, 1);
@@ -5624,6 +5627,7 @@ static void init_quickstartdlg (HWND hDlg)
 	if (firsttime == 0 && workprefs.start_gui) {
 		regqueryint (NULL, _T("QuickStartModel"), &quickstart_model);
 		regqueryint (NULL, _T("QuickStartConfiguration"), &quickstart_conf);
+		quickstart_model_confstore[quickstart_model] = quickstart_conf;
 		regqueryint (NULL, _T("QuickStartCompatibility"), &quickstart_compa);
 		regqueryint (NULL, _T("QuickStartFloppies"), &quickstart_floppy);
 		regqueryint (NULL, _T("QuickStartCDType"), &quickstart_cdtype);
@@ -5905,6 +5909,7 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 					}
 					if (i != quickstart_model) {
 						quickstart_model = i;
+						quickstart_conf = quickstart_model_confstore[quickstart_model];
 						init_quickstartdlg (hDlg);
 						if (quickstart)
 							load_quickstart (hDlg, 1);
@@ -5917,6 +5922,7 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 				val = SendDlgItemMessage (hDlg, IDC_QUICKSTART_CONFIGURATION, CB_GETCURSEL, 0, 0L);
 				if (val != CB_ERR && val != quickstart_conf) {
 					quickstart_conf = val;
+					quickstart_model_confstore[quickstart_model] = quickstart_conf;
 					init_quickstartdlg (hDlg);
 					if (quickstart)
 						load_quickstart (hDlg, 1);
@@ -7195,6 +7201,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_CS_CD32C2P, workprefs.cs_cd32c2p);
 	CheckDlgButton (hDlg, IDC_CS_CD32NVRAM, workprefs.cs_cd32nvram);
 	CheckDlgButton (hDlg, IDC_CS_CDTVCD, workprefs.cs_cdtvcd);
+	CheckDlgButton (hDlg, IDC_CS_CDTVCR, workprefs.cs_cdtvcr);
 	CheckDlgButton (hDlg, IDC_CS_CDTVRAM, workprefs.cs_cdtvram);
 	CheckDlgButton (hDlg, IDC_CS_CDTVRAMEXP, workprefs.cs_cdtvcard);
 	CheckDlgButton (hDlg, IDC_CS_A1000RAM, workprefs.cs_a1000ram);
@@ -7271,6 +7278,7 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_cd32c2p = ischecked (hDlg, IDC_CS_CD32C2P);
 	workprefs.cs_cd32nvram = ischecked (hDlg, IDC_CS_CD32NVRAM);
 	workprefs.cs_cdtvcd = ischecked (hDlg, IDC_CS_CDTVCD);
+	workprefs.cs_cdtvcr = ischecked (hDlg, IDC_CS_CDTVCR);
 	workprefs.cs_cdtvram = ischecked (hDlg, IDC_CS_CDTVRAM);
 	workprefs.cs_cdtvcard = ischecked (hDlg, IDC_CS_CDTVRAMEXP) ? 64 : 0;
 	workprefs.cs_a1000ram = ischecked (hDlg, IDC_CS_A1000RAM);
@@ -7347,6 +7355,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew (hDlg, IDC_CS_CD32NVRAM, e);
 	ew (hDlg, IDC_CS_CD32C2P, e);
 	ew (hDlg, IDC_CS_CDTVCD, e);
+	ew (hDlg, IDC_CS_CDTVCR, e);
 	ew (hDlg, IDC_CS_CDTVRAM, e);
 	ew (hDlg, IDC_CS_CDTVRAMEXP, e);
 	ew (hDlg, IDC_CS_RESETWARNING, e);
@@ -7457,6 +7466,36 @@ static void setmax32bitram (HWND hDlg)
 	SetDlgItemText (hDlg, IDC_MAX32RAM, tmp);
 }
 
+static void setcpuboardmemsize(HWND hDlg)
+{
+	int maxmem = cpuboard_maxmemory(&workprefs);
+	if (workprefs.cpuboardmem1_size > maxmem) {
+		workprefs.cpuboardmem1_size = maxmem;
+	}
+	if (maxmem <= 8 * 1024 * 1024)
+		SendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CB_MEM, MAX_CB_MEM_Z2));
+	else if (maxmem <= 128 * 1024 * 1024)
+		SendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CB_MEM, MAX_CB_MEM_128M));
+	else
+		SendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CB_MEM, MAX_CB_MEM_256M));
+
+	int mem_size = 0;
+	switch (workprefs.cpuboardmem1_size) {
+	case 0x00000000: mem_size = 0; break;
+	case 0x00100000: mem_size = 1; break;
+	case 0x00200000: mem_size = 2; break;
+	case 0x00400000: mem_size = 3; break;
+	case 0x00800000: mem_size = 4; break;
+	case 0x01000000: mem_size = 5; break;
+	case 0x02000000: mem_size = 6; break;
+	case 0x04000000: mem_size = 7; break;
+	case 0x08000000: mem_size = 8; break;
+	case 0x10000000: mem_size = 9; break;
+	}
+	SendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETPOS, TRUE, mem_size);
+	SetDlgItemText (hDlg, IDC_CPUBOARDRAM, memsize_names[msi_cpuboard[mem_size]]);
+	SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_SETCURSEL, workprefs.cpuboard_type, 0);
+}
 
 static int manybits (int v, int mask)
 {
@@ -7489,9 +7528,10 @@ static void values_to_memorydlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_CHIPMEM, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText (hDlg, IDC_CHIPRAM, memsize_names[msi_chip[mem_size]]);
 
+	if (workprefs.cpuboardmem1_size > cpuboard_maxmemory(&workprefs))
+		workprefs.cpuboardmem1_size = cpuboard_maxmemory(&workprefs);
+
 	if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_Z2) {
-		if (workprefs.cpuboardmem1_size > 8 * 1024 * 1024)
-			workprefs.cpuboardmem1_size = 8 * 1024 * 1024;
 		workprefs.fastmem_size = workprefs.cpuboardmem1_size;
 	}
 
@@ -7746,23 +7786,7 @@ static void values_to_memorydlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText (hDlg, IDC_MBRAM2, memsize_names[msi_gfx[mem_size]]);
 
-	mem_size = 0;
-	switch (workprefs.cpuboardmem1_size) {
-	case 0x00000000: mem_size = 0; break;
-	case 0x00100000: mem_size = 1; break;
-	case 0x00200000: mem_size = 2; break;
-	case 0x00400000: mem_size = 3; break;
-	case 0x00800000: mem_size = 4; break;
-	case 0x01000000: mem_size = 5; break;
-	case 0x02000000: mem_size = 6; break;
-	case 0x04000000: mem_size = 7; break;
-	case 0x08000000: mem_size = 8; break;
-	case 0x10000000: mem_size = 9; break;
-	}
-	SendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETPOS, TRUE, mem_size);
-	SetDlgItemText (hDlg, IDC_CPUBOARDRAM, memsize_names[msi_gfx[mem_size]]);
-	SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_SETCURSEL, workprefs.cpuboard_type, 0);
-
+	setcpuboardmemsize(hDlg);
 	setmax32bitram (hDlg);
 
 }
@@ -8217,7 +8241,6 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	return FALSE;
 }
 
-
 static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
@@ -8236,7 +8259,6 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		SendDlgItemMessage (hDlg, IDC_Z3CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_CHIPMEM));
 		SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MBL_MEM));
 		SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MBH_MEM));
-		SendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CB_MEM, MAX_CB_MEM));
 		CheckDlgButton(hDlg, IDC_FASTMEMAUTOCONFIG, workprefs.fastmem_autoconfig);
 		CheckDlgButton(hDlg, IDC_Z3REALMAPPING, workprefs.jit_direct_compatible_memory);
 		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_RESETCONTENT, 0, 0);
@@ -8254,6 +8276,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Warp Engine"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Tek Magic"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("A2620/A2630"));
+		setcpuboardmemsize(hDlg);
 
 	case WM_USER:
 		workprefs.fastmem_autoconfig = ischecked (hDlg, IDC_FASTMEMAUTOCONFIG);
@@ -8279,6 +8302,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 						workprefs.ppc_mode = 0;
 					}
 					built_in_cpuboard_prefs(&workprefs);
+					setcpuboardmemsize(hDlg);
 					enable_for_memorydlg(hDlg);
 				}
 				break;
@@ -8299,7 +8323,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		workprefs.z3chipmem_size = memsizes[msi_z3chip[SendMessage (GetDlgItem (hDlg, IDC_Z3CHIPMEM), TBM_GETPOS, 0, 0)]];
 		workprefs.mbresmem_low_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM1), TBM_GETPOS, 0, 0)]];
 		workprefs.mbresmem_high_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM2), TBM_GETPOS, 0, 0)]];
-		workprefs.cpuboardmem1_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_CPUBOARDMEM), TBM_GETPOS, 0, 0)]];
+		workprefs.cpuboardmem1_size = memsizes[msi_cpuboard[SendMessage (GetDlgItem (hDlg, IDC_CPUBOARDMEM), TBM_GETPOS, 0, 0)]];
 		fix_values_memorydlg ();
 		values_to_memorydlg (hDlg);
 		enable_for_memorydlg (hDlg);

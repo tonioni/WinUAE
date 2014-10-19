@@ -1837,6 +1837,29 @@ STATIC_INLINE int in_rtarea (uaecptr pc)
 	return (munge24 (pc) & 0xFFFF0000) == rtarea_base && uae_boot_rom;
 }
 
+STATIC_INLINE void wait_memory_cycles (void)
+{
+	if (regs.memory_waitstate_cycles) {
+		x_do_cycles(regs.memory_waitstate_cycles);
+		regs.memory_waitstate_cycles = 0;
+	}
+	if (regs.ce020extracycles >= 16) {
+		regs.ce020extracycles = 0;
+		x_do_cycles(4 * CYCLE_UNIT);
+	}
+}
+
+STATIC_INLINE int adjust_cycles (int cycles)
+{
+	int mc = regs.memory_waitstate_cycles;
+	regs.memory_waitstate_cycles = 0;
+	if (currprefs.m68k_speed < 0 || cycles_mult == 0)
+		return cycles + mc;
+	cpu_cycles *= cycles_mult;
+	cpu_cycles /= CYCLES_DIV;
+	return cpu_cycles + mc;
+}
+
 void REGPARAM2 MakeSR (void)
 {
 	regs.sr = ((regs.t1 << 15) | (regs.t0 << 14)
@@ -2429,6 +2452,39 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 	exception_trace (nr);
 }
 
+static void add_approximate_exception_cycles(int nr)
+{
+	int cycles;
+
+	if (currprefs.cpu_model > 68000)
+		return;
+	if (nr >= 24 && nr <= 31) {
+		/* Interrupts */
+		cycles = 44 + 4; 
+	} else if (nr >= 32 && nr <= 47) {
+		/* Trap (total is 34, but cpuemux.c already adds 4) */ 
+		cycles = 34 -4;
+	} else {
+		switch (nr)
+		{
+			case 2: cycles = 50; break;		/* Bus error */
+			case 3: cycles = 50; break;		/* Address error */
+			case 4: cycles = 34; break;		/* Illegal instruction */
+			case 5: cycles = 38; break;		/* Division by zero */
+			case 6: cycles = 40; break;		/* CHK */
+			case 7: cycles = 34; break;		/* TRAPV */
+			case 8: cycles = 34; break;		/* Privilege violation */
+			case 9: cycles = 34; break;		/* Trace */
+			case 10: cycles = 34; break;	/* Line-A */
+			case 11: cycles = 34; break;	/* Line-F */
+			default:
+			cycles = 4;
+			break;
+		}
+	}
+	cycles = adjust_cycles(cycles * CYCLE_UNIT / 2);
+	x_do_cycles(cycles);
+}
 
 static void Exception_normal (int nr)
 {
@@ -2588,6 +2644,7 @@ static void Exception_normal (int nr)
 			x_put_word (m68k_areg (regs, 7), nr * 4);
 		}
 	} else {
+		add_approximate_exception_cycles(nr);
 		currpc = m68k_getpc ();
 		if (nr == 2 || nr == 3) {
 			// 68000 address error
@@ -2731,10 +2788,10 @@ static void m68k_reset2(bool hardreset)
 		set_special(SPCFLAG_CHECK);
 	}
 #endif
+	regs.s = 1;
 	v = get_long (4);
 	m68k_areg (regs, 7) = get_long (0);
 	m68k_setpc_normal(v);
-	regs.s = 1;
 	regs.m = 0;
 	regs.stopped = 0;
 	regs.t1 = 0;
@@ -3628,29 +3685,6 @@ static void out_cd32io (uae_u32 pc)
 
 #endif
 
-STATIC_INLINE void wait_memory_cycles (void)
-{
-	if (regs.memory_waitstate_cycles) {
-		x_do_cycles(regs.memory_waitstate_cycles);
-		regs.memory_waitstate_cycles = 0;
-	}
-	if (regs.ce020extracycles >= 16) {
-		regs.ce020extracycles = 0;
-		x_do_cycles(4 * CYCLE_UNIT);
-	}
-}
-
-STATIC_INLINE int adjust_cycles (int cycles)
-{
-	int mc = regs.memory_waitstate_cycles;
-	regs.memory_waitstate_cycles = 0;
-	if (currprefs.m68k_speed < 0 || cycles_mult == 0)
-		return cycles + mc;
-	cpu_cycles *= cycles_mult;
-	cpu_cycles /= CYCLES_DIV;
-	return cpu_cycles + mc;
-}
-
 static void bus_error(void)
 {
 	TRY (prb2) {
@@ -4000,6 +4034,8 @@ static void opcodedebug (uae_u32 pc, uae_u16 opcode, bool full)
 
 void cpu_halt (int id)
 {
+	// id < 0: m68k halted, PPC active.
+	// id > 0: emulation halted.
 	if (!regs.halted) {
 		write_log (_T("CPU halted: reason = %d\n"), id);
 		regs.halted = id;
@@ -4667,22 +4703,6 @@ void m68k_go (int may_quit)
 		if (debugging)
 			debug ();
 #endif
-		if (regs.panic) {
-			regs.panic = 0;
-			/* program jumped to non-existing memory and cpu was >= 68020 */
-			get_real_address (regs.isp); /* stack in no one's land? -> halt */
-			if (regs.isp & 1)
-				regs.panic = 5;
-			if (!regs.panic)
-				exception2_handle (regs.panic_pc, regs.panic_addr);
-			if (regs.panic) {
-				int id = regs.panic;
-				/* system is very badly confused */
-				regs.panic = 0;
-				cpu_halt (id);
-			}
-		}
-
 		if (regs.spcflags & SPCFLAG_MODE_CHANGE) {
 			if (cpu_prefs_changed_flag & 1) {
 				uaecptr pc = m68k_getpc();
@@ -6105,22 +6125,6 @@ void exception2 (uaecptr addr, bool read, int size, uae_u32 fc)
 	}
 }
 
-void exception2_fake (uaecptr addr)
-{
-	if (regs.halted)
-		return;
-	write_log (_T("delayed exception2!\n"));
-	regs.panic_pc = m68k_getpc ();
-	regs.panic_addr = addr;
-	regs.panic = 6;
-	set_special (SPCFLAG_BRK);
-	m68k_setpc_normal (0xf80000);
-#ifdef JIT
-	set_special (SPCFLAG_END_COMPILE);
-#endif
-	fill_prefetch ();
-}
-
 void cpureset (void)
 {
     /* RESET hasn't increased PC yet, 1 word offset */
@@ -6151,7 +6155,7 @@ void cpureset (void)
 			uae_u32 addr = m68k_areg (regs, reg);
 			if (addr < 0x80000)
 				addr += 0xf80000;
-			write_log (_T("reset/jmp (ax) combination emulated -> %x\n"), addr);
+			write_log (_T("reset/jmp (ax) combination at %08x emulated -> %x\n"), pc, addr);
 			m68k_setpc_normal (addr - 2);
 			return;
 		}

@@ -711,7 +711,7 @@ static int gettabletres (AXIS *a)
 void *open_tablet (HWND hwnd)
 {
 	static int initialized;
-	LOGCONTEXT lc;
+	LOGCONTEXT lc = { 0 };
 	AXIS tx = { 0 }, ty = { 0 }, tz = { 0 };
 	AXIS pres = { 0 };
 	int xm, ym, zm;
@@ -819,7 +819,18 @@ static int initialize_tablet (void)
 		return 0;
 	}
 	name[0] = 0;
-	pWTInfoW (WTI_DEVICES, DVC_NAME, name);
+	if (!pWTInfoW (WTI_DEVICES, DVC_NAME, name)) {
+		write_log(_T("Tablet: WTInfo(DVC_NAME) returned failure\n"));
+		FreeModule(wintab);
+		wintab = NULL;
+		return 0;
+	}
+	if (name[0] == 0) {
+		write_log(_T("Tablet: WTInfo(DVC_NAME) returned NULL name\n"));
+		FreeModule(wintab);
+		wintab = NULL;
+		return 0;
+	}
 	axmax = aymax = azmax = -1;
 	tilt = pWTInfoW (WTI_DEVICES, DVC_ORIENTATION, ori);
 	if (tilt) {

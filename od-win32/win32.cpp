@@ -5917,7 +5917,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 							prevpc = (uae_u8*)ppc;
 						}
 						m68k_setpc ((uaecptr)p);
-						exception2_fake (opc);
+						exception2(opc, er->ExceptionInformation[0] == 0, 4, regs.s ? 4 : 0);
 						lRet = EXCEPTION_CONTINUE_EXECUTION;
 					}
 			}
