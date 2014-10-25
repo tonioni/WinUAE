@@ -54,6 +54,8 @@
 #define CDTVCR_INTREQ 0xc56
 #define CDTVCR_4510_TRIGGER 0x4000
 
+#define CDTVCR_KEYCMD 0xc80
+
 #define CDTVCR_SUBQ 0x906
 #define CDTVCR_SUBBANK 0x917
 #define CDTVCR_SUBC 0x918
@@ -495,8 +497,16 @@ static void cdtvcr_bput2 (uaecptr addr, uae_u8 v)
 			break;
 		}
 	}
-	if (addr >= 0xc00 && addr < CDTVCR_RAM_OFFSET)
+	if (addr >= 0xc00 && addr < CDTVCR_RAM_OFFSET) {
+		switch (addr)
+		{
+			case CDTVCR_KEYCMD:
+			write_log(_T("Got keycode %x\n"), cdtvcr_4510_ram[CDTVCR_KEYCMD+1]);
+			v = 0;
+			break;
+		}
 		cdtvcr_4510_ram[addr] = v;
+	}
 }
 
 static uae_u8 cdtvcr_bget2 (uaecptr addr)
@@ -753,6 +763,8 @@ static void close_unit (void)
 
 void cdtvcr_reset(void)
 {
+	if (!currprefs.cs_cdtvcr)
+		return;
 	close_unit ();
 	if (!thread_alive) {
 		init_comm_pipe (&requests, 100, 1);
