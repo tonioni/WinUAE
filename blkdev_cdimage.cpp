@@ -928,7 +928,7 @@ end:
 	return ret;
 }
 
-// this only supports 2048 byte sectors
+// return standard 2048 byte sectors only
 static int command_read (int unitnum, uae_u8 *data, int sector, int numsectors)
 {
 	struct cdunit *cdu = unitisopen (unitnum);
@@ -952,7 +952,8 @@ static int command_read (int unitnum, uae_u8 *data, int sector, int numsectors)
 				// 2 = MODE2
 				do_read (cdu, t, data, sector, b == 2 ? 24 : 16, 2048, false);
 			} else {
-				do_read (cdu, t, data, sector, 16, 2048, false);
+				// 2336
+				do_read (cdu, t, data, sector, 8, 2048, false);
 			}
 			data += 2048;
 			sector++;
