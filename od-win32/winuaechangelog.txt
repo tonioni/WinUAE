@@ -18,6 +18,18 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 22:
+
+- CDTV-CR CD unit was initialized even when CDTV-CR emulation was not enabled. Broke CD access on configurations
+  that used CD unit for other purposes.
+- Changed directory filesystem max file size limit (when not using 64-bit dos packets) to 4G-1. Old 2G-1 was
+  technically official max size but most native filesystems don't enforce it and support file sizes up to 4G-1
+  (at least as long as application uses unsigned integers)
+- Standard CD image read sector function didn't handle (rarely used) 2336 byte CD sectors correctly.
+- Some statefiles have corrupt "extra_cycle" value (probably saved by some buggy beta) that causes long delay
+  when restored, added workaround.
+- 68000 CE mode IPL line sampling timing update. Do it during any memory access, not just prefetches.
+
 Beta 21:
 
 - Moved CDTV-CR under original CDTV Quickstart option.

@@ -9342,6 +9342,8 @@ uae_u8 *restore_cycles (uae_u8 *src)
 	restore_u32 ();
 	start_cycles = restore_u64 ();
 	extra_cycle = restore_u32 ();
+	if (extra_cycle < 0 || extra_cycle >= 2 * CYCLE_UNIT)
+		extra_cycle = 0;
 	write_log (_T("RESTORECYCLES %08lX\n"), start_cycles);
 	return src;
 }

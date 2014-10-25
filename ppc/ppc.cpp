@@ -30,7 +30,11 @@
 #define TRACE(format, ...) write_log(_T("PPC: ") format, ## __VA_ARGS__)
 
 #ifdef WINUAE
+#ifdef WIN64
+#define QEMU_LIBRARY_PATH _T("qemu\\x64\\qemu-uae.dll")
+#else
 #define QEMU_LIBRARY_PATH _T("qemu\\qemu-uae.dll")
+#endif
 #else
 #define QEMU_LIBRARY_PATH _T("qemu-uae.dll")
 #endif

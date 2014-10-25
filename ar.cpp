@@ -1646,7 +1646,7 @@ int action_replay_load (void)
 		write_log (_T("action_replay_load () ROM already loaded.\n"));
 		return 0;
 	}
-	if (_tcslen (currprefs.cartfile) == 0)
+	if (_tcslen (currprefs.cartfile) == 0 || currprefs.cartfile[0] == ':')
 		return 0;
 	if (currprefs.cs_cd32fmv)
 		return 0;
