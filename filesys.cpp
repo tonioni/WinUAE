@@ -1050,7 +1050,15 @@ struct hardfiledata *get_hardfile_data (int nr)
 #define ST_SOFTLINK 3
 #define ST_LINKDIR 4
 
+#if 1
+#define MAXFILESIZE32 (0xffffffff)
+#else
+/* technically correct but most native
+ * filesystems don't enforce it
+ */
 #define MAXFILESIZE32 (0x7fffffff)
+#endif
+#define MAXFILESIZE32_2G (0x7fffffff)
 
 /* Passed as type to Lock() */
 #define SHARED_LOCK		-2  /* File is readable by others */
@@ -3786,7 +3794,7 @@ static void
 
 	if (longfilesize) {
 		/* MorphOS 64-bit file length support */
-		put_long (info + 124, statbuf.size > MAXFILESIZE32 ? 0 : (uae_u32)statbuf.size);
+		put_long (info + 124, statbuf.size > MAXFILESIZE32_2G ? 0 : (uae_u32)statbuf.size);
 		put_long (info + 228, statbuf.size >> 32);
 		put_long (info + 232, (uae_u32)statbuf.size);
 		put_long (info + 236, numblocks >> 32);
@@ -5374,7 +5382,7 @@ static void
 	}
 
 	/* Fail if file is >=2G, it is not safe operation. */
-	if (fs_fsize64 (k->fd) > MAXFILESIZE32) {
+	if (fs_fsize64 (k->fd) > MAXFILESIZE32_2G) {
 		PUT_PCK_RES1 (packet, DOS_TRUE);
 		PUT_PCK_RES2 (packet, ERROR_BAD_NUMBER); /* ? */
 		return;
