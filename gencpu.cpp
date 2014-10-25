@@ -446,7 +446,7 @@ static void gen_nextilong2 (const char *type, const char *name, int flags, int m
 				insn_n_cycles += 4;
 			} else {
 				printf ("\t%s = %s (%d) << 16;\n", name, prefetch_word, r + 2);
-				count_read++;
+				count_read += 2;
 				printf ("\t%s |= %s (%d);\n", name, prefetch_word, r + 4);
 				insn_n_cycles += 8;
 			}
@@ -542,6 +542,20 @@ static void check_ipl (void)
 	if (using_ce || isce020())
 		printf ("\tipl_fetch ();\n");
 	ipl_fetched = true;
+}
+
+/* Apparently interrupt state is sampled
+ * during any memory access. Because we don't
+ * know if there are future memory accesses,
+ * we'll check each memory access after prefetch
+ * and recheck interrupt state again.
+ */
+static void check_ipl_again (void)
+{
+	if (!ipl_fetched)
+		return;
+	if (using_ce)
+		printf ("\tipl_fetch ();\n");
 }
 
 static void irc2ir (bool dozero)
@@ -1501,9 +1515,9 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			}
 		} else if (using_ce || using_prefetch) {
 			switch (size) {
-			case sz_byte: printf ("\tuae_s8 %s = %s (%sa);\n", name, srcb, name); count_read++; break;
-			case sz_word: printf ("\tuae_s16 %s = %s (%sa);\n", name, srcw, name); count_read++; break;
-			case sz_long: printf ("\tuae_s32 %s = %s (%sa) << 16; %s |= %s (%sa + 2);\n", name, srcw, name, name, srcw, name); count_read += 2; break;
+			case sz_byte: insn_n_cycles += 4; printf ("\tuae_s8 %s = %s (%sa);\n", name, srcb, name); count_read++; break;
+			case sz_word: insn_n_cycles += 4; printf ("\tuae_s16 %s = %s (%sa);\n", name, srcw, name); count_read++; break;
+			case sz_long: insn_n_cycles += 8; printf ("\tuae_s32 %s = %s (%sa) << 16; %s |= %s (%sa + 2);\n", name, srcw, name, name, srcw, name); count_read += 2; break;
 			default: term ();
 			}
 		} else if (using_mmu) {
@@ -1723,22 +1737,29 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 		} else if (using_ce) {
 			switch (size) {
 			case sz_byte:
+				check_ipl_again();
 				printf ("\tx_put_byte (%sa, %s);\n", to, from);
 				count_write++;
 				break;
 			case sz_word:
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					term ();
+				check_ipl_again();
 				printf ("\tx_put_word (%sa, %s);\n", to, from);
 				count_write++;
 				break;
 			case sz_long:
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					term ();
-				if (store_dir)
-					printf ("\t%s (%sa + 2, %s); %s (%sa, %s >> 16);\n", dstw, to, from, dstw, to, from);
-				else
-					printf ("\t%s (%sa, %s >> 16); %s (%sa + 2, %s);\n", dstw, to, from, dstw, to, from);
+				if (store_dir) {
+					printf ("\t%s (%sa + 2, %s);\n", dstw, to, from);
+					check_ipl_again();
+					printf ("%s (%sa, %s >> 16);\n", dstw, to, from);
+				} else {
+					printf ("\t%s (%sa, %s >> 16);\n", dstw, to, from);
+					check_ipl_again();
+					printf ("\t%s (%sa + 2, %s);\n", dstw, to, from);
+				}
 				count_write += 2;
 				break;
 			default:
