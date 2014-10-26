@@ -974,7 +974,7 @@ static void initialize_mountinfo (void)
 			gayle_add_pcmcia_sram_unit (uci->rootdir, uci->readonly);
 			added = true;
 		} else if (type == HD_CONTROLLER_TYPE_PCMCIA_IDE) {
-			gayle_add_pcmcia_ide_unit (uci->rootdir, uci->readonly);
+			gayle_add_pcmcia_ide_unit (uci->rootdir, uci);
 			added = true;
 		}
 		if (added)

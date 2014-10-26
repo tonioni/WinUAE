@@ -2367,7 +2367,7 @@ static int freepcmcia (int reset)
 	return 1;
 }
 
-static int initpcmcia (const TCHAR *path, int readonly, int type, int reset)
+static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, struct uaedev_config_info *uci)
 {
 	if (currprefs.cs_pcmcia == 0)
 		return 0;
@@ -2414,25 +2414,19 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset)
 		}
 	} else if (type == PCMCIA_IDE) {
 
-		if (reset) {
-			if (path) {
-				struct uaedev_config_info ci = { 0 };
-				_tcscpy (ci.rootdir , path);
-				ci.blocksize = 512;
-				ci.readonly = readonly != 0;
-				add_ide_unit (PCMCIA_IDE_ID * 2, &ci);
-			}
+		if (reset && path) {	
+			add_ide_unit (PCMCIA_IDE_ID * 2, uci);
 		}
 
 		pcmcia_common_size = 0;
-		pcmcia_readonly = readonly;
+		pcmcia_readonly = uci->readonly;
 		pcmcia_attrs_size = 0x40000;
 		pcmcia_attrs = xcalloc (uae_u8, pcmcia_attrs_size);
 		pcmcia_type = type;
 
 		write_log (_T("PCMCIA IDE: '%s' open\n"), path);
 		pcmcia_card = 1;
-		initscideattr (readonly);
+		initscideattr (pcmcia_readonly);
 		if (!(gayle_cs & GAYLE_CS_DIS)) {
 			gayle_map_pcmcia ();
 			card_trigger (1);
@@ -2717,26 +2711,26 @@ int gayle_add_ide_unit (int ch, struct uaedev_config_info *ci)
 
 int gayle_add_pcmcia_sram_unit (const TCHAR *path, int readonly)
 {
-	return initpcmcia (path, readonly, PCMCIA_SRAM, 1);
+	return initpcmcia (path, readonly, PCMCIA_SRAM, 1, NULL);
 }
 
-int gayle_add_pcmcia_ide_unit (const TCHAR *path, int readonly)
+int gayle_add_pcmcia_ide_unit (const TCHAR *path, struct uaedev_config_info *uci)
 {
-	return initpcmcia (path, readonly, PCMCIA_IDE, 1);
+	return initpcmcia (path, 0, PCMCIA_IDE, 1, uci);
 }
 
 int gayle_modify_pcmcia_sram_unit (const TCHAR *path, int readonly, int insert)
 {
 	if (insert)
-		return initpcmcia (path, readonly, PCMCIA_SRAM, pcmcia_sram ? 0 : 1);
+		return initpcmcia (path, readonly, PCMCIA_SRAM, pcmcia_sram ? 0 : 1, NULL);
 	else
 		return freepcmcia (0);
 }
 
-int gayle_modify_pcmcia_ide_unit (const TCHAR *path, int readonly, int insert)
+int gayle_modify_pcmcia_ide_unit (const TCHAR *path, struct uaedev_config_info *uci, int insert)
 {
 	if (insert)
-		return initpcmcia (path, readonly, PCMCIA_IDE, pcmcia_sram ? 0 : 1);
+		return initpcmcia (path, 0, PCMCIA_IDE, pcmcia_sram ? 0 : 1, uci);
 	else
 		return freepcmcia (0);
 }
