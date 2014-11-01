@@ -74,6 +74,7 @@ static int datatrack;
 static int cdtvcr_media;
 static int subqcnt;
 static int cd_audio_status;
+static int cdtvcr_wait_sectors;
 
 static void cdtvcr_battram_reset (void)
 {
@@ -370,7 +371,8 @@ static void cdtvcr_read_data(uae_u32 start, uae_u32 addr, uae_u32 len)
 {
 	uae_u8 buffer[2048];
 	int didread;
-
+	
+	cdtvcr_wait_sectors = 0;
 	while (len) {
 		didread = sys_command_cd_read (unitnum, buffer, start, 1);
 		if (!didread)
@@ -381,8 +383,8 @@ static void cdtvcr_read_data(uae_u32 start, uae_u32 addr, uae_u32 len)
 		}
 		addr += 2048;
 		start++;
+		cdtvcr_wait_sectors++;
 	}
-	cdtvcr_cmd_done();
 }
 
 static void cdtvcr_do_cmd(void)
@@ -715,19 +717,33 @@ static void *dev_thread (void *p)
 
 void CDTVCR_hsync_handler (void)
 {
-	static int subqcnt;
+	static int subqcnt, readcnt;
 
 	if (!currprefs.cs_cdtvcr)
 		return;
 
+	if (cdtvcr_wait_sectors > 0 && currprefs.cd_speed == 0) {
+		cdtvcr_wait_sectors = 0;
+		cdtvcr_cmd_done();
+	}
+	readcnt--;
+	if (readcnt <= 0) {
+		int cdspeed = cdtvcr_4510_ram[CDTVCR_CD_SPEED] ? 150 : 75;
+		readcnt = (int)(maxvpos * vblank_hz / cdspeed);
+		if (cdtvcr_wait_sectors > 0) {
+			cdtvcr_wait_sectors--;
+			if (cdtvcr_wait_sectors == 0)
+				cdtvcr_cmd_done();
+		}
+	}
 	subqcnt--;
-	if (subqcnt < 0) {
+	if (subqcnt <= 0) {
 		write_comm_pipe_u32 (&requests, 0x0101, 1);
-		subqcnt = 75;
+		subqcnt = (int)(maxvpos * vblank_hz / 75);
 		// want subcodes but not playing?
 		if (cdtvcr_4510_ram[CDTVCR_CD_SUBCODES] && !cdtvcr_4510_ram[CDTVCR_CD_PLAYING]) {
 			// just return fake stuff, for some reason cdtv-cr driver requires something
-			// that looks validg, even when not playing or it gets in infinite loop
+			// that looks valid, even when not playing or it gets in infinite loop
 			uae_u8 dst[SUB_CHANNEL_SIZE];
 			// regenerate Q-subchannel
 			uae_u8 *s = dst + 12;
@@ -744,6 +760,7 @@ void CDTVCR_hsync_handler (void)
 			setsubchannel(dst);
 		}
 	}
+
 }
 
 static void open_unit (void)

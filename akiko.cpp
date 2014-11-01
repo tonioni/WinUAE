@@ -838,7 +838,7 @@ static int cdrom_command_multi (void)
 #endif
 		cdrom_data_offset = seekpos;
 		cdrom_seek_delay = abs (cdrom_current_sector - cdrom_data_offset);
-		if (cdrom_seek_delay < 100) {
+		if (cdrom_seek_delay < 100 || currprefs.cd_speed == 0) {
 			cdrom_seek_delay = 1;
 		} else {
 			cdrom_seek_delay /= 1000;
@@ -1175,6 +1175,8 @@ void AKIKO_hsync_handler (void)
 			cdrom_seek_delay--;
 		}
 		framecounter += (float)maxvpos * vblank_hz / (75.0 * cdrom_speed);
+		if (currprefs.cd_speed == 0)
+			framecounter = 1;
 		framesync = true;
 	}
 

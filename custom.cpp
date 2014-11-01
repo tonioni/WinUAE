@@ -1682,11 +1682,6 @@ static void update_denise_shifter_planes (int hpos)
 			toscr_1 (diff, fetchmode);
 		thisline_decision.plfright += hpos - thisline_decision.plfright;
 	}
-	toscr_nr_planes_shifter = np;
-	if (isocs7planes ()) {
-		if (toscr_nr_planes_shifter < 6)
-			toscr_nr_planes_shifter = 6;
-	}
 }
 
 static void update_denise (int hpos)

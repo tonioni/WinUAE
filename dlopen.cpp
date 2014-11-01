@@ -12,8 +12,7 @@ UAE_DLHANDLE uae_dlopen(const TCHAR *path)
 {
 	UAE_DLHANDLE result;
 #ifdef WINUAE
-	extern HMODULE WIN32_LoadLibrary(const TCHAR *name);
-	result = WIN32_LoadLibrary(path);
+	result = uae_dlopen_plugin(path);
 #elif _WIN32
 	result = LoadLibrary(path);
 #else
@@ -23,6 +22,8 @@ UAE_DLHANDLE uae_dlopen(const TCHAR *path)
 		write_log("uae_dlopen failed: %s\n", error);
 	}
 #endif
+	if (result)
+		uae_dlopen_patch_common(result);
 	return result;
 }
 
@@ -51,10 +52,10 @@ void uae_dlclose(UAE_DLHANDLE handle)
 
 #include "uae/log.h"
 
-void uae_patch_library_common(UAE_DLHANDLE handle)
+void uae_dlopen_patch_common(UAE_DLHANDLE handle)
 {
+	write_log(_T("DLOPEN: Patching common functions\n"));
 	void *ptr;
-
 	ptr = uae_dlsym(handle, "uae_log");
 	if (ptr) *((uae_log_function *) ptr) = &uae_log;
 }

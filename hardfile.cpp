@@ -1683,10 +1683,10 @@ void hardfile_do_disk_change (struct uaedev_config_data *uci, bool insert)
 	struct hardfiledata *hfd;
 
 	if (uci->ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA_SRAM) {
-		gayle_modify_pcmcia_sram_unit (uci->ci.rootdir, uci->ci.readonly, insert);
+		gayle_modify_pcmcia_sram_unit (&uci->ci, insert);
 		return;
 	} else if (uci->ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA_IDE) {
-		gayle_modify_pcmcia_ide_unit (uci->ci.rootdir, &uci->ci, insert);
+		gayle_modify_pcmcia_ide_unit (&uci->ci, insert);
 		return;
 	}
 	hfd = get_hardfile_data (fsid);

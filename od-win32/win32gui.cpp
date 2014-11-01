@@ -7430,7 +7430,7 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_FASTMEM2, fast);
 	ew (hDlg, IDC_FASTRAM2, fast);
 	ew (hDlg, IDC_FASTMEMAUTOCONFIG, fast);
-	ew (hDlg, IDC_Z3REALMAPPING, z3);
+	ew (hDlg, IDC_Z3MAPPING, z3);
 	ew (hDlg, IDC_FASTTEXT, fast);
 	ew (hDlg, IDC_GFXCARDTEXT, z3);
 	ew (hDlg, IDC_MBRAM1, z3);
@@ -8260,7 +8260,11 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MBL_MEM));
 		SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MBH_MEM));
 		CheckDlgButton(hDlg, IDC_FASTMEMAUTOCONFIG, workprefs.fastmem_autoconfig);
-		CheckDlgButton(hDlg, IDC_Z3REALMAPPING, workprefs.jit_direct_compatible_memory);
+		SendDlgItemMessage (hDlg, IDC_Z3MAPPING, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage (hDlg, IDC_Z3MAPPING, CB_ADDSTRING, 0, (LPARAM)_T("Automatic (*)"));
+		SendDlgItemMessage(hDlg, IDC_Z3MAPPING, CB_ADDSTRING, 0, (LPARAM)_T("UAE"));
+		SendDlgItemMessage(hDlg, IDC_Z3MAPPING, CB_ADDSTRING, 0, (LPARAM)_T("Real"));
+		SendDlgItemMessage (hDlg, IDC_Z3MAPPING, CB_SETCURSEL, workprefs.z3_mapping_mode, 0);
 		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("-"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard 1230 IV"));
@@ -8280,7 +8284,6 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 
 	case WM_USER:
 		workprefs.fastmem_autoconfig = ischecked (hDlg, IDC_FASTMEMAUTOCONFIG);
-		workprefs.jit_direct_compatible_memory = ischecked (hDlg, IDC_Z3REALMAPPING);
 		fix_values_memorydlg ();
 		values_to_memorydlg (hDlg);
 		enable_for_memorydlg (hDlg);
@@ -8292,6 +8295,12 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
 			switch (LOWORD (wParam))
 			{
+				case IDC_Z3MAPPING:
+				v = SendDlgItemMessage (hDlg, IDC_Z3MAPPING, CB_GETCURSEL, 0, 0L);
+				if (v != CB_ERR) {
+					workprefs.z3_mapping_mode = v;
+				}
+				break;
 				case IDC_CPUBOARD_TYPE:
 				v = SendDlgItemMessage (hDlg, IDC_CPUBOARD_TYPE, CB_GETCURSEL, 0, 0L);
 				if (v != CB_ERR) {
@@ -8309,7 +8318,6 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			}
 		}
 		workprefs.fastmem_autoconfig = ischecked (hDlg, IDC_FASTMEMAUTOCONFIG);
-		workprefs.jit_direct_compatible_memory = ischecked (hDlg, IDC_Z3REALMAPPING);
 		recursive--;
 		break;
 
@@ -11000,7 +11008,10 @@ static void new_hardfile (HWND hDlg, int entry)
 	uci = add_filesys_config (&workprefs, entry, &ci);
 	if (uci) {
 		struct hardfiledata *hfd = get_hardfile_data (uci->configoffset);
-		hardfile_media_change (hfd, &ci, true, false);
+		if (hfd)
+			hardfile_media_change (hfd, &ci, true, false);
+		else
+			hardfile_added(&ci);
 	}
 }
 
@@ -11011,7 +11022,10 @@ static void new_harddrive (HWND hDlg, int entry)
 	uci = add_filesys_config (&workprefs, entry, &current_hfdlg.ci);
 	if (uci) {
 		struct hardfiledata *hfd = get_hardfile_data (uci->configoffset);
-		hardfile_media_change (hfd, &current_hfdlg.ci, true, false);
+		if (hfd)
+			hardfile_media_change (hfd, &current_hfdlg.ci, true, false);
+		else
+			hardfile_added(&current_hfdlg.ci);
 	}
 }
 
@@ -11218,6 +11232,9 @@ static int harddiskdlg_button (HWND hDlg, WPARAM wParam)
 		workprefs.win32_norecyclebin = ischecked (hDlg, IDC_NORECYCLEBIN);
 		break;
 
+	case IDC_CD_SPEED:
+		workprefs.cd_speed = ischecked (hDlg, IDC_CD_SPEED) ? 0 : 100;
+		break;
 	}
 	return 0;
 }
@@ -11269,6 +11286,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		CheckDlgButton (hDlg, IDC_NOUAEFSDB, workprefs.filesys_no_uaefsdb);
 		CheckDlgButton (hDlg, IDC_NORECYCLEBIN, workprefs.win32_norecyclebin);
 		CheckDlgButton (hDlg, IDC_MAPDRIVES_LIMIT, workprefs.filesys_limit != 0);
+		CheckDlgButton (hDlg, IDC_CD_SPEED, workprefs.cd_speed == 0);
 		InitializeListView (hDlg);
 		setautocomplete (hDlg, IDC_CD_TEXT);
 		addhistorymenu (hDlg, workprefs.cdslots[0].name, IDC_CD_TEXT, HISTORY_CD, true);

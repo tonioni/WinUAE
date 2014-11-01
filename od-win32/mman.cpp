@@ -32,6 +32,7 @@ static uae_u32 p96base_offset;
 static SYSTEM_INFO si;
 int maxmem;
 uae_u32 natmem_size;
+bool jit_direct_compatible_memory;
 
 static uae_u8 *virtualallocwithlock (LPVOID addr, SIZE_T size, DWORD allocationtype, DWORD protect)
 {
@@ -346,34 +347,48 @@ static int doinit_shm (void)
 
 	set_expamem_z3_hack_override(false);
 	z3offset = 0;
-	if ((changed_prefs.z3autoconfig_start == 0x10000000 || changed_prefs.z3autoconfig_start == 0x40000000) && !changed_prefs.force_0x10000000_z3 && cpuboard_memorytype(&changed_prefs) != BOARD_MEMORY_BLIZZARD_12xx) {
+	if (changed_prefs.z3_mapping_mode != Z3MAPPING_UAE && cpuboard_memorytype(&changed_prefs) != BOARD_MEMORY_BLIZZARD_12xx) {
 		if (1 && natmem_size > 0x40000000 && natmem_size - 0x40000000 >= (totalsize - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align)) && changed_prefs.z3chipmem_size <= 512 * 1024 * 1024) {
-			changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = 0x40000000;
-			z3offset += 0x40000000 - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align);
+			changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = Z3BASE_REAL;
+			z3offset += Z3BASE_REAL - Z3BASE_UAE - ((changed_prefs.z3chipmem_size + align) & ~align);
 			if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000)
 				z3offset += 0x01000000;
 			set_expamem_z3_hack_override(true);
 			startbarrier = 0;
-			write_log(_T("Z3 autoconfig option automatically disabled\n"));
+			write_log(_T("Z3 REAL mapping. JIT direct compatible.\n"));
+			jit_direct_compatible_memory = true;
+		} else if (changed_prefs.z3_mapping_mode == Z3MAPPING_AUTO) {
+			changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = Z3BASE_UAE;
+			jit_direct_compatible_memory = true;
+			write_log(_T("Z3 UAE mapping.\n"));
 		} else {
-			changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = 0x10000000;
+			changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = Z3BASE_REAL;
+			write_log(_T("Z3 REAL mapping. Not JIT direct compatible.\n"));
+			jit_direct_compatible_memory = false;
 		}
+	} else {
+		currprefs.z3autoconfig_start = changed_prefs.z3autoconfig_start = Z3BASE_UAE;
+		jit_direct_compatible_memory = true;
+		write_log(_T("Z3 UAE mapping.\n"));
 	}
 
 	p96mem_offset = NULL;
 	p96mem_size = z3rtgmem_size;
 	p96base_offset = 0;
 	if (changed_prefs.rtgmem_size && gfxboard_is_z3 (changed_prefs.rtgmem_type)) {
-		p96base_offset = natmemsize + startbarrier + z3offset;
+		if (changed_prefs.z3autoconfig_start == Z3BASE_UAE)
+			p96base_offset = natmemsize + startbarrier + z3offset;
+		else
+			p96base_offset = expansion_startaddress(natmemsize + startbarrier + z3offset, changed_prefs.rtgmem_size);
 	} else if (changed_prefs.rtgmem_size && !gfxboard_is_z3 (changed_prefs.rtgmem_type)) {
 		p96base_offset = getz2rtgaddr (changed_prefs.rtgmem_size);
 	}
 	if (p96base_offset) {
-		if (changed_prefs.jit_direct_compatible_memory) {
+		if (jit_direct_compatible_memory) {
 			p96mem_offset = natmem_offset + p96base_offset;
 		} else {
 			// calculate Z3 alignment (argh, I thought only Z2 needed this..)
-			uae_u32 addr = 0x40000000;
+			uae_u32 addr = Z3BASE_REAL;
 			if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
 				addr = expansion_startaddress(addr, 0x01000000);
 				addr += 0x01000000;
@@ -403,7 +418,7 @@ static int doinit_shm (void)
 			write_log (_T("NATMEM: P96 special area: 0x%p-0x%p (%08x %dM)\n"),
 			p96mem_offset, (uae_u8*)p96mem_offset + changed_prefs.rtgmem_size,
 			changed_prefs.rtgmem_size, changed_prefs.rtgmem_size >> 20);
-		canbang = changed_prefs.jit_direct_compatible_memory ? 1 : 0;
+		canbang = jit_direct_compatible_memory ? 1 : 0;
 		if (p96mem_size)
 			natmem_offset_end = p96mem_offset + p96mem_size;
 		else

@@ -200,7 +200,7 @@ bool expamem_z3hack(struct uae_prefs *p)
 	if (regs.halted && ppc_state)
 		return false;
 #endif
-	return p->jit_direct_compatible_memory || cpuboard_memorytype(p) == BOARD_MEMORY_BLIZZARD_12xx;
+	return p->z3_mapping_mode == Z3MAPPING_AUTO || p->z3_mapping_mode == Z3MAPPING_UAE || cpuboard_memorytype(p) == BOARD_MEMORY_BLIZZARD_12xx;
 }
 
 /* Ugly hack for >2M chip RAM in single pool
@@ -357,13 +357,13 @@ static void call_card_init(int index)
 
 	} else {
 
-		if (expamem_z3_sum < 0x10000000) {
+		if (expamem_z3_sum < Z3BASE_UAE) {
 			expamem_z3_sum = currprefs.z3autoconfig_start;
-			if (currprefs.mbresmem_high_size >= 128 * 1024 * 1024 && expamem_z3_sum == 0x10000000)
+			if (currprefs.mbresmem_high_size >= 128 * 1024 * 1024 && expamem_z3_sum == Z3BASE_UAE)
 				expamem_z3_sum += (currprefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024;
 			if (!expamem_z3hack(&currprefs))
-				expamem_z3_sum = 0x40000000;
-			if (expamem_z3_sum == 0x10000000) {
+				expamem_z3_sum = Z3BASE_REAL;
+			if (expamem_z3_sum == Z3BASE_UAE) {
 				expamem_z3_sum += currprefs.z3chipmem_size;
 			}
 		}
@@ -1412,19 +1412,19 @@ static void allocate_expamem (void)
 	currprefs.rtgmem_type = changed_prefs.rtgmem_type;
 	currprefs.z3chipmem_size = changed_prefs.z3chipmem_size;
 
-	z3chipmem_bank.start = 0x10000000;
+	z3chipmem_bank.start = Z3BASE_UAE;
 	z3fastmem_bank.start = currprefs.z3autoconfig_start;
 	if (currprefs.mbresmem_high_size >= 128 * 1024 * 1024)
 		z3chipmem_bank.start += (currprefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024;
 	if (!expamem_z3hack(&currprefs))
-		z3fastmem_bank.start = 0x40000000;
-	if (z3fastmem_bank.start == 0x40000000) {
+		z3fastmem_bank.start = Z3BASE_REAL;
+	if (z3fastmem_bank.start == Z3BASE_REAL) {
 		if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
 			z3fastmem_bank.start += 0x01000000;
 			z3fastmem_bank.start = expansion_startaddress(z3fastmem_bank.start, currprefs.z3fastmem_size);
 		}
 	}
-	if (z3fastmem_bank.start == 0x10000000) {
+	if (z3fastmem_bank.start == Z3BASE_UAE) {
 		if (currprefs.mbresmem_high_size >= 128 * 1024 * 1024)
 			z3fastmem_bank.start += (currprefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024;
 		z3fastmem_bank.start += currprefs.z3chipmem_size;

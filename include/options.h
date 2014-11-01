@@ -285,6 +285,9 @@ struct boardromconfig
 	struct romconfig roms[MAX_BOARD_ROMS];
 };
 
+#define Z3MAPPING_AUTO 0
+#define Z3MAPPING_UAE 1
+#define Z3MAPPING_REAL 2
 
 struct uae_prefs {
 
@@ -418,6 +421,7 @@ struct uae_prefs {
 	int floppy_random_bits_min;
 	int floppy_random_bits_max;
 	int floppy_auto_ext2;
+	int cd_speed;
 	bool tod_hack;
 	uae_u32 maprom;
 	bool rom_readwrite;
@@ -545,8 +549,7 @@ struct uae_prefs {
 	bool clipboard_sharing;
 	bool native_code;
 	bool uae_hide_autoconfig;
-	bool jit_direct_compatible_memory;
-	bool force_0x10000000_z3;
+	int z3_mapping_mode;
 
 	int mountitems;
 	struct uaedev_config_data mountconfig[MOUNT_CONFIG_SIZE];

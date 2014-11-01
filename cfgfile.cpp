@@ -258,6 +258,12 @@ static const TCHAR *hdcontrollers[] = {
 	_T("scsi%d_a3000"),  _T("scsi%d_a4000t"),  _T("scsi%d_cdtv"), _T("scsi%d_cpuboard"),
 	_T("scsram"), _T("scide")
 };
+static const TCHAR *z3mapping[] = {
+	_T("auto"),
+	_T("uae"),
+	_T("real"),
+	NULL
+};
 static const TCHAR *obsolete[] = {
 	_T("accuracy"), _T("gfx_opengl"), _T("gfx_32bit_blits"), _T("32bit_blits"),
 	_T("gfx_immediate_blits"), _T("gfx_ntsc"), _T("win32"), _T("gfx_filter_bits"),
@@ -267,6 +273,7 @@ static const TCHAR *obsolete[] = {
 	_T("serial_hardware_dtrdsr"), _T("gfx_filter_upscale"),
 	_T("gfx_correct_aspect"), _T("gfx_autoscale"), _T("parallel_sampler"), _T("parallel_ascii_emulation"),
 	_T("avoid_vid"), _T("avoid_dga"), _T("z3chipmem_size"), _T("state_replay_buffer"), _T("state_replay"),
+	_T("z3realmapping"), _T("force_0x10000000_z3"),
 	
 	_T("gfx_filter_vert_zoom"),_T("gfx_filter_horiz_zoom"),
 	_T("gfx_filter_vert_zoom_mult"), _T("gfx_filter_horiz_zoom_mult"),
@@ -1096,6 +1103,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, _T("floppy_speed"), _T("%d"), p->floppy_speed);
 	cfgfile_write (f, _T("floppy_volume"), _T("%d"), p->dfxclickvolume);
 	cfgfile_dwrite (f, _T("floppy_channel_mask"), _T("0x%x"), p->dfxclickchannelmask);
+	cfgfile_write (f, _T("cd_speed"), _T("%d"), p->cd_speed);
 	cfgfile_write_bool (f, _T("parallel_on_demand"), p->parallel_demand);
 	cfgfile_write_bool (f, _T("serial_on_demand"), p->serial_demand);
 	cfgfile_write_bool (f, _T("serial_hardware_ctsrts"), p->serial_hwctsrts);
@@ -1475,8 +1483,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, _T("z3_autoconfig"), p->cs_z3autoconfig);
 	cfgfile_dwrite (f, _T("chipset_hacks"), _T("0x%x"), p->cs_hacks);
 
-	cfgfile_dwrite_bool (f, _T("z3realmapping"), p->jit_direct_compatible_memory);
-	cfgfile_dwrite_bool (f, _T("force_0x10000000_z3"), p->force_0x10000000_z3);
+	cfgfile_dwrite_str (f, _T("z3mapping"), z3mapping[p->z3_mapping_mode]);
 	cfgfile_dwrite_bool (f, _T("fastmem_autoconfig"), p->fastmem_autoconfig);
 	if (p->fastmem_size < 0x100000 && p->fastmem_size)
 		cfgfile_write (f, _T("fastmem_size_k"), _T("%d"), p->fastmem_size / 1024);
@@ -3645,8 +3652,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("z3_autoconfig"), &p->cs_z3autoconfig)
 		|| cfgfile_yesno (option, value, _T("agnus_bltbusybug"), &p->cs_agnusbltbusybug)
 		|| cfgfile_yesno (option, value, _T("fastmem_autoconfig"), &p->fastmem_autoconfig)
-		|| cfgfile_yesno (option, value, _T("z3realmapping"), &p->jit_direct_compatible_memory)
-		|| cfgfile_yesno (option, value, _T("force_0x10000000_z3"), &p->force_0x10000000_z3)
 		|| cfgfile_yesno (option, value, _T("gfxcard_hardware_vblank"), &p->rtg_hardwareinterrupt)
 		|| cfgfile_yesno (option, value, _T("gfxcard_hardware_sprite"), &p->rtg_hardwaresprite)
 		|| cfgfile_yesno (option, value, _T("synchronize_clock"), &p->tod_hack)
@@ -3707,6 +3712,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_strval(option, value, _T("cpuboard_type"), &p->cpuboard_type, cpuboards, 0)
 		|| cfgfile_intval(option, value, _T("rtg_modes"), &p->picasso96_modeflags, 1)
 		|| cfgfile_intval (option, value, _T("floppy_speed"), &p->floppy_speed, 1)
+		|| cfgfile_intval (option, value, _T("cd_speed"), &p->cd_speed, 1)
 		|| cfgfile_intval (option, value, _T("floppy_write_length"), &p->floppy_write_length, 1)
 		|| cfgfile_intval (option, value, _T("floppy_random_bits_min"), &p->floppy_random_bits_min, 1)
 		|| cfgfile_intval (option, value, _T("floppy_random_bits_max"), &p->floppy_random_bits_max, 1)
@@ -3736,6 +3742,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_strval (option, value, _T("monitoremu"), &p->monitoremu, specialmonitors, 0)
 		|| cfgfile_strval (option, value, _T("waiting_blits"), &p->waiting_blits, waitblits, 0)
 		|| cfgfile_strval (option, value, _T("floppy_auto_extended_adf"), &p->floppy_auto_ext2, autoext2, 0)
+		|| cfgfile_strval (option, value,  _T("z3mapping"), &p->z3_mapping_mode, z3mapping, 0)
 		|| cfgfile_strboolval (option, value, _T("comp_flushmode"), &p->comp_hardflush, flushmode, 0))
 		return 1;
 
@@ -5331,8 +5338,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->ghostscript_parameters[0] = 0;
 	p->uae_hide = 0;
 	p->uae_hide_autoconfig = false;
-	p->jit_direct_compatible_memory = true;
-	p->force_0x10000000_z3 = false;
+	p->z3_mapping_mode = Z3MAPPING_AUTO;
 
 	p->mountitems = 0;
 	for (i = 0; i < MOUNT_CONFIG_SIZE; i++) {
@@ -5561,6 +5567,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->floppy_random_bits_max = 3;
 	p->dfxclickvolume = 33;
 	p->dfxclickchannelmask = 0xffff;
+	p->cd_speed = 100;
 
 	p->statecapturebuffersize = 100;
 	p->statecapturerate = 5 * 50;
@@ -5608,6 +5615,8 @@ void default_prefs (struct uae_prefs *p, int type)
 	cr->ntsc = 1;
 	cr->locked = false;
 	_tcscpy (cr->label, _T("NTSC"));
+
+	savestate_state = 0;
 
 	target_default_options (p, type);
 

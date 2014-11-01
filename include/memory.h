@@ -26,6 +26,10 @@ bool init_shm (void);
 void free_shm (void);
 bool preinit_shm (void);
 extern bool canbang;
+extern bool jit_direct_compatible_memory;
+
+#define Z3BASE_UAE 0x10000000
+#define Z3BASE_REAL 0x40000000
 
 #ifdef ADDRESS_SPACE_24BIT
 #define MEMORY_BANKS 256

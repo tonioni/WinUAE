@@ -614,6 +614,7 @@
 #define IDC_NEW_HD                      1341
 #define IDC_PORT0                       1342
 #define IDC_NEW_FSARCH                  1342
+#define IDC_NEW_FS2                     1342
 #define IDC_PORT1                       1343
 #define IDC_NEW_CD                      1344
 #define IDC_NEW_CD2                     1345
@@ -704,7 +705,7 @@
 #define IDC_WINDOWEDTEXT                1512
 #define IDC_MAPDRIVES_LIMIT             1512
 #define IDC_HEIGHTTEXT                  1513
-#define IDC_MAPDRIVES_NET2              1513
+#define IDC_CD_SPEED                    1513
 #define IDC_SETTINGSTEXT                1514
 #define IDC_REFRESHTEXT                 1515
 #define IDC_SETTINGSTEXT2               1515
@@ -1168,7 +1169,6 @@
 #define IDC_CD_SELECT                   1807
 #define IDC_FASTMEMAUTOCONFIG           1808
 #define IDC_RTG_DISPLAYSELECT           1809
-#define IDC_Z3REALMAPPING               1809
 #define IDC_MISCLIST                    1810
 #define IDC_STATENAME                   1811
 #define IDC_SAMPLER_STEREO              1812
@@ -1205,6 +1205,7 @@
 #define IDC_DA_SLIDER                   1841
 #define IDC_CPUBOARD_TYPE               1842
 #define IDC_CPUBOARDMEM                 1843
+#define IDC_Z3MAPPING                   1844
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

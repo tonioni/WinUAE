@@ -61,7 +61,7 @@ static bool canjit (void)
 }
 static bool needmman (void)
 {
-	if (!currprefs.jit_direct_compatible_memory)
+	if (!jit_direct_compatible_memory)
 		return false;
 #ifdef _WIN32
 	return true;

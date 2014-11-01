@@ -18,6 +18,26 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 23:
+
+- Dragging vhd file to harddrives panel now adds it as a HDF, not a directory if it does not contain any known
+  filesystem or RDB identifiers.
+- PCMCIA IDE was always mounted without drive since drive attribute update long time ago.
+- PCMCIA IDE and SRAM can be added (card inserted) after emulation has been started.
+- Replaced "JIT direct compatible" option in memory panel with more useful Z3 mapping option:
+  Auto = Use OS mapping if possible, fall back to UAE hack if JIT direct enabled and not enough adddress space.
+  UAE = Always use UAE hack mapping (0x10000000). NOTE: not compatible with non-m68k operating systems. This mode
+  was always forced until 282b1.
+  Real = Always use OS mapping (0x40000000 with alignment support), disable JIT direct if not enough address space.
+- Fixed missing graphics in Disposable Hero title screen in non-cycle exact modes.
+- Load config with statefile set, load another config without statefile, GUI shows no statefile selected but
+  when starting emulation statefile was still loaded.
+- CDTV-CR CD read speed is now limited to 1x/2x.
+- Added CD turbo data read speed mode, affects CDTV/CDTV-CR/CD32 emulation only. SCSI CD is always in turbo mode.
+  Checkbox in CD/Harddrives panel.
+- QEMU PPC module update, now all extra dependencies are statically linked. External dlls are not
+  needed anymore (whole plugins\qemu can be deleted). Must be located at <winuae path>\plugins\qemu-uae.dll
+
 Beta 22:
 
 - CDTV-CR CD unit was initialized even when CDTV-CR emulation was not enabled. Broke CD access on configurations

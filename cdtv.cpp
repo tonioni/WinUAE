@@ -508,7 +508,8 @@ static void cdrom_command_thread (uae_u8 b)
 		if (cdrom_command_cnt_in == 7) {
 			cdrom_command_accepted (0, s, &cdrom_command_cnt_in);
 			cd_finished = 1;
-			sleep_millis (500);
+			if (currprefs.cd_speed)
+				sleep_millis (500);
 			activate_stch = 1;
 		}
 		break;
@@ -639,6 +640,8 @@ static void dma_do_thread (void)
 		cdrom_offset / cdtv_sectorsize, dmac_acr, cnt, cdrom_length / 2);
 #endif
 	dma_wait += cnt * (uae_u64)312 * 50 / 75 + 1;
+	if (currprefs.cd_speed == 0)
+		dma_wait = 1;
 	while (cnt > 0 && dmac_dma) {
 		uae_u8 buffer[2352];
 		if (!didread || readsector != (cdrom_offset / cdtv_sectorsize)) {

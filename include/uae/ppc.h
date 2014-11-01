@@ -26,6 +26,7 @@
 
 #ifdef UAE
 
+void uae_ppc_get_model(const TCHAR **model, uint32_t *hid1);
 void uae_ppc_doze(void);
 void uae_ppc_crash(void);
 void uae_ppc_cpu_reboot(void);

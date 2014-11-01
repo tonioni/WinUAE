@@ -709,6 +709,9 @@
     <ClCompile Include="..\..\cdtvcr.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\qemuvga\qemu.cpp">
+      <Filter>qemu</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

@@ -2756,6 +2756,24 @@ void NMI (void)
 	do_interrupt (7);
 }
 
+static void m68k_reset_sr(void)
+{
+	SET_XFLG ((regs.sr >> 4) & 1);
+	SET_NFLG ((regs.sr >> 3) & 1);
+	SET_ZFLG ((regs.sr >> 2) & 1);
+	SET_VFLG ((regs.sr >> 1) & 1);
+	SET_CFLG (regs.sr & 1);
+	regs.t1 = (regs.sr >> 15) & 1;
+	regs.t0 = (regs.sr >> 14) & 1;
+	regs.s  = (regs.sr >> 13) & 1;
+	regs.m  = (regs.sr >> 12) & 1;
+	regs.intmask = (regs.sr >> 8) & 7;
+	/* set stack pointer */
+	if (regs.s)
+		m68k_areg (regs, 7) = regs.isp;
+	else
+		m68k_areg (regs, 7) = regs.usp;
+}
 
 static void m68k_reset2(bool hardreset)
 {
@@ -2766,22 +2784,8 @@ static void m68k_reset2(bool hardreset)
 	regs.ipl = regs.ipl_pin = 0;
 #ifdef SAVESTATE
 	if (isrestore ()) {
+		m68k_reset_sr();
 		m68k_setpc_normal (regs.pc);
-		SET_XFLG ((regs.sr >> 4) & 1);
-		SET_NFLG ((regs.sr >> 3) & 1);
-		SET_ZFLG ((regs.sr >> 2) & 1);
-		SET_VFLG ((regs.sr >> 1) & 1);
-		SET_CFLG (regs.sr & 1);
-		regs.t1 = (regs.sr >> 15) & 1;
-		regs.t0 = (regs.sr >> 14) & 1;
-		regs.s  = (regs.sr >> 13) & 1;
-		regs.m  = (regs.sr >> 12) & 1;
-		regs.intmask = (regs.sr >> 8) & 7;
-		/* set stack pointer */
-		if (regs.s)
-			m68k_areg (regs, 7) = regs.isp;
-		else
-			m68k_areg (regs, 7) = regs.usp;
 		return;
 	} else {
 		m68k_reset_delay = currprefs.reset_delay;
@@ -5698,6 +5702,8 @@ uae_u8 *restore_cpu (uae_u8 *src)
 		regs.chipset_latch_read = restore_u32 ();
 		regs.chipset_latch_write = restore_u32 ();
 	}
+
+	m68k_reset_sr();
 
 	write_log (_T("CPU: %d%s%03d, PC=%08X\n"),
 		model / 1000, flags & 1 ? _T("EC") : _T(""), model % 1000, regs.pc);

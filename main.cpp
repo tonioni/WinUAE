@@ -317,13 +317,6 @@ void fixup_cpu (struct uae_prefs *p)
 		p->comptrustlong = 1;
 		p->comptrustnaddr = 1;
 	}
-	if (!p->jit_direct_compatible_memory && !p->comptrustbyte) {
-		error_log(_T("JIT direct compatible memory option is disabled, disabling JIT direct."));
-		p->comptrustbyte = 1;
-		p->comptrustlong = 1;
-		p->comptrustlong = 1;
-		p->comptrustnaddr = 1;
-	}
 }
 
 void fixup_prefs (struct uae_prefs *p)

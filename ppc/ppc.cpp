@@ -29,16 +29,6 @@
 
 #define TRACE(format, ...) write_log(_T("PPC: ") format, ## __VA_ARGS__)
 
-#ifdef WINUAE
-#ifdef WIN64
-#define QEMU_LIBRARY_PATH _T("qemu\\x64\\qemu-uae.dll")
-#else
-#define QEMU_LIBRARY_PATH _T("qemu\\qemu-uae.dll")
-#endif
-#else
-#define QEMU_LIBRARY_PATH _T("qemu-uae.dll")
-#endif
-
 #if SPINLOCK_DEBUG
 static volatile int spinlock_cnt;
 #endif
@@ -110,7 +100,6 @@ int ppc_cycle_count;
 static volatile bool ppc_access;
 static volatile int ppc_cpu_lock_state;
 static bool ppc_init_done;
-static bool ppc_cpu_init_done;
 static int ppc_implementation;
 static bool ppc_paused;
 
@@ -133,20 +122,12 @@ static void PPCCALL dummy_ppc_cpu_run_single(int count) { }
 //static uint64_t PPCCALL dummy_ppc_cpu_get_dec(void) { return 0; }
 //static void PPCCALL dummy_ppc_cpu_do_dec(int value) { }
 
-static void PPCCALL dummy_ppc_cpu_version(int *major, int *minor, int *revision)
-{
-    *major = QEMU_UAE_VERSION_MAJOR;
-    *minor = QEMU_UAE_VERSION_MINOR;
-    *revision = 0;
-}
-
 static void PPCCALL dummy_ppc_cpu_pause(int pause)
 {
 }
 
 /* Functions typedefs for PPC implementation */
 
-typedef void (PPCCALL *ppc_cpu_version_function)(int *major, int *minor, int *revision);
 typedef bool (PPCCALL *ppc_cpu_init_function)(const char *model, uint32_t hid1);
 typedef bool (PPCCALL *ppc_cpu_init_pvr_function)(uint32_t pvr);
 typedef void (PPCCALL *ppc_cpu_close_function)(void);
@@ -170,9 +151,9 @@ static struct impl {
 	/* Common */
 	ppc_cpu_atomic_raise_ext_exception_function atomic_raise_ext_exception;
 	ppc_cpu_atomic_cancel_ext_exception_function atomic_cancel_ext_exception;
-	ppc_cpu_run_continuous_function run_continuous;
 
 	/* PearPC */
+	ppc_cpu_run_continuous_function run_continuous;
 	ppc_cpu_init_pvr_function init_pvr;
 	ppc_cpu_pause_function pause;
 	ppc_cpu_close_function close;
@@ -183,7 +164,6 @@ static struct impl {
 	ppc_cpu_do_dec_function do_dec;
 
 	/* QEMU */
-	ppc_cpu_version_function version;
 	ppc_cpu_init_function init;
 	ppc_cpu_map_memory_function map_memory;
 	ppc_cpu_check_state_function check_state;
@@ -237,7 +217,7 @@ static bool load_qemu_implementation(void)
 	write_log(_T("PPC: Loading QEmu implementation\n"));
 	memset(&impl, 0, sizeof(impl));
 
-	UAE_DLHANDLE handle = uae_dlopen(QEMU_LIBRARY_PATH);
+	UAE_DLHANDLE handle = uae_qemu_uae_init();
 	if (!handle) {
 		gui_message(_T("PPC: Error loading qemu-uae library\n"));
 		return false;
@@ -246,49 +226,23 @@ static bool load_qemu_implementation(void)
 
 	/* Retrieve function pointers from library */
 
-	impl.version = (ppc_cpu_version_function) uae_dlsym(handle, "ppc_cpu_version");
-	//impl.init = (ppc_cpu_init_function) uae_dlsym(handle, "ppc_cpu_init");
 	impl.init = (ppc_cpu_init_function) uae_dlsym(handle, "ppc_cpu_init");
 	//impl.free = (ppc_cpu_free_function) uae_dlsym(handle, "ppc_cpu_free");
 	//impl.stop = (ppc_cpu_stop_function) uae_dlsym(handle, "ppc_cpu_stop");
 	impl.external_interrupt = (qemu_uae_ppc_external_interrupt_function) uae_dlsym(handle, "qemu_uae_ppc_external_interrupt");
 	impl.map_memory = (ppc_cpu_map_memory_function) uae_dlsym(handle, "ppc_cpu_map_memory");
-	//impl.set_pc = (ppc_cpu_set_pc_function) uae_dlsym(handle, "ppc_cpu_set_pc");
 	impl.run_continuous = (ppc_cpu_run_continuous_function) uae_dlsym(handle, "ppc_cpu_run_continuous");
-	//impl.run_single = (ppc_cpu_run_single_function) uae_dlsym(handle, "ppc_cpu_run_single");
-	//impl.get_dec = (ppc_cpu_get_dec_function) uae_dlsym(handle, "ppc_cpu_get_dec");
-	//impl.do_dec = (ppc_cpu_do_dec_function) uae_dlsym(handle, "ppc_cpu_do_dec");
-	//impl.pause = (ppc_cpu_pause_function) uae_dlsym(handle, "ppc_cpu_pause");
 	impl.check_state = (ppc_cpu_check_state_function) uae_dlsym(handle, "ppc_cpu_check_state");
 	impl.set_state = (ppc_cpu_set_state_function) uae_dlsym(handle, "ppc_cpu_set_state");
 	impl.reset = (ppc_cpu_reset_function) uae_dlsym(handle, "ppc_cpu_reset");
 	impl.in_cpu_thread = (qemu_uae_ppc_in_cpu_thread_function) uae_dlsym(handle, "qemu_uae_ppc_in_cpu_thread");
 	impl.lock = (qemu_uae_lock_function) uae_dlsym(handle, "qemu_uae_lock");
 
-	/* Check major version (=) and minor version (>=) */
+	// FIXME: not needed, handled internally by uae_dlopen_plugin
+	// uae_dlopen_patch_common(handle);
 
-	int major = 0, minor = 0, revision = 0;
-	if (impl.version) {
-		impl.version(&major, &minor, &revision);
-	}
-	if (major != QEMU_UAE_VERSION_MAJOR) {
-		gui_message(_T("PPC: Wanted qemu-uae version %d.x (got %d.x)\n"),
-			QEMU_UAE_VERSION_MAJOR, major);
-		return false;
-	}
-	if (minor < QEMU_UAE_VERSION_MINOR) {
-		gui_message(_T("PPC: Wanted qemu-uae version >= %d.%d (got %d.%d)\n"),
-			QEMU_UAE_VERSION_MAJOR, QEMU_UAE_VERSION_MINOR,
-			major, minor);
-		return false;
-	}
-
-        // FIXME: not needed, handled internally by uae_dlopen_plugin
-        // uae_dlopen_patch_common(handle);
-
-        uae_patch_library_common(handle);
-        uae_patch_library_ppc(handle);
-        return true;
+	uae_patch_library_ppc(handle);
+	return true;
 #else
 	return false;
 #endif
@@ -511,52 +465,53 @@ void ppc_map_banks(uae_u32 start, uae_u32 size, const TCHAR *name, void *addr, b
 	free((void*)r.name);
 }
 
-static void cpu_init(void)
+void uae_ppc_get_model(const TCHAR **model, uint32_t *hid1)
 {
-	const TCHAR *model;
-	uint32_t hid1;
-
 	if (currprefs.ppc_model[0]) {
 		/* Override PPC CPU model. See qemu/target-ppc/cpu-models.c for
 		 * a list of valid CPU model identifiers */
-		model = currprefs.ppc_model;
+		*model = currprefs.ppc_model;
 	} else {
 		/* Set default CPU model based on accelerator board */
 		if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC) {
-			model = _T("603ev");
+			*model = _T("603ev");
 		} else {
-			model = _T("604e");
+			*model = _T("604e");
 		}
 	}
 	if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC) {
-		hid1 = 0xc0000000; // 4x
+		*hid1 = 0xc0000000; // 4x
 	} else {
-		hid1 = 0xa0000000; // 4x
+		*hid1 = 0xa0000000; // 4x
 	}
+}
 
-	if (impl.init) {
-		char *models = ua(model);
-		impl.init(models, hid1);
-		free(models);
-	} else if (impl.init_pvr) {
+static void cpu_init(void)
+{
+	if (using_pearpc()) {
+		const TCHAR *model;
+		uint32_t hid1;
+		uae_ppc_get_model(&model, &hid1);
 		uint32_t pvr = 0;
 		if (_tcsicmp(model, _T("603ev")) == 0) {
 			pvr = BLIZZPPC_PVR;
-		}
-		else if (_tcsicmp(model, _T("604e")) == 0) {
+		} else if (_tcsicmp(model, _T("604e")) == 0) {
 			pvr = CSPPC_PVR;
-		}
-		else {
+		} else {
 			pvr = CSPPC_PVR;
 			write_log(_T("PPC: Unrecognized model \"%s\", using PVR 0x%08x\n"), model, pvr);
 		}
 		write_log(_T("PPC: Calling ppc_cpu_init with PVR 0x%08x\n"), pvr);
 		impl.init_pvr(pvr);
+		return;
 	}
+	/* QEMU: CPU has already been initialized by qemu_uae_init */
 }
 
 static void uae_ppc_cpu_reset(void)
 {
+	static bool ppc_cpu_init_done;
+	
 	TRACE(_T("uae_ppc_cpu_reset\n"));
 	
 	initialize();
@@ -584,10 +539,12 @@ static void uae_ppc_cpu_reset(void)
 
 static void *ppc_thread(void *v)
 {
-	uae_ppc_cpu_reset();
-	impl.run_continuous();
+	if (using_qemu()) {
+		write_log(_T("PPC: Warning - ppc_thread started with QEMU impl\n"));
+	} else {
+		uae_ppc_cpu_reset();
+		impl.run_continuous();
 
-	if (using_pearpc()) {
 		if (ppc_state == PPC_STATE_ACTIVE || ppc_state == PPC_STATE_SLEEP)
 			ppc_state = PPC_STATE_STOP;
 		write_log(_T("ppc_cpu_run() exited.\n"));
@@ -797,7 +754,14 @@ void uae_ppc_cpu_reboot(void)
 	if (!ppc_thread_running) {
 		write_log(_T("Starting PPC thread.\n"));
 		ppc_thread_running = true;
-		uae_start_thread(NULL, ppc_thread, NULL, NULL);
+		if (using_qemu()) {
+			uae_ppc_cpu_reset();
+			//qemu_uae_ppc_start();
+			impl.set_state(PPC_CPU_STATE_RUNNING);
+			//set_and_wait_for_state(PPC_CPU_STATE_RUNNING, 0);
+		} else {
+			uae_start_thread(NULL, ppc_thread, NULL, NULL);
+		}
 	} else if (using_qemu()) {
 		write_log(_T("PPC: Thread already running, resetting\n"));
 		uae_ppc_cpu_reset();

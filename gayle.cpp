@@ -1954,6 +1954,18 @@ static void alloc_ide_mem (struct ide_hdf **ide, int max)
 	}
 }
 
+static void remode_ide_unit(int ch)
+{
+	struct ide_hdf *ide;
+
+	ide = idedrive[ch];
+	if (!ide)
+		return;
+	hdf_hd_close(&ide->hdhfd);
+	scsi_free(ide->scsi);
+	ide->scsi = NULL;
+}
+
 static struct ide_hdf *add_ide_unit (int ch, struct uaedev_config_info *ci)
 {
 	struct ide_hdf *ide;
@@ -2349,6 +2361,7 @@ static int freepcmcia (int reset)
 			pcmcia_sram->hfd.drive_empty = 1;
 		}
 	}
+	remode_ide_unit(PCMCIA_IDE_ID * 2);
 	if (pcmcia_card)
 		gayle_cs_change (GAYLE_CS_CCDET, 0);
 	
@@ -2709,28 +2722,28 @@ int gayle_add_ide_unit (int ch, struct uaedev_config_info *ci)
 	return 1;
 }
 
-int gayle_add_pcmcia_sram_unit (const TCHAR *path, int readonly)
+int gayle_add_pcmcia_sram_unit (struct uaedev_config_info *uci)
 {
-	return initpcmcia (path, readonly, PCMCIA_SRAM, 1, NULL);
+	return initpcmcia (uci->rootdir, uci->readonly, PCMCIA_SRAM, 1, NULL);
 }
 
-int gayle_add_pcmcia_ide_unit (const TCHAR *path, struct uaedev_config_info *uci)
+int gayle_add_pcmcia_ide_unit (struct uaedev_config_info *uci)
 {
-	return initpcmcia (path, 0, PCMCIA_IDE, 1, uci);
+	return initpcmcia (uci->rootdir, 0, PCMCIA_IDE, 1, uci);
 }
 
-int gayle_modify_pcmcia_sram_unit (const TCHAR *path, int readonly, int insert)
+int gayle_modify_pcmcia_sram_unit (struct uaedev_config_info *uci, int insert)
 {
 	if (insert)
-		return initpcmcia (path, readonly, PCMCIA_SRAM, pcmcia_sram ? 0 : 1, NULL);
+		return initpcmcia (uci->rootdir, uci->readonly, PCMCIA_SRAM, pcmcia_sram ? 0 : 1, NULL);
 	else
 		return freepcmcia (0);
 }
 
-int gayle_modify_pcmcia_ide_unit (const TCHAR *path, struct uaedev_config_info *uci, int insert)
+int gayle_modify_pcmcia_ide_unit (struct uaedev_config_info *uci, int insert)
 {
 	if (insert)
-		return initpcmcia (path, 0, PCMCIA_IDE, pcmcia_sram ? 0 : 1, uci);
+		return initpcmcia (uci->rootdir, 0, PCMCIA_IDE, pcmcia_sram ? 0 : 1, uci);
 	else
 		return freepcmcia (0);
 }

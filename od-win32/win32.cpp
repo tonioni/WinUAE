@@ -6185,6 +6185,16 @@ HMODULE WIN32_LoadLibrary2 (const TCHAR *name)
 	return m;
 }
 
+HMODULE uae_dlopen_plugin(const TCHAR *name)
+{
+	HMODULE h;
+	TCHAR path[MAX_DPATH];
+	_tcscpy(path, name);
+	_tcscat(path, _T(".dll"));
+	h = WIN32_LoadLibrary(path);
+	return h;
+}
+
 int isdllversion (const TCHAR *name, int version, int revision, int subver, int subrev)
 {
 	DWORD  dwVersionHandle, dwFileVersionInfoSize;

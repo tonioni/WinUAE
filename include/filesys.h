@@ -139,6 +139,7 @@ extern int get_native_path(uae_u32 lock, TCHAR *out);
 extern void hardfile_do_disk_change (struct uaedev_config_data *uci, bool insert);
 extern void hardfile_send_disk_change (struct hardfiledata *hfd, bool insert);
 extern int hardfile_media_change (struct hardfiledata *hfd, struct uaedev_config_info *ci, bool inserted, bool timer);
+extern int hardfile_added (struct uaedev_config_info *ci);
 
 void hdf_hd_close(struct hd_hardfiledata *hfd);
 int hdf_hd_open(struct hd_hardfiledata *hfd);
