@@ -55,8 +55,10 @@
 #define CPUEMU_13 /* 68000/68010 cycle-exact cpu&blitter */
 #define CPUEMU_20 /* 68020 prefetch */
 #define CPUEMU_21 /* 68020 "cycle-exact" + blitter */
-#define CPUEMU_22 /* 68030 "cycle-exact" + blitter */
-#define CPUEMU_23 /* 68040/060 "cycle-exact" + blitter */
+#define CPUEMU_22 /* 68030 prefetch */
+#define CPUEMU_23 /* 68030 "cycle-exact" + blitter */
+#define CPUEMU_24 /* 68060 "cycle-exact" + blitter */
+#define CPUEMU_25 /* 68040 "cycle-exact" + blitter */
 #define CPUEMU_31 /* Aranym 68040 MMU */
 #define CPUEMU_32 /* Previous 68030 MMU */
 #define CPUEMU_33 /* 68060 MMU */

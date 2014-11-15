@@ -799,6 +799,7 @@
     <ClCompile Include="..\..\cpuemu_21.cpp" />
     <ClCompile Include="..\..\cpuemu_22.cpp" />
     <ClCompile Include="..\..\cpuemu_23.cpp" />
+    <ClCompile Include="..\..\cpuemu_24.cpp" />
     <ClCompile Include="..\..\cpuemu_32.cpp" />
     <ClCompile Include="..\..\cpuemu_33.cpp" />
     <ClCompile Include="..\..\cpuemu_40.cpp" />

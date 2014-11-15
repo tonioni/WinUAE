@@ -1484,7 +1484,7 @@ static void REGPARAM2 dmac_bput (uaecptr addr, uae_u32 b)
 	addr &= 65535;
 	b &= 0xff;
 	if (addr == 0x48) {
-		map_banks (&dmac_bank, b, 0x10000 >> 16, 0x10000);
+		map_banks_z2 (&dmac_bank, b, 0x10000 >> 16);
 		configured = b;
 		expamem_next(&dmac_bank, NULL);
 		return;
@@ -1704,7 +1704,7 @@ addrbank *cdtv_init (void)
 void cdtv_check_banks (void)
 {
 	if (configured > 0)
-		map_banks (&dmac_bank, configured, 0x10000 >> 16, 0x10000);
+		map_banks_z2 (&dmac_bank, configured, 0x10000 >> 16);
 }
 
 #ifdef SAVESTATE

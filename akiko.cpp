@@ -57,32 +57,34 @@ static void irq (void)
 *
 */
 
-#define NVRAM_SIZE 1024
-static uae_u8 cd32_nvram[NVRAM_SIZE];
+static uae_u8 *cd32_nvram;
 static void *cd32_eeprom;
 static uae_u8 cd32_i2c_direction;
 static bool cd32_i2c_data_scl, cd32_i2c_data_sda;
+static struct zfile *flashfile;
 
 static void nvram_read (void)
 {
-	struct zfile *f;
-
+	zfile_fclose(flashfile);
+	flashfile = NULL;
 	eeprom_free(cd32_eeprom);
 	cd32_eeprom = NULL;
 	cd32_i2c_data_scl = cd32_i2c_data_sda = true;
 	cd32_i2c_direction = 0;
 	if (!currprefs.cs_cd32nvram)
 		return;
-	memset(cd32_nvram, 0, sizeof(cd32_nvram));
-	f = zfile_fopen (currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
-	if (!f)
-		f = zfile_fopen (currprefs.flashfile, _T("rb"), ZFD_NORMAL);
-	if (f) {
-		int size = zfile_fread(cd32_nvram, 1, NVRAM_SIZE, f);
-		if (size < NVRAM_SIZE)
-			zfile_fwrite(cd32_nvram + size, 1, NVRAM_SIZE - size, f);
+	if (!cd32_nvram)
+		cd32_nvram = xmalloc(uae_u8, currprefs.cs_cd32nvram_size);
+	memset(cd32_nvram, 0, currprefs.cs_cd32nvram_size);
+	flashfile = zfile_fopen (currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
+	if (!flashfile)
+		flashfile = zfile_fopen (currprefs.flashfile, _T("wb"), 0);
+	if (flashfile) {
+		int size = zfile_fread(cd32_nvram, 1, currprefs.cs_cd32nvram_size, flashfile);
+		if (size < currprefs.cs_cd32nvram_size)
+			zfile_fwrite(cd32_nvram + size, 1, currprefs.cs_cd32nvram_size - size, flashfile);
 	}
-	cd32_eeprom = eeprom_new(cd32_nvram, NVRAM_SIZE, f);
+	cd32_eeprom = eeprom_new(cd32_nvram, currprefs.cs_cd32nvram_size, flashfile);
 }
 
 static void akiko_nvram_write (int offset, uae_u32 v)

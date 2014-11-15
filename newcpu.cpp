@@ -854,6 +854,22 @@ static void set_x_funcs (void)
 				x_do_cycles = do_cycles;
 				x_do_cycles_pre = do_cycles;
 				x_do_cycles_post = do_cycles_post;
+			} else if (currprefs.cpu_model == 68030 && !currprefs.cachesize) {
+				x_prefetch = get_word_prefetch;
+				x_get_ilong = get_long_020_prefetch;
+				x_get_iword = get_word_020_prefetch;
+				x_get_ibyte = NULL;
+				x_next_iword = next_iword_020_prefetch;
+				x_next_ilong = next_ilong_020_prefetch;
+				x_put_long = put_long;
+				x_put_word = put_word;
+				x_put_byte = put_byte;
+				x_get_long = get_long;
+				x_get_word = get_word;
+				x_get_byte = get_byte;
+				x_do_cycles = do_cycles;
+				x_do_cycles_pre = do_cycles;
+				x_do_cycles_post = do_cycles_post;
 			} else if (currprefs.cpu_model < 68040) {
 				// JIT or 68030+ does not have real prefetch only emulation
 				x_prefetch = NULL;
@@ -1148,11 +1164,11 @@ static const struct cputbl *cputbls[6][5] =
 	// 68020
 	{ op_smalltbl_3_ff, op_smalltbl_43_ff, op_smalltbl_20_ff, op_smalltbl_21_ff, NULL },
 	// 68030
-	{ op_smalltbl_2_ff, op_smalltbl_42_ff, op_smalltbl_42_ff, op_smalltbl_22_ff, op_smalltbl_32_ff },
+	{ op_smalltbl_2_ff, op_smalltbl_42_ff, op_smalltbl_22_ff, op_smalltbl_23_ff, op_smalltbl_32_ff },
 	// 68040
-	{ op_smalltbl_1_ff, op_smalltbl_41_ff, op_smalltbl_24_ff, op_smalltbl_24_ff, op_smalltbl_31_ff },
+	{ op_smalltbl_1_ff, op_smalltbl_41_ff, op_smalltbl_25_ff, op_smalltbl_25_ff, op_smalltbl_31_ff },
 	// 68060
-	{ op_smalltbl_0_ff, op_smalltbl_40_ff, op_smalltbl_23_ff, op_smalltbl_23_ff, op_smalltbl_33_ff }
+	{ op_smalltbl_0_ff, op_smalltbl_40_ff, op_smalltbl_24_ff, op_smalltbl_24_ff, op_smalltbl_33_ff }
 };
 
 static void build_cpufunctbl (void)
@@ -1265,7 +1281,7 @@ static void build_cpufunctbl (void)
 	}
 	m68k_interrupt_delay = false;
 	if (currprefs.cpu_cycle_exact) {
-		if (tbl == op_smalltbl_14_ff || tbl == op_smalltbl_13_ff || tbl == op_smalltbl_21_ff || tbl == op_smalltbl_22_ff)
+		if (tbl == op_smalltbl_14_ff || tbl == op_smalltbl_13_ff || tbl == op_smalltbl_21_ff || tbl == op_smalltbl_23_ff)
 			m68k_interrupt_delay = true;
 	}
 
@@ -2167,12 +2183,11 @@ kludge_me_do:
 
 static uae_u32 exception_pc (int nr)
 {
-	// zero divide, chk, trapcc/trapv, trace, trap#
-	if (nr == 5 || nr == 6 || nr == 7 || nr == 9 || (nr >= 32 && nr <= 47))
-		return m68k_getpc ();
-	return regs.instruction_pc;
+	// bus error, address error, illegal instruction, privilege violation, a-line, f-line
+	if (nr == 2 || nr == 3 || nr == 4 || nr == 8 || nr == 10 || nr == 11)
+		return regs.instruction_pc;
+	return m68k_getpc ();
 }
-
 
 static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int nr, int format)
 {
@@ -2336,6 +2351,9 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
 static void Exception_mmu030 (int nr, uaecptr oldpc)
 {
     uae_u32 currpc = m68k_getpc (), newpc;
+	int interrupt;
+
+	interrupt = nr >= 24 && nr < 24 + 8;
 
     exception_debug (nr);
     MakeSR ();
@@ -2361,7 +2379,7 @@ static void Exception_mmu030 (int nr, uaecptr oldpc)
 
     newpc = x_get_long (regs.vbr + 4 * nr);
 
-	if (regs.m && nr >= 24 && nr < 32) { /* M + Interrupt */
+	if (regs.m && interrupt) { /* M + Interrupt */
         Exception_build_stack_frame (oldpc, currpc, regs.mmu_ssw, nr, 0x0);
 		MakeSR ();
 		regs.m = 0;
@@ -2397,6 +2415,9 @@ static void Exception_mmu030 (int nr, uaecptr oldpc)
 static void Exception_mmu (int nr, uaecptr oldpc)
 {
 	uae_u32 currpc = m68k_getpc (), newpc;
+	int interrupt;
+
+	interrupt = nr >= 24 && nr < 24 + 8;
 
 	exception_debug (nr);
 	MakeSR ();
@@ -2405,7 +2426,7 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 		regs.usp = m68k_areg (regs, 7);
 		if (currprefs.cpu_model == 68060) {
 			m68k_areg (regs, 7) = regs.isp;
-			if (nr >= 24 && nr < 32)
+			if (interrupt)
 				regs.m = 0;
 		} else if (currprefs.cpu_model >= 68020) {
 			m68k_areg (regs, 7) = regs.m ? regs.msp : regs.isp;
@@ -2432,7 +2453,7 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 		write_log (_T("Exception %d (%x) at %x -> %x!\n"), nr, last_fault_for_exception_3, currpc, get_long (regs.vbr + 4 * nr));
 	} else if (nr == 5 || nr == 6 || nr == 7 || nr == 9) {
         Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x2);
-	} else if (regs.m && nr >= 24 && nr < 32) { /* M + Interrupt */
+	} else if (regs.m && interrupt) { /* M + Interrupt */
         Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x1);
 	} else if (nr == 61) {
         Exception_build_stack_frame(oldpc, regs.instruction_pc, regs.mmu_ssw, nr, 0x0);
@@ -2490,8 +2511,11 @@ static void Exception_normal (int nr)
 {
 	uae_u32 currpc, newpc;
 	int sv = regs.s;
+	int interrupt;
 
-	if (nr >= 24 && nr < 24 + 8 && currprefs.cpu_model <= 68010)
+	interrupt = nr >= 24 && nr < 24 + 8;
+
+	if (interrupt && currprefs.cpu_model <= 68010)
 		nr = x_get_byte (0x00fffff1 | (nr << 1));
 
 	exception_debug (nr);
@@ -2501,7 +2525,7 @@ static void Exception_normal (int nr)
 		regs.usp = m68k_areg (regs, 7);
 		if (currprefs.cpu_model == 68060) {
 			m68k_areg (regs, 7) = regs.isp;
-			if (nr >= 24 && nr < 32)
+			if (interrupt)
 				regs.m = 0;
 		} else if (currprefs.cpu_model >= 68020) {
 			m68k_areg (regs, 7) = regs.m ? regs.msp : regs.isp;
@@ -2626,7 +2650,7 @@ static void Exception_normal (int nr)
 			x_put_long (m68k_areg (regs, 7), regs.instruction_pc);
 			m68k_areg (regs, 7) -= 2;
 			x_put_word (m68k_areg (regs, 7), 0x2000 + nr * 4);
-		} else if (regs.m && nr >= 24 && nr < 32) { /* M + Interrupt */
+		} else if (regs.m && interrupt) { /* M + Interrupt */
 			m68k_areg (regs, 7) -= 2;
 			x_put_word (m68k_areg (regs, 7), nr * 4);
 			m68k_areg (regs, 7) -= 4;
@@ -3405,8 +3429,6 @@ static int do_specialties (int cycles)
 		m68k_reset_delay = 0;
 		unset_special(SPCFLAG_CHECK);
 	}
-
-	regs.instruction_pc = m68k_getpc();
 
 #ifdef ACTION_REPLAY
 #ifdef ACTION_REPLAY_HRTMON
@@ -4455,39 +4477,6 @@ retry:
 
 #ifdef CPUEMU_20
 
-// only opcode fetch prefetch (030+ more compatible)
-static void m68k_run_2pf (void)
-{
-	struct regstruct *r = &regs;
-
-retry:
-	TRY(prb) {
-		for (;;) {
-			r->instruction_pc = m68k_getpc ();
-
-	#if DEBUG_CD32CDTVIO
-			out_cd32io (m68k_getpc ());
-	#endif
-
-			x_do_cycles (cpu_cycles);
-
-			r->opcode = get_word_020_prefetchf (r->instruction_pc);
-
-			count_instr (r->opcode);
-
-			cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode);
-			cpu_cycles = adjust_cycles (cpu_cycles);
-			if (r->spcflags) {
-				if (do_specialties (cpu_cycles))
-					return;
-			}
-		}
-	} CATCH(prb) {
-		bus_error();
-		goto retry;
-	}
-}
-
 // full prefetch 020 (more compatible)
 static void m68k_run_2p (void)
 {
@@ -4758,6 +4747,7 @@ void m68k_go (int may_quit)
 				currprefs.cpu_model >= 68020 && currprefs.cpu_cycle_exact ? m68k_run_2ce :
 
 				currprefs.cpu_model <= 68020 && currprefs.cpu_compatible ? m68k_run_2p :
+				currprefs.cpu_model == 68030 && currprefs.cpu_compatible ? m68k_run_2p :
 				currprefs.cpu_model >= 68040 && currprefs.cpu_compatible ? m68k_run_3p :
 
 				m68k_run_2;
@@ -5266,7 +5256,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 					_tcscat(instrname, fpsizes[size]);
 					_tcscat(instrname, _T(" "));
 					p = instrname + _tcslen(instrname);
-					_stprintf(p, _T("FP%d,"), (extra >> 10) & 7);
+					_stprintf(p, _T("FP%d,"), (extra >> 7) & 7);
 					pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, fpsizeconv[size], instrname, &deaddr2, safemode);
 					p = instrname + _tcslen(instrname);
 					if (size == 7) {
@@ -5671,6 +5661,9 @@ uae_u8 *restore_cpu (uae_u8 *src)
 				}
 				dcaches030[i].tag = restore_u32 ();
 			}
+			regs.prefetch020addr = restore_u32 ();
+			regs.cacheholdingaddr020 = restore_u32 ();
+			regs.cacheholdingdata020 = restore_u32 ();
 			for (int i = 0; i < CPU_PIPELINE_MAX; i++)
 				regs.prefetch020[i] = restore_u32 ();
 		} else if (model == 68040) {
@@ -7194,8 +7187,6 @@ void fill_prefetch (void)
 	} else if (currprefs.cpu_model == 68020) {
 		fill_prefetch_020 ();
 	} else if (currprefs.cpu_model == 68030) {
-		if (!currprefs.cpu_cycle_exact)
-			return;
 		fill_prefetch_030 ();
 	} else if (currprefs.cpu_model <= 68010) {
 		uaecptr pc = m68k_getpc ();

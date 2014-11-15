@@ -94,7 +94,8 @@
 #endif
 #include "uae/ppc.h"
 
-extern int harddrive_dangerous, do_rdbdump, no_rawinput, no_directinput;
+extern int harddrive_dangerous, do_rdbdump;
+extern int no_rawinput, no_directinput, no_windowsmouse;
 extern int force_directsound;
 extern int log_a2065, a2065_promiscuous;
 extern int rawinput_enabled_hid, rawinput_log;
@@ -5050,6 +5051,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		no_directinput = 1;
 		return 1;
 	}
+	if (!_tcscmp (arg, _T("nowindowsmouse"))) {
+		no_windowsmouse = 1;
+		return 1;
+	}
 	if (!_tcscmp (arg, _T("rawhid"))) {
 		rawinput_enabled_hid = 1;
 		return 1;
@@ -6324,7 +6329,7 @@ void *uaenative_get_uaevar (void)
 #ifdef _WIN32
     uaevar.amigawnd = hAmigaWnd;
 #endif
-    uaevar.z3offset = (uae_u32)get_real_address (0x10000000) - 0x10000000;
+    uaevar.z3offset = (uae_u32)get_real_address (z3fastmem_bank.start) - z3fastmem_bank.start;
     return &uaevar;
 }
 

@@ -1834,7 +1834,7 @@ BEGIN
     IDS_QS_MODEL_A500P      "Basic non-expanded configuration\nThe A500+ adds an ECS Agnus chip, 1 MB of Chip RAM and a 2.0 ROM to the A500. Many A500 games and demos don't work properly on an A500+.\n2 MB Chip RAM expanded configuration\n\n4 MB Fast RAM expanded configuration\n"
     IDS_QS_MODEL_A600       "Basic non-expanded configuration\nThe A600 is smaller than the A500+ and has an updated 2.0 ROM.\n2 MB Chip RAM expanded configuration\n\n4 MB Fast RAM expanded configuration\n"
     IDS_QS_MODEL_A1000      "512 KB Chip RAM\nThe A1000 was the first model produced, with a configuration equivalent to that of an A500 with OCS chipset. You normally don't need to use this configuration, unless you are nostalgic and would like to hear the short A1000 boot tune\n""ICS"" Denise without EHB support\nVery first A1000 models had Denise without EHB capability.\n256 KB Chip RAM\n Unexpanded A1000. All later A1000 models were sold with a 256 KB RAM expansion built-in."
-    IDS_QS_MODEL_A1200      "Basic non-expanded configuration\nUse this configuration to run most AGA demos and games\n4 MB Fast RAM expanded configuration\nSome newer AGA games and demos need an expanded A1200 to run."
+    IDS_QS_MODEL_A1200      "Basic non-expanded configuration\nUse this configuration to run most AGA demos and games\n4 MB Fast RAM expanded configuration\nSome newer AGA games and demos need an expanded A1200 to run.\nBlizzard 1230 IV\n\nBlizzard 1240\n\nBlizzard 1260\n\nBlizzard PPC\n"
     IDS_QS_MODEL_CD32       "CD32\nThe CD32 was one the first 32-bit consoles on the market. It is basically an A1200 with a built-in CD-ROM drive. Insert your CD32 or CDTV CD-ROM into a free CD-ROM drive before starting the emulation.\nCD32 with Full Motion Video cartridge\n"
     IDS_QS_MODEL_CDTV       "CDTV\nThe CDTV was the first model with a built-in CD-ROM drive. Looking like a black CD player, it featured a configuration equivalent to that of an A500 with 1 MB RAM and an ECS chipset.\nFloppy drive and 64KB SRAM card expanded CDTV\n\nCDTV-CR\n"
 END
@@ -1844,7 +1844,7 @@ BEGIN
     IDS_QS_MODEL_UAE        "High-end expanded configuration"
     IDS_QS_MODEL_ARCADIA    "Arcadia\nArcadia Multi Select system is arcade platform developed by Arcadia and  Mastertronic. It is based on an A500 mainboard with ROM cage attached to expansion port. Arcadia ROM files go to ""Cartridge ROM File"" in ROM-panel."
     IDS_QS_MODEL_A3000      "1.4 ROM, 2MB Chip + 8MB Fast\n\n2.04 ROM, 2MB Chip + 8MB Fast\n\n3.1 ROM, 2MB Chip + 8MB Fast\n"
-    IDS_QS_MODEL_A4000      "68030, 3.1 ROM, 2MB Chip + 8MB Fast\n\n68040, 3.1 ROM, 2MB Chip + 8MB Fast\n"
+    IDS_QS_MODEL_A4000      "68030, 3.1 ROM, 2MB Chip + 8MB Fast\n\n68040, 3.1 ROM, 2MB Chip + 8MB Fast\n\nCyberStorm PPC\n"
     IDS_QS_MODEL_A4000T     "A4000T (test)\nA4000T"
 END
 
@@ -1943,6 +1943,7 @@ BEGIN
     IDS_FILTER_3D_EXTRA     "Point/Bilinear\nScanline opacity\nScanline level\n"
     IDS_ALWAYS_ON           "Always on"
     IDS_DISPLAY_ATTRIBUTES  "Brightness\nContrast\nGamma"
+    IDS_NUMSG_NO_PPC        "PPC CPU was started but PPC CPU emulation core plugin was not found."
 END
 
 #endif    // English resources

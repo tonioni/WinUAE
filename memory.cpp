@@ -2658,6 +2658,30 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
 	ppc_generate_map_banks(bank, start, size);
 #endif
 }
+
+void map_banks_z2 (addrbank *bank, int start, int size)
+{
+	if (start < 0x20 || (start >= 0xa0 && start < 0xe9) || start >= 0xf0) {
+		write_log(_T("Z2 map_banks with invalid start address %08X\n"), start << 16);
+		return;
+	}
+	if (start >= 0xe9) {
+		if (start + size > 0xf0) {
+			write_log(_T("Z2 map_banks with invalid region %08x - %08X\n"), start << 16, (start + size) << 16);
+			size = 0xf0 - start;
+		}
+	} else {
+		if (start + size > 0xa0) {
+			write_log(_T("Z2 map_banks with invalid region %08x - %08X\n"), start << 16, (start + size) << 16);
+			size = 0xa0 - start;
+		}
+	}
+	if (size <= 0)
+		return;
+	map_banks (bank, start, size, 0);
+}
+
+
 void map_banks_quick (addrbank *bank, int start, int size, int realsize)
 {
 	map_banks2 (bank, start, size, realsize, 1);

@@ -151,6 +151,7 @@ static uae_s16 axisold[MAX_INPUT_DEVICES][256], buttonold[MAX_INPUT_DEVICES][256
 
 int no_rawinput = 0;
 int no_directinput = 0;
+int no_windowsmouse = 0;
 static int dinput_enum_all;
 
 int dinput_winmouse (void)
@@ -1597,7 +1598,7 @@ static bool initialize_rawinput (void)
 			if (type == RIM_TYPEMOUSE) {
 				if (rdpdevice (buf1))
 					continue;
-				if (num_mouse >= MAX_INPUT_DEVICES - 1)  {/* leave space for Windows mouse */
+				if (num_mouse >= MAX_INPUT_DEVICES - (no_windowsmouse ? 0 : 1))  {/* leave space for Windows mouse */
 					write_log (_T("Too many mice\n"));
 					continue;
 				}
@@ -2035,7 +2036,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		if (isfocus () && !istest) {
 			if (did->buttons >= 3 && (rm->usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)) {
 				if (currprefs.win32_middle_mouse) {
-					if (isfullscreen () > 0)
+					if (isfullscreen () != 0 && currprefs.win32_minimize_inactive)
 						minimizewindow ();
 					if (mouseactive)
 						setmouseactive (0);
@@ -2778,8 +2779,10 @@ static int di_do_init (void)
 		}
 	}
 
-	write_log (_T("Windowsmouse initialization..\n"));
-	initialize_windowsmouse ();
+	if (!no_windowsmouse) {
+		write_log (_T("Windowsmouse initialization..\n"));
+		initialize_windowsmouse ();
+	}
 	write_log (_T("Catweasel joymouse initialization..\n"));
 	initialize_catweasel ();
 //	write_log (_T("Parallel joystick port initialization..\n"));
@@ -3068,7 +3071,7 @@ static void read_mouse (void)
 					}
 				}
 				if (!istest && isfocus () && currprefs.win32_middle_mouse && dimofs == DIMOFS_BUTTON2 && state) {
-					if (isfullscreen () > 0)
+					if (isfullscreen () != 0 && currprefs.win32_minimize_inactive)
 						minimizewindow ();
 					if (mouseactive)
 						setmouseactive (0);

@@ -35,6 +35,8 @@
 #include "cpuboard.h"
 #include "uae/ppc.h"
 
+#define EXP_DEBUG 0
+
 #define MAX_EXPANSION_BOARDS 11
 
 /* ********************************************************** */
@@ -257,7 +259,7 @@ static void addextrachip (uae_u32 sysbase)
 	}
 }
 
-addrbank expamem_null;
+addrbank expamem_null, expamem_none;
 
 DECLARE_MEMORY_FUNCTIONS(expamem);
 addrbank expamem_bank = {
@@ -331,6 +333,15 @@ static void call_card_init(int index)
 	expamem_bank.name = card_name[ecard] ? card_name[ecard] : _T("None");
 	ab = (*card_init[ecard]) ();
 	expamem_z3_size = 0;
+	if (ab == &expamem_none) {
+		expamem_init_clear();
+		expamem_init_clear_zero();
+		map_banks(&expamem_bank, 0xE8, 1, 0);
+		if (currprefs.address_space_24)
+			map_banks(&dummy_bank, 0xff000000 >> 16, 1, 0);
+		expamem_bank_current = NULL;
+		return;
+	}
 	if (ab == &expamem_null) {
 		expamem_next(NULL, NULL);
 		return;
@@ -346,6 +357,7 @@ static void call_card_init(int index)
 
 	code = expamem_read(0);
 	if ((code & 0xc0) == 0xc0) {
+		// Z2
 		code &= 7;
 		if (code == 0)
 			expamem_z2_size = 8 * 1024 * 1024;
@@ -356,7 +368,7 @@ static void call_card_init(int index)
 		expamem_board_pointer = expamem_z2_pointer;
 
 	} else {
-
+		// Z3
 		if (expamem_z3_sum < Z3BASE_UAE) {
 			expamem_z3_sum = currprefs.z3autoconfig_start;
 			if (currprefs.mbresmem_high_size >= 128 * 1024 * 1024 && expamem_z3_sum == Z3BASE_UAE)
@@ -489,7 +501,7 @@ static uae_u32 REGPARAM2 expamem_bget (uaecptr addr)
 		return expamem_bank_current->bget(addr);
 	addr &= 0xFFFF;
 	b = expamem[addr];
-#ifdef EXP_DEBUG
+#if EXP_DEBUG
 	write_log (_T("expamem_bget %x %x\n"), addr, b);
 #endif
 	return b;
@@ -524,7 +536,7 @@ static void REGPARAM2 expamem_lput (uaecptr addr, uae_u32 value)
 
 static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 {
-#ifdef EXP_DEBUG
+#if EXP_DEBUG
 	write_log (_T("expamem_wput %x %x\n"), addr, value);
 #endif
 #ifdef JIT
@@ -593,7 +605,7 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 
 static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 {
-#ifdef EXP_DEBUG
+#if EXP_DEBUG
 	write_log (_T("expamem_bput %x %x\n"), addr, value);
 #endif
 #ifdef JIT
@@ -872,7 +884,7 @@ static addrbank catweasel_bank = {
 static addrbank *expamem_map_catweasel (void)
 {
 	catweasel_start = expamem_z2_pointer;
-	map_banks (&catweasel_bank, catweasel_start >> 16, 1, 0);
+	map_banks_z2 (&catweasel_bank, catweasel_start >> 16, 1);
 	return &catweasel_bank;
 }
 
@@ -934,7 +946,7 @@ static uae_u32 REGPARAM2 filesys_lget (uaecptr addr)
 	addr -= filesys_start & 65535;
 	addr &= 65535;
 	m = filesys_bank.baseaddr + addr;
-#ifdef EXP_DEBUG
+#if EXP_DEBUG
 	write_log (_T("filesys_lget %x %x\n"), addr, do_get_mem_long ((uae_u32 *)m));
 #endif
 	return do_get_mem_long ((uae_u32 *)m);
@@ -949,7 +961,7 @@ static uae_u32 REGPARAM2 filesys_wget (uaecptr addr)
 	addr -= filesys_start & 65535;
 	addr &= 65535;
 	m = filesys_bank.baseaddr + addr;
-#ifdef EXP_DEBUG
+#if EXP_DEBUG
 	write_log (_T("filesys_wget %x %x\n"), addr, do_get_mem_word ((uae_u16 *)m));
 #endif
 	return do_get_mem_word ((uae_u16 *)m);
@@ -962,8 +974,8 @@ static uae_u32 REGPARAM2 filesys_bget (uaecptr addr)
 #endif
 	addr -= filesys_start & 65535;
 	addr &= 65535;
-#ifdef EXP_DEBUG
-	write_log (_T("filesys_bget %x %x\n"), addr, filesysory[addr]);
+#if EXP_DEBUG
+	write_log (_T("filesys_bget %x %x\n"), addr, filesys_bank.baseaddr[addr]);
 #endif
 	return filesys_bank.baseaddr[addr];
 }
@@ -989,7 +1001,7 @@ static void REGPARAM2 filesys_bput (uaecptr addr, uae_u32 b)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-#ifdef EXP_DEBUG
+#if EXP_DEBUG
 	write_log (_T("filesys_bput %x %x\n"), addr, b);
 #endif
 }
@@ -1033,9 +1045,10 @@ static addrbank *expamem_map_fastcard_2 (int boardnum)
 {
 	uae_u32 start = ((expamem_hi | (expamem_lo >> 4)) << 16);
 	addrbank *ab = fastbanks[boardnum * 2 + ((start < 0x00A00000) ? 0 : 1)];
+	uae_u32 size = ab->allocated;
 	ab->start = start;
 	if (ab->start) {
-		map_banks (ab, ab->start >> 16, ab->allocated >> 16, 0);
+		map_banks_z2 (ab, ab->start >> 16, size >> 16);
 	}
 	return ab;
 }
@@ -1067,7 +1080,7 @@ static addrbank *expamem_init_fastcard_2 (int boardnum)
 	else if (allocated == 0x800000)
 		type |= Z2_MEM_8MB;
 
-	if (currprefs.cpuboard_type == BOARD_A2630) {
+	if (currprefs.cpuboard_type == BOARD_A2630 && boardnum != 0) {
 		for (int i = 1; i < 16; i++)
 			expamem_write(i * 4, a2630_autoconfig[i]);
 		type &= 7;
@@ -1133,7 +1146,7 @@ static addrbank *expamem_map_filesys (void)
 	uaecptr a;
 
 	filesys_start = expamem_z2_pointer;
-	map_banks (&filesys_bank, filesys_start >> 16, 1, 0);
+	map_banks_z2 (&filesys_bank, filesys_start >> 16, 1);
 	/* 68k code needs to know this. */
 	a = here ();
 	org (rtarea_base + RTAREA_FSBOARD);
@@ -1294,7 +1307,7 @@ static addrbank *expamem_map_gfxcard_z3 (void)
 static addrbank *expamem_map_gfxcard_z2 (void)
 {
 	gfxmem_bank.start = expamem_z2_pointer;
-	map_banks (&gfxmem_bank, gfxmem_bank.start >> 16, gfxmem_bank.allocated >> 16, gfxmem_bank.allocated);
+	map_banks_z2 (&gfxmem_bank, gfxmem_bank.start >> 16, gfxmem_bank.allocated >> 16);
 	return &gfxmem_bank;
 }
 
@@ -1860,10 +1873,11 @@ void expamem_reset (void)
 #endif
 #ifdef GFXBOARD
 	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_is_z3 (currprefs.rtgmem_type)) {
-		card_flags[cardno] = 4;
+		card_flags[cardno] = 4 | 1;
 		card_name[cardno] = _T ("Gfxboard VRAM Zorro III");
 		card_init[cardno] = expamem_init_gfxboard_memory;
 		card_map[cardno++] = NULL;
+		card_flags[cardno] = 1;
 		card_name[cardno] = _T ("Gfxboard Registers");
 		card_init[cardno] = expamem_init_gfxboard_registers;
 		card_map[cardno++] = NULL;

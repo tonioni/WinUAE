@@ -65,6 +65,7 @@ struct bitbang_i2c_interface {
 	int eeprom_addr;
 	int size;
 	int write_offset;
+	int addressbitmask;
 	uae_u8 *memory;
 	struct zfile *zf;
 };
@@ -181,11 +182,11 @@ int eeprom_i2c_set(void *fdv, int line, int level)
 				i2c->estate = I2C_DATA;
 			} else {
 				i2c->estate = I2C_WORDADDR;
-				i2c->eeprom_addr = ((i2c->buffer >> 1) & 3) << 8;
+				i2c->eeprom_addr = ((i2c->buffer >> 1) & i2c->addressbitmask) << 8;
 			}
 		} else if (i2c->estate == I2C_WORDADDR) {
 			i2c->estate = I2C_DATA;
-			i2c->eeprom_addr &= 0x300;
+			i2c->eeprom_addr &= i2c->addressbitmask << 8;
 			i2c->eeprom_addr |= i2c->buffer;
 #if EEPROM_LOG
 			write_log(_T("EEPROM address %04x\n"), i2c->eeprom_addr);
@@ -274,6 +275,7 @@ void *eeprom_new(uae_u8 *memory, int size, struct zfile *zf)
 	s->memory = memory;
 	s->size = size;
 	s->zf = zf;
+	s->addressbitmask = (size / 256) - 1;
 
     return s;
 }

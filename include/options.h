@@ -430,6 +430,7 @@ struct uae_prefs {
 	int filesys_limit;
 	int filesys_max_name;
 	int filesys_max_file_size;
+	int uaescsidevmode;
 	bool reset_delay;
 
 	int cs_compatible;
@@ -444,6 +445,7 @@ struct uae_prefs {
 	bool cs_cd32c2p;
 	bool cs_cd32nvram;
 	bool cs_cd32fmv;
+	int cs_cd32nvram_size;
 	bool cs_cdtvcd;
 	bool cs_cdtvram;
 	int cs_cdtvcard;

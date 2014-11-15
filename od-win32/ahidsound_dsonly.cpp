@@ -107,7 +107,7 @@ static uae_u32 REGPARAM2 emulib_ExecuteNativeCode2 (TrapContext *context)
 	uae_u32 a7 = m68k_areg (regs, 7);
 	uae_u32 regs_ = (uae_u32)&regs;
 	CREATE_NATIVE_FUNC_PTR2;
-	uaevar.z3offset = (uae_u32)(get_real_address (0x10000000) - 0x10000000);
+	uaevar.z3offset = (uae_u32)(get_real_address (z3fastmem_bank.start) - z3fastmem_bank.start);
 	uaevar.amigawnd = hAmigaWnd;
 	a6 = &uaevar;
 	if (object_UAM)  {

@@ -6616,7 +6616,7 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 		put_word (resaddr + 0x0, 0x4AFC);
 		put_long (resaddr + 0x2, resaddr);
 		put_long (resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
-		put_word (resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
+		put_word (resaddr + 0xA, 0x8132); /* RTF_AUTOINIT|RTF_COLDSTART; Version 50 */
 		put_word (resaddr + 0xC, 0x0305); /* NT_DEVICE; pri 05 */
 		put_long (resaddr + 0xE, ROM_hardfile_resname);
 		put_long (resaddr + 0x12, ROM_hardfile_resid);
@@ -8209,11 +8209,11 @@ static TCHAR *getfullaname (a_inode *a)
 	TCHAR *p;
 	int first = 1;
 
-	p = xcalloc (TCHAR, 2000);
+	p = xcalloc (TCHAR, MAX_DPATH);
 	while (a) {
 		int len = _tcslen (a->aname);
 		memmove (p + len + 1, p, (_tcslen (p) + 1) * sizeof (TCHAR));
-		memcpy (p, a->aname, _tcslen (a->aname) * sizeof (TCHAR));
+		memcpy (p, a->aname, len * sizeof (TCHAR));
 		if (!first)
 			p[len] = '/';
 		first = 0;

@@ -264,6 +264,12 @@ static const TCHAR *z3mapping[] = {
 	_T("real"),
 	NULL
 };
+static const TCHAR *uaescsidevmodes[] = {
+	_T("original"),
+	_T("rename_scsi"),
+	NULL
+};
+
 static const TCHAR *obsolete[] = {
 	_T("accuracy"), _T("gfx_opengl"), _T("gfx_32bit_blits"), _T("32bit_blits"),
 	_T("gfx_immediate_blits"), _T("gfx_ntsc"), _T("win32"), _T("gfx_filter_bits"),
@@ -1461,6 +1467,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, _T("cd32cd"), p->cs_cd32cd);
 	cfgfile_dwrite_bool (f, _T("cd32c2p"), p->cs_cd32c2p);
 	cfgfile_dwrite_bool(f, _T("cd32nvram"), p->cs_cd32nvram);
+	cfgfile_dwrite (f, _T("cd32nvram_size"), _T("%d"), p->cs_cd32nvram_size / 1024);
 	cfgfile_dwrite_bool(f, _T("cd32fmv"), p->cs_cd32fmv);
 	cfgfile_dwrite_bool(f, _T("cdtvcd"), p->cs_cdtvcd);
 	cfgfile_dwrite_bool(f, _T("cdtv-cr"), p->cs_cdtvcr);
@@ -1588,6 +1595,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, _T("filesys_max_size"), _T("%d"), p->filesys_limit);
 	cfgfile_dwrite (f, _T("filesys_max_name_length"), _T("%d"), p->filesys_max_name);
 	cfgfile_dwrite (f, _T("filesys_max_file_size"), _T("%d"), p->filesys_max_file_size);
+	cfgfile_dwrite_str (f, _T("scsidev_mode"), uaescsidevmodes[p->uaescsidevmode]);
+
 #endif
 	write_inputdevice_config (p, f);
 }
@@ -3686,6 +3695,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 
 	if (cfgfile_intval (option, value, _T("cachesize"), &p->cachesize, 1)
+		|| cfgfile_intval (option, value, _T("cd32nvram_size"), &p->cs_cd32nvram_size, 1024)
 		|| cfgfile_intval (option, value, _T("chipset_hacks"), &p->cs_hacks, 1)
 		|| cfgfile_intval (option, value, _T("serial_stopbits"), &p->serial_stopbits, 1)
 		|| cfgfile_intval (option, value, _T("cpu060_revision"), &p->cpu060_revision, 1)
@@ -3743,6 +3753,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_strval (option, value, _T("waiting_blits"), &p->waiting_blits, waitblits, 0)
 		|| cfgfile_strval (option, value, _T("floppy_auto_extended_adf"), &p->floppy_auto_ext2, autoext2, 0)
 		|| cfgfile_strval (option, value,  _T("z3mapping"), &p->z3_mapping_mode, z3mapping, 0)
+		|| cfgfile_strval (option, value,  _T("scsidev_mode"), &p->uaescsidevmode, uaescsidevmodes, 0)
 		|| cfgfile_strboolval (option, value, _T("comp_flushmode"), &p->comp_hardflush, flushmode, 0))
 		return 1;
 
@@ -5457,6 +5468,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->cs_deniserev = -1;
 	p->cs_mbdmac = 0;
 	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = p->cs_cd32fmv = false;
+	p->cs_cd32nvram_size = 1024;
 	p->cs_cdtvcd = p->cs_cdtvram = false;
 	p->cs_cdtvcard = 0;
 	p->cs_pcmcia = 0;
@@ -5694,6 +5706,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->sound_volume = 0;
 	p->sound_volume_cd = 0;
 	p->clipboard_sharing = false;
+	p->ppc_mode = 0;
 
 	p->chipmem_size = 0x00080000;
 	p->bogomem_size = 0x00080000;
@@ -5840,9 +5853,19 @@ static int bip_a4000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->mbresmem_low_size = 8 * 1024 * 1024;
 	p->cpu_model = 68030;
 	p->fpu_model = 68882;
-	if (config > 0) {
+	switch (config)
+	{
+		case 1:
 		p->cpu_model = 68040;
 		p->fpu_model = 68040;
+		break;
+		case 2:
+		p->cpu_model = 68060;
+		p->fpu_model = 68060;
+		p->ppc_mode = 1;
+		p->cpuboard_type = BOARD_CSPPC;
+		p->cpuboardmem1_size = 128 * 1024 * 1024;
+		break;
 	}
 	p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
 	p->cpu_compatible = p->address_space_24 = 0;
@@ -6034,9 +6057,43 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 	roms[2] = 31;
 	roms[3] = -1;
 	p->cs_rtc = 0;
-	if (config == 1) {
+	switch (config)
+	{
+		case 1:
 		p->fastmem_size = 0x400000;
 		p->cs_rtc = 1;
+		break;
+		case 2:
+		p->cpuboard_type = BOARD_BLIZZARD_1230_IV;
+		p->cpuboardmem1_size = 32 * 1024 * 1024;
+		p->cpu_model = 68030;
+		p->cs_rtc = 1;
+		break;
+		case 3:
+		p->cpuboard_type = BOARD_BLIZZARD_1260;
+		p->cpuboardmem1_size = 32 * 1024 * 1024;
+		p->cpu_model = 68040;
+		p->fpu_model = 68040;
+		p->cs_rtc = 1;
+		break;
+		case 4:
+		p->cpuboard_type = BOARD_BLIZZARD_1260;
+		p->cpuboardmem1_size = 32 * 1024 * 1024;
+		p->cpu_model = 68060;
+		p->fpu_model = 68060;
+		p->cs_rtc = 1;
+		break;
+		case 5:
+		p->cpuboard_type = BOARD_BLIZZARDPPC;
+		p->cpuboardmem1_size = 256 * 1024 * 1024;
+		p->cpu_model = 68060;
+		p->fpu_model = 68060;
+		p->ppc_mode = 1;
+		p->cs_rtc = 1;
+		roms[0] = 15;
+		roms[1] = 11;
+		roms[2] = -1;
+		break;
 	}
 	set_68020_compa (p, compa, 0);
 	p->cs_compatible = CP_A1200;

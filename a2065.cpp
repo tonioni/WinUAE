@@ -858,7 +858,7 @@ static void REGPARAM2 a2065_bput (uaecptr addr, uae_u32 b)
 	b &= 0xff;
 	addr &= 65535;
 	if (addr == 0x48 && !configured) {
-		map_banks (&a2065_bank, b, 0x10000 >> 16, 0x10000);
+		map_banks_z2 (&a2065_bank, b, 0x10000 >> 16);
 		configured = b;
 		expamem_next(&a2065_bank, NULL);
 		return;
@@ -935,7 +935,7 @@ static addrbank *a2065_config (void)
 
 	if (configured) {
 		if (configured != 0xff)
-			map_banks (&a2065_bank, configured, 0x10000 >> 16, 0x10000);
+			map_banks_z2 (&a2065_bank, configured, 0x10000 >> 16);
 	} else {
 		/* KS autoconfig handles the rest */
 		return &a2065_bank;

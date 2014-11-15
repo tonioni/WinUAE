@@ -9,6 +9,7 @@
 #include "debug.h"
 #include "custom.h"
 #include "uae.h"
+#include "gui.h"
 #include "uae/dlopen.h"
 
 #include "uae/ppc.h"
@@ -219,7 +220,7 @@ static bool load_qemu_implementation(void)
 
 	UAE_DLHANDLE handle = uae_qemu_uae_init();
 	if (!handle) {
-		gui_message(_T("PPC: Error loading qemu-uae library\n"));
+		notify_user (NUMSG_NO_PPC);
 		return false;
 	}
 	write_log(_T("PPC: Loaded qemu-uae library at %p\n"), handle);
@@ -398,11 +399,11 @@ static void map_banks(void)
 		regions[i].memory = r->memory;
 	}
 
-	if (impl.in_cpu_thread() == false) {
+	if (impl.in_cpu_thread && impl.in_cpu_thread() == false) {
 		uae_ppc_spinlock_release();
 	}
 	impl.map_memory(regions, map.num_regions);
-	if (impl.in_cpu_thread() == false) {
+	if (impl.in_cpu_thread && impl.in_cpu_thread() == false) {
 		uae_ppc_spinlock_get();
 	}
 

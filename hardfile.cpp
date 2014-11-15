@@ -2223,8 +2223,8 @@ void hardfile_install (void)
 
 	uae_sem_init (&change_sem, 0, 1);
 
-	ROM_hardfile_resname = ds (_T("uaehf.device"));
-	ROM_hardfile_resid = ds (_T("UAE hardfile.device 0.3"));
+	ROM_hardfile_resname = ds (currprefs.uaescsidevmode == 1 ? _T("scsi.device") : _T("uaehf.device"));
+	ROM_hardfile_resid = ds (_T("UAE hardfile.device 0.4"));
 
 	nscmd_cmd = here ();
 	dw (NSCMD_DEVICEQUERY);
@@ -2305,7 +2305,7 @@ void hardfile_install (void)
 	dw (0x0600); /* LIBF_SUMUSED | LIBF_CHANGED */
 	dw (0xD000); /* INITWORD */
 	dw (0x0014); /* LIB_VERSION */
-	dw (0x0004); /* 0.4 */
+	dw (0x0032); /* 50 */
 	dw (0xD000);
 	dw (0x0016); /* LIB_REVISION */
 	dw (0x0000);

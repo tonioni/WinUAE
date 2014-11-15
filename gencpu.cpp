@@ -5481,7 +5481,7 @@ static void generate_cpu (int id, int mode)
 	}
 
 	postfix = id;
-	if (id == 0 || id == 11 || id == 13 || id == 20 || id == 21 || id == 22 || id == 23 || id == 31 || id == 32 || id == 33 || id == 40) {
+	if (id == 0 || id == 11 || id == 13 || id == 20 || id == 21 || id == 22 || id == 23 || id == 24 || id == 31 || id == 32 || id == 33 || id == 40) {
 		if (generate_stbl)
 			fprintf (stblfile, "#ifdef CPUEMU_%d%s\n", postfix, extraup);
 		postfix2 = postfix;
@@ -5492,6 +5492,8 @@ static void generate_cpu (int id, int mode)
 		generate_includes (stdout, id);
 	}
 
+	using_indirect = 0;
+	using_exception_3 = 1;
 	using_prefetch = 0;
 	using_prefetch_020 = 0;
 	using_ce = 0;
@@ -5538,7 +5540,13 @@ static void generate_cpu (int id, int mode)
 		read_counts ();
 		for (rp = 0; rp < nr_cpuop_funcs; rp++)
 			opcode_next_clev[rp] = cpu_level;
-	} else if (id == 22) { // 68030 "cycle-exact"
+	} else if (id == 22) { // 68030 prefetch
+		cpu_level = 3;
+		using_prefetch_020 = 2;
+		read_counts ();
+		for (rp = 0; rp < nr_cpuop_funcs; rp++)
+			opcode_next_clev[rp] = cpu_level;
+	} else if (id == 23) { // 68030 "cycle-exact"
 		cpu_level = 3;
 		using_ce020 = 2;
 		using_prefetch_020 = 2;
@@ -5546,12 +5554,12 @@ static void generate_cpu (int id, int mode)
 		read_counts ();
 		for (rp = 0; rp < nr_cpuop_funcs; rp++)
 			opcode_next_clev[rp] = cpu_level;
-	} else if (id == 23 || id == 24) { // 68040/060 "cycle-exact"
-		cpu_level = id == 23 ? 5 : 4;
+	} else if (id == 24 || id == 25) { // 68040/060 "cycle-exact"
+		cpu_level = id == 24 ? 5 : 4;
 		using_ce020 = 3;
 		using_prefetch_020 = 3;
 		memory_cycle_cnt = 0;
-		if (id == 23) {
+		if (id == 24) {
 			read_counts();
 			for (rp = 0; rp < nr_cpuop_funcs; rp++)
 				opcode_next_clev[rp] = cpu_level;
@@ -5627,13 +5635,8 @@ int main(int argc, char *argv[])
 	stblfile = fopen ("cpustbl.cpp", "wb");
 	generate_includes (stblfile, 0);
 
-	using_prefetch = 0;
-	using_indirect = 0;
-	using_exception_3 = 1;
-	using_ce = 0;
-
 	for (i = 0; i <= 45; i++) {
-		if ((i >= 6 && i < 11) || (i > 14 && i < 20) || (i > 24 && i < 31) || (i > 33 && i < 40))
+		if ((i >= 6 && i < 11) || (i > 14 && i < 20) || (i > 25 && i < 31) || (i > 33 && i < 40))
 			continue;
 		generate_stbl = 1;
 		generate_cpu (i, 0);

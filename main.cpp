@@ -334,7 +334,7 @@ void fixup_prefs (struct uae_prefs *p)
 	if (cpuboard_memorytype(p) == BOARD_MEMORY_HIGHMEM) {
 		p->mbresmem_high_size = p->cpuboardmem1_size;
 	} else if (cpuboard_memorytype(p) == BOARD_MEMORY_Z2) {
-		p->fastmem_size = p->cpuboardmem1_size;
+		p->fastmem2_size = p->cpuboardmem1_size;
 	}
 
 	if (((p->chipmem_size & (p->chipmem_size - 1)) != 0 && p->chipmem_size != 0x180000)
@@ -353,17 +353,22 @@ void fixup_prefs (struct uae_prefs *p)
 		p->fastmem_size = 0;
 		err = 1;
 	}
-	if ((p->fastmem2_size & (p->fastmem2_size - 1)) != 0 || (p->fastmem_size + p->fastmem2_size) > 0x800000 + 262144
-		|| (p->fastmem2_size != 0 && (p->fastmem2_size < 0x10000 || p->fastmem_size > 0x800000)))
+	if ((p->fastmem2_size & (p->fastmem2_size - 1)) != 0 || (p->fastmem2_size != 0 && (p->fastmem2_size < 0x10000 || p->fastmem_size > 0x800000)))
 	{
 		error_log (_T("Unsupported fastmem2 size %d (0x%x)."), p->fastmem2_size, p->fastmem2_size);
 		p->fastmem2_size = 0;
 		err = 1;
 	}
-	if (p->fastmem2_size > p->fastmem_size) {
-		error_log (_T("fastmem2 size can't be larger than fastmem1."));
-		p->fastmem2_size = 0;
-		err = 1;
+	if (p->cachesize) {
+		if (p->fastmem_size + p->fastmem2_size > 0x800000) {
+			error_log (_T("Unsupported fastmem2 size %d (0x%x)."), p->fastmem2_size, p->fastmem2_size);
+			err = 1;
+		}
+		if (p->fastmem2_size > p->fastmem_size && p->fastmem_size > 0) {
+			error_log (_T("Fastmem2 size can't be larger than fastmem1 if JIT is enabled."));
+			p->fastmem2_size = 0;
+			err = 1;
+		}
 	}
 
 	if (p->rtgmem_size > max_z3fastmem && p->rtgmem_type == GFXBOARD_UAE_Z3) {
@@ -371,6 +376,7 @@ void fixup_prefs (struct uae_prefs *p)
 		p->rtgmem_size = max_z3fastmem;
 		err = 1;
 	}
+
 	if ((p->rtgmem_size & (p->rtgmem_size - 1)) != 0 || (p->rtgmem_size != 0 && (p->rtgmem_size < 0x100000))) {
 		error_log (_T("Unsupported graphics card memory size %d (0x%x)."), p->rtgmem_size, p->rtgmem_size);
 		if (p->rtgmem_size > max_z3fastmem)
@@ -455,12 +461,20 @@ void fixup_prefs (struct uae_prefs *p)
 	}
 
 	if (p->rtgmem_type >= GFXBOARD_HARDWARE) {
-		if (p->rtgmem_size < gfxboard_get_vram_min (p->rtgmem_type))
+		if (gfxboard_get_vram_min(p->rtgmem_type) > 0 && p->rtgmem_size < gfxboard_get_vram_min (p->rtgmem_type)) {
+			error_log(_T("Graphics card memory size %d (0x%x) smaller than minimum hardware supported %d (0x%x)."),
+				p->rtgmem_size, p->rtgmem_size, gfxboard_get_vram_min(p->rtgmem_type), gfxboard_get_vram_min(p->rtgmem_type));
 			p->rtgmem_size = gfxboard_get_vram_min (p->rtgmem_type);
+		}
 		if (p->address_space_24 && gfxboard_is_z3 (p->rtgmem_type)) {
 			p->rtgmem_type = GFXBOARD_UAE_Z2;
 			p->rtgmem_size = 0;
 			error_log (_T("Z3 RTG and 24-bit address space are not compatible."));
+		}
+		if (gfxboard_get_vram_max(p->rtgmem_type) > 0 && p->rtgmem_size > gfxboard_get_vram_max(p->rtgmem_type)) {
+			error_log(_T("Graphics card memory size %d (0x%x) larger than maximum hardware supported %d (0x%x)."),
+				p->rtgmem_size, p->rtgmem_size, gfxboard_get_vram_max(p->rtgmem_type), gfxboard_get_vram_max(p->rtgmem_type));
+			p->rtgmem_size = gfxboard_get_vram_max(p->rtgmem_type);
 		}
 	}
 	if (p->address_space_24 && p->rtgmem_size && p->rtgmem_type == GFXBOARD_UAE_Z3) {

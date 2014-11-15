@@ -7425,8 +7425,8 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_Z3FASTMEM, z3);
 	ew (hDlg, IDC_Z3CHIPRAM, z3);
 	ew (hDlg, IDC_Z3CHIPMEM, z3);
-	ew (hDlg, IDC_FASTMEM, fast);
-	ew (hDlg, IDC_FASTRAM, fast);
+	ew (hDlg, IDC_FASTMEM, true);
+	ew (hDlg, IDC_FASTRAM, true);
 	ew (hDlg, IDC_FASTMEM2, fast);
 	ew (hDlg, IDC_FASTRAM2, fast);
 	ew (hDlg, IDC_FASTMEMAUTOCONFIG, fast);
@@ -7532,7 +7532,7 @@ static void values_to_memorydlg (HWND hDlg)
 		workprefs.cpuboardmem1_size = cpuboard_maxmemory(&workprefs);
 
 	if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_Z2) {
-		workprefs.fastmem_size = workprefs.cpuboardmem1_size;
+		workprefs.fastmem2_size = workprefs.cpuboardmem1_size;
 	}
 
 	mem_size = 0;
@@ -8253,7 +8253,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		currentpage = MEMORY_ID;
 		SendDlgItemMessage (hDlg, IDC_CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CHIP_MEM, MAX_CHIP_MEM));
 		SendDlgItemMessage (hDlg, IDC_FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_FAST_MEM, MAX_FAST_MEM));
-		SendDlgItemMessage (hDlg, IDC_FASTMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_FAST_MEM, MAX_FAST_MEM - 1));
+		SendDlgItemMessage (hDlg, IDC_FASTMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_FAST_MEM, MAX_FAST_MEM));
 		SendDlgItemMessage (hDlg, IDC_SLOWMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_SLOW_MEM, MAX_SLOW_MEM));
 		SendDlgItemMessage (hDlg, IDC_Z3FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_MEM));
 		SendDlgItemMessage (hDlg, IDC_Z3CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_CHIPMEM));
@@ -17228,7 +17228,7 @@ static int GetSettings (int all_options, HWND hwnd)
 		}
 
 		tres = scaleresource (panelresource, hwnd, gui_resize_enabled, workprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0);
-		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, isfullscreen () > 0 ? hwnd : NULL, DialogProc);
+		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, isfullscreen () != 0 ? hwnd : NULL, DialogProc);
 		dialog_rect.top = dialog_rect.left = 0;
 		dialog_rect.right = tres->width;
 		dialog_rect.bottom = tres->height;
@@ -17812,6 +17812,7 @@ static int transla[] = {
 	NUMSG_KICKREP, IDS_NUMSG_KICKREP,
 	NUMSG_KICKREPNO, IDS_NUMSG_KICKREPNO,
 	NUMSG_KS68030PLUS, IDS_NUMSG_KS68030PLUS,
+	NUMSG_NO_PPC, IDS_NUMSG_NO_PPC,
 	-1
 };
 

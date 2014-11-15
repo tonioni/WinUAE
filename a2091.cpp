@@ -1643,7 +1643,7 @@ static void REGPARAM2 dmac_bput (struct wd_state *wd, uaecptr addr, uae_u32 b)
 	if (wd->autoconfig) {
 		addrbank *ab = wd == &wd_a2091 ? &dmaca2091_bank : &dmaca2091_2_bank;
 		if (addr == 0x48 && !wd->configured) {
-			map_banks (ab, b, 0x10000 >> 16, 0x10000);
+			map_banks_z2 (ab, b, 0x10000 >> 16);
 			wd->configured = 1;
 			expamem_next (ab, NULL);
 			return;

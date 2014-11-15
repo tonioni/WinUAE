@@ -101,7 +101,7 @@
 /* REG_INT 0x28 */
 // 0x40 always set
 // 0x20
-// 0x10 always cleared
+// 0x10 always set
 // 0x08
 // 0x04 // MOS sets this bit
 #define	P5_ENABLE_IPL		0x02
@@ -917,8 +917,7 @@ static uae_u32 REGPARAM2 blizzardio_bget(uaecptr addr)
 			} else if (reg == CSIII_REG_IRQ)  {
 				v &= 0x3f;
 			} else if (reg == CSIII_REG_INT) {
-				v |= 0x40;
-				v &= ~0x10;
+				v |= 0x40 | 0x10;
 			} else if (reg == CSIII_REG_SHADOW) {
 				v |= 0x08;
 			} else if (reg == CSIII_REG_RESET) {
@@ -1751,6 +1750,7 @@ addrbank *cpuboard_autoconfig_init(void)
 	struct zfile *autoconfig_rom = NULL;
 	int roms[3], roms2[3];
 	bool autoconf = true;
+	bool autoconf_stop = false;
 	const TCHAR *defaultromname = NULL;
 	const TCHAR *romname = currprefs.acceleratorromfile;
 	bool isflashrom = false;
@@ -1758,8 +1758,10 @@ addrbank *cpuboard_autoconfig_init(void)
 
 	roms[0] = -1;
 	roms[1] = -1;
+	roms[2] = -1;
 	roms2[0] = -1;
 	roms2[1] = -1;
+	roms2[2] = -1;
 	cpuboard_non_byte_ea = false;
 	switch (currprefs.cpuboard_type)
 	{
@@ -1862,6 +1864,7 @@ addrbank *cpuboard_autoconfig_init(void)
 		f0rom_size = 131072;
 		zfile_fread(blizzardf0_bank.baseaddr, 1, f0rom_size, autoconfig_rom);
 		autoconf = false;
+		autoconf_stop = true;
 	} else if (is_tekmagic()) {
 		earom_size = 65536;
 		f0rom_size = 131072;
@@ -1975,6 +1978,8 @@ addrbank *cpuboard_autoconfig_init(void)
 			map_banks(&blizzardf0_bank, 0xf00000 >> 16, (f0rom_size > 262144 ? 262144 : f0rom_size) >> 16, 0);
 		}
 	}
+	if (autoconf_stop)
+		return &expamem_none;
 	if (!autoconf)
 		return &expamem_null;
 	return &blizzarde8_bank;
