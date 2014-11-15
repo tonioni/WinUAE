@@ -353,7 +353,7 @@ void fixup_prefs (struct uae_prefs *p)
 		p->fastmem_size = 0;
 		err = 1;
 	}
-	if ((p->fastmem2_size & (p->fastmem2_size - 1)) != 0 || (p->fastmem2_size != 0 && (p->fastmem2_size < 0x10000 || p->fastmem_size > 0x800000)))
+	if ((p->fastmem2_size & (p->fastmem2_size - 1)) != 0 || (p->fastmem2_size != 0 && (p->fastmem2_size < 0x10000 || p->fastmem2_size > 0x800000)))
 	{
 		error_log (_T("Unsupported fastmem2 size %d (0x%x)."), p->fastmem2_size, p->fastmem2_size);
 		p->fastmem2_size = 0;
