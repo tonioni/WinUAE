@@ -1488,6 +1488,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, _T("ics_agnus"), p->cs_dipagnus);
 	cfgfile_dwrite_bool (f, _T("cia_todbug"), p->cs_ciatodbug);
 	cfgfile_dwrite_bool (f, _T("z3_autoconfig"), p->cs_z3autoconfig);
+	cfgfile_dwrite_bool (f, _T("1mchipjumper"), p->cs_1mchipjumper);
 	cfgfile_dwrite (f, _T("chipset_hacks"), _T("0x%x"), p->cs_hacks);
 
 	cfgfile_dwrite_str (f, _T("z3mapping"), z3mapping[p->z3_mapping_mode]);
@@ -3659,6 +3660,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("denise_noehb"), &p->cs_denisenoehb)
 		|| cfgfile_yesno (option, value, _T("ics_agnus"), &p->cs_dipagnus)
 		|| cfgfile_yesno (option, value, _T("z3_autoconfig"), &p->cs_z3autoconfig)
+		|| cfgfile_yesno (option, value, _T("1mchipjumper"), &p->cs_1mchipjumper)
 		|| cfgfile_yesno (option, value, _T("agnus_bltbusybug"), &p->cs_agnusbltbusybug)
 		|| cfgfile_yesno (option, value, _T("fastmem_autoconfig"), &p->fastmem_autoconfig)
 		|| cfgfile_yesno (option, value, _T("gfxcard_hardware_vblank"), &p->rtg_hardwareinterrupt)
@@ -5737,6 +5739,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->cs_df0idhw = 1;
 	p->cs_resetwarning = 0;
 	p->cs_ciatodbug = false;
+	p->cs_1mchipjumper = false;
 
 	_tcscpy (p->romextfile, _T(""));
 	_tcscpy (p->romextfile2, _T(""));

@@ -467,6 +467,7 @@ struct uae_prefs {
 	bool cs_agnusbltbusybug;
 	bool cs_ciatodbug;
 	bool cs_z3autoconfig;
+	bool cs_1mchipjumper;
 	int cs_hacks;
 
 	struct boardromconfig a2091rom;

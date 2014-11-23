@@ -2074,9 +2074,11 @@ void map_overlay (int chip)
 			if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && bogomem_bank.allocated == 0) {
 				int start = chipmem_bank.allocated >> 16;
 				if (chipmem_bank.allocated < 0x100000) {
-					int dummy = (0x100000 - chipmem_bank.allocated) >> 16;
-					map_banks (&chipmem_dummy_bank, start, dummy, 0);
-					map_banks (&chipmem_dummy_bank, start + 16, dummy, 0);
+					if (currprefs.cs_1mchipjumper) {
+						int dummy = (0x100000 - chipmem_bank.allocated) >> 16;
+						map_banks (&chipmem_dummy_bank, start, dummy, 0);
+						map_banks (&chipmem_dummy_bank, start + 16, dummy, 0);
+					}
 				} else if (chipmem_bank.allocated < 0x200000 && chipmem_bank.allocated > 0x100000) {
 					int dummy = (0x200000 - chipmem_bank.allocated) >> 16;
 					map_banks (&chipmem_dummy_bank, start, dummy, 0);

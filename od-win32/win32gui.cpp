@@ -7218,6 +7218,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_CS_Z3AUTOCONFIG, workprefs.cs_z3autoconfig);
 	CheckDlgButton (hDlg, IDC_CS_IDE1, workprefs.cs_ide > 0 && (workprefs.cs_ide & 1));
 	CheckDlgButton (hDlg, IDC_CS_IDE2, workprefs.cs_ide > 0 && (workprefs.cs_ide & 2));
+	CheckDlgButton (hDlg, IDC_CS_1MCHIPJUMPER, workprefs.cs_1mchipjumper || workprefs.chipmem_size >= 0x100000);
 	txt[0] = 0;
 	_stprintf (txt, _T("%d"), workprefs.cs_rtc_adjust);
 	SetDlgItemText(hDlg, IDC_CS_RTCADJUST, txt);
@@ -7295,6 +7296,7 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		: (ischecked (hDlg, IDC_CS_CIAA_TOD2) ? 1 : 2);
 	workprefs.cs_rtc = ischecked (hDlg, IDC_CS_RTC1) ? 0
 		: ischecked (hDlg, IDC_CS_RTC2) ? 1 : ischecked (hDlg, IDC_CS_RTC3) ? 2 : 3;
+	workprefs.cs_1mchipjumper = ischecked (hDlg, IDC_CS_1MCHIPJUMPER);
 
 	if (workprefs.cs_rtc) {
 		txt[0] = 0;
@@ -7376,6 +7378,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew (hDlg, IDC_CS_RTC3, e);
 	ew (hDlg, IDC_CS_RTC4, e);
 	ew (hDlg, IDC_CS_RTCADJUST, e);
+	ew (hDlg, IDC_CS_1MCHIPJUMPER, e && workprefs.chipmem_size < 0x100000);
 }
 
 static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)

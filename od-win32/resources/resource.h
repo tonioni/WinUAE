@@ -1082,6 +1082,7 @@
 #define IDC_DBG_MEMINPUT                1753
 #define IDC_CS_Z3AUTOCONFIG             1753
 #define IDC_DBG_MEMDOWN                 1754
+#define IDC_CS_1MCHIPJUMPER             1754
 #define IDC_DBG_MEMUP                   1755
 #define IDC_DBG_MEM                     1756
 #define IDC_DBG_DASM                    1757

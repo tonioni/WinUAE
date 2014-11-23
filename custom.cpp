@@ -9207,6 +9207,7 @@ uae_u8 *restore_custom_extra (uae_u8 *src)
 	currprefs.cs_ksmirror_e0 = changed_prefs.cs_ksmirror_e0 = RBB;
 	currprefs.cs_resetwarning = changed_prefs.cs_resetwarning = RBB;
 	currprefs.cs_z3autoconfig = changed_prefs.cs_z3autoconfig = RBB;
+	currprefs.cs_1mchipjumper = changed_prefs.cs_1mchipjumper = RBB;
 
 	return src;
 }
@@ -9259,6 +9260,7 @@ uae_u8 *save_custom_extra (int *len, uae_u8 *dstptr)
 	SB (currprefs.cs_ksmirror_e0 ? 1 : 0);
 	SB (currprefs.cs_resetwarning ? 1 : 0);
 	SB (currprefs.cs_z3autoconfig ? 1 : 0);
+	SB (currprefs.cs_1mchipjumper ? 1 : 0);
 
 	*len = dst - dstbak;
 	return dstbak;

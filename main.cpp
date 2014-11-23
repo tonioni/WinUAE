@@ -586,6 +586,9 @@ void fixup_prefs (struct uae_prefs *p)
 				p->cs_ramseyrev = 0x0f;
 		}
 	}
+	if (p->chipmem_size >= 0x100000)
+		p->cs_1mchipjumper = true;
+
 	/* Can't fit genlock and A2024 or Graffiti at the same time,
 	 * also Graffiti uses genlock audio bit as an enable signal
 	 */
