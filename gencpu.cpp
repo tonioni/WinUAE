@@ -37,6 +37,7 @@ static int using_exception_3;
 static int using_ce;
 static int using_tracer;
 static int using_waitstates;
+static int using_simple_cycles;
 static int cpu_level;
 static int count_read, count_write, count_cycles, count_ncycles;
 static int count_cycles_ce020;
@@ -184,6 +185,23 @@ static void cpulimit (void)
 	printf ("#ifndef CPUEMU_68000_ONLY\n");
 }
 
+static int s_count_read, s_count_write, s_count_cycles, s_count_ncycles;
+
+static void push_ins_cnt(void)
+{
+	s_count_read = count_read;
+	s_count_write = count_write;
+	s_count_cycles = count_cycles;
+	s_count_ncycles = count_ncycles;
+}
+static void pop_ins_cnt(void)
+{
+	count_read = s_count_read;
+	count_write = s_count_write;
+	count_cycles = s_count_cycles;
+	count_ncycles = s_count_ncycles;
+}
+
 static bool isce020(void)
 {
 	if (!using_ce020)
@@ -299,7 +317,10 @@ static void returncycles (const char *s, int cycles)
 		printf ("%sreturn;\n", s);
 		return;
 	}
-	printf ("%sreturn %d * CYCLE_UNIT / 2;\n", s, cycles);
+	if (using_simple_cycles)
+		printf ("%sreturn (%d + count_cycles) * CYCLE_UNIT / 2;\n", s, cycles);
+	else
+		printf ("%sreturn %d * CYCLE_UNIT / 2;\n", s, cycles);
 }
 
 static void addcycles_ce020 (const char *name, int head, int tail, int cycles)
@@ -328,26 +349,32 @@ static void addcycles_ce020 (const char *name, int head, int tail, int cycles, i
 	}
 }
 
+static void addcycles000_nonce(const char *s, const char *sc)
+{
+	if (using_simple_cycles)
+		printf("%scount_cycles += %s;\n", s, sc);
+}
+
 static void addcycles000 (int cycles)
 {
-	if (!using_ce)
-		return;
-	printf ("\t%s (%d);\n", do_cycles, cycles);
+	if (using_ce) {
+		printf ("\t%s (%d);\n", do_cycles, cycles);
+	}
 	count_cycles += cycles;
 }
 static void addcycles000_2 (const char *s, int cycles)
 {
-	if (!using_ce)
-		return;
-	printf ("%s%s (%d);\n", s, do_cycles, cycles);
+	if (using_ce) {
+		printf ("%s%s (%d);\n", s, do_cycles, cycles);
+	}
 	count_cycles += cycles;
 }
 
 static void addcycles000_3 (const char *s)
 {
-	if (!using_ce)
-		return;
-	printf ("%sif (cycles > 0) %s (cycles);\n", s, do_cycles);
+	if (using_ce) {
+		printf ("%sif (cycles > 0) %s (cycles);\n", s, do_cycles);
+	}
 	count_ncycles++;
 }
 
@@ -2103,15 +2130,35 @@ static void genmovemel_ce (uae_u16 opcode)
 	genamode (NULL, table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, 1, GF_AA);
 	start_brace ();
 	if (table68k[opcode].size == sz_long) {
-		printf ("\twhile (dmask) { v = %s (srca) << 16; v |= %s (srca + 2); m68k_dreg (regs, movem_index1[dmask]) = v; srca += %d; dmask = movem_next[dmask]; }\n",
-			srcw, srcw, size);
-		printf ("\twhile (amask) { v = %s (srca) << 16; v |= %s (srca + 2); m68k_areg (regs, movem_index1[amask]) = v; srca += %d; amask = movem_next[amask]; }\n",
-			srcw, srcw, size);
+		printf ("\twhile (dmask) {\n");
+		printf ("\t\tv = %s (srca) << 16;\n", srcw);
+		printf ("\t\tv |= %s (srca + 2);\n", srcw);
+		printf ("\t\tm68k_dreg (regs, movem_index1[dmask]) = v;\n");
+		printf ("\t\tsrca += %d;\n", size);
+		printf ("\t\tdmask = movem_next[dmask];\n");
+		addcycles000_nonce("\t\t", "8");
+		printf ("\t}\n");
+		printf ("\twhile (amask) {\n");
+		printf ("\t\tv = %s (srca) << 16;\n", srcw);
+		printf ("\t\tv |= %s (srca + 2);\n", srcw);
+		printf ("\t\tm68k_areg (regs, movem_index1[amask]) = v;\n");
+		printf ("\t\tsrca += %d;\n", size);
+		printf ("\t\tamask = movem_next[amask];\n");
+		addcycles000_nonce("\t\t", "8");
+		printf ("\t}\n");
 	} else {
-		printf ("\twhile (dmask) { m68k_dreg (regs, movem_index1[dmask]) = (uae_s32)(uae_s16)%s (srca); srca += %d; dmask = movem_next[dmask]; }\n",
-			srcw, size);
-		printf ("\twhile (amask) { m68k_areg (regs, movem_index1[amask]) = (uae_s32)(uae_s16)%s (srca); srca += %d; amask = movem_next[amask]; }\n",
-			srcw, size);
+		printf ("\twhile (dmask) {\n");
+		printf ("\t\tm68k_dreg (regs, movem_index1[dmask]) = (uae_s32)(uae_s16)%s (srca);\n", srcw);
+		printf ("\t\tsrca += %d;\n", size);
+		printf ("\t\tdmask = movem_next[dmask];\n");
+		addcycles000_nonce("\t\t", "4");
+		printf ("\t}\n");
+		printf ("\twhile (amask) {\n");
+		printf ("\t\tm68k_areg (regs, movem_index1[amask]) = (uae_s32)(uae_s16)%s (srca);\n", srcw);
+		printf ("\t\tsrca += %d;\n", size);
+		printf ("\t\tamask = movem_next[amask];\n");
+		addcycles000_nonce("\t\t", "4");
+		printf ("\t}\n");
 	}
 	printf ("\t%s (srca);\n", srcw); // and final extra word fetch that goes nowhere..
 	count_read++;
@@ -2191,32 +2238,68 @@ static void genmovemle_ce (uae_u16 opcode)
 	if (table68k[opcode].size == sz_long) {
 		if (table68k[opcode].dmode == Apdi) {
 			printf ("\tuae_u16 amask = mask & 0xff, dmask = (mask >> 8) & 0xff;\n");
-			printf ("\twhile (amask) { srca -= %d; %s (srca, m68k_areg (regs, movem_index2[amask]) >> 16); %s (srca + 2, m68k_areg (regs, movem_index2[amask])); amask = movem_next[amask]; }\n",
-				size, dstw, dstw);
-			printf ("\twhile (dmask) { srca -= %d; %s (srca, m68k_dreg (regs, movem_index2[dmask]) >> 16); %s (srca + 2, m68k_dreg (regs, movem_index2[dmask])); dmask = movem_next[dmask]; }\n",
-				size, dstw, dstw);
+			printf ("\twhile (amask) {\n");
+			printf ("\t\tsrca -= %d;\n", size);
+			printf ("\t\t%s (srca, m68k_areg (regs, movem_index2[amask]) >> 16);\n", dstw);
+			printf ("\t\t%s (srca + 2, m68k_areg (regs, movem_index2[amask]));\n", dstw);
+			printf ("\t\tamask = movem_next[amask];\n");
+			addcycles000_nonce("\t\t", "8");
+			printf ("\t}\n");
+			printf ("\twhile (dmask) {\n");
+			printf ("\t\tsrca -= %d;\n", size);
+			printf ("\t\t%s (srca, m68k_dreg (regs, movem_index2[dmask]) >> 16);\n", dstw);
+			printf ("\t\t%s (srca + 2, m68k_dreg (regs, movem_index2[dmask]));\n", dstw);
+			printf ("\t\tdmask = movem_next[dmask];\n");
+			addcycles000_nonce("\t\t", "8");
+			printf ("\t}\n");
 			printf ("\tm68k_areg (regs, dstreg) = srca;\n");
 		} else {
 			printf ("\tuae_u16 dmask = mask & 0xff, amask = (mask >> 8) & 0xff;\n");
-			printf ("\twhile (dmask) { %s (srca, m68k_dreg (regs, movem_index1[dmask]) >> 16); %s (srca + 2, m68k_dreg (regs, movem_index1[dmask])); srca += %d; dmask = movem_next[dmask]; }\n",
-				dstw, dstw, size);
-			printf ("\twhile (amask) { %s (srca, m68k_areg (regs, movem_index1[amask]) >> 16); %s (srca + 2, m68k_areg (regs, movem_index1[amask])); srca += %d; amask = movem_next[amask]; }\n",
-				dstw, dstw, size);
+			printf ("\twhile (dmask) {\n");
+			printf ("\t\t%s (srca, m68k_dreg (regs, movem_index1[dmask]) >> 16);\n", dstw);
+			printf ("\t\t%s (srca + 2, m68k_dreg (regs, movem_index1[dmask]));\n", dstw);
+			printf ("\t\tsrca += %d;\n", size);
+			printf ("\t\tdmask = movem_next[dmask];\n");
+			addcycles000_nonce("\t\t", "8");
+			printf ("\t}\n");
+			printf ("\twhile (amask) {\n");
+			printf ("\t\t%s (srca, m68k_areg (regs, movem_index1[amask]) >> 16);\n", dstw);
+			printf ("\t\t%s (srca + 2, m68k_areg (regs, movem_index1[amask]));\n", dstw);
+			printf ("\t\tsrca += %d;\n", size);
+			printf ("\t\tamask = movem_next[amask];\n");
+			addcycles000_nonce("\t\t", "8");
+			printf ("\t}\n");
 		}
 	} else {
 		if (table68k[opcode].dmode == Apdi) {
 			printf ("\tuae_u16 amask = mask & 0xff, dmask = (mask >> 8) & 0xff;\n");
-			printf ("\twhile (amask) { srca -= %d; %s (srca, m68k_areg (regs, movem_index2[amask])); amask = movem_next[amask]; }\n",
-				size, dstw);
-			printf ("\twhile (dmask) { srca -= %d; %s (srca, m68k_dreg (regs, movem_index2[dmask])); dmask = movem_next[dmask]; }\n",
-				size, dstw);
+			printf ("\twhile (amask) {\n");
+			printf ("\t\tsrca -= %d;\n", size);
+			printf ("\t\t%s (srca, m68k_areg (regs, movem_index2[amask]));\n", dstw);
+			printf ("\tamask = movem_next[amask];\n");
+			addcycles000_nonce("\t\t", "4");
+			printf ("\t}\n");
+			printf ("\twhile (dmask) {\n");
+			printf ("\t\tsrca -= %d;\n", size);
+			printf ("\t\t%s (srca, m68k_dreg (regs, movem_index2[dmask]));\n", dstw);
+			printf ("\t\tdmask = movem_next[dmask];\n");
+			addcycles000_nonce("\t\t", "4");
+			printf ("\t}\n");
 			printf ("\tm68k_areg (regs, dstreg) = srca;\n");
 		} else {
 			printf ("\tuae_u16 dmask = mask & 0xff, amask = (mask >> 8) & 0xff;\n");
-			printf ("\twhile (dmask) { %s (srca, m68k_dreg (regs, movem_index1[dmask])); srca += %d; dmask = movem_next[dmask]; }\n",
-				dstw, size);
-			printf ("\twhile (amask) { %s (srca, m68k_areg (regs, movem_index1[amask])); srca += %d; amask = movem_next[amask]; }\n",
-				dstw, size);
+			printf ("\twhile (dmask) {\n");
+			printf ("\t\t%s (srca, m68k_dreg (regs, movem_index1[dmask]));\n", dstw);
+			printf ("\t\tsrca += %d;\n", size);
+			printf ("\t\tdmask = movem_next[dmask];\n");
+			addcycles000_nonce("\t\t", "4");
+			printf ("\t}\n");
+			printf ("\twhile (amask) {\n");
+			printf ("\t\t%s (srca, m68k_areg (regs, movem_index1[amask]));\n", dstw);
+			printf ("\t\tsrca += %d;\n", size);
+			printf ("\t\tamask = movem_next[amask];\n");
+			addcycles000_nonce("\t\t", "4");
+			printf ("\t}\n");
 		}
 	}
 	count_ncycles++;
@@ -2496,14 +2579,18 @@ static int source_is_imm1_8 (struct instr *i)
 
 static void shift_ce (amodes dmode, int size)
 {
-	if (using_ce && isreg (dmode)) {
+	if (isreg (dmode)) {
 		int c = size == sz_long ? 4 : 2;
-		printf ("\t{\n");
-		printf ("\t\tint cycles = %d;\n", c);
-		printf ("\t\tcycles += 2 * ccnt;\n");
-		addcycles000_3 ("\t\t");
-		printf ("\t}\n");
+		if (using_ce) {
+			printf ("\t{\n");
+			printf ("\t\tint cycles = %d;\n", c);
+			printf ("\t\tcycles += 2 * ccnt;\n");
+			addcycles000_3 ("\t\t");
+			printf ("\t}\n");
+		}
+		addcycles000_nonce("\t", "2 * ccnt");
 		count_cycles += c;
+		count_ncycles++;
 	}
 }
 
@@ -2516,8 +2603,10 @@ static void bsetcycles (struct instr *curi)
 		printf ("\tsrc &= 31;\n");
 		if (isreg (curi->dmode)) {
 			addcycles000 (2);
-			if (curi->mnemo != i_BTST && using_ce) {
-				printf ("\tif (src > 15) %s (2);\n", do_cycles);
+			if (curi->mnemo != i_BTST) {
+				if (using_ce)
+					printf ("\tif (src > 15) %s (2);\n", do_cycles);
+				addcycles000_nonce("\tif (src > 15) ", "2");
 				count_ncycles++;
 			}
 		}
@@ -3414,8 +3503,10 @@ static void gen_opcode (unsigned int opcode)
 			addcycles000 (2);
 		} else {
 			// write to memory, dummy write to same address, X-flag seems to be always set
-			if (cpu_level <= 1 && curi->size == sz_word)
+			if (cpu_level <= 1 && curi->size == sz_word) {
 				printf ("\t%s (srca, regs.sr | 0x0010);\n", dstw);
+				count_write++;
+			}
 			fill_prefetch_next ();
 		}
 		printf ("\tMakeSR ();\n");
@@ -3574,8 +3665,11 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\tfor (;;) {\n");
 			printf ("\t\tuaecptr a = m68k_areg (regs, 7);\n");
 			printf ("\t\tuae_u16 sr = %s (a);\n", srcw);
+			count_read++;
 			printf ("\t\tuae_u32 pc = %s (a + 2) << 16; pc |= %s (a + 4);\n", srcw, srcw);
+			count_read += 2;
 			printf ("\t\tuae_u16 format = %s (a + 2 + 4);\n", srcw);
+			count_read++;
 			printf ("\t\tint frame = format >> 12;\n");
 			printf ("\t\tint offset = 8;\n");
 			printf ("\t\tnewsr = sr; newpc = pc;\n");
@@ -3599,8 +3693,11 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\tfor (;;) {\n");
 			printf ("\t\tuaecptr a = m68k_areg (regs, 7);\n");
 			printf ("\t\tuae_u16 sr = %s (a);\n", srcw);
+			count_read++;
 			printf ("\t\tuae_u32 pc = %s (a + 2);\n", srcl);
+			count_read += 2;
 			printf ("\t\tuae_u16 format = %s (a + 2 + 4);\n", srcw);
+			count_read++;
 			printf ("\t\tint frame = format >> 12;\n");
 			printf ("\t\tint offset = 8;\n");
 			printf ("\t\tnewsr = sr; newpc = pc;\n");
@@ -3894,6 +3991,7 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\t}\n");
 			need_endlabel = 1;
 		}
+		push_ins_cnt();
 		if (using_prefetch) {
 			incpc ("(uae_s32)src + 2");
 			fill_prefetch_full_000 ();
@@ -3907,6 +4005,7 @@ static void gen_opcode (unsigned int opcode)
 			fill_prefetch_full_020 ();
 			returncycles ("\t", 10);
 		}
+		pop_ins_cnt();
 		printf ("didnt_jump:;\n");
 		need_endlabel = 1;
 		sync_m68k_pc ();
@@ -3963,6 +4062,7 @@ static void gen_opcode (unsigned int opcode)
 		//genamode (curi, curi->dmode, "dstreg", curi->size, "offs", 1, 0, GF_AA | GF_NOREFILL);
 		printf ("\tuaecptr oldpc = %s;\n", getpc);
 		addcycles000 (2);
+		push_ins_cnt();
 		printf ("\tif (!cctrue (%d)) {\n", curi->cc);
 		incpc ("(uae_s32)offs + 2");
 		printf ("\t");
@@ -3988,6 +4088,7 @@ static void gen_opcode (unsigned int opcode)
 		printf ("\t} else {\n");
 		addcycles000 (2);
 		printf ("\t}\n");
+		pop_ins_cnt();
 		setpc ("oldpc + %d", m68k_pc_offset);
 		m68k_pc_offset = 0;
 		get_prefetch_020_0 ();
@@ -4003,9 +4104,11 @@ static void gen_opcode (unsigned int opcode)
 		fill_prefetch_next();
 		start_brace ();
 		printf ("\tint val = cctrue (%d) ? 0xff : 0;\n", curi->cc);
-		if (using_ce && isreg (curi->smode)) {
-			printf ("\tint cycles = val ? 2 : 0;\n");
+		if (isreg (curi->smode)) {
+			if (using_ce)
+				printf ("\tint cycles = val ? 2 : 0;\n");
 			addcycles000_3 ("\t");
+			addcycles000_nonce("\t", "val ? 2 : 0");
 		}
 		genastore ("val", curi->smode, "srcreg", curi->size, "src");
 		break;
@@ -4029,6 +4132,7 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\t\tint cycles = (getDivu68kCycles((uae_u32)dst, (uae_u16)src)) - 4;\n");
 			addcycles000_3 ("\t\t");
 		}
+		addcycles000_nonce("\t\t", "(getDivu68kCycles((uae_u32)dst, (uae_u16)src)) - 4");
 		fill_prefetch_next ();
 		/* The N flag appears to be set each time there is an overflow.
 		 * Weird. but 68020 only sets N when dst is negative.. */
@@ -4071,6 +4175,7 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\t\tint cycles = (getDivs68kCycles((uae_s32)dst, (uae_s16)src)) - 4;\n");
 			addcycles000_3 ("\t\t");
 		}
+		addcycles000_nonce("\t\t", "(getDivs68kCycles((uae_s32)dst, (uae_s16)src)) - 4");
 		fill_prefetch_next ();
 		printf ("\tif (dst == 0x80000000 && src == -1) {\n");
 		printf ("\t\tSET_VFLG (1);\n");
@@ -4109,12 +4214,15 @@ static void gen_opcode (unsigned int opcode)
 		printf ("\tuae_u32 newv = (uae_u32)(uae_u16)dst * (uae_u32)(uae_u16)src;\n");
 		if (using_ce)
 			printf ("\tint cycles = 38 - 4, bits;\n");
+		else if (using_prefetch)
+			printf ("\tint bits;\n");
 		genflags (flag_logical, sz_long, "newv", "", "");
 		if (using_ce) {
 			printf ("\tfor(bits = 0; bits < 16 && src; bits++, src >>= 1)\n");
 			printf ("\t\tif (src & 1) cycles += 2;\n");
 			addcycles000_3 ("\t");
 		}
+		addcycles000_nonce("\tfor(bits = 0; bits < 16 && src; bits++, src >>= 1)\n\t\tif (src & 1) ", "2");
 		genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
 		sync_m68k_pc ();
 		count_cycles += 38 - 4;
@@ -4131,6 +4239,9 @@ static void gen_opcode (unsigned int opcode)
 		if (using_ce) {
 			printf ("\tint cycles = 38 - 4, bits;\n");
 			printf ("\tuae_u32 usrc;\n");
+		} else if (using_prefetch) {
+			printf ("\tint bits;\n");
+			printf ("\tuae_u32 usrc;\n");
 		}
 		genflags (flag_logical, sz_long, "newv", "", "");
 		if (using_ce) {
@@ -4139,6 +4250,7 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\t\tif ((usrc & 3) == 1 || (usrc & 3) == 2) cycles += 2;\n");
 			addcycles000_3 ("\t");
 		}
+		addcycles000_nonce("\tusrc = ((uae_u32)src) << 1;\n\tfor(bits = 0; bits < 16 && usrc; bits++, usrc >>= 1)\n\t\tif ((usrc & 3) == 1 || (usrc & 3) == 2) ", "2");
 		genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
 		count_cycles += 38 - 4;
 		count_ncycles++;
@@ -4943,6 +5055,7 @@ static void gen_opcode (unsigned int opcode)
 			genastore ("src", curi->smode, "srcreg", curi->size, "src");
 			printf ("\t} else {\n");
 			printf ("\t\t%s (4);\n", do_cycles);
+			addcycles000_nonce("\t\t", "4");
 			printf ("\t}\n");
 		}
 		break;
@@ -5328,6 +5441,8 @@ static void generate_one_opcode (int rp, const char *extra)
 	if (i68000)
 		printf("#ifndef CPUEMU_68000_ONLY\n");
 	printf ("%s REGPARAM2 CPUFUNC(op_%04x_%d%s)(uae_u32 opcode)\n{\n", (using_ce || using_ce020) ? "void" : "uae_u32", opcode, postfix, extra);
+	if (using_simple_cycles)
+		printf("\tint count_cycles = 0;\n");
 
 	switch (table68k[opcode].stype) {
 	case 0: smsk = 7; break;
@@ -5401,15 +5516,21 @@ static void generate_one_opcode (int rp, const char *extra)
 		printf ("%s: ;\n", endlabelstr);
 	clearmmufixup (0);
 	clearmmufixup (1);
-	returncycles ("", insn_n_cycles);
-	printf ("}");
 	if (using_ce || using_prefetch) {
 		if (count_read + count_write + count_cycles == 0)
 			count_cycles = 4;
+		returncycles ("", (count_read + count_write) * 4 + count_cycles);
+		printf ("}");
 		printf (" /* %d%s (%d/%d)",
 			(count_read + count_write) * 4 + count_cycles, count_ncycles ? "+" : "", count_read, count_write);
 		printf (" */\n");
+	} else if (count_read + count_write) {
+		returncycles ("", (count_read + count_write) * 4 + count_cycles);
+		printf ("}");
+		printf("\n");
 	} else {
+		returncycles ("", insn_n_cycles);
+		printf ("}");
 		printf("\n");
 	}
 	printf ("\n");
@@ -5502,11 +5623,13 @@ static void generate_cpu (int id, int mode)
 	using_waitstates = 0;
 	memory_cycle_cnt = 4;
 	mmu_postfix = "";
+	using_simple_cycles = 0;
 
 	if (id == 11 || id == 12) { // 11 = 68010 prefetch, 12 = 68000 prefetch
 		cpu_level = id == 11 ? 1 : 0;
 		using_prefetch = 1;
 		using_exception_3 = 1;
+		using_simple_cycles = 1;
 		if (id == 11) {
 			read_counts ();
 			for (rp = 0; rp < nr_cpuop_funcs; rp++)
