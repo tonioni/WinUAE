@@ -269,12 +269,12 @@ static uae_u8 *flac_get_data (struct cdtoc *t)
 
 void sub_to_interleaved (const uae_u8 *s, uae_u8 *d)
 {
-	for (int i = 0; i < 8 * 12; i ++) {
+	for (int i = 0; i < 8 * SUB_ENTRY_SIZE; i ++) {
 		int dmask = 0x80;
 		int smask = 1 << (7 - (i & 7));
 		(*d) = 0;
 		for (int j = 0; j < 8; j++) {
-			(*d) |= (s[(i / 8) + j * 12] & smask) ? dmask : 0;
+			(*d) |= (s[(i / 8) + j * SUB_ENTRY_SIZE] & smask) ? dmask : 0;
 			dmask >>= 1;
 		}
 		d++;
@@ -282,12 +282,12 @@ void sub_to_interleaved (const uae_u8 *s, uae_u8 *d)
 }
 void sub_to_deinterleaved (const uae_u8 *s, uae_u8 *d)
 {
-	for (int i = 0; i < 8 * 12; i ++) {
+	for (int i = 0; i < 8 * SUB_ENTRY_SIZE; i ++) {
 		int dmask = 0x80;
-		int smask = 1 << (7 - (i / 12));
+		int smask = 1 << (7 - (i / SUB_ENTRY_SIZE));
 		(*d) = 0;
 		for (int j = 0; j < 8; j++) {
-			(*d) |= (s[(i % 12) * 8 + j] & smask) ? dmask : 0;
+			(*d) |= (s[(i % SUB_ENTRY_SIZE) * 8 + j] & smask) ? dmask : 0;
 			dmask >>= 1;
 		}
 		d++;
@@ -323,7 +323,7 @@ static int getsub_deinterleaved (uae_u8 *dst, struct cdunit *cdu, struct cdtoc *
 	if (!ret) {
 		memset (dst, 0, SUB_CHANNEL_SIZE);
 		// regenerate Q-subchannel
-		uae_u8 *s = dst + 12;
+		uae_u8 *s = dst + SUB_ENTRY_SIZE;
 		s[0] = (t->ctrl << 4) | (t->adr << 0);
 		s[1] = tobcd (t - &cdu->toc[0] + 1);
 		s[2] = tobcd (1);

@@ -2010,7 +2010,15 @@ static int AssignModeID (int w, int h, int *unkcnt)
 			return 0x50001000 | (mi[i].id * 0x10000);
 	}
 	(*unkcnt)++;
-	write_log (_T("P96: Non-unique mode %dx%d\n"), w, h);
+	write_log (_T("P96: Non-unique mode %dx%d"), w, h);
+	if (256 - (*unkcnt) == mi[i - 1].id + 1) {
+		(*unkcnt) = 256 - 127;
+		write_log(_T(" (Skipped reserved)"));
+	} else if (256 - (*unkcnt) == 11) {
+		(*unkcnt) = 511;
+		write_log(_T(" (Using extra)"));
+	}
+	write_log(_T("\n"));
 	return 0x51001000 - (*unkcnt) * 0x10000;
 }
 

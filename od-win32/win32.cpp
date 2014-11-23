@@ -8,6 +8,8 @@
 */
 
 //#define MEMDEBUG
+#define MOUSECLIP_LOG 0
+#define MOUSECLIP_HIDE 1
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -434,10 +436,12 @@ static void setcursor (int oldx, int oldy)
 		mouseposx = mouseposy = 0;
 		return;
 	}
-#if 0
-	write_log (_T("%dx%d %dx%d %dx%d (%dx%d %dx%d)\n"),
+#if MOUSECLIP_LOG
+	write_log (_T("%dx%d %dx%d %dx%d %d%d (%dx%d %dx%d)\n"),
 		x, y,
-		mouseposx, mouseposy, oldx, oldy,
+		mouseposx, mouseposy,
+		oldx, oldy,
+		oldx + amigawin_rect.left, oldy + amigawin_rect.top,
 		amigawin_rect.left, amigawin_rect.top,
 		amigawin_rect.right, amigawin_rect.bottom);
 #endif
@@ -456,7 +460,9 @@ static void setcursor (int oldx, int oldy)
 	}
 	int cx = amigawin_rect.left + x;
 	int cy = amigawin_rect.top + y;
-	//write_log (_T("SetCursorPos(%d,%d)\n"), cx, cy);
+#if MOUSECLIP_LOG
+	write_log (_T("SetCursorPos(%d,%d)\n"), cx, cy);
+#endif
 	SetCursorPos (cx, cy);
 }
 
@@ -626,8 +632,11 @@ static void releasecapture (void)
 void updatemouseclip (void)
 {
 	if (showcursor) {
-		ClipCursor (&amigawin_rect);
-		//write_log (_T("CLIP %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, isfullscreen ());
+#if MOUSECLIP_LOG
+		write_log (_T("CLIP %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, isfullscreen ());
+#endif
+		if (!ClipCursor (&amigawin_rect))
+			write_log(_T("ClipCursor error %d\n"), GetLastError());
 	}
 }
 
@@ -637,7 +646,9 @@ void updatewinrect (bool allowfullscreen)
 	if (!allowfullscreen && f > 0)
 		return;
 	GetWindowRect (hAmigaWnd, &amigawin_rect);
-	//write_log (_T("GetWindowRect %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, f);
+#if MOUSECLIP_LOG
+	write_log (_T("GetWindowRect %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, f);
+#endif
 	if (f == 0) {
 		changed_prefs.gfx_size_win.x = amigawin_rect.left;
 		changed_prefs.gfx_size_win.y = amigawin_rect.top;
@@ -733,7 +744,9 @@ static void setmouseactive2 (int active, bool allowpause)
 		if (focus) {
 			if (!showcursor) {
 				//write_log(_T("setcapture\n"));
+#if MOUSECLIP_HIDE
 				ShowCursor (FALSE);
+#endif
 				SetCapture (hAmigaWnd);
 				updatewinrect (false);
 				showcursor = 1;

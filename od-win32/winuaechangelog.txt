@@ -18,6 +18,45 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 25:
+
+- Added 1M/0.5M+0.5M chip/slow ram option checkbox to Advanced Chipset (for example in rev6 A500 it is JP2
+  solder pad). If hardware is configured for 1M chip without 512k slow ram, normal chip ram alias at upper
+  512k of chip ram address space gets replaced with "bus noise". Can be only changed when chip RAM size is
+  less than 1M. (ECS Agnus + 512k chipram without slow ram configuration always used this option previously,
+  now it is optional and not enabled by default)
+- Map Chip RAM mirror at 0x01000000 in A2620/A2630 config, to prevent A26x0 built-in monitor program detecting
+  huge ram expansion at 0x01000000.
+- uaenet.device + slirp combination was broken (probably has always been).
+- uaegfx modeid space increased, reduces modeid conflicts if host os has huge amount of modes.
+- Debugger does not anymore exit stopped CPU state (STOP instruction) after exiting debugger.
+- "SCSI (Auto)" priorities changed: mainboard built-in first, then accelerator board, expansions last. (Expansions
+  was first previously)
+- More accurate 68000 prefetch mode instruction cycle usage, added non-static cycle counting (mul, div etc..)
+- Most CDTV-CR built-in CD audio player features, including CD+G, are now working. Media changes supported.
+  3.44 ROM CD player works better than 3.32.
+
+Beta 24:
+
+- Native code Z3 offset was wrong if Z3 mapping was using "real" mode.
+- CD32 NVRAM file was not automatically created (b14).
+- Added some accelerator board A1200 and A4000 configs to Quickstart. 
+- Only PCM audio worked (and was always used) when recording audio in non-wave mode.
+- Picasso IV in Z3 mode didn't appear in Z3 autoconfig space.
+- Initialize VGA chip emulation earlier, fixes emulator crash when Piccolo board is configured. (Also for some
+  reason Piccolo and Piccolo SD boards are not used by OS4)
+- Too large Z2 RTG VRAM value in config file was accepted as valid.
+- Show user friendly message if PPC CPU is started without PPC plugin.
+- Disassembler decoded FMOVE.x FPy,<ea> incorrectly, FPy was wrong.
+- "Untrap = middle button" + "Minimize when focus is lost" + full-window mode didn't minimize. Only windowed
+  mode should require real lost focus to become minimized.
+- GUI appeared under full-window background window.
+- Use secondary fast RAM bank for A2620/A2630 accelerator memory, works better with other Z2 boards (like A2091)
+- Allow hardware unsupported (total >8M) Z2 total board size. Can happen in real world so it should be available
+  in emulation too.
+- Added Z2 autoconfig address validation, log and ignore any autoconfig attempt outside of valid Z2 regions.
+- Added 68030 + more compatible CPU core. Previously this combination was unusable.
+
 Beta 23:
 
 - Dragging vhd file to harddrives panel now adds it as a HDF, not a directory if it does not contain any known
