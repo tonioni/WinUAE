@@ -2,13 +2,14 @@
 * UAE - The Un*x Amiga Emulator
 *
 * CDTV-CR emulation
+* (4510 microcontroller only simulated)
 *
 * Copyright 2014 Toni Wilen
 *
 *
 */
 
-#define CDTVCR_DEBUG 1
+#define CDTVCR_DEBUG 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -61,6 +62,17 @@
 #define CDTVCR_SUBC 0x918
 #define CDTVCR_TOC 0xa00
 
+#define CDTVCR_PLAYLIST_TRACK 0xc2f
+#define CDTVCR_PLAYLIST_TIME_MINS 0xc35
+#define CDTVCR_PLAYLIST_TIME_SECS 0xc36
+#define CDTVCR_PLAYLIST_TIME_MODE 0xc22
+#define CDTVCR_PLAYLIST_TIME_MODE2 0xc84
+#define CDTVCR_PLAYLIST_STATE 0xc86
+#define CDTVCR_PLAYLIST_CURRENT 0xc8a
+#define CDTVCR_PLAYLIST_ENTRIES 0xc8b
+#define CDTVCR_PLAYLIST_DATA 0xc8c
+
+
 static uae_u8 cdtvcr_4510_ram[CDTVCR_RAM_OFFSET];
 static uae_u8 cdtvcr_ram[CDTVCR_RAM_SIZE];
 static uae_u8 cdtvcr_clock[2];
@@ -75,6 +87,11 @@ static int cdtvcr_media;
 static int subqcnt;
 static int cd_audio_status;
 static int cdtvcr_wait_sectors;
+
+#define MAX_SUBCODEBUFFER 36
+static volatile int subcodebufferoffset, subcodebufferoffsetw;
+static uae_u8 subcodebufferinuse[MAX_SUBCODEBUFFER];
+static uae_u8 subcodebuffer[MAX_SUBCODEBUFFER * SUB_CHANNEL_SIZE];
 
 static void cdtvcr_battram_reset (void)
 {
@@ -153,7 +170,7 @@ static int get_qcode (void)
 static int get_toc (void)
 {
 	uae_u32 msf;
-	uae_u8 *p;
+	uae_u8 *p, *pl;
 
 	cdtvcr_4510_ram[CDTVCR_SYS_STATE] &= ~4;
 	datatrack = 0;
@@ -163,6 +180,9 @@ static int get_toc (void)
 	if (toc.first_track == 1 && (toc.toc[toc.first_track_offset].control & 0x0c) == 0x04)
 		datatrack = 1;
 	p = &cdtvcr_4510_ram[CDTVCR_TOC];
+	cdtvcr_4510_ram[CDTVCR_PLAYLIST_CURRENT] = 0;
+	cdtvcr_4510_ram[CDTVCR_PLAYLIST_ENTRIES] = 0;
+	pl = &cdtvcr_4510_ram[CDTVCR_PLAYLIST_DATA];
 	p[0] = toc.first_track;
 	p[1] = toc.last_track;
 	msf = lsn2msf(toc.lastaddress);
@@ -179,6 +199,8 @@ static int get_toc (void)
 		p[3] = msf >>  8;
 		p[4] = msf >>  0;
 		p += 5;
+		*pl++ = s->track | 0x80;
+		cdtvcr_4510_ram[CDTVCR_PLAYLIST_ENTRIES]++;
 	}
 	return 1;
 }
@@ -190,6 +212,7 @@ static void cdtvcr_4510_reset(uae_u8 v)
 	cdtvcr_4510_ram[CDTVCR_ID + 2] = 'T';
 	cdtvcr_4510_ram[CDTVCR_ID + 3] = 'V';
 
+	write_log(_T("4510 reset %d\n"), v);
 	if (v == 3) {
 		sys_command_cd_pause (unitnum, 0);
 		sys_command_cd_stop (unitnum);
@@ -203,8 +226,13 @@ static void cdtvcr_4510_reset(uae_u8 v)
 			memset(cdtvcr_4510_ram, 0, 4096);
 		}
 		cdtvcr_4510_ram[CDTVCR_INTDISABLE] = 1;
-		cdtvcr_4510_ram[CDTVCR_CD_STATE] = 2;
+		cdtvcr_4510_ram[CDTVCR_CD_STATE] = 1;
 	}
+	cdtvcr_4510_ram[CDTVCR_PLAYLIST_TIME_MODE] = 2;
+	uae_sem_wait (&sub_sem);
+	memset (subcodebufferinuse, 0, sizeof subcodebufferinuse);
+	subcodebufferoffsetw = subcodebufferoffset = 0;
+	uae_sem_post (&sub_sem);
 
 	if (ismedia())
 		get_toc();
@@ -218,29 +246,42 @@ void rethink_cdtvcr(void)
 
 static void cdtvcr_cmd_done(void)
 {
-	cdtvcr_4510_ram[CDTVCR_SYS_STATE] &= ~1;
+	cdtvcr_4510_ram[CDTVCR_SYS_STATE] &= ~3;
 	cdtvcr_4510_ram[CDTVCR_CD_CMD_DO] = 0;
 	cdtvcr_4510_ram[CDTVCR_INTREQ] |= 0x40;
 	cdtvcr_4510_ram[CDTVCR_CD_CMD_STATUS] = 0;
 	cdtvcr_4510_ram[CDTVCR_CD_CMD_STATUS2] = 0;
+	cdtvcr_4510_ram[CDTVCR_CD_CMD_STATUS + 2] = 0;
+	cdtvcr_4510_ram[CDTVCR_CD_CMD_STATUS2 + 2] = 0;
 }
 
 static void cdtvcr_play_done(void)
 {
-	cdtvcr_4510_ram[CDTVCR_SYS_STATE] &= ~1;
+	cdtvcr_4510_ram[CDTVCR_SYS_STATE] &= ~3;
 	cdtvcr_4510_ram[CDTVCR_CD_CMD_DO] = 0;
 	cdtvcr_4510_ram[CDTVCR_INTREQ] |= 0x80;
 	cdtvcr_4510_ram[CDTVCR_CD_CMD_STATUS] = 0;
 	cdtvcr_4510_ram[CDTVCR_CD_CMD_STATUS2] = 0;
+	cdtvcr_4510_ram[CDTVCR_CD_CMD_STATUS + 2] = 0;
+	cdtvcr_4510_ram[CDTVCR_CD_CMD_STATUS2 + 2] = 0;
+}
+
+static void cdtvcr_state_stopped(void)
+{
+	cdtvcr_4510_ram[CDTVCR_CD_PLAYING] = 0;
+	cdtvcr_4510_ram[CDTVCR_CD_STATE] = 1;
+}
+
+static void cdtvcr_state_play(void)
+{
+	cdtvcr_4510_ram[CDTVCR_CD_PLAYING] = 1;
+	cdtvcr_4510_ram[CDTVCR_CD_STATE] = 3;
 }
 
 static void cdtvcr_cmd_play_started(void)
 {
 	cdtvcr_cmd_done();
-	cdtvcr_4510_ram[CDTVCR_CD_CMD_STATUS + 2] = 2;
-	cdtvcr_4510_ram[CDTVCR_CD_CMD_STATUS2 + 2] = 0;
-	cdtvcr_4510_ram[CDTVCR_CD_PLAYING] = 1;
-	cdtvcr_4510_ram[CDTVCR_CD_STATE] = 8;
+	cdtvcr_state_play();
 }
 
 static void cdtvcr_start (void)
@@ -259,16 +300,20 @@ static void cdtvcr_stop (void)
 	if (cdtvcr_4510_ram[CDTVCR_CD_PLAYING]) {
 		cdtvcr_4510_ram[CDTVCR_INTREQ] |= 0x80;
 	}
-	cdtvcr_4510_ram[CDTVCR_CD_PLAYING] = 0;
-	cdtvcr_4510_ram[CDTVCR_CD_STATE] = 2;
+	cdtvcr_state_stopped();
+}
+
+static void cdtvcr_state_pause(bool pause)
+{
+	cdtvcr_4510_ram[CDTVCR_CD_STATE] = 3;
+	if (pause)
+		cdtvcr_4510_ram[CDTVCR_CD_STATE] = 2;
 }
 
 static void cdtvcr_pause(bool pause)
 {
 	sys_command_cd_pause (unitnum, pause ? 1 : 0);
-	cdtvcr_4510_ram[CDTVCR_CD_STATE] &= ~4;
-	if (pause)
-		cdtvcr_4510_ram[CDTVCR_CD_STATE] |= 4;
+	cdtvcr_state_pause(pause);
 	cdtvcr_cmd_done();
 }
 
@@ -276,22 +321,15 @@ static void setsubchannel(uae_u8 *s)
 {
 	uae_u8 *d;
 
-	// subchannels
-	d = &cdtvcr_4510_ram[CDTVCR_SUBC];
-	cdtvcr_4510_ram[CDTVCR_SUBBANK] = cdtvcr_4510_ram[CDTVCR_SUBBANK] ? 0 : SUB_CHANNEL_SIZE + 2;
-	d[cdtvcr_4510_ram[CDTVCR_SUBBANK] + 0] = 0;
-	d[cdtvcr_4510_ram[CDTVCR_SUBBANK] + 1] = 0;
-	for (int i = 0; i < SUB_CHANNEL_SIZE; i++) {
-		d[cdtvcr_4510_ram[CDTVCR_SUBBANK] + i + 2] = s[i] & 0x3f;
-	}
-
 	// q-channel
 	d = &cdtvcr_4510_ram[CDTVCR_SUBQ];
 	s += SUB_ENTRY_SIZE;
+	int track = frombcd(s[1]);
 	/* CtlAdr */
 	d[0] = s[0];
 	/* Track */
 	d[1] = s[1];
+	cdtvcr_4510_ram[CDTVCR_PLAYLIST_TRACK] = track;
 	/* Index */
 	d[2] = s[2];
 	/* TrackPos */
@@ -303,11 +341,43 @@ static void setsubchannel(uae_u8 *s)
 	d[7] = s[7];
 	d[8] = s[8];
 	d[9] = s[9];
+
+	uae_u8 mins = 0, secs = 0;
+	uae_s32 trackpos = msf2lsn(fromlongbcd(s + 3));
+	if (trackpos < 0)
+		trackpos = 0;
+	uae_s32 diskpos = msf2lsn(fromlongbcd(s + 7));
+	if (diskpos < 0)
+		diskpos = 0;
+	switch (cdtvcr_4510_ram[CDTVCR_PLAYLIST_TIME_MODE2])
+	{
+		case 0:
+		secs = (trackpos / 75) % 60;
+		mins = trackpos / (75 * 60);
+		break;
+		case 1:
+		trackpos = toc.toc[toc.first_track_offset + track].paddress - diskpos;
+		secs = (trackpos / 75) % 60;
+		mins = trackpos / (75 * 60);
+		break;
+		case 2:
+		secs = (diskpos / 75) % 60;
+		mins = diskpos / (75 * 60);
+		break;
+		case 3:
+		diskpos = toc.lastaddress - diskpos;
+		secs = (diskpos / 75) % 60;
+		mins = diskpos / (75 * 60);
+		break;
+	}
+	cdtvcr_4510_ram[CDTVCR_PLAYLIST_TIME_MINS] = mins;
+	cdtvcr_4510_ram[CDTVCR_PLAYLIST_TIME_SECS] = secs;
+
 	cdtvcr_4510_ram[CDTVCR_SUBQ - 2] = 1; // qcode valid
 	cdtvcr_4510_ram[CDTVCR_SUBQ - 1] = 0;
 
 	if (cdtvcr_4510_ram[CDTVCR_CD_SUBCODES])
-		cdtvcr_4510_ram[CDTVCR_INTREQ] |= 2 | 4;
+		cdtvcr_4510_ram[CDTVCR_INTREQ] |= 4;
 }
 
 static void subfunc(uae_u8 *data, int cnt)
@@ -315,12 +385,35 @@ static void subfunc(uae_u8 *data, int cnt)
 	uae_u8 out[SUB_CHANNEL_SIZE];
 	sub_to_deinterleaved(data, out);
 	setsubchannel(out);
+
+	uae_sem_wait(&sub_sem);
+	if (subcodebufferinuse[subcodebufferoffsetw]) {
+		memset (subcodebufferinuse, 0,sizeof (subcodebufferinuse));
+		subcodebufferoffsetw = subcodebufferoffset = 0;
+	} else {
+		int offset = subcodebufferoffsetw;
+		while (cnt > 0) {
+			if (subcodebufferinuse[offset]) {
+				write_log (_T("CD32: subcode buffer overflow 2\n"));
+				break;
+			}
+			subcodebufferinuse[offset] = 1;
+			memcpy (&subcodebuffer[offset * SUB_CHANNEL_SIZE], data, SUB_CHANNEL_SIZE);
+			data += SUB_CHANNEL_SIZE;
+			offset++;
+			if (offset >= MAX_SUBCODEBUFFER)
+				offset = 0;
+			cnt--;
+		}
+		subcodebufferoffsetw = offset;
+	}
+	uae_sem_post(&sub_sem);
 }
 
 static int statusfunc(int status)
 {
 	if (status == -1)
-		return 500;
+		return 75;
 	if (status == -2)
 		return 75;
 	if (cd_audio_status != status) {
@@ -387,6 +480,58 @@ static void cdtvcr_read_data(uae_u32 start, uae_u32 addr, uae_u32 len)
 	}
 }
 
+static void cdtvcr_player_state_change(void)
+{
+	cdtvcr_4510_ram[CDTVCR_INTREQ] |= 0x10;
+}
+
+static void cdtvcr_player_pause(void)
+{
+	if (cdtvcr_4510_ram[CDTVCR_PLAYLIST_STATE] == 4)
+		cdtvcr_4510_ram[CDTVCR_PLAYLIST_STATE] = 3;
+	else if (cdtvcr_4510_ram[CDTVCR_PLAYLIST_STATE] == 3)
+		cdtvcr_4510_ram[CDTVCR_PLAYLIST_STATE] = 4;
+	else
+		return;
+	cdtvcr_pause(cdtvcr_4510_ram[CDTVCR_PLAYLIST_STATE] == 4);
+	cdtvcr_state_pause(cdtvcr_4510_ram[CDTVCR_PLAYLIST_STATE] == 4);
+	cdtvcr_player_state_change();
+}
+
+static void cdtvcr_player_stop(void)
+{
+	cdtvcr_4510_ram[CDTVCR_PLAYLIST_STATE] = 1;
+	cdtvcr_stop();
+	cdtvcr_state_stopped();
+	cdtvcr_player_state_change();
+}
+
+static void cdtvcr_player_play(void)
+{
+	int start_found, end_found;
+	uae_u32 start, end;
+
+	int entry = cdtvcr_4510_ram[CDTVCR_PLAYLIST_CURRENT];
+	int track = cdtvcr_4510_ram[CDTVCR_PLAYLIST_DATA + entry] & 0x7f;
+	start_found = end_found = 0;
+	for (int j = toc.first_track_offset; j <= toc.last_track_offset; j++) {
+		struct cd_toc *s = &toc.toc[j];
+		if (track == s->track) {
+			start_found++;
+			start = s->paddress;
+			end = s[1].paddress;
+		}
+	}
+	if (start_found == 0) {
+		cdtvcr_player_stop();
+		return;
+	}
+	cdtvcr_play(start, end);
+	cdtvcr_state_play();
+	cdtvcr_4510_ram[CDTVCR_PLAYLIST_STATE] = 3;
+	cdtvcr_player_state_change();
+}
+
 static void cdtvcr_do_cmd(void)
 {
 	uae_u32 addr, len, start, end, datalen;
@@ -394,7 +539,7 @@ static void cdtvcr_do_cmd(void)
 	uae_u8 starttrack, endtrack;
 	uae_u8 *p = &cdtvcr_4510_ram[CDTVCR_CD_CMD];
 
-	cdtvcr_4510_ram[CDTVCR_SYS_STATE] |= 1;
+	cdtvcr_4510_ram[CDTVCR_SYS_STATE] |= 2;
 	cdtvcr_4510_ram[CDTVCR_CD_CMD_STATUS] = 2;
 	cdtvcr_4510_ram[CDTVCR_CD_CMD_STATUS2] = 0;
 	write_log(_T("CDTVCR CD command %02x\n"), p[0]);
@@ -462,7 +607,8 @@ static void cdtvcr_4510_do_something(void)
 		rethink_cdtvcr();
 	}
 	if (cdtvcr_4510_ram[CDTVCR_CD_CMD_DO]) {
-		cdtvcr_4510_ram[CDTVCR_SYS_STATE] |= 1;
+		cdtvcr_4510_ram[CDTVCR_CD_CMD_DO] = 0;
+		cdtvcr_4510_ram[CDTVCR_SYS_STATE] |= 2;
 		write_comm_pipe_u32 (&requests, 0x0100, 1);
 	}
 }
@@ -503,11 +649,48 @@ static void cdtvcr_bput2 (uaecptr addr, uae_u8 v)
 		switch (addr)
 		{
 			case CDTVCR_KEYCMD:
-			write_log(_T("Got keycode %x\n"), cdtvcr_4510_ram[CDTVCR_KEYCMD+1]);
-			v = 0;
-			break;
+			{
+				uae_u8 keycode = cdtvcr_4510_ram[CDTVCR_KEYCMD + 1];
+				write_log(_T("Got keycode %x\n"), keycode);
+				cdtvcr_4510_ram[CDTVCR_KEYCMD + 1] = 0;
+				switch(keycode)
+				{
+					case 0x73: // PLAY
+					if (cdtvcr_4510_ram[CDTVCR_PLAYLIST_STATE] >= 3) {
+						cdtvcr_player_pause();
+					} else {
+						cdtvcr_player_play();
+					}
+					break;
+					case 0x72: // STOP
+					cdtvcr_player_stop();
+					break;
+					case 0x74: // <-
+					if (cdtvcr_4510_ram[CDTVCR_PLAYLIST_CURRENT] > 0) {
+						cdtvcr_4510_ram[CDTVCR_PLAYLIST_CURRENT]--;
+						if (cdtvcr_4510_ram[CDTVCR_PLAYLIST_STATE] >= 3) {
+							cdtvcr_player_play();
+						}
+					}
+					break;
+					case 0x75: // ->
+					if (cdtvcr_4510_ram[CDTVCR_PLAYLIST_CURRENT] < cdtvcr_4510_ram[CDTVCR_PLAYLIST_ENTRIES] - 1) {
+						cdtvcr_4510_ram[CDTVCR_PLAYLIST_CURRENT]++;
+						if (cdtvcr_4510_ram[CDTVCR_PLAYLIST_STATE] >= 3) {
+							cdtvcr_player_play();
+						}
+					}
+					break;
+				}
+				v = 0;
+				break;
+			}
 		}
 		cdtvcr_4510_ram[addr] = v;
+
+		if (addr >= 0xc80)
+			write_log(_T("%04x %02x\n"), addr, v);
+
 	}
 }
 
@@ -703,9 +886,18 @@ static void *dev_thread (void *p)
 				if (m < 0) {
 					write_log (_T("CDTV: device %d lost\n"), unitnum);
 					cdtvcr_4510_ram[CDTVCR_SYS_STATE] &= ~(4 | 8);
+					cdtvcr_4510_ram[CDTVCR_INTREQ] |= 0x10 | 8;
+					cdtvcr_4510_ram[CDTVCR_CD_STATE] = 0;
 				} else if (m != cdtvcr_media) {
 					cdtvcr_media = m;
 					get_toc ();
+					cdtvcr_4510_ram[CDTVCR_INTREQ] |= 0x10 | 8;
+					if (cdtvcr_media) {
+						cdtvcr_4510_ram[CDTVCR_CD_STATE] = 2;
+					} else {
+						cdtvcr_4510_ram[CDTVCR_CD_STATE] = 1;
+						cdtvcr_4510_ram[CDTVCR_SYS_STATE] &= ~(4 | 8);
+					}
 				}
 				if (cdtvcr_media)
 					get_qcode ();
@@ -739,11 +931,27 @@ void CDTVCR_hsync_handler (void)
 	subqcnt--;
 	if (subqcnt <= 0) {
 		write_comm_pipe_u32 (&requests, 0x0101, 1);
-		subqcnt = (int)(maxvpos * vblank_hz / 75);
-		// want subcodes but not playing?
-		if (cdtvcr_4510_ram[CDTVCR_CD_SUBCODES] && !cdtvcr_4510_ram[CDTVCR_CD_PLAYING]) {
+		subqcnt = (int)(maxvpos * vblank_hz / 75 - 1);
+		if (subcodebufferoffset != subcodebufferoffsetw) {
+			uae_sem_wait (&sub_sem);
+			cdtvcr_4510_ram[CDTVCR_SUBBANK] = cdtvcr_4510_ram[CDTVCR_SUBBANK] ? 0 : SUB_CHANNEL_SIZE + 2;
+			uae_u8 *d = &cdtvcr_4510_ram[CDTVCR_SUBC];
+			d[cdtvcr_4510_ram[CDTVCR_SUBBANK] + SUB_CHANNEL_SIZE + 0] = 0x1f;
+			d[cdtvcr_4510_ram[CDTVCR_SUBBANK] + SUB_CHANNEL_SIZE + 1] = 0x3d;
+			for (int i = 0; i < SUB_CHANNEL_SIZE; i++) {
+				d[cdtvcr_4510_ram[CDTVCR_SUBBANK] + i] = subcodebuffer[subcodebufferoffset * SUB_CHANNEL_SIZE + i] & 0x3f;
+			}
+			subcodebufferinuse[subcodebufferoffset] = 0;
+			subcodebufferoffset++;
+			if (subcodebufferoffset >= MAX_SUBCODEBUFFER)
+				subcodebufferoffset -= MAX_SUBCODEBUFFER;
+			uae_sem_post (&sub_sem);
+			if (cdtvcr_4510_ram[CDTVCR_CD_SUBCODES])
+				cdtvcr_4510_ram[CDTVCR_INTREQ] |= 2;
+		} else if (cdtvcr_4510_ram[CDTVCR_CD_SUBCODES] && !cdtvcr_4510_ram[CDTVCR_CD_PLAYING]) {
+			// want subcodes but not playing?
 			// just return fake stuff, for some reason cdtv-cr driver requires something
-			// that looks valid, even when not playing or it gets in infinite loop
+			// that looks valid, even when not playing or it gets stuck in infinite loop
 			uae_u8 dst[SUB_CHANNEL_SIZE];
 			// regenerate Q-subchannel
 			uae_u8 *s = dst + 12;
@@ -760,7 +968,7 @@ void CDTVCR_hsync_handler (void)
 			setsubchannel(dst);
 		}
 	}
-
+	rethink_cdtvcr();
 }
 
 static void open_unit (void)
