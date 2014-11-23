@@ -1,8 +1,8 @@
 
 #include "ethernet.h"
 
-typedef void (uaenet_gotfunc)(struct s2devstruct *dev, const uae_u8 *data, int len);
-typedef int (uaenet_getfunc)(struct s2devstruct *dev, uae_u8 *d, int *len);
+typedef void (uaenet_gotfunc)(void *dev, const uae_u8 *data, int len);
+typedef int (uaenet_getfunc)(void *dev, uae_u8 *d, int *len);
 
 extern struct netdriverdata *uaenet_enumerate (const TCHAR *name);
 extern void uaenet_enumerate_free (void);

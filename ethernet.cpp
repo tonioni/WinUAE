@@ -14,6 +14,7 @@ struct ethernet_data
 {
 	ethernet_gotfunc *gotfunc;
 	ethernet_getfunc *getfunc;
+	void *userdata;
 };
 
 #define SLIRP_PORT_OFFSET 0
@@ -52,13 +53,13 @@ void slirp_output (const uint8 *pkt, int pkt_len)
 	if (!slirp_data)
 		return;
 	uae_sem_wait (&slirp_sem1);
-	slirp_data->gotfunc (NULL, pkt, pkt_len);
+	slirp_data->gotfunc (slirp_data->userdata, pkt, pkt_len);
 	uae_sem_post (&slirp_sem1);
 }
 
-void ethernet_trigger (void *vsd)
+void ethernet_trigger (struct netdriverdata *ndd, void *vsd)
 {
-	switch (netmode)
+	switch (ndd->type)
 	{
 		case UAENET_SLIRP:
 		case UAENET_SLIRP_INBOUND:
@@ -69,7 +70,7 @@ void ethernet_trigger (void *vsd)
 				int len = sizeof pkt;
 				int v;
 				uae_sem_wait (&slirp_sem1);
-				v = slirp_data->getfunc(NULL, pkt, &len);
+				v = slirp_data->getfunc(ed->userdata, pkt, &len);
 				uae_sem_post (&slirp_sem1);
 				if (v) {
 					uae_sem_wait (&slirp_sem2);
@@ -97,6 +98,7 @@ int ethernet_open (struct netdriverdata *ndd, void *vsd, void *user, ethernet_go
 			struct ethernet_data *ed = (struct ethernet_data*)vsd;
 			ed->gotfunc = gotfunc;
 			ed->getfunc = getfunc;
+			ed->userdata = user;
 			slirp_data = ed;
 			uae_sem_init (&slirp_sem1, 0, 1);
 			uae_sem_init (&slirp_sem2, 0, 1);
@@ -133,12 +135,17 @@ int ethernet_open (struct netdriverdata *ndd, void *vsd, void *user, ethernet_go
 						slirp_redir (0, port + SLIRP_PORT_OFFSET, a, port);
 				}
 			}
+			netmode = ndd->type;
 			slirp_start ();
 		}
 		return 1;
 #ifdef WITH_UAENET_PCAP
 		case UAENET_PCAP:
-		return uaenet_open (vsd, ndd, user, gotfunc, getfunc, promiscuous);
+		if (uaenet_open (vsd, ndd, user, gotfunc, getfunc, promiscuous)) {
+			netmode = ndd->type;
+			return 1;
+		}
+		return 0;
 #endif
 	}
 	return 0;

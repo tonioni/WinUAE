@@ -32,8 +32,8 @@
 #endif
 #include "execio.h"
 
-void uaenet_gotdata (struct s2devstruct *dev, const uae_u8 *data, int len);
-int uaenet_getdata (struct s2devstruct *dev, uae_u8 *d, int *len);
+static void uaenet_gotdata (void *dev, const uae_u8 *data, int len);
+static int uaenet_getdata (void *dev, uae_u8 *d, int *len);
 
 #define SANA2NAME _T("uaenet.device")
 
@@ -801,11 +801,12 @@ static int handleread (TrapContext *ctx, struct priv_s2devstruct *pdev, uaecptr 
 	return 1;
 }
 
-void uaenet_gotdata (struct s2devstruct *dev, const uae_u8 *d, int len)
+static void uaenet_gotdata (void *devv, const uae_u8 *d, int len)
 {
 	uae_u16 type;
 	struct mcast *mc;
 	struct s2packet *s2p;
+	struct s2devstruct *dev = (struct s2devstruct*)devv;
 
 	if (!dev->online)
 		return;
@@ -888,10 +889,11 @@ static struct s2packet *createwritepacket (TrapContext *ctx, uaecptr request)
 	return s2p;
 }
 
-int uaenet_getdata (struct s2devstruct *dev, uae_u8 *d, int *len)
+static int uaenet_getdata (void *devv, uae_u8 *d, int *len)
 {
 	int gotit;
 	struct asyncreq *ar;
+	struct s2devstruct *dev = (struct s2devstruct*)devv;
 
 	uae_sem_wait (&async_sem);
 	ar = dev->ar;
@@ -1363,8 +1365,9 @@ static void *dev_thread (void *devs)
 			uae_ReplyMsg (request);
 			rem_async_packet (dev, request);
 		} else {
+			struct priv_s2devstruct *pdev = getps2devstruct (request);
 			add_async_request (dev, request);
-			ethernet_trigger (dev->sysdata);
+			ethernet_trigger (pdev->td, dev->sysdata);
 		}
 		uae_sem_post (&change_sem);
 	}

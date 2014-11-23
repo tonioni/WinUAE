@@ -264,7 +264,7 @@ static int mcfilter (const uae_u8 *data)
 	return 1; // just allow everything
 }
 
-static void gotfunc (struct s2devstruct *dev, const uae_u8 *databuf, int len)
+static void gotfunc (void *devv, const uae_u8 *databuf, int len)
 {
 	int i;
 	int size, insize, first;
@@ -274,6 +274,7 @@ static void gotfunc (struct s2devstruct *dev, const uae_u8 *databuf, int len)
 	uae_u32 crc32;
 	uae_u8 tmp[MAX_PACKET_SIZE], *data;
 	const uae_u8 *dstmac, *srcmac;
+	struct s2devstruct *dev = (struct s2devstruct*)devv;
 
 	if (log_a2065 > 1 && log_receive) {
 		dstmac = databuf;
@@ -422,8 +423,10 @@ static void gotfunc (struct s2devstruct *dev, const uae_u8 *databuf, int len)
 	rethink_a2065 ();
 }
 
-static int getfunc (struct s2devstruct *dev, uae_u8 *d, int *len)
+static int getfunc (void *devv, uae_u8 *d, int *len)
 {
+	struct s2devstruct *dev = (struct s2devstruct*)devv;
+
 	if (transmitlen <= 0)
 		return 0;
 	if (transmitlen > *len) {
@@ -523,7 +526,7 @@ static void do_transmit (void)
 					(d[12] << 8) | d[13], outsize);
 			}
 		}
-		ethernet_trigger (sysdata);
+		ethernet_trigger (td, sysdata);
 	}
 	csr[0] |= CSR0_TINT;
 	rethink_a2065 ();
