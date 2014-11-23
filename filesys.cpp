@@ -813,7 +813,30 @@ static bool add_cpuboard_scsi_unit(int unit, struct uaedev_config_info *uci)
 static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 {
 	bool added = false;
-	if (type == HD_CONTROLLER_TYPE_SCSI_A2091) {
+	if (type == HD_CONTROLLER_TYPE_SCSI_A3000) {
+#ifdef A2091
+		if (currprefs.cs_mbdmac == 1) {
+			a3000_add_scsi_unit (unit, uci);
+			added = true;
+		}
+#endif
+	} else if (type == HD_CONTROLLER_TYPE_SCSI_A4000T) {
+#ifdef NCR
+		if (currprefs.cs_mbdmac == 2) {
+			a4000t_add_scsi_unit (unit, uci);
+			added = true;
+		}
+#endif
+	} else if (type == HD_CONTROLLER_TYPE_SCSI_CPUBOARD) {
+		added = add_cpuboard_scsi_unit(unit, uci);
+	} else if (type == HD_CONTROLLER_TYPE_SCSI_CDTV) {
+#ifdef CDTV
+		if (currprefs.cs_cdtvscsi) {
+			cdtv_add_scsi_hd_unit (unit, uci);
+			added = true;
+		}
+#endif
+	} else if (type == HD_CONTROLLER_TYPE_SCSI_A2091) {
 #ifdef A2091
 		if (cfgfile_board_enabled(&currprefs.a2091rom)) {
 			a2091_add_scsi_unit (unit, uci, 0);
@@ -824,13 +847,6 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 #ifdef A2091
 		if (cfgfile_board_enabled(&currprefs.a2091rom)) {
 			a2091_add_scsi_unit (unit, uci, 1);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_A3000) {
-#ifdef A2091
-		if (currprefs.cs_mbdmac == 1) {
-			a3000_add_scsi_unit (unit, uci);
 			added = true;
 		}
 #endif
@@ -873,22 +889,6 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 #ifdef NCR
 		if (cfgfile_board_enabled(&currprefs.oktagonrom)) {
 			oktagon_add_scsi_unit (unit, uci, 1);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_CPUBOARD) {
-		added = add_cpuboard_scsi_unit(unit, uci);
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_A4000T) {
-#ifdef NCR
-		if (currprefs.cs_mbdmac == 2) {
-			a4000t_add_scsi_unit (unit, uci);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_CDTV) {
-#ifdef CDTV
-		if (currprefs.cs_cdtvscsi) {
-			cdtv_add_scsi_hd_unit (unit, uci);
 			added = true;
 		}
 #endif
