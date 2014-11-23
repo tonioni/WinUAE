@@ -1292,6 +1292,18 @@ void cpuboard_map(void)
 		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 131072 >> 16, 0);
 		map_banks(&blizzardea_bank, 0xf40000 >> 16, 65536 >> 16, 0);
 	}
+	if (is_a2630()) {
+		if (!currprefs.address_space_24) {
+			// end of 0x01000000 memory is detected by checking if address alias to chip ram!
+			for (int i = 0x01000000; i < 0x10000000; i++) {
+				addrbank *ab = &get_mem_bank(i);
+				if (ab == &dummy_bank) {
+					map_banks(&chipmem_bank, i >> 16, currprefs.chipmem_size >> 16, 0);
+					break;
+				}
+			}
+		}
+	}
 }
 
 void cpuboard_reset(void)
@@ -1418,7 +1430,6 @@ void cpuboard_init(void)
 		blizzardram_nojit_bank.allocated = blizzardram_bank.allocated;
 		blizzardram_nojit_bank.mask = blizzardram_bank.mask;
 		blizzardram_nojit_bank.startmask = blizzardram_bank.startmask;
-
 
 		blizzard_jit = cpuboard_jitdirectompatible(&currprefs);
 		if (blizzard_jit) {
