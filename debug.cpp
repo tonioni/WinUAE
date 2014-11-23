@@ -4578,6 +4578,12 @@ static void addhistory (void)
 	}
 }
 
+static void debug_continue(void)
+{
+	set_special (SPCFLAG_BRK);
+}
+
+
 void debug (void)
 {
 	int i;
@@ -4683,7 +4689,7 @@ void debug (void)
 				}
 			}
 			if (!bp) {
-				set_special (SPCFLAG_BRK);
+				debug_continue();
 				return;
 			}
 		}
@@ -4701,7 +4707,7 @@ void debug (void)
 	if (skipaddr_doskip > 0) {
 		skipaddr_doskip--;
 		if (skipaddr_doskip > 0) {
-			set_special (SPCFLAG_BRK);
+			debug_continue();
 			return;
 		}
 	}
@@ -4744,8 +4750,7 @@ void debug (void)
 		do_skip = 1;
 	if (do_skip) {
 		set_special (SPCFLAG_BRK);
-		m68k_resumestopped ();
-		debugging = 1;
+		debugging = -1;
 	}
 	resume_sound ();
 	inputdevice_acquire (TRUE);

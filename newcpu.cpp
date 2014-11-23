@@ -3500,9 +3500,9 @@ static int do_specialties (int cycles)
 		unset_special (SPCFLAG_TRAP);
 		Exception (3);
 	}
-
 	while ((regs.spcflags & SPCFLAG_STOP) && !(regs.spcflags & SPCFLAG_BRK)) {
 
+isstopped:
 		if (uae_int_requested || uaenet_int_requested) {
 			INTREQ_f (0x8008);
 			set_special (SPCFLAG_INT);
@@ -3619,8 +3619,11 @@ static int do_specialties (int cycles)
 	if (regs.spcflags & SPCFLAG_BRK) {
 		unset_special(SPCFLAG_BRK);
 #ifdef DEBUGGER
-		if (debugging)
+		if (debugging) {
 			debug();
+			if (regs.stopped)
+				goto isstopped;
+		}
 #endif
 	}
 
