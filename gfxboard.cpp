@@ -2123,7 +2123,11 @@ addrbank *gfxboard_init_memory (void)
 		TCHAR path[MAX_DPATH];
 		fetch_rompath (path, sizeof path / sizeof (TCHAR));
 
-		if (rl) {
+		p4rom = NULL;
+		if (currprefs.picassoivromfile[0])
+			p4rom = read_rom_name(currprefs.picassoivromfile);
+
+		if (!p4rom && rl) {
 			p4rom = read_rom (rl->rd);
 		}
 		if (!p4rom) {

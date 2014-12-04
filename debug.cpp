@@ -198,7 +198,7 @@ uae_u32 get_byte_debug (uaecptr addr)
 				v = mmu_get_user_byte (addr, regs.s != 0, (debug_mmu_mode & 1) ? true : false, false, sz_byte);
 			}
 		} CATCH(p) {
-		}
+		} ENDTRY
 		regs.s = olds;
 	} else {
 		v = get_byte (addr);
@@ -218,7 +218,7 @@ uae_u32 get_word_debug (uaecptr addr)
 				v = mmu_get_user_word (addr, regs.s != 0, (debug_mmu_mode & 1) ? true : false, false, sz_word);
 			}
 		} CATCH(p) {
-		}
+		} ENDTRY
 		regs.s = olds;
 	} else {
 		v = get_word (addr);
@@ -238,7 +238,7 @@ uae_u32 get_long_debug (uaecptr addr)
 				v = mmu_get_user_long (addr, regs.s != 0, (debug_mmu_mode & 1) ? true : false, false, sz_long);
 			}
 		} CATCH(p) {
-		}
+		} ENDTRY
 		regs.s = olds;
 	} else {
 		v = get_long (addr);
@@ -278,7 +278,7 @@ int safe_addr (uaecptr addr, int size)
 				addr = mmu030_translate (addr, regs.s != 0, (debug_mmu_mode & 1), false);
 		} CATCH(p) {
 			return 0;
-		}
+		} ENDTRY
 		regs.s = olds;
 	}
 	addrbank *ab = &get_mem_bank (addr);
@@ -4517,10 +4517,10 @@ static BOOL debug_line (TCHAR *input)
 							console_out_f (_T(" RW"));
 						} CATCH(prb2) {
 							console_out_f (_T(" RO"));
-						}
+						} ENDTRY
 					} CATCH(prb) {
 						console_out_f (_T("***********"));
-					}
+					} ENDTRY
 					console_out_f (_T(" "));
 				}
 				console_out_f (_T("\n"));

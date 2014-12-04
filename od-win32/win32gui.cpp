@@ -218,6 +218,8 @@ static int quickstart_floppy = 1, quickstart_cd = 0, quickstart_ntsc = 0;
 static int quickstart_cdtype = 0;
 static TCHAR quickstart_cddrive[16];
 static int quickstart_ok, quickstart_ok_floppy;
+// don't enable yet. issues with quickstart panel
+static bool firstautoloadconfig = false;
 static void addfloppytype (HWND hDlg, int n);
 static void addfloppyhistory (HWND hDlg);
 static void addhistorymenu (HWND hDlg, const TCHAR*, int f_text, int type, bool manglepath);
@@ -4747,7 +4749,7 @@ static struct ConfigStruct *fixloadconfig (HWND hDlg, struct ConfigStruct *confi
 	return config;
 }
 
-static struct ConfigStruct *initloadsave (HWND hDlg, struct ConfigStruct *config)
+static struct ConfigStruct *initloadsave (HWND hDlg, struct ConfigStruct *config, bool init)
 {
 	HTREEITEM root;
 	TCHAR name_buf[MAX_DPATH];
@@ -4759,6 +4761,10 @@ static struct ConfigStruct *initloadsave (HWND hDlg, struct ConfigStruct *config
 	SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, workprefs.description);
 	root = InitializeConfigTreeView (hDlg);
 	if (regquerystr (NULL, configreg[configtypepanel], name_buf, &dwRFPsize)) {
+		if (init) {
+			if (_tcsicmp(name_buf, _T("default.uae")))
+				target_cfgfile_load (&workprefs, name_buf, CONFIG_TYPE_DEFAULT, 0);
+		}
 		struct ConfigStruct *config2 = getconfigstorefrompath (name_buf, path, configtypepanel);
 		if (config2)
 			config = config2;
@@ -4785,7 +4791,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 			DeleteConfigTree (hDlg);
 			config = CreateConfigStore (config, TRUE);
 			ConfigToRegistry (config, configtypepanel);
-			config = initloadsave (hDlg, config);
+			config = initloadsave (hDlg, config, false);
 			InitializeConfig (hDlg, config);
 		}
 		break;
@@ -4794,7 +4800,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 			DeleteConfigTree (hDlg);
 			config = CreateConfigStore (config, TRUE);
 			ConfigToRegistry (config, configtypepanel);
-			config = initloadsave (hDlg, config);
+			config = initloadsave (hDlg, config, false);
 			InitializeConfig (hDlg, config);
 		}
 		break;
@@ -4828,7 +4834,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 		if (HandleConfiguration (hDlg, CONFIG_DELETE, config, NULL)) {
 			DeleteConfigTree (hDlg);
 			config = CreateConfigStore (config, TRUE);
-			config = initloadsave (hDlg, config);
+			config = initloadsave (hDlg, config, false);
 			InitializeConfig (hDlg, config);
 		}
 		break;
@@ -4892,7 +4898,8 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		}
 		pages[LOADSAVE_ID] = hDlg;
 		currentpage = LOADSAVE_ID;
-		config = initloadsave (hDlg, config);
+		config = initloadsave (hDlg, config, firstautoloadconfig);
+		firstautoloadconfig = false;
 		recursive--;
 		return TRUE;
 
@@ -5622,6 +5629,7 @@ static void init_quickstartdlg (HWND hDlg)
 	TCHAR tmp1[2 * MAX_DPATH], tmp2[MAX_DPATH], hostconf[MAX_DPATH];
 	TCHAR *p1, *p2;
 
+	firstautoloadconfig = false;
 	qssize = sizeof (tmp1) / sizeof (TCHAR);
 	regquerystr (NULL, _T("QuickStartHostConfig"), hostconf, &qssize);
 	if (firsttime == 0 && workprefs.start_gui) {

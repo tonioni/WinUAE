@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*" Name="WinUAE" Language="1033" Version="2.8.1.0" Manufacturer="Arabuusimiehet" UpgradeCode="88C6D045-E416-4AEA-9EE9-0B7A53EE0F16">
+  <Product Id="*" Name="WinUAE" Language="1033" Version="3.0.0.0" Manufacturer="Arabuusimiehet" UpgradeCode="88C6D045-E416-4AEA-9EE9-0B7A53EE0F16">
     <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
 
     <?define SRCDIST="$(var.winuae.ProjectDir)/../../../distribution/"?>
@@ -116,9 +116,6 @@
       <Component Id="AdditionalFiles13" Guid="66C7D080-B50D-41F7-BDBD-4A5EE2F70D2F">
         <File Source="$(var.SRCDIST)/Amiga Programs/transrom" KeyPath="yes"/>
       </Component>
-      <Component Id="AdditionalFiles14" Guid="92BD1DA6-AB73-4DAA-97EF-617AF09C647B">
-        <File Source="$(var.SRCDIST)/Amiga Programs/rtg.library" KeyPath="yes"/>
-      </Component>
       <Component Id="AdditionalFiles15" Guid="41DBB732-7ACB-4B5A-ADBA-0B48A08D5DC3">
         <File Source="$(var.SRCDIST)/Amiga Programs/p96refresh" KeyPath="yes"/>
       </Component>
@@ -224,7 +221,6 @@
       <ComponentRef Id="AdditionalFiles11" />
       <ComponentRef Id="AdditionalFiles12" />
       <ComponentRef Id="AdditionalFiles13" />
-      <ComponentRef Id="AdditionalFiles14" />
       <ComponentRef Id="AdditionalFiles15" />
       <ComponentRef Id="AdditionalFiles16" />
       <ComponentRef Id="AdditionalFiles17" />

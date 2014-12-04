@@ -33,7 +33,9 @@
 #include "cpummu030.h"
 #include "debug.h"
 
+#ifdef WITH_SOFTFLOAT 
 #include "softfloatx80.h"
+#endif
 
 #ifdef X86_MSVC_ASSEMBLY
 #define X86_MSVC_ASSEMBLY_FPU

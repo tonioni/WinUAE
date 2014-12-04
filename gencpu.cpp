@@ -318,7 +318,7 @@ static void returncycles (const char *s, int cycles)
 		return;
 	}
 	if (using_simple_cycles)
-		printf ("%sreturn (%d + count_cycles) * CYCLE_UNIT / 2;\n", s, cycles);
+		printf ("%sreturn %d * CYCLE_UNIT / 2 + count_cycles;\n", s, cycles);
 	else
 		printf ("%sreturn %d * CYCLE_UNIT / 2;\n", s, cycles);
 }
@@ -352,7 +352,7 @@ static void addcycles_ce020 (const char *name, int head, int tail, int cycles, i
 static void addcycles000_nonce(const char *s, const char *sc)
 {
 	if (using_simple_cycles)
-		printf("%scount_cycles += %s;\n", s, sc);
+		printf("%scount_cycles += %s * CYCLE_UNIT / 2;\n", s, sc);
 }
 
 static void addcycles000 (int cycles)
@@ -3914,8 +3914,10 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\t}\n");
 			need_endlabel = 1;
 		}
-		if (curi->smode == Ad16 || curi->smode == Ad8r || curi->smode == absw || curi->smode == PC16 || curi->smode == PC8r)
+		if (curi->smode == Ad16 || curi->smode == absw || curi->smode == PC16)
 			addcycles000 (2);
+		if (curi->smode == Ad8r || curi->smode == PC8r)
+			addcycles000 (6);
 		setpc ("srca");
 		m68k_pc_offset = 0;
 		fill_prefetch_full ();

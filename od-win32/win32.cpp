@@ -134,6 +134,7 @@ HMODULE hUIDLL = NULL;
 HWND (WINAPI *pHtmlHelp)(HWND, LPCWSTR, UINT, LPDWORD) = NULL;
 HWND hAmigaWnd, hMainWnd, hHiddenWnd, hGUIWnd;
 RECT amigawin_rect, mainwin_rect;
+static RECT amigawinclip_rect;
 int setcursoroffset_x, setcursoroffset_y;
 static int mouseposx, mouseposy;
 static UINT TaskbarRestart;
@@ -424,29 +425,32 @@ static int windowmouse_max_h;
 
 static void setcursor (int oldx, int oldy)
 {
-	int x = abs (amigawin_rect.right - amigawin_rect.left) / 2;
-	int y = abs (amigawin_rect.bottom - amigawin_rect.top) / 2;
-	mouseposx = oldx - x;
-	mouseposy = oldy - y;
+	int dx = (amigawinclip_rect.left - amigawin_rect.left) + (amigawinclip_rect.right - amigawinclip_rect.left) / 2;
+	int dy = (amigawinclip_rect.top - amigawin_rect.top) + (amigawinclip_rect.bottom - amigawinclip_rect.top) / 2;
+	mouseposx = oldx - dx;
+	mouseposy = oldy - dy;
 
-	windowmouse_max_w = (amigawin_rect.right - amigawin_rect.left) / 2 - 25;
-	windowmouse_max_h = (amigawin_rect.bottom - amigawin_rect.top) / 2 - 25;
+	windowmouse_max_w = (amigawinclip_rect.right - amigawinclip_rect.left) / 2 - 50;
+	windowmouse_max_h = (amigawinclip_rect.bottom - amigawinclip_rect.top) / 2 - 50;
+	if (windowmouse_max_w < 10)
+		windowmouse_max_w = 10;
+	if (windowmouse_max_h < 10)
+		windowmouse_max_h = 10;
 
 	if (currprefs.input_magic_mouse && currprefs.input_tablet > 0 && mousehack_alive () && isfullscreen () <= 0) {
 		mouseposx = mouseposy = 0;
 		return;
 	}
 #if MOUSECLIP_LOG
-	write_log (_T("%dx%d %dx%d %dx%d %d%d (%dx%d %dx%d)\n"),
-		x, y,
+	write_log (_T("%dx%d %dx%d %dx%d %dx%d (%dx%d %dx%d)\n"),
+		dx, dy,
 		mouseposx, mouseposy,
 		oldx, oldy,
-		oldx + amigawin_rect.left, oldy + amigawin_rect.top,
-		amigawin_rect.left, amigawin_rect.top,
-		amigawin_rect.right, amigawin_rect.bottom);
+		oldx + amigawinclip_rect.left, oldy + amigawinclip_rect.top,
+		amigawinclip_rect.left, amigawinclip_rect.top,
+		amigawinclip_rect.right, amigawinclip_rect.bottom);
 #endif
 	if (oldx >= 30000 || oldy >= 30000 || oldx <= -30000 || oldy <= -30000) {
-		mouseposx = mouseposy = 0;
 		oldx = oldy = 0;
 	} else {
 		if (abs (mouseposx) < windowmouse_max_w && abs (mouseposy) < windowmouse_max_h)
@@ -458,8 +462,8 @@ static void setcursor (int oldx, int oldy)
 			amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom);
 		return;
 	}
-	int cx = amigawin_rect.left + x;
-	int cy = amigawin_rect.top + y;
+	int cx = (amigawinclip_rect.right - amigawinclip_rect.left) / 2 + amigawin_rect.left + (amigawinclip_rect.left - amigawin_rect.left);
+	int cy = (amigawinclip_rect.bottom - amigawinclip_rect.top) / 2 + amigawin_rect.top + (amigawinclip_rect.top - amigawin_rect.top);
 #if MOUSECLIP_LOG
 	write_log (_T("SetCursorPos(%d,%d)\n"), cx, cy);
 #endif
@@ -632,10 +636,20 @@ static void releasecapture (void)
 void updatemouseclip (void)
 {
 	if (showcursor) {
+		ClipCursor(NULL);
+		amigawinclip_rect = amigawin_rect;
+		if (0 && !isfullscreen()) {
+			RECT cliprect;
+			GetClipCursor(&cliprect);
+			IntersectRect(&amigawinclip_rect, &cliprect, &amigawin_rect);
+#if MOUSECLIP_LOG
+			write_log (_T("CLIPW %dx%d %dx%d %d\n"), amigawinclip_rect.left, amigawinclip_rect.top, amigawinclip_rect.right, amigawinclip_rect.bottom, isfullscreen ());
+#endif
+		}
 #if MOUSECLIP_LOG
 		write_log (_T("CLIP %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, isfullscreen ());
 #endif
-		if (!ClipCursor (&amigawin_rect))
+		if (!ClipCursor (&amigawinclip_rect))
 			write_log(_T("ClipCursor error %d\n"), GetLastError());
 	}
 }
@@ -646,6 +660,7 @@ void updatewinrect (bool allowfullscreen)
 	if (!allowfullscreen && f > 0)
 		return;
 	GetWindowRect (hAmigaWnd, &amigawin_rect);
+	GetWindowRect (hAmigaWnd, &amigawinclip_rect);
 #if MOUSECLIP_LOG
 	write_log (_T("GetWindowRect %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, f);
 #endif
@@ -1360,14 +1375,14 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 					return DefWindowProc (hWnd, message, wParam, lParam);
 				if (dinput_winmousemode () == 0) {
 					/* relative */
-					int mxx = (amigawin_rect.right - amigawin_rect.left) / 2;
-					int myy = (amigawin_rect.bottom - amigawin_rect.top) / 2;
+					int mxx = (amigawinclip_rect.left - amigawin_rect.left) + (amigawinclip_rect.right - amigawinclip_rect.left) / 2;
+					int myy = (amigawinclip_rect.top - amigawin_rect.top) + (amigawinclip_rect.bottom - amigawinclip_rect.top) / 2;
 					mx = mx - mxx;
 					my = my - myy;
 					setmousestate (dinput_winmouse (), 0, mx, 0);
 					setmousestate (dinput_winmouse (), 1, my, 0);
 				}
-		} else if (isfocus () < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
+			} else if (isfocus () < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
 				setmousestate (0, 0, mx, 1);
 				setmousestate (0, 1, my, 1);
 			}
@@ -6207,8 +6222,14 @@ HMODULE uae_dlopen_plugin(const TCHAR *name)
 {
 	HMODULE h;
 	TCHAR path[MAX_DPATH];
+#ifdef WIN64
+	_tcscpy(path, _T("qemu\\"));
+	_tcscat(path, name);
+	_tcscat(path, _T("_x64.dll"));
+#else
 	_tcscpy(path, name);
 	_tcscat(path, _T(".dll"));
+#endif
 	h = WIN32_LoadLibrary(path);
 	return h;
 }

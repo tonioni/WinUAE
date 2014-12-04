@@ -357,10 +357,10 @@ static int doinit_shm (void)
 			startbarrier = 0;
 			write_log(_T("Z3 REAL mapping. JIT direct compatible.\n"));
 			jit_direct_compatible_memory = true;
-		} else if (changed_prefs.z3_mapping_mode == Z3MAPPING_AUTO) {
+		} else if (changed_prefs.z3_mapping_mode == Z3MAPPING_AUTO && currprefs.cachesize) {
 			changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = Z3BASE_UAE;
 			jit_direct_compatible_memory = true;
-			write_log(_T("Z3 UAE mapping.\n"));
+			write_log(_T("Z3 UAE mapping (auto).\n"));
 		} else {
 			changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = Z3BASE_REAL;
 			write_log(_T("Z3 REAL mapping. Not JIT direct compatible.\n"));

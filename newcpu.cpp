@@ -4131,7 +4131,7 @@ retry:
 		} CATCH (prb2) {
 			cpu_halt (1);
 			return;
-		}
+		} ENDTRY
 		goto retry;
 	} ENDTRY
 
@@ -4187,7 +4187,7 @@ retry:
 		} CATCH (prb2) {
 			cpu_halt (1);
 			return;
-		}
+		} ENDTRY
 		goto retry;
 	} ENDTRY
 
@@ -4273,7 +4273,7 @@ insretry:
 		} CATCH (prb2) {
 			cpu_halt (1);
 			return;
-		}
+		} ENDTRY
 		goto retry;
 	} ENDTRY
 
@@ -4311,7 +4311,7 @@ retry:
 	} CATCH(prb) {
 		bus_error();
 		goto retry;
-	}
+	} ENDTRY
 }
 
 /* "prefetch" 68040/060 */
@@ -4348,7 +4348,7 @@ retry:
 	} CATCH(prb) {
 		bus_error();
 		goto retry;
-	}
+	} ENDTRY
 }
 /* "cycle exact" 68020/030  */
 
@@ -4475,7 +4475,7 @@ retry:
 	} CATCH(prb) {
 		bus_error();
 		goto retry;
-	}
+	} ENDTRY
 }
 
 #ifdef CPUEMU_20
@@ -4512,7 +4512,7 @@ retry:
 	} CATCH(prb) {
 		bus_error();
 		goto retry;
-	}
+	} ENDTRY
 }
 
 #endif
@@ -4547,7 +4547,7 @@ retry:
 	} CATCH(prb) {
 		bus_error();
 		goto retry;
-	}
+	} ENDTRY
 }
 
 /* fake MMU 68k  */

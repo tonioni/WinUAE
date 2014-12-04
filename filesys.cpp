@@ -7894,7 +7894,6 @@ static a_inode *restore_filesys_get_base (Unit *u, TCHAR *npath)
 	cnt = 1;
 	for (;;) {
 		_tcscpy (path, npath);
-		_tcscat (path, _T("/"));
 		p = path;
 		for (i = 0; i < cnt ;i++) {
 			if (i > 0)
@@ -8010,9 +8009,10 @@ static uae_u8 *restore_aino (UnitInfo *ui, Unit *u, uae_u8 *src)
 	pn = makenativepath (ui, p);
 	a->nname = pn;
 	a->aname = my_strdup (p2);
-	/* find parent of a->aname (Already restored previously. I hope..) */
+	/* create path to parent dir */
 	if (p2 != p)
-		p2[-1] = 0;
+		p2[0] = 0;
+	/* find parent of a->aname (Already restored previously. I hope..) */
 	base = restore_filesys_get_base (u, p);
 	xfree(p);
 	if (flags & 2) {

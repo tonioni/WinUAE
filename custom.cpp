@@ -3744,7 +3744,7 @@ void compute_framesync (void)
 		gfxvidinfo.drawbuffer.inwidth = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
 		gfxvidinfo.drawbuffer.extrawidth = currprefs.gfx_extrawidth ? currprefs.gfx_extrawidth : -1;
 		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.inwidth;
-		gfxvidinfo.drawbuffer.inheight = ((maxvpos_display + 1) - minfirstline + 1) << currprefs.gfx_vresolution;
+		gfxvidinfo.drawbuffer.inheight = (maxvpos_display - minfirstline + 1) << currprefs.gfx_vresolution;
 		gfxvidinfo.drawbuffer.inheight2 = gfxvidinfo.drawbuffer.inheight;
 
 	}

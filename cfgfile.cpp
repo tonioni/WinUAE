@@ -1044,6 +1044,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_write_str (f, _T("cart"), p->cartident);
 	if (p->amaxromfile[0])
 		cfgfile_write_path (f, &p->path_rom, _T("amax_rom_file"), p->amaxromfile);
+	cfgfile_dwrite_path (f, &p->path_rom, _T("picassoiv_rom_file"), p->picassoivromfile);
 
 	cfgfile_write_bool (f, _T("kickshifter"), p->kickshifter);
 	cfgfile_write_bool (f, _T("ks_write_enabled"), p->rom_readwrite);
@@ -3772,6 +3773,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_path (option, value, _T("flash_file"), p->flashfile, sizeof p->flashfile / sizeof (TCHAR), &p->path_rom)
 		|| cfgfile_path (option, value, _T("cart_file"), p->cartfile, sizeof p->cartfile / sizeof (TCHAR), &p->path_rom)
 		|| cfgfile_path (option, value, _T("rtc_file"), p->rtcfile, sizeof p->rtcfile / sizeof (TCHAR), &p->path_rom)
+		|| cfgfile_path (option, value, _T("picassoiv_rom_file"), p->picassoivromfile, sizeof p->picassoivromfile / sizeof (TCHAR), &p->path_rom)
 		|| cfgfile_string (option, value, _T("pci_devices"), p->pci_devices, sizeof p->pci_devices / sizeof (TCHAR))
 		|| cfgfile_string (option, value, _T("ghostscript_parameters"), p->ghostscript_parameters, sizeof p->ghostscript_parameters / sizeof (TCHAR)))
 		return 1;

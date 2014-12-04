@@ -10,8 +10,8 @@
 #ifndef UAE_OPTIONS_H
 #define UAE_OPTIONS_H
 
-#define UAEMAJOR 2
-#define UAEMINOR 9
+#define UAEMAJOR 3
+#define UAEMINOR 0
 #define UAESUBREV 0
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
@@ -495,6 +495,7 @@ struct uae_prefs {
 	TCHAR sername[256];
 	TCHAR amaxromfile[MAX_DPATH];
 	TCHAR a2065name[MAX_DPATH];
+	TCHAR picassoivromfile[MAX_DPATH];
 	struct cdslot cdslots[MAX_TOTAL_SCSI_DEVICES];
 	TCHAR quitstatefile[MAX_DPATH];
 	TCHAR statefile[MAX_DPATH];
