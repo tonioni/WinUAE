@@ -9199,7 +9199,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	BOOL cpu_based_enable = FALSE;
 
 	ew (hDlg, IDC_SPEED, !workprefs.cpu_cycle_exact);
-	ew (hDlg, IDC_COMPATIBLE24, workprefs.cpu_model <= 68020);
+	ew (hDlg, IDC_COMPATIBLE24, workprefs.cpu_model <= 68030);
 	//ew (hDlg, IDC_CS_HOST, !workprefs.cpu_cycle_exact);
 	//ew (hDlg, IDC_CS_68000, !workprefs.cpu_cycle_exact);
 	//ew (hDlg, IDC_CS_ADJUSTABLE, !workprefs.cpu_cycle_exact);
@@ -9360,7 +9360,8 @@ static void values_from_cpudlg (HWND hDlg)
 		workprefs.fpu_model = newfpu == 0 ? 0 : (newfpu == 2 ? 68882 : 68881);
 		break;
 	case 68030:
-		workprefs.address_space_24 = 0;
+		if (newcpu != oldcpu)
+			workprefs.address_space_24 = 0;
 		workprefs.fpu_model = newfpu == 0 ? 0 : (newfpu == 2 ? 68882 : 68881);
 		workprefs.mmu_model = ischecked (hDlg, IDC_MMUENABLE) ? 68030 : 0;
 		break;
@@ -17653,9 +17654,10 @@ static int fsdialog (HWND *hwnd, DWORD *flags)
 		*flags |= MB_SETFOREGROUND;
 		return 0;
 	}
-	*hwnd = hAmigaWnd;
+	*hwnd = hMainWnd;
 	if (isfullscreen () <= 0)
 		return 0;
+	*hwnd = hAmigaWnd;
 	flipgui (true);
 	*flags |= MB_SETFOREGROUND;
 	*flags |= MB_TOPMOST;
@@ -17737,7 +17739,7 @@ void gui_message (const TCHAR *format,...)
 	int flipflop = 0;
 	int fullscreen = 0;
 	int focuso = isfocus ();
-	DWORD flags = MB_OK | MB_TASKMODAL;
+	DWORD flags = MB_OK;
 	HWND hwnd;
 
 	va_start (parms, format);
@@ -17755,6 +17757,8 @@ void gui_message (const TCHAR *format,...)
 		if (flipflop)
 			ShowWindow (hAmigaWnd, SW_MINIMIZE);
 	}
+	if (hwnd == NULL)
+		flags |= MB_TASKMODAL;
 
 	write_log (msg);
 	if (msg[_tcslen (msg) - 1] != '\n')
@@ -17824,6 +17828,7 @@ static int transla[] = {
 	NUMSG_KICKREPNO, IDS_NUMSG_KICKREPNO,
 	NUMSG_KS68030PLUS, IDS_NUMSG_KS68030PLUS,
 	NUMSG_NO_PPC, IDS_NUMSG_NO_PPC,
+	NUMSG_UAEBOOTROM_PPC, IDS_NUMSG_UAEBOOTROM_PCC,
 	-1
 };
 

@@ -1944,7 +1944,9 @@ BEGIN
     IDS_FILTER_3D_EXTRA     "Point/Bilinear\nScanline opacity\nScanline level\n"
     IDS_ALWAYS_ON           "Always on"
     IDS_DISPLAY_ATTRIBUTES  "Brightness\nContrast\nGamma"
-    IDS_NUMSG_NO_PPC        "PPC CPU was started but PPC CPU emulation core plugin was not found."
+    IDS_NUMSG_NO_PPC        "PPC CPU was started but PPC CPU emulation core plugin was not found. Download available from http://www.winuae.net/"
+    IDS_NUMSG_UAEBOOTROM_PCC 
+                            "PPC native OS booted with UAE boot ROM active. UAE expansions are not hardware emulated and are not PPC compatible. (UAE HD controller, uaescsi.device, uaeserial, bsdsocket and so on..)"
 END
 
 #endif    // English resources

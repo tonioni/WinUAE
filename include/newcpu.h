@@ -553,7 +553,7 @@ extern bool is_hardreset(void);
 extern bool is_keyboardreset(void);
 
 extern void mmu_op (uae_u32, uae_u32);
-extern void mmu_op30 (uaecptr, uae_u32, uae_u16, uaecptr);
+extern bool mmu_op30 (uaecptr, uae_u32, uae_u16, uaecptr);
 
 extern void fpuop_arithmetic(uae_u32, uae_u16);
 extern void fpuop_dbcc(uae_u32, uae_u16);

@@ -18,6 +18,33 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 27: (RC2)
+
+- Added compatibility warning message if PPC CPU (and m68k is stopped) configures UAE filesystem
+  autoconfig board ("UAE" controller that is needed by uaehf.device bsdsocket, uaescsi and so on)
+- Added download url to no ppc plugin detected message.
+- Minimize when inactive option should be ignored if mode is fullscreen. Only uncapturing mouse in
+  real fullscreen mode makes no sense. (b24)
+- 68000 MOVE to CCR/SR idle cycle count is 4 cycles, not 6.
+- 68000 prefetch mode ("more compatible") DBcc cycle counting fixed.
+- 68030 prefetch/"cycle-exact" mode MMU instruction exception prefetch fix. (Same as 280b1 for FPU)
+- 68030 "fake" MMU (MMU emulation not enabled = MMU instructions do nothing), absolute address
+  (xxx.w and xxx.l) addressing modes were marked incorrectly as invalid.
+- Strange immediate TST variant (TST.x #z) is valid instruction if 68020+.
+- Allow 24-bit address space with 68030 CPU. (Not going to touch other CPUs just yet)
+
+Beta 26: (RC1, Official release date deadline is mid december)
+
+- Bumped version to 3.0. 
+- Directory filesystem statefile support didn't save open file's full path correctly if path was deeper than
+  2 levels from root. (Bug since directory statefile support was implemented)
+- Z3 mapping mode = automatic: select always real mode if JIT is disabled.
+- Added picassoiv_rom_file config file entry, if you want to use different versions or custom path.
+- Off by one error in internal buffer calculation, display was shifted by 1 vertical pixel, hiding
+  first line if window size was small enough but still big enough to fit all vertical lines.
+- 68000 JMP (d8,An/PC,Xn) didn't include extra 4 cycle idle time. (Documentation says 3 read cycles which
+  is incorrect, correct sequence is 4 idle cycles + 2 idle cycles + prefetch + prefetch)
+
 Beta 25:
 
 - Added 1M/0.5M+0.5M chip/slow ram option checkbox to Advanced Chipset (for example in rev6 A500 it is JP2
@@ -28,7 +55,7 @@ Beta 25:
 - Map Chip RAM mirror at 0x01000000 in A2620/A2630 config, to prevent A26x0 built-in monitor program detecting
   huge ram expansion at 0x01000000.
 - uaenet.device + slirp combination was broken (probably has always been).
-- uaegfx modeid space increased, reduces modeid conflicts if host os has huge amount of modes.
+- uaegfx modeid space increased, reduces modeid conflicts if host os has huge amount of resolutions (>~80).
 - Debugger does not anymore exit stopped CPU state (STOP instruction) after exiting debugger.
 - "SCSI (Auto)" priorities changed: mainboard built-in first, then accelerator board, expansions last. (Expansions
   was first previously)

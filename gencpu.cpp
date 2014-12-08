@@ -349,10 +349,26 @@ static void addcycles_ce020 (const char *name, int head, int tail, int cycles, i
 	}
 }
 
-static void addcycles000_nonce(const char *s, const char *sc)
+static void addcycles000_nonces(const char *s, const char *sc)
 {
-	if (using_simple_cycles)
+	if (using_simple_cycles) {
 		printf("%scount_cycles += %s * CYCLE_UNIT / 2;\n", s, sc);
+		count_ncycles++;
+	}
+}
+static void addcycles000_nonce(const char *s, int c)
+{
+	if (using_simple_cycles) {
+		printf("%scount_cycles += %d * CYCLE_UNIT / 2;\n", s, c);
+		count_ncycles++;
+	}
+}
+
+static void addcycles000_onlyce (int cycles)
+{
+	if (using_ce) {
+		printf ("\t%s (%d);\n", do_cycles, cycles);
+	}
 }
 
 static void addcycles000 (int cycles)
@@ -2136,7 +2152,7 @@ static void genmovemel_ce (uae_u16 opcode)
 		printf ("\t\tm68k_dreg (regs, movem_index1[dmask]) = v;\n");
 		printf ("\t\tsrca += %d;\n", size);
 		printf ("\t\tdmask = movem_next[dmask];\n");
-		addcycles000_nonce("\t\t", "8");
+		addcycles000_nonce("\t\t", 8);
 		printf ("\t}\n");
 		printf ("\twhile (amask) {\n");
 		printf ("\t\tv = %s (srca) << 16;\n", srcw);
@@ -2144,20 +2160,20 @@ static void genmovemel_ce (uae_u16 opcode)
 		printf ("\t\tm68k_areg (regs, movem_index1[amask]) = v;\n");
 		printf ("\t\tsrca += %d;\n", size);
 		printf ("\t\tamask = movem_next[amask];\n");
-		addcycles000_nonce("\t\t", "8");
+		addcycles000_nonce("\t\t", 8);
 		printf ("\t}\n");
 	} else {
 		printf ("\twhile (dmask) {\n");
 		printf ("\t\tm68k_dreg (regs, movem_index1[dmask]) = (uae_s32)(uae_s16)%s (srca);\n", srcw);
 		printf ("\t\tsrca += %d;\n", size);
 		printf ("\t\tdmask = movem_next[dmask];\n");
-		addcycles000_nonce("\t\t", "4");
+		addcycles000_nonce("\t\t", 4);
 		printf ("\t}\n");
 		printf ("\twhile (amask) {\n");
 		printf ("\t\tm68k_areg (regs, movem_index1[amask]) = (uae_s32)(uae_s16)%s (srca);\n", srcw);
 		printf ("\t\tsrca += %d;\n", size);
 		printf ("\t\tamask = movem_next[amask];\n");
-		addcycles000_nonce("\t\t", "4");
+		addcycles000_nonce("\t\t", 4);
 		printf ("\t}\n");
 	}
 	printf ("\t%s (srca);\n", srcw); // and final extra word fetch that goes nowhere..
@@ -2243,14 +2259,14 @@ static void genmovemle_ce (uae_u16 opcode)
 			printf ("\t\t%s (srca, m68k_areg (regs, movem_index2[amask]) >> 16);\n", dstw);
 			printf ("\t\t%s (srca + 2, m68k_areg (regs, movem_index2[amask]));\n", dstw);
 			printf ("\t\tamask = movem_next[amask];\n");
-			addcycles000_nonce("\t\t", "8");
+			addcycles000_nonce("\t\t", 8);
 			printf ("\t}\n");
 			printf ("\twhile (dmask) {\n");
 			printf ("\t\tsrca -= %d;\n", size);
 			printf ("\t\t%s (srca, m68k_dreg (regs, movem_index2[dmask]) >> 16);\n", dstw);
 			printf ("\t\t%s (srca + 2, m68k_dreg (regs, movem_index2[dmask]));\n", dstw);
 			printf ("\t\tdmask = movem_next[dmask];\n");
-			addcycles000_nonce("\t\t", "8");
+			addcycles000_nonce("\t\t", 8);
 			printf ("\t}\n");
 			printf ("\tm68k_areg (regs, dstreg) = srca;\n");
 		} else {
@@ -2260,14 +2276,14 @@ static void genmovemle_ce (uae_u16 opcode)
 			printf ("\t\t%s (srca + 2, m68k_dreg (regs, movem_index1[dmask]));\n", dstw);
 			printf ("\t\tsrca += %d;\n", size);
 			printf ("\t\tdmask = movem_next[dmask];\n");
-			addcycles000_nonce("\t\t", "8");
+			addcycles000_nonce("\t\t", 8);
 			printf ("\t}\n");
 			printf ("\twhile (amask) {\n");
 			printf ("\t\t%s (srca, m68k_areg (regs, movem_index1[amask]) >> 16);\n", dstw);
 			printf ("\t\t%s (srca + 2, m68k_areg (regs, movem_index1[amask]));\n", dstw);
 			printf ("\t\tsrca += %d;\n", size);
 			printf ("\t\tamask = movem_next[amask];\n");
-			addcycles000_nonce("\t\t", "8");
+			addcycles000_nonce("\t\t", 8);
 			printf ("\t}\n");
 		}
 	} else {
@@ -2277,13 +2293,13 @@ static void genmovemle_ce (uae_u16 opcode)
 			printf ("\t\tsrca -= %d;\n", size);
 			printf ("\t\t%s (srca, m68k_areg (regs, movem_index2[amask]));\n", dstw);
 			printf ("\tamask = movem_next[amask];\n");
-			addcycles000_nonce("\t\t", "4");
+			addcycles000_nonce("\t\t", 4);
 			printf ("\t}\n");
 			printf ("\twhile (dmask) {\n");
 			printf ("\t\tsrca -= %d;\n", size);
 			printf ("\t\t%s (srca, m68k_dreg (regs, movem_index2[dmask]));\n", dstw);
 			printf ("\t\tdmask = movem_next[dmask];\n");
-			addcycles000_nonce("\t\t", "4");
+			addcycles000_nonce("\t\t", 4);
 			printf ("\t}\n");
 			printf ("\tm68k_areg (regs, dstreg) = srca;\n");
 		} else {
@@ -2292,13 +2308,13 @@ static void genmovemle_ce (uae_u16 opcode)
 			printf ("\t\t%s (srca, m68k_dreg (regs, movem_index1[dmask]));\n", dstw);
 			printf ("\t\tsrca += %d;\n", size);
 			printf ("\t\tdmask = movem_next[dmask];\n");
-			addcycles000_nonce("\t\t", "4");
+			addcycles000_nonce("\t\t", 4);
 			printf ("\t}\n");
 			printf ("\twhile (amask) {\n");
 			printf ("\t\t%s (srca, m68k_areg (regs, movem_index1[amask]));\n", dstw);
 			printf ("\t\tsrca += %d;\n", size);
 			printf ("\t\tamask = movem_next[amask];\n");
-			addcycles000_nonce("\t\t", "4");
+			addcycles000_nonce("\t\t", 4);
 			printf ("\t}\n");
 		}
 	}
@@ -2588,7 +2604,7 @@ static void shift_ce (amodes dmode, int size)
 			addcycles000_3 ("\t\t");
 			printf ("\t}\n");
 		}
-		addcycles000_nonce("\t", "2 * ccnt");
+		addcycles000_nonces("\t", "2 * ccnt");
 		count_cycles += c;
 		count_ncycles++;
 	}
@@ -2606,7 +2622,7 @@ static void bsetcycles (struct instr *curi)
 			if (curi->mnemo != i_BTST) {
 				if (using_ce)
 					printf ("\tif (src > 15) %s (2);\n", do_cycles);
-				addcycles000_nonce("\tif (src > 15) ", "2");
+				addcycles000_nonce("\tif (src > 15) ", 2);
 				count_ncycles++;
 			}
 		}
@@ -3520,11 +3536,11 @@ static void gen_opcode (unsigned int opcode)
 		genamode (curi, curi->smode, "srcreg", sz_word, "src", 1, 0, 0);
 		if (curi->size == sz_byte) {
 			// MOVE TO CCR
-			addcycles000 (6);
+			addcycles000 (4);
 			printf ("\tMakeSR ();\n\tregs.sr &= 0xFF00;\n\tregs.sr |= src & 0xFF;\n");
 		} else {
 			// MOVE TO SR
-			addcycles000 (6);
+			addcycles000 (4);
 			printf ("\tregs.sr = src;\n");
 		}
 		makefromsr ();
@@ -3974,10 +3990,11 @@ static void gen_opcode (unsigned int opcode)
 				printf ("\t\tgoto %s;\n", endlabelstr);
 				printf ("\t}\n");
 				sync_m68k_pc ();
+				addcycles000 (2);
 				irc2ir ();
 				fill_prefetch_2 ();
-				printf ("\tgoto %s;\n", endlabelstr);
 				need_endlabel = 1;
+				goto bccl_not68020;
 			} else {
 				if (next_cpu_level < 1)
 					next_cpu_level = 1;
@@ -4025,6 +4042,7 @@ static void gen_opcode (unsigned int opcode)
 			fill_prefetch_full_000 ();
 		}
 		insn_n_cycles = curi->size == sz_byte ? 8 : 12;
+bccl_not68020:
 		break;
 	case i_LEA:
 		if (curi->smode == Ad8r || curi->smode == PC8r)
@@ -4084,11 +4102,12 @@ static void gen_opcode (unsigned int opcode)
 		add_head_cycs (6);
 		fill_prefetch_1 (2);
 		fill_prefetch_full_020 ();
-		returncycles ("\t\t\t", 12);
+		returncycles ("\t\t\t", 10);
 		printf ("\t\t}\n");
 		add_head_cycs (10);
 		printf ("\t} else {\n");
-		addcycles000 (2);
+		addcycles000_onlyce(2);
+		addcycles000_nonce("\t\t", 2);
 		printf ("\t}\n");
 		pop_ins_cnt();
 		setpc ("oldpc + %d", m68k_pc_offset);
@@ -4110,7 +4129,7 @@ static void gen_opcode (unsigned int opcode)
 			if (using_ce)
 				printf ("\tint cycles = val ? 2 : 0;\n");
 			addcycles000_3 ("\t");
-			addcycles000_nonce("\t", "val ? 2 : 0");
+			addcycles000_nonces("\t", "(val ? 2 : 0)");
 		}
 		genastore ("val", curi->smode, "srcreg", curi->size, "src");
 		break;
@@ -4134,7 +4153,7 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\t\tint cycles = (getDivu68kCycles((uae_u32)dst, (uae_u16)src)) - 4;\n");
 			addcycles000_3 ("\t\t");
 		}
-		addcycles000_nonce("\t\t", "(getDivu68kCycles((uae_u32)dst, (uae_u16)src)) - 4");
+		addcycles000_nonces("\t\t", "(getDivu68kCycles((uae_u32)dst, (uae_u16)src)) - 4");
 		fill_prefetch_next ();
 		/* The N flag appears to be set each time there is an overflow.
 		 * Weird. but 68020 only sets N when dst is negative.. */
@@ -4177,7 +4196,7 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\t\tint cycles = (getDivs68kCycles((uae_s32)dst, (uae_s16)src)) - 4;\n");
 			addcycles000_3 ("\t\t");
 		}
-		addcycles000_nonce("\t\t", "(getDivs68kCycles((uae_s32)dst, (uae_s16)src)) - 4");
+		addcycles000_nonces("\t\t", "(getDivs68kCycles((uae_s32)dst, (uae_s16)src)) - 4");
 		fill_prefetch_next ();
 		printf ("\tif (dst == 0x80000000 && src == -1) {\n");
 		printf ("\t\tSET_VFLG (1);\n");
@@ -4224,7 +4243,7 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\t\tif (src & 1) cycles += 2;\n");
 			addcycles000_3 ("\t");
 		}
-		addcycles000_nonce("\tfor(bits = 0; bits < 16 && src; bits++, src >>= 1)\n\t\tif (src & 1) ", "2");
+		addcycles000_nonce("\tfor(bits = 0; bits < 16 && src; bits++, src >>= 1)\n\t\tif (src & 1) ", 2);
 		genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
 		sync_m68k_pc ();
 		count_cycles += 38 - 4;
@@ -4252,7 +4271,7 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\t\tif ((usrc & 3) == 1 || (usrc & 3) == 2) cycles += 2;\n");
 			addcycles000_3 ("\t");
 		}
-		addcycles000_nonce("\tusrc = ((uae_u32)src) << 1;\n\tfor(bits = 0; bits < 16 && usrc; bits++, usrc >>= 1)\n\t\tif ((usrc & 3) == 1 || (usrc & 3) == 2) ", "2");
+		addcycles000_nonce("\tusrc = ((uae_u32)src) << 1;\n\tfor(bits = 0; bits < 16 && usrc; bits++, usrc >>= 1)\n\t\tif ((usrc & 3) == 1 || (usrc & 3) == 2) ", 2);
 		genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
 		count_cycles += 38 - 4;
 		count_ncycles++;
@@ -5057,7 +5076,7 @@ static void gen_opcode (unsigned int opcode)
 			genastore ("src", curi->smode, "srcreg", curi->size, "src");
 			printf ("\t} else {\n");
 			printf ("\t\t%s (4);\n", do_cycles);
-			addcycles000_nonce("\t\t", "4");
+			addcycles000_nonce("\t\t", 4);
 			printf ("\t}\n");
 		}
 		break;
@@ -5225,7 +5244,12 @@ static void gen_opcode (unsigned int opcode)
 		else
 			genamode (curi, curi->smode, "srcreg", curi->size, "extra", 0, 0, 0);
 		sync_m68k_pc ();
-		printf ("\tmmu_op30 (pc, opcode, extra, extraa);\n");
+		if (using_ce020 || using_prefetch_020) {
+			printf ("\tif (mmu_op30 (pc, opcode, extra, extraa)) goto %s;\n", endlabelstr);
+			need_endlabel = 1;
+		} else {
+			printf ("\tmmu_op30 (pc, opcode, extra, extraa);\n");
+		}
 		break;
 	default:
 		term ();

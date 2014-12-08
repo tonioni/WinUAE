@@ -1609,14 +1609,17 @@ err:
 
 #ifndef NATMEM_OFFSET
 
-uae_u8 *mapped_malloc (size_t s, const TCHAR *file)
+bool mapped_malloc (addrbank *ab)
 {
-	return xmalloc (uae_u8, s);
+	ab->startmask = ab->start;
+	ab->baseaddr = xcalloc (uae_u8, ab->allocated + 4);
+	return ab->baseaddr != NULL;
 }
 
-void mapped_free (uae_u8 *p)
+void mapped_free (addrbank *ab)
 {
-	xfree (p);
+	xfree(ab->baseaddr);
+	ab->baseaddr = NULL;
 }
 
 #else
@@ -1727,7 +1730,7 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
 	shm_start = y;
 }
 
-#define MAPPED_MALLOC_DEBUG 1
+#define MAPPED_MALLOC_DEBUG 0
 
 bool mapped_malloc (addrbank *ab)
 {

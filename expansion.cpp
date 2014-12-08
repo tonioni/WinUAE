@@ -1145,6 +1145,15 @@ static addrbank *expamem_map_filesys (void)
 {
 	uaecptr a;
 
+
+	// Warn if PPC doing autoconfig and UAE expansion enabled
+	static bool warned;
+	if (!warned && regs.halted < 0) {
+		warned = true;
+		// can't show dialogs from PPC thread, deadlock danger.
+		regs.halted = -2;
+	}
+
 	filesys_start = expamem_z2_pointer;
 	map_banks_z2 (&filesys_bank, filesys_start >> 16, 1);
 	/* 68k code needs to know this. */
@@ -1838,73 +1847,77 @@ void expamem_reset (void)
 #endif
 
 	/* Z3 boards last */
-	if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
-		card_flags[cardno] = 1;
-		card_name[cardno] = _T("Warp Engine");
-		card_init[cardno] = expamem_init_warpengine;
-		card_map[cardno++] = NULL;
-	}
-	if (z3fastmem_bank.baseaddr != NULL) {
-		z3num = 0;
-		card_flags[cardno] = 2 | 1;
-		card_name[cardno] = _T("Z3Fast");
-		card_init[cardno] = expamem_init_z3fastmem;
-		card_map[cardno++] = expamem_map_z3fastmem;
-		if (expamem_z3hack(&currprefs))
-			map_banks (&z3fastmem_bank, z3fastmem_bank.start >> 16, currprefs.z3fastmem_size >> 16, z3fastmem_bank.allocated);
-		if (z3fastmem2_bank.baseaddr != NULL) {
-			card_flags[cardno] = 2 | 1;
-			card_name[cardno] = _T("Z3Fast2");
-			card_init[cardno] = expamem_init_z3fastmem2;
-			card_map[cardno++] = expamem_map_z3fastmem2;
-			if (expamem_z3hack(&currprefs))
-				map_banks (&z3fastmem2_bank, z3fastmem2_bank.start >> 16, currprefs.z3fastmem2_size >> 16, z3fastmem2_bank.allocated);
+	if (!currprefs.address_space_24) {
+
+		if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
+			card_flags[cardno] = 1;
+			card_name[cardno] = _T("Warp Engine");
+			card_init[cardno] = expamem_init_warpengine;
+			card_map[cardno++] = NULL;
 		}
-	}
-	if (z3chipmem_bank.baseaddr != NULL)
-		map_banks (&z3chipmem_bank, z3chipmem_bank.start >> 16, currprefs.z3chipmem_size >> 16, z3chipmem_bank.allocated);
+		if (z3fastmem_bank.baseaddr != NULL) {
+			z3num = 0;
+			card_flags[cardno] = 2 | 1;
+			card_name[cardno] = _T("Z3Fast");
+			card_init[cardno] = expamem_init_z3fastmem;
+			card_map[cardno++] = expamem_map_z3fastmem;
+			if (expamem_z3hack(&currprefs))
+				map_banks (&z3fastmem_bank, z3fastmem_bank.start >> 16, currprefs.z3fastmem_size >> 16, z3fastmem_bank.allocated);
+			if (z3fastmem2_bank.baseaddr != NULL) {
+				card_flags[cardno] = 2 | 1;
+				card_name[cardno] = _T("Z3Fast2");
+				card_init[cardno] = expamem_init_z3fastmem2;
+				card_map[cardno++] = expamem_map_z3fastmem2;
+				if (expamem_z3hack(&currprefs))
+					map_banks (&z3fastmem2_bank, z3fastmem2_bank.start >> 16, currprefs.z3fastmem2_size >> 16, z3fastmem2_bank.allocated);
+			}
+		}
+		if (z3chipmem_bank.baseaddr != NULL)
+			map_banks (&z3chipmem_bank, z3chipmem_bank.start >> 16, currprefs.z3chipmem_size >> 16, z3chipmem_bank.allocated);
 #ifdef PICASSO96
-	if (currprefs.rtgmem_type == GFXBOARD_UAE_Z3 && gfxmem_bank.baseaddr != NULL) {
-		card_flags[cardno] = 4 | 1;
-		card_name[cardno] = _T("Z3RTG");
-		card_init[cardno] = expamem_init_gfxcard_z3;
-		card_map[cardno++] = expamem_map_gfxcard_z3;
-	}
+		if (currprefs.rtgmem_type == GFXBOARD_UAE_Z3 && gfxmem_bank.baseaddr != NULL) {
+			card_flags[cardno] = 4 | 1;
+			card_name[cardno] = _T("Z3RTG");
+			card_init[cardno] = expamem_init_gfxcard_z3;
+			card_map[cardno++] = expamem_map_gfxcard_z3;
+		}
 #endif
 #ifdef GFXBOARD
-	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_is_z3 (currprefs.rtgmem_type)) {
-		card_flags[cardno] = 4 | 1;
-		card_name[cardno] = _T ("Gfxboard VRAM Zorro III");
-		card_init[cardno] = expamem_init_gfxboard_memory;
-		card_map[cardno++] = NULL;
-		card_flags[cardno] = 1;
-		card_name[cardno] = _T ("Gfxboard Registers");
-		card_init[cardno] = expamem_init_gfxboard_registers;
-		card_map[cardno++] = NULL;
-	}
+		if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_is_z3 (currprefs.rtgmem_type)) {
+			card_flags[cardno] = 4 | 1;
+			card_name[cardno] = _T ("Gfxboard VRAM Zorro III");
+			card_init[cardno] = expamem_init_gfxboard_memory;
+			card_map[cardno++] = NULL;
+			card_flags[cardno] = 1;
+			card_name[cardno] = _T ("Gfxboard Registers");
+			card_init[cardno] = expamem_init_gfxboard_registers;
+			card_map[cardno++] = NULL;
+		}
 #endif
 #ifdef NCR
-	if (cfgfile_board_enabled(&currprefs.a4091rom)) {
-		card_flags[cardno] = 1;
-		card_name[cardno] = _T("A4091");
-		card_init[cardno] = expamem_init_a4091;
-		card_map[cardno++] = NULL;
-		card_flags[cardno] = 1;
-		card_name[cardno] = _T("A4091 #2");
-		card_init[cardno] = expamem_init_a4091_2;
-		card_map[cardno++] = NULL;
-	}
-	if (cfgfile_board_enabled(&currprefs.fastlanerom)) {
-		card_flags[cardno] = 1;
-		card_name[cardno] = _T("Fastlane");
-		card_init[cardno] = expamem_init_fastlane;
-		card_map[cardno++] = NULL;
-		card_flags[cardno] = 1;
-		card_name[cardno] = _T("Fastlane #2");
-		card_init[cardno] = expamem_init_fastlane_2;
-		card_map[cardno++] = NULL;
-	}
+		if (cfgfile_board_enabled(&currprefs.a4091rom)) {
+			card_flags[cardno] = 1;
+			card_name[cardno] = _T("A4091");
+			card_init[cardno] = expamem_init_a4091;
+			card_map[cardno++] = NULL;
+			card_flags[cardno] = 1;
+			card_name[cardno] = _T("A4091 #2");
+			card_init[cardno] = expamem_init_a4091_2;
+			card_map[cardno++] = NULL;
+		}
+		if (cfgfile_board_enabled(&currprefs.fastlanerom)) {
+			card_flags[cardno] = 1;
+			card_name[cardno] = _T("Fastlane");
+			card_init[cardno] = expamem_init_fastlane;
+			card_map[cardno++] = NULL;
+			card_flags[cardno] = 1;
+			card_name[cardno] = _T("Fastlane #2");
+			card_init[cardno] = expamem_init_fastlane_2;
+			card_map[cardno++] = NULL;
+		}
 #endif
+	}
+
 	if (cardno > 0 && cardno < MAX_EXPANSION_BOARDS) {
 		card_flags[cardno] = 0;
 		card_name[cardno] = _T("Empty");

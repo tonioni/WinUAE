@@ -1337,7 +1337,7 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val)
 			/* todo: check if low to high or high to low only */
 			kblostsynccnt = 0;
 #if KB_DEBUG
-			write_log (_T("KB_ACK %02x->%02x\n"), ciaacra, val);
+			write_log (_T("KB_ACK %02x->%02x %08x\n"), ciaacra, val, M68K_GETPC);
 #endif
 		}
 		ciaacra = val;

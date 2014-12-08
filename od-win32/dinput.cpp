@@ -2036,7 +2036,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		if (isfocus () && !istest) {
 			if (did->buttons >= 3 && (rm->usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)) {
 				if (currprefs.win32_middle_mouse) {
-					if (isfullscreen () != 0 && currprefs.win32_minimize_inactive)
+					if ((isfullscreen() < 0 && currprefs.win32_minimize_inactive) || isfullscreen() > 0)
 						minimizewindow ();
 					if (mouseactive)
 						setmouseactive (0);
@@ -3071,7 +3071,7 @@ static void read_mouse (void)
 					}
 				}
 				if (!istest && isfocus () && currprefs.win32_middle_mouse && dimofs == DIMOFS_BUTTON2 && state) {
-					if (isfullscreen () != 0 && currprefs.win32_minimize_inactive)
+					if ((isfullscreen() < 0 && currprefs.win32_minimize_inactive) || isfullscreen() > 0)
 						minimizewindow ();
 					if (mouseactive)
 						setmouseactive (0);

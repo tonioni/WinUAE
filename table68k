@@ -219,7 +219,7 @@
 - 0 0 2
 0100 1010 zzss sSSS:000:-NZ00:-----:10: TST.z   s[!Areg,Dreg,PC16,PC8r,Immd]
 - 0 0 2 fea
-0100 1010 zzss sSSS:200:-NZ00:-----:10: TST.z   s[Areg,PC16,PC8r]
+0100 1010 zzss sSSS:200:-NZ00:-----:10: TST.z   s[Areg,PC16,PC8r,Immd]
 - 0 0 2 fea
 0100 1010 11dd dDDD:000:?????:?????:30: TAS.B   d[Dreg]
 - 0 0 2

@@ -1276,7 +1276,7 @@ static void build_cpufunctbl (void)
 
 	regs.address_space_mask = 0xffffffff;
 	if (currprefs.cpu_compatible) {
-		if (currprefs.address_space_24 && currprefs.cpu_model >= 68030)
+		if (currprefs.address_space_24 && currprefs.cpu_model >= 68040)
 			currprefs.address_space_24 = false;
 	}
 	m68k_interrupt_delay = false;
@@ -1871,9 +1871,9 @@ STATIC_INLINE int adjust_cycles (int cycles)
 	regs.memory_waitstate_cycles = 0;
 	if (currprefs.m68k_speed < 0 || cycles_mult == 0)
 		return cycles + mc;
-	cpu_cycles *= cycles_mult;
-	cpu_cycles /= CYCLES_DIV;
-	return cpu_cycles + mc;
+	cycles *= cycles_mult;
+	cycles /= CYCLES_DIV;
+	return cycles + mc;
 }
 
 void REGPARAM2 MakeSR (void)
@@ -2965,9 +2965,10 @@ uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
 
 #ifdef CPUEMU_0
 
-static void mmu_op30fake_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
+static bool mmu_op30fake_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 {
 	int mode = (opcode >> 3) & 7;
+	int rreg = opcode & 7;
 	int preg = (next >> 10) & 31;
 	int rw = (next >> 9) & 1;
 	int fd = (next >> 8) & 1;
@@ -2975,10 +2976,10 @@ static void mmu_op30fake_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecpt
 	uae_u32 otc = fake_tc_030;
 	int siz;
 
-	// Dn, An, (An)+, -(An), abs and indirect
-	if (mode == 0 || mode == 1 || mode == 3 || mode == 4 || mode >= 6) {
+	// Dn, An, (An)+, -(An), immediate and PC-relative not allowed
+	if (mode == 0 || mode == 1 || mode == 3 || mode == 4 || mode == 6 || (mode == 7 && rreg > 1)) {
 		op_illg (opcode);
-		return;
+		return true;
 	}
 
 	switch (preg)
@@ -3041,7 +3042,7 @@ static void mmu_op30fake_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecpt
 
 	if (!reg) {
 		op_illg (opcode);
-		return;
+		return true;
 	}
 #if MMUOP_DEBUG > 0
 	{
@@ -3071,9 +3072,10 @@ static void mmu_op30fake_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecpt
 			a3000_fakekick (fake_tc_030 & 0x80000000);
 		}
 	}
+	return false;
 }
 
-static void mmu_op30fake_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
+static bool mmu_op30fake_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 {
 #if MMUOP_DEBUG > 0
 	TCHAR tmp[10];
@@ -3085,12 +3087,13 @@ static void mmu_op30fake_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecpt
 		((next >> 9) & 1) ? 'W' : 'R', (next & 15), extra, (next >> 10) & 7, tmp, pc);
 #endif
 	fake_mmusr_030 = 0;
+	return false;
 }
 
-static void mmu_op30fake_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
+static bool mmu_op30fake_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 {
 	int mode = (opcode >> 3) & 7;
-	int reg = opcode & 7;
+	int rreg = opcode & 7;
 	int flushmode = (next >> 10) & 7;
 	int fc = next & 31;
 	int mask = (next >> 5) & 3;
@@ -3099,10 +3102,10 @@ static void mmu_op30fake_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecp
 	switch (flushmode)
 	{
 	case 6:
-		// Dn, An, (An)+, -(An), abs and indirect
-		if (mode == 0 || mode == 1 || mode == 3 || mode == 4 || mode >= 6) {
+		// Dn, An, (An)+, -(An), immediate and PC-relative not allowed
+		if (mode == 0 || mode == 1 || mode == 3 || mode == 4 || mode == 6 || (mode == 7 && rreg > 1)) {
 			op_illg (opcode);
-			return;
+			return true;
 		}
 		_stprintf (fname, _T("FC=%x MASK=%x EA=%08x"), fc, mask, 0);
 		break;
@@ -3114,26 +3117,28 @@ static void mmu_op30fake_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecp
 		break;
 	default:
 		op_illg (opcode);
-		return;
+		return true;
 	}
 #if MMUOP_DEBUG > 0
 	write_log (_T("PFLUSH %s PC=%08X\n"), fname, pc);
 #endif
+	return false;
 }
 
 // 68030 (68851) MMU instructions only
-void mmu_op30 (uaecptr pc, uae_u32 opcode, uae_u16 extra, uaecptr extraa)
+bool mmu_op30 (uaecptr pc, uae_u32 opcode, uae_u16 extra, uaecptr extraa)
 {
 	if (currprefs.mmu_model) {
-		if (extra & 0x8000)
-			mmu_op30_ptest (pc, opcode, extra, extraa);
-		else if ((extra&0xE000)==0x2000 && (extra & 0x1C00))
-			mmu_op30_pflush (pc, opcode, extra, extraa);
-	    else if ((extra&0xE000)==0x2000 && !(extra & 0x1C00))
-	        mmu_op30_pload (pc, opcode, extra, extraa);
-		else
-			mmu_op30_pmove (pc, opcode, extra, extraa);
-		return;
+		if (extra & 0x8000) {
+			return mmu_op30_ptest (pc, opcode, extra, extraa);
+		} else if ((extra&0xE000)==0x2000 && (extra & 0x1C00)) {
+			return mmu_op30_pflush (pc, opcode, extra, extraa);
+		} else if ((extra&0xE000)==0x2000 && !(extra & 0x1C00)) {
+	        return mmu_op30_pload (pc, opcode, extra, extraa);
+		} else {
+			return mmu_op30_pmove (pc, opcode, extra, extraa);
+		}
+		return false;
 	}
 
 	int type = extra >> 13;
@@ -3143,16 +3148,17 @@ void mmu_op30 (uaecptr pc, uae_u32 opcode, uae_u16 extra, uaecptr extraa)
 	case 0:
 	case 2:
 	case 3:
-		mmu_op30fake_pmove (pc, opcode, extra, extraa);
+		return mmu_op30fake_pmove (pc, opcode, extra, extraa);
 	break;
 	case 1:
-		mmu_op30fake_pflush (pc, opcode, extra, extraa);
+		return mmu_op30fake_pflush (pc, opcode, extra, extraa);
 	break;
 	case 4:
-		mmu_op30fake_ptest (pc, opcode, extra, extraa);
+		return mmu_op30fake_ptest (pc, opcode, extra, extraa);
 	break;
 	default:
 		op_illg (opcode);
+		return true;
 	break;
 	}
 }
@@ -3252,7 +3258,7 @@ void cpu_sleep_millis(int ms)
 }
 
 #define PPC_HALTLOOP_SCANLINES 25
-//  ppc_cpu_idle
+// ppc_cpu_idle
 // 0 = busy
 // 1-9 = wait, levels
 // 10 = max wait
@@ -3269,6 +3275,13 @@ static bool haltloop(void)
 			int lines;
 			int rpt_scanline = read_processor_time();
 			int rpt_end = rpt_scanline + vsynctimeline;
+
+			// See expansion handling.
+			// Dialog must be opened from main thread.
+			if (regs.halted == -2) {
+				regs.halted = -1;
+				notify_user (NUMSG_UAEBOOTROM_PPC);
+			}
 
 			if (currprefs.ppc_cpu_idle) {
 

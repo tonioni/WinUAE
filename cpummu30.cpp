@@ -175,7 +175,7 @@ static struct {
 
 /* -- MMU instructions -- */
 
-void mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
+bool mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 {
 	int preg = (next >> 10) & 31;
 	int rw = (next >> 9) & 1;
@@ -224,7 +224,8 @@ void mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
                 x_put_long (extra, tc_030);
             else {
                 tc_030 = x_get_long (extra);
-                mmu030_decode_tc(tc_030);
+                if (mmu030_decode_tc(tc_030))
+					return true;
             }
             break;
         case 0x12: // SRP
@@ -234,7 +235,8 @@ void mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
             } else {
                 srp_030 = (uae_u64)x_get_long (extra) << 32;
                 srp_030 |= x_get_long (extra + 4);
-                mmu030_decode_rp(srp_030);
+                if (mmu030_decode_rp(srp_030))
+					return true;
             }
             break;
         case 0x13: // CRP
@@ -244,7 +246,8 @@ void mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
             } else {
                 crp_030 = (uae_u64)x_get_long (extra) << 32;
                 crp_030 |= x_get_long (extra + 4);
-                mmu030_decode_rp(crp_030);
+                if (mmu030_decode_rp(crp_030))
+					return true;
             }
             break;
         case 0x18: // MMUSR
@@ -272,16 +275,17 @@ void mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
         default:
             write_log (_T("Bad PMOVE at %08x\n"),m68k_getpc());
             op_illg (opcode);
-            return;
+            return true;
 	}
     
     if (!fd && !rw && !(preg==0x18)) {
         mmu030_flush_atc_all();
     }
 	tt_enabled = (tt0_030 & TT_ENABLE) || (tt1_030 & TT_ENABLE);
+	return false;
 }
 
-void mmu_op30_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
+bool mmu_op30_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 {
     mmu030.status = mmusr_030 = 0;
     
@@ -303,7 +307,7 @@ void mmu_op30_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
     if (!level && a) { /* correct ? */
         write_log(_T("PTEST: Bad instruction causing F-line unimplemented instruction exception!\n"));
         Exception(11); /* F-line unimplemented instruction exception */
-        return;
+        return true;
     }
         
 #if MMU030_OP_DBG_MSG
@@ -333,9 +337,10 @@ void mmu_op30_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
               (mmusr_030&MMUSR_INVALID)?1:0, (mmusr_030&MMUSR_MODIFIED)?1:0,
               (mmusr_030&MMUSR_TRANSP_ACCESS)?1:0, mmusr_030&MMUSR_NUM_LEVELS_MASK);
 #endif
+	return false;
 }
 
-void mmu_op30_pload (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
+bool mmu_op30_pload (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 {
     int rw = (next >> 9) & 1;
     uae_u32 fc = mmu_op30_helper_get_fc(next);
@@ -348,9 +353,10 @@ void mmu_op30_pload (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 
     mmu030_flush_atc_page(extra);
     mmu030_table_search(extra, fc, write, 0);
+	return false;
 }
 
-void mmu_op30_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
+bool mmu_op30_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 {
     uae_u16 mode = (next&0x1C00)>>10;
     uae_u32 fc_mask = (uae_u32)(next&0x00E0)>>5;
@@ -390,6 +396,7 @@ void mmu_op30_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
             write_log(_T("PFLUSH ERROR: bad mode! (%i)\n"),mode);
             break;
     }
+	return false;
 }
 
 /* -- Helper function for MMU instructions -- */
@@ -703,7 +710,7 @@ int mmu030_do_match_lrmw_ttr(uae_u32 tt, TT_info comp, uaecptr addr, uae_u32 fc)
 #define TC_TID_MASK             0x0000000F
 
 
-void mmu030_decode_tc(uae_u32 TC) {
+bool mmu030_decode_tc(uae_u32 TC) {
         
     /* Set MMU condition */    
     if (TC & TC_ENABLE_TRANSLATION) {
@@ -712,7 +719,7 @@ void mmu030_decode_tc(uae_u32 TC) {
 		if (mmu030.enabled)
 			write_log(_T("MMU disabled\n"));
         mmu030.enabled = false;
-        return;
+        return false;
     }
     
     /* Note: 0 = Table A, 1 = Table B, 2 = Table C, 3 = Table D */
@@ -738,7 +745,7 @@ void mmu030_decode_tc(uae_u32 TC) {
         write_log(_T("MMU Configuration Exception: Bad value in TC register! (bad page size: %i byte)\n"),
                   1<<mmu030.translation.page.size);
         Exception(56); /* MMU Configuration Exception */
-        return;
+        return true;
     }
 	mmu030.translation.page.mask = regs.mmu_page_size - 1;
 	mmu030.translation.page.imask = ~mmu030.translation.page.mask;
@@ -787,7 +794,7 @@ void mmu030_decode_tc(uae_u32 TC) {
     if ((shift-mmu030.translation.page.size)!=0) {
         write_log(_T("MMU Configuration Exception: Bad value in TC register! (bad sum)\n"));
         Exception(56); /* MMU Configuration Exception */
-        return;
+        return true;
     }
     
 #if MMU030_REG_DBG_MSG /* enable or disable debugging output */
@@ -813,6 +820,7 @@ void mmu030_decode_tc(uae_u32 TC) {
     write_log(_T("TC: Last Table: %c\n"), table_letter[mmu030.translation.last_table]);
     write_log(_T("\n"));
 #endif
+	return false;
 }
 
 
@@ -844,13 +852,15 @@ void mmu030_decode_tc(uae_u32 TC) {
 
 #define RP_ZERO_BITS 0x0000FFFC /* These bits in upper longword of RP must be 0 */
 
-void mmu030_decode_rp(uae_u64 RP) {
+bool mmu030_decode_rp(uae_u64 RP) {
     
     uae_u8 descriptor_type = (RP & RP_DESCR_MASK) >> 32;
     if (!descriptor_type) { /* If descriptor type is invalid */
         write_log(_T("MMU Configuration Exception: Root Pointer is invalid!\n"));
         Exception(56); /* MMU Configuration Exception */
+		return true;
     }
+	return false;
 
 #if MMU030_REG_DBG_MSG /* enable or disable debugging output */
     uae_u32 table_limit = (RP & RP_LIMIT_MASK) >> 48;

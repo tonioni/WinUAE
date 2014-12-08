@@ -395,6 +395,7 @@
 #define IDS_ALWAYS_ON                   402
 #define IDS_DISPLAY_ATTRIBUTES          403
 #define IDS_NUMSG_NO_PPC                404
+#define IDS_NUMSG_UAEBOOTROM_PCC        405
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002

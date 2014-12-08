@@ -33,10 +33,10 @@ extern struct mmu030_access mmu030_ad[MAX_MMU030_ACCESS];
 uae_u32 REGPARAM3 get_disp_ea_020_mmu030 (uae_u32 base, int idx) REGPARAM;
 void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc);
 
-void mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
-void mmu_op30_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
-void mmu_op30_pload (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
-void mmu_op30_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
+bool mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
+bool mmu_op30_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
+bool mmu_op30_pload (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
+bool mmu_op30_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
 
 uae_u32 mmu_op30_helper_get_fc(uae_u16 next);
 
@@ -53,8 +53,8 @@ typedef struct {
 } TT_info;
 
 TT_info mmu030_decode_tt(uae_u32 TT);
-void mmu030_decode_tc(uae_u32 TC);
-void mmu030_decode_rp(uae_u64 RP);
+bool mmu030_decode_tc(uae_u32 TC);
+bool mmu030_decode_rp(uae_u64 RP);
 
 int mmu030_logical_is_in_atc(uaecptr addr, uae_u32 fc, bool write);
 void mmu030_atc_handle_history_bit(int entry_num);
