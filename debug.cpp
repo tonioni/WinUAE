@@ -1290,9 +1290,18 @@ void log_dma_record (void)
 	decode_dma_record (0, 0, 0, true);
 }
 
+static void init_record_copper(void)
+{
+	if (!cop_record[0]) {
+		cop_record[0] = xmalloc(struct cop_rec, NR_COPPER_RECORDS);
+		cop_record[1] = xmalloc(struct cop_rec, NR_COPPER_RECORDS);
+	}
+}
+
 void record_copper_blitwait (uaecptr addr, int hpos, int vpos)
 {
-	int t = nr_cop_records[curr_cop_set] - 1;
+	int t = nr_cop_records[curr_cop_set];
+	init_record_copper();
 	cop_record[curr_cop_set][t].bhpos = hpos;
 	cop_record[curr_cop_set][t].bvpos = vpos;
 }
@@ -1300,10 +1309,7 @@ void record_copper_blitwait (uaecptr addr, int hpos, int vpos)
 void record_copper (uaecptr addr, uae_u16 word1, uae_u16 word2, int hpos, int vpos)
 {
 	int t = nr_cop_records[curr_cop_set];
-	if (!cop_record[0]) {
-		cop_record[0] = xmalloc (struct cop_rec, NR_COPPER_RECORDS);
-		cop_record[1] = xmalloc (struct cop_rec, NR_COPPER_RECORDS);
-	}
+	init_record_copper();
 	if (t < NR_COPPER_RECORDS) {
 		cop_record[curr_cop_set][t].addr = addr;
 		cop_record[curr_cop_set][t].w1 = word1;

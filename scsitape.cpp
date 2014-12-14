@@ -659,6 +659,14 @@ notape:
 	*data_len = scsi_len;
 	*reply_len = lr;
 	*sense_len = ls;
+	if (lr > 0) {
+		if (log_tapeemu) {
+			write_log (_T("TAPEEMU REPLY: "));
+			for (int i = 0; i < lr && i < 40; i++)
+				write_log (_T("%02X."), r[i]);
+			write_log (_T("\n"));
+		}
+	}
 	if (ls > 0) {
 		if (tape->beom == 1)
 			s[2] |= 0x40;

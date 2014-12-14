@@ -773,11 +773,10 @@ static void decide_blitter_line (int hsync, int hpos)
 			}
 
 			// final 2 idle cycles? does not need free bus
-			// in line mode idle cycles also use line mode cycle sequence (every other cycle)
 			if (blit_final) { 
 				blit_cyclecounter++;
 				blit_totalcyclecounter++;
-				if (blit_cyclecounter >= 4) {
+				if (blit_cyclecounter >= 2) {
 					blitter_done (last_blitter_hpos);
 					return;
 				}

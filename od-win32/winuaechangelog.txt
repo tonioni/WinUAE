@@ -18,6 +18,21 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+Beta 28: (RC3)
+
+- qemu-uae.dll updated to final 2.2.0 QEMU release. (No PPC changes)
+- Removed A26x0 chip ram mirror hack (b25), not needed anymore.
+- Copper WAIT with BFD=0 (wait for blitter enabled) sequence was incorrect, copper first waits for blitter, then
+  it goes to normal WAIT state. Previously WAIT state check was done first, then blitter wait. It is not same
+  because copper requires idle cycle when WAIT ends and it should be after blitter has finished, not before.
+  (Last minute change 1)
+- Second last minute change: last line sprite DMA logic behavior difference between A1000 Agnus and Fat revisions.
+  Sprite glitches are different in Skitro by Awesome/D-Tect/Vanish when run on A1000 vs OCS A500. Also fixes missing
+  yellow glitches in same demo.
+- b23 "Fixed missing graphics in Disposable Hero title screen in non-cycle exact modes." broke (again) demo Back
+  in 90 / Samplers. Added quick workaround: only do "Disposable Hero" fix if CPU is 68020+ (=works in most whdload
+  configurations without glitches).
+
 Beta 27: (RC2)
 
 - Added compatibility warning message if PPC CPU (and m68k is stopped) configures UAE filesystem

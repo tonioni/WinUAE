@@ -298,7 +298,7 @@ enum diw_states
 static int plffirstline, plflastline;
 int plffirstline_total, plflastline_total;
 static int autoscale_bordercolors;
-static int plfstrt_start, plfstrt, plfstop;
+static int plfstrt, plfstop;
 static int sprite_minx, sprite_maxx;
 static int first_bpl_vpos;
 static int last_ddf_pix_hpos;
@@ -1681,6 +1681,14 @@ static void update_denise_shifter_planes (int hpos)
 		if (diff)
 			toscr_1 (diff, fetchmode);
 		thisline_decision.plfright += hpos - thisline_decision.plfright;
+	}
+	// FIXME: Samplers / Back In 90 vs Disposable Hero title screen in fast modes
+	if (currprefs.cpu_model < 68020) {
+		toscr_nr_planes_shifter = np;
+		if (isocs7planes()) {
+			if (toscr_nr_planes_shifter < 6)
+				toscr_nr_planes_shifter = 6;
+		}
 	}
 }
 
@@ -4529,10 +4537,10 @@ static void DMACON (int hpos, uae_u16 v)
 
 #if SPRITE_DEBUG > 0
 	{
-	int olds = (oldcon & DMA_SPRITE) && (oldcon & DMA_MASTER);
-	int news = (dmacon & DMA_SPRITE) && (dmacon & DMA_MASTER);
-	if (olds != news)
-		write_log (_T("SPRITE DMA: %d -> %d %08x\n"), olds, news, m68k_getpc ());
+		int olds = (oldcon & DMA_SPRITE) && (oldcon & DMA_MASTER);
+		int news = (dmacon & DMA_SPRITE) && (dmacon & DMA_MASTER);
+		if (olds != news)
+			write_log (_T("SPRITE DMA: %d -> %d %08x\n"), olds, news, m68k_getpc ());
 	}
 #endif
 
@@ -6089,25 +6097,27 @@ static void update_copper (int until_hpos)
 				if (ch_comp & 1)
 					ch_comp = 0;
 		
-				if (copper_cant_read (old_hpos, 0))
+				/* First handle possible blitter wait
+				 * Must be before following free cycle check
+				 */
+				if ((cop_state.saved_i2 & 0x8000) == 0) {
+					decide_blitter(old_hpos);
+					if (bltstate != BLT_done) {
+						/* We need to wait for the blitter.  */
+						cop_state.state = COP_bltwait;
+						copper_enabled_thisline = 0;
+						unset_special(SPCFLAG_COPPER);
+						goto out;
+					}
+				}
+
+				if (copper_cant_read(old_hpos, 0))
 					continue;
 
 				hp = ch_comp & (cop_state.saved_i2 & 0xFE);
 				if (vp == cop_state.vcmp && hp < cop_state.hcmp)
 					break;
 
-				/* Now we know that the comparisons were successful.  We might still
-				have to wait for the blitter though.  */
-				if ((cop_state.saved_i2 & 0x8000) == 0) {
-					decide_blitter (old_hpos);
-					if (bltstate != BLT_done) {
-						/* We need to wait for the blitter.  */
-						cop_state.state = COP_bltwait;
-						copper_enabled_thisline = 0;
-						unset_special (SPCFLAG_COPPER);
-						goto out;
-					}
-				}
 #ifdef DEBUGGER
 				if (debug_dma)
 					record_dma_event (DMA_EVENT_COPPERWAKE, old_hpos, vp);
@@ -6190,19 +6200,40 @@ static void compute_spcflag_copper (int hpos)
 	set_special (SPCFLAG_COPPER);
 }
 
-/*
-Copper writes to BLTSIZE: 3 blitter idle cycles, blitter normal cycle starts
-(CPU write to BLTSIZE only have 2 idle cycles at start)
-
-BFD=0 wait: 1 cycle (or 2 if hpos is not aligned) delay before wait ends
-*/
 void blitter_done_notify (int hpos)
 {
-	int vp = vpos;
-
 	if (cop_state.state != COP_bltwait)
 		return;
 
+	int vp_wait = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
+	int vp = vpos;
+
+	hpos++;
+	hpos &= ~1;
+	if (hpos >= maxhpos) {
+		hpos -= maxhpos;
+		vp++;
+	}
+	cop_state.hpos = hpos;
+	cop_state.vpos = vp;
+	cop_state.state = COP_wait;
+	cop_state.saved_i2 |= 0x8000;
+
+#ifdef DEBUGGER
+	if (debug_dma)
+		record_dma_event(DMA_EVENT_COPPERWAKE, hpos, vp);
+	if (debug_copper)
+		record_copper_blitwait(cop_state.ip - 4, hpos, vp);
+#endif
+
+	if (dmaen(DMA_COPPER) && vp_wait >= cop_state.vcmp) {
+		copper_enabled_thisline = 1;
+		set_special(SPCFLAG_COPPER);
+	} else {
+		unset_special (SPCFLAG_COPPER);
+	}
+
+#if 0
 	hpos += 3;
 	hpos &= ~1;
 	if (hpos >= maxhpos) {
@@ -6224,6 +6255,7 @@ void blitter_done_notify (int hpos)
 		copper_enabled_thisline = 1;
 		set_special (SPCFLAG_COPPER);
 	}
+#endif
 }
 
 void do_copper (void)
@@ -6304,6 +6336,10 @@ static void do_sprites_1(int num, int cycle, int hpos)
 	uae_u16 data;
 	// fetch both sprite pairs even if DMA was switched off between sprites
 	int isdma = dmaen (DMA_SPRITE) || ((num & 1) && spr[num & ~1].dmacycle);
+
+	// A1000 Agnus off by one.
+	if (cant_this_last_line() && !currprefs.cs_dipagnus)
+		return;
 
 	if (isdma && vpos == sprite_vblank_endline)
 		spr_arm (num, 0);
@@ -6433,26 +6469,6 @@ static void do_sprites (int hpos)
 	int maxspr, minspr;
 	int i;
 
-	if (vpos == 0) {
-		// It is also possible armed status is cleared
-		// I am not sure so lets start with clearing
-		// data only
-		if (dmaen (DMA_SPRITE)) {
-			for (i = 0; i < MAX_SPRITES; i++) {
-				sprdata[i][0] = 0;
-				sprdatb[i][0] = 0;
-#ifdef AGA
-				sprdata[i][1] = 0;
-				sprdatb[i][1] = 0;
-				sprdata[i][2] = 0;
-				sprdatb[i][2] = 0;
-				sprdata[i][3] = 0;
-				sprdatb[i][3] = 0;
-#endif
-			}
-		}
-		return;
-	}
 	if (vpos < sprite_vblank_endline)
 		return;
 
