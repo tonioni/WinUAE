@@ -108,6 +108,7 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 	if (imagemode) {
 		int spitch, dpitch, x, y;
 		uae_u8 *src, *dst, *mem;
+		bool needfree = false;
 		uae_u8 *palette = NULL;
 		int rgb_bb2, rgb_gb2, rgb_rb2;
 		int rgb_bs2, rgb_gs2, rgb_rs2;
@@ -115,6 +116,7 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 		
 		if (WIN32GFX_IsPicassoScreen ()) {
 			src = mem = getrtgbuffer (&width, &height, &spitch, &bits, pal);
+			needfree = true;
 			rgb_bb2 = 8;
 			rgb_gb2 = 8;
 			rgb_rb2 = 8;
@@ -135,6 +137,7 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 			rgb_rs2 = rgb_rs;
 		} else {
 			src = mem = getfilterbuffer (&width, &height, &spitch, &bits);
+			needfree = true;
 			rgb_bb2 = rgb_bb;
 			rgb_gb2 = rgb_gb;
 			rgb_rb2 = rgb_rb;
@@ -142,8 +145,17 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 			rgb_gs2 = rgb_gs;
 			rgb_rs2 = rgb_rs;
 		}
-		if (src == NULL || width == 0 || height == 0)
+		if (src == NULL)
 			goto donormal;
+		if (width == 0 || height == 0) {
+			if (needfree) {
+				if (WIN32GFX_IsPicassoScreen())
+					freertgbuffer(mem);
+				else
+					freefilterbuffer(mem);
+			}
+			goto donormal;
+		}
 		ZeroMemory (bi, sizeof(bi));
 		bi->bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
 		bi->bmiHeader.biWidth = width;
@@ -164,8 +176,15 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 				bi->bmiColors[i].rgbBlue = pal[i * 3  + 2];
 			}
 		}
-		if (!(lpvBits = xmalloc (uae_u8, bi->bmiHeader.biSizeImage)))
+		if (!(lpvBits = xmalloc(uae_u8, bi->bmiHeader.biSizeImage))) {
+			if (needfree) {
+				if (WIN32GFX_IsPicassoScreen())
+					freertgbuffer(mem);
+				else
+					freefilterbuffer(mem);
+			}
 			goto oops;
+		}
 		dst = (uae_u8*)lpvBits + (height - 1) * dpitch;
 		if (bits <=8) {
 			for (y = 0; y < height; y++) {
@@ -211,9 +230,9 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 				dst -= dpitch;
 			}
 		}
-		if (!vb) {
-			if (WIN32GFX_IsPicassoScreen ())
-				freertgbuffer (mem);
+		if (needfree) {
+			if (WIN32GFX_IsPicassoScreen())
+				freertgbuffer(mem);
 			else
 				freefilterbuffer(mem);
 		}

@@ -136,7 +136,7 @@ void cd32_fmv_genlock(struct vidbuffer *vbin, struct vidbuffer *vbout)
 
 	mult = 1;
 	for (;;) {
-		if (mult < 4 && mpeg_width * (mult << 1) <= w && mpeg_height * (mult << 1) <= h) {
+		if (mult < 4 && mpeg_width * (mult << 1) <= w + 8 && mpeg_height * (mult << 1) <= h + 8) {
 			mult <<= 1;
 		}
 		else {

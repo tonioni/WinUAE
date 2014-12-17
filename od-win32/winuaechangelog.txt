@@ -18,6 +18,8 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+3.0.0
+
 Beta 28: (RC3)
 
 - qemu-uae.dll updated to final 2.2.0 QEMU release. (No PPC changes)
