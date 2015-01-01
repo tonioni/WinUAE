@@ -143,11 +143,11 @@ uint64_t esp_reg_read(void *s, uint32_t saddr);
 void esp_reg_write(void *s, uint32_t saddr, uint64_t val);
 
 void esp_dma_enable(void *opaque, int level);
+void esp_fake_dma_done(void *opaque);
 
 void esp_request_cancelled(SCSIRequest *req);
 void esp_command_complete(SCSIRequest *req, uint32_t status, size_t resid);
 void esp_transfer_data(SCSIRequest *req, uint32_t len);
 void esp_scsi_init(DeviceState *dev, ESPDMAMemoryReadWriteFunc read, ESPDMAMemoryReadWriteFunc write);
 void esp_scsi_reset(DeviceState *dev, void *privdata);
-
 #endif

@@ -130,6 +130,13 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
 
     lun = busid & 7;
     current_lun = scsiesp_device_find(&s->bus, 0, s->current_dev->id, lun);
+	if (!current_lun) {
+        s->rregs[ESP_RSTAT] = 0;
+        s->rregs[ESP_RINTR] = INTR_DC;
+        s->rregs[ESP_RSEQ] = SEQ_0;
+	    esp_raise_irq(s);
+		return;
+	}
     s->current_req = scsiesp_req_new(current_lun, 0, lun, buf, s);
     datalen = scsiesp_req_enqueue(s->current_req);
     s->ti_size = datalen;
@@ -292,6 +299,12 @@ static int esp_do_dma(ESPState *s)
 	return 1;
 }
 
+void esp_fake_dma_done(void *opaque)
+{
+	ESPState *s = (ESPState*)opaque;
+	scsiesp_req_continue(s->current_req);
+}
+
 void esp_command_complete(SCSIRequest *req, uint32_t status,
                                  size_t resid)
 {
@@ -416,8 +429,6 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
 				if (s->ti_size == 1) {
 					scsiesp_req_continue(s->current_req);
 				}
-//					esp_command_complete(s);
-				//activate_debugger();
             } else {
                 s->rregs[ESP_FIFO] = s->ti_buf[s->ti_rptr++];
             }
@@ -439,6 +450,8 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
         esp_lower_irq(s);
 
         return old_val;
+	case ESP_RES4:
+		return 0x80 | 0x20 | 0x2;
     default:
 		//write_log("read unknown 53c94 register %02x\n", saddr);
 		break;
