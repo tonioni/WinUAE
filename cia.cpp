@@ -637,7 +637,7 @@ static void sendrw (void)
 
 int resetwarning_do (int canreset)
 {
-	if (resetwarning_phase) {
+	if (resetwarning_phase || regs.halted > 0) {
 		/* just force reset if second reset happens during resetwarning */
 		if (canreset) {
 			resetwarning_phase = 0;
