@@ -101,7 +101,7 @@ static uae_u8 writebuffer[544 * MAX_SECTORS];
 #define DISK_REVOLUTION 4 /* 8,16,32,64 */
 
 #define DSKREADY_UP_TIME 18
-#define DSKREADY_DOWN_TIME 45
+#define DSKREADY_DOWN_TIME 24
 
 #define DSKDMA_OFF 0
 #define DSKDMA_INIT 1
