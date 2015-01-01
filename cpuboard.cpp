@@ -258,6 +258,14 @@ static bool is_a2630(void)
 {
 	return currprefs.cpuboard_type == BOARD_A2630;
 }
+static bool is_dkb(void)
+{
+	return currprefs.cpuboard_type == BOARD_DKB1200;
+}
+static bool is_fusionforty(void)
+{
+	return currprefs.cpuboard_type == BOARD_FUSIONFORTY;
+}
 
 DECLARE_MEMORY_FUNCTIONS(blizzardio);
 static addrbank blizzardio_bank = {
@@ -973,7 +981,9 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 #if CPUBOARD_IO_LOG > 1
 	write_log(_T("CS IO XBPUT %08x %02x PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
 #endif
-	if (is_csmk2()) {
+	if (is_fusionforty()) {
+		;
+	} else if (is_csmk2()) {
 		csmk2_flashaddressing = addr & 3;
 		if (addr == 0x880000e3 && v == 0x2a) {
 			maprom_state = 1;
@@ -1170,7 +1180,9 @@ static void REGPARAM2 blizzardio_wput(uaecptr addr, uae_u32 v)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	if (is_blizzard()) {
+	if (is_fusionforty()) {
+		;
+	} else if (is_blizzard()) {
 		write_log(_T("CS IO WPUT %08x %04x\n"), addr, v);
 		if((addr & 65535) == (BLIZZARD_BOARD_DISABLE & 65535)) {
 			if (v != 0xcafe)
@@ -1292,6 +1304,12 @@ void cpuboard_map(void)
 		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 131072 >> 16, 0);
 		map_banks(&blizzardea_bank, 0xf40000 >> 16, 65536 >> 16, 0);
 	}
+	if (is_fusionforty()) {
+		map_banks(&blizzardf0_bank, 0x00f40000 >> 16, 131072 >> 16, 0);
+		map_banks(&blizzardf0_bank, 0x05000000 >> 16, 131072 >> 16, 0);
+		map_banks(&blizzardio_bank, 0x021d0000 >> 16, 65536 >> 16, 0);
+		map_banks(&blizzardram_bank, blizzardram_bank.start >> 16, cpuboard_size >> 16, 0);
+	}
 }
 
 void cpuboard_reset(void)
@@ -1384,6 +1402,20 @@ void cpuboard_init(void)
 		blizzardea_bank.allocated = 65536;
 		blizzardea_bank.mask = blizzardea_bank.allocated - 1;
 		mapped_malloc(&blizzardea_bank);
+
+	} else if (is_fusionforty()) {
+
+		blizzardf0_bank.start = 0x00f40000;
+		blizzardf0_bank.allocated = 262144;
+		blizzardf0_bank.mask = blizzardf0_bank.allocated - 1;
+		mapped_malloc(&blizzardf0_bank);
+
+		blizzardram_bank.start = 0x11000000;
+		blizzardram_bank.allocated = cpuboard_size;
+		blizzardram_bank.mask = blizzardram_bank.allocated - 1;
+		blizzardram_bank.startmask = 0x11000000;
+		blizzardram_bank.label = _T("fusionforty");
+		mapped_malloc(&blizzardram_bank);
 
 	} else if (is_tekmagic()) {
 
@@ -1601,6 +1633,8 @@ int cpuboard_memorytype(struct uae_prefs *p)
 		case BOARD_CSPPC:
 		case BOARD_WARPENGINE_A4000:
 		case BOARD_TEKMAGIC:
+		case BOARD_FUSIONFORTY:
+		case BOARD_DKB1200: // ??
 		return BOARD_MEMORY_HIGHMEM;
 		case BOARD_A2630:
 		return BOARD_MEMORY_Z2;
@@ -1783,6 +1817,8 @@ addrbank *cpuboard_autoconfig_init(void)
 		break;
 	case BOARD_WARPENGINE_A4000:
 		return &expamem_null;
+	case BOARD_DKB1200:
+		return &expamem_null;
 	case BOARD_TEKMAGIC:
 		roms[0] = 104;
 		break;
@@ -1805,6 +1841,9 @@ addrbank *cpuboard_autoconfig_init(void)
 	case BOARD_BLIZZARDPPC:
 		roms[0] = currprefs.cpu_model == 68040 ? 99 : 100;
 		isflashrom = true;
+		break;
+	case BOARD_FUSIONFORTY:
+		roms[0] = 113;
 		break;
 	default:
 		return &expamem_null;
@@ -1864,6 +1903,10 @@ addrbank *cpuboard_autoconfig_init(void)
 		zfile_fread(blizzardf0_bank.baseaddr, 1, f0rom_size, autoconfig_rom);
 		autoconf = false;
 		autoconf_stop = true;
+	} else if (is_fusionforty()) {
+		f0rom_size = 262144;
+		zfile_fread(blizzardf0_bank.baseaddr, 1, 131072, autoconfig_rom);
+		autoconf = false;
 	} else if (is_tekmagic()) {
 		earom_size = 65536;
 		f0rom_size = 131072;
@@ -1973,6 +2016,10 @@ addrbank *cpuboard_autoconfig_init(void)
 				map_banks(&blizzardf0_bank, 0xf80000 >> 16, f0rom_size >> 16, 0);
 			if (!(a2630_io & 1))
 				map_banks(&blizzardf0_bank, 0x000000 >> 16, f0rom_size >> 16, 0);
+		} else if (is_fusionforty()) {
+			map_banks(&blizzardf0_bank, 0x00f40000 >> 16, f0rom_size >> 16, 0);
+			map_banks(&blizzardf0_bank, 0x05000000 >> 16, f0rom_size >> 16, 0);
+			map_banks(&blizzardf0_bank, 0x00000000 >> 16, f0rom_size >> 16, 0);
 		} else {
 			map_banks(&blizzardf0_bank, 0xf00000 >> 16, (f0rom_size > 262144 ? 262144 : f0rom_size) >> 16, 0);
 		}
