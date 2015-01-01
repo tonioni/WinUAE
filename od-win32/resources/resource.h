@@ -1102,6 +1102,7 @@
 #define IDC_CS_CD32FMV                  1771
 #define IDC_CS_SCSIMODE                 1772
 #define IDC_DF0ENABLE                   1773
+#define IDC_CS_TOCCATA                  1773
 #define IDC_DF1ENABLE                   1774
 #define IDC_FS_SELECT_DIR               1774
 #define IDC_FS_SELECT_FILE              1775

@@ -62,6 +62,7 @@
 #include "uaenative.h"
 #include "tabletlibrary.h"
 #include "cpuboard.h"
+#include "sndboard.h"
 #include "uae/ppc.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
@@ -1014,6 +1015,7 @@ void do_leave_program (void)
 #endif
 #ifdef A2091
 	a2091_free ();
+	gvp_free ();
 	a3000scsi_free ();
 #endif
 #ifdef NCR
@@ -1048,6 +1050,9 @@ void do_leave_program (void)
 #endif
 #ifdef WITH_PPC
 	uae_ppc_free();
+#endif
+#ifdef WITH_TOCCATA
+	sndboard_free();
 #endif
 	gfxboard_free();
 	savestate_free ();

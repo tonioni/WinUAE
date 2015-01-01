@@ -4043,6 +4043,7 @@ uae_u8 *getrtgbuffer (int *widthp, int *heightp, int *pitch, int *depth, uae_u8 
 		return NULL;
 	hmode = pixbytes == 1 ? RGBFB_CLUT : RGBFB_B8G8R8A8;
 	convert = getconvert (picasso96_state.RGBFormat, pixbytes);
+	alloc_colors_picasso(8, 8, 8, 16, 8, 0, picasso96_state.RGBFormat);
 
 	if (pixbytes > 1 && hmode != convert) {
 		copyall (src + off, dst, width, height, picasso96_state.BytesPerRow, picasso96_state.BytesPerPixel, width * pixbytes, pixbytes, false, convert);
@@ -4063,10 +4064,13 @@ uae_u8 *getrtgbuffer (int *widthp, int *heightp, int *pitch, int *depth, uae_u8 
 		}
 	}
 
+	gfx_set_picasso_colors(picasso96_state.RGBFormat);
+
 	*widthp = width;
 	*heightp = height;
 	*pitch = width * pixbytes;
 	*depth = pixbytes * 8;
+
 
 	return dst;
 }

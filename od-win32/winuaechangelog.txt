@@ -18,6 +18,78 @@ Things that may happen in 2015:
 
 - restore only single input target to default.
 
+- Lowered disk motor startup delay, more closer match with real hardware (at least matches some random drive
+  in my A500)
+- Memwatch points in KS ROM address space crashed during reset. (Wrong ROM mirror selection)
+- A4000T NCR SCSI data bus width become 16-bit in cycle-exact mode. Caused write triggerable registers
+  to start operation before full 32-bit value was written.
+- Memwatch points didn't work in ROM addresses.
+- CPU HALT state caused infinite loop in some configurations.
+- 2900b16 68040 MMU MOVEM stack frame update was incorrect. (NetBSD crash, probably other Unix-likes too)
+- Some 68000 MOVE variants seem to sample interrupt lines before writes and some after writes. Added special
+  case for one variant, allows Made in Croatia / Binary to work in cycle-exact mode. Need more testing later,
+  there does not seem to be any pattern.
+- Last line sometimes flickered with random colors in "Double, fields/+" non-interlaced mode.
+- RTG mode screenshots in 16-bit host color depth mode had wrong colors.
+- Non-cycle exact modes with display vertical diw open but bitplane DMA disabled: in some situations display was
+  corrupted or shifted. (Gloom AGA, Worms Directors Cut title screens)
+- Directory filesystem exnext packet update didn't always work correctly if file was deleted during directory
+  enumeration. (Which is technically illegal but it accidentally worked with OFS/FFS and become a feature..)
+- Autoconfig space was not unmapped after it finished, broke during previous autoconfig rewrite.
+- GUI didn't allow selection of custom SCSI ROM file.
+- Completely rewritten CPU idle function, max CPU idle setting should now work without any slowdown side-effects,
+  also lowest CPU idle state should be less than 10%. Please test.
+- Last line is not special if A1000 Agnus. I was expecting this result when I noticed that A1000 sprite behavior
+  is different in last line vs later Agnus models. A1000 Agnus: all visible lines are normal, later revisions:
+  last line inhibits bitplane and sprite DMA. Real A1000 confirmed. I think this is last A1000 vs later Agnus
+  revision undocumented difference.
+- Small sprite update, only writes to SPRxCTL disarms sprite (I had special case for first DMA write to SPRxPOS
+  too, only because it worked around another old bug..). Now OCS Agnus + ECS Denise + KS3.1 combination mouse
+  cursor sprite corruption is 100% correct.
+- On the fly media insertions are now serialized and only processed when Windows PnP manager reports idle
+  state (Media mounting works even if it causes "installing drivers" phase) and multiple simultaneous media
+  insertions also work reliably now (for example USB reader connected with multiple cards already inserted)
+- First on the fly inserted device name becomes RDH0:, second RDH1: and so on. Previously number was next
+  available directory filesystem unit number.
+- Delay enumeration of inserted/removed input devices by 2 seconds. One removal or insertion can cause
+  multiple device events (which is harmless but sometimes annoying)
+- Picasso IV autoconfig missed special case, other boards are 16M in Z3 mode but PIV is 32M. Fixes incorrect
+  address alignment if Z3 fast RAM is also enabled and size is less than 32M. (OS4 black screen hang)
+- Picasso IV byteswap VRAM space didn't handle byte reads or writes correctly, only words and longs worked.
+  (OS4 1024*768*16 screen mode glitches, possibly also other 16 bit modes)
+
+New hardware emulated:
+
+- GVP SCSI Series I and II hardware emulation (WD33C93), HC+8 board. v3.15 and v4.15 boot ROMs added to ROM
+  scanner (gvpscsi.device). GVP SCSI enabled + Z2 fast RAM: use GVP Z2 fast ram autoconfig ID.
+- DKB 1230/1240 accelerator board + SCSI emulation (FAS246 which appears to be compatible with 53C94/FAS216).
+  SCSI is non-DMA (dkbscsi.device). v1.23 ROM added to ROM scanner. RAM not emulated, no idea about address space.
+- Fusion Forty accelerator board emulation. It has interesting menu and graphics in boot ROM, press right
+  mouse button when booting. v3.4 ROM images added to ROM scanner. RAM expansion emulated.
+- Toccata Z2 sound card emulation.
+
+Toccata hardware features emulated:
+- Mono and stereo channel modes.
+- 8-bit and 16-bit linear PCM. Companded (ulaw/alaw) modes are not supported.
+- Left and right output channel volume control and mute.
+- All AD1848 supported output frequencies.
+- Output only. Input channels are not supported.
+
+Technical details:
+- Has 1024x9bit FIFO chip, one for output and one for input.
+- No DMA. Uses level 6 interrupt to fill FIFO, 512 bytes/interrupt. Interrupt triggers when FIFO has 512 bytes or less
+  data available. (Which makes about 7 interrupts/frame at 44100Hz/16bit/stereo)
+
+Notes:
+- Different implementation than uae ahi and CD audio. Audio goes to Paula emulation backend (after Paula 8 to 16-bit
+  conversions and filters). Very good latency but glitches are possible if configured buffer size is too small or
+  not enough CPU power available (just like with Paula audio). It should be usable for (game) sound effect, not just
+  for music.
+- Because it uses Paula audio path, Toccata audio is included with sound recording. Same method may be used with
+  CD audio in future. (Possibly optionally).
+- It is best to set same sample rate in both AHI and UAE sound settings to reduce possible resampling artifacts.
+- Does any DMA capable simple sound cards exist? (Simple = basic CODEC chip only, no DSP chip)
+
 3.0.0
 
 Beta 28: (RC3)

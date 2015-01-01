@@ -62,6 +62,7 @@
 #include "sampler.h"
 #include "clipboard.h"
 #include "cpuboard.h"
+#include "sndboard.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -2554,40 +2555,20 @@ static void start_bpl_dma (int hpos, int hstart)
 	last_fetch_hpos = hstart;
 }
 
-#if 0
-/* this may turn on datafetch if program turns dma on during the ddf */
-static void maybe_start_bpl_dma (int hpos)
-{
-	/* OCS: BPL DMA never restarts if DMA is turned on during DDF
-	* ECS/AGA: BPL DMA restarts but only if DMA was turned off
-	outside of DDF or during current line, otherwise display
-	processing jumps immediately to "DDFSTOP passed"-condition */
-	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
-		bitplane_dma_turned_on = hpos;
-		return;
-	}
-	if (fetch_state != fetch_not_started)
-		return;
-	if (diwstate != DIW_waiting_stop)
-		return;
-	if (hpos <= plfstrt)
-		return;
-	if (hpos >= plfstop)
-		return;
-	if (ddfstate != DIW_waiting_start)
-		plf_state = plf_passed_stop;
-	start_bpl_dma (hpos, hpos);
-}
-#endif
-
 STATIC_INLINE bool cant_this_last_line (void)
 {
+	// Last line..
+	// ..works normally if A1000 Agnus
+	if (currprefs.cs_dipagnus)
+		return false;
+	// ..inhibits bitplane and sprite DMA if later Agnus revision.
 	return vpos + 1 >= maxvpos + lof_store;
 }
 
 /* This function is responsible for turning on datafetch if necessary. */
 static void decide_line (int hpos)
 {
+
 	/* Take care of the vertical DIW.  */
 	if (vpos == plffirstline) {
 		// A1000 Agnus won't start bitplane DMA if vertical diw is zero.
@@ -2621,6 +2602,7 @@ static void decide_line (int hpos)
 		}
 
 		if (diwstate == DIW_waiting_stop) {
+			bool strtpassed = false;
 
 			if (dmaecs) {
 				if (last_decide_line_hpos < plfstrt && hpos >= plfstrt) {
@@ -2629,23 +2611,10 @@ static void decide_line (int hpos)
 					if (plf_state == plf_start && hpos - 2 != ddfstrt_old_hpos)
 						plf_state = plf_active;
 					bplstart = plfstrt;
-				}
-			}
-
-			if (dmaecs) {
-				// did we just match ddfstop - 3 but missed ddfstrt? DMA starts from passed plfstop state.
-				if (last_decide_line_hpos > plfstrt && (plf_state == plf_active || plf_state == plf_wait_stop) && diwstate == DIW_waiting_stop) {
-					int stop = get_ddfstop_to_test (last_decide_line_hpos);
-					if (last_decide_line_hpos < stop && hpos >= stop - 3) {
-						if (dma) {
-							// we did, fetches start!
-							bplstart = plfstop;
-							plf_state = plf_active;
-						} else {
-							// line done
-							plf_state = plf_end;
-						}
-					}
+					/* needed to handle non-cycle exact situation where single call to
+					 * decide_line() handles both start and stop conditions
+					 */
+					strtpassed = true;
 				}
 			}
 
@@ -2659,6 +2628,25 @@ static void decide_line (int hpos)
 					return;
 				}
 			}
+
+			if (dmaecs) {
+				// did we just match ddfstop - 3 but missed ddfstrt? DMA starts from passed plfstop state.
+				if ((last_decide_line_hpos > plfstrt || (strtpassed && plfstop >= plfstrt)) && (plf_state == plf_active || plf_state == plf_wait_stop) && diwstate == DIW_waiting_stop) {
+					int stop = get_ddfstop_to_test(last_decide_line_hpos);
+					if (last_decide_line_hpos < stop && hpos >= stop - 3) {
+						if (dma) {
+							// we did, fetches start!
+							bplstart = plfstop;
+							plf_state = plf_active;
+						}
+						else {
+							// line done
+							plf_state = plf_end;
+						}
+					}
+				}
+			}
+
 		}
 	}
 
@@ -3556,6 +3544,7 @@ void compute_vsynctime (void)
 		double clk = svpos * shpos * fake_vblank_hz;
 		//write_log (_T("SNDRATE %.1f*%.1f*%.6f=%.6f\n"), svpos, shpos, fake_vblank_hz, clk);
 		update_sound (clk);
+		update_sndboard_sound (clk);
 	}
 	cd32_fmv_set_sync(svpos);
 }
@@ -4636,6 +4625,9 @@ static void rethink_intreq (void)
 #ifdef NCR9X
 	ncr9x_rethink();
 #endif
+#ifdef WITH_TOCCATA
+	sndboard_rethink();
+#endif
 	rethink_gayle ();
 	/* cpuboard_rethink must be last */
 	cpuboard_rethink();
@@ -4850,7 +4842,6 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
 	decide_line (hpos);
 	decide_fetch_safe (hpos);
 	reset_dbplh (hpos, num);
-	//v += corrupt_offset;
 	/* chipset feature: BPLxPTL write and next cycle doing DMA fetch using same pointer register ->
 	 * this write goes nowhere (same happens with all DMA channels, not just BPL)
 	 * (intro MoreNewStuffy by PlasmaForce)
@@ -6217,6 +6208,7 @@ void blitter_done_notify (int hpos)
 	cop_state.hpos = hpos;
 	cop_state.vpos = vp;
 	cop_state.state = COP_wait;
+	/* No need to check blitter state again */
 	cop_state.saved_i2 |= 0x8000;
 
 #ifdef DEBUGGER
@@ -6232,30 +6224,6 @@ void blitter_done_notify (int hpos)
 	} else {
 		unset_special (SPCFLAG_COPPER);
 	}
-
-#if 0
-	hpos += 3;
-	hpos &= ~1;
-	if (hpos >= maxhpos) {
-		hpos -= maxhpos;
-		vp++;
-	}
-	cop_state.hpos = hpos;
-	cop_state.vpos = vp;
-	cop_state.state = COP_read1;
-
-#ifdef DEBUGGER
-	if (debug_dma)
-		record_dma_event (DMA_EVENT_COPPERWAKE, hpos, vp);
-	if (debug_copper)
-		record_copper_blitwait (cop_state.ip - 4, hpos, vp);
-#endif
-
-	if (dmaen (DMA_COPPER) && vp == vpos) {
-		copper_enabled_thisline = 1;
-		set_special (SPCFLAG_COPPER);
-	}
-#endif
 }
 
 void do_copper (void)
@@ -6337,12 +6305,12 @@ static void do_sprites_1(int num, int cycle, int hpos)
 	// fetch both sprite pairs even if DMA was switched off between sprites
 	int isdma = dmaen (DMA_SPRITE) || ((num & 1) && spr[num & ~1].dmacycle);
 
-	// A1000 Agnus off by one.
-	if (cant_this_last_line() && !currprefs.cs_dipagnus)
+	if (cant_this_last_line())
 		return;
 
-	if (isdma && vpos == sprite_vblank_endline)
-		spr_arm (num, 0);
+//	see SPRxCTRL below
+//	if (isdma && vpos == sprite_vblank_endline)
+//		spr_arm (num, 0);
 
 #ifdef AGA
 	if (isdma && s->dblscan && (fmode & 0x8000) && (vpos & 1) != (s->vstart & 1) && s->dmastate) {
@@ -6396,6 +6364,10 @@ static void do_sprites_1(int num, int cycle, int hpos)
 				SPRxPOS_1 (data, num, hpos);
 				s->dmacycle = 1;
 			} else {
+				// This is needed to disarm previous field's sprite.
+				// It can be seen on OCS Agnus + ECS Denise combination where
+				// this cycle is disabled due to weird DDFTSTR=$18 copper list
+				// which causes corrupted sprite to "wrap around" the display.
 				SPRxCTL_1 (data, num, hpos);
 				s->dmastate = 0;
 				sprstartstop (s);
@@ -7233,7 +7205,9 @@ static void vsync_handler_post (void)
 	if (!picasso_on)
 		gfxboard_vsync_handler ();
 #endif
-
+#ifdef WITH_TOCCATA
+	sndboard_vsync();
+#endif
 	if (varsync_changed || (beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80))) {
 		init_hz ();
 	} else if (vpos_count > 0 && abs (vpos_count - vpos_count_diff) > 1 && vposw_change < 4) {
@@ -7540,6 +7514,9 @@ static void hsync_handler_pre (bool onvsync)
 	uae_ppc_hsync_handler();
 	cpuboard_hsync();
 #endif
+#ifdef WITH_TOCCATA
+	sndboard_hsync();
+#endif
 	DISK_hsync ();
 	if (currprefs.produce_sound)
 		audio_hsync ();
@@ -7709,9 +7686,20 @@ static void hsync_handler_post (bool onvsync)
 	}
 #endif
 	if (currprefs.m68k_speed < 0 && !currprefs.cpu_cycle_exact) {
+		static int sleeps_remaining;
 		if (is_last_line ()) {
+			sleeps_remaining = (165 - currprefs.cpu_idle) / 6;
+			if (sleeps_remaining < 0)
+				sleeps_remaining = 0;
 			/* really last line, just run the cpu emulation until whole vsync time has been used */
-			if (currprefs.m68k_speed_throttle) {
+			if (regs.stopped && currprefs.cpu_idle) {
+				// CPU in STOP state: sleep if enough time left.
+				frame_time_t rpt = read_processor_time ();
+				while (!vsync_isdone () && (int)vsyncmintime - (int)(rpt + vsynctimebase / 10) > 0 && (int)vsyncmintime - (int)rpt < vsynctimebase) {
+					cpu_sleep_millis(1);
+					rpt = read_processor_time ();
+				}
+			} else if (currprefs.m68k_speed_throttle) {
 				vsyncmintime = read_processor_time (); /* end of CPU emulation time */
 				is_syncline = 0;
 			} else {
@@ -7731,15 +7719,21 @@ static void hsync_handler_post (bool onvsync)
 						frame_time_t rpt = read_processor_time ();
 						/* Extra time left? Do some extra CPU emulation */
 						if ((int)vsyncmintime - (int)rpt > 0) {
-							is_syncline = 1;
-							/* limit extra time */
-							is_syncline_end = rpt + vsynctimeperline;
-							linecounter = 0;
+							if (regs.stopped && currprefs.cpu_idle && sleeps_remaining > 0) {
+								// STOP STATE: sleep.
+								cpu_sleep_millis(1);
+								sleeps_remaining--;
+							} else {
+								is_syncline = 1;
+								/* limit extra time */
+								is_syncline_end = rpt + vsynctimeperline;
+								linecounter = 0;
+							}
 						}
 					}
 					if (!isvsync ()) {
 						// extra cpu emulation time if previous 10 lines without extra time.
-						if (!is_syncline && linecounter >= 10) {
+						if (!is_syncline && linecounter >= 10 && (!regs.stopped || !currprefs.cpu_idle)) {
 							is_syncline = -1;
 							is_syncline_end = read_processor_time () + vsynctimeperline;
 							linecounter = 0;
@@ -8045,9 +8039,13 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	gayle_reset (0);
 #ifdef A2091
 	a2091_reset ();
+	gvp_reset ();
 #endif
 #ifdef GFXBOARD
 	gfxboard_reset ();
+#endif
+#ifdef WITH_TOCCATA
+	sndboard_reset();
 #endif
 #ifdef NCR
 	ncr710_reset();
@@ -9237,7 +9235,7 @@ uae_u8 *save_custom_extra (int *len, uae_u8 *dstptr)
 	else
 		dstbak = dst = xmalloc (uae_u8, 1000);
 
-	SL ((currprefs.cs_compatible << 24) | (&get_mem_bank (0) != &chipmem_bank ? 2 : 0) | 1);
+	SL ((currprefs.cs_compatible << 24) | (get_mem_bank_real(0) != &chipmem_bank ? 2 : 0) | 1);
 	SB (currprefs.genlock ? 1 : 0);
 	SB (currprefs.cs_rtc);
 	SL (currprefs.cs_rtc_adjust);

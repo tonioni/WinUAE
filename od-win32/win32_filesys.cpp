@@ -7,7 +7,7 @@ int CheckRM (const TCHAR *DriveName)
 	DWORD dwHold;
 	BOOL result = FALSE;
 
-	_stprintf (filename, _T("%s."), DriveName);
+	_stprintf (filename, _T("\\\\?\\%s"), DriveName);
 	dwHold = GetFileAttributes (filename);
 	if(dwHold != 0xFFFFFFFF)
 		result = TRUE;

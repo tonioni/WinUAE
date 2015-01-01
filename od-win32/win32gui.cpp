@@ -30,6 +30,7 @@
 #include <ddraw.h>
 #include <shobjidl.h>
 #include <dbt.h>
+#include <Cfgmgr32.h>
 
 #include "resource.h"
 #include "sysconfig.h"
@@ -187,8 +188,9 @@ struct scsiromselect
 };
 static struct scsiromselect scsiromdata[] =
 {
-	{ workprefs.a2091rom.roms[0].romfile, ROMTYPE_A2091BOOT | ROMTYPE_NONE },
-	{ workprefs.a4091rom.roms[0].romfile, ROMTYPE_A4091BOOT },
+	{ workprefs.a2091rom.roms[0].romfile, ROMTYPE_A2091 | ROMTYPE_NONE },
+	{ workprefs.gvprom.roms[0].romfile, ROMTYPE_GVP },
+	{ workprefs.a4091rom.roms[0].romfile, ROMTYPE_A4091 },
 	{ workprefs.fastlanerom.roms[0].romfile, ROMTYPE_FASTLANE },
 	{ workprefs.oktagonrom.roms[0].romfile, ROMTYPE_OKTAGON },
 	{ workprefs.acceleratorextromfile, ROMTYPE_CPUBOARDEXT },
@@ -1654,6 +1656,8 @@ static void show_rom_list (void)
 		49, 50, 75, 51, 76, 77, -1, 5, 4, -1, -2, // ARCADIA
 
 		53, 54, 55, 56, -1, -1, // A590/A2091
+		111, -1, -1, // GVP Series I
+		109, 110, -1, -1, // GVP Series II
 		57, 58, -1, -1, // A4091
 		102, -1, -1, // Fastlane
 		103, -1, -1, // Oktagon
@@ -1668,6 +1672,8 @@ static void show_rom_list (void)
 		92, -1, -1, // 2060
 		93, -1, -1, // Warp Engine
 		105, -1, -1, // TekMagic
+		112, -1, -1, // DKB 12x0
+		113, -1, -1, // Fusion Forty
 		95, 101, -1, -1, // CS MK I
 		96, -1, -1, // CS MK II
 		97, -1, -1, // CS MK III
@@ -1688,7 +1694,7 @@ static void show_rom_list (void)
 	p1 = _T("A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A4000\0A4000T\0")
 		_T("CD32\0CDTV\0CDTV-CR\0Arcadia Multi Select\0")
 
-		_T("A590/A2091 SCSI\0A4091 SCSI\0Fastlane\0Oktagon 2008\0")
+		_T("A590/A2091 SCSI\0GVP Series I SCSI\0GVP Series II SCSI\0A4091 SCSI\0Fastlane\0Oktagon 2008\0")
 		_T("CD32 Full Motion Video\0")
 		_T("Picasso IV\0")
 
@@ -1696,6 +1702,7 @@ static void show_rom_list (void)
 		_T("Blizzard 1230-IV\0Blizzard 1260\0")
 		_T("Blizzard 1230-IV/SCSI\0Blizzard 1260/SCSI\0")
 		_T("Blizzard 2060\0Warp Engine\0TekMagic 2040/2060\0")
+		_T("DKB 1230/1240\0Fusion Forty\0")
 		_T("CyberStorm MK I\0CyberStorm MK II\0CyberStorm MK III\0")
 		_T("Blizzard PPC\0CyberStorm PPC\0")
 		
@@ -4298,6 +4305,8 @@ void InitializeListView (HWND hDlg)
 					_T("SCSI:%s"),
 					_T("A2091:%s"),
 					_T("A2091 2nd:%s"),
+					_T("GVP: %s"),
+					_T("GVP 2nd: %s"),
 					_T("A4091:%s"),
 					_T("A4091 2nd:%s"),
 					_T("Fastlane:%s"),
@@ -7934,6 +7943,7 @@ static void enable_for_expansiondlg (HWND hDlg)
 	ew (hDlg, IDC_RTG_HWSPRITE, rtg3 && workprefs.gfx_api);
 	ShowWindow (GetDlgItem(hDlg, IDC_CS_SCSIMODE), SW_HIDE);
 	ew(hDlg, IDC_CS_CD32FMV, en);
+	ew(hDlg, IDC_CS_TOCCATA, en);
 	ew (hDlg, IDC_CS_SCSIMODE, FALSE);
 }
 
@@ -7947,6 +7957,7 @@ static void values_to_expansiondlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_SANA2, workprefs.sana2);
 	CheckDlgButton (hDlg, IDC_A2065, workprefs.a2065name[0] ? 1 : 0);
 	CheckDlgButton(hDlg, IDC_CS_CD32FMV, workprefs.cs_cd32fmv);
+	CheckDlgButton(hDlg, IDC_CS_TOCCATA, workprefs.sound_toccata);
 	CheckDlgButton(hDlg, IDC_CS_SCSIMODE, workprefs.scsi == 2);
 	SendDlgItemMessage (hDlg, IDC_RTG_BUFFERCNT, CB_SETCURSEL, workprefs.gfx_apmode[1].gfx_backbuffers == 0 ? 0 : workprefs.gfx_apmode[1].gfx_backbuffers - 1, 0);
 	cw = catweasel_detect ();
@@ -8115,6 +8126,9 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				break;
 			case IDC_CS_CD32FMV:
 				workprefs.cs_cd32fmv = ischecked(hDlg, IDC_CS_CD32FMV) ? 1 : 0;
+				break;
+			case IDC_CS_TOCCATA:
+				workprefs.sound_toccata = ischecked(hDlg, IDC_CS_TOCCATA) ? 1 : 0;
 				break;
 			}
 			if (HIWORD (wParam) == CBN_SELENDOK || HIWORD (wParam) == CBN_KILLFOCUS || HIWORD (wParam) == CBN_EDITCHANGE)  {
@@ -8291,6 +8305,8 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Warp Engine"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Tek Magic"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("A2620/A2630"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("DKB 1230/1240"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Fusion Forty"));
 		setcpuboardmemsize(hDlg);
 
 	case WM_USER:
@@ -8473,12 +8489,13 @@ static void init_kickstart (HWND hDlg)
 #endif
 	ew(hDlg, IDC_CPUBOARDROMFILE, workprefs.cpuboard_type != 0);
 
-	SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("A590/A2091"));
-	SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("A4091"));
-	SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Fastlane"));
-	SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Oktagon 2008"));
-	SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard SCSI Kit IV"));
+	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("A590/A2091"));
+	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("GVP Series II"));
+	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("A4091"));
+	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Fastlane"));
+	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Oktagon 2008"));
+	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard SCSI Kit IV"));
 
 	int found = -1;
 	for (int i = 0; scsiromdata[i].name; i++) {
@@ -8525,7 +8542,7 @@ static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, TCHAR *path)
 		values_to_kickstartdlg (hDlg);
 		break;
 	case IDC_SCSIROMCHOOSER:
-		DiskSelection(hDlg, IDC_SCSIROMCHOOSER, 6, &workprefs, path);
+		DiskSelection(hDlg, IDC_SCSIROMFILE, 6, &workprefs, path);
 		values_to_kickstartdlg (hDlg);
 		break;
 	case IDC_CPUBOARDROMCHOOSER:
@@ -10286,25 +10303,27 @@ static void sethardfile (HWND hDlg)
 
 static void inithdcontroller (HWND hDlg, int ctype, int devtype)
 {
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("UAE"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("IDE"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("SCSI (Auto)"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A590/A2091 SCSI"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A590/A2091 #2 SCSI"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A4091 SCSI"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A4091 #2 SCSI"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Fastlane SCSI"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Fastlane #2 SCSI"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Oktagon 2008 SCSI"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Oktagon 2008 #2 SCSI"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A3000 SCSI"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A4000T SCSI"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("CDTV SCSI"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("UAE"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("IDE"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("SCSI (Auto)"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A590/A2091 SCSI"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A590/A2091 #2 SCSI"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("GVP SCSI"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("GVP #2 SCSI"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A4091 SCSI"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A4091 #2 SCSI"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Fastlane SCSI"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Fastlane #2 SCSI"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Oktagon 2008 SCSI"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Oktagon 2008 #2 SCSI"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A3000 SCSI"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A4000T SCSI"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("CDTV SCSI"));
 	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Accelerator board SCSI"));
 	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("PCMCIA SRAM"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("PCMCIA IDE"));
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, ctype, 0);
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("PCMCIA IDE"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, ctype, 0);
 
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_RESETCONTENT, 0, 0);
 	if (ctype >= HD_CONTROLLER_TYPE_IDE_FIRST && ctype <= HD_CONTROLLER_TYPE_SCSI_LAST) {
@@ -10594,7 +10613,7 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 	case WM_INITDIALOG:
 		recursive++;
 		if (current_cddlg.ci.controller_type == HD_CONTROLLER_TYPE_UAE)
-			current_cddlg.ci.controller_type = (cfgfile_board_enabled(&workprefs.a2091rom) || cfgfile_board_enabled(&workprefs.a4091rom) || workprefs.cs_cdtvscsi || (workprefs.cs_mbdmac & 3)) ? HD_CONTROLLER_TYPE_SCSI_AUTO : HD_CONTROLLER_TYPE_IDE_AUTO;
+			current_cddlg.ci.controller_type = (cfgfile_board_enabled(&workprefs.a2091rom) || cfgfile_board_enabled(&workprefs.gvprom) || cfgfile_board_enabled(&workprefs.a4091rom) || workprefs.cs_cdtvscsi || (workprefs.cs_mbdmac & 3)) ? HD_CONTROLLER_TYPE_SCSI_AUTO : HD_CONTROLLER_TYPE_IDE_AUTO;
 		inithdcontroller(hDlg, current_cddlg.ci.controller_type, UAEDEV_CD);
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_cddlg.ci.controller_unit, 0);
 		InitializeListView (hDlg);
@@ -16747,7 +16766,7 @@ static int dialogreturn;
 static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
-	static int waitfornext;
+	static int devicechangetimer;
 	static int oldwidth, oldheight;
 
 	switch (msg)
@@ -16787,8 +16806,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			DEV_BROADCAST_HDR *pBHdr = (DEV_BROADCAST_HDR *)lParam;
 			int doit = 0;
 			if (wParam == DBT_DEVNODES_CHANGED && lParam == 0) {
-				if (waitfornext)
-					doit = 1;
+				doit = 1;
 			} else if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
 				DEV_BROADCAST_DEVICEINTERFACE *dbd = (DEV_BROADCAST_DEVICEINTERFACE*)lParam;
 				write_log (_T("%s: %s\n"), wParam == DBT_DEVICEREMOVECOMPLETE ? _T("Removed") : _T("Inserted"),
@@ -16796,19 +16814,32 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				if (wParam == DBT_DEVICEREMOVECOMPLETE)
 					doit = 1;
 				else if (wParam == DBT_DEVICEARRIVAL)
-					waitfornext = 1; /* DirectInput enumeration does not yet show the new device.. */
+					doit = 1;
 			}
 			if (doit) {
-				inputdevice_devicechange (&workprefs);
-				updatePanel (currentpage);
-				waitfornext = 0;
+				if (devicechangetimer)
+					KillTimer(hDlg, 3);
+				devicechangetimer = 1;
+				SetTimer(hDlg, 3, 2000, NULL);
 			}
 		}
 		return TRUE;
+	case WM_TIMER:
+		if (wParam == 3) {
+			KillTimer(hDlg, 3);
+			devicechangetimer = 0;
+			inputdevice_devicechange (&workprefs);
+			updatePanel (currentpage);
+			break;
+		}
+
 	case WM_DESTROY:
 		PostQuitMessage (0);
 		return TRUE;
 	case WM_CLOSE:
+		if (devicechangetimer)
+			KillTimer(hDlg, 3);
+		devicechangetimer = 0;
 		addnotifications (hDlg, TRUE, TRUE);
 		updatePanel (-1);
 		DestroyWindow(hDlg);
@@ -16821,7 +16852,6 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		}
 		return TRUE;
 	case WM_INITDIALOG:
-		waitfornext = 0;
 		guiDlg = hDlg;
 		scaleresource_setfont (hDlg);
 		SendMessage (hDlg, WM_SETICON, ICON_SMALL, (LPARAM)LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE(IDI_APPICON)));

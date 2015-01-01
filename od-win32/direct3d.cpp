@@ -2259,7 +2259,12 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 
 	d3dx = LoadLibrary (D3DX9DLL);
 	if (d3dx == NULL) {
-		_tcscpy (errmsg, _T("Direct3D: Newer DirectX Runtime required.\n\nhttp://go.microsoft.com/fwlink/?linkid=56513"));
+		if (os_vista)
+			_tcscpy(errmsg, _T("Direct3D: Optional DirectX9 components are not installed.\n")
+				_T("\nhttp://go.microsoft.com/fwlink/?linkid=56513"));
+		else
+			_tcscpy (errmsg, _T("Direct3D: Newer DirectX Runtime required or optional DirectX9 components are not installed.\n")
+				_T("\nhttp://go.microsoft.com/fwlink/?linkid=56513"));
 		if (isfullscreen () <= 0)
 			ShellExecute(NULL, _T("open"), _T("http://go.microsoft.com/fwlink/?linkid=56513"), NULL, NULL, SW_SHOWNORMAL);
 		return errmsg;

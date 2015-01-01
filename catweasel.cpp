@@ -405,7 +405,6 @@ static int catweasel4_configure (void)
 #define PCI_CW_MK4 _T("PCI\\VEN_E159&DEV_0001&SUBSYS_00035213")
 #define PCI_CW_MK4_BUG _T("PCI\\VEN_E159&DEV_0001&SUBSYS_00025213")
 
-extern int os_winnt;
 int force_direct_catweasel;
 static int direct_detect(void)
 {
@@ -415,8 +414,6 @@ static int direct_detect(void)
 	int devIndex;
 	int cw = 0;
 
-	if (!os_winnt)
-		return 0;
 	devs = SetupDiGetClassDevsEx(NULL, NULL, NULL, DIGCF_ALLCLASSES | DIGCF_PRESENT, NULL, NULL, NULL);
 	if (devs == INVALID_HANDLE_VALUE)
 		return 0;

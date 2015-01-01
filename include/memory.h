@@ -392,6 +392,7 @@ extern uae_u8 *baseaddr[MEMORY_BANKS];
 #endif
 
 #define get_mem_bank(addr) (*mem_banks[bankindex(addr)])
+extern addrbank *get_mem_bank_real(uaecptr);
 
 #ifdef JIT
 #define put_mem_bank(addr, b, realstart) do { \

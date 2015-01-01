@@ -2051,6 +2051,11 @@ static void fill_ce_banks (void)
 			ce_banktype[i] = CE_MEMBANK_FAST16;
 	}
 
+	// A4000T NCR is 32-bit
+	if (currprefs.cs_mbdmac == 2) {
+		ce_banktype[0xdd0000 >> 16] = CE_MEMBANK_FAST32;
+	}
+
 	if (currprefs.address_space_24) {
 		for (i = 1; i < 256; i++)
 			memcpy (&ce_banktype[i * 256], &ce_banktype[0], 256);
@@ -2094,10 +2099,10 @@ void map_overlay (int chip)
 		addrbank *rb = NULL;
 		if (size < 32)
 			size = 32;
-		cb = &get_mem_bank (0xf00000);
+		cb = get_mem_bank_real(0xf00000);
 		if (!rb && cb && (cb->flags & ABFLAG_ROM) && get_word (0xf00000) == 0x1114)
 			rb = cb;
-		cb = &get_mem_bank (0xe00000);
+		cb = get_mem_bank_real(0xe00000);
 		if (!rb && cb && (cb->flags & ABFLAG_ROM) && get_word (0xe00000) == 0x1114)
 			rb = cb;
 		if (!rb)
@@ -2135,6 +2140,12 @@ ULONG getz2endaddr (void)
 			start += 1024 * 1024;
 	}
 	return start + 2 * 1024 * 1024;
+}
+
+void map_banks_set(addrbank *bank, int start, int size, int realsize)
+{
+	bank->startmask = start << 16;
+	map_banks(bank, start, size, realsize);
 }
 
 void memory_clear (void)
@@ -2353,20 +2364,20 @@ void memory_reset (void)
 		map_banks (&cardmem_bank, cardmem_bank.start >> 16, cardmem_bank.allocated >> 16, 0);
 #endif
 	cpuboard_map();
-	map_banks (&kickmem_bank, 0xF8, 8, 0);
+	map_banks_set(&kickmem_bank, 0xF8, 8, 0);
 	if (currprefs.maprom) {
 		if (!cpuboard_maprom())
-			map_banks (&kickram_bank, currprefs.maprom >> 16, extendedkickmem2_bank.allocated ? 32 : (extendedkickmem_bank.allocated ? 16 : 8), 0);
+			map_banks_set(&kickram_bank, currprefs.maprom >> 16, extendedkickmem2_bank.allocated ? 32 : (extendedkickmem_bank.allocated ? 16 : 8), 0);
 	}
 	/* map beta Kickstarts at 0x200000/0xC00000/0xF00000 */
 	if (kickmem_bank.baseaddr[0] == 0x11 && kickmem_bank.baseaddr[2] == 0x4e && kickmem_bank.baseaddr[3] == 0xf9 && kickmem_bank.baseaddr[4] == 0x00) {
 		uae_u32 addr = kickmem_bank.baseaddr[5];
 		if (addr == 0x20 && currprefs.chipmem_size <= 0x200000 && currprefs.fastmem_size == 0)
-			map_banks (&kickmem_bank, addr, 8, 0);
+			map_banks_set(&kickmem_bank, addr, 8, 0);
 		if (addr == 0xC0 && currprefs.bogomem_size == 0)
-			map_banks (&kickmem_bank, addr, 8, 0);
+			map_banks_set(&kickmem_bank, addr, 8, 0);
 		if (addr == 0xF0)
-			map_banks (&kickmem_bank, addr, 8, 0);
+			map_banks_set(&kickmem_bank, addr, 8, 0);
 	}
 
 	if (a1000_bootrom)
@@ -2377,45 +2388,45 @@ void memory_reset (void)
 #endif
 
 	if (a3000_f0)
-		map_banks (&extendedkickmem_bank, 0xf0, 1, 0);
+		map_banks_set(&extendedkickmem_bank, 0xf0, 1, 0);
 
 	/* Map the chipmem into all of the lower 8MB */
 	map_overlay (1);
 
 	switch (extendedkickmem_type) {
 	case EXTENDED_ROM_KS:
-		map_banks (&extendedkickmem_bank, 0xE0, 8, 0);
+		map_banks_set(&extendedkickmem_bank, 0xE0, 8, 0);
 		break;
 #ifdef CDTV
 	case EXTENDED_ROM_CDTV:
-		map_banks (&extendedkickmem_bank, 0xF0, extendedkickmem_bank.allocated == 2 * ROM_SIZE_512 ? 16 : 8, 0);
+		map_banks_set(&extendedkickmem_bank, 0xF0, extendedkickmem_bank.allocated == 2 * ROM_SIZE_512 ? 16 : 8, 0);
 		break;
 #endif
 #ifdef CD32
 	case EXTENDED_ROM_CD32:
-		map_banks (&extendedkickmem_bank, 0xE0, 8, 0);
+		map_banks_set(&extendedkickmem_bank, 0xE0, 8, 0);
 		break;
 #endif
 	}
 
 #ifdef AUTOCONFIG
 	if (need_uae_boot_rom ())
-		map_banks (&rtarea_bank, rtarea_base >> 16, 1, 0);
+		map_banks_set(&rtarea_bank, rtarea_base >> 16, 1, 0);
 #endif
 
 	if ((cloanto_rom || currprefs.cs_ksmirror_e0) && (currprefs.maprom != 0xe00000) && !extendedkickmem_type)
-		map_banks (&kickmem_bank, 0xE0, 8, 0);
+		map_banks(&kickmem_bank, 0xE0, 8, 0);
 	if (currprefs.cs_ksmirror_a8) {
 		if (extendedkickmem2_bank.allocated) {
-			map_banks (&extendedkickmem2_bank, 0xa8, 16, 0);
+			map_banks_set(&extendedkickmem2_bank, 0xa8, 16, 0);
 		} else {
 			struct romdata *rd = getromdatabypath (currprefs.cartfile);
 			if (!rd || rd->id != 63) {
 				if (extendedkickmem_type == EXTENDED_ROM_CD32 || extendedkickmem_type == EXTENDED_ROM_KS)
-					map_banks (&extendedkickmem_bank, 0xb0, 8, 0);
+					map_banks(&extendedkickmem_bank, 0xb0, 8, 0);
 				else
-					map_banks (&kickmem_bank, 0xb0, 8, 0);
-				map_banks (&kickmem_bank, 0xa8, 8, 0);
+					map_banks(&kickmem_bank, 0xb0, 8, 0);
+				map_banks(&kickmem_bank, 0xa8, 8, 0);
 			}
 		}
 	}

@@ -519,7 +519,7 @@ int my_getvolumeinfo (const TCHAR *root)
 	if (v == INVALID_FILE_ATTRIBUTES)
 		return -1;
 	if (!(v & FILE_ATTRIBUTE_DIRECTORY))
-		return -1;
+		return -2;
 	/*
 	if (v & FILE_ATTRIBUTE_READONLY)
 	ret |= MYVOLUMEINFO_READONLY;

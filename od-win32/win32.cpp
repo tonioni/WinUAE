@@ -36,6 +36,7 @@
 #include <float.h>
 #include <WtsApi32.h>
 #include <Avrt.h>
+#include <Cfgmgr32.h>
 
 #include "resource.h"
 
@@ -95,6 +96,7 @@
 #include "cloanto/RetroPlatformIPC.h"
 #endif
 #include "uae/ppc.h"
+#include "fsdb.h"
 
 extern int harddrive_dangerous, do_rdbdump;
 extern int no_rawinput, no_directinput, no_windowsmouse;
@@ -1100,6 +1102,51 @@ static void handleXbutton (WPARAM wParam, int updown)
 		setmousebuttonstate (dinput_winmouse (), num, updown);
 }
 
+#define MEDIA_INSERT_QUEUE_SIZE 10
+static TCHAR *media_insert_queue[MEDIA_INSERT_QUEUE_SIZE];
+static int media_insert_queue_type[MEDIA_INSERT_QUEUE_SIZE];
+static int media_change_timer;
+static int device_change_timer;
+
+static int is_in_media_queue(const TCHAR *drvname)
+{
+	for (int i = 0; i < MEDIA_INSERT_QUEUE_SIZE; i++) {
+		if (media_insert_queue[i] != NULL) {
+			if (!_tcsicmp(drvname, media_insert_queue[i]))
+				return i;
+		}
+	}
+	return -1;
+}
+
+static void start_media_insert_timer(HWND hwnd)
+{
+	if (!media_change_timer) {
+		media_change_timer = 1;
+		SetTimer(hwnd, 2, 1000, NULL);
+	}
+}
+
+static void add_media_insert_queue(HWND hwnd, const TCHAR *drvname, int retrycnt)
+{
+	int idx = is_in_media_queue(drvname);
+	if (idx >= 0) {
+		if (retrycnt > media_insert_queue_type[idx])
+			media_insert_queue_type[idx] = retrycnt;
+		write_log(_T("%s already queued for insertion, cnt=%d.\n"), drvname, retrycnt);
+		start_media_insert_timer(hwnd);
+		return;
+	}
+	for (int i = 0; i < MEDIA_INSERT_QUEUE_SIZE; i++) {
+		if (media_insert_queue[i] == NULL) {
+			media_insert_queue[i] = my_strdup(drvname);
+			media_insert_queue_type[i] = retrycnt;
+			start_media_insert_timer(hwnd);
+			return;
+		}
+	}
+}
+
 #define MSGDEBUG 1
 
 static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -1279,9 +1326,60 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		return 0;
 
 	case WM_TIMER:
+		if (wParam == 2) {
+			bool restart = false;
+			KillTimer(hWnd, 2);
+			media_change_timer = 0;
+			DWORD r = CMP_WaitNoPendingInstallEvents(0);
+			write_log(_T("filesys timer, CMP_WaitNoPendingInstallEvents=%d\n"), r);
+			if (r == WAIT_OBJECT_0) {
+				for (int i = 0; i < MEDIA_INSERT_QUEUE_SIZE; i++) {
+					if (media_insert_queue[i]) {
+						TCHAR *drvname = media_insert_queue[i];
+						int r = my_getvolumeinfo (drvname);
+						if (r < 0) {
+							if (media_insert_queue_type[i] > 0) {
+								write_log(_T("Mounting %s but drive is not ready, %d.. retrying %d..\n"), drvname, r, media_insert_queue_type[i]);
+								media_insert_queue_type[i]--;
+								restart = true;
+								continue;
+							} else {
+								write_log(_T("Mounting %s but drive is not ready, %d.. aborting..\n"), drvname, r);
+							}
+						} else {
+							int inserted = 1;
+							DWORD type = GetDriveType(drvname);
+							if (type == DRIVE_CDROM)
+								inserted = -1;
+							r = filesys_media_change (drvname, inserted, NULL);
+							if (r < 0) {
+								write_log(_T("Mounting %s but previous media change is still in progress..\n"), drvname);
+								restart = true;
+								break;
+							} else if (r > 0) {
+								write_log(_T("%s mounted\n"), drvname);
+							} else {
+								write_log(_T("%s mount failed\n"), drvname);
+							}
+						}
+						xfree(media_insert_queue[i]);
+						media_insert_queue[i] = NULL;
+					}
+				}
+			} else if (r == WAIT_TIMEOUT) {
+				restart = true;
+			}
+			if (restart)
+				start_media_insert_timer(hWnd);
+		} else if (wParam == 4) {
+			device_change_timer = 0;
+			KillTimer(hWnd, 4);
+			inputdevice_devicechange (&changed_prefs);
+		} else if (wParam == 1) {
 #ifdef PARALLEL_PORT
-		finishjob ();
+			finishjob ();
 #endif
+		}
 		return 0;
 
 	case WM_CREATE:
@@ -1296,6 +1394,9 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		return 0;
 
 	case WM_DESTROY:
+		if (device_change_timer)
+			KillTimer(hWnd, 4);
+		device_change_timer = 0;
 		ChangeClipboardChain (hWnd, hwndNextViewer); 
 		close_tablet (tablet);
 		wait_keyrelease ();
@@ -1407,30 +1508,29 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 #ifdef FILESYS
 	case WM_USER + 2:
 		{
-			typedef struct {
-				DWORD dwItem1;    // dwItem1 contains the previous PIDL or name of the folder. 
-				DWORD dwItem2;    // dwItem2 contains the new PIDL or name of the folder. 
-			} SHNOTIFYSTRUCT;
-			TCHAR path[MAX_PATH];
-
-			if (lParam == SHCNE_MEDIAINSERTED || lParam == SHCNE_DRIVEADD || lParam == SHCNE_MEDIAREMOVED || lParam == SHCNE_DRIVEREMOVED) {
-				SHNOTIFYSTRUCT *shns = (SHNOTIFYSTRUCT*)wParam;
-				if (SHGetPathFromIDList ((struct _ITEMIDLIST *)(shns->dwItem1), path)) {
-					int inserted = lParam == SHCNE_MEDIAINSERTED || lParam == SHCNE_DRIVEADD ? 1 : 0;
-					UINT errormode = SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
-					write_log (_T("Shell Notification %d '%s'\n"), inserted, path);
-					if (!win32_hardfile_media_change (path, inserted)) {	
-						if ((inserted && CheckRM (path)) || !inserted) {
+			LONG lEvent;
+			PIDLIST_ABSOLUTE *ppidl;
+			HANDLE lock = SHChangeNotification_Lock((HANDLE)wParam, (DWORD)lParam, &ppidl, &lEvent);
+			if (lock) {
+				if (lEvent == SHCNE_MEDIAINSERTED || lEvent == SHCNE_DRIVEADD || lEvent == SHCNE_MEDIAREMOVED || lEvent == SHCNE_DRIVEREMOVED) {
+					TCHAR drvpath[MAX_PATH + 1];
+					if (SHGetPathFromIDList(ppidl[0], drvpath)) {
+						int inserted = (lEvent == SHCNE_MEDIAINSERTED || lEvent == SHCNE_DRIVEADD) ? 1 : 0;
+						write_log (_T("Shell Notification %d '%s'\n"), inserted, drvpath);
+						if (!win32_hardfile_media_change (drvpath, inserted)) {	
 							if (inserted) {
-								DWORD type = GetDriveType(path);
-								if (type == DRIVE_CDROM)
-									inserted = -1;
+								add_media_insert_queue(hWnd, drvpath, 5);
+							} else {
+								if (is_in_media_queue(drvpath) >= 0) {
+									write_log(_T("Insertion queued, removal event dropped\n"));
+								} else {
+									filesys_media_change (drvpath, inserted, NULL);
+								}
 							}
-							filesys_media_change (path, inserted, NULL);
 						}
 					}
-					SetErrorMode (errormode);
 				}
+				SHChangeNotification_Unlock(lock);
 			}
 		}
 		return TRUE;
@@ -1439,18 +1539,16 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			extern bool win32_spti_media_change (TCHAR driveletter, int insert);
 			extern bool win32_ioctl_media_change (TCHAR driveletter, int insert);
 			DEV_BROADCAST_HDR *pBHdr = (DEV_BROADCAST_HDR *)lParam;
-			static int waitfornext;
+			int devicechange = 0;
 
 			if (wParam == DBT_DEVNODES_CHANGED && lParam == 0) {
-				if (waitfornext)
-					inputdevice_devicechange (&changed_prefs);
-				waitfornext = 0;
+				devicechange = 1;
 			} else if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
 				DEV_BROADCAST_DEVICEINTERFACE *dbd = (DEV_BROADCAST_DEVICEINTERFACE*)lParam;
 				if (wParam == DBT_DEVICEREMOVECOMPLETE)
-					inputdevice_devicechange (&changed_prefs);
+					devicechange = 1;
 				else if (wParam == DBT_DEVICEARRIVAL)
-					waitfornext = 1;
+					devicechange = 1;
 			} else if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_VOLUME) {
 				DEV_BROADCAST_VOLUME *pBVol = (DEV_BROADCAST_VOLUME *)lParam;
 				if (wParam == DBT_DEVICEARRIVAL || wParam == DBT_DEVICEREMOVECOMPLETE) {
@@ -1472,18 +1570,20 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 									inserted = 0;
 								if (pBVol->dbcv_flags & DBTF_MEDIA) {
 									bool matched = false;
-#ifdef WINDDK
 									matched |= win32_spti_media_change (drive, inserted);
 									matched |= win32_ioctl_media_change (drive, inserted);
-#endif
 								}
 								if (type == DRIVE_REMOVABLE || type == DRIVE_CDROM || !inserted) {
 									write_log (_T("WM_DEVICECHANGE '%s' type=%d inserted=%d\n"), drvname, type, inserted);
 									if (!win32_hardfile_media_change (drvname, inserted)) {
-										if ((inserted && CheckRM (drvname)) || !inserted) {
-											if (type == DRIVE_CDROM && inserted)
-												inserted = -1;
-											filesys_media_change (drvname, inserted, NULL);
+										if (inserted) {
+											add_media_insert_queue(hWnd, drvname, 0);
+										} else {
+											if (is_in_media_queue(drvname) >= 0) {
+												write_log(_T("Insertion queued, removal event dropped\n"));
+											} else {
+												filesys_media_change (drvname, inserted, NULL);
+											}
 										}
 									}
 								}
@@ -1492,6 +1592,12 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 						SetErrorMode (errormode);
 					}
 				}
+			}
+			if (devicechange) {
+				if (device_change_timer)
+					KillTimer(hWnd, 4);
+				device_change_timer = 1;
+				SetTimer(hWnd, 4, 2000, NULL);
 			}
 		}
 #endif
@@ -1751,6 +1857,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	case WM_ENABLE:
 	case WT_PACKET:
 	case WM_WTSSESSION_CHANGE:
+	case WM_TIMER:
 		return AmigaWindowProc (hWnd, message, wParam, lParam);
 #if 0
 	case WM_DISPLAYCHANGE:
@@ -2582,13 +2689,13 @@ void logging_init (void)
 
 	write_log (_T("\n%s (%d.%d %s%s[%d])"), VersionStr,
 		osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.szCSDVersion,
-		_tcslen (osVersion.szCSDVersion) > 0 ? _T(" ") : _T(""), os_winnt_admin);
+		_tcslen (osVersion.szCSDVersion) > 0 ? _T(" ") : _T(""), os_admin);
 	write_log (_T(" %d-bit %X.%X.%X %d %s"),
 		wow64 ? 64 : 32,
 		SystemInfo.wProcessorArchitecture, SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
 		SystemInfo.dwNumberOfProcessors, filedate);
 	write_log (_T("\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation.")
-		_T("\n(c) 1998-2014 Toni Wilen      - Win32 port, core code updates.")
+		_T("\n(c) 1998-2015 Toni Wilen      - Win32 port, core code updates.")
 		_T("\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI.")
 		_T("\n(c) 1996-1999 Mathias Ortmann - Win32 port and bsdsocket support.")
 		_T("\n(c) 2000-2001 Bernd Meyer     - JIT engine.")
@@ -4000,7 +4107,7 @@ static int shell_deassociate (const TCHAR *extension)
 		return 0;
 	_tcscpy (progid2, progid);
 	_tcscat (progid2, extension);
-	if (os_winnt_admin > 1)
+	if (os_admin > 1)
 		rkey = HKEY_LOCAL_MACHINE;
 	else
 		rkey = HKEY_CURRENT_USER;
@@ -4036,7 +4143,7 @@ static int shell_associate_2 (const TCHAR *extension, TCHAR *shellcommand, TCHAR
 
 	_tcscpy (progid2, progid);
 	_tcscat (progid2, ext2 ? ext2 : extension);
-	if (os_winnt_admin > 1)
+	if (os_admin > 1)
 		rkey = HKEY_LOCAL_MACHINE;
 	else
 		rkey = HKEY_CURRENT_USER;
@@ -4140,7 +4247,7 @@ static int shell_associate_is (const TCHAR *extension)
 
 	_tcscpy (progid2, progid);
 	_tcscat (progid2, extension);
-	if (os_winnt_admin > 1)
+	if (os_admin > 1)
 		rkey = HKEY_LOCAL_MACHINE;
 	else
 		rkey = HKEY_CURRENT_USER;
@@ -4214,7 +4321,7 @@ static void associate_init_extensions (void)
 		regsetstr (fkey, exts[0].ext, _T(""));
 		regclosetree (fkey);
 	}
-	if (os_winnt_admin > 1) {
+	if (os_admin > 1) {
 		DWORD disposition;
 		TCHAR rpath[MAX_DPATH];
 		HKEY rkey = HKEY_LOCAL_MACHINE;
@@ -4513,7 +4620,7 @@ static int dxdetect (void)
 #endif
 }
 
-int os_winnt, os_winnt_admin, os_64bit, os_win7, os_vista, os_winxp, cpu_number;
+int os_admin, os_64bit, os_win7, os_vista, cpu_number;
 
 static int isadminpriv (void)
 {
@@ -4590,19 +4697,6 @@ static int osdetect (void)
 		pGetNativeSystemInfo (&SystemInfo);
 	osVersion.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
 	if (GetVersionEx (&osVersion)) {
-		if ((osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT) &&
-			(osVersion.dwMajorVersion <= 4))
-		{
-			/* WinUAE not supported on this version of Windows... */
-			TCHAR szWrongOSVersion[MAX_DPATH];
-			WIN32GUI_LoadUIString (IDS_WRONGOSVERSION, szWrongOSVersion, MAX_DPATH);
-			pre_gui_message (szWrongOSVersion);
-			return FALSE;
-		}
-		if (osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT)
-			os_winnt = 1;
-		if (osVersion.dwMajorVersion > 5 || (osVersion.dwMajorVersion == 5 && osVersion.dwMinorVersion >= 1))
-			os_winxp = 1;
 		if (osVersion.dwMajorVersion >= 6)
 			os_vista = 1;
 		if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 1))
@@ -4611,15 +4705,13 @@ static int osdetect (void)
 			os_64bit = 1;
 	}
 	cpu_number = SystemInfo.dwNumberOfProcessors;
-	if (!os_winnt)
-		return 0;
-	os_winnt_admin = isadminpriv ();
-	if (os_winnt_admin) {
+	os_admin = isadminpriv ();
+	if (os_admin) {
 		if (pIsUserAnAdmin) {
 			if (pIsUserAnAdmin ())
-				os_winnt_admin++;
+				os_admin++;
 		} else {
-			os_winnt_admin++;
+			os_admin++;
 		}
 	}
 
@@ -5812,7 +5904,7 @@ static void create_dump (struct _EXCEPTION_POINTERS *pExceptionPointers)
 	struct tm when;
 	__time64_t now;
 
-	if (os_winnt && GetModuleFileName (NULL, path, MAX_DPATH)) {
+	if (GetModuleFileName (NULL, path, MAX_DPATH)) {
 		TCHAR dumpfilename[100];
 		TCHAR beta[100];
 		TCHAR path3[MAX_DPATH];
@@ -5979,22 +6071,11 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 const static GUID GUID_DEVINTERFACE_HID =  { 0x4D1E55B2L, 0xF16F, 0x11CF,
 { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
 
-typedef ULONG (CALLBACK *SHCHANGENOTIFYREGISTER)
-	(HWND hwnd,
-	int fSources,
-	LONG fEvents,
-	UINT wMsg,
-	int cEntries,
-	const SHChangeNotifyEntry *pshcne);
-typedef BOOL (CALLBACK *SHCHANGENOTIFYDEREGISTER)(ULONG ulID);
-
 void addnotifications (HWND hwnd, int remove, int isgui)
 {
 	static ULONG ret;
 	static HDEVNOTIFY hdn;
 	static int wtson;
-	LPITEMIDLIST ppidl;
-
 
 	if (remove) {
 		if (ret > 0)
@@ -6003,24 +6084,23 @@ void addnotifications (HWND hwnd, int remove, int isgui)
 		if (hdn)
 			UnregisterDeviceNotification (hdn);
 		hdn = 0;
-		if (os_winxp && wtson && !isgui)
+		if (wtson && !isgui)
 			WTSUnRegisterSessionNotification (hwnd);
 		wtson = 0;
 	} else {
 		DEV_BROADCAST_DEVICEINTERFACE NotificationFilter = { 0 };
-		if(SHGetSpecialFolderLocation (hwnd, CSIDL_DESKTOP, &ppidl) == NOERROR) {
-			SHChangeNotifyEntry shCNE;
-			shCNE.pidl = ppidl;
-			shCNE.fRecursive = TRUE;
-			ret = SHChangeNotifyRegister (hwnd, SHCNE_DISKEVENTS, SHCNE_MEDIAINSERTED | SHCNE_MEDIAREMOVED | SHCNE_DRIVEREMOVED | SHCNE_DRIVEADD,
-				WM_USER + 2, 1, &shCNE);
-		}
+		SHChangeNotifyEntry shCNE = { 0 };
+		shCNE.pidl = NULL;
+		shCNE.fRecursive = TRUE;
+		ret = SHChangeNotifyRegister (hwnd, SHCNRF_ShellLevel | SHCNRF_InterruptLevel | SHCNRF_NewDelivery,
+			SHCNE_MEDIAREMOVED | SHCNE_MEDIAINSERTED | SHCNE_DRIVEREMOVED | SHCNE_DRIVEADD,
+			WM_USER + 2, 1, &shCNE);
 		NotificationFilter.dbcc_size = 
 			sizeof(DEV_BROADCAST_DEVICEINTERFACE);
 		NotificationFilter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
 		NotificationFilter.dbcc_classguid = GUID_DEVINTERFACE_HID;
-		hdn = RegisterDeviceNotification (hwnd,  &NotificationFilter, DEVICE_NOTIFY_WINDOW_HANDLE);
-		if (os_winxp && !isgui)
+		hdn = RegisterDeviceNotification (hwnd,  &NotificationFilter, DEVICE_NOTIFY_WINDOW_HANDLE |  DEVICE_NOTIFY_ALL_INTERFACE_CLASSES);
+		if (!isgui)
 			wtson = WTSRegisterSessionNotification (hwnd, NOTIFY_FOR_THIS_SESSION);
 	}
 }

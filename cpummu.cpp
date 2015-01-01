@@ -373,8 +373,7 @@ void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32
 			}
 		}
 
-		if (mmu040_movem && !write) {
-			// save EA when MOVEM is something like
+		if (mmu040_movem) {
 			ssw |= MMU_SSW_CM;
 			regs.mmu_effective_addr = mmu040_movem_ea;
 			mmu040_movem = 0;

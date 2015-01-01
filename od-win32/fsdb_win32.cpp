@@ -473,6 +473,9 @@ int fsdb_set_file_attrs (a_inode *aino)
 	uae_u8 fsdb[UAEFSDB2_LEN];
 	uae_u32 mode;
 
+	if (aino->vfso)
+		return 1;
+
 	tmpmask = filesys_parse_mask (aino->amigaos_mode);
 
 	mode = GetFileAttributesSafe (aino->nname);
@@ -507,6 +510,8 @@ int fsdb_set_file_attrs (a_inode *aino)
 int fsdb_mode_supported (const a_inode *aino)
 {
 	int mask = aino->amigaos_mode;
+	if (aino->vfso)
+		return mask;
 	if (0 && aino->dir)
 		return 0;
 	if (fsdb_mode_representable_p (aino, mask))
@@ -532,6 +537,8 @@ int fsdb_mode_representable_p (const a_inode *aino, int amigaos_mode)
 	if (0 && aino->dir)
 		return amigaos_mode == 0;
 
+	if (aino->vfso)
+		return 1;
 	if (mask & A_FIBF_SCRIPT) /* script */
 		return 0;
 	if ((mask & 15) == 15) /* xxxxRWED == OK */

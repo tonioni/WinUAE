@@ -715,6 +715,12 @@
     <ClCompile Include="..\..\cpuemu_24.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\sndboard.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\def_icons.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

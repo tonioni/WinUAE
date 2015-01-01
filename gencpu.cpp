@@ -584,8 +584,16 @@ static void check_ipl (void)
 		return;
 	if (using_ce || isce020())
 		printf ("\tipl_fetch ();\n");
-	ipl_fetched = true;
+	ipl_fetched = 1;
 }
+
+static void single_check_ipl(void)
+{
+	check_ipl();
+	ipl_fetched = 2;
+
+}
+/* this is not true, it seems to be microcode controller */
 
 /* Apparently interrupt state is sampled
  * during any memory access. Because we don't
@@ -595,7 +603,7 @@ static void check_ipl (void)
  */
 static void check_ipl_again (void)
 {
-	if (!ipl_fetched)
+	if (ipl_fetched != 1)
 		return;
 	if (using_ce)
 		printf ("\tipl_fetch ();\n");
@@ -3501,6 +3509,16 @@ static void gen_opcode (unsigned int opcode)
 				}
 				if (curi->mnemo == i_MOVE)
 					genflags (flag_logical, curi->size, "src", "", "");
+
+				if (curi->size == sz_long) {
+					if ((curi->dmode == Ad16 || curi->dmode == PC16) && curi->smode == imm) {
+						// lots more needed..
+						// move.l x,absl
+						// move.l (an),x(an)
+						single_check_ipl();
+					}
+				}
+
 				genastore ("src", curi->dmode, "dstreg", curi->size, "dst");
 				sync_m68k_pc ();
 				if (dualprefetch) {

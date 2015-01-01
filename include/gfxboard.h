@@ -13,6 +13,7 @@ extern bool gfxboard_is_registers (int);
 extern int gfxboard_get_vram_min (int);
 extern int gfxboard_get_vram_max (int);
 extern bool gfxboard_need_byteswap (int type);
+extern int gfxboard_get_autoconfig_size(int type);
 extern double gfxboard_get_vsync (void);
 extern void gfxboard_refresh (void);
 extern bool gfxboard_toggle (int mode);

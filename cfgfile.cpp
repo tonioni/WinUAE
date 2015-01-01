@@ -221,6 +221,8 @@ static const TCHAR *cpuboards[] = {
 	_T("WarpEngineA4000"),
 	_T("TekMagic"),
 	_T("A2630"),
+	_T("DKB12x0"),
+	_T("FusionForty"),
 	NULL
 };
 static const TCHAR *ppc_implementations[] = {
@@ -252,7 +254,7 @@ static const TCHAR *lacer[] = { _T("off"), _T("i"), _T("p"), 0 };
 static const TCHAR *hdcontrollers[] = {
 	_T("uae"),
 	_T("ide%d"),
-	_T("scsi%d"), _T("scsi%d_a2091"),  _T("scsi%d_a2091-2"), _T("scsi%d_a4091"),  _T("scsi%d_a4091-2"),
+	_T("scsi%d"), _T("scsi%d_a2091"),  _T("scsi%d_a2091-2"), _T("scsi%d_gvp"), _T("scsi%d_gvp-2"), _T("scsi%d_a4091"),  _T("scsi%d_a4091-2"),
 	_T("scsi%d_fastlane"), _T("scsi%d_fastlane-2"),
 	_T("scsi%d_oktagon2008"), _T("scsi%d_oktagon2008-2"),
 	_T("scsi%d_a3000"),  _T("scsi%d_a4000t"),  _T("scsi%d_cdtv"), _T("scsi%d_cpuboard"),
@@ -1026,6 +1028,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_write_str (f, _T("kickstart_ext_rom="), p->romextident);
 
 	cfgfile_write_board_rom(f, &p->path_rom, &p->a2091rom, _T("a2091"));
+	cfgfile_write_board_rom(f, &p->path_rom, &p->gvprom, _T("gvp"));
 	cfgfile_write_board_rom(f, &p->path_rom, &p->a4091rom, _T("a4091"));
 	cfgfile_write_board_rom(f, &p->path_rom, &p->fastlanerom, _T("fastlane"));
 	cfgfile_write_board_rom(f, &p->path_rom, &p->oktagonrom, _T("oktagon2008"));
@@ -1575,6 +1578,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_dwrite (f, _T("catweasel"), _T("0x%x"), p->catweasel);
 	else
 		cfgfile_dwrite (f, _T("catweasel"), _T("%d"), p->catweasel);
+	cfgfile_write_bool(f, _T("toccata"), p->sound_toccata);
+
 
 	cfgfile_write_str (f, _T("kbd_lang"), (p->keyboard_lang == KBD_LANG_DE ? _T("de")
 		: p->keyboard_lang == KBD_LANG_DK ? _T("dk")
@@ -1597,6 +1602,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, _T("filesys_max_size"), _T("%d"), p->filesys_limit);
 	cfgfile_dwrite (f, _T("filesys_max_name_length"), _T("%d"), p->filesys_max_name);
 	cfgfile_dwrite (f, _T("filesys_max_file_size"), _T("%d"), p->filesys_max_file_size);
+	cfgfile_dwrite_bool (f, _T("filesys_inject_icons"), p->filesys_inject_icons);
+	cfgfile_dwrite_str (f, _T("filesys_inject_icons_drawer"), p->filesys_inject_icons_drawer);
+	cfgfile_dwrite_str (f, _T("filesys_inject_icons_project"), p->filesys_inject_icons_project);
+	cfgfile_dwrite_str (f, _T("filesys_inject_icons_tool"), p->filesys_inject_icons_tool);
 	cfgfile_dwrite_str (f, _T("scsidev_mode"), uaescsidevmodes[p->uaescsidevmode]);
 
 #endif
@@ -2126,6 +2135,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("filesys_max_size"), &p->filesys_limit, 1)
 		|| cfgfile_intval (option, value, _T("filesys_max_name_length"), &p->filesys_max_name, 1)
 		|| cfgfile_intval (option, value, _T("filesys_max_file_size"), &p->filesys_max_file_size, 1)
+		|| cfgfile_yesno (option, value, _T("filesys_inject_icons"), &p->filesys_inject_icons)
+		|| cfgfile_string (option, value, _T("filesys_inject_icons_drawer"), p->filesys_inject_icons_drawer, sizeof p->filesys_inject_icons_drawer / sizeof (TCHAR))
+		|| cfgfile_string (option, value, _T("filesys_inject_icons_project"), p->filesys_inject_icons_project, sizeof p->filesys_inject_icons_project / sizeof (TCHAR))
+		|| cfgfile_string (option, value, _T("filesys_inject_icons_tool"), p->filesys_inject_icons_tool, sizeof p->filesys_inject_icons_tool / sizeof (TCHAR))
 
 		|| cfgfile_intval (option, value, _T("gfx_luminance"), &p->gfx_luminance, 1)
 		|| cfgfile_intval (option, value, _T("gfx_contrast"), &p->gfx_contrast, 1)
@@ -3694,6 +3707,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("rtg_nocustom"), &p->picasso96_nocustom)
 		|| cfgfile_yesno (option, value, _T("floppy_write_protect"), &p->floppy_read_only)
 		|| cfgfile_yesno (option, value, _T("uae_hide_autoconfig"), &p->uae_hide_autoconfig)
+		|| cfgfile_yesno (option, value, _T("toccata"), &p->sound_toccata)
 		|| cfgfile_yesno (option, value, _T("uaeserial"), &p->uaeserial))
 		return 1;
 
@@ -3813,9 +3827,11 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 	}
 
-	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->a2091rom, _T("a2091"), ROMTYPE_A2091BOOT))
+	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->a2091rom, _T("a2091"), ROMTYPE_A2091))
 		return 1;
-	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->a4091rom, _T("a4091"), ROMTYPE_A4091BOOT))
+	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->gvprom, _T("gvp"), ROMTYPE_GVP))
+		return 1;
+	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->a4091rom, _T("a4091"), ROMTYPE_A4091))
 		return 1;
 	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->fastlanerom, _T("fastlane"), ROMTYPE_FASTLANE))
 		return 1;
@@ -4406,9 +4422,10 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 	subst(p->path_rom.path[0], p->acceleratorextromfile, sizeof p->acceleratorextromfile / sizeof(TCHAR));
 
 	for (i = 0; i < MAX_BOARD_ROMS; i++) {
-		subst (p->path_rom.path[0], p->a2091rom.roms[i].romfile, MAX_DPATH / sizeof (TCHAR));
-		subst (p->path_rom.path[0], p->a4091rom.roms[i].romfile, MAX_DPATH / sizeof (TCHAR));
-		subst (p->path_rom.path[0], p->fastlanerom.roms[i].romfile, MAX_DPATH / sizeof (TCHAR));
+		subst(p->path_rom.path[0], p->a2091rom.roms[i].romfile, MAX_DPATH / sizeof(TCHAR));
+		subst(p->path_rom.path[0], p->gvprom.roms[i].romfile, MAX_DPATH / sizeof(TCHAR));
+		subst(p->path_rom.path[0], p->a4091rom.roms[i].romfile, MAX_DPATH / sizeof(TCHAR));
+		subst(p->path_rom.path[0], p->fastlanerom.roms[i].romfile, MAX_DPATH / sizeof (TCHAR));
 	}
 
 	return 1;

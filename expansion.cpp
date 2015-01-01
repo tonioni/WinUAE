@@ -33,6 +33,7 @@
 #include "debug.h"
 #include "gayle.h"
 #include "cpuboard.h"
+#include "sndboard.h"
 #include "uae/ppc.h"
 
 #define EXP_DEBUG 0
@@ -461,7 +462,8 @@ void expamem_next (addrbank *mapped, addrbank *next)
 	if (ecard < cardno) {
 		call_card_init(ecard);
 	} else {
-		expamem_init_clear2 ();
+		expamem_init_clear2();
+		expamem_init_last();
 	}
 }
 
@@ -1061,6 +1063,7 @@ static addrbank *expamem_init_fastcard_2 (int boardnum)
 	uae_u8 pid;
 	uae_u8 type = add_memory | zorroII | (cfgfile_board_enabled(&currprefs.a2091rom) && !boardnum ? chainedconfig : 0);
 	int allocated = boardnum ? fastmem2_bank.allocated : fastmem_bank.allocated;
+	uae_u32 serial = 1;
 
 	expamem_init_clear ();
 	if (allocated == 65536)
@@ -1090,6 +1093,11 @@ static addrbank *expamem_init_fastcard_2 (int boardnum)
 	} else if (cfgfile_board_enabled(&currprefs.a2091rom) || currprefs.uae_hide) {
 		pid = commodore_a2091_ram;
 		mid = commodore;
+		serial = 0;
+	} else if (cfgfile_board_enabled(&currprefs.gvprom)) {
+		pid = 10;
+		mid = 2017;
+		serial = 0;
 	} else {
 		pid = currprefs.maprom && !currprefs.cpuboard_type ? 1 : 81;
 		mid = uae_id;
@@ -1104,10 +1112,10 @@ static addrbank *expamem_init_fastcard_2 (int boardnum)
 	expamem_write (0x10, mid >> 8);
 	expamem_write (0x14, mid & 0xff);
 
-	expamem_write (0x18, 0x00); /* ser.no. Byte 0 */
-	expamem_write (0x1c, 0x00); /* ser.no. Byte 1 */
-	expamem_write (0x20, 0x00); /* ser.no. Byte 2 */
-	expamem_write (0x24, 0x01); /* ser.no. Byte 3 */
+	expamem_write (0x18, serial >> 24); /* ser.no. Byte 0 */
+	expamem_write (0x1c, serial >> 16); /* ser.no. Byte 1 */
+	expamem_write (0x20, serial >>  8); /* ser.no. Byte 2 */
+	expamem_write (0x24, serial >>  0); /* ser.no. Byte 3 */
 
 	expamem_write (0x28, 0x00); /* Rom-Offset hi */
 	expamem_write (0x2c, 0x00); /* ROM-Offset lo */
@@ -1627,6 +1635,12 @@ uaecptr need_uae_boot_rom (void)
 	return v;
 }
 
+#ifdef WITH_TOCCATA
+static addrbank *expamem_init_toccata(void)
+{
+	return sndboard_init();
+}
+#endif
 #ifdef A2065
 static addrbank *expamem_init_a2065(void)
 {
@@ -1649,6 +1663,18 @@ static addrbank *expamem_init_a2091(void)
 static addrbank *expamem_init_a2091_2(void)
 {
 	return a2091_init (1);
+}
+#endif
+#ifdef A2091
+static addrbank *expamem_init_gvp(void)
+{
+	return gvp_init(0);
+}
+#endif
+#ifdef A2091
+static addrbank *expamem_init_gvp_2(void)
+{
+	return gvp_init(1);
 }
 #endif
 #ifdef NCR
@@ -1679,6 +1705,10 @@ static addrbank *expamem_init_oktagon_2(void)
 static addrbank *expamem_init_warpengine(void)
 {
 	return ncr710_warpengine_autoconfig_init();
+}
+static addrbank *expamem_init_dkb1200(void)
+{
+	return ncr_dkb_autoconfig_init();
 }
 #endif
 #ifdef GFXBOARD
@@ -1767,6 +1797,17 @@ void expamem_reset (void)
 		card_map[cardno++] = NULL;
 	}
 #endif
+#ifdef A2091
+	if (cfgfile_board_enabled(&currprefs.gvprom)) {
+		card_flags[cardno] = 0;
+		card_name[cardno] = _T("GVP");
+		card_init[cardno] = expamem_init_gvp;
+		card_map[cardno++] = NULL;
+		card_name[cardno] = _T("GVP #2");
+		card_init[cardno] = expamem_init_gvp_2;
+		card_map[cardno++] = NULL;
+	}
+#endif
 #ifdef NCR
 	if (cfgfile_board_enabled(&currprefs.oktagonrom)) {
 		card_name[cardno] = _T("Oktagon 2008");
@@ -1845,6 +1886,14 @@ void expamem_reset (void)
 		}
 	}
 #endif
+#ifdef WITH_TOCCATA
+	if (currprefs.sound_toccata) {
+		card_flags[cardno] = 0;
+		card_name[cardno] = _T("Toccata");
+		card_init[cardno] = expamem_init_toccata;
+		card_map[cardno++] = NULL;
+	}
+#endif
 
 	/* Z3 boards last */
 	if (!currprefs.address_space_24) {
@@ -1853,6 +1902,11 @@ void expamem_reset (void)
 			card_flags[cardno] = 1;
 			card_name[cardno] = _T("Warp Engine");
 			card_init[cardno] = expamem_init_warpengine;
+			card_map[cardno++] = NULL;
+		}
+		if (currprefs.cpuboard_type == BOARD_DKB1200) {
+			card_name[cardno] = _T("DKB SCSI");
+			card_init[cardno] = expamem_init_dkb1200;
 			card_map[cardno++] = NULL;
 		}
 		if (z3fastmem_bank.baseaddr != NULL) {
@@ -1916,13 +1970,6 @@ void expamem_reset (void)
 			card_map[cardno++] = NULL;
 		}
 #endif
-	}
-
-	if (cardno > 0 && cardno < MAX_EXPANSION_BOARDS) {
-		card_flags[cardno] = 0;
-		card_name[cardno] = _T("Empty");
-		card_init[cardno] = expamem_init_last;
-		card_map[cardno++] = expamem_map_clear;
 	}
 
 	expamem_z3_pointer = 0;

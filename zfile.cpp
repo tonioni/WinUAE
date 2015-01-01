@@ -2107,6 +2107,22 @@ uae_u8 *zfile_load_data (const TCHAR *name, const uae_u8 *data,int datalen, int 
 	return out;
 }
 
+uae_u8 *zfile_load_file(const TCHAR *name, int *outlen)
+{
+	struct zfile *zf;
+	int size;
+	uae_u8 *out;
+
+	zf = zfile_fopen(name, _T("rb"));
+	if (!zf)
+		return NULL;
+	size = zfile_size(zf);
+	out = xmalloc (uae_u8, size);
+	zfile_fread(out, 1, size, zf);
+	zfile_fclose(zf);
+	*outlen = size;
+	return out;
+}
 
 int zfile_truncate (struct zfile *z, uae_s64 size)
 {

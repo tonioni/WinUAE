@@ -804,6 +804,7 @@
     <ClCompile Include="..\..\cpuemu_33.cpp" />
     <ClCompile Include="..\..\cpuemu_40.cpp" />
     <ClCompile Include="..\..\cpummu30.cpp" />
+    <ClCompile Include="..\..\def_icons.cpp" />
     <ClCompile Include="..\..\dlopen.cpp" />
     <ClCompile Include="..\..\ethernet.cpp" />
     <ClCompile Include="..\..\events.cpp" />
@@ -845,6 +846,7 @@
     <ClCompile Include="..\..\slirp\tcp_timer.cpp" />
     <ClCompile Include="..\..\slirp\tftp.cpp" />
     <ClCompile Include="..\..\slirp\udp.cpp" />
+    <ClCompile Include="..\..\sndboard.cpp" />
     <ClCompile Include="..\..\specialmonitors.cpp" />
     <ClCompile Include="..\..\statusline.cpp" />
     <ClCompile Include="..\..\tabletlibrary.cpp" />

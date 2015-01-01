@@ -1044,7 +1044,7 @@ static void dmac_start_dma (void)
 	if (!(dmac_cntr & CNTR_PDMD)) { // non-scsi dma
 		write_comm_pipe_u32 (&requests, 0x0100, 1);
 	} else {
-		scsi_dmac_start_dma (&wd_cdtv);
+		scsi_dmac_a2091_start_dma (&wd_cdtv);
 	}
 }
 static void dmac_stop_dma (void)
@@ -1052,7 +1052,7 @@ static void dmac_stop_dma (void)
 	if (!(dmac_cntr & CNTR_PDMD)) { // non-scsi dma
 		;
 	} else {
-		scsi_dmac_stop_dma (&wd_cdtv);
+		scsi_dmac_a2091_stop_dma (&wd_cdtv);
 	}
 }
 
@@ -1065,7 +1065,7 @@ static void checkint (void)
 {
 	int irq = 0;
 
-	if (currprefs.cs_cdtvscsi && (wdscsi_getauxstatus (&wd_cdtv) & 0x80)) {
+	if (currprefs.cs_cdtvscsi && (wdscsi_getauxstatus (&wd_cdtv.wc) & 0x80)) {
 		dmac_istr |= ISTR_INTS;
 		if ((dmac_cntr & CNTR_INTEN) && (dmac_istr & ISTR_INTS))
 			irq = 1;
@@ -1257,11 +1257,11 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 		break;
 	case 0x91:
 		if (currprefs.cs_cdtvscsi)
-			v = wdscsi_getauxstatus (&wd_cdtv);
+			v = wdscsi_getauxstatus (&wd_cdtv.wc);
 		break;
 	case 0x93:
 		if (currprefs.cs_cdtvscsi) {
-			v = wdscsi_get (&wd_cdtv);
+			v = wdscsi_get (&wd_cdtv.wc, &wd_cdtv);
 			checkint ();
 		}
 		break;
@@ -1364,13 +1364,13 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 		break;
 	case 0x91:
 		if (currprefs.cs_cdtvscsi) {
-			wdscsi_sasr (&wd_cdtv, b);
+			wdscsi_sasr (&wd_cdtv.wc, b);
 			checkint ();
 		}
 		break;
 	case 0x93:
 		if (currprefs.cs_cdtvscsi) {
-			wdscsi_put (&wd_cdtv, b);
+			wdscsi_put (&wd_cdtv.wc, &wd_cdtv, b);
 			checkint ();
 		}
 		break;
