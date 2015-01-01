@@ -52,7 +52,7 @@ cda_audio::~cda_audio()
 	}
 }
 
-cda_audio::cda_audio(int num_sectors, int sectorsize)
+cda_audio::cda_audio(int num_sectors, int sectorsize, int samplerate)
 {
 	active = false;
 	playing = false;
@@ -69,7 +69,7 @@ cda_audio::cda_audio(int num_sectors, int sectorsize)
 
 	wav.cbSize = 0;
 	wav.nChannels = 2;
-	wav.nSamplesPerSec = 44100;
+	wav.nSamplesPerSec = samplerate;
 	wav.wBitsPerSample = 16;
 	wav.nBlockAlign = wav.wBitsPerSample / 8 * wav.nChannels;
 	wav.nAvgBytesPerSec = wav.nBlockAlign * wav.nSamplesPerSec;
@@ -216,9 +216,11 @@ bool cda_audio::play(int bufnum)
 	return true;
 #else
 	uae_s16 *p = (uae_s16*)(buffers[bufnum]);
-	for (int i = 0; i < num_sectors * sectorsize / 4; i++) {
-		p[i * 2 + 0] = p[i * 2 + 0] * volume[0] / 32768;
-		p[i * 2 + 1] = p[i * 2 + 1] * volume[1] / 32768;
+	if (volume[0] != 32768 || volume[1] != 32768) {
+		for (int i = 0; i < num_sectors * sectorsize / 4; i++) {
+			p[i * 2 + 0] = p[i * 2 + 0] * volume[0] / 32768;
+			p[i * 2 + 1] = p[i * 2 + 1] * volume[1] / 32768;
+		}
 	}
 	MMRESULT mmr = waveOutWrite (wavehandle, &whdr[bufnum], sizeof (WAVEHDR));
 	if (mmr != MMSYSERR_NOERROR) {

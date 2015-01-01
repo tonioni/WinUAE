@@ -1538,7 +1538,7 @@ addrbank *cd32_fmv_init (uaecptr start)
 
 	kjmp2_init(&mp2);
 	if (!cda) {
-		cda = new cda_audio(PCM_SECTORS, KJMP2_SAMPLES_PER_FRAME * 4);
+		cda = new cda_audio(PCM_SECTORS, KJMP2_SAMPLES_PER_FRAME * 4, 44100);
 		l64111_setvolume();
 	}
 	if (!mpeg_decoder) {
