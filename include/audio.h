@@ -7,6 +7,7 @@
   */
 
 #define PERIOD_MAX ULONG_MAX
+#define MAX_EV ~0u
 
 extern void aud0_handler (void);
 extern void aud1_handler (void);
@@ -42,6 +43,23 @@ extern void audio_vsync (void);
 extern void audio_sampleripper(int);
 extern int sampleripper_enabled;
 extern void write_wavheader (struct zfile *wavfile, uae_u32 size, uae_u32 freq);
+
+extern void audio_update_sndboard(unsigned int);
+extern void audio_enable_sndboard(bool);
+extern void audio_state_sndboard(int);
+extern void audio_state_sndboard_state(int, int, unsigned int);
+
+extern void audio_update_cda(unsigned int);
+extern void audio_enable_cda(bool);
+extern void audio_state_cda(int);
+extern void audio_state_cda_state(int, int, unsigned int);
+
+#define AUDIO_CHANNELS_PAULA 4
+#define AUDIO_CHANNELS_MAX 8
+#define AUDIO_CHANNEL_SNDBOARD_LEFT 4
+#define AUDIO_CHANNEL_SNDBOARD_RIGHT 5
+#define AUDIO_CHANNEL_CDA_LEFT 6
+#define AUDIO_CHANNEL_CDA_RIGHT 7
 
 enum {
     SND_MONO, SND_STEREO, SND_4CH_CLONEDSTEREO, SND_4CH, SND_6CH_CLONEDSTEREO, SND_6CH, SND_NONE };
