@@ -1,22 +1,34 @@
 
-1 -> 0 (-)   : 0,1FE,1FE,1FE,..
-1 -> 1 (D)   : 0,1FE,0,1FE,0,..
-1 -> 2 (C)   : 0,1FE,70,1FE,70,.. 							(C-)
-1 -> 9 (AD)  : 0,1FE,0,74,0,74,.. 							(DA)
-1 -> B (ACD) : 0,1FE,70,0,74,70,0,74,70,0,74,..				(CDA)
-1 -> C (AB)  : 0,1FE,72,74,70,72,74,70,72,..				(CBA)
-1 -> D (ABD) : 0,1FE,72,74,70,72,74,70,72,..				(CBA)
-1 -> E (ABC) : 0,1FE,70,70,70,70,..							(C)
-1 -> F (ABCD): 0,1FE,70,70,74,70,70,70,74,70,70,70,74,..	(CCCA)
+Beta 2:
 
-Things that may happen in 2015:
+- Paula audio filter still filtered Toccata audio. Note that stereo separation is after Toccata audio
+  mixing.
+- Added "ROM disabled" to GVP SCSI ROM selection.
+- GVP SCSI ROM space word reads accessed invalid memory.
+- Added Paths panel option to store "saveimages" in same directory as original image file, instead of always
+  saving in saveimages-directory, extension changed to .save_adf to prevent it being visible in directory
+  listings with normal disk image filter type active.
+- 68030 MMU on the fly off->on switch crashed. (Not that on the fly MMU switching is really supported..)
+- WD33C93 Select without ATN command didn't fully skip message out phase. (AMAX GVP SCSI driver)
+- Reading WD33C93 SCSI message in with Transfer Info command is a special case, after it finishes, it does
+  not advance to next state automatically, it must wait for Negate ACK command. (AMAX GVP SCSI driver)
+- AMAX rom "dongle" emulation improved floppy drives didn't work reliably.
+- Added AMAX rom image selection to ROM panel SCSI select menu, renamed to SCSI/Boot ROMs.
+- Added very simple next opcode word prefetch emulation to 68030 MMU mode, only done when MMU state changes.
+  Fixes programs that first switch on (or off) MMU which also unmaps memory where currently executing code
+  is located and then executes JMP (An).
+- Added Toccata recording support, currently only internal hardware emulation is implemented (FIFO and interrupts),
+  returns only zero samples.
+- Show also inserted data CD volume id (label) in status bar, strip path from file name.
+- Show inserted floppy image filename and label (if OFS/FFS image) in status bar.
+- CD image audio can be now mixed with Paula audio, just like Toccata output. CD audio can be finally recorded
+  with internal wave or avi recording support (Requested feature). FPS.Adj also adjusts CD audio speed (and pitch)
+  and CD audio sound sync (For example Liberation CD32 intro) is kept even if emulation slows down.
+  Enable option added to Sound panel (can be switched on the fly but mode only changes when CD audio thread restarts),
+  old method is still the default. Note: when enabled, Paula audio slider becomes master volume for CD audio.
+- CD32 FMV also supports new audio mixing mode. FPS.Adj not supported yet.
 
-- Minium Windows version will be Windows 7.
-- CPU must be SSE 2 capable.
-- DirectDraw support will be removed.
-- and more
-
-- restore only single input target to default.
+Beta 1:
 
 - Lowered disk motor startup delay, more closer match with real hardware (at least matches some random drive
   in my A500)
@@ -7968,7 +7980,7 @@ Beta 3:
 - uae boot rom was always mounted (b2)
 - b2 interrupt fix update, only "pre-delay" vblank interrupt
 - A-Max rom-"dongle" emulation added (manual configuration file
-  editing currently needed, amaxromfile=<rom file>) Yes, this is
+  editing currently needed, amax_rom_file=<rom file>) Yes, this is
   very pointless feature. (A-Max technical info by Mark Knibbs)
 - C debugger command only worked in byte-mode
 - disk write without drives selected was emulated as a read without

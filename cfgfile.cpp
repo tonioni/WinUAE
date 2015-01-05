@@ -1136,6 +1136,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	if (p->sound_volume_cd >= 0)
 		cfgfile_write (f, _T("sound_volume_cd"), _T("%d"), p->sound_volume_cd);
 	cfgfile_write_bool (f, _T("sound_auto"), p->sound_auto);
+	cfgfile_write_bool (f, _T("sound_cdaudio"), p->sound_cdaudio);
 	cfgfile_write_bool (f, _T("sound_stereo_swap_paula"), p->sound_stereo_swap_paula);
 	cfgfile_write_bool (f, _T("sound_stereo_swap_ahi"), p->sound_stereo_swap_ahi);
 	cfgfile_dwrite (f, _T("sampler_frequency"), _T("%d"), p->sampler_freq);
@@ -2171,6 +2172,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno (option, value, _T("floppy3wp"), &p->floppyslots[3].forcedwriteprotect)
 		|| cfgfile_yesno (option, value, _T("sampler_stereo"), &p->sampler_stereo)
 		|| cfgfile_yesno (option, value, _T("sound_auto"), &p->sound_auto)
+		|| cfgfile_yesno (option, value, _T("sound_cdaudio"), &p->sound_cdaudio)
 		|| cfgfile_yesno (option, value, _T("sound_stereo_swap_paula"), &p->sound_stereo_swap_paula)
 		|| cfgfile_yesno (option, value, _T("sound_stereo_swap_ahi"), &p->sound_stereo_swap_ahi)
 		|| cfgfile_yesno (option, value, _T("avoid_cmov"), &p->avoid_cmov)
@@ -5398,6 +5400,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->sound_filter = FILTER_SOUND_EMUL;
 	p->sound_filter_type = 0;
 	p->sound_auto = 1;
+	p->sound_cdaudio = false;
 	p->sampler_stereo = false;
 	p->sampler_buffer = 0;
 	p->sampler_freq = 0;

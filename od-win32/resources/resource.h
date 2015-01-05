@@ -1018,6 +1018,7 @@
 #define IDC_FILTERKEEPASPECT            1709
 #define IDC_CS_RTC                      1710
 #define IDC_FILTERKEEPAUTOSCALEASPECT   1710
+#define IDC_SOUND_CDPAULAMIX            1710
 #define IDC_CS_CIAA_TOD1                1711
 #define IDC_CS_CIAA_TOD2                1712
 #define IDC_CS_EXT                      1712
@@ -1150,6 +1151,7 @@
 #define IDC_RTG_VBLANKRATE              1793
 #define IDC_DF0WPTEXTQ                  1793
 #define IDC_WINDOWEDMODE                1793
+#define IDC_PATHS_SAVEIMAGEORIGINALPATH 1793
 #define IDC_DF1WPTEXTQ                  1794
 #define IDC_RTG_Z2Z3                    1794
 #define IDC_RTG_BUFFERCNT               1795

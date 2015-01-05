@@ -84,6 +84,8 @@ struct device_info {
 	TCHAR revision[6];
 	const TCHAR *backend;
 	struct cd_toc_head toc;
+	TCHAR system_id[33];
+	TCHAR volume_id[33];
 };
 
 struct amigascsi

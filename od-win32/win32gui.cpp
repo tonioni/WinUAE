@@ -183,17 +183,19 @@ static void addaspectratios (HWND hDlg, int id)
 static int scsiromselected;
 struct scsiromselect
 {
+	const TCHAR *device;
 	TCHAR *name;
 	int mask;
 };
 static struct scsiromselect scsiromdata[] =
 {
-	{ workprefs.a2091rom.roms[0].romfile, ROMTYPE_A2091 | ROMTYPE_NONE },
-	{ workprefs.gvprom.roms[0].romfile, ROMTYPE_GVP },
-	{ workprefs.a4091rom.roms[0].romfile, ROMTYPE_A4091 },
-	{ workprefs.fastlanerom.roms[0].romfile, ROMTYPE_FASTLANE },
-	{ workprefs.oktagonrom.roms[0].romfile, ROMTYPE_OKTAGON },
-	{ workprefs.acceleratorextromfile, ROMTYPE_CPUBOARDEXT },
+	{ _T("A590/A2091"), workprefs.a2091rom.roms[0].romfile, ROMTYPE_A2091 | ROMTYPE_NONE },
+	{ _T("GVP Series II"), workprefs.gvprom.roms[0].romfile, ROMTYPE_GVP | ROMTYPE_NONE },
+	{ _T("A4091"), workprefs.a4091rom.roms[0].romfile, ROMTYPE_A4091 },
+	{ _T("Fastlane"), workprefs.fastlanerom.roms[0].romfile, ROMTYPE_FASTLANE },
+	{ _T("Oktagon 2008"), workprefs.oktagonrom.roms[0].romfile, ROMTYPE_OKTAGON },
+	{ _T("Blizzard SCSI Kit IV"), workprefs.acceleratorextromfile, ROMTYPE_CPUBOARDEXT },
+	{ _T("AMAX"), workprefs.amaxromfile, ROMTYPE_AMAX | ROMTYPE_NONE },
 	{ NULL, 0 }
 };
 
@@ -5233,6 +5235,7 @@ static void resetregistry (void)
 	regdelete (NULL, _T("QuickStartCompatibility"));
 	regdelete (NULL, _T("QuickStartHostConfig"));
 	regdelete (NULL, _T("ConfigurationCache"));
+	regdelete (NULL, _T("SaveImageOriginalPath"));
 	regdelete (NULL, _T("RelativePaths"));
 	regdelete (NULL, _T("DirectDraw_Secondary"));
 	regdelete (NULL, _T("ShownsupportedModes"));
@@ -5323,6 +5326,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		setac (hDlg, IDC_PATHS_AVIOUTPUT);
 		setac (hDlg, IDC_PATHS_RIP);
 		CheckDlgButton(hDlg, IDC_PATHS_CONFIGCACHE, configurationcache);
+		CheckDlgButton(hDlg, IDC_PATHS_SAVEIMAGEORIGINALPATH, saveimageoriginalpath);
 		CheckDlgButton(hDlg, IDC_PATHS_RELATIVE, relativepaths);
 		CheckDlgButton(hDlg, IDC_REGISTRYMODE, getregmode() != 0);
 		ew(hDlg, IDC_REGISTRYMODE, FALSE);
@@ -5550,6 +5554,10 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			case IDC_PATHS_CONFIGCACHE:
 				configurationcache = ischecked (hDlg, IDC_PATHS_CONFIGCACHE) ? 1 : 0;
 				regsetint (NULL, _T("ConfigurationCache"), configurationcache);
+				break;
+			case IDC_PATHS_SAVEIMAGEORIGINALPATH:
+				saveimageoriginalpath = ischecked (hDlg, IDC_PATHS_SAVEIMAGEORIGINALPATH) ? 1 : 0;
+				regsetint (NULL, _T("SaveImageOriginalPath"), saveimageoriginalpath);
 				break;
 			case IDC_PATHS_RELATIVE:
 				relativepaths = ischecked (hDlg, IDC_PATHS_RELATIVE) ? 1 : 0;
@@ -8490,12 +8498,8 @@ static void init_kickstart (HWND hDlg)
 	ew(hDlg, IDC_CPUBOARDROMFILE, workprefs.cpuboard_type != 0);
 
 	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("A590/A2091"));
-	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("GVP Series II"));
-	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("A4091"));
-	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Fastlane"));
-	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Oktagon 2008"));
-	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Blizzard SCSI Kit IV"));
+	for (int i = 0; scsiromdata[i].device; i++)
+		SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)scsiromdata[i].device);
 
 	int found = -1;
 	for (int i = 0; scsiromdata[i].name; i++) {
@@ -9786,6 +9790,7 @@ static void values_to_sounddlg (HWND hDlg)
 	CheckRadioButton (hDlg, IDC_SOUND0, IDC_SOUND2, which_button);
 
 	CheckDlgButton (hDlg, IDC_SOUND_AUTO, workprefs.sound_auto);
+	CheckDlgButton (hDlg, IDC_SOUND_CDPAULAMIX, workprefs.sound_cdaudio);
 
 	if (workprefs.sound_maxbsiz < SOUND_BUFFER_MULTIPLIER)
 		workprefs.sound_maxbsiz = SOUND_BUFFER_MULTIPLIER;
@@ -9868,6 +9873,7 @@ static void values_from_sounddlg (HWND hDlg)
 		: ischecked (hDlg, IDC_SOUND1) ? 1 : 3);
 
 	workprefs.sound_auto = ischecked (hDlg, IDC_SOUND_AUTO);
+	workprefs.sound_cdaudio = ischecked (hDlg, IDC_SOUND_CDPAULAMIX);
 
 	idx = SendDlgItemMessage (hDlg, IDC_SOUNDSTEREO, CB_GETCURSEL, 0, 0);
 	if (idx != CB_ERR)
@@ -11659,9 +11665,11 @@ static void addfloppytype (HWND hDlg, int n)
 		state = TRUE;
 	if (f_type >= 0)
 		SendDlgItemMessage (hDlg, f_type, CB_SETCURSEL, nn, 0);
-	if (f_si >= 0)
-		ShowWindow (GetDlgItem(hDlg, f_si), !showcd && zfile_exists (DISK_get_saveimagepath (text)) ? SW_SHOW : SW_HIDE);
-
+	if (f_si >= 0) {
+		TCHAR *path = DISK_get_saveimagepath(text, -2);
+		ShowWindow (GetDlgItem(hDlg, f_si), !showcd && zfile_exists (path) ? SW_SHOW : SW_HIDE);
+		xfree(path);
+	}
 	if (f_text >= 0)
 		ew (hDlg, f_text, state);
 	if (f_eject >= 0)
@@ -11802,12 +11810,13 @@ static void deletesaveimage (HWND hDlg, int num)
 	TCHAR *p;
 	if (iscd (num))
 		return;
-	p = DISK_get_saveimagepath (workprefs.floppyslots[num].df);
+	p = DISK_get_saveimagepath(workprefs.floppyslots[num].df, -2);
 	if (zfile_exists (p)) {
 		DeleteFile (p);
 		DISK_reinsert (num);
 		addfloppytype (hDlg, num);
 	}
+	xfree(p);
 }
 
 static void diskselect (HWND hDlg, WPARAM wParam, struct uae_prefs *p, int drv, TCHAR *defaultpath)

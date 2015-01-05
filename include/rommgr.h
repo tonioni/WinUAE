@@ -30,6 +30,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_FASTLANE	0x00100004
 #define ROMTYPE_OKTAGON		0x00100005
 #define ROMTYPE_GVP			0x00100006
+#define ROMTYPE_AMAX		0x00100007
 
 #define ROMTYPE_QUAD		0x01000000
 #define ROMTYPE_EVEN		0x02000000

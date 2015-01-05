@@ -21,6 +21,7 @@
 #include "zfile.h"
 #include "scsi.h"
 #include "statusline.h"
+#include "fsdb.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -407,12 +408,14 @@ fallback:
 
 static void cd_statusline_label(int unitnum)
 {
-	if (currprefs.cdslots[unitnum].name[0]) {
+	TCHAR *p = currprefs.cdslots[unitnum].name;
+	if (p[0]) {
 		struct device_info di;
+		const TCHAR *fname = my_getfilepart(p);
 		if (sys_command_info(unitnum, &di, 0) && di.volume_id[0])
-			statusline_add_message(_T("CD%d: [%s] %s"), unitnum, di.volume_id, currprefs.cdslots[unitnum].name);
+			statusline_add_message(_T("CD%d: [%s] %s"), unitnum, di.volume_id, fname);
 		else
-			statusline_add_message(_T("CD%d: %s"), unitnum, currprefs.cdslots[unitnum].name);
+			statusline_add_message(_T("CD%d: %s"), unitnum, fname);
 	}
 }
 

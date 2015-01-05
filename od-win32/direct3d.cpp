@@ -3220,12 +3220,12 @@ uae_u8 *D3D_locktexture (int *pitch, int *height, bool fullupdate)
 		write_log (_T("%s: LockRect failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 		return NULL;
 	}
+	locked = 1;
 	if (lock.pBits == NULL || lock.Pitch == 0) {
 		write_log (_T("%s: LockRect returned NULL texture\n"), D3DHEAD);
 		D3D_unlocktexture ();
 		return NULL;
 	}
-	locked = 1;
 	fulllocked = fullupdate;
 	*pitch = lock.Pitch;
 	if (height)
@@ -3422,10 +3422,12 @@ HDC D3D_getDC (HDC hdc)
 			return hdc;
 		write_log (_T("%s: GetDC() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 	}
-	if (hdc)
-		bb->ReleaseDC (hdc);
-	bb->Release ();
-	bb = NULL;
+	if (bb) {
+		if (hdc)
+			bb->ReleaseDC (hdc);
+		bb->Release ();
+		bb = NULL;
+	}
 	return 0;
 }
 

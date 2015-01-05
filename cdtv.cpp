@@ -1696,7 +1696,7 @@ addrbank *cdtv_init (void)
 	open_unit ();
 	gui_flicker_led (LED_CD, 0, -1);
 	if (currprefs.cs_cdtvscsi) {
-		init_scsi (&wd_cdtv);
+		init_wd_scsi (&wd_cdtv);
 	}
 	return &dmac_bank;
 }

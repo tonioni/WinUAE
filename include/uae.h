@@ -64,6 +64,7 @@ struct bstring {
 };
 
 extern TCHAR *colormodes[];
+extern int saveimageoriginalpath;
 extern void fetch_saveimagepath (TCHAR*, int, int);
 extern void fetch_configurationpath (TCHAR *out, int size);
 extern void fetch_luapath (TCHAR *out, int size);

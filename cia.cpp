@@ -587,12 +587,17 @@ static void do_tod_hack (int dotod)
 		return;
 	}
 
-	if (currprefs.cs_ciaatod == 0)
+	if (currprefs.cs_ciaatod == 0) {
 		rate = (int)(vblank_hz + 0.5);
-	else if (currprefs.cs_ciaatod == 1)
+		if (rate >= 59 && rate <= 61)
+			rate = 60;
+		if (rate >= 49 && rate <= 51)
+			rate = 50;
+	} else if (currprefs.cs_ciaatod == 1) {
 		rate = 50;
-	else
+	} else {
 		rate = 60;
+	}
 	if (rate <= 0)
 		return;
 	if (rate != oldrate || ciaatod != tod_hack_tod_last) {

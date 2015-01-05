@@ -122,9 +122,10 @@ static unsigned long dsksync_cycles;
 int disk_hpos;
 static int disk_jitter;
 static int indexdecay;
-
 static uae_u8 prev_data;
 static int prev_step;
+static bool initial_disk_statusline;
+static struct diskinfo disk_info_data = { 0 };
 
 typedef enum { TRACK_AMIGADOS, TRACK_RAW, TRACK_RAW1, TRACK_PCDOS, TRACK_DISKSPARE, TRACK_NONE } image_tracktype;
 typedef struct {
@@ -1048,15 +1049,28 @@ static bool isrecognizedext (const TCHAR *name)
 	return false;
 }
 
+static void update_disk_statusline(int num)
+{
+	drive *drv = &floppy[num];
+	if (!drv->diskfile)
+		return;
+	TCHAR *fname = zfile_getname(drv->diskfile);
+	if (disk_info_data.diskname[0])
+		statusline_add_message(_T("DF%d: [%s] %s"), num, disk_info_data.diskname, my_getfilepart(fname));
+	else
+		statusline_add_message(_T("DF%d: %s"), num, my_getfilepart(fname));
+}
+
 static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR *fname, bool fake, bool forcedwriteprotect)
 {
-	struct diskinfo di = { 0 };
 	uae_u8 buffer[2 + 2 + 4 + 4];
 	trackid *tid;
 	int num_tracks, size;
 	int canauto;
 
 	drive_image_free (drv);
+	if (!fake)
+		DISK_examine_image(p, dnum, &disk_info_data);
 	DISK_validate_filename (p, fname, 1, &drv->wrprot, &drv->crc32, &drv->diskfile);
 	drv->forcedwrprot = forcedwriteprotect;
 	if (drv->forcedwrprot)
@@ -1067,10 +1081,10 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 	drv->tracktiming[0] = 0;
 	drv->useturbo = 0;
 	drv->indexoffset = 0;
-	if (!fake)
+	if (!fake) {
 		drv->dskeject = false;
-
-	gui_disk_image_change (dnum, fname, drv->wrprot);
+		gui_disk_image_change (dnum, fname, drv->wrprot);
+	}
 
 	if (!drv->motoroff) {
 		drv->dskready_up_time = DSKREADY_UP_TIME * 312 + (uaerand() & 511);
@@ -1334,11 +1348,8 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 			driveclick_insert (drv - floppy, 0);
 #endif
 		update_drive_gui (drv - floppy, false);
+		update_disk_statusline(drv - floppy);
 	}
-	if (di.diskname[0])
-		statusline_add_message(_T("DF%d: [%s] %s"), drv - floppy, di.diskname, my_getfilepart(fname));
-	else
-		statusline_add_message(_T("DF%d: %s"), drv - floppy, my_getfilepart(fname));
 	return 1;
 }
 
@@ -3545,6 +3556,12 @@ void DISK_hsync (void)
 		return;
 	}
 	DISK_update (maxhpos);
+
+	// show insert disk in df0: when booting
+	if (initial_disk_statusline) {
+		initial_disk_statusline = false;
+		update_disk_statusline(0);
+	}
 }
 
 void DISK_update (int tohpos)
@@ -3931,8 +3948,7 @@ void DSKPTL (uae_u16 v)
 
 void DISK_free (void)
 {
-	int dr;
-	for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
+	for (int dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 		drive *drv = &floppy[dr];
 		drive_image_free (drv);
 	}
@@ -3940,9 +3956,7 @@ void DISK_free (void)
 
 void DISK_init (void)
 {
-	int dr;
-
-	for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
+	for (int dr = MAX_FLOPPY_DRIVES - 1; dr >= 0; dr--) {
 		drive *drv = &floppy[dr];
 		/* reset all drive types to 3.5 DD */
 		drive_settype_id (drv);
@@ -3956,8 +3970,6 @@ void DISK_init (void)
 
 void DISK_reset (void)
 {
-	int i;
-
 	if (savestate_state)
 		return;
 
@@ -3965,8 +3977,11 @@ void DISK_reset (void)
 	disk_hpos = 0;
 	dskdmaen = 0;
 	disabled = 0;
-	for (i = 0; i < MAX_FLOPPY_DRIVES; i++)
-		reset_drive (i);
+	memset(&disk_info_data, 0, sizeof disk_info_data);
+	for (int dr = MAX_FLOPPY_DRIVES - 1; dr >= 0; dr--) {
+		reset_drive (dr);
+	}
+	initial_disk_statusline = true;
 	setamax ();
 }
 

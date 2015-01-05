@@ -4555,12 +4555,10 @@ static void inject_icons_to_directory(Unit *unit, a_inode *base)
 		if (aino->dir) {
 			vfso = &vfso_icon_drawer;
 		} else {
-			struct mystat statbuf;
-			get_statinfo(unit, aino, &statbuf);
-			if (statbuf.mode & A_FIBF_EXECUTE)
-				vfso = &vfso_icon_tool;
-			else
+			if (aino->amigaos_mode & A_FIBF_EXECUTE)
 				vfso = &vfso_icon_project;
+			else
+				vfso = &vfso_icon_tool;
 		}
 		lookup_child_aino_for_exnext(unit, base, tmp, &err, 0, vfso);
 	}
