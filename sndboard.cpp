@@ -34,17 +34,25 @@ static uae_u8 ad1848_status;
 static int autocalibration;
 extern addrbank toccata_bank;
 static uae_u8 toccata_status;
-static bool toccata_irq;
+static int toccata_irq;
 
 #define FIFO_SIZE 1024
 #define FIFO_SIZE_HALF (FIFO_SIZE / 2)
+
 static int fifo_read_index;
 static int fifo_write_index;
 static int data_in_fifo;
 static uae_u8 fifo[FIFO_SIZE];
-static bool fifo_half;
-static bool toccata_playing;
+
+static int fifo_record_read_index;
+static int fifo_record_write_index;
+static int data_in_record_fifo;
+static uae_u8 record_fifo[FIFO_SIZE];
+
+static int fifo_half;
+static int toccata_active;
 static int left_volume, right_volume;
+
 
 #define STATUS_ACTIVE 1
 #define STATUS_RESET 2
@@ -59,7 +67,8 @@ static int left_volume, right_volume;
 #define STATUS_READ_RECORD_HALF 4
 
 static int freq, channels, samplebits;
-static int event_time;
+static int event_time, record_event_time;
+static int record_event_counter;
 static double base_event_clock;
 static int bytespersample;
 
@@ -103,23 +112,29 @@ static void process_fifo(void)
 	ch_sample[1] = ch_sample[1] * right_volume / 64;
 
 	if (data_in_fifo < FIFO_SIZE_HALF && prev_data_in_fifo >= FIFO_SIZE_HALF)
-		fifo_half = true;
+		fifo_half |= STATUS_FIFO_PLAY;
 }
 
 void audio_state_sndboard(int ch)
 {
-	if (toccata_playing && ch == 0) {
+	if ((toccata_active & STATUS_FIFO_PLAY) && ch == 0) {
 		// get all bytes at once to prevent fifo going out of sync
 		// if fifo has for example 3 bytes remaining but we need 4.
 		process_fifo();
-		if (fifo_half) {
-			if ((toccata_status & STATUS_PLAY_INTENA) && (toccata_status & STATUS_FIFO_PLAY) && (toccata_status & STATUS_FIFO_CODEC) && !toccata_irq) {
-				toccata_irq = true;
-				sndboard_rethink();
+	}
+	if (toccata_active && (toccata_status & STATUS_FIFO_CODEC)) {
+		int old = toccata_irq;
+		if ((fifo_half & STATUS_FIFO_PLAY) && (toccata_status & STATUS_PLAY_INTENA) && (toccata_status & STATUS_FIFO_PLAY)) {
+			toccata_irq |= STATUS_READ_PLAY_HALF;
+		}
+		if ((fifo_half & STATUS_FIFO_RECORD) && (toccata_status & STATUS_FIFO_RECORD) && (toccata_status & STATUS_FIFO_RECORD)) {
+			toccata_irq |= STATUS_READ_RECORD_HALF;
+		}
+		if (old != toccata_irq) {
+			sndboard_rethink();
 #if DEBUG_TOCCATA > 2
-				write_log(_T("TOCCATA IRQ\n"));
+			write_log(_T("TOCCATA IRQ\n"));
 #endif
-			}
 		}
 	}
 	audio_state_sndboard_state(ch, ch_sample[ch], event_time);
@@ -156,7 +171,7 @@ static const int freq_dividers[] = {
 	2560
 };
 
-static void codec_play(void)
+static void codec_setup(void)
 {
 	uae_u8 c = ad1848_regs[8];
 
@@ -164,20 +179,31 @@ static void codec_play(void)
 	samplebits = (c & 0x40) ? 16 : 8;
 	freq = freq_crystals[c & 1] / freq_dividers[(c >> 1) & 7];
 	bytespersample = (samplebits / 8) * channels;
+	write_log(_T("TOCCATA start %s freq=%d bits=%d channels=%d\n"),
+		((toccata_active & (STATUS_FIFO_PLAY | STATUS_FIFO_RECORD)) == (STATUS_FIFO_PLAY | STATUS_FIFO_RECORD)) ? _T("Play+Record") :
+		(toccata_active & STATUS_FIFO_PLAY) ? _T("Play") : _T("Record"),
+		freq, samplebits, channels);
+}
 
-	write_log(_T("TOCCATA start freq=%d bits=%d channels=%d\n"), freq, samplebits, channels);
+static void codec_start(void)
+{
+	toccata_active  = (ad1848_regs[9] & 1) ? STATUS_FIFO_PLAY : 0;
+	toccata_active |= (ad1848_regs[9] & 2) ? STATUS_FIFO_RECORD : 0;
+
+	codec_setup();
 
 	event_time = base_event_clock * CYCLE_UNIT / freq;
+	record_event_time = base_event_clock * FIFO_SIZE_HALF / (freq * bytespersample);
+	record_event_counter = 0;
 
-	audio_enable_sndboard(true);
-
-	toccata_playing = true;
+	if (toccata_active & STATUS_FIFO_PLAY)
+		audio_enable_sndboard(true);
 }
 
 static void codec_stop(void)
 {
 	write_log(_T("TOCCATA stop\n"));
-	toccata_playing = false;
+	toccata_active = 0;
 	audio_enable_sndboard(false);
 }
 
@@ -191,12 +217,22 @@ void sndboard_hsync(void)
 {
 	if (autocalibration > 0)
 		autocalibration--;
+	if (toccata_active & STATUS_FIFO_RECORD) {
+		record_event_counter -= maxhpos;
+		if (record_event_counter <= 0) {
+			record_event_counter += record_event_time;
+			int size = data_in_record_fifo < FIFO_SIZE_HALF ? 512 : FIFO_SIZE - data_in_record_fifo;
+			data_in_record_fifo += size;
+			fifo_record_write_index += size;
+			fifo_record_write_index %= FIFO_SIZE;
+			fifo_half |= STATUS_FIFO_RECORD;
+			audio_state_sndboard(-1);
+		}
+	}
 }
 
 void sndboard_vsync(void)
 {
-	if (toccata_playing)
-		audio_activate();
 }
 
 static void toccata_put(uaecptr addr, uae_u8 v)
@@ -223,9 +259,9 @@ static void toccata_put(uaecptr addr, uae_u8 v)
 			case 9:
 			if (v & 8) // ACI enabled
 				autocalibration = 50;
-			if (!(old & 1) && (v & 1))
-				codec_play();
-			else if ((old & 1) && !(v & 1))
+			if (!(old & 3) && (v & 3))
+				codec_start();
+			else if ((old & 3) && !(v & 3))
 				codec_stop();
 			break;
 			case 7:
@@ -245,14 +281,14 @@ static void toccata_put(uaecptr addr, uae_u8 v)
 				data_in_fifo++;
 			}
 		}
-		toccata_irq = false;
-		fifo_half = false;
+		toccata_irq &= ~STATUS_READ_PLAY_HALF;
+		fifo_half &= ~STATUS_FIFO_PLAY;
 	} else if ((addr & 0x6800) == 0x0000) {
 		// Board status
 		if (v & STATUS_RESET) {
 			codec_stop();
 			toccata_status = 0;
-			toccata_irq = false;
+			toccata_irq = 0;
 			v = 0;
 		}
 		if (v == STATUS_ACTIVE) {
@@ -260,8 +296,8 @@ static void toccata_put(uaecptr addr, uae_u8 v)
 			fifo_read_index = 0;
 			data_in_fifo = 0;
 			toccata_status = 0;
-			toccata_irq = false;
-			fifo_half = false;
+			toccata_irq = 0;
+			fifo_half = 0;
 		}
 		toccata_status = v;
 #if DEBUG_TOCCATA > 0
@@ -299,13 +335,25 @@ static uae_u8 toccata_get(uaecptr addr)
 				v = 0x0a;
 			break;
 		}
+	} else if ((addr & 0x6800) == 0x2000) {
+		// FIFO output
+		v = fifo[fifo_record_read_index];
+		if (toccata_status & STATUS_FIFO_RECORD) {
+			if (data_in_record_fifo > 0) {
+				fifo_record_read_index++;
+				fifo_record_read_index %= FIFO_SIZE;
+				data_in_record_fifo--;
+			}
+		}
+		toccata_irq &= ~STATUS_READ_RECORD_HALF;
+		fifo_half &= ~STATUS_FIFO_RECORD;
 	} else if ((addr & 0x6800) == 0x0000) {
 		// Board status
 		v = STATUS_READ_INTREQ; // active low
 		if (toccata_irq) {
 			v &= ~STATUS_READ_INTREQ;
-			v |= STATUS_READ_PLAY_HALF;
-			toccata_irq = false;
+			v |= toccata_irq;
+			toccata_irq = 0;
 		}
 #if DEBUG_TOCCATA > 0
 		write_log(_T("TOCCATA GET STATUS %08x %02x %d PC=%08X\n"), addr, v, idx, M68K_GETPC);
