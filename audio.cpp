@@ -427,7 +427,7 @@ STATIC_INLINE void put_sound_word_right (uae_u32 w)
 		right_word_saved[saved_ptr] = w;
 		return;
 	}
-	PUT_SOUND_WORD_RIGHT (w);
+	PUT_SOUND_WORD (w);
 }
 
 STATIC_INLINE void put_sound_word_left (uae_u32 w)
@@ -448,10 +448,10 @@ STATIC_INLINE void put_sound_word_left (uae_u32 w)
 		rold = right_word_saved[saved_ptr] - SOUND16_BASE_VAL;
 		w = (lnew * mixed_mul2 + rold * mixed_mul1) / MIXED_STEREO_SCALE;
 
-		PUT_SOUND_WORD_LEFT (w);
-		PUT_SOUND_WORD_RIGHT (tmp);
+		PUT_SOUND_WORD (w);
+		PUT_SOUND_WORD (tmp);
 	} else {
-		PUT_SOUND_WORD_LEFT (w);
+		PUT_SOUND_WORD (w);
 	}
 }
 
@@ -461,7 +461,7 @@ STATIC_INLINE void put_sound_word_right2 (uae_u32 w)
 		right2_word_saved[saved_ptr2] = w;
 		return;
 	}
-	PUT_SOUND_WORD_RIGHT2 (w);
+	PUT_SOUND_WORD (w);
 }
 
 STATIC_INLINE void put_sound_word_left2 (uae_u32 w)
@@ -482,10 +482,10 @@ STATIC_INLINE void put_sound_word_left2 (uae_u32 w)
 		rold = right2_word_saved[saved_ptr2] - SOUND16_BASE_VAL;
 		w = (lnew * mixed_mul2 + rold * mixed_mul1) / MIXED_STEREO_SCALE;
 
-		PUT_SOUND_WORD_LEFT2 (w);
-		PUT_SOUND_WORD_RIGHT2 (tmp);
+		PUT_SOUND_WORD (w);
+		PUT_SOUND_WORD (tmp);
 	} else {
-		PUT_SOUND_WORD_LEFT2 (w);
+		PUT_SOUND_WORD (w);
 	}
 }
 
@@ -583,6 +583,14 @@ static void get_extra_channels(int *data1, int *data2, int sample1, int sample2)
 {
 	int d1 = *data1 + sample1;
 	int d2 = *data2 + sample2;
+	if (d1 < -32768)
+		d1 = -32768;
+	if (d1 > 32767)
+		d1 = 32767;
+	if (d2 < -32768)
+		d2 = -32768;
+	if (d2 > 32767)
+		d2 = 32767;
 	int needswap = currprefs.sound_stereo_swap_paula ^ currprefs.sound_stereo_swap_ahi;
 	if (needswap) {
 		*data1 = d2;
@@ -609,12 +617,26 @@ static void get_extra_channels_sample_mono(int *data1)
 {
 	if (audio_extra_channels[0]) {
 		int d1 = *data1 + audio_channel[AUDIO_CHANNEL_SNDBOARD_LEFT].current_sample;
+		if (d1 < -32768)
+			d1 = -32768;
+		if (d1 > 32767)
+			d1 = 32767;
 		*data1 = d1;
 	}
 	if (audio_extra_channels[1]) {
 		int d1 = *data1 + audio_channel[AUDIO_CHANNEL_CDA_LEFT].current_sample;
+		if (d1 < -32768)
+			d1 = -32768;
+		if (d1 > 32767)
+			d1 = 32767;
 		*data1 = d1;
 	}
+}
+
+static void do_filter(int *data, int num)
+{
+	if (currprefs.sound_filter)
+		*data = filter (*data, &sound_filter_state[num]);
 }
 
 static void sample16i_sinc_handler (void)
@@ -624,6 +646,11 @@ static void sample16i_sinc_handler (void)
 	samplexx_sinc_handler (datas);
 	data1 = datas[0] + datas[3] + datas[1] + datas[2];
 	data1 = FINISH_DATA (data1, 18);
+	
+	do_filter(&data1, 0);
+
+	get_extra_channels_sample_mono(&data1);
+
 	set_sound_buffers ();
 	PUT_SOUND_WORD_MONO (data1);
 	check_sound_buffers ();
@@ -651,6 +678,8 @@ void sample16_handler (void)
 	data = SBASEVAL16(2) + data0;
 	data = FINISH_DATA (data, 16);
 
+	do_filter(&data, 0);
+
 	get_extra_channels_sample_mono(&data);
 
 	set_sound_buffers ();
@@ -667,6 +696,8 @@ static void sample16i_anti_handler (void)
 	samplexx_anti_handler (datas);
 	data1 = datas[0] + datas[3] + datas[1] + datas[2];
 	data1 = FINISH_DATA (data1, 16);
+
+	do_filter(&data1, 0);
 
 	get_extra_channels_sample_mono(&data1);
 
@@ -722,6 +753,8 @@ static void sample16i_rh_handler (void)
 	data0 += (data3 * (256 - ratio) + data3p * ratio) >> 8;
 	data = SBASEVAL16(2) + data0;
 	data = FINISH_DATA (data, 16);
+
+	do_filter(&data, 0);
 
 	get_extra_channels_sample_mono(&data);
 
@@ -798,6 +831,8 @@ static void sample16i_crux_handler (void)
 	data = SBASEVAL16(2) + data0;
 	data = FINISH_DATA (data, 16);
 
+	do_filter(&data, 0);
+
 	get_extra_channels_sample_mono(&data);
 
 	set_sound_buffers ();
@@ -836,6 +871,11 @@ void sample16ss_handler (void)
 	data2 = FINISH_DATA (data2, 14);
 	data3 = FINISH_DATA (data3, 14);
 
+	do_filter(&data0, 0);
+	do_filter(&data1, 1);
+	do_filter(&data2, 3);
+	do_filter(&data3, 2);
+
 	get_extra_channels_sample(&data0, &data1);
 	get_extra_channels_sample(&data2, &data3);
 
@@ -863,6 +903,11 @@ void sample16ss_anti_handler (void)
 	data2 = FINISH_DATA (datas[2], 14);
 	data3 = FINISH_DATA (datas[3], 14);
 
+	do_filter(&data0, 0);
+	do_filter(&data1, 1);
+	do_filter(&data2, 3);
+	do_filter(&data3, 2);
+
 	get_extra_channels_sample(&data0, &data1);
 	get_extra_channels_sample(&data3, &data2);
 
@@ -886,6 +931,9 @@ static void sample16si_anti_handler (void)
 	data1 = FINISH_DATA (data1, 15);
 	data2 = FINISH_DATA (data2, 15);
 
+	do_filter(&data1, 0);
+	do_filter(&data2, 1);
+
 	get_extra_channels_sample(&data1, &data2);
 
 	set_sound_buffers ();
@@ -904,6 +952,11 @@ void sample16ss_sinc_handler (void)
 	data1 = FINISH_DATA (datas[1], 16);
 	data2 = FINISH_DATA (datas[2], 16);
 	data3 = FINISH_DATA (datas[3], 16);
+
+	do_filter(&data0, 0);
+	do_filter(&data1, 1);
+	do_filter(&data2, 3);
+	do_filter(&data3, 2);
 
 	get_extra_channels_sample(&data0, &data1);
 	get_extra_channels_sample(&data3, &data2);
@@ -927,6 +980,9 @@ static void sample16si_sinc_handler (void)
 	data2 = datas[1] + datas[2];
 	data1 = FINISH_DATA (data1, 17);
 	data2 = FINISH_DATA (data2, 17);
+
+	do_filter(&data1, 0);
+	do_filter(&data2, 1);
 
 	get_extra_channels_sample(&data1, &data2);
 
@@ -958,6 +1014,9 @@ void sample16s_handler (void)
 	data2 = FINISH_DATA (data2, 15);
 	data3 = SBASEVAL16(1) + data1;
 	data3 = FINISH_DATA (data3, 15);
+
+	do_filter(&data2, 0);
+	do_filter(&data3, 1);
 
 	get_extra_channels_sample(&data2, &data3);
 
@@ -1035,6 +1094,9 @@ static void sample16si_crux_handler (void)
 	data3 = SBASEVAL16(1) + data1;
 	data3 = FINISH_DATA (data3, 15);
 
+	do_filter(&data2, 0);
+	do_filter(&data3, 1);
+
 	get_extra_channels_sample(&data2, &data3);
 
 	set_sound_buffers ();
@@ -1091,6 +1153,9 @@ static void sample16si_rh_handler (void)
 	data2 = FINISH_DATA (data2, 15);
 	data3 = SBASEVAL16(1) + data1;
 	data3 = FINISH_DATA (data3, 15);
+
+	do_filter(&data2, 0);
+	do_filter(&data3, 1);
 
 	get_extra_channels_sample(&data2, &data3);
 
@@ -1516,6 +1581,8 @@ static void audio_state_channel2 (int nr, bool perfin)
 	}
 }
 
+void audio_state_cda(void);
+
 static void audio_state_channel (int nr, bool perfin)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
@@ -1524,8 +1591,8 @@ static void audio_state_channel (int nr, bool perfin)
 		cdp->dat_written = false;
 	} else if (nr == AUDIO_CHANNEL_SNDBOARD_LEFT || nr == AUDIO_CHANNEL_SNDBOARD_RIGHT) {
 		audio_state_sndboard(nr - AUDIO_CHANNEL_SNDBOARD_LEFT);
-	} else {
-		audio_state_cda(nr - AUDIO_CHANNEL_CDA_LEFT);
+	} else if (nr == AUDIO_CHANNEL_CDA_LEFT) {
+		audio_state_cda();
 	}
 }
 
@@ -1586,6 +1653,7 @@ static int sound_prefs_changed (void)
 		|| changed_prefs.sound_volume != currprefs.sound_volume
 		|| changed_prefs.sound_stereo_swap_paula != currprefs.sound_stereo_swap_paula
 		|| changed_prefs.sound_stereo_swap_ahi != currprefs.sound_stereo_swap_ahi
+		|| changed_prefs.sound_cdaudio != currprefs.sound_cdaudio
 		|| changed_prefs.sound_filter != currprefs.sound_filter
 		|| changed_prefs.sound_filter_type != currprefs.sound_filter_type)
 		return -1;
@@ -1657,6 +1725,7 @@ void set_audio (void)
 	currprefs.sound_filter = changed_prefs.sound_filter;
 	currprefs.sound_filter_type = changed_prefs.sound_filter_type;
 	currprefs.sound_volume = changed_prefs.sound_volume;
+	currprefs.sound_cdaudio = changed_prefs.sound_cdaudio;
 	currprefs.sound_stereo_swap_paula = changed_prefs.sound_stereo_swap_paula;
 	currprefs.sound_stereo_swap_ahi = changed_prefs.sound_stereo_swap_ahi;
 
@@ -1869,7 +1938,7 @@ void audio_hsync (void)
 {
 	if (!isaudio ())
 		return;
-	if (audio_work_to_do > 0 && currprefs.sound_auto
+	if (audio_work_to_do > 0 && currprefs.sound_auto && !audio_extra_channels[0] && !audio_extra_channels[1]
 #ifdef AVIOUTPUT
 			&& !avioutput_enabled
 #endif
@@ -2182,33 +2251,35 @@ uae_u8 *save_audio (int nr, int *len, uae_u8 *dstptr)
 	return dstbak;
 }
 
+static void audio_set_extra_channels(void)
+{
+	audio_channel_count = audio_extra_channels[1] ? AUDIO_CHANNELS_PAULA + 4 : (audio_extra_channels[0] ? AUDIO_CHANNELS_PAULA + 2 : AUDIO_CHANNELS_PAULA);
+}
+
 void audio_enable_sndboard(bool enable)
 {
 	struct audio_channel_data *acd = audio_channel + AUDIO_CHANNEL_SNDBOARD_LEFT;
 	if (!enable) {
-		audio_channel_count = AUDIO_CHANNELS_PAULA;
 		audio_extra_channels[0] = false;
 		acd[1].evtime = acd->evtime = MAX_EV;
 	} else {
-		audio_channel_count = AUDIO_CHANNELS_PAULA + 2;
 		audio_extra_channels[0] = true;
 		acd[1].evtime = acd->evtime = CYCLE_UNIT;
 	}
+	audio_set_extra_channels();
 }
 
 void audio_enable_cda(bool enable)
 {
 	struct audio_channel_data *acd = audio_channel + AUDIO_CHANNEL_CDA_LEFT;
 	if (!enable) {
-		audio_channel_count = AUDIO_CHANNELS_PAULA;
 		audio_extra_channels[1] = false;
 		acd[1].evtime = acd->evtime = MAX_EV;
 	} else {
-		audio_channel_count = AUDIO_CHANNELS_PAULA + 4;
 		audio_extra_channels[1] = true;
 		acd[1].evtime = acd->evtime = CYCLE_UNIT;
 	}
-	
+	audio_set_extra_channels();
 }
 
 void audio_state_sndboard_state(int ch, int sample, unsigned int evt)
@@ -2219,11 +2290,63 @@ void audio_state_sndboard_state(int ch, int sample, unsigned int evt)
 	acd->evtime = evt;
 }
 
-void audio_state_cda_state(int ch, int sample, unsigned int evt)
+static uae_s16 *cda_bufptr;
+static int cda_length, cda_userdata;
+static unsigned int cda_evt;
+static uae_s16 dummy_buffer[4] = { 0 };
+static CDA_CALLBACK cda_next_cd_audio_buffer_callback;
+static int cda_volume[2];
+
+void update_cda_sound(double clk)
 {
-	struct audio_channel_data *acd = audio_channel + AUDIO_CHANNEL_CDA_LEFT + ch;
-	acd->last_sample = acd->current_sample;
-	acd->current_sample = sample;
-	acd->evtime = evt;
+	cda_evt = clk * CYCLE_UNIT / 44100;
 }
 
+void audio_cda_volume(int master, int left, int right)
+{
+	for (int j = 0; j < 2; j++) {
+		cda_volume[j] = j == 0 ? left : right;
+		cda_volume[j] = (100 - master) * cda_volume[j] / 100;
+		if (cda_volume[j])
+			cda_volume[j]++;
+		if (cda_volume[j] >= 32768)
+			cda_volume[j] = 32768;
+	}
+}
+
+void audio_cda_new_buffer(uae_s16 *buffer, int length, int userdata, CDA_CALLBACK next_cd_audio_buffer_callback)
+{
+	if (!buffer) {
+		cda_bufptr = dummy_buffer;
+		cda_length = 0;
+	} else {
+		cda_bufptr = buffer;
+		cda_length = length;
+		cda_userdata = userdata;
+		if (!audio_extra_channels[1])
+			audio_enable_cda(true);
+	}
+	cda_next_cd_audio_buffer_callback = next_cd_audio_buffer_callback;
+	audio_activate();
+}
+
+static void audio_state_cda(void)
+{
+	if (cda_bufptr >= dummy_buffer && cda_bufptr <= dummy_buffer + 4) {
+		audio_enable_cda(false);
+		return;	
+	}
+	struct audio_channel_data *acd = audio_channel + AUDIO_CHANNEL_CDA_LEFT;
+	acd->last_sample = acd->current_sample;
+	acd->current_sample = cda_bufptr[0] * cda_volume[0] / 32768;
+	acd->evtime = cda_evt;
+	acd++;
+	acd->last_sample = acd->current_sample;
+	acd->current_sample = cda_bufptr[1] * cda_volume[1] / 32768;
+	acd->evtime = cda_evt;
+	cda_bufptr += 2;
+	cda_length--;
+	if (cda_length <= 0 && cda_next_cd_audio_buffer_callback) {
+		cda_next_cd_audio_buffer_callback(cda_userdata);
+	}
+}

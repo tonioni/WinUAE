@@ -27,6 +27,7 @@
 #include "cda_play.h"
 #include "memory.h"
 #include "audio.h"
+#include "uae.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -109,6 +110,7 @@ static int bus_open;
 
 static volatile int cdimage_unpack_thread, cdimage_unpack_active;
 static smp_comm_pipe unpack_pipe;
+static uae_sem_t play_sem;
 
 static struct cdunit *unitisopen (int unitnum)
 {
@@ -417,42 +419,56 @@ static void audio_unpack (struct cdunit *cdu, struct cdtoc *t)
 	// do this even if audio is not compressed, t->handle also could be
 	// compressed and we want to unpack it in background too
 	while (cdimage_unpack_active == 1)
-		Sleep (10);
+		sleep_millis(10);
 	cdimage_unpack_active = 0;
 	write_comm_pipe_u32 (&unpack_pipe, cdu - &cdunits[0], 0);
 	write_comm_pipe_u32 (&unpack_pipe, t - &cdu->toc[0], 1);
 	while (cdimage_unpack_active == 0)
-		Sleep (10);
+		sleep_millis(10);
 }
 
-void audio_state_cda(int ch)
+static volatile int cda_bufon[2];
+static cda_audio *cda;
+
+void next_cd_audio_buffer_callback(int bufnum)
 {
-	audio_state_cda_state(ch, 0, 0);
+	uae_sem_wait(&play_sem);
+	if (bufnum >= 0) {
+		cda_bufon[bufnum] = 0;
+		bufnum = 1 - bufnum;
+		if (cda_bufon[bufnum])
+			audio_cda_new_buffer((uae_s16*)cda->buffers[bufnum], CDDA_BUFFERS * 2352 / 4, bufnum, next_cd_audio_buffer_callback);
+		else
+			bufnum = -1;
+	}
+	if (bufnum < 0) {
+		audio_cda_new_buffer(NULL, 0, -1, NULL);
+	}
+	uae_sem_post(&play_sem);
 }
 
 static void *cdda_play_func (void *v)
 {
 	int cdda_pos;
-	int num_sectors = CDDA_BUFFERS;
 	int bufnum;
-	int bufon[2];
 	int oldplay;
 	int idleframes = 0;
 	int silentframes = 0;
 	bool foundsub;
 	struct cdunit *cdu = (struct cdunit*)v;
 	int oldtrack = -1;
+	int mode = currprefs.sound_cdaudio;
 
 	cdu->thread_active = true;
 
 	while (cdu->cdda_play == 0)
-		Sleep (10);
+		sleep_millis(10);
 	oldplay = -1;
 
-	bufon[0] = bufon[1] = 0;
+	cda_bufon[0] = cda_bufon[1] = 0;
 	bufnum = 0;
 
-	cda_audio *cda = new cda_audio (num_sectors, 2352, 44100);
+	cda = new cda_audio (CDDA_BUFFERS, 2352, 44100);
 
 	while (cdu->cdda_play > 0) {
 
@@ -486,7 +502,7 @@ static void *cdda_play_func (void *v)
 			}
 			idleframes = cdu->cdda_delay_frames;
 			while (cdu->cdda_paused && cdu->cdda_play > 0) {
-				Sleep (10);
+				sleep_millis(10);
 				idleframes = -1;
 			}
 
@@ -522,7 +538,7 @@ static void *cdda_play_func (void *v)
 			diff = (tb2.time * (uae_s64)1000 + tb2.millitm) - (tb1.time * (uae_s64)1000 + tb1.millitm);
 			diff -= cdu->cdda_delay;
 			if (idleframes >= 0 && diff < 0 && cdu->cdda_play > 0)
-				Sleep (-diff);
+				sleep_millis(-diff);
 			setstate (cdu, AUDIO_STATUS_IN_PROGRESS);
 
 			sector = cdda_pos;
@@ -540,9 +556,15 @@ static void *cdda_play_func (void *v)
 			}
 		}
 
-		cda->wait(bufnum);
-		bufon[bufnum] = 0;
-		if (!cdu->cdda_play)
+		if (mode) {
+			while (cda_bufon[bufnum] && cdu->cdda_play > 0)
+				sleep_millis(10);
+		} else {
+			cda->wait(bufnum);
+		}
+
+		cda_bufon[bufnum] = 0;
+		if (cdu->cdda_play <= 0)
 			goto end;
 
 		if (idleframes <= 0 && cdda_pos >= cdu->cdda_start && !isaudiotrack (&cdu->di.toc, cdda_pos)) {
@@ -558,9 +580,9 @@ static void *cdda_play_func (void *v)
 
 			gui_flicker_led (LED_CD, cdu->di.unitnum - 1, LED_CD_AUDIO);
 
-			memset (cda->buffers[bufnum], 0, num_sectors * 2352);
+			memset (cda->buffers[bufnum], 0, CDDA_BUFFERS * 2352);
 
-			for (cnt = 0; cnt < num_sectors && cdu->cdda_play > 0; cnt++) {
+			for (cnt = 0; cnt < CDDA_BUFFERS && cdu->cdda_play > 0; cnt++) {
 				uae_u8 *dst = cda->buffers[bufnum] + cnt * 2352;
 				uae_u8 subbuf[SUB_CHANNEL_SIZE];
 				sector = cdda_pos;
@@ -628,7 +650,7 @@ static void *cdda_play_func (void *v)
 					cdda_pos++;
 				}
 
-				if (cdda_pos - num_sectors < cdu->cdda_end && cdda_pos >= cdu->cdda_end)
+				if (cdda_pos - CDDA_BUFFERS < cdu->cdda_end && cdda_pos >= cdu->cdda_end)
 					dofinish = 1;
 
 			}
@@ -636,12 +658,21 @@ static void *cdda_play_func (void *v)
 			if (idleframes <= 0)
 				cdu->cd_last_pos = cdda_pos;
 
-			bufon[bufnum] = 1;
-			cda->setvolume (currprefs.sound_volume_cd >= 0 ? currprefs.sound_volume_cd : currprefs.sound_volume, cdu->cdda_volume[0], cdu->cdda_volume[1]);
-			if (!cda->play (bufnum)) {
-				if (cdu->cdda_play > 0)
-					setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
-				goto end;
+			if (mode) {
+				if (cda_bufon[0] == 0 && cda_bufon[1] == 0) {
+					cda_bufon[bufnum] = 1;
+					next_cd_audio_buffer_callback(1 - bufnum);
+				}
+				audio_cda_volume(currprefs.sound_volume_cd >= 0 ? currprefs.sound_volume_cd : currprefs.sound_volume, cdu->cdda_volume[0], cdu->cdda_volume[1]);
+				cda_bufon[bufnum] = 1;
+			} else {
+				cda_bufon[bufnum] = 1;
+				cda->setvolume (currprefs.sound_volume_cd >= 0 ? currprefs.sound_volume_cd : currprefs.sound_volume, cdu->cdda_volume[0], cdu->cdda_volume[1]);
+				if (!cda->play (bufnum)) {
+					if (cdu->cdda_play > 0)
+						setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
+					goto end;
+				}
 			}
 
 			if (dofinish) {
@@ -653,20 +684,24 @@ static void *cdda_play_func (void *v)
 
 		}
 
-		if (bufon[0] == 0 && bufon[1] == 0) {
+		if (cda_bufon[0] == 0 && cda_bufon[1] == 0) {
 			while (cdu->cdda_paused && cdu->cdda_play == oldplay)
-				Sleep (10);
+				sleep_millis(10);
 		}
 
 		bufnum = 1 - bufnum;
 	}
 
 end:
-	cda->wait (0);
-	cda->wait (1);
+	if (mode) {
+		next_cd_audio_buffer_callback(-1);
+	} else {
+		cda->wait (0);
+		cda->wait (1);
+	}
 
 	while (cdimage_unpack_active == 1)
-		Sleep (10);
+		sleep_millis(10);
 
 	delete cda;
 
@@ -682,7 +717,7 @@ static void cdda_stop (struct cdunit *cdu)
 	if (cdu->cdda_play != 0) {
 		cdu->cdda_play = -1;
 		while (cdu->cdda_play && cdu->thread_active) {
-			Sleep (10);
+			sleep_millis(10);
 		}
 		cdu->cdda_play = 0;
 	}
@@ -1977,6 +2012,7 @@ static void close_bus (void)
 		cdu->enabled = false;
 	}
 	bus_open = 0;
+	uae_sem_destroy(&play_sem);
 	write_log (_T("IMAGE driver closed.\n"));
 }
 
@@ -1987,6 +2023,7 @@ static int open_bus (int flags)
 		return 1;
 	}
 	bus_open = 1;
+	uae_sem_init(&play_sem, 0, 1);
 	write_log (_T("Image driver open.\n"));
 	return 1;
 }

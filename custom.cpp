@@ -3506,11 +3506,13 @@ void compute_vsynctime (void)
 {
 	double svpos = maxvpos_nom;
 	double shpos = maxhpos_short;
+	double syncadjust = 1.0;
 
 	fake_vblank_hz = 0;
 	vblank_hz_mult = 0;
 	vblank_hz_state = 1;
 	if (fabs (currprefs.chipset_refreshrate) > 0.1) {
+		syncadjust = currprefs.chipset_refreshrate / vblank_hz_nom;
 		vblank_hz = currprefs.chipset_refreshrate;
 		if (isvsync_chipset ()) {
 			int mult = 0;
@@ -3544,9 +3546,10 @@ void compute_vsynctime (void)
 		double clk = svpos * shpos * fake_vblank_hz;
 		//write_log (_T("SNDRATE %.1f*%.1f*%.6f=%.6f\n"), svpos, shpos, fake_vblank_hz, clk);
 		update_sound (clk);
-		update_sndboard_sound (clk);
+		update_sndboard_sound (clk / syncadjust);
+		update_cda_sound(clk / syncadjust);
 	}
-	cd32_fmv_set_sync(svpos);
+	cd32_fmv_set_sync(svpos, syncadjust);
 }
 
 
