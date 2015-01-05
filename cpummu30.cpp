@@ -60,6 +60,7 @@ uae_u32 mm030_stageb_address;
 bool mmu030_retry;
 int mmu030_opcode;
 int mmu030_opcode_stageb;
+int mmu030_fake_prefetch;
 uae_u16 mmu030_state[3];
 uae_u32 mmu030_data_buffer;
 uae_u32 mmu030_disp_store[2];
@@ -709,15 +710,35 @@ int mmu030_do_match_lrmw_ttr(uae_u32 tt, TT_info comp, uaecptr addr, uae_u32 fc)
 #define TC_TIC_MASK             0x000000F0
 #define TC_TID_MASK             0x0000000F
 
+static void mmu030_do_fake_prefetch(void)
+{
+	uaecptr pc = m68k_getpci();
+	// fetch next opcode before MMU state switches.
+	// There are programs that do following:
+	// - enable MMU
+	// - JMP (An)
+	// "enable MMU" unmaps memory under us.
+	TRY (prb) {
+		mmu030_fake_prefetch = x_prefetch(0);
+	} CATCH (prb) {
+		// didn't work, oh well..
+		mmu030_fake_prefetch = -1;
+	} ENDTRY
+	write_log(_T("MMU030 fake prefetched %04X\n"), mmu030_fake_prefetch);
+}
 
-bool mmu030_decode_tc(uae_u32 TC) {
-        
+bool mmu030_decode_tc(uae_u32 TC)
+{
     /* Set MMU condition */    
     if (TC & TC_ENABLE_TRANSLATION) {
+		if (!mmu030.enabled)
+			mmu030_do_fake_prefetch();
         mmu030.enabled = true;
     } else {
-		if (mmu030.enabled)
+		if (mmu030.enabled) {
+			mmu030_do_fake_prefetch();
 			write_log(_T("MMU disabled\n"));
+		}
         mmu030.enabled = false;
         return false;
     }
@@ -1957,8 +1978,7 @@ uae_u16 mmu030_get_iword(uaecptr addr, uae_u32 fc) {
 
 	if (atc_line_num >= 0) {
 		return mmu030_get_iword_atc(addr, atc_line_num, fc);
-	}
-	else {
+	} else {
 		mmu030_table_search(addr, fc, false, 0);
 		return mmu030_get_iword_atc(addr, mmu030_logical_is_in_atc(addr, fc, false), fc);
 	}
@@ -2288,6 +2308,13 @@ void mmu030_reset(int hardreset)
         mmusr_030 = 0;
         mmu030_flush_atc_all();
 	}
+	mmu030_set_funcs();
+}
+
+void mmu030_set_funcs(void)
+{
+	if (currprefs.mmu_model != 68030)
+		return;
 	if (currprefs.cpu_cycle_exact || currprefs.cpu_compatible) {
 		x_phys_get_iword = get_word_icache030;
 		x_phys_get_ilong = get_long_icache030;

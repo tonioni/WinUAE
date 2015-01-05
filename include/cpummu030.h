@@ -11,7 +11,7 @@ extern uae_u16 mmusr_030;
 extern uae_u32 mm030_stageb_address;
 extern int mmu030_idx;
 extern bool mmu030_retry;
-extern int mmu030_opcode, mmu030_opcode_stageb;
+extern int mmu030_opcode, mmu030_opcode_stageb, mmu030_fake_prefetch;
 extern uae_u16 mmu030_state[3];
 extern uae_u32 mmu030_data_buffer;
 extern uae_u32 mmu030_disp_store[2];
@@ -74,6 +74,7 @@ void mmu030_flush_atc_page(uaecptr logical_addr);
 void mmu030_flush_atc_page_fc(uaecptr logical_addr, uae_u32 fc_base, uae_u32 fc_mask);
 void mmu030_flush_atc_all(void);
 void mmu030_reset(int hardreset);
+void mmu030_set_funcs(void);
 uaecptr mmu030_translate(uaecptr addr, bool super, bool data, bool write);
 
 int mmu030_match_ttr(uaecptr addr, uae_u32 fc, bool write);

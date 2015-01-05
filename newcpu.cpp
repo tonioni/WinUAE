@@ -1016,6 +1016,7 @@ static void set_x_funcs (void)
 	}
 
 	set_x_cp_funcs();
+	mmu030_set_funcs();
 
 }
 
@@ -2460,7 +2461,7 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 			Exception_build_stack_frame(oldpc, currpc, regs.mmu_fslw, nr, 0x4);
 	} else if (nr == 3) { // address error
         Exception_build_stack_frame(last_fault_for_exception_3, currpc, 0, nr, 0x2);
-		write_log (_T("Exception %d (%x) at %x -> %x!\n"), nr, last_fault_for_exception_3, currpc, get_long (regs.vbr + 4 * nr));
+		write_log (_T("Exception %d (%x) at %x -> %x!\n"), nr, last_fault_for_exception_3, currpc, get_long_debug (regs.vbr + 4 * nr));
 	} else if (nr == 5 || nr == 6 || nr == 7 || nr == 9) {
         Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x2);
 	} else if (regs.m && interrupt) { /* M + Interrupt */
@@ -3587,37 +3588,6 @@ isstopped:
 		}
 #endif
 
-#if 0
-		if (!uae_int_requested && !uaenet_int_requested && currprefs.cpu_idle && currprefs.m68k_speed != 0 && (regs.spcflags & SPCFLAG_STOP)
-#ifdef WITH_PPC
-			&& ppc_state != PPC_STATE_ACTIVE
-#endif			
-		) {
-			/* sleep 1ms if STOP-instruction is executed
-			 * but only if we have free frametime left to prevent slowdown
-			 */
-			{
-				static int sleepcnt, lvpos, zerocnt;
-				if (vpos != lvpos) {
-					lvpos = vpos;
-					frame_time_t rpt = read_processor_time ();
-					if ((int)rpt - (int)vsyncmaxtime < 0) {
-						sleepcnt--;
-#if 0
-						if (pissoff == 0 && currprefs.cachesize && --zerocnt < 0) {
-							sleepcnt = -1;
-							zerocnt = IDLETIME / 4;
-						}
-#endif
-						if (sleepcnt < 0) {
-							sleepcnt = IDLETIME / 2;
-							cpu_sleep_millis(1);
-						}
-					}
-				}
-			}
-		}
-#endif
 	}
 
 	if (regs.spcflags & SPCFLAG_TRACE)
@@ -4229,6 +4199,7 @@ static void m68k_run_mmu030 (void)
 	struct flag_struct f;
 
 	mmu030_opcode_stageb = -1;
+	mmu030_fake_prefetch = -1;
 retry:
 	TRY (prb) {
 		for (;;) {
@@ -4240,8 +4211,11 @@ insretry:
 
 			mmu030_state[0] = mmu030_state[1] = mmu030_state[2] = 0;
 			mmu030_opcode = -1;
-			if (mmu030_opcode_stageb < 0) {
-				regs.opcode = get_iword_mmu030 (0);
+			if (mmu030_fake_prefetch >= 0) {
+				regs.opcode = mmu030_fake_prefetch;
+				mmu030_fake_prefetch = -1;
+			} else if (mmu030_opcode_stageb < 0) {
+				regs.opcode = x_prefetch (0);
 			} else {
 				regs.opcode = mmu030_opcode_stageb;
 				mmu030_opcode_stageb = -1;
@@ -4257,6 +4231,7 @@ insretry:
 				count_instr (regs.opcode);
 				do_cycles (cpu_cycles);
 				mmu030_retry = false;
+
 				cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode);
 				cnt--; // so that we don't get in infinite loop if things go horribly wrong
 				if (!mmu030_retry)
@@ -4375,8 +4350,8 @@ retry:
 		goto retry;
 	} ENDTRY
 }
-/* "cycle exact" 68020/030  */
 
+/* "cycle exact" 68020/030  */
 
 static void m68k_run_2ce (void)
 {
