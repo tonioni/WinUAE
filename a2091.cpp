@@ -274,6 +274,23 @@ static struct wd_state *gvpscsi[] = {
 	&wd_gvp_2,
 };
 
+static void reset_dmac(struct wd_state *wd)
+{
+	switch (wd->dmac_type)
+	{
+		case GVP_DMAC:
+		wd->gdmac.cntr = 0;
+		wd->gdmac.dma_on = 0;
+		break;
+		case COMMODORE_SDMAC:
+		case COMMODORE_DMAC:
+		wd->cdmac.dmac_dma = 0;
+		wd->cdmac.dmac_istr = 0;
+		wd->cdmac.dmac_cntr = 0;
+		break;
+	}
+}
+
 static bool isirq(struct wd_state *wd)
 {
 	if (!wd->enabled)
@@ -338,7 +355,7 @@ static void dmac_a2091_xt_int(struct wd_state *wd)
 void scsi_dmac_a2091_start_dma (struct wd_state *wd)
 {
 #if A3000_DEBUG > 0 || A2091_DEBUG > 0
-	write_log (_T("DMAC DMA started, ADDR=%08X, LEN=%08X words\n"), wd->dmac_acr, wd->dmac_wtc);
+	write_log (_T("DMAC DMA started, ADDR=%08X, LEN=%08X words\n"), wd->cdmac.dmac_acr, wd->cdmac.dmac_wtc);
 #endif
 	wd->cdmac.dmac_dma = 1;
 }
@@ -388,7 +405,7 @@ static void doscsistatus(struct wd_state *wd, uae_u8 status)
 		return;
 	}
 	dmac_scsi_int(wd);
-#if A2091_DEBUG > 2 || A3000_DEBUG > 2
+#if WD33C93_DEBUG > 2
 	write_log (_T("Interrupt\n"));
 #endif
 }
@@ -662,7 +679,7 @@ static bool wd_do_transfer_out (struct wd_chip_state *wd, struct scsi_data *scsi
 	return true;
 }
 
-static bool wd_do_transfer_in (struct wd_chip_state *wd, struct scsi_data *scsi)
+static bool wd_do_transfer_in (struct wd_chip_state *wd, struct scsi_data *scsi, bool message_in_transfer_info)
 {
 #if WD33C93_DEBUG > 0
 	write_log (_T("%s SCSI I [%02X] %d/%d TC=%d %s\n"), WD33C93, wd->wdregs[WD_COMMAND_PHASE], scsi->offset, scsi->data_len, gettc (wd), scsitostring (wd, scsi));
@@ -688,10 +705,15 @@ static bool wd_do_transfer_in (struct wd_chip_state *wd, struct scsi_data *scsi)
 		wd->wd_phase = CSR_XFER_DONE | PHS_MESS_IN;
 		scsi_start_transfer(scsi);
 	} else if (wd->wdregs[WD_COMMAND_PHASE] == 0x50) {
-		setphase(wd, 0x60);
-		wd->wd_phase = CSR_DISC;
-		wd->wd_selected = false;
-		scsi_start_transfer(scsi);
+		// was TRANSFER INFO with message phase, wait for Negate ACK
+		if (!message_in_transfer_info) {
+			wd->wd_phase = CSR_DISC;
+			wd->wd_selected = false;
+			scsi_start_transfer(scsi);
+			setphase(wd, 0x60);
+		} else {
+			wd->wd_phase = CSR_MSGIN;
+		}
 	}
 	set_status(wd, wd->wd_phase, 1);
 	scsi->direction = 0;
@@ -876,7 +898,6 @@ static void wd_cmd_sel_xfer (struct wd_chip_state *wd, struct wd_state *wds, boo
 	wd->wd_selected = 0;
 }
 
-
 static void wd_cmd_trans_info (struct wd_chip_state *wd, struct scsi_data *scsi)
 {
 	if (wd->wdregs[WD_COMMAND_PHASE] == 0x20) {
@@ -982,7 +1003,7 @@ static void wd_cmd_sel (struct wd_chip_state *wd, struct wd_state *wds, bool atn
 		wd->wdregs[WD_COMMAND_PHASE] = 0x10;
 		set_status (wd, CSR_SRV_REQ | PHS_MESS_OUT, 4);
 	} else {
-		wd->wdregs[WD_COMMAND_PHASE] = 0x10; // connected as an initiator
+		wd->wdregs[WD_COMMAND_PHASE] = 0x20;
 		set_status (wd, CSR_SRV_REQ | PHS_COMMAND, 4);
 	} 
 }
@@ -1009,14 +1030,6 @@ static void wd_cmd_reset (struct wd_chip_state *wd, bool irq)
 		set_status (wd, (wd->wdregs[0] & 0x08) ? 1 : 0, 50);
 	}
 }
-static void wd_cmd_reset_a2091(struct wd_state *wd, bool irq)
-{
-	if (!irq) {
-		wd->cdmac.dmac_dma = 0;
-		wd->cdmac.dmac_istr = 0;
-		wd->cdmac.dmac_cntr = 0;
-	}
-}
 
 static void wd_cmd_abort (struct wd_chip_state *wd)
 {
@@ -1027,9 +1040,26 @@ static void wd_cmd_abort (struct wd_chip_state *wd)
 
 static void xt_command_done(struct wd_state *wd);
 
+static void wd_check_interrupt(struct wd_state *wds)
+{
+	struct wd_chip_state *wd = &wds->wc;
+	if (!wds->enabled)
+		return;
+	if (wd->auxstatus & ASR_INT)
+		return;
+	for (int i = 0; i < WD_STATUS_QUEUE; i++) {
+		if (wd->scsidelay_irq[i] == 1) {
+			wd->scsidelay_irq[i] = 0;
+			doscsistatus(wds, wd->scsidelay_status[i]);
+			wd->wd_busy = 0;
+		} else if (wd->scsidelay_irq[i] > 1) {
+			wd->scsidelay_irq[i]--;
+		}
+	}
+}
+
 static void scsi_hsync2_a2091 (struct wd_state *wds)
 {
-	bool irq = false;
 	struct wd_chip_state *wd = &wds->wc;
 
 	if (!wds->enabled)
@@ -1038,7 +1068,7 @@ static void scsi_hsync2_a2091 (struct wd_state *wds)
 		bool v;
 		do_dma(wds);
 		if (wd->scsi->direction < 0) {
-			v = wd_do_transfer_in (wd, wd->scsi);
+			v = wd_do_transfer_in (wd, wd->scsi, false);
 		} else if (wd->scsi->direction > 0) {
 			v = wd_do_transfer_out (wd, wd->scsi);
 		} else {
@@ -1058,38 +1088,13 @@ static void scsi_hsync2_a2091 (struct wd_state *wds)
 			xt_command_done(wds);
 		}
 	}
+	wd_check_interrupt(wds);
 
-	if (wd->auxstatus & ASR_INT)
-		return;
-	for (int i = 0; i < WD_STATUS_QUEUE; i++) {
-		if (wd->scsidelay_irq[i] == 1) {
-			wd->scsidelay_irq[i] = 0;
-			doscsistatus(wds, wd->scsidelay_status[i]);
-			wd->wd_busy = 0;
-		} else if (wd->scsidelay_irq[i] > 1) {
-			wd->scsidelay_irq[i]--;
-		}
-	}
 }
 
 static void scsi_hsync2_gvp (struct wd_state *wds)
 {
-	bool irq = false;
-	struct wd_chip_state *wd = &wds->wc;
-
-	if (!wds->enabled)
-		return;
-	if (wd->auxstatus & ASR_INT)
-		return;
-	for (int i = 0; i < WD_STATUS_QUEUE; i++) {
-		if (wd->scsidelay_irq[i] == 1) {
-			wd->scsidelay_irq[i] = 0;
-			doscsistatus(wds, wd->scsidelay_status[i]);
-			wd->wd_busy = 0;
-		} else if (wd->scsidelay_irq[i] > 1) {
-			wd->scsidelay_irq[i]--;
-		}
-	}
+	wd_check_interrupt(wds);
 }
 
 void scsi_hsync (void)
@@ -1142,8 +1147,8 @@ static void writewdreg (struct wd_chip_state *wd, int sasr, uae_u8 val)
 void wdscsi_put (struct wd_chip_state *wd, struct wd_state *wds, uae_u8 d)
 {
 #if WD33C93_DEBUG > 1
-	if (WD33C93_DEBUG > 3 || sasr != WD_DATA)
-		write_log (_T("W %s REG %02X = %02X (%d) PC=%08X\n"), WD33C93, sasr, d, d, M68K_GETPC);
+	if (WD33C93_DEBUG > 3 || wd->sasr != WD_DATA)
+		write_log (_T("W %s REG %02X = %02X (%d) PC=%08X\n"), WD33C93, wd->sasr, d, d, M68K_GETPC);
 #endif
 	if (!writeonlyreg (wd->sasr)) {
 		writewdreg (wd, wd->sasr, d);
@@ -1217,7 +1222,7 @@ uae_u8 wdscsi_get (struct wd_chip_state *wd, struct wd_state *wds)
 		wd->wd_data_avail = 1;
 		if (status || gettc (wd) == 0) {
 			wd->wd_data_avail = 0;
-			write_comm_pipe_u32 (&wds->requests, makecmd (wd->scsi, 1, 0), 1);
+			write_comm_pipe_u32 (&wds->requests, makecmd (wd->scsi, 3, 0), 1);
 		}
 	} else if (wd->sasr == WD_SCSI_STATUS) {
 		uae_int_requested &= ~2;
@@ -1950,11 +1955,9 @@ static uae_u32 dmac_gvp_read_byte(struct wd_state *wd, uaecptr addr)
 	{
 		case 0x40:
 		v = wd->gdmac.cntr >> 8;
-		wd->gdmac.cntr &= ~2;
 		break;
 		case 0x41:
 		v = wd->gdmac.cntr;
-		wd->gdmac.cntr &= ~2;
 		break;
 		case 0x61: // SASR
 		v = wdscsi_getauxstatus(&wd->wc);
@@ -1981,7 +1984,7 @@ static uae_u32 dmac_gvp_read_word(struct wd_state *wd, uaecptr addr)
 		if (wd->rom) {
 			if (wd->rombankswitcher && (addr & 0xffe0) == GVP_ROM_OFFSET)
 				wd->rombank = (addr & 0x02) >> 1;
-			return wd->rom[((addr - GVP_ROM_OFFSET) / 2 + wd->rombank * 16384) << 8] | wd->gdmac.version;
+			return (wd->rom[(addr - GVP_ROM_OFFSET) / 2 + wd->rombank * 16384] << 8) | wd->gdmac.version;
 		}
 		return 0;
 	}
@@ -1990,7 +1993,6 @@ static uae_u32 dmac_gvp_read_word(struct wd_state *wd, uaecptr addr)
 	{
 		case 0x40:
 		v = wd->gdmac.cntr;
-		wd->gdmac.cntr &= ~2;
 		break;
 		case 0x68:
 		v = wd->gdmac.bank;
@@ -2013,12 +2015,17 @@ static uae_u32 dmac_gvp_read_word(struct wd_state *wd, uaecptr addr)
 static void dmac_gvp_write_word(struct wd_state *wd, uaecptr addr, uae_u32 b)
 {
 	addr &= 0xffff;
+
+	if (addr >= GVP_ROM_OFFSET)
+		return;
+
 #if GVP_DEBUG_IO > 0
 	write_log(_T("dmac_wput %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
 #endif
 	switch (addr)
 	{
 		case 0x40:
+		b &= ~(1 | 2);
 		wd->gdmac.cntr = b;
 		break;
 		case 0x70: // ACR
@@ -2043,6 +2050,10 @@ static void dmac_gvp_write_word(struct wd_state *wd, uaecptr addr, uae_u32 b)
 static void dmac_gvp_write_byte(struct wd_state *wd, uaecptr addr, uae_u32 b)
 {
 	addr &= 0xffff;
+
+	if (addr >= GVP_ROM_OFFSET)
+		return;
+
 #if GVP_DEBUG_IO > 0
 	write_log(_T("dmac_bput %04X=%02X PC=%08X\n"), addr, b & 255, M68K_GETPC);
 #endif
@@ -2053,6 +2064,7 @@ static void dmac_gvp_write_byte(struct wd_state *wd, uaecptr addr, uae_u32 b)
 		wd->gdmac.cntr |= b << 8;
 		break;
 		case 0x41:
+		b &= ~(1 | 2);
 		wd->gdmac.cntr &= 0xff00;
 		wd->gdmac.cntr |= b << 0;
 		break;
@@ -2519,7 +2531,6 @@ static void *scsi_thread (void *wdv)
 			{
 			case WD_CMD_RESET:
 				wd_cmd_reset(wd, true);
-				wd_cmd_reset_a2091(wds, true);
 				break;
 			case WD_CMD_ABORT:
 				wd_cmd_abort (wd);
@@ -2542,6 +2553,10 @@ static void *scsi_thread (void *wdv)
 			case WD_CMD_TRANS_ADDR:
 				wd_cmd_trans_addr(wd, wds);
 				break;
+			case WD_CMD_NEGATE_ACK:
+				if (wd->wd_phase == CSR_MSGIN && wd->wd_selected)
+					wd_do_transfer_in(wd, wd->scsi, false);
+				break;
 			default:
 				wd->wd_busy = false;
 				write_log (_T("%s unimplemented/unknown command %02X\n"), WD33C93, cmd);
@@ -2549,16 +2564,18 @@ static void *scsi_thread (void *wdv)
 				break;
 			}
 		} else if (msg == 1) {
-			wd_do_transfer_in (wd, wd->scsi);
+			wd_do_transfer_in (wd, wd->scsi, false);
 		} else if (msg == 2) {
 			wd_do_transfer_out (wd, wd->scsi);
+		} else if (msg == 3) {
+			wd_do_transfer_in (wd, wd->scsi, true);
 		}
 	}
 	wds->scsi_thread_running = -1;
 	return 0;
 }
 
-void init_scsi (struct wd_state *wd)
+void init_wd_scsi (struct wd_state *wd)
 {
 	wd->configured = 0;
 	wd->enabled = true;
@@ -2683,13 +2700,13 @@ int a3000_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 void a3000scsi_reset (void)
 {
 	struct wd_state *wd = &wd_a3000;
-	init_scsi (wd);
+	init_wd_scsi (wd);
 	wd->enabled = true;
 	wd->configured = -1;
 	wd->dmac_type = COMMODORE_SDMAC;
 	map_banks (&mbdmac_a3000_bank, 0xDD, 1, 0);
 	wd_cmd_reset (&wd->wc, false);
-	wd_cmd_reset_a2091(wd, false);
+	reset_dmac(wd);
 	wd->name = _T("A3000");
 }
 
@@ -2752,7 +2769,7 @@ static void a2091_reset_device(struct wd_state *wd)
 	if (currprefs.scsi == 2)
 		addnativescsi (wd);
 	wd_cmd_reset (&wd->wc, false);
-	wd_cmd_reset_a2091(wd, false);
+	reset_dmac(wd);
 	if (wd == &wd_a2091)
 		wd->name = _T("A2091/A590");
 	if (wd == &wd_a2091_2)
@@ -2776,7 +2793,7 @@ addrbank *a2091_init (int devnum)
 	if (devnum > 0 && !wd->enabled)
 		return &expamem_null;
 
-	init_scsi(wd);
+	init_wd_scsi(wd);
 	wd->configured = 0;
 	wd->autoconfig = true;
 	memset (wd->dmacmemory, 0xff, sizeof wd->dmacmemory);
@@ -2805,7 +2822,7 @@ addrbank *a2091_init (int devnum)
 	wd->rombankswitcher = 0;
 	wd->rombank = 0;
 	slotsize = 65536;
-	wd->rom = xmalloc (uae_u8, slotsize);
+	wd->rom = xcalloc (uae_u8, slotsize);
 	wd->rom_size = 16384;
 	wd->rom_mask = wd->rom_size - 1;
 	if (_tcscmp (currprefs.a2091rom.roms[0].romfile, _T(":NOROM"))) {
@@ -2865,6 +2882,7 @@ static void gvp_reset_device(struct wd_state *wd)
 	if (currprefs.scsi == 2)
 		addnativescsi (wd);
 	wd_cmd_reset (&wd->wc, false);
+	reset_dmac(wd);
 	if (wd == &wd_gvp)
 		wd->name = _T("GVP");
 	if (wd == &wd_gvp_2)
@@ -2889,7 +2907,7 @@ addrbank *gvp_init(int devnum)
 	if (devnum > 0 && !wd->enabled)
 		return &expamem_null;
 
-	init_scsi(wd);
+	init_wd_scsi(wd);
 	wd->name = _T("GVP");
 	wd->configured = 0;
 	wd->autoconfig = true;
@@ -2902,11 +2920,11 @@ addrbank *gvp_init(int devnum)
 	roms[3] = -1;
 
 	wd->rom_size = 32768;
-	wd->rom = xmalloc(uae_u8, wd->rom_size);
+	wd->rom = xcalloc(uae_u8, wd->rom_size);
 	memset(wd->rom, 0xff, wd->rom_size);
 	wd->rom_mask = wd->rom_size - 1;
 	wd->gdmac.series2 = true;
-	if (1) {
+	if (_tcscmp (currprefs.gvprom.roms[0].romfile, _T(":NOROM"))) {
 		const TCHAR *romname = devnum && currprefs.gvprom.roms[1].romfile[0] ? currprefs.gvprom.roms[1].romfile : currprefs.gvprom.roms[0].romfile;
 		struct zfile *z = read_rom_name(romname);
 		if (!z) {
