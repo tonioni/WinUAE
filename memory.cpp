@@ -85,7 +85,7 @@ static size_t bootrom_filepos, chip_filepos, bogo_filepos, a3000lmem_filepos, a3
 and we must clear all memory to prevent bogus contents from confusing
 the Kickstart.  */
 static bool need_hardreset;
-static bool bogomem_aliasing;
+static int bogomem_aliasing;
 
 /* The address space setting used during the last reset.  */
 static bool last_address_space_24;
@@ -1824,7 +1824,7 @@ static bool singlebit (uae_u32 v)
 
 static void allocate_memory (void)
 {
-	bogomem_aliasing = false;
+	bogomem_aliasing = 0;
 	/* emulate 0.5M+0.5M with 1M Agnus chip ram aliasing */
 	if (currprefs.chipmem_size == 0x80000 && currprefs.bogomem_size >= 0x80000 &&
 		(currprefs.chipset_mask & CSMASK_ECS_AGNUS) && !(currprefs.chipset_mask & CSMASK_AGA) && currprefs.cpu_model < 68020) {
@@ -1845,6 +1845,7 @@ static void allocate_memory (void)
 				bogomem_bank.baseaddr = chipmem_bank.baseaddr + memsize1;
 				bogomem_bank.mask = bogomem_bank.allocated - 1;
 				bogomem_bank.start = bogomem_start_addr;
+				bogomem_bank.flags = ABFLAG_NOALLOC;
 				if (chipmem_bank.baseaddr == 0) {
 					write_log (_T("Fatal error: out of memory for chipmem.\n"));
 					chipmem_bank.allocated = 0;
@@ -1852,7 +1853,35 @@ static void allocate_memory (void)
 					need_hardreset = true;
 				}
 			}
-			bogomem_aliasing = true;
+			bogomem_aliasing = 1;
+	} else if (currprefs.chipmem_size == 0x80000 && currprefs.bogomem_size >= 0x80000 &&
+		!(currprefs.chipset_mask & CSMASK_ECS_AGNUS) && currprefs.cs_1mchipjumper && currprefs.cpu_model < 68020) {
+			if ((chipmem_bank.allocated != currprefs.chipmem_size || bogomem_bank.allocated != currprefs.bogomem_size)) {
+				int memsize1, memsize2;
+				mapped_free (&chipmem_bank);
+				mapped_free (&bogomem_bank);
+				bogomem_bank.allocated = 0;
+				memsize1 = chipmem_bank.allocated = currprefs.chipmem_size;
+				memsize2 = bogomem_bank.allocated = currprefs.bogomem_size;
+				chipmem_bank.mask = chipmem_bank.allocated - 1;
+				chipmem_bank.start = chipmem_start_addr;
+				chipmem_full_mask = chipmem_bank.allocated - 1;
+				chipmem_full_size = chipmem_bank.allocated;
+				chipmem_bank.allocated = memsize1 + memsize2;
+				mapped_malloc (&chipmem_bank);
+				chipmem_bank.allocated = currprefs.chipmem_size;
+				bogomem_bank.baseaddr = chipmem_bank.baseaddr + memsize1;
+				bogomem_bank.mask = bogomem_bank.allocated - 1;
+				bogomem_bank.start = chipmem_bank.start + currprefs.chipmem_size;
+				bogomem_bank.flags = ABFLAG_NOALLOC;
+				if (chipmem_bank.baseaddr == 0) {
+					write_log (_T("Fatal error: out of memory for chipmem.\n"));
+					chipmem_bank.allocated = 0;
+				} else {
+					need_hardreset = true;
+				}
+			}
+			bogomem_aliasing = 2;
 	}
 
 	if (chipmem_bank.allocated != currprefs.chipmem_size) {
@@ -1885,11 +1914,15 @@ static void allocate_memory (void)
 		}
 		currprefs.chipset_mask = changed_prefs.chipset_mask;
 		chipmem_full_mask = chipmem_bank.allocated - 1;
-		if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && !currprefs.cachesize) {
-			if (chipmem_bank.allocated < 0x100000)
-				chipmem_full_mask = 0x100000 - 1;
-			if (chipmem_bank.allocated > 0x100000 && chipmem_bank.allocated < 0x200000)
-				chipmem_full_mask = chipmem_bank.mask = 0x200000 - 1;
+		if (!currprefs.cachesize) {
+			if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
+				if (chipmem_bank.allocated < 0x100000)
+					chipmem_full_mask = 0x100000 - 1;
+				if (chipmem_bank.allocated > 0x100000 && chipmem_bank.allocated < 0x200000)
+					chipmem_full_mask = chipmem_bank.mask = 0x200000 - 1;
+			} else if (currprefs.cs_1mchipjumper) {
+				chipmem_full_mask = 0x80000 - 1;
+			}
 		}
 	}
 
@@ -2031,6 +2064,8 @@ static void fill_ce_banks (void)
 	if (!currprefs.cs_slowmemisfast) {
 		for (i = (0xc00000 >> 16); i < (0xe00000 >> 16); i++)
 			ce_banktype[i] = ce_banktype[0];
+		for (i = (bogomem_bank.start >> 16); i < ((bogomem_bank.start + bogomem_bank.allocated) >> 16); i++)
+			ce_banktype[i] = ce_banktype[0];
 	}
 	for (i = (0xd00000 >> 16); i < (0xe00000 >> 16); i++)
 		ce_banktype[i] = CE_MEMBANK_CHIP16;
@@ -2068,6 +2103,8 @@ void map_overlay (int chip)
 	addrbank *cb;
 
 	size = chipmem_bank.allocated >= 0x180000 ? (chipmem_bank.allocated >> 16) : 32;
+	if (bogomem_aliasing)
+		size = 8;
 	cb = &chipmem_bank;
 #ifdef AGA
 #if 0
@@ -2076,7 +2113,7 @@ void map_overlay (int chip)
 #endif
 #endif
 	if (chip) {
-		map_banks (&dummy_bank, 0, 32, 0);
+		map_banks (&dummy_bank, 0, size, 0);
 		if (!isdirectjit ()) {
 			map_banks (cb, 0, size, chipmem_bank.allocated);
 			if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && bogomem_bank.allocated == 0) {
@@ -2097,7 +2134,7 @@ void map_overlay (int chip)
 		}
 	} else {
 		addrbank *rb = NULL;
-		if (size < 32)
+		if (size < 32 && bogomem_aliasing != 2)
 			size = 32;
 		cb = get_mem_bank_real(0xf00000);
 		if (!rb && cb && (cb->flags & ABFLAG_ROM) && get_word (0xf00000) == 0x1114)
@@ -2314,7 +2351,10 @@ void memory_reset (void)
 			t = 0x1C;
 		if (t > 0x18 && ((currprefs.chipset_mask & CSMASK_AGA) || (currprefs.cpu_model >= 68020 && !currprefs.address_space_24)))
 			t = 0x18;
-		map_banks (&bogomem_bank, 0xC0, t, 0);
+		if (bogomem_aliasing == 2)
+			map_banks (&bogomem_bank, 0x08, t, 0);
+		else
+			map_banks (&bogomem_bank, 0xC0, t, 0);
 	}
 	if (currprefs.cs_ide || currprefs.cs_pcmcia) {
 		if (currprefs.cs_ide == IDE_A600A1200 || currprefs.cs_pcmcia) {
