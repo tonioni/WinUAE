@@ -2141,6 +2141,8 @@ static void Exception_ce000 (int nr)
 	if (nr == 2 || nr == 3) { /* 2=bus error, 3=address error */
 		uae_u16 mode = (sv ? 4 : 0) | (last_instructionaccess_for_exception_3 ? 2 : 1);
 		mode |= last_writeaccess_for_exception_3 ? 0 : 16;
+		// undocumented bits seem to contain opcode
+		mode |= last_op_for_exception_3 & ~31;
 		m68k_areg (regs, 7) -= 14;
 		/* fixme: bit3=I/N */
 		x_put_word (m68k_areg (regs, 7) + 12, last_addr_for_exception_3);
