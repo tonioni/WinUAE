@@ -44,6 +44,31 @@ STATIC_INLINE bool FI(struct vidbuffer *src, uae_u8 *dataline)
 		return ((dataline[0] >> 1) & 1) != 0;
 }
 
+STATIC_INLINE uae_u8 FIRGB(struct vidbuffer *src, uae_u8 *dataline)
+{
+	uae_u8 v = 0;
+#if 1
+	if (FI(src, dataline))
+		v |= 1;
+	if (FR(src, dataline))
+		v |= 8;
+	if (FG(src, dataline))
+		v |= 4;
+	if (FB(src, dataline))
+		v |= 2;
+#else
+	if (FI(src, dataline))
+		v |= 1 << scramble[scramble_counter * 4 + 0];
+	if (FR(src, dataline))
+		v |= 1 << scramble[scramble_counter * 4 + 1];
+	if (FG(src, dataline))
+		v |= 1 << scramble[scramble_counter * 4 + 2];
+	if (FB(src, dataline))
+		v |= 1 << scramble[scramble_counter * 4 + 3];
+#endif
+	return v;
+}
+
 
 STATIC_INLINE void PRGB(struct vidbuffer *dst, uae_u8 *dataline, uae_u8 r, uae_u8 g, uae_u8 b)
 {
@@ -66,6 +91,168 @@ static void clearmonitor(struct vidbuffer *dst)
 		memset(p, 0, dst->width_allocated * dst->pixbytes);
 		p += dst->rowbytes;
 	}
+}
+
+static const uae_u8 ham_e_magic_cookie[] = { 0xa2, 0xf5, 0x84, 0xdc, 0x6d, 0xb0, 0x7f  };
+static const uae_u8 ham_e_magic_cookie_reg = 0x14;
+static const uae_u8 ham_e_magic_cookie_ham = 0x18;
+
+static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst)
+{
+	int y, x, vdbl, hdbl;
+	int ystart, yend, isntsc;
+	int xadd;
+
+	isntsc = (beamcon0 & 0x20) ? 0 : 1;
+	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+		isntsc = currprefs.ntscmode ? 1 : 0;
+
+	vdbl = gfxvidinfo.ychange;
+	hdbl = gfxvidinfo.xchange;
+
+	xadd = ((1 << 1) / hdbl) * src->pixbytes;
+
+	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
+	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
+
+	uae_u8 r, g, b;
+	int pcnt = 0;
+	int bank = 0;
+	int mode_active = 0;
+	bool prevzeroline = false;
+	int was_active = 0;
+	bool cookie_line = false;
+	int cookiestartx = 10000;
+	for (y = ystart; y < yend; y++) {
+		int yoff = (((y << VRES_MAX) - src->yoffset) / vdbl);
+		if (yoff < 0)
+			continue;
+		if (yoff >= src->inheight)
+			continue;
+		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
+		uae_u8 *dstline = dst->bufmem + (((y << VRES_MAX) - dst->yoffset) / vdbl) * dst->rowbytes;
+
+		bool getpalette = false;
+		uae_u8 prev = 0;
+		bool zeroline = true;
+		int oddeven = 0;
+		for (x = 0; x < src->inwidth; x++) {
+			uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
+			uae_u8 *d = dstline + ((x << 1) / hdbl) * dst->pixbytes;
+
+			uae_u8 val = prev | FIRGB(src, s);
+			if (val == ham_e_magic_cookie[0]) {
+				int i;
+				for (i = 1; i <= sizeof ham_e_magic_cookie; i++) {
+					uae_u8 val2 = (FIRGB(src, s + (i * 2 - 1) * xadd) << 4) | FIRGB(src, s + (i * 2 + 0) * xadd);
+					if (i < sizeof ham_e_magic_cookie) {
+						if (val2 != ham_e_magic_cookie[i])
+							break;
+					} else if (val2 == ham_e_magic_cookie_reg || val2 == ham_e_magic_cookie_ham) {
+						mode_active = val2;
+						getpalette = true;
+						prevzeroline = false;
+						cookiestartx = x - 1;
+						x += i * 2;
+						oddeven = 0;
+						cookie_line = true;
+					}
+				}
+				if (i == sizeof ham_e_magic_cookie + 1)
+					continue;
+			}
+
+			if (!cookie_line && x == cookiestartx)
+				oddeven = 0;
+
+			if (oddeven) {
+				if (val)
+					zeroline = false;
+				if (getpalette) {
+					graffiti_palette[pcnt] = val;
+					pcnt++;
+					if ((pcnt & 3) == 3)
+						pcnt++;
+					// 64 colors/line
+					if ((pcnt & ((4 * 64) - 1)) == 0)
+						getpalette = false;
+					pcnt &= (4 * 256) - 1;
+				}
+				if (mode_active) {
+					if (cookie_line || x < cookiestartx) {
+						r = g = b = 0;
+					} else {
+						if (mode_active == ham_e_magic_cookie_reg) {
+							uae_u8 *pal = &graffiti_palette[val * 4];
+							r = pal[0];
+							g = pal[1];
+							b = pal[2];
+						} else if (mode_active == ham_e_magic_cookie_ham) {
+							int mode = val >> 6;
+							int color = val & 63;
+							if (mode == 0 && color <= 59) {
+								uae_u8 *pal = &graffiti_palette[(bank + color) * 4];
+								r = pal[0];
+								g = pal[1];
+								b = pal[2];
+							} else if (mode == 0) {
+								bank = (color & 3) * 64;
+							} else if (mode == 1) {
+								b = color << 2;
+							} else if (mode == 2) {
+								r = color << 2;
+							} else if (mode == 3) {
+								g = color << 2;
+							}
+						}
+					}
+					PRGB(dst, d - dst->pixbytes, r, g, b);
+					PRGB(dst, d, r, g, b);
+				} else {
+					if (dst->pixbytes == 4) {
+						((uae_u32*)d)[-1] = ((uae_u32*)s)[-1];
+						((uae_u32*)d)[0] = ((uae_u32*)s)[0];
+					} else {
+						((uae_u16*)d)[-1] = ((uae_u16*)s)[-1];
+						((uae_u16*)d)[0] = ((uae_u16*)s)[0];
+					}
+				}
+			}
+
+			oddeven = oddeven ? 0 : 1;
+			prev = val << 4;
+		}
+
+		if (cookie_line) {
+			// Erase magic cookie. I assume real HAM-E would erase it
+			// because not erasing it would look really ugly.
+			memset(dstline, 0, dst->outwidth * dst->pixbytes);
+		}
+
+		cookie_line = false;
+		if (mode_active)
+			was_active = mode_active;
+		if (zeroline) {
+			if (prevzeroline) {
+				mode_active = false;
+				pcnt = 0;
+			}
+			prevzeroline = true;
+		} else {
+			prevzeroline = false;
+		}
+
+	}
+
+	if (was_active) {
+		dst->nativepositioning = true;
+		if (monitor != MONITOREMU_HAM_E) {
+			monitor = MONITOREMU_HAM_E;
+			write_log (_T("HAM-E mode, %s\n"), was_active == ham_e_magic_cookie_reg ? _T("REG") : _T("HAM"));
+		}
+	}
+
+	return was_active != 0;
 }
 
 static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
@@ -136,11 +323,6 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 					for (int pix = 0; pix < 2; pix++) {
 						uae_u8 cmd = chunky[pix * 2 + 0];
 						uae_u8 parm = chunky[pix * 2 + 1];
-
-#if 0
-						//if (cmd != 0)
-							write_log(_T("X=%d Y=%d %02x = %02x (%d %d)\n"), x, y, cmd, parm, color, color2);
-#endif
 
 						if (automatic && cmd >= 0x40)
 							return false;
@@ -437,6 +619,9 @@ static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *ds
 	} else if (currprefs.monitoremu == MONITOREMU_GRAFFITI) {
 		automatic = false;
 		return graffiti(src, dst);
+	} else if (currprefs.monitoremu == MONITOREMU_HAM_E) {
+		automatic = false;
+		return ham_e(src, dst);
 	}
 	return false;
 }
