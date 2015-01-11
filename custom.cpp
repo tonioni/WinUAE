@@ -5,7 +5,7 @@
 *
 * Copyright 1995-2002 Bernd Schmidt
 * Copyright 1995 Alessandro Bissacco
-* Copyright 2000-2014 Toni Wilen
+* Copyright 2000-2015 Toni Wilen
 */
 
 #include "sysconfig.h"
@@ -51,6 +51,7 @@
 #include "enforcer.h"
 #endif
 #include "gayle.h"
+#include "idecontrollers.h"
 #include "gfxfilter.h"
 #include "threaddep/thread.h"
 #include "a2091.h"
@@ -77,7 +78,7 @@
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8
 #define SPRITE_COLLISIONS
-#define SPEEDUP
+//#define SPEEDUP
 #define AUTOSCALE_SPRITES 1
 
 #define SPRBORDER 0
@@ -285,9 +286,11 @@ static unsigned int bplcon1, bplcon2, bplcon3, bplcon4;
 static unsigned int bplcon0d, bplcon0dd, bplcon0_res, bplcon0_planes, bplcon0_planes_limit;
 static unsigned int diwstrt, diwstop, diwhigh;
 static int diwhigh_written;
-static unsigned int ddfstrt, ddfstop, ddfstrt_old_hpos;
+static unsigned int ddfstrt, ddfstop;
 static int line_cyclebased, badmode, diw_change;
 static int bplcon1_fetch;
+
+#define SET_LINE_CYCLEBASED line_cyclebased = 2;
 
 /* The display and data fetch windows */
 
@@ -405,13 +408,27 @@ static uae_u32 thisline_changed;
 static struct decision thisline_decision;
 static int fetch_cycle, fetch_modulo_cycle;
 static bool aga_plf_passed_stop2;
+static bool plf_end_without_ddfstop;
+static int plf_start_hpos, plf_end_hpos;
+static int ddfstop_written_hpos;
 enum plfstate
 {
 	plf_idle,
-	plf_start,
+	// enable passed
+	plf_passed_enable,
+	// ddfstrt match
+	plf_passed_start,
+	// active (ddfstrt + 4 match)
 	plf_active,
+	// wait for ddfstop
 	plf_wait_stop,
+	// ddfstop passed but keep waiting for +4
+	plf_wait_stop_wait,
+	// ddfstop passed
 	plf_passed_stop,
+	// ddfstop+4 passed
+	plf_passed_stop_act,
+	// last block finished
 	plf_passed_stop2,
 	plf_end
 } plf_state;
@@ -631,12 +648,13 @@ STATIC_INLINE int get_equ_vblank_endline (void)
 	return equ_vblank_endline + (equ_vblank_toggle ? (lof_current ? 1 : 0) : 0);
 }
 
+#define DDF_OFFSET 4
 #define HARD_DDF_LIMITS_DISABLED ((beamcon0 & 0x80) || (beamcon0 & 0x4000) || (bplcon0 & 0x40))
 /* The HRM says 0xD8, but that can't work... */
-#define HARD_DDF_STOP (HARD_DDF_LIMITS_DISABLED ? 0xff : 0xd6)
-#define HARD_DDF_START_REAL 0x18
+#define HARD_DDF_STOP (HARD_DDF_LIMITS_DISABLED ? 0xff : 0xd4)
+#define HARD_DDF_START_REAL 0x14
 /* Programmed rates or superhires (!) disable normal DMA limits */
-#define HARD_DDF_START (HARD_DDF_LIMITS_DISABLED ? 0x04 : 0x18)
+#define HARD_DDF_START (HARD_DDF_LIMITS_DISABLED ? 0x04 : 0x14)
 
 /* Called to determine the state of the horizontal display window state
 * machine at the current position. It might have changed since we last
@@ -917,9 +935,9 @@ static void estimate_last_fetch_cycle (int hpos)
 	int fetchunit = fetchunits[fetchmode * 4 + bplcon0_res];
 
 	if (plf_state < plf_passed_stop) {
-		int stop = plfstop < hpos || plfstop > HARD_DDF_STOP ? HARD_DDF_STOP : plfstop;
+		int stop = plfstop + DDF_OFFSET < hpos || plfstop > HARD_DDF_STOP ? HARD_DDF_STOP : plfstop;
 		/* We know that fetching is up-to-date up until hpos, so we can use fetch_cycle.  */
-		int fetch_cycle_at_stop = fetch_cycle + (stop - hpos);
+		int fetch_cycle_at_stop = fetch_cycle + (stop - hpos + DDF_OFFSET);
 		int starting_last_block_at = (fetch_cycle_at_stop + fetchunit - 1) & ~(fetchunit - 1);
 
 		estimated_last_fetch_cycle = hpos + (starting_last_block_at - fetch_cycle) + fetchunit;
@@ -1146,7 +1164,7 @@ static void setup_fmodes (int hpos)
 	if (isocs7planes ()) {
 		toscr_nr_planes_agnus = 6;
 	}
-	line_cyclebased = vpos;
+	SET_LINE_CYCLEBASED;
 }
 
 static void BPLCON0_Denise (int hpos, uae_u16 v, bool);
@@ -1181,7 +1199,7 @@ STATIC_INLINE void maybe_check (int hpos)
 
 static void bpldmainitdelay (int hpos)
 {
-	line_cyclebased = vpos;
+	SET_LINE_CYCLEBASED;
 	if (hpos + BPLCON_AGNUS_DELAY < 0x14) {
 		BPLCON0_Denise (hpos, bplcon0, false);
 		setup_fmodes (hpos);
@@ -2157,18 +2175,35 @@ static void finish_final_fetch (void)
 	finish_playfield_line ();
 }
 
-STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int fm)
+STATIC_INLINE int one_fetch_cycle_0 (int pos, int dma, int fm)
 {
 	if (dma || (currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
-		if (plf_state < plf_passed_stop && pos == ddfstop_to_test)
-			plf_state = plf_passed_stop;
+		if (pos == plfstop && ddfstop_written_hpos != pos) {
+			if (plf_state == plf_wait_stop) {
+				plf_state = plf_wait_stop_wait;
+			} else if (plf_state < plf_passed_stop) {
+				plf_state = plf_passed_stop;
+			}
+			plf_end_hpos = pos + DDF_OFFSET;
+		} else if (pos == plf_end_hpos) {
+			if (plf_state < plf_passed_stop_act) {
+				plf_state = plf_passed_stop_act;
+			}
+		}
+		if (pos == HARD_DDF_STOP && plf_state < plf_passed_stop_act) {
+			// plfstop not matched?
+			// ->next line will start from earliest possible position
+			if (plf_state < plf_passed_stop)
+				plf_end_without_ddfstop = true;
+			plf_state = plf_passed_stop_act;
+		}
 
 		if ((fetch_cycle & fetchunit_mask) == 0) {
 			if (plf_state == plf_passed_stop2) {
 				finish_last_fetch (pos, fm, false);
 				return 1;
 			}
-			if (plf_state == plf_passed_stop) {
+			if (plf_state == plf_passed_stop_act) {
 				plf_state = plf_passed_stop2;
 			} else if (plf_state == plf_passed_stop2) {
 				plf_state = plf_end;
@@ -2178,7 +2213,7 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 
 	maybe_check (pos);
 
-	if (dma && plf_state != plf_wait_stop) {
+	if (dma && plf_state != plf_wait_stop && plf_state != plf_wait_stop_wait) {
 		/* fetchstart_mask can be larger than fm_maxplane if FMODE > 0.  This means
 		that the remaining cycles are idle; we'll fall through the whole switch
 		without doing anything.  */
@@ -2199,7 +2234,7 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 			// if AGA: consider plf_passed_stop2 already
 			// active when last plane has been written,
 			// even if there is still idle cycles left
-			if (plf_state == plf_passed_stop)
+			if (plf_state == plf_passed_stop_act)
 				aga_plf_passed_stop2 = true;
 			break;
 #endif
@@ -2213,7 +2248,7 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 			case 3: fetch (0, fm, pos); break;
 #ifdef AGA
 			default:
-			if (plf_state == plf_passed_stop)
+			if (plf_state == plf_passed_stop_act)
 				aga_plf_passed_stop2 = true;
 			break;
 #endif
@@ -2225,7 +2260,7 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 			case 1: fetch (0, fm, pos); break;
 #ifdef AGA
 			default:
-			if (plf_state == plf_passed_stop)
+			if (plf_state == plf_passed_stop_act)
 				aga_plf_passed_stop2 = true;
 			break;
 #endif
@@ -2262,17 +2297,17 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 	return 0;
 }
 
-static int one_fetch_cycle_fm0 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 0); }
-static int one_fetch_cycle_fm1 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 1); }
-static int one_fetch_cycle_fm2 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 2); }
+static int one_fetch_cycle_fm0 (int pos, int dma) { return one_fetch_cycle_0 (pos, dma, 0); }
+static int one_fetch_cycle_fm1 (int pos, int dma) { return one_fetch_cycle_0 (pos, dma, 1); }
+static int one_fetch_cycle_fm2 (int pos, int dma) { return one_fetch_cycle_0 (pos, dma, 2); }
 
-STATIC_INLINE int one_fetch_cycle (int pos, int ddfstop_to_test, int dma, int fm)
+STATIC_INLINE int one_fetch_cycle (int pos, int dma, int fm)
 {
 	switch (fm) {
-	case 0: return one_fetch_cycle_fm0 (pos, ddfstop_to_test, dma);
+	case 0: return one_fetch_cycle_fm0 (pos, dma);
 #ifdef AGA
-	case 1: return one_fetch_cycle_fm1 (pos, ddfstop_to_test, dma);
-	case 2: return one_fetch_cycle_fm2 (pos, ddfstop_to_test, dma);
+	case 1: return one_fetch_cycle_fm1 (pos, dma);
+	case 2: return one_fetch_cycle_fm2 (pos, dma);
 #endif
 	default: uae_abort (_T("fm corrupt")); return 0;
 	}
@@ -2326,12 +2361,9 @@ static void update_fetch (int until, int fm)
 	int pos;
 	int dma = dmaen (DMA_BITPLANE);
 
-	int ddfstop_to_test;
-
 	if (nodraw () || plf_state >= plf_end)
 		return;
 
-	ddfstop_to_test = get_ddfstop_to_test (last_fetch_hpos);
 	pos = last_fetch_hpos;
 	cycle_diagram_shift = last_fetch_hpos - fetch_cycle;
 
@@ -2362,7 +2394,7 @@ static void update_fetch (int until, int fm)
 		}
 #endif
 		fetch_start (pos);
-		if (one_fetch_cycle (pos, ddfstop_to_test, dma, fm))
+		if (one_fetch_cycle (pos, dma, fm))
 			return;
 	}
 
@@ -2378,8 +2410,7 @@ static void update_fetch (int until, int fm)
 
 #ifdef SPEEDUP
 	/* Unrolled version of the for loop below.  */
-	if (plf_state < plf_wait_stop && line_cyclebased != vpos && line_cyclebased + 1 != vpos
-		&& dma
+	if (plf_state < plf_wait_stop && !line_cyclebased && dma
 		&& (fetch_cycle & fetchstart_mask) == (fm_maxplane & fetchstart_mask)
 		&& !badmode
 #ifdef DEBUGGER
@@ -2387,6 +2418,8 @@ static void update_fetch (int until, int fm)
 #endif
 		&& toscr_nr_planes == toscr_nr_planes_agnus)
 	{
+		int ddfstop_to_test_ddf = get_ddfstop_to_test (last_fetch_hpos);
+		int ddfstop_to_test = ddfstop_to_test_ddf + DDF_OFFSET;
 		int offs = (pos - fetch_cycle) & fetchunit_mask;
 		int ddf2 = ((ddfstop_to_test - offs + fetchunit - 1) & ~fetchunit_mask) + offs;
 		int ddf3 = ddf2 + fetchunit;
@@ -2408,8 +2441,12 @@ static void update_fetch (int until, int fm)
 			the screen.  But the calculation of delay_offset must happen _before_.  */
 			maybe_first_bpl1dat (pos);
 
-			if (pos <= ddfstop_to_test && pos + count > ddfstop_to_test)
+			if (pos <= ddfstop_to_test_ddf && pos + count > ddfstop_to_test_ddf) {
 				plf_state = plf_passed_stop;
+				plf_end_hpos = ddfstop_to_test;
+			}
+			if (pos <= ddfstop_to_test && pos + count > ddfstop_to_test)
+				plf_state = plf_passed_stop_act;
 			if (pos <= ddfstop_to_test && pos + count > ddf2)
 				plf_state = plf_passed_stop2;
 			if (pos <= ddf2 && pos + count >= ddf2 + fm_maxplane)
@@ -2424,12 +2461,11 @@ static void update_fetch (int until, int fm)
 		if (fetch_state == fetch_was_plane0) {
 			flush_display (fm);
 			beginning_of_plane_block (pos, fm);
-			estimate_last_fetch_cycle (pos);
 		}
 
 		fetch_start (pos);
 
-		if (one_fetch_cycle (pos, ddfstop_to_test, dma, fm))
+		if (one_fetch_cycle (pos, dma, fm))
 			return;
 	}
 	if (until >= maxhpos) {
@@ -2460,6 +2496,7 @@ static void decide_fetch (int hpos)
 			update_fetch_x (hpos, fetchmode);
 			bpl1dat_written = false;
 		}
+
 		maybe_check (hpos);
 		last_fetch_hpos = hpos;
 	}
@@ -2486,7 +2523,7 @@ static void reset_bpl_vars (void)
 	thisline_decision.bplres = bplcon0_res;
 }
 
-static void start_bpl_dma (int hpos, int hstart)
+static void start_bpl_dma (int hstart)
 {
 	if (first_bpl_vpos < 0)
 		first_bpl_vpos = vpos;
@@ -2509,8 +2546,6 @@ static void start_bpl_dma (int hpos, int hstart)
 #endif
 	plfr_state = plfr_active;
 	ddfstate = DIW_waiting_stop;
-	if (hstart >= get_ddfstop_to_test (hpos))
-		plf_state = plf_passed_stop;
 
 	if (!bpldmawasactive) {
 
@@ -2574,13 +2609,13 @@ static void decide_line (int hpos)
 		// A1000 Agnus won't start bitplane DMA if vertical diw is zero.
 		if (vpos > 0 || (vpos == 0 && !currprefs.cs_dipagnus)) {
 			diwstate = DIW_waiting_stop;
-			line_cyclebased = vpos;
+			SET_LINE_CYCLEBASED;
 		}
 	}
-	// last line of field can never have bitplane dma active
+	// last line of field can never have bitplane dma active if not A1000 Agnus.
 	if (vpos == plflastline || cant_this_last_line ()) {
 		diwstate = DIW_waiting_start;
-		line_cyclebased = vpos;
+		SET_LINE_CYCLEBASED;
 	}
 
 	if (hpos <= last_decide_line_hpos)
@@ -2588,58 +2623,59 @@ static void decide_line (int hpos)
 
 	if (fetch_state == fetch_not_started) {
 		bool dma = dmaen (DMA_BITPLANE) != 0;
-		bool dmaecs = dma || (currprefs.chipset_mask & CSMASK_ECS_AGNUS);
-		int bplstart = hpos;
+		bool dma_or_ecs = dma || (currprefs.chipset_mask & CSMASK_ECS_AGNUS);
 
 		// dma needs to be on when matching ddfstrt if OCS Agnus
-		if (dmaecs) {
-			int start = (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? plfstrt - 4 : HARD_DDF_START_REAL - 2;
+		if (dma_or_ecs) {
+			int start = (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? plfstrt : HARD_DDF_START_REAL;
 			if (last_decide_line_hpos < start && hpos >= start) {
 				if (plf_state >= plf_passed_stop2 || plf_state == plf_idle) {
-					plf_state = plf_start;
+					plf_state = plf_passed_enable;
 				}
 			}
 		}
 
 		if (diwstate == DIW_waiting_stop) {
 			bool strtpassed = false;
+			int hstart = hpos;
 
-			if (dmaecs) {
+			if (dma_or_ecs) {
 				if (last_decide_line_hpos < plfstrt && hpos >= plfstrt) {
-					/* hack warning.. Writing to DDFSTRT when DMA should start must be ignored
-					* (correct fix would be emulate this delay for every custom register, but why bother..) */
-					if (plf_state == plf_start && hpos - 2 != ddfstrt_old_hpos)
-						plf_state = plf_active;
-					bplstart = plfstrt;
-					/* needed to handle non-cycle exact situation where single call to
-					 * decide_line() handles both start and stop conditions
-					 */
+					if (plf_state == plf_passed_enable) {
+						plf_state = plf_passed_start;
+						plf_start_hpos = plfstrt + DDF_OFFSET;
+					}
 					strtpassed = true;
+				}
+				if ((strtpassed && hpos >= plf_start_hpos) || (last_decide_line_hpos < plf_start_hpos && hpos >= plf_start_hpos)) {
+					if (plf_state == plf_passed_start) {
+						plf_state = plf_active;
+						hstart = plf_start_hpos;
+					}
 				}
 			}
 
 			if (dma) {
-				if (plf_state == plf_active && (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS) || hpos >= 0x18 || HARD_DDF_LIMITS_DISABLED)) {
-					start_bpl_dma (hpos, bplstart);
+				if (plf_state == plf_active && (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS) || hpos >= HARD_DDF_START_REAL + DDF_OFFSET || HARD_DDF_LIMITS_DISABLED)) {
+					start_bpl_dma (hstart);
+					// pre-set plf_end_hpos if we have already passed virtual ddfstop
+					if (hstart >= plfstop && hstart <= plfstop + DDF_OFFSET)
+						plf_end_hpos = plfstop + DDF_OFFSET;
 					last_decide_line_hpos = hpos;
-#ifndef	CUSTOM_SIMPLE
 					do_sprites (hpos);
-#endif
 					return;
 				}
 			}
 
-			if (dmaecs) {
-				// did we just match ddfstop - 3 but missed ddfstrt? DMA starts from passed plfstop state.
+			if (dma_or_ecs) {
+				// did we just match ddfstop but missed ddfstrt? DMA starts from passed plfstop state.
 				if ((last_decide_line_hpos > plfstrt || (strtpassed && plfstop >= plfstrt)) && (plf_state == plf_active || plf_state == plf_wait_stop) && diwstate == DIW_waiting_stop) {
 					int stop = get_ddfstop_to_test(last_decide_line_hpos);
-					if (last_decide_line_hpos < stop && hpos >= stop - 3) {
+					if (last_decide_line_hpos < stop && hpos >= stop) {
 						if (dma) {
 							// we did, fetches start!
-							bplstart = plfstop;
 							plf_state = plf_active;
-						}
-						else {
+						} else {
 							// line done
 							plf_state = plf_end;
 						}
@@ -2650,10 +2686,8 @@ static void decide_line (int hpos)
 		}
 	}
 
-#ifndef	CUSTOM_SIMPLE
 	if (hpos > last_sprite_hpos && last_sprite_hpos < SPR0_HPOS + 4 * MAX_SPRITES)
 		do_sprites (hpos);
-#endif
 
 	last_decide_line_hpos = hpos;
 }
@@ -3436,7 +3470,6 @@ static void reset_decisions (void)
 	}
 	bpldmasetuphpos = -1;
 	bpldmasetupphase = 0;
-	ddfstrt_old_hpos = -1;
 	bpldmawasactive = false;
 	reset_moddelays ();
 	reset_bplldelays ();
@@ -3446,15 +3479,26 @@ static void reset_decisions (void)
 
 	if (plf_state >= plf_passed_stop2)
 		plf_state = plf_idle;
-	plfr_state = plfr_idle;
 
 	/* ECS/AGA and ddfstop > maxhpos == always-on display */
-	if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
+	if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
 		if (plfstop > maxhpos)
 			plfstrt = 0;
 		if (plfstrt < HARD_DDF_START)
 			plfstrt = HARD_DDF_START;
+		if (plf_end_without_ddfstop) {
+			plf_state = plf_active;
+			plf_end_without_ddfstop = false;
+		}
 	}
+
+	plfr_state = plfr_idle;
+	plf_start_hpos = 256 + DDF_OFFSET;
+	plf_end_hpos = 256 + DDF_OFFSET;
+	ddfstop_written_hpos = -1;
+
+	if (line_cyclebased)
+		line_cyclebased--;
 
 	memset (outword, 0, sizeof outword);
 	// fetched must not be cleared (Sony VX-90 / Royal Amiga Force)
@@ -4061,8 +4105,8 @@ static void calcdiw (void)
 	plffirstline = vstrt;
 	plflastline = vstop;
 
-	plfstrt = ddfstrt;
-	plfstop = ddfstop;
+	plfstrt = ddfstrt - 4;
+	plfstop = ddfstop - 4;
 
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
 		/* OCS and ddfstrt >= ddfstop == ddfstop = max */
@@ -4550,7 +4594,7 @@ static void DMACON (int hpos, uae_u16 v)
 		audio_state_machine ();
 
 	if (changed & (DMA_MASTER | DMA_BITPLANE)) {
-		line_cyclebased = vpos;
+		SET_LINE_CYCLEBASED;
 #if 0
 		if (dmaen (DMA_BITPLANE)) {
 			if (vpos == 0xba)
@@ -4632,6 +4676,7 @@ static void rethink_intreq (void)
 	sndboard_rethink();
 #endif
 	rethink_gayle ();
+	idecontroller_rethink();
 	/* cpuboard_rethink must be last */
 	cpuboard_rethink();
 }
@@ -4781,8 +4826,6 @@ static void BEAMCON0 (uae_u16 v)
 	}
 }
 
-#ifndef CUSTOM_SIMPLE
-
 static void varsync (void)
 {
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
@@ -4813,8 +4856,6 @@ void set_picasso_hack_rate (int hz)
 }
 #endif
 
-#endif
-
 /* "Dangerous" blitter D-channel: Writing to memory which is also currently
  * read by bitplane DMA
  */
@@ -4831,7 +4872,7 @@ static void BPLxPTH (int hpos, uae_u16 v, int num)
 		dbplpth[num] = (v << 16) & 0xffff0000;
 		dbplpth_on[num] = hpos;
 		dbplpth_on2++;
-		line_cyclebased = vpos;
+		SET_LINE_CYCLEBASED;
 		return;
 	}
 
@@ -4860,7 +4901,7 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
 		dbplptl[num] = v & 0x0000fffe;
 		dbplptl_on[num] = 255;
 		dbplptl_on2 = 1;
-		line_cyclebased = vpos;
+		SET_LINE_CYCLEBASED;
 		return;
 	}
 	bplpt[num] = (bplpt[num] & 0xffff0000) | (v & 0x0000fffe);
@@ -4921,7 +4962,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
 	if (bplcon0 == v)
 		return;
 
-	line_cyclebased = vpos;
+	SET_LINE_CYCLEBASED;
 	decide_diw (hpos);
 	decide_line (hpos);
 	decide_fetch_safe (hpos);
@@ -4948,7 +4989,7 @@ static void BPLCON1 (int hpos, uae_u16 v)
 		v &= 0xff;
 	if (bplcon1 == v)
 		return;
-	line_cyclebased = vpos;
+	SET_LINE_CYCLEBASED;
 	decide_line (hpos);
 	decide_fetch_safe (hpos);
 	bplcon1_written = true;
@@ -5099,13 +5140,18 @@ static void DDFSTRT (int hpos, uae_u16 v)
 	v &= 0xfe;
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		v &= 0xfc;
-	if (ddfstrt == v && hpos + 2 != ddfstrt)
-		return;
-	line_cyclebased = vpos;
 	decide_line (hpos);
-	ddfstrt_old_hpos = hpos;
+	SET_LINE_CYCLEBASED;
+	// Move state back to passed_enable if this DDFSTRT write was done exactly when
+	// it would match and start bitplane DMA.
+	if (hpos == ddfstrt - DDF_OFFSET && plf_state == plf_passed_start && plf_start_hpos == hpos + DDF_OFFSET) {
+		plf_state = plf_passed_enable;
+		plf_start_hpos = maxhpos;
+	}
 	ddfstrt = v;
 	calcdiw ();
+	if (fetch_state != fetch_not_started)
+		estimate_last_fetch_cycle (hpos);
 	if (ddfstop > 0xD4 && (ddfstrt & 4) == 4) {
 		static int last_warned;
 		last_warned = (last_warned + 1) & 4095;
@@ -5119,11 +5165,17 @@ static void DDFSTOP (int hpos, uae_u16 v)
 	v &= 0xfe;
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		v &= 0xfc;
-	if (ddfstop == v && hpos + 2 != ddfstop)
-		return;
-	line_cyclebased = vpos;
+	SET_LINE_CYCLEBASED;
 	decide_line (hpos);
 	decide_fetch_safe (hpos);
+	// See above.
+	if (hpos == ddfstop - DDF_OFFSET || hpos == v - DDF_OFFSET) {
+		if (plf_state == plf_passed_stop && plf_end_hpos == hpos + DDF_OFFSET) {
+			plf_state = plf_active;
+			plf_end_hpos = 256 + DDF_OFFSET;
+		}
+		ddfstop_written_hpos = hpos;
+	}
 	ddfstop = v;
 	calcdiw ();
 	if (fetch_state != fetch_not_started)
@@ -5143,7 +5195,7 @@ static void FMODE (int hpos, uae_u16 v)
 	v &= 0xC00F;
 	if (fmode == v)
 		return;
-	line_cyclebased = vpos;
+	SET_LINE_CYCLEBASED;
 	fmode = v;
 	sprite_width = GET_SPRITEWIDTH (fmode);
 	bpldmainitdelay (hpos);
@@ -5779,7 +5831,7 @@ static int customdelay[]= {
 	1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1,1,1,0,0,0,0,0,0,0,0, /* 32 0x00 - 0x3e */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 0x40 - 0x5e */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 0x60 - 0x7e */
-	0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0, /* 0x80 - 0x9e */
+	0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0, /* 0x80 - 0x9e */
 	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 32 0xa0 - 0xde */
 	/* BPLxPTH/BPLxPTL */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 16 */
@@ -6450,7 +6502,6 @@ static void do_sprites (int hpos)
 	if (doflickerfix () && interlace_seen && (next_lineno & 1))
 		return;
 
-#ifndef CUSTOM_SIMPLE
 	maxspr = hpos;
 	minspr = last_sprite_hpos + 1;
 
@@ -6485,12 +6536,6 @@ static void do_sprites (int hpos)
 	}
 
 	last_sprite_hpos = hpos;
-#else
-	for (i = 0; i < MAX_SPRITES * 2; i++) {
-		spr[i / 2].dmacycle = 1;
-		do_sprites_1 (i / 2, i & 1, 0);
-	}
-#endif
 }
 
 static void init_sprites (void)
@@ -7831,11 +7876,9 @@ static void hsync_handler_post (bool onvsync)
 	compute_spcflag_copper (maxhpos);
 
 	serial_hsynchandler ();
-#ifdef CUSTOM_SIMPLE
-	do_sprites (0);
-#endif
 
 	gayle_hsync ();
+	idecontroller_hsync();
 #ifdef A2091
 	scsi_hsync ();
 #endif
@@ -8036,6 +8079,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	}
 
 	gayle_reset (hardreset);
+	idecontroller_reset();
 	a1000_reset ();
 	DISK_reset ();
 	CIA_reset ();
@@ -8364,7 +8408,7 @@ writeonly:
 		* Remembers old last_custom_value1
 		*/
 		v = last_custom_value1;
-		line_cyclebased = vpos;
+		SET_LINE_CYCLEBASED;
 		if (!noput) {
 			int r, c, bmdma;
 			uae_u16 l;
@@ -8655,9 +8699,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 	case 0x10C: BPLCON4 (hpos, value); break;
 #endif
 
-#ifndef CUSTOM_SIMPLE
 	case 0x1DC: BEAMCON0 (value); break;
-#ifdef ECS_DENISE
 	case 0x1C0: if (htotal != value) { htotal = value & (MAXHPOS_ROWS - 1); varsync (); } break;
 	case 0x1C2: if (hsstop != value) { hsstop = value & (MAXHPOS_ROWS - 1); varsync (); } break;
 	case 0x1C4: if (hbstrt != value) { hbstrt = value & (MAXHPOS_ROWS - 1); varsync (); } break;
@@ -8669,8 +8711,6 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 	case 0x1DE: if (hsstrt != value) { hsstrt = value & (MAXHPOS_ROWS - 1); varsync (); } break;
 	case 0x1E0: if (vsstrt != value) { vsstrt = value & (MAXVPOS_LINES_ECS - 1); varsync (); } break;
 	case 0x1E2: if (hcenter != value) { hcenter = value & (MAXHPOS_ROWS - 1); varsync (); } break;
-#endif
-#endif
 
 #ifdef AGA
 	case 0x1FC: FMODE (hpos, value); break;
@@ -9426,7 +9466,7 @@ STATIC_INLINE void sync_copper (int hpos)
 
 STATIC_INLINE void decide_fetch_ce (int hpos)
 {
-	if ((line_cyclebased == vpos || line_cyclebased + 1 == vpos || blitter_dangerous_bpl) && vpos < current_maxvpos ())
+	if ((line_cyclebased || blitter_dangerous_bpl) && vpos < current_maxvpos ())
 		decide_fetch (hpos);
 }
 
