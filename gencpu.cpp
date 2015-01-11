@@ -4124,6 +4124,7 @@ bccl_not68020:
 		returncycles ("\t\t\t", 8);
 		printf ("\t\t}\n");
 		add_head_cycs (10);
+		addcycles000_nonce("\t\t", 2);
 		printf ("\t} else {\n");
 		addcycles000_onlyce(2);
 		addcycles000_nonce("\t\t", 2);
