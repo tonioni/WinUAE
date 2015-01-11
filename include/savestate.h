@@ -152,8 +152,8 @@ extern int save_filesys_cando(void);
 
 extern uae_u8 *restore_gayle(uae_u8 *src);
 extern uae_u8 *save_gayle (int *len, uae_u8*);
-extern uae_u8 *restore_ide (uae_u8 *src);
-extern uae_u8 *save_ide (int num, int *len, uae_u8*);
+extern uae_u8 *restore_gayle_ide (uae_u8 *src);
+extern uae_u8 *save_gayle_ide (int num, int *len, uae_u8*);
 
 extern uae_u8 *save_cd (int num, int *len);
 extern uae_u8 *restore_cd (int, uae_u8 *src);

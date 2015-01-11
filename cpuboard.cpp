@@ -1802,6 +1802,9 @@ addrbank *cpuboard_autoconfig_init(void)
 		roms[0] = 105;
 		roms[1] = 106;
 		break;
+	case BOARD_A3001_I:
+	case BOARD_A3001_II:
+		return &expamem_null;
 	case BOARD_BLIZZARD_1230_IV_SCSI:
 		roms2[0] = 94;
 	case BOARD_BLIZZARD_1230_IV:

@@ -44,6 +44,7 @@
 #include "zarchive.h"
 #include "gui.h"
 #include "gayle.h"
+#include "idecontrollers.h"
 #include "savestate.h"
 #include "a2091.h"
 #include "ncr_scsi.h"
@@ -814,6 +815,21 @@ static bool add_cpuboard_scsi_unit(int unit, struct uaedev_config_info *uci)
 	return added;
 }
 
+static bool add_ide_unit(int type, int unit, struct uaedev_config_info *uci)
+{
+	bool added = false;
+	if (type == HD_CONTROLLER_TYPE_IDE_MB) {
+		if (currprefs.cs_ide) {
+			gayle_add_ide_unit(unit, uci);
+			added = true;
+		}
+	} else if (type == HD_CONTROLLER_TYPE_IDE_GVP) {
+		gvp_add_ide_unit(unit, uci);
+		added = true;
+	}
+	return added;
+}
+
 static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 {
 	bool added = false;
@@ -979,9 +995,14 @@ static void initialize_mountinfo (void)
 		bool added = false;
 		if (type == HD_CONTROLLER_TYPE_UAE) {
 			continue;
-		} else if (type >= HD_CONTROLLER_TYPE_IDE_FIRST && type <= HD_CONTROLLER_TYPE_IDE_LAST) {
-			gayle_add_ide_unit (unit, uci);
-			added = true;
+		} else if (type != HD_CONTROLLER_TYPE_IDE_AUTO && type >= HD_CONTROLLER_TYPE_IDE_FIRST && type <= HD_CONTROLLER_TYPE_IDE_LAST) {
+			added = add_ide_unit(type, unit, uci);
+		} else if (type == HD_CONTROLLER_TYPE_IDE_AUTO) {
+			for (int st = HD_CONTROLLER_TYPE_IDE_FIRST; st <= HD_CONTROLLER_TYPE_IDE_LAST; st++) {
+				added = add_ide_unit(st, unit, uci);
+				if (added)
+					break;
+			}
 		} else if (type != HD_CONTROLLER_TYPE_SCSI_AUTO && type >= HD_CONTROLLER_TYPE_SCSI_FIRST && type <= HD_CONTROLLER_TYPE_SCSI_LAST) {
 			added = add_scsi_unit(type, unit, uci);
 		} else if (type == HD_CONTROLLER_TYPE_SCSI_AUTO) {

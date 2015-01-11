@@ -93,7 +93,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 114
+#define NEXT_ROM_ID 115
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -339,6 +339,10 @@ static struct romdata roms[] = {
 	0xf89f44d6, 0xbf10c12c,0xc72dd040,0x549ea17c,0x24947633,0xe3773297, NULL, NULL },
 	{ _T("GVP Series II Guru ROM"), 6, 14, 6, 14, _T("GVPII\0"), 32768, 110, 0, 0, ROMTYPE_GVP, 0, 0, NULL,
 	0x756103b1, 0x7f1335ea,0xf5b7ce73,0xc5231173,0x261da5aa,0xe7249645, NULL, NULL },
+
+	{ _T("GVP A3001 Series I ROM"), 3, 3, 3, 3, _T("A3001SI\0"), 8192, 114, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
+	0xaaff7c65, 0x424cf3da,0xcc9da794,0x0ba74446,0x69dd1691,0x44ae87ee, NULL, NULL },
+
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

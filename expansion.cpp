@@ -32,6 +32,7 @@
 #include "ncr9x_scsi.h"
 #include "debug.h"
 #include "gayle.h"
+#include "idecontrollers.h"
 #include "cpuboard.h"
 #include "sndboard.h"
 #include "uae/ppc.h"
@@ -1094,7 +1095,7 @@ static addrbank *expamem_init_fastcard_2 (int boardnum)
 		pid = commodore_a2091_ram;
 		mid = commodore;
 		serial = 0;
-	} else if (cfgfile_board_enabled(&currprefs.gvprom)) {
+	} else if (cfgfile_board_enabled(&currprefs.gvprom) || currprefs.cpuboard_type == BOARD_A3001_I || currprefs.cpuboard_type == BOARD_A3001_II) {
 		pid = 10;
 		mid = 2017;
 		serial = 0;
@@ -1702,6 +1703,14 @@ static addrbank *expamem_init_oktagon_2(void)
 {
 	return ncr_oktagon_autoconfig_init (1);
 }
+static addrbank *expamem_init_a3001_rom(void)
+{
+	return gvp_ide_rom_autoconfig_init();
+}
+static addrbank *expamem_init_a3001_ide(void)
+{
+	return gvp_ide_controller_autoconfig_init();
+}
 static addrbank *expamem_init_warpengine(void)
 {
 	return ncr710_warpengine_autoconfig_init();
@@ -1785,7 +1794,25 @@ void expamem_reset (void)
 			map_banks(&fastmem2_bank, (0x00200000 + fastmem_bank.allocated) >> 16, fastmem2_bank.allocated >> 16, 0);
 		}
 	}
+
 	// immediately after Z2Fast so that they can be emulated as A590/A2091 with fast ram.
+
+	if (currprefs.cpuboard_type == BOARD_A3001_I) {
+		card_flags[cardno] = 0;
+		card_name[cardno] = _T("A3001 IDE");
+		card_init[cardno] = expamem_init_a3001_rom;
+		card_map[cardno++] = NULL;
+	} else if (currprefs.cpuboard_type == BOARD_A3001_II) {
+		card_flags[cardno] = 0;
+		card_name[cardno] = _T("A3001 BOOT");
+		card_init[cardno] = expamem_init_a3001_rom;
+		card_map[cardno++] = NULL;
+		card_flags[cardno] = 0;
+		card_name[cardno] = _T("A3001 IDE");
+		card_init[cardno] = expamem_init_a3001_ide;
+		card_map[cardno++] = NULL;
+	}
+
 #ifdef A2091
 	if (cfgfile_board_enabled(&currprefs.a2091rom)) {
 		card_flags[cardno] = 0;
