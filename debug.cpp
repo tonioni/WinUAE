@@ -2120,7 +2120,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 
 		if (!m->frozen && m->val_enabled) {
 			int trigger = 0;
-			uae_u32 mask = (1 << (m->size * 8)) - 1;
+			uae_u32 mask = m->size == 4 ? 0xffffffff : (1 << (m->size * 8)) - 1;
 			uae_u32 mval = m->val;
 			int scnt = size;
 			for (;;) {
@@ -2136,6 +2136,8 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 					mask <<= 16;
 					scnt -= 2;
 					mval <<= 16;
+				} else {
+					scnt -= 4;
 				}
 				if (scnt <= 0)
 					break;
