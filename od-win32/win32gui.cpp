@@ -1667,6 +1667,7 @@ static void show_rom_list (void)
 		91, -1, -2, // Picasso IV
 
 		105, 106, -1, -1, // A2630
+		114, -1, -1, // A3001
 		89, -1, -1, // 1230-IV
 		89, -1, 94, -1, -1, // 1230-IV SCSI
 		90, -1, -1, // 1260
@@ -1701,6 +1702,7 @@ static void show_rom_list (void)
 		_T("Picasso IV\0")
 
 		_T("A2620/A2630\0")
+		_T("GVP A3001 Series I\0")
 		_T("Blizzard 1230-IV\0Blizzard 1260\0")
 		_T("Blizzard 1230-IV/SCSI\0Blizzard 1260/SCSI\0")
 		_T("Blizzard 2060\0Warp Engine\0TekMagic 2040/2060\0")
@@ -4297,8 +4299,13 @@ void InitializeListView (HWND hDlg)
 
 			ctype = ci->controller_type;
 			if (ctype >= HD_CONTROLLER_TYPE_IDE_FIRST && ctype <= HD_CONTROLLER_TYPE_IDE_LAST) {
+				const TCHAR *idedevs[] = {
+					_T("IDE:%d"),
+					_T("MB IDE:%d"),
+					_T("GVP IDE:%d")
+				};
 				_stprintf (blocksize_str, _T("%d"), ci->blocksize);
-				_stprintf (devname_str, _T("IDE:%d"), ci->controller_unit);
+				_stprintf (devname_str, idedevs[ctype - HD_CONTROLLER_TYPE_IDE_FIRST], ci->controller_unit);
 				harddisktype (volname_str, ci);
 				_tcscpy (bootpri_str, _T("n/a"));
 			} else if (ctype >= HD_CONTROLLER_TYPE_SCSI_FIRST && ctype <= HD_CONTROLLER_TYPE_SCSI_LAST) {
@@ -7157,6 +7164,7 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)buffer);
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("A2024"));
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Graffiti"));
+		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("HAM-E"));
 
 #ifndef	AGA
 		ew (hDlg, IDC_AGA, FALSE);
@@ -8315,6 +8323,8 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("A2620/A2630"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("DKB 1230/1240"));
 		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Fusion Forty"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("GVP A3001 Series I"));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("GVP A3001 Series II"));
 		setcpuboardmemsize(hDlg);
 
 	case WM_USER:
@@ -10311,7 +10321,9 @@ static void inithdcontroller (HWND hDlg, int ctype, int devtype)
 {
 	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("UAE"));
-	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("IDE"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("IDE (Auto)"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("Gayle/A4000 IDE"));
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("GVP A3001 IDE"));
 	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("SCSI (Auto)"));
 	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A590/A2091 SCSI"));
 	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)_T("A590/A2091 #2 SCSI"));

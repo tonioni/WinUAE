@@ -1,4 +1,29 @@
 
+Beta 3:
+
+- Bitplane DMA sequencer emulation rewritten yet again to again match better with real hardware behavior.
+  DDFSTRT and DDFSTOP seems to use hidden counter that counts 4 cycles ahead of real hpos counter.
+  When DDFSTRT matches, next 4 cycles appears to be idle (probably used to init and fill some bitplane dma
+  sequencer shift register?) and after this delay DMA starts normally. Same for stop. Now programs that write to
+  DDFSTRT or DDFSTOP just before, exactly in same cycle or just after it should match now just work without
+  any extra hacks. (Some kind of 4 stage shift register would also explain why changing number of bitplanes by
+  writing to BPLCON0 mid-line always take effect after exactly 4 cycle delay)
+  Can break anything as usual! Correctly breaks SCX_CoolSpot1.adf's intro on ECS Agnus configurations :)
+- 512k chip + 512k slow ram + ECS Agnus chip mirroring didn't set slow ram bank with "no memory allocated" flag,
+  could have caused crashes when it was attempted to be freed.
+- OCS Agnus 512k chip + 512k+ slow and 1M/0.5+0.5 advanced chipset checkbox checked: move slow ram start at $080000.
+- 68000 bus error and address error exception stack frame's first word undocumented bits 6 to 15 seem to contain
+  opcode of faulted instruction. (from Hatari)
+- IDE/ATAPI emulation decoupled from Gayle emulation and moved to separate source file.
+- Added GVP A3001 board with IDE. Apparently Series I and II have different hardware and drivers. (v4 for Series II)
+  Series I IDE emulation seems to be fully working. Non-DMA, gvpat.device, v3.3 added to ROM scanner.
+  Does not byte swap data words but emulation swaps it automatically to keep HDFs compatible with other controllers.
+- Added ES_SYSTEM_REQUIRED flag to SetThreadExecutionState(), perhaps it keeps screensaver inactive.
+  (ES_DISPLAY_REQUIRED seems to only make sure monitor does not switch to power saving mode)
+- HAM-E emulation added. Because HAM-E "magic cookie" can be nearly anywhere on screen, enabling HAM-E will slow down
+  emulation (It needs to check nearly all pixels every frame) even when HAM-E mode is not active. "Automatic" setting
+  still only does A2024 and Graffiti detection. DCTV emulation: not going happen without image encoding specs.
+
 Beta 2:
 
 - Paula audio filter still filtered Toccata audio. Note that stereo separation is after Toccata audio

@@ -476,9 +476,6 @@ void mapped_free (addrbank *ab)
 	if (ab->baseaddr == NULL)
 		return;
 
-	if (rtgmem)
-		write_log(_T("x"));
-
 	if (ab->flags & ABFLAG_INDIRECT) {
 		while(x) {
 			if (ab->baseaddr == x->native_address) {

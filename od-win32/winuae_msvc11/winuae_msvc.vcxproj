@@ -811,6 +811,8 @@
     <ClCompile Include="..\..\flashrom.cpp" />
     <ClCompile Include="..\..\gfxboard.cpp" />
     <ClCompile Include="..\..\hrtmon.rom.cpp" />
+    <ClCompile Include="..\..\ide.cpp" />
+    <ClCompile Include="..\..\idecontrollers.cpp" />
     <ClCompile Include="..\..\inputrecord.cpp" />
     <ClCompile Include="..\..\isofs.cpp" />
     <ClCompile Include="..\..\logging.cpp" />

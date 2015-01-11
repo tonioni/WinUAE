@@ -196,7 +196,7 @@ static const TCHAR *dongles[] =
 };
 static const TCHAR *cdmodes[] = { _T("disabled"), _T(""), _T("image"), _T("ioctl"), _T("spti"), _T("aspi"), 0 };
 static const TCHAR *cdconmodes[] = { _T(""), _T("uae"), _T("ide"), _T("scsi"), _T("cdtv"), _T("cd32"), 0 };
-static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a2024"), _T("graffiti"), 0 };
+static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a2024"), _T("graffiti"), _T("ham_e"), 0 };
 static const TCHAR *rtgtype[] = {
 	_T("ZorroII"), _T("ZorroIII"),
 	_T("PicassoII"),
@@ -223,6 +223,8 @@ static const TCHAR *cpuboards[] = {
 	_T("A2630"),
 	_T("DKB12x0"),
 	_T("FusionForty"),
+	_T("A3001SI"),
+	_T("A3001SII"),
 	NULL
 };
 static const TCHAR *ppc_implementations[] = {
@@ -253,7 +255,7 @@ static int leds_order[] = { 3, 6, 7, 8, 9, 4, 5, 2, 1, 0, 9 };
 static const TCHAR *lacer[] = { _T("off"), _T("i"), _T("p"), 0 };
 static const TCHAR *hdcontrollers[] = {
 	_T("uae"),
-	_T("ide%d"),
+	_T("ide%d"), _T("ide%d_mainboard"), _T("ide%d_a3001"),
 	_T("scsi%d"), _T("scsi%d_a2091"),  _T("scsi%d_a2091-2"), _T("scsi%d_gvp"), _T("scsi%d_gvp-2"), _T("scsi%d_a4091"),  _T("scsi%d_a4091-2"),
 	_T("scsi%d_fastlane"), _T("scsi%d_fastlane-2"),
 	_T("scsi%d_oktagon2008"), _T("scsi%d_oktagon2008-2"),
@@ -3115,12 +3117,13 @@ static void get_filesys_controller (const TCHAR *hdc, int *type, int *num)
 		if (hdunit < 0 || hdunit > 3)
 			hdunit = 0;
 	} else if(_tcslen (hdc) >= 5 && !_tcsncmp (hdc, _T("scsi"), 4)) {
-		const TCHAR *ext;
 		hdcv = HD_CONTROLLER_TYPE_SCSI_AUTO;
 		hdunit = hdc[4] - '0';
 		if (hdunit < 0 || hdunit > 7)
 			hdunit = 0;
-		ext = _tcsrchr (hdc, '_');
+	}
+	if (hdcv > HD_CONTROLLER_TYPE_UAE) {
+		const TCHAR *ext = _tcsrchr (hdc, '_');
 		if (ext) {
 			ext++;
 			for (int i = 0; hdcontrollers[i]; i++) {

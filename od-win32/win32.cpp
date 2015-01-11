@@ -2226,9 +2226,7 @@ bool handle_events (void)
 		cnt2--;
 		if (cnt2 <= 0) {
 			if (currprefs.win32_powersavedisabled)
-				SetThreadExecutionState (ES_CONTINUOUS | ES_DISPLAY_REQUIRED);
-			else
-				SetThreadExecutionState (ES_CONTINUOUS);
+				SetThreadExecutionState (ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED);
 			cnt2 = 10;
 		}
 	}
@@ -2248,9 +2246,7 @@ bool handle_events (void)
 		cnt2--;
 		if (cnt2 <= 0) {
 			if (currprefs.win32_powersavedisabled)
-				SetThreadExecutionState (ES_CONTINUOUS | ES_DISPLAY_REQUIRED);
-			else
-				SetThreadExecutionState (ES_CONTINUOUS);
+				SetThreadExecutionState (ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED);
 			cnt2 = 5;
 		}
 	}
