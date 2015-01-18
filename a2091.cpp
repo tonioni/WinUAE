@@ -2744,7 +2744,7 @@ int gvp_add_scsi_unit(int ch, struct uaedev_config_info *ci, int devnum)
 	else if (ci->type == UAEDEV_TAPE)
 		return add_wd_scsi_tape(wd, ch, ci->rootdir, ci->readonly);
 	else
-		return add_wd_scsi_hd(wd, ch, NULL, ci, 1);
+		return add_wd_scsi_hd(wd, ch, NULL, ci, 2);
 }
 
 void a2091_free_device (struct wd_state *wd)
