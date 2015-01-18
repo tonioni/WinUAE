@@ -1233,6 +1233,10 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			scsi_cmd_len, scsi_data);
 	}
 
+	if (cmdbuf[0] == 0x03) { /* REQUEST SENSE */
+		return 0;
+	}
+
 	*reply_len = *sense_len = 0;
 	lun = cmdbuf[1] >> 5;
 	if (cmdbuf[0] != 0x03 && cmdbuf[0] != 0x12 && lun) {
@@ -1241,7 +1245,8 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		s[2] = 5; /* ILLEGAL REQUEST */
 		s[12] = 0x25; /* INVALID LUN */
 		ls = 0x12;
-		goto err;
+		write_log (_T("UAEHF: CMD=%02X LUN=%d ignored\n"), cmdbuf[0], lun);
+		goto err_exit;
 	}
 	switch (cmdbuf[0])
 	{
@@ -1300,7 +1305,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			r[2] = 2; /* supports SCSI-2 */
 			r[3] = 2; /* response data format */
 			r[4] = 32; /* additional length */
-			r[7] = 0x20; /* 16 bit bus */
+			r[7] = 0;
 			scsi_len = lr = alen < 36 ? alen : 36;
 			if (hdhfd) {
 				r[2] = hdhfd->ansi_version;
@@ -1534,7 +1539,6 @@ nodisk:
 err:
 		write_log (_T("UAEHF: unsupported scsi command 0x%02X LUN=%d\n"), cmdbuf[0], lun);
 errreq:
-		lr = -1;
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
 		s[2] = 5; /* ILLEGAL REQUEST */
@@ -1542,7 +1546,6 @@ errreq:
 		ls = 0x12;
 		break;
 outofbounds:
-		lr = -1;
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
 		s[2] = 5; /* ILLEGAL REQUEST */
@@ -1550,7 +1553,6 @@ outofbounds:
 		ls = 0x12;
 		break;
 miscompare:
-		lr = -1;
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
 		s[2] = 5; /* ILLEGAL REQUEST */
@@ -1558,6 +1560,7 @@ miscompare:
 		ls = 0x12;
 		break;
 	}
+err_exit:
 
 	if (log_scsiemu && ls) {
 		write_log (_T("-> SENSE STATUS: KEY=%d ASC=%02X ASCQ=%02X\n"), s[2], s[12], s[13]);

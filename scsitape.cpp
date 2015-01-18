@@ -297,7 +297,7 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 		s[2] = 5; /* ILLEGAL REQUEST */
 		s[12] = 0x25; /* INVALID LUN */
 		ls = 0x12;
-		goto err;
+		goto end;
 	}
 
 	switch (cmdbuf[0])
@@ -656,6 +656,7 @@ notape:
 		ls = 0x12;
 		break;
 	}
+end:
 	*data_len = scsi_len;
 	*reply_len = lr;
 	*sense_len = ls;

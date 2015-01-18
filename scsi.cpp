@@ -18,6 +18,8 @@
 
 #define SCSI_EMU_DEBUG 0
 
+extern int log_scsiemu;
+
 static const int outcmd[] = { 0x0a, 0x2a, 0xaa, 0x15, 0x55, -1 };
 static const int incmd[] = { 0x01, 0x03, 0x05, 0x08, 0x12, 0x1a, 0x5a, 0x25, 0x28, 0x34, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, 0xbd, -1 };
 static const int nonecmd[] = { 0x00, 0x0b, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1e, 0x2b, 0x35, -1 };
@@ -137,22 +139,20 @@ void scsi_clear_sense(struct scsi_data *sd)
 }
 static void showsense(struct scsi_data *sd)
 {
-#if 0
-	write_log (_T("REQUEST SENSE %d, "), sd->data_len);
-	for (int i = 0; i < sd->data_len; i++) {
-		if (i > 0)
-			write_log (_T("."));
-		write_log (_T("%02X"), sd->buffer[i]);
+	if (log_scsiemu) {
+		for (int i = 0; i < sd->data_len; i++) {
+			if (i > 0)
+				write_log (_T("."));
+			write_log (_T("%02X"), sd->buffer[i]);
+		}
+		write_log (_T("\n"));
 	}
-	write_log (_T("\n"));
-#endif
 }
 static void copysense(struct scsi_data *sd)
 {
 	int len = sd->cmd[4];
-#if SCSI_EMU_DEBUG
-	write_log (_T("REQUEST SENSE length %d (%d)\n"), len, sd->sense_len);
-#endif
+	if (log_scsiemu)
+		write_log (_T("REQUEST SENSE length %d (%d)\n"), len, sd->sense_len);
 	memset(sd->buffer, 0, len);
 	memcpy(sd->buffer, sd->sense, sd->sense_len > len ? len : sd->sense_len);
 	if (sd->sense_len == 0)
@@ -195,6 +195,7 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 		}
 	} else if (sd->device_type == UAEDEV_HDF && sd->nativescsiunit < 0) {
 		if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
+			scsi_hd_emulate(&sd->hfd->hfd, sd->hfd, sd->cmd, 0, 0, 0, 0, 0, 0, 0);
 			copysense(sd);
 		} else {
 			scsi_clear_sense(sd);
