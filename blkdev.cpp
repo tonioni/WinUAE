@@ -217,6 +217,7 @@ void blkdev_default_prefs (struct uae_prefs *p)
 		p->cdslots[i].name[0] = 0;
 		p->cdslots[i].inuse = false;
 		p->cdslots[i].type = SCSI_UNIT_DEFAULT;
+		p->cdslots[i].temporary = false;
 		cdscsidevicetype[i] = SCSI_UNIT_DEFAULT;
 	}
 }
@@ -1292,7 +1293,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 	int status = 0;
 	struct device_info di;
 	uae_u8 cmd = cmdbuf[0];
-	int dlen;
+	int dlen, lun;
 	
 	if (cmd == 0x03) { /* REQUEST SENSE */
 		st->mediawaschanged = false;
@@ -1302,19 +1303,28 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 	dlen = *data_len;
 	*reply_len = *sense_len = 0;
 
-	sys_command_info (unitnum, &di, 1);
-
 	if (log_scsiemu) {
-		write_log (_T("SCSIEMU CD %d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X CMDLEN=%d DATA=%p LEN=%d\n"), unitnum,
+		write_log (_T("CD SCSIEMU %d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X CMDLEN=%d DATA=%p LEN=%d\n"), unitnum,
 			cmdbuf[0], cmdbuf[1], cmdbuf[2], cmdbuf[3], cmdbuf[4], cmdbuf[5], cmdbuf[6], 
 			cmdbuf[7], cmdbuf[8], cmdbuf[9], cmdbuf[10], cmdbuf[11],
 			scsi_cmd_len, scsi_data, dlen);
 	}
 
+	lun = cmdbuf[1] >> 5;
+	if (cmdbuf[0] != 0x03 && cmdbuf[0] != 0x12 && lun) {
+		status = 2; /* CHECK CONDITION */
+		s[0] = 0x70;
+		s[2] = 5; /* ILLEGAL REQUEST */
+		s[12] = 0x25; /* INVALID LUN */
+		ls = 0x12;
+		write_log (_T("CD SCSIEMU %d: CMD=%02X LUN=%d ignored\n"), unitnum, cmdbuf[0], lun);
+		goto end;
+	}
+
 	// media changed and not inquiry
 	if (st->mediawaschanged && cmd != 0x12) {
 		if (log_scsiemu) {
-			write_log (_T("SCSIEMU %d: MEDIUM MAY HAVE CHANGED STATE\n"), unitnum);
+			write_log (_T("CD SCSIEMU %d: MEDIUM MAY HAVE CHANGED STATE\n"), unitnum);
 		}
 		lr = -1;
 		status = 2; /* CHECK CONDITION */
@@ -1326,6 +1336,8 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			st->mediawaschanged = false;
 		goto end;
 	}
+
+	sys_command_info (unitnum, &di, 1);
 
 	switch (cmdbuf[0])
 	{
@@ -1407,7 +1419,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			scsi_len = 0;
 		} else {
 			if (log_scsiemu)
-				write_log (_T("MODE SELECT PC=%d not supported\n"), pcode);
+				write_log (_T("CD SCSIEMU MODE SELECT PC=%d not supported\n"), pcode);
 			goto errreq;
 		}
 	}
@@ -1430,7 +1442,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			dbd = 1;
 		}
 		if (log_scsiemu)
-			write_log (_T("MODE SENSE PC=%d CODE=%d DBD=%d\n"), pc, pcode, dbd);
+			write_log (_T("CD SCSIEMU MODE SENSE PC=%d CODE=%d DBD=%d\n"), pc, pcode, dbd);
 		p = r;
 		if (sense10) {
 			totalsize = 8 - 2;
@@ -1990,7 +2002,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 
 	default:
 err:
-		write_log (_T("CDEMU: unsupported scsi command 0x%02X\n"), cmdbuf[0]);
+		write_log (_T("CD SCSIEMU: unsupported scsi command 0x%02X\n"), cmdbuf[0]);
 readprot:
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
@@ -2039,6 +2051,14 @@ end:
 	*data_len = scsi_len;
 	*reply_len = lr;
 	*sense_len = ls;
+	if (lr > 0) {
+		if (log_scsiemu) {
+			write_log (_T("CD SCSIEMU REPLY: "));
+			for (int i = 0; i < lr && i < 40; i++)
+				write_log (_T("%02X."), r[i]);
+			write_log (_T("\n"));
+		}
+	}
 	if (ls) {
 		//s[0] |= 0x80;
 		s[7] = ls - 7; // additional sense length
@@ -2168,6 +2188,17 @@ int sys_command_scsi_direct (int unitnum, int type, uaecptr acmd)
 
 #ifdef SAVESTATE
 
+void restore_blkdev_start(void)
+{
+	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		struct cdslot *cd = &currprefs.cdslots[i];
+		if (cd->temporary) {
+			memset(cd, 0, sizeof(struct cdslot));
+			memset(&changed_prefs.cdslots[i], 0, sizeof(struct cdslot));
+		}
+	}
+}
+
 uae_u8 *save_cd (int num, int *len)
 {
 	struct blkdevstate *st = &state[num];
@@ -2210,6 +2241,7 @@ uae_u8 *restore_cd (int num, uae_u8 *src)
 			_tcscpy (currprefs.cdslots[num].name, s);
 		}
 		changed_prefs.cdslots[num].type = currprefs.cdslots[num].type = type;
+		changed_prefs.cdslots[num].temporary = currprefs.cdslots[num].temporary = true;
 	}
 	if (flags & 8) {
 		restore_u32 ();
