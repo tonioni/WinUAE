@@ -12,6 +12,7 @@ static bool automatic;
 static int monitor;
 
 extern unsigned int bplcon0;
+extern int interlace_seen;
 
 static uae_u8 graffiti_palette[256 * 4];
 
@@ -93,11 +94,65 @@ static void clearmonitor(struct vidbuffer *dst)
 	}
 }
 
+static bool dctv(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
+{
+	int y, x, vdbl, hdbl;
+	int ystart, yend, isntsc;
+	int xadd;
+
+	isntsc = (beamcon0 & 0x20) ? 0 : 1;
+	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+		isntsc = currprefs.ntscmode ? 1 : 0;
+
+	vdbl = gfxvidinfo.ychange;
+	hdbl = gfxvidinfo.xchange;
+
+	xadd = ((1 << 1) / hdbl) * src->pixbytes;
+
+	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
+	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
+
+	oddlines = 1;
+
+	uae_u8 r, g, b;
+	for (y = ystart; y < yend; y += 2) {
+		int yoff = (((y * 2 + oddlines) - src->yoffset) / vdbl);
+		if (yoff < 0)
+			continue;
+		if (yoff >= src->inheight)
+			continue;
+		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
+		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
+
+		for (x = 1; x < src->inwidth; x += 2) {
+			uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
+			uae_u8 *d = dstline + ((x << 1) / hdbl) * dst->pixbytes;
+			uae_u8 *s2 = s + src->rowbytes;
+			uae_u8 *d2 = d + dst->rowbytes;
+			uae_u8 newval = FIRGB(src, s);
+
+			r = newval << 4;
+			g = newval << 4;
+			b = newval << 4;
+
+			PRGB(dst, d, r, g, b);
+			PRGB(dst, d + dst->pixbytes, r, g, b);
+			PRGB(dst, d + dst->rowbytes, r, g, b);
+			PRGB(dst, d + dst->rowbytes + dst->pixbytes, r, g, b);
+			
+
+		}
+	}
+	dst->nativepositioning = true;
+	return true;
+}
+
+
 static const uae_u8 ham_e_magic_cookie[] = { 0xa2, 0xf5, 0x84, 0xdc, 0x6d, 0xb0, 0x7f  };
 static const uae_u8 ham_e_magic_cookie_reg = 0x14;
 static const uae_u8 ham_e_magic_cookie_ham = 0x18;
 
-static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst)
+static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
 {
 	int y, x, vdbl, hdbl;
 	int ystart, yend, isntsc;
@@ -124,13 +179,13 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst)
 	bool cookie_line = false;
 	int cookiestartx = 10000;
 	for (y = ystart; y < yend; y++) {
-		int yoff = (((y << VRES_MAX) - src->yoffset) / vdbl);
+		int yoff = (((y * 2 + oddlines) - src->yoffset) / vdbl);
 		if (yoff < 0)
 			continue;
 		if (yoff >= src->inheight)
 			continue;
 		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
-		uae_u8 *dstline = dst->bufmem + (((y << VRES_MAX) - dst->yoffset) / vdbl) * dst->rowbytes;
+		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
 
 		bool getpalette = false;
 		uae_u8 prev = 0;
@@ -139,9 +194,14 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst)
 		for (x = 0; x < src->inwidth; x++) {
 			uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
 			uae_u8 *d = dstline + ((x << 1) / hdbl) * dst->pixbytes;
+			uae_u8 *s2 = s + src->rowbytes;
+			uae_u8 *d2 = d + dst->rowbytes;
+			uae_u8 newval = FIRGB(src, s);
+			uae_u8 val = prev | newval;
 
-			uae_u8 val = prev | FIRGB(src, s);
-			if (val == ham_e_magic_cookie[0]) {
+			if (newval)
+				zeroline = false;
+			if (val == ham_e_magic_cookie[0] && x + sizeof ham_e_magic_cookie + 1 < src->inwidth) {
 				int i;
 				for (i = 1; i <= sizeof ham_e_magic_cookie; i++) {
 					uae_u8 val2 = (FIRGB(src, s + (i * 2 - 1) * xadd) << 4) | FIRGB(src, s + (i * 2 + 0) * xadd);
@@ -166,8 +226,6 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst)
 				oddeven = 0;
 
 			if (oddeven) {
-				if (val)
-					zeroline = false;
 				if (getpalette) {
 					graffiti_palette[pcnt] = val;
 					pcnt++;
@@ -208,6 +266,10 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst)
 					}
 					PRGB(dst, d - dst->pixbytes, r, g, b);
 					PRGB(dst, d, r, g, b);
+					if (doublelines) {
+						PRGB(dst, d2 - dst->pixbytes, r, g, b);
+						PRGB(dst, d2, r, g, b);
+					}
 				} else {
 					if (dst->pixbytes == 4) {
 						((uae_u32*)d)[-1] = ((uae_u32*)s)[-1];
@@ -215,6 +277,15 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst)
 					} else {
 						((uae_u16*)d)[-1] = ((uae_u16*)s)[-1];
 						((uae_u16*)d)[0] = ((uae_u16*)s)[0];
+					}
+					if (doublelines) {
+						if (dst->pixbytes == 4) {
+							((uae_u32*)d2)[-1] = ((uae_u32*)s2)[-1];
+							((uae_u32*)d2)[0] = ((uae_u32*)s2)[0];
+						} else {
+							((uae_u16*)d2)[-1] = ((uae_u16*)s2)[-1];
+							((uae_u16*)d2)[0] = ((uae_u16*)s2)[0];
+						}
 					}
 				}
 			}
@@ -227,6 +298,8 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst)
 			// Erase magic cookie. I assume real HAM-E would erase it
 			// because not erasing it would look really ugly.
 			memset(dstline, 0, dst->outwidth * dst->pixbytes);
+			if (doublelines)
+				memset(dstline + dst->rowbytes, 0, dst->outwidth * dst->pixbytes);
 		}
 
 		cookie_line = false;
@@ -234,8 +307,9 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst)
 			was_active = mode_active;
 		if (zeroline) {
 			if (prevzeroline) {
-				mode_active = false;
+				mode_active = 0;
 				pcnt = 0;
+				cookiestartx = 10000;
 			}
 			prevzeroline = true;
 		} else {
@@ -288,6 +362,10 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 
 	xstart = 0x1c * 2 + 1;
 	xend = 0xf0 * 2 + 1;
+	if (!(currprefs.chipset_mask & CSMASK_AGA)) {
+		xstart++;
+		xend++;
+	}
 
 	srcbuf = src->bufmem + (((ystart << VRES_MAX) - src->yoffset) / gfxvidinfo.ychange) * src->rowbytes + (((xstart << RES_MAX) - src->xoffset) / gfxvidinfo.xchange) * src->pixbytes;
 	srcend = src->bufmem + (((yend << VRES_MAX) - src->yoffset) / gfxvidinfo.ychange) * src->rowbytes;
@@ -332,7 +410,7 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 							command = false;
 							dbl = 1;
 							waitline = 2;
-							if (cmd & 16) {
+							if (0 && (cmd & 16)) {
 								hires = true;
 								xadd /= 2;
 								xpixadd /= 2;
@@ -619,9 +697,19 @@ static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *ds
 	} else if (currprefs.monitoremu == MONITOREMU_GRAFFITI) {
 		automatic = false;
 		return graffiti(src, dst);
-	} else if (currprefs.monitoremu == MONITOREMU_HAM_E) {
+	} else if (currprefs.monitoremu == MONITOREMU_DCTV) {
 		automatic = false;
-		return ham_e(src, dst);
+		return dctv(src, dst, false, 0);
+	} else if (currprefs.monitoremu == MONITOREMU_HAM_E) {
+		bool v;
+		automatic = false;
+		if (interlace_seen) {
+			v = ham_e(src, dst, false, 0);
+			v |= ham_e(src, dst, false, 1);
+		} else {
+			v = ham_e(src, dst, true, 0);
+		}
+		return v;
 	}
 	return false;
 }

@@ -196,7 +196,7 @@ static const TCHAR *dongles[] =
 };
 static const TCHAR *cdmodes[] = { _T("disabled"), _T(""), _T("image"), _T("ioctl"), _T("spti"), _T("aspi"), 0 };
 static const TCHAR *cdconmodes[] = { _T(""), _T("uae"), _T("ide"), _T("scsi"), _T("cdtv"), _T("cd32"), 0 };
-static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a2024"), _T("graffiti"), _T("ham_e"), 0 };
+static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a2024"), _T("graffiti"), _T("ham_e"), _T("dctv"), 0 };
 static const TCHAR *rtgtype[] = {
 	_T("ZorroII"), _T("ZorroIII"),
 	_T("PicassoII"),

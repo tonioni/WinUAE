@@ -1110,10 +1110,13 @@ void remove_ide_unit(struct ide_hdf **idetable, int ch)
 		return;
 	ide = idetable[ch];
 	if (ide) {
+		struct ide_thread_state *its;
 		hdf_hd_close(&ide->hdhfd);
 		scsi_free(ide->scsi);
 		xfree(ide->secbuf);
+		its = ide->its;
 		memset(ide, 0, sizeof(struct ide_hdf));
+		ide->its = its;
 	}
 }
 

@@ -805,6 +805,7 @@
     <ClCompile Include="..\..\cpuemu_40.cpp" />
     <ClCompile Include="..\..\cpummu30.cpp" />
     <ClCompile Include="..\..\def_icons.cpp" />
+    <ClCompile Include="..\..\devices.cpp" />
     <ClCompile Include="..\..\dlopen.cpp" />
     <ClCompile Include="..\..\ethernet.cpp" />
     <ClCompile Include="..\..\events.cpp" />

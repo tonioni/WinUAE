@@ -108,6 +108,7 @@ struct cdslot
 	TCHAR name[MAX_DPATH];
 	bool inuse;
 	bool delayed;
+	bool temporary;
 	int type;
 };
 struct floppyslot
@@ -205,6 +206,7 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CDTVCR, CP_CD32, CP_A500, CP_A500P, CP_A600, 
 #define MONITOREMU_A2024 2
 #define MONITOREMU_GRAFFITI 3
 #define MONITOREMU_HAM_E 4
+#define MONITOREMU_DCTV 5
 
 #define MAX_FILTERSHADERS 4
 

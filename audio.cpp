@@ -1936,6 +1936,8 @@ void audio_evhandler (void)
 
 void audio_hsync (void)
 {
+	if (!currprefs.produce_sound)
+		return;
 	if (!isaudio ())
 		return;
 	if (audio_work_to_do > 0 && currprefs.sound_auto && !audio_extra_channels[0] && !audio_extra_channels[1]

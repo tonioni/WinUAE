@@ -65,6 +65,7 @@
 #include "disk.h"
 #include "threaddep/thread.h"
 #include "a2091.h"
+#include "devices.h"
 
 int savestate_state = 0;
 static int savestate_first_capture;
@@ -520,14 +521,7 @@ void restore_state (const TCHAR *filename)
 	savestate_file = f;
 	restore_header (chunk);
 	xfree (chunk);
-	restore_cia_start ();
-	changed_prefs.bogomem_size = 0;
-	changed_prefs.chipmem_size = 0;
-	changed_prefs.fastmem_size = 0;
-	changed_prefs.z3fastmem_size = 0;
-	changed_prefs.z3fastmem2_size = 0;
-	changed_prefs.mbresmem_low_size = 0;
-	changed_prefs.mbresmem_high_size = 0;
+	devices_restore_start();
 	z3num = 0;
 	for (;;) {
 		name[0] = 0;

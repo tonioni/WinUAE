@@ -7,11 +7,9 @@
   */
 
 extern void do_start_program (void);
-extern void do_leave_program (void);
 extern void start_program (void);
 extern void leave_program (void);
 extern void real_main (int, TCHAR **);
-extern void virtualdevice_init (void);
 extern void usage (void);
 extern void sleep_millis (int ms);
 extern void sleep_millis_main (int ms);
@@ -26,7 +24,6 @@ extern int sleep_resolution;
 extern void uae_reset (int, int);
 extern void uae_quit (void);
 extern void uae_restart (int, const TCHAR*);
-extern void reset_all_systems (void);
 extern void target_reset (void);
 extern void target_addtorecent (const TCHAR*, int);
 extern void target_run (void);

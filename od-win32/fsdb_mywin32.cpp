@@ -1031,5 +1031,5 @@ const TCHAR *my_getfilepart(const TCHAR *filename)
 	p = _tcsrchr(filename, '/');
 	if (p)
 		return p + 1;
-	return p;
+	return filename;
 }

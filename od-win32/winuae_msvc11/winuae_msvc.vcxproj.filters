@@ -727,6 +727,9 @@
     <ClCompile Include="..\..\idecontrollers.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\devices.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

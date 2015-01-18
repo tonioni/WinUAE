@@ -1183,7 +1183,10 @@ static addrbank* expamem_init_filesys (void)
 	uae_u8 diagarea[] = { 0x90, 0x00, /* da_Config, da_Flags */
 		0x02, 0x00, /* da_Size */
 		FILESYS_DIAGPOINT >> 8, FILESYS_DIAGPOINT & 0xff,
-		FILESYS_BOOTPOINT >> 8, FILESYS_BOOTPOINT & 0xff
+		FILESYS_BOOTPOINT >> 8, FILESYS_BOOTPOINT & 0xff,
+		0, 14, // Name offset
+		0, 0, 0, 0,
+		'U', 'A', 'E', 0
 	};
 
 	expamem_init_clear ();
@@ -1536,7 +1539,8 @@ static void allocate_expamem (void)
 #ifdef PICASSO96
 	if (gfxmem_bank.allocated != currprefs.rtgmem_size) {
 		mapped_free (&gfxmem_bank);
-		mapped_malloc_dynamic (&currprefs.rtgmem_size, &changed_prefs.rtgmem_size, &gfxmem_bank, 1, currprefs.rtgmem_type ? _T("z3_gfx") : _T("z2_gfx"));
+		if (currprefs.rtgmem_type < GFXBOARD_HARDWARE)
+			mapped_malloc_dynamic (&currprefs.rtgmem_size, &changed_prefs.rtgmem_size, &gfxmem_bank, 1, currprefs.rtgmem_type ? _T("z3_gfx") : _T("z2_gfx"));
 		memory_hardreset (1);
 	}
 #endif
@@ -1545,8 +1549,12 @@ static void allocate_expamem (void)
 	if (savestate_state == STATE_RESTORE) {
 		if (fastmem_bank.allocated > 0) {
 			restore_ram (fast_filepos, fastmem_bank.baseaddr);
+			if (!fastmem_bank.start) {
+				// old statefile compatibility support
+				fastmem_bank.start = 0x00200000;
+			}
 			map_banks (&fastmem_bank, fastmem_bank.start >> 16, currprefs.fastmem_size >> 16,
-				fastmem_bank.allocated);
+					fastmem_bank.allocated);
 		}
 		if (fastmem2_bank.allocated > 0) {
 			restore_ram (fast2_filepos, fastmem2_bank.baseaddr);
@@ -2074,7 +2082,8 @@ void expansion_cleanup (void)
 	mapped_free (&z3chipmem_bank);
 
 #ifdef PICASSO96
-	mapped_free (&gfxmem_bank);
+	if (currprefs.rtgmem_type < GFXBOARD_HARDWARE)
+		mapped_free (&gfxmem_bank);
 #endif
 
 #ifdef FILESYS

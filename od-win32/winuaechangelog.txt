@@ -1,4 +1,33 @@
 
+
+Beta 4:
+
+- HAM-E images updated only every other line in doubled modes.
+- Graffiti didn't sync correctly if config was not AGA.
+- Restart button crashed if hardware RTG was enabled.
+- PCMCIA IDE didn't work anymore (b2)
+- .pkd file extension inside archive wasn't autodetected.
+- Disk/CD insert status message file name was shown as "null" if file was inside archive root.
+- HD and tape SCSI emulation unsupported LUN sense data was overwritten with default ILLEGAL FIELD IN CDB sense data.
+- CD SCSI emulator didn't check for non-zero LUNs.
+- Return SCSI-1 HD inquiry data only if A590/A2091.
+- Show also REQUEST SENSE command and data if scsi emulation logging is enabled.
+- 68000 prefetch mode DIVS/DIVU timing update didn't work, always returned 4 cycles due to missing parenthesis.
+- Switching chip ram and/or slow ram size usually crashed after reset if ECS Agnus was selected.
+- Some very old statefiles had Z2 fast ram with zeroed autoconfig address, added workaround (broke during 2.9 betas)
+- Added fl <lines to wait> or fl <absolute line> <absolute hpos> and fc <CCKs to wait> break points to debugger.
+- Z3 space memory mapping was not initialized if only non-RAM/VRAM Z3 expansions are configured.
+- Clock sync feature update, previously only 50Hz CIA-A TOD rate was fully accurate.
+- Load CDTV/CD32 state file, load other state file: CDTV/CD32 CD was still mounted.
+- Yet another bitplane DMA sequencer emulation rewrite and cleanups. Still some bitplane DMA on/off switch edge cases remaining
+  Switch on bitplane DMA near end the scanline: following line starts DMA for one "block" only, next line works normally.
+  This needs more real hardware testing to find exact conditions.
+- Source cleanup, moved all kinds of device init/free/interrupt check codes to common file from non-related source
+  files.
+- Added name to UAE Boot ROM DiagArea. (May be visible in some system info/diagnostics software)
+- HALT status was not cleared when loading new state file.
+
+  
 Beta 3:
 
 - Bitplane DMA sequencer emulation rewritten yet again to again match better with real hardware behavior.
