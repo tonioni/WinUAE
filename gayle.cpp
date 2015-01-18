@@ -163,9 +163,9 @@ static void pcmcia_reset (void)
 
 static uae_u8 checkpcmciaideirq (void)
 {
-	if (!idedrive || pcmcia_type != PCMCIA_IDE || pcmcia_configured < 0)
+	if (!idedrive[PCMCIA_IDE_ID * 2] || pcmcia_type != PCMCIA_IDE || pcmcia_configured < 0)
 		return 0;
-	if (idedrive[PCMCIA_IDE_ID * 2]->regs0->ide_devcon & 2)
+	if (!idedrive[PCMCIA_IDE_ID * 2]->regs0 || (idedrive[PCMCIA_IDE_ID * 2]->regs0->ide_devcon & 2))
 		return 0;
 	if (idedrive[PCMCIA_IDE_ID * 2]->irq)
 		return GAYLE_IRQ_BSY;
@@ -177,16 +177,16 @@ static uae_u8 checkgayleideirq (void)
 	int i;
 	bool irq = false;
 
-	if (!idedrive)
-		return 0;
 	for (i = 0; i < 2; i++) {
-		if (!(idedrive[i]->regs.ide_devcon & 2) && (idedrive[i]->irq || idedrive[i + 2]->irq))
-			irq = true;
-		/* IDE killer feature. Do not eat interrupt to make booting faster. */
-		if (idedrive[i]->irq && !ide_isdrive (idedrive[i]))
-			idedrive[i]->irq = 0;
-		if (idedrive[i + 2]->irq && !ide_isdrive (idedrive[i + 2]))
-			idedrive[i + 2]->irq = 0;
+		if (idedrive[i]) {
+			if (!(idedrive[i]->regs.ide_devcon & 2) && (idedrive[i]->irq || (idedrive[i + 2] && idedrive[i + 2]->irq)))
+				irq = true;
+			/* IDE killer feature. Do not eat interrupt to make booting faster. */
+			if (idedrive[i]->irq && !ide_isdrive (idedrive[i]))
+				idedrive[i]->irq = 0;
+			if (idedrive[i + 2] && idedrive[i + 2]->irq && !ide_isdrive (idedrive[i + 2]))
+				idedrive[i + 2]->irq = 0;
+		}
 	}
 	return irq ? GAYLE_IRQ_IDE : 0;
 }
@@ -1334,6 +1334,7 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, str
 		if (reset && path) {	
 			add_ide_unit (idedrive, TOTAL_IDE * 2, PCMCIA_IDE_ID * 2, uci);
 		}
+		ide_initialize(idedrive, PCMCIA_IDE_ID);
 
 		pcmcia_common_size = 0;
 		pcmcia_readonly = uci->readonly;
@@ -1646,11 +1647,11 @@ static void initide (void)
 	gayle_its.idetotal = TOTAL_IDE * 2;
 	start_ide_thread(&gayle_its);
 	alloc_ide_mem (idedrive, TOTAL_IDE * 2, &gayle_its);
+	ide_initialize(idedrive, GAYLE_IDE_ID);
+	ide_initialize(idedrive, GAYLE_IDE_ID + 1);
 
 	if (isrestore ())
 		return;
-	ide_initialize(idedrive, 0);
-	ide_initialize(idedrive, 1);
 	ide_splitter = 0;
 	if (ide_isdrive (idedrive[2]) || ide_isdrive(idedrive[3])) {
 		ide_splitter = 1;
