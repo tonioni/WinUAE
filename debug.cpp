@@ -3519,6 +3519,42 @@ static void show_exec_lists (TCHAR *t)
 	}
 }
 
+static void breakfunc(uae_u32 v)
+{
+	write_log(_T("Cycle breakpoint hit\n"));
+	debugging = 1;
+	set_special (SPCFLAG_BRK);
+}
+
+static int cycle_breakpoint(TCHAR **c)
+{
+	TCHAR nc = _totupper((*c)[0]);
+	next_char(c);
+	if (more_params(c)) {
+		int count = readint(c);
+		if (nc == 'L') {
+			if (more_params(c)) {
+				int hp = readint(c);
+				if (count >= vpos) {
+					count = vpos - count;
+				} else {
+					count += maxvpos - vpos;
+				}
+				if (hp >= current_hpos()) {
+					count += hp - current_hpos();
+				} else {
+					count += maxhpos - current_hpos();
+				}
+			} else {
+				count *= maxhpos;
+			}
+		}
+		event2_newevent_x(-1, count, 0, breakfunc);
+		return 1;
+	}
+	return 0;
+}
+
 #if 0
 static int trace_same_insn_count;
 static uae_u8 trace_insn_copy[10];
@@ -4338,6 +4374,9 @@ static BOOL debug_line (TCHAR *input)
 			} else if (inptr[0] == 'p') {
 				inptr++;
 				if (process_breakpoint (&inptr))
+					return true;
+			} else if (inptr[0] == 'c' || inptr[0] == 'l') {
+				if (cycle_breakpoint(&inptr))
 					return true;
 			} else {
 				if (instruction_breakpoint (&inptr))
