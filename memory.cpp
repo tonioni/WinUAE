@@ -36,6 +36,7 @@
 #include "gfxboard.h"
 #include "cpuboard.h"
 #include "uae/ppc.h"
+#include "devices.h"
 
 bool canbang;
 static bool rom_write_enabled;
@@ -1825,6 +1826,15 @@ static bool singlebit (uae_u32 v)
 static void allocate_memory (void)
 {
 	bogomem_aliasing = 0;
+
+	bool bogoreset = (bogomem_bank.flags & ABFLAG_NOALLOC) != 0 &&
+		(chipmem_bank.allocated != currprefs.chipmem_size || bogomem_bank.allocated != currprefs.bogomem_size);
+
+	if (bogoreset) {
+		mapped_free(&chipmem_bank);
+		mapped_free(&bogomem_bank);
+	}
+
 	/* emulate 0.5M+0.5M with 1M Agnus chip ram aliasing */
 	if (currprefs.chipmem_size == 0x80000 && currprefs.bogomem_size >= 0x80000 &&
 		(currprefs.chipset_mask & CSMASK_ECS_AGNUS) && !(currprefs.chipset_mask & CSMASK_AGA) && currprefs.cpu_model < 68020) {
@@ -1884,9 +1894,10 @@ static void allocate_memory (void)
 			bogomem_aliasing = 2;
 	}
 
-	if (chipmem_bank.allocated != currprefs.chipmem_size) {
+	if (chipmem_bank.allocated != currprefs.chipmem_size || bogoreset) {
 		int memsize;
 		mapped_free (&chipmem_bank);
+		chipmem_bank.flags &= ~ABFLAG_NOALLOC;
 		if (currprefs.chipmem_size > 2 * 1024 * 1024) {
 			if (currprefs.fastmem_size >= 524288)
 				free_fastmemory (0);
@@ -1926,9 +1937,10 @@ static void allocate_memory (void)
 		}
 	}
 
-	if (bogomem_bank.allocated != currprefs.bogomem_size) {
+	if (bogomem_bank.allocated != currprefs.bogomem_size || bogoreset) {
 		if (!(bogomem_bank.allocated == 0x200000 && currprefs.bogomem_size == 0x180000)) {
 			mapped_free (&bogomem_bank);
+			bogomem_bank.flags &= ~ABFLAG_NOALLOC;
 			bogomem_bank.allocated = 0;
 
 			bogomem_bank.allocated = currprefs.bogomem_size;
