@@ -15,7 +15,6 @@
 #include "uae.h"
 #include "gensound.h"
 #include "audio.h"
-#include "sounddep/sound.h"
 #include "events.h"
 #include "memory.h"
 #include "custom.h"
@@ -29,42 +28,19 @@
 #include "gui.h"
 #include "zfile.h"
 #include "autoconf.h"
-#include "traps.h"
-#include "osemu.h"
 #include "picasso96.h"
-#include "bsdsocket.h"
-#include "uaeexe.h"
 #include "native2amiga.h"
-#include "scsidev.h"
-#include "uaeserial.h"
-#include "akiko.h"
-#include "cd32_fmv.h"
-#include "cdtv.h"
-#include "cdtvcr.h"
 #include "savestate.h"
 #include "filesys.h"
-#include "parallel.h"
-#include "a2091.h"
-#include "a2065.h"
-#include "ncr_scsi.h"
-#include "ncr9x_scsi.h"
-#include "scsi.h"
-#include "sana2.h"
 #include "blkdev.h"
-#include "gfxfilter.h"
-#include "uaeresource.h"
-#include "dongle.h"
-#include "sampler.h"
 #include "consolehook.h"
-#include "gayle.h"
-#include "idecontrollers.h"
 #include "gfxboard.h"
 #include "luascript.h"
 #include "uaenative.h"
 #include "tabletlibrary.h"
 #include "cpuboard.h"
-#include "sndboard.h"
 #include "uae/ppc.h"
+#include "devices.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -903,53 +879,6 @@ static void parse_cmdline_and_init_file (int argc, TCHAR **argv)
 	parse_cmdline (argc, argv);
 }
 
-void reset_all_systems (void)
-{
-	init_eventtab ();
-
-#ifdef WITH_PPC
-	uae_ppc_reset(is_hardreset());
-#endif
-#ifdef PICASSO96
-	picasso_reset ();
-#endif
-#ifdef SCSIEMU
-	scsi_reset ();
-	scsidev_reset ();
-	scsidev_start_threads ();
-#endif
-#ifdef A2065
-	a2065_reset ();
-#endif
-#ifdef SANA2
-	netdev_reset ();
-	netdev_start_threads ();
-#endif
-#ifdef FILESYS
-	filesys_prepare_reset ();
-	filesys_reset ();
-#endif
-	init_shm ();
-	memory_reset ();
-#if defined (BSDSOCKET)
-	bsdlib_reset ();
-#endif
-#ifdef FILESYS
-	filesys_start_threads ();
-	hardfile_reset ();
-#endif
-#ifdef UAESERIAL
-	uaeserialdev_reset ();
-	uaeserialdev_start_threads ();
-#endif
-#if defined (PARALLEL_PORT)
-	initparallel ();
-#endif
-	native2amiga_reset ();
-	dongle_reset ();
-	sampler_init ();
-}
-
 /* Okay, this stuff looks strange, but it is here to encourage people who
 * port UAE to re-use as much of this code as possible. Functions that you
 * should be using are do_start_program () and do_leave_program (), as well
@@ -999,71 +928,6 @@ void do_start_program (void)
 #endif
 }
 
-void do_leave_program (void)
-{
-	sampler_free ();
-	graphics_leave ();
-	inputdevice_close ();
-	DISK_free ();
-	close_sound ();
-	dump_counts ();
-#ifdef SERIAL_PORT
-	serial_exit ();
-#endif
-#ifdef CDTV
-	cdtv_free();
-	cdtvcr_free();
-#endif
-#ifdef A2091
-	a2091_free ();
-	gvp_free ();
-	a3000scsi_free ();
-#endif
-#ifdef NCR
-	ncr710_free();
-	ncr_free();
-#endif
-#ifdef NCR9X
-	ncr9x_free();
-#endif
-#ifdef CD32
-	akiko_free ();
-	cd32_fmv_free();
-#endif
-	if (! no_gui)
-		gui_exit ();
-#ifdef USE_SDL
-	SDL_Quit ();
-#endif
-#ifdef AUTOCONFIG
-	expansion_cleanup ();
-#endif
-#ifdef FILESYS
-	filesys_cleanup ();
-#endif
-#ifdef BSDSOCKET
-	bsdlib_reset ();
-#endif
-	gayle_free ();
-	idecontroller_free();
-	device_func_reset ();
-#ifdef WITH_LUA
-	uae_lua_free ();
-#endif
-#ifdef WITH_PPC
-	uae_ppc_free();
-#endif
-#ifdef WITH_TOCCATA
-	sndboard_free();
-#endif
-	gfxboard_free();
-	savestate_free ();
-	memory_cleanup ();
-	free_shm ();
-	cfgfile_addcfgparam (0);
-	machdep_free ();
-}
-
 void start_program (void)
 {
 	do_start_program ();
@@ -1072,56 +936,6 @@ void start_program (void)
 void leave_program (void)
 {
 	do_leave_program ();
-}
-
-
-void virtualdevice_init (void)
-{
-#ifdef AUTOCONFIG
-	rtarea_setup ();
-#endif
-#ifdef FILESYS
-	rtarea_init ();
-	uaeres_install ();
-	hardfile_install ();
-#endif
-#ifdef SCSIEMU
-	scsi_reset ();
-	scsidev_install ();
-#endif
-#ifdef SANA2
-	netdev_install ();
-#endif
-#ifdef UAESERIAL
-	uaeserialdev_install ();
-#endif
-#ifdef AUTOCONFIG
-	expansion_init ();
-	emulib_install ();
-	uaeexe_install ();
-#endif
-#ifdef FILESYS
-	filesys_install ();
-#endif
-#if defined (BSDSOCKET)
-	bsdlib_install ();
-#endif
-#ifdef WITH_UAENATIVE
-	uaenative_install ();
-#endif
-#ifdef WITH_TABLETLIBRARY
-	tabletlib_install ();
-#endif
-#ifdef NCR
-	ncr710_init();
-	ncr_init();
-#endif
-#ifdef NCR9X
-	ncr9x_init();
-#endif
-#ifdef CDTV
-	cdtvcr_reset();
-#endif
 }
 
 static int real_main2 (int argc, TCHAR **argv)
