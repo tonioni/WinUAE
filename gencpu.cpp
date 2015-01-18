@@ -352,7 +352,7 @@ static void addcycles_ce020 (const char *name, int head, int tail, int cycles, i
 static void addcycles000_nonces(const char *s, const char *sc)
 {
 	if (using_simple_cycles) {
-		printf("%scount_cycles += %s * CYCLE_UNIT / 2;\n", s, sc);
+		printf("%scount_cycles += (%s) * CYCLE_UNIT / 2;\n", s, sc);
 		count_ncycles++;
 	}
 }
