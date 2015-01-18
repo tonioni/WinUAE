@@ -613,7 +613,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			//write_log(_T("DKB IO PUT %02x %08x\n"), val & 0xff, M68K_GETPC);
 			return;
 		}
-		if (addr >= 0x10084 && addr < 0x10088) {
+		if (addr >= 0x10080 && addr < 0x10088) {
 			//write_log(_T("DKB PUT BYTE %02x\n"), val & 0xff);
 			if (ncr->dkb_data_offset < ncr->dkb_data_size) {
 				ncr->dkb_data_buf[ncr->dkb_data_offset++] = val;
@@ -702,7 +702,7 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 			//write_log(_T("DKB IO GET %02x %08x\n"), v, M68K_GETPC);
 			return v;
 		}
-		if (addr >= 0x10080 && addr < 0x10084) {
+		if (addr >= 0x10080 && addr < 0x10088) {
 			//write_log(_T("DKB GET BYTE %02x\n"), ncr->dkb_data_buf[ncr->dkb_data_offset]);
 			if (ncr->dkb_data_offset >= ncr->dkb_data_size)
 				return 0;
@@ -1324,7 +1324,7 @@ static int ncr9x_add_scsi_unit(struct ncr9x_state *ncr, int ch, struct uaedev_co
 	else if (ci->type == UAEDEV_TAPE)
 		return add_ncr_scsi_tape (ncr, ch, ci->rootdir, ci->readonly);
 	else
-		return add_ncr_scsi_hd (ncr, ch, NULL, ci, 1);
+		return add_ncr_scsi_hd (ncr, ch, NULL, ci, 2);
 }
 
 int cpuboard_ncr9x_add_scsi_unit(int ch, struct uaedev_config_info *ci)
