@@ -1242,10 +1242,10 @@ void REGPARAM2 mmu_flush_atc_all(bool global)
 	}
 }
 
-void REGPARAM2 mmu_reset(void)
+void REGPARAM2 mmu_set_funcs(void)
 {
-	mmu_flush_atc_all(true);
-
+	if (currprefs.mmu_model != 68040 && currprefs.mmu_model != 68060)
+		return;
 	if (currprefs.cpu_cycle_exact || currprefs.cpu_compatible) {
 		x_phys_get_iword = get_word_icache040;
 		x_phys_get_ilong = get_long_icache040;
@@ -1267,6 +1267,11 @@ void REGPARAM2 mmu_reset(void)
 	}
 }
 
+void REGPARAM2 mmu_reset(void)
+{
+	mmu_flush_atc_all(true);
+	mmu_set_funcs();
+}
 
 void REGPARAM2 mmu_set_tc(uae_u16 tc)
 {
