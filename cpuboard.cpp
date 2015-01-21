@@ -1733,22 +1733,39 @@ static struct zfile *flashfile_open(const TCHAR *name)
 {
 	struct zfile *f;
 	TCHAR path[MAX_DPATH];
+	bool rw = true;
 
 	if (!name[0])
 		return NULL;
-	f = zfile_fopen(name, _T("rb+"), ZFD_NONE);
+	f = zfile_fopen(name, _T("rb"), ZFD_NORMAL);
+	if (f) {
+		if (zfile_iscompressed(f)) {
+			rw = false;
+		} else {
+			zfile_fclose(f);
+			f = NULL;
+		}
+	}
 	if (!f) {
-		f = zfile_fopen(name, _T("rb"), ZFD_NORMAL);
+		rw = true;
+		f = zfile_fopen(name, _T("rb+"), ZFD_NONE);
 		if (!f) {
-			fetch_rompath(path, sizeof path / sizeof(TCHAR));
-			_tcscat(path, name);
-			f = zfile_fopen(path, _T("rb+"), ZFD_NONE);
-			if (!f)
-				f = zfile_fopen(path, _T("rb"), ZFD_NORMAL);
+			rw = false;
+			f = zfile_fopen(name, _T("rb"), ZFD_NORMAL);
+			if (!f) {
+				fetch_rompath(path, sizeof path / sizeof(TCHAR));
+				_tcscat(path, name);
+				rw = true;
+				f = zfile_fopen(path, _T("rb+"), ZFD_NONE);
+				if (!f) {
+					rw = false;
+					f = zfile_fopen(path, _T("rb"), ZFD_NORMAL);
+				}
+			}
 		}
 	}
 	if (f)
-		write_log(_T("Accelerator board flash file '%s' loaded.\n"), name);
+		write_log(_T("Accelerator board flash file '%s' loaded, %s.\n"), name, rw ? _T("RW") : _T("RO"));
 	return f;
 }
 
