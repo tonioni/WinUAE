@@ -246,7 +246,7 @@ static void esp_dma_done(ESPState *s)
 
 static int esp_do_dma(ESPState *s)
 {
-    uint32_t len, len2;
+    int len, len2;
     int to_device;
 
     to_device = (s->ti_size < 0);

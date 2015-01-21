@@ -321,6 +321,33 @@ static bool isirq(struct wd_state *wd)
 	return false;
 }
 
+static void set_dma_done(struct wd_state *wds)
+{
+	switch (wds->dmac_type)
+	{
+		case GVP_DMAC:
+		wds->gdmac.dma_on = -1;
+		break;
+		case COMMODORE_SDMAC:
+		case COMMODORE_DMAC:
+		wds->cdmac.dmac_dma = -1;
+		break;
+	}
+}
+
+static bool is_dma_enabled(struct wd_state *wds)
+{
+	switch (wds->dmac_type)
+	{
+		case GVP_DMAC:
+		return wds->gdmac.dma_on > 0;
+		case COMMODORE_SDMAC:
+		case COMMODORE_DMAC:
+		return wds->cdmac.dmac_dma > 0;
+	}
+	return false;	
+}
+
 void rethink_a2091 (void)
 {
 	if (isirq (&wd_a2091) ||isirq (&wd_a2091_2) || isirq (&wd_a3000) || isirq(&wd_gvp) || isirq(&wd_gvp_2)) {
@@ -540,7 +567,10 @@ static bool do_dma_commodore(struct wd_state *wd, struct scsi_data *scsi)
 
 static bool do_dma_gvp(struct wd_state *wd, struct scsi_data *scsi)
 {
-	if (!wd->gdmac.dma_on)
+#if WD33C93_DEBUG > 0
+	uae_u32 dmaptr = wd->gdmac.addr;
+#endif
+	if (!is_dma_enabled(wd))
 		return false;
 	if (scsi->direction < 0) {
 		if (wd->gdmac.cntr & 0x10) {
@@ -560,7 +590,7 @@ static bool do_dma_gvp(struct wd_state *wd, struct scsi_data *scsi)
 				break;
 		}
 #if WD33C93_DEBUG > 0
-		write_log (_T("%s Done DMA from WD, %d/%d\n"), WD33C93, scsi->offset, scsi->data_len);
+		write_log (_T("%s Done DMA from WD, %d/%d %08x\n"), WD33C93, scsi->offset, scsi->data_len, dmaptr);
 #endif
 		return true;
 	} else if (scsi->direction > 0) {
@@ -581,7 +611,7 @@ static bool do_dma_gvp(struct wd_state *wd, struct scsi_data *scsi)
 				break;
 		}
 #if WD33C93_DEBUG > 0
-		write_log (_T("%s Done DMA to WD, %d/%d\n"), WD33C93, scsi->offset, scsi->data_len);
+		write_log (_T("%s Done DMA to WD, %d/%d %08x\n"), WD33C93, scsi->offset, scsi->data_len, dmaptr);
 #endif
 		return true;
 	}
@@ -1043,8 +1073,6 @@ static void xt_command_done(struct wd_state *wd);
 static void wd_check_interrupt(struct wd_state *wds)
 {
 	struct wd_chip_state *wd = &wds->wc;
-	if (!wds->enabled)
-		return;
 	if (wd->auxstatus & ASR_INT)
 		return;
 	for (int i = 0; i < WD_STATUS_QUEUE; i++) {
@@ -1058,13 +1086,10 @@ static void wd_check_interrupt(struct wd_state *wds)
 	}
 }
 
-static void scsi_hsync2_a2091 (struct wd_state *wds)
+static void scsi_hsync_check_dma(struct wd_state *wds)
 {
 	struct wd_chip_state *wd = &wds->wc;
-
-	if (!wds->enabled)
-		return;
-	if (wd->wd_data_avail < 0 && wds->cdmac.dmac_dma > 0) {
+	if (wd->wd_data_avail < 0 && is_dma_enabled(wds)) {
 		bool v;
 		do_dma(wds);
 		if (wd->scsi->direction < 0) {
@@ -1079,9 +1104,18 @@ static void scsi_hsync2_a2091 (struct wd_state *wds)
 			wd->scsi->direction = 0;
 			wd->wd_data_avail = 0;
 		} else {
-			wds->cdmac.dmac_dma = -1;
+			set_dma_done(wds);
 		}
 	}
+}
+
+static void scsi_hsync2_a2091 (struct wd_state *wds)
+{
+	struct wd_chip_state *wd = &wds->wc;
+
+	if (!wds->enabled)
+		return;
+	scsi_hsync_check_dma(wds);
 	if (wds->cdmac.dmac_dma > 0 && (wds->cdmac.xt_status & (XT_STAT_INPUT | XT_STAT_REQUEST))) {
 		wd->scsi = wds->scsis[XT_UNIT];
 		if (do_dma(wds)) {
@@ -1094,6 +1128,9 @@ static void scsi_hsync2_a2091 (struct wd_state *wds)
 
 static void scsi_hsync2_gvp (struct wd_state *wds)
 {
+	if (!wds->enabled)
+		return;
+	scsi_hsync_check_dma(wds);
 	wd_check_interrupt(wds);
 }
 
@@ -1965,10 +2002,13 @@ static uae_u32 dmac_gvp_read_byte(struct wd_state *wd, uaecptr addr)
 		case 0x63: // SCMD
 		v = wdscsi_get(&wd->wc, wd);
 		break;
+		default:
+		write_log(_T("gvp_bget_unk %04X PC=%08X\n"), addr, M68K_GETPC);
+		break;
 	}
 
 #if GVP_DEBUG_IO > 0
-	write_log(_T("dmac_bget %04X=%04X PC=%08X\n"), addr, v, M68K_GETPC);
+	write_log(_T("gvp_bget %04X=%04X PC=%08X\n"), addr, v, M68K_GETPC);
 #endif
 
 	return v;
@@ -2003,10 +2043,13 @@ static uae_u32 dmac_gvp_read_word(struct wd_state *wd, uaecptr addr)
 		case 0x72:
 		v = wd->gdmac.addr;
 		break;
+		default:
+		write_log(_T("gvp_wget_unk %04X PC=%08X\n"), addr, M68K_GETPC);
+		break;
 	}
 
 #if GVP_DEBUG_IO > 0
-	write_log(_T("dmac_wget %04X=%04X PC=%08X\n"), addr, v, M68K_GETPC);
+	write_log(_T("gvp_wget %04X=%04X PC=%08X\n"), addr, v, M68K_GETPC);
 #endif
 
 	return v;
@@ -2020,7 +2063,7 @@ static void dmac_gvp_write_word(struct wd_state *wd, uaecptr addr, uae_u32 b)
 		return;
 
 #if GVP_DEBUG_IO > 0
-	write_log(_T("dmac_wput %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
+	write_log(_T("gvp_wput %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
 #endif
 	switch (addr)
 	{
@@ -2039,10 +2082,18 @@ static void dmac_gvp_write_word(struct wd_state *wd, uaecptr addr, uae_u32 b)
 		wd->gdmac.addr &= wd->gdmac.addr_mask;
 		break;
 		case 0x76: // START DMA
-		wd->gdmac.dma_on = true;
+		wd->gdmac.dma_on = 1;
 		break;
 		case 0x78: // STOP DMA
-		wd->gdmac.dma_on = false;
+		wd->gdmac.dma_on = 0;
+		break;
+		case 0x74: // "secret1"
+		case 0x7a: // "secret2"
+		case 0x7c: // "secret3"
+		write_log(_T("gvp_wput_config %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
+		break;
+		default:
+		write_log(_T("gvp_wput_unk %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
 		break;
 	}
 }
@@ -2055,7 +2106,7 @@ static void dmac_gvp_write_byte(struct wd_state *wd, uaecptr addr, uae_u32 b)
 		return;
 
 #if GVP_DEBUG_IO > 0
-	write_log(_T("dmac_bput %04X=%02X PC=%08X\n"), addr, b & 255, M68K_GETPC);
+	write_log(_T("gvp_bput %04X=%02X PC=%08X\n"), addr, b & 255, M68K_GETPC);
 #endif
 	switch (addr)
 	{
@@ -2073,6 +2124,17 @@ static void dmac_gvp_write_byte(struct wd_state *wd, uaecptr addr, uae_u32 b)
 		break;
 		case 0x63: // SCMD
 		wdscsi_put(&wd->wc, wd, b);
+		break;
+		case 0x74: // "secret1"
+		case 0x75:
+		case 0x7a: // "secret2"
+		case 0x7b:
+		case 0x7c: // "secret3"
+		case 0x7d:
+		write_log(_T("gvp_bput_config %04X=%04X PC=%08X\n"), addr, b & 255, M68K_GETPC);
+		break;
+		default:
+		write_log(_T("gvp_bput_unk %04X=%02X PC=%08X\n"), addr, b & 255, M68K_GETPC);
 		break;
 	}
 }

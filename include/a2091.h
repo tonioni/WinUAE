@@ -51,7 +51,7 @@ struct gvp_dmac
 	uae_u32 addr;
 	uae_u16 len;
 	uae_u16 bank;
-	bool dma_on;
+	int dma_on;
 	uae_u8 version;
 	uae_u32 addr_mask;
 	bool series2;
