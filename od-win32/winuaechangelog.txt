@@ -1,4 +1,18 @@
 
+Beta 5:
+
+- Fixed ESP SCSI DMA emulation bug I introduced when non-DMA mode support was added (Original code from QEMU was DMA-only)
+- Nordic Power v3.2 and Pro Access v2.17 (early version of cartridge that become Action Replay 1) support added.
+- Some chipset emulation tweaks. Strange bitplane DMA on/off mid scanline behavior now emulated, not sure if exactly
+  right yet. Also some strange OCS/ECS differences tweaked. Should be mostly finished now.
+  I'll post more details later.
+- Some tweaks to writing to BPLxPT 1 cycle before BPL DMA fetches same bitplane. Nakudemo / Vision-X ECS only corruption
+  is now correct (and also looks much worse than previously).
+- GVP SCSI WD33C93 transfer info command with DMA enabled was not working.
+- Compressed flashable rom images didn't unpack automatically. Flash modifications are not saved if using compressed image.
+- Remember original input device name when loading config and input device is not currently available. If/when input
+  device gets connected, device is automatically inserted in to originally configured port. Remembered name is "forgotten"
+  when input device is manually changed in GUI or if autoswitching is used.
 
 Beta 4:
 

@@ -1686,6 +1686,7 @@ static void show_rom_list (void)
 		69, 67, 70, -1, -1, // nordic power
 		65, 68, -1, -1, // x-power
 		62, 60, -1, -1, // action cartridge
+		116, -1, -1, // pro access
 		52, 25, -1, -1, // ar 1
 		26, 27, 28, -1, -1, // ar 2
 		29, 30, -1, -1, // ar 3
@@ -1711,6 +1712,7 @@ static void show_rom_list (void)
 		_T("Blizzard PPC\0CyberStorm PPC\0")
 		
 		_T("Nordic Power\0X-Power Professional 500\0Action Cartridge Super IV Professional\0")
+		_T("Pro Access\0")
 		_T("Action Replay MK I\0Action Replay MK II\0Action Replay MK III\0")
 		_T("Action Replay 1200\0")
 		
@@ -16708,7 +16710,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 					_tcscpy (prefs->romfile, file);
 				if (rd->type == ROMTYPE_EXTCD32 || rd->type == ROMTYPE_EXTCDTV)
 					_tcscpy (prefs->romextfile, file);
-				if (rd->type == ROMTYPE_AR)
+				if (rd->type & ROMTYPE_FREEZER)
 					_tcscpy (prefs->cartfile, file);
 			} else {
 				_tcscpy (prefs->romfile, file);

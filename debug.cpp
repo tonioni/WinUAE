@@ -3540,6 +3540,7 @@ static int cycle_breakpoint(TCHAR **c)
 				} else {
 					count += maxvpos - vpos;
 				}
+				count *= maxhpos;
 				if (hp >= current_hpos()) {
 					count += hp - current_hpos();
 				} else {

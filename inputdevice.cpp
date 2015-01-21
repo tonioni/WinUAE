@@ -5658,27 +5658,36 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 {
 	int acc = input_acquired;
 	int i, idx;
-	TCHAR *jports[MAX_JPORTS];
+	TCHAR *jports_name[MAX_JPORTS];
+	TCHAR *jports_configname[MAX_JPORTS];
 	int jportskb[MAX_JPORTS], jportsmode[MAX_JPORTS];
 	int jportid[MAX_JPORTS], jportaf[MAX_JPORTS];
 
 	for (i = 0; i < MAX_JPORTS; i++) {
-		jports[i] = NULL;
 		jportskb[i] = -1;
 		jportid[i] = prefs->jports[i].id;
 		jportaf[i] = prefs->jports[i].autofire;
+		jports_name[i] = NULL;
+		jports_configname[i] = NULL;
 		idx = inputdevice_getjoyportdevice (i, prefs->jports[i].id);
 		if (idx >= JSEM_LASTKBD) {
-			struct inputdevice_functions *idf;
-			int devidx;
-			idx -= JSEM_LASTKBD;
-			idf = getidf (idx);
-			devidx = inputdevice_get_device_index (idx);
-			jports[i] = my_strdup (idf->get_uniquename (devidx));
+			if (prefs->jports[i].name[0] == 0 && prefs->jports[i].configname[0] == 0) {
+				struct inputdevice_functions *idf;
+				int devidx;
+				idx -= JSEM_LASTKBD;
+				idf = getidf (idx);
+				devidx = inputdevice_get_device_index (idx);
+				jports_name[i] = my_strdup (idf->get_friendlyname (devidx));
+				jports_configname[i] = my_strdup (idf->get_uniquename (devidx));
+			}
 		} else {
 			jportskb[i] = idx;
 		}
 		jportsmode[i] = prefs->jports[i].mode;
+		if (jports_name[i] == NULL)
+			jports_name[i] = my_strdup(prefs->jports[i].name);
+		if (jports_configname[i] == NULL)
+			jports_configname[i] = my_strdup(prefs->jports[i].configname);
 	}
 
 	inputdevice_unacquire ();
@@ -5696,15 +5705,18 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 		freejport (prefs, i);
 		if (jportid[i] == JPORT_CUSTOM) {
 			inputdevice_joyport_config (prefs, _T("custom"), i, jportsmode[i], 0, true);
-		} else if (jports[i]) {
-			inputdevice_joyport_config (prefs, jports[i], i, jportsmode[i], 2, true);
+		} else if (jports_name[i][0] || jports_configname[i][0]) {
+			if (!inputdevice_joyport_config (prefs, jports_configname[i], i, jportsmode[i], 1, true)) {
+				inputdevice_joyport_config (prefs, jports_name[i], i, jportsmode[i], 2, true);
+			}
 		} else if (jportskb[i] >= 0) {
 			TCHAR tmp[10];
 			_stprintf (tmp, _T("kbd%d"), jportskb[i]);
 			inputdevice_joyport_config (prefs, tmp, i, jportsmode[i], 0, true);
 		}
 		prefs->jports[i].autofire = jportaf[i];
-		xfree (jports[i]);
+		xfree (jports_name[i]);
+		xfree (jports_configname[i]);
 	}
 
 	if (prefs == &changed_prefs)
@@ -7329,6 +7341,10 @@ int inputdevice_joyport_config (struct uae_prefs *p, const TCHAR *value, int por
 	case 2:
 		{
 			int i, j;
+			if (type == 2)
+				_tcscpy(p->jports[portnum].name, value);
+			else if (type == 1)
+				_tcscpy(p->jports[portnum].configname, value);
 			for (j = 0; j < MAX_JPORTS; j++) {
 				struct inputdevice_functions *idf;
 				int type = IDTYPE_MOUSE;
