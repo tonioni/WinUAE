@@ -146,6 +146,7 @@ static int rawhid;
 static bool rawinput_enabled_mouse, rawinput_enabled_keyboard;
 static bool rawinput_decided;
 static bool rawhid_found;
+static int rawinput_enabled_hid_reset;
 
 static uae_s16 axisold[MAX_INPUT_DEVICES][256], buttonold[MAX_INPUT_DEVICES][256];
 
@@ -2731,6 +2732,11 @@ static int di_do_init (void)
 		di_dev_free (&di_keyboard[i]);
 	}
 
+	if (rawinput_enabled_hid_reset) {
+		rawinput_enabled_hid = rawinput_enabled_hid_reset;
+		rawinput_enabled_hid_reset = 0;
+	}
+
 	if (!os_vista && rawinput_enabled_hid < 0)
 		rawinput_enabled_hid = 0;
 
@@ -2751,8 +2757,11 @@ static int di_do_init (void)
 		rawinput_enabled_mouse = num_mouse > 0;
 		rawinput_decided = true;
 	}
-	if (!rawhid_found)
+	if (!rawhid_found) {
+		// didn't find anything but was enabled? Try again next time.
+		rawinput_enabled_hid_reset = rawinput_enabled_hid;
 		rawinput_enabled_hid = 0;
+	}
 
 	if (!no_directinput || !rawinput_enabled_keyboard || !rawinput_enabled_mouse) {
 		hr = DirectInput8Create (hInst, DIRECTINPUT_VERSION, IID_IDirectInput8, (LPVOID *)&g_lpdi, NULL);
