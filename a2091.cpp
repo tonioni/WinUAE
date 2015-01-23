@@ -1975,40 +1975,43 @@ static uae_u32 dmac_gvp_read_byte(struct wd_state *wd, uaecptr addr)
 	uae_u32 v = 0;
 
 	addr &= 0xffff;
-	if (addr < 0x40)
-		return wd->dmacmemory[addr];
-	if (addr >= GVP_ROM_OFFSET) {
-		if (wd->rom) {
-			if (addr & 1)
-				return wd->gdmac.version;
-			if (wd->rombankswitcher && (addr & 0xffe0) == GVP_ROM_OFFSET)
-				wd->rombank = (addr & 0x02) >> 1;
-			return wd->rom[(addr - GVP_ROM_OFFSET) / 2 + wd->rombank * 16384];
+	if (addr < 0x40) {
+		v = wd->dmacmemory[addr];
+	} else if (addr >= GVP_ROM_OFFSET) {
+		if (addr & 1) {
+			v = wd->gdmac.version;
+		} else {
+			if (wd->rom) {
+				if (wd->rombankswitcher && (addr & 0xffe0) == GVP_ROM_OFFSET)
+					wd->rombank = (addr & 0x02) >> 1;
+				v = wd->rom[(addr - GVP_ROM_OFFSET) / 2 + wd->rombank * 16384];
+			}
 		}
-		return 0;
-	}
-
-	switch (addr)
-	{
-		case 0x40:
-		v = wd->gdmac.cntr >> 8;
-		break;
-		case 0x41:
-		v = wd->gdmac.cntr;
-		break;
-		case 0x61: // SASR
-		v = wdscsi_getauxstatus(&wd->wc);
-		break;
-		case 0x63: // SCMD
-		v = wdscsi_get(&wd->wc, wd);
-		break;
-		default:
-		write_log(_T("gvp_bget_unk %04X PC=%08X\n"), addr, M68K_GETPC);
-		break;
+	} else if (wd->configured) {
+		switch (addr)
+		{
+			case 0x40:
+			v = wd->gdmac.cntr >> 8;
+			break;
+			case 0x41:
+			v = wd->gdmac.cntr;
+			break;
+			case 0x61: // SASR
+			v = wdscsi_getauxstatus(&wd->wc);
+			break;
+			case 0x63: // SCMD
+			v = wdscsi_get(&wd->wc, wd);
+			break;
+			default:
+			write_log(_T("gvp_bget_unk %04X PC=%08X\n"), addr, M68K_GETPC);
+			break;
+		}
+	} else {
+		v = 0xff;
 	}
 
 #if GVP_DEBUG_IO > 0
-	write_log(_T("gvp_bget %04X=%04X PC=%08X\n"), addr, v, M68K_GETPC);
+	write_log(_T("gvp_bget %04X=%02X PC=%08X\n"), addr, v, M68K_GETPC);
 #endif
 
 	return v;
@@ -2018,34 +2021,37 @@ static uae_u32 dmac_gvp_read_word(struct wd_state *wd, uaecptr addr)
 	uae_u32 v = 0;
 
 	addr &= 0xffff;
-	if (addr < 0x40)
-		return (wd->dmacmemory[addr] << 8) | wd->dmacmemory[addr + 1];
-	if (addr >= GVP_ROM_OFFSET) {
+	if (addr < 0x40) {
+		v = (wd->dmacmemory[addr] << 8) | wd->dmacmemory[addr + 1];
+	} else if (addr >= GVP_ROM_OFFSET) {
 		if (wd->rom) {
 			if (wd->rombankswitcher && (addr & 0xffe0) == GVP_ROM_OFFSET)
 				wd->rombank = (addr & 0x02) >> 1;
-			return (wd->rom[(addr - GVP_ROM_OFFSET) / 2 + wd->rombank * 16384] << 8) | wd->gdmac.version;
+			v = (wd->rom[(addr - GVP_ROM_OFFSET) / 2 + wd->rombank * 16384] << 8) | wd->gdmac.version;
+		} else {
+			v = wd->gdmac.version;
 		}
-		return 0;
-	}
-
-	switch (addr)
-	{
-		case 0x40:
-		v = wd->gdmac.cntr;
-		break;
-		case 0x68:
-		v = wd->gdmac.bank;
-		break;
-		case 0x70:
-		v = wd->gdmac.addr >> 16;
-		break;
-		case 0x72:
-		v = wd->gdmac.addr;
-		break;
-		default:
-		write_log(_T("gvp_wget_unk %04X PC=%08X\n"), addr, M68K_GETPC);
-		break;
+	} else if (wd->configured) {
+		switch (addr)
+		{
+			case 0x40:
+			v = wd->gdmac.cntr;
+			break;
+			case 0x68:
+			v = wd->gdmac.bank;
+			break;
+			case 0x70:
+			v = wd->gdmac.addr >> 16;
+			break;
+			case 0x72:
+			v = wd->gdmac.addr;
+			break;
+			default:
+			write_log(_T("gvp_wget_unk %04X PC=%08X\n"), addr, M68K_GETPC);
+			break;
+		}
+	} else {
+		v = 0xffff;
 	}
 
 #if GVP_DEBUG_IO > 0
@@ -2986,6 +2992,12 @@ addrbank *gvp_init(int devnum)
 	memset(wd->rom, 0xff, wd->rom_size);
 	wd->rom_mask = wd->rom_size - 1;
 	wd->gdmac.series2 = true;
+
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = wd->gdmac.series2 ? gvp_scsi_ii_autoconfig[i] : gvp_scsi_i_autoconfig[i];
+		ew(wd, i * 4, b);
+	}
+
 	if (_tcscmp (currprefs.gvprom.roms[0].romfile, _T(":NOROM"))) {
 		const TCHAR *romname = devnum && currprefs.gvprom.roms[1].romfile[0] ? currprefs.gvprom.roms[1].romfile : currprefs.gvprom.roms[0].romfile;
 		struct zfile *z = read_rom_name(romname);
@@ -2998,10 +3010,6 @@ addrbank *gvp_init(int devnum)
 				wd->gdmac.series2 = false;
 		}
 		if (z) {
-			for (int i = 0; i < 16; i++) {
-				uae_u8 b = wd->gdmac.series2 ? gvp_scsi_ii_autoconfig[i] : gvp_scsi_i_autoconfig[i];
-				ew(wd, i * 4, b);
-			}
 			write_log(_T("GVP BOOT ROM '%s'\n"), zfile_getname(z));
 			int size = zfile_fread(wd->rom, 1, wd->rom_size, z);
 			zfile_fclose(z);
