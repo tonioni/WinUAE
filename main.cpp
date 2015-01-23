@@ -464,6 +464,11 @@ void fixup_prefs (struct uae_prefs *p)
 		error_log (_T("Too large Z2 RTG memory size."));
 	}
 
+	if (p->cs_z3autoconfig && p->address_space_24) {
+		p->cs_z3autoconfig = false;
+		error_log (_T("Z3 autoconfig and 24bit address space are not compatible."));
+	}
+
 #if 0
 	if (p->m68k_speed < -1 || p->m68k_speed > 20) {
 		write_log (_T("Bad value for -w parameter: must be -1, 0, or within 1..20.\n"));

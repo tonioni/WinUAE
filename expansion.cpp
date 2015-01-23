@@ -339,7 +339,7 @@ static void call_card_init(int index)
 		expamem_init_clear();
 		expamem_init_clear_zero();
 		map_banks(&expamem_bank, 0xE8, 1, 0);
-		if (currprefs.address_space_24)
+		if (!currprefs.address_space_24)
 			map_banks(&dummy_bank, 0xff000000 >> 16, 1, 0);
 		expamem_bank_current = NULL;
 		return;
@@ -405,22 +405,22 @@ static void call_card_init(int index)
 	if (ab) {
 		// non-NULL: not using expamem_bank
 		expamem_bank_current = ab;
-		if ((card_flags[ecard] & 1) && currprefs.cs_z3autoconfig) {
+		if ((card_flags[ecard] & 1) && currprefs.cs_z3autoconfig && !currprefs.address_space_24) {
 			map_banks(&expamemz3_bank, 0xff000000 >> 16, 1, 0);
 			map_banks(&dummy_bank, 0xE8, 1, 0);
 		} else {
 			map_banks(&expamem_bank, 0xE8, 1, 0);
-			if (currprefs.address_space_24)
+			if (!currprefs.address_space_24)
 				map_banks(&dummy_bank, 0xff000000 >> 16, 1, 0);
 		}
 	} else {
-		if ((card_flags[ecard] & 1) && currprefs.cs_z3autoconfig) {
+		if ((card_flags[ecard] & 1) && currprefs.cs_z3autoconfig && !currprefs.address_space_24) {
 			map_banks(&expamemz3_bank, 0xff000000 >> 16, 1, 0);
 			map_banks(&dummy_bank, 0xE8, 1, 0);
 			expamem_bank_current = &expamem_bank;
 		} else {
 			map_banks(&expamem_bank, 0xE8, 1, 0);
-			if (currprefs.address_space_24)
+			if (!currprefs.address_space_24)
 				map_banks(&dummy_bank, 0xff000000 >> 16, 1, 0);
 			expamem_bank_current = NULL;
 		}
