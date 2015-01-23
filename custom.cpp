@@ -480,7 +480,7 @@ STATIC_INLINE void alloc_cycle (int hpos, int type)
 #if 0
 	if (cycle_line[hpos])
 		write_log (_T("hpos=%d, old=%d, new=%d\n"), hpos, cycle_line[hpos], type);
-	if ((type == CYCLE_CPU || type == CYCLE_COPPER) && (hpos & 1))
+	if ((type == CYCLE_COPPER) && (hpos & 1) && hpos != maxhpos - 2)
 		write_log (_T("odd %d cycle %d\n"), hpos);
 	if (!(hpos & 1) && (type == CYCLE_SPRITE || type == CYCLE_REFRESH || type == CYCLE_MISC))
 		write_log (_T("even %d cycle %d\n"), type, hpos);
@@ -931,7 +931,7 @@ static void estimate_last_fetch_cycle (int hpos)
 			stop = plfstop + DDF_OFFSET <= hpos || plfstop > HARD_DDF_STOP ? HARD_DDF_STOP : plfstop;
 		}
 		/* We know that fetching is up-to-date up until hpos, so we can use fetch_cycle.  */
-		int fetch_cycle_at_stop = fetch_cycle + (stop - hpos);
+		int fetch_cycle_at_stop = fetch_cycle + (stop - hpos + DDF_OFFSET);
 		int starting_last_block_at = (fetch_cycle_at_stop + fetchunit - 1) & ~(fetchunit - 1);
 
 		estimated_last_fetch_cycle = hpos + (starting_last_block_at - fetch_cycle) + lastfetchunit;
@@ -1033,7 +1033,7 @@ STATIC_INLINE int isocs7planes (void)
 
 int is_bitplane_dma (int hpos)
 {
-	if (fetch_state == fetch_not_started || plf_state < plf_active || plf_state == plf_wait)
+	if (hpos < bpl_hstart || fetch_state == fetch_not_started || plf_state == plf_wait)
 		return 0;
 	if ((plf_state >= plf_end && hpos >= thisline_decision.plfright)
 		|| hpos >= estimated_last_fetch_cycle)
@@ -1043,7 +1043,7 @@ int is_bitplane_dma (int hpos)
 
 STATIC_INLINE int is_bitplane_dma_inline (int hpos)
 {
-	if (fetch_state == fetch_not_started || plf_state < plf_active || plf_state == plf_wait)
+	if (hpos < bpl_hstart || fetch_state == fetch_not_started || plf_state == plf_wait)
 		return 0;
 	if ((plf_state >= plf_end && hpos >= thisline_decision.plfright)
 		|| hpos >= estimated_last_fetch_cycle)
@@ -2180,40 +2180,47 @@ static void finish_final_fetch (void)
 STATIC_INLINE int one_fetch_cycle_0 (int pos, int dma, int fm)
 {
 	bool bplactive = true;
-	if (plf_state == plf_wait && dma && diwstate == DIW_waiting_stop) {
+	bool diw = diwstate == DIW_waiting_stop;
+	if (plf_state == plf_wait && dma && diw) {
+		// same timings as when switching off, see below
 		bpl_dma_off_when_active = 0;
-		if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
-			plf_state = plf_passed_stop;
-		} else {
-			plf_state = plf_active;
-		}
-	} else if (!dma || diwstate != DIW_waiting_stop) {
 		bplactive = false;
-		// ecs and dma/diw off: turn off bitplane output after 4 cycles
-		// ddf is not closed at the end of line
+		if (bitplane_off_delay >= 0)
+			bitplane_off_delay = !dma ? -4 : -5;
+		if (bitplane_off_delay < 0) {
+			bitplane_off_delay++;
+			if (bitplane_off_delay == 0) {
+				if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
+					plf_state = plf_passed_stop;
+				} else {
+					plf_state = plf_active;
+				}
+			}
+		}
+	} else if (!dma || !diw) {
+		bplactive = false;
+		// dma off: turn off bitplane output after 4 cycles
+		// (yes, switching DMA off won't disable it immediately)
+		// diw off: turn off bitplane output after 5 cycles
 		// (Starflight / Phenomena jumping scroller in ECS)
-		if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
-			if (plf_state == plf_active || plf_state == plf_passed_stop || plf_state == plf_passed_stop_act) {
-				bpl_dma_off_when_active = 1;
-				if (bitplane_off_delay < 0) {
-					bitplane_off_delay = 4;
-				}
+		// This is not correctly emulated, there probably is
+		// 4+ stage shift register that causes these delays.
+		if (plf_state == plf_active || plf_state == plf_passed_stop || plf_state == plf_passed_stop_act) {
+			bpl_dma_off_when_active = 1;
+			if (bitplane_off_delay <= 0)
+				bitplane_off_delay = !dma ? 4 : 5;
+		}
+		if (bitplane_off_delay > 0) {
+			bplactive = true;
+			bitplane_off_delay--;
+			if (bitplane_off_delay == 0) {
+				bplactive = false;
+				plf_state = plf_wait;
 			}
-			if (bitplane_off_delay >= 0) {
-				bplactive = true;
-				if (bitplane_off_delay > 0)
-					bitplane_off_delay--;
-				if (bitplane_off_delay == 0) {
-					bplactive = false;
-					plf_state = plf_wait;
-				}
-			}
-		} else {
-			plf_state = plf_wait;
 		}
 	}
 
-	if ((dma && diwstate == DIW_waiting_stop) || (currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
+	if ((dma && diw) || (currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
 		if (plf_state != plf_wait) {
 			if (pos == plfstop && ddfstop_written_hpos != pos) {
 				if (plf_state < plf_passed_stop) {
@@ -2433,9 +2440,6 @@ static void update_fetch (int until, int fm)
 #endif
 		&& toscr_nr_planes == toscr_nr_planes_agnus)
 	{
-		/* We need an explicit test against HARD_DDF_STOP here to guard against
-		   programs that move the DDFSTOP before our current position before we
-		   reach it.  */
 		int ddfstop_to_test_ddf = HARD_DDF_STOP;
 		if (plfstop >= last_fetch_hpos - DDF_OFFSET && plfstop < ddfstop_to_test_ddf)
 			ddfstop_to_test_ddf = plfstop;
@@ -3611,6 +3615,7 @@ static void reset_decisions (void)
 		}
 	}
 
+	bpl_hstart = 256;
 	plfr_state = plfr_idle;
 	plf_start_hpos = 256 + DDF_OFFSET;
 	plf_end_hpos = 256 + DDF_OFFSET;
@@ -4991,13 +4996,13 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
 	 * If following cycle is not BPL DMA: written value is lost
 	 *
 	 * last fetch block does not have this side-effect, probably due to modulo adds.
-	 * Also it seems only plane 0 fetches have this feature
+	 * Also it seems only plane 0 fetches have this feature (because of above reason!)
 	 * (MoreNewStuffy / PlasmaForce)
 	 */
 	/* only detect copper accesses to prevent too fast CPU mode glitches */
 	if (copper_access && is_bitplane_dma (hpos + 1) == num + 1) {
-		if (num == 0 && plf_state >= plf_passed_stop) {
-			/* modulo adds use old value! Argh! */
+		if (0 && num == 0 && plf_state >= plf_passed_stop) {
+			/* modulo adds use old value! Argh! (This is wrong and disabled) */
 			dbplptl[num] = v & 0x0000fffe;
 			dbplptl_on[num] = -1;
 			dbplptl_on2++;
@@ -5998,7 +6003,8 @@ static void update_copper (int until_hpos)
 
 		/* So we know about the fetch state.  */
 		decide_line (c_hpos);
-		decide_fetch_safe (c_hpos);
+		// bitplane only, don't want blitter to steal our cycles.
+		decide_fetch (c_hpos);
 
 		if (cop_state.movedelay > 0) {
 			cop_state.movedelay--;
