@@ -7232,7 +7232,7 @@ int jsem_iskbdjoy (int port, const struct uae_prefs *p)
 
 static struct jport stored_ports[MAX_JPORTS];
 
-static void fixjport (struct jport *port, int add)
+static void fixjport (struct jport *port, int add, bool always)
 {
 	int vv = port->id;
 	if (vv == JPORT_CUSTOM || vv == JPORT_NONE)
@@ -7256,10 +7256,21 @@ static void fixjport (struct jport *port, int add)
 			vv = 0;
 		vv += JSEM_KBDLAYOUT;
 	}
+	if (port->id != vv || always) {
+		if (vv >= JSEM_JOYS && vv < JSEM_MICE) {
+			_tcscpy(port->name, inputdevice_get_device_name (IDTYPE_JOYSTICK, vv - JSEM_JOYS));
+			_tcscpy(port->configname, inputdevice_get_device_unique_name (IDTYPE_JOYSTICK, vv - JSEM_JOYS));
+		} else if (vv >= JSEM_MICE && vv < JSEM_END) {
+			_tcscpy(port->name, inputdevice_get_device_name (IDTYPE_MOUSE, vv - JSEM_MICE));
+			_tcscpy(port->configname, inputdevice_get_device_unique_name (IDTYPE_MOUSE, vv - JSEM_MICE));
+		} else {
+			port->name[0] = 0;
+			port->configname[0] = 0;
+		}
 #if 0
-	if (port->id != vv)
-		write_log(_T("fixjport %d %d %d\n"), port->id, vv, add);
+		write_log(_T("fixjport %d %d %d (%s)\n"), port->id, vv, add, port->name);
 #endif
+	}
 	port->id = vv;
 }
 
@@ -7267,7 +7278,7 @@ void inputdevice_validate_jports (struct uae_prefs *p, int changedport)
 {
 	int i, j;
 	for (i = 0; i < MAX_JPORTS; i++)
-		fixjport (&p->jports[i], 0);
+		fixjport (&p->jports[i], 0, changedport == i);
 	for (i = 0; i < MAX_JPORTS; i++) {
 		if (p->jports[i].id < 0)
 			continue;
@@ -7292,10 +7303,12 @@ void inputdevice_validate_jports (struct uae_prefs *p, int changedport)
 					} else {
 						k = i;
 					}
-					fixjport (&p->jports[k], 1);
+					fixjport (&p->jports[k], 1, true);
 					cnt++;
-					if (cnt > 10)
+					if (cnt > 10) {
 						p->jports[k].id = JSEM_KBDLAYOUT;
+						fixjport (&p->jports[k], 1, true);
+					}
 					if (cnt > 20)
 						break;
 				}
