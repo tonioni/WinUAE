@@ -52,7 +52,10 @@ extern void audio_state_sndboard_state(int, int, unsigned int);
 
 typedef void (*CDA_CALLBACK)(int);
 extern void audio_cda_new_buffer(uae_s16 *buffer, int length, int userdata, CDA_CALLBACK next_cd_audio_buffer_callback);
-extern void audio_cda_volume(int master, int left, int right);
+extern void audio_cda_volume(int left, int right);
+
+extern int sound_cd_volume[2];
+extern int sound_paula_volume[2];
 
 #define AUDIO_CHANNELS_PAULA 4
 #define AUDIO_CHANNELS_MAX 8

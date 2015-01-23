@@ -1134,9 +1134,12 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_str (f, _T("sound_interpol"), interpolmode[p->sound_interpol]);
 	cfgfile_write_str (f, _T("sound_filter"), soundfiltermode1[p->sound_filter]);
 	cfgfile_write_str (f, _T("sound_filter_type"), soundfiltermode2[p->sound_filter_type]);
-	cfgfile_write (f, _T("sound_volume"), _T("%d"), p->sound_volume);
+	cfgfile_write (f, _T("sound_volume"), _T("%d"), p->sound_volume_master);
+	cfgfile_write (f, _T("sound_volume_paula"), _T("%d"), p->sound_volume_paula);
 	if (p->sound_volume_cd >= 0)
 		cfgfile_write (f, _T("sound_volume_cd"), _T("%d"), p->sound_volume_cd);
+	if (p->sound_volume_board >= 0)
+		cfgfile_write (f, _T("sound_volume_ahi"), _T("%d"), p->sound_volume_board);
 	cfgfile_write_bool (f, _T("sound_auto"), p->sound_auto);
 	cfgfile_write_bool (f, _T("sound_cdaudio"), p->sound_cdaudio);
 	cfgfile_write_bool (f, _T("sound_stereo_swap_paula"), p->sound_stereo_swap_paula);
@@ -1582,7 +1585,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	else
 		cfgfile_dwrite (f, _T("catweasel"), _T("%d"), p->catweasel);
 	cfgfile_write_bool(f, _T("toccata"), p->sound_toccata);
-
+	if (p->sound_toccata_mixer)
+		cfgfile_write_bool(f, _T("toccata_mixer"), p->sound_toccata_mixer);
 
 	cfgfile_write_str (f, _T("kbd_lang"), (p->keyboard_lang == KBD_LANG_DE ? _T("de")
 		: p->keyboard_lang == KBD_LANG_DK ? _T("dk")
@@ -2112,8 +2116,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("state_replay_buffers"), &p->statecapturebuffersize, 1)
 		|| cfgfile_yesno (option, value, _T("state_replay_autoplay"), &p->inprec_autoplay)
 		|| cfgfile_intval (option, value, _T("sound_frequency"), &p->sound_freq, 1)
-		|| cfgfile_intval (option, value, _T("sound_volume"), &p->sound_volume, 1)
+		|| cfgfile_intval (option, value, _T("sound_volume"), &p->sound_volume_master, 1)
+		|| cfgfile_intval (option, value, _T("sound_volume_paula"), &p->sound_volume_paula, 1)
 		|| cfgfile_intval (option, value, _T("sound_volume_cd"), &p->sound_volume_cd, 1)
+		|| cfgfile_intval (option, value, _T("sound_volume_ahi"), &p->sound_volume_board, 1)
 		|| cfgfile_intval (option, value, _T("sound_stereo_separation"), &p->sound_stereo_separation, 1)
 		|| cfgfile_intval (option, value, _T("sound_stereo_mixing_delay"), &p->sound_mixed_stereo_delay, 1)
 		|| cfgfile_intval (option, value, _T("sampler_frequency"), &p->sampler_freq, 1)
@@ -3713,6 +3719,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("floppy_write_protect"), &p->floppy_read_only)
 		|| cfgfile_yesno (option, value, _T("uae_hide_autoconfig"), &p->uae_hide_autoconfig)
 		|| cfgfile_yesno (option, value, _T("toccata"), &p->sound_toccata)
+		|| cfgfile_yesno (option, value, _T("toccata_mixer"), &p->sound_toccata_mixer)
 		|| cfgfile_yesno (option, value, _T("uaeserial"), &p->uaeserial))
 		return 1;
 
@@ -5730,7 +5737,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->maprom = 0;
 	p->cachesize = 0;
 	p->socket_emu = 0;
-	p->sound_volume = 0;
+	p->sound_volume_master = 0;
+	p->sound_volume_paula = 0;
 	p->sound_volume_cd = 0;
 	p->clipboard_sharing = false;
 	p->ppc_mode = 0;

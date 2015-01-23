@@ -663,11 +663,11 @@ static void *cdda_play_func (void *v)
 					cda_bufon[bufnum] = 1;
 					next_cd_audio_buffer_callback(1 - bufnum);
 				}
-				audio_cda_volume(currprefs.sound_volume_cd >= 0 ? currprefs.sound_volume_cd : currprefs.sound_volume, cdu->cdda_volume[0], cdu->cdda_volume[1]);
+				audio_cda_volume(cdu->cdda_volume[0], cdu->cdda_volume[1]);
 				cda_bufon[bufnum] = 1;
 			} else {
 				cda_bufon[bufnum] = 1;
-				cda->setvolume (currprefs.sound_volume_cd >= 0 ? currprefs.sound_volume_cd : currprefs.sound_volume, cdu->cdda_volume[0], cdu->cdda_volume[1]);
+				cda->setvolume (cdu->cdda_volume[0], cdu->cdda_volume[1]);
 				if (!cda->play (bufnum)) {
 					if (cdu->cdda_play > 0)
 						setstate (cdu, AUDIO_STATUS_PLAY_ERROR);

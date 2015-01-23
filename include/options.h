@@ -332,8 +332,10 @@ struct uae_prefs {
 	int sound_interpol;
 	int sound_filter;
 	int sound_filter_type;
-	int sound_volume;
+	int sound_volume_master;
+	int sound_volume_paula;
 	int sound_volume_cd;
+	int sound_volume_board;
 	bool sound_stereo_swap_paula;
 	bool sound_stereo_swap_ahi;
 	bool sound_auto;
@@ -564,6 +566,7 @@ struct uae_prefs {
 	bool uae_hide_autoconfig;
 	int z3_mapping_mode;
 	bool sound_toccata;
+	bool sound_toccata_mixer;
 
 	int mountitems;
 	struct uaedev_config_data mountconfig[MOUNT_CONFIG_SIZE];

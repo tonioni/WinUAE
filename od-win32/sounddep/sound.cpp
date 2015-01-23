@@ -1567,7 +1567,7 @@ static int open_sound (void)
 	if (ch != sdp->channels)
 		currprefs.sound_stereo = changed_prefs.sound_stereo = get_audio_stereomode (sdp->channels);
 
-	set_volume (currprefs.sound_volume, sdp->mute);
+	set_volume (currprefs.sound_volume_master, sdp->mute);
 	if (get_audio_amigachannels (currprefs.sound_stereo) == 4)
 		sample_handler = sample16ss_handler;
 	else
@@ -2757,25 +2757,25 @@ void sound_mute (int newmute)
 		sdp->mute = sdp->mute ? 0 : 1;
 	else
 		sdp->mute = newmute;
-	set_volume (currprefs.sound_volume, sdp->mute);
+	set_volume (currprefs.sound_volume_master, sdp->mute);
 	config_changed = 1;
 }
 
 void sound_volume (int dir)
 {
-	currprefs.sound_volume -= dir * 10;
+	currprefs.sound_volume_master -= dir * 10;
 	currprefs.sound_volume_cd -= dir * 10;
-	if (currprefs.sound_volume < 0)
-		currprefs.sound_volume = 0;
-	if (currprefs.sound_volume > 100)
-		currprefs.sound_volume = 100;
-	changed_prefs.sound_volume = currprefs.sound_volume;
+	if (currprefs.sound_volume_master < 0)
+		currprefs.sound_volume_master = 0;
+	if (currprefs.sound_volume_master > 100)
+		currprefs.sound_volume_master = 100;
+	changed_prefs.sound_volume_master = currprefs.sound_volume_master;
 	if (currprefs.sound_volume_cd < 0)
 		currprefs.sound_volume_cd = 0;
 	if (currprefs.sound_volume_cd > 100)
 		currprefs.sound_volume_cd = 100;
 	changed_prefs.sound_volume_cd = currprefs.sound_volume_cd;
-	set_volume (currprefs.sound_volume, sdp->mute);
+	set_volume (currprefs.sound_volume_master, sdp->mute);
 	config_changed = 1;
 }
 void master_sound_volume (int dir)

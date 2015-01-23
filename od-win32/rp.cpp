@@ -990,9 +990,9 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		}
 		return 1;
 	case RP_IPC_TO_GUEST_VOLUME:
-		currprefs.sound_volume = changed_prefs.sound_volume = 100 - wParam;
+		currprefs.sound_volume_master = changed_prefs.sound_volume_master = 100 - wParam;
 		currprefs.sound_volume_cd = changed_prefs.sound_volume_cd = 100 - wParam;
-		set_volume (currprefs.sound_volume, 0);
+		set_volume (currprefs.sound_volume_master, 0);
 		return TRUE;
 	case RP_IPC_TO_GUEST_ESCAPEKEY:
 		rp_rpescapekey = wParam;
@@ -1636,7 +1636,7 @@ void rp_update_volume (struct uae_prefs *p)
 {
 	if (!cando ())
 		return;
-	RPSendMessagex (RP_IPC_TO_HOST_VOLUME, (WPARAM)(100 - p->sound_volume), 0, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_VOLUME, (WPARAM)(100 - p->sound_volume_master), 0, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_pause (int paused)

@@ -7963,6 +7963,7 @@ static void enable_for_expansiondlg (HWND hDlg)
 	ShowWindow (GetDlgItem(hDlg, IDC_CS_SCSIMODE), SW_HIDE);
 	ew(hDlg, IDC_CS_CD32FMV, en);
 	ew(hDlg, IDC_CS_TOCCATA, en);
+	ew(hDlg, IDC_CS_TOCCATAMIXER, en && workprefs.sound_toccata);
 	ew (hDlg, IDC_CS_SCSIMODE, FALSE);
 }
 
@@ -7977,6 +7978,7 @@ static void values_to_expansiondlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_A2065, workprefs.a2065name[0] ? 1 : 0);
 	CheckDlgButton(hDlg, IDC_CS_CD32FMV, workprefs.cs_cd32fmv);
 	CheckDlgButton(hDlg, IDC_CS_TOCCATA, workprefs.sound_toccata);
+	CheckDlgButton(hDlg, IDC_CS_TOCCATAMIXER, workprefs.sound_toccata_mixer);
 	CheckDlgButton(hDlg, IDC_CS_SCSIMODE, workprefs.scsi == 2);
 	SendDlgItemMessage (hDlg, IDC_RTG_BUFFERCNT, CB_SETCURSEL, workprefs.gfx_apmode[1].gfx_backbuffers == 0 ? 0 : workprefs.gfx_apmode[1].gfx_backbuffers - 1, 0);
 	cw = catweasel_detect ();
@@ -8148,6 +8150,12 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				break;
 			case IDC_CS_TOCCATA:
 				workprefs.sound_toccata = ischecked(hDlg, IDC_CS_TOCCATA) ? 1 : 0;
+				if (!workprefs.sound_toccata)
+					workprefs.sound_toccata_mixer = false;
+				enable_for_expansiondlg(hDlg);
+				break;
+			case IDC_CS_TOCCATAMIXER:
+				workprefs.sound_toccata_mixer = ischecked(hDlg, IDC_CS_TOCCATAMIXER) ? 1 : 0;
 				break;
 			}
 			if (HIWORD (wParam) == CBN_SELENDOK || HIWORD (wParam) == CBN_KILLFOCUS || HIWORD (wParam) == CBN_EDITCHANGE)  {
@@ -9585,8 +9593,8 @@ static void enable_for_sounddlg (HWND hDlg)
 	ew (hDlg, IDC_SOUNDINTERPOLATION, workprefs.produce_sound);
 	ew (hDlg, IDC_SOUNDVOLUME, workprefs.produce_sound);
 	ew (hDlg, IDC_SOUNDVOLUME2, workprefs.produce_sound);
-	ew (hDlg, IDC_SOUNDVOLUMECD, workprefs.produce_sound);
-	ew (hDlg, IDC_SOUNDVOLUMECD2, workprefs.produce_sound);
+	ew (hDlg, IDC_SOUNDVOLUMEEXT, workprefs.produce_sound);
+	ew (hDlg, IDC_SOUNDVOLUMEEXT2, workprefs.produce_sound);
 	ew (hDlg, IDC_SOUNDSTEREOSEP, workprefs.sound_stereo > 0 && workprefs.produce_sound);
 	ew (hDlg, IDC_SOUNDSTEREOMIX, workprefs.sound_stereo > 0 && workprefs.produce_sound);
 
@@ -9663,6 +9671,7 @@ static void sound_loaddrivesamples (void)
 extern int soundpercent;
 
 static const int sndbufsizes[] = { 1024, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 32768, 65536, -1 };
+static int *volumeselection, volumeselectionindex;
 
 static int getsoundbufsizeindex (int size)
 {
@@ -9680,13 +9689,13 @@ static void update_soundgui (HWND hDlg)
 	_stprintf (txt, _T("%d"), bufsize);
 	SetDlgItemText (hDlg, IDC_SOUNDBUFFERMEM, txt);
 
-	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.sound_volume);
-	_stprintf (txt, _T("%d%%"), 100 - workprefs.sound_volume);
+	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.sound_volume_master);
+	_stprintf (txt, _T("%d%%"), 100 - workprefs.sound_volume_master);
 	SetDlgItemText (hDlg, IDC_SOUNDVOLUME2, txt);
 
-	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMECD, TBM_SETPOS, TRUE, 100 - workprefs.sound_volume_cd);
-	_stprintf (txt, _T("%d%%"), 100 - workprefs.sound_volume_cd);
-	SetDlgItemText (hDlg, IDC_SOUNDVOLUMECD2, txt);
+	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMEEXT, TBM_SETPOS, TRUE, 100 - (*volumeselection));
+	_stprintf (txt, _T("%d%%"), 100 - (*volumeselection));
+	SetDlgItemText (hDlg, IDC_SOUNDVOLUMEEXT2, txt);
 
 	SendDlgItemMessage (hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.dfxclickvolume);
 	_stprintf (txt, _T("%d%%"), 100 - workprefs.dfxclickvolume);
@@ -9810,7 +9819,7 @@ static void values_to_sounddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_SOUNDBUFFERRAM, TBM_SETPOS, TRUE, getsoundbufsizeindex (workprefs.sound_maxbsiz));
 
 	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 0);
-	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMECD, TBM_SETPOS, TRUE, 0);
+	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMEEXT, TBM_SETPOS, TRUE, 0);
 	SendDlgItemMessage (hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPOS, TRUE, 0);
 
 	SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_SETCURSEL, workprefs.win32_soundcard, 0);
@@ -9938,6 +9947,20 @@ static void values_from_sounddlg (HWND hDlg)
 	workprefs.sound_stereo_swap_paula = (SendDlgItemMessage (hDlg, IDC_SOUNDSWAP, CB_GETCURSEL, 0, 0) & 1) ? 1 : 0;
 	workprefs.sound_stereo_swap_ahi = (SendDlgItemMessage (hDlg, IDC_SOUNDSWAP, CB_GETCURSEL, 0, 0) & 2) ? 1 : 0;
 
+	idx = SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMESELECT, CB_GETCURSEL, 0, 0);
+	if (idx != volumeselectionindex) {
+		volumeselectionindex = idx;
+		if (volumeselectionindex < 0 || volumeselectionindex > 2)
+			volumeselectionindex = 0;
+		if (volumeselectionindex == 1)
+			volumeselection = &workprefs.sound_volume_cd;
+		else if (volumeselectionindex == 2)
+			volumeselection = &workprefs.sound_volume_board;
+		else
+			volumeselection = &workprefs.sound_volume_paula;
+		update_soundgui (hDlg);
+	}
+
 	for (i = 0; sounddrivers[i]; i++) {
 		int old = sounddrivermask;
 		sounddrivermask &= ~(1 << i);
@@ -9984,8 +10007,8 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETRANGE, TRUE, MAKELONG (0, 100));
 			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETPAGESIZE, 0, 1);
 
-			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMECD, TBM_SETRANGE, TRUE, MAKELONG (0, 100));
-			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMECD, TBM_SETPAGESIZE, 0, 1);
+			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMEEXT, TBM_SETRANGE, TRUE, MAKELONG (0, 100));
+			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMEEXT, TBM_SETPAGESIZE, 0, 1);
 
 			SendDlgItemMessage (hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETRANGE, TRUE, MAKELONG (0, 100));
 			SendDlgItemMessage (hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPAGESIZE, 0, 1);
@@ -9996,6 +10019,16 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			for (i = 0; i < sounddrivers[i]; i++) {
 				CheckDlgButton (hDlg, sounddrivers[i], (sounddrivermask & (1 << i)) ? TRUE : FALSE);
 			}
+
+			if (!volumeselection) {
+				volumeselection = &workprefs.sound_volume_paula;
+				volumeselectionindex = 0;
+			}
+			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMESELECT, CB_RESETCONTENT, 0, 0L);
+			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMESELECT, CB_ADDSTRING, 0, (LPARAM)_T("Paula"));
+			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMESELECT, CB_ADDSTRING, 0, (LPARAM)_T("CD"));
+			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMESELECT, CB_ADDSTRING, 0, (LPARAM)_T("AHI"));
+			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMESELECT, CB_SETCURSEL, volumeselectionindex, 0);
 
 			SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_RESETCONTENT, 0, 0L);
 			numdevs = enumerate_sound_devices ();
@@ -10040,8 +10073,8 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			if (v >= 0)
 				workprefs.sound_maxbsiz = sndbufsizes[v];
 		}
-		workprefs.sound_volume = 100 - SendMessage (GetDlgItem (hDlg, IDC_SOUNDVOLUME), TBM_GETPOS, 0, 0);
-		workprefs.sound_volume_cd = 100 - SendMessage (GetDlgItem (hDlg, IDC_SOUNDVOLUMECD), TBM_GETPOS, 0, 0);
+		workprefs.sound_volume_master = 100 - SendMessage (GetDlgItem (hDlg, IDC_SOUNDVOLUME), TBM_GETPOS, 0, 0);
+		(*volumeselection) = 100 - SendMessage (GetDlgItem (hDlg, IDC_SOUNDVOLUMEEXT), TBM_GETPOS, 0, 0);
 		workprefs.dfxclickvolume = 100 - SendMessage (GetDlgItem (hDlg, IDC_SOUNDDRIVEVOLUME), TBM_GETPOS, 0, 0);
 		update_soundgui (hDlg);
 		break;

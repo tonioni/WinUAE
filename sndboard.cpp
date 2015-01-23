@@ -108,8 +108,8 @@ static void process_fifo(void)
 		fifo_read_index = fifo_read_index % FIFO_SIZE;
 	}
 
-	ch_sample[0] = ch_sample[0] * left_volume / 64;
-	ch_sample[1] = ch_sample[1] * right_volume / 64;
+	ch_sample[0] = ch_sample[0] * left_volume / 32768;
+	ch_sample[1] = ch_sample[1] * right_volume / 32768;
 
 	if (data_in_fifo < FIFO_SIZE_HALF && prev_data_in_fifo >= FIFO_SIZE_HALF)
 		fifo_half |= STATUS_FIFO_PLAY;
@@ -142,17 +142,42 @@ void audio_state_sndboard(int ch)
 
 static int get_volume(uae_u8 v)
 {
+	int out;
 	if (v & 0x80) // Mute bit
 		return 0;
-	v &= 63;
-	v = 64 - v;
-	return v;
+	out = v & 63;
+	out = 64 - out;
+	out *= 32768 / 64;
+	return out;
+}
+
+static int get_volume_in(uae_u8 v)
+{
+	int out;
+	if (v & 0x80) // Mute bit
+		return 0;
+	out = v & 31;
+	out = 32 - out;
+	out *= 32768 / 32;
+	return out;
 }
 
 static void calculate_volume(void)
 {
 	left_volume = get_volume(ad1848_regs[6]);
 	right_volume = get_volume(ad1848_regs[7]);
+	left_volume = (100 - currprefs.sound_volume_board) * 32768 / 100;
+	right_volume = (100 - currprefs.sound_volume_board) * 32768 / 100;
+
+	if (currprefs.sound_toccata_mixer) {
+		sound_paula_volume[0] = get_volume_in(ad1848_regs[4]);
+		sound_paula_volume[1] = get_volume_in(ad1848_regs[5]);
+	}
+}
+
+void sndboard_ext_volume(void)
+{
+	calculate_volume();
 }
 
 static const int freq_crystals[] = {
@@ -233,6 +258,8 @@ void sndboard_hsync(void)
 
 void sndboard_vsync(void)
 {
+	if (toccata_active)
+		calculate_volume();
 }
 
 static void toccata_put(uaecptr addr, uae_u8 v)
@@ -264,6 +291,12 @@ static void toccata_put(uaecptr addr, uae_u8 v)
 			else if ((old & 3) && !(v & 3))
 				codec_stop();
 			break;
+
+			case 2:
+			case 3:
+			case 4:
+			case 5:
+			case 6:
 			case 7:
 			case 8:
 				calculate_volume();

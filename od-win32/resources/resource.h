@@ -553,6 +553,7 @@
 #define IDC_SOUNDSTYLE1                 1245
 #define IDC_SOUNDINTERPOLATION          1248
 #define IDC_INTERPOLATION0              1249
+#define IDC_SOUNDVOLUMESELECT           1249
 #define IDC_INTERPOLATION1              1250
 #define IDC_INTERPOLATION2              1251
 #define IDC_STEREOMODE                  1252
@@ -774,7 +775,7 @@
 #define IDC_SOUNDBUFFERMEM              1577
 #define IDC_HARDFLUSH                   1578
 #define IDC_SOUNDADJUSTNUM              1578
-#define IDC_SOUNDVOLUMECD               1578
+#define IDC_SOUNDVOLUMEEXT              1578
 #define IDC_CONSTJUMP                   1579
 #define IDC_SOUNDDRIVEVOLUME            1579
 #define IDC_JITFPU                      1580
@@ -782,7 +783,7 @@
 #define IDC_NOFLAGS                     1581
 #define IDC_SOUNDDRIVEVOLUME2           1581
 #define IDC_CS_CACHE_TEXT               1582
-#define IDC_SOUNDVOLUMECD2              1582
+#define IDC_SOUNDVOLUMEEXT2             1582
 #define IDC_CS_CACHE_TEXT2              1583
 #define IDC_COLLISIONS                  1584
 #define IDC_JITENABLE                   1584
@@ -1106,6 +1107,7 @@
 #define IDC_CS_TOCCATA                  1773
 #define IDC_DF1ENABLE                   1774
 #define IDC_FS_SELECT_DIR               1774
+#define IDC_CS_TOCCATAMIXER             1774
 #define IDC_FS_SELECT_FILE              1775
 #define IDC_FLOPPY_FFS                  1775
 #define IDC_DF2ENABLE                   1776

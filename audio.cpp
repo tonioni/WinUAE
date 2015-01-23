@@ -31,6 +31,7 @@
 #include "gui.h"
 #include "xwin.h"
 #include "debug.h"
+#include "sndboard.h"
 #ifdef AVIOUTPUT
 #include "avioutput.h"
 #endif
@@ -306,6 +307,9 @@ static void (*sample_prehandler) (unsigned long best_evtime);
 float sample_evtime;
 float scaled_sample_evtime;
 
+int sound_cd_volume[2];
+int sound_paula_volume[2];
+
 static unsigned long last_cycles;
 static float next_sample_evtime;
 
@@ -313,7 +317,7 @@ typedef uae_s8 sample8_t;
 #define DO_CHANNEL_1(v, c) do { (v) *= audio_channel[c].vol; } while (0)
 #define SBASEVAL16(logn) ((logn) == 1 ? SOUND16_BASE_VAL >> 1 : SOUND16_BASE_VAL)
 
-STATIC_INLINE int FINISH_DATA (int data, int bits)
+STATIC_INLINE int FINISH_DATA (int data, int bits, int ch)
 {
 	if (bits == 16) {
 		return data;
@@ -323,6 +327,7 @@ STATIC_INLINE int FINISH_DATA (int data, int bits)
 		int shift = 16 - bits;
 		data <<= shift;
 	}
+	data = data * sound_paula_volume[ch] / 32768;
 	return data;
 }
 
@@ -645,7 +650,7 @@ static void sample16i_sinc_handler (void)
 
 	samplexx_sinc_handler (datas);
 	data1 = datas[0] + datas[3] + datas[1] + datas[2];
-	data1 = FINISH_DATA (data1, 18);
+	data1 = FINISH_DATA (data1, 18, 0);
 	
 	do_filter(&data1, 0);
 
@@ -676,7 +681,7 @@ void sample16_handler (void)
 	data0 += data2;
 	data0 += data3;
 	data = SBASEVAL16(2) + data0;
-	data = FINISH_DATA (data, 16);
+	data = FINISH_DATA (data, 16, 0);
 
 	do_filter(&data, 0);
 
@@ -695,7 +700,7 @@ static void sample16i_anti_handler (void)
 
 	samplexx_anti_handler (datas);
 	data1 = datas[0] + datas[3] + datas[1] + datas[2];
-	data1 = FINISH_DATA (data1, 16);
+	data1 = FINISH_DATA (data1, 16, 0);
 
 	do_filter(&data1, 0);
 
@@ -752,7 +757,7 @@ static void sample16i_rh_handler (void)
 	ratio = ((audio_channel[3].evtime % delta) << 8) / delta;
 	data0 += (data3 * (256 - ratio) + data3p * ratio) >> 8;
 	data = SBASEVAL16(2) + data0;
-	data = FINISH_DATA (data, 16);
+	data = FINISH_DATA (data, 16, 0);
 
 	do_filter(&data, 0);
 
@@ -829,7 +834,7 @@ static void sample16i_crux_handler (void)
 	data0 += data3;
 	data0 += data1;
 	data = SBASEVAL16(2) + data0;
-	data = FINISH_DATA (data, 16);
+	data = FINISH_DATA (data, 16, 0);
 
 	do_filter(&data, 0);
 
@@ -866,10 +871,10 @@ void sample16ss_handler (void)
 	data2 &= audio_channel[2].adk_mask;
 	data3 &= audio_channel[3].adk_mask;
 
-	data0 = FINISH_DATA (data0, 14);
-	data1 = FINISH_DATA (data1, 14);
-	data2 = FINISH_DATA (data2, 14);
-	data3 = FINISH_DATA (data3, 14);
+	data0 = FINISH_DATA (data0, 14, 0);
+	data1 = FINISH_DATA (data1, 14, 0);
+	data2 = FINISH_DATA (data2, 14, 1);
+	data3 = FINISH_DATA (data3, 14, 1);
 
 	do_filter(&data0, 0);
 	do_filter(&data1, 1);
@@ -898,10 +903,10 @@ void sample16ss_anti_handler (void)
 	int datas[AUDIO_CHANNELS_PAULA];
 
 	samplexx_anti_handler (datas);
-	data0 = FINISH_DATA (datas[0], 14);
-	data1 = FINISH_DATA (datas[1], 14);
-	data2 = FINISH_DATA (datas[2], 14);
-	data3 = FINISH_DATA (datas[3], 14);
+	data0 = FINISH_DATA (datas[0], 14, 0);
+	data1 = FINISH_DATA (datas[1], 14, 0);
+	data2 = FINISH_DATA (datas[2], 14, 1);
+	data3 = FINISH_DATA (datas[3], 14, 1);
 
 	do_filter(&data0, 0);
 	do_filter(&data1, 1);
@@ -928,8 +933,8 @@ static void sample16si_anti_handler (void)
 	samplexx_anti_handler (datas);
 	data1 = datas[0] + datas[3];
 	data2 = datas[1] + datas[2];
-	data1 = FINISH_DATA (data1, 15);
-	data2 = FINISH_DATA (data2, 15);
+	data1 = FINISH_DATA (data1, 15, 0);
+	data2 = FINISH_DATA (data2, 15, 1);
 
 	do_filter(&data1, 0);
 	do_filter(&data2, 1);
@@ -948,10 +953,10 @@ void sample16ss_sinc_handler (void)
 	int datas[AUDIO_CHANNELS_PAULA];
 
 	samplexx_sinc_handler (datas);
-	data0 = FINISH_DATA (datas[0], 16);
-	data1 = FINISH_DATA (datas[1], 16);
-	data2 = FINISH_DATA (datas[2], 16);
-	data3 = FINISH_DATA (datas[3], 16);
+	data0 = FINISH_DATA (datas[0], 16, 0);
+	data1 = FINISH_DATA (datas[1], 16, 0);
+	data2 = FINISH_DATA (datas[2], 16, 1);
+	data3 = FINISH_DATA (datas[3], 16, 1);
 
 	do_filter(&data0, 0);
 	do_filter(&data1, 1);
@@ -978,8 +983,8 @@ static void sample16si_sinc_handler (void)
 	samplexx_sinc_handler (datas);
 	data1 = datas[0] + datas[3];
 	data2 = datas[1] + datas[2];
-	data1 = FINISH_DATA (data1, 17);
-	data2 = FINISH_DATA (data2, 17);
+	data1 = FINISH_DATA (data1, 17, 0);
+	data2 = FINISH_DATA (data2, 17, 1);
 
 	do_filter(&data1, 0);
 	do_filter(&data2, 1);
@@ -1011,9 +1016,9 @@ void sample16s_handler (void)
 	data0 += data3;
 	data1 += data2;
 	data2 = SBASEVAL16(1) + data0;
-	data2 = FINISH_DATA (data2, 15);
+	data2 = FINISH_DATA (data2, 15, 0);
 	data3 = SBASEVAL16(1) + data1;
-	data3 = FINISH_DATA (data3, 15);
+	data3 = FINISH_DATA (data3, 15, 1);
 
 	do_filter(&data2, 0);
 	do_filter(&data3, 1);
@@ -1090,9 +1095,9 @@ static void sample16si_crux_handler (void)
 	data1 += data2;
 	data0 += data3;
 	data2 = SBASEVAL16(1) + data0;
-	data2 = FINISH_DATA (data2, 15);
+	data2 = FINISH_DATA (data2, 15, 0);
 	data3 = SBASEVAL16(1) + data1;
-	data3 = FINISH_DATA (data3, 15);
+	data3 = FINISH_DATA (data3, 15, 1);
 
 	do_filter(&data2, 0);
 	do_filter(&data3, 1);
@@ -1150,9 +1155,9 @@ static void sample16si_rh_handler (void)
 	ratio = ((audio_channel[3].evtime % delta) << 8) / delta;
 	data0 += (data3 * (256 - ratio) + data3p * ratio) >> 8;
 	data2 = SBASEVAL16(1) + data0;
-	data2 = FINISH_DATA (data2, 15);
+	data2 = FINISH_DATA (data2, 15, 0);
 	data3 = SBASEVAL16(1) + data1;
-	data3 = FINISH_DATA (data3, 15);
+	data3 = FINISH_DATA (data3, 15, 1);
 
 	do_filter(&data2, 0);
 	do_filter(&data3, 1);
@@ -1650,7 +1655,10 @@ static int sound_prefs_changed (void)
 	if (changed_prefs.sound_stereo_separation != currprefs.sound_stereo_separation
 		|| changed_prefs.sound_mixed_stereo_delay != currprefs.sound_mixed_stereo_delay
 		|| changed_prefs.sound_interpol != currprefs.sound_interpol
-		|| changed_prefs.sound_volume != currprefs.sound_volume
+		|| changed_prefs.sound_volume_paula != currprefs.sound_volume_paula
+		|| changed_prefs.sound_volume_cd != currprefs.sound_volume_cd
+		|| changed_prefs.sound_volume_master != currprefs.sound_volume_master
+		|| changed_prefs.sound_volume_board != currprefs.sound_volume_board
 		|| changed_prefs.sound_stereo_swap_paula != currprefs.sound_stereo_swap_paula
 		|| changed_prefs.sound_stereo_swap_ahi != currprefs.sound_stereo_swap_ahi
 		|| changed_prefs.sound_cdaudio != currprefs.sound_cdaudio
@@ -1724,10 +1732,17 @@ void set_audio (void)
 	currprefs.sound_interpol = changed_prefs.sound_interpol;
 	currprefs.sound_filter = changed_prefs.sound_filter;
 	currprefs.sound_filter_type = changed_prefs.sound_filter_type;
-	currprefs.sound_volume = changed_prefs.sound_volume;
+	currprefs.sound_volume_paula = changed_prefs.sound_volume_paula;
+	currprefs.sound_volume_master = changed_prefs.sound_volume_master;
+	currprefs.sound_volume_board = changed_prefs.sound_volume_board;
+	currprefs.sound_volume_cd = changed_prefs.sound_volume_cd;
 	currprefs.sound_cdaudio = changed_prefs.sound_cdaudio;
 	currprefs.sound_stereo_swap_paula = changed_prefs.sound_stereo_swap_paula;
 	currprefs.sound_stereo_swap_ahi = changed_prefs.sound_stereo_swap_ahi;
+
+	sound_cd_volume[0] = sound_cd_volume[1] = (100 - (currprefs.sound_volume_cd < 0 ? 0 : currprefs.sound_volume_cd)) * 32768 / 100;
+	sound_paula_volume[0] = sound_paula_volume[1] = (100 - currprefs.sound_volume_paula) * 32768 / 100;
+	sndboard_ext_volume();
 
 	if (ch >= 0) {
 		if (currprefs.produce_sound >= 2) {
@@ -2304,11 +2319,11 @@ void update_cda_sound(double clk)
 	cda_evt = clk * CYCLE_UNIT / 44100;
 }
 
-void audio_cda_volume(int master, int left, int right)
+void audio_cda_volume(int left, int right)
 {
 	for (int j = 0; j < 2; j++) {
 		cda_volume[j] = j == 0 ? left : right;
-		cda_volume[j] = (100 - master) * cda_volume[j] / 100;
+		cda_volume[j] = sound_cd_volume[j] * cda_volume[j] / 32768;
 		if (cda_volume[j])
 			cda_volume[j]++;
 		if (cda_volume[j] >= 32768)

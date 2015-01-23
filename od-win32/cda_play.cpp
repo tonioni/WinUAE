@@ -15,6 +15,7 @@
 
 #include "options.h"
 #include "dxwrap.h"
+#include "audio.h"
 
 #include <dsound.h>
 #include <mmreg.h>
@@ -167,13 +168,14 @@ cda_audio::cda_audio(int num_sectors, int sectorsize, int samplerate)
 #endif
 }
 
-void cda_audio::setvolume(int master, int left, int right)
+void cda_audio::setvolume(int left, int right)
 {
 	for (int j = 0; j < 2; j++) {
 		volume[j] = j == 0 ? left : right;
-		volume[j] = (100 - master) * volume[j] / 100;
+		volume[j] = sound_cd_volume[j] * volume[j] / 32768;
 		if (volume[j])
 			volume[j]++;
+		volume[j] = volume[j] * (100 - currprefs.sound_volume_master) / 100;
 		if (volume[j] >= 32768)
 			volume[j] = 32768;
 	}

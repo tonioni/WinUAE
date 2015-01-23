@@ -396,9 +396,9 @@ static void l64111_setvolume(void)
 	write_log(_T("L64111 mute %d\n"), volume ? 0 : 1);
 	if (cda) {
 		if (audio_mode) {
-			audio_cda_volume(currprefs.sound_volume_cd >= 0 ? currprefs.sound_volume_cd : currprefs.sound_volume, volume, volume);
+			audio_cda_volume(volume, volume);
 		} else {
-			cda->setvolume(currprefs.sound_volume_cd >= 0 ? currprefs.sound_volume_cd : currprefs.sound_volume, volume, volume);
+			cda->setvolume(volume, volume);
 		}
 	}
 }
