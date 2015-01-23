@@ -1,4 +1,20 @@
 
+Beta 6:
+
+- b5 input device update fix, changing to any keyboard layout didn't reset "remembered" device name.
+- Cycle at DDFSTRT-1 was sometimes incorrectly unavailable for blitter. (b5)
+- In some rare situations blitter stole cycle(s) from copper.
+- Pre-calculated end position of scanline was incorrect in some situations causing incorrect bitplane
+  vs other DMA cycle allocation (b5)
+- If RawInput didn't find any game controller HID devices and command line didn't have any forced HID parameters,
+  always try again when new device is inserted instead of disabling HID support completely and falling back to
+  DirectInput. RawInput and DirectInput device identifiers are different and wrong device may have been selected
+  in some situations.
+- Master volume is now real master volume control. Paula, CD and AHI are sub-volume controls.
+- Toccata Paula (AUX2 input) volume control implemented. Not tested.
+- GVP SCSI without ROM didn't set any autoconfig data.
+- Fastlane (and possibly some other Z3 SCSI boards) didn't autoconfigure if Z3 autoconfig space was disabled.
+
 Beta 5:
 
 - Fixed ESP SCSI DMA emulation bug I introduced when non-DMA mode support was added (Original code from QEMU was DMA-only)

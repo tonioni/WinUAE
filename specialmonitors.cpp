@@ -124,7 +124,21 @@ static bool dctv(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines,
 		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
 		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
 
-		for (x = 1; x < src->inwidth; x += 2) {
+		if (y < 60) {
+			write_log(_T("%d:\n"), y);
+			for (x = 22; x < 300; x += 1) {
+				uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
+				write_log(_T("%01x"), FIRGB(src, s));
+			}
+			write_log(_T("*\n"));
+			for (x = 21; x < 300; x += 1) {
+				uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
+				write_log(_T("%01x"), FIRGB(src, s));
+			}
+			write_log(_T("\n"));
+		}
+
+		for (x = 1; x < src->inwidth; x += 4) {
 			uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
 			uae_u8 *d = dstline + ((x << 1) / hdbl) * dst->pixbytes;
 			uae_u8 *s2 = s + src->rowbytes;
@@ -135,18 +149,17 @@ static bool dctv(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines,
 			g = newval << 4;
 			b = newval << 4;
 
-			PRGB(dst, d, r, g, b);
-			PRGB(dst, d + dst->pixbytes, r, g, b);
-			PRGB(dst, d + dst->rowbytes, r, g, b);
-			PRGB(dst, d + dst->rowbytes + dst->pixbytes, r, g, b);
-			
+			for (int xx = 0; xx < 4; xx++) {
+				PRGB(dst, d + dst->pixbytes * xx, r, g, b);
+				PRGB(dst, d + dst->rowbytes + dst->pixbytes * xx, r, g, b);
+			}
+
 
 		}
 	}
 	dst->nativepositioning = true;
 	return true;
 }
-
 
 static const uae_u8 ham_e_magic_cookie[] = { 0xa2, 0xf5, 0x84, 0xdc, 0x6d, 0xb0, 0x7f  };
 static const uae_u8 ham_e_magic_cookie_reg = 0x14;
