@@ -604,7 +604,7 @@ static void do_tod_hack (int dotod)
 	}
 	if (rate <= 0)
 		return;
-	if (rate != oldrate || ciaatod != tod_hack_tod_last) {
+	if (rate != oldrate || (ciaatod & 0xfff) != (tod_hack_tod_last & 0xfff)) {
 		write_log (_T("TOD HACK reset %d,%d %d,%d\n"), rate, oldrate, ciaatod, tod_hack_tod_last);
 		tod_hack_reset ();
 		oldrate = rate;
