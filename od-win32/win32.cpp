@@ -499,9 +499,10 @@ bool resumepaused (int priority)
 		return false;
 	resumesoundpaused ();
 	blkdev_exitgui ();
-	if (pausemouseactive)
+	if (pausemouseactive) {
+		pausemouseactive = 0;
 		setmouseactive (-1);
-	pausemouseactive = 0;
+	}
 	pause_emulation = 0;
 #ifdef RETROPLATFORM
 	rp_pause (pause_emulation);
