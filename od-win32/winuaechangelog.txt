@@ -1,4 +1,60 @@
 
+Beta 7:
+
+- Fixed infinite recursion (and stack overflow) when pause when uncaptered is enabled and display mode changes.
+- Added AlfaPower/AT-BUS 508/2008/AlfaPower Plus IDE controller.
+- Very simple low level SCSI emulator added to support Apollo software bit-banging SCSI.
+- Added Apollo IDE/SCSI board (AT500/AT2008) and Apollo 1240/1260 accelerator boards with SCSI.
+- Added GVP Series I SCSI controller.
+- Added GVP A530 accelerator. Uses same boot ROM as GVP Series II SCSI controllers. (Uses GVP #2 SCSI slot)
+- Added Masoboshi MC-702 IDE+SCSI controller.
+- Toccata CD audio (AUX1) volume control added.
+- Another Restart related crash fix.
+- Added "framecounter" float shader variable.
+- Paths panel Save All button now creates zip file that contains winuaebootlog.txt, winuaelog.txt and config file.
+- Quickstart A1200 + accelerator board, A500+ and A600 with expansion never had RTC. (Wrong order of functions..)
+- Possible clock sync option small stability improvement.
+- Fixed memory corruption if directory harddrive with empty name was selected.
+
+SCSI/IDE controller notes:
+
+GVP Series I:
+- Not true DMA, DMA transfers from WD to/from onboard SRAM buffer. CPU needed to read/write buffer ram.
+- Driver (scsidev.device) is very old and has (many?) limits, for example only OFS and FFS partitions mount correctly.
+
+AlfaPower/AT-Bus 508/2008/AlfaPower Plus:
+- AlfaPower: no hardware interrupt (!!), AlfaPower Plus implements interrupt support.
+- v6.10 ROM (Last that works with non-Plus hardware?) and v8.3 that requires Plus.
+
+Apollo:
+- All Apollo variants seems to have identical SCSI hardware. (Accelerators and 500/2000)
+- SCSI is working. IDE is not fully tested, only AT500/AT2000 have full IDE driver. For some reason
+  Apollo 1240/1260 driver still have short "is there any IDE drives" detection code remaining.
+- "Software" SCSI, hardware can only do bus arbitration in hardware, everything else is done by bit-banging
+  SCSI IO lines. Both SCSI and IDE also use non-DMA data transfers.
+- 128k Apollo ROMs (68060 f00000 ROM code and SCSI driver) are currrently supported. Non-accelerator
+  (AT500/AT2000) ROMs don't seem to be available = can't test IDE emulation.
+- 128k v5.60 ROM added. Seems to be last 1240/1260 ROM with SCSI.
+
+Masoboshi:
+- Unusual design, SCSI supports both PIO and DMA, software selectable.
+- IDE and SCSI in non-DMA mode working.
+- SCSI writes are not working correctly, do not use! DMA controller not yet emulated.
+- "2.201" (device version) boot ROM added. ROM image does not have any version numbers or dates.
+- IDE driver uses CHS addressing and seems to have problems with 2G drives, actual limit may be smallewr.
+  It tries to access first unavailable block number at the end of drive. (Driver flashes red background
+  color if drive returns error status)
+
+Most popular SCSI and IDE controllers are now implemented.
+Remaining IDE boards that I'd like to support:
+- Roctec RocHard (Need boot ROM)
+- AdIDE 40/44 (Need boot ROM)
+Remaining SCSI boards are 5380/53c80 based boards that need chip emulation first:
+- All SupraDrives.
+- Trumpcard 500/2000
+
+Perhaps others too. As long as at least one boot ROM is found for unsupported boards.
+
 Beta 6:
 
 - b5 input device update fix, changing to any keyboard layout didn't reset "remembered" device name.

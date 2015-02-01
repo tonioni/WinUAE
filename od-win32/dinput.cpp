@@ -408,7 +408,7 @@ static int doregister_rawinput (void)
 {
 	int num;
 	bool add;
-	RAWINPUTDEVICE rid[2 + MAX_INPUT_DEVICES];
+	RAWINPUTDEVICE rid[2 + MAX_INPUT_DEVICES] = { 0 };
 	int activate;
 
 	if (!rawinput_available)

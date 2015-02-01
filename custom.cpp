@@ -2476,7 +2476,8 @@ static void update_fetch (int until, int fm)
 				ddfstop_matched = true;
 			}
 			if (pos <= HARD_DDF_STOP && stoppos > HARD_DDF_STOP) {
-				plf_state = plf_passed_stop_act;
+				if (plf_state < plf_wait)
+					plf_state = plf_passed_stop_act;
 			}
 			if (pos <= ddfstop_to_test && stoppos > ddf2) {
 				plf_state = plf_passed_stop2;
