@@ -24,7 +24,8 @@ struct wd_chip_state {
 
 #define COMMODORE_DMAC 1
 #define COMMODORE_SDMAC 2
-#define GVP_DMAC 3
+#define GVP_DMAC_S2 3
+#define GVP_DMAC_S1 4
 
 struct commodore_dmac
 {
@@ -55,6 +56,8 @@ struct gvp_dmac
 	uae_u8 version;
 	uae_u32 addr_mask;
 	bool series2;
+	uae_u8 *buffer;
+	int bufoffset;
 };
 
 struct wd_state {
@@ -91,7 +94,7 @@ extern addrbank *a2091_init (int devnum);
 extern void a2091_free(void);
 extern void a2091_reset (void);
 
-extern addrbank *gvp_init(int devnum);
+extern addrbank *gvp_init(int devnum, bool series2);
 extern void gvp_free(void);
 extern void gvp_reset (void);
 

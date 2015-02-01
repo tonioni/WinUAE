@@ -909,7 +909,7 @@ addrbank mbres_bank = {
 
 void gayle_hsync (void)
 {
-	if (ide_interrupt_check(idedrive, TOTAL_IDE * 2))
+	if (ide_interrupt_check(idedrive[0]) || ide_interrupt_check(idedrive[2]) || ide_interrupt_check(idedrive[4]))
 		rethink_gayle ();
 }
 

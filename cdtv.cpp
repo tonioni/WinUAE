@@ -30,6 +30,7 @@
 #include "a2091.h"
 #include "uae.h"
 #include "savestate.h"
+#include "scsi.h"
 
 /* DMAC CNTR bits. */
 #define CNTR_TCEN               (1<<7)
@@ -1635,7 +1636,7 @@ uae_u8 cdtv_battram_read (int addr)
 
 int cdtv_add_scsi_hd_unit (int ch, struct uaedev_config_info *ci)
 {
-	return add_wd_scsi_hd (&wd_cdtv, ch, NULL, ci, 1);
+	return add_scsi_hd (wd_cdtv.scsis, ch, NULL, ci, 1);
 }
 
 void cdtv_free (void)

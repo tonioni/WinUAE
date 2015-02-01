@@ -15,8 +15,10 @@
 #include "filesys.h"
 #include "blkdev.h"
 #include "zfile.h"
+#include "debug.h"
 
 #define SCSI_EMU_DEBUG 0
+#define RAW_SCSI_DEBUG 0
 
 extern int log_scsiemu;
 
@@ -371,7 +373,115 @@ int scsi_receive_data(struct scsi_data *sd, uae_u8 *b)
 	return 0;
 }
 
+void free_scsi (struct scsi_data *sd)
+{
+	if (!sd)
+		return;
+	hdf_hd_close (sd->hfd);
+	scsi_free (sd);
+}
+
+int add_scsi_hd (struct scsi_data **sd, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level)
+{
+	free_scsi (sd[ch]);
+	sd[ch] = NULL;
+	if (!hfd) {
+		hfd = xcalloc (struct hd_hardfiledata, 1);
+		memcpy (&hfd->hfd.ci, ci, sizeof (struct uaedev_config_info));
+	}
+	if (!hdf_hd_open (hfd))
+		return 0;
+	hfd->ansi_version = scsi_level;
+	sd[ch] = scsi_alloc_hd (ch, hfd);
+	return sd[ch] ? 1 : 0;
+}
+
+int add_scsi_cd (struct scsi_data **sd, int ch, int unitnum)
+{
+	device_func_init (0);
+	free_scsi (sd[ch]);
+	sd[ch] = scsi_alloc_cd (ch, unitnum, false);
+	return sd[ch] ? 1 : 0;
+}
+
+int add_scsi_tape (struct scsi_data **sd, int ch, const TCHAR *tape_directory, bool readonly)
+{
+	free_scsi (sd[ch]);
+	sd[ch] = scsi_alloc_tape (ch, tape_directory, readonly);
+	return sd[ch] ? 1 : 0;
+}
+
+void scsi_freenative(struct scsi_data **sd)
+{
+	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		free_scsi (sd[i]);
+		sd[i] = NULL;
+	}
+}
+
+void scsi_addnative(struct scsi_data **sd)
+{
+	int i, j;
+	int devices[MAX_TOTAL_SCSI_DEVICES];
+	int types[MAX_TOTAL_SCSI_DEVICES];
+	struct device_info dis[MAX_TOTAL_SCSI_DEVICES];
+
+	scsi_freenative (sd);
+	i = 0;
+	while (i < MAX_TOTAL_SCSI_DEVICES) {
+		types[i] = -1;
+		devices[i] = -1;
+		if (sys_command_open (i)) {
+			if (sys_command_info (i, &dis[i], 0)) {
+				devices[i] = i;
+				types[i] = 100 - i;
+				if (dis[i].type == INQ_ROMD)
+					types[i] = 1000 - i;
+			}
+			sys_command_close (i);
+		}
+		i++;
+	}
+	i = 0;
+	while (devices[i] >= 0) {
+		j = i + 1;
+		while (devices[j] >= 0) {
+			if (types[i] > types[j]) {
+				int tmp = types[i];
+				types[i] = types[j];
+				types[j] = tmp;
+			}
+			j++;
+		}
+		i++;
+	}
+	i = 0; j = 0;
+	while (devices[i] >= 0 && j < 7) {
+		if (sd[j] == NULL) {
+			sd[j] = scsi_alloc_native(j, devices[i]);
+			write_log (_T("SCSI: %d:'%s'\n"), j, dis[i].label);
+			i++;
+		}
+		j++;
+	}
+}
+
+
 // raw scsi
+
+#define SCSI_IO_BUSY 0x80
+#define SCSI_IO_ATN 0x40
+#define SCSI_IO_SEL 0x20
+#define SCSI_IO_REQ 0x10
+#define SCSI_IO_DIRECTION 0x01
+#define SCSI_IO_COMMAND 0x02
+#define SCSI_IO_MESSAGE 0x04
+
+#define SCSI_SIGNAL_PHASE_FREE -1
+#define SCSI_SIGNAL_PHASE_ARBIT -2
+#define SCSI_SIGNAL_PHASE_SELECT_1 -3
+#define SCSI_SIGNAL_PHASE_SELECT_2 -4
+
 #define SCSI_SIGNAL_PHASE_DATA_OUT 0
 #define SCSI_SIGNAL_PHASE_DATA_IN 1
 #define SCSI_SIGNAL_PHASE_COMMAND 2
@@ -379,90 +489,298 @@ int scsi_receive_data(struct scsi_data *sd, uae_u8 *b)
 #define SCSI_SIGNAL_PHASE_MESSAGE_OUT 6
 #define SCSI_SIGNAL_PHASE_MESSAGE_IN 7
 
-#define SCSI_BUS_PHASE_FREE 0
-#define SCSI_BUS_PHASE_ARBITRATION 1
-#define SCSI_BUS_PHASE_SELECTION 2
-#define SCSI_BUS_PHASE_RESELECTION 3
-#define SCSI_BUS_PHASE_COMMAND 4
-#define SCSI_BUS_PHASE_DATA_IN 5
-#define SCSI_BUS_PHASE_DATA_OUT 6
-#define SCSI_BUS_PHASE_STATUS 7
-#define SCSI_BUS_PHASE_MESSAGE_IN 8
-#define SCSI_BUS_PHASE_MESSAGE_OUT 9
-
-struct raw_scsi_device
-{
-	int x;
-	int id;
-};
 struct raw_scsi
 {
-	int signal_phase;
-	int old_signal_phase;
+	int io;
 	int bus_phase;
+	bool atn;
 	uae_u8 data;
-	int initiator;
-	int target;
-	uae_u8 cmd[16];
-	int len;
-	struct raw_scsi_device *device[8];
+	int initiator_id, target_id;
+	struct scsi_data *device[8];
+	struct scsi_data *target;
 };
 
-struct raw_scsi *new_raw_scsi(void)
+void raw_scsi_reset(struct raw_scsi *rs)
 {
-	struct raw_scsi *rs = xcalloc(struct raw_scsi, 1);
-	return rs;
+	rs->target = NULL;
+	rs->io = 0;
+	rs->bus_phase = SCSI_SIGNAL_PHASE_FREE;
 }
 
-void free_raw_scsi(struct raw_scsi *rs)
+void raw_scsi_busfree(struct raw_scsi *rs)
 {
-	if (!rs)
-		return;
-	for (int i = 0; i < 8; i++)
-		xfree(rs->device[i]);
-	xfree(rs);
+	rs->target = NULL;
+	rs->io = 0;
+	rs->bus_phase = SCSI_SIGNAL_PHASE_FREE;
 }
 
-struct raw_scsi_device *new_raw_scsi_device(struct raw_scsi *rs, int id)
+static void bus_free(struct raw_scsi *rs)
 {
-	rs->device[id] = xcalloc(struct raw_scsi_device, 1);
-	rs->device[id]->id = id;
-	return rs->device[id];
+	rs->bus_phase = SCSI_SIGNAL_PHASE_FREE;
+	rs->io = 0;
 }
 
-void free_raw_scsi_device(struct raw_scsi *rs, struct raw_scsi_device *dev)
+static int getbit(uae_u8 v)
 {
-	if (!dev)
-		return;
-	rs->device[dev->id] = NULL;
-	xfree(dev);
+	for (int i = 0; i < 8; i++) {
+		if ((1 << i) & v)
+			return i;
+	}
+	return -1;
 }
 
-int raw_scsi_get_signal_phase(struct raw_scsi *rs, struct raw_scsi_device *dev)
+void raw_scsi_set_signal_phase(struct raw_scsi *rs, bool busy, bool select, bool atn)
 {
-	return rs->signal_phase;
-}
-
-void raw_scsi_put_signal_phase(struct raw_scsi *rs, struct raw_scsi_device *dev, uae_u8 phase)
-{
-	if (rs->signal_phase == phase)
-		return;
-	rs->old_signal_phase = rs->signal_phase;
-	rs->signal_phase = phase;
-	switch(rs->bus_phase)
+	switch (rs->bus_phase)
 	{
-	case SCSI_BUS_PHASE_FREE:
-
+		case SCSI_SIGNAL_PHASE_FREE:
+		if (busy && !select) {
+			rs->bus_phase = SCSI_SIGNAL_PHASE_ARBIT;
+		}
 		break;
-	
+		case SCSI_SIGNAL_PHASE_ARBIT:
+		rs->target_id = -1;
+		rs->target = NULL;
+		if (busy && select) {
+			rs->bus_phase = SCSI_SIGNAL_PHASE_SELECT_1;
+		}
+		break;
+		case SCSI_SIGNAL_PHASE_SELECT_1:
+		rs->atn = atn;
+		if (!busy) {
+			uae_u8 data = rs->data & ~(1 << rs->initiator_id);
+			rs->target_id = getbit(data);
+			if (rs->target_id >= 0) {
+				rs->target = rs->device[rs->target_id];
+				if (rs->target) {
+#if RAW_SCSI_DEBUG
+					write_log(_T("raw_scsi: selected id %d\n"), rs->target_id);
+#endif
+					rs->io |= SCSI_IO_BUSY;
+				} else {
+#if RAW_SCSI_DEBUG
+					write_log(_T("raw_scsi: selected non-existing id %d\n"), rs->target_id);
+#endif
+					rs->target_id = -1;
+				}
+			}
+			if (rs->target_id >= 0) {
+				rs->bus_phase = SCSI_SIGNAL_PHASE_SELECT_2;
+			} else {
+				if (!select) {
+					rs->bus_phase = SCSI_SIGNAL_PHASE_FREE;
+				}
+			}
+		}
+		break;
+		case SCSI_SIGNAL_PHASE_SELECT_2:
+		if (!select) {
+			scsi_start_transfer(rs->target);
+			rs->bus_phase = rs->atn ? SCSI_SIGNAL_PHASE_MESSAGE_IN : SCSI_SIGNAL_PHASE_COMMAND;
+			rs->io = SCSI_IO_BUSY | SCSI_IO_REQ;
+		}
+		break;
 	}
 }
 
-uae_u16 raw_scsi_get_data(struct raw_scsi *rs, struct raw_scsi_device *dev)
+uae_u8 raw_scsi_get_signal_phase(struct raw_scsi *rs)
 {
-	return rs->data;
+	uae_u8 v = rs->io;
+	if (rs->bus_phase >= 0)
+		v |= rs->bus_phase;
+	return v;
 }
 
-void raw_scsi_put_data(struct raw_scsi *rs, struct raw_scsi_device *dev, uae_u16 data)
+uae_u8 raw_scsi_get_data(struct raw_scsi *rs)
 {
+	struct scsi_data *sd = rs->target;
+	uae_u8 v = 0;
+
+	switch (rs->bus_phase)
+	{
+		case SCSI_SIGNAL_PHASE_FREE:
+#if RAW_SCSI_DEBUG
+		write_log(_T("raw_scsi: bus free\n"));
+#endif
+		v = 0;
+		break;
+		case SCSI_SIGNAL_PHASE_ARBIT:
+#if RAW_SCSI_DEBUG
+		write_log(_T("raw_scsi: arbitration\n"));
+#endif
+		v = rs->data;
+		break;
+		case SCSI_SIGNAL_PHASE_DATA_IN:
+		if (scsi_receive_data(sd, & v)) {
+			rs->bus_phase = SCSI_SIGNAL_PHASE_STATUS;
+#if RAW_SCSI_DEBUG
+			write_log(_T("raw_scsi: data in finished, %d bytes: status phase\n"), sd->offset);
+#endif
+		}
+		break;
+		case SCSI_SIGNAL_PHASE_STATUS:
+#if RAW_SCSI_DEBUG
+		write_log(_T("raw_scsi: status byte read %02x\n"), sd->status);
+#endif
+		v = sd->status;
+		bus_free(rs);
+		break;
+		default:
+		write_log(_T("raw_scsi_get_data but bus phase is %d!\n"), rs->bus_phase);
+		break;
+	}
+
+	return v;
+}
+
+void raw_scsi_put_data(struct raw_scsi *rs, uae_u8 data)
+{
+	struct scsi_data *sd = rs->target;
+	int len;
+
+	rs->data = data;
+	switch (rs->bus_phase)
+	{
+		case SCSI_SIGNAL_PHASE_ARBIT:
+		rs->initiator_id = getbit(data);
+		write_log(_T("raw_scsi: arbitration initiator id %d\n"), rs->initiator_id);
+		break;
+		case SCSI_SIGNAL_PHASE_SELECT_1:
+		break;
+		case SCSI_SIGNAL_PHASE_COMMAND:
+		sd->cmd[sd->offset++] = data;
+		len = scsicmdsizes[sd->cmd[0] >> 5];
+		if (sd->offset >= len) {
+#if RAW_SCSI_DEBUG
+			write_log(_T("raw_scsi: got command %02x (%d bytes)\n"), sd->cmd[0], len);
+#endif
+			scsi_emulate_analyze(rs->target);
+			if (sd->direction > 0) {
+#if RAW_SCSI_DEBUG
+				write_log(_T("raw_scsi: data out %d bytes required\n"), sd->data_len);
+#endif
+				scsi_start_transfer(sd);
+				rs->bus_phase = SCSI_SIGNAL_PHASE_DATA_OUT;
+			} else if (sd->direction <= 0) {
+				scsi_emulate_cmd(sd);
+				scsi_start_transfer(sd);
+				if (!sd->status && sd->data_len > 0) {
+#if RAW_SCSI_DEBUG
+					write_log(_T("raw_scsi: data in %d bytes waiting\n"), sd->data_len);
+#endif
+					rs->bus_phase = SCSI_SIGNAL_PHASE_DATA_IN;
+				} else {
+#if RAW_SCSI_DEBUG
+					write_log(_T("raw_scsi: no data, status = %d\n"), sd->status);
+#endif
+					rs->bus_phase = SCSI_SIGNAL_PHASE_STATUS;
+				}
+			}
+		}
+		break;
+		case SCSI_SIGNAL_PHASE_DATA_OUT:
+		if (scsi_send_data(sd, data)) {
+#if RAW_SCSI_DEBUG
+			write_log(_T("raw_scsi: data out finished, %d bytes\n"), sd->data_len);
+#endif
+			scsi_emulate_cmd(sd);
+			rs->bus_phase = SCSI_SIGNAL_PHASE_STATUS;
+		}
+		break;
+		default:
+		write_log(_T("raw_scsi_put_data but bus phase is %d!\n"), rs->bus_phase);
+		break;
+	}
+}
+
+struct apollo_soft_scsi
+{
+	bool enabled;
+	int configured;
+	bool autoconfig;
+	bool irq;
+	struct raw_scsi rscsi;
+};
+static struct apollo_soft_scsi apolloscsi[2];
+
+void apollo_scsi_bput(uaecptr addr, uae_u8 v)
+{
+	int bank = addr & (0x800 | 0x400);
+	struct apollo_soft_scsi *as = &apolloscsi[0];
+	struct raw_scsi *rs = &as->rscsi;
+	addr &= 0x3fff;
+	if (bank == 0) {
+		raw_scsi_put_data(rs, v);
+	} else if (bank == 0xc00 && !(addr & 1)) {
+		as->irq = (v & 64) != 0;
+		raw_scsi_set_signal_phase(rs,
+			(v & 128) != 0,
+			(v & 32) != 0,
+			false);
+	} else if (bank == 0x400 && (addr & 1)) {
+		raw_scsi_set_signal_phase(rs, true, false, false);
+		raw_scsi_put_data(rs, v);
+	}
+	//write_log(_T("apollo scsi put %04x = %02x\n"), addr, v);
+}
+
+uae_u8 apollo_scsi_bget(uaecptr addr)
+{
+	int bank = addr & (0x800 | 0x400);
+	struct apollo_soft_scsi *as = &apolloscsi[0];
+	struct raw_scsi *rs = &as->rscsi;
+	uae_u8 v = 0xff;
+	addr &= 0x3fff;
+	if (bank == 0) {
+		v = raw_scsi_get_data(rs);
+	} else if (bank == 0x800 && (addr & 1)) {
+		uae_u8 t = raw_scsi_get_signal_phase(rs);
+		v = 1; // disable switch off
+		if (t & SCSI_IO_BUSY)
+			v |= 128;
+		if (t & SCSI_IO_SEL)
+			v |= 32;
+		if (t & SCSI_IO_REQ)
+			v |= 2;
+		if (t & SCSI_IO_DIRECTION)
+			v |= 8;
+		if (t & SCSI_IO_COMMAND)
+			v |= 16;
+		if (t & SCSI_IO_MESSAGE)
+			v |= 4;
+		v ^= (1 | 2 | 4 | 8 | 16 | 32 | 128);
+		//v |= apolloscsi.irq ? 64 : 0;
+	}
+	//write_log(_T("apollo scsi get %04x = %02x\n"), addr, v);
+	return v;
+}
+
+int apollo_add_scsi_unit(int ch, struct uaedev_config_info *ci, int devnum)
+{
+	struct raw_scsi *rs = &apolloscsi[devnum].rscsi;
+	raw_scsi_reset(rs);
+	if (ci->type == UAEDEV_CD)
+		return add_scsi_cd(rs->device, ch, ci->device_emu_unit);
+	else if (ci->type == UAEDEV_TAPE)
+		return add_scsi_tape(rs->device, ch, ci->rootdir, ci->readonly);
+	else
+		return add_scsi_hd(rs->device, ch, NULL, ci, 1);
+	return 0;
+}
+
+void apolloscsi_free(void)
+{
+	for (int j = 0; j < 2; j++) {
+		struct raw_scsi *rs = &apolloscsi[j].rscsi;
+		for (int i = 0; i < 8; i++) {
+			free_scsi (rs->device[i]);
+			rs->device[i] = NULL;
+		}
+	}
+}
+
+void apolloscsi_reset(void)
+{
+	raw_scsi_reset(&apolloscsi[0].rscsi);
+	raw_scsi_reset(&apolloscsi[1].rscsi);
 }

@@ -28,6 +28,8 @@
 #include "flashrom.h"
 #include "uae.h"
 #include "uae/ppc.h"
+#include "idecontrollers.h"
+#include "scsi.h"
 
 #define CPUBOARD_IO_LOG 0
 #define CPUBOARD_IRQ_LOG 0
@@ -265,6 +267,10 @@ static bool is_dkb(void)
 static bool is_fusionforty(void)
 {
 	return currprefs.cpuboard_type == BOARD_FUSIONFORTY;
+}
+static bool is_apollo(void)
+{
+	return currprefs.cpuboard_type == BOARD_APOLLO;
 }
 
 DECLARE_MEMORY_FUNCTIONS(blizzardio);
@@ -756,7 +762,7 @@ static void REGPARAM2 blizzarde8_bput(uaecptr addr, uae_u32 b)
 	addr &= 65535;
 	if (addr == 0x48 && !configured) {
 		map_banks(&blizzardea_bank, b, 0x20000 >> 16, 0x20000);
-		write_log(_T("Blizzard/CyberStorm Z2 autoconfigured at %02X0000\n"), b);
+		write_log(_T("Accelerator Z2 board autoconfigured at %02X0000\n"), b);
 		configured = 1;
 		expamem_next (&blizzardea_bank, NULL);
 		return;
@@ -1310,6 +1316,9 @@ void cpuboard_map(void)
 		map_banks(&blizzardio_bank, 0x021d0000 >> 16, 65536 >> 16, 0);
 		map_banks(&blizzardram_bank, blizzardram_bank.start >> 16, cpuboard_size >> 16, 0);
 	}
+	if (is_apollo()) {
+		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 131072 >> 16, 0);
+	}
 }
 
 void cpuboard_reset(void)
@@ -1402,6 +1411,13 @@ void cpuboard_init(void)
 		blizzardea_bank.allocated = 65536;
 		blizzardea_bank.mask = blizzardea_bank.allocated - 1;
 		mapped_malloc(&blizzardea_bank);
+
+	} else if (is_apollo()) {
+
+		blizzardf0_bank.start = 0x00f00000;
+		blizzardf0_bank.allocated = 131072;
+		blizzardf0_bank.mask = blizzardf0_bank.allocated - 1;
+		mapped_malloc(&blizzardf0_bank);
 
 	} else if (is_fusionforty()) {
 
@@ -1635,8 +1651,10 @@ int cpuboard_memorytype(struct uae_prefs *p)
 		case BOARD_TEKMAGIC:
 		case BOARD_FUSIONFORTY:
 		case BOARD_DKB1200: // ??
+		case BOARD_APOLLO:
 		return BOARD_MEMORY_HIGHMEM;
 		case BOARD_A2630:
+		case BOARD_GVP_A530:
 		return BOARD_MEMORY_Z2;
 		case BOARD_BLIZZARD_1230_IV:
 		case BOARD_BLIZZARD_1230_IV_SCSI:
@@ -1819,6 +1837,11 @@ addrbank *cpuboard_autoconfig_init(void)
 		roms[0] = 105;
 		roms[1] = 106;
 		break;
+	case BOARD_GVP_A530:
+		return &expamem_null;
+	case BOARD_APOLLO:
+		roms[0] = 119;
+		break;
 	case BOARD_A3001_I:
 	case BOARD_A3001_II:
 		return &expamem_null;
@@ -1869,31 +1892,36 @@ addrbank *cpuboard_autoconfig_init(void)
 		return &expamem_null;
 	}
 
-	struct romlist *rl = getromlistbyids(roms, romname);
-	if (!rl) {
-		rd = getromdatabyids(roms);
-		if (!rd)
-			return &expamem_null;
-	} else {
-		rd = rl->rd;
+	struct romlist *rl = NULL;
+	if (roms[0] >= 0) {
+		getromlistbyids(roms, romname);
+		if (!rl) {
+			rd = getromdatabyids(roms);
+			if (!rd)
+				return &expamem_null;
+		} else {
+			rd = rl->rd;
+		}
+		defaultromname = rd->defaultfilename;
 	}
-	defaultromname = rd->defaultfilename;
-	if (rl && !isflashrom) {
+	if (!isflashrom) {
 		if (romname)
 			autoconfig_rom = zfile_fopen(romname, _T("rb"));
 		if (!autoconfig_rom && defaultromname)
 			autoconfig_rom = zfile_fopen(defaultromname, _T("rb"));
-		if (autoconfig_rom) {
-			struct romdata *rd2 = getromdatabyids(roms);
-			// Do not use image if it is not long enough (odd or even only?)
-			if (!rd2 || zfile_size(autoconfig_rom) < rd2->size) {
-				zfile_fclose(autoconfig_rom);
-				autoconfig_rom = NULL;
+		if (rl) {
+			if (autoconfig_rom) {
+				struct romdata *rd2 = getromdatabyids(roms);
+				// Do not use image if it is not long enough (odd or even only?)
+				if (!rd2 || zfile_size(autoconfig_rom) < rd2->size) {
+					zfile_fclose(autoconfig_rom);
+					autoconfig_rom = NULL;
+				}
 			}
+			if (!autoconfig_rom)
+				autoconfig_rom = read_rom(rl->rd);
 		}
-		if (!autoconfig_rom)
-			autoconfig_rom = read_rom(rl->rd);
-	} else if (isflashrom) {
+	} else {
 		autoconfig_rom = flashfile_open(romname);
 		if (!autoconfig_rom) {
 			if (rl)
@@ -1913,8 +1941,12 @@ addrbank *cpuboard_autoconfig_init(void)
 		write_log (_T("ROM id %d not found for CPU board emulation\n"), roms[0]);
 		return &expamem_null;
 	}
-	if (autoconfig_rom)
-		write_log(_T("CPUBoard ROM '%s' %lld loaded\n"), zfile_getname(autoconfig_rom), zfile_size(autoconfig_rom));
+	if (!autoconfig_rom) {
+		write_log(_T("Couldn't open CPU board rom '%s'\n"), defaultromname);
+		return &expamem_null;
+	}
+
+	write_log(_T("CPUBoard ROM '%s' %lld loaded\n"), zfile_getname(autoconfig_rom), zfile_size(autoconfig_rom));
 
 	protect_roms(false);
 	cpuboard_non_byte_ea = true;
@@ -1923,6 +1955,10 @@ addrbank *cpuboard_autoconfig_init(void)
 		zfile_fread(blizzardf0_bank.baseaddr, 1, f0rom_size, autoconfig_rom);
 		autoconf = false;
 		autoconf_stop = true;
+	} else if (is_apollo()) {
+		f0rom_size = 131072;
+		zfile_fread(blizzardf0_bank.baseaddr, 1, 131072, autoconfig_rom);
+		autoconf = false;
 	} else if (is_fusionforty()) {
 		f0rom_size = 262144;
 		zfile_fread(blizzardf0_bank.baseaddr, 1, 131072, autoconfig_rom);

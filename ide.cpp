@@ -128,11 +128,11 @@ static bool ide_interrupt_do (struct ide_hdf *ide)
 	return true;
 }
 
-bool ide_interrupt_check(struct ide_hdf **idetable, int num)
+bool ide_interrupt_check(struct ide_hdf *idep)
 {
 	bool irq = false;
-	for (int i = 0; i < num; i++) {
-		struct ide_hdf *ide = idetable[i];
+	for (int i = 0; i < 2; i++) {
+		struct ide_hdf *ide = i == 0 ? idep : idep->pair;
 		if (ide) {
 			if (ide->irq_delay > 0) {
 				ide->irq_delay--;
@@ -588,8 +588,8 @@ static void do_process_rw_command (struct ide_hdf *ide)
 	bool last;
 
 	ide->data_offset = 0;
-	get_lbachs (ide, &lba, &cyl, &head, &sec);
 	nsec = get_nsec (ide);
+	get_lbachs (ide, &lba, &cyl, &head, &sec);
 	if (IDE_LOG > 1)
 		write_log (_T("IDE%d off=%d, nsec=%d (%d) lba48=%d\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, ide->lba48 + ide->lba48cmd);
 	if (nsec * ide->blocksize > ide->hdhfd.size - lba * ide->blocksize) {
@@ -759,6 +759,8 @@ static void ide_do_command (struct ide_hdf *ide, uae_u8 cmd)
 			ide_set_features (ide);
 		} else if (cmd == 0x00) { /* nop */
 			ide_fail (ide);
+		} else if (cmd == 0x70) { /* seek */
+			ide_interrupt (ide);
 		} else if (cmd == 0xe0 || cmd == 0xe1 || cmd == 0xe7 || cmd == 0xea) { /* standby now/idle/flush cache/flush cache ext */
 			ide_interrupt (ide);
 		} else if (cmd == 0xe5) { /* check power mode */
@@ -776,8 +778,6 @@ uae_u16 ide_get_data (struct ide_hdf *ide)
 	bool irq = false;
 	uae_u16 v;
 
-	if (IDE_LOG > 4)
-		write_log (_T("IDE%d DATA read\n"), ide->num);
 	if (ide->data_size == 0) {
 		if (IDE_LOG > 0)
 			write_log (_T("IDE%d DATA but no data left!? %02X PC=%08X\n"), ide->num, ide->regs.ide_status, m68k_getpc ());
@@ -787,6 +787,8 @@ uae_u16 ide_get_data (struct ide_hdf *ide)
 	}
 	if (ide->packet_state) {
 		v = ide->secbuf[ide->packet_data_offset + ide->data_offset + 1] | (ide->secbuf[ide->packet_data_offset + ide->data_offset + 0] << 8);
+		if (IDE_LOG > 4)
+			write_log (_T("IDE%d DATA read %04x\n"), ide->num, v);
 		ide->data_offset += 2;
 		if (ide->data_size < 0)
 			ide->data_size += 2;
@@ -807,6 +809,8 @@ uae_u16 ide_get_data (struct ide_hdf *ide)
 		}
 	} else {
 		v = ide->secbuf[ide->data_offset + 1] | (ide->secbuf[ide->data_offset + 0] << 8);
+		if (IDE_LOG > 4)
+			write_log (_T("IDE%d DATA read %04x\n"), ide->num, v);
 		ide->data_offset += 2;
 		if (ide->data_size < 0) {
 			ide->data_size += 2;
@@ -876,7 +880,7 @@ uae_u32 ide_read_reg (struct ide_hdf *ide, int ide_reg)
 		if (ide_reg == IDE_STATUS && ide->pair->irq)
 			ide->pair->irq = 0;
 		if (ide_isdrive (ide->pair))
-			v = 0x00;
+			v = 0x01;
 		else
 			v = 0xff;
 		goto end;

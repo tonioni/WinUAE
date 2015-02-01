@@ -331,7 +331,7 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
 	s->async_buf = scsiesp_req_get_buf(req);
     if (s->dma_left) {
         esp_do_dma(s);
-    } else if (s->dma_counter != 0 && s->ti_size <= 0) {
+    } else if (s->dma_counter != 0 && s->ti_size == 0) {
         /* If this was the last part of a DMA transfer then the
            completion interrupt is deferred to here.  */
         esp_dma_done(s);
@@ -450,6 +450,8 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
         esp_lower_irq(s);
 
         return old_val;
+	case ESP_RFLAGS:
+		return s->rregs[saddr] | s->rregs[ESP_RSEQ] << 5;
 	case ESP_RES4:
 		return 0x80 | 0x20 | 0x2;
     default:
@@ -520,6 +522,8 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
             s->rregs[ESP_RINTR] = INTR_DC;
             s->rregs[ESP_RSEQ] = 0;
             s->rregs[ESP_RFLAGS] = 0;
+			// Masoboshi driver expects phase=0!
+			s->rregs[ESP_RSTAT] &= ~7;
             esp_raise_irq(s);
             break;
         case CMD_PAD:
@@ -544,7 +548,8 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
             s->rregs[ESP_RINTR] = 0;
             break;
         case CMD_DISSEL:
-            s->rregs[ESP_RINTR] = 0;
+			// Masoboshi driver expects Function Complete.
+            s->rregs[ESP_RINTR] = INTR_FC;
             esp_raise_irq(s);
             break;
         default:

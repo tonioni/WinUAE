@@ -1066,6 +1066,9 @@ static addrbank *expamem_init_fastcard_2 (int boardnum)
 	int allocated = boardnum ? fastmem2_bank.allocated : fastmem_bank.allocated;
 	uae_u32 serial = 1;
 
+	if (allocated == 0)
+		return &expamem_null;
+
 	expamem_init_clear ();
 	if (allocated == 65536)
 		type |= Z2_MEM_64KB;
@@ -1095,9 +1098,21 @@ static addrbank *expamem_init_fastcard_2 (int boardnum)
 		pid = commodore_a2091_ram;
 		mid = commodore;
 		serial = 0;
-	} else if (cfgfile_board_enabled(&currprefs.gvprom) || currprefs.cpuboard_type == BOARD_A3001_I || currprefs.cpuboard_type == BOARD_A3001_II) {
+	} else if (cfgfile_board_enabled(&currprefs.gvps1rom) || cfgfile_board_enabled(&currprefs.gvps2rom) || currprefs.cpuboard_type == BOARD_A3001_I || currprefs.cpuboard_type == BOARD_A3001_II) {
 		pid = 10;
 		mid = 2017;
+		serial = 0;
+	} else if (cfgfile_board_enabled(&currprefs.alfrom) || cfgfile_board_enabled(&currprefs.alfplusrom)) {
+		pid = 8;
+		mid = 2092;
+		serial = 0;
+	} else if (cfgfile_board_enabled(&currprefs.apollorom)) {
+		pid = 0;
+		mid = 8738;
+		serial = 0;
+	} else if (cfgfile_board_enabled(&currprefs.masoboshirom)) {
+		pid = 3;
+		mid = 2157;
 		serial = 0;
 	} else {
 		pid = currprefs.maprom && !currprefs.cpuboard_type ? 1 : 81;
@@ -1644,6 +1659,34 @@ uaecptr need_uae_boot_rom (void)
 	return v;
 }
 
+static addrbank *expamem_init_masoboshi(void)
+{
+	return masoboshi_init (0);
+}
+static addrbank *expamem_init_masoboshi_2(void)
+{
+	return masoboshi_init (1);
+}
+static addrbank *expamem_init_alf(void)
+{
+	return alf_init (0);
+}
+static addrbank *expamem_init_alf_2(void)
+{
+	return alf_init (1);
+}
+static addrbank *expamem_init_apollo(void)
+{
+	return apollo_init (0);
+}
+static addrbank *expamem_init_apollo_2(void)
+{
+	return apollo_init (1);
+}
+static addrbank *expamem_init_apollo_cpu(void)
+{
+	return apollo_init (-1);
+}
 #ifdef WITH_TOCCATA
 static addrbank *expamem_init_toccata(void)
 {
@@ -1667,23 +1710,27 @@ static addrbank *expamem_init_a2091(void)
 {
 	return a2091_init (0);
 }
-#endif
-#ifdef A2091
 static addrbank *expamem_init_a2091_2(void)
 {
 	return a2091_init (1);
 }
 #endif
 #ifdef A2091
-static addrbank *expamem_init_gvp(void)
+static addrbank *expamem_init_gvp_s1(void)
 {
-	return gvp_init(0);
+	return gvp_init(0, false);
 }
-#endif
-#ifdef A2091
-static addrbank *expamem_init_gvp_2(void)
+static addrbank *expamem_init_gvp_s1_2(void)
 {
-	return gvp_init(1);
+	return gvp_init(1, false);
+}
+static addrbank *expamem_init_gvp_s2(void)
+{
+	return gvp_init(0, true);
+}
+static addrbank *expamem_init_gvp_s2_2(void)
+{
+	return gvp_init(1, true);
 }
 #endif
 #ifdef NCR
@@ -1820,6 +1867,18 @@ void expamem_reset (void)
 		card_init[cardno] = expamem_init_a3001_ide;
 		card_map[cardno++] = NULL;
 	}
+	if (currprefs.cpuboard_type == BOARD_GVP_A530) {
+		card_flags[cardno] = 1;
+		card_name[cardno] = _T("GVP A530");
+		card_init[cardno] = expamem_init_gvp_s2_2;
+		card_map[cardno++] = NULL;
+	}
+
+	if (currprefs.cpuboard_type == BOARD_APOLLO) {
+		card_name[cardno] = _T("Apollo");
+		card_init[cardno] = expamem_init_apollo_cpu;
+		card_map[cardno++] = NULL;
+	}
 
 #ifdef A2091
 	if (cfgfile_board_enabled(&currprefs.a2091rom)) {
@@ -1833,13 +1892,22 @@ void expamem_reset (void)
 	}
 #endif
 #ifdef A2091
-	if (cfgfile_board_enabled(&currprefs.gvprom)) {
+	if (cfgfile_board_enabled(&currprefs.gvps2rom)) {
 		card_flags[cardno] = 0;
-		card_name[cardno] = _T("GVP");
-		card_init[cardno] = expamem_init_gvp;
+		card_name[cardno] = _T("GVP SII");
+		card_init[cardno] = expamem_init_gvp_s2;
 		card_map[cardno++] = NULL;
-		card_name[cardno] = _T("GVP #2");
-		card_init[cardno] = expamem_init_gvp_2;
+		card_name[cardno] = _T("GVP SII #2");
+		card_init[cardno] = expamem_init_gvp_s2_2;
+		card_map[cardno++] = NULL;
+	}
+	if (cfgfile_board_enabled(&currprefs.gvps1rom)) {
+		card_flags[cardno] = 0;
+		card_name[cardno] = _T("GVP SI");
+		card_init[cardno] = expamem_init_gvp_s1;
+		card_map[cardno++] = NULL;
+		card_name[cardno] = _T("GVP SI #2");
+		card_init[cardno] = expamem_init_gvp_s1_2;
 		card_map[cardno++] = NULL;
 	}
 #endif
@@ -1853,6 +1921,30 @@ void expamem_reset (void)
 		card_map[cardno++] = NULL;
 	}
 #endif
+	if (cfgfile_board_enabled(&currprefs.alfrom) || cfgfile_board_enabled(&currprefs.alfplusrom)) {
+		card_name[cardno] = _T("ALF");
+		card_init[cardno] = expamem_init_alf;
+		card_map[cardno++] = NULL;
+		card_name[cardno] = _T("ALF #2");
+		card_init[cardno] = expamem_init_alf_2;
+		card_map[cardno++] = NULL;
+	}
+	if (cfgfile_board_enabled(&currprefs.apollorom)) {
+		card_name[cardno] = _T("Apollo");
+		card_init[cardno] = expamem_init_apollo;
+		card_map[cardno++] = NULL;
+		card_name[cardno] = _T("Apollo #2");
+		card_init[cardno] = expamem_init_apollo_2;
+		card_map[cardno++] = NULL;
+	}
+	if (cfgfile_board_enabled(&currprefs.masoboshirom)) {
+		card_name[cardno] = _T("Masoboshi");
+		card_init[cardno] = expamem_init_masoboshi;
+		card_map[cardno++] = NULL;
+		card_name[cardno] = _T("Masoboshi #2");
+		card_init[cardno] = expamem_init_masoboshi_2;
+		card_map[cardno++] = NULL;
+	}
 #ifdef CDTV
 	if (currprefs.cs_cdtvcd && !currprefs.cs_cdtvcr) {
 		card_flags[cardno] = 0;

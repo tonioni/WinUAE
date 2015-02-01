@@ -484,7 +484,12 @@ struct uae_prefs {
 	struct boardromconfig a4091rom;
 	struct boardromconfig fastlanerom;
 	struct boardromconfig oktagonrom;
-	struct boardromconfig gvprom;
+	struct boardromconfig gvps1rom;
+	struct boardromconfig gvps2rom;
+	struct boardromconfig alfrom;
+	struct boardromconfig alfplusrom;
+	struct boardromconfig apollorom;
+	struct boardromconfig masoboshirom;
 
 	TCHAR romfile[MAX_DPATH];
 	TCHAR romident[256];

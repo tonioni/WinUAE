@@ -65,6 +65,10 @@
 #define OKTAGON_EEPROM_SDA 0x8018
 #define OKTAGON_EEPROM_SIZE 512
 
+#define MASOBOSHI_ESP_ADDR 0xfa00
+#define MASOBOSHI_DMA_START 0xf900
+#define MASOBOSHI_DMA_END 0xfa00
+
 #define DKB_BOARD_SIZE 131072
 #define DKB_ROM_SIZE 32768
 #define DKB_ROM_OFFSET 0x8000
@@ -92,6 +96,8 @@ struct ncr9x_state
 	uaecptr dma_ptr;
 	int dma_cnt;
 	int state;
+	int state2;
+	int state3;
 
 	uae_u8 data;
 	bool data_valid;
@@ -100,11 +106,11 @@ struct ncr9x_state
 	bool romisoddonly;
 	bool romisevenonly;
 
-	uae_u8 *dkb_data_buf;
-	int dkb_data_size_allocated;
-	int dkb_data_size;
-	int dkb_data_offset;
-	uae_u8 *dkb_data_write_buffer;
+	uae_u8 *fakedma_data_buf;
+	int fakedma_data_size_allocated;
+	int fakedma_data_size;
+	int fakedma_data_offset;
+	uae_u8 *fakedma_data_write_buffer;
 };
 
 
@@ -144,8 +150,8 @@ struct ncr9x_state
 static struct ncr9x_state ncr_blizzard_scsi;
 static struct ncr9x_state ncr_fastlane_scsi[MAX_BOARD_ROMS];
 static struct ncr9x_state ncr_oktagon2008_scsi[MAX_BOARD_ROMS];
+static struct ncr9x_state ncr_masoboshi_scsi[MAX_BOARD_ROMS];
 static struct ncr9x_state ncr_dkb1200_scsi;
-
 
 static struct ncr9x_state *ncrs[] =
 {
@@ -154,6 +160,8 @@ static struct ncr9x_state *ncrs[] =
 	&ncr_fastlane_scsi[1],
 	&ncr_oktagon2008_scsi[0],
 	&ncr_oktagon2008_scsi[1],
+	&ncr_masoboshi_scsi[0],
+	&ncr_masoboshi_scsi[1],
 	&ncr_dkb1200_scsi,
 	NULL
 };
@@ -161,8 +169,10 @@ static struct ncr9x_state *ncrs[] =
 void ncr9x_rethink(void)
 {
 	for (int i = 0; ncrs[i]; i++) {
-		if (ncrs[i]->boardirq)
+		if (ncrs[i]->boardirq) {
 			INTREQ_0(0x8000 | 0x0008);
+			return;
+		}
 	}
 }
 
@@ -211,6 +221,18 @@ static void set_irq2_fastlane(struct ncr9x_state *ncr)
 	}
 }
 
+static void set_irq2_masoboshi(struct ncr9x_state *ncr)
+{
+	if (ncr->chipirq && !ncr->boardirq) {
+		ncr->state2 |= 2;
+		ncr->boardirq = true;
+#if NCR_DEBUG > 1
+		write_log(_T("MASOBOSHI IRQ\n"));
+#endif
+		ncr9x_rethink();
+	}
+}
+
 void esp_irq_raise(qemu_irq irq)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)irq;
@@ -225,40 +247,40 @@ void esp_irq_lower(qemu_irq irq)
 	ncr->irq_func(ncr);
 }
 
-static void dkb_buffer_size(struct ncr9x_state *ncr, int size)
+static void fakedma_buffer_size(struct ncr9x_state *ncr, int size)
 {
 	size = (size + 1) & ~1;
-	if (ncr->dkb_data_size_allocated >= size)
+	if (ncr->fakedma_data_size_allocated >= size)
 		return;
-	if (ncr->dkb_data_buf)
-		xfree(ncr->dkb_data_buf);
-	ncr->dkb_data_buf = xmalloc(uae_u8, size);
-	ncr->dkb_data_size_allocated = size;
+	if (ncr->fakedma_data_buf)
+		xfree(ncr->fakedma_data_buf);
+	ncr->fakedma_data_buf = xmalloc(uae_u8, size);
+	ncr->fakedma_data_size_allocated = size;
 }
 
 /* Fake DMA */
-static int dkb_dma_read(void *opaque, uint8_t *buf, int len)
+static int fake_dma_read(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
-	ncr->dkb_data_offset = 0;
-	ncr->dkb_data_write_buffer = buf;
-	dkb_buffer_size(ncr, len);
+	ncr->fakedma_data_offset = 0;
+	ncr->fakedma_data_write_buffer = buf;
+	fakedma_buffer_size(ncr, len);
 	return 0;
 }
-static int dkb_dma_write(void *opaque, uint8_t *buf, int len)
+static int fake_dma_write(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
-	ncr->dkb_data_offset = 0;
-	dkb_buffer_size(ncr, len);
-	memcpy(ncr->dkb_data_buf, buf, len);
+	ncr->fakedma_data_offset = 0;
+	fakedma_buffer_size(ncr, len);
+	memcpy(ncr->fakedma_data_buf, buf, len);
 	if (len & 1)
-		ncr->dkb_data_buf[len] = 0;
-	ncr->dkb_data_size = len;
+		ncr->fakedma_data_buf[len] = 0;
+	ncr->fakedma_data_size = len;
 	return 0;
 }
 
 /* Fake DMA */
-static int oktagon_dma_read(void *opaque, uint8_t *buf, int len)
+static int fake2_dma_read(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
 	esp_dma_enable(ncr->devobject.lsistate, 0);
@@ -268,7 +290,7 @@ static int oktagon_dma_read(void *opaque, uint8_t *buf, int len)
 	}
 	return 1;
 }
-static int oktagon_dma_write(void *opaque, uint8_t *buf, int len)
+static int fake2_dma_write(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
 	esp_dma_enable(ncr->devobject.lsistate, 0);
@@ -501,7 +523,63 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 {
 	int reg_shift = 2;
 	addr &= ncr->board_mask;
-	if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+	if (ncr == &ncr_masoboshi_scsi[0] || ncr == &ncr_masoboshi_scsi[1]) {
+
+		if (addr >= 0xf04c && addr < 0xf04f) {
+			int shift = (addr - 0xf04c) * 8;
+			uae_u32 mask = 0xff << shift;
+			ncr->dma_ptr &= ~mask;
+			ncr->dma_ptr |= val << shift;
+			ncr->dma_ptr &= 0xffffff;
+			return;
+		}
+		if (addr >= 0xf040 && addr <= 0xf047) {
+			if (addr == 0xf047) {
+				if (val & 0x80)
+					ncr->state3 = 0x80;
+			}
+			if (addr == 0xf040) {
+				ncr->state3 = 0;
+			}
+			return;
+		}
+
+		if (addr == 0xf007) {
+			ncr->state = val;
+		}
+		if (addr == 0xf000) {
+			ncr->state2 &= ~2;
+		}
+		if (addr == 0xf004) {
+			ncr->state2 &= ~1;
+		}
+		if (addr >= MASOBOSHI_DMA_START && addr < MASOBOSHI_DMA_END) {
+			if (esp_reg_read(ncr->devobject.lsistate, ESP_RSTAT) & STAT_TC) {
+#if NCR_DEBUG > 2
+				write_log(_T("MASOBOSHI DMA OVERFLOW %08X PUT %02x %08x\n"), addr, val & 0xff, M68K_GETPC);
+#endif
+			} else {
+				ncr->data = val;
+				ncr->data_valid = true;
+				esp_dma_enable(ncr->devobject.lsistate, 1);
+#if NCR_DEBUG > 2
+				write_log(_T("MASOBOSHI DMA %08X PUT %02x %08x\n"), addr, val & 0xff, M68K_GETPC);
+#endif
+			}
+			return;
+		}
+		if (addr < MASOBOSHI_ESP_ADDR || addr >= MASOBOSHI_ESP_ADDR + 0x100) {
+#if NCR_DEBUG
+			write_log(_T("MASOBOSHI IO %08X PUT %02x %08x\n"), addr, val & 0xff, M68K_GETPC);
+#endif
+			return;
+		}
+		if (addr == MASOBOSHI_ESP_ADDR + 3 * 2 && val == 0x02)
+			ncr->state |= 0x80;
+		reg_shift = 1;
+		addr &= 0x3f;
+
+	} else if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
 		if (addr == OKTAGON_EEPROM_SCL) {
 			eeprom_i2c_set(ncr->eeprom, BITBANG_I2C_SCL, (val & 0x80) != 0);
 		} else if (addr == OKTAGON_EEPROM_SDA) {
@@ -615,10 +693,10 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 		}
 		if (addr >= 0x10080 && addr < 0x10088) {
 			//write_log(_T("DKB PUT BYTE %02x\n"), val & 0xff);
-			if (ncr->dkb_data_offset < ncr->dkb_data_size) {
-				ncr->dkb_data_buf[ncr->dkb_data_offset++] = val;
-				if (ncr->dkb_data_offset == ncr->dkb_data_size) {
-					memcpy(ncr->dkb_data_write_buffer, ncr->dkb_data_buf, ncr->dkb_data_size);
+			if (ncr->fakedma_data_offset < ncr->fakedma_data_size) {
+				ncr->fakedma_data_buf[ncr->fakedma_data_offset++] = val;
+				if (ncr->fakedma_data_offset == ncr->fakedma_data_size) {
+					memcpy(ncr->fakedma_data_write_buffer, ncr->fakedma_data_buf, ncr->fakedma_data_size);
 					esp_fake_dma_done(ncr->devobject.lsistate);
 				}
 			}
@@ -638,12 +716,54 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 }
 
 
+static int perse = 0;
+
 uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 {
 	uae_u8 v;
 	int reg_shift = 2;
 	addr &= ncr->board_mask;
-	if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+	if (ncr == &ncr_masoboshi_scsi[0] || ncr == &ncr_masoboshi_scsi[1]) {
+
+		if (addr == MASOBOSHI_ESP_ADDR + 3 * 2 && (ncr->state & 0x80))
+			return 2;
+		if (ncr->state & 0x80)
+			ncr->state &= ~0x80;
+
+		if (addr == 0xf040) {
+			return ncr->state3;
+		}
+
+		if (addr == 0xf000) {
+			if (esp_reg_read(ncr->devobject.lsistate, ESP_RSTAT) & STAT_TC) {
+				if (perse)
+					activate_debugger();
+				ncr->state2 |= 1; // dma complete
+			}
+			return ncr->state2 & 0x7f;
+		}
+		if (addr == 0xf007) {
+			v = ncr->state;
+		}
+		if (addr >= MASOBOSHI_DMA_START && addr < MASOBOSHI_DMA_END) {
+			esp_dma_enable(ncr->devobject.lsistate, 1);
+			v = ncr->data;
+			ncr->data_valid = false;
+#if NCR_DEBUG > 2
+			write_log(_T("MASOBOSHI DMA %08X GET %02x %08x\n"), addr, v, M68K_GETPC);
+#endif
+			return v;
+		}
+		if (addr < MASOBOSHI_ESP_ADDR || addr >= MASOBOSHI_ESP_ADDR + 0x100) {
+#if NCR_DEBUG
+			write_log(_T("MASOBOSHI IO %08X GET %02x %08x\n"), addr, v, M68K_GETPC);
+#endif
+			return v;
+		}
+		reg_shift = 1;
+		addr &= 0x3f;
+
+	} else if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
 		if (addr == OKTAGON_EEPROM_SCL) {
 			return eeprom_i2c_set(ncr->eeprom, BITBANG_I2C_SCL, -1) ? 0x80 : 0x00;
 		} else if (addr == OKTAGON_EEPROM_SDA) {
@@ -697,20 +817,20 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 			uae_u8 v = 0;
 			if (ncr->chipirq)
 				v |= 0x40;
-			if (ncr->dkb_data_offset < ncr->dkb_data_size)
+			if (ncr->fakedma_data_offset < ncr->fakedma_data_size)
 				v |= 0x80;
 			//write_log(_T("DKB IO GET %02x %08x\n"), v, M68K_GETPC);
 			return v;
 		}
 		if (addr >= 0x10080 && addr < 0x10088) {
-			//write_log(_T("DKB GET BYTE %02x\n"), ncr->dkb_data_buf[ncr->dkb_data_offset]);
-			if (ncr->dkb_data_offset >= ncr->dkb_data_size)
+			//write_log(_T("DKB GET BYTE %02x\n"), ncr->fakedma_data_buf[ncr->fakedma_data_offset]);
+			if (ncr->fakedma_data_offset >= ncr->fakedma_data_size)
 				return 0;
-			if (ncr->dkb_data_offset == ncr->dkb_data_size - 1) {
+			if (ncr->fakedma_data_offset == ncr->fakedma_data_size - 1) {
 				esp_fake_dma_done(ncr->devobject.lsistate);
 				//write_log(_T("DKB fake dma finished\n"));
 			}
-			return ncr->dkb_data_buf[ncr->dkb_data_offset++];
+			return ncr->fakedma_data_buf[ncr->fakedma_data_offset++];
 		}
 		if (addr < 0x10000 || addr >= 0x10040) {
 			write_log(_T("DKB IO GET %08x %08x\n"), addr, M68K_GETPC);
@@ -913,6 +1033,15 @@ void cpuboard_ncr9x_scsi_put(uaecptr addr, uae_u32 v)
 	ncr9x_io_bput(&ncr_blizzard_scsi, addr, v);
 }
 
+uae_u32 masoboshi_ncr9x_scsi_get(uaecptr addr, int devnum)
+{
+	return ncr9x_io_bget(&ncr_masoboshi_scsi[devnum], addr);
+}
+void masoboshi_ncr9x_scsi_put(uaecptr addr, uae_u32 v, int devnum)
+{
+	ncr9x_io_bput(&ncr_masoboshi_scsi[devnum], addr, v);
+}
+
 static void ew(struct ncr9x_state *ncr, int addr, uae_u8 value)
 {
 	if (addr == 00 || addr == 02 || addr == 0x40 || addr == 0x42) {
@@ -1000,8 +1129,11 @@ static void ncr9x_reset_board(struct ncr9x_state *ncr)
 		ncr->bank = &ncr_bank_dkb;
 		ncr->board_mask = DKB_BOARD_SIZE - 1;
 		ncr->irq_func = set_irq2_dkb1200;
+	} else if (ncr == &ncr_masoboshi_scsi[0] || ncr == &ncr_masoboshi_scsi[1]) {
+		ncr->irq_func = set_irq2_masoboshi;
 	}
-	ncr->name = ncr->bank->name;
+	if (ncr->bank)
+		ncr->name = ncr->bank->name;
 }
 
 void ncr9x_reset(void)
@@ -1220,6 +1352,20 @@ addrbank *ncr_dkb_autoconfig_init(void)
 }
 
 
+void ncr_masoboshi_autoconfig_init(int devnum)
+{
+	struct ncr9x_state *ncr = &ncr_masoboshi_scsi[devnum];
+
+	if (!ncr->enabled && devnum > 0)
+		return;
+
+	ncr->enabled = true;
+
+	ncr9x_init ();
+	ncr9x_reset_board(ncr);
+}
+
+
 static void freescsi_hdf(struct scsi_data *sd)
 {
 	if (!sd)
@@ -1260,9 +1406,11 @@ void ncr9x_init(void)
 			esp_scsi_init(&ncr_blizzard_scsi.devobject, blizzard_dma_read, blizzard_dma_write);
 		esp_scsi_init(&ncr_fastlane_scsi[0].devobject, fastlane_dma_read, fastlane_dma_write);
 		esp_scsi_init(&ncr_fastlane_scsi[1].devobject, fastlane_dma_read, fastlane_dma_write);
-		esp_scsi_init(&ncr_oktagon2008_scsi[0].devobject, oktagon_dma_read, oktagon_dma_write);
-		esp_scsi_init(&ncr_oktagon2008_scsi[1].devobject, oktagon_dma_read, oktagon_dma_write);
-		esp_scsi_init(&ncr_dkb1200_scsi.devobject, dkb_dma_read, dkb_dma_write);
+		esp_scsi_init(&ncr_oktagon2008_scsi[0].devobject, fake2_dma_read, fake2_dma_write);
+		esp_scsi_init(&ncr_oktagon2008_scsi[1].devobject, fake2_dma_read, fake2_dma_write);
+		esp_scsi_init(&ncr_dkb1200_scsi.devobject, fake_dma_read, fake_dma_write);
+		esp_scsi_init(&ncr_masoboshi_scsi[0].devobject, fake2_dma_read, fake2_dma_write);
+		esp_scsi_init(&ncr_masoboshi_scsi[1].devobject, fake2_dma_read, fake2_dma_write);
 	}
 }
 
@@ -1349,5 +1497,11 @@ int oktagon_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
 {
 	return ncr9x_add_scsi_unit(&ncr_oktagon2008_scsi[devnum], ch, ci);
 }
+
+int masoboshi_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
+{
+	return ncr9x_add_scsi_unit(&ncr_masoboshi_scsi[devnum], ch, ci);
+}
+
 
 #endif

@@ -455,8 +455,10 @@ TCHAR *validatevolumename (TCHAR *s, const TCHAR *def)
 	stripsemicolon (s);
 	fixcharset (s);
 	striplength (s, 30);
-	if (_tcslen(s) == 0 && def)
-		_tcscpy(s, def);
+	if (_tcslen(s) == 0 && def) {
+		xfree(s);
+		s = my_strdup(def);
+	}
 	return s;
 }
 TCHAR *validatedevicename (TCHAR *s, const TCHAR *def)
@@ -465,8 +467,10 @@ TCHAR *validatedevicename (TCHAR *s, const TCHAR *def)
 	stripspace (s);
 	fixcharset (s);
 	striplength (s, 30);
-	if (_tcslen(s) == 0 && def)
-		_tcscpy(s, def);
+	if (_tcslen(s) == 0 && def) {
+		xfree(s);
+		s = my_strdup(def);
+	}
 	return s;
 }
 
@@ -484,7 +488,7 @@ TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, struct
 
 	if (zv && zv->volumename && _tcslen(zv->volumename) > 0) {
 		nvol = my_strdup(zv->volumename);
-		validatevolumename (nvol, def);
+		nvol = validatevolumename (nvol, def);
 		return nvol;
 	}
 
@@ -523,7 +527,7 @@ TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, struct
 		else
 			nvol = my_strdup (_T(""));
 	}
-	validatevolumename (nvol, def);
+	nvol = validatevolumename (nvol, def);
 	xfree (p);
 	return nvol;
 }
@@ -812,6 +816,13 @@ static bool add_cpuboard_scsi_unit(int unit, struct uaedev_config_info *uci)
 			added = true;
 	}
 #endif
+	if (currprefs.cpuboard_type == BOARD_APOLLO) {
+		apollo_add_scsi_unit(unit, uci, 0);
+		added = true;
+	} else if (currprefs.cpuboard_type == BOARD_GVP_A530) {
+		gvp_add_scsi_unit(unit, uci, 1);
+		added = true;
+	}
 	return added;
 }
 
@@ -824,8 +835,40 @@ static bool add_ide_unit(int type, int unit, struct uaedev_config_info *uci)
 			added = true;
 		}
 	} else if (type == HD_CONTROLLER_TYPE_IDE_GVP) {
-		gvp_add_ide_unit(unit, uci);
-		added = true;
+		if (currprefs.cpuboard_type == BOARD_A3001_I || currprefs.cpuboard_type == BOARD_A3001_II) {
+			gvp_add_ide_unit(unit, uci);
+			added = true;
+		}
+	} else if (type == HD_CONTROLLER_TYPE_IDE_ALFA) {
+		if (cfgfile_board_enabled(&currprefs.alfrom) || cfgfile_board_enabled(&currprefs.alfplusrom)) {
+			alf_add_ide_unit(unit, uci, 0);
+			added = true;
+		}
+	} else if (type == HD_CONTROLLER_TYPE_IDE_ALFA_2) {
+		if (cfgfile_board_enabled(&currprefs.alfrom) || cfgfile_board_enabled(&currprefs.alfplusrom)) {
+			alf_add_ide_unit(unit, uci, 1);
+			added = true;
+		}
+	} else if (type == HD_CONTROLLER_TYPE_IDE_APOLLO) {
+		if (cfgfile_board_enabled(&currprefs.apollorom)) {
+			apollo_add_ide_unit(unit, uci, 0);
+			added = true;
+		}
+	} else if (type == HD_CONTROLLER_TYPE_IDE_APOLLO_2) {
+		if (cfgfile_board_enabled(&currprefs.apollorom)) {
+			apollo_add_ide_unit(unit, uci, 1);
+			added = true;
+		}
+	} else if (type == HD_CONTROLLER_TYPE_IDE_MASOBOSHI) {
+		if (cfgfile_board_enabled(&currprefs.masoboshirom)) {
+			masoboshi_add_ide_unit(unit, uci, 0);
+			added = true;
+		}
+	} else if (type == HD_CONTROLLER_TYPE_IDE_MASOBOSHI_2) {
+		if (cfgfile_board_enabled(&currprefs.masoboshirom)) {
+			masoboshi_add_ide_unit(unit, uci, 1);
+			added = true;
+		}
 	}
 	return added;
 }
@@ -872,15 +915,14 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 #endif
 	} else if (type == HD_CONTROLLER_TYPE_SCSI_GVP) {
 #ifdef A2091
-		if (cfgfile_board_enabled(&currprefs.gvprom)) {
+		if (cfgfile_board_enabled(&currprefs.gvps2rom) || cfgfile_board_enabled(&currprefs.gvps1rom)) {
 			gvp_add_scsi_unit(unit, uci, 0);
 			added = true;
 		}
 #endif
-	}
-	else if (type == HD_CONTROLLER_TYPE_SCSI_GVP_2) {
+	} else if (type == HD_CONTROLLER_TYPE_SCSI_GVP) {
 #ifdef A2091
-		if (cfgfile_board_enabled(&currprefs.gvprom)) {
+		if (cfgfile_board_enabled(&currprefs.gvps2rom) || cfgfile_board_enabled(&currprefs.gvps1rom)) {
 			gvp_add_scsi_unit(unit, uci, 1);
 			added = true;
 		}
@@ -927,6 +969,26 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 			added = true;
 		}
 #endif
+	} else if (type == HD_CONTROLLER_TYPE_SCSI_APOLLO) {
+		if (cfgfile_board_enabled(&currprefs.apollorom)) {
+			apollo_add_scsi_unit(unit, uci, 0);
+			added = true;
+		}
+	} else if (type == HD_CONTROLLER_TYPE_SCSI_APOLLO_2) {
+		if (cfgfile_board_enabled(&currprefs.apollorom)) {
+			apollo_add_scsi_unit(unit, uci, 1);
+			added = true;
+		}
+	} else if (type == HD_CONTROLLER_TYPE_SCSI_MASOBOSHI) {
+		if (cfgfile_board_enabled(&currprefs.masoboshirom)) {
+			masoboshi_add_scsi_unit(unit, uci, 0);
+			added = true;
+		}
+	} else if (type == HD_CONTROLLER_TYPE_SCSI_MASOBOSHI_2) {
+		if (cfgfile_board_enabled(&currprefs.masoboshirom)) {
+			masoboshi_add_scsi_unit(unit, uci, 1);
+			added = true;
+		}
 	}
 	return added;
 }

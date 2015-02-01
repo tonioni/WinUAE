@@ -65,6 +65,7 @@ void devices_reset(int hardreset)
 	DISK_reset ();
 	CIA_reset ();
 	gayle_reset (0);
+	apolloscsi_reset();
 #ifdef A2091
 	a2091_reset ();
 	gvp_reset ();
@@ -274,6 +275,7 @@ void do_leave_program (void)
 	gvp_free ();
 	a3000scsi_free ();
 #endif
+	apolloscsi_free();
 #ifdef NCR
 	ncr710_free();
 	ncr_free();

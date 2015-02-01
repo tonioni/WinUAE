@@ -71,6 +71,14 @@ extern struct scsi_data_tape *tape_alloc (int unitnum, const TCHAR *tape_directo
 extern void tape_free (struct scsi_data_tape*);
 extern void tape_media_change (int unitnum, struct uaedev_config_info*);
 
+int add_scsi_hd (struct scsi_data **sd, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level);
+int add_scsi_cd (struct scsi_data **sd, int ch, int unitnum);
+int add_scsi_tape (struct scsi_data **sd, int ch, const TCHAR *tape_directory, bool readonly);
+void free_scsi (struct scsi_data *sd);
+
+void scsi_freenative(struct scsi_data **sd);
+void scsi_addnative(struct scsi_data **sd);
+
 #define SCSI_NO_SENSE_DATA		0x00
 #define SCSI_NOT_READY			0x04
 #define SCSI_NOT_LOADED			0x09
@@ -137,3 +145,10 @@ static uae_u32 REGPARAM2 x ## _lget(uaecptr addr) \
 { \
 return y ## _lget(& ## z, addr); \
 }
+
+
+void apollo_scsi_bput(uaecptr addr, uae_u8 v);
+uae_u8 apollo_scsi_bget(uaecptr addr);
+int apollo_add_scsi_unit(int ch, struct uaedev_config_info *ci, int devnum);
+void apolloscsi_free(void);
+void apolloscsi_reset(void);

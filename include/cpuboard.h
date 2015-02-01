@@ -46,4 +46,5 @@ extern uae_u8 *REGPARAM3 cyberstorm_scsi_ram_xlate(uaecptr addr) REGPARAM;
 #define BOARD_FUSIONFORTY 15
 #define BOARD_A3001_I 16
 #define BOARD_A3001_II 17
-
+#define BOARD_APOLLO 18
+#define BOARD_GVP_A530 19

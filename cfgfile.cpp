@@ -225,6 +225,8 @@ static const TCHAR *cpuboards[] = {
 	_T("FusionForty"),
 	_T("A3001SI"),
 	_T("A3001SII"),
+	_T("Apollo"),
+	_T("GVPA530"),
 	NULL
 };
 static const TCHAR *ppc_implementations[] = {
@@ -251,16 +253,34 @@ static const TCHAR *ppc_cpu_idle[] = {
 static const TCHAR *waitblits[] = { _T("disabled"), _T("automatic"), _T("noidleonly"), _T("always"), 0 };
 static const TCHAR *autoext2[] = { _T("disabled"), _T("copy"), _T("replace"), 0 };
 static const TCHAR *leds[] = { _T("power"), _T("df0"), _T("df1"), _T("df2"), _T("df3"), _T("hd"), _T("cd"), _T("fps"), _T("cpu"), _T("snd"), _T("md"), 0 };
-static int leds_order[] = { 3, 6, 7, 8, 9, 4, 5, 2, 1, 0, 9 };
+static const int leds_order[] = { 3, 6, 7, 8, 9, 4, 5, 2, 1, 0, 9 };
 static const TCHAR *lacer[] = { _T("off"), _T("i"), _T("p"), 0 };
 static const TCHAR *hdcontrollers[] = {
 	_T("uae"),
-	_T("ide%d"), _T("ide%d_mainboard"), _T("ide%d_a3001"),
-	_T("scsi%d"), _T("scsi%d_a2091"),  _T("scsi%d_a2091-2"), _T("scsi%d_gvp"), _T("scsi%d_gvp-2"), _T("scsi%d_a4091"),  _T("scsi%d_a4091-2"),
+
+	_T("ide%d"),
+	_T("ide%d_mainboard"),
+	_T("ide%d_a3001"),
+	_T("ide%d_alfa"), _T("ide%d_alfa-2"),
+	_T("ide%d_apollo"), _T("ide%d_apollo-2"),
+	_T("ide%d_masoboshi"), _T("ide%d_masoboshi-2"),
+	//_T("ide%d_adide"), _T("ide%d_adide-2"),
+
+	_T("scsi%d"),
+	_T("scsi%d_a2091"),  _T("scsi%d_a2091-2"),
+	_T("scsi%d_gvp"), _T("scsi%d_gvp-2"),
+	_T("scsi%d_a4091"),  _T("scsi%d_a4091-2"),
 	_T("scsi%d_fastlane"), _T("scsi%d_fastlane-2"),
 	_T("scsi%d_oktagon2008"), _T("scsi%d_oktagon2008-2"),
-	_T("scsi%d_a3000"),  _T("scsi%d_a4000t"),  _T("scsi%d_cdtv"), _T("scsi%d_cpuboard"),
-	_T("scsram"), _T("scide")
+	_T("scsi%d_apollo"), _T("scsi%d_apollo-2"),
+	_T("scsi%d_masoboshi"), _T("scsi%d_masoboshi-2"),
+	_T("scsi%d_a3000"),
+	_T("scsi%d_a4000t"),
+	_T("scsi%d_cdtv"),
+	_T("scsi%d_cpuboard"),
+
+	_T("scsram"),
+	_T("scide")
 };
 static const TCHAR *z3mapping[] = {
 	_T("auto"),
@@ -290,6 +310,16 @@ static const TCHAR *obsolete[] = {
 	_T("gfx_filter_vert_offset"), _T("gfx_filter_horiz_offset"),
 	_T("rtg_vert_zoom_multf"), _T("rtg_horiz_zoom_multf"),
 	
+	// created by some buggy beta
+	_T("uaehf0%s,%s"),
+	_T("uaehf1%s,%s"),
+	_T("uaehf2%s,%s"),
+	_T("uaehf3%s,%s"),
+	_T("uaehf4%s,%s"),
+	_T("uaehf5%s,%s"),
+	_T("uaehf6%s,%s"),
+	_T("uaehf7%s,%s"),
+
 	NULL
 };
 
@@ -1030,10 +1060,15 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_write_str (f, _T("kickstart_ext_rom="), p->romextident);
 
 	cfgfile_write_board_rom(f, &p->path_rom, &p->a2091rom, _T("a2091"));
-	cfgfile_write_board_rom(f, &p->path_rom, &p->gvprom, _T("gvp"));
+	cfgfile_write_board_rom(f, &p->path_rom, &p->gvps1rom, _T("gvp1"));
+	cfgfile_write_board_rom(f, &p->path_rom, &p->gvps2rom, _T("gvp"));
 	cfgfile_write_board_rom(f, &p->path_rom, &p->a4091rom, _T("a4091"));
 	cfgfile_write_board_rom(f, &p->path_rom, &p->fastlanerom, _T("fastlane"));
 	cfgfile_write_board_rom(f, &p->path_rom, &p->oktagonrom, _T("oktagon2008"));
+	cfgfile_write_board_rom(f, &p->path_rom, &p->alfrom, _T("alfapower"));
+	cfgfile_write_board_rom(f, &p->path_rom, &p->alfplusrom, _T("alfapowerplus"));
+	cfgfile_write_board_rom(f, &p->path_rom, &p->apollorom, _T("apollo"));
+	cfgfile_write_board_rom(f, &p->path_rom, &p->masoboshirom, _T("masoboshi"));
 
 	cfgfile_write_rom(f, &p->path_rom, p->acceleratorromfile, _T("cpuboard_rom_file"));
 	if (p->acceleratorromident[0])
@@ -3136,7 +3171,7 @@ static void get_filesys_controller (const TCHAR *hdc, int *type, int *num)
 				const TCHAR *ext2 = _tcsrchr(hdcontrollers[i], '_');
 				if (ext2) {
 					ext2++;
-					if (!_tcsicmp(ext, ext2)) {
+					if (!_tcsicmp(ext, ext2) && hdc[0] == hdcontrollers[i][0]) {
 						hdcv = i;
 						break;
 					}
@@ -3841,13 +3876,23 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 
 	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->a2091rom, _T("a2091"), ROMTYPE_A2091))
 		return 1;
-	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->gvprom, _T("gvp"), ROMTYPE_GVP))
+	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->gvps1rom, _T("gvp1"), ROMTYPE_GVPS1))
+		return 1;
+	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->gvps2rom, _T("gvp"), ROMTYPE_GVPS2))
 		return 1;
 	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->a4091rom, _T("a4091"), ROMTYPE_A4091))
 		return 1;
 	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->fastlanerom, _T("fastlane"), ROMTYPE_FASTLANE))
 		return 1;
 	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->oktagonrom, _T("oktagon2008"), ROMTYPE_OKTAGON))
+		return 1;
+	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->alfrom, _T("alfapower"), ROMTYPE_ALFA))
+		return 1;
+	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->alfplusrom, _T("alfapowerplus"), ROMTYPE_ALFAPLUS))
+		return 1;
+	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->apollorom, _T("apollo"), ROMTYPE_APOLLO))
+		return 1;
+	if (cfgfile_read_board_rom(option, value, &p->path_rom, &p->masoboshirom, _T("masoboshi"), ROMTYPE_MASOBOSHI))
 		return 1;
 
 	for (i = 0; i < 4; i++) {
@@ -4435,9 +4480,13 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 
 	for (i = 0; i < MAX_BOARD_ROMS; i++) {
 		subst(p->path_rom.path[0], p->a2091rom.roms[i].romfile, MAX_DPATH / sizeof(TCHAR));
-		subst(p->path_rom.path[0], p->gvprom.roms[i].romfile, MAX_DPATH / sizeof(TCHAR));
+		subst(p->path_rom.path[0], p->gvps1rom.roms[i].romfile, MAX_DPATH / sizeof(TCHAR));
+		subst(p->path_rom.path[0], p->gvps2rom.roms[i].romfile, MAX_DPATH / sizeof(TCHAR));
 		subst(p->path_rom.path[0], p->a4091rom.roms[i].romfile, MAX_DPATH / sizeof(TCHAR));
 		subst(p->path_rom.path[0], p->fastlanerom.roms[i].romfile, MAX_DPATH / sizeof (TCHAR));
+		subst(p->path_rom.path[0], p->alfrom.roms[i].romfile, MAX_DPATH / sizeof (TCHAR));
+		subst(p->path_rom.path[0], p->alfplusrom.roms[i].romfile, MAX_DPATH / sizeof (TCHAR));
+		subst(p->path_rom.path[0], p->masoboshirom.roms[i].romfile, MAX_DPATH / sizeof (TCHAR));
 	}
 
 	return 1;
@@ -6093,6 +6142,8 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 	roms[2] = 31;
 	roms[3] = -1;
 	p->cs_rtc = 0;
+	p->cs_compatible = CP_A1200;
+	built_in_chipset_prefs (p);
 	switch (config)
 	{
 		case 1:
@@ -6132,8 +6183,6 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 		break;
 	}
 	set_68020_compa (p, compa, 0);
-	p->cs_compatible = CP_A1200;
-	built_in_chipset_prefs (p);
 	return configure_rom (p, roms, romcheck);
 }
 
@@ -6145,6 +6194,9 @@ static int bip_a600 (struct uae_prefs *p, int config, int compa, int romcheck)
 	roms[1] = 9;
 	roms[2] = 8;
 	roms[3] = -1;
+	set_68000_compa (p, compa);
+	p->cs_compatible = CP_A600;
+	built_in_chipset_prefs (p);
 	p->bogomem_size = 0;
 	p->chipmem_size = 0x100000;
 	if (config > 0)
@@ -6154,9 +6206,6 @@ static int bip_a600 (struct uae_prefs *p, int config, int compa, int romcheck)
 	if (config == 2)
 		p->fastmem_size = 0x400000;
 	p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
-	set_68000_compa (p, compa);
-	p->cs_compatible = CP_A600;
-	built_in_chipset_prefs (p);
 	return configure_rom (p, roms, romcheck);
 }
 
@@ -6166,6 +6215,9 @@ static int bip_a500p (struct uae_prefs *p, int config, int compa, int romcheck)
 
 	roms[0] = 7;
 	roms[1] = -1;
+	set_68000_compa (p, compa);
+	p->cs_compatible = CP_A500P;
+	built_in_chipset_prefs (p);
 	p->bogomem_size = 0;
 	p->chipmem_size = 0x100000;
 	if (config > 0)
@@ -6175,9 +6227,6 @@ static int bip_a500p (struct uae_prefs *p, int config, int compa, int romcheck)
 	if (config == 2)
 		p->fastmem_size = 0x400000;
 	p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
-	set_68000_compa (p, compa);
-	p->cs_compatible = CP_A500P;
-	built_in_chipset_prefs (p);
 	return configure_rom (p, roms, romcheck);
 }
 static int bip_a500 (struct uae_prefs *p, int config, int compa, int romcheck)
