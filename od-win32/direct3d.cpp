@@ -311,6 +311,7 @@ static D3DXHANDLE postMatrixSource;
 static D3DXHANDLE postMaskMult, postMaskShift;
 static D3DXHANDLE postFilterMode;
 static D3DXHANDLE postTexelSize;
+static D3DXHANDLE postFramecounterHandle;
 
 static float m_scale;
 static LPCSTR m_strName;
@@ -329,11 +330,28 @@ static int postEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3
 	postMaskShift = effect->GetParameterByName (NULL, "maskshift");
 	postFilterMode = effect->GetParameterByName (NULL, "filtermode");
 	postTexelSize = effect->GetParameterByName (NULL, "texelsize");
+	postFramecounterHandle = effect->GetParameterByName (NULL, "framecounter");
+
 	if (!postMaskShift || !postMaskMult || !postFilterMode || !postMatrixSource || !postTexelSize) {
 		gui_message (_T("Mismatched _winuae.fx! Exiting.."));
 		abort ();
 	}
 	return true;
+}
+
+static void postEffect_freeParameters(void)
+{
+	postSourceTextureHandle = NULL;
+	postMaskTextureHandle = NULL;
+	postTechnique = NULL;
+	postTechniquePlain = NULL;
+	postTechniqueAlpha = NULL;
+	postMatrixSource = NULL;
+	postMaskMult = NULL;
+	postMaskShift = NULL;
+	postFilterMode = NULL;
+	postTexelSize = NULL;
+	postFramecounterHandle = NULL;
 }
 
 static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DXEFFECT effect, D3DXEFFECT_DESC EffectDesc, struct shaderdata *s)
@@ -2021,6 +2039,7 @@ static void invalidatedeviceobjects (void)
 		}
 		memset (&shaders[i], 0, sizeof (struct shaderdata));
 	}
+	postEffect_freeParameters();
 	if (d3ddev)
 		d3ddev->SetStreamSource (0, NULL, 0, 0);
 	if (vertexBuffer) {
@@ -2940,8 +2959,9 @@ static void D3D_render2 (void)
 		texelsize.x = 1.0f / Desc.Width;
 		texelsize.y = 1.0f / Desc.Height;
 		texelsize.z = 1; texelsize.w = 1;
-
 		hr = postEffect->SetVector (postTexelSize, &texelsize);
+		if (postFramecounterHandle)
+			postEffect->SetFloat(postFramecounterHandle, timeframes);
 
 		if (masktexture) {
 			if (FAILED (hr = postEffect->SetTechnique (postTechnique)))
