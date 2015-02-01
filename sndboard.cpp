@@ -172,6 +172,9 @@ static void calculate_volume(void)
 	if (currprefs.sound_toccata_mixer) {
 		sound_paula_volume[0] = get_volume_in(ad1848_regs[4]);
 		sound_paula_volume[1] = get_volume_in(ad1848_regs[5]);
+
+		sound_cd_volume[0] = get_volume_in(ad1848_regs[2]);
+		sound_cd_volume[1] = get_volume_in(ad1848_regs[3]);
 	}
 }
 
