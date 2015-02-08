@@ -720,6 +720,8 @@ void *open_tablet (HWND hwnd)
 
 	if (!tablet)
 		return 0;
+	if (inputdevice_is_tablet () <= 0)
+		return 0;
 	xmax = -1;
 	ymax = -1;
 	zmax = -1;
