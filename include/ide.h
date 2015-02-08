@@ -93,6 +93,7 @@ void ide_put_data (struct ide_hdf *ide, uae_u16 v);
 uae_u16 ide_get_data (struct ide_hdf *ide);
 
 bool ide_interrupt_check(struct ide_hdf *ide);
+bool ide_drq_check(struct ide_hdf *ide);
 bool ide_isdrive(struct ide_hdf *ide);
 void ide_initialize(struct ide_hdf **idetable, int chpair);
 struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct uaedev_config_info *ci);

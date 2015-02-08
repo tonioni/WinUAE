@@ -94,7 +94,9 @@ extern addrbank *a2091_init (int devnum);
 extern void a2091_free(void);
 extern void a2091_reset (void);
 
-extern addrbank *gvp_init(int devnum, bool series2);
+extern addrbank *gvp_init_s1(int devnum);
+extern addrbank *gvp_init_s2(int devnum);
+extern addrbank *gvp_init_accelerator(int devnum);
 extern void gvp_free(void);
 extern void gvp_reset (void);
 
@@ -118,8 +120,8 @@ extern void scsi_hsync (void);
 
 #define WD33C93 _T("WD33C93")
 
-extern int a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci, int devnum);
-extern int gvp_add_scsi_unit(int ch, struct uaedev_config_info *ci, int devnum);
+extern int a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci);
+extern int gvp_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 extern int a3000_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 
 extern int add_wd_scsi_hd (struct wd_state *wd, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level);

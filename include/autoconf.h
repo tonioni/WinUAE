@@ -56,6 +56,7 @@ struct mountedinfo
     uae_s64 size;
     bool ismounted;
     bool ismedia;
+	int error;
     int nrcyls;
 	TCHAR rootdir[MAX_DPATH];
 };
@@ -100,3 +101,23 @@ extern uaecptr expansion_startaddress(uaecptr addr, uae_u32 size);
 extern void uaegfx_install_code (uaecptr);
 
 extern uae_u32 emulib_target_getcpurate (uae_u32, uae_u32*);
+
+
+typedef addrbank*(*DEVICE_INIT)(int);
+typedef int(*DEVICE_ADD)(int, struct uaedev_config_info*);
+#define EXPANSIONTYPE_SCSI 1
+#define EXPANSIONTYPE_IDE 2
+struct expansionromtype
+{
+	const TCHAR *name;
+	const TCHAR *friendlyname;
+	DEVICE_INIT init;
+	DEVICE_ADD add;
+	int romtype;
+	int parentromtype;
+	int zorro;
+	int deviceflags;
+	int memory_mid, memory_pid;
+	uae_u32 memory_serial;
+};
+extern const struct expansionromtype expansionroms[];

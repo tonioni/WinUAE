@@ -42,6 +42,10 @@
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR53C9X.txt
  */
 
+#define TYPE_ESP "esp"
+//#define ESP(obj) OBJECT_CHECK(SysBusESPState, (obj), TYPE_ESP)
+#define ESP(obj) (ESPState*)obj->lsistate
+
 static void esp_raise_irq(ESPState *s)
 {
     if (!(s->rregs[ESP_RSTAT] & STAT_INT)) {
@@ -338,6 +342,12 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
     }
 }
 
+bool esp_dreq(DeviceState *dev)
+{
+	ESPState *s = ESP(dev);
+	return s->dma_cb != NULL;
+}
+
 static int handle_ti(ESPState *s)
 {
     uint32_t dmalen, minlen;
@@ -606,10 +616,6 @@ const VMStateDescription vmstate_esp = {
     }
 };
 #endif
-
-#define TYPE_ESP "esp"
-//#define ESP(obj) OBJECT_CHECK(SysBusESPState, (obj), TYPE_ESP)
-#define ESP(obj) (ESPState*)obj->lsistate
 
 typedef struct {
     /*< private >*/

@@ -508,7 +508,7 @@ static void ew (int addr, uae_u32 value)
 	}
 }
 
-addrbank *sndboard_init(void)
+addrbank *sndboard_init(int devnum)
 {
 	memset(ad1848_regs, 0, sizeof ad1848_regs);
 	ad1848_regs[2] = 0x80;

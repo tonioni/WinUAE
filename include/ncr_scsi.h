@@ -11,7 +11,7 @@ extern void ncr_reset(void);
 
 extern void ncr710_init(void);
 extern addrbank *ncr710_a4091_autoconfig_init(int devnum);
-extern addrbank *ncr710_warpengine_autoconfig_init(void);
+extern addrbank *ncr710_warpengine_autoconfig_init(int devnum);
 extern void ncr710_free(void);
 extern void ncr710_reset(void);
 extern void ncr_rethink(void);
@@ -24,5 +24,5 @@ extern int warpengine_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 extern int tekmagic_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 extern int cyberstorm_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 extern int blizzardppc_add_scsi_unit(int ch, struct uaedev_config_info *ci);
-extern int a4091_add_scsi_unit(int ch, struct uaedev_config_info *ci, int devnum);
+extern int a4091_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 

@@ -80,7 +80,7 @@ static void nocanbang (void)
 uae_u8 ce_banktype[65536];
 uae_u8 ce_cachable[65536];
 
-static size_t bootrom_filepos, chip_filepos, bogo_filepos, a3000lmem_filepos, a3000hmem_filepos;
+static size_t bootrom_filepos, chip_filepos, bogo_filepos, a3000lmem_filepos, a3000hmem_filepos, mem25bit_filepos;
 
 /* Set if we notice during initialization that settings changed,
 and we must clear all memory to prevent bogus contents from confusing
@@ -809,6 +809,11 @@ MEMORY_FUNCTIONS(cardmem);
 MEMORY_FUNCTIONS(a3000lmem);
 MEMORY_FUNCTIONS(a3000hmem);
 
+/* 25bit memory (0x10000000) */
+
+MEMORY_FUNCTIONS(mem25bit);
+
+
 /* Kick memory */
 
 uae_u16 kickstart_version;
@@ -1137,6 +1142,13 @@ addrbank cardmem_bank = {
 	cardmem_lput, cardmem_wput, cardmem_bput,
 	cardmem_xlate, cardmem_check, NULL, _T("rom_e0"), _T("CDTV memory card"),
 	cardmem_lget, cardmem_wget, ABFLAG_RAM
+};
+
+addrbank mem25bit_bank = {
+	mem25bit_lget, mem25bit_wget, mem25bit_bget,
+	mem25bit_lput, mem25bit_wput, mem25bit_bput,
+	mem25bit_xlate, mem25bit_check, NULL, _T("25bitmem"), _T("25bit memory"),
+	mem25bit_lget, mem25bit_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
 };
 
 addrbank a3000lmem_bank = {
@@ -1958,6 +1970,20 @@ static void allocate_memory (void)
 			need_hardreset = true;
 		}
 	}
+	if (mem25bit_bank.allocated != currprefs.mem25bit_size) {
+		mapped_free (&mem25bit_bank);
+
+		mem25bit_bank.allocated = currprefs.mem25bit_size;
+		mem25bit_bank.mask = mem25bit_bank.allocated - 1;
+		mem25bit_bank.start = 0x01000000;
+		if (mem25bit_bank.allocated) {
+			if (!mapped_malloc (&mem25bit_bank)) {
+				write_log (_T("Out of memory for 25 bit memory.\n"));
+				mem25bit_bank.allocated = 0;
+			}
+		}
+		need_hardreset = true;
+	}
 	if (a3000lmem_bank.allocated != currprefs.mbresmem_low_size) {
 		mapped_free (&a3000lmem_bank);
 
@@ -2034,6 +2060,8 @@ static void allocate_memory (void)
 		restore_ram (chip_filepos, chipmem_bank.baseaddr);
 		if (bogomem_bank.allocated > 0)
 			restore_ram (bogo_filepos, bogomem_bank.baseaddr);
+		if (mem25bit_bank.allocated > 0)
+			restore_ram (mem25bit_filepos, mem25bit_bank.baseaddr);
 		if (a3000lmem_bank.allocated > 0)
 			restore_ram (a3000lmem_filepos, a3000lmem_bank.baseaddr);
 		if (a3000hmem_bank.allocated > 0)
@@ -2067,6 +2095,7 @@ static void fill_ce_banks (void)
 	memset (ce_cachable + (z3fastmem2_bank.start >> 16), 1 | 2, currprefs.z3fastmem2_size >> 16);
 	memset (ce_cachable + (a3000hmem_bank.start >> 16), 1 | 2, currprefs.mbresmem_high_size >> 16);
 	memset (ce_cachable + (a3000lmem_bank.start >> 16), 1 | 2, currprefs.mbresmem_low_size >> 16);
+	memset (ce_cachable + (mem25bit_bank.start >> 16), 1 | 2, currprefs.mem25bit_size >> 16);
 
 	if (&get_mem_bank (0) == &chipmem_bank) {
 		for (i = 0; i < (0x200000 >> 16); i++) {
@@ -2206,6 +2235,8 @@ void memory_clear (void)
 		memset (chipmem_bank.baseaddr, 0, chipmem_bank.allocated);
 	if (bogomem_bank.baseaddr)
 		memset (bogomem_bank.baseaddr, 0, bogomem_bank.allocated);
+	if (mem25bit_bank.baseaddr)
+		memset (mem25bit_bank.baseaddr, 0, mem25bit_bank.allocated);
 	if (a3000lmem_bank.baseaddr)
 		memset (a3000lmem_bank.baseaddr, 0, a3000lmem_bank.allocated);
 	if (a3000hmem_bank.baseaddr)
@@ -2407,6 +2438,8 @@ void memory_reset (void)
 		a3000scsi_reset ();
 #endif
 
+	if (mem25bit_bank.baseaddr)
+		map_banks (&mem25bit_bank, mem25bit_bank.start >> 16, mem25bit_bank.allocated >> 16, 0);
 	if (a3000lmem_bank.baseaddr)
 		map_banks (&a3000lmem_bank, a3000lmem_bank.start >> 16, a3000lmem_bank.allocated >> 16, 0);
 	if (a3000hmem_bank.baseaddr)
@@ -2539,6 +2572,7 @@ void memory_init (void)
 	extendedkickmem2_bank.allocated = 0;
 	extendedkickmem_type = 0;
 	chipmem_bank.baseaddr = 0;
+	mem25bit_bank.allocated = mem25bit_bank.allocated = 0;
 	a3000lmem_bank.allocated = a3000hmem_bank.allocated = 0;
 	a3000lmem_bank.baseaddr = a3000hmem_bank.baseaddr = NULL;
 	bogomem_bank.baseaddr = NULL;
@@ -2566,6 +2600,7 @@ void memory_init (void)
 
 void memory_cleanup (void)
 {
+	mapped_free (&mem25bit_bank);
 	mapped_free (&a3000lmem_bank);
 	mapped_free (&a3000hmem_bank);
 	mapped_free (&bogomem_bank);
@@ -2583,6 +2618,7 @@ void memory_cleanup (void)
 
 	bogomem_bank.baseaddr = NULL;
 	kickmem_bank.baseaddr = NULL;
+	mem25bit_bank.baseaddr = NULL;
 	a3000lmem_bank.baseaddr = a3000hmem_bank.baseaddr = NULL;
 	a1000_bootrom = NULL;
 	a1000_kickstart_mode = 0;
@@ -2787,6 +2823,12 @@ uae_u8 *save_bram (int *len)
 {
 	*len = bogomem_bank.allocated;
 	return bogomem_bank.baseaddr;
+}
+
+uae_u8 *save_mem25bitram (int *len)
+{
+	*len = mem25bit_bank.allocated;
+	return mem25bit_bank.baseaddr;
 }
 
 uae_u8 *save_a3000lram (int *len)

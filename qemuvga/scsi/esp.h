@@ -150,4 +150,6 @@ void esp_command_complete(SCSIRequest *req, uint32_t status, size_t resid);
 void esp_transfer_data(SCSIRequest *req, uint32_t len);
 void esp_scsi_init(DeviceState *dev, ESPDMAMemoryReadWriteFunc read, ESPDMAMemoryReadWriteFunc write);
 void esp_scsi_reset(DeviceState *dev, void *privdata);
+bool esp_dreq(DeviceState *dev);
+
 #endif

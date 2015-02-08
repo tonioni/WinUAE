@@ -1,5 +1,5 @@
 
-addrbank *sndboard_init(void);
+addrbank *sndboard_init(int);
 void sndboard_free(void);
 void sndboard_hsync(void);
 void sndboard_vsync(void);

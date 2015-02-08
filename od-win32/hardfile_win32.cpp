@@ -554,6 +554,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 	int i;
 	struct uae_driveinfo *udi = NULL, tmpudi;
 	TCHAR *name = my_strdup (pname);
+	int ret = 0;
 
 	hfd->flags = 0;
 	hfd->drive_empty = 0;
@@ -636,8 +637,14 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 				}
 			}
 
-			if (h == INVALID_HANDLE_VALUE)
+			if (h == INVALID_HANDLE_VALUE) {
+				DWORD err = GetLastError ();
+				if (err == ERROR_WRITE_PROTECT)
+					ret = -2;
+				if (err == ERROR_SHARING_VIOLATION)
+					ret = -1;
 				goto end;
+			}
 			if (!DeviceIoControl (h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &r, NULL))
 				write_log (_T("WARNING: '%s' FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n"), name, GetLastError ());
 
@@ -762,7 +769,12 @@ emptyreal:
 				hfd->handle_valid = HDF_HANDLE_ZFILE;
 			}
 		} else {
-			write_log (_T("HDF '%s' failed to open. error = %d\n"), name, GetLastError ());
+			DWORD err = GetLastError ();
+			if (err == ERROR_WRITE_PROTECT)
+				ret = -2;
+			if (err == ERROR_SHARING_VIOLATION)
+				ret = -1;
+			write_log (_T("HDF '%s' failed to open. error = %d\n"), name, ret);
 		}
 	}
 	if (hfd->handle_valid || hfd->drive_empty) {
@@ -773,7 +785,7 @@ emptyreal:
 end:
 	hdf_close (hfd);
 	xfree (name);
-	return 0;
+	return ret;
 }
 
 static void freehandle (struct hardfilehandle *h)
@@ -1903,7 +1915,7 @@ static void hmc_check (struct hardfiledata *hfd, struct uaedev_config_data *uci,
 		//write_log (_T("trying to open '%s' de=%d hv=%d\n"), hfd->emptyname, hfd->drive_empty, hfd->handle_valid);
 		r = hdf_open (hfd, hfd->emptyname);
 		//write_log (_T("=%d\n"), r);
-		if (!r)
+		if (r <= 0)
 			return;
 		*reopen = 1;
 		if (hfd->drive_empty < 0)

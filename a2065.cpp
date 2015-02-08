@@ -978,7 +978,7 @@ void restore_a2065_finish (void)
 		a2065_config ();
 }
 
-addrbank *a2065_init (void)
+addrbank *a2065_init (int devnum)
 {
 	configured = 0;
 	return a2065_config ();

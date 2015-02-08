@@ -12,6 +12,7 @@
 #include "autoconf.h"
 #include "gfxboard.h"
 #include "cpuboard.h"
+#include "rommgr.h"
 #include "win32.h"
 
 #if defined(NATMEM_OFFSET)
@@ -317,9 +318,9 @@ static int doinit_shm (void)
 		if (changed_prefs.cpu_model >= 68020)
 			size = 0x10000000;
 		z3size = ((changed_prefs.z3fastmem_size + align) & ~align) + ((changed_prefs.z3fastmem2_size + align) & ~align) + ((changed_prefs.z3chipmem_size + align) & ~align);
-		if (cfgfile_board_enabled(&currprefs.a4091rom))
+		if (cfgfile_board_enabled(&currprefs, ROMTYPE_A4091))
 			othersize += 2 * 16 * 1024 * 1024;
-		if (cfgfile_board_enabled(&currprefs.fastlanerom))
+		if (cfgfile_board_enabled(&currprefs, ROMTYPE_FASTLANE))
 			othersize += 2 * 32 * 1024 * 1024;
 		totalsize = size + z3size + z3rtgmem_size + othersize;
 		while (totalsize > size64) {
@@ -658,6 +659,9 @@ void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 			got = TRUE;
 		} else if (!_tcscmp(shmids[shmid].name, _T("csmk1_maprom"))) {
 			shmaddr = natmem_offset + 0x07f80000;
+			got = TRUE;
+		} else if (!_tcscmp(shmids[shmid].name, _T("25bitram"))) {
+			shmaddr = natmem_offset + 0x01000000;
 			got = TRUE;
 		} else if (!_tcscmp(shmids[shmid].name, _T("ramsey_high"))) {
 			shmaddr = natmem_offset + 0x08000000;

@@ -1655,7 +1655,7 @@ void cdtv_free (void)
 	configured = 0;
 }
 
-addrbank *cdtv_init (void)
+addrbank *cdtv_init (int devnum)
 {
 	close_unit ();
 	if (!thread_alive) {
@@ -1804,7 +1804,7 @@ uae_u8 *restore_cdtv (uae_u8 *src)
 	if (!currprefs.cs_cdtvcd) {
 		changed_prefs.cs_cdtvcd = changed_prefs.cs_cdtvram = true;
 		currprefs.cs_cdtvcd = currprefs.cs_cdtvram = true;
-		cdtv_init ();
+		cdtv_init (0);
 	}
 	restore_u32 ();
 	
@@ -1852,7 +1852,7 @@ void restore_cdtv_finish (void)
 {
 	if (!currprefs.cs_cdtvcd || currprefs.cs_cdtvcr)
 		return;
-	cdtv_init ();
+	cdtv_init (0);
 	get_toc ();
 	write_comm_pipe_u32 (&requests, 0x0104, 1);
 	if (cd_playing) {

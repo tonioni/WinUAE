@@ -66,6 +66,7 @@ void devices_reset(int hardreset)
 	CIA_reset ();
 	gayle_reset (0);
 	apolloscsi_reset();
+	ncr5380scsi_reset();
 #ifdef A2091
 	a2091_reset ();
 	gvp_reset ();
@@ -187,6 +188,7 @@ void devices_rethink(void)
 #ifdef NCR9X
 	ncr9x_rethink();
 #endif
+	ncr80_rethink();
 #ifdef WITH_TOCCATA
 	sndboard_rethink();
 #endif
@@ -276,6 +278,7 @@ void do_leave_program (void)
 	a3000scsi_free ();
 #endif
 	apolloscsi_free();
+	ncr5380scsi_free();
 #ifdef NCR
 	ncr710_free();
 	ncr_free();

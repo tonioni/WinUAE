@@ -62,6 +62,7 @@
 #include "uaenative.h"
 #include "tabletlibrary.h"
 #include "cpuboard.h"
+#include "rommgr.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -332,9 +333,11 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 		} else if (uci->ci.type == UAEDEV_HDF) {
 			ui->hf.ci.readonly = true;
 			ui->hf.ci.blocksize = uci->ci.blocksize;
-			if (!hdf_open (&ui->hf, uci->ci.rootdir)) {
+			int err = hdf_open (&ui->hf, uci->ci.rootdir);
+			if (err <= 0) {
 				mi->ismedia = false;
 				mi->ismounted = true;
+				mi->error = err;
 				if (uci->ci.reserved == 0 && uci->ci.sectors == 0 && uci->ci.surfaces == 0) {
 					if (ui->hf.flags & 1)
 						return FILESYS_HARDDRIVE;
@@ -645,10 +648,10 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 		ui->hf.unitnum = nr;
 		ui->volname = 0;
 		if (ui->hf.ci.rootdir[0]) {
-			if (!hdf_open (&ui->hf) && !c.readonly) {
+			if (hdf_open (&ui->hf) <= 0 && !c.readonly) {
 				write_log (_T("Attempting to open '%s' in read-only mode.\n"), ui->hf.ci.rootdir);
 				ui->hf.ci.readonly = c.readonly = true;
-				if (hdf_open (&ui->hf)) {
+				if (hdf_open (&ui->hf) > 0) {
 					error_log (_T("'%s' opened in read-only mode.\n"), ui->hf.ci.rootdir);
 				}
 			}
@@ -788,7 +791,7 @@ static void allocuci (struct uae_prefs *p, int nr, int idx)
 	allocuci (p, nr, idx, -1);
 }
 
-static bool add_cpuboard_scsi_unit(int unit, struct uaedev_config_info *uci)
+int add_cpuboard_unit(int unit, struct uaedev_config_info *uci)
 {
 	bool added = false;
 #ifdef NCR
@@ -808,19 +811,26 @@ static bool add_cpuboard_scsi_unit(int unit, struct uaedev_config_info *uci)
 		blizzardppc_add_scsi_unit(unit, uci);
 		added = true;
 	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_2060 ||
-		currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV_SCSI ||
-		currprefs.cpuboard_type == BOARD_BLIZZARD_1260_SCSI ||
 		currprefs.cpuboard_type == BOARD_CSMK1 ||
 		currprefs.cpuboard_type == BOARD_CSMK2) {
 			cpuboard_ncr9x_add_scsi_unit(unit, uci);
 			added = true;
+	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV ||
+		currprefs.cpuboard_type == BOARD_BLIZZARD_1260) {
+		if (cfgfile_board_enabled(&currprefs, ROMTYPE_CPUBOARDEXT)) {
+			cpuboard_ncr9x_add_scsi_unit(unit, uci);
+			added = true;
+		}
 	}
 #endif
 	if (currprefs.cpuboard_type == BOARD_APOLLO) {
-		apollo_add_scsi_unit(unit, uci, 0);
+		apollo_add_scsi_unit(unit, uci);
 		added = true;
 	} else if (currprefs.cpuboard_type == BOARD_GVP_A530) {
-		gvp_add_scsi_unit(unit, uci, 1);
+		gvp_add_scsi_unit(unit, uci);
+		added = true;
+	} else if (currprefs.cpuboard_type == BOARD_A3001_I || currprefs.cpuboard_type == BOARD_A3001_II) {
+		gvp_add_ide_unit(unit, uci);
 		added = true;
 	}
 	return added;
@@ -834,40 +844,16 @@ static bool add_ide_unit(int type, int unit, struct uaedev_config_info *uci)
 			gayle_add_ide_unit(unit, uci);
 			added = true;
 		}
-	} else if (type == HD_CONTROLLER_TYPE_IDE_GVP) {
-		if (currprefs.cpuboard_type == BOARD_A3001_I || currprefs.cpuboard_type == BOARD_A3001_II) {
-			gvp_add_ide_unit(unit, uci);
-			added = true;
-		}
-	} else if (type == HD_CONTROLLER_TYPE_IDE_ALFA) {
-		if (cfgfile_board_enabled(&currprefs.alfrom) || cfgfile_board_enabled(&currprefs.alfplusrom)) {
-			alf_add_ide_unit(unit, uci, 0);
-			added = true;
-		}
-	} else if (type == HD_CONTROLLER_TYPE_IDE_ALFA_2) {
-		if (cfgfile_board_enabled(&currprefs.alfrom) || cfgfile_board_enabled(&currprefs.alfplusrom)) {
-			alf_add_ide_unit(unit, uci, 1);
-			added = true;
-		}
-	} else if (type == HD_CONTROLLER_TYPE_IDE_APOLLO) {
-		if (cfgfile_board_enabled(&currprefs.apollorom)) {
-			apollo_add_ide_unit(unit, uci, 0);
-			added = true;
-		}
-	} else if (type == HD_CONTROLLER_TYPE_IDE_APOLLO_2) {
-		if (cfgfile_board_enabled(&currprefs.apollorom)) {
-			apollo_add_ide_unit(unit, uci, 1);
-			added = true;
-		}
-	} else if (type == HD_CONTROLLER_TYPE_IDE_MASOBOSHI) {
-		if (cfgfile_board_enabled(&currprefs.masoboshirom)) {
-			masoboshi_add_ide_unit(unit, uci, 0);
-			added = true;
-		}
-	} else if (type == HD_CONTROLLER_TYPE_IDE_MASOBOSHI_2) {
-		if (cfgfile_board_enabled(&currprefs.masoboshirom)) {
-			masoboshi_add_ide_unit(unit, uci, 1);
-			added = true;
+	} else if (type >= HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST && type <= HD_CONTROLLER_TYPE_IDE_LAST) {
+		for (int i = 0; expansionroms[i].name; i++) {
+			if (i == type - HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST) {
+				const struct expansionromtype *ert = &expansionroms[i];
+				if ((ert->deviceflags & 2) && cfgfile_board_enabled(&currprefs, ert->romtype)) {
+					if (ert->add)
+						ert->add(unit, uci);
+					added = true;
+				}
+			}
 		}
 	}
 	return added;
@@ -890,8 +876,6 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 			added = true;
 		}
 #endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_CPUBOARD) {
-		added = add_cpuboard_scsi_unit(unit, uci);
 	} else if (type == HD_CONTROLLER_TYPE_SCSI_CDTV) {
 #ifdef CDTV
 		if (currprefs.cs_cdtvscsi) {
@@ -899,95 +883,16 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 			added = true;
 		}
 #endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_A2091) {
-#ifdef A2091
-		if (cfgfile_board_enabled(&currprefs.a2091rom)) {
-			a2091_add_scsi_unit(unit, uci, 0);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_A2091_2) {
-#ifdef A2091
-		if (cfgfile_board_enabled(&currprefs.a2091rom)) {
-			a2091_add_scsi_unit(unit, uci, 1);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_GVP) {
-#ifdef A2091
-		if (cfgfile_board_enabled(&currprefs.gvps2rom) || cfgfile_board_enabled(&currprefs.gvps1rom)) {
-			gvp_add_scsi_unit(unit, uci, 0);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_GVP) {
-#ifdef A2091
-		if (cfgfile_board_enabled(&currprefs.gvps2rom) || cfgfile_board_enabled(&currprefs.gvps1rom)) {
-			gvp_add_scsi_unit(unit, uci, 1);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_A4091) {
-#ifdef NCR
-		if (cfgfile_board_enabled(&currprefs.a4091rom)) {
-			a4091_add_scsi_unit (unit, uci, 0);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_A4091_2) {
-#ifdef NCR
-		if (cfgfile_board_enabled(&currprefs.a4091rom)) {
-			a4091_add_scsi_unit (unit, uci, 1);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_FASTLANE) {
-#ifdef NCR
-		if (cfgfile_board_enabled(&currprefs.fastlanerom)) {
-			fastlane_add_scsi_unit (unit, uci, 0);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_FASTLANE_2) {
-#ifdef NCR
-		if (cfgfile_board_enabled(&currprefs.fastlanerom)) {
-			fastlane_add_scsi_unit (unit, uci, 1);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_OKTAGON) {
-#ifdef NCR
-		if (cfgfile_board_enabled(&currprefs.oktagonrom)) {
-			oktagon_add_scsi_unit (unit, uci, 0);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_OKTAGON_2) {
-#ifdef NCR
-		if (cfgfile_board_enabled(&currprefs.oktagonrom)) {
-			oktagon_add_scsi_unit (unit, uci, 1);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_APOLLO) {
-		if (cfgfile_board_enabled(&currprefs.apollorom)) {
-			apollo_add_scsi_unit(unit, uci, 0);
-			added = true;
-		}
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_APOLLO_2) {
-		if (cfgfile_board_enabled(&currprefs.apollorom)) {
-			apollo_add_scsi_unit(unit, uci, 1);
-			added = true;
-		}
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_MASOBOSHI) {
-		if (cfgfile_board_enabled(&currprefs.masoboshirom)) {
-			masoboshi_add_scsi_unit(unit, uci, 0);
-			added = true;
-		}
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_MASOBOSHI_2) {
-		if (cfgfile_board_enabled(&currprefs.masoboshirom)) {
-			masoboshi_add_scsi_unit(unit, uci, 1);
-			added = true;
+	} else if (type >= HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST && type <= HD_CONTROLLER_TYPE_SCSI_LAST) {
+		for (int i = 0; expansionroms[i].name; i++) {
+			if (i == type - HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST) {
+				const struct expansionromtype *ert = &expansionroms[i];
+				if ((ert->deviceflags & 1) && cfgfile_board_enabled(&currprefs, ert->romtype)) {
+					if (ert->add)
+						ert->add(unit, uci);
+					added = true;
+				}
+			}
 		}
 	}
 	return added;
@@ -2112,7 +2017,7 @@ int hardfile_media_change (struct hardfiledata *hfd, struct uaedev_config_info *
 			}
 		}
 		memcpy (&hfd->ci, &hfd->delayedci, sizeof (struct uaedev_config_info));
-		if (!hdf_open (hfd)) {
+		if (hdf_open (hfd) <= 0) {
 			write_log (_T("HARDFILE: '%s' failed to open\n"), hfd->ci.rootdir);
 			return 0;
 		}

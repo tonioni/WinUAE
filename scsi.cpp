@@ -11,14 +11,22 @@
 #include "sysdeps.h"
 
 #include "options.h"
-#include "scsi.h"
 #include "filesys.h"
 #include "blkdev.h"
 #include "zfile.h"
 #include "debug.h"
+#include "memory.h"
+#include "scsi.h"
+#include "autoconf.h"
+#include "rommgr.h"
+#include "newcpu.h"
+#include "custom.h"
 
 #define SCSI_EMU_DEBUG 0
 #define RAW_SCSI_DEBUG 0
+#define NCR5380_DEBUG 0
+
+#define NCR5380_SUPRA 1
 
 extern int log_scsiemu;
 
@@ -466,7 +474,6 @@ void scsi_addnative(struct scsi_data **sd)
 	}
 }
 
-
 // raw scsi
 
 #define SCSI_IO_BUSY 0x80
@@ -494,10 +501,28 @@ struct raw_scsi
 	int io;
 	int bus_phase;
 	bool atn;
+	bool ack;
+	bool use_ack;
 	uae_u8 data;
 	int initiator_id, target_id;
 	struct scsi_data *device[8];
 	struct scsi_data *target;
+};
+
+struct ncr5380_scsi
+{
+	uae_u8 regs[8];
+	struct raw_scsi rscsi;
+	bool irq;
+	bool enabled;
+	bool configured;
+	uae_u8 acmemory[128];
+	uae_u8 *rom;
+	int board_mask;
+	int board_size;
+	addrbank *bank;
+	int type;
+	int dma_direction;
 };
 
 void raw_scsi_reset(struct raw_scsi *rs)
@@ -522,11 +547,16 @@ static void bus_free(struct raw_scsi *rs)
 
 static int getbit(uae_u8 v)
 {
-	for (int i = 0; i < 8; i++) {
+	for (int i = 7; i >= 0; i--) {
 		if ((1 << i) & v)
 			return i;
 	}
 	return -1;
+}
+
+void raw_scsi_set_ack(struct raw_scsi *rs, bool ack)
+{
+	rs->ack = ack;
 }
 
 void raw_scsi_set_signal_phase(struct raw_scsi *rs, bool busy, bool select, bool atn)
@@ -536,6 +566,12 @@ void raw_scsi_set_signal_phase(struct raw_scsi *rs, bool busy, bool select, bool
 		case SCSI_SIGNAL_PHASE_FREE:
 		if (busy && !select) {
 			rs->bus_phase = SCSI_SIGNAL_PHASE_ARBIT;
+			rs->initiator_id = getbit(rs->data);
+			write_log(_T("raw_scsi: arbitration initiator id %d\n"), rs->initiator_id);
+		} else if (!busy && select) {
+			rs->initiator_id = getbit(rs->data);
+			rs->bus_phase = SCSI_SIGNAL_PHASE_SELECT_1;
+			raw_scsi_set_signal_phase(rs, busy, select, atn);
 		}
 		break;
 		case SCSI_SIGNAL_PHASE_ARBIT:
@@ -588,6 +624,8 @@ uae_u8 raw_scsi_get_signal_phase(struct raw_scsi *rs)
 	uae_u8 v = rs->io;
 	if (rs->bus_phase >= 0)
 		v |= rs->bus_phase;
+	if (rs->ack)
+		v &= ~SCSI_IO_REQ;
 	return v;
 }
 
@@ -623,6 +661,14 @@ uae_u8 raw_scsi_get_data(struct raw_scsi *rs)
 		write_log(_T("raw_scsi: status byte read %02x\n"), sd->status);
 #endif
 		v = sd->status;
+		sd->status = 0;
+		rs->bus_phase = SCSI_SIGNAL_PHASE_MESSAGE_IN;
+		break;
+		case SCSI_SIGNAL_PHASE_MESSAGE_IN:
+#if RAW_SCSI_DEBUG
+		write_log(_T("raw_scsi: message byte read %02x\n"), sd->status);
+#endif
+		v = sd->status;
 		bus_free(rs);
 		break;
 		default:
@@ -641,11 +687,8 @@ void raw_scsi_put_data(struct raw_scsi *rs, uae_u8 data)
 	rs->data = data;
 	switch (rs->bus_phase)
 	{
-		case SCSI_SIGNAL_PHASE_ARBIT:
-		rs->initiator_id = getbit(data);
-		write_log(_T("raw_scsi: arbitration initiator id %d\n"), rs->initiator_id);
-		break;
 		case SCSI_SIGNAL_PHASE_SELECT_1:
+		case SCSI_SIGNAL_PHASE_FREE:
 		break;
 		case SCSI_SIGNAL_PHASE_COMMAND:
 		sd->cmd[sd->offset++] = data;
@@ -693,6 +736,8 @@ void raw_scsi_put_data(struct raw_scsi *rs, uae_u8 data)
 	}
 }
 
+// APOLLO SOFTSCSI
+
 struct apollo_soft_scsi
 {
 	bool enabled;
@@ -718,8 +763,8 @@ void apollo_scsi_bput(uaecptr addr, uae_u8 v)
 			(v & 32) != 0,
 			false);
 	} else if (bank == 0x400 && (addr & 1)) {
-		raw_scsi_set_signal_phase(rs, true, false, false);
 		raw_scsi_put_data(rs, v);
+		raw_scsi_set_signal_phase(rs, true, false, false);
 	}
 	//write_log(_T("apollo scsi put %04x = %02x\n"), addr, v);
 }
@@ -755,9 +800,9 @@ uae_u8 apollo_scsi_bget(uaecptr addr)
 	return v;
 }
 
-int apollo_add_scsi_unit(int ch, struct uaedev_config_info *ci, int devnum)
+int apollo_add_scsi_unit(int ch, struct uaedev_config_info *ci)
 {
-	struct raw_scsi *rs = &apolloscsi[devnum].rscsi;
+	struct raw_scsi *rs = &apolloscsi[ci->controller_type_unit].rscsi;
 	raw_scsi_reset(rs);
 	if (ci->type == UAEDEV_CD)
 		return add_scsi_cd(rs->device, ch, ci->device_emu_unit);
@@ -783,4 +828,405 @@ void apolloscsi_reset(void)
 {
 	raw_scsi_reset(&apolloscsi[0].rscsi);
 	raw_scsi_reset(&apolloscsi[1].rscsi);
+}
+
+
+static struct ncr5380_scsi suprascsi[2];
+
+static struct ncr5380_scsi *ncr5380devices[] =
+{
+	&suprascsi[0],
+	&suprascsi[1],
+	NULL
+};
+
+// NCR 53C80
+
+void ncr80_rethink(void)
+{
+	for (int i = 0; ncr5380devices[i]; i++) {
+		if (ncr5380devices[i]->irq) {
+			INTREQ_0(0x8000 | 0x0008);
+			return;
+		}
+	}
+}
+static void ncr5380_set_irq(struct ncr5380_scsi *scsi)
+{
+	scsi->irq = true;
+	scsi->regs[5] |= 1 << 4;
+	ncr80_rethink();
+}
+
+static void ncr5380_check_phase(struct ncr5380_scsi *scsi)
+{
+	if (!(scsi->regs[2] & 2))
+		return;
+	if (scsi->regs[2] & 0x40)
+		return;
+	if (scsi->rscsi.bus_phase != (scsi->regs[3] & 7)) {
+		scsi->regs[5] |= 0x80; // end of dma
+		scsi->regs[3] |= 0x80;
+		ncr5380_set_irq(scsi);
+	}
+}
+
+
+uae_u8 ncr5380_bget(struct ncr5380_scsi *scsi, int reg)
+{
+	reg &= 7;
+	uae_u8 v = scsi->regs[reg];
+	struct raw_scsi *r = &scsi->rscsi;
+	switch(reg)
+	{
+		case 4:
+		{
+			uae_u8 t = raw_scsi_get_signal_phase(r);
+			v = 0;
+			if (t & SCSI_IO_BUSY)
+				v |= 1 << 6;
+			if (t & SCSI_IO_REQ)
+				v |= 1 << 5;
+			if (t & SCSI_IO_SEL)
+				v |= 1 << 1;
+			if (r->bus_phase >= 0)
+				v |= r->bus_phase << 2;
+		}
+		break;
+		case 5:
+		{
+			uae_u8 t = raw_scsi_get_signal_phase(r);
+			v &= (0x80 | 0x40 | 0x20 | 0x04);
+			if (t & SCSI_IO_ATN)
+				v |= 1 << 1;
+			if (r->bus_phase == (scsi->regs[3] & 7)) {
+				v |= 1 << 3;
+			}
+			if (scsi->irq) {
+				v |= 1 << 4;
+			}
+			if (t & SCSI_IO_REQ) {
+				v |= 1 << 6;
+			}
+		}
+		break;
+		case 0:
+		case 6:
+		v = raw_scsi_get_data(r);
+		break;
+		case 7:
+		scsi->irq = false;
+		break;
+	}
+	ncr5380_check_phase(scsi);
+	return v;
+}
+void ncr5380_bput(struct ncr5380_scsi *scsi, int reg, uae_u8 v)
+{
+	struct raw_scsi *r = &scsi->rscsi;
+	reg &= 7;
+	uae_u8 old = scsi->regs[reg];
+	scsi->regs[reg] = v;
+	switch(reg)
+	{
+		case 0:
+		raw_scsi_put_data(r, v);
+		break;
+		case 1:
+		scsi->regs[reg] &= ~((1 << 5) | (1 << 6));
+		scsi->regs[reg] |= old & ((1 << 5) | (1 << 6)); // AIP, LA
+		if (!(v & 0x40)) {
+			raw_scsi_set_signal_phase(r,
+				(v & (1 << 3)) != 0,
+				(v & (1 << 2)) != 0,
+				(v & (1 << 1)) != 0);
+			raw_scsi_set_ack(r, (v & (1 << 4)) != 0);
+		}
+		if (v & 0x80) { // RST
+			scsi->irq = true;
+			memset(scsi->regs, 0, sizeof scsi->regs);
+			scsi->regs[reg] = 0x80;
+		}
+		break;
+		case 2:
+		if ((v & 1) && !(old & 1)) { // Arbitrate
+			raw_scsi_set_signal_phase(r, true, false, false);
+			scsi->regs[1] |= 1 << 6; // AIP
+		} else if (!(v & 1) && (old & 1)) {
+			scsi->regs[1] &= ~(1 << 6);
+		}
+		if (!(v & 2)) {
+			scsi->regs[2] &= ~(0x80 | 0x40);
+			scsi->dma_direction = 0;
+		}
+		break;
+		case 5:
+		scsi->regs[reg] = old;
+#if NCR5380_DEBUG
+		write_log(_T("DMA send\n"));
+#endif
+		break;
+		case 6:
+		scsi->dma_direction = 1;
+#if NCR5380_DEBUG
+		write_log(_T("DMA target recv\n"));
+#endif
+		break;
+		case 7:
+		scsi->dma_direction = -1;
+#if NCR5380_DEBUG
+		write_log(_T("DMA initiator recv\n"));
+#endif
+		break;
+	}
+	ncr5380_check_phase(scsi);
+}
+
+static void ew(struct ncr5380_scsi *scsi, int addr, uae_u32 value)
+{
+	addr &= 0xffff;
+	if (addr == 00 || addr == 02 || addr == 0x40 || addr == 0x42) {
+		scsi->acmemory[addr] = (value & 0xf0);
+		scsi->acmemory[addr + 2] = (value & 0x0f) << 4;
+	} else {
+		scsi->acmemory[addr] = ~(value & 0xf0);
+		scsi->acmemory[addr + 2] = ~((value & 0x0f) << 4);
+	}
+}
+
+static int suprareg(struct ncr5380_scsi *ncr, uaecptr addr, bool write)
+{
+	int reg = (addr & 0x1f) >> 1;
+	if (addr & 0x20) {
+		if (!write)
+			reg = 6;
+		else
+			reg = 0;
+		if (!(ncr->regs[2] & 2))
+			cpu_halt(6);
+	}
+	return reg;
+}
+
+static uae_u32 ncr80_bget2(struct ncr5380_scsi *ncr, uaecptr addr)
+{
+	int reg = -1;
+	uae_u32 v = 0;
+
+	addr &= ncr->board_mask;
+
+	if (ncr->type == NCR5380_SUPRA) {
+
+		if (addr & 1) {
+			v = 0xff;
+		} else if (addr & 0x8000) {
+			v = ncr->rom[addr & 0x7fff];
+		} else {
+			reg = suprareg(ncr, addr, false);
+			if (reg >= 0)
+				v = ncr5380_bget(ncr, reg);
+		}
+	}
+
+#if NCR5380_DEBUG > 1
+	if (addr < 0x8000)
+		write_log(_T("GET %08x %02x %d %08x\n"), addr, v, reg, M68K_GETPC);
+#endif
+
+	return v;
+}
+
+static void ncr80_bput2(struct ncr5380_scsi *ncr, uaecptr addr, uae_u32 val)
+{
+	int reg = -1;
+	addr &= ncr->board_mask;
+
+	if (!(addr & 0x8001)) {
+		reg = suprareg(ncr, addr, true);
+		if (reg >= 0)
+			ncr5380_bput(ncr, reg, val);
+	}
+#if NCR5380_DEBUG > 1
+	write_log(_T("PUT %08x %02x %d %08x\n"), addr, val, reg, M68K_GETPC);
+#endif
+}
+
+static uae_u32 REGPARAM2 ncr80_lget(struct ncr5380_scsi *ncr, uaecptr addr)
+{
+	uae_u32 v;
+#ifdef JIT
+	special_mem |= S_READ;
+#endif
+	addr &= ncr->board_mask;
+	v =  ncr80_bget2(ncr, addr + 0) << 24;
+	v |= ncr80_bget2(ncr, addr + 1) << 16;
+	v |= ncr80_bget2(ncr, addr + 2) <<  8;
+	v |= ncr80_bget2(ncr, addr + 3) <<  0;
+	return v;
+}
+
+static uae_u32 REGPARAM2 ncr80_wget(struct ncr5380_scsi *ncr, uaecptr addr)
+{
+	uae_u32 v;
+#ifdef JIT
+	special_mem |= S_READ;
+#endif
+	addr &= ncr->board_mask;
+	v = ncr80_bget2(ncr, addr) << 8;
+	v |= ncr80_bget2(ncr, addr + 1);
+	return v;
+}
+
+static uae_u32 REGPARAM2 ncr80_bget(struct ncr5380_scsi *ncr, uaecptr addr)
+{
+	uae_u32 v;
+#ifdef JIT
+	special_mem |= S_READ;
+#endif
+	addr &= ncr->board_mask;
+	if (!ncr->configured) {
+		addr &= 65535;
+		if (addr >= sizeof ncr->acmemory)
+			return 0;
+		return ncr->acmemory[addr];
+	}
+	v = ncr80_bget2(ncr, addr);
+	return v;
+}
+
+static void REGPARAM2 ncr80_lput(struct ncr5380_scsi *ncr, uaecptr addr, uae_u32 l)
+{
+#ifdef JIT
+	special_mem |= S_WRITE;
+#endif
+	addr &= ncr->board_mask;
+	ncr80_bput2(ncr, addr + 0, l >> 24);
+	ncr80_bput2(ncr, addr + 1, l >> 16);
+	ncr80_bput2(ncr, addr + 2, l >>  8);
+	ncr80_bput2(ncr, addr + 3, l >>  0);
+}
+
+static void REGPARAM2 ncr80_wput(struct ncr5380_scsi *ncr, uaecptr addr, uae_u32 w)
+{
+#ifdef JIT
+	special_mem |= S_WRITE;
+#endif
+	w &= 0xffff;
+	addr &= ncr->board_mask;
+	if (!ncr->configured) {
+		return;
+	}
+	ncr80_bput2(ncr, addr, w >> 8);
+	ncr80_bput2(ncr, addr + 1, w);
+}
+
+static void REGPARAM2 ncr80_bput(struct ncr5380_scsi *ncr, uaecptr addr, uae_u32 b)
+{
+#ifdef JIT
+	special_mem |= S_WRITE;
+#endif
+	b &= 0xff;
+	addr &= ncr->board_mask;
+	if (!ncr->configured) {
+		addr &= 65535;
+		switch (addr)
+		{
+			case 0x48:
+			map_banks (ncr->bank, expamem_z2_pointer >> 16, ncr->board_size >> 16, 0);
+			ncr->configured = 1;
+			expamem_next (ncr->bank, NULL);
+			break;
+			case 0x4c:
+			ncr->configured = 1;
+			expamem_shutup(ncr->bank);
+			break;
+		}
+		return;
+	}
+	ncr80_bput2(ncr, addr, b);
+}
+
+
+SCSI_MEMORY_FUNCTIONS(ncr_supra, ncr80, suprascsi[0]);
+SCSI_MEMORY_FUNCTIONS(ncr2_supra, ncr80, suprascsi[1]);
+DECLARE_MEMORY_FUNCTIONS(ncr_supra)
+static addrbank ncr_bank_supra = {
+	ncr_supra_lget, ncr_supra_wget, ncr_supra_bget,
+	ncr_supra_lput, ncr_supra_wput, ncr_supra_bput,
+	default_xlate, default_check, NULL, NULL, _T("Supra"),
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
+
+#define SUPRA_ROM_OFFSET 0x8000
+
+static const uae_u8 supra_autoconfig[16] = { 0xd1, 13, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, SUPRA_ROM_OFFSET >> 8, SUPRA_ROM_OFFSET & 0xff };
+
+addrbank *supra_init(int devnum)
+{
+	struct ncr5380_scsi *scsi = &suprascsi[devnum];
+	int roms[2];
+	
+	if (devnum > 0 && !scsi->enabled)
+		return &expamem_null;
+
+	roms[0] = 121;
+	roms[1] = -1;
+
+	memset(scsi->acmemory, 0xff, sizeof scsi->acmemory);
+
+	scsi->board_size = 65536;
+	scsi->board_mask = scsi->board_size - 1;
+	scsi->bank = &ncr_bank_supra;
+	scsi->rom = xcalloc(uae_u8, 2 * 16384);
+	scsi->type = NCR5380_SUPRA;
+	memset(scsi->rom, 0xff, 2 * 16384);
+
+	struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_SUPRA, roms);
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = supra_autoconfig[i];
+		ew(scsi, i * 4, b);
+	}
+	if (z) {
+		write_log(_T("SUPRA BOOT ROM '%s'\n"), zfile_getname(z));
+		for (int i = 0; i < 16384; i++) {
+			uae_u8 b;
+			zfile_fread(&b, 1, 1, z);
+			scsi->rom[i * 2 + 0] = b;
+		}
+		zfile_fclose(z);
+	} else {
+		romwarning(roms);
+	}
+	return scsi->bank;
+}
+
+int supra_add_scsi_unit(int ch, struct uaedev_config_info *ci)
+{
+	struct raw_scsi *rs = &suprascsi[ci->controller_type_unit].rscsi;
+	raw_scsi_reset(rs);
+	if (ci->type == UAEDEV_CD)
+		return add_scsi_cd(rs->device, ch, ci->device_emu_unit);
+	else if (ci->type == UAEDEV_TAPE)
+		return add_scsi_tape(rs->device, ch, ci->rootdir, ci->readonly);
+	else
+		return add_scsi_hd(rs->device, ch, NULL, ci, 1);
+	return 0;
+}
+
+void ncr5380scsi_free(void)
+{
+	for (int i = 0; ncr5380devices[i]; i++) {
+		struct raw_scsi *rs = &ncr5380devices[i]->rscsi;
+		for (int j = 0; j < 8; j++) {
+			free_scsi (rs->device[j]);
+			rs->device[j] = NULL;
+		}
+	}
+}
+
+void ncr5380scsi_reset(void)
+{
+	for (int i = 0; ncr5380devices[i]; i++) {
+		raw_scsi_reset(&ncr5380devices[i]->rscsi);
+	}
 }

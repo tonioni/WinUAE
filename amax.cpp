@@ -8,6 +8,7 @@
 #include "custom.h"
 #include "memory.h"
 #include "newcpu.h"
+#include "rommgr.h"
 
 static const int data_scramble[8] = { 3, 2, 4, 5, 7, 6, 0, 1 };
 static const int addr_scramble[16] = { 14, 12, 2, 10, 15, 13, 1, 0, 7, 6, 5, 4, 8, 9, 11, 3 };
@@ -144,17 +145,17 @@ void amax_init (void)
 {
 	struct zfile *z = NULL;
 
-	if (!currprefs.amaxromfile[0])
+	if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) < 0)
 		return;
 	amax_reset ();
-	if (_tcscmp (currprefs.amaxromfile, _T(":NOROM")))
-		z = zfile_fopen (currprefs.amaxromfile, _T("rb"), ZFD_NORMAL);
+	if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) > 0)
+		z = read_device_rom(&currprefs, 0, ROMTYPE_AMAX, NULL);
 	if (z) {
 		zfile_fseek (z, 0, SEEK_END);
 		amax_rom_size = zfile_ftell (z);
 		zfile_fseek (z, 0, SEEK_SET);
 	} else {
-		write_log (_T("AMAX: failed to load rom '%s'\n"), currprefs.amaxromfile);
+		write_log (_T("AMAX: failed to load rom\n"));
 		amax_rom_size = 262144;
 	}
 	rom = xcalloc (uae_u8, amax_rom_size);
@@ -162,8 +163,6 @@ void amax_init (void)
 		zfile_fread (rom, amax_rom_size, 1, z);
 		zfile_fclose (z);
 	}
-	write_log (_T("AMAX: '%s' loaded, %d bytes\n"), currprefs.amaxromfile, amax_rom_size);
+	write_log (_T("AMAX: loaded, %d bytes\n"), amax_rom_size);
 }
-
-
 

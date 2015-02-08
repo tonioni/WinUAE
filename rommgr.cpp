@@ -11,12 +11,13 @@
 #include "options.h"
 #include "uae.h"
 #include "gui.h"
-#include "rommgr.h"
 #include "memory.h"
+#include "rommgr.h"
 #include "zfile.h"
 #include "crc32.h"
 #include "fsdb.h"
 #include "autoconf.h"
+#include "filesys.h"
 
 #define SAVE_ROM 0
 
@@ -94,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 121
+#define NEXT_ROM_ID 122
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -305,6 +306,8 @@ static struct romdata roms[] = {
 	0x00000000, 0, 0, 0, 0, 0 },
 	{ _T("A4091 ROM 40.13"), 40, 13, 40, 13, _T("A4091\0"), 32768, 58, 0, 0, ROMTYPE_A4091, 0, 0, _T("391592-02"),
 	0x54cb9e85, 0x3CE66919,0xF6FD6797,0x4923A12D,0x91B730F1,0xFFB4A7BA },
+	{ _T("SupraDrive AMAB6"), 3, 8, 3, 8, _T("SUPRA\0"), 16384, 121, 0, 0, ROMTYPE_SUPRA, 0, 0, _T("AMAB6"),
+	0xf40bd349, 0x82168556,0x07525067,0xe9263431,0x1fb9c347,0xe737f247 },
 
 	{ _T("Blizzard 1230-IV ROM"), 0, 0, 0, 0, _T("B1230\0"), 32768, 89, 0, 0, ROMTYPE_CPUBOARD, 0, 0, NULL,
 	0x3078dbdc, 0x4d3e7fd0,0xa1a4c3ae,0xe17c5de3,0xcbe1af03,0x447aff92 },
@@ -1534,8 +1537,144 @@ int configure_rom (struct uae_prefs *p, const int *rom, int msg)
 	if (rd->type & (ROMTYPE_CD32CART | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON | ROMTYPE_XPOWER | ROMTYPE_NORDIC | ROMTYPE_AR | ROMTYPE_SUPERIV))
 		_tcscpy (p->cartfile, path);
 	if (rd->type & ROMTYPE_CPUBOARD)
-		_tcscpy (p->acceleratorromfile, path);
+		set_device_rom(p, path, ROMTYPE_CPUBOARD);
 	if (rd->type & ROMTYPE_CPUBOARDEXT)
-		_tcscpy (p->acceleratorextromfile, path);
+		set_device_rom(p, path, ROMTYPE_CPUBOARDEXT);
 	return 1;
+}
+
+void set_device_rom(struct uae_prefs *p, const TCHAR *path, int romtype)
+{
+	int idx;
+	const struct expansionromtype *ert = get_device_expansion_rom(romtype);
+	if (path == NULL) {
+		struct boardromconfig *brc = get_device_rom(p, romtype, &idx);
+		if (brc) {
+			brc->roms[idx].romfile[0] = 0;
+			brc->roms[idx].romident[0] = 0;
+		}
+	} else {
+		struct boardromconfig *brc = get_device_rom_new(p, romtype, &idx);
+		_tcscpy(brc->roms[idx].romfile, path);
+	}
+}
+
+const struct expansionromtype *get_unit_expansion_rom(int hdunit)
+{
+	if (hdunit >= HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST && hdunit <= HD_CONTROLLER_TYPE_SCSI_LAST)
+		return &expansionroms[hdunit - HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST];
+	if (hdunit >= HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST && hdunit <= HD_CONTROLLER_TYPE_IDE_LAST)
+		return &expansionroms[hdunit - HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST];
+	return NULL;
+}
+
+const struct expansionromtype *get_device_expansion_rom(int romtype)
+{
+	for (int i = 0; expansionroms[i].name; i++) {
+		const struct expansionromtype *ert = &expansionroms[i];
+		if ((ert->romtype & ROMTYPE_MASK) == (romtype & ROMTYPE_MASK))
+			return ert;
+	}
+	return NULL;
+}
+
+struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int *index)
+{
+	int idx2;
+	static struct boardromconfig fake;
+	const struct expansionromtype *ert = get_device_expansion_rom(romtype);
+	if (!ert) {
+		*index = 0;
+		return &fake;
+	}
+	*index = ert->parentromtype ? 1 : 0;
+	struct boardromconfig *brc = get_device_rom(p, ert->parentromtype ? ert->parentromtype : romtype, &idx2);
+	if (!brc) {
+		for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
+			brc = &p->expansionboard[i];
+			if (brc->device_type == 0)
+				continue;
+			int ok = 0;
+			for (int j = 0; j < MAX_BOARD_ROMS; j++) {
+				if (!brc->roms[j].romfile[0] && !brc->roms[j].romident[0] && !brc->roms[j].board_ram_size)
+					ok++;
+			}
+			if (ok == MAX_BOARD_ROMS)
+				memset(brc, 0, sizeof boardromconfig);
+		}
+		for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
+			brc = &p->expansionboard[i];
+			if (brc->device_type == 0) {
+				memset(brc, 0, sizeof boardromconfig);
+				brc->device_type = romtype;
+				return brc;
+			}
+		}
+		return &fake;
+	}
+	return brc;
+}
+
+void clear_device_rom(struct uae_prefs *p, int romtype)
+{
+	int index;
+	struct boardromconfig *brc = get_device_rom(p, romtype, &index);
+	if (!brc)
+		return;
+	memset(&brc->roms[index], 0, sizeof(struct romconfig));
+}
+
+struct boardromconfig *get_device_rom(struct uae_prefs *p, int romtype, int *index)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(romtype);
+	if (!ert) {
+		*index = 0;
+		return NULL;
+	}
+	int parentrom = ert->parentromtype ? ert->parentromtype : romtype;
+	*index = ert->parentromtype ? 1 : 0;
+	for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
+		struct boardromconfig *brc = &p->expansionboard[i];
+		if ((brc->device_type & ROMTYPE_MASK) == (parentrom & ROMTYPE_MASK))
+			return brc;
+	}
+	return NULL;
+}
+
+struct zfile *read_device_rom(struct uae_prefs *p, int devnum, int romtype, int *roms)
+{
+	int idx;
+	if (devnum)
+		return NULL;
+	struct boardromconfig *brc = get_device_rom(p, romtype, &idx);
+	if (brc) {
+		const TCHAR *romname = brc->roms[idx].romfile;
+		struct zfile *z = read_rom_name (romname);
+		if (!z) {
+			struct romlist *rl = getromlistbyids(roms, romname);
+			if (rl) {
+				struct romdata *rd = rl->rd;
+				z = read_rom (rd);
+			}
+		}
+		return z;
+	}
+	return NULL;
+}
+
+int is_device_rom(struct uae_prefs *p, int devnum, int romtype)
+{
+	int idx;
+	if (devnum)
+		return 0;
+	struct boardromconfig *brc = get_device_rom(p, romtype, &idx);
+	if (brc) {
+		const TCHAR *romname = brc->roms[idx].romfile;
+		if (_tcslen(romname) == 0)
+			return -1;
+		if (!_tcsicmp(romname, _T(":NOROM")))
+			return 0;
+		return 1;
+	}
+	return 0;
 }

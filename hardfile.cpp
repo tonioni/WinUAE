@@ -308,7 +308,7 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	pl(rdb, 0, 0x5244534b);
 	pl(rdb, 1, 64);
 	pl(rdb, 2, 0); // chksum
-	pl(rdb, 3, 0); // hostid
+	pl(rdb, 3, 7); // hostid
 	pl(rdb, 4, 512); // blockbytes
 	pl(rdb, 5, 0); // flags
 	pl(rdb, 6, -1); // badblock
@@ -396,7 +396,7 @@ void hdf_hd_close (struct hd_hardfiledata *hfd)
 int hdf_hd_open (struct hd_hardfiledata *hfd)
 {
 	struct uaedev_config_info *ci = &hfd->hfd.ci;
-	if (!hdf_open (&hfd->hfd))
+	if (hdf_open (&hfd->hfd) <= 0)
 		return 0;
 	if (ci->pcyls && ci->pheads && ci->psecs) {
 		hfd->cyls = ci->pcyls;
@@ -464,6 +464,7 @@ static int hdf_cache_write (struct hardfiledata *hfd, void *buffer, uae_u64 offs
 
 int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 {
+	int ret;
 	uae_u8 tmp[512], tmp2[512];
 	uae_u32 v;
 
@@ -520,8 +521,9 @@ int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 		}
 	}
 #endif
-	if (!hdf_open_target (hfd, pname))
-		return 0;
+	ret = hdf_open_target (hfd, pname);
+	if (ret <= 0)
+		return ret;
 	if (hdf_read_target (hfd, tmp, 0, 512) != 512)
 		goto nonvhd;
 	v = gl (tmp + 8); // features
@@ -888,7 +890,7 @@ int vhd_create (const TCHAR *name, uae_u64 size, uae_u32 dostype)
 		bootblock[1] = dostype >> 16;
 		bootblock[2] = dostype >>  8;
 		bootblock[3] = dostype >>  0;
-		if (hdf_open (&hfd, name)) {
+		if (hdf_open (&hfd, name) > 0) {
 			vhd_write (&hfd, bootblock, 0, 512);
 			hdf_close (&hfd);
 		}

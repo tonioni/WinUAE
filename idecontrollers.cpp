@@ -317,7 +317,12 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 		} else if (addr >= 0xf000 && addr <= 0xf007) {
 			v = masoboshi_ncr9x_scsi_get(addr, board == &masoboshi_board[0] ? 0 : 1);
 		} else if (addr == 0xf040) {
-			v = board->irq ? 2 : 0;
+			v = 0;
+			if (ide_drq_check(board->ide))
+				v |= 2;
+			if (ide_interrupt_check(board->ide)) {
+				v |= 1;
+			}
 			v |= masoboshi_ncr9x_scsi_get(addr, board == &masoboshi_board[0] ? 0 : 1);
 		} else if (addr == 0xf047) {
 			v = board->state;
@@ -752,7 +757,7 @@ static const uae_u8 gvp_ide2_rom_autoconfig[16] = { 0xd1, 0x0d, 0x00, 0x00, 0x07
 static const uae_u8 gvp_ide2_controller_autoconfig[16] = { 0xc1, 0x0b, 0x00, 0x00, 0x07, 0xe1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 static const uae_u8 gvp_ide1_controller_autoconfig[16] = { 0xd1, 0x08, 0x00, 0x00, 0x07, 0xe1, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 };
 
-addrbank *gvp_ide_rom_autoconfig_init(void)
+addrbank *gvp_ide_rom_autoconfig_init(int devnum)
 {
 	struct ide_board *ide = &gvp_ide_rom_board;
 	int roms[2];
@@ -783,12 +788,17 @@ addrbank *gvp_ide_rom_autoconfig_init(void)
 	ide->rom = xcalloc(uae_u8, ide->rom_size);
 	memset(ide->rom, 0xff, ide->rom_size);
 	ide->rom_mask = ide->rom_size - 1;
-	const TCHAR *romname = currprefs.acceleratorromfile;
-	struct zfile *z = read_rom_name(romname);
-	if (!z) {
-		rl = getromlistbyids(roms, romname);
-		if (rl) {
-			z = read_rom(rl->rd);
+	int index;
+	struct boardromconfig *brc = get_device_rom(&currprefs, ROMTYPE_CPUBOARD, &index);
+	struct zfile *z = NULL;
+	if (brc) {
+		const TCHAR *romname = brc->roms[index].romfile;
+		z = read_rom_name(romname);
+		if (!z) {
+			rl = getromlistbyids(roms, romname);
+			if (rl) {
+				z = read_rom(rl->rd);
+			}
 		}
 	}
 	if (z) {
@@ -805,7 +815,7 @@ addrbank *gvp_ide_rom_autoconfig_init(void)
 	return ide->bank;
 }
 
-addrbank *gvp_ide_controller_autoconfig_init(void)
+addrbank *gvp_ide_controller_autoconfig_init(int devnum)
 {
 	struct ide_board *ide = &gvp_ide_controller_board;
 
@@ -837,8 +847,7 @@ addrbank *alf_init(int devnum)
 {
 	struct ide_board *ide = &alf_board[devnum];
 	int roms[2];
-	struct romlist *rl;
-	bool alfplus = cfgfile_board_enabled(&currprefs.alfplusrom);
+	bool alfplus = cfgfile_board_enabled(&currprefs, ROMTYPE_ALFAPLUS);
 
 	if (devnum > 0 && !ide->enabled)
 		return &expamem_null;
@@ -860,14 +869,8 @@ addrbank *alf_init(int devnum)
 	ide->rom = xcalloc(uae_u8, ide->rom_size);
 	memset(ide->rom, 0xff, ide->rom_size);
 	ide->rom_mask = ide->rom_size - 1;
-	const TCHAR *romname = alfplus ? currprefs.alfplusrom.roms[0].romfile : currprefs.alfrom.roms[0].romfile;
-	struct zfile *z = read_rom_name(romname);
-	if (!z) {
-		rl = getromlistbyids(roms, romname);
-		if (rl) {
-			z = read_rom(rl->rd);
-		}
-	}
+
+	struct zfile *z = read_device_rom(&currprefs, devnum, alfplus ? ROMTYPE_ALFAPLUS : ROMTYPE_ALFA, roms);
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = alfplus ? alfplus_autoconfig[i] : alf_autoconfig[i];
 		ew(ide, i * 4, b);
@@ -895,11 +898,11 @@ addrbank *alf_init(int devnum)
 	return ide->bank;
 }
 
-int alf_add_ide_unit(int ch, struct uaedev_config_info *ci, int devnum)
+int alf_add_ide_unit(int ch, struct uaedev_config_info *ci)
 {
 	struct ide_hdf *ide;
 
-	ide = add_ide_unit (&idecontroller_drive[(ALF_IDE + devnum) * 2], 2, ch, ci);
+	ide = add_ide_unit (&idecontroller_drive[(ALF_IDE + ci->controller_type_unit) * 2], 2, ch, ci);
 	if (ide == NULL)
 		return 0;
 	return 1;
@@ -917,9 +920,9 @@ addrbank *apollo_init(int devnum)
 {
 	struct ide_board *ide;
 	int roms[2];
-	struct romlist *rl;
 	const uae_u8 *autoconfig;
 	bool cpuboard = false;
+	struct zfile *z = NULL;
 
 	if (devnum < 0) {
 		cpuboard = true;
@@ -949,14 +952,9 @@ addrbank *apollo_init(int devnum)
 			autoconfig = apollo_autoconfig_cpuboard_060;
 		else
 			autoconfig = apollo_autoconfig_cpuboard;
-	}
-	const TCHAR *romname = cpuboard ? currprefs.acceleratorromfile : currprefs.apollorom.roms[0].romfile;
-	struct zfile *z = read_rom_name(romname);
-	if (!z) {
-		rl = getromlistbyids(roms, romname);
-		if (rl) {
-			z = read_rom(rl->rd);
-		}
+		z = read_device_rom(&currprefs, devnum, ROMTYPE_CPUBOARD, roms);
+	} else {
+		z = read_device_rom(&currprefs, devnum, ROMTYPE_APOLLO, roms);
 	}
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = autoconfig[i];
@@ -979,12 +977,16 @@ addrbank *apollo_init(int devnum)
 	}
 	return ide->bank;
 }
+addrbank *apollo_init_cpu(int devnum)
+{
+	return apollo_init(-1);
+}
 
-int apollo_add_ide_unit(int ch, struct uaedev_config_info *ci, int devnum)
+int apollo_add_ide_unit(int ch, struct uaedev_config_info *ci)
 {
 	struct ide_hdf *ide;
 
-	ide = add_ide_unit (&idecontroller_drive[(APOLLO_IDE + devnum) * 2], 2, ch, ci);
+	ide = add_ide_unit (&idecontroller_drive[(APOLLO_IDE + ci->controller_type_unit) * 2], 2, ch, ci);
 	if (ide == NULL)
 		return 0;
 	return 1;
@@ -996,7 +998,6 @@ addrbank *masoboshi_init(int devnum)
 {
 	struct ide_board *ide;
 	int roms[2];
-	struct romlist *rl;
 
 	ide = &masoboshi_board[devnum];
 	if (devnum > 0 && !ide->enabled)
@@ -1015,15 +1016,8 @@ addrbank *masoboshi_init(int devnum)
 	memset(ide->rom, 0xff, ide->rom_size);
 	memset(ide->acmemory, 0xff, sizeof ide->acmemory);
 	ide->rom_mask = ide->rom_size - 1;
-	if (_tcscmp (currprefs.masoboshirom.roms[0].romfile, _T(":NOROM"))) {
-		const TCHAR *romname = currprefs.masoboshirom.roms[0].romfile;
-		struct zfile *z = read_rom_name(romname);
-		if (!z) {
-			rl = getromlistbyids(roms, romname);
-			if (rl) {
-				z = read_rom(rl->rd);
-			}
-		}
+	if (is_device_rom(&currprefs, devnum, ROMTYPE_MASOBOSHI)) {
+		struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_MASOBOSHI, roms);
 		if (z) {
 			int len = zfile_size(z);
 			write_log(_T("Masoboshi BOOT ROM '%s' %d\n"), zfile_getname(z), len);
@@ -1048,11 +1042,11 @@ addrbank *masoboshi_init(int devnum)
 	return ide->bank;
 }
 
-int masoboshi_add_ide_unit(int ch, struct uaedev_config_info *ci, int devnum)
+int masoboshi_add_ide_unit(int ch, struct uaedev_config_info *ci)
 {
 	struct ide_hdf *ide;
 
-	ide = add_ide_unit (&idecontroller_drive[(MASOBOSHI_IDE + devnum) * 2], 2, ch, ci);
+	ide = add_ide_unit (&idecontroller_drive[(MASOBOSHI_IDE + ci->controller_type_unit) * 2], 2, ch, ci);
 	if (ide == NULL)
 		return 0;
 	return 1;

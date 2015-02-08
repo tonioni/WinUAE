@@ -338,6 +338,7 @@ extern addrbank bogomem_bank;
 extern addrbank z3fastmem_bank;
 extern addrbank z3fastmem2_bank;
 extern addrbank z3chipmem_bank;
+extern addrbank mem25bit_bank;
 extern addrbank a3000lmem_bank;
 extern addrbank a3000hmem_bank;
 extern addrbank extendedkickmem_bank;

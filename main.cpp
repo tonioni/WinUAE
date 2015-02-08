@@ -208,6 +208,10 @@ void fixup_cpu (struct uae_prefs *p)
 	if (p->cpu_frequency == 1000000)
 		p->cpu_frequency = 0;
 
+	if (p->cpu_model >= 68020 && p->cpuboard_type && cpuboard_32bit(p)) {
+		error_log (_T("24-bit address space is not supported with selected accelerator board configuration."));
+		p->address_space_24 = 0;
+	}
 	if (p->cpu_model >= 68040 && p->address_space_24) {
 		error_log (_T("24-bit address space is not supported with 68040/060 configurations."));
 		p->address_space_24 = 0;
@@ -315,6 +319,8 @@ void fixup_prefs (struct uae_prefs *p)
 		p->mbresmem_high_size = p->cpuboardmem1_size;
 	} else if (cpuboard_memorytype(p) == BOARD_MEMORY_Z2) {
 		p->fastmem2_size = p->cpuboardmem1_size;
+	} else if (cpuboard_memorytype(p) == BOARD_MEMORY_25BITMEM) {
+		p->mem25bit_size = p->cpuboardmem1_size;
 	}
 
 	if (((p->chipmem_size & (p->chipmem_size - 1)) != 0 && p->chipmem_size != 0x180000)
@@ -430,6 +436,10 @@ void fixup_prefs (struct uae_prefs *p)
 		error_log(_T("You can't use Zorro II RTG and more than 2MB chip at the same time."));
 		p->chipmem_size = 0x200000;
 		err = 1;
+	}
+	if (p->mem25bit_size > 128 * 1024 * 1024 || (p->mem25bit_size & 0xfffff)) {
+		p->mem25bit_size = 0;
+		error_log (_T("Unsupported 25bit RAM size"));
 	}
 	if (p->mbresmem_low_size > 0x04000000 || (p->mbresmem_low_size & 0xfffff)) {
 		p->mbresmem_low_size = 0;

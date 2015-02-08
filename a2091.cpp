@@ -2207,6 +2207,10 @@ static void dmac_gvp_write_word(struct wd_state *wd, uaecptr addr, uae_u32 b)
 			b &= ~(1 | 2);
 			wd->gdmac.cntr = b;
 			break;
+			case 0x68: // bank
+			if (b != 0)
+				write_log(_T("bank %02x\n"), b);
+			break;
 			case 0x70: // ACR
 			wd->gdmac.addr &= 0x0000ffff;
 			wd->gdmac.addr |= (b & 0xff) << 16;
@@ -2928,9 +2932,9 @@ void a3000scsi_free (void)
 	}
 }
 
-int a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci, int devnum)
+int a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci)
 {
-	struct wd_state *wd = wda2091[devnum];
+	struct wd_state *wd = wda2091[ci->controller_type_unit];
 
 	if (ci->type == UAEDEV_CD)
 		return add_scsi_cd(wd->scsis, ch, ci->device_emu_unit);
@@ -2940,9 +2944,9 @@ int a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci, int devnum)
 		return add_scsi_hd(wd->scsis, ch, NULL, ci, 1);
 }
 
-int gvp_add_scsi_unit(int ch, struct uaedev_config_info *ci, int devnum)
+int gvp_add_scsi_unit(int ch, struct uaedev_config_info *ci)
 {
-	struct wd_state *wd = gvpscsi[devnum];
+	struct wd_state *wd = gvpscsi[ci->controller_type_unit];
 
 	if (ci->type == UAEDEV_CD)
 		return add_scsi_cd(wd->scsis, ch, ci->device_emu_unit);
@@ -2993,7 +2997,6 @@ addrbank *a2091_init (int devnum)
 	struct wd_state *wd = wda2091[devnum];
 	int roms[6];
 	int slotsize;
-	struct romlist *rl;
 
 	if (devnum > 0 && !wd->enabled)
 		return &expamem_null;
@@ -3030,15 +3033,8 @@ addrbank *a2091_init (int devnum)
 	wd->rom = xcalloc (uae_u8, slotsize);
 	wd->rom_size = 16384;
 	wd->rom_mask = wd->rom_size - 1;
-	if (_tcscmp (currprefs.a2091rom.roms[0].romfile, _T(":NOROM"))) {
-		const TCHAR *romname = devnum && currprefs.a2091rom.roms[1].romfile[0] ? currprefs.a2091rom.roms[1].romfile : currprefs.a2091rom.roms[0].romfile;
-		struct zfile *z = read_rom_name (romname);
-		if (!z) {
-			rl = getromlistbyids (roms, romname);
-			if (rl) {
-				z = read_rom (rl->rd);
-			}
-		}
+	if (is_device_rom(&currprefs, devnum, ROMTYPE_A2091)) {
+		struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_A2091, roms);
 		if (z) {
 			write_log (_T("A590/A2091 BOOT ROM '%s'\n"), zfile_getname (z));
 			wd->rom_size = zfile_size (z);
@@ -3096,15 +3092,20 @@ void gvp_reset (void)
 	gvp_reset_device(&wd_gvp_2);
 }
 
-static const uae_u8 gvp_scsi_i_autoconfig[16] = { 0xd1, 0x09, 0x00, 0x00, 0x07, 0xe1, 0xee, 0xee, 0xee, 0xee, 0x80, 0x00 };
+static const uae_u8 gvp_scsi_i_autoconfig[16] = { 0xd1, 0x02, 0x00, 0x00, 0x07, 0xe1, 0xee, 0xee, 0xee, 0xee, 0x80, 0x00 };
 static const uae_u8 gvp_scsi_ii_autoconfig[16] = { 0xd1, 0x0b, 0x00, 0x00, 0x07, 0xe1, 0xee, 0xee, 0xee, 0xee, 0x80, 0x00 };
 
-addrbank *gvp_init(int devnum, bool series2)
+static bool is_gvp_accelerator(void)
+{
+	return currprefs.cpuboard_type == BOARD_GVP_A530 ||
+		currprefs.cpuboard_type == BOARD_GVP_GFORCE_030;
+}
+
+static addrbank *gvp_init(int devnum, bool series2)
 {
 	struct wd_state *wd = gvpscsi[devnum];
 	int roms[6];
-	struct romlist *rl;
-	struct boardromconfig *brc = series2 ? &currprefs.gvps2rom : &currprefs.gvps1rom;
+	bool isscsi = true;
 
 	if (devnum > 0 && !wd->enabled && currprefs.cpuboard_type != BOARD_GVP_A530)
 		return &expamem_null;
@@ -3116,12 +3117,6 @@ addrbank *gvp_init(int devnum, bool series2)
 	wd->rombankswitcher = 0;
 	memset(wd->dmacmemory, 0xff, sizeof wd->dmacmemory);
 	wd->gdmac.series2 = series2;
-	wd->gdmac.version = GVP_SERIESII;
-	wd->gdmac.addr_mask = 0x00ffffff;
-	if (currprefs.cpuboard_type == BOARD_GVP_A530) {
-		wd->gdmac.version = GVP_A530_SCSI;
-		wd->gdmac.addr_mask = 0x01ffffff;
-	}
 
 	roms[0] = 109;
 	roms[1] = 110;
@@ -3133,15 +3128,8 @@ addrbank *gvp_init(int devnum, bool series2)
 	memset(wd->rom, 0xff, wd->rom_size);
 	wd->rom_mask = 32768 - 1;
 
-	if (_tcscmp (brc->roms[0].romfile, _T(":NOROM"))) {
-		const TCHAR *romname = devnum && brc->roms[1].romfile[0] ? brc->roms[1].romfile : brc->roms[0].romfile;
-		struct zfile *z = read_rom_name(romname);
-		if (!z) {
-			rl = getromlistbyids(roms, romname);
-			if (rl) {
-				z = read_rom(rl->rd);
-			}
-		}
+	if (is_device_rom(&currprefs, devnum, series2 ? ROMTYPE_GVPS2 : ROMTYPE_GVPS1)) {
+		struct zfile *z = read_device_rom(&currprefs, devnum, series2 ? ROMTYPE_GVPS2 : ROMTYPE_GVPS1, roms);
 		if (z) {
 			write_log(_T("GVP BOOT ROM '%s'\n"), zfile_getname(z));
 			int size = zfile_size(z);
@@ -3161,8 +3149,20 @@ addrbank *gvp_init(int devnum, bool series2)
 				wd->rombankswitcher = 1;
 			}
 		} else {
-			romwarning(roms);
+			isscsi = false;
+			if (!is_gvp_accelerator())
+				romwarning(roms);
 		}
+	}
+
+	wd->gdmac.version = GVP_SERIESII;
+	wd->gdmac.addr_mask = 0x00ffffff;
+	if (currprefs.cpuboard_type == BOARD_GVP_A530) {
+		wd->gdmac.version = isscsi ? GVP_A530_SCSI : GVP_A530;
+		wd->gdmac.addr_mask = 0x01ffffff;
+	} else if (currprefs.cpuboard_type == BOARD_GVP_GFORCE_030) {
+		wd->gdmac.version = isscsi ? GVP_GFORCE_030_SCSI : GVP_GFORCE_030;
+		wd->gdmac.addr_mask = 0x01ffffff;
 	}
 
 	for (int i = 0; i < 16; i++) {
@@ -3171,6 +3171,19 @@ addrbank *gvp_init(int devnum, bool series2)
 	}
 	gvp_reset_device(wd);
 	return wd == &wd_gvp ? &gvp_bank : &gvp_2_bank;
+}
+
+addrbank *gvp_init_s1(int devnum)
+{
+	return gvp_init(devnum, false);
+}
+addrbank *gvp_init_s2(int devnum)
+{
+	return gvp_init(devnum, true);
+}
+addrbank *gvp_init_accelerator(int devnum)
+{
+	return gvp_init(1, true);
 }
 
 uae_u8 *save_scsi_dmac (int wdtype, int *len, uae_u8 *dstptr)

@@ -146,9 +146,17 @@ static uae_u32 REGPARAM2 x ## _lget(uaecptr addr) \
 return y ## _lget(& ## z, addr); \
 }
 
+void ncr80_rethink(void);
 
 void apollo_scsi_bput(uaecptr addr, uae_u8 v);
 uae_u8 apollo_scsi_bget(uaecptr addr);
-int apollo_add_scsi_unit(int ch, struct uaedev_config_info *ci, int devnum);
+int apollo_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 void apolloscsi_free(void);
 void apolloscsi_reset(void);
+
+void ncr5380scsi_free(void);
+void ncr5380scsi_reset(void);
+
+addrbank *supra_init(int devnum);
+int supra_add_scsi_unit(int ch, struct uaedev_config_info *ci);
+

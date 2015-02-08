@@ -785,7 +785,7 @@ static const uae_u8 warpengine_a4000_autoconfig[16] = {
 };
 #define WARP_ENGINE_ROM_SIZE 32768
 
-addrbank *ncr710_warpengine_autoconfig_init(void)
+addrbank *ncr710_warpengine_autoconfig_init(int devnum)
 {
 	int roms[2];
 	struct ncr_state *ncr = &ncr_we;
@@ -839,7 +839,6 @@ addrbank *ncr710_a4091_autoconfig_init (int devnum)
 {
 	struct ncr_state *ncr = ncra4091[devnum];
 	int roms[3];
-	const TCHAR *romname;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
@@ -862,15 +861,7 @@ addrbank *ncr710_a4091_autoconfig_init (int devnum)
 	ncr710_init ();
 	ncr710_reset_board(ncr);
 
-	romname = devnum && currprefs.a4091rom.roms[1].romfile[0] ? currprefs.a4091rom.roms[1].romfile : currprefs.a4091rom.roms[0].romfile;
-	struct zfile *z = read_rom_name (romname);
-	if (!z) {
-		struct romlist *rl = getromlistbyids(roms, romname);
-		if (rl) {
-			struct romdata *rd = rl->rd;
-			z = read_rom (rd);
-		}
-	}
+	struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_A4091, roms);
 	if (z) {
 		write_log (_T("%s BOOT ROM '%s'\n"), ncr->name, zfile_getname (z));
 		ncr->rom = xmalloc (uae_u8, A4091_ROM_SIZE * 4);
@@ -1030,9 +1021,9 @@ int tekmagic_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 	return ncr_add_scsi_unit(&ncr_cpuboard, ch, ci);
 }
 
-int a4091_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
+int a4091_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
-	return ncr_add_scsi_unit(ncra4091[devnum], ch, ci);
+	return ncr_add_scsi_unit(ncra4091[ci->controller_type_unit], ch, ci);
 }
 
 int cyberstorm_add_scsi_unit(int ch, struct uaedev_config_info *ci)

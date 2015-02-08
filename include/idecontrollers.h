@@ -7,17 +7,18 @@ void idecontroller_rethink(void);
 void idecontroller_hsync(void);
 
 int gvp_add_ide_unit(int ch, struct uaedev_config_info *ci);
-addrbank *gvp_ide_rom_autoconfig_init(void);
-addrbank *gvp_ide_controller_autoconfig_init(void);
+addrbank *gvp_ide_rom_autoconfig_init(int devnum);
+addrbank *gvp_ide_controller_autoconfig_init(int devnum);
 
-int alf_add_ide_unit(int ch, struct uaedev_config_info *ci, int devnum);
-addrbank *alf_init(int);
+int alf_add_ide_unit(int ch, struct uaedev_config_info *ci);
+addrbank *alf_init(int devnum);
 
-int apollo_add_ide_unit(int ch, struct uaedev_config_info *ci, int devnum);
-addrbank *apollo_init(int);
+int apollo_add_ide_unit(int ch, struct uaedev_config_info *ci);
+addrbank *apollo_init(int devnum);
+addrbank *apollo_init_cpu(int devnum);
 
-int masoboshi_add_ide_unit(int ch, struct uaedev_config_info *ci, int devnum);
-addrbank *masoboshi_init(int);
+int masoboshi_add_ide_unit(int ch, struct uaedev_config_info *ci);
+addrbank *masoboshi_init(int devnum);
 
 uae_u32 REGPARAM3 apollo_ide_lget (uaecptr addr) REGPARAM;
 uae_u32 REGPARAM3 apollo_ide_wget (uaecptr addr) REGPARAM;

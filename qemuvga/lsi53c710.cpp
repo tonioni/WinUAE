@@ -284,8 +284,6 @@ static void lsi_soft_reset(LSIState710 *s)
 {
     DPRINTF("Reset\n");
     s->carry = 0;
-	memset (s, 0, sizeof(LSIState710));
-
     s->msg_action = 0;
     s->msg_len = 0;
     s->waiting = 0;
@@ -294,14 +292,12 @@ static void lsi_soft_reset(LSIState710 *s)
     s->dbc = 0;
     s->temp = 0;
 	s->scratch = 0;
-    s->istat = 0;
+	// reset bit does not reset
+    s->istat &= 0x40;
     s->dcmd = 0x40;
     s->dstat = LSI_DSTAT_DFE;
     s->dien = 0;
-//    s->sist0 = 0;
-//    s->sist1 = 0;
     s->sien0 = 0;
-//    s->sien1 = 0;
     s->ctest2 = LSI_CTEST2_DACK;
     s->ctest3 = 0;
     s->ctest4 = 0;
@@ -1840,7 +1836,7 @@ static void lsi_reg_writeb(LSIState710 *s, int offset, uint8_t val)
             lsi_execute_script(s);
         }
         if (val & LSI_ISTAT_RST) {
-            ;//qdev_reset_all(DEVICE(s));
+		    lsi_soft_reset(s);
         }
         break;
 	case 0x22: /* CTEST8 */
@@ -2231,6 +2227,7 @@ void lsi710_scsi_reset(DeviceState *dev, void *privdata)
 {
     LSIState710 *s = LSI53C895A(dev);
 
+	memset (s, 0, sizeof(LSIState710));
     lsi_soft_reset(s);
 	s->bus.privdata = privdata;
 }

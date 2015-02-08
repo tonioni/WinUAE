@@ -90,14 +90,12 @@ struct ncr9x_state
 	int rom_start, rom_end, rom_offset;
 	int io_start, io_end;
 	addrbank *bank;
-	bool chipirq, boardirq;
+	bool chipirq, boardirq, intena;
 	void (*irq_func)(struct ncr9x_state*);
 	int led;
 	uaecptr dma_ptr;
 	int dma_cnt;
-	int state;
-	int state2;
-	int state3;
+	uae_u8 states[16];
 
 	uae_u8 data;
 	bool data_valid;
@@ -179,26 +177,29 @@ void ncr9x_rethink(void)
 static void set_irq2(struct ncr9x_state *ncr)
 {
 	if (ncr->chipirq && !ncr->boardirq) {
-		ncr->boardirq= true;
+		ncr->boardirq = true;
 		ncr9x_rethink();
+	}
+	if (!ncr->chipirq && ncr->boardirq) {
+		ncr->boardirq = false;
 	}
 }
 
 static void set_irq2_dkb1200(struct ncr9x_state *ncr)
 {
-	if (!(ncr->state & 0x40))
+	if (!(ncr->states[0] & 0x40))
 		ncr->boardirq = false;
-	if (ncr->chipirq && !ncr->boardirq && (ncr->state & 0x40)) {
-		ncr->boardirq= true;
+	if (ncr->chipirq && !ncr->boardirq && (ncr->states[0] & 0x40)) {
+		ncr->boardirq = true;
 		ncr9x_rethink();
 	}
 }
 
 static void set_irq2_oktagon(struct ncr9x_state *ncr)
 {
-	if (!(ncr->state & 0x80))
+	if (!(ncr->states[0] & 0x80))
 		ncr->boardirq = false;
-	if (ncr->chipirq && !ncr->boardirq && (ncr->state & 0x80)) {
+	if (ncr->chipirq && !ncr->boardirq && (ncr->states[0] & 0x80)) {
 		ncr->boardirq = true;
 		ncr9x_rethink();
 	}
@@ -206,14 +207,14 @@ static void set_irq2_oktagon(struct ncr9x_state *ncr)
 
 static void set_irq2_fastlane(struct ncr9x_state *ncr)
 {
-	if (!ncr->chipirq || !(ncr->state & FLSC_PB_ESI)) {
-		ncr->state |= FLSC_HB_MINT;
+	if (!ncr->chipirq || !(ncr->states[0] & FLSC_PB_ESI)) {
+		ncr->states[0] |= FLSC_HB_MINT;
 		ncr->boardirq = false;
 		return;
 	}
-	ncr->state |= FLSC_HB_CREQ;
-	ncr->state &= ~FLSC_HB_MINT;
-	if (ncr->state & FLSC_PB_ESI) {
+	ncr->states[0] |= FLSC_HB_CREQ;
+	ncr->states[0] &= ~FLSC_HB_MINT;
+	if (ncr->states[0] & FLSC_PB_ESI) {
 		if (!ncr->boardirq) {
 			ncr->boardirq = true;
 			ncr9x_rethink();
@@ -223,13 +224,14 @@ static void set_irq2_fastlane(struct ncr9x_state *ncr)
 
 static void set_irq2_masoboshi(struct ncr9x_state *ncr)
 {
-	if (ncr->chipirq && !ncr->boardirq) {
-		ncr->state2 |= 2;
+	if (!ncr->intena || !ncr->chipirq)
+		ncr->boardirq = false;
+	if (ncr->chipirq && ncr->intena) {
 		ncr->boardirq = true;
+		ncr9x_rethink();
 #if NCR_DEBUG > 1
 		write_log(_T("MASOBOSHI IRQ\n"));
 #endif
-		ncr9x_rethink();
 	}
 }
 
@@ -237,13 +239,18 @@ void esp_irq_raise(qemu_irq irq)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)irq;
 	ncr->chipirq = true;
+#if NCR_DEBUG > 1
+	write_log(_T("NCR9X +IRQ\n"));
+#endif
 	ncr->irq_func(ncr);
 }
 void esp_irq_lower(qemu_irq irq)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)irq;
 	ncr->chipirq = false;
-	ncr->boardirq = false;
+#if NCR_DEBUG > 1
+	write_log(_T("NCR9X -IRQ\n"));
+#endif
 	ncr->irq_func(ncr);
 }
 
@@ -307,7 +314,7 @@ static int fake2_dma_write(void *opaque, uint8_t *buf, int len)
 static int fastlane_dma_read(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
-	if (!(ncr->state & FLSC_PB_DMA_WRITE)) {
+	if (!(ncr->states[0] & FLSC_PB_DMA_WRITE)) {
 		write_log(_T("fastlane_dma_read mismatched direction!\n"));
 		return -1;
 	}
@@ -326,7 +333,7 @@ static int fastlane_dma_read(void *opaque, uint8_t *buf, int len)
 static int fastlane_dma_write(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
-	if (ncr->state & FLSC_PB_DMA_WRITE) {
+	if (ncr->states[0] & FLSC_PB_DMA_WRITE) {
 		write_log(_T("fastlane_dma_write mismatched direction!\n"));
 		return -1;
 	}
@@ -525,34 +532,52 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 	addr &= ncr->board_mask;
 	if (ncr == &ncr_masoboshi_scsi[0] || ncr == &ncr_masoboshi_scsi[1]) {
 
-		if (addr >= 0xf04c && addr < 0xf04f) {
+		if (addr >= 0xf040 && addr < 0xf048) {
+			if (addr == 0xf040)
+				ncr->states[8] = 0;
+			if (addr == 0xf047) {
+				// dma start
+				if (val & 0x80)
+					ncr->states[8] = 0x80;
+			}
+			write_log(_T("MASOBOSHI DMA %08x = %02X %08x\n"), addr, val, M68K_GETPC);
+			return;
+		}
+	
+		if (addr >= 0xf04c && addr < 0xf050) {
 			int shift = (addr - 0xf04c) * 8;
 			uae_u32 mask = 0xff << shift;
 			ncr->dma_ptr &= ~mask;
 			ncr->dma_ptr |= val << shift;
 			ncr->dma_ptr &= 0xffffff;
-			return;
-		}
-		if (addr >= 0xf040 && addr <= 0xf047) {
-			if (addr == 0xf047) {
-				if (val & 0x80)
-					ncr->state3 = 0x80;
-			}
-			if (addr == 0xf040) {
-				ncr->state3 = 0;
-			}
+			if (addr == 0xf04f)
+				write_log(_T("MASOBOSHI DMA PTR = %08x\n"), ncr->dma_ptr, M68K_GETPC);
 			return;
 		}
 
-		if (addr == 0xf007) {
-			ncr->state = val;
+		if (addr >= 0xf000 && addr <= 0xf007) {
+			ncr->states[addr - 0xf000] = val;
+			if (addr == 0xf000) {
+				ncr->boardirq = false;
+				set_irq2_masoboshi(ncr);
+			}
+			if (addr == 0xf007) {
+				ncr->intena = true;
+				ncr9x_rethink();
+			}
+#if 0
+			if (addr == 0xf047) { // dma start
+				if (val & 0x80)
+					ncr->states[2] = 0x80;
+			}
+			if (addr == 0xf040) {
+				ncr->states[2] = 0;
+			}
+#endif
+			write_log(_T("MASOBOSHI IO %08X PUT %02x %08x\n"), addr, val & 0xff, M68K_GETPC);
+			return;
 		}
-		if (addr == 0xf000) {
-			ncr->state2 &= ~2;
-		}
-		if (addr == 0xf004) {
-			ncr->state2 &= ~1;
-		}
+
 		if (addr >= MASOBOSHI_DMA_START && addr < MASOBOSHI_DMA_END) {
 			if (esp_reg_read(ncr->devobject.lsistate, ESP_RSTAT) & STAT_TC) {
 #if NCR_DEBUG > 2
@@ -575,7 +600,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			return;
 		}
 		if (addr == MASOBOSHI_ESP_ADDR + 3 * 2 && val == 0x02)
-			ncr->state |= 0x80;
+			ncr->states[0] |= 0x80;
 		reg_shift = 1;
 		addr &= 0x3f;
 
@@ -590,7 +615,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			esp_dma_enable(ncr->devobject.lsistate, 1);
 			return;
 		} else if (addr == OKTAGON_INTENA) {
-			ncr->state = val;
+			ncr->states[0] = val;
 			set_irq2_oktagon(ncr);
 			return;
 		}
@@ -601,11 +626,11 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 	} else if (ncr == &ncr_fastlane_scsi[0] || ncr == &ncr_fastlane_scsi[1]) {
 		if (addr >= FASTLANE_HARDBITS) {
 			if (addr == FASTLANE_HARDBITS) {
-				int oldstate = ncr->state;
-				ncr->state = val;
-				if (!(oldstate & FLSC_PB_ENABLE_DMA) && (ncr->state & FLSC_PB_ENABLE_DMA))
+				int oldstate = ncr->states[0];
+				ncr->states[0] = val;
+				if (!(oldstate & FLSC_PB_ENABLE_DMA) && (ncr->states[0] & FLSC_PB_ENABLE_DMA))
 					esp_dma_enable(ncr->devobject.lsistate, 1);
-				else if ((oldstate & FLSC_PB_ENABLE_DMA) && !(ncr->state & FLSC_PB_ENABLE_DMA))
+				else if ((oldstate & FLSC_PB_ENABLE_DMA) && !(ncr->states[0] & FLSC_PB_ENABLE_DMA))
 					esp_dma_enable(ncr->devobject.lsistate, 0);
 				set_irq2_fastlane(ncr);
 			} else if (addr == FASTLANE_RESETDMA) {
@@ -619,7 +644,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			ncr->dma_ptr &= ~(0xff << (addr * 8));
 			ncr->dma_ptr |= (val & 0xff) << (addr * 8);
 			ncr->dma_cnt--;
-			if (ncr->dma_cnt == 0 && (ncr->state & FLSC_PB_ENABLE_DMA))
+			if (ncr->dma_cnt == 0 && (ncr->states[0] & FLSC_PB_ENABLE_DMA))
 				esp_dma_enable(ncr->devobject.lsistate, 1);
 			return;
 		}
@@ -639,7 +664,9 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			ncr->led = val;
 			return;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV_SCSI || currprefs.cpuboard_type == BOARD_BLIZZARD_1260_SCSI) {
+	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV || currprefs.cpuboard_type == BOARD_BLIZZARD_1260) {
+		if (!cfgfile_board_enabled(&currprefs, ROMTYPE_CPUBOARDEXT))
+			return;
 		if (addr >= BLIZZARD_SCSI_KIT_DMA_OFFSET) {
 			addr &= 0x18000;
 			if (addr == 0x18000) {
@@ -686,7 +713,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 		 }
 	} else if (currprefs.cpuboard_type == BOARD_DKB1200) {
 		if (addr == 0x10100) {
-			ncr->state = val;
+			ncr->states[0] = val;
 			esp_dma_enable(ncr->devobject.lsistate, 1);
 			//write_log(_T("DKB IO PUT %02x %08x\n"), val & 0xff, M68K_GETPC);
 			return;
@@ -715,36 +742,55 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 	esp_reg_write(ncr->devobject.lsistate, (addr), val);
 }
 
-
-static int perse = 0;
-
 uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 {
-	uae_u8 v;
+	uae_u8 v = 0xff;
 	int reg_shift = 2;
 	addr &= ncr->board_mask;
 	if (ncr == &ncr_masoboshi_scsi[0] || ncr == &ncr_masoboshi_scsi[1]) {
 
-		if (addr == MASOBOSHI_ESP_ADDR + 3 * 2 && (ncr->state & 0x80))
+		if (addr == MASOBOSHI_ESP_ADDR + 3 * 2 && (ncr->states[0] & 0x80))
 			return 2;
-		if (ncr->state & 0x80)
-			ncr->state &= ~0x80;
+		if (ncr->states[0] & 0x80)
+			ncr->states[0] &= ~0x80;
 
 		if (addr == 0xf040) {
-			return ncr->state3;
+			v = ncr->states[8];
+			return v;
 		}
 
-		if (addr == 0xf000) {
-			if (esp_reg_read(ncr->devobject.lsistate, ESP_RSTAT) & STAT_TC) {
-				if (perse)
-					activate_debugger();
-				ncr->state2 |= 1; // dma complete
+		if (addr >= 0xf04c && addr < 0xf050) {
+			int shift = (addr - 0xf04c) * 8;
+			uae_u32 mask = 0xff << shift;
+			if (addr == 0xf04f)
+				write_log(_T("MASOBOSHI DMA PTR READ = %08x\n"), ncr->dma_ptr, M68K_GETPC);
+			return ncr->dma_ptr >> shift;
+		}
+		if (addr >= 0xf048 && addr < 0xf04c) {
+			write_log(_T("MASOBOSHI DMA %08X GET %02x %08x\n"), addr, v, M68K_GETPC);
+			return v;
+		}
+		if (addr >= 0xf000 && addr <= 0xf007) {
+			int idx = addr - 0xf000;
+			if (addr == 0xf000) {
+				ncr->states[0] &= ~3;
+				if (esp_dreq(&ncr->devobject)) {
+					write_log(_T("DREQ\n"));
+					ncr->states[0] |= 2; // dma data waiting
+				}
+				if (ncr->chipirq) {
+					ncr->states[0] |= 1; // scsi interrupt
+				}
 			}
-			return ncr->state2 & 0x7f;
+			v = ncr->states[idx];
+			write_log(_T("MASOBOSHI IO %08X GET %02x %08x\n"), addr, v, M68K_GETPC);
+			return v;
 		}
+#if 0
 		if (addr == 0xf007) {
-			v = ncr->state;
+			v = ncr->states[0];
 		}
+#endif
 		if (addr >= MASOBOSHI_DMA_START && addr < MASOBOSHI_DMA_END) {
 			esp_dma_enable(ncr->devobject.lsistate, 1);
 			v = ncr->data;
@@ -774,7 +820,7 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 			ncr->data_valid = false;
 			return v;
 		} else if (addr == OKTAGON_INTENA) {
-			return ncr->state;
+			return ncr->states[0];
 		}
 		if (addr < OKTAGON_ESP_ADDR || addr >= OKTAGON_ESP_ADDR + 0x100)
 			return 0xff;
@@ -782,7 +828,7 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 	} else if (ncr == &ncr_fastlane_scsi[0] || ncr == &ncr_fastlane_scsi[1]) {
 		if (addr >= FASTLANE_HARDBITS) {
 			if (addr == FASTLANE_HARDBITS) {
-				uae_u8 v = ncr->state;
+				uae_u8 v = ncr->states[0];
 				v &= ~(FLSC_HB_DISABLED | FLSC_HB_BUSID6 | FLSC_HB_SEAGATE | FLSC_HB_SLOW | FLSC_HB_SYNCHRON);
 				return v;
 			}
@@ -795,7 +841,9 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 		} else if (addr >= BLIZZARD_2060_LED_OFFSET) {
 			return ncr->led;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV_SCSI || currprefs.cpuboard_type == BOARD_BLIZZARD_1260_SCSI) {
+	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV || currprefs.cpuboard_type == BOARD_BLIZZARD_1260) {
+		if (!cfgfile_board_enabled(&currprefs, ROMTYPE_CPUBOARDEXT))
+			return 0;
 		if (addr >= BLIZZARD_SCSI_KIT_DMA_OFFSET)
 			return 0;
 	} else if (currprefs.cpuboard_type == BOARD_CSMK1) {
@@ -934,7 +982,6 @@ static uae_u32 REGPARAM2 ncr9x_bget(struct ncr9x_state *ncr, uaecptr addr)
 	return v;
 }
 
-
 static void REGPARAM2 ncr9x_lput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 l)
 {
 #ifdef JIT
@@ -953,7 +1000,6 @@ static void REGPARAM2 ncr9x_lput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 		ncr9x_bput2(ncr, addr + 3, l >>  0);
 	}
 }
-
 
 static void REGPARAM2 ncr9x_wput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 w)
 {
@@ -1151,7 +1197,6 @@ addrbank *ncr_fastlane_autoconfig_init(int devnum)
 {
 	int roms[2];
 	struct ncr9x_state *ncr = &ncr_fastlane_scsi[devnum];
-	const TCHAR *romname;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
@@ -1173,16 +1218,7 @@ addrbank *ncr_fastlane_autoconfig_init(int devnum)
 	ncr9x_init ();
 	ncr9x_reset_board(ncr);
 
-	romname = devnum && currprefs.fastlanerom.roms[1].romfile[0] ? currprefs.fastlanerom.roms[1].romfile : currprefs.fastlanerom.roms[0].romfile;
-	struct zfile *z = read_rom_name (romname);
-	if (!z) {
-		struct romlist *rl = getromlistbyids(roms, romname);
-		if (rl) {
-			struct romdata *rd = rl->rd;
-			z = read_rom (rd);
-		}
-	}
-
+	struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_FASTLANE, roms);
 	ncr->rom = xcalloc (uae_u8, FASTLANE_ROM_SIZE * 4);
 	if (z) {
 		// memory board at offset 0x100
@@ -1221,7 +1257,6 @@ addrbank *ncr_oktagon_autoconfig_init(int devnum)
 {
 	int roms[2];
 	struct ncr9x_state *ncr = &ncr_oktagon2008_scsi[devnum];
-	const TCHAR *romname;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
@@ -1250,15 +1285,7 @@ addrbank *ncr_oktagon_autoconfig_init(int devnum)
 	ncr9x_init ();
 	ncr9x_reset_board(ncr);
 
-	romname = devnum && currprefs.oktagonrom.roms[1].romfile[0] ? currprefs.oktagonrom.roms[1].romfile : currprefs.oktagonrom.roms[0].romfile;
-	struct zfile *z = read_rom_name (romname);
-	if (!z) {
-		struct romlist *rl = getromlistbyids(roms, romname);
-		if (rl) {
-			struct romdata *rd = rl->rd;
-			z = read_rom (rd);
-		}
-	}
+	struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_OKTAGON, roms);
 	ncr->rom = xcalloc (uae_u8, OKTAGON_ROM_SIZE * 6);
 	if (z) {
 		// memory board at offset 0x100
@@ -1291,11 +1318,10 @@ addrbank *ncr_oktagon_autoconfig_init(int devnum)
 }
 
 
-addrbank *ncr_dkb_autoconfig_init(void)
+addrbank *ncr_dkb_autoconfig_init(int devnum)
 {
 	int roms[2];
 	struct ncr9x_state *ncr = &ncr_dkb1200_scsi;
-	const TCHAR *romname;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
@@ -1314,14 +1340,18 @@ addrbank *ncr_dkb_autoconfig_init(void)
 	ncr9x_init ();
 	ncr9x_reset_board(ncr);
 
-	romname = currprefs.acceleratorromfile;
-		
-	struct zfile *z = read_rom_name (romname);
-	if (!z) {
-		struct romlist *rl = getromlistbyids(roms, romname);
-		if (rl) {
-			struct romdata *rd = rl->rd;
-			z = read_rom (rd);
+	int idx;
+	struct boardromconfig *brc = get_device_rom(&currprefs, ROMTYPE_CPUBOARD, &idx);
+	struct zfile *z = NULL;
+	if (brc) {
+		const TCHAR *romname = brc->roms[idx].romfile;
+		z = read_rom_name (romname);
+		if (!z) {
+			struct romlist *rl = getromlistbyids(roms, romname);
+			if (rl) {
+				struct romdata *rd = rl->rd;
+				z = read_rom (rd);
+			}
 		}
 	}
 	ncr->rom = xcalloc (uae_u8, DKB_ROM_SIZE * 2);
@@ -1488,19 +1518,19 @@ int cpuboard_dkb_add_scsi_unit(int ch, struct uaedev_config_info *ci)
 	return ncr9x_add_scsi_unit(&ncr_dkb1200_scsi, ch, ci);
 }
 
-int fastlane_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
+int fastlane_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
-	return ncr9x_add_scsi_unit(&ncr_fastlane_scsi[devnum], ch, ci);
+	return ncr9x_add_scsi_unit(&ncr_fastlane_scsi[ci->controller_type_unit], ch, ci);
 }
 
-int oktagon_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
+int oktagon_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
-	return ncr9x_add_scsi_unit(&ncr_oktagon2008_scsi[devnum], ch, ci);
+	return ncr9x_add_scsi_unit(&ncr_oktagon2008_scsi[ci->controller_type_unit], ch, ci);
 }
 
-int masoboshi_add_scsi_unit (int ch, struct uaedev_config_info *ci, int devnum)
+int masoboshi_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
-	return ncr9x_add_scsi_unit(&ncr_masoboshi_scsi[devnum], ch, ci);
+	return ncr9x_add_scsi_unit(&ncr_masoboshi_scsi[ci->controller_type_unit], ch, ci);
 }
 
 

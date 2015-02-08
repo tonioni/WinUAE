@@ -55,6 +55,7 @@ int disk_debug_track = -1;
 #endif
 #include "fsdb.h"
 #include "statusline.h"
+#include "rommgr.h"
 
 #undef CATWEASEL
 
@@ -657,7 +658,7 @@ static void reset_drive_gui (int num)
 static void setamax (void)
 {
 #ifdef AMAX
-	if (currprefs.amaxromfile[0]) {
+	if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) > 0) {
 		/* Put A-Max as last drive in drive chain */
 		int j;
 		for (j = 0; j < MAX_FLOPPY_DRIVES; j++)
@@ -2849,7 +2850,7 @@ void DISK_select (uae_u8 data)
 		write_log (_T("%08X %02X->%02X %s drvmask=%x"), M68K_GETPC, prev_data, data, tobin(data), selected ^ 15);
 
 #ifdef AMAX
-	if (currprefs.amaxromfile[0]) {
+	if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) > 0) {
 		for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 			drive *drv = floppy + dr;
 			if (drv->amax)
@@ -3164,7 +3165,7 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 							drv2->writtento = 1;
 						}
 	#ifdef AMAX
-						if (currprefs.amaxromfile[0])
+						if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) > 0)
 							amax_diskwrite (w);
 	#endif
 					}
@@ -3728,7 +3729,7 @@ void DSKLEN (uae_u16 v, int hpos)
 			break;
 	}
 	if (dr == 4) {
-		if (!currprefs.amaxromfile[0]) {
+		if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) <= 0) {
 			write_log (_T("disk %s DMA started, drvmask=%x motormask=%x PC=%08x\n"),
 				dskdmaen == DSKDMA_WRITE ? _T("write") : _T("read"), selected ^ 15, motormask, M68K_GETPC);
 		}
@@ -3806,7 +3807,7 @@ void DSKLEN (uae_u16 v, int hpos)
 					uae_u16 w = chipmem_wget_indirect (dskpt + i * 2);
 					drv->bigmfmbuf[pos >> 4] = w;
 #ifdef AMAX
-					if (currprefs.amaxromfile[0])
+					if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) > 0)
 						amax_diskwrite (w);
 #endif
 					pos += 16;
@@ -3823,7 +3824,7 @@ void DSKLEN (uae_u16 v, int hpos)
 				if (dskdmaen == DSKDMA_WRITE) {
 					uae_u16 w = chipmem_wget_indirect (dskpt);
 #ifdef AMAX
-					if (currprefs.amaxromfile[0]) {
+					if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) > 0) {
 						amax_diskwrite (w);
 						if (w) {
 							for (int i = 0; i < 16; i++) {

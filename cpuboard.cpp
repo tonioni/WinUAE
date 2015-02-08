@@ -225,8 +225,7 @@ bool ppc_interrupt(int new_m68k_ipl)
 
 static bool is_blizzard(void)
 {
-	return currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV || currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV_SCSI ||
-		currprefs.cpuboard_type == BOARD_BLIZZARD_1260 || currprefs.cpuboard_type == BOARD_BLIZZARD_1260_SCSI;
+	return currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV || currprefs.cpuboard_type == BOARD_BLIZZARD_1260;
 }
 static bool is_blizzard2060(void)
 {
@@ -640,8 +639,11 @@ static uae_u32 REGPARAM2 blizzardea_bget(uaecptr addr)
 		v = cpuboard_ncr710_io_bget(addr);
 	} else if (is_blizzard2060() && addr >= BLIZZARD_2060_SCSI_OFFSET) {
 		v = cpuboard_ncr9x_scsi_get(addr);
-	} else if ((currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV_SCSI || currprefs.cpuboard_type == BOARD_BLIZZARD_1260_SCSI) && addr >= BLIZZARD_SCSI_KIT_SCSI_OFFSET) {
-		v = cpuboard_ncr9x_scsi_get(addr);
+	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV || currprefs.cpuboard_type == BOARD_BLIZZARD_1260) {
+		if (addr & BLIZZARD_SCSI_KIT_SCSI_OFFSET)
+			v = cpuboard_ncr9x_scsi_get(addr);
+		else
+			v = blizzardea_bank.baseaddr[addr];
 	} else if (is_csmk1()) {
 		if (addr >= CYBERSTORM_MK1_SCSI_OFFSET) {
 			v = cpuboard_ncr9x_scsi_get(addr);
@@ -698,7 +700,7 @@ static void REGPARAM2 blizzardea_bput(uaecptr addr, uae_u32 b)
 		cpuboard_ncr710_io_bput(addr, b);
 	} else if (is_blizzard2060() && addr >= BLIZZARD_2060_SCSI_OFFSET) {
 		cpuboard_ncr9x_scsi_put(addr, b);
-	} else if ((currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV_SCSI || currprefs.cpuboard_type == BOARD_BLIZZARD_1260_SCSI) && addr >= BLIZZARD_SCSI_KIT_SCSI_OFFSET) {
+	} else if ((currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV || currprefs.cpuboard_type == BOARD_BLIZZARD_1260) && addr >= BLIZZARD_SCSI_KIT_SCSI_OFFSET) {
 		cpuboard_ncr9x_scsi_put(addr, b);
 	} else if (is_csmk1()) {
 		if (addr >= CYBERSTORM_MK1_SCSI_OFFSET) {
@@ -1598,6 +1600,11 @@ void cpuboard_overlay_override(void)
 		return;
 	if (!(a2630_io & 2))
 		map_banks(&blizzardf0_bank, 0xf80000 >> 16, f0rom_size >> 16, 0);
+	if (mem25bit_bank.allocated)
+		map_banks(&chipmem_bank, (mem25bit_bank.start + mem25bit_bank.allocated) >> 16, (1024 * 1024) >> 16, 0);
+	else
+		map_banks(&chipmem_bank, 0x01000000 >> 16, (1024 * 1024) >> 16, 0);
+
 }
 
 void cpuboard_clear(void)
@@ -1636,6 +1643,16 @@ bool cpuboard_jitdirectompatible(struct uae_prefs *p)
 	return true;
 }
 
+bool cpuboard_32bit(struct uae_prefs *p)
+{
+	int b = cpuboard_memorytype(p);
+	return b == BOARD_MEMORY_HIGHMEM ||
+		b == BOARD_MEMORY_BLIZZARD_12xx ||
+		b == BOARD_MEMORY_BLIZZARD_PPC ||
+		b == BOARD_MEMORY_Z3 ||
+		b == BOARD_MEMORY_25BITMEM;
+}
+
 int cpuboard_memorytype(struct uae_prefs *p)
 {
 	switch (p->cpuboard_type)
@@ -1653,13 +1670,13 @@ int cpuboard_memorytype(struct uae_prefs *p)
 		case BOARD_DKB1200: // ??
 		case BOARD_APOLLO:
 		return BOARD_MEMORY_HIGHMEM;
+		case BOARD_GVP_GFORCE_030:
 		case BOARD_A2630:
+		return BOARD_MEMORY_25BITMEM;
 		case BOARD_GVP_A530:
 		return BOARD_MEMORY_Z2;
 		case BOARD_BLIZZARD_1230_IV:
-		case BOARD_BLIZZARD_1230_IV_SCSI:
 		case BOARD_BLIZZARD_1260:
-		case BOARD_BLIZZARD_1260_SCSI:
 		return BOARD_MEMORY_BLIZZARD_12xx;
 		case BOARD_BLIZZARDPPC:
 		return BOARD_MEMORY_BLIZZARD_PPC;
@@ -1683,6 +1700,8 @@ int cpuboard_maxmemory(struct uae_prefs *p)
 		return 128 * 1024 * 1024;
 		case BOARD_MEMORY_Z2:
 		return 8 * 1024 * 1024;
+		case BOARD_MEMORY_25BITMEM:
+		return 128 * 1024 * 1024;
 		default:
 		return 0;
 	}
@@ -1813,16 +1832,23 @@ static void ew(uae_u8 *p, int addr, uae_u8 value)
 	}
 }
 
-addrbank *cpuboard_autoconfig_init(void)
+addrbank *cpuboard_autoconfig_init(int devnum)
 {
 	struct zfile *autoconfig_rom = NULL;
+	struct boardromconfig *brc, *brc2;
 	int roms[3], roms2[3];
 	bool autoconf = true;
 	bool autoconf_stop = false;
 	const TCHAR *defaultromname = NULL;
-	const TCHAR *romname = currprefs.acceleratorromfile;
+	const TCHAR *romname = NULL;
 	bool isflashrom = false;
 	struct romdata *rd = NULL;
+
+	int idx, idx2;
+	brc = get_device_rom(&currprefs, ROMTYPE_CPUBOARD, &idx);
+	brc2 = get_device_rom(&currprefs, ROMTYPE_CPUBOARDEXT, &idx2);
+	if (brc)
+		romname = brc->roms[idx].romfile;
 
 	roms[0] = -1;
 	roms[1] = -1;
@@ -1838,6 +1864,7 @@ addrbank *cpuboard_autoconfig_init(void)
 		roms[1] = 106;
 		break;
 	case BOARD_GVP_A530:
+	case BOARD_GVP_GFORCE_030:
 		return &expamem_null;
 	case BOARD_APOLLO:
 		roms[0] = 119;
@@ -1845,15 +1872,15 @@ addrbank *cpuboard_autoconfig_init(void)
 	case BOARD_A3001_I:
 	case BOARD_A3001_II:
 		return &expamem_null;
-	case BOARD_BLIZZARD_1230_IV_SCSI:
-		roms2[0] = 94;
 	case BOARD_BLIZZARD_1230_IV:
 		roms[0] = 89;
+		if (brc2)
+			roms2[0] = 94;
 		break;
-	case BOARD_BLIZZARD_1260_SCSI:
-		roms2[0] = 94;
 	case BOARD_BLIZZARD_1260:
 		roms[0] = 90;
+		if (brc2)
+			roms2[0] = 94;
 		break;
 	case BOARD_BLIZZARD_2060:
 		roms[0] = 92;
@@ -1894,7 +1921,7 @@ addrbank *cpuboard_autoconfig_init(void)
 
 	struct romlist *rl = NULL;
 	if (roms[0] >= 0) {
-		getromlistbyids(roms, romname);
+		rl = getromlistbyids(roms, romname);
 		if (!rl) {
 			rd = getromdatabyids(roms);
 			if (!rd)
@@ -2051,7 +2078,8 @@ addrbank *cpuboard_autoconfig_init(void)
 		zfile_fclose(autoconfig_rom);
 		autoconfig_rom = NULL;
 		if (roms2[0] != -1) {
-			autoconfig_rom = board_rom_open(roms2, currprefs.acceleratorextromfile);
+			if (brc2)
+				autoconfig_rom = board_rom_open(roms2, brc2->roms[idx2].romfile);
 			if (!autoconfig_rom)
 				autoconfig_rom = board_rom_open(roms2, defaultromname);
 			if (autoconfig_rom) {

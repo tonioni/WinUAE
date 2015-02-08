@@ -6,7 +6,7 @@
 * (c) 2006 - 2015 Toni Wilen
 */
 
-#define IDE_LOG 0
+#define IDE_LOG 2
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -126,6 +126,18 @@ static bool ide_interrupt_do (struct ide_hdf *ide)
 		return false;
 	ide->irq = 1;
 	return true;
+}
+
+bool ide_drq_check(struct ide_hdf *idep)
+{
+	for (int i = 0; i < 2; i++) {
+		struct ide_hdf *ide = i == 0 ? idep : idep->pair;
+		if (ide) {
+			if (ide->regs.ide_status & IDE_STATUS_DRQ)
+				return true;
+		}
+	}
+	return false;
 }
 
 bool ide_interrupt_check(struct ide_hdf *idep)

@@ -154,6 +154,7 @@ struct uaedev_config_info {
 	int reserved;
 	int blocksize;
 	int controller_type;
+	int controller_type_unit;
 	int controller_unit;
 	// zero if default
 	int pcyls, pheads, psecs;
@@ -276,6 +277,7 @@ struct gfx_filterdata
 	int gfx_filter_keep_autoscale_aspect;
 };
 
+#define MAX_EXPANSION_BOARDS 4
 struct romconfig
 {
 	TCHAR romfile[MAX_DPATH];
@@ -285,6 +287,8 @@ struct romconfig
 #define MAX_BOARD_ROMS 2
 struct boardromconfig
 {
+	int device_type;
+	int device_num;
 	struct romconfig roms[MAX_BOARD_ROMS];
 };
 
@@ -480,16 +484,7 @@ struct uae_prefs {
 	bool cs_1mchipjumper;
 	int cs_hacks;
 
-	struct boardromconfig a2091rom;
-	struct boardromconfig a4091rom;
-	struct boardromconfig fastlanerom;
-	struct boardromconfig oktagonrom;
-	struct boardromconfig gvps1rom;
-	struct boardromconfig gvps2rom;
-	struct boardromconfig alfrom;
-	struct boardromconfig alfplusrom;
-	struct boardromconfig apollorom;
-	struct boardromconfig masoboshirom;
+	struct boardromconfig expansionboard[MAX_EXPANSION_BOARDS];
 
 	TCHAR romfile[MAX_DPATH];
 	TCHAR romident[256];
@@ -497,10 +492,6 @@ struct uae_prefs {
 	uae_u32 romextfile2addr;
 	TCHAR romextfile2[MAX_DPATH];
 	TCHAR romextident[256];
-	TCHAR acceleratorromfile[MAX_DPATH];
-	TCHAR acceleratorromident[256];
-	TCHAR acceleratorextromfile[MAX_DPATH];
-	TCHAR acceleratorextromident[256];
 	TCHAR flashfile[MAX_DPATH];
 	TCHAR rtcfile[MAX_DPATH];
 	TCHAR cartfile[MAX_DPATH];
@@ -509,7 +500,6 @@ struct uae_prefs {
 	TCHAR pci_devices[256];
 	TCHAR prtname[256];
 	TCHAR sername[256];
-	TCHAR amaxromfile[MAX_DPATH];
 	TCHAR a2065name[MAX_DPATH];
 	TCHAR picassoivromfile[MAX_DPATH];
 	struct cdslot cdslots[MAX_TOTAL_SCSI_DEVICES];
@@ -549,6 +539,7 @@ struct uae_prefs {
 	uae_u32 bogomem_size;
 	uae_u32 mbresmem_low_size;
 	uae_u32 mbresmem_high_size;
+	uae_u32 mem25bit_size;
 	uae_u32 rtgmem_size;
 	int cpuboard_type;
 	uae_u32 cpuboardmem1_size;
@@ -742,7 +733,7 @@ extern int cfgfile_configuration_change (int);
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);
 extern void fixup_prefs (struct uae_prefs *prefs);
 extern void fixup_cpu (struct uae_prefs *prefs);
-extern bool cfgfile_board_enabled(struct boardromconfig *br);
+bool cfgfile_board_enabled(struct uae_prefs *p, int romtype);
 
 extern void check_prefs_changed_custom (void);
 extern void check_prefs_changed_cpu (void);

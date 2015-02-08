@@ -12,10 +12,10 @@
 
 #include "options.h"
 #include "filesys.h"
-#include "scsi.h"
 #include "blkdev.h"
 #include "zfile.h"
 #include "memory.h"
+#include "scsi.h"
 #include "threaddep/thread.h"
 #include "a2091.h"
 #include "fsdb.h"

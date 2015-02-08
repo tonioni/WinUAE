@@ -44,6 +44,7 @@
 #include "threaddep/thread.h"
 #include "luascript.h"
 #include "devices.h"
+#include "rommgr.h"
 
 #define CUSTOM_DEBUG 0
 #define SPRITE_DEBUG 0
@@ -9318,8 +9319,8 @@ uae_u8 *save_custom_extra (int *len, uae_u8 *dstptr)
 	SB (currprefs.cs_a1000ram ? 1 : 0);
 	SB (currprefs.cs_slowmemisfast ? 1 : 0);
 
-	SB (cfgfile_board_enabled(&currprefs.a2091rom) ? 1 : 0);
-	SB (cfgfile_board_enabled(&currprefs.a4091rom) ? 1 : 0);
+	SB (cfgfile_board_enabled(&currprefs, ROMTYPE_A2091) ? 1 : 0);
+	SB (cfgfile_board_enabled(&currprefs, ROMTYPE_A4091) ? 1 : 0);
 	SB (currprefs.cs_cdtvscsi ? 1 : 0);
 
 	SB (currprefs.cs_pcmcia ? 1 : 0);
