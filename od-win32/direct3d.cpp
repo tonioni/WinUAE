@@ -90,6 +90,8 @@ struct shaderdata
 	// Masks
 	LPDIRECT3DTEXTURE9 masktexture;
 	int masktexture_w, masktexture_h;
+	// Stuff
+	D3DXHANDLE framecounterHandle;
 };
 static LPDIRECT3DTEXTURE9 lpPostTempTexture;
 
@@ -385,6 +387,7 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DX
 			write_log (_T("GetParameterDescParm(%d) failed: %s\n"), D3DHEAD, iParam, D3DX_ErrorString (hr, NULL));
 			return 0;
 		}
+		s->framecounterHandle = effect->GetParameterByName (NULL, "framecounter");
 		hr = S_OK;
 		if(ParamDesc.Semantic != NULL) {
 			if(ParamDesc.Class == D3DXPC_MATRIX_ROWS || ParamDesc.Class == D3DXPC_MATRIX_COLUMNS) {
@@ -1065,6 +1068,8 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, struct shaderdata 
 			return 0;
 		}
 	}
+	if (s->framecounterHandle)
+		s->pEffect->SetFloat(s->framecounterHandle, timeframes);
 
 	return 1;
 }
