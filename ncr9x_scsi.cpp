@@ -1257,6 +1257,7 @@ addrbank *ncr_oktagon_autoconfig_init(int devnum)
 {
 	int roms[2];
 	struct ncr9x_state *ncr = &ncr_oktagon2008_scsi[devnum];
+	struct romconfig *rc = NULL;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
@@ -1281,37 +1282,39 @@ addrbank *ncr_oktagon_autoconfig_init(int devnum)
 	memset(ncr->eeprom_data, 0xff, OKTAGON_EEPROM_SIZE);
 	memcpy(ncr->eeprom_data + 0x100, oktagon_eeprom, 16);
 	ncr->eeprom = eeprom_new(ncr->eeprom_data, OKTAGON_EEPROM_SIZE, NULL);
+	ncr->rom = xcalloc (uae_u8, OKTAGON_ROM_SIZE * 6);
+	memset(ncr->rom, 0xff, OKTAGON_ROM_SIZE * 6);
 
 	ncr9x_init ();
 	ncr9x_reset_board(ncr);
 
-	struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_OKTAGON, roms);
-	ncr->rom = xcalloc (uae_u8, OKTAGON_ROM_SIZE * 6);
-	if (z) {
-		// memory board at offset 0x100
-		int autoconfig_offset = 0;
-		write_log (_T("%s BOOT ROM '%s'\n"), ncr->name, zfile_getname (z));
-		memset(ncr->rom, 0xff, OKTAGON_ROM_SIZE * 4);
-		for (int i = 0; i < 0x1000 / 2; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			ncr->rom[OKTAGON_ROM_OFFSET + i * 4 + 0] = b;
-			zfile_fread(&b, 1, 1, z);
-			ncr->rom[OKTAGON_ROM_OFFSET + i * 4 + 2] = b;
+	rc = get_device_romconfig(&currprefs, devnum, ROMTYPE_OKTAGON);
+	if (rc && !rc->autoboot_disabled) {
+		struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_OKTAGON, roms);
+		if (z) {
+			// memory board at offset 0x100
+			write_log (_T("%s BOOT ROM '%s'\n"), ncr->name, zfile_getname (z));
+			memset(ncr->rom, 0xff, OKTAGON_ROM_SIZE * 4);
+			for (int i = 0; i < 0x1000 / 2; i++) {
+				uae_u8 b;
+				zfile_fread(&b, 1, 1, z);
+				ncr->rom[OKTAGON_ROM_OFFSET + i * 4 + 0] = b;
+				zfile_fread(&b, 1, 1, z);
+				ncr->rom[OKTAGON_ROM_OFFSET + i * 4 + 2] = b;
+			}
+			for (int i = 0; i < OKTAGON_ROM_SIZE - 0x1000; i++) {
+				uae_u8 b;
+				zfile_fread(&b, 1, 1, z);
+				ncr->rom[0x2000 + i * 4 + 1] = b;
+				zfile_fread(&b, 1, 1, z);
+				ncr->rom[0x2000 + i * 4 + 3] = b;
+			}
+			zfile_fclose(z);
 		}
-		for (int i = 0; i < OKTAGON_ROM_SIZE - 0x1000; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			ncr->rom[0x2000 + i * 4 + 1] = b;
-			zfile_fread(&b, 1, 1, z);
-			ncr->rom[0x2000 + i * 4 + 3] = b;
-		}
-
-		for (int i = 0; i < 16; i++) {
-			uae_u8 b = oktagon_autoconfig[i];
-			ew(ncr, i * 4, b);
-		}
-		zfile_fclose(z);
+	}
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = oktagon_autoconfig[i];
+		ew(ncr, i * 4, b);
 	}
 
 	return ncr == &ncr_oktagon2008_scsi[0] ? &ncr_bank_oktagon : &ncr_bank_oktagon_2;
@@ -1340,24 +1343,10 @@ addrbank *ncr_dkb_autoconfig_init(int devnum)
 	ncr9x_init ();
 	ncr9x_reset_board(ncr);
 
-	int idx;
-	struct boardromconfig *brc = get_device_rom(&currprefs, ROMTYPE_CPUBOARD, &idx);
-	struct zfile *z = NULL;
-	if (brc) {
-		const TCHAR *romname = brc->roms[idx].romfile;
-		z = read_rom_name (romname);
-		if (!z) {
-			struct romlist *rl = getromlistbyids(roms, romname);
-			if (rl) {
-				struct romdata *rd = rl->rd;
-				z = read_rom (rd);
-			}
-		}
-	}
+	struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_CPUBOARD, roms);
 	ncr->rom = xcalloc (uae_u8, DKB_ROM_SIZE * 2);
 	if (z) {
 		// memory board at offset 0x100
-		int autoconfig_offset = 0;
 		int i;
 		write_log (_T("%s BOOT ROM '%s'\n"), ncr->name, zfile_getname (z));
 		memset(ncr->rom, 0xff, DKB_ROM_SIZE * 2);

@@ -180,7 +180,7 @@ static void addaspectratios (HWND hDlg, int id)
 	}
 }
 
-static int scsiromselected;
+static int scsiromselected = -1;
 
 #define Error(x) MessageBox (NULL, (x), _T("WinUAE Error"), MB_OK)
 
@@ -279,6 +279,36 @@ static void hide (HWND hDlg, DWORD id, int hide)
 	if (hide && w == GetFocus ())
 		SendMessage (hDlg, WM_NEXTDLGCTL, 0, FALSE);
 	ShowWindow (w, hide ? SW_HIDE : SW_SHOW);
+}
+
+static int scsiromselect_table[32];
+
+static void gui_add_string(int *table, HWND hDlg, int item, int id, const TCHAR *str)
+{
+	while (*table >= 0)
+		table++;
+	*table++ = id;
+	*table = -1;
+	SendDlgItemMessage(hDlg, item, CB_ADDSTRING, 0, (LPARAM)str);
+}
+static void gui_set_string_cursor(int *table, HWND hDlg, int item, int id)
+{
+	int idx = 0;
+	while (*table >= 0) {
+		if (*table == id) {
+			SendDlgItemMessage(hDlg, item, CB_SETCURSEL, idx, 0);
+			return;
+		}
+		idx++;
+		table++;
+	}
+}
+static int gui_get_string_cursor(int *table, HWND hDlg, int item)
+{
+	int posn = SendDlgItemMessage (hDlg, item, CB_GETCURSEL, 0, 0);
+	if (posn < 0)
+		return CB_ERR;
+	return table[posn];
 }
 
 static int stringboxdialogactive;
@@ -2741,7 +2771,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			break;
 		case IDC_SCSIROMFILE:
 		{
-			int val = SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_GETCURSEL, 0, 0L);
+			int val = gui_get_string_cursor(scsiromselect_table, hDlg, IDC_SCSIROMSELECT);	
 			if (val != CB_ERR) {
 				int index;
 				struct boardromconfig *brc;
@@ -8588,6 +8618,8 @@ static void values_from_kickstartdlg (HWND hDlg)
 	if (tmp[0]) {
 		brc = get_device_rom_new(&workprefs, expansionroms[scsiromselected].romtype, &index);
 		getromfile(hDlg, IDC_SCSIROMFILE, brc->roms[index].romfile, MAX_DPATH / sizeof (TCHAR));
+		if (ischecked(hDlg, IDC_SCSIROMFILEAUTOBOOT))
+			brc->roms[index].autoboot_disabled = true;
 	} else {
 		clear_device_rom(&workprefs, expansionroms[scsiromselected].romtype);
 	}
@@ -8620,6 +8652,8 @@ static void values_to_kickstartdlg (HWND hDlg)
 	brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, &index);
 	addromfiles (fkey, hDlg, IDC_SCSIROMFILE, brc ? brc->roms[index].romfile : NULL,
 		expansionroms[scsiromselected].romtype, 0);
+	CheckDlgButton(hDlg, IDC_SCSIROMFILEAUTOBOOT, brc && brc->roms[index].autoboot_disabled);
+	ew(hDlg, IDC_SCSIROMFILEAUTOBOOT, expansionroms[scsiromselected].autoboot_jumper);
 
 	brc = get_device_rom(&workprefs, ROMTYPE_CPUBOARD, &index);
 	addromfiles(fkey, hDlg, IDC_CPUBOARDROMFILE, brc ? brc->roms[index].romfile : NULL,
@@ -8631,11 +8665,12 @@ static void values_to_kickstartdlg (HWND hDlg)
 	SetDlgItemText(hDlg, IDC_RTCFILE, workprefs.rtcfile);
 	CheckDlgButton(hDlg, IDC_KICKSHIFTER, workprefs.kickshifter);
 	CheckDlgButton(hDlg, IDC_MAPROM, workprefs.maprom);
-	SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_SETCURSEL, scsiromselected, 0);
+	gui_set_string_cursor(scsiromselect_table, hDlg, IDC_SCSIROMSELECT, scsiromselected);
 }
 
 static void init_kickstart (HWND hDlg)
 {
+	static int first = -1;
 #if !defined(AUTOCONFIG)
 	ew (hDlg, IDC_MAPROM), FALSE);
 #endif
@@ -8655,13 +8690,20 @@ static void init_kickstart (HWND hDlg)
 	ew(hDlg, IDC_CPUBOARDROMFILE, workprefs.cpuboard_type != 0);
 
 	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_RESETCONTENT, 0, 0);
+	scsiromselect_table[0] = -1;
 	for (int i = 0; expansionroms[i].name; i++) {
-		SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_ADDSTRING, 0, (LPARAM)expansionroms[i].friendlyname);
+		if (expansionroms[i].romtype & ROMTYPE_CPUBOARD)
+			continue;
+		if (first < 0)
+			first = i;
+		gui_add_string(scsiromselect_table, hDlg, IDC_SCSIROMSELECT, i, expansionroms[i].friendlyname);
 	}
 
 	int found = -1;
 	for (int i = 0; expansionroms[i].name; i++) {
 		int romtype = expansionroms[i].romtype;
+		if (romtype & ROMTYPE_CPUBOARD)
+			continue;
 		if (cfgfile_board_enabled(&workprefs, romtype)) {
 			if (found == -1)
 				found = i;
@@ -8669,9 +8711,11 @@ static void init_kickstart (HWND hDlg)
 				found = -2;
 		}
 	}
+	if (scsiromselected < 0 && found < 0)
+		found = first;
 	if (found >= 0) {
 		scsiromselected = found;
-		SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_SETCURSEL, scsiromselected, 0);
+		gui_set_string_cursor(scsiromselect_table, hDlg, IDC_SCSIROMSELECT, scsiromselected);
 	}
 
 	if (!regexiststree(NULL, _T("DetectedROMs")))
@@ -8767,7 +8811,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				values_from_kickstartdlg (hDlg);
 				break;
 			case IDC_SCSIROMSELECT:
-				val = SendDlgItemMessage (hDlg, IDC_SCSIROMSELECT, CB_GETCURSEL, 0, 0L);
+			val = gui_get_string_cursor(scsiromselect_table, hDlg, IDC_SCSIROMSELECT);	
 				if (val != CB_ERR) {
 					int index;
 					struct boardromconfig *brc;
@@ -8776,6 +8820,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 					brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, &index);
 					addromfiles (fkey, hDlg, IDC_SCSIROMFILE, brc ? brc->roms[index].romfile : NULL,
 						expansionroms[scsiromselected].romtype, 0);
+					ew(hDlg, IDC_SCSIROMFILEAUTOBOOT, expansionroms[scsiromselected].autoboot_jumper);
 					regclosetree(fkey);
 				}
 				break;
@@ -8784,6 +8829,10 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		kickstartfilebuttons (hDlg, wParam, NULL);
 		switch (LOWORD (wParam))
 		{
+		case IDC_SCSIROMFILEAUTOBOOT:
+			values_from_kickstartdlg (hDlg);
+			break;
+			
 		case IDC_FLASHFILE:
 			GetWindowText (GetDlgItem (hDlg, IDC_FLASHFILE), tmp, sizeof (tmp) / sizeof (TCHAR));
 			_tcscpy (workprefs.flashfile, tmp);
@@ -10467,34 +10516,6 @@ STATIC_INLINE bool is_hdf_rdb (void)
 }
 
 static int hdmenutable[256];
-
-static void gui_add_string(int *table, HWND hDlg, int item, int id, const TCHAR *str)
-{
-	while (*table >= 0)
-		table++;
-	*table++ = id;
-	*table = -1;
-	SendDlgItemMessage(hDlg, item, CB_ADDSTRING, 0, (LPARAM)str);
-}
-static void gui_set_string_cursor(int *table, HWND hDlg, int item, int id)
-{
-	int idx = 0;
-	while (*table >= 0) {
-		if (*table == id) {
-			SendDlgItemMessage(hDlg, item, CB_SETCURSEL, idx, 0);
-			return;
-		}
-		idx++;
-		table++;
-	}
-}
-static int gui_get_string_cursor(int *table, HWND hDlg, int item)
-{
-	int posn = SendDlgItemMessage (hDlg, item, CB_GETCURSEL, 0, 0);
-	if (posn < 0)
-		return CB_ERR;
-	return table[posn];
-}
 
 static void sethardfile (HWND hDlg)
 {

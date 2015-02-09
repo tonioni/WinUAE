@@ -848,6 +848,7 @@ addrbank *alf_init(int devnum)
 	struct ide_board *ide = &alf_board[devnum];
 	int roms[2];
 	bool alfplus = cfgfile_board_enabled(&currprefs, ROMTYPE_ALFAPLUS);
+	struct romconfig *rc = NULL;
 
 	if (devnum > 0 && !ide->enabled)
 		return &expamem_null;
@@ -870,30 +871,34 @@ addrbank *alf_init(int devnum)
 	memset(ide->rom, 0xff, ide->rom_size);
 	ide->rom_mask = ide->rom_size - 1;
 
-	struct zfile *z = read_device_rom(&currprefs, devnum, alfplus ? ROMTYPE_ALFAPLUS : ROMTYPE_ALFA, roms);
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = alfplus ? alfplus_autoconfig[i] : alf_autoconfig[i];
 		ew(ide, i * 4, b);
 	}
-	if (z) {
-		write_log(_T("ALF BOOT ROM '%s'\n"), zfile_getname(z));
-		for (int i = 0; i < 0x1000 / 2; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			ide->rom[ALF_ROM_OFFSET + i * 4 + 0] = b;
-			zfile_fread(&b, 1, 1, z);
-			ide->rom[ALF_ROM_OFFSET + i * 4 + 2] = b;
+
+	rc = get_device_romconfig(&currprefs, devnum, alfplus ? ROMTYPE_ALFAPLUS : ROMTYPE_ALFA);
+	if (rc && !rc->autoboot_disabled) {
+		struct zfile *z = read_device_rom(&currprefs, devnum, alfplus ? ROMTYPE_ALFAPLUS : ROMTYPE_ALFA, roms);
+		if (z) {
+			write_log(_T("ALF BOOT ROM '%s'\n"), zfile_getname(z));
+			for (int i = 0; i < 0x1000 / 2; i++) {
+				uae_u8 b;
+				zfile_fread(&b, 1, 1, z);
+				ide->rom[ALF_ROM_OFFSET + i * 4 + 0] = b;
+				zfile_fread(&b, 1, 1, z);
+				ide->rom[ALF_ROM_OFFSET + i * 4 + 2] = b;
+			}
+			for (int i = 0; i < 32768 - 0x1000; i++) {
+				uae_u8 b;
+				zfile_fread(&b, 1, 1, z);
+				ide->rom[0x2000 + i * 4 + 1] = b;
+				zfile_fread(&b, 1, 1, z);
+				ide->rom[0x2000 + i * 4 + 3] = b;
+			}
+			zfile_fclose(z);
+		} else {
+			romwarning(roms);
 		}
-		for (int i = 0; i < 32768 - 0x1000; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			ide->rom[0x2000 + i * 4 + 1] = b;
-			zfile_fread(&b, 1, 1, z);
-			ide->rom[0x2000 + i * 4 + 3] = b;
-		}
-		zfile_fclose(z);
-	} else {
-		romwarning(roms);
 	}
 	return ide->bank;
 }
@@ -992,11 +997,10 @@ int apollo_add_ide_unit(int ch, struct uaedev_config_info *ci)
 	return 1;
 }
 
-static const uae_u8 masoboshi_fake_no_rom[] = { 0xcf, 0x1f, 0xff, 0xbf, 0xbf, 0xff, 0xff, 0xff, 0xff, 0x7f, 0x9f, 0x2f };
-
 addrbank *masoboshi_init(int devnum)
 {
 	struct ide_board *ide;
+	struct romconfig *rc = NULL;
 	int roms[2];
 
 	ide = &masoboshi_board[devnum];
@@ -1028,13 +1032,13 @@ addrbank *masoboshi_init(int devnum)
 				ide->rom[i * 2 + 1] = 0xff;
 			}
 			zfile_fclose(z);
-			memcpy(ide->acmemory, ide->rom, sizeof ide->acmemory);
+			rc = get_device_romconfig(&currprefs, devnum, ROMTYPE_MASOBOSHI);
+			if (rc && rc->autoboot_disabled)
+				memcpy(ide->acmemory, ide->rom + 0x100, sizeof ide->acmemory);
+			else
+				memcpy(ide->acmemory, ide->rom + 0x000, sizeof ide->acmemory);
 		} else {
 			romwarning(roms);
-		}
-	} else {
-		for (int i = 0; i < sizeof masoboshi_fake_no_rom; i++) {
-			ide->acmemory[i * 2 + 0] =  masoboshi_fake_no_rom[i];
 		}
 	}
 	// init SCSI part

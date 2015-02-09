@@ -567,11 +567,16 @@ void raw_scsi_set_signal_phase(struct raw_scsi *rs, bool busy, bool select, bool
 		if (busy && !select) {
 			rs->bus_phase = SCSI_SIGNAL_PHASE_ARBIT;
 			rs->initiator_id = getbit(rs->data);
+#if RAW_SCSI_DEBUG
 			write_log(_T("raw_scsi: arbitration initiator id %d\n"), rs->initiator_id);
+#endif
 		} else if (!busy && select) {
 			rs->initiator_id = getbit(rs->data);
 			rs->bus_phase = SCSI_SIGNAL_PHASE_SELECT_1;
 			raw_scsi_set_signal_phase(rs, busy, select, atn);
+#if RAW_SCSI_DEBUG
+			write_log(_T("raw_scsi: selected initiator id %d\n"), rs->initiator_id);
+#endif
 		}
 		break;
 		case SCSI_SIGNAL_PHASE_ARBIT:
@@ -1165,6 +1170,7 @@ addrbank *supra_init(int devnum)
 {
 	struct ncr5380_scsi *scsi = &suprascsi[devnum];
 	int roms[2];
+	struct romconfig *rc = NULL;
 	
 	if (devnum > 0 && !scsi->enabled)
 		return &expamem_null;
@@ -1181,21 +1187,24 @@ addrbank *supra_init(int devnum)
 	scsi->type = NCR5380_SUPRA;
 	memset(scsi->rom, 0xff, 2 * 16384);
 
-	struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_SUPRA, roms);
-	for (int i = 0; i < 16; i++) {
-		uae_u8 b = supra_autoconfig[i];
-		ew(scsi, i * 4, b);
-	}
-	if (z) {
-		write_log(_T("SUPRA BOOT ROM '%s'\n"), zfile_getname(z));
-		for (int i = 0; i < 16384; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			scsi->rom[i * 2 + 0] = b;
+	rc = get_device_romconfig(&currprefs, devnum, ROMTYPE_SUPRA);
+	if (rc && !rc->autoboot_disabled) {
+		struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_SUPRA, roms);
+		for (int i = 0; i < 16; i++) {
+			uae_u8 b = supra_autoconfig[i];
+			ew(scsi, i * 4, b);
 		}
-		zfile_fclose(z);
-	} else {
-		romwarning(roms);
+		if (z) {
+			write_log(_T("SUPRA BOOT ROM '%s'\n"), zfile_getname(z));
+			for (int i = 0; i < 16384; i++) {
+				uae_u8 b;
+				zfile_fread(&b, 1, 1, z);
+				scsi->rom[i * 2 + 0] = b;
+			}
+			zfile_fclose(z);
+		} else {
+			romwarning(roms);
+		}
 	}
 	return scsi->bank;
 }

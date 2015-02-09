@@ -794,44 +794,49 @@ static void allocuci (struct uae_prefs *p, int nr, int idx)
 int add_cpuboard_unit(int unit, struct uaedev_config_info *uci)
 {
 	bool added = false;
+	bool ide = uci->controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && uci->controller_type <= HD_CONTROLLER_TYPE_IDE_LAST;
+	if (!ide) {
 #ifdef NCR
-	if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
-		warpengine_add_scsi_unit(unit, uci);
-		added = true;
-	} else if (currprefs.cpuboard_type == BOARD_DKB1200) {
-		cpuboard_dkb_add_scsi_unit(unit, uci);
-		added = true;
-	} else if (currprefs.cpuboard_type == BOARD_TEKMAGIC) {
-		tekmagic_add_scsi_unit(unit, uci);
-		added = true;
-	} else if (currprefs.cpuboard_type == BOARD_CSMK3 || currprefs.cpuboard_type == BOARD_CSPPC) {
-		cyberstorm_add_scsi_unit(unit, uci);
-		added = true;
-	} else if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC) {
-		blizzardppc_add_scsi_unit(unit, uci);
-		added = true;
-	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_2060 ||
-		currprefs.cpuboard_type == BOARD_CSMK1 ||
-		currprefs.cpuboard_type == BOARD_CSMK2) {
-			cpuboard_ncr9x_add_scsi_unit(unit, uci);
+		if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
+			warpengine_add_scsi_unit(unit, uci);
 			added = true;
-	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV ||
-		currprefs.cpuboard_type == BOARD_BLIZZARD_1260) {
-		if (cfgfile_board_enabled(&currprefs, ROMTYPE_CPUBOARDEXT)) {
-			cpuboard_ncr9x_add_scsi_unit(unit, uci);
+		} else if (currprefs.cpuboard_type == BOARD_DKB1200) {
+			cpuboard_dkb_add_scsi_unit(unit, uci);
+			added = true;
+		} else if (currprefs.cpuboard_type == BOARD_TEKMAGIC) {
+			tekmagic_add_scsi_unit(unit, uci);
+			added = true;
+		} else if (currprefs.cpuboard_type == BOARD_CSMK3 || currprefs.cpuboard_type == BOARD_CSPPC) {
+			cyberstorm_add_scsi_unit(unit, uci);
+			added = true;
+		} else if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC) {
+			blizzardppc_add_scsi_unit(unit, uci);
+			added = true;
+		} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_2060 ||
+			currprefs.cpuboard_type == BOARD_CSMK1 ||
+			currprefs.cpuboard_type == BOARD_CSMK2) {
+				cpuboard_ncr9x_add_scsi_unit(unit, uci);
+				added = true;
+		} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV ||
+			currprefs.cpuboard_type == BOARD_BLIZZARD_1260) {
+			if (cfgfile_board_enabled(&currprefs, ROMTYPE_CPUBOARDEXT)) {
+				cpuboard_ncr9x_add_scsi_unit(unit, uci);
+				added = true;
+			}
+		}
+#endif
+		if (currprefs.cpuboard_type == BOARD_APOLLO) {
+			apollo_add_scsi_unit(unit, uci);
+			added = true;
+		} else if (currprefs.cpuboard_type == BOARD_GVP_A530) {
+			gvp_add_scsi_unit(unit, uci);
 			added = true;
 		}
-	}
-#endif
-	if (currprefs.cpuboard_type == BOARD_APOLLO) {
-		apollo_add_scsi_unit(unit, uci);
-		added = true;
-	} else if (currprefs.cpuboard_type == BOARD_GVP_A530) {
-		gvp_add_scsi_unit(unit, uci);
-		added = true;
-	} else if (currprefs.cpuboard_type == BOARD_A3001_I || currprefs.cpuboard_type == BOARD_A3001_II) {
-		gvp_add_ide_unit(unit, uci);
-		added = true;
+	} else {
+		if (currprefs.cpuboard_type == BOARD_A3001_I || currprefs.cpuboard_type == BOARD_A3001_II) {
+			gvp_add_ide_unit(unit, uci);
+			added = true;
+		}
 	}
 	return added;
 }

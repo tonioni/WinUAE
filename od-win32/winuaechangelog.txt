@@ -1,4 +1,44 @@
 
+Beta 9:
+
+- Fixed harddrive config parse crash. (b8)
+- Blizzard SCSI Kit was always enabled if compatible accelerator board was selected. (b8)
+- Accelerator board with SCSI and "IDE (auto)": HD was mounted as accelerator SCSI. (b8)
+- Accelerator board ROM selection is not anymore in SCSI/Boot ROM list.
+- Added autoboot disabled jumper option to harddrive controllers. Not all devices supported yet.
+  (Some only hardware disable rom chip, some change autoconfig data in hardware level)
+
+Beta 8:
+
+- 53c710 software reset bit emulated.
+- Cirrus Logic register memory banks should not be marked thread safe.
+- Show '?' instead of 'E' in harddrives list if hdf can't be opened because of access fault, for example if it
+  is already open and emulation is running and show '!' if open failed because of write protection.
+- Rewritten expansion board rom handling, expansion data is now fully parametrized, autoconfig emulation and
+  config file handling does not need code changes anymore when new board with boot rom is implemented.
+- Secondary IDE/SCSI boards temporarily removed.
+- Automatically disable 24-bit CPU addressing if selected accelerator board is 32-bit.
+- Existing Blizzard 1230IV/1240/1260+SCSI configurations need adjustment. SCSI Kit configuration has changed.
+- Do not initialize tablet if tablet options are not enabled.
+- 5380/53c80 SCSI chip emulation implemented. Surprisingly basic chip, even Apollo SCSI hardware is more complex,
+  driver needs even more bit-banging than Apollo..
+- SupraDrive 500XP (5380) emulation implemented.
+- Added GVP G-Force 030 board. Same as GVP A530 but supports more RAM, located at 0x01000000.
+- A2620/A2630 accelerator board RAM now adjusts 0x01000000 memory size.
+- Fixed GPV Series I autoconfig product id.
+- STOP instruction was 2 cycles too fast in 68000 cycle-exact mode.
+
+NOTE: Accelerator board ROM appears also in SCSI/Boot ROM list. It will be removed later.
+
+SupraDrive 500XP:
+
+- v3.8 ROM (AMAB6) added. (Anyone have AMAB5 or older? I'd like to know why older versions have so many
+  compatibility problems with modern drives. A2000 WordSync version also accepted.)
+- Uses MOVEP in main data transfer loop. (My crystall ball says WordSync version does not...)
+- Usual fake DMA, CPU used to transfer data, hardware automatically handles SCSI data handshake.
+- Any CPU access to "fake DMA" address space when SCSI chip is not in DMA mode: access never finishes.
+  This is also emulated, causes halt 6 state.
+
 Beta 7:
 
 - Fixed infinite recursion (and stack overflow) when pause when uncaptered is enabled and display mode changes.
@@ -32,7 +72,7 @@ Apollo:
   Apollo 1240/1260 driver still have short "is there any IDE drives" detection code remaining.
 - "Software" SCSI, hardware can only do bus arbitration in hardware, everything else is done by bit-banging
   SCSI IO lines. Both SCSI and IDE also use non-DMA data transfers.
-- 128k Apollo ROMs (68060 f00000 ROM code and SCSI driver) are currrently supported. Non-accelerator
+- 128k Apollo ROMs (68060 f00000 ROM code and SCSI driver) are currently supported. Non-accelerator
   (AT500/AT2000) ROMs don't seem to be available = can't test IDE emulation.
 - 128k v5.60 ROM added. Seems to be last 1240/1260 ROM with SCSI.
 

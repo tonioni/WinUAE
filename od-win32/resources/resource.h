@@ -824,6 +824,7 @@
 #define IDC_AVIOUTPUT_FILETEXT          1610
 #define IDC_INPUTDEVICETEXT             1610
 #define IDC_ALWAYSONTOP                 1610
+#define IDC_SCSIROMFILEAUTOBOOT         1610
 #define IDC_AVIOUTPUT_FILE              1611
 #define IDC_INPUTLIST                   1611
 #define IDC_CATWEASEL                   1611

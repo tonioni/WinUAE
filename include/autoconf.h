@@ -116,6 +116,7 @@ struct expansionromtype
 	int romtype;
 	int parentromtype;
 	int zorro;
+	bool autoboot_jumper;
 	int deviceflags;
 	int memory_mid, memory_pid;
 	uae_u32 memory_serial;

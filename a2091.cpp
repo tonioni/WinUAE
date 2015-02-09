@@ -2997,6 +2997,7 @@ addrbank *a2091_init (int devnum)
 	struct wd_state *wd = wda2091[devnum];
 	int roms[6];
 	int slotsize;
+	struct romconfig *rc = NULL;
 
 	if (devnum > 0 && !wd->enabled)
 		return &expamem_null;
@@ -3031,28 +3032,32 @@ addrbank *a2091_init (int devnum)
 	wd->rombank = 0;
 	slotsize = 65536;
 	wd->rom = xcalloc (uae_u8, slotsize);
+	memset(wd->rom, 0xff, slotsize);
 	wd->rom_size = 16384;
 	wd->rom_mask = wd->rom_size - 1;
-	if (is_device_rom(&currprefs, devnum, ROMTYPE_A2091)) {
-		struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_A2091, roms);
-		if (z) {
-			write_log (_T("A590/A2091 BOOT ROM '%s'\n"), zfile_getname (z));
-			wd->rom_size = zfile_size (z);
-			zfile_fread (wd->rom, wd->rom_size, 1, z);
-			zfile_fclose (z);
-			if (wd->rom_size == 32768) {
-				wd->rombankswitcher = 1;
-				for (int i = wd->rom_size - 1; i >= 0; i--) {
-					wd->rom[i * 2 + 0] = wd->rom[i];
-					wd->rom[i * 2 + 1] = 0xff;
+	rc = get_device_romconfig(&currprefs, devnum, ROMTYPE_A2091);
+	if (rc && !rc->autoboot_disabled) {
+		if (is_device_rom(&currprefs, devnum, ROMTYPE_A2091)) {
+			struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_A2091, roms);
+			if (z) {
+				write_log (_T("A590/A2091 BOOT ROM '%s'\n"), zfile_getname (z));
+				wd->rom_size = zfile_size (z);
+				zfile_fread (wd->rom, wd->rom_size, 1, z);
+				zfile_fclose (z);
+				if (wd->rom_size == 32768) {
+					wd->rombankswitcher = 1;
+					for (int i = wd->rom_size - 1; i >= 0; i--) {
+						wd->rom[i * 2 + 0] = wd->rom[i];
+						wd->rom[i * 2 + 1] = 0xff;
+					}
+				} else {
+					for (int i = 1; i < slotsize / wd->rom_size; i++)
+						memcpy (wd->rom + i * wd->rom_size, wd->rom, wd->rom_size);
 				}
+				wd->rom_mask = wd->rom_size - 1;
 			} else {
-				for (int i = 1; i < slotsize / wd->rom_size; i++)
-					memcpy (wd->rom + i * wd->rom_size, wd->rom, wd->rom_size);
+				romwarning (roms);
 			}
-			wd->rom_mask = wd->rom_size - 1;
-		} else {
-			romwarning (roms);
 		}
 	}
 	return wd == &wd_a2091 ? &dmaca2091_bank : &dmaca2091_2_bank;
@@ -3106,6 +3111,7 @@ static addrbank *gvp_init(int devnum, bool series2)
 	struct wd_state *wd = gvpscsi[devnum];
 	int roms[6];
 	bool isscsi = true;
+	struct romconfig *rc = NULL;
 
 	if (devnum > 0 && !wd->enabled && currprefs.cpuboard_type != BOARD_GVP_A530)
 		return &expamem_null;
@@ -3128,31 +3134,36 @@ static addrbank *gvp_init(int devnum, bool series2)
 	memset(wd->rom, 0xff, wd->rom_size);
 	wd->rom_mask = 32768 - 1;
 
-	if (is_device_rom(&currprefs, devnum, series2 ? ROMTYPE_GVPS2 : ROMTYPE_GVPS1)) {
-		struct zfile *z = read_device_rom(&currprefs, devnum, series2 ? ROMTYPE_GVPS2 : ROMTYPE_GVPS1, roms);
-		if (z) {
-			write_log(_T("GVP BOOT ROM '%s'\n"), zfile_getname(z));
-			int size = zfile_size(z);
-			if (series2) {
-				zfile_fread(wd->rom, 1, wd->rom_size, z);
-			} else {
-				xfree(wd->gdmac.buffer);
-				wd->gdmac.buffer = xcalloc(uae_u8, GVP_SERIES_I_RAM_MASK + 1);
-				for (int i = 0; i < 16384; i++) {
-					uae_u8 b;
-					zfile_fread(&b, 1, 1, z);
-					wd->rom[i] = b;
+	rc = get_device_romconfig(&currprefs, devnum, series2 ? ROMTYPE_GVPS2 : ROMTYPE_GVPS1);
+	if (rc && !rc->autoboot_disabled) {
+		if (is_device_rom(&currprefs, devnum, series2 ? ROMTYPE_GVPS2 : ROMTYPE_GVPS1)) {
+			struct zfile *z = read_device_rom(&currprefs, devnum, series2 ? ROMTYPE_GVPS2 : ROMTYPE_GVPS1, roms);
+			if (z) {
+				write_log(_T("GVP BOOT ROM '%s'\n"), zfile_getname(z));
+				int size = zfile_size(z);
+				if (series2) {
+					zfile_fread(wd->rom, 1, wd->rom_size, z);
+				} else {
+					xfree(wd->gdmac.buffer);
+					wd->gdmac.buffer = xcalloc(uae_u8, GVP_SERIES_I_RAM_MASK + 1);
+					for (int i = 0; i < 16384; i++) {
+						uae_u8 b;
+						zfile_fread(&b, 1, 1, z);
+						wd->rom[i] = b;
+					}
 				}
+				zfile_fclose(z);
+				if (series2 && size > 16384) {
+					wd->rombankswitcher = 1;
+				}
+			} else {
+				isscsi = false;
+				if (!is_gvp_accelerator())
+					romwarning(roms);
 			}
-			zfile_fclose(z);
-			if (series2 && size > 16384) {
-				wd->rombankswitcher = 1;
-			}
-		} else {
-			isscsi = false;
-			if (!is_gvp_accelerator())
-				romwarning(roms);
 		}
+	} else {
+		isscsi = false;
 	}
 
 	wd->gdmac.version = GVP_SERIESII;

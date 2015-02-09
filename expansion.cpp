@@ -2097,70 +2097,71 @@ const struct expansionromtype expansionroms[] = {
 	{
 		_T("cpuboard"), _T("Accelerator board"),
 		NULL, add_cpuboard_unit, ROMTYPE_CPUBOARD, 0, 0,
-		EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE
+		false, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE
 	},
 	{
 		_T("cpuboard_ext"), _T("Blizzard SCSI Kit IV"),
 		NULL, NULL, ROMTYPE_CPUBOARDEXT, ROMTYPE_CPUBOARD, 0,
-		EXPANSIONTYPE_SCSI
+		false, EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("a2091"), _T("A590/A2091"),
 		a2091_init, a2091_add_scsi_unit, ROMTYPE_A2091 | ROMTYPE_NONE, 0, 2,
-		EXPANSIONTYPE_SCSI, commodore, commodore_a2091_ram, 0
+		true, EXPANSIONTYPE_SCSI, commodore, commodore_a2091_ram, 0
 	},
 	{
 		_T("a4091"), _T("A4091"),
 		ncr710_a4091_autoconfig_init, a4091_add_scsi_unit, ROMTYPE_A4091, 0, 3,
-		EXPANSIONTYPE_SCSI
+		false, EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("fastlane"), _T("Fastlane"),
 		ncr_fastlane_autoconfig_init, fastlane_add_scsi_unit, ROMTYPE_FASTLANE, 0, 3,
-		EXPANSIONTYPE_SCSI
+		false, EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("oktagon2008"), _T("Oktagon 2008"),
 		ncr_oktagon_autoconfig_init, oktagon_add_scsi_unit, ROMTYPE_OKTAGON, 0, 2,
-		EXPANSIONTYPE_SCSI
+		false, EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("gvp1"), _T("GVP Series I"),
 		gvp_init_s1, gvp_add_scsi_unit, ROMTYPE_GVPS1 | ROMTYPE_NONE, 0, 2,
-		EXPANSIONTYPE_SCSI, 2017, 10, 0
+		true, EXPANSIONTYPE_SCSI, 2017, 10, 0
 	},
 	{
 		_T("gvp"), _T("GVP Series II"),
 		gvp_init_s2, gvp_add_scsi_unit, ROMTYPE_GVPS2 | ROMTYPE_NONE, 0, 2,
-		EXPANSIONTYPE_SCSI, 2017, 10, 0
+		true, EXPANSIONTYPE_SCSI, 2017, 10, 0
 	},
 	{
 		_T("amax"), _T("AMAX ROM dongle"),
-		NULL, NULL, ROMTYPE_AMAX | ROMTYPE_NONE, 0, 0 },
+		NULL, NULL, ROMTYPE_AMAX | ROMTYPE_NONE, 0, 0
+	},
 	{
 		_T("alfapower"), _T("AlfaPower/AT-Bus 2008"),
 		alf_init, alf_add_ide_unit, ROMTYPE_ALFA, 0, 2,
-		EXPANSIONTYPE_IDE, 2092, 8, 0
+		false, EXPANSIONTYPE_IDE, 2092, 8, 0
 	},
 	{
 		_T("alfapowerplus"), _T("AlfaPower Plus"),
 		alf_init, alf_add_ide_unit, ROMTYPE_ALFAPLUS, 0, 2,
-		EXPANSIONTYPE_IDE, 2092, 8, 0
+		false, EXPANSIONTYPE_IDE, 2092, 8, 0
 	},
 	{
 		_T("apollo"), _T("Apollo"),
 		apollo_init, apollo_add_scsi_unit, ROMTYPE_APOLLO, 0, 2,
-		EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE, 8738, 0, 0
+		false, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE, 8738, 0, 0
 	},
 	{
 		_T("masoboshi"), _T("Masoboshi"),
 		masoboshi_init, masoboshi_add_scsi_unit, ROMTYPE_MASOBOSHI | ROMTYPE_NONE, 0, 2,
-		EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE, 2157, 3, 0
+		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE, 2157, 3, 0
 	},
 	{
 		_T("suprabytesync"), _T("SupraDrive 500XP"),
 		supra_init, supra_add_scsi_unit, ROMTYPE_SUPRA | ROMTYPE_NONE, 0, 2,
-		EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE, 1056, 9, 0
+		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE, 1056, 9, 0
 	},
 	{
 		NULL

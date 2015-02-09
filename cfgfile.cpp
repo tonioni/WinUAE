@@ -267,7 +267,8 @@ static const TCHAR *hdcontrollers[] = {
 	_T("scsi%d_cdtv"),
 
 	_T("scsram"),
-	_T("scide")
+	_T("scide"),
+	NULL
 };
 static const TCHAR *z3mapping[] = {
 	_T("auto"),
@@ -907,6 +908,16 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 		} else {
 			cfgfile_write (f, tmp2, _T("%s,%s"), ci->type == UAEDEV_HDF ? _T("hdf") : _T("dir"), tmp3);
 		}
+		if (ci->type == UAEDEV_DIR) {
+			bool add_extra = false;
+			if (ci->inject_icons) {
+				add_extra = true;
+			}
+			if (add_extra) {
+				_stprintf(tmp2, _T("%s,inject_icons=%s"), ci->devname, ci->inject_icons ? _T("true") : _T("false"));
+				cfgfile_write(f, _T("filesystem_extra"), tmp2);
+			}
+		}
 		xfree (str1b);
 		xfree (str2b);
 		xfree (str1);
@@ -988,6 +999,11 @@ static void cfgfile_write_board_rom(struct zfile *f, struct multipath *mp, struc
 				_stprintf(buf, _T("%s%s_rom"), name, i ? _T("_ext") : _T(""));
 				cfgfile_dwrite_str (f, buf, br->roms[i].romident);
 			}
+			if (br->roms[i].autoboot_disabled) {
+				_stprintf(buf, _T("%s%s_rom_options"), name, i ? _T("_ext") : _T(""));
+				cfgfile_dwrite_str (f, buf, _T("autoboot_disabled=true")); // ",another_option=xx"
+			}
+
 			if (br->roms[i].board_ram_size) {
 				_stprintf(buf, _T("%s%s_mem_size"), name, i ? _T("_ext") : _T(""));
 				cfgfile_write(f, buf, _T("%d"), br->roms[i].board_ram_size / 0x40000);
@@ -3630,6 +3646,41 @@ invalid_fs:
 		return cfgfile_parse_newfilesys (p, -1, 0, value, -1, false);
 	if (_tcscmp (option, _T("hardfile2")) == 0)
 		return cfgfile_parse_newfilesys (p, -1, 1, value, -1, false);
+	if (_tcscmp (option, _T("filesystem_extra")) == 0) {
+		int idx = 0;
+		TCHAR *s = value;
+		_tcscat(s, _T(","));
+		struct uaedev_config_info *ci = NULL;
+		for (;;) {
+			TCHAR *tmpp = _tcschr (s, ',');
+			if (tmpp == NULL)
+				return 1;
+			*tmpp++ = 0;
+			if (idx == 0) {
+				for (i = 0; i < p->mountitems; i++) {
+					if (p->mountconfig[i].ci.devname && !_tcscmp (p->mountconfig[i].ci.devname, s)) {
+						ci = &p->mountconfig[i].ci;
+						break;
+					}
+				}
+				if (!ci || ci->type != UAEDEV_DIR)
+					return 1;
+			} else {
+				bool b = true;
+				TCHAR *tmpp2 = _tcschr(s, '=');
+				if (tmpp2) {
+					*tmpp2++ = 0;
+					if (!strcasecmp(tmpp2, _T("false")))
+						b = false;
+				}
+				if (!strcasecmp(s, _T("inject_icons"))) {
+					ci->inject_icons = b;
+				}
+			}
+			idx++;
+			s = tmpp;
+		}
+	}
 
 	return 0;
 }
@@ -3641,6 +3692,27 @@ bool cfgfile_board_enabled(struct uae_prefs *p, int romtype)
 	if (!brc)
 		return false;
 	return brc->roms[idx].romfile[0] != 0;
+}
+
+static int cfgfile_option_bool(TCHAR *s, const TCHAR *option)
+{
+	_tcscat(s, _T(","));
+	for (;;) {
+		TCHAR *tmpp = _tcschr (s, ',');
+		if (tmpp == NULL)
+			return -1;
+		*tmpp++ = 0;
+		TCHAR *tmpp2 = _tcschr(s, '=');
+		if (tmpp2)
+			*tmpp2++ = 0;
+		if (!strcasecmp(s, option)) {
+			if (tmpp2 && !strcasecmp(tmpp2, _T("true")))
+				return 1;
+			if (tmpp2 && !strcasecmp(tmpp2, _T("false")))
+				return 0;
+			return 1;
+		}
+	}
 }
 
 static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, const TCHAR *value, struct multipath *mp)
@@ -3686,6 +3758,15 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 					brc = get_device_rom_new(p, ert->romtype, &idx);
 					_tcscpy(brc->roms[idx].romident, buf3);
 				}
+			}
+			return true;
+		}
+
+		_stprintf(buf, _T("%s_rom_options"), ert->name);
+		if (cfgfile_string (option, value, buf, buf2, sizeof buf2 / sizeof (TCHAR))) {
+			if (cfgfile_option_bool(buf2, _T("autoboot_disabled")) == 1) {
+				brc = get_device_rom_new(p, ert->romtype, &idx);
+				brc->roms[idx].autoboot_disabled = true;
 			}
 			return true;
 		}

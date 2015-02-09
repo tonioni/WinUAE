@@ -839,6 +839,7 @@ addrbank *ncr710_a4091_autoconfig_init (int devnum)
 {
 	struct ncr_state *ncr = ncra4091[devnum];
 	int roms[3];
+	struct romconfig *rc = NULL;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;

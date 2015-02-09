@@ -1874,13 +1874,11 @@ addrbank *cpuboard_autoconfig_init(int devnum)
 		return &expamem_null;
 	case BOARD_BLIZZARD_1230_IV:
 		roms[0] = 89;
-		if (brc2)
-			roms2[0] = 94;
+		roms2[0] = 94;
 		break;
 	case BOARD_BLIZZARD_1260:
 		roms[0] = 90;
-		if (brc2)
-			roms2[0] = 94;
+		roms2[0] = 94;
 		break;
 	case BOARD_BLIZZARD_2060:
 		roms[0] = 92;
@@ -2078,16 +2076,11 @@ addrbank *cpuboard_autoconfig_init(int devnum)
 		zfile_fclose(autoconfig_rom);
 		autoconfig_rom = NULL;
 		if (roms2[0] != -1) {
-			if (brc2)
+			if (brc2 && brc2->roms[idx2].romfile[0])
 				autoconfig_rom = board_rom_open(roms2, brc2->roms[idx2].romfile);
-			if (!autoconfig_rom)
-				autoconfig_rom = board_rom_open(roms2, defaultromname);
 			if (autoconfig_rom) {
 				memset(blizzardea_bank.baseaddr + 0x10000, 0xff, 65536);
 				zfile_fread(blizzardea_bank.baseaddr + 0x10000, 32768, 1, autoconfig_rom);
-			} else {
-				romwarning(roms2);
-				write_log(_T("Blizzard SCSI Kit IV ROM not found\n"));
 			}
 		}
 	}
