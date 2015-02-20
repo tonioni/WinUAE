@@ -1104,7 +1104,7 @@ STATIC_INLINE void set_fpsr (uae_u32 x)
 		fpset (&regs.fp_result, 1);
 }
 
-uae_u32 get_ftag (uae_u32 w1, uae_u32 w2, uae_u32 w3, int size)
+static uae_u32 get_ftag (uae_u32 w1, uae_u32 w2, uae_u32 w3, int size)
 {
 	int exp = (w1 >> 16) & 0x7fff;
 	
@@ -1184,7 +1184,7 @@ static void to_pack (fpdata *fpd, uae_u32 *wrd)
 		fpd->fp = d;
 }
 
-void from_pack (fpdata *src, uae_u32 *wrd, int kfactor)
+static void from_pack (fpdata *src, uae_u32 *wrd, int kfactor)
 {
 	int i, j, t;
 	int exp;
@@ -1365,7 +1365,7 @@ static bool fault_if_no_denormal_support_post(uae_u16 opcode, uae_u16 extra, uae
 static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr oldpc, uae_u32 *adp)
 {
 	int size, mode, reg;
-	uae_u32 ad = 0, ad2;
+	uae_u32 ad = 0;
 	static const int sz1[8] = { 4, 4, 12, 12, 2, 8, 1, 0 };
 	static const int sz2[8] = { 4, 4, 12, 12, 2, 8, 2, 0 };
 	uae_u32 exts[3];
@@ -1485,7 +1485,6 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 	}
 
 	*adp = ad;
-	ad2 = ad;
 
 	if (currprefs.fpu_model == 68060 && fault_if_unimplemented_680x0 (opcode, extra, ad, oldpc, src, -1))
 		return -1;
@@ -2218,7 +2217,6 @@ void fpuop_save (uae_u32 opcode)
 
 void fpuop_restore (uae_u32 opcode)
 {
-	int fpu_version = get_fpu_version ();
 	uaecptr pc = m68k_getpc () - 2;
 	uae_u32 ad;
 	uae_u32 d;
@@ -2242,7 +2240,6 @@ void fpuop_restore (uae_u32 opcode)
 		return;
 	regs.fpiar = pc;
 
-	uae_u32 pad = ad;
 	if (incr < 0) {
 		ad -= 4;
 		d = x_get_long (ad);
