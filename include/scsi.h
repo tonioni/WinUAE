@@ -64,7 +64,7 @@ extern int scsi_hd_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdh
 		uae_u8 *scsi_data, int *data_len, uae_u8 *r, int *reply_len, uae_u8 *s, int *sense_len);
 extern int scsi_tape_emulate(struct scsi_data_tape *sd, uae_u8 *cmdbuf, int scsi_cmd_len,
 		uae_u8 *scsi_data, int *data_len, uae_u8 *r, int *reply_len, uae_u8 *s, int *sense_len);
-extern void scsi_emulate_analyze (struct scsi_data*);
+extern bool scsi_emulate_analyze (struct scsi_data*);
 
 extern bool tape_get_info (int, struct device_info*);
 extern struct scsi_data_tape *tape_alloc (int unitnum, const TCHAR *tape_directory, bool readonly);

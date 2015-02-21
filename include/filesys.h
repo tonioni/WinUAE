@@ -70,6 +70,7 @@ struct hardfiledata {
 	struct uaedev_config_info delayedci;
 	int reinsertdelay;
 	bool isreinsert;
+	bool unit_stopped;
 };
 
 #define HFD_FLAGS_REALDRIVE 1

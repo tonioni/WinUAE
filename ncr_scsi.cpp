@@ -930,7 +930,7 @@ void ncr710_reset(void)
 		ncr_a4000t.configured = -1;
 		ncr_a4000t.enabled = true;
 	}
-	if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC) {
+	if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_PPC)) {
 		ncr_bppc.configured = -1;
 		ncr_bppc.enabled = true;
 	}

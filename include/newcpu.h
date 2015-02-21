@@ -51,6 +51,8 @@ extern int fpp_movem_index2[256];
 extern int fpp_movem_next[256];
 #endif
 
+extern int bus_error_offset;
+
 typedef uae_u32 REGPARAM3 cpuop_func (uae_u32) REGPARAM;
 typedef void REGPARAM3 cpuop_func_ce (uae_u32) REGPARAM;
 
@@ -569,7 +571,8 @@ extern void fpux_restore (int*);
 extern bool fpu_get_constant(fpdata *fp, int cr);
 extern int fpp_cond(int condition);
 
-extern void exception3 (uae_u32 opcode, uaecptr addr);
+extern void exception3_read(uae_u32 opcode, uaecptr addr);
+extern void exception3_write(uae_u32 opcode, uaecptr addr);
 extern void exception3i (uae_u32 opcode, uaecptr addr);
 extern void exception3b (uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc);
 extern void exception2 (uaecptr addr, bool read, int size, uae_u32 fc);

@@ -109,11 +109,15 @@ static void init_ide(struct ide_board *board, int ide_num, bool byteswap)
 	start_ide_thread(&idecontroller_its);
 }
 
-static bool ide_irq_check(struct ide_board *board)
+static bool ide_interrupt_check(struct ide_board *board)
 {
 	if (!board->configured)
 		return false;
-	bool irq = ide_interrupt_check(board->ide);
+	bool irq = ide_irq_check(board->ide);
+#if 1
+	if (board->irq != irq)
+		write_log(_T("IDE irq %d -> %d\n"), board->irq, irq);
+#endif
 	board->irq = irq;
 	return irq;
 }
@@ -122,7 +126,7 @@ static bool ide_rethink(struct ide_board *board)
 {
 	bool irq = false;
 	if (board->configured) {
-		if (board->intena && ide_irq_check(board)) {
+		if (board->intena && ide_interrupt_check(board)) {
 			irq = true;
 		}
 	}
@@ -143,8 +147,12 @@ void idecontroller_rethink(void)
 void idecontroller_hsync(void)
 {
 	for (int i = 0; ide_boards[i]; i++) {
-		if (ide_irq_check(ide_boards[i])) {
-			idecontroller_rethink();
+		struct ide_board *board = ide_boards[i];
+		if (board->configured) {
+			ide_interrupt_hsync(board->ide);
+			if (ide_interrupt_check(board)) {
+				idecontroller_rethink();
+			}
 		}
 	}
 }
@@ -177,13 +185,13 @@ void idecontroller_free(void)
 
 static bool is_gvp2_intreq(uaecptr addr)
 {
-	if (currprefs.cpuboard_type == BOARD_A3001_II && (addr & 0x440) == 0x440)
+	if (ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_A3001SII) && (addr & 0x440) == 0x440)
 		return true;
 	return false;
 }
 static bool is_gvp1_intreq(uaecptr addr)
 {
-	if (currprefs.cpuboard_type == BOARD_A3001_I && (addr & 0x440) == 0x40)
+	if (ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_A3001SI) && (addr & 0x440) == 0x40)
 		return true;
 	return false;
 }
@@ -315,13 +323,16 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 				rom = true;
 			}
 		} else if (addr >= 0xf000 && addr <= 0xf007) {
-			v = masoboshi_ncr9x_scsi_get(addr, board == &masoboshi_board[0] ? 0 : 1);
+			if (board->subtype)
+				v = masoboshi_ncr9x_scsi_get(addr, board == &masoboshi_board[0] ? 0 : 1);
 		} else if (addr == 0xf040) {
-			v = 0;
-			if (ide_drq_check(board->ide))
+			v = 1;
+			if (ide_irq_check(board->ide)) {
 				v |= 2;
-			if (ide_interrupt_check(board->ide)) {
-				v |= 1;
+				board->irq = true;
+			}
+			if (board->irq) {
+				v &= ~1;
 			}
 			v |= masoboshi_ncr9x_scsi_get(addr, board == &masoboshi_board[0] ? 0 : 1);
 		} else if (addr == 0xf047) {
@@ -332,7 +343,10 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 			if (regnum >= 0) {
 				v = ide_read_reg(ide, regnum);
 			} else if (addr >= MASOBOSHI_SCSI_OFFSET && addr < MASOBOSHI_SCSI_OFFSET_END) {
-				v = masoboshi_ncr9x_scsi_get(addr, board == &masoboshi_board[0] ? 0 : 1);
+				if (board->subtype)
+					v = masoboshi_ncr9x_scsi_get(addr, board == &masoboshi_board[0] ? 0 : 1);
+				else
+					v = 0xff;
 			}
 		}
 #if DEBUG_IDE_MASOBOSHI
@@ -375,7 +389,7 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 			return v;
 		}
 		if (board->configured) {
-			if (board == &gvp_ide_rom_board && currprefs.cpuboard_type == BOARD_A3001_II) {
+			if (board == &gvp_ide_rom_board && ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_A3001SII)) {
 				if (addr == 0x42) {
 					v = 0xff;
 				}
@@ -395,13 +409,13 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 #if DEBUG_IDE_GVP
 					write_log(_T("GVP IRQ %02x\n"), v);
 #endif
-					ide_irq_check(board);
+					ide_interrupt_check(board);
 				} else if (is_gvp1_intreq(addr)) {
 					v = gvp_ide_controller_board.irq ? 0x80 : 0x00;
 #if DEBUG_IDE_GVP
 					write_log(_T("GVP IRQ %02x\n"), v);
 #endif
-					ide_irq_check(board);
+					ide_interrupt_check(board);
 				}
 			}
 		} else {
@@ -486,12 +500,12 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 
 		} else if (board->type == GVP_IDE) {
 
-			if (board == &gvp_ide_controller_board || currprefs.cpuboard_type == BOARD_A3001_I) {
+			if (board == &gvp_ide_controller_board || ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_A3001SI)) {
 				if (addr < 0x60) {
 					if (is_gvp1_intreq(addr))
 						v = gvp_ide_controller_board.irq ? 0x8000 : 0x0000;
 					else if (addr == 0x40) {
-						if (currprefs.cpuboard_type == BOARD_A3001_II)
+						if (ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_A3001SII))
 							v = board->intena ? 8 : 0;
 					}
 #if DEBUG_IDE_GVP
@@ -566,9 +580,11 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 			if (regnum >= 0) {
 				ide_write_reg(ide, regnum, v);
 			} else if (addr >= MASOBOSHI_SCSI_OFFSET && addr < MASOBOSHI_SCSI_OFFSET_END) {
-				masoboshi_ncr9x_scsi_put(addr, v, board == &masoboshi_board[0] ? 0 : 1);
+				if (board->subtype)
+					masoboshi_ncr9x_scsi_put(addr, v, board == &masoboshi_board[0] ? 0 : 1);
 			} else if ((addr >= 0xf000 && addr <= 0xf007) || (addr >= 0xf04a && addr <= 0xf04f)) {
-				masoboshi_ncr9x_scsi_put(addr, v, board == &masoboshi_board[0] ? 0 : 1);
+				if (board->subtype)
+					masoboshi_ncr9x_scsi_put(addr, v, board == &masoboshi_board[0] ? 0 : 1);
 			} else if (addr >= 0xf040 && addr < 0xf048) {
 				masoboshi_ncr9x_scsi_put(addr, v, board == &masoboshi_board[0] ? 0 : 1);
 				if (addr == 0xf047) {
@@ -594,7 +610,7 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 			}
 
 	} else if (board->type == GVP_IDE) {
-			if (board == &gvp_ide_rom_board && currprefs.cpuboard_type == BOARD_A3001_II) {
+			if (board == &gvp_ide_rom_board && ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_A3001SII)) {
 #if DEBUG_IDE_GVP
 				write_log(_T("GVP BOOT PUT %08x %02x %08x\n"), addr, v, M68K_GETPC);
 #endif
@@ -664,12 +680,12 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 
 		} else if (board->type == GVP_IDE) {
 
-			if (board == &gvp_ide_controller_board || currprefs.cpuboard_type == BOARD_A3001_I) {
+			if (board == &gvp_ide_controller_board || ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_A3001SI)) {
 				if (addr < 0x60) {
 #if DEBUG_IDE_GVP
 					write_log(_T("GVP IO WORD WRITE %08x %04x %08x\n"), addr, v, M68K_GETPC);
 #endif
-					if (addr == 0x40 && currprefs.cpuboard_type == BOARD_A3001_II)
+					if (addr == 0x40 && ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_A3001SII))
 						board->intena = (v & 8) != 0;
 				} else {
 					struct ide_hdf *ide;
@@ -764,7 +780,7 @@ addrbank *gvp_ide_rom_autoconfig_init(int devnum)
 	struct romlist *rl;
 	const uae_u8 *autoconfig;
 
-	if (currprefs.cpuboard_type == BOARD_A3001_I) {
+	if (ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_A3001SI)) {
 		ide->bank = &gvp_ide_rom_bank;
 		autoconfig = gvp_ide1_controller_autoconfig;
 		init_ide(ide, GVP_IDE, true);
@@ -1015,6 +1031,7 @@ addrbank *masoboshi_init(int devnum)
 	ide->type = MASOBOSHI_IDE + devnum;
 	ide->rom_size = 65536;
 	ide->mask = 65536 - 1;
+	ide->subtype = 0;
 
 	ide->rom = xcalloc(uae_u8, ide->rom_size);
 	memset(ide->rom, 0xff, ide->rom_size);
@@ -1033,6 +1050,7 @@ addrbank *masoboshi_init(int devnum)
 			}
 			zfile_fclose(z);
 			rc = get_device_romconfig(&currprefs, devnum, ROMTYPE_MASOBOSHI);
+			ide->subtype = rc->subtype;
 			if (rc && rc->autoboot_disabled)
 				memcpy(ide->acmemory, ide->rom + 0x100, sizeof ide->acmemory);
 			else
@@ -1046,7 +1064,7 @@ addrbank *masoboshi_init(int devnum)
 	return ide->bank;
 }
 
-int masoboshi_add_ide_unit(int ch, struct uaedev_config_info *ci)
+static int masoboshi_add_ide_unit(int ch, struct uaedev_config_info *ci)
 {
 	struct ide_hdf *ide;
 
@@ -1054,4 +1072,12 @@ int masoboshi_add_ide_unit(int ch, struct uaedev_config_info *ci)
 	if (ide == NULL)
 		return 0;
 	return 1;
+}
+
+int masoboshi_add_idescsi_unit (int ch, struct uaedev_config_info *ci)
+{
+	if (ci->controller_type < HD_CONTROLLER_TYPE_SCSI_FIRST)
+		return masoboshi_add_ide_unit(ch, ci);
+	else
+		return masoboshi_add_scsi_unit(ch, ci);
 }

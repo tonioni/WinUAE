@@ -39,6 +39,7 @@ struct ide_board
 	int state;
 	int type;
 	int userdata;
+	int subtype;
 };
 
 struct ide_hdf
@@ -92,7 +93,8 @@ void ide_write_reg (struct ide_hdf *ide, int ide_reg, uae_u32 val);
 void ide_put_data (struct ide_hdf *ide, uae_u16 v);
 uae_u16 ide_get_data (struct ide_hdf *ide);
 
-bool ide_interrupt_check(struct ide_hdf *ide);
+bool ide_interrupt_hsync(struct ide_hdf *ide);
+bool ide_irq_check(struct ide_hdf *ide);
 bool ide_drq_check(struct ide_hdf *ide);
 bool ide_isdrive(struct ide_hdf *ide);
 void ide_initialize(struct ide_hdf **idetable, int chpair);

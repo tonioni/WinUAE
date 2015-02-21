@@ -14,7 +14,7 @@ extern int cpuboard_maxmemory(struct uae_prefs *p);
 extern bool cpuboard_32bit(struct uae_prefs *p);
 extern bool cpuboard_jitdirectompatible(struct uae_prefs *p);
 extern bool is_ppc_cpu(struct uae_prefs *);
-extern void cpuboard_io_special_write(uaecptr addr, uae_u32 val);
+extern bool cpuboard_io_special(int addr, uae_u32 *val, int size, bool write);
 extern void cpuboard_overlay_override(void);
 
 extern bool ppc_interrupt(int new_m68k_ipl);
@@ -31,22 +31,32 @@ extern uae_u8 *REGPARAM3 cyberstorm_scsi_ram_xlate(uaecptr addr) REGPARAM;
 #define BOARD_MEMORY_BLIZZARD_PPC 5
 #define BOARD_MEMORY_25BITMEM 6
 
-#define BOARD_BLIZZARD_1230_IV 1
-#define BOARD_BLIZZARD_1260 2
-#define BOARD_BLIZZARD_2060 3
-#define BOARD_CSMK1 4
-#define BOARD_CSMK2 5
-#define BOARD_CSMK3 6
-#define BOARD_CSPPC 7
-#define BOARD_BLIZZARDPPC 8
-#define BOARD_WARPENGINE_A4000 9
-#define BOARD_TEKMAGIC 10
-#define BOARD_A2630 11
-#define BOARD_DKB1200 12
-#define BOARD_FUSIONFORTY 13
-#define BOARD_A3001_I 14
-#define BOARD_A3001_II 15
-#define BOARD_APOLLO 16
-#define BOARD_GVP_A530 17
-#define BOARD_GVP_GFORCE_030 18
+#define ISCPUBOARD(type,subtype) (currprefs.cpuboard_type == type && currprefs.cpuboard_subtype == subtype)
+
+#define BOARD_BLIZZARD 1
+#define BOARD_BLIZZARD_SUB_1230IV 0
+#define BOARD_BLIZZARD_SUB_1260 1
+#define BOARD_BLIZZARD_SUB_2060 2
+#define BOARD_BLIZZARD_SUB_PPC 3
+#define BOARD_CYBERSTORM 2
+#define BOARD_CYBERSTORM_SUB_MK1 0
+#define BOARD_CYBERSTORM_SUB_MK2 1
+#define BOARD_CYBERSTORM_SUB_MK3 2
+#define BOARD_CYBERSTORM_SUB_PPC 3
+#define BOARD_MACROSYSTEM 3
+#define BOARD_MACROSYSTEM_SUB_WARPENGINE_A4000 0
+#define BOARD_COMMODORE 4
+#define BOARD_COMMODORE_SUB_A26x0 0
+#define BOARD_DKB 5
+#define BOARD_DKB_SUB_12x0 0
+#define BOARD_RCS 6
+#define BOARD_RCS_SUB_FUSIONFORTY 0
+#define BOARD_ACT 7
+#define BOARD_ACT_SUB_APOLLO 0
+#define BOARD_GVP 8
+#define BOARD_GVP_SUB_A3001SI 0
+#define BOARD_GVP_SUB_A3001SII 1
+#define BOARD_GVP_SUB_A530 2
+#define BOARD_GVP_SUB_GFORCE030 3
+#define BOARD_GVP_SUB_TEKMAGIC 4
 

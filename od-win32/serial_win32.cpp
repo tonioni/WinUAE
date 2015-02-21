@@ -175,7 +175,7 @@ void serial_close (void);
 
 uae_u16 serper, serdat, serdatr;
 
-static int allowed_baudrates[] =
+static const int allowed_baudrates[] =
 { 0, 110, 300, 600, 1200, 2400, 4800, 9600, 14400,
 19200, 31400, 38400, 57600, 115200, 128000, 256000, -1 };
 
@@ -246,7 +246,7 @@ static TCHAR dochar (int v)
 	return '.';
 }
 
-static void checkreceive_enet (int mode)
+static void checkreceive_enet (void)
 {
 #ifdef SERIAL_ENET
 	uae_u16 recdata;
@@ -268,7 +268,7 @@ static void checkreceive_enet (int mode)
 #endif
 }
 
-static void checkreceive_serial (int mode)
+static void checkreceive_serial (void)
 {
 #ifdef SERIAL_PORT
 	static int ninebitdata;
@@ -355,7 +355,8 @@ static void serdatcopy(void)
 	serdatshift = serdat;
 	data_in_sershift = 1;
 	data_in_serdat = 0;
-	INTREQ(0x8000 | 0x0001); // Transmit buffer empty
+	INTREQ(0x8000 | 0x0001);
+	serial_check_irq();
 	checksend();
 
 	if (seriallog)
@@ -416,8 +417,8 @@ void serial_hsynchandler (void)
 		return;
 	serial_period_hsync_counter++;
 	if (serial_period_hsyncs == 1 || (serial_period_hsync_counter % (serial_period_hsyncs - 1)) == 0) {
-		checkreceive_serial (0);
-		checkreceive_enet (0);
+		checkreceive_serial();
+		checkreceive_enet();
 	}
 	if ((serial_period_hsync_counter % serial_period_hsyncs) == 0 && !currprefs.cpu_cycle_exact) {
 		checksend();
@@ -474,8 +475,9 @@ uae_u16 SERDATR (void)
 
 void serial_check_irq (void)
 {
+	// Data in receive buffer
 	if (data_in_serdatr)
-		INTREQ_0 (0x8000 | 0x0800);
+		INTREQ(0x8000 | 0x0800);
 }
 
 void serial_dtr_on (void)

@@ -720,6 +720,11 @@ static void mmu030_do_fake_prefetch(void)
 	// "enable MMU" unmaps memory under us.
 	TRY (prb) {
 		mmu030_fake_prefetch = x_prefetch(0);
+		// A26x0 ROM code switches off rom
+		// NOP
+		// JMP (a0)
+		if (mmu030_fake_prefetch == 0x4e71)
+			mmu030_fake_prefetch = x_prefetch(2);
 	} CATCH (prb) {
 		// didn't work, oh well..
 		mmu030_fake_prefetch = -1;

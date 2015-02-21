@@ -194,7 +194,7 @@ static struct chipset_refresh *stored_chipset_refresh;
 int doublescan;
 bool programmedmode;
 int syncbase;
-static int fmode;
+static int fmode_saved, fmode;
 uae_u16 beamcon0, new_beamcon0;
 static bool varsync_changed;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
@@ -516,6 +516,16 @@ void alloc_cycle_blitter (int hpos, uaecptr *ptr, int chnum)
 	alloc_cycle (hpos, CYCLE_BLITTER);
 }
 
+static void set_chipset_mode(void)
+{
+	if (currprefs.chipset_mask & CSMASK_AGA) {
+		fmode = fmode_saved;
+	} else {
+		fmode = 0;
+	}
+	sprite_width = GET_SPRITEWIDTH (fmode);
+}
+
 static void update_mirrors (void)
 {
 	aga_mode = (currprefs.chipset_mask & CSMASK_AGA) != 0;
@@ -526,6 +536,7 @@ static void update_mirrors (void)
 		sprite_sprctlmask = 0x01 | 0x10;
 	else
 		sprite_sprctlmask = 0x01;
+	set_chipset_mode();
 }
 
 STATIC_INLINE uae_u8 *pfield_xlateptr (uaecptr plpt, int bytecount)
@@ -5315,8 +5326,8 @@ static void FMODE (int hpos, uae_u16 v)
 	if (fmode == v)
 		return;
 	SET_LINE_CYCLEBASED;
-	fmode = v;
-	sprite_width = GET_SPRITEWIDTH (fmode);
+	fmode_saved = v;
+	set_chipset_mode();
 	bpldmainitdelay (hpos);
 }
 

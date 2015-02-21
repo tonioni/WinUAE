@@ -3,9 +3,10 @@
 *
 * A590/A2091/A3000/CDTV SCSI expansion (DMAC/SuperDMAC + WD33C93) emulation
 * Includes A590 + XT drive emulation.
-* GVP Series II
+* GVP Series I and II
+* A2090
 *
-* Copyright 2007-2014 Toni Wilen
+* Copyright 2007-2015 Toni Wilen
 *
 */
 
@@ -41,11 +42,16 @@
 #include "savestate.h"
 #include "cpuboard.h"
 
+#define DMAC_8727_ROM_VECTOR 0x8000
 #define CDMAC_ROM_VECTOR 0x2000
 #define CDMAC_ROM_OFFSET 0x2000
 #define GVP_ROM_OFFSET 0x8000
-#define GVP_SERIES_I_RAM_OFFSET 0x4000
-#define GVP_SERIES_I_RAM_MASK 16383
+#define GVP_SERIES_I_RAM_OFFSET_1 0x04000
+#define GVP_SERIES_I_RAM_OFFSET_2 0x04000
+#define GVP_SERIES_I_RAM_OFFSET_3 0x10000
+#define GVP_SERIES_I_RAM_MASK_1 (4096 - 1)
+#define GVP_SERIES_I_RAM_MASK_2 (16384 - 1)
+#define GVP_SERIES_I_RAM_MASK_3 (16384 - 1)
 
 /* SuperDMAC CNTR bits. */
 #define SCNTR_TCEN	(1<<5)
@@ -262,7 +268,7 @@ struct wd_state wd_cdtv;
 
 static struct wd_state *wda2091[] = {
 		&wd_a2091,
-		&wd_a2091_2,
+		&wd_a2091_2
 };
 
 static struct wd_state *wdscsi[] = {
@@ -275,7 +281,7 @@ static struct wd_state *wdscsi[] = {
 
 static struct wd_state *gvpscsi[] = {
 	&wd_gvp,
-	&wd_gvp_2,
+	&wd_gvp_2
 };
 
 static void reset_dmac(struct wd_state *wd)
@@ -289,6 +295,7 @@ static void reset_dmac(struct wd_state *wd)
 		break;
 		case COMMODORE_SDMAC:
 		case COMMODORE_DMAC:
+		case COMMODORE_8727:
 		wd->cdmac.dmac_dma = 0;
 		wd->cdmac.dmac_istr = 0;
 		wd->cdmac.dmac_cntr = 0;
@@ -303,11 +310,13 @@ static bool isirq(struct wd_state *wd)
 	switch (wd->dmac_type)
 	{
 		case GVP_DMAC_S1:
-		return wd->gdmac.cntr && (wd->wc.auxstatus & ASR_INT) != 0;
+		if ((wd->gdmac.cntr & 0x80) && (wd->wc.auxstatus & ASR_INT))
+			return true;
+		break;
 		case GVP_DMAC_S2:
 		if (wd->wc.auxstatus & ASR_INT)
 			wd->gdmac.cntr |= 2;
-		if ((wd->gdmac.cntr & (2 | 8)) == 10)
+		if ((wd->gdmac.cntr & (2 | 8)) == (2 | 8))
 			return true;
 		break;
 		case COMMODORE_SDMAC:
@@ -324,6 +333,12 @@ static bool isirq(struct wd_state *wd)
 		if ((wd->cdmac.dmac_cntr & CNTR_INTEN) && (wd->cdmac.dmac_istr & (ISTR_INTS | ISTR_E_INT)))
 			return true;
 		break;
+		case COMMODORE_8727:
+		if (wd->wc.auxstatus & ASR_INT)
+			wd->cdmac.dmac_istr |= ISTR_INTS;
+		if ((wd->cdmac.dmac_cntr & CNTR_INTEN) && (wd->cdmac.dmac_istr & ISTR_INTS))
+			return true;
+		break;
 	}
 	return false;
 }
@@ -338,6 +353,7 @@ static void set_dma_done(struct wd_state *wds)
 		break;
 		case COMMODORE_SDMAC:
 		case COMMODORE_DMAC:
+		case COMMODORE_8727:
 		wds->cdmac.dmac_dma = -1;
 		break;
 	}
@@ -353,6 +369,7 @@ static bool is_dma_enabled(struct wd_state *wds)
 		return wds->gdmac.dma_on > 0;
 		case COMMODORE_SDMAC:
 		case COMMODORE_DMAC:
+		case COMMODORE_8727:
 		return wds->cdmac.dmac_dma > 0;
 	}
 	return false;	
@@ -361,12 +378,10 @@ static bool is_dma_enabled(struct wd_state *wds)
 void rethink_a2091 (void)
 {
 	if (isirq (&wd_a2091) ||isirq (&wd_a2091_2) || isirq (&wd_a3000) || isirq(&wd_gvp) || isirq(&wd_gvp_2)) {
-		uae_int_requested |= 2;
+		INTREQ_0(0x8000 | 0x0008);
 #if A2091_DEBUG > 2 || A3000_DEBUG > 2
 		write_log (_T("Interrupt_RETHINK\n"));
 #endif
-	} else {
-		uae_int_requested &= ~2;
 	}
 }
 
@@ -376,8 +391,7 @@ static void dmac_scsi_int(struct wd_state *wd)
 		return;
 	if (!(wd->wc.auxstatus & ASR_INT))
 		return;
-	if (isirq(wd))
-		uae_int_requested |= 2;
+	rethink_a2091();
 }
 
 static void dmac_a2091_xt_int(struct wd_state *wd)
@@ -385,8 +399,7 @@ static void dmac_a2091_xt_int(struct wd_state *wd)
 	if (!wd->enabled)
 		return;
 	wd->cdmac.xt_irq = true;
-	if (isirq(wd))
-		uae_int_requested |= 2;
+	rethink_a2091();
 }
 
 void scsi_dmac_a2091_start_dma (struct wd_state *wd)
@@ -449,11 +462,11 @@ static void doscsistatus(struct wd_state *wd, uae_u8 status)
 
 static void set_status (struct wd_chip_state *wd, uae_u8 status, int delay)
 {
-	wd->queue_index++;
 	if (wd->queue_index >= WD_STATUS_QUEUE)
-		wd->queue_index = 0;
+		return;
 	wd->scsidelay_status[wd->queue_index] = status;
 	wd->scsidelay_irq[wd->queue_index] = delay == 0 ? 1 : (delay <= 2 ? 2 : delay);
+	wd->queue_index++;
 }
 
 static void set_status (struct wd_chip_state *wd, uae_u8 status)
@@ -487,6 +500,11 @@ static bool canwddma(struct wd_state *wds)
 	uae_u8 mode = wd->wdregs[WD_CONTROL] >> 5;
 	switch(wds->dmac_type)
 	{
+		case COMMODORE_8727:
+		if (mode != 0 && mode != 4) {
+			write_log (_T("%s weird DMA mode %d!!\n"), WD33C93, mode);
+		}
+		return mode == 4;
 		case COMMODORE_DMAC:
 		case COMMODORE_SDMAC:
 		case GVP_DMAC_S2:
@@ -539,6 +557,89 @@ static void dmacheck_a2091 (struct wd_state *wd)
 		else
 			wd->cdmac.dmac_wtc--;
 	}
+}
+
+static bool dmacheck_a2090 (struct wd_state *wd)
+{
+	int dir = wd->cdmac.dmac_acr & 0x00800000;
+	wd->cdmac.dmac_acr &= 0x7fffff;
+	wd->cdmac.dmac_acr++;
+	wd->cdmac.dmac_acr &= 0x7fffff;
+	wd->cdmac.dmac_acr |= dir;
+	wd->cdmac.dmac_wtc--;
+	return wd->cdmac.dmac_wtc == 0;
+}
+
+
+static bool do_dma_commodore_8727(struct wd_state *wd, struct scsi_data *scsi)
+{
+	int dir = wd->cdmac.dmac_acr & 0x00800000;
+
+	if (scsi->direction < 0) {
+		if (dir) {
+			write_log(_T("8727 mismatched direction!\n"));
+			return false;
+		}
+#if WD33C93_DEBUG > 0
+		uaecptr odmac_acr = wd->cdmac.dmac_acr;
+#endif
+		for (;;) {
+			uae_u8 v1 = 0, v2 = 0;
+			int status;
+			status = scsi_receive_data (scsi, &v1);
+			if (!status)
+				status = scsi_receive_data (scsi, &v2);
+			put_word((wd->cdmac.dmac_acr << 1) & 0xffffff, (v1 << 8) | v2);
+			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data) {
+				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v1;
+				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v2;
+			}
+			if (decreasetc (&wd->wc))
+				break;
+			if (decreasetc (&wd->wc))
+				break;
+			if (status)
+				break;
+			if (dmacheck_a2090 (wd))
+				break;
+		}
+#if WD33C93_DEBUG > 0
+		write_log (_T("%s Done DMA from WD, %d/%d %08X\n"), WD33C93, scsi->offset, scsi->data_len, (odmac_acr << 1) & 0xffffff);
+#endif
+		return true;
+	} else if (scsi->direction > 0) {
+		if (!dir) {
+			write_log(_T("8727 mismatched direction!\n"));
+			return false;
+		}
+#if WD33C93_DEBUG > 0
+		uaecptr odmac_acr = wd->cdmac.dmac_acr;
+#endif
+		for (;;) {
+			int status;
+			uae_u16 v = get_word((wd->cdmac.dmac_acr << 1) & 0xffffff);
+			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data) {
+				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v >> 8;
+				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v;
+			}
+			status = scsi_send_data (scsi, v >> 8);
+			if (!status)
+				status = scsi_send_data (scsi, v);
+			if (decreasetc (&wd->wc))
+				break;
+			if (decreasetc (&wd->wc))
+				break;
+			if (status)
+				break;
+			if (dmacheck_a2090 (wd))
+				break;
+		}
+#if WD33C93_DEBUG > 0
+		write_log (_T("%s Done DMA to WD, %d/%d %08x\n"), WD33C93, scsi->offset, scsi->data_len, (odmac_acr << 1) & 0xffffff);
+#endif
+		return true;
+	}
+	return false;
 }
 
 static bool do_dma_commodore(struct wd_state *wd, struct scsi_data *scsi)
@@ -596,7 +697,7 @@ static bool do_dma_gvp_s1(struct wd_state *wd, struct scsi_data *scsi)
 			uae_u8 v;
 			int status = scsi_receive_data (scsi, &v);
 			wd->gdmac.buffer[wd->wc.wd_dataoffset++] = v;
-			wd->wc.wd_dataoffset &= GVP_SERIES_I_RAM_MASK;
+			wd->wc.wd_dataoffset &= wd->gdmac.s1_rammask;
 			if (decreasetc (&wd->wc))
 				break;
 			if (status)
@@ -610,7 +711,7 @@ static bool do_dma_gvp_s1(struct wd_state *wd, struct scsi_data *scsi)
 		for (;;) {
 			int status;
 			uae_u8 v = wd->gdmac.buffer[wd->wc.wd_dataoffset++];
-			wd->wc.wd_dataoffset &= GVP_SERIES_I_RAM_MASK;
+			wd->wc.wd_dataoffset &= wd->gdmac.s1_rammask;
 			status = scsi_send_data (scsi, v);
 			wd->gdmac.addr++;
 			if (decreasetc (&wd->wc))
@@ -692,6 +793,8 @@ static bool do_dma(struct wd_state *wd)
 		case COMMODORE_DMAC:
 		case COMMODORE_SDMAC:
 		return do_dma_commodore(wd, scsi);
+		case COMMODORE_8727:
+		return do_dma_commodore_8727(wd, scsi);
 		case GVP_DMAC_S2:
 		return do_dma_gvp_s2(wd, scsi);
 		case GVP_DMAC_S1:
@@ -861,12 +964,15 @@ static void wd_cmd_sel_xfer (struct wd_chip_state *wd, struct wd_state *wds, boo
 		}
 		// 0x30 = command phase has started
 		scsi->data_len = tmp_tc;
-		scsi_emulate_analyze (scsi);
-		wd->wdregs[WD_COMMAND_PHASE] = 0x30 + gettc (wd);
-		settc (wd, 0);
 #if WD33C93_DEBUG > 0
 		write_log (_T("%s: Got Command %s, datalen=%d\n"), WD33C93, scsitostring (wd, scsi), scsi->data_len);
 #endif
+		if (!scsi_emulate_analyze (scsi)) {
+			wd->wdregs[WD_COMMAND_PHASE] = 0x46;
+			goto end;
+		}
+		wd->wdregs[WD_COMMAND_PHASE] = 0x30 + gettc (wd);
+		settc (wd, 0);
 	}
 
 	if (wd->wdregs[WD_COMMAND_PHASE] <= 0x41) {
@@ -918,6 +1024,13 @@ static void wd_cmd_sel_xfer (struct wd_chip_state *wd, struct wd_state *wds, boo
 		}
 
 		if (wd->scsi->direction) {
+			// wanted data but nothing available?
+			if (scsi->direction < 0 && scsi->data_len == 0 && gettc(wd)) {
+				setphase(wd, 0x46);
+				wd->wd_phase = CSR_UNEXP | PHS_STATUS;
+				set_status (wd, wd->wd_phase, 1);
+				return;
+			}
 			if (canwddma (wds)) {
 				if (scsi->direction <= 0) {
 					do_dma(wds);
@@ -929,6 +1042,7 @@ static void wd_cmd_sel_xfer (struct wd_chip_state *wd, struct wd_state *wds, boo
 					}
 					if (gettc (wd) > 0) {
 						// requested more data than was available.
+						setphase(wd, 0x46);
 						wd->wd_phase = CSR_UNEXP | PHS_STATUS;
 						set_status (wd, wd->wd_phase, 1);
 						return;
@@ -964,7 +1078,7 @@ static void wd_cmd_sel_xfer (struct wd_chip_state *wd, struct wd_state *wds, boo
 				set_status (wd, wd->wd_phase, 1);
 				return;
 			}
-			wd->wdregs[WD_COMMAND_PHASE] = 0x46;
+			setphase(wd, 0x46);
 		}
 	}
 
@@ -993,7 +1107,7 @@ static void wd_cmd_sel_xfer (struct wd_chip_state *wd, struct wd_state *wds, boo
 	wd->wd_selected = 0;
 }
 
-static void wd_cmd_trans_info (struct wd_state *wds, struct scsi_data *scsi)
+static void wd_cmd_trans_info (struct wd_state *wds, struct scsi_data *scsi, bool pad)
 {
 	struct wd_chip_state *wd = &wds->wc;
 	if (wd->wdregs[WD_COMMAND_PHASE] == 0x20) {
@@ -1025,10 +1139,22 @@ static void wd_cmd_trans_info (struct wd_state *wds, struct scsi_data *scsi)
 		scsi->data_len = gettc (wd);
 	}
 
-	if (canwddma (wds)) {
-		wd->wd_data_avail = -1;
+	if (pad) {
+		int v;
+		settc(wd, 0);
+		if (wd->scsi->direction < 0) {
+			v = wd_do_transfer_in (wd, wd->scsi, false);
+		} else if (wd->scsi->direction > 0) {
+			v = wd_do_transfer_out (wd, wd->scsi);
+		}
+		wd->scsi->direction = 0;
+		wd->wd_data_avail = 0;
 	} else {
-		wd->wd_data_avail = 1;
+		if (canwddma (wds)) {
+			wd->wd_data_avail = -1;
+		} else {
+			wd->wd_data_avail = 1;
+		}
 	}
 
 #if WD33C93_DEBUG > 0
@@ -1120,11 +1246,18 @@ static void wd_cmd_reset (struct wd_chip_state *wd, bool irq)
 	wd->scsi = NULL;
 	wd->scsidelay_irq[0] = 0;
 	wd->scsidelay_irq[1] = 0;
+	wd->queue_index = 0;
 	wd->auxstatus = 0;
 	wd->wd_data_avail = 0;
 	if (irq) {
 		set_status (wd, (wd->wdregs[0] & 0x08) ? 1 : 0, 50);
 	}
+}
+
+static void wd_master_reset(struct wd_chip_state *wd, bool irq)
+{
+	memset(wd->wdregs, 0, sizeof wd->wdregs);
+	wd_cmd_reset(wd, irq);
 }
 
 static void wd_cmd_abort (struct wd_chip_state *wd)
@@ -1136,19 +1269,26 @@ static void wd_cmd_abort (struct wd_chip_state *wd)
 
 static void xt_command_done(struct wd_state *wd);
 
-static void wd_check_interrupt(struct wd_state *wds)
+static void wd_check_interrupt(struct wd_state *wds, bool checkonly)
 {
 	struct wd_chip_state *wd = &wds->wc;
 	if (wd->auxstatus & ASR_INT)
 		return;
-	for (int i = 0; i < WD_STATUS_QUEUE; i++) {
-		if (wd->scsidelay_irq[i] == 1) {
-			wd->scsidelay_irq[i] = 0;
-			doscsistatus(wds, wd->scsidelay_status[i]);
-			wd->wd_busy = 0;
-		} else if (wd->scsidelay_irq[i] > 1) {
-			wd->scsidelay_irq[i]--;
+	if (wd->queue_index == 0)
+		return;
+	if (wd->scsidelay_irq[0] == 1) {
+		wd->scsidelay_irq[0] = 0;
+		doscsistatus(wds, wd->scsidelay_status[0]);
+		wd->wd_busy = 0;
+		if (wd->queue_index == 2) {
+			wd->scsidelay_irq[0] = 1;
+			wd->scsidelay_status[0] = wd->scsidelay_status[1];
+			wd->queue_index = 1;
+		} else {
+			wd->queue_index = 0;
 		}
+	} else if (!checkonly && wd->scsidelay_irq[0] > 1) {
+		wd->scsidelay_irq[0]--;
 	}
 }
 
@@ -1188,7 +1328,7 @@ static void scsi_hsync2_a2091 (struct wd_state *wds)
 			xt_command_done(wds);
 		}
 	}
-	wd_check_interrupt(wds);
+	wd_check_interrupt(wds, false);
 
 }
 
@@ -1197,7 +1337,7 @@ static void scsi_hsync2_gvp (struct wd_state *wds)
 	if (!wds->enabled)
 		return;
 	scsi_hsync_check_dma(wds);
-	wd_check_interrupt(wds);
+	wd_check_interrupt(wds, false);
 }
 
 void scsi_hsync (void)
@@ -1328,11 +1468,11 @@ uae_u8 wdscsi_get (struct wd_chip_state *wd, struct wd_state *wds)
 			write_comm_pipe_u32 (&wds->requests, makecmd (wd->scsi, 3, 0), 1);
 		}
 	} else if (wd->sasr == WD_SCSI_STATUS) {
-		uae_int_requested &= ~2;
 		wd->auxstatus &= ~0x80;
 		if (wds->cdtv)
 			cdtv_scsi_clear_int ();
 		wds->cdmac.dmac_istr &= ~ISTR_INTS;
+		wd_check_interrupt(wds, true);
 #if 0
 		if (wd->wdregs[WD_COMMAND_PHASE] == 0x10) {
 			wd->wdregs[WD_COMMAND_PHASE] = 0x11;
@@ -1599,72 +1739,178 @@ static void write_xt_reg(struct wd_state *wds, int reg, uae_u8 v)
 
 /* DMAC */
 
+
+static uae_u8 dmac8727_read_pcss(struct wd_state *wd)
+{
+	uae_u8 v;
+	v = wd->cdmac.c8727_pcss;
+#if A2091_DEBUG_IO > 0
+	write_log(_T("dmac8727_read_pcss %02x\n"), v);
+#endif
+	return v;
+}
+
+static uae_u8 dmac8727_read_pcsd(struct wd_state *wd)
+{
+	struct commodore_dmac *c = &wd->cdmac;
+	uae_u8 v = 0;
+	switch(c->c8727_pcss)
+	{
+		case 0xf7:
+		wd->cdmac.dmac_dma = 1;
+		break;
+		case 0xef:
+		v = (1 << 7) | (1 << 5); // dma complete, no overflow
+		break;
+		default:
+		write_log(_T("dmac8727 read pscd %02x\n"), c->c8727_pcss);
+		break;
+	}
+	return v;
+}
+
+static void dmac8727_write_pcss(struct wd_state *wd, uae_u8 v)
+{
+	wd->cdmac.c8727_pcss = v;
+#if A2091_DEBUG_IO > 0
+	write_log(_T("dmac8727_write_pcss %02x\n"), v);
+#endif
+}
+
+static void dmac8727_write_pcsd(struct wd_state *wd, uae_u8 v)
+{
+	struct commodore_dmac *c = &wd->cdmac;
+	switch (c->c8727_pcss)
+	{
+		case 0xfb:
+		c->dmac_acr &= 0xff00ffff;
+		c->dmac_acr |= v << 16;
+		break;
+		case 0xfd:
+		c->dmac_acr &= 0xffff00ff;
+		c->dmac_acr |= v << 8;
+		break;
+		case 0xfe:
+		case 0xf6:
+		c->dmac_acr &= 0xffffff00;
+		c->dmac_acr |= v << 0;
+		c->dmac_wtc = 65535;
+		break;
+		case 0xff:
+		c->dmac_dma = 0;
+		break;
+		default:
+		write_log(_T("dmac8727 pscd %02x = %02x\n"), c->c8727_pcss, v);
+		break;
+	}
+}
+
 static uae_u32 dmac_a2091_read_word (struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v = 0;
 
 	if (addr < 0x40)
 		return (wd->dmacmemory[addr] << 8) | wd->dmacmemory[addr + 1];
-	if (addr >= CDMAC_ROM_OFFSET) {
-		if (wd->rom) {
-			int off = addr & wd->rom_mask;
-			if (wd->rombankswitcher && (addr & 0xffe0) == CDMAC_ROM_OFFSET)
-				wd->rombank = (addr & 0x02) >> 1;
-			off += wd->rombank * wd->rom_size;
-			return (wd->rom[off] << 8) | wd->rom[off + 1];
-		}
-		return 0;
-	}
 
-	addr &= ~1;
-	switch (addr)
-	{
-	case 0x40:
-		v = wd->cdmac.dmac_istr;
-		if (v && (wd->cdmac.dmac_cntr & CNTR_INTEN))
-			v |= ISTR_INT_P;
-		wd->cdmac.dmac_istr &= ~0xf;
-		break;
-	case 0x42:
-		v = wd->cdmac.dmac_cntr;
-		break;
-	case 0x80:
-		if (wd->cdmac.old_dmac)
-			v = (wd->cdmac.dmac_wtc >> 16) & 0xffff;
-		break;
-	case 0x82:
-		if (wd->cdmac.old_dmac)
-			v = wd->cdmac.dmac_wtc & 0xffff;
-		break;
-	case 0x90:
-		v = wdscsi_getauxstatus(&wd->wc);
-		break;
-	case 0x92:
-		v = wdscsi_get(&wd->wc, wd);
-		break;
-	case 0xc0:
-		v = 0xf8 | (1 << 0) | (1 << 1) | (1 << 2); // bits 0-2 = dip-switches
-		break;
-	case 0xc2:
-	case 0xc4:
-	case 0xc6:
-		v = 0xffff;
-		break;
-	case 0xe0:
-		if (wd->cdmac.dmac_dma <= 0)
-			scsi_dmac_a2091_start_dma (wd);
-		break;
-	case 0xe2:
-		scsi_dmac_a2091_stop_dma (wd);
-		break;
-	case 0xe4:
-		dmac_a2091_cint (wd);
-		break;
-	case 0xe8:
-		/* FLUSH (new only) */
-		if (!wd->cdmac.old_dmac && wd->cdmac.dmac_dma > 0)
-			wd->cdmac.dmac_istr |= ISTR_FE_FLG;
-		break;
+	if (wd->dmac_type == COMMODORE_8727) {
+
+		if (addr >= CDMAC_ROM_OFFSET) {
+			if (wd->rom) {
+				int off = addr & wd->rom_mask;
+				return (wd->rom[off] << 8) | wd->rom[off + 1];
+			}
+			return 0;
+		}
+		switch (addr)
+		{
+		case 0x40:
+			v = 0;
+			if (wd->cdmac.dmac_istr & ISTR_INTS)
+				v |= (1 << 7) | (1 << 4);
+			break;
+		case 0x42:
+			v = 0;
+			if (wd->cdmac.dmac_cntr & CNTR_INTEN)
+				v |= 1 << 4;
+			break;
+		case 0x60:
+			v = wdscsi_getauxstatus (&wd->wc);
+			break;
+		case 0x62:
+			v = wdscsi_get (&wd->wc, wd);
+			break;
+		case 0x64:
+			v = dmac8727_read_pcss(wd);
+			break;
+		case 0x68:
+			v = dmac8727_read_pcsd(wd);
+			break;
+		}
+		v <<= 8;
+		return v;
+
+	} else if (wd->dmac_type == COMMODORE_DMAC) {
+		if (addr >= CDMAC_ROM_OFFSET) {
+			if (wd->rom) {
+				int off = addr & wd->rom_mask;
+				if (wd->rombankswitcher && (addr & 0xffe0) == CDMAC_ROM_OFFSET)
+					wd->rombank = (addr & 0x02) >> 1;
+				off += wd->rombank * wd->rom_size;
+				return (wd->rom[off] << 8) | wd->rom[off + 1];
+			}
+			return 0;
+		}
+
+		addr &= ~1;
+		switch (addr)
+		{
+		case 0x40:
+			v = wd->cdmac.dmac_istr;
+			if (v && (wd->cdmac.dmac_cntr & CNTR_INTEN))
+				v |= ISTR_INT_P;
+			wd->cdmac.dmac_istr &= ~0xf;
+			break;
+		case 0x42:
+			v = wd->cdmac.dmac_cntr;
+			break;
+		case 0x80:
+			if (wd->cdmac.old_dmac)
+				v = (wd->cdmac.dmac_wtc >> 16) & 0xffff;
+			break;
+		case 0x82:
+			if (wd->cdmac.old_dmac)
+				v = wd->cdmac.dmac_wtc & 0xffff;
+			break;
+		case 0x90:
+			v = wdscsi_getauxstatus(&wd->wc);
+			break;
+		case 0x92:
+			v = wdscsi_get(&wd->wc, wd);
+			break;
+		case 0xc0:
+			v = 0xf8 | (1 << 0) | (1 << 1) | (1 << 2); // bits 0-2 = dip-switches
+			break;
+		case 0xc2:
+		case 0xc4:
+		case 0xc6:
+			v = 0xffff;
+			break;
+		case 0xe0:
+			if (wd->cdmac.dmac_dma <= 0)
+				scsi_dmac_a2091_start_dma (wd);
+			break;
+		case 0xe2:
+			scsi_dmac_a2091_stop_dma (wd);
+			break;
+		case 0xe4:
+			dmac_a2091_cint (wd);
+			break;
+		case 0xe8:
+			/* FLUSH (new only) */
+			if (!wd->cdmac.old_dmac && wd->cdmac.dmac_dma > 0)
+				wd->cdmac.dmac_istr |= ISTR_FE_FLG;
+			break;
+		}
 	}
 #if A2091_DEBUG_IO > 0
 	write_log (_T("dmac_wget %04X=%04X PC=%08X\n"), addr, v, M68K_GETPC);
@@ -1678,36 +1924,75 @@ static uae_u32 dmac_a2091_read_byte (struct wd_state *wd, uaecptr addr)
 
 	if (addr < 0x40)
 		return wd->dmacmemory[addr];
-	if (addr >= CDMAC_ROM_OFFSET) {
-		if (wd->rom) {
-			int off = addr & wd->rom_mask;
-			if (wd->rombankswitcher && (addr & 0xffe0) == CDMAC_ROM_OFFSET)
-				wd->rombank = (addr & 0x02) >> 1;
-			off += wd->rombank * wd->rom_size;
-			return wd->rom[off];
-		}
-		return 0;
-	}
 
-	switch (addr)
-	{
-	case 0x91:
-		v = wdscsi_getauxstatus (&wd->wc);
-		break;
-	case 0x93:
-		v = wdscsi_get (&wd->wc, wd);
-		break;
-	case 0xa1:
-	case 0xa3:
-	case 0xa5:
-	case 0xa7:
-		v = read_xt_reg(wd, (addr - 0xa0) / 2);
-		break;
-	default:
-		v = dmac_a2091_read_word (wd, addr);
-		if (!(addr & 1))
-			v >>= 8;
-		break;
+	if (wd->dmac_type == COMMODORE_8727) {
+
+		if (addr >= DMAC_8727_ROM_VECTOR) {
+			if (wd->rom) {
+				int off = addr & wd->rom_mask;
+				return wd->rom[off];
+			}
+			return 0;
+		}
+		switch (addr)
+		{
+		case 0x40:
+			v = 0;
+			if (wd->cdmac.dmac_istr & ISTR_INTS)
+				v |= (1 << 7) | (1 << 4);
+			break;
+		case 0x42:
+			v = 0;
+			if (wd->cdmac.dmac_cntr & CNTR_INTEN)
+				v |= 1 << 4;
+			v |= wd->cdmac.c8727_ctl & 0x80;
+			break;
+		case 0x60:
+			v = wdscsi_getauxstatus (&wd->wc);
+			break;
+		case 0x62:
+			v = wdscsi_get (&wd->wc, wd);
+			break;
+		case 0x64:
+			v = dmac8727_read_pcss(wd);
+			break;
+		case 0x68:
+			v = dmac8727_read_pcsd(wd);
+			break;
+		}
+
+	} else if (wd->dmac_type == COMMODORE_DMAC) {
+		if (addr >= CDMAC_ROM_OFFSET) {
+			if (wd->rom) {
+				int off = addr & wd->rom_mask;
+				if (wd->rombankswitcher && (addr & 0xffe0) == CDMAC_ROM_OFFSET)
+					wd->rombank = (addr & 0x02) >> 1;
+				off += wd->rombank * wd->rom_size;
+				return wd->rom[off];
+			}
+			return 0;
+		}
+
+		switch (addr)
+		{
+		case 0x91:
+			v = wdscsi_getauxstatus (&wd->wc);
+			break;
+		case 0x93:
+			v = wdscsi_get (&wd->wc, wd);
+			break;
+		case 0xa1:
+		case 0xa3:
+		case 0xa5:
+		case 0xa7:
+			v = read_xt_reg(wd, (addr - 0xa0) / 2);
+			break;
+		default:
+			v = dmac_a2091_read_word (wd, addr);
+			if (!(addr & 1))
+				v >>= 8;
+			break;
+		}
 	}
 #if A2091_DEBUG_IO > 0
 	write_log (_T("dmac_bget %04X=%02X PC=%08X\n"), addr, v, M68K_GETPC);
@@ -1717,101 +2002,176 @@ static uae_u32 dmac_a2091_read_byte (struct wd_state *wd, uaecptr addr)
 
 static void dmac_a2091_write_word (struct wd_state *wd, uaecptr addr, uae_u32 b)
 {
-	if (addr < 0x40)
-		return;
-	if (addr >= CDMAC_ROM_OFFSET)
-		return;
-
 #if A2091_DEBUG_IO > 0
-	write_log (_T("dmac_wput %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
+		write_log (_T("dmac_wput %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
 #endif
 
-	addr &= ~1;
-	switch (addr)
-	{
-	case 0x42:
-		wd->cdmac.dmac_cntr = b;
-		if (wd->cdmac.dmac_cntr & CNTR_PREST)
-			dmac_reset (wd);
-		break;
-	case 0x80:
-		wd->cdmac.dmac_wtc &= 0x0000ffff;
-		wd->cdmac.dmac_wtc |= b << 16;
-		break;
-	case 0x82:
-		wd->cdmac.dmac_wtc &= 0xffff0000;
-		wd->cdmac.dmac_wtc |= b & 0xffff;
-		break;
-	case 0x84:
-		wd->cdmac.dmac_acr &= 0x0000ffff;
-		wd->cdmac.dmac_acr |= b << 16;
-		break;
-	case 0x86:
-		wd->cdmac.dmac_acr &= 0xffff0000;
-		wd->cdmac.dmac_acr |= b & 0xfffe;
-		if (wd->cdmac.old_dmac)
-			wd->cdmac.dmac_acr &= ~3;
-		break;
-	case 0x8e:
-		wd->cdmac.dmac_dawr = b;
-		break;
-	case 0x90:
-		wdscsi_sasr (&wd->wc, b);
-		break;
-	case 0x92:
-		wdscsi_put (&wd->wc, wd, b);
-		break;
-	case 0xc2:
-	case 0xc4:
-	case 0xc6:
-		break;
-	case 0xe0:
-		if (wd->cdmac.dmac_dma <= 0)
-			scsi_dmac_a2091_start_dma (wd);
-		break;
-	case 0xe2:
-		scsi_dmac_a2091_stop_dma (wd);
-		break;
-	case 0xe4:
-		dmac_a2091_cint (wd);
-		break;
-	case 0xe8:
-		/* FLUSH */
-		wd->cdmac.dmac_istr |= ISTR_FE_FLG;
-		break;
+	if (addr < 0x40)
+		return;
+
+	if (wd->dmac_type == COMMODORE_8727) {
+
+		if (addr >= DMAC_8727_ROM_VECTOR)
+			return;
+
+		b >>= 8;
+		switch(addr)
+		{
+		case 0x40:
+			break;
+		case 0x42:
+			wd->cdmac.dmac_cntr &= ~CNTR_INTEN;
+			if (b & (1 << 4))
+				wd->cdmac.dmac_cntr |= CNTR_INTEN;
+			break;
+		case 0x50:
+			// clear interrupt
+			wd->cdmac.dmac_istr &= ~(ISTR_INT_F | ISTR_INTS);
+			break;
+		case 0x60:
+			wdscsi_sasr (&wd->wc, b);
+			break;
+		case 0x62:
+			wdscsi_put (&wd->wc, wd, b);
+			break;
+		case 0x64:
+			dmac8727_write_pcss(wd, b);
+			break;
+		case 0x68:
+			dmac8727_write_pcsd(wd, b);
+			break;
+		}
+
+
+	} else if (wd->dmac_type == COMMODORE_DMAC) {
+
+		if (addr >= CDMAC_ROM_OFFSET)
+			return;
+
+		addr &= ~1;
+		switch (addr)
+		{
+		case 0x42:
+			wd->cdmac.dmac_cntr = b;
+			if (wd->cdmac.dmac_cntr & CNTR_PREST)
+				dmac_reset (wd);
+			break;
+		case 0x80:
+			wd->cdmac.dmac_wtc &= 0x0000ffff;
+			wd->cdmac.dmac_wtc |= b << 16;
+			break;
+		case 0x82:
+			wd->cdmac.dmac_wtc &= 0xffff0000;
+			wd->cdmac.dmac_wtc |= b & 0xffff;
+			break;
+		case 0x84:
+			wd->cdmac.dmac_acr &= 0x0000ffff;
+			wd->cdmac.dmac_acr |= b << 16;
+			break;
+		case 0x86:
+			wd->cdmac.dmac_acr &= 0xffff0000;
+			wd->cdmac.dmac_acr |= b & 0xfffe;
+			if (wd->cdmac.old_dmac)
+				wd->cdmac.dmac_acr &= ~3;
+			break;
+		case 0x8e:
+			wd->cdmac.dmac_dawr = b;
+			break;
+		case 0x90:
+			wdscsi_sasr (&wd->wc, b);
+			break;
+		case 0x92:
+			wdscsi_put (&wd->wc, wd, b);
+			break;
+		case 0xc2:
+		case 0xc4:
+		case 0xc6:
+			break;
+		case 0xe0:
+			if (wd->cdmac.dmac_dma <= 0)
+				scsi_dmac_a2091_start_dma (wd);
+			break;
+		case 0xe2:
+			scsi_dmac_a2091_stop_dma (wd);
+			break;
+		case 0xe4:
+			dmac_a2091_cint (wd);
+			break;
+		case 0xe8:
+			/* FLUSH */
+			wd->cdmac.dmac_istr |= ISTR_FE_FLG;
+			break;
+		}
 	}
 }
 
 static void dmac_a2091_write_byte (struct wd_state *wd, uaecptr addr, uae_u32 b)
 {
+#if A2091_DEBUG_IO > 0
+		write_log (_T("dmac_bput %04X=%02X PC=%08X\n"), addr, b & 255, M68K_GETPC);
+#endif
+	
 	if (addr < 0x40)
 		return;
-	if (addr >= CDMAC_ROM_OFFSET)
-		return;
 
-#if A2091_DEBUG_IO > 0
-	write_log (_T("dmac_bput %04X=%02X PC=%08X\n"), addr, b & 255, M68K_GETPC);
-#endif
+	if (wd->dmac_type == COMMODORE_8727) {
 
-	switch (addr)
-	{
-	case 0x91:
-		wdscsi_sasr (&wd->wc, b);
-		break;
-	case 0x93:
-		wdscsi_put (&wd->wc, wd, b);
-		break;
-	case 0xa1:
-	case 0xa3:
-	case 0xa5:
-	case 0xa7:
-		write_xt_reg(wd, (addr - 0xa0) / 2, b);
-		break;
-	default:
-		if (addr & 1)
-			dmac_a2091_write_word (wd, addr, b);
-		else
-			dmac_a2091_write_word (wd, addr, b << 8);
+		if (addr >= DMAC_8727_ROM_VECTOR)
+			return;
+
+		switch(addr)
+		{
+		case 0x40:
+			break;
+		case 0x42:
+			wd->cdmac.dmac_cntr &= ~CNTR_INTEN;
+			if (b & (1 << 4))
+				wd->cdmac.dmac_cntr |= CNTR_INTEN;
+			wd->cdmac.c8727_ctl = b;
+			break;
+		case 0x50:
+			// clear interrupt
+			wd->cdmac.dmac_istr &= ~(ISTR_INT_F | ISTR_INTS);
+			break;
+		case 0x60:
+			wdscsi_sasr (&wd->wc, b);
+			break;
+		case 0x62:
+			wdscsi_put (&wd->wc, wd, b);
+			break;
+		case 0x64:
+			dmac8727_write_pcss(wd, b);
+			break;
+		case 0x68:
+			dmac8727_write_pcsd(wd, b);
+			break;
+		}
+
+	} else if (wd->dmac_type == COMMODORE_DMAC) {
+
+		if (addr >= CDMAC_ROM_OFFSET)
+			return;
+
+		switch (addr)
+		{
+		case 0x91:
+			wdscsi_sasr (&wd->wc, b);
+			break;
+		case 0x93:
+			wdscsi_put (&wd->wc, wd, b);
+			break;
+		case 0xa1:
+		case 0xa3:
+		case 0xa5:
+		case 0xa7:
+			write_xt_reg(wd, (addr - 0xa0) / 2, b);
+			break;
+		default:
+			if (addr & 1)
+				dmac_a2091_write_word (wd, addr, b);
+			else
+				dmac_a2091_write_word (wd, addr, b << 8);
+		}
 	}
 }
 
@@ -2040,10 +2400,10 @@ static uae_u32 dmac_gvp_read_byte(struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v = 0;
 
-	addr &= 0xffff;
+	addr &= wd->board_mask;
 	if (addr < 0x3e) {
 		v = wd->dmacmemory[addr];
-	} else if (addr >= GVP_ROM_OFFSET) {
+	} else if (addr >= GVP_ROM_OFFSET && addr < 65536) {
 		if (wd->gdmac.series2) {
 			if (addr & 1) {
 				v = wd->gdmac.version;
@@ -2055,13 +2415,21 @@ static uae_u32 dmac_gvp_read_byte(struct wd_state *wd, uaecptr addr)
 				}
 			}
 		} else {
-			if (wd->rom) {
+			if ((addr & 1) && wd->gdmac.use_version) {
+				v = wd->gdmac.version;
+			} else if (wd->rom) {
 				v = wd->rom[addr - GVP_ROM_OFFSET];
 			}
 		}
-	} else if (addr >= GVP_SERIES_I_RAM_OFFSET && !wd->gdmac.series2) {
+	} else if (addr >= wd->gdmac.s1_ramoffset && !wd->gdmac.series2) {
+#if GVP_S1_DEBUG_IO > 1
+		int off = wd->gdmac.bufoffset;
+#endif
 		v =  wd->gdmac.buffer[wd->gdmac.bufoffset++];
-		wd->gdmac.bufoffset &= GVP_SERIES_I_RAM_MASK;
+		wd->gdmac.bufoffset &= wd->gdmac.s1_rammask;
+#if GVP_S1_DEBUG_IO > 1
+		write_log(_T("gvp_s1_bget sram %d %04x\n"), off, v);
+#endif
 	} else if (wd->configured) {
 		if (wd->gdmac.series2) {
 			switch (addr)
@@ -2086,13 +2454,16 @@ static uae_u32 dmac_gvp_read_byte(struct wd_state *wd, uaecptr addr)
 			switch (addr)
 			{
 				case 0x3e:
-				v = wd->wc.auxstatus & ASR_INT;
+				v = (wd->wc.auxstatus & ASR_INT) ? 0x80 : 0x00;
 				break;
 				case 0x60: // SASR
 				v = wdscsi_getauxstatus(&wd->wc);
 				break;
 				case 0x62: // SCMD
 				v = wdscsi_get(&wd->wc, wd);
+				break;
+				case 0x68:
+				v = 0;
 				break;
 				default:
 				write_log(_T("gvp_s1_bget_unk %04X PC=%08X\n"), addr, M68K_GETPC);
@@ -2109,14 +2480,15 @@ static uae_u32 dmac_gvp_read_byte(struct wd_state *wd, uaecptr addr)
 
 	return v;
 }
+
 static uae_u32 dmac_gvp_read_word(struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v = 0;
 
-	addr &= 0xffff;
+	addr &= wd->board_mask;
 	if (addr < 0x3e) {
 		v = (wd->dmacmemory[addr] << 8) | wd->dmacmemory[addr + 1];
-	} else if (addr >= GVP_ROM_OFFSET) {
+	} else if (addr >= GVP_ROM_OFFSET && addr < 65536) {
 		if (wd->gdmac.series2) {
 			if (wd->rom) {
 				if (wd->rombankswitcher && (addr & 0xffe0) == GVP_ROM_OFFSET)
@@ -2129,15 +2501,19 @@ static uae_u32 dmac_gvp_read_word(struct wd_state *wd, uaecptr addr)
 			if (wd->rom) {
 				v = (wd->rom[addr - GVP_ROM_OFFSET] << 8) | (wd->rom[addr - GVP_ROM_OFFSET + 1]);
 			}
+			if (wd->gdmac.use_version) {
+				v &= 0xff00;
+				v |= wd->gdmac.version;
+			}
 		}
-	} else if (addr >= GVP_SERIES_I_RAM_OFFSET && !wd->gdmac.series2) {
+	} else if (addr >= wd->gdmac.s1_ramoffset && !wd->gdmac.series2) {
 #if GVP_S1_DEBUG_IO > 1
 		int off = wd->gdmac.bufoffset;
 #endif
 		v =  wd->gdmac.buffer[wd->gdmac.bufoffset++] << 8;
-		wd->gdmac.bufoffset &= GVP_SERIES_I_RAM_MASK;
+		wd->gdmac.bufoffset &= wd->gdmac.s1_rammask;
 		v |= wd->gdmac.buffer[wd->gdmac.bufoffset++] << 0;
-		wd->gdmac.bufoffset &= GVP_SERIES_I_RAM_MASK;
+		wd->gdmac.bufoffset &= wd->gdmac.s1_rammask;
 #if GVP_S1_DEBUG_IO > 1
 		write_log(_T("gvp_s1_wget sram %d %04x\n"), off, v);
 #endif
@@ -2165,6 +2541,10 @@ static uae_u32 dmac_gvp_read_word(struct wd_state *wd, uaecptr addr)
 			write_log(_T("gvp_s2_wget %04X=%04X PC=%08X\n"), addr, v, M68K_GETPC);
 #endif
 		} else {
+
+			v = dmac_gvp_read_byte(wd, addr) << 8;
+			v |= dmac_gvp_read_byte(wd, addr + 1);
+
 #if GVP_S1_DEBUG_IO > 0
 			write_log(_T("gvp_s1_wget %04X=%04X PC=%08X\n"), addr, v, M68K_GETPC);
 #endif
@@ -2176,83 +2556,22 @@ static uae_u32 dmac_gvp_read_word(struct wd_state *wd, uaecptr addr)
 	return v;
 }
 
-static void dmac_gvp_write_word(struct wd_state *wd, uaecptr addr, uae_u32 b)
+static void dmac_gvp_write_byte(struct wd_state *wd, uaecptr addr, uae_u32 b)
 {
-	addr &= 0xffff;
+	addr &= wd->board_mask;
 
 	if (addr >= GVP_ROM_OFFSET)
 		return;
 
-	if (addr >= GVP_SERIES_I_RAM_OFFSET && !wd->gdmac.series2) {
+	if (addr >= wd->gdmac.s1_ramoffset && !wd->gdmac.series2) {
 #if GVP_S1_DEBUG_IO > 1
 		int off = wd->gdmac.bufoffset;
 #endif
-		wd->gdmac.buffer[wd->gdmac.bufoffset++] = b >> 8;
-		wd->gdmac.bufoffset &= GVP_SERIES_I_RAM_MASK;
 		wd->gdmac.buffer[wd->gdmac.bufoffset++] = b;
-		wd->gdmac.bufoffset &= GVP_SERIES_I_RAM_MASK;
+		wd->gdmac.bufoffset &= wd->gdmac.s1_rammask;
 #if GVP_S1_DEBUG_IO > 1
-		write_log(_T("gvp_s1_wput sram %d %04x\n"), off, b);
+		write_log(_T("gvp_s1_bput sram %d %04x\n"), off, b);
 #endif
-		return;
-	}
-
-	if (wd->gdmac.series2) {
-#if GVP_S2_DEBUG_IO > 0
-		write_log(_T("gvp_s2_wput %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
-#endif
-		switch (addr)
-		{
-			case 0x40:
-			b &= ~(1 | 2);
-			wd->gdmac.cntr = b;
-			break;
-			case 0x68: // bank
-			if (b != 0)
-				write_log(_T("bank %02x\n"), b);
-			break;
-			case 0x70: // ACR
-			wd->gdmac.addr &= 0x0000ffff;
-			wd->gdmac.addr |= (b & 0xff) << 16;
-			wd->gdmac.addr &= wd->gdmac.addr_mask;
-			break;
-			case 0x72: // ACR
-			wd->gdmac.addr &= 0xffff0000;
-			wd->gdmac.addr |= b;
-			wd->gdmac.addr &= wd->gdmac.addr_mask;
-			break;
-			case 0x76: // START DMA
-			wd->gdmac.dma_on = 1;
-			break;
-			case 0x78: // STOP DMA
-			wd->gdmac.dma_on = 0;
-			break;
-			case 0x74: // "secret1"
-			case 0x7a: // "secret2"
-			case 0x7c: // "secret3"
-			write_log(_T("gvp_s2_wput_config %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
-			break;
-			default:
-			write_log(_T("gvp_s2_wput_unk %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
-			break;
-		}
-	} else {
-#if GVP_S1_DEBUG_IO > 0
-		write_log(_T("gvp_s1_wput %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
-#endif
-	}
-}
-
-static void dmac_gvp_write_byte(struct wd_state *wd, uaecptr addr, uae_u32 b)
-{
-	addr &= 0xffff;
-
-	if (addr >= GVP_ROM_OFFSET)
-		return;
-
-	if (addr >= GVP_SERIES_I_RAM_OFFSET && !wd->gdmac.series2) {
-		wd->gdmac.buffer[wd->gdmac.bufoffset++] = b;
-		wd->gdmac.bufoffset &= GVP_SERIES_I_RAM_MASK;
 		return;
 	}
 
@@ -2325,7 +2644,9 @@ static void dmac_gvp_write_byte(struct wd_state *wd, uaecptr addr, uae_u32 b)
 #if GVP_S1_DEBUG_IO > 0
 			write_log(_T("gvp_s1_bput_s1 %04X=%04X PC=%08X\n"), addr, b & 255, M68K_GETPC);
 #endif
-			wd->gdmac.cntr = b & 8;
+			if (!(wd->gdmac.cntr & 8) && (b & 8))
+				wd_master_reset(&wd->wc, true);
+			wd->gdmac.cntr = b;
 			break;
 		
 			default:
@@ -2336,13 +2657,85 @@ static void dmac_gvp_write_byte(struct wd_state *wd, uaecptr addr, uae_u32 b)
 
 }
 
+static void dmac_gvp_write_word(struct wd_state *wd, uaecptr addr, uae_u32 b)
+{
+	addr &= wd->board_mask;
+
+	if (addr >= GVP_ROM_OFFSET && addr < 65536)
+		return;
+
+	if (addr >= wd->gdmac.s1_ramoffset && !wd->gdmac.series2) {
+#if GVP_S1_DEBUG_IO > 1
+		int off = wd->gdmac.bufoffset;
+#endif
+		wd->gdmac.buffer[wd->gdmac.bufoffset++] = b >> 8;
+		wd->gdmac.bufoffset &= wd->gdmac.s1_rammask;
+		wd->gdmac.buffer[wd->gdmac.bufoffset++] = b;
+		wd->gdmac.bufoffset &= wd->gdmac.s1_rammask;
+#if GVP_S1_DEBUG_IO > 1
+		write_log(_T("gvp_s1_wput sram %d %04x\n"), off, b);
+#endif
+		return;
+	}
+
+	if (wd->gdmac.series2) {
+#if GVP_S2_DEBUG_IO > 0
+		write_log(_T("gvp_s2_wput %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
+#endif
+		switch (addr)
+		{
+			case 0x40:
+			b &= ~(1 | 2);
+			wd->gdmac.cntr = b;
+			break;
+			case 0x68: // bank
+			if (b != 0)
+				write_log(_T("bank %02x\n"), b);
+			break;
+			case 0x70: // ACR
+			wd->gdmac.addr &= 0x0000ffff;
+			wd->gdmac.addr |= (b & 0xff) << 16;
+			wd->gdmac.addr &= wd->gdmac.addr_mask;
+			break;
+			case 0x72: // ACR
+			wd->gdmac.addr &= 0xffff0000;
+			wd->gdmac.addr |= b;
+			wd->gdmac.addr &= wd->gdmac.addr_mask;
+			break;
+			case 0x76: // START DMA
+			wd->gdmac.dma_on = 1;
+			break;
+			case 0x78: // STOP DMA
+			wd->gdmac.dma_on = 0;
+			break;
+			case 0x74: // "secret1"
+			case 0x7a: // "secret2"
+			case 0x7c: // "secret3"
+			write_log(_T("gvp_s2_wput_config %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
+			break;
+			default:
+			write_log(_T("gvp_s2_wput_unk %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
+			break;
+		}
+
+	} else {
+
+		dmac_gvp_write_byte(wd, addr, b >> 8);
+		dmac_gvp_write_byte(wd, addr + 1, b);
+
+#if GVP_S1_DEBUG_IO > 0
+		write_log(_T("gvp_s1_wput %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
+#endif
+	}
+}
+
 static uae_u32 REGPARAM2 dmac_gvp_lget(struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v;
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	addr &= 65535;
+	addr &= wd->board_mask;
 	v = dmac_gvp_read_word(wd, addr) << 16;
 	v |= dmac_gvp_read_word(wd, addr + 2) & 0xffff;
 	return v;
@@ -2354,7 +2747,7 @@ static uae_u32 REGPARAM2 dmac_gvp_wget(struct wd_state *wd, uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	addr &= 65535;
+	addr &= wd->board_mask;
 	v = dmac_gvp_read_word(wd, addr);
 	return v;
 }
@@ -2365,7 +2758,7 @@ static uae_u32 REGPARAM2 dmac_gvp_bget(struct wd_state *wd, uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	addr &= 65535;
+	addr &= wd->board_mask;
 	v = dmac_gvp_read_byte(wd, addr);
 	return v;
 }
@@ -2375,7 +2768,7 @@ static void REGPARAM2 dmac_gvp_lput(struct wd_state *wd, uaecptr addr, uae_u32 l
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	addr &= 65535;
+	addr &= wd->board_mask;
 	dmac_gvp_write_word(wd, addr + 0, l >> 16);
 	dmac_gvp_write_word(wd, addr + 2, l);
 }
@@ -2385,7 +2778,7 @@ static void REGPARAM2 dmac_gvp_wput(struct wd_state *wd, uaecptr addr, uae_u32 w
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	addr &= 65535;
+	addr &= wd->board_mask;
 	dmac_gvp_write_word(wd, addr, w);
 }
 static void REGPARAM2 dmac_gvp_bput(struct wd_state *wd, uaecptr addr, uae_u32 b)
@@ -2394,11 +2787,11 @@ static void REGPARAM2 dmac_gvp_bput(struct wd_state *wd, uaecptr addr, uae_u32 b
 	special_mem |= S_WRITE;
 #endif
 	b &= 0xff;
-	addr &= 65535;
+	addr &= wd->board_mask;
 	if (wd->autoconfig) {
 		addrbank *ab = wd == &wd_gvp ? &gvp_bank : &gvp_2_bank;
 		if (addr == 0x48 && !wd->configured) {
-			map_banks_z2(ab, b, 0x10000 >> 16);
+			map_banks_z2(ab, b, (wd->board_mask + 1) >> 16);
 			wd->configured = 1;
 			expamem_next(ab, NULL);
 			return;
@@ -2420,7 +2813,7 @@ static uae_u32 REGPARAM2 dmac_gvp_wgeti(struct wd_state *wd, uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	addr &= 65535;
+	addr &= wd->board_mask;
 	if (addr >= GVP_ROM_OFFSET) {
 		addr -= GVP_ROM_OFFSET;
 		v = (wd->rom[addr & wd->rom_mask] << 8) | wd->rom[(addr + 1) & wd->rom_mask];
@@ -2435,7 +2828,7 @@ static uae_u32 REGPARAM2 dmac_gvp_lgeti(struct wd_state *wd, uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	addr &= 65535;
+	addr &= wd->board_mask;
 	v = dmac_gvp_wgeti(wd, addr) << 16;
 	v |= dmac_gvp_wgeti(wd, addr + 2);
 	return v;
@@ -2851,7 +3244,7 @@ static void *scsi_thread (void *wdv)
 				wd_cmd_sel_xfer (wd, wds, false);
 				break;
 			case WD_CMD_TRANS_INFO:
-				wd_cmd_trans_info (wds, wd->scsi);
+				wd_cmd_trans_info (wds, wd->scsi, false);
 				break;
 			case WD_CMD_TRANS_ADDR:
 				wd_cmd_trans_addr(wd, wds);
@@ -2859,6 +3252,9 @@ static void *scsi_thread (void *wdv)
 			case WD_CMD_NEGATE_ACK:
 				if (wd->wd_phase == CSR_MSGIN && wd->wd_selected)
 					wd_do_transfer_in(wd, wd->scsi, false);
+				break;
+			case WD_CMD_TRANSFER_PAD:
+				wd_cmd_trans_info (wds, wd->scsi, true);
 				break;
 			default:
 				wd->wd_busy = false;
@@ -2932,6 +3328,18 @@ void a3000scsi_free (void)
 	}
 }
 
+int a2090_add_scsi_unit(int ch, struct uaedev_config_info *ci)
+{
+	struct wd_state *wd = wda2091[ci->controller_type_unit];
+
+	if (ci->type == UAEDEV_CD)
+		return add_scsi_cd(wd->scsis, ch, ci->device_emu_unit);
+	else if (ci->type == UAEDEV_TAPE)
+		return add_scsi_tape(wd->scsis, ch, ci->rootdir, ci->readonly);
+	else
+		return add_scsi_hd(wd->scsis, ch, NULL, ci, 1);
+}
+
 int a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci)
 {
 	struct wd_state *wd = wda2091[ci->controller_type_unit];
@@ -2986,10 +3394,35 @@ static void a2091_reset_device(struct wd_state *wd)
 	xt_reset(wd);
 }
 
+static void a2090_reset_device(struct wd_state *wd)
+{
+	wd->configured = 0;
+	wd->wc.wd_used = 0;
+	wd->wc.wd33c93_ver = 1;
+	wd->dmac_type = COMMODORE_8727;
+	wd->cdmac.old_dmac = 0;
+	wd_cmd_reset (&wd->wc, false);
+	reset_dmac(wd);
+	if (wd == &wd_a2091)
+		wd->name = _T("A2090");
+	if (wd == &wd_a2091_2)
+		wd->name = _T("A2090 #2");
+}
+
 void a2091_reset (void)
 {
-	a2091_reset_device(&wd_a2091);
-	a2091_reset_device(&wd_a2091_2);
+	struct romconfig *rc;
+	
+	rc = get_device_romconfig(&currprefs, 0, ROMTYPE_A2091);
+	if (rc) {
+		a2091_reset_device(&wd_a2091);
+		a2091_reset_device(&wd_a2091_2);
+	}
+	rc = get_device_romconfig(&currprefs, 0, ROMTYPE_A2090);
+	if (rc) {
+		a2090_reset_device(&wd_a2091);
+		a2090_reset_device(&wd_a2091_2);
+	}
 }
 
 addrbank *a2091_init (int devnum)
@@ -3003,8 +3436,16 @@ addrbank *a2091_init (int devnum)
 		return &expamem_null;
 
 	init_wd_scsi(wd);
+
+	rc = get_device_romconfig(&currprefs, devnum, ROMTYPE_A2091);
+	if (rc)
+		wd->cdmac.old_dmac = rc->subtype == 0;
+
 	wd->configured = 0;
 	wd->autoconfig = true;
+	wd->board_mask = 65535;
+	wd->bank = devnum ? &dmaca2091_2_bank : &dmaca2091_bank;
+	wd->bank->name = devnum ? _T("A2091 2nd") : _T("A2091");
 	memset (wd->dmacmemory, 0xff, sizeof wd->dmacmemory);
 	ew (wd, 0x00, 0xc0 | 0x01 | 0x10);
 	/* A590/A2091 hardware id */
@@ -3035,7 +3476,6 @@ addrbank *a2091_init (int devnum)
 	memset(wd->rom, 0xff, slotsize);
 	wd->rom_size = 16384;
 	wd->rom_mask = wd->rom_size - 1;
-	rc = get_device_romconfig(&currprefs, devnum, ROMTYPE_A2091);
 	if (rc && !rc->autoboot_disabled) {
 		if (is_device_rom(&currprefs, devnum, ROMTYPE_A2091)) {
 			struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_A2091, roms);
@@ -3061,6 +3501,73 @@ addrbank *a2091_init (int devnum)
 		}
 	}
 	return wd == &wd_a2091 ? &dmaca2091_bank : &dmaca2091_2_bank;
+}
+
+addrbank *a2090_init (int devnum)
+{
+	struct wd_state *wd = wda2091[devnum];
+	int roms[6];
+	int slotsize;
+	struct romconfig *rc = NULL;
+
+	if (devnum > 0 && !wd->enabled)
+		return &expamem_null;
+
+	init_wd_scsi(wd);
+
+	rc = get_device_romconfig(&currprefs, devnum, ROMTYPE_A2090);
+
+	wd->configured = 0;
+	wd->autoconfig = true;
+	wd->board_mask = 65535;
+	wd->bank = devnum ? &dmaca2091_2_bank : &dmaca2091_bank;
+	wd->bank->name = devnum ? _T("A2090a 2nd") : _T("A2090a");
+	memset (wd->dmacmemory, 0xff, sizeof wd->dmacmemory);
+	ew (wd, 0x00, 0xc0 | 0x01 | 0x10);
+	/* A590/A2091 hardware id */
+	ew(wd, 0x04, rc->subtype ? 0x02 : 0x01);
+	/* commodore's manufacturer id */
+	ew (wd, 0x10, 0x02);
+	ew (wd, 0x14, 0x02);
+	/* rom vector */
+	ew (wd, 0x28, DMAC_8727_ROM_VECTOR >> 8);
+	ew (wd, 0x2c, DMAC_8727_ROM_VECTOR);
+
+	ew (wd, 0x18, 0x00); /* ser.no. Byte 0 */
+	ew (wd, 0x1c, 0x00); /* ser.no. Byte 1 */
+	ew (wd, 0x20, 0x00); /* ser.no. Byte 2 */
+	ew (wd, 0x24, 0x00); /* ser.no. Byte 3 */
+
+	ew(wd, 0x30, 0x80); // SCSI only flag
+
+	roms[0] = 122;
+	roms[1] = -1;
+
+	wd->rombankswitcher = 0;
+	wd->rombank = 0;
+	slotsize = 65536;
+	wd->rom = xcalloc (uae_u8, slotsize);
+	memset(wd->rom, 0xff, slotsize);
+	wd->rom_size = 16384;
+	wd->rom_mask = wd->rom_size - 1;
+	if (rc && !rc->autoboot_disabled) {
+		if (is_device_rom(&currprefs, devnum, ROMTYPE_A2090)) {
+			struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_A2090, roms);
+			if (z) {
+				write_log (_T("A2090a BOOT ROM '%s'\n"), zfile_getname (z));
+				wd->rom_size = zfile_size (z);
+				zfile_fread (wd->rom, wd->rom_size, 1, z);
+				zfile_fclose (z);
+				for (int i = 1; i < slotsize / wd->rom_size; i++) {
+					memcpy (wd->rom + i * wd->rom_size, wd->rom, wd->rom_size);
+				}
+				wd->rom_mask = wd->rom_size - 1;
+			} else {
+				romwarning (roms);
+			}
+		}
+	}
+	return wd->bank;
 }
 
 void gvp_free_device (struct wd_state *wd)
@@ -3097,23 +3604,34 @@ void gvp_reset (void)
 	gvp_reset_device(&wd_gvp_2);
 }
 
-static const uae_u8 gvp_scsi_i_autoconfig[16] = { 0xd1, 0x02, 0x00, 0x00, 0x07, 0xe1, 0xee, 0xee, 0xee, 0xee, 0x80, 0x00 };
-static const uae_u8 gvp_scsi_ii_autoconfig[16] = { 0xd1, 0x0b, 0x00, 0x00, 0x07, 0xe1, 0xee, 0xee, 0xee, 0xee, 0x80, 0x00 };
+static const uae_u8 gvp_scsi_i_autoconfig_1[16] = { 0xd1, 0x01, 0x00, 0x00, 0x07, 0xe1, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 };
+static const uae_u8 gvp_scsi_i_autoconfig_2[16] = { 0xd1, 0x02, 0x00, 0x00, 0x07, 0xe1, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 };
+static const uae_u8 gvp_scsi_i_autoconfig_3[16] = { 0xd2, 0x03, 0x00, 0x00, 0x07, 0xe1, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 };
+static const uae_u8 gvp_scsi_ii_autoconfig[16] =  { 0xd1, 0x0b, 0x00, 0x00, 0x07, 0xe1, 0xee, 0xee, 0xee, 0xee, 0x80, 0x00 };
 
 static bool is_gvp_accelerator(void)
 {
-	return currprefs.cpuboard_type == BOARD_GVP_A530 ||
-		currprefs.cpuboard_type == BOARD_GVP_GFORCE_030;
+	return currprefs.cpuboard_type == BOARD_GVP;
 }
 
 static addrbank *gvp_init(int devnum, bool series2)
 {
-	struct wd_state *wd = gvpscsi[devnum];
+	struct wd_state *wd;
 	int roms[6];
 	bool isscsi = true;
 	struct romconfig *rc = NULL;
+	const uae_u8 *ac;
+	int romtype;
 
-	if (devnum > 0 && !wd->enabled && currprefs.cpuboard_type != BOARD_GVP_A530)
+	if (devnum >= 0) {
+		romtype = series2 ? ROMTYPE_GVPS2 : ROMTYPE_GVPS1;
+	} else {
+		devnum = 0;
+		romtype = ROMTYPE_CPUBOARD;
+	}
+	wd = gvpscsi[devnum];
+
+	if (devnum > 0 && !wd->enabled)
 		return &expamem_null;
 
 	init_wd_scsi(wd);
@@ -3123,6 +3641,8 @@ static addrbank *gvp_init(int devnum, bool series2)
 	wd->rombankswitcher = 0;
 	memset(wd->dmacmemory, 0xff, sizeof wd->dmacmemory);
 	wd->gdmac.series2 = series2;
+	wd->gdmac.use_version = series2;
+	wd->board_mask = 65535;
 
 	roms[0] = 109;
 	roms[1] = 110;
@@ -3133,51 +3653,86 @@ static addrbank *gvp_init(int devnum, bool series2)
 	wd->rom = xcalloc(uae_u8, wd->rom_size);
 	memset(wd->rom, 0xff, wd->rom_size);
 	wd->rom_mask = 32768 - 1;
+	wd->gdmac.s1_subtype = 0;
+	ac = gvp_scsi_ii_autoconfig;
 
-	rc = get_device_romconfig(&currprefs, devnum, series2 ? ROMTYPE_GVPS2 : ROMTYPE_GVPS1);
-	if (rc && !rc->autoboot_disabled) {
-		if (is_device_rom(&currprefs, devnum, series2 ? ROMTYPE_GVPS2 : ROMTYPE_GVPS1)) {
-			struct zfile *z = read_device_rom(&currprefs, devnum, series2 ? ROMTYPE_GVPS2 : ROMTYPE_GVPS1, roms);
-			if (z) {
-				write_log(_T("GVP BOOT ROM '%s'\n"), zfile_getname(z));
-				int size = zfile_size(z);
-				if (series2) {
-					zfile_fread(wd->rom, 1, wd->rom_size, z);
-				} else {
-					xfree(wd->gdmac.buffer);
-					wd->gdmac.buffer = xcalloc(uae_u8, GVP_SERIES_I_RAM_MASK + 1);
-					for (int i = 0; i < 16384; i++) {
-						uae_u8 b;
-						zfile_fread(&b, 1, 1, z);
-						wd->rom[i] = b;
-					}
-				}
-				zfile_fclose(z);
-				if (series2 && size > 16384) {
-					wd->rombankswitcher = 1;
-				}
-			} else {
-				isscsi = false;
-				if (!is_gvp_accelerator())
-					romwarning(roms);
+	rc = get_device_romconfig(&currprefs, devnum, romtype);
+	if (rc) {
+		ac = gvp_scsi_ii_autoconfig;
+		if (!series2) {
+			ac = gvp_scsi_i_autoconfig_1;
+			wd->gdmac.s1_rammask = GVP_SERIES_I_RAM_MASK_1;
+			wd->gdmac.s1_ramoffset = GVP_SERIES_I_RAM_OFFSET_1;
+			if (rc->subtype == 1) {
+				ac = gvp_scsi_i_autoconfig_2;
+				wd->gdmac.s1_rammask = GVP_SERIES_I_RAM_MASK_2;
+				wd->gdmac.s1_ramoffset = GVP_SERIES_I_RAM_OFFSET_2;
+			} else if (rc->subtype == 2) {
+				ac = gvp_scsi_i_autoconfig_3;
+				wd->gdmac.s1_rammask = GVP_SERIES_I_RAM_MASK_3;
+				wd->gdmac.s1_ramoffset = GVP_SERIES_I_RAM_OFFSET_3;
+				wd->board_mask = 131071;
 			}
+			wd->gdmac.s1_subtype = rc->subtype;
 		}
-	} else {
-		isscsi = false;
+		xfree(wd->gdmac.buffer);
+		wd->gdmac.buffer = xcalloc(uae_u8, 16384);
+		if (!rc->autoboot_disabled) {
+			if (is_device_rom(&currprefs, devnum, romtype)) {
+				struct zfile *z = read_device_rom(&currprefs, devnum, romtype, roms);
+				if (z) {
+					write_log(_T("GVP BOOT ROM '%s'\n"), zfile_getname(z));
+					int size = zfile_size(z);
+					if (series2) {
+						zfile_fread(wd->rom, 1, wd->rom_size, z);
+					} else {
+						int j = 0;
+						bool oddonly = false;
+						for (int i = 0; i < 16384; i++) {
+							uae_u8 b;
+							zfile_fread(&b, 1, 1, z);
+							wd->rom[j++] = b;
+							if (i == 0 && (b & 0xc0) != 0x80) {
+								// was not wordwide
+								oddonly = true;
+								wd->gdmac.use_version = true;
+							}
+							if (oddonly) {
+								wd->rom[j++] = 0xff;
+							}
+						}
+					}
+					zfile_fclose(z);
+					if (series2 && size > 16384) {
+						wd->rombankswitcher = 1;
+					}
+				} else {
+					isscsi = false;
+					if (!is_gvp_accelerator())
+						romwarning(roms);
+				}
+			}
+		} else {
+			isscsi = false;
+		}
 	}
 
-	wd->gdmac.version = GVP_SERIESII;
-	wd->gdmac.addr_mask = 0x00ffffff;
-	if (currprefs.cpuboard_type == BOARD_GVP_A530) {
-		wd->gdmac.version = isscsi ? GVP_A530_SCSI : GVP_A530;
-		wd->gdmac.addr_mask = 0x01ffffff;
-	} else if (currprefs.cpuboard_type == BOARD_GVP_GFORCE_030) {
-		wd->gdmac.version = isscsi ? GVP_GFORCE_030_SCSI : GVP_GFORCE_030;
-		wd->gdmac.addr_mask = 0x01ffffff;
+	if (series2) {
+		wd->gdmac.version = GVP_SERIESII;
+		wd->gdmac.addr_mask = 0x00ffffff;
+		if (ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_A530)) {
+			wd->gdmac.version = isscsi ? GVP_A530_SCSI : GVP_A530;
+			wd->gdmac.addr_mask = 0x01ffffff;
+		} else if (ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_GFORCE030)) {
+			wd->gdmac.version = isscsi ? GVP_GFORCE_030_SCSI : GVP_GFORCE_030;
+			wd->gdmac.addr_mask = 0x01ffffff;
+		}
+	} else {
+		wd->gdmac.version = 0x00;
 	}
 
 	for (int i = 0; i < 16; i++) {
-		uae_u8 b = wd->gdmac.series2 ? gvp_scsi_ii_autoconfig[i] : gvp_scsi_i_autoconfig[i];
+		uae_u8 b = ac[i];
 		ew(wd, i * 4, b);
 	}
 	gvp_reset_device(wd);
@@ -3194,7 +3749,7 @@ addrbank *gvp_init_s2(int devnum)
 }
 addrbank *gvp_init_accelerator(int devnum)
 {
-	return gvp_init(1, true);
+	return gvp_init(-1, true);
 }
 
 uae_u8 *save_scsi_dmac (int wdtype, int *len, uae_u8 *dstptr)

@@ -169,6 +169,7 @@ typedef struct {
 	bool wasisempty; /* if true, this unit was created empty */
 	bool canremove; /* if true, this unit can be safely ejected and remounted */
 	bool configureddrive; /* if true, this is drive that was manually configured */
+	bool inject_icons; /* inject icons if directory filesystem */
 
 	struct hardfiledata hf;
 
@@ -702,6 +703,7 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 	if (c.bootpri > 127)
 		c.bootpri = 127;
 	ui->bootpri = c.bootpri;
+	ui->inject_icons = c.inject_icons;
 	ui->open = 1;
 
 	return nr;
@@ -794,49 +796,11 @@ static void allocuci (struct uae_prefs *p, int nr, int idx)
 int add_cpuboard_unit(int unit, struct uaedev_config_info *uci)
 {
 	bool added = false;
-	bool ide = uci->controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && uci->controller_type <= HD_CONTROLLER_TYPE_IDE_LAST;
-	if (!ide) {
-#ifdef NCR
-		if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
-			warpengine_add_scsi_unit(unit, uci);
-			added = true;
-		} else if (currprefs.cpuboard_type == BOARD_DKB1200) {
-			cpuboard_dkb_add_scsi_unit(unit, uci);
-			added = true;
-		} else if (currprefs.cpuboard_type == BOARD_TEKMAGIC) {
-			tekmagic_add_scsi_unit(unit, uci);
-			added = true;
-		} else if (currprefs.cpuboard_type == BOARD_CSMK3 || currprefs.cpuboard_type == BOARD_CSPPC) {
-			cyberstorm_add_scsi_unit(unit, uci);
-			added = true;
-		} else if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC) {
-			blizzardppc_add_scsi_unit(unit, uci);
-			added = true;
-		} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_2060 ||
-			currprefs.cpuboard_type == BOARD_CSMK1 ||
-			currprefs.cpuboard_type == BOARD_CSMK2) {
-				cpuboard_ncr9x_add_scsi_unit(unit, uci);
-				added = true;
-		} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV ||
-			currprefs.cpuboard_type == BOARD_BLIZZARD_1260) {
-			if (cfgfile_board_enabled(&currprefs, ROMTYPE_CPUBOARDEXT)) {
-				cpuboard_ncr9x_add_scsi_unit(unit, uci);
-				added = true;
-			}
-		}
-#endif
-		if (currprefs.cpuboard_type == BOARD_APOLLO) {
-			apollo_add_scsi_unit(unit, uci);
-			added = true;
-		} else if (currprefs.cpuboard_type == BOARD_GVP_A530) {
-			gvp_add_scsi_unit(unit, uci);
-			added = true;
-		}
-	} else {
-		if (currprefs.cpuboard_type == BOARD_A3001_I || currprefs.cpuboard_type == BOARD_A3001_II) {
-			gvp_add_ide_unit(unit, uci);
-			added = true;
-		}
+	int flags = (uci->controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && uci->controller_type <= HD_CONTROLLER_TYPE_IDE_LAST) ? EXPANSIONTYPE_IDE : EXPANSIONTYPE_SCSI;
+	const struct cpuboardtype *cbt = &cpuboards[currprefs.cpuboard_type];
+	if (cbt->subtypes) {
+		if (cbt->subtypes[currprefs.cpuboard_subtype].add && (cbt->subtypes[currprefs.cpuboard_subtype].deviceflags & flags))
+			added = cbt->subtypes[currprefs.cpuboard_subtype].add(unit, uci);
 	}
 	return added;
 }
@@ -893,9 +857,11 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 			if (i == type - HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST) {
 				const struct expansionromtype *ert = &expansionroms[i];
 				if ((ert->deviceflags & 1) && cfgfile_board_enabled(&currprefs, ert->romtype)) {
-					if (ert->add)
-						ert->add(unit, uci);
-					added = true;
+					if (ert->add) {
+						added = ert->add(unit, uci);
+					} else {
+						added = true;
+					}
 				}
 			}
 		}
@@ -4596,7 +4562,7 @@ static void populate_directory (Unit *unit, a_inode *base)
 		aino = lookup_child_aino_for_exnext (unit, base, fn, &err, uniq, NULL);
 	}
 	fs_closedir (d);
-	if (currprefs.filesys_inject_icons)
+	if (currprefs.filesys_inject_icons || unit->ui.inject_icons)
 		inject_icons_to_directory(unit, base);
 }
 

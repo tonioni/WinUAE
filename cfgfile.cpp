@@ -206,28 +206,6 @@ static const TCHAR *rtgtype[] = {
 	_T("Spectrum28/24_Z2"), _T("Spectrum28/24_Z3"),
 	_T("PicassoIV_Z2"), _T("PicassoIV_Z3"),
 	0 };
-static const TCHAR *cpuboards[] = {
-	_T("none"),
-	_T("Blizzard1230IV"),
-	_T("Blizzard1260"),
-	_T("Blizzard2060"),
-	_T("CyberStormMK1"),
-	_T("CyberStormMK2"),
-	_T("CyberStormMK3"),
-	_T("CyberStormPPC"),
-	_T("BlizzardPPC"),
-	_T("WarpEngineA4000"),
-	_T("TekMagic"),
-	_T("A2630"),
-	_T("DKB12x0"),
-	_T("FusionForty"),
-	_T("A3001SI"),
-	_T("A3001SII"),
-	_T("Apollo"),
-	_T("GVPA530"),
-	_T("GVPGFORCE030"),
-	NULL
-};
 static const TCHAR *ppc_implementations[] = {
 	_T("auto"),
 	_T("dummy"),
@@ -999,9 +977,26 @@ static void cfgfile_write_board_rom(struct zfile *f, struct multipath *mp, struc
 				_stprintf(buf, _T("%s%s_rom"), name, i ? _T("_ext") : _T(""));
 				cfgfile_dwrite_str (f, buf, br->roms[i].romident);
 			}
-			if (br->roms[i].autoboot_disabled) {
+			if (br->roms[i].autoboot_disabled || ert->subtypes) {
+				TCHAR buf2[256], *p;
+				buf2[0] = 0;
+				p = buf2;
 				_stprintf(buf, _T("%s%s_rom_options"), name, i ? _T("_ext") : _T(""));
-				cfgfile_dwrite_str (f, buf, _T("autoboot_disabled=true")); // ",another_option=xx"
+				if (ert->subtypes) {
+					const struct expansionsubromtype *srt = ert->subtypes;
+					int k = br->roms[i].subtype;
+					while (k && srt[1].name) {
+						srt++;
+						k--;
+					}
+					_stprintf(p, _T("subtype=%s"), srt->configname);
+				}
+				if (br->roms[i].autoboot_disabled) {
+					if (buf2[0])
+						_tcscat(buf2, _T(","));
+					_tcscat(buf2, _T("autoboot_disabled=true"));
+				}
+				cfgfile_dwrite_str (f, buf, buf2);
 			}
 
 			if (br->roms[i].board_ram_size) {
@@ -1398,6 +1393,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_dwrite_ext (f, _T("gfx_filter_contrast"), ext, _T("%d"), gf->gfx_filter_contrast);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_saturation"), ext, _T("%d"), gf->gfx_filter_saturation);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_gamma"), ext, _T("%d"), gf->gfx_filter_gamma);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_gamma_r"), ext, _T("%d"), gf->gfx_filter_gamma_ch[0]);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_gamma_g"), ext, _T("%d"), gf->gfx_filter_gamma_ch[1]);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_gamma_b"), ext, _T("%d"), gf->gfx_filter_gamma_ch[2]);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_blur"), ext, _T("%d"), gf->gfx_filter_blur);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_noise"), ext, _T("%d"), gf->gfx_filter_noise);
 		cfgfile_dwrite_bool (f, _T("gfx_filter_bilinear"), ext, gf->gfx_filter_bilinear != 0);
@@ -1415,6 +1413,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, _T("gfx_luminance"), _T("%d"), p->gfx_luminance);
 	cfgfile_dwrite (f, _T("gfx_contrast"), _T("%d"), p->gfx_contrast);
 	cfgfile_dwrite (f, _T("gfx_gamma"), _T("%d"), p->gfx_gamma);
+	cfgfile_dwrite (f, _T("gfx_gamma_r"), _T("%d"), p->gfx_gamma_ch[0]);
+	cfgfile_dwrite (f, _T("gfx_gamma_g"), _T("%d"), p->gfx_gamma_ch[1]);
+	cfgfile_dwrite (f, _T("gfx_gamma_b"), _T("%d"), p->gfx_gamma_ch[2]);
 
 	cfgfile_dwrite (f, _T("gfx_center_horizontal_position"), _T("%d"), p->gfx_xcenter_pos);
 	cfgfile_dwrite (f, _T("gfx_center_vertical_position"), _T("%d"), p->gfx_ycenter_pos);
@@ -1559,7 +1560,23 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, _T("z3mem2_size"), _T("%d"), p->z3fastmem2_size / 0x100000);
 	cfgfile_write (f, _T("z3mem_start"), _T("0x%x"), p->z3autoconfig_start);
 	cfgfile_write(f, _T("bogomem_size"), _T("%d"), p->bogomem_size / 0x40000);
-	cfgfile_dwrite_str(f, _T("cpuboard_type"), cpuboards[p->cpuboard_type]);
+	if (p->cpuboard_type) {
+		const struct cpuboardtype *cbt = &cpuboards[p->cpuboard_type];
+		const struct cpuboardsubtype *cbst = &cbt->subtypes[p->cpuboard_subtype];
+		const struct cpuboardsettings *cbs = cbst->settings;
+		cfgfile_dwrite_str(f, _T("cpuboard_type"), cbst->configname);
+		if (cbs && p->cpuboard_settings) {
+			tmp[0] = 0;
+			for (int i = 0; cbs[i].name; i++) {
+				if (tmp[0])
+					_tcscat(tmp, _T(","));
+				_tcscat(tmp, cbs[i].configname);
+			}
+			cfgfile_dwrite_str(f, _T("cpuboard_settings"), tmp);
+		}
+	} else {
+		cfgfile_dwrite_str(f, _T("cpuboard_type"), _T("none"));
+	}
 	cfgfile_dwrite(f, _T("cpuboardmem1_size"), _T("%d"), p->cpuboardmem1_size / 0x100000);
 	cfgfile_dwrite(f, _T("cpuboardmem2_size"), _T("%d"), p->cpuboardmem2_size / 0x100000);
 	cfgfile_write(f, _T("gfxcard_size"), _T("%d"), p->rtgmem_size / 0x100000);
@@ -2194,6 +2211,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("gfx_luminance"), &p->gfx_luminance, 1)
 		|| cfgfile_intval (option, value, _T("gfx_contrast"), &p->gfx_contrast, 1)
 		|| cfgfile_intval (option, value, _T("gfx_gamma"), &p->gfx_gamma, 1)
+		|| cfgfile_intval (option, value, _T("gfx_gamma_r"), &p->gfx_gamma_ch[0], 1)
+		|| cfgfile_intval (option, value, _T("gfx_gamma_g"), &p->gfx_gamma_ch[1], 1)
+		|| cfgfile_intval (option, value, _T("gfx_gamma_b"), &p->gfx_gamma_ch[2], 1)
 		|| cfgfile_floatval (option, value, _T("rtg_vert_zoom_multf"), &p->rtg_vert_zoom_mult)
 		|| cfgfile_floatval (option, value, _T("rtg_horiz_zoom_multf"), &p->rtg_horiz_zoom_mult)
 		|| cfgfile_intval (option, value, _T("gfx_horizontal_tweak"), &p->gfx_extrawidth, 1)
@@ -2289,6 +2309,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			|| cfgfile_intval (option, value, _T("gfx_filter_contrast"), ext, &gf->gfx_filter_contrast, 1)
 			|| cfgfile_intval (option, value, _T("gfx_filter_saturation"), ext, &gf->gfx_filter_saturation, 1)
 			|| cfgfile_intval (option, value, _T("gfx_filter_gamma"), ext, &gf->gfx_filter_gamma, 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_gamma_r"), ext, &gf->gfx_filter_gamma_ch[0], 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_gamma_g"), ext, &gf->gfx_filter_gamma_ch[1], 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_gamma_b"), ext, &gf->gfx_filter_gamma_ch[2], 1)
 			|| cfgfile_intval (option, value, _T("gfx_filter_blur"), ext, &gf->gfx_filter_blur, 1)
 			|| cfgfile_intval (option, value, _T("gfx_filter_noise"), ext, &gf->gfx_filter_noise, 1)
 			|| cfgfile_intval (option, value, _T("gfx_filter_bilinear"), ext, &gf->gfx_filter_bilinear, 1)
@@ -3694,24 +3717,77 @@ bool cfgfile_board_enabled(struct uae_prefs *p, int romtype)
 	return brc->roms[idx].romfile[0] != 0;
 }
 
-static int cfgfile_option_bool(TCHAR *s, const TCHAR *option)
+static bool cfgfile_option_find(TCHAR *s, const TCHAR *option)
 {
-	_tcscat(s, _T(","));
+	TCHAR buf[MAX_DPATH];
+	_tcscpy(buf, s);
+	_tcscat(buf, _T(","));
+	TCHAR *p = buf;
 	for (;;) {
-		TCHAR *tmpp = _tcschr (s, ',');
+		TCHAR *tmpp = _tcschr (p, ',');
+		if (tmpp == NULL)
+			return false;
+		*tmpp++ = 0;
+		if (!strcasecmp(p, option)) {
+			return true;
+		}
+		p = tmpp;
+	}
+}
+
+static int cfgfile_option_select(TCHAR *s, const TCHAR *option, const TCHAR *select)
+{
+	TCHAR buf[MAX_DPATH];
+	_tcscpy(buf, s);
+	_tcscat(buf, _T(","));
+	TCHAR *p = buf;
+	for (;;) {
+		TCHAR *tmpp = _tcschr (p, ',');
 		if (tmpp == NULL)
 			return -1;
 		*tmpp++ = 0;
-		TCHAR *tmpp2 = _tcschr(s, '=');
+		TCHAR *tmpp2 = _tcschr(p, '=');
+		if (!tmpp2)
+			return -1;
+		*tmpp2++ = 0;
+		if (!strcasecmp(p, option)) {
+			int idx = 0;
+			while (select[0]) {
+				if (!strcasecmp(select, tmpp2))
+					return idx;
+				idx++;
+				select += _tcslen(select) + 1;
+			}
+		}
+		p = tmpp;
+	}
+}
+
+static int cfgfile_option_bool(TCHAR *s, const TCHAR *option)
+{
+	TCHAR buf[MAX_DPATH];
+	_tcscpy(buf, s);
+	_tcscat(buf, _T(","));
+	TCHAR *p = buf;
+	for (;;) {
+		TCHAR *tmpp = _tcschr (p, ',');
+		if (tmpp == NULL)
+			return -1;
+		*tmpp++ = 0;
+		TCHAR *tmpp2 = _tcschr(p, '=');
 		if (tmpp2)
 			*tmpp2++ = 0;
-		if (!strcasecmp(s, option)) {
+		if (!strcasecmp(p, option)) {
+			TCHAR *tmpp3 = _tcschr (tmpp2, ',');
+			if (tmpp3)
+				*tmpp3 = 0;
 			if (tmpp2 && !strcasecmp(tmpp2, _T("true")))
 				return 1;
 			if (tmpp2 && !strcasecmp(tmpp2, _T("false")))
 				return 0;
 			return 1;
 		}
+		p = tmpp;
 	}
 }
 
@@ -3764,9 +3840,24 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 
 		_stprintf(buf, _T("%s_rom_options"), ert->name);
 		if (cfgfile_string (option, value, buf, buf2, sizeof buf2 / sizeof (TCHAR))) {
+			brc = get_device_rom_new(p, ert->romtype, &idx);
 			if (cfgfile_option_bool(buf2, _T("autoboot_disabled")) == 1) {
-				brc = get_device_rom_new(p, ert->romtype, &idx);
 				brc->roms[idx].autoboot_disabled = true;
+			}
+			if (ert->subtypes) {
+				const struct expansionsubromtype *srt = ert->subtypes;
+				TCHAR tmp[MAX_DPATH], *p;
+				p = tmp;
+				*p = 0;
+				while (srt->name) {
+					_tcscpy(p, srt->configname);
+					p += _tcslen(p) + 1;
+					p[0] = 0;
+					srt++;
+				}
+				int v = cfgfile_option_select(buf2, _T("subtype"), tmp);
+				if (v >= 0)
+					brc->roms[idx].subtype = v;
 			}
 			return true;
 		}
@@ -3913,7 +4004,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval (option, value, _T("bogomem_size"), &p->bogomem_size, 0x40000)
 		|| cfgfile_intval (option, value, _T("gfxcard_size"), &p->rtgmem_size, 0x100000)
 		|| cfgfile_strval(option, value, _T("gfxcard_type"), &p->rtgmem_type, rtgtype, 0)
-		|| cfgfile_strval(option, value, _T("cpuboard_type"), &p->cpuboard_type, cpuboards, 0)
 		|| cfgfile_intval(option, value, _T("rtg_modes"), &p->picasso96_modeflags, 1)
 		|| cfgfile_intval (option, value, _T("floppy_speed"), &p->floppy_speed, 1)
 		|| cfgfile_intval (option, value, _T("cd_speed"), &p->cd_speed, 1)
@@ -3963,6 +4053,37 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_string (option, value, _T("pci_devices"), p->pci_devices, sizeof p->pci_devices / sizeof (TCHAR))
 		|| cfgfile_string (option, value, _T("ghostscript_parameters"), p->ghostscript_parameters, sizeof p->ghostscript_parameters / sizeof (TCHAR)))
 		return 1;
+
+	if (cfgfile_string(option, value, _T("cpuboard_type"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
+		p->cpuboard_type = 0;
+		p->cpuboard_subtype = 0;
+		for (i = 0; cpuboards[i].name && !p->cpuboard_type; i++) {
+			const struct cpuboardtype *cbt = &cpuboards[i];
+			if (cbt->subtypes) {
+				for (int j = 0; cbt->subtypes[j].name; j++) {
+					if (!_tcsicmp(cbt->subtypes[j].configname, tmpbuf)) {
+						p->cpuboard_type = i;
+						p->cpuboard_subtype = j;
+					}
+				}
+			}
+		}
+		return 1;
+	}
+	if (cfgfile_string(option, value, _T("cpuboard_settings"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
+		p->cpuboard_settings = 0;
+		const struct cpuboardsubtype *cbst = &cpuboards[p->cpuboard_type].subtypes[p->cpuboard_subtype];
+		if (cbst->settings) {
+			const struct cpuboardsettings *cbs = cbst->settings;
+			for(i = 0; cbs[i].name; i++) {
+				if (cfgfile_option_find(tmpbuf, cbs[i].configname)) {
+					p->cpuboard_settings |= 1 << i;
+					break;
+				}
+			}
+		}
+		return 1;
+	}
 
 	if (cfgfile_strval (option, value, _T("chipset_compatible"), &p->cs_compatible, cscompa, 0)) {
 		built_in_chipset_prefs (p);
@@ -5921,6 +6042,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
 
 	_tcscpy (p->romextfile, _T(""));
 	_tcscpy (p->romextfile2, _T(""));
+	set_device_rom(p, NULL, ROMTYPE_CPUBOARD);
+	set_device_rom(p, NULL, ROMTYPE_CPUBOARDEXT);
 
 	p->prtname[0] = 0;
 	p->sername[0] = 0;
@@ -6044,8 +6167,11 @@ static int bip_a4000 (struct uae_prefs *p, int config, int compa, int romcheck)
 		p->cpu_model = 68060;
 		p->fpu_model = 68060;
 		p->ppc_mode = 1;
-		p->cpuboard_type = BOARD_CSPPC;
+		p->cpuboard_type = BOARD_CYBERSTORM;
+		p->cpuboard_subtype = BOARD_CYBERSTORM_SUB_PPC;
 		p->cpuboardmem1_size = 128 * 1024 * 1024;
+		int roms_ppc[] = { 98, -1 };
+		configure_rom(p, roms_ppc, romcheck);
 		break;
 	}
 	p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
@@ -6231,12 +6357,15 @@ static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
 static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 {
 	int roms[4];
+	int roms_bliz[2];
 
 	buildin_default_prefs_68020 (p);
 	roms[0] = 11;
 	roms[1] = 15;
 	roms[2] = 31;
 	roms[3] = -1;
+	roms_bliz[0] = -1;
+	roms_bliz[1] = -1;
 	p->cs_rtc = 0;
 	p->cs_compatible = CP_A1200;
 	built_in_chipset_prefs (p);
@@ -6247,27 +6376,37 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 		p->cs_rtc = 1;
 		break;
 		case 2:
-		p->cpuboard_type = BOARD_BLIZZARD_1230_IV;
+		p->cpuboard_type = BOARD_BLIZZARD;
+		p->cpuboard_subtype = BOARD_BLIZZARD_SUB_1230IV;
 		p->cpuboardmem1_size = 32 * 1024 * 1024;
 		p->cpu_model = 68030;
 		p->cs_rtc = 1;
+		roms_bliz[0] = 90;
+		configure_rom(p, roms_bliz, romcheck);
 		break;
 		case 3:
-		p->cpuboard_type = BOARD_BLIZZARD_1260;
+		p->cpuboard_type = BOARD_BLIZZARD;
+		p->cpuboard_subtype = BOARD_BLIZZARD_SUB_1260;
 		p->cpuboardmem1_size = 32 * 1024 * 1024;
 		p->cpu_model = 68040;
 		p->fpu_model = 68040;
 		p->cs_rtc = 1;
+		roms_bliz[0] = 90;
+		configure_rom(p, roms_bliz, romcheck);
 		break;
 		case 4:
-		p->cpuboard_type = BOARD_BLIZZARD_1260;
+		p->cpuboard_type = BOARD_BLIZZARD;
+		p->cpuboard_subtype = BOARD_BLIZZARD_SUB_1260;
 		p->cpuboardmem1_size = 32 * 1024 * 1024;
 		p->cpu_model = 68060;
 		p->fpu_model = 68060;
 		p->cs_rtc = 1;
+		roms_bliz[0] = 90;
+		configure_rom(p, roms_bliz, romcheck);
 		break;
 		case 5:
-		p->cpuboard_type = BOARD_BLIZZARDPPC;
+		p->cpuboard_type = BOARD_BLIZZARD;
+		p->cpuboard_subtype = BOARD_BLIZZARD_SUB_PPC;
 		p->cpuboardmem1_size = 256 * 1024 * 1024;
 		p->cpu_model = 68060;
 		p->fpu_model = 68060;
@@ -6276,11 +6415,11 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 		roms[0] = 15;
 		roms[1] = 11;
 		roms[2] = -1;
+		roms_bliz[0] = 100;
+		configure_rom(p, roms_bliz, romcheck);
 		break;
 	}
 	set_68020_compa (p, compa, 0);
-	set_device_rom(p, NULL, ROMTYPE_CPUBOARD);
-	set_device_rom(p, NULL, ROMTYPE_CPUBOARDEXT);
 	return configure_rom (p, roms, romcheck);
 }
 
@@ -6673,32 +6812,47 @@ int built_in_cpuboard_prefs(struct uae_prefs *p)
 
 	switch(p->cpuboard_type)
 	{
-	case BOARD_BLIZZARD_1230_IV:
-		roms[0] = 89;
+		case BOARD_MACROSYSTEM:
+		switch(p->cpuboard_subtype)
+		{
+			case BOARD_MACROSYSTEM_SUB_WARPENGINE_A4000:
+			roms[0] = 93;
+			break;
+		}
 		break;
-	case BOARD_BLIZZARD_1260:
-		roms[0] = 90;
+		case BOARD_BLIZZARD:
+		switch(p->cpuboard_subtype)
+		{
+		case BOARD_BLIZZARD_SUB_1230IV:
+			roms[0] = 89;
+			break;
+		case BOARD_BLIZZARD_SUB_1260:
+			roms[0] = 90;
+			break;
+		case BOARD_BLIZZARD_SUB_2060:
+			roms[0] = 92;
+			break;
+		case BOARD_BLIZZARD_SUB_PPC:
+			roms[0] = p->cpu_model == 68040 ? 99 : 100;
+			break;
+		}
 		break;
-	case BOARD_BLIZZARD_2060:
-		roms[0] = 92;
-		break;
-	case BOARD_WARPENGINE_A4000:
-		roms[0] = 93;
-		break;
-	case BOARD_CSMK1:
-		roms[0] = p->cpu_model == 68040 ? 95 : 101;
-		break;
-	case BOARD_CSMK2:
-		roms[0] = 96;
-		break;
-	case BOARD_CSMK3:
-		roms[0] = 97;
-		break;
-	case BOARD_CSPPC:
-		roms[0] = 98;
-		break;
-	case BOARD_BLIZZARDPPC:
-		roms[0] = p->cpu_model == 68040 ? 99 : 100;
+		case BOARD_CYBERSTORM:
+		switch(p->cpuboard_subtype)
+		{
+		case BOARD_CYBERSTORM_SUB_MK1:
+			roms[0] = p->cpu_model == 68040 ? 95 : 101;
+			break;
+		case BOARD_CYBERSTORM_SUB_MK2:
+			roms[0] = 96;
+			break;
+		case BOARD_CYBERSTORM_SUB_MK3:
+			roms[0] = 97;
+			break;
+		case BOARD_CYBERSTORM_SUB_PPC:
+			roms[0] = 98;
+			break;
+		}
 		break;
 	}
 	if (!configure_rom(p, roms, 0))

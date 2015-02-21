@@ -3135,14 +3135,14 @@ static TCHAR *BSTR2CSTR (uae_u8 *bstr)
 	return s;
 }
 
-static void print_task_info (uaecptr node)
+static void print_task_info (uaecptr node, bool nonactive)
 {
 	TCHAR *s;
 	int process = get_byte_debug (node + 8) == 13 ? 1 : 0;
 
 	console_out_f (_T("%08X: "), node);
 	s = au ((char*)get_real_address (get_long_debug (node + 10)));
-	console_out_f (process ? _T(" PROCESS '%s'\n") : _T(" TASK    '%s'\n"), s);
+	console_out_f (process ? _T("PROCESS '%s'\n") : _T("TASK    '%s'\n"), s);
 	xfree (s);
 	if (process) {
 		uaecptr cli = BPTR2APTR (get_long_debug (node + 172));
@@ -3156,30 +3156,36 @@ static void print_task_info (uaecptr node)
 			console_out (_T("\n"));
 		}
 	}
+	if (nonactive) {
+		uae_u32 sigwait = get_long_debug(node + 22);
+		if (sigwait)
+			console_out_f(_T("          Waiting signals: %08x\n"), sigwait);
+		uae_u32 sp = get_long_debug(node + 54) + 70;
+		uae_u32 pc = get_long_debug(sp);
+		console_out_f(_T("          SP: %08x PC: %08x\n"), sp, pc);
+	}
 }
 
 static void show_exec_tasks (void)
 {
 	uaecptr execbase = get_long_debug (4);
-	uaecptr taskready = get_long_debug (execbase + 406);
-	uaecptr taskwait = get_long_debug (execbase + 420);
-	uaecptr node, end;
+	uaecptr taskready = execbase + 406;
+	uaecptr taskwait = execbase + 420;
+	uaecptr node;
 	console_out_f (_T("Execbase at 0x%08X\n"), execbase);
 	console_out (_T("Current:\n"));
 	node = get_long_debug (execbase + 276);
-	print_task_info (node);
+	print_task_info (node, false);
 	console_out_f (_T("Ready:\n"));
 	node = get_long_debug (taskready);
-	end = get_long_debug (taskready + 4);
-	while (node) {
-		print_task_info (node);
+	while (node && get_long_debug(node)) {
+		print_task_info (node, true);
 		node = get_long_debug (node);
 	}
 	console_out (_T("Waiting:\n"));
 	node = get_long_debug (taskwait);
-	end = get_long_debug (taskwait + 4);
-	while (node) {
-		print_task_info (node);
+	while (node && get_long_debug(node)) {
+		print_task_info (node, true);
 		node = get_long_debug (node);
 	}
 }
@@ -3489,6 +3495,7 @@ static void show_exec_lists (TCHAR *t)
 		return;
 	}
 
+	bool full = false;
 	switch (c)
 	{
 	case 'r': // resources
@@ -3496,9 +3503,11 @@ static void show_exec_lists (TCHAR *t)
 		break;
 	case 'd': // devices
 		list = execbase + 350;
+		full = true;
 		break;
 	case 'l': // libraries
 		list = execbase + 378;
+		full = true;
 		break;
 	case 'p': // ports
 		list = execbase + 392;
@@ -3513,8 +3522,24 @@ static void show_exec_lists (TCHAR *t)
 	while (get_long_debug (node)) {
 		TCHAR *name = au ((char*)get_real_address (get_long_debug (node + 10)));
 		uae_u16 v = get_word_debug (node + 8);
-		console_out_f (_T("%08x %d %d %s\n"), node, (int)((v >> 8) & 0xff), (uae_s8)(v & 0xff), name);
+		console_out_f (_T("%08x %d %d"), node, (int)((v >> 8) & 0xff), (uae_s8)(v & 0xff));
+		if (full) {
+			uae_u16 ver = get_word_debug(node + 20);
+			uae_u16 rev = get_word_debug(node + 22);
+			uae_u32 op = get_word_debug(node + 32);
+			console_out_f(_T(" %d.%d %d"), ver, rev, op);
+		}
+		console_out_f(_T(" %s"), name);
 		xfree (name);
+		if (full) {
+			uaecptr idstring = get_long_debug(node + 24);
+			if (idstring) {
+				name = au((char*)get_real_address(idstring));
+				console_out_f(_T(" (%s)"), name);
+				xfree(name);
+			}
+		}
+		console_out_f(_T("\n"));
 		node = get_long_debug (node);
 	}
 }
@@ -3532,7 +3557,7 @@ static int cycle_breakpoint(TCHAR **c)
 	next_char(c);
 	if (more_params(c)) {
 		int count = readint(c);
-		if (nc == 'L') {
+		if (nc == 'S') {
 			if (more_params(c)) {
 				int hp = readint(c);
 				if (count >= vpos) {
@@ -4376,7 +4401,7 @@ static BOOL debug_line (TCHAR *input)
 				inptr++;
 				if (process_breakpoint (&inptr))
 					return true;
-			} else if (inptr[0] == 'c' || inptr[0] == 'l') {
+			} else if (inptr[0] == 'c' || inptr[0] == 's') {
 				if (cycle_breakpoint(&inptr))
 					return true;
 			} else {

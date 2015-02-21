@@ -352,8 +352,7 @@ static int doinit_shm (void)
 		if (1 && natmem_size > 0x40000000 && natmem_size - 0x40000000 >= (totalsize - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align)) && changed_prefs.z3chipmem_size <= 512 * 1024 * 1024) {
 			changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = Z3BASE_REAL;
 			z3offset += Z3BASE_REAL - Z3BASE_UAE - ((changed_prefs.z3chipmem_size + align) & ~align);
-			if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000)
-				z3offset += 0x01000000;
+			z3offset += cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype].z3extra;
 			set_expamem_z3_hack_override(true);
 			startbarrier = 0;
 			write_log(_T("Z3 REAL mapping. JIT direct compatible.\n"));
@@ -392,9 +391,10 @@ static int doinit_shm (void)
 		} else {
 			// calculate Z3 alignment (argh, I thought only Z2 needed this..)
 			uae_u32 addr = Z3BASE_REAL;
-			if (currprefs.cpuboard_type == BOARD_WARPENGINE_A4000) {
-				addr = expansion_startaddress(addr, 0x01000000);
-				addr += 0x01000000;
+			int z3off = cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype].z3extra;
+			if (z3off) {
+				addr = expansion_startaddress(addr, z3off);
+				addr += z3off;
 			}
 			addr = expansion_startaddress(addr, changed_prefs.z3fastmem_size);
 			addr += changed_prefs.z3fastmem_size;

@@ -131,33 +131,37 @@ static float video_gamma (float value, float gamma, float bri, float con)
 	return ret;
 }
 
-static uae_u32 gamma[256 * 3];
+static uae_u32 gamma[256 * 3][3];
 static int lf, hf;
 
 static void video_calc_gammatable (void)
 {
-	int i;
-	float bri, con, gam, v;
+	float bri, con, gam, gams[3], v;
 	uae_u32 vi;
 
 	bri = ((float)(currprefs.gfx_luminance)) * (128.0f / 1000.0f);
 	con = ((float)(currprefs.gfx_contrast + 1000)) / 1000.0f;
 	gam = ((float)(1000 - currprefs.gfx_gamma)) / 1000.0f;
+	gams[0] = gam + ((float)(1000 - currprefs.gfx_gamma_ch[0])) / 1000.0f;
+	gams[1] = gam + ((float)(1000 - currprefs.gfx_gamma_ch[1])) / 1000.0f;
+	gams[2] = gam + ((float)(1000 - currprefs.gfx_gamma_ch[2])) / 1000.0f;
 
 	lf = 64 * currprefs.gf[picasso_on].gfx_filter_blur / 1000;
 	hf = 256 - lf * 2;
 
-	for (i = 0; i < (256 * 3); i++) {
-		v = video_gamma((float)(i - 256), gam, bri, con);
+	for (int i = 0; i < (256 * 3); i++) {
+		for (int j = 0; j < 3; j++) {
+			v = video_gamma((float)(i - 256), gams[j], bri, con);
 
-		vi = (uae_u32)v;
-		if (vi > 255)
-			vi = 255;
+			vi = (uae_u32)v;
+			if (vi > 255)
+				vi = 255;
 
-		if (currprefs.gfx_luminance == 0 && currprefs.gfx_contrast == 0 && currprefs.gfx_gamma == 0)
-			vi = i & 0xff;
+			if (currprefs.gfx_luminance == 0 && currprefs.gfx_contrast == 0 && currprefs.gfx_gamma == 0)
+				vi = i & 0xff;
 
-		gamma[i] = vi;
+			gamma[i][j] = vi;
+		}
 	}
 }
 
@@ -321,9 +325,9 @@ void alloc_colors_rgb (int rw, int gw, int bw, int rs, int gs, int bs, int aw, i
 		}
 		j += 256;
 
-		rc[i] = doColor (gamma[j], rw, rs) | doAlpha (alpha, aw, as);
-		gc[i] = doColor (gamma[j], gw, gs) | doAlpha (alpha, aw, as);
-		bc[i] = doColor (gamma[j], bw, bs) | doAlpha (alpha, aw, as);
+		rc[i] = doColor (gamma[j][0], rw, rs) | doAlpha (alpha, aw, as);
+		gc[i] = doColor (gamma[j][1], gw, gs) | doAlpha (alpha, aw, as);
+		bc[i] = doColor (gamma[j][2], bw, bs) | doAlpha (alpha, aw, as);
 		if (byte_swap) {
 			if (bpp <= 16) {
 				rc[i] = bswap_16 (rc[i]);
@@ -356,9 +360,9 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 		int r = ((i >> 8) << 4) | (i >> 8);
 		int g = (((i >> 4) & 0xf) << 4) | ((i >> 4) & 0x0f);
 		int b = ((i & 0xf) << 4) | (i & 0x0f);
-		r = gamma[r + j];
-		g = gamma[g + j];
-		b = gamma[b + j];
+		r = gamma[r + j][0];
+		g = gamma[g + j][1];
+		b = gamma[b + j][2];
 		xcolors[i] = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs) | doAlpha (alpha, aw, as);
 		if (byte_swap) {
 			if (bpp <= 16)
@@ -391,9 +395,9 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 		/* create internal 5:6:5 color tables */
 		for (i = 0; i < 256; i++) {
 			j = i + 256;
-			xredcolors[i] = doColor (gamma[j], 5, 11);
-			xgreencolors[i] = doColor (gamma[j], 6, 5);
-			xbluecolors[i] = doColor (gamma[j], 5, 0);
+			xredcolors[i] = doColor (gamma[j][0], 5, 11);
+			xgreencolors[i] = doColor (gamma[j][1], 6, 5);
+			xbluecolors[i] = doColor (gamma[j][2], 5, 0);
 			if (bpp <= 16) {
 				/* Fill upper 16 bits of each colour value with
 				* a copy of the colour. */
@@ -406,9 +410,9 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 			int r = ((i >> 8) << 4) | (i >> 8);
 			int g = (((i >> 4) & 0xf) << 4) | ((i >> 4) & 0x0f);
 			int b = ((i & 0xf) << 4) | (i & 0x0f);
-			r = gamma[r + 256];
-			g = gamma[g + 256];
-			b = gamma[b + 256];
+			r = gamma[r + 256][0];
+			g = gamma[g + 256][1];
+			b = gamma[b + 256][2];
 			xcolors[i] = doMask(r, 5, 11) | doMask(g, 6, 5) | doMask(b, 5, 0);
 			if (byte_swap) {
 				if (bpp <= 16)
@@ -427,11 +431,11 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 		for (i = 0; i < 65536; i++) {
 			uae_u32 r, g, b;
 			r = (((i >> 11) & 31) << 3) | lowbits (i, 11, 3);
-			r = gamma[r + 256];
+			r = gamma[r + 256][0];
 			g = (((i >>  5) & 63) << 2) | lowbits (i,  5, 2);
-			g = gamma[g + 256];
+			g = gamma[g + 256][1];
 			b = (((i >>  0) & 31) << 3) | lowbits (i,  0, 3);
-			b = gamma[b + 256];
+			b = gamma[b + 256][2];
 			tyhrgb[i] = get_yh (r, g, b) * 256 * 256;
 			tylrgb[i] = get_yl (r, g, b) * 256 * 256;
 			tcbrgb[i] = ((uae_s8)get_cb (r, g, b)) * 256;

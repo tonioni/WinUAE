@@ -474,13 +474,13 @@ void uae_ppc_get_model(const TCHAR **model, uint32_t *hid1)
 		*model = currprefs.ppc_model;
 	} else {
 		/* Set default CPU model based on accelerator board */
-		if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC) {
+		if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_PPC)) {
 			*model = _T("603ev");
 		} else {
 			*model = _T("604e");
 		}
 	}
-	if (currprefs.cpuboard_type == BOARD_BLIZZARDPPC) {
+	if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_PPC)) {
 		*hid1 = 0xc0000000; // 4x
 	} else {
 		*hid1 = 0xa0000000; // 4x

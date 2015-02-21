@@ -22,6 +22,7 @@ struct wd_chip_state {
 	int wd33c93_ver;// 0 or 1
 };
 
+#define COMMODORE_8727 0
 #define COMMODORE_DMAC 1
 #define COMMODORE_SDMAC 2
 #define GVP_DMAC_S2 3
@@ -45,6 +46,9 @@ struct commodore_dmac
 	int xt_datalen;
 	uae_u8 xt_cmd[6];
 	uae_u8 xt_statusbyte;
+
+	uae_u8 c8727_pcss;
+	uae_u8 c8727_ctl;
 };
 struct gvp_dmac
 {
@@ -54,8 +58,12 @@ struct gvp_dmac
 	uae_u16 bank;
 	int dma_on;
 	uae_u8 version;
+	bool use_version;
 	uae_u32 addr_mask;
 	bool series2;
+	int s1_subtype;
+	int s1_ramoffset;
+	int s1_rammask;
 	uae_u8 *buffer;
 	int bufoffset;
 };
@@ -67,9 +75,10 @@ struct wd_state {
 	bool autoconfig;
 	uae_u8 dmacmemory[100];
 	uae_u8 *rom;
+	int board_mask;
 	int rombankswitcher, rombank;
 	int rom_size, rom_mask;
-
+	addrbank *bank;
 
 	smp_comm_pipe requests;
 	volatile int scsi_thread_running;
@@ -89,6 +98,8 @@ extern wd_state wd_cdtv;
 extern void init_wd_scsi (struct wd_state*);
 extern void scsi_dmac_a2091_start_dma (struct wd_state*);
 extern void scsi_dmac_a2091_stop_dma (struct wd_state*);
+
+extern addrbank *a2090_init (int devnum);
 
 extern addrbank *a2091_init (int devnum);
 extern void a2091_free(void);
@@ -120,6 +131,7 @@ extern void scsi_hsync (void);
 
 #define WD33C93 _T("WD33C93")
 
+extern int a2090_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 extern int a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 extern int gvp_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 extern int a3000_add_scsi_unit(int ch, struct uaedev_config_info *ci);

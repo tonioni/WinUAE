@@ -1248,8 +1248,54 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		s[12] = 0x25; /* INVALID LUN */
 		ls = 0x12;
 		write_log (_T("UAEHF: CMD=%02X LUN=%d ignored\n"), cmdbuf[0], lun);
-		goto err_exit;
+		goto scsi_done;
 	}
+	switch (cmdbuf[0])
+	{
+	case 0x12: /* INQUIRY */
+		{
+			if ((cmdbuf[1] & 1) || cmdbuf[2] != 0)
+				goto err;
+			int alen = (cmdbuf[3] << 8) | cmdbuf[4];
+			if (lun != 0) {
+				r[0] = 0x7f;
+			} else {
+				r[0] = 0;
+				if (hfd->drive_empty) {
+					r[1] |= 0x80; // removable..
+					r[0] |= 0x20; // not present
+				}
+			}
+			r[2] = 2; /* supports SCSI-2 */
+			r[3] = 2; /* response data format */
+			r[4] = 32; /* additional length */
+			r[7] = 0;
+			scsi_len = lr = alen < 36 ? alen : 36;
+			if (hdhfd) {
+				r[2] = hdhfd->ansi_version;
+				r[3] = hdhfd->ansi_version >= 2 ? 2 : 0;
+			}
+			setdrivestring(hfd->vendor_id, r, 8, 8);
+			setdrivestring(hfd->product_id, r, 16, 16);
+			setdrivestring(hfd->product_rev, r, 32, 4);
+		}
+		goto scsi_done;
+	case 0x1b: /* START/STOP UNIT */
+		scsi_len = 0;
+		hfd->unit_stopped = (cmdbuf[4] & 1) == 0;
+		goto scsi_done;
+	}
+
+	if (hfd->unit_stopped) {
+		status = 2; /* CHECK CONDITION */
+		s[0] = 0x70;
+		s[2] = 2; /* NOT READY */
+		s[12] = 4; /* not ready */
+		s[13] = 2; /* need initialise command */
+		ls = 0x12;
+		goto scsi_done;
+	}
+
 	switch (cmdbuf[0])
 	{
 	case 0x00: /* TEST UNIT READY */
@@ -1257,10 +1303,13 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			goto nodisk;
 		scsi_len = 0;
 		break;
-	case 0x03: /* REQUEST SENSE */
-		scsi_len = cmdbuf[4] > MAX_SCSI_SENSE ? MAX_SCSI_SENSE : cmdbuf[4];
-		memcpy (r, hfd->scsi_sense, scsi_len);
-		memset (hfd->scsi_sense, 0, MAX_SCSI_SENSE);
+	case 0x04: /* FORMAT UNIT */
+		// do nothing
+		if (nodisk (hfd))
+			goto nodisk;
+		if (hfd->ci.readonly || hfd->dangerous)
+			goto readprot;
+		scsi_len = 0;
 		break;
 	case 0x08: /* READ (6) */
 		if (nodisk (hfd))
@@ -1289,34 +1338,6 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		if (!checkbounds(hfd, offset, len))
 			goto outofbounds;
 		scsi_len = (uae_u32)cmd_writex (hfd, scsi_data, offset, len);
-		break;
-	case 0x12: /* INQUIRY */
-		{
-			if ((cmdbuf[1] & 1) || cmdbuf[2] != 0)
-				goto err;
-			int alen = (cmdbuf[3] << 8) | cmdbuf[4];
-			if (lun != 0) {
-				r[0] = 0x7f;
-			} else {
-				r[0] = 0;
-				if (hfd->drive_empty) {
-					r[1] |= 0x80; // removable..
-					r[0] |= 0x20; // not present
-				}
-			}
-			r[2] = 2; /* supports SCSI-2 */
-			r[3] = 2; /* response data format */
-			r[4] = 32; /* additional length */
-			r[7] = 0;
-			scsi_len = lr = alen < 36 ? alen : 36;
-			if (hdhfd) {
-				r[2] = hdhfd->ansi_version;
-				r[3] = hdhfd->ansi_version >= 2 ? 2 : 0;
-			}
-			setdrivestring(hfd->vendor_id, r, 8, 8);
-			setdrivestring(hfd->product_id, r, 16, 16);
-			setdrivestring(hfd->product_rev, r, 32, 4);
-		}
 		break;
 	case 0x1a: /* MODE SENSE(6) */
 		{
@@ -1519,9 +1540,6 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		s[12] = 0x1c; /* DEFECT LIST NOT FOUND */
 		ls = 0x12;
 		break;
-	case 0x1b: /* START/STOP UNIT */
-		scsi_len = 0;
-		break;
 readprot:
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
@@ -1562,7 +1580,7 @@ miscompare:
 		ls = 0x12;
 		break;
 	}
-err_exit:
+scsi_done:
 
 	if (log_scsiemu && ls) {
 		write_log (_T("-> SENSE STATUS: KEY=%d ASC=%02X ASCQ=%02X\n"), s[2], s[12], s[13]);
@@ -1571,7 +1589,7 @@ err_exit:
 		write_log (_T("\n"));	
 	}
 
-	if (cmdbuf[0] && log_scsiemu)
+	if (log_scsiemu)
 		write_log (_T("-> DATAOUT=%d ST=%d SENSELEN=%d REPLYLEN=%d\n"), scsi_len, status, ls, lr);
 
 	*data_len = scsi_len;

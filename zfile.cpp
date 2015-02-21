@@ -1974,12 +1974,17 @@ struct zfile *zfile_dup (struct zfile *zf)
 		memcpy (nzf->data, zf->data, zf->size);
 		nzf->size = zf->size;
 		nzf->datasize = zf->datasize;
-	} else { 
+	} else if (zf->useparent) {
+		nzf = zfile_fopen_parent(zf, zf->name, 0, zf->size);
+		return nzf;
+	} else {
 		if (zf->zipname) {
 			nzf = openzip (zf->name);
 			if (nzf)
 				return nzf;
 		}
+		if (!zf->name || !zf->mode)
+			return NULL;
 		FILE *ff = _tfopen (zf->name, zf->mode);
 		if (!ff)
 			return NULL;

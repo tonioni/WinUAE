@@ -105,8 +105,17 @@ extern uae_u32 emulib_target_getcpurate (uae_u32, uae_u32*);
 
 typedef addrbank*(*DEVICE_INIT)(int);
 typedef int(*DEVICE_ADD)(int, struct uaedev_config_info*);
+typedef bool(*E8ACCESS)(int, uae_u32*, int, bool);
 #define EXPANSIONTYPE_SCSI 1
 #define EXPANSIONTYPE_IDE 2
+struct expansionsubromtype
+{
+	const TCHAR *name;
+	const TCHAR *configname;
+	int memory_mid, memory_pid;
+	uae_u32 memory_serial;
+	uae_u8 autoconfig[16];
+};
 struct expansionromtype
 {
 	const TCHAR *name;
@@ -114,11 +123,43 @@ struct expansionromtype
 	DEVICE_INIT init;
 	DEVICE_ADD add;
 	int romtype;
+	int romtype_extra;
 	int parentromtype;
 	int zorro;
+	const struct expansionsubromtype *subtypes;
+	int defaultsubtype;
 	bool autoboot_jumper;
 	int deviceflags;
 	int memory_mid, memory_pid;
 	uae_u32 memory_serial;
+	uae_u8 autoconfig[16];
 };
 extern const struct expansionromtype expansionroms[];
+struct cpuboardsettings
+{
+	const TCHAR *name;
+	const TCHAR *configname;
+};
+struct cpuboardsubtype
+{
+	const TCHAR *name;
+	const TCHAR *configname;
+	int romtype, romtype_extra;
+	DEVICE_ADD add;
+	int deviceflags;
+	int memorytype;
+	int maxmemory;
+	int z3extra;
+	DEVICE_INIT init, init2;
+	int initzorro;
+	int initflag;
+	const struct cpuboardsettings *settings;
+	E8ACCESS e8;
+};
+struct cpuboardtype
+{
+	const TCHAR *name;
+	const struct cpuboardsubtype *subtypes;
+	int defaultsubtype;
+};
+extern const struct cpuboardtype cpuboards[];

@@ -656,6 +656,7 @@
 #define IDC_SCSIROMSELECT               1391
 #define IDC_KICKCHOOSER                 1392
 #define IDC_KEYCHOOSER                  1393
+#define IDC_SCSIROMSUBSELECT            1393
 #define IDC_ROMFILE2                    1394
 #define IDC_ROMCHOOSER2                 1395
 #define IDC_FLASHCHOOSER                1396
@@ -663,6 +664,7 @@
 #define IDC_CARTFILE                    1398
 #define IDC_CARTCHOOSER                 1399
 #define IDC_SAVE                        1400
+#define IDC_CPUBOARDROMSUBSELECT        1400
 #define IDC_LOAD                        1401
 #define IDC_RTCCHOOSER                  1401
 #define IDC_SCSIROMCHOOSER              1402
@@ -677,6 +679,7 @@
 #define IDC_EDITPATH                    1410
 #define IDC_RTCFILE                     1411
 #define IDC_SCSIROMFILE                 1412
+#define IDC_SCSIROMFILE2                1413
 #define IDC_CPUBOARDROMFILE             1414
 #define IDC_HDF_RDB                     1500
 #define IDC_HFSIZE                      1501
@@ -1178,7 +1181,9 @@
 #define IDC_CD_SELECT                   1807
 #define IDC_FASTMEMAUTOCONFIG           1808
 #define IDC_RTG_DISPLAYSELECT           1809
+#define IDC_CPUBOARD_SETTING1           1809
 #define IDC_MISCLIST                    1810
+#define IDC_CPUBOARD_SETTING2           1810
 #define IDC_STATENAME                   1811
 #define IDC_SAMPLER_STEREO              1812
 #define IDC_LISTDIALOG_LIST             1813
@@ -1205,6 +1210,8 @@
 #define IDC_TAPE_SELECT_FILE            1833
 #define IDC_TAPE_RW                     1834
 #define IDC_ERRORLOGMESSAGE             1835
+#define IDC_TAPE_SELECT_FILE2           1835
+#define IDC_TAPE_EJECT                  1835
 #define IDC_ERRORLOGCLEAR               1836
 #define IDC_DISKINFOBOX                 1837
 #define IDC_SAVEBOOTBLOCK               1838
@@ -1215,6 +1222,7 @@
 #define IDC_CPUBOARD_TYPE               1842
 #define IDC_CPUBOARDMEM                 1843
 #define IDC_Z3MAPPING                   1844
+#define IDC_CPUBOARD_SUBTYPE            1845
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

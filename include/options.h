@@ -271,7 +271,8 @@ struct gfx_filterdata
 	int gfx_filter_filtermode;
 	int gfx_filter_bilinear;
 	int gfx_filter_noise, gfx_filter_blur;
-	int gfx_filter_saturation, gfx_filter_luminance, gfx_filter_contrast, gfx_filter_gamma;
+	int gfx_filter_saturation, gfx_filter_luminance, gfx_filter_contrast;
+	int gfx_filter_gamma, gfx_filter_gamma_ch[3];
 	int gfx_filter_keep_aspect, gfx_filter_aspect;
 	int gfx_filter_autoscale;
 	int gfx_filter_keep_autoscale_aspect;
@@ -284,6 +285,7 @@ struct romconfig
 	TCHAR romident[256];
 	uae_u32 board_ram_size;
 	bool autoboot_disabled;
+	int subtype;
 };
 #define MAX_BOARD_ROMS 2
 struct boardromconfig
@@ -390,7 +392,7 @@ struct uae_prefs {
 	int gfx_xcenter_pos, gfx_ycenter_pos;
 	int gfx_xcenter_size, gfx_ycenter_size;
 	int gfx_max_horizontal, gfx_max_vertical;
-	int gfx_saturation, gfx_luminance, gfx_contrast, gfx_gamma;
+	int gfx_saturation, gfx_luminance, gfx_contrast, gfx_gamma, gfx_gamma_ch[3];
 	bool gfx_blackerthanblack;
 	int gfx_api;
 	int color_mode;
@@ -543,6 +545,8 @@ struct uae_prefs {
 	uae_u32 mem25bit_size;
 	uae_u32 rtgmem_size;
 	int cpuboard_type;
+	int cpuboard_subtype;
+	int cpuboard_settings;
 	uae_u32 cpuboardmem1_size;
 	uae_u32 cpuboardmem2_size;
 	int ppc_implementation;

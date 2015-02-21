@@ -140,7 +140,17 @@ bool ide_drq_check(struct ide_hdf *idep)
 	return false;
 }
 
-bool ide_interrupt_check(struct ide_hdf *idep)
+bool ide_irq_check(struct ide_hdf *idep)
+{
+	for (int i = 0; i < 2; i++) {
+		struct ide_hdf *ide = i == 0 ? idep : idep->pair;
+		if (ide->irq)
+			return true;
+	}
+	return false;
+}
+
+bool ide_interrupt_hsync(struct ide_hdf *idep)
 {
 	bool irq = false;
 	for (int i = 0; i < 2; i++) {

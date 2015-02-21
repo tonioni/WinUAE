@@ -30,10 +30,22 @@
 
 extern int log_scsiemu;
 
-static const int outcmd[] = { 0x0a, 0x2a, 0xaa, 0x15, 0x55, -1 };
+static const int outcmd[] = { 0x04, 0x0a, 0x2a, 0xaa, 0x15, 0x55, -1 };
 static const int incmd[] = { 0x01, 0x03, 0x05, 0x08, 0x12, 0x1a, 0x5a, 0x25, 0x28, 0x34, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, 0xbd, -1 };
 static const int nonecmd[] = { 0x00, 0x0b, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1e, 0x2b, 0x35, -1 };
 static const int scsicmdsizes[] = { 6, 10, 10, 12, 16, 12, 10, 10 };
+
+static void scsi_illegal_command(struct scsi_data *sd)
+{
+	uae_u8 *s = sd->sense;
+
+	memset (s, 0, sizeof (sd->sense));
+	sd->status = SCSI_STATUS_CHECK_CONDITION;
+	s[0] = 0x70;
+	s[2] = 5; /* ILLEGAL REQUEST */
+	s[12] = 0x24; /* ILLEGAL FIELD IN CDB */
+	sd->sense_len = 0x12;
+}
 
 static void scsi_grow_buffer(struct scsi_data *sd, int newsize)
 {
@@ -73,16 +85,28 @@ static int scsi_data_dir(struct scsi_data *sd)
 	return 0;
 }
 
-void scsi_emulate_analyze (struct scsi_data *sd)
+bool scsi_emulate_analyze (struct scsi_data *sd)
 {
 	int cmd_len, data_len, data_len2, tmp_len;
 
 	data_len = sd->data_len;
 	data_len2 = 0;
 	cmd_len = scsicmdsizes[sd->cmd[0] >> 5];
+	if (sd->hfd && sd->hfd->ansi_version < 2 && cmd_len > 10)
+		goto nocmd;
 	sd->cmd_len = cmd_len;
 	switch (sd->cmd[0])
 	{
+	case 0x04: // FORMAT UNIT
+		if (sd->device_type == UAEDEV_CD)
+			goto nocmd;
+		// FmtData set?
+		if (sd->cmd[1] & 0x10) {
+			int cl = (sd->cmd[1] & 8) != 0;
+			int dlf = sd->cmd[1] & 7;
+			data_len2 = 4;
+		}
+	break;
 	case 0x08: // READ(6)
 		data_len2 = sd->cmd[4] * sd->blocksize;
 		scsi_grow_buffer(sd, data_len2);
@@ -96,19 +120,27 @@ void scsi_emulate_analyze (struct scsi_data *sd)
 		scsi_grow_buffer(sd, data_len2);
 	break;
 	case 0x0a: // WRITE(6)
+		if (sd->device_type == UAEDEV_CD)
+			goto nocmd;
 		data_len = sd->cmd[4] * sd->blocksize;
 		scsi_grow_buffer(sd, data_len);
 	break;
 	case 0x2a: // WRITE(10)
+		if (sd->device_type == UAEDEV_CD)
+			goto nocmd;
 		data_len = ((sd->cmd[7] << 8) | (sd->cmd[8] << 0)) * (uae_s64)sd->blocksize;
 		scsi_grow_buffer(sd, data_len);
 	break;
 	case 0xaa: // WRITE(12)
+		if (sd->device_type == UAEDEV_CD)
+			goto nocmd;
 		data_len = ((sd->cmd[6] << 24) | (sd->cmd[7] << 16) | (sd->cmd[8] << 8) | (sd->cmd[9] << 0)) * (uae_s64)sd->blocksize;
 		scsi_grow_buffer(sd, data_len);
 	break;
 	case 0xbe: // READ CD
 	case 0xb9: // READ CD MSF
+		if (sd->device_type != UAEDEV_CD)
+			goto nocmd;
 		tmp_len = (sd->cmd[6] << 16) | (sd->cmd[7] << 8) | sd->cmd[8];
 		// max block transfer size, it is usually smaller.
 		tmp_len *= 2352 + 96;
@@ -123,10 +155,16 @@ void scsi_emulate_analyze (struct scsi_data *sd)
 			sd->data_len = 0;
 			sd->direction = 0;
 		}
-		return;
+		return true;
 	}
 	sd->data_len = data_len;
 	sd->direction = scsi_data_dir (sd);
+	return true;
+nocmd:
+	sd->status = SCSI_STATUS_CHECK_CONDITION;
+	sd->direction = 0;
+	scsi_illegal_command(sd);
+	return false;
 }
 
 void scsi_illegal_lun(struct scsi_data *sd)
@@ -522,6 +560,7 @@ struct ncr5380_scsi
 	int board_size;
 	addrbank *bank;
 	int type;
+	int subtype;
 	int dma_direction;
 };
 
@@ -701,6 +740,10 @@ void raw_scsi_put_data(struct raw_scsi *rs, uae_u8 data)
 		if (sd->offset >= len) {
 #if RAW_SCSI_DEBUG
 			write_log(_T("raw_scsi: got command %02x (%d bytes)\n"), sd->cmd[0], len);
+			for (int i = 0; i < len; i++) {
+				write_log(_T("%02x."), sd->cmd[i]);
+			}
+			write_log(_T("\n"));
 #endif
 			scsi_emulate_analyze(rs->target);
 			if (sd->direction > 0) {
@@ -869,6 +912,8 @@ static void ncr5380_check_phase(struct ncr5380_scsi *scsi)
 		return;
 	if (scsi->regs[2] & 0x40)
 		return;
+	if (scsi->regs[5] & 0x80)
+		return;
 	if (scsi->rscsi.bus_phase != (scsi->regs[3] & 7)) {
 		scsi->regs[5] |= 0x80; // end of dma
 		scsi->regs[3] |= 0x80;
@@ -1001,8 +1046,8 @@ static void ew(struct ncr5380_scsi *scsi, int addr, uae_u32 value)
 
 static int suprareg(struct ncr5380_scsi *ncr, uaecptr addr, bool write)
 {
-	int reg = (addr & 0x1f) >> 1;
-	if (addr & 0x20) {
+	int reg = (addr & 0x0f) >> 1;
+	if ((addr & 0x20) && ncr->subtype == 0) {
 		if (!write)
 			reg = 6;
 		else
@@ -1017,20 +1062,33 @@ static uae_u32 ncr80_bget2(struct ncr5380_scsi *ncr, uaecptr addr)
 {
 	int reg = -1;
 	uae_u32 v = 0;
+	int addresstype = -1;
 
 	addr &= ncr->board_mask;
 
 	if (ncr->type == NCR5380_SUPRA) {
 
-		if (addr & 1) {
-			v = 0xff;
-		} else if (addr & 0x8000) {
-			v = ncr->rom[addr & 0x7fff];
+		if (ncr->subtype == 3) {
+			if ((addr & 0x8000) && !(addr & 1))
+				addresstype = 0;
 		} else {
+			if (ncr->subtype != 1 && (addr & 1)) {
+				v = 0xff;
+			} else if (addr & 0x8000) {
+				addresstype = 1;
+			} else {
+				addresstype = 0;
+			}
+		}
+
+		if (addresstype == 1) {
+			v = ncr->rom[addr & 0x7fff];
+		} else if (addresstype == 0) {
 			reg = suprareg(ncr, addr, false);
 			if (reg >= 0)
 				v = ncr5380_bget(ncr, reg);
 		}
+
 	}
 
 #if NCR5380_DEBUG > 1
@@ -1044,9 +1102,20 @@ static uae_u32 ncr80_bget2(struct ncr5380_scsi *ncr, uaecptr addr)
 static void ncr80_bput2(struct ncr5380_scsi *ncr, uaecptr addr, uae_u32 val)
 {
 	int reg = -1;
+	int addresstype = -1;
+
 	addr &= ncr->board_mask;
 
-	if (!(addr & 0x8001)) {
+	if (ncr->subtype == 3) {
+		if ((addr & 0x8000) && !(addr & 1))
+			addresstype = 0;
+	} else {
+		if (ncr->subtype != 1 && (addr & 1))
+			return;
+		if (!(addr & 0x8000))
+			addresstype = 0;
+	}
+	if (addresstype == 0) {
 		reg = suprareg(ncr, addr, true);
 		if (reg >= 0)
 			ncr5380_bput(ncr, reg, val);
@@ -1164,7 +1233,10 @@ static addrbank ncr_bank_supra = {
 
 #define SUPRA_ROM_OFFSET 0x8000
 
-static const uae_u8 supra_autoconfig[16] = { 0xd1, 13, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, SUPRA_ROM_OFFSET >> 8, SUPRA_ROM_OFFSET & 0xff };
+static const uae_u8 supra_autoconfig_byte[16] = { 0xd1, 13, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, SUPRA_ROM_OFFSET >> 8, SUPRA_ROM_OFFSET & 0xff };
+static const uae_u8 supra_autoconfig_word[16] = { 0xd1, 12, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, SUPRA_ROM_OFFSET >> 8, SUPRA_ROM_OFFSET & 0xff };
+static const uae_u8 supra_autoconfig_500[16] = { 0xd1, 8, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, SUPRA_ROM_OFFSET >> 8, SUPRA_ROM_OFFSET & 0xff };
+static const uae_u8 supra_autoconfig_4x4[16] = { 0xc1, 1, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 addrbank *supra_init(int devnum)
 {
@@ -1185,13 +1257,21 @@ addrbank *supra_init(int devnum)
 	scsi->bank = &ncr_bank_supra;
 	scsi->rom = xcalloc(uae_u8, 2 * 16384);
 	scsi->type = NCR5380_SUPRA;
+	scsi->subtype = 0;
 	memset(scsi->rom, 0xff, 2 * 16384);
 
 	rc = get_device_romconfig(&currprefs, devnum, ROMTYPE_SUPRA);
-	if (rc && !rc->autoboot_disabled) {
-		struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_SUPRA, roms);
+	if (rc) {
+		struct zfile *z = NULL;
+		scsi->subtype = rc->subtype;
+		if (!rc->autoboot_disabled && scsi->subtype != 3) {
+			z = read_device_rom(&currprefs, devnum, ROMTYPE_SUPRA, roms);
+			if (!z && is_device_rom(&currprefs, devnum, ROMTYPE_SUPRA))
+				romwarning(roms);
+		}
 		for (int i = 0; i < 16; i++) {
-			uae_u8 b = supra_autoconfig[i];
+			uae_u8 b = scsi->subtype == 3 ? supra_autoconfig_4x4[i] :
+				(scsi->subtype == 2 ? supra_autoconfig_500[i] : (scsi->subtype == 1 ? supra_autoconfig_word[i] : supra_autoconfig_byte[i]));
 			ew(scsi, i * 4, b);
 		}
 		if (z) {
@@ -1202,8 +1282,6 @@ addrbank *supra_init(int devnum)
 				scsi->rom[i * 2 + 0] = b;
 			}
 			zfile_fclose(z);
-		} else {
-			romwarning(roms);
 		}
 	}
 	return scsi->bank;

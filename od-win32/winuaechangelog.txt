@@ -1,4 +1,64 @@
 
+Beta 10:
+
+- Added hd controller subtype selection.
+- A590/A2091: DMAC-01/02 revision selection.
+- GVP Series I: all revisions.
+- Remaining non-DMA SupraDrives added.
+- Masoboshi MC-302 (IDE-only) and MC-702 (IDE+SCSI). Note that only MC-302 is currently working, DMA also not
+  yet supported. (Driver by default uses only PIO)
+- Added A2090/A2090a emulation.
+  (Currently shared with A590/A2091, it is not possible to use A2090 and A590/A2091 at the same time)
+- Previous supradrive config entry name changed, config reset needed.
+- A590/A2091 interrupt handling updates.
+- 68000 address error stacked PC accuracy improved (MOVEM and NOT, CLR and other single operand instructions)
+- Apparently GVP Series I Z2 RAM autoconfig id is 1761/8.
+- Accelerator board without IDE and SCSI and SCSI (auto) or IDE (auto) selected: drive was incorrectly reserved
+  for selected accelerator board.
+- Reorganized accelerator board handling, built-in HD controller configuration source code special cases removed.
+  ROM selection shows only ROM images compatible with selected accelerator board.
+- Added accelerator rom config/jumper options. Currently only map rom for Blizzards (ROM panel MapROM emulation
+  still also selects it) and OSMODE (J304) jumper for A26x0.
+- WD33C93 emulation fix, A2630+A2090 Amix installation works.
+- "24-bit address space is not supported with selected accelerator board configuration" error even when 24-bit
+  was not enabled.
+- Bogus 0x20 68882 stack frame version id removed, both 68881 and 68882 use 0x1f.
+- Set/reset accelerator ROM correctly in Quickstart mode.
+- Debugger fl was already reserved for listing active break points. Scanline fl renamed to fs.
+- Debugger library and device list commands (Td, Tl) shows version, revision, opencount and id string.
+- Debugger task list command (Tt) shows signals that task is waiting for and PC where task continues executing
+  when Wait() returns. Also previously it showed extra bogus entry and usually also didn't show all tasks..
+- Added extra prefetch hack for A26x0 ROM off switch code if 68030 MMU is enabled.
+- On the fly switching from AGA to non-AGA mode didn't reset FMODE value.
+
+A2090(a):
+
+- Commodore's first Amiga harddrive controller and it shows..
+- Custom partition table (No RDB), autoboot is supported.
+- Very confusing and illogical partitioning system. (No, double clicking "Prep HD" icon won't do what
+  you would expect it to do. At least with SCSI-only configuration.)
+- 34.4 boot ROM added.
+- At least 34.4 has broken format routine (few absolute addresses are not relocated correctly in rom code)
+  for SCSI drives. Disable boot ROM and use binddrivers mounting when running prep-program as a workaround.
+- ST-506 parts not emulated.
+
+GVP Series I:
+- Impact A2000-1/X (Autoconfig Product number 1)
+- Impact A2000-HC (Product 2)
+- Impact A2000-HC+2 (Product 3)
+- Nearly identical hardware. Different SRAM buffer size and SRAM address offset.
+- Early partition software created incompatible RDB blocks. (For example checksum fields are zeroed)
+- v1.0 (1.16 driver version) ROM added.
+
+SupraDrives:
+- A500 ByteSync/XP (was already supported since b8)
+- 2000 WordSync
+- A500 Autoboot
+- 4x4 (Non autoboot). Clock chip not yet emulated.
+- Supra AMABx ROMs support all above models.
+- All Supradrives except very rare 2000 DMA (which apparently had bad DMA implementation and uses
+  very different driver) are now emulated.
+
 Beta 9:
 
 - Fixed harddrive config parse crash. (b8)

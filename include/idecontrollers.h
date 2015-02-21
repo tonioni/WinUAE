@@ -17,7 +17,7 @@ int apollo_add_ide_unit(int ch, struct uaedev_config_info *ci);
 addrbank *apollo_init(int devnum);
 addrbank *apollo_init_cpu(int devnum);
 
-int masoboshi_add_ide_unit(int ch, struct uaedev_config_info *ci);
+int masoboshi_add_idescsi_unit (int ch, struct uaedev_config_info *ci);
 addrbank *masoboshi_init(int devnum);
 
 uae_u32 REGPARAM3 apollo_ide_lget (uaecptr addr) REGPARAM;

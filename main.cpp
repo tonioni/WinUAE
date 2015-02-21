@@ -208,7 +208,7 @@ void fixup_cpu (struct uae_prefs *p)
 	if (p->cpu_frequency == 1000000)
 		p->cpu_frequency = 0;
 
-	if (p->cpu_model >= 68020 && p->cpuboard_type && cpuboard_32bit(p)) {
+	if (p->cpu_model >= 68020 && p->cpuboard_type && p->address_space_24 && cpuboard_32bit(p)) {
 		error_log (_T("24-bit address space is not supported with selected accelerator board configuration."));
 		p->address_space_24 = 0;
 	}
@@ -243,12 +243,16 @@ void fixup_cpu (struct uae_prefs *p)
 
 	// 1 = "automatic" PPC config
 	if (p->ppc_mode == 1) {
-		p->cpuboard_type = BOARD_CSPPC;
+		p->cpuboard_type = BOARD_CYBERSTORM;
+		p->cpuboard_subtype = BOARD_CYBERSTORM_SUB_PPC;
 		if (p->cs_compatible == CP_A1200) {
-			p->cpuboard_type = BOARD_BLIZZARDPPC;
+			p->cpuboard_type = BOARD_BLIZZARD;
+			p->cpuboard_subtype = BOARD_BLIZZARD_SUB_PPC;
 		} else if (p->cs_compatible != CP_A4000 && p->cs_compatible != CP_A4000T && p->cs_compatible != CP_A3000 && p->cs_compatible != CP_A3000T) {
-			if ((p->cs_ide == IDE_A600A1200 || p->cs_pcmcia) && p->cs_mbdmac <= 0)
-				p->cpuboard_type = BOARD_BLIZZARDPPC;
+			if ((p->cs_ide == IDE_A600A1200 || p->cs_pcmcia) && p->cs_mbdmac <= 0) {
+				p->cpuboard_type = BOARD_BLIZZARD;
+				p->cpuboard_subtype = BOARD_BLIZZARD_SUB_PPC;
+			}
 		}
 		if (p->cpuboardmem1_size < 8 * 1024 * 1024)
 			p->cpuboardmem1_size = 8 * 1024 * 1024;

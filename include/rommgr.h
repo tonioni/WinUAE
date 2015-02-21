@@ -14,7 +14,23 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_CD32CART	0x00008000
 #define ROMTYPE_SPECIALKICK	0x00010000
 #define ROMTYPE_PIV			0x00020000
+
 #define ROMTYPE_CPUBOARD	0x00040000
+#define ROMTYPE_CB_A3001S1	0x00040001
+#define ROMTYPE_CB_APOLLO	0x00040002
+#define ROMTYPE_CB_FUSION	0x00040003
+#define ROMTYPE_CB_DKB12x0	0x00040004
+#define ROMTYPE_CB_WENGINE	0x00040005
+#define ROMTYPE_CB_TEKMAGIC	0x00040006
+#define ROMTYPE_CB_BLIZ1230	0x00040007
+#define ROMTYPE_CB_BLIZ1260	0x00040008
+#define ROMTYPE_CB_BLIZ2060	0x00040009
+#define ROMTYPE_CB_A26x0	0x0004000a
+#define ROMTYPE_CB_CSMK1	0x0004000b
+#define ROMTYPE_CB_CSMK2	0x0004000c
+#define ROMTYPE_CB_CSMK3	0x0004000d
+#define ROMTYPE_CB_CSPPC	0x0004000e
+#define ROMTYPE_CB_BLIZPPC	0x0004000f
 
 #define ROMTYPE_FREEZER		0x00080000
 #define ROMTYPE_AR			0x00080001
@@ -31,13 +47,15 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_FASTLANE	0x00100004
 #define ROMTYPE_OKTAGON		0x00100005
 #define ROMTYPE_GVPS1		0x00100006
-#define ROMTYPE_GVPS2		0x00100007
-#define ROMTYPE_AMAX		0x00100008
-#define ROMTYPE_ALFA		0x00100009
-#define ROMTYPE_ALFAPLUS	0x0010000a
-#define ROMTYPE_APOLLO		0x0010000b
-#define ROMTYPE_MASOBOSHI	0x0010000c
-#define ROMTYPE_SUPRA		0x0010000d
+#define ROMTYPE_GVPS12		0x00100007
+#define ROMTYPE_GVPS2		0x00100008
+#define ROMTYPE_AMAX		0x00100009
+#define ROMTYPE_ALFA		0x0010000a
+#define ROMTYPE_ALFAPLUS	0x0010000b
+#define ROMTYPE_APOLLO		0x0010000c
+#define ROMTYPE_MASOBOSHI	0x0010000d
+#define ROMTYPE_SUPRA		0x0010000e
+#define ROMTYPE_A2090		0x0010000f
 
 #define ROMTYPE_QUAD		0x01000000
 #define ROMTYPE_EVEN		0x02000000
@@ -128,3 +146,4 @@ const struct expansionromtype *get_device_expansion_rom(int romtype);
 const struct expansionromtype *get_unit_expansion_rom(int hdunit);
 struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int *index);
 void clear_device_rom(struct uae_prefs *p, int romtype);
+struct boardromconfig *get_boardromconfig(struct uae_prefs *p, int romtype, int *index);

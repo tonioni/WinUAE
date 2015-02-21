@@ -224,8 +224,6 @@ static void set_irq2_fastlane(struct ncr9x_state *ncr)
 
 static void set_irq2_masoboshi(struct ncr9x_state *ncr)
 {
-	if (!ncr->intena || !ncr->chipirq)
-		ncr->boardirq = false;
 	if (ncr->chipirq && ncr->intena) {
 		ncr->boardirq = true;
 		ncr9x_rethink();
@@ -540,7 +538,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 				if (val & 0x80)
 					ncr->states[8] = 0x80;
 			}
-			write_log(_T("MASOBOSHI DMA %08x = %02X %08x\n"), addr, val, M68K_GETPC);
+			//write_log(_T("MASOBOSHI DMA %08x = %02X %08x\n"), addr, val, M68K_GETPC);
 			return;
 		}
 	
@@ -562,7 +560,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 				set_irq2_masoboshi(ncr);
 			}
 			if (addr == 0xf007) {
-				ncr->intena = true;
+				ncr->intena = (val & 8) != 0;
 				ncr9x_rethink();
 			}
 #if 0
@@ -648,7 +646,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 				esp_dma_enable(ncr->devobject.lsistate, 1);
 			return;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_2060) {
+	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD && currprefs.cpuboard_subtype == BOARD_BLIZZARD_SUB_2060) {
 		if (addr >= BLIZZARD_2060_DMA_OFFSET) {
 			//write_log (_T("Blizzard DMA PUT %08x %02X\n"), addr, (uae_u8)val);
 			addr &= 0xf;
@@ -664,7 +662,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			ncr->led = val;
 			return;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV || currprefs.cpuboard_type == BOARD_BLIZZARD_1260) {
+	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD && (currprefs.cpuboard_subtype == BOARD_BLIZZARD_SUB_1230IV || currprefs.cpuboard_subtype == BOARD_BLIZZARD_SUB_1260)) {
 		if (!cfgfile_board_enabled(&currprefs, ROMTYPE_CPUBOARDEXT))
 			return;
 		if (addr >= BLIZZARD_SCSI_KIT_DMA_OFFSET) {
@@ -682,7 +680,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			//write_log(_T("Blizzard DMA PUT %08x %02X\n"), addr, (uae_u8)val);
 			return;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_CSMK1) {
+	} else if (currprefs.cpuboard_type == BOARD_CYBERSTORM && currprefs.cpuboard_subtype == BOARD_CYBERSTORM_SUB_MK1) {
 		if (addr >= CYBERSTORM_MK1_JUMPER_OFFSET) {
 			if (addr == CYBERSTORM_MK1_JUMPER_OFFSET)
 				esp_dma_enable(ncr->devobject.lsistate, 1);
@@ -697,7 +695,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			ncr->led = val;
 			return;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_CSMK2) {
+	} else if (currprefs.cpuboard_type == BOARD_CYBERSTORM && currprefs.cpuboard_subtype == BOARD_CYBERSTORM_SUB_MK2) {
 		if (addr >= CYBERSTORM_MK2_DMA_OFFSET) {
 			addr &= 0xf;
 			addr >>= 2;
@@ -711,7 +709,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			 ncr->led = val;
 			 return;
 		 }
-	} else if (currprefs.cpuboard_type == BOARD_DKB1200) {
+	} else if (ISCPUBOARD(BOARD_DKB, BOARD_DKB_SUB_12x0)) {
 		if (addr == 0x10100) {
 			ncr->states[0] = val;
 			esp_dma_enable(ncr->devobject.lsistate, 1);
@@ -774,12 +772,16 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 			int idx = addr - 0xf000;
 			if (addr == 0xf000) {
 				ncr->states[0] &= ~3;
-				if (esp_dreq(&ncr->devobject)) {
-					write_log(_T("DREQ\n"));
-					ncr->states[0] |= 2; // dma data waiting
+				//ncr->states[0] |= 1;
+//				if (esp_dreq(&ncr->devobject)) {
+//					write_log(_T("DREQ\n"));
+//					ncr->states[0] |= 2; // dma data waiting
+//				}
+				if (ncr->boardirq || ncr->chipirq) {
+					ncr->states[0] |= 2; // scsi interrupt
 				}
 				if (ncr->chipirq) {
-					ncr->states[0] |= 1; // scsi interrupt
+					ncr->states[0] |= 1;
 				}
 			}
 			v = ncr->states[idx];
@@ -834,19 +836,19 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 			}
 			return 0;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_2060) {
+	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD && currprefs.cpuboard_subtype == BOARD_BLIZZARD_SUB_2060) {
 		if (addr >= BLIZZARD_2060_DMA_OFFSET) {
 			write_log(_T("Blizzard DMA GET %08x\n"), addr);
 			return 0;
 		} else if (addr >= BLIZZARD_2060_LED_OFFSET) {
 			return ncr->led;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD_1230_IV || currprefs.cpuboard_type == BOARD_BLIZZARD_1260) {
+	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD && (currprefs.cpuboard_subtype == BOARD_BLIZZARD_SUB_1230IV || currprefs.cpuboard_subtype == BOARD_BLIZZARD_SUB_1260)) {
 		if (!cfgfile_board_enabled(&currprefs, ROMTYPE_CPUBOARDEXT))
 			return 0;
 		if (addr >= BLIZZARD_SCSI_KIT_DMA_OFFSET)
 			return 0;
-	} else if (currprefs.cpuboard_type == BOARD_CSMK1) {
+	} else if (currprefs.cpuboard_type == BOARD_CYBERSTORM && currprefs.cpuboard_subtype == BOARD_CYBERSTORM_SUB_MK1) {
 		if (addr >= CYBERSTORM_MK1_JUMPER_OFFSET) {
 			return 0xff;
 		} else if (addr >= CYBERSTORM_MK1_DMA_OFFSET) {
@@ -854,19 +856,20 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 		} else if (addr >= CYBERSTORM_MK1_LED_OFFSET) {
 			return ncr->led;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_CSMK2) {
+	} else if (currprefs.cpuboard_type == BOARD_CYBERSTORM && currprefs.cpuboard_subtype == BOARD_CYBERSTORM_SUB_MK2) {
 		if (addr >= CYBERSTORM_MK2_DMA_OFFSET) {
 			return 0;
 		} else if (addr >= CYBERSTORM_MK2_LED_OFFSET) {
 			return ncr->led;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_DKB1200) {
+	} else if (ISCPUBOARD(BOARD_DKB, BOARD_DKB_SUB_12x0)) {
 		if (addr == 0x10100) {
 			uae_u8 v = 0;
-			if (ncr->chipirq)
+			if (ncr->chipirq || ncr->boardirq)
 				v |= 0x40;
 			if (ncr->fakedma_data_offset < ncr->fakedma_data_size)
 				v |= 0x80;
+			ncr->boardirq = false;
 			//write_log(_T("DKB IO GET %02x %08x\n"), v, M68K_GETPC);
 			return v;
 		}
@@ -1144,7 +1147,7 @@ static addrbank ncr_bank_dkb = {
 static void ncr9x_reset_board(struct ncr9x_state *ncr)
 {
 	ncr->configured = 0;
-	if (currprefs.cpuboard_type == BOARD_CSMK1)
+	if (currprefs.cpuboard_type == BOARD_CYBERSTORM && currprefs.cpuboard_subtype == BOARD_CYBERSTORM_SUB_MK1)
 		ncr->board_mask = 0xffff;
 	else
 		ncr->board_mask = 0x1ffff;
@@ -1419,10 +1422,11 @@ void ncr9x_free(void)
 void ncr9x_init(void)
 {
 	if (!ncr_blizzard_scsi.devobject.lsistate) {
-		if (currprefs.cpuboard_type == BOARD_CSMK2 || currprefs.cpuboard_type == BOARD_CSMK1)
+		if (currprefs.cpuboard_type == BOARD_CYBERSTORM && (currprefs.cpuboard_subtype == BOARD_CYBERSTORM_SUB_MK1 || currprefs.cpuboard_subtype == BOARD_CYBERSTORM_SUB_MK2)) {
 			esp_scsi_init(&ncr_blizzard_scsi.devobject, cyberstorm_mk1_mk2_dma_read, cyberstorm_mk1_mk2_dma_write);
-		else
+		} else {
 			esp_scsi_init(&ncr_blizzard_scsi.devobject, blizzard_dma_read, blizzard_dma_write);
+		}
 		esp_scsi_init(&ncr_fastlane_scsi[0].devobject, fastlane_dma_read, fastlane_dma_write);
 		esp_scsi_init(&ncr_fastlane_scsi[1].devobject, fastlane_dma_read, fastlane_dma_write);
 		esp_scsi_init(&ncr_oktagon2008_scsi[0].devobject, fake2_dma_read, fake2_dma_write);
