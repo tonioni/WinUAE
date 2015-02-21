@@ -95,7 +95,7 @@ static const char *dstblrmw, *dstwlrmw, *dstllrmw;
 static const char *srcbrmw, *srcwrmw, *srclrmw;
 static const char *dstbrmw, *dstwrmw, *dstlrmw;
 static const char *prefetch_long, *prefetch_word;
-static const char *srcli, *srcwi, *srcbi, *nextl, *nextw, *nextb;
+static const char *srcli, *srcwi, *srcbi, *nextl, *nextw;
 static const char *srcld, *dstld;
 static const char *srcwd, *dstwd;
 static const char *do_cycles, *disp000, *disp020, *getpc;
@@ -1935,12 +1935,12 @@ static void genastore_fc (const char *from, amodes mode, const char *reg, wordsi
 static void movem_mmu060 (const char *code, int size, bool put, bool aipi, bool apdi)
 {
 	const char *index;
-	int dphase, aphase;
+	int dphase;
 	if (apdi) {
-		dphase = 1; aphase = 0;
+		dphase = 1;
 		index = "movem_index2";
 	} else {
-		dphase = 0; aphase = 1;
+		dphase = 0;
 		index = "movem_index1";
 	}
 
@@ -2005,20 +2005,18 @@ static bool mmu040_special_movem (uae_u16 opcode)
 static void movem_mmu040 (const char *code, int size, bool put, bool aipi, bool apdi, uae_u16 opcode)
 {
 	const char *index;
-	int dphase, aphase;
-	bool mvm = false;
+	int dphase;
 
 	if (apdi) {
-		dphase = 1; aphase = 0;
+		dphase = 1;
 		index = "movem_index2";
 	} else {
-		dphase = 0; aphase = 1;
+		dphase = 0;
 		index = "movem_index1";
 	}
 
 	printf ("\tmmu040_movem = 1;\n");
 	printf ("\tmmu040_movem_ea = srca;\n");
-	mvm = true;
 
 	for (int i = 0; i < 2; i++) {
 		char reg;
@@ -2050,12 +2048,12 @@ static void movem_mmu040 (const char *code, int size, bool put, bool aipi, bool 
 static void movem_mmu030 (const char *code, int size, bool put, bool aipi, bool apdi)
 {
 	const char *index;
-	int dphase, aphase;
+	int dphase;
 	if (apdi) {
-		dphase = 1; aphase = 0;
+		dphase = 1;
 		index = "movem_index2";
 	} else {
-		dphase = 0; aphase = 1;
+		dphase = 0;
 		index = "movem_index1";
 	}
 	printf ("\tmmu030_state[1] |= MMU030_STATEFLAG1_MOVEM1;\n");
@@ -4961,7 +4959,6 @@ bccl_not68020:
 	case i_BFINS:
 		{
 			const char *getb, *putb;
-			int flags = 0;
 
 			if (using_mmu == 68060 && (curi->mnemo == i_BFCHG || curi->mnemo == i_BFCLR ||  curi->mnemo == i_BFSET ||  curi->mnemo == i_BFINS)) {
 				getb = "mmu060_get_rmw_bitfield";
