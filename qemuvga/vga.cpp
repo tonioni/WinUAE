@@ -1813,6 +1813,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
            width, height, v, line_offset, s->cr[9], s->cr[VGA_CRTC_MODE],
            s->line_compare, s->sr[VGA_SEQ_CLOCK_MODE]);
 #endif
+
     addr1 = (s->start_addr * 4);
     bwidth = (width * bits + 7) / 8;
     y_start = -1;
@@ -1834,34 +1835,39 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         if (!(s->cr[VGA_CRTC_MODE] & 2)) {
             addr = (addr & ~0x8000) | ((y1 & 2) << 14);
         }
+
         update = full_update;
-        page0 = addr;
-        page1 = addr + bwidth - 1;
-        update |= memory_region_get_dirty(&s->vram, page0, page1 - page0,
-                                          DIRTY_MEMORY_VGA) != 0;
-        /* explicit invalidation for the hardware cursor */
-        update |= (s->invalidated_y_table[y >> 5] >> (y & 0x1f)) & 1;
-        if (update) {
-            if (y_start < 0)
-                y_start = y;
-            if (page0 < page_min)
-                page_min = page0;
-            if (page1 > page_max)
-                page_max = page1;
-            if (!(is_buffer_shared(surface))) {
-                vga_draw_line(s, d, s->vram_ptr + addr, width);
-                if (s->cursor_draw_line)
-                    s->cursor_draw_line(s, d, y);
-            }
-        } else {
-            if (y_start >= 0) {
-                /* flush to display */
-                dpy_gfx_update(s->con, 0, y_start,
-                               disp_width, y - y_start);
-                y_start = -1;
-            }
-        }
-        if (!multi_run) {
+
+		if (addr + width < s->vram_size) {
+			page0 = addr;
+			page1 = addr + bwidth - 1;
+			update |= memory_region_get_dirty(&s->vram, page0, page1 - page0,
+											  DIRTY_MEMORY_VGA) != 0;
+			/* explicit invalidation for the hardware cursor */
+			update |= (s->invalidated_y_table[y >> 5] >> (y & 0x1f)) & 1;
+			if (update) {
+				if (y_start < 0)
+					y_start = y;
+				if (page0 < page_min)
+					page_min = page0;
+				if (page1 > page_max)
+					page_max = page1;
+				if (!(is_buffer_shared(surface))) {
+					vga_draw_line(s, d, s->vram_ptr + addr, width);
+					if (s->cursor_draw_line)
+						s->cursor_draw_line(s, d, y);
+				}
+			} else {
+				if (y_start >= 0) {
+					/* flush to display */
+					dpy_gfx_update(s->con, 0, y_start,
+								   disp_width, y - y_start);
+					y_start = -1;
+				}
+			}
+		}
+
+		if (!multi_run) {
             mask = (s->cr[VGA_CRTC_MODE] & 3) ^ 3;
             if ((y1 & mask) == mask)
                 addr1 += line_offset;
