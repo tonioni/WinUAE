@@ -27,6 +27,7 @@
 #define NCR5380_DEBUG 0
 
 #define NCR5380_SUPRA 1
+#define NONCR_GOLEM 2
 
 extern int log_scsiemu;
 
@@ -562,6 +563,11 @@ struct ncr5380_scsi
 	int type;
 	int subtype;
 	int dma_direction;
+
+	int dmac_direction;
+	uaecptr dmac_address;
+	int dmac_length;
+	int dmac_active;
 };
 
 void raw_scsi_reset(struct raw_scsi *rs)
@@ -880,13 +886,48 @@ void apolloscsi_reset(void)
 
 
 static struct ncr5380_scsi suprascsi[2];
+static struct ncr5380_scsi golemscsi[2];
 
 static struct ncr5380_scsi *ncr5380devices[] =
 {
 	&suprascsi[0],
 	&suprascsi[1],
+	&golemscsi[0],
+	&golemscsi[1],
 	NULL
 };
+
+uae_u8 ncr5380_bget(struct ncr5380_scsi *scsi, int reg);
+void ncr5380_bput(struct ncr5380_scsi *scsi, int reg, uae_u8 v);
+
+static void supra_do_dma(struct ncr5380_scsi *ncr)
+{
+	int len = ncr->dmac_length;
+	for (int i = 0; i < len; i++) {
+		if (ncr->dmac_direction < 0) {
+			x_put_byte(ncr->dmac_address, ncr5380_bget(ncr, 0));
+		} else if (ncr->dmac_direction > 0) {
+			ncr5380_bput(ncr, 0, x_get_byte(ncr->dmac_address));
+		}
+		ncr->dmac_length--;
+		ncr->dmac_address++;
+	}
+}
+
+static void dma_check(struct ncr5380_scsi *ncr)
+{
+	if (ncr->dmac_active && ncr->dma_direction) {
+		if (ncr->type ==NCR5380_SUPRA && ncr->subtype == 4) {
+			if (ncr->dmac_direction != ncr->dma_direction)  {
+				write_log(_T("SUPRADMA: mismatched direction\n"));
+				ncr->dmac_active = 0;
+				return;
+			}
+			supra_do_dma(ncr);
+		}
+		ncr->dmac_active = 0;
+	}
+}
 
 // NCR 53C80
 
@@ -1012,9 +1053,11 @@ void ncr5380_bput(struct ncr5380_scsi *scsi, int reg, uae_u8 v)
 		break;
 		case 5:
 		scsi->regs[reg] = old;
+		scsi->dma_direction = 1;
 #if NCR5380_DEBUG
 		write_log(_T("DMA send\n"));
 #endif
+		dma_check(scsi);
 		break;
 		case 6:
 		scsi->dma_direction = 1;
@@ -1027,6 +1070,7 @@ void ncr5380_bput(struct ncr5380_scsi *scsi, int reg, uae_u8 v)
 #if NCR5380_DEBUG
 		write_log(_T("DMA initiator recv\n"));
 #endif
+		dma_check(scsi);
 		break;
 	}
 	ncr5380_check_phase(scsi);
@@ -1058,6 +1102,63 @@ static int suprareg(struct ncr5380_scsi *ncr, uaecptr addr, bool write)
 	return reg;
 }
 
+static uae_u8 read_supra_dma(struct ncr5380_scsi *ncr, uaecptr addr)
+{
+	uae_u8 val = 0;
+
+	addr &= 0x1f;
+	switch (addr)
+	{
+		case 0:
+		val = ncr->dmac_active ? 0x00 : 0x80;
+		break;
+		case 4:
+		val = 0;
+		break;
+	}
+
+	write_log(_T("SUPRA DMA GET %08x %02x %08x\n"), addr, val, M68K_GETPC);
+	return val;
+}
+
+static void write_supra_dma(struct ncr5380_scsi *ncr, uaecptr addr, uae_u8 val)
+{
+	write_log(_T("SUPRA DMA PUT %08x %02x %08x\n"), addr, val, M68K_GETPC);
+
+	addr &= 0x1f;
+	switch (addr)
+	{
+		case 5: // OCR
+		ncr->dmac_direction = (val & 0x80) ? -1 : 1;
+		break;
+		case 7:
+		ncr->dmac_active = (val & 0x80) != 0;
+		break;
+		case 10: // MTCR
+		ncr->dmac_length &= 0x000000ff;
+		ncr->dmac_length |= val << 8;
+		break;
+		case 11: // MTCR
+		ncr->dmac_length &= 0x0000ff00;
+		ncr->dmac_length |= val << 0;
+		break;
+		case 12: // MAR
+		break;
+		case 13: // MAR
+		ncr->dmac_address &= 0x0000ffff;
+		ncr->dmac_address |= val << 16;
+		break;
+		case 14: // MAR
+		ncr->dmac_address &= 0x00ff00ff;
+		ncr->dmac_address |= val << 8;
+		break;
+		case 15: // MAR
+		ncr->dmac_address &= 0x00ffff00;
+		ncr->dmac_address |= val << 0;
+		break;
+	}
+}
+
 static uae_u32 ncr80_bget2(struct ncr5380_scsi *ncr, uaecptr addr)
 {
 	int reg = -1;
@@ -1068,7 +1169,13 @@ static uae_u32 ncr80_bget2(struct ncr5380_scsi *ncr, uaecptr addr)
 
 	if (ncr->type == NCR5380_SUPRA) {
 
-		if (ncr->subtype == 3) {
+		if (ncr->subtype == 4) {
+			if ((addr & 0xc000) == 0xc000) {
+				v = read_supra_dma(ncr, addr);
+			} else if (addr & 0x8000) {
+				addresstype = (addr & 1) ? 0 : 1;
+			}
+		} else if (ncr->subtype == 3) {
 			if ((addr & 0x8000) && !(addr & 1))
 				addresstype = 0;
 		} else {
@@ -1089,10 +1196,15 @@ static uae_u32 ncr80_bget2(struct ncr5380_scsi *ncr, uaecptr addr)
 				v = ncr5380_bget(ncr, reg);
 		}
 
+	} else if (ncr->type == NONCR_GOLEM) {
+
+		if (addr < 16384)
+			v = ncr->rom[addr];
+
 	}
 
 #if NCR5380_DEBUG > 1
-	if (addr < 0x8000)
+	if (addr < 0x80 || addr > 0x2000)
 		write_log(_T("GET %08x %02x %d %08x\n"), addr, v, reg, M68K_GETPC);
 #endif
 
@@ -1106,19 +1218,27 @@ static void ncr80_bput2(struct ncr5380_scsi *ncr, uaecptr addr, uae_u32 val)
 
 	addr &= ncr->board_mask;
 
-	if (ncr->subtype == 3) {
-		if ((addr & 0x8000) && !(addr & 1))
-			addresstype = 0;
-	} else {
-		if (ncr->subtype != 1 && (addr & 1))
-			return;
-		if (!(addr & 0x8000))
-			addresstype = 0;
-	}
-	if (addresstype == 0) {
-		reg = suprareg(ncr, addr, true);
-		if (reg >= 0)
-			ncr5380_bput(ncr, reg, val);
+	if (ncr->type == NCR5380_SUPRA) {
+		if (ncr->subtype == 4) {
+			if ((addr & 0xc000) == 0xc000) {
+				write_supra_dma(ncr, addr, val);
+			} else if (addr & 0x8000) {
+				addresstype = (addr & 1) ? 0 : 1;
+			}
+		} else if (ncr->subtype == 3) {
+			if ((addr & 0x8000) && !(addr & 1))
+				addresstype = 0;
+		} else {
+			if (ncr->subtype != 1 && (addr & 1))
+				return;
+			if (!(addr & 0x8000))
+				addresstype = 0;
+		}
+		if (addresstype == 0) {
+			reg = suprareg(ncr, addr, true);
+			if (reg >= 0)
+				ncr5380_bput(ncr, reg, val);
+		}
 	}
 #if NCR5380_DEBUG > 1
 	write_log(_T("PUT %08x %02x %d %08x\n"), addr, val, reg, M68K_GETPC);
@@ -1231,12 +1351,32 @@ static addrbank ncr_bank_supra = {
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
-#define SUPRA_ROM_OFFSET 0x8000
+static uae_u8 *REGPARAM2 golem_xlate(struct ncr5380_scsi *ncr, uaecptr addr)
+{
+	addr &= 8191;
+	return ncr->rom + addr;
+}
 
-static const uae_u8 supra_autoconfig_byte[16] = { 0xd1, 13, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, SUPRA_ROM_OFFSET >> 8, SUPRA_ROM_OFFSET & 0xff };
-static const uae_u8 supra_autoconfig_word[16] = { 0xd1, 12, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, SUPRA_ROM_OFFSET >> 8, SUPRA_ROM_OFFSET & 0xff };
-static const uae_u8 supra_autoconfig_500[16] = { 0xd1, 8, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, SUPRA_ROM_OFFSET >> 8, SUPRA_ROM_OFFSET & 0xff };
-static const uae_u8 supra_autoconfig_4x4[16] = { 0xc1, 1, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+static uae_u8 *REGPARAM2 ncr_golem_xlate(uaecptr addr)
+{
+	return golem_xlate(&golemscsi[0], addr);
+}
+static int REGPARAM2 ncr_golem_check(uaecptr addr, uae_u32 size)
+{
+	addr &= 65535;
+	return addr < 8192;
+}
+
+
+SCSI_MEMORY_FUNCTIONS(ncr_golem, ncr80, golemscsi[0]);
+SCSI_MEMORY_FUNCTIONS(ncr2_golem, ncr80, golemscsi[1]);
+DECLARE_MEMORY_FUNCTIONS(ncr_supra)
+static addrbank ncr_bank_golem = {
+	ncr_golem_lget, ncr_golem_wget, ncr_golem_bget,
+	ncr_golem_lput, ncr_golem_wput, ncr_golem_bput,
+	ncr_golem_xlate, ncr_golem_check, NULL, NULL, _T("Golem"),
+	ncr_golem_lget, ncr_golem_wget, ABFLAG_IO | ABFLAG_SAFE
+};
 
 addrbank *supra_init(int devnum)
 {
@@ -1244,6 +1384,8 @@ addrbank *supra_init(int devnum)
 	int roms[2];
 	struct romconfig *rc = NULL;
 	
+	scsi->configured = 0;
+
 	if (devnum > 0 && !scsi->enabled)
 		return &expamem_null;
 
@@ -1261,6 +1403,7 @@ addrbank *supra_init(int devnum)
 	memset(scsi->rom, 0xff, 2 * 16384);
 
 	rc = get_device_romconfig(&currprefs, devnum, ROMTYPE_SUPRA);
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_SUPRA);
 	if (rc) {
 		struct zfile *z = NULL;
 		scsi->subtype = rc->subtype;
@@ -1270,8 +1413,7 @@ addrbank *supra_init(int devnum)
 				romwarning(roms);
 		}
 		for (int i = 0; i < 16; i++) {
-			uae_u8 b = scsi->subtype == 3 ? supra_autoconfig_4x4[i] :
-				(scsi->subtype == 2 ? supra_autoconfig_500[i] : (scsi->subtype == 1 ? supra_autoconfig_word[i] : supra_autoconfig_byte[i]));
+			uae_u8 b = ert->subtypes[rc->subtype].autoconfig[i];
 			ew(scsi, i * 4, b);
 		}
 		if (z) {
@@ -1290,6 +1432,68 @@ addrbank *supra_init(int devnum)
 int supra_add_scsi_unit(int ch, struct uaedev_config_info *ci)
 {
 	struct raw_scsi *rs = &suprascsi[ci->controller_type_unit].rscsi;
+	raw_scsi_reset(rs);
+	if (ci->type == UAEDEV_CD)
+		return add_scsi_cd(rs->device, ch, ci->device_emu_unit);
+	else if (ci->type == UAEDEV_TAPE)
+		return add_scsi_tape(rs->device, ch, ci->rootdir, ci->readonly);
+	else
+		return add_scsi_hd(rs->device, ch, NULL, ci, 1);
+	return 0;
+}
+
+addrbank *golem_init(int devnum)
+{
+	struct ncr5380_scsi *scsi = &golemscsi[devnum];
+	int roms[2];
+	struct romconfig *rc = NULL;
+	
+	scsi->configured = 0;
+
+	if (devnum > 0 && !scsi->enabled)
+		return &expamem_null;
+
+	roms[0] = 124;
+	roms[1] = -1;
+
+	memset(scsi->acmemory, 0xff, sizeof scsi->acmemory);
+
+	scsi->board_size = 65536;
+	scsi->board_mask = scsi->board_size - 1;
+	scsi->bank = &ncr_bank_golem;
+	scsi->rom = xcalloc(uae_u8, 8192);
+	scsi->type = NONCR_GOLEM;
+	scsi->subtype = 0;
+	memset(scsi->rom, 0xff, 8192);
+
+	rc = get_device_romconfig(&currprefs, devnum, ROMTYPE_GOLEM);
+	if (rc) {
+		struct zfile *z = NULL;
+		if (!rc->autoboot_disabled) {
+			z = read_device_rom(&currprefs, devnum, ROMTYPE_GOLEM, roms);
+			if (!z && is_device_rom(&currprefs, devnum, ROMTYPE_GOLEM))
+				romwarning(roms);
+		}
+		if (z) {
+			write_log(_T("GOLEM BOOT ROM '%s'\n"), zfile_getname(z));
+			if (rc->autoboot_disabled)
+				zfile_fseek(z, 8192, SEEK_SET);
+			for (int i = 0; i < 8192; i++) {
+				uae_u8 b;
+				zfile_fread(&b, 1, 1, z);
+				if (i < sizeof scsi->acmemory)
+					scsi->acmemory[i] = b;
+				scsi->rom[i] = b;
+			}
+			zfile_fclose(z);
+		}
+	}
+	return scsi->bank;
+}
+
+int golem_add_scsi_unit(int ch, struct uaedev_config_info *ci)
+{
+	struct raw_scsi *rs = &golemscsi[ci->controller_type_unit].rscsi;
 	raw_scsi_reset(rs);
 	if (ci->type == UAEDEV_CD)
 		return add_scsi_cd(rs->device, ch, ci->device_emu_unit);

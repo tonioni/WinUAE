@@ -56,6 +56,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_MASOBOSHI	0x0010000d
 #define ROMTYPE_SUPRA		0x0010000e
 #define ROMTYPE_A2090		0x0010000f
+#define ROMTYPE_GOLEM		0x00100010
 
 #define ROMTYPE_QUAD		0x01000000
 #define ROMTYPE_EVEN		0x02000000

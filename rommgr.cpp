@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 124
+#define NEXT_ROM_ID 126
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -120,6 +120,13 @@ static struct romdata roms[] = {
 	0xb01c4b56, 0xbba8e5cd,0x118b8d92,0xafed5693,0x5eeb9770,0x2a662d8f },
 	{ _T("Cloanto Amiga Forever 2010 ROM key"), 0, 0, 0, 0, 0, 1544, 73, 0, 1, ROMTYPE_KEY, 0, 0, NULL,
 	0x8c4dd05c, 0x05034f62,0x0b5bb7b2,0x86954ea9,0x164fdb90,0xfb2897a4 },
+
+	{ _T("KS ROM Velvet 23.93"), 23, 93, 23, 93, _T("VELVET\0"), 131072, 125, 0, 0, ROMTYPE_KICK, 0, 0, NULL,
+	0xadcb44c9, 0x7c36b2ba,0x298da3da,0xce60d0ba,0x8511d470,0x76a40d5c, NULL, NULL },
+	ALTROMPN(125, 1, 1, 32768, ROMTYPE_QUAD | ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x1d988ab8, 0xee3988a2, 0xb2693334, 0x0239d1d9, 0xf50d4fb3, 0xe0daf3bc)
+	ALTROMPN(125, 1, 2, 32768, ROMTYPE_QUAD | ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xe466b28f, 0x3e197d69, 0xcffa3e1a, 0x0c291d57, 0xb53f7d1f, 0xcb858cf7)
+	ALTROMPN(125, 1, 3, 32768, ROMTYPE_QUAD | ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x715988a9, 0x08c36600, 0x3948c4c5, 0x4216ef8c, 0x17ebe16c, 0xc91d3b7a)
+	ALTROMPN(125, 1, 4, 32768, ROMTYPE_QUAD | ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xc4dc7e6a, 0x66b231d0, 0x8425c858, 0xdfcd36d2, 0xd38a0df8, 0x518e06a4)
 
 	{ _T("KS ROM v1.0 (A1000)(NTSC)"), 1, 0, 1, 0, _T("A1000\0"), 262144, 1, 0, 0, ROMTYPE_KICK, 0, 0, NULL,
 	0x299790ff, 0x00C15406,0xBEB4B8AB,0x1A16AA66,0xC05860E1,0xA7C1AD79 },
@@ -354,6 +361,10 @@ static struct romdata roms[] = {
 	{ _T("GVP A3001 Series I ROM"), 3, 3, 3, 3, _T("A3001SI\0"), 8192, 114, 0, 0, ROMTYPE_CB_A3001S1, 0, 0, NULL,
 	0xaaff7c65, 0x424cf3da,0xcc9da794,0x0ba74446,0x69dd1691,0x44ae87ee, NULL, NULL },
 
+	{ _T("Kupke Golem v3.9 ROM"), 3, 9, 3, 9, _T("GOLEM\0"), 16384, 124, 0, 0, ROMTYPE_GOLEM, 0, 0, NULL,
+	0x49157dd0, 0x03b615c9,0x2befa474,0xa37303ca,0xdc3e830d,0x3c0d9a9f, NULL, NULL },
+	ALTROMPN(124, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x713298ad, 0x2ad7d6f3, 0xd696fd2c, 0x51a256ee, 0xea185c47, 0x52906e04)
+	ALTROMPN(124, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x88cf2ec5, 0x59680f8d, 0xae520893, 0xff9ada35, 0xac9a1146, 0x4f87453c)
 	{ _T("GVP Series I v1.0 ROM"), 1, 0, 1, 16, _T("GVPI\0"), 16384, 123, 0, 0, ROMTYPE_GVPS1, 0, 0, NULL,
 	0x1a4c20aa, 0xb9a3377e,0x2d9b5163,0x28693c63,0x19ffb65b,0x40ae3618, NULL, NULL },
 	ALTROMPN(123, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xa723193e, 0x05b4a072, 0x785c7824, 0x54e003c3, 0x6d88bd9b, 0xf5f561b9)
@@ -1299,10 +1310,21 @@ struct zfile *read_rom (struct romdata *prd)
 				add = 1;
 				i++;
 			} else if (flags & ROMTYPE_QUAD) {
-				for (int k = 0; k < 4; k++) {
-					read_rom_file (buf2, rd2 + k + 1);
-					for (j = 0; j < size; j += 4)
-						buf[j + k] = buf2[j / 4];
+				if (i == 0) {
+					for (int k = 0; k < 4; k++) {
+						read_rom_file (buf2, rd2 + k + 1);
+						for (j = 0; j < size; j += 4)
+							buf[j + k] = buf2[j / 4];
+					}
+				} else {
+					for (int kk = 0; kk < 2; kk++) {
+						for (int k = 0; k < 2; k++) {
+							read_rom_file (buf2, rd2 + k + kk * 2 + 1);
+							for (j = 0; j < size / 2; j += 2) {
+								buf[j + k + kk * (rd2->size / 2)] = buf2[j / 2];
+							}
+						}
+					}
 				}
 				add = 4;
 			} else {

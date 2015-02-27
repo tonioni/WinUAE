@@ -160,3 +160,5 @@ void ncr5380scsi_reset(void);
 addrbank *supra_init(int devnum);
 int supra_add_scsi_unit(int ch, struct uaedev_config_info *ci);
 
+addrbank *golem_init(int devnum);
+int golem_add_scsi_unit(int ch, struct uaedev_config_info *ci);
