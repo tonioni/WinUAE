@@ -795,6 +795,7 @@ addrbank *gvp_ide_rom_autoconfig_init(int devnum)
 		ide->rom_size = 16384;
 		roms[0] = -1;
 	}
+	ide->configured = 0;
 	ide->mask = 65536 - 1;
 	ide->type = GVP_IDE;
 	ide->configured = 0;
@@ -865,6 +866,8 @@ addrbank *alf_init(int devnum)
 	int roms[2];
 	bool alfplus = cfgfile_board_enabled(&currprefs, ROMTYPE_ALFAPLUS);
 	struct romconfig *rc = NULL;
+
+	ide->configured = 0;
 
 	if (devnum > 0 && !ide->enabled)
 		return &expamem_null;
@@ -951,6 +954,7 @@ addrbank *apollo_init(int devnum)
 	}
 
 	ide = &apollo_board[devnum];
+	ide->configured = 0;
 	if (devnum > 0 && !ide->enabled)
 		return &expamem_null;
 
@@ -1020,6 +1024,8 @@ addrbank *masoboshi_init(int devnum)
 	int roms[2];
 
 	ide = &masoboshi_board[devnum];
+	ide->configured = 0;
+
 	if (devnum > 0 && !ide->enabled)
 		return &expamem_null;
 
