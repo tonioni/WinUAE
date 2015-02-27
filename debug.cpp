@@ -3377,7 +3377,7 @@ static void show_exec_lists (TCHAR *t)
 					get_long_debug(list + 16 + 6), rom_vector,
 					get_word_debug(list + 16 + 4), get_byte_debug(list + 16 + 1));
 				if ((type & 0x10)) {
-					uae_u8 diagarea[32];
+					uae_u8 diagarea[256];
 					uae_u16 nameoffset;
 					uaecptr rom = addr + rom_vector;
 					uae_u8 config = get_byte_debug(rom);
@@ -3392,8 +3392,8 @@ static void show_exec_lists (TCHAR *t)
 						(diagarea[10] << 8) | diagarea[11],
 						(diagarea[12] << 8) | diagarea[13]);
 					if (nameoffset != 0 && nameoffset != 0xffff) {
-						copyromdata(config, rom, nameoffset, diagarea, 32);
-						diagarea[31] = 0;
+						copyromdata(config, rom, nameoffset, diagarea, 256);
+						diagarea[256] = 0;
 						TCHAR *str = au((char*)diagarea);
 						console_out_f(_T(" '%s'\n"), str);
 						xfree(str);
