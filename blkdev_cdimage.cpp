@@ -1044,6 +1044,7 @@ static int command_toc (int unitnum, struct cd_toc_head *th)
 	toc->adr = 1;
 	toc->point = 0xa1;
 	toc->track = th->last_track;
+	toc->paddress = th->lastaddress;
 	toc++;
 
 	toc->adr = 1;

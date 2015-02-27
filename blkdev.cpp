@@ -1260,16 +1260,18 @@ static int scsi_read_cd (int unitnum, uae_u8 *cmd, uae_u8 *data, struct device_i
 	return v;
 }
 
-static int scsi_read_cd_data (int unitnum, uae_u8 *scsi_data, uae_u32 offset, uae_u32 len, struct device_info *di, int *scsi_len)
+static int scsi_read_cd_data (int unitnum, uae_u8 *scsi_data, uae_u32 offset, uae_u32 len, struct device_info *di, int *scsi_len, struct cd_toc *t)
 {
 	struct blkdevstate *st = &state[unitnum];
+	int end = t[1].paddress;
+
 	if (len == 0) {
-		if (offset >= di->sectorspertrack * di->cylinders * di->trackspercylinder)
+		if (offset >= end)
 			return -1;
 		*scsi_len = 0;
 		return 0;
 	} else {
-		if (offset >= di->sectorspertrack * di->cylinders * di->trackspercylinder)
+		if (offset >= end)
 			return -1;
 		int v = cmd_readx (unitnum, scsi_data, offset, len) * di->bytespersector;
 		if (v > 0) {
@@ -1582,7 +1584,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			stopplay (unitnum);
 			offset = ((cmdbuf[1] & 31) << 16) | (cmdbuf[2] << 8) | cmdbuf[3];
 			struct cd_toc *t = gettoc (&di.toc, offset);
-			v = scsi_read_cd_data (unitnum, scsi_data, offset, 0, &di, &scsi_len);
+			v = scsi_read_cd_data (unitnum, scsi_data, offset, 0, &di, &scsi_len, t);
 			if (v == -1)
 				goto outofbounds;
 		}
@@ -1598,7 +1600,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			len = cmdbuf[4];
 			if (!len)
 				len = 256;
-			v = scsi_read_cd_data (unitnum, scsi_data, offset, len, &di, &scsi_len);
+			v = scsi_read_cd_data (unitnum, scsi_data, offset, len, &di, &scsi_len, t);
 			if (v == -1)
 				goto outofbounds;
 			if (v == -2)
@@ -1617,7 +1619,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			stopplay (unitnum);
 			offset = rl (cmdbuf + 2);
 			struct cd_toc *t = gettoc (&di.toc, offset);
-			v = scsi_read_cd_data (unitnum, scsi_data, offset, 0, &di, &scsi_len);
+			v = scsi_read_cd_data (unitnum, scsi_data, offset, 0, &di, &scsi_len, t);
 			if (v == -1)
 				goto outofbounds;
 		}
@@ -1631,7 +1633,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		struct cd_toc *t = gettoc (&di.toc, offset);
 		if ((t->control & 0x0c) == 0x04) {
 			len = rl (cmdbuf + 7 - 2) & 0xffff;
-			v = scsi_read_cd_data (unitnum, scsi_data, offset, len, &di, &scsi_len);
+			v = scsi_read_cd_data (unitnum, scsi_data, offset, len, &di, &scsi_len, t);
 			if (v == -1)
 				goto outofbounds;
 			if (v == -2)
@@ -1652,7 +1654,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		struct cd_toc *t = gettoc (&di.toc, offset);
 		if ((t->control & 0x0c) == 0x04) {
 			len = rl (cmdbuf + 6);
-			v = scsi_read_cd_data (unitnum, scsi_data, offset, len, &di, &scsi_len);
+			v = scsi_read_cd_data (unitnum, scsi_data, offset, len, &di, &scsi_len, t);
 			if (v == -1)
 				goto outofbounds;
 			if (v == -2)

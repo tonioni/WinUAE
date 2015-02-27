@@ -1197,6 +1197,7 @@ static int ioctl_command_toc2 (int unitnum, struct cd_toc_head *tocout, bool hid
 	t->adr = 1;
 	t->point = 0xa1;
 	t->track = th->last_track;
+	t->paddress = th->lastaddress;
 	t++;
 
 	t->adr = 1;
