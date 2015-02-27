@@ -7296,6 +7296,7 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("A3000T"));
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("A4000"));
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("A4000T"));
+		//SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("Velvet"));
 
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("-"));
@@ -8720,6 +8721,21 @@ static void values_from_kickstartdlg (HWND hDlg)
 	}
 }
 
+static void values_to_kickstartdlg_autoboot(HWND hDlg)
+{
+	int index;
+	struct boardromconfig *brc;
+	brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, &index);
+	if (brc && brc->roms[index].romfile[0]) {
+		ew(hDlg, IDC_SCSIROMFILEAUTOBOOT, expansionroms[scsiromselected].autoboot_jumper);
+	} else {
+		if (brc)
+			brc->roms[index].autoboot_disabled = false;
+		ew(hDlg, IDC_SCSIROMFILEAUTOBOOT, FALSE);
+		setchecked(hDlg, IDC_SCSIROMFILEAUTOBOOT, false);
+	}
+}
+
 static void values_to_kickstartdlg (HWND hDlg)
 {
 	UAEREG *fkey;
@@ -8741,7 +8757,7 @@ static void values_to_kickstartdlg (HWND hDlg)
 	addromfiles (fkey, hDlg, IDC_SCSIROMFILE, brc ? brc->roms[index].romfile : NULL,
 		expansionroms[scsiromselected].romtype, expansionroms[scsiromselected].romtype_extra);
 	CheckDlgButton(hDlg, IDC_SCSIROMFILEAUTOBOOT, brc && brc->roms[index].autoboot_disabled);
-	ew(hDlg, IDC_SCSIROMFILEAUTOBOOT, expansionroms[scsiromselected].autoboot_jumper);
+	values_to_kickstartdlg_autoboot(hDlg);
 
 	if (workprefs.cpuboard_type) {
 		const struct cpuboardsubtype *cst = &cpuboards[workprefs.cpuboard_type].subtypes[workprefs.cpuboard_subtype];
@@ -8905,6 +8921,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			case IDC_CPUBOARDROMFILE:
 			case IDC_CPUBOARDROMSUBSELECT:
 				values_from_kickstartdlg (hDlg);
+				values_to_kickstartdlg_autoboot(hDlg);
 				break;
 			case IDC_SCSIROMSELECT:
 			val = gui_get_string_cursor(scsiromselect_table, hDlg, IDC_SCSIROMSELECT);	
@@ -8916,7 +8933,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 					brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, &index);
 					addromfiles (fkey, hDlg, IDC_SCSIROMFILE, brc ? brc->roms[index].romfile : NULL,
 						expansionroms[scsiromselected].romtype, 0);
-					ew(hDlg, IDC_SCSIROMFILEAUTOBOOT, expansionroms[scsiromselected].autoboot_jumper);
+					values_to_kickstartdlg_autoboot(hDlg);
 					regclosetree(fkey);
 					values_to_kickstartdlg_sub(hDlg);
 				}
@@ -10657,8 +10674,15 @@ static void inithdcontroller (HWND hDlg, int ctype, int devtype)
 	for (int i = 0; expansionroms[i].name; i++) {
 		const struct expansionromtype *erc = &expansionroms[i];
 		if (erc->deviceflags & EXPANSIONTYPE_IDE) {
+			TCHAR tmp[MAX_DPATH];
+			_tcscpy(tmp, erc->friendlyname);
+			if (workprefs.cpuboard_type && erc->romtype == ROMTYPE_CPUBOARD) {
+				_tcscat(tmp, _T(" ("));
+				_tcscat(tmp, cpuboards[workprefs.cpuboard_type].subtypes[workprefs.cpuboard_subtype].name);
+				_tcscat(tmp, _T(")"));
+			}
 //			if (get_boardromconfig(&workprefs, erc->romtype, NULL) || get_boardromconfig(&workprefs, erc->romtype_extra, NULL)) {
-				gui_add_string(hdmenutable, hDlg, IDC_HDF_CONTROLLER, HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST + i, erc->friendlyname);
+				gui_add_string(hdmenutable, hDlg, IDC_HDF_CONTROLLER, HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST + i, tmp);
 //			}
 		}
 	}
@@ -10672,8 +10696,15 @@ static void inithdcontroller (HWND hDlg, int ctype, int devtype)
 	for (int i = 0; expansionroms[i].name; i++) {
 		const struct expansionromtype *erc = &expansionroms[i];
 		if (erc->deviceflags & EXPANSIONTYPE_SCSI) {
+			TCHAR tmp[MAX_DPATH];
+			_tcscpy(tmp, erc->friendlyname);
+			if (workprefs.cpuboard_type && erc->romtype == ROMTYPE_CPUBOARD) {
+				_tcscat(tmp, _T(" ("));
+				_tcscat(tmp, cpuboards[workprefs.cpuboard_type].subtypes[workprefs.cpuboard_subtype].name);
+				_tcscat(tmp, _T(")"));
+			}
 //			if (get_boardromconfig(&workprefs, erc->romtype, NULL) || get_boardromconfig(&workprefs, erc->romtype_extra, NULL)) {
-				gui_add_string(hdmenutable, hDlg, IDC_HDF_CONTROLLER, HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST + i, erc->friendlyname);
+				gui_add_string(hdmenutable, hDlg, IDC_HDF_CONTROLLER, HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST + i, tmp);
 //			}
 		}
 	}
