@@ -1689,7 +1689,8 @@ bool cpuboard_io_special(int addr, uae_u32 *val, int size, bool write)
 		return false;
 	} else {
 		if (is_a2630()) {
-			if (addr == 0x0c) {
+			// osmode (j304)
+			if (addr == 0x0c && (a2630_io & 4) == 0) {
 				(*val) |= 0x80;
 				if (currprefs.cpuboard_settings & 1)
 					(*val) &= ~0x80;
