@@ -1698,6 +1698,7 @@ addrbank *cdtv_init (int devnum)
 	gui_flicker_led (LED_CD, 0, -1);
 	if (currprefs.cs_cdtvscsi) {
 		init_wd_scsi (&wd_cdtv);
+		wd_cdtv.dmac_type = COMMODORE_DMAC;
 	}
 	return &dmac_bank;
 }
