@@ -573,6 +573,7 @@ extern int fpp_cond(int condition);
 
 extern void exception3_read(uae_u32 opcode, uaecptr addr);
 extern void exception3_write(uae_u32 opcode, uaecptr addr);
+extern void exception3_notinstruction(uae_u32 opcode, uaecptr addr);
 extern void exception3i (uae_u32 opcode, uaecptr addr);
 extern void exception3b (uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc);
 extern void exception2 (uaecptr addr, bool read, int size, uae_u32 fc);
