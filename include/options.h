@@ -182,7 +182,7 @@ struct uaedev_config_data
 };
 
 enum { CP_GENERIC = 1, CP_CDTV, CP_CDTVCR, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
-	CP_A1200, CP_A2000, CP_A3000, CP_A3000T, CP_A4000, CP_A4000T };
+	CP_A1200, CP_A2000, CP_A3000, CP_A3000T, CP_A4000, CP_A4000T, CP_VELVET };
 
 #define IDE_A600A1200 1
 #define IDE_A4000 2
@@ -485,6 +485,7 @@ struct uae_prefs {
 	bool cs_ciatodbug;
 	bool cs_z3autoconfig;
 	bool cs_1mchipjumper;
+	bool cs_cia6526;
 	int cs_hacks;
 
 	struct boardromconfig expansionboard[MAX_EXPANSION_BOARDS];

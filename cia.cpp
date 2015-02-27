@@ -946,6 +946,35 @@ static void bfe001_change (void)
 	}
 }
 
+static uae_u32 getciatod(uae_u32 tod)
+{
+	if (!currprefs.cs_cia6526)
+		return tod;
+	uae_u32 bcdtod = 0;
+	for (int i = 0; i < 4; i++) {
+		int val = tod % 10;
+		bcdtod *= 16;
+		bcdtod += val;
+		tod /= 10;
+	}
+	return bcdtod;
+}
+static void setciatod(unsigned long *tod, uae_u32 v)
+{
+	if (!currprefs.cs_cia6526) {
+		*tod = v;
+		return;
+	}
+	uae_u32 bintod = 0;
+	for (int i = 0; i < 4; i++) {
+		int val = v / 16;
+		bintod *= 10;
+		bintod += val;
+		v /= 16;
+	}
+	*tod = bintod;
+}
+
 static uae_u8 ReadCIAA (unsigned int addr)
 {
 	unsigned int tmp;
@@ -1045,22 +1074,44 @@ static uae_u8 ReadCIAA (unsigned int addr)
 	case 8:
 		if (ciaatlatch) {
 			ciaatlatch = 0;
-			return (uae_u8)ciaatol;
+			return getciatod(ciaatol);
 		} else
-			return (uae_u8)ciaatod;
+			return getciatod(ciaatod);
 	case 9:
 		if (ciaatlatch)
-			return (uae_u8)(ciaatol >> 8);
+			return getciatod(ciaatol) >> 8;
 		else
-			return (uae_u8)(ciaatod >> 8);
+			return getciatod(ciaatod) >> 8;
 	case 10:
-		if (!ciaatlatch) { /* only if not already latched. A1200 confirmed. (TW) */
-			/* no latching if ALARM is set */
-			if (!(ciaacrb & 0x80))
-				ciaatlatch = 1;
-			ciaatol = ciaatod;
+		/* only if not already latched. A1200 confirmed. (TW) */
+		if (!currprefs.cs_cia6526) {
+			if (!ciaatlatch) {
+				/* no latching if ALARM is set */
+				if (!(ciaacrb & 0x80))
+					ciaatlatch = 1;
+				ciaatol = ciaatod;
+			}
+			return getciatod(ciaatol) >> 16;
+		} else {
+			if (ciaatlatch)
+				return getciatod(ciaatol) >> 16;
+			else
+				return getciatod(ciaatod) >> 16;
 		}
-		return (uae_u8)(ciaatol >> 16);
+		break;
+	case 11:
+		if (currprefs.cs_cia6526) {
+			if (!ciaatlatch) {
+				if (!(ciaacrb & 0x80))
+					ciaatlatch = 1;
+				ciaatol = ciaatod;
+			}
+			if (ciaatlatch)
+				return getciatod(ciaatol) >> 24;
+			else
+				return getciatod(ciaatod) >> 24;
+		}
+		break;
 	case 12:
 #if KB_DEBUG
 		write_log (_T("CIAA serial port: %02x %08x\n"), ciaasdr, M68K_GETPC);
@@ -1164,24 +1215,44 @@ static uae_u8 ReadCIAB (unsigned int addr)
 		CIAB_tod_check ();
 		if (ciabtlatch) {
 			ciabtlatch = 0;
-			return (uae_u8)ciabtol;
+			return getciatod(ciabtol);
 		} else
-			return (uae_u8)ciabtod;
+			return getciatod(ciabtod);
 	case 9:
 		CIAB_tod_check ();
 		if (ciabtlatch)
-			return (uae_u8)(ciabtol >> 8);
+			return getciatod(ciabtol) >> 8;
 		else
-			return (uae_u8)(ciabtod >> 8);
+			return getciatod(ciabtod) >> 8;
 	case 10:
 		CIAB_tod_check ();
-		if (!ciabtlatch) {
-			/* no latching if ALARM is set */
-			if (!(ciabcrb & 0x80))
-				ciabtlatch = 1;
-			ciabtol = ciabtod;
+		if (!currprefs.cs_cia6526) {
+			if (!ciabtlatch) {
+				/* no latching if ALARM is set */
+				if (!(ciabcrb & 0x80))
+					ciabtlatch = 1;
+				ciabtol = ciabtod;
+			}
+			return getciatod(ciabtol) >> 16;
+		} else {
+			if (ciabtlatch)
+				return getciatod(ciabtol) >> 16;
+			else
+				return getciatod(ciabtod) >> 16;
 		}
-		return (uae_u8)(ciabtol >> 16);
+	case 11:
+		if (currprefs.cs_cia6526) {
+			if (!ciabtlatch) {
+				if (!(ciabcrb & 0x80))
+					ciabtlatch = 1;
+				ciabtol = ciabtod;
+			}
+			if (ciabtlatch)
+				return getciatod(ciabtol) >> 24;
+			else
+				return getciatod(ciabtod) >> 24;
+		}
+		break;
 	case 12:
 		return ciabsdr;
 	case 13:
@@ -1308,26 +1379,37 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val)
 		break;
 	case 8:
 		if (ciaacrb & 0x80) {
-			ciaaalarm = (ciaaalarm & ~0xff) | val;
+			setciatod(&ciaaalarm , (getciatod(ciaaalarm) & ~0xff) | val);
 		} else {
-			ciaatod = (ciaatod & ~0xff) | val;
+			setciatod(&ciaatod, (getciatod(ciaatod) & ~0xff) | val);
 			ciaatodon = 1;
 			ciaa_checkalarm (false);
 		}
 		break;
 	case 9:
 		if (ciaacrb & 0x80) {
-			ciaaalarm = (ciaaalarm & ~0xff00) | (val << 8);
+			setciatod(&ciaaalarm, (getciatod(ciaaalarm) & ~0xff00) | (val << 8));
 		} else {
-			ciaatod = (ciaatod & ~0xff00) | (val << 8);
+			setciatod(&ciaatod, (getciatod(ciaatod) & ~0xff00) | (val << 8));
 		}
 		break;
 	case 10:
 		if (ciaacrb & 0x80) {
-			ciaaalarm = (ciaaalarm & ~0xff0000) | (val << 16);
+			setciatod(&ciaaalarm, (getciatod(ciaaalarm) & ~0xff0000) | (val << 16));
 		} else {
-			ciaatod = (ciaatod & ~0xff0000) | (val << 16);
-			ciaatodon = 0;
+			setciatod(&ciaatod, (getciatod(ciaatod) & ~0xff0000) | (val << 16));
+			if (!currprefs.cs_cia6526)
+				ciaatodon = 0;
+		}
+		break;
+	case 11:
+		if (currprefs.cs_cia6526) {
+			if (ciaacrb & 0x80) {
+				setciatod(&ciaaalarm, (getciatod(ciaaalarm) & ~0xff000000) | (val << 24));
+			} else {
+				setciatod(&ciaatod, (getciatod(ciaatod) & ~0xff000000) | (val << 24));
+				ciaatodon = 0;
+			}
 		}
 		break;
 	case 12:
@@ -1476,9 +1558,9 @@ static void WriteCIAB (uae_u16 addr, uae_u8 val)
 	case 8:
 		CIAB_tod_check ();
 		if (ciabcrb & 0x80) {
-			ciabalarm = (ciabalarm & ~0xff) | val;
+			setciatod(&ciabalarm, (getciatod(ciabalarm) & ~0xff) | val);
 		} else {
-			ciabtod = (ciabtod & ~0xff) | val;
+			setciatod(&ciabtod, (getciatod(ciabtod) & ~0xff) | val);
 			ciabtodon = 1;
 			ciab_checkalarm (false, true);
 		}
@@ -1486,18 +1568,30 @@ static void WriteCIAB (uae_u16 addr, uae_u8 val)
 	case 9:
 		CIAB_tod_check ();
 		if (ciabcrb & 0x80) {
-			ciabalarm = (ciabalarm & ~0xff00) | (val << 8);
+			setciatod(&ciabalarm, (getciatod(ciabalarm) & ~0xff00) | (val << 8));
 		} else {
-			ciabtod = (ciabtod & ~0xff00) | (val << 8);
+			setciatod(&ciabtod, (getciatod(ciabtod) & ~0xff00) | (val << 8));
 		}
 		break;
 	case 10:
 		CIAB_tod_check ();
 		if (ciabcrb & 0x80) {
-			ciabalarm = (ciabalarm & ~0xff0000) | (val << 16);
+			setciatod(&ciabalarm, (getciatod(ciabalarm) & ~0xff0000) | (val << 16));
 		} else {
-			ciabtod = (ciabtod & ~0xff0000) | (val << 16);
-			ciabtodon = 0;
+			setciatod(&ciabtod, (getciatod(ciabtod) & ~0xff0000) | (val << 16));
+			if (!currprefs.cs_cia6526)
+				ciabtodon = 0;
+		}
+		break;
+	case 11:
+		if (currprefs.cs_cia6526) {
+			CIAB_tod_check ();
+			if (ciabcrb & 0x80) {
+				setciatod(&ciabalarm, (getciatod(ciabalarm) & ~0xff000000) | (val << 24));
+			} else {
+				setciatod(&ciabtod, (getciatod(ciabtod) & ~0xff000000) | (val << 24));
+				ciabtodon = 0;
+			}
 		}
 		break;
 	case 12:

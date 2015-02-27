@@ -166,7 +166,9 @@ static const TCHAR *ciaatodmode[] = { _T("vblank"), _T("50hz"), _T("60hz"), 0 };
 static const TCHAR *ksmirrortype[] = { _T("none"), _T("e0"), _T("a8+e0"), 0 };
 static const TCHAR *cscompa[] = {
 	_T("-"), _T("Generic"), _T("CDTV"), _T("CDTV-CR"), _T("CD32"), _T("A500"), _T("A500+"), _T("A600"),
-	_T("A1000"), _T("A1200"), _T("A2000"), _T("A3000"), _T("A3000T"), _T("A4000"), _T("A4000T"), 0
+	_T("A1000"), _T("A1200"), _T("A2000"), _T("A3000"), _T("A3000T"), _T("A4000"), _T("A4000T"),
+	_T("Velvet"),
+	NULL
 };
 static const TCHAR *qsmodes[] = {
 	_T("A500"), _T("A500+"), _T("A600"), _T("A1000"), _T("A1200"), _T("A3000"), _T("A4000"), _T(""), _T("CD32"), _T("CDTV"), _T("CDTV-CR"), _T("ARCADIA"), NULL };
@@ -6224,6 +6226,28 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
 	return configure_rom (p, roms, romcheck);
 }
 
+static int bip_velvet(struct uae_prefs *p, int config, int compa, int romcheck)
+{
+	int roms[2];
+
+	roms[0] = 125;
+	roms[1] = -1;
+	p->chipset_mask = 0;
+	p->bogomem_size = 0;
+	p->sound_filter = FILTER_SOUND_ON;
+	set_68000_compa (p, compa);
+	p->floppyslots[1].dfxtype = DRV_NONE;
+	p->cs_compatible = CP_VELVET;
+	p->cs_slowmemisfast = 1;
+	p->cs_dipagnus = 1;
+	p->cs_agnusbltbusybug = 1;
+	built_in_chipset_prefs (p);
+	p->cs_denisenoehb = 1;
+	p->cs_cia6526 = 1;
+	p->chipmem_size = 0x40000;
+	return configure_rom (p, roms, romcheck);
+}
+
 static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
 {
 	int roms[2];
@@ -6244,6 +6268,8 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
 		p->cs_denisenoehb = 1;
 	if (config > 1)
 		p->chipmem_size = 0x40000;
+	if (config > 2)
+		bip_velvet(p, config, compa, romcheck);
 	return configure_rom (p, roms, romcheck);
 }
 
