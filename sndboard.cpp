@@ -3,7 +3,7 @@
 *
 * Toccata Z2 board emulation
 *
-* Copyright 2014 Toni Wilen
+* Copyright 2014-2015 Toni Wilen
 *
 */
 
@@ -19,6 +19,11 @@
 #include "sndboard.h"
 #include "audio.h"
 
+
+static uae_u8 *sndboard_get_buffer(int *frames);
+static void sndboard_release_buffer(uae_u8 *buffer, int frames);
+static void sndboard_free_capture(void);
+static bool sndboard_init_capture(int freq);
 
 #define DEBUG_TOCCATA 0
 
@@ -66,7 +71,7 @@ static int left_volume, right_volume;
 #define STATUS_READ_PLAY_HALF 8
 #define STATUS_READ_RECORD_HALF 4
 
-static int freq, channels, samplebits;
+static int freq, freq_adjusted, channels, samplebits;
 static int event_time, record_event_time;
 static int record_event_counter;
 static double base_event_clock;
@@ -206,12 +211,17 @@ static void codec_setup(void)
 	channels = (c & 0x10) ? 2 : 1;
 	samplebits = (c & 0x40) ? 16 : 8;
 	freq = freq_crystals[c & 1] / freq_dividers[(c >> 1) & 7];
+	freq_adjusted = ((freq + 49) / 100) * 100;
 	bytespersample = (samplebits / 8) * channels;
 	write_log(_T("TOCCATA start %s freq=%d bits=%d channels=%d\n"),
 		((toccata_active & (STATUS_FIFO_PLAY | STATUS_FIFO_RECORD)) == (STATUS_FIFO_PLAY | STATUS_FIFO_RECORD)) ? _T("Play+Record") :
 		(toccata_active & STATUS_FIFO_PLAY) ? _T("Play") : _T("Record"),
 		freq, samplebits, channels);
 }
+
+static int capture_buffer_size = 48000 * 2 * 2; // 1s at 48000/stereo/16bit
+static int capture_read_index, capture_write_index;
+static uae_u8 *capture_buffer;
 
 static void codec_start(void)
 {
@@ -221,18 +231,26 @@ static void codec_start(void)
 	codec_setup();
 
 	event_time = base_event_clock * CYCLE_UNIT / freq;
-	record_event_time = base_event_clock * FIFO_SIZE_HALF / (freq * bytespersample);
+	record_event_time = base_event_clock * CYCLE_UNIT / (freq_adjusted * bytespersample);
 	record_event_counter = 0;
 
-	if (toccata_active & STATUS_FIFO_PLAY)
+	if (toccata_active & STATUS_FIFO_PLAY) {
 		audio_enable_sndboard(true);
+	}
+	if (toccata_active & STATUS_FIFO_RECORD) {
+		capture_buffer = xcalloc(uae_u8, capture_buffer_size);
+		sndboard_init_capture(freq_adjusted);
+	}
 }
 
 static void codec_stop(void)
 {
 	write_log(_T("TOCCATA stop\n"));
 	toccata_active = 0;
+	sndboard_free_capture();
 	audio_enable_sndboard(false);
+	xfree(capture_buffer);
+	capture_buffer = NULL;
 }
 
 void sndboard_rethink(void)
@@ -241,21 +259,98 @@ void sndboard_rethink(void)
 		INTREQ_0(0x8000 | 0x2000);
 }
 
+static void sndboard_process_capture(void)
+{
+	int frames;
+	uae_u8 *buffer = sndboard_get_buffer(&frames);
+	if (buffer && frames) {
+		uae_u8 *p = buffer;
+		int bytes = frames * 4;
+		if (bytes >= capture_buffer_size - capture_write_index) {
+			memcpy(capture_buffer + capture_write_index, p, capture_buffer_size - capture_write_index);
+			p += capture_buffer_size - capture_write_index;
+			bytes -=  capture_buffer_size - capture_write_index;
+			capture_write_index = 0;
+		}
+		if (bytes > 0 && bytes < capture_buffer_size - capture_write_index) {
+			memcpy(capture_buffer + capture_write_index, p, bytes);
+			capture_write_index += bytes;
+		}
+	}
+	sndboard_release_buffer(buffer, frames);
+}
+
 void sndboard_hsync(void)
 {
+	static int capcnt;
+
 	if (autocalibration > 0)
 		autocalibration--;
+
 	if (toccata_active & STATUS_FIFO_RECORD) {
-		record_event_counter -= maxhpos;
-		if (record_event_counter <= 0) {
-			record_event_counter += record_event_time;
-			int size = data_in_record_fifo < FIFO_SIZE_HALF ? 512 : FIFO_SIZE - data_in_record_fifo;
-			data_in_record_fifo += size;
-			fifo_record_write_index += size;
+
+		capcnt--;
+		if (capcnt <= 0) {
+			sndboard_process_capture();
+			capcnt = record_event_time * 312 / (maxhpos * CYCLE_UNIT);
+		}
+
+		record_event_counter += maxhpos * CYCLE_UNIT;
+		int bytes = record_event_counter / record_event_time;
+		bytes &= ~3;
+		if (bytes < 64 || capture_read_index == capture_write_index)
+			return;
+
+		int oldfifo = data_in_record_fifo;
+		int oldbytes = bytes;
+		int size = FIFO_SIZE - data_in_record_fifo;
+		while (size > 0 && capture_read_index != capture_write_index && bytes > 0) {
+			uae_u8 *fifop = &fifo[fifo_record_write_index];
+			uae_u8 *bufp = &capture_buffer[capture_read_index];
+
+			if (samplebits == 8) {
+				fifop[0] = bufp[1];
+				fifo_record_write_index++;
+				data_in_record_fifo++;
+				size--;
+				bytes--;
+				if (channels == 2) {
+					fifop[1] = bufp[3];
+					fifo_record_write_index++;
+					data_in_record_fifo++;
+					size--;
+					bytes--;
+				}
+			} else if (samplebits == 16) {
+				fifop[0] = bufp[1];
+				fifop[1] = bufp[0];
+				fifo_record_write_index += 2;
+				data_in_record_fifo += 2;
+				size -= 2;
+				bytes -= 2;
+				if (channels == 2) {
+					fifop[2] = bufp[3];
+					fifop[3] = bufp[2];
+					fifo_record_write_index += 2;
+					data_in_record_fifo += 2;
+					size -= 2;
+					bytes -= 2;
+				}
+			}
+
 			fifo_record_write_index %= FIFO_SIZE;
+			capture_read_index += 4;
+			if (capture_read_index >= capture_buffer_size)
+				capture_read_index = 0;
+		}
+		
+		write_log(_T("%d %d %d %d\n"), capture_read_index, capture_write_index, size, bytes);
+
+		if (data_in_record_fifo > FIFO_SIZE_HALF && oldfifo <= FIFO_SIZE_HALF) {
 			fifo_half |= STATUS_FIFO_RECORD;
 			audio_state_sndboard(-1);
 		}
+		record_event_counter -= oldbytes * record_event_time;
 	}
 }
 
@@ -541,3 +636,152 @@ void sndboard_reset(void)
 	ch_sample[1] = 0;
 	audio_enable_sndboard(false);
 }
+
+#ifdef _WIN32
+
+#include <mmdeviceapi.h>
+#include <Audioclient.h>
+
+#define REFTIMES_PER_SEC  10000000
+
+static const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
+static const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
+static const IID IID_IAudioClient = __uuidof(IAudioClient);
+static const IID IID_IAudioCaptureClient = __uuidof(IAudioCaptureClient);
+
+#define EXIT_ON_ERROR(hres) if (FAILED(hres)) { goto Exit; }
+#define SAFE_RELEASE(punk)  if ((punk) != NULL) { (punk)->Release(); (punk) = NULL; }
+
+static IMMDeviceEnumerator *pEnumerator = NULL;
+static IMMDevice *pDevice = NULL;
+static IAudioClient *pAudioClient = NULL;
+static IAudioCaptureClient *pCaptureClient = NULL;
+static bool capture_started;
+
+static uae_u8 *sndboard_get_buffer(int *frames)
+{	
+	HRESULT hr;
+	UINT32 numFramesAvailable;
+	BYTE *pData;
+	DWORD flags = 0;
+
+	*frames = -1;
+	if (!capture_started)
+		return NULL;
+	hr = pCaptureClient->GetBuffer(&pData, &numFramesAvailable, &flags, NULL, NULL);
+	if (FAILED(hr)) {
+		write_log(_T("GetBuffer failed %08x\n"), hr);
+		return NULL;
+	}
+	*frames = numFramesAvailable;
+	return pData;
+}
+
+static void sndboard_release_buffer(uae_u8 *buffer, int frames)
+{
+	HRESULT hr;
+	if (!capture_started || frames < 0)
+		return;
+	hr = pCaptureClient->ReleaseBuffer(frames);
+	if (FAILED(hr)) {
+		write_log(_T("ReleaseBuffer failed %08x\n"), hr);
+	}
+}
+
+static void sndboard_free_capture(void)
+{
+	if (capture_started)
+		pAudioClient->Stop();
+	capture_started = false;
+    SAFE_RELEASE(pEnumerator)
+    SAFE_RELEASE(pDevice)
+    SAFE_RELEASE(pAudioClient)
+    SAFE_RELEASE(pCaptureClient)
+}
+
+static bool sndboard_init_capture(int freq)
+{
+	HRESULT hr;
+	WAVEFORMATEX wavfmtsrc;
+	WAVEFORMATEX *wavfmt2;
+	WAVEFORMATEX *wavfmt;
+
+	wavfmt2 = NULL;
+
+	hr = CoCreateInstance(
+		CLSID_MMDeviceEnumerator, NULL,
+		CLSCTX_ALL, IID_IMMDeviceEnumerator,
+		(void**)&pEnumerator);
+	EXIT_ON_ERROR(hr)
+
+	hr = pEnumerator->GetDefaultAudioEndpoint(eCapture, eConsole, &pDevice);
+	EXIT_ON_ERROR(hr)
+
+    hr = pDevice->Activate(IID_IAudioClient, CLSCTX_ALL, NULL, (void**)&pAudioClient);
+	EXIT_ON_ERROR(hr)
+
+	memset (&wavfmtsrc, 0, sizeof wavfmtsrc);
+	wavfmtsrc.nChannels = 2;
+	wavfmtsrc.nSamplesPerSec = freq;
+	wavfmtsrc.wBitsPerSample = 16;
+	wavfmtsrc.wFormatTag = WAVE_FORMAT_PCM;
+	wavfmtsrc.cbSize = 0;
+	wavfmtsrc.nBlockAlign = wavfmtsrc.wBitsPerSample / 8 * wavfmtsrc.nChannels;
+	wavfmtsrc.nAvgBytesPerSec = wavfmtsrc.nBlockAlign * wavfmtsrc.nSamplesPerSec;
+
+	bool init = false;
+	AUDCLNT_SHAREMODE exc;
+	for (int mode = 0; mode < 2; mode++) {
+		exc = mode == 0 ? AUDCLNT_SHAREMODE_EXCLUSIVE : AUDCLNT_SHAREMODE_SHARED;
+		int time = mode == 0 ? 0 : REFTIMES_PER_SEC / 50;
+
+		wavfmt = &wavfmtsrc;
+		hr = pAudioClient->IsFormatSupported(exc, &wavfmtsrc, &wavfmt2);
+		if (SUCCEEDED(hr)) {
+			hr = pAudioClient->Initialize(exc, 0, time, 0, wavfmt, NULL);
+			if (SUCCEEDED(hr)) {
+				init = true;
+				break;
+			}
+		}
+	
+		if (hr == S_FALSE && wavfmt2) {
+			wavfmt = wavfmt2;
+			hr = pAudioClient->Initialize(exc, 0, time, 0, wavfmt, NULL);
+			if (SUCCEEDED(hr)) {
+				init = true;
+				break;
+			}
+		}
+	}
+
+	if (!init) {
+		write_log(_T("sndboard capture init, freq=%d, failed\n"), freq);
+		goto Exit;
+	}
+
+
+	hr = pAudioClient->GetService(IID_IAudioCaptureClient, (void**)&pCaptureClient);
+    EXIT_ON_ERROR(hr)
+		
+	hr = pAudioClient->Start();
+	EXIT_ON_ERROR(hr)
+	capture_started = true;
+
+	CoTaskMemFree(wavfmt2);
+
+	write_log(_T("sndboard capture started: freq=%d mode=%s\n"), freq, exc == AUDCLNT_SHAREMODE_EXCLUSIVE ? _T("exclusive") : _T("shared"));
+
+	return true;
+Exit:;
+	CoTaskMemFree(wavfmt2);
+	write_log(_T("sndboard capture init failed %08x\n"), hr);
+	sndboard_free_capture();
+	return false;
+}
+
+
+#endif
+
+
+
