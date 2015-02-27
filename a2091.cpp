@@ -321,15 +321,19 @@ static bool isirq(struct wd_state *wd)
 		break;
 		case COMMODORE_SDMAC:
 		if (wd->wc.auxstatus & ASR_INT)
-			wd->cdmac.dmac_istr |= ISTR_INTS;
+			wd->cdmac.dmac_istr |= ISTR_INTS | ISTR_INT_F;
+		else
+			wd->cdmac.dmac_istr &= ~ISTR_INT_F;
 		if ((wd->cdmac.dmac_cntr & SCNTR_INTEN) && (wd->cdmac.dmac_istr & (ISTR_INTS | ISTR_E_INT)))
 			return true;
 		break;
 		case COMMODORE_DMAC:
 		if (wd->cdmac.xt_irq)
-			wd->cdmac.dmac_istr |= ISTR_INTS;
-		if (wd->wc.auxstatus & ASR_INT)
-			wd->cdmac.dmac_istr |= ISTR_INTS;
+			wd->cdmac.dmac_istr |= ISTR_INTS | ISTR_INT_F;
+		else if (wd->wc.auxstatus & ASR_INT)
+			wd->cdmac.dmac_istr |= ISTR_INTS | ISTR_INT_F;
+		else
+			wd->cdmac.dmac_istr &= ~ISTR_INT_F;
 		if ((wd->cdmac.dmac_cntr & CNTR_INTEN) && (wd->cdmac.dmac_istr & (ISTR_INTS | ISTR_E_INT)))
 			return true;
 		break;
@@ -548,15 +552,19 @@ static void setphase(struct wd_chip_state *wd, uae_u8 phase)
 	wd->wdregs[WD_COMMAND_PHASE] = phase;
 }
 
-static void dmacheck_a2091 (struct wd_state *wd)
+static bool dmacheck_a2091 (struct wd_state *wd)
 {
 	wd->cdmac.dmac_acr++;
 	if (wd->cdmac.old_dmac && (wd->cdmac.dmac_cntr & CNTR_TCEN)) {
-		if (wd->cdmac.dmac_wtc == 0)
+		if (wd->cdmac.dmac_wtc == 0) {
 			wd->cdmac.dmac_istr |= ISTR_E_INT;
-		else
-			wd->cdmac.dmac_wtc--;
+			return true;
+		} else {
+			if ((wd->cdmac.dmac_acr & 1) == 1)
+				wd->cdmac.dmac_wtc--;
+		}
 	}
+	return false;
 }
 
 static bool dmacheck_a2090 (struct wd_state *wd)
@@ -650,17 +658,19 @@ static bool do_dma_commodore(struct wd_state *wd, struct scsi_data *scsi)
 #if WD33C93_DEBUG > 0
 		uaecptr odmac_acr = wd->cdmac.dmac_acr;
 #endif
-		for (;;) {
+		bool run = true;
+		while (run) {
 			uae_u8 v;
 			int status = scsi_receive_data (scsi, &v);
 			put_byte(wd->cdmac.dmac_acr, v);
 			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data)
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v;
-			dmacheck_a2091 (wd);
 			if (decreasetc (&wd->wc))
-				break;
+				run = false;
+			if (dmacheck_a2091 (wd))
+				run = false;
 			if (status)
-				break;
+				run = false;
 		}
 #if WD33C93_DEBUG > 0
 		write_log (_T("%s Done DMA from WD, %d/%d %08X\n"), WD33C93, scsi->offset, scsi->data_len, odmac_acr);
@@ -670,17 +680,19 @@ static bool do_dma_commodore(struct wd_state *wd, struct scsi_data *scsi)
 #if WD33C93_DEBUG > 0
 		uaecptr odmac_acr = wd->cdmac.dmac_acr;
 #endif
-		for (;;) {
+		bool run = true;
+		while (run) {
 			int status;
 			uae_u8 v = get_byte(wd->cdmac.dmac_acr);
 			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data)
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v;
 			status = scsi_send_data (scsi, v);
-			dmacheck_a2091 (wd);
 			if (decreasetc (&wd->wc))
-				break;
+				run = false;
+			if (dmacheck_a2091 (wd))
+				run = false;
 			if (status)
-				break;
+				run = false;
 		}
 #if WD33C93_DEBUG > 0
 		write_log (_T("%s Done DMA to WD, %d/%d %08x\n"), WD33C93, scsi->offset, scsi->data_len, odmac_acr);
@@ -1866,7 +1878,7 @@ static uae_u32 dmac_a2091_read_word (struct wd_state *wd, uaecptr addr)
 		{
 		case 0x40:
 			v = wd->cdmac.dmac_istr;
-			if (v && (wd->cdmac.dmac_cntr & CNTR_INTEN))
+			if ((v & (ISTR_E_INT | ISTR_INTS)) && (wd->cdmac.dmac_cntr & CNTR_INTEN))
 				v |= ISTR_INT_P;
 			wd->cdmac.dmac_istr &= ~0xf;
 			break;
