@@ -2022,20 +2022,18 @@ static bool mmu040_special_movem (uae_u16 opcode)
 static void movem_mmu040 (const char *code, int size, bool put, bool aipi, bool apdi, uae_u16 opcode)
 {
 	const char *index;
-	int dphase, aphase;
-	bool mvm = false;
+	int dphase;
 
 	if (apdi) {
-		dphase = 1; aphase = 0;
+		dphase = 1;
 		index = "movem_index2";
 	} else {
-		dphase = 0; aphase = 1;
+		dphase = 0;
 		index = "movem_index1";
 	}
 
 	printf ("\tmmu040_movem = 1;\n");
 	printf ("\tmmu040_movem_ea = srca;\n");
-	mvm = true;
 
 	for (int i = 0; i < 2; i++) {
 		char reg;
