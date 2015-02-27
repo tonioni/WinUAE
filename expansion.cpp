@@ -2172,23 +2172,28 @@ static const struct expansionsubromtype masoboshi_sub[] = {
 static const struct expansionsubromtype supra_sub[] = {
 	{
 		_T("A500 ByteSync/XP"), _T("bytesync"),
-		1056, 3, 9,
-		{ 0 },
+		1056, 9, 0,
+		{ 0xd1, 13, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
 	},
 	{
 		_T("A2000 Word Sync"), _T("wordsync"),
-		1056, 3, 9,
-		{ 0 },
+		1056, 9, 0,
+		{ 0xd1, 12, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
 	},
 	{
 		_T("A500 Autoboot"), _T("500"),
-		1056, 3, 5,
-		{ 0 },
+		1056, 5, 0,
+		{ 0xd1, 8, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
 	},
 	{
 		_T("Non Autoboot (4x4)"), _T("4x4"),
-		1056, 3, 2,
-		{ 0 },
+		1056, 2, 0,
+		{ 0xc1, 1, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+	},
+	{
+		_T("A2000 DMA"), _T("dma"),
+		1056, 2, 0,
+		{ 0xd1, 3, 0x00, 0x00, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00 },
 	},
 	{
 		NULL
@@ -2197,7 +2202,7 @@ static const struct expansionsubromtype supra_sub[] = {
 
 const struct expansionromtype expansionroms[] = {
 	{
-		_T("cpuboard"), _T("Accelerator board"),
+		_T("cpuboard"), _T("Accelerator"),
 		NULL, add_cpuboard_unit, ROMTYPE_CPUBOARD, 0, 0, 0,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE
@@ -2287,7 +2292,14 @@ const struct expansionromtype expansionroms[] = {
 		_T("supradrive"), _T("SupraDrive"),
 		supra_init, supra_add_scsi_unit, ROMTYPE_SUPRA | ROMTYPE_NONE, 0, 0, 2,
 		supra_sub, 0,
-		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE
+		true, EXPANSIONTYPE_SCSI
+	},
+	{
+		_T("golem"), _T("Kupke Golem"),
+		golem_init, golem_add_scsi_unit, ROMTYPE_GOLEM, 0, 0, 2,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI,
+		2079, 3, 0
 	},
 	{
 		NULL
@@ -2338,7 +2350,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 	{
 		_T("G-Force 030"),
 		_T("GVPGFORCE030"),
-		ROMTYPE_GVPS2, 0,
+		ROMTYPE_GVPS2, ROMTYPE_GVPS12,
 		gvp_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_25BITMEM,
 		128 * 1024 * 1024,
@@ -2359,7 +2371,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 };
 static const struct cpuboardsubtype blizzardboard_sub[] = {
 	{
-		_T("1230 IV"),
+		_T("Blizzard 1230 IV"),
 		_T("Blizzard1230IV"),
 		ROMTYPE_CB_BLIZ1230, 0,
 		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI,
@@ -2370,7 +2382,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 		blizzardboard_settings
 	},
 	{
-		_T("1260"),
+		_T("Blizzard 1260"),
 		_T("Blizzard1260"),
 		ROMTYPE_CB_BLIZ1260, 0,
 		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI,
@@ -2381,7 +2393,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 		blizzardboard_settings
 	},
 	{
-		_T("2060"),
+		_T("Blizzard 2060"),
 		_T("Blizzard2060"),
 		ROMTYPE_CB_BLIZ2060, 0,
 		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI,
@@ -2392,7 +2404,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 		blizzardboard_settings
 	},
 	{
-		_T("PPC"),
+		_T("Blizzard PPC"),
 		_T("BlizzardPPC"),
 		ROMTYPE_CB_BLIZPPC, 0,
 		blizzardppc_add_scsi_unit, EXPANSIONTYPE_SCSI,
@@ -2405,7 +2417,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 };
 static const struct cpuboardsubtype cyberstormboard_sub[] = {
 	{
-		_T("MK I"),
+		_T("CyberStorm MK I"),
 		_T("CyberStormMK1"),
 		ROMTYPE_CB_CSMK1, 0,
 		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI,
@@ -2413,7 +2425,7 @@ static const struct cpuboardsubtype cyberstormboard_sub[] = {
 		128 * 1024 * 1024
 	},
 	{
-		_T("MK II"),
+		_T("CyberStorm MK II"),
 		_T("CyberStormMK2"),
 		ROMTYPE_CB_CSMK2, 0,
 		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI,
@@ -2421,7 +2433,7 @@ static const struct cpuboardsubtype cyberstormboard_sub[] = {
 		128 * 1024 * 1024
 	},
 	{
-		_T("MK III"),
+		_T("CyberStorm MK III"),
 		_T("CyberStormMK3"),
 		ROMTYPE_CB_CSMK3, 0,
 		cyberstorm_add_scsi_unit, EXPANSIONTYPE_SCSI,
@@ -2429,7 +2441,7 @@ static const struct cpuboardsubtype cyberstormboard_sub[] = {
 		128 * 1024 * 1024
 	},
 	{
-		_T("PPC"),
+		_T("CyberStorm PPC"),
 		_T("CyberStormPPC"),
 		ROMTYPE_CB_CSPPC, 0,
 		cyberstorm_add_scsi_unit, EXPANSIONTYPE_SCSI,
