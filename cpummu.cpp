@@ -63,13 +63,12 @@ uae_u32 mmu040_move16[4];
 static void mmu_dump_ttr(const TCHAR * label, uae_u32 ttr)
 {
 	DUNUSED(label);
+#if MMUDEBUG > 0
 	uae_u32 from_addr, to_addr;
 
 	from_addr = ttr & MMU_TTR_LOGICAL_BASE;
 	to_addr = (ttr & MMU_TTR_LOGICAL_MASK) << 8;
 
-	
-#if MMUDEBUG > 0
 	write_log(_T("%s: [%08lx] %08lx - %08lx enabled=%d supervisor=%d wp=%d cm=%02d\n"),
 			label, ttr,
 			from_addr, to_addr,
