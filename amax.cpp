@@ -145,11 +145,11 @@ void amax_init (void)
 {
 	struct zfile *z = NULL;
 
-	if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) < 0)
+	if (is_device_rom(&currprefs, ROMTYPE_AMAX, 0) < 0)
 		return;
 	amax_reset ();
-	if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) > 0)
-		z = read_device_rom(&currprefs, 0, ROMTYPE_AMAX, NULL);
+	if (is_device_rom(&currprefs, ROMTYPE_AMAX, 0) > 0)
+		z = read_device_rom(&currprefs, ROMTYPE_AMAX, 0, NULL);
 	if (z) {
 		zfile_fseek (z, 0, SEEK_END);
 		amax_rom_size = zfile_ftell (z);

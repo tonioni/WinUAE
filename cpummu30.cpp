@@ -712,7 +712,6 @@ int mmu030_do_match_lrmw_ttr(uae_u32 tt, TT_info comp, uaecptr addr, uae_u32 fc)
 
 static void mmu030_do_fake_prefetch(void)
 {
-	uaecptr pc = m68k_getpci();
 	// fetch next opcode before MMU state switches.
 	// There are programs that do following:
 	// - enable MMU

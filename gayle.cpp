@@ -1332,7 +1332,7 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, str
 	} else if (type == PCMCIA_IDE) {
 
 		if (reset && path) {	
-			add_ide_unit (idedrive, TOTAL_IDE * 2, PCMCIA_IDE_ID * 2, uci);
+			add_ide_unit (idedrive, TOTAL_IDE * 2, PCMCIA_IDE_ID * 2, uci, NULL);
 		}
 		ide_initialize(idedrive, PCMCIA_IDE_ID);
 
@@ -1608,7 +1608,7 @@ int gayle_add_ide_unit (int ch, struct uaedev_config_info *ci)
 
 	if (ch >= 2 * 2)
 		return -1;
-	ide = add_ide_unit (idedrive, TOTAL_IDE * 2, ch, ci);
+	ide = add_ide_unit (idedrive, TOTAL_IDE * 2, ch, ci, NULL);
 	if (ide == NULL)
 		return 0;
 	//dumphdf (&ide->hdhfd.hfd);
@@ -1682,8 +1682,8 @@ void gayle_reset (int hardreset)
 #ifdef NCR
 	if (currprefs.cs_mbdmac == 2) {
 		_tcscat (bankname, _T(" + NCR53C710 SCSI"));
-		ncr710_init();
-		ncr710_reset();
+		ncr_init();
+		ncr_reset();
 	}
 #endif
 	gayle_bank.name = bankname;

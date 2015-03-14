@@ -318,9 +318,9 @@ static int doinit_shm (void)
 		if (changed_prefs.cpu_model >= 68020)
 			size = 0x10000000;
 		z3size = ((changed_prefs.z3fastmem_size + align) & ~align) + ((changed_prefs.z3fastmem2_size + align) & ~align) + ((changed_prefs.z3chipmem_size + align) & ~align);
-		if (cfgfile_board_enabled(&currprefs, ROMTYPE_A4091))
+		if (cfgfile_board_enabled(&currprefs, ROMTYPE_A4091, 0))
 			othersize += 2 * 16 * 1024 * 1024;
-		if (cfgfile_board_enabled(&currprefs, ROMTYPE_FASTLANE))
+		if (cfgfile_board_enabled(&currprefs, ROMTYPE_FASTLANE, 0))
 			othersize += 2 * 32 * 1024 * 1024;
 		totalsize = size + z3size + z3rtgmem_size + othersize;
 		while (totalsize > size64) {

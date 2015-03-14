@@ -793,16 +793,35 @@ static void allocuci (struct uae_prefs *p, int nr, int idx)
 	allocuci (p, nr, idx, -1);
 }
 
-int add_cpuboard_unit(int unit, struct uaedev_config_info *uci)
+static int cpuboard_hd;
+
+void add_cpuboard_unit(int unit, struct uaedev_config_info *uci, struct romconfig *rc)
 {
-	bool added = false;
 	int flags = (uci->controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && uci->controller_type <= HD_CONTROLLER_TYPE_IDE_LAST) ? EXPANSIONTYPE_IDE : EXPANSIONTYPE_SCSI;
 	const struct cpuboardtype *cbt = &cpuboards[currprefs.cpuboard_type];
+	cpuboard_hd = 0;
 	if (cbt->subtypes) {
-		if (cbt->subtypes[currprefs.cpuboard_subtype].add && (cbt->subtypes[currprefs.cpuboard_subtype].deviceflags & flags))
-			added = cbt->subtypes[currprefs.cpuboard_subtype].add(unit, uci);
+		if (cbt->subtypes[currprefs.cpuboard_subtype].add && (cbt->subtypes[currprefs.cpuboard_subtype].deviceflags & flags)) {
+			cbt->subtypes[currprefs.cpuboard_subtype].add(unit, uci, rc);
+			cpuboard_hd = 1;
+		}
 	}
-	return added;
+}
+
+static void add_cpuboard_unit_init(void)
+{
+	if (currprefs.cpuboard_type) {
+		struct romconfig *rc = get_device_romconfig(&currprefs, ROMTYPE_CPUBOARD, 0);
+		if (rc) {
+			const struct cpuboardtype *cbt = &cpuboards[currprefs.cpuboard_type];
+			if (cbt->subtypes) {
+				if (cbt->subtypes[currprefs.cpuboard_subtype].add) {
+					struct uaedev_config_info ci = { 0 };
+					cbt->subtypes[currprefs.cpuboard_subtype].add(-1, &ci, rc);
+				}
+			}
+		}
+	}
 }
 
 static bool add_ide_unit(int type, int unit, struct uaedev_config_info *uci)
@@ -817,10 +836,14 @@ static bool add_ide_unit(int type, int unit, struct uaedev_config_info *uci)
 		for (int i = 0; expansionroms[i].name; i++) {
 			if (i == type - HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST) {
 				const struct expansionromtype *ert = &expansionroms[i];
-				if ((ert->deviceflags & 2) && cfgfile_board_enabled(&currprefs, ert->romtype)) {
-					if (ert->add)
-						ert->add(unit, uci);
-					added = true;
+				if ((ert->deviceflags & 2) && cfgfile_board_enabled(&currprefs, ert->romtype, uci->controller_type_unit)) {
+					cpuboard_hd = 1;
+					if (ert->add) {
+						struct romconfig *rc = get_device_romconfig(&currprefs, ert->romtype, uci->controller_type_unit);
+						ert->add(unit, uci, rc);
+					}
+					if (cpuboard_hd)
+						added = true;
 				}
 			}
 		}
@@ -834,21 +857,21 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 	if (type == HD_CONTROLLER_TYPE_SCSI_A3000) {
 #ifdef A2091
 		if (currprefs.cs_mbdmac == 1) {
-			a3000_add_scsi_unit (unit, uci);
+			a3000_add_scsi_unit (unit, uci, NULL);
 			added = true;
 		}
 #endif
 	} else if (type == HD_CONTROLLER_TYPE_SCSI_A4000T) {
 #ifdef NCR
 		if (currprefs.cs_mbdmac == 2) {
-			a4000t_add_scsi_unit (unit, uci);
+			a4000t_add_scsi_unit (unit, uci, NULL);
 			added = true;
 		}
 #endif
 	} else if (type == HD_CONTROLLER_TYPE_SCSI_CDTV) {
 #ifdef CDTV
 		if (currprefs.cs_cdtvscsi) {
-			cdtv_add_scsi_hd_unit (unit, uci);
+			cdtv_add_scsi_unit (unit, uci, NULL);
 			added = true;
 		}
 #endif
@@ -856,12 +879,14 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 		for (int i = 0; expansionroms[i].name; i++) {
 			if (i == type - HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST) {
 				const struct expansionromtype *ert = &expansionroms[i];
-				if ((ert->deviceflags & 1) && cfgfile_board_enabled(&currprefs, ert->romtype)) {
+				if ((ert->deviceflags & 1) && cfgfile_board_enabled(&currprefs, ert->romtype, uci->controller_type_unit)) {
+					cpuboard_hd = 1;
 					if (ert->add) {
-						added = ert->add(unit, uci);
-					} else {
-						added = true;
+						struct romconfig *rc = get_device_romconfig(&currprefs, ert->romtype, uci->controller_type_unit);
+						ert->add(unit, uci, rc);
 					}
+					if (cpuboard_hd)
+						added = true;
 				}
 			}
 		}
@@ -921,6 +946,22 @@ static void initialize_mountinfo (void)
 				if (unitnum >= 0) {
 					int idx = set_filesys_unit_1 (-1, &ci);
 					allocuci (&currprefs, nr, idx, unitnum);
+				}
+			}
+		}
+	}
+
+	// init all controllers first
+	add_cpuboard_unit_init();
+	for (int i = 0; expansionroms[i].name; i++) {
+		const struct expansionromtype *ert = &expansionroms[i];
+		for (int j = 0; j < MAX_DUPLICATE_EXPANSION_BOARDS; j++) {
+			struct romconfig *rc = get_device_romconfig(&currprefs, ert->romtype, j);
+			if ((ert->deviceflags & 3) && rc) {
+				if (ert->add) {
+					struct uaedev_config_info ci = { 0 };
+					ci.controller_type_unit = j;
+					ert->add(-1, &ci, rc);
 				}
 			}
 		}
@@ -7814,7 +7855,7 @@ void filesys_vsync (void)
 {
 	Unit *u;
 
-	if (!uae_boot_rom)
+	if (uae_boot_rom_type <= 0)
 		return;
 	if (heartbeat == get_long (rtarea_base + RTAREA_HEARTBEAT)) {
 		if (heartbeat_count > 0)
@@ -7930,6 +7971,9 @@ void filesys_install (void)
 void filesys_install_code (void)
 {
 	uae_u32 a, b, items;
+
+	if (uae_boot_rom_type <= 0)
+		return;
 
 	bootrom_header = 3 * 4;
 	align(4);

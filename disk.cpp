@@ -127,6 +127,7 @@ static uae_u8 prev_data;
 static int prev_step;
 static bool initial_disk_statusline;
 static struct diskinfo disk_info_data = { 0 };
+static bool amax_enabled;
 
 typedef enum { TRACK_AMIGADOS, TRACK_RAW, TRACK_RAW1, TRACK_PCDOS, TRACK_DISKSPARE, TRACK_NONE } image_tracktype;
 typedef struct {
@@ -658,9 +659,11 @@ static void reset_drive_gui (int num)
 static void setamax (void)
 {
 #ifdef AMAX
-	if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) > 0) {
+	amax_enabled = false;
+	if (is_device_rom(&currprefs, ROMTYPE_AMAX, 0) > 0) {
 		/* Put A-Max as last drive in drive chain */
 		int j;
+		amax_enabled = true;
 		for (j = 0; j < MAX_FLOPPY_DRIVES; j++)
 			if (floppy[j].amax)
 				return;
@@ -1055,7 +1058,11 @@ static void update_disk_statusline(int num)
 	drive *drv = &floppy[num];
 	if (!drv->diskfile)
 		return;
-	TCHAR *fname = zfile_getname(drv->diskfile);
+	TCHAR *fname = zfile_getoriginalname(drv->diskfile);
+	if (!fname)
+		fname = zfile_getname(drv->diskfile);
+	if (!fname)
+		fname = _T("?");
 	if (disk_info_data.diskname[0])
 		statusline_add_message(_T("DF%d: [%s] %s"), num, disk_info_data.diskname, my_getfilepart(fname));
 	else
@@ -2824,7 +2831,11 @@ static TCHAR *tobin (uae_u8 v)
 
 static void fetch_DISK_select(uae_u8 data)
 {
-	selected = (data >> 3) & 15;
+	if (currprefs.cs_compatible == CP_VELVET) {
+		selected = (data >> 3) & 3;
+	} else {
+		selected = (data >> 3) & 15;
+	}
 	side = 1 - ((data >> 2) & 1);
 	direction = (data >> 1) & 1;
 }
@@ -2839,6 +2850,7 @@ void DISK_select_set (uae_u8 data)
 
 void DISK_select (uae_u8 data)
 {
+	bool velvet = currprefs.cs_compatible == CP_VELVET;
 	int step_pulse, prev_selected, dr;
 
 	prev_selected = selected;
@@ -2846,11 +2858,16 @@ void DISK_select (uae_u8 data)
 	fetch_DISK_select (data);
 	step_pulse = data & 1;
 
-	if (disk_debug_logging > 1)
-		write_log (_T("%08X %02X->%02X %s drvmask=%x"), M68K_GETPC, prev_data, data, tobin(data), selected ^ 15);
+	if (disk_debug_logging > 1) {
+		if (velvet) {
+			write_log (_T("%08X %02X->%02X %s drvmask=%x"), M68K_GETPC, prev_data, data, tobin(data), selected ^ 3);
+		} else {
+			write_log (_T("%08X %02X->%02X %s drvmask=%x"), M68K_GETPC, prev_data, data, tobin(data), selected ^ 15);
+		}
+	}
 
 #ifdef AMAX
-	if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) > 0) {
+	if (amax_enabled) {
 		for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 			drive *drv = floppy + dr;
 			if (drv->amax)
@@ -2859,24 +2876,42 @@ void DISK_select (uae_u8 data)
 	}
 #endif
 
-	if ((prev_data & 0x80) != (data & 0x80)) {
-		for (dr = 0; dr < 4; dr++) {
-			if (floppy[dr].indexhackmode > 1 && !(selected & (1 << dr))) {
-				floppy[dr].indexhack = 1;
-				if (disk_debug_logging > 1)
-					write_log (_T(" indexhack!"));
+	if (!velvet) {
+		if ((prev_data & 0x80) != (data & 0x80)) {
+			for (dr = 0; dr < 4; dr++) {
+				if (floppy[dr].indexhackmode > 1 && !(selected & (1 << dr))) {
+					floppy[dr].indexhack = 1;
+					if (disk_debug_logging > 1)
+						write_log (_T(" indexhack!"));
+				}
 			}
 		}
 	}
 
 	if (disk_debug_logging > 1) {
-		write_log (_T(" %d%d%d%d% "), (selected & 1) ? 0 : 1, (selected & 2) ? 0 : 1, (selected & 4) ? 0 : 1, (selected & 8) ? 0 : 1);
-		if ((prev_data & 0x80) != (data & 0x80))
-			write_log (_T(" dskmotor %d "), (data & 0x80) ? 1 : 0);
-		if ((prev_data & 0x02) != (data & 0x02))
-			write_log (_T(" direct %d "), (data & 0x02) ? 1 : 0);
-		if ((prev_data & 0x04) != (data & 0x04))
-			write_log (_T(" side %d "), (data & 0x04) ? 1 : 0);
+		if (velvet) {
+			write_log (_T(" %d%d "), (selected & 1) ? 0 : 1, (selected & 2) ? 0 : 1);
+			if ((prev_data & 0x08) != (data & 0x08))
+				write_log (_T(" dsksel0 %d "), (data & 0x08) ? 0 : 1);
+			if ((prev_data & 0x10) != (data & 0x10))
+				write_log (_T(" dsksel1 %d "), (data & 0x10) ? 0 : 1);
+			if ((prev_data & 0x20) != (data & 0x20))
+				write_log (_T(" dskmotor0 %d "), (data & 0x20) ? 0 : 1);
+			if ((prev_data & 0x40) != (data & 0x40))
+				write_log (_T(" dskmotor1 %d "), (data & 0x40) ? 0 : 1);
+			if ((prev_data & 0x02) != (data & 0x02))
+				write_log (_T(" direct %d "), (data & 0x02) ? 1 : 0);
+			if ((prev_data & 0x04) != (data & 0x04))
+				write_log (_T(" side %d "), (data & 0x04) ? 1 : 0);
+		} else {
+			write_log (_T(" %d%d%d%d% "), (selected & 1) ? 0 : 1, (selected & 2) ? 0 : 1, (selected & 4) ? 0 : 1, (selected & 8) ? 0 : 1);
+			if ((prev_data & 0x80) != (data & 0x80))
+				write_log (_T(" dskmotor %d "), (data & 0x80) ? 1 : 0);
+			if ((prev_data & 0x02) != (data & 0x02))
+				write_log (_T(" direct %d "), (data & 0x02) ? 1 : 0);
+			if ((prev_data & 0x04) != (data & 0x04))
+				write_log (_T(" side %d "), (data & 0x04) ? 1 : 0);
+		}
 	}
 
 	// step goes high and drive was selected when step pulse changes: step
@@ -2896,30 +2931,45 @@ void DISK_select (uae_u8 data)
 	}
 
 	if (!savestate_state) {
-		for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
-			drive *drv = floppy + dr;
-			/* motor on/off workings tested with small assembler code on real Amiga 1200. */
-			/* motor/id flipflop is set only when drive select goes from high to low */
-			if (!(selected & (1 << dr)) && (prev_selected & (1 << dr)) ) {
-				drv->drive_id_scnt++;
-				drv->drive_id_scnt &= 31;
-				drv->idbit = (drv->drive_id & (1L << (31 - drv->drive_id_scnt))) ? 1 : 0;
-				if (!(disabled & (1 << dr))) {
-					if ((prev_data & 0x80) == 0 || (data & 0x80) == 0) {
-						/* motor off: if motor bit = 0 in prevdata or data -> turn motor on */
-						drive_motor (drv, 0);
-					} else if (prev_data & 0x80) {
-						/* motor on: if motor bit = 1 in prevdata only (motor flag state in data has no effect)
-						-> turn motor off */
-						drive_motor (drv, 1);
+		if (velvet) {
+			for (dr = 0; dr < 2; dr++) {
+				drive *drv = floppy + dr;
+				int motormask = 0x20 << dr;
+				int selectmask = 0x08 << dr;
+				if (!(selected & (1 << dr)) && !(disabled & (1 << dr))) {
+					if (!(prev_data & motormask) && (data & motormask)) {
+						drive_motor(drv, 1);
+					} else if ((prev_data & motormask) && !(data & motormask)) {
+						drive_motor(drv, 0);
 					}
 				}
-				if (!currprefs.cs_df0idhw && dr == 0)
-					drv->idbit = 0;
+			}
+		} else {
+			for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
+				drive *drv = floppy + dr;
+				/* motor on/off workings tested with small assembler code on real Amiga 1200. */
+				/* motor/id flipflop is set only when drive select goes from high to low */
+				if (!(selected & (1 << dr)) && (prev_selected & (1 << dr)) ) {
+					drv->drive_id_scnt++;
+					drv->drive_id_scnt &= 31;
+					drv->idbit = (drv->drive_id & (1L << (31 - drv->drive_id_scnt))) ? 1 : 0;
+					if (!(disabled & (1 << dr))) {
+						if ((prev_data & 0x80) == 0 || (data & 0x80) == 0) {
+							/* motor off: if motor bit = 0 in prevdata or data -> turn motor on */
+							drive_motor (drv, 0);
+						} else if (prev_data & 0x80) {
+							/* motor on: if motor bit = 1 in prevdata only (motor flag state in data has no effect)
+							-> turn motor off */
+							drive_motor (drv, 1);
+						}
+					}
+					if (!currprefs.cs_df0idhw && dr == 0)
+						drv->idbit = 0;
 #ifdef DEBUG_DRIVE_ID
-				write_log (_T("DISK_status: sel %d id %s (%08X) [0x%08lx, bit #%02d: %d]\n"),
-					dr, drive_id_name(drv), drv->drive_id, drv->drive_id << drv->drive_id_scnt, 31 - drv->drive_id_scnt, drv->idbit);
+					write_log (_T("DISK_status: sel %d id %s (%08X) [0x%08lx, bit #%02d: %d]\n"),
+						dr, drive_id_name(drv), drv->drive_id, drv->drive_id << drv->drive_id_scnt, 31 - drv->drive_id_scnt, drv->idbit);
 #endif
+				}
 			}
 		}
 	}
@@ -2933,12 +2983,46 @@ void DISK_select (uae_u8 data)
 		write_log (_T("\n"));
 }
 
-uae_u8 DISK_status (void)
+uae_u8 DISK_status_ciab(uae_u8 st)
+{
+	if (currprefs.cs_compatible == CP_VELVET) {
+		st |= 0x80;
+		for (int dr = 0; dr < 2; dr++) {
+			drive *drv = floppy + dr;
+			if (!(((selected >> 3) | disabled) & (1 << dr))) {
+				if (drive_writeprotected (drv))
+					st &= ~0x80;
+			}
+		}
+		if (disk_debug_logging > 1) {
+			write_log(_T("DISK_STATUS_CIAB %08x %02x\n"), M68K_GETPC, st);
+		}
+	}
+
+	return st;
+}
+
+uae_u8 DISK_status_ciaa(void)
 {
 	uae_u8 st = 0x3c;
-	int dr;
 
-	for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
+	if (currprefs.cs_compatible == CP_VELVET) {
+		for (int dr = 0; dr < 2; dr++) {
+			drive *drv = floppy + dr;
+			if (!(((selected >> 3) | disabled) & (1 << dr))) {
+				if (drv->dskchange)
+					st &= ~0x20;
+				if (drive_track0 (drv))
+					st &= ~0x10;
+			}
+		}
+		if (disk_debug_logging > 1) {
+			write_log(_T("DISK_STATUS_CIAA %08x %02x\n"), M68K_GETPC, st);
+		}
+		return st;
+	}
+
+	for (int dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 		drive *drv = floppy + dr;
 		if (drv->amax) {
 			if (amax_active())
@@ -3164,10 +3248,10 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 							drv2->bigmfmbuf[(drv2->mfmpos >> 4) + 1] = 0x5555;
 							drv2->writtento = 1;
 						}
-	#ifdef AMAX
-						if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) > 0)
+#ifdef AMAX
+						if (amax_enabled)
 							amax_diskwrite (w);
-	#endif
+#endif
 					}
 					dsklength--;
 					if (dsklength <= 0) {
@@ -3729,7 +3813,7 @@ void DSKLEN (uae_u16 v, int hpos)
 			break;
 	}
 	if (dr == 4) {
-		if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) <= 0) {
+		if (!amax_enabled) {
 			write_log (_T("disk %s DMA started, drvmask=%x motormask=%x PC=%08x\n"),
 				dskdmaen == DSKDMA_WRITE ? _T("write") : _T("read"), selected ^ 15, motormask, M68K_GETPC);
 		}
@@ -3807,7 +3891,7 @@ void DSKLEN (uae_u16 v, int hpos)
 					uae_u16 w = chipmem_wget_indirect (dskpt + i * 2);
 					drv->bigmfmbuf[pos >> 4] = w;
 #ifdef AMAX
-					if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) > 0)
+					if (amax_enabled)
 						amax_diskwrite (w);
 #endif
 					pos += 16;
@@ -3824,7 +3908,7 @@ void DSKLEN (uae_u16 v, int hpos)
 				if (dskdmaen == DSKDMA_WRITE) {
 					uae_u16 w = chipmem_wget_indirect (dskpt);
 #ifdef AMAX
-					if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) > 0) {
+					if (amax_enabled) {
 						amax_diskwrite (w);
 						if (w) {
 							for (int i = 0; i < 16; i++) {

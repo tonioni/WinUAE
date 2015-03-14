@@ -457,7 +457,7 @@ static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
 void emulib_install (void)
 {
 	uaecptr a;
-	if (!uae_boot_rom)
+	if (!uae_boot_rom_type)
 		return;
 	a = here ();
 	currprefs.mmkeyboard = 0;

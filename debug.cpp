@@ -1828,7 +1828,7 @@ static void illg_init (void)
 	if (currprefs.cs_ksmirror_a8)
 		memset (illgdebug + 0xa80000, 1, 2 * 512 * 1024);
 #ifdef FILESYS
-	if (uae_boot_rom) /* filesys "rom" */
+	if (uae_boot_rom_type) /* filesys "rom" */
 		memset (illgdebug + rtarea_base, 1, 0x10000);
 #endif
 	if (currprefs.cs_ide > 0)
@@ -1887,7 +1887,8 @@ static int debug_mem_off (uaecptr *addrp)
 	ba = debug_mem_banks[offset];
 	if (!ba)
 		return offset;
-	addr = (addr & ba->mask) | ba->startmask;
+	if (ba->mask || ba->startmask)
+		addr = (addr & ba->mask) | ba->startmask;
 	*addrp = addr;
 	return offset;
 }
@@ -3393,7 +3394,7 @@ static void show_exec_lists (TCHAR *t)
 						(diagarea[12] << 8) | diagarea[13]);
 					if (nameoffset != 0 && nameoffset != 0xffff) {
 						copyromdata(config, rom, nameoffset, diagarea, 256);
-						diagarea[256] = 0;
+						diagarea[sizeof diagarea - 1] = 0;
 						TCHAR *str = au((char*)diagarea);
 						console_out_f(_T(" '%s'\n"), str);
 						xfree(str);

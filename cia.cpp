@@ -992,7 +992,7 @@ static uae_u8 ReadCIAA (unsigned int addr)
 #ifdef ACTION_REPLAY
 		action_replay_ciaread ();
 #endif
-		tmp = DISK_status() & 0x3c;
+		tmp = DISK_status_ciaa() & 0x3c;
 		tmp |= handle_joystick_buttons (ciaapra, ciaadra);
 		tmp |= (ciaapra | (ciaadra ^ 3)) & 0x03;
 		tmp = dongle_cia_read (0, reg, tmp);
@@ -1183,6 +1183,7 @@ static uae_u8 ReadCIAB (unsigned int addr)
 			write_log (_T("BFD100 R %02X %s\n"), ciabprb, debuginfo(0));
 #endif
 		tmp = ciabprb;
+		tmp = DISK_status_ciab(tmp);
 		tmp = dongle_cia_read (1, reg, tmp);
 		if (ciabcrb & 2) {
 			int pb7 = 0;
@@ -1297,7 +1298,7 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val)
 		handle_cd32_joystick_cia (ciaapra, ciaadra);
 		dongle_cia_write (0, reg, val);
 #ifdef AMAX
-		if (is_device_rom(&currprefs, 0, ROMTYPE_AMAX) > 0)
+		if (is_device_rom(&currprefs, ROMTYPE_AMAX, 0) > 0)
 			amax_bfe001_write (val, ciaadra);
 #endif
 		break;

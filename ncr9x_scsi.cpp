@@ -26,6 +26,7 @@
 #include "blkdev.h"
 #include "cpuboard.h"
 #include "flashrom.h"
+#include "autoconf.h"
 #include "qemuvga/qemuuaeglue.h"
 #include "qemuvga/queue.h"
 #include "qemuvga/scsi/scsi.h"
@@ -76,7 +77,6 @@
 
 struct ncr9x_state
 {
-	const TCHAR *name;
 	DeviceState devobject;
 	SCSIDevice *scsid[8];
 	SCSIBus scsibus;
@@ -84,18 +84,23 @@ struct ncr9x_state
 	uae_u8 *rom;
 	uae_u8 acmemory[128];
 	int configured;
+	uaecptr baseaddress;
 	uae_u32 expamem_hi;
 	uae_u32 expamem_lo;
 	bool enabled;
 	int rom_start, rom_end, rom_offset;
 	int io_start, io_end;
 	addrbank *bank;
-	bool chipirq, boardirq, intena;
+	bool chipirq, boardirq, boardirqlatch;
+	bool intena;
 	void (*irq_func)(struct ncr9x_state*);
 	int led;
 	uaecptr dma_ptr;
 	int dma_cnt;
+	int dma_delay;
+	int dma_delay_val;
 	uae_u8 states[16];
+	struct romconfig *rc;
 
 	uae_u8 data;
 	bool data_valid;
@@ -145,29 +150,89 @@ struct ncr9x_state
 	
 */
 
-static struct ncr9x_state ncr_blizzard_scsi;
-static struct ncr9x_state ncr_fastlane_scsi[MAX_BOARD_ROMS];
-static struct ncr9x_state ncr_oktagon2008_scsi[MAX_BOARD_ROMS];
-static struct ncr9x_state ncr_masoboshi_scsi[MAX_BOARD_ROMS];
-static struct ncr9x_state ncr_dkb1200_scsi;
+#define MAX_NCR9X_UNITS 10
 
-static struct ncr9x_state *ncrs[] =
+static struct ncr9x_state *ncr_blizzard_scsi;
+static struct ncr9x_state *ncr_fastlane_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ncr9x_state *ncr_oktagon2008_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ncr9x_state *ncr_masoboshi_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ncr9x_state *ncr_dkb1200_scsi;
+
+static struct ncr9x_state *ncr_units[MAX_NCR9X_UNITS + 1];
+
+static void freescsi(SCSIDevice *scsi)
 {
-	&ncr_blizzard_scsi,
-	&ncr_fastlane_scsi[0],
-	&ncr_fastlane_scsi[1],
-	&ncr_oktagon2008_scsi[0],
-	&ncr_oktagon2008_scsi[1],
-	&ncr_masoboshi_scsi[0],
-	&ncr_masoboshi_scsi[1],
-	&ncr_dkb1200_scsi,
-	NULL
-};
+	if (scsi) {
+		free_scsi((struct scsi_data*)scsi->handle);
+		xfree(scsi);
+	}
+}
+
+static void ncr9x_free2(struct ncr9x_state *ncr)
+{
+	if (!ncr)
+		return;
+	for (int ch = 0; ch < 8; ch++) {
+		freescsi(ncr->scsid[ch]);
+		ncr->scsid[ch] = NULL;
+	}
+}
+
+static void freencrunit(struct ncr9x_state **ncr)
+{
+	if (!ncr)
+		return;
+	for (int i = 0; i < MAX_NCR9X_UNITS; i++) {
+		if (ncr_units[i] == *ncr) {
+			ncr_units[i] = NULL;
+		}
+	}
+	ncr9x_free2(*ncr);
+	xfree(*ncr);
+	*ncr = NULL;
+}
+
+static struct ncr9x_state *allocscsi(struct ncr9x_state **ncr, struct romconfig *rc, int ch)
+{
+	struct ncr9x_state *scsi;
+
+	if (ch < 0) {
+		freencrunit(ncr);
+	}
+	if ((*ncr) == NULL) {
+		scsi = xcalloc(struct ncr9x_state, 1);
+		for (int i = 0; i < MAX_NCR9X_UNITS; i++) {
+			if (ncr_units[i] == NULL) {
+				ncr_units[i] = scsi;
+				rc->unitdata = scsi;
+				scsi->rc = rc;
+				if (ncr)
+					*ncr = scsi;
+				return scsi;
+			}
+		}
+	}
+	return *ncr;
+}
+
+static struct ncr9x_state *getscsi(struct romconfig *rc)
+{
+	for (int i = 0; i < MAX_NCR9X_UNITS; i++) {
+		if (ncr_units[i]) {
+			struct ncr9x_state *ncr = ncr_units[i];
+			if (ncr->rc == rc) {
+				ncr->rc = NULL;
+				return ncr;
+			}
+		}
+	}
+	return NULL;
+}
 
 void ncr9x_rethink(void)
 {
-	for (int i = 0; ncrs[i]; i++) {
-		if (ncrs[i]->boardirq) {
+	for (int i = 0; ncr_units[i]; i++) {
+		if (ncr_units[i]->boardirq) {
 			INTREQ_0(0x8000 | 0x0008);
 			return;
 		}
@@ -224,12 +289,19 @@ static void set_irq2_fastlane(struct ncr9x_state *ncr)
 
 static void set_irq2_masoboshi(struct ncr9x_state *ncr)
 {
-	if (ncr->chipirq && ncr->intena) {
-		ncr->boardirq = true;
-		ncr9x_rethink();
+	if (ncr->chipirq) {
+		ncr->boardirqlatch = true;
+		if (1 || ncr->intena) {
+			ncr->boardirq = true;
+			ncr9x_rethink();
 #if NCR_DEBUG > 1
-		write_log(_T("MASOBOSHI IRQ\n"));
+			write_log(_T("MASOBOSHI IRQ\n"));
 #endif
+		} else {
+			ncr->boardirq = false;
+		}
+	} else {
+		ncr->boardirq = false;
 	}
 }
 
@@ -524,45 +596,71 @@ static uaecptr beswap(uaecptr addr)
 	return (addr & ~3) | (3 - (addr & 3));
 }
 
+static bool isncr(struct ncr9x_state *ncr, struct ncr9x_state **arr)
+{
+	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
+		if (arr[i] == ncr)
+			return true;
+	}
+	return false;
+}
+
 static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 {
 	int reg_shift = 2;
 	addr &= ncr->board_mask;
-	if (ncr == &ncr_masoboshi_scsi[0] || ncr == &ncr_masoboshi_scsi[1]) {
+	if (isncr(ncr, ncr_masoboshi_scsi)) {
 
 		if (addr >= 0xf040 && addr < 0xf048) {
 			if (addr == 0xf040)
 				ncr->states[8] = 0;
 			if (addr == 0xf047) {
 				// dma start
-				if (val & 0x80)
-					ncr->states[8] = 0x80;
+				if (val & 0x80) {
+					write_log(_T("MASOBOSHI DMA start %08x, %d\n"), ncr->dma_ptr, ncr->dma_cnt);
+					ncr->dma_delay = (ncr->dma_cnt / maxhpos) * 2;
+					ncr->dma_delay_val = -1;
+				} else {
+					ncr->dma_delay = 0;
+				}
 			}
-			//write_log(_T("MASOBOSHI DMA %08x = %02X %08x\n"), addr, val, M68K_GETPC);
 			return;
 		}
 	
+		// DMA LEN (words)
+		if (addr >= 0xf04a && addr < 0xf04c) {
+			if (addr == 0xf04a) {
+				ncr->dma_cnt &= 0x00ff;
+				ncr->dma_cnt |= val << 8;
+			} else {
+				ncr->dma_cnt &= 0xff00;
+				ncr->dma_cnt |= val;
+			}
+			return;
+		}
+
+		// DMA PTR
 		if (addr >= 0xf04c && addr < 0xf050) {
 			int shift = (addr - 0xf04c) * 8;
 			uae_u32 mask = 0xff << shift;
 			ncr->dma_ptr &= ~mask;
 			ncr->dma_ptr |= val << shift;
 			ncr->dma_ptr &= 0xffffff;
-			if (addr == 0xf04f)
-				write_log(_T("MASOBOSHI DMA PTR = %08x\n"), ncr->dma_ptr, M68K_GETPC);
 			return;
 		}
 
 		if (addr >= 0xf000 && addr <= 0xf007) {
 			ncr->states[addr - 0xf000] = val;
 			if (addr == 0xf000) {
-				ncr->boardirq = false;
+				ncr->boardirqlatch = false;
 				set_irq2_masoboshi(ncr);
 			}
+#if 0
 			if (addr == 0xf007) {
-				ncr->intena = (val & 8) != 0;
+				ncr->intena = true;//(val & 8) == 0;
 				ncr9x_rethink();
 			}
+#endif
 #if 0
 			if (addr == 0xf047) { // dma start
 				if (val & 0x80)
@@ -572,7 +670,9 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 				ncr->states[2] = 0;
 			}
 #endif
+#if 0
 			write_log(_T("MASOBOSHI IO %08X PUT %02x %08x\n"), addr, val & 0xff, M68K_GETPC);
+#endif
 			return;
 		}
 
@@ -602,7 +702,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 		reg_shift = 1;
 		addr &= 0x3f;
 
-	} else if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+	} else if (isncr(ncr, ncr_oktagon2008_scsi)) {
 		if (addr == OKTAGON_EEPROM_SCL) {
 			eeprom_i2c_set(ncr->eeprom, BITBANG_I2C_SCL, (val & 0x80) != 0);
 		} else if (addr == OKTAGON_EEPROM_SDA) {
@@ -621,7 +721,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			return;
 		}
 		reg_shift = 1;
-	} else if (ncr == &ncr_fastlane_scsi[0] || ncr == &ncr_fastlane_scsi[1]) {
+	} else if (isncr(ncr, ncr_fastlane_scsi)) {
 		if (addr >= FASTLANE_HARDBITS) {
 			if (addr == FASTLANE_HARDBITS) {
 				int oldstate = ncr->states[0];
@@ -646,7 +746,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 				esp_dma_enable(ncr->devobject.lsistate, 1);
 			return;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD && currprefs.cpuboard_subtype == BOARD_BLIZZARD_SUB_2060) {
+	} else if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_2060)) {
 		if (addr >= BLIZZARD_2060_DMA_OFFSET) {
 			//write_log (_T("Blizzard DMA PUT %08x %02X\n"), addr, (uae_u8)val);
 			addr &= 0xf;
@@ -662,8 +762,8 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			ncr->led = val;
 			return;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD && (currprefs.cpuboard_subtype == BOARD_BLIZZARD_SUB_1230IV || currprefs.cpuboard_subtype == BOARD_BLIZZARD_SUB_1260)) {
-		if (!cfgfile_board_enabled(&currprefs, ROMTYPE_CPUBOARDEXT))
+	} else if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1230IV) || ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1260)) {
+		if (!cfgfile_board_enabled(&currprefs, ROMTYPE_CPUBOARDEXT, 0))
 			return;
 		if (addr >= BLIZZARD_SCSI_KIT_DMA_OFFSET) {
 			addr &= 0x18000;
@@ -680,7 +780,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			//write_log(_T("Blizzard DMA PUT %08x %02X\n"), addr, (uae_u8)val);
 			return;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_CYBERSTORM && currprefs.cpuboard_subtype == BOARD_CYBERSTORM_SUB_MK1) {
+	} else if (ISCPUBOARD(BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_MK1)) {
 		if (addr >= CYBERSTORM_MK1_JUMPER_OFFSET) {
 			if (addr == CYBERSTORM_MK1_JUMPER_OFFSET)
 				esp_dma_enable(ncr->devobject.lsistate, 1);
@@ -695,7 +795,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			ncr->led = val;
 			return;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_CYBERSTORM && currprefs.cpuboard_subtype == BOARD_CYBERSTORM_SUB_MK2) {
+	} else if (ISCPUBOARD(BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_MK2)) {
 		if (addr >= CYBERSTORM_MK2_DMA_OFFSET) {
 			addr &= 0xf;
 			addr >>= 2;
@@ -732,6 +832,8 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			return;
 		}
 	}
+	if (!ncr->devobject.lsistate)
+		return;
 	addr >>= reg_shift;
 	addr &= IO_MASK;
 #if NCR_DEBUG > 1
@@ -745,7 +847,7 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 	uae_u8 v = 0xff;
 	int reg_shift = 2;
 	addr &= ncr->board_mask;
-	if (ncr == &ncr_masoboshi_scsi[0] || ncr == &ncr_masoboshi_scsi[1]) {
+	if (isncr(ncr, ncr_masoboshi_scsi)) {
 
 		if (addr == MASOBOSHI_ESP_ADDR + 3 * 2 && (ncr->states[0] & 0x80))
 			return 2;
@@ -753,6 +855,16 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 			ncr->states[0] &= ~0x80;
 
 		if (addr == 0xf040) {
+
+			if (ncr->dma_delay > 0) {
+				if (vpos != ncr->dma_delay_val) {
+					ncr->dma_delay--;
+					ncr->dma_delay_val = vpos;
+					if (!ncr->dma_delay) {
+						ncr->states[8] = 0x80;
+					}
+				}
+			}
 			v = ncr->states[8];
 			return v;
 		}
@@ -771,21 +883,24 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 		if (addr >= 0xf000 && addr <= 0xf007) {
 			int idx = addr - 0xf000;
 			if (addr == 0xf000) {
-				ncr->states[0] &= ~3;
-				//ncr->states[0] |= 1;
-//				if (esp_dreq(&ncr->devobject)) {
-//					write_log(_T("DREQ\n"));
-//					ncr->states[0] |= 2; // dma data waiting
-//				}
-				if (ncr->boardirq || ncr->chipirq) {
-					ncr->states[0] |= 2; // scsi interrupt
+				ncr->states[0] |= 2;
+				ncr->states[0] |= 1;
+				if (esp_dreq(&ncr->devobject)) {
+					ncr->states[0] &= ~1; // data request
 				}
+				if (ncr->boardirqlatch) {
+					ncr->states[0] &= ~2; // scsi interrupt
+				}
+#if 0
 				if (ncr->chipirq) {
-					ncr->states[0] |= 1;
+					ncr->states[0] &= ~1;
 				}
+#endif
 			}
 			v = ncr->states[idx];
+#if 0
 			write_log(_T("MASOBOSHI IO %08X GET %02x %08x\n"), addr, v, M68K_GETPC);
+#endif
 			return v;
 		}
 #if 0
@@ -811,7 +926,7 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 		reg_shift = 1;
 		addr &= 0x3f;
 
-	} else if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+	} else if (isncr(ncr, ncr_oktagon2008_scsi)) {
 		if (addr == OKTAGON_EEPROM_SCL) {
 			return eeprom_i2c_set(ncr->eeprom, BITBANG_I2C_SCL, -1) ? 0x80 : 0x00;
 		} else if (addr == OKTAGON_EEPROM_SDA) {
@@ -827,7 +942,7 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 		if (addr < OKTAGON_ESP_ADDR || addr >= OKTAGON_ESP_ADDR + 0x100)
 			return 0xff;
 		reg_shift = 1;
-	} else if (ncr == &ncr_fastlane_scsi[0] || ncr == &ncr_fastlane_scsi[1]) {
+	} else if (isncr(ncr, ncr_fastlane_scsi)) {
 		if (addr >= FASTLANE_HARDBITS) {
 			if (addr == FASTLANE_HARDBITS) {
 				uae_u8 v = ncr->states[0];
@@ -836,19 +951,19 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 			}
 			return 0;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD && currprefs.cpuboard_subtype == BOARD_BLIZZARD_SUB_2060) {
+	} else if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_2060)) {
 		if (addr >= BLIZZARD_2060_DMA_OFFSET) {
 			write_log(_T("Blizzard DMA GET %08x\n"), addr);
 			return 0;
 		} else if (addr >= BLIZZARD_2060_LED_OFFSET) {
 			return ncr->led;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_BLIZZARD && (currprefs.cpuboard_subtype == BOARD_BLIZZARD_SUB_1230IV || currprefs.cpuboard_subtype == BOARD_BLIZZARD_SUB_1260)) {
-		if (!cfgfile_board_enabled(&currprefs, ROMTYPE_CPUBOARDEXT))
+	} else if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1230IV) || ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1260)) {
+		if (!cfgfile_board_enabled(&currprefs, ROMTYPE_CPUBOARDEXT, 0))
 			return 0;
 		if (addr >= BLIZZARD_SCSI_KIT_DMA_OFFSET)
 			return 0;
-	} else if (currprefs.cpuboard_type == BOARD_CYBERSTORM && currprefs.cpuboard_subtype == BOARD_CYBERSTORM_SUB_MK1) {
+	} else if (ISCPUBOARD(BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_MK1)) {
 		if (addr >= CYBERSTORM_MK1_JUMPER_OFFSET) {
 			return 0xff;
 		} else if (addr >= CYBERSTORM_MK1_DMA_OFFSET) {
@@ -856,7 +971,7 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 		} else if (addr >= CYBERSTORM_MK1_LED_OFFSET) {
 			return ncr->led;
 		}
-	} else if (currprefs.cpuboard_type == BOARD_CYBERSTORM && currprefs.cpuboard_subtype == BOARD_CYBERSTORM_SUB_MK2) {
+	} else if (ISCPUBOARD(BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_MK2)) {
 		if (addr >= CYBERSTORM_MK2_DMA_OFFSET) {
 			return 0;
 		} else if (addr >= CYBERSTORM_MK2_LED_OFFSET) {
@@ -888,6 +1003,8 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 			return 0;
 		}
 	}
+	if (!ncr->devobject.lsistate)
+		return v;
 	addr >>= reg_shift;
 	addr &= IO_MASK;
 	v = esp_reg_read(ncr->devobject.lsistate, (addr));
@@ -937,7 +1054,7 @@ static uae_u32 REGPARAM2 ncr9x_lget(struct ncr9x_state *ncr, uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= ncr->board_mask;
-	if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+	if (isncr(ncr, ncr_oktagon2008_scsi)) {
 		v =  ncr9x_io_bget(ncr, addr + 0) << 24;
 		v |= ncr9x_io_bget(ncr, addr + 1) << 16;
 		v |= ncr9x_io_bget(ncr, addr + 2) <<  8;
@@ -958,7 +1075,7 @@ static uae_u32 REGPARAM2 ncr9x_wget(struct ncr9x_state *ncr, uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= ncr->board_mask;
-	if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+	if (isncr(ncr, ncr_oktagon2008_scsi)) {
 		v = ncr9x_io_bget(ncr, addr) << 8;
 		v |= ncr9x_io_bget(ncr, addr + 1);
 	} else {
@@ -991,7 +1108,7 @@ static void REGPARAM2 ncr9x_lput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 	special_mem |= S_WRITE;
 #endif
 	addr &= ncr->board_mask;
-	if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+	if (isncr(ncr, ncr_oktagon2008_scsi)) {
 		ncr9x_io_bput(ncr, addr + 0, l >> 24);
 		ncr9x_io_bput(ncr, addr + 1, l >> 16);
 		ncr9x_io_bput(ncr, addr + 2, l >>  8);
@@ -1017,13 +1134,14 @@ static void REGPARAM2 ncr9x_wput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 		{
 			case 0x44:
 			map_banks (ncr->bank, expamem_z3_pointer >> 16, FASTLANE_BOARD_SIZE >> 16, 0);
+			ncr->baseaddress = expamem_z3_pointer;
 			ncr->configured = 1;
 			expamem_next (ncr->bank, NULL);
 			break;
 		}
 		return;
 	}
-	if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+	if (isncr(ncr, ncr_oktagon2008_scsi)) {
 		ncr9x_io_bput(ncr, addr, w >> 8);
 		ncr9x_io_bput(ncr, addr + 1, w);
 	} else {
@@ -1044,15 +1162,16 @@ static void REGPARAM2 ncr9x_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 		switch (addr)
 		{
 			case 0x48:
-			if (ncr == &ncr_oktagon2008_scsi[0] || ncr == &ncr_oktagon2008_scsi[1]) {
+			if (isncr(ncr, ncr_oktagon2008_scsi)) {
 				map_banks (ncr->bank, expamem_z2_pointer >> 16, OKTAGON_BOARD_SIZE >> 16, 0);
 				ncr->configured = 1;
 				expamem_next (ncr->bank, NULL);
-			} else if (ncr == &ncr_dkb1200_scsi) {
+			} else if (ncr == ncr_dkb1200_scsi) {
 				map_banks (ncr->bank, expamem_z2_pointer >> 16, DKB_BOARD_SIZE >> 16, 0);
 				ncr->configured = 1;
 				expamem_next (ncr->bank, NULL);
 			}
+			ncr->baseaddress = expamem_z2_pointer;
 			break;
 			case 0x4c:
 			ncr->configured = 1;
@@ -1064,31 +1183,79 @@ static void REGPARAM2 ncr9x_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 	ncr9x_bput2(ncr, addr, b);
 }
 
-SCSI_MEMORY_FUNCTIONS(bncr9x, ncr9x, ncr_blizzard_scsi);
+static struct ncr9x_state *getscsiboard(uaecptr addr)
+{
+	for (int i = 0; ncr_units[i]; i++) {
+		if (!ncr_units[i]->baseaddress)
+			return ncr_units[i];
+		if ((addr & ~ncr_units[i]->board_mask) == ncr_units[i]->baseaddress)
+			return ncr_units[i];
+	}
+	return NULL;
+}
 
-static addrbank ncr9x_bank_blizzard = {
-	bncr9x_lget, bncr9x_wget, bncr9x_bget,
-	bncr9x_lput, bncr9x_wput, bncr9x_bput,
+static void REGPARAM2 ncr9x_generic_bput (uaecptr addr, uae_u32 b)
+{
+	struct ncr9x_state *ncr = getscsiboard(addr);
+	if (ncr)
+		ncr9x_bput(ncr, addr, b);
+}
+static void REGPARAM2 ncr9x_generic_wput (uaecptr addr, uae_u32 b)
+{
+	struct ncr9x_state *ncr = getscsiboard(addr);
+	if (ncr)
+		ncr9x_wput(ncr, addr, b);
+}
+static void REGPARAM2 ncr9x_generic_lput (uaecptr addr, uae_u32 b)
+{
+	struct ncr9x_state *ncr = getscsiboard(addr);
+	if (ncr)
+		ncr9x_lput(ncr, addr, b);
+}
+static uae_u32 REGPARAM2 ncr9x_generic_bget (uaecptr addr)
+{
+	struct ncr9x_state *ncr = getscsiboard(addr);
+	if (ncr)
+		return ncr9x_bget(ncr, addr);
+	return 0;
+}
+static uae_u32 REGPARAM2 ncr9x_generic_wget (uaecptr addr)
+{
+	struct ncr9x_state *ncr = getscsiboard(addr);
+	if (ncr)
+		return ncr9x_wget(ncr, addr);
+	return 0;
+}
+static uae_u32 REGPARAM2 ncr9x_generic_lget (uaecptr addr)
+{
+	struct ncr9x_state *ncr = getscsiboard(addr);
+	if (ncr)
+		return ncr9x_lget(ncr, addr);
+	return 0;
+}
+static addrbank ncr9x_bank_generic = {
+	ncr9x_generic_lget, ncr9x_generic_wget, ncr9x_generic_bget,
+	ncr9x_generic_lput, ncr9x_generic_wput, ncr9x_generic_bput,
 	default_xlate, default_check, NULL, NULL, _T("53C94/FAS216"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
 uae_u32 cpuboard_ncr9x_scsi_get(uaecptr addr)
 {
-	return ncr9x_io_bget(&ncr_blizzard_scsi, addr);
+	return ncr9x_io_bget(ncr_blizzard_scsi, addr);
 }
 void cpuboard_ncr9x_scsi_put(uaecptr addr, uae_u32 v)
 {
-	ncr9x_io_bput(&ncr_blizzard_scsi, addr, v);
+	ncr9x_io_bput(ncr_blizzard_scsi, addr, v);
 }
 
 uae_u32 masoboshi_ncr9x_scsi_get(uaecptr addr, int devnum)
 {
-	return ncr9x_io_bget(&ncr_masoboshi_scsi[devnum], addr);
+	return ncr9x_io_bget(ncr_masoboshi_scsi[devnum], addr);
 }
 void masoboshi_ncr9x_scsi_put(uaecptr addr, uae_u32 v, int devnum)
 {
-	ncr9x_io_bput(&ncr_masoboshi_scsi[devnum], addr, v);
+	ncr9x_io_bput(ncr_masoboshi_scsi[devnum], addr, v);
 }
 
 static void ew(struct ncr9x_state *ncr, int addr, uae_u8 value)
@@ -1102,109 +1269,32 @@ static void ew(struct ncr9x_state *ncr, int addr, uae_u8 value)
 	}
 }
 
-SCSI_MEMORY_FUNCTIONS(ncr_fastlane, ncr9x, ncr_fastlane_scsi[0]);
-SCSI_MEMORY_FUNCTIONS(ncr2_fastlane, ncr9x, ncr_fastlane_scsi[1]);
-DECLARE_MEMORY_FUNCTIONS(ncr_fastlane)
-static addrbank ncr_bank_fastlane = {
-	ncr_fastlane_lget, ncr_fastlane_wget, ncr_fastlane_bget,
-	ncr_fastlane_lput, ncr_fastlane_wput, ncr_fastlane_bput,
-	default_xlate, default_check, NULL, NULL, _T("Fastlane"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
-};
-DECLARE_MEMORY_FUNCTIONS(ncr2_fastlane)
-static addrbank ncr_bank_fastlane_2 = {
-	ncr2_fastlane_lget, ncr2_fastlane_wget, ncr2_fastlane_bget,
-	ncr2_fastlane_lput, ncr2_fastlane_wput, ncr2_fastlane_bput,
-	default_xlate, default_check, NULL, NULL, _T("Fastlane #2"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
-};
-
-SCSI_MEMORY_FUNCTIONS(ncr_oktagon, ncr9x, ncr_oktagon2008_scsi[0]);
-SCSI_MEMORY_FUNCTIONS(ncr2_oktagon, ncr9x, ncr_oktagon2008_scsi[1]);
-DECLARE_MEMORY_FUNCTIONS(ncr_oktagon2008)
-static addrbank ncr_bank_oktagon = {
-	ncr_oktagon_lget, ncr_oktagon_wget, ncr_oktagon_bget,
-	ncr_oktagon_lput, ncr_oktagon_wput, ncr_oktagon_bput,
-	default_xlate, default_check, NULL, NULL, _T("Oktagon 2008"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
-};
-DECLARE_MEMORY_FUNCTIONS(ncr2_oktagon2008)
-static addrbank ncr_bank_oktagon_2 = {
-	ncr2_oktagon_lget, ncr2_oktagon_wget, ncr2_oktagon_bget,
-	ncr2_oktagon_lput, ncr2_oktagon_wput, ncr2_oktagon_bput,
-	default_xlate, default_check, NULL, NULL, _T("Oktagon 2008 #2"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
-};
-SCSI_MEMORY_FUNCTIONS(ncr_dkb, ncr9x, ncr_dkb1200_scsi);
-DECLARE_MEMORY_FUNCTIONS(ncr_dkb)
-static addrbank ncr_bank_dkb = {
-	ncr_dkb_lget, ncr_dkb_wget, ncr_dkb_bget,
-	ncr_dkb_lput, ncr_dkb_wput, ncr_dkb_bput,
-	default_xlate, default_check, NULL, NULL, _T("DKB"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
-};
-
 static void ncr9x_reset_board(struct ncr9x_state *ncr)
 {
+	if (!ncr)
+		return;
 	ncr->configured = 0;
-	if (currprefs.cpuboard_type == BOARD_CYBERSTORM && currprefs.cpuboard_subtype == BOARD_CYBERSTORM_SUB_MK1)
-		ncr->board_mask = 0xffff;
-	else
-		ncr->board_mask = 0x1ffff;
 	ncr->boardirq = false;
 	ncr->chipirq = false;
-	if (ncr->devobject.lsistate)
-		esp_scsi_reset(&ncr->devobject, ncr);
-	ncr->irq_func = set_irq2;
-	if (ncr == &ncr_blizzard_scsi) {
-		ncr->bank = &ncr9x_bank_blizzard;
-	} else if (ncr == &ncr_fastlane_scsi[0]) {
-		ncr->bank = &ncr_bank_fastlane;
-		ncr->board_mask = FASTLANE_BOARD_SIZE - 1;
-		ncr->irq_func = set_irq2_fastlane;
-	} else if (ncr == &ncr_fastlane_scsi[1]) {
-		ncr->bank = &ncr_bank_fastlane_2;
-		ncr->board_mask = FASTLANE_BOARD_SIZE - 1;
-		ncr->irq_func = set_irq2_fastlane;
-	} else if (ncr == &ncr_oktagon2008_scsi[0]) {
-		ncr->bank = &ncr_bank_oktagon;
-		ncr->board_mask = OKTAGON_BOARD_SIZE - 1;
-		ncr->irq_func = set_irq2_oktagon;
-	} else if (ncr == &ncr_oktagon2008_scsi[1]) {
-		ncr->bank = &ncr_bank_oktagon_2;
-		ncr->board_mask = OKTAGON_BOARD_SIZE - 1;
-		ncr->irq_func = set_irq2_oktagon;
-	} else if (ncr == &ncr_dkb1200_scsi) {
-		ncr->bank = &ncr_bank_dkb;
-		ncr->board_mask = DKB_BOARD_SIZE - 1;
-		ncr->irq_func = set_irq2_dkb1200;
-	} else if (ncr == &ncr_masoboshi_scsi[0] || ncr == &ncr_masoboshi_scsi[1]) {
-		ncr->irq_func = set_irq2_masoboshi;
-	}
-	if (ncr->bank)
-		ncr->name = ncr->bank->name;
 }
 
 void ncr9x_reset(void)
 {
-	for (int i = 0; ncrs[i]; i++) {
-		ncr9x_reset_board(ncrs[i]);
-		ncrs[i]->configured = 0;
-		ncrs[i]->enabled = false;
+	for (int i = 0; ncr_units[i]; i++) {
+		ncr9x_reset_board(ncr_units[i]);
+		ncr_units[i]->enabled = false;
 	}
-	ncr_blizzard_scsi.configured = -1;
-	ncr_blizzard_scsi.enabled = true;
 }
 
-addrbank *ncr_fastlane_autoconfig_init(int devnum)
+addrbank *ncr_fastlane_autoconfig_init(struct romconfig *rc)
 {
 	int roms[2];
-	struct ncr9x_state *ncr = &ncr_fastlane_scsi[devnum];
+	struct ncr9x_state *ncr = getscsi(rc);
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
 
-	if (!ncr->enabled && devnum > 0)
+	if (!ncr)
 		return &expamem_null;
 
 	roms[0] = 102;
@@ -1217,16 +1307,15 @@ addrbank *ncr_fastlane_autoconfig_init(int devnum)
 	ncr->rom_end = FASTLANE_ROM_SIZE * 4;
 	ncr->io_start = 0;
 	ncr->io_end = 0;
+	ncr->bank = &ncr9x_bank_generic;
 
-	ncr9x_init ();
 	ncr9x_reset_board(ncr);
 
-	struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_FASTLANE, roms);
+	struct zfile *z = read_device_from_romconfig(rc, roms);
 	ncr->rom = xcalloc (uae_u8, FASTLANE_ROM_SIZE * 4);
 	if (z) {
 		// memory board at offset 0x100
 		int autoconfig_offset = 0;
-		write_log (_T("%s BOOT ROM '%s'\n"), ncr->name, zfile_getname (z));
 		memset(ncr->rom, 0xff, FASTLANE_ROM_SIZE * 4);
 		for (int i = 0; i < FASTLANE_ROM_SIZE; i++) {
 			int ia = i - autoconfig_offset;
@@ -1243,7 +1332,7 @@ addrbank *ncr_fastlane_autoconfig_init(int devnum)
 		zfile_fclose(z);
 	}
 
-	return ncr == &ncr_fastlane_scsi[0] ? &ncr_bank_fastlane : &ncr_bank_fastlane_2;
+	return ncr->bank;
 }
 
 static const uae_u8 oktagon_autoconfig[16] = {
@@ -1256,19 +1345,18 @@ static const uae_u8 oktagon_eeprom[16] =
 	0x0b, 0xf4, 0x3f, 0x0a, 0xff, 0x06, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x50, 0xaf, 0xff
 };
 
-addrbank *ncr_oktagon_autoconfig_init(int devnum)
+addrbank *ncr_oktagon_autoconfig_init(struct romconfig *rc)
 {
 	int roms[2];
-	struct ncr9x_state *ncr = &ncr_oktagon2008_scsi[devnum];
-	struct romconfig *rc = NULL;
+	struct ncr9x_state *ncr = getscsi(rc);
+
+	if (!ncr)
+		return &expamem_null;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
 	eeprom_free(ncr->eeprom);
 	ncr->eeprom = NULL;
-
-	if (!ncr->enabled && devnum > 0)
-		return &expamem_null;
 
 	roms[0] = 103;
 	roms[1] = -1;
@@ -1281,6 +1369,7 @@ addrbank *ncr_oktagon_autoconfig_init(int devnum)
 	ncr->io_start = 0x2000;
 	ncr->io_end = ncr->rom_end;
 	ncr->romisoddonly = true;
+	ncr->bank = &ncr9x_bank_generic;
 
 	memset(ncr->eeprom_data, 0xff, OKTAGON_EEPROM_SIZE);
 	memcpy(ncr->eeprom_data + 0x100, oktagon_eeprom, 16);
@@ -1288,15 +1377,12 @@ addrbank *ncr_oktagon_autoconfig_init(int devnum)
 	ncr->rom = xcalloc (uae_u8, OKTAGON_ROM_SIZE * 6);
 	memset(ncr->rom, 0xff, OKTAGON_ROM_SIZE * 6);
 
-	ncr9x_init ();
 	ncr9x_reset_board(ncr);
 
-	rc = get_device_romconfig(&currprefs, devnum, ROMTYPE_OKTAGON);
-	if (rc && !rc->autoboot_disabled) {
-		struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_OKTAGON, roms);
+	if (!rc->autoboot_disabled) {
+		struct zfile *z = read_device_from_romconfig(rc, roms);
 		if (z) {
 			// memory board at offset 0x100
-			write_log (_T("%s BOOT ROM '%s'\n"), ncr->name, zfile_getname (z));
 			memset(ncr->rom, 0xff, OKTAGON_ROM_SIZE * 4);
 			for (int i = 0; i < 0x1000 / 2; i++) {
 				uae_u8 b;
@@ -1320,14 +1406,17 @@ addrbank *ncr_oktagon_autoconfig_init(int devnum)
 		ew(ncr, i * 4, b);
 	}
 
-	return ncr == &ncr_oktagon2008_scsi[0] ? &ncr_bank_oktagon : &ncr_bank_oktagon_2;
+	return ncr->bank;
 }
 
 
-addrbank *ncr_dkb_autoconfig_init(int devnum)
+addrbank *ncr_dkb_autoconfig_init(struct romconfig *rc)
 {
 	int roms[2];
-	struct ncr9x_state *ncr = &ncr_dkb1200_scsi;
+	struct ncr9x_state *ncr = getscsi(rc);
+
+	if (!ncr)
+		return &expamem_null;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
@@ -1342,16 +1431,16 @@ addrbank *ncr_dkb_autoconfig_init(int devnum)
 	ncr->rom_end = DKB_ROM_SIZE * 2;
 	ncr->io_start = 0x10000;
 	ncr->io_end = 0x20000;
+	ncr->bank = &ncr9x_bank_generic;
+	ncr->board_mask = 131071;
 
-	ncr9x_init ();
 	ncr9x_reset_board(ncr);
 
-	struct zfile *z = read_device_rom(&currprefs, devnum, ROMTYPE_CPUBOARD, roms);
+	struct zfile *z = read_device_from_romconfig(rc, roms);
 	ncr->rom = xcalloc (uae_u8, DKB_ROM_SIZE * 2);
 	if (z) {
 		// memory board at offset 0x100
 		int i;
-		write_log (_T("%s BOOT ROM '%s'\n"), ncr->name, zfile_getname (z));
 		memset(ncr->rom, 0xff, DKB_ROM_SIZE * 2);
 
 		zfile_fseek(z, 0, SEEK_SET);
@@ -1370,160 +1459,136 @@ addrbank *ncr_dkb_autoconfig_init(int devnum)
 		zfile_fclose(z);
 	}
 
-	return &ncr_bank_dkb;
+	return ncr->bank;
 }
 
 
-void ncr_masoboshi_autoconfig_init(int devnum)
+void ncr_masoboshi_autoconfig_init(struct romconfig *rc)
 {
-	struct ncr9x_state *ncr = &ncr_masoboshi_scsi[devnum];
+	struct ncr9x_state *ncr = getscsi(rc);
 
-	if (!ncr->enabled && devnum > 0)
+	if (!ncr)
 		return;
 
 	ncr->enabled = true;
 
-	ncr9x_init ();
 	ncr9x_reset_board(ncr);
 }
 
-
-static void freescsi_hdf(struct scsi_data *sd)
+static void ncr9x_esp_scsi_init(struct ncr9x_state *ncr, ESPDMAMemoryReadWriteFunc read, ESPDMAMemoryReadWriteFunc write, void (*irq_func)(struct ncr9x_state*))
 {
-	if (!sd)
-		return;
-	hdf_hd_close(sd->hfd);
-	scsi_free(sd);
-}
-
-static void freescsi(SCSIDevice *scsi)
-{
-	if (scsi) {
-		freescsi_hdf((struct scsi_data*)scsi->handle);
-		xfree(scsi);
-	}
-}
-
-static void ncr9x_free2(struct ncr9x_state *ncr)
-{
-	for (int ch = 0; ch < 8; ch++) {
-		freescsi(ncr->scsid[ch]);
-		ncr->scsid[ch] = NULL;
-	}
+	ncr->board_mask = 0xffff;
+	ncr->irq_func = irq_func ? irq_func : set_irq2;
+	if (!ncr->devobject.lsistate)
+		esp_scsi_init(&ncr->devobject, read, write);
+	esp_scsi_reset(&ncr->devobject, ncr);
 }
 
 void ncr9x_free(void)
 {
-	for (int i = 0; ncrs[i]; i++) {
-		ncr9x_free2(ncrs[i]);
+	for (int i = 0; ncr_units[i]; i++) {
+		ncr9x_free2(ncr_units[i]);
 	}
 }
 
 void ncr9x_init(void)
 {
-	if (!ncr_blizzard_scsi.devobject.lsistate) {
-		if (currprefs.cpuboard_type == BOARD_CYBERSTORM && (currprefs.cpuboard_subtype == BOARD_CYBERSTORM_SUB_MK1 || currprefs.cpuboard_subtype == BOARD_CYBERSTORM_SUB_MK2)) {
-			esp_scsi_init(&ncr_blizzard_scsi.devobject, cyberstorm_mk1_mk2_dma_read, cyberstorm_mk1_mk2_dma_write);
-		} else {
-			esp_scsi_init(&ncr_blizzard_scsi.devobject, blizzard_dma_read, blizzard_dma_write);
-		}
-		esp_scsi_init(&ncr_fastlane_scsi[0].devobject, fastlane_dma_read, fastlane_dma_write);
-		esp_scsi_init(&ncr_fastlane_scsi[1].devobject, fastlane_dma_read, fastlane_dma_write);
-		esp_scsi_init(&ncr_oktagon2008_scsi[0].devobject, fake2_dma_read, fake2_dma_write);
-		esp_scsi_init(&ncr_oktagon2008_scsi[1].devobject, fake2_dma_read, fake2_dma_write);
-		esp_scsi_init(&ncr_dkb1200_scsi.devobject, fake_dma_read, fake_dma_write);
-		esp_scsi_init(&ncr_masoboshi_scsi[0].devobject, fake2_dma_read, fake2_dma_write);
-		esp_scsi_init(&ncr_masoboshi_scsi[1].devobject, fake2_dma_read, fake2_dma_write);
+}
+
+static void add_ncr_scsi_hd(struct ncr9x_state *ncr, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level)
+{
+	struct scsi_data *handle = NULL;
+
+	freescsi(ncr->scsid[ch]);
+	ncr->scsid[ch] = NULL;
+	if (!add_scsi_hd(&handle, ch, hfd, ci, scsi_level))
+		return;
+	handle->privdata = ncr;
+	ncr->scsid[ch] = xcalloc(SCSIDevice, 1);
+	ncr->scsid[ch]->handle = handle;
+	ncr->enabled = true;
+}
+
+static void add_ncr_scsi_cd(struct ncr9x_state *ncr, int ch, int unitnum)
+{
+	struct scsi_data *handle = NULL;
+
+	freescsi(ncr->scsid[ch]);
+	ncr->scsid[ch] = NULL;
+	if (!add_scsi_cd(&handle, ch, unitnum))
+		return;
+	handle->privdata = ncr;
+	ncr->scsid[ch] = xcalloc(SCSIDevice, 1);
+	ncr->scsid[ch]->handle = handle;
+	ncr->enabled = true;
+}
+
+static void add_ncr_scsi_tape(struct ncr9x_state *ncr, int ch, const TCHAR *tape_directory, bool readonly)
+{
+	struct scsi_data *handle = NULL;
+
+	freescsi(ncr->scsid[ch]);
+	ncr->scsid[ch] = NULL;
+	if (!add_scsi_tape(&handle, ch, tape_directory, readonly))
+		return;
+	handle->privdata = ncr;
+	ncr->scsid[ch] = xcalloc(SCSIDevice, 1);
+	ncr->scsid[ch]->handle = handle;
+	ncr->enabled = true;
+}
+
+static void ncr9x_add_scsi_unit(struct ncr9x_state **ncrp, int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	struct ncr9x_state *ncr = allocscsi(ncrp, rc, ch);
+	if (ch >= 0 && ncr) {
+		if (ci->type == UAEDEV_CD)
+			add_ncr_scsi_cd (ncr, ch, ci->device_emu_unit);
+		else if (ci->type == UAEDEV_TAPE)
+			add_ncr_scsi_tape (ncr, ch, ci->rootdir, ci->readonly);
+		else if (ci->type == UAEDEV_HDF)
+			add_ncr_scsi_hd (ncr, ch, NULL, ci, 2);
 	}
 }
 
-static int add_ncr_scsi_hd(struct ncr9x_state *ncr, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level)
+void cpuboard_ncr9x_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	struct scsi_data *handle;
-	freescsi(ncr->scsid[ch]);
-	ncr->scsid[ch] = NULL;
-	if (!hfd) {
-		hfd = xcalloc(struct hd_hardfiledata, 1);
-		memcpy(&hfd->hfd.ci, ci, sizeof(struct uaedev_config_info));
+	ncr9x_add_scsi_unit(&ncr_blizzard_scsi, ch, ci, rc);
+	ncr_blizzard_scsi->configured = -1;
+	ncr_blizzard_scsi->enabled = true;
+	if (ISCPUBOARD(BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_MK1) || ISCPUBOARD(BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_MK2)) {
+		ncr9x_esp_scsi_init(ncr_blizzard_scsi, cyberstorm_mk1_mk2_dma_read, cyberstorm_mk1_mk2_dma_write, NULL);
+	} else {
+		ncr9x_esp_scsi_init(ncr_blizzard_scsi, blizzard_dma_read, blizzard_dma_write, NULL);
 	}
-	if (!hdf_hd_open(hfd))
-		return 0;
-	hfd->ansi_version = scsi_level;
-	handle = scsi_alloc_hd(ch, hfd);
-	if (!handle)
-		return 0;
-	handle->privdata = ncr;
-	ncr->scsid[ch] = xcalloc(SCSIDevice, 1);
-	ncr->scsid[ch]->handle = handle;
-	ncr->enabled = true;
-	return ncr->scsid[ch] ? 1 : 0;
-}
-
-
-static int add_ncr_scsi_cd(struct ncr9x_state *ncr, int ch, int unitnum)
-{
-	struct scsi_data *handle;
-	device_func_init(0);
-	freescsi(ncr->scsid[ch]);
-	ncr->scsid[ch] = NULL;
-	handle = scsi_alloc_cd(ch, unitnum, false);
-	if (!handle)
-		return 0;
-	handle->privdata = ncr;
-	ncr->scsid[ch] = xcalloc(SCSIDevice, 1);
-	ncr->scsid[ch]->handle = handle;
-	ncr->enabled = true;
-	return ncr->scsid[ch] ? 1 : 0;
-}
-
-static int add_ncr_scsi_tape(struct ncr9x_state *ncr, int ch, const TCHAR *tape_directory, bool readonly)
-{
-	struct scsi_data *handle;
-	freescsi(ncr->scsid[ch]);
-	ncr->scsid[ch] = NULL;
-	handle = scsi_alloc_tape(ch, tape_directory, readonly);
-	if (!handle)
-		return 0;
-	handle->privdata = ncr;
-	ncr->scsid[ch] = xcalloc(SCSIDevice, 1);
-	ncr->scsid[ch]->handle = handle;
-	ncr->enabled = true;
-	return ncr->scsid[ch] ? 1 : 0;
-}
-
-static int ncr9x_add_scsi_unit(struct ncr9x_state *ncr, int ch, struct uaedev_config_info *ci)
-{
-	if (ci->type == UAEDEV_CD)
-		return add_ncr_scsi_cd (ncr, ch, ci->device_emu_unit);
-	else if (ci->type == UAEDEV_TAPE)
-		return add_ncr_scsi_tape (ncr, ch, ci->rootdir, ci->readonly);
+	if (ISCPUBOARD(BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_MK1))
+		ncr_blizzard_scsi->board_mask = 0xffff;
 	else
-		return add_ncr_scsi_hd (ncr, ch, NULL, ci, 2);
+		ncr_blizzard_scsi->board_mask = 0x1ffff;
 }
 
-int cpuboard_ncr9x_add_scsi_unit(int ch, struct uaedev_config_info *ci)
+void cpuboard_dkb_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	return ncr9x_add_scsi_unit(&ncr_blizzard_scsi, ch, ci);
+	ncr9x_add_scsi_unit(&ncr_dkb1200_scsi, ch, ci, rc);
+	ncr9x_esp_scsi_init(ncr_dkb1200_scsi, fake_dma_read, fake_dma_write, set_irq2_dkb1200);
 }
 
-int cpuboard_dkb_add_scsi_unit(int ch, struct uaedev_config_info *ci)
+void fastlane_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	return ncr9x_add_scsi_unit(&ncr_dkb1200_scsi, ch, ci);
+	ncr9x_add_scsi_unit(&ncr_fastlane_scsi[ci->controller_type_unit], ch, ci, rc);
+	ncr9x_esp_scsi_init(ncr_fastlane_scsi[ci->controller_type_unit], fastlane_dma_read, fastlane_dma_write, set_irq2_fastlane);
+	ncr_fastlane_scsi[ci->controller_type_unit]->board_mask = 32 * 1024 * 1024 - 1;
 }
 
-int fastlane_add_scsi_unit (int ch, struct uaedev_config_info *ci)
+void oktagon_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	return ncr9x_add_scsi_unit(&ncr_fastlane_scsi[ci->controller_type_unit], ch, ci);
+	ncr9x_add_scsi_unit(&ncr_oktagon2008_scsi[ci->controller_type_unit], ch, ci, rc);
+	ncr9x_esp_scsi_init(ncr_oktagon2008_scsi[ci->controller_type_unit], fake2_dma_read, fake2_dma_write, set_irq2_oktagon);
 }
 
-int oktagon_add_scsi_unit (int ch, struct uaedev_config_info *ci)
+void masoboshi_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	return ncr9x_add_scsi_unit(&ncr_oktagon2008_scsi[ci->controller_type_unit], ch, ci);
-}
-
-int masoboshi_add_scsi_unit (int ch, struct uaedev_config_info *ci)
-{
-	return ncr9x_add_scsi_unit(&ncr_masoboshi_scsi[ci->controller_type_unit], ch, ci);
+	ncr9x_add_scsi_unit(&ncr_masoboshi_scsi[ci->controller_type_unit], ch, ci, rc);
+	ncr9x_esp_scsi_init(ncr_masoboshi_scsi[ci->controller_type_unit], fake2_dma_read, fake2_dma_write, set_irq2_masoboshi);
 }
 
 

@@ -5,22 +5,22 @@ extern void ncr9x_free(void);
 extern void ncr9x_reset(void);
 extern void ncr9x_rethink(void);
 
-extern int cpuboard_ncr9x_add_scsi_unit(int ch, struct uaedev_config_info *ci);
-extern int cpuboard_dkb_add_scsi_unit(int ch, struct uaedev_config_info *ci);
-extern int fastlane_add_scsi_unit(int ch, struct uaedev_config_info *ci);
-extern int oktagon_add_scsi_unit(int ch, struct uaedev_config_info *ci);
-extern int masoboshi_add_scsi_unit(int ch, struct uaedev_config_info *ci);
+extern void cpuboard_ncr9x_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void cpuboard_dkb_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void fastlane_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void oktagon_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void masoboshi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
-extern addrbank *ncr_fastlane_autoconfig_init(int devnum);
-extern addrbank *ncr_oktagon_autoconfig_init(int devnum);
-extern addrbank *ncr_dkb_autoconfig_init(int devnum);
+extern addrbank *ncr_fastlane_autoconfig_init(struct romconfig*);
+extern addrbank *ncr_oktagon_autoconfig_init(struct romconfig*);
+extern addrbank *ncr_dkb_autoconfig_init(struct romconfig*);
 
 extern void cpuboard_ncr9x_scsi_put(uaecptr, uae_u32);
 extern uae_u32 cpuboard_ncr9x_scsi_get(uaecptr);
 
 uae_u32 masoboshi_ncr9x_scsi_get(uaecptr addr, int devnum);
 void masoboshi_ncr9x_scsi_put(uaecptr addr, uae_u32 v, int devnum);
-void ncr_masoboshi_autoconfig_init(int devnum);
+void ncr_masoboshi_autoconfig_init(struct romconfig*);
 
 #define BLIZZARD_2060_SCSI_OFFSET 0x1ff00
 #define BLIZZARD_2060_DMA_OFFSET 0x1fff0

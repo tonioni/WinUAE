@@ -141,16 +141,23 @@ uaecptr ROM_filesys_resname, ROM_filesys_resid;
 uaecptr ROM_filesys_diagentry;
 uaecptr ROM_hardfile_resname, ROM_hardfile_resid;
 uaecptr ROM_hardfile_init;
-bool uae_boot_rom;
+int uae_boot_rom_type;
 int uae_boot_rom_size; /* size = code size only */
 static bool chipdone;
 
 /* ********************************************************** */
 
-static addrbank* (*card_init[MAX_EXPANSION_BOARD_SPACE])(int);
-static addrbank* (*card_map[MAX_EXPANSION_BOARD_SPACE])(void);
-static const TCHAR *card_name[MAX_EXPANSION_BOARD_SPACE];
-static int card_flags[MAX_EXPANSION_BOARD_SPACE];
+struct card_data
+{
+	addrbank *(*initrc)(struct romconfig*);
+	addrbank *(*initnum)(int);
+	addrbank *(*map)(void);
+	struct romconfig *rc;
+	const TCHAR *name;
+	int flags;
+};
+
+static struct card_data cards[MAX_EXPANSION_BOARD_SPACE];
 
 static int ecard, cardno, z3num;
 static addrbank *expamem_bank_current;
@@ -333,8 +340,11 @@ static void call_card_init(int index)
 	uae_u8 code;
 	uae_u32 expamem_z3_pointer_old;
 
-	expamem_bank.name = card_name[ecard] ? card_name[ecard] : _T("None");
-	ab = (*card_init[ecard])(0);
+	expamem_bank.name = cards[ecard].name ? cards[ecard].name : _T("None");
+	if (cards[ecard].initnum)
+		ab = cards[ecard].initnum(0);
+	else
+		ab = cards[ecard].initrc(cards[ecard].rc);
 	expamem_z3_size = 0;
 	if (ab == &expamem_none) {
 		expamem_init_clear();
@@ -406,7 +416,7 @@ static void call_card_init(int index)
 	if (ab) {
 		// non-NULL: not using expamem_bank
 		expamem_bank_current = ab;
-		if ((card_flags[ecard] & 1) && currprefs.cs_z3autoconfig && !currprefs.address_space_24) {
+		if ((cards[ecard].flags & 1) && currprefs.cs_z3autoconfig && !currprefs.address_space_24) {
 			map_banks(&expamemz3_bank, 0xff000000 >> 16, 1, 0);
 			map_banks(&dummy_bank, 0xE8, 1, 0);
 		} else {
@@ -415,7 +425,7 @@ static void call_card_init(int index)
 				map_banks(&dummy_bank, 0xff000000 >> 16, 1, 0);
 		}
 	} else {
-		if ((card_flags[ecard] & 1) && currprefs.cs_z3autoconfig && !currprefs.address_space_24) {
+		if ((cards[ecard].flags & 1) && currprefs.cs_z3autoconfig && !currprefs.address_space_24) {
 			map_banks(&expamemz3_bank, 0xff000000 >> 16, 1, 0);
 			map_banks(&dummy_bank, 0xE8, 1, 0);
 			expamem_bank_current = &expamem_bank;
@@ -574,8 +584,8 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 			expamem_hi = (value >> 8) & 0xff;
 			expamem_z2_pointer = (expamem_hi | (expamem_lo >> 4)) << 16; 
 			expamem_board_pointer = expamem_z2_pointer;
-			if (card_map[ecard]) {
-				expamem_next((*card_map[ecard]) (), NULL);
+			if (cards[ecard].map) {
+				expamem_next(cards[ecard].map(), NULL);
 				return;
 			}
 			if (expamem_bank_current && expamem_bank_current != &expamem_bank) {
@@ -599,13 +609,13 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 			}
 			expamem_board_pointer = expamem_z3_pointer;
 		}
-		if (card_map[ecard]) {
-			expamem_next((*card_map[ecard])(), NULL);
+		if (cards[ecard].map) {
+			expamem_next(cards[ecard].map(), NULL);
 			return;
 		}
 		break;
 	case 0x4c:
-		if (card_map[ecard]) {
+		if (cards[ecard].map) {
 			expamem_next (NULL, NULL);
 			return;
 		}
@@ -636,8 +646,8 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 			expamem_hi = value & 0xff;
 			expamem_z2_pointer = (expamem_hi | (expamem_lo >> 4)) << 16; 
 			expamem_board_pointer = expamem_z2_pointer;
-			if (card_map[ecard]) {
-				expamem_next((*card_map[ecard]) (), NULL);
+			if (cards[ecard].map) {
+				expamem_next(cards[ecard].map(), NULL);
 				return;
 			}
 		} else {
@@ -651,7 +661,7 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 		break;
 
 	case 0x4c:
-		if (card_map[ecard]) {
+		if (cards[ecard].map) {
 			expamem_next(expamem_bank_current, NULL);
 			return;
 		}
@@ -1110,8 +1120,8 @@ static addrbank *expamem_init_fastcard(int boardnum)
 	}
 	for (int i = 0; expansionroms[i].name; i++) {
 		const struct expansionromtype *erc = &expansionroms[i];
-		if (erc->zorro == 2 && cfgfile_board_enabled(&currprefs, erc->romtype)) {
-			struct romconfig *rc = get_device_romconfig(&currprefs, 0, erc->romtype);
+		if (erc->zorro == 2 && cfgfile_board_enabled(&currprefs, erc->romtype, 0)) {
+			struct romconfig *rc = get_device_romconfig(&currprefs, erc->romtype, 0);
 			if (erc->subtypes) {
 				const struct expansionsubromtype *srt = &erc->subtypes[rc->subtype];
 				if (srt->memory_mid) {
@@ -1612,11 +1622,15 @@ static void allocate_expamem (void)
 #endif /* SAVESTATE */
 }
 
-static uaecptr check_boot_rom (void)
+static uaecptr check_boot_rom (int *boot_rom_type)
 {
 	uaecptr b = RTAREA_DEFAULT;
 	addrbank *ab;
 
+	*boot_rom_type = 0;
+	if (currprefs.boot_rom == 1)
+		return 0;
+	*boot_rom_type = 1;
 	if (currprefs.cs_cdtvcd || currprefs.cs_cdtvscsi || currprefs.uae_hide > 1)
 		b = RTAREA_BACKUP;
 	if (currprefs.cs_mbdmac == 1 || currprefs.cpuboard_type)
@@ -1651,6 +1665,13 @@ static uaecptr check_boot_rom (void)
 		return b;
 	if (currprefs.z3chipmem_size)
 		return b;
+	if (currprefs.boot_rom >= 3)
+		return b;
+	if (currprefs.boot_rom == 2 && b == 0xf00000) {
+		*boot_rom_type = -1;
+		return b;
+	}
+	*boot_rom_type = 0;
 	return 0;
 }
 
@@ -1658,15 +1679,57 @@ uaecptr need_uae_boot_rom (void)
 {
 	uaecptr v;
 
-	uae_boot_rom = 0;
-	v = check_boot_rom ();
-	if (v)
-		uae_boot_rom = 1;
+	uae_boot_rom_type = 0;
+	v = check_boot_rom (&uae_boot_rom_type);
 	if (!rtarea_base) {
-		uae_boot_rom = 0;
+		uae_boot_rom_type = 0;
 		v = 0;
 	}
 	return v;
+}
+
+static void add_cpu_expansions(int zorro)
+{
+	const struct cpuboardsubtype *cst = &cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype];
+	if (cst->init && cst->initzorro == zorro) {
+		int idx;
+		struct boardromconfig *brc = get_device_rom(&currprefs, ROMTYPE_CPUBOARD, 0, &idx);
+		struct romconfig *rc = &brc->roms[idx];
+		cards[cardno].flags = cst->initflag;
+		cards[cardno].name = cst->name;
+		cards[cardno].initrc = cst->init;
+		cards[cardno].rc = rc;
+		cards[cardno++].map = NULL;
+		if (cst->init2) {
+			cards[cardno].flags = cst->initflag;
+			cards[cardno].name = cst->name;
+			cards[cardno].initrc = cst->init2;
+			cards[cardno++].map = NULL;
+		}
+	}
+}
+
+static void add_expansions(int zorro)
+{
+	for (int i = 0; expansionroms[i].name; i++) {
+		const struct expansionromtype *erc = &expansionroms[i];
+		if (erc->zorro == zorro) {
+			for (int j = 0; j < MAX_DUPLICATE_EXPANSION_BOARDS; j++) {
+				struct romconfig *rc = get_device_romconfig(&currprefs, erc->romtype, j);
+				if (rc) {
+					if (zorro == 1) {
+						erc->init(rc);
+					} else {
+						cards[cardno].flags = 0;
+						cards[cardno].name = erc->name;
+						cards[cardno].initrc = erc->init;
+						cards[cardno].rc = rc;
+						cards[cardno++].map = NULL;
+					}
+				}
+			}
+		}
+	}
 }
 
 void expamem_reset (void)
@@ -1698,27 +1761,29 @@ void expamem_reset (void)
 	}
 	if (need_uae_boot_rom () == 0)
 		do_mount = 0;
+	if (uae_boot_rom_type <= 0)
+		do_mount = 0;
 
 	if (currprefs.cpuboard_type) {
 		// This may require first 128k slot.
-		card_flags[cardno] = 1;
-		card_name[cardno] = _T("CPUBoard");
-		card_init[cardno] = cpuboard_autoconfig_init;
-		card_map[cardno++] = NULL;
+		cards[cardno].flags = 1;
+		cards[cardno].name = _T("CPUBoard");
+		cards[cardno].initrc = cpuboard_autoconfig_init;
+		cards[cardno++].map = NULL;
 	}
 
 	if (currprefs.fastmem_autoconfig) {
 		if (fastmem_bank.baseaddr != NULL && (fastmem_bank.allocated <= 262144 || currprefs.chipmem_size <= 2 * 1024 * 1024)) {
-			card_flags[cardno] = 0;
-			card_name[cardno] = _T("Z2Fast");
-			card_init[cardno] = expamem_init_fastcard;
-			card_map[cardno++] = expamem_map_fastcard;
+			cards[cardno].flags = 0;
+			cards[cardno].name = _T("Z2Fast");
+			cards[cardno].initnum = expamem_init_fastcard;
+			cards[cardno++].map = expamem_map_fastcard;
 		}
 		if (fastmem2_bank.baseaddr != NULL && (fastmem2_bank.allocated <= 262144  || currprefs.chipmem_size <= 2 * 1024 * 1024)) {
-			card_flags[cardno] = 0;
-			card_name[cardno] = _T("Z2Fast2");
-			card_init[cardno] = expamem_init_fastcard;
-			card_map[cardno++] = expamem_map_fastcard2;
+			cards[cardno].flags = 0;
+			cards[cardno].name = _T("Z2Fast2");
+			cards[cardno].initnum = expamem_init_fastcard;
+			cards[cardno++].map = expamem_map_fastcard2;
 		}
 	} else {
 		if (fastmem_bank.baseaddr) {
@@ -1733,131 +1798,101 @@ void expamem_reset (void)
 
 	// immediately after Z2Fast so that they can be emulated as A590/A2091 with fast ram.
 
-	const struct cpuboardsubtype *cst = &cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype];
-	if (cst->init && cst->initzorro == 2) {
-		card_flags[cardno] = cst->initflag;
-		card_name[cardno] = cst->name;
-		card_init[cardno] = cst->init;
-		card_map[cardno++] = NULL;
-		if (cst->init2) {
-			card_flags[cardno] = cst->initflag;
-			card_name[cardno] = cst->name;
-			card_init[cardno] = cst->init2;
-			card_map[cardno++] = NULL;
-		}
-	}
+	add_cpu_expansions(2);
 
-	for (int i = 0; expansionroms[i].name; i++) {
-		const struct expansionromtype *erc = &expansionroms[i];
-		if (erc->zorro == 2 && cfgfile_board_enabled(&currprefs, erc->romtype)) {
-			card_flags[cardno] = 0;
-			card_name[cardno] = erc->name;
-			card_init[cardno] = erc->init;
-			card_map[cardno++] = NULL;
-		}
-	}
+	add_expansions(2);
 
 #ifdef CDTV
 	if (currprefs.cs_cdtvcd && !currprefs.cs_cdtvcr) {
-		card_flags[cardno] = 0;
-		card_name[cardno] = _T("CDTV DMAC");
-		card_init[cardno] = cdtv_init;
-		card_map[cardno++] = NULL;
+		cards[cardno].flags = 0;
+		cards[cardno].name = _T("CDTV DMAC");
+		cards[cardno].initrc = cdtv_init;
+		cards[cardno++].map = NULL;
 	}
 #endif
 #ifdef CD32
 	if (currprefs.cs_cd32cd && currprefs.fastmem_size == 0 && currprefs.chipmem_size <= 0x200000 && currprefs.cs_cd32fmv) {
-		card_flags[cardno] = 0;
-		card_name[cardno] = _T("CD32MPEG");
-		card_init[cardno] = expamem_init_cd32fmv;
-		card_map[cardno++] = expamem_map_cd32fmv;
+		cards[cardno].flags = 0;
+		cards[cardno].name = _T("CD32MPEG");
+		cards[cardno].initnum = expamem_init_cd32fmv;
+		cards[cardno++].map = expamem_map_cd32fmv;
 	}
 #endif
 #ifdef A2065
 	if (currprefs.a2065name[0]) {
-		card_flags[cardno] = 0;
-		card_name[cardno] = _T("A2065");
-		card_init[cardno] = a2065_init;
-		card_map[cardno++] = NULL;
+		cards[cardno].flags = 0;
+		cards[cardno].name = _T("A2065");
+		cards[cardno].initnum = a2065_init;
+		cards[cardno++].map = NULL;
 	}
 #endif
 #ifdef FILESYS
 	if (do_mount) {
-		card_flags[cardno] = 0;
-		card_name[cardno] = _T("UAEFS");
-		card_init[cardno] = expamem_init_filesys;
-		card_map[cardno++] = expamem_map_filesys;
+		cards[cardno].flags = 0;
+		cards[cardno].name = _T("UAEFS");
+		cards[cardno].initnum = expamem_init_filesys;
+		cards[cardno++].map = expamem_map_filesys;
 	}
 #endif
 #ifdef CATWEASEL
 	if (currprefs.catweasel && catweasel_init ()) {
-		card_flags[cardno] = 0;
-		card_name[cardno] = _T("CWMK2");
-		card_init[cardno] = expamem_init_catweasel;
-		card_map[cardno++] = expamem_map_catweasel;
+		cards[cardno].flags = 0;
+		cards[cardno].name = _T("CWMK2");
+		cards[cardno].initnum = expamem_init_catweasel;
+		cards[cardno++].map = expamem_map_catweasel;
 	}
 #endif
 #ifdef PICASSO96
 	if (currprefs.rtgmem_type == GFXBOARD_UAE_Z2 && gfxmem_bank.baseaddr != NULL) {
-		card_flags[cardno] = 4;
-		card_name[cardno] = _T("Z2RTG");
-		card_init[cardno] = expamem_init_gfxcard_z2;
-		card_map[cardno++] = expamem_map_gfxcard_z2;
+		cards[cardno].flags = 4;
+		cards[cardno].name = _T("Z2RTG");
+		cards[cardno].initnum = expamem_init_gfxcard_z2;
+		cards[cardno++].map = expamem_map_gfxcard_z2;
 	}
 #endif
 #ifdef GFXBOARD
 	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && !gfxboard_is_z3 (currprefs.rtgmem_type)) {
-		card_flags[cardno] = 4;
-		card_name[cardno] = _T("Gfxboard VRAM Zorro II");
-		card_init[cardno] = gfxboard_init_memory;
-		card_map[cardno++] = NULL;
+		cards[cardno].flags = 4;
+		cards[cardno].name = _T("Gfxboard VRAM Zorro II");
+		cards[cardno++].initnum = gfxboard_init_memory;
 		if (gfxboard_num_boards (currprefs.rtgmem_type) == 3) {
-			card_flags[cardno] = 0;
-			card_name[cardno] = _T("Gfxboard VRAM Zorro II Extra");
-			card_init[cardno] = gfxboard_init_memory_p4_z2;
-			card_map[cardno++] = NULL;
+			cards[cardno].flags = 0;
+			cards[cardno].name = _T("Gfxboard VRAM Zorro II Extra");
+			cards[cardno++].initnum = gfxboard_init_memory_p4_z2;
 		}
 		if (gfxboard_is_registers (currprefs.rtgmem_type)) {
-			card_flags[cardno] = 0;
-			card_name[cardno] = _T ("Gfxboard Registers");
-			card_init[cardno] = gfxboard_init_registers;
-			card_map[cardno++] = NULL;
+			cards[cardno].flags = 0;
+			cards[cardno].name = _T ("Gfxboard Registers");
+			cards[cardno++].initnum = gfxboard_init_registers;
 		}
 	}
 #endif
 #ifdef WITH_TOCCATA
 	if (currprefs.sound_toccata) {
-		card_flags[cardno] = 0;
-		card_name[cardno] = _T("Toccata");
-		card_init[cardno] = sndboard_init;
-		card_map[cardno++] = NULL;
+		cards[cardno].flags = 0;
+		cards[cardno].name = _T("Toccata");
+		cards[cardno++].initnum = sndboard_init;
 	}
 #endif
 
 	/* Z3 boards last */
 	if (!currprefs.address_space_24) {
 
-		const struct cpuboardsubtype *cst = &cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype];
-		if (cst->init && cst->initzorro == 3) {
-			card_flags[cardno] = cst->initflag;
-			card_name[cardno] = cst->name;
-			card_init[cardno] = cst->init;
-			card_map[cardno++] = NULL;
-		}
+		add_cpu_expansions(3);
 
 		if (z3fastmem_bank.baseaddr != NULL) {
 			z3num = 0;
-			card_flags[cardno] = 2 | 1;
-			card_name[cardno] = _T("Z3Fast");
-			card_init[cardno] = expamem_init_z3fastmem;
-			card_map[cardno++] = expamem_map_z3fastmem;
+			cards[cardno].flags = 2 | 1;
+			cards[cardno].name = _T("Z3Fast");
+			cards[cardno].initnum = expamem_init_z3fastmem;
+			cards[cardno++].map = expamem_map_z3fastmem;
 			if (expamem_z3hack(&currprefs))
 				map_banks (&z3fastmem_bank, z3fastmem_bank.start >> 16, currprefs.z3fastmem_size >> 16, z3fastmem_bank.allocated);
 			if (z3fastmem2_bank.baseaddr != NULL) {
-				card_flags[cardno] = 2 | 1;
-				card_name[cardno] = _T("Z3Fast2");
-				card_init[cardno] = expamem_init_z3fastmem2;
-				card_map[cardno++] = expamem_map_z3fastmem2;
+				cards[cardno].flags = 2 | 1;
+				cards[cardno].name = _T("Z3Fast2");
+				cards[cardno].initnum = expamem_init_z3fastmem2;
+				cards[cardno++].map = expamem_map_z3fastmem2;
 				if (expamem_z3hack(&currprefs))
 					map_banks (&z3fastmem2_bank, z3fastmem2_bank.start >> 16, currprefs.z3fastmem2_size >> 16, z3fastmem2_bank.allocated);
 			}
@@ -1866,36 +1901,29 @@ void expamem_reset (void)
 			map_banks (&z3chipmem_bank, z3chipmem_bank.start >> 16, currprefs.z3chipmem_size >> 16, z3chipmem_bank.allocated);
 #ifdef PICASSO96
 		if (currprefs.rtgmem_type == GFXBOARD_UAE_Z3 && gfxmem_bank.baseaddr != NULL) {
-			card_flags[cardno] = 4 | 1;
-			card_name[cardno] = _T("Z3RTG");
-			card_init[cardno] = expamem_init_gfxcard_z3;
-			card_map[cardno++] = expamem_map_gfxcard_z3;
+			cards[cardno].flags = 4 | 1;
+			cards[cardno].name = _T("Z3RTG");
+			cards[cardno].initnum = expamem_init_gfxcard_z3;
+			cards[cardno++].map = expamem_map_gfxcard_z3;
 		}
 #endif
 #ifdef GFXBOARD
 		if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_is_z3 (currprefs.rtgmem_type)) {
-			card_flags[cardno] = 4 | 1;
-			card_name[cardno] = _T ("Gfxboard VRAM Zorro III");
-			card_init[cardno] = gfxboard_init_memory;
-			card_map[cardno++] = NULL;
-			card_flags[cardno] = 1;
-			card_name[cardno] = _T ("Gfxboard Registers");
-			card_init[cardno] = gfxboard_init_registers;
-			card_map[cardno++] = NULL;
+			cards[cardno].flags = 4 | 1;
+			cards[cardno].name = _T ("Gfxboard VRAM Zorro III");
+			cards[cardno++].initnum = gfxboard_init_memory;
+			cards[cardno].flags = 1;
+			cards[cardno].name = _T ("Gfxboard Registers");
+			cards[cardno++].initnum = gfxboard_init_registers;
 		}
 #endif
 
-		for (int i = 0; expansionroms[i].name; i++) {
-			const struct expansionromtype *erc = &expansionroms[i];
-			if (erc->zorro == 3 && cfgfile_board_enabled(&currprefs, erc->romtype)) {
-				card_flags[cardno] = 0;
-				card_name[cardno] = erc->name;
-				card_init[cardno] = erc->init;
-				card_map[cardno++] = NULL;
-			}
-		}
+		add_expansions(3);
 
 	}
+
+	// zorro == 1: non-autoconfig/hardwired
+	add_expansions(1);
 
 	expamem_z3_pointer = 0;
 	expamem_z3_sum = 0;
@@ -2100,7 +2128,7 @@ uae_u8 *restore_expansion (uae_u8 *src)
 
 #endif /* SAVESTATE */
 
-int add_cpuboard_unit(int unit, struct uaedev_config_info *uci);
+void add_cpuboard_unit(int unit, struct uaedev_config_info *uci, struct romconfig *rc);
 
 #if 0
 static const struct expansionsubromtype a2090_sub[] = {
@@ -2202,104 +2230,143 @@ static const struct expansionsubromtype supra_sub[] = {
 
 const struct expansionromtype expansionroms[] = {
 	{
-		_T("cpuboard"), _T("Accelerator"),
-		NULL, add_cpuboard_unit, ROMTYPE_CPUBOARD, 0, 0, 0,
+		_T("cpuboard"), _T("Accelerator"), _T("Accelerator"),
+		NULL, add_cpuboard_unit, ROMTYPE_CPUBOARD, 0, 0, 0, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE
 	},
 	{
-		_T("cpuboard_ext"), _T("Blizzard SCSI Kit IV"),
-		NULL, NULL, ROMTYPE_CPUBOARDEXT, ROMTYPE_CPUBOARD, 0, 0,
+		_T("cpuboard_ext"), _T("SCSI Kit IV"), _T("Blizzard"),
+		NULL, NULL, ROMTYPE_CPUBOARDEXT, ROMTYPE_CPUBOARD, 0, 0, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("a2090a"), _T("A2090a"),
-		a2090_init, a2090_add_scsi_unit, ROMTYPE_A2090 | ROMTYPE_NONE, 0, 0, 2,
+		_T("a2090a"), _T("A2090a"), _T("Commodore"),
+		a2090_init, a2090_add_scsi_unit, ROMTYPE_A2090 | ROMTYPE_NONE, 0, 0, 2, false,
 		NULL, 0,
 		true, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("a2091"), _T("A590/A2091"),
-		a2091_init, a2091_add_scsi_unit, ROMTYPE_A2091 | ROMTYPE_NONE, 0, 0, 2,
+		_T("a2091"), _T("A590/A2091"), _T("Commodore"),
+		a2091_init, a2091_add_scsi_unit, ROMTYPE_A2091 | ROMTYPE_NONE, 0, 0, 2, false,
 		a2091_sub, 1,
 		true, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("a4091"), _T("A4091"),
-		ncr710_a4091_autoconfig_init, a4091_add_scsi_unit, ROMTYPE_A4091, 0, 0, 3,
+		_T("a4091"), _T("A4091"), _T("Commodore"),
+		ncr710_a4091_autoconfig_init, a4091_add_scsi_unit, ROMTYPE_A4091, 0, 0, 3, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("fastlane"), _T("Fastlane"),
-		ncr_fastlane_autoconfig_init, fastlane_add_scsi_unit, ROMTYPE_FASTLANE, 0, 0, 3,
+		_T("fastlane"), _T("Fastlane"), _T("Phase 5"),
+		ncr_fastlane_autoconfig_init, fastlane_add_scsi_unit, ROMTYPE_FASTLANE, 0, 0, 3, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("oktagon2008"), _T("Oktagon 2008"),
-		ncr_oktagon_autoconfig_init, oktagon_add_scsi_unit, ROMTYPE_OKTAGON, 0, 0, 2,
+		_T("oktagon2008"), _T("Oktagon 2008"), _T("BSC/Alfa Data"),
+		ncr_oktagon_autoconfig_init, oktagon_add_scsi_unit, ROMTYPE_OKTAGON, 0, 0, 2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("gvp1"), _T("GVP Series I"),
-		gvp_init_s1, gvp_add_scsi_unit, ROMTYPE_GVPS1 | ROMTYPE_NONE, ROMTYPE_GVPS12, 0, 2,
+		_T("gvp1"), _T("Series I"), _T("GVP"),
+		gvp_init_s1, gvp_add_scsi_unit, ROMTYPE_GVPS1 | ROMTYPE_NONE, ROMTYPE_GVPS12, 0, 2, false,
 		gvp1_sub, 1,
 		true, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("gvp"), _T("GVP Series II"),
-		gvp_init_s2, gvp_add_scsi_unit, ROMTYPE_GVPS2 | ROMTYPE_NONE, ROMTYPE_GVPS12, 0, 2,
+		_T("gvp"), _T("Series II"), _T("GVP"),
+		gvp_init_s2, gvp_add_scsi_unit, ROMTYPE_GVPS2 | ROMTYPE_NONE, ROMTYPE_GVPS12, 0, 2, false,
 		NULL, 0,
 		true, EXPANSIONTYPE_SCSI,
 		2017, 10, 0
 	},
 	{
-		_T("amax"), _T("AMAX ROM dongle"),
-		NULL, 0,
-		NULL, NULL, ROMTYPE_AMAX | ROMTYPE_NONE, 0, 0, 0
-	},
-	{
-		_T("alfapower"), _T("AlfaPower/AT-Bus 2008"),
-		alf_init, alf_add_ide_unit, ROMTYPE_ALFA, 0, 0, 2,
+		_T("alfapower"), _T("AlfaPower/AT-Bus 2008"), _T("BSC/Alfa Data"),
+		alf_init, alf_add_ide_unit, ROMTYPE_ALFA, 0, 0, 2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_IDE,
 		2092, 8, 0
 	},
 	{
-		_T("alfapowerplus"), _T("AlfaPower Plus"),
-		alf_init, alf_add_ide_unit, ROMTYPE_ALFAPLUS, 0, 0, 2,
+		_T("alfapowerplus"), _T("AlfaPower Plus"), _T("BSC/Alfa Data"),
+		alf_init, alf_add_ide_unit, ROMTYPE_ALFAPLUS, 0, 0, 2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_IDE,
 		2092, 8, 0
 	},
 	{
-		_T("apollo"), _T("Apollo"),
-		apollo_init, apollo_add_scsi_unit, ROMTYPE_APOLLO, 0, 0, 2,
+		_T("apollo"), _T("Apollo"), _T("ACT"),
+		apollo_init_hd, apollo_add_scsi_unit, ROMTYPE_APOLLO, 0, 0, 2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE,
 		8738, 0, 0
 	},
 	{
-		_T("masoboshi"), _T("Masoboshi"),
-		masoboshi_init, masoboshi_add_idescsi_unit, ROMTYPE_MASOBOSHI | ROMTYPE_NONE, 0, 0, 2,
+		_T("masoboshi"), _T("MasterCard"), _T("Masoboshi"),
+		masoboshi_init, masoboshi_add_idescsi_unit, ROMTYPE_MASOBOSHI | ROMTYPE_NONE, 0, 0, 2, false,
 		masoboshi_sub, 0,
 		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE
 	},
 	{
-		_T("supradrive"), _T("SupraDrive"),
-		supra_init, supra_add_scsi_unit, ROMTYPE_SUPRA | ROMTYPE_NONE, 0, 0, 2,
+		_T("supradrive"), _T("SupraDrive"), _T("Supra"),
+		supra_init, supra_add_scsi_unit, ROMTYPE_SUPRA | ROMTYPE_NONE, 0, 0, 2, false,
 		supra_sub, 0,
 		true, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("golem"), _T("Kupke Golem"),
-		golem_init, golem_add_scsi_unit, ROMTYPE_GOLEM, 0, 0, 2,
+		_T("golem"), _T("Golem"), _T("Kupke"),
+		golem_init, golem_add_scsi_unit, ROMTYPE_GOLEM, 0, 0, 2, false,
 		NULL, 0,
 		true, EXPANSIONTYPE_SCSI,
 		2079, 3, 0
+	},
+	{
+		_T("adide"), _T("AdIDE"), _T("ICD"),
+		adide_init, adide_add_ide_unit, ROMTYPE_ADIDE, 0, 0, 2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_IDE
+	},
+	{
+		_T("mtecat"), _T("AT 500"), _T("M-Tec"),
+		mtec_init, mtec_add_ide_unit, ROMTYPE_MTEC, 0, 0, 2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_IDE
+	},
+	{
+		_T("protar"), _T("A500 HD"), _T("Protar"),
+		protar_init, protar_add_ide_unit, ROMTYPE_PROTAR, 0, 0, 2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI,
+		4149, 51, 0
+	},
+	{
+		_T("stardrive"), _T("StarDrive"), _T("Microbotics"),
+		stardrive_init, stardrive_add_scsi_unit, ROMTYPE_STARDRIVE | ROMTYPE_NONE, 0, 0, 2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI,
+		1010, 0, 0,
+		{ 0xc1, 2, 0x00, 0x00, 0x03, 0xf2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+
+	},
+	{
+		_T("kommos"), _T("A500/A2000 SCSI"), _T("Jürgen Kommos"),
+		kommos_init, kommos_add_scsi_unit, ROMTYPE_KOMMOS, 0, 0, 1, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI,
+	},
+	{
+		_T("vector"), _T("Vector Falcon 8000"), _T("HK-Computer"),
+		vector_init, vector_add_scsi_unit, ROMTYPE_VECTOR, 0, 0, 2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI,
+	},
+	{
+		_T("amax"), _T("AMAX ROM dongle"), _T("ReadySoft"),
+		NULL, 0, NULL, NULL, ROMTYPE_AMAX | ROMTYPE_NONE, 0, 0, 0, false
 	},
 	{
 		NULL
@@ -2536,46 +2603,74 @@ static const struct cpuboardsubtype apollo_sub[] = {
 		NULL
 	}
 };
+static const struct cpuboardsubtype kupkeboard_sub[] = {
+	{
+		_T("Golem 030"),
+		_T("golem030"),
+		ROMTYPE_CB_GOLEM030, 0,
+		NULL, 0,
+		BOARD_MEMORY_25BITMEM,
+		16 * 1024 * 1024
+	},
+	{
+		NULL
+	}
+};
+
 static const struct cpuboardsubtype dummy_sub[] = {
 	{ NULL }
 };
 
 const struct cpuboardtype cpuboards[] = {
 	{
+		-1,
 		_T("-"),
 		dummy_sub, 0
 	},
 	{
+		BOARD_BLIZZARD,
 		_T("Phase 5 - Blizzard"),
 		blizzardboard_sub, 0
 	},
 	{
+		BOARD_CYBERSTORM,
 		_T("Phase 5 - CyberStorm"),
 		cyberstormboard_sub, 0
 	},
 	{
+		BOARD_MACROSYSTEM,
 		_T("MacroSystem"),
 		warpengine_sub, 0
 	},
 	{
+		BOARD_COMMODORE,
 		_T("Commodore"),
 		commodore_sub, 0
 	},
 	{
+		BOARD_DKB,
 		_T("DKB"),
 		dbk_sub, 0
 	},
 	{
+		BOARD_RCS,
 		_T("RCS Management"),
 		fusionforty_sub, 0
 	},
 	{
+		BOARD_ACT,
 		_T("ACT"),
 		apollo_sub, 0
 	},
 	{
+		BOARD_GVP,
 		_T("GVP"),
 		gvpboard_sub, 0
+	},
+	{
+		BOARD_KUPKE,
+		_T("Kupke"),
+		kupkeboard_sub, 0
 	},
 	{
 		NULL

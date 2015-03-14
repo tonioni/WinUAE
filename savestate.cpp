@@ -675,9 +675,12 @@ void restore_state (const TCHAR *filename)
 #ifdef CDTV
 		else if (!_tcscmp (name, _T("CDTV")))
 			end = restore_cdtv (chunk);
+#if 0
 		else if (!_tcscmp (name, _T("DMAC")))
 			end = restore_cdtv_dmac (chunk);
 #endif
+#endif
+#if 0
 		else if (!_tcscmp (name, _T("DMC2")))
 			end = restore_scsi_dmac (WDTYPE_A3000, chunk);
 		else if (!_tcscmp (name, _T("DMC3")))
@@ -690,6 +693,7 @@ void restore_state (const TCHAR *filename)
 			end = restore_scsi_device (WDTYPE_A2091, chunk);
 		else if (!_tcscmp (name, _T("SCS4")))
 			end = restore_scsi_device (WDTYPE_A2091_2, chunk);
+#endif
 		else if (!_tcscmp (name, _T("SCSD")))
 			end = restore_scsidev (chunk);
 		else if (!_tcscmp (name, _T("GAYL")))
@@ -974,10 +978,13 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	dst = save_cdtv (&len, NULL);
 	save_chunk (f, dst, len, _T("CDTV"), 0);
 	xfree (dst);
+#if 0
 	dst = save_cdtv_dmac (&len, NULL);
 	save_chunk (f, dst, len, _T("DMAC"), 0);
 	xfree (dst);
 #endif
+#endif
+#if 0
 	dst = save_scsi_dmac (WDTYPE_A3000, &len, NULL);
 	save_chunk (f, dst, len, _T("DMC2"), 0);
 	xfree (dst);
@@ -996,6 +1003,7 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 			xfree (dst);
 		}
 	}
+#endif
 	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 		dst = save_scsidev (i, &len, NULL);
 		save_chunk (f, dst, len, _T("SCSD"), 0);
@@ -1315,10 +1323,12 @@ void savestate_rewind (void)
 	if (restore_u32_func (&p))
 		p = restore_cdtv_dmac (p);
 #endif
+#if 0
 	if (restore_u32_func (&p))
 		p = restore_scsi_dmac (WDTYPE_A2091, p);
 	if (restore_u32_func (&p))
 		p = restore_scsi_dmac (WDTYPE_A3000, p);
+#endif
 	if (restore_u32_func (&p))
 		p = restore_gayle (p);
 	for (i = 0; i < 4; i++) {
@@ -1661,6 +1671,7 @@ retry2:
 		p += len;
 	}
 #endif
+#if 0
 	if (bufcheck (st, p, 0))
 		goto retry;
 	p3 = p;
@@ -1681,6 +1692,7 @@ retry2:
 		tlen += len;
 		p += len;
 	}
+#endif
 	if (bufcheck (st, p, 0))
 		goto retry;
 	p3 = p;

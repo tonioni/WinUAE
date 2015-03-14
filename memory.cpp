@@ -2807,7 +2807,7 @@ void map_banks_nojitdirect (addrbank *bank, int start, int size, int realsize)
 
 uae_u8 *save_bootrom (int *len)
 {
-	if (!uae_boot_rom)
+	if (!uae_boot_rom_type)
 		return 0;
 	*len = uae_boot_rom_size;
 	return rtarea_bank.baseaddr;

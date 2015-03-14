@@ -671,6 +671,7 @@
 #define IDC_DELETE                      1403
 #define IDC_CPUBOARDROMCHOOSER          1403
 #define IDC_CONFIGLIST                  1404
+#define IDC_SCSIROMSELECTNUM            1404
 #define IDC_EDITNAME                    1405
 #define IDC_EDITDESCRIPTION             1406
 #define IDC_QUICKSAVE                   1408

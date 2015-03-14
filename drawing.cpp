@@ -2740,6 +2740,16 @@ static void center_image (void)
 	gfxvidinfo.drawbuffer.xoffset = (DISPLAY_LEFT_SHIFT << RES_MAX) + (visible_left_border << (RES_MAX - currprefs.gfx_resolution));
 	gfxvidinfo.drawbuffer.yoffset = thisframe_y_adjust << VRES_MAX;
 
+	struct gfx_filterdata *f = &currprefs.gf[0];
+	if (f->gfx_filter_left_border > 0 && f->gfx_filter_left_border > visible_left_border)
+		visible_left_border = f->gfx_filter_left_border;
+	if (f->gfx_filter_right_border > 0 && f->gfx_filter_right_border < visible_right_border)
+		visible_right_border = f->gfx_filter_right_border;
+	if (f->gfx_filter_top_border > 0 && f->gfx_filter_top_border > visible_top_start)
+		visible_top_start = f->gfx_filter_top_border;
+	if (f->gfx_filter_bottom_border > 0 && f->gfx_filter_bottom_border < visible_bottom_stop)
+		visible_bottom_stop = f->gfx_filter_bottom_border;
+
 	center_reset = false;
 	horizontal_changed = false;
 	vertical_changed = false;
@@ -2770,7 +2780,7 @@ static void init_drawing_frame (void)
 				// enable full doubling/superhires support if programmed mode. It may be "half-width" only and may fit in normal display window.
 				gfxvidinfo.gfx_resolution_reserved = RES_SUPERHIRES;
 				gfxvidinfo.gfx_vresolution_reserved = VRES_DOUBLE;
-				graphics_reset();
+				graphics_reset(false);
 			}
 			int newres = largest_res;
 			if (htotal < 190)

@@ -29,7 +29,9 @@ struct ide_board
 	uae_u8 acmemory[128];
 	int rom_size;
 	int rom_mask;
+	uaecptr baseaddress;
 	int configured;
+	bool keepautoconfig;
 	int mask;
 	addrbank *bank;
 	struct ide_hdf *ide;
@@ -40,6 +42,7 @@ struct ide_board
 	int type;
 	int userdata;
 	int subtype;
+	struct romconfig *rc;
 };
 
 struct ide_hdf
@@ -52,6 +55,7 @@ struct ide_hdf
 	struct ide_hdf *pair; // master<>slave
 	struct ide_thread_state *its;
 	bool byteswap;
+	bool adide;
 
 	uae_u8 *secbuf;
 	int secbuf_size;
@@ -98,12 +102,15 @@ bool ide_irq_check(struct ide_hdf *ide);
 bool ide_drq_check(struct ide_hdf *ide);
 bool ide_isdrive(struct ide_hdf *ide);
 void ide_initialize(struct ide_hdf **idetable, int chpair);
-struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct uaedev_config_info *ci);
+struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 void remove_ide_unit(struct ide_hdf **idetable, int ch);
 void alloc_ide_mem (struct ide_hdf **ide, int max, struct ide_thread_state *its);
 
 void start_ide_thread(struct ide_thread_state *its);
 void stop_ide_thread(struct ide_thread_state *its);
+
+uae_u16 adide_decode_word(uae_u16 w);
+uae_u16 adide_encode_word(uae_u16 w);
 
 uae_u8 *ide_save_state(uae_u8 *dst, struct ide_hdf *ide);
 uae_u8 *ide_restore_state(uae_u8 *src, struct ide_hdf *ide);
@@ -111,28 +118,28 @@ uae_u8 *ide_restore_state(uae_u8 *src, struct ide_hdf *ide);
 #define IDE_MEMORY_FUNCTIONS(x, y, z) \
 static void REGPARAM2 x ## _bput(uaecptr addr, uae_u32 b) \
 { \
-	y ## _write_byte(& ## z, addr, b); \
+	y ## _write_byte(## z, addr, b); \
 } \
 static void REGPARAM2 x ## _wput(uaecptr addr, uae_u32 b) \
 { \
-	y ## _write_word(& ## z, addr, b); \
+	y ## _write_word(## z, addr, b); \
 } \
 static void REGPARAM2 x ## _lput(uaecptr addr, uae_u32 b) \
 { \
-	y ## _write_word(& ## z, addr, b >> 16); \
-	y ## _write_word(& ## z, addr + 2, b); \
+	y ## _write_word(## z, addr, b >> 16); \
+	y ## _write_word(## z, addr + 2, b); \
 } \
 static uae_u32 REGPARAM2 x ## _bget(uaecptr addr) \
 { \
-return y ## _read_byte(& ## z, addr); \
+return y ## _read_byte(## z, addr); \
 } \
 static uae_u32 REGPARAM2 x ## _wget(uaecptr addr) \
 { \
-return y ## _read_word(& ## z, addr); \
+return y ## _read_word(## z, addr); \
 } \
 static uae_u32 REGPARAM2 x ## _lget(uaecptr addr) \
 { \
-	uae_u32 v = y ## _read_word(& ## z, addr) << 16; \
-	v |= y ## _read_word(& ## z, addr + 2); \
+	uae_u32 v = y ## _read_word(## z, addr) << 16; \
+	v |= y ## _read_word(## z, addr + 2); \
 	return v; \
 }

@@ -1,4 +1,113 @@
 
+Beta 12:
+
+- Do not force full display reset when switching to/from programmed mode and autoresolution is active
+  and mode is D3D. (D3D can switch display buffer size without closing existing window)
+- Added config file option to force UAE boot ROM active even if current configuration does not need it.
+  boot_rom_uae=automatic/disabled/min/full. automatic (or line not included)=normal default, disabled=always
+  disabled (all features that require uae boot rom stop working), min=only add old-style $F0FFxx traps).
+- Serial port emulation (if connected to real serial port) lost characters if transmit speed was fast enough.
+  Broken since 2810b4.
+- Raw SCSI emulation improvements and updates.
+- WD33C93 emulation didn't allow use of select and transfer to split single transfer in multiple pieces.
+- Kupke Golem SCSI emulation.
+- Microbotics A1000 StarBoard 2 StarDrive SCSI expansion board emulation.
+- J.Kommos A500 SCSI emulation, 1.8 rom added. 
+- Vector Falcon 8000 emulation. ROM created from disk based driver.
+- M-Tec AT 500 emulation.
+- Protar A500 HD emulation.
+- Added AdIDE 40/44 emulation.
+- Masoboshi SCSI read access works again, writes are still broken. (Driver is strange, it uses code path
+  that simply can't work, writes 16 extra bytes. There is another code path that looks correct but there
+  are lots of unknown variables that are set here and there..)
+- Kupke Golem 030 A500 accelerator and boot rom added ("68030 Autoconfig (17-FEB-91) V1.0 ET")
+- Added manufacturer names to HD controller selection.
+- Reorganized internal accelerator board handling.
+- GVP Series I ROM and buffer RAM mirrors now 100% match real hardware.
+- Memwatch points didn't work with autoconfig address bank.
+- Refactored expansion board handling yet again, multiple identical boards are supported again.
+- Added GUI support for multiple identical HD controller boards. Current max is 4 boards.
+- Selecting some accelerator ROM file (for example CS MK I and II) also added it to cart rom file.
+- Show only mainboard HD controllers and enabled (ROM selected) expansion controllers in HD controller
+  selection list. (CDTV and some others are not yet hidden, much more work to do, later..)
+- Added "Velvet" A1000 prototype to chipset selection. Floppy IO lines are not hooked to CIA chips
+  correctly, probably lots of other minor changes that are not known yet are not emulated.
+- Show floppy image's original file name in status bar even if file needed decompression or converting.
+
+Microbotics StarDrive SCSI:
+- A1000 StarBoard 2 RAM expansion optional HD controller module.
+- Text based partitioning software.
+- 5380 based, no autoboot ROM, no RDB support.
+- Clock not emulated.
+
+M-Tec AT 500:
+- 1.33 ROM added. "mtec-at500.device mtec-at500 1.33w (08 July 1993)"
+  "(c) Hardware Design Udo Neuroth, Bottrop, Dieter Niewerth, 1992 1993"
+
+AdIDE:
+- 68000 socket.
+- Uses custom data bit swapping (drive partitioned with AdIDE won't work in any other IDE controller and
+  vice versa), emulation will automatically read/write non-swapped data.
+- Uses RDB but does not seem to be fully compatible, other controller partitioned drives don't mount.
+- ROM was software dumped, real chip probably has swapped address or data lines similar to IDE data lines.
+
+Kupke Golem SCSI:
+- Fake dma interface.
+- Tested with 3.8 and 3.9 drivers. 3.9 rom added.
+
+Protar A500 HD:
+- ROM only has small loader code, loads driver from HD. (If drive is unformatted, press mouse button
+  to boot from floppy)
+- 8490 chip (improved version of 5380). 8490 extra features not emulated, at least Protar driver does
+  not use them.
+- ROM added, unknown version. There probably is later version because only 1.4 (1.x?) boot disks
+  detect the hardware.
+
+J.Kommos A500 SCSI:
+- Strange non-autoconfig autobooting HD controller, uses cartridge ROM space.
+- Byte-based fake dma.
+- Boot HD detection screen.
+- Not RDB compatible.
+- ROM includes 36.3 FastFileSystem handler.
+- jkscsi.device, "Autoboot SCSI-HardDisk By J.Kommos Date: 25.07.1990".
+
+Vector Falcon 8000:
+- Improved version of Kommos SCSI.
+- More or less functionally same as Kommos but most glue TTL chips and GALs put in single FPGA-like chip.
+- Long word/word based fake DMA.
+- More colorful boot HD detection screen.
+- vector.device. "Autoconfig 16 Bit SCSI + CD-ROM Driver (©) by J.Kommos V7.1 - 11.08.1993"
+- ROM includes CD ROM filesystem.
+- Bad filesystem loader: must be single hunk, only loads filesystems if KS 1.3, ignores all relocation
+  hunks.
+
+Beta 11:
+
+- Supra HD autoconfig state was not reset when system was reset.
+- 68000 bus/address error stack frame I/N bit emulated, added better check for odd stack in exception stack frame
+  writes. Also added helpers for bus error checks for platforms that need it (UAE 68k emulator is also used by
+  Hatari) I don't know any program (or protection) that uses it but crashing/buggy programs may trigger it.
+- Show also currently selected accelerator board in harddrive controller selection.
+- Toccata capture support, not tested. Uses WASAPI (=Vista or newer only) and uses Windows default
+  recording device, not configurable yet. First tries to allocate exclusive mode, if it fails, retries with
+  shared mode. Note that only exclusive mode allows configurable sampling frequency, shared uses value set in
+  Windows recording sound control panel.
+- Tweaked A590/A2091 DMAC interrupt handling and DMAC-01 DMA transfer counter emulation.
+- Added Kupke Golem v3.9 ROM image, not emulated, Golem does not use any SCSI chips, it is very
+  difficult to guess function of each IO address.
+- CDTV SCSI works again, broke when A2090 support was added.
+- A26x0 J304 jumper emulation fixed. It should not be active anymore after autoconfig io gets enabled.
+- Added rare SupraDrive 2000 DMA emulation. Boot ROM are not available, some supra install disks have on-disk
+  loadable driver which has bug in 2000 DMA model specific code that causes it to hang (uses wrong address
+  register, overwrites one inportant byte in interrupt handler code..) Perfect.
+  AMAB6 ROM is selectable in rom select box but it is not compatible with 2000 DMA.
+  (Thanks to mark_k for HD driver disassembling and examination)
+- Non-image CD last available block number calculation changed, do not trust geometry Windows returns.
+  (Fixes OS41FE install error)
+- Fixed OS41FE RTG graphics mode switch crash. (Check Cirrus Logic VRAM bounds before calling redraw routines,
+  apparently driver first switches mode, then sets new display offset, this can cause temporary out of bounds
+  access in emulation)
+
 Beta 10:
 
 - Added hd controller subtype selection.

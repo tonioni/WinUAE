@@ -27,6 +27,7 @@
 #include "gayle.h"
 #include "execio.h"
 #include "zfile.h"
+#include "ide.h"
 
 #ifdef WITH_CHD
 #include "archivers/chd/chdtypes.h"
@@ -978,48 +979,7 @@ static void adide_decode (void *v, int len)
 	for (i = 0; i < len; i += 2) {
 		uae_u8 *b =  buffer + i;
 		uae_u16 w = (b[0] << 8) | (b[1] << 0);
-		uae_u16 o = 0;
-
-		if (w & 0x8000)
-			o |= 0x0001;
-		if (w & 0x0001)
-			o |= 0x0002;
-
-		if (w & 0x4000)
-			o |= 0x0004;
-		if (w & 0x0002)
-			o |= 0x0008;
-
-		if (w & 0x2000)
-			o |= 0x0010;
-		if (w & 0x0004)
-			o |= 0x0020;
-
-		if (w & 0x1000)
-			o |= 0x0040;
-		if (w & 0x0008)
-			o |= 0x0080;
-
-		if (w & 0x0800)
-			o |= 0x0100;
-		if (w & 0x0010)
-			o |= 0x0200;
-
-		if (w & 0x0400)
-			o |= 0x0400;
-		if (w & 0x0020)
-			o |= 0x0800;
-
-		if (w & 0x0200)
-			o |= 0x1000;
-		if (w & 0x0040)
-			o |= 0x2000;
-
-		if (w & 0x0100)
-			o |= 0x4000;
-		if (w & 0x0080)
-			o |= 0x8000;
-
+		uae_u16 o = adide_decode_word(w);
 		b[0] = o >> 8;
 		b[1] = o >> 0;
 	}
@@ -1031,48 +991,7 @@ static void adide_encode (void *v, int len)
 	for (i = 0; i < len; i += 2) {
 		uae_u8 *b =  buffer + i;
 		uae_u16 w = (b[0] << 8) | (b[1] << 0);
-		uae_u16 o = 0;
-
-		if (w & 0x0001)
-			o |= 0x8000;
-		if (w & 0x0002)
-			o |= 0x0001;
-
-		if (w & 0x0004)
-			o |= 0x4000;
-		if (w & 0x0008)
-			o |= 0x0002;
-
-		if (w & 0x0010)
-			o |= 0x2000;
-		if (w & 0x0020)
-			o |= 0x0004;
-
-		if (w & 0x0040)
-			o |= 0x1000;
-		if (w & 0x0080)
-			o |= 0x0008;
-
-		if (w & 0x0100)
-			o |= 0x0800;
-		if (w & 0x0200)
-			o |= 0x0010;
-
-		if (w & 0x0400)
-			o |= 0x0400;
-		if (w & 0x0800)
-			o |= 0x0020;
-
-		if (w & 0x1000)
-			o |= 0x0200;
-		if (w & 0x2000)
-			o |= 0x0040;
-
-		if (w & 0x4000)
-			o |= 0x0100;
-		if (w & 0x8000)
-			o |= 0x0080;
-
+		uae_u16 o = adide_encode_word(w);
 		b[0] = o >> 8;
 		b[1] = o >> 0;
 	}
@@ -1299,6 +1218,11 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	switch (cmdbuf[0])
 	{
 	case 0x00: /* TEST UNIT READY */
+		if (nodisk (hfd))
+			goto nodisk;
+		scsi_len = 0;
+		break;
+	case 0x01: /* REZERO UNIT */
 		if (nodisk (hfd))
 			goto nodisk;
 		scsi_len = 0;

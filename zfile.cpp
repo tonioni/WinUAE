@@ -154,7 +154,7 @@ static void checkarchiveparent (struct zfile *z)
 		archive_unpackzfile (z);
 }
 
-static struct zfile *zfile_create (struct zfile *prev)
+static struct zfile *zfile_create (struct zfile *prev, const TCHAR *originalname)
 {
 	struct zfile *z;
 
@@ -165,6 +165,10 @@ static struct zfile *zfile_create (struct zfile *prev)
 	z->next = zlist;
 	zlist = z;
 	z->opencnt = 1;
+	if (prev && prev->originalname)
+		z->originalname = my_strdup(prev->originalname);
+	else if (originalname)
+		z->originalname = my_strdup(originalname);
 	if (prev) {
 		z->zfdmask = prev->zfdmask;
 	}
@@ -180,6 +184,7 @@ static void zfile_free (struct zfile *f)
 		write_log (_T("deleted temporary file '%s'\n"), f->name);
 	}
 	xfree (f->name);
+	xfree (f->originalname);
 	xfree (f->data);
 	xfree (f->mode);
 	xfree (f->userdata);
@@ -1609,7 +1614,7 @@ static struct zfile *zfile_fopen_nozip (const TCHAR *name, const TCHAR *mode)
 
 	if(*name == '\0')
 		return NULL;
-	l = zfile_create (NULL);
+	l = zfile_create (NULL, name);
 	l->name = my_strdup (name);
 	l->mode = my_strdup (mode);
 	f = _tfopen (name, mode);
@@ -1684,7 +1689,7 @@ static struct zfile *zfile_fopen_2 (const TCHAR *name, const TCHAR *mode, int ma
 		l->zfdmask = mask;
 	} else {
 		struct mystat st;
-		l = zfile_create (NULL);
+		l = zfile_create (NULL, name);
 		l->mode = my_strdup (mode);
 		l->name = my_strdup (name);
 		l->zfdmask = mask;
@@ -1850,7 +1855,7 @@ static struct zfile *zfile_fopen_internet (const TCHAR *name, const TCHAR *mode,
 	}
 
 	if (mask & ZFD_CHECKONLY) {
-		zf = zfile_create (NULL);
+		zf = zfile_create (NULL, name);
 		goto end;
 	}
 
@@ -1877,7 +1882,7 @@ static struct zfile *zfile_fopen_internet (const TCHAR *name, const TCHAR *mode,
 		}
 	}
 	if (datalen > 0) {
-		zf = zfile_create (NULL);
+		zf = zfile_create (NULL, name);
 		if (zf) {
 			zf->size = datalen;
 			zf->data = data;
@@ -1967,9 +1972,9 @@ struct zfile *zfile_dup (struct zfile *zf)
 	if (zf->userdata)
 		return NULL;
 	if (!zf->data && zf->dataseek) {
-		nzf = zfile_create (zf);
+		nzf = zfile_create (zf, NULL);
 	} else if (zf->data) {
-		nzf = zfile_create (zf);
+		nzf = zfile_create (zf, NULL);
 		nzf->data = xmalloc (uae_u8, zf->size);
 		memcpy (nzf->data, zf->data, zf->size);
 		nzf->size = zf->size;
@@ -1988,7 +1993,7 @@ struct zfile *zfile_dup (struct zfile *zf)
 		FILE *ff = _tfopen (zf->name, zf->mode);
 		if (!ff)
 			return NULL;
-		nzf = zfile_create (zf);
+		nzf = zfile_create (zf, NULL);
 		nzf->f = ff;
 	}
 	zfile_fseek (nzf, zf->seek, SEEK_SET);
@@ -2023,7 +2028,7 @@ int zfile_iscompressed (struct zfile *z)
 struct zfile *zfile_fopen_empty (struct zfile *prev, const TCHAR *name, uae_u64 size)
 {
 	struct zfile *l;
-	l = zfile_create (prev);
+	l = zfile_create (prev, NULL);
 	l->name = my_strdup (name ? name : _T(""));
 	if (size) {
 		l->data = xcalloc (uae_u8, size);
@@ -2052,7 +2057,7 @@ struct zfile *zfile_fopen_parent (struct zfile *z, const TCHAR *name, uae_u64 of
 
 	if (z == NULL)
 		return NULL;
-	l = zfile_create (z);
+	l = zfile_create (z, NULL);
 	if (name)
 		l->name = my_strdup (name);
 	else if (z->name)
@@ -2086,7 +2091,7 @@ struct zfile *zfile_fopen_data (const TCHAR *name, uae_u64 size, const uae_u8 *d
 {
 	struct zfile *l;
 
-	l = zfile_create (NULL);
+	l = zfile_create (NULL, name);
 	l->name = my_strdup (name ? name : _T(""));
 	l->data = xmalloc (uae_u8, size);
 	l->size = size;
@@ -2446,6 +2451,11 @@ int zfile_zcompress (struct zfile *f, void *src, int size)
 TCHAR *zfile_getname (struct zfile *f)
 {
 	return f ? f->name : NULL;
+}
+
+TCHAR *zfile_getoriginalname (struct zfile *f)
+{
+	return f ? f->originalname : NULL;
 }
 
 TCHAR *zfile_getfilename (struct zfile *f)

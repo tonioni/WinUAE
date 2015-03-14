@@ -70,15 +70,16 @@ struct gvp_dmac
 
 struct wd_state {
 	bool enabled;
-	const TCHAR *name;
 	int configured;
 	bool autoconfig;
 	uae_u8 dmacmemory[100];
 	uae_u8 *rom;
 	int board_mask;
+	uaecptr baseaddress;
 	int rombankswitcher, rombank;
 	int rom_size, rom_mask;
 	addrbank *bank;
+	struct romconfig *rc;
 
 	smp_comm_pipe requests;
 	volatile int scsi_thread_running;
@@ -93,21 +94,21 @@ struct wd_state {
 	struct commodore_dmac cdmac;
 	struct gvp_dmac gdmac;
 };
-extern wd_state wd_cdtv;
+extern wd_state *wd_cdtv;
 
 extern void init_wd_scsi (struct wd_state*);
 extern void scsi_dmac_a2091_start_dma (struct wd_state*);
 extern void scsi_dmac_a2091_stop_dma (struct wd_state*);
 
-extern addrbank *a2090_init (int devnum);
+extern addrbank *a2090_init (struct romconfig*);
 
-extern addrbank *a2091_init (int devnum);
+extern addrbank *a2091_init (struct romconfig*);
 extern void a2091_free(void);
 extern void a2091_reset (void);
 
-extern addrbank *gvp_init_s1(int devnum);
-extern addrbank *gvp_init_s2(int devnum);
-extern addrbank *gvp_init_accelerator(int devnum);
+extern addrbank *gvp_init_s1(struct romconfig*);
+extern addrbank *gvp_init_s2(struct romconfig*);
+extern addrbank *gvp_init_accelerator(struct romconfig*);
 extern void gvp_free(void);
 extern void gvp_reset (void);
 
@@ -131,10 +132,10 @@ extern void scsi_hsync (void);
 
 #define WD33C93 _T("WD33C93")
 
-extern int a2090_add_scsi_unit(int ch, struct uaedev_config_info *ci);
-extern int a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci);
-extern int gvp_add_scsi_unit(int ch, struct uaedev_config_info *ci);
-extern int a3000_add_scsi_unit(int ch, struct uaedev_config_info *ci);
+extern void a2090_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void gvp_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void a3000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 extern int add_wd_scsi_hd (struct wd_state *wd, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level);
 extern int add_wd_scsi_cd (struct wd_state *wd, int ch, int unitnum);

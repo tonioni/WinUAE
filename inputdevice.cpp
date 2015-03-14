@@ -1159,7 +1159,7 @@ static uaecptr get_gfxbase (void)
 int inputdevice_is_tablet (void)
 {
 	int v;
-	if (!uae_boot_rom)
+	if (uae_boot_rom_type <= 0)
 		return 0;
 	if (currprefs.input_tablet == TABLET_OFF)
 		return 0;
@@ -1194,7 +1194,7 @@ static bool mousehack_enable (void)
 {
 	int mode;
 
-	if (!uae_boot_rom || currprefs.input_tablet == TABLET_OFF)
+	if (uae_boot_rom_type <= 0 || currprefs.input_tablet == TABLET_OFF)
 		return false;
 	if (mousehack_address && mousehack_enabled)
 		return true;
@@ -1298,7 +1298,7 @@ void get_custom_mouse_limits (int *w, int *h, int *dx, int *dy, int dbl);
 void inputdevice_tablet_strobe (void)
 {
 	mousehack_enable ();
-	if (!uae_boot_rom)
+	if (uae_boot_rom_type <= 0)
 		return;
 	if (!tablet_data)
 		return;

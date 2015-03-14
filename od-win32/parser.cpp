@@ -1311,7 +1311,7 @@ int setbaud (long baud)
 
 void initparallel (void)
 {
-	if (uae_boot_rom) {
+	if (uae_boot_rom_type) {
 		uaecptr a = here (); //this install the ahisound
 		org (rtarea_base + 0xFFC0);
 		calltrap (deftrapres (ahi_demux, 0, _T("ahi_winuae")));

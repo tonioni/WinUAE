@@ -316,24 +316,31 @@ static void serdatcopy(void);
 
 static void checksend(void)
 {
+	bool sent = true;
+
 	if (data_in_sershift != 1)
 		return;
 
 	if (sermap_data && sermap_enabled)
 		shmem_serial_send(serdatshift);
 #ifdef SERIAL_ENET
-	if (serial_enet)
+	if (serial_enet) {
 		enet_writeser(serdatshift);
+	}
 #endif
 #ifdef SERIAL_PORT
 	if (checkserwrite()) {
 		if (ninebit)
 			writeser(((serdatshift >> 8) & 1) | 0xa8);
 		writeser(serdatshift);
+	} else {
+		// buffer full, try again later
+		sent = false;
 	}
 #endif
-	data_in_sershift = 2;
-
+	if (sent) {
+		data_in_sershift = 2;
+	}
 #if SERIALDEBUG > 2
 		write_log(_T("SERIAL: send %04X (%c)\n"), serdatshift, dochar(serdatshift));
 #endif
@@ -342,10 +349,14 @@ static void checksend(void)
 static void sersend_ce(uae_u32 v)
 {
 	checksend();
-	data_in_sershift = 0;
-	serdatcopy();
-	lastbitcycle = get_cycles() + ((serper & 0x7fff) + 1) * CYCLE_UNIT;
-	lastbitcycle_active_hsyncs = ((serper & 0x7fff) + 1) / maxhpos + 2;
+	if (data_in_sershift == 2) {
+		data_in_sershift = 0;
+		serdatcopy();
+		lastbitcycle = get_cycles() + ((serper & 0x7fff) + 1) * CYCLE_UNIT;
+		lastbitcycle_active_hsyncs = ((serper & 0x7fff) + 1) / maxhpos + 2;
+	} else if (data_in_sershift == 1) {
+		event2_newevent_x(-1, maxhpos, 0, sersend_ce);
+	}
 }
 
 static void serdatcopy(void)

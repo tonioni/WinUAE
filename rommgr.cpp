@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 126
+#define NEXT_ROM_ID 132
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -295,91 +295,105 @@ static struct romdata roms[] = {
 	{ _T("Freezer: HRTMon v2.33 (built-in)"), 0, 0, 0, 0, _T("HRTMON\0"), 0, 63, 0, 0, ROMTYPE_HRTMON, 0, 1, NULL,
 	0xffffffff, 0, 0, 0, 0, 0, _T("HRTMon") },
 
-	{ _T("A2090a ROM"), 0, 0, 0, 0, _T("A2090A\0"), 16384, 122, 0, 0, ROMTYPE_A2090, 0, 0, NULL,
+	{ _T("A2090a"), 0, 0, 0, 0, _T("A2090A\0"), 16384, 122, 0, 0, ROMTYPE_A2090, 0, 0, NULL,
 	0x73fe45a7, 0x77ce9091,0x4be5a3bf,0x6f26b343,0x062b5bd8,0xc63c3754 },
 	ALTROMPN(122, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("315097-01"), 0x150b116c,0x8011d873,0x3be53db0,0x79dfe319,0x7ffb8634,0x1baa6dbd)
 	ALTROMPN(122, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("315098-01"), 0xbe422e3b,0x64ad1646,0x030db10f,0x54f13f64,0x7d449e4d,0x17f9ab5c)
-	{ _T("A590/A2091 ROM 6.0"), 6, 0, 6, 0, _T("A590\0A2091\0"), 16384, 53, 0, 0, ROMTYPE_A2091, 0, 0, NULL,
+	{ _T("A590/A2091 6.0"), 6, 0, 6, 0, _T("A590\0A2091\0"), 16384, 53, 0, 0, ROMTYPE_A2091, 0, 0, NULL,
 	0x8396cf4e, 0x5E03BC61,0x8C862ABE,0x7BF79723,0xB4EEF4D2,0x1859A0F2 },
 	ALTROMPN(53, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390389-03"), 0xb0b8cf24,0xfcf40175,0x05f4d441,0x814b45d5,0x59c19eab,0x43816b30)
 	ALTROMPN(53, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("390388-03"), 0x2e77bbff,0x8a098845,0x068f32cf,0xa4d34a27,0x8cd290f6,0x1d35a52c)
-	{ _T("A590/A2091 ROM 6.6"), 6, 6, 6, 6, _T("A590\0A2091\0"), 16384, 54, 0, 0, ROMTYPE_A2091, 0, 0, NULL,
+	{ _T("A590/A2091 6.6"), 6, 6, 6, 6, _T("A590\0A2091\0"), 16384, 54, 0, 0, ROMTYPE_A2091, 0, 0, NULL,
 	0x33e00a7a, 0x739BB828,0xE874F064,0x9360F59D,0x26B5ED3F,0xBC99BB66 },
 	ALTROMPN(54, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390722-02"), 0xe536bbb2,0xfd7f8a6d,0xa18c1b02,0xd07eb990,0xc2467a24,0x183ede12)
 	ALTROMPN(54, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("390721-02"), 0xc0871d25,0xe155f18a,0xbb90cf82,0x0589c15e,0x70559d3b,0x6b391af8)
-	{ _T("A590/A2091 ROM 7.0"), 7, 0, 7, 0, _T("A590\0A2091\0"), 16384, 55, 0, 0, ROMTYPE_A2091, 0, 0, NULL,
+	{ _T("A590/A2091 7.0"), 7, 0, 7, 0, _T("A590\0A2091\0"), 16384, 55, 0, 0, ROMTYPE_A2091, 0, 0, NULL,
 	0x714a97a2, 0xE50F01BA,0xF2899892,0x85547863,0x72A82C33,0x3C91276E },
 	ALTROMPN(55, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390722-03"), 0xa9ccffed,0x149f5bd5,0x2e2d2990,0x4e3de483,0xb9ad7724,0x48e9278e)
 	ALTROMPN(55, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("390721-03"), 0x2942747a,0xdbd7648e,0x79c75333,0x7ff3e4f4,0x91de224b,0xf05e6bb6)
 	{ _T("A590/A2091 Guru ROM 6.14"), 6, 14, 6, 14, _T("A590\0A2091\0"), 32768, 56, 0, 0, ROMTYPE_A2091, 0, 0, NULL,
 	0x04e52f93, 0x6DA21B6F,0x5E8F8837,0xD64507CD,0x8A4D5CDC,0xAC4F426B },
-	{ _T("A4091 ROM 40.9"), 40, 9, 40, 9, _T("A4091\0"), 32768, 57, 0, 0, ROMTYPE_A4091, 0, 0, NULL,
+	{ _T("A4091 40.9"), 40, 9, 40, 9, _T("A4091\0"), 32768, 57, 0, 0, ROMTYPE_A4091, 0, 0, NULL,
 	0x00000000, 0, 0, 0, 0, 0 },
-	{ _T("A4091 ROM 40.13"), 40, 13, 40, 13, _T("A4091\0"), 32768, 58, 0, 0, ROMTYPE_A4091, 0, 0, _T("391592-02"),
+	{ _T("A4091 40.13"), 40, 13, 40, 13, _T("A4091\0"), 32768, 58, 0, 0, ROMTYPE_A4091, 0, 0, _T("391592-02"),
 	0x54cb9e85, 0x3CE66919,0xF6FD6797,0x4923A12D,0x91B730F1,0xFFB4A7BA },
 	{ _T("SupraDrive AMAB6"), 3, 8, 3, 8, _T("SUPRA\0"), 16384, 121, 0, 0, ROMTYPE_SUPRA, 0, 0, _T("AMAB6"),
 	0xf40bd349, 0x82168556,0x07525067,0xe9263431,0x1fb9c347,0xe737f247 },
 
-	{ _T("Blizzard 1230-IV ROM"), 0, 0, 0, 0, _T("B1230\0"), 32768, 89, 0, 0, ROMTYPE_CB_BLIZ1230, 0, 0, NULL,
+	{ _T("Blizzard 1230-IV"), 0, 0, 0, 0, _T("B1230\0"), 32768, 89, 0, 0, ROMTYPE_CB_BLIZ1230, 0, 0, NULL,
 	0x3078dbdc, 0x4d3e7fd0,0xa1a4c3ae,0xe17c5de3,0xcbe1af03,0x447aff92 },
-	{ _T("Blizzard 1240/1260 ROM"), 0, 0, 0, 0, _T("B1240\0B1260\0"), 32768, 90, 0, 0, ROMTYPE_CB_BLIZ1260, 0, 0, NULL,
+	{ _T("Blizzard 1240/1260"), 0, 0, 0, 0, _T("B1240\0B1260\0"), 32768, 90, 0, 0, ROMTYPE_CB_BLIZ1260, 0, 0, NULL,
 	0xf88ae0f1, 0xf69aca4b,0xb13e3389,0x04676f0c,0x8616f8db,0x074c313d },
-	{ _T("Blizzard 2060 ROM"), 8, 5, 8, 5, _T("B2060\0"), 65536, 92, 0, 0, ROMTYPE_CB_BLIZ2060, 0, 0, NULL,
+	{ _T("Blizzard 2060"), 8, 5, 8, 5, _T("B2060\0"), 65536, 92, 0, 0, ROMTYPE_CB_BLIZ2060, 0, 0, NULL,
 	0xce270bc0, 0xe043c1aa,0x3bb06e06,0xd4dabff3,0x0a8c6317,0xabfef2bb },
 	ALTROMPN(92, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xa6023f20, 0xdfb048d6, 0xbdc03587, 0x241e8121, 0x26aba603, 0xd69b0238)
 	ALTROMPN(92, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x9635a9cd, 0x47578b27, 0xc4ba6e54, 0x891930dd, 0xcb4b6a45, 0x5d6b31b2)
-	{ _T("Blizzard SCSI Kit IV ROM"), 8, 5, 8, 5, _T("BSCSIIV\0"), 32768, 94, 0, 0, ROMTYPE_CPUBOARDEXT, 0, 0, NULL,
+	{ _T("Blizzard SCSI Kit IV"), 8, 5, 8, 5, _T("BSCSIIV\0"), 32768, 94, 0, 0, ROMTYPE_CPUBOARDEXT, 0, 0, NULL,
 	0xf53a0fca, 0xefe17ca5,0x88c44a7f,0x0f8c62be,0x20f23278,0xcfe06727, NULL, _T("blizzard_scsi_kit_iv.rom") },
-	{ _T("Fastlane ROM"), 8, 5, 8, 5, _T("FASTLANE\0"), 20788, 102, 0, 0, ROMTYPE_FASTLANE, 0, 0, NULL,
+	{ _T("Fastlane"), 8, 5, 8, 5, _T("FASTLANE\0"), 20788, 102, 0, 0, ROMTYPE_FASTLANE, 0, 0, NULL,
 	0xe4f485a5, 0x20bf7de5,0x05e45d0a,0xc411cfd2,0x806d0fd8,0xe46276de, NULL, _T("fastlanez3.rom") },
-	{ _T("Oktagon 2008 ROM"), 6, 12, 6, 12, _T("OKTAGON\0"), 32768, 103, 0, 0, ROMTYPE_OKTAGON, 0, 0, NULL,
+	{ _T("Oktagon 2008"), 6, 12, 6, 12, _T("OKTAGON\0"), 32768, 103, 0, 0, ROMTYPE_OKTAGON, 0, 0, NULL,
 	0xbb0d2f6a, 0x56c441fa,0x37d19339,0x3081b2e8,0xceae823b,0xc7e97e49, NULL, _T("oktagon2008.rom") },
-	{ _T("Warp Engine A4000 ROM"), 0, 0, 0, 0, _T("WARPENGINE\0WARPENGINEA4000\0"), 32768, 93, 0, 0, ROMTYPE_CB_WENGINE, 0, 0, NULL,
+	{ _T("Warp Engine A4000"), 0, 0, 0, 0, _T("WARPENGINE\0WARPENGINEA4000\0"), 32768, 93, 0, 0, ROMTYPE_CB_WENGINE, 0, 0, NULL,
 	0x4deb574a, 0x6e6c95ff,0xe8448391,0xd36c5b68,0xc9065cb0,0x702a7d27 },
-	{ _T("TekMagic 2040/2060 ROM"), 1, 0, 1, 0, _T("TEKMAGIC\0TEKMAGIC2040\0TEKMAGIC2060\0"), 65536, 104, 0, 0, ROMTYPE_CB_TEKMAGIC, 0, 0, NULL,
+	{ _T("TekMagic 2040/2060"), 1, 0, 1, 0, _T("TEKMAGIC\0TEKMAGIC2040\0TEKMAGIC2060\0"), 65536, 104, 0, 0, ROMTYPE_CB_TEKMAGIC, 0, 0, NULL,
 	0x9e9781d5, 0xf65b60d1,0x4300c50f,0x2ed17cf4,0x4dcfdef9,0x16697bc9, NULL,  _T("tekmagic2060.rom") },
 	ALTROMPN(104, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x888da4cf, 0x6ae85f3a, 0x65331ba4, 0xaaba67ae, 0x34763d70, 0x2bde0495)
 	ALTROMPN(104, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xaf1f47db, 0x28d5bed0, 0xbc517d46, 0x500e8159, 0x723e0b64, 0x4733c26a)
-	{ _T("A2620/A2630 -07 ROM"), 0, 0, 0, 0, _T("A2620\0A2630\0"), 65536, 105, 0, 0, ROMTYPE_CB_A26x0, 0, 0, _T("390282-07/390283-07"),
+	{ _T("A2620/A2630 -07"), 0, 0, 0, 0, _T("A2620\0A2630\0"), 65536, 105, 0, 0, ROMTYPE_CB_A26x0, 0, 0, _T("390282-07/390283-07"),
 	0x169d80e9, 0x41f518cb,0x41c1dc1f,0xcc636383,0x20676af5,0x4969010c, NULL, NULL },
 	ALTROMPN(105, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390282-07"), 0xf2904058, 0x33695119, 0x5fdf5d56, 0x095a696b, 0x0ba2641d, 0x334845df)
 	ALTROMPN(105, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("390283-07"), 0xf697d458, 0x09fe260b, 0x03784e87, 0x3351dbec, 0x5146a455, 0x814383d1)
-	{ _T("A2620/A2630 -06 ROM"), 0, 0, 0, 0, _T("A2620\0A2630\0"), 65536, 106, 0, 0, ROMTYPE_CB_A26x0, 0, 0, _T("390282-06/390283-06"),
+	{ _T("A2620/A2630 -06"), 0, 0, 0, 0, _T("A2620\0A2630\0"), 65536, 106, 0, 0, ROMTYPE_CB_A26x0, 0, 0, _T("390282-06/390283-06"),
 	0xeb31fd9e, 0x2d6a5c68,0x1040f98d,0x7e63ad08,0x90da9e83,0x2b5c704d, NULL, NULL },
 	ALTROMPN(106, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390282-06"), 0xd6ae582c, 0x47b3dea3, 0x31db76e6, 0x1380a3d6, 0x9f191657, 0xdd1cd4b3)
 	ALTROMPN(106, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("390283-06"), 0xcd379634, 0x65e251e2, 0xf6961c8e, 0x33a86c3d, 0x01248f70, 0xa159823b)
-	{ _T("DKB 12x0 ROM"), 1, 23, 1, 23, _T("DKB\0"), 32768, 112, 0, 0, ROMTYPE_CB_DKB12x0, 0, 0, NULL,
+	{ _T("DKB 12x0"), 1, 23, 1, 23, _T("DKB\0"), 32768, 112, 0, 0, ROMTYPE_CB_DKB12x0, 0, 0, NULL,
 	0xf3b2b0b3, 0x1d539593,0xb1d7514e,0xeb214ab3,0x433a97fc,0x8a010366, NULL, NULL },
-	{ _T("Fusion Forty ROM"), 0, 0, 0, 0, _T("FUSIONFORTY\0"), 131072, 113, 0, 0, ROMTYPE_CB_FUSION, 0, 0, NULL,
+	{ _T("Fusion Forty"), 0, 0, 0, 0, _T("FUSIONFORTY\0"), 131072, 113, 0, 0, ROMTYPE_CB_FUSION, 0, 0, NULL,
 	0x48fcb5fd, 0x15674dac,0x90b6d8db,0xdda3a175,0x997184c2,0xa423d733, NULL, NULL },
 	ALTROMPN(113, 1, 1, 32768, ROMTYPE_QUAD | ROMTYPE_EVEN | ROMTYPE_8BIT, _T("U28"), 0x434a21a8, 0x472c1623, 0x02babd00, 0x7c1a77ff, 0x40dd12ab, 0x39c97f82)
 	ALTROMPN(113, 1, 2, 32768, ROMTYPE_QUAD | ROMTYPE_ODD  | ROMTYPE_8BIT, _T("U27"), 0x38373cf6, 0xfe8aa931, 0xada6b6f3, 0x6b48ca3c, 0x9b86677d, 0xbee4da59)
 	ALTROMPN(113, 1, 3, 32768, ROMTYPE_QUAD | ROMTYPE_EVEN | ROMTYPE_8BIT, _T("U25"), 0xc9e990d3, 0xb251ef73, 0x1374e796, 0xa87cbc7e, 0x9263320a, 0x28a71d2b)
 	ALTROMPN(113, 1, 4, 32768, ROMTYPE_QUAD | ROMTYPE_ODD  | ROMTYPE_8BIT, _T("U26"), 0x2e117fe0, 0xbb2de2da, 0x6db4e92c, 0x636fefe6, 0x13a32699, 0xcea31011)
-	{ _T("Apollo 1240/1260 ROM"), 5, 60, 5, 60, _T("APOLLO12XX\0"), 131072, 119, 0, 0, ROMTYPE_CB_APOLLO, 0, 0, NULL,
+	{ _T("Apollo 1240/1260"), 5, 60, 5, 60, _T("APOLLO12XX\0"), 131072, 119, 0, 0, ROMTYPE_CB_APOLLO, 0, 0, NULL,
 	0xcd009ad9, 0x1c3b4851,0xc5a221e3,0xa7ca24fc,0xc1df4a5b,0x9f2343ad },
-	{ _T("GVP A3001 Series I ROM"), 3, 3, 3, 3, _T("A3001SI\0"), 8192, 114, 0, 0, ROMTYPE_CB_A3001S1, 0, 0, NULL,
+	{ _T("GVP A3001 Series I"), 3, 3, 3, 3, _T("A3001SI\0"), 8192, 114, 0, 0, ROMTYPE_CB_A3001S1, 0, 0, NULL,
 	0xaaff7c65, 0x424cf3da,0xcc9da794,0x0ba74446,0x69dd1691,0x44ae87ee, NULL, NULL },
+	{ _T("Kupke Golem 030"), 0, 0, 0, 0, _T("GOLEM030\0"), 8192, 126, 0, 0, ROMTYPE_CB_GOLEM030, 0, 0, NULL,
+	0x05d473f4, 0x574ec567,0xcc67e06f,0x91dcecb9,0x8c204399,0x5fe2a09f, NULL, NULL },
 
-	{ _T("Kupke Golem v3.9 ROM"), 3, 9, 3, 9, _T("GOLEM\0"), 16384, 124, 0, 0, ROMTYPE_GOLEM, 0, 0, NULL,
+	{ _T("Protar A500HD"), 1, 193, 1, 193, _T("PROTAR\0"), 32768, 131, 0, 0, ROMTYPE_PROTAR, 0, 0, NULL,
+	0x10c1b22c, 0x2b800cde,0x79fd559e,0xebd5e432,0xd711af3d,0x0b8ea7e9, NULL, NULL },
+	{ _T("M-Tec AT500"), 1, 33, 1, 33, _T("MTECAT\0"), 32768, 130, 0, 0, ROMTYPE_MTEC, 0, 0, NULL,
+	0x38b6b6b0, 0x8bb1093a,0xd592e7df,0x99c48f83,0xb9f842b2,0xb1a6e618, NULL, NULL },
+	{ _T("AdIDE 40/44"), 34, 0, 34, 0, _T("ADIDE\0"), 16384, 129, 0, 0, ROMTYPE_ADIDE, 0, 0, NULL,
+	0xedf84cbe, 0xabdbc01d,0xaa0b3aae,0xe4401ad7,0xe65525a9,0x6bfa2b27, NULL, NULL },
+	{ _T("Vector Falcon 8000"), 7, 1, 7, 1, _T("VECTOR\0"), 32768, 128, 0, 0, ROMTYPE_VECTOR, 0, 0, NULL,
+	0xa8120c55, 0x248935ab,0xf4d74036,0xefdafdbb,0x7817e232,0xfc13e0fa, NULL, NULL },
+	{ _T("Kommos A500/A2000 SCSI"), 1, 8, 1, 8, _T("KOMMOS\0"), 32768, 127, 0, 0, ROMTYPE_KOMMOS, 0, 0, NULL,
+	0xc1a5c848, 0x291310f1,0x25455f2d,0x8e114bcd,0xe104ca4c,0x9db51747, NULL, NULL },
+	ALTROMPN(127, 1, 1, 16384, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x1b86d2ed, 0x969995a1, 0x2ebf8c15, 0xab87e8d0, 0xddc837a1, 0xb90fbfa8)
+	ALTROMPN(127, 1, 2, 16384, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x65b4c3a0, 0x60e904d4, 0xe45bb6ba, 0x3e253ffa, 0xda4ee2e5, 0xc8548da1)
+	{ _T("Kupke Golem v3.9"), 3, 9, 3, 9, _T("GOLEM\0"), 16384, 124, 0, 0, ROMTYPE_GOLEM, 0, 0, NULL,
 	0x49157dd0, 0x03b615c9,0x2befa474,0xa37303ca,0xdc3e830d,0x3c0d9a9f, NULL, NULL },
 	ALTROMPN(124, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x713298ad, 0x2ad7d6f3, 0xd696fd2c, 0x51a256ee, 0xea185c47, 0x52906e04)
 	ALTROMPN(124, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x88cf2ec5, 0x59680f8d, 0xae520893, 0xff9ada35, 0xac9a1146, 0x4f87453c)
-	{ _T("GVP Series I v1.0 ROM"), 1, 0, 1, 16, _T("GVPI\0"), 16384, 123, 0, 0, ROMTYPE_GVPS1, 0, 0, NULL,
+	{ _T("GVP Series I v1.0"), 1, 0, 1, 16, _T("GVPI\0"), 16384, 123, 0, 0, ROMTYPE_GVPS1, 0, 0, NULL,
 	0x1a4c20aa, 0xb9a3377e,0x2d9b5163,0x28693c63,0x19ffb65b,0x40ae3618, NULL, NULL },
 	ALTROMPN(123, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xa723193e, 0x05b4a072, 0x785c7824, 0x54e003c3, 0x6d88bd9b, 0xf5f561b9)
 	ALTROMPN(123, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x27f15785, 0x1a71a78d, 0xdd4e9559, 0x0f133bba, 0x4a71122f, 0x44caef78)
-	{ _T("GVP Series I/II v3.15 ROM"), 3, 15, 3, 15, _T("GVPII\0GVPI\0"), 16384, 111, 0, 0, ROMTYPE_GVPS12, 0, 0, NULL,
+	{ _T("GVP Series I/II v3.15"), 3, 15, 3, 15, _T("GVPII\0GVPI\0"), 16384, 111, 0, 0, ROMTYPE_GVPS12, 0, 0, NULL,
 	0xf99c6f11, 0x77098a9e,0x35acaef2,0x11a546f0,0xc564cdac,0xf52836c4, NULL, NULL },
-	{ _T("GVP Series II v4.15 ROM"), 4, 15, 4, 15, _T("GVPII\0"), 16384, 109, 0, 0, ROMTYPE_GVPS2, 0, 0, NULL,
+	{ _T("GVP Series II v4.15"), 4, 15, 4, 15, _T("GVPII\0"), 16384, 109, 0, 0, ROMTYPE_GVPS2, 0, 0, NULL,
 	0xf89f44d6, 0xbf10c12c,0xc72dd040,0x549ea17c,0x24947633,0xe3773297, NULL, NULL },
 	{ _T("GVP Series II Guru ROM"), 6, 14, 6, 14, _T("GVPII\0"), 32768, 110, 0, 0, ROMTYPE_GVPS2, 0, 0, NULL,
 	0x756103b1, 0x7f1335ea,0xf5b7ce73,0xc5231173,0x261da5aa,0xe7249645, NULL, NULL },
-	{ _T("AlfaPower v6.10 ROM"), 6, 10, 6, 10, _T("ALFAPOWER\0"), 32768, 117, 0, 0, ROMTYPE_ALFA, 0, 0, NULL,
+	{ _T("AlfaPower v6.10"), 6, 10, 6, 10, _T("ALFAPOWER\0"), 32768, 117, 0, 0, ROMTYPE_ALFA, 0, 0, NULL,
 	0x1cfb0a0b, 0xc7275eda,0x547d6664,0x5c4eb7a0,0x3b5cef37,0xa498365a, NULL, NULL },
-	{ _T("AlfaPower v8.3 ROM"), 8, 3, 8, 3, _T("ALFAPOWERPLUS\0"), 32768, 118, 0, 0, ROMTYPE_ALFAPLUS, 0, 0, NULL,
+	{ _T("AlfaPower v8.3"), 8, 3, 8, 3, _T("ALFAPOWERPLUS\0"), 32768, 118, 0, 0, ROMTYPE_ALFAPLUS, 0, 0, NULL,
 	0xe8201bad, 0xdefea015,0x596fce32,0x11e84397,0x23046a31,0x5a7726dc, NULL, NULL },
-	{ _T("Masoboshi MC-702 ROM"), 2, 201, 2, 201, _T("MASOBOSHI\0"), 32768, 120, 0, 0, ROMTYPE_MASOBOSHI, 0, 0, NULL,
+	{ _T("Masoboshi MC-702"), 2, 201, 2, 201, _T("MASOBOSHI\0"), 32768, 120, 0, 0, ROMTYPE_MASOBOSHI, 0, 0, NULL,
 	0xcd99b98a, 0x3897e46a,0x66d5833f,0x849b8e81,0x30acb3cb,0x319a2fa0, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
@@ -397,7 +411,7 @@ static struct romdata roms[] = {
 	{ _T("Blizzard PPC 68060"), 0, 0, 0, 0, _T("BPPC\0"), 524288, 100, 0, 0, ROMTYPE_CB_BLIZPPC, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("blizzardppc_060.rom") },
 
-	{ _T("Picasso IV ROM"), 7, 4, 7, 4, _T("PIV\0"), 131072, 91, 0, 0, ROMTYPE_PIV, 0, 0, NULL,
+	{ _T("Picasso IV"), 7, 4, 7, 4, _T("PIV\0"), 131072, 91, 0, 0, ROMTYPE_PIV, 0, 0, NULL,
 	0xa8133e7e, 0xcafafb91,0x6f16b9f3,0xec9b49aa,0x4b40eb4e,0xeceb5b5b },
 
 	{ _T("Arcadia OnePlay 2.11"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 49, 0, 0, ROMTYPE_ARCADIABIOS, 0, 0 },
@@ -1564,27 +1578,28 @@ int configure_rom (struct uae_prefs *p, const int *rom, int msg)
 		_tcscpy (p->romfile, path);
 	if (rd->type & (ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS))
 		_tcscpy (p->romextfile, path);
-	if (rd->type & (ROMTYPE_CD32CART | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON | ROMTYPE_XPOWER | ROMTYPE_NORDIC | ROMTYPE_AR | ROMTYPE_SUPERIV))
+	if (rd->type & (ROMTYPE_CD32CART | ROMTYPE_ARCADIAGAME) ||
+		rd->type == ROMTYPE_HRTMON || rd->type == ROMTYPE_XPOWER || rd->type ==  ROMTYPE_NORDIC || rd->type == ROMTYPE_AR || rd->type ==  ROMTYPE_SUPERIV)
 		_tcscpy (p->cartfile, path);
 	if (rd->type & ROMTYPE_CPUBOARD)
-		set_device_rom(p, path, ROMTYPE_CPUBOARD);
+		set_device_rom(p, path, ROMTYPE_CPUBOARD, 0);
 	if (rd->type & ROMTYPE_CPUBOARDEXT)
-		set_device_rom(p, path, ROMTYPE_CPUBOARDEXT);
+		set_device_rom(p, path, ROMTYPE_CPUBOARDEXT, 0);
 	return 1;
 }
 
-void set_device_rom(struct uae_prefs *p, const TCHAR *path, int romtype)
+void set_device_rom(struct uae_prefs *p, const TCHAR *path, int romtype, int devnum)
 {
 	int idx;
 	const struct expansionromtype *ert = get_device_expansion_rom(romtype);
 	if (path == NULL) {
-		struct boardromconfig *brc = get_device_rom(p, romtype, &idx);
+		struct boardromconfig *brc = get_device_rom(p, romtype, devnum, &idx);
 		if (brc) {
 			brc->roms[idx].romfile[0] = 0;
 			brc->roms[idx].romident[0] = 0;
 		}
 	} else {
-		struct boardromconfig *brc = get_device_rom_new(p, romtype, &idx);
+		struct boardromconfig *brc = get_device_rom_new(p, romtype, devnum, &idx);
 		_tcscpy(brc->roms[idx].romfile, path);
 	}
 }
@@ -1594,7 +1609,7 @@ const struct expansionromtype *get_unit_expansion_rom(int hdunit)
 	if (hdunit >= HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST && hdunit <= HD_CONTROLLER_TYPE_SCSI_LAST)
 		return &expansionroms[hdunit - HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST];
 	if (hdunit >= HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST && hdunit <= HD_CONTROLLER_TYPE_IDE_LAST)
-		return &expansionroms[hdunit - HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST];
+		return &expansionroms[hdunit - HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST];
 	return NULL;
 }
 
@@ -1608,7 +1623,7 @@ const struct expansionromtype *get_device_expansion_rom(int romtype)
 	return NULL;
 }
 
-struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int *index)
+struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int devnum, int *index)
 {
 	int idx2;
 	static struct boardromconfig fake;
@@ -1618,7 +1633,7 @@ struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int 
 		return &fake;
 	}
 	*index = ert->parentromtype ? 1 : 0;
-	struct boardromconfig *brc = get_device_rom(p, ert->parentromtype ? ert->parentromtype : romtype, &idx2);
+	struct boardromconfig *brc = get_device_rom(p, ert->parentromtype ? ert->parentromtype : romtype, devnum, &idx2);
 	if (!brc) {
 		for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
 			brc = &p->expansionboard[i];
@@ -1637,6 +1652,7 @@ struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int 
 			if (brc->device_type == 0) {
 				memset(brc, 0, sizeof boardromconfig);
 				brc->device_type = romtype;
+				brc->device_num = devnum;
 				return brc;
 			}
 		}
@@ -1645,16 +1661,16 @@ struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int 
 	return brc;
 }
 
-void clear_device_rom(struct uae_prefs *p, int romtype)
+void clear_device_rom(struct uae_prefs *p, int romtype, int devnum)
 {
 	int index;
-	struct boardromconfig *brc = get_device_rom(p, romtype, &index);
+	struct boardromconfig *brc = get_device_rom(p, romtype, devnum, &index);
 	if (!brc)
 		return;
 	memset(&brc->roms[index], 0, sizeof(struct romconfig));
 }
 
-struct boardromconfig *get_device_rom(struct uae_prefs *p, int romtype, int *index)
+struct boardromconfig *get_device_rom(struct uae_prefs *p, int romtype, int devnum, int *index)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(romtype);
 	if (!ert) {
@@ -1665,29 +1681,43 @@ struct boardromconfig *get_device_rom(struct uae_prefs *p, int romtype, int *ind
 	*index = ert->parentromtype ? 1 : 0;
 	for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
 		struct boardromconfig *brc = &p->expansionboard[i];
-		if ((brc->device_type & ROMTYPE_MASK) == (parentrom & ROMTYPE_MASK))
+		if ((brc->device_type & ROMTYPE_MASK) == (parentrom & ROMTYPE_MASK) && brc->device_num == devnum)
 			return brc;
 	}
 	return NULL;
 }
 
-struct romconfig *get_device_romconfig(struct uae_prefs *p, int devnum, int romtype)
+struct romconfig *get_device_romconfig(struct uae_prefs *p, int romtype, int devnum)
 {
 	int idx;
-	if (devnum)
-		return NULL;
-	struct boardromconfig *brc = get_device_rom(p, romtype, &idx);
+	struct boardromconfig *brc = get_device_rom(p, romtype, devnum, &idx);
 	if (brc)
 		return &brc->roms[idx];
 	return NULL;
 }
 
-struct zfile *read_device_rom(struct uae_prefs *p, int devnum, int romtype, int *roms)
+struct zfile *read_device_from_romconfig(struct romconfig *rc, int *roms)
+{
+	if (!_tcsicmp(rc->romfile, _T(":NOROM")))
+		return NULL;
+	struct zfile *z = read_rom_name (rc->romfile);
+	if (!z) {
+		struct romlist *rl = getromlistbyids(roms, rc->romfile);
+		if (rl) {
+			struct romdata *rd = rl->rd;
+			z = read_rom (rd);
+		}
+		if (!z) {
+			romwarning (roms);
+		}
+	}
+	return z;
+}
+
+struct zfile *read_device_rom(struct uae_prefs *p, int romtype, int devnum, int *roms)
 {
 	int idx;
-	if (devnum)
-		return NULL;
-	struct boardromconfig *brc = get_device_rom(p, romtype, &idx);
+	struct boardromconfig *brc = get_device_rom(p, romtype, devnum, &idx);
 	if (brc) {
 		const TCHAR *romname = brc->roms[idx].romfile;
 		if (!_tcsicmp(romname, _T(":NOROM")))
@@ -1705,12 +1735,10 @@ struct zfile *read_device_rom(struct uae_prefs *p, int devnum, int romtype, int 
 	return NULL;
 }
 
-int is_device_rom(struct uae_prefs *p, int devnum, int romtype)
+int is_device_rom(struct uae_prefs *p, int romtype, int devnum)
 {
 	int idx;
-	if (devnum)
-		return 0;
-	struct boardromconfig *brc = get_device_rom(p, romtype, &idx);
+	struct boardromconfig *brc = get_device_rom(p, romtype, devnum, &idx);
 	if (brc) {
 		const TCHAR *romname = brc->roms[idx].romfile;
 		if (_tcslen(romname) == 0)

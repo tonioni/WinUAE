@@ -1792,9 +1792,18 @@ static int getstatuswindowheight (void)
 	return wi.rcWindow.bottom - wi.rcWindow.top;
 }
 
-void graphics_reset(void)
+void graphics_reset(bool forced)
 {
-	display_change_requested = 2;
+	if (forced) {
+		display_change_requested = 2;
+	} else {
+		// full reset if display size can't changed.
+		if (currprefs.gfx_api) {
+			display_change_requested = 1;
+		} else {
+			display_change_requested = 2;
+		}
+	}
 }
 
 void WIN32GFX_DisplayChangeRequested (int mode)

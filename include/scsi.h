@@ -30,6 +30,7 @@ struct scsi_data
     int sense_len;
     uae_u8 reply[256];
     uae_u8 cmd[16];
+	uae_u8 msgout[4];
     int reply_len;
     int direction;
 	uae_u8 message[1];
@@ -71,6 +72,7 @@ extern struct scsi_data_tape *tape_alloc (int unitnum, const TCHAR *tape_directo
 extern void tape_free (struct scsi_data_tape*);
 extern void tape_media_change (int unitnum, struct uaedev_config_info*);
 
+int add_scsi_device(struct scsi_data **sd, int ch, struct uaedev_config_info *ci, struct romconfig *rc, int scsi_level);
 int add_scsi_hd (struct scsi_data **sd, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level);
 int add_scsi_cd (struct scsi_data **sd, int ch, int unitnum);
 int add_scsi_tape (struct scsi_data **sd, int ch, const TCHAR *tape_directory, bool readonly);
@@ -150,15 +152,25 @@ void ncr80_rethink(void);
 
 void apollo_scsi_bput(uaecptr addr, uae_u8 v);
 uae_u8 apollo_scsi_bget(uaecptr addr);
-int apollo_add_scsi_unit(int ch, struct uaedev_config_info *ci);
-void apolloscsi_free(void);
-void apolloscsi_reset(void);
+void apollo_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
-void ncr5380scsi_free(void);
-void ncr5380scsi_reset(void);
+void soft_scsi_free(void);
+void soft_scsi_reset(void);
 
-addrbank *supra_init(int devnum);
-int supra_add_scsi_unit(int ch, struct uaedev_config_info *ci);
+addrbank *supra_init(struct romconfig*);
+void supra_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
-addrbank *golem_init(int devnum);
-int golem_add_scsi_unit(int ch, struct uaedev_config_info *ci);
+addrbank *golem_init(struct romconfig*);
+void golem_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+addrbank *stardrive_init(struct romconfig*);
+void stardrive_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+addrbank *kommos_init(struct romconfig*);
+void kommos_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+addrbank *vector_init(struct romconfig*);
+void vector_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+addrbank *protar_init(struct romconfig *rc);
+void protar_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);

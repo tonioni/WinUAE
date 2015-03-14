@@ -20,7 +20,7 @@ extern uae_u32 p96_rgbx16[65536];
 extern int graphics_setup (void);
 extern int graphics_init (bool);
 extern void graphics_leave(void);
-extern void graphics_reset(void);
+extern void graphics_reset(bool);
 extern bool handle_events (void);
 extern int handle_msgpump (void);
 extern void setup_brkhandler (void);

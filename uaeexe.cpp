@@ -28,7 +28,7 @@ void uaeexe_install (void)
 {
 	uaecptr loop;
 
-	if (!uae_boot_rom)
+	if (!uae_boot_rom_type)
 		return;
 	loop = here ();
 	org (UAEEXE_ORG);

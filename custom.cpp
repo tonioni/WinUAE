@@ -8100,7 +8100,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 
 		if (hardreset) {
 			if (!aga_mode) {
-				uae_u16 c = ((currprefs.chipset_mask & CSMASK_ECS_DENISE) && !(currprefs.chipset_mask & CSMASK_AGA)) ? 0xfff : 0x000;
+				uae_u16 c = (((currprefs.chipset_mask & CSMASK_ECS_DENISE) && !(currprefs.chipset_mask & CSMASK_AGA)) || currprefs.cs_denisenoehb) ? 0xfff : 0x000;
 				for (i = 0; i < 32; i++) {
 					current_colors.color_regs_ecs[i] = c;
 					current_colors.acolors[i] = getxcolor (c);
@@ -8333,7 +8333,7 @@ int custom_init (void)
 {
 
 #ifdef AUTOCONFIG
-	if (uae_boot_rom) {
+	if (uae_boot_rom_type) {
 		uaecptr pos;
 		pos = here ();
 
@@ -9330,8 +9330,8 @@ uae_u8 *save_custom_extra (int *len, uae_u8 *dstptr)
 	SB (currprefs.cs_a1000ram ? 1 : 0);
 	SB (currprefs.cs_slowmemisfast ? 1 : 0);
 
-	SB (cfgfile_board_enabled(&currprefs, ROMTYPE_A2091) ? 1 : 0);
-	SB (cfgfile_board_enabled(&currprefs, ROMTYPE_A4091) ? 1 : 0);
+	SB (cfgfile_board_enabled(&currprefs, ROMTYPE_A2091, 0) ? 1 : 0);
+	SB (cfgfile_board_enabled(&currprefs, ROMTYPE_A4091, 0) ? 1 : 0);
 	SB (currprefs.cs_cdtvscsi ? 1 : 0);
 
 	SB (currprefs.cs_pcmcia ? 1 : 0);

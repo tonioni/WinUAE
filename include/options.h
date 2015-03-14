@@ -268,6 +268,8 @@ struct gfx_filterdata
 	float gfx_filter_horiz_zoom, gfx_filter_vert_zoom;
 	float gfx_filter_horiz_zoom_mult, gfx_filter_vert_zoom_mult;
 	float gfx_filter_horiz_offset, gfx_filter_vert_offset;
+	int gfx_filter_left_border, gfx_filter_right_border;
+	int gfx_filter_top_border, gfx_filter_bottom_border;
 	int gfx_filter_filtermode;
 	int gfx_filter_bilinear;
 	int gfx_filter_noise, gfx_filter_blur;
@@ -278,6 +280,7 @@ struct gfx_filterdata
 	int gfx_filter_keep_autoscale_aspect;
 };
 
+#define MAX_DUPLICATE_EXPANSION_BOARDS 4
 #define MAX_EXPANSION_BOARDS 4
 struct romconfig
 {
@@ -286,6 +289,7 @@ struct romconfig
 	uae_u32 board_ram_size;
 	bool autoboot_disabled;
 	int subtype;
+	void *unitdata;
 };
 #define MAX_BOARD_ROMS 2
 struct boardromconfig
@@ -437,6 +441,7 @@ struct uae_prefs {
 	int cd_speed;
 	bool tod_hack;
 	uae_u32 maprom;
+	int boot_rom;
 	bool rom_readwrite;
 	int turbo_emulation;
 	bool headless;
@@ -739,7 +744,7 @@ extern int cfgfile_configuration_change (int);
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);
 extern void fixup_prefs (struct uae_prefs *prefs);
 extern void fixup_cpu (struct uae_prefs *prefs);
-bool cfgfile_board_enabled(struct uae_prefs *p, int romtype);
+bool cfgfile_board_enabled(struct uae_prefs *p, int romtype, int devnum);
 
 extern void check_prefs_changed_custom (void);
 extern void check_prefs_changed_cpu (void);

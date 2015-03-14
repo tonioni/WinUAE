@@ -71,6 +71,7 @@ extern int zfile_zuncompress (void *dst, int dstsize, struct zfile *src, int src
 extern int zfile_gettype (struct zfile *z);
 extern int zfile_zopen (const TCHAR *name, zfile_callback zc, void *user);
 extern TCHAR *zfile_getname (struct zfile *f);
+extern TCHAR *zfile_getoriginalname (struct zfile *f);
 extern TCHAR *zfile_getfilename (struct zfile *f);
 extern uae_u32 zfile_crc32 (struct zfile *f);
 extern struct zfile *zfile_dup (struct zfile *f);

@@ -6,19 +6,25 @@ void idecontroller_reset(void);
 void idecontroller_rethink(void);
 void idecontroller_hsync(void);
 
-int gvp_add_ide_unit(int ch, struct uaedev_config_info *ci);
-addrbank *gvp_ide_rom_autoconfig_init(int devnum);
-addrbank *gvp_ide_controller_autoconfig_init(int devnum);
+void gvp_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+addrbank *gvp_ide_rom_autoconfig_init(struct romconfig*);
+addrbank *gvp_ide_controller_autoconfig_init(struct romconfig*);
 
-int alf_add_ide_unit(int ch, struct uaedev_config_info *ci);
-addrbank *alf_init(int devnum);
+void alf_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+addrbank *alf_init(struct romconfig*);
 
-int apollo_add_ide_unit(int ch, struct uaedev_config_info *ci);
-addrbank *apollo_init(int devnum);
-addrbank *apollo_init_cpu(int devnum);
+void apollo_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+addrbank *apollo_init_hd(struct romconfig*);
+addrbank *apollo_init_cpu(struct romconfig*);
 
-int masoboshi_add_idescsi_unit (int ch, struct uaedev_config_info *ci);
-addrbank *masoboshi_init(int devnum);
+void masoboshi_add_idescsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+addrbank *masoboshi_init(struct romconfig*);
+
+void adide_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+addrbank *adide_init(struct romconfig *rc);
+
+void mtec_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+addrbank *mtec_init(struct romconfig *rc);
 
 uae_u32 REGPARAM3 apollo_ide_lget (uaecptr addr) REGPARAM;
 uae_u32 REGPARAM3 apollo_ide_wget (uaecptr addr) REGPARAM;

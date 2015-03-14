@@ -1,5 +1,5 @@
 
-extern addrbank *cpuboard_autoconfig_init(int);
+extern addrbank *cpuboard_autoconfig_init(struct romconfig*);
 extern bool cpuboard_maprom(void);
 extern void cpuboard_map(void);
 extern void cpuboard_reset(void);
@@ -16,6 +16,7 @@ extern bool cpuboard_jitdirectompatible(struct uae_prefs *p);
 extern bool is_ppc_cpu(struct uae_prefs *);
 extern bool cpuboard_io_special(int addr, uae_u32 *val, int size, bool write);
 extern void cpuboard_overlay_override(void);
+extern void cpuboard_setboard(struct uae_prefs *p, int type, int subtype);
 
 extern bool ppc_interrupt(int new_m68k_ipl);
 
@@ -31,7 +32,7 @@ extern uae_u8 *REGPARAM3 cyberstorm_scsi_ram_xlate(uaecptr addr) REGPARAM;
 #define BOARD_MEMORY_BLIZZARD_PPC 5
 #define BOARD_MEMORY_25BITMEM 6
 
-#define ISCPUBOARD(type,subtype) (currprefs.cpuboard_type == type && currprefs.cpuboard_subtype == subtype)
+#define ISCPUBOARD(type,subtype) (cpuboards[currprefs.cpuboard_type].id == type && (type < 0 || currprefs.cpuboard_subtype == subtype))
 
 #define BOARD_BLIZZARD 1
 #define BOARD_BLIZZARD_SUB_1230IV 0
@@ -59,4 +60,5 @@ extern uae_u8 *REGPARAM3 cyberstorm_scsi_ram_xlate(uaecptr addr) REGPARAM;
 #define BOARD_GVP_SUB_A530 2
 #define BOARD_GVP_SUB_GFORCE030 3
 #define BOARD_GVP_SUB_TEKMAGIC 4
+#define BOARD_KUPKE 9
 

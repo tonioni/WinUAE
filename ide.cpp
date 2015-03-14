@@ -6,7 +6,7 @@
 * (c) 2006 - 2015 Toni Wilen
 */
 
-#define IDE_LOG 0
+#define IDE_LOG 2
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -48,6 +48,103 @@
 #define ATAPI_MAX_TRANSFER 32768
 #define MAX_IDE_MULTIPLE_SECTORS 64
 
+
+uae_u16 adide_decode_word(uae_u16 w)
+{
+	uae_u16 o = 0;
+
+	if (w & 0x8000)
+		o |= 0x0001;
+	if (w & 0x0001)
+		o |= 0x0002;
+
+	if (w & 0x4000)
+		o |= 0x0004;
+	if (w & 0x0002)
+		o |= 0x0008;
+
+	if (w & 0x2000)
+		o |= 0x0010;
+	if (w & 0x0004)
+		o |= 0x0020;
+
+	if (w & 0x1000)
+		o |= 0x0040;
+	if (w & 0x0008)
+		o |= 0x0080;
+
+	if (w & 0x0800)
+		o |= 0x0100;
+	if (w & 0x0010)
+		o |= 0x0200;
+
+	if (w & 0x0400)
+		o |= 0x0400;
+	if (w & 0x0020)
+		o |= 0x0800;
+
+	if (w & 0x0200)
+		o |= 0x1000;
+	if (w & 0x0040)
+		o |= 0x2000;
+
+	if (w & 0x0100)
+		o |= 0x4000;
+	if (w & 0x0080)
+		o |= 0x8000;
+
+	return o;
+}
+
+uae_u16 adide_encode_word(uae_u16 w)
+{
+	uae_u16 o = 0;
+
+	if (w & 0x0001)
+		o |= 0x8000;
+	if (w & 0x0002)
+		o |= 0x0001;
+
+	if (w & 0x0004)
+		o |= 0x4000;
+	if (w & 0x0008)
+		o |= 0x0002;
+
+	if (w & 0x0010)
+		o |= 0x2000;
+	if (w & 0x0020)
+		o |= 0x0004;
+
+	if (w & 0x0040)
+		o |= 0x1000;
+	if (w & 0x0080)
+		o |= 0x0008;
+
+	if (w & 0x0100)
+		o |= 0x0800;
+	if (w & 0x0200)
+		o |= 0x0010;
+
+	if (w & 0x0400)
+		o |= 0x0400;
+	if (w & 0x0800)
+		o |= 0x0020;
+
+	if (w & 0x1000)
+		o |= 0x0200;
+	if (w & 0x2000)
+		o |= 0x0040;
+
+	if (w & 0x4000)
+		o |= 0x0100;
+	if (w & 0x8000)
+		o |= 0x0080;
+
+	return o;
+}
+
+
+
 static void ide_grow_buffer(struct ide_hdf *ide, int newsize)
 {
 	if (ide->secbuf_size >= newsize)
@@ -64,30 +161,29 @@ static void ide_grow_buffer(struct ide_hdf *ide, int newsize)
 
 static void pw (struct ide_hdf *ide, int offset, uae_u16 w)
 {
-	if (ide->byteswap) {
-		ide->secbuf[offset * 2 + 1] = (uae_u8)w;
-		ide->secbuf[offset * 2 + 0] = w >> 8;
-	} else {
-		ide->secbuf[offset * 2 + 0] = (uae_u8)w;
-		ide->secbuf[offset * 2 + 1] = w >> 8;
-	}
+	if (ide->adide)
+		w = adide_decode_word(w);
+	if (ide->byteswap)
+		w = (w >> 8) | (w << 8);
+	ide->secbuf[offset * 2 + 0] = (uae_u8)w;
+	ide->secbuf[offset * 2 + 1] = w >> 8;
 }
 
 static void ps (struct ide_hdf *ide, int offset, const TCHAR *src, int max)
 {
-	int i, len, swap;
+	int i, len;
 	char *s;
 
-	swap = ide->byteswap ? 0 : 1;
-	offset *= 2;
 	s = ua (src);
 	len = strlen (s);
-	for (i = 0; i < max; i++) {
-		char c = ' ';
+	for (i = 0; i < max; i += 2) {
+		char c1 = ' ';
 		if (i < len)
-			c = s[i];
-		ide->secbuf[offset ^ swap] = c;
-		offset++;
+			c1 = s[i];
+		char c2 = ' ';
+		if (i + 1 < len)
+			c2 = s[i + 1];
+		pw(ide, offset + i / 2, (c2 << 8) | c1);
 	}
 	xfree (s);
 }
@@ -130,7 +226,7 @@ static bool ide_interrupt_do (struct ide_hdf *ide)
 
 bool ide_drq_check(struct ide_hdf *idep)
 {
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; idep && i < 2; i++) {
 		struct ide_hdf *ide = i == 0 ? idep : idep->pair;
 		if (ide) {
 			if (ide->regs.ide_status & IDE_STATUS_DRQ)
@@ -142,7 +238,7 @@ bool ide_drq_check(struct ide_hdf *idep)
 
 bool ide_irq_check(struct ide_hdf *idep)
 {
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; idep && i < 2; i++) {
 		struct ide_hdf *ide = i == 0 ? idep : idep->pair;
 		if (ide->irq)
 			return true;
@@ -153,7 +249,7 @@ bool ide_irq_check(struct ide_hdf *idep)
 bool ide_interrupt_hsync(struct ide_hdf *idep)
 {
 	bool irq = false;
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; idep && i < 2; i++) {
 		struct ide_hdf *ide = i == 0 ? idep : idep->pair;
 		if (ide) {
 			if (ide->irq_delay > 0) {
@@ -1146,11 +1242,13 @@ void remove_ide_unit(struct ide_hdf **idetable, int ch)
 	}
 }
 
-struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct uaedev_config_info *ci)
+struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	struct ide_hdf *ide;
 
 	alloc_ide_mem(idetable, max, NULL);
+	if (ch < 0)
+		return NULL;
 	ide = idetable[ch];
 	if (ci)
 		memcpy (&ide->hdhfd.hfd.ci, ci, sizeof (struct uaedev_config_info));

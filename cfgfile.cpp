@@ -261,7 +261,13 @@ static const TCHAR *uaescsidevmodes[] = {
 	_T("rename_scsi"),
 	NULL
 };
-
+static const TCHAR *uaebootrom[] = {
+	_T("automatic"),
+	_T("disabled"), 
+	_T("min"),
+	_T("full"),
+	NULL
+};
 static const TCHAR *obsolete[] = {
 	_T("accuracy"), _T("gfx_opengl"), _T("gfx_32bit_blits"), _T("32bit_blits"),
 	_T("gfx_immediate_blits"), _T("gfx_ntsc"), _T("win32"), _T("gfx_filter_bits"),
@@ -836,7 +842,7 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 			_stprintf(hdcs, hdcontrollers[ct], ci->controller_unit);
 		}
 		if (ci->controller_type_unit > 0)
-			_stprintf(hdcs + _tcslen(hdcs), _T("-%d"), ci->controller_type_unit);
+			_stprintf(hdcs + _tcslen(hdcs), _T("-%d"), ci->controller_type_unit + 1);
 
 		str1b = cfgfile_escape (str1, _T(":,"), true);
 		str2b = cfgfile_escape (str2, _T(":,"), true);
@@ -962,7 +968,7 @@ static void write_resolution (struct zfile *f, const TCHAR *ws, const TCHAR *hs,
 static void cfgfile_write_board_rom(struct zfile *f, struct multipath *mp, struct boardromconfig *br)
 {
 	TCHAR buf[256];
-	const TCHAR *name;
+	TCHAR name[256];
 	const struct expansionromtype *ert;
 	
 	if (br->device_type == 0)
@@ -971,7 +977,10 @@ static void cfgfile_write_board_rom(struct zfile *f, struct multipath *mp, struc
 	if (!ert)
 		return;
 	for (int i = 0; i < MAX_BOARD_ROMS; i++) {
-		name = ert->name;
+		if (br->device_num == 0)
+			_tcscpy(name, ert->name);
+		else
+			_stprintf(name, _T("%s-%d"), ert->name, br->device_num + 1);
 		if (i == 0 || _tcslen(br->roms[i].romfile)) {
 			_stprintf(buf, _T("%s%s_rom_file"), name, i ? _T("_ext") : _T(""));
 			cfgfile_write_rom (f, mp, br->roms[i].romfile, buf);
@@ -1284,6 +1293,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
 	cfgfile_write_bool (f, _T("synchronize_clock"), p->tod_hack);
 	cfgfile_write (f, _T("maprom"), _T("0x%x"), p->maprom);
+	cfgfile_dwrite_str (f, _T("boot_rom_uae"), uaebootrom[p->boot_rom]);
 	cfgfile_dwrite_str (f, _T("parallel_matrix_emulation"), epsonprinter[p->parallel_matrix_emulation]);
 	cfgfile_write_bool (f, _T("parallel_postscript_emulation"), p->parallel_postscript_emulation);
 	cfgfile_write_bool (f, _T("parallel_postscript_detection"), p->parallel_postscript_detection);
@@ -1388,9 +1398,16 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_dwrite_ext (f, _T("gfx_filter_horiz_zoom_multf"), ext, _T("%f"), gf->gfx_filter_horiz_zoom_mult);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_vert_offsetf"), ext, _T("%f"), gf->gfx_filter_vert_offset);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_horiz_offsetf"), ext, _T("%f"), gf->gfx_filter_horiz_offset);
+		
+		cfgfile_dwrite_ext (f, _T("gfx_filter_left_border"), ext, _T("%d"), gf->gfx_filter_left_border);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_right_border"), ext, _T("%d"), gf->gfx_filter_right_border);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_top_border"), ext, _T("%d"), gf->gfx_filter_top_border);
+		cfgfile_dwrite_ext (f, _T("gfx_filter_bottom_border"), ext, _T("%d"), gf->gfx_filter_bottom_border);
+		
 		cfgfile_dwrite_ext (f, _T("gfx_filter_scanlines"), ext, _T("%d"), gf->gfx_filter_scanlines);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_scanlinelevel"), ext, _T("%d"), gf->gfx_filter_scanlinelevel);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_scanlineratio"), ext, _T("%d"), gf->gfx_filter_scanlineratio);
+		
 		cfgfile_dwrite_ext (f, _T("gfx_filter_luminance"), ext, _T("%d"), gf->gfx_filter_luminance);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_contrast"), ext, _T("%d"), gf->gfx_filter_contrast);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_saturation"), ext, _T("%d"), gf->gfx_filter_saturation);
@@ -1398,9 +1415,11 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_dwrite_ext (f, _T("gfx_filter_gamma_r"), ext, _T("%d"), gf->gfx_filter_gamma_ch[0]);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_gamma_g"), ext, _T("%d"), gf->gfx_filter_gamma_ch[1]);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_gamma_b"), ext, _T("%d"), gf->gfx_filter_gamma_ch[2]);
+		
 		cfgfile_dwrite_ext (f, _T("gfx_filter_blur"), ext, _T("%d"), gf->gfx_filter_blur);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_noise"), ext, _T("%d"), gf->gfx_filter_noise);
 		cfgfile_dwrite_bool (f, _T("gfx_filter_bilinear"), ext, gf->gfx_filter_bilinear != 0);
+		
 		cfgfile_dwrite_ext (f, _T("gfx_filter_keep_autoscale_aspect"), ext, _T("%d"), gf->gfx_filter_keep_autoscale_aspect);
 		cfgfile_dwrite_str (f, _T("gfx_filter_keep_aspect"), ext, aspects[gf->gfx_filter_keep_aspect]);
 		cfgfile_dwrite_str(f, _T("gfx_filter_autoscale"), ext, ext == NULL ? autoscale[gf->gfx_filter_autoscale] : autoscale_rtg[gf->gfx_filter_autoscale]);
@@ -2304,6 +2323,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			|| cfgfile_floatval (option, value, _T("gfx_filter_horiz_zoom_multf"), ext, &gf->gfx_filter_horiz_zoom_mult)
 			|| cfgfile_floatval (option, value, _T("gfx_filter_vert_offsetf"), ext, &gf->gfx_filter_vert_offset)
 			|| cfgfile_floatval (option, value, _T("gfx_filter_horiz_offsetf"), ext, &gf->gfx_filter_horiz_offset)
+			|| cfgfile_intval (option, value, _T("gfx_filter_left_border"), ext, &gf->gfx_filter_left_border, 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_right_border"), ext, &gf->gfx_filter_right_border, 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_top_border"), ext, &gf->gfx_filter_top_border, 1)
+			|| cfgfile_intval (option, value, _T("gfx_filter_bottom_border"), ext, &gf->gfx_filter_bottom_border, 1)
 			|| cfgfile_intval (option, value, _T("gfx_filter_scanlines"), ext, &gf->gfx_filter_scanlines, 1)
 			|| cfgfile_intval (option, value, _T("gfx_filter_scanlinelevel"), ext, &gf->gfx_filter_scanlinelevel, 1)
 			|| cfgfile_intval (option, value, _T("gfx_filter_scanlineratio"), ext, &gf->gfx_filter_scanlineratio, 1)
@@ -3101,10 +3124,11 @@ struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, s
 	if (index < 0) {
 		if (ci->controller_type != HD_CONTROLLER_TYPE_UAE) {
 			int ctrl = ci->controller_type;
+			int ctrlunit = ci->controller_type_unit;
 			int cunit = ci->controller_unit;
 			for (;;) {
 				for (i = 0; i < p->mountitems; i++) {
-					if (p->mountconfig[i].ci.controller_type == ctrl && p->mountconfig[i].ci.controller_unit == cunit) {
+					if (p->mountconfig[i].ci.controller_type == ctrl && p->mountconfig[i].ci.controller_type_unit == ctrlunit && p->mountconfig[i].ci.controller_unit == cunit) {
 						cunit++;
 						if (ctrl >= HD_CONTROLLER_TYPE_IDE_FIRST && ctrl <= HD_CONTROLLER_TYPE_IDE_LAST && cunit == 4)
 							return NULL;
@@ -3241,8 +3265,8 @@ static void get_filesys_controller (const TCHAR *hdc, int *type, int *typenum, i
 	} else if (_tcslen (hdc) >= 5 && !_tcsncmp (hdc, _T("scide"), 6)) {
 		hdcv = HD_CONTROLLER_TYPE_PCMCIA_IDE;
 	}
-	if (idx > 1)
-		idx = 1;
+	if (idx >= MAX_DUPLICATE_EXPANSION_BOARDS)
+		idx = MAX_DUPLICATE_EXPANSION_BOARDS - 1;
 	*type = hdcv;
 	*typenum = idx;
 	*num = hdunit;
@@ -3710,10 +3734,10 @@ invalid_fs:
 	return 0;
 }
 
-bool cfgfile_board_enabled(struct uae_prefs *p, int romtype)
+bool cfgfile_board_enabled(struct uae_prefs *p, int romtype, int devnum)
 {
 	int idx;
-	struct boardromconfig *brc = get_device_rom(p, romtype, &idx);
+	struct boardromconfig *brc = get_device_rom(p, romtype, devnum, &idx);
 	if (!brc)
 		return false;
 	return brc->roms[idx].romfile[0] != 0;
@@ -3805,69 +3829,78 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 		int idx;
 		ert = &expansionroms[i];
 
-		_stprintf(buf, _T("scsi_%s"), ert->name);
-		if (cfgfile_yesno(option, value, buf, &dummy)) {
-			return true;
-		}
+		for (int j = 0; j < MAX_DUPLICATE_EXPANSION_BOARDS; j++) {
+			TCHAR name[256];
 
-		_stprintf(buf, _T("%s_rom_file"), ert->name);
-		if (cfgfile_path(option, value, buf, buf2, MAX_DPATH / sizeof (TCHAR), mp)) {
-			if (buf2[0]) {
-				brc = get_device_rom_new(p, ert->romtype, &idx);
-				_tcscpy(brc->roms[idx].romfile, buf2);
+			if (j == 0)
+				_tcscpy(name, ert->name);
+			else
+				_stprintf(name, _T("%s-%d"), ert->name, j + 1);
+
+			_stprintf(buf, _T("scsi_%s"), name);
+			if (cfgfile_yesno(option, value, buf, &dummy)) {
+				return true;
 			}
-			return true;
-		}
 
-		_stprintf(buf, _T("%s_rom_file_id"), ert->name);
-		if (cfgfile_rom (option, value, buf, buf2, MAX_DPATH / sizeof (TCHAR))) {
-			if (buf2[0]) {
-				brc = get_device_rom_new(p, ert->romtype, &idx);
-				_tcscpy(brc->roms[idx].romfile, buf2);
-			}
-			return true;
-		}
-
-		_stprintf(buf, _T("%s_rom"), ert->name);
-		if (cfgfile_string (option, value, buf, buf2, sizeof buf2 / sizeof (TCHAR))) {
-			if (buf2[0]) {
-				decode_rom_ident (buf3, sizeof(buf3) / sizeof (TCHAR), buf2, ert->romtype);
-				if (buf3[0]) {
-					brc = get_device_rom_new(p, ert->romtype, &idx);
-					_tcscpy(brc->roms[idx].romident, buf3);
+			_stprintf(buf, _T("%s_rom_file"), name);
+			if (cfgfile_path(option, value, buf, buf2, MAX_DPATH / sizeof (TCHAR), mp)) {
+				if (buf2[0]) {
+					brc = get_device_rom_new(p, ert->romtype, j, &idx);
+					_tcscpy(brc->roms[idx].romfile, buf2);
 				}
+				return true;
 			}
-			return true;
-		}
 
-		_stprintf(buf, _T("%s_rom_options"), ert->name);
-		if (cfgfile_string (option, value, buf, buf2, sizeof buf2 / sizeof (TCHAR))) {
-			brc = get_device_rom_new(p, ert->romtype, &idx);
-			if (cfgfile_option_bool(buf2, _T("autoboot_disabled")) == 1) {
-				brc->roms[idx].autoboot_disabled = true;
-			}
-			if (ert->subtypes) {
-				const struct expansionsubromtype *srt = ert->subtypes;
-				TCHAR tmp[MAX_DPATH], *p;
-				p = tmp;
-				*p = 0;
-				while (srt->name) {
-					_tcscpy(p, srt->configname);
-					p += _tcslen(p) + 1;
-					p[0] = 0;
-					srt++;
+			_stprintf(buf, _T("%s_rom_file_id"), name);
+			if (cfgfile_rom (option, value, buf, buf2, MAX_DPATH / sizeof (TCHAR))) {
+				if (buf2[0]) {
+					brc = get_device_rom_new(p, ert->romtype, j, &idx);
+					_tcscpy(brc->roms[idx].romfile, buf2);
 				}
-				int v = cfgfile_option_select(buf2, _T("subtype"), tmp);
-				if (v >= 0)
-					brc->roms[idx].subtype = v;
+				return true;
 			}
-			return true;
+
+			_stprintf(buf, _T("%s_rom"), name);
+			if (cfgfile_string (option, value, buf, buf2, sizeof buf2 / sizeof (TCHAR))) {
+				if (buf2[0]) {
+					decode_rom_ident (buf3, sizeof(buf3) / sizeof (TCHAR), buf2, ert->romtype);
+					if (buf3[0]) {
+						brc = get_device_rom_new(p, ert->romtype, j, &idx);
+						_tcscpy(brc->roms[idx].romident, buf3);
+					}
+				}
+				return true;
+			}
+
+			_stprintf(buf, _T("%s_rom_options"), name);
+			if (cfgfile_string (option, value, buf, buf2, sizeof buf2 / sizeof (TCHAR))) {
+				brc = get_device_rom_new(p, ert->romtype, j, &idx);
+				if (cfgfile_option_bool(buf2, _T("autoboot_disabled")) == 1) {
+					brc->roms[idx].autoboot_disabled = true;
+				}
+				if (ert->subtypes) {
+					const struct expansionsubromtype *srt = ert->subtypes;
+					TCHAR tmp[MAX_DPATH], *p;
+					p = tmp;
+					*p = 0;
+					while (srt->name) {
+						_tcscpy(p, srt->configname);
+						p += _tcslen(p) + 1;
+						p[0] = 0;
+						srt++;
+					}
+					int v = cfgfile_option_select(buf2, _T("subtype"), tmp);
+					if (v >= 0)
+						brc->roms[idx].subtype = v;
+				}
+				return true;
+			}
 		}
 
 		_stprintf(buf, _T("%s_mem_size"), ert->name);
 		if (cfgfile_intval (option, value, buf, &val, 0x40000)) {
 			if (val) {
-				brc = get_device_rom_new(p, ert->romtype, &idx);
+				brc = get_device_rom_new(p, ert->romtype, 0, &idx);
 				brc->roms[idx].board_ram_size = val;
 			}
 			return true;
@@ -4040,6 +4073,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_strval (option, value, _T("floppy_auto_extended_adf"), &p->floppy_auto_ext2, autoext2, 0)
 		|| cfgfile_strval (option, value,  _T("z3mapping"), &p->z3_mapping_mode, z3mapping, 0)
 		|| cfgfile_strval (option, value,  _T("scsidev_mode"), &p->uaescsidevmode, uaescsidevmodes, 0)
+		|| cfgfile_strval (option, value,  _T("boot_rom_uae"), &p->boot_rom, uaebootrom, 0)
 		|| cfgfile_strboolval (option, value, _T("comp_flushmode"), &p->comp_hardflush, flushmode, 0))
 		return 1;
 
@@ -5750,6 +5784,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->catweasel = 0;
 	p->tod_hack = 0;
 	p->maprom = 0;
+	p->boot_rom = 0;
 	p->filesys_no_uaefsdb = 0;
 	p->filesys_custom_uaefsdb = 1;
 	p->picasso96_nocustom = 1;
@@ -6044,8 +6079,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
 
 	_tcscpy (p->romextfile, _T(""));
 	_tcscpy (p->romextfile2, _T(""));
-	set_device_rom(p, NULL, ROMTYPE_CPUBOARD);
-	set_device_rom(p, NULL, ROMTYPE_CPUBOARDEXT);
+	set_device_rom(p, NULL, ROMTYPE_CPUBOARD, 0);
+	set_device_rom(p, NULL, ROMTYPE_CPUBOARDEXT, 0);
 
 	p->prtname[0] = 0;
 	p->sername[0] = 0;
@@ -6169,8 +6204,7 @@ static int bip_a4000 (struct uae_prefs *p, int config, int compa, int romcheck)
 		p->cpu_model = 68060;
 		p->fpu_model = 68060;
 		p->ppc_mode = 1;
-		p->cpuboard_type = BOARD_CYBERSTORM;
-		p->cpuboard_subtype = BOARD_CYBERSTORM_SUB_PPC;
+		cpuboard_setboard(p, BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_PPC);
 		p->cpuboardmem1_size = 128 * 1024 * 1024;
 		int roms_ppc[] = { 98, -1 };
 		configure_rom(p, roms_ppc, romcheck);
@@ -6226,12 +6260,8 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
 	return configure_rom (p, roms, romcheck);
 }
 
-static int bip_velvet(struct uae_prefs *p, int config, int compa, int romcheck)
+static void bip_velvet(struct uae_prefs *p, int config, int compa, int romcheck)
 {
-	int roms[2];
-
-	roms[0] = 125;
-	roms[1] = -1;
 	p->chipset_mask = 0;
 	p->bogomem_size = 0;
 	p->sound_filter = FILTER_SOUND_ON;
@@ -6245,7 +6275,6 @@ static int bip_velvet(struct uae_prefs *p, int config, int compa, int romcheck)
 	p->cs_denisenoehb = 1;
 	p->cs_cia6526 = 1;
 	p->chipmem_size = 0x40000;
-	return configure_rom (p, roms, romcheck);
 }
 
 static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
@@ -6268,8 +6297,11 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
 		p->cs_denisenoehb = 1;
 	if (config > 1)
 		p->chipmem_size = 0x40000;
-	if (config > 2)
+	if (config > 2) {
+		roms[0] = 125;
+		roms[1] = -1;
 		bip_velvet(p, config, compa, romcheck);
+	}
 	return configure_rom (p, roms, romcheck);
 }
 
@@ -6402,8 +6434,7 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 		p->cs_rtc = 1;
 		break;
 		case 2:
-		p->cpuboard_type = BOARD_BLIZZARD;
-		p->cpuboard_subtype = BOARD_BLIZZARD_SUB_1230IV;
+		cpuboard_setboard(p, BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1230IV);
 		p->cpuboardmem1_size = 32 * 1024 * 1024;
 		p->cpu_model = 68030;
 		p->cs_rtc = 1;
@@ -6411,8 +6442,7 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 		configure_rom(p, roms_bliz, romcheck);
 		break;
 		case 3:
-		p->cpuboard_type = BOARD_BLIZZARD;
-		p->cpuboard_subtype = BOARD_BLIZZARD_SUB_1260;
+		cpuboard_setboard(p, BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1260);
 		p->cpuboardmem1_size = 32 * 1024 * 1024;
 		p->cpu_model = 68040;
 		p->fpu_model = 68040;
@@ -6421,8 +6451,7 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 		configure_rom(p, roms_bliz, romcheck);
 		break;
 		case 4:
-		p->cpuboard_type = BOARD_BLIZZARD;
-		p->cpuboard_subtype = BOARD_BLIZZARD_SUB_1260;
+		cpuboard_setboard(p, BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1260);
 		p->cpuboardmem1_size = 32 * 1024 * 1024;
 		p->cpu_model = 68060;
 		p->fpu_model = 68060;
@@ -6431,8 +6460,7 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 		configure_rom(p, roms_bliz, romcheck);
 		break;
 		case 5:
-		p->cpuboard_type = BOARD_BLIZZARD;
-		p->cpuboard_subtype = BOARD_BLIZZARD_SUB_PPC;
+		cpuboard_setboard(p, BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_PPC);
 		p->cpuboardmem1_size = 256 * 1024 * 1024;
 		p->cpu_model = 68060;
 		p->fpu_model = 68060;
@@ -6770,6 +6798,13 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_dipagnus = 1;
 		p->cs_ciatodbug = true;
 		break;
+	case CP_VELVET: // A1000 Prototype
+		p->cs_ciaatod = p->ntscmode ? 2 : 1;
+		p->cs_ksmirror_e0 = 0;
+		p->cs_agnusbltbusybug = 1;
+		p->cs_dipagnus = 1;
+		p->cs_denisenoehb = 1;
+		break;
 	case CP_A1200: // A1200
 		p->cs_ide = IDE_A600A1200;
 		p->cs_pcmcia = 1;
@@ -6836,7 +6871,7 @@ int built_in_cpuboard_prefs(struct uae_prefs *p)
 	roms2[0] = -1;
 	roms2[1] = -1;
 
-	switch(p->cpuboard_type)
+	switch(cpuboards[p->cpuboard_type].id)
 	{
 		case BOARD_MACROSYSTEM:
 		switch(p->cpuboard_subtype)

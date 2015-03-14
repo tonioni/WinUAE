@@ -243,15 +243,12 @@ void fixup_cpu (struct uae_prefs *p)
 
 	// 1 = "automatic" PPC config
 	if (p->ppc_mode == 1) {
-		p->cpuboard_type = BOARD_CYBERSTORM;
-		p->cpuboard_subtype = BOARD_CYBERSTORM_SUB_PPC;
+		cpuboard_setboard(p,  BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_PPC);
 		if (p->cs_compatible == CP_A1200) {
-			p->cpuboard_type = BOARD_BLIZZARD;
-			p->cpuboard_subtype = BOARD_BLIZZARD_SUB_PPC;
+			cpuboard_setboard(p,  BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_PPC);
 		} else if (p->cs_compatible != CP_A4000 && p->cs_compatible != CP_A4000T && p->cs_compatible != CP_A3000 && p->cs_compatible != CP_A3000T) {
 			if ((p->cs_ide == IDE_A600A1200 || p->cs_pcmcia) && p->cs_mbdmac <= 0) {
-				p->cpuboard_type = BOARD_BLIZZARD;
-				p->cpuboard_subtype = BOARD_BLIZZARD_SUB_PPC;
+				cpuboard_setboard(p,  BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_PPC);
 			}
 		}
 		if (p->cpuboardmem1_size < 8 * 1024 * 1024)

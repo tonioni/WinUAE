@@ -1045,7 +1045,7 @@ static void dmac_start_dma (void)
 	if (!(dmac_cntr & CNTR_PDMD)) { // non-scsi dma
 		write_comm_pipe_u32 (&requests, 0x0100, 1);
 	} else {
-		scsi_dmac_a2091_start_dma (&wd_cdtv);
+		scsi_dmac_a2091_start_dma (wd_cdtv);
 	}
 }
 static void dmac_stop_dma (void)
@@ -1053,7 +1053,7 @@ static void dmac_stop_dma (void)
 	if (!(dmac_cntr & CNTR_PDMD)) { // non-scsi dma
 		;
 	} else {
-		scsi_dmac_a2091_stop_dma (&wd_cdtv);
+		scsi_dmac_a2091_stop_dma (wd_cdtv);
 	}
 }
 
@@ -1066,7 +1066,7 @@ static void checkint (void)
 {
 	int irq = 0;
 
-	if (currprefs.cs_cdtvscsi && (wdscsi_getauxstatus (&wd_cdtv.wc) & 0x80)) {
+	if (currprefs.cs_cdtvscsi && (wdscsi_getauxstatus (&wd_cdtv->wc) & 0x80)) {
 		dmac_istr |= ISTR_INTS;
 		if ((dmac_cntr & CNTR_INTEN) && (dmac_istr & ISTR_INTS))
 			irq = 1;
@@ -1258,11 +1258,11 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 		break;
 	case 0x91:
 		if (currprefs.cs_cdtvscsi)
-			v = wdscsi_getauxstatus (&wd_cdtv.wc);
+			v = wdscsi_getauxstatus (&wd_cdtv->wc);
 		break;
 	case 0x93:
 		if (currprefs.cs_cdtvscsi) {
-			v = wdscsi_get (&wd_cdtv.wc, &wd_cdtv);
+			v = wdscsi_get (&wd_cdtv->wc, wd_cdtv);
 			checkint ();
 		}
 		break;
@@ -1365,13 +1365,13 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 		break;
 	case 0x91:
 		if (currprefs.cs_cdtvscsi) {
-			wdscsi_sasr (&wd_cdtv.wc, b);
+			wdscsi_sasr (&wd_cdtv->wc, b);
 			checkint ();
 		}
 		break;
 	case 0x93:
 		if (currprefs.cs_cdtvscsi) {
-			wdscsi_put (&wd_cdtv.wc, &wd_cdtv, b);
+			wdscsi_put (&wd_cdtv->wc, wd_cdtv, b);
 			checkint ();
 		}
 		break;
@@ -1634,11 +1634,6 @@ uae_u8 cdtv_battram_read (int addr)
 	return v;
 }
 
-int cdtv_add_scsi_hd_unit (int ch, struct uaedev_config_info *ci)
-{
-	return add_scsi_hd (wd_cdtv.scsis, ch, NULL, ci, 1);
-}
-
 void cdtv_free (void)
 {
 	if (thread_alive > 0) {
@@ -1655,7 +1650,7 @@ void cdtv_free (void)
 	configured = 0;
 }
 
-addrbank *cdtv_init (int devnum)
+addrbank *cdtv_init (struct romconfig *rc)
 {
 	close_unit ();
 	if (!thread_alive) {
@@ -1697,8 +1692,8 @@ addrbank *cdtv_init (int devnum)
 	open_unit ();
 	gui_flicker_led (LED_CD, 0, -1);
 	if (currprefs.cs_cdtvscsi) {
-		init_wd_scsi (&wd_cdtv);
-		wd_cdtv.dmac_type = COMMODORE_DMAC;
+		init_wd_scsi (wd_cdtv);
+		wd_cdtv->dmac_type = COMMODORE_DMAC;
 	}
 	return &dmac_bank;
 }

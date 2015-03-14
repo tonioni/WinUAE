@@ -76,41 +76,43 @@ END
 // Dialog
 //
 
-IDD_KICKSTART DIALOGEX 0, 0, 396, 289
+IDD_KICKSTART DIALOGEX 0, 0, 396, 304
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "System ROM Settings",IDC_STATIC,1,0,394,93
+    GROUPBOX        "System ROM Settings",IDC_STATIC,1,0,394,91
     LTEXT           "Main ROM file:",IDC_ROMTEXT,14,13,263,10
-    COMBOBOX        IDC_ROMFILE,12,26,361,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_ROMFILE,12,25,361,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "...",IDC_KICKCHOOSER,376,25,10,15
-    LTEXT           "Extended ROM file:",IDC_ROMFILE2TEXT,14,43,263,10
-    COMBOBOX        IDC_ROMFILE2,12,56,361,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Extended ROM file:",IDC_ROMFILE2TEXT,14,42,263,10
+    COMBOBOX        IDC_ROMFILE2,12,54,361,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "...",IDC_ROMCHOOSER2,376,55,10,15
     CONTROL         "MapROM emulation [] Creates a BlizKick-compatible memory area.",IDC_MAPROM,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,87,77,104,12
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,87,73,104,12
     CONTROL         "ShapeShifter support [] Patches the system ROM for ShapeShifter compatibility.",IDC_KICKSHIFTER,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,77,106,13
-    GROUPBOX        "Miscellaneous",IDC_STATIC,1,100,394,188
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,73,106,13
+    GROUPBOX        "Expansion ROM Settings",IDC_STATIC,1,206,394,66
     LTEXT           "Cartridge ROM file:",IDC_FLASHTEXT2,12,112,265,10
-    COMBOBOX        IDC_CARTFILE,12,125,361,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "...",IDC_CARTCHOOSER,376,124,10,15
-    LTEXT           "Flash RAM file:",IDC_FLASHTEXT,12,144,265,10
-    EDITTEXT        IDC_FLASHFILE,12,157,361,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_FLASHCHOOSER,376,156,10,15
-    LTEXT           "Real Time Clock file",IDC_STATIC,12,174,313,15,SS_CENTERIMAGE
-    EDITTEXT        IDC_RTCFILE,12,191,361,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_RTCCHOOSER,376,189,10,15
-    COMBOBOX        IDC_SCSIROMSELECT,12,228,171,75,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "SCSI/Boot ROM file:",IDC_STATIC,12,212,170,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_SCSIROMFILE,202,228,171,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "...",IDC_SCSIROMCHOOSER,376,226,10,15
-    LTEXT           "Accelerator board ROM file:",IDC_STATIC,12,250,170,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_CPUBOARDROMFILE,12,266,171,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "...",IDC_CPUBOARDROMCHOOSER,187,265,10,15
-    CONTROL         "Autoboot disabled",IDC_SCSIROMFILEAUTOBOOT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,213,84,12
-    COMBOBOX        IDC_SCSIROMSUBSELECT,202,246,171,75,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_CARTFILE,12,124,361,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "...",IDC_CARTCHOOSER,376,123,10,15
+    LTEXT           "Flash RAM file:",IDC_FLASHTEXT,12,141,265,10
+    EDITTEXT        IDC_FLASHFILE,12,153,361,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_FLASHCHOOSER,376,151,10,15
+    LTEXT           "Real Time Clock file",IDC_STATIC,12,167,313,15,SS_CENTERIMAGE
+    EDITTEXT        IDC_RTCFILE,12,183,361,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_RTCCHOOSER,376,181,10,15
+    COMBOBOX        IDC_SCSIROMSELECT,12,235,157,75,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "SCSI/IDE/Boot ROM file:",IDC_STATIC,12,219,170,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_SCSIROMFILE,202,235,171,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "...",IDC_SCSIROMCHOOSER,376,235,10,15
+    LTEXT           "Accelerator board ROM file:",IDC_STATIC,12,273,170,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_CPUBOARDROMFILE,12,289,171,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "...",IDC_CPUBOARDROMCHOOSER,187,288,10,15
+    CONTROL         "Autoboot disabled",IDC_SCSIROMFILEAUTOBOOT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,216,84,12
+    COMBOBOX        IDC_SCSIROMSUBSELECT,202,253,171,75,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_SCSIROMSELECTNUM,175,235,22,75,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Miscellaneous",IDC_STATIC,0,96,395,106
 END
 
 IDD_DISPLAY DIALOGEX 0, 0, 396, 298
@@ -1188,11 +1190,11 @@ CAPTION "CD Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     RTEXT           "HD Controller:",IDC_STATIC,7,90,65,10,SS_CENTERIMAGE
-    COMBOBOX        IDC_HDF_CONTROLLER,83,89,100,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    DEFPUSHBUTTON   "Add CD Drive",IDOK,236,89,73,14
-    PUSHBUTTON      "Cancel",IDCANCEL,316,89,73,14
+    COMBOBOX        IDC_HDF_CONTROLLER,80,89,122,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "Add CD Drive",IDOK,238,89,73,14
+    PUSHBUTTON      "Cancel",IDCANCEL,318,89,73,14
     CONTROL         "",IDC_CDLIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,4,4,387,77
-    COMBOBOX        IDC_HDF_CONTROLLER_UNIT,189,89,25,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_HDF_CONTROLLER_UNIT,208,89,25,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_TAPEDRIVE DIALOGEX 0, 0, 395, 97
@@ -1536,7 +1538,6 @@ BEGIN
 
     IDD_TAPEDRIVE, DIALOG
     BEGIN
-        BOTTOMMARGIN, 80
     END
 
     IDD_DISKINFO, DIALOG
@@ -1841,7 +1842,7 @@ BEGIN
     IDS_QS_MODEL_A500       "1.3 ROM, OCS, 512 KB Chip + 512 KB Slow RAM (most common)\nThis configuration is capable of running most games and demos produced for first-generation hardware. Only few exceptions need a different configuration (e.g. the oldest games tend to be incompatible with this configuration).\n1.3 ROM, ECS Agnus, 512 KB Chip RAM + 512 KB Slow RAM\nLater hardware revision of the A500. Nearly 100% compatible with the previous configuration.\n1.3 ROM, ECS Agnus, 1 MB Chip RAM\nFew newer games and demos require this configuration.\n1.3 ROM, OCS Agnus, 512 KB Chip RAM\nVery old (e.g. pre-1988) games and demos may require this configuration.\n1.2 ROM, OCS Agnus, 512 KB Chip RAM\nAs available for the A1000, and installed on the first A500 and A2000 series. Some very old programs only work correctly with this configuration. Note: This system ROM version can only boot from floppy disk (no hard disk boot support).\n1.2 ROM, OCS Agnus, 512 KB Chip RAM + 512 KB Slow RAM\nThis configuration adds expansion memory to the first A500 produced. Try this if your game does not work with newer configurations, but works with the previous one. It could add some features to the game, including faster loading times. Note: This system ROM version can only boot from floppy disk (no hard disk boot support)."
     IDS_QS_MODEL_A500P      "Basic non-expanded configuration\nThe A500+ adds an ECS Agnus chip, 1 MB of Chip RAM and a 2.0 ROM to the A500. Many A500 games and demos don't work properly on an A500+.\n2 MB Chip RAM expanded configuration\n\n4 MB Fast RAM expanded configuration\n"
     IDS_QS_MODEL_A600       "Basic non-expanded configuration\nThe A600 is smaller than the A500+ and has an updated 2.0 ROM.\n2 MB Chip RAM expanded configuration\n\n4 MB Fast RAM expanded configuration\n"
-    IDS_QS_MODEL_A1000      "512 KB Chip RAM\nThe A1000 was the first model produced, with a configuration equivalent to that of an A500 with OCS chipset. You normally don't need to use this configuration, unless you are nostalgic and would like to hear the short A1000 boot tune\n""ICS"" Denise without EHB support\nVery first A1000 models had Denise without EHB capability.\n256 KB Chip RAM\n Unexpanded A1000. All later A1000 models were sold with a 256 KB RAM expansion built-in."
+    IDS_QS_MODEL_A1000      "512 KB Chip RAM\nThe A1000 was the first model produced, with a configuration equivalent to that of an A500 with OCS chipset. You normally don't need to use this configuration, unless you are nostalgic and would like to hear the short A1000 boot tune\n""ICS"" Denise without EHB support\nVery first A1000 models had Denise without EHB capability.\n256 KB Chip RAM\n Unexpanded A1000. All later A1000 models were sold with a 256 KB RAM expansion built-in.\nA1000 ""Velvet"" Prototype\n"
     IDS_QS_MODEL_A1200      "Basic non-expanded configuration\nUse this configuration to run most AGA demos and games\n4 MB Fast RAM expanded configuration\nSome newer AGA games and demos need an expanded A1200 to run.\nBlizzard 1230 IV\n\nBlizzard 1240\n\nBlizzard 1260\n\nBlizzard PPC\n"
     IDS_QS_MODEL_CD32       "CD32\nThe CD32 was one the first 32-bit consoles on the market. It is basically an A1200 with a built-in CD-ROM drive. Insert your CD32 or CDTV CD-ROM into a free CD-ROM drive before starting the emulation.\nCD32 with Full Motion Video cartridge\n"
     IDS_QS_MODEL_CDTV       "CDTV\nThe CDTV was the first model with a built-in CD-ROM drive. Looking like a black CD player, it featured a configuration equivalent to that of an A500 with 1 MB RAM and an ECS chipset.\nFloppy drive and 64KB SRAM card expanded CDTV\n\nCDTV-CR\n"

@@ -281,6 +281,10 @@ static bool is_apollo(void)
 {
 	return ISCPUBOARD(BOARD_ACT, BOARD_ACT_SUB_APOLLO);
 }
+static bool is_kupke(void)
+{
+	return ISCPUBOARD(BOARD_KUPKE, 0);
+}
 
 DECLARE_MEMORY_FUNCTIONS(blizzardio);
 static addrbank blizzardio_bank = {
@@ -302,7 +306,7 @@ DECLARE_MEMORY_FUNCTIONS(blizzardea);
 static addrbank blizzardea_bank = {
 	blizzardea_lget, blizzardea_wget, blizzardea_bget,
 	blizzardea_lput, blizzardea_wput, blizzardea_bput,
-	blizzardea_xlate, blizzardea_check, NULL, _T("rom_ea"), _T("CPUBoard EA Autoconfig"),
+	blizzardea_xlate, blizzardea_check, NULL, _T("rom_ea"), _T("CPUBoard E9/EA Autoconfig"),
 	blizzardea_lget, blizzardea_wget, ABFLAG_IO | ABFLAG_SAFE
 };
 
@@ -749,7 +753,7 @@ static void REGPARAM2 blizzarde8_bput(uaecptr addr, uae_u32 b)
 	b &= 0xff;
 	addr &= 65535;
 	if (addr == 0x48 && !configured) {
-		map_banks(&blizzardea_bank, b, 0x20000 >> 16, 0x20000);
+		map_banks(&blizzardea_bank, b, blizzardea_bank.allocated >> 16, 0);
 		write_log(_T("Accelerator Z2 board autoconfigured at %02X0000\n"), b);
 		configured = 1;
 		expamem_next (&blizzardea_bank, NULL);
@@ -880,7 +884,7 @@ static void cyberstormmk2_maprom(void)
 		map_banks_nojitdirect(&blizzardmaprom_bank, blizzardmaprom_bank.start >> 16, 524288 >> 16, 0);
 }
 
-void cyberstorm_irq(int level)
+void cyberstorm_mk3_ppc_irq(int level)
 {
 	if (level)
 		io_reg[CSIII_REG_IRQ] &= ~P5_IRQ_SCSI;
@@ -1074,7 +1078,7 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 							write_log(_T("CS: SCSI reset cleared\n"));
 						map_banks(&blizzardf0_bank, 0xf00000 >> 16, 0x40000 >> 16, 0);
 						if (is_blizzardppc() || flash_size(flashrom) >= 262144) {
-							map_banks(&ncr_bank_blizzardppc, 0xf40000 >> 16, 0x10000 >> 16, 0);
+							map_banks(&ncr_bank_generic, 0xf40000 >> 16, 0x10000 >> 16, 0);
 						} else {
 							map_banks(&ncr_bank_cyberstorm, 0xf40000 >> 16, 0x10000 >> 16, 0);
 							map_banks(&blizzardio_bank, 0xf50000 >> 16, 0x10000 >> 16, 0);
@@ -1400,6 +1404,12 @@ void cpuboard_init(void)
 		blizzardea_bank.mask = blizzardea_bank.allocated - 1;
 		mapped_malloc(&blizzardea_bank);
 
+	} else if (is_kupke()) {
+
+		blizzardea_bank.allocated = 65536;
+		blizzardea_bank.mask = blizzardea_bank.allocated - 1;
+		mapped_malloc(&blizzardea_bank);
+
 	} else if (is_apollo()) {
 
 		blizzardf0_bank.start = 0x00f00000;
@@ -1653,6 +1663,20 @@ int cpuboard_maxmemory(struct uae_prefs *p)
 	return 0;
 }
 
+void cpuboard_setboard(struct uae_prefs *p, int type, int subtype)
+{
+	p->cpuboard_type = 0;
+	p->cpuboard_subtype = 0;
+	for (int i = 0; cpuboards[i].name; i++) {
+		if (cpuboards[i].id == type) {
+			p->cpuboard_type = type;
+			if (subtype >= 0)
+				p->cpuboard_subtype = subtype;
+			return;
+		}
+	}
+}
+
 bool cpuboard_io_special(int addr, uae_u32 *val, int size, bool write)
 {
 	addr &= 65535;
@@ -1821,7 +1845,7 @@ static void ew(uae_u8 *p, int addr, uae_u8 value)
 	}
 }
 
-addrbank *cpuboard_autoconfig_init(int devnum)
+addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 {
 	struct zfile *autoconfig_rom = NULL;
 	struct boardromconfig *brc, *brc2;
@@ -1834,8 +1858,8 @@ addrbank *cpuboard_autoconfig_init(int devnum)
 	struct romdata *rd = NULL;
 
 	int idx, idx2;
-	brc = get_device_rom(&currprefs, ROMTYPE_CPUBOARD, &idx);
-	brc2 = get_device_rom(&currprefs, ROMTYPE_CPUBOARDEXT, &idx2);
+	brc = get_device_rom(&currprefs, ROMTYPE_CPUBOARD, 0, &idx);
+	brc2 = get_device_rom(&currprefs, ROMTYPE_CPUBOARDEXT, 0, &idx2);
 	if (brc)
 		romname = brc->roms[idx].romfile;
 
@@ -1846,7 +1870,8 @@ addrbank *cpuboard_autoconfig_init(int devnum)
 	roms2[1] = -1;
 	roms2[2] = -1;
 	cpuboard_non_byte_ea = false;
-	switch (currprefs.cpuboard_type)
+	int boardid = cpuboards[currprefs.cpuboard_type].id;
+	switch (boardid)
 	{
 		case BOARD_COMMODORE:
 		switch(currprefs.cpuboard_subtype)
@@ -1950,6 +1975,10 @@ addrbank *cpuboard_autoconfig_init(int devnum)
 		}
 		break;
 
+		case BOARD_KUPKE:
+			roms[0] = 126;
+		break;
+
 		default:
 			return &expamem_null;
 	}
@@ -2017,6 +2046,14 @@ addrbank *cpuboard_autoconfig_init(int devnum)
 		zfile_fread(blizzardf0_bank.baseaddr, 1, f0rom_size, autoconfig_rom);
 		autoconf = false;
 		autoconf_stop = true;
+	} else if (is_kupke()) {
+		earom_size = 65536;
+		for (int i = 0; i < 8192; i++) {
+			uae_u8 b = 0xff;
+			zfile_fread(&b, 1, 1, autoconfig_rom);
+			blizzardea_bank.baseaddr[i * 2 + 0] = b;
+			blizzardea_bank.baseaddr[i * 2 + 1] = 0xff;
+		}
 	} else if (is_apollo()) {
 		f0rom_size = 131072;
 		zfile_fread(blizzardf0_bank.baseaddr, 1, 131072, autoconfig_rom);

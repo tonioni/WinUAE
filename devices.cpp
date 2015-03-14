@@ -65,8 +65,7 @@ void devices_reset(int hardreset)
 	DISK_reset ();
 	CIA_reset ();
 	gayle_reset (0);
-	apolloscsi_reset();
-	ncr5380scsi_reset();
+	soft_scsi_reset();
 #ifdef A2091
 	a2091_reset ();
 	gvp_reset ();
@@ -78,7 +77,6 @@ void devices_reset(int hardreset)
 	sndboard_reset();
 #endif
 #ifdef NCR
-	ncr710_reset();
 	ncr_reset();
 #endif
 #ifdef NCR9X
@@ -277,10 +275,8 @@ void do_leave_program (void)
 	gvp_free ();
 	a3000scsi_free ();
 #endif
-	apolloscsi_free();
-	ncr5380scsi_free();
+	soft_scsi_free();
 #ifdef NCR
-	ncr710_free();
 	ncr_free();
 #endif
 #ifdef NCR9X
@@ -362,7 +358,6 @@ void virtualdevice_init (void)
 	tabletlib_install ();
 #endif
 #ifdef NCR
-	ncr710_init();
 	ncr_init();
 #endif
 #ifdef NCR9X
