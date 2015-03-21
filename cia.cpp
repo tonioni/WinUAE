@@ -990,7 +990,7 @@ static uae_u8 ReadCIAA (unsigned int addr)
 	switch (reg) {
 	case 0:
 #ifdef ACTION_REPLAY
-		action_replay_ciaread ();
+		action_replay_cia_access(false);
 #endif
 		tmp = DISK_status_ciaa() & 0x3c;
 		tmp |= handle_joystick_buttons (ciaapra, ciaadra);
@@ -1175,9 +1175,6 @@ static uae_u8 ReadCIAB (unsigned int addr)
 #endif
 		return tmp;
 	case 1:
-#ifdef ACTION_REPLAY
-		action_replay_ciaread ();
-#endif
 #if DONGLE_DEBUG > 0
 		if (notinrom ())
 			write_log (_T("BFD100 R %02X %s\n"), ciabprb, debuginfo(0));
@@ -1494,6 +1491,9 @@ static void WriteCIAB (uae_u16 addr, uae_u8 val)
 #endif
 		break;
 	case 1:
+#ifdef ACTION_REPLAY
+		action_replay_cia_access(true);
+#endif
 #if DONGLE_DEBUG > 0
 		if (notinrom ())
 			write_log (_T("BFD100 W %02X %s\n"), val, debuginfo(0));

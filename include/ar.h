@@ -34,7 +34,7 @@ extern int armodel;
 extern int is_ar_pc_in_rom(void);
 extern int is_ar_pc_in_ram(void);
 extern void action_replay_enter (void);
-extern void action_replay_ciaread (void);
+extern void action_replay_cia_access (bool write);
 extern void action_replay_hide (void);
 extern void action_replay_reset (bool hardreset, bool keyboardreset);
 extern int action_replay_load (void);
