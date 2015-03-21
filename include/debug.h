@@ -50,6 +50,7 @@ extern int debug_read_memory_8 (uaecptr addr);
 extern int debug_peek_memory_8 (uaecptr addr);
 extern int debug_write_memory_16 (uaecptr addr, uae_u16 v);
 extern int debug_write_memory_8 (uaecptr addr, uae_u8 v);
+extern bool debug_enforcer(void);
 
 #define BREAKPOINT_TOTAL 20
 struct breakpoint_node {

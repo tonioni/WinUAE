@@ -18,6 +18,7 @@
 #include "uae.h"
 #include "xwin.h"
 #include "enforcer.h"
+#include "debug.h"
 
 #ifdef AHI
 
@@ -411,8 +412,10 @@ static void enforcer_display_hit (const TCHAR *addressmode, uae_u32 pc, uaecptr 
 
 	console_out (enforcer_buf);
 	write_log (_T("%s"), enforcer_buf);
-	sleep_millis (5);
-	doflashscreen ();
+	if (!debug_enforcer()) {
+		sleep_millis (5);
+		doflashscreen ();
+	}
 
 end:
 	xfree (native_task_name);
