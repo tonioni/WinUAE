@@ -1244,26 +1244,28 @@ addrbank *adide_init(struct romconfig *rc)
 	ide->rom = xcalloc(uae_u8, ide->rom_size);
 	memset(ide->rom, 0xff, ide->rom_size);
 	ide->rom_mask = ide->rom_size - 1;
-	struct zfile *z = read_device_from_romconfig(rc, roms);
+	if (!rc->autoboot_disabled) {
+		struct zfile *z = read_device_from_romconfig(rc, roms);
+		if (z) {
+			for (int i = 0; i < 16384; i++) {
+				uae_u8 b;
+				zfile_fread(&b, 1, 1, z);
+				ide->rom[i * 2 + 0] = b;
+				ide->rom[i * 2 + 1] = 0xff;
+			}
+			zfile_fclose(z);
+		}
+	}
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = adide_autoconfig[i];
 		ew(ide, i * 4, b);
-	}
-	if (z) {
-		for (int i = 0; i < 16384; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			ide->rom[i * 2 + 0] = b;
-			ide->rom[i * 2 + 1] = 0xff;
-		}
-		zfile_fclose(z);
 	}
 	return ide->bank;
 }
 
 void adide_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	add_ide_standard_unit(ch, ci, rc, adide_board, ADIDE_IDE, true, true);
+	add_ide_standard_unit(ch, ci, rc, adide_board, ADIDE_IDE, false, true);
 }
 
 addrbank *mtec_init(struct romconfig *rc)

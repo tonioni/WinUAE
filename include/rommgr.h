@@ -64,6 +64,9 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_ADIDE		0x00100014
 #define ROMTYPE_MTEC		0x00100015
 #define ROMTYPE_PROTAR		0x00100016
+#define ROMTYPE_ADD500		0x00100017
+#define ROMTYPE_KRONOS		0x00100018
+#define ROMTYPE_ADSCSI		0x00100019
 
 #define ROMTYPE_QUAD		0x01000000
 #define ROMTYPE_EVEN		0x02000000

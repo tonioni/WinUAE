@@ -156,7 +156,9 @@ struct uaedev_config_info {
 	int controller_type;
 	int controller_type_unit;
 	int controller_unit;
-	// zero if default
+	int controller_media_type; // 1 = CF IDE, 0 = normal
+	int unit_feature_level;
+	bool physical_geometry; // if false: use defaults
 	int pcyls, pheads, psecs;
 	int flags;
 	int buffers;

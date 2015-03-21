@@ -3520,7 +3520,7 @@ static int do_specialties (int cycles)
 
 		if (action_replay_flag == ACTION_REPLAY_ACTIVATE || action_replay_flag == ACTION_REPLAY_DORESET)
 			action_replay_enter ();
-		if (action_replay_flag == ACTION_REPLAY_HIDE && !is_ar_pc_in_rom ()) {
+		if ((action_replay_flag == ACTION_REPLAY_HIDE || action_replay_flag == ACTION_REPLAY_ACTIVE) && !is_ar_pc_in_rom ()) {
 			action_replay_hide ();
 			unset_special (SPCFLAG_ACTION_REPLAY);
 		}

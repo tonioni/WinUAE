@@ -72,7 +72,9 @@ struct ide_hdf
 	int num;
 	int blocksize;
 	int maxtransferstate;
+	int ata_level;
 	int ide_drv;
+	int media_type;
 
 	bool atapi;
 	bool atapi_drdy;

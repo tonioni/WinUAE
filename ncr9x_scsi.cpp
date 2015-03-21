@@ -204,10 +204,10 @@ static struct ncr9x_state *allocscsi(struct ncr9x_state **ncr, struct romconfig 
 		for (int i = 0; i < MAX_NCR9X_UNITS; i++) {
 			if (ncr_units[i] == NULL) {
 				ncr_units[i] = scsi;
-				rc->unitdata = scsi;
+				if (rc)
+					rc->unitdata = scsi;
 				scsi->rc = rc;
-				if (ncr)
-					*ncr = scsi;
+				*ncr = scsi;
 				return scsi;
 			}
 		}
@@ -1495,13 +1495,13 @@ void ncr9x_init(void)
 {
 }
 
-static void add_ncr_scsi_hd(struct ncr9x_state *ncr, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level)
+static void add_ncr_scsi_hd(struct ncr9x_state *ncr, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci)
 {
 	struct scsi_data *handle = NULL;
 
 	freescsi(ncr->scsid[ch]);
 	ncr->scsid[ch] = NULL;
-	if (!add_scsi_hd(&handle, ch, hfd, ci, scsi_level))
+	if (!add_scsi_hd(&handle, ch, hfd, ci))
 		return;
 	handle->privdata = ncr;
 	ncr->scsid[ch] = xcalloc(SCSIDevice, 1);
@@ -1546,7 +1546,7 @@ static void ncr9x_add_scsi_unit(struct ncr9x_state **ncrp, int ch, struct uaedev
 		else if (ci->type == UAEDEV_TAPE)
 			add_ncr_scsi_tape (ncr, ch, ci->rootdir, ci->readonly);
 		else if (ci->type == UAEDEV_HDF)
-			add_ncr_scsi_hd (ncr, ch, NULL, ci, 2);
+			add_ncr_scsi_hd (ncr, ch, NULL, ci);
 	}
 }
 

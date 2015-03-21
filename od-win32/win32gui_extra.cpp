@@ -210,7 +210,7 @@ static INT_PTR CALLBACK DummyProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 
 extern int full_property_sheet;
 
-struct newresource *scaleresource (struct newresource *res, HWND parent, int resize, DWORD exstyle)
+static struct newresource *scaleresource2 (struct newresource *res, HWND parent, int resize, DWORD exstyle, bool test)
 {
 	DLGTEMPLATEEX *d, *s;
 	DLGTEMPLATEEX_END *d2, *s2;
@@ -238,6 +238,12 @@ struct newresource *scaleresource (struct newresource *res, HWND parent, int res
 
 	d = (DLGTEMPLATEEX*)ns->resource;
 	s = (DLGTEMPLATEEX*)res->resource;
+
+	if (test) {
+		// HACK! far enough to be invisible..
+		d->x = 20000;
+		d->y = 20000;
+	}
 
 	if (resize > 0) {
 		d->style &= ~DS_MODALFRAME;
@@ -298,6 +304,11 @@ struct newresource *scaleresource (struct newresource *res, HWND parent, int res
 	ns->width = d->cx;
 	ns->height = d->cy;
 	return ns;
+}
+
+struct newresource *scaleresource (struct newresource *res, HWND parent, int resize, DWORD exstyle)
+{
+	return scaleresource2(res, parent, resize, exstyle, false);
 }
 
 void freescaleresource (struct newresource *ns)
@@ -451,7 +462,12 @@ static void getbaseunits (void)
 		abort();
 	}
 	multx = multy = 100;
-	nr2 = scaleresource (nr, NULL, -1, 0);
+	// dialog is visible before WM_INITDIALOG in Windows 10!
+	// even when dialog does not have visible flag!
+	// last confirmed on build 10041
+	// hopefully this gets fixed before RTM..
+	bool win10bughack = osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion == 3;
+	nr2 = scaleresource2(nr, NULL, -1, 0, win10bughack);
 	hwnd = CreateDialogIndirect (nr2->inst, nr2->resource, NULL, TestProc);
 	if (hwnd) {
 		DestroyWindow (hwnd);

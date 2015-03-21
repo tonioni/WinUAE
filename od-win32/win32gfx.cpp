@@ -1799,7 +1799,7 @@ void graphics_reset(bool forced)
 	} else {
 		// full reset if display size can't changed.
 		if (currprefs.gfx_api) {
-			display_change_requested = 1;
+			display_change_requested = 3;
 		} else {
 			display_change_requested = 2;
 		}
@@ -1934,7 +1934,9 @@ int check_prefs_changed_gfx (void)
 		}
 
 		if (display_change_requested) {
-			if (display_change_requested == 2) {
+			if (display_change_requested == 3) {
+				c = 1024;
+			} else if (display_change_requested == 2) {
 				c = 512;
 			} else {
 				c = 2;
@@ -2013,6 +2015,9 @@ int check_prefs_changed_gfx (void)
 				reset_drawing ();
 				S2X_reset ();
 			}
+		}
+		if (c & 1024) {
+			target_graphics_buffer_update();
 		}
 		if (c & 512) {
 			reopen_gfx ();

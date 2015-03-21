@@ -867,15 +867,37 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 				ci->devname ? ci->devname : _T(""), str1b, str2b[0] ? _T(":") : _T(""), str2b,
 				ci->sectors, ci->surfaces, ci->reserved, ci->blocksize,
 				bp, ci->filesys ? ci->filesys : _T(""), hdcs);
-			if (ci->highcyl) {
+			if (ci->highcyl || ci->physical_geometry) {
 				TCHAR *s = tmp + _tcslen (tmp);
 				TCHAR *s2 = s;
 				_stprintf (s2, _T(",%d"), ci->highcyl);
-				if (ci->pcyls && ci->pheads && ci->psecs) {
+				if (ci->physical_geometry && ci->pheads && ci->psecs) {
 					TCHAR *s = tmp + _tcslen (tmp);
 					_stprintf (s, _T(",%d/%d/%d"), ci->pcyls, ci->pheads, ci->psecs);
 				}
 				_tcscat (tmp3, s2);
+			}
+			if (ci->controller_media_type) {
+				_tcscat(tmp, _T(",CF"));
+				_tcscat(tmp3, _T(",CF"));
+			}
+			TCHAR *extras = NULL;
+			if (ct >= HD_CONTROLLER_TYPE_SCSI_FIRST && ct <= HD_CONTROLLER_TYPE_SCSI_LAST) {
+				if (ci->unit_feature_level == 0) {
+					extras = _T("SCSI1");
+				}
+			} else if (ct >= HD_CONTROLLER_TYPE_IDE_FIRST && ct <= HD_CONTROLLER_TYPE_IDE_LAST) {
+				if (ci->unit_feature_level == 0) {
+					extras = _T("ATA1");
+				} else if (ci->unit_feature_level == 2) {
+					extras = _T("ATA2+S");
+				}
+			}
+			if (extras) {
+				_tcscat(tmp, _T(","));
+				_tcscat(tmp3, _T(","));
+				_tcscat(tmp, extras);
+				_tcscat(tmp3, extras);
 			}
 			if (ci->type == UAEDEV_HDF)
 				cfgfile_write_str (f, _T("hardfile2"), tmp);
@@ -2006,20 +2028,32 @@ static int getintval (TCHAR **p, int *result, int delim)
 	return 1;
 }
 
-static int getintval2 (TCHAR **p, int *result, int delim)
+static int getintval2 (TCHAR **p, int *result, int delim, bool last)
 {
 	TCHAR *value = *p;
 	int base = 10;
 	TCHAR *endptr;
-	TCHAR *p2 = _tcschr (*p, delim);
-
+	TCHAR *p2;
+	
+	p2 = _tcschr (*p, delim);
 	if (p2 == 0) {
-		p2 = _tcschr (*p, 0);
-		if (p2 == 0) {
-			*p = 0;
+		if (last) {
+			if (delim != '.')
+				p2 = _tcschr (*p, ',');
+			if (p2 == 0) {
+				p2 = *p;
+				while(*p2)
+					p2++;
+				if (p2 == *p)
+					return 0;
+			}
+		} else {
 			return 0;
 		}
 	}
+	if (!_istdigit(**p))
+		return 0;
+
 	if (*p2 != 0)
 		*p2++ = '\0';
 
@@ -2036,6 +2070,85 @@ static int getintval2 (TCHAR **p, int *result, int delim)
 	return 1;
 }
 
+static bool cfgfile_option_find(TCHAR *s, const TCHAR *option)
+{
+	TCHAR buf[MAX_DPATH];
+	if (!s)
+		return false;
+	_tcscpy(buf, s);
+	_tcscat(buf, _T(","));
+	TCHAR *p = buf;
+	for (;;) {
+		TCHAR *tmpp = _tcschr (p, ',');
+		if (tmpp == NULL)
+			return false;
+		*tmpp++ = 0;
+		if (!strcasecmp(p, option)) {
+			return true;
+		}
+		p = tmpp;
+	}
+}
+
+static int cfgfile_option_select(TCHAR *s, const TCHAR *option, const TCHAR *select)
+{
+	TCHAR buf[MAX_DPATH];
+	if (!s)
+		return -1;
+	_tcscpy(buf, s);
+	_tcscat(buf, _T(","));
+	TCHAR *p = buf;
+	for (;;) {
+		TCHAR *tmpp = _tcschr (p, ',');
+		if (tmpp == NULL)
+			return -1;
+		*tmpp++ = 0;
+		TCHAR *tmpp2 = _tcschr(p, '=');
+		if (!tmpp2)
+			return -1;
+		*tmpp2++ = 0;
+		if (!strcasecmp(p, option)) {
+			int idx = 0;
+			while (select[0]) {
+				if (!strcasecmp(select, tmpp2))
+					return idx;
+				idx++;
+				select += _tcslen(select) + 1;
+			}
+		}
+		p = tmpp;
+	}
+}
+
+static int cfgfile_option_bool(TCHAR *s, const TCHAR *option)
+{
+	TCHAR buf[MAX_DPATH];
+	if (!s)
+		return -1;
+	_tcscpy(buf, s);
+	_tcscat(buf, _T(","));
+	TCHAR *p = buf;
+	for (;;) {
+		TCHAR *tmpp = _tcschr (p, ',');
+		if (tmpp == NULL)
+			return -1;
+		*tmpp++ = 0;
+		TCHAR *tmpp2 = _tcschr(p, '=');
+		if (tmpp2)
+			*tmpp2++ = 0;
+		if (!strcasecmp(p, option)) {
+			TCHAR *tmpp3 = _tcschr (tmpp2, ',');
+			if (tmpp3)
+				*tmpp3 = 0;
+			if (tmpp2 && !strcasecmp(tmpp2, _T("true")))
+				return 1;
+			if (tmpp2 && !strcasecmp(tmpp2, _T("false")))
+				return 0;
+			return 1;
+		}
+		p = tmpp;
+	}
+}
 static void set_chipset_mask (struct uae_prefs *p, int val)
 {
 	p->chipset_mask = (val == 0 ? 0
@@ -3192,9 +3305,9 @@ static void parse_addmem (struct uae_prefs *p, TCHAR *buf, int num)
 {
 	int size = 0, addr = 0;
 
-	if (!getintval2 (&buf, &addr, ','))
+	if (!getintval2 (&buf, &addr, ',', false))
 		return;
-	if (!getintval2 (&buf, &size, 0))
+	if (!getintval2 (&buf, &size, 0, true))
 		return;
 	if (addr & 0xffff)
 		return;
@@ -3513,7 +3626,7 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 			|| ! getintval (&tmpp, &uci.reserved, ',')
 			|| ! getintval (&tmpp, &uci.blocksize, ','))
 			goto invalid_fs;
-		if (getintval2 (&tmpp, &uci.bootpri, ',')) {
+		if (getintval2 (&tmpp, &uci.bootpri, ',', false)) {
 			tmpp2 = tmpp;
 			tmpp = _tcschr (tmpp, ',');
 			if (tmpp != 0) {
@@ -3524,12 +3637,36 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 					*tmpp2++ = 0;
 				get_filesys_controller (tmpp, &uci.controller_type, &uci.controller_type_unit, &uci.controller_unit);
 				if (tmpp2) {
-					if (getintval2 (&tmpp2, &uci.highcyl, ',')) {
+					if (getintval2 (&tmpp2, &uci.highcyl, ',', false)) {
 						getintval (&tmpp2, &uci.pcyls, '/');
 						getintval (&tmpp2, &uci.pheads, '/');
-						getintval2 (&tmpp2, &uci.psecs, '/');
+						getintval2 (&tmpp2, &uci.psecs, '/', true);
+						if (uci.pheads && uci.psecs) {
+							uci.physical_geometry = true;
+						} else {
+							uci.pheads = uci.psecs = uci.pcyls = 0;
+							uci.physical_geometry = false;
+						}
 					}
 				}
+				uci.controller_media_type = 0;
+				uci.unit_feature_level = 1;
+
+				if (cfgfile_option_find(tmpp2, _T("CF")))
+					uci.controller_media_type = 1;
+				else if (cfgfile_option_find(tmpp2, _T("HD")))
+					uci.controller_media_type = 0;
+
+				if (cfgfile_option_find(tmpp2, _T("SCSI2")))
+					uci.unit_feature_level = 1;
+				else if (cfgfile_option_find(tmpp2, _T("SCSI1")))
+					uci.unit_feature_level = 0;
+				else if (cfgfile_option_find(tmpp2, _T("ATA2+S")))
+					uci.unit_feature_level = 2;
+				else if (cfgfile_option_find(tmpp2, _T("ATA2+")))
+					uci.unit_feature_level = 1;
+				else if (cfgfile_option_find(tmpp2, _T("ATA1")))
+					uci.unit_feature_level = 0;
 			}
 		}
 		if (type == 2) {
@@ -3741,80 +3878,6 @@ bool cfgfile_board_enabled(struct uae_prefs *p, int romtype, int devnum)
 	if (!brc)
 		return false;
 	return brc->roms[idx].romfile[0] != 0;
-}
-
-static bool cfgfile_option_find(TCHAR *s, const TCHAR *option)
-{
-	TCHAR buf[MAX_DPATH];
-	_tcscpy(buf, s);
-	_tcscat(buf, _T(","));
-	TCHAR *p = buf;
-	for (;;) {
-		TCHAR *tmpp = _tcschr (p, ',');
-		if (tmpp == NULL)
-			return false;
-		*tmpp++ = 0;
-		if (!strcasecmp(p, option)) {
-			return true;
-		}
-		p = tmpp;
-	}
-}
-
-static int cfgfile_option_select(TCHAR *s, const TCHAR *option, const TCHAR *select)
-{
-	TCHAR buf[MAX_DPATH];
-	_tcscpy(buf, s);
-	_tcscat(buf, _T(","));
-	TCHAR *p = buf;
-	for (;;) {
-		TCHAR *tmpp = _tcschr (p, ',');
-		if (tmpp == NULL)
-			return -1;
-		*tmpp++ = 0;
-		TCHAR *tmpp2 = _tcschr(p, '=');
-		if (!tmpp2)
-			return -1;
-		*tmpp2++ = 0;
-		if (!strcasecmp(p, option)) {
-			int idx = 0;
-			while (select[0]) {
-				if (!strcasecmp(select, tmpp2))
-					return idx;
-				idx++;
-				select += _tcslen(select) + 1;
-			}
-		}
-		p = tmpp;
-	}
-}
-
-static int cfgfile_option_bool(TCHAR *s, const TCHAR *option)
-{
-	TCHAR buf[MAX_DPATH];
-	_tcscpy(buf, s);
-	_tcscat(buf, _T(","));
-	TCHAR *p = buf;
-	for (;;) {
-		TCHAR *tmpp = _tcschr (p, ',');
-		if (tmpp == NULL)
-			return -1;
-		*tmpp++ = 0;
-		TCHAR *tmpp2 = _tcschr(p, '=');
-		if (tmpp2)
-			*tmpp2++ = 0;
-		if (!strcasecmp(p, option)) {
-			TCHAR *tmpp3 = _tcschr (tmpp2, ',');
-			if (tmpp3)
-				*tmpp3 = 0;
-			if (tmpp2 && !strcasecmp(tmpp2, _T("true")))
-				return 1;
-			if (tmpp2 && !strcasecmp(tmpp2, _T("false")))
-				return 0;
-			return 1;
-		}
-		p = tmpp;
-	}
 }
 
 static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, const TCHAR *value, struct multipath *mp)

@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 132
+#define NEXT_ROM_ID 134
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -363,6 +363,10 @@ static struct romdata roms[] = {
 	{ _T("Kupke Golem 030"), 0, 0, 0, 0, _T("GOLEM030\0"), 8192, 126, 0, 0, ROMTYPE_CB_GOLEM030, 0, 0, NULL,
 	0x05d473f4, 0x574ec567,0xcc67e06f,0x91dcecb9,0x8c204399,0x5fe2a09f, NULL, NULL },
 
+	{ _T("ICD AdSCSI 2000"), 1, 6, 1, 6, _T("ADSCSI\0"), 32768, 133, 0, 0, ROMTYPE_ADSCSI, 0, 0, NULL,
+	0x7dba3e1f, 0x1e05f284,0xd59a1e5d,0x4e4de44e,0x6f075175,0x625cd6c0, NULL, NULL },
+	{ _T("Archos ADD-500"), 1, 21, 1, 21, _T("ADD\0"), 16384, 132, 0, 0, ROMTYPE_ADD500, 0, 0, NULL,
+	0x3f4e4a74, 0x9ed96fc0,0xd6381dc3,0x3192b0af,0xdfae4b74,0x576c3a69, NULL, NULL },
 	{ _T("Protar A500HD"), 1, 193, 1, 193, _T("PROTAR\0"), 32768, 131, 0, 0, ROMTYPE_PROTAR, 0, 0, NULL,
 	0x10c1b22c, 0x2b800cde,0x79fd559e,0xebd5e432,0xd711af3d,0x0b8ea7e9, NULL, NULL },
 	{ _T("M-Tec AT500"), 1, 33, 1, 33, _T("MTECAT\0"), 32768, 130, 0, 0, ROMTYPE_MTEC, 0, 0, NULL,

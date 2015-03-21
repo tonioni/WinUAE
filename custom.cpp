@@ -264,6 +264,7 @@ static int diwhigh_written;
 static unsigned int ddfstrt, ddfstop;
 static int line_cyclebased, badmode, diw_change;
 static int bplcon1_fetch;
+static int hpos_is_zero_bplcon1_hack = -1;
 
 #define SET_LINE_CYCLEBASED line_cyclebased = 2;
 
@@ -1584,6 +1585,10 @@ static void toscr_right_edge (int nbits, int fm)
 		do_delays (diff, fm);
 		nbits2 -= diff;
 		delay_cycles = 0;
+		if (hpos_is_zero_bplcon1_hack >= 0) {
+			compute_toscr_delay(hpos_is_zero_bplcon1_hack);
+			hpos_is_zero_bplcon1_hack = -1;
+		}
 		toscr_delay[0] -= 2;
 		toscr_delay[0] &= fetchmode_mask;
 		toscr_delay[1] -= 2;
@@ -4671,6 +4676,31 @@ STATIC_INLINE void COPCON (uae_u16 a)
 	copcon = a;
 }
 
+static void check_copper_stop(void)
+{
+	if (copper_enabled_thisline < 0 && !((dmacon & DMA_COPPER) && (dmacon & DMA_MASTER))) {
+		copper_enabled_thisline = 0;
+		unset_special (SPCFLAG_COPPER);
+	}
+}
+
+static void copper_stop(void)
+{
+	if (copper_enabled_thisline) {
+		// let MOVE to finish
+		switch (cop_state.state)
+		{
+			case COP_read2:
+			copper_enabled_thisline = -1;
+			break;
+		}
+	}
+	if (copper_enabled_thisline >= 0) {
+		copper_enabled_thisline = 0;
+		unset_special (SPCFLAG_COPPER);
+	}
+}
+
 static void DMACON (int hpos, uae_u16 v)
 {
 	int oldcop, newcop;
@@ -4696,8 +4726,7 @@ static void DMACON (int hpos, uae_u16 v)
 		if (newcop && !oldcop) {
 			compute_spcflag_copper (hpos);
 		} else if (!newcop) {
-			copper_enabled_thisline = 0;
-			unset_special (SPCFLAG_COPPER);
+			copper_stop();
 		}
 	}
 
@@ -6223,6 +6252,7 @@ static void update_copper (int until_hpos)
 #endif
 				cop_state.ignore_next = 0;
 			}
+			check_copper_stop();
 			break;
 
 		case COP_wait1:
@@ -7623,6 +7653,16 @@ static void hsync_handler_pre (bool onvsync)
 
 	if (!nocustom ()) {
 		sync_copper_with_cpu (maxhpos, 0);
+
+		// Seven Seas scrolling quick fix hack
+		// checks if copper is going to modify BPLCON1 in next cycle.
+		if (copper_enabled_thisline && cop_state.state == COP_read2 && (cop_state.i1 & 0x1fe) == 0x102) {
+			// it did, pre-load value for Denise shifter emulation
+			hpos_is_zero_bplcon1_hack = chipmem_wget_indirect(cop_state.ip);
+			// following finish_decision() is going to finish this line
+			// it is too late when copper actually does the move
+		}
+
 		finish_decisions ();
 		if (thisline_decision.plfleft >= 0) {
 			if (currprefs.collision_level > 1)

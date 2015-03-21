@@ -399,7 +399,7 @@ int hdf_hd_open (struct hd_hardfiledata *hfd)
 	struct uaedev_config_info *ci = &hfd->hfd.ci;
 	if (hdf_open (&hfd->hfd) <= 0)
 		return 0;
-	if (ci->pcyls && ci->pheads && ci->psecs) {
+	if (ci->physical_geometry) {
 		hfd->cyls = ci->pcyls;
 		hfd->heads = ci->pheads;
 		hfd->secspertrack = ci->psecs;
@@ -1458,11 +1458,18 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	case 0x37: /* READ DEFECT DATA */
 		if (nodisk (hfd))
 			goto nodisk;
+		scsi_len = lr = 4;
+		r[0] = 0;
+		r[1] = cmdbuf[1] & 0x1f;
+		r[2] = 0;
+		r[3] = 0;
+#if 0
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
 		s[2] = 0; /* NO SENSE */
 		s[12] = 0x1c; /* DEFECT LIST NOT FOUND */
 		ls = 0x12;
+#endif
 		break;
 readprot:
 		status = 2; /* CHECK CONDITION */

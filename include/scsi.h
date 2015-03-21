@@ -72,8 +72,8 @@ extern struct scsi_data_tape *tape_alloc (int unitnum, const TCHAR *tape_directo
 extern void tape_free (struct scsi_data_tape*);
 extern void tape_media_change (int unitnum, struct uaedev_config_info*);
 
-int add_scsi_device(struct scsi_data **sd, int ch, struct uaedev_config_info *ci, struct romconfig *rc, int scsi_level);
-int add_scsi_hd (struct scsi_data **sd, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level);
+int add_scsi_device(struct scsi_data **sd, int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+int add_scsi_hd (struct scsi_data **sd, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci);
 int add_scsi_cd (struct scsi_data **sd, int ch, int unitnum);
 int add_scsi_tape (struct scsi_data **sd, int ch, const TCHAR *tape_directory, bool readonly);
 void free_scsi (struct scsi_data *sd);
@@ -174,3 +174,12 @@ void vector_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 
 addrbank *protar_init(struct romconfig *rc);
 void protar_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+addrbank *add500_init(struct romconfig *rc);
+void add500_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+addrbank *kronos_init(struct romconfig *rc);
+void kronos_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+addrbank *adscsi_init(struct romconfig *rc);
+void adscsi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);

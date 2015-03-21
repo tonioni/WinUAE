@@ -2326,7 +2326,7 @@ const struct expansionromtype expansionroms[] = {
 	},
 	{
 		_T("adide"), _T("AdIDE"), _T("ICD"),
-		adide_init, adide_add_ide_unit, ROMTYPE_ADIDE, 0, 0, 2, false,
+		adide_init, adide_add_ide_unit, ROMTYPE_ADIDE | ROMTYPE_NONE, 0, 0, 2, false,
 		NULL, 0,
 		true, EXPANSIONTYPE_IDE
 	},
@@ -2356,14 +2356,37 @@ const struct expansionromtype expansionroms[] = {
 		_T("kommos"), _T("A500/A2000 SCSI"), _T("Jürgen Kommos"),
 		kommos_init, kommos_add_scsi_unit, ROMTYPE_KOMMOS, 0, 0, 1, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_SCSI,
+		false, EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("vector"), _T("Vector Falcon 8000"), _T("HK-Computer"),
 		vector_init, vector_add_scsi_unit, ROMTYPE_VECTOR, 0, 0, 2, false,
 		NULL, 0,
-		false, EXPANSIONTYPE_SCSI,
+		false, EXPANSIONTYPE_SCSI
 	},
+	{
+		_T("add500"), _T("ADD-500"), _T("Archos"),
+		add500_init, add500_add_scsi_unit, ROMTYPE_ADD500, 0, 0, 2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI,
+		8498, 27, 0,
+	},
+	{
+		_T("adscsi2000"), _T("AdSCSI Advantage 2000"), _T("ICD"),
+		adscsi_init, adscsi_add_scsi_unit, ROMTYPE_ADSCSI, 0, 0, 2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI
+	},
+#if 0
+	{
+		_T("kronos"), _T("Kronos"), _T("C-Ltd"),
+		kronos_init, kronos_add_scsi_unit, ROMTYPE_KRONOS, 0, 0, 2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI,
+		0, 0, 0,
+		{ 0xd1, 4, 0x00, 0x00, 0x03, 0xec, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
+	},
+#endif
 	{
 		_T("amax"), _T("AMAX ROM dongle"), _T("ReadySoft"),
 		NULL, 0, NULL, NULL, ROMTYPE_AMAX | ROMTYPE_NONE, 0, 0, 0, false

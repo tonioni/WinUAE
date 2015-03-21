@@ -143,8 +143,6 @@ uae_u16 adide_encode_word(uae_u16 w)
 	return o;
 }
 
-
-
 static void ide_grow_buffer(struct ide_hdf *ide, int newsize)
 {
 	if (ide->secbuf_size >= newsize)
@@ -161,10 +159,10 @@ static void ide_grow_buffer(struct ide_hdf *ide, int newsize)
 
 static void pw (struct ide_hdf *ide, int offset, uae_u16 w)
 {
-	if (ide->adide)
-		w = adide_decode_word(w);
 	if (ide->byteswap)
 		w = (w >> 8) | (w << 8);
+	if (ide->adide)
+		w = adide_decode_word(w);
 	ide->secbuf[offset * 2 + 0] = (uae_u8)w;
 	ide->secbuf[offset * 2 + 1] = w >> 8;
 }
@@ -183,7 +181,14 @@ static void ps (struct ide_hdf *ide, int offset, const TCHAR *src, int max)
 		char c2 = ' ';
 		if (i + 1 < len)
 			c2 = s[i + 1];
-		pw(ide, offset + i / 2, (c2 << 8) | c1);
+		uae_u16 w = (c1 << 0) | (c2 << 8);
+		if (ide->byteswap)
+			w = (w >> 8) | (w << 8);
+		if (ide->adide)
+			w = adide_decode_word(w);
+		ide->secbuf[offset * 2 + 0] = w >> 8;
+		ide->secbuf[offset * 2 + 1] = w >> 0;
+		offset++;
 	}
 	xfree (s);
 }
@@ -305,6 +310,7 @@ static void ide_identify_drive (struct ide_hdf *ide)
 	uae_u8 *buf = ide->secbuf;
 	TCHAR tmp[100];
 	bool atapi = ide->atapi;
+	bool cf = ide->media_type > 0;
 
 	if (!ide_isdrive (ide)) {
 		ide_fail (ide);
@@ -315,7 +321,7 @@ static void ide_identify_drive (struct ide_hdf *ide)
 		write_log (_T("IDE%d identify drive\n"), ide->num);
 	ide_data_ready (ide);
 	ide->direction = 0;
-	pw (ide, 0, atapi ? 0x85c0 : 1 << 6);
+	pw (ide, 0, atapi ? 0x85c0 : (cf ? 0x848a : (1 << 6)));
 	pw (ide, 1, ide->hdhfd.cyls_def);
 	pw (ide, 2, 0xc837);
 	pw (ide, 3, ide->hdhfd.heads_def);
@@ -326,7 +332,7 @@ static void ide_identify_drive (struct ide_hdf *ide)
 	pw (ide, 20, 3);
 	pw (ide, 21, ide->blocksize);
 	pw (ide, 22, 4);
-	ps (ide, 23, _T("0.6"), 8); /* firmware revision */
+	ps (ide, 23, _T("0.7"), 8); /* firmware revision */
 	if (ide->atapi)
 		_tcscpy (tmp, _T("UAE-ATAPI"));
 	else
@@ -353,27 +359,29 @@ static void ide_identify_drive (struct ide_hdf *ide)
 	pw (ide, 61, (uae_u16)(totalsecs >> 16));
 	pw (ide, 62, 0x0f);
 	pw (ide, 63, 0x0f);
-	pw (ide, 64, 0x03); /* PIO3 and PIO4 */
-	pw (ide, 65, 120); /* MDMA2 supported */
-	pw (ide, 66, 120);
-	pw (ide, 67, 120);
-	pw (ide, 68, 120);
-	pw (ide, 80, (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6)); /* ATA-1 to ATA-6 */
-	pw (ide, 81, 0x1c); /* ATA revision */
-	pw (ide, 82, (1 << 14) | (atapi ? 0x10 | 4 : 0)); /* NOP, ATAPI: PACKET and Removable media features supported */
-	pw (ide, 83, (1 << 14) | (1 << 13) | (1 << 12) | (ide->lba48 ? (1 << 10) : 0)); /* cache flushes, LBA 48 supported */
-	pw (ide, 84, 1 << 14);
-	pw (ide, 85, 1 << 14);
-	pw (ide, 86, (1 << 14) | (1 << 13) | (1 << 12) | (ide->lba48 ? (1 << 10) : 0)); /* cache flushes, LBA 48 enabled */
-	pw (ide, 87, 1 << 14);
-	pw (ide, 88, (1 << 5) | (1 << 4) | (1 << 3) | (1 << 2) | (1 << 1) | (1 << 0)); /* UDMA modes */
-	pw (ide, 93, (1 << 14) | (1 << 13) | (1 << 0));
-	if (ide->lba48) {
-		totalsecs = ide->hdhfd.size / ide->blocksize;
-		pw (ide, 100, (uae_u16)(totalsecs >> 0));
-		pw (ide, 101, (uae_u16)(totalsecs >> 16));
-		pw (ide, 102, (uae_u16)(totalsecs >> 32));
-		pw (ide, 103, (uae_u16)(totalsecs >> 48));
+	if (ide->ata_level) {
+		pw (ide, 64, ide->ata_level ? 0x03 : 0x00); /* PIO3 and PIO4 */
+		pw (ide, 65, 120); /* MDMA2 supported */
+		pw (ide, 66, 120);
+		pw (ide, 67, 120);
+		pw (ide, 68, 120);
+		pw (ide, 80, (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6)); /* ATA-1 to ATA-6 */
+		pw (ide, 81, 0x1c); /* ATA revision */
+		pw (ide, 82, (1 << 14) | (atapi ? 0x10 | 4 : 0)); /* NOP, ATAPI: PACKET and Removable media features supported */
+		pw (ide, 83, (1 << 14) | (1 << 13) | (1 << 12) | (ide->lba48 ? (1 << 10) : 0)); /* cache flushes, LBA 48 supported */
+		pw (ide, 84, 1 << 14);
+		pw (ide, 85, 1 << 14);
+		pw (ide, 86, (1 << 14) | (1 << 13) | (1 << 12) | (ide->lba48 ? (1 << 10) : 0)); /* cache flushes, LBA 48 enabled */
+		pw (ide, 87, 1 << 14);
+		pw (ide, 88, (1 << 5) | (1 << 4) | (1 << 3) | (1 << 2) | (1 << 1) | (1 << 0)); /* UDMA modes */
+		pw (ide, 93, (1 << 14) | (1 << 13) | (1 << 0));
+		if (ide->lba48) {
+			totalsecs = ide->hdhfd.size / ide->blocksize;
+			pw (ide, 100, (uae_u16)(totalsecs >> 0));
+			pw (ide, 101, (uae_u16)(totalsecs >> 16));
+			pw (ide, 102, (uae_u16)(totalsecs >> 32));
+			pw (ide, 103, (uae_u16)(totalsecs >> 48));
+		}
 	}
 }
 
@@ -735,7 +743,10 @@ static void do_process_rw_command (struct ide_hdf *ide)
 	}
 	ide->intdrq = true;
 	last = dec_nsec (ide, nsec) == 0;
-	put_lbachs (ide, lba, cyl, head, sec, last ? nsec - 1 : nsec);
+	// ATA-2 spec says CHS/LBA does only need to be updated if error condition
+	if (ide->ata_level != 2 || !last) {
+		put_lbachs (ide, lba, cyl, head, sec, last ? nsec - 1 : nsec);
+	}
 	if (last && ide->direction) {
 		ide->intdrq = false;
 		if (IDE_LOG > 1)
@@ -1273,6 +1284,10 @@ struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct
 		ide->lba48 = ide->hdhfd.size >= 128 * (uae_u64)0x40000000 ? 1 : 0;
 		gui_flicker_led (LED_HD, ch, -1);
 		ide->cd_unit_num = -1;
+		ide->media_type = ci->controller_media_type;
+		ide->ata_level = ci->unit_feature_level;
+		if (!ide->ata_level && (ide->hdhfd.size >= 4 * (uae_u64)0x40000000 || ide->media_type))
+			ide->ata_level = 1;
 
 		write_log (_T("IDE%d HD '%s', LCHS=%d/%d/%d. PCHS=%d/%d/%d %uM. LBA48=%d\n"),
 			ch, ide->hdhfd.hfd.ci.rootdir,

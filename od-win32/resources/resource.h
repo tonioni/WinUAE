@@ -617,7 +617,6 @@
 #define IDC_NEW_HD                      1341
 #define IDC_PORT0                       1342
 #define IDC_NEW_FSARCH                  1342
-#define IDC_NEW_FS2                     1342
 #define IDC_PORT1                       1343
 #define IDC_NEW_CD                      1344
 #define IDC_NEW_CD2                     1345
@@ -635,7 +634,7 @@
 #define IDC_SECTORS_TEXT                1370
 #define IDC_SURFACES_TEXT               1371
 #define IDC_RESERVED_TEXT               1372
-#define IDC_RESERVED_TEXT2              1373
+#define IDC_CYLINDERS_TEXT              1373
 #define IDC_BLOCKSIZE_TEXT              1374
 #define ID_OK                           1375
 #define IDC_HARDFILE_BOOTPRI_TEXT       1375
@@ -651,6 +650,7 @@
 #define IDC_HDF_DONOTMOUNT              1383
 #define IDC_HDF_DONOTMOUNT2             1384
 #define IDC_HDF_ADDFSRES                1384
+#define IDC_HDF_PHYSGEOMETRY            1385
 #define IDC_ROMFILE                     1390
 #define IDC_KEYFILE                     1391
 #define IDC_SCSIROMSELECT               1391
@@ -694,7 +694,9 @@
 #define IDC_RESETAMIGA                  1504
 #define IDC_QUITEMU                     1505
 #define IDC_HDF_CONTROLLER_UNIT         1505
+#define IDC_HDF_CONTROLLER_TYPE         1506
 #define IDC_MAPDRIVES                   1507
+#define IDC_HDF_FEATURE_LEVEL           1507
 #define IDC_CPUTEXT                     1508
 #define IDC_MAPDRIVES_NET               1508
 #define IDC_RESTARTEMU                  1508

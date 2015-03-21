@@ -824,11 +824,45 @@ static void add_cpuboard_unit_init(void)
 	}
 }
 
+
+static bool ismainboardide(void)
+{
+	return currprefs.cs_ide != 0;
+}
+static bool isa3000scsi(void)
+{
+	return currprefs.cs_mbdmac == 1;
+}
+static bool isa4000tscsi(void)
+{
+	return currprefs.cs_mbdmac == 2;
+}
+static bool iscdtvscsi(void)
+{
+	return currprefs.cs_cdtvscsi != 0;
+}
+// this needs better implementation.
+static void add_mainboard_unit_init(void)
+{
+	if (ismainboardide()) {
+		gayle_add_ide_unit(-1, NULL);
+	}
+	if (isa3000scsi()) {
+		a3000_add_scsi_unit(-1, NULL, NULL);
+	}
+	if (isa4000tscsi()) {
+		a4000t_add_scsi_unit(-1, NULL, NULL);
+	}
+	if (iscdtvscsi()) {
+		cdtv_add_scsi_unit(-1, NULL, NULL);
+	}
+}
+
 static bool add_ide_unit(int type, int unit, struct uaedev_config_info *uci)
 {
 	bool added = false;
 	if (type == HD_CONTROLLER_TYPE_IDE_MB) {
-		if (currprefs.cs_ide) {
+		if (ismainboardide()) {
 			gayle_add_ide_unit(unit, uci);
 			added = true;
 		}
@@ -856,21 +890,21 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 	bool added = false;
 	if (type == HD_CONTROLLER_TYPE_SCSI_A3000) {
 #ifdef A2091
-		if (currprefs.cs_mbdmac == 1) {
+		if (isa3000scsi()) {
 			a3000_add_scsi_unit (unit, uci, NULL);
 			added = true;
 		}
 #endif
 	} else if (type == HD_CONTROLLER_TYPE_SCSI_A4000T) {
 #ifdef NCR
-		if (currprefs.cs_mbdmac == 2) {
+		if (isa4000tscsi()) {
 			a4000t_add_scsi_unit (unit, uci, NULL);
 			added = true;
 		}
 #endif
 	} else if (type == HD_CONTROLLER_TYPE_SCSI_CDTV) {
 #ifdef CDTV
-		if (currprefs.cs_cdtvscsi) {
+		if (iscdtvscsi()) {
 			cdtv_add_scsi_unit (unit, uci, NULL);
 			added = true;
 		}
@@ -952,6 +986,7 @@ static void initialize_mountinfo (void)
 	}
 
 	// init all controllers first
+	add_mainboard_unit_init();
 	add_cpuboard_unit_init();
 	for (int i = 0; expansionroms[i].name; i++) {
 		const struct expansionromtype *ert = &expansionroms[i];

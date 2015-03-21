@@ -283,24 +283,27 @@ static void freescsi(struct wd_state **wd)
 	*wd = NULL;
 }
 
-static struct wd_state *allocscsi(struct wd_state **wd, struct romconfig *rc)
+static struct wd_state *allocscsi(struct wd_state **wd, struct romconfig *rc, int ch)
 {
 	struct wd_state *scsi;
 
-	freescsi(wd);
-	scsi = xcalloc(struct wd_state, 1);
-	for (int i = 0; i < MAX_SCSI_UNITS; i++) {
-		if (scsi_units[i] == NULL) {
-			scsi_units[i] = scsi;
-			if (rc)
-				rc->unitdata = scsi;
-			scsi->rc = rc;
-			*wd = scsi;
-			return scsi;
+	if (ch < 0) {
+		freescsi(wd);
+	}
+	if ((*wd) == NULL) {
+		scsi = xcalloc(struct wd_state, 1);
+		for (int i = 0; i < MAX_SCSI_UNITS; i++) {
+			if (scsi_units[i] == NULL) {
+				scsi_units[i] = scsi;
+				if (rc)
+					rc->unitdata = scsi;
+				scsi->rc = rc;
+				*wd = scsi;
+				return scsi;
+			}
 		}
 	}
-	xfree(scsi);
-	return NULL;
+	return *wd;
 }
 
 static struct wd_state *getscsi(struct romconfig *rc)
@@ -1305,10 +1308,12 @@ static void wd_cmd_reset (struct wd_chip_state *wd, bool irq)
 	}
 }
 
-static void wd_master_reset(struct wd_chip_state *wd, bool irq)
+static void wd_master_reset(struct wd_state *wd, bool irq)
 {
-	memset(wd->wdregs, 0, sizeof wd->wdregs);
-	wd_cmd_reset(wd, irq);
+	memset(wd->wc.wdregs, 0, sizeof wd->wc.wdregs);
+	wd_cmd_reset(&wd->wc, false);
+	if (irq)
+		doscsistatus(wd, 0);
 }
 
 static void wd_cmd_abort (struct wd_chip_state *wd)
@@ -1660,6 +1665,7 @@ static void xt_readwrite(struct wd_state *wds, int rw)
 static void xt_command(struct wd_state *wds)
 {
 	wds->wc.scsi = wds->scsis[XT_UNIT];
+	write_log(_T("XT command %02x\n"), wds->cdmac.xt_cmd[0]);
 	switch (wds->cdmac.xt_cmd[0])
 	{
 	case XT_CMD_READ:
@@ -1676,6 +1682,7 @@ static void xt_command(struct wd_state *wds)
 		break;
 	case XT_CMD_FORMATBAD:
 	case XT_CMD_FORMATTRK:
+	case XT_CMD_FORMATDRV:
 		xt_command_done(wds);
 		break;
 	case XT_CMD_TESTREADY:
@@ -2680,7 +2687,7 @@ static void dmac_gvp_write_byte(struct wd_state *wd, uaecptr addr, uae_u32 b)
 			write_log(_T("gvp_s1_bput_s1 %04X=%04X PC=%08X\n"), addr, b & 255, M68K_GETPC);
 #endif
 			if (!(wd->gdmac.cntr & 8) && (b & 8))
-				wd_master_reset(&wd->wc, true);
+				wd_master_reset(wd, true);
 			wd->gdmac.cntr = b;
 			break;
 		
@@ -3295,10 +3302,10 @@ void init_wd_scsi (struct wd_state *wd)
 
 void a3000_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	struct wd_state *wd = allocscsi(&wd_a3000, rc);
+	struct wd_state *wd = allocscsi(&wd_a3000, rc, ch);
 	if (!wd || ch < 0)
 		return;
-	add_scsi_device(&wd->scsis[ch], ch, ci, rc, 2);
+	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
 }
 
 void a3000scsi_reset (void)
@@ -3332,26 +3339,26 @@ void a3000scsi_free (void)
 
 void a2090_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	struct wd_state *wd = allocscsi(&wd_a2090[ci->controller_type_unit], rc);
+	struct wd_state *wd = allocscsi(&wd_a2090[ci->controller_type_unit], rc, ch);
 	if (!wd || ch < 0)
 		return;
-	add_scsi_device(&wd->scsis[ch], ch, ci, rc, 1);
+	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
 }
 
 void a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	struct wd_state *wd = allocscsi(&wd_a2091[ci->controller_type_unit], rc);
+	struct wd_state *wd = allocscsi(&wd_a2091[ci->controller_type_unit], rc, ch);
 	if (!wd || ch < 0)
 		return;
-	add_scsi_device(&wd->scsis[ch], ch, ci, rc, 1);
+	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
 }
 
 void gvp_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	struct wd_state *wd = allocscsi(&wd_gvp[ci->controller_type_unit], rc);
+	struct wd_state *wd = allocscsi(&wd_gvp[ci->controller_type_unit], rc, ch);
 	if (!wd || ch < 0)
 		return;
-	add_scsi_device(&wd->scsis[ch], ch, ci, rc, 2);
+	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
 }
 
 void a2091_free_device (struct wd_state *wd)
@@ -3717,10 +3724,10 @@ addrbank *gvp_init_accelerator(struct romconfig *rc)
 
 void cdtv_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	struct wd_state *wd = allocscsi(&wd_cdtv, rc);
+	struct wd_state *wd = allocscsi(&wd_cdtv, rc, ch);
 	if (!wd || ch < 0)
 		return;
-	add_scsi_device(&wd_cdtv->scsis[ch], ch, ci, rc, 1);
+	add_scsi_device(&wd_cdtv->scsis[ch], ch, ci, rc);
 }
 
 
