@@ -1,4 +1,72 @@
 
+Beta 14:
+
+- Show selected accelerator board and HD controller name(s) in log lines.
+- GVP Series I and II HD controllers can now be active at the same time.
+- Added SCSI controller ID selection (only AdSCSI and A4091 supported so far)
+- Mark HD controllers with * if it is enabled, becomes [x] if more than 1 controller is active.
+- Fixed referencing to already freed SCSI/IDE HD controller context structure after reset/restart (b12)
+- Added SupraDrive AMAB3, AMAB4 and AMAB5 ROMs.
+- NCR539x based SCSI controllers always accessed unit 0.
+- Added emulation of edge case when SPRxPOS or SPRxCTL vertical position is updated at the last available dma slot
+  at the end of scanline. Next line's vertical comparison will match just before this position, in other words, if
+  old value would match in next line and new value does not anymore, comparison match still happens. Fixes
+  Arc Ed / United Forces missing sprite scroller.
+- Added half-integer scaling option. (*0.5, *1.0, *1.5 and so on)
+- New Velvet prototype difference found: both CIAs generate level 2 interrupt. Now Velvet tries to boot from
+  disk, reads and executes boot block code if disk has correct bootblock which is different than release AmigaOS
+  bootblock. MFM level format seems to be identical. Unfortunately, at least so far, no original Velvet floppy
+  disks have been found and for some reason real hardware refuses to read any disks.
+- If -seriallog is enabled, console log window also listens for key codes and sends them to emulated serial
+  port. Very basic console emulator, enables quick use of Velvet ROM built-in serial debugger.
+- Added "Any floppy drive" option to keyboard led configuration.
+- Floppy sound volume control is not global anymore. Empty and disk in drive states also have separate volume
+  settings. (Upper volume slider = drive empty, lower slider = disk in drive)
+- Added fullscreen GUI option to misc panel. Opens GUI in max size, possibly useful with low resolution devices
+  and/or small Windows tablets.
+- Z3 autoconfig in "UAE" mode didn't work correctly with hardware RTG boards (b4)
+
+Beta 13:
+
+- Mainboard SCSI controllers didn't initialize correctly (A3000/A4000T/CDTV) (b12)
+- "Do not force full display reset.." update made it worse, should be better now (b12)
+- I finally bothered to carefully re-examine AR3 freezer behavior, emulation updated, should now match real
+  hardware, previously unsupported features like autofire work.
+- If copper DMA is switched off mid-instruction, allow instruction to finish. Fixes AR2 weird copper
+  list detection code.
+- Added RDB mode HD geometry GUI support. (RDB mode geometry option = what IDE Identify Device and SCSI
+  MODE SENSE Format Parameters/Rigid Disk Geometry returns). Very old controllers may require custom geometry.
+- Added HD/CF IDE harddrive GUI option. Currently only difference is in IDE Identify Device word 0 identifier.
+  (Cause for infamous hdtoolbox "Unit is not a disk (Type 7)" error)
+- Added GUI IDE and SCSI version selection to hardfile panel. IDE has ATA-1, ATA-2+ (old default, returns ATA-6
+  to allow LBA48 support and more) and ATA-2+ Strict which drops ATA-1 feature that become optional in ATA-2,
+  triggering A600/A1200/A4000 IDE driver bug that causes infamous "max transfer bug". (No, it isn't drive bug)
+  SCSI has SCSI-1 and SCSI-2 options. Currently only real difference is INQUIRY version number, some old
+  software (like original A590/A2091 install disk) require SCSI-1 version.
+- Added Archos ADD-500 emulation.
+- Added AdSCSI Advantage 2000 emulation.
+- Internal enforcer emulation hit can break to debugger, enable/disable with 'fen' debugger command.
+- SCSI Read Defect Data command: return empty defect header instead of Defect List Not Found error.
+  (ADD-500 driver gets confused if Read Defect Data command does not return any data)
+- WD33C93 SCSI devices didn't support multiple units (b12)
+- Added hack that fixes max overscan scrolling in demo Seven Seas / Andromeda. (Demo has workaround for chipset
+  bug that causes right edge to have a vertical gap if BPLCON1 is larger than zero. Hack is currently needed
+  because glitch happens when hpos=0 and emulation is not designed to handle bitplane changes that cross virtual
+  scanlines). Glitch was not emulated until few versions ago, demo worked only accidentally previously.
+- Added Windows 10 TP bug workaround, for some reason dialog window is visible before WM_INITDIALOG message
+  (documentation specifically says it won't be visible until after WM_INITDIALOG) and also dialog is set
+  as not visible. Fixes quickly appearing and disappering empty WinUAE GUI panel each time GUI is opened.
+
+AdSCSI Advantage 2000:
+- 5380 based fake DMA.
+- First 5380 based driver that uses chip's arbitrate bit instead of assuming AdSCSI is the only initiator.
+- 1.6 ROM added. (Anyone have later? At least 1.9 exists)
+- RDB parser is not fully compatible, does not load all filesystems (for example PFS3).
+
+Archos ADD-500:
+- Yet another 5380 based fake DMA SCSI controller.
+- v1.21 ROM added.
+
 Beta 12:
 
 - Do not force full display reset when switching to/from programmed mode and autoresolution is active

@@ -202,7 +202,9 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CDTVCR, CP_CD32, CP_A500, CP_A500P, CP_A600, 
 #define AUTOSCALE_CENTER 6
 #define AUTOSCALE_MANUAL 7 // use gfx_xcenter_pos and gfx_ycenter_pos
 #define AUTOSCALE_INTEGER 8
-#define AUTOSCALE_INTEGER_AUTOSCALE 9
+#define AUTOSCALE_HALF_INTEGER 9
+#define AUTOSCALE_INTEGER_AUTOSCALE 10
+#define AUTOSCALE_HALF_INTEGER_AUTOSCALE 11
 
 #define MONITOREMU_NONE 0
 #define MONITOREMU_AUTO 1
@@ -290,6 +292,8 @@ struct romconfig
 	TCHAR romident[256];
 	uae_u32 board_ram_size;
 	bool autoboot_disabled;
+	int device_id;
+	int device_settings;
 	int subtype;
 	void *unitdata;
 };
@@ -584,7 +588,8 @@ struct uae_prefs {
 	struct floppyslot floppyslots[4];
 	bool floppy_read_only;
 	TCHAR dfxlist[MAX_SPARE_DRIVES][MAX_DPATH];
-	int dfxclickvolume;
+	int dfxclickvolume_disk[4];
+	int dfxclickvolume_empty[4];
 	int dfxclickchannelmask;
 
 	TCHAR luafiles[MAX_LUA_STATES][MAX_DPATH];

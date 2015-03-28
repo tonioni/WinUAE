@@ -396,6 +396,8 @@
 #define IDS_DISPLAY_ATTRIBUTES          403
 #define IDS_NUMSG_NO_PPC                404
 #define IDS_NUMSG_UAEBOOTROM_PCC        405
+#define IDS_AUTOSCALE_HALF_INTEGER      406
+#define IDS_AUTOSCALE_HALF_INTEGER_AUTOSCALE 407
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -673,6 +675,7 @@
 #define IDC_CONFIGLIST                  1404
 #define IDC_SCSIROMSELECTNUM            1404
 #define IDC_EDITNAME                    1405
+#define IDC_SCSIROMID                   1405
 #define IDC_EDITDESCRIPTION             1406
 #define IDC_QUICKSAVE                   1408
 #define IDC_QUICKLOAD                   1409
@@ -763,6 +766,7 @@
 #define IDC_SER_SHARED                  1553
 #define IDC_GUI_RESIZE                  1553
 #define IDC_SER_CTSRTS                  1554
+#define IDC_GUI_FULLSCREEN              1554
 #define IDC_SER_DIRECT                  1555
 #define IDC_PSPRINTER                   1556
 #define IDC_PSPRINTERDETECT             1557
@@ -791,8 +795,10 @@
 #define IDC_CS_CACHE_TEXT               1582
 #define IDC_SOUNDVOLUMEEXT2             1582
 #define IDC_CS_CACHE_TEXT2              1583
+#define IDC_SOUNDDRIVEVOLUMEX           1583
 #define IDC_COLLISIONS                  1584
 #define IDC_JITENABLE                   1584
+#define IDC_SOUNDDRIVEVOLUMEX2          1584
 #define IDC_DISASSEMBLY                 1585
 #define IDC_MMUENABLE                   1585
 #define IDC_COLLISION0                  1589
@@ -1222,7 +1228,9 @@
 #define IDC_FILTER_NATIVERTG            1839
 #define IDC_P96MEM                      1840
 #define IDC_DA_SLIDER                   1841
+#define IDC_EXPANSION_SETTING1          1841
 #define IDC_CPUBOARD_TYPE               1842
+#define IDC_EXPANSION_SETTING2          1842
 #define IDC_CPUBOARDMEM                 1843
 #define IDC_Z3MAPPING                   1844
 #define IDC_CPUBOARD_SUBTYPE            1845
@@ -1277,7 +1285,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        398
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1841
+#define _APS_NEXT_CONTROL_VALUE         1842
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

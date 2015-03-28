@@ -147,7 +147,7 @@ static const TCHAR *interpolmode[] = { _T("none"), _T("anti"), _T("sinc"), _T("r
 static const TCHAR *collmode[] = { _T("none"), _T("sprites"), _T("playfields"), _T("full"), 0 };
 static const TCHAR *compmode[] = { _T("direct"), _T("indirect"), _T("indirectKS"), _T("afterPic"), 0 };
 static const TCHAR *flushmode[] = { _T("soft"), _T("hard"), 0 };
-static const TCHAR *kbleds[] = { _T("none"), _T("POWER"), _T("DF0"), _T("DF1"), _T("DF2"), _T("DF3"), _T("HD"), _T("CD"), 0 };
+static const TCHAR *kbleds[] = { _T("none"), _T("POWER"), _T("DF0"), _T("DF1"), _T("DF2"), _T("DF3"), _T("HD"), _T("CD"), _T("DFx"), 0 };
 static const TCHAR *onscreenleds[] = { _T("false"), _T("true"), _T("rtg"), _T("both"), 0 };
 static const TCHAR *soundfiltermode1[] = { _T("off"), _T("emulated"), _T("on"), 0 };
 static const TCHAR *soundfiltermode2[] = { _T("standard"), _T("enhanced"), 0 };
@@ -180,7 +180,8 @@ static const TCHAR *maxhoriz[] = { _T("lores"), _T("hires"), _T("superhires"), 0
 static const TCHAR *maxvert[] = { _T("nointerlace"), _T("interlace"), 0 };
 static const TCHAR *abspointers[] = { _T("none"), _T("mousehack"), _T("tablet"), 0 };
 static const TCHAR *magiccursors[] = { _T("both"), _T("native"), _T("host"), 0 };
-static const TCHAR *autoscale[] = { _T("none"), _T("auto"), _T("standard"), _T("max"), _T("scale"), _T("resize"), _T("center"), _T("manual"), _T("integer"), _T("integer_auto"), 0 };
+static const TCHAR *autoscale[] = { _T("none"), _T("auto"), _T("standard"), _T("max"), _T("scale"), _T("resize"), _T("center"), _T("manual"),
+	_T("integer"), _T("half-integer"), _T("integer_auto"), _T("half-integer_auto"), 0 };
 static const TCHAR *autoscale_rtg[] = { _T("resize"), _T("scale"), _T("center"), _T("integer"), 0 };
 static const TCHAR *joyportmodes[] = { _T(""), _T("mouse"), _T("mousenowheel"), _T("djoy"), _T("gamepad"), _T("ajoy"), _T("cdtvjoy"), _T("cd32joy"), _T("lightpen"), 0 };
 static const TCHAR *joyaf[] = { _T("none"), _T("normal"), _T("toggle"), _T("always"), 0 };
@@ -1010,7 +1011,7 @@ static void cfgfile_write_board_rom(struct zfile *f, struct multipath *mp, struc
 				_stprintf(buf, _T("%s%s_rom"), name, i ? _T("_ext") : _T(""));
 				cfgfile_dwrite_str (f, buf, br->roms[i].romident);
 			}
-			if (br->roms[i].autoboot_disabled || ert->subtypes) {
+			if (br->roms[i].autoboot_disabled || ert->subtypes || ert->id_jumper) {
 				TCHAR buf2[256], *p;
 				buf2[0] = 0;
 				p = buf2;
@@ -1029,7 +1030,24 @@ static void cfgfile_write_board_rom(struct zfile *f, struct multipath *mp, struc
 						_tcscat(buf2, _T(","));
 					_tcscat(buf2, _T("autoboot_disabled=true"));
 				}
-				cfgfile_dwrite_str (f, buf, buf2);
+				if (ert->id_jumper) {
+					TCHAR tmp[256];
+					_stprintf(tmp, _T("id=%d"), br->roms[i].device_id);
+					if (buf2[0])
+						_tcscat(buf2, _T(","));
+					_tcscat(buf2, tmp);
+				}
+				if (br->roms[i].device_settings && ert->settings) {
+					for (int i = 0; ert->settings[i].name; i++) {
+						if (br->roms[i].device_settings & (1 << i)) {
+							if (buf2[0])
+								_tcscat(buf2, _T(","));
+							_tcscat(buf2, ert->settings[i].configname);
+						}
+					}
+				}
+				if (buf2[0])
+					cfgfile_dwrite_str (f, buf, buf2);
 			}
 
 			if (br->roms[i].board_ram_size) {
@@ -1123,6 +1141,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("kickshifter"), p->kickshifter);
 	cfgfile_write_bool (f, _T("ks_write_enabled"), p->rom_readwrite);
 
+	cfgfile_write (f, _T("floppy_volume"), _T("%d"), p->dfxclickvolume_disk[0]);
 	p->nr_floppies = 4;
 	for (i = 0; i < 4; i++) {
 		_stprintf (tmp, _T("floppy%d"), i);
@@ -1136,6 +1155,12 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		if (p->floppyslots[i].dfxclick < 0 && p->floppyslots[i].dfxclickexternal[0]) {
 			_stprintf (tmp, _T("floppy%dsoundext"), i);
 			cfgfile_dwrite (f, tmp, p->floppyslots[i].dfxclickexternal);
+		}
+		if (p->floppyslots[i].dfxclick) {
+			_stprintf (tmp, _T("floppy%dsoundvolume_disk"), i);
+			cfgfile_write (f, tmp, _T("%d"), p->dfxclickvolume_disk[i]);
+			_stprintf (tmp, _T("floppy%dsoundvolume_empty"), i);
+			cfgfile_write (f, tmp, _T("%d"), p->dfxclickvolume_empty[i]);
 		}
 		if (p->floppyslots[i].dfxtype < 0 && p->nr_floppies > i)
 			p->nr_floppies = i;
@@ -1182,7 +1207,6 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, _T("nr_floppies"), _T("%d"), p->nr_floppies);
 	cfgfile_dwrite_bool (f, _T("floppy_write_protect"), p->floppy_read_only);
 	cfgfile_write (f, _T("floppy_speed"), _T("%d"), p->floppy_speed);
-	cfgfile_write (f, _T("floppy_volume"), _T("%d"), p->dfxclickvolume);
 	cfgfile_dwrite (f, _T("floppy_channel_mask"), _T("0x%x"), p->dfxclickchannelmask);
 	cfgfile_write (f, _T("cd_speed"), _T("%d"), p->cd_speed);
 	cfgfile_write_bool (f, _T("parallel_on_demand"), p->parallel_demand);
@@ -1606,14 +1630,16 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	if (p->cpuboard_type) {
 		const struct cpuboardtype *cbt = &cpuboards[p->cpuboard_type];
 		const struct cpuboardsubtype *cbst = &cbt->subtypes[p->cpuboard_subtype];
-		const struct cpuboardsettings *cbs = cbst->settings;
+		const struct expansionboardsettings *cbs = cbst->settings;
 		cfgfile_dwrite_str(f, _T("cpuboard_type"), cbst->configname);
 		if (cbs && p->cpuboard_settings) {
 			tmp[0] = 0;
 			for (int i = 0; cbs[i].name; i++) {
-				if (tmp[0])
-					_tcscat(tmp, _T(","));
-				_tcscat(tmp, cbs[i].configname);
+				if (p->cpuboard_settings & (1 << i)) {
+					if (tmp[0])
+						_tcscat(tmp, _T(","));
+					_tcscat(tmp, cbs[i].configname);
+				}
 			}
 			cfgfile_dwrite_str(f, _T("cpuboard_settings"), tmp);
 		}
@@ -2070,24 +2096,43 @@ static int getintval2 (TCHAR **p, int *result, int delim, bool last)
 	return 1;
 }
 
-static bool cfgfile_option_find(TCHAR *s, const TCHAR *option)
+static TCHAR *cfgfile_option_find_it(TCHAR *s, const TCHAR *option, bool checkequals)
 {
 	TCHAR buf[MAX_DPATH];
 	if (!s)
-		return false;
+		return NULL;
 	_tcscpy(buf, s);
 	_tcscat(buf, _T(","));
 	TCHAR *p = buf;
 	for (;;) {
 		TCHAR *tmpp = _tcschr (p, ',');
+		TCHAR *tmpp2 = NULL;
 		if (tmpp == NULL)
-			return false;
+			return NULL;
 		*tmpp++ = 0;
+		if (checkequals) {
+			tmpp2 = _tcschr(p, '=');
+			if (!tmpp2)
+				return NULL;
+			*tmpp2++ = 0;
+		}
 		if (!strcasecmp(p, option)) {
-			return true;
+			if (checkequals)
+				return tmpp2;
+			return p;
 		}
 		p = tmpp;
 	}
+}
+
+static bool cfgfile_option_find(TCHAR *s, const TCHAR *option)
+{
+	return cfgfile_option_find_it(s, option, false) != NULL;
+}
+
+static TCHAR *cfgfile_option_get(TCHAR *s, const TCHAR *option)
+{
+	return cfgfile_option_find_it(s, option, true);
 }
 
 static int cfgfile_option_select(TCHAR *s, const TCHAR *option, const TCHAR *select)
@@ -2137,6 +2182,8 @@ static int cfgfile_option_bool(TCHAR *s, const TCHAR *option)
 		if (tmpp2)
 			*tmpp2++ = 0;
 		if (!strcasecmp(p, option)) {
+			if (!tmpp2)
+				return 0;
 			TCHAR *tmpp3 = _tcschr (tmpp2, ',');
 			if (tmpp3)
 				*tmpp3 = 0;
@@ -2356,8 +2403,15 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("floppy1sound"), &p->floppyslots[1].dfxclick, 1)
 		|| cfgfile_intval (option, value, _T("floppy2sound"), &p->floppyslots[2].dfxclick, 1)
 		|| cfgfile_intval (option, value, _T("floppy3sound"), &p->floppyslots[3].dfxclick, 1)
-		|| cfgfile_intval (option, value, _T("floppy_channel_mask"), &p->dfxclickchannelmask, 1)
-		|| cfgfile_intval (option, value, _T("floppy_volume"), &p->dfxclickvolume, 1))
+		|| cfgfile_intval (option, value, _T("floppy0soundvolume_disk"), &p->dfxclickvolume_disk[0], 1)
+		|| cfgfile_intval (option, value, _T("floppy1soundvolume_disk"), &p->dfxclickvolume_disk[1], 1)
+		|| cfgfile_intval (option, value, _T("floppy2soundvolume_disk"), &p->dfxclickvolume_disk[2], 1)
+		|| cfgfile_intval (option, value, _T("floppy3soundvolume_disk"), &p->dfxclickvolume_disk[3], 1)
+		|| cfgfile_intval (option, value, _T("floppy0soundvolume_empty"), &p->dfxclickvolume_empty[0], 1)
+		|| cfgfile_intval (option, value, _T("floppy1soundvolume_empty"), &p->dfxclickvolume_empty[1], 1)
+		|| cfgfile_intval (option, value, _T("floppy2soundvolume_empty"), &p->dfxclickvolume_empty[2], 1)
+		|| cfgfile_intval (option, value, _T("floppy3soundvolume_empty"), &p->dfxclickvolume_empty[3], 1)
+		|| cfgfile_intval (option, value, _T("floppy_channel_mask"), &p->dfxclickchannelmask, 1))
 		return 1;
 
 	if (cfgfile_path (option, value, _T("floppy0soundext"), p->floppyslots[0].dfxclickexternal, sizeof p->floppyslots[0].dfxclickexternal / sizeof (TCHAR))
@@ -2458,6 +2512,14 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			return 1;
 	}
 #endif
+
+	if (cfgfile_intval (option, value, _T("floppy_volume"), &v, 1)) {
+		for (int i = 0; i < 4; i++) {
+			p->dfxclickvolume_disk[i] = v;
+			p->dfxclickvolume_empty[i] = v;
+		}
+		return 1;
+	}
 
 	if (_tcscmp (option, _T("gfx_width_windowed")) == 0) {
 		if (!_tcscmp (value, _T("native"))) {
@@ -3941,6 +4003,19 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 				if (cfgfile_option_bool(buf2, _T("autoboot_disabled")) == 1) {
 					brc->roms[idx].autoboot_disabled = true;
 				}
+				if (ert->settings) {
+					for (int k = 0; ert->settings[k].name; k++) {
+						if (cfgfile_option_find(buf2, ert->settings[k].configname)) {
+							brc->roms[idx].device_settings |= 1 << k;
+						}
+					}
+				}
+				if (ert->id_jumper) {
+					TCHAR *p = cfgfile_option_get(buf2, _T("id"));
+					if (p) {
+						brc->roms[idx].device_id = _tstol(p);
+					}
+				}
 				if (ert->subtypes) {
 					const struct expansionsubromtype *srt = ert->subtypes;
 					TCHAR tmp[MAX_DPATH], *p;
@@ -4173,7 +4248,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		p->cpuboard_settings = 0;
 		const struct cpuboardsubtype *cbst = &cpuboards[p->cpuboard_type].subtypes[p->cpuboard_subtype];
 		if (cbst->settings) {
-			const struct cpuboardsettings *cbs = cbst->settings;
+			const struct expansionboardsettings *cbs = cbst->settings;
 			for(i = 0; cbs[i].name; i++) {
 				if (cfgfile_option_find(tmpbuf, cbs[i].configname)) {
 					p->cpuboard_settings |= 1 << i;
@@ -5976,7 +6051,10 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->floppy_write_length = 0;
 	p->floppy_random_bits_min = 1;
 	p->floppy_random_bits_max = 3;
-	p->dfxclickvolume = 33;
+	p->dfxclickvolume_disk[0] = 33;
+	p->dfxclickvolume_disk[1] = 33;
+	p->dfxclickvolume_empty[0] = 33;
+	p->dfxclickvolume_empty[1] = 33;
 	p->dfxclickchannelmask = 0xffff;
 	p->cd_speed = 100;
 
