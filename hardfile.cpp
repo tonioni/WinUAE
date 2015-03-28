@@ -1289,47 +1289,39 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			p[3] = 0;
 			p += 4;
 			if (!dbd) {
-				if (alen >= r[0] + 1 + 8) {
-					uae_u32 blocks = (uae_u32)(hfd->virtsize / hfd->ci.blocksize);
-					p[-1] = 8;
-					wl(p + 0, blocks < 0x01000000 ? blocks : 0);
-					wl(p + 4, hfd->ci.blocksize);
-					p += 8;
-				}
+				uae_u32 blocks = (uae_u32)(hfd->virtsize / hfd->ci.blocksize);
+				p[-1] = 8;
+				wl(p + 0, blocks < 0x01000000 ? blocks : 0);
+				wl(p + 4, hfd->ci.blocksize);
+				p += 8;
 			}
 			if (pcode == 0) {
-				if (alen >= r[0] + 1 + r[3] + 4) {
-					p[0] = 0;
-					p[1] = 3;
-					p[2] = 0x20;
-					p[3] = 0;
-					r[0] += p[1];
-				}
+				p[0] = 0;
+				p[1] = 0;
+				p[2] = 0x20;
+				p[3] = 0;
+				r[0] += 4;
 			} else if (pcode == 3) {
 				// format parameters
-				if (alen >= r[0] + 1 + r[3] + 24) {
-					p[0] = 3;
-					p[1] = 24;
-					p[3] = 1;
-					p[10] = tracksec >> 8;
-					p[11] = tracksec;
-					p[12] = hfd->ci.blocksize >> 8;
-					p[13] = hfd->ci.blocksize;
-					p[15] = 1; // interleave
-					p[20] = 0x80;
-					r[0] += p[1];
-				}
+				p[0] = 3;
+				p[1] = 22;
+				p[3] = 1;
+				p[10] = tracksec >> 8;
+				p[11] = tracksec;
+				p[12] = hfd->ci.blocksize >> 8;
+				p[13] = hfd->ci.blocksize;
+				p[15] = 1; // interleave
+				p[20] = 0x80;
+				r[0] += p[1] + 2;
 			} else if (pcode == 4) {
 				// rigid drive geometry
-				if (alen >= r[0] + 1 + r[3] + 16) {
-					p[0] = 4;
-					wl(p + 1, cyl);
-					p[1] = 24;
-					p[5] = head;
-					wl(p + 13, cyl);
-					ww(p + 20, 5400);
-					r[0] += p[1];
-				}
+				p[0] = 4;
+				wl(p + 1, cyl);
+				p[1] = 22;
+				p[5] = head;
+				wl(p + 13, cyl);
+				ww(p + 20, 5400);
+				r[0] += p[1] + 2;
 			} else {
 				goto err;
 			}
@@ -1337,6 +1329,8 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			scsi_len = lr = r[0] + 1;
 			if (scsi_len > alen)
 				scsi_len = alen;
+			if (lr > alen)
+				lr = alen;
 			break;
 		}
 		break;
