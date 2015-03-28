@@ -31,15 +31,15 @@ struct newresource
 #define GUI_INTERNAL_HEIGHT 600
 #define GUI_INTERNAL_FONT 8
 
-extern struct newresource *scaleresource (struct newresource *res, HWND, int, DWORD);
+extern struct newresource *scaleresource (struct newresource *res, HWND, int, int, DWORD);
 extern void freescaleresource (struct newresource*);
-extern void scaleresource_setmult (HWND hDlg, int w, int h);
+extern void scaleresource_setmult (HWND hDlg, int w, int h, int fs);
 extern void scaleresource_getmult (int *mx, int *my);
 extern HWND CustomCreateDialog (int templ, HWND hDlg, DLGPROC proc);
 extern INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc);
 extern struct newresource *getresource (int tmpl);
 extern struct newresource *resourcefont (struct newresource*, TCHAR *font, int size);
-extern void scaleresource_init (const TCHAR*);
+extern void scaleresource_init (const TCHAR*, int);
 extern int scaleresource_choosefont (HWND hDlg, int fonttype);
 extern void scaleresource_setdefaults (void);
 extern void scaleresource_setfont (HWND hDlg);

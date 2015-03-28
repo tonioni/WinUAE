@@ -30,6 +30,7 @@
 #define DEFAULT_FONTSIZE  8
 
 static double multx, multy;
+static int scaleresource_width, scaleresource_height;
 
 static TCHAR fontname_gui[32], fontname_list[32];
 static int fontsize_gui = DEFAULT_FONTSIZE;
@@ -143,10 +144,15 @@ static BYTE *todword (BYTE *p)
 	return p;
 }
 
-static void modifytemplate (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, int id)
+static void modifytemplate (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, int id, int fullscreen)
 {
-	d->cx = mmx (d->cx);
-	d->cy = mmy (d->cy);
+	if (fullscreen) {
+		d->cx = scaleresource_width;
+		d->cy = scaleresource_height;
+	} else {
+		d->cx = mmx (d->cx);
+		d->cy = mmy (d->cy);
+	}
 }
 
 static void modifytemplatefont (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2)
@@ -210,7 +216,7 @@ static INT_PTR CALLBACK DummyProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 
 extern int full_property_sheet;
 
-static struct newresource *scaleresource2 (struct newresource *res, HWND parent, int resize, DWORD exstyle, bool test)
+static struct newresource *scaleresource2 (struct newresource *res, HWND parent, int resize, int fullscreen, DWORD exstyle, bool test)
 {
 	DLGTEMPLATEEX *d, *s;
 	DLGTEMPLATEEX_END *d2, *s2;
@@ -239,6 +245,9 @@ static struct newresource *scaleresource2 (struct newresource *res, HWND parent,
 	d = (DLGTEMPLATEEX*)ns->resource;
 	s = (DLGTEMPLATEEX*)res->resource;
 
+	int width = d->cx;
+	int height = d->cy;
+
 	if (test) {
 		// HACK! far enough to be invisible..
 		d->x = 20000;
@@ -252,8 +261,13 @@ static struct newresource *scaleresource2 (struct newresource *res, HWND parent,
 		d->style |= DS_MODALFRAME;
 		d->style &= ~WS_THICKFRAME;
 	}
-	if (full_property_sheet)
-		d->style |= WS_MINIMIZEBOX;
+	if (fullscreen) {
+		//d->style |= SW_MAXIMIZE;
+		d->style |= WS_THICKFRAME;
+	} else {
+		if (full_property_sheet)
+			d->style |= WS_MINIMIZEBOX;
+	}
 	d->exStyle |= exstyle;
 
 	d2 = (DLGTEMPLATEEX_END*)ns->resource;
@@ -288,7 +302,7 @@ static struct newresource *scaleresource2 (struct newresource *res, HWND parent,
 
 	memcpy (p, ps2, ns->size - (ps2 - (BYTE*)res->resource));
 
-	modifytemplate(d, d2, ns->tmpl);
+	modifytemplate(d, d2, ns->tmpl, fullscreen);
 
 	for (i = 0; i < d->cDlgItems; i++) {
 		dt = (DLGITEMTEMPLATEEX*)p;
@@ -301,14 +315,14 @@ static struct newresource *scaleresource2 (struct newresource *res, HWND parent,
 		p = todword (p);
 	}
 
-	ns->width = d->cx;
-	ns->height = d->cy;
+	ns->width = width;
+	ns->height = height;
 	return ns;
 }
 
-struct newresource *scaleresource (struct newresource *res, HWND parent, int resize, DWORD exstyle)
+struct newresource *scaleresource (struct newresource *res, HWND parent, int resize, int fullscreen, DWORD exstyle)
 {
-	return scaleresource2(res, parent, resize, exstyle, false);
+	return scaleresource2(res, parent, resize, fullscreen, exstyle, false);
 }
 
 void freescaleresource (struct newresource *ns)
@@ -451,23 +465,22 @@ static INT_PTR CALLBACK TestProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPa
 }
 
 // horrible or what?
-static void getbaseunits (void)
+static void getbaseunits (int fullscreen)
 {
+	multx = multy = 100;
 	struct newresource *nr, *nr2;
 	HWND hwnd;
-	
 	nr = getresource (IDD_PANEL);
 	if (!nr) {
 		write_log (_T("getbaseunits fail!\n"));
 		abort();
 	}
-	multx = multy = 100;
 	// dialog is visible before WM_INITDIALOG in Windows 10!
 	// even when dialog does not have visible flag!
 	// last confirmed on build 10041
 	// hopefully this gets fixed before RTM..
 	bool win10bughack = osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion == 3;
-	nr2 = scaleresource2(nr, NULL, -1, 0, win10bughack);
+	nr2 = scaleresource2(nr, NULL, -1, 0, 0, win10bughack);
 	hwnd = CreateDialogIndirect (nr2->inst, nr2->resource, NULL, TestProc);
 	if (hwnd) {
 		DestroyWindow (hwnd);
@@ -491,7 +504,7 @@ static void getbaseunits (void)
 	write_log (_T("GUIBase %dx%d (%dx%d)\n"), basewidth, baseheight, baseunitx, baseunity);
 }
 
-void scaleresource_init (const TCHAR *prefix)
+void scaleresource_init (const TCHAR *prefix, int fullscreen)
 {
 	if (os_vista)
 		font_vista_ok = 1;
@@ -506,7 +519,7 @@ void scaleresource_init (const TCHAR *prefix)
 	//write_log (_T("GUI font %s:%d:%d:%d\n"), fontname_gui, fontsize_gui, fontstyle_gui, fontweight_gui);
 	//write_log (_T("List font %s:%d:%d:%d\n"), fontname_list, fontsize_list, fontstyle_list, fontweight_list);
 
-	getbaseunits ();
+	getbaseunits (fullscreen);
 
 	openfont (true);
 }
@@ -543,13 +556,16 @@ double scaleresource_getdpimult (void)
 	return (double)baseheight / GUI_INTERNAL_HEIGHT;
 }
 
-void scaleresource_setmult (HWND hDlg, int w, int h)
+void scaleresource_setmult (HWND hDlg, int w, int h, int fullscreen)
 {
 	if (w < 0) {
 		multx = -w;
 		multy = -h;
 		return;
 	}
+
+	scaleresource_width = w;
+	scaleresource_height = h;
 
 	multx = w * 100.0 / basewidth;
 	multy = h * 100.0 / baseheight;
