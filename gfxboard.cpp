@@ -1316,11 +1316,7 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 	addr &= 65535;
 	if (addr == 0x44) {
 		uae_u32 start;
-		if (expamem_z3hack(&currprefs)) {
-			start = gfxmem_bank.start;
-			put_word (regs.regs[11] + 0x20, start >> 16);
-			put_word (regs.regs[11] + 0x28, start >> 16);
-		} else {
+		if (!expamem_z3hack(&currprefs)) {
 			start = (b & 0xff00) | expamem_lo;
 			gfxmem_bank.start = start << 16;
 		}
