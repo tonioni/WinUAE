@@ -2966,7 +2966,7 @@ void DISK_select (uae_u8 data)
 					if (!currprefs.cs_df0idhw && dr == 0)
 						drv->idbit = 0;
 #ifdef DEBUG_DRIVE_ID
-					write_log (_T("DISK_status: sel %d id %s (%08X) [0x%08lx, bit #%02d: %d]\n"),
+					write_log (_T("DISK_status: sel %d id %s (%08X) [0x%08x, bit #%02d: %d]\n"),
 						dr, drive_id_name(drv), drv->drive_id, drv->drive_id << drv->drive_id_scnt, 31 - drv->drive_id_scnt, drv->idbit);
 #endif
 				}

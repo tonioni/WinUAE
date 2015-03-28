@@ -1868,7 +1868,7 @@ void fpuop_dbcc (uae_u32 opcode, uae_u16 extra)
 	regs.fp_exception = false;
 #if DEBUG_FPP
 	if (!isinrom ())
-		write_log (_T("fdbcc_opp at %08lx\n"), m68k_getpc ());
+		write_log (_T("fdbcc_opp at %08x\n"), m68k_getpc ());
 #endif
 	if (fault_if_no_6888x (opcode, extra, pc - 4))
 		return;
@@ -1900,7 +1900,7 @@ void fpuop_scc (uae_u32 opcode, uae_u16 extra)
 	regs.fp_exception = false;
 #if DEBUG_FPP
 	if (!isinrom ())
-		write_log (_T("fscc_opp at %08lx\n"), m68k_getpc ());
+		write_log (_T("fscc_opp at %08x\n"), m68k_getpc ());
 #endif
 
 	if (fault_if_no_6888x (opcode, extra, pc))
@@ -1935,7 +1935,7 @@ void fpuop_trapcc (uae_u32 opcode, uaecptr oldpc, uae_u16 extra)
 	regs.fp_exception = false;
 #if DEBUG_FPP
 	if (!isinrom ())
-		write_log (_T("ftrapcc_opp at %08lx\n"), m68k_getpc ());
+		write_log (_T("ftrapcc_opp at %08x\n"), m68k_getpc ());
 #endif
 	if (fault_if_no_fpu_u (opcode, extra, 0, oldpc))
 		return;
@@ -1957,7 +1957,7 @@ void fpuop_bcc (uae_u32 opcode, uaecptr oldpc, uae_u32 extra)
 	regs.fp_exception = false;
 #if DEBUG_FPP
 	if (!isinrom ())
-		write_log (_T("fbcc_opp at %08lx\n"), m68k_getpc ());
+		write_log (_T("fbcc_opp at %08x\n"), m68k_getpc ());
 #endif
 	if (fault_if_no_fpu (opcode, extra, 0, oldpc - 2))
 		return;
@@ -1985,7 +1985,7 @@ void fpuop_save (uae_u32 opcode)
 	regs.fp_exception = false;
 #if DEBUG_FPP
 	if (!isinrom ())
-		write_log (_T("fsave_opp at %08lx\n"), m68k_getpc ());
+		write_log (_T("fsave_opp at %08x\n"), m68k_getpc ());
 #endif
 
 	if (fault_if_no_6888x (opcode, 0, pc))
@@ -2224,7 +2224,7 @@ void fpuop_restore (uae_u32 opcode)
 	regs.fp_exception = false;
 #if DEBUG_FPP
 	if (!isinrom ())
-		write_log (_T("frestore_opp at %08lx\n"), m68k_getpc ());
+		write_log (_T("frestore_opp at %08x\n"), m68k_getpc ());
 #endif
 
 	if (fault_if_no_6888x (opcode, 0, pc))
@@ -2805,7 +2805,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 
 #if DEBUG_FPP
 	if (!isinrom ())
-		write_log (_T("FPP %04lx %04x at %08lx\n"), opcode & 0xffff, extra, pc);
+		write_log (_T("FPP %04x %04x at %08x\n"), opcode & 0xffff, extra, pc);
 #endif
 	if (fault_if_no_6888x (opcode, extra, pc))
 		return;
