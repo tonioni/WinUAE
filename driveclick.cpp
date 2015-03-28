@@ -139,13 +139,39 @@ static void processclicks (struct drvsample *ds)
 		}
 	}
 }
+
+static void driveclick_close(void)
+{
+	driveclick_fdrawcmd_close (0);
+	driveclick_fdrawcmd_close (1);
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < DS_END; j++)
+			freesample (&drvs[i][j]);
+	}
+	memset (drvs, 0, sizeof (drvs));
+	click_initialized = 0;
+	wave_initialized = 0;
+	driveclick_reset ();
+}
+
+void driveclick_free(void)
+{
+	driveclick_close();
+	for (int i = 0; i < 4; i++) {
+		drv_starting[i] = 0;
+		drv_spinning[i] = 0;
+		drv_has_spun[i] = 0;
+		drv_has_disk[i] = 0;
+	}
+}
+
 void driveclick_init (void)
 {
 	int v, vv, i, j;
 	TCHAR tmp[MAX_DPATH];
 
 	driveclick_fdrawcmd_detect ();
-	driveclick_free ();
+	driveclick_close();
 	vv = 0;
 	for (i = 0; i < 4; i++) {
 		struct floppyslot *fs = &currprefs.floppyslots[i];
@@ -223,26 +249,6 @@ void driveclick_reset (void)
 	sample_step = (freq << DS_SHIFT) / currprefs.sound_freq;
 }
 
-void driveclick_free (void)
-{
-	int i, j;
-
-	driveclick_fdrawcmd_close (0);
-	driveclick_fdrawcmd_close (1);
-	for (i = 0; i < 4; i++) {
-		for (j = 0; j < DS_END; j++)
-			freesample (&drvs[i][j]);
-		drv_starting[i] = 0;
-		drv_spinning[i] = 0;
-		drv_has_spun[i] = 0;
-		drv_has_disk[i] = 0;
-	}
-	memset (drvs, 0, sizeof (drvs));
-	click_initialized = 0;
-	wave_initialized = 0;
-	driveclick_reset ();
-}
-
 static int driveclick_active (void)
 {
 	int i;
@@ -297,6 +303,12 @@ static uae_s16 getsample (void)
 				div++;
 				ds_click->pos += sample_step;
 			}
+			int vol;
+			if (drv_has_disk[i])
+				vol = currprefs.dfxclickvolume_disk[i];
+			else
+				vol = currprefs.dfxclickvolume_empty[i];
+			smp = smp * (100 - vol) / 100;
 		}
 	}
 	if (!div)
@@ -309,15 +321,8 @@ static int clickcnt;
 static void mix (void)
 {
 	int total = ((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer) / (get_audio_nativechannels (currprefs.sound_stereo) * 2);
-
-	if (currprefs.dfxclickvolume > 0) {
-		while (clickcnt < total) {
-			clickbuffer[clickcnt++] = getsample () * (100 - currprefs.dfxclickvolume) / 100;
-		}
-	} else {
-		while (clickcnt < total) {
-			clickbuffer[clickcnt++] = getsample ();
-		}
+	while (clickcnt < total) {
+		clickbuffer[clickcnt++] = getsample ();
 	}
 }
 
@@ -498,7 +503,15 @@ void driveclick_check_prefs (void)
 	driveclick_fdrawcmd_vsync ();
 	if (driveclick_active ())
 		dr_audio_activate ();
-	if (currprefs.dfxclickvolume != changed_prefs.dfxclickvolume ||
+	if (
+		currprefs.dfxclickvolume_disk[0] != changed_prefs.dfxclickvolume_disk[0] ||
+		currprefs.dfxclickvolume_disk[1] != changed_prefs.dfxclickvolume_disk[1] ||
+		currprefs.dfxclickvolume_disk[2] != changed_prefs.dfxclickvolume_disk[2] ||
+		currprefs.dfxclickvolume_disk[3] != changed_prefs.dfxclickvolume_disk[3] ||
+		currprefs.dfxclickvolume_empty[0] != changed_prefs.dfxclickvolume_empty[0] ||
+		currprefs.dfxclickvolume_empty[1] != changed_prefs.dfxclickvolume_empty[1] ||
+		currprefs.dfxclickvolume_empty[2] != changed_prefs.dfxclickvolume_empty[2] ||
+		currprefs.dfxclickvolume_empty[3] != changed_prefs.dfxclickvolume_empty[3] ||
 		currprefs.floppyslots[0].dfxclick != changed_prefs.floppyslots[0].dfxclick ||
 		currprefs.floppyslots[1].dfxclick != changed_prefs.floppyslots[1].dfxclick ||
 		currprefs.floppyslots[2].dfxclick != changed_prefs.floppyslots[2].dfxclick ||
@@ -508,10 +521,11 @@ void driveclick_check_prefs (void)
 		_tcscmp (currprefs.floppyslots[2].dfxclickexternal, changed_prefs.floppyslots[2].dfxclickexternal) ||
 		_tcscmp (currprefs.floppyslots[3].dfxclickexternal, changed_prefs.floppyslots[3].dfxclickexternal))
 	{
-		currprefs.dfxclickvolume = changed_prefs.dfxclickvolume;
 		for (i = 0; i < 4; i++) {
 			currprefs.floppyslots[i].dfxclick = changed_prefs.floppyslots[i].dfxclick;
 			_tcscpy (currprefs.floppyslots[i].dfxclickexternal, changed_prefs.floppyslots[i].dfxclickexternal);
+			currprefs.dfxclickvolume_empty[i] = changed_prefs.dfxclickvolume_empty[i];
+			currprefs.dfxclickvolume_disk[i] = changed_prefs.dfxclickvolume_disk[i];
 		}
 		driveclick_init ();
 	}

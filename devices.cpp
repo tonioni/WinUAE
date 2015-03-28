@@ -53,6 +53,7 @@
 #include "uaenative.h"
 #include "tabletlibrary.h"
 #include "luascript.h"
+#include "driveclick.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -318,6 +319,7 @@ void do_leave_program (void)
 	free_shm ();
 	cfgfile_addcfgparam (0);
 	machdep_free ();
+	driveclick_free();
 }
 
 void virtualdevice_init (void)
