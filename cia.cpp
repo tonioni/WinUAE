@@ -147,7 +147,12 @@ static void ICRB (uae_u32 data)
 	}
 #endif
 	ciabicr |= 0x20;
-	ICR (0x2000);
+	if (currprefs.cs_compatible == CP_VELVET) {
+		// Both CIAs in Velvet are connected to level 2.
+		ICR (0x0008);
+	} else {
+		ICR (0x2000);
+	}
 }
 
 static void RethinkICRA (void)
