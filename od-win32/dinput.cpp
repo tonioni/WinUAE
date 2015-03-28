@@ -41,6 +41,7 @@ int tablet_log = 0;
 #include "akiko.h"
 #include "clipboard.h"
 #include "tabletlibrary.h"
+#include "gui.h"
 
 #include <winioctl.h>
 #include <ntddkbd.h>
@@ -314,8 +315,14 @@ void indicator_leds (int num, int state)
 				disabledleds |= 1 << i;
 			} else {
 				newleds &= ~(1 << i);
-				if ((1 << (l - 1)) & ledstate)
-					newleds |= 1 << i;
+				if (l - 1 > LED_CD) {
+					// all floppies
+					if (ledstate & ((1 << LED_DF0) | (1 << LED_DF1) | (1 << LED_DF2) | (1 << LED_DF3)))
+						newleds |= 1 << i;
+				} else {
+					if ((1 << (l - 1)) & ledstate)
+						newleds |= 1 << i;
+				}
 			}
 		}
 	}
