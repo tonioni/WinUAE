@@ -49,7 +49,7 @@
 #define CUSTOM_DEBUG 0
 #define SPRITE_DEBUG 0
 #define SPRITE_DEBUG_MINY 0
-#define SPRITE_DEBUG_MAXY 0x300
+#define SPRITE_DEBUG_MAXY 0x30
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8
 #define SPEEDUP 1
@@ -217,10 +217,12 @@ struct sprite {
 	int dmacycle;
 	int ptxhpos;
 	int ptxhpos2, ptxvpos2;
+	bool ignoreverticaluntilnextline;
 };
 
 static struct sprite spr[MAX_SPRITES];
 static int plfstrt_sprite;
+static bool sprite_ignoreverticaluntilnextline;
 
 uaecptr sprite_0;
 int sprite_0_width, sprite_0_height, sprite_0_doubled;
@@ -3677,6 +3679,12 @@ static void reset_decisions (void)
 	last_sprite_hpos = -1;
 	last_fetch_hpos = -1;
 
+	if (sprite_ignoreverticaluntilnextline) {
+		sprite_ignoreverticaluntilnextline = false;
+		for (int i = 0; i < MAX_SPRITES; i++)
+			spr[i].ignoreverticaluntilnextline = false;
+	}
+
 	/* These are for comparison. */
 	thisline_decision.bplcon0 = bplcon0;
 	thisline_decision.bplcon2 = bplcon2;
@@ -5552,7 +5560,7 @@ STATIC_INLINE void spr_arm (int num, int state)
 
 STATIC_INLINE void sprstartstop (struct sprite *s)
 {
-	if (vpos < sprite_vblank_endline || cant_this_last_line ())
+	if (vpos < sprite_vblank_endline || cant_this_last_line () || s->ignoreverticaluntilnextline)
 		return;
 	if (vpos == s->vstart)
 		s->dmastate = 1;
@@ -5596,9 +5604,18 @@ static void SPRxCTLPOS(int num)
 
 static void SPRxCTL_1(uae_u16 v, int num, int hpos)
 {
+	if (hpos >= maxhpos - 2 && sprctl[num] != v && vpos < maxvpos - 1) {
+		struct sprite *s = &spr[num];
+		vpos++;
+		sprstartstop(s);
+		vpos--;
+		s->ignoreverticaluntilnextline = true;
+		sprite_ignoreverticaluntilnextline = true;
+	}
 	sprctl[num] = v;
 	spr_arm (num, 0);
 	SPRxCTLPOS (num);
+
 #if SPRITE_DEBUG > 0
 	struct sprite *s = &spr[num];
 	if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY && (SPRITE_DEBUG & (1 << num))) {
@@ -5610,6 +5627,14 @@ static void SPRxCTL_1(uae_u16 v, int num, int hpos)
 }
 static void SPRxPOS_1(uae_u16 v, int num, int hpos)
 {
+	if (hpos >= maxhpos - 2 && sprpos[num] != v && vpos < maxvpos - 1) {
+		struct sprite *s = &spr[num];
+		vpos++;
+		sprstartstop(s);
+		vpos--;
+		s->ignoreverticaluntilnextline = true;
+		sprite_ignoreverticaluntilnextline = true;
+	}
 	sprpos[num] = v;
 	SPRxCTLPOS (num);
 #if SPRITE_DEBUG > 0
