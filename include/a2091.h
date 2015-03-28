@@ -80,6 +80,7 @@ struct wd_state {
 	int rom_size, rom_mask;
 	addrbank *bank;
 	struct romconfig *rc;
+	struct wd_state **self_ptr;
 
 	smp_comm_pipe requests;
 	volatile int scsi_thread_running;
@@ -134,7 +135,8 @@ extern void scsi_hsync (void);
 
 extern void a2090_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
-extern void gvp_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void gvp_s1_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void gvp_s2_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void a3000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 extern int add_wd_scsi_hd (struct wd_state *wd, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level);

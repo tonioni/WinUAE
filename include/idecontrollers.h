@@ -1,6 +1,5 @@
 // Other IDE controllers
 
-void idecontroller_free_units(void);
 void idecontroller_free(void);
 void idecontroller_reset(void);
 void idecontroller_rethink(void);

@@ -43,6 +43,7 @@ struct ide_board
 	int userdata;
 	int subtype;
 	struct romconfig *rc;
+	struct ide_board **self_ptr;
 };
 
 struct ide_hdf

@@ -101,6 +101,7 @@ struct ncr9x_state
 	int dma_delay_val;
 	uae_u8 states[16];
 	struct romconfig *rc;
+	struct ncr9x_state **self_ptr;
 
 	uae_u8 data;
 	bool data_valid;
@@ -168,28 +169,23 @@ static void freescsi(SCSIDevice *scsi)
 	}
 }
 
-static void ncr9x_free2(struct ncr9x_state *ncr)
-{
-	if (!ncr)
-		return;
-	for (int ch = 0; ch < 8; ch++) {
-		freescsi(ncr->scsid[ch]);
-		ncr->scsid[ch] = NULL;
-	}
-}
-
-static void freencrunit(struct ncr9x_state **ncr)
+static void freencrunit(struct ncr9x_state *ncr)
 {
 	if (!ncr)
 		return;
 	for (int i = 0; i < MAX_NCR9X_UNITS; i++) {
-		if (ncr_units[i] == *ncr) {
+		if (ncr_units[i] == ncr) {
 			ncr_units[i] = NULL;
 		}
 	}
-	ncr9x_free2(*ncr);
-	xfree(*ncr);
-	*ncr = NULL;
+	for (int ch = 0; ch < 8; ch++) {
+		freescsi(ncr->scsid[ch]);
+		ncr->scsid[ch] = NULL;
+	}
+	xfree(ncr->rom);
+	if (ncr->self_ptr)
+		*ncr->self_ptr = NULL;
+	xfree(ncr);
 }
 
 static struct ncr9x_state *allocscsi(struct ncr9x_state **ncr, struct romconfig *rc, int ch)
@@ -197,7 +193,8 @@ static struct ncr9x_state *allocscsi(struct ncr9x_state **ncr, struct romconfig 
 	struct ncr9x_state *scsi;
 
 	if (ch < 0) {
-		freencrunit(ncr);
+		freencrunit(*ncr);
+		*ncr = NULL;
 	}
 	if ((*ncr) == NULL) {
 		scsi = xcalloc(struct ncr9x_state, 1);
@@ -207,6 +204,7 @@ static struct ncr9x_state *allocscsi(struct ncr9x_state **ncr, struct romconfig 
 				if (rc)
 					rc->unitdata = scsi;
 				scsi->rc = rc;
+				scsi->self_ptr = ncr;
 				*ncr = scsi;
 				return scsi;
 			}
@@ -220,10 +218,8 @@ static struct ncr9x_state *getscsi(struct romconfig *rc)
 	for (int i = 0; i < MAX_NCR9X_UNITS; i++) {
 		if (ncr_units[i]) {
 			struct ncr9x_state *ncr = ncr_units[i];
-			if (ncr->rc == rc) {
-				ncr->rc = NULL;
+			if (ncr->rc == rc)
 				return ncr;
-			}
 		}
 	}
 	return NULL;
@@ -1487,12 +1483,20 @@ static void ncr9x_esp_scsi_init(struct ncr9x_state *ncr, ESPDMAMemoryReadWriteFu
 void ncr9x_free(void)
 {
 	for (int i = 0; ncr_units[i]; i++) {
-		ncr9x_free2(ncr_units[i]);
+		freencrunit(ncr_units[i]);
 	}
 }
 
 void ncr9x_init(void)
 {
+}
+
+static void allocscsidevice(struct ncr9x_state *ncr, int ch, struct scsi_data *handle)
+{
+	handle->privdata = ncr;
+	ncr->scsid[ch] = xcalloc (SCSIDevice, 1);
+	ncr->scsid[ch]->id = ch;
+	ncr->scsid[ch]->handle = handle;
 }
 
 static void add_ncr_scsi_hd(struct ncr9x_state *ncr, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci)
@@ -1503,9 +1507,7 @@ static void add_ncr_scsi_hd(struct ncr9x_state *ncr, int ch, struct hd_hardfiled
 	ncr->scsid[ch] = NULL;
 	if (!add_scsi_hd(&handle, ch, hfd, ci))
 		return;
-	handle->privdata = ncr;
-	ncr->scsid[ch] = xcalloc(SCSIDevice, 1);
-	ncr->scsid[ch]->handle = handle;
+	allocscsidevice(ncr, ch, handle);
 	ncr->enabled = true;
 }
 
@@ -1517,9 +1519,7 @@ static void add_ncr_scsi_cd(struct ncr9x_state *ncr, int ch, int unitnum)
 	ncr->scsid[ch] = NULL;
 	if (!add_scsi_cd(&handle, ch, unitnum))
 		return;
-	handle->privdata = ncr;
-	ncr->scsid[ch] = xcalloc(SCSIDevice, 1);
-	ncr->scsid[ch]->handle = handle;
+	allocscsidevice(ncr, ch, handle);
 	ncr->enabled = true;
 }
 
@@ -1531,9 +1531,7 @@ static void add_ncr_scsi_tape(struct ncr9x_state *ncr, int ch, const TCHAR *tape
 	ncr->scsid[ch] = NULL;
 	if (!add_scsi_tape(&handle, ch, tape_directory, readonly))
 		return;
-	handle->privdata = ncr;
-	ncr->scsid[ch] = xcalloc(SCSIDevice, 1);
-	ncr->scsid[ch]->handle = handle;
+	allocscsidevice(ncr, ch, handle);
 	ncr->enabled = true;
 }
 

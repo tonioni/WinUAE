@@ -73,6 +73,7 @@ struct ncr_state
 	bool irq;
 	void (*irq_func)(int);
 	struct romconfig *rc;
+	struct ncr_state **self_ptr;
 };
 
 #define MAX_NCR_UNITS 10
@@ -86,28 +87,23 @@ static void freescsi (SCSIDevice *scsi)
 	}
 }
 
-static void ncr_free2(struct ncr_state **ncr)
-{
-	if (*ncr) {
-		for (int ch = 0; ch < 8; ch++) {
-			freescsi ((*ncr)->scsid[ch]);
-			(*ncr)->scsid[ch] = NULL;
-		}
-	}
-	xfree(*ncr);
-	*ncr = NULL;
-}
-
-static void freencrunit(struct ncr_state **ncr)
+static void freencrunit(struct ncr_state *ncr)
 {
 	if (!ncr)
 		return;
 	for (int i = 0; i < MAX_NCR_UNITS; i++) {
-		if (ncr_units[i] == *ncr) {
+		if (ncr_units[i] == ncr) {
 			ncr_units[i] = NULL;
 		}
 	}
-	ncr_free2(ncr);
+	for (int ch = 0; ch < 8; ch++) {
+		freescsi (ncr->scsid[ch]);
+		ncr->scsid[ch] = NULL;
+	}
+	xfree(ncr->rom);
+	if (ncr->self_ptr)
+		*ncr->self_ptr = NULL;
+	xfree(ncr);
 }
 
 static struct ncr_state *allocscsi(struct ncr_state **ncr, struct romconfig *rc, int ch)
@@ -115,7 +111,8 @@ static struct ncr_state *allocscsi(struct ncr_state **ncr, struct romconfig *rc,
 	struct ncr_state *scsi;
 
 	if (ch < 0) {
-		freencrunit(ncr);
+		freencrunit(*ncr);
+		*ncr = NULL;
 	}
 	if ((*ncr) == NULL) {
 		scsi = xcalloc(struct ncr_state, 1);
@@ -125,6 +122,7 @@ static struct ncr_state *allocscsi(struct ncr_state **ncr, struct romconfig *rc,
 				if (rc)
 					rc->unitdata = scsi;
 				scsi->rc = rc;
+				scsi->self_ptr = ncr;
 				*ncr = scsi;
 				return scsi;
 			}
@@ -138,10 +136,8 @@ static struct ncr_state *getscsi(struct romconfig *rc)
 	for (int i = 0; i < MAX_NCR_UNITS; i++) {
 		if (ncr_units[i]) {
 			struct ncr_state *ncr = ncr_units[i];
-			if (ncr->rc == rc) {
-				ncr->rc = NULL;
+			if (ncr->rc == rc)
 				return ncr;
-			}
 		}
 	}
 	return NULL;
@@ -439,8 +435,12 @@ static uae_u32 ncr_bget2 (struct ncr_state *ncr, uaecptr addr)
 	addr &= ncr->board_mask;
 	if (ncr->rom && addr >= ncr->rom_start && addr < ncr->rom_end)
 		return read_rombyte (ncr, addr - ncr->rom_offset);
-	if (addr == A4091_DIP_OFFSET)
-		return 0xff;
+	if (addr == A4091_DIP_OFFSET) {
+		uae_u8 v = 0;
+		v |= ncr->rc->device_id;
+		v ^= 0xff & ~7;
+		return v;
+	}
 	if (ncr->io_end && (addr < ncr->io_start || addr >= ncr->io_end))
 		return v;
 	if (ncr->newncr)
@@ -826,7 +826,7 @@ addrbank *ncr710_a4091_autoconfig_init (struct romconfig *rc)
 void ncr_free(void)
 {
 	for (int i = 0; i < MAX_NCR_UNITS; i++) {
-		ncr_free2(&ncr_units[i]);
+		freencrunit(ncr_units[i]);
 	}
 }
 
@@ -841,6 +841,14 @@ void ncr_reset(void)
 	}
 }
 
+static void allocscsidevice(struct ncr_state *ncr, int ch, struct scsi_data *handle)
+{
+	handle->privdata = ncr;
+	ncr->scsid[ch] = xcalloc (SCSIDevice, 1);
+	ncr->scsid[ch]->id = ch;
+	ncr->scsid[ch]->handle = handle;
+}
+
 static void add_ncr_scsi_hd (struct ncr_state *ncr, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci)
 {
 	struct scsi_data *handle = NULL;
@@ -849,9 +857,7 @@ static void add_ncr_scsi_hd (struct ncr_state *ncr, int ch, struct hd_hardfileda
 	ncr->scsid[ch] = NULL;
 	if (!add_scsi_hd(&handle, ch, hfd, ci))
 		return;
-	handle->privdata = ncr;
-	ncr->scsid[ch] = xcalloc (SCSIDevice, 1);
-	ncr->scsid[ch]->handle = handle;
+	allocscsidevice(ncr, ch, handle);
 	ncr->enabled = true;
 }
 
@@ -863,9 +869,7 @@ static void add_ncr_scsi_cd (struct ncr_state *ncr, int ch, int unitnum)
 	ncr->scsid[ch] = NULL;
 	if (!add_scsi_cd(&handle, ch, unitnum))
 		return;
-	handle->privdata = ncr;
-	ncr->scsid[ch] = xcalloc (SCSIDevice, 1);
-	ncr->scsid[ch]->handle = handle;
+	allocscsidevice(ncr, ch, handle);
 	ncr->enabled = true;
 }
 
@@ -877,9 +881,7 @@ static void add_ncr_scsi_tape (struct ncr_state *ncr, int ch, const TCHAR *tape_
 	ncr->scsid[ch] = NULL;
 	if (!add_scsi_tape(&handle, ch, tape_directory, readonly))
 		return;
-	handle->privdata = ncr;
-	ncr->scsid[ch] = xcalloc (SCSIDevice, 1);
-	ncr->scsid[ch]->handle = handle;
+	allocscsidevice(ncr, ch, handle);
 	ncr->enabled = true;
 }
 

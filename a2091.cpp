@@ -264,23 +264,27 @@
 static struct wd_state *wd_a2091[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct wd_state *wd_a2090[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct wd_state *wd_a3000;
-static struct wd_state *wd_gvp[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct wd_state *wd_gvps1[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct wd_state *wd_gvps2[MAX_DUPLICATE_EXPANSION_BOARDS];
 struct wd_state *wd_cdtv;
 
 static struct wd_state *scsi_units[MAX_SCSI_UNITS + 1];
 
-static void freescsi(struct wd_state **wd)
+static void freencrunit(struct wd_state *wd)
 {
+	if (!wd)
+		return;
 	for (int i = 0; i < MAX_SCSI_UNITS; i++) {
-		if (scsi_units[i] == *wd) {
+		if (scsi_units[i] == wd) {
 			scsi_units[i] = NULL;
 		}
 	}
-	if (*wd) {
-		scsi_freenative((*wd)->scsis);
-		xfree(*wd);
-	}
-	*wd = NULL;
+	scsi_freenative(wd->scsis);
+	xfree (wd->rom);
+	wd->rom = NULL;
+	if (wd->self_ptr)
+		*wd->self_ptr = NULL;
+	xfree(wd);
 }
 
 static struct wd_state *allocscsi(struct wd_state **wd, struct romconfig *rc, int ch)
@@ -288,7 +292,8 @@ static struct wd_state *allocscsi(struct wd_state **wd, struct romconfig *rc, in
 	struct wd_state *scsi;
 
 	if (ch < 0) {
-		freescsi(wd);
+		freencrunit(*wd);
+		*wd = NULL;
 	}
 	if ((*wd) == NULL) {
 		scsi = xcalloc(struct wd_state, 1);
@@ -298,6 +303,7 @@ static struct wd_state *allocscsi(struct wd_state **wd, struct romconfig *rc, in
 				if (rc)
 					rc->unitdata = scsi;
 				scsi->rc = rc;
+				scsi->self_ptr = wd;
 				*wd = scsi;
 				return scsi;
 			}
@@ -1401,7 +1407,8 @@ void scsi_hsync (void)
 	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
 		scsi_hsync2_a2091(wd_a2091[i]);
 		scsi_hsync2_a2091(wd_a2090[i]);
-		scsi_hsync2_gvp(wd_gvp[i]);
+		scsi_hsync2_gvp(wd_gvps1[i]);
+		scsi_hsync2_gvp(wd_gvps2[i]);
 	}
 	scsi_hsync2_a2091(wd_a3000);
 	scsi_hsync2_a2091(wd_cdtv);
@@ -3327,7 +3334,7 @@ void a3000scsi_free (void)
 	struct wd_state *wd = wd_a3000;
 	if (!wd)
 		return;
-	scsi_freenative(wd->scsis);
+	freencrunit(wd);
 	if (wd->scsi_thread_running > 0) {
 		wd->scsi_thread_running = 0;
 		write_comm_pipe_u32 (&wd->requests, 0xffffffff, 1);
@@ -3353,9 +3360,17 @@ void a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig
 	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
 }
 
-void gvp_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+void gvp_s1_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	struct wd_state *wd = allocscsi(&wd_gvp[ci->controller_type_unit], rc, ch);
+	struct wd_state *wd = allocscsi(&wd_gvps1[ci->controller_type_unit], rc, ch);
+	if (!wd || ch < 0)
+		return;
+	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
+}
+
+void gvp_s2_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	struct wd_state *wd = allocscsi(&wd_gvps2[ci->controller_type_unit], rc, ch);
 	if (!wd || ch < 0)
 		return;
 	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
@@ -3363,11 +3378,7 @@ void gvp_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *
 
 void a2091_free_device (struct wd_state *wd)
 {
-	if (!wd)
-		return;
-	scsi_freenative(wd->scsis);
-	xfree (wd->rom);
-	wd->rom = NULL;
+	freencrunit(wd);
 }
 
 void a2091_free (void)
@@ -3543,17 +3554,14 @@ addrbank *a2090_init (struct romconfig *rc)
 
 void gvp_free_device (struct wd_state *wd)
 {
-	if (!wd)
-		return;
-	scsi_freenative(wd->scsis);
-	xfree (wd->rom);
-	wd->rom = NULL;
+	freencrunit(wd);
 }
 
 void gvp_free (void)
 {
 	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
-		gvp_free_device(wd_gvp[i]);
+		gvp_free_device(wd_gvps1[i]);
+		gvp_free_device(wd_gvps2[i]);
 	}
 }
 
@@ -3574,7 +3582,8 @@ static void gvp_reset_device(struct wd_state *wd)
 void gvp_reset (void)
 {
 	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
-		gvp_reset_device(wd_gvp[i]);
+		gvp_reset_device(wd_gvps1[i]);
+		gvp_reset_device(wd_gvps2[i]);
 	}
 }
 

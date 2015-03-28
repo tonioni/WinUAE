@@ -595,6 +595,7 @@ struct soft_scsi
 	int subtype;
 	int dma_direction;
 	struct romconfig *rc;
+	struct soft_scsi **self_ptr;
 
 	int dmac_direction;
 	uaecptr dmac_address;
@@ -627,6 +628,9 @@ static void soft_scsi_free_unit(struct soft_scsi *s)
 		rs->device[j] = NULL;
 	}
 	xfree(s->databufferptr);
+	xfree(s->rom);
+	if (s->self_ptr)
+		*s->self_ptr = NULL;
 	xfree(s);
 }
 
@@ -651,6 +655,7 @@ static struct soft_scsi *allocscsi(struct soft_scsi **ncr, struct romconfig *rc,
 
 	if (ch < 0) {
 		freescsi(ncr);
+		*ncr = NULL;
 	}
 	if ((*ncr) == NULL) {
 		scsi = xcalloc(struct soft_scsi, 1);
@@ -659,6 +664,7 @@ static struct soft_scsi *allocscsi(struct soft_scsi **ncr, struct romconfig *rc,
 				soft_scsi_devices[i] = scsi;
 				rc->unitdata = scsi;
 				scsi->rc = rc;
+				scsi->self_ptr = ncr;
 				if (ncr)
 					*ncr = scsi;
 				return scsi;
@@ -1637,13 +1643,13 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 			uae_u8 t = raw_scsi_get_signal_phase(rs);
 			v = 0;
 			// bits 0 to 2: ID (inverted)
+			v |= (ncr->rc->device_id ^ 7) & 7;
 			// shorter delay before drive detection (8s vs 18s)
 			v |= 1 << 5;
 			if (t & SCSI_IO_REQ) {
 				v |= 1 << 6;
 				v |= 1 << 7;
 			}
-			activate_debugger();
 		}
 
 
@@ -1999,10 +2005,20 @@ addrbank *supra_init(struct romconfig *rc)
 			ew(scsi, i * 4, b);
 		}
 		if (z) {
-			for (int i = 0; i < 16384; i++) {
+			int i;
+			for (i = 0; i < 16384; i++) {
 				uae_u8 b;
-				zfile_fread(&b, 1, 1, z);
+				if (!zfile_fread(&b, 1, 1, z))
+					break;
 				scsi->rom[i * 2 + 0] = b;
+			}
+			if (i < 16384) {
+				int ii = 0;
+				while (i < 16384) {
+					scsi->rom[i * 2 + 0] = scsi->rom[ii * 2 + 0];
+					i++;
+					ii++;
+				}
 			}
 			zfile_fclose(z);
 		}
@@ -2259,7 +2275,6 @@ void adscsi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 {
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_ADSCSI, 65536, 65536, ROMTYPE_ADSCSI);
 }
-
 
 
 void soft_scsi_free(void)

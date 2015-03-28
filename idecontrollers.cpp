@@ -95,14 +95,29 @@ static struct ide_thread_state idecontroller_its;
 
 static struct ide_board *ide_boards[MAX_IDE_UNITS + 1];
 
+static void freencrunit(struct ide_board *ide)
+{
+	if (!ide)
+		return;
+	for (int i = 0; i < MAX_IDE_UNITS; i++) {
+		if (ide_boards[i] == ide) {
+			ide_boards[i] = NULL;
+		}
+	}
+	remove_ide_unit(&ide->ide, 0);
+	if (ide->self_ptr)
+		*ide->self_ptr = NULL;
+	xfree(ide->rom);
+	xfree(ide);
+}
+
 static struct ide_board *allocide(struct ide_board **idep, struct romconfig *rc, int ch)
 {
 	struct ide_board *ide;
 
 	if (ch < 0) {
 		if (*idep) {
-			remove_ide_unit(&(*idep)->ide, 0);
-			xfree(*idep);
+			freencrunit(*idep);
 			*idep = NULL;
 		}
 		ide = xcalloc(struct ide_board, 1);
@@ -111,6 +126,7 @@ static struct ide_board *allocide(struct ide_board **idep, struct romconfig *rc,
 				ide_boards[i] = ide;
 				rc->unitdata = ide;
 				ide->rc = rc;
+				ide->self_ptr = idep;
 				if (idep)
 					*idep = ide;
 				return ide;
@@ -223,13 +239,6 @@ void idecontroller_hsync(void)
 	}
 }
 
-void idecontroller_free_units(void)
-{
-	for (int i = 0; i < TOTAL_IDE * 2; i++) {
-		remove_ide_unit(idecontroller_drive, i);
-	}
-}
-
 static void reset_ide(struct ide_board *board)
 {
 	board->configured = 0;
@@ -247,6 +256,9 @@ void idecontroller_reset(void)
 void idecontroller_free(void)
 {
 	stop_ide_thread(&idecontroller_its);
+	for (int i = 0; i < MAX_IDE_UNITS; i++) {
+		freencrunit(ide_boards[i]);
+	}
 }
 
 static bool is_gvp2_intreq(uaecptr addr)
