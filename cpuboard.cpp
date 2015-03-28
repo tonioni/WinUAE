@@ -1613,6 +1613,43 @@ void cpuboard_clear(void)
 		memset(blizzardf0_bank.baseaddr + 0x40000, 0, 0x10000);
 }
 
+static uaecptr cpuboardfakeres_init, cpuboardfakeres_name, cpuboardfakeres_id, base;
+
+#if 0
+uaecptr cpuboardfakeresident_startup (uaecptr resaddr)
+{
+	if (!cpuboardfakeres_name)
+		return resaddr;
+	put_word (resaddr + 0x0, 0x4AFC);
+	put_long (resaddr + 0x2, resaddr);
+	put_long (resaddr + 0x6, resaddr + 0x1A);
+	put_word (resaddr + 0xA, 0x0201);
+	put_word (resaddr + 0xC, 0x0078);
+	put_long (resaddr + 0xE, cpuboardfakeres_name);
+	put_long (resaddr + 0x12, cpuboardfakeres_id);
+	put_long (resaddr + 0x16, cpuboardfakeres_init);
+	resaddr += 0x1A;
+	return resaddr;
+}
+
+void cpuboardfakeres_install (void)
+{
+	cpuboardfakeres_name = NULL;
+	if (ISCPUBOARD(BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_PPC)) {
+		cpuboardfakeres_name = ds (_T("CyberstormMK3.IDTag"));
+	} else if (ISCPUBOARD(BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_MK3)) {
+		cpuboardfakeres_name = ds (_T("CyberstormPPC.IDTag"));
+	}
+	if (cpuboardfakeres_name) {
+		cpuboardfakeres_init = here();
+		dw(0x4e71);
+		dw(0x7000);
+		dw(0x4e75);
+		cpuboardfakeres_id = cpuboardfakeres_name;
+	}
+}
+#endif
+
 bool is_ppc_cpu(struct uae_prefs *p)
 {
 	return is_ppc();
@@ -1814,8 +1851,11 @@ static struct zfile *flashfile_open(const TCHAR *name)
 			}
 		}
 	}
-	if (f)
-		write_log(_T("Accelerator board flash file '%s' loaded, %s.\n"), name, rw ? _T("RW") : _T("RO"));
+	if (f) {
+		write_log(_T("CPUBoard '%s' flash file '%s' loaded, %s.\n"),
+		cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype].name,
+		name, rw ? _T("RW") : _T("RO"));
+	}
 	return f;
 }
 
@@ -1856,6 +1896,9 @@ addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 	const TCHAR *romname = NULL;
 	bool isflashrom = false;
 	struct romdata *rd = NULL;
+	const TCHAR *boardname;
+	
+	boardname = cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype].name;
 
 	int idx, idx2;
 	brc = get_device_rom(&currprefs, ROMTYPE_CPUBOARD, 0, &idx);
@@ -2022,22 +2065,22 @@ addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 		}
 		if (!autoconfig_rom) {
 			romwarning(roms);
-			write_log(_T("Couldn't open CPU board rom '%s'\n"), defaultromname);
+			write_log(_T("Couldn't open CPUBoard '%s' rom '%s'\n"), boardname, defaultromname);
 			return &expamem_null;
 		}
 	}
 
 	if (!autoconfig_rom && roms[0] != -1) {
 		romwarning(roms);
-		write_log (_T("ROM id %d not found for CPU board emulation\n"), roms[0]);
+		write_log (_T("ROM id %d not found for CPUBoard '%s' emulation\n"), roms[0], boardname);
 		return &expamem_null;
 	}
 	if (!autoconfig_rom) {
-		write_log(_T("Couldn't open CPU board rom '%s'\n"), defaultromname);
+		write_log(_T("Couldn't open CPUBoard '%s' rom '%s'\n"), boardname, defaultromname);
 		return &expamem_null;
 	}
 
-	write_log(_T("CPUBoard ROM '%s' %lld loaded\n"), zfile_getname(autoconfig_rom), zfile_size(autoconfig_rom));
+	write_log(_T("CPUBoard '%s' ROM '%s' %lld loaded\n"), boardname, zfile_getname(autoconfig_rom), zfile_size(autoconfig_rom));
 
 	protect_roms(false);
 	cpuboard_non_byte_ea = true;
