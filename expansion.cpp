@@ -2228,6 +2228,16 @@ static const struct expansionsubromtype supra_sub[] = {
 	}
 };
 
+static const struct expansionboardsettings adscsi2000_settings[] = {
+	{
+		_T("Cache (B)"),
+		_T("B")
+	},
+	{
+		NULL
+	}
+};
+
 const struct expansionromtype expansionroms[] = {
 	{
 		_T("cpuboard"), _T("Accelerator"), _T("Accelerator"),
@@ -2257,7 +2267,9 @@ const struct expansionromtype expansionroms[] = {
 		_T("a4091"), _T("A4091"), _T("Commodore"),
 		ncr710_a4091_autoconfig_init, a4091_add_scsi_unit, ROMTYPE_A4091, 0, 0, 3, false,
 		NULL, 0,
-		false, EXPANSIONTYPE_SCSI
+		false, EXPANSIONTYPE_SCSI,
+		0, 0, 0,
+		true
 	},
 	{
 		_T("fastlane"), _T("Fastlane"), _T("Phase 5"),
@@ -2266,23 +2278,23 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("oktagon2008"), _T("Oktagon 2008"), _T("BSC/Alfa Data"),
-		ncr_oktagon_autoconfig_init, oktagon_add_scsi_unit, ROMTYPE_OKTAGON, 0, 0, 2, false,
-		NULL, 0,
-		false, EXPANSIONTYPE_SCSI
-	},
-	{
 		_T("gvp1"), _T("Series I"), _T("GVP"),
-		gvp_init_s1, gvp_add_scsi_unit, ROMTYPE_GVPS1 | ROMTYPE_NONE, ROMTYPE_GVPS12, 0, 2, false,
+		gvp_init_s1, gvp_s1_add_scsi_unit, ROMTYPE_GVPS1 | ROMTYPE_NONE, ROMTYPE_GVPS12, 0, 2, false,
 		gvp1_sub, 1,
 		true, EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("gvp"), _T("Series II"), _T("GVP"),
-		gvp_init_s2, gvp_add_scsi_unit, ROMTYPE_GVPS2 | ROMTYPE_NONE, ROMTYPE_GVPS12, 0, 2, false,
+		gvp_init_s2, gvp_s2_add_scsi_unit, ROMTYPE_GVPS2 | ROMTYPE_NONE, ROMTYPE_GVPS12, 0, 2, false,
 		NULL, 0,
 		true, EXPANSIONTYPE_SCSI,
 		2017, 10, 0
+	},
+	{
+		_T("oktagon2008"), _T("Oktagon 2008"), _T("BSC/Alfa Data"),
+		ncr_oktagon_autoconfig_init, oktagon_add_scsi_unit, ROMTYPE_OKTAGON, 0, 0, 2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("alfapower"), _T("AlfaPower/AT-Bus 2008"), _T("BSC/Alfa Data"),
@@ -2331,6 +2343,15 @@ const struct expansionromtype expansionroms[] = {
 		true, EXPANSIONTYPE_IDE
 	},
 	{
+		_T("adscsi2000"), _T("AdSCSI Advantage 2000"), _T("ICD"),
+		adscsi_init, adscsi_add_scsi_unit, ROMTYPE_ADSCSI, 0, 0, 2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI,
+		0, 0, 0,
+		true,
+		adscsi2000_settings
+	},
+	{
 		_T("mtecat"), _T("AT 500"), _T("M-Tec"),
 		mtec_init, mtec_add_ide_unit, ROMTYPE_MTEC, 0, 0, 2, false,
 		NULL, 0,
@@ -2349,6 +2370,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
 		1010, 0, 0,
+		false, NULL,
 		{ 0xc1, 2, 0x00, 0x00, 0x03, 0xf2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
 
 	},
@@ -2371,12 +2393,6 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SCSI,
 		8498, 27, 0,
 	},
-	{
-		_T("adscsi2000"), _T("AdSCSI Advantage 2000"), _T("ICD"),
-		adscsi_init, adscsi_add_scsi_unit, ROMTYPE_ADSCSI, 0, 0, 2, false,
-		NULL, 0,
-		false, EXPANSIONTYPE_SCSI
-	},
 #if 0
 	{
 		_T("kronos"), _T("Kronos"), _T("C-Ltd"),
@@ -2396,7 +2412,7 @@ const struct expansionromtype expansionroms[] = {
 	}
 };
 
-static const struct cpuboardsettings blizzardboard_settings[] = {
+static const struct expansionboardsettings blizzardboard_settings[] = {
 	{
 		_T("MapROM"),
 		_T("maprom")
@@ -2431,7 +2447,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 		_T("A530"),
 		_T("GVPA530"),
 		ROMTYPE_GVPS2, 0,
-		gvp_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		gvp_s2_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_Z2,
 		8 * 1024 * 1024,
 		0,
@@ -2441,7 +2457,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 		_T("G-Force 030"),
 		_T("GVPGFORCE030"),
 		ROMTYPE_GVPS2, ROMTYPE_GVPS12,
-		gvp_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		gvp_s2_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_25BITMEM,
 		128 * 1024 * 1024,
 		0,
@@ -2557,7 +2573,7 @@ static const struct cpuboardsubtype warpengine_sub[] = {
 		NULL
 	}
 };
-static const struct cpuboardsettings a26x0board_settings[] = {
+static const struct expansionboardsettings a26x0board_settings[] = {
 	{
 		_T("OSMODE (J304)"),
 		_T("j304")

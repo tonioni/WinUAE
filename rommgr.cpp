@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 134
+#define NEXT_ROM_ID 137
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -319,6 +319,12 @@ static struct romdata roms[] = {
 	0x54cb9e85, 0x3CE66919,0xF6FD6797,0x4923A12D,0x91B730F1,0xFFB4A7BA },
 	{ _T("SupraDrive AMAB6"), 3, 8, 3, 8, _T("SUPRA\0"), 16384, 121, 0, 0, ROMTYPE_SUPRA, 0, 0, _T("AMAB6"),
 	0xf40bd349, 0x82168556,0x07525067,0xe9263431,0x1fb9c347,0xe737f247 },
+	{ _T("SupraDrive AMAB5"), 3, 0, 3, 0, _T("SUPRA\0"), 16384, 134, 0, 0, ROMTYPE_SUPRA, 0, 0, _T("AMAB5"),
+	0x75e1b343, 0xf15de74b,0x4e2a9c99,0xa6dc4f6c,0x33f64c76,0x8c043d1c },
+	{ _T("SupraDrive AMAB4"), 0, 0, 0, 0, _T("SUPRA\0"), 8192, 135, 0, 0, ROMTYPE_SUPRA, 0, 0, _T("AMAB4"),
+	0xde7f3f1c, 0xc0acbfc8,0x6641a6c1,0x024870cc,0x519f8c4c,0xbdfe8c64 },
+	{ _T("SupraDrive AMAB3"), 0, 0, 0, 0, _T("SUPRA\0"), 8192, 136, 0, 0, ROMTYPE_SUPRA, 0, 0, _T("AMAB3"),
+	0x3ead39aa, 0x02fe79ee,0xef423098,0xec6add8c,0xb92f849f,0xc64bcd41 },
 
 	{ _T("Blizzard 1230-IV"), 0, 0, 0, 0, _T("B1230\0"), 32768, 89, 0, 0, ROMTYPE_CB_BLIZ1230, 0, 0, NULL,
 	0x3078dbdc, 0x4d3e7fd0,0xa1a4c3ae,0xe17c5de3,0xcbe1af03,0x447aff92 },
@@ -1627,6 +1633,16 @@ const struct expansionromtype *get_device_expansion_rom(int romtype)
 	return NULL;
 }
 
+static void device_rom_defaults(struct boardromconfig *brc, int romtype, int devnum)
+{
+	memset(brc, 0, sizeof boardromconfig);
+	brc->device_type = romtype;
+	brc->device_num = devnum;
+	for (int i = 0; i < MAX_BOARD_ROMS; i++) {
+		brc->roms[i].device_id = 7;	
+	}
+}
+
 struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int devnum, int *index)
 {
 	int idx2;
@@ -1654,9 +1670,7 @@ struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int 
 		for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
 			brc = &p->expansionboard[i];
 			if (brc->device_type == 0) {
-				memset(brc, 0, sizeof boardromconfig);
-				brc->device_type = romtype;
-				brc->device_num = devnum;
+				device_rom_defaults(brc, romtype, devnum);
 				return brc;
 			}
 		}
