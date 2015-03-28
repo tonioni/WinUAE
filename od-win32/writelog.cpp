@@ -68,6 +68,7 @@ int console_logging = 0;
 static int debugger_type = -1;
 extern BOOL debuggerinitializing;
 extern int lof_store;
+static int console_input_linemode = -1;
 int always_flush_log = 1;
 
 #define WRITE_LOG_BUF_SIZE 4096
@@ -79,6 +80,16 @@ static HWND myGetConsoleWindow (void)
 	return GetConsoleWindow ();
 }
 
+static void set_console_input_mode(int line)
+{
+	if (console_input_linemode < 0)
+		return;
+	if (line == console_input_linemode)
+		return;
+	SetConsoleMode (stdinput, ENABLE_PROCESSED_INPUT | ENABLE_PROCESSED_OUTPUT | (line ? (ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT) : 0));
+	console_input_linemode = line;
+}
+
 static void getconsole (void)
 {
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -86,6 +97,7 @@ static void getconsole (void)
 	stdinput = GetStdHandle (STD_INPUT_HANDLE);
 	stdoutput = GetStdHandle (STD_OUTPUT_HANDLE);
 	SetConsoleMode (stdinput, ENABLE_PROCESSED_INPUT|ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT|ENABLE_PROCESSED_OUTPUT);
+	console_input_linemode = 1;
 	SetConsoleCP (65001);
 	SetConsoleOutputCP (65001);
 	if (GetConsoleScreenBufferInfo (stdoutput, &csbi)) {
@@ -218,6 +230,35 @@ void close_console (void)
 	consoleopen = 0;
 }
 
+int read_log(void)
+{
+#if 0
+	return -1;
+#else
+	if (consoleopen >= 0)
+		return -1;
+	set_console_input_mode(0);
+	INPUT_RECORD irbuf;
+	DWORD numread;
+	for (;;) {
+		if (!PeekConsoleInput(stdinput, &irbuf, 1, &numread))
+			return -1;
+		if (!numread)
+			return -1;
+		if (!ReadConsoleInput(stdinput, &irbuf, 1, &numread))
+			return -1;
+		if (irbuf.EventType != KEY_EVENT)
+			continue;
+		if (!irbuf.Event.KeyEvent.bKeyDown)
+			continue;
+		int ch = irbuf.Event.KeyEvent.uChar.AsciiChar;
+		if (ch == 0)
+			continue;
+		return ch;
+	}
+#endif
+}
+
 static void writeconsole_2 (const TCHAR *buffer)
 {
 	DWORD temp;
@@ -345,6 +386,7 @@ int console_get (TCHAR *out, int maxlen)
 {
 	*out = 0;
 
+	set_console_input_mode(1);
 	if (consoleopen > 0) {
 		return console_get_gui (out, maxlen);
 	} else if (realconsole) {

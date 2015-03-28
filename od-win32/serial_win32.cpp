@@ -165,6 +165,7 @@ static int dtr;
 static int serial_period_hsyncs, serial_period_hsync_counter;
 static int ninebit;
 static int lastbitcycle_active_hsyncs;
+static bool gotlogwrite;
 static unsigned int lastbitcycle;
 int serdev;
 int seriallog = 0, log_sercon = 0;
@@ -370,8 +371,10 @@ static void serdatcopy(void)
 	serial_check_irq();
 	checksend();
 
-	if (seriallog)
+	if (seriallog) {
+		gotlogwrite = true;
 		write_log(_T("%c"), dochar(serdatshift));
+	}
 
 	if (serper == 372) {
 		if (enforcermode & 2) {
@@ -414,6 +417,15 @@ void serial_hsynchandler (void)
 	extern void hsyncstuff(void);
 	hsyncstuff();
 #endif
+	if (seriallog && !data_in_serdatr && gotlogwrite) {
+		int ch = read_log();
+		if (ch > 0) {
+			serdatr = ch | 0x100;
+			data_in_serdatr = 1;
+			serial_check_irq ();
+		}
+	}
+
 	if (lastbitcycle_active_hsyncs > 0)
 		lastbitcycle_active_hsyncs--;
 	if (sermap2 && sermap_enabled && !data_in_serdatr) {
