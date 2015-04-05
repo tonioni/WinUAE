@@ -2878,8 +2878,14 @@ static void m68k_reset2(bool hardreset)
 	}
 #endif
 	regs.s = 1;
-	v = get_long (4);
-	m68k_areg (regs, 7) = get_long (0);
+	if (currprefs.cpuboard_type) {
+		uaecptr stack;
+		v = cpuboard_get_reset_pc(&stack);
+		m68k_areg (regs, 7) = stack;
+	} else {
+		v = get_long (4);
+		m68k_areg (regs, 7) = get_long (0);
+	}
 	m68k_setpc_normal(v);
 	regs.m = 0;
 	regs.stopped = 0;

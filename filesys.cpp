@@ -794,6 +794,7 @@ static void allocuci (struct uae_prefs *p, int nr, int idx)
 }
 
 static int cpuboard_hd;
+static romconfig cpuboard_dummy;
 
 void add_cpuboard_unit(int unit, struct uaedev_config_info *uci, struct romconfig *rc)
 {
@@ -815,16 +816,18 @@ void add_cpuboard_unit(int unit, struct uaedev_config_info *uci, struct romconfi
 
 static void add_cpuboard_unit_init(void)
 {
+	memset(&cpuboard_dummy, 0, sizeof cpuboard_dummy);
+	cpuboard_dummy.device_id = 7;
 	if (currprefs.cpuboard_type) {
 		struct romconfig *rc = get_device_romconfig(&currprefs, ROMTYPE_CPUBOARD, 0);
-		if (rc) {
-			const struct cpuboardtype *cbt = &cpuboards[currprefs.cpuboard_type];
-			if (cbt->subtypes) {
-				if (cbt->subtypes[currprefs.cpuboard_subtype].add) {
-					struct uaedev_config_info ci = { 0 };
-					write_log(_T("Initializing CPUBoard '%s' HD controller\n"), cbt->subtypes[currprefs.cpuboard_subtype].name);
-					cbt->subtypes[currprefs.cpuboard_subtype].add(-1, &ci, rc);
-				}
+		if (!rc)
+			rc = &cpuboard_dummy;
+		const struct cpuboardtype *cbt = &cpuboards[currprefs.cpuboard_type];
+		if (cbt->subtypes) {
+			if (cbt->subtypes[currprefs.cpuboard_subtype].add) {
+				struct uaedev_config_info ci = { 0 };
+				write_log(_T("Initializing CPUBoard '%s' HD controller\n"), cbt->subtypes[currprefs.cpuboard_subtype].name);
+				cbt->subtypes[currprefs.cpuboard_subtype].add(-1, &ci, rc);
 			}
 		}
 	}

@@ -3661,9 +3661,20 @@ static addrbank *gvp_init(struct romconfig *rc, bool series2, bool accel)
 			int size = zfile_size(z);
 			if (series2) {
 				int total = 0;
-				while (total < 32768) {
+				int seekpos = 0;
+				int size = zfile_size(z);
+				if (size > 16384 + 4096) {
+					zfile_fread(wd->rom, 64, 1, z);
+					zfile_fseek(z, 16384, SEEK_SET);
+					zfile_fread(wd->rom + 64, 64, 1, z);
+					if (!memcmp(wd->rom, wd->rom + 64, 64))
+						wd->rombankswitcher = true;
+					else
+						seekpos = 16384;
+				}
+				while (total < 32768 - 4096) {
 					int prevtotal = total;
-					zfile_fseek(z, 0, SEEK_SET);
+					zfile_fseek(z, seekpos, SEEK_SET);
 					total += zfile_fread(wd->rom + total, 1, wd->rom_size - total >= wd->rom_size ? wd->rom_size : wd->rom_size - total, z);
 					if (prevtotal == total)
 						break;
@@ -3688,9 +3699,6 @@ static addrbank *gvp_init(struct romconfig *rc, bool series2, bool accel)
 				}
 			}
 			zfile_fclose(z);
-			if (series2 && size > 16384) {
-				wd->rombankswitcher = 1;
-			}
 		} else {
 			isscsi = false;
 		}

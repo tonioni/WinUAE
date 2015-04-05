@@ -181,7 +181,7 @@ static const TCHAR *maxvert[] = { _T("nointerlace"), _T("interlace"), 0 };
 static const TCHAR *abspointers[] = { _T("none"), _T("mousehack"), _T("tablet"), 0 };
 static const TCHAR *magiccursors[] = { _T("both"), _T("native"), _T("host"), 0 };
 static const TCHAR *autoscale[] = { _T("none"), _T("auto"), _T("standard"), _T("max"), _T("scale"), _T("resize"), _T("center"), _T("manual"),
-	_T("integer"), _T("half-integer"), _T("integer_auto"), _T("half-integer_auto"), 0 };
+	_T("integer"), _T("half-integer"), _T("integer_auto"), _T("half-integer_auto"), _T("separator"), _T("overscan_blanking"), 0 };
 static const TCHAR *autoscale_rtg[] = { _T("resize"), _T("scale"), _T("center"), _T("integer"), 0 };
 static const TCHAR *joyportmodes[] = { _T(""), _T("mouse"), _T("mousenowheel"), _T("djoy"), _T("gamepad"), _T("ajoy"), _T("cdtvjoy"), _T("cd32joy"), _T("lightpen"), 0 };
 static const TCHAR *joyaf[] = { _T("none"), _T("normal"), _T("toggle"), _T("always"), 0 };
@@ -3936,6 +3936,8 @@ invalid_fs:
 bool cfgfile_board_enabled(struct uae_prefs *p, int romtype, int devnum)
 {
 	int idx;
+	if (romtype == ROMTYPE_CPUBOARD && currprefs.cpuboard_type)
+		return true;
 	struct boardromconfig *brc = get_device_rom(p, romtype, devnum, &idx);
 	if (!brc)
 		return false;
@@ -3977,6 +3979,7 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 			}
 
 			_stprintf(buf, _T("%s_rom_file_id"), name);
+			buf2[0] = 0;
 			if (cfgfile_rom (option, value, buf, buf2, MAX_DPATH / sizeof (TCHAR))) {
 				if (buf2[0]) {
 					brc = get_device_rom_new(p, ert->romtype, j, &idx);

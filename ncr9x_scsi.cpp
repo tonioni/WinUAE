@@ -604,6 +604,8 @@ static bool isncr(struct ncr9x_state *ncr, struct ncr9x_state **arr)
 static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 {
 	int reg_shift = 2;
+	uaecptr oldaddr = addr;
+
 	addr &= ncr->board_mask;
 	if (isncr(ncr, ncr_masoboshi_scsi)) {
 
@@ -773,7 +775,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 				if (ncr->dma_cnt == 0)
 					esp_dma_enable(ncr->devobject.lsistate, 1);
 			}
-			//write_log(_T("Blizzard DMA PUT %08x %02X\n"), addr, (uae_u8)val);
+			//write_log(_T("Blizzard DMA PUT %08x %02X\n"), oldaddr, (uae_u8)val);
 			return;
 		}
 	} else if (ISCPUBOARD(BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_MK1)) {
@@ -833,7 +835,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 	addr >>= reg_shift;
 	addr &= IO_MASK;
 #if NCR_DEBUG > 1
-	write_log(_T("ESP write %02X %02X %08X\n"), addr, val & 0xff, M68K_GETPC);
+	write_log(_T("ESP write %02X (%08X) %02X %08X\n"), addr, oldaddr, val & 0xff, M68K_GETPC);
 #endif
 	esp_reg_write(ncr->devobject.lsistate, (addr), val);
 }
@@ -842,6 +844,8 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 {
 	uae_u8 v = 0xff;
 	int reg_shift = 2;
+	uaecptr oldaddr = addr;
+
 	addr &= ncr->board_mask;
 	if (isncr(ncr, ncr_masoboshi_scsi)) {
 
@@ -1005,7 +1009,7 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 	addr &= IO_MASK;
 	v = esp_reg_read(ncr->devobject.lsistate, (addr));
 #if NCR_DEBUG > 1
-	write_log(_T("ESP read %02X %02X %08X\n"), addr, v, M68K_GETPC);
+	write_log(_T("ESP read %02X (%08X) %02X %08X\n"), addr, oldaddr, v, M68K_GETPC);
 #endif
 	return v;
 }

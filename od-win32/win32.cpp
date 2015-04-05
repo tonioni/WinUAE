@@ -204,7 +204,7 @@ static int guijoybutton[MAX_JPORTS];
 static int guijoyaxis[MAX_JPORTS][4];
 static bool guijoychange;
 
-static int timeend (void)
+int timeend (void)
 {
 	if (!timeon)
 		return 1;
@@ -215,7 +215,7 @@ static int timeend (void)
 	return 0;
 }
 
-static int timebegin (void)
+int timebegin (void)
 {
 	if (timeon) {
 		timeend ();
@@ -2202,6 +2202,7 @@ bool handle_events (void)
 	if (pause_emulation) {
 		MSG msg;
 		if (was_paused == 0) {
+			timeend();
 			setpaused (pause_emulation);
 			was_paused = pause_emulation;
 			manual_painting_needed++;
@@ -2238,6 +2239,7 @@ bool handle_events (void)
 		resumepaused (was_paused);
 		sound_closed = 0;
 		was_paused = 0;
+		timebegin();
 	}
 	cnt1--;
 	if (cnt1 <= 0) {

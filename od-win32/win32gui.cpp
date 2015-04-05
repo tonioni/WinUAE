@@ -1306,7 +1306,7 @@ static const TCHAR *memsize_names[] = {
 	/* 23*/ _T("3 GB")
 };
 
-static unsigned long memsizes[] = {
+static const unsigned long memsizes[] = {
 	/* 0 */ 0,
 	/* 1 */ 0x00010000, /*  64K */
 	/* 2 */ 0x00020000, /* 128K */
@@ -1333,13 +1333,13 @@ static unsigned long memsizes[] = {
 	/* 23*/ 0xC0000000, //3GB
 };
 
-static int msi_chip[] = { 3, 4, 5, 16, 6, 7, 8 };
-static int msi_bogo[] = { 0, 4, 5, 16, 17 };
-static int msi_fast[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
-static int msi_z3fast[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 19, 14, 20, 15, 21, 18, 22, 23 };
-static int msi_z3chip[] = { 0, 9, 10, 11, 12, 13, 19, 14, 20, 15 };
-static int msi_gfx[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
-static int msi_cpuboard[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
+static const int msi_chip[] = { 3, 4, 5, 16, 6, 7, 8 };
+static const int msi_bogo[] = { 0, 4, 5, 16, 17 };
+static const int msi_fast[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+static const int msi_z3fast[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 19, 14, 20, 15, 21, 18, 22, 23 };
+static const int msi_z3chip[] = { 0, 9, 10, 11, 12, 13, 19, 14, 20, 15 };
+static const int msi_gfx[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+static const int msi_cpuboard[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
 
 #define MIN_CHIP_MEM 0
 #define MAX_CHIP_MEM 6
@@ -1640,7 +1640,7 @@ static int scan_rom (const TCHAR *path, UAEREG *fkey, bool deepscan)
 	return rsd.got;
 }
 
-static int listrom (int *roms)
+static int listrom (const int *roms)
 {
 	int i;
 
@@ -1658,9 +1658,9 @@ static void show_rom_list (void)
 {
 	TCHAR *p;
 	TCHAR *p1, *p2;
-	int *rp;
+	const int *rp;
 	bool first = true;
-	int romtable[] = {
+	const int romtable[] = {
 		5, 4, -1, -1, // A500 1.2
 		6, 32, -1, -1, // A500 1.3
 		7, -1, -1, // A500+
@@ -1684,13 +1684,15 @@ static void show_rom_list (void)
 		117, -1, -1, // alf
 		118, -1, -1, // alf+
 		120, -1, -1, // masoboshi
-		121, -1, -1, // supradrive
+		121, 134, 135, 136, -1, -1, // supradrive
 		124, -1, -1, // kupke golem
 		131, -1, -1, // protar
 		130, -1, -1, // m-tec
 		129, -1, -1, // adide
+		133, -1, -1, // adscsi
 		127, -1, -1, // kommos
-		128, -1, -2, // vector falcon
+		128, -1, -1, // vector falcon
+		132, -1, -2, // add500
 
 		18, -1, 19, -1, 74, 23, -1, -1,  // CD32 FMV
 		91, -1, -2, // Picasso IV
@@ -1737,8 +1739,10 @@ static void show_rom_list (void)
 		_T("Protar A500HD SCSI\0")
 		_T("M-Tec AT500 IDE\0")
 		_T("AdIDE\0")
+		_T("AdSCSI\0")
 		_T("Kommos A500/A2000 SCSI\0")
 		_T("Vector Falcon 8000 SCSI\0")
+		_T("Archos ADD-500\0")
 
 		_T("CD32 Full Motion Video\0")
 		_T("Picasso IV\0")
@@ -7640,8 +7644,7 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_MBMEM2, mbram2);
 	ew(hDlg, IDC_CPUBOARDMEM, workprefs.cpuboard_type > 0);
 	ew(hDlg, IDC_CPUBOARDRAM, workprefs.cpuboard_type > 0);
-	ew(hDlg, IDC_CPUBOARD_TYPE, workprefs.address_space_24 == false);
-	ew(hDlg, IDC_CPUBOARD_SUBTYPE, workprefs.address_space_24 == false && workprefs.cpuboard_type);
+	ew(hDlg, IDC_CPUBOARD_SUBTYPE, workprefs.cpuboard_type);
 	const struct expansionboardsettings *cbs = cpuboards[workprefs.cpuboard_type].subtypes[workprefs.cpuboard_subtype].settings;
 	for (int i = 0; cpuboard_settings_id[i] >= 0; i++) {
 		hide(hDlg, cpuboard_settings_id[i], !(workprefs.address_space_24 == false && cbs && cbs[i].name));
@@ -12105,13 +12108,13 @@ static void out_floppyspeed (HWND hDlg)
 }
 
 #define BUTTONSPERFLOPPY 9
-static int floppybuttons[][BUTTONSPERFLOPPY] = {
+static const int floppybuttons[][BUTTONSPERFLOPPY] = {
 	{ IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP,-1,IDC_SAVEIMAGE0,IDC_DF0ENABLE, IDC_INFO0 },
 	{ IDC_DF1TEXT,IDC_DF1,IDC_EJECT1,IDC_DF1TYPE,IDC_DF1WP,-1,IDC_SAVEIMAGE1,IDC_DF1ENABLE, IDC_INFO1 },
 	{ IDC_DF2TEXT,IDC_DF2,IDC_EJECT2,IDC_DF2TYPE,IDC_DF2WP,-1,IDC_SAVEIMAGE2,IDC_DF2ENABLE, IDC_INFO2 },
 	{ IDC_DF3TEXT,IDC_DF3,IDC_EJECT3,IDC_DF3TYPE,IDC_DF3WP,-1,IDC_SAVEIMAGE3,IDC_DF3ENABLE, IDC_INFO3 }
 };
-static int floppybuttonsq[][BUTTONSPERFLOPPY] = {
+static const int floppybuttonsq[][BUTTONSPERFLOPPY] = {
 	{ IDC_DF0TEXTQ,IDC_DF0QQ,IDC_EJECT0Q,-1,IDC_DF0WPQ,IDC_DF0WPTEXTQ,-1,IDC_DF0QENABLE, IDC_INFO0Q },
 	{ IDC_DF1TEXTQ,IDC_DF1QQ,IDC_EJECT1Q,-1,IDC_DF1WPQ,IDC_DF1WPTEXTQ,-1,IDC_DF1QENABLE, IDC_INFO1Q },
 	{ -1,-1,-1,-1,-1,-1,-1,-1 },
@@ -15579,6 +15582,10 @@ static void values_to_hw3ddlg (HWND hDlg)
 		SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 		WIN32GUI_LoadUIString (IDS_AUTOSCALE_HALF_INTEGER_AUTOSCALE, txt, sizeof (txt) / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
+
+		SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)_T("-"));
+		WIN32GUI_LoadUIString (IDS_AUTOSCALE_OVERSCAN_BLANK, txt, sizeof (txt) / sizeof (TCHAR));
+		SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 	} else {
 		WIN32GUI_LoadUIString(IDS_AUTOSCALE_DEFAULT, txt, sizeof (txt) / sizeof (TCHAR));
 		SendDlgItemMessage(hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
@@ -15609,29 +15616,41 @@ static void values_to_hw3ddlg (HWND hDlg)
 		i++;
 	SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_SETCURSEL, i, 0);
 
-	int range1, range2;
+	int xrange1, xrange2;
+	int yrange1, yrange2;
 	
 	if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_MANUAL) {
-		range1 = -1;
-		range2 = 1800;
+		xrange1 = -1;
+		xrange2 = 1800;
+		yrange1 = xrange1;
+		yrange2 = xrange2;
+	} else if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_OVERSCAN_BLANK) {
+		xrange1 = 0;
+		xrange2 = 1800;
+		yrange1 = 0;
+		yrange2 = 700;
 	} else if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_INTEGER ||
 			   workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_INTEGER_AUTOSCALE ||
 			   workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_HALF_INTEGER ||
 			   workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_HALF_INTEGER_AUTOSCALE) {
-		range1 = -99;
-		range2 = 99;
+		xrange1 = -99;
+		xrange2 = 99;
+		yrange1 = xrange1;
+		yrange2 = xrange2;
 	} else {
-		range1 = -9999;
-		range2 = 9999;
+		xrange1 = -9999;
+		xrange2 = 9999;
+		yrange1 = xrange1;
+		yrange2 = xrange2;
 	}
 
-	SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (range1, range2));
+	SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (xrange1, xrange2));
 	SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPAGESIZE, 0, 1);
-	SendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETRANGE, TRUE, MAKELONG (range1, range2));
+	SendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETRANGE, TRUE, MAKELONG (xrange1, xrange2));
 	SendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETPAGESIZE, 0, 1);
-	SendDlgItemMessage (hDlg, IDC_FILTERHO, TBM_SETRANGE, TRUE, MAKELONG (range1, range2));
+	SendDlgItemMessage (hDlg, IDC_FILTERHO, TBM_SETRANGE, TRUE, MAKELONG (yrange1, yrange2));
 	SendDlgItemMessage (hDlg, IDC_FILTERHO, TBM_SETPAGESIZE, 0, 1);
-	SendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETRANGE, TRUE, MAKELONG (range1, range2));
+	SendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETRANGE, TRUE, MAKELONG (yrange1, yrange2));
 	SendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETPAGESIZE, 0, 1);
 
 	SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_RESETCONTENT, 0, 0L);
@@ -15830,6 +15849,11 @@ static void values_to_hw3ddlg (HWND hDlg)
 		vz = workprefs.gfx_ycenter_size;
 		ho = workprefs.gfx_xcenter_pos;
 		vo = workprefs.gfx_ycenter_pos;
+	} else if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_OVERSCAN_BLANK) {
+		hz = workprefs.gf[filter_nativertg].gfx_filter_left_border;
+		vz = workprefs.gf[filter_nativertg].gfx_filter_right_border;
+		ho = workprefs.gf[filter_nativertg].gfx_filter_top_border;
+		vo = workprefs.gf[filter_nativertg].gfx_filter_bottom_border;
 	} else {
 		hz = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom;
 		vz = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom;
@@ -16174,6 +16198,8 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				case IDC_FILTERAUTOSCALE:
 					item = SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {
+						if (item == AUTOSCALE_SEPARATOR)
+							item++;
 						workprefs.gf[filter_nativertg].gfx_filter_autoscale = item;
 						if (workprefs.gf[filter_nativertg].gfx_filter_autoscale && workprefs.gf[filter_nativertg].gfx_filter == 0 && !workprefs.gfx_api)
 							workprefs.gf[filter_nativertg].gfx_filter = 1; // NULL
@@ -16250,36 +16276,52 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		{
 			HWND hz = GetDlgItem (hDlg, IDC_FILTERHZ);
 			HWND vz = GetDlgItem (hDlg, IDC_FILTERVZ);
+			HWND ho = GetDlgItem (hDlg, IDC_FILTERHO);
+			HWND vo = GetDlgItem (hDlg, IDC_FILTERVO);
 			HWND h = (HWND)lParam;
+			struct gfx_filterdata *fd = &currprefs.gf[filter_nativertg];
+			struct gfx_filterdata *fdwp = &workprefs.gf[filter_nativertg];
 
 			if (recursive)
 				break;
 			recursive++;
-			if (currprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_MANUAL) {
+			if (fdwp->gfx_filter_autoscale == AUTOSCALE_MANUAL) {
 				currprefs.gfx_xcenter_size = workprefs.gfx_xcenter_size = (int)SendMessage (hz, TBM_GETPOS, 0, 0);
 				currprefs.gfx_ycenter_size = workprefs.gfx_ycenter_size = (int)SendMessage (vz, TBM_GETPOS, 0, 0);
-				currprefs.gfx_xcenter_pos = workprefs.gfx_xcenter_pos = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
-				currprefs.gfx_ycenter_pos = workprefs.gfx_ycenter_pos = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
-				SetDlgItemInt (hDlg, IDC_FILTERHOV, workprefs.gfx_xcenter_pos, TRUE);
-				SetDlgItemInt (hDlg, IDC_FILTERVOV, workprefs.gfx_ycenter_pos, TRUE);
+				currprefs.gfx_xcenter_pos = workprefs.gfx_xcenter_pos = (int)SendMessage (ho, TBM_GETPOS, 0, 0);
+				currprefs.gfx_ycenter_pos = workprefs.gfx_ycenter_pos = (int)SendMessage (vo, TBM_GETPOS, 0, 0);
 				SetDlgItemInt (hDlg, IDC_FILTERHZV, workprefs.gfx_xcenter_size, TRUE);
 				SetDlgItemInt (hDlg, IDC_FILTERVZV, workprefs.gfx_ycenter_size, TRUE);
+				SetDlgItemInt (hDlg, IDC_FILTERHOV, workprefs.gfx_xcenter_pos, TRUE);
+				SetDlgItemInt (hDlg, IDC_FILTERVOV, workprefs.gfx_ycenter_pos, TRUE);
+			} else if (fdwp->gfx_filter_autoscale == AUTOSCALE_OVERSCAN_BLANK) {
+				fd->gfx_filter_left_border = fdwp->gfx_filter_left_border = (int)SendMessage (hz, TBM_GETPOS, 0, 0);
+				fd->gfx_filter_right_border = fdwp->gfx_filter_right_border = (int)SendMessage (vz, TBM_GETPOS, 0, 0);
+				fd->gfx_filter_top_border = fdwp->gfx_filter_top_border = (int)SendMessage (ho, TBM_GETPOS, 0, 0);
+				fd->gfx_filter_bottom_border = fdwp->gfx_filter_bottom_border = (int)SendMessage (vo, TBM_GETPOS, 0, 0);
+				SetDlgItemInt (hDlg, IDC_FILTERHZV, fdwp->gfx_filter_left_border, TRUE);
+				SetDlgItemInt (hDlg, IDC_FILTERVZV, fdwp->gfx_filter_right_border, TRUE);
+				SetDlgItemInt (hDlg, IDC_FILTERHOV, fdwp->gfx_filter_top_border, TRUE);
+				SetDlgItemInt (hDlg, IDC_FILTERVOV, fdwp->gfx_filter_bottom_border, TRUE);
+				if (!full_property_sheet) {
+					reset_drawing();
+				}
 			} else {
 				if (h == hz) {
-					currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom = (int)SendMessage (hz, TBM_GETPOS, 0, 0);
-					if (workprefs.gf[filter_nativertg].gfx_filter_keep_aspect) {
-						currprefs.gf[filter_nativertg].gfx_filter_vert_zoom = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom = currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom;
-						SendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, workprefs.gf[filter_nativertg].gfx_filter_vert_zoom);
+					fd->gfx_filter_horiz_zoom = fdwp->gfx_filter_horiz_zoom = (int)SendMessage (hz, TBM_GETPOS, 0, 0);
+					if (fdwp->gfx_filter_keep_aspect) {
+						fd->gfx_filter_vert_zoom = fdwp->gfx_filter_vert_zoom = currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom;
+						SendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, fdwp->gfx_filter_vert_zoom);
 					}
 				} else if (h == vz) {
-					currprefs.gf[filter_nativertg].gfx_filter_vert_zoom = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom = (int)SendMessage (vz, TBM_GETPOS, 0, 0);
-					if (workprefs.gf[filter_nativertg].gfx_filter_keep_aspect) {
-						currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom = currprefs.gf[filter_nativertg].gfx_filter_vert_zoom;
-						SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom);
+					fd->gfx_filter_vert_zoom = fdwp->gfx_filter_vert_zoom = (int)SendMessage (vz, TBM_GETPOS, 0, 0);
+					if (fdwp->gfx_filter_keep_aspect) {
+						fd->gfx_filter_horiz_zoom = fdwp->gfx_filter_horiz_zoom = currprefs.gf[filter_nativertg].gfx_filter_vert_zoom;
+						SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, fdwp->gfx_filter_horiz_zoom);
 					}
 				}
-				currprefs.gf[filter_nativertg].gfx_filter_horiz_offset = workprefs.gf[filter_nativertg].gfx_filter_horiz_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
-				currprefs.gf[filter_nativertg].gfx_filter_vert_offset = workprefs.gf[filter_nativertg].gfx_filter_vert_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
+				fd->gfx_filter_horiz_offset = fdwp->gfx_filter_horiz_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
+				fd->gfx_filter_vert_offset = fdwp->gfx_filter_vert_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
 				SetDlgItemInt (hDlg, IDC_FILTERHOV, (int)workprefs.gf[filter_nativertg].gfx_filter_horiz_offset, TRUE);
 				SetDlgItemInt (hDlg, IDC_FILTERVOV, (int)workprefs.gf[filter_nativertg].gfx_filter_vert_offset, TRUE);
 				SetDlgItemInt (hDlg, IDC_FILTERHZV, (int)workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom, TRUE);
@@ -16706,7 +16748,7 @@ static LRESULT FAR PASCAL ToolTipWndProc (HWND hwnd, UINT message, WPARAM wParam
 	return CallWindowProc (ToolTipHWNDS2[i].proc, hwnd, message, wParam, lParam);
 }
 
-static int ignorewindows[] = {
+static const int ignorewindows[] = {
 	IDD_FLOPPY, IDC_DF0TEXT, IDC_DF1TEXT, IDC_DF2TEXT, IDC_DF3TEXT, IDC_CREATE_NAME,
 	-1,
 	IDD_QUICKSTART, IDC_DF0TEXTQ, IDC_DF1TEXTQ, IDC_QUICKSTART_HOSTCONFIG,
@@ -17840,6 +17882,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	struct newresource *tres;
 
 	gui_active++;
+	timeend();
 
 	full_property_sheet = all_options;
 	allow_quit = all_options;
@@ -18094,6 +18137,7 @@ gui_exit:
 	qs_request_reset = 0;
 	full_property_sheet = 0;
 	gui_active--;
+	timebegin();
 	return psresult;
 }
 
@@ -18540,7 +18584,7 @@ void pre_gui_message (const TCHAR *format,...)
 
 }
 
-static int transla[] = {
+static const int transla[] = {
 	NUMSG_NEEDEXT2, IDS_NUMSG_NEEDEXT2,
 	NUMSG_NOROMKEY,IDS_NUMSG_NOROMKEY,
 	NUMSG_NOROM,IDS_NUMSG_NOROM,

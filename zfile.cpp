@@ -287,6 +287,8 @@ int zfile_gettype (struct zfile *z)
 			return ZFILE_STATEFILE;
 		if (strcasecmp (ext, _T("rom")) == 0)
 			return ZFILE_ROM;
+		if (strcasecmp (ext, _T("bin")) == 0)
+			return ZFILE_ROM;
 		if (strcasecmp (ext, _T("key")) == 0)
 			return ZFILE_KEY;
 		if (strcasecmp (ext, _T("nvr")) == 0)

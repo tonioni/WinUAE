@@ -1,4 +1,23 @@
 
+Beta 15:
+
+- Map only upper half of ROM image if GVP Series II ROM is 32k.
+- HD controller ROM loader duplicate code removal from HD controller specific code.
+- Accelerator board HD controller hardware was not added to emulation if board's boot ROM was missing. (b12)
+- Added DKB 12x0 accelerator on-board RAM support. 1M and 2M size are not supported, address mapping is
+  not completely emulated.
+- Floppy sound volume mixing fixed (b14).
+- Oktagon 2008 didn't have autoboot disable option.
+- Only keep high Windows timer resolution mode active when emulation is running.
+- Added Seek (6) and (10) SCSI commands to HD SCSI emulator, only checks for valid LBA.
+- VGA modes had inverted TV/VGA aspect ratio setting. (Probably not completely correct yet)
+- Added configurable blanking borders. GUI adjustment hacked to Filter panel, "Overscan blanking" setting.
+  When "Overscan blanking" is selected, filter mode is always none. First slider adjusts horizontal start,
+  second = horizontal end, third = vertical start, fourth = vertical end. Values are always in superhires
+  (horizontal) and interlaced (vertical) coordinates. Zero = disabled.
+  Currently display is only updated with new values after returning to emulation and GUI text elements are
+  not changed.
+
 Beta 14:
 
 - Show selected accelerator board and HD controller name(s) in log lines.
@@ -17,7 +36,7 @@ Beta 14:
   disk, reads and executes boot block code if disk has correct bootblock which is different than release AmigaOS
   bootblock. MFM level format seems to be identical. Unfortunately, at least so far, no original Velvet floppy
   disks have been found and for some reason real hardware refuses to read any disks.
-- If -seriallog is enabled, console log window also listens for key codes and sends them to emulated serial
+- If -serlog is enabled, console log window also listens for key codes and sends them to emulated serial
   port. Very basic console emulator, enables quick use of Velvet ROM built-in serial debugger.
 - Added "Any floppy drive" option to keyboard led configuration.
 - Floppy sound volume control is not global anymore. Empty and disk in drive states also have separate volume

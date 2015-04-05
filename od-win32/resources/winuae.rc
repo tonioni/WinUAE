@@ -1969,6 +1969,7 @@ BEGIN
                             "PPC native OS booted with UAE boot ROM active. UAE expansions are not hardware emulated and are not PPC compatible. (UAE HD controller, uaescsi.device, uaeserial, bsdsocket and so on..)"
     IDS_AUTOSCALE_HALF_INTEGER "Half-integer scaling"
     IDS_AUTOSCALE_HALF_INTEGER_AUTOSCALE "Auto Half-integer scaling"
+    IDS_AUTOSCALE_OVERSCAN_BLANK "Overscan blanking"
 END
 
 #endif    // English resources

@@ -17,6 +17,7 @@ extern bool is_ppc_cpu(struct uae_prefs *);
 extern bool cpuboard_io_special(int addr, uae_u32 *val, int size, bool write);
 extern void cpuboard_overlay_override(void);
 extern void cpuboard_setboard(struct uae_prefs *p, int type, int subtype);
+extern uaecptr cpuboard_get_reset_pc(uaecptr *stack);
 
 extern bool ppc_interrupt(int new_m68k_ipl);
 
@@ -61,4 +62,7 @@ extern uae_u8 *REGPARAM3 cyberstorm_scsi_ram_xlate(uaecptr addr) REGPARAM;
 #define BOARD_GVP_SUB_GFORCE030 3
 #define BOARD_GVP_SUB_TEKMAGIC 4
 #define BOARD_KUPKE 9
+#define BOARD_IC 10
+#define BOARD_IC_ACA500 0
+
 

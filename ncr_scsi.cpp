@@ -451,22 +451,24 @@ static uae_u32 ncr_bget2 (struct ncr_state *ncr, uaecptr addr)
 
 static uae_u32 REGPARAM2 ncr_lget (struct ncr_state *ncr, uaecptr addr)
 {
-	uae_u32 v;
+	uae_u32 v = 0;
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	addr &= ncr->board_mask;
-	if (ncr == ncr_we) {
-		addr &= ~0x80;
-		v = (ncr_bget2(ncr, addr + 3) << 0) | (ncr_bget2(ncr, addr + 2) << 8) |
-			(ncr_bget2(ncr, addr + 1) << 16) | (ncr_bget2(ncr, addr + 0) << 24);
-	} else {
-		if (addr >= A4091_IO_ALT) {
-			v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
-				(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
+	if (ncr) {
+		addr &= ncr->board_mask;
+		if (ncr == ncr_we) {
+			addr &= ~0x80;
+			v = (ncr_bget2(ncr, addr + 3) << 0) | (ncr_bget2(ncr, addr + 2) << 8) |
+				(ncr_bget2(ncr, addr + 1) << 16) | (ncr_bget2(ncr, addr + 0) << 24);
 		} else {
-			v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
-				(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
+			if (addr >= A4091_IO_ALT) {
+				v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
+					(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
+			} else {
+				v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
+					(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
+			}
 		}
 	}
 	return v;
@@ -474,28 +476,32 @@ static uae_u32 REGPARAM2 ncr_lget (struct ncr_state *ncr, uaecptr addr)
 
 static uae_u32 REGPARAM2 ncr_wget (struct ncr_state *ncr, uaecptr addr)
 {
-	uae_u32 v;
+	uae_u32 v = 0;
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	v = (ncr_bget2 (ncr, addr) << 8) | ncr_bget2 (ncr, addr + 1);
+	if (ncr) {
+		v = (ncr_bget2 (ncr, addr) << 8) | ncr_bget2 (ncr, addr + 1);
+	}
 	return v;
 }
 
 static uae_u32 REGPARAM2 ncr_bget (struct ncr_state *ncr, uaecptr addr)
 {
-	uae_u32 v;
+	uae_u32 v = 0;
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	addr &= ncr->board_mask;
-	if (!ncr->configured) {
-		addr &= 65535;
-		if (addr >= sizeof ncr->acmemory)
-			return 0;
-		return ncr->acmemory[addr];
+	if (ncr) {
+		addr &= ncr->board_mask;
+		if (!ncr->configured) {
+			addr &= 65535;
+			if (addr >= sizeof ncr->acmemory)
+				return 0;
+			return ncr->acmemory[addr];
+		}
+		v = ncr_bget2 (ncr, addr);
 	}
-	v = ncr_bget2 (ncr, addr);
 	return v;
 }
 
@@ -504,6 +510,8 @@ static void REGPARAM2 ncr_lput (struct ncr_state *ncr, uaecptr addr, uae_u32 l)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
+	if (!ncr)
+		return;
 	addr &= ncr->board_mask;
 	if (ncr == ncr_we) {
 		addr &= ~0x80;
@@ -531,6 +539,8 @@ static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
+	if (!ncr)
+		return;
 	w &= 0xffff;
 	addr &= ncr->board_mask;
 	if (!ncr->configured) {
@@ -556,6 +566,8 @@ static void REGPARAM2 ncr_bput (struct ncr_state *ncr, uaecptr addr, uae_u32 b)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
+	if (!ncr)
+		return;
 	b &= 0xff;
 	addr &= ncr->board_mask;
 	if (!ncr->configured) {

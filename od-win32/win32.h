@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("14")
+#define WINUAEBETA _T("15")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2015, 3, 28)
+#define WINUAEDATE MAKEBD(2015, 4, 5)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -69,6 +69,8 @@ extern void disablecapture (void);
 extern void fullscreentoggle (void);
 extern int isfocus (void);
 extern void gui_restart (void);
+int timebegin (void);
+int timeend (void);
 
 extern void setmouseactive (int active);
 extern void minimizewindow (void);

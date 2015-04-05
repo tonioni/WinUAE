@@ -2294,7 +2294,7 @@ const struct expansionromtype expansionroms[] = {
 		_T("oktagon2008"), _T("Oktagon 2008"), _T("BSC/Alfa Data"),
 		ncr_oktagon_autoconfig_init, oktagon_add_scsi_unit, ROMTYPE_OKTAGON, 0, 0, 2, false,
 		NULL, 0,
-		false, EXPANSIONTYPE_SCSI
+		true, EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("alfapower"), _T("AlfaPower/AT-Bus 2008"), _T("BSC/Alfa Data"),
@@ -2427,7 +2427,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 		_T("A3001 Series I"),
 		_T("A3001SI"),
 		ROMTYPE_CB_A3001S1, 0,
-		gvp_add_ide_unit, EXPANSIONTYPE_IDE,
+		gvp_add_ide_unit, EXPANSIONTYPE_IDE | EXPANSIONTYPE_24BIT,
 		BOARD_MEMORY_Z2,
 		8 * 1024 * 1024,
 		0,
@@ -2437,7 +2437,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 		_T("A3001 Series II"),
 		_T("A3001SII"),
 		0, 0,
-		gvp_add_ide_unit, EXPANSIONTYPE_IDE,
+		gvp_add_ide_unit, EXPANSIONTYPE_IDE | EXPANSIONTYPE_24BIT,
 		BOARD_MEMORY_Z2,
 		8 * 1024 * 1024,
 		0,
@@ -2447,7 +2447,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 		_T("A530"),
 		_T("GVPA530"),
 		ROMTYPE_GVPS2, 0,
-		gvp_s2_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		gvp_s2_add_scsi_unit, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_24BIT,
 		BOARD_MEMORY_Z2,
 		8 * 1024 * 1024,
 		0,
@@ -2605,7 +2605,7 @@ static const struct cpuboardsubtype dbk_sub[] = {
 		_T("DKB12x0"),
 		ROMTYPE_CB_DKB12x0, 0,
 		cpuboard_dkb_add_scsi_unit, EXPANSIONTYPE_SCSI,
-		BOARD_MEMORY_HIGHMEM,
+		0,
 		128 * 1024 * 1024,
 		0,
 		ncr_dkb_autoconfig_init, NULL, 2, 0
@@ -2650,6 +2650,17 @@ static const struct cpuboardsubtype kupkeboard_sub[] = {
 		NULL, 0,
 		BOARD_MEMORY_25BITMEM,
 		16 * 1024 * 1024
+	},
+	{
+		NULL
+	}
+};
+static const struct cpuboardsubtype icboard_sub[] = {
+	{
+		_T("ACA 500"),
+		_T("aca500"),
+		ROMTYPE_CB_ACA500, 0,
+		NULL, EXPANSIONTYPE_24BIT
 	},
 	{
 		NULL
@@ -2711,6 +2722,13 @@ const struct cpuboardtype cpuboards[] = {
 		_T("Kupke"),
 		kupkeboard_sub, 0
 	},
+#if 0
+	{
+		BOARD_IC,
+		_T("Individual Computers"),
+		icboard_sub, 0
+	},
+#endif
 	{
 		NULL
 	}

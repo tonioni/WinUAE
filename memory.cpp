@@ -809,7 +809,7 @@ MEMORY_FUNCTIONS(cardmem);
 MEMORY_FUNCTIONS(a3000lmem);
 MEMORY_FUNCTIONS(a3000hmem);
 
-/* 25bit memory (0x10000000) */
+/* 25bit memory (0x01000000) */
 
 MEMORY_FUNCTIONS(mem25bit);
 

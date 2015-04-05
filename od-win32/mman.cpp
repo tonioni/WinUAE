@@ -666,6 +666,9 @@ void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 		} else if (!_tcscmp(shmids[shmid].name, _T("ramsey_high"))) {
 			shmaddr = natmem_offset + 0x08000000;
 			got = TRUE;
+		} else if (!_tcscmp(shmids[shmid].name, _T("dkb"))) {
+			shmaddr = natmem_offset + 0x10000000;
+			got = TRUE;
 		} else if (!_tcscmp(shmids[shmid].name, _T("fusionforty"))) {
 			shmaddr = natmem_offset + 0x11000000;
 			got = TRUE;
