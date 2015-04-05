@@ -1235,6 +1235,15 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			goto readprot;
 		scsi_len = 0;
 		break;
+	case 0x0b: /* SEEK (6) */
+		if (nodisk (hfd))
+			goto nodisk;
+		offset = ((cmdbuf[1] & 31) << 16) | (cmdbuf[2] << 8) | cmdbuf[3];
+		offset *= hfd->ci.blocksize;
+		if (!checkbounds(hfd, offset, hfd->ci.blocksize))
+			goto outofbounds;
+		scsi_len = 0;
+		break;
 	case 0x08: /* READ (6) */
 		if (nodisk (hfd))
 			goto nodisk;
@@ -1367,6 +1376,15 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			wl (r + 4, hfd->ci.blocksize);
 			scsi_len = lr = 8;
 		}
+		break;
+	case 0x2b: /* SEEK (10) */
+		if (nodisk (hfd))
+			goto nodisk;
+		offset = rl (cmdbuf + 2);
+		offset *= hfd->ci.blocksize;
+		if (!checkbounds (hfd, offset, hfd->ci.blocksize))
+			goto outofbounds;
+		scsi_len = 0;
 		break;
 	case 0x28: /* READ (10) */
 		if (nodisk (hfd))
