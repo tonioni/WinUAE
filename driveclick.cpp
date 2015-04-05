@@ -263,11 +263,13 @@ static int driveclick_active (void)
 
 static uae_s16 getsample (void)
 {
-	uae_s32 smp = 0;
-	int div = 0, i;
+	uae_s32 total_sample = 0;
+	int total_div = 0;
 
-	for (i = 0; i < 4; i++) {
+	for (int i = 0; i < 4; i++) {
+		int div = 0;
 		if (currprefs.floppyslots[i].dfxclick) {
+			uae_s32 smp = 0;
 			struct drvsample *ds_start = &drvs[i][DS_START];
 			struct drvsample *ds_spin = drv_has_disk[i] ? &drvs[i][DS_SPIN] : &drvs[i][DS_SPINND];
 			struct drvsample *ds_click = &drvs[i][DS_CLICK];
@@ -303,17 +305,20 @@ static uae_s16 getsample (void)
 				div++;
 				ds_click->pos += sample_step;
 			}
-			int vol;
-			if (drv_has_disk[i])
-				vol = currprefs.dfxclickvolume_disk[i];
-			else
-				vol = currprefs.dfxclickvolume_empty[i];
-			smp = smp * (100 - vol) / 100;
+			if (div) {
+				int vol;
+				if (drv_has_disk[i])
+					vol = currprefs.dfxclickvolume_disk[i];
+				else
+					vol = currprefs.dfxclickvolume_empty[i];
+				total_sample += (smp * (100 - vol) / 100) / div;
+				total_div++;
+			}
 		}
 	}
-	if (!div)
+	if (!total_div)
 		return 0;
-	return smp / div;
+	return total_sample / total_div;
 }
 
 static int clickcnt;
