@@ -32,6 +32,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_CB_CSPPC	0x0004000e
 #define ROMTYPE_CB_BLIZPPC	0x0004000f
 #define ROMTYPE_CB_GOLEM030	0x00040010
+#define ROMTYPE_CB_ACA500	0x00040011
 
 #define ROMTYPE_FREEZER		0x00080000
 #define ROMTYPE_AR			0x00080001
@@ -132,7 +133,7 @@ extern TCHAR *romlist_get (const struct romdata *rd);
 extern void romlist_clear (void);
 extern struct zfile *read_rom (struct romdata *rd);
 extern struct zfile *read_rom_name (const TCHAR *filename);
-extern struct zfile *read_device_from_romconfig(struct romconfig *rc, int *roms);
+extern struct zfile *read_device_from_romconfig(struct romconfig *rc, const int *roms);
 
 extern int load_keyring (struct uae_prefs *p, const TCHAR *path);
 extern uae_u8 *target_load_keyfile (struct uae_prefs *p, const TCHAR *path, int *size, TCHAR *name);
@@ -159,3 +160,11 @@ const struct expansionromtype *get_unit_expansion_rom(int hdunit);
 struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int devnum, int *index);
 void clear_device_rom(struct uae_prefs *p, int romtype, int devnum);
 struct boardromconfig *get_boardromconfig(struct uae_prefs *p, int romtype, int *index);
+
+#define LOADROM_FILL 1
+#define LOADROM_EVENONLY 2
+#define LOADROM_EVENONLY_ODDONE ((255 << 16) | LOADROM_EVENONLY)
+#define LOADROM_ONEFILL 4
+#define LOADROM_ZEROFILL 8
+#define LOADROM_ODDFILL(x) ((x << 16) | LOADROM_EVENONLY)
+bool load_rom_rc(struct romconfig *rc, const int *roms, int maxfilesize, int fileoffset, uae_u8 *rom, int maxromsize, int flags);

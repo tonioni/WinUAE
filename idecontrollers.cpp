@@ -1002,14 +1002,11 @@ addrbank *gvp_ide_rom_autoconfig_init(struct romconfig *rc)
 	ide->rom = xcalloc(uae_u8, ide->rom_size);
 	memset(ide->rom, 0xff, ide->rom_size);
 	ide->rom_mask = ide->rom_size - 1;
-	struct zfile *z = read_device_from_romconfig(rc, roms);
-	if (z) {
-		for (int i = 0; i < 16; i++) {
-			uae_u8 b = autoconfig[i];
-			ew(ide, i * 4, b);
-		}
-		int size = zfile_fread(ide->rom, 1, ide->rom_size, z);
-		zfile_fclose(z);
+
+	load_rom_rc(rc, roms, ide->rom_size, 0, ide->rom, ide->rom_size, LOADROM_FILL);
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = autoconfig[i];
+		ew(ide, i * 4, b);
 	}
 	return ide->bank;
 }
@@ -1197,22 +1194,14 @@ addrbank *masoboshi_init(struct romconfig *rc)
 	memset(ide->rom, 0xff, ide->rom_size);
 	memset(ide->acmemory, 0xff, sizeof ide->acmemory);
 	ide->rom_mask = ide->rom_size - 1;
-	struct zfile *z = read_device_from_romconfig(rc, roms);
-	if (z) {
-		int len = zfile_size(z);
-		for (int i = 0; i < 32768; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			ide->rom[i * 2 + 0] = b;
-			ide->rom[i * 2 + 1] = 0xff;
-		}
-		zfile_fclose(z);
-		ide->subtype = rc->subtype;
-		if (rc && rc->autoboot_disabled)
-			memcpy(ide->acmemory, ide->rom + 0x100, sizeof ide->acmemory);
-		else
-			memcpy(ide->acmemory, ide->rom + 0x000, sizeof ide->acmemory);
-	}
+
+	load_rom_rc(rc, roms, 32768, 0, ide->rom, 65536, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+	ide->subtype = rc->subtype;
+	if (rc && rc->autoboot_disabled)
+		memcpy(ide->acmemory, ide->rom + 0x100, sizeof ide->acmemory);
+	else
+		memcpy(ide->acmemory, ide->rom + 0x000, sizeof ide->acmemory);
+
 	// init SCSI part
 	ncr_masoboshi_autoconfig_init(rc);
 	return ide->bank;
@@ -1257,16 +1246,7 @@ addrbank *adide_init(struct romconfig *rc)
 	memset(ide->rom, 0xff, ide->rom_size);
 	ide->rom_mask = ide->rom_size - 1;
 	if (!rc->autoboot_disabled) {
-		struct zfile *z = read_device_from_romconfig(rc, roms);
-		if (z) {
-			for (int i = 0; i < 16384; i++) {
-				uae_u8 b;
-				zfile_fread(&b, 1, 1, z);
-				ide->rom[i * 2 + 0] = b;
-				ide->rom[i * 2 + 1] = 0xff;
-			}
-			zfile_fclose(z);
-		}
+		load_rom_rc(rc, roms, 16384, 0, ide->rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 	}
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = adide_autoconfig[i];
@@ -1297,19 +1277,8 @@ addrbank *mtec_init(struct romconfig *rc)
 	ide->rom = xcalloc(uae_u8, ide->rom_size);
 	memset(ide->rom, 0xff, ide->rom_size);
 	ide->rom_mask = ide->rom_size - 1;
-	struct zfile *z = read_device_from_romconfig(rc, roms);
-	if (z) {
-		if (!rc->autoboot_disabled)
-			zfile_fseek(z, 16384, SEEK_SET);
-		for (int i = 0; i < 16384; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			ide->rom[i * 2 + 0] = b;
-			ide->rom[i * 2 + 1] = 0xff;
-		}
-		zfile_fclose(z);
-		memcpy(ide->acmemory, ide->rom, sizeof ide->acmemory);
-	}
+	load_rom_rc(rc, roms, 16384, !rc->autoboot_disabled ? 16384 : 0, ide->rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+	memcpy(ide->acmemory, ide->rom, sizeof ide->acmemory);
 	return ide->bank;
 }
 

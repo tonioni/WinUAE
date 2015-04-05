@@ -1999,29 +1999,11 @@ addrbank *supra_init(struct romconfig *rc)
 	struct zfile *z = NULL;
 	scsi->subtype = rc->subtype;
 	if (!rc->autoboot_disabled && scsi->subtype != 3) {
-		struct zfile *z = read_device_from_romconfig(rc, roms);
 		for (int i = 0; i < 16; i++) {
 			uae_u8 b = ert->subtypes[rc->subtype].autoconfig[i];
 			ew(scsi, i * 4, b);
 		}
-		if (z) {
-			int i;
-			for (i = 0; i < 16384; i++) {
-				uae_u8 b;
-				if (!zfile_fread(&b, 1, 1, z))
-					break;
-				scsi->rom[i * 2 + 0] = b;
-			}
-			if (i < 16384) {
-				int ii = 0;
-				while (i < 16384) {
-					scsi->rom[i * 2 + 0] = scsi->rom[ii * 2 + 0];
-					i++;
-					ii++;
-				}
-			}
-			zfile_fclose(z);
-		}
+		load_rom_rc(rc, roms, 16384, 0, scsi->rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 	}
 	return scsi->bank;
 }
@@ -2044,22 +2026,9 @@ addrbank *golem_init(struct romconfig *rc)
 
 	scsi->intena = true;
 
-	struct zfile *z = NULL;
-	if (!rc->autoboot_disabled) {
-		struct zfile *z = read_device_from_romconfig(rc, roms);
-		if (z) {
-			if (rc->autoboot_disabled)
-				zfile_fseek(z, 8192, SEEK_SET);
-			for (int i = 0; i < 8192; i++) {
-				uae_u8 b;
-				zfile_fread(&b, 1, 1, z);
-				if (i < sizeof scsi->acmemory)
-					scsi->acmemory[i] = b;
-				scsi->rom[i] = b;
-			}
-			zfile_fclose(z);
-		}
-	}
+	load_rom_rc(rc, roms, 8192, rc->autoboot_disabled ? 8192 : 0, scsi->rom, 8192, 0);
+	memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
+
 	return scsi->bank;
 }
 
@@ -2102,11 +2071,8 @@ addrbank *kommos_init(struct romconfig *rc)
 
 	roms[0] = 127;
 	roms[1] = -1;
-	struct zfile *z = read_device_from_romconfig(rc, roms);
-	if (z) {
-		zfile_fread(scsi->rom, 1, 32768, z);
-		zfile_fclose(z);
-	}
+
+	load_rom_rc(rc, roms, 32768, 0, scsi->rom, 32768, 0);
 
 	map_banks(scsi->bank, 0xf10000 >> 16, 1, 0);
 	map_banks(scsi->bank, 0xeb0000 >> 16, 1, 0);
@@ -2136,17 +2102,8 @@ addrbank *vector_init(struct romconfig *rc)
 
 	struct zfile *z = NULL;
 	if (!rc->autoboot_disabled) {
-		struct zfile *z = read_device_from_romconfig(rc, roms);
-		if (z) {
-			for (int i = 0; i < 32768; i++) {
-				uae_u8 b;
-				zfile_fread(&b, 1, 1, z);
-				if (i < sizeof scsi->acmemory)
-					scsi->acmemory[i] = b;
-				scsi->rom[i] = b;
-			}
-			zfile_fclose(z);
-		}
+		load_rom_rc(rc, roms, 32768, 0, scsi->rom, 32768, 0);
+		memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
 	}
 	return scsi->bank;
 }
@@ -2168,16 +2125,8 @@ addrbank *protar_init(struct romconfig *rc)
 	roms[0] = 131;
 	roms[1] = -1;
 
-	struct zfile *z = read_device_from_romconfig(rc, roms);
-	if (z) {
-		for (int i = 0; i < 32768; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			scsi->rom[i * 2] = b;
-		}
-		zfile_fclose(z);
-		memcpy(scsi->acmemory, scsi->rom + 0x200 * 2, sizeof scsi->acmemory);
-	}
+	load_rom_rc(rc, roms, 32768, 0, scsi->rom, 32768, LOADROM_EVENONLY_ODDONE);
+	memcpy(scsi->acmemory, scsi->rom + 0x200 * 2, sizeof scsi->acmemory);
 	return scsi->bank;
 }
 
@@ -2199,16 +2148,8 @@ addrbank *add500_init(struct romconfig *rc)
 
 	scsi->rscsi.use_ack = true;
 
-	struct zfile *z = read_device_from_romconfig(rc, roms);
-	if (z) {
-		for (int i = 0; i < 16384; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			scsi->rom[i * 2] = b;
-		}
-		zfile_fclose(z);
-		memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
-	}
+	load_rom_rc(rc, roms, 16384, 0, scsi->rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+	memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
 	return scsi->bank;
 }
 
@@ -2230,15 +2171,7 @@ addrbank *kronos_init(struct romconfig *rc)
 	scsi->databuffer_size = 1024;
 	scsi->databufferptr = xcalloc(uae_u8, scsi->databuffer_size);
 
-	struct zfile *z = read_device_from_romconfig(rc, roms);
-	if (z) {
-		for (int i = 0; i < 4096; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			scsi->rom[i * 2] = b;
-		}
-		zfile_fclose(z);
-	}
+	load_rom_rc(rc, roms, 4096, 0, scsi->rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 	return scsi->bank;
 }
 
@@ -2258,16 +2191,8 @@ addrbank *adscsi_init(struct romconfig *rc)
 	roms[0] = 132;
 	roms[1] = -1;
 
-	struct zfile *z = read_device_from_romconfig(rc, roms);
-	if (z) {
-		for (int i = 0; i < 32768; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			scsi->rom[i * 2] = b;
-		}
-		zfile_fclose(z);
-		memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
-	}
+	load_rom_rc(rc, roms, 32768, 0, scsi->rom, 65536, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+	memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
 	return scsi->bank;
 }
 

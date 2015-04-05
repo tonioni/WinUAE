@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 137
+#define NEXT_ROM_ID 138
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -420,6 +420,8 @@ static struct romdata roms[] = {
 	  0, 0, 0, 0, 0, 0, NULL, _T("blizzardppc_040.rom") },
 	{ _T("Blizzard PPC 68060"), 0, 0, 0, 0, _T("BPPC\0"), 524288, 100, 0, 0, ROMTYPE_CB_BLIZPPC, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("blizzardppc_060.rom") },
+	{ _T("ACA 500"), 0, 0, 0, 0, _T("ACA500\0"), 524288, 137, 0, 0, ROMTYPE_CB_ACA500, 0, 0, NULL,
+	  0, 0, 0, 0, 0, 0, NULL, _T("menu500.aca") },
 
 	{ _T("Picasso IV"), 7, 4, 7, 4, _T("PIV\0"), 131072, 91, 0, 0, ROMTYPE_PIV, 0, 0, NULL,
 	0xa8133e7e, 0xcafafb91,0x6f16b9f3,0xec9b49aa,0x4b40eb4e,0xeceb5b5b },
@@ -1714,7 +1716,7 @@ struct romconfig *get_device_romconfig(struct uae_prefs *p, int romtype, int dev
 	return NULL;
 }
 
-struct zfile *read_device_from_romconfig(struct romconfig *rc, int *roms)
+struct zfile *read_device_from_romconfig(struct romconfig *rc, const int *roms)
 {
 	if (!_tcsicmp(rc->romfile, _T(":NOROM")))
 		return NULL;
@@ -1783,4 +1785,57 @@ struct boardromconfig *get_boardromconfig(struct uae_prefs *p, int romtype, int 
 		}
 	}
 	return NULL;
+}
+
+bool load_rom_rc(struct romconfig *rc, const int *roms, int maxfilesize, int fileoffset, uae_u8 *rom, int maxromsize, int flags)
+{
+	if (flags & LOADROM_ONEFILL)
+		memset(rom, 0xff, maxromsize);
+	if (flags & LOADROM_ZEROFILL)
+		memset(rom, 0x00, maxromsize);
+	struct zfile *f = read_device_from_romconfig(rc, roms);
+	if (!f)
+		return false;
+	zfile_fseek(f, fileoffset, SEEK_SET);
+	int cnt = 0;
+	int pos = 0;
+	bool eof = false;
+	while (cnt < maxromsize && cnt < maxfilesize && pos < maxromsize) {
+		uae_u8 b = 0xff;
+		if (!eof) {
+			if (!zfile_fread(&b, 1, 1, f))
+				eof = true;
+		}
+		if (eof) {
+			int bitcnt = 0;
+			for (int i = 1; i < maxromsize; i <<= 1) {
+				if (cnt & i)
+					bitcnt++;
+			}
+			if (bitcnt == 1)
+				break;
+		}
+
+		rom[pos] = b;
+		if (flags & LOADROM_EVENONLY) {
+			rom[pos + 1] = (flags >> 16) & 0xff;
+			pos += 2;
+		} else {
+			pos += 1;
+		}
+		cnt++;
+	}
+	zfile_fclose(f);
+	int posend = pos;
+	if (!(flags & LOADROM_FILL))
+		return true;
+	int oldpos = 0;
+	while (pos < maxromsize) {
+		rom[pos] = rom[oldpos];
+		oldpos++;
+		pos++;
+		if (oldpos >= posend)
+			oldpos = 0;
+	}
+	return true;
 }
