@@ -443,6 +443,32 @@ void get_custom_raw_limits (int *pw, int *ph, int *pdx, int *pdy)
 	}
 }
 
+void check_custom_limits(void)
+{
+	int vls = visible_left_start;
+	int vrs = visible_right_stop;
+	int vts = visible_top_start;
+	int vbs = visible_bottom_stop;
+
+	struct gfx_filterdata *fd = &currprefs.gf[0];
+	int left = fd->gfx_filter_left_border >> (RES_MAX - currprefs.gfx_resolution);
+	int right = fd->gfx_filter_right_border >> (RES_MAX - currprefs.gfx_resolution);
+	int top = fd->gfx_filter_top_border;
+	int bottom = fd->gfx_filter_bottom_border;
+
+	if (left > visible_left_start)
+		visible_left_start = left;
+	if (right > left && right < visible_right_stop)
+		visible_right_stop = right;
+
+	if (top > visible_top_start)
+		visible_top_start = top;
+	if (bottom > top && bottom < visible_bottom_stop)
+		visible_bottom_stop = bottom;
+	
+	set_blanking_limits ();
+}
+
 void set_custom_limits (int w, int h, int dx, int dy)
 {
 	int vls = visible_left_start;
@@ -464,10 +490,12 @@ void set_custom_limits (int w, int h, int dx, int dy)
 		visible_top_start = min_ypos_for_screen + dy;
 		visible_bottom_stop = visible_top_start + h;
 	}
+
 	if (vls != visible_left_start || vrs != visible_right_stop ||
 		vts != visible_top_start || vbs != visible_bottom_stop)
 		notice_screen_contents_lost ();
-	set_blanking_limits ();
+
+	check_custom_limits();
 }
 
 void store_custom_limits (int w, int h, int x, int y)
@@ -1062,10 +1090,18 @@ static void fill_line2 (int startpos, int len)
 	}
 }
 
-static void fill_line_border (void)
+static void fill_line_border (int lineno)
 {
 	int lastpos = visible_left_border;
 	int endpos = visible_left_border + gfxvidinfo.drawbuffer.inwidth;
+
+	if (lineno < visible_top_start || lineno >= visible_bottom_stop) {
+		int b = hposblank;
+		hposblank = 3;
+		fill_line2(lastpos, gfxvidinfo.drawbuffer.inwidth);
+		hposblank = b;
+		return;
+	}
 
 	// full hblank
 	if (hposblank) {
@@ -2594,18 +2630,18 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 				// blanked border line
 				int tmp = hposblank;
 				hposblank = 1;
-				fill_line_border ();
+				fill_line_border(lineno);
 				hposblank = tmp;
 			} else {
 				// normal border line
-				fill_line_border ();
+				fill_line_border(lineno);
 			}
 
 			do_flush_line (vb, gfx_ypos);
 			if (do_double) {
 				if (dh == dh_buf) {
 					xlinebuffer = row_map[follow_ypos] - linetoscr_x_adjust_bytes;
-					fill_line_border ();
+					fill_line_border(lineno);
 				}
 				/* If dh == dh_line, do_flush_line will re-use the rendered line
 				* from linemem.  */
@@ -2648,7 +2684,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		// top or bottom blanking region
 		int tmp = hposblank;
 		hposblank = 1;
-		fill_line_border ();
+		fill_line_border(lineno);
 		hposblank = tmp;
 		do_flush_line(vb, gfx_ypos);
 
@@ -2739,16 +2775,6 @@ static void center_image (void)
 
 	gfxvidinfo.drawbuffer.xoffset = (DISPLAY_LEFT_SHIFT << RES_MAX) + (visible_left_border << (RES_MAX - currprefs.gfx_resolution));
 	gfxvidinfo.drawbuffer.yoffset = thisframe_y_adjust << VRES_MAX;
-
-	struct gfx_filterdata *f = &currprefs.gf[0];
-	if (f->gfx_filter_left_border > 0 && f->gfx_filter_left_border > visible_left_border)
-		visible_left_border = f->gfx_filter_left_border;
-	if (f->gfx_filter_right_border > 0 && f->gfx_filter_right_border < visible_right_border)
-		visible_right_border = f->gfx_filter_right_border;
-	if (f->gfx_filter_top_border > 0 && f->gfx_filter_top_border > visible_top_start)
-		visible_top_start = f->gfx_filter_top_border;
-	if (f->gfx_filter_bottom_border > 0 && f->gfx_filter_bottom_border < visible_bottom_stop)
-		visible_bottom_stop = f->gfx_filter_bottom_border;
 
 	center_reset = false;
 	horizontal_changed = false;

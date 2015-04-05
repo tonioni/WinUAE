@@ -9557,11 +9557,19 @@ void check_prefs_changed_custom (void)
 			init_custom ();
 	}
 #ifdef GFXFILTER
-	currprefs.gf[0].gfx_filter_horiz_zoom = changed_prefs.gf[0].gfx_filter_horiz_zoom;
-	currprefs.gf[0].gfx_filter_vert_zoom = changed_prefs.gf[0].gfx_filter_vert_zoom;
-	currprefs.gf[0].gfx_filter_horiz_offset = changed_prefs.gf[0].gfx_filter_horiz_offset;
-	currprefs.gf[0].gfx_filter_vert_offset = changed_prefs.gf[0].gfx_filter_vert_offset;
-	currprefs.gf[0].gfx_filter_scanlines = changed_prefs.gf[0].gfx_filter_scanlines;
+	struct gfx_filterdata *fd = &currprefs.gf[0];
+	struct gfx_filterdata *fdcp = &changed_prefs.gf[0];
+
+	fd->gfx_filter_horiz_zoom = fdcp->gfx_filter_horiz_zoom;
+	fd->gfx_filter_vert_zoom = fdcp->gfx_filter_vert_zoom;
+	fd->gfx_filter_horiz_offset = fdcp->gfx_filter_horiz_offset;
+	fd->gfx_filter_vert_offset = fdcp->gfx_filter_vert_offset;
+	fd->gfx_filter_scanlines = fdcp->gfx_filter_scanlines;
+
+	fd->gfx_filter_left_border = fdcp->gfx_filter_left_border;
+	fd->gfx_filter_right_border = fdcp->gfx_filter_right_border;
+	fd->gfx_filter_top_border = fdcp->gfx_filter_top_border;
+	fd->gfx_filter_bottom_border = fdcp->gfx_filter_bottom_border;
 #endif
 }
 
@@ -9859,7 +9867,16 @@ int is_cycle_ce (void)
 
 #endif
 
-bool ispal (void)
+bool isvga(void)
+{
+	if (!(beamcon0 & 0x80))
+		return false;
+	if (hblank_hz >= 20000)
+		return true;
+	return false;
+}
+
+bool ispal(void)
 {
 	if (beamcon0 & 0x80)
 		return currprefs.ntscmode == 0;

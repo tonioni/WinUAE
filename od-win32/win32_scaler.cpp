@@ -224,6 +224,9 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 	int scalemode = currprefs.gf[picasso_on].gfx_filter_autoscale;
 	int oscalemode = changed_prefs.gf[picasso_on].gfx_filter_autoscale;
+	if (scalemode == AUTOSCALE_OVERSCAN_BLANK) {
+		oscalemode = scalemode = AUTOSCALE_NONE;
+	}
 
 	if (!specialmode && scalemode == AUTOSCALE_STATIC_AUTO) {
 		if (currprefs.gfx_apmode[0].gfx_fullscreen) {
@@ -509,17 +512,22 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 			if (currprefs.gf[picasso_on].gfx_filter_keep_aspect || currprefs.gf[picasso_on].gfx_filter_aspect != 0) {
 
 				if (currprefs.gf[picasso_on].gfx_filter_keep_aspect) {
-					if (currprefs.ntscmode) {
-						dstratio = dstratio * 1.21f;
-						if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 2 && ispal ())
+					if (isvga()) {
+						if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 1)
 							dstratio = dstratio * 0.93f;
-						else if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 1 && !ispal ())
-							dstratio = dstratio * 0.98f;
 					} else {
-						if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 2 && ispal ())
-							dstratio = dstratio * 0.95f;
-						else if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 1 && !ispal ())
-							dstratio = dstratio * 0.95f;
+						if (currprefs.ntscmode) {
+							dstratio = dstratio * 1.21f;
+							if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 2 && ispal ())
+								dstratio = dstratio * 0.93f;
+							else if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 1 && !ispal ())
+								dstratio = dstratio * 0.98f;
+						} else {
+							if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 2 && ispal ())
+								dstratio = dstratio * 0.95f;
+							else if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 1 && !ispal ())
+								dstratio = dstratio * 0.95f;
+						}
 					}
 				}
 				aspect = true;
@@ -640,6 +648,8 @@ end:
 		sizeoffset (dr, zr, mrmx, mrmy);
 		OffsetRect (dr, mrsx, mrsy);
 	}
+
+	check_custom_limits();
 
 	fpux_restore (&fpuv);
 
