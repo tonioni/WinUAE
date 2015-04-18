@@ -23,6 +23,7 @@ struct ide_registers
 struct ide_thread_state;
 struct ide_hdf;
 
+#define MAX_IDE_PORTS_BOARD 2
 struct ide_board
 {
 	uae_u8 *rom;
@@ -34,7 +35,7 @@ struct ide_board
 	bool keepautoconfig;
 	int mask;
 	addrbank *bank;
-	struct ide_hdf *ide;
+	struct ide_hdf *ide[MAX_IDE_PORTS_BOARD];
 	bool irq;
 	bool intena;
 	bool enabled;
