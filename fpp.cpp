@@ -1044,7 +1044,7 @@ static bool fp_is_neg(fpdata *fpd)
 	return fpd->fp < 0.0;
 }
 
-uae_u32 get_fpsr (void)
+uae_u32 fpp_get_fpsr (void)
 {
 	uae_u32 answer = regs.fpsr & 0x00ff00f8;
 
@@ -1084,7 +1084,7 @@ uae_u32 get_fpsr (void)
 static void update_fpsr (uae_u32 v)
 {
 	regs.fp_result_status = v;
-	get_fpsr ();
+	fpp_get_fpsr ();
 }
 
 STATIC_INLINE void set_fpsr (uae_u32 x)
@@ -2826,7 +2826,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 					if (extra & 0x1000)
 						m68k_dreg (regs, opcode & 7) = regs.fpcr & 0xffff;
 					if (extra & 0x0800)
-						m68k_dreg (regs, opcode & 7) = get_fpsr ();
+						m68k_dreg (regs, opcode & 7) = fpp_get_fpsr ();
 					if (extra & 0x0400)
 						m68k_dreg (regs, opcode & 7) = regs.fpiar;
 				} else {
@@ -2846,7 +2846,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 					if (extra & 0x1000)
 						m68k_areg (regs, opcode & 7) = regs.fpcr & 0xffff;
 					if (extra & 0x0800)
-						m68k_areg (regs, opcode & 7) = get_fpsr ();
+						m68k_areg (regs, opcode & 7) = fpp_get_fpsr ();
 					if (extra & 0x0400)
 						m68k_areg (regs, opcode & 7) = regs.fpiar;
 				} else {
@@ -2913,7 +2913,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 					ad += 4;
 				}
 				if (extra & 0x0800) {
-					x_cp_put_long (ad, get_fpsr ());
+					x_cp_put_long (ad, fpp_get_fpsr ());
 					ad += 4;
 				}
 				if (extra & 0x0400) {

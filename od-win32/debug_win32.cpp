@@ -637,7 +637,7 @@ static void SetMemToPC(void)
 	int i, id;
 
 	dbgpage[currpage].dasmaddr = m68k_getpc ();
-	_stprintf(dbgpage[currpage].addrinput, _T("%08lX"), dbgpage[currpage].dasmaddr);
+	_stprintf(dbgpage[currpage].addrinput, _T("%08X"), dbgpage[currpage].dasmaddr);
 	for (i = 0; i < MAXPAGECONTROLS; i++) {
 		id = GetDlgCtrlID(dbgpage[currpage].ctrl[i]);
 		if (id == IDC_DBG_MEMINPUT)
@@ -1321,7 +1321,7 @@ static void ToggleFPSRFlag(HWND hwnd, int x, int y)
 {
 	int size = GetTextSize(hwnd, NULL, 0);
 	int index = y / size;
-	uae_u32 fpsr = get_fpsr();
+	uae_u32 fpsr = fpp_get_fpsr();
 
 	fpsr ^= (0x8000000 >> index);
 	set_fpsr(fpsr);
@@ -1973,7 +1973,7 @@ static INT_PTR CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 								else if (text[pos] == '(' && _istdigit(text[pos + 2])) { //address register indirect
 									int reg = _tstoi(text + pos + 2);
 									uae_u32 loc = m68k_areg (regs, reg);
-									_stprintf(addrstr + 2, _T("%08lx"), loc);
+									_stprintf(addrstr + 2, _T("%08x"), loc);
 								}
 							}
 							break;
@@ -2125,14 +2125,14 @@ void update_debug_info(void)
 		return;
 	hwnd = GetDlgItem(hDbgWnd, IDC_DBG_DREG);
 	for (i = 0; i < 8; i++) {
-		_stprintf(out, _T("D%d: %08lX"), i, m68k_dreg (regs, i));
+		_stprintf(out, _T("D%d: %08X"), i, m68k_dreg (regs, i));
 		UpdateListboxString(hwnd, i, out, TRUE);
 	}
 
 	hwnd = GetDlgItem(hDbgWnd, IDC_DBG_AREG);
 	for (i = 0; i < 8; i++) {
 		hwnd = GetDlgItem(hDbgWnd, IDC_DBG_AREG);
-		_stprintf(out, _T("A%d: %08lX"), i, m68k_areg (regs, i));
+		_stprintf(out, _T("A%d: %08X"), i, m68k_areg (regs, i));
 		UpdateListboxString(hwnd, i, out, TRUE);
 		hwnd = GetDlgItem(hDbgWnd, IDC_DBG_AMEM);
 		dumpmem2(m68k_areg (regs, i), out, sizeof(out));
@@ -2147,9 +2147,9 @@ void update_debug_info(void)
 	UpdateListboxString(hwnd, 4, GET_CFLG() ? _T("C: 1") : _T("C: 0"), TRUE);
 
 	hwnd = GetDlgItem(hDbgWnd, IDC_DBG_SP_VBR);
-	_stprintf(out, _T("USP: %08lX"), regs.usp);
+	_stprintf(out, _T("USP: %08X"), regs.usp);
 	UpdateListboxString(hwnd, 0, out, TRUE);
-	_stprintf(out, _T("ISP: %08lX"), regs.isp);
+	_stprintf(out, _T("ISP: %08X"), regs.isp);
 	UpdateListboxString(hwnd, 1, out, TRUE);
 
 	ShowMiscCPU(GetDlgItem(hDbgWnd, IDC_DBG_MISCCPU));
@@ -2167,7 +2167,7 @@ void update_debug_info(void)
 	UpdateListboxString(hwnd, 4, out, TRUE);
 
 	hwnd = GetDlgItem(hDbgWnd, IDC_DBG_PC);
-	_stprintf(out, _T("PC: %08lX"), m68k_getpc ());
+	_stprintf(out, _T("PC: %08X"), m68k_getpc ());
 	UpdateListboxString(hwnd, 0, out, TRUE);
 
 	hwnd = GetDlgItem(hDbgWnd, IDC_DBG_PREFETCH);
@@ -2187,7 +2187,7 @@ void update_debug_info(void)
 	}
 
 	hwnd = GetDlgItem(hDbgWnd, IDC_DBG_FPSR);
-	fpsr = get_fpsr();
+	fpsr = fpp_get_fpsr();
 	for (i = 0; i < 4; i++) {
 		_stprintf(out, _T("%s%d"), fpsrflag[i], (fpsr & (0x8000000 >> i)) != 0 ? 1 : 0);
 		UpdateListboxString(hwnd, i, out, TRUE);

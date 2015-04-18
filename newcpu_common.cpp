@@ -818,7 +818,7 @@ bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 			a |= (uae_s64)m68k_dreg (regs, extra & 7) << 32;
 		}
 
-		if (a == 0x8000000000000000 && src == ~0) {
+		if (a == 0x8000000000000000 && src == ~0u) {
 			SET_VFLG (1);
 			SET_NFLG (1);
 			SET_CFLG (0);

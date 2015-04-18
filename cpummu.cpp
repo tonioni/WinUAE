@@ -63,13 +63,13 @@ uae_u32 mmu040_move16[4];
 static void mmu_dump_ttr(const TCHAR * label, uae_u32 ttr)
 {
 	DUNUSED(label);
+#if MMUDEBUG > 0
 	uae_u32 from_addr, to_addr;
 
 	from_addr = ttr & MMU_TTR_LOGICAL_BASE;
 	to_addr = (ttr & MMU_TTR_LOGICAL_MASK) << 8;
 
-#if MMUDEBUG > 0
-	write_log(_T("%s: [%08lx] %08lx - %08lx enabled=%d supervisor=%d wp=%d cm=%02d\n"),
+	write_log(_T("%s: [%08x] %08x - %08x enabled=%d supervisor=%d wp=%d cm=%02d\n"),
 			label, ttr,
 			from_addr, to_addr,
 			ttr & MMU_TTR_BIT_ENABLED ? 1 : 0,
@@ -187,7 +187,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 	uaecptr ptr_des_addr, page_addr,
 		root_log, ptr_log, page_log;
 
-	console_out_f(_T("%s: root=%lx\n"), label, root_ptr);
+	console_out_f(_T("%s: root=%x\n"), label, root_ptr);
 
 	for (root_idx = 0; root_idx < ROOT_TABLE_SIZE; root_idx++) {
 		root_des = phys_get_long(root_ptr + root_idx);
@@ -261,7 +261,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 				page_des = page_info[page_idx].match;
 
 				if ((page_des & MMU_PDT_MASK) == 2) {
-					console_out_f(_T("  PAGE: %03d-%03d log=%08lx INDIRECT --> addr=%08lx\n"),
+					console_out_f(_T("  PAGE: %03d-%03d log=%08x INDIRECT --> addr=%08x\n"),
 							page_info[page_idx].start_idx,
 							page_info[page_idx].start_idx + page_info[page_idx].n_pages - 1,
 							page_info[page_idx].log,
@@ -269,7 +269,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 						  );
 
 				} else {
-					console_out_f(_T("  PAGE: %03d-%03d log=%08lx addr=%08lx UR=%02d G=%d U1/0=%d S=%d CM=%d M=%d U=%d W=%d\n"),
+					console_out_f(_T("  PAGE: %03d-%03d log=%08x addr=%08x UR=%02d G=%d U1/0=%d S=%d CM=%d M=%d U=%d W=%d\n"),
 							page_info[page_idx].start_idx,
 							page_info[page_idx].start_idx + page_info[page_idx].n_pages - 1,
 							page_info[page_idx].log,
@@ -529,7 +529,7 @@ static ALWAYS_INLINE bool mmu_fill_atc_try(uaecptr addr, bool super, bool data, 
 		if (l1->write_protect) {
 			*status |= MMU_FSLW_WP;
 #if MMUDEBUG > 0
-			write_log(_T("MMU: write protected %lx by atc \n"), addr);
+			write_log(_T("MMU: write protected %x by atc \n"), addr);
 #endif
 			mmu_dump_atc();
 			goto fail;
@@ -626,12 +626,12 @@ static uaecptr REGPARAM2 mmu_lookup_pagetable(uaecptr addr, bool super, bool wri
 	}
 	if ((desc & 1) == 0) {
 #if MMUDEBUG > 2
-		write_log(_T("MMU: invalid page descriptor log=%0lx desc=%08x @%08x\n"), addr, desc, desc_addr);
+		write_log(_T("MMU: invalid page descriptor log=%0x desc=%08x @%08x\n"), addr, desc, desc_addr);
 #endif
 		if ((desc & 3) == 2) {
 			*status |= MMU_FSLW_IL;
 #if MMUDEBUG > 1
-			write_log(_T("MMU: double indirect descriptor log=%0lx desc=%08x @%08x\n"), addr, desc, desc_addr);
+			write_log(_T("MMU: double indirect descriptor log=%0x desc=%08x @%08x\n"), addr, desc, desc_addr);
 #endif	
 		} else {
 			*status |= MMU_FSLW_PF;

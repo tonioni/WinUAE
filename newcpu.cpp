@@ -322,7 +322,7 @@ static bool check_trace (void)
 		return true;
 	if (!cputrace.readcounter && !cputrace.writecounter && !cputrace.cyclecounter) {
 		if (cpu_tracer != -2) {
-			write_log (_T("CPU trace: dma_cycle() enabled. %08x %08x NOW=%08x\n"),
+			write_log (_T("CPU trace: dma_cycle() enabled. %08x %08x NOW=%08lx\n"),
 				cputrace.cyclecounter_pre, cputrace.cyclecounter_post, get_cycles ());
 			cpu_tracer = -2; // dma_cycle() allowed to work now
 		}
@@ -346,7 +346,7 @@ static bool check_trace (void)
 	x_do_cycles_pre = x2_do_cycles_pre;
 	x_do_cycles_post = x2_do_cycles_post;
 	set_x_cp_funcs();
-	write_log (_T("CPU tracer playback complete. STARTCYCLES=%08x NOWCYCLES=%08x\n"), cputrace.startcycles, get_cycles ());
+	write_log (_T("CPU tracer playback complete. STARTCYCLES=%08x NOWCYCLES=%08lx\n"), cputrace.startcycles, get_cycles ());
 	cputrace.needendcycles = 1;
 	cpu_tracer = 0;
 	return true;
@@ -359,7 +359,7 @@ static bool get_trace (uaecptr addr, int accessmode, int size, uae_u32 *data)
 		struct cputracememory *ctm = &cputrace.ctm[i];
 		if (ctm->addr == addr && ctm->mode == mode) {
 			ctm->mode = 0;
-			write_log (_T("CPU trace: GET %d: PC=%08x %08x=%08x %d %d %08x/%08x/%08x %d/%d (%08x)\n"),
+			write_log (_T("CPU trace: GET %d: PC=%08x %08x=%08x %d %d %08x/%08x/%08x %d/%d (%08lx)\n"),
 				i, cputrace.pc, addr, ctm->data, accessmode, size,
 				cputrace.cyclecounter, cputrace.cyclecounter_pre, cputrace.cyclecounter_post,
 				cputrace.readcounter, cputrace.writecounter, get_cycles ());
@@ -1567,14 +1567,12 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 			_stprintf (buffer, _T("(%s%c%d.%c*%d+%d)+%d == $%08x"), name,
 				dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W',
 				1 << ((dp >> 9) & 3),
-				disp, outer,
-				(unsigned long)addr);
+				disp, outer, addr);
 		} else {
 			addr = m68k_areg (regs, reg) + (uae_s32)((uae_s8)disp8) + dispreg;
 			_stprintf (buffer, _T("(A%d, %c%d.%c*%d, $%02x) == $%08x"), reg,
 				dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W',
-				1 << ((dp >> 9) & 3), disp8,
-				(unsigned long)addr);
+				1 << ((dp >> 9) & 3), disp8, addr);
 		}
 		break;
 	case PC16:
@@ -1612,13 +1610,12 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 			_stprintf (buffer, _T("(%s%c%d.%c*%d+%d)+%d == $%08x"), name,
 				dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W',
 				1 << ((dp >> 9) & 3),
-				disp, outer,
-				(unsigned long)addr);
+				disp, outer, addr);
 		} else {
 			addr += (uae_s32)((uae_s8)disp8) + dispreg;
 			_stprintf (buffer, _T("(PC, %c%d.%c*%d, $%02x) == $%08x"), dp & 0x8000 ? 'A' : 'D',
 				(int)r, dp & 0x800 ? 'L' : 'W',  1 << ((dp >> 9) & 3),
-				disp8, (unsigned long)addr);
+				disp8, addr);
 		}
 		break;
 	case absw:
@@ -1628,21 +1625,21 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 		break;
 	case absl:
 		addr = get_ilong_debug (pc);
-		_stprintf (buffer, _T("$%08x"), (unsigned long)addr);
+		_stprintf (buffer, _T("$%08x"), addr);
 		pc += 4;
 		break;
 	case imm:
 		switch (size){
 		case sz_byte:
-			_stprintf (buffer, _T("#$%02x"), (unsigned int)(get_iword_debug (pc) & 0xff));
+			_stprintf (buffer, _T("#$%02x"), (get_iword_debug (pc) & 0xff));
 			pc += 2;
 			break;
 		case sz_word:
-			_stprintf (buffer, _T("#$%04x"), (unsigned int)(get_iword_debug (pc) & 0xffff));
+			_stprintf (buffer, _T("#$%04x"), (get_iword_debug (pc) & 0xffff));
 			pc += 2;
 			break;
 		case sz_long:
-			_stprintf(buffer, _T("#$%08x"), (unsigned long)(get_ilong_debug(pc)));
+			_stprintf(buffer, _T("#$%08x"), (get_ilong_debug(pc)));
 			pc += 4;
 			break;
 		case sz_single:
@@ -1683,26 +1680,26 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 		break;
 	case imm0:
 		offset = (uae_s32)(uae_s8)get_iword_debug (pc);
-		_stprintf (buffer, _T("#$%02x"), (unsigned int)(offset & 0xff));
+		_stprintf (buffer, _T("#$%02x"), (uae_u32)(offset & 0xff));
 		addr = pc + 2 + offset;
 		pc += 2;
 		break;
 	case imm1:
 		offset = (uae_s32)(uae_s16)get_iword_debug (pc);
 		buffer[0] = 0;
-		_stprintf (buffer, _T("#$%04x"), (unsigned int)(offset & 0xffff));
+		_stprintf (buffer, _T("#$%04x"), (uae_u32)(offset & 0xffff));
 		addr = pc + offset;
 		pc += 2;
 		break;
 	case imm2:
 		offset = (uae_s32)get_ilong_debug (pc);
-		_stprintf (buffer, _T("#$%08x"), (unsigned long)offset);
+		_stprintf (buffer, _T("#$%08x"), (uae_u32)offset);
 		addr = pc + offset;
 		pc += 4;
 		break;
 	case immi:
 		offset = (uae_s32)(uae_s8)(reg & 0xff);
-		_stprintf (buffer, _T("#$%08x"), (unsigned long)offset);
+		_stprintf (buffer, _T("#$%08x"), (uae_u32)offset);
 		addr = pc + offset;
 		break;
 	default:
@@ -5105,7 +5102,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 		uae_u16 extra;
 		struct mnemolookup *lookup;
 		struct instr *dp;
-		int oldpc;
+		uaecptr oldpc;
 		uaecptr m68kpc_illg = 0;
 		bool illegal = false;
 
@@ -5543,7 +5540,7 @@ void m68k_dumpstate (uaecptr pc, uaecptr *nextpc)
 			if ((i & 3) == 3)
 				console_out_f (_T("\n"));
 		}
-		fpsr = get_fpsr ();
+		fpsr = fpp_get_fpsr ();
 		console_out_f (_T("FPSR: %04X FPCR: %08x FPIAR: %08x N=%d Z=%d I=%d NAN=%d\n"),
 			fpsr, regs.fpcr, regs.fpiar,
 			(fpsr & 0x8000000) != 0,
