@@ -3211,6 +3211,15 @@ static void setnativeposition(struct vidbuffer *vb)
 	vb->outheight = gfxvidinfo.drawbuffer.outheight;
 }
 
+static void setspecialmonitorpos(struct vidbuffer *vb)
+{
+	vb->extrawidth = gfxvidinfo.drawbuffer.extrawidth;
+	vb->xoffset = gfxvidinfo.drawbuffer.xoffset;
+	vb->yoffset = gfxvidinfo.drawbuffer.yoffset;
+	vb->inxoffset = gfxvidinfo.drawbuffer.inxoffset;
+	vb->inyoffset = gfxvidinfo.drawbuffer.inyoffset;
+}
+
 static void finish_drawing_frame (void)
 {
 	int i;
@@ -3259,6 +3268,7 @@ static void finish_drawing_frame (void)
 		lightpen_update (vb);
 
 	if (currprefs.monitoremu && gfxvidinfo.tempbuffer.bufmem_allocated) {
+		setspecialmonitorpos(&gfxvidinfo.tempbuffer);
 		if (emulate_specialmonitors (vb, &gfxvidinfo.tempbuffer)) {
 			vb = gfxvidinfo.outbuffer = &gfxvidinfo.tempbuffer;
 			if (vb->nativepositioning)
