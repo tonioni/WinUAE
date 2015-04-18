@@ -954,9 +954,11 @@ static int opentcp (const TCHAR *sername)
 		goto end;
 	}
 
-	while (tcp_is_connected () == false) {
-		Sleep (1000);
-		write_log (_T("SERIAL_TCP: waiting for connect...\n"));
+	if (waitmode) {
+		while (tcp_is_connected () == false) {
+			Sleep (1000);
+			write_log (_T("SERIAL_TCP: waiting for connect...\n"));
+		}
 	}
 
 	xfree (port);
@@ -1528,6 +1530,13 @@ int enumserialports (void)
 	if (cnt < MAX_SERPAR_PORTS) {
 		comports[cnt] = xcalloc(struct serparportinfo, 1);
 		comports[cnt]->dev = my_strdup (_T("TCP://0.0.0.0:1234"));
+		comports[cnt]->cfgname = my_strdup (comports[cnt]->dev);
+		comports[cnt]->name = my_strdup (comports[cnt]->dev);
+		cnt++;
+	}
+	if (cnt < MAX_SERPAR_PORTS) {
+		comports[cnt] = xcalloc(struct serparportinfo, 1);
+		comports[cnt]->dev = my_strdup (_T("TCP://0.0.0.0:1234/wait"));
 		comports[cnt]->cfgname = my_strdup (comports[cnt]->dev);
 		comports[cnt]->name = my_strdup (comports[cnt]->dev);
 		cnt++;

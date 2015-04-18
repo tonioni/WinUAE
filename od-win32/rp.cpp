@@ -843,6 +843,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		} else if (integerscale) {
 			hmult = vmult = 1;
 			p->gf[0].gfx_filter_autoscale = AUTOSCALE_INTEGER;
+			p->gf[0].gfx_filter_integerscalelimit = 0;
 			if (sm->dwClipFlags & RP_CLIPFLAGS_AUTOCLIP) {
 				p->gfx_xcenter_pos = -1;
 				p->gfx_ycenter_pos = -1;

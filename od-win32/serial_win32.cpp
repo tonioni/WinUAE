@@ -160,6 +160,7 @@ static int data_in_serdat; /* new data written to SERDAT */
 static int data_in_serdatr; /* new data received */
 static int data_in_sershift; /* data transferred from SERDAT to shift register */
 static uae_u16 serdatshift; /* serial shift register */
+static uae_u16 serdatshift_masked; /* stop bit masked */
 static int ovrun;
 static int dtr;
 static int serial_period_hsyncs, serial_period_hsync_counter;
@@ -333,7 +334,7 @@ static void checksend(void)
 	if (checkserwrite()) {
 		if (ninebit)
 			writeser(((serdatshift >> 8) & 1) | 0xa8);
-		writeser(serdatshift);
+		writeser(serdatshift_masked);
 	} else {
 		// buffer full, try again later
 		sent = false;
@@ -362,31 +363,39 @@ static void sersend_ce(uae_u32 v)
 
 static void serdatcopy(void)
 {
+	int bits;
+
 	if (data_in_sershift || !data_in_serdat)
 		return;
 	serdatshift = serdat;
+	bits = 8;
+	if ((serdatshift & 0xff80) == 0x80) {
+		bits = 7;
+	}
+	serdatshift_masked = serdatshift & ((1 << bits) - 1);
 	data_in_sershift = 1;
 	data_in_serdat = 0;
 	INTREQ(0x8000 | 0x0001);
 	serial_check_irq();
 	checksend();
 
+
 	if (seriallog) {
 		gotlogwrite = true;
-		write_log(_T("%c"), dochar(serdatshift));
+		write_log(_T("%c"), dochar(serdatshift_masked));
 	}
 
 	if (serper == 372) {
 		if (enforcermode & 2) {
-			console_out_f(_T("%c"), dochar(serdatshift));
-			if (serdatshift == 256 + 10)
+			console_out_f(_T("%c"), dochar(serdatshift_masked));
+			if (serdatshift_masked == 10)
 				console_out(_T("\n"));
 		}
 	}
 
 	// if someone uses serial port as some kind of timer..
 	if (currprefs.cpu_cycle_exact) {
-		int per, bits;
+		int per;
 
 		bits = 16 + 1;
 		for (int i = 15; i >= 0; i--) {

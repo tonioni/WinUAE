@@ -202,18 +202,17 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CDTVCR, CP_CD32, CP_A500, CP_A500P, CP_A600, 
 #define AUTOSCALE_CENTER 6
 #define AUTOSCALE_MANUAL 7 // use gfx_xcenter_pos and gfx_ycenter_pos
 #define AUTOSCALE_INTEGER 8
-#define AUTOSCALE_HALF_INTEGER 9
-#define AUTOSCALE_INTEGER_AUTOSCALE 10
-#define AUTOSCALE_HALF_INTEGER_AUTOSCALE 11
-#define AUTOSCALE_SEPARATOR 12
-#define AUTOSCALE_OVERSCAN_BLANK 13
+#define AUTOSCALE_INTEGER_AUTOSCALE 9
+#define AUTOSCALE_SEPARATOR 10
+#define AUTOSCALE_OVERSCAN_BLANK 11
 
 #define MONITOREMU_NONE 0
 #define MONITOREMU_AUTO 1
 #define MONITOREMU_A2024 2
 #define MONITOREMU_GRAFFITI 3
 #define MONITOREMU_HAM_E 4
-#define MONITOREMU_DCTV 5
+#define MONITOREMU_HAM_E_PLUS 5
+#define MONITOREMU_DCTV 6
 
 #define MAX_FILTERSHADERS 4
 
@@ -283,6 +282,7 @@ struct gfx_filterdata
 	int gfx_filter_gamma, gfx_filter_gamma_ch[3];
 	int gfx_filter_keep_aspect, gfx_filter_aspect;
 	int gfx_filter_autoscale;
+	int gfx_filter_integerscalelimit;
 	int gfx_filter_keep_autoscale_aspect;
 };
 

@@ -255,8 +255,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 		filterymult = scale;
 
 		if (scalemode == AUTOSCALE_STATIC_MAX || scalemode == AUTOSCALE_STATIC_NOMINAL ||
-			scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE ||
-			scalemode == AUTOSCALE_HALF_INTEGER || scalemode == AUTOSCALE_HALF_INTEGER_AUTOSCALE) {
+			scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
 
 			if (specialmode) {
 				cx = 0;
@@ -280,8 +279,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				scl = true;
 			}
 
-			if (scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE ||
-				scalemode == AUTOSCALE_HALF_INTEGER || scalemode == AUTOSCALE_HALF_INTEGER_AUTOSCALE) {
+			if (scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
 				int maxw = currprefs.gfx_size.width;
 				int maxh = currprefs.gfx_size.height;
 				double mult = 1;
@@ -295,12 +293,12 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					get_custom_topedge (&cx, &cy, false);
 				}
 
-				if (scalemode == AUTOSCALE_INTEGER_AUTOSCALE || scalemode == AUTOSCALE_HALF_INTEGER_AUTOSCALE) {
+				if (scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
 					ok = get_custom_limits (&cw, &ch, &cx, &cy, &crealh) != 0;
 					if (ok)
 						store_custom_limits (cw, ch, cx, cy);
 				}
-				if (scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_HALF_INTEGER || ok == false) {
+				if (scalemode == AUTOSCALE_INTEGER || ok == false) {
 					getmanualpos (&cx, &cy, &cw, &ch);
 					store_custom_limits (cw, ch, cx, cy);
 				}
@@ -317,7 +315,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				filter_horiz_zoom_mult = 1.0;
 				filter_vert_zoom_mult = 1.0;
 
-				double multadd = (scalemode == AUTOSCALE_HALF_INTEGER || scalemode == AUTOSCALE_HALF_INTEGER_AUTOSCALE) ? 0.5 : 1.0;
+				double multadd = 1.0 / (1 << currprefs.gf[picasso_on].gfx_filter_integerscalelimit);
 				if (cw2 > maxw || ch2 > maxh) {
 					while (cw2 / mult > maxw || ch2 / mult > maxh)
 						mult += multadd;
@@ -378,7 +376,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	
 		autoaspectratio = 0;
 		if (currprefs.gf[picasso_on].gfx_filter_keep_autoscale_aspect && cw > 0 && ch > 0 && crealh > 0 && (scalemode == AUTOSCALE_NORMAL ||
-			scalemode == AUTOSCALE_INTEGER_AUTOSCALE || scalemode == AUTOSCALE_HALF_INTEGER_AUTOSCALE || scalemode == AUTOSCALE_MANUAL)) {
+			scalemode == AUTOSCALE_INTEGER_AUTOSCALE || scalemode == AUTOSCALE_MANUAL)) {
 			float cw2 = cw;
 			float ch2 = ch;
 			int res = currprefs.gfx_resolution - currprefs.gfx_vresolution;
@@ -459,7 +457,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					lastdelay = 0;
 				}
 				float scalex = currprefs.gf[picasso_on].gfx_filter_horiz_zoom_mult > 0 ? currprefs.gf[picasso_on].gfx_filter_horiz_zoom_mult : 1.0f;
-				float scaley = currprefs.gf[picasso_on].gfx_filter_vert_zoom_mult > 0 ? currprefs.gf[picasso_on].gfx_filter_horiz_zoom_mult : 1.0f;
+				float scaley = currprefs.gf[picasso_on].gfx_filter_vert_zoom_mult > 0 ? currprefs.gf[picasso_on].gfx_filter_vert_zoom_mult : 1.0f;
 				SetRect (sr, 0, 0, cw * scale * scalex, ch * scale * scaley);
 				dr->left = (temp_width - aws) /2;
 				dr->top = (temp_height - ahs) / 2;

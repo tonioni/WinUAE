@@ -396,8 +396,6 @@
 #define IDS_DISPLAY_ATTRIBUTES          403
 #define IDS_NUMSG_NO_PPC                404
 #define IDS_NUMSG_UAEBOOTROM_PCC        405
-#define IDS_AUTOSCALE_HALF_INTEGER      406
-#define IDS_AUTOSCALE_HALF_INTEGER_AUTOSCALE 407
 #define IDS_AUTOSCALE_OVERSCAN_BLANK    408
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
@@ -1204,6 +1202,7 @@
 #define IDC_CS_DF0IDHW                  1817
 #define IDC_FILTERSTACK                 1818
 #define IDC_INPUTMAP_CAPTURE            1819
+#define IDC_FILTERINTEGER               1819
 #define IDC_INPUTMAP_CUSTOM             1820
 #define IDC_INPUTMAP_DELETE             1821
 #define IDC_INPUTMAP_TEST               1822

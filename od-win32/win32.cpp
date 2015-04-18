@@ -5087,10 +5087,12 @@ static void makeverstr (TCHAR *s)
 	}
 }
 
-static TCHAR *getdefaultini (void)
+static TCHAR *getdefaultini (int *tempfile)
 {
 	FILE *f;
 	TCHAR path[MAX_DPATH], orgpath[MAX_DPATH];
+	
+	*tempfile = 0;
 	path[0] = 0;
 	if (!GetFullPathName (_wpgmptr, sizeof path / sizeof (TCHAR), path, NULL))
 		_tcscpy (path, _wpgmptr);
@@ -5111,6 +5113,7 @@ static TCHAR *getdefaultini (void)
 		return my_strdup (path);
 	}
 #endif
+	*tempfile = 1;
 	int v = GetTempPath (sizeof path / sizeof (TCHAR), path);
 	if (v == 0 || v > sizeof path / sizeof (TCHAR))
 		return my_strdup (orgpath);
@@ -5324,7 +5327,8 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("portable"))) {
-		inipath = getdefaultini ();
+		int temp;
+		inipath = getdefaultini (&temp);
 		createbootlog = false;
 		return 2;
 	}
@@ -5598,15 +5602,16 @@ static TCHAR **WIN32_InitRegistry (TCHAR **argv)
 
 	reginitializeinit (&inipath);
 	hWinUAEKey = NULL;
-	if (getregmode () == 0 || WINUAEPUBLICBETA > 0) {
+	if (getregmode () == NULL || WINUAEPUBLICBETA > 0) {
 		/* Create/Open the hWinUAEKey which points our config-info */
 		RegCreateKeyEx (HKEY_CURRENT_USER, _T("Software\\Arabuusimiehet\\WinUAE"), 0, _T(""), REG_OPTION_NON_VOLATILE,
 			KEY_WRITE | KEY_READ, NULL, &hWinUAEKey, &disposition);
 		if (hWinUAEKey == NULL) {
 			FILE *f;
 			TCHAR *path;
+			int tempfile;
 
-			path = getdefaultini ();
+			path = getdefaultini (&tempfile);
 			f = _tfopen (path, _T("r"));
 			if (!f)
 				f = _tfopen (path, _T("w"));
@@ -5620,6 +5625,33 @@ static TCHAR **WIN32_InitRegistry (TCHAR **argv)
 	if (regquerystr (NULL, _T("Commandline"), tmp, &size))
 		return parseargstrings (tmp, argv);
 	return NULL;
+}
+
+bool switchreginimode(void)
+{
+	TCHAR *path;
+	const TCHAR *inipath = getregmode();
+	if (inipath == NULL) {
+		// reg -> ini
+		FILE *f;
+		int tempfile;
+
+		path = getdefaultini(&tempfile);
+		if (tempfile)
+			return false;
+		f = _tfopen (path, _T("w"));
+		if (f) {
+			fclose(f);
+			return reginitializeinit(&path) != 0;
+		}
+	} else {
+		// ini -> reg
+		DeleteFile(inipath);
+		path = NULL;
+		reginitializeinit(&path);
+		return true;
+	}
+	return false;
 }
 
 static const TCHAR *pipename = _T("\\\\.\\pipe\\WinUAE");

@@ -1873,6 +1873,7 @@ int check_prefs_changed_gfx (void)
 		c |= gf->gfx_filter_contrast != gfc->gfx_filter_contrast ? (1) : 0;
 		c |= gf->gfx_filter_saturation != gfc->gfx_filter_saturation ? (1) : 0;
 		c |= gf->gfx_filter_gamma != gfc->gfx_filter_gamma ? (1) : 0;
+		c |= gf->gfx_filter_integerscalelimit != gfc->gfx_filter_integerscalelimit ? (1) : 0;
 		if (j && gf->gfx_filter_autoscale != gfc->gfx_filter_autoscale)
 			c |= 8 | 64;
 		//c |= gf->gfx_filter_ != gfc->gfx_filter_ ? (1|8) : 0;

@@ -123,7 +123,9 @@ static TCHAR help[] = {
 	_T("  fp \"<name>\"/<addr>    Step forward until process <name> or <addr> is active.\n")
 	_T("  fl                    List breakpoints.\n")
 	_T("  fd                    Remove all breakpoints.\n")
-	_T("  fs <val> <mask>       Break when (SR & mask) = val.\n")                   
+	_T("  fs <lines to wait> | <vpos> <hpos> Wait n scanlines/position.\n")
+	_T("  fc <CCKs to wait>     Wait n color clocks.\n")
+	_T("  fS <val> <mask>       Break when (SR & mask) = val.\n")                   
 	_T("  f <addr1> <addr2>     Step forward until <addr1> <= PC <= <addr2>.\n")
 	_T("  e                     Dump contents of all custom registers, ea = AGA colors.\n")
 	_T("  i [<addr>]            Dump contents of interrupt and trap vectors.\n")
@@ -3563,7 +3565,7 @@ static void breakfunc(uae_u32 v)
 
 static int cycle_breakpoint(TCHAR **c)
 {
-	TCHAR nc = _totupper((*c)[0]);
+	TCHAR nc = (*c)[0];
 	next_char(c);
 	if (more_params(c)) {
 		int count = readint(c);

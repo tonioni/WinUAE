@@ -413,6 +413,7 @@ int reginitializeinit (TCHAR **pppath)
 	FILE *f;
 	TCHAR *ppath = *pppath;
 
+	inimode = 0;
 	if (!ppath) {
 		int ok = 0;
 		TCHAR *posn;
@@ -473,9 +474,9 @@ void regstatus (void)
 		write_log (_T("'%s' enabled\n"), inipath);
 }
 
-int getregmode (void)
+const TCHAR *getregmode (void)
 {
 	if (!inimode)
-		return 0;
-	return inimode;
+		return NULL;
+	return inipath;
 }
