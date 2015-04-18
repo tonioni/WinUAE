@@ -170,6 +170,7 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 	int y, x, vdbl, hdbl;
 	int ystart, yend, isntsc;
 	int xadd;
+	bool hameplus = currprefs.monitoremu == MONITOREMU_HAM_E_PLUS;
 
 	isntsc = (beamcon0 & 0x20) ? 0 : 1;
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
@@ -184,6 +185,7 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
 
 	uae_u8 r, g, b;
+	uae_u8 or, og, ob;
 	int pcnt = 0;
 	int bank = 0;
 	int mode_active = 0;
@@ -252,6 +254,7 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 				if (mode_active) {
 					if (cookie_line || x < cookiestartx) {
 						r = g = b = 0;
+						or = og = ob = 0;
 					} else {
 						if (mode_active == ham_e_magic_cookie_reg) {
 							uae_u8 *pal = &graffiti_palette[val * 4];
@@ -277,11 +280,56 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 							}
 						}
 					}
-					PRGB(dst, d - dst->pixbytes, r, g, b);
-					PRGB(dst, d, r, g, b);
-					if (doublelines) {
-						PRGB(dst, d2 - dst->pixbytes, r, g, b);
-						PRGB(dst, d2, r, g, b);
+					if (hameplus) {
+						uae_u8 ar, ag, ab;
+
+						if (abs(r - or) < 64 && abs(g - og) < 64 && abs(b - ob) < 64) {
+							ar = (r + or) / 2;
+							ag = (g + og) / 2;
+							ab = (b + ob) / 2;
+						} else {
+							ar = r;
+							ag = g;
+							ab = b;
+						}
+
+						if (xadd > 2) {
+							PRGB(dst, d - dst->pixbytes, ar, ag, ab);
+							PRGB(dst, d, ar, ag, ab);
+							PRGB(dst, d + 1 * dst->pixbytes, r, g, b);
+							PRGB(dst, d + 2 * dst->pixbytes, r, g, b);
+							if (doublelines) {
+								PRGB(dst, d2 - dst->pixbytes, ar, ag, ab);
+								PRGB(dst, d2, ar, ag, ab);
+								PRGB(dst, d2 + 1 * dst->pixbytes, r, g, b);
+								PRGB(dst, d2 + 2 * dst->pixbytes, r, g, b);
+							}
+						} else {
+							PRGB(dst, d - dst->pixbytes, ar, ag, ab);
+							PRGB(dst, d, r, g, b);
+							if (doublelines) {
+								PRGB(dst, d2 - dst->pixbytes, ar, ag, ab);
+								PRGB(dst, d2, r, g, b);
+							}
+						}
+						or = r;
+						og = g;
+						ob = b;
+					} else {
+						PRGB(dst, d - dst->pixbytes, r, g, b);
+						PRGB(dst, d, r, g, b);
+						if (xadd > 2) {
+							PRGB(dst, d + 1 * dst->pixbytes, r, g, b);
+							PRGB(dst, d + 2 * dst->pixbytes, r, g, b);
+						}
+						if (doublelines) {
+							PRGB(dst, d2 - dst->pixbytes, r, g, b);
+							PRGB(dst, d2, r, g, b);
+							if (xadd > 2) {
+								PRGB(dst, d2 + 1 * dst->pixbytes, r, g, b);
+								PRGB(dst, d2 + 2 * dst->pixbytes, r, g, b);
+							}
+						}
 					}
 				} else {
 					if (dst->pixbytes == 4) {
@@ -713,7 +761,7 @@ static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *ds
 	} else if (currprefs.monitoremu == MONITOREMU_DCTV) {
 		automatic = false;
 		return dctv(src, dst, false, 0);
-	} else if (currprefs.monitoremu == MONITOREMU_HAM_E) {
+	} else if (currprefs.monitoremu == MONITOREMU_HAM_E || currprefs.monitoremu == MONITOREMU_HAM_E_PLUS) {
 		bool v;
 		automatic = false;
 		if (interlace_seen) {
