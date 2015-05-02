@@ -78,6 +78,8 @@ extern "C"
 #define AXISTYPE_SLIDER 3
 #define AXISTYPE_DIAL 4
 
+#define MAX_ACQUIRE_ATTEMPTS 10
+
 struct didata {
 	int type;
 	int acquired;
@@ -92,6 +94,7 @@ struct didata {
 	int vid, pid, mi;
 
 	int connection;
+	int acquireattempts;
 	LPDIRECTINPUTDEVICE8 lpdi;
 	HANDLE rawinput;
 	HIDP_CAPS hidcaps;
@@ -2956,6 +2959,7 @@ static int acquire_mouse (int num, int flags)
 	}
 
 	unacquire (lpdi, _T("mouse"));
+	did->acquireattempts = MAX_ACQUIRE_ATTEMPTS;
 	if (did->connection == DIDC_DX && lpdi) {
 		setcoop (&di_mouse[num], flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), _T("mouse"));
 		dipdw.diph.dwSize = sizeof (DIPROPDWORD);
@@ -3039,6 +3043,8 @@ static void read_mouse (void)
 		}
 		if (!lpdi || did->connection != DIDC_DX)
 			continue;
+		if (did->acquireattempts <= 0)
+			continue;
 		elements = DI_BUFFER;
 		hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof (DIDEVICEOBJECTDATA), didod, &elements, 0);
 		if (SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) {
@@ -3096,9 +3102,11 @@ static void read_mouse (void)
 				}
 			}
 		} else if (hr == DIERR_INPUTLOST) {
-			acquire (lpdi, _T("mouse"));
+			if (!acquire (lpdi, _T("mouse")))
+				did->acquireattempts--;
 		} else if (did->acquired &&  hr == DIERR_NOTACQUIRED) {
-			acquire (lpdi, _T("mouse"));
+			if (!acquire (lpdi, _T("mouse")))
+				did->acquireattempts--;
 		}
 		IDirectInputDevice8_Poll (lpdi);
 	}
@@ -3290,6 +3298,7 @@ static int acquire_kb (int num, int flags)
 
 	lpdi = di_keyboard[num].lpdi;
 	unacquire (lpdi, _T("keyboard"));
+	di_keyboard[num].acquireattempts = MAX_ACQUIRE_ATTEMPTS;
 
 	//lock_kb ();
 	setcoop (&di_keyboard[num], DISCL_NOWINKEY | DISCL_FOREGROUND | DISCL_EXCLUSIVE, _T("keyboard"));
@@ -3403,6 +3412,8 @@ static void read_kb (void)
 				continue;
 			kb_do_refresh &= ~(1 << i);
 		}
+		if (did->acquireattempts <= 0)
+			continue;
 		elements = DI_KBBUFFER;
 		hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof (DIDEVICEOBJECTDATA), didod, &elements, 0);
 		if ((SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) && (isfocus () || istest)) {
@@ -3431,10 +3442,12 @@ static void read_kb (void)
 				}
 			}
 		} else if (hr == DIERR_INPUTLOST) {
-			acquire_kb (i, 0);
+			if (!acquire_kb (i, 0))
+				did->acquireattempts--;
 			kb_do_refresh |= 1 << i;
 		} else if (did->acquired && hr == DIERR_NOTACQUIRED) {
-			acquire_kb (i, 0);
+			if (!acquire_kb (i, 0))
+				did->acquireattempts--;
 		}
 		IDirectInputDevice8_Poll (lpdi);
 	}
@@ -3661,6 +3674,8 @@ static void read_joystick (void)
 		lpdi = did->lpdi;
 		if (!lpdi || did->connection != DIDC_DX)
 			continue;
+		if (did->acquireattempts <= 0)
+			continue;
 		elements = DI_BUFFER;
 		hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof (DIDEVICEOBJECTDATA), didod, &elements, 0);
 		if ((SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) && (isfocus () || istest)) {
@@ -3745,9 +3760,11 @@ static void read_joystick (void)
 			}
 
 		} else if (hr == DIERR_INPUTLOST) {
-			acquire (lpdi, _T("joystick"));
+			if (!acquire (lpdi, _T("joystick")))
+				did->acquireattempts--;
 		} else if (did->acquired &&  hr == DIERR_NOTACQUIRED) {
-			acquire (lpdi, _T("joystick"));
+			if (!acquire (lpdi, _T("joystick")))
+				did->acquireattempts--;
 		}
 		IDirectInputDevice8_Poll (lpdi);
 	}
@@ -3821,6 +3838,7 @@ static int acquire_joystick (int num, int flags)
 	}
 	lpdi = di_joystick[num].lpdi;
 	unacquire (lpdi, _T("joystick"));
+	di_joystick[num].acquireattempts = MAX_ACQUIRE_ATTEMPTS;
 	if (di_joystick[num].connection == DIDC_DX && lpdi) {
 		setcoop (&di_joystick[num], flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), _T("joystick"));
 		memset (&dipdw, 0, sizeof (dipdw));
