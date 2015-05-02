@@ -3569,7 +3569,7 @@ static int cycle_breakpoint(TCHAR **c)
 	next_char(c);
 	if (more_params(c)) {
 		int count = readint(c);
-		if (nc == 'S') {
+		if (nc == 's') {
 			if (more_params(c)) {
 				int hp = readint(c);
 				if (count >= vpos) {

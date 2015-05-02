@@ -1,21 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
-#include <Wingdi.h>
-#include <winspool.h>
-#include <winuser.h>
-#include <mmsystem.h>
 #include <commctrl.h>
-#include <commdlg.h>
-#include <dlgs.h>
-#include <process.h>
-#include <prsht.h>
-#include <richedit.h>
-#include <shellapi.h>
-#include <Shlobj.h>
-#include <shlwapi.h>
-#include <ddraw.h>
-#include <shobjidl.h>
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -216,7 +202,7 @@ static INT_PTR CALLBACK DummyProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 
 extern int full_property_sheet;
 
-static struct newresource *scaleresource2 (struct newresource *res, HWND parent, int resize, int fullscreen, DWORD exstyle, bool test)
+static struct newresource *scaleresource2 (struct newresource *res, HWND parent, int resize, int fullscreen, DWORD exstyle)
 {
 	DLGTEMPLATEEX *d, *s;
 	DLGTEMPLATEEX_END *d2, *s2;
@@ -248,12 +234,6 @@ static struct newresource *scaleresource2 (struct newresource *res, HWND parent,
 	int width = d->cx;
 	int height = d->cy;
 
-	if (test) {
-		// HACK! far enough to be invisible..
-		d->x = 20000;
-		d->y = 20000;
-	}
-
 	if (resize > 0) {
 		d->style &= ~DS_MODALFRAME;
 		d->style |= WS_THICKFRAME;
@@ -261,12 +241,11 @@ static struct newresource *scaleresource2 (struct newresource *res, HWND parent,
 		d->style |= DS_MODALFRAME;
 		d->style &= ~WS_THICKFRAME;
 	}
-	if (fullscreen) {
+	if (fullscreen > 0) {
 		//d->style |= SW_MAXIMIZE;
 		d->style |= WS_THICKFRAME;
 	} else {
-		if (full_property_sheet)
-			d->style |= WS_MINIMIZEBOX;
+		d->style |= WS_MINIMIZEBOX;
 	}
 	d->exStyle |= exstyle;
 
@@ -322,7 +301,7 @@ static struct newresource *scaleresource2 (struct newresource *res, HWND parent,
 
 struct newresource *scaleresource (struct newresource *res, HWND parent, int resize, int fullscreen, DWORD exstyle)
 {
-	return scaleresource2(res, parent, resize, fullscreen, exstyle, false);
+	return scaleresource2(res, parent, resize, fullscreen, exstyle);
 }
 
 void freescaleresource (struct newresource *ns)
@@ -475,12 +454,7 @@ static void getbaseunits (int fullscreen)
 		write_log (_T("getbaseunits fail!\n"));
 		abort();
 	}
-	// dialog is visible before WM_INITDIALOG in Windows 10!
-	// even when dialog does not have visible flag!
-	// last confirmed on build 10041
-	// hopefully this gets fixed before RTM..
-	bool win10bughack = osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion == 3;
-	nr2 = scaleresource2(nr, NULL, -1, 0, 0, win10bughack);
+	nr2 = scaleresource2(nr, NULL, -1, 0, 0);
 	hwnd = CreateDialogIndirect (nr2->inst, nr2->resource, NULL, TestProc);
 	if (hwnd) {
 		DestroyWindow (hwnd);

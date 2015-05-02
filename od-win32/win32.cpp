@@ -10,6 +10,7 @@
 //#define MEMDEBUG
 #define MOUSECLIP_LOG 0
 #define MOUSECLIP_HIDE 1
+#define TOUCH_SUPPORT 1
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -197,12 +198,22 @@ bool winuaelog_temporary_enable;
 int af_path_2005;
 int quickstart = 1, configurationcache = 1, relativepaths = 0;
 int saveimageoriginalpath = 0;
+int recursiveromscan = 0;
 
 static TCHAR *inipath = NULL;
 
 static int guijoybutton[MAX_JPORTS];
 static int guijoyaxis[MAX_JPORTS][4];
 static bool guijoychange;
+
+#if TOUCH_SUPPORT
+typedef BOOL (CALLBACK* REGISTERTOUCHWINDOW)(HWND, ULONG);
+typedef BOOL (CALLBACK* GETTOUCHINPUTINFO)(HTOUCHINPUT, UINT, PTOUCHINPUT, int);
+typedef BOOL (CALLBACK* CLOSETOUCHINPUTHANDLE)(HTOUCHINPUT);
+
+static GETTOUCHINPUTINFO pGetTouchInputInfo;
+static CLOSETOUCHINPUTHANDLE pCloseTouchInputHandle;
+#endif
 
 int timeend (void)
 {
@@ -1149,6 +1160,47 @@ static void add_media_insert_queue(HWND hwnd, const TCHAR *drvname, int retrycnt
 	}
 }
 
+#if TOUCH_SUPPORT
+static int touch_touched;
+static DWORD touch_time;
+
+static void processtouch(HWND hwnd, WPARAM wParam, LPARAM lParam)
+{
+	if (!pGetTouchInputInfo || !pCloseTouchInputHandle)
+		return;
+	UINT cInputs = LOWORD(wParam);
+	PTOUCHINPUT pInputs = new TOUCHINPUT[cInputs];
+	if (NULL != pInputs) {
+		if (pGetTouchInputInfo((HTOUCHINPUT)lParam, cInputs, pInputs, sizeof(TOUCHINPUT))) {
+			for (int i = 0; i < cInputs; i++) {
+				PTOUCHINPUT ti = &pInputs[i];
+				//write_log(_T("ID=%08x FLAGS=%08x MASK=%08x X=%d Y=%d \n"), ti->dwID, ti->dwFlags, ti->dwMask, ti->x / 100, ti->y / 100);
+				if (ti->dwFlags & TOUCHEVENTF_PRIMARY) {
+					int x = ti->x / 100;
+					int y = ti->y / 100;
+					if (x > 20 || y > 20) {
+						touch_touched = 0;
+					} else {
+						if (ti->dwFlags & TOUCHEVENTF_DOWN) {
+							touch_touched = 1;
+							touch_time = ti->dwTime;
+						}
+						if (ti->dwFlags & TOUCHEVENTF_UP) {
+							if (touch_touched && ti->dwTime >= touch_time + 3 * 1000) {
+								inputdevice_add_inputcode(AKS_ENTERGUI, 1);
+							}
+							touch_touched = 0;
+						}
+					}
+				}
+			}
+			pCloseTouchInputHandle((HTOUCHINPUT)lParam);
+		}
+		delete [] pInputs;
+	}
+}
+#endif
+
 #define MSGDEBUG 1
 
 static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -1755,6 +1807,12 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			return 0;
 		}
 
+#if TOUCH_SUPPORT
+	case WM_TOUCH:
+	processtouch(hWnd, wParam, lParam);
+	break;
+#endif
+
 	default:
 		break;
 	}
@@ -1860,6 +1918,9 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	case WT_PACKET:
 	case WM_WTSSESSION_CHANGE:
 	case WM_TIMER:
+#if TOUCH_SUPPORT
+	case WM_TOUCH:
+#endif
 		return AmigaWindowProc (hWnd, message, wParam, lParam);
 #if 0
 	case WM_DISPLAYCHANGE:
@@ -4483,19 +4544,28 @@ static void WIN32_HandleRegistryStuff (void)
 		sounddrivermask = 3;
 		regsetint (NULL, _T("SoundDriverMask"), sounddrivermask);
 	}
+
+	if (regexists (NULL, _T("RecursiveROMScan")))
+		regqueryint (NULL, _T("RecursiveROMScan"), &recursiveromscan);
+	else
+		regsetint (NULL, _T("RecursiveROMScan"), recursiveromscan);
+
 	if (regexists (NULL, _T("ConfigurationCache")))
 		regqueryint (NULL, _T("ConfigurationCache"), &configurationcache);
 	else
 		regsetint (NULL, _T("ConfigurationCache"), configurationcache);
+
 	if (regexists (NULL, _T("SaveImageOriginalPath")))
 		regqueryint (NULL, _T("SaveImageOriginalPath"), &saveimageoriginalpath);
 	else
 		regsetint (NULL, _T("SaveImageOriginalPath"), saveimageoriginalpath);
 
+
 	if (regexists (NULL, _T("RelativePaths")))
 		regqueryint (NULL, _T("RelativePaths"), &relativepaths);
 	else
 		regsetint (NULL, _T("RelativePaths"), relativepaths);
+
 	regqueryint (NULL, _T("QuickStartMode"), &quickstart);
 	reopen_console ();
 	fetch_path (_T("ConfigurationPath"), path, sizeof (path) / sizeof (TCHAR));
@@ -4625,7 +4695,7 @@ static int dxdetect (void)
 #endif
 }
 
-int os_admin, os_64bit, os_win7, os_vista, cpu_number;
+int os_admin, os_64bit, os_win7, os_vista, cpu_number, os_touch;
 
 static int isadminpriv (void)
 {
@@ -4717,6 +4787,14 @@ static int osdetect (void)
 				os_admin++;
 		} else {
 			os_admin++;
+		}
+	}
+
+	if (os_win7) {
+		int v = GetSystemMetrics(SM_DIGITIZER);
+		if (v & NID_READY) {
+			if (v & (NID_INTEGRATED_TOUCH | NID_INTEGRATED_PEN))
+				os_touch = 1;
 		}
 	}
 
@@ -6140,6 +6218,27 @@ void addnotifications (HWND hwnd, int remove, int isgui)
 		if (!isgui)
 			wtson = WTSRegisterSessionNotification (hwnd, NOTIFY_FOR_THIS_SESSION);
 	}
+}
+
+void registertouch(HWND hwnd)
+{
+#if TOUCH_SUPPORT
+	REGISTERTOUCHWINDOW pRegisterTouchWindow;
+
+	if (!os_touch)
+		return;
+	pRegisterTouchWindow = (REGISTERTOUCHWINDOW)GetProcAddress(
+		GetModuleHandle (_T("user32.dll")), "RegisterTouchWindow");
+	pGetTouchInputInfo = (GETTOUCHINPUTINFO)GetProcAddress(
+		GetModuleHandle (_T("user32.dll")), "GetTouchInputInfo");
+	pCloseTouchInputHandle = (CLOSETOUCHINPUTHANDLE)GetProcAddress(
+		GetModuleHandle (_T("user32.dll")), "CloseTouchInputHandle");
+	if (!pRegisterTouchWindow || !pGetTouchInputInfo || !pCloseTouchInputHandle)
+		return;
+	if (!pRegisterTouchWindow(hwnd, 0)) {
+		write_log(_T("RegisterTouchWindow error: %d\n"), GetLastError());
+	}
+#endif
 }
 
 void systray (HWND hwnd, int remove)

@@ -38,13 +38,14 @@
 #include <Audioclient.h>
 #include <Mmdeviceapi.h>
 #include <Functiondiscoverykeys_devpkey.h>
-#include <xaudio2.h>
 #include <al.h>
 #include <alc.h>
 
 #include <portaudio.h>
 
 #include "sounddep/sound.h"
+
+#define USE_XAUDIO 0
 
 struct sound_dp
 {
@@ -109,6 +110,7 @@ struct sound_dp
 	int sndbuf;
 	int wasapigoodsize;
 
+#if USE_XAUDIO
 	// xaudio2
 
 #define XA_BUFFERS 8
@@ -121,6 +123,7 @@ struct sound_dp
 	int xabufcnt;
 	int xsamplesplayed;
 	int xextrasamples;
+#endif
 
 	double avg_correct;
 	double cnt_correct;
@@ -296,6 +299,7 @@ static void clearbuffer (struct sound_data *sd)
 		clearbuffer_ds (sd);
 }
 
+#if USE_XAUDIO
 static void pause_audio_xaudio2 (struct sound_data *sd)
 {
 	struct sound_dp *s = sd->data;
@@ -332,6 +336,7 @@ static void resume_audio_xaudio2 (struct sound_data *sd)
 	if (FAILED (hr))
 		write_log (_T("XAUDIO2: Start() %08X\n"), hr);
 }
+#endif
 
 static void pause_audio_wasapi (struct sound_data *sd)
 {
@@ -501,8 +506,10 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 #endif
 	} else if (sd->devicetype == SOUND_DEVICE_PA) {
 		s->pavolume = volume;
+#if USE_XAUDIO
 	} else if (sd->devicetype == SOUND_DEVICE_XAUDIO2) {
 		s->xmaster->SetVolume (mute ? 0.0 : (float)(100 - volume) / 100.0);
+#endif
 	} else if (sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE || sd->devicetype == SOUND_DEVICE_WASAPI) {
 		sd->softvolume = -1;
 		hr = s->pAudioVolume->SetMasterVolume (1.0, NULL);
@@ -945,6 +952,7 @@ static void setwavfmt (WAVEFORMATEXTENSIBLE *wavfmt, struct sound_data *sd, DWOR
 	wavfmt->Format.nAvgBytesPerSec = wavfmt->Format.nBlockAlign * wavfmt->Format.nSamplesPerSec;
 }
 
+#if USE_XAUDIO
 static void close_audio_xaudio2 (struct sound_data *sd)
 {
 	struct sound_dp *s = sd->data;
@@ -1046,6 +1054,7 @@ static int open_audio_xaudio2 (struct sound_data *sd, int index)
 	return 1;
 
 }
+#endif
 
 static void close_audio_wasapi (struct sound_data *sd)
 {
@@ -1483,8 +1492,10 @@ int open_sound_device (struct sound_data *sd, int index, int bufsize, int freq, 
 		ret = open_audio_pa (sd, index);
 	else if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE)
 		ret = open_audio_wasapi (sd, index, type == SOUND_DEVICE_WASAPI_EXCLUSIVE);
+#if USE_XAUDIO
 	else if (type == SOUND_DEVICE_XAUDIO2)
 		ret = open_audio_xaudio2 (sd, index);
+#endif
 	sd->samplesize = sd->channels * 2;
 	sd->sndbufframes = sd->sndbufsize / sd->samplesize;
 	return ret;
@@ -1500,8 +1511,10 @@ void close_sound_device (struct sound_data *sd)
 		close_audio_pa (sd);
 	else if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE)
 		close_audio_wasapi (sd);
+#if USE_XAUDIO
 	else if (sd->devicetype == SOUND_DEVICE_XAUDIO2)
 		close_audio_xaudio2 (sd);
+#endif
 	xfree (sd->data);
 	sd->data = NULL;
 }
@@ -1516,8 +1529,10 @@ void pause_sound_device (struct sound_data *sd)
 		pause_audio_pa (sd);
 	else if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE)
 		pause_audio_wasapi (sd);
+#if USE_XAUDIO
 	else if (sd->devicetype == SOUND_DEVICE_XAUDIO2)
 		pause_audio_xaudio2 (sd);
+#endif
 }
 void resume_sound_device (struct sound_data *sd)
 {
@@ -1529,8 +1544,10 @@ void resume_sound_device (struct sound_data *sd)
 		resume_audio_pa (sd);
 	else if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE)
 		resume_audio_wasapi (sd);
+#if USE_XAUDIO
 	else if (sd->devicetype == SOUND_DEVICE_XAUDIO2)
 		resume_audio_xaudio2 (sd);
+#endif
 	sd->paused = 0;
 }
 
@@ -1891,6 +1908,7 @@ int get_offset_sound_device (struct sound_data *sd)
 }
 
 
+#if USE_XAUDIO
 static void finish_sound_buffer_xaudio2 (struct sound_data *sd, uae_u16 *sndbuffer)
 {
 	struct sound_dp *s = sd->data;
@@ -1939,8 +1957,8 @@ static void finish_sound_buffer_xaudio2 (struct sound_data *sd, uae_u16 *sndbuff
 	}
 	s->xsamplesplayed += sd->sndbufframes;
 	s->xabufcnt = (s->xabufcnt + 1) & (XA_BUFFERS - 1);
-
 }
+#endif
 
 static void finish_sound_buffer_wasapi (struct sound_data *sd, uae_u16 *sndbuffer)
 {
@@ -2218,8 +2236,10 @@ void send_sound (struct sound_data *sd, uae_u16 *sndbuffer)
 		finish_sound_buffer_pa (sd, sndbuffer);
 	else if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE)
 		finish_sound_buffer_wasapi (sd, sndbuffer);
+#if USE_XAUDIO
 	else if (type == SOUND_DEVICE_XAUDIO2)
 		finish_sound_buffer_xaudio2 (sd, sndbuffer);
+#endif
 }
 
 void finish_sound_buffer (void)
@@ -2428,6 +2448,7 @@ static void OpenALEnumerate (struct sound_device **sds, const char *pDeviceNames
 	}
 }
 
+#if USE_XAUDIO
 static void xaudioenumerate (struct sound_device **sds)
 {
 	IXAudio2 *xaudio2 = NULL;
@@ -2462,6 +2483,7 @@ static void xaudioenumerate (struct sound_device **sds)
 	}
 	xaudio2->Release();
 }
+#endif
 
 #define PORTAUDIO 1
 #if PORTAUDIO
@@ -2527,8 +2549,10 @@ int enumerate_sound_devices (void)
 		DirectSoundCaptureEnumerate ((LPDSENUMCALLBACK)DSEnumProc, record_devices);
 		if (os_vista && (sounddrivermask & SOUNDDRIVER_WASAPI))
 			wasapi_enum (sound_devices);
+#if USE_XAUDIO
 		if (sounddrivermask & SOUNDDRIVE_XAUDIO2)
 			xaudioenumerate (sound_devices);
+#endif
 		if (sounddrivermask & SOUNDDRIVER_OPENAL) {
 			__try {
 				if (isdllversion (_T("openal32.dll"), 6, 14, 357, 22)) {

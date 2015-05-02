@@ -21,7 +21,6 @@
 #include <commctrl.h>
 #include <commdlg.h>
 #include <dlgs.h>
-#include <process.h>
 #include <prsht.h>
 #include <richedit.h>
 #include <shellapi.h>
@@ -180,7 +179,7 @@ static void addaspectratios (HWND hDlg, int id)
 	}
 }
 
-static int scsiromselected = -1;
+static int scsiromselected = 0;
 static int scsiromselectednum = 0;
 
 #define Error(x) MessageBox (NULL, (x), _T("WinUAE Error"), MB_OK)
@@ -1803,7 +1802,7 @@ static void show_rom_list (void)
 	free (p);
 }
 
-static int scan_roms_2 (UAEREG *fkey, const TCHAR *path, bool deepscan)
+static int scan_roms_2 (UAEREG *fkey, const TCHAR *path, bool deepscan, int level)
 {
 	TCHAR buf[MAX_DPATH];
 	WIN32_FIND_DATA find_data;
@@ -1827,6 +1826,13 @@ static int scan_roms_2 (UAEREG *fkey, const TCHAR *path, bool deepscan)
 		if (!(find_data.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY |FILE_ATTRIBUTE_SYSTEM)) && find_data.nFileSizeLow < 10000000) {
 			if (scan_rom (tmppath, fkey, deepscan))
 				ret = 1;
+		} else if (deepscan && (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+			if (recursiveromscan < 0 || recursiveromscan > level) {
+				if (_tcsicmp(find_data.cFileName, _T(".")) && _tcsicmp(find_data.cFileName, _T(".."))) {
+					_tcscat(tmppath, _T("\\"));
+					scan_roms_2(fkey, tmppath, deepscan, level + 1);
+				}
+			}
 		}
 		if (!scan_rom_hook (NULL, 0) || FindNextFile (handle, &find_data) == 0) {
 			FindClose (handle);
@@ -1856,7 +1862,7 @@ static int scan_roms_3 (UAEREG *fkey, TCHAR **paths, const TCHAR *path)
 		if (paths[i] && !_tcsicmp (paths[i], pathp))
 			return ret;
 	}
-	ret = scan_roms_2 (fkey, pathp, deepscan);
+	ret = scan_roms_2 (fkey, pathp, deepscan, 0);
 	for (i = 0; i < MAX_ROM_PATHS; i++) {
 		if (!paths[i]) {
 			paths[i] = my_strdup(pathp);
@@ -5309,6 +5315,7 @@ static void resetregistry (void)
 	regdelete (NULL, _T("QuickStartConfiguration"));
 	regdelete (NULL, _T("QuickStartCompatibility"));
 	regdelete (NULL, _T("QuickStartHostConfig"));
+	regdelete (NULL, _T("RecursiveROMScan"));
 	regdelete (NULL, _T("ConfigurationCache"));
 	regdelete (NULL, _T("SaveImageOriginalPath"));
 	regdelete (NULL, _T("RelativePaths"));
@@ -5485,6 +5492,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		setac (hDlg, IDC_PATHS_SAVEIMAGE);
 		setac (hDlg, IDC_PATHS_AVIOUTPUT);
 		setac (hDlg, IDC_PATHS_RIP);
+		CheckDlgButton(hDlg, IDC_PATHS_RECURSIVEROMS, recursiveromscan);
 		CheckDlgButton(hDlg, IDC_PATHS_CONFIGCACHE, configurationcache);
 		CheckDlgButton(hDlg, IDC_PATHS_SAVEIMAGEORIGINALPATH, saveimageoriginalpath);
 		CheckDlgButton(hDlg, IDC_PATHS_RELATIVE, relativepaths);
@@ -5714,6 +5722,10 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				break;
 			case IDC_RESETDISKHISTORY:
 				reset_disk_history ();
+				break;
+			case IDC_PATHS_RECURSIVEROMS:
+				recursiveromscan = ischecked (hDlg, IDC_PATHS_RECURSIVEROMS) ? 2 : 0;
+				regsetint (NULL, _T("RecursiveROMScan"), recursiveromscan);
 				break;
 			case IDC_PATHS_CONFIGCACHE:
 				configurationcache = ischecked (hDlg, IDC_PATHS_CONFIGCACHE) ? 1 : 0;
@@ -7332,10 +7344,13 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("-"));
 		WIN32GUI_LoadUIString(IDS_AUTODETECT, buffer, sizeof buffer / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)buffer);
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("A2024"));
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Graffiti"));
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("HAM-E"));
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("HAM-E Plus"));
+		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Commodore A2024"));
+		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Individual Computers Graffiti"));
+		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Black Belt Systems HAM-E"));
+		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Black Belt Systems HAM-E Plus"));
+		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Newtronic Video DAC 18"));
+		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Archos AVideo 12"));
+		//SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Archos AVideo 24"));
 		//SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("DCTV"));
 
 #ifndef	AGA
@@ -10911,19 +10926,26 @@ static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype)
 	gui_set_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER, ctype + ctype_unit * HD_CONTROLLER_NEXT_UNIT);
 
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_RESETCONTENT, 0, 0);
-	if (ctype >= HD_CONTROLLER_TYPE_IDE_FIRST && ctype <= HD_CONTROLLER_TYPE_SCSI_LAST) {
+	if (ctype >= HD_CONTROLLER_TYPE_IDE_FIRST && ctype <= HD_CONTROLLER_TYPE_IDE_LAST) {
+		const struct expansionromtype *ert = get_unit_expansion_rom(ctype);
+		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("0"));
+		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("1"));
+		if (!ert || (ert->deviceflags & EXPANSIONTYPE_IDE_PORT_DOUBLED)) {
+			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("2"));
+			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("3"));
+		}
+		ew(hDlg, IDC_HDF_CONTROLLER_UNIT, TRUE);
+	} else if (ctype >= HD_CONTROLLER_TYPE_SCSI_FIRST && ctype <= HD_CONTROLLER_TYPE_SCSI_LAST) {
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("0"));
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("1"));
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("2"));
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("3"));
-		if (ctype >= HD_CONTROLLER_TYPE_SCSI_FIRST && ctype <= HD_CONTROLLER_TYPE_SCSI_LAST) {
-			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("4"));
-			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("5"));
-			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("6"));
-			const struct expansionromtype *ert = get_unit_expansion_rom(ctype);
-			if (devtype == UAEDEV_HDF && ert && !_tcscmp(ert->name, _T("a2091")))
-				SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("XT"));
-		}
+		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("4"));
+		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("5"));
+		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("6"));
+		const struct expansionromtype *ert = get_unit_expansion_rom(ctype);
+		if (devtype == UAEDEV_HDF && ert && !_tcscmp(ert->name, _T("a2091")))
+			SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("XT"));
 		ew(hDlg, IDC_HDF_CONTROLLER_UNIT, TRUE);
 	} else {
 		ew(hDlg, IDC_HDF_CONTROLLER_UNIT, FALSE);

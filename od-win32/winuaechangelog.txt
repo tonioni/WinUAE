@@ -1,4 +1,52 @@
 
+Beta 17:
+
+- Restrict GUI IDE units to 2 if device is single port and without IDE doubler support.
+- Added recursive ROM scan option to Paths panel. Currently restricted to 2 directory levels.
+- HAM-E Plus average pixel calculation bug fixed in hires mode.
+- "Direct" serial mode and Amiga serial receive buffer is full and program does not clear buffered byte before
+  new byte arrives (uses emulated serial speed): keep waiting until program reads the buffered byte.
+  Previously it was possible to lose received characters in some situations.
+- Windows 10 TP hack (b13) removed, build 10061 fixed it. RIM_TYPEHID RawInput bug is also fixed in 10061.
+- VGA autoresolution hires<>superhires switch was unreliable, it didn't set internal "config changed" variable.
+- If DirectInput device acquire call fails 10 times, ignore the device and stop error logging until all devices
+  needs to be re-acquired (for example focus is lost and regained or GUI is entered and exited)
+- Entering ROM panel possible crash fixed.
+- Newtronic Technologies Video DAC 18 RGB port video adapter emulation. (Format encoding information by mark_k)
+- If programmable hsync or vsync enabled with out of range values: syncs stop, stop also CIA-A (if vsync timed)
+  and/or CIA-B TOD counting.
+- Archos AVideo 12 emulation. Denise adapter, not AGA compatible, can't be AGA compatible even in emulation due
+  to custom chipset register conflict. (Information by mark_k)
+- FBcc and FDBcc FPU instruction didn't work correctly in more compatible or cycle-exact modes.
+- Negative boot priority value was parsed incorrectly when loading config file. Broken when manual HDF
+  geometry support was added
+- If system has built-in touch screen (for example Intel based Windows 8.1 tablet), >3s touch in top/left
+  corner will open GUI. Added because previously it was impossible to enter GUI without external keyboard.
+  Quick hack only, real touch support may or may not be implemented in future.
+- Made "Double, fields" default for interlace mode.
+- Added partial 53C400 SCSI chip emulation (53C400 = 53C80 + integrated buffered "fake" dma support +
+  some PC single chip SCSI integration/compatibility features)
+- Added Roctec RocHard RH800C SCSI emulation (53C400). Emulation is based on boot disk SCSI format utility
+  behavior, for some reason disk loadable driver won't automount SCSI disks. v2.0 ROM is still MIA.
+  IDE-only (SCSI chip not installed) and IDE+SCSI board subtypes added.
+- Generate DSKSYN interrupt if DSKSYNC matches zero when DMA is started but before any bits gets
+  transferred. Jukebox 2 / Dreamdealers accidentally (wrong INTREQR bit checked) requires it.
+
+Beta 16:
+
+- Automatic resize used horizontal zoom value for both horizontal and vertical.
+- Replaced half-integer scaling options with separate select menu with 1/1, 1/2, 1/4 and 1/8 scaling options.
+- Paths panel portable mode checkbox now switches between modes. NOTE: currently old data is not copied but
+  created from scratch. Switching off portable mode automatically deletes winuae.ini. Switching on portable
+  mode does not delete registry data.
+- Graffiti/HAM-E mode switch does not anymore change display position.
+- Added HAM-E Plus emulation. (Probably not correct implemention, currently uses simple average calculation
+  to create extra pixel between each "normal" HAM-E pixel)
+- Added separate waiting for connection TCP serial option. Old option does not wait anymore.
+- Fixed 7-bit serial bytes in serial logging/TCP modes (Stop bit=bit7 was not cleared)
+- Added Roctec RocHard RH800C emulation. rtidedisk.device, 1.0 ROM added which is IDE-only. First port is
+  IDE unit 0, second port is IDE unit 2. Ports are not shared and master-only.
+
 Beta 15:
 
 - Map only upper half of ROM image if GVP Series II ROM is 32k.
@@ -337,7 +385,7 @@ Masoboshi:
 - IDE and SCSI in non-DMA mode working.
 - SCSI writes are not working correctly, do not use! DMA controller not yet emulated.
 - "2.201" (device version) boot ROM added. ROM image does not have any version numbers or dates.
-- IDE driver uses CHS addressing and seems to have problems with 2G drives, actual limit may be smallewr.
+- IDE driver uses CHS addressing and seems to have problems with 2G drives, actual limit may be smaller.
   It tries to access first unavailable block number at the end of drive. (Driver flashes red background
   color if drive returns error status)
 
@@ -409,7 +457,6 @@ Beta 4:
 - Added name to UAE Boot ROM DiagArea. (May be visible in some system info/diagnostics software)
 - HALT status was not cleared when loading new state file.
 
-  
 Beta 3:
 
 - Bitplane DMA sequencer emulation rewritten yet again to again match better with real hardware behavior.

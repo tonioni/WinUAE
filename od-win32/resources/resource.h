@@ -1169,6 +1169,7 @@
 #define IDC_DF1WPTEXTQ                  1794
 #define IDC_RTG_Z2Z3                    1794
 #define IDC_RTG_BUFFERCNT               1795
+#define IDC_PATHS_RECURSIVEROMS         1795
 #define IDC_RTG_VBINTERRUPT             1796
 #define IDC_INPUTMAPLIST                1797
 #define IDC_RTG_HWSPRITE                1797

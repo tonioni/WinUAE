@@ -1018,7 +1018,7 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 	write_log(_T("CS IO XBPUT %08x %02x PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
 #endif
 	if (is_fusionforty()) {
-		;
+		write_log(_T("FusionForty IO XBPUT %08x %02x PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
 	} else if (is_csmk2()) {
 		csmk2_flashaddressing = addr & 3;
 		if (addr == 0x880000e3 && v == 0x2a) {
@@ -1217,7 +1217,7 @@ static void REGPARAM2 blizzardio_wput(uaecptr addr, uae_u32 v)
 	special_mem |= S_WRITE;
 #endif
 	if (is_fusionforty()) {
-		;
+		write_log(_T("FusionForty IO WPUT %08x %04x\n"), addr, v);
 	} else if (is_blizzard()) {
 		write_log(_T("CS IO WPUT %08x %04x\n"), addr, v);
 		if((addr & 65535) == (BLIZZARD_BOARD_DISABLE & 65535)) {

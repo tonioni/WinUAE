@@ -200,7 +200,8 @@ static const TCHAR *dongles[] =
 };
 static const TCHAR *cdmodes[] = { _T("disabled"), _T(""), _T("image"), _T("ioctl"), _T("spti"), _T("aspi"), 0 };
 static const TCHAR *cdconmodes[] = { _T(""), _T("uae"), _T("ide"), _T("scsi"), _T("cdtv"), _T("cd32"), 0 };
-static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a2024"), _T("graffiti"), _T("ham_e"), _T("ham_e_plus"), _T("dctv"), 0 };
+static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a2024"), _T("graffiti"),
+_T("ham_e"), _T("ham_e_plus"), _T("videodac18"), _T("avideo12"), _T("avideo24"), _T("dctv"), 0 };
 static const TCHAR *rtgtype[] = {
 	_T("ZorroII"), _T("ZorroIII"),
 	_T("PicassoII"),
@@ -268,6 +269,11 @@ static const TCHAR *uaebootrom[] = {
 	_T("disabled"), 
 	_T("min"),
 	_T("full"),
+	NULL
+};
+static const TCHAR *serialcrlf[] = {
+	_T("disabled"),
+	_T("crlf_cr"),
 	NULL
 };
 static const TCHAR *obsolete[] = {
@@ -1215,6 +1221,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("serial_hardware_ctsrts"), p->serial_hwctsrts);
 	cfgfile_write_bool (f, _T("serial_direct"), p->serial_direct);
 	cfgfile_dwrite (f, _T("serial_stopbits"), _T("%d"), p->serial_stopbits);
+	cfgfile_dwrite_str(f, _T("serial_translate"), serialcrlf[p->serial_crlf]);
 	cfgfile_write_str (f, _T("scsi"), scsimode[p->scsi]);
 	cfgfile_write_bool (f, _T("uaeserial"), p->uaeserial);
 	cfgfile_write_bool (f, _T("sana2"), p->sana2);
@@ -2079,7 +2086,7 @@ static int getintval2 (TCHAR **p, int *result, int delim, bool last)
 			return 0;
 		}
 	}
-	if (!_istdigit(**p))
+	if (!_istdigit(**p) && **p != '-' && **p != '+')
 		return 0;
 
 	if (*p2 != 0)
@@ -4006,37 +4013,39 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 
 			_stprintf(buf, _T("%s_rom_options"), name);
 			if (cfgfile_string (option, value, buf, buf2, sizeof buf2 / sizeof (TCHAR))) {
-				brc = get_device_rom_new(p, ert->romtype, j, &idx);
-				if (cfgfile_option_bool(buf2, _T("autoboot_disabled")) == 1) {
-					brc->roms[idx].autoboot_disabled = true;
-				}
-				if (ert->settings) {
-					for (int k = 0; ert->settings[k].name; k++) {
-						if (cfgfile_option_find(buf2, ert->settings[k].configname)) {
-							brc->roms[idx].device_settings |= 1 << k;
+				brc = get_device_rom(p, ert->romtype, j, &idx);
+				if (brc) {
+					if (cfgfile_option_bool(buf2, _T("autoboot_disabled")) == 1) {
+						brc->roms[idx].autoboot_disabled = true;
+					}
+					if (ert->settings) {
+						for (int k = 0; ert->settings[k].name; k++) {
+							if (cfgfile_option_find(buf2, ert->settings[k].configname)) {
+								brc->roms[idx].device_settings |= 1 << k;
+							}
 						}
 					}
-				}
-				if (ert->id_jumper) {
-					TCHAR *p = cfgfile_option_get(buf2, _T("id"));
-					if (p) {
-						brc->roms[idx].device_id = _tstol(p);
+					if (ert->id_jumper) {
+						TCHAR *p = cfgfile_option_get(buf2, _T("id"));
+						if (p) {
+							brc->roms[idx].device_id = _tstol(p);
+						}
 					}
-				}
-				if (ert->subtypes) {
-					const struct expansionsubromtype *srt = ert->subtypes;
-					TCHAR tmp[MAX_DPATH], *p;
-					p = tmp;
-					*p = 0;
-					while (srt->name) {
-						_tcscpy(p, srt->configname);
-						p += _tcslen(p) + 1;
-						p[0] = 0;
-						srt++;
+					if (ert->subtypes) {
+						const struct expansionsubromtype *srt = ert->subtypes;
+						TCHAR tmp[MAX_DPATH], *p;
+						p = tmp;
+						*p = 0;
+						while (srt->name) {
+							_tcscpy(p, srt->configname);
+							p += _tcslen(p) + 1;
+							p[0] = 0;
+							srt++;
+						}
+						int v = cfgfile_option_select(buf2, _T("subtype"), tmp);
+						if (v >= 0)
+							brc->roms[idx].subtype = v;
 					}
-					int v = cfgfile_option_select(buf2, _T("subtype"), tmp);
-					if (v >= 0)
-						brc->roms[idx].subtype = v;
 				}
 				return true;
 			}
@@ -4219,6 +4228,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_strval (option, value,  _T("z3mapping"), &p->z3_mapping_mode, z3mapping, 0)
 		|| cfgfile_strval (option, value,  _T("scsidev_mode"), &p->uaescsidevmode, uaescsidevmodes, 0)
 		|| cfgfile_strval (option, value,  _T("boot_rom_uae"), &p->boot_rom, uaebootrom, 0)
+		|| cfgfile_strval (option, value,  _T("serial_translate"), &p->serial_crlf, serialcrlf, 0)
 		|| cfgfile_strboolval (option, value, _T("comp_flushmode"), &p->comp_hardflush, flushmode, 0))
 		return 1;
 
@@ -5897,6 +5907,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	}
 	p->gfx_resolution = RES_HIRES;
 	p->gfx_vresolution = VRES_DOUBLE;
+	p->gfx_iscanlines = 1;
 	p->gfx_apmode[0].gfx_fullscreen = GFX_WINDOW;
 	p->gfx_apmode[1].gfx_fullscreen = GFX_WINDOW;
 	p->gfx_xcenter = 0; p->gfx_ycenter = 0;

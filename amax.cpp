@@ -16,7 +16,7 @@ static const int addr_scramble[16] = { 14, 12, 2, 10, 15, 13, 1, 0, 7, 6, 5, 4, 
 static int romptr;
 static uae_u8 *rom;
 static int amax_rom_size, rom_oddeven;
-static uae_u8 data;
+static uae_u8 amax_data;
 static uae_u8 bfd100, bfe001;
 static uae_u8 dselect;
 static bool amax_is_active;
@@ -44,7 +44,7 @@ static void load_byte (void)
 				val |= 1 << i;
 		}
 	}
-	data = val;
+	amax_data = val;
 	if (AMAX_LOG > 0)
 		write_log (_T("AMAX: load byte, rom=%d addr=%06x (%06x) data=%02x (%02x) PC=%08X\n"), rom_oddeven, romptr, addr, v, val, M68K_GETPC);
 }
@@ -89,8 +89,8 @@ void amax_bfe001_write (uae_u8 pra, uae_u8 dra)
 	bfe001 = v;
 	/* CHNG low -> high: shift data register */
 	if ((v & 4) && !(bfe001_ov & 4)) {
-		data <<= 1;
-		data |= 1;
+		amax_data <<= 1;
+		amax_data |= 1;
 		if (AMAX_LOG > 0)
 			write_log (_T("AMAX: data shifted\n"));
 	}
@@ -119,7 +119,7 @@ void amax_disk_select (uae_u8 v, uae_u8 ov, int num)
 
 uae_u8 amax_disk_status (uae_u8 st)
 {
-	if (!(data & 0x80))
+	if (!(amax_data & 0x80))
 		st &= ~0x20;
 	return st;
 }
@@ -135,7 +135,7 @@ void amax_reset (void)
 	rom_oddeven = 0;
 	bfe001_ov = 0;
 	dwlastbit = 0;
-	data = 0xff;
+	amax_data = 0xff;
 	xfree (rom);
 	rom = NULL;
 	dselect = 0;

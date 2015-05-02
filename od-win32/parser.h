@@ -20,7 +20,7 @@ void closeser (void);
 void doserout (void);
 void closeprinter (void);
 void flushprinter (void);
-int checkserwrite (void);
+int checkserwrite (int spaceneeded);
 void serialuartbreak (int);
 
 void shmem_serial_delete(void);

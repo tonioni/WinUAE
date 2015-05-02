@@ -2811,6 +2811,7 @@ static void createstatuswindow (void)
 		LocalUnlock (hloc);
 		LocalFree (hloc);
 	}
+	registertouch(hStatusWnd);
 }
 
 #if 0
@@ -4064,6 +4065,9 @@ static int create_windows_2 (void)
 	if (hMainWnd == NULL) {
 		hMainWnd = hAmigaWnd;
 	}
+
+	registertouch(hAmigaWnd);
+	registertouch(hMainWnd);
 
 	updatewinrect (true);
 	GetWindowRect (hMainWnd, &mainwin_rect);

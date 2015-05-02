@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("16")
+#define WINUAEBETA _T("17")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2015, 4, 18)
+#define WINUAEDATE MAKEBD(2015, 5, 2)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -91,11 +91,11 @@ extern int sound_available;
 extern int framecnt;
 extern TCHAR VersionStr[256];
 extern TCHAR BetaStr[64];
-extern int os_admin, os_64bit, os_vista, os_win7, cpu_number;
+extern int os_admin, os_64bit, os_vista, os_win7, cpu_number, os_touch;
 extern OSVERSIONINFO osVersion;
 extern int paraport_mask;
 extern int gui_active;
-extern int quickstart, configurationcache, saveimageoriginalpath, relativepaths;
+extern int quickstart, configurationcache, saveimageoriginalpath, relativepaths, recursiveromscan;
 
 extern HKEY hWinUAEKey;
 extern int screen_is_picasso;
@@ -139,6 +139,7 @@ extern void send_tablet (int x, int y, int z, int pres, uae_u32 buttons, int fla
 extern void send_tablet_proximity (int);
 
 void addnotifications (HWND hwnd, int remove, int isgui);
+void registertouch(HWND hwnd);
 int win32_hardfile_media_change (const TCHAR *drvname, int inserted);
 extern int CheckRM (const TCHAR *DriveName);
 void systray (HWND hwnd, int remove);

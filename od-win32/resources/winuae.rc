@@ -1,7 +1,7 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource.h"
 #include "winres.h"
+#include "resource.h"
 /////////////////////////////////////////////////////////////////////////////
 // English resources
 
@@ -699,7 +699,7 @@ BEGIN
     CONTROL         "Genlock connected [] Allow boot sequence to detect genlock. Genlock is not emulated.",IDC_GENLOCK,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,234,42,150,10
     CTEXT           "External display hardware:",IDC_STATIC,228,59,117,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_MONITOREMU,238,78,98,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_MONITOREMU,238,78,147,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Collision Level",IDC_STATIC,1,116,393,48
     CONTROL         "None [] Collision hardware emulation disabled.",IDC_COLLISION0,
                     "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,47,132,101,10
@@ -951,7 +951,7 @@ IDD_PATHS DIALOGEX 0, 0, 396, 303
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    LTEXT           "System ROMs:",IDC_PATHS_ROML,3,2,260,8,SS_CENTERIMAGE
+    LTEXT           "System ROMs:",IDC_PATHS_ROML,3,2,167,8,SS_CENTERIMAGE
     EDITTEXT        IDC_PATHS_ROM,3,13,377,15,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_PATHS_ROMS,384,13,11,15
     LTEXT           "Configuration files:",IDC_PATHS_CONFIGL,3,32,164,8,SS_CENTERIMAGE
@@ -989,6 +989,7 @@ BEGIN
     CONTROL         "Portable mode",IDC_REGISTRYMODE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,303,231,82,11
     CONTROL         "Use original image's path",IDC_PATHS_SAVEIMAGEORIGINALPATH,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,177,148,197,11
+    CONTROL         "Scan subfolders",IDC_PATHS_RECURSIVEROMS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,177,1,197,11
 END
 
 IDD_QUICKSTART DIALOGEX 0, 0, 396, 262

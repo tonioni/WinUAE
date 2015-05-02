@@ -9,7 +9,6 @@
 #include "xwin.h"
 
 #include <d3d9.h>
-#include <dxerr.h>
 
 
 struct ddstuff dxdata;
@@ -503,12 +502,11 @@ TCHAR *outGUID (const GUID *guid)
 const TCHAR *DXError (HRESULT ddrval)
 {
 	static TCHAR dderr[1000];
-	_stprintf (dderr, _T("%08X S=%d F=%04X C=%04X (%d) (%s)"),
+	_stprintf(dderr, _T("%08X S=%d F=%04X C=%04X (%d)"),
 		ddrval, (ddrval & 0x80000000) ? 1 : 0,
 		HRESULT_FACILITY(ddrval),
 		HRESULT_CODE(ddrval),
-		HRESULT_CODE(ddrval),
-		DXGetErrorDescription (ddrval));
+		HRESULT_CODE(ddrval));
 	return dderr;
 }
 
