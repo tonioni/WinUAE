@@ -180,6 +180,7 @@ struct regstruct
 	uae_u16 exp_opcode, exp_extra, exp_type;
 	uae_u16 exp_size;
 	bool fp_exception;
+	bool fp_branch;
 #endif
 #ifndef CPUEMU_68000_ONLY
 	uae_u32 cacr, caar;

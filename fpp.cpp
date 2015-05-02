@@ -1886,8 +1886,10 @@ void fpuop_dbcc (uae_u32 opcode, uae_u16 extra)
 
 		m68k_dreg (regs, reg) = ((m68k_dreg (regs, reg) & 0xffff0000)
 			| (((m68k_dreg (regs, reg) & 0xffff) - 1) & 0xffff));
-		if ((m68k_dreg (regs, reg) & 0xffff) != 0xffff)
+		if ((m68k_dreg (regs, reg) & 0xffff) != 0xffff) {
 			m68k_setpc (pc + disp);
+			regs.fp_branch = true;
+		}
 	}
 }
 
@@ -1971,6 +1973,7 @@ void fpuop_bcc (uae_u32 opcode, uaecptr oldpc, uae_u32 extra)
 		if ((opcode & 0x40) == 0)
 			extra = (uae_s32) (uae_s16) extra;
 		m68k_setpc (oldpc + extra);
+		regs.fp_branch = true;
 	}
 }
 

@@ -5132,6 +5132,11 @@ bccl_not68020:
 		printf ("\tfpuop_dbcc (opcode, extra);\n");
 		if (using_prefetch || using_prefetch_020) {
 			printf ("\tif (regs.fp_exception) goto %s;\n", endlabelstr);
+			printf ("\tif (regs.fp_branch) {\n");
+			printf ("\t\tregs.fp_branch = false;\n");
+			printf ("\t\tfill_prefetch();\n");
+			printf ("\t\tgoto %s;\n", endlabelstr);
+			printf ("\t}\n");
 			need_endlabel = 1;
 		}
 		break;
@@ -5168,6 +5173,11 @@ bccl_not68020:
 		printf ("\tfpuop_bcc (opcode, pc,extra);\n");
 		if (using_prefetch || using_prefetch_020) {
 			printf ("\tif (regs.fp_exception) goto %s;\n", endlabelstr);
+			printf ("\tif (regs.fp_branch) {\n");
+			printf ("\t\tregs.fp_branch = false;\n");
+			printf ("\t\tfill_prefetch();\n");
+			printf ("\t\tgoto %s;\n", endlabelstr);
+			printf ("\t}\n");
 			need_endlabel = 1;
 		}
 		break;
