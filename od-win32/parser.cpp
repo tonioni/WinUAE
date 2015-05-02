@@ -860,7 +860,7 @@ static bool tcp_is_connected (void)
 		if (select (1, &fd, NULL, NULL, &tv)) {
 			serialconn = accept (serialsocket, (struct sockaddr*)socketaddr, &sa_len);
 			if (serialconn != INVALID_SOCKET)
-				write_log (_T("SERIRAL_TCP: connection accepted\n"));
+				write_log (_T("SERIAL_TCP: connection accepted\n"));
 		}
 	}
 	return serialconn != INVALID_SOCKET;
@@ -1092,7 +1092,7 @@ void closeser (void)
 static void outser (void)
 {
 	DWORD actual;
-	if (WaitForSingleObject (writeevent, 0) == WAIT_OBJECT_0 && datainoutput > 0) {
+	if (datainoutput > 0 && WaitForSingleObject (writeevent, 0) == WAIT_OBJECT_0 ) {
 		memcpy (outputbufferout, outputbuffer, datainoutput);
 		WriteFile (hCom, outputbufferout, datainoutput, &actual, &writeol);
 		datainoutput = 0;
@@ -1125,7 +1125,7 @@ void writeser (int c)
 	}
 }
 
-int checkserwrite (void)
+int checkserwrite (int spaceneeded)
 {
 	if (hCom == INVALID_HANDLE_VALUE || !currprefs.use_serial)
 		return 1;
@@ -1133,7 +1133,7 @@ int checkserwrite (void)
 		return 1;
 	} else {
 		outser ();
-		if (datainoutput >= sizeof (outputbuffer) - 1)
+		if (datainoutput + spaceneeded >= sizeof (outputbuffer))
 			return 0;
 	}
 	return 1;
@@ -1191,6 +1191,7 @@ int readser (int *buffer)
 			int err = recv (serialconn, buf, 1, 0);
 			if (err == 1) {
 				*buffer = buf[0];
+				//write_log(_T(" %02X "), buf[0]);
 				return 1;
 			} else {
 				tcp_disconnect ();
@@ -1386,77 +1387,90 @@ void hsyncstuff (void)
 const static GUID GUID_DEVINTERFACE_PARALLEL = {0x97F76EF0,0xF883,0x11D0,
 {0xAF,0x1F,0x00,0x00,0xF8,0x00,0x84,0x5C}};
 
+static const GUID serportsguids[] =
+{
+	GUID_DEVINTERFACE_COMPORT,
+	// GUID_DEVINTERFACE_MODEM
+	{ 0x2C7089AA, 0x2E0E, 0x11D1, { 0xB1, 0x14, 0x00, 0xC0, 0x4F, 0xC2, 0xAA, 0xE4} }
+};
+static const GUID parportsguids[] =
+{
+	GUID_DEVINTERFACE_PARALLEL
+};
+
 static int enumports_2 (struct serparportinfo **pi, int cnt, bool parport)
 {
 	// Create a device information set that will be the container for
 	// the device interfaces.
 	HDEVINFO hDevInfo = INVALID_HANDLE_VALUE;
 	SP_DEVICE_INTERFACE_DETAIL_DATA *pDetData = NULL;
-	BOOL bOk = TRUE;
 	SP_DEVICE_INTERFACE_DATA ifcData;
 	DWORD dwDetDataSize = sizeof (SP_DEVICE_INTERFACE_DETAIL_DATA) + 256 * sizeof (TCHAR);
-	DWORD ii;
+	const GUID *guids = parport ? parportsguids : serportsguids;
+	int guidcnt = parport ? sizeof(parportsguids)/sizeof(parportsguids[0]) : sizeof(serportsguids)/sizeof(serportsguids[0]);
 
-	hDevInfo = SetupDiGetClassDevs (parport ? &GUID_DEVINTERFACE_PARALLEL : &GUID_DEVINTERFACE_COMPORT, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
-	if(hDevInfo == INVALID_HANDLE_VALUE)
-		return 0;
-	// Enumerate the serial ports
-	pDetData = (SP_DEVICE_INTERFACE_DETAIL_DATA*)xmalloc (uae_u8, dwDetDataSize);
-	// This is required, according to the documentation. Yes,
-	// it's weird.
-	ifcData.cbSize = sizeof (SP_DEVICE_INTERFACE_DATA);
-	pDetData->cbSize = sizeof (SP_DEVICE_INTERFACE_DETAIL_DATA);
-	for (ii = 0; bOk; ii++) {
-		bOk = SetupDiEnumDeviceInterfaces (hDevInfo, NULL, parport ? &GUID_DEVINTERFACE_PARALLEL : &GUID_DEVINTERFACE_COMPORT, ii, &ifcData);
-		if (bOk) {
-			// Got a device. Get the details.
-			SP_DEVINFO_DATA devdata = { sizeof (SP_DEVINFO_DATA)};
-			bOk = SetupDiGetDeviceInterfaceDetail (hDevInfo,
-				&ifcData, pDetData, dwDetDataSize, NULL, &devdata);
+	for (int guididx = 0; guididx < guidcnt; guididx++) {
+		hDevInfo = SetupDiGetClassDevs (&guids[guididx], NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+		if(hDevInfo == INVALID_HANDLE_VALUE)
+			continue;
+		// Enumerate the serial ports
+		pDetData = (SP_DEVICE_INTERFACE_DETAIL_DATA*)xmalloc (uae_u8, dwDetDataSize);
+		// This is required, according to the documentation. Yes,
+		// it's weird.
+		ifcData.cbSize = sizeof (SP_DEVICE_INTERFACE_DATA);
+		pDetData->cbSize = sizeof (SP_DEVICE_INTERFACE_DETAIL_DATA);
+		BOOL bOk = TRUE;
+		for (int ii = 0; bOk; ii++) {
+			bOk = SetupDiEnumDeviceInterfaces (hDevInfo, NULL, &guids[guididx], ii, &ifcData);
 			if (bOk) {
-				// Got a path to the device. Try to get some more info.
-				TCHAR fname[256];
-				TCHAR desc[256];
-				BOOL bSuccess = SetupDiGetDeviceRegistryProperty (
-					hDevInfo, &devdata, SPDRP_FRIENDLYNAME, NULL,
-					(PBYTE)fname, sizeof (fname), NULL);
-				bSuccess = bSuccess && SetupDiGetDeviceRegistryProperty (
-					hDevInfo, &devdata, SPDRP_DEVICEDESC, NULL,
-					(PBYTE)desc, sizeof (desc), NULL);
-				if (bSuccess && cnt < MAX_SERPAR_PORTS) {
-					TCHAR *p;
-					pi[cnt] = xcalloc (struct serparportinfo, 1);
-					pi[cnt]->dev = my_strdup (pDetData->DevicePath);
-					pi[cnt]->name = my_strdup (fname);
-					p = _tcsstr (fname, parport ? _T("(LPT") : _T("(COM"));
-					if (p && (p[5] == ')' || p[6] == ')')) {
-						pi[cnt]->cfgname = xmalloc (TCHAR, 100);
-						if (isdigit(p[5]))
-							_stprintf (pi[cnt]->cfgname, parport ? _T("LPT%c%c") : _T("COM%c%c"), p[4], p[5]);
-						else
-							_stprintf (pi[cnt]->cfgname, parport ? _T("LPT%c") : _T("COM%c"), p[4]);
-					} else {
-						pi[cnt]->cfgname = my_strdup (pDetData->DevicePath);
+				// Got a device. Get the details.
+				SP_DEVINFO_DATA devdata = { sizeof (SP_DEVINFO_DATA)};
+				bOk = SetupDiGetDeviceInterfaceDetail (hDevInfo,
+					&ifcData, pDetData, dwDetDataSize, NULL, &devdata);
+				if (bOk) {
+					// Got a path to the device. Try to get some more info.
+					TCHAR fname[256];
+					TCHAR desc[256];
+					BOOL bSuccess = SetupDiGetDeviceRegistryProperty (
+						hDevInfo, &devdata, SPDRP_FRIENDLYNAME, NULL,
+						(PBYTE)fname, sizeof (fname), NULL);
+					bSuccess = bSuccess && SetupDiGetDeviceRegistryProperty (
+						hDevInfo, &devdata, SPDRP_DEVICEDESC, NULL,
+						(PBYTE)desc, sizeof (desc), NULL);
+					if (bSuccess && cnt < MAX_SERPAR_PORTS) {
+						TCHAR *p;
+						pi[cnt] = xcalloc (struct serparportinfo, 1);
+						pi[cnt]->dev = my_strdup (pDetData->DevicePath);
+						pi[cnt]->name = my_strdup (fname);
+						p = _tcsstr (fname, parport ? _T("(LPT") : _T("(COM"));
+						if (p && (p[5] == ')' || p[6] == ')')) {
+							pi[cnt]->cfgname = xmalloc (TCHAR, 100);
+							if (isdigit(p[5]))
+								_stprintf (pi[cnt]->cfgname, parport ? _T("LPT%c%c") : _T("COM%c%c"), p[4], p[5]);
+							else
+								_stprintf (pi[cnt]->cfgname, parport ? _T("LPT%c") : _T("COM%c"), p[4]);
+						} else {
+							pi[cnt]->cfgname = my_strdup (pDetData->DevicePath);
+						}
+						write_log (_T("%s: '%s' = '%s' = '%s'\n"), parport ? _T("PARPORT") : _T("SERPORT"), pi[cnt]->name, pi[cnt]->cfgname, pi[cnt]->dev);
+						cnt++;
 					}
-					write_log (_T("%s: '%s' = '%s' = '%s'\n"), parport ? _T("PARPORT") : _T("SERPORT"), pi[cnt]->name, pi[cnt]->cfgname, pi[cnt]->dev);
-					cnt++;
+				} else {
+					write_log (_T("SetupDiGetDeviceInterfaceDetail failed, err=%d"), GetLastError ());
+					break;
 				}
 			} else {
-				write_log (_T("SetupDiGetDeviceInterfaceDetail failed, err=%d"), GetLastError ());
-				goto end;
-			}
-		} else {
-			DWORD err = GetLastError ();
-			if (err != ERROR_NO_MORE_ITEMS) {
-				write_log (_T("SetupDiEnumDeviceInterfaces failed, err=%d"), err);
-				goto end;
+				DWORD err = GetLastError ();
+				if (err != ERROR_NO_MORE_ITEMS) {
+					write_log (_T("SetupDiEnumDeviceInterfaces failed, err=%d"), err);
+					break;
+				}
 			}
 		}
+		xfree(pDetData);
+		if (hDevInfo != INVALID_HANDLE_VALUE)
+			SetupDiDestroyDeviceInfoList (hDevInfo);
 	}
-end:
-	xfree(pDetData);
-	if (hDevInfo != INVALID_HANDLE_VALUE)
-		SetupDiDestroyDeviceInfoList (hDevInfo);
 	return cnt;
 }
 

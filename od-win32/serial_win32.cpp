@@ -155,6 +155,7 @@ bool shmem_serial_create(void)
 #define SERIALDEBUG 0 /* 0, 1, 2 3 */
 #define SERIALHSDEBUG 0
 #define MODEMTEST   0 /* 0 or 1 */
+#define SERIAL_HSYNC_BEFORE_OVERFLOW 200
 
 static int data_in_serdat; /* new data written to SERDAT */
 static int data_in_serdatr; /* new data received */
@@ -168,6 +169,8 @@ static int ninebit;
 static int lastbitcycle_active_hsyncs;
 static bool gotlogwrite;
 static unsigned int lastbitcycle;
+static int serial_recv_previous, serial_send_previous;
+static int serdatr_last_got;
 int serdev;
 int seriallog = 0, log_sercon = 0;
 int serial_enet;
@@ -233,6 +236,8 @@ void SERPER (uae_u16 w)
 			baud = 115200;
 		serial_period_hsyncs = 1;
 	}
+	serial_recv_previous = -1;
+	serial_send_previous = -1;
 #ifdef SERIAL_PORT
 	setbaud (baud);
 #endif
@@ -248,11 +253,22 @@ static TCHAR dochar (int v)
 	return '.';
 }
 
+static bool canreceive(void)
+{
+	if (!data_in_serdatr)
+		return true;
+	if (currprefs.serial_direct)
+		return false;
+	return serdatr_last_got >= SERIAL_HSYNC_BEFORE_OVERFLOW || currprefs.cpu_cycle_exact;
+}
+
 static void checkreceive_enet (void)
 {
 #ifdef SERIAL_ENET
 	uae_u16 recdata;
 
+	if (!canreceive())
+		return;
 	if (!enet_readseravail ())
 		return;
 	if (!enet_readser (&recdata))
@@ -263,6 +279,7 @@ static void checkreceive_enet (void)
 	else
 		serdatr |= 0x100;
 	data_in_serdatr = 1;
+	serdatr_last_got = 0;
 	serial_check_irq ();
 #if SERIALDEBUG > 2
 	write_log (_T("SERIAL: received %02X (%c)\n"), serdatr & 0xff, dochar (serdatr));
@@ -276,10 +293,12 @@ static void checkreceive_serial (void)
 	static int ninebitdata;
 	int recdata;
 
-	if (!readseravail())
+	if (!canreceive())
 		return;
 
 	if (ninebit) {
+		if (!readseravail())
+			return;
 		for (;;) {
 			if (!readser (&recdata))
 				return;
@@ -300,12 +319,25 @@ static void checkreceive_serial (void)
 			}
 		}
 	} else {
-		if (!readser (&recdata))
+		if (!readseravail())
 			return;
+		if (!readser(&recdata))
+			return;
+		if (currprefs.serial_crlf) {
+			if (recdata == 0 || (serial_recv_previous == 13 && recdata == 10)) {
+				//write_log(_T(" [%02X] "), (uae_u8)recdata);
+				serial_recv_previous = -1;
+				return;
+			}
+		}
+		//write_log(_T(" %02X "), (uae_u8)recdata);
+		serial_recv_previous = recdata;
 		serdatr = recdata;
 		serdatr |= 0x100;
 	}
+
 	data_in_serdatr = 1;
+	serdatr_last_got = 0;
 	serial_check_irq ();
 #if SERIALDEBUG > 2
 	write_log (_T("SERIAL: received %02X (%c)\n"), serdatr & 0xff, dochar (serdatr));
@@ -318,8 +350,6 @@ static void serdatcopy(void);
 
 static void checksend(void)
 {
-	bool sent = true;
-
 	if (data_in_sershift != 1)
 		return;
 
@@ -331,20 +361,28 @@ static void checksend(void)
 	}
 #endif
 #ifdef SERIAL_PORT
-	if (checkserwrite()) {
-		if (ninebit)
-			writeser(((serdatshift >> 8) & 1) | 0xa8);
+	if (ninebit) {
+		if (!checkserwrite(2))
+			return;
+		writeser(((serdatshift >> 8) & 1) | 0xa8);
 		writeser(serdatshift_masked);
 	} else {
-		// buffer full, try again later
-		sent = false;
+		if (currprefs.serial_crlf) {
+			if (serdatshift_masked == 10 && serial_send_previous != 13) {
+				if (!checkserwrite(2))
+					return;
+				writeser(13);
+			}
+		}
+		if (!checkserwrite(1))
+			return;
+		writeser(serdatshift_masked);
+		serial_send_previous = serdatshift_masked;
 	}
 #endif
-	if (sent) {
-		data_in_sershift = 2;
-	}
+	data_in_sershift = 2;
 #if SERIALDEBUG > 2
-		write_log(_T("SERIAL: send %04X (%c)\n"), serdatshift, dochar(serdatshift));
+	write_log(_T("SERIAL: send %04X (%c)\n"), serdatshift, dochar(serdatshift));
 #endif
 }
 
@@ -378,7 +416,6 @@ static void serdatcopy(void)
 	INTREQ(0x8000 | 0x0001);
 	serial_check_irq();
 	checksend();
-
 
 	if (seriallog) {
 		gotlogwrite = true;
@@ -445,6 +482,7 @@ void serial_hsynchandler (void)
 			serial_check_irq();
 		}
 	}
+	serdatr_last_got++;
 	if (serial_period_hsyncs == 0)
 		return;
 	serial_period_hsync_counter++;
