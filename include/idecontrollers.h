@@ -26,7 +26,7 @@ void mtec_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *
 addrbank *mtec_init(struct romconfig *rc);
 
 addrbank *rochard_init(struct romconfig *rc);
-void rochard_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+void rochard_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 uae_u32 REGPARAM3 apollo_ide_lget (uaecptr addr) REGPARAM;
 uae_u32 REGPARAM3 apollo_ide_wget (uaecptr addr) REGPARAM;

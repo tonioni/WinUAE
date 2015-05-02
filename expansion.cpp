@@ -2197,6 +2197,21 @@ static const struct expansionsubromtype masoboshi_sub[] = {
 		NULL
 	}
 };
+static const struct expansionsubromtype rochard_sub[] = {
+	{
+		_T("IDE"), _T("ide"),
+		2144, 2, 0,
+		{ 0 },
+	},
+	{
+		_T("IDE+SCSI"), _T("scsi"),
+		2144, 2, 0,
+		{ 0 },
+	},
+	{
+		NULL
+	}
+};
 static const struct expansionsubromtype supra_sub[] = {
 	{
 		_T("A500 ByteSync/XP"), _T("bytesync"),
@@ -2395,9 +2410,9 @@ const struct expansionromtype expansionroms[] = {
 	},
 	{
 		_T("rochard"), _T("RocHard RH800C"), _T("Roctec"),
-		rochard_init, rochard_add_ide_unit, ROMTYPE_ROCHARD | ROMTYPE_NONE, 0, 0, 2, false,
-		NULL, 0,
-		true, EXPANSIONTYPE_IDE,
+		rochard_init, rochard_add_idescsi_unit, ROMTYPE_ROCHARD | ROMTYPE_NONE, 0, 0, 2, false,
+		rochard_sub, 0,
+		true, EXPANSIONTYPE_IDE | EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE_PORT_DOUBLED,
 		2144, 2, 0
 	},
 #if 0

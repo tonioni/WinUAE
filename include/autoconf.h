@@ -109,6 +109,7 @@ typedef bool(*E8ACCESS)(int, uae_u32*, int, bool);
 #define EXPANSIONTYPE_SCSI 1
 #define EXPANSIONTYPE_IDE 2
 #define EXPANSIONTYPE_24BIT 4
+#define EXPANSIONTYPE_IDE_PORT_DOUBLED 8
 struct expansionboardsettings
 {
 	const TCHAR *name;

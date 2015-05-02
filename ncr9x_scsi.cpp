@@ -1463,7 +1463,7 @@ addrbank *ncr_dkb_autoconfig_init(struct romconfig *rc)
 }
 
 
-void ncr_masoboshi_autoconfig_init(struct romconfig *rc)
+void ncr_masoboshi_autoconfig_init(struct romconfig *rc, uaecptr baseaddress)
 {
 	struct ncr9x_state *ncr = getscsi(rc);
 
@@ -1471,6 +1471,7 @@ void ncr_masoboshi_autoconfig_init(struct romconfig *rc)
 		return;
 
 	ncr->enabled = true;
+	ncr->baseaddress = baseaddress;
 
 	ncr9x_reset_board(ncr);
 }

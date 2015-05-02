@@ -183,3 +183,8 @@ void kronos_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 
 addrbank *adscsi_init(struct romconfig *rc);
 void adscsi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+void rochard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+bool rochard_scsi_init(struct romconfig *rc, uaecptr baseaddress);
+uae_u8 rochard_scsi_get(uaecptr addr);
+void rochard_scsi_put(uaecptr addr, uae_u8 v);

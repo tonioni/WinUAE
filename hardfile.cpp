@@ -1146,6 +1146,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	int scsi_len = -1;
 	int status = 0;
 	int lun;
+	uae_u8 cmd = cmdbuf[0];
 
 	if (log_scsiemu) {
 		write_log (_T("SCSIEMU HD %d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X CMDLEN=%d DATA=%p\n"), hfd->unitnum,
@@ -1154,13 +1155,20 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			scsi_cmd_len, scsi_data);
 	}
 
-	if (cmdbuf[0] == 0x03) { /* REQUEST SENSE */
+	if (cmd == 0x03) { /* REQUEST SENSE */
+		if (hfd->unit_attention) {
+			s[0] = 0x70;
+			s[2] = 6; /* UNIT ATTENTION */
+			s[12] = (hfd->unit_attention >> 8) & 0xff;
+			s[13] = (hfd->unit_attention >> 0) & 0xff;
+			*sense_len = 0x12;
+		}
 		return 0;
 	}
 
 	*reply_len = *sense_len = 0;
 	lun = cmdbuf[1] >> 5;
-	if (cmdbuf[0] != 0x03 && cmdbuf[0] != 0x12 && lun) {
+	if (cmd != 0x03 && cmd != 0x12 && lun) {
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
 		s[2] = 5; /* ILLEGAL REQUEST */
@@ -1169,6 +1177,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		write_log (_T("UAEHF: CMD=%02X LUN=%d ignored\n"), cmdbuf[0], lun);
 		goto scsi_done;
 	}
+
 	switch (cmdbuf[0])
 	{
 	case 0x12: /* INQUIRY */
@@ -1218,6 +1227,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	switch (cmdbuf[0])
 	{
 	case 0x00: /* TEST UNIT READY */
+		hfd->unit_attention = 0;
 		if (nodisk (hfd))
 			goto nodisk;
 		scsi_len = 0;

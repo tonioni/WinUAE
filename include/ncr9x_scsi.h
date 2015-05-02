@@ -20,7 +20,7 @@ extern uae_u32 cpuboard_ncr9x_scsi_get(uaecptr);
 
 uae_u32 masoboshi_ncr9x_scsi_get(uaecptr addr, int devnum);
 void masoboshi_ncr9x_scsi_put(uaecptr addr, uae_u32 v, int devnum);
-void ncr_masoboshi_autoconfig_init(struct romconfig*);
+void ncr_masoboshi_autoconfig_init(struct romconfig*, uaecptr);
 
 #define BLIZZARD_2060_SCSI_OFFSET 0x1ff00
 #define BLIZZARD_2060_DMA_OFFSET 0x1fff0

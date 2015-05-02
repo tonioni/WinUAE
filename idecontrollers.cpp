@@ -146,6 +146,7 @@ static struct ide_board *getide(struct romconfig *rc)
 		if (ide_boards[i]) {
 			struct ide_board *ide = ide_boards[i];
 			if (ide->rc == rc) {
+				ide->original_rc = rc;
 				ide->rc = NULL;
 				return ide;
 			}
@@ -588,6 +589,11 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 			int regnum = get_rochard_reg(addr, board, &portnum);
 			if (regnum >= 0 && board->ide[portnum])
 				v = get_ide_reg_multi(board, regnum, portnum);
+		} else if ((addr & 0x7c00) == 0x7000) {
+			if (board->subtype)
+				v = rochard_scsi_get(oaddr);
+			else
+				v = 0;
 		} else {
 			v = board->rom[addr & board->rom_mask];
 		}
@@ -767,6 +773,11 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 			map_banks_z2(ab, v, (board->mask + 1) >> 16);
 			board->baseaddress = v << 16;
 			board->configured = 1;
+			if (board->type == ROCHARD_IDE) {
+				rochard_scsi_init(board->original_rc, board->baseaddress);
+			} else if (board->type == MASOBOSHI_IDE) {
+				ncr_masoboshi_autoconfig_init(board->original_rc, board->baseaddress);
+			}
 			expamem_next(ab, NULL);
 			return;
 		}
@@ -855,13 +866,17 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 
 		} else if (board->type == ROCHARD_IDE) {
 
-			if (board->configured && (addr & 0x8000)) {
-				int portnum;
-				int regnum = get_rochard_reg(addr, board, &portnum);
-				if (regnum >= 0 && board->ide[portnum])
-					put_ide_reg_multi(board, regnum, v, portnum);
+			if (board->configured) {
+				if (addr & 0x8000) {
+					int portnum;
+					int regnum = get_rochard_reg(addr, board, &portnum);
+					if (regnum >= 0 && board->ide[portnum])
+						put_ide_reg_multi(board, regnum, v, portnum);
+				} else if ((addr & 0x7c00) == 0x7000) {
+					if (board->subtype)
+						rochard_scsi_put(oaddr, v);
+				}
 			}
-
 		}
 
 	}
@@ -1288,8 +1303,6 @@ addrbank *masoboshi_init(struct romconfig *rc)
 	else
 		memcpy(ide->acmemory, ide->rom + 0x000, sizeof ide->acmemory);
 
-	// init SCSI part
-	ncr_masoboshi_autoconfig_init(rc);
 	return ide->bank;
 }
 
@@ -1384,6 +1397,7 @@ addrbank *rochard_init(struct romconfig *rc)
 	ide->bank = &ide_bank_generic;
 	ide->rom_size = 32768;
 	ide->mask = 65536 - 1;
+	ide->subtype = rc->subtype;
 
 	memset(ide->acmemory, 0xff, sizeof ide->acmemory);
 
@@ -1395,7 +1409,20 @@ addrbank *rochard_init(struct romconfig *rc)
 	return ide->bank;
 }
 
-void rochard_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+static void rochard_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	add_ide_standard_unit(ch, ci, rc, rochard_board, ROCHARD_IDE, false, false, 4);
+}
+
+void rochard_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	if (ch < 0) {
+		rochard_add_ide_unit(ch, ci, rc);
+		rochard_add_scsi_unit(ch, ci, rc);
+	} else {
+		if (ci->controller_type < HD_CONTROLLER_TYPE_SCSI_FIRST)
+			rochard_add_ide_unit(ch, ci, rc);
+		else
+			rochard_add_scsi_unit(ch, ci, rc);
+	}
 }
