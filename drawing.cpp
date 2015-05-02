@@ -50,8 +50,7 @@ happening, all ports should restrict window widths to be multiples of 16 pixels.
 #include "inputdevice.h"
 #include "debug.h"
 #include "cd32_fmv.h"
-
-extern bool emulate_specialmonitors (struct vidbuffer*, struct vidbuffer*);
+#include "specialmonitors.h"
 
 extern int sprite_buffer_res;
 int lores_factor, lores_shift;
@@ -2788,6 +2787,9 @@ static void init_drawing_frame (void)
 	int i, maxline;
 	static int frame_res_old;
 
+	if (currprefs.gfx_resolution != changed_prefs.gfx_resolution)
+		return;
+
 	if (lines_count > 0) {
 		int largest_count = 0;
 		int largest_count_res = 0;
@@ -2819,10 +2821,16 @@ static void init_drawing_frame (void)
 				autoswitch_old_resolution = RES_HIRES;
 				write_log(_T("Programmed mode autores = %d -> %d (%d)\n"), changed_prefs.gfx_resolution, newres, largest_res);
 				changed_prefs.gfx_resolution = newres;
+				set_config_changed();
+				return;
 			}
-		} else if (autoswitch_old_resolution == 1) {
-			changed_prefs.gfx_resolution = RES_HIRES;
+		} else if (autoswitch_old_resolution == RES_HIRES) {
 			autoswitch_old_resolution = 0;
+			if (changed_prefs.gfx_resolution != RES_HIRES) {
+				changed_prefs.gfx_resolution = RES_HIRES;
+				set_config_changed();
+				return;
+			}
 		}
 
 		if (currprefs.gfx_autoresolution) {

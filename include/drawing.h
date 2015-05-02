@@ -45,6 +45,7 @@ before it appears on-screen. (TW: display emulation now does this automatically)
 
 extern int lores_factor, lores_shift, interlace_seen;
 extern bool aga_mode, direct_rgb;
+extern int visible_left_border, visible_right_border;
 
 STATIC_INLINE int coord_hw_to_window_x (int x)
 {

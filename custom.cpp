@@ -45,6 +45,7 @@
 #include "luascript.h"
 #include "devices.h"
 #include "rommgr.h"
+#include "specialmonitors.h"
 
 #define CUSTOM_DEBUG 0
 #define SPRITE_DEBUG 0
@@ -3747,6 +3748,13 @@ void compute_vsynctime (void)
 	devices_update_sync(svpos, syncadjust);
 }
 
+void getsyncregisters(uae_u16 *phsstrt, uae_u16 *phsstop, uae_u16 *pvsstrt, uae_u16 *pvsstop)
+{
+	*phsstrt = hsstrt;
+	*phsstop = hsstop;
+	*pvsstrt = vsstrt;
+	*pvsstop = vsstop;
+}
 
 static void dumpsync (void)
 {
@@ -4965,12 +4973,12 @@ static void ADKCON (int hpos, uae_u16 v)
 static void BEAMCON0 (uae_u16 v)
 {
 	if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
-		if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE))
-			v &= 0x20;
 		if (v != new_beamcon0) {
 			new_beamcon0 = v;
-			if (v & ~0x20)
+			if (v & ~0x20) {
 				write_log (_T("warning: %04X written to BEAMCON0 PC=%08X\n"), v, M68K_GETPC);
+				dumpsync();
+			}
 		}
 		calcdiw();
 	}
@@ -5357,6 +5365,8 @@ static void DDFSTOP (int hpos, uae_u16 v)
 
 static void FMODE (int hpos, uae_u16 v)
 {
+	if (currprefs.monitoremu)
+		specialmonitor_store_fmode(vpos, hpos, v);
 	if (! (currprefs.chipset_mask & CSMASK_AGA))
 		v = 0;
 	v &= 0xC00F;
@@ -7422,7 +7432,7 @@ static void vsync_handler_post (void)
 
 	devices_vsync_post();
 
-	if (varsync_changed || (beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80))) {
+	if (varsync_changed || (beamcon0 & (0x10 | 0x20 | 0x80 | 0x100 | 0x200)) != (new_beamcon0 & (0x10 | 0x20 | 0x80 | 0x100 | 0x200))) {
 		init_hz ();
 	} else if (vpos_count > 0 && abs (vpos_count - vpos_count_diff) > 1 && vposw_change < 4) {
 		init_hz ();
@@ -7763,8 +7773,14 @@ static void hsync_handler_post (bool onvsync)
 	bool ciavsyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock && genlockvtoggle);
 
 	CIA_hsync_posthandler (ciahsyncs);
-	if (ciahsyncs)
-		CIAB_tod_handler ((beamcon0 & 0x80) ? hsstop : 18);
+	if (ciahsyncs) {
+		if (beamcon0 & (0x80 | 0x100)) {
+			if (hsstop < (maxhpos & ~1) && hsstrt < maxhpos)
+				CIAB_tod_handler(hsstop);
+		} else {
+			CIAB_tod_handler(18);
+		}
+	}
 	if (currprefs.cs_ciaatod > 0) {
 #if 0
 		static uae_s32 oldtick;
@@ -7791,8 +7807,8 @@ static void hsync_handler_post (bool onvsync)
 #endif
 	} else if (currprefs.cs_ciaatod == 0 && ciavsyncs) {
 		// CIA-A TOD counter increases when vsync pulse ends
-		if (beamcon0 & 0x80) {
-			if (vpos == vsstop)
+		if (beamcon0 & (0x80 | 0x200)) {
+			if (vpos == vsstop && vsstrt <= maxvpos)
 				CIAA_tod_inc (lof_store ? hsstop : hsstop + hcenter);
 		} else {
 			if (vpos == (currprefs.ntscmode ? VSYNC_ENDLINE_NTSC : VSYNC_ENDLINE_PAL)) {
