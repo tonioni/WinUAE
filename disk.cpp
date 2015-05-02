@@ -3301,6 +3301,7 @@ static void disk_doupdate_predict (int startcycle)
 {
 	int finaleventcycle = maxhpos << 8;
 	int finaleventflag = 0;
+	bool noselected = true;
 
 	for (int dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 		drive *drv = &floppy[dr];
@@ -3315,6 +3316,7 @@ static void disk_doupdate_predict (int startcycle)
 			updatetrackspeed (drv, mfmpos);
 		int diskevent_flag = 0;
 		uae_u32 tword = word;
+		noselected = false;
 		//int diff = drv->floppybitcounter % drv->trackspeed;
 		int countcycle = startcycle; // + (diff ? drv->trackspeed - diff : 0);
 		while (countcycle < (maxhpos << 8)) {
@@ -3329,7 +3331,7 @@ static void disk_doupdate_predict (int startcycle)
 					else
 						tword |= getonebit (drv->bigmfmbuf, mfmpos);
 				}
-				if (dskdmaen != DSKDMA_READ && (tword & 0xffff) == dsksync && dsksync != 0)
+				if (dskdmaen != DSKDMA_READ && (tword & 0xffff) == dsksync)
 					diskevent_flag |= DISK_WORDSYNC;
 			}
 			mfmpos++;
@@ -3364,7 +3366,6 @@ static void disk_doupdate_predict (int startcycle)
 			finaleventflag = diskevent_flag;
 		}
 	}
-
 	if (finaleventflag && (finaleventcycle >> 8) < maxhpos) {
 		event2_newevent (ev2_disk, (finaleventcycle - startcycle) >> 8, ((finaleventcycle >> 8) << 8) | finaleventflag);
 	}
@@ -3426,6 +3427,20 @@ static void disk_doupdate_read_nothing (int floppybits)
 	}
 }
 
+static void wordsync_detected(void)
+{
+	dsksync_cycles = get_cycles() + WORDSYNC_TIME * CYCLE_UNIT;
+	if (dskdmaen != DSKDMA_OFF) {
+		if (disk_debug_logging && dma_enable == 0)
+			write_log(_T("Sync match %04x\n"), dsksync);
+		dma_enable = 1;
+		INTREQ(0x8000 | 0x1000);
+	}
+	if (adkcon & 0x400) {
+		bitoffset = 15;
+	}
+}
+
 static void disk_doupdate_read (drive * drv, int floppybits)
 {
 	int j = 0, k = 1, l = 0;
@@ -3452,6 +3467,8 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 		if (drv->tracktiming[0])
 			updatetrackspeed (drv, drv->mfmpos);
 		word <<= 1;
+
+
 		if (!drive_empty (drv)) {
 			if (unformatted (drv))
 				word |= (uaerand () & 0x1000) ? 1 : 0;
@@ -3499,18 +3516,8 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 			dskbytr_val = word & 0xff;
 			dskbytr_val |= 0x8000;
 		}
-		if (word == dsksync) {
-			dsksync_cycles = get_cycles () + WORDSYNC_TIME * CYCLE_UNIT;
-			if (dskdmaen != DSKDMA_OFF) {
-				if (disk_debug_logging && dma_enable == 0)
-					write_log (_T("Sync match, DMA started at %d PC=%08x\n"), drv->mfmpos, M68K_GETPC);
-				dma_enable = 1;
-				INTREQ (0x8000 | 0x1000);
-			}
-			if (adkcon & 0x400) {
-				bitoffset = 15;
-			}
-		}
+		if (word == dsksync)
+			wordsync_detected();
 		bitoffset++;
 		bitoffset &= 15;
 		floppybits -= drv->trackspeed;
@@ -3572,6 +3579,7 @@ static void DISK_start (void)
 	for (int i = 0; i < 3; i++)
 		fifo_inuse[i] = false;
 	fifo_filled = 0;
+	word = 0;
 	for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 		drive *drv = &floppy[dr];
 		if (!(selected & (1 << dr))) {
@@ -3596,6 +3604,8 @@ static void DISK_start (void)
 		drv->floppybitcounter = 0;
 	}
 	dma_enable = (adkcon & 0x400) ? 0 : 1;
+	if (word == dsksync)
+		wordsync_detected();
 }
 
 static int linecounter;
