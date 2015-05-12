@@ -2105,7 +2105,8 @@ void gui_display (int shortcut)
 	here++;
 	gui_active++;
 	if (setpaused (7)) {
-		screenshot_prepare ();
+		if (isfullscreen() > 0 && currprefs.gfx_api == 0)
+			screenshot_prepare ();
 		flipgui (true);
 		wait_keyrelease ();
 		inputdevice_unacquire ();
@@ -7350,7 +7351,7 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Black Belt Systems HAM-E Plus"));
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Newtronic Video DAC 18"));
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Archos AVideo 12"));
-		//SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Archos AVideo 24"));
+		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Archos AVideo 24"));
 		//SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("DCTV"));
 
 #ifndef	AGA
@@ -15731,7 +15732,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 		h = FindFirstFile (tmp, &wfd);
 		while (h != INVALID_HANDLE_VALUE) {
 			if (wfd.cFileName[0] != '_') {
-				TCHAR tmp2[100];
+				TCHAR tmp2[MAX_DPATH];
 				_stprintf (tmp2, _T("D3D: %s"), wfd.cFileName);
 				tmp2[_tcslen (tmp2) - 3] = 0;
 				SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp2);
@@ -15752,7 +15753,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 		}
 	}
 	int overlaytype = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_GETCURSEL, 0, 0L);
-	if (workprefs.gfx_api && D3D_goodenough () > 1) {
+	if (workprefs.gfx_api) {
 		WIN32GUI_LoadUIString (IDS_NONE, tmp, MAX_DPATH);
 		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)tmp);
 		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, 0, 0);
@@ -15780,10 +15781,17 @@ static void values_to_hw3ddlg (HWND hDlg)
 				h = INVALID_HANDLE_VALUE;
 			}
 		}
+		if (D3D_goodenough() < 1 && overlaytype) {
+			SendDlgItemMessage(hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, 0, 0);
+			ew(hDlg, IDC_FILTEROVERLAY, FALSE);
+		} else {
+			ew(hDlg, IDC_FILTEROVERLAY, TRUE);
+		}
 	} else {
 		WIN32GUI_LoadUIString (IDS_FILTER_NOOVERLAYS, tmp, MAX_DPATH);
 		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)tmp);
 		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, 0, 0);
+		ew(hDlg, IDC_FILTEROVERLAY, TRUE);
 	}
 	SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_SETCURSEL, fltnum, 0);
 

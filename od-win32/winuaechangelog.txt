@@ -1,4 +1,40 @@
 
+Beta 18: (Official in 2-3 weeks)
+
+- Archos AVideo 24 emulation. Animation/doublebuffering feature not yet emulated.
+  Note that AVideo 12 and 24 are not hardware compatible and it is also not AGA compatible, same
+  $dff1fc custom register conflict. (A4000 version not yet emulated, compatible driver/install disk
+  is MIA, latest available is v15 which was released long before A4000 version)
+- Video DAC 18 and AVideo emulation now works correctly in Double, fields+ interlace mode.
+- AVideo 12/24 mode autodetection supported.
+- Improved 53C80 emulation.
+- Trying to execute MODE SELECT SCSI command in low level scsi emulation mode worked strangely.
+- Added C-Ltd A1000/A2000 SCSI controller.
+- Added Preferred Technologies Nexus SCSI controller. Boot ROM added.
+- Added Expansion Systems DataFlyer 1200/4000 SCSI+.
+- GUI tab order fixed and updated.
+- Don't disable Overlays in Filter panel if system has no shader support. Only Masks need it.
+- Only take internal screenshot when entering GUI if mode is fullscreen DirectDraw. (Entering
+  GUI can cause lost DD surface which would make Screenshot button useless). Delay when opening
+  GUI in some systems should be gone now. (If not DD fullscreen).
+
+C-Ltd A1000/A2000:
+- 53C80 fake DMA.
+- Non-autoboot, no ROM and no ROM socket.
+
+Preferred Technologies Nexus:
+- 53C80 fake DMA (word wide).
+- Boot ROM is only a small driver loader, complete driver is stored in RDB's LSEG blocks!
+- nexus.device, 1G drive size limit.
+- Partition/formatter utility is strange..
+- Has different Fast RAM autoconfig product ID depending on RAM size.
+
+DataFlyer 1200/4000 SCSI+:
+- Connects to A1200/A4000 IDE port, converts it to IDE + SCSI controller.
+- 53C80 fake DMA (byte wide).
+- No boot ROM, loadable driver only, can't boot from SCSI drive.
+- Uses unused IDE control block registers to switch between IDE and 53C80 registers.
+
 Beta 17:
 
 - Restrict GUI IDE units to 2 if device is single port and without IDE doubler support.
