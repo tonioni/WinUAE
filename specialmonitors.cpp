@@ -229,15 +229,44 @@ static bool dctv(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines,
 	return true;
 }
 
+static void blank_generic(struct vidbuffer *src, struct vidbuffer *dst, int oddlines)
+{
+	int y, vdbl;
+	int ystart, yend, isntsc;
+
+	isntsc = (beamcon0 & 0x20) ? 0 : 1;
+	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+		isntsc = currprefs.ntscmode ? 1 : 0;
+
+	vdbl = gfxvidinfo.ychange;
+
+	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
+	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
+
+	for (y = ystart; y < yend; y++) {
+		int yoff = (((y * 2 + oddlines) - src->yoffset) / vdbl);
+		if (yoff < 0)
+			continue;
+		if (yoff >= src->inheight)
+			continue;
+		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
+		memset(dstline, 0, dst->inwidth * dst->pixbytes);
+	}
+}
+
 static uae_u16 avideo_previous_fmode[2];
 
 static uae_u8 *avideo_buffer;
-static int av24_offset;
+static int av24_offset[2];
+static int av24_doublebuffer[2];
+static int av24_writetovram[2];
+static int av24_mode[2];
+static int avideo_allowed;
 #define AVIDEO_VRAM_WIDTH 800
 #define AVIDEO_VRAM_HEIGHT 800
 #define AVIDEO_VRAM_BYTES 4
 
-static bool avideo(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
+static bool avideo(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines, int lof)
 {
 	int y, x, vdbl, hdbl;
 	int ystart, yend, isntsc;
@@ -245,22 +274,26 @@ static bool avideo(struct vidbuffer *src, struct vidbuffer *dst, bool doubleline
 	int mode;
 	int offset = -1;
 	bool writetovram;
-	bool av24 = currprefs.monitoremu == MONITOREMU_AVIDEO24;
-	bool lownybble = false;
-	bool doublebuffer = false;
+	bool av24;
+	int doublebuffer = -1;
 	uae_u16 fmode;
 	
-	fmode = avideo_previous_fmode[oddlines];
+	fmode = avideo_previous_fmode[lof];
+
+	if (currprefs.monitoremu == MONITOREMU_AUTO) {
+		if (!avideo_allowed)
+			return false;
+		av24 = avideo_allowed == 24;
+	} else {
+		av24 = currprefs.monitoremu == MONITOREMU_AVIDEO24;
+	}
 
 	if (currprefs.chipset_mask & CSMASK_AGA)
 		return false;
 
 	if (av24) {
-		if (fmode & 0x40)
-			mode = 6;
-		else
-			mode = 0;
-		writetovram = (fmode  & (0x08 | 0x10 | 0x20)) != 0;
+		writetovram = av24_writetovram[lof] != 0;
+		mode = av24_mode[lof];
 	} else {
 		mode = fmode & 7;
 		if (mode == 1)
@@ -306,7 +339,7 @@ static bool avideo(struct vidbuffer *src, struct vidbuffer *dst, bool doubleline
 		uae_u8 *vramline = avideo_buffer + y * 2 * AVIDEO_VRAM_WIDTH * AVIDEO_VRAM_BYTES;
 
 		if (av24) {
-			vramline += av24_offset;
+			vramline += av24_offset[lof];
 		} else {
 			if (fmode & 0x10)
 				vramline += AVIDEO_VRAM_WIDTH * AVIDEO_VRAM_BYTES;
@@ -323,44 +356,131 @@ static bool avideo(struct vidbuffer *src, struct vidbuffer *dst, bool doubleline
 				val[0] = FVR(src, s) >> 4;
 				val[1] = FVG(src, s) >> 4;
 				val[2] = FVB(src, s) >> 4;
-				if (av24) {  // 021 012 102 120 210 201
+				if (av24) {
 					uae_u8 v;
 
-					if (fmode & 0x08) {
-						v = (((val[0] >> 0) & 1) << 3) | (((val[0] >> 1) & 1) << 0);
-						vramptr[0] &= ~(0x08 | 0x01);
-						vramptr[0] |= v;
-						v = (((val[1] >> 0) & 1) << 2);
-						vramptr[1] &= ~(0x04);
-						vramptr[1] |= v;
-						v = (((val[2] >> 0) & 1) << 1);
-						vramptr[2] &= ~(0x02);
-						vramptr[2] |= v;
+					/*
+					R3 = 20 08 08 08
+					R2 = 20 01 01 01
+					R1 = 10 02 02 02
+					R0 = 08 04 04 04
+
+					G3 = 20 04 04 04
+					G2 = 10 08 08 08
+					G1 = 10 01 01 01
+					G0 = 08 02 02 02
+
+					B3 = 20 02 02 02
+					B2 = 10 04 04 04
+					B1 = 08 08 08 08
+					B0 = 08 01 01 01
+					*/
+
+					uae_u8 rval = vramptr[0];
+					uae_u8 gval = vramptr[1];
+					uae_u8 bval = vramptr[2];
+
+					/* This probably should use lookup tables.. */
+
+					if (fmode & 0x01) { // Red (low)
+
+						v = (((val[0] >> 2) & 1) << 0);
+						rval &= ~(0x01);
+						rval |= v;
+
+						v = (((val[1] >> 1) & 1) << 0);
+						gval &= ~(0x01);
+						gval |= v;
+
+						v = (((val[2] >> 3) & 1) << 1) | (((val[2] >> 0) & 1) << 0);
+						bval &= ~(0x02 | 0x01);
+						bval |= v;
 					}
 
-					if (fmode & 0x10) {
-						v = (((val[1] >> 1) & 1) << 3) | (((val[1] >> 2) & 1) << 0);
-						vramptr[1] &= ~(0x08 | 0x01);
-						vramptr[1] |= v;
-						v = (((val[2] >> 1) & 1) << 2);
-						vramptr[2] &= ~(0x04);
-						vramptr[2] |= v;
-						v = (((val[0] >> 2) & 1) << 1);
-						vramptr[0] &= ~(0x02);
-						vramptr[0] |= v;
+					if (fmode & 0x02) { // Green (low)
+
+						v = (((val[0] >> 1) & 1) << 1);
+						rval &= ~(0x02);
+						rval |= v;
+
+						v = (((val[1] >> 0) & 1) << 1) | (((val[1] >> 3) & 1) << 2);
+						gval &= ~(0x02 | 0x04);
+						gval |= v;
+
+						v = (((val[2] >> 2) & 1) << 2);
+						bval &= ~(0x04);
+						bval |= v;
 					}
 
-					if (fmode & 0x20) {
-						v = (((val[2] >> 2) & 1) << 3) | (((val[2] >> 3) & 1) << 0);
-						vramptr[2] &= ~(0x08 | 0x01);
-						vramptr[2] |= v;
-						v = (((val[0] >> 3) & 1) << 2);
-						vramptr[0] &= ~(0x04);
-						vramptr[0] |= v;
-						v = (((val[2] >> 3) & 1) << 1);
-						vramptr[1] &= ~(0x02);
-						vramptr[1] |= v;
+					if (fmode & 0x04) { // Blue (low)
+
+						v = (((val[0] >> 0) & 1) << 2) | (((val[0] >> 3) & 1) << 3);
+						rval &= ~(0x04 | 0x08);
+						rval |= v;
+
+						v = (((val[1] >> 2) & 1) << 3);
+						gval &= ~(0x08);
+						gval |= v;
+
+						v = (((val[2] >> 1) & 1) << 3);
+						bval &= ~(0x08);
+						bval |= v;
 					}
+
+					if (fmode & 0x08) { // Red (high)
+						
+						v = (((val[0] >> 2) & 1) << 4);
+						rval &= ~(0x10);
+						rval |= v;
+						
+						v = (((val[1] >> 1) & 1) << 4);
+						gval &= ~(0x10);
+						gval |= v;
+
+						v = (((val[2] >> 3) & 1) << 5) | (((val[2] >> 0) & 1) << 4);
+						bval &= ~(0x20 | 0x10);
+						bval |= v;
+					}
+
+					if (fmode & 0x10) { // Green (high)
+
+						v = (((val[0] >> 1) & 1) << 5);
+						rval &= ~(0x20);
+						rval |= v;
+
+						v = (((val[1] >> 0) & 1) << 5) | (((val[1] >> 3) & 1) << 6);
+						gval &= ~(0x20 | 0x40);
+						gval |= v;
+
+						v = (((val[2] >> 2) & 1) << 6);
+						bval &= ~(0x40);
+						bval |= v;
+					}
+
+					if (fmode & 0x20) { // Blue (high)
+
+						v = (((val[0] >> 0) & 1) << 6) | (((val[0] >> 3) & 1) << 7);
+						rval &= ~(0x40 | 0x80);
+						rval |= v;
+
+						v = (((val[1] >> 2) & 1) << 7);
+						gval &= ~(0x80);
+						gval |= v;
+
+						v = (((val[2] >> 1) & 1) << 7);
+						bval &= ~(0x80);
+						bval |= v;
+					}
+
+					if (av24_doublebuffer[lof] == 0 && (fmode & (0x08 | 0x10 | 0x20))) {
+						rval = (rval & 0xf0) | (rval >> 4);
+						gval = (gval & 0xf0) | (gval >> 4);
+						bval = (bval & 0xf0) | (bval >> 4);
+					}
+
+					vramptr[0] = rval;
+					vramptr[1] = gval;
+					vramptr[2] = bval;
 
 				} else {
 
@@ -371,19 +491,17 @@ static bool avideo(struct vidbuffer *src, struct vidbuffer *dst, bool doubleline
 			}
 			if (writetovram || mode == 7 || (mode == 6 && FVR(src, s) == 0 && FVG(src, s) == 0 && FVB(src, s) == 0)) {
 				uae_u8 r, g, b;
-				if (av24) {
-					r = vramptr[0] << 4;
-					g = vramptr[1] << 4;
-					b = vramptr[2] << 4;
-				} else {
-					r = vramptr[0];
-					g = vramptr[1];
-					b = vramptr[2];
-				}
-				if (doublebuffer) {
-					r = (r << 4) | (r & 15);
-					g = (g << 4) | (g & 15);
-					b = (b << 4) | (b & 15);
+				r = vramptr[0];
+				g = vramptr[1];
+				b = vramptr[2];
+				if (av24_doublebuffer[lof] == 1) {
+					r = (r << 4) | (r & 0x0f);
+					g = (g << 4) | (g & 0x0f);
+					b = (b << 4) | (b & 0x0f);
+				} else if (av24_doublebuffer[lof] == 2) {
+					r = (r >> 4) | (r & 0xf0);
+					g = (g >> 4) | (g & 0xf0);
+					b = (b >> 4) | (b & 0xf0);
 				}
 				PUT_PRGB(d, d2, dst, r, g, b, xadd, doublelines, false);
 			} else {
@@ -395,7 +513,7 @@ static bool avideo(struct vidbuffer *src, struct vidbuffer *dst, bool doubleline
 	dst->nativepositioning = true;
 	if (monitor != MONITOREMU_AVIDEO12 && monitor != MONITOREMU_AVIDEO24) {
 		monitor = av24 ? MONITOREMU_AVIDEO24 : MONITOREMU_AVIDEO12;
-		write_log (_T("AVIDEO mode\n"));
+		write_log (_T("AVIDEO%d mode\n"), av24 ? 24 : 12);
 	}
 
 	return true;
@@ -403,27 +521,71 @@ static bool avideo(struct vidbuffer *src, struct vidbuffer *dst, bool doubleline
 
 void specialmonitor_store_fmode(int vpos, int hpos, uae_u16 fmode)
 {
+	int lof = lof_store ? 0 : 1;
+	if (vpos < 0) {
+		for (int i = 0; i < 2; i++) {
+			avideo_previous_fmode[i] = 0;
+			av24_offset[i] = 0;
+			av24_doublebuffer[i] = 0;
+			av24_mode[i] = 0;
+			av24_writetovram[i] = 0;
+		}
+		avideo_allowed = 0;
+		return;
+	}
+	if (currprefs.monitoremu == MONITOREMU_AUTO) {
+		if ((fmode & 0x0080))
+			avideo_allowed = 24;
+		if ((fmode & 0x00f0) < 0x40 && !avideo_allowed)
+			avideo_allowed = 12;
+		if (!avideo_allowed)
+			return;
+	}
 	write_log(_T("%04x\n"), fmode);
-	fmode &= 0xff;
-	if (fmode == 0x91)
-		av24_offset = AVIDEO_VRAM_WIDTH * AVIDEO_VRAM_BYTES;
-	else if (fmode == 0x92)
-		av24_offset = 0;
-	 avideo_previous_fmode[lof_store ? 0 : 1] = fmode;
+
+	if (fmode == 0x91) {
+		av24_offset[lof] = AVIDEO_VRAM_WIDTH * AVIDEO_VRAM_BYTES;
+	}
+	if (fmode == 0x92) {
+		av24_offset[lof] = 0;
+	}
+
+	if (fmode & 0x8000) {
+		av24_doublebuffer[lof] = (fmode & 0x4000) ? 1 : 2;
+		av24_mode[lof] = 6;
+	}
+
+	if ((fmode & 0xc0) == 0x40) {
+		av24_writetovram[lof] = (fmode & 0x3f) != 0;
+	}
+
+	if (fmode == 0x80) {
+		av24_mode[lof] = 0;
+	}
+
+	if (fmode == 0x13) {
+		av24_mode[lof] = 6;
+		av24_doublebuffer[lof] = 0;
+	}
+
+	avideo_previous_fmode[lof] = fmode;
 }
 
 static bool do_avideo(struct vidbuffer *src, struct vidbuffer *dst)
 {
 	bool v;
+	int lof = lof_store ? 0 : 1;
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
-			v = avideo(src, dst, false, lof_store ? 0 : 1);
+			v = avideo(src, dst, false, lof, lof);
+			if (v && currprefs.gfx_iscanlines > 1)
+				blank_generic(src, dst, !lof);
 		} else {
-			v = avideo(src, dst, false, 0);
-			v |= avideo(src, dst, false, 1);
+			v = avideo(src, dst, false, 0, 0);
+			v |= avideo(src, dst, false, 1, 1);
 		}
 	} else {
-		v = avideo(src, dst, true, 0);
+		v = avideo(src, dst, true, 0, lof);
 	}
 	return v;
 }
@@ -517,6 +679,8 @@ static bool do_videodac18(struct vidbuffer *src, struct vidbuffer *dst)
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
 			v = videodac18(src, dst, false, lof_store ? 0 : 1);
+			if (v && currprefs.gfx_iscanlines > 1)
+				blank_generic(src, dst, lof_store ? 1 : 0);
 		} else {
 			v = videodac18(src, dst, false, 0);
 			v |= videodac18(src, dst, false, 1);
@@ -720,6 +884,24 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 	}
 
 	return was_active != 0;
+}
+
+static bool do_hame(struct vidbuffer *src, struct vidbuffer *dst)
+{
+	bool v;
+	if (interlace_seen) {
+		if (currprefs.gfx_iscanlines) {
+			v = ham_e(src, dst, false, lof_store ? 0 : 1);
+			if (v && currprefs.gfx_iscanlines > 1)
+				blank_generic(src, dst, lof_store ? 1 : 0);
+		} else {
+			v = ham_e(src, dst, false, 0);
+			v |= ham_e(src, dst, false, 1);
+		}
+	} else {
+		v = ham_e(src, dst, true, 0);
+	}
+	return v;
 }
 
 static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
@@ -1086,6 +1268,10 @@ static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *ds
 			v = graffiti(src, dst);
 		if (!v)
 			v = do_videodac18(src, dst);
+		if (!v) {
+			if (avideo_allowed)
+				v = do_avideo(src, dst);
+		}
 		return v;
 	} else if (currprefs.monitoremu == MONITOREMU_A2024) {
 		return a2024(src, dst);
@@ -1094,21 +1280,11 @@ static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *ds
 	} else if (currprefs.monitoremu == MONITOREMU_DCTV) {
 		return dctv(src, dst, false, 0);
 	} else if (currprefs.monitoremu == MONITOREMU_HAM_E || currprefs.monitoremu == MONITOREMU_HAM_E_PLUS) {
-		bool v;
-		if (interlace_seen) {
-			if (currprefs.gfx_iscanlines) {
-				v = ham_e(src, dst, false, lof_store ? 0 : 1);
-			} else {
-				v = ham_e(src, dst, false, 0);
-				v |= ham_e(src, dst, false, 1);
-			}
-		} else {
-			v = ham_e(src, dst, true, 0);
-		}
-		return v;
+		return do_hame(src, dst);
 	} else if (currprefs.monitoremu == MONITOREMU_VIDEODAC18) {
 		return do_videodac18(src, dst);
 	} else if (currprefs.monitoremu == MONITOREMU_AVIDEO12 || currprefs.monitoremu == MONITOREMU_AVIDEO24) {
+		avideo_allowed = -1;
 		return do_avideo(src, dst);
 	}
 	return false;

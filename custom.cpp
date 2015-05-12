@@ -5365,10 +5365,11 @@ static void DDFSTOP (int hpos, uae_u16 v)
 
 static void FMODE (int hpos, uae_u16 v)
 {
-	if (currprefs.monitoremu)
-		specialmonitor_store_fmode(vpos, hpos, v);
-	if (! (currprefs.chipset_mask & CSMASK_AGA))
+	if (!(currprefs.chipset_mask & CSMASK_AGA)) {
+		if (currprefs.monitoremu)
+			specialmonitor_store_fmode(vpos, hpos, v);
 		v = 0;
+	}
 	v &= 0xC00F;
 	if (fmode == v)
 		return;
@@ -8231,6 +8232,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	}
 
 	devices_reset(hardreset);
+	specialmonitor_store_fmode(-1, -1, 0);
 
 	unset_special (~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE));
 
