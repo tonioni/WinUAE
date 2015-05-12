@@ -29,6 +29,8 @@
 #include "blkdev.h"
 #include "scsi.h"
 #include "ide.h"
+#include "idecontrollers.h"
+#include "debug.h"
 
 #define PCMCIA_SRAM 1
 #define PCMCIA_IDE 2
@@ -153,6 +155,10 @@ static int ide_splitter;
 
 static struct ide_thread_state gayle_its;
 
+static int dataflyer_state;
+static int dataflyer_disable_irq;
+static uae_u8 dataflyer_byte;
+
 static void pcmcia_reset (void)
 {
 	memset (pcmcia_configuration, 0, sizeof pcmcia_configuration);
@@ -177,6 +183,10 @@ static uae_u8 checkgayleideirq (void)
 	int i;
 	bool irq = false;
 
+	if (dataflyer_disable_irq) {
+		gayle_irq &= ~GAYLE_IRQ_IDE;
+		return 0;
+	}
 	for (i = 0; i < 2; i++) {
 		if (idedrive[i]) {
 			if (!(idedrive[i]->regs.ide_devcon & 2) && (idedrive[i]->irq || (idedrive[i + 2] && idedrive[i + 2]->irq)))
@@ -390,7 +400,7 @@ static void gayle_write2 (uaecptr addr, uae_u32 val)
 	struct ide_hdf *ide = NULL;
 	int ide_reg;
 
-	if ((GAYLE_LOG > 3 && (addr != 0x2000 && addr != 0x2001 && addr != 0x2020 && addr != 0x2021 && addr != GAYLE_IRQ_1200)) || GAYLE_LOG > 5)
+	if ((GAYLE_LOG > 3 && (addr != 0x2000 && addr != 0x2001 && addr != 0x3020 && addr != 0x3021 && addr != GAYLE_IRQ_1200)) || GAYLE_LOG > 5)
 		write_log (_T("IDE_WRITE %08X=%02X PC=%X\n"), addr, (uae_u32)val & 0xff, M68K_GETPC);
 	if (currprefs.cs_ide <= 0)
 		return;
@@ -501,6 +511,77 @@ addrbank gayle_bank = {
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
+void gayle_dataflyer_enable(bool enable)
+{
+	if (!enable) {
+		dataflyer_state = 0;
+		dataflyer_disable_irq = 0;
+		return;
+	}
+	dataflyer_state = 1;
+}
+
+static bool isdataflyerscsiplus(uaecptr addr, uae_u32 *v, int size)
+{
+	if (!dataflyer_state)
+		return false;
+	uaecptr addrmask = addr & 0xffff;
+	if (addrmask >= GAYLE_IRQ_4000 && addrmask <= GAYLE_IRQ_4000 + 1 && currprefs.cs_ide == IDE_A4000)
+		return false;
+	uaecptr addrbase = (addr & ~0xff) & ~0x1020;
+	int reg = ((addr & 0xffff) & ~0x2020) >> 2;
+	if (reg >= IDE_SECONDARY) {
+		reg &= ~IDE_SECONDARY;
+		if (reg >= 6) // normal IDE registers
+			return false;
+		if (size < 0) {
+			switch (reg)
+			{
+				case 0: // 53C80 fake dma port
+				soft_scsi_put(addrbase | 8, 1, *v);
+				break;
+				case 3:
+				dataflyer_byte = *v;
+				break;
+			}
+		} else {
+			switch (reg)
+			{
+				case 0: // 53C80 fake dma port
+				*v = soft_scsi_get(addrbase | 8, 1);
+				break;
+				case 3:
+				*v = 0;
+				if (ide_irq_check(idedrive[0]))
+					*v = dataflyer_byte;
+				break;
+				case 4: // select SCSI
+				dataflyer_disable_irq = 1;
+				dataflyer_state |= 2;
+				break;
+				case 5: // select IDE
+				dataflyer_disable_irq = 1;
+				dataflyer_state &= ~2;
+				break;
+			}
+		}
+#if 0
+		if (size < 0)
+			write_log(_T("SECONDARY BASE PUT(%d) %08x %08x PC=%08x\n"), -size, addr, *v, M68K_GETPC);
+		else
+			write_log(_T("SECONDARY BASE GET(%d) %08x PC=%08x\n"), size, addr, M68K_GETPC);
+#endif
+		return true;
+	}
+	if (!(dataflyer_state & 2))
+		return false;
+	if (size < 0)
+		soft_scsi_put(addrbase | reg, -size, *v);
+	else
+		*v = soft_scsi_get(addrbase | reg, size);
+	return true;
+}
+
 static bool isa4000t (uaecptr *paddr)
 {
 	if (currprefs.cs_mbdmac != 2)
@@ -524,6 +605,9 @@ static uae_u32 REGPARAM2 gayle_lget (uaecptr addr)
 #ifdef NCR
 	if (currprefs.cs_mbdmac == 2 && (addr & 0xffff) == 0x3000)
 		return 0xffffffff; // NCR DIP BANK
+	if (isdataflyerscsiplus(addr, &v, 4)) {
+		return v;
+	}
 	if (isa4000t (&addr)) {
 		if (addr >= NCR_ALT_OFFSET) {
 			addr &= NCR_MASK;
@@ -551,14 +635,17 @@ static uae_u32 REGPARAM2 gayle_wget (uaecptr addr)
 {
 	struct ide_hdf *ide = NULL;
 	int ide_reg;
-	uae_u16 v;
+	uae_u32 v;
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
 #ifdef NCR
 	if (currprefs.cs_mbdmac == 2 && (addr & (0xffff - 1)) == 0x3000)
 		return 0xffff; // NCR DIP BANK
-	if (isa4000t (&addr)) {
+	if (isdataflyerscsiplus(addr, &v, 2)) {
+		return v;
+	}
+	if (isa4000t(&addr)) {
 		if (addr >= NCR_OFFSET) {
 			addr &= NCR_MASK;
 			v = (ncr710_io_bget_a4000t(addr) << 8) | ncr710_io_bget_a4000t(addr + 1);
@@ -575,13 +662,17 @@ static uae_u32 REGPARAM2 gayle_wget (uaecptr addr)
 }
 static uae_u32 REGPARAM2 gayle_bget (uaecptr addr)
 {
+	uae_u32 v;
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
 #ifdef NCR
 	if (currprefs.cs_mbdmac == 2 && (addr & (0xffff - 3)) == 0x3000)
 		return 0xff; // NCR DIP BANK
-	if (isa4000t (&addr)) {
+	if (isdataflyerscsiplus(addr, &v, 1)) {
+		return v;
+	}
+	if (isa4000t(&addr)) {
 		if (addr >= NCR_OFFSET) {
 			addr &= NCR_MASK;
 			return ncr710_io_bget_a4000t(addr);
@@ -589,7 +680,8 @@ static uae_u32 REGPARAM2 gayle_bget (uaecptr addr)
 		return 0;
 	}
 #endif
-	return gayle_read (addr);
+	v = gayle_read (addr);
+	return v;
 }
 
 static void REGPARAM2 gayle_lput (uaecptr addr, uae_u32 value)
@@ -599,7 +691,10 @@ static void REGPARAM2 gayle_lput (uaecptr addr, uae_u32 value)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	if (isa4000t (&addr)) {
+	if (isdataflyerscsiplus(addr, &value, -4)) {
+		return;
+	}
+	if (isa4000t(&addr)) {
 		if (addr >= NCR_ALT_OFFSET) {
 			addr &= NCR_MASK;
 			ncr710_io_bput_a4000t(addr + 3, value >> 0);
@@ -632,7 +727,10 @@ static void REGPARAM2 gayle_wput (uaecptr addr, uae_u32 value)
 	special_mem |= S_WRITE;
 #endif
 #ifdef NCR
-	if (isa4000t (&addr)) {
+	if (isdataflyerscsiplus(addr, &value, -2)) {
+		return;
+	}
+	if (isa4000t(&addr)) {
 		if (addr >= NCR_OFFSET) {
 			addr &= NCR_MASK;
 			ncr710_io_bput_a4000t(addr, value >> 8);
@@ -656,7 +754,10 @@ static void REGPARAM2 gayle_bput (uaecptr addr, uae_u32 value)
 	special_mem |= S_WRITE;
 #endif
 #ifdef NCR
-	if (isa4000t (&addr)) {
+	if (isdataflyerscsiplus(addr, &value, -1)) {
+		return;
+	}
+	if (isa4000t(&addr)) {
 		if (addr >= NCR_OFFSET) {
 			addr &= NCR_MASK;
 			ncr710_io_bput_a4000t(addr, value);
@@ -1687,6 +1788,7 @@ void gayle_reset (int hardreset)
 	}
 #endif
 	gayle_bank.name = bankname;
+	gayle_dataflyer_enable(false);
 }
 
 uae_u8 *restore_gayle (uae_u8 *src)

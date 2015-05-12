@@ -642,9 +642,9 @@ static bool do_dma_commodore_8727(struct wd_state *wd, struct scsi_data *scsi)
 		for (;;) {
 			uae_u8 v1 = 0, v2 = 0;
 			int status;
-			status = scsi_receive_data (scsi, &v1);
+			status = scsi_receive_data (scsi, &v1, true);
 			if (!status)
-				status = scsi_receive_data (scsi, &v2);
+				status = scsi_receive_data(scsi, &v2, true);
 			put_word((wd->cdmac.dmac_acr << 1) & 0xffffff, (v1 << 8) | v2);
 			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data) {
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v1;
@@ -709,7 +709,7 @@ static bool do_dma_commodore(struct wd_state *wd, struct scsi_data *scsi)
 		bool run = true;
 		while (run) {
 			uae_u8 v;
-			int status = scsi_receive_data (scsi, &v);
+			int status = scsi_receive_data(scsi, &v, true);
 			put_byte(wd->cdmac.dmac_acr, v);
 			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data)
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v;
@@ -755,7 +755,7 @@ static bool do_dma_gvp_s1(struct wd_state *wd, struct scsi_data *scsi)
 	if (scsi->direction < 0) {
 		for (;;) {
 			uae_u8 v;
-			int status = scsi_receive_data (scsi, &v);
+			int status = scsi_receive_data(scsi, &v, true);
 			wd->gdmac.buffer[wd->wc.wd_dataoffset++] = v;
 			wd->wc.wd_dataoffset &= wd->gdmac.s1_rammask;
 			if (decreasetc (&wd->wc))
@@ -803,7 +803,7 @@ static bool do_dma_gvp_s2(struct wd_state *wd, struct scsi_data *scsi)
 		}
 		for (;;) {
 			uae_u8 v;
-			int status = scsi_receive_data (scsi, &v);
+			int status = scsi_receive_data(scsi, &v, true);
 			put_byte(wd->gdmac.addr, v);
 			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data)
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v;
@@ -1517,7 +1517,7 @@ uae_u8 wdscsi_get (struct wd_chip_state *wd, struct wd_state *wds)
 			write_log (_T("%s WD_DATA READ without data request!?\n"), WD33C93);
 			return 0;
 		}
-		int status = scsi_receive_data (wd->scsi, &v);
+		int status = scsi_receive_data(wd->scsi, &v, true);
 #if WD33C93_DEBUG_PIO
 		write_log (_T("%s WD_DATA READ %02x %d/%d\n"), WD33C93, v, wd->scsi->offset, wd->scsi->data_len);
 #endif

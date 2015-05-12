@@ -2242,7 +2242,26 @@ static const struct expansionsubromtype supra_sub[] = {
 		NULL
 	}
 };
-
+static const struct expansionsubromtype nexus_sub[] = {
+	{
+		_T("2M Fast (Product ID 2)"), _T("fast2m"),
+		2102, 2, 0,
+		{ 0xd1, 0x01, 0x00, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
+	},
+	{
+		_T("4M Fast (Product ID 4)"), _T("fast4m"),
+		2102, 4, 0,
+		{ 0xd1, 0x01, 0x00, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
+	},
+	{
+		_T("8M Fast (Product ID 8)"), _T("fast8m"),
+		2102, 8, 0,
+		{ 0xd1, 0x01, 0x00, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
+	},
+	{
+		NULL
+	}
+};
 static const struct expansionboardsettings adscsi2000_settings[] = {
 	{
 		_T("Cache (B)"),
@@ -2414,6 +2433,30 @@ const struct expansionromtype expansionroms[] = {
 		rochard_sub, 0,
 		true, EXPANSIONTYPE_IDE | EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE_PORT_DOUBLED,
 		2144, 2, 0
+	},
+	{
+		_T("a1000scsi"), _T("A1000/A2000 SCSI"), _T("C-Ltd"),
+		cltda1000scsi_init, cltda1000scsi_add_scsi_unit, ROMTYPE_CLTDSCSI | ROMTYPE_NONE, 0, 0, 2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI,
+		0, 0, 0,
+		false, NULL,
+		{ 0xc1, 0x0c, 0x00, 0x00, 0x03, 0xec, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+	},
+	{
+		_T("ptnexus"), _T("Nexus"), _T("Preferred Technologies"),
+		ptnexus_init, ptnexus_add_scsi_unit, ROMTYPE_PTNEXUS | ROMTYPE_NONE, 0, 0, 2, false,
+		nexus_sub, 0,
+		false, EXPANSIONTYPE_SCSI,
+		2102, 4, 0,
+		false, NULL,
+		{ 0xd1, 0x01, 0x00, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
+	},
+	{
+		_T("dataflyerscsiplus"), _T("DataFlyer SCSI+"), _T("Expansion Systems"),
+		dataflyer_init, dataflyer_add_scsi_unit, ROMTYPE_DATAFLYER | ROMTYPE_NONE, 0, 0, 1, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI,
 	},
 #if 0
 	{

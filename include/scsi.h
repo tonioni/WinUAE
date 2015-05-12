@@ -56,7 +56,7 @@ extern void scsi_reset(void);
 
 extern void scsi_start_transfer(struct scsi_data*);
 extern int scsi_send_data(struct scsi_data*, uae_u8);
-extern int scsi_receive_data(struct scsi_data*, uae_u8*);
+extern int scsi_receive_data(struct scsi_data*, uae_u8*, bool next);
 extern void scsi_emulate_cmd(struct scsi_data *sd);
 extern void scsi_illegal_lun(struct scsi_data *sd);
 extern void scsi_clear_sense(struct scsi_data *sd);
@@ -148,6 +148,9 @@ static uae_u32 REGPARAM2 x ## _lget(uaecptr addr) \
 return y ## _lget(& ## z, addr); \
 }
 
+void soft_scsi_put(uaecptr addr, int size, uae_u32 v);
+uae_u32 soft_scsi_get(uaecptr addr, int size);
+
 void ncr80_rethink(void);
 
 void apollo_scsi_bput(uaecptr addr, uae_u8 v);
@@ -188,3 +191,12 @@ void rochard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconf
 bool rochard_scsi_init(struct romconfig *rc, uaecptr baseaddress);
 uae_u8 rochard_scsi_get(uaecptr addr);
 void rochard_scsi_put(uaecptr addr, uae_u8 v);
+
+addrbank *cltda1000scsi_init(struct romconfig *rc);
+void cltda1000scsi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+addrbank *ptnexus_init(struct romconfig *rc);
+void ptnexus_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+addrbank *dataflyer_init(struct romconfig *rc);
+void dataflyer_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);

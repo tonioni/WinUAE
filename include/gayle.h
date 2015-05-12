@@ -16,3 +16,5 @@ extern int gary_timeout; // non-existing memory access = delay
 
 #define PCMCIA_COMMON_START 0x600000
 #define PCMCIA_COMMON_SIZE 0x400000
+
+extern void gayle_dataflyer_enable(bool);
