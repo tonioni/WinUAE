@@ -28,6 +28,7 @@
 #include "memory.h"
 #include "audio.h"
 #include "uae.h"
+#include "uae/cdrom.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -1807,8 +1808,8 @@ static int parse_image (struct cdunit *cdu, const TCHAR *img)
 			if (oldcurdir[0])
 				my_setcurrentdir (oldcurdir, NULL);
 			parsechd (cdu, zcue, img);
-		}
 #endif
+		}
 
 		if (oldcurdir[0])
 			my_setcurrentdir (oldcurdir, NULL);
