@@ -268,10 +268,6 @@ static uae_u16 mpeg_io_reg;
 static mpeg2dec_t *mpeg_decoder;
 static const mpeg2_info_t *mpeg_info;
 
-extern addrbank fmv_bank;
-extern addrbank fmv_rom_bank;
-extern addrbank fmv_ram_bank;
-
 #if FMV_DEBUG
 static int isdebug(uaecptr addr)
 {
@@ -320,14 +316,6 @@ static bool cl450_checkint(bool enabled)
 	return irq;
 }
 
-void rethink_cd32fmv(void)
-{
-	if (!fmv_ram_bank.baseaddr)
-		return;
-	cl450_checkint(true);
-	l64111_checkint(true);
-}
-
 DECLARE_MEMORY_FUNCTIONS(fmv);
 static addrbank fmv_bank = {
 	fmv_lget, fmv_wget, fmv_bget,
@@ -354,6 +342,14 @@ static addrbank fmv_ram_bank = {
 
 MEMORY_FUNCTIONS_NOJIT(fmv_rom);
 MEMORY_FUNCTIONS_NOJIT(fmv_ram);
+
+void rethink_cd32fmv(void)
+{
+	if (!fmv_ram_bank.baseaddr)
+		return;
+	cl450_checkint(true);
+	l64111_checkint(true);
+}
 
 #define L64111_FIFO_LOOKUP 96
 #define L64111_FIFO_BYTES 128
