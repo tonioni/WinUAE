@@ -10,6 +10,8 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#ifdef A2065
+
 #include "options.h"
 #include "memory.h"
 #include "custom.h"
@@ -163,7 +165,7 @@ static void dumppacket (const TCHAR *n, uae_u8 *packet, int len)
 		_stprintf (buf + i * 3, _T(".%02X"), packet[i]);
 	}
 	write_log (_T("%s %d: "), n, len);
-	write_log (buf);
+	write_log (_T("%s"), buf);
 	write_log (_T("\n\n"));
 }
 #endif
@@ -983,3 +985,5 @@ addrbank *a2065_init (int devnum)
 	configured = 0;
 	return a2065_config ();
 }
+
+#endif /* A2065 */
