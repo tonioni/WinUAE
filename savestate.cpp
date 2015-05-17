@@ -760,8 +760,8 @@ void savestate_restore_finish (void)
 	restore_cia_finish ();
 	restore_debug_memwatch_finish ();
 	savestate_state = 0;
-	init_hz_full ();
-	audio_activate ();
+	init_hz_normal();
+	audio_activate();
 }
 
 /* 1=compressed,2=not compressed,3=ram dump,4=audio dump */

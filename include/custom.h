@@ -40,7 +40,7 @@ extern void do_copper (void);
 extern void notice_new_xcolors (void);
 extern void notice_screen_contents_lost (void);
 extern void init_row_map (void);
-extern void init_hz_full (void);
+extern void init_hz_normal (void);
 extern void init_custom (void);
 
 extern bool picasso_requested_on;

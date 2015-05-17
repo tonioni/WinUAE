@@ -4001,14 +4001,14 @@ void compute_framesync (void)
 }
 
 /* set PAL/NTSC or custom timing variables */
-void init_hz (bool fullinit)
+static void init_hz (bool checkvposw)
 {
 	int isntsc, islace;
 	int odbl = doublescan, omaxvpos = maxvpos;
 	double ovblank = vblank_hz;
 	int hzc = 0;
 
-	if (fullinit)
+	if (!checkvposw)
 		vpos_count = 0;
 
 	vpos_count_diff = vpos_count;
@@ -4211,18 +4211,15 @@ void init_hz (bool fullinit)
 		varsync_changed = false;
 		dumpsync ();
 	}
-
-	if (fullinit)
-		vpos_count_diff = maxvpos_nom;
 }
 
-void init_hz (void)
-{
-	init_hz (false);
-}
-void init_hz_full (void)
+static void init_hz_vposw (void)
 {
 	init_hz (true);
+}
+void init_hz_normal (void)
+{
+	init_hz (false);
 }
 
 static void calcdiw (void)
@@ -4279,11 +4276,11 @@ static void calcdiw (void)
 /* display mode changed (lores, doubling etc..), recalculate everything */
 void init_custom (void)
 {
-	update_mirrors ();
-	create_cycle_diagram_table ();
-	reset_drawing ();
-	init_hz ();
-	calcdiw ();
+	update_mirrors();
+	create_cycle_diagram_table();
+	reset_drawing();
+	init_hz_normal();
+	calcdiw();
 }
 
 static int timehack_alive = 0;
@@ -7434,9 +7431,9 @@ static void vsync_handler_post (void)
 	devices_vsync_post();
 
 	if (varsync_changed || (beamcon0 & (0x10 | 0x20 | 0x80 | 0x100 | 0x200)) != (new_beamcon0 & (0x10 | 0x20 | 0x80 | 0x100 | 0x200))) {
-		init_hz ();
+		init_hz_normal();
 	} else if (vpos_count > 0 && abs (vpos_count - vpos_count_diff) > 1 && vposw_change < 4) {
-		init_hz ();
+		init_hz_vposw();
 	} else if (interlace_changed || changed_chipset_refresh () || lof_changed) {
 		compute_framesync ();
 	}
@@ -7472,7 +7469,7 @@ static void copper_check (int n)
 4 4 -
 5 5 --
 
-0 x -
+0 x -+
 1 0 --
 2 1 -
 3 2 --
@@ -7487,7 +7484,7 @@ static void hsync_scandoubler (void)
 	struct draw_info *dip1;
 	uaecptr bpltmp[8], bpltmpx[8];
 
-	if (vpos >= maxvpos - 1)
+	if (lof_store && vpos >= maxvpos_nom - 1)
 		return;
 
 	next_lineno++;
@@ -8232,7 +8229,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	}
 
 	devices_reset(hardreset);
-	specialmonitor_store_fmode(-1, -1, 0);
+	specialmonitor_reset();
 
 	unset_special (~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE));
 
@@ -8258,7 +8255,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	diwstate = DIW_waiting_start;
 
 	dmal = 0;
-	init_hz_full ();
+	init_hz_normal();
 	vpos_lpen = -1;
 	lof_changing = 0;
 	lof_togglecnt_nlace = lof_togglecnt_lace = 0;
