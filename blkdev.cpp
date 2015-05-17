@@ -1737,8 +1737,6 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			if (!sys_command_cd_toc (unitnum, &ttoc))
 				goto readerr;
 			struct cd_toc_head *toc = &ttoc;
-			if (maxlen < 4)
-				goto errreq;
 			if (format == 1) {
 				p[0] = 0;
 				p[1] = 2 + 8;
@@ -1782,10 +1780,10 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				p[0] = tlen >> 8;
 				p[1] = tlen >> 0;
 				scsi_len = tlen + 2;
-				if (scsi_len > maxlen2)
-					scsi_len = maxlen2;
 			}
-		}
+			if (scsi_len > maxlen2)
+				scsi_len = maxlen2;
+	}
 	break;
 	case 0x42: // READ SUB-CHANNEL
 		{
@@ -1793,20 +1791,16 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			int subq = cmdbuf[2] & 0x40;
 			int format = cmdbuf[3];
 			int track = cmdbuf[6];
-			int len = rw (cmdbuf + 7);
+			int maxlen = rw(cmdbuf + 7);
 			uae_u8 buf[SUBQ_SIZE] = { 0 };
 
 			if (nodisk (&di))
 				goto nodisk;
 			sys_command_cd_qcode (unitnum, buf);
-			if (len < 4)
-				goto errreq;
 			scsi_len = 4;
 			scsi_data[0] = 0;
 			scsi_data[1] = buf[1];
 			if (subq && format == 1) {
-				if (len < 4 + 12)
-					goto errreq;
 				scsi_data[2] = 0;
 				scsi_data[3] = 12;
 				scsi_len += 12;
@@ -1826,6 +1820,8 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				scsi_data[2] = 0;
 				scsi_data[3] = 0;
 			}
+			if (scsi_len > maxlen)
+				scsi_len = maxlen;
 		}
 	break;
 	case 0x1b: // START/STOP
