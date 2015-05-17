@@ -106,6 +106,7 @@ extern uae_u32 emulib_target_getcpurate (uae_u32, uae_u32*);
 typedef addrbank*(*DEVICE_INIT)(struct romconfig*);
 typedef void(*DEVICE_ADD)(int, struct uaedev_config_info*, struct romconfig*);
 typedef bool(*E8ACCESS)(int, uae_u32*, int, bool);
+typedef void(*DEVICE_MEMORY_CALLBACK)(struct romconfig*, uae_u8*, int);
 #define EXPANSIONTYPE_SCSI 1
 #define EXPANSIONTYPE_IDE 2
 #define EXPANSIONTYPE_24BIT 4
@@ -141,6 +142,7 @@ struct expansionromtype
 	int deviceflags;
 	int memory_mid, memory_pid;
 	uae_u32 memory_serial;
+	DEVICE_MEMORY_CALLBACK memory_callback;
 	bool id_jumper;
 	const struct expansionboardsettings *settings;
 	uae_u8 autoconfig[16];

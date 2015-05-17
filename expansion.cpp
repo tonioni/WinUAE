@@ -37,6 +37,7 @@
 #include "sndboard.h"
 #include "uae/ppc.h"
 #include "autoconf.h"
+#include "specialmonitors.h"
 
 #define EXP_DEBUG 0
 
@@ -1088,6 +1089,9 @@ static addrbank *expamem_init_fastcard(int boardnum)
 	uae_u8 type = add_memory | zorroII;
 	int allocated = boardnum ? fastmem2_bank.allocated : fastmem_bank.allocated;
 	uae_u32 serial = 1;
+	DEVICE_MEMORY_CALLBACK dmc = NULL;
+	struct romconfig *dmc_rc = NULL;
+	uae_u8 ac[16] = { 0 };
 
 	if (allocated == 0)
 		return &expamem_null;
@@ -1138,6 +1142,8 @@ static addrbank *expamem_init_fastcard(int boardnum)
 					type |= chainedconfig;
 				}
 			}
+			dmc = erc->memory_callback;
+			dmc_rc = rc;
 			break;
 		}
 	}
@@ -1146,24 +1152,35 @@ static addrbank *expamem_init_fastcard(int boardnum)
 		mid = uae_id;
 	}
 
-	expamem_write (0x00, type);
+	ac[0x00 / 4] = type;
+	ac[0x04 / 4] = pid;
+	ac[0x08 / 4] = care_addr;
+	ac[0x10 / 4] = mid >> 8;
+	ac[0x14 / 4] = mid;
+	ac[0x18 / 4] = serial >> 24;
+	ac[0x1c / 4] = serial >> 16;
+	ac[0x20 / 4] = serial >> 8;
+	ac[0x24 / 4] = serial >> 0;
 
-	expamem_write (0x08, care_addr);
+	if (dmc && dmc_rc)
+		dmc(dmc_rc, ac, allocated);
 
-	expamem_write (0x04, pid);
+	expamem_write(0x00, ac[0x00 / 4]);
+	expamem_write(0x04, ac[0x04 / 4]);
+	expamem_write(0x08, ac[0x08 / 4]);
+	expamem_write(0x10, ac[0x10 / 4]);
+	expamem_write(0x14, ac[0x14 / 4]);
 
-	expamem_write (0x10, mid >> 8);
-	expamem_write (0x14, mid & 0xff);
+	expamem_write(0x18, ac[0x18 / 4]); /* ser.no. Byte 0 */
+	expamem_write(0x1c, ac[0x1c / 4]); /* ser.no. Byte 1 */
+	expamem_write(0x20, ac[0x20 / 4]); /* ser.no. Byte 2 */
+	expamem_write(0x24, ac[0x24 / 4]); /* ser.no. Byte 3 */
 
-	expamem_write (0x18, serial >> 24); /* ser.no. Byte 0 */
-	expamem_write (0x1c, serial >> 16); /* ser.no. Byte 1 */
-	expamem_write (0x20, serial >>  8); /* ser.no. Byte 2 */
-	expamem_write (0x24, serial >>  0); /* ser.no. Byte 3 */
+	expamem_write(0x28, 0x00); /* ROM-Offset hi */
+	expamem_write(0x2c, 0x00); /* ROM-Offset lo */
 
-	expamem_write (0x28, 0x00); /* Rom-Offset hi */
-	expamem_write (0x2c, 0x00); /* ROM-Offset lo */
+	expamem_write(0x40, 0x00); /* Ctrl/Statusreg.*/
 
-	expamem_write (0x40, 0x00); /* Ctrl/Statusreg.*/
 	return NULL;
 }
 
@@ -1874,6 +1891,11 @@ void expamem_reset (void)
 		cards[cardno++].initnum = sndboard_init;
 	}
 #endif
+	if (currprefs.monitoremu == MONITOREMU_FIRECRACKER24) {
+		cards[cardno].flags = 0;
+		cards[cardno].name = _T("FireCracker24");
+		cards[cardno++].initnum = specialmonitor_autoconfig_init;
+	}
 
 	/* Z3 boards last */
 	if (!currprefs.address_space_24) {
@@ -2242,21 +2264,21 @@ static const struct expansionsubromtype supra_sub[] = {
 		NULL
 	}
 };
-static const struct expansionsubromtype nexus_sub[] = {
+static void nexus_memory_callback(struct romconfig *rc, uae_u8 *ac, int size)
+{
+	if (rc->device_settings & 1)
+		ac[0] &= ~(1 << 5);
+	if (size <= 2 * 1024 * 1024)
+		ac[1] = 2;
+	else if (size <= 4 * 1024 * 1024)
+		ac[1] = 4;
+	else
+		ac[1] = 8;
+}
+static const struct expansionboardsettings nexus_settings[] = {
 	{
-		_T("2M Fast (Product ID 2)"), _T("fast2m"),
-		2102, 2, 0,
-		{ 0xd1, 0x01, 0x00, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
-	},
-	{
-		_T("4M Fast (Product ID 4)"), _T("fast4m"),
-		2102, 4, 0,
-		{ 0xd1, 0x01, 0x00, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
-	},
-	{
-		_T("8M Fast (Product ID 8)"), _T("fast8m"),
-		2102, 8, 0,
-		{ 0xd1, 0x01, 0x00, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
+		_T("MEM TEST"),
+		_T("memtest")
 	},
 	{
 		NULL
@@ -2302,7 +2324,7 @@ const struct expansionromtype expansionroms[] = {
 		ncr710_a4091_autoconfig_init, a4091_add_scsi_unit, ROMTYPE_A4091, 0, 0, 3, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
-		0, 0, 0,
+		0, 0, 0, NULL,
 		true
 	},
 	{
@@ -2381,7 +2403,7 @@ const struct expansionromtype expansionroms[] = {
 		adscsi_init, adscsi_add_scsi_unit, ROMTYPE_ADSCSI, 0, 0, 2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
-		0, 0, 0,
+		0, 0, 0, NULL,
 		true,
 		adscsi2000_settings
 	},
@@ -2403,7 +2425,7 @@ const struct expansionromtype expansionroms[] = {
 		stardrive_init, stardrive_add_scsi_unit, ROMTYPE_STARDRIVE | ROMTYPE_NONE, 0, 0, 2, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
-		1010, 0, 0,
+		1010, 0, 0, NULL,
 		false, NULL,
 		{ 0xc1, 2, 0x00, 0x00, 0x03, 0xf2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
 
@@ -2435,21 +2457,21 @@ const struct expansionromtype expansionroms[] = {
 		2144, 2, 0
 	},
 	{
-		_T("a1000scsi"), _T("A1000/A2000 SCSI"), _T("C-Ltd"),
+		_T("cltda1000scsi"), _T("A1000/A2000 SCSI"), _T("C-Ltd"),
 		cltda1000scsi_init, cltda1000scsi_add_scsi_unit, ROMTYPE_CLTDSCSI | ROMTYPE_NONE, 0, 0, 2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
-		0, 0, 0,
+		0, 0, 0, NULL,
 		false, NULL,
 		{ 0xc1, 0x0c, 0x00, 0x00, 0x03, 0xec, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
 	},
 	{
 		_T("ptnexus"), _T("Nexus"), _T("Preferred Technologies"),
 		ptnexus_init, ptnexus_add_scsi_unit, ROMTYPE_PTNEXUS | ROMTYPE_NONE, 0, 0, 2, false,
-		nexus_sub, 0,
+		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
-		2102, 4, 0,
-		false, NULL,
+		2102, 4, 0, nexus_memory_callback,
+		false, nexus_settings,
 		{ 0xd1, 0x01, 0x00, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
 	},
 	{
