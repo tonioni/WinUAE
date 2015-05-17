@@ -7351,7 +7351,8 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Black Belt Systems HAM-E Plus"));
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Newtronic Video DAC 18"));
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Archos AVideo 12"));
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Archos AVideo 24"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Archos AVideo 24"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Impulse FireCracker 24"));
 		//SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("DCTV"));
 
 #ifndef	AGA
@@ -16485,9 +16486,9 @@ static void enable_for_avioutputdlg (HWND hDlg)
 
 	if (!avioutput_framelimiter)
 		avioutput_nosoundoutput = 1;
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT, avioutput_nosoundoutput ? TRUE : FALSE);
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDSYNC, avioutput_nosoundsync ? TRUE : FALSE);
+	CheckDlgButton(hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
+	CheckDlgButton(hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT, avioutput_nosoundoutput ? TRUE : FALSE);
+	CheckDlgButton(hDlg, IDC_AVIOUTPUT_NOSOUNDSYNC, avioutput_nosoundsync ? TRUE : FALSE);
 
 	ew (hDlg, IDC_AVIOUTPUT_ACTIVATED, (!avioutput_audio && !avioutput_video) ? FALSE : TRUE);
 
@@ -16680,7 +16681,7 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				ofn.Flags = OFN_EXTENSIONDIFFERENT | OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
 				ofn.lpstrCustomFilter = NULL;
 				ofn.nMaxCustFilter = 0;
-				ofn.nFilterIndex = 0;
+				ofn.nFilterIndex = avioutput_audio == AVIAUDIO_WAV ? 2 : 0;
 				ofn.lpstrFile = avioutput_filename_gui;
 				ofn.nMaxFile = MAX_DPATH;
 				ofn.lpstrFileTitle = NULL;
@@ -16699,7 +16700,14 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 					if (_tcslen (avioutput_filename_gui) > 4 && !_tcsicmp (avioutput_filename_gui + _tcslen (avioutput_filename_gui) - 4, _T(".avi")))
 						_tcscpy (avioutput_filename_gui + _tcslen (avioutput_filename_gui) - 4, _T(".wav"));
 					_tcscpy (avioutput_filename_auto, avioutput_filename_gui);
+				} else if (avioutput_audio == AVIAUDIO_WAV) {
+					avioutput_audio = 0;
+					avioutput_video = 0;
+					if (_tcslen(avioutput_filename_gui) > 4 && !_tcsicmp(avioutput_filename_gui + _tcslen(avioutput_filename_gui) - 4, _T(".wav")))
+						_tcscpy(avioutput_filename_gui + _tcslen(avioutput_filename_gui) - 4, _T(".avi"));
+					_tcscpy(avioutput_filename_auto, avioutput_filename_gui);
 				}
+				AVIOutput_SetSettings();
 				break;
 			}
 		}
@@ -17936,11 +17944,14 @@ static void blah(void)
 static int GetSettings (int all_options, HWND hwnd)
 {
 	static int init_called = 0;
+	static int start_gui_width = -1;
+	static int start_gui_height = -1;
 	int psresult;
 	HWND dhwnd;
 	int first = 0;
 	static struct newresource *panelresource;
 	struct newresource *tres;
+	bool closed = false;
 
 	gui_active++;
 	timeend();
@@ -18035,19 +18046,29 @@ static int GetSettings (int all_options, HWND hwnd)
 
 		dialogreturn = -1;
 		hAccelTable = NULL;
-		if (hwnd != NULL)
-			DragAcceptFiles (hwnd, TRUE);
 		if (first)
 			write_log (_T("Entering GUI idle loop\n"));
 
 		if (gui_fullscreen) {
+			gui_width = GetSystemMetrics(SM_CXSCREEN);
+			gui_height = GetSystemMetrics(SM_CYSCREEN);
 			if (isfullscreen() > 0) {
 				struct MultiDisplay *md = getdisplay (&currprefs);
-				gui_width = md->rect.right - md->rect.left;
-				gui_height = md->rect.bottom - md->rect.top;
-			} else {
-				gui_width = GetSystemMetrics (SM_CXSCREEN);
-				gui_height = GetSystemMetrics (SM_CYSCREEN);
+				int w = md->rect.right - md->rect.left;
+				int h = md->rect.bottom - md->rect.top;
+				write_log(_T("GUI Fullscreen, screen size %dx%d (%dx%d)\n"), w, h, start_gui_width, start_gui_height);
+				if (w < (start_gui_width / 10 * 9) || h < (start_gui_height / 10 * 9)) {
+					gui_width = start_gui_width;
+					gui_height = start_gui_height;
+					write_log(_T("GUI Fullscreen %dx%d, closing fullscreen.\n"), gui_width, gui_height);
+					hwnd = currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL;
+					closed = true;
+					close_windows();
+				} else {
+					gui_width = w;
+					gui_height = h;
+					write_log(_T("GUI Fullscreen %dx%d\n"), gui_width, gui_height);
+				}
 			}
 			scaleresource_setmult (hwnd, gui_width, gui_height, 1);
 			int gw = gui_width;
@@ -18062,6 +18083,10 @@ static int GetSettings (int all_options, HWND hwnd)
 			else
 				scaleresource_setmult (hwnd, gui_width, gui_height, 0);
 		}
+
+		if (hwnd != NULL)
+			DragAcceptFiles(hwnd, TRUE);
+
 		fmultx = 0;
 		write_log (_T("Requested GUI size = %dx%d (%dx%d)\n"), gui_width, gui_height, workprefs.gfx_size.width, workprefs.gfx_size.height);
 		if (dodialogmousemove () && isfullscreen() > 0) {
@@ -18093,6 +18118,11 @@ static int GetSettings (int all_options, HWND hwnd)
 				fmultx = fmulty = 0;
 				gui_size_changed = 10;
 				goto gui_exit;
+			}
+
+			if (start_gui_width < 0) {
+				start_gui_width = w;
+				start_gui_height = h;
 			}
 
 			setguititle (dhwnd);
@@ -18194,6 +18224,10 @@ gui_exit:
 		psresult = -2;
 	else if (qs_request_reset && quickstart)
 		uae_reset (qs_request_reset == 2 ? 1 : 0, 1);
+
+	if (closed) {
+		graphics_init(false);
+	}
 
 	qs_request_reset = 0;
 	full_property_sheet = 0;

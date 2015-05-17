@@ -530,8 +530,8 @@ static void REGPARAM2 toccata_wput(uaecptr addr, uae_u32 b)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	toccata_bput(addr, b >> 8);
-	toccata_bput(addr, b >> 0);
+	toccata_bput(addr + 0, b >> 8);
+	toccata_bput(addr + 1, b >> 0);
 }
 
 static void REGPARAM2 toccata_lput(uaecptr addr, uae_u32 b)

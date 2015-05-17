@@ -1161,6 +1161,7 @@ static void add_media_insert_queue(HWND hwnd, const TCHAR *drvname, int retrycnt
 }
 
 #if TOUCH_SUPPORT
+#define TOUCH_DEBUG 0
 static int touch_touched;
 static DWORD touch_time;
 
@@ -1174,21 +1175,46 @@ static void processtouch(HWND hwnd, WPARAM wParam, LPARAM lParam)
 		if (pGetTouchInputInfo((HTOUCHINPUT)lParam, cInputs, pInputs, sizeof(TOUCHINPUT))) {
 			for (int i = 0; i < cInputs; i++) {
 				PTOUCHINPUT ti = &pInputs[i];
-				//write_log(_T("ID=%08x FLAGS=%08x MASK=%08x X=%d Y=%d \n"), ti->dwID, ti->dwFlags, ti->dwMask, ti->x / 100, ti->y / 100);
+				int x = ti->x / 100;
+				int y = ti->y / 100;
+#if TOUCH_DEBUG
+				write_log(_T("ID=%08x FLAGS=%08x MASK=%08x X=%d Y=%d \n"), ti->dwID, ti->dwFlags, ti->dwMask, x, y);
+#endif
 				if (ti->dwFlags & TOUCHEVENTF_PRIMARY) {
-					int x = ti->x / 100;
-					int y = ti->y / 100;
-					if (x > 20 || y > 20) {
+					RECT r;
+					if (isfullscreen()) {
+						r.left = amigawin_rect.left;
+						r.top = amigawin_rect.top;
+						r.right = amigawin_rect.right;
+						r.bottom = amigawin_rect.top + 30;
+					} else {
+						r.left = mainwin_rect.left;
+						r.top = mainwin_rect.top;
+						r.right = mainwin_rect.right;
+						r.bottom = amigawin_rect.top + GetSystemMetrics(SM_CYMENU) + 2;
+					}
+					if (x < r.left || x >= r.right || y < r.top || y >= r.bottom) {
 						touch_touched = 0;
 					} else {
-						if (ti->dwFlags & TOUCHEVENTF_DOWN) {
-							touch_touched = 1;
-							touch_time = ti->dwTime;
-						}
-						if (ti->dwFlags & TOUCHEVENTF_UP) {
-							if (touch_touched && ti->dwTime >= touch_time + 3 * 1000) {
-								inputdevice_add_inputcode(AKS_ENTERGUI, 1);
+						if (ti->dwFlags & (TOUCHEVENTF_DOWN | TOUCHEVENTF_MOVE)) {
+							if (!touch_touched && (ti->dwFlags & TOUCHEVENTF_DOWN)) {
+								touch_touched = 1;
+								touch_time = ti->dwTime;
+#if TOUCH_DEBUG
+								write_log(_T("TOUCHED %d\n"), touch_time);
+#endif
 							}
+							if (touch_touched && ti->dwTime >= touch_time + 2 * 1000) {
+#if TOUCH_DEBUG
+								write_log(_T("TOUCHED GUI\n"), touch_time);
+#endif
+								inputdevice_add_inputcode(AKS_ENTERGUI, 1);
+								touch_touched = 0;
+							}
+						} else if (ti->dwFlags & TOUCHEVENTF_UP) {
+#if TOUCH_DEBUG
+							write_log(_T("RELEASED\n"));
+#endif
 							touch_touched = 0;
 						}
 					}

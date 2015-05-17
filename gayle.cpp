@@ -3,7 +3,7 @@
 *
 * Gayle (and motherboard resources) memory bank
 *
-* (c) 2006 - 2013 Toni Wilen
+* (c) 2006 - 2015 Toni Wilen
 */
 
 #define GAYLE_LOG 0

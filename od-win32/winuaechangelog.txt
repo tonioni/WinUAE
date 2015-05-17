@@ -1,4 +1,20 @@
 
+Beta 19:
+
+- Switching from non-lace to/from lace didn't always select correct long/short/interlace frame timing.
+- SCSI CD READ TOC and READ SUB-CHANNEL returned failure instead of truncating result if command's
+  allocation length was smaller than returned data structure.
+- If cycle-exact and sound is Disabled: Force Disabled, but emulated.
+- Added Preferred Technologices Nexus MEM TEST -jumper, clears autoconfig add to memlist bit.
+- Removed Nexus 2M/4M/8M config options, dynamic RAM board autoconfig data modifications are now supported.
+- Added Impulse FireCracker 24 display adapter emulation, single display mode only.
+  (Display scaling and positioning incomplete and not all control register bits are known)
+- Pixel perfect genlock transparency data is now available if configured display adapter needs it.
+  (HAM-E and FireCracker 24) HAM-E end of display is now correctly detected.
+- AVIOutput wave/avi mode and file name is stored in registry/ini.
+- AVI recording A/V sync getting larger and larger fixed. Should be perfect now in all configurations.
+- Tablet touch GUI open function really works now.
+
 Beta 18: (Official in 2-3 weeks)
 
 - Archos AVideo 24 emulation. Animation/doublebuffering feature not yet emulated.

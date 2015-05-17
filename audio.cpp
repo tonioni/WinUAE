@@ -1902,8 +1902,9 @@ void update_audio (void)
 			/* Test if new sample needs to be outputted */
 			if (rounded == best_evtime) {
 				/* Before the following addition, next_sample_evtime is in range [-0.5, 0.5) */
-				next_sample_evtime += scaled_sample_evtime - extrasamples * 15;
+				next_sample_evtime += scaled_sample_evtime;
 #if SOUNDSTUFF > 1
+				next_sample_evtime -= extrasamples * 15;
 				doublesample = 0;
 				if (--samplecounter <= 0) {
 					samplecounter = currprefs.sound_freq / 1000;

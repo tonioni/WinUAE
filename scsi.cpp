@@ -3,7 +3,7 @@
 *
 * SCSI emulation (not uaescsi.device)
 *
-* Copyright 2007 Toni Wilen
+* Copyright 2007-2015 Toni Wilen
 *
 */
 

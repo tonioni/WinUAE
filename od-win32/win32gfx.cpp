@@ -2072,11 +2072,11 @@ int check_prefs_changed_gfx (void)
 		}
 	}
 	if (changed) {
-		init_hz_full ();
+		init_hz_normal();
 	}
 	if (currprefs.chipset_refreshrate != changed_prefs.chipset_refreshrate) {
 		currprefs.chipset_refreshrate = changed_prefs.chipset_refreshrate;
-		init_hz_full ();
+		init_hz_normal();
 		return 1;
 	}
 
@@ -4064,10 +4064,11 @@ static int create_windows_2 (void)
 	}
 	if (hMainWnd == NULL) {
 		hMainWnd = hAmigaWnd;
+		registertouch(hAmigaWnd);
+	} else {
+		registertouch(hMainWnd);
+		registertouch(hAmigaWnd);
 	}
-
-	registertouch(hAmigaWnd);
-	registertouch(hMainWnd);
 
 	updatewinrect (true);
 	GetWindowRect (hMainWnd, &mainwin_rect);
