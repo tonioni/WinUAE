@@ -160,6 +160,10 @@ static int num_sound_devices, num_record_devices;
 static struct sound_data sdpaula;
 static struct sound_data *sdp = &sdpaula;
 
+static uae_u8 *extrasndbuf;
+static int extrasndbufsize;
+static int extrasndbuffered;
+
 int setup_sound (void)
 {
 	sound_available = 1;
@@ -1610,6 +1614,10 @@ void close_sound (void)
 		return;
 	close_sound_device (sdp);
 	have_sound = 0;
+	extrasndbufsize = 0;
+	extrasndbuffered = 0;
+	xfree(extrasndbuf);
+	extrasndbuf = NULL;
 }
 
 void pause_sound (void)
@@ -2245,26 +2253,39 @@ void send_sound (struct sound_data *sd, uae_u16 *sndbuffer)
 void finish_sound_buffer (void)
 {
 	static unsigned long tframe;
+	int bufsize = (uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer;
+
+	paula_sndbufpt = paula_sndbuffer;
 
 	if (currprefs.turbo_emulation)
 		return;
 	if (currprefs.sound_stereo_swap_paula) {
 		if (get_audio_nativechannels (currprefs.sound_stereo) == 2 || get_audio_nativechannels (currprefs.sound_stereo) == 4)
-			channelswap ((uae_s16*)paula_sndbuffer, sdp->sndbufsize / 2);
+			channelswap((uae_s16*)paula_sndbuffer, bufsize / 2);
 		else if (get_audio_nativechannels (currprefs.sound_stereo) == 6)
-			channelswap6 ((uae_s16*)paula_sndbuffer, sdp->sndbufsize / 2);
+			channelswap6((uae_s16*)paula_sndbuffer, bufsize / 2);
 	}
 #ifdef DRIVESOUND
-	driveclick_mix ((uae_s16*)paula_sndbuffer, sdp->sndbufsize / 2, currprefs.dfxclickchannelmask);
+	driveclick_mix((uae_s16*)paula_sndbuffer, bufsize / 2, currprefs.dfxclickchannelmask);
 #endif
 #ifdef AVIOUTPUT
-	if (avioutput_enabled && avioutput_audio)
-		AVIOutput_WriteAudio ((uae_u8*)paula_sndbuffer, sdp->sndbufsize);
+	if (avioutput_enabled && avioutput_audio) {
+		AVIOutput_WriteAudio((uae_u8*)paula_sndbuffer, bufsize);
+		if (avioutput_nosoundsync)
+			sound_setadjust(0);
+	}
 	if (avioutput_enabled && (!avioutput_framelimiter || avioutput_nosoundoutput))
 		return;
 #endif
 	if (!have_sound)
 		return;
+
+	// we got buffer that was not full (recording active). Need special handling.
+	if (bufsize < sdp->sndbufsize && !extrasndbuf) {
+		extrasndbufsize = sdp->sndbufsize;
+		extrasndbuf = xcalloc(uae_u8, sdp->sndbufsize);
+		extrasndbuffered = 0;
+	}
 
 	if (statuscnt > 0 && tframe != timeframes) {
 		tframe = timeframes;
@@ -2274,7 +2295,21 @@ void finish_sound_buffer (void)
 	}
 	if (gui_data.sndbuf_status == 3)
 		gui_data.sndbuf_status = 0;
-	send_sound (sdp, paula_sndbuffer);
+
+	if (extrasndbuf) {
+		int size = extrasndbuffered + bufsize;
+		int copied = 0;
+		if (size > extrasndbufsize) {
+			copied = extrasndbufsize - extrasndbuffered;
+			memcpy(extrasndbuf + extrasndbuffered, paula_sndbuffer, copied);
+			send_sound(sdp, (uae_u16*)extrasndbuf);
+			extrasndbuffered = 0;
+		}
+		memcpy(extrasndbuf + extrasndbuffered, (uae_u8*)paula_sndbuffer + copied, bufsize - copied);
+		extrasndbuffered += bufsize - copied;
+	} else {
+		send_sound(sdp, paula_sndbuffer);
+	}
 }
 
 static BOOL CALLBACK DSEnumProc (LPGUID lpGUID, LPCTSTR lpszDesc, LPCTSTR lpszDrvName, LPVOID lpContext)
