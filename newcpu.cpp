@@ -2987,7 +2987,7 @@ uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
 	if ((opcode & 0xF000) == 0xA000 && inrt) {
 		/* Calltrap. */
 		m68k_incpc_normal (2);
-		m68k_handle_trap (opcode & 0xFFF);
+		m68k_handle_trap(opcode & 0xFFF);
 		fill_prefetch ();
 		return 4;
 	}
@@ -3781,10 +3781,11 @@ This version emulates 68000's prefetch "cache" */
 static void m68k_run_1 (void)
 {
 	struct regstruct *r = &regs;
+	bool exit = false;
 
-	for (;;) {
+	while (!exit) {
 		TRY (prb) {
-			for (;;) {
+			while (!exit) {
 				r->opcode = r->ir;
 
 				count_instr (r->opcode);
@@ -3808,17 +3809,20 @@ static void m68k_run_1 (void)
 				cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode);
 				cpu_cycles = adjust_cycles (cpu_cycles);
 				if (r->spcflags) {
-					if (do_specialties (cpu_cycles)) {
-						regs.ipl = regs.ipl_pin;
-						return;
-					}
+					if (do_specialties (cpu_cycles))
+						exit = true;
 				}
 				regs.ipl = regs.ipl_pin;
 				if (!currprefs.cpu_compatible || (currprefs.cpu_cycle_exact && currprefs.cpu_model <= 68000))
-					return;
+					exit = true;
 			}
 		} CATCH (prb) {
 			bus_error();
+			if (r->spcflags) {
+				if (do_specialties(cpu_cycles))
+					exit = true;
+			}
+			regs.ipl = regs.ipl_pin;
 		} ENDTRY
 	}
 }
@@ -3839,8 +3843,9 @@ static void m68k_run_1_ce (void)
 {
 	struct regstruct *r = &regs;
 	bool first = true;
+	bool exit = false;
 
-	for(;;) {
+	while (!exit) {
 		TRY (prb) {
 			if (first) {
 				if (cpu_tracer < 0) {
@@ -3873,7 +3878,7 @@ static void m68k_run_1_ce (void)
 				first = false;
 			}
 
-			for (;;) {
+			while (!exit) {
 				r->opcode = r->ir;
 
 #if DEBUG_CD32CDTVIO
@@ -3919,14 +3924,18 @@ cont:
 
 				if (r->spcflags || time_for_interrupt ()) {
 					if (do_specialties (0))
-						return;
+						exit = true;
 				}
 
 				if (!currprefs.cpu_cycle_exact || currprefs.cpu_model > 68000)
-					return;
+					exit = true;
 			}
 		} CATCH (prb) {
 			bus_error();
+			if (r->spcflags || time_for_interrupt()) {
+				if (do_specialties(0))
+					exit = true;
+			}
 		} ENDTRY
 	}
 }
@@ -4110,7 +4119,7 @@ void cpu_halt (int id)
 	// id < 0: m68k halted, PPC active.
 	// id > 0: emulation halted.
 	if (!regs.halted) {
-		write_log (_T("CPU halted: reason = %d\n"), id);
+		write_log (_T("CPU halted: reason = %d PC=%08x\n"), id, M68K_GETPC);
 		regs.halted = id;
 		gui_data.cpu_halted = id;
 		gui_led(LED_CPU, 0);
@@ -4334,9 +4343,9 @@ static void m68k_run_3ce (void)
 	struct regstruct *r = &regs;
 	bool exit = false;
 
-	for(;;) {
+	while (!exit) {
 		TRY(prb) {
-			for (;;) {
+			while (!exit) {
 				r->instruction_pc = m68k_getpc();
 				r->opcode = get_iword_cache_040(0);
 				// "prefetch"
@@ -4349,12 +4358,13 @@ static void m68k_run_3ce (void)
 					if (do_specialties (0))
 						exit = true;
 				}
-
-				if (exit)
-					return;
 			}
 		} CATCH(prb) {
 			bus_error();
+			if (r->spcflags) {
+				if (do_specialties(0))
+					exit = true;
+			}
 		} ENDTRY
 	}
 }
@@ -4367,9 +4377,9 @@ static void m68k_run_3p(void)
 	bool exit = false;
 	int cycles;
 
-	for(;;)  {
+	while (!exit)  {
 		TRY(prb) {
-			for (;;) {
+			while (!exit) {
 				r->instruction_pc = m68k_getpc();
 				r->opcode = get_iword_cache_040(0);
 				// "prefetch"
@@ -4387,11 +4397,13 @@ static void m68k_run_3p(void)
 						exit = true;
 				}
 
-				if (exit)
-					return;
 			}
 		} CATCH(prb) {
 			bus_error();
+			if (r->spcflags) {
+				if (do_specialties(0))
+					exit = true;
+			}
 		} ENDTRY
 	}
 }
@@ -4404,7 +4416,7 @@ static void m68k_run_2ce (void)
 	bool exit = false;
 	bool first = true;
 
-	for(;;) {
+	while (!exit) {
 		TRY(prb) {
 			if (first) {
 				if (cpu_tracer < 0) {
@@ -4443,7 +4455,7 @@ static void m68k_run_2ce (void)
 				first = false;
 			}
 
-			for (;;) {
+			while (!exit) {
 				static int prevopcode;
 				r->instruction_pc = m68k_getpc ();
 
@@ -4514,11 +4526,14 @@ static void m68k_run_2ce (void)
 
 				regs.ipl = regs.ipl_pin;
 
-				if (exit)
-					return;
 			}
 		} CATCH(prb) {
 			bus_error();
+			if (r->spcflags || time_for_interrupt()) {
+				if (do_specialties(0))
+					exit = true;
+			}
+			regs.ipl = regs.ipl_pin;
 		} ENDTRY
 	}
 }
@@ -4529,15 +4544,16 @@ static void m68k_run_2ce (void)
 static void m68k_run_2p (void)
 {
 	struct regstruct *r = &regs;
+	bool exit = false;
 
-	for(;;) {
+	while (!exit) {
 		TRY(prb) {
-			for (;;) {
+			while (!exit) {
 				r->instruction_pc = m68k_getpc ();
 
-		#if DEBUG_CD32CDTVIO
+#if DEBUG_CD32CDTVIO
 				out_cd32io (m68k_getpc ());
-		#endif
+#endif
 
 				x_do_cycles (cpu_cycles);
 
@@ -4547,15 +4563,18 @@ static void m68k_run_2p (void)
 				cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode);
 				cpu_cycles = adjust_cycles (cpu_cycles);
 				if (r->spcflags) {
-					if (do_specialties (cpu_cycles)) {
-						ipl_fetch ();
-						return;
-					}
+					if (do_specialties (cpu_cycles))
+						exit = true;;
 				}
 				ipl_fetch ();
 			}
 		} CATCH(prb) {
 			bus_error();
+			if (r->spcflags) {
+				if (do_specialties(cpu_cycles))
+					exit = true;
+			}
+			ipl_fetch();
 		} ENDTRY
 	}
 }
@@ -4569,10 +4588,11 @@ static void m68k_run_2 (void)
 {
 //	static int done;
 	struct regstruct *r = &regs;
+	bool exit = false;
 
-	for(;;) {
+	while (!exit) {
 		TRY(prb) {
-			for (;;) {
+			while (!exit) {
 				r->instruction_pc = m68k_getpc ();
 
 				r->opcode = x_get_iword(0);
@@ -4584,13 +4604,16 @@ static void m68k_run_2 (void)
 				cpu_cycles = adjust_cycles (cpu_cycles);
 
 				if (r->spcflags) {
-					if (do_specialties (cpu_cycles)) {
-						return;
-					}
+					if (do_specialties (cpu_cycles))
+						exit = true;
 				}
 			}
 		} CATCH(prb) {
 			bus_error();
+			if (r->spcflags) {
+				if (do_specialties(cpu_cycles))
+					exit = true;
+			}
 		} ENDTRY
 	}
 }
