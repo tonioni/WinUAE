@@ -10,6 +10,7 @@
 #include "drawing.h"
 #include "memory.h"
 #include "specialmonitors.h"
+#include "debug.h"
 
 static bool automatic;
 static int monitor;
@@ -281,12 +282,22 @@ static uae_u8 fc24_mode, fc24_cr0, fc24_cr1;
 static uae_u16 fc24_hpos, fc24_vpos, fc24_width;
 static int fc24_offset;
 
+STATIC_INLINE uae_u8 MAKEFCOVERLAY(uae_u8 v)
+{
+	v &= 3;
+	v |= v << 2;
+	v |= v << 4;
+	v |= v << 6;
+	return v;
+}
+
 static bool firecracker24(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
 {
 	int y, x, vdbl, hdbl;
 	int fc24_y, fc24_x, fc24_dx, fc24_xadd, fc24_xmult, fc24_xoffset;
 	int ystart, yend, isntsc;
 	int xadd, xaddfc;
+	int bufferoffset;
 
 	// FC disabled and Amiga enabled?
 	if (!(fc24_cr1 & 1) && !(fc24_cr0 & 1))
@@ -335,6 +346,8 @@ static bool firecracker24(struct vidbuffer *src, struct vidbuffer *dst, bool dou
 	fc24_xoffset = ((src->inwidth - ((fc24_width << fc24_dx) >> fc24_xadd)) / 2);
 	fc24_xadd = 1 << fc24_xadd;
 
+	bufferoffset = (fc24_cr0 & 2) ? 512 * SM_VRAM_BYTES: 0;
+
 	fc24_y = 0;
 	for (y = ystart; y < yend; y++) {
 		int oddeven = 0;
@@ -347,7 +360,7 @@ static bool firecracker24(struct vidbuffer *src, struct vidbuffer *dst, bool dou
 		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
 		uae_u8 *line_genlock = row_map_genlock[yoff];
 		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
-		uae_u8 *vramline = sm_frame_buffer + (fc24_y + oddlines) * SM_VRAM_WIDTH * SM_VRAM_BYTES;
+		uae_u8 *vramline = sm_frame_buffer + (fc24_y + oddlines) * SM_VRAM_WIDTH * SM_VRAM_BYTES + bufferoffset;
 		fc24_x = 0;
 		for (x = 0; x < src->inwidth; x++) {
 			uae_u8 r = 0, g = 0, b = 0;
@@ -355,11 +368,14 @@ static bool firecracker24(struct vidbuffer *src, struct vidbuffer *dst, bool dou
 			uae_u8 *s_genlock = line_genlock + ((x << 1) / hdbl);
 			uae_u8 *d = dstline + ((x << 1) / hdbl) * dst->pixbytes;
 			int fc24_xx = (fc24_x >> fc24_dx) - fc24_xoffset;
+			uae_u8 *vramptr = NULL;
 			if (fc24_xx >= 0 && fc24_xx < fc24_width && fc24_y >= 0 && fc24_y < FC24_MAXHEIGHT) {
-				uae_u8 *vramptr = vramline + fc24_xx * SM_VRAM_BYTES;
+				vramptr = vramline + fc24_xx * SM_VRAM_BYTES;
 				uae_u8 ax = vramptr[0];
-				if (ax) {
-					r = g = b = (ax << 1) | (ax & 1);
+				if (ax & 0x40) {
+					r = MAKEFCOVERLAY(ax >> 4);
+					g = MAKEFCOVERLAY(ax >> 2);
+					b = MAKEFCOVERLAY(ax >> 0);
 				} else {
 					r = vramptr[1];
 					g = vramptr[2];
@@ -372,6 +388,22 @@ static bool firecracker24(struct vidbuffer *src, struct vidbuffer *dst, bool dou
 				PUT_AMIGARGB(d, s, d2, s2, dst, xadd, doublelines, false);
 			} else {
 				PUT_PRGB(d, NULL, dst, r, g, b, 0, false, false);
+				if (doublelines) {
+					if (vramptr) {
+						vramptr += SM_VRAM_WIDTH * SM_VRAM_BYTES;
+						uae_u8 ax = vramptr[0];
+						if (ax & 0x40) {
+							r = MAKEFCOVERLAY(ax >> 4);
+							g = MAKEFCOVERLAY(ax >> 2);
+							b = MAKEFCOVERLAY(ax >> 0);
+						} else {
+							r = vramptr[1];
+							g = vramptr[2];
+							b = vramptr[3];
+						}
+					}
+					PUT_PRGB(d + dst->rowbytes, NULL, dst, r, g, b, 0, false, false);
+				}
 			}
 			fc24_x += fc24_xadd;
 		}
@@ -395,18 +427,18 @@ static void fc24_setoffset(void)
 	sm_alloc_fb();
 }
 
-static void fc24_inc(uaecptr addr)
+static void fc24_inc(uaecptr addr, bool write)
 {
 	addr &= 65535;
-	if (addr < 4)
-		return;
-	fc24_hpos++;
-	if (fc24_hpos >= 1023) {
-		fc24_hpos = 0;
-		fc24_vpos++;
-		fc24_vpos &= 511;
+	if (addr >= 6) {
+		fc24_hpos++;
+		if (fc24_hpos >= 1024) {
+			fc24_hpos = 0;
+			fc24_vpos++;
+			fc24_vpos &= 511;
+		}
+		fc24_setoffset();
 	}
-	fc24_setoffset();
 }
 
 static void fc24_setmode(void)
@@ -468,6 +500,7 @@ static void firecracker24_write_byte(uaecptr addr, uae_u8 v)
 		fc24_vpos &= 0xff00;
 		fc24_vpos |= v;
 		fc24_setoffset();
+		//write_log(_T("V=%d "), fc24_vpos);
 		break;
 		case 14:
 		fc24_hpos &= 0x00ff;
@@ -478,6 +511,7 @@ static void firecracker24_write_byte(uaecptr addr, uae_u8 v)
 		fc24_hpos &= 0xff00;
 		fc24_hpos |= v;
 		fc24_setoffset();
+		//write_log(_T("H=%d "), fc24_hpos);
 		break;
 	}
 }
@@ -518,48 +552,37 @@ static uae_u8 firecracker24_read_byte(uaecptr addr)
 static void firecracker24_write(uaecptr addr, uae_u32 v, int size)
 {
 	int offset = addr & 3;
-	if (offset == 0 && size == 4) {
-		sm_frame_buffer[fc24_offset + 0] = v >> 24;
-		sm_frame_buffer[fc24_offset + 1] = v >> 16;
-		sm_frame_buffer[fc24_offset + 2] = v >> 8;
-		sm_frame_buffer[fc24_offset + 3] = v >> 0;
-	} else if ((offset == 0 || offset == 2) && size == 2) {
-		sm_frame_buffer[fc24_offset + offset + 0] = v >> 8;
-		sm_frame_buffer[fc24_offset + offset + 1] = v >> 0;
-	} else {
-		int shift = 8 * (size - 1);
-		while (size > 0 && addr < 10) {
-			sm_frame_buffer[fc24_offset + offset + 0] = v >> shift;
-			offset++;
-			size--;
-			shift -= 8;
-			addr++;
+	uaecptr oaddr = addr;
+	int shift = 8 * (size - 1);
+	while (size > 0 && addr < 10) {
+		int off = fc24_offset + offset;
+		if ((offset & 3) == 0) {
+			if (!(fc24_cr1 & 0x80))
+				sm_frame_buffer[off] = v >> shift;
+		} else {
+			sm_frame_buffer[off] = v >> shift;
 		}
+		offset++;
+		size--;
+		shift -= 8;
+		addr++;
 	}
-	fc24_inc(addr);
+	fc24_inc(oaddr, true);
 }
 
 static uae_u32 firecracker24_read(uaecptr addr, int size)
 {
 	uae_u32 v = 0;
+	uaecptr oaddr = addr;
 	int offset = addr & 3;
-	if (offset == 0 && size == 4) {
-		v  = sm_frame_buffer[fc24_offset + 0] << 24;
-		v |= sm_frame_buffer[fc24_offset + 1] << 16;
-		v |= sm_frame_buffer[fc24_offset + 2] << 8;
-		v |= sm_frame_buffer[fc24_offset + 3] << 0;
-	} else if ((offset == 0 || offset == 2) && size == 2) {
-		v  = sm_frame_buffer[fc24_offset + offset + 0] << 8;
-		v |= sm_frame_buffer[fc24_offset + offset + 1] << 0;
-	}
 	while (size > 0 && addr < 10) {
 		v <<= 8;
-		v = sm_frame_buffer[fc24_offset + offset + 0];
+		v |= sm_frame_buffer[fc24_offset + offset];
 		offset++;
 		size--;
 		addr++;
 	}
-	fc24_inc(addr);
+	fc24_inc(oaddr, false);
 	return v;
 }
 
@@ -607,6 +630,7 @@ static void REGPARAM2 sm_wput(uaecptr addr, uae_u32 b)
 		firecracker24_write_byte(addr + 1, b >> 0);
 	}
 }
+
 static void REGPARAM2 sm_lput(uaecptr addr, uae_u32 b)
 {
 #ifdef JIT
@@ -614,7 +638,8 @@ static void REGPARAM2 sm_lput(uaecptr addr, uae_u32 b)
 #endif
 	addr &= 65535;
 	if (addr < 10) {
-		firecracker24_write(addr, b, 4);
+		firecracker24_write(addr + 0, b >> 16, 2);
+		firecracker24_write(addr + 2, b >>  0, 2);
 	} else {
 		firecracker24_write_byte(addr + 0, b >> 24);
 		firecracker24_write_byte(addr + 1, b >> 16);
@@ -666,7 +691,8 @@ static uae_u32 REGPARAM2 sm_lget(uaecptr addr)
 #endif
 	addr &= 65535;
 	if (addr < 10) {
-		v = firecracker24_read(addr, 4);
+		v  = firecracker24_read(addr + 0, 2) << 16;
+		v |= firecracker24_read(addr + 2, 2) <<  0;
 	} else {
 		v = firecracker24_read_byte(addr) << 24;
 		v |= firecracker24_read_byte(addr + 1) << 16;
