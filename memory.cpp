@@ -2156,8 +2156,8 @@ void map_overlay (int chip)
 	if (chip) {
 		map_banks (&dummy_bank, 0, size, 0);
 		if (!isdirectjit ()) {
-			map_banks (cb, 0, size, chipmem_bank.allocated);
 			if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && bogomem_bank.allocated == 0) {
+				map_banks(cb, 0, size, chipmem_bank.allocated);
 				int start = chipmem_bank.allocated >> 16;
 				if (chipmem_bank.allocated < 0x100000) {
 					if (currprefs.cs_1mchipjumper) {
@@ -2169,13 +2169,15 @@ void map_overlay (int chip)
 					int dummy = (0x200000 - chipmem_bank.allocated) >> 16;
 					map_banks (&chipmem_dummy_bank, start, dummy, 0);
 				}
+			} else {
+				map_banks(cb, 0, 32, chipmem_bank.allocated);
 			}
 		} else {
 			map_banks (cb, 0, chipmem_bank.allocated >> 16, 0);
 		}
 	} else {
 		addrbank *rb = NULL;
-		if (size < 32 && bogomem_aliasing != 2)
+		if (size < 32 && bogomem_aliasing == 0)
 			size = 32;
 		cb = get_mem_bank_real(0xf00000);
 		if (!rb && cb && (cb->flags & ABFLAG_ROM) && get_word (0xf00000) == 0x1114)
