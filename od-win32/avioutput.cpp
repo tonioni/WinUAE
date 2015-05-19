@@ -99,6 +99,7 @@ static struct avientry *avientries[AVIENTRY_MAX + 1];
 /* audio */
 
 static int FirstAudio;
+static bool audio_validated;
 static DWORD dwAudioInputRemaining;
 static unsigned int StreamSizeAudio; // audio write position
 static double StreamSizeAudioExpected, StreamSizeAudioGot;
@@ -274,6 +275,7 @@ void AVIOutput_SetSettings (void)
 
 void AVIOutput_ReleaseAudio (void)
 {
+	audio_validated = false;
 }
 
 static void AVIOutput_FreeAudioDstFormat ()
@@ -284,7 +286,7 @@ static void AVIOutput_FreeAudioDstFormat ()
 
 static int AVIOutput_AudioAllocated (void)
 {
-	return pwfxDst ? 1 : 0;
+	return pwfxDst && audio_validated;
 }
 
 static int AVIOutput_AllocateAudio (void)
@@ -364,6 +366,7 @@ static int AVIOutput_ValidateAudio (WAVEFORMATEX *wft, TCHAR *name, int len)
 	ACMFORMATTAGDETAILS aftd;
 	ACMFORMATDETAILS afd;
 
+	audio_validated = false;
 	memset(&aftd, 0, sizeof (ACMFORMATTAGDETAILS));
 	aftd.cbStruct = sizeof (ACMFORMATTAGDETAILS);
 	aftd.dwFormatTag = wft->wFormatTag;
@@ -382,6 +385,7 @@ static int AVIOutput_ValidateAudio (WAVEFORMATEX *wft, TCHAR *name, int len)
 
 	if (name)
 		_stprintf (name, _T("%s %s"), aftd.szFormatTag, afd.szFormat);
+	audio_validated = true;
 	return 1;
 }
 
@@ -408,8 +412,6 @@ static int AVIOutput_GetAudioFromRegistry (WAVEFORMATEX *wft)
 	regclosetree (avikey);
 	return ok;
 }
-
-
 
 static int AVIOutput_GetAudioCodecName (WAVEFORMATEX *wft, TCHAR *name, int len)
 {
