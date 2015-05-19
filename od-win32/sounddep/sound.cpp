@@ -2255,10 +2255,10 @@ void finish_sound_buffer (void)
 	static unsigned long tframe;
 	int bufsize = (uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer;
 
-	paula_sndbufpt = paula_sndbuffer;
-
-	if (currprefs.turbo_emulation)
+	if (currprefs.turbo_emulation) {
+		paula_sndbufpt = paula_sndbuffer;
 		return;
+	}
 	if (currprefs.sound_stereo_swap_paula) {
 		if (get_audio_nativechannels (currprefs.sound_stereo) == 2 || get_audio_nativechannels (currprefs.sound_stereo) == 4)
 			channelswap((uae_s16*)paula_sndbuffer, bufsize / 2);
@@ -2268,6 +2268,8 @@ void finish_sound_buffer (void)
 #ifdef DRIVESOUND
 	driveclick_mix((uae_s16*)paula_sndbuffer, bufsize / 2, currprefs.dfxclickchannelmask);
 #endif
+	// must be after driveclick_mix
+	paula_sndbufpt = paula_sndbuffer;
 #ifdef AVIOUTPUT
 	if (avioutput_enabled && avioutput_audio) {
 		AVIOutput_WriteAudio((uae_u8*)paula_sndbuffer, bufsize);
