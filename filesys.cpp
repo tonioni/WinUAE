@@ -8032,9 +8032,6 @@ void filesys_install_code (void)
 {
 	uae_u32 a, b, items;
 
-	if (uae_boot_rom_type <= 0)
-		return;
-
 	bootrom_header = 3 * 4;
 	align(4);
 	a = here ();
