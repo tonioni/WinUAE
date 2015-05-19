@@ -1,4 +1,13 @@
 
+Beta 20:
+
+- Drive sound noise fixed. (b19)
+- FireCracker 24 6-bit (R2G2B2) overlay fully emulated.
+- Video-only recording is now possible. (Audio codec can be disabled by canceling audio dialog)
+- Chip RAM mirroring disappeared in b3.
+- Do not crash if on the fly switching from non-uae boot rom config to boot rom config.
+- Bus error emulation in non-MMU mode (not really Amiga specific) didn't call do_specialties() correctly.
+
 Beta 19:
 
 - Switching from non-lace to/from lace didn't always select correct long/short/interlace frame timing.
