@@ -96,7 +96,7 @@ extern void expansion_cleanup (void);
 extern void expansion_clear (void);
 extern void expansion_autoconfig_put(int, uae_u8);
 extern uaecptr expansion_startaddress(uaecptr addr, uae_u32 size);
-
+extern bool expansion_is_next_board_fastram(void);
 
 extern void uaegfx_install_code (uaecptr);
 
@@ -122,6 +122,7 @@ struct expansionsubromtype
 	const TCHAR *configname;
 	int memory_mid, memory_pid;
 	uae_u32 memory_serial;
+	bool memory_after;
 	uae_u8 autoconfig[16];
 };
 struct expansionromtype
@@ -142,6 +143,7 @@ struct expansionromtype
 	int deviceflags;
 	int memory_mid, memory_pid;
 	uae_u32 memory_serial;
+	bool memory_after;
 	DEVICE_MEMORY_CALLBACK memory_callback;
 	bool id_jumper;
 	const struct expansionboardsettings *settings;

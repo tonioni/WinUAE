@@ -3443,7 +3443,7 @@ addrbank *a2091_init (struct romconfig *rc)
 	wd->board_mask = 65535;
 	wd->bank = &dmaca2091_bank;
 	memset (wd->dmacmemory, 0xff, sizeof wd->dmacmemory);
-	ew (wd, 0x00, 0xc0 | 0x01 | 0x10);
+	ew(wd, 0x00, 0xc0 | 0x01 | 0x10 | (expansion_is_next_board_fastram() ? 0x08 : 0x00));
 	/* A590/A2091 hardware id */
 	ew(wd, 0x04, wd->cdmac.old_dmac ? 0x02 : 0x03);
 	/* commodore's manufacturer id */
