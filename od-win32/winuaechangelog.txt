@@ -1,4 +1,12 @@
 
+Beta 21: (RC1)
+
+- b17 DSKSYNC update should not have started DMA in WORDSYNC mode.
+- Moved A590/A2091 ram autoconfig board after HD board. A2091 install disk RAM tester expects it.
+  (Some other boards may also have wrong HD/Fast RAM board order)
+- Debugger deep trainer "not modified" condition fixed.
+- AROS ROM updated.
+
 Beta 20:
 
 - Drive sound noise fixed. (b19)
@@ -13,7 +21,7 @@ Beta 19:
 - Switching from non-lace to/from lace didn't always select correct long/short/interlace frame timing.
 - SCSI CD READ TOC and READ SUB-CHANNEL returned failure instead of truncating result if command's
   allocation length was smaller than returned data structure.
-- If cycle-exact and sound is Disabled: Force Disabled, but emulated.
+- If cycle-exact and sound is Disabled: force Disabled, but emulated.
 - Added Preferred Technologices Nexus MEM TEST -jumper, clears autoconfig add to memlist bit.
 - Removed Nexus 2M/4M/8M config options, dynamic RAM board autoconfig data modifications are now supported.
 - Added Impulse FireCracker 24 display adapter emulation, single display mode only.

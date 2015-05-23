@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("20")
+#define WINUAEBETA _T("21")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2015, 5, 19)
+#define WINUAEDATE MAKEBD(2015, 5, 23)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -34,7 +34,7 @@
 #define WINUAEEXTRA _T("")
 #endif
 #ifndef WINUAEREV
-#define WINUAEREV _T("")
+#define WINUAEREV _T("RC1")
 #endif
 
 #define IHF_WINDOWHIDDEN 6
