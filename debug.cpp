@@ -1620,7 +1620,7 @@ static void deepcheatsearch (TCHAR **c)
 					doremove = 1;
 				if (deconly && diff > 0)
 					doremove = 1;
-			} else if (nonmodified && b != b2) {
+			} else if (nonmodified && b == b2) {
 				doremove = 1;
 			} else if (!wasmodified && b != b2) {
 				doremove = 1;
