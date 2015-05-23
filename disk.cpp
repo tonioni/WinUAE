@@ -3427,13 +3427,14 @@ static void disk_doupdate_read_nothing (int floppybits)
 	}
 }
 
-static void wordsync_detected(void)
+static void wordsync_detected(bool startup)
 {
 	dsksync_cycles = get_cycles() + WORDSYNC_TIME * CYCLE_UNIT;
 	if (dskdmaen != DSKDMA_OFF) {
 		if (disk_debug_logging && dma_enable == 0)
 			write_log(_T("Sync match %04x\n"), dsksync);
-		dma_enable = 1;
+		if (!startup)
+			dma_enable = 1;
 		INTREQ(0x8000 | 0x1000);
 	}
 	if (adkcon & 0x400) {
@@ -3517,7 +3518,7 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 			dskbytr_val |= 0x8000;
 		}
 		if (word == dsksync)
-			wordsync_detected();
+			wordsync_detected(false);
 		bitoffset++;
 		bitoffset &= 15;
 		floppybits -= drv->trackspeed;
@@ -3605,7 +3606,7 @@ static void DISK_start (void)
 	}
 	dma_enable = (adkcon & 0x400) ? 0 : 1;
 	if (word == dsksync)
-		wordsync_detected();
+		wordsync_detected(true);
 }
 
 static int linecounter;
