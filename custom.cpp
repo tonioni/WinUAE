@@ -254,8 +254,10 @@ static uae_s16 bpl1mod, bpl2mod, dbpl1mod, dbpl2mod;
 static int dbpl1mod_on, dbpl2mod_on;
 static uaecptr prevbpl[2][MAXVPOS][8];
 static uaecptr bplpt[8], bplptx[8];
+#if 0
 static uaecptr dbplptl[8], dbplpth[8];
 static int dbplptl_on[8], dbplpth_on[8], dbplptl_on2, dbplpth_on2;
+#endif
 static int bitplane_line_crossing;
 
 static struct color_entry current_colors;
@@ -700,7 +702,8 @@ STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 bc0)
 	return real_bitplane_number[fetchmode][res][planes];
 }
 
-static void reset_dbplh (int hpos, int num)
+#if 0
+static void reset_dbplh(int hpos, int num)
 {
 	if (dbplpth_on[num] && hpos >= dbplpth_on[num]) {
 		bplpt[num] = dbplpth[num] | (bplpt[num] & 0x0000fffe);
@@ -737,6 +740,7 @@ static void reset_dbpll_all (int hpos)
 		dbplptl_on2 = 0;
 	}	
 }
+#endif
 
 static void reset_moddelays (void)
 {
@@ -774,7 +778,9 @@ static void add_modulo (int hpos, int nr)
 	bplpt[nr] += mod;
 	bplptx[nr] += mod;
 	reset_moddelays ();
+#if 0
 	reset_dbpll_all (-1);
+#endif
 }
 
 static void add_modulos (void)
@@ -782,7 +788,9 @@ static void add_modulos (void)
 	int m1, m2;
 
 	reset_moddelays ();
-	reset_dbpll_all (-1);
+#if 0
+	reset_dbpll_all(-1);
+#endif
 	if (fmode & 0x4000) {
 		if (((diwstrt >> 8) ^ vpos) & 1)
 			m1 = m2 = bpl2mod;
@@ -1310,10 +1318,12 @@ static void fetch (int nr, int fm, int hpos)
 		bplpt[nr] += add;
 		bplptx[nr] += add;
 
+#if 0
 		if (dbplpth_on2)
 			reset_dbplh (hpos, nr);
 		if (dbplptl_on2)
 			reset_dbpll (hpos, nr);
+#endif
 
 		if (nr == 0)
 			bpl1dat_written = true;
@@ -2256,21 +2266,21 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int dma, int fm)
 		}
 	}
 
-	if (pos == HARD_DDF_STOP) {
-		if (plf_state < plf_wait) {
-			plf_state = plf_passed_stop_act;
-		}
-	}
-
 	if ((fetch_cycle & fetchunit_mask) == 0) {
 		if (plf_state == plf_passed_stop2) {
-			finish_last_fetch (pos, fm, false);
+			finish_last_fetch(pos, fm, false);
 			return 1;
 		}
 		if (plf_state == plf_passed_stop_act) {
 			plf_state = plf_passed_stop2;
-		} else if (plf_state == plf_passed_stop2) {
-			plf_state = plf_end;
+		}
+	}
+
+	// must be after above test, otherwise same fetch
+	// block may pass both stop_act and stop2 tests.
+	if (pos == HARD_DDF_STOP) {
+		if (plf_state < plf_wait) {
+			plf_state = plf_passed_stop_act;
 		}
 	}
 
@@ -2604,6 +2614,8 @@ static void start_bpl_dma (int hstart)
 
 	if (!bpldmawasactive) {
 
+		if (last_fetch_hpos < 0)
+			last_fetch_hpos = 0;
 		plfstrt_sprite = hstart;
 		// OCS Agnus needs at least 1 empty cycle between
 		// sprite fetch and bitplane cycle sequence start.
@@ -3621,8 +3633,10 @@ static void reset_decisions (void)
 	bpldmasetupphase = 0;
 	bpldmawasactive = false;
 	reset_moddelays ();
+#if 0
 	reset_dbpll_all (256);
 	reset_dbplh_all (256);
+#endif
 	delay_cycles = 0;
 	compute_toscr_delay (bplcon1);
 
@@ -5024,11 +5038,13 @@ static void BPLxPTH (int hpos, uae_u16 v, int num)
 	decide_line (hpos);
 	decide_fetch_safe (hpos);
 	if (copper_access && is_bitplane_dma (hpos + 1) == num + 1) {
+#if 0
 		if (is_bitplane_dma(hpos + 2)) {
 			dbplpth[num] = (v << 16) & 0xffff0000;
 			dbplpth_on[num] = hpos;
 			dbplpth_on2++;
 		}
+#endif
 		SET_LINE_CYCLEBASED;
 		return;
 	}
@@ -5042,7 +5058,9 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
 {
 	decide_line (hpos);
 	decide_fetch_safe (hpos);
+#if 0
 	reset_dbplh (hpos, num);
+#endif
 	/* chipset feature:
 	 * BPLxPTL write and next cycle doing DMA fetch using same pointer register ->
 	 * next DMA cycle uses old value.
@@ -5056,7 +5074,8 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
 	 */
 	/* only detect copper accesses to prevent too fast CPU mode glitches */
 	if (copper_access && is_bitplane_dma (hpos + 1) == num + 1) {
-		if (0 && num == 0 && plf_state >= plf_passed_stop) {
+#if 0
+		if (num == 0 && plf_state >= plf_passed_stop) {
 			/* modulo adds use old value! Argh! (This is wrong and disabled) */
 			dbplptl[num] = v & 0x0000fffe;
 			dbplptl_on[num] = -1;
@@ -5066,6 +5085,7 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
 			dbplptl_on[num] = hpos;
 			dbplptl_on2++;
 		}
+#endif
 		SET_LINE_CYCLEBASED;
 		return;
 	}
