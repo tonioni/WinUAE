@@ -2484,7 +2484,7 @@ const struct expansionromtype expansionroms[] = {
 		add500_init, add500_add_scsi_unit, ROMTYPE_ADD500, 0, 0, 2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
-		8498, 27, 0
+		8498, 27, 0, true, NULL
 	},
 	{
 		_T("rochard"), _T("RocHard RH800C"), _T("Roctec"),
