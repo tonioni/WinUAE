@@ -1,4 +1,13 @@
 
+Beta 22: (RC2)
+
+- In some rare situatations both "HARD_DDF_STOP" and "plf_passed_stop" test conditions incorrectly passed
+  in single fetch block. Only happened when DDFSTRT/DDFSTOP value pair caused bitplane dma overrun
+  so result was different corrupted display. (Plastic Passion / Upfront plasma part with OCS Agnus)
+- BPL DMA pointer modified one cycle before same channel's BPLxDAT gets accessed behavior adjusted.
+  (Powertrax / The Light Circle)
+- Archos ADD-500 is also confirmed having fast ram autoconfig board after HD controller.
+
 Beta 21: (RC1)
 
 - b17 DSKSYNC update should not have started DMA in WORDSYNC mode.
