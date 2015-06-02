@@ -204,6 +204,7 @@ static uae_u16 hsstop, hbstrt, hbstop, vsstop, vbstrt, vbstop, hsstrt, vsstrt, h
 static int ciavsyncmode;
 static int diw_hstrt, diw_hstop;
 static int diw_hcounter;
+static uae_u16 refptr;
 
 #define HSYNCTIME (maxhpos * CYCLE_UNIT)
 
@@ -982,7 +983,7 @@ static uae_u64 fetched_aga[MAX_PLANES];
 static int toscr_res, toscr_res2p;
 static int toscr_nr_planes, toscr_nr_planes2, toscr_nr_planes_agnus, toscr_nr_planes_shifter;
 static int fetchwidth;
-static int toscr_delay[2], toscr_delay_adjusted[2];
+static int toscr_delay[2], toscr_delay_adjusted[2], toscr_delay_sh[2];
 static int delay_cycles, delay_lastcycle[2];
 static bool bplcon1_written;
 
@@ -1091,14 +1092,18 @@ static void compute_toscr_delay (int bplcon1)
 {
 	int delay1 = (bplcon1 & 0x0f) | ((bplcon1 & 0x0c00) >> 6);
 	int delay2 = ((bplcon1 >> 4) & 0x0f) | (((bplcon1 >> 4) & 0x0c00) >> 6);
-	int shdelay1 = (bplcon1 >> 12) & 3;
-	int shdelay2 = (bplcon1 >> 8) & 3;
+	int shdelay1 = (bplcon1 >> 8) & 3;
+	int shdelay2 = (bplcon1 >> 12) & 3;
 	int delaymask = fetchmode_mask >> toscr_res;
 
 	toscr_delay[0] = (delay1 & delaymask) << toscr_res;
 	toscr_delay[0] |= shdelay1 >> (RES_MAX - toscr_res);
 	toscr_delay[1] = (delay2 & delaymask) << toscr_res;
 	toscr_delay[1] |= shdelay2 >> (RES_MAX - toscr_res);
+
+	// AGA subpixel scrolling in lores/hires modes
+	toscr_delay_sh[0] = (shdelay1 & 3) >> toscr_res;
+	toscr_delay_sh[1] = (shdelay2 & 3) >> toscr_res;
 
 #if SPEEDUP
 	/* SPEEDUP code still needs this hack */
@@ -1277,20 +1282,24 @@ STATIC_INLINE void maybe_first_bpl1dat (int hpos)
 		thisline_decision.plfleft = hpos;
 }
 
-static int fetch_warn (int nr, int hpos)
+static uae_s16 fetch_warn (int nr, int hpos)
 {
-	static int warned = 30;
+	static int warned1 = 30, warned2 = 30;
 	int add = fetchmode_bytes;
 	if (hpos == maxhpos - 1) {
-		if (warned >= 0)
+		if (warned1 >= 0) {
 			write_log (_T("WARNING: BPL fetch conflicts with strobe refresh slot!\n"));
-		add = (scanlinecount & 255) * fetchmode_bytes;
+			warned1--;
+		}
+		add = refptr & ~(0x0101);
 	} else {
-		if (warned >= 0)
+		if (warned2 >= 0) {
+			warned2--;
 			write_log (_T("WARNING: BPL fetch at hpos 0x%02X!\n"), hpos);
+		}
+		add = refptr & ~(0x0101);
 	}
 	bitplane_line_crossing = hpos;
-	warned--;
 #if 0
 	line_cyclebased = vpos;
 	corrupt_offset = (vpos ^ (timeframes << 12)) & 0xff00;
@@ -1301,7 +1310,7 @@ static int fetch_warn (int nr, int hpos)
 		bplpt[i] = (bplpt[i] & 0xffff0000) | v;
 	}
 #endif
-	return add;
+	return (uae_s16)add;
 }
 
 static void fetch (int nr, int fm, int hpos)
@@ -4581,6 +4590,11 @@ static uae_u16 VHPOSR (void)
 	return vp;
 }
 
+static void REFPTR(uae_u16 v)
+{
+	refptr = v;
+}
+
 static int test_copper_dangerous (unsigned int address)
 {
 	int addr = address & 0x01fe;
@@ -7744,6 +7758,8 @@ static void hsync_handler_pre (bool onvsync)
 
 	hsync_counter++;
 
+	refptr += 0x0200 * 4;
+
 	if (islinetoggle ())
 		lol ^= 1;
 	else
@@ -8235,6 +8251,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		diwhigh_written = 0;
 		hdiwstate = DIW_waiting_start; // this does not reset at vblank
 
+		refptr = 0xffff;
 		FMODE (0, 0);
 		CLXCON (0);
 		CLXCON2 (0);
@@ -8679,7 +8696,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 	case 0x022: DSKPTL (value); break;
 	case 0x024: DSKLEN (value, hpos); break;
 	case 0x026: /* DSKDAT (value). Writing to DMA write registers won't do anything */; break;
-
+	case 0x028: REFPTR (value); break;
 	case 0x02A: VPOSW (value); break;
 	case 0x02C: VHPOSW (value); break;
 	case 0x02E: COPCON (value); break;
@@ -8991,7 +9008,7 @@ uae_u8 *restore_custom (uae_u8 *src)
 	dskpt = RL;				/* 020-022 DSKPT */
 	dsklen = RW;			/* 024 DSKLEN */
 	RW;						/* 026 DSKDAT */
-	RW;						/* 028 REFPTR */
+	refptr = RW;			/* 028 REFPTR */
 	i = RW; lof_store = lof_current = (i & 0x8000) ? 1 : 0; lol = (i & 0x0080) ? 1 : 0; /* 02A VPOSW */
 	RW;						/* 02C VHPOSW */
 	COPCON (RW);			/* 02E COPCON */
@@ -9146,7 +9163,7 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 	SL (dskpt);				/* 020-023 DSKPT */
 	SW (dsklen);			/* 024 DSKLEN */
 	SW (0);					/* 026 DSKDAT */
-	SW (0);					/* 028 REFPTR */
+	SW (refptr);			/* 028 REFPTR */
 	SW ((lof_store ? 0x8001 : 0) | (lol ? 0x0080 : 0));/* 02A VPOSW */
 	SW (0);					/* 02C VHPOSW */
 	SW (copcon);			/* 02E COPCON */
