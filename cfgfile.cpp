@@ -6969,7 +6969,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_pcmcia = 1;
 		p->cs_ksmirror_a8 = 1;
 		p->cs_ciaoverlay = 0;
-		if (p->fastmem_size || p->z3fastmem_size)
+		if (p->fastmem_size || p->z3fastmem_size || p->cpuboard_type)
 			p->cs_rtc = 1;
 		break;
 	case CP_A2000: // A2000
