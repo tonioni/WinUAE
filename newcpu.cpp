@@ -4267,7 +4267,19 @@ insretry:
 				mmu030_state[0] = mmu030_state[1] = mmu030_state[2] = 0;
 				mmu030_opcode = -1;
 				if (mmu030_fake_prefetch >= 0) {
-					regs.opcode = mmu030_fake_prefetch;
+					// use fake prefetch opcode only if mapping changed
+					uaecptr new_addr = mmu030_translate(regs.instruction_pc, regs.s != 0, false, false);
+					if (mmu030_fake_prefetch_addr != new_addr) {
+						regs.opcode = mmu030_fake_prefetch;
+						write_log(_T("MMU030 fake prefetch remap: %04x, %08x -> %08x\n"), mmu030_fake_prefetch, mmu030_fake_prefetch_addr, new_addr); 
+					} else {
+						if (mmu030_opcode_stageb < 0) {
+							regs.opcode = x_prefetch (0);
+						} else {
+							regs.opcode = mmu030_opcode_stageb;
+							mmu030_opcode_stageb = -1;
+						}
+					}
 					mmu030_fake_prefetch = -1;
 				} else if (mmu030_opcode_stageb < 0) {
 					regs.opcode = x_prefetch (0);
@@ -6759,16 +6771,18 @@ uae_u32 read_dcache030 (uaecptr addr, int size)
 	if (!c1->valid[lws1] || c1->tag != tag1) {
 		v1 = currprefs.cpu_cycle_exact ? mem_access_delay_long_read_ce020 (addr) : get_long (addr);
 		update_cache030 (c1, v1, tag1, lws1);
-	} else if (uae_boot_rom_type > 0) {
-		// this check and fix is needed for UAE filesystem handler because it runs in host side and in
-		// separate thread. No way to access via cache without locking that would cause major slowdown
-		// and unneeded complexity
-		uae_u32 tv = get_long (addr);
+	} else {
+		uae_u32 tv = get_long(addr);
 		v1 = c1->data[lws1];
-		if (tv != v1) {
-			write_log (_T("data cache mismatch %d %d %08x %08x != %08x %08x %d PC=%08x\n"),
-				size, aligned, addr, tv, v1, tag1, lws1, M68K_GETPC);
-			v1 = get_long (addr);
+		if (uae_boot_rom_type > 0) {
+			// this check and fix is needed for UAE filesystem handler because it runs in host side and in
+			// separate thread. No way to access via cache without locking that would cause major slowdown
+			// and unneeded complexity
+			if (tv != v1) {
+				write_log(_T("data cache mismatch %d %d %08x %08x != %08x %08x %d PC=%08x\n"),
+					size, aligned, addr, tv, v1, tag1, lws1, M68K_GETPC);
+				v1 = get_long(addr);
+			}
 		}
 	}
 	// only one long fetch needed?

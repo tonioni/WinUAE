@@ -60,7 +60,10 @@ uae_u32 mm030_stageb_address;
 bool mmu030_retry;
 int mmu030_opcode;
 int mmu030_opcode_stageb;
+
 int mmu030_fake_prefetch;
+uaecptr mmu030_fake_prefetch_addr;
+
 uae_u16 mmu030_state[3];
 uae_u32 mmu030_data_buffer;
 uae_u32 mmu030_disp_store[2];
@@ -718,6 +721,9 @@ static void mmu030_do_fake_prefetch(void)
 	// - JMP (An)
 	// "enable MMU" unmaps memory under us.
 	TRY (prb) {
+		uaecptr pc = m68k_getpci();
+		mmu030_fake_prefetch = -1;
+		mmu030_fake_prefetch_addr = mmu030_translate(pc, regs.s != 0, false, false);
 		mmu030_fake_prefetch = x_prefetch(0);
 		// A26x0 ROM code switches off rom
 		// NOP
@@ -728,7 +734,6 @@ static void mmu030_do_fake_prefetch(void)
 		// didn't work, oh well..
 		mmu030_fake_prefetch = -1;
 	} ENDTRY
-	write_log(_T("MMU030 fake prefetched %04X\n"), mmu030_fake_prefetch);
 }
 
 bool mmu030_decode_tc(uae_u32 TC)
@@ -741,7 +746,7 @@ bool mmu030_decode_tc(uae_u32 TC)
     } else {
 		if (mmu030.enabled) {
 			mmu030_do_fake_prefetch();
-			write_log(_T("MMU disabled\n"));
+			write_log(_T("MMU disabled PC=%08x\n"), M68K_GETPC);
 		}
         mmu030.enabled = false;
         return false;
@@ -764,7 +769,7 @@ bool mmu030_decode_tc(uae_u32 TC)
 	regs.mmu_page_size = 1 << mmu030.translation.page.size;
 
     
-	write_log(_T("68030 MMU enabled. Page size = %d\n"), regs.mmu_page_size);
+	write_log(_T("68030 MMU enabled. Page size = %d PC=%08x\n"), regs.mmu_page_size, M68K_GETPC);
 
 	if (mmu030.translation.page.size<8) {
         write_log(_T("MMU Configuration Exception: Bad value in TC register! (bad page size: %i byte)\n"),
