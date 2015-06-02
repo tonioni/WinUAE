@@ -2159,8 +2159,9 @@ void fpuop_save (uae_u32 opcode)
 				ad -= frame_size;
 		}
 	} else { /* 68881/68882 */
-		int frame_size = regs.fpu_state == 0 ? 0 : currprefs.fpu_model == 68882 ? 0x3c : 0x1c;
-		uae_u32 frame_id = regs.fpu_state == 0 ? 0x18 << 16 : (fpu_version << 24) | ((frame_size - 4) << 16);
+		int frame_size_real = currprefs.fpu_model == 68882 ? 0x3c : 0x1c;;
+		int frame_size = regs.fpu_state == 0 ? 0 : frame_size_real;
+		uae_u32 frame_id = regs.fpu_state == 0 ? ((frame_size_real - 4) << 16) : (fpu_version << 24) | ((frame_size_real - 4) << 16);
 		
 		if (currprefs.mmu_model) {
 			if (incr < 0) {
