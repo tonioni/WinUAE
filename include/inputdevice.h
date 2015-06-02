@@ -335,3 +335,4 @@ extern int inputdevice_istest (void);
 extern void inputdevice_settest (int);
 extern int inputdevice_testread_count (void);
 
+extern bool target_can_autoswitchdevice(void);

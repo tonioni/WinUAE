@@ -564,6 +564,7 @@ void write_inputdevice_config (struct uae_prefs *p, struct zfile *f)
 	cfgfile_write (f, _T("input.analog_joystick_offset"), _T("%d"), p->input_analog_joystick_offset);
 	cfgfile_write (f, _T("input.mouse_speed"), _T("%d"), p->input_mouse_speed);
 	cfgfile_write (f, _T("input.autofire_speed"), _T("%d"), p->input_autofire_linecnt);
+	cfgfile_write (f, _T("input.autoswitch"), _T("%d"), p->input_autoswitch);
 	cfgfile_dwrite_str (f, _T("input.keyboard_type"), kbtypes[p->input_keyboard_type]);
 	cfgfile_dwrite (f, _T("input.contact_bounce"), _T("%d"), p->input_contact_bounce);
 	for (id = 0; id < MAX_INPUT_SETTINGS; id++) {
@@ -878,6 +879,8 @@ void read_inputdevice_config (struct uae_prefs *pr, const TCHAR *option, TCHAR *
 		pr->input_analog_joystick_mult = _tstol (value);
 	if (!strcasecmp (p, _T("analog_joystick_offset")))
 		pr->input_analog_joystick_offset = _tstol (value);
+	if (!strcasecmp (p, _T("autoswitch")))
+		pr->input_autoswitch = _tstol (value);
 	if (!strcasecmp (p, _T("keyboard_type"))) {
 		cfgfile_strval (option, value, NULL, &pr->input_analog_joystick_offset, kbtypes, 0);
 		keyboard_default = keyboard_default_table[pr->input_keyboard_type];
@@ -3481,6 +3484,7 @@ static void inputdevice_checkconfig (void)
 		currprefs.input_joystick_deadzone != changed_prefs.input_joystick_deadzone ||
 		currprefs.input_joymouse_speed != changed_prefs.input_joymouse_speed ||
 		currprefs.input_autofire_linecnt != changed_prefs.input_autofire_linecnt ||
+		currprefs.input_autoswitch != changed_prefs.input_autoswitch ||
 		currprefs.input_mouse_speed != changed_prefs.input_mouse_speed) {
 
 			currprefs.input_selected_setting = changed_prefs.input_selected_setting;
@@ -3490,6 +3494,7 @@ static void inputdevice_checkconfig (void)
 			currprefs.input_joymouse_speed = changed_prefs.input_joymouse_speed;
 			currprefs.input_autofire_linecnt = changed_prefs.input_autofire_linecnt;
 			currprefs.input_mouse_speed = changed_prefs.input_mouse_speed;
+			currprefs.input_autoswitch = changed_prefs.input_autoswitch;
 
 			inputdevice_updateconfig (&changed_prefs, &currprefs);
 	}
@@ -3605,12 +3610,11 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 
 	if (num >= 4)
 		return 0;
-#ifdef RETROPLATFORM
-	if (rp_isactive ())
+	if (!currprefs.input_autoswitch)
+		return false;
+	if (!target_can_autoswitchdevice())
 		return 0;
-#endif
-	if (!ismouseactive())
-		return 0;
+
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 		if (id == &joysticks[i]) {
 			name = idev[IDTYPE_JOYSTICK].get_uniquename (i);
@@ -5745,6 +5749,7 @@ void inputdevice_default_prefs (struct uae_prefs *p)
 	p->input_mouse_speed = 100;
 	p->input_autofire_linecnt = 600;
 	p->input_keyboard_type = 0;
+	p->input_autoswitch = true;
 	keyboard_default = keyboard_default_table[p->input_keyboard_type];
 	inputdevice_default_kb_all (p);
 }
