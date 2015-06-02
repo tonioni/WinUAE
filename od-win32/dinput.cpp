@@ -3248,6 +3248,7 @@ static void release_keys (void)
 		for (i = 0; i < MAX_KEYCODES; i++) {
 			if (di_keycodes[j][i]) {
 				my_kbd_handler (j, i, 0);
+				//write_log(_T("release %d:%02x\n"), j, i);
 				di_keycodes[j][i] = 0;
 			}
 		}

@@ -1,4 +1,17 @@
 
+Beta 23: (RC3)
+
+- Toccata audio didn't automatically re-enable audio if it was stopped by automatic switching.
+- Fixed A2065 crash in "Cable disconnected" mode.
+- Added J.Kommos ROM v1.7 (1990-03-13) Previously added ROM was v1.8 (1990-07-25).
+- Preferred Technologies Nexus added to ROM scan result window.
+- Fixed 68030 MMU prefetch hack flaw that caused A3000 with 2.04 SuperKickstart to crash.
+- "Mouse uncaptured: emulation paused" and any key pressed: key was not released automatically (ALT-TAB).
+- 68881/68882 NULL FSAVE frame has normal frame size stored (Undocumented but real hardware confirmed)
+- Don't prevent RTC in A1200 chipset extra mode if accelerator board is also enabled.
+- HD selection GUI visual bugs fixed.
+- Added input device autoswitch on/off checkbox. (This was supposed to be added long time ago but I forgot)
+
 Beta 22: (RC2)
 
 - In some rare situatations both "HARD_DDF_STOP" and "plf_passed_stop" test conditions incorrectly passed

@@ -529,6 +529,7 @@ bool setpaused (int priority)
 	//write_log (_T("pause %d (%d)\n"), priority, pause_emulation);
 	if (pause_emulation > priority)
 		return false;
+	wait_keyrelease();
 	pause_emulation = priority;
 #ifdef WITH_PPC
 	uae_ppc_pause(1);
@@ -6579,6 +6580,17 @@ uae_u32 emulib_target_getcpurate (uae_u32 v, uae_u32 *low)
 		return pf.HighPart;
 	}
 	return 0;
+}
+
+bool target_can_autoswitchdevice(void)
+{
+#ifdef RETROPLATFORM
+	if (rp_isactive ())
+		return false;
+#endif
+	if (!ismouseactive())
+		return false;
+	return true;
 }
 
 void fpux_save (int *v)

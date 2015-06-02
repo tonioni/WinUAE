@@ -1689,9 +1689,10 @@ static void show_rom_list (void)
 		130, -1, -1, // m-tec
 		129, -1, -1, // adide
 		133, -1, -1, // adscsi
-		127, -1, -1, // kommos
+		127, 140, -1, -1, // kommos
 		128, -1, -1, // vector falcon
-		132, -1, -2, // add500
+		132, -1, -1, // add500
+		139, -1, -2, // nexus
 
 		18, -1, 19, -1, 74, 23, -1, -1,  // CD32 FMV
 		91, -1, -2, // Picasso IV
@@ -1717,7 +1718,7 @@ static void show_rom_list (void)
 		99, 100, -1, -1, // BPPC
 		98, -1 ,-2, // CSPPC
 
-		69, 67, 70, -1, -1, // nordic power
+		69, 67, 70, 115, -1, -1, // nordic power
 		65, 68, -1, -1, // x-power
 		62, 60, -1, -1, // action cartridge
 		116, -1, -1, // pro access
@@ -1742,6 +1743,7 @@ static void show_rom_list (void)
 		_T("Kommos A500/A2000 SCSI\0")
 		_T("Vector Falcon 8000 SCSI\0")
 		_T("Archos ADD-500\0")
+		_T("Preferred Technologies Nexus\0")
 
 		_T("CD32 Full Motion Video\0")
 		_T("Picasso IV\0")
@@ -10866,15 +10868,21 @@ static void sethardfile (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_HDF_FEATURE_LEVEL, CB_SETCURSEL, current_hfdlg.ci.unit_feature_level, 0);
 }
 
-static void addhdcontroller(HWND hDlg, const struct expansionromtype *erc, int *hdmenutable, int firstid)
+static void addhdcontroller(HWND hDlg, const struct expansionromtype *erc, int *hdmenutable, int firstid, int flags)
 {
 	TCHAR name[MAX_DPATH];
-	_tcscpy(name, erc->friendlymanufacturer);
-	_tcscat(name, _T(" "));
+	name[0] = 0;
+	if (_tcsicmp(erc->friendlymanufacturer, erc->friendlyname)) {
+		_tcscat(name, erc->friendlymanufacturer);
+		_tcscat(name, _T(" "));
+	}
 	_tcscat(name, erc->friendlyname);
 	if (workprefs.cpuboard_type && erc->romtype == ROMTYPE_CPUBOARD) {
+		const struct cpuboardsubtype *cbt = &cpuboards[workprefs.cpuboard_type].subtypes[workprefs.cpuboard_subtype];
+		if (!(cbt->deviceflags & flags))
+			return;
 		_tcscat(name, _T(" ("));
-		_tcscat(name, cpuboards[workprefs.cpuboard_type].subtypes[workprefs.cpuboard_subtype].name);
+		_tcscat(name, cbt->name);
 		_tcscat(name, _T(")"));
 	}
 	if (get_boardromconfig(&workprefs, erc->romtype, NULL) || get_boardromconfig(&workprefs, erc->romtype_extra, NULL)) {
@@ -10904,7 +10912,7 @@ static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype)
 	for (int i = 0; expansionroms[i].name; i++) {
 		const struct expansionromtype *erc = &expansionroms[i];
 		if (erc->deviceflags & EXPANSIONTYPE_IDE) {
-			addhdcontroller(hDlg, erc, hdmenutable, HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST + i);
+			addhdcontroller(hDlg, erc, hdmenutable, HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST + i, EXPANSIONTYPE_IDE);
 		}
 	}
 
@@ -10917,7 +10925,7 @@ static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype)
 	for (int i = 0; expansionroms[i].name; i++) {
 		const struct expansionromtype *erc = &expansionroms[i];
 		if (erc->deviceflags & EXPANSIONTYPE_SCSI) {
-			addhdcontroller(hDlg, erc, hdmenutable, HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST + i);
+			addhdcontroller(hDlg, erc, hdmenutable, HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST + i, EXPANSIONTYPE_SCSI);
 		}
 	}
 
@@ -13196,6 +13204,7 @@ static void updatejoyport (HWND hDlg, int changedport)
 	CheckDlgButton (hDlg, IDC_PORT_TABLET, workprefs.input_tablet > 0);
 	CheckDlgButton (hDlg, IDC_PORT_TABLET_FULL, workprefs.input_tablet == TABLET_REAL);
 	CheckDlgButton (hDlg, IDC_PORT_TABLET_LIBRARY, workprefs.tablet_library);
+	CheckDlgButton (hDlg, IDC_PORT_AUTOSWITCH, workprefs.input_autoswitch);
 
 	if (joyxprevious[0] < 0)
 		joyxprevious[0] = inputdevice_get_device_total (IDTYPE_JOYSTICK) + 1;
@@ -13268,6 +13277,7 @@ static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 
 		currprefs.input_magic_mouse = workprefs.input_magic_mouse = ischecked (hDlg, IDC_PORT_MOUSETRICK);
 		workprefs.input_magic_mouse_cursor = SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_GETCURSEL, 0, 0L);
+		workprefs.input_autoswitch = ischecked (hDlg, IDC_PORT_AUTOSWITCH);
 		workprefs.input_tablet = 0;
 		if (ischecked (hDlg, IDC_PORT_TABLET)) {
 			workprefs.input_tablet = TABLET_MOUSEHACK;

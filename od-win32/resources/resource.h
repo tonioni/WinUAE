@@ -1162,6 +1162,7 @@
 #define IDC_DD_SURFACETYPE2             1792
 #define IDC_DXMODE                      1792
 #define IDC_REGISTRYMODE                1792
+#define IDC_PORT_AUTOSWITCH             1792
 #define IDC_RTG_VBLANKRATE              1793
 #define IDC_DF0WPTEXTQ                  1793
 #define IDC_WINDOWEDMODE                1793

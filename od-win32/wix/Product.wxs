@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*" Name="WinUAE" Language="1033" Version="3.0.0.0" Manufacturer="Arabuusimiehet" UpgradeCode="88C6D045-E416-4AEA-9EE9-0B7A53EE0F16">
+  <Product Id="*" Name="WinUAE" Language="1033" Version="3.1.0.0" Manufacturer="Arabuusimiehet" UpgradeCode="88C6D045-E416-4AEA-9EE9-0B7A53EE0F16">
     <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
 
     <?define SRCDIST="$(var.winuae.ProjectDir)/../../../distribution/"?>
 
-    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." AllowSameVersionUpgrades="yes"/>
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."/>
     <MediaTemplate EmbedCab="yes"/>
 
     <Icon Id="ICON" SourceFile="$(var.winuae.ProjectDir)/../resources/winuae.ico"/>

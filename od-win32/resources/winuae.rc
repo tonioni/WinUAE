@@ -512,6 +512,8 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,140,270,106,11
     CONTROL         "Tablet.library emulation",IDC_PORT_TABLET_LIBRARY,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,267,271,117,11
+    CONTROL         "Mouse/Joystick autoswitching [] Press button to automatically insert inactive input device in to joystick/mouse port",IDC_PORT_AUTOSWITCH,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,136,102,172,11
 END
 
 IDD_CONTRIBUTORS DIALOGEX 0, 0, 530, 345

@@ -3331,7 +3331,7 @@ static void disk_doupdate_predict (int startcycle)
 					else
 						tword |= getonebit (drv->bigmfmbuf, mfmpos);
 				}
-				if (dskdmaen != DSKDMA_READ && (tword & 0xffff) == dsksync)
+				if (dskdmaen != DSKDMA_READ && (tword & 0xffff) == dsksync && dsksync != 0)
 					diskevent_flag |= DISK_WORDSYNC;
 			}
 			mfmpos++;
