@@ -356,8 +356,10 @@ void sndboard_hsync(void)
 
 void sndboard_vsync(void)
 {
-	if (toccata_active)
+	if (toccata_active) {
 		calculate_volume();
+		audio_activate();
+	}
 }
 
 static void toccata_put(uaecptr addr, uae_u8 v)
