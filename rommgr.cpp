@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 140
+#define NEXT_ROM_ID 141
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -383,10 +383,14 @@ static struct romdata roms[] = {
 	0xedf84cbe, 0xabdbc01d,0xaa0b3aae,0xe4401ad7,0xe65525a9,0x6bfa2b27, NULL, NULL },
 	{ _T("Vector Falcon 8000"), 7, 1, 7, 1, _T("VECTOR\0"), 32768, 128, 0, 0, ROMTYPE_VECTOR, 0, 0, NULL,
 	0xa8120c55, 0x248935ab,0xf4d74036,0xefdafdbb,0x7817e232,0xfc13e0fa, NULL, NULL },
-	{ _T("Kommos A500/A2000 SCSI"), 1, 8, 1, 8, _T("KOMMOS\0"), 32768, 127, 0, 0, ROMTYPE_KOMMOS, 0, 0, NULL,
-	0xc1a5c848, 0x291310f1,0x25455f2d,0x8e114bcd,0xe104ca4c,0x9db51747, NULL, NULL },
+	{ _T("Kommos A500/A2000 v1.8"), 1, 8, 1, 8, _T("KOMMOS\0"), 32768, 127, 0, 0, ROMTYPE_KOMMOS, 0, 0, NULL,
+	0xc1a5c848, 0x291310f1, 0x25455f2d, 0x8e114bcd, 0xe104ca4c, 0x9db51747, NULL, NULL },
 	ALTROMPN(127, 1, 1, 16384, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x1b86d2ed, 0x969995a1, 0x2ebf8c15, 0xab87e8d0, 0xddc837a1, 0xb90fbfa8)
 	ALTROMPN(127, 1, 2, 16384, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x65b4c3a0, 0x60e904d4, 0xe45bb6ba, 0x3e253ffa, 0xda4ee2e5, 0xc8548da1)
+	{ _T("Kommos A500/A2000 v1.7"), 1, 7, 1, 7, _T("KOMMOS\0"), 32768, 140, 0, 0, ROMTYPE_KOMMOS, 0, 0, NULL,
+	0x025d7835, 0x8205ad6e, 0x08dbf5a6, 0x9ba17956, 0xb5237ffe, 0x768de5a4, NULL, NULL },
+	ALTROMPN(140, 1, 1, 16384, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x3d982391, 0xbe26e141, 0x1e16cab4, 0xeab8af33, 0x1476ef8e, 0x21fcb2af)
+	ALTROMPN(140, 1, 2, 16384, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x68adc0ad, 0xb5eef088, 0xed8a9439, 0xb0302907, 0xcb3cb207, 0x62f28da7)
 	{ _T("Kupke Golem v3.9"), 3, 9, 3, 9, _T("GOLEM\0"), 16384, 124, 0, 0, ROMTYPE_GOLEM, 0, 0, NULL,
 	0x49157dd0, 0x03b615c9,0x2befa474,0xa37303ca,0xdc3e830d,0x3c0d9a9f, NULL, NULL },
 	ALTROMPN(124, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x88cf2ec5, 0x59680f8d, 0xae520893, 0xff9ada35, 0xac9a1146, 0x4f87453c)
