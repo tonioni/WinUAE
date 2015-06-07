@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 141
+#define NEXT_ROM_ID 142
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -379,7 +379,9 @@ static struct romdata roms[] = {
 	0x10c1b22c, 0x2b800cde,0x79fd559e,0xebd5e432,0xd711af3d,0x0b8ea7e9, NULL, NULL },
 	{ _T("M-Tec AT500"), 1, 33, 1, 33, _T("MTECAT\0"), 32768, 130, 0, 0, ROMTYPE_MTEC, 0, 0, NULL,
 	0x38b6b6b0, 0x8bb1093a,0xd592e7df,0x99c48f83,0xb9f842b2,0xb1a6e618, NULL, NULL },
-	{ _T("AdIDE 40/44"), 34, 0, 34, 0, _T("ADIDE\0"), 16384, 129, 0, 0, ROMTYPE_ADIDE, 0, 0, NULL,
+	{ _T("AdIDE 40/44 v33"), 33, 0, 33, 0, _T("ADIDE\0"), 16384, 141, 0, 0, ROMTYPE_ADIDE, 0, 0, NULL,
+	0x330254ce, 0xc91dd3b5,0x3f1986bd,0x94fba150,0xe753c2da,0x4dee78e7, NULL, NULL },
+	{ _T("AdIDE 40/44 v34"), 34, 0, 34, 0, _T("ADIDE\0"), 16384, 129, 0, 0, ROMTYPE_ADIDE, 0, 0, NULL,
 	0xedf84cbe, 0xabdbc01d,0xaa0b3aae,0xe4401ad7,0xe65525a9,0x6bfa2b27, NULL, NULL },
 	{ _T("Vector Falcon 8000"), 7, 1, 7, 1, _T("VECTOR\0"), 32768, 128, 0, 0, ROMTYPE_VECTOR, 0, 0, NULL,
 	0xa8120c55, 0x248935ab,0xf4d74036,0xefdafdbb,0x7817e232,0xfc13e0fa, NULL, NULL },
