@@ -6772,16 +6772,16 @@ uae_u32 read_dcache030 (uaecptr addr, int size)
 		v1 = currprefs.cpu_cycle_exact ? mem_access_delay_long_read_ce020 (addr) : get_long (addr);
 		update_cache030 (c1, v1, tag1, lws1);
 	} else {
-		uae_u32 tv = get_long(addr);
 		v1 = c1->data[lws1];
 		if (uae_boot_rom_type > 0) {
 			// this check and fix is needed for UAE filesystem handler because it runs in host side and in
 			// separate thread. No way to access via cache without locking that would cause major slowdown
 			// and unneeded complexity
+			uae_u32 tv = get_long(addr);
 			if (tv != v1) {
 				write_log(_T("data cache mismatch %d %d %08x %08x != %08x %08x %d PC=%08x\n"),
 					size, aligned, addr, tv, v1, tag1, lws1, M68K_GETPC);
-				v1 = get_long(addr);
+				v1 = tv;
 			}
 		}
 	}
@@ -6809,12 +6809,15 @@ uae_u32 read_dcache030 (uaecptr addr, int size)
 	if (!c2->valid[lws2] || c2->tag != tag2) {
 		v2 = currprefs.cpu_cycle_exact ? mem_access_delay_long_read_ce020 (addr) : get_long (addr);
 		update_cache030 (c2, v2, tag2, lws2);
-	} else if (uae_boot_rom_type > 0) {
+	} else {
 		v2 = c2->data[lws2];
-		if (get_long (addr) != v2) {
-			write_log (_T("data cache mismatch %d %d %08x %08x != %08x %08x %d PC=%08x\n"),
-				size, aligned, addr, get_long (addr), v2, tag2, lws2, M68K_GETPC);
-			v2 = get_long (addr);
+		if (uae_boot_rom_type > 0) {
+			uae_u32 tv = get_long(addr);
+			if (tv != v2) {
+				write_log (_T("data cache mismatch %d %d %08x %08x != %08x %08x %d PC=%08x\n"),
+					size, aligned, addr, tv, v2, tag2, lws2, M68K_GETPC);
+				v2 = tv;
+			}
 		}
 	}
 	if (size == 1 && aligned == 3)
