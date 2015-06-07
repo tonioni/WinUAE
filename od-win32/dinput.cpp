@@ -13,6 +13,10 @@ int rawinput_enabled_hid = -1;
 int rawinput_log = 0;
 int tablet_log = 0;
 
+int no_rawinput = 0;
+int no_directinput = 0;
+int no_windowsmouse = 0;
+
 #define _WIN32_WINNT 0x501 /* enable RAWINPUT support */
 
 #define DI_DEBUG 1
@@ -154,9 +158,6 @@ static int rawinput_enabled_hid_reset;
 
 static uae_s16 axisold[MAX_INPUT_DEVICES][256], buttonold[MAX_INPUT_DEVICES][256];
 
-int no_rawinput = 0;
-int no_directinput = 0;
-int no_windowsmouse = 0;
 static int dinput_enum_all;
 
 int dinput_winmouse (void)
@@ -3679,7 +3680,7 @@ static void read_joystick (void)
 			continue;
 		elements = DI_BUFFER;
 		hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof (DIDEVICEOBJECTDATA), didod, &elements, 0);
-		if ((SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) && (isfocus () || istest)) {
+		if ((SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) && (isfocus () || istest || (currprefs.win32_inactive_input & 4))) {
 			for (j = 0; j < elements; j++) {
 				int dimofs = didod[j].dwOfs;
 				int data = didod[j].dwData;
