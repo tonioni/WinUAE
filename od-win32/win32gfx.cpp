@@ -1723,7 +1723,7 @@ static int open_windows (bool mousecapture)
 	bool startminimized = !started && currprefs.win32_start_minimized && isfullscreen () <= 0;
 	int input = 0;
 
-	if (!rp_isactive () && mousecapture && startactive)
+	if (mousecapture && startactive)
 		setmouseactive (-1);
 
 	int upd = 0;

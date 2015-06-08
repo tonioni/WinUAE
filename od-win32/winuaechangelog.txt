@@ -1,4 +1,9 @@
 
+3.1.0
+
+- Unticked "Game controllers disabled" works now in DirectInput mode.
+- 68030 data cache fix.
+
 Beta 23: (RC3)
 
 - Toccata audio didn't automatically re-enable audio if it was stopped by automatic switching.

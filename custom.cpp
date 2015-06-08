@@ -205,6 +205,7 @@ static int ciavsyncmode;
 static int diw_hstrt, diw_hstop;
 static int diw_hcounter;
 static uae_u16 refptr;
+static uae_u32 refptr_val;
 
 #define HSYNCTIME (maxhpos * CYCLE_UNIT)
 
@@ -1282,7 +1283,7 @@ STATIC_INLINE void maybe_first_bpl1dat (int hpos)
 		thisline_decision.plfleft = hpos;
 }
 
-static uae_s16 fetch_warn (int nr, int hpos)
+static int fetch_warn (int nr, int hpos)
 {
 	static int warned1 = 30, warned2 = 30;
 	int add = fetchmode_bytes;
@@ -1291,13 +1292,13 @@ static uae_s16 fetch_warn (int nr, int hpos)
 			write_log (_T("WARNING: BPL fetch conflicts with strobe refresh slot!\n"));
 			warned1--;
 		}
-		add = refptr & ~(0x0101);
+		add = refptr_val;
 	} else {
 		if (warned2 >= 0) {
 			warned2--;
 			write_log (_T("WARNING: BPL fetch at hpos 0x%02X!\n"), hpos);
 		}
-		add = refptr & ~(0x0101);
+		add = refptr_val;
 	}
 	bitplane_line_crossing = hpos;
 #if 0
@@ -1310,7 +1311,7 @@ static uae_s16 fetch_warn (int nr, int hpos)
 		bplpt[i] = (bplpt[i] & 0xffff0000) | v;
 	}
 #endif
-	return (uae_s16)add;
+	return add;
 }
 
 static void fetch (int nr, int fm, int hpos)
@@ -4592,7 +4593,41 @@ static uae_u16 VHPOSR (void)
 
 static void REFPTR(uae_u16 v)
 {
+	/*
+	 ECS Agnus:
+
+	 b15 8000: R 040
+	 b14 4000: R 020
+	 b13 2000: R 010
+	 b12 1000: R 008
+	 b11 0800: R 004 
+	 b10 0400: R 002
+	 b09 0200: R 001
+	 b08 0100: C 080
+	 b07 0080: C 040
+	 b06 0040: C 020
+	 b05 0020: C 010
+	 b04 0010: C 008
+	 b03 0008: C 004
+	 b02 0004: C 002 C 100
+	 b01 0002: C 001 R 100
+	 b00 0001: R 080
+
+	*/
+
 	refptr = v;
+	refptr_val = (v & 0xfe00) | ((v & 0x01fe) >> 1);
+	if (v & 1) {
+		v |= 0x80 << 9;
+	}
+	if (v & 2) {
+		refptr_val |= 1;
+		refptr_val |= 0x100 << 9;
+	}
+	if (v & 4) {
+		refptr_val |= 2;
+		refptr_val |= 0x100;
+	}
 }
 
 static int test_copper_dangerous (unsigned int address)
@@ -7759,6 +7794,7 @@ static void hsync_handler_pre (bool onvsync)
 	hsync_counter++;
 
 	refptr += 0x0200 * 4;
+	refptr_val += 0x0200 * 4;
 
 	if (islinetoggle ())
 		lol ^= 1;

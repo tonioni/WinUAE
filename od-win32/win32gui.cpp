@@ -1687,7 +1687,7 @@ static void show_rom_list (void)
 		124, -1, -1, // kupke golem
 		131, -1, -1, // protar
 		130, -1, -1, // m-tec
-		129, -1, -1, // adide
+		129, 141, -1, -1, // adide
 		133, -1, -1, // adscsi
 		127, 140, -1, -1, // kommos
 		128, -1, -1, // vector falcon
@@ -5174,7 +5174,7 @@ static urlinfo urls[] =
 //	{IDC_UAEHOME, FALSE, _T("UAE Home Page"), _T("http://www.amigaemulator.org/")},
 	{IDC_WINUAEHOME, FALSE, _T("WinUAE Home Page"), _T("http://www.winuae.net/")},
 //	{IDC_AIABHOME, FALSE, _T("AIAB"), _T("http://www.amigainabox.co.uk/")},
-	{IDC_THEROOTS, FALSE, _T("Back To The Roots"), _T("http://www.back2roots.org/")},
+	{IDC_THEROOTS, FALSE, _T("Back To The Roots"), _T("http://back2roots.abime.net/")},
 	{IDC_ABIME, FALSE, _T("abime.net"), _T("http://www.abime.net/")},
 	{IDC_CAPS, FALSE, _T("SPS"), _T("http://www.softpres.org/")},
 	{IDC_AMIGASYS, FALSE, _T("AmigaSYS"), _T("http://www.amigasys.com/")},
