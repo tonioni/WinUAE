@@ -266,6 +266,7 @@ static struct wd_state *wd_a2090[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct wd_state *wd_a3000;
 static struct wd_state *wd_gvps1[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct wd_state *wd_gvps2[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct wd_state *wd_gvps2accel;
 struct wd_state *wd_cdtv;
 
 static struct wd_state *scsi_units[MAX_SCSI_UNITS + 1];
@@ -1410,6 +1411,7 @@ void scsi_hsync (void)
 		scsi_hsync2_gvp(wd_gvps1[i]);
 		scsi_hsync2_gvp(wd_gvps2[i]);
 	}
+	scsi_hsync2_gvp(wd_gvps2accel);
 	scsi_hsync2_a2091(wd_a3000);
 	scsi_hsync2_a2091(wd_cdtv);
 }
@@ -2940,7 +2942,8 @@ static uae_u32 REGPARAM2 dmac_gvp_lgeti (uaecptr addr)
 }
 static int REGPARAM2 dmac_gvp_check(uaecptr addr, uae_u32 size)
 {
-	return 1;
+	struct wd_state *wd = getscsiboard(addr);
+	return wd ? 1 : 0;
 }
 static uae_u8 *REGPARAM2 dmac_gvp_xlate(uaecptr addr)
 {
@@ -3324,7 +3327,7 @@ void a3000scsi_reset (void)
 	wd->enabled = true;
 	wd->configured = -1;
 	wd->dmac_type = COMMODORE_SDMAC;
-	map_banks (&mbdmac_a3000_bank, 0xDD, 1, 0);
+	map_banks(&mbdmac_a3000_bank, 0xDD, 1, 0);
 	wd_cmd_reset (&wd->wc, false);
 	reset_dmac(wd);
 }
@@ -3371,6 +3374,14 @@ void gvp_s1_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 void gvp_s2_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	struct wd_state *wd = allocscsi(&wd_gvps2[ci->controller_type_unit], rc, ch);
+	if (!wd || ch < 0)
+		return;
+	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
+}
+
+void gvp_s2_add_accelerator_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	struct wd_state *wd = allocscsi(&wd_gvps2accel, rc, ch);
 	if (!wd || ch < 0)
 		return;
 	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
@@ -3563,6 +3574,7 @@ void gvp_free (void)
 		gvp_free_device(wd_gvps1[i]);
 		gvp_free_device(wd_gvps2[i]);
 	}
+	gvp_free_device(wd_gvps2accel);
 }
 
 static void gvp_reset_device(struct wd_state *wd)
@@ -3585,6 +3597,7 @@ void gvp_reset (void)
 		gvp_reset_device(wd_gvps1[i]);
 		gvp_reset_device(wd_gvps2[i]);
 	}
+	gvp_reset_device(wd_gvps2accel);
 }
 
 static const uae_u8 gvp_scsi_i_autoconfig_1[16] = { 0xd1, 0x01, 0x00, 0x00, 0x07, 0xe1, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 };

@@ -512,7 +512,7 @@ static void REGPARAM2 toccata_bput(uaecptr addr, uae_u32 b)
 		switch (addr)
 		{
 			case 0x48:
-			map_banks(&toccata_bank, expamem_z2_pointer >> 16, BOARD_SIZE >> 16, 0);
+			map_banks_z2(&toccata_bank, expamem_z2_pointer >> 16, BOARD_SIZE >> 16);
 			configured = 1;
 			expamem_next(&toccata_bank, NULL);
 			break;

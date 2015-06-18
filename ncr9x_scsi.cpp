@@ -1133,7 +1133,7 @@ static void REGPARAM2 ncr9x_wput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 		switch (addr)
 		{
 			case 0x44:
-			map_banks (ncr->bank, expamem_z3_pointer >> 16, FASTLANE_BOARD_SIZE >> 16, 0);
+			map_banks_z3(ncr->bank, expamem_z3_pointer >> 16, FASTLANE_BOARD_SIZE >> 16);
 			ncr->baseaddress = expamem_z3_pointer;
 			ncr->configured = 1;
 			expamem_next (ncr->bank, NULL);
@@ -1163,11 +1163,11 @@ static void REGPARAM2 ncr9x_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 		{
 			case 0x48:
 			if (isncr(ncr, ncr_oktagon2008_scsi)) {
-				map_banks (ncr->bank, expamem_z2_pointer >> 16, OKTAGON_BOARD_SIZE >> 16, 0);
+				map_banks_z2(ncr->bank, expamem_z2_pointer >> 16, OKTAGON_BOARD_SIZE >> 16);
 				ncr->configured = 1;
 				expamem_next (ncr->bank, NULL);
 			} else if (ncr == ncr_dkb1200_scsi) {
-				map_banks (ncr->bank, expamem_z2_pointer >> 16, DKB_BOARD_SIZE >> 16, 0);
+				map_banks_z2(ncr->bank, expamem_z2_pointer >> 16, DKB_BOARD_SIZE >> 16);
 				ncr->configured = 1;
 				expamem_next (ncr->bank, NULL);
 			}

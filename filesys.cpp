@@ -793,6 +793,11 @@ static void allocuci (struct uae_prefs *p, int nr, int idx)
 	allocuci (p, nr, idx, -1);
 }
 
+static const TCHAR *getunittype(struct uaedev_config_info *uci)
+{
+	return uci->type == UAEDEV_CD ? _T("CD") : (uci->type == UAEDEV_TAPE ? _T("TAPE") : _T("HD"));
+}
+
 static int cpuboard_hd;
 static romconfig cpuboard_dummy;
 
@@ -804,9 +809,9 @@ void add_cpuboard_unit(int unit, struct uaedev_config_info *uci, struct romconfi
 	if (cbt->subtypes) {
 		if (cbt->subtypes[currprefs.cpuboard_subtype].add && (cbt->subtypes[currprefs.cpuboard_subtype].deviceflags & flags)) {
 			if (unit >= 0) {
-				write_log(_T("Adding CPUBoard '%s' HD unit %d ('%s')\n"),
+				write_log(_T("Adding CPUBoard '%s' %s unit %d ('%s')\n"),
 					cbt->subtypes[currprefs.cpuboard_subtype].name,
-					unit, uci->rootdir);
+					getunittype(uci), unit, uci->rootdir);
 			}
 			cbt->subtypes[currprefs.cpuboard_subtype].add(unit, uci, rc);
 			cpuboard_hd = 1;
@@ -825,9 +830,11 @@ static void add_cpuboard_unit_init(void)
 		const struct cpuboardtype *cbt = &cpuboards[currprefs.cpuboard_type];
 		if (cbt->subtypes) {
 			if (cbt->subtypes[currprefs.cpuboard_subtype].add) {
+				const struct cpuboardsubtype *cst = &cbt->subtypes[currprefs.cpuboard_subtype];
 				struct uaedev_config_info ci = { 0 };
-				write_log(_T("Initializing CPUBoard '%s' HD controller\n"), cbt->subtypes[currprefs.cpuboard_subtype].name);
-				cbt->subtypes[currprefs.cpuboard_subtype].add(-1, &ci, rc);
+				write_log(_T("Initializing CPUBoard '%s' %s controller\n"),
+					cst->name, (cst->deviceflags & EXPANSIONTYPE_SCSI) ? _T("SCSI") : _T("IDE"));
+				cst->add(-1, &ci, rc);
 			}
 		}
 	}
@@ -876,8 +883,8 @@ static bool add_ide_unit(int type, int unit, struct uaedev_config_info *uci)
 	bool added = false;
 	if (type == HD_CONTROLLER_TYPE_IDE_MB) {
 		if (ismainboardide()) {
-			write_log(_T("Adding mainboard IDE HD unit %d ('%s')\n"),
-				unit, uci->rootdir);
+			write_log(_T("Adding mainboard IDE %s unit %d ('%s')\n"),
+				getunittype(uci), unit, uci->rootdir);
 			gayle_add_ide_unit(unit, uci);
 			added = true;
 		}
@@ -889,7 +896,7 @@ static bool add_ide_unit(int type, int unit, struct uaedev_config_info *uci)
 					cpuboard_hd = 1;
 					if (ert->add) {
 						struct romconfig *rc = get_device_romconfig(&currprefs, ert->romtype, uci->controller_type_unit);
-						write_log(_T("Adding IDE HD '%s' unit %d ('%s')\n"),
+						write_log(_T("Adding IDE %s '%s' unit %d ('%s')\n"), getunittype(uci),
 							ert->name, unit, uci->rootdir);
 						ert->add(unit, uci, rc);
 					}
@@ -908,7 +915,7 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 	if (type == HD_CONTROLLER_TYPE_SCSI_A3000) {
 #ifdef A2091
 		if (isa3000scsi()) {
-			write_log(_T("Adding A3000 mainboard SCSI HD unit %d ('%s')\n"),
+			write_log(_T("Adding A3000 mainboard SCSI %s unit %d ('%s')\n"), getunittype(uci),
 				unit, uci->rootdir);
 			a3000_add_scsi_unit (unit, uci, NULL);
 			added = true;
@@ -917,7 +924,7 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 	} else if (type == HD_CONTROLLER_TYPE_SCSI_A4000T) {
 #ifdef NCR
 		if (isa4000tscsi()) {
-			write_log(_T("Adding A4000T mainboard SCSI HD unit %d ('%s')\n"),
+			write_log(_T("Adding A4000T mainboard SCSI %s unit %d ('%s')\n"), getunittype(uci),
 				unit, uci->rootdir);
 			a4000t_add_scsi_unit (unit, uci, NULL);
 			added = true;
@@ -926,7 +933,7 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 	} else if (type == HD_CONTROLLER_TYPE_SCSI_CDTV) {
 #ifdef CDTV
 		if (iscdtvscsi()) {
-			write_log(_T("Adding CDTV SCSI expansion HD unit %d ('%s')\n"),
+			write_log(_T("Adding CDTV SCSI expansion %s unit %d ('%s')\n"), getunittype(uci),
 				unit, uci->rootdir);
 			cdtv_add_scsi_unit (unit, uci, NULL);
 			added = true;
@@ -940,7 +947,7 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 					cpuboard_hd = 1;
 					if (ert->add) {
 						struct romconfig *rc = get_device_romconfig(&currprefs, ert->romtype, uci->controller_type_unit);
-						write_log(_T("Adding SCSI HD '%s' unit %d ('%s')\n"),
+						write_log(_T("Adding SCSI %s '%s' unit %d ('%s')\n"), getunittype(uci),
 							ert->name, unit, uci->rootdir);
 						ert->add(unit, uci, rc);
 					}

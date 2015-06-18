@@ -160,6 +160,7 @@ static struct ncr_state *ncr_cpuboard;
 static struct ncr_state *ncr_we;
 static struct ncr_state *ncr_a4000t;
 static struct ncr_state *ncra4091[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ncr_state *ncr_wildfire;
 
 extern void cyberstorm_mk3_ppc_irq(int);
 extern void blizzardppc_irq(int);
@@ -548,7 +549,7 @@ static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
 		switch (addr)
 		{
 			case 0x44:
-			map_banks (ncr->bank, expamem_z3_pointer >> 16, BOARD_SIZE >> 16, 0);
+			map_banks_z3(ncr->bank, expamem_z3_pointer >> 16, BOARD_SIZE >> 16);
 			ncr->board_mask = 0x00ffffff;
 			ncr->baseaddress = expamem_z3_pointer;
 			ncr->configured = 1;
@@ -594,6 +595,15 @@ void ncr710_io_bput_a4000t(uaecptr addr, uae_u32 v)
 uae_u32 ncr710_io_bget_a4000t(uaecptr addr)
 {
 	return ncr710_io_bget(ncr_a4000t, addr);
+}
+
+void ncr815_io_bput_wildfire(uaecptr addr, uae_u32 v)
+{
+	ncr_io_bput(ncr_wildfire, addr, v);
+}
+uae_u32 ncr815_io_bget_wildfire(uaecptr addr)
+{
+	return ncr_io_bget(ncr_wildfire, addr);
 }
 
 static void REGPARAM2 ncr_generic_bput (uaecptr addr, uae_u32 b)
@@ -955,6 +965,15 @@ void blizzardppc_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct rom
 	ncr_bppc->irq_func = blizzardppc_irq;
 	ncr_bppc->bank = &ncr_bank_cyberstorm;
 	ncr_bppc->baseaddress = 0xf40000;
+}
+
+void wildfire_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	ncr_add_scsi_unit(&ncr_wildfire, ch, ci, rc, true);
+	ncr_wildfire->configured = -1;
+	ncr_wildfire->enabled = true;
+	ncr_wildfire->irq_func = wildfire_ncr815_irq;
+	ncr_wildfire->bank = &ncr_bank_generic;
 }
 
 #endif

@@ -149,7 +149,7 @@ static void REGPARAM3 dummy_wput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 dummy_bput (uaecptr, uae_u32) REGPARAM;
 static int REGPARAM3 dummy_check (uaecptr addr, uae_u32 size) REGPARAM;
 
-#define	MAX_ILG 200
+#define	MAX_ILG 1000
 #define NONEXISTINGDATA 0
 //#define NONEXISTINGDATA 0xffffffff
 
@@ -1054,6 +1054,13 @@ static int be_cnt;
 
 uae_u8 *REGPARAM2 default_xlate (uaecptr addr)
 {
+	static int recursive;
+
+	if (recursive) {
+		cpu_halt(CPU_HALT_OPCODE_FETCH_FROM_NON_EXISTING_ADDRESS);
+		return kickmem_xlate(2);
+	}
+	recursive++;
 	int size = currprefs.cpu_model >= 68020 ? 4 : 2;
 	if (quit_program == 0) {
 		/* do this only in 68010+ mode, there are some tricky A500 programs.. */
@@ -1083,10 +1090,11 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr addr)
 			if (0 || (gary_toenb && (gary_nonrange(addr) || (size > 1 && gary_nonrange(addr + size - 1))))) {
 				exception2 (addr, false, size, regs.s ? 4 : 0);
 			} else {
-				cpu_halt(3);
+				cpu_halt(CPU_HALT_OPCODE_FETCH_FROM_NON_EXISTING_ADDRESS);
 			}
 		}
 	}
+	recursive--;
 	return kickmem_xlate (2); /* So we don't crash. */
 }
 
@@ -2765,25 +2773,41 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
 #endif
 }
 
+void map_banks_z3(addrbank *bank, int start, int size)
+{
+	if (start < 0x1000 || size <= 0 || size > 0x4000 || start + size > 0xf000) {
+		write_log(_T("Z3 invalid map_banks start=%08x size=%08x\n"), start, size);
+		cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
+		return;
+	}
+	map_banks(bank, start, size, 0);
+}
+
 void map_banks_z2 (addrbank *bank, int start, int size)
 {
 	if (start < 0x20 || (start >= 0xa0 && start < 0xe9) || start >= 0xf0) {
 		write_log(_T("Z2 map_banks with invalid start address %08X\n"), start << 16);
+		cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
 		return;
 	}
 	if (start >= 0xe9) {
 		if (start + size > 0xf0) {
 			write_log(_T("Z2 map_banks with invalid region %08x - %08X\n"), start << 16, (start + size) << 16);
-			size = 0xf0 - start;
+			cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
+			return;
 		}
 	} else {
 		if (start + size > 0xa0) {
 			write_log(_T("Z2 map_banks with invalid region %08x - %08X\n"), start << 16, (start + size) << 16);
-			size = 0xa0 - start;
+			cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
+			return;
 		}
 	}
-	if (size <= 0)
+	if (size <= 0 || size > 0x80) {
+		write_log(_T("Z2 map_banks with invalid size %08x\n"), size);
+		cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
 		return;
+	}
 	map_banks (bank, start, size, 0);
 }
 

@@ -137,6 +137,7 @@ extern void a2090_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct ro
 extern void a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void gvp_s1_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void gvp_s2_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void gvp_s2_add_accelerator_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void a3000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 extern int add_wd_scsi_hd (struct wd_state *wd, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level);

@@ -557,14 +557,21 @@ void a2065_hsync_handler (void)
 
 void rethink_a2065 (void)
 {
+	bool was = (uae_int_requested & 4) != 0;
 	uae_int_requested &= ~4;
 	if (!configured)
 		return;
 	csr[0] &= ~CSR0_INTR;
 	if (csr[0] & (CSR0_BABL | CSR0_MISS | CSR0_MERR | CSR0_RINT | CSR0_TINT | CSR0_IDON))
 		csr[0] |= CSR0_INTR;
-	if ((csr[0] & (CSR0_INTR | CSR0_INEA)) == (CSR0_INTR | CSR0_INEA))
+	if ((csr[0] & (CSR0_INTR | CSR0_INEA)) == (CSR0_INTR | CSR0_INEA)) {
 		uae_int_requested |= 4;
+		if (!was && log_a2065 > 2)
+			write_log(_T("A2065 +IRQ\n"));
+	}
+	if (log_a2065 && was && !(uae_int_requested & 4)) {
+		write_log(_T("A2065 -IRQ\n"));
+	}
 }
 
 static void chip_init (void)
@@ -913,6 +920,11 @@ static addrbank *a2065_config (void)
 	td = NULL;
 	if (ethernet_enumerate (&td, currprefs.a2065name)) {
 		memcpy (realmac, td->mac, sizeof realmac);
+		if (!td->mac[0] && !td->mac[1] && !td->mac[2]) {
+			realmac[0] = 0x00;
+			realmac[1] = 0x80;
+			realmac[2] = 0x10;
+		}
 		write_log (_T("A2065: '%s' %02X:%02X:%02X:%02X:%02X:%02X\n"),
 			td->name, td->mac[0], td->mac[1], td->mac[2], td->mac[3], td->mac[4], td->mac[5]);
 	} else {

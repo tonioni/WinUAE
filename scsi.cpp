@@ -1530,7 +1530,7 @@ static int suprareg(struct soft_scsi *ncr, uaecptr addr, bool write)
 		// "dma" data in/out space
 		reg = 8;
 		if (!(ncr->regs[2] & 2))
-			cpu_halt(6);
+			cpu_halt(CPU_HALT_FAKE_DMA);
 	}
 	return reg;
 }
@@ -2215,7 +2215,7 @@ static void REGPARAM2 ncr80_bput(struct soft_scsi *ncr, uaecptr addr, uae_u32 b)
 		switch (addr)
 		{
 			case 0x48:
-			map_banks (ncr->bank, expamem_z2_pointer >> 16, ncr->board_size >> 16, 0);
+			map_banks_z2(ncr->bank, expamem_z2_pointer >> 16, ncr->board_size >> 16);
 			ncr->baseaddress = expamem_z2_pointer;
 			ncr->configured = 1;
 			expamem_next (ncr->bank, NULL);
