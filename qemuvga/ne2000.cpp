@@ -952,11 +952,11 @@ static void gotfunc(void *devv, const uae_u8 *databuf, int len)
 
 static void REGPARAM2 ne2000_bput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	ne2000_write(ncs.ne2000state, addr, b, 1);
+	ne2000_write(ncs.ne2000state, addr, b & 0xff, 1);
 }
 static void REGPARAM2 ne2000_wput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	ne2000_write(ncs.ne2000state, addr, b, 2);
+	ne2000_write(ncs.ne2000state, addr, b & 0xffff, 2);
 }
 static void REGPARAM2 ne2000_lput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
