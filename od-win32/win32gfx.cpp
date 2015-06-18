@@ -1893,6 +1893,8 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_iscanlines != changed_prefs.gfx_iscanlines ? (2 | 8) : 0;
 	c |= currprefs.gfx_pscanlines != changed_prefs.gfx_pscanlines ? (2 | 8) : 0;
 	c |= currprefs.monitoremu != changed_prefs.monitoremu ? (2 | 8) : 0;
+	c |= currprefs.genlock_image != changed_prefs.genlock_image ? (2 | 8) : 0;
+	c |= currprefs.genlock != changed_prefs.genlock ? (2 | 8) : 0;
 
 	c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? (2 | 8) : 0;
 	c |= currprefs.gfx_scandoubler != changed_prefs.gfx_scandoubler ? (2 | 8) : 0;
@@ -1973,6 +1975,8 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_iscanlines = changed_prefs.gfx_iscanlines;
 		currprefs.gfx_pscanlines = changed_prefs.gfx_pscanlines;
 		currprefs.monitoremu = changed_prefs.monitoremu;
+		currprefs.genlock_image = changed_prefs.genlock_image;
+		currprefs.genlock = changed_prefs.genlock;
 
 		currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
 		currprefs.gfx_scandoubler = changed_prefs.gfx_scandoubler;
@@ -4307,7 +4311,7 @@ static BOOL doInit (void)
 			allocsoftbuffer (_T("draw"), &gfxvidinfo.drawbuffer, currentmode->flags,
 				1600, 1280, currentmode->current_depth);
 		}
-		if (currprefs.monitoremu || currprefs.cs_cd32fmv) {
+		if (currprefs.monitoremu || currprefs.cs_cd32fmv || (currprefs.genlock && currprefs.genlock_image)) {
 			allocsoftbuffer (_T("monemu"), &gfxvidinfo.tempbuffer, currentmode->flags,
 				currentmode->amiga_width > 1024 ? currentmode->amiga_width : 1024,
 				currentmode->amiga_height > 1024 ? currentmode->amiga_height : 1024,

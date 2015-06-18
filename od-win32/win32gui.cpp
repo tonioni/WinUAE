@@ -6320,7 +6320,6 @@ static void enable_for_chipsetdlg (HWND hDlg)
 #if !defined (CPUEMU_13)
 	ew (hDlg, IDC_CYCLEEXACT, FALSE);
 #endif
-	ew (hDlg, IDC_GENLOCK, full_property_sheet);
 #if 0
 	ew (hDlg, IDC_BLITIMM, enable);
 	if (enable == FALSE) {
@@ -6334,6 +6333,7 @@ static void enable_for_chipsetdlg (HWND hDlg)
 	}
 	ew (hDlg, IDC_BLITWAIT, workprefs.immediate_blits ? FALSE : TRUE);
 	ew (hDlg, IDC_CS_EXT, workprefs.cs_compatible ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCKMODE, workprefs.genlock ? TRUE : FALSE);
 }
 
 static const int fakerefreshrates[] = { 50, 60, 100, 120, 0 };
@@ -7266,8 +7266,8 @@ static void values_to_chipsetdlg (HWND hDlg)
 	CheckRadioButton (hDlg, IDC_COLLISION0, IDC_COLLISION3, IDC_COLLISION0 + workprefs.collision_level);
 	CheckDlgButton (hDlg, IDC_CYCLEEXACT, workprefs.cpu_cycle_exact);
 	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_SETCURSEL, workprefs.cs_compatible, 0);
-	SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_SETCURSEL, workprefs.monitoremu, 0);
-
+	SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_SETCURSEL, workprefs.monitoremu, 0);
+	SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_SETCURSEL, workprefs.genlock_image, 0);
 }
 
 static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -7312,6 +7312,10 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	nn = SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_GETCURSEL, 0, 0);
 	if (nn != CB_ERR)
 		workprefs.monitoremu = nn;
+
+	nn = SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_GETCURSEL, 0, 0);
+	if (nn != CB_ERR)
+		workprefs.genlock_image = nn;
 }
 
 static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -7342,6 +7346,11 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("A4000"));
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("A4000T"));
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("Velvet"));
+
+		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM) _T("-"));
+		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM) _T("Noise"));
+		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM) _T("Test card"));
 
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("-"));
@@ -8100,7 +8109,7 @@ static void expansion_net (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString (IDS_NETDISCONNECTED, tmp, sizeof tmp / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_ADDSTRING, 0, (LPARAM)tmp);
-	if (!_tcsicmp (workprefs.a2065name, _T("none"))) {
+	if (!_tcsicmp (workprefs.a2065name, _T("none")) && !_tcsicmp(workprefs.ne2000pciname, _T("none"))) {
 		SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_SETCURSEL, 0, 0);
 		notset = false;
 	}
@@ -8108,11 +8117,17 @@ static void expansion_net (HWND hDlg)
 	for (i = 0; ndd && i < MAX_TOTAL_NET_DEVICES; i++) {
 		if (ndd[i]) {
 			TCHAR mac[20];
-			_stprintf (mac, _T("%02X:%02X:%02X:%02X:%02X:%02X"),
-				ndd[i]->mac[0], ndd[i]->mac[1], ndd[i]->mac[2], ndd[i]->mac[3], ndd[i]->mac[4], ndd[i]->mac[5]);
+			if (ndd[i]->type == UAENET_SLIRP || ndd[i]->type == UAENET_SLIRP_INBOUND) {
+				_stprintf(mac, _T("xx:xx:xx:%02X:%02X:%02X"),
+					ndd[i]->mac[3], ndd[i]->mac[4], ndd[i]->mac[5]);
+			} else {
+				_stprintf (mac, _T("2X:%02X:%02X:%02X:%02X:%02X"),
+					ndd[i]->mac[0], ndd[i]->mac[1], ndd[i]->mac[2], ndd[i]->mac[3], ndd[i]->mac[4], ndd[i]->mac[5]);
+			}
 			_stprintf (tmp, _T("%s %s"), mac, ndd[i]->desc);
 			SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_ADDSTRING, 0, (LPARAM)tmp);
-			if (!_tcsicmp (workprefs.a2065name, mac) || !_tcsicmp (workprefs.a2065name, ndd[i]->name)) {
+			if (!_tcsicmp (workprefs.a2065name, mac) || !_tcsicmp (workprefs.a2065name, ndd[i]->name) ||
+				!_tcsicmp(workprefs.ne2000pciname, mac) || !_tcsicmp(workprefs.ne2000pciname, ndd[i]->name)) {
 				SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_SETCURSEL, cnt, 0);
 				notset = false;
 			}
@@ -8137,7 +8152,7 @@ static void enable_for_expansiondlg (HWND hDlg)
 	ew (hDlg, IDC_NETDEVICE, en);
 	ew (hDlg, IDC_SANA2, en);
 	ew (hDlg, IDC_A2065, en);
-	ew (hDlg, IDC_NETDEVICE, en && workprefs.a2065name[0]);
+	ew (hDlg, IDC_NETDEVICE, en && (workprefs.a2065name[0] || workprefs.ne2000pciname[0]));
 
 	int rtg = workprefs.rtgmem_size && full_property_sheet && workprefs.rtgmem_type < GFXBOARD_HARDWARE;
 	int rtg2 = workprefs.rtgmem_size || workprefs.rtgmem_type >= GFXBOARD_HARDWARE;
@@ -8180,7 +8195,8 @@ static void values_to_expansiondlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_CATWEASEL, workprefs.catweasel);
 	CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
 	CheckDlgButton (hDlg, IDC_SANA2, workprefs.sana2);
-	CheckDlgButton (hDlg, IDC_A2065, workprefs.a2065name[0] ? 1 : 0);
+	CheckDlgButton(hDlg, IDC_A2065, workprefs.a2065name[0] ? 1 : 0);
+	CheckDlgButton(hDlg, IDC_NE2000, workprefs.ne2000pciname[0] ? 1 : 0);
 	CheckDlgButton(hDlg, IDC_CS_CD32FMV, workprefs.cs_cd32fmv);
 	CheckDlgButton(hDlg, IDC_CS_TOCCATA, workprefs.sound_toccata);
 	CheckDlgButton(hDlg, IDC_CS_TOCCATAMIXER, workprefs.sound_toccata_mixer);
@@ -8337,16 +8353,29 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				workprefs.sana2 = ischecked (hDlg, IDC_SANA2);
 				break;
 			case IDC_A2065:
-				if (ischecked (hDlg, IDC_A2065)) {
-					_tcscpy (workprefs.a2065name, _T("none"));
-					expansion_net (hDlg);
-					enable_for_expansiondlg (hDlg);
-				} else {
-					ew (hDlg, IDC_NETDEVICE, FALSE);
-					workprefs.a2065name[0] = 0;
-					enable_for_expansiondlg (hDlg);
-				}
-				break;
+			if (ischecked(hDlg, IDC_A2065)) {
+				_tcscpy(workprefs.a2065name, _T("none"));
+				expansion_net(hDlg);
+				enable_for_expansiondlg(hDlg);
+			} else {
+				if (!workprefs.ne2000pciname[0])
+					ew(hDlg, IDC_NETDEVICE, FALSE);
+				workprefs.a2065name[0] = 0;
+				enable_for_expansiondlg(hDlg);
+			}
+			break;
+			case IDC_NE2000:
+			if (ischecked(hDlg, IDC_NE2000)) {
+				_tcscpy(workprefs.ne2000pciname, _T("none"));
+				expansion_net(hDlg);
+				enable_for_expansiondlg(hDlg);
+			} else {
+				if (!workprefs.a2065name[0])
+					ew(hDlg, IDC_NETDEVICE, FALSE);
+				workprefs.ne2000pciname[0] = 0;
+				enable_for_expansiondlg(hDlg);
+			}
+			break;
 			case IDC_CATWEASEL:
 				workprefs.catweasel = ischecked (hDlg, IDC_CATWEASEL) ? -1 : 0;
 				break;
@@ -8478,12 +8507,17 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				case IDC_NETDEVICE:
 					v = SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_GETCURSEL, 0, 0L);
 					if (v != CB_ERR) {
+						const TCHAR *s;
 						if (v == 0) {
-							_tcscpy (workprefs.a2065name, _T("none"));
+							s = _T("none");
 						} else if (ndd) {
 							v--;
-							_tcscpy (workprefs.a2065name, ndd[v]->name);
+							s = ndd[v]->name;
 						}
+						if (ischecked(hDlg, IDC_A2065))
+							_tcscpy(workprefs.a2065name, s);
+						if (ischecked(hDlg, IDC_NE2000))
+							_tcscpy(workprefs.ne2000pciname, s);
 					}
 					break;
 
@@ -8671,7 +8705,7 @@ static void addromfiles (UAEREG *fkey, HWND hDlg, DWORD d, const TCHAR *path, in
 					int type = i ? type2 : type1;
 					if (type) {
 						if (rd && ((((rd->type & ROMTYPE_GROUP_MASK) & (type & ROMTYPE_GROUP_MASK)) && ((rd->type & ROMTYPE_SUB_MASK) == (type & ROMTYPE_SUB_MASK) || !(type & ROMTYPE_SUB_MASK))) ||
-							(rd->type & type) == ROMTYPE_NONE)) {
+							(rd->type & type) == ROMTYPE_NONE || (rd->type & type) == ROMTYPE_NOT)) {
 							getromname (rd, tmp);
 							if (SendDlgItemMessage (hDlg, d, CB_FINDSTRING, (WPARAM)-1, (LPARAM)tmp) < 0)
 								SendDlgItemMessage(hDlg, d, CB_ADDSTRING, 0, (LPARAM)tmp);
@@ -8798,6 +8832,34 @@ static void values_from_kickstartdlg (HWND hDlg)
 	}
 }
 
+static void values_to_kickstartdlg_expansion_roms(HWND hDlg, UAEREG *fkey)
+{
+	int index;
+	bool keyallocated = false;
+	struct boardromconfig *brc;
+
+	if (!fkey) {
+		fkey = regcreatetree(NULL, _T("DetectedROMs"));
+		keyallocated = true;
+	}
+	const struct expansionromtype *ert = &expansionroms[scsiromselected];
+	int romtype = ert->romtype;
+	int romtype_extra = ert->romtype_extra;
+
+	brc = get_device_rom(&workprefs, romtype, scsiromselectednum, &index);
+	if (brc && ert->subtypes) {
+		const struct expansionsubromtype *esrt = &ert->subtypes[brc->roms[index].subtype];
+		if (esrt->romtype) {
+			romtype = esrt->romtype;
+			romtype_extra = 0;
+		}
+	}
+	addromfiles(fkey, hDlg, IDC_SCSIROMFILE, brc ? brc->roms[index].romfile : NULL, romtype, romtype_extra);
+	CheckDlgButton(hDlg, IDC_SCSIROMFILEAUTOBOOT, brc && brc->roms[index].autoboot_disabled);
+	if (keyallocated)
+		regclosetree(fkey);
+}
+
 static void values_to_kickstartdlg_expansion_settings(HWND hDlg)
 {
 	int index;
@@ -8853,10 +8915,7 @@ static void values_to_kickstartdlg (HWND hDlg)
 	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile,
 		ROMTYPE_FREEZER | ROMTYPE_ARCADIAGAME | ROMTYPE_CD32CART, 0);
 
-	brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index);
-	addromfiles (fkey, hDlg, IDC_SCSIROMFILE, brc ? brc->roms[index].romfile : NULL,
-		expansionroms[scsiromselected].romtype, expansionroms[scsiromselected].romtype_extra);
-	CheckDlgButton(hDlg, IDC_SCSIROMFILEAUTOBOOT, brc && brc->roms[index].autoboot_disabled);
+	values_to_kickstartdlg_expansion_roms(hDlg, fkey);
 	values_to_kickstartdlg_expansion_settings(hDlg);
 
 	if (workprefs.cpuboard_type) {
@@ -9051,10 +9110,14 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			case IDC_CARTFILE:
 			case IDC_SCSIROMFILE:
 			case IDC_SCSIROMID:
-			case IDC_SCSIROMSUBSELECT:
 			case IDC_CPUBOARDROMFILE:
 			case IDC_CPUBOARDROMSUBSELECT:
 				values_from_kickstartdlg (hDlg);
+				values_to_kickstartdlg_expansion_settings(hDlg);
+				break;
+			case IDC_SCSIROMSUBSELECT:
+				values_from_kickstartdlg(hDlg);
+				values_to_kickstartdlg_expansion_roms(hDlg, NULL);
 				values_to_kickstartdlg_expansion_settings(hDlg);
 				break;
 			case IDC_SCSIROMSELECTNUM:
@@ -9064,15 +9127,9 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 					scsiromselectednum = val;
 				val = gui_get_string_cursor(scsiromselect_table, hDlg, IDC_SCSIROMSELECT);	
 				if (val != CB_ERR) {
-					int index;
-					struct boardromconfig *brc;
-					UAEREG *fkey = regcreatetree (NULL, _T("DetectedROMs"));
 					scsiromselected = val;
-					brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index);
-					addromfiles (fkey, hDlg, IDC_SCSIROMFILE, brc ? brc->roms[index].romfile : NULL,
-						expansionroms[scsiromselected].romtype, 0);
+					values_to_kickstartdlg_expansion_roms(hDlg, NULL);
 					values_to_kickstartdlg_expansion_settings(hDlg);
-					regclosetree(fkey);
 					values_to_kickstartdlg_sub(hDlg);
 				}
 				break;

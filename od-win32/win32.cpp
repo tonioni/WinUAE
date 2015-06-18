@@ -5333,8 +5333,12 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		log_a2065 = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("a2065log2"))) {
+	if (!_tcscmp(arg, _T("a2065log2"))) {
 		log_a2065 = 2;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("a2065log3"))) {
+		log_a2065 = 3;
 		return 1;
 	}
 	if (!_tcscmp (arg, _T("a2065_promiscuous"))) {

@@ -1084,7 +1084,8 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 {
 	HRESULT hr;
 	struct sound_dp *s = sd->data;
-	WAVEFORMATEX *pwfx, *pwfx_saved;
+	WAVEFORMATEX *pwfx = NULL;
+	WAVEFORMATEX *pwfx_saved = NULL;
 	WAVEFORMATEXTENSIBLE wavfmt;
 	int final;
 	LPWSTR name = NULL;
@@ -1143,7 +1144,6 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 
 	final = 0;
 	rncnt = 0;
-	pwfx_saved = NULL;
 	for (;;) {
 
 		if (sd->channels == 6) {

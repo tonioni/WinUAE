@@ -192,7 +192,7 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 		}
 		if (i == 0) {
 			if (prefs->gf[i].gfx_filter == 0 && prefs->monitoremu) {
-				error_log(_T("A2024 and Graffiti require at least null filter enabled."));
+				error_log(_T("Display port adapter emulation require at least null filter enabled."));
 				prefs->gf[i].gfx_filter = 1;
 			}
 			if (prefs->gf[i].gfx_filter == 0 && prefs->cs_cd32fmv) {

@@ -93,6 +93,7 @@
 #define WITH_PPC
 #define WITH_QEMU_CPU
 #define WITH_TOCCATA
+#define WITH_PCI
 
 #else
 

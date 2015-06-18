@@ -39,6 +39,7 @@
 #include "cpummu.h"
 #include "cpummu030.h"
 #include "ar.h"
+#include "pci.h"
 #include "ppc/ppcd.h"
 #include "uae/ppc.h"
 
@@ -3089,6 +3090,7 @@ static void memory_map_dump_3(UaeMemoryMap *map, int log)
 			a1 = a2;
 		}
 	}
+	pci_dump(log);
 	currprefs.illegal_mem = imold;
 }
 

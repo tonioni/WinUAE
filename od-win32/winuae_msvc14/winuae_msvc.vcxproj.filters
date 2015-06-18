@@ -736,6 +736,15 @@
     <ClCompile Include="..\..\archivers\zip\ioapi.cpp">
       <Filter>unpackers\zip</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\pci.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\test_card.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\qemuvga\ne2000.cpp">
+      <Filter>qemu</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

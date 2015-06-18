@@ -854,6 +854,7 @@
 #define IDC_INPUTAMIGACNT               1616
 #define IDC_FILTERHZ                    1616
 #define IDC_SAMPLERIPPER_ACTIVATED      1616
+#define IDC_NE2000                      1616
 #define IDC_AVIOUTPUT_BORDER_TRIM       1617
 #define IDC_FILTERVZ                    1617
 #define IDC_AVIOUTPUT_AUDIO_STATIC      1618
@@ -1039,6 +1040,7 @@
 #define IDC_SOUND_DS                    1713
 #define IDC_MONITOREMU                  1713
 #define IDC_CS_COMPATIBLE               1714
+#define IDC_GENLOCKMODE                 1714
 #define IDC_CS_RAMSEYREV                1715
 #define IDC_SOUND_WASAPI                1715
 #define IDC_CS_KSMIRROR_E0              1716

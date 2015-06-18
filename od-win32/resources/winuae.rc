@@ -672,11 +672,11 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,201,57,48,15
 END
 
-IDD_CHIPSET DIALOGEX 0, 0, 396, 169
+IDD_CHIPSET DIALOGEX 0, 0, 396, 192
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    GROUPBOX        "Chipset",IDC_STATIC,1,0,212,111
+    GROUPBOX        "Chipset",IDC_STATIC,1,0,212,136
     CONTROL         "OCS [] Original chipset. A1000 and most A500s.",IDC_OCS,
                     "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,14,15,88,10
     CONTROL         "ECS Agnus [] Enhanced chipset (ECS Agnus chip only). CDTV and later A500 and A2000 hardware revisions.",IDC_ECS_AGNUS,
@@ -693,24 +693,26 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,14,69,170,10
     RTEXT           "Chipset Extra:",IDC_STATIC,72,89,71,15,SS_CENTERIMAGE
     COMBOBOX        IDC_CS_EXT,148,90,49,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Options",IDC_STATIC,221,0,173,111
+    GROUPBOX        "Options",IDC_STATIC,221,0,173,137
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,16,150,10
     CONTROL         "Wait for Blitter [] Compatibility hack for programs that don't wait for the blitter correctly, causing graphics corruption if CPU is too fast.",IDC_BLITWAIT,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,29,150,10
     CONTROL         "Genlock connected [] Allow boot sequence to detect genlock. Genlock is not emulated.",IDC_GENLOCK,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,234,42,150,10
-    CTEXT           "Video port display hardware:",IDC_STATIC,228,59,117,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_MONITOREMU,238,78,147,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Collision Level",IDC_STATIC,1,116,393,48
+    LTEXT           "Video port display hardware:",IDC_STATIC,237,97,117,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_MONITOREMU,237,115,147,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Collision Level",IDC_STATIC,1,141,393,48
     CONTROL         "None [] Collision hardware emulation disabled.",IDC_COLLISION0,
-                    "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,47,132,101,10
+                    "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,47,157,101,10
     CONTROL         "Sprites only [] Emulate only sprite vs. sprite collisions.",IDC_COLLISION1,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,47,147,101,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,47,172,101,10
     CONTROL         "Sprites and Sprites vs. Playfield [] Recommended collision emulation level.",IDC_COLLISION2,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,182,132,181,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,182,157,181,10
     CONTROL         "Full [] 100% collision hardware emulation. Only very few games need this option. Slowest.",IDC_COLLISION3,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,182,147,181,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,182,172,181,10
+    LTEXT           "Genlock emulation mode",IDC_STATIC,237,59,117,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_GENLOCKMODE,237,77,147,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_CHIPSET2 DIALOGEX 0, 0, 396, 305
@@ -1108,7 +1110,7 @@ BEGIN
     CTEXT           "Enter address",IDC_DBG_ADDRINPUTTXT,20,1,100,10,SS_CENTERIMAGE | WS_TABSTOP
 END
 
-IDD_EXPANSION DIALOGEX 0, 0, 396, 289
+IDD_EXPANSION DIALOGEX 0, 0, 396, 302
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
@@ -1139,22 +1141,24 @@ BEGIN
     COMBOBOX        IDC_RTG_BUFFERCNT,153,162,84,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CTEXT           "Aspect ratio:",IDC_STATIC,282,149,83,10,SS_CENTERIMAGE
     COMBOBOX        IDC_RTG_SCALE_ASPECTRATIO,282,162,84,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Miscellaneous Expansions",IDC_STATIC,1,197,172,87
+    GROUPBOX        "Miscellaneous Expansions",IDC_STATIC,1,197,172,100
     CONTROL         "Catweasel Z2 emulation [] Catweasel MK2 Zorro II card emulation. Physical Windows compatible Catweasel card and drivers required.",IDC_CATWEASEL,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,216,147,11
     CONTROL         "uaescsi.device",IDC_SCSIDEVICE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,229,147,11
     CONTROL         "CD32 Full Motion Video cartridge",IDC_CS_CD32FMV,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,242,151,11
     CONTROL         "Toccata Z2 sound card emulation",IDC_CS_TOCCATA,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,255,151,11
     CONTROL         "Toccata Paula/CD audio mix",IDC_CS_TOCCATAMIXER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,267,151,11
-    GROUPBOX        "Network",IDC_STATIC,181,197,213,86
+    GROUPBOX        "Network",IDC_STATIC,181,197,213,101
     CONTROL         "bsdsocket.library [] bsdsocket network library emulation.",IDC_SOCKETS,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,215,187,11
     CONTROL         "uaenet.device [] Sana 2 compatible network device emulation.",IDC_SANA2,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,228,187,11
     CONTROL         "A2065 Z2 [] A2065 Ethernet Zorro II card emulation.",IDC_A2065,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,241,187,11
-    COMBOBOX        IDC_NETDEVICE,202,256,178,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Include host SCSI devices",IDC_CS_SCSIMODE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,271,147,11
+    COMBOBOX        IDC_NETDEVICE,202,269,178,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Include host SCSI devices",IDC_CS_SCSIMODE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,284,147,11
+    CONTROL         "Realtek 8029 PCI [] Realtek 8029 PCI NIC emulation",IDC_NE2000,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,255,187,11
 END
 
 IDD_INPUTMAP DIALOGEX 0, 0, 421, 341
@@ -1246,8 +1250,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,1,0,0
- PRODUCTVERSION 3,1,0,0
+ FILEVERSION 3,1,1,0
+ PRODUCTVERSION 3,1,1,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1263,12 +1267,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "3.1.0.0"
+            VALUE "FileVersion", "3.1.1.0"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2015 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "3.1.0.0"
+            VALUE "ProductVersion", "3.1.1.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1466,6 +1470,7 @@ BEGIN
 
     IDD_CHIPSET, DIALOG
     BEGIN
+        BOTTOMMARGIN, 169
     END
 
     IDD_CHIPSET2, DIALOG
@@ -1530,6 +1535,7 @@ BEGIN
 
     IDD_EXPANSION, DIALOG
     BEGIN
+        BOTTOMMARGIN, 289
     END
 
     IDD_INPUTMAP, DIALOG
