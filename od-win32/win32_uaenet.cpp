@@ -288,6 +288,9 @@ void uaenet_enumerate_free (void)
 static struct netdriverdata *enumit (const TCHAR *name)
 {
 	int cnt;
+	
+	if (name == NULL)
+		return tds;
 	for (cnt = 0; cnt < MAX_TOTAL_NET_DEVICES; cnt++) {
 		TCHAR mac[20];
 		struct netdriverdata *tc = tds + cnt;
