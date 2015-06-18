@@ -855,6 +855,7 @@ static void REGPARAM2 pci_bridge_wput(uaecptr addr, uae_u32 b)
 					map_banks(&pci_mem_bank, (expamem_z3_pointer + 0x100000) >> 16, (511 * 1024 * 1024) >> 16, 0);
 					map_banks(&pci_config_bank, (expamem_z3_pointer + 0xf0000) >> 16, 0x10000 >> 16, 0);
 					pcib->baseaddress_offset = pcib->baseaddress;
+					pcib->io_offset = expamem_z3_pointer;
 				} else if (pcib->type == PCI_BRIDGE_MEDIATOR) {
 					map_banks(&pci_mem_bank, expamem_z3_pointer >> 16, expamem_z3_size >> 16, 0);
 					pcib->baseaddress_offset = 0;
