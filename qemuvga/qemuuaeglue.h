@@ -26,6 +26,8 @@ extern void write_log (const char *, ...);
 #define unlikely(x)   __builtin_expect(!!(x), 0)
 #endif
 
+typedef int ssize_t;
+
 #ifdef _MSC_VER
 #include <windows.h>
 #define container_of(address, type, field) ((type *)( \
@@ -113,7 +115,28 @@ typedef struct DisplaySurface {
 uint16_t le16_to_cpu(uint16_t v);
 uint32_t le32_to_cpu(uint32_t v);
 
-static inline void cpu_to_32wu(uint32_t *p, uint32_t v)
+#define le_bswap(v, size) (v)
+#define cpu_to_le16(x) (x)
+
+STATIC_INLINE void stl_he_p(void *ptr, uint32_t v)
+{
+	memcpy(ptr, &v, sizeof(v));
+}
+STATIC_INLINE void stl_le_p(void *ptr, uint32_t v)
+{
+	stl_he_p(ptr, le_bswap(v, 32));
+}
+STATIC_INLINE int ldl_he_p(const void *ptr)
+{
+	int32_t r;
+	memcpy(&r, ptr, sizeof(r));
+	return r;
+}
+STATIC_INLINE int ldl_le_p(const void *ptr)
+{
+	return le_bswap(ldl_he_p(ptr), 32);
+}
+STATIC_INLINE void cpu_to_32wu(uint32_t *p, uint32_t v)
 {
 }
 

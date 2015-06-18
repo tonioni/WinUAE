@@ -54,6 +54,8 @@
 #include "tabletlibrary.h"
 #include "luascript.h"
 #include "driveclick.h"
+#include "pci.h"
+#include "pci_hw.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -82,6 +84,9 @@ void devices_reset(int hardreset)
 #endif
 #ifdef NCR9X
 	ncr9x_reset();
+#endif
+#ifdef WITH_PCI
+	pci_reset();
 #endif
 #ifdef JIT
 	compemu_reset ();
@@ -188,6 +193,9 @@ void devices_rethink(void)
 	ncr9x_rethink();
 #endif
 	ncr80_rethink();
+#ifdef WITH_PCI
+	pci_rethink();
+#endif
 #ifdef WITH_TOCCATA
 	sndboard_rethink();
 #endif
@@ -230,6 +238,9 @@ void reset_all_systems (void)
 #ifdef SANA2
 	netdev_reset ();
 	netdev_start_threads ();
+#endif
+#ifdef WITH_PCI
+	pci_reset();
 #endif
 #ifdef FILESYS
 	filesys_prepare_reset ();
@@ -294,6 +305,9 @@ void do_leave_program (void)
 #endif
 #ifdef AUTOCONFIG
 	expansion_cleanup ();
+#endif
+#ifdef WITH_PCI
+	pci_free();
 #endif
 #ifdef FILESYS
 	filesys_cleanup ();
