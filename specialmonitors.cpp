@@ -11,6 +11,7 @@
 #include "memory.h"
 #include "specialmonitors.h"
 #include "debug.h"
+#include "zfile.h"
 
 static bool automatic;
 static int monitor;
@@ -19,6 +20,11 @@ extern unsigned int bplcon0;
 extern uae_u8 **row_map_genlock;
 
 static uae_u8 graffiti_palette[256 * 4];
+
+STATIC_INLINE bool is_transparent(uae_u8 v)
+{
+	return v == 0;
+}
 
 STATIC_INLINE uae_u8 FVR(struct vidbuffer *src, uae_u8 *dataline)
 {
@@ -382,7 +388,7 @@ static bool firecracker24(struct vidbuffer *src, struct vidbuffer *dst, bool dou
 					b = vramptr[3];
 				}
 			}
-			if (!(fc24_cr0 & 1) && (!(fc24_cr1 & 1) || (s_genlock[0] != 0))) {
+			if (!(fc24_cr0 & 1) && (!(fc24_cr1 & 1) || (!is_transparent(s_genlock[0])))) {
 				uae_u8 *s2 = s + src->rowbytes;
 				uae_u8 *d2 = d + dst->rowbytes;
 				PUT_AMIGARGB(d, s, d2, s2, dst, xadd, doublelines, false);
@@ -598,7 +604,7 @@ static void REGPARAM2 sm_bput(uaecptr addr, uae_u32 b)
 	if (!sm_configured) {
 		switch (addr) {
 			case 0x48:
-			map_banks(&specialmonitors_bank, expamem_z2_pointer >> 16, 65536 >> 16, 0);
+			map_banks_z2(&specialmonitors_bank, expamem_z2_pointer >> 16, 65536 >> 16);
 			sm_configured = 1;
 			expamem_next(&specialmonitors_bank, NULL);
 			break;
@@ -1821,5 +1827,264 @@ bool specialmonitor_need_genlock(void)
 		case MONITOREMU_HAM_E_PLUS:
 		return true;
 	}
+	if (currprefs.genlock_image && currprefs.genlock)
+		return true;
 	return false;
+}
+
+static uae_u8 *genlock_image;
+static int genlock_image_width, genlock_image_height, genlock_image_pitch;
+static uae_u8 noise_buffer[1024];
+static uae_u32 noise_seed, noise_add, noise_index;
+
+static uae_u32 quickrand(void)
+{
+	noise_seed = (noise_seed >> 1) ^ (0 - (noise_seed & 1) & 0xd0000001);
+	return noise_seed;
+}
+
+static void init_noise(void)
+{
+	noise_seed++;
+	for (int i = 0; i < sizeof noise_buffer; i++) {
+		noise_buffer[i] = quickrand();
+	}
+}
+
+static uae_u8 get_noise(void)
+{
+	noise_index += noise_add;
+	noise_index &= 1023;
+	return noise_buffer[noise_index];
+}
+
+#include "png.h"
+
+struct png_cb
+{
+	uae_u8 *ptr;
+	int size;
+};
+
+static void __cdecl readcallback(png_structp png_ptr, png_bytep out, png_size_t count)
+{
+	png_voidp io_ptr = png_get_io_ptr(png_ptr);
+
+	if (!io_ptr)
+		return;
+	struct png_cb *cb = (struct png_cb*)io_ptr;
+	if (count > cb->size)
+		count = cb->size;
+	memcpy(out, cb->ptr, count);
+	cb->ptr += count;
+	cb->size -= count;
+}
+
+static void load_genlock_image(void)
+{
+	extern unsigned char test_card_png[];
+	extern unsigned int test_card_png_len;
+	uae_u8 *b = test_card_png;
+	uae_u8 *bfree = NULL;
+	int file_size = test_card_png_len;
+	png_structp png_ptr;
+	png_infop info_ptr;
+	png_uint_32 width, height;
+	int depth, color_type;
+	struct png_cb cb;
+
+	xfree(genlock_image);
+	genlock_image = NULL;
+
+	if (currprefs.genlock_image == 3) {
+		int size;
+		uae_u8 *bb = zfile_load_file(currprefs.genlock_image_file, &size);
+		if (bb) {
+			file_size = size;
+			b = bb;
+			bfree = bb;
+		}
+	}
+
+	if (!png_check_sig(b, 8))
+		goto end;
+
+	png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, 0, 0, 0);
+	if (!png_ptr)
+		goto end;
+	info_ptr = png_create_info_struct(png_ptr);
+	if (!info_ptr) {
+		png_destroy_read_struct(&png_ptr, 0, 0);
+		goto end;
+	}
+	cb.ptr = b;
+	cb.size = file_size;
+	png_set_read_fn(png_ptr, &cb, readcallback);
+
+	png_read_info(png_ptr, info_ptr);
+
+	png_get_IHDR(png_ptr, info_ptr, &width, &height, &depth, &color_type, 0, 0, 0);
+
+	if (color_type == PNG_COLOR_TYPE_PALETTE)
+		png_set_expand(png_ptr);
+	if (color_type == PNG_COLOR_TYPE_GRAY && depth < 8)
+		png_set_expand(png_ptr);
+
+	if (depth > 8)
+		png_set_strip_16(png_ptr);
+	if (depth < 8)
+		png_set_packing(png_ptr);
+	if (!(color_type & PNG_COLOR_MASK_ALPHA))
+		png_set_add_alpha(png_ptr, 0, PNG_FILLER_AFTER);
+
+	png_size_t cols = png_get_rowbytes(png_ptr, info_ptr);
+
+	genlock_image_pitch = width * 4;
+	genlock_image_width = width;
+	genlock_image_height = height;
+
+	png_bytepp row_pp = new png_bytep[height];
+	
+	genlock_image = xcalloc(uae_u8, width * height * 4);
+	
+	for (int i = 0; i < height; i++) {
+		row_pp[i] = (png_bytep) &genlock_image[i * genlock_image_pitch];
+	}
+
+	png_read_image(png_ptr, row_pp);
+	png_read_end(png_ptr, info_ptr);
+
+	png_destroy_read_struct(&png_ptr, &info_ptr, 0);
+
+	delete[] row_pp;
+end:
+	xfree(bfree);
+}
+
+static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
+{
+	int y, x, vdbl, hdbl;
+	int ystart, yend, isntsc;
+	int gl_vdbl_l, gl_vdbl_r;
+	int gl_hdbl_l, gl_hdbl_r, gl_hdbl;
+	int gl_hcenter, gl_vcenter;
+
+	isntsc = (beamcon0 & 0x20) ? 0 : 1;
+	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+		isntsc = currprefs.ntscmode ? 1 : 0;
+
+	if (!genlock_image && currprefs.genlock_image == 2) {
+		load_genlock_image();
+	}
+	if (genlock_image && currprefs.genlock_image != 2) {
+		xfree(genlock_image);
+		genlock_image = NULL;
+	}
+
+	if (gfxvidinfo.xchange == 1)
+		hdbl = 0;
+	else if (gfxvidinfo.xchange == 2)
+		hdbl = 1;
+	else
+		hdbl = 2;
+
+	gl_hdbl_l = gl_hdbl_r = 0;
+	if (genlock_image_width < 600) {
+		gl_hdbl = 0;
+	} else if (genlock_image_width < 1000) {
+		gl_hdbl = 1;
+	} else {
+		gl_hdbl = 2;
+	}
+	if (hdbl >= gl_hdbl) {
+		gl_hdbl_l = hdbl - gl_hdbl;
+	} else {
+		gl_hdbl_r = gl_hdbl - hdbl;
+	}
+
+	if (gfxvidinfo.ychange == 1)
+		vdbl = 0;
+	else
+		vdbl = 1;
+
+	gl_vdbl_l = gl_vdbl_r = 0;
+
+	gl_hcenter = (genlock_image_width - ((src->inwidth << hdbl) >> gl_hdbl)) / 2;
+
+	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
+	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
+
+	gl_vcenter = (((genlock_image_height << gl_vdbl_l) >> gl_vdbl_r) - (((yend - ystart) * 2))) / 2;
+
+	init_noise();
+
+	uae_u8 r = 0, g = 0, b = 0;
+	for (y = ystart; y < yend; y++) {
+		int yoff = (((y * 2 + oddlines) - src->yoffset) >> vdbl);
+		if (yoff < 0)
+			continue;
+		if (yoff >= src->inheight)
+			continue;
+
+		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
+		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) >> vdbl) * dst->rowbytes;
+		uae_u8 *line_genlock = row_map_genlock[yoff];
+		int gy = ((((y * 2 + oddlines) - dst->yoffset) << gl_vdbl_l) >> gl_vdbl_r) + gl_vcenter;
+		uae_u8 *image_genlock = genlock_image + gy * genlock_image_pitch;
+		r = g = b = 0;
+		noise_add = (quickrand() & 15) | 1;
+		for (x = 0; x < src->inwidth; x++) {
+			uae_u8 *s = line + x * src->pixbytes;
+			uae_u8 *d = dstline + x * dst->pixbytes;
+			uae_u8 *s_genlock = line_genlock + x;
+			uae_u8 *s2 = s + src->rowbytes;
+			uae_u8 *d2 = d + dst->rowbytes;
+
+			if (is_transparent(*s_genlock)) {
+				if (genlock_image) {
+					int gx = (((x + gl_hcenter) << gl_hdbl_l) >> gl_hdbl_r);
+					if (gx >= 0 && gx < genlock_image_width && gy >= 0 && gy < genlock_image_height) {
+						uae_u8 *s_genlock_image = image_genlock + gx * 4;
+						r = s_genlock_image[0];
+						g = s_genlock_image[1];
+						b = s_genlock_image[2];
+					} else {
+						r = g = b = 0;
+					}
+				} else {
+					r = g = b = get_noise();
+				}
+				PUT_PRGB(d, d2, dst, r, g, b, 0, doublelines, false);
+			} else {
+				PUT_AMIGARGB(d, s, d2, s2, dst, 0, doublelines, false);
+			}
+		}
+	}
+
+	dst->nativepositioning = true;
+	return true;
+}
+
+bool emulate_genlock(struct vidbuffer *src, struct vidbuffer *dst)
+{
+	bool v;
+	if (interlace_seen) {
+		if (currprefs.gfx_iscanlines) {
+			v = do_genlock(src, dst, false, lof_store ? 0 : 1);
+			if (v && currprefs.gfx_iscanlines > 1)
+				blank_generic(src, dst, lof_store ? 1 : 0);
+		} else {
+			v = do_genlock(src, dst, false, 0);
+			v |= do_genlock(src, dst, false, 1);
+		}
+	} else {
+		if (currprefs.gfx_pscanlines) {
+			v = do_genlock(src, dst, false, lof_store ? 0 : 1);
+			if (v && currprefs.gfx_pscanlines > 1)
+				blank_generic(src, dst, lof_store ? 1 : 0);
+		} else {
+			v = do_genlock(src, dst, true, 0);
+		}
+	}
+	return v;
 }

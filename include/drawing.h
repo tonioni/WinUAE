@@ -86,7 +86,7 @@ struct color_entry {
 	xcolnr acolors[256];
 	uae_u32 color_regs_aga[256];
 #endif
-	bool borderblank, bordersprite;
+	bool borderblank, borderntrans, bordersprite;
 };
 
 #ifdef AGA

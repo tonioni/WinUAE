@@ -230,6 +230,9 @@ static uae_u32 plf_sprite_mask;
 static int sbasecol[2] = { 16, 16 };
 static int hposblank;
 static bool specialmonitoron;
+static bool ecs_genlock_features_active;
+static uae_u8 ecs_genlock_features_mask;
+static bool ecs_genlock_features_colorkey;
 
 bool picasso_requested_on;
 bool picasso_on;
@@ -1219,6 +1222,38 @@ static uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga)
 	return 0;
 }
 
+static bool get_genlock_very_rare_and_complex_case(uae_u8 v)
+{
+	// border color without BRDNTRAN bit set = transparent
+	if (v == 0 && !colors_for_drawing.borderntrans)
+		return false;
+	if (ecs_genlock_features_colorkey) {
+		// color key match?
+		if (currprefs.chipset_mask & CSMASK_AGA) {
+			if (colors_for_drawing.color_regs_aga[v] & 0x80000000)
+				return false;
+		} else {
+			if (colors_for_drawing.color_regs_ecs[v] & 0x8000)
+				return false;
+		}
+	}
+	// plane mask match?
+	if (v & ecs_genlock_features_mask)
+		return false;
+	return true;
+}
+// false = transparent
+STATIC_INLINE bool get_genlock_transparency(uae_u8 v)
+{
+	if (!ecs_genlock_features_active) {
+		if (v == 0)
+			return false;
+		return true;
+	} else {
+		return get_genlock_very_rare_and_complex_case(v);
+	}
+}
+
 #include "linetoscr.cpp"
 
 #define LTPARMS src_pixel, start, stop
@@ -1882,10 +1917,10 @@ static void init_ham_decoding (void)
 			int pv = pixdata.apixels[ham_decode_pixel + unpainted_amiga - 1];
 #ifdef AGA
 			if (currprefs.chipset_mask & CSMASK_AGA)
-				ham_lastcolor = colors_for_drawing.color_regs_aga[pv ^ bplxor];
+				ham_lastcolor = colors_for_drawing.color_regs_aga[pv ^ bplxor] & 0xffffff;
 			else
 #endif
-				ham_lastcolor = colors_for_drawing.color_regs_ecs[pv];
+				ham_lastcolor = colors_for_drawing.color_regs_ecs[pv] & 0xfff;
 		}
 #ifdef AGA
 	} else if (currprefs.chipset_mask & CSMASK_AGA) {
@@ -1894,7 +1929,7 @@ static void init_ham_decoding (void)
 				int pv = pixdata.apixels[ham_decode_pixel++] ^ bplxor;
 				switch (pv & 0x3)
 				{
-				case 0x0: ham_lastcolor = colors_for_drawing.color_regs_aga[pv >> 2]; break;
+				case 0x0: ham_lastcolor = colors_for_drawing.color_regs_aga[pv >> 2] & 0xffffff; break;
 				case 0x1: ham_lastcolor &= 0xFFFF03; ham_lastcolor |= (pv & 0xFC); break;
 				case 0x2: ham_lastcolor &= 0x03FFFF; ham_lastcolor |= (pv & 0xFC) << 16; break;
 				case 0x3: ham_lastcolor &= 0xFF03FF; ham_lastcolor |= (pv & 0xFC) << 8; break;
@@ -1905,7 +1940,7 @@ static void init_ham_decoding (void)
 				int pv = pixdata.apixels[ham_decode_pixel++] ^ bplxor;
 				switch (pv & 0x30)
 				{
-				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_aga[pv]; break;
+				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_aga[pv] & 0xffffff; break;
 				case 0x10: ham_lastcolor &= 0xFFFF00; ham_lastcolor |= (pv & 0xF) << 4; break;
 				case 0x20: ham_lastcolor &= 0x00FFFF; ham_lastcolor |= (pv & 0xF) << 20; break;
 				case 0x30: ham_lastcolor &= 0xFF00FF; ham_lastcolor |= (pv & 0xF) << 12; break;
@@ -1919,7 +1954,7 @@ static void init_ham_decoding (void)
 			int pv = pixdata.apixels[ham_decode_pixel++];
 			switch (pv & 0x30)
 			{
-			case 0x00: ham_lastcolor = colors_for_drawing.color_regs_ecs[pv]; break;
+			case 0x00: ham_lastcolor = colors_for_drawing.color_regs_ecs[pv] & 0xfff; break;
 			case 0x10: ham_lastcolor &= 0xFF0; ham_lastcolor |= (pv & 0xF); break;
 			case 0x20: ham_lastcolor &= 0x0FF; ham_lastcolor |= (pv & 0xF) << 8; break;
 			case 0x30: ham_lastcolor &= 0xF0F; ham_lastcolor |= (pv & 0xF) << 4; break;
@@ -1937,10 +1972,10 @@ static void decode_ham (int pix, int stoppos, bool blank)
 			int pv = pixdata.apixels[ham_decode_pixel];
 #ifdef AGA
 			if (currprefs.chipset_mask & CSMASK_AGA)
-				ham_lastcolor = colors_for_drawing.color_regs_aga[pv ^ bplxor];
+				ham_lastcolor = colors_for_drawing.color_regs_aga[pv ^ bplxor] & 0xffffff;
 			else
 #endif
-				ham_lastcolor = colors_for_drawing.color_regs_ecs[pv];
+				ham_lastcolor = colors_for_drawing.color_regs_ecs[pv] & 0xfff;
 
 			ham_linebuf[ham_decode_pixel++] = ham_lastcolor;
 		}
@@ -1951,7 +1986,7 @@ static void decode_ham (int pix, int stoppos, bool blank)
 				int pv = pixdata.apixels[ham_decode_pixel] ^ bplxor;
 				switch (pv & 0x3)
 				{
-				case 0x0: ham_lastcolor = colors_for_drawing.color_regs_aga[pv >> 2]; break;
+				case 0x0: ham_lastcolor = colors_for_drawing.color_regs_aga[pv >> 2] & 0xffffff; break;
 				case 0x1: ham_lastcolor &= 0xFFFF03; ham_lastcolor |= (pv & 0xFC); break;
 				case 0x2: ham_lastcolor &= 0x03FFFF; ham_lastcolor |= (pv & 0xFC) << 16; break;
 				case 0x3: ham_lastcolor &= 0xFF03FF; ham_lastcolor |= (pv & 0xFC) << 8; break;
@@ -1963,7 +1998,7 @@ static void decode_ham (int pix, int stoppos, bool blank)
 				int pv = pixdata.apixels[ham_decode_pixel] ^ bplxor;
 				switch (pv & 0x30)
 				{
-				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_aga[pv]; break;
+				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_aga[pv] & 0xffffff; break;
 				case 0x10: ham_lastcolor &= 0xFFFF00; ham_lastcolor |= (pv & 0xF) << 4; break;
 				case 0x20: ham_lastcolor &= 0x00FFFF; ham_lastcolor |= (pv & 0xF) << 20; break;
 				case 0x30: ham_lastcolor &= 0xFF00FF; ham_lastcolor |= (pv & 0xF) << 12; break;
@@ -1978,7 +2013,7 @@ static void decode_ham (int pix, int stoppos, bool blank)
 			int pv = pixdata.apixels[ham_decode_pixel];
 			switch (pv & 0x30)
 			{
-			case 0x00: ham_lastcolor = colors_for_drawing.color_regs_ecs[pv]; break;
+			case 0x00: ham_lastcolor = colors_for_drawing.color_regs_ecs[pv] & 0xfff; break;
 			case 0x10: ham_lastcolor &= 0xFF0; ham_lastcolor |= (pv & 0xF); break;
 			case 0x20: ham_lastcolor &= 0x0FF; ham_lastcolor |= (pv & 0xF) << 8; break;
 			case 0x30: ham_lastcolor &= 0xF0F; ham_lastcolor |= (pv & 0xF) << 4; break;
@@ -2464,6 +2499,17 @@ static void pfield_expand_dp_bplcon (void)
 	sbasecol[1] = ((dp_for_drawing->bplcon4 >> 0) & 15) << 4;
 	bplxor = dp_for_drawing->bplcon4 >> 8;
 #endif
+	ecs_genlock_features_active = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && ((dp_for_drawing->bplcon2 & 0x0c00) || colors_for_drawing.borderntrans) ? 1 : 0;
+	if (ecs_genlock_features_active) {
+		ecs_genlock_features_colorkey = false;
+		ecs_genlock_features_mask = 0;
+		if (dp_for_drawing->bplcon3 & 0x0800) {
+			ecs_genlock_features_mask = 1 << ((dp_for_drawing->bplcon2 >> 12) & 7);
+		} 
+		if (dp_for_drawing->bplcon3 & 0x0400) {
+			ecs_genlock_features_colorkey = true;
+		}
+	}
 }
 
 static bool isham (uae_u16 bplcon0)
@@ -2626,6 +2672,7 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 			if (regno == 0 && (value & COLOR_CHANGE_BRDBLANK)) {
 				colors_for_drawing.borderblank = (value & 1) != 0;
 				colors_for_drawing.bordersprite = (value & 3) == 2;
+				colors_for_drawing.borderntrans = (value & 5) == 4;
 			} else {
 				color_reg_set (&colors_for_drawing, regno, value);
 				colors_for_drawing.acolors[regno] = getxcolor (value);
@@ -3493,6 +3540,21 @@ static void finish_drawing_frame (void)
 				compute_framesync();
 			}
 		}
+	}
+
+	if (currprefs.genlock_image && !currprefs.monitoremu && gfxvidinfo.tempbuffer.bufmem_allocated && currprefs.genlock) {
+		setspecialmonitorpos(&gfxvidinfo.tempbuffer);
+		if (init_genlock_data != specialmonitor_need_genlock()) {
+			need_genlock_data = init_genlock_data = specialmonitor_need_genlock();
+			init_row_map();
+		}
+		emulate_genlock(vb, &gfxvidinfo.tempbuffer);
+		vb = gfxvidinfo.outbuffer = &gfxvidinfo.tempbuffer;
+		if (vb->nativepositioning)
+			setnativeposition(vb);
+		gfxvidinfo.drawbuffer.tempbufferinuse = true;
+		do_flush_screen(vb, 0, vb->outheight);
+		didflush = true;
 	}
 
 	if (!currprefs.monitoremu && gfxvidinfo.tempbuffer.bufmem_allocated && currprefs.cs_cd32fmv) {

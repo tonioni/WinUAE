@@ -158,8 +158,8 @@ static uae_u32 sprite_ab_merge[256];
 /* Tables for collision detection.  */
 static uae_u32 sprclx[16], clxmask[16];
 
-/* AGA T genlock bit in color registers */
-static uae_u8 color_regs_aga_genlock[256];
+/* T genlock bit in ECS Denise and AGA color registers */
+static uae_u8 color_regs_genlock[256];
 
 /*
 * Hardware registers of all sorts.
@@ -2909,15 +2909,18 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 
 static bool isbrdblank (int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
 {
-	bool brdblank;
+	bool brdblank, brdntrans;
 #ifdef ECS_DENISE
 	brdblank = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && (bplcon0 & 1) && (bplcon3 & 0x20);
+	brdntrans = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && (bplcon0 & 1) && (bplcon3 & 0x10);
 #else
 	brdblank = false;
+	brdntrans = false;
 #endif
-	if (hpos >= 0 && current_colors.borderblank != brdblank) {
-		record_color_change (hpos, 0, COLOR_CHANGE_BRDBLANK | (brdblank ? 1 : 0) | (current_colors.bordersprite ? 2 : 0));
+	if (hpos >= 0 && (current_colors.borderblank != brdblank || current_colors.borderntrans != brdntrans)) {
+		record_color_change (hpos, 0, COLOR_CHANGE_BRDBLANK | (brdblank ? 1 : 0) | (current_colors.bordersprite ? 2 : 0) | (brdntrans ? 4 : 0));
 		current_colors.borderblank = brdblank;
+		current_colors.borderblank = brdntrans;
 		remembered_color_entry = -1;
 	}
 	return brdblank;
@@ -2933,7 +2936,7 @@ static bool issprbrd (int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
 	brdsprt = false;
 #endif
 	if (hpos >= 0 && current_colors.bordersprite != brdsprt) {
-		record_color_change (hpos, 0, COLOR_CHANGE_BRDBLANK | (current_colors.borderblank ? 1 : 0) | (brdsprt ? 2 : 0));
+		record_color_change (hpos, 0, COLOR_CHANGE_BRDBLANK | (current_colors.borderblank ? 1 : 0) | (current_colors.borderntrans ? 4 : 0) | (brdsprt ? 2 : 0));
 		current_colors.bordersprite = brdsprt;
 		remembered_color_entry = -1;
 		if (brdsprt && !current_colors.borderblank)
@@ -3363,13 +3366,19 @@ static void decide_sprites (int hpos, bool usepointx)
 {
 	int nrs[MAX_SPRITES * 2], posns[MAX_SPRITES * 2];
 	int count, i;
-	int point = hpos * 2 + 0;
+	int point;
 	int width = sprite_width;
 	int sscanmask = 0x100 << sprite_buffer_res;
 	int gotdata = 0;
 
 	if (thisline_decision.plfleft < 0 && !(bplcon3 & 2))
 		return;
+
+	// let sprite shift register empty completely
+	// if sprite is at the very edge of right border
+	point = hpos * 2;
+	if (hpos >= maxhpos)
+		point += ((9 - 2) * 2) * sprite_buffer_res;
 
 	if (nodraw () || hpos < 0x14 || nr_armed == 0 || point == last_sprite_point)
 		return;
@@ -3392,6 +3401,9 @@ static void decide_sprites (int hpos, bool usepointx)
 
 		if (! spr[i].armed)
 			continue;
+
+//		if (sprxp > ((maxhpos * 2) << sprite_buffer_res))
+//			write_log(_T("*"));
 
 		if (hw_xp > last_sprite_point && hw_xp <= point + pointx) {
 			add_sprite (&count, i, sprxp, posns, nrs);
@@ -5652,6 +5664,10 @@ static void SPRxCTLPOS(int num)
 
 	sprstartstop (s);
 	sprxp = (sprpos[num] & 0xFF) * 2 + (sprctl[num] & 1);
+	if (!(fmode & 0x80) && sprxp >= 2 && sprxp <= 9) {
+		// right border wrap around
+		sprxp += maxhpos * 2;
+	}
 	sprxp <<= sprite_buffer_res;
 	/* Quite a bit salad in this register... */
 	if (0) {
@@ -5873,10 +5889,10 @@ void dump_aga_custom (void)
 		c2 = c1 + 64;
 		c3 = c2 + 64;
 		c4 = c3 + 64;
-		rgb1 = current_colors.color_regs_aga[c1] | (color_regs_aga_genlock[c1] << 31);
-		rgb2 = current_colors.color_regs_aga[c2] | (color_regs_aga_genlock[c2] << 31);
-		rgb3 = current_colors.color_regs_aga[c3] | (color_regs_aga_genlock[c3] << 31);
-		rgb4 = current_colors.color_regs_aga[c4] | (color_regs_aga_genlock[c4] << 31);
+		rgb1 = current_colors.color_regs_aga[c1];
+		rgb2 = current_colors.color_regs_aga[c2];
+		rgb3 = current_colors.color_regs_aga[c3];
+		rgb4 = current_colors.color_regs_aga[c4];
 		console_out_f (_T("%3d %08X %3d %08X %3d %08X %3d %08X\n"),
 			c1, rgb1, c2, rgb2, c3, rgb3, c4, rgb4);
 	}
@@ -5891,14 +5907,14 @@ static uae_u16 COLOR_READ (int num)
 		return 0xffff;
 
 	colreg = ((bplcon3 >> 13) & 7) * 32 + num;
-	cr = current_colors.color_regs_aga[colreg] >> 16;
+	cr = (current_colors.color_regs_aga[colreg] >> 16) & 0xFF;
 	cg = (current_colors.color_regs_aga[colreg] >> 8) & 0xFF;
 	cb = current_colors.color_regs_aga[colreg] & 0xFF;
 	if (bplcon3 & 0x200) {
 		cval = ((cr & 15) << 8) | ((cg & 15) << 4) | ((cb & 15) << 0);
 	} else {
 		cval = ((cr >> 4) << 8) | ((cg >> 4) << 4) | ((cb >> 4) << 0);
-		if (color_regs_aga_genlock[num])
+		if (color_regs_genlock[num])
 			cval |= 0x8000;
 	}
 	return cval;
@@ -5931,7 +5947,6 @@ static void checkautoscalecol0 (void)
 static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 {
 	bool colzero = false;
-	v &= 0xFFF;
 #ifdef AGA
 	if (currprefs.chipset_mask & CSMASK_AGA) {
 		int r,g,b;
@@ -5947,7 +5962,7 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 		r = (v & 0xF00) >> 8;
 		g = (v & 0xF0) >> 4;
 		b = (v & 0xF) >> 0;
-		cr = current_colors.color_regs_aga[colreg] >> 16;
+		cr = (current_colors.color_regs_aga[colreg] >> 16) & 0xFF;
 		cg = (current_colors.color_regs_aga[colreg] >> 8) & 0xFF;
 		cb = current_colors.color_regs_aga[colreg] & 0xFF;
 
@@ -5959,9 +5974,9 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 			cr = r + (r << 4);
 			cg = g + (g << 4);
 			cb = b + (b << 4);
-			color_regs_aga_genlock[colreg] = v >> 15;
+			color_regs_genlock[colreg] = v >> 15;
 		}
-		cval = (cr << 16) | (cg << 8) | cb;
+		cval = (cr << 16) | (cg << 8) | cb | (color_regs_genlock[colreg] ? 0x80000000 : 0);
 		if (cval && colreg == 0)
 			colzero = true;
 
@@ -5979,6 +5994,10 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 
 	} else {
 #endif
+		v &= 0x8fff;
+		if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE))
+			v &= 0xfff;
+		color_regs_genlock[num] = v >> 15;
 		if (num && v == 0)
 			colzero = true;
 		if (current_colors.color_regs_ecs[num] == v)
@@ -9111,8 +9130,11 @@ uae_u8 *restore_custom (uae_u8 *src)
 	clxcon2 = RW;			/* 10E CLXCON2* */
 	for(i = 0; i < 8; i++)
 		fetched[i] = RW;	/*     BPLXDAT */
-	for(i = 0; i < 32; i++)
-		current_colors.color_regs_ecs[i] = RW; /* 180 COLORxx */
+	for(i = 0; i < 32; i++) {
+		uae_u16 v = RW;
+		color_regs_genlock[i] = (v & 0x8000) != 0;
+		current_colors.color_regs_ecs[i] = v & 0xfff; /* 180 COLORxx */
+	}
 	htotal = RW;			/* 1C0 HTOTAL */
 	hsstop = RW;			/* 1C2 HSTOP ? */
 	hbstrt = RW;			/* 1C4 HBSTRT ? */
@@ -9288,7 +9310,10 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 			v2 |= ((v >> 20) & 15) << 8;
 			SW (v2);
 		} else {
-			SW (current_colors.color_regs_ecs[i]); /* 180-1BE COLORxx */
+			uae_u16 v = current_colors.color_regs_ecs[i];
+			if (color_regs_genlock[i])
+				v |= 0x8000;
+			SW (v); /* 180-1BE COLORxx */
 		}
 	}
 	SW (htotal);		/* 1C0 HTOTAL */
@@ -9339,10 +9364,10 @@ uae_u8 *restore_custom_agacolors (uae_u8 *src)
 	for (i = 0; i < 256; i++) {
 #ifdef AGA
 		uae_u32 v = RL;
-		color_regs_aga_genlock[i] = 0;
+		color_regs_genlock[i] = 0;
 		if (v & 0x80000000)
-			color_regs_aga_genlock[i] = 1;
-		v &= 0x00ffffff;
+			color_regs_genlock[i] = 1;
+		v &= 0x80ffffff;
 		current_colors.color_regs_aga[i] = v;
 #else
 		RL;
@@ -9362,7 +9387,7 @@ uae_u8 *save_custom_agacolors (int *len, uae_u8 *dstptr)
 		dstbak = dst = xmalloc (uae_u8, 256 * 4);
 	for (i = 0; i < 256; i++)
 #ifdef AGA
-		SL (current_colors.color_regs_aga[i] | (color_regs_aga_genlock[i] ? 0x80000000 : 0));
+		SL (current_colors.color_regs_aga[i] | (color_regs_genlock[i] ? 0x80000000 : 0));
 #else
 		SL (0);
 #endif
