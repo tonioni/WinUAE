@@ -71,7 +71,7 @@ struct pci_bridge
 	uae_u32 memory_offset;
 	int endian_swap_memory;
 	uae_u8 intena;
-	bool irq;
+	uae_u8 irq;
 	uae_u16 intreq_mask;
 	pci_slot_index get_index;
 	struct pci_board_state boards[MAX_PCI_BOARDS];

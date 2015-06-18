@@ -127,19 +127,19 @@ void pci_rethink(void)
 		struct pci_bridge *pcib = bridges[i];
 		if (!pcib)
 			continue;
-		pcib->irq = false;
+		pcib->irq = 0;
 		for (int j = 0; j < MAX_PCI_BOARDS; j++) {
 			struct pci_board_state *pcibs = &pcib->boards[j];
 			if (pcibs->board) {
 				const struct pci_config *c = pcibs->board->config;
-				if (c->interruptpin && (1 << (pcibs->board->config->interruptpin - 1)) & pcib->intena) {
+				if (c->interruptpin) {
 					if ((pcibs->config_data[5] & (1 << 3)) && !(pcibs->config_data[6] & (1 << (10 - 8)))) {
-						pcib->irq = true;
+						pcib->irq |= 1 << (pcibs->board->config->interruptpin - 1);
 					}
 				}
 			}
 		}
-		if (pcib->irq)
+		if (pcib->irq & pcib->intena)
 			INTREQ_0(0x8000 | pcib->intreq_mask);
 	}
 }
@@ -955,7 +955,12 @@ static uae_u32 REGPARAM2 pci_bridge_bget_2(uaecptr addr)
 				v = pcib->window;
 			}
 			if (offset == 4) {
-				v = pcib->irq ? 0xff : 0x00;
+				v = pcib->irq | (pcib->intena << 4);
+			}
+		} else {
+			int offset = addr & 0xffff;
+			if (offset == 11) {
+				v = pcib->irq | (pcib->intena << 4);
 			}
 		}
 	}
@@ -1018,6 +1023,7 @@ static void REGPARAM2 pci_bridge_bput_2(uaecptr addr, uae_u32 b)
 				map_banks_z2(pcib->bank_2, pcib->baseaddress_2 >> 16, 0x10000 >> 16);
 				map_banks_z2(&dummy_bank, (pcib->baseaddress_2 + 0x10000) >> 16, (expamem_z2_size - 0x10000) >> 16);
 				pcib->configured_2 = 1;
+				pcib->io_offset = pcib->baseaddress_2 + 0x10000;
 				expamem_next(pcib->bank_2, NULL);
 				break;
 				case 0x4c:
@@ -1561,9 +1567,9 @@ static addrbank *mediator_pci_init_1200(struct romconfig *rc)
 	if (!pcib)
 		return &expamem_null;
 	pcib->label = _T("Mediator 1200");
-	pcib->endian_swap_config = 1;
-	pcib->endian_swap_io = 1;
-	pcib->endian_swap_memory = 1;
+	pcib->endian_swap_config = -1;
+	pcib->endian_swap_io = -1;
+	pcib->endian_swap_memory = -1;
 	pcib->intena = 0;
 	pcib->intreq_mask = 0x0008;
 	pcib->get_index = mediator_get_index_1200;
