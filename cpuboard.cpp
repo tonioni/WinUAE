@@ -269,9 +269,13 @@ static bool is_a2630(void)
 {
 	return ISCPUBOARD(BOARD_COMMODORE, BOARD_COMMODORE_SUB_A26x0);
 }
-static bool is_dkb(void)
+static bool is_dkb_12x0(void)
 {
 	return ISCPUBOARD(BOARD_DKB, BOARD_DKB_SUB_12x0);
+}
+static bool is_dkb_wildfire(void)
+{
+	return ISCPUBOARD(BOARD_DKB, BOARD_DKB_SUB_WILDFIRE);
 }
 static bool is_fusionforty(void)
 {
@@ -1144,10 +1148,10 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 							write_log(_T("CS: M68K Halted\n"));
 							if (!(regval & P5_PPC_RESET)) {
 								write_log(_T("CS: PPC is also halted. STOP.\n"));
-								cpu_halt(5);
+								cpu_halt(CPU_HALT_ALL_CPUS_STOPPED);
 							} else {
 								// halt 68k, leave ppc message processing active.
-								cpu_halt(-1);
+								cpu_halt(CPU_HALT_PPC_ONLY);
 							}
 						}
 					} else {
@@ -1224,7 +1228,7 @@ static void REGPARAM2 blizzardio_wput(uaecptr addr, uae_u32 v)
 			if (v != 0xcafe)
 				return;
 			write_log(_T("Blizzard: board disable!\n"));
-			cpu_halt(4); // not much choice..
+			cpu_halt(CPU_HALT_ACCELERATOR_CPU_FALLBACK); // not much choice..
 		}
 	} else if (is_csmk3() || is_blizzardppc()) {
 		write_log(_T("CS IO WPUT %08x %04x\n"), addr, v);
@@ -1234,7 +1238,7 @@ static void REGPARAM2 blizzardio_wput(uaecptr addr, uae_u32 v)
 			if (v != 0xcafe)
 				return;
 			write_log(_T("CSMK2: board disable!\n"));
-			cpu_halt(4); // not much choice..
+			cpu_halt(CPU_HALT_ACCELERATOR_CPU_FALLBACK); // not much choice..
 		}
 	}
 }
@@ -1349,7 +1353,10 @@ void cpuboard_map(void)
 	if (is_apollo()) {
 		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 131072 >> 16, 0);
 	}
-	if (is_dkb()) {
+	if (is_dkb_wildfire()) {
+		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 0x10000 >> 16, 0);
+	}
+	if (is_dkb_12x0()) {
 		if (cpuboard_size >= 4 * 1024 * 1024) {
 			if (cpuboard_size <= 0x4000000) {
 				map_banks(&blizzardram_bank, blizzardram_bank.start >> 16, 0x4000000 >> 16, cpuboard_size >> 16);
@@ -1463,7 +1470,8 @@ void cpuboard_init(void)
 		blizzardea_bank.mask = blizzardea_bank.allocated - 1;
 		mapped_malloc(&blizzardea_bank);
 
-	} else if (is_dkb()) {
+	}
+	else if (is_dkb_12x0()) {
 
 		blizzardram_bank.start = 0x10000000;
 		blizzardram_bank.allocated = cpuboard_size;
@@ -1471,6 +1479,13 @@ void cpuboard_init(void)
 		blizzardram_bank.startmask = 0x10000000;
 		blizzardram_bank.label = _T("dkb");
 		mapped_malloc(&blizzardram_bank);
+
+	} else if (is_dkb_wildfire()) {
+
+		blizzardf0_bank.start = 0x00f00000;
+		blizzardf0_bank.allocated = 131072;
+		blizzardf0_bank.mask = blizzardf0_bank.allocated - 1;
+		mapped_malloc(&blizzardf0_bank);
 
 	} else if (is_kupke()) {
 
@@ -1824,7 +1839,7 @@ bool cpuboard_io_special(int addr, uae_u32 *val, int size, bool write)
 				// bit 4: 68000 mode
 				if (w & 0x10) {
 					write_log(_T("A2630 68000 mode!\n"));
-					cpu_halt(4);
+					cpu_halt(CPU_HALT_ACCELERATOR_CPU_FALLBACK);
 				}
 				return true;
 			}
@@ -2033,6 +2048,8 @@ addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 		{
 			case BOARD_DKB_SUB_12x0:
 			return &expamem_null;
+			case BOARD_DKB_SUB_WILDFIRE:
+			break;
 		}
 		break;
 
@@ -2169,7 +2186,11 @@ addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 
 	protect_roms(false);
 	cpuboard_non_byte_ea = true;
-	if (is_aca500()) {
+	if (is_dkb_wildfire()) {
+		f0rom_size = 65536;
+		zfile_fread(blizzardf0_bank.baseaddr, 1, f0rom_size, autoconfig_rom);
+		autoconf = false;
+	} else if (is_aca500()) {
 		f0rom_size = 524288;
 		zfile_fread(blizzardf0_bank.baseaddr, f0rom_size, 1, autoconfig_rom);
 		autoconf = false;
