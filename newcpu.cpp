@@ -2143,7 +2143,7 @@ static void Exception_ce000 (int nr)
 	}
 	if (nr == 2 || nr == 3) { /* 2=bus error, 3=address error */
 		if ((m68k_areg(regs, 7) & 1) || exception_in_exception < 0) {
-			cpu_halt (2);
+			cpu_halt (CPU_HALT_DOUBLE_FAULT);
 			return;
 		}
 		uae_u16 mode = (sv ? 4 : 0) | (last_instructionaccess_for_exception_3 ? 2 : 1);
@@ -2198,7 +2198,7 @@ kludge_me_do:
 	exception_in_exception = 0;
 	if (newpc & 1) {
 		if (nr == 2 || nr == 3)
-			cpu_halt (2);
+			cpu_halt (CPU_HALT_DOUBLE_FAULT);
 		else
 			exception3_notinstruction(regs.ir, newpc);
 		return;
@@ -2434,7 +2434,7 @@ static void Exception_mmu030 (int nr, uaecptr oldpc)
     
 	if (newpc & 1) {
 		if (nr == 2 || nr == 3)
-			cpu_halt (2);
+			cpu_halt (CPU_HALT_DOUBLE_FAULT);
 		else
 			exception3_read(regs.ir, newpc);
 		return;
@@ -2496,7 +2496,7 @@ static void Exception_mmu (int nr, uaecptr oldpc)
     
 	if (newpc & 1) {
 		if (nr == 2 || nr == 3)
-			cpu_halt (2);
+			cpu_halt (CPU_HALT_DOUBLE_FAULT);
 		else
 			exception3_read(regs.ir, newpc);
 		return;
@@ -2573,13 +2573,13 @@ static void Exception_normal (int nr)
 
 	if (m68k_areg(regs, 7) & 1) {
 		if (nr == 2 || nr == 3)
-			cpu_halt (2);
+			cpu_halt (CPU_HALT_DOUBLE_FAULT);
 		else
 			exception3_notinstruction(regs.ir, m68k_areg(regs, 7));
 		return;
 	}
 	if ((nr == 2 || nr == 3) && exception_in_exception < 0) {
-		cpu_halt (2);
+		cpu_halt (CPU_HALT_DOUBLE_FAULT);
 		return;
 	}
 
@@ -2622,7 +2622,7 @@ static void Exception_normal (int nr)
 						newpc = x_get_long (regs.vbr + 4 * vector_nr);
 						if (newpc & 1) {
 							if (nr == 2 || nr == 3)
-								cpu_halt (2);
+								cpu_halt (CPU_HALT_DOUBLE_FAULT);
 							else
 								exception3_read(regs.ir, newpc);
 							return;
@@ -2744,7 +2744,7 @@ kludge_me_do:
 	exception_in_exception = 0;
 	if (newpc & 1) {
 		if (nr == 2 || nr == 3)
-			cpu_halt (2);
+			cpu_halt (CPU_HALT_DOUBLE_FAULT);
 		else
 			exception3_notinstruction(regs.ir, newpc);
 		return;
@@ -3763,7 +3763,7 @@ static void bus_error(void)
 	TRY (prb2) {
 		Exception (2);
 	} CATCH (prb2) {
-		cpu_halt (1);
+		cpu_halt (CPU_HALT_BUS_ERROR_DOUBLE_FAULT);
 	} ENDTRY
 }
 
@@ -4304,7 +4304,7 @@ insretry:
 					if (!mmu030_retry)
 						break;
 					if (cnt < 0) {
-						cpu_halt (9);
+						cpu_halt (CPU_HALT_CPU_STUCK);
 						break;
 					}
 					if (mmu030_retry && mmu030_opcode == -1)
@@ -6670,57 +6670,74 @@ STATIC_INLINE bool cancache030 (uaecptr addr)
 }
 
 // and finally the worst part, 68030 data cache..
-static void write_dcache030x (uaecptr addr, uae_u32 val, int size)
+static void write_dcache030x(uaecptr addr, uae_u32 val, int size)
 {
 	struct cache030 *c1, *c2;
 	int lws1, lws2;
 	uae_u32 tag1, tag2;
 	int aligned = addr & 3;
+	int wa = regs.cacr & 0x2000;
+	int hit;
 
 	if (!(regs.cacr & 0x100)) // data cache disabled?
 		return;
-	if (!cancache030 (addr))
+	if (!cancache030(addr))
 		return;
 
-	c1 = getcache030 (dcaches030, addr, &tag1, &lws1);
-	if (!(regs.cacr & 0x2000)) { // write allocate
-		if (c1->tag != tag1 || c1->valid[lws1] == false)
-			return;
-	}
+	c1 = getcache030(dcaches030, addr, &tag1, &lws1);
+
 	// easy one
-	if (size == 2 && aligned == 0) {
-		update_cache030 (c1, val, tag1, lws1);
+	if (size == 2 && aligned == 0 && wa == 1) {
+		update_cache030(c1, val, tag1, lws1);
 		return;
 	}
-	// argh!! merge partial write
-	c2 = getcache030 (dcaches030, addr + 4, &tag2, &lws2);
-	if (size == 2) {
-		if (c1->valid[lws1] && c1->tag == tag1) {
-			c1->data[lws1] &= ~(0xffffffff >> (aligned * 8));
-			c1->data[lws1] |= val >> (aligned * 8);
+
+	hit = (c1->tag == tag1 && c1->valid[lws1]);
+	if (hit || wa) {
+		if (size == 2) {
+			if (hit) {
+				c1->data[lws1] &= ~(0xffffffff >> (aligned * 8));
+				c1->data[lws1] |= val >> (aligned * 8);
+			} else
+				c1->valid[lws1] = false;
+		} else if (size == 1) {
+			if (hit) {
+				c1->data[lws1] &= ~(0xffff0000 >> (aligned * 8));
+				c1->data[lws1] |= (val << 16) >> (aligned * 8);
+			} else
+				c1->valid[lws1] = false;
+		} else if (size == 0) {
+			if (hit) {
+				c1->data[lws1] &= ~(0xff000000 >> (aligned * 8));
+				c1->data[lws1] |= (val << 24) >> (aligned * 8);
+			} else
+				c1->valid[lws1] = false;
 		}
-		if (c2->valid[lws2] && c2->tag == tag2) {
-			c2->data[lws2] &= 0xffffffff >> ((4 - aligned) * 8);
-			c2->data[lws2] |= val << ((4 - aligned) * 8);
-		}
-	} else if (size == 1) {
-		val <<= 16;
-		if (c1->valid[lws1] && c1->tag == tag1) {
-			c1->data[lws1] &= ~(0xffff0000 >> (aligned * 8));
-			c1->data[lws1] |= val >> (aligned * 8);
-		}
-		if (c2->valid[lws2] && c2->tag == tag2 && aligned == 3) {
-			c2->data[lws2] &= 0x00ffffff;
-			c2->data[lws2] |= val << 8;
-		}
-	} else if (size == 0) {
-		val <<= 24;
-		if (c1->valid[lws1] && c1->tag == tag1) {
-			c1->data[lws1] &= ~(0xff000000 >> (aligned * 8));
-			c1->data[lws1] |= val >> (aligned * 8);
+	}
+
+	// do we need to update a 2nd cache entry ?
+	if ((size == 0) || (size == 1 && aligned <= 2) || (size == 2 && aligned == 0))
+		return;
+
+	c2 = getcache030(dcaches030, addr + 4, &tag2, &lws2);
+	hit = (c2->tag == tag2 && c2->valid[lws2]);
+	if (hit || wa) {
+		if (size == 2) {
+			if (hit) {
+				c2->data[lws2] &= 0xffffffff >> (aligned * 8);
+				c2->data[lws2] |= val << ((4 - aligned) * 8);
+			} else
+				c2->valid[lws2] = false;
+		} else if (size == 1) {
+			if (hit) {
+				c2->data[lws2] &= 0x00ffffff;
+				c2->data[lws2] |= val << 24;
+			} else
+				c2->valid[lws2] = false;
 		}
 	}
 }
+
 void write_dcache030(uaecptr addr, uae_u32 v, int size)
 {
 	write_dcache030x(addr, v, size);

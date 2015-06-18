@@ -648,3 +648,16 @@ extern struct cpum2c m2cregs[];
 extern bool is_cpu_tracer (void);
 extern bool set_cpu_tracer (bool force);
 extern bool can_cpu_tracer (void);
+
+#define CPU_HALT_PPC_ONLY -1
+#define CPU_HALT_BUS_ERROR_DOUBLE_FAULT 1
+#define CPU_HALT_DOUBLE_FAULT 2
+#define CPU_HALT_OPCODE_FETCH_FROM_NON_EXISTING_ADDRESS 3
+#define CPU_HALT_ACCELERATOR_CPU_FALLBACK 4
+#define CPU_HALT_ALL_CPUS_STOPPED 5
+#define CPU_HALT_FAKE_DMA 6
+#define CPU_HALT_AUTOCONFIG_CONFLICT 7
+#define CPU_HALT_PCI_CONFLICT 8
+#define CPU_HALT_CPU_STUCK 9
+
+
