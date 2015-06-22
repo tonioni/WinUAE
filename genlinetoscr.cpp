@@ -233,7 +233,7 @@ static void out_linetoscr_do_incspix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE
 
 static void put_dpixsprgenlock(int offset, int genlock)
 {
-	if (genlock!)
+	if (!genlock)
 		return;
 	if (offset)
 		outlnf("            genlock_buf[dpix + %d] = get_genlock_transparency(sprcol);", offset);
