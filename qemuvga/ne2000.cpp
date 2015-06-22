@@ -63,7 +63,6 @@ static struct netdriverdata *td;
 static void *sysdata;
 static uae_u8 *transmitbuffer;
 static volatile int transmitlen;
-static volatile int transmitnow;
 
 static void ne2000_receive_check(void);
 
@@ -81,7 +80,6 @@ static int getfunc(void *devv, uae_u8 *d, int *len)
 	memcpy(d, transmitbuffer, transmitlen);
 	*len = transmitlen;
 	transmitlen = 0;
-	transmitnow = 1;
 	return 1;
 }
 
@@ -115,7 +113,7 @@ static unsigned compute_mcast_idx(const uint8_t *ep)
 //#include "sysemu/sysemu.h"
 
 /* debug NE2000 card */
-#define DEBUG_NE2000
+//#define DEBUG_NE2000
 
 static NetClientState ncs;
 static NE2000State ne2000state;
@@ -365,8 +363,12 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     int offset, page, index;
 
     addr &= 0xf;
+	page = s->cmd >> 6;
+	offset = addr | (page << 4);
+	if (addr == E8390_CMD)
+		page = offset = 0;
 #ifdef DEBUG_NE2000
-    write_log("NE2000: write addr=0x%x val=0x%02x\n", addr, val);
+    write_log("NE2000: write reg=0x%x val=0x%02x\n", addr, val);
 #endif
     if (addr == E8390_CMD) {
         /* control register */
@@ -375,7 +377,7 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             s->isr &= ~ENISR_RESET;
             /* test specific case: zero length transfer */
             if ((val & (E8390_RREAD | E8390_RWRITE)) &&
-                s->rcnt == 0) {
+                s->tcnt == 0) {
                 s->isr |= ENISR_RDC;
                 ne2000_update_irq(s);
             }
@@ -392,6 +394,9 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 if (index + s->tcnt <= NE2000_PMEM_END) {
 					transmitbuffer = s->mem + index;
 					transmitlen = s->tcnt;
+#ifdef DEBUG_NE2000
+					write_log("NE2000: %d byte transmit\n", s->tcnt);
+#endif
 					ethernet_trigger(td, sysdata);
 #if 0
 					qemu_send_packet(qemu_get_queue(s->nic), s->mem + index, s->tcnt);
@@ -481,11 +486,11 @@ static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
     int offset, page, ret;
 
     addr &= 0xf;
-    if (addr == E8390_CMD) {
+	page = s->cmd >> 6;
+	offset = addr | (page << 4);
+	if (addr == E8390_CMD) {
         ret = s->cmd;
     } else {
-        page = s->cmd >> 6;
-        offset = addr | (page << 4);
         switch(offset) {
         case EN0_TSR:
             ret = s->tsr;
@@ -554,7 +559,7 @@ static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
     }
 	ne2000_receive_check();
 #ifdef DEBUG_NE2000
-    write_log("NE2000: read addr=0x%x val=%02x\n", addr, ret);
+    write_log("NE2000: read reg=0x%x val=0x%02x\n", offset, ret);
 #endif
     return ret;
 }
@@ -649,7 +654,7 @@ static void ne2000_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         return;
     if (s->dcfg & 0x01) {
         /* 16 bit access */
-        ne2000_mem_writew(s, s->rsar, val);
+		ne2000_mem_writew(s, s->rsar, val);
         ne2000_dma_update(s, 2);
     } else {
         /* 8 bit access */
@@ -776,20 +781,27 @@ static uint64_t ne2000_read(void *opaque, hwaddr addr,
 	uint64_t v;
     NE2000State *s = (NE2000State*)opaque;
 
-    if (addr < 0x10 && size == 1) {
-        v = ne2000_ioport_read(s, addr);
-    } else if (addr == 0x10) {
+    if (addr < 0x10) {
+		if (size == 1) {
+	        v = ne2000_ioport_read(s, addr);
+		} else {
+			v = ne2000_ioport_read(s, addr);
+			v |= ne2000_ioport_read(s, addr) << 8;
+		}
+	} else if (addr >= 0x10 && addr <= 0x17) {
         if (size <= 2) {
             v = ne2000_asic_ioport_read(s, addr);
         } else {
             v = ne2000_asic_ioport_readl(s, addr);
         }
-    } else if (addr == 0x1f && size == 1) {
+    } else if (addr >= 0x18 && addr < 0x20) {
         v = ne2000_reset_ioport_read(s, addr);
     } else {
 		v = ((uint64_t)1 << (size * 8)) - 1;
 	}
+#if defined(DEBUG_NE2000)
 	write_log(_T("NE2000_READ %08x=%08x %d\n"), addr, (uae_u32)v, size);
+#endif
 	return v;
 }
 
@@ -798,17 +810,24 @@ static void ne2000_write(void *opaque, hwaddr addr,
 {
     NE2000State *s = (NE2000State*)opaque;
 
+#if defined(DEBUG_NE2000)
 	write_log(_T("NE2000_WRITE %08x %08x %d\n"), addr, (uae_u32)data, size);
-	
-	if (addr < 0x10 && size == 1) {
-        ne2000_ioport_write(s, addr, data);
-    } else if (addr == 0x10) {
-        if (size <= 2) {
+#endif
+
+	if (addr < 0x10) {
+		if (size == 1) {
+	        ne2000_ioport_write(s, addr, data);
+		} else {
+			ne2000_ioport_write(s, addr, data);
+			ne2000_ioport_write(s, addr + 1, data >> 8);
+		}
+	} else if (addr >= 0x10 && addr <= 0x17) {
+		if (size <= 2) {
             ne2000_asic_ioport_write(s, addr, data);
         } else {
             ne2000_asic_ioport_writel(s, addr, data);
         }
-    } else if (addr == 0x1f && size == 1) {
+    } else if (addr >= 0x18 && addr < 0x20) {
         ne2000_reset_ioport_write(s, addr, data);
     }
 }
@@ -914,39 +933,44 @@ static void ne2000_register_types(void)
 type_init(ne2000_register_types)
 #endif
 
-#define MAX_PACKET_SIZE 2000
-#define RECEIVE_BUFFER_INDEX_MASK 3
+#define MAX_PACKET_SIZE 1600
+#define MAX_RECEIVE_BUFFER_INDEX 256
 static int receive_buffer_index;
-static uae_u8 receive_buffer[4][MAX_PACKET_SIZE];
+static uae_u8 *receive_buffer;
 static int receive_buffer_read, receive_buffer_write;
-static int receive_buffer_size[4];
+static int receive_buffer_size[MAX_RECEIVE_BUFFER_INDEX];
 
 static void ne2000_receive_check(void)
 {
-	while (receive_buffer_read != receive_buffer_write) {
-		if (receive_buffer_size[receive_buffer_read]) {
-			if (ne2000state.isr & (ENISR_RX | ENISR_TX))
-				return;
-			if (ne2000_receive(&ncs, receive_buffer[receive_buffer_read], receive_buffer_size[receive_buffer_read]) < 0)
-				return;
-			receive_buffer_size[receive_buffer_read] = 0;
-			receive_buffer_read++;
-			receive_buffer_read &= RECEIVE_BUFFER_INDEX_MASK;
-		}
+	if (receive_buffer_read != receive_buffer_write) {
+		if (ne2000state.isr & ENISR_RX)
+			return;
+		if (ne2000_receive(&ncs, receive_buffer + receive_buffer_read * MAX_PACKET_SIZE, receive_buffer_size[receive_buffer_read]) < 0)
+			return;
+#ifdef DEBUG_NE2000
+		write_log("NE2000: %d byte receive accepted (%d %d)\n", receive_buffer_size[receive_buffer_read], receive_buffer_read, receive_buffer_write);
+#endif
+		receive_buffer_read++;
+		receive_buffer_read &= (MAX_RECEIVE_BUFFER_INDEX - 1);
 	}
 }
 
 static void gotfunc(void *devv, const uae_u8 *databuf, int len)
 {
+#ifdef DEBUG_NE2000
+	write_log("NE2000: %d byte received (%d %d)\n", len, receive_buffer_read, receive_buffer_write);
+#endif
 	ne2000_receive_check();
-	if (len > MAX_PACKET_SIZE)
+	if (len > MAX_PACKET_SIZE) 
 		return;
-	if (((receive_buffer_write + 1) & RECEIVE_BUFFER_INDEX_MASK) == receive_buffer_read)
+	if (((receive_buffer_write + 1) & (MAX_RECEIVE_BUFFER_INDEX - 1)) == receive_buffer_read) {
+		write_log("NE2000: receive buffer full\n");
 		return;
-	memcpy(receive_buffer[receive_buffer_write], databuf, len);
+	}
+	memcpy(receive_buffer + receive_buffer_write * MAX_PACKET_SIZE, databuf, len);
 	receive_buffer_size[receive_buffer_write] = len;
 	receive_buffer_write++;
-	receive_buffer_write &= RECEIVE_BUFFER_INDEX_MASK;
+	receive_buffer_write &= (MAX_RECEIVE_BUFFER_INDEX - 1);
 	ne2000_receive_check();
 }	
 
@@ -982,8 +1006,6 @@ static void ne2000_reset(struct pci_board_state *pcibs)
 {
 	ne2000_reset2(&ne2000state);
 	receive_buffer_read = receive_buffer_write = 0;
-	for (int i = 0; i <= RECEIVE_BUFFER_INDEX_MASK; i++)
-		receive_buffer_size[i] = 0;
 }
 
 static void ne2000_free(struct pci_board_state *pcibs)
@@ -992,6 +1014,8 @@ static void ne2000_free(struct pci_board_state *pcibs)
 	xfree(sysdata);
 	td = NULL;
 	sysdata = NULL;
+	xfree(receive_buffer);
+	receive_buffer = NULL;
 }
 
 static bool ne2000_init(struct pci_board_state *pcibs)
@@ -1001,6 +1025,10 @@ static bool ne2000_init(struct pci_board_state *pcibs)
 	ncs.pcistate = pcibs;
 	ncs.ne2000state = &ne2000state;
 	memset(&ne2000state, 0, sizeof ne2000state);
+
+	if (!receive_buffer) {
+		receive_buffer = xcalloc(uae_u8, MAX_PACKET_SIZE * MAX_RECEIVE_BUFFER_INDEX);
+	}
 
 	td = NULL;
 	uae_u8 *m = ncs.ne2000state->c.macaddr.a;

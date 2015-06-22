@@ -1111,8 +1111,7 @@ static void fastmem_autoconfig(int boardnum, int zorro, uae_u8 type, uae_u32 ser
 						if (!srt->memory_after)
 							type |= chainedconfig;
 					}
-				}
-				else {
+				} else {
 					if (erc->memory_mid) {
 						mid = erc->memory_mid;
 						pid = erc->memory_pid;
@@ -1842,6 +1841,9 @@ void expamem_reset (void)
 		cards[cardno++].map = NULL;
 	}
 
+	// add possible non-autoconfig boards
+	add_cpu_expansions(1);
+
 	bool fastmem_after = false;
 	if (currprefs.fastmem_autoconfig) {
 		fastmem_after = add_fastram_after_expansion(2);
@@ -2327,33 +2329,30 @@ static const struct expansionsubromtype supra_sub[] = {
 	}
 };
 
-static const struct expansionsubromtype pcibridge_sub[] = {
+static const struct expansionsubromtype mediator_sub[] = {
 	{
-		_T("Prometheus"), _T("prometheus"), ROMTYPE_NOT | ROMTYPE_PCIBRIDGE
+		_T("1200TX"), _T("1200tx"), ROMTYPE_NOT | ROMTYPE_MEDIATOR
 	},
 	{
-		_T("G-REX"), _T("grex"), ROMTYPE_NOT | ROMTYPE_PCIBRIDGE
-	},
-	{
-		_T("Mediator 1200TX 4M"), _T("mediator1200tx4m"), ROMTYPE_NOT | ROMTYPE_PCIBRIDGE
-	},
-	{
-		_T("Mediator 1200TX 8M"), _T("mediator1200tx8m"), ROMTYPE_NOT | ROMTYPE_PCIBRIDGE
-	},
-	{
-		_T("Mediator 4000MK2 256M"), _T("mediator4000mkii256m"), ROMTYPE_NOT | ROMTYPE_PCIBRIDGE
-	},
-	{
-		_T("Mediator 4000MK2 512M"), _T("mediator4000mkii512m"), ROMTYPE_NOT | ROMTYPE_PCIBRIDGE
-	},
-	{
-		_T("CVision/BVision"), _T("cbvision"), ROMTYPE_NOT | ROMTYPE_PCIBRIDGE
+		_T("4000MK2"), _T("4000mkii"), ROMTYPE_NOT | ROMTYPE_MEDIATOR
 	},
 	{
 		NULL
 	}
 };
-
+static const struct expansionboardsettings mediator_settings[] = {
+	{
+		_T("Win Size"),
+		_T("winsize")
+	},
+	{
+		_T("Swap Config"),
+		_T("swapconfig")
+	},
+	{
+		NULL
+	}
+};
 
 static void fastlane_memory_callback(struct romconfig *rc, uae_u8 *ac, int size)
 {
@@ -2418,10 +2417,21 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("pcibridge"), _T("PCI Bridges"), _T(""),
-		pcibridge_init, pcibridge_init2, NULL, ROMTYPE_PCIBRIDGE | ROMTYPE_NONE, 0, 0, 3, false,
-		pcibridge_sub, 0,
+		_T("grex"), _T("G-REX"), _T("DCE"),
+		grex_init, NULL, NULL, ROMTYPE_GREX | ROMTYPE_NOT, 0, 0, 1, true,
+	},
+	{
+		_T("prometheus"), _T("Prometheus"), _T("Matay"),
+		prometheus_init, NULL, NULL, ROMTYPE_PROMETHEUS | ROMTYPE_NOT, 0, 0, 3, false,
+	},
+	{
+		_T("mediator"), _T("Mediator"), _T("Elbox"),
+		mediator_init, mediator_init2, NULL, ROMTYPE_MEDIATOR | ROMTYPE_NOT, 0, 0, 3, false,
+		mediator_sub, 0,
 		false, 0,
+		0, 0, 0, false, NULL,
+		false,
+		mediator_settings
 	},
 	{
 		_T("a2090a"), _T("A2090a"), _T("Commodore"),
@@ -2825,7 +2835,7 @@ static const struct cpuboardsubtype dbk_sub[] = {
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024,
 		0,
-		dkb_wildfire_pci_init, NULL, 2, 0 // fake board
+		dkb_wildfire_pci_init, NULL, 1, 0 // fake board
 	},
 	{
 		NULL

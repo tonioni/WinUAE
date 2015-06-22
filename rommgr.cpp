@@ -1712,7 +1712,8 @@ struct boardromconfig *get_device_rom(struct uae_prefs *p, int romtype, int devn
 		return NULL;
 	}
 	int parentrom = ert->parentromtype ? ert->parentromtype : romtype;
-	*index = ert->parentromtype ? 1 : 0;
+	if (index)
+		*index = ert->parentromtype ? 1 : 0;
 	for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
 		struct boardromconfig *brc = &p->expansionboard[i];
 		if (!brc->device_type)

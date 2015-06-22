@@ -303,6 +303,9 @@ static const TCHAR *obsolete[] = {
 	_T("uaehf6%s,%s"),
 	_T("uaehf7%s,%s"),
 
+	_T("pcibridge_rom_file"),
+	_T("pcibridge_rom_options"),
+
 	NULL
 };
 
@@ -1046,11 +1049,11 @@ static void cfgfile_write_board_rom(struct zfile *f, struct multipath *mp, struc
 					_tcscat(buf2, tmp);
 				}
 				if (br->roms[i].device_settings && ert->settings) {
-					for (int i = 0; ert->settings[i].name; i++) {
-						if (br->roms[i].device_settings & (1 << i)) {
+					for (int j = 0; ert->settings[j].name; j++) {
+						if (br->roms[i].device_settings & (1 << j)) {
 							if (buf2[0])
 								_tcscat(buf2, _T(","));
-							_tcscat(buf2, ert->settings[i].configname);
+							_tcscat(buf2, ert->settings[j].configname);
 						}
 					}
 				}

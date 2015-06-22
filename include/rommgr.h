@@ -74,7 +74,9 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_PTNEXUS		0x0010001c
 #define ROMTYPE_DATAFLYER	0x0010001d
 #define ROMTYPE_SUPRADMA	0x0010001e
-#define ROMTYPE_PCIBRIDGE	0x0010001f
+#define ROMTYPE_GREX		0x0010001f
+#define ROMTYPE_PROMETHEUS	0x00100020
+#define ROMTYPE_MEDIATOR	0x00100021
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000

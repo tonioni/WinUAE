@@ -8842,20 +8842,22 @@ static void values_to_kickstartdlg_expansion_roms(HWND hDlg, UAEREG *fkey)
 		fkey = regcreatetree(NULL, _T("DetectedROMs"));
 		keyallocated = true;
 	}
-	const struct expansionromtype *ert = &expansionroms[scsiromselected];
-	int romtype = ert->romtype;
-	int romtype_extra = ert->romtype_extra;
+	if (scsiromselected) {
+		const struct expansionromtype *ert = &expansionroms[scsiromselected];
+		int romtype = ert->romtype;
+		int romtype_extra = ert->romtype_extra;
 
-	brc = get_device_rom(&workprefs, romtype, scsiromselectednum, &index);
-	if (brc && ert->subtypes) {
-		const struct expansionsubromtype *esrt = &ert->subtypes[brc->roms[index].subtype];
-		if (esrt->romtype) {
-			romtype = esrt->romtype;
-			romtype_extra = 0;
+		brc = get_device_rom(&workprefs, romtype, scsiromselectednum, &index);
+		if (brc && ert->subtypes) {
+			const struct expansionsubromtype *esrt = &ert->subtypes[brc->roms[index].subtype];
+			if (esrt->romtype) {
+				romtype = esrt->romtype;
+				romtype_extra = 0;
+			}
 		}
+		addromfiles(fkey, hDlg, IDC_SCSIROMFILE, brc ? brc->roms[index].romfile : NULL, romtype, romtype_extra);
+		CheckDlgButton(hDlg, IDC_SCSIROMFILEAUTOBOOT, brc && brc->roms[index].autoboot_disabled);
 	}
-	addromfiles(fkey, hDlg, IDC_SCSIROMFILE, brc ? brc->roms[index].romfile : NULL, romtype, romtype_extra);
-	CheckDlgButton(hDlg, IDC_SCSIROMFILEAUTOBOOT, brc && brc->roms[index].autoboot_disabled);
 	if (keyallocated)
 		regclosetree(fkey);
 }
