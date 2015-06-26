@@ -5924,8 +5924,6 @@ end:
 	closeprinter ();
 #endif
 	create_afnewdir (1);
-	close_console ();
-	_fcloseall ();
 #ifdef RETROPLATFORM
 	rp_free ();
 #endif
@@ -5938,6 +5936,8 @@ end:
 	// show memory leaks
 	//_CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
 #endif
+	close_console();
+	_fcloseall();
 	for (i = 0; i < argc; i++)
 		xfree (argv[i]);
 	xfree (argv);
