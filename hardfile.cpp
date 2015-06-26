@@ -28,6 +28,7 @@
 #include "execio.h"
 #include "zfile.h"
 #include "ide.h"
+#include "debug.h"
 
 #ifdef WITH_CHD
 #include "archivers/chd/chdtypes.h"
@@ -1138,6 +1139,18 @@ static void setdrivestring(const TCHAR *s, uae_u8 *d, int start, int length)
 	xfree (ss);
 }
 
+static const uae_u8 sasi_commands[] =
+{
+	0x00, 0x01, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x12,
+	0xe0, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7,
+	0xff
+};
+static const uae_u8 sasi_commands2[] =
+{
+	0x12,
+	0xff
+};
+
 int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8 *cmdbuf, int scsi_cmd_len,
 	uae_u8 *scsi_data, int *data_len, uae_u8 *r, int *reply_len, uae_u8 *s, int *sense_len)
 {
@@ -1147,6 +1160,8 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	int status = 0;
 	int lun;
 	uae_u8 cmd = cmdbuf[0];
+	bool sasi = hfd->ci.unit_feature_level >= HD_LEVEL_SASI;
+	bool sasie = hfd->ci.unit_feature_level == HD_LEVEL_SASI_ENHANCED;
 
 	if (log_scsiemu) {
 		write_log (_T("SCSIEMU HD %d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X CMDLEN=%d DATA=%p\n"), hfd->unitnum,
@@ -1168,6 +1183,8 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 
 	*reply_len = *sense_len = 0;
 	lun = cmdbuf[1] >> 5;
+	if (sasi)
+		lun = 0;
 	if (cmd != 0x03 && cmd != 0x12 && lun) {
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
@@ -1176,6 +1193,55 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		ls = 0x12;
 		write_log (_T("UAEHF: CMD=%02X LUN=%d ignored\n"), cmdbuf[0], lun);
 		goto scsi_done;
+	}
+
+	if (sasi) {
+		int i;
+		for (i = 0; sasi_commands[i] != 0xff; i++) {
+			if (sasi_commands[i] == cmdbuf[0])
+				break;
+		}
+		if (sasi_commands[i] == 0xff) {
+			if (sasie) {
+				for (i = 0; sasi_commands2[i] != 0xff; i++) {
+					if (sasi_commands2[i] == cmdbuf[0])
+						break;
+				}
+				if (sasi_commands2[i] == 0xff)
+					goto errreq;
+			} else {
+				goto errreq;
+			}
+		}
+		switch (cmdbuf[0])
+		{
+			case 0x0c: /* INITIALIZE DRIVE CHARACTERICS */
+			scsi_len = 8;
+			goto scsi_done;
+			case 0x12: /* INQUIRY */
+			{
+				int cyl, cylsec, head, tracksec;
+				int alen = cmdbuf[4];
+				if (nodisk(hfd))
+					goto nodisk;
+				if (hdhfd) {
+					cyl = hdhfd->cyls;
+					head = hdhfd->heads;
+					tracksec = hdhfd->secspertrack;
+					cylsec = 0;
+				} else {
+					getchsx(hfd, &cyl, &cylsec, &head, &tracksec);
+				}
+				r[0] = 0;
+				r[1] = 11;
+				r[9] = cyl >> 8;
+				r[10] = cyl;
+				r[11] = head;
+				scsi_len = lr = alen > 12 ? 12 : alen;
+				goto scsi_done;
+			}
+			break;
+		}
 	}
 
 	switch (cmdbuf[0])
@@ -1245,6 +1311,15 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			goto readprot;
 		scsi_len = 0;
 		break;
+	case 0x09: /* READ VERIFY */
+		if (nodisk(hfd))
+			goto nodisk;
+		offset = ((cmdbuf[1] & 31) << 16) | (cmdbuf[2] << 8) | cmdbuf[3];
+		offset *= hfd->ci.blocksize;
+		if (!checkbounds(hfd, offset, hfd->ci.blocksize))
+			goto outofbounds;
+		scsi_len = 0;
+		break;
 	case 0x0b: /* SEEK (6) */
 		if (nodisk (hfd))
 			goto nodisk;
@@ -1266,6 +1341,9 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		if (!checkbounds(hfd, offset, len))
 			goto outofbounds;
 		scsi_len = (uae_u32)cmd_readx (hfd, scsi_data, offset, len);
+		break;
+	case 0x0f: /* WRITE SECTOR BUFFER */
+		scsi_len = hfd->ci.blocksize;
 		break;
 	case 0x0a: /* WRITE (6) */
 		if (nodisk (hfd))
@@ -1492,6 +1570,11 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		s[12] = 0x1c; /* DEFECT LIST NOT FOUND */
 		ls = 0x12;
 #endif
+		break;
+		case 0xe0: /* RAM DIAGNOSTICS */
+		case 0xe3: /* DRIVE DIAGNOSTIC */
+		case 0xe4: /* CONTROLLER INTERNAL DIAGNOSTICS */
+		scsi_len = 0;
 		break;
 readprot:
 		status = 2; /* CHECK CONDITION */

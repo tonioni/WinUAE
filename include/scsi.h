@@ -200,3 +200,12 @@ void ptnexus_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconf
 
 addrbank *dataflyer_init(struct romconfig *rc);
 void dataflyer_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+addrbank *tecmar_init(struct romconfig *rc);
+void tecmar_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+addrbank *xebec_init(struct romconfig *rc);
+void xebec_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+addrbank *microforge_init(struct romconfig *rc);
+void microforge_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);

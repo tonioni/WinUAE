@@ -42,13 +42,16 @@
 #define NCR5380_CLTD 12
 #define NCR5380_PTNEXUS 13
 #define NCR5380_DATAFLYER 14
-#define NCR_LAST 15
+#define NONCR_TECMAR 15
+#define NCR5380_XEBEC 16
+#define NONCR_MICROFORGE 17
+#define NCR_LAST 18
 
 extern int log_scsiemu;
 
-static const int outcmd[] = { 0x04, 0x0a, 0x2a, 0xaa, 0x15, 0x55, -1 };
+static const int outcmd[] = { 0x04, 0x0a, 0x0c, 0x2a, 0xaa, 0x15, 0x55, 0x0f, -1 };
 static const int incmd[] = { 0x01, 0x03, 0x05, 0x08, 0x12, 0x1a, 0x5a, 0x25, 0x28, 0x34, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, 0xbd, -1 };
-static const int nonecmd[] = { 0x00, 0x0b, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1e, 0x2b, 0x35, -1 };
+static const int nonecmd[] = { 0x00, 0x09, 0x0b, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1e, 0x2b, 0x35, 0xe0, 0xe3, 0xe4, -1 };
 static const int scsicmdsizes[] = { 6, 10, 10, 12, 16, 12, 10, 10 };
 
 static void scsi_illegal_command(struct scsi_data *sd)
@@ -127,6 +130,9 @@ bool scsi_emulate_analyze (struct scsi_data *sd)
 			return true;
 		}
 	break;
+	case 0x0c: // INITIALIZE DRIVE CHARACTERICS (SASI)
+		data_len = 8;
+	break;
 	case 0x08: // READ(6)
 		data_len2 = sd->cmd[4] * sd->blocksize;
 		scsi_grow_buffer(sd, data_len2);
@@ -138,6 +144,10 @@ bool scsi_emulate_analyze (struct scsi_data *sd)
 	case 0xa8: // READ(12)
 		data_len2 = ((sd->cmd[6] << 24) | (sd->cmd[7] << 16) | (sd->cmd[8] << 8) | (sd->cmd[9] << 0)) * (uae_s64)sd->blocksize;
 		scsi_grow_buffer(sd, data_len2);
+	break;
+	case 0x0f: // WRITE SECTOR BUFFER
+		data_len = sd->blocksize;
+		scsi_grow_buffer(sd, data_len);
 	break;
 	case 0x0a: // WRITE(6)
 		if (sd->device_type == UAEDEV_CD)
@@ -614,6 +624,7 @@ struct soft_scsi
 	struct raw_scsi rscsi;
 	bool irq;
 	bool intena;
+	bool level6;
 	bool enabled;
 	bool delayed_irq;
 	bool configured;
@@ -648,6 +659,10 @@ struct soft_scsi
 	int databuffer_size;
 	int db_read_index;
 	int db_write_index;
+
+	// sasi
+	bool active_select;
+	bool wait_select;
 };
 
 
@@ -728,6 +743,8 @@ static struct soft_scsi *getscsiboard(uaecptr addr)
 		if ((addr & ~s->board_mask) == s->baseaddress)
 			return s;
 		if (s->baseaddress2 && (addr & ~s->board_mask) == s->baseaddress2)
+			return s;
+		if (s->baseaddress == 0xe80000 && addr < 65536)
 			return s;
 	}
 	return NULL;
@@ -1198,16 +1215,36 @@ static void supra_do_dma(struct soft_scsi *ncr)
 	}
 }
 
+static void xebec_do_dma(struct soft_scsi *ncr)
+{
+	struct raw_scsi *rs = &ncr->rscsi;
+	while (rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_OUT || rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_IN) {
+		if (rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_IN) {
+			x_put_byte(ncr->dmac_address, ncr5380_bget(ncr, 8));
+		} else if (rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_OUT) {
+			ncr5380_bput(ncr, 8, x_get_byte(ncr->dmac_address));
+		}
+	}
+}
+
+
 static void dma_check(struct soft_scsi *ncr)
 {
 	if (ncr->dmac_active && ncr->dma_direction) {
-		if (ncr->type ==NCR5380_SUPRA && ncr->subtype == 4) {
+
+		if (ncr->type == NCR5380_SUPRA && ncr->subtype == 4) {
 			if (ncr->dmac_direction != ncr->dma_direction)  {
 				write_log(_T("SUPRADMA: mismatched direction\n"));
 				ncr->dmac_active = 0;
 				return;
 			}
 			supra_do_dma(ncr);
+		}
+
+		if (ncr->type == NCR5380_XEBEC) {
+		
+			xebec_do_dma(ncr);
+
 		}
 		ncr->dmac_active = 0;
 	}
@@ -1219,7 +1256,10 @@ void ncr80_rethink(void)
 {
 	for (int i = 0; soft_scsi_devices[i]; i++) {
 		if (soft_scsi_devices[i]->irq && soft_scsi_devices[i]->intena) {
-			INTREQ_0(0x8000 | 0x0008);
+			if (soft_scsi_devices[i]->level6)
+				INTREQ_0(0x8000 | 0x2000);
+			else
+				INTREQ_0(0x8000 | 0x0008);
 			return;
 		}
 	}
@@ -1319,6 +1359,15 @@ uae_u8 ncr5380_bget(struct soft_scsi *scsi, int reg)
 			if (scsi->dma_active && !scsi->dma_controller) {
 				v |= 1 << 6;
 			}
+			if (scsi->regs[2] & 4) {
+				// monitor busy
+				if (r->bus_phase == SCSI_SIGNAL_PHASE_FREE) {
+					// any loss of busy = Busy error
+					// not just "unexpected" loss of busy
+					v |= 1 << 2;
+					scsi->dmac_active = false;
+				}
+			}
 		}
 		break;
 		case 0:
@@ -1344,6 +1393,7 @@ void ncr5380_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 {
 	if (reg > 8)
 		return;
+	bool dataoutput = (scsi->regs[1] & 1) != 0;
 	struct raw_scsi *r = &scsi->rscsi;
 	uae_u8 old = scsi->regs[reg];
 	scsi->regs[reg] = v;
@@ -1363,20 +1413,25 @@ void ncr5380_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 		}
 		break;
 		case 1:
-		scsi->regs[reg] &= ~((1 << 5) | (1 << 6));
-		scsi->regs[reg] |= old & ((1 << 5) | (1 << 6)); // AIP, LA
-		if (!(v & 0x80)) {
-			bool init = r->bus_phase < 0;
-			ncr5380_databusoutput(scsi);
-			raw_scsi_set_signal_phase(r,
-				(v & (1 << 3)) != 0,
-				(v & (1 << 2)) != 0,
-				(v & (1 << 1)) != 0);
-			if (!(scsi->regs[2] & 2))
-				raw_scsi_set_ack(r, (v & (1 << 4)) != 0);
-		}
-		if (v & 0x80) { // RST
-			ncr5380_reset(scsi);
+		{
+			scsi->regs[reg] &= ~((1 << 5) | (1 << 6));
+			scsi->regs[reg] |= old & ((1 << 5) | (1 << 6)); // AIP, LA
+			if (!(v & 0x80)) {
+				bool init = r->bus_phase < 0;
+				ncr5380_databusoutput(scsi);
+				if (init && !dataoutput && (v & 1) && (scsi->regs[2] & 1)) {
+					r->bus_phase = SCSI_SIGNAL_PHASE_SELECT_1;
+				}
+				raw_scsi_set_signal_phase(r,
+					(v & (1 << 3)) != 0,
+					(v & (1 << 2)) != 0,
+					(v & (1 << 1)) != 0);
+				if (!(scsi->regs[2] & 2))
+					raw_scsi_set_ack(r, (v & (1 << 4)) != 0);
+			}
+			if (v & 0x80) { // RST
+				ncr5380_reset(scsi);
+			}
 		}
 		break;
 		case 2:
@@ -1403,7 +1458,7 @@ void ncr5380_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 			dma_check(scsi);
 		}
 #if NCR5380_DEBUG
-		write_log(_T("DMA send\n"));
+		write_log(_T("DMA send PC=%08x\n"), M68K_GETPC);
 #endif
 		break;
 		case 6:
@@ -1412,7 +1467,7 @@ void ncr5380_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 			scsi->dma_active = true;
 		}
 #if NCR5380_DEBUG
-		write_log(_T("DMA target recv\n"));
+		write_log(_T("DMA target recv PC=%08x\n"), M68K_GETPC);
 #endif
 		break;
 		case 7:
@@ -1422,7 +1477,7 @@ void ncr5380_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 			dma_check(scsi);
 		}
 #if NCR5380_DEBUG
-		write_log(_T("DMA initiator recv\n"));
+		write_log(_T("DMA initiator recv PC=%08x\n"), M68K_GETPC);
 #endif
 		break;
 		case 8: // fake dma port
@@ -1523,6 +1578,143 @@ static void ncr53400_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 	ncr5380_check_phase(scsi);
 }
 
+/* SASI */
+
+static uae_u8 sasi_tecmar_bget(struct soft_scsi *scsi, int reg)
+{
+	struct raw_scsi *rs = &scsi->rscsi;
+	uae_u8 v = 0;
+
+	if (reg == 1) {
+
+		uae_u8 t = raw_scsi_get_signal_phase(rs);
+		v = 0;
+		switch (rs->bus_phase)
+		{
+			case SCSI_SIGNAL_PHASE_DATA_OUT:
+			v = 0;
+			break;
+			case SCSI_SIGNAL_PHASE_DATA_IN:
+			v = 1 << 2;
+			break;
+			case SCSI_SIGNAL_PHASE_COMMAND:
+			v = 1 << 3;
+			break;
+			case SCSI_SIGNAL_PHASE_STATUS:
+			v = (1 << 2) | (1 << 3);
+			break;
+			case SCSI_SIGNAL_PHASE_MESSAGE_IN:
+			v = (1 << 2) | (1 << 3) | (1 << 4);
+			break;
+		}
+		if (t & SCSI_IO_BUSY)
+			v |= 1 << 1;
+		if (t & SCSI_IO_REQ)
+			v |= 1 << 0;
+		v = v ^ 0xff;
+
+	} else {
+
+		v = raw_scsi_get_data_2(rs, true, false);
+
+	}
+
+	//write_log(_T("SASI READ port %d: %02x\n"), reg, v);
+
+	return v;
+}
+
+static void sasi_tecmar_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
+{
+	struct raw_scsi *rs = &scsi->rscsi;
+
+	//write_log(_T("SASI WRITE port %d: %02x\n"), reg, v);
+
+	if (reg == 1) {
+		if ((v & 1)) {
+			raw_scsi_busfree(rs);
+		}
+		if ((v & 2) && !scsi->active_select) {
+			// select?
+			scsi->active_select = true;
+			if (!rs->data_write)
+				scsi->wait_select = true;
+			else
+				raw_scsi_set_signal_phase(rs, false, true, false);
+		} else if (!(v & 2) && scsi->active_select) {
+			scsi->active_select = false;
+			raw_scsi_set_signal_phase(rs, false, false, false);
+		}
+	} else {
+		raw_scsi_put_data(rs, v, true);
+		if (scsi->wait_select && scsi->active_select)
+			raw_scsi_set_signal_phase(rs, false, true, false);
+		scsi->wait_select = false;
+	}
+}
+
+static uae_u8 sasi_microforge_bget(struct soft_scsi *scsi, int reg)
+{
+	struct raw_scsi *rs = &scsi->rscsi;
+	uae_u8 v = 0;
+
+	if (reg == 1) {
+
+		uae_u8 t = raw_scsi_get_signal_phase(rs);
+		v = 0;
+		if (rs->bus_phase >= 0) {
+			if (rs->bus_phase & SCSI_IO_MESSAGE)
+				v |= 1 << 1;
+			if (rs->bus_phase & SCSI_IO_COMMAND)
+				v |= 1 << 2;
+			if (rs->bus_phase & SCSI_IO_DIRECTION)
+				v |= 1 << 3;
+		}
+		if (t & SCSI_IO_BUSY)
+			v |= 1 << 0;
+		if (t & SCSI_IO_REQ)
+			v |= 1 << 4;
+		v = v ^ 0xff;
+
+	}
+	else {
+
+		v = raw_scsi_get_data_2(rs, true, false);
+
+	}
+
+	//write_log(_T("SASI READ port %d: %02x\n"), reg, v);
+
+	return v;
+}
+
+static void sasi_microforge_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
+{
+	struct raw_scsi *rs = &scsi->rscsi;
+
+	//write_log(_T("SASI WRITE port %d: %02x\n"), reg, v);
+
+	if (reg == 1) {
+		if ((v & 4) && !scsi->active_select) {
+			// select?
+			scsi->active_select = true;
+			if (!rs->data_write)
+				scsi->wait_select = true;
+			else
+				raw_scsi_set_signal_phase(rs, false, true, false);
+		} else if (!(v & 4) && scsi->active_select) {
+			scsi->active_select = false;
+			raw_scsi_set_signal_phase(rs, false, false, false);
+		}
+	}
+	else {
+		raw_scsi_put_data(rs, v, true);
+		if (scsi->wait_select && scsi->active_select)
+			raw_scsi_set_signal_phase(rs, false, true, false);
+		scsi->wait_select = false;
+	}
+}
+
 static int suprareg(struct soft_scsi *ncr, uaecptr addr, bool write)
 {
 	int reg = (addr & 0x0f) >> 1;
@@ -1601,6 +1793,52 @@ static int ptnexusreg(struct soft_scsi *ncr, uaecptr addr)
 	return reg;
 }
 
+static int xebec_reg(struct soft_scsi *ncr, uaecptr addr)
+{
+	if (addr < 0x10000) {
+		if (addr & 1)
+			return (addr & 0xff) >> 1;
+		return -1;
+	}
+	if ((addr & 0x180000) == 0x100000) {
+		
+		ncr->dmac_active = 1;
+
+	} else if ((addr & 0x180000) == 0x180000) {
+
+		ncr->dmac_active = 0;
+		ncr->dmac_address = ncr->baseaddress | 0x80000;
+
+	} else if ((addr & 0x180000) == 0x080000) {
+		ncr->dmac_address = addr | ncr->baseaddress | 1;
+		ncr->dmac_address += 2;
+		if (addr & 1)
+			return 0x80000 + (addr & 32767);
+		return -1;
+	}
+
+//	if (addr >= 0x10000)
+//		write_log(_T("XEBEC %08x PC=%08x\n"), addr, M68K_GETPC);
+	return -1;
+}
+
+
+static int microforge_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
+{
+	int reg = -1;
+	if ((addr & 0x7000) != 0x7000)
+		return -1;
+	addr &= 0xfff;
+	if (addr == 38 && !write)
+		return 0;
+	if (addr == 40 && write)
+		return 0;
+	if (addr == 42 && !write)
+		return 1;
+	if (addr == 44 && write)
+		return 1;
+	return reg;
+}
 
 static uae_u8 read_supra_dma(struct soft_scsi *ncr, uaecptr addr)
 {
@@ -1667,13 +1905,81 @@ static void vector_scsi_status(struct raw_scsi *rs)
 	}
 }
 
+static int tecmar_clock_reg_select;
+static uae_u8 tecmar_clock_regs[64];
+static uae_u8 tecmar_clock_bcd(uae_u8 v)
+{
+	uae_u8 out = v;
+	if (!(tecmar_clock_regs[11] & 4)) {
+		out = ((v / 10) << 4) + (v % 10);
+	}
+	return out;
+}
+static void tecmar_clock_bput(int addr, uae_u8 v)
+{
+	if (addr == 0) {
+		tecmar_clock_reg_select = v & 63;
+	}
+	else if (addr == 1) {
+		tecmar_clock_regs[tecmar_clock_reg_select] = v;
+		tecmar_clock_regs[12] = 0x00;
+		tecmar_clock_regs[13] = 0x80;
+	}
+}
+static uae_u8 tecmar_clock_bget(int addr)
+{
+	uae_u8 v = 0;
+	if (addr == 0) {
+		v = tecmar_clock_reg_select;
+	}
+	else if (addr == 1) {
+		time_t t = time(0);
+		t += currprefs.cs_rtc_adjust;
+		struct tm *ct = localtime(&t);
+		switch (tecmar_clock_reg_select)
+		{
+			case 0:
+			v = tecmar_clock_bcd(ct->tm_sec);
+			break;
+			case 2:
+			v = tecmar_clock_bcd(ct->tm_min);
+			break;
+			case 4:
+			v = tecmar_clock_bcd(ct->tm_hour);
+			if (!(tecmar_clock_regs[11] & 2)) {
+				if (v >= 12) {
+					v -= 12;
+					v |= 0x80;
+				}
+				v++;
+			}
+			break;
+			case 6:
+			v = tecmar_clock_bcd(ct->tm_wday + 1);
+			break;
+			case 7:
+			v = tecmar_clock_bcd(ct->tm_mday);
+			break;
+			case 8:
+			v = tecmar_clock_bcd(ct->tm_mon + 1);
+			break;
+			case 9:
+			v = tecmar_clock_bcd(ct->tm_year % 100);
+			break;
+			default:
+			v = tecmar_clock_regs[tecmar_clock_reg_select];
+			break;
+		}
+	}
+	return v;
+}
 
 static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 {
 	int reg = -1;
 	uae_u32 v = 0;
 	int addresstype = -1;
-	uaecptr origddr = addr;
+	uaecptr origaddr = addr;
 
 	addr &= ncr->board_mask;
 
@@ -1801,7 +2107,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		struct raw_scsi *rs = &ncr->rscsi;
 		if (addr & 0x8000) {
 			v = ncr->rom[addr & 0x7fff];
-		} else if ((origddr & 0xf00000) != 0xf00000) {
+		} else if ((origaddr & 0xf00000) != 0xf00000) {
 			if (!(addr & 8)) {
 				v = raw_scsi_get_data(rs, true);
 			} else {
@@ -1961,11 +2267,41 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		reg = addr & 0xff;
 		v = ncr5380_bget(ncr, reg);
 
+	} else if (ncr->type == NONCR_TECMAR) {
+
+		v = ncr->rom[addr];
+		if (addr >= 0x2000 && addr < 0x3000) {
+			if (addr == 0x2040)
+				v = tecmar_clock_bget(0);
+			else if (addr == 0x2042)
+				v = tecmar_clock_bget(1);
+		} else if (addr >= 0x4000 && addr < 0x5000) {
+			if (addr == 0x4040)
+				v = sasi_tecmar_bget(ncr, 1);
+			else if (addr == 0x4042)
+				v = sasi_tecmar_bget(ncr, 0);
+		}
+
+	} else if (ncr->type == NCR5380_XEBEC) {
+
+		reg = xebec_reg(ncr, addr);
+		if (reg >= 0 && reg < 8) {
+			v = ncr5380_bget(ncr, reg);
+		} else if (reg >= 0x80000) {
+			v = ncr->databufferptr[reg & (ncr->databuffer_size - 1)];
+		}
+
+	} else if (ncr->type == NONCR_MICROFORGE) {
+
+		reg = microforge_reg(ncr, addr, false);
+		if (reg >= 0)
+			v = sasi_microforge_bget(ncr, reg);
+
 	}
 
 #if NCR5380_DEBUG > 1
 	//if (addr >= 0x8000)
-		write_log(_T("GET %08x %02x %d %08x %d\n"), addr, v, reg, M68K_GETPC, regs.intmask);
+		write_log(_T("GET %08x %02x %d %08x %d\n"), origaddr, v, reg, M68K_GETPC, regs.intmask);
 #endif
 
 	return v;
@@ -2131,10 +2467,54 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 		reg = addr & 0xff;
 		ncr5380_bput(ncr, reg, val);
 
+	} else if (ncr->type == NONCR_TECMAR) {
+
+		if (addr == 0x22) {
+			// box
+			ncr->baseaddress = 0xe80000 + ((val & 0x7f) * 4096);
+			map_banks_z2(ncr->bank, ncr->baseaddress >> 16, 1);
+			expamem_next(ncr->bank, NULL);
+		} else if (addr == 0x1020) {
+			// memory board control/status
+			ncr->rom[addr] = val & (0x80 | 0x40 | 0x02);
+		} else if (addr == 0x1024) {
+			// memory board memory address reg
+			if (currprefs.fastmem2_size)
+				map_banks_z2(&fastmem2_bank, val, currprefs.fastmem2_size >> 16);
+		}
+		else if (addr >= 0x2000 && addr < 0x3000) {
+			// clock
+			if (addr == 0x2040)
+				tecmar_clock_bput(0, val);
+			else if (addr == 0x2042)
+				tecmar_clock_bput(1, val);
+		} else if (addr >= 0x4000 && addr < 0x5000) {
+			// sasi
+			if (addr == 0x4040)
+				sasi_tecmar_bput(ncr, 1, val);
+			else if (addr == 0x4042)
+				sasi_tecmar_bput(ncr, 0, val);
+		}
+
+	} else if (ncr->type == NCR5380_XEBEC) {
+
+		reg = xebec_reg(ncr, addr);
+		if (reg >= 0 && reg < 8) {
+			ncr5380_bput(ncr, reg, val);
+		} else if (reg >= 0x80000) {
+			ncr->databufferptr[reg & (ncr->databuffer_size - 1)] = val;
+		}
+
+	} else if (ncr->type == NONCR_MICROFORGE) {
+
+		reg = microforge_reg(ncr, addr, true);
+		if (reg >= 0)
+			sasi_microforge_bput(ncr, reg, val);
+
 	}
 
 #if NCR5380_DEBUG > 1
-	write_log(_T("PUT %08x %02x %d %08x %d\n"), addr, val, reg, M68K_GETPC, regs.intmask);
+	write_log(_T("PUT %08x %02x %d %08x %d\n"), origddr, val, reg, M68K_GETPC, regs.intmask);
 #endif
 }
 
@@ -2639,6 +3019,133 @@ void dataflyer_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romco
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_DATAFLYER, 4096, 0, ROMTYPE_DATAFLYER);
 }
 
+static void expansion_add_protoautoconfig_data(uae_u8 *p, uae_u16 manufacturer_id, uae_u8 product_id)
+{
+	memset(p, 0, 4096);
+	p[0x02] = product_id;
+	p[0x08] = manufacturer_id >> 8;
+	p[0x0a] = manufacturer_id;
+}
+
+static void expansion_add_protoautoconfig_box(uae_u8 *p, int box_size, uae_u16 manufacturer_id, uae_u8 product_id)
+{
+	expansion_add_protoautoconfig_data(p, manufacturer_id, product_id);
+	// "box without init/diagnostics code"
+	p[0] = 0x40 | (box_size << 3);
+}
+static void expansion_add_protoautoconfig_board(uae_u8 *p, int board, uae_u16 manufacturer_id, uae_u8 product_id, int memorysize)
+{
+	p += (board + 1) * 4096;
+	expansion_add_protoautoconfig_data(p, manufacturer_id, product_id);
+	// "board without init/diagnostic code"
+	p[0] = 0x08;
+	if (memorysize) {
+		int v = 0;
+		switch (memorysize)
+		{
+			case 64 * 1024:
+			v = 1;
+			break;
+			case 128 * 1024:
+			v = 2;
+			break;
+			case 256 * 1024:
+			v = 3;
+			break;
+			case 512 * 1024:
+			v = 4;
+			break;
+			case 1024 * 1024:
+			v = 5;
+			break;
+			case 2048 * 1024:
+			v = 6;
+			break;
+			case 4096 * 1024:
+			default:
+			v = 7;
+			break;
+		}
+		p[0] |= v;
+	}
+}
+
+addrbank *tecmar_init(struct romconfig *rc)
+{
+	struct soft_scsi *scsi = getscsi(rc);
+	int index = 0;
+
+	if (!scsi)
+		return &expamem_null;
+
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_PTNEXUS);
+	scsi->rom = xcalloc(uae_u8, 65536);
+	expansion_add_protoautoconfig_box(scsi->rom, 3, 1001, 0);
+	// memory
+	expansion_add_protoautoconfig_board(scsi->rom, index++, 1001, 1, currprefs.fastmem2_size);
+	// clock
+	expansion_add_protoautoconfig_board(scsi->rom, index++, 1001, 2, 0);
+	// serial
+	expansion_add_protoautoconfig_board(scsi->rom, index++, 1001, 3, 0);
+	// parallel
+	expansion_add_protoautoconfig_board(scsi->rom, index++, 1001, 4, 0);
+	// sasi
+	expansion_add_protoautoconfig_board(scsi->rom, index++, 1001, 4, 0);
+	memset(tecmar_clock_regs, 0, sizeof tecmar_clock_regs);
+	tecmar_clock_regs[11] = 0x04 | 0x02 | 0x01;
+	scsi->configured = true;
+	scsi->baseaddress = 0xe80000;
+	return scsi->bank;
+}
+
+void tecmar_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NONCR_TECMAR, 65536, 65536, ROMTYPE_TECMAR);
+}
+
+addrbank *microforge_init(struct romconfig *rc)
+{
+	struct soft_scsi *scsi = getscsi(rc);
+
+	if (!scsi)
+		return NULL;
+
+	scsi->configured = 1;
+
+	map_banks(scsi->bank, 0xef0000 >> 16, 0x10000 >> 16, 0);
+	scsi->baseaddress = 0xef0000;
+	return NULL;
+}
+
+void microforge_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NONCR_MICROFORGE, 65536, 0, ROMTYPE_MICROFORGE);
+}
+
+addrbank *xebec_init(struct romconfig *rc)
+{
+	struct soft_scsi *scsi = getscsi(rc);
+
+	if (!scsi)
+		return NULL;
+
+	scsi->configured = 1;
+
+	map_banks(scsi->bank, 0x600000 >> 16, (0x800000 - 0x600000) >> 16, 0);
+	scsi->board_mask = 0x1fffff;
+	scsi->baseaddress = 0x600000;
+	scsi->level6 = true;
+	scsi->intena = true;
+	scsi->dma_controller = true;
+	scsi->databuffer_size = 32768;
+	scsi->databufferptr = xcalloc(uae_u8, scsi->databuffer_size);
+	return NULL;
+}
+
+void xebec_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_XEBEC, 65536, 0, ROMTYPE_XEBEC);
+}
 
 void soft_scsi_free(void)
 {

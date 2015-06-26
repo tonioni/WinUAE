@@ -40,6 +40,13 @@
 #include "specialmonitors.h"
 #include "pci.h"
 
+// More information in first revision HRM Appendix_G
+#define BOARD_PROTOAUTOCONFIG 1
+
+#define BOARD_AUTOCONFIG_Z2 2
+#define BOARD_AUTOCONFIG_Z3 3
+#define BOARD_NONAUTOCONFIG 4
+
 #define EXP_DEBUG 0
 
 #define MAX_EXPANSION_BOARD_SPACE 16
@@ -69,7 +76,9 @@
 #define rom_card	0x10 /* ROM vector is valid */
 #define add_memory	0x20 /* Link RAM into free memory list */
 
-#define zorroII		0xc0 /* Type of Expansion Card */
+/* Type of Expansion Card */
+#define protoautoconfig 0x40
+#define zorroII		0xc0
 #define zorroIII	0x80
 
 /* ********************************************************** */
@@ -386,7 +395,7 @@ static void call_card_init(int index)
 	}
 
 	code = expamem_read(0);
-	if ((code & 0xc0) == 0xc0) {
+	if ((code & 0xc0) == zorroII) {
 		// Z2
 		code &= 7;
 		if (code == 0)
@@ -397,7 +406,7 @@ static void call_card_init(int index)
 		expamem_board_size = expamem_z2_size;
 		expamem_board_pointer = expamem_z2_pointer;
 
-	} else {
+	} else if ((code & 0xc0) == zorroIII) {
 		// Z3
 		if (expamem_z3_sum < Z3BASE_UAE) {
 			expamem_z3_sum = currprefs.z3autoconfig_start;
@@ -428,6 +437,16 @@ static void call_card_init(int index)
 
 		expamem_board_size = expamem_z3_size;
 		expamem_board_pointer = expamem_z3_pointer;
+
+	} else if ((code & 0xc0) == 0x40) {
+		// 0x40 = "Box without init/diagnostic code"
+		// proto autoconfig "box" size.
+		//expamem_z2_size = (1 << ((code >> 3) & 7)) * 4096;
+		// much easier this way, all old-style boards were made for
+		// A1000 and didn't have passthrough connector.
+		expamem_z2_size = 65536;
+		expamem_board_size = expamem_z2_size;
+		expamem_board_pointer = expamem_z2_pointer;
 	}
 
 	if (ab) {
@@ -467,7 +486,7 @@ static void boardmessage(addrbank *mapped, bool success)
 		size /= 1024;
 	}
 	write_log (_T("Card %d: Z%d 0x%08x %4d%c %s %s%s\n"),
-		ecard + 1, (type & 0xc0) == zorroII ? 2 : 3,
+		ecard + 1, (type & 0xc0) == zorroII ? 2 : ((type & 0xc0) == zorroIII ? 3 : 1),
 		expamem_board_pointer, size, sizemod,
 		type & rom_card ? _T("ROM") : (type & add_memory ? _T("RAM") : _T("IO ")),
 		mapped->name,
@@ -642,34 +661,47 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 	}
 	if (ecard >= cardno)
 		return;
-	switch (addr & 0xff) {
-	case 0x48:
-		if (expamem_type() == zorroII) {
-			expamem_hi = value & 0xff;
-			expamem_z2_pointer = (expamem_hi | (expamem_lo >> 4)) << 16; 
+	if (expamem_type() == protoautoconfig) {
+		switch (addr & 0xff) {
+		case 0x22:
+			expamem_hi = value & 0x7f;
+			expamem_z2_pointer = 0xe80000 | (expamem_hi * 4096);
 			expamem_board_pointer = expamem_z2_pointer;
 			if (cards[ecard].map) {
 				expamem_next(cards[ecard].map(), NULL);
 				return;
 			}
-		} else {
-			expamem_lo = value & 0xff;
+			break;
 		}
-		break;
+	} else {
+		switch (addr & 0xff) {
+		case 0x48:
+			if (expamem_type() == zorroII) {
+				expamem_hi = value & 0xff;
+				expamem_z2_pointer = (expamem_hi | (expamem_lo >> 4)) << 16; 
+				expamem_board_pointer = expamem_z2_pointer;
+				if (cards[ecard].map) {
+					expamem_next(cards[ecard].map(), NULL);
+					return;
+				}
+			} else {
+				expamem_lo = value & 0xff;
+			}
+			break;
 
-	case 0x4a:
-		if (expamem_type () == zorroII)
-			expamem_lo = value & 0xff;
-		break;
+		case 0x4a:
+			if (expamem_type () == zorroII)
+				expamem_lo = value & 0xff;
+			break;
 
-	case 0x4c:
-		if (cards[ecard].map) {
-			expamem_next(expamem_bank_current, NULL);
-			return;
+		case 0x4c:
+			if (cards[ecard].map) {
+				expamem_next(expamem_bank_current, NULL);
+				return;
+			}
+			break;
 		}
-		break;
 	}
-
 	if (expamem_bank_current && expamem_bank_current != &expamem_bank)
 		expamem_bank_current->bput(addr, value);
 }
@@ -1842,11 +1874,11 @@ void expamem_reset (void)
 	}
 
 	// add possible non-autoconfig boards
-	add_cpu_expansions(1);
+	add_cpu_expansions(BOARD_NONAUTOCONFIG);
 
 	bool fastmem_after = false;
 	if (currprefs.fastmem_autoconfig) {
-		fastmem_after = add_fastram_after_expansion(2);
+		fastmem_after = add_fastram_after_expansion(BOARD_AUTOCONFIG_Z2);
 		if (!fastmem_after && fastmem_bank.baseaddr != NULL && (fastmem_bank.allocated <= 262144 || currprefs.chipmem_size <= 2 * 1024 * 1024)) {
 			cards[cardno].flags = 0;
 			cards[cardno].name = _T("Z2Fast");
@@ -1871,8 +1903,8 @@ void expamem_reset (void)
 	}
 
 	// immediately after Z2Fast so that they can be emulated as A590/A2091 with fast ram.
-	add_cpu_expansions(2);
-	add_expansions(2);
+	add_cpu_expansions(BOARD_AUTOCONFIG_Z2);
+	add_expansions(BOARD_AUTOCONFIG_Z2);
 
 	if (fastmem_after && currprefs.fastmem_autoconfig) {
 		if (fastmem_bank.baseaddr != NULL && (fastmem_bank.allocated <= 262144 || currprefs.chipmem_size <= 2 * 1024 * 1024)) {
@@ -1964,7 +1996,7 @@ void expamem_reset (void)
 	/* Z3 boards last */
 	if (!currprefs.address_space_24) {
 
-		add_cpu_expansions(3);
+		add_cpu_expansions(BOARD_AUTOCONFIG_Z3);
 
 		if (z3fastmem_bank.baseaddr != NULL) {
 			z3num = 0;
@@ -2004,15 +2036,15 @@ void expamem_reset (void)
 		}
 #endif
 
-		add_expansions(3);
+		add_expansions(BOARD_AUTOCONFIG_Z3);
 
 	}
 
-	// zorro == 1: non-autoconfig/hardwired
-	add_expansions(1);
+	add_expansions(BOARD_NONAUTOCONFIG);
 
 	expamem_z3_pointer = 0;
 	expamem_z3_sum = 0;
+	expamem_z2_pointer = 0;
 	if (cardno == 0 || savestate_state)
 		expamem_init_clear_zero ();
 	else
@@ -2411,124 +2443,130 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE
 	},
 	{
-		_T("cpuboard_ext"), _T("SCSI Kit IV"), _T("Blizzard"),
-		NULL, NULL, NULL, ROMTYPE_CPUBOARDEXT, ROMTYPE_CPUBOARD, 0, 0, true,
-		NULL, 0,
-		false, EXPANSIONTYPE_SCSI
-	},
-	{
 		_T("grex"), _T("G-REX"), _T("DCE"),
-		grex_init, NULL, NULL, ROMTYPE_GREX | ROMTYPE_NOT, 0, 0, 1, true,
-	},
-	{
-		_T("prometheus"), _T("Prometheus"), _T("Matay"),
-		prometheus_init, NULL, NULL, ROMTYPE_PROMETHEUS | ROMTYPE_NOT, 0, 0, 3, false,
+		grex_init, NULL, NULL, ROMTYPE_GREX | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_PCI_BRIDGE
 	},
 	{
 		_T("mediator"), _T("Mediator"), _T("Elbox"),
-		mediator_init, mediator_init2, NULL, ROMTYPE_MEDIATOR | ROMTYPE_NOT, 0, 0, 3, false,
+		mediator_init, mediator_init2, NULL, ROMTYPE_MEDIATOR | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z3, false,
 		mediator_sub, 0,
-		false, 0,
+		false, EXPANSIONTYPE_PCI_BRIDGE,
 		0, 0, 0, false, NULL,
 		false,
 		mediator_settings
 	},
 	{
-		_T("a2090a"), _T("A2090a"), _T("Commodore"),
-		a2090_init, NULL, a2090_add_scsi_unit, ROMTYPE_A2090 | ROMTYPE_NONE, 0, 0, 2, false,
+		_T("prometheus"), _T("Prometheus"), _T("Matay"),
+		prometheus_init, NULL, NULL, ROMTYPE_PROMETHEUS | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z3, false,
 		NULL, 0,
-		true, EXPANSIONTYPE_SCSI
+		false, EXPANSIONTYPE_PCI_BRIDGE
 	},
 	{
-		_T("a2091"), _T("A590/A2091"), _T("Commodore"),
-		a2091_init, NULL, a2091_add_scsi_unit, ROMTYPE_A2091 | ROMTYPE_NONE, 0, 0, 2, false,
-		a2091_sub, 1,
-		true, EXPANSIONTYPE_SCSI,
-		0, 0, 0, true, NULL
-	},
-	{
-		_T("a4091"), _T("A4091"), _T("Commodore"),
-		ncr710_a4091_autoconfig_init, NULL, a4091_add_scsi_unit, ROMTYPE_A4091, 0, 0, 3, false,
+		_T("apollo"), _T("Apollo"), _T("ACT"),
+		apollo_init_hd, NULL, apollo_add_scsi_unit, ROMTYPE_APOLLO, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
-		false, EXPANSIONTYPE_SCSI,
-		0, 0, 0, false, NULL,
-		true
+		false, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE,
+		8738, 0, 0
 	},
 	{
-		_T("fastlane"), _T("Fastlane"), _T("Phase 5"),
-		ncr_fastlane_autoconfig_init, NULL, fastlane_add_scsi_unit, ROMTYPE_FASTLANE, 0, 0, 3, false,
+		_T("add500"), _T("ADD-500"), _T("Archos"),
+		add500_init, NULL, add500_add_scsi_unit, ROMTYPE_ADD500, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
-		8512, 10, 0, false, fastlane_memory_callback
+		8498, 27, 0, true, NULL
 	},
 	{
-		_T("gvp1"), _T("Series I"), _T("GVP"),
-		gvp_init_s1, NULL, gvp_s1_add_scsi_unit, ROMTYPE_GVPS1 | ROMTYPE_NONE, ROMTYPE_GVPS12, 0, 2, false,
-		gvp1_sub, 1,
-		true, EXPANSIONTYPE_SCSI
-	},
-	{
-		_T("gvp"), _T("Series II"), _T("GVP"),
-		gvp_init_s2, NULL, gvp_s2_add_scsi_unit, ROMTYPE_GVPS2 | ROMTYPE_NONE, ROMTYPE_GVPS12, 0, 2, false,
+		_T("blizzardscsikitiv"), _T("SCSI Kit IV"), _T("Blizzard"),
+		NULL, NULL, cpuboard_ncr9x_add_scsi_unit, ROMTYPE_BLIZKIT4, 0, 0, 0, true,
 		NULL, 0,
-		true, EXPANSIONTYPE_SCSI,
-		2017, 10, 0
+		false, EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("oktagon2008"), _T("Oktagon 2008"), _T("BSC/Alfa Data"),
-		ncr_oktagon_autoconfig_init, NULL, oktagon_add_scsi_unit, ROMTYPE_OKTAGON, 0, 0, 2, false,
+		ncr_oktagon_autoconfig_init, NULL, oktagon_add_scsi_unit, ROMTYPE_OKTAGON, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		true, EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("alfapower"), _T("AlfaPower/AT-Bus 2008"), _T("BSC/Alfa Data"),
-		alf_init, NULL, alf_add_ide_unit, ROMTYPE_ALFA, 0, 0, 2, false,
+		alf_init, NULL, alf_add_ide_unit, ROMTYPE_ALFA, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_IDE,
 		2092, 8, 0
 	},
 	{
 		_T("alfapowerplus"), _T("AlfaPower Plus"), _T("BSC/Alfa Data"),
-		alf_init, NULL, alf_add_ide_unit, ROMTYPE_ALFAPLUS, 0, 0, 2, false,
+		alf_init, NULL, alf_add_ide_unit, ROMTYPE_ALFAPLUS, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_IDE,
 		2092, 8, 0
 	},
 	{
-		_T("apollo"), _T("Apollo"), _T("ACT"),
-		apollo_init_hd, NULL, apollo_add_scsi_unit, ROMTYPE_APOLLO, 0, 0, 2, false,
+		_T("cltda1000scsi"), _T("A1000/A2000 SCSI"), _T("C-Ltd"),
+		cltda1000scsi_init, NULL, cltda1000scsi_add_scsi_unit, ROMTYPE_CLTDSCSI | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
-		false, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE,
-		8738, 0, 0
+		false, EXPANSIONTYPE_SCSI,
+		0, 0, 0, false, NULL,
+		false, NULL,
+		{ 0xc1, 0x0c, 0x00, 0x00, 0x03, 0xec, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
 	},
 	{
-		_T("masoboshi"), _T("MasterCard"), _T("Masoboshi"),
-		masoboshi_init, NULL, masoboshi_add_idescsi_unit, ROMTYPE_MASOBOSHI | ROMTYPE_NONE, 0, 0, 2, false,
-		masoboshi_sub, 0,
-		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE
-	},
-	{
-		_T("supradrive"), _T("SupraDrive"), _T("Supra"),
-		supra_init, NULL, supra_add_scsi_unit, ROMTYPE_SUPRA | ROMTYPE_NONE, 0, 0, 2, false,
-		supra_sub, 0,
+		_T("a2090a"), _T("A2090a"), _T("Commodore"),
+		a2090_init, NULL, a2090_add_scsi_unit, ROMTYPE_A2090 | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
 		true, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("golem"), _T("Golem"), _T("Kupke"),
-		golem_init, NULL, golem_add_scsi_unit, ROMTYPE_GOLEM, 0, 0, 2, false,
+		_T("a2091"), _T("A590/A2091"), _T("Commodore"),
+		a2091_init, NULL, a2091_add_scsi_unit, ROMTYPE_A2091 | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		a2091_sub, 1,
+		true, EXPANSIONTYPE_SCSI,
+		0, 0, 0, true, NULL
+	},
+	{
+		_T("a4091"), _T("A4091"), _T("Commodore"),
+		ncr710_a4091_autoconfig_init, NULL, a4091_add_scsi_unit, ROMTYPE_A4091, 0, 0, BOARD_AUTOCONFIG_Z3, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI,
+		0, 0, 0, false, NULL,
+		true
+	},
+	{
+		_T("dataflyerscsiplus"), _T("DataFlyer SCSI+"), _T("Expansion Systems"),
+		dataflyer_init, NULL, dataflyer_add_scsi_unit, ROMTYPE_DATAFLYER | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI
+	},
+	{
+		_T("gvp1"), _T("Series I"), _T("GVP"),
+		gvp_init_s1, NULL, gvp_s1_add_scsi_unit, ROMTYPE_GVPS1 | ROMTYPE_NONE, ROMTYPE_GVPS12, 0, BOARD_AUTOCONFIG_Z2, false,
+		gvp1_sub, 1,
+		true, EXPANSIONTYPE_SCSI
+	},
+	{
+		_T("gvp"), _T("Series II"), _T("GVP"),
+		gvp_init_s2, NULL, gvp_s2_add_scsi_unit, ROMTYPE_GVPS2 | ROMTYPE_NONE, ROMTYPE_GVPS12, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		true, EXPANSIONTYPE_SCSI,
-		2079, 3, 0
+		2017, 10, 0
+	},
+	{
+		_T("vector"), _T("Vector Falcon 8000"), _T("HK-Computer"),
+		vector_init, NULL, vector_add_scsi_unit, ROMTYPE_VECTOR, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("adide"), _T("AdIDE"), _T("ICD"),
-		adide_init, NULL, adide_add_ide_unit, ROMTYPE_ADIDE | ROMTYPE_NONE, 0, 0, 2, false,
+		adide_init, NULL, adide_add_ide_unit, ROMTYPE_ADIDE | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		true, EXPANSIONTYPE_IDE
 	},
 	{
 		_T("adscsi2000"), _T("AdSCSI Advantage 2000"), _T("ICD"),
-		adscsi_init, NULL, adscsi_add_scsi_unit, ROMTYPE_ADSCSI, 0, 0, 2, false,
+		adscsi_init, NULL, adscsi_add_scsi_unit, ROMTYPE_ADSCSI, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
 		0, 0, 0, false, NULL,
@@ -2536,21 +2574,33 @@ const struct expansionromtype expansionroms[] = {
 		adscsi2000_settings
 	},
 	{
+		_T("kommos"), _T("A500/A2000 SCSI"), _T("Jürgen Kommos"),
+		kommos_init, NULL, kommos_add_scsi_unit, ROMTYPE_KOMMOS, 0, 0, BOARD_NONAUTOCONFIG, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI
+	},
+	{
+		_T("golem"), _T("Golem"), _T("Kupke"),
+		golem_init, NULL, golem_add_scsi_unit, ROMTYPE_GOLEM, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI,
+		2079, 3, 0
+	},
+	{
 		_T("mtecat"), _T("AT 500"), _T("M-Tec"),
-		mtec_init, NULL, mtec_add_ide_unit, ROMTYPE_MTEC, 0, 0, 2, false,
+		mtec_init, NULL, mtec_add_ide_unit, ROMTYPE_MTEC, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		true, EXPANSIONTYPE_IDE
 	},
 	{
-		_T("protar"), _T("A500 HD"), _T("Protar"),
-		protar_init, NULL, protar_add_ide_unit, ROMTYPE_PROTAR, 0, 0, 2, false,
-		NULL, 0,
-		true, EXPANSIONTYPE_SCSI,
-		4149, 51, 0
+		_T("masoboshi"), _T("MasterCard"), _T("Masoboshi"),
+		masoboshi_init, NULL, masoboshi_add_idescsi_unit, ROMTYPE_MASOBOSHI | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		masoboshi_sub, 0,
+		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE
 	},
 	{
 		_T("stardrive"), _T("StarDrive"), _T("Microbotics"),
-		stardrive_init, NULL, stardrive_add_scsi_unit, ROMTYPE_STARDRIVE | ROMTYPE_NOT, 0, 0, 2, true,
+		stardrive_init, NULL, stardrive_add_scsi_unit, ROMTYPE_STARDRIVE | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
 		1010, 0, 0, false, NULL,
@@ -2559,43 +2609,15 @@ const struct expansionromtype expansionroms[] = {
 
 	},
 	{
-		_T("kommos"), _T("A500/A2000 SCSI"), _T("Jürgen Kommos"),
-		kommos_init, NULL, kommos_add_scsi_unit, ROMTYPE_KOMMOS, 0, 0, 1, true,
-		NULL, 0,
-		false, EXPANSIONTYPE_SCSI
-	},
-	{
-		_T("vector"), _T("Vector Falcon 8000"), _T("HK-Computer"),
-		vector_init, NULL, vector_add_scsi_unit, ROMTYPE_VECTOR, 0, 0, 2, false,
-		NULL, 0,
-		false, EXPANSIONTYPE_SCSI
-	},
-	{
-		_T("add500"), _T("ADD-500"), _T("Archos"),
-		add500_init, NULL, add500_add_scsi_unit, ROMTYPE_ADD500, 0, 0, 2, false,
+		_T("fastlane"), _T("Fastlane"), _T("Phase 5"),
+		ncr_fastlane_autoconfig_init, NULL, fastlane_add_scsi_unit, ROMTYPE_FASTLANE, 0, 0, BOARD_AUTOCONFIG_Z3, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
-		8498, 27, 0, true, NULL
-	},
-	{
-		_T("rochard"), _T("RocHard RH800C"), _T("Roctec"),
-		rochard_init, NULL, rochard_add_idescsi_unit, ROMTYPE_ROCHARD | ROMTYPE_NONE, 0, 0, 2, false,
-		rochard_sub, 0,
-		true, EXPANSIONTYPE_IDE | EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE_PORT_DOUBLED,
-		2144, 2, 0
-	},
-	{
-		_T("cltda1000scsi"), _T("A1000/A2000 SCSI"), _T("C-Ltd"),
-		cltda1000scsi_init, NULL, cltda1000scsi_add_scsi_unit, ROMTYPE_CLTDSCSI | ROMTYPE_NOT, 0, 0, 2, false,
-		NULL, 0,
-		false, EXPANSIONTYPE_SCSI,
-		0, 0, 0, false, NULL,
-		false, NULL,
-		{ 0xc1, 0x0c, 0x00, 0x00, 0x03, 0xec, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+		8512, 10, 0, false, fastlane_memory_callback
 	},
 	{
 		_T("ptnexus"), _T("Nexus"), _T("Preferred Technologies"),
-		ptnexus_init, NULL, ptnexus_add_scsi_unit, ROMTYPE_PTNEXUS | ROMTYPE_NONE, 0, 0, 2, false,
+		ptnexus_init, NULL, ptnexus_add_scsi_unit, ROMTYPE_PTNEXUS | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
 		2102, 4, 0, false, nexus_memory_callback,
@@ -2603,10 +2625,44 @@ const struct expansionromtype expansionroms[] = {
 		{ 0xd1, 0x01, 0x00, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
 	},
 	{
-		_T("dataflyerscsiplus"), _T("DataFlyer SCSI+"), _T("Expansion Systems"),
-		dataflyer_init, NULL, dataflyer_add_scsi_unit, ROMTYPE_DATAFLYER | ROMTYPE_NOT, 0, 0, 1, true,
+		_T("protar"), _T("A500 HD"), _T("Protar"),
+		protar_init, NULL, protar_add_ide_unit, ROMTYPE_PROTAR, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
-		false, EXPANSIONTYPE_SCSI,
+		true, EXPANSIONTYPE_SCSI,
+		4149, 51, 0
+	},
+	{
+		_T("rochard"), _T("RocHard RH800C"), _T("Roctec"),
+		rochard_init, NULL, rochard_add_idescsi_unit, ROMTYPE_ROCHARD | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		rochard_sub, 0,
+		true, EXPANSIONTYPE_IDE | EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE_PORT_DOUBLED,
+		2144, 2, 0
+	},
+	{
+		_T("supradrive"), _T("SupraDrive"), _T("Supra Corporation"),
+		supra_init, NULL, supra_add_scsi_unit, ROMTYPE_SUPRA | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		supra_sub, 0,
+		true, EXPANSIONTYPE_SCSI
+	},
+#if 0 /* driver is MIA, 3rd party ScottDevice driver is not enough for full implementation. */
+	{
+		_T("microforge"), _T("Hard Disk"), _T("Micro Forge"),
+		microforge_init, NULL, microforge_add_scsi_unit, ROMTYPE_MICROFORGE | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SASI | EXPANSIONTYPE_SCSI
+	},
+#endif
+	{
+		_T("tecmar"), _T("T-Card/T-Disk"), _T("Tecmar"),
+		tecmar_init, NULL, tecmar_add_scsi_unit, ROMTYPE_TECMAR | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SASI | EXPANSIONTYPE_SCSI
+	},
+	{
+		_T("xebec"), _T("9720H"), _T("Xebec"),
+		xebec_init, NULL, xebec_add_scsi_unit, ROMTYPE_XEBEC | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SASI | EXPANSIONTYPE_SCSI
 	},
 #if 0
 	{
@@ -2646,7 +2702,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 		BOARD_MEMORY_Z2,
 		8 * 1024 * 1024,
 		0,
-		gvp_ide_rom_autoconfig_init, NULL, 2, 0
+		gvp_ide_rom_autoconfig_init, NULL, BOARD_AUTOCONFIG_Z2, 0
 	},
 	{
 		_T("A3001 Series II"),
@@ -2656,7 +2712,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 		BOARD_MEMORY_Z2,
 		8 * 1024 * 1024,
 		0,
-		gvp_ide_rom_autoconfig_init, gvp_ide_controller_autoconfig_init, 2, 0
+		gvp_ide_rom_autoconfig_init, gvp_ide_controller_autoconfig_init, BOARD_AUTOCONFIG_Z2, 0
 	},
 	{
 		_T("A530"),
@@ -2666,7 +2722,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 		BOARD_MEMORY_Z2,
 		8 * 1024 * 1024,
 		0,
-		gvp_init_accelerator, NULL, 2, 1,
+		gvp_init_accelerator, NULL, BOARD_AUTOCONFIG_Z2, 1,
 		NULL, NULL,
 		2017, 9, 0, false
 	},
@@ -2678,7 +2734,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 		BOARD_MEMORY_25BITMEM,
 		128 * 1024 * 1024,
 		0,
-		gvp_init_accelerator, NULL, 2, 1
+		gvp_init_accelerator, NULL, BOARD_AUTOCONFIG_Z2, 1
 	},
 	{
 		_T("Tek Magic 2040/2060"),
@@ -2697,7 +2753,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 		_T("Blizzard 1230 IV"),
 		_T("Blizzard1230IV"),
 		ROMTYPE_CB_BLIZ1230, 0,
-		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		NULL, 0,
 		BOARD_MEMORY_BLIZZARD_12xx,
 		256 * 1024 * 1024,
 		0,
@@ -2708,7 +2764,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 		_T("Blizzard 1260"),
 		_T("Blizzard1260"),
 		ROMTYPE_CB_BLIZ1260, 0,
-		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		NULL, 0,
 		BOARD_MEMORY_BLIZZARD_12xx,
 		256 * 1024 * 1024,
 		0,
@@ -2784,7 +2840,7 @@ static const struct cpuboardsubtype warpengine_sub[] = {
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024,
 		0x01000000,
-		ncr710_warpengine_autoconfig_init, NULL, 3, 1
+		ncr710_warpengine_autoconfig_init, NULL, BOARD_AUTOCONFIG_Z3, 1
 	},
 	{
 		NULL
@@ -2825,7 +2881,7 @@ static const struct cpuboardsubtype dbk_sub[] = {
 		0,
 		128 * 1024 * 1024,
 		0,
-		ncr_dkb_autoconfig_init, NULL, 2, 0
+		ncr_dkb_autoconfig_init, NULL, BOARD_AUTOCONFIG_Z2, 0
 	},
 	{
 		_T("Wildfire"),
@@ -2835,7 +2891,7 @@ static const struct cpuboardsubtype dbk_sub[] = {
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024,
 		0,
-		dkb_wildfire_pci_init, NULL, 1, 0 // fake board
+		dkb_wildfire_pci_init, NULL, BOARD_NONAUTOCONFIG, 0
 	},
 	{
 		NULL
@@ -2905,19 +2961,9 @@ const struct cpuboardtype cpuboards[] = {
 		dummy_sub, 0
 	},
 	{
-		BOARD_BLIZZARD,
-		_T("Phase 5 - Blizzard"),
-		blizzardboard_sub, 0
-	},
-	{
-		BOARD_CYBERSTORM,
-		_T("Phase 5 - CyberStorm"),
-		cyberstormboard_sub, 0
-	},
-	{
-		BOARD_MACROSYSTEM,
-		_T("MacroSystem"),
-		warpengine_sub, 0
+		BOARD_ACT,
+		_T("ACT"),
+		apollo_sub, 0
 	},
 	{
 		BOARD_COMMODORE,
@@ -2930,16 +2976,6 @@ const struct cpuboardtype cpuboards[] = {
 		dbk_sub, 0
 	},
 	{
-		BOARD_RCS,
-		_T("RCS Management"),
-		fusionforty_sub, 0
-	},
-	{
-		BOARD_ACT,
-		_T("ACT"),
-		apollo_sub, 0
-	},
-	{
 		BOARD_GVP,
 		_T("GVP"),
 		gvpboard_sub, 0
@@ -2948,6 +2984,26 @@ const struct cpuboardtype cpuboards[] = {
 		BOARD_KUPKE,
 		_T("Kupke"),
 		kupkeboard_sub, 0
+	},
+	{
+		BOARD_MACROSYSTEM,
+		_T("MacroSystem"),
+		warpengine_sub, 0
+	},
+	{
+		BOARD_BLIZZARD,
+		_T("Phase 5 - Blizzard"),
+		blizzardboard_sub, 0
+	},
+	{
+		BOARD_CYBERSTORM,
+		_T("Phase 5 - CyberStorm"),
+		cyberstormboard_sub, 0
+	},
+	{
+		BOARD_RCS,
+		_T("RCS Management"),
+		fusionforty_sub, 0
 	},
 #if 0
 	{

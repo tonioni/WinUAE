@@ -111,6 +111,8 @@ typedef void(*DEVICE_MEMORY_CALLBACK)(struct romconfig*, uae_u8*, int);
 #define EXPANSIONTYPE_IDE 2
 #define EXPANSIONTYPE_24BIT 4
 #define EXPANSIONTYPE_IDE_PORT_DOUBLED 8
+#define EXPANSIONTYPE_SASI 16
+#define EXPANSIONTYPE_PCI_BRIDGE 32
 struct expansionboardsettings
 {
 	const TCHAR *name;
