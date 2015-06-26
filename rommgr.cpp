@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 143
+#define NEXT_ROM_ID 144
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -336,7 +336,7 @@ static struct romdata roms[] = {
 	0xce270bc0, 0xe043c1aa,0x3bb06e06,0xd4dabff3,0x0a8c6317,0xabfef2bb },
 	ALTROMPN(92, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xa6023f20, 0xdfb048d6, 0xbdc03587, 0x241e8121, 0x26aba603, 0xd69b0238)
 	ALTROMPN(92, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x9635a9cd, 0x47578b27, 0xc4ba6e54, 0x891930dd, 0xcb4b6a45, 0x5d6b31b2)
-	{ _T("Blizzard SCSI Kit IV"), 8, 5, 8, 5, _T("BSCSIIV\0"), 32768, 94, 0, 0, ROMTYPE_CPUBOARDEXT, 0, 0, NULL,
+	{ _T("Blizzard SCSI Kit IV"), 8, 5, 8, 5, _T("BSCSIIV\0"), 32768, 94, 0, 0, ROMTYPE_BLIZKIT4, 0, 0, NULL,
 	0xf53a0fca, 0xefe17ca5,0x88c44a7f,0x0f8c62be,0x20f23278,0xcfe06727, NULL, _T("blizzard_scsi_kit_iv.rom") },
 	{ _T("Fastlane"), 8, 5, 8, 5, _T("FASTLANE\0"), 20788, 102, 0, 0, ROMTYPE_FASTLANE, 0, 0, NULL,
 	0xe4f485a5, 0x20bf7de5,0x05e45d0a,0xc411cfd2,0x806d0fd8,0xe46276de, NULL, _T("fastlanez3.rom") },
@@ -369,7 +369,9 @@ static struct romdata roms[] = {
 	{ _T("GVP A3001 Series I"), 3, 3, 3, 3, _T("A3001SI\0"), 8192, 114, 0, 0, ROMTYPE_CB_A3001S1, 0, 0, NULL,
 	0xaaff7c65, 0x424cf3da,0xcc9da794,0x0ba74446,0x69dd1691,0x44ae87ee, NULL, NULL },
 	{ _T("Kupke Golem 030"), 0, 0, 0, 0, _T("GOLEM030\0"), 8192, 126, 0, 0, ROMTYPE_CB_GOLEM030, 0, 0, NULL,
-	0x05d473f4, 0x574ec567,0xcc67e06f,0x91dcecb9,0x8c204399,0x5fe2a09f, NULL, NULL },
+	0x05d473f4, 0x574ec567, 0xcc67e06f, 0x91dcecb9, 0x8c204399, 0x5fe2a09f, NULL, NULL },
+	{ _T("DKB WildFire"), 1, 1, 1, 1, _T("WILDFIRE\0"), 18352, 143, 0, 0, ROMTYPE_CB_DBK_WF, 0, 0, NULL,
+	0xb2dae8c4, 0xcdfe2d96, 0xe44d4f8d, 0x3833a5e8, 0xb6c832fd, 0xc7b341a9, NULL, NULL },
 
 	{ _T("Preferred Technologies Nexus"), 1, 0, 1, 0, _T("PTNEXUS\0"), 8192, 139, 0, 0, ROMTYPE_PTNEXUS, 0, 0, NULL,
 	0xf495879a, 0xa3bd0202, 0xe14aa5b6, 0x49d3ce88, 0x22975950, 0x6500dbc2, NULL, NULL },
@@ -728,7 +730,6 @@ static void addkey (uae_u8 *key, int size, const TCHAR *name)
 	}
 	keyring[i].key = key;
 	keyring[i].size = size;
-	write_log (_T("ROM KEY '%s' %d bytes loaded\n"), name, size);
 }
 
 void addkeyfile (const TCHAR *path)
@@ -1609,8 +1610,6 @@ int configure_rom (struct uae_prefs *p, const int *rom, int msg)
 		_tcscpy (p->cartfile, path);
 	if (rd->type & ROMTYPE_CPUBOARD)
 		set_device_rom(p, path, ROMTYPE_CPUBOARD, 0);
-	if (rd->type & ROMTYPE_CPUBOARDEXT)
-		set_device_rom(p, path, ROMTYPE_CPUBOARDEXT, 0);
 	return 1;
 }
 

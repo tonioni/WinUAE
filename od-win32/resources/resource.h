@@ -29,6 +29,7 @@
 #define IDS_GAMEPORTS                   21
 #define IDS_EXPANSION                   22
 #define IDS_STRING23                    23
+#define IDS_EXPANSION2                  23
 #define IDS_EXTTEXT                     100
 #define IDS_EXTACTUAL                   101
 #define IDS_SOUND                       102
@@ -389,6 +390,7 @@
 #define IDS_SELECT_MENU                 396
 #define IDS_SCSI_EMULATION              397
 #define IDS_SLIRP                       398
+#define IDD_EXPANSION2                  398
 #define IDS_SLIRP_INBOUND               399
 #define IDS_FILTER_PAL_EXTRA            400
 #define IDS_FILTER_3D_EXTRA             401
@@ -659,6 +661,7 @@
 #define IDC_KEYCHOOSER                  1393
 #define IDC_SCSIROMSUBSELECT            1393
 #define IDC_ROMFILE2                    1394
+#define IDC_SCSIROMSELECTCAT            1394
 #define IDC_ROMCHOOSER2                 1395
 #define IDC_FLASHCHOOSER                1396
 #define IDC_FLASHFILE                   1397
@@ -840,6 +843,7 @@
 #define IDC_INPUTLIST                   1611
 #define IDC_CATWEASEL                   1611
 #define IDC_INPUTAMIGA                  1612
+#define IDC_SCSIROMSELECTED             1612
 #define IDC_AVIOUTPUT_VIDEO             1613
 #define IDC_INPUTAUTOFIRE               1613
 #define IDC_PORT_MOUSETRICK             1613
@@ -1043,6 +1047,7 @@
 #define IDC_GENLOCKMODE                 1714
 #define IDC_CS_RAMSEYREV                1715
 #define IDC_SOUND_WASAPI                1715
+#define IDC_GENLOCKMIX                  1715
 #define IDC_CS_KSMIRROR_E0              1716
 #define IDC_STRINGBOXEDIT               1716
 #define IDC_SOUND_OPENAL                1716
@@ -1193,9 +1198,7 @@
 #define IDC_CD_SELECT                   1807
 #define IDC_FASTMEMAUTOCONFIG           1808
 #define IDC_RTG_DISPLAYSELECT           1809
-#define IDC_CPUBOARD_SETTING1           1809
 #define IDC_MISCLIST                    1810
-#define IDC_CPUBOARD_SETTING2           1810
 #define IDC_STATENAME                   1811
 #define IDC_SAMPLER_STEREO              1812
 #define IDC_LISTDIALOG_LIST             1813
@@ -1232,12 +1235,16 @@
 #define IDC_FILTER_NATIVERTG            1839
 #define IDC_P96MEM                      1840
 #define IDC_DA_SLIDER                   1841
-#define IDC_EXPANSION_SETTING1          1841
 #define IDC_CPUBOARD_TYPE               1842
-#define IDC_EXPANSION_SETTING2          1842
 #define IDC_CPUBOARDMEM                 1843
 #define IDC_Z3MAPPING                   1844
 #define IDC_CPUBOARD_SUBTYPE            1845
+#define IDC_EXPANSION_SETTING1          1846
+#define IDC_EXPANSION_SETTING2          1847
+#define IDC_EXPANSION_SETTING3          1848
+#define IDC_CPUBOARD_SETTING1           1849
+#define IDC_CPUBOARD_SETTING2           1850
+#define IDC_CPUBOARD_SETTING3           1851
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1287,9 +1294,9 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        398
+#define _APS_NEXT_RESOURCE_VALUE        399
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1842
+#define _APS_NEXT_CONTROL_VALUE         1848
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

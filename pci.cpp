@@ -26,6 +26,7 @@
 #include "newcpu.h"
 #include "uae.h"
 #include "rommgr.h"
+#include "cpuboard.h"
 
 #include "qemuvga/qemuuaeglue.h"
 #include "qemuvga/queue.h"
@@ -945,7 +946,9 @@ static void REGPARAM2 pci_bridge_bput(uaecptr addr, uae_u32 b)
 	}
 	if (pcib == bridges[PCI_BRIDGE_WILDFIRE]) {
 		addr &= 15;
-		if (addr == 8) {
+		if (addr == 0) {
+			cpuboard_set_flash_unlocked((b & 4) != 0);
+		} else if (addr == 8) {
 			pcib->config[2] = b;
 			if (b & 1) {
 				write_log(_T("Wildfire 68000 mode!\n"));

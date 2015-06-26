@@ -11,8 +11,8 @@
 #define UAE_OPTIONS_H
 
 #define UAEMAJOR 3
-#define UAEMINOR 1
-#define UAESUBREV 1
+#define UAEMINOR 2
+#define UAESUBREV 0
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -133,6 +133,15 @@ struct wh {
 #define UAEDEV_HDF 1
 #define UAEDEV_CD 2
 #define UAEDEV_TAPE 3
+
+#define HD_LEVEL_SCSI_1 0
+#define HD_LEVEL_SCSI_2 1
+#define HD_LEVEL_SASI 2
+#define HD_LEVEL_SASI_ENHANCED 3
+
+#define HD_LEVEL_ATA_1 0
+#define HD_LEVEL_ATA_2 1
+#define HD_LEVEL_ATA_2S 2
 
 #define BOOTPRI_NOAUTOBOOT -128
 #define BOOTPRI_NOAUTOMOUNT -129
@@ -427,6 +436,7 @@ struct uae_prefs {
 	bool ntscmode;
 	bool genlock;
 	int genlock_image;
+	int genlock_mix;
 	TCHAR genlock_image_file[MAX_DPATH];
 	int monitoremu;
 	double chipset_refreshrate;

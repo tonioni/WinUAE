@@ -89,7 +89,7 @@ struct hd_hardfiledata {
     int ansi_version;
 };
 
-#define HD_CONTROLLER_EXPANSION_MAX 30
+#define HD_CONTROLLER_EXPANSION_MAX 50
 #define HD_CONTROLLER_NEXT_UNIT 100
 
 #define HD_CONTROLLER_TYPE_UAE 0

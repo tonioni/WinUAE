@@ -56,6 +56,9 @@
     <Filter Include="ppc">
       <UniqueIdentifier>{a238ed36-3d5f-4fd0-afd7-a34029119da7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="mame">
+      <UniqueIdentifier>{961c1680-65e6-445a-bf6e-82775255ef2d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ahidsound_dsonly.cpp">

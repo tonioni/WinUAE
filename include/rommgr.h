@@ -46,7 +46,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_SCSI		0x00100000
 #define ROMTYPE_A2091		0x00100001
 #define ROMTYPE_A4091		0x00100002
-#define ROMTYPE_CPUBOARDEXT	0x00100003
+#define ROMTYPE_BLIZKIT4	0x00100003
 #define ROMTYPE_FASTLANE	0x00100004
 #define ROMTYPE_OKTAGON		0x00100005
 #define ROMTYPE_GVPS1		0x00100006
@@ -77,6 +77,9 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_GREX		0x0010001f
 #define ROMTYPE_PROMETHEUS	0x00100020
 #define ROMTYPE_MEDIATOR	0x00100021
+#define ROMTYPE_TECMAR		0x00100022
+#define ROMTYPE_XEBEC		0x00100023
+#define ROMTYPE_MICROFORGE	0x00100024
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000

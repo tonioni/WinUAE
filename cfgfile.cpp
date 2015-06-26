@@ -895,13 +895,17 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 			}
 			TCHAR *extras = NULL;
 			if (ct >= HD_CONTROLLER_TYPE_SCSI_FIRST && ct <= HD_CONTROLLER_TYPE_SCSI_LAST) {
-				if (ci->unit_feature_level == 0) {
+				if (ci->unit_feature_level == HD_LEVEL_SCSI_1){
 					extras = _T("SCSI1");
+				}	else if (ci->unit_feature_level == HD_LEVEL_SASI) {
+					extras = _T("SASI");
+				} else if (ci->unit_feature_level == HD_LEVEL_SASI_ENHANCED) {
+					extras = _T("SASIE");
 				}
 			} else if (ct >= HD_CONTROLLER_TYPE_IDE_FIRST && ct <= HD_CONTROLLER_TYPE_IDE_LAST) {
-				if (ci->unit_feature_level == 0) {
+				if (ci->unit_feature_level == HD_LEVEL_ATA_1) {
 					extras = _T("ATA1");
-				} else if (ci->unit_feature_level == 2) {
+				} else if (ci->unit_feature_level == HD_LEVEL_ATA_2S) {
 					extras = _T("ATA2+S");
 				}
 			}
@@ -1516,6 +1520,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("genlock"), p->genlock);
 	cfgfile_dwrite_str(f, _T("genlockmode"), genlockmodes[p->genlock_image]);
 	cfgfile_dwrite_str(f, _T("genlock_image"), p->genlock_image_file);
+	cfgfile_dwrite(f, _T("genlock_mix"), _T("%d"), p->genlock_mix);
 	cfgfile_dwrite_str(f, _T("monitoremu"), specialmonitors[p->monitoremu]);
 
 	cfgfile_dwrite_bool (f, _T("show_leds"), !!(p->leds_on_screen & STATUSLINE_CHIPSET));
@@ -3740,15 +3745,19 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 					uci.controller_media_type = 0;
 
 				if (cfgfile_option_find(tmpp2, _T("SCSI2")))
-					uci.unit_feature_level = 1;
+					uci.unit_feature_level = HD_LEVEL_SCSI_2;
 				else if (cfgfile_option_find(tmpp2, _T("SCSI1")))
-					uci.unit_feature_level = 0;
+					uci.unit_feature_level = HD_LEVEL_SCSI_1;
+				else if (cfgfile_option_find(tmpp2, _T("SASIE")))
+					uci.unit_feature_level = HD_LEVEL_SASI_ENHANCED;
+				else if (cfgfile_option_find(tmpp2, _T("SASI")))
+					uci.unit_feature_level = HD_LEVEL_SASI;
 				else if (cfgfile_option_find(tmpp2, _T("ATA2+S")))
-					uci.unit_feature_level = 2;
+					uci.unit_feature_level = HD_LEVEL_ATA_2S;
 				else if (cfgfile_option_find(tmpp2, _T("ATA2+")))
-					uci.unit_feature_level = 1;
+					uci.unit_feature_level = HD_LEVEL_ATA_2;
 				else if (cfgfile_option_find(tmpp2, _T("ATA1")))
-					uci.unit_feature_level = 0;
+					uci.unit_feature_level = HD_LEVEL_ATA_1;
 			}
 		}
 		if (type == 2) {
@@ -4219,7 +4228,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval (option, value, _T("parallel_autoflush"), &p->parallel_autoflush_time, 1)
 		|| cfgfile_intval (option, value, _T("uae_hide"), &p->uae_hide, 1)
 		|| cfgfile_intval (option, value, _T("cpu_frequency"), &p->cpu_frequency, 1)
-		|| cfgfile_intval (option, value, _T("kickstart_ext_rom_file2addr"), &p->romextfile2addr, 1)
+		|| cfgfile_intval(option, value, _T("kickstart_ext_rom_file2addr"), &p->romextfile2addr, 1)
+		|| cfgfile_intval(option, value, _T("genlock_mix"), &p->genlock_mix, 1)
 		|| cfgfile_intval (option, value, _T("catweasel"), &p->catweasel, 1))
 		return 1;
 
@@ -6050,6 +6060,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->chipset_mask = CSMASK_ECS_AGNUS;
 	p->genlock = 0;
 	p->genlock_image = 0;
+	p->genlock_mix = 0;
 	p->ntscmode = 0;
 	p->filesys_limit = 0;
 	p->filesys_max_name = 107;
@@ -6253,7 +6264,6 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	_tcscpy (p->romextfile, _T(""));
 	_tcscpy (p->romextfile2, _T(""));
 	set_device_rom(p, NULL, ROMTYPE_CPUBOARD, 0);
-	set_device_rom(p, NULL, ROMTYPE_CPUBOARDEXT, 0);
 
 	p->prtname[0] = 0;
 	p->sername[0] = 0;
@@ -6611,7 +6621,7 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 		p->cpuboardmem1_size = 32 * 1024 * 1024;
 		p->cpu_model = 68030;
 		p->cs_rtc = 1;
-		roms_bliz[0] = 90;
+		roms_bliz[0] = 89;
 		configure_rom(p, roms_bliz, romcheck);
 		break;
 		case 3:

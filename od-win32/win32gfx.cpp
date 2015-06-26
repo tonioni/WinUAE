@@ -1895,6 +1895,7 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.monitoremu != changed_prefs.monitoremu ? (2 | 8) : 0;
 	c |= currprefs.genlock_image != changed_prefs.genlock_image ? (2 | 8) : 0;
 	c |= currprefs.genlock != changed_prefs.genlock ? (2 | 8) : 0;
+	c |= currprefs.genlock_mix != changed_prefs.genlock_mix ? (1 | 256) : 0;
 
 	c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? (2 | 8) : 0;
 	c |= currprefs.gfx_scandoubler != changed_prefs.gfx_scandoubler ? (2 | 8) : 0;
@@ -1977,6 +1978,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.monitoremu = changed_prefs.monitoremu;
 		currprefs.genlock_image = changed_prefs.genlock_image;
 		currprefs.genlock = changed_prefs.genlock;
+		currprefs.genlock_mix = changed_prefs.genlock_mix;
 
 		currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
 		currprefs.gfx_scandoubler = changed_prefs.gfx_scandoubler;

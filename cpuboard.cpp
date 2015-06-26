@@ -150,7 +150,7 @@ static uae_u32 maprom_base;
 static int delayed_rom_protect;
 static int f0rom_size, earom_size;
 static uae_u8 io_reg[64];
-static void *flashrom;
+static void *flashrom, *flashrom2;
 static struct zfile *flashrom_file;
 static int flash_unlocked;
 static int csmk2_flashaddressing;
@@ -231,6 +231,11 @@ static bool mapromconfigured(void)
 	if (currprefs.cpuboard_settings)
 		return true;
 	return false;
+}
+
+void cpuboard_set_flash_unlocked(bool unlocked)
+{
+	flash_unlocked = unlocked;
 }
 
 static bool is_blizzard(void)
@@ -525,6 +530,39 @@ static uae_u8 *REGPARAM2 blizzarde8_xlate(uaecptr addr)
 	return NULL;
 }
 
+static uae_u32 REGPARAM2 blizzardf0_bget(uaecptr addr)
+{
+#ifdef JIT
+	special_mem |= S_READ;
+#endif
+	uae_u8 v;
+
+	blizzardf0_slow(1);
+
+	if (is_csmk3() || is_blizzardppc()) {
+		if (flash_unlocked) {
+			return flash_read(flashrom, addr);
+		}
+	} else if (is_csmk2()) {
+		addr &= 65535;
+		addr += 65536;
+		return flash_read(flashrom, addr);
+	} else if (is_csmk1()) {
+		addr &= 65535;
+		addr += 65536;
+		return flash_read(flashrom, addr);
+	} else if (is_dkb_wildfire()) {
+		if (flash_unlocked) {
+			if (addr & 1)
+				return flash_read(flashrom2, addr);
+			else
+				return flash_read(flashrom, addr);
+		}
+	}
+	addr &= blizzardf0_bank.mask;
+	v = blizzardf0_bank.baseaddr[addr];
+	return v;
+}
 static uae_u32 REGPARAM2 blizzardf0_lget(uaecptr addr)
 {
 #ifdef JIT
@@ -548,53 +586,17 @@ static uae_u32 REGPARAM2 blizzardf0_wget(uaecptr addr)
 	uae_u16 *m, v;
 
 	blizzardf0_slow(2);
-
-	addr &= blizzardf0_bank.mask;
-	m = (uae_u16 *)(blizzardf0_bank.baseaddr + addr);
-	v = do_get_mem_word(m);
-	return v;
-}
-static uae_u32 REGPARAM2 blizzardf0_bget(uaecptr addr)
-{
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
-	uae_u8 v;
-
-	blizzardf0_slow(1);
-
-	if (is_csmk3() || is_blizzardppc()) {
-		if (flash_unlocked) {
-			return flash_read(flashrom, addr);
-		}
-	} else if (is_csmk2()) {
-		addr &= 65535;
-		addr += 65536;
-		return flash_read(flashrom, addr);
-	} else if (is_csmk1()) {
-		addr &= 65535;
-		addr += 65536;
-		return flash_read(flashrom, addr);
+	if (is_dkb_wildfire() && flash_unlocked) {
+		v = blizzardf0_bget(addr + 0) << 8;
+		v |= blizzardf0_bget(addr + 1);
+	} else {
+		addr &= blizzardf0_bank.mask;
+		m = (uae_u16 *)(blizzardf0_bank.baseaddr + addr);
+		v = do_get_mem_word(m);
 	}
-	addr &= blizzardf0_bank.mask;
-	v = blizzardf0_bank.baseaddr[addr];
 	return v;
 }
 
-static void REGPARAM2 blizzardf0_lput(uaecptr addr, uae_u32 b)
-{
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
-	blizzardf0_slow(4);
-}
-static void REGPARAM2 blizzardf0_wput(uaecptr addr, uae_u32 b)
-{
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
-	blizzardf0_slow(2);
-}
 static void REGPARAM2 blizzardf0_bput(uaecptr addr, uae_u32 b)
 {
 #ifdef JIT
@@ -616,6 +618,31 @@ static void REGPARAM2 blizzardf0_bput(uaecptr addr, uae_u32 b)
 		addr &= 65535;
 		addr += 65536;
 		flash_write(flashrom, addr, b);
+	} else if (is_dkb_wildfire()) {
+		if (flash_unlocked) {
+			if (addr & 1)
+				flash_write(flashrom2, addr, b);
+			else
+				flash_write(flashrom, addr, b);
+		}
+	}
+}
+static void REGPARAM2 blizzardf0_lput(uaecptr addr, uae_u32 b)
+{
+#ifdef JIT
+	special_mem |= S_WRITE;
+#endif
+	blizzardf0_slow(4);
+}
+static void REGPARAM2 blizzardf0_wput(uaecptr addr, uae_u32 b)
+{
+#ifdef JIT
+	special_mem |= S_WRITE;
+#endif
+	blizzardf0_slow(2);
+	if (is_dkb_wildfire()) {
+		blizzardf0_bput(addr + 0, b >> 8);
+		blizzardf0_bput(addr + 1, b >> 0);
 	}
 }
 
@@ -1354,7 +1381,7 @@ void cpuboard_map(void)
 		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 131072 >> 16, 0);
 	}
 	if (is_dkb_wildfire()) {
-		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 0x10000 >> 16, 0);
+		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 0x80000 >> 16, 0);
 	}
 	if (is_dkb_12x0()) {
 		if (cpuboard_size >= 4 * 1024 * 1024) {
@@ -1397,6 +1424,8 @@ void cpuboard_reset(void)
 
 	flash_free(flashrom);
 	flashrom = NULL;
+	flash_free(flashrom2);
+	flashrom2 = NULL;
 	zfile_fclose(flashrom_file);
 	flashrom_file = NULL;
 }
@@ -1408,6 +1437,8 @@ void cpuboard_cleanup(void)
 
 	flash_free(flashrom);
 	flashrom = NULL;
+	flash_free(flashrom2);
+	flashrom2 = NULL;
 	zfile_fclose(flashrom_file);
 	flashrom_file = NULL;
 
@@ -1483,7 +1514,7 @@ void cpuboard_init(void)
 	} else if (is_dkb_wildfire()) {
 
 		blizzardf0_bank.start = 0x00f00000;
-		blizzardf0_bank.allocated = 131072;
+		blizzardf0_bank.allocated = 65536;
 		blizzardf0_bank.mask = blizzardf0_bank.allocated - 1;
 		mapped_malloc(&blizzardf0_bank);
 
@@ -1985,7 +2016,7 @@ static void ew(uae_u8 *p, int addr, uae_u8 value)
 addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 {
 	struct zfile *autoconfig_rom = NULL;
-	struct boardromconfig *brc, *brc2;
+	struct boardromconfig *brc;
 	int roms[3], roms2[3];
 	bool autoconf = true;
 	bool autoconf_stop = false;
@@ -1997,9 +2028,8 @@ addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 	
 	boardname = cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype].name;
 
-	int idx, idx2;
+	int idx;
 	brc = get_device_rom(&currprefs, ROMTYPE_CPUBOARD, 0, &idx);
-	brc2 = get_device_rom(&currprefs, ROMTYPE_CPUBOARDEXT, 0, &idx2);
 	if (brc)
 		romname = brc->roms[idx].romfile;
 
@@ -2049,6 +2079,7 @@ addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 			case BOARD_DKB_SUB_12x0:
 			return &expamem_null;
 			case BOARD_DKB_SUB_WILDFIRE:
+			roms[0] = 143;
 			break;
 		}
 		break;
@@ -2189,6 +2220,8 @@ addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 	if (is_dkb_wildfire()) {
 		f0rom_size = 65536;
 		zfile_fread(blizzardf0_bank.baseaddr, 1, f0rom_size, autoconfig_rom);
+		flashrom = flash_new(blizzardf0_bank.baseaddr + 0, 32768, 65536, 0x20, flashrom_file, FLASHROM_EVERY_OTHER_BYTE | FLASHROM_PARALLEL_EEPROM);
+		flashrom2 = flash_new(blizzardf0_bank.baseaddr + 1, 32768, 65536, 0x20, flashrom_file, FLASHROM_EVERY_OTHER_BYTE | FLASHROM_EVERY_OTHER_BYTE_ODD | FLASHROM_PARALLEL_EEPROM);
 		autoconf = false;
 	} else if (is_aca500()) {
 		f0rom_size = 524288;
@@ -2198,7 +2231,7 @@ addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 			flashrom_file = autoconfig_rom;
 			autoconfig_rom = NULL;
 		}
-		flashrom = flash_new(blizzardf0_bank.baseaddr, f0rom_size, f0rom_size, 0xa4, flashrom_file);
+		flashrom = flash_new(blizzardf0_bank.baseaddr, f0rom_size, f0rom_size, 0xa4, flashrom_file, 0);
 	} else if (is_a2630()) {
 		f0rom_size = 131072;
 		zfile_fread(blizzardf0_bank.baseaddr, 1, f0rom_size, autoconfig_rom);
@@ -2255,7 +2288,7 @@ addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 			flashrom_file = autoconfig_rom;
 			autoconfig_rom = NULL;
 		}
-		flashrom = flash_new(blizzardea_bank.baseaddr, earom_size, earom_size, 0x20, flashrom_file);
+		flashrom = flash_new(blizzardea_bank.baseaddr, earom_size, earom_size, 0x20, flashrom_file, 0);
 		memcpy(blizzardf0_bank.baseaddr, blizzardea_bank.baseaddr + 65536, 65536);
 	} else if (is_csmk2()) {
 		earom_size = 131072;
@@ -2265,7 +2298,7 @@ addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 			flashrom_file = autoconfig_rom;
 			autoconfig_rom = NULL;
 		}
-		flashrom = flash_new(blizzardea_bank.baseaddr, earom_size, earom_size, 0x20, flashrom_file);
+		flashrom = flash_new(blizzardea_bank.baseaddr, earom_size, earom_size, 0x20, flashrom_file, 0);
 		memcpy(blizzardf0_bank.baseaddr, blizzardea_bank.baseaddr + 65536, 65536);
 	} else if (is_csmk3() || is_blizzardppc()) {
 		uae_u8 flashtype;
@@ -2292,7 +2325,7 @@ addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 			autoconfig_rom = NULL;
 		}
 		fixserial(blizzardf0_bank.baseaddr, f0rom_size);
-		flashrom = flash_new(blizzardf0_bank.baseaddr, f0rom_size, f0rom_size, flashtype, flashrom_file);
+		flashrom = flash_new(blizzardf0_bank.baseaddr, f0rom_size, f0rom_size, flashtype, flashrom_file, 0);
 	} else {
 		// 1230 MK IV / 1240/60
 		f0rom_size = 65536;
@@ -2308,6 +2341,8 @@ addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 		zfile_fclose(autoconfig_rom);
 		autoconfig_rom = NULL;
 		if (roms2[0] != -1) {
+			int idx2;
+			struct boardromconfig *brc2 = get_device_rom(&currprefs, ROMTYPE_BLIZKIT4, 0, &idx2);
 			if (brc2 && brc2->roms[idx2].romfile[0])
 				autoconfig_rom = board_rom_open(roms2, brc2->roms[idx2].romfile);
 			if (autoconfig_rom) {
