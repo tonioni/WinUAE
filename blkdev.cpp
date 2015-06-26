@@ -189,6 +189,13 @@ static void install_driver (int flags)
 				}
 				break;
 			}
+			// use image mode if driver disabled
+			for (int j = 1; j < NUM_DEVICE_TABLE_ENTRIES; j++) {
+				if (devicetable[j] == st->device_func && driver_installed[j] < 0) {
+					st->device_func = devicetable[SCSI_UNIT_IMAGE];
+					st->scsiemu = true;
+				}
+			}
 		}
 	}
 
@@ -201,7 +208,14 @@ static void install_driver (int flags)
 				struct blkdevstate *st = &state[i];
 				if (st->device_func == devicetable[j]) {
 					int ok = st->device_func->openbus (0);
-					driver_installed[j] = 1;
+					if (!ok && st->device_func != devicetable[SCSI_UNIT_IMAGE]) {
+						st->device_func = devicetable[SCSI_UNIT_IMAGE];
+						st->scsiemu = true;
+						write_log (_T("Fallback to image mode\n"));
+						driver_installed[j] = -1;
+					} else {
+						driver_installed[j] = 1;
+					}
 					write_log (_T("%s driver installed, ok=%d\n"), st->device_func->name, ok);
 					break;
 				}
