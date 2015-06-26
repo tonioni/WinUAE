@@ -1968,6 +1968,7 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 	int gl_vdbl_l, gl_vdbl_r;
 	int gl_hdbl_l, gl_hdbl_r, gl_hdbl;
 	int gl_hcenter, gl_vcenter;
+	int mix1 = 0, mix2 = 0;
 
 	isntsc = (beamcon0 & 0x20) ? 0 : 1;
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
@@ -2018,6 +2019,11 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 
 	init_noise();
 
+	if(currprefs.genlock_mix) {
+		mix1 = 256 - currprefs.genlock_mix;
+		mix2 = currprefs.genlock_mix;
+	}
+
 	uae_u8 r = 0, g = 0, b = 0;
 	for (y = ystart; y < yend; y++) {
 		int yoff = (((y * 2 + oddlines) - src->yoffset) >> vdbl);
@@ -2053,6 +2059,11 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 					}
 				} else {
 					r = g = b = get_noise();
+				}
+				if (mix2) {
+					r = (mix1 * r + mix2 * FVR(src, s)) / 256;
+					g = (mix1 * g + mix2 * FVG(src, s)) / 256;
+					b = (mix1 * b + mix2 * FVB(src, s)) / 256;
 				}
 				PUT_PRGB(d, d2, dst, r, g, b, 0, doublelines, false);
 			} else {
