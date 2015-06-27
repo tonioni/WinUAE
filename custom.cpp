@@ -2920,7 +2920,7 @@ static bool isbrdblank (int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
 	if (hpos >= 0 && (current_colors.borderblank != brdblank || current_colors.borderntrans != brdntrans)) {
 		record_color_change (hpos, 0, COLOR_CHANGE_BRDBLANK | (brdblank ? 1 : 0) | (current_colors.bordersprite ? 2 : 0) | (brdntrans ? 4 : 0));
 		current_colors.borderblank = brdblank;
-		current_colors.borderblank = brdntrans;
+		current_colors.borderntrans = brdntrans;
 		remembered_color_entry = -1;
 	}
 	return brdblank;
