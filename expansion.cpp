@@ -2587,6 +2587,12 @@ const struct expansionromtype expansionroms[] = {
 		2079, 3, 0
 	},
 	{
+		_T("paradox"), _T("Paradox SCSI"), _T("Mainhattan Data"),
+		paradox_init, NULL, paradox_add_scsi_unit, ROMTYPE_PARADOX | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_PARALLEL_ADAPTER
+	},
+	{
 		_T("mtecat"), _T("AT 500"), _T("M-Tec"),
 		mtec_init, NULL, mtec_add_ide_unit, ROMTYPE_MTEC, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,

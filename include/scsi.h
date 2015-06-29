@@ -160,6 +160,10 @@ void apollo_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 void soft_scsi_free(void);
 void soft_scsi_reset(void);
 
+uae_u8 parallel_port_scsi_read(int reg, uae_u8 data, uae_u8 dir);
+void parallel_port_scsi_write(int reg, uae_u8 v, uae_u8 dir);
+extern bool parallel_port_scsi;
+
 addrbank *supra_init(struct romconfig*);
 void supra_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
@@ -209,3 +213,6 @@ void xebec_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig
 
 addrbank *microforge_init(struct romconfig *rc);
 void microforge_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+addrbank *paradox_init(struct romconfig *rc);
+void paradox_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);

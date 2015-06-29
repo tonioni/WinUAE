@@ -42,6 +42,7 @@
 #include "autoconf.h"
 #include "uae/ppc.h"
 #include "rommgr.h"
+#include "scsi.h"
 
 #define CIAA_DEBUG_R 0
 #define CIAA_DEBUG_W 0
@@ -1029,11 +1030,13 @@ static uae_u8 ReadCIAA (unsigned int addr)
 		} else if (currprefs.win32_samplersoundcard >= 0) {
 
 			tmp = sampler_getsample ((ciabpra & 4) ? 1 : 0);
-
-		} else
 #endif
 
-		{
+		} else if (parallel_port_scsi) {
+
+			tmp = parallel_port_scsi_read(0, ciaaprb, ciaadrb);
+
+		} else {
 			tmp = handle_parport_joystick (0, ciaaprb, ciaadrb);
 			tmp = dongle_cia_read (1, reg, tmp);
 #if DONGLE_DEBUG > 0
@@ -1169,6 +1172,8 @@ static uae_u8 ReadCIAB (unsigned int addr)
 			uae_u8 v;
 			parallel_direct_read_status (&v);
 			tmp |= v & 7;
+		} else if (parallel_port_scsi) {
+			tmp = parallel_port_scsi_read(1, ciabpra, ciabdra);
 		} else {
 			tmp |= handle_parport_joystick (1, ciabpra, ciabdra);
 		}
@@ -1322,6 +1327,8 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val)
 		} else if (arcadia_bios) {
 			arcadia_parport (1, ciaaprb, ciaadrb);
 #endif
+		} else if (parallel_port_scsi) {
+			parallel_port_scsi_write(0, ciaaprb, ciaadrb);
 		}
 #endif
 		break;
@@ -1491,8 +1498,11 @@ static void WriteCIAB (uae_u16 addr, uae_u8 val)
 			serial_writestatus(ciabpra, ciabdra);
 #endif
 #ifdef PARALLEL_PORT
-		if (isprinter () < 0)
+		if (isprinter () < 0) {
 			parallel_direct_write_status (val, ciabdra);
+		} else if (parallel_port_scsi) {
+			parallel_port_scsi_write(1, ciabpra, ciabdra);
+		}
 #endif
 		break;
 	case 1:

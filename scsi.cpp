@@ -22,6 +22,7 @@
 #include "newcpu.h"
 #include "custom.h"
 #include "gayle.h"
+#include "cia.h"
 
 #define SCSI_EMU_DEBUG 0
 #define RAW_SCSI_DEBUG 1
@@ -45,7 +46,8 @@
 #define NONCR_TECMAR 15
 #define NCR5380_XEBEC 16
 #define NONCR_MICROFORGE 17
-#define NCR_LAST 18
+#define NONCR_PARADOX 18
+#define NCR_LAST 19
 
 extern int log_scsiemu;
 
@@ -669,6 +671,8 @@ struct soft_scsi
 #define MAX_SOFT_SCSI_UNITS 10
 static struct soft_scsi *soft_scsi_devices[MAX_SOFT_SCSI_UNITS];
 static struct soft_scsi *soft_scsi_units[NCR_LAST * MAX_DUPLICATE_EXPANSION_BOARDS];
+bool parallel_port_scsi;
+static struct soft_scsi *parallel_port_scsi_data;
 
 static void soft_scsi_free_unit(struct soft_scsi *s)
 {
@@ -2518,6 +2522,55 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 #endif
 }
 
+// mainhattan paradox scsi
+uae_u8 parallel_port_scsi_read(int reg, uae_u8 data, uae_u8 dir)
+{
+	struct soft_scsi *scsi = parallel_port_scsi_data;
+	if (!scsi)
+		return data;
+	struct raw_scsi *rs = &scsi->rscsi;
+	uae_u8 t = raw_scsi_get_signal_phase(rs);
+	if (reg == 0) {
+		data = raw_scsi_get_data_2(rs, true, false);
+		data ^= 0xff;
+	} else if (reg == 1) {
+		data &= ~3;
+		if (rs->bus_phase >= 0 && !(rs->bus_phase & SCSI_IO_COMMAND))
+			data |= 2; // POUT
+		data |= 1;
+		if (rs->bus_phase == SCSI_SIGNAL_PHASE_SELECT_2 || rs->bus_phase >= 0)
+			data &= ~1; // BUSY
+	}
+	t = raw_scsi_get_signal_phase(rs);
+	if ((t & SCSI_IO_REQ) && (scsi->chip_state & 4))
+		cia_parallelack();
+	return data;
+}
+void parallel_port_scsi_write(int reg, uae_u8 v, uae_u8 dir)
+{
+	struct soft_scsi *scsi = parallel_port_scsi_data;
+	if (!scsi)
+		return;
+	struct raw_scsi *rs = &scsi->rscsi;
+	if (reg == 0) {
+		v ^= 0xff;
+		raw_scsi_put_data(rs, v, true);
+	} else if (reg == 1) {
+		// SEL
+		if (!(v & 4) && (scsi->chip_state & 4)) {
+			raw_scsi_set_signal_phase(rs, false, true, false);
+		} else if ((v & 4) && !(scsi->chip_state & 4)) {
+			if (rs->bus_phase == SCSI_SIGNAL_PHASE_SELECT_2) {
+				raw_scsi_set_signal_phase(rs, false, false, false);
+			}
+		}
+		scsi->chip_state = v;
+	}
+	uae_u8 t = raw_scsi_get_signal_phase(rs);
+	if ((t & SCSI_IO_REQ) && (scsi->chip_state & 4))
+		cia_parallelack();
+}
+
 static uae_u32 REGPARAM2 ncr80_lget(struct soft_scsi *ncr, uaecptr addr)
 {
 	uae_u32 v;
@@ -3147,8 +3200,28 @@ void xebec_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_XEBEC, 65536, 0, ROMTYPE_XEBEC);
 }
 
+addrbank *paradox_init(struct romconfig *rc)
+{
+	struct soft_scsi *scsi = getscsi(rc);
+
+	if (!scsi)
+		return NULL;
+
+	scsi->configured = 1;
+	parallel_port_scsi = true;
+	parallel_port_scsi_data = scsi;
+
+	return NULL;
+}
+
+void paradox_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NONCR_PARADOX, 0, 0, ROMTYPE_PARADOX);
+}
+
 void soft_scsi_free(void)
 {
+	parallel_port_scsi = false;
 	for (int i = 0; soft_scsi_devices[i]; i++) {
 		soft_scsi_free_unit(soft_scsi_devices[i]);
 		soft_scsi_devices[i] = NULL;
