@@ -8100,7 +8100,10 @@ static void hsync_handler_post (bool onvsync)
 	}
 
 	if (uae_int_requested) {
-		INTREQ (0x8000 | 0x0008);
+		if (uae_int_requested & 0xff00)
+			INTREQ(0x8000 | 0x2000);
+		if (uae_int_requested & 0x0ff)
+			INTREQ(0x8000 | 0x0008);
 	}
 
 	{

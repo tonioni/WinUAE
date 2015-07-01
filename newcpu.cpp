@@ -3301,6 +3301,17 @@ static void do_trace (void)
 	}
 }
 
+static void check_uae_int_request(void)
+{
+	if (uae_int_requested || uaenet_int_requested) {
+		if ((uae_int_requested & 0x00ff) || uaenet_int_requested)
+			INTREQ_f(0x8000 | 0x0008);
+		if (uae_int_requested & 0xff00)
+			INTREQ_f(0x8000 | 0x2000);
+		set_special(SPCFLAG_INT);
+	}
+}
+
 void cpu_sleep_millis(int ms)
 {
 #ifdef WITH_PPC
@@ -3360,6 +3371,7 @@ static bool haltloop(void)
 				if (currprefs.ppc_cpu_idle >= 10 || (i == ev_max && vpos > 0 && vpos < maxvpos - maxlines)) {
 					cpu_sleep_millis(1);
 				}
+				check_uae_int_request();
 				uae_ppc_execute_check();
 
 				lines = (read_processor_time() - rpt_scanline) / vsynctimeline + 1;
@@ -3395,6 +3407,7 @@ static bool haltloop(void)
 
 				// sync chipset with real time
 				for (;;) {
+					check_uae_int_request();
 					ppc_interrupt(intlev());
 					uae_ppc_execute_check();
 					if (event_wait)
@@ -3573,11 +3586,8 @@ static int do_specialties (int cycles)
 	}
 	bool first = true;
 	while ((regs.spcflags & SPCFLAG_STOP) && !(regs.spcflags & SPCFLAG_BRK)) {
-isstopped:
-		if (uae_int_requested || uaenet_int_requested) {
-			INTREQ_f (0x8008);
-			set_special (SPCFLAG_INT);
-		}
+	isstopped:
+		check_uae_int_request();
 		{
 			extern void bsdsock_fake_int_handler (void);
 			extern int volatile bsd_int_requested;
@@ -4064,10 +4074,7 @@ static void m68k_run_jit (void)
 	for (;;) {
 		((compiled_handler*)(pushall_call_handler))();
 		/* Whenever we return from that, we should check spcflags */
-		if (uae_int_requested || uaenet_int_requested) {
-			INTREQ_f (0x8008);
-			set_special (SPCFLAG_INT);
-		}
+		check_uae_int_request();
 		if (regs.spcflags) {
 			if (do_specialties (0)) {
 				return;
