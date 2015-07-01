@@ -1552,6 +1552,7 @@ void frame_drawn (void)
 			AVIOuput_WAVWriteAudio(avi_sndbuffer, avi_sndbuffered);
 		}
 		first_frame = 0;
+		avi_sndbuffered = 0;
 		return;
 	}
 
