@@ -1129,8 +1129,10 @@
 #define IDC_CS_TOCCATAMIXER             1774
 #define IDC_FS_SELECT_FILE              1775
 #define IDC_FLOPPY_FFS                  1775
+#define IDC_CS_ES1370                   1775
 #define IDC_DF2ENABLE                   1776
 #define IDC_FS_SELECT_EJECT             1776
+#define IDC_CS_FM801                    1776
 #define IDC_FS_RW                       1777
 #define IDC_FLOPPY_BOOTABLE             1777
 #define IDC_DF3ENABLE                   1778

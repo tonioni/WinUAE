@@ -748,6 +748,15 @@
     <ClCompile Include="..\..\qemuvga\ne2000.cpp">
       <Filter>qemu</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\qemuvga\es1370.cpp">
+      <Filter>qemu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\mame\tm34010\tms34010.cpp">
+      <Filter>mame</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\mame\a2410.cpp">
+      <Filter>mame</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

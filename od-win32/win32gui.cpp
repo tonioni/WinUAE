@@ -8114,7 +8114,7 @@ static void expansion_net (HWND hDlg)
 		SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_SETCURSEL, 0, 0);
 }
 
-static const int scsiromselectedmask[] = { EXPANSIONTYPE_SCSI, EXPANSIONTYPE_IDE, EXPANSIONTYPE_SASI, EXPANSIONTYPE_PCI_BRIDGE };
+static const int scsiromselectedmask[] = { EXPANSIONTYPE_SCSI, EXPANSIONTYPE_IDE, EXPANSIONTYPE_SASI, EXPANSIONTYPE_CUSTOM, EXPANSIONTYPE_PCI_BRIDGE };
 static void init_expansion2(HWND hDlg)
 {
 	static int first = -1;
@@ -8129,7 +8129,7 @@ static void init_expansion2(HWND hDlg)
 			continue;
 		if (!(expansionroms[i].deviceflags & scsiromselectedmask[scsiromselectedcatnum]))
 			continue;
-		if (scsiromselectedcatnum == 0 && (expansionroms[i].deviceflags & EXPANSIONTYPE_SASI))
+		if (scsiromselectedcatnum == 0 && (expansionroms[i].deviceflags & (EXPANSIONTYPE_SASI | EXPANSIONTYPE_CUSTOM)))
 			continue;
 		name[0] = 0;
 		int cnt = 0;
@@ -8168,7 +8168,7 @@ static void init_expansion2(HWND hDlg)
 				continue;
 			if (!(expansionroms[i].deviceflags & scsiromselectedmask[scsiromselectedcatnum]))
 				continue;
-			if (scsiromselectedcatnum == 0 && (expansionroms[i].deviceflags & EXPANSIONTYPE_SASI))
+			if (scsiromselectedcatnum == 0 && (expansionroms[i].deviceflags & (EXPANSIONTYPE_SASI | EXPANSIONTYPE_CUSTOM)))
 				continue;
 			if (cfgfile_board_enabled(&workprefs, romtype, 0)) {
 				if (found == -1)
@@ -8405,6 +8405,8 @@ static void enable_for_expansion2dlg (HWND hDlg)
 	ew(hDlg, IDC_CS_CD32FMV, en);
 	ew(hDlg, IDC_CS_TOCCATA, en);
 	ew(hDlg, IDC_CS_TOCCATAMIXER, en && workprefs.sound_toccata);
+	ew(hDlg, IDC_CS_ES1370, en);
+	ew(hDlg, IDC_CS_FM801, en);
 	ew (hDlg, IDC_CS_SCSIMODE, FALSE);
 
 	ew(hDlg, IDC_CPUBOARDROMFILE, workprefs.cpuboard_type != 0);
@@ -8443,6 +8445,8 @@ static void values_to_expansion2dlg (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_CD32FMV, workprefs.cs_cd32fmv);
 	CheckDlgButton(hDlg, IDC_CS_TOCCATA, workprefs.sound_toccata);
 	CheckDlgButton(hDlg, IDC_CS_TOCCATAMIXER, workprefs.sound_toccata_mixer);
+	CheckDlgButton(hDlg, IDC_CS_ES1370, workprefs.sound_es1370);
+	CheckDlgButton(hDlg, IDC_CS_FM801, workprefs.sound_fm801);
 	CheckDlgButton(hDlg, IDC_CS_SCSIMODE, workprefs.scsi == 2);
 	cw = catweasel_detect ();
 	ew (hDlg, IDC_CATWEASEL, cw);
@@ -8551,10 +8555,11 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 			}
 
 			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_RESETCONTENT, 0, 0);
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM) _T("SCSI Controllers"));
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM) _T("IDE Controllers"));
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM) _T("SASI Controllers"));
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM) _T("PCI Bridges"));
+			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("SCSI Controllers"));
+			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("IDE Controllers"));
+			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("SASI Controllers"));
+			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("Custom Controllers"));
+			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("PCI Bridges"));
 			hide(hDlg, IDC_SCSIROMSELECTED, 1);
 			expansion_net(hDlg);
 			init_expansion2(hDlg);
@@ -8633,6 +8638,12 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 				break;
 				case IDC_CS_TOCCATAMIXER:
 				workprefs.sound_toccata_mixer = ischecked(hDlg, IDC_CS_TOCCATAMIXER) ? 1 : 0;
+				break;
+				case IDC_CS_ES1370:
+				workprefs.sound_es1370 = ischecked(hDlg, IDC_CS_ES1370) ? 1 : 0;
+				break;
+				case IDC_CS_FM801:
+				workprefs.sound_fm801 = ischecked(hDlg, IDC_CS_FM801) ? 1 : 0;
 				break;
 				case IDC_SCSIROMSELECTED:
 				values_from_expansion2dlg(hDlg);
@@ -8925,7 +8936,8 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("EGS-28/24 Spectrum Zorro II"));
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("EGS-28/24 Spectrum Zorro III"));
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Picasso IV Zorro II"));
-		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Picasso IV Zorro III"));
+		SendDlgItemMessage(hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Picasso IV Zorro III"));
+		SendDlgItemMessage(hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("A2410"));
 
 		WIN32GUI_LoadUIString(IDS_ALL, tmp, sizeof tmp / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_RESETCONTENT, 0, 0);
@@ -9200,7 +9212,6 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		workprefs.z3chipmem_size = memsizes[msi_z3chip[SendMessage (GetDlgItem (hDlg, IDC_Z3CHIPMEM), TBM_GETPOS, 0, 0)]];
 		workprefs.mbresmem_low_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM1), TBM_GETPOS, 0, 0)]];
 		workprefs.mbresmem_high_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM2), TBM_GETPOS, 0, 0)]];
-		workprefs.cpuboardmem1_size = memsizes[msi_cpuboard[SendMessage (GetDlgItem (hDlg, IDC_CPUBOARDMEM), TBM_GETPOS, 0, 0)]];
 		fix_values_memorydlg ();
 		values_to_memorydlg (hDlg);
 		enable_for_memorydlg (hDlg);
@@ -11205,7 +11216,7 @@ static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype)
 		const struct expansionromtype *ert = get_unit_expansion_rom(ctype);
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("0"));
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("1"));
-		if (!ert || !(ert->deviceflags & EXPANSIONTYPE_SASI)) {
+		if (!ert || !(ert->deviceflags & (EXPANSIONTYPE_SASI | EXPANSIONTYPE_CUSTOM)) ) {
 			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("2"));
 			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("3"));
 			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("4"));
@@ -11230,8 +11241,9 @@ static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype)
 		SendDlgItemMessage (hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("ATA-2+ Strict"));
 	} else if (ctype >= HD_CONTROLLER_TYPE_SCSI_FIRST && ctype <= HD_CONTROLLER_TYPE_SCSI_LAST) {
 		SendDlgItemMessage (hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("SCSI-1"));
-		SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM) _T("SCSI-2"));
-		SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM) _T("SASI"));
+		SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("SCSI-2"));
+		SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("SASI"));
+		SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("SASI CHS"));
 	}
 }
 

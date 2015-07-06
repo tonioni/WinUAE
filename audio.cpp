@@ -2280,6 +2280,7 @@ void audio_enable_sndboard(bool enable)
 	} else {
 		audio_extra_channels[0] = true;
 		acd[1].evtime = acd->evtime = CYCLE_UNIT;
+		audio_activate();
 	}
 	audio_set_extra_channels();
 }
@@ -2293,6 +2294,7 @@ void audio_enable_cda(bool enable)
 	} else {
 		audio_extra_channels[1] = true;
 		acd[1].evtime = acd->evtime = CYCLE_UNIT;
+		audio_activate();
 	}
 	audio_set_extra_channels();
 }
