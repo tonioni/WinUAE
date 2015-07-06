@@ -108,7 +108,8 @@ STATIC_INLINE void put_byte_ce020 (uaecptr addr, uae_u32 v)
 	mem_access_delay_byte_write_ce020 (addr, v);
 }
 
-extern uae_u32 get_word_ce020_prefetch (int);
+extern uae_u32 get_word_ce020_prefetch(int);
+extern uae_u32 get_word_ce020_prefetch_buffer(int);
 
 STATIC_INLINE uae_u32 get_long_ce020_prefetch (int o)
 {
@@ -117,6 +118,17 @@ STATIC_INLINE uae_u32 get_long_ce020_prefetch (int o)
 	v = get_word_ce020_prefetch (o) << 16;
 	tmp = regs.db;
 	v |= get_word_ce020_prefetch (o + 2);
+	regs.db = tmp;
+	return v;
+}
+
+STATIC_INLINE uae_u32 get_long_ce020_prefetch_buffer(int o)
+{
+	uae_u32 v;
+	uae_u16 tmp;
+	v = get_word_ce020_prefetch_buffer(o) << 16;
+	tmp = regs.db;
+	v |= get_word_ce020_prefetch_buffer(o + 2);
 	regs.db = tmp;
 	return v;
 }
@@ -152,6 +164,7 @@ STATIC_INLINE void m68k_do_rts_ce020 (void)
 #ifdef CPUEMU_22
 
 extern uae_u32 get_word_ce030_prefetch(int);
+extern uae_u32 get_word_ce030_prefetch_buffer(int);
 
 STATIC_INLINE void put_long_ce030 (uaecptr addr, uae_u32 v)
 {
@@ -183,6 +196,14 @@ STATIC_INLINE uae_u32 get_long_ce030_prefetch (int o)
 	uae_u32 v;
 	v = get_word_ce030_prefetch (o) << 16;
 	v |= get_word_ce030_prefetch (o + 2);
+	return v;
+}
+
+STATIC_INLINE uae_u32 get_long_ce030_prefetch_buffer(int o)
+{
+	uae_u32 v;
+	v = get_word_ce030_prefetch_buffer(o) << 16;
+	v |= get_word_ce030_prefetch_buffer(o + 2);
 	return v;
 }
 
