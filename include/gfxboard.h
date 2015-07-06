@@ -8,6 +8,7 @@ extern addrbank *gfxboard_init_registers(int devnum);
 extern void gfxboard_free (void);
 extern void gfxboard_reset (void);
 extern void gfxboard_vsync_handler (void);
+extern void gfxboard_hsync_handler(void);
 extern bool gfxboard_is_z3 (int);
 extern bool gfxboard_is_registers (int);
 extern int gfxboard_get_vram_min (int);
@@ -19,6 +20,23 @@ extern void gfxboard_refresh (void);
 extern bool gfxboard_toggle (int mode);
 extern int gfxboard_num_boards (int type);
 
+extern addrbank *tms_init(int devnum);
+extern void tms_hsync_handler(void);
+extern void tms_vsync_handler(void);
+extern bool tms_toggle(int);
+
 #define GFXBOARD_UAE_Z2 0
 #define GFXBOARD_UAE_Z3 1
 #define GFXBOARD_HARDWARE 2
+
+#define GFXBOARD_PICASSO2 2
+#define GFXBOARD_PICASSO2PLUS 3
+#define GFXBOARD_PICCOLO_Z2 4
+#define GFXBOARD_PICCOLO_Z3 5
+#define GFXBOARD_SD64_Z2 6
+#define GFXBOARD_SD64_Z3 7
+#define GFXBOARD_SPECTRUM_Z2 8
+#define GFXBOARD_SPECTRUM_Z3 9
+#define GFXBOARD_PICASSO4_Z2 10
+#define GFXBOARD_PICASSO4_Z3 11
+#define GFXBOARD_A2410 12

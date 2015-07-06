@@ -765,8 +765,12 @@ void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 			shmaddr=natmem_offset + 0x00d00000;
 			size += BARRIER;
 			got = TRUE;
-		} else if(!_tcscmp (shmids[shmid].name, _T("superiv_e0"))) {
-			shmaddr=natmem_offset + 0x00e00000;
+		} else if (!_tcscmp(shmids[shmid].name, _T("superiv_e0"))) {
+			shmaddr = natmem_offset + 0x00e00000;
+			size += BARRIER;
+			got = TRUE;
+		} else if (!_tcscmp(shmids[shmid].name, _T("x_a0"))) {
+			shmaddr = natmem_offset + 0x00a00000;
 			size += BARRIER;
 			got = TRUE;
 		}

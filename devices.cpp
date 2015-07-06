@@ -129,7 +129,10 @@ void devices_vsync_post(void)
 
 void devices_hsync(void)
 {
-	#ifdef A2065
+#ifdef GFXBOARD
+	gfxboard_hsync_handler();
+#endif
+#ifdef A2065
 	a2065_hsync_handler ();
 #endif
 #ifdef CD32
@@ -154,6 +157,9 @@ void devices_hsync(void)
 #ifdef WITH_PPC
 	uae_ppc_hsync_handler();
 	cpuboard_hsync();
+#endif
+#ifdef WITH_PCI
+	pci_hsync();
 #endif
 #ifdef WITH_TOCCATA
 	sndboard_hsync();
