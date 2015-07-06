@@ -30,6 +30,7 @@
 
 #include "qemuuaeglue.h"
 #include "queue.h"
+#include "threaddep/thread.h"
 
 struct NetClientState
 {
@@ -376,8 +377,7 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         if (!(val & E8390_STOP)) { /* START bit makes no sense on RTL8029... */
             s->isr &= ~ENISR_RESET;
             /* test specific case: zero length transfer */
-            if ((val & (E8390_RREAD | E8390_RWRITE)) &&
-                s->tcnt == 0) {
+            if ((val & (E8390_RREAD | E8390_RWRITE)) && s->tcnt == 0) {
                 s->isr |= ENISR_RDC;
                 ne2000_update_irq(s);
             }
@@ -477,7 +477,6 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
         }
     }
-	ne2000_receive_check();
 }
 
 static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
@@ -557,7 +556,6 @@ static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
             break;
         }
     }
-	ne2000_receive_check();
 #ifdef DEBUG_NE2000
     write_log("NE2000: read reg=0x%x val=0x%02x\n", offset, ret);
 #endif
@@ -723,6 +721,7 @@ static uint32_t ne2000_reset_ioport_read(void *opaque, uint32_t addr)
     return 0;
 }
 
+#if 0
 static int ne2000_post_load(void* opaque, int version_id)
 {
     NE2000State* s = (NE2000State*)opaque;
@@ -733,7 +732,6 @@ static int ne2000_post_load(void* opaque, int version_id)
     return 0;
 }
 
-#if 0
 const VMStateDescription vmstate_ne2000 = {
     .name = "ne2000",
     .version_id = 2,
@@ -937,10 +935,11 @@ type_init(ne2000_register_types)
 #define MAX_RECEIVE_BUFFER_INDEX 256
 static int receive_buffer_index;
 static uae_u8 *receive_buffer;
-static int receive_buffer_read, receive_buffer_write;
+static volatile int receive_buffer_read, receive_buffer_write;
 static int receive_buffer_size[MAX_RECEIVE_BUFFER_INDEX];
+static uae_sem_t ne2000_sem;
 
-static void ne2000_receive_check(void)
+static void ne2000_receive_check2(void)
 {
 	if (receive_buffer_read != receive_buffer_write) {
 		if (ne2000state.isr & ENISR_RX)
@@ -955,6 +954,19 @@ static void ne2000_receive_check(void)
 	}
 }
 
+static void ne2000_receive_check(void)
+{
+	if (receive_buffer_read != receive_buffer_write) {
+		uae_sem_wait(&ne2000_sem);
+		if (receive_buffer_read != receive_buffer_write) {
+			uae_sem_post(&ne2000_sem);
+			ne2000_receive_check2();
+		} else {
+			uae_sem_post(&ne2000_sem);
+		}
+	}
+}
+
 static void gotfunc(void *devv, const uae_u8 *databuf, int len)
 {
 #ifdef DEBUG_NE2000
@@ -963,7 +975,10 @@ static void gotfunc(void *devv, const uae_u8 *databuf, int len)
 	ne2000_receive_check();
 	if (len > MAX_PACKET_SIZE) 
 		return;
-	if (((receive_buffer_write + 1) & (MAX_RECEIVE_BUFFER_INDEX - 1)) == receive_buffer_read) {
+	uae_sem_wait(&ne2000_sem);
+	int nextwrite = (receive_buffer_write + 1) & (MAX_RECEIVE_BUFFER_INDEX - 1);
+	if (nextwrite == receive_buffer_read) {
+		uae_sem_post(&ne2000_sem);
 		write_log("NE2000: receive buffer full\n");
 		return;
 	}
@@ -971,8 +986,13 @@ static void gotfunc(void *devv, const uae_u8 *databuf, int len)
 	receive_buffer_size[receive_buffer_write] = len;
 	receive_buffer_write++;
 	receive_buffer_write &= (MAX_RECEIVE_BUFFER_INDEX - 1);
-	ne2000_receive_check();
+	uae_sem_post(&ne2000_sem);
 }	
+
+static void ne2000_hsync_handler(struct pci_board_state *pcibs)
+{
+	ne2000_receive_check();
+}
 
 static void REGPARAM2 ne2000_bput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
@@ -1016,6 +1036,7 @@ static void ne2000_free(struct pci_board_state *pcibs)
 	sysdata = NULL;
 	xfree(receive_buffer);
 	receive_buffer = NULL;
+	uae_sem_destroy(&ne2000_sem);
 }
 
 static bool ne2000_init(struct pci_board_state *pcibs)
@@ -1026,6 +1047,7 @@ static bool ne2000_init(struct pci_board_state *pcibs)
 	ncs.ne2000state = &ne2000state;
 	memset(&ne2000state, 0, sizeof ne2000state);
 
+	uae_sem_init(&ne2000_sem, 0, 1);
 	if (!receive_buffer) {
 		receive_buffer = xcalloc(uae_u8, MAX_PACKET_SIZE * MAX_RECEIVE_BUFFER_INDEX);
 	}
@@ -1069,13 +1091,13 @@ static bool ne2000_init(struct pci_board_state *pcibs)
 
 static const struct pci_config ne2000_pci_config =
 {
-	0x10ec, 0x8029, 0, 0, 0, 0x020000, 0, 0x10ec, 0x8029, 1, { 0x20 | 1, 0, 0, 0, 0, 0, 0 }
+	0x10ec, 0x8029, 0, 0, 0, 0x020000, 0, 0x10ec, 0x8029, 1, 0, 0, { 0x20 | 1, 0, 0, 0, 0, 0, 0 }
 };
 
 const struct pci_board ne2000_pci_board =
 {
 	_T("RTL8029"),
-	&ne2000_pci_config, ne2000_init, ne2000_free, ne2000_reset, pci_irq_callback,
+	&ne2000_pci_config, ne2000_init, ne2000_free, ne2000_reset, ne2000_hsync_handler, pci_irq_callback,
 	{
 		{ ne2000_lget, ne2000_wget, ne2000_bget, ne2000_lput, ne2000_wput, ne2000_bput },
 		{ NULL },

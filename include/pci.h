@@ -1,6 +1,7 @@
 
 extern void pci_free(void);
 extern void pci_reset(void);
+extern void pci_hsync(void);
 extern void pci_rethink(void);
 extern void pci_dump(int);
 
