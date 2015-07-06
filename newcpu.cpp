@@ -3823,7 +3823,7 @@ static void m68k_run_1 (void)
 						exit = true;
 				}
 				regs.ipl = regs.ipl_pin;
-				if (!currprefs.cpu_compatible || (currprefs.cpu_cycle_exact && currprefs.cpu_model <= 68000))
+				if (!currprefs.cpu_compatible || (currprefs.cpu_cycle_exact && currprefs.cpu_model <= 68010))
 					exit = true;
 			}
 		} CATCH (prb) {
@@ -3937,7 +3937,7 @@ cont:
 						exit = true;
 				}
 
-				if (!currprefs.cpu_cycle_exact || currprefs.cpu_model > 68000)
+				if (!currprefs.cpu_cycle_exact || currprefs.cpu_model > 68010)
 					exit = true;
 			}
 		} CATCH (prb) {
@@ -6354,6 +6354,25 @@ uae_u32 get_word_ce020_prefetch (int o)
 	return v;
 }
 
+uae_u32 get_word_ce020_prefetch_buffer(int o)
+{
+	uae_u32 pc = m68k_getpc() + o;
+	uae_u32 v;
+
+	if (pc & 2) {
+		v = regs.prefetch020[0] & 0xffff;
+		regs.prefetch020[0] = regs.prefetch020[1];
+		//fill_icache020(pc + 2 + 4, mem_access_delay_longi_read_ce020);
+		//regs.prefetch020[1] = regs.cacheholdingdata020;
+		regs.db = regs.prefetch020[0] >> 16;
+	} else {
+		v = regs.prefetch020[0] >> 16;
+		regs.db = regs.prefetch020[1] >> 16;
+	}
+	do_cycles_ce020_internal(2);
+	return v;
+}
+
 uae_u32 get_word_020_prefetch (int o)
 {
 	uae_u32 pc = m68k_getpc () + o;
@@ -6871,6 +6890,23 @@ uae_u32 get_word_ce030_prefetch (int o)
 		v = regs.prefetch020[0] >> 16;
 	}
 	do_cycles_ce020_internal (2);
+	return v;
+}
+
+uae_u32 get_word_ce030_prefetch_buffer(int o)
+{
+	uae_u32 pc = m68k_getpc() + o;
+	uae_u32 v;
+
+	if (pc & 2) {
+		v = regs.prefetch020[0] & 0xffff;
+		regs.prefetch020[0] = regs.prefetch020[1];
+		//fill_icache030(pc + 2 + 4);
+		//regs.prefetch020[1] = regs.cacheholdingdata020;
+	} else {
+		v = regs.prefetch020[0] >> 16;
+	}
+	do_cycles_ce020_internal(2);
 	return v;
 }
 
