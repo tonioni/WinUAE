@@ -3,6 +3,8 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#define LSB_FIRST
+
 extern void write_log(const char *, ...);
 extern void activate_debugger(void);
 

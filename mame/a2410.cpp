@@ -694,6 +694,8 @@ void tms_hsync_handler(void)
 	if (a2410_vpos >= a2410_height || a2410_vpos >= picasso_vidinfo.height)
 		return;
 
+	int overlay_yoffset = a2410_vpos - a2410_vertical_start;
+
 	int coladdr = parms.coladdr;
 	int vramoffset = ((parms.rowaddr << 8) & 0x7ffff);
 	uae_u16 *vram = (uae_u16*)gfxmem_bank.baseaddr + vramoffset;
@@ -702,14 +704,15 @@ void tms_hsync_handler(void)
 	uae_u8 *overlay0 = program_ram + overlayoffset * OVERLAY_WIDTH / 4;
 	uae_u8 *overlay1 = overlay0 + 0x20000;
 
-	if (!fullrefresh && !a2410_modified[a2410_vpos]) {
+	if (!fullrefresh && (overlay_yoffset < 0 || !a2410_modified[overlay_yoffset])) {
 		if (!picasso_is_vram_dirty(gfxmem_bank.start + (vramoffset << 1), a2410_displaywidth)) {
 			if (!picasso_is_vram_dirty(gfxmem_bank.start + ((vramoffset + 0x200) << 1), a2410_displaywidth)) {
 				return;
 			}
 		}
 	}
-	a2410_modified[a2410_vpos] = false;
+	if (overlay_yoffset >= 0)
+		a2410_modified[overlay_yoffset] = false;
 
 	get_a2410_surface();
 	uae_u8 *dst = a2410_surface;
