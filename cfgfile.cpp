@@ -211,6 +211,7 @@ static const TCHAR *rtgtype[] = {
 	_T("PiccoloSD64_Z2"), _T("PiccoloSD64_Z3"),
 	_T("Spectrum28/24_Z2"), _T("Spectrum28/24_Z3"),
 	_T("PicassoIV_Z2"), _T("PicassoIV_Z3"),
+	_T("A2410"),
 	0 };
 static const TCHAR *ppc_implementations[] = {
 	_T("auto"),
@@ -901,6 +902,8 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 					extras = _T("SASI");
 				} else if (ci->unit_feature_level == HD_LEVEL_SASI_ENHANCED) {
 					extras = _T("SASIE");
+				} else if (ci->unit_feature_level == HD_LEVEL_OMTI) {
+					extras = _T("SASI_CHS");
 				}
 			} else if (ct >= HD_CONTROLLER_TYPE_IDE_FIRST && ct <= HD_CONTROLLER_TYPE_IDE_LAST) {
 				if (ci->unit_feature_level == HD_LEVEL_ATA_1) {
@@ -1738,6 +1741,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool(f, _T("toccata"), p->sound_toccata);
 	if (p->sound_toccata_mixer)
 		cfgfile_write_bool(f, _T("toccata_mixer"), p->sound_toccata_mixer);
+	cfgfile_write_bool(f, _T("es1370_pci"), p->sound_es1370);
+	cfgfile_write_bool(f, _T("fm801_pci"), p->sound_fm801);
 
 	cfgfile_write_str (f, _T("kbd_lang"), (p->keyboard_lang == KBD_LANG_DE ? _T("de")
 		: p->keyboard_lang == KBD_LANG_DK ? _T("dk")
@@ -3752,6 +3757,8 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 					uci.unit_feature_level = HD_LEVEL_SASI_ENHANCED;
 				else if (cfgfile_option_find(tmpp2, _T("SASI")))
 					uci.unit_feature_level = HD_LEVEL_SASI;
+				else if (cfgfile_option_find(tmpp2, _T("SASI_CHS")))
+					uci.unit_feature_level = HD_LEVEL_OMTI;
 				else if (cfgfile_option_find(tmpp2, _T("ATA2+S")))
 					uci.unit_feature_level = HD_LEVEL_ATA_2S;
 				else if (cfgfile_option_find(tmpp2, _T("ATA2+")))
@@ -4182,7 +4189,9 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("rtg_nocustom"), &p->picasso96_nocustom)
 		|| cfgfile_yesno (option, value, _T("floppy_write_protect"), &p->floppy_read_only)
 		|| cfgfile_yesno (option, value, _T("uae_hide_autoconfig"), &p->uae_hide_autoconfig)
-		|| cfgfile_yesno (option, value, _T("toccata"), &p->sound_toccata)
+		|| cfgfile_yesno(option, value, _T("toccata"), &p->sound_toccata)
+		|| cfgfile_yesno(option, value, _T("es1370_pci"), &p->sound_es1370)
+		|| cfgfile_yesno(option, value, _T("fm801_pci"), &p->sound_fm801)
 		|| cfgfile_yesno (option, value, _T("toccata_mixer"), &p->sound_toccata_mixer)
 		|| cfgfile_yesno (option, value, _T("uaeserial"), &p->uaeserial))
 		return 1;

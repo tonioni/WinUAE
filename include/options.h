@@ -137,7 +137,8 @@ struct wh {
 #define HD_LEVEL_SCSI_1 0
 #define HD_LEVEL_SCSI_2 1
 #define HD_LEVEL_SASI 2
-#define HD_LEVEL_SASI_ENHANCED 3
+#define HD_LEVEL_SASI_ENHANCED 2
+#define HD_LEVEL_OMTI 3
 
 #define HD_LEVEL_ATA_1 0
 #define HD_LEVEL_ATA_2 1
@@ -600,6 +601,8 @@ struct uae_prefs {
 	int z3_mapping_mode;
 	bool sound_toccata;
 	bool sound_toccata_mixer;
+	bool sound_es1370;
+	bool sound_fm801;
 
 	int mountitems;
 	struct uaedev_config_data mountconfig[MOUNT_CONFIG_SIZE];
