@@ -380,18 +380,31 @@ static void checksend(void)
 		serial_send_previous = serdatshift_masked;
 	}
 #endif
-	data_in_sershift = 2;
+	if (serial_period_hsyncs <= 1) {
+		data_in_sershift = 0;
+		serdatcopy();
+	} else {
+		data_in_sershift = 2;
+	}
 #if SERIALDEBUG > 2
 	write_log(_T("SERIAL: send %04X (%c)\n"), serdatshift, dochar(serdatshift));
 #endif
 }
 
-static void sersend_ce(uae_u32 v)
+static bool checkshiftempty(void)
 {
 	checksend();
 	if (data_in_sershift == 2) {
 		data_in_sershift = 0;
 		serdatcopy();
+		return true;
+	}
+	return false;
+}
+
+static void sersend_ce(uae_u32 v)
+{
+	if (checkshiftempty()) {
 		lastbitcycle = get_cycles() + ((serper & 0x7fff) + 1) * CYCLE_UNIT;
 		lastbitcycle_active_hsyncs = ((serper & 0x7fff) + 1) / maxhpos + 2;
 	} else if (data_in_sershift == 1) {
@@ -489,18 +502,16 @@ void serial_hsynchandler (void)
 	if (serial_period_hsyncs == 1 || (serial_period_hsync_counter % (serial_period_hsyncs - 1)) == 0) {
 		checkreceive_serial();
 		checkreceive_enet();
-	}
-	if ((serial_period_hsync_counter % serial_period_hsyncs) == 0 && !currprefs.cpu_cycle_exact) {
-		checksend();
-		if (data_in_sershift == 2) {
-			data_in_sershift = 0;
-			serdatcopy();
-		}
+		checkshiftempty();
+	} else if ((serial_period_hsync_counter % serial_period_hsyncs) == 0 && !currprefs.cpu_cycle_exact) {
+		checkshiftempty();
 	}
 }
 
 void SERDAT (uae_u16 w)
 {
+	serdatcopy();
+
 	serdat = w;
 
 	if (!w) {
