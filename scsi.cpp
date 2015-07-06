@@ -1,7 +1,7 @@
 /*
 * UAE - The Un*x Amiga Emulator
 *
-* SCSI emulation (not uaescsi.device)
+* SCSI and SASI emulation (not uaescsi.device)
 *
 * Copyright 2007-2015 Toni Wilen
 *
@@ -47,14 +47,18 @@
 #define NCR5380_XEBEC 16
 #define NONCR_MICROFORGE 17
 #define NONCR_PARADOX 18
-#define NCR_LAST 19
+#define OMTI_HDA506 19
+#define OMTI_ALF1 20
+#define OMTI_PROMIGOS 21
+#define OMTI_SYSTEM2000 22
+#define NCR_LAST 23
 
 extern int log_scsiemu;
 
 static const int outcmd[] = { 0x04, 0x0a, 0x0c, 0x2a, 0xaa, 0x15, 0x55, 0x0f, -1 };
-static const int incmd[] = { 0x01, 0x03, 0x05, 0x08, 0x12, 0x1a, 0x5a, 0x25, 0x28, 0x34, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, 0xbd, -1 };
-static const int nonecmd[] = { 0x00, 0x09, 0x0b, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1e, 0x2b, 0x35, 0xe0, 0xe3, 0xe4, -1 };
-static const int scsicmdsizes[] = { 6, 10, 10, 12, 16, 12, 10, 10 };
+static const int incmd[] = { 0x01, 0x03, 0x08, 0x12, 0x1a, 0x5a, 0x25, 0x28, 0x34, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, 0xbd, -1 };
+static const int nonecmd[] = { 0x00, 0x05, 0x09, 0x0b, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1e, 0x2b, 0x35, 0xe0, 0xe3, 0xe4, -1 };
+static const int scsicmdsizes[] = { 6, 10, 10, 12, 16, 12, 10, 6 };
 
 static void scsi_illegal_command(struct scsi_data *sd)
 {
@@ -133,6 +137,8 @@ bool scsi_emulate_analyze (struct scsi_data *sd)
 		}
 	break;
 	case 0x0c: // INITIALIZE DRIVE CHARACTERICS (SASI)
+		if (sd->hfd && sd->hfd->hfd.ci.unit_feature_level < HD_LEVEL_SASI)
+			goto nocmd;
 		data_len = 8;
 	break;
 	case 0x08: // READ(6)
@@ -786,6 +792,10 @@ static void generic_soft_scsi_add(int ch, struct uaedev_config_info *ci, struct 
 	if (boardsize > 0) {
 		ss->board_size = boardsize;
 		ss->board_mask = ss->board_size - 1;
+	}
+	if (!ss->board_mask && !ss->board_size) {
+		ss->board_size = 0x10000;
+		ss->board_mask = 0xffff;
 	}
 	if (romsize >= 0) {
 		ss->rom_size = romsize;
@@ -1680,8 +1690,7 @@ static uae_u8 sasi_microforge_bget(struct soft_scsi *scsi, int reg)
 			v |= 1 << 4;
 		v = v ^ 0xff;
 
-	}
-	else {
+	} else {
 
 		v = raw_scsi_get_data_2(rs, true, false);
 
@@ -1710,13 +1719,100 @@ static void sasi_microforge_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 			scsi->active_select = false;
 			raw_scsi_set_signal_phase(rs, false, false, false);
 		}
-	}
-	else {
+	} else {
 		raw_scsi_put_data(rs, v, true);
 		if (scsi->wait_select && scsi->active_select)
 			raw_scsi_set_signal_phase(rs, false, true, false);
 		scsi->wait_select = false;
 	}
+}
+
+// OMTI 5510
+static void omti_irq(struct soft_scsi *scsi)
+{
+	if (scsi->intena && (scsi->chip_state & 2))
+		ncr5380_set_irq(scsi);
+}
+static void omti_check_state(struct soft_scsi *scsi)
+{
+	struct raw_scsi *rs = &scsi->rscsi;
+	if ((rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_IN || rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_OUT) && (scsi->chip_state & 1)) {
+		omti_irq(scsi);
+	}
+}
+
+static uae_u8 omti_bget(struct soft_scsi *scsi, int reg)
+{
+	struct raw_scsi *rs = &scsi->rscsi;
+	uae_u8 t = raw_scsi_get_signal_phase(rs);
+	uae_u8 v = 0;
+
+	switch (reg)
+	{
+		case 0: // DATA IN
+		if (rs->bus_phase == SCSI_SIGNAL_PHASE_STATUS) {
+			v = raw_scsi_get_data_2(rs, true, false);
+			// get message (not used in OMTI protocol)
+			raw_scsi_get_data_2(rs, true, false);
+		} else {
+			v = raw_scsi_get_data_2(rs, true, false);
+			if (rs->bus_phase == SCSI_SIGNAL_PHASE_STATUS) {
+				omti_irq(scsi);	// command complete interrupt
+			}
+		}
+		break;
+		case 1: // STATUS
+		if (rs->bus_phase >= 0)
+			v |= 8; // busy
+		if (v & 8) {
+			if (t & SCSI_IO_REQ)
+				v |= 1; // req
+			if (t & SCSI_IO_DIRECTION)
+				v |= 2;
+			if (t & SCSI_IO_COMMAND)
+				v |= 4;
+		}
+		v |= 0x80 | 0x40;
+		if ((rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_IN || rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_OUT) && (scsi->chip_state & 1))
+			v |= 0x10;
+		if (scsi->irq)
+			v |= 0x20;
+		scsi->irq = false;
+		break;
+		break;
+		case 2: // CONFIGURATION
+		v = 0xff;
+		break;
+		case 3: // -
+		break;
+	}
+	omti_check_state(scsi);
+	return v;
+}
+static void omti_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
+{
+	struct raw_scsi *rs = &scsi->rscsi;
+	switch (reg)
+	{
+		case 0: // DATA OUT
+		raw_scsi_put_data(rs, v, true);
+		if (rs->bus_phase == SCSI_SIGNAL_PHASE_STATUS)
+			omti_irq(scsi);	// command complete interrupt
+		break;
+		case 1: // RESET
+		raw_scsi_busfree(rs);
+		scsi->chip_state = 0;
+		break;
+		case 2: // SELECT
+		rs->data_write = 0x01;
+		raw_scsi_set_signal_phase(rs, false, true, false);
+		raw_scsi_set_signal_phase(rs, false, false, false);
+		break;
+		case 3: // MASK
+		scsi->chip_state = v;
+		break;
+	}
+	omti_check_state(scsi);
 }
 
 static int suprareg(struct soft_scsi *ncr, uaecptr addr, bool write)
@@ -1826,6 +1922,56 @@ static int xebec_reg(struct soft_scsi *ncr, uaecptr addr)
 	return -1;
 }
 
+static int hda506_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
+{
+	if ((addr & 0x7fe1) != 0x7fe0)
+		return -1;
+	addr &= 0x7;
+	addr >>= 1;
+	return addr;
+}
+
+static int alf1_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
+{
+	if ((addr & 0x7ff9) != 0x0641)
+		return -1;
+	addr >>= 1;
+	addr &= 3;
+	return addr;
+}
+
+static int system2000_reg(struct soft_scsi *ncr, uaecptr addr, int size, bool write)
+{
+	if (size != 1)
+		return -1;
+	if ((addr & 0xc007) != 0x4000)
+		return -1;
+	addr >>= 3;
+	addr &= 3;
+	return addr;
+}
+
+static int promigos_reg(struct soft_scsi *ncr, uaecptr addr, int size, bool write)
+{
+	if (size != 1)
+		return -1;
+	if ((addr & 0x1) != 1)
+		return -1;
+	addr &= 7;
+	if (addr == 1 && write)
+		return 3;
+	if (addr == 3 && write)
+		return 0;
+	if (addr == 5 && write)
+		return 1;
+	if (addr == 5 && !write)
+		return 0;
+	if (addr == 7 && write)
+		return 2;
+	if (addr == 7 && !write)
+		return 1;
+	return -1;
+}
 
 static int microforge_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
 {
@@ -2301,10 +2447,43 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		if (reg >= 0)
 			v = sasi_microforge_bget(ncr, reg);
 
-	}
+	} else if (ncr->type == OMTI_HDA506) {
 
+		reg = hda506_reg(ncr, addr, false);
+		if (reg >= 0)
+			v = omti_bget(ncr, reg);
+
+	} else if (ncr->type == OMTI_ALF1) {
+
+		reg = alf1_reg(ncr, addr, false);
+		if (reg >= 0)
+			v = omti_bget(ncr, reg);
+
+	} else if (ncr->type == OMTI_PROMIGOS) {
+
+		reg = promigos_reg(ncr, addr, size, false);
+		if (reg >= 0)
+			v = omti_bget(ncr, reg);
+
+	} else if (ncr->type == OMTI_SYSTEM2000) {
+
+		reg = system2000_reg(ncr, addr, size, false);
+		if (reg >= 0) {
+			v = omti_bget(ncr, reg);
+		} else if (addr < 0x4000) {
+			v = ncr->rom[addr];
+		} else if (ncr->rscsi.bus_phase >= 0) {
+			if ((addr & 0xc000) == 0x8000) {
+				v = ncr->databuffer[addr & 1];
+				ncr->databuffer[addr & 1] = omti_bget(ncr, 0);
+			} else if ((addr & 0xc000) == 0xc000) {
+				v = ncr->databuffer[addr & 1];
+			}
+		}
+
+	}
 #if NCR5380_DEBUG > 1
-	//if (addr >= 0x8000)
+	if ((origaddr >= 0xf00000 && size == 1) || (origaddr < 0xf00000))
 		write_log(_T("GET %08x %02x %d %08x %d\n"), origaddr, v, reg, M68K_GETPC, regs.intmask);
 #endif
 
@@ -2514,6 +2693,35 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 		reg = microforge_reg(ncr, addr, true);
 		if (reg >= 0)
 			sasi_microforge_bput(ncr, reg, val);
+
+	} else if (ncr->type == OMTI_HDA506) {
+
+		reg = hda506_reg(ncr, addr, true);
+		if (reg >= 0)
+			omti_bput(ncr, reg, val);
+
+	} else if (ncr->type == OMTI_ALF1) {
+
+		reg = alf1_reg(ncr, addr, true);
+		if (reg >= 0)
+			omti_bput(ncr, reg, val);
+
+	} else if (ncr->type == OMTI_PROMIGOS) {
+
+		reg = promigos_reg(ncr, addr, size, true);
+		if (reg >= 0)
+			omti_bput(ncr, reg, val);
+
+	} else if (ncr->type == OMTI_SYSTEM2000) {
+
+		reg = system2000_reg(ncr, addr, size, true);
+		if (reg >= 0) {
+			omti_bput(ncr, reg, val);
+		} else if (ncr->rscsi.bus_phase >= 0) {
+			if ((addr & 0x8000) == 0x8000) {
+				omti_bput(ncr, 0, val);
+			}
+		}
 
 	}
 
@@ -2880,7 +3088,6 @@ addrbank *vector_init(struct romconfig *rc)
 
 	scsi->intena = true;
 
-	struct zfile *z = NULL;
 	if (!rc->autoboot_disabled) {
 		load_rom_rc(rc, roms, 32768, 0, scsi->rom, 32768, 0);
 		memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
@@ -3019,7 +3226,8 @@ addrbank *cltda1000scsi_init(struct romconfig *rc) {
 	return scsi->bank;
 }
 
-void cltda1000scsi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc) {
+void cltda1000scsi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_CLTD, 65536, 0, ROMTYPE_CLTDSCSI);
 }
 
@@ -3218,6 +3426,89 @@ void paradox_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconf
 {
 	generic_soft_scsi_add(ch, ci, rc, NONCR_PARADOX, 0, 0, ROMTYPE_PARADOX);
 }
+
+addrbank *hda506_init(struct romconfig *rc)
+{
+	struct soft_scsi *scsi = getscsi(rc);
+
+	if (!scsi)
+		return NULL;
+
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_HDA506);
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = ert->autoconfig[i];
+		ew(scsi, i * 4, b);
+	}
+	scsi->level6 = true;
+	scsi->intena = true;
+	return scsi->bank;
+}
+
+void hda506_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, OMTI_HDA506, 0, 0, ROMTYPE_HDA506);
+}
+
+addrbank *alf1_init(struct romconfig *rc)
+{
+	struct soft_scsi *scsi = getscsi(rc);
+
+	if (!scsi)
+		return NULL;
+	map_banks(scsi->bank, 0xef0000 >> 16, 0x10000 >> 16, 0);
+	scsi->board_mask = 0xffff;
+	scsi->baseaddress = 0xef0000;
+	scsi->configured = 1;
+
+	return scsi->bank;
+}
+
+void alf1_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, OMTI_ALF1, 65536, 0, ROMTYPE_ALF1);
+}
+
+addrbank *promigos_init(struct romconfig *rc)
+{
+	struct soft_scsi *scsi = getscsi(rc);
+
+	if (!scsi)
+		return NULL;
+	map_banks(scsi->bank, 0xf40000 >> 16, 0x10000 >> 16, 0);
+	scsi->board_mask = 0xffff;
+	scsi->baseaddress = 0xf40000;
+	scsi->configured = 1;
+	scsi->intena = true;
+
+	return scsi->bank;
+}
+
+void promigos_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, OMTI_PROMIGOS, 65536, 0, ROMTYPE_PROMIGOS);
+}
+
+addrbank *system2000_init(struct romconfig *rc)
+{
+	struct soft_scsi *scsi = getscsi(rc);
+
+	if (!scsi)
+		return NULL;
+	map_banks(scsi->bank, 0xf00000 >> 16, 0x10000 >> 16, 0);
+	scsi->board_mask = 0xffff;
+	scsi->baseaddress = 0xf00000;
+	scsi->configured = 1;
+	if (!rc->autoboot_disabled) {
+		load_rom_rc(rc, NULL, 16384, 0, scsi->rom, 16384, 0);
+	}
+	return scsi->bank;
+}
+
+void system2000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, OMTI_SYSTEM2000, 65536, 16384, ROMTYPE_SYSTEM2000);
+}
+
 
 void soft_scsi_free(void)
 {

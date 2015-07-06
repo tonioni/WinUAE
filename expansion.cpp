@@ -1966,17 +1966,22 @@ void expamem_reset (void)
 #ifdef GFXBOARD
 	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && !gfxboard_is_z3 (currprefs.rtgmem_type)) {
 		cards[cardno].flags = 4;
-		cards[cardno].name = _T("Gfxboard VRAM Zorro II");
-		cards[cardno++].initnum = gfxboard_init_memory;
-		if (gfxboard_num_boards (currprefs.rtgmem_type) == 3) {
-			cards[cardno].flags = 0;
-			cards[cardno].name = _T("Gfxboard VRAM Zorro II Extra");
-			cards[cardno++].initnum = gfxboard_init_memory_p4_z2;
-		}
-		if (gfxboard_is_registers (currprefs.rtgmem_type)) {
-			cards[cardno].flags = 0;
-			cards[cardno].name = _T ("Gfxboard Registers");
-			cards[cardno++].initnum = gfxboard_init_registers;
+		if (currprefs.rtgmem_type == GFXBOARD_A2410) {
+			cards[cardno].name = _T("Gfxboard A2410");
+			cards[cardno++].initnum = tms_init;
+		} else {
+			cards[cardno].name = _T("Gfxboard VRAM Zorro II");
+			cards[cardno++].initnum = gfxboard_init_memory;
+			if (gfxboard_num_boards (currprefs.rtgmem_type) == 3) {
+				cards[cardno].flags = 0;
+				cards[cardno].name = _T("Gfxboard VRAM Zorro II Extra");
+				cards[cardno++].initnum = gfxboard_init_memory_p4_z2;
+			}
+			if (gfxboard_is_registers (currprefs.rtgmem_type)) {
+				cards[cardno].flags = 0;
+				cards[cardno].name = _T ("Gfxboard Registers");
+				cards[cardno++].initnum = gfxboard_init_registers;
+			}
 		}
 	}
 #endif
@@ -2269,12 +2274,12 @@ static const struct expansionsubromtype a2091_sub[] = {
 	{
 		_T("DMAC-01"), _T("dmac01"), 0,
 		commodore, commodore_a2091_ram, 0, true,
-		{ 0 },
+		{ 0 }
 	},
 	{
 		_T("DMAC-02"), _T("dmac02"), 0,
 		commodore, commodore_a2091_ram, 0, true,
-		{ 0 },
+		{ 0 }
 	},
 	{
 		NULL
@@ -2284,17 +2289,17 @@ static const struct expansionsubromtype gvp1_sub[] = {
 	{
 		_T("Impact A2000-1/X"), _T("a2000-1"), 0,
 		1761, 8, 0, false,
-		{ 0 },
+		{ 0 }
 	},
 	{
 		_T("Impact A2000-HC"), _T("a2000-hc"), 0,
 		1761, 8, 0, false,
-		{ 0 },
+		{ 0 }
 	},
 	{
 		_T("Impact A2000-HC+2"), _T("a2000-hc+"), 0,
 		1761, 8, 0, false,
-		{ 0 },
+		{ 0 }
 	},
 	{
 		NULL
@@ -2304,12 +2309,12 @@ static const struct expansionsubromtype masoboshi_sub[] = {
 	{
 		_T("MC-302"), _T("mc-302"), 0,
 		2157, 3, 0, false,
-		{ 0 },
+		{ 0 }
 	},
 	{
 		_T("MC-702"), _T("mc-702"), 0,
 		2157, 3, 0, false,
-		{ 0 },
+		{ 0 }
 	},
 	{
 		NULL
@@ -2319,12 +2324,12 @@ static const struct expansionsubromtype rochard_sub[] = {
 	{
 		_T("IDE"), _T("ide"), 0,
 		2144, 2, 0, false,
-		{ 0 },
+		{ 0 }
 	},
 	{
 		_T("IDE+SCSI"), _T("scsi"), 0,
 		2144, 2, 0, false,
-		{ 0 },
+		{ 0 }
 	},
 	{
 		NULL
@@ -2363,6 +2368,9 @@ static const struct expansionsubromtype supra_sub[] = {
 
 static const struct expansionsubromtype mediator_sub[] = {
 	{
+		_T("1200"), _T("1200"), ROMTYPE_NOT | ROMTYPE_MEDIATOR
+	},
+	{
 		_T("1200TX"), _T("1200tx"), ROMTYPE_NOT | ROMTYPE_MEDIATOR
 	},
 	{
@@ -2385,7 +2393,6 @@ static const struct expansionboardsettings mediator_settings[] = {
 		NULL
 	}
 };
-
 static void fastlane_memory_callback(struct romconfig *rc, uae_u8 *ac, int size)
 {
 	struct zfile *z = read_device_from_romconfig(rc, NULL);
@@ -2404,7 +2411,13 @@ static void fastlane_memory_callback(struct romconfig *rc, uae_u8 *ac, int size)
 		ac[2] = (ac[2] & 0x0f) | (act[2] & 0xf0);
 	}
 }
-
+static void hda506_memory_callback(struct romconfig *rc, uae_u8 *ac, int size)
+{
+	if (currprefs.cs_a1000ram)
+		ac[1] = 1;
+	else
+		ac[1] = 2;
+}
 static void nexus_memory_callback(struct romconfig *rc, uae_u8 *ac, int size)
 {
 	if (rc->device_settings & 1)
@@ -2659,10 +2672,28 @@ const struct expansionromtype expansionroms[] = {
 	},
 #endif
 	{
+		_T("alf1"), _T("A.L.F."), _T("Elaborate Bytes"),
+		alf1_init, NULL, alf1_add_scsi_unit, ROMTYPE_ALF1 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
+	},
+	{
+		_T("promigos"), _T("Promigos"), _T("Flesch und Hörnemann"),
+		promigos_init, NULL, promigos_add_scsi_unit, ROMTYPE_PROMIGOS | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
+	},
+	{
 		_T("tecmar"), _T("T-Card/T-Disk"), _T("Tecmar"),
-		tecmar_init, NULL, tecmar_add_scsi_unit, ROMTYPE_TECMAR | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		tecmar_init, NULL, tecmar_add_scsi_unit, ROMTYPE_TECMAR | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,	
 		NULL, 0,
 		false, EXPANSIONTYPE_SASI | EXPANSIONTYPE_SCSI
+	},
+	{
+		_T("system2000"), _T("System 2000"), _T("Vortex"),
+		system2000_init, NULL, system2000_add_scsi_unit, ROMTYPE_SYSTEM2000 | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("xebec"), _T("9720H"), _T("Xebec"),
@@ -2680,6 +2711,15 @@ const struct expansionromtype expansionroms[] = {
 		{ 0xd1, 4, 0x00, 0x00, 0x03, 0xec, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
 	},
 #endif
+	{
+		_T("hda506"), _T("HDA-506"), _T("Spirit Technology"),
+		hda506_init, NULL, hda506_add_scsi_unit, ROMTYPE_HDA506 | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI,
+		0, 0, 0, false, NULL,
+		false, NULL,
+		{ 0xc1, 0x04, 0x00, 0x00, 0x07, 0xf2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
+	},
 	{
 		_T("amax"), _T("AMAX ROM dongle"), _T("ReadySoft"),
 		NULL, 0, NULL, NULL, NULL, ROMTYPE_AMAX | ROMTYPE_NONE, 0, 0, 0, false
