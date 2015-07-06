@@ -670,6 +670,20 @@ void fixup_prefs (struct uae_prefs *p)
 	if (p->tod_hack && p->cs_ciaatod == 0)
 		p->cs_ciaatod = p->ntscmode ? 2 : 1;
 
+	if (p->sound_toccata + p->sound_es1370 + p->sound_fm801 > 1) {
+		error_log(_T("Only one sound card can be enabled at the same time."));
+		if (p->sound_toccata) {
+			p->sound_es1370 = 0;
+			p->sound_fm801 = 0;
+		} else if (p->sound_es1370) {
+			p->sound_toccata = 0;
+			p->sound_fm801 = 0;
+		} else {
+			p->sound_toccata = 0;
+			p->sound_es1370 = 0;
+		}
+	}
+
 	built_in_chipset_prefs (p);
 	blkdev_fix_prefs (p);
 	target_fixup_options (p);
