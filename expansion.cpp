@@ -1964,7 +1964,7 @@ void expamem_reset (void)
 	}
 #endif
 #ifdef GFXBOARD
-	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && !gfxboard_is_z3 (currprefs.rtgmem_type)) {
+	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_get_configtype(currprefs.rtgmem_type) <= 2) {
 		cards[cardno].flags = 4;
 		if (currprefs.rtgmem_type == GFXBOARD_A2410) {
 			cards[cardno].name = _T("Gfxboard A2410");
@@ -2031,7 +2031,7 @@ void expamem_reset (void)
 		}
 #endif
 #ifdef GFXBOARD
-		if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_is_z3 (currprefs.rtgmem_type)) {
+		if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_get_configtype(currprefs.rtgmem_type) == 3) {
 			cards[cardno].flags = 4 | 1;
 			cards[cardno].name = _T ("Gfxboard VRAM Zorro III");
 			cards[cardno++].initnum = gfxboard_init_memory;
@@ -2553,13 +2553,13 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("gvp1"), _T("Series I"), _T("GVP"),
+		_T("gvp1"), _T("GVP Series I"), _T("Great Valley Products"),
 		gvp_init_s1, NULL, gvp_s1_add_scsi_unit, ROMTYPE_GVPS1 | ROMTYPE_NONE, ROMTYPE_GVPS12, 0, BOARD_AUTOCONFIG_Z2, false,
 		gvp1_sub, 1,
 		true, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("gvp"), _T("Series II"), _T("GVP"),
+		_T("gvp"), _T("GVP Series II"), _T("Great Valley Products"),
 		gvp_init_s2, NULL, gvp_s2_add_scsi_unit, ROMTYPE_GVPS2 | ROMTYPE_NONE, ROMTYPE_GVPS12, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		true, EXPANSIONTYPE_SCSI,
@@ -3023,7 +3023,7 @@ const struct cpuboardtype cpuboards[] = {
 	},
 	{
 		BOARD_GVP,
-		_T("GVP"),
+		_T("Great Valley Products"),
 		gvpboard_sub, 0
 	},
 	{

@@ -86,6 +86,8 @@ extern addrbank gfxboard_bank_nbsmemory;
 struct gfxboard
 {
 	TCHAR *name;
+	TCHAR *manufacturername;
+	TCHAR *configname;
 	int manufacturer;
 	int model_memory;
 	int model_registers;
@@ -94,7 +96,7 @@ struct gfxboard
 	int vrammax;
 	int banksize;
 	int chiptype;
-	bool z3;
+	int configtype;
 	int irq;
 	bool swap;
 };
@@ -110,60 +112,63 @@ struct gfxboard
 static struct gfxboard boards[] =
 {
 	{
-		_T("Picasso II"),
+		_T("Picasso II"), _T("Village Tronic"), _T("PicassoII"),
 		BOARD_MANUFACTURER_PICASSO, BOARD_MODEL_MEMORY_PICASSOII, BOARD_MODEL_REGISTERS_PICASSOII,
-		0x00020000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5426, false, 0, false
+		0x00020000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5426, 2, 0, false
 	},
 	{
-		_T("Picasso II+"),
+		_T("Picasso II+"), _T("Village Tronic"), _T("PicassoII+"),
 		BOARD_MANUFACTURER_PICASSO, BOARD_MODEL_MEMORY_PICASSOII, BOARD_MODEL_REGISTERS_PICASSOII,
-		0x00100000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5428, false, 2, false
+		0x00100000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5428, 2, 2, false
 	},
 	{
-		_T("Piccolo Zorro II"),
+		_T("Piccolo Zorro II"), _T("Ingenieurbüro Helfrich"), _T("Piccolo_Z2"),
 		BOARD_MANUFACTURER_PICCOLO, BOARD_MODEL_MEMORY_PICCOLO, BOARD_MODEL_REGISTERS_PICCOLO,
-		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5426, false, 6, true
+		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5426, 2, 6, true
 	},
 	{
-		_T("Piccolo Zorro III"),
+		_T("Piccolo Zorro III"), _T("Ingenieurbüro Helfrich"), _T("Piccolo_Z3"),
 		BOARD_MANUFACTURER_PICCOLO, BOARD_MODEL_MEMORY_PICCOLO, BOARD_MODEL_REGISTERS_PICCOLO,
-		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5426, true, 6, true
+		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5426, 3, 6, true
 	},
 	{
-		_T("Piccolo SD64 Zorro II"),
+		_T("Piccolo SD64 Zorro II"), _T("Ingenieurbüro Helfrich"), _T("PiccoloSD64_Z2"),
 		BOARD_MANUFACTURER_PICCOLO, BOARD_MODEL_MEMORY_PICCOLO64, BOARD_MODEL_REGISTERS_PICCOLO64,
-		0x00000000, 0x00200000, 0x00400000, 0x00400000, CIRRUS_ID_CLGD5434, false, 6, true
+		0x00000000, 0x00200000, 0x00400000, 0x00400000, CIRRUS_ID_CLGD5434, 2, 6, true
 	},
 	{
-		_T("Piccolo SD64 Zorro III"),
+		_T("Piccolo SD64 Zorro III"), _T("Ingenieurbüro Helfrich"), _T("PiccoloSD64_Z3"),
 		BOARD_MANUFACTURER_PICCOLO, BOARD_MODEL_MEMORY_PICCOLO64, BOARD_MODEL_REGISTERS_PICCOLO64,
-		0x00000000, 0x00200000, 0x00400000, 0x04000000, CIRRUS_ID_CLGD5434, true, 6, true
+		0x00000000, 0x00200000, 0x00400000, 0x04000000, CIRRUS_ID_CLGD5434, 3, 6, true
 	},
 	{
-		_T("Spectrum 28/24 Zorro II"),
+		_T("Spectrum 28/24 Zorro II"), _T("Great Valley Products"), _T("Spectrum28/24_Z2"),
 		BOARD_MANUFACTURER_SPECTRUM, BOARD_MODEL_MEMORY_SPECTRUM, BOARD_MODEL_REGISTERS_SPECTRUM,
-		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5428, false, 6, true
+		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5428, 2, 6, true
 	},
 	{
-		_T("Spectrum 28/24 Zorro III"),
+		_T("Spectrum 28/24 Zorro III"), _T("Great Valley Products"), _T("Spectrum28/24_Z3"),
 		BOARD_MANUFACTURER_SPECTRUM, BOARD_MODEL_MEMORY_SPECTRUM, BOARD_MODEL_REGISTERS_SPECTRUM,
-		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5428, true, 6, true
+		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5428, 3, 6, true
 	},
 	{
-		_T("Picasso IV Zorro II"),
+		_T("Picasso IV Zorro II"), _T("Village Tronic"), _T("PicassoIV_Z2"),
 		BOARD_MANUFACTURER_PICASSO, BOARD_MODEL_MEMORY_PICASSOIV, BOARD_MODEL_REGISTERS_PICASSOIV,
-		0x00000000, 0x00400000, 0x00400000, 0x00400000, CIRRUS_ID_CLGD5446, false, 2, false
+		0x00000000, 0x00400000, 0x00400000, 0x00400000, CIRRUS_ID_CLGD5446, 2, 2, false
 	},
 	{
 		// REG:00600000 IO:00200000 VRAM:01000000
-		_T("Picasso IV Zorro III"),
+		_T("Picasso IV Zorro III"), _T("Village Tronic"), _T("PicassoIV_Z3"),
 		BOARD_MANUFACTURER_PICASSO, BOARD_MODEL_MEMORY_PICASSOIV, 0,
-		0x00000000, 0x00400000, 0x00400000, 0x04000000, CIRRUS_ID_CLGD5446, true, 2, false
+		0x00000000, 0x00400000, 0x00400000, 0x04000000, CIRRUS_ID_CLGD5446, 3, 2, false
 	},
 	{
-		_T("A2410"),
+		_T("A2410"), _T("Commodore"), _T("A2410"),
 		1030, 0, 0,
-		0x00000000, 0x00200000, 0x00200000, 0x00000000, 0,false, 2, false
+		0x00000000, 0x00200000, 0x00200000, 0x00000000, 0, 0, 2, false
+	},
+	{
+		NULL
 	}
 };
 
@@ -223,7 +228,7 @@ static void init_board (void)
 	vram_offset[0] = vram_offset[1] = 0;
 	vram_enabled = true;
 	vram_offset_enabled = false;
-	gfxmem_bank.label = board->z3 ? _T("z3_gfx") : _T("z2_gfx");
+	gfxmem_bank.label = board->configtype == 3 ? _T("z3_gfx") : _T("z2_gfx");
 	gfxmem_bank.allocated = vramsize;
 	mapped_malloc (&gfxmem_bank);
 	vram = gfxmem_bank.baseaddr;
@@ -1331,7 +1336,7 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	if (!board->z3)
+	if (board->configtype == 2)
 		return;
 	b &= 0xffff;
 	addr &= 65535;
@@ -1381,7 +1386,7 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 	b &= 0xff;
 	addr &= 65535;
 	if (addr == 0x48) {
-		if (!board->z3) {
+		if (board->configtype == 2) {
 			addrbank *ab;
 			if (ISP4()) {
 				ab = &gfxboard_bank_nbsmemory;
@@ -1618,6 +1623,10 @@ static void REGPARAM2 gfxboard_bput_regs_autoconfig (uaecptr addr, uae_u32 b)
 
 void gfxboard_free(void)
 {
+	if (currprefs.rtgmem_type == GFXBOARD_A2410) {
+		tms_free();
+		return;
+	}
 	if (vram) {
 		gfxmem_bank.baseaddr = vramrealstart;
 		mapped_free (&gfxmem_bank);
@@ -1640,13 +1649,17 @@ void gfxboard_free(void)
 
 void gfxboard_reset (void)
 {
+	if (currprefs.rtgmem_type == GFXBOARD_A2410) {
+		tms_reset();
+		return;
+	}
 	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE) {
 		board = &boards[currprefs.rtgmem_type - GFXBOARD_HARDWARE];
 		gfxmem_bank.mask = currprefs.rtgmem_size - 1;
 	}
 	gfxboard_free();
 	if (board) {
-		if (board->z3)
+		if (board->configtype == 3)
 			gfxboard_bank_memory.wput = gfxboard_wput_mem_autoconfig;
 		if (reset_func) 
 			reset_func (reset_parm);
@@ -2042,14 +2055,42 @@ addrbank gfxboard_bank_special = {
 	default_xlate, default_check, NULL, NULL, _T("Picasso IV MISC"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
-bool gfxboard_is_z3 (int type)
+
+const TCHAR *gfxboard_get_name(int type)
 {
 	if (type == GFXBOARD_UAE_Z2)
-		return false;
+		return _T("UAE Zorro II");
 	if (type == GFXBOARD_UAE_Z3)
-		return true;
+		return _T("UAE Zorro III (*)");
+	return boards[type - GFXBOARD_HARDWARE].name;
+}
+
+const TCHAR *gfxboard_get_manufacturername(int type)
+{
+	if (type == GFXBOARD_UAE_Z2)
+		return NULL;
+	if (type == GFXBOARD_UAE_Z3)
+		return NULL;
+	return boards[type - GFXBOARD_HARDWARE].manufacturername;
+}
+
+const TCHAR *gfxboard_get_configname(int type)
+{
+	if (type == GFXBOARD_UAE_Z2)
+		return _T("ZorroII");
+	if (type == GFXBOARD_UAE_Z3)
+		return _T("ZorroIII");
+	return boards[type - GFXBOARD_HARDWARE].configname;
+}
+
+int gfxboard_get_configtype(int type)
+{
+	if (type == GFXBOARD_UAE_Z2)
+		return 2;
+	if (type == GFXBOARD_UAE_Z3)
+		return 3;
 	board = &boards[type - GFXBOARD_HARDWARE];
-	return board->z3;
+	return board->configtype;
 }
 
 bool gfxboard_need_byteswap (int type)
@@ -2072,7 +2113,6 @@ int gfxboard_get_vram_min (int type)
 	if (type < GFXBOARD_HARDWARE)
 		return -1;
 	board = &boards[type - GFXBOARD_HARDWARE];
-	//return board->vrammax;
 	return board->vrammin;
 }
 
@@ -2184,7 +2224,7 @@ addrbank *gfxboard_init_memory (int devnum)
 		z3_flags++;
 		bank >>= 1;
 	}
-	if (board->z3) {
+	if (board->configtype == 3) {
 		type = 0x00 | 0x08 | 0x80; // 16M Z3
 		ew (0x08, z3_flags | 0x10 | 0x20);
 	} else {
@@ -2223,8 +2263,8 @@ addrbank *gfxboard_init_memory (int devnum)
 		}
 		if (p4rom) {
 			zfile_fread (p4autoconfig, sizeof p4autoconfig, 1, p4rom);
-			copyp4autoconfig (board->z3 ? 192 : 0);
-			if (board->z3) {
+			copyp4autoconfig (board->configtype == 3 ? 192 : 0);
+			if (board->configtype == 3) {
 				loadp4rom ();
 				p4_mmiobase = 0x200000;
 				p4_special_mask = 0x7fffff;
@@ -2259,7 +2299,7 @@ addrbank *gfxboard_init_memory (int devnum)
 
 addrbank *gfxboard_init_memory_p4_z2 (int devnum)
 {
-	if (board->z3)
+	if (board->configtype == 3)
 		return &expamem_null;
 
 	copyp4autoconfig (64);

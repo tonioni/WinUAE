@@ -438,7 +438,7 @@ void fixup_prefs (struct uae_prefs *p)
 		p->chipmem_size = 0x200000;
 		err = 1;
 	}
-	if (p->chipmem_size > 0x200000 && p->rtgmem_size && !gfxboard_is_z3(p->rtgmem_type)) {
+	if (p->chipmem_size > 0x200000 && p->rtgmem_size && gfxboard_get_configtype(p->rtgmem_type) == 2) {
 		error_log(_T("You can't use Zorro II RTG and more than 2MB chip at the same time."));
 		p->chipmem_size = 0x200000;
 		err = 1;
@@ -462,7 +462,7 @@ void fixup_prefs (struct uae_prefs *p)
 				p->rtgmem_size, p->rtgmem_size, gfxboard_get_vram_min(p->rtgmem_type), gfxboard_get_vram_min(p->rtgmem_type));
 			p->rtgmem_size = gfxboard_get_vram_min (p->rtgmem_type);
 		}
-		if (p->address_space_24 && gfxboard_is_z3 (p->rtgmem_type)) {
+		if (p->address_space_24 && gfxboard_get_configtype(p->rtgmem_type) == 3) {
 			p->rtgmem_type = GFXBOARD_UAE_Z2;
 			p->rtgmem_size = 0;
 			error_log (_T("Z3 RTG and 24-bit address space are not compatible."));

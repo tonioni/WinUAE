@@ -203,16 +203,6 @@ static const TCHAR *cdconmodes[] = { _T(""), _T("uae"), _T("ide"), _T("scsi"), _
 static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a2024"), _T("graffiti"),
 _T("ham_e"), _T("ham_e_plus"), _T("videodac18"), _T("avideo12"), _T("avideo24"), _T("firecracker24"), _T("dctv"), 0 };
 static const TCHAR *genlockmodes[] = { _T("none"), _T("noise"), _T("testcard"), NULL };
-static const TCHAR *rtgtype[] = {
-	_T("ZorroII"), _T("ZorroIII"),
-	_T("PicassoII"),
-	_T("PicassoII+"),
-	_T("Piccolo_Z2"), _T("Piccolo_Z3"),
-	_T("PiccoloSD64_Z2"), _T("PiccoloSD64_Z3"),
-	_T("Spectrum28/24_Z2"), _T("Spectrum28/24_Z3"),
-	_T("PicassoIV_Z2"), _T("PicassoIV_Z3"),
-	_T("A2410"),
-	0 };
 static const TCHAR *ppc_implementations[] = {
 	_T("auto"),
 	_T("dummy"),
@@ -306,6 +296,8 @@ static const TCHAR *obsolete[] = {
 
 	_T("pcibridge_rom_file"),
 	_T("pcibridge_rom_options"),
+
+	_T("cpuboard_ext_rom_file"),
 
 	NULL
 };
@@ -1675,7 +1667,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite(f, _T("cpuboardmem1_size"), _T("%d"), p->cpuboardmem1_size / 0x100000);
 	cfgfile_dwrite(f, _T("cpuboardmem2_size"), _T("%d"), p->cpuboardmem2_size / 0x100000);
 	cfgfile_write(f, _T("gfxcard_size"), _T("%d"), p->rtgmem_size / 0x100000);
-	cfgfile_write_str(f, _T("gfxcard_type"), rtgtype[p->rtgmem_type]);
+	cfgfile_write_str(f, _T("gfxcard_type"), gfxboard_get_configname(p->rtgmem_type));
 	cfgfile_write_bool(f, _T("gfxcard_hardware_vblank"), p->rtg_hardwareinterrupt);
 	cfgfile_write_bool (f, _T("gfxcard_hardware_sprite"), p->rtg_hardwaresprite);
 	cfgfile_write (f, _T("chipmem_size"), _T("%d"), p->chipmem_size == 0x20000 ? -1 : (p->chipmem_size == 0x40000 ? 0 : p->chipmem_size / 0x80000));
@@ -4221,7 +4213,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval (option, value, _T("z3mem_start"), &p->z3autoconfig_start, 1)
 		|| cfgfile_intval (option, value, _T("bogomem_size"), &p->bogomem_size, 0x40000)
 		|| cfgfile_intval (option, value, _T("gfxcard_size"), &p->rtgmem_size, 0x100000)
-		|| cfgfile_strval(option, value, _T("gfxcard_type"), &p->rtgmem_type, rtgtype, 0)
 		|| cfgfile_intval(option, value, _T("rtg_modes"), &p->picasso96_modeflags, 1)
 		|| cfgfile_intval (option, value, _T("floppy_speed"), &p->floppy_speed, 1)
 		|| cfgfile_intval (option, value, _T("cd_speed"), &p->cd_speed, 1)
@@ -4276,6 +4267,23 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_string(option, value, _T ("pci_devices"), p->pci_devices, sizeof p->pci_devices / sizeof(TCHAR))
 		|| cfgfile_string (option, value, _T("ghostscript_parameters"), p->ghostscript_parameters, sizeof p->ghostscript_parameters / sizeof (TCHAR)))
 		return 1;
+
+	if (cfgfile_string(option, value, _T("gfxcard_type"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
+		p->rtgmem_type = 0;
+		i = 0;
+		for (;;) {
+			const TCHAR *t = gfxboard_get_configname(i);
+			if (!t)
+				break;
+			if (!_tcsicmp(t, tmpbuf)) {
+				p->rtgmem_type = i;
+				break;
+			}
+			i++;
+		}
+		return 1;
+	}
+
 
 	if (cfgfile_string(option, value, _T("cpuboard_type"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
 		p->cpuboard_type = 0;
