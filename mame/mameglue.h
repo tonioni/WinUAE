@@ -27,7 +27,7 @@ typedef unsigned long offs_t;
 #define FALSE 0
 #define TRUE 1
 
-#define TIMER_CALLBACK_MEMBER(x) int x(void *p, int param)
+#define TIMER_CALLBACK_MEMBER(x) int x(void *p, int param, int param2)
 extern void standard_irq_callback(int);
 
 #define CONCAT_64(hi,lo)    (((UINT64)(hi) << 32) | (UINT32)(lo))
@@ -98,3 +98,4 @@ typedef UINT32 bitmap_ind16;
 
 extern void m_to_shiftreg_cb(address_space, offs_t, UINT16*);
 extern void m_from_shiftreg_cb(address_space, offs_t, UINT16*);
+extern UINT32 total_cycles(void);

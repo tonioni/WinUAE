@@ -864,6 +864,7 @@ TIMER_CALLBACK_MEMBER( tms340x0_device::scanline_callback )
 	int vcount = param;
 	int enabled;
 	int master;
+	int oddline = param2;
 
 	/* fetch the core timing parameters */
 	const rectangle &current_visarea = m_screen->visible_area();
@@ -885,7 +886,7 @@ TIMER_CALLBACK_MEMBER( tms340x0_device::scanline_callback )
 	if (enabled && vcount == SMART_IOREG(DPYINT))
 	{
 		/* generate the display interrupt signal */
-		internal_interrupt_callback(NULL, TMS34010_DI);
+		internal_interrupt_callback(NULL, TMS34010_DI, 0);
 	}
 
 	/* at the start of VBLANK, load the starting display address */
@@ -895,6 +896,9 @@ TIMER_CALLBACK_MEMBER( tms340x0_device::scanline_callback )
 		if (!m_is_34020)
 		{
 			IOREG(REG_DPYADR) = IOREG(REG_DPYSTRT);
+			if ((SMART_IOREG(DPYCTL) & 0x4000) == 0 && oddline) {
+				IOREG(REG_DPYADR) += (IOREG(REG_DPYCTL) & 0x03fc) / 2;
+			}
 			//LOG(("Start of VBLANK, DPYADR = %04X\n", IOREG(REG_DPYADR)));
 		}
 
@@ -1177,7 +1181,7 @@ WRITE16_MEMBER( tms340x0_device::io_register_w )
 
 				/* NMI issued? */
 				if (data & 0x0100) {
-					internal_interrupt_callback(NULL, 0);
+					internal_interrupt_callback(NULL, 0, 0);
 #if 0
 					machine().scheduler().synchronize(timer_expired_delegate(FUNC(tms340x0_device::internal_interrupt_callback), this), 0);
 #endif
@@ -1210,19 +1214,21 @@ WRITE16_MEMBER( tms340x0_device::io_register_w )
 				{
 //					if (!m_output_int_cb.isnull())
 //						m_output_int_cb(1);
-					write_log(_T("m_output_int_cb(1)\n"));
+					standard_irq_callback(1);
+//					write_log(_T("m_output_int_cb(1)\n"));
 				}
 				else if ((oldreg & 0x0080) && !(newreg & 0x0080))
 				{
 //					if (!m_output_int_cb.isnull())
 //						m_output_int_cb(0);
-					write_log(_T("m_output_int_cb(0)\n"));
+					standard_irq_callback(0);
+//					write_log(_T("m_output_int_cb(0)\n"));
 				}
 
 				/* input interrupt? (should really be state-based, but the functions don't exist!) */
 				if (!(oldreg & 0x0008) && (newreg & 0x0008)) {
 					//machine().scheduler().synchronize(timer_expired_delegate(FUNC(tms340x0_device::internal_interrupt_callback), this), TMS34010_HI);
-					internal_interrupt_callback(NULL, TMS34010_HI);
+					internal_interrupt_callback(NULL, TMS34010_HI, 0);
 				} else if ((oldreg & 0x0008) && !(newreg & 0x0008)) {
 					IOREG(REG_INTPEND) &= ~TMS34010_HI;
 				}
@@ -1480,12 +1486,8 @@ READ16_MEMBER( tms340x0_device::io_register_r )
 				result -= total;
 			return result;
 		case REG_REFCNT:
-#if 0
 			return (total_cycles() / 16) & 0xfffc;
-#else
-			write_log("REG_REFCNT\n");
-		return 0;
-#endif
+
 		case REG_INTPEND:
 			result = IOREG(offset);
 
@@ -1496,8 +1498,6 @@ READ16_MEMBER( tms340x0_device::io_register_r )
 			if (SMART_IOREG(VCOUNT) + 1 == SMART_IOREG(DPYINT) &&
 				m_scantimer->remaining() < attotime::from_hz(40000000/8/3))
 				result |= TMS34010_DI;
-#else
-			write_log("REG_INTPEND %04x\n", result);
 #endif
 			return result;
 	}

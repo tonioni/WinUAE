@@ -95,15 +95,17 @@ void tms340x0_device::unimpl(UINT16 op)
 	m_pc = RLONG(0xfffffc20);
 	COUNT_UNKNOWN_CYCLES(16);
 
-	write_log("TMS UNIMPL!\n");
-#if 0
 	/* extra check to prevent bad things */
-	if (m_pc == 0 || s_opcode_table[m_direct->read_decrypted_word(TOBYTE(m_pc)) >> 4] == &tms34010_device::unimpl)
+	if (m_pc == 0 || s_opcode_table[m_direct->read_decrypted_word(TOBYTE(m_pc)) >> 4] == &tms340x0_device::unimpl)
 	{
+		write_log("TMS invalid program counter or opcode. CPU halted.!\n");
+		IOREG(REG_HSTCTLH) |= 0x8000;
+
+#if 0
 		set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 		debugger_break(machine());
-	}
 #endif
+	}
 }
 
 

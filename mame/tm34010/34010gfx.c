@@ -219,6 +219,7 @@ UINT16 tms340x0_device::memory_r(address_space &space, offs_t offset)
 
 void tms340x0_device::shiftreg_w(address_space &space, offs_t offset,UINT16 data)
 {
+	m_from_shiftreg_cb(space, (UINT32)(offset << 3) & ~15, &m_shiftreg[0]);
 #if 0
 	if (!m_from_shiftreg_cb.isnull())
 		m_from_shiftreg_cb(space, (UINT32)(offset << 3) & ~15, &m_shiftreg[0]);
@@ -229,6 +230,7 @@ void tms340x0_device::shiftreg_w(address_space &space, offs_t offset,UINT16 data
 
 UINT16 tms340x0_device::shiftreg_r(address_space &space, offs_t offset)
 {
+	m_to_shiftreg_cb(space, (UINT32)(offset << 3) & ~15, &m_shiftreg[0]);
 #if 0
 	if (!m_to_shiftreg_cb.isnull())
 		m_to_shiftreg_cb(space, (UINT32)(offset << 3) & ~15, &m_shiftreg[0]);
