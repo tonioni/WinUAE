@@ -13,7 +13,7 @@
 
 
 #define LOG_GFX_OPS 0
-#define LOGGFX(x) do { logerror x; } while(0)
+#define LOGGFX(x) do { if (LOG_GFX_OPS) { logerror x; } } while(0)
 //#define LOGGFX(x) do { if (LOG_GFX_OPS && machine().input().code_pressed(KEYCODE_L)) logerror x; } while (0)
 
 

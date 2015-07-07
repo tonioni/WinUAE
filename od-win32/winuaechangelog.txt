@@ -1,4 +1,148 @@
 
+Beta 2:
+
+- Borderblanking works again (b1)
+- RTL8029 received packets got sometimes stuck in receive buffer until next packet was received.
+- Fixed PCI bridge unreliable interrupts in some situations.
+- Added Mainhattan Data Paradox SCSI emulation.
+- Added Spirit Technology HDA-506 HD controller.
+- Added Elaborate Bytes A.L.F. HD controller.
+- Built-in wave recording created huge files, bytes-to-write variable was never reset (3.1).
+- Added Mediator 1200 autoconfig data.
+- Added support for multi-function PCI devices.
+- Added ES1370 from QEMU. (PCI sound card), common ES1370 based card is SB128.
+- Added FM801 emulation. (PCI sound card).
+- Added Vortex System 2000 HD controller.
+- A2410 display card emulation! TMS34010 emulation core from MAME.
+
+A2410 notes:
+- Very strange display board.. Very flexible TMS34010 CPU on board, code uploaded to internal
+  RAM from Amiga-side. Unfortunately board never had good software support.
+- Current WinUAE direct RTG system requires Amiga-side mapped VRAM, but because A2410
+  does not have any linear mapped Amiga-visible VRAM, A2410 internal VRAM is "fake" mapped at 0xa00000
+  (normally unused CIA space). It shouldn't cause any problems.
+- Interlaced modes are not supported (Original code didn't support it all, I added quick hack
+  that doubles height in interlaced modes), either CGX4 driver is wrong or TMS34010 documentation
+  is wrong, documentation says "The size of the DUDATE increment specified for an interlaced display
+  should be twice that required for a noninterlaced display of the same dimensions" but CGX4 driver
+  uses same width value in both interlaced and non-interlaced 1024*768 mode.
+- BT458 RAMDAC Overlay bitplanes fully emulated, including blinking features.
+- CGX4, Amix, NetBSD console and demo programs from DevCD (Milan 1991 DevCon) confirmed working.
+- END+F9 can be used to manually switch between native and A2410 display.
+- CGX4 driver seems to have bug in overlay (mouse pointer) color setup routine.
+- Emulated Amiga randomly hangs when switching CGX display modes. Reason unknown.
+- TMS34010 CPU execution speed is probably totally wrong and very random.
+- Because TMS34010 can update any register or RAM data any time it wants (like copper but more flexible),
+  emulation needs to be at least line-based (not frame like other RTG boards) and because emulation
+  also needs to execute TMS34010 code, A2410 emulation is slower than other RTG boards.
+- A2410 has DMA and hardware byte swap circuitry (can be seen in schematics) but so far I haven't found
+  programs that use it. (A2410 DMA = TMS34010 CPU can directly access Amiga address space).
+- Must use 32-bit host display depth. 16-bit is not supported.
+
+Mainhattan Data Paradox SCSI:
+- Parallel port to SCSI adapter.
+- Non autoboot.
+- Make sure no other parallel port devices are enabled at the same time.
+
+Spirit Technology HDA-506:
+- Supports autoboot but it is not implemented, ROM dump not available.
+- OMTI controller, uses early SCSI-like protocol but addressing uses CHS instead of LBA.
+
+Elaborate Bytes A.L.F.:
+- Non autoboot.
+- MFM/RLL controller.
+- Same protocol as HDA-506 but there can be differences in some commands.
+
+Vortex System 2000:
+- Supports autoboot but ROM image is not available.
+- Non autoconfig, ROM and IO hardwired at 0xf00000.
+- Again same protocol as HDA-506.
+- Fake DMA, 2xword data port size. Some sites incorrectly lists it as a DMA controller.
+
+Beta 1:
+
+- Emulated sprite undocumented special case, sprite start hpos from 2 to 9 will be visible at the
+  very far right overscan border of display.
+- WinPCap network mode didn't detect any devices (broken some time ago)
+- ROM type configuration for expansion sub devices. SupraDrive A2000 DMA does not anymore list
+  incompatible AMABx ROMs. (A2000 DMA model ROM is still MIA)
+- Improved SCSI/IDE controller init log messages.
+- Fastlane and Z3 RAM configured: use Fastlane Z3 RAM autoconfig data.
+- Handle recursive default_xlate() calls, can happen if autoconfig mapping is really bad.
+- Accelerator with GVP Series II SCSI controller + GVP Series II SCSI expansion controller combination
+  didn't work.
+- Accelerators that include autoconfig RAM (Only GVP A530 currently) now include matching RAM autoconfig
+  parameter data.
+- WASAPI audio init may have caused crash if some WASAPI query functions returned error code.
+- Implemented support framework for PCI bridges.
+- dm debugger command shows PCI bridges and PCI boards.
+- Added DKB Wildfire accelerator board.
+- Check and halt if any illegal autoconfig remap is done. (Instead of causing pointless reset loop)
+- Added support for ECS Denise genlock features. (Did any program ever use ECS genlock features?)
+- Expansions boards without ROM now have simple enable/disable checkbox.
+- PCI Realtek 8029 added from QEMU (NE2000 clone), automatically connected to any enabled PCI bridge.
+- Moved accelerator and expansion board GUI items to new Expansions panel. Old Expansion panel
+  is now RTG settings only panel.
+- More 68030 data cache emulation fixes.
+- Added generic SASI (SCSI predecessor) controller emulation and SASI HD GUI selection.
+- Added Tecmar T-Card/T-Disk expansion/SASI HD controller.
+- Added Xebec 9720H HD controller.
+- Audio period modulation with zero period value stopped modulated channel.
+- Blizzard 1230IV default ROM was incorrect.
+- If no physical/virtual CD drives available and image drive was not manually selected:
+  automatically select empty image drive. Previously emulated drive was removed.
+- Blizzard SCSI Kit IV configuration weirdness fixed, old config is not compatible anymore.
+- SSE2 capable CPU is now required.
+- If you use WINE, 1.7.44 or newer required.
+- Files are now 7zip compressed.
+
+New Most Pointless Feature Ever:
+- Genlock emulation can now replace transparent pixels with noise pattern or static image.
+- Implements also ECS new genlock features (I still think there is no software that uses them..)
+- Transparency control.
+
+DKB Wildfire:
+- Interesting design, SCSI and ethernet chips are connected to internal PCI bus that boot ROM
+  initializes. (Reason why PCI bridge emulation had to exist first)
+- SCSI is emulated, uses same QEMU 53c895 emulation as CSPPC.
+- Ethernet is not emulated.
+- Boot ROM is stored in 2*32k parallel EEPROM chips. Wildfire flash update program supported but
+  but modified data is not saved back to rom image file.
+- ROM image is from install disk.
+- Boot menu (keep right mouse button pressed while booting) options are not yet saved to file,
+  it looks like it is saved to 3rd(!) Flash/EEPROM chip via 53C815 built-in ROM support circuitry.
+  High resolution image of the board is needed.
+- Board config space ($ffff0000) bits are not emulated, except 68000 mode which only halts the
+  emulation.
+
+PCI bridges:
+- Wildfire with 53C815 chip connected to first internal PCI slot.
+- Prometheus.
+- G-REX. NOTE: only supported by latest 44.71 CSPPC/BPPC boot ROM.
+- Mediator 1200TX and 4000MK2. (If you have other model, please contact me)
+- Only 53C815 (Wildfire only) and Realtek 8029 PCI devices implemented so far.
+
+Try not to ask non-emulation related PCI bridge questions (like which driver to use, where to find
+them, how to install them, how to configure 8029 driver and so on..), thanks.
+
+Tecmar T-Card/T-Disk:
+- The very first Amiga harddrive controller.
+- No autoboot, no automount, no RDB.
+- KS 1.0 and 1.1 compatible, possibly also earlier version. Not KS 1.2+ compatible.
+- SASI controller, make sure SASI drive type is selected.
+- Implements old style autoconfig that was documented in first HRM revision, Appendix_G,
+  Disk based autoconfig driver ("xbus.resource"). Not compatible with KS 1.2+ ROM based
+  expansion.device. Possibly the only released hardware with old style autoconfig.
+- Memory board emulated (Use second fast ram slider, autoconfig must be disabled).
+- Clock emulated.
+
+Xebec 9720H:
+- Another very early Amiga harddrive controller.
+- No autoboot, no automount, no RDB, SASI.
+- Not autoconfig, hardwired at $600000.
+- 5380 based, on-board 16k SRAM, 5380<>SRAM DMA. SRAM<>CPU PIO.
+
+
 3.1.0
 
 - Unticked "Game controllers disabled" works now in DirectInput mode.

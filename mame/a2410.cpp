@@ -63,7 +63,7 @@ int mscreen::vpos()
 
 static void tms_execute_single(void)
 {
-	tms_device.m_icount = 0;
+	tms_device.m_icount = 2;
 	tms_device.execute_run();
 }
 
@@ -737,7 +737,7 @@ void tms_hsync_handler(void)
 	if (!tms_configured)
 		return;
 
-	tms_device.m_icount = 50;
+	tms_device.m_icount = 100;
 	tms_device.execute_run();
 	int a2410_vpos = tms_vp;
 	tms_vp = tms_device.scanline_callback(NULL, tms_vp, a2410_interlace < 0);

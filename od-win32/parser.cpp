@@ -1101,6 +1101,7 @@ static void outser (void)
 
 void writeser (int c)
 {
+	//write_log(_T("writeser %d (buf=%d)\n"), c, datainoutput);
 	if (tcpserial) {
 		if (tcp_is_connected ()) {
 			char buf[1];

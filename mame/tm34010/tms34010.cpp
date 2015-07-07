@@ -20,9 +20,9 @@
     DEBUG STATE & STRUCTURES
 ***************************************************************************/
 
-#define VERBOSE             1
-#define LOG_CONTROL_REGS    1
-#define LOG_GRAPHICS_OPS    1
+#define VERBOSE             0
+#define LOG_CONTROL_REGS    0
+#define LOG_GRAPHICS_OPS    0
 
 #define LOG(x)  do { if (VERBOSE) logerror x; } while (0)
 

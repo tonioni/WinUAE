@@ -6283,7 +6283,7 @@ static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 static void enable_for_displaydlg (HWND hDlg)
 {
-	int rtg = ((!workprefs.address_space_24 || !gfxboard_is_z3 (workprefs.rtgmem_type)) && workprefs.rtgmem_size) || workprefs.rtgmem_type >= GFXBOARD_HARDWARE;
+	int rtg = ((!workprefs.address_space_24 || gfxboard_get_configtype(workprefs.rtgmem_type) == 2) && workprefs.rtgmem_size) || workprefs.rtgmem_type >= GFXBOARD_HARDWARE;
 #ifndef PICASSO96
 	rtg = FALSE;
 #endif
@@ -7700,7 +7700,7 @@ static void setmax32bitram (HWND hDlg)
 	uae_u32 size, rtgz3size, z3size;
 	uae_u32 sizealign = 16 * 1024 * 1024 - 1;
 
-	rtgz3size = gfxboard_is_z3 (workprefs.rtgmem_type) ? workprefs.rtgmem_size : 0;
+	rtgz3size = gfxboard_get_configtype(workprefs.rtgmem_type) == 3 ? workprefs.rtgmem_size : 0;
 	size = ((workprefs.z3fastmem_size + sizealign) & ~sizealign) + ((workprefs.z3fastmem2_size + sizealign) & ~sizealign) +
 		((rtgz3size + sizealign) & ~sizealign);
 	if (cfgfile_board_enabled(&currprefs, ROMTYPE_A4091, 0))
@@ -8146,11 +8146,12 @@ static void init_expansion2(HWND hDlg)
 			_tcscat(name, _T("* "));
 		else if (cnt > 1)
 			_stprintf(name + _tcslen(name), _T("[%d] "), cnt);
-		if (expansionroms[i].friendlymanufacturer) {
-			_tcscat(name, expansionroms[i].friendlymanufacturer);
-			_tcscat(name, _T(" "));
-		}
 		_tcscat(name, expansionroms[i].friendlyname);
+		if (expansionroms[i].friendlymanufacturer) {
+			_tcscat(name, _T(" ("));
+			_tcscat(name, expansionroms[i].friendlymanufacturer);
+			_tcscat(name, _T(")"));
+		}
 		gui_add_string(scsiromselect_table, hDlg, IDC_SCSIROMSELECT, i, name);
 	}
 	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_RESETCONTENT, 0, 0);
@@ -8799,7 +8800,7 @@ static void values_to_expansiondlg(HWND hDlg)
 
 	int min_mem = MIN_P96_MEM;
 	int max_mem = MAX_P96_MEM_Z3;
-	if (!gfxboard_is_z3(workprefs.rtgmem_type)) {
+	if (gfxboard_get_configtype(workprefs.rtgmem_type) == 2) {
 		int v = workprefs.rtgmem_size;
 		max_mem = 0;
 		workprefs.rtgmem_size = 1024 * 1024;
@@ -8812,11 +8813,9 @@ static void values_to_expansiondlg(HWND hDlg)
 		if (workprefs.rtgmem_type >= GFXBOARD_HARDWARE && v < gfxboard_get_vram_min(workprefs.rtgmem_type))
 			v = gfxboard_get_vram_min(workprefs.rtgmem_type);
 		workprefs.rtgmem_size = v;
-//		if (workprefs.rtgmem_size > 8 * 1024 * 1024)
-//			mem_size = 8 * 1024 * 1024;
 		while (getz2size(&workprefs) < 0 && workprefs.rtgmem_size > 0)
 			workprefs.rtgmem_size -= 1024 * 1024;
-	} else {
+	} else if (gfxboard_get_configtype(workprefs.rtgmem_type) == 3) {
 		int v = workprefs.rtgmem_size;
 		if (workprefs.rtgmem_type >= GFXBOARD_HARDWARE && v > gfxboard_get_vram_max(workprefs.rtgmem_type))
 			v = gfxboard_get_vram_max(workprefs.rtgmem_type);
@@ -8911,7 +8910,7 @@ static void values_to_expansiondlg(HWND hDlg)
 static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	int v;
-	TCHAR tmp[100];
+	TCHAR tmp[256];
 	static int recursive = 0;
 	static int enumerated;
 
@@ -8925,19 +8924,21 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("-"));
-		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("UAE Zorro II"));
-		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("UAE Zorro III (*)"));
-		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Picasso II  Zorro II"));
-		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Picasso II+  Zorro II"));
-		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Piccolo Zorro II"));
-		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Piccolo Zorro III"));
-		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Piccolo SD64 Zorro II"));
-		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Piccolo SD64 Zorro III"));
-		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("EGS-28/24 Spectrum Zorro II"));
-		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("EGS-28/24 Spectrum Zorro III"));
-		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Picasso IV Zorro II"));
-		SendDlgItemMessage(hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Picasso IV Zorro III"));
-		SendDlgItemMessage(hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("A2410"));
+		v = 0;
+		for (;;) {
+			const TCHAR *n1 = gfxboard_get_name(v);
+			const TCHAR *n2 = gfxboard_get_manufacturername(v);
+			if (!n1 && !n2)
+				break;
+			v++;
+			_tcscpy(tmp, n1);
+			if (n2) {
+				_tcscat(tmp, _T(" ("));
+				_tcscat(tmp, n2);
+				_tcscat(tmp, _T(")"));
+			}
+			SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)tmp);
+		}
 
 		WIN32GUI_LoadUIString(IDS_ALL, tmp, sizeof tmp / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_RESETCONTENT, 0, 0);
@@ -8964,7 +8965,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)_T("A8B8G8R8"));
 		SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)_T("R8G8B8A8"));
 		SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)_T("B8G8R8A8 (*)"));
-		SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, gfxboard_is_z3 (workprefs.rtgmem_type) ? MAX_P96_MEM_Z3 : MAX_P96_MEM_Z2));
+		SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, gfxboard_get_configtype(workprefs.rtgmem_type) == 3 ? MAX_P96_MEM_Z3 : MAX_P96_MEM_Z2));
 		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_RESETCONTENT, 0, 0);
 		WIN32GUI_LoadUIString (IDS_DISABLED, tmp, sizeof tmp / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)tmp);
