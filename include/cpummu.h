@@ -353,7 +353,7 @@ extern void mmu_make_transparent_region(uaecptr baseaddr, uae_u32 size, int data
 #define FC_INST		(regs.s ? 6 : 2)
 
 extern uaecptr REGPARAM3 mmu_translate(uaecptr addr, bool super, bool data, bool write) REGPARAM;
-extern void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32 status);
+extern void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32 status, bool nonmmu);
 
 extern uae_u32 REGPARAM3 sfc_get_long(uaecptr addr) REGPARAM;
 extern uae_u16 REGPARAM3 sfc_get_word(uaecptr addr) REGPARAM;

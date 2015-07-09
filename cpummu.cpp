@@ -321,7 +321,7 @@ static ALWAYS_INLINE int mmu_get_fc(bool super, bool data)
 	return (super ? 4 : 0) | (data ? 1 : 2);
 }
 
-void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32 status)
+void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32 status, bool nonmmu)
 {
 	if (currprefs.mmu_model == 68040) {
 		uae_u16 ssw = 0;
@@ -389,7 +389,8 @@ void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, uae_u32
 #endif
 		}
 
-		ssw |= MMU_SSW_ATC;
+		if (!nonmmu)
+			ssw |= MMU_SSW_ATC;
 		regs.mmu_ssw = ssw;
 
 #if MMUDEBUG > 0
@@ -468,7 +469,7 @@ void mmu_bus_error_ttr_write_fault(uaecptr addr, bool super, bool data, uae_u32 
 		status |= MMU_FSLW_TTR;
 	}
 	regs.wb3_data = val;
-	mmu_bus_error(addr, mmu_get_fc (super, data), true, size, false, status);
+	mmu_bus_error(addr, mmu_get_fc (super, data), true, size, false, status, false);
 }
 
 
@@ -555,7 +556,7 @@ uaecptr REGPARAM2 mmu_translate(uaecptr addr, bool super, bool data, bool write)
 #if MMUDEBUG > 2
 		write_log(_T("[MMU] mmu_translate error"));
 #endif
-		mmu_bus_error(addr, mmu_get_fc(super, data), write, 0, false, status);
+		mmu_bus_error(addr, mmu_get_fc(super, data), write, 0, false, status, false);
 		return 0;
 	}
 
@@ -805,7 +806,7 @@ uae_u8 REGPARAM2 mmu_get_byte_slow(uaecptr addr, bool super, bool data,
 {
 	uae_u32 status;
 	if (!mmu_fill_atc_try(addr, super, data, 0, cl, &status)) {
-		mmu_bus_error(addr, mmu_get_fc(super, data), 0, size, rmw, status);
+		mmu_bus_error(addr, mmu_get_fc(super, data), 0, size, rmw, status, false);
 		return 0;
 	}
 	return x_phys_get_byte(mmu_get_real_address(addr, cl));
@@ -816,7 +817,7 @@ uae_u16 REGPARAM2 mmu_get_word_slow(uaecptr addr, bool super, bool data,
 {
 	uae_u32 status;
 	if (!mmu_fill_atc_try(addr, super, data, 0, cl, &status)) {
-		mmu_bus_error(addr, mmu_get_fc(super, data), 0, size, rmw, status);
+		mmu_bus_error(addr, mmu_get_fc(super, data), 0, size, rmw, status, false);
 		return 0;
 	}
 	return x_phys_get_word(mmu_get_real_address(addr, cl));
@@ -826,7 +827,7 @@ uae_u16 REGPARAM2 mmu_get_iword_slow(uaecptr addr, bool super,
 {
 	uae_u32 status;
 	if (!mmu_fill_atc_try(addr, super, false, 0, cl, &status)) {
-		mmu_bus_error(addr, mmu_get_fc(super, false), 0, size, false, status);
+		mmu_bus_error(addr, mmu_get_fc(super, false), 0, size, false, status, false);
 		return 0;
 	}
 	return x_phys_get_iword(mmu_get_real_address(addr, cl));
@@ -837,7 +838,7 @@ uae_u32 REGPARAM2 mmu_get_long_slow(uaecptr addr, bool super, bool data,
 {
 	uae_u32 status;
 	if (!mmu_fill_atc_try(addr, super, data, 0, cl, &status)) {
-		mmu_bus_error(addr, mmu_get_fc(super, data), 0, size, rmw, status);
+		mmu_bus_error(addr, mmu_get_fc(super, data), 0, size, rmw, status, false);
 		return 0;
 	}
 	return x_phys_get_long(mmu_get_real_address(addr, cl));
@@ -847,7 +848,7 @@ uae_u32 REGPARAM2 mmu_get_ilong_slow(uaecptr addr, bool super,
 {
 	uae_u32 status;
 	if (!mmu_fill_atc_try(addr, super, false, 0, cl, &status)) {
-		mmu_bus_error(addr, mmu_get_fc(super, false), 0, size, false, status);
+		mmu_bus_error(addr, mmu_get_fc(super, false), 0, size, false, status, false);
 		return 0;
 	}
 	return x_phys_get_ilong(mmu_get_real_address(addr, cl));
@@ -898,7 +899,7 @@ void REGPARAM2 mmu_put_byte_slow(uaecptr addr, uae_u8 val, bool super, bool data
 	uae_u32 status;
 	if (!mmu_fill_atc_try(addr, super, data, 1, cl, &status)) {
 		regs.wb3_data = val;
-		mmu_bus_error(addr, mmu_get_fc(super, data), 1, size, rmw, status);
+		mmu_bus_error(addr, mmu_get_fc(super, data), 1, size, rmw, status, false);
 		return;
 	}
 	x_phys_put_byte(mmu_get_real_address(addr, cl), val);
@@ -910,7 +911,7 @@ void REGPARAM2 mmu_put_word_slow(uaecptr addr, uae_u16 val, bool super, bool dat
 	uae_u32 status;
 	if (!mmu_fill_atc_try(addr, super, data, 1, cl, &status)) {
 		regs.wb3_data = val;
-		mmu_bus_error(addr, mmu_get_fc(super, data), 1, size, rmw, status);
+		mmu_bus_error(addr, mmu_get_fc(super, data), 1, size, rmw, status, false);
 		return;
 	}
 	x_phys_put_word(mmu_get_real_address(addr, cl), val);
@@ -922,7 +923,7 @@ void REGPARAM2 mmu_put_long_slow(uaecptr addr, uae_u32 val, bool super, bool dat
 	uae_u32 status;
 	if (!mmu_fill_atc_try(addr, super, data, 1, cl, &status)) {
 		regs.wb3_data = val;
-		mmu_bus_error(addr, mmu_get_fc(super, data), 1, size, rmw, status);
+		mmu_bus_error(addr, mmu_get_fc(super, data), 1, size, rmw, status, false);
 		return;
 	}
 	x_phys_put_long(mmu_get_real_address(addr, cl), val);

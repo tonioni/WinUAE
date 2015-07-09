@@ -6215,7 +6215,7 @@ void exception2 (uaecptr addr, bool read, int size, uae_u32 fc)
 			uae_u32 flags = size == 1 ? MMU030_SSW_SIZE_B : (size == 2 ? MMU030_SSW_SIZE_W : MMU030_SSW_SIZE_L);
 			mmu030_page_fault (addr, read, flags, fc);
 		} else {
-			mmu_bus_error (addr, fc, read == false, size, false, 0);
+			mmu_bus_error (addr, fc, read == false, size, false, 0, true);
 		}
 	} else {
 		last_addr_for_exception_3 = m68k_getpc() + bus_error_offset;
