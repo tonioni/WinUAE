@@ -492,11 +492,15 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
             || ((sctl ^ s->sctl) & b->sctl_pause)) {
             int on = (ctl & b->ctl_en) && !(sctl & b->sctl_pause);
 
-            if (i == ADC_CHANNEL) {
+			// TW: this was missing from original code.
+			// Without this fix upper half of scount contained value from
+			// last playback, breaking buffer switch sync in next playback.
+			d->scount = (d->scount & 0xffff) | ((d->scount & 0xffff) << 16);
+			
+			if (i == ADC_CHANNEL) {
                 AUD_set_active_in (s->adc_voice, on);
-            }
-            else {
-                AUD_set_active_out (s->dac_voice[i], on);
+            } else {
+				AUD_set_active_out (s->dac_voice[i], on);
             }
         }
     }
@@ -856,7 +860,10 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
             int copied, to_copy;
 
             to_copy = audio_MIN ((size_t) temp, sizeof (tmpbuf));
-            pci_read_dma(s->dev, addr, tmpbuf, to_copy);
+
+			//write_log("t=%d tc=%d cnt=%d size=%d lo=%d csc=% d %08x-%08x\n", temp, to_copy, cnt, size, d->leftover, csc_bytes, addr, addr + to_copy - 1);
+
+			pci_read_dma(s->dev, addr, tmpbuf, to_copy);
             copied = AUD_write (voice, tmpbuf, to_copy);
             if (!copied)
                 break;
@@ -1122,29 +1129,35 @@ type_init (es1370_register_types)
 
 static void REGPARAM2 es1370_bput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
+	//write_log(_T("ES1370 BPUT %08x = %02x\n"), addr, b & 0xff);
 	es1370_writeb(&es1370state, addr, b & 0xff);
 }
 static void REGPARAM2 es1370_wput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
+	//write_log(_T("ES1370 WPUT %08x = %04x\n"), addr, b & 0xffff);
 	es1370_writew(&es1370state, addr, b & 0xffff);
 }
 static void REGPARAM2 es1370_lput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
+	//write_log(_T("ES1370 LPUT %08x = %08x\n"), addr, b);
 	es1370_writel(&es1370state, addr, b);
 }
 static uae_u32 REGPARAM2 es1370_bget(struct pci_board_state *pcibs, uaecptr addr)
 {
 	uae_u32 v = es1370_readb(&es1370state, addr);
+	//write_log(_T("ES1370 BGET %08x = %02x\n"), addr, v);
 	return v;
 }
 static uae_u32 REGPARAM2 es1370_wget(struct pci_board_state *pcibs, uaecptr addr)
 {
 	uae_u32 v = es1370_readw(&es1370state, addr);
+	//write_log(_T("ES1370 WGET %08x = %04x\n"), addr, v);
 	return v;
 }
 static uae_u32 REGPARAM2 es1370_lget(struct pci_board_state *pcibs, uaecptr addr)
 {
 	uae_u32 v = es1370_readl(&es1370state, addr);
+	//write_log(_T("ES1370 LGET %08x = %08x\n"), addr, v);
 	return v;
 }
 
