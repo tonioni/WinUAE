@@ -2382,6 +2382,10 @@ static const struct expansionsubromtype mediator_sub[] = {
 };
 static const struct expansionboardsettings mediator_settings[] = {
 	{
+		_T("Full PCI DMA"),
+		_T("fulldma")
+	},
+	{
 		_T("Win Size"),
 		_T("winsize")
 	},
@@ -2393,6 +2397,16 @@ static const struct expansionboardsettings mediator_settings[] = {
 		NULL
 	}
 };
+static const struct expansionboardsettings bridge_settings[] = {
+	{
+		_T("Full PCI DMA"),
+		_T("fulldma")
+	},
+	{
+		NULL
+	}
+};
+
 static void fastlane_memory_callback(struct romconfig *rc, uae_u8 *ac, int size)
 {
 	struct zfile *z = read_device_from_romconfig(rc, NULL);
@@ -2474,7 +2488,10 @@ const struct expansionromtype expansionroms[] = {
 		_T("prometheus"), _T("Prometheus"), _T("Matay"),
 		prometheus_init, NULL, NULL, ROMTYPE_PROMETHEUS | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z3, false,
 		NULL, 0,
-		false, EXPANSIONTYPE_PCI_BRIDGE
+		false, EXPANSIONTYPE_PCI_BRIDGE,
+		0, 0, 0, false, NULL,
+		false,
+		bridge_settings
 	},
 	{
 		_T("apollo"), _T("Apollo"), _T("ACT"),

@@ -75,6 +75,8 @@ struct pci_bridge
 	int endian_swap_io;
 	uae_u32 memory_offset;
 	int endian_swap_memory;
+	bool pcipcidma;
+	bool amigapicdma;
 	uae_u8 intena;
 	uae_u8 irq;
 	uae_u16 intreq_mask;

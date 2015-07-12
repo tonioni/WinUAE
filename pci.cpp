@@ -1278,15 +1278,55 @@ addrbank pci_bridge_bank_2 = {
 	pci_bridge_lget_2, pci_bridge_wget_2, ABFLAG_IO | ABFLAG_SAFE
 };
 
+static bool validate_pci_dma(struct pci_board_state *pcibs, uaecptr addr, int size)
+{
+	struct pci_bridge *pcib = pcibs->bridge;
+	addrbank *ab = &get_mem_bank(addr);
+	if (ab == &dummy_bank)
+		return false;
+	if (pcib->pcipcidma) {
+		if (ab == &pci_mem_bank && &get_mem_bank(addr + size - 1) == &pci_mem_bank)
+			return true;
+	}
+	if (pcib->amigapicdma) {
+		if ((ab->flags & ABFLAG_RAM) && ab->check(addr, size))
+			return true;
+	}
+	return false;
+}
+
 void pci_write_dma(struct pci_board_state *pcibs, uaecptr addr, uae_u8 *p, int size)
 {
+	if (validate_pci_dma(pcibs, addr, size)) {
+		while (size > 0) {
+			put_byte(addr, *p++);
+			addr++;
+			size--;
+		}
+	} else {
+		write_log(_T("pci_write_dma invalid address %08x, size %d\n"), addr, size);
+		while (size > 0) {
+			put_byte(addr, uaerand());
+			addr++;
+			size--;
+		}
+	}
 }
 void pci_read_dma(struct pci_board_state *pcibs, uaecptr addr, uae_u8 *p, int size)
 {
-	while (size > 0) {
-		*p++ = get_byte(addr);
-		addr++;
-		size--;
+	if (validate_pci_dma(pcibs, addr, size)) {
+		while (size > 0) {
+			*p++ = get_byte(addr);
+			addr++;
+			size--;
+		}
+	} else {
+		write_log(_T("pci_read_dma invalid address %08x, size %d\n"), addr, size);
+		while (size > 0) {
+			*p++ = uaerand();
+			addr++;
+			size--;
+		}
 	}
 }
 
@@ -1551,6 +1591,8 @@ addrbank *dkb_wildfire_pci_init(struct romconfig *rc)
 	pcib->baseaddress = 0x80000000;
 	pcib->baseaddress_end = 0xffffffff;
 	pcib->configured = -1;
+	pcib->pcipcidma = true;
+	pcib->amigapicdma = true;
 	pci_board_add(pcib, &ncr_53c815_pci_board, 0, 0);
 	map_banks(&pci_config_bank, 0x80000000 >> 16, 0x10000000 >> 16, 0);
 	map_banks(&pci_mem_bank, 0x90000000 >> 16, 0x30000000 >> 16, 0);
@@ -1603,6 +1645,9 @@ static addrbank *prometheus_pci_init(struct romconfig *rc)
 	pcib->get_index = prometheus_get_index;
 	pcib->bank = &pci_bridge_bank;
 	pcib->bank_zorro = 3;
+	pcib->pcipcidma = true;
+	if (rc->device_settings & 1)
+		pcib->amigapicdma = true;
 
 	add_pci_devices(pcib);
 
@@ -1640,6 +1685,8 @@ static addrbank *grex_pci_init(struct romconfig *rc)
 	pcib->baseaddress = 0x80000000;
 	pcib->baseaddress_end = 0xffffffff;
 	pcib->configured = -1;
+	pcib->pcipcidma = true;
+	pcib->amigapicdma = true;
 
 	add_pci_devices(pcib);
 
@@ -1673,6 +1720,8 @@ static addrbank *cbvision(struct romconfig *rc)
 	pcib->baseaddress = 0xe0000000;
 	pcib->baseaddress_end = 0xffffffff;
 	pcib->configured = -1;
+	pcib->pcipcidma = true;
+	pcib->amigapicdma = true;
 
 	map_banks(&pci_config_bank, 0xfffc0000 >> 16, 0x20000 >> 16, 0);
 	map_banks(&pci_mem_bank, 0xe0000000 >> 16, 0x10000000 >> 16, 0);
@@ -1763,13 +1812,16 @@ static void mediator_pci_init_1200(struct pci_bridge *pcib)
 	pcib->bank_2 = &pci_bridge_bank_2;
 	pcib->bank_zorro = 2;
 	pcib->bank_2_zorro = 2;
+	pcib->pcipcidma = true;
+	if (pcib->rc->device_settings & 1)
+		pcib->amigapicdma = true;
 	mediator_set_window_offset(pcib, 0);
 }
 
 static addrbank *mediator_pci_init_1200_1(struct romconfig *rc, struct mediator_autoconfig *m_ac)
 {
 	struct pci_bridge *pcib;
-	if (!(rc->device_settings & 2)) {
+	if (!(rc->device_settings & 4)) {
 		// io first
 		pcib = pci_bridge_alloc_zorro(PCI_BRIDGE_MEDIATOR, rc);
 		if (!pcib)
@@ -1791,7 +1843,7 @@ static addrbank *mediator_pci_init_1200_1(struct romconfig *rc, struct mediator_
 static addrbank *mediator_pci_init_1200_2(struct romconfig *rc, struct mediator_autoconfig *m_ac)
 {
 	struct pci_bridge *pcib;
-	if (!(rc->device_settings & 2)) {
+	if (!(rc->device_settings & 4)) {
 		// memory last
 		pcib = pci_bridge_get_zorro(rc);
 		if (!pcib)
@@ -1805,7 +1857,7 @@ static addrbank *mediator_pci_init_1200_2(struct romconfig *rc, struct mediator_
 		add_pci_devices(pcib);
 	}
 	memset(pcib->acmemory, 0xff, sizeof pcib->acmemory);
-	const uae_u8 *ac = (rc->device_settings & 1) ? m_ac->mem_large : m_ac->mem_small;
+	const uae_u8 *ac = (rc->device_settings & 2) ? m_ac->mem_large : m_ac->mem_small;
 	for (int i = 0; i < 16; i++) {
 		ew(pcib->acmemory, i * 4, ac[i]);
 	}
@@ -1825,13 +1877,16 @@ static void mediator_pci_init_4000(struct pci_bridge *pcib)
 	pcib->bank_2 = &pci_bridge_bank_2;
 	pcib->bank_zorro = 3;
 	pcib->bank_2_zorro = 3;
+	pcib->pcipcidma = true;
+	if (pcib->rc->device_settings & 1)
+		pcib->amigapicdma = true;
 	mediator_set_window_offset(pcib, 0);
 }
 
 static addrbank *mediator_pci_init_4000_1(struct romconfig *rc, struct mediator_autoconfig *m_ac)
 {
 	struct pci_bridge *pcib;
-	if (!(rc->device_settings & 2)) {
+	if (!(rc->device_settings & 4)) {
 		// io first
 		pcib = pci_bridge_alloc_zorro(PCI_BRIDGE_MEDIATOR, rc);
 		if (!pcib)
@@ -1852,7 +1907,7 @@ static addrbank *mediator_pci_init_4000_1(struct romconfig *rc, struct mediator_
 static addrbank *mediator_pci_init_4000_2(struct romconfig *rc, struct mediator_autoconfig *m_ac)
 {
 	struct pci_bridge *pcib;
-	if (!(rc->device_settings & 2)) {
+	if (!(rc->device_settings & 4)) {
 		// memory last
 		pcib = pci_bridge_get_zorro(rc);
 		if (!pcib)
@@ -1867,7 +1922,7 @@ static addrbank *mediator_pci_init_4000_2(struct romconfig *rc, struct mediator_
 		add_pci_devices(pcib);
 	}
 	memset(pcib->acmemory, 0xff, sizeof pcib->acmemory);
-	const uae_u8 *ac = (rc->device_settings & 1) ? m_ac->mem_large : m_ac->mem_small;
+	const uae_u8 *ac = (rc->device_settings & 2) ? m_ac->mem_large : m_ac->mem_small;
 	for (int i = 0; i < 16; i++) {
 		ew(pcib->acmemory, i * 4, ac[i]);
 	}
@@ -1881,19 +1936,19 @@ addrbank *mediator_init(struct romconfig *rc)
 	{
 		case 0:
 		ac = &mediator_ac[MED_1200];
-		if (rc->device_settings & 2)
+		if (rc->device_settings & 4)
 			return mediator_pci_init_1200_2(rc, ac);
 		else
 			return mediator_pci_init_1200_1(rc, ac);
 		case 1:
 		ac = &mediator_ac[MED_1200TX];
-		if (rc->device_settings & 2)
+		if (rc->device_settings & 4)
 			return mediator_pci_init_1200_2(rc, ac);
 		else
 			return mediator_pci_init_1200_1(rc, ac);
 		case 2:
 		ac = &mediator_ac[MED_4000MK2];
-		if (rc->device_settings & 2)
+		if (rc->device_settings & 4)
 			return mediator_pci_init_4000_2(rc, ac);
 		else
 			return mediator_pci_init_4000_1(rc, ac);
@@ -1908,19 +1963,19 @@ addrbank *mediator_init2(struct romconfig *rc)
 	{
 		case 0:
 		ac = &mediator_ac[MED_1200];
-		if (rc->device_settings & 2)
+		if (rc->device_settings & 4)
 			return mediator_pci_init_1200_1(rc, ac);
 		else
 			return mediator_pci_init_1200_2(rc, ac);
 		case 1:
 		ac = &mediator_ac[MED_1200TX];
-		if (rc->device_settings & 2)
+		if (rc->device_settings & 4)
 			return mediator_pci_init_1200_1(rc, ac);
 		else
 			return mediator_pci_init_1200_2(rc, ac);
 		case 2:
 		ac = &mediator_ac[MED_4000MK2];
-		if (rc->device_settings & 2)
+		if (rc->device_settings & 4)
 			return mediator_pci_init_4000_1(rc, ac);
 		else
 			return mediator_pci_init_4000_2(rc, ac);
