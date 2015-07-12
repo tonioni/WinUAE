@@ -23,7 +23,7 @@ void tms340x0_device::line(UINT16 op)
 {
 	if (!P_FLAG())
 	{
-		if (WINDOW_CHECKING() != 0 && WINDOW_CHECKING() != 3)
+		if (WINDOW_CHECKING() != 0 && WINDOW_CHECKING() != 3 && WINDOW_CHECKING() != 2)
 			logerror("LINE XY  %08X - Window Checking Mode %d not supported\n", m_pc, WINDOW_CHECKING());
 
 		m_st |= STBIT_P;
@@ -34,11 +34,19 @@ void tms340x0_device::line(UINT16 op)
 	if (COUNT() > 0)
 	{
 		INT16 x1,y1;
+		int inside = (DADDR_X() >= WSTART_X() && DADDR_X() <= WEND_X() &&
+					  DADDR_Y() >= WSTART_Y() && DADDR_Y() <= WEND_Y());
+
 
 		COUNT()--;
-		if (WINDOW_CHECKING() != 3 ||
-			(DADDR_X() >= WSTART_X() && DADDR_X() <= WEND_X() &&
-				DADDR_Y() >= WSTART_Y() && DADDR_Y() <= WEND_Y()))
+		if (WINDOW_CHECKING() == 2 && !inside) {
+			SET_V_LOG(1);
+			IOREG(REG_INTPEND) |= TMS34010_WV;
+			check_interrupt();
+			return;
+		}
+
+		if (WINDOW_CHECKING() != 3 || inside)
 			WPIXEL(DXYTOL(DADDR_XY()),COLOR1());
 
 		if (SADDR() >= TEMP())

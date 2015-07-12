@@ -566,11 +566,13 @@ void tms340x0_device::check_interrupt()
 		m_pc = RLONG(vector);
 		COUNT_CYCLES(16);
 
+#if 0
 		/* call the callback for externals */
 		if (irqline >= 0) {
-			write_log("tms interrupt\n");
+			write_log("TMS34010 interrupt\n");
 			standard_irq_callback(irqline);
 		}
+#endif
 	}
 }
 
@@ -742,7 +744,7 @@ void tms340x0_device::execute_run()
 	{
 		m_reset_deferred = FALSE;
 		m_pc = RLONG(0xffffffe0);
-		write_log("TMS started, PC=%08x\n", m_pc);
+		write_log("TMS34010 reset, PC=%08x\n", m_pc);
 	}
 
 	/* check interrupts first */
@@ -1159,6 +1161,7 @@ WRITE16_MEMBER( tms340x0_device::io_register_w )
 #if 0
 			if (data) logerror("Plane masking not supported. PC=%08X\n", space.device().safe_pc());
 #endif
+			if (data) logerror("Plane masking not supported. PMASK=%04x PC=%08X\n", data, m_pc);
 			break;
 
 		case REG_DPYCTL:
@@ -1170,9 +1173,9 @@ WRITE16_MEMBER( tms340x0_device::io_register_w )
 			if (mem_mask & 0xff00)
 			{
 				if ((data & 0x8000) && !(oldreg & 0x8000))
-					write_log("TMS stopped\n");
+					write_log("TMS34010 stopped\n");
 				if (!(data & 0x8000) && (oldreg & 0x8000))
-					write_log("TMS started\n");
+					write_log("TMS34010 started PC=%08x\n", m_pc);
 				if ((data & 0x8000) && !m_external_host_access)
 					m_icount = 0;
 #if 0

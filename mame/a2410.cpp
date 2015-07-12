@@ -40,11 +40,14 @@ static bool a2410_modified[1024];
 static int a2410_displaywidth;
 static int a2410_displayend;
 static int a2410_vertical_start;
-static bool a2410_isactive;
+static bool a2410_enabled;
 static uae_u8 a2410_overlay_mask[2];
 static int a2410_overlay_blink_rate_on;
 static int a2410_overlay_blink_rate_off;
 static int a2410_overlay_blink_cnt;
+static int tms_configured;
+static uae_u8 tms_config[128];
+extern addrbank tms_bank;
 
 int mscreen::hpos()
 {
@@ -72,23 +75,27 @@ static void tms_execute_single(void)
 #define A2410_BANK_RAMDAC 3
 #define A2410_BANK_CONTROL 4
 #define A2410_BANK_TMSIO 5
+#define A2410_BANK_DMA 6
 
 static uaecptr makeaddr(UINT32 a, int *bank)
 {
 	uaecptr addr = 0;
 	UINT32 aa = a << 3;
-	if ((aa & 0xfff00000) == 0xc0000000) {
+	if ((aa & 0xf0000000) == 0xc0000000) {
 		*bank = A2410_BANK_TMSIO;
 		addr = (a & 0xff) >> 1;
-	} else if ((aa & 0xff900000) == 0xfe800000) {
+	} else if ((aa & 0x01900000) == 0x00800000) {
 		*bank = A2410_BANK_RAMDAC;
 		addr = (a >> 1) & 3;
-	} else if ((aa & 0xff900000) == 0xfe900000) {
+	} else if ((aa & 0x01900000) == 0x00900000) {
 		*bank = A2410_BANK_CONTROL;
-	} else if ((aa & 0xff800000) == 0xff800000) {
-		addr = (a & 0xfffff);
+	} else if ((aa & 0x30000000) == 0x10000000) {
+		addr = a & 0xffffff;
+		*bank = A2410_BANK_DMA;
+	} else if ((aa & 0x01800000) == 0x01800000) {
+		addr = a & 0xfffff;
 		*bank = A2410_BANK_PROGRAM;
-	} else if ((aa & 0xff800000) == 0xfe000000) {
+	} else if ((aa & 0x01800000) == 0x00000000) {
 		addr = a & 0xfffff;
 		*bank = A2410_BANK_FRAMEBUFFER;
 	} else {
@@ -96,6 +103,32 @@ static uaecptr makeaddr(UINT32 a, int *bank)
 		write_log(_T("Unknown BANK %08x PC=%08x\n"), aa, M68K_GETPC);
 	}
 	return addr;
+}
+
+/* CONTROL
+ *
+ * bit 0 - OSC_SEL - oscillator select
+ * bit 1 - _SOG_EN - sync on green
+ * bit 2 - SWAP - byte swap enable for DMA
+ * bit 3 - SBR - bus request from TMS34010 (Sets bit 7 when bus granted)
+ * bit 4 - D_BLANK (read only) - seems to be related to BLANK output of TMS and VSYNC
+ * bit 5 - AGBG (read only) - comes straight from Zorro II BCLR signal ?
+ * bit 6 - AID = Z3Sense pin when read, HS_INV when write (Horizontal Sync Invert)
+ * bit 7 - LGBACK when read, VS_INV when write (Vertical Sync Invert) - LGBACK: A2410 owns the Zorro bus now.
+ */
+
+static uae_u8 get_a2410_control(void)
+{
+	uae_u8 v = a2410_control;
+	v &= ~(0x10 | 0x40 | 0x80);
+	v |= 0x20;
+	if (v & 0x08) // SBR
+		v |= 0x80; // LGBACK
+	if (currprefs.cs_compatible == CP_A3000 || currprefs.cs_compatible == CP_A3000T ||
+		currprefs.cs_compatible == CP_A4000 || currprefs.cs_compatible == CP_A4000T ||
+		currprefs.cs_z3autoconfig)
+		v |= 0x40; // AID
+	return v;
 }
 
 UINT32 total_cycles(void)
@@ -135,7 +168,7 @@ UINT16 direct_read_data::read_raw_word(UINT32 pc)
 
 static void mark_overlay(int addr)
 {
-	if (!a2410_isactive)
+	if (!a2410_enabled)
 		return;
 	addr &= 0x1ffff;
 	addr /= OVERLAY_WIDTH / 8;
@@ -270,11 +303,10 @@ static uae_u8 read_ramdac(int addr)
 	return v;
 }
 
-static uae_u8 get_a2410_control(void)
+static bool valid_dma(uaecptr addr)
 {
-	uae_u8 v = a2410_control;
-	v &= ~(0x08 | 0x10 | 0x20 | 0x40);
-	return v;
+	// prevent recursive DMA
+	return addr < (tms_configured << 16) || addr >= ((tms_configured + 1) << 16);
 }
 
 UINT8 address_space::read_byte(UINT32 a)
@@ -302,6 +334,13 @@ UINT8 address_space::read_byte(UINT32 a)
 		case A2410_BANK_CONTROL:
 		v = get_a2410_control();
 		write_log(_T("CONTROL READ %08x = %02x PC=%08x\n"), aa, v, M68K_GETPC);
+		break;
+		case A2410_BANK_DMA:
+		if (valid_dma(addr)) {
+			if (a2410_control & 4)
+				addr ^= 1;
+			v = get_byte(addr);
+		}
 		break;
 		default:
 		write_log(_T("UNKNOWN READ %08x = %02x PC=%08x\n"), aa, v, M68K_GETPC);
@@ -341,6 +380,13 @@ UINT16 address_space::read_word(UINT32 a)
 		v = get_a2410_control();
 		write_log(_T("CONTROL READ %08x = %02x PC=%08x\n"), aa, v, M68K_GETPC);
 		break;
+		case A2410_BANK_DMA:
+		if (valid_dma(addr)) {
+			v = get_word(addr);
+			if (a2410_control & 4)
+				v = (v >> 8) | (v << 8);
+		}
+		break;
 		default:
 		write_log(_T("UNKNOWN READ %08x = %04x PC=%08x\n"), aa, v, M68K_GETPC);
 		break;
@@ -373,6 +419,13 @@ void address_space::write_byte(UINT32 a, UINT8 b)
 		case A2410_BANK_CONTROL:
 		write_log(_T("CONTROL WRITE %08x = %02x PC=%08x\n"), aa, b, M68K_GETPC);
 		a2410_control = b;
+		break;
+		case A2410_BANK_DMA:
+		if (valid_dma(addr)) {
+			if (a2410_control & 4)
+				addr ^= 1;
+			put_byte(addr, b);
+		}
 		break;
 		default:
 		write_log(_T("UNKNOWN WRITE %08x = %02x PC=%08x\n"), aa, b, M68K_GETPC);
@@ -411,15 +464,18 @@ void address_space::write_word(UINT32 a, UINT16 b)
 		write_log(_T("CONTROL WRITE %08x = %04x PC=%08x\n"), aa, b, M68K_GETPC);
 		a2410_control = b;
 		break;
+		case A2410_BANK_DMA:
+		if (valid_dma(addr)) {
+			if (a2410_control & 4)
+				b = (b >> 8) | (b << 8);
+			put_word(addr, b);
+		}
+		break;
 		default:
 		write_log(_T("UNKNOWN WRITE %08x = %04x PC=%08x\n"), aa, b, M68K_GETPC);
 		break;
 	}
 }
-
-static int tms_configured;
-static uae_u8 tms_config[128];
-extern addrbank tms_bank;
 
 static uae_u32 REGPARAM2 tms_bget(uaecptr addr)
 {
@@ -435,6 +491,7 @@ static uae_u32 REGPARAM2 tms_bget(uaecptr addr)
 		if (!(addr & 1))
 			vv >>= 8;
 		v = (uae_u8)vv;
+		//write_log(_T("TMS read %08x = %02x PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
 		tms_execute_single();
 	}
 	return v;
@@ -448,7 +505,7 @@ static uae_u32 REGPARAM2 tms_wget(uaecptr addr)
 	addr &= 65535;
 	if (tms_configured) {
 		v = tms_device.host_r(tms_space, addr >> 1);
-		//write_log(_T("TMS read %08x = %04x\n"), addr, v & 0xffff);
+		//write_log(_T("TMS read %08x = %04x PC=%08x\n"), addr, v & 0xffff, M68K_GETPC);
 		tms_execute_single();
 	} else {
 		v = tms_bget(addr) << 8;
@@ -476,7 +533,7 @@ static void REGPARAM2 tms_wput(uaecptr addr, uae_u32 w)
 #endif
 	addr &= 65535;
 	if (tms_configured) {
-		//write_log(_T("TMS write %08x = %04x\n"), addr, w & 0xffff);
+		//write_log(_T("TMS write %08x = %04x PC=%08x\n"), addr, w & 0xffff, M68K_GETPC);
 		tms_device.host_w(tms_space, addr  >> 1, w);
 		tms_execute_single();
 	}
@@ -513,7 +570,7 @@ static void REGPARAM2 tms_bput(uaecptr addr, uae_u32 b)
 		}
 		return;
 	}
-//	write_log(_T("tms_bput %08x=%02x\n"), addr, b);
+	//write_log(_T("tms_bput %08x=%02x PC=%08x\n"), addr, b, M68K_GETPC);
 	tms_device.host_w(tms_space, addr >> 1, (b << 8) | b);
 	tms_execute_single();
 }
@@ -532,6 +589,7 @@ static int a2410_vram_start_offset;
 static uae_u8 *a2410_surface;
 static int a2410_interlace;
 static int a2410_interrupt;
+static int a2410_hsync_max;
 
 void tms_reset(void)
 {
@@ -543,6 +601,7 @@ void tms_reset(void)
 	a2410_gotmode = 0;
 	a2410_interlace = 0;
 	a2410_interrupt = 0;
+	a2410_hsync_max = 2;
 
 	if (program_ram)
 		tms_device.device_reset();
@@ -601,6 +660,7 @@ addrbank *tms_init(int devnum)
 
 void mscreen::configure(int width, int height, rectangle vis)
 {
+	int ow = a2410_width, oh = a2410_height;
 	a2410_width = vis.max_x - vis.min_x + 1;
 	a2410_height = vis.max_y - vis.min_y + 1;
 	a2410_interlace = vis.interlace ? 1 : 0;
@@ -611,6 +671,8 @@ void mscreen::configure(int width, int height, rectangle vis)
 	m_screen->height_v = height;
 	m_screen->width_v = width;
 	tms_rectangle = vis;
+	write_log(_T("A2410 %d*%d -> %d*%d\n"), ow, oh, a2410_width, a2410_height);
+	a2410_hsync_max = a2410_height / 300;
 }
 
 static void get_a2410_surface(void)
@@ -633,8 +695,8 @@ bool tms_toggle(int mode)
 	if (!tms_configured)
 		return false;
 
-	if (a2410_isactive) {
-		a2410_isactive = false;
+	if (a2410_enabled) {
+		a2410_enabled = false;
 		a2410_modechanged = false;
 		picasso_requested_on = 0;
 		a2410_gotmode = -1;
@@ -658,30 +720,29 @@ static void tms_vsync_handler2(bool internalsync)
 	tms_device.get_display_params(&parms);
 	bool enabled = parms.enabled != 0 && a2410_gotmode > 0;
 
-	if (enabled && a2410_modechanged) {
-
+	if (enabled != a2410_enabled || a2410_modechanged) {
 		if (a2410_surface)
 			gfx_unlock_picasso(false);
 		a2410_surface = NULL;
 
-		picasso96_state.Width = a2410_width;
-		picasso96_state.Height = a2410_height;
-		picasso96_state.BytesPerPixel = 1;
-		picasso96_state.RGBFormat = RGBFB_CLUT;
-		write_log(_T("A2410 %dx%d\n"), a2410_width, a2410_height);
-		gfx_set_picasso_modeinfo(a2410_width, a2410_height, 1, RGBFB_NONE);
-		fullrefresh = 2;
-		init_hz_p96();
-		picasso_requested_on = 1;
-		a2410_modechanged = false;
-		return;
-	}
-
-	if (enabled != a2410_isactive) {
-		if (!enabled)
+		if (!enabled) {
 			picasso_requested_on = 0;
-		a2410_isactive = enabled;
-		write_log(_T("A2410 ACTIVE=%d\n"), a2410_isactive);
+		} else {
+			if (a2410_modechanged) {
+				picasso96_state.Width = a2410_width;
+				picasso96_state.Height = a2410_height;
+				picasso96_state.BytesPerPixel = 1;
+				picasso96_state.RGBFormat = RGBFB_CLUT;
+				write_log(_T("A2410 %d*%d\n"), a2410_width, a2410_height);
+				gfx_set_picasso_modeinfo(a2410_width, a2410_height, 1, RGBFB_NONE);
+				init_hz_p96();
+			}
+			picasso_requested_on = 1;
+			a2410_modechanged = false;
+			fullrefresh = 2;
+		}
+		a2410_enabled = enabled;
+		write_log(_T("A2410 ACTIVE=%d\n"), a2410_enabled);
 	}
 
 	if (picasso_on) {
@@ -724,7 +785,7 @@ static void a2410_rethink(void)
 
 void tms_vsync_handler(void)
 {
-	if (!a2410_isactive)
+	if (!a2410_enabled)
 		tms_vsync_handler2(false);
 
 	if (a2410_surface)
@@ -732,7 +793,7 @@ void tms_vsync_handler(void)
 	a2410_surface = NULL;
 }
 
-void tms_hsync_handler(void)
+static void tms_hsync_handler2(void)
 {
 	if (!tms_configured)
 		return;
@@ -744,7 +805,7 @@ void tms_hsync_handler(void)
 
 	a2410_rethink();
 
-	if (!a2410_isactive)
+	if (!a2410_enabled)
 		return;
 
 	if (a2410_vpos == 0) {
@@ -877,6 +938,12 @@ void tms_hsync_handler(void)
 		xx++;
 	}
 
+}
+
+void tms_hsync_handler(void)
+{
+	for (int i = 0; i < a2410_hsync_max; i++)
+		tms_hsync_handler2();
 }
 
 void standard_irq_callback(int level)
