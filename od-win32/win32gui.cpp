@@ -7696,8 +7696,8 @@ static void enable_for_memorydlg (HWND hDlg)
 extern uae_u32 natmem_size;
 static void setmax32bitram (HWND hDlg)
 {
-	TCHAR tmp[100];
-	uae_u32 size, rtgz3size, z3size;
+	TCHAR tmp[256];
+	uae_u32 size, rtgz3size, z3size_uae = 0, z3size_real = 0;
 	uae_u32 sizealign = 16 * 1024 * 1024 - 1;
 
 	rtgz3size = gfxboard_get_configtype(workprefs.rtgmem_type) == 3 ? workprefs.rtgmem_size : 0;
@@ -7708,12 +7708,12 @@ static void setmax32bitram (HWND hDlg)
 	if (changed_prefs.mbresmem_high_size >= 128 * 1024 * 1024 && (size || workprefs.z3chipmem_size))
 		size += (changed_prefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024;
 	if (natmem_size > 0x40000000)
-		z3size = natmem_size - 0x40000000;
-	else
-		z3size = 0;
+		z3size_real = natmem_size - 0x40000000;
+	if (natmem_size > 0x10000000)
+		z3size_uae = natmem_size - 0x10000000;
 	size += ((workprefs.z3chipmem_size + sizealign) & ~sizealign);
-	_stprintf (tmp, L"Configured 32-bit RAM: %dM, reserved: %dM, true Z3 address space available: %dM",
-		size / (1024 * 1024), (natmem_size - 256 * 1024 * 1024) / (1024 * 1024), z3size / (1024 * 1024));
+	_stprintf (tmp, L"Configured 32-bit RAM: %dM, reserved: %dM, Z3 available: %dM (UAE), %dM (Real)",
+		size / (1024 * 1024), (natmem_size - 256 * 1024 * 1024) / (1024 * 1024), z3size_uae / (1024 * 1024), z3size_real / (1024 * 1024));
 	SetDlgItemText (hDlg, IDC_MAX32RAM, tmp);
 }
 
@@ -8199,7 +8199,7 @@ static void init_expansion2(HWND hDlg)
 }
 
 
-static const int expansion_settings_id[] = { IDC_EXPANSION_SETTING1, IDC_EXPANSION_SETTING2, -IDC_EXPANSION_SETTING3, 1 };
+static const int expansion_settings_id[] = { IDC_EXPANSION_SETTING1, IDC_EXPANSION_SETTING2, IDC_EXPANSION_SETTING3, 1 };
 
 static void values_to_expansion2dlg_sub(HWND hDlg)
 {
@@ -8382,6 +8382,7 @@ static void values_to_expansion2_expansion_settings(HWND hDlg)
 	while (expansion_settings_id[i] >= 0) {
 		int id = expansion_settings_id[i];
 		SetWindowText(GetDlgItem(hDlg, id), _T("-"));
+		hide(hDlg, id, true);
 		i++;
 	}
 }
@@ -8816,6 +8817,13 @@ static void values_to_expansiondlg(HWND hDlg)
 		while (getz2size(&workprefs) < 0 && workprefs.rtgmem_size > 0)
 			workprefs.rtgmem_size -= 1024 * 1024;
 	} else if (gfxboard_get_configtype(workprefs.rtgmem_type) == 3) {
+		int v = workprefs.rtgmem_size;
+		if (workprefs.rtgmem_type >= GFXBOARD_HARDWARE && v > gfxboard_get_vram_max(workprefs.rtgmem_type))
+			v = gfxboard_get_vram_max(workprefs.rtgmem_type);
+		if (workprefs.rtgmem_type >= GFXBOARD_HARDWARE && v < gfxboard_get_vram_min(workprefs.rtgmem_type))
+			v = gfxboard_get_vram_min(workprefs.rtgmem_type);
+		workprefs.rtgmem_size = v;
+	} else {
 		int v = workprefs.rtgmem_size;
 		if (workprefs.rtgmem_type >= GFXBOARD_HARDWARE && v > gfxboard_get_vram_max(workprefs.rtgmem_type))
 			v = gfxboard_get_vram_max(workprefs.rtgmem_type);

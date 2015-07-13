@@ -1,4 +1,29 @@
 
+Beta 3:
+
+- CD and sound card audio are now always resampled with Anti interpolator before it gets mixed
+  with Paula audio stream. Previously it used very crude resampling method.
+- ES1370 (SB128) emulation fixed, DMA length register was not reset when playback was restarted.
+  (I don't understand how it would have ever worked in QEMU without sound glitches)
+- Added "Full PCI DMA" option to PCI bridges that in real world don't have Amiga to/from PCI DMA
+  support (Prometheus and Mediators). Default is off = emulates real hardware limits.
+- Validate PCI DMA addresses, log message and return random data if trying to access unsupported address
+  or if attempting to access Amiga address space and bridge does not have full PCI DMA support.
+  (Probably becomes HALT-something if real hardware simply hangs in this situation)
+- 68040 MMU mode hardware bus error not caused by MMU had incorrectly status register ATC bit set.
+- More reliable A2410 resolution switching.
+- A2410 framebuffer space is also mirrored at the beginning of TMS34010 address space.
+- Implemented A2410 TMS34010 to/from Amiga address space DMA feature. So far no programs found that
+  uses it.
+- Emulate 68020/030 prefetch pipeline more accurately, branch instructions stop prefetching after
+  last opword of branch instruction has been loaded. It reduces unnecessary memory accesses.
+  This probably also makes 68020/030 cycle exact mode even more faster without adjusting
+  other parts of emulation (which needed to be made faster because some other unknown part
+  was too slow, hopefully it was this prefetch feature..)
+  Not fully implemented yet, addressing modes that use brief or full extension words disable
+  this feature until next branch instruction because length of instruction needs to be known in
+  advance and in these addressing modes it can't be calculated statically.
+
 Beta 2:
 
 - Borderblanking works again (b1)
@@ -13,6 +38,9 @@ Beta 2:
 - Added ES1370 from QEMU. (PCI sound card), common ES1370 based card is SB128.
 - Added FM801 emulation. (PCI sound card).
 - Added Vortex System 2000 HD controller.
+- 68020/030 prefetch/cycle-exact: don't prefetch from old PC if instruction is going to branch.
+- Accelerator board memory size reset when viewing RAM GUI panel if accelerator used "Blizzard" RAM type.
+- HD and RTG boards are now named <name> (<manufacturer>).
 - A2410 display card emulation! TMS34010 emulation core from MAME.
 
 A2410 notes:

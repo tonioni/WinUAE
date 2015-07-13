@@ -1136,6 +1136,9 @@ WRITE16_MEMBER( tms340x0_device::io_register_w )
 	oldreg = IOREG(offset);
 	IOREG(offset) = data;
 
+//	if (offset != 15 && offset != 16)
+//		write_log("WRITE %08x %04 (%04x)\n", offset, data, oldreg);
+
 	switch (offset)
 	{
 		case REG_CONTROL:
@@ -1472,6 +1475,8 @@ READ16_MEMBER( tms340x0_device::io_register_r )
 
 //  if (LOG_CONTROL_REGS)
 //      logerror("%s: read %s\n", machine().describe_context(), ioreg_name[offset]);
+
+//	write_log("READ %08x %04x\n", offset, IOREG(offset));
 
 	switch (offset)
 	{

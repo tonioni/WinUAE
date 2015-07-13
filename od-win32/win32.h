@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("2")
+#define WINUAEBETA _T("3")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2015, 7, 7)
+#define WINUAEDATE MAKEBD(2015, 7, 13)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -112,7 +112,7 @@ void setpathmode (pathtype pt);
 
 extern void sleep_millis (int ms);
 extern void sleep_millis_main (int ms);
-extern void sleep_millis_busy (int ms);
+extern void sleep_millis_amiga (int ms);
 extern void wait_keyrelease (void);
 extern void keyboard_settrans (void);
 
