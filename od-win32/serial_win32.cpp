@@ -26,6 +26,11 @@
 
 #include "od-win32/parser.h"
 
+#define SERIALLOGGING 0
+#define SERIALDEBUG 3 /* 0, 1, 2 3 */
+#define SERIALHSDEBUG 0
+#define SERIAL_HSYNC_BEFORE_OVERFLOW 200
+
 #define SERMAP_SIZE 256
 struct sermap_buffer
 {
@@ -138,8 +143,7 @@ bool shmem_serial_create(void)
 		sermap2 = (struct sermap_buffer*)(sermap_data + sizeof(struct sermap_buffer));
 		sermap1->version = version;
 		sermap2->version = version;
-	}
-	else {
+	} else {
 		sermap2 = (struct sermap_buffer*)sermap_data;
 		sermap1 = (struct sermap_buffer*)(sermap_data + sizeof(struct sermap_buffer));
 		if (sermap2->version != version || sermap1->version != version) {
@@ -150,12 +154,6 @@ bool shmem_serial_create(void)
 	}
 	return true;
 }
-
-#define SERIALLOGGING 0
-#define SERIALDEBUG 0 /* 0, 1, 2 3 */
-#define SERIALHSDEBUG 0
-#define MODEMTEST   0 /* 0 or 1 */
-#define SERIAL_HSYNC_BEFORE_OVERFLOW 200
 
 static int data_in_serdat; /* new data written to SERDAT */
 static int data_in_serdatr; /* new data received */
@@ -253,13 +251,34 @@ static TCHAR dochar (int v)
 	return '.';
 }
 
+static void flushser(void)
+{
+	while (readseravail() > 0) {
+		int data;
+		if (!readser(&data))
+			break;
+	}
+}
+
 static bool canreceive(void)
 {
 	if (!data_in_serdatr)
 		return true;
 	if (currprefs.serial_direct)
 		return false;
-	return serdatr_last_got >= SERIAL_HSYNC_BEFORE_OVERFLOW || currprefs.cpu_cycle_exact;
+	if (currprefs.cpu_cycle_exact)
+		return true;
+	if (serdatr_last_got > SERIAL_HSYNC_BEFORE_OVERFLOW) {
+#if SERIALDEBUG > 0
+		write_log(_T("SERIAL: OVERRUN\n"));
+#endif
+		flushser();
+		ovrun = true;
+		data_in_serdatr = 0;
+		serdatr_last_got = 0;
+		return true;
+	}
+	return false;
 }
 
 static void checkreceive_enet (void)
@@ -495,7 +514,8 @@ void serial_hsynchandler (void)
 			serial_check_irq();
 		}
 	}
-	serdatr_last_got++;
+	if (data_in_serdatr)
+		serdatr_last_got++;
 	if (serial_period_hsyncs == 0)
 		return;
 	serial_period_hsync_counter++;
