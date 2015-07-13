@@ -3174,7 +3174,8 @@ static void print_task_info (uaecptr node, bool nonactive)
 		uae_u32 sigwait = get_long_debug(node + 22);
 		if (sigwait)
 			console_out_f(_T("          Waiting signals: %08x\n"), sigwait);
-		uae_u32 sp = get_long_debug(node + 54) + 70;
+		int offset = kickstart_version >= 37 ? 74 : 70;
+		uae_u32 sp = get_long_debug(node + 54) + offset;
 		uae_u32 pc = get_long_debug(sp);
 		console_out_f(_T("          SP: %08x PC: %08x\n"), sp, pc);
 	}
