@@ -2675,11 +2675,105 @@ void map_banks_cond (addrbank *bank, int start, int size, int realsize)
 	map_banks (bank, start, size, realsize);
 }
 
+#ifdef WITH_THREADED_CPU
+
+struct addrbank_thread {
+	addrbank *orig;
+	addrbank ab;
+};
+
+#define MAX_THREAD_BANKS 200
+static addrbank_thread *thread_banks[MAX_THREAD_BANKS];
+static addrbank *thread_mem_banks[MEMORY_BANKS];
+static int thread_banks_used;
+
+static void REGPARAM2 threadcpu_lput(uaecptr addr, uae_u32 l)
+{
+	cpu_semaphore_get();
+	thread_mem_banks[bankindex(addr)]->lput(addr, l);
+	cpu_semaphore_release();
+}
+
+static void REGPARAM2 threadcpu_wput(uaecptr addr, uae_u32 w)
+{
+	cpu_semaphore_get();
+	thread_mem_banks[bankindex(addr)]->wput(addr, w);
+	cpu_semaphore_release();
+}
+
+static void REGPARAM2 threadcpu_bput(uaecptr addr, uae_u32 b)
+{
+	cpu_semaphore_get();
+	thread_mem_banks[bankindex(addr)]->bput(addr, b);
+	cpu_semaphore_release();
+}
+static uae_u32 REGPARAM2 threadcpu_lget(uaecptr addr)
+{
+	cpu_semaphore_get();
+	uae_u32 v = thread_mem_banks[bankindex(addr)]->lget(addr);
+	cpu_semaphore_release();
+	return v;
+}
+static uae_u32 REGPARAM2 threadcpu_wget(uaecptr addr)
+{
+	cpu_semaphore_get();
+	uae_u32 v = thread_mem_banks[bankindex(addr)]->wget(addr);
+	cpu_semaphore_release();
+	return v;
+}
+uae_u32 REGPARAM2 threadcpu_bget(uaecptr addr)
+{
+	cpu_semaphore_get();
+	uae_u32 v = thread_mem_banks[bankindex(addr)]->bget(addr);
+	cpu_semaphore_release();
+	return v;
+}
+
+static addrbank *get_bank_cpu_thread(addrbank *bank)
+{
+	if (bank->flags & ABFLAG_THREADSAFE)
+		return bank;
+	if (bank == &dummy_bank)
+		return bank;
+
+	for (int i = 0; i < thread_banks_used; i++) {
+		if (thread_banks[i]->orig == bank) {
+			return &thread_banks[i]->ab;
+		}
+	}
+	struct addrbank_thread *at = thread_banks[thread_banks_used];
+	if (!at)
+		at = xcalloc(addrbank_thread, 1);
+	thread_banks[thread_banks_used++] = at;
+	at->orig = bank;
+	memcpy(&at->ab, bank, sizeof addrbank);
+	addrbank *tb = &at->ab;
+	tb->lget = threadcpu_lget;
+	tb->wget = threadcpu_wget;
+	tb->bget = threadcpu_bget;
+	tb->lput = threadcpu_lput;
+	tb->wput = threadcpu_wput;
+	tb->bput = threadcpu_bput;
+	// wgeti/lgeti should always point to real RAM
+	return tb;
+}
+#endif
+
 static void map_banks2 (addrbank *bank, int start, int size, int realsize, int quick)
 {
 	int bnr, old;
 	unsigned long int hioffs = 0, endhioffs = 0x100;
 	uae_u32 realstart = start;
+	addrbank *orig_bank = NULL;
+
+#ifdef WITH_THREADED_CPU
+	if (currprefs.cpu_thread) {
+		addrbank *b = bank;
+		bank = get_bank_cpu_thread(bank);
+		if (b != bank)
+			orig_bank = b;
+	}
+#endif
 
 	if (quick <= 0)
 		old = debug_bankchange (-1);
@@ -2710,6 +2804,13 @@ static void map_banks2 (addrbank *bank, int start, int size, int realsize, int q
 #endif
 			}
 			put_mem_bank (bnr << 16, bank, realstart << 16);
+#ifdef WITH_THREADED_CPU
+			if (currprefs.cpu_thread) {
+				if (orig_bank)
+					put_mem_bank(bnr << 16, orig_bank, realstart << 16);
+				thread_mem_banks[bnr] = orig_bank;
+			}
+#endif
 			real_left--;
 		}
 		if (quick <= 0)
@@ -2734,6 +2835,13 @@ static void map_banks2 (addrbank *bank, int start, int size, int realsize, int q
 #endif
 			}
 			put_mem_bank ((bnr + hioffs) << 16, bank, realstart << 16);
+#ifdef WITH_THREADED_CPU
+			if (currprefs.cpu_thread) {
+				if (orig_bank)
+					put_mem_bank((bnr + hioffs) << 16, bank, realstart << 16);
+				thread_mem_banks[bnr + hioffs] = orig_bank;
+			}
+#endif
 			real_left--;
 		}
 	}

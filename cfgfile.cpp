@@ -1702,6 +1702,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("cpu_24bit_addressing"), p->address_space_24);
 	/* do not reorder end */
 	cfgfile_dwrite_bool(f, _T("cpu_reset_pause"), p->reset_delay);
+	cfgfile_dwrite_bool(f, _T("cpu_threaded"), p->cpu_thread);
 	if (p->ppc_mode)
 		cfgfile_write_str(f, _T("ppc_implementation"), ppc_implementations[p->ppc_implementation]);
 
@@ -4160,7 +4161,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("ntsc"), &p->ntscmode)
 		|| cfgfile_yesno (option, value, _T("sana2"), &p->sana2)
 		|| cfgfile_yesno (option, value, _T("genlock"), &p->genlock)
-		|| cfgfile_yesno (option, value, _T("cpu_compatible"), &p->cpu_compatible)
+		|| cfgfile_yesno(option, value, _T("cpu_compatible"), &p->cpu_compatible)
+		|| cfgfile_yesno(option, value, _T("cpu_threaded"), &p->cpu_thread)
 		|| cfgfile_yesno(option, value, _T("cpu_24bit_addressing"), &p->address_space_24)
 		|| cfgfile_yesno(option, value, _T("cpu_reset_pause"), &p->reset_delay)
 		|| cfgfile_yesno(option, value, _T("parallel_on_demand"), &p->parallel_demand)
@@ -6056,6 +6058,8 @@ void default_prefs (struct uae_prefs *p, int type)
 
 	p->prtname[0] = 0;
 	p->sername[0] = 0;
+
+	p->cpu_thread = false;
 
 	p->fpu_model = 0;
 	p->cpu_model = 68000;

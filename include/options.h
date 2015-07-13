@@ -559,6 +559,7 @@ struct uae_prefs {
 	int ppc_mode;
 	TCHAR ppc_model[32];
 	bool cpu_compatible;
+	bool cpu_thread;
 	bool int_no_unimplemented;
 	bool fpu_no_unimplemented;
 	bool address_space_24;

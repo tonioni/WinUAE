@@ -12,8 +12,8 @@ extern void leave_program (void);
 extern void real_main (int, TCHAR **);
 extern void usage (void);
 extern void sleep_millis (int ms);
-extern void sleep_millis_main (int ms);
-extern void sleep_millis_busy (int ms);
+extern void sleep_millis_main(int ms);
+extern void sleep_millis_amiga(int ms);
 extern int sleep_resolution;
 
 #define UAE_QUIT 1

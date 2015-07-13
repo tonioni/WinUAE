@@ -296,6 +296,16 @@ void sleep_millis (int ms)
 	sleep_millis2 (ms, false);
 }
 
+void sleep_millis_amiga(int ms)
+{
+#ifdef WITH_THREADED_CPU
+	cpu_semaphore_release();
+#endif
+	sleep_millis_main(ms);
+#ifdef WITH_THREADED_CPU
+	cpu_semaphore_get();
+#endif
+}
 
 frame_time_t read_processor_time_qpf (void)
 {

@@ -399,9 +399,9 @@ extern addrbank *get_mem_bank_real(uaecptr);
 #define put_mem_bank(addr, b, realstart) do { \
 	(mem_banks[bankindex(addr)] = (b)); \
 	if ((b)->baseaddr) \
-	baseaddr[bankindex(addr)] = (b)->baseaddr - (realstart); \
+		baseaddr[bankindex(addr)] = (b)->baseaddr - (realstart); \
 	else \
-	baseaddr[bankindex(addr)] = (uae_u8*)(((uae_u8*)b)+1); \
+		baseaddr[bankindex(addr)] = (uae_u8*)(((uae_u8*)b)+1); \
 } while (0)
 #else
 #define put_mem_bank(addr, b, realstart) \

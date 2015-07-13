@@ -1749,7 +1749,7 @@ STATIC_INLINE bool isgayle (void)
 
 static void cia_wait_pre (int cianummask)
 {
-	if (currprefs.cachesize)
+	if (currprefs.cachesize || currprefs.cpu_thread)
 		return;
 #ifdef WITH_PPC
 	if (ppc_state)
@@ -1788,6 +1788,8 @@ static void cia_wait_post (int cianummask, uae_u32 value)
 	if (ppc_state)
 		return;
 #endif
+	if (currprefs.cpu_thread)
+		return;
 	if (currprefs.cachesize) {
 		do_cycles (8 * CYCLE_UNIT /2);
 	} else {
