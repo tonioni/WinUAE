@@ -159,7 +159,7 @@ static void read_counts (void)
 static char endlabelstr[80];
 static int endlabelno = 0;
 static int need_endlabel;
-static int genamode_cnt;
+static int genamode_cnt, genamode8r_offset[2];
 
 static int n_braces, limit_braces;
 static int m68k_pc_offset, m68k_pc_offset_old;
@@ -1285,7 +1285,10 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		rmw = true;
 	}
 
-	genamode_cnt++;
+	if (mode == Ad8r || mode == PC8r) {
+		genamode8r_offset[genamode_cnt] = m68k_pc_total + m68k_pc_offset;
+		genamode_cnt++;
+	}
 
 	start_brace ();
 
@@ -2685,6 +2688,7 @@ static void resetvars (void)
 	insn_n_cycles = using_prefetch ? 0 : 4;
 	insn_n_cycles020 = 0;
 	genamode_cnt = 0;
+	genamode8r_offset[0] = genamode8r_offset[1] = 0;
 	m68k_pc_total = 0;
 	branch_inst = 0;
 
@@ -5513,8 +5517,8 @@ static char *outopcode (int opcode)
 struct cputbl_tmp
 {
 	uae_s16 length;
-	uae_u16 disp020;
-	uae_u16 branch;
+	uae_u8 disp020[2];
+	uae_u8 branch;
 };
 static struct cputbl_tmp cputbltmp[65536];
 
@@ -5540,11 +5544,11 @@ static void generate_one_opcode (int rp, const char *extra)
 	if (opcode_next_clev[rp] != cpu_level) {
 		char *name = ua (lookuptab[idx].name);
 		if (generate_stbl)
-			fprintf (stblfile, "{ %sCPUFUNC(op_%04x_%d%s), 0x%04x, %d, %d, %d }, /* %s */\n",
+			fprintf (stblfile, "{ %sCPUFUNC(op_%04x_%d%s), 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
 				(using_ce || using_ce020) ? "(cpuop_func*)" : "",
 				opcode, opcode_last_postfix[rp],
 				extra, opcode,
-				cputbltmp[opcode].length, cputbltmp[opcode].disp020, cputbltmp[opcode].branch, name);
+				cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
 		xfree (name);
 		return;
 	}
@@ -5657,17 +5661,18 @@ static void generate_one_opcode (int rp, const char *extra)
 	if ((opcode & 0xf000) == 0xf000)
 		m68k_pc_total = -1;
 	cputbltmp[opcode].length = m68k_pc_total;
-	cputbltmp[opcode].disp020 = disp020cnt;
+	cputbltmp[opcode].disp020[0] = genamode8r_offset[0];
+	cputbltmp[opcode].disp020[1] = genamode8r_offset[1];
 	cputbltmp[opcode].branch = branch_inst;
 
 	if (generate_stbl) {
 		char *name = ua (lookuptab[idx].name);
 		if (i68000)
 			fprintf (stblfile, "#ifndef CPUEMU_68000_ONLY\n");
-		fprintf (stblfile, "{ %sCPUFUNC(op_%04x_%d%s), 0x%04x, %d, %d, %d }, /* %s */\n",
+		fprintf (stblfile, "{ %sCPUFUNC(op_%04x_%d%s), 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
 			(using_ce || using_ce020) ? "(cpuop_func*)" : "",
 			opcode, postfix, extra, opcode,
-			cputbltmp[opcode].length, cputbltmp[opcode].disp020, cputbltmp[opcode].branch, name);
+			cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
 		if (i68000)
 			fprintf (stblfile, "#endif\n");
 		xfree (name);

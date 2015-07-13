@@ -91,8 +91,8 @@ cpuop_func *cpufunctbl[65536];
 struct cputbl_data
 {
 	uae_s16 length;
-	uae_u16 disp020;
-	uae_u16 branch;
+	uae_u8 disp020[2];
+	uae_u8 branch;
 };
 static struct cputbl_data cpudatatbl[65536];
 
@@ -1229,7 +1229,8 @@ static void build_cpufunctbl (void)
 		opcode = tbl[i].opcode;
 		cpufunctbl[opcode] = tbl[i].handler;
 		cpudatatbl[opcode].length = tbl[i].length;
-		cpudatatbl[opcode].disp020 = tbl[i].disp020;
+		cpudatatbl[opcode].disp020[0] = tbl[i].disp020[0];
+		cpudatatbl[opcode].disp020[1] = tbl[i].disp020[1];
 		cpudatatbl[opcode].branch = tbl[i].branch;
 	}
 
@@ -1240,7 +1241,8 @@ static void build_cpufunctbl (void)
 			if ((tbl[i].opcode & 0xfe00) == 0xf200) {
 				cpufunctbl[tbl[i].opcode] = tbl[i].handler;
 				cpudatatbl[tbl[i].opcode].length = tbl[i].length;
-				cpudatatbl[tbl[i].opcode].disp020 = tbl[i].disp020;
+				cpudatatbl[tbl[i].opcode].disp020[0] = tbl[i].disp020[0];
+				cpudatatbl[tbl[i].opcode].disp020[1] = tbl[i].disp020[1];
 				cpudatatbl[tbl[i].opcode].branch = tbl[i].branch;
 			}
 		}
@@ -6643,49 +6645,57 @@ static void pipeline_020(uae_u16 w, uaecptr pc)
 {
 	if (regs.pipeline_pos <  0)
 		return;
-#if 0
-	if (regs.pipeline_pos > 2 && regs.pipeline_next) {
-		// disp 020+ second word
-		if (w & 0x100) {
-			if ((w & 0x30) == 0x20)
-				regs.pipeline_pos += 2;
-			if ((w & 0x30) == 0x30)
-				regs.pipeline_pos += 4;
-			if ((w & 0x3) == 0x2)
-				regs.pipeline_pos += 2;
-			if ((w & 0x3) == 0x3)
-				regs.pipeline_pos += 4;
-		}
-		regs.pipeline_next = false;
-	}
-#endif
 	if (regs.pipeline_pos > 2) {
 		regs.pipeline_pos -= 2;
 		return;
+	}
+	if (regs.pipeline_pos == 2) {
+		if (regs.pipeline_r8[0]) {
+			regs.pipeline_r8[0] = 0;
+			// disp 020+ word
+			if (w & 0x100) {
+				if ((w & 0x30) == 0x20)
+					regs.pipeline_pos += 2;
+				if ((w & 0x30) == 0x30)
+					regs.pipeline_pos += 4;
+				if ((w & 0x03) == 0x02)
+					regs.pipeline_pos += 2;
+				if ((w & 0x03) == 0x03)
+					regs.pipeline_pos += 4;
+			}
+			return;
+		}
+		if (regs.pipeline_r8[1]) {
+			regs.pipeline_r8[1] = 0;
+			// disp 020+ word
+			if (w & 0x100) {
+				if ((w & 0x30) == 0x20)
+					regs.pipeline_pos += 2;
+				if ((w & 0x30) == 0x30)
+					regs.pipeline_pos += 4;
+				if ((w & 0x03) == 0x02)
+					regs.pipeline_pos += 2;
+				if ((w & 0x03) == 0x03)
+					regs.pipeline_pos += 4;
+			}
+			return;
+		}
 	}
 	if (regs.pipeline_stop) {
 		regs.pipeline_stop = -1;
 		return;
 	}
+	regs.pipeline_r8[0] = cpudatatbl[w].disp020[0] != 0;
+	regs.pipeline_r8[1] = cpudatatbl[w].disp020[1] != 0;
 	regs.pipeline_pos = cpudatatbl[w].length;
-	regs.pipeline_next = false;
 #if 0
 	if (!regs.pipeline_pos) {
 		write_log(_T("Opcode %04x has no size PC=%08x!\n"), w, pc);
 	}
 #endif
-	if (cpudatatbl[w].disp020) {
-		// not supported yet
-		regs.pipeline_pos = -1;
-#if 0
-		regs.pipeline_next = true;
-		regs.pipeline_pos += 2;
-#endif
-	}
-
 	if (regs.pipeline_pos > 0 && cpudatatbl[w].branch) {
 		regs.pipeline_pos -= 1 * 2;
-		if (regs.pipeline_pos <= 0)
+		if (regs.pipeline_pos <= 0 && !regs.pipeline_r8[0] && !regs.pipeline_r8[1])
 			regs.pipeline_stop = -1;
 		else
 			regs.pipeline_stop = 1;
