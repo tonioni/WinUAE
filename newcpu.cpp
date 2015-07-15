@@ -6693,10 +6693,13 @@ static void pipeline_020(uae_u16 w, uaecptr pc)
 		write_log(_T("Opcode %04x has no size PC=%08x!\n"), w, pc);
 	}
 #endif
-	if (regs.pipeline_pos > 0 && cpudatatbl[w].branch) {
+	int branch = cpudatatbl[w].branch;
+	if (regs.pipeline_pos > 0 && branch) {
+		// Short branches (Bcc.s) still do one more prefetch.
+		// RTS and other unconditional single opcode instruction stop immediately.
 		regs.pipeline_pos -= 1 * 2;
-		if (regs.pipeline_pos <= 0 && !regs.pipeline_r8[0] && !regs.pipeline_r8[1])
-			regs.pipeline_stop = -1;
+		if (branch == 2)
+			regs.pipeline_stop = -1; // immediate stop
 		else
 			regs.pipeline_stop = 1;
 	}
