@@ -91,7 +91,7 @@ cpuop_func *cpufunctbl[65536];
 struct cputbl_data
 {
 	uae_s16 length;
-	uae_u8 disp020[2];
+	uae_s8 disp020[2];
 	uae_u8 branch;
 };
 static struct cputbl_data cpudatatbl[65536];
@@ -6609,6 +6609,8 @@ static void fill_icache020 (uae_u32 addr, uae_u32 (*fetch)(uaecptr))
 	struct cache020 *c;
 
 	addr &= ~3;
+	if (regs.cacheholdingaddr020 == addr)
+		return;
 	index = (addr >> 2) & (CACHELINES020 - 1);
 	tag = regs.s | (addr & ~((CACHELINES020 << 2) - 1));
 	c = &caches020[index];
@@ -6641,54 +6643,67 @@ static void fill_icache020 (uae_u32 addr, uae_u32 (*fetch)(uaecptr))
 }
 
 #if MORE_ACCURATE_68020_PIPELINE
+#define PIPELINE_DEBUG 0
+#if PIPELINE_DEBUG
+static uae_u16 pipeline_opcode;
+#endif
 static void pipeline_020(uae_u16 w, uaecptr pc)
 {
-	if (regs.pipeline_pos <  0)
+	if (regs.pipeline_pos < 0)
 		return;
+	if (regs.pipeline_pos > 0) {
+		// handle annoying 68020+ addressing modes
+		if (regs.pipeline_pos == regs.pipeline_r8[0]) {
+			regs.pipeline_r8[0] = 0;
+			if (w & 0x100) {
+				int extra = 0;
+				if ((w & 0x30) == 0x20)
+					extra += 2;
+				if ((w & 0x30) == 0x30)
+					extra += 4;
+				if ((w & 0x03) == 0x02)
+					extra += 2;
+				if ((w & 0x03) == 0x03)
+					extra += 4;
+				regs.pipeline_pos += extra;
+			}
+			return;
+		}
+		if (regs.pipeline_pos == regs.pipeline_r8[1]) {
+			regs.pipeline_r8[1] = 0;
+			if (w & 0x100) {
+				int extra = 0;
+				if ((w & 0x30) == 0x20)
+					extra += 2;
+				if ((w & 0x30) == 0x30)
+					extra += 4;
+				if ((w & 0x03) == 0x02)
+					extra += 2;
+				if ((w & 0x03) == 0x03)
+					extra += 4;
+				regs.pipeline_pos += extra;
+			}
+			return;
+		}
+	}
 	if (regs.pipeline_pos > 2) {
 		regs.pipeline_pos -= 2;
+		// If stop set, prefetches stop 1 word early.
+		if (regs.pipeline_stop > 0 && regs.pipeline_pos == 2)
+			regs.pipeline_stop = -1;
 		return;
-	}
-	if (regs.pipeline_pos == 2) {
-		if (regs.pipeline_r8[0]) {
-			regs.pipeline_r8[0] = 0;
-			// disp 020+ word
-			if (w & 0x100) {
-				if ((w & 0x30) == 0x20)
-					regs.pipeline_pos += 2;
-				if ((w & 0x30) == 0x30)
-					regs.pipeline_pos += 4;
-				if ((w & 0x03) == 0x02)
-					regs.pipeline_pos += 2;
-				if ((w & 0x03) == 0x03)
-					regs.pipeline_pos += 4;
-			}
-			return;
-		}
-		if (regs.pipeline_r8[1]) {
-			regs.pipeline_r8[1] = 0;
-			// disp 020+ word
-			if (w & 0x100) {
-				if ((w & 0x30) == 0x20)
-					regs.pipeline_pos += 2;
-				if ((w & 0x30) == 0x30)
-					regs.pipeline_pos += 4;
-				if ((w & 0x03) == 0x02)
-					regs.pipeline_pos += 2;
-				if ((w & 0x03) == 0x03)
-					regs.pipeline_pos += 4;
-			}
-			return;
-		}
 	}
 	if (regs.pipeline_stop) {
 		regs.pipeline_stop = -1;
 		return;
 	}
-	regs.pipeline_r8[0] = cpudatatbl[w].disp020[0] != 0;
-	regs.pipeline_r8[1] = cpudatatbl[w].disp020[1] != 0;
+#if PIPELINE_DEBUG
+	pipeline_opcode = w;
+#endif
+	regs.pipeline_r8[0] = cpudatatbl[w].disp020[0];
+	regs.pipeline_r8[1] = cpudatatbl[w].disp020[1];
 	regs.pipeline_pos = cpudatatbl[w].length;
-#if 0
+#if PIPELINE_DEBUG
 	if (!regs.pipeline_pos) {
 		write_log(_T("Opcode %04x has no size PC=%08x!\n"), w, pc);
 	}
@@ -6697,12 +6712,24 @@ static void pipeline_020(uae_u16 w, uaecptr pc)
 	if (regs.pipeline_pos > 0 && branch) {
 		// Short branches (Bcc.s) still do one more prefetch.
 		// RTS and other unconditional single opcode instruction stop immediately.
-		regs.pipeline_pos -= 1 * 2;
-		if (branch == 2)
-			regs.pipeline_stop = -1; // immediate stop
-		else
+		if (branch == 2) {
+			// Immediate stop
+			regs.pipeline_stop = -1;
+		} else {
+			// Stop 1 word early than normally
 			regs.pipeline_stop = 1;
+		}
 	}
+}
+
+// Not exactly right, requires logic analyzer checks.
+void continue_ce020_prefetch(void)
+{
+	fill_prefetch_020();
+}
+void continue_020_prefetch(void)
+{
+	fill_prefetch_020();
 }
 #endif
 
@@ -7022,6 +7049,8 @@ static void fill_icache030 (uae_u32 addr)
 	struct cache030 *c;
 
 	addr &= ~3;
+	if (regs.cacheholdingaddr020 == addr)
+		return;
 	c = getcache030 (icaches030, addr, &tag, &lws);
 	if (c->valid[lws] && c->tag == tag) {
 		// cache hit
@@ -7683,6 +7712,7 @@ void fill_prefetch_020 (void)
 	uae_u32 (*fetch)(uaecptr) = currprefs.cpu_cycle_exact ? mem_access_delay_longi_read_ce020 : get_longi;
 	regs.pipeline_pos = 0;
 	regs.pipeline_stop = 0;
+	regs.pipeline_r8[0] = regs.pipeline_r8[1] = -1;
 
 	fill_icache020 (pc, fetch);
 	if (currprefs.cpu_cycle_exact)

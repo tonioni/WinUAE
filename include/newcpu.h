@@ -60,7 +60,7 @@ struct cputbl {
 	cpuop_func *handler;
 	uae_u16 opcode;
 	uae_s8 length;
-	uae_u8 disp020[2];
+	uae_s8 disp020[2];
 	uae_u8 branch;
 };
 
@@ -207,7 +207,7 @@ struct regstruct
 	uae_u32 cacheholdingdata020;
 	uae_u32 cacheholdingaddr020;
 	int pipeline_pos;
-	bool pipeline_r8[2];
+	int pipeline_r8[2];
 	int pipeline_stop;
 	int ce020memcycles;
 	int ce020extracycles;

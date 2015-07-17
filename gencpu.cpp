@@ -253,6 +253,15 @@ static void get_prefetch_020_0 (void)
 		return;
 	printf ("\tregs.irc = %s (0);\n", prefetch_word);
 }
+static void get_prefetch_020_continue(void)
+{
+	if (!isprefetch020())
+		return;
+	if (using_ce020)
+		printf("\tcontinue_ce020_prefetch();\n");
+	else
+		printf ("\tcontinue_020_prefetch();\n");
+}
 
 static void returntail (bool iswrite)
 {
@@ -4100,7 +4109,7 @@ static void gen_opcode (unsigned int opcode)
 		need_endlabel = 1;
 		sync_m68k_pc ();
 		addcycles000 (2);
-		get_prefetch_020_0 ();
+		get_prefetch_020_continue ();
 		if (curi->size == sz_byte) {
 			irc2ir ();
 			add_head_cycs (4);
@@ -4113,8 +4122,7 @@ static void gen_opcode (unsigned int opcode)
 			fill_prefetch_full_000 ();
 		}
 		insn_n_cycles = curi->size == sz_byte ? 8 : 12;
-		if (curi->cc == 0)
-			branch_inst = 1;
+		branch_inst = 1;
 bccl_not68020:
 		break;
 	case i_LEA:
@@ -4187,10 +4195,11 @@ bccl_not68020:
 		pop_ins_cnt();
 		setpc ("oldpc + %d", m68k_pc_offset);
 		clear_m68k_offset();
-		get_prefetch_020_0 ();
+		get_prefetch_020_continue ();
 		fill_prefetch_full_000 ();
 		insn_n_cycles = 12;
 		need_endlabel = 1;
+		branch_inst = 1;
 		break;
 	case i_Scc:
 		// confirmed
@@ -5517,7 +5526,7 @@ static char *outopcode (int opcode)
 struct cputbl_tmp
 {
 	uae_s16 length;
-	uae_u8 disp020[2];
+	uae_s8 disp020[2];
 	uae_u8 branch;
 };
 static struct cputbl_tmp cputbltmp[65536];
@@ -5661,8 +5670,14 @@ static void generate_one_opcode (int rp, const char *extra)
 	if ((opcode & 0xf000) == 0xf000)
 		m68k_pc_total = -1;
 	cputbltmp[opcode].length = m68k_pc_total;
-	cputbltmp[opcode].disp020[0] = genamode8r_offset[0];
-	cputbltmp[opcode].disp020[1] = genamode8r_offset[1];
+
+	cputbltmp[opcode].disp020[0] = 0;
+	if (genamode8r_offset[0] > 0)
+		cputbltmp[opcode].disp020[0] = m68k_pc_total - genamode8r_offset[0] + 2;
+	cputbltmp[opcode].disp020[1] = 0;
+	if (genamode8r_offset[1] > 0)
+		cputbltmp[opcode].disp020[1] = m68k_pc_total - genamode8r_offset[1] + 2;
+
 	cputbltmp[opcode].branch = branch_inst;
 
 	if (generate_stbl) {

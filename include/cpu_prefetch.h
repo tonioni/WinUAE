@@ -2,6 +2,7 @@
 #ifdef CPUEMU_20
 
 extern uae_u32 get_word_020_prefetch (int);
+extern void continue_020_prefetch(void);
 
 STATIC_INLINE uae_u32 next_iword_020_prefetch (void)
 {
@@ -108,6 +109,7 @@ STATIC_INLINE void put_byte_ce020 (uaecptr addr, uae_u32 v)
 	mem_access_delay_byte_write_ce020 (addr, v);
 }
 
+extern void continue_ce020_prefetch(void);
 extern uae_u32 get_word_ce020_prefetch(int);
 
 STATIC_INLINE uae_u32 get_long_ce020_prefetch (int o)
