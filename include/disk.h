@@ -6,7 +6,7 @@
   * (c) 1995 Bernd Schmidt
   */
 
-typedef enum { DRV_NONE = -1, DRV_35_DD = 0, DRV_35_HD, DRV_525_SD, DRV_35_DD_ESCOM } drive_type;
+typedef enum { DRV_NONE = -1, DRV_35_DD = 0, DRV_35_HD, DRV_525_SD, DRV_35_DD_ESCOM, DRV_PC_ONLY } drive_type;
 
 #define HISTORY_FLOPPY 0
 #define HISTORY_CD 1
@@ -26,6 +26,18 @@ struct diskinfo
 	int bootblocktype;
 	TCHAR diskname[110];
 };
+
+struct floppy_reserved
+{
+	struct zfile *img;
+	bool wrprot;
+	int cyl;
+	int cyls;
+	int heads;
+	int secs;
+};
+void disk_reserved_setinfo(int num, int cyl, int head, int motor);
+bool disk_reserved_getinfo(int num, struct floppy_reserved *fr);
 
 extern void DISK_init (void);
 extern void DISK_free (void);

@@ -39,6 +39,7 @@
 #include "autoconf.h"
 #include "specialmonitors.h"
 #include "pci.h"
+#include "x86.h"
 
 // More information in first revision HRM Appendix_G
 #define BOARD_PROTOAUTOCONFIG 1
@@ -2407,6 +2408,79 @@ static const struct expansionboardsettings bridge_settings[] = {
 	}
 };
 
+static const struct expansionboardsettings x86_bridge_settings[] = {
+	{
+		// 2-3
+		_T("Memory (SW1:3-4)\0""128K\0""256K\0""512K\0""640K\0"),
+		_T("memory\0""128k\0""256k\0""512k\0""640k\0"),
+		true, false, 2
+	},
+	{
+		// 4-5
+		_T("Default video (J1)\0Monochrome\0Color 40x25\0Color 80x25\0None\0"),
+		_T("video\0mono\0color40\0color80\0none\0"),
+		true, false, 0
+	},
+	{
+		NULL
+	}
+};
+
+static const struct expansionboardsettings x86_bridge_sidecar_settings[] = {
+	{
+		// 0
+		_T("System Diagnostics (SW1:1)"),
+		_T("diagnostics"),
+	},
+	{
+		// 1
+		_T("8037 installed (SW1:2)"),
+		_T("fpu"),
+	},
+	{
+		// 2-3
+		_T("Memory (SW1:3-4)\0""128K\0""256K\0""512K\0""640K\0"),
+		_T("memory\0""128k\0""256k\0""512k\0""640k\0"),
+		true
+	},
+	{
+		// 4-5
+		_T("Default video (SW1:5-6)\0Monochrome\0Color 40x25\0Color 80x25\0None\0"),
+		_T("video\0mono\0color40\0color80\0none\0"),
+		true
+	},
+	{
+		// 6-7
+		_T("Floppy drives (SW1:7-8)\0""1\0""2\0""3\0""4\0"),
+		_T("floppy\0""floppy1\0""floppy2\0""floppy3\0""floppy4\0"),
+		true
+	},
+	{
+		// 8
+		_T("Disable mono video emulation (SW2:1)"),
+		_T("mono_card")
+	},
+	{
+		// 9
+		_T("Disable color video emulation (SW2:2)"),
+		_T("color_card")
+	},
+	{
+		// 10-11
+		_T("Address sector (SW2:3-4)\0A0000-AFFFF\0A0000-AFFFF\0D0000-DFFFF\0E0000-EFFFF\0"),
+		_T("memory\0sector_a0000_1\0sector_a0000_2\0sector_d0000\0sector_e0000\0"),
+		true
+	},
+	{
+		// 12
+		_T("Disable parallel port emulation (J11)"),
+		_T("parport_card")
+	},
+	{
+		NULL
+	}
+};
+
 static void fastlane_memory_callback(struct romconfig *rc, uae_u8 *ac, int size)
 {
 	struct zfile *z = read_device_from_romconfig(rc, NULL);
@@ -2740,6 +2814,33 @@ const struct expansionromtype expansionroms[] = {
 	{
 		_T("amax"), _T("AMAX ROM dongle"), _T("ReadySoft"),
 		NULL, 0, NULL, NULL, NULL, ROMTYPE_AMAX | ROMTYPE_NONE, 0, 0, 0, false
+	},
+	{
+		_T("a1060"), _T("A1060 Sidecar"), _T("Commodore"),
+		a1060_init, NULL, NULL, ROMTYPE_A1060 | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_X86_BRIDGE,
+		0, 0, 0, false, NULL,
+		false,
+		x86_bridge_sidecar_settings
+	},
+	{
+		_T("a2088"), _T("A2088"), _T("Commodore"),
+		a2088xt_init, NULL, NULL, ROMTYPE_A2088XT | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_X86_BRIDGE,
+		0, 0, 0, false, NULL,
+		false,
+		x86_bridge_settings
+	},
+	{
+		_T("a2088t"), _T("A2088T"), _T("Commodore"),
+		a2088t_init, NULL, NULL, ROMTYPE_A2088T | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_X86_BRIDGE,
+		0, 0, 0, false, NULL,
+		false,
+		x86_bridge_settings
 	},
 	{
 		NULL

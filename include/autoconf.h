@@ -115,10 +115,14 @@ typedef void(*DEVICE_MEMORY_CALLBACK)(struct romconfig*, uae_u8*, int);
 #define EXPANSIONTYPE_CUSTOM 32
 #define EXPANSIONTYPE_PCI_BRIDGE 64
 #define EXPANSIONTYPE_PARALLEL_ADAPTER 128
+#define EXPANSIONTYPE_X86_BRIDGE 256
 struct expansionboardsettings
 {
 	const TCHAR *name;
 	const TCHAR *configname;
+	bool multiselect;
+	bool invert;
+	int bitshift;
 };
 struct expansionsubromtype
 {

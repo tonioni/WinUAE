@@ -85,6 +85,9 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_ALF1		0x00100027
 #define ROMTYPE_PROMIGOS	0x00100028
 #define ROMTYPE_SYSTEM2000	0x00100029
+#define ROMTYPE_A1060		0x0010002a
+#define ROMTYPE_A2088XT		0x0010002b
+#define ROMTYPE_A2088T		0x0010002c
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000

@@ -94,6 +94,7 @@
 #define WITH_QEMU_CPU
 #define WITH_TOCCATA
 #define WITH_PCI
+#define WITH_X86
 
 #else
 
