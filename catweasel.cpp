@@ -542,14 +542,15 @@ int catweasel_init(void)
 	} else {
 
 		for (i = 0; i < 4; i++) {
+			int j = i;
 			if (currprefs.catweasel > 0)
-				i = currprefs.catweasel;
+				j = currprefs.catweasel + i;
 			if (currprefs.catweasel < 0)
-				i = -currprefs.catweasel + 1;
-			_stprintf (name, _T("\\\\.\\CAT%d_F0"), i);
+				j = -currprefs.catweasel + 1 + i;
+			_stprintf (name, _T("\\\\.\\CAT%d_F0"), j);
 			handle = CreateFile (name, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0,
 				OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-			if (handle != INVALID_HANDLE_VALUE || currprefs.catweasel > 0)
+			if (handle != INVALID_HANDLE_VALUE || currprefs.catweasel)
 				break;
 		}
 		if (handle == INVALID_HANDLE_VALUE)

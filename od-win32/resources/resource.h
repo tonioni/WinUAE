@@ -663,9 +663,13 @@
 #define IDC_ROMFILE2                    1394
 #define IDC_SCSIROMSELECTCAT            1394
 #define IDC_ROMCHOOSER2                 1395
+#define IDC_EXPANSIONBOARDITEMSELECTOR  1395
 #define IDC_FLASHCHOOSER                1396
+#define IDC_EXPANSIONBOARDSELECTOR      1396
 #define IDC_FLASHFILE                   1397
+#define IDC_ACCELERATORBOARDITEMSELECTOR 1397
 #define IDC_CARTFILE                    1398
+#define IDC_ACCELERATORBOARDSELECTOR    1398
 #define IDC_CARTCHOOSER                 1399
 #define IDC_SAVE                        1400
 #define IDC_CPUBOARDROMSUBSELECT        1400
@@ -847,6 +851,7 @@
 #define IDC_AVIOUTPUT_VIDEO             1613
 #define IDC_INPUTAUTOFIRE               1613
 #define IDC_PORT_MOUSETRICK             1613
+#define IDC_EXPANSIONBOARDCHECKBOX      1613
 #define IDC_AVIOUTPUT_AUDIO             1614
 #define IDC_INPUTCOPYFROM               1614
 #define IDC_SANA2                       1614
@@ -861,6 +866,7 @@
 #define IDC_NE2000                      1616
 #define IDC_AVIOUTPUT_BORDER_TRIM       1617
 #define IDC_FILTERVZ                    1617
+#define IDC_ACCELERATORBOARDCHECKBOX    1617
 #define IDC_AVIOUTPUT_AUDIO_STATIC      1618
 #define IDC_FILTERHO                    1618
 #define IDC_AVIOUTPUT_VIDEO_STATIC      1619
@@ -1241,12 +1247,6 @@
 #define IDC_CPUBOARDMEM                 1843
 #define IDC_Z3MAPPING                   1844
 #define IDC_CPUBOARD_SUBTYPE            1845
-#define IDC_EXPANSION_SETTING1          1846
-#define IDC_EXPANSION_SETTING2          1847
-#define IDC_EXPANSION_SETTING3          1848
-#define IDC_CPUBOARD_SETTING1           1849
-#define IDC_CPUBOARD_SETTING2           1850
-#define IDC_CPUBOARD_SETTING3           1851
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

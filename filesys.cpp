@@ -3649,8 +3649,7 @@ static void action_make_link (Unit *unit, dpacket packet)
 			}
 			return;
 		}
-		// real Amiga softlinks would accept invalid paths too,
-		// we won't.
+		// real Amiga softlinks would accept invalid paths too, we won't.
 		PUT_PCK_RES1 (packet, DOS_FALSE);
 		PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
 	}
@@ -3686,6 +3685,7 @@ static void action_read_link (Unit *unit, dpacket packet)
 	if (!a->softlink)
 		err = ERROR_OBJECT_WRONG_TYPE;
 	if (err != 0) {
+		xfree(extrapath);
 		PUT_PCK_RES1 (packet, DOS_FALSE);
 		PUT_PCK_RES2 (packet, err);
 		return;
@@ -3693,6 +3693,7 @@ static void action_read_link (Unit *unit, dpacket packet)
 	_tcscpy (tmp, a->nname);
 	write_log (_T("Resolving softlink '%s'\n"), tmp);
 	if (!my_resolvesoftlink (tmp, sizeof tmp / sizeof (TCHAR))) {
+		xfree(extrapath);
 		PUT_PCK_RES1 (packet, DOS_FALSE);
 		//  not sure what to return
 		PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
@@ -3719,6 +3720,7 @@ static void action_read_link (Unit *unit, dpacket packet)
 		}
 	}
 	if (!matched_aino) {
+		xfree(extrapath);
 		write_log (_T("Path not found in any mounted drive\n"));
 		PUT_PCK_RES1 (packet, DOS_FALSE);
 		PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);

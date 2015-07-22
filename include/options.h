@@ -138,7 +138,7 @@ struct wh {
 #define HD_LEVEL_SCSI_2 1
 #define HD_LEVEL_SASI 2
 #define HD_LEVEL_SASI_ENHANCED 2
-#define HD_LEVEL_OMTI 3
+#define HD_LEVEL_SASI_CHS 3
 
 #define HD_LEVEL_ATA_1 0
 #define HD_LEVEL_ATA_2 1

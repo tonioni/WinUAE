@@ -43,7 +43,7 @@ before it appears on-screen. (TW: display emulation now does this automatically)
 #define min_diwlastword (0)
 #define max_diwlastword (PIXEL_XPOS(0x1d4 >> 1))
 
-extern int lores_factor, lores_shift, interlace_seen;
+extern int lores_shift, interlace_seen;
 extern bool aga_mode, direct_rgb;
 extern int visible_left_border, visible_right_border;
 

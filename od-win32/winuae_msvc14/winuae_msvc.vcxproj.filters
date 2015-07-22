@@ -757,6 +757,12 @@
     <ClCompile Include="..\..\mame\a2410.cpp">
       <Filter>mame</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\x86.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\fake86_cpu.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

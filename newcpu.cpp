@@ -6708,6 +6708,7 @@ static void pipeline_020(uae_u16 w, uaecptr pc)
 		write_log(_T("Opcode %04x has no size PC=%08x!\n"), w, pc);
 	}
 #endif
+	// illegal instructions, TRAP, TRAPV, A-line, F-line don't stop prefetches
 	int branch = cpudatatbl[w].branch;
 	if (regs.pipeline_pos > 0 && branch) {
 		// Short branches (Bcc.s) still do one more prefetch.

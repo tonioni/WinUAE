@@ -49,6 +49,8 @@ struct commodore_dmac
 
 	uae_u8 c8727_pcss;
 	uae_u8 c8727_ctl;
+	uae_u8 c8727_wrcbp;
+	uae_u16 c8727_st506_cb;
 };
 struct gvp_dmac
 {
@@ -85,8 +87,9 @@ struct wd_state {
 	smp_comm_pipe requests;
 	volatile int scsi_thread_running;
 
-	// unit 7 = XT
-	struct scsi_data *scsis[8];
+	// unit 8,9 = ST-506 (A2090)
+	// unit 8 = XT (A2091)
+	struct scsi_data *scsis[8 + 2];
 
 	bool cdtv;
 

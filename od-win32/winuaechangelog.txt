@@ -1,4 +1,39 @@
 
+Beta 4:
+
+- RTG<>chipset mode switching didn't check if modes have different filter type (forgot to add
+  when RTG filter support was implemented)
+- 68020/030 prefetch pipeline b3 missing addressing mode implemented. Other adjustments: single
+  word unconditional branch-like instruction (for example RTS) stop prefetches immediately but
+  conditional single opcode always prefetch one extra word before stopping. Bcc.S (when not
+  branching) and DBcc probably aren't exactly right yet.
+- A2090 ST-506 support implemented.
+- Note about existing configurations that use A590 XT support: drive type (SCSI ID/XT) must be reset.
+- GUI default windowed mode window size (when it runs for the first time and size information is not
+  yet stored in registry/ini) is now adjusted for high DPI screen. (Windows 8.1+ only). Previously
+  default size was far too small on high DPI displays.
+- Added "I am Windows 10 compatible" manifest entry, winuaebootlog.txt now shows correct Windows 10
+  version information.
+- Cleaned up pfield_do_linetoscr() mess.
+- Added support for AGA subpixel bitplane delays (lores pixel can horizontally scroll 4 shres or 2
+  hires pixels or hires pixel 2 shres pixels). Limit: only works if both odd and even planes have
+  same subpixel scroll value (which probably is true practically in all situations)
+- b1 sprite right border corner case broke SSCAN2 sprite horizontal duplication.
+- x86 bridgeboard emulation! A1060 Sidecar, A2088 and A2088T currently implemented.
+
+x86 bridgeboard information:
+- Currently uses fake86 CPU core + PC support chip emulation. Selected because it was very easy
+  to integrate. Possible future A2286+ emulation needs different CPU core.
+- All jumpers emulated. (Required redesign of expansion GUI extra config)
+- Amiga floppy drive DF2: and DF3: can be re-configured as bridgeboard PC drives A: and B:.
+- Only 360k and 720k standard dos disk images supported.
+- A2088T 360k/720k compatible drive supported. Floppy switch not implemented.
+- A1060 and A2088 apparently only have 360k drive and BIOS support.
+- BIOS ROM required. Searching for "A2088 BIOS" or similar should work... No BIOS ROMs
+  added to rom scanner.
+- Not much real testing done. Boots from dos boot floppy, drive formatting and reading/writing works.
+- x86 CPU speed is currently very randomly chosen speed.
+
 Beta 3:
 
 - CD and sound card audio are now always resampled with Anti interpolator before it gets mixed

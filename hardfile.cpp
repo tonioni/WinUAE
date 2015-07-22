@@ -1153,7 +1153,7 @@ static const uae_u8 sasi_commands2[] =
 
 static uae_u64 get_scsi_6_offset(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8 *cmdbuf)
 {
-	bool omti = hfd->ci.unit_feature_level == HD_LEVEL_OMTI;
+	bool omti = hfd->ci.unit_feature_level == HD_LEVEL_SASI_CHS;
 	uae_u64 offset;
 	if (omti) {
 		int cyl, cylsec, head, tracksec;
@@ -1189,7 +1189,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	uae_u8 cmd = cmdbuf[0];
 	bool sasi = hfd->ci.unit_feature_level >= HD_LEVEL_SASI && hfd->ci.unit_feature_level <= HD_LEVEL_SASI_ENHANCED;
 	bool sasie = hfd->ci.unit_feature_level == HD_LEVEL_SASI_ENHANCED;
-	bool omti = hfd->ci.unit_feature_level == HD_LEVEL_OMTI;
+	bool omti = hfd->ci.unit_feature_level == HD_LEVEL_SASI_CHS;
 
 	if (log_scsiemu) {
 		write_log (_T("SCSIEMU HD %d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X CMDLEN=%d DATA=%p\n"), hfd->unitnum,
@@ -1259,6 +1259,15 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			goto scsi_done;
 			case 0x0c: /* INITIALIZE DRIVE CHARACTERISTICS */
 			scsi_len = 8;
+			write_log(_T("INITIALIZE DRIVE CHARACTERISTICS: "));
+			write_log(_T("Heads: %d Cyls: %d Secs: %d\n"),
+				(scsi_data[1] >> 4) | ((scsi_data[0] & 0xc0) << 4),
+				((scsi_data[1] & 15) << 8) | (scsi_data[2]),
+				scsi_data[5]);
+			for (int i = 0; i < 8; i++) {
+				write_log(_T("%02X "), scsi_data[i]);
+			}
+			write_log(_T("\n"));
 			goto scsi_done;
 			case 0x12: /* INQUIRY */
 			{

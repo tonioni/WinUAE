@@ -53,6 +53,7 @@
 #include "sampler.h"
 #include "gfxboard.h"
 #include "cpuboard.h"
+#include "x86.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -2542,6 +2543,7 @@ void gfx_set_picasso_state (int on)
 {
 	struct winuae_currentmode wc;
 	struct apmode *newmode, *oldmode;
+	struct gfx_filterdata *newf, *oldf;
 	int mode;
 
 	if (screen_is_picasso == on)
@@ -2553,9 +2555,24 @@ void gfx_set_picasso_state (int on)
 	newmode = &currprefs.gfx_apmode[on ? 1 : 0];
 	oldmode = &currprefs.gfx_apmode[on ? 0 : 1];
 
+	newf = &currprefs.gf[on ? 1 : 0];
+	oldf = &currprefs.gf[on ? 0 : 1];
+
 	updatemodes ();
 	update_gfxparams ();
 	clearscreen ();
+
+	// if filter changes, need to reset
+	mode = 0;
+	if (newf->gfx_filter != oldf->gfx_filter)
+		mode = -1;
+	for (int i = 0; i <= 2 * MAX_FILTERSHADERS; i++) {
+		if (_tcscmp(newf->gfx_filtershader[i], oldf->gfx_filtershader[i]))
+			mode = -1;
+		if (_tcscmp(newf->gfx_filtermask[i], oldf->gfx_filtermask[i]))
+			mode = -1;
+	}
+	// if screen parameter changes, need to reopen window
 	if (newmode->gfx_fullscreen != oldmode->gfx_fullscreen ||
 		(newmode->gfx_fullscreen && (
 			newmode->gfx_backbuffers != oldmode->gfx_backbuffers ||
@@ -2565,8 +2582,13 @@ void gfx_set_picasso_state (int on)
 			newmode->gfx_vflip != oldmode->gfx_vflip ||
 			newmode->gfx_vsync != oldmode->gfx_vsync))) {
 		mode = 1;
-	} else {
-		mode = modeswitchneeded (&wc);
+	}
+	if (mode <= 0) {
+		int m = modeswitchneeded (&wc);
+		if (m > 0)
+			mode = m;
+		if (m < 0 && !mode)
+			mode = m;
 		if (!mode)
 			goto end;
 	}
@@ -2746,7 +2768,9 @@ static void createstatuswindow (void)
 	fps_width = (int)(64 * scaleX);
 	idle_width = (int)(64 * scaleX);
 	if (is_ppc_cpu(&currprefs))
-		idle_width = 136;
+		idle_width += (int)(68 * scaleX);
+	if (is_x86_cpu(&currprefs))
+		idle_width += (int)(68 * scaleX);
 	snd_width = (int)(72 * scaleX);
 	joy_width = (int)(24 * scaleX);
 	GetClientRect (hMainWnd, &rc);

@@ -56,6 +56,7 @@
 #include "driveclick.h"
 #include "pci.h"
 #include "pci_hw.h"
+#include "x86.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -87,6 +88,9 @@ void devices_reset(int hardreset)
 #endif
 #ifdef WITH_PCI
 	pci_reset();
+#endif
+#ifdef WITH_X86
+	x86_bridge_reset();
 #endif
 #ifdef JIT
 	compemu_reset ();
@@ -161,6 +165,9 @@ void devices_hsync(void)
 #ifdef WITH_PCI
 	pci_hsync();
 #endif
+#ifdef WITH_X86
+	x86_bridge_hsync();
+#endif
 #ifdef WITH_TOCCATA
 	sndboard_hsync();
 #endif
@@ -201,6 +208,9 @@ void devices_rethink(void)
 	ncr80_rethink();
 #ifdef WITH_PCI
 	pci_rethink();
+#endif
+#ifdef WITH_X86
+	x86_bridge_rethink();
 #endif
 #ifdef WITH_TOCCATA
 	sndboard_rethink();
@@ -314,6 +324,9 @@ void do_leave_program (void)
 #endif
 #ifdef WITH_PCI
 	pci_free();
+#endif
+#ifdef WITH_X86
+	x86_bridge_free();
 #endif
 #ifdef FILESYS
 	filesys_cleanup ();

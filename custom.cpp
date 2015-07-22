@@ -1102,10 +1102,6 @@ static void compute_toscr_delay (int bplcon1)
 	toscr_delay[1] = (delay2 & delaymask) << toscr_res;
 	toscr_delay[1] |= shdelay2 >> (RES_MAX - toscr_res);
 
-	// AGA subpixel scrolling in lores/hires modes
-	toscr_delay_sh[0] = (shdelay1 & 3) >> toscr_res;
-	toscr_delay_sh[1] = (shdelay2 & 3) >> toscr_res;
-
 #if SPEEDUP
 	/* SPEEDUP code still needs this hack */
 	int	delayoffset = fetchmode_size - (((bpl_hstart - (HARD_DDF_START_REAL + DDF_OFFSET)) & fetchstart_mask) << 1);
@@ -3389,11 +3385,12 @@ static void decide_sprites (int hpos, bool usepointx)
 
 	count = 0;
 	for (i = 0; i < MAX_SPRITES; i++) {
-		int sprxp = (fmode & 0x8000) ? (spr[i].xpos & ~sscanmask) : spr[i].xpos;
+		int xpos = spr[i].xpos;
+		int sprxp = (fmode & 0x8000) ? (xpos & ~sscanmask) : xpos;
 		int hw_xp = sprxp >> sprite_buffer_res;
 		int pointx = usepointx && (sprctl[i] & sprite_sprctlmask) ? 0 : 1;
 
-		if (spr[i].xpos < 0)
+		if (xpos < 0)
 			continue;
 
 		if (!((debug_sprite_mask & magic_sprite_mask) & (1 << i)))
@@ -3401,9 +3398,6 @@ static void decide_sprites (int hpos, bool usepointx)
 
 		if (! spr[i].armed)
 			continue;
-
-//		if (sprxp > ((maxhpos * 2) << sprite_buffer_res))
-//			write_log(_T("*"));
 
 		if (hw_xp > last_sprite_point && hw_xp <= point + pointx) {
 			add_sprite (&count, i, sprxp, posns, nrs);
@@ -3416,6 +3410,14 @@ static void decide_sprites (int hpos, bool usepointx)
 			if (hw_xp > last_sprite_point && hw_xp <= point + pointx) {
 				add_sprite (&count, MAX_SPRITES + i, sprxp, posns, nrs);
 			}
+		} else if (!(fmode & 0x80) && xpos >= 2 && xpos <= 9) {
+			// right border wrap around
+			sprxp += (maxhpos * 2) << sprite_buffer_res;
+			hw_xp = sprxp >> sprite_buffer_res;
+			if (hw_xp > last_sprite_point && hw_xp <= point + pointx) {
+				add_sprite(&count, MAX_SPRITES + i, sprxp, posns, nrs);
+			}
+			// (not really mutually exclusive of SSCAN2-bit but not worth the trouble)
 		}
 	}
 
@@ -5229,6 +5231,17 @@ static void BPLCON0 (int hpos, uae_u16 v)
 		BPLCON0_Denise (hpos, v, true);
 }
 
+static void hack_bplcon2(void)
+{
+	// AGA subpixel scrolling in lores/hires modes
+	int shdelay1 = (bplcon1 >> 8) & 3;
+	int shdelay2 = (bplcon1 >> 12) & 3;
+	toscr_delay_sh[0] = (shdelay1 & 3) >> toscr_res;
+	toscr_delay_sh[1] = (shdelay2 & 3) >> toscr_res;
+	bplcon2 &= ~0xc000;
+	bplcon2 |= toscr_delay_sh[0] << 14;
+}
+
 static void BPLCON1 (int hpos, uae_u16 v)
 {
 	if (!(currprefs.chipset_mask & CSMASK_AGA))
@@ -5240,17 +5253,29 @@ static void BPLCON1 (int hpos, uae_u16 v)
 	decide_fetch_safe (hpos);
 	bplcon1_written = true;
 	bplcon1 = v;
+
+	if (currprefs.chipset_mask & CSMASK_AGA) {
+		int o0 = toscr_delay_sh[0];
+		int o1 = toscr_delay_sh[1];
+		hack_bplcon2();
+		if (toscr_delay_sh[0] != o0 || toscr_delay_sh[1] != o1) {
+			// HACK: Use BPLCON2 unused bits to store sh shift
+			record_register_change(hpos, 0x104, bplcon2);
+		}
+	}
 }
 
 static void BPLCON2(int hpos, uae_u16 v)
 {
 	if (!(currprefs.chipset_mask & CSMASK_AGA))
 		v &= 0x7f;
-	if (bplcon2 == v)
+	if ((bplcon2 & 0x3fff) == (v & 0x3fff))
 		return;
 	decide_line (hpos);
 	bplcon2 = v;
-	record_register_change (hpos, 0x104, v);
+	if (currprefs.chipset_mask & CSMASK_AGA)
+		hack_bplcon2();
+	record_register_change (hpos, 0x104, bplcon2);
 }
 
 #ifdef ECS_DENISE
@@ -5664,10 +5689,6 @@ static void SPRxCTLPOS(int num)
 
 	sprstartstop (s);
 	sprxp = (sprpos[num] & 0xFF) * 2 + (sprctl[num] & 1);
-	if (!(fmode & 0x80) && sprxp >= 2 && sprxp <= 9) {
-		// right border wrap around
-		sprxp += maxhpos * 2;
-	}
 	sprxp <<= sprite_buffer_res;
 	/* Quite a bit salad in this register... */
 	if (0) {

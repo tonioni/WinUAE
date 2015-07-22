@@ -199,6 +199,10 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 				error_log(_T("CD32 MPEG module overlay support require at least null filter enabled."));
 				prefs->gf[i].gfx_filter = 1;
 			}
+			if (prefs->gf[i].gfx_filter == 0 && (prefs->genlock && prefs->genlock_image)) {
+				error_log(_T("Genlock emulation require at least null filter enabled."));
+				prefs->gf[i].gfx_filter = 1;
+			}
 		}
 	}
 }

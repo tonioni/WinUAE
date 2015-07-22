@@ -3682,7 +3682,6 @@ static void gen_opcode (unsigned int opcode)
 		sync_m68k_pc ();
 		printf ("\tException (src + 32);\n");
 		did_prefetch = 1;
-		branch_inst = 2;
 		clear_m68k_offset();
 		break;
 	case i_MVR2USP:
