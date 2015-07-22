@@ -4,7 +4,7 @@
 * A590/A2091/A3000/CDTV SCSI expansion (DMAC/SuperDMAC + WD33C93) emulation
 * Includes A590 + XT drive emulation.
 * GVP Series I and II
-* A2090
+* A2090 SCSI and ST-506
 *
 * Copyright 2007-2015 Toni Wilen
 *
@@ -256,10 +256,13 @@
 #define XT_INT          0x02    /* Interrupt enable */
 #define XT_DMA_MODE     0x01    /* DMA enable */
 
-#define XT_UNIT 7
+#define XT_UNIT 8
 #define XT_SECTORS 17 /* hardwired */
 
-#define MAX_SCSI_UNITS 10
+#define XT506_UNIT0 8
+#define XT506_UNIT1 9
+
+#define MAX_SCSI_UNITS (8 + 2)
 
 static struct wd_state *wd_a2091[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct wd_state *wd_a2090[MAX_DUPLICATE_EXPANSION_BOARDS];
@@ -385,6 +388,8 @@ static bool isirq(struct wd_state *wd)
 			return true;
 		break;
 		case COMMODORE_8727:
+		if (wd->cdmac.xt_irq)
+			wd->cdmac.dmac_istr |= ISTR_INTS;
 		if (wd->wc.auxstatus & ASR_INT)
 			wd->cdmac.dmac_istr |= ISTR_INTS;
 		if ((wd->cdmac.dmac_cntr & CNTR_INTEN) && (wd->cdmac.dmac_istr & ISTR_INTS))
@@ -1805,8 +1810,7 @@ static void write_xt_reg(struct wd_state *wds, int reg, uae_u8 v)
 	}
 }
 
-/* DMAC */
-
+/* 8727 DMAC */
 
 static uae_u8 dmac8727_read_pcss(struct wd_state *wd)
 {
@@ -1818,25 +1822,6 @@ static uae_u8 dmac8727_read_pcss(struct wd_state *wd)
 	return v;
 }
 
-static uae_u8 dmac8727_read_pcsd(struct wd_state *wd)
-{
-	struct commodore_dmac *c = &wd->cdmac;
-	uae_u8 v = 0;
-	switch(c->c8727_pcss)
-	{
-		case 0xf7:
-		wd->cdmac.dmac_dma = 1;
-		break;
-		case 0xef:
-		v = (1 << 7) | (1 << 5); // dma complete, no overflow
-		break;
-		default:
-		write_log(_T("dmac8727 read pscd %02x\n"), c->c8727_pcss);
-		break;
-	}
-	return v;
-}
-
 static void dmac8727_write_pcss(struct wd_state *wd, uae_u8 v)
 {
 	wd->cdmac.c8727_pcss = v;
@@ -1845,32 +1830,122 @@ static void dmac8727_write_pcss(struct wd_state *wd, uae_u8 v)
 #endif
 }
 
+static uae_u8 dmac8727_read_pcsd(struct wd_state *wd)
+{
+	struct commodore_dmac *c = &wd->cdmac;
+	uae_u8 v = 0;
+	if (!(c->c8727_pcss & 8)) {
+		// 0xF7 1111 0111
+		wd->cdmac.dmac_dma = 1;
+	}
+	if (!(c->c8727_pcss & 0x10)) {
+		// 0xEF 1110 1111
+		// dma complete, no overflow
+		v = (1 << 7) | (1 << 5);
+	}
+	return v;
+}
+
 static void dmac8727_write_pcsd(struct wd_state *wd, uae_u8 v)
 {
 	struct commodore_dmac *c = &wd->cdmac;
-	switch (c->c8727_pcss)
-	{
-		case 0xfb:
+
+	if (!(c->c8727_pcss & 4)) {
+		// 0xFB 1111 1011
 		c->dmac_acr &= 0xff00ffff;
 		c->dmac_acr |= v << 16;
-		break;
-		case 0xfd:
+	}
+	if (!(c->c8727_pcss & 2)) {
+		// 0xFD 1111 1101
 		c->dmac_acr &= 0xffff00ff;
 		c->dmac_acr |= v << 8;
-		break;
-		case 0xfe:
-		case 0xf6:
+	}
+	if (!(c->c8727_pcss & 1)) {
+		// 0xFE 1111 1110
 		c->dmac_acr &= 0xffffff00;
 		c->dmac_acr |= v << 0;
 		c->dmac_wtc = 65535;
-		break;
+	}
+#if 0
+	if (!(c->c8727_pcss & 8)) {
+		// 0xF7 1111 0111
+	}
+#endif
+	if (!(c->c8727_pcss & 0x80)) {
+		c->dmac_dma = 0;
+	}
+#if 0
+	switch (c->c8727_pcss)
+	{
+		case 0x7f:
 		case 0xff:
 		c->dmac_dma = 0;
 		break;
-		default:
-		write_log(_T("dmac8727 pscd %02x = %02x\n"), c->c8727_pcss, v);
-		break;
 	}
+#endif
+}
+
+static void dmac8727_cbp(struct wd_state *wd)
+{
+	struct commodore_dmac *c = &wd->cdmac;
+
+	c->c8727_st506_cb >>= 8;
+	c->c8727_st506_cb |= c->c8727_wrcbp << 8;
+}
+
+static void a2090_st506(struct wd_state *wd, uae_u8 b)
+{
+	uae_u8 cb[16];
+	if (!b) {
+		wd->cdmac.dmac_istr &= ~(ISTR_INT_F | ISTR_INTS);
+		return;
+	}
+	uaecptr cbp = wd->cdmac.c8727_st506_cb << 9;
+	if (!valid_address(cbp, 16)) {
+		write_log(_T("Invalid ST-506 command block address %08x\n"), cb);
+		return;
+	}
+	for (int i = 0; i < sizeof cb; i++) {
+		cb[i] = get_byte(cbp + i);
+	}
+	int unit = (cb[1] >> 5) & 1; 
+	// new command?
+	if (cb[12] != 0xff)
+		return;
+	uaecptr dmaaddr = (cb[6] << 16) | (cb[7] << 8) | cb[8];
+	memset(cb + 12, 0, 4);
+	struct scsi_data *scsi = wd->scsis[XT506_UNIT0 + unit];
+	if (scsi) {
+		memcpy(scsi->cmd, cb, 6);
+		// We handle LUN, not SCSI emulation.
+		scsi->cmd[1] &= ~0x20;
+		scsi->cmd_len = 6;
+		scsi_emulate_analyze(scsi);
+		if (scsi->direction < 0) {
+			scsi_emulate_cmd(scsi);
+			for (int i = 0; i < scsi->data_len; i++) {
+				put_byte(dmaaddr + i, scsi->buffer[i]);
+			}
+		} else {
+			for (int i = 0; i < scsi->data_len; i++) {
+				scsi->buffer[i] = get_byte(dmaaddr + i);
+			}
+			scsi_emulate_cmd(scsi);
+		}
+		if (scsi->status && scsi->sense_len) {
+			memcpy(cb + 12, scsi->sense, 4);
+		}
+	} else {
+		cb[12] = 0x04; // Drive not ready
+		cb[13] = cb[1];
+		cb[14] = cb[2];
+		cb[15] = cb[3];
+	}
+	for (int i = 0; i < sizeof cb; i++) {
+		put_byte(cbp + i, cb[i]);
+	}
+	set_dma_done(wd);
+	wd->cdmac.xt_irq = true;
 }
 
 static uae_u32 dmac_a2091_read_word (struct wd_state *wd, uaecptr addr)
@@ -1900,6 +1975,7 @@ static uae_u32 dmac_a2091_read_word (struct wd_state *wd, uaecptr addr)
 			v = 0;
 			if (wd->cdmac.dmac_cntr & CNTR_INTEN)
 				v |= 1 << 4;
+			v |= wd->cdmac.c8727_ctl & 0x80;
 			break;
 		case 0x60:
 			v = wdscsi_getauxstatus (&wd->wc);
@@ -2088,13 +2164,21 @@ static void dmac_a2091_write_word (struct wd_state *wd, uaecptr addr, uae_u32 b)
 		case 0x40:
 			break;
 		case 0x42:
-			wd->cdmac.dmac_cntr &= ~CNTR_INTEN;
+			wd->cdmac.dmac_cntr &= ~(CNTR_INTEN | CNTR_PDMD);
 			if (b & (1 << 4))
 				wd->cdmac.dmac_cntr |= CNTR_INTEN;
+			wd->cdmac.c8727_ctl = b;
+			if (b & 0x80)
+				dmac8727_cbp(wd);
 			break;
 		case 0x50:
 			// clear interrupt
 			wd->cdmac.dmac_istr &= ~(ISTR_INT_F | ISTR_INTS);
+			wd->cdmac.xt_irq = false;
+			wd->cdmac.c8727_wrcbp = b;
+			break;
+		case 0x52:
+			a2090_st506(wd, b);
 			break;
 		case 0x60:
 			wdscsi_sasr (&wd->wc, b);
@@ -2196,10 +2280,17 @@ static void dmac_a2091_write_byte (struct wd_state *wd, uaecptr addr, uae_u32 b)
 			if (b & (1 << 4))
 				wd->cdmac.dmac_cntr |= CNTR_INTEN;
 			wd->cdmac.c8727_ctl = b;
+			if (b & 0x80)
+				dmac8727_cbp(wd);
 			break;
 		case 0x50:
 			// clear interrupt
 			wd->cdmac.dmac_istr &= ~(ISTR_INT_F | ISTR_INTS);
+			wd->cdmac.xt_irq = false;
+			wd->cdmac.c8727_wrcbp = b;
+			break;
+		case 0x52:
+			a2090_st506(wd, b);
 			break;
 		case 0x60:
 			wdscsi_sasr (&wd->wc, b);
@@ -3536,7 +3627,7 @@ addrbank *a2090_init (struct romconfig *rc)
 	ew (wd, 0x20, 0x00); /* ser.no. Byte 2 */
 	ew (wd, 0x24, 0x00); /* ser.no. Byte 3 */
 
-	ew(wd, 0x30, 0x80); // SCSI only flag
+	//ew(wd, 0x30, 0x80); // SCSI only flag
 
 	roms[0] = 122;
 	roms[1] = -1;
