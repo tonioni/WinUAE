@@ -84,6 +84,24 @@ void moduleripper (void)
 	xfree (buf);
 }
 
+static void namesplit(TCHAR *s)
+{
+	int l;
+
+	l = _tcslen(s) - 1;
+	while (l >= 0) {
+		if (s[l] == '.')
+			s[l] = 0;
+		if (s[l] == '\\' || s[l] == '/' || s[l] == ':' || s[l] == '?') {
+			l++;
+			break;
+		}
+		l--;
+	}
+	if (l > 0)
+		memmove(s, s + l, (_tcslen(s + l) + 1) * sizeof (TCHAR));
+}
+
 extern "C"
 {
 
@@ -91,13 +109,25 @@ FILE *moduleripper_fopen (const char *aname, const char *amode)
 {
 	TCHAR tmp2[MAX_DPATH];
 	TCHAR tmp[MAX_DPATH];
+	TCHAR img[MAX_DPATH];
 	TCHAR *name, *mode;
 	FILE *f;
 
-	fetch_ripperpath (tmp, sizeof tmp);
+	fetch_ripperpath (tmp, sizeof tmp / sizeof (TCHAR));
+
+	img[0] = 0;
+	if (currprefs.floppyslots[0].dfxtype >= 0)
+		_tcscpy(img, currprefs.floppyslots[0].df);
+	else if (currprefs.cdslots[0].inuse)
+		_tcscpy(img, currprefs.cdslots[0].name);
+	if (img[0]) {
+		namesplit(img);
+		_tcscat(img, _T("_"));
+	}
+
 	name = au (aname);
 	mode = au (amode);
-	_stprintf (tmp2, _T("%s%s"), tmp, name);
+	_stprintf (tmp2, _T("%s%s%s"), tmp, img, name);
 	f = _tfopen (tmp2, mode);
 	xfree (mode);
 	xfree (name);
