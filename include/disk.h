@@ -6,7 +6,7 @@
   * (c) 1995 Bernd Schmidt
   */
 
-typedef enum { DRV_NONE = -1, DRV_35_DD = 0, DRV_35_HD, DRV_525_SD, DRV_35_DD_ESCOM, DRV_PC_ONLY } drive_type;
+typedef enum { DRV_NONE = -1, DRV_35_DD = 0, DRV_35_HD, DRV_525_SD, DRV_35_DD_ESCOM, DRV_PC_ONLY_40, DRV_PC_ONLY_80 } drive_type;
 
 #define HISTORY_FLOPPY 0
 #define HISTORY_CD 1
@@ -35,9 +35,12 @@ struct floppy_reserved
 	int cyls;
 	int heads;
 	int secs;
+	int drive_cyls;
+	bool disk_changed;
 };
 void disk_reserved_setinfo(int num, int cyl, int head, int motor);
 bool disk_reserved_getinfo(int num, struct floppy_reserved *fr);
+void disk_reserved_reset_disk_change(int num);
 
 extern void DISK_init (void);
 extern void DISK_free (void);

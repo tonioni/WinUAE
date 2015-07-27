@@ -609,7 +609,8 @@ static void drive_settype_id (drive *drv)
 		drv->drive_id = DRIVE_ID_525SD;
 		break;
 	case DRV_NONE:
-	case DRV_PC_ONLY:
+	case DRV_PC_ONLY_40:
+	case DRV_PC_ONLY_80:
 		drv->drive_id = DRIVE_ID_NONE;
 		break;
 	}
@@ -692,9 +693,9 @@ static void reset_drive (int num)
 	drv->lastdataacesstrack = -1;
 	disabled &= ~(1 << num);
 	reserved &= ~(1 << num);
-	if (currprefs.floppyslots[num].dfxtype < 0 || currprefs.floppyslots[num].dfxtype >= DRV_PC_ONLY)
+	if (currprefs.floppyslots[num].dfxtype < 0 || currprefs.floppyslots[num].dfxtype >= DRV_PC_ONLY_40)
 		disabled |= 1 << num;
-	if (currprefs.floppyslots[num].dfxtype >= DRV_PC_ONLY)
+	if (currprefs.floppyslots[num].dfxtype >= DRV_PC_ONLY_40)
 		reserved |= 1 << num;
 	reset_drive_gui (num);
 	/* most internal Amiga floppy drives won't enable
@@ -1137,6 +1138,9 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 	if (isrecognizedext (fname)) 
 		canauto = 1;
 	if (!canauto && drv->diskfile && isrecognizedext (zfile_getname (drv->diskfile)))
+		canauto = 1;
+	// if PC-only drive, make sure PC-like floppies are alwayss detected
+	if (!canauto && currprefs.floppyslots[dnum].dfxtype >= DRV_PC_ONLY_40)
 		canauto = 1;
 
 	if (drv->catweasel) {
@@ -4668,7 +4672,7 @@ int getdebug(void)
 	return floppy[0].mfmpos;
 }
 
-void disk_reserved_setinfo(int num, int cyl, int head, int motor)
+static int get_reserved_id(int num)
 {
 	for (int i = 0; i < MAX_FLOPPY_DRIVES; i++) {
 		if (reserved & (1 << i)) {
@@ -4676,32 +4680,47 @@ void disk_reserved_setinfo(int num, int cyl, int head, int motor)
 				num--;
 				continue;
 			}
-			drive *drv = &floppy[i];
-			reserved_side = head;
-			drv->cyl = cyl;
-			drv->state = motor;
-			update_drive_gui(i, false);
+			return i;
 		}
+	}
+	return -1;
+}
+
+void disk_reserved_setinfo(int num, int cyl, int head, int motor)
+{
+	int i = get_reserved_id(num);
+	if (i >= 0) {
+		drive *drv = &floppy[i];
+		reserved_side = head;
+		drv->cyl = cyl;
+		drv->state = motor;
+		update_drive_gui(i, false);
 	}
 }
 
 bool disk_reserved_getinfo(int num, struct floppy_reserved *fr)
 {
-	for (int i = 0; i < MAX_FLOPPY_DRIVES; i++) {
-		if (reserved & (1 << i)) {
-			if (num > 0) {
-				num--;
-				continue;
-			}
-			drive *drv = &floppy[i];
-			fr->img = drv->diskfile;
-			fr->wrprot = drv->wrprot;
-			fr->cyl = drv->cyl;
-			fr->cyls = drv->num_tracks / 2;
-			fr->secs = drv->num_secs;
-			fr->heads = 2;
-			return true;
-		}
+	int i = get_reserved_id(num);
+	if (i >= 0) {
+		drive *drv = &floppy[i];
+		fr->img = drv->diskfile;
+		fr->wrprot = drv->wrprot;
+		fr->cyl = drv->cyl;
+		fr->cyls = drv->num_tracks / 2;
+		fr->drive_cyls = currprefs.floppyslots[i].dfxtype == DRV_PC_ONLY_40 ? 40 : 80;
+		fr->secs = drv->num_secs;
+		fr->heads = 2;
+		fr->disk_changed = drv->dskchange || fr->img == NULL;
+		return true;
 	}
 	return false;
+}
+
+void disk_reserved_reset_disk_change(int num)
+{
+	int i = get_reserved_id(num);
+	if (i >= 0) {
+		drive *drv = &floppy[i];
+		drv->dskchange = false;
+	}
 }
