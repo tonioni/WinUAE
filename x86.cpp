@@ -2,16 +2,22 @@
 * UAE - The Un*x Amiga Emulator
 *
 * X86 Bridge board emulation
-* A1060, A2088, A2088T
+* A1060, A2088, A2088T, A2286, A2386
 *
 * Copyright 2015 Toni Wilen
-* x86 and PC support chip emulation from Fake86.
+* 8088 x86 and PC support chip emulation from Fake86.
+* 80286+ CPU and AT support chip emulation from DOSBox.
 *
 */
 
 #define X86_DEBUG_BRIDGE 1
 #define FLOPPY_IO_DEBUG 0
 #define X86_DEBUG_BRIDGE_IO 0
+#define X86_IO_PORT_DEBUG 0
+
+#define DEBUG_DMA 0
+#define DEBUG_PIT 0
+#define DEBUG_INT 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -24,15 +30,24 @@
 #include "newcpu.h"
 #include "uae.h"
 #include "rommgr.h"
-#include "autoconf.h"
 #include "zfile.h"
 #include "disk.h"
+
+#include "dosbox/dosbox.h"
+#include "dosbox/mem.h"
+#include "dosbox/paging.h"
+#include "dosbox/setup.h"
+#include "dosbox/cpu.h"
+typedef Bits(CPU_Decoder)(void);
+extern CPU_Decoder *cpudecoder;
+extern Bit32s CPU_Cycles;
 
 #define TYPE_SIDECAR 0
 #define TYPE_2088 1
 #define TYPE_2088T 2
+#define TYPE_2286 3
+#define TYPE_2386 4
 
-void x86_init(unsigned char *memp, unsigned char *iop);
 void x86_reset(void);
 int x86_execute(void);
 
@@ -40,9 +55,38 @@ void exec86(uint32_t execloops);
 void reset86(int v20);
 void intcall86(uint8_t intnum);
 
-static void doirq(uint8_t irqnum);
+void x86_doirq(uint8_t irqnum);
 
 static frame_time_t last_cycles;
+
+void CPU_Init(Section*);
+void CPU_ShutDown(Section*);
+void CPU_JMP(bool use32, Bitu selector, Bitu offset, Bitu oldeip);
+void PAGING_Init(Section * sec);
+void MEM_Init(Section * sec);
+void MEM_ShutDown(Section * sec);
+void CMOS_Init(Section* sec);
+void CMOS_Destroy(Section* sec);
+void PIC_Init(Section* sec);
+void PIC_Destroy(Section* sec);
+static Section_prop *dosbox_sec;
+Bitu x86_in_keyboard(Bitu port);
+void x86_out_keyboard(Bitu port, Bitu val);
+void cmos_selreg(Bitu port, Bitu val, Bitu iolen);
+void cmos_writereg(Bitu port, Bitu val, Bitu iolen);
+Bitu cmos_readreg(Bitu port, Bitu iolen);
+void x86_pic_write(Bitu port, Bitu val);
+Bitu x86_pic_read(Bitu port);
+void PIC_ActivateIRQ(Bitu irq);
+void PIC_DeActivateIRQ(Bitu irq);
+void PIC_runIRQs(void);
+void KEYBOARD_AddBuffer(Bit8u data);
+void FPU_Init(Section*);
+Bit8u *x86_cmos_regs(Bit8u *regs);
+HostPt mono_start, mono_end, color_start, color_end;
+int x86_memsize;
+int x86_biosstart;
+int x86_fpu_enabled;
 
 struct x86_bridge
 {
@@ -51,6 +95,7 @@ struct x86_bridge
 	int configured;
 	int type;
 	uaecptr baseaddress;
+	int pc_maxram;
 	uae_u8 *pc_ram;
 	uae_u8 *io_ports;
 	uae_u8 *amiga_io;
@@ -59,9 +104,15 @@ struct x86_bridge
 	bool amiga_forced_interrupts;
 	bool pc_irq3a, pc_irq3b, pc_irq7;
 	uae_u8 pc_jumpers;
-	int pc_maxram;
+	int pc_maxbaseram;
+	int bios_size;
 	int settings;
+	int dosbox_cpu;
+	bool x86_reset_requested;
+	struct zfile *cmosfile;
+	uae_u8 cmosregs[0x40];
 };
+static bool x86_found;
 
 #define X86_BRIDGE_A1060 0
 #define X86_BRIDGE_MAX (X86_BRIDGE_A1060 + 1)
@@ -80,6 +131,7 @@ struct x86_bridge
 #define IO_CONTROL_REGISTER 0x1ffd
 #define IO_KEYBOARD_REGISTER_A1000 0x61f
 #define IO_KEYBOARD_REGISTER_A2000 0x1fff
+#define IO_A2386_CONFIG 0x1f9f
 
 static struct x86_bridge *bridges[X86_BRIDGE_MAX];
 
@@ -89,9 +141,46 @@ static struct x86_bridge *x86_bridge_alloc(void)
 	return xb;
 };
 
+void x86_init_reset(void)
+{
+	struct x86_bridge *xb = bridges[0];
+	xb->x86_reset_requested = true;
+	write_log(_T("8042 CPU reset requested\n"));
+}
+
+void reset_dosbox_cpu(void)
+{
+	CPU_ShutDown(dosbox_sec);
+	CPU_Init(dosbox_sec);
+	CPU_JMP(false, 0xffff, 0, 0);
+}
+
+static void reset_x86_cpu(struct x86_bridge *xb)
+{
+	write_log(_T("x86 CPU reset\n"));
+	if (!xb->dosbox_cpu) {
+		reset86(xb->type == ROMTYPE_A2088T);
+	} else {
+		reset_dosbox_cpu();
+	}
+}
+
+uint8_t x86_get_jumpers(void)
+{
+	struct x86_bridge *xb = bridges[0];
+	uint8_t v = 0;
+
+	if (!(xb->settings & (1 << 14)))
+		v |= 0x40;
+	if (!(xb->settings & (1 << 15)))
+		v |= 0x80; // key lock off
+	return v;
+}
+
 static uae_u8 get_mode_register(struct x86_bridge *xb, uae_u8 v)
 {
 	if (xb->type == TYPE_SIDECAR) {
+		// PC/XT + keyboard
 		v = 0x84;
 		if (!(xb->settings & (1 << 12)))
 			v |= 0x02;
@@ -103,8 +192,12 @@ static uae_u8 get_mode_register(struct x86_bridge *xb, uae_u8 v)
 			v |= 0x20;
 		if ((xb->settings & (1 << 11)))
 			v |= 0x40;
-	} else {
+	} else if (xb->type < TYPE_2286) {
+		// PC/XT
 		v |= 0x80;
+	} else {
+		// AT
+		v &= ~0x80;
 	}
 	return v;
 }
@@ -137,12 +230,12 @@ static uae_u8 x86_bridge_put_io(struct x86_bridge *xb, uaecptr addr, uae_u8 v)
 #endif
 			if (xb->amiga_forced_interrupts) {
 				if (v & 1)
-					doirq(1);
+					x86_doirq(1);
 				if (xb->amiga_io[IO_CONTROL_REGISTER] & 8) {
 					if (!(v & 2) || !(v & 4))
-						doirq(3);
+						x86_doirq(3);
 					if (!(v & 8))
-						doirq(7);
+						x86_doirq(7);
 				}
 			}
 		}
@@ -173,6 +266,9 @@ static uae_u8 x86_bridge_put_io(struct x86_bridge *xb, uaecptr addr, uae_u8 v)
 			write_log(_T("IO_KEYBOARD_REGISTER %02x\n"), v);
 #endif
 			xb->io_ports[0x60] = v;
+			if (xb->type >= TYPE_2286) {
+				KEYBOARD_AddBuffer(v);
+			}
 		}
 		break;
 		case IO_MODE_REGISTER:
@@ -180,6 +276,15 @@ static uae_u8 x86_bridge_put_io(struct x86_bridge *xb, uaecptr addr, uae_u8 v)
 #if X86_DEBUG_BRIDGE_IO
 		write_log(_T("IO_MODE_REGISTER %02x\n"), v);
 #endif
+		break;
+		case IO_INTERRUPT_MASK:
+		break;
+		case IO_A2386_CONFIG:
+		write_log(_T("A2386 CONFIG BYTE %02x\n"), v);
+		break;
+
+		default:
+		write_log(_T("Unknown bridge IO write %08x = %02x\n"), addr, v);
 		break;
 	}
 
@@ -210,8 +315,7 @@ static uae_u8 x86_bridge_get_io(struct x86_bridge *xb, uaecptr addr)
 		case IO_NEGATE_PC_RESET:
 		{
 			if (xb->x86_reset) {
-				write_log(_T("x86 CPU start!\n"));
-				reset86(xb->type == TYPE_2088T);
+				reset_x86_cpu(xb);
 				xb->x86_reset = false;
 			}
 			// because janus.library has stupid CPU loop wait
@@ -226,6 +330,10 @@ static uae_u8 x86_bridge_get_io(struct x86_bridge *xb, uaecptr addr)
 #if X86_DEBUG_BRIDGE_IO
 		write_log(_T("IO_MODE_REGISTER %02x\n"), v);
 #endif
+		break;
+
+		default:
+		write_log(_T("Unknown bridge IO read %08x\n"), addr);
 		break;
 	}
 
@@ -262,43 +370,26 @@ struct i8253_s {
 static struct i8253_s i8253;
 static uint16_t latched_val, latched;
 
-static uint64_t hostfreq;
+static uint64_t hostfreq = 313 * 50 * 227;
 static uint64_t tickgap, curtick, lasttick, lasti8253tick, i8253tickgap;
 
 static void inittiming()
 {
-#ifdef _WIN32
-	LARGE_INTEGER queryperf;
-	QueryPerformanceFrequency(&queryperf);
-	hostfreq = queryperf.QuadPart;
-	QueryPerformanceCounter(&queryperf);
-	curtick = queryperf.QuadPart;
-#else
-	hostfreq = 1000000;
-	gettimeofday(&tv, NULL);
-	curtick = (uint64_t)tv.tv_sec * (uint64_t)1000000 + (uint64_t)tv.tv_usec;
-#endif
+	curtick = 0;
 	lasti8253tick = lasttick = curtick;
 	i8253tickgap = hostfreq / 119318;
 }
 
-static void timing(void)
+static void timing(int count)
 {
 	struct x86_bridge *xb = bridges[0];
 
-#ifdef _WIN32
-	LARGE_INTEGER queryperf;
-	QueryPerformanceCounter(&queryperf);
-	curtick = queryperf.QuadPart;
-#else
-	gettimeofday(&tv, NULL);
-	curtick = (uint64_t)tv.tv_sec * (uint64_t)1000000 + (uint64_t)tv.tv_usec;
-#endif
+	curtick += count;
 
 	if (i8253.active[0]) { //timer interrupt channel on i8253
 		if (curtick >= (lasttick + tickgap)) {
 			lasttick = curtick;
-			doirq(0);
+			x86_doirq(0);
 		}
 	}
 
@@ -318,6 +409,9 @@ static void timing(void)
 static void out8253(uint16_t portnum, uint8_t value)
 {
 	uint8_t curbyte;
+#if DEBUG_PIT
+	write_log("out8253(0x%X = %02x);\n", portnum, value);
+#endif
 	portnum &= 3;
 	switch (portnum)
 	{
@@ -359,6 +453,10 @@ static void out8253(uint16_t portnum, uint8_t value)
 static uint8_t in8253(uint16_t portnum)
 {
 	uint8_t curbyte;
+	uint8_t out = 0;
+#if DEBUG_PIT
+	uint16_t portnum2 = portnum;
+#endif
 	portnum &= 3;
 	switch (portnum)
 	{
@@ -367,28 +465,30 @@ static uint8_t in8253(uint16_t portnum)
 		case 2: //channel data
 		if (latched == 2) {
 			latched = 1;
-			return latched_val & 0xff;
+			out = latched_val & 0xff;
 		} else if (latched == 1) {
 			latched = 0;
-			return latched_val >> 8;
-		}
-		if ((i8253.accessmode[portnum] == 0) || (i8253.accessmode[portnum] == PIT_MODE_LOBYTE) || ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 0)))
-			curbyte = 0;
-		else if ((i8253.accessmode[portnum] == PIT_MODE_HIBYTE) || ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 1)))
-			curbyte = 1;
-		if ((i8253.accessmode[portnum] == 0) || (i8253.accessmode[portnum] == PIT_MODE_TOGGLE))
-			i8253.bytetoggle[portnum] = (~i8253.bytetoggle[portnum]) & 1;
-		if (curbyte == 0) { //low byte
-			return ((uint8_t)i8253.counter[portnum]);
-		} else {   //high byte
-			return ((uint8_t)(i8253.counter[portnum] >> 8));
+			out = latched_val >> 8;
+		} else {
+			if ((i8253.accessmode[portnum] == 0) || (i8253.accessmode[portnum] == PIT_MODE_LOBYTE) || ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 0)))
+				curbyte = 0;
+			else if ((i8253.accessmode[portnum] == PIT_MODE_HIBYTE) || ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 1)))
+				curbyte = 1;
+			if ((i8253.accessmode[portnum] == 0) || (i8253.accessmode[portnum] == PIT_MODE_TOGGLE))
+				i8253.bytetoggle[portnum] = (~i8253.bytetoggle[portnum]) & 1;
+			if (curbyte == 0) { //low byte
+				out = ((uint8_t)i8253.counter[portnum]);
+			} else {   //high byte
+				out = ((uint8_t)(i8253.counter[portnum] >> 8));
+			}
 		}
 		break;
 	}
-	return (0);
+#if DEBUG_PIT
+	write_log("in8253(0x%X = %02x);\n", portnum2, out);
+#endif
+	return out;
 }
-
-//#define DEBUG_DMA
 
 struct dmachan_s {
 	uint32_t page;
@@ -403,7 +503,8 @@ struct dmachan_s {
 	uint8_t verifymode;
 };
 
-static struct dmachan_s dmachan[4];
+static struct dmachan_s dmachan[2 * 4];
+static uae_u8 dmareg[2 * 16];
 static uint8_t flipflop = 0;
 
 static int write8237(struct x86_bridge *xb, uint8_t channel, uint8_t data)
@@ -465,20 +566,32 @@ static uint8_t read8237(struct x86_bridge *xb, uint8_t channel, bool *end)
 static void out8237(uint16_t addr, uint8_t value)
 {
 	uint8_t channel;
-#ifdef DEBUG_DMA
+	int chipnum = 0;
+	int reg = -1;
+#if DEBUG_DMA
 	write_log("out8237(0x%X, %X);\n", addr, value);
 #endif
-	switch (addr) {
+	if (addr >= 0x80 && addr <= 0x8f) {
+		dmareg[addr & 0xf] = value;
+		reg = addr;
+	} else if (addr >= 0xc0 && addr <= 0xdf) {
+		reg = (addr - 0xc0) / 2;
+		chipnum = 4;
+	} else if (addr <= 0x0f) {
+		reg = addr;
+		chipnum = 0;
+	}
+	switch (reg) {
 		case 0x0:
 		case 0x2: //channel 1 address register
 		case 0x4:
 		case 0x6:
-		channel = addr / 2;
+		channel = reg / 2 + chipnum;
 		if (flipflop == 1)
 			dmachan[channel].addr = (dmachan[channel].addr & 0x00FF) | ((uint32_t)value << 8);
 		else
 			dmachan[channel].addr = (dmachan[channel].addr & 0xFF00) | value;
-#ifdef DEBUG_DMA
+#if DEBUG_DMA
 		if (flipflop == 1) write_log("[NOTICE] DMA channel %d address register = %04X\n", channel, dmachan[channel].addr);
 #endif
 		flipflop = ~flipflop & 1;
@@ -487,7 +600,7 @@ static void out8237(uint16_t addr, uint8_t value)
 		case 0x3: //channel 1 count register
 		case 0x5:
 		case 0x7:
-		channel = addr / 2;
+		channel = reg / 2 + chipnum;
 		if (flipflop == 1)
 			dmachan[channel].reload = (dmachan[channel].reload & 0x00FF) | ((uint32_t)value << 8);
 		else
@@ -496,49 +609,54 @@ static void out8237(uint16_t addr, uint8_t value)
 			if (dmachan[channel].reload == 0)
 				dmachan[channel].reload = 65536;
 			dmachan[channel].count = 0;
-#ifdef DEBUG_DMA
+#if DEBUG_DMA
 			write_log("[NOTICE] DMA channel %d reload register = %04X\n", channel, dmachan[channel].reload);
 #endif
 		}
 		flipflop = ~flipflop & 1;
 		break;
 		case 0xA: //write single mask register
-		channel = value & 3;
+		channel = (value & 3) + chipnum;
 		dmachan[channel].masked = (value >> 2) & 1;
-#ifdef DEBUG_DMA
+#if DEBUG_DMA
 		write_log("[NOTICE] DMA channel %u masking = %u\n", channel, dmachan[channel].masked);
 #endif
 		break;
 		case 0xB: //write mode register
-		channel = value & 3;
+		channel = (value & 3) + chipnum;
 		dmachan[channel].direction = (value >> 5) & 1;
 		dmachan[channel].autoinit = (value >> 4) & 1;
 		dmachan[channel].modeselect = (value >> 6) & 3;
 		dmachan[channel].writemode = (value >> 2) & 1; //not quite accurate
 		dmachan[channel].verifymode = ((value >> 2) & 3) == 0;
-#ifdef DEBUG_DMA
+#if DEBUG_DMA
 		write_log("[NOTICE] DMA channel %u write mode reg: direction = %u, autoinit = %u, write mode = %u, verify mode = %u, mode select = %u\n",
 			   channel, dmachan[channel].direction, dmachan[channel].autoinit, dmachan[channel].writemode, dmachan[channel].verifymode, dmachan[channel].modeselect);
 #endif
 		break;
 		case 0xC: //clear byte pointer flip-flop
-#ifdef DEBUG_DMA
+#if DEBUG_DMA
 		write_log("[NOTICE] DMA cleared byte pointer flip-flop\n");
 #endif
 		flipflop = 0;
 		break;
+		case 0x89: // 6
+		case 0x8a: // 7
+		case 0x8b: // 5
 		case 0x81: // 2
 		case 0x82: // 3
 		case 0x83: // DMA channel 1 page register
 		// Original PC design. It can't get any more stupid.
-		if (addr == 0x81)
+		if ((addr & 3) == 1)
 			channel = 2;
-		else if (addr == 0x82)
+		else if ((addr & 3) == 2)
 			channel = 3;
 		else
 			channel = 1;
+		if (addr >= 0x84)
+			channel += 4;
 		dmachan[channel].page = (uint32_t)value << 16;
-#ifdef DEBUG_DMA
+#if DEBUG_DMA
 		write_log("[NOTICE] DMA channel %d page base = %05X\n", channel, dmachan[channel].page);
 #endif
 		break;
@@ -547,36 +665,61 @@ static void out8237(uint16_t addr, uint8_t value)
 
 static uint8_t in8237(uint16_t addr)
 {
+	struct x86_bridge *xb = bridges[0];
 	uint8_t channel;
-#ifdef DEBUG_DMA
-	write_log("in8237(0x%X);\n", addr);
-#endif
-	switch (addr) {
+	int reg = -1;
+	int chipnum = addr >= 0xc0 ? 4 : 0;
+	uint8_t out = 0;
+
+	if (addr >= 0xc0 && addr <= 0xdf) {
+		reg = (addr - 0xc0) / 2;
+		chipnum = 4;
+	} else if (addr <= 0x0f) {
+		reg = addr;
+		chipnum = 0;
+	}
+	switch (reg) {
 		case 0x0:
 		case 0x2: //channel 1 address register
 		case 0x4:
 		case 0x6:
-		channel = addr / 2;
+		channel = reg / 2 + chipnum;
 		flipflop = ~flipflop & 1;
 		if (flipflop == 0)
-			return dmachan[channel].addr >> 8;
+			out = dmachan[channel].addr >> 8;
 		else
-			return dmachan[channel].addr;
+			out = dmachan[channel].addr;
 		break;
 		case 0x1:
 		case 0x3: //channel 1 count register
 		case 0x5:
 		case 0x7:
-		channel = addr / 2;
+		channel = reg / 2 + chipnum;
 		flipflop = ~flipflop & 1;
 		if (flipflop == 0)
-			return dmachan[channel].reload >> 8;
+			out = dmachan[channel].reload >> 8;
 		else
-			return dmachan[channel].reload;
+			out = dmachan[channel].reload;
 		break;
 	}
-	return (0);
+	if (addr >= 0x80 && addr <= 0x8f)
+		out = dmareg[addr & 0xf];
+
+#if DEBUG_DMA
+	write_log("in8237(0x%X = %02x);\n", addr, out);
+#endif
+	return out;
 }
+
+static int keyboardwaitack;
+
+void x86_ack_keyboard(void)
+{
+	if (keyboardwaitack)
+		set_interrupt(bridges[0], 4);
+	keyboardwaitack = 0;
+}
+
 
 struct structpic {
 	uint8_t imr; //mask register
@@ -591,48 +734,67 @@ struct structpic {
 	uint8_t enabled;
 };
 
-static struct structpic i8259;
+static struct structpic i8259[2];
 
 static uint8_t in8259(uint16_t portnum)
 {
+	struct x86_bridge *xb = bridges[0];
+	uint8_t out = 0;
+
+	int chipnum = (portnum & 0x80) ? 1 : 0;
+	if (chipnum && xb->type < TYPE_2286)
+		return 0;
 	switch (portnum & 1) {
 		case 0:
-		if (i8259.readmode == 0)
-			return(i8259.irr);
+		if (i8259[chipnum].readmode == 0)
+			out = (i8259[chipnum].irr);
 		else
-			return(i8259.isr);
+			out = (i8259[chipnum].isr);
+		break;
 		case 1: //read mask register
-		return(i8259.imr);
+		out = (i8259[chipnum].imr);
+		break;
 	}
-	return (0);
+#if DEBUG_INT
+	write_log("in8259(0x%X = %02x);\n", portnum, out);
+#endif
+	return out;
 }
 
 extern uint32_t makeupticks;
-static int keyboardwaitack;
 
 void out8259(uint16_t portnum, uint8_t value)
 {
+	struct x86_bridge *xb = bridges[0];
 	uint8_t i;
+	int chipnum = (portnum & 0x80) ? 1 : 0;
+
+#if DEBUG_INT
+	write_log("out8259(0x%X = %02x);\n", portnum, value);
+#endif
+
+	if (chipnum && xb->type < TYPE_2286)
+		return;
 	switch (portnum & 1) {
 		case 0:
 		if (value & 0x10) { //begin initialization sequence
-			i8259.icwstep = 1;
-			i8259.imr = 0; //clear interrupt mask register
-			i8259.icw[i8259.icwstep++] = value;
+			i8259[chipnum].icwstep = 1;
+			i8259[chipnum].imr = 0; //clear interrupt mask register
+			i8259[chipnum].icw[i8259[chipnum].icwstep++] = value;
 			return;
 		}
 		if ((value & 0x98) == 8) { //it's an OCW3
 			if (value & 2)
-				i8259.readmode = value & 2;
+				i8259[chipnum].readmode = value & 2;
 		}
 		if (value & 0x20) { //EOI command
-			if (keyboardwaitack) {
+			if (!chipnum) {
+				x86_ack_keyboard();
 				keyboardwaitack = 0;
-				set_interrupt(bridges[0], 4);
 			}
 			for (i = 0; i < 8; i++)
-				if ((i8259.isr >> i) & 1) {
-					i8259.isr ^= (1 << i);
+				if ((i8259[chipnum].isr >> i) & 1) {
+					i8259[chipnum].isr ^= (1 << i);
 #if 0
 					if ((i == 0) && (makeupticks>0)) {
 						makeupticks = 0;
@@ -644,50 +806,72 @@ void out8259(uint16_t portnum, uint8_t value)
 		}
 		break;
 		case 1:
-		if ((i8259.icwstep == 3) && (i8259.icw[1] & 2))
-			i8259.icwstep = 4; //single mode, so don't read ICW3
-		if (i8259.icwstep<5) {
-			i8259.icw[i8259.icwstep++] = value;
+		if ((i8259[chipnum].icwstep == 3) && (i8259[chipnum].icw[1] & 2))
+			i8259[chipnum].icwstep = 4; //single mode, so don't read ICW3
+		if (i8259[chipnum].icwstep<5) {
+			i8259[chipnum].icw[i8259[chipnum].icwstep++] = value;
 			return;
 		}
 		//if we get to this point, this is just a new IMR value
-		i8259.imr = value;
+		i8259[chipnum].imr = value;
 		break;
 	}
-}
-
-static void doirq(uint8_t irqnum)
-{
-	i8259.irr |= (1 << irqnum);
-	if (irqnum == 1)
-		keyboardwaitack = 1;
 }
 
 static uint8_t nextintr(void)
 {
 	uint8_t i, tmpirr;
-	tmpirr = i8259.irr & (~i8259.imr); //XOR request register with inverted mask register
+	tmpirr = i8259[0].irr & (~i8259[0].imr); //XOR request register with inverted mask register
 	for (i = 0; i<8; i++) {
 		if ((tmpirr >> i) & 1) {
-			i8259.irr ^= (1 << i);
-			i8259.isr |= (1 << i);
-			return(i8259.icw[2] + i);
+			i8259[0].irr ^= (1 << i);
+			i8259[0].isr |= (1 << i);
+			return(i8259[0].icw[2] + i);
 		}
 	}
 	return(0); //this won't be reached, but without it the compiler gives a warning
 }
 
+void x86_clearirq(uint8_t irqnum)
+{
+	struct x86_bridge *xb = bridges[0];
+	if (xb->dosbox_cpu) {
+		PIC_DeActivateIRQ(irqnum);
+	}
+}
+
+void x86_doirq(uint8_t irqnum)
+{
+	struct x86_bridge *xb = bridges[0];
+	if (xb->dosbox_cpu) {
+		PIC_ActivateIRQ(irqnum);
+	} else {
+		i8259[0].irr |= (1 << irqnum);
+	}
+	if (irqnum == 1)
+		keyboardwaitack = 1;
+}
+
+bool x86_is_keyboard(void);
+
 void check_x86_irq(void)
 {
-	if (i8259.irr & (~i8259.imr)) {
-		intcall86(nextintr());	/* get next interrupt from the i8259, if any */
+	struct x86_bridge *xb = bridges[0];
+	if (xb->dosbox_cpu) {
+		PIC_runIRQs();
+	} else {
+		if (i8259[0].irr & (~i8259[0].imr)) {
+			uint8_t irq = nextintr();
+			intcall86(irq);	/* get next interrupt from the i8259, if any */
+		}
 	}
 }
 
 struct pc_floppy
 {
-	uae_u8 phys_cyl;
-	uae_u8 cyl;
+	int seek_offset;
+	int phys_cyl;
+	int cyl;
 	uae_u8 sector;
 	uae_u8 head;
 };
@@ -701,10 +885,13 @@ static uae_u8 floppy_cmd[16];
 static uae_u8 floppy_result[16];
 static uae_u8 floppy_status[4];
 static uae_u8 floppy_num;
+static int floppy_seeking[4];
+static uae_u8 floppy_seekcyl[4];
 static int floppy_delay_hsync;
-static bool floppy_irq;
 static bool floppy_did_reset;
-static bool floppy_high_density;
+static bool floppy_irq;
+
+#define PC_SEEK_DELAY 50
 
 static void floppy_reset(void)
 {
@@ -714,13 +901,85 @@ static void floppy_reset(void)
 	floppy_did_reset = true;
 }
 
+static void do_floppy_irq2(void)
+{
+	write_log(_T("floppy%d irq\n"), floppy_num);
+	if (floppy_dpc & 8) {
+		floppy_irq = true;
+		x86_doirq(6);
+	}
+}
+
 static void do_floppy_irq(void)
 {
 	if (floppy_delay_hsync > 0) {
-		floppy_irq = true;
-		doirq(6);
+		do_floppy_irq2();
 	}
 	floppy_delay_hsync = 0;
+}
+
+static void do_floppy_seek(int num, int error)
+{
+	struct pc_floppy *pcf = &floppy_pc[floppy_num];
+
+	disk_reserved_reset_disk_change(num);
+	if (!error) {
+		struct floppy_reserved fr = { 0 };
+		bool valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
+		if (floppy_seekcyl[num] != pcf->phys_cyl) {
+			if (floppy_seekcyl[num] > pcf->phys_cyl)
+				pcf->phys_cyl++;
+			else if (pcf->phys_cyl > 0)
+				pcf->phys_cyl--;
+
+			write_log(_T("Floppy%d seeking.. %d\n"), floppy_num, pcf->phys_cyl);
+
+			if (pcf->phys_cyl - pcf->seek_offset <= 0) {
+				pcf->phys_cyl = 0;
+				if (pcf->seek_offset) {
+					floppy_seekcyl[num] = 0;
+					write_log(_T("Floppy%d early track zero\n"), floppy_num);
+					pcf->seek_offset = 0;
+				}
+			}
+
+			if (valid_floppy && fr.cyls < 80 && fr.drive_cyls >=80)
+				pcf->cyl = pcf->phys_cyl / 2;
+			else
+				pcf->cyl = pcf->phys_cyl;
+
+			floppy_seeking[num] = PC_SEEK_DELAY;
+			disk_reserved_setinfo(floppy_num, pcf->cyl, pcf->head, 1);
+			return;
+		}
+
+		if (valid_floppy && pcf->phys_cyl > fr.drive_cyls + 3) {
+			pcf->seek_offset = pcf->phys_cyl - (fr.drive_cyls + 3);
+			pcf->phys_cyl = fr.drive_cyls + 3;
+			goto done;
+		}
+
+		if (valid_floppy && fr.cyls < 80 && fr.drive_cyls >= 80)
+			pcf->cyl = pcf->phys_cyl / 2;
+		else
+			pcf->cyl = pcf->phys_cyl;
+
+		if (floppy_seekcyl[num] != pcf->phys_cyl)
+			return;
+	}
+
+done:
+	write_log(_T("Floppy%d seek done err=%d. pcyl=%d cyl=%d h=%d\n"), floppy_num, error, pcf->phys_cyl,pcf->cyl, pcf->head);
+
+	floppy_status[0] = 0;
+	floppy_status[0] |= 0x20; // seek end
+	if (error) {
+		floppy_status[0] |= 0x40; // abnormal termination
+		floppy_status[0] |= 0x10; // equipment check
+	}
+	floppy_status[0] |= num;
+	floppy_status[0] |= pcf->head ? 4 : 0;
+	do_floppy_irq2();
 }
 
 static int floppy_exists(void)
@@ -753,29 +1012,42 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 
 	valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
 
+	if (floppy_cmd_len) {
+		write_log(_T("Command: "));
+		for (int i = 0; i < floppy_cmd_len; i++) {
+			write_log(_T("%02x "), floppy_cmd[i]);
+		}
+		write_log(_T("\n"));
+	}
+
 	if (cmd == 8) {
 		write_log(_T("Floppy%d Sense Interrupt Status\n"), floppy_num);
 		floppy_cmd_len = 2;
+		if (floppy_irq) {
+			write_log(_T("Floppy interrupt reset\n"));
+		}
 		if (!floppy_irq) {
 			floppy_status[0] = 0x80;
 			floppy_cmd_len = 1;
 		} else if (floppy_did_reset) {
 			floppy_did_reset = false;
+			// 0xc0 status after reset.
 			floppy_status[0] = 0xc0;
 		}
+		x86_clearirq(6);
 		floppy_irq = false;
 		floppy_result[0] = floppy_status[0];
-		floppy_result[1] = pcf->cyl;
+		floppy_result[1] = pcf->phys_cyl;
 		floppy_status[0] = 0;
 		goto end;
 	}
 
 	memset(floppy_status, 0, sizeof floppy_status);
 	memset(floppy_result, 0, sizeof floppy_result);
-	if (floppy_exists()) {
+	if (floppy_exists() >= 0) {
 		if (pcf->head)
 			floppy_status[0] |= 4;
-		floppy_status[3] |= pcf->cyl == 0 ? 0x10 : 0x00;
+		floppy_status[3] |= pcf->phys_cyl == 0 ? 0x10 : 0x00;
 		floppy_status[3] |= pcf->head ? 4 : 0;
 		floppy_status[3] |= 8; // two side
 		if (fr.wrprot)
@@ -789,12 +1061,12 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 	switch (cmd & 31)
 	{
 		case 3:
-		write_log(_T("Floppy%d Specify SRT=%d HUT=%d HLT=%d ND=%d\n"), floppy_num, floppy_cmd[1] >> 6, floppy_cmd[1] & 0x3f, floppy_cmd[2] >> 1, floppy_cmd[2] & 1);
+		write_log(_T("Floppy%d Specify SRT=%d HUT=%d HLT=%d ND=%d\n"), floppy_num, floppy_cmd[1] >> 4, floppy_cmd[1] & 0x0f, floppy_cmd[2] >> 1, floppy_cmd[2] & 1);
 		floppy_delay_hsync = -5;
 		break;
 
 		case 4:
-		write_log(_T("Floppy%d Sense Interrupt Status\n"), floppy_num);
+		write_log(_T("Floppy%d Sense Drive Status\n"), floppy_num);
 		floppy_delay_hsync = 5;
 		floppy_result[0] = floppy_status[3];
 		floppy_cmd_len = 1;
@@ -921,22 +1193,17 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 
 		case 7:
 		write_log(_T("Floppy%d recalibrate\n"), floppy_num);
-		if (floppy_selected() >= 0) {
-			pcf->cyl = 0;
-			pcf->phys_cyl = 0;
-			pcf->head = 0;
+		if (valid_floppy) {
+			floppy_seekcyl[floppy_num] = 0;
+			floppy_seeking[floppy_num] = PC_SEEK_DELAY;
 		} else {
-			floppy_status[0] |= 0x40; // abnormal termination
-			floppy_status[0] |= 0x10; // equipment check
+			floppy_seeking[floppy_num] = -PC_SEEK_DELAY;
 		}
-		floppy_status[0] |= 0x20; // seek end
-		floppy_delay_hsync = 50;
-		disk_reserved_setinfo(floppy_num, pcf->cyl, pcf->head, 1);
 		break;
 
 		case 10:
 		write_log(_T("Floppy read ID\n"));
-		if (!valid_floppy && fr.img) {
+		if (!valid_floppy || !fr.img) {
 			floppy_status[0] |= 0x40; // abnormal termination
 			floppy_status[1] |= 0x04; // no data
 		}
@@ -949,8 +1216,10 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 		floppy_result[5] = pcf->sector + 1;
 		floppy_result[6] = 2;
 
-		pcf->sector++;
-		pcf->sector %= fr.secs;
+		if (valid_floppy && fr.img) {
+			pcf->sector++;
+			pcf->sector %= fr.secs;
+		}
 
 		floppy_delay_hsync = 10;
 		disk_reserved_setinfo(floppy_num, pcf->cyl, pcf->head, 1);
@@ -1003,16 +1272,10 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 		case 15:
 		{
 			int newcyl = floppy_cmd[2];
-			floppy_delay_hsync = abs(pcf->phys_cyl - newcyl) * 100 + 50;
-			pcf->phys_cyl = newcyl;
+			write_log(_T("Floppy%d seek %d->%d (max %d)\n"), floppy_num, pcf->phys_cyl, newcyl, fr.cyls);
+			floppy_seekcyl[floppy_num] = newcyl;
+			floppy_seeking[floppy_num] = valid_floppy ? PC_SEEK_DELAY : -PC_SEEK_DELAY;
 			pcf->head = (floppy_cmd[1] & 4) ? 1 : 0;
-			floppy_status[0] |= 0x20; // seek end
-			if (fr.cyls < 80 && floppy_high_density)
-				pcf->cyl = pcf->phys_cyl / 2;
-			else
-				pcf->cyl = pcf->phys_cyl;
-			write_log(_T("Floppy%d seek to %d %d\n"), floppy_num, pcf->phys_cyl, pcf->head);
-			disk_reserved_setinfo(floppy_num, pcf->cyl, pcf->head, 1);
 		}
 		break;
 
@@ -1047,7 +1310,7 @@ static void outfloppy(struct x86_bridge *xb, int portnum, uae_u8 v)
 			floppy_delay_hsync = 20;
 		}
 #if FLOPPY_IO_DEBUG
-		write_log(_T("DPC: Motormask %02x sel=%d enable=%d dma=%d\n"), (v >> 4) & 15, v & 3, (v & 8) ? 1 : 0, (v & 4) ? 1 : 0);
+		write_log(_T("DPC: Motormask %02x sel=%d dmaen=%d reset=%d\n"), (v >> 4) & 15, v & 3, (v & 8) ? 1 : 0, (v & 4) ? 0 : 1);
 #endif
 		floppy_dpc = v;
 		floppy_num = v & 3;
@@ -1098,6 +1361,11 @@ static void outfloppy(struct x86_bridge *xb, int portnum, uae_u8 v)
 			floppy_do_cmd(xb);
 		}
 		break;
+		case 0x3f7: // configuration control
+		if (xb->type >= TYPE_2286) {
+			write_log(_T("FDC Control Register %02x\n"), v);
+		}
+		break;
 	}
 #if FLOPPY_IO_DEBUG
 	write_log(_T("out floppy port %04x %02x\n"), portnum, v);
@@ -1110,12 +1378,16 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 	{
 		case 0x3f4: // main status
 		v = 0;
-		if (!floppy_delay_hsync)
+		if (!floppy_delay_hsync && (floppy_dpc & 4))
 			v |= 0x80;
 		if (floppy_idx || floppy_delay_hsync)
 			v |= 0x10;
 		if ((v & 0x80) && floppy_dir)
 			v |= 0x40;
+		for (int i = 0; i < 4; i++) {
+			if (floppy_seeking[i])
+				v |= 1 << i;
+		}
 		break;
 		case 0x3f5: // data reg
 		if (floppy_cmd_len && floppy_dir) {
@@ -1132,12 +1404,33 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 			}
 		}
 		break;
+		case 0x3f7: // digital input register
+		if (xb->type >= TYPE_2286) {
+			struct floppy_reserved fr = { 0 };
+			bool valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
+			v = 0x00;
+			if (valid_floppy && fr.disk_changed)
+				v = 0x80;
+		}
+		break;
 	}
 #if FLOPPY_IO_DEBUG
 	write_log(_T("in  floppy port %04x %02x\n"), portnum, v);
 #endif
 	return v;
 }
+
+void bridge_mono_hit(void)
+{
+	struct x86_bridge *xb = bridges[0];
+	set_interrupt(xb, 0);
+}
+void bridge_color_hit(void)
+{
+	struct x86_bridge *xb = bridges[0];
+	set_interrupt(xb, 1);
+}
+
 
 static void set_pc_address_access(struct x86_bridge *xb, uaecptr addr)
 {
@@ -1214,7 +1507,12 @@ void portout(uint16_t portnum, uint8_t v)
 	{
 		case 0x20:
 		case 0x21:
-		out8259(portnum, v);
+		case 0xa0:
+		case 0xa1:
+		if (xb->dosbox_cpu)
+			x86_pic_write(portnum, v);
+		else
+			out8259(portnum, v);
 		break;
 		case 0x40:
 		case 0x41:
@@ -1254,15 +1552,57 @@ void portout(uint16_t portnum, uint8_t v)
 		case 0x0d:
 		case 0x0e:
 		case 0x0f:
+
+		case 0xc0:
+		case 0xc1:
+		case 0xc2:
+		case 0xc3:
+		case 0xc4:
+		case 0xc5:
+		case 0xc6:
+		case 0xc7:
+		case 0xc8:
+		case 0xc9:
+		case 0xca:
+		case 0xcb:
+		case 0xcc:
+		case 0xcd:
+		case 0xce:
+		case 0xcf:
+		case 0xd0:
+		case 0xd1:
+		case 0xd2:
+		case 0xd3:
+		case 0xd4:
+		case 0xd5:
+		case 0xd6:
+		case 0xd7:
+		case 0xd8:
+		case 0xd9:
+		case 0xda:
+		case 0xdb:
+		case 0xdc:
+		case 0xdd:
+		case 0xde:
+		case 0xdf:
+
 		out8237(portnum, v);
 		break;
 
 		case 0x60:
-		aio = 0x41f;
+		if (xb->type >= TYPE_2286) {
+			x86_out_keyboard(0x60, v);
+		} else {
+			aio = 0x41f;
+		}
 		break;
 		case 0x61:
 		//write_log(_T("OUT Port B %02x\n"), v);
-		aio = 0x5f;
+		if (xb->type >= TYPE_2286) {
+			x86_out_keyboard(0x61, v);
+		} else {
+			aio = 0x5f;
+		}
 		break;
 		case 0x62:
 		//write_log(_T("AMIGA SYSINT. %02x\n"), v);
@@ -1292,6 +1632,20 @@ void portout(uint16_t portnum, uint8_t v)
 					write_log(_T("A2088T: 9.54MHz\n"));
 			}
 		}
+		break;
+		case 0x64:
+		if (xb->type >= TYPE_2286) {
+			x86_out_keyboard(0x64, v);
+		}
+		break;
+
+		case 0x70:
+		if (xb->type >= TYPE_2286)
+			cmos_selreg(portnum, v, 1);
+		break;
+		case 0x71:
+		if (xb->type >= TYPE_2286)
+			cmos_writereg(portnum, v, 1);
 		break;
 
 		case 0x2f8:
@@ -1360,7 +1714,7 @@ void portout(uint16_t portnum, uint8_t v)
 		break;
 
 		case 0x378:
-		write_log(_T("BIOS DIAGNOSTICS CODE: %02x\n"), v);
+		write_log(_T("BIOS DIAGNOSTICS CODE: %02x ~%02X\n"), v, v ^ 0xff);
 		aio = 0x19f; // ??
 		break;
 		case 0x379:
@@ -1396,17 +1750,22 @@ void portout(uint16_t portnum, uint8_t v)
 		case 0x3f7:
 		outfloppy(xb, portnum, v);
 		break;
+
+		default:
+		write_log(_T("X86_OUT unknown %02x %02x\n"), portnum, v);
+		break;
 	}
 
-	//write_log(_T("X86_OUT %08x %02X\n"), portnum, v);
-
+#if X86_IO_PORT_DEBUG
+	write_log(_T("X86_OUT %08x %02X\n"), portnum, v);
+#endif
 	if (aio >= 0)
 		xb->amiga_io[aio] = v;
 	xb->io_ports[portnum] = v;
 }
 void portout16(uint16_t portnum, uint16_t value)
 {
-	write_log(_T("portout16 %08x\n"), portnum);
+	write_log(_T("portout16 %08x %04x\n"), portnum, value);
 }
 uint8_t portin(uint16_t portnum)
 {
@@ -1426,14 +1785,21 @@ uint8_t portin(uint16_t portnum)
 	{
 		case 0x20:
 		case 0x21:
-		v = in8259(portnum);
+		case 0xa0:
+		case 0xa1:
+		if (xb->dosbox_cpu)
+			v = x86_pic_read(portnum);
+		else
+			v = in8259(portnum);
 		break;
+
 		case 0x40:
 		case 0x41:
 		case 0x42:
 		case 0x43:
 		v = in8253(portnum);
 		break;
+
 		case 0x80:
 		case 0x81:
 		case 0x82:
@@ -1466,7 +1832,46 @@ uint8_t portin(uint16_t portnum)
 		case 0x0d:
 		case 0x0e:
 		case 0x0f:
+
+		case 0xc0:
+		case 0xc1:
+		case 0xc2:
+		case 0xc3:
+		case 0xc4:
+		case 0xc5:
+		case 0xc6:
+		case 0xc7:
+		case 0xc8:
+		case 0xc9:
+		case 0xca:
+		case 0xcb:
+		case 0xcc:
+		case 0xcd:
+		case 0xce:
+		case 0xcf:
+		case 0xd0:
+		case 0xd1:
+		case 0xd2:
+		case 0xd3:
+		case 0xd4:
+		case 0xd5:
+		case 0xd6:
+		case 0xd7:
+		case 0xd8:
+		case 0xd9:
+		case 0xda:
+		case 0xdb:
+		case 0xdc:
+		case 0xdd:
+		case 0xde:
+		case 0xdf:
+
 		v = in8237(portnum);
+		break;
+
+		case 0x71:
+		if (xb->type >= TYPE_2286)
+			v = cmos_readreg(portnum, 1);
 		break;
 
 		case 0x2f8:
@@ -1585,9 +1990,17 @@ uint8_t portin(uint16_t portnum)
 
 		case 0x60:
 		//write_log(_T("PC read keycode %02x\n"), v);
+		if (xb->type >= TYPE_2286) {
+			v = x86_in_keyboard(0x60);
+		}
 		break;
 		case 0x61:
-		v = xb->amiga_io[0x5f];
+		if (xb->type >= TYPE_2286) {
+			// bios test hack
+			v = x86_in_keyboard(0x61);
+		} else {
+			v = xb->amiga_io[0x5f];
+		}
 		//write_log(_T("IN Port B %02x\n"), v);
 		break;
 		case 0x62:
@@ -1626,6 +2039,11 @@ uint8_t portin(uint16_t portnum)
 		case 0x63:
 		//write_log(_T("IN Control %02x\n"), v);
 		break;
+		case 0x64:
+		if (xb->type >= TYPE_2286) {
+			v = x86_in_keyboard(0x64);
+		}
+		break;
 		default:
 		write_log(_T("X86_IN unknown %02x\n"), portnum);
 		return 0;
@@ -1633,7 +2051,11 @@ uint8_t portin(uint16_t portnum)
 	
 	if (aio >= 0)
 		v = xb->amiga_io[aio];
-	//write_log(_T("X86_IN %08x %02X\n"), portnum, v);
+
+#if X86_IO_PORT_DEBUG
+	write_log(_T("X86_IN %08x %02X\n"), portnum, v);
+#endif
+
 	return v;
 }
 uint16_t portin16(uint16_t portnum)
@@ -1646,7 +2068,7 @@ void write86(uint32_t addr32, uint8_t value)
 {
 	struct x86_bridge *xb = bridges[0];
 	addr32 &= 0xFFFFF;
-	if (addr32 >= xb->pc_maxram && addr32 < 0xa0000)
+	if (addr32 >= xb->pc_maxbaseram && addr32 < 0xa0000)
 		return;
 	set_pc_address_access(xb, addr32);
 	xb->pc_ram[addr32] = value;
@@ -1655,7 +2077,7 @@ void writew86(uint32_t addr32, uint16_t value)
 {
 	struct x86_bridge *xb = bridges[0];
 	addr32 &= 0xFFFFF;
-	if (addr32 >= xb->pc_maxram && addr32 < 0xa0000)
+	if (addr32 >= xb->pc_maxbaseram && addr32 < 0xa0000)
 		return;
 	set_pc_address_access(xb, addr32);
 	xb->pc_ram[addr32] = value & 0xff;
@@ -1705,7 +2127,10 @@ static uaecptr get_x86_address(struct x86_bridge *xb, uaecptr addr, int *mode)
 	if (addr < 0x1c000) {
 		addr -= 0x18000;
 		// parameter
-		return 0xf0000 + addr;
+		if (xb->type >= TYPE_2286)
+			return 0xd0000 + addr;
+		else
+			return 0xf0000 + addr;
 	}
 	if (addr < 0x1e000) {
 		addr -= 0x1c000;
@@ -1800,7 +2225,7 @@ static void REGPARAM2 x86_bridge_wput(uaecptr addr, uae_u32 b)
 	write_log(_T("pci_bridge_wput %08x (%08x,%d) %04x PC=%08x\n"), addr - xb->baseaddress, a, mode, b & 0xffff, M68K_GETPC);
 #endif
 
-	if (a >= 0xf8000 || mode < 0)
+	if (a >= 0x100000 - xb->bios_size || mode < 0)
 		return;
 
 	if (mode == ACCESS_MODE_IO) {
@@ -1850,7 +2275,7 @@ static void REGPARAM2 x86_bridge_bput(uaecptr addr, uae_u32 b)
 	int mode;
 	uaecptr a = get_x86_address(xb, addr, &mode);
 
-	if (a >= 0xf8000 || mode < 0)
+	if (a >= 0x100000 - xb->bios_size || mode < 0)
 		return;
 
 #if X86_DEBUG_BRIDGE > 1
@@ -1889,19 +2314,34 @@ void x86_bridge_rethink(void)
 
 void x86_bridge_free(void)
 {
-	for (int i = 0; i < X86_BRIDGE_MAX; i++) {
-		struct x86_bridge *xb = bridges[i];
-		if (!xb)
-			continue;
-		xfree(xb->amiga_io);
-		xfree(xb->io_ports);
-		xfree(xb->pc_ram);
-		bridges[i] = NULL;
-	}
+	x86_bridge_reset();
+	x86_found = false;
 }
 
 void x86_bridge_reset(void)
 {
+	for (int i = 0; i < X86_BRIDGE_MAX; i++) {
+		struct x86_bridge *xb = bridges[i];
+		if (!xb)
+			continue;
+		if (xb->dosbox_cpu) {
+			if (xb->cmosfile) {
+				uae_u8 *regs = x86_cmos_regs(NULL);
+				zfile_fseek(xb->cmosfile, 0, SEEK_SET);
+				zfile_fwrite(regs, 1, 0x40, xb->cmosfile);
+			}
+			CPU_ShutDown(dosbox_sec);
+			CMOS_Destroy(dosbox_sec);
+			PIC_Destroy(dosbox_sec);
+			MEM_ShutDown(dosbox_sec);
+			delete dosbox_sec;
+		}
+		xfree(xb->amiga_io);
+		xfree(xb->io_ports);
+		xfree(xb->pc_ram);
+		zfile_fclose(xb->cmosfile);
+		bridges[i] = NULL;
+	}
 }
 
 void x86_bridge_hsync(void)
@@ -1910,6 +2350,17 @@ void x86_bridge_hsync(void)
 	if (!xb)
 		return;
 
+	for (int i = 0; i < 4; i++) {
+		if (floppy_seeking[i]) {
+			bool neg = floppy_seeking[i] < 0;
+			if (floppy_seeking[i] > 0)
+				floppy_seeking[i]--;
+			else if (neg)
+				floppy_seeking[i]++;
+			if (floppy_seeking[i] == 0)
+				do_floppy_seek(i, neg);
+		}
+	}
 	if (floppy_delay_hsync > 1 || floppy_delay_hsync < -1) {
 		if (floppy_delay_hsync > 0)
 			floppy_delay_hsync--;
@@ -1920,12 +2371,26 @@ void x86_bridge_hsync(void)
 	}
 
 	if (!xb->x86_reset) {
-		exec86(30);
-		timing();
-		exec86(30);
-		timing();
-		exec86(30);
-		timing();
+		if (xb->dosbox_cpu) {
+			if (xb->x86_reset_requested) {
+				xb->x86_reset_requested = false;
+				reset_x86_cpu(xb);
+			}
+			int maxcnt = 3;
+			for (int i = 0; i < maxcnt; i++) {
+				CPU_Cycles = 40;
+				(*cpudecoder)();
+				check_x86_irq();
+				timing(maxhpos / maxcnt);
+			}
+		} else {
+			exec86(30);
+			timing(maxhpos / 3);
+			exec86(30);
+			timing(maxhpos / 3);
+			exec86(30);
+			timing(maxhpos / 3);
+		}
 	}
 }
 
@@ -1940,7 +2405,7 @@ static void ew(uae_u8 *acmemory, int addr, uae_u8 value)
 	}
 }
 
-static void a1060_reset(struct x86_bridge *xb)
+static void bridge_reset(struct x86_bridge *xb)
 {
 	xb->x86_reset = true;
 	xb->configured = 0;
@@ -1949,12 +2414,25 @@ static void a1060_reset(struct x86_bridge *xb)
 	xb->pc_irq3a = xb->pc_irq3b = xb->pc_irq7 = false;
 	memset(xb->amiga_io, 0, 0x10000);
 	memset(xb->io_ports, 0, 0x10000);
-	memset(xb->pc_ram, 0, 0x100000 - 32768);
+	memset(xb->pc_ram, 0, 0x100000 - xb->bios_size);
 	xb->amiga_io[IO_CONTROL_REGISTER] =	0xfe;
 	xb->amiga_io[IO_PC_INTERRUPT_CONTROL] = 0xff;
 	xb->amiga_io[IO_INTERRUPT_MASK] = 0xff;
 	xb->amiga_io[IO_MODE_REGISTER] = 0x00;
 	xb->amiga_io[IO_PC_INTERRUPT_STATUS] = 0xfe;
+
+	if (xb->type >= TYPE_2286) {
+		int sel1 = (xb->settings >> 10) & 1;
+		int sel2 = (xb->settings >> 11) & 1;
+		// only A0000 or D0000 is valid for AT
+		if ((!sel1 && !sel2) || (sel1 && sel2)) {
+			sel1 = 0;
+			sel2 = 1;
+		}
+		xb->amiga_io[IO_MODE_REGISTER] = sel1 << 5;
+		xb->amiga_io[IO_MODE_REGISTER] = sel2 << 6;
+	}
+
 	inittiming();
 }
 
@@ -1962,10 +2440,16 @@ int is_x86_cpu(struct uae_prefs *p)
 {
 	struct x86_bridge *xb = bridges[0];
 	if (!xb) {
+		if (x86_found)
+			return X86_STATE_STOP;
 		if (is_device_rom(&currprefs, ROMTYPE_A1060, 0) < 0 &&
-			is_device_rom(&currprefs, ROMTYPE_A2088XT, 0) < 0 &&
-			is_device_rom(&currprefs, ROMTYPE_A2088T, 0) < 0)
+			is_device_rom(&currprefs, ROMTYPE_A2088, 0) < 0 &&
+			is_device_rom(&currprefs, ROMTYPE_A2088T, 0) < 0 &&
+			is_device_rom(&currprefs, ROMTYPE_A2286, 0) < 0 &&
+			is_device_rom(&currprefs, ROMTYPE_A2386, 0) < 0) {
+			x86_found = true;
 			return X86_STATE_INACTIVE;
+		}
 	}
 	if (!xb || xb->x86_reset)
 		return X86_STATE_STOP;
@@ -1973,47 +2457,96 @@ int is_x86_cpu(struct uae_prefs *p)
 }
 
 static const uae_u8 a1060_autoconfig[16] = { 0xc4, 0x01, 0x80, 0x00, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+static const uae_u8 a2386_autoconfig[16] = { 0xc4, 0x67, 0x80, 0x00, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 addrbank *x86_bridge_init(struct romconfig *rc, int type)
 {
 	struct x86_bridge *xb = x86_bridge_alloc();
+	const uae_u8 *ac;
 	if (!xb)
 		return &expamem_null;
 	bridges[0] = xb;
 
-	xb->pc_ram = xcalloc(uae_u8, 0x100000);
+	xb->type = type;
+
 	xb->io_ports = xcalloc(uae_u8, 0x10000);
 	xb->amiga_io = xcalloc(uae_u8, 0x10000);
-	xb->type = type;
-	xb->pc_jumpers = (rc->device_settings & 0xff) ^ ((0x80 | 0x40) | (0x20 | 0x10));
+
 	xb->settings = rc->device_settings;
+	if (xb->type >= TYPE_2286) {
+		xb->dosbox_cpu = ((xb->settings >> 19) & 3) + 1;
+		xb->settings |= 0xff;
+		ac = xb->type >= TYPE_2386 ? a2386_autoconfig : a1060_autoconfig;
+		xb->pc_maxram = (1024 * 1024) << ((xb->settings >> 16) & 7);
+		xb->bios_size = 65536;
+	} else {
+		xb->dosbox_cpu = (xb->settings >> 19) & 7;
+		ac = a1060_autoconfig;
+		xb->pc_maxram = 1 * 1024 * 1024;
+		xb->bios_size = 32768;
+	}
+
+	xb->pc_ram = xcalloc(uae_u8, xb->pc_maxram + 1 * 1024 * 1024);
+	x86_memsize = xb->pc_maxram;
+	mono_start =  xb->pc_ram + 0xb0000;
+	mono_end =    xb->pc_ram + 0xb2000;
+	color_start = xb->pc_ram + 0xb8000;
+	color_end =   xb->pc_ram + 0xc0000;
+	x86_biosstart = 0x100000 - xb->bios_size;
+
+	if (xb->dosbox_cpu) {
+		x86_fpu_enabled = (xb->settings >> 22) & 1;
+		MemBase = xb->pc_ram;
+		dosbox_sec = new Section_prop("dummy");
+		MEM_Init(dosbox_sec);
+		PAGING_Init(dosbox_sec);
+		CMOS_Init(dosbox_sec);
+		PIC_Init(dosbox_sec);
+		FPU_Init(dosbox_sec);
+		if (xb->type >= TYPE_2286) {
+			xb->cmosfile = zfile_fopen(currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
+			if (!xb->cmosfile) {
+				xb->cmosfile = zfile_fopen(currprefs.flashfile, _T("wb"));
+			}
+			memset(xb->cmosregs, 0, sizeof xb->cmosregs);
+			if (xb->cmosfile) {
+				if (zfile_fread(xb->cmosregs, 1, 0x40, xb->cmosfile) >= 0x40) {
+					x86_cmos_regs(xb->cmosregs);
+				}
+			}
+		}
+	}
+
+	xb->pc_jumpers = (xb->settings & 0xff) ^ ((0x80 | 0x40) | (0x20 | 0x10));
 
 	int ramsize = (xb->settings >> 2) & 3;
 	switch(ramsize) {
 		case 0:
-		xb->pc_maxram = 128 * 1024;
+		xb->pc_maxbaseram = 128 * 1024;
 		break;
 		case 1:
-		xb->pc_maxram = 256 * 1024;
+		xb->pc_maxbaseram = 256 * 1024;
 		break;
 		case 2:
-		xb->pc_maxram = 512 * 1024;
+		xb->pc_maxbaseram = 512 * 1024;
 		break;
 		case 3:
-		xb->pc_maxram = 640 * 1024;
+		xb->pc_maxbaseram = 640 * 1024;
 		break;
 	}
 
-	floppy_high_density = xb->type >= TYPE_2088T;
-
-	a1060_reset(xb);
+	bridge_reset(xb);
 
 	// load bios
-	load_rom_rc(rc, NULL, 32768, 0, xb->pc_ram + 0xf8000, 32768, LOADROM_FILL);
+	if (!load_rom_rc(rc, NULL, xb->bios_size, 0, xb->pc_ram + 0x100000 - xb->bios_size, xb->bios_size, LOADROM_FILL)) {
+		error_log(_T("Bridgeboard BIOS failed to load"));
+		x86_bridge_free();
+		return &expamem_null;
+	}
 
 	xb->bank = &x86_bridge_bank;
-	for (int i = 0; i < sizeof a1060_autoconfig; i++) {
-		ew(xb->acmemory, i * 4, a1060_autoconfig[i]);
+	for (int i = 0; i < 16; i++) {
+		ew(xb->acmemory, i * 4, ac[i]);
 	}
 
 	return xb->bank;
@@ -2031,3 +2564,167 @@ addrbank *a2088t_init(struct romconfig *rc)
 {
 	return x86_bridge_init(rc, TYPE_2088T);
 }
+addrbank *a2286_init(struct romconfig *rc)
+{
+	return x86_bridge_init(rc, TYPE_2286);
+}
+addrbank *a2386_init(struct romconfig *rc)
+{
+	return x86_bridge_init(rc, TYPE_2386);
+}
+
+/* dosbox cpu core support stuff */
+
+Bit32s ticksDone;
+Bit32u ticksScheduled;
+
+#if 0
+Bit8u mem_readb(PhysPt address)
+{
+	return mem_readb_inline(address);
+}
+Bit16u mem_readw(PhysPt address)
+{
+	return mem_readw_inline(address);
+}
+Bit32u mem_readd(PhysPt address)
+{
+	return mem_readd_inline(address);
+}
+void mem_writeb(PhysPt address, Bit8u val)
+{
+	mem_writeb_inline(address, val);
+}
+void mem_writew(PhysPt address, Bit16u val)
+{
+	mem_writew_inline(address, val);
+}
+void mem_writed(PhysPt address, Bit32u val)
+{
+	mem_writed_inline(address, val);
+}
+Bit16u mem_unalignedreadw(PhysPt address)
+{
+	return mem_readb_inline(address) |
+		mem_readb_inline(address + 1) << 8;
+}
+Bit32u mem_unalignedreadd(PhysPt address)
+{
+	return mem_readb_inline(address) |
+		(mem_readb_inline(address + 1) << 8) |
+		(mem_readb_inline(address + 2) << 16) |
+		(mem_readb_inline(address + 3) << 24);
+}
+void mem_unalignedwritew(PhysPt address, Bit16u val)
+{
+	mem_writeb_inline(address, (Bit8u)val);
+	val >>= 8;
+	mem_writeb_inline(address + 1, (Bit8u)val);
+}
+void mem_unalignedwrited(PhysPt address, Bit32u val)
+{
+	mem_writeb_inline(address, (Bit8u)val);
+	val >>= 8;
+	mem_writeb_inline(address + 1, (Bit8u)val);
+	val >>= 8;
+	mem_writeb_inline(address + 2, (Bit8u)val);
+	val >>= 8;
+	mem_writeb_inline(address + 3, (Bit8u)val);
+}
+#endif
+
+void IO_WriteB(Bitu port, Bitu val)
+{
+	portout(port, val);
+}
+void IO_WriteW(Bitu port, Bitu val)
+{
+	write_log(_T("IO_WriteW %04x %04x\n"), port, val);
+}
+void IO_WriteD(Bitu port, Bitu val)
+{
+	write_log(_T("IO_WriteW %04x %08x\n"), port, val);
+}
+Bitu IO_ReadB(Bitu port)
+{
+	return portin(port);
+}
+Bitu IO_ReadW(Bitu port)
+{
+	write_log(_T("IO_ReadW %04x \n"), port);
+	return 0;
+}
+Bitu IO_ReadD(Bitu port)
+{
+	write_log(_T("IO_ReadW %04x \n"), port);
+	return 0;
+}
+
+void TIMER_SetGate2(bool v)
+{
+	write_log(_T("void TIMER_SetGate2(%d)!\n"), v);
+}
+
+Bits CPU_Core_Prefetch_Run(void)
+{
+	return 0;
+}
+
+bool CommandLine::FindCommand(unsigned int which, std::string & value)
+{
+	return false;
+}
+unsigned int CommandLine::GetCount(void)
+{
+	return 0;
+}
+CommandLine::CommandLine(int argc, char const * const argv[])
+{
+}
+CommandLine::CommandLine(char const * const name, char const * const cmdline)
+{
+}
+void Section::AddDestroyFunction(SectionFunction func, bool canchange)
+{
+}
+int Section_prop::Get_int(string const&_propname) const
+{
+	return 0;
+}
+const char* Section_prop::Get_string(string const& _propname) const
+{
+	return NULL;
+}
+Prop_multival* Section_prop::Get_multival(string const& _propname) const
+{
+	return NULL;
+}
+void Section_prop::HandleInputline(string const& gegevens)
+{
+}
+void Section_prop::PrintData(FILE* outfile) const
+{
+}
+Section_prop::~Section_prop()
+{
+}
+string Section_prop::GetPropValue(string const& _property) const
+{
+	return NO_SUCH_PROPERTY;
+}
+
+void DOSBOX_RunMachine(void)
+{
+}
+
+void GFX_SetTitle(long a, long b, bool c)
+{
+}
+
+void E_Exit(char *format, ...)
+{
+}
+void GFX_ShowMsg(const char *format, ...)
+{
+}
+

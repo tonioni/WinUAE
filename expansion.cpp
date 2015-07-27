@@ -2408,6 +2408,40 @@ static const struct expansionboardsettings bridge_settings[] = {
 	}
 };
 
+static const struct expansionboardsettings x86at_bridge_settings[] = {
+	{
+		// 14
+		_T("Default video\0Monochrome\0Color\0"),
+		_T("video\0mono\0color\0"),
+		true, false, 14
+	},
+	{
+		// 15
+		_T("Keyboard lock"),
+		_T("keylock"),
+		false
+	},
+	{	// 16 - 18
+		_T("Memory\0""1M\0""2M\0""4M\0""8M\0""16M\0""32M\0"),
+		_T("memory\0""1M\0""2M\0""4M\0""8M\0""16M\0""32M\0"),
+		true, false, 0
+	},
+	{	// 19 - 20
+		_T("CPU core\0DOSBox simple\0DOSBox normal\0DOSBox full\0DOSBox auto"),
+		_T("cpu\0dbsimple\0dbnormal\0dbfull\0dbauto\0"),
+		true, false, 0
+	},
+	{	// 22
+		_T("FPU"),
+		_T("fpu"),
+		false, false, 1
+	},
+	{
+		NULL
+	}
+};
+
+
 static const struct expansionboardsettings x86_bridge_settings[] = {
 	{
 		// 2-3
@@ -2420,6 +2454,15 @@ static const struct expansionboardsettings x86_bridge_settings[] = {
 		_T("Default video (J1)\0Monochrome\0Color 40x25\0Color 80x25\0None\0"),
 		_T("video\0mono\0color40\0color80\0none\0"),
 		true, false, 0
+	},
+	{	// 19 - 21
+		_T("CPU core\0Fake86\0DOSBox simple\0DOSBox normal\0DOSBox full\0DOSBox auto\0"),
+		_T("cpu\0fake86\0dbsimple\0dbnormal\0dbfull\0dbauto\0"),
+		true, false, 19 - 6
+	},
+	{	// 22
+		_T("FPU (DOSBox CPU only)"),
+		_T("fpu")
 	},
 	{
 		NULL
@@ -2475,6 +2518,11 @@ static const struct expansionboardsettings x86_bridge_sidecar_settings[] = {
 		// 12
 		_T("Disable parallel port emulation (J11)"),
 		_T("parport_card")
+	},
+	{	// 19 - 22
+		_T("CPU core\0Fake86\0DOSBox simple\0DOSBox normal\0DOSBox full\0DOSBox auto\0"),
+		_T("cpu\0fake86\0dbsimple\0dbnormal\0dbfull\0dbauto\0"),
+		true, false, 19 - 13
 	},
 	{
 		NULL
@@ -2762,6 +2810,13 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SASI | EXPANSIONTYPE_SCSI
 	},
 #endif
+
+	{
+		_T("omtiadapter"), _T("OMTI-Adapter"), _T("C't"),
+		omtiadapter_init, NULL, omtiadapter_scsi_unit, ROMTYPE_OMTIADAPTER | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
+	},
 	{
 		_T("alf1"), _T("A.L.F."), _T("Elaborate Bytes"),
 		alf1_init, NULL, alf1_add_scsi_unit, ROMTYPE_ALF1 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
@@ -2826,7 +2881,7 @@ const struct expansionromtype expansionroms[] = {
 	},
 	{
 		_T("a2088"), _T("A2088"), _T("Commodore"),
-		a2088xt_init, NULL, NULL, ROMTYPE_A2088XT | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		a2088xt_init, NULL, NULL, ROMTYPE_A2088 | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_X86_BRIDGE,
 		0, 0, 0, false, NULL,
@@ -2841,6 +2896,24 @@ const struct expansionromtype expansionroms[] = {
 		0, 0, 0, false, NULL,
 		false,
 		x86_bridge_settings
+	},
+	{
+		_T("a2286"), _T("A2286"), _T("Commodore"),
+		a2286_init, NULL, NULL, ROMTYPE_A2286 | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_X86_BRIDGE,
+		0, 0, 0, false, NULL,
+		false,
+		x86at_bridge_settings
+	},
+	{
+		_T("a2386"), _T("A2386SX"), _T("Commodore"),
+		a2386_init, NULL, NULL, ROMTYPE_A2386 | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_X86_BRIDGE,
+		0, 0, 0, false, NULL,
+		false,
+		x86at_bridge_settings
 	},
 	{
 		NULL
