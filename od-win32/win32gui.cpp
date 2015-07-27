@@ -437,6 +437,8 @@ static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int mode)
 	}
 	pfd->GetOptions (&pfos);
 	pfos |= FOS_FORCEFILESYSTEM;
+	if (!(opn->Flags & OFN_FILEMUSTEXIST))
+		pfos &= ~FOS_FILEMUSTEXIST;
 	if (opn->Flags & OFN_ALLOWMULTISELECT)
 		pfos |= FOS_ALLOWMULTISELECT;
 	if (mode < 0)
@@ -2605,6 +2607,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		defext = _T("uss");
 		break;
 	case 11:
+	case 19:
 		WIN32GUI_LoadUIString (IDS_SELECTFLASH, szTitle, MAX_DPATH);
 		WIN32GUI_LoadUIString (IDS_FLASH, szFormat, MAX_DPATH);
 		_stprintf (szFilter, _T("%s "), szFormat);
@@ -2675,6 +2678,9 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		if (!(result = GetSaveFileName_2 (hDlg, &openFileName, guid)))
 			write_log (_T("GetSaveFileNameX() failed, err=%d.\n"), GetLastError ());
 	} else {
+		if (flag == 11 || flag == 19) {
+			openFileName.Flags &= ~OFN_FILEMUSTEXIST;
+		}
 		if (!(result = GetOpenFileName_2 (hDlg, &openFileName, guid)))
 			write_log (_T("GetOpenFileNameX() failed, err=%d.\n"), GetLastError ());
 	}
@@ -8135,8 +8141,8 @@ static void create_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg, cons
 				p += _tcslen(p) + 1;
 			}
 			int bits = 1;
-			for (int i = 7; i >= 0; i--) {
-				if (itemcnt & (1 << i)) {
+			for (int i = 0; i < 8; i++) {
+				if ((1 << i) >= itemcnt) {
 					bits = i;
 					break;
 				}
@@ -8169,8 +8175,8 @@ static void create_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg, cons
 			p += _tcslen(p) + 1;
 		}
 		int bits = 1;
-		for (int i = 7; i >= 0; i--) {
-			if (itemcnt & (1 << i)) {
+		for (int i = 0; i < 8; i++) {
+			if ((1 << i) >= itemcnt) {
 				bits = i;
 				break;
 			}
@@ -9491,7 +9497,7 @@ static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, TCHAR *path)
 		values_to_kickstartdlg (hDlg);
 		break;
 	case IDC_RTCCHOOSER:
-		DiskSelection(hDlg, IDC_RTCFILE, 6, &workprefs, path);
+		DiskSelection(hDlg, IDC_RTCFILE, 19, &workprefs, path);
 		values_to_kickstartdlg (hDlg);
 		break;
 	case IDC_CARTCHOOSER:
@@ -12874,6 +12880,14 @@ static void addfloppytype (HWND hDlg, int n)
 			ew (hDlg, f_enable, TRUE);
 		}
 		CheckDlgButton (hDlg, f_enable, state ? BST_CHECKED : BST_UNCHECKED);
+		TCHAR tmp[10];
+		if (n < 2 || nn - 1 < DRV_PC_ONLY_40) {
+			_stprintf(tmp, _T("DF%d:"), n);
+		} else {
+			int t = nn - 1 == DRV_PC_ONLY_40 ? 40 : 80;
+			_stprintf(tmp, _T("%c: (%d)"), n == 2 ? 'A' : 'B', t);
+		}
+		SetWindowText(GetDlgItem(hDlg, f_enable), tmp);
 	}
 	chk = !showcd && disk_getwriteprotect (&workprefs, text) && state == TRUE ? BST_CHECKED : 0;
 	if (f_wp >= 0)
@@ -13100,8 +13114,10 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35hd);
 				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft525sd);
 				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35ddescom);
-				if (i >= 2)
-					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("PC Bridge"));
+				if (i >= 2) {
+					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("PC Bridge (40)"));
+					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("PC Bridge (80)"));
+				}
 			}
 			setmultiautocomplete (hDlg, df0texts);
 		}
@@ -17846,16 +17862,29 @@ static int do_filesys_insert (const TCHAR *root)
 	return 0;
 }
 
+static bool draghit(DWORD id, POINT pt)
+{
+	RECT r;
+	if (GetPanelRect(GetDlgItem(panelDlg, id), &r)) {
+		int extra = r.bottom - r.top;
+		r.top -= extra;
+		r.bottom += extra;
+		return PtInRect(&r, pt) != 0;
+	}
+	return false;
+}
+
 int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 {
 	int cnt, i, drv, harddrive, drvdrag, firstdrv;
 	TCHAR file[MAX_DPATH];
 	TCHAR *filepart = NULL;
-	int dfxtext[] = { IDC_DF0TEXT, IDC_DF0TEXTQ, IDC_DF1TEXT, IDC_DF1TEXTQ, IDC_DF2TEXT, -1, IDC_DF3TEXT, -1 };
+	const int dfxtext[] = { IDC_DF0TEXT, IDC_DF0TEXTQ, IDC_DF1TEXT, IDC_DF1TEXTQ, IDC_DF2TEXT, -1, IDC_DF3TEXT, -1 };
 	POINT pt;
 	RECT r, r2;
 	int ret = 0;
 	DWORD flags;
+	TCHAR *dragrompath = NULL;
 
 	DragQueryPoint (hd, &pt);
 	pt.y += GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
@@ -17885,13 +17914,27 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		for (i = 0; i < 4; i++) {
 			int id = dfxtext[i * 2 + (currentpage == QUICKSTART_ID ? 1 : 0)];
 			if (workprefs.floppyslots[i].dfxtype >= 0 && id >= 0) {
-				if (GetPanelRect (GetDlgItem (panelDlg, id), &r)) {
-					if (PtInRect (&r, pt)) {
-						drv = i;
-						break;
-					}
+				if (draghit(id, pt)) {
+					drv = i;
+					break;
 				}
 			}
+		}
+	} else if (currentpage == KICKSTART_ID) {
+		if (draghit(IDC_ROMFILE, pt)) {
+			dragrompath = prefs->romfile;
+		} else if (draghit(IDC_ROMFILE2, pt)) {
+			dragrompath = prefs->romextfile;
+		} else if (draghit(IDC_CARTFILE, pt)) {
+			dragrompath = prefs->cartfile;
+		} else if (draghit(IDC_FLASHFILE, pt)) {
+			dragrompath = prefs->flashfile;
+		} else if (draghit(IDC_RTCFILE, pt)) {
+			dragrompath = prefs->rtcfile;
+		}
+	} else if (currentpage == HARDDISK_ID) {
+		if (draghit(IDC_CD_TEXT, pt)) {
+			dragrompath = prefs->cdslots[0].name;
 		}
 	}
 	firstdrv = drv;
@@ -17961,6 +18004,10 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 					zfile_fclose (z2);
 				}
 			}
+		}
+		if (dragrompath && !(flags & FILE_ATTRIBUTE_DIRECTORY)) {
+			_tcscpy(dragrompath, file);
+			type = -2;
 		}
 
 		switch (type)
@@ -18033,7 +18080,9 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			ret = 1;
 			break;
 		case ZFILE_CDIMAGE:
-			_tcscpy (workprefs.cdslots[0].name, file);
+			_tcscpy (prefs->cdslots[0].name, file);
+			break;
+		case -2:
 			break;
 		default:
 			if (currentpage < 0 && !full_property_sheet) {

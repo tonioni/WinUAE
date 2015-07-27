@@ -59,6 +59,9 @@
     <Filter Include="mame">
       <UniqueIdentifier>{961c1680-65e6-445a-bf6e-82775255ef2d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="x86">
+      <UniqueIdentifier>{c9a4aeea-c63c-40e4-9da2-371acd5ea8fe}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ahidsound_dsonly.cpp">
@@ -757,11 +760,47 @@
     <ClCompile Include="..\..\mame\a2410.cpp">
       <Filter>mame</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\x86.cpp">
-      <Filter>common</Filter>
+    <ClCompile Include="..\..\dosbox\core_normal.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dosbox\cpu.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dosbox\flags.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dosbox\paging.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dosbox\core_full.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dosbox\core_simple.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dosbox\modrm.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dosbox\cmos.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dosbox\keyboard.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dosbox\db_memory.cpp">
+      <Filter>x86</Filter>
     </ClCompile>
     <ClCompile Include="..\..\fake86_cpu.cpp">
-      <Filter>common</Filter>
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\x86.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dosbox\pic.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dosbox\fpu.cpp">
+      <Filter>x86</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

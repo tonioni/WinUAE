@@ -1,4 +1,28 @@
 
+Beta 5:
+
+- Added OMTI-Adapter HD controller, same as ALF1 but different hardware base address.
+- It was not possible to select HDF PCMCIA SRAM and IDE options.
+- Flash ROM file and RTC battery backed up RAM file dialog didn't allow creation of new files.
+- Made disk image dragndrop floppy drive hit box larger.
+- ROM panel drag drop over ROM paths will work as expected. Previously it was always autodetected
+  and "best" ROM path was selected. Now autodetection will be only used when dropped over empty space.
+- Harddrives panel CD path dragndrop update.
+- ProWizard written module files now include name of inserted disk in DF0: or CD image, like screenshot file names.
+
+x86 bridgeboard updates:
+- A2286 and A2386SX emulation implemented. CPU and FPU core, keyboard, interrupt controller and
+  more from DOSBox. A2386SX BIOS is still misdetecting things.
+- Floppy drive label is changed between DF2:<>A: and DF3:<>B: if configured as PC bridge drive.
+  (Note that if you don't configure any PC drives, you will get really slow BIOS floppy detection)
+- Added 40 track (5.25" 360k) and 80 track (all others) drive selection. This must match inserted image
+  or BIOS drive detection will get confused.
+- Always do full disk image size autodetection when disk is inserted in PC bridge drive. Without
+  it most dos disks was detected as undersized adf images.
+- A2286/A2386 CMOS RAM is stored to disk if ROM panel Flash RAM file path is set.
+- DOSBox CPU core type selectable in bridgeboard config GUI, also 8088-based bridgeboards
+  can be optinally configured to use DOSBox CPU core.
+
 Beta 4:
 
 - RTG<>chipset mode switching didn't check if modes have different filter type (forgot to add

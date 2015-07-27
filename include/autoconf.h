@@ -128,7 +128,7 @@ struct expansionsubromtype
 {
 	const TCHAR *name;
 	const TCHAR *configname;
-	int romtype;
+	uae_u32 romtype;
 	int memory_mid, memory_pid;
 	uae_u32 memory_serial;
 	bool memory_after;
@@ -141,9 +141,9 @@ struct expansionromtype
 	const TCHAR *friendlymanufacturer;
 	DEVICE_INIT init, init2;
 	DEVICE_ADD add;
-	int romtype;
-	int romtype_extra;
-	int parentromtype;
+	uae_u32 romtype;
+	uae_u32 romtype_extra;
+	uae_u32 parentromtype;
 	int zorro;
 	bool singleonly;
 	const struct expansionsubromtype *subtypes;

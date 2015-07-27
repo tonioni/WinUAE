@@ -1058,8 +1058,8 @@ static int cfgfile_read_rom_settings(const struct expansionboardsettings *ebs, c
 			}
 			int cnt = 1;
 			int bits = 1;
-			for (int i = 7; i >= 0; i--) {
-				if (itemcnt & (1 << i)) {
+			for (int i = 0; i < 8; i++) {
+				if ((1 << i) >= itemcnt) {
 					cnt = 1 << i;
 					bits = i;
 					break;
@@ -1099,8 +1099,8 @@ static void cfgfile_write_rom_settings(const struct expansionboardsettings *ebs,
 			}
 			int cnt = 1;
 			int bits = 1;
-			for (int i = 7; i >= 0; i--) {
-				if (itemcnt & (1 << i)) {
+			for (int i = 0; i < 8; i++) {
+				if ((1 << i) >= itemcnt) {
 					cnt = 1 << i;
 					bits = i;
 					break;
