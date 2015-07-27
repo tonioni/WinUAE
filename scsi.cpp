@@ -51,7 +51,8 @@
 #define OMTI_ALF1 20
 #define OMTI_PROMIGOS 21
 #define OMTI_SYSTEM2000 22
-#define NCR_LAST 23
+#define OMTI_ADAPTER 23
+#define NCR_LAST 24
 
 extern int log_scsiemu;
 
@@ -2453,7 +2454,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		if (reg >= 0)
 			v = omti_bget(ncr, reg);
 
-	} else if (ncr->type == OMTI_ALF1) {
+	} else if (ncr->type == OMTI_ALF1 || ncr->type == OMTI_ADAPTER) {
 
 		reg = alf1_reg(ncr, addr, false);
 		if (reg >= 0)
@@ -2700,7 +2701,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 		if (reg >= 0)
 			omti_bput(ncr, reg, val);
 
-	} else if (ncr->type == OMTI_ALF1) {
+	} else if (ncr->type == OMTI_ALF1 || ncr->type == OMTI_ADAPTER) {
 
 		reg = alf1_reg(ncr, addr, true);
 		if (reg >= 0)
@@ -3507,6 +3508,24 @@ addrbank *system2000_init(struct romconfig *rc)
 void system2000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, OMTI_SYSTEM2000, 65536, 16384, ROMTYPE_SYSTEM2000);
+}
+
+addrbank *omtiadapter_init(struct romconfig *rc)
+{
+	struct soft_scsi *scsi = getscsi(rc);
+
+	if (!scsi)
+		return NULL;
+	map_banks(scsi->bank, 0x8f0000 >> 16, 0x10000 >> 16, 0);
+	scsi->board_mask = 0xffff;
+	scsi->baseaddress = 0x8f0000;
+	scsi->configured = 1;
+	return scsi->bank;
+}
+
+void omtiadapter_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, OMTI_ADAPTER, 65536, 0, ROMTYPE_OMTIADAPTER);
 }
 
 

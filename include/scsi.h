@@ -228,3 +228,6 @@ void promigos_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romcon
 
 addrbank *system2000_init(struct romconfig *rc);
 void system2000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+addrbank *omtiadapter_init(struct romconfig *rc);
+void omtiadapter_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
