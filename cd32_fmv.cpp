@@ -1551,8 +1551,11 @@ addrbank *cd32_fmv_init (uaecptr start)
 	write_log (_T("CD32 FMV mapped @$%x\n"), start);
 	if (start != fmv_start) {
 		write_log(_T("CD32 FMV invalid base address!\n"));
-		return &fmv_rom_bank;
+		return &expamem_null;
 	}
+	if (!validate_banks_z2(&fmv_bank, fmv_start >> 16, expamem_z2_size >> 16))
+		return &expamem_null;
+
 	z = read_rom_name(currprefs.cartfile);
 	if (!z) {
 		int ids[] = { 74, 23, -1 };
@@ -1578,7 +1581,7 @@ addrbank *cd32_fmv_init (uaecptr start)
 	}
 	if (!fmv_rom_bank.baseaddr) {
 		write_log(_T("CD32 FMV without ROM is not supported.\n"));
-		return &fmv_rom_bank;
+		return &expamem_null;
 	}
 	if (!audioram)
 		audioram = xmalloc(uae_u8, 262144);
@@ -1597,7 +1600,6 @@ addrbank *cd32_fmv_init (uaecptr start)
 		mpeg_decoder = mpeg2_init();
 		mpeg_info = mpeg2_info(mpeg_decoder);
 	}
-
 	fmv_bank.mask = fmv_board_size - 1;
 	map_banks(&fmv_rom_bank, (fmv_start + ROM_BASE) >> 16, fmv_rom_size >> 16, 0);
 	map_banks(&fmv_ram_bank, (fmv_start + RAM_BASE) >> 16, fmv_ram_size >> 16, 0);

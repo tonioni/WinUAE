@@ -953,13 +953,15 @@ static void REGPARAM2 pci_bridge_wput(uaecptr addr, uae_u32 b)
 			{
 				case 0x44:
 				if (pcib->type == PCI_BRIDGE_PROMETHEUS) {
-					map_banks(&pci_io_bank, (expamem_z3_pointer) >> 16, 0xf0000 >> 16, 0);
-					map_banks(&pci_mem_bank, (expamem_z3_pointer + 0x100000) >> 16, (511 * 1024 * 1024) >> 16, 0);
-					map_banks(&pci_config_bank, (expamem_z3_pointer + 0xf0000) >> 16, 0x10000 >> 16, 0);
+					if (validate_banks_z3(&pci_io_bank, (expamem_z3_pointer) >> 16, expamem_z3_size >> 16)) {
+						map_banks_z3(&pci_io_bank, (expamem_z3_pointer) >> 16, 0xf0000 >> 16);
+						map_banks_z3(&pci_mem_bank, (expamem_z3_pointer + 0x100000) >> 16, (511 * 1024 * 1024) >> 16);
+						map_banks_z3(&pci_config_bank, (expamem_z3_pointer + 0xf0000) >> 16, 0x10000 >> 16);
+					}
 					pcib->baseaddress_offset = pcib->baseaddress;
 					pcib->io_offset = expamem_z3_pointer;
 				} else if (pcib->type == PCI_BRIDGE_MEDIATOR) {
-					map_banks(&pci_mem_bank, expamem_z3_pointer >> 16, expamem_z3_size >> 16, 0);
+					map_banks_z3(&pci_mem_bank, expamem_z3_pointer >> 16, expamem_z3_size >> 16);
 					pcib->baseaddress_offset = 0;
 				}
 				pcib->baseaddress = expamem_z3_pointer;
@@ -1206,9 +1208,11 @@ static void REGPARAM2 pci_bridge_wput_2(uaecptr addr, uae_u32 b)
 			{
 				case 0x44:
 				// Mediator 4000 IO
-				map_banks(pcib->bank_2, expamem_z3_pointer >> 16, 0x800000 >> 16, 0);
-				map_banks(&pci_config_bank, (expamem_z3_pointer + 0x800000) >> 16, 0x400000 >> 16, 0);
-				map_banks(&pci_io_bank, (expamem_z3_pointer + 0xc00000) >> 16, 0x400000 >> 16, 0);
+				if (validate_banks_z3(&pci_io_bank, expamem_z3_pointer >> 16, expamem_z3_size >> 16)) {
+					map_banks(pcib->bank_2, expamem_z3_pointer >> 16, 0x800000 >> 16, 0);
+					map_banks(&pci_config_bank, (expamem_z3_pointer + 0x800000) >> 16, 0x400000 >> 16, 0);
+					map_banks(&pci_io_bank, (expamem_z3_pointer + 0xc00000) >> 16, 0x400000 >> 16, 0);
+				}
 				pcib->baseaddress_2 = expamem_z3_pointer;
 				pcib->baseaddress_end_2 = expamem_z3_pointer + expamem_z3_size;
 				pcib->board_size_2 = expamem_z3_size;
