@@ -439,6 +439,7 @@ static uae_u32 ncr_bget2 (struct ncr_state *ncr, uaecptr addr)
 	if (addr == A4091_DIP_OFFSET) {
 		uae_u8 v = 0;
 		v |= ncr->rc->device_id;
+		v |= ncr->rc->device_settings << 3;
 		v ^= 0xff & ~7;
 		return v;
 	}
@@ -749,8 +750,13 @@ static void ncr_reset_board (struct ncr_state *ncr)
 	ncr->irq = false;
 }
 
+// 01010040
+// 01020040 = H
+// 01040040 = J
+// 01080040 = K
+
 static const uae_u8 warpengine_a4000_autoconfig[16] = {
-	0x90, 0x13, 0x75, 0x00, 0x08, 0x9b, 0x00, 0x19, 0x02, 0x0e, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00
+	0x90, 0x13, 0x75, 0x00, 0x08, 0x9b, 0x00, 0x19, 0x01, 0x0e, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00
 };
 #define WARP_ENGINE_ROM_SIZE 32768
 
@@ -779,6 +785,13 @@ addrbank *ncr710_warpengine_autoconfig_init(struct romconfig *rc)
 
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = warpengine_a4000_autoconfig[i];
+		if (i == 9) {
+			b = currprefs.cpuboard_settings & 7;
+			if (!b)
+				b = 1;
+			else
+				b <<= 1;
+		}
 		ew(ncr, i * 4, b);
 	}
 	ncr->rom = xcalloc (uae_u8, WARP_ENGINE_ROM_SIZE * 4);
