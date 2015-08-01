@@ -412,6 +412,11 @@ static void reset_device (struct ide_hdf *ide, bool both)
 		set_signature (ide->pair);
 }
 
+void ide_reset_device(struct ide_hdf *ide)
+{
+	reset_device(ide, true);
+}
+
 static void ide_execute_drive_diagnostics (struct ide_hdf *ide, bool irq)
 {
 	reset_device (ide, irq);
@@ -777,6 +782,12 @@ static void ide_read_sectors (struct ide_hdf *ide, int flags)
 	}
 	if (IDE_LOG > 0)
 		write_log (_T("IDE%d read off=%d, sec=%d (%d) lba48=%d\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, ide->lba48 + ide->lba48cmd);
+	if (flags & 4) {
+		// verify
+		ide_interrupt(ide);
+		return;
+	}
+
 	ide->data_multi = multi ? ide->multiple_mode : 1;
 	ide->data_offset = 0;
 	ide->data_size = nsec * ide->blocksize;
@@ -867,7 +878,9 @@ static void ide_do_command (struct ide_hdf *ide, uae_u8 cmd)
 		} else if (cmd == 0xc6) { /* set multiple mode */
 			ide_set_multiple_mode (ide);
 		} else if (cmd == 0x20 || cmd == 0x21) { /* read sectors */
-			ide_read_sectors (ide, 0);
+			ide_read_sectors(ide, 0);
+		} else if (cmd == 0x40 || cmd == 0x41) { /* verify sectors */
+			ide_read_sectors(ide, 4);
 		} else if (cmd == 0x24 && lba48) { /* read sectors ext */
 			ide_read_sectors (ide, 2);
 		} else if (cmd == 0xc4) { /* read multiple */
@@ -902,10 +915,11 @@ static void ide_do_command (struct ide_hdf *ide, uae_u8 cmd)
 	}
 }
 
-uae_u16 ide_get_data (struct ide_hdf *ide)
+static uae_u16 ide_get_data_2(struct ide_hdf *ide, int bussize)
 {
 	bool irq = false;
 	uae_u16 v;
+	int inc = bussize ? 2 : 1;
 
 	if (ide->data_size == 0) {
 		if (IDE_LOG > 0)
@@ -915,14 +929,18 @@ uae_u16 ide_get_data (struct ide_hdf *ide)
 		return 0;
 	}
 	if (ide->packet_state) {
-		v = ide->secbuf[ide->packet_data_offset + ide->data_offset + 1] | (ide->secbuf[ide->packet_data_offset + ide->data_offset + 0] << 8);
+		if (bussize) {
+			v = ide->secbuf[ide->packet_data_offset + ide->data_offset + 1] | (ide->secbuf[ide->packet_data_offset + ide->data_offset + 0] << 8);
+		} else {
+			v = ide->secbuf[ide->packet_data_offset + ide->data_offset];
+		}
 		if (IDE_LOG > 4)
 			write_log (_T("IDE%d DATA read %04x\n"), ide->num, v);
-		ide->data_offset += 2;
+		ide->data_offset += inc;
 		if (ide->data_size < 0)
-			ide->data_size += 2;
+			ide->data_size += inc;
 		else
-			ide->data_size -= 2;
+			ide->data_size -= inc;
 		if (ide->data_offset == ide->packet_transfer_size) {
 			if (IDE_LOG > 1)
 				write_log (_T("IDE%d ATAPI partial read finished, %d bytes remaining\n"), ide->num, ide->data_size);
@@ -937,14 +955,18 @@ uae_u16 ide_get_data (struct ide_hdf *ide)
 			}
 		}
 	} else {
-		v = ide->secbuf[ide->data_offset + 1] | (ide->secbuf[ide->data_offset + 0] << 8);
+		if (bussize) {
+			v = ide->secbuf[ide->data_offset + 1] | (ide->secbuf[ide->data_offset + 0] << 8);
+		} else {
+			v = ide->secbuf[ide->data_offset];
+		}
 		if (IDE_LOG > 4)
 			write_log (_T("IDE%d DATA read %04x\n"), ide->num, v);
-		ide->data_offset += 2;
+		ide->data_offset += inc;
 		if (ide->data_size < 0) {
-			ide->data_size += 2;
+			ide->data_size += inc;
 		} else {
-			ide->data_size -= 2;
+			ide->data_size -= inc;
 			if (((ide->data_offset % ide->blocksize) == 0) && ((ide->data_offset / ide->blocksize) % ide->data_multi) == 0) {
 				if (ide->data_size)
 					process_rw_command (ide);
@@ -964,8 +986,18 @@ uae_u16 ide_get_data (struct ide_hdf *ide)
 	return v;
 }
 
-void ide_put_data (struct ide_hdf *ide, uae_u16 v)
+uae_u16 ide_get_data(struct ide_hdf *ide)
 {
+	return ide_get_data_2(ide, 1);
+}
+uae_u8 ide_get_data_8bit(struct ide_hdf *ide)
+{
+	return (uae_u8)ide_get_data_2(ide, 0);
+}
+
+static void ide_put_data_2(struct ide_hdf *ide, uae_u16 v, int bussize)
+{
+	int inc = bussize ? 2 : 1;
 	if (IDE_LOG > 4)
 		write_log (_T("IDE%d DATA write %04x %d/%d\n"), ide->num, v, ide->data_offset, ide->data_size);
 	if (ide->data_size == 0) {
@@ -974,10 +1006,14 @@ void ide_put_data (struct ide_hdf *ide, uae_u16 v)
 		return;
 	}
 	ide_grow_buffer(ide, ide->packet_data_offset + ide->data_offset + 2);
-	ide->secbuf[ide->packet_data_offset + ide->data_offset + 1] = v & 0xff;
-	ide->secbuf[ide->packet_data_offset + ide->data_offset + 0] = v >> 8;
-	ide->data_offset += 2;
-	ide->data_size -= 2;
+	if (bussize) {
+		ide->secbuf[ide->packet_data_offset + ide->data_offset + 1] = v & 0xff;
+		ide->secbuf[ide->packet_data_offset + ide->data_offset + 0] = v >> 8;
+	} else {
+		ide->secbuf[ide->packet_data_offset + ide->data_offset] = v;
+	}
+	ide->data_offset += inc;
+	ide->data_size -= inc;
 	if (ide->packet_state) {
 		if (ide->data_offset == ide->packet_transfer_size) {
 			if (IDE_LOG > 0) {
@@ -993,6 +1029,15 @@ void ide_put_data (struct ide_hdf *ide, uae_u16 v)
 			process_rw_command (ide);
 		}
 	}
+}
+
+void ide_put_data(struct ide_hdf *ide, uae_u16 v)
+{
+	ide_put_data_2(ide, v, 1);
+}
+void ide_put_data_8bit(struct ide_hdf *ide, uae_u8 v)
+{
+	ide_put_data_2(ide, v, 0);
 }
 
 uae_u32 ide_read_reg (struct ide_hdf *ide, int ide_reg)
