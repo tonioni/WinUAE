@@ -2903,7 +2903,7 @@ static const MemoryRegionOps cirrus_vga_io_ops = {
 
 void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
                                MemoryRegion *system_memory,
-                               MemoryRegion *system_io)
+                               MemoryRegion *system_io, int vramlimit)
 {
     int i;
     static int inited;
@@ -2983,6 +2983,9 @@ void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
 	// TW: CIRRUS_ID_CLGD5434 and newer has 4M support
     s->total_vram_size = s->vga.vram_size_mb * 1024 * 1024;
 	s->real_vram_size = (s->device_id >= CIRRUS_ID_CLGD5434) ? 4096 * 1024 : 2048 * 1024;
+
+	if (vramlimit && s->real_vram_size > s->total_vram_size)
+		s->real_vram_size = s->total_vram_size;
 
     /* XXX: s->vga.vram_size must be a power of two */
     s->cirrus_addr_mask = s->real_vram_size - 1;

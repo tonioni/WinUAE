@@ -307,7 +307,7 @@ struct CirrusVGAState {
 
 void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
                                MemoryRegion *system_memory,
-                               MemoryRegion *system_io);
+                               MemoryRegion *system_io, int vramlimit);
 
 struct DeviceState
 {

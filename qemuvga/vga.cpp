@@ -835,6 +835,8 @@ uint32_t vga_mem_readb(VGACommonState *s, hwaddr addr)
 //            return 0xff;
         break;
     }
+	if (addr >= s->vram_size)
+		return 0xff;
 
     if (s->sr[VGA_SEQ_MEMORY_MODE] & VGA_SR04_CHN_4M) {
         /* chain 4 mode : simplest access */
@@ -895,6 +897,8 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
 //            return;
         break;
     }
+	if (addr >= s->vram_size)
+		return;
 
     if (s->sr[VGA_SEQ_MEMORY_MODE] & VGA_SR04_CHN_4M) {
         /* chain 4 mode : simplest access */
@@ -1365,6 +1369,9 @@ static void vga_draw_text(VGACommonState *s, int full_update)
         return;
     }
 
+	if (full_update)
+		qemu_console_resize(s->con, s->last_scr_width, s->last_scr_height);
+
     if (width != s->last_width || height != s->last_height ||
         cw != s->last_cw || cheight != s->last_ch || s->last_depth) {
         s->last_scr_width = width * cw;
@@ -1720,6 +1727,8 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     }
 
     depth = s->get_bpp(s);
+	if (full_update)
+		qemu_console_resize(s->con, disp_width, height);
     if (s->line_offset != s->last_line_offset ||
         disp_width != s->last_width ||
         height != s->last_height ||

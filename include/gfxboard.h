@@ -19,6 +19,7 @@ extern double gfxboard_get_vsync (void);
 extern void gfxboard_refresh (void);
 extern bool gfxboard_toggle (int mode);
 extern int gfxboard_num_boards (int type);
+extern uae_u32 gfxboard_get_romtype(int type);
 extern const TCHAR *gfxboard_get_name(int);
 extern const TCHAR *gfxboard_get_manufacturername(int); 
 extern const TCHAR *gfxboard_get_configname(int);
@@ -29,6 +30,11 @@ extern void tms_reset(void);
 extern void tms_hsync_handler(void);
 extern void tms_vsync_handler(void);
 extern bool tms_toggle(int);
+
+extern void vga_io_put(int portnum, uae_u8 v);
+extern uae_u8 vga_io_get(int portnum);
+extern void vga_ram_put(int offset, uae_u8 v);
+extern uae_u8 vga_ram_get(int offset);
 
 #define GFXBOARD_UAE_Z2 0
 #define GFXBOARD_UAE_Z3 1
@@ -45,3 +51,4 @@ extern bool tms_toggle(int);
 #define GFXBOARD_PICASSO4_Z2 10
 #define GFXBOARD_PICASSO4_Z3 11
 #define GFXBOARD_A2410 12
+#define GFXBOARD_VGA 13
