@@ -102,18 +102,13 @@ static void namesplit(TCHAR *s)
 		memmove(s, s + l, (_tcslen(s + l) + 1) * sizeof (TCHAR));
 }
 
-extern "C"
+static void moduleripper_filename(const char *aname, TCHAR *out, bool fullpath)
 {
-
-FILE *moduleripper_fopen (const char *aname, const char *amode)
-{
-	TCHAR tmp2[MAX_DPATH];
 	TCHAR tmp[MAX_DPATH];
 	TCHAR img[MAX_DPATH];
-	TCHAR *name, *mode;
-	FILE *f;
+	TCHAR *name;
 
-	fetch_ripperpath (tmp, sizeof tmp / sizeof (TCHAR));
+	fetch_ripperpath(tmp, sizeof tmp / sizeof(TCHAR));
 
 	img[0] = 0;
 	if (currprefs.floppyslots[0].dfxtype >= 0)
@@ -125,18 +120,34 @@ FILE *moduleripper_fopen (const char *aname, const char *amode)
 		_tcscat(img, _T("_"));
 	}
 
-	name = au (aname);
+	name = au(aname);
+	if (!fullpath)
+		tmp[0] = 0;
+	_stprintf(out, _T("%s%s%s"), tmp, img, name);
+	xfree(name);
+}
+
+extern "C"
+{
+
+FILE *moduleripper_fopen (const char *aname, const char *amode)
+{
+	TCHAR outname[MAX_DPATH];
+	TCHAR *mode;
+	FILE *f;
+
+	moduleripper_filename(aname, outname, true);
+
 	mode = au (amode);
-	_stprintf (tmp2, _T("%s%s%s"), tmp, img, name);
-	f = _tfopen (tmp2, mode);
+	f = _tfopen (outname, mode);
 	xfree (mode);
-	xfree (name);
 	return f;
 }
 
 FILE *moduleripper2_fopen (const char *name, const char *mode, const char *aid, int addr, int size)
 {
 	TCHAR msg[MAX_DPATH], msg2[MAX_DPATH];
+	TCHAR outname[MAX_DPATH];
 	TCHAR *id;
 	int ret;
 
@@ -144,8 +155,9 @@ FILE *moduleripper2_fopen (const char *name, const char *mode, const char *aid, 
 		return NULL;
 	got++;
 	translate_message (NUMSG_MODRIP_SAVE, msg);
+	moduleripper_filename(name, outname, false);
 	id = au (aid);
-	_stprintf (msg2, msg, id, addr, size);
+	_stprintf (msg2, msg, id, addr, size, outname);
 	ret = gui_message_multibutton (2, msg2);
 	xfree (id);
 	if (ret < 0)

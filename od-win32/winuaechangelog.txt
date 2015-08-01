@@ -1,4 +1,55 @@
 
+- Bridgeboard floppy drive motor and click sound supported.
+- x86 CPU status string was visible even when bridgeboard was not active.
+- Added software readable A4091 DIP switches and Warp Engine SCSI jumpers to GUI. Note that default
+  jumper state for Warp Engine is "No autoboot", you need to set all 3 jumpers to re-enable previous
+  autoboot configuration.
+- Even more Z2 and Z3 board address validation, do not map the board if OS attempts to map it over any
+  existing mapped space. Some Z2/Z3 boards didn't use validating memory bank map routines.
+- A590 XT drive emulation uses now generic "custom" HD emulation like all recently added MFM/RLL
+  controllers. Automatic geometry fixing removed, it can cause problems.
+- Fixed A590 XT random bug that tried to start DMA transfer middle of command phase in some situations.
+- Remember last open Expansion panel expansion device, saved to config file.
+- A2286 "The Real Time Clock has not been initialized." message is gone.
+- A2386SX CMOS RAM size fixed, but BIOS still complains about invalid configuration and setup screen
+  shows incorrect extended RAM size. (Why? Early boot phase extended RAM size counter is correct.)
+  Floppy drive access also seems to stall for 5s+ regularly and then work normally again.
+- Added x86 bridgeboard AT IDE drive emulation. Selection under IDE controllers. Only A2286 and A2386SX
+  have BIOS support for AT IDE. At least fdisk and formatting confirmed working.
+- Added IDE commands 0x40 and 0x41 (READ VERIFY SECTOR(S)), BIOS code uses it during formatting.
+- Added support for XTIDE Universal BIOS (https://code.google.com/p/xtideuniversalbios/) See notes.
+- Added supprtt for IDE emulation 8-bit data port width. (XT mode XTIDE Universal BIOS)
+- Only show SASI harddrive types if selected controller uses SASI-like commands.
+- Cirrus Logic hardware emulation text modes used graphics mode resolution when selecting host screen
+  size. Larger than 8 pixel font width text mode was too narrow.
+- Added x86 VGA board emulation (uses already existing Cirrus Logic emulation).
+
+x86 bridgeboard VGA notes:
+- Does not autoswitch, use END+F9 to switch between screens.
+- Empty Amiga-side Janus PC window must still be open to enable keyboard input.
+- It is not possible (at least not yet) to have Amiga RTG board enabled at the same time.
+- VGA uses A0000-BFFFF, make sure bridgeboard "Address Sector" does not conflict. (Bad
+  memories are starting to return from PC DOS era...)
+
+RTG ROM configuration notes:
+- Expansion panel has new "RTG board" category that currently lists 2 boards that need rom image,
+  Picasso IV and x86 bridgeboard VGA ISA card.
+- This selection is currently a special case: selected ROM gets automatically removed when RTG board
+  is changed, always use RTG panel first to select the board, then Expansion panel to set the ROM.
+- If Picasso IV ROM is not selected ("ROM disabled"): old rom loading method is used. In other words,
+  you can ignore whole RTG ROM configuration if you are never going to use x86 bridgeboard VGA card.
+- Probably any old ISA Cirrus Logic GD542x VGA ROM can be used, for example
+  http://www.vgamuseum.info/index.php/component/k2/item/131-cirrus-logic-cl-gd5420
+  or http://www.nongnu.org/vgabios/ seems to work.
+
+XTIDE Universal BIOS notes:
+- BIOS is loaded at 0xEC000 to guarantee it becoming last BIOS extension, it is required to make it
+  work properly if there are other extensions (Janus handler/library). Make sure bridgeboard
+  "Address sector" is not conflicting (D0000-DFFFF works fine, for some reason no BIOS checks A0000
+  to AFFFF region but it is documented as existing option in hardware).
+- Uses Universal BIOS defaults (IO address base 0x300, no interrupt).
+- A1060 and A2088 confirmed working.
+
 Beta 5:
 
 - Added OMTI-Adapter HD controller, same as ALF1 but different hardware base address.

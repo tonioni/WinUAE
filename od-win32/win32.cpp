@@ -3445,6 +3445,8 @@ static struct midiportinfo *getmidiport (struct midiportinfo **mi, int devid)
 	return NULL;
 }
 
+extern int scsiromselected;
+
 void target_save_options (struct zfile *f, struct uae_prefs *p)
 {
 	struct midiportinfo *midp;
@@ -3542,6 +3544,8 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 
 	cfgfile_target_dwrite (f, _T("extraframewait"), _T("%d"), extraframewait);
 	cfgfile_target_dwrite (f, _T("framelatency"), _T("%d"), forcedframelatency);
+	if (scsiromselected > 0)
+		cfgfile_target_write(f, _T("expansion_gui_page"), expansionroms[scsiromselected].name);
 }
 
 void target_restart (void)
@@ -3628,6 +3632,20 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_intval (option, value, _T("extraframewait"), &extraframewait, 1)
 		|| cfgfile_intval (option, value, _T("framelatency"), &forcedframelatency, 1)
 		|| cfgfile_intval (option, value, _T("cpu_idle"), &p->cpu_idle, 1));
+
+
+	if (cfgfile_string(option, value, _T("expansion_gui_page"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
+		TCHAR *p = _tcschr(tmpbuf, ',');
+		if (p != NULL)
+			*p = 0;
+		for (int i = 0; expansionroms[i].name; i++) {
+			if (!_tcsicmp(tmpbuf, expansionroms[i].name)) {
+				scsiromselected = i;
+				break;
+			}
+		}
+		return 1;
+	}
 
 	if (cfgfile_yesno (option, value, _T("rtg_match_depth"), &p->win32_rtgmatchdepth))
 		return 1;

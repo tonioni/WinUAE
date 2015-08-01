@@ -180,7 +180,7 @@ static void addaspectratios (HWND hDlg, int id)
 	}
 }
 
-static int scsiromselected = 0;
+int scsiromselected = 0;
 static int scsiromselectednum = 0;
 static int scsiromselectedcatnum = 0;
 
@@ -3388,6 +3388,7 @@ static void writeconfigcache (const TCHAR *path)
 	TCHAR cachepath[MAX_DPATH];
 	TCHAR path2[MAX_DPATH];
 	FILETIME t;
+	ULARGE_INTEGER ul;
 	SYSTEMTIME st;
 
 	if (!configurationcache)
@@ -3403,7 +3404,9 @@ static void writeconfigcache (const TCHAR *path)
 	SystemTimeToFileTime (&st, &t);
 	fwrite (configcachever, _tcslen (configcachever), sizeof (TCHAR), zcache);
 	fwrite (&lf, 1, sizeof (TCHAR), zcache);
-	_stprintf (path2, _T("3\n4\n7\n%I64u\n;\n"), t);
+	ul.HighPart = t.dwHighDateTime;
+	ul.LowPart = t.dwLowDateTime;
+	_stprintf (path2, _T("3\n4\n7\n%I64u\n;\n"), ul.QuadPart);
 	fwrite (path2, _tcslen (path2), sizeof (TCHAR), zcache);
 	GetFullPathName (path, sizeof path2 / sizeof (TCHAR), path2, NULL);
 	for (i = 0; i < configstoresize; i++) {
@@ -8276,54 +8279,52 @@ static void expansion_net (HWND hDlg)
 		SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_SETCURSEL, 0, 0);
 }
 
-static const int scsiromselectedmask[] = { EXPANSIONTYPE_SCSI, EXPANSIONTYPE_IDE, EXPANSIONTYPE_SASI, EXPANSIONTYPE_CUSTOM, EXPANSIONTYPE_PCI_BRIDGE, EXPANSIONTYPE_X86_BRIDGE };
-static void init_expansion2(HWND hDlg)
+static const int scsiromselectedmask[] = { EXPANSIONTYPE_SCSI, EXPANSIONTYPE_IDE, EXPANSIONTYPE_SASI, EXPANSIONTYPE_CUSTOM, EXPANSIONTYPE_PCI_BRIDGE, EXPANSIONTYPE_X86_BRIDGE, EXPANSIONTYPE_RTG };
+static void init_expansion2(HWND hDlg, bool init)
 {
 	static int first = -1;
+	bool last = false;
 
-	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_SETCURSEL, scsiromselectedcatnum, 0);
-
-	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_RESETCONTENT, 0, 0);
-	scsiromselect_table[0] = -1;
-	for (int i = 0; expansionroms[i].name; i++) {
-		TCHAR name[256];
-		if (expansionroms[i].romtype & ROMTYPE_CPUBOARD)
-			continue;
-		if (!(expansionroms[i].deviceflags & scsiromselectedmask[scsiromselectedcatnum]))
-			continue;
-		if (scsiromselectedcatnum == 0 && (expansionroms[i].deviceflags & (EXPANSIONTYPE_SASI | EXPANSIONTYPE_CUSTOM)))
-			continue;
-		name[0] = 0;
-		int cnt = 0;
-		for (int j = 0; j < MAX_DUPLICATE_EXPANSION_BOARDS; j++) {
-			if (cfgfile_board_enabled(&workprefs, expansionroms[i].romtype, j)) {
-				cnt++;
+	for (;;) {
+		bool matched = false;
+		SendDlgItemMessage(hDlg, IDC_SCSIROMSELECT, CB_RESETCONTENT, 0, 0);
+		scsiromselect_table[0] = -1;
+		for (int i = 0; expansionroms[i].name; i++) {
+			TCHAR name[256];
+			if (expansionroms[i].romtype & ROMTYPE_CPUBOARD)
+				continue;
+			if (!(expansionroms[i].deviceflags & scsiromselectedmask[scsiromselectedcatnum]))
+				continue;
+			if (scsiromselectedcatnum == 0 && (expansionroms[i].deviceflags & (EXPANSIONTYPE_SASI | EXPANSIONTYPE_CUSTOM)))
+				continue;
+			name[0] = 0;
+			int cnt = 0;
+			for (int j = 0; j < MAX_DUPLICATE_EXPANSION_BOARDS; j++) {
+				if (cfgfile_board_enabled(&workprefs, expansionroms[i].romtype, j)) {
+					cnt++;
+				}
 			}
+			if (i == scsiromselected)
+				matched = true;
+			if (cnt > 0) {
+				if (first < 0)
+					first = i;
+			}
+			if (cnt == 1)
+				_tcscat(name, _T("* "));
+			else if (cnt > 1)
+				_stprintf(name + _tcslen(name), _T("[%d] "), cnt);
+			_tcscat(name, expansionroms[i].friendlyname);
+			if (expansionroms[i].friendlymanufacturer) {
+				_tcscat(name, _T(" ("));
+				_tcscat(name, expansionroms[i].friendlymanufacturer);
+				_tcscat(name, _T(")"));
+			}
+			gui_add_string(scsiromselect_table, hDlg, IDC_SCSIROMSELECT, i, name);
 		}
-		if (cnt > 0) {
-			if (first < 0)
-				first = i;
-		}
-		if (cnt == 1)
-			_tcscat(name, _T("* "));
-		else if (cnt > 1)
-			_stprintf(name + _tcslen(name), _T("[%d] "), cnt);
-		_tcscat(name, expansionroms[i].friendlyname);
-		if (expansionroms[i].friendlymanufacturer) {
-			_tcscat(name, _T(" ("));
-			_tcscat(name, expansionroms[i].friendlymanufacturer);
-			_tcscat(name, _T(")"));
-		}
-		gui_add_string(scsiromselect_table, hDlg, IDC_SCSIROMSELECT, i, name);
-	}
-	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_RESETCONTENT, 0, 0);
-	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
-		TCHAR tmp[10];
-		_stprintf(tmp, _T("%d"), i + 1);
-		SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_ADDSTRING, 0, (LPARAM) tmp);
-	}
 
-	if (scsiromselected <= 0) {
+		if (scsiromselected > 0 && matched)
+			break;
 		int found = -1;
 		for (int i = 0; expansionroms[i].name; i++) {
 			int romtype = expansionroms[i].romtype;
@@ -8342,14 +8343,30 @@ static void init_expansion2(HWND hDlg)
 		}
 		if (scsiromselected < 0 && found < 0)
 			found = first;
-		if (found >= 0) {
+		if (found > 0) {
 			scsiromselected = found;
+			break;
 		}
+		if (last || !init)
+			break;
+		scsiromselectedcatnum++;
+		if (scsiromselectedcatnum > 5) {
+			last = true;
+			scsiromselectedcatnum = 0;
+			scsiromselected = 0;
+		}
+	}
+
+	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_RESETCONTENT, 0, 0);
+	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
+		TCHAR tmp[10];
+		_stprintf(tmp, _T("%d"), i + 1);
+		SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_ADDSTRING, 0, (LPARAM)tmp);
 	}
 
 	if (scsiromselected > 0)
 		gui_set_string_cursor(scsiromselect_table, hDlg, IDC_SCSIROMSELECT, scsiromselected);
-
+	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_SETCURSEL, scsiromselectedcatnum, 0);
 	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_SETCURSEL, scsiromselectednum, 0);
 
 	SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_RESETCONTENT, 0, 0);
@@ -8444,7 +8461,7 @@ static void values_from_expansion2dlg(HWND hDlg)
 		clear_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum);
 	}
 	if (changed) {
-		init_expansion2(hDlg);
+		init_expansion2(hDlg, false);
 		values_to_expansion2dlg_sub(hDlg);
 	}
 
@@ -8679,6 +8696,27 @@ static void updatecpuboardsubtypes(HWND hDlg)
 #endif
 }
 
+static void set_expansion_rtg_rom(void)
+{
+	int idx;
+	uae_u32 romtype = gfxboard_get_romtype(workprefs.rtgmem_type);
+	if (romtype) {
+		struct boardromconfig *bc = get_device_rom_new(&workprefs, romtype, 0, &idx);
+		if (bc && bc->roms[idx].romfile[0] == 0) {
+			_tcscpy(bc->roms[idx].romfile, _T(":NOROM"));
+		}
+	}
+	for (int i = 0; expansionroms[i].name; i++) {
+		const struct expansionromtype *ert = &expansionroms[i];
+		if (ert->deviceflags & EXPANSIONTYPE_RTG) {
+			if ((ert->romtype & ROMTYPE_MASK) != (romtype & ROMTYPE_MASK)) {
+				clear_device_rom(&workprefs, ert->romtype, 0);
+			}
+		}
+	}
+}
+
+
 static void expansion2filebuttons(HWND hDlg, WPARAM wParam, TCHAR *path)
 {
 	switch (LOWORD(wParam))
@@ -8740,11 +8778,12 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("Custom Controllers"));
 			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("PCI Bridgeboards"));
 			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("x86 Bridgeboards"));
+			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("RTG boards"));
 			reset_expansionrom_gui(hDlg, &expansion_gui_item, IDC_EXPANSIONBOARDITEMSELECTOR, IDC_EXPANSIONBOARDSELECTOR, IDC_EXPANSIONBOARDCHECKBOX);
 			reset_expansionrom_gui(hDlg, &accelerator_gui_item, IDC_ACCELERATORBOARDITEMSELECTOR, IDC_ACCELERATORBOARDSELECTOR, IDC_ACCELERATORBOARDCHECKBOX);
 			hide(hDlg, IDC_SCSIROMSELECTED, 1);
 			expansion_net(hDlg);
-			init_expansion2(hDlg);
+			init_expansion2(hDlg, true);
 			updatecpuboardsubtypes(hDlg);
 			setcpuboardmemsize(hDlg);
 			recursive--;
@@ -8865,7 +8904,7 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 					if (val != CB_ERR) {
 						scsiromselectedcatnum = val;
 						scsiromselected = 0;
-						init_expansion2(hDlg);
+						init_expansion2(hDlg, false);
 						values_to_expansion2_expansion_roms(hDlg, NULL);
 						values_to_expansion2_expansion_settings(hDlg);
 						values_to_expansion2dlg_sub(hDlg);
@@ -9265,6 +9304,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 							if (workprefs.rtgmem_size == 0)
 								workprefs.rtgmem_size = 4096 * 1024;
 						}
+						set_expansion_rtg_rom();
 						enable_for_expansiondlg (hDlg);
 					}
 					break;
@@ -11466,10 +11506,13 @@ static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype)
 		SendDlgItemMessage (hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("ATA-2+"));
 		SendDlgItemMessage (hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("ATA-2+ Strict"));
 	} else if (ctype >= HD_CONTROLLER_TYPE_SCSI_FIRST && ctype <= HD_CONTROLLER_TYPE_SCSI_LAST) {
+		const struct expansionromtype *ert = get_unit_expansion_rom(ctype);
 		SendDlgItemMessage (hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("SCSI-1"));
 		SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("SCSI-2"));
-		SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("SASI"));
-		SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("SASI CHS"));
+		if (ert && (ert->deviceflags & (EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_CUSTOM_SECONDARY))) {
+			SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("SASI"));
+			SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("SASI CHS"));
+		}
 	}
 }
 

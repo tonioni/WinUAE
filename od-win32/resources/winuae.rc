@@ -1575,7 +1575,6 @@ BEGIN
 
     IDD_EXPANSION2, DIALOG
     BEGIN
-        BOTTOMMARGIN, 302
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -1839,7 +1838,7 @@ BEGIN
     IDS_NUMSG_NOEXTROM      "No extended ROM found."
     IDS_NUMSG_MODRIP_NOTFOUND "No music modules or packed data found."
     IDS_NUMSG_MODRIP_FINISHED "Scan finished."
-    IDS_NUMSG_MODRIP_SAVE   "Module/packed data found\n%s\nStart address %08.8X, Size %d bytes\nWould you like to save it?"
+    IDS_NUMSG_MODRIP_SAVE   "Module/packed data found\n%s\nStart address %08.8X, Size %d bytes\n'%s'\nWould you like to save it?"
     IDS_NUMSG_KS68020       "The selected system ROM requires a 68020 with 32-bit addressing or 68030 or higher CPU."
     IDS_NUMSG_ROMNEED       "One of the following system ROMs is required:\n\n%s\n\nCheck the System ROM path in the Paths panel and click Rescan ROMs."
     IDS_NUMSG_STATEHD       "WARNING: Current configuration is not fully compatible with state saves.\nThis message will not appear again."
