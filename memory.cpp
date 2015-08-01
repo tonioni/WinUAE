@@ -2881,41 +2881,74 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
 #endif
 }
 
+bool validate_banks_z3(addrbank *bank, int start, int size)
+{
+	if (start < 0x1000 || size <= 0) {
+		error_log(_T("Z3 invalid map_banks(%s) start=%08x size=%08x\n"), bank->name, start << 16, size << 16);
+		cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
+		return false;
+	}
+	if (size > 0x4000 || start + size > 0xf000) {
+		error_log(_T("Z3 invalid map_banks(%s) start=%08x size=%08x\n"), bank->name, start << 16, size << 16);
+		return false;
+	}
+	for (int i = start; i < start + size; i++) {
+		addrbank *ab = &get_mem_bank(start << 16);
+		if (ab != &dummy_bank && ab != bank) {
+			error_log(_T("Z3 map_banks(%s) attempting to override existing memory bank '%s' at %08x!\n"), bank->name, ab->name, i << 16);
+			return false;
+		}
+	}
+	return true;
+}
+
 void map_banks_z3(addrbank *bank, int start, int size)
 {
-	if (start < 0x1000 || size <= 0 || size > 0x4000 || start + size > 0xf000) {
-		write_log(_T("Z3 invalid map_banks start=%08x size=%08x\n"), start, size);
-		cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
+	if (!validate_banks_z3(bank, start, size))
 		return;
-	}
 	map_banks(bank, start, size, 0);
 }
 
-void map_banks_z2 (addrbank *bank, int start, int size)
+bool validate_banks_z2(addrbank *bank, int start, int size)
 {
 	if (start < 0x20 || (start >= 0xa0 && start < 0xe9) || start >= 0xf0) {
-		write_log(_T("Z2 map_banks with invalid start address %08X\n"), start << 16);
+		error_log(_T("Z2 map_banks(%s) with invalid start address %08X\n"), bank->name, start << 16);
 		cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
-		return;
+		return false;
 	}
 	if (start >= 0xe9) {
 		if (start + size > 0xf0) {
-			write_log(_T("Z2 map_banks with invalid region %08x - %08X\n"), start << 16, (start + size) << 16);
+			error_log(_T("Z2 map_banks(%s) with invalid region %08x - %08X\n"), bank->name, start << 16, (start + size) << 16);
 			cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
-			return;
+			return false;
 		}
 	} else {
 		if (start + size > 0xa0) {
-			write_log(_T("Z2 map_banks with invalid region %08x - %08X\n"), start << 16, (start + size) << 16);
+			error_log(_T("Z2 map_banks(%s) with invalid region %08x - %08X\n"), bank->name, start << 16, (start + size) << 16);
 			cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
-			return;
+			return false;
 		}
 	}
 	if (size <= 0 || size > 0x80) {
-		write_log(_T("Z2 map_banks with invalid size %08x\n"), size);
+		error_log(_T("Z2 map_banks(%s) with invalid size %08x\n"), size);
 		cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
-		return;
+		return false;
 	}
+	for (int i = start; i < start + size; i++) {
+		addrbank *ab = &get_mem_bank(start << 16);
+		if (ab != &dummy_bank) {
+			error_log(_T("Z2 map_banks(%s) attempting to override existing memory bank '%s' at %08x!\n"), bank->name, ab->name, i << 16);
+			return false;
+		}
+	}
+	return true;
+}
+
+
+void map_banks_z2 (addrbank *bank, int start, int size)
+{
+	if (!validate_banks_z2(bank, start, size))
+		return;
 	map_banks (bank, start, size, 0);
 }
 
