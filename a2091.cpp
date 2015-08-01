@@ -283,7 +283,7 @@ static void freencrunit(struct wd_state *wd)
 			scsi_units[i] = NULL;
 		}
 	}
-	scsi_freenative(wd->scsis);
+	scsi_freenative(wd->scsis, MAX_SCSI_UNITS);
 	xfree (wd->rom);
 	wd->rom = NULL;
 	if (wd->self_ptr)
@@ -709,7 +709,7 @@ static bool do_dma_commodore(struct wd_state *wd, struct scsi_data *scsi)
 	if (wd->cdtv)
 		cdtv_getdmadata(&wd->cdmac.dmac_acr);
 	if (scsi->direction < 0) {
-#if WD33C93_DEBUG > 0
+#if WD33C93_DEBUG || XT_DEBUG > 0
 		uaecptr odmac_acr = wd->cdmac.dmac_acr;
 #endif
 		bool run = true;
@@ -726,12 +726,12 @@ static bool do_dma_commodore(struct wd_state *wd, struct scsi_data *scsi)
 			if (status)
 				run = false;
 		}
-#if WD33C93_DEBUG > 0
+#if WD33C93_DEBUG || XT_DEBUG > 0
 		write_log (_T("%s Done DMA from WD, %d/%d %08X\n"), WD33C93, scsi->offset, scsi->data_len, odmac_acr);
 #endif
 		return true;
 	} else if (scsi->direction > 0) {
-#if WD33C93_DEBUG > 0
+#if WD33C93_DEBUG || XT_DEBUG > 0
 		uaecptr odmac_acr = wd->cdmac.dmac_acr;
 #endif
 		bool run = true;
@@ -748,7 +748,7 @@ static bool do_dma_commodore(struct wd_state *wd, struct scsi_data *scsi)
 			if (status)
 				run = false;
 		}
-#if WD33C93_DEBUG > 0
+#if WD33C93_DEBUG || XT_DEBUG > 0
 		write_log (_T("%s Done DMA to WD, %d/%d %08x\n"), WD33C93, scsi->offset, scsi->data_len, odmac_acr);
 #endif
 		return true;
@@ -1244,21 +1244,12 @@ static void wd_cmd_trans_addr(struct wd_chip_state *wd, struct wd_state *wds)
 	heads = (lba - ((cyls * theads * tsectors))) / tsectors;
 	sectors = (lba - ((cyls * theads * tsectors))) % tsectors;
 
-	//write_log(_T("WD TRANS ADDR: LBA=%d TC=%d TH=%d TS=%d -> C=%d H=%d S=%d\n"), lba, tcyls, theads, tsectors, cyls, heads, sectors);
+	write_log(_T("WD TRANS ADDR: LBA=%d TC=%d TH=%d TS=%d -> C=%d H=%d S=%d\n"), lba, tcyls, theads, tsectors, cyls, heads, sectors);
 
 	wd->wdregs[WD_CYL_0] = cyls >> 8;
 	wd->wdregs[WD_CYL_1] = cyls;
 	wd->wdregs[WD_HEAD] = heads;
 	wd->wdregs[WD_SECTOR] = sectors;
-
-	if (wds) {
-		// This is cheating, sector value is hardwired on MFM drives. This hack allows to mount hardfiles
-		// that are created using incompatible geometry. (XT MFM/RLL drives have real physical geometry)
-		if (wds->cdmac.xt_sectors != tsectors && wds->scsis[XT_UNIT]) {
-			write_log(_T("XT drive sector value patched from %d to %d\n"), wds->cdmac.xt_sectors, tsectors);
-			wds->cdmac.xt_sectors = tsectors;
-		}
-	}
 
 	if (cyls >= tcyls)
 		set_status(wd, CSR_BAD_STATUS);
@@ -1390,7 +1381,7 @@ static void scsi_hsync2_a2091 (struct wd_state *wds)
 	if (!wds || !wds->enabled)
 		return;
 	scsi_hsync_check_dma(wds);
-	if (wds->cdmac.dmac_dma > 0 && (wds->cdmac.xt_status & (XT_STAT_INPUT | XT_STAT_REQUEST))) {
+	if (wds->cdmac.dmac_dma > 0 && (wds->cdmac.xt_control & XT_DMA_MODE) && (wds->cdmac.xt_status & (XT_STAT_INPUT | XT_STAT_REQUEST) && !(wds->cdmac.xt_status & XT_STAT_COMMAND))) {
 		wd->scsi = wds->scsis[XT_UNIT];
 		if (do_dma(wds)) {
 			xt_command_done(wds);
@@ -1562,12 +1553,14 @@ uae_u8 wdscsi_get (struct wd_chip_state *wd, struct wd_state *wds)
 	return v;
 }
 
-/* XT */
+/* A590 XT */
 
 static void xt_default_geometry(struct wd_state *wds)
 {
 	wds->cdmac.xt_cyls = wds->wc.scsi->hfd->cyls > 1023 ? 1023 : wds->wc.scsi->hfd->cyls;
 	wds->cdmac.xt_heads = wds->wc.scsi->hfd->heads > 31 ? 31 : wds->wc.scsi->hfd->heads;
+	wds->cdmac.xt_sectors = wds->wc.scsi->hfd->secspertrack;
+	write_log(_T("XT Default CHS %d %d %d\n"), wds->cdmac.xt_cyls, wds->cdmac.xt_heads, wds->cdmac.xt_sectors);
 }
 
 
@@ -1592,20 +1585,22 @@ static void xt_reset(struct wd_state *wds)
 
 static void xt_command_done(struct wd_state *wds)
 {
-	switch (wds->cdmac.xt_cmd[0])
-	{
-		case XT_CMD_DTCSETPARAM:
-			wds->cdmac.xt_heads = wds->wc.scsi->buffer[2] & 0x1f;
-			wds->cdmac.xt_cyls = ((wds->wc.scsi->buffer[0] & 3) << 8) | (wds->wc.scsi->buffer[1]);
-			wds->cdmac.xt_sectors = XT_SECTORS;
-			if (!wds->cdmac.xt_heads || !wds->cdmac.xt_cyls)
-				xt_default_geometry(wds);
-			write_log(_T("XT SETPARAM: cyls=%d heads=%d\n"), wds->cdmac.xt_cyls, wds->cdmac.xt_heads);
-			break;
-		case XT_CMD_WRITE:
-			scsi_emulate_cmd(wds->wc.scsi);
-			break;
-
+	struct scsi_data *scsi = wds->scsis[XT_UNIT];
+	if (scsi->direction > 0) {
+		if (scsi->cmd[0] == 0x0c) {
+			xt_default_geometry(wds);
+			int size = wds->cdmac.xt_cyls * wds->cdmac.xt_heads * wds->cdmac.xt_sectors;
+			wds->cdmac.xt_heads = scsi->buffer[2] & 0x1f;
+			wds->cdmac.xt_cyls = (scsi->buffer[0] << 8) | scsi->buffer[1];
+			wds->cdmac.xt_sectors = size / (wds->cdmac.xt_cyls * wds->cdmac.xt_heads);
+			write_log(_T("XT_SETPARAM: Cyls=%d Heads=%d Sectors=%d\n"), wds->cdmac.xt_cyls, wds->cdmac.xt_heads, wds->cdmac.xt_sectors);
+			for (int i = 0; i < 8; i++) {
+				write_log(_T("%02X "), scsi->buffer[i]);
+			}
+			write_log(_T("\n"));
+		} else {
+			scsi_emulate_cmd(scsi);
+		}
 	}
 
 	xt_set_status(wds, XT_STAT_INTERRUPT);
@@ -1614,7 +1609,7 @@ static void xt_command_done(struct wd_state *wds)
 	wds->cdmac.xt_datalen = 0;
 	wds->cdmac.xt_statusbyte = 0;
 #if XT_DEBUG > 0
-	write_log(_T("XT command %02x done\n"), wds->xt_cmd[0]);
+	write_log(_T("XT command %02x done\n"), wds->cdmac.xt_cmd[0]);
 #endif
 }
 
@@ -1625,100 +1620,29 @@ static void xt_wait_data(struct wd_state *wds, int len)
 	wds->cdmac.xt_datalen = len;
 }
 
-static void xt_sense(struct wd_state *wds)
-{
-	wds->cdmac.xt_datalen = 4;
-	wds->cdmac.xt_offset = 0;
-	memset(wds->wc.scsi->buffer, 0, wds->cdmac.xt_datalen);
-}
-
-static void xt_readwrite(struct wd_state *wds, int rw)
-{
-	struct scsi_data *scsi = wds->scsis[XT_UNIT];
-	int transfer_len;
-	uae_u32 lba;
-	// 1 = head
-	// 2 = bits 6,7: cyl high, bits 0-5: sectors
-	// 3 = cyl (low)
-	// 4 = transfer count
-	lba = ((wds->cdmac.xt_cmd[3] | ((wds->cdmac.xt_cmd[2] << 2) & 0x300))) * (wds->cdmac.xt_heads * wds->cdmac.xt_sectors) +
-		(wds->cdmac.xt_cmd[1] & 0x1f) * wds->cdmac.xt_sectors +
-		(wds->cdmac.xt_cmd[2] & 0x3f);
-
-	wds->wc.scsi = scsi;
-	wds->cdmac.xt_offset = 0;
-	transfer_len = wds->cdmac.xt_cmd[4] == 0 ? 256 : wds->cdmac.xt_cmd[4];
-	wds->cdmac.xt_datalen = transfer_len * 512;
-
-#if XT_DEBUG > 0
-	write_log(_T("XT %s block %d, %d\n"), rw ? _T("WRITE") : _T("READ"), lba, transfer_len);
-#endif
-
-	scsi->cmd[0] = rw ? 0x0a : 0x08; /* WRITE(6) / READ (6) */
-	scsi->cmd[1] = lba >> 16;
-	scsi->cmd[2] = lba >> 8;
-	scsi->cmd[3] = lba >> 0;
-	scsi->cmd[4] = transfer_len;
-	scsi->cmd[5] = 0;
-	scsi_emulate_analyze(wds->wc.scsi);
-	if (rw) {
-		wds->wc.scsi->direction = 1;
-		xt_set_status(wds, XT_STAT_REQUEST);
-	} else {
-		wds->wc.scsi->direction = -1;
-		scsi_emulate_cmd(scsi);
-		xt_set_status(wds, XT_STAT_INPUT);
-	}
-	scsi_start_transfer(scsi);
-	settc(&wds->wc, scsi->data_len);
-
-	if (!(wds->cdmac.xt_control & XT_DMA_MODE))
-		xt_command_done(wds);
-}
-
 static void xt_command(struct wd_state *wds)
 {
 	wds->wc.scsi = wds->scsis[XT_UNIT];
-	write_log(_T("XT command %02x\n"), wds->cdmac.xt_cmd[0]);
-	switch (wds->cdmac.xt_cmd[0])
-	{
-	case XT_CMD_READ:
-		xt_readwrite(wds, 0);
-		break;
-	case XT_CMD_WRITE:
-		xt_readwrite(wds, 1);
-		break;
-	case XT_CMD_SEEK:
+	struct scsi_data *scsi = wds->scsis[XT_UNIT];
+#if XT_DEBUG > 0
+	write_log(_T("XT command %02x. DMA=%d\n"), wds->cdmac.xt_cmd[0], (wds->cdmac.xt_control & XT_DMA_MODE) ? 1 : 0);
+#endif
+
+	memcpy(scsi->cmd, wds->cdmac.xt_cmd, 6);
+	scsi->data_len = -1;
+	wds->cdmac.xt_offset = 0;
+	scsi_emulate_analyze(scsi);
+	scsi_start_transfer(scsi);
+	if (scsi->direction > 0) {
+		xt_set_status(wds, XT_STAT_REQUEST);
+	} else if (scsi->direction < 0) {
+		scsi_emulate_cmd(scsi);
+		xt_set_status(wds, XT_STAT_INPUT);
+	} else {
 		xt_command_done(wds);
-		break;
-	case XT_CMD_VERIFY:
-		xt_command_done(wds);
-		break;
-	case XT_CMD_FORMATBAD:
-	case XT_CMD_FORMATTRK:
-	case XT_CMD_FORMATDRV:
-		xt_command_done(wds);
-		break;
-	case XT_CMD_TESTREADY:
-		xt_command_done(wds);
-		break;
-	case XT_CMD_RECALIBRATE:
-		xt_command_done(wds);
-		break;
-	case XT_CMD_SENSE:
-		xt_sense(wds);
-		break;
-	case XT_CMD_DTCSETPARAM:
-		xt_wait_data(wds, 8);
-		break;
-	default:
-		write_log(_T("XT unknown command %02X\n"), wds->cdmac.xt_cmd[0]);
-		xt_command_done(wds);
-		wds->cdmac.xt_status |= XT_STAT_INPUT;
-		wds->cdmac.xt_datalen = 1;
-		wds->cdmac.xt_statusbyte = XT_CSB_ERROR;
-		break;
 	}
+	wds->cdmac.xt_datalen = scsi->data_len;
+	settc(&wds->wc, scsi->data_len);
 }
 
 static uae_u8 read_xt_reg(struct wd_state *wds, int reg)
@@ -1734,20 +1658,26 @@ static uae_u8 read_xt_reg(struct wd_state *wds, int reg)
 	case XD_DATA:
 		if (wds->cdmac.xt_status & XT_STAT_INPUT) {
 			v = wds->wc.scsi->buffer[wds->cdmac.xt_offset];
+#if XT_DEBUG > 1
+			write_log(_T("XT data read %02X (%d/%d)\n"), v, wds->cdmac.xt_offset, wds->cdmac.xt_datalen);
+#endif
 			wds->cdmac.xt_offset++;
 			if (wds->cdmac.xt_offset >= wds->cdmac.xt_datalen) {
 				xt_command_done(wds);
 			}
 		} else {
 			v = wds->cdmac.xt_statusbyte;
+#if XT_DEBUG > 1
+			write_log(_T("XT status byte read %02X\n"), v);
+#endif
 		}
 		break;
 	case XD_STATUS:
 		v = wds->cdmac.xt_status;
 		break;
 	case XD_JUMPER:
-		// 20M: 0 40M: 2, xt.device checks it.
-		v = wds->wc.scsi->hfd->size >= 41615 * 2 * 512 ? 2 : 0;
+		// 20M: 2 40M: 0, xt.device checks it.
+		v = wds->wc.scsi->hfd->size >= 41615 * 2 * 512 ? 0 : 2;
 		break;
 	case XD_RESERVED:
 		break;
@@ -1771,28 +1701,36 @@ static void write_xt_reg(struct wd_state *wds, int reg, uae_u8 v)
 	switch (reg)
 	{
 	case XD_DATA:
-#if XT_DEBUG > 1
-		write_log(_T("XT data write %02X\n"), v);
-#endif
 		if (!(wds->cdmac.xt_status & XT_STAT_REQUEST)) {
 			wds->cdmac.xt_offset = 0;
 			xt_set_status(wds, XT_STAT_COMMAND | XT_STAT_REQUEST);
 		}
 		if (wds->cdmac.xt_status & XT_STAT_REQUEST) {
 			if (wds->cdmac.xt_status & XT_STAT_COMMAND) {
+#if XT_DEBUG > 1
+				write_log(_T("XT command write %02X (%d/6)\n"), v, wds->cdmac.xt_offset);
+#endif
 				wds->cdmac.xt_cmd[wds->cdmac.xt_offset++] = v;
 				xt_set_status(wds, XT_STAT_COMMAND | XT_STAT_REQUEST);
 				if (wds->cdmac.xt_offset == 6) {
 					xt_command(wds);
 				}
 			} else {
+#if XT_DEBUG > 1
+				write_log(_T("XT data write %02X (%d/6)\n"), v, wds->cdmac.xt_offset, wds->cdmac.xt_datalen);
+#endif
 				wds->wc.scsi->buffer[wds->cdmac.xt_offset] = v;
 				wds->cdmac.xt_offset++;
 				if (wds->cdmac.xt_offset >= wds->cdmac.xt_datalen) {
 					xt_command_done(wds);
 				}
 			}
+#if XT_DEBUG > 1
+		} else {
+			write_log(_T("XT data write without REQUEST %02X\n"), v);
+#endif
 		}
+
 		break;
 	case XD_RESET:
 		xt_reset(wds);
@@ -1804,6 +1742,12 @@ static void write_xt_reg(struct wd_state *wds, int reg, uae_u8 v)
 		xt_set_status(wds, XT_STAT_SELECT);
 		break;
 	case XD_CONTROL:
+#if XT_DEBUG > 1
+	if ((v & XT_DMA_MODE) != (wds->cdmac.xt_control & XT_DMA_MODE))
+			write_log(_T("XT DMA mode=%d\n"), (v & XT_DMA_MODE) ? 1 : 0);
+		if ((v & XT_INT) != (wds->cdmac.xt_control & XT_INT))
+			write_log(_T("XT IRQ mode=%d\n"), (v & XT_INT) ? 1 : 0);
+#endif
 		wds->cdmac.xt_control = v;
 		wds->cdmac.xt_irq = 0;
 		break;
