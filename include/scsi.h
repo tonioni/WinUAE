@@ -78,7 +78,7 @@ int add_scsi_cd (struct scsi_data **sd, int ch, int unitnum);
 int add_scsi_tape (struct scsi_data **sd, int ch, const TCHAR *tape_directory, bool readonly);
 void free_scsi (struct scsi_data *sd);
 
-void scsi_freenative(struct scsi_data **sd);
+void scsi_freenative(struct scsi_data **sd, int max);
 void scsi_addnative(struct scsi_data **sd);
 
 #define SCSI_NO_SENSE_DATA		0x00
@@ -231,3 +231,8 @@ void system2000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romc
 
 addrbank *omtiadapter_init(struct romconfig *rc);
 void omtiadapter_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+void x86_xt_hd_bput(int, uae_u8);
+uae_u8 x86_xt_hd_bget(int);
+addrbank *x86_xt_hd_init(struct romconfig *rc);
+void x86_add_xt_hd_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);

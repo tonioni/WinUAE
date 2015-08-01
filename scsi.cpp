@@ -52,7 +52,8 @@
 #define OMTI_PROMIGOS 21
 #define OMTI_SYSTEM2000 22
 #define OMTI_ADAPTER 23
-#define NCR_LAST 24
+#define OMTI_X86 24
+#define NCR_LAST 25
 
 extern int log_scsiemu;
 
@@ -532,9 +533,9 @@ int add_scsi_device(struct scsi_data **sd, int ch, struct uaedev_config_info *ci
 	return 0;
 }
 
-void scsi_freenative(struct scsi_data **sd)
+void scsi_freenative(struct scsi_data **sd, int max)
 {
-	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+	for (int i = 0; i < max; i++) {
 		free_scsi (sd[i]);
 		sd[i] = NULL;
 	}
@@ -547,7 +548,7 @@ void scsi_addnative(struct scsi_data **sd)
 	int types[MAX_TOTAL_SCSI_DEVICES];
 	struct device_info dis[MAX_TOTAL_SCSI_DEVICES];
 
-	scsi_freenative (sd);
+	scsi_freenative (sd, MAX_TOTAL_SCSI_DEVICES);
 	i = 0;
 	while (i < MAX_TOTAL_SCSI_DEVICES) {
 		types[i] = -1;
@@ -680,6 +681,7 @@ static struct soft_scsi *soft_scsi_devices[MAX_SOFT_SCSI_UNITS];
 static struct soft_scsi *soft_scsi_units[NCR_LAST * MAX_DUPLICATE_EXPANSION_BOARDS];
 bool parallel_port_scsi;
 static struct soft_scsi *parallel_port_scsi_data;
+static struct soft_scsi *x86_hd_data;
 
 static void soft_scsi_free_unit(struct soft_scsi *s)
 {
@@ -1265,17 +1267,22 @@ static void dma_check(struct soft_scsi *ncr)
 	}
 }
 
-// NCR 53C80
+// NCR 53C80/MISC SCSI-LIKE
 
+void x86_doirq(uint8_t irqnum);
 void ncr80_rethink(void)
 {
 	for (int i = 0; soft_scsi_devices[i]; i++) {
 		if (soft_scsi_devices[i]->irq && soft_scsi_devices[i]->intena) {
-			if (soft_scsi_devices[i]->level6)
-				INTREQ_0(0x8000 | 0x2000);
-			else
-				INTREQ_0(0x8000 | 0x0008);
-			return;
+			if (soft_scsi_devices[i] == x86_hd_data) {
+				x86_doirq(5);
+			} else {
+				if (soft_scsi_devices[i]->level6)
+					INTREQ_0(0x8000 | 0x2000);
+				else
+					INTREQ_0(0x8000 | 0x0008);
+				return;
+			}
 		}
 	}
 }
@@ -2731,6 +2738,32 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 #endif
 }
 
+// x86 bridge hd
+void x86_xt_hd_bput(int portnum, uae_u8 v)
+{
+	struct soft_scsi *scsi = x86_hd_data;
+	write_log(_T("X86 HD PUT %04x = %02x\n"), portnum, v);
+	if (!scsi)
+		return;
+	if (portnum < 0) {
+		struct raw_scsi *rs = &scsi->rscsi;
+		raw_scsi_busfree(rs);
+		scsi->chip_state = 0;
+		return;
+	}
+	omti_bput(scsi, v & 3, v);
+}
+uae_u8 x86_xt_hd_bget(int portnum)
+{
+	uae_u8 v = 0xff;
+	struct soft_scsi *scsi = x86_hd_data;
+	write_log(_T("X86 HD GET %04x\n"), portnum);
+	if (!scsi)
+		return v;
+	v = omti_bget(scsi, v & 3);
+	return v;
+}
+
 // mainhattan paradox scsi
 uae_u8 parallel_port_scsi_read(int reg, uae_u8 data, uae_u8 dir)
 {
@@ -3528,10 +3561,31 @@ void omtiadapter_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconf
 	generic_soft_scsi_add(ch, ci, rc, OMTI_ADAPTER, 65536, 0, ROMTYPE_OMTIADAPTER);
 }
 
+extern void x86_xt_ide_bios(struct zfile*);
+addrbank *x86_xt_hd_init(struct romconfig *rc)
+{
+	struct soft_scsi *scsi = getscsi(rc);
+
+	if (!scsi)
+		return NULL;
+	struct zfile *f = read_device_from_romconfig(rc, NULL);
+	x86_xt_ide_bios(f);
+	zfile_fclose(f);
+	scsi->configured = 1;
+	x86_hd_data = scsi;
+	return NULL;
+}
+
+void x86_add_xt_hd_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, OMTI_X86, 0, 0, ROMTYPE_X86_HD);
+}
 
 void soft_scsi_free(void)
 {
 	parallel_port_scsi = false;
+	parallel_port_scsi_data = NULL;
+	x86_hd_data = NULL;
 	for (int i = 0; soft_scsi_devices[i]; i++) {
 		soft_scsi_free_unit(soft_scsi_devices[i]);
 		soft_scsi_devices[i] = NULL;
