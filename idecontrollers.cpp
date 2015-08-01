@@ -42,7 +42,8 @@
 #define MTEC_IDE (ADIDE_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define PROTAR_IDE (MTEC_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define ROCHARD_IDE (PROTAR_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
-#define TOTAL_IDE (ROCHARD_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
+#define x86_AT_IDE (ROCHARD_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
+#define TOTAL_IDE (x86_AT_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 
 #define ALF_ROM_OFFSET 0x0100
 #define GVP_IDE_ROM_OFFSET 0x8000
@@ -91,6 +92,7 @@ static struct ide_board *adide_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *mtec_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *protar_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *rochard_board[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ide_board *x86_at_ide_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 
 static struct ide_hdf *idecontroller_drive[TOTAL_IDE * 2];
 static struct ide_thread_state idecontroller_its;
@@ -229,11 +231,20 @@ static bool ide_rethink(struct ide_board *board)
 	return irq;
 }
 
+void x86_doirq(uint8_t irqnum);
+
 void idecontroller_rethink(void)
 {
 	bool irq = false;
 	for (int i = 0; ide_boards[i]; i++) {
-		irq |= ide_rethink(ide_boards[i]);
+		if (ide_boards[i] == x86_at_ide_board[0] || ide_boards[i] == x86_at_ide_board[1]) {
+			bool x86irq = ide_rethink(ide_boards[i]);
+			if (x86irq) {
+				x86_doirq(ide_boards[i] == x86_at_ide_board[0] ? 14 : 15);
+			}
+		} else {
+			irq |= ide_rethink(ide_boards[i]);
+		}
 	}
 	if (irq && !(intreq & 0x0008)) {
 		INTREQ_0(0x8000 | 0x0008);
@@ -292,38 +303,55 @@ static bool is_gvp1_intreq(uaecptr addr)
 	return false;
 }
 
-static uae_u32 get_ide_reg_multi(struct ide_board *board, int reg, int portnum)
+static uae_u32 get_ide_reg_multi(struct ide_board *board, int reg, int portnum, int dataportsize)
 {
 	struct ide_hdf *ide = board->ide[portnum];
 	if (!ide)
 		return 0;
 	if (ide->ide_drv)
 		ide = ide->pair;
-	if (reg == 0)
-		return ide_get_data(ide);
-	else
+	if (reg == 0) {
+		if (dataportsize)
+			return ide_get_data(ide);
+		else
+			return ide_get_data_8bit(ide);
+	} else {
 		return ide_read_reg(ide, reg);
+	}
 }
-static void put_ide_reg_multi(struct ide_board *board, int reg, uae_u32 v, int portnum)
+static void put_ide_reg_multi(struct ide_board *board, int reg, uae_u32 v, int portnum, int dataportsize)
 {
 	struct ide_hdf *ide = board->ide[portnum];
 	if (!ide)
 		return;
 	if (ide->ide_drv)
 		ide = ide->pair;
-	if (reg == 0)
-		ide_put_data(ide, v);
-	else
+	if (reg == 0) {
+		if (dataportsize)
+			ide_put_data(ide, v);
+		else
+			ide_put_data_8bit(ide, v);
+	} else {
 		ide_write_reg(ide, reg, v);
+	}
 }
 static uae_u32 get_ide_reg(struct ide_board *board, int reg)
 {
-	return get_ide_reg_multi(board, reg, 0);
+	return get_ide_reg_multi(board, reg, 0, 1);
 }
 static void put_ide_reg(struct ide_board *board, int reg, uae_u32 v)
 {
-	put_ide_reg_multi(board, reg, v, 0);
+	put_ide_reg_multi(board, reg, v, 0, 1);
 }
+static uae_u32 get_ide_reg_8bitdata(struct ide_board *board, int reg)
+{
+	return get_ide_reg_multi(board, reg, 0, 0);
+}
+static void put_ide_reg_8bitdata(struct ide_board *board, int reg, uae_u32 v)
+{
+	put_ide_reg_multi(board, reg, v, 0, 0);
+}
+
 
 static int get_gvp_reg(uaecptr addr, struct ide_board *board)
 {
@@ -588,7 +616,7 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 			int portnum;
 			int regnum = get_rochard_reg(addr, board, &portnum);
 			if (regnum >= 0 && board->ide[portnum])
-				v = get_ide_reg_multi(board, regnum, portnum);
+				v = get_ide_reg_multi(board, regnum, portnum, 1);
 		} else if ((addr & 0x7c00) == 0x7000) {
 			if (board->subtype)
 				v = rochard_scsi_get(oaddr);
@@ -740,7 +768,7 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 		} else if (board->type == ROCHARD_IDE) {
 
 			if (board->configured && (addr & 0x8020) == 0x8000) {
-				v = get_ide_reg_multi(board, IDE_DATA, (addr & 0x4000) ? 1 : 0);
+				v = get_ide_reg_multi(board, IDE_DATA, (addr & 0x4000) ? 1 : 0, 1);
 			}
 
 		}
@@ -871,7 +899,7 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 					int portnum;
 					int regnum = get_rochard_reg(addr, board, &portnum);
 					if (regnum >= 0 && board->ide[portnum])
-						put_ide_reg_multi(board, regnum, v, portnum);
+						put_ide_reg_multi(board, regnum, v, portnum, 1);
 				} else if ((addr & 0x7c00) == 0x7000) {
 					if (board->subtype)
 						rochard_scsi_put(oaddr, v);
@@ -979,7 +1007,7 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 		} else if (board->type == ROCHARD_IDE) {
 
 			if (board->configured && (addr & 0x8020) == 0x8000) {
-				put_ide_reg_multi(board, IDE_DATA, v, (addr & 0x4000) ? 1 : 0);
+				put_ide_reg_multi(board, IDE_DATA, v, (addr & 0x4000) ? 1 : 0, 1);
 			}
 
 		}
@@ -1425,4 +1453,109 @@ void rochard_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romc
 		else
 			rochard_add_scsi_unit(ch, ci, rc);
 	}
+}
+
+extern void x86_xt_ide_bios(struct zfile*);
+static addrbank *x86_at_hd_init(struct romconfig *rc, int type)
+{
+	struct ide_board *ide = getide(rc);
+
+	if (!ide)
+		return NULL;
+
+	ide->intena = type == 0;
+	ide->configured = 1;
+	ide->bank = &ide_bank_generic;
+
+	struct zfile *f = read_device_from_romconfig(rc, NULL);
+	if (f) {
+		x86_xt_ide_bios(f);
+		zfile_fclose(f);
+	}
+
+	return NULL;
+}
+addrbank *x86_at_hd_init_1(struct romconfig *rc)
+{
+	return x86_at_hd_init(rc, 0);
+}
+addrbank *x86_at_hd_init_2(struct romconfig *rc)
+{
+	return x86_at_hd_init(rc, 0);
+}
+addrbank *x86_at_hd_init_xt(struct romconfig *rc)
+{
+	return x86_at_hd_init(rc, 1);
+}
+
+void x86_add_at_hd_unit_1(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	add_ide_standard_unit(ch, ci, rc, &x86_at_ide_board[0], x86_AT_IDE + 0, false, false, 2);
+}
+void x86_add_at_hd_unit_2(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	add_ide_standard_unit(ch, ci, rc, &x86_at_ide_board[1], x86_AT_IDE + 1, false, false, 2);
+}
+void x86_add_at_hd_unit_xt(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	add_ide_standard_unit(ch, ci, rc, &x86_at_ide_board[2], x86_AT_IDE + 2, false, false, 2);
+}
+
+static int x86_ide_reg(int portnum, int *unit)
+{
+	if (portnum >= 0x1f0 && portnum < 0x1f8) {
+		*unit = 0;
+		return portnum & 7;
+	}
+	if (portnum >= 0x170 && portnum < 0x178) {
+		*unit = 1;
+		return portnum & 7;
+	}
+	if (portnum >= 0x300 && portnum < 0x310) {
+		*unit = 2;
+		if (portnum >= 0x308+6)
+			return (portnum & 7) | IDE_SECONDARY;
+		return portnum & 7;
+	}
+	return -1;
+}
+
+void x86_ide_hd_put(int portnum, uae_u16 v, int size)
+{
+	if (portnum < 0) {
+		for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
+			struct ide_board *board = x86_at_ide_board[i];
+			if (board)
+				ide_reset_device(board->ide[0]);
+		}
+		return;
+	}
+	int unit;
+	int regnum = x86_ide_reg(portnum, &unit);
+	if (regnum >= 0) {
+		struct ide_board *board = x86_at_ide_board[unit];
+		if (board) {
+			if (size == 0)
+				put_ide_reg_8bitdata(board, regnum, v);
+			else
+				put_ide_reg(board, regnum, v);
+		}
+	}
+}
+uae_u16 x86_ide_hd_get(int portnum, int size)
+{
+	uae_u16 v = 0;
+	int unit;
+	int regnum = x86_ide_reg(portnum, &unit);
+	if (regnum >= 0) {
+		struct ide_board *board = x86_at_ide_board[unit];
+		if (board) {
+			if (size == 0)
+				v = get_ide_reg_8bitdata(board, regnum);
+			else
+				v = get_ide_reg(board, regnum);
+
+		}
+	}
+	return v;
 }
