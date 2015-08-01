@@ -29,6 +29,7 @@ struct diskinfo
 
 struct floppy_reserved
 {
+	int num;
 	struct zfile *img;
 	bool wrprot;
 	int cyl;

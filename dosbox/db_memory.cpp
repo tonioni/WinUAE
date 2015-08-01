@@ -119,6 +119,50 @@ public:
 };
 
 
+extern void write_log(const char*,...);
+extern void vga_ram_put(int offset, uint8_t v);
+extern uint8_t vga_ram_get(int offset);
+
+
+class VGA_Handler : public PageHandler {
+public:
+	VGA_Handler() {
+		flags = PFLAG_NOCODE;
+	}
+	Bitu readb(PhysPt addr) {
+		return vga_ram_get(addr);
+	}
+	Bitu readw(PhysPt addr) {
+		Bitu v = vga_ram_get(addr) << 0;
+		v |= vga_ram_get(addr + 1) << 8;
+		return v;
+	}
+	Bitu readd(PhysPt addr) {
+		Bitu v = readw(addr);
+		v |= readw(addr + 2) << 16;
+		return v;
+	}
+	void writeb(PhysPt addr, Bitu val) {
+		vga_ram_put(addr, val);
+	}
+	void writew(PhysPt addr, Bitu val) {
+		vga_ram_put(addr, val);
+		vga_ram_put(addr + 1, val >> 8);
+		return;
+	}
+	void writed(PhysPt addr, Bitu val) {
+		writew(addr, val);
+		writew(addr + 2, val >> 16);
+		return;
+	}
+};
+static VGA_Handler vga_page_handler;
+
+void MEM_SetVGAHandler(void)
+{
+	MEM_SetPageHandler(0xa0000 >> 12, (0xc0000 - 0xa0000) >> 12, &vga_page_handler);
+}
+
 
 static IllegalPageHandler illegal_page_handler;
 static RAMPageHandler ram_page_handler;
@@ -538,6 +582,7 @@ HostPt GetMemBase(void) { return MemBase; }
 
 extern int x86_memsize;
 extern int x86_biosstart;
+extern int x86_xrom_start[2], x86_xrom_end[2];
 
 class MEMORY:public Module_base{
 #if 0
@@ -587,6 +632,14 @@ public:
 			memory.phandlers[i] = &rom_page_handler;
 		}
 #endif
+		for (int j = 0; j < 2; j++) {
+			if (x86_xrom_start[j]) {
+				for (i = (x86_xrom_start[j] >> 12); i < (x86_xrom_end[j] >> 12); i++) {
+					memory.phandlers[i] = &rom_page_handler;
+				}
+			}
+		}
+
 		/* Setup rom at 0xf0000-0x100000 */
 		for (i= (x86_biosstart >> 12);i<0x100;i++) {
 			memory.phandlers[i] = &rom_page_handler;

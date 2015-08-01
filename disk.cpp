@@ -4703,6 +4703,7 @@ bool disk_reserved_getinfo(int num, struct floppy_reserved *fr)
 	int i = get_reserved_id(num);
 	if (i >= 0) {
 		drive *drv = &floppy[i];
+		fr->num = i;
 		fr->img = drv->diskfile;
 		fr->wrprot = drv->wrprot;
 		fr->cyl = drv->cyl;

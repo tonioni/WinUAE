@@ -31,7 +31,7 @@
 //#include "cross.h" //fmod on certain platforms
 
 static struct {
-	Bit8u regs[0x40];
+	Bit8u regs[3 * 0x40];
 	bool nmi;
 	bool bcd;
 	Bit8u reg;
@@ -47,12 +47,14 @@ static struct {
 		double alarm;
 	} last;
 	bool update_ended;
+	int ram_mask;
 } cmos;
+extern int x86_cmos_bank;
 
 Bit8u *x86_cmos_regs(Bit8u *regs)
 {
 	if (regs) {
-		memcpy(cmos.regs, regs, 0x40);
+		memcpy(cmos.regs, regs, 3 * 0x40);
 	}
 	return cmos.regs;
 }
@@ -81,14 +83,21 @@ static void cmos_checktimer(void) {
 //	status reg A reading with this (and with other delays actually)
 }
 
+extern void write_log(const char*,...);
+
 void cmos_selreg(Bitu port,Bitu val,Bitu iolen) {
-	cmos.reg=val & 0x3f;
+	cmos.reg=val & cmos.ram_mask;
 	cmos.nmi=(val & 0x80)>0;
 }
 
 void cmos_writereg(Bitu port,Bitu val,Bitu iolen)
 {
-	switch (cmos.reg)
+	int reg = cmos.reg;
+	if (reg >= 64 && x86_cmos_bank)
+		reg += 64;
+	reg &= cmos.ram_mask;
+
+	switch (reg)
 	{
 	case 0x00:		/* Seconds */
 	case 0x02:		/* Minutes */
@@ -104,29 +113,29 @@ void cmos_writereg(Bitu port,Bitu val,Bitu iolen)
 	case 0x03:		/* Minutes Alarm */
 	case 0x05:		/* Hours Alarm */
 		LOG(LOG_BIOS,LOG_NORMAL)("CMOS:Trying to set alarm");
-		cmos.regs[cmos.reg]=val;
+		cmos.regs[reg]=val;
 		break;
 	case 0x0a:		/* Status reg A */
-		cmos.regs[cmos.reg]=val & 0x7f;
+		cmos.regs[reg]=val & 0x7f;
 		if ((val & 0x70)!=0x20) LOG(LOG_BIOS,LOG_ERROR)("CMOS Illegal 22 stage divider value");
 		cmos.timer.div=(val & 0xf);
 		cmos_checktimer();
 		break;
 	case 0x0b:		/* Status reg B */
 		cmos.bcd=!(val & 0x4);
-		cmos.regs[cmos.reg]=val & 0x7f;
+		cmos.regs[reg]=val & 0x7f;
 		cmos.timer.enabled=(val & 0x40)>0;
 		if (val&0x10) LOG(LOG_BIOS,LOG_ERROR)("CMOS:Updated ended interrupt not supported yet");
 		cmos_checktimer();
 		break;
 	case 0x0d:/* Status reg D */
-		cmos.regs[cmos.reg]=val & 0x80;	/*Bit 7=1:RTC Pown on*/
+		cmos.regs[reg]=val & 0x80;	/*Bit 7=1:RTC Pown on*/
 		break;
 	case 0x0f:		/* Shutdown status byte */
-		cmos.regs[cmos.reg]=val;// & 0x7f;
+		cmos.regs[reg]=val;// & 0x7f;
 		break;
 	default:
-		cmos.regs[cmos.reg]=val; // & 0x7f;
+		cmos.regs[reg]=val; // & 0x7f;
 		LOG(LOG_BIOS,LOG_ERROR)("CMOS:WRite to unhandled register %x",cmos.reg);
 	}
 }
@@ -134,22 +143,33 @@ void cmos_writereg(Bitu port,Bitu val,Bitu iolen)
 
 #define MAKE_RETURN(_VAL) (cmos.bcd ? ((((_VAL) / 10) << 4) | ((_VAL) % 10)) : (_VAL));
 
+extern double vblank_hz;
+extern unsigned long int timeframes;
+extern int vpos;
+
 Bitu cmos_readreg(Bitu port,Bitu iolen) {
+#if 0
 	if (cmos.reg>0x3f) {
 		LOG(LOG_BIOS,LOG_ERROR)("CMOS:Read from illegal register %x",cmos.reg);
 		return 0xff;
 	}
+#endif
 	Bitu drive_a, drive_b;
 	Bit8u hdparm;
 	time_t curtime;
 	struct tm *loctime;
+	int reg = cmos.reg;
+	if (reg >= 64 && x86_cmos_bank)
+		reg += 64;
+	reg &= cmos.ram_mask;
+
 	/* Get the current time. */
 	curtime = time (NULL);
 
 	/* Convert it to local time representation. */
 	loctime = localtime (&curtime);
 
-	switch (cmos.reg) {
+	switch (reg) {
 	case 0x00:		/* Seconds */
 		return 	MAKE_RETURN(loctime->tm_sec);
 	case 0x02:		/* Minutes */
@@ -169,9 +189,9 @@ Bitu cmos_readreg(Bitu port,Bitu iolen) {
 	case 0x01:		/* Seconds Alarm */
 	case 0x03:		/* Minutes Alarm */
 	case 0x05:		/* Hours Alarm */
-		return cmos.regs[cmos.reg];
+		return cmos.regs[reg];
 	case 0x0a:		/* Status register A */
-		if (0 && PIC_TickIndex()<0.002) {
+		if (vblank_hz > 0 && (timeframes % (int)vblank_hz) == 0 && vpos == 0) { // && PIC_TickIndex()<0.002) {
 			return (cmos.regs[0x0a]&0x7f) | 0x80;
 		} else {
 			return (cmos.regs[0x0a]&0x7f);
@@ -271,11 +291,11 @@ Bitu cmos_readreg(Bitu port,Bitu iolen) {
 	case 0x2c:
 		if(imageDiskList[3] != NULL) return (imageDiskList[3]->sectors);
 		return 0;
-#endif
 	case 0x39:
 		return 0;
 	case 0x3a:
 		return 0;
+#endif
 
 
 	case 0x0b:		/* Status register B */
@@ -288,11 +308,11 @@ Bitu cmos_readreg(Bitu port,Bitu iolen) {
 	case 0x18:		/* Extended memory in KB High Byte */
 	case 0x30:		/* Extended memory in KB Low Byte */
 	case 0x31:		/* Extended memory in KB High Byte */
-//		LOG(LOG_BIOS,LOG_NORMAL)("CMOS:Read from reg %X : %04X",cmos.reg,cmos.regs[cmos.reg]);
-		return cmos.regs[cmos.reg];
+//		LOG(LOG_BIOS,LOG_NORMAL)("CMOS:Read from reg %X : %04X",cmos.reg,cmos.regs[reg]);
+		return cmos.regs[reg];
 	default:
 		LOG(LOG_BIOS,LOG_NORMAL)("CMOS:Read from reg %X",cmos.reg);
-		return cmos.regs[cmos.reg];
+		return cmos.regs[reg];
 	}
 }
 
@@ -306,18 +326,20 @@ private:
 //	IO_ReadHandleObject ReadHandler[2];
 //	IO_WriteHandleObject WriteHandler[2];	
 public:
-	CMOS(Section* configuration):Module_base(configuration){
+	CMOS(Section* configuration, int ram_mask):Module_base(configuration){
 //		WriteHandler[0].Install(0x70,cmos_selreg,IO_MB);
 //		WriteHandler[1].Install(0x71,cmos_writereg,IO_MB);
 //		ReadHandler[0].Install(0x71,cmos_readreg,IO_MB);
 		cmos.timer.enabled=false;
 		cmos.timer.acknowledged=true;
+		cmos.ram_mask = ram_mask;
 		cmos.reg=0xa;
 		cmos_writereg(0x71,0x26,1);
 		cmos.reg=0xb;
 		cmos_writereg(0x71,0x2,1);	//Struct tm *loctime is of 24 hour format,
 		cmos.reg=0xd;
 		cmos_writereg(0x71,0x80,1); /* RTC power on */
+#if 0
 		// Equipment is updated from bios.cpp and bios_disk.cpp
 		/* Fill in base memory size, it is 640K always */
 		cmos.regs[0x15]=(Bit8u)0x80;
@@ -328,6 +350,7 @@ public:
 		cmos.regs[0x18]=(Bit8u)(exsize >> 8);
 		cmos.regs[0x30]=(Bit8u)exsize;
 		cmos.regs[0x31]=(Bit8u)(exsize >> 8);
+#endif
 	}
 };
 
@@ -337,7 +360,7 @@ void CMOS_Destroy(Section* sec){
 	delete test;
 }
 
-void CMOS_Init(Section* sec) {
-	test = new CMOS(sec);
+void CMOS_Init(Section* sec, int ram_mask) {
+	test = new CMOS(sec, ram_mask);
 	sec->AddDestroyFunction(&CMOS_Destroy,true);
 }
