@@ -153,6 +153,70 @@ STATIC_INLINE void m68k_do_rts_ce020 (void)
 
 #ifdef CPUEMU_22
 
+extern uae_u32 get_word_030_prefetch(int);
+
+STATIC_INLINE void put_long_030(uaecptr addr, uae_u32 v)
+{
+	write_dcache030(addr, v, 2);
+}
+STATIC_INLINE void put_word_030(uaecptr addr, uae_u32 v)
+{
+	write_dcache030(addr, v, 1);
+}
+STATIC_INLINE void put_byte_030(uaecptr addr, uae_u32 v)
+{
+	write_dcache030(addr, v, 0);
+}
+STATIC_INLINE uae_u32 get_long_030(uaecptr addr)
+{
+	return read_dcache030(addr, 2);
+}
+STATIC_INLINE uae_u32 get_word_030(uaecptr addr)
+{
+	return read_dcache030(addr, 1);
+}
+STATIC_INLINE uae_u32 get_byte_030(uaecptr addr)
+{
+	return read_dcache030(addr, 0);
+}
+
+STATIC_INLINE uae_u32 get_long_030_prefetch(int o)
+{
+	uae_u32 v;
+	v = get_word_030_prefetch(o) << 16;
+	v |= get_word_030_prefetch(o + 2);
+	return v;
+}
+
+STATIC_INLINE uae_u32 next_iword_030_prefetch(void)
+{
+	uae_u32 r = get_word_030_prefetch(0);
+	m68k_incpci(2);
+	return r;
+}
+STATIC_INLINE uae_u32 next_ilong_030_prefetch(void)
+{
+	uae_u32 r = get_long_030_prefetch(0);
+	m68k_incpci(4);
+	return r;
+}
+
+STATIC_INLINE void m68k_do_bsr_030(uaecptr oldpc, uae_s32 offset)
+{
+	m68k_areg(regs, 7) -= 4;
+	put_long_030(m68k_areg(regs, 7), oldpc);
+	m68k_incpci(offset);
+}
+STATIC_INLINE void m68k_do_rts_030(void)
+{
+	m68k_setpc(get_long_030(m68k_areg(regs, 7)));
+	m68k_areg(regs, 7) += 4;
+}
+
+#endif
+
+#ifdef CPUEMU_23
+
 extern uae_u32 get_word_ce030_prefetch(int);
 
 STATIC_INLINE void put_long_ce030 (uaecptr addr, uae_u32 v)

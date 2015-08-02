@@ -871,11 +871,11 @@ static void set_x_funcs (void)
 				x_do_cycles_post = do_cycles_post;
 			} else if (currprefs.cpu_model == 68030 && !currprefs.cachesize) {
 				x_prefetch = get_word_prefetch;
-				x_get_ilong = get_long_020_prefetch;
-				x_get_iword = get_word_020_prefetch;
+				x_get_ilong = get_long_030_prefetch;
+				x_get_iword = get_word_030_prefetch;
 				x_get_ibyte = NULL;
-				x_next_iword = next_iword_020_prefetch;
-				x_next_ilong = next_ilong_020_prefetch;
+				x_next_iword = next_iword_030_prefetch;
+				x_next_ilong = next_ilong_030_prefetch;
 				x_put_long = put_long;
 				x_put_word = put_word;
 				x_put_byte = put_byte;
@@ -7282,13 +7282,47 @@ uae_u32 get_word_ce030_prefetch (int o)
 
 	if (pc & 2) {
 		v = regs.prefetch020[0] & 0xffff;
+#if MORE_ACCURATE_68020_PIPELINE
+		pipeline_020(regs.prefetch020[1], pc);
+#endif
 		regs.prefetch020[0] = regs.prefetch020[1];
-		fill_icache030 (pc + 2 + 4);
-		regs.prefetch020[1] = regs.cacheholdingdata020;
+		// branch instruction detected in pipeline: stop fetches until branch executed.
+		if (!MORE_ACCURATE_68020_PIPELINE || regs.pipeline_stop >= 0) {
+			fill_icache030 (pc + 2 + 4);
+			regs.prefetch020[1] = regs.cacheholdingdata020;
+		}
 	} else {
 		v = regs.prefetch020[0] >> 16;
+#if MORE_ACCURATE_68020_PIPELINE
+		pipeline_020(regs.prefetch020[1] >> 16, pc);
+#endif
 	}
 	do_cycles_ce020_internal (2);
+	return v;
+}
+
+uae_u32 get_word_030_prefetch(int o)
+{
+	uae_u32 pc = m68k_getpc() + o;
+	uae_u32 v;
+
+	if (pc & 2) {
+		v = regs.prefetch020[0] & 0xffff;
+#if MORE_ACCURATE_68020_PIPELINE
+		pipeline_020(regs.prefetch020[1], pc);
+#endif
+		regs.prefetch020[0] = regs.prefetch020[1];
+		// branch instruction detected in pipeline: stop fetches until branch executed.
+		if (!MORE_ACCURATE_68020_PIPELINE || regs.pipeline_stop >= 0) {
+			fill_icache030(pc + 2 + 4);
+			regs.prefetch020[1] = regs.cacheholdingdata020;
+		}
+	} else {
+		v = regs.prefetch020[0] >> 16;
+#if MORE_ACCURATE_68020_PIPELINE
+		pipeline_020(regs.prefetch020[1] >> 16, pc);
+#endif
+	}
 	return v;
 }
 
@@ -7688,6 +7722,7 @@ void flush_dcache (uaecptr addr, int size)
 void fill_prefetch_030 (void)
 {
 	uaecptr pc = m68k_getpc ();
+	uaecptr pc2 = pc;
 	pc &= ~3;
 	regs.pipeline_pos = 0;
 	regs.pipeline_stop = 0;
@@ -7702,7 +7737,20 @@ void fill_prefetch_030 (void)
 		do_cycles_ce020_internal(2);
 	regs.prefetch020[1] = regs.cacheholdingdata020;
 
-	regs.irc = get_word_ce030_prefetch (0);
+#if MORE_ACCURATE_68020_PIPELINE
+	if (pc2 & 2) {
+		pipeline_020(regs.prefetch020[0], pc);
+		pipeline_020(regs.prefetch020[1] >> 16, pc);
+	} else {
+		pipeline_020(regs.prefetch020[0] >> 16, pc);
+		pipeline_020(regs.prefetch020[0], pc);
+	}
+#endif
+
+	if (currprefs.cpu_cycle_exact)
+		regs.irc = get_word_ce030_prefetch (0);
+	else
+		regs.irc = get_word_030_prefetch(0);
 }
 
 void fill_prefetch_020 (void)
