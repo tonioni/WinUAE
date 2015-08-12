@@ -1847,7 +1847,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 
         update = full_update;
 
-		if (addr + width < s->vram_size) {
+		if (addr + bwidth < s->vram_size) {
 			page0 = addr;
 			page1 = addr + bwidth - 1;
 			update |= memory_region_get_dirty(&s->vram, page0, page1 - page0,
