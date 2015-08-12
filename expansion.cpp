@@ -3171,6 +3171,31 @@ static const struct cpuboardsubtype warpengine_sub[] = {
 		NULL
 	}
 };
+static const struct expansionboardsettings mtec_settings[] = {
+	{
+		_T("SCSI disabled"),
+		_T("scsioff")
+	},
+	{
+		NULL
+	}
+};
+static const struct cpuboardsubtype mtec_sub[] = {
+	{
+		_T("E-Matrix 530"),
+		_T("e-matrix530"),
+		ROMTYPE_CB_EMATRIX, 0,
+		ematrix_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		BOARD_MEMORY_EMATRIX,
+		128 * 1024 * 1024,
+		0,
+		ncr_ematrix_autoconfig_init, NULL, BOARD_AUTOCONFIG_Z2, 1,
+		mtec_settings
+	},
+	{
+		NULL
+	}
+};
 static const struct expansionboardsettings a26x0board_settings[] = {
 	{
 		_T("OSMODE (J304)"),
@@ -3314,6 +3339,11 @@ const struct cpuboardtype cpuboards[] = {
 		BOARD_MACROSYSTEM,
 		_T("MacroSystem"),
 		warpengine_sub, 0
+	},
+	{
+		BOARD_MTEC,
+		_T("M-Tec"),
+		mtec_sub, 0
 	},
 	{
 		BOARD_BLIZZARD,

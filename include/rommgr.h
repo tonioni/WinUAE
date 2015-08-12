@@ -34,6 +34,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_CB_GOLEM030	0x00040010
 #define ROMTYPE_CB_ACA500	0x00040011
 #define ROMTYPE_CB_DBK_WF	0x00040012
+#define ROMTYPE_CB_EMATRIX	0x00040013
 
 #define ROMTYPE_FREEZER		0x00080000
 #define ROMTYPE_AR			0x00080001

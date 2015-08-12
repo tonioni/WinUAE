@@ -336,6 +336,19 @@ void fixup_prefs (struct uae_prefs *p)
 		p->fastmem2_size = p->cpuboardmem1_size;
 	} else if (cpuboard_memorytype(p) == BOARD_MEMORY_25BITMEM) {
 		p->mem25bit_size = p->cpuboardmem1_size;
+	} else if (cpuboard_memorytype(p) == BOARD_MEMORY_EMATRIX) {
+		int size = p->cpuboardmem1_size / (1024 * 1024);
+		if (size == 32 || size == 8 || size == 2) {
+			p->custom_memory_sizes[0] = p->cpuboardmem1_size / 2;
+			p->custom_memory_sizes[1] = p->cpuboardmem1_size / 2;
+			p->custom_memory_addrs[0] = 0x18000000 - p->custom_memory_sizes[0];
+			p->custom_memory_addrs[1] = 0x18000000;
+		} else {
+			p->custom_memory_sizes[0] = p->cpuboardmem1_size;
+			p->custom_memory_sizes[1] = 0;
+			p->custom_memory_addrs[0] = 0x18000000 - p->custom_memory_sizes[0];
+			p->custom_memory_addrs[1] = 0;
+		}
 	}
 
 	if (((p->chipmem_size & (p->chipmem_size - 1)) != 0 && p->chipmem_size != 0x180000)
@@ -454,7 +467,7 @@ void fixup_prefs (struct uae_prefs *p)
 	}
 	if (p->mem25bit_size > 128 * 1024 * 1024 || (p->mem25bit_size & 0xfffff)) {
 		p->mem25bit_size = 0;
-		error_log (_T("Unsupported 25bit RAM size"));
+		error_log(_T("Unsupported 25bit RAM size"));
 	}
 	if (p->mbresmem_low_size > 0x04000000 || (p->mbresmem_low_size & 0xfffff)) {
 		p->mbresmem_low_size = 0;

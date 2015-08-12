@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 144
+#define NEXT_ROM_ID 145
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -372,6 +372,8 @@ static struct romdata roms[] = {
 	0x05d473f4, 0x574ec567, 0xcc67e06f, 0x91dcecb9, 0x8c204399, 0x5fe2a09f, NULL, NULL },
 	{ _T("DKB WildFire"), 1, 1, 1, 1, _T("WILDFIRE\0"), 18352, 143, 0, 0, ROMTYPE_CB_DBK_WF, 0, 0, NULL,
 	0xb2dae8c4, 0xcdfe2d96, 0xe44d4f8d, 0x3833a5e8, 0xb6c832fd, 0xc7b341a9, NULL, NULL },
+	{ _T("M-Tec E-Matrix 530"), 0, 0, 0, 0, _T("EMATRIX530\0"), 65536, 144, 0, 0, ROMTYPE_CB_EMATRIX, 0, 0, NULL,
+	0x3942d827, 0x5aaf118f, 0x61fc3083, 0x1435b87c, 0x8bdab6a4, 0x59b4ee22, NULL, NULL },
 
 	{ _T("Preferred Technologies Nexus"), 1, 0, 1, 0, _T("PTNEXUS\0"), 8192, 139, 0, 0, ROMTYPE_PTNEXUS, 0, 0, NULL,
 	0xf495879a, 0xa3bd0202, 0xe14aa5b6, 0x49d3ce88, 0x22975950, 0x6500dbc2, NULL, NULL },
@@ -1137,7 +1139,7 @@ struct romlist *getromlistbyromdata (const struct romdata *rd)
 	int ids[2];
 
 	ids[0] = rd->id;
-	ids[1] = 0;
+	ids[1] = -1;
 	return getromlistbyids(ids, NULL);
 }
 

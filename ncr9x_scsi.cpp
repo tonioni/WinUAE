@@ -158,6 +158,7 @@ static struct ncr9x_state *ncr_fastlane_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_oktagon2008_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_masoboshi_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_dkb1200_scsi;
+static struct ncr9x_state *ncr_ematrix530_scsi;
 
 static struct ncr9x_state *ncr_units[MAX_NCR9X_UNITS + 1];
 
@@ -332,11 +333,40 @@ static void fakedma_buffer_size(struct ncr9x_state *ncr, int size)
 }
 
 /* Fake DMA */
+
+static int fake_dma_read_ematrix(void *opaque, uint8_t *buf, int len)
+{
+	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
+	ncr->states[0] = 1;
+	ncr->chipirq = true;
+	set_irq2(ncr);
+	ncr->fakedma_data_offset = 0;
+	ncr->fakedma_data_write_buffer = buf;
+	ncr->fakedma_data_size = len;
+	fakedma_buffer_size(ncr, len);
+	return 0;
+}
+static int fake_dma_write_ematrix(void *opaque, uint8_t *buf, int len)
+{
+	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
+	ncr->states[0] = 1;
+	ncr->chipirq = true;
+	set_irq2(ncr);
+	ncr->fakedma_data_offset = 0;
+	fakedma_buffer_size(ncr, len);
+	memcpy(ncr->fakedma_data_buf, buf, len);
+	if (len & 1)
+		ncr->fakedma_data_buf[len] = 0;
+	ncr->fakedma_data_size = len;
+	return 0;
+}
+
 static int fake_dma_read(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
 	ncr->fakedma_data_offset = 0;
 	ncr->fakedma_data_write_buffer = buf;
+	ncr->fakedma_data_size = len;
 	fakedma_buffer_size(ncr, len);
 	return 0;
 }
@@ -352,7 +382,6 @@ static int fake_dma_write(void *opaque, uint8_t *buf, int len)
 	return 0;
 }
 
-/* Fake DMA */
 static int fake2_dma_read(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
@@ -829,6 +858,27 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			write_log(_T("DKB IO %08X PUT %02x %08x\n"), addr, val & 0xff, M68K_GETPC);
 			return;
 		}
+	} else if (ISCPUBOARD(BOARD_MTEC, BOARD_MTEC_SUB_EMATRIX530)) {
+		if ((addr & 0xf000) >= 0xe000) {
+			if ((addr & 0x3ff) <= 7) {
+				if (ncr->fakedma_data_offset < ncr->fakedma_data_size) {
+					ncr->fakedma_data_buf[ncr->fakedma_data_offset++] = val;
+					if (ncr->fakedma_data_offset == ncr->fakedma_data_size) {
+						memcpy(ncr->fakedma_data_write_buffer, ncr->fakedma_data_buf, ncr->fakedma_data_size);
+						esp_fake_dma_done(ncr->devobject.lsistate);
+						ncr->states[0] = 0;
+					}
+				}
+			}
+			return;
+		}
+		if (addr < 0xc000 || addr >= 0xe000)
+			return;
+ 		if (addr & 1)
+			return;
+		if (currprefs.cpuboard_settings & 1)
+			return;
+		reg_shift = 3;
 	}
 	if (!ncr->devobject.lsistate)
 		return;
@@ -1002,6 +1052,36 @@ uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 			write_log(_T("DKB IO GET %08x %08x\n"), addr, M68K_GETPC);
 			return 0;
 		}
+	} else if (ISCPUBOARD(BOARD_MTEC, BOARD_MTEC_SUB_EMATRIX530)) {
+		if ((addr & 0xf000) >= 0xe000) {
+			if ((addr & 0x3ff) <= 7) {
+				if (ncr->fakedma_data_offset >= ncr->fakedma_data_size) {
+					ncr->states[0] = 0;
+					return 0;
+				}
+				if (ncr->fakedma_data_offset == ncr->fakedma_data_size - 1) {
+					esp_fake_dma_done(ncr->devobject.lsistate);
+					ncr->states[0] = 0;
+				}
+				return ncr->fakedma_data_buf[ncr->fakedma_data_offset++];
+			}
+			return 0xff;
+		}
+		if ((addr & 1) && !(addr & 0x0800)) {
+			// dma request
+			return ncr->states[0] ? 0xff : 0x7f;
+		}
+		if ((addr & 1) && (addr & 0x0800)) {
+			// hardware revision?
+			return 0x7f;
+		}
+		if (addr & 1)
+			return 0x7f;
+		if (currprefs.cpuboard_settings & 1)
+			return 0x7f;
+		if (addr < 0xc000 || addr >= 0xe000)
+			return 0x7f;
+		reg_shift = 3;
 	}
 	if (!ncr->devobject.lsistate)
 		return v;
@@ -1162,16 +1242,10 @@ static void REGPARAM2 ncr9x_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 		switch (addr)
 		{
 			case 0x48:
-			if (isncr(ncr, ncr_oktagon2008_scsi)) {
-				map_banks_z2(ncr->bank, expamem_z2_pointer >> 16, OKTAGON_BOARD_SIZE >> 16);
-				ncr->configured = 1;
-				expamem_next (ncr->bank, NULL);
-			} else if (ncr == ncr_dkb1200_scsi) {
-				map_banks_z2(ncr->bank, expamem_z2_pointer >> 16, DKB_BOARD_SIZE >> 16);
-				ncr->configured = 1;
-				expamem_next (ncr->bank, NULL);
-			}
+			map_banks_z2(ncr->bank, expamem_z2_pointer >> 16, expamem_z2_size >> 16);
+			ncr->configured = 1;
 			ncr->baseaddress = expamem_z2_pointer;
+			expamem_next (ncr->bank, NULL);
 			break;
 			case 0x4c:
 			ncr->configured = 1;
@@ -1462,6 +1536,56 @@ addrbank *ncr_dkb_autoconfig_init(struct romconfig *rc)
 	return ncr->bank;
 }
 
+addrbank *ncr_ematrix_autoconfig_init(struct romconfig *rc)
+{
+	int roms[2];
+	struct ncr9x_state *ncr = getscsi(rc);
+
+	if (!ncr)
+		return &expamem_null;
+
+	xfree(ncr->rom);
+	ncr->rom = NULL;
+
+	roms[0] = 144;
+	roms[1] = -1;
+
+	ncr->enabled = true;
+	memset(ncr->acmemory, 0xff, sizeof ncr->acmemory);
+	ncr->rom_start = 0;
+	ncr->rom_offset = 0;
+	ncr->rom_end = 0x8000;
+	ncr->io_start = 0x8000;
+	ncr->io_end = 0x10000;
+	ncr->bank = &ncr9x_bank_generic;
+	ncr->board_mask = 65535;
+
+	ncr9x_reset_board(ncr);
+
+	struct zfile *z = read_device_from_romconfig(rc, roms);
+	ncr->rom = xcalloc(uae_u8, 65536);
+	if (z) {
+		int i;
+		memset(ncr->rom, 0xff, 65536);
+
+		zfile_fseek(z, 32768, SEEK_SET);
+		for (i = 0; i < (sizeof ncr->acmemory) / 2; i++) {
+			uae_u8 b;
+			zfile_fread(&b, 1, 1, z);
+			ncr->acmemory[i * 2] = b;
+		}
+		for (;;) {
+			uae_u8 b;
+			if (!zfile_fread(&b, 1, 1, z))
+				break;
+			ncr->rom[i * 2] = b;
+			i++;
+		}
+		zfile_fclose(z);
+	}
+
+	return ncr->bank;
+}
 
 void ncr_masoboshi_autoconfig_init(struct romconfig *rc, uaecptr baseaddress)
 {
@@ -1594,5 +1718,11 @@ void masoboshi_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romc
 	ncr9x_esp_scsi_init(ncr_masoboshi_scsi[ci->controller_type_unit], fake2_dma_read, fake2_dma_write, set_irq2_masoboshi);
 }
 
+void ematrix_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	ncr9x_add_scsi_unit(&ncr_ematrix530_scsi, ch, ci, rc);
+	ncr9x_esp_scsi_init(ncr_ematrix530_scsi, fake_dma_read_ematrix, fake_dma_write_ematrix, set_irq2);
+	esp_dma_enable(ncr_ematrix530_scsi->devobject.lsistate, 1);
+}
 
 #endif
