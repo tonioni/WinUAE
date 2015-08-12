@@ -7836,12 +7836,7 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 			put_long (parmpacket + 52, 0); /* lowCyl */
 			put_long (parmpacket + 56, 1); /* hiCyl */
 		} else {
-			uae_u8 buf[512] = { 0 };
-			char *s = ua_fs (uip[unit_no].devname, -1);
-			buf[36] = strlen (s);			
-			for (int i = 0; i < buf[36]; i++)
-				buf[37 + i] = s[i];
-			xfree (s);
+			uae_u8 buf[512];
 			put_long (parmpacket + 4, ROM_hardfile_resname);
 			put_long (parmpacket + 20, ci->blocksize >> 2); /* longwords per block */
 			put_long (parmpacket + 28, ci->surfaces); /* heads */
@@ -7855,6 +7850,7 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 			put_long (parmpacket + 64, ci->bufmemtype); /* Buffer mem type */
 			put_long (parmpacket + 68, ci->maxtransfer); /* largest transfer */
 			put_long (parmpacket + 72, ci->mask); /* dma mask */
+			memset(buf, 0, sizeof buf);
 			if (ci->dostype) { // forced dostype?
 				put_long (parmpacket + 80, ci->dostype); /* dostype */
 			} else if (hdf_read (&uip[unit_no].hf, buf, 0, sizeof buf)) {
@@ -7862,6 +7858,12 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 				if (dt != 0x00000000 && dt != 0xffffffff)
 					put_long (parmpacket + 80, dt);
 			}
+			memset(buf, 0, sizeof buf);
+			char *s = ua_fs(uip[unit_no].devname, -1);
+			buf[36] = strlen(s);
+			for (int i = 0; i < buf[36]; i++)
+				buf[37 + i] = s[i];
+			xfree(s);
 			for (int i = 0; i < 80; i++)
 				buf[i + 128] = get_byte (parmpacket + 16 + i);
 			dump_partinfo (&uip[unit_no].hf, buf);
