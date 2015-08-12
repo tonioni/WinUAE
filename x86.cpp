@@ -2970,7 +2970,7 @@ addrbank *x86_bridge_init(struct romconfig *rc, int type)
 		load_vga_bios();
 	}
 
-	xb->pc_jumpers = (xb->settings & 0xff) ^ ((0x80 | 0x40) | (0x20 | 0x10));
+	xb->pc_jumpers = (xb->settings & 0xff) ^ ((0x80 | 0x40) | (0x20 | 0x10 | 0x01 | 0x02));
 
 	int ramsize = (xb->settings >> 2) & 3;
 	switch(ramsize) {

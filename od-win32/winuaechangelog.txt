@@ -1,4 +1,36 @@
 
+Beta 7:
+
+- 68030 prefetch/ce mode now also uses improved prefetch pipeline emulation.
+- b4 prefetch RTS (and others) special case does not exist, my original test must have been broken.
+- GUI won't anymore allow multiple sound or network cards enabled at the same. (It has never been
+  supported configuration)
+- Cirrus Logic out of bounds VRAM access check improved.
+- Picasso IV ROM loader update didn't support all old ROM paths (b6)
+- SCSI Unit Attention (bus reset/media change) status handling should be now exactly as described in
+  SCSI spec. (Roctec Rochard v2 boot ROM*)
+- A1060 Diagnostics and 8087 jumper was inverted.
+- Continuing WD SCSI transfer with another Select and Transfer when previous SaT had already transferred
+  all buffered data: new SaT restarted from beginning. (A590/A2091 omniscsi.device + cdfs)
+- Config file loaded with non-existing *_rom_file_id: rom key file ("rom" with ID=0) was selected.
+- M-Tec E-Matrix 530 accelerator board added (Thanks to Jozsef Vamosi)
+
+Rochard RH800C with v2 boot ROM:
+- Supports both SCSI and IDE. v1 is IDE only.
+- Has crazy "Is drive ready?" polling routine, driver executes 300 (!) TEST UNIT READY commands in
+  CPU loop per LUN (timer.device exists for a reason..), with single SCSI drive, driver executes total
+  6*300=1800 TUR commands during drive detection! (I recommend not to enable scsi logging..)
+- ROM not yet added.
+
+M-Tec E-Matrix 530:
+- ROM image is software dumped (chip is not socketed), ROM layout (single chip contains two logical
+  autoconfig boot ROMs) may not match real ROM dump.
+- 53C94 based SCSI. Fake DMA, 2*long word wide data port. Whole transfer loop runs in level 2
+  interrupt routine..
+- Boot ROM requires KS2.0+ only because it calls CacheControl() without checking ROM version.
+
+Beta 6:
+
 - Bridgeboard floppy drive motor and click sound supported.
 - x86 CPU status string was visible even when bridgeboard was not active.
 - Added software readable A4091 DIP switches and Warp Engine SCSI jumpers to GUI. Note that default

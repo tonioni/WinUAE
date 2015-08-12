@@ -513,6 +513,10 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
             break;
         case CMD_RESET:
             esp_soft_reset(s);
+			// E-Matrix 530 detects existence of SCSI chip by
+			// writing CMD_RESET and then immediately checking
+			// if it reads back.
+			s->rregs[saddr] = CMD_RESET;
             break;
         case CMD_BUSRESET:
             s->rregs[ESP_RINTR] = INTR_RST;

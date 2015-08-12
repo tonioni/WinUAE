@@ -2305,7 +2305,7 @@ bool handle_events (void)
 			was_paused = pause_emulation;
 			manual_painting_needed++;
 			gui_fps (0, 0, 0);
-			gui_led (LED_SND, 0);
+			gui_led (LED_SND, 0, -1);
 		}
 		MsgWaitForMultipleObjects (0, NULL, FALSE, 100, QS_ALLINPUT);
 		while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {

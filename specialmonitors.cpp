@@ -102,6 +102,20 @@ STATIC_INLINE uae_u8 FIRGB(struct vidbuffer *src, uae_u8 *dataline)
 	return v;
 }
 
+STATIC_INLINE uae_u8 DCTV_FIRBG(struct vidbuffer *src, uae_u8 *dataline)
+{
+	uae_u8 v = 0;
+	if (FI(src, dataline))
+		v |= 0x40;
+	if (FR(src, dataline))
+		v |= 0x10;
+	if (FB(src, dataline))
+		v |= 0x04;
+	if (FG(src, dataline))
+		v |= 0x01;
+	return v;
+}
+
 STATIC_INLINE void PRGB(struct vidbuffer *dst, uae_u8 *dataline, uae_u8 r, uae_u8 g, uae_u8 b)
 {
 	if (dst->pixbytes == 4) {
@@ -171,73 +185,6 @@ static void clearmonitor(struct vidbuffer *dst)
 	}
 }
 
-static bool dctv(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
-{
-	int y, x, vdbl, hdbl;
-	int ystart, yend, isntsc;
-	int xadd;
-
-	isntsc = (beamcon0 & 0x20) ? 0 : 1;
-	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
-		isntsc = currprefs.ntscmode ? 1 : 0;
-
-	vdbl = gfxvidinfo.ychange;
-	hdbl = gfxvidinfo.xchange;
-
-	xadd = ((1 << 1) / hdbl) * src->pixbytes;
-
-	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
-	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
-
-	oddlines = 1;
-
-	uae_u8 r, g, b;
-	for (y = ystart; y < yend; y += 2) {
-		int yoff = (((y * 2 + oddlines) - src->yoffset) / vdbl);
-		if (yoff < 0)
-			continue;
-		if (yoff >= src->inheight)
-			continue;
-		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
-		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
-
-		if (y < 60) {
-			write_log(_T("%d:\n"), y);
-			for (x = 22; x < 300; x += 1) {
-				uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
-				write_log(_T("%01x"), FIRGB(src, s));
-			}
-			write_log(_T("*\n"));
-			for (x = 21; x < 300; x += 1) {
-				uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
-				write_log(_T("%01x"), FIRGB(src, s));
-			}
-			write_log(_T("\n"));
-		}
-
-		for (x = 1; x < src->inwidth; x += 4) {
-			uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
-			uae_u8 *d = dstline + ((x << 1) / hdbl) * dst->pixbytes;
-			uae_u8 *s2 = s + src->rowbytes;
-			uae_u8 *d2 = d + dst->rowbytes;
-			uae_u8 newval = FIRGB(src, s);
-
-			r = newval << 4;
-			g = newval << 4;
-			b = newval << 4;
-
-			for (int xx = 0; xx < 4; xx++) {
-				PRGB(dst, d + dst->pixbytes * xx, r, g, b);
-				PRGB(dst, d + dst->rowbytes + dst->pixbytes * xx, r, g, b);
-			}
-
-
-		}
-	}
-	dst->nativepositioning = true;
-	return true;
-}
-
 static void blank_generic(struct vidbuffer *src, struct vidbuffer *dst, int oddlines)
 {
 	int y, vdbl;
@@ -261,6 +208,197 @@ static void blank_generic(struct vidbuffer *src, struct vidbuffer *dst, int oddl
 		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
 		memset(dstline, 0, dst->inwidth * dst->pixbytes);
 	}
+}
+
+static uae_s8 dctv_chroma[1600];
+static uae_u8 dctv_luma[1600];
+
+static const uae_u16 dctv_tables[] = {
+	0xF9AF, 0xF9C9, 0xF9E2, 0xF9FC, 0xFA15, 0xFA2F, 0xFA48, 0xFA62,
+	0xFA7B, 0xFA95, 0xFAAE, 0xFAC8, 0xFAE1, 0xFAFB, 0xFB14, 0xFB2E,
+	0xFB47, 0xFB61, 0xFB7A, 0xFB94, 0xFBAD, 0xFBC7, 0xFBE0, 0xFBFA,
+	0xFC13, 0xFC2D, 0xFC46, 0xFC60, 0xFC79, 0xFC93, 0xFCAC, 0xFCC6,
+	0xFCDF, 0xFCF9, 0xFD12, 0xFD2C, 0xFD45, 0xFD5F, 0xFD78, 0xFD92,
+	0xFDAB, 0xFDC5, 0xFDDE, 0xFDF8, 0xFE11, 0xFE2B, 0xFE44, 0xFE5E,
+	0xFE77, 0xFE91, 0xFEAA, 0xFEC4, 0xFEDD, 0xFEF7, 0xFF10, 0xFF2A,
+	0xFF43, 0xFF5D, 0xFF76, 0xFF90, 0xFFA9, 0xFFC3, 0xFFDC, 0xFFF6,
+	0x000F, 0x0029, 0x0042, 0x005C, 0x0075, 0x008F, 0x00A8, 0x00C2,
+	0x00DB, 0x00F5, 0x010E, 0x0128, 0x0141, 0x015B, 0x0174, 0x018E,
+	0x01A7, 0x01C1, 0x01DA, 0x01F4, 0x020D, 0x0227, 0x0240, 0x025A,
+	0x0273, 0x028D, 0x02A6, 0x02C0, 0x02D9, 0x02F3, 0x030C, 0x0326,
+	0x033F, 0x0359, 0x0372, 0x038C, 0x03A5, 0x03BF, 0x03D8, 0x03F2,
+	0x040B, 0x0425, 0x043E, 0x0458, 0x0471, 0x048B, 0x04A4, 0x04BE,
+	0x04D7, 0x04F1, 0x050A, 0x0524, 0x053D, 0x0557, 0x0570, 0x058A,
+	0x05A3, 0x05BD, 0x05D6, 0x05F0, 0x0609, 0x0623, 0x063C, 0x0656,
+	0x066F, 0x0689, 0x06A2, 0x06BC, 0x06D5, 0x06EF, 0x0708, 0x0722,
+	0x073B, 0x0755, 0x076E, 0x0788, 0x07A1, 0x07BB, 0x07D4, 0x07EE,
+	0x0807, 0x0821, 0x083A, 0x0854, 0x086D, 0x0887, 0x08A0, 0x08BA,
+	0x08D3, 0x08ED, 0x0906, 0x0920, 0x0939, 0x0953, 0x096C, 0x0986,
+	0x099F, 0x09B9, 0x09D2, 0x09EC, 0x0A05, 0x0A1F, 0x0A38, 0x0A52,
+	0x0A6B, 0x0A85, 0x0A9E, 0x0AB8, 0x0AD1, 0x0AEB, 0x0B04, 0x0B1E,
+	0x0B37, 0x0B51, 0x0B6A, 0x0B84, 0x0B9D, 0x0BB7, 0x0BD0, 0x0BEA,
+	0x0C03, 0x0C1D, 0x0C36, 0x0C50, 0x0C69, 0x0C83, 0x0C9C, 0x0CB6,
+	0x0CCF, 0x0CE9, 0x0D02, 0x0D1C, 0x0D35, 0x0D4F, 0x0D68, 0x0D82,
+	0x0D9B, 0x0DB5, 0x0DCE, 0x0DE8, 0x0E01, 0x0E1B, 0x0E34, 0x0E4E,
+	0x0E67, 0x0E81, 0x0E9A, 0x0EB4, 0x0ECD, 0x0EE7, 0x0F00, 0x0F1A,
+	0x0F33, 0x0F4D, 0x0F66, 0x0F80, 0x0F99, 0x0FB3, 0x0FCC, 0x0FE6,
+	0x0FFF, 0x1019, 0x1032, 0x104C, 0x1065, 0x107F, 0x1098, 0x10B2,
+	0x10CB, 0x10E5, 0x10FE, 0x1118, 0x1131, 0x114B, 0x1164, 0x117E,
+	0x1197, 0x11B1, 0x11CA, 0x11E4, 0x11FD, 0x1217, 0x1230, 0x124A,
+	0x1263, 0x127D, 0x1296, 0x12B0, 0x12C9, 0x12E3, 0x12FC, 0x1316
+};
+
+STATIC_INLINE int minmax(int v, int min, int max)
+{
+	if (v < min)
+		v = min;
+	if (v > max)
+		v = max;
+	return v;
+}
+
+static bool dctv(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
+{
+	int y, x, vdbl, hdbl;
+	int ystart, yend, isntsc;
+	int xadd;
+
+	isntsc = (beamcon0 & 0x20) ? 0 : 1;
+	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+		isntsc = currprefs.ntscmode ? 1 : 0;
+
+	vdbl = gfxvidinfo.ychange;
+	hdbl = gfxvidinfo.xchange;
+
+	xadd = ((1 << 1) / hdbl) * src->pixbytes;
+
+	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
+	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
+
+	oddlines = 1;
+
+	memset(dctv_luma, 0x40, sizeof dctv_luma);
+
+	int signature_detected = -1;
+	int signature_x = -1;
+	int linenr = 0;
+	uae_u8 r, g, b;
+	for (y = ystart; y < yend; y++) {
+		int yoff = (((y * 2 + oddlines) - src->yoffset) / vdbl);
+		if (yoff < 0)
+			continue;
+		if (yoff >= src->inheight)
+			continue;
+		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
+		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
+
+#if 0
+		if (y < 60) {
+			write_log(_T("%d:\n"), y);
+			for (x = 22; x < 300; x += 1) {
+				uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
+				write_log(_T("%01x"), FIRGB(src, s));
+			}
+			write_log(_T("*\n"));
+			for (x = 21; x < 300; x += 1) {
+				uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
+				write_log(_T("%01x"), FIRGB(src, s));
+			}
+			write_log(_T("\n"));
+		}
+#endif
+
+		int signature_cnt = -1;
+		bool signature_line = false;
+		int firstnz = -1;
+		bool sign = false;
+		int oddeven = 0;
+		uae_u8 prev = 0;
+		uae_u8 vals[3] = { 0x40, 0x40, 0x40 };
+		int chrsum = 0;
+		uae_s8 *chrbuf = dctv_chroma + 10;
+		uae_u8 *lumabuf = dctv_luma + 10;
+		int zigzagoffset = 0;
+		int prevtval = 0;
+		for (x = 0; x < src->inwidth; x++) {
+			uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
+			uae_u8 *d = dstline + ((x << 1) / hdbl) * dst->pixbytes + zigzagoffset;
+			uae_u8 *s2 = s + src->rowbytes;
+			uae_u8 *d2 = d + dst->rowbytes;
+			uae_u8 newval = DCTV_FIRBG(src, s);
+			uae_u8 val = prev | newval;
+
+			if (firstnz < 0 && newval) {
+				firstnz = 0;
+				if (newval == 0x14) {
+					zigzagoffset = -1 * dst->pixbytes;
+					oddeven = -2;
+				} else {
+					zigzagoffset = 0;
+					oddeven = -2;
+				}
+			}
+
+			if (oddeven > 0) {
+				if (!val)
+					val = 64;
+				int tval = minmax(val, 64, 224);
+				if (tval != val)
+					tval = prevtval;
+				prevtval = tval;
+
+				uae_s16 luma = (uae_s16)dctv_tables[tval];
+				tval = minmax(luma / 16, 0, 255);
+				uae_u8 v1 = (uae_u8)tval;
+
+				r = b = g = v1;
+
+				if (val < 64) {
+					r = 0x80 + val * 2;
+					b = g = 0;
+				} else if (val > 224) {
+					r = b = 0;
+					g = 0x80 + (val - 224) * 2;
+				}
+				
+
+				sign = !sign;
+
+				PRGB(dst, d - dst->pixbytes, r, g, b);
+				PRGB(dst, d, r, g, b);
+				if (doublelines) {
+					PRGB(dst, d2 - dst->pixbytes, r, g, b);
+					PRGB(dst, d2, r, g, b);
+				}
+			}
+
+			if (oddeven >= 0)
+				oddeven = oddeven ? 0 : 1;
+			else
+				oddeven++;
+			prev = newval << 1;
+		}
+	}
+	dst->nativepositioning = true;
+	return true;
+}
+
+static bool do_dctv(struct vidbuffer *src, struct vidbuffer *dst)
+{
+	bool v;
+	if (interlace_seen) {
+		if (currprefs.gfx_iscanlines) {
+			v = dctv(src, dst, false, lof_store ? 0 : 1);
+			if (v && currprefs.gfx_iscanlines > 1)
+				blank_generic(src, dst, lof_store ? 1 : 0);
+		} else {
+			v = dctv(src, dst, false, 0);
+			v |= dctv(src, dst, false, 1);
+		}
+	} else {
+		v = dctv(src, dst, true, 0);
+	}
+	return v;
 }
 
 static uae_u8 *sm_frame_buffer;
@@ -1782,7 +1920,7 @@ static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *ds
 	} else if (currprefs.monitoremu == MONITOREMU_GRAFFITI) {
 		return graffiti(src, dst);
 	} else if (currprefs.monitoremu == MONITOREMU_DCTV) {
-		return dctv(src, dst, false, 0);
+		return do_dctv(src, dst);
 	} else if (currprefs.monitoremu == MONITOREMU_HAM_E || currprefs.monitoremu == MONITOREMU_HAM_E_PLUS) {
 		return do_hame(src, dst);
 	} else if (currprefs.monitoremu == MONITOREMU_VIDEODAC18) {

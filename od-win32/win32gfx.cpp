@@ -1744,13 +1744,13 @@ static int open_windows (bool mousecapture)
 	if (upd > 1) {
 		for (i = 0; i < NUM_LEDS; i++)
 			gui_flicker_led (i, -1, -1);
-		gui_led (LED_POWER, gui_data.powerled);
+		gui_led (LED_POWER, gui_data.powerled, gui_data.powerled_brightness);
 		gui_fps (0, 0, 0);
 		if (gui_data.md >= 0)
-			gui_led (LED_MD, 0);
+			gui_led (LED_MD, 0, -1);
 		for (i = 0; i < 4; i++) {
 			if (currprefs.floppyslots[i].dfxtype >= 0)
-				gui_led (LED_DF0 + i, 0);
+				gui_led (LED_DF0 + i, 0, -1);
 		}
 	}
 	if (upd > 0) {

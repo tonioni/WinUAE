@@ -33,7 +33,7 @@ extern void rp_cd_image_change (int num, const TCHAR *name);
 
 extern void rp_update_gameport (int port, int mask, int onoff);
 extern void rp_update_volume (struct uae_prefs*);
-extern void rp_update_leds (int, int, int);
+extern void rp_update_leds (int, int, int, int);
 extern void rp_floppy_track (int floppy, int track);
 extern void rp_hd_activity (int, int, int);
 extern void rp_cd_activity (int, int);

@@ -711,7 +711,7 @@ static void reset_drive (int num)
 	drv->dskready_up_time = 0;
 	drv->buffered_cyl = -1;
 	drv->buffered_side = -1;
-	gui_led (num + LED_DF0, 0);
+	gui_led (num + LED_DF0, 0, -1);
 	drive_settype_id (drv);
 	_tcscpy (currprefs.floppyslots[num].df, changed_prefs.floppyslots[num].df);
 	drv->newname[0] = 0;
@@ -742,7 +742,7 @@ static void update_drive_gui (int num, bool force)
 	else
 		gui_data.drive_side = side;
 	gui_data.drive_writing[num] = writ;
-	gui_led (num + LED_DF0, (gui_data.drive_motor[num] ? 1 : 0) | (gui_data.drive_writing[num] ? 2 : 0));
+	gui_led (num + LED_DF0, (gui_data.drive_motor[num] ? 1 : 0) | (gui_data.drive_writing[num] ? 2 : 0), -1);
 }
 
 static void drive_fill_bigbuf (drive * drv,int);

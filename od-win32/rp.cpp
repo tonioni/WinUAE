@@ -1420,7 +1420,7 @@ void rp_fixup_options (struct uae_prefs *p)
 	rp_turbo_cpu (currprefs.turbo_emulation);
 	rp_turbo_floppy (currprefs.floppy_speed == 0);
 	for (i = 0; i <= 4; i++)
-		rp_update_leds (i, 0, 0);
+		rp_update_leds (i, 0, -1, 0);
 	set_config_changed ();
 }
 
@@ -1543,7 +1543,7 @@ void rp_floppy_track (int floppy, int track)
 	RPPostMessagex (RP_IPC_TO_HOST_DEVICESEEK, MAKEWORD (RP_DEVICECATEGORY_FLOPPY, floppy), track, &guestinfo);
 }
 
-void rp_update_leds (int led, int onoff, int write)
+void rp_update_leds (int led, int onoff, int brightness, int write)
 {
 	static int oldled[5];
 	int ledstate;
@@ -1554,10 +1554,12 @@ void rp_update_leds (int led, int onoff, int write)
 		return;
 	if (onoff < 0)
 		return;
+	if (brightness < 0)
+		brightness = onoff ? 250 : 0;
 	switch (led)
 	{
 	case LED_POWER:
-		ledstate = onoff >= 250 ? 100 : onoff * 5 / 26 + 49;
+		ledstate = brightness >= 250 ? 100 : brightness * 5 / 26 + 49;
 		if (ledstate == oldled[led])
 			return;
 		oldled[led] = ledstate;

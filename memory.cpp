@@ -1979,14 +1979,14 @@ static void allocate_memory (void)
 		}
 	}
 	if (mem25bit_bank.allocated != currprefs.mem25bit_size) {
-		mapped_free (&mem25bit_bank);
+		mapped_free(&mem25bit_bank);
 
 		mem25bit_bank.allocated = currprefs.mem25bit_size;
 		mem25bit_bank.mask = mem25bit_bank.allocated - 1;
 		mem25bit_bank.start = 0x01000000;
 		if (mem25bit_bank.allocated) {
-			if (!mapped_malloc (&mem25bit_bank)) {
-				write_log (_T("Out of memory for 25 bit memory.\n"));
+			if (!mapped_malloc(&mem25bit_bank)) {
+				write_log(_T("Out of memory for 25 bit memory.\n"));
 				mem25bit_bank.allocated = 0;
 			}
 		}
@@ -2069,7 +2069,7 @@ static void allocate_memory (void)
 		if (bogomem_bank.allocated > 0)
 			restore_ram (bogo_filepos, bogomem_bank.baseaddr);
 		if (mem25bit_bank.allocated > 0)
-			restore_ram (mem25bit_filepos, mem25bit_bank.baseaddr);
+			restore_ram(mem25bit_filepos, mem25bit_bank.baseaddr);
 		if (a3000lmem_bank.allocated > 0)
 			restore_ram (a3000lmem_filepos, a3000lmem_bank.baseaddr);
 		if (a3000hmem_bank.allocated > 0)
@@ -2096,14 +2096,14 @@ static void fill_ce_banks (void)
 		memset (ce_banktype, CE_MEMBANK_FAST32, sizeof ce_banktype);
 	}
 	// data cachable regions (2 = burst supported)
-	memset (ce_cachable, 0, sizeof ce_cachable);
-	memset (ce_cachable + (0x00200000 >> 16), 1 | 2, currprefs.fastmem_size >> 16);
-	memset (ce_cachable + (0x00c00000 >> 16), 1, currprefs.bogomem_size >> 16);
-	memset (ce_cachable + (z3fastmem_bank.start >> 16), 1 | 2, currprefs.z3fastmem_size >> 16);
-	memset (ce_cachable + (z3fastmem2_bank.start >> 16), 1 | 2, currprefs.z3fastmem2_size >> 16);
-	memset (ce_cachable + (a3000hmem_bank.start >> 16), 1 | 2, currprefs.mbresmem_high_size >> 16);
-	memset (ce_cachable + (a3000lmem_bank.start >> 16), 1 | 2, currprefs.mbresmem_low_size >> 16);
-	memset (ce_cachable + (mem25bit_bank.start >> 16), 1 | 2, currprefs.mem25bit_size >> 16);
+	memset(ce_cachable, 0, sizeof ce_cachable);
+	memset(ce_cachable + (0x00200000 >> 16), 1 | 2, currprefs.fastmem_size >> 16);
+	memset(ce_cachable + (0x00c00000 >> 16), 1, currprefs.bogomem_size >> 16);
+	memset(ce_cachable + (z3fastmem_bank.start >> 16), 1 | 2, currprefs.z3fastmem_size >> 16);
+	memset(ce_cachable + (z3fastmem2_bank.start >> 16), 1 | 2, currprefs.z3fastmem2_size >> 16);
+	memset(ce_cachable + (a3000hmem_bank.start >> 16), 1 | 2, currprefs.mbresmem_high_size >> 16);
+	memset(ce_cachable + (a3000lmem_bank.start >> 16), 1 | 2, currprefs.mbresmem_low_size >> 16);
+	memset(ce_cachable + (mem25bit_bank.start >> 16), 1 | 2, currprefs.mem25bit_size >> 16);
 
 	if (&get_mem_bank (0) == &chipmem_bank) {
 		for (i = 0; i < (0x200000 >> 16); i++) {
@@ -2242,15 +2242,15 @@ void memory_clear (void)
 	if (savestate_state == STATE_RESTORE)
 		return;
 	if (chipmem_bank.baseaddr)
-		memset (chipmem_bank.baseaddr, 0, chipmem_bank.allocated);
+		memset(chipmem_bank.baseaddr, 0, chipmem_bank.allocated);
 	if (bogomem_bank.baseaddr)
-		memset (bogomem_bank.baseaddr, 0, bogomem_bank.allocated);
+		memset(bogomem_bank.baseaddr, 0, bogomem_bank.allocated);
 	if (mem25bit_bank.baseaddr)
-		memset (mem25bit_bank.baseaddr, 0, mem25bit_bank.allocated);
+		memset(mem25bit_bank.baseaddr, 0, mem25bit_bank.allocated);
 	if (a3000lmem_bank.baseaddr)
-		memset (a3000lmem_bank.baseaddr, 0, a3000lmem_bank.allocated);
+		memset(a3000lmem_bank.baseaddr, 0, a3000lmem_bank.allocated);
 	if (a3000hmem_bank.baseaddr)
-		memset (a3000hmem_bank.baseaddr, 0, a3000hmem_bank.allocated);
+		memset(a3000hmem_bank.baseaddr, 0, a3000hmem_bank.allocated);
 	expansion_clear ();
 	cpuboard_clear();
 }
@@ -2449,11 +2449,11 @@ void memory_reset (void)
 #endif
 
 	if (mem25bit_bank.baseaddr)
-		map_banks (&mem25bit_bank, mem25bit_bank.start >> 16, mem25bit_bank.allocated >> 16, 0);
+		map_banks(&mem25bit_bank, mem25bit_bank.start >> 16, mem25bit_bank.allocated >> 16, 0);
 	if (a3000lmem_bank.baseaddr)
-		map_banks (&a3000lmem_bank, a3000lmem_bank.start >> 16, a3000lmem_bank.allocated >> 16, 0);
+		map_banks(&a3000lmem_bank, a3000lmem_bank.start >> 16, a3000lmem_bank.allocated >> 16, 0);
 	if (a3000hmem_bank.baseaddr)
-		map_banks (&a3000hmem_bank, a3000hmem_bank.start >> 16, a3000hmem_bank.allocated >> 16, 0);
+		map_banks(&a3000hmem_bank, a3000hmem_bank.start >> 16, a3000hmem_bank.allocated >> 16, 0);
 #ifdef CDTV
 	if (cardmem_bank.baseaddr)
 		map_banks (&cardmem_bank, cardmem_bank.start >> 16, cardmem_bank.allocated >> 16, 0);
@@ -2610,13 +2610,13 @@ void memory_init (void)
 
 void memory_cleanup (void)
 {
-	mapped_free (&mem25bit_bank);
-	mapped_free (&a3000lmem_bank);
-	mapped_free (&a3000hmem_bank);
-	mapped_free (&bogomem_bank);
-	mapped_free (&kickmem_bank);
-	xfree (a1000_bootrom);
-	mapped_free (&chipmem_bank);
+	mapped_free(&mem25bit_bank);
+	mapped_free(&a3000lmem_bank);
+	mapped_free(&a3000hmem_bank);
+	mapped_free(&bogomem_bank);
+	mapped_free(&kickmem_bank);
+	xfree(a1000_bootrom);
+	mapped_free(&chipmem_bank);
 #ifdef CDTV
 	if (cardmem_bank.baseaddr) {
 		cdtv_savecardmem (cardmem_bank.baseaddr, cardmem_bank.allocated);

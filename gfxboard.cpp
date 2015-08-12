@@ -431,7 +431,7 @@ void gfxboard_vsync_handler (void)
 		monswitch_delay = 0;
 	}
 
-	if (monswitch_current && picasso_on) {
+	if (!monswitch_delay && monswitch_current && picasso_on && picasso_requested_on) {
 		picasso_getwritewatch (vram_start_offset);
 		if (fullrefresh)
 			vga.vga.graphic_mode = -1;
@@ -2308,6 +2308,7 @@ addrbank *gfxboard_init_memory (int devnum)
 
 	if (ISP4()) {
 		int roms[] = { 91, -1 };
+		struct romlist *rl = getromlistbyids(roms, NULL);
 		TCHAR path[MAX_DPATH];
 		fetch_rompath (path, sizeof path / sizeof (TCHAR));
 
@@ -2315,6 +2316,9 @@ addrbank *gfxboard_init_memory (int devnum)
 
 		if (!p4rom && currprefs.picassoivromfile[0])
 			p4rom = read_rom_name(currprefs.picassoivromfile);
+
+		if (!p4rom && rl)
+			p4rom = read_rom(rl->rd);
 
 		if (!p4rom) {
 			_tcscat (path, _T("picasso_iv_flash.rom"));

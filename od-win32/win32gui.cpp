@@ -1707,6 +1707,7 @@ static void show_rom_list (void)
 		110, -1, -1, // GVP G-Force 030
 		114, -1, -1, // A3001
 		126, -1, -1, // Golem 030
+		144, -1, -1, // E-Matrix 530
 		89, -1, -1, // 1230-IV
 		89, -1, 94, -1, -1, // 1230-IV SCSI
 		90, -1, -1, // 1260
@@ -1759,6 +1760,7 @@ static void show_rom_list (void)
 		_T("GVP G-FORCE 030\0")
 		_T("GVP A3001 Series I\0")
 		_T("Kupke Golem 030\0")
+		_T("M-Tec E-Matrix 530\0")
 		_T("Blizzard 1230-IV\0Blizzard 1260\0")
 		_T("Blizzard 1230-IV/SCSI\0Blizzard 1260/SCSI\0")
 		_T("Blizzard 2060\0Warp Engine\0TekMagic 2040/2060\0")
@@ -7738,8 +7740,9 @@ static void setcpuboardmemsize(HWND hDlg)
 	if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_25BITMEM) {
 		workprefs.mem25bit_size = workprefs.cpuboardmem1_size;
 	}
-	if (workprefs.cpuboard_type == 0)
+	if (workprefs.cpuboard_type == 0) {
 		workprefs.mem25bit_size = 0;
+	}
 
 	if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_HIGHMEM)
 		workprefs.mbresmem_high_size = workprefs.cpuboardmem1_size;
@@ -8827,6 +8830,8 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 				case IDC_A2065:
 				if (ischecked(hDlg, IDC_A2065)) {
 					_tcscpy(workprefs.a2065name, _T("none"));
+					workprefs.ne2000pciname[0] = 0;
+					setchecked(hDlg, IDC_NE2000, false);
 					expansion_net(hDlg);
 					enable_for_expansion2dlg(hDlg);
 				} else {
@@ -8839,6 +8844,8 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 				case IDC_NE2000:
 				if (ischecked(hDlg, IDC_NE2000)) {
 					_tcscpy(workprefs.ne2000pciname, _T("none"));
+					workprefs.a2065name[0] = 0;
+					setchecked(hDlg, IDC_A2065, false);
 					expansion_net(hDlg);
 					enable_for_expansion2dlg(hDlg);
 				} else {
@@ -8859,15 +8866,33 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 				if (!workprefs.sound_toccata)
 					workprefs.sound_toccata_mixer = false;
 				enable_for_expansion2dlg(hDlg);
+				if (workprefs.sound_toccata && (workprefs.sound_fm801 || workprefs.sound_es1370)) {
+					workprefs.sound_fm801 = 0;
+					workprefs.sound_es1370 = 0;
+				}
 				break;
 				case IDC_CS_TOCCATAMIXER:
 				workprefs.sound_toccata_mixer = ischecked(hDlg, IDC_CS_TOCCATAMIXER) ? 1 : 0;
 				break;
 				case IDC_CS_ES1370:
 				workprefs.sound_es1370 = ischecked(hDlg, IDC_CS_ES1370) ? 1 : 0;
+				if (workprefs.sound_es1370 && (workprefs.sound_fm801 || workprefs.sound_toccata)) {
+					workprefs.sound_fm801 = 0;
+					workprefs.sound_toccata = 0;
+					workprefs.sound_toccata_mixer = false;
+					values_to_expansion2dlg(hDlg);
+					enable_for_expansion2dlg(hDlg);
+				}
 				break;
 				case IDC_CS_FM801:
 				workprefs.sound_fm801 = ischecked(hDlg, IDC_CS_FM801) ? 1 : 0;
+				if (workprefs.sound_fm801 && (workprefs.sound_es1370 || workprefs.sound_toccata)) {
+					workprefs.sound_es1370 = 0;
+					workprefs.sound_toccata = 0;
+					workprefs.sound_toccata_mixer = false;
+					values_to_expansion2dlg(hDlg);
+					enable_for_expansion2dlg(hDlg);
+				}
 				break;
 				case IDC_SCSIROMSELECTED:
 				values_from_expansion2dlg(hDlg);
@@ -8968,10 +8993,16 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 							v--;
 							s = ndd[v]->name;
 						}
-						if (ischecked(hDlg, IDC_A2065))
+						if (ischecked(hDlg, IDC_A2065)) {
 							_tcscpy(workprefs.a2065name, s);
-						if (ischecked(hDlg, IDC_NE2000))
+							workprefs.ne2000pciname[0] = 0;
+							setchecked(hDlg, IDC_NE2000, false);
+						}
+						if (ischecked(hDlg, IDC_NE2000)) {
 							_tcscpy(workprefs.ne2000pciname, s);
+							workprefs.a2065name[0] = 0;
+							setchecked(hDlg, IDC_A2065, false);
+						}
 					}
 					break;
 				}
@@ -18903,16 +18934,16 @@ static void gui_flicker_led2 (int led, int unitnum, int status)
 	old = *p;
 	if (status < 0) {
 		if (old < 0) {
-			gui_led (led, -1);
+			gui_led (led, -1, -1);
 		} else {
-			gui_led (led, 0);
+			gui_led (led, 0, -1);
 		}
 		return;
 	}
 	if (status == 0 && old < 0) {
 		*p = 0;
 		resetcounter[led] = 0;
-		gui_led (led, 0);
+		gui_led (led, 0, -1);
 		return;
 	}
 	if (status == 0) {
@@ -18931,7 +18962,7 @@ static void gui_flicker_led2 (int led, int unitnum, int status)
 	*p = status;
 	resetcounter[led] = 6;
 	if (old != *p)
-		gui_led (led, *p);
+		gui_led (led, *p, -1);
 }
 
 void gui_flicker_led (int led, int unitnum, int status)
@@ -18951,13 +18982,13 @@ void gui_fps (int fps, int idle, int color)
 	gui_data.fps = fps;
 	gui_data.idle = idle;
 	gui_data.fps_color = color;
-	gui_led (LED_FPS, 0);
-	gui_led (LED_CPU, 0);
-	gui_led (LED_SND, (gui_data.sndbuf_status > 1 || gui_data.sndbuf_status < 0) ? 0 : 1);
+	gui_led (LED_FPS, 0, -1);
+	gui_led (LED_CPU, 0, -1);
+	gui_led (LED_SND, (gui_data.sndbuf_status > 1 || gui_data.sndbuf_status < 0) ? 0 : 1, -1);
 }
 
 #define LED_STRING_WIDTH 40
-void gui_led (int led, int on)
+void gui_led (int led, int on, int brightness)
 {
 	WORD type;
 	static TCHAR drive_text[NUM_LEDS * LED_STRING_WIDTH];
@@ -18976,7 +19007,7 @@ void gui_led (int led, int on)
 		rp_floppy_track (led - LED_DF0, gui_data.drive_track[led - LED_DF0]);
 		writing = gui_data.drive_writing[led - LED_DF0];
 	}
-	rp_update_leds (led, on, writing);
+	rp_update_leds (led, on, brightness, writing);
 #endif
 	if (!hStatusWnd)
 		return;

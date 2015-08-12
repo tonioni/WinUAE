@@ -9,6 +9,8 @@
 *
 */
 
+#define CDTVCR_4510_EMULATION 0
+
 #define CDTVCR_DEBUG 0
 
 #include "sysconfig.h"
@@ -1018,3 +1020,485 @@ void cdtvcr_free(void)
 	thread_alive = 0;
 	close_unit ();
 }
+
+#if CDTVCR_4510_EMULATION
+
+// VICE 65C02 emulator, waiting for future full CDTV-CR 4510 emulation.
+
+typedef unsigned char BYTE;
+typedef unsigned short WORD;
+typedef unsigned int CLOCK;
+
+static void cpu65c02_reset(void)
+{
+}
+
+#define CLOCK_MAX (~((CLOCK)0))
+#define TRAP_OPCODE 0x02
+#define STATIC_ASSERT(_x)
+
+#define NUM_MEMSPACES e_invalid_space
+
+enum mon_int {
+	MI_NONE = 0,
+	MI_BREAK = 1 << 0,
+	MI_WATCH = 1 << 1,
+	MI_STEP = 1 << 2
+};
+
+enum t_memspace {
+	e_default_space = 0,
+	e_comp_space,
+	e_disk8_space,
+	e_disk9_space,
+	e_disk10_space,
+	e_disk11_space,
+	e_invalid_space
+};
+typedef enum t_memspace MEMSPACE;
+static unsigned monitor_mask[NUM_MEMSPACES];
+static void monitor_check_icount_interrupt(void)
+{
+}
+static void monitor_check_icount(WORD a)
+{
+}
+static int monitor_force_import(int mem)
+{
+	return 0;
+}
+static int monitor_check_breakpoints(int mem, WORD addr)
+{
+	return 0;
+}
+static void monitor_check_watchpoints(unsigned int lastpc, unsigned int pc)
+{
+}
+static void monitor_startup(int mem)
+{
+}
+
+#define INTERRUPT_DELAY 2
+
+#define INTRRUPT_MAX_DMA_PER_OPCODE (7+10000)
+
+enum cpu_int {
+	IK_NONE = 0,
+	IK_NMI = 1 << 0,
+	IK_IRQ = 1 << 1,
+	IK_RESET = 1 << 2,
+	IK_TRAP = 1 << 3,
+	IK_MONITOR = 1 << 4,
+	IK_DMA = 1 << 5,
+	IK_IRQPEND = 1 << 6
+};
+
+struct interrupt_cpu_status_s {
+	/* Number of interrupt lines.  */
+	unsigned int num_ints;
+
+	/* Define, for each interrupt source, whether it has a pending interrupt
+	(IK_IRQ, IK_NMI, IK_RESET and IK_TRAP) or not (IK_NONE).  */
+	unsigned int *pending_int;
+
+	/* Name for each interrupt source */
+	char **int_name;
+
+	/* Number of active IRQ lines.  */
+	int nirq;
+
+	/* Tick when the IRQ was triggered.  */
+	CLOCK irq_clk;
+
+	/* Number of active NMI lines.  */
+	int nnmi;
+
+	/* Tick when the NMI was triggered.  */
+	CLOCK nmi_clk;
+
+	/* If an opcode is intercepted by a DMA, save the number of cycles
+	left at the start of this particular DMA (needed by *_set_irq() to
+	calculate irq_clk).  */
+	unsigned int num_dma_per_opcode;
+	unsigned int num_cycles_left[INTRRUPT_MAX_DMA_PER_OPCODE];
+	CLOCK dma_start_clk[INTRRUPT_MAX_DMA_PER_OPCODE];
+
+	/* counters for delay between interrupt request and handler */
+	unsigned int irq_delay_cycles;
+	unsigned int nmi_delay_cycles;
+
+	/* If 1, do a RESET.  */
+	int reset;
+
+	/* If 1, call the trapping function.  */
+	int trap;
+
+	/* Debugging function.  */
+	void(*trap_func)(WORD, void *data);
+
+	/* Data to pass to the debugging function when called.  */
+	void *trap_data;
+
+	/* Pointer to the last executed opcode information.  */
+	unsigned int *last_opcode_info_ptr;
+
+	/* Number of cycles we have stolen to the processor last time.  */
+	int num_last_stolen_cycles;
+
+	/* Clock tick at which these cycles have been stolen.  */
+	CLOCK last_stolen_cycles_clk;
+
+	/* Clock tick where just ACK'd IRQs may still trigger an interrupt.
+	Set to CLOCK_MAX when irrelevant.  */
+	CLOCK irq_pending_clk;
+
+	unsigned int global_pending_int;
+
+	void(*nmi_trap_func)(void);
+
+	void(*reset_trap_func)(void);
+};
+typedef struct interrupt_cpu_status_s interrupt_cpu_status_t;
+
+/* Masks to extract information. */
+#define OPINFO_DELAYS_INTERRUPT_MSK     (1 << 8)
+#define OPINFO_DISABLES_IRQ_MSK         (1 << 9)
+#define OPINFO_ENABLES_IRQ_MSK          (1 << 10)
+
+/* Return nonzero if `opinfo' causes a 1-cycle interrupt delay.  */
+#define OPINFO_DELAYS_INTERRUPT(opinfo)         \
+    ((opinfo) & OPINFO_DELAYS_INTERRUPT_MSK)
+
+/* Return nonzero if `opinfo' has changed the I flag from 0 to 1, so that an
+IRQ that happened 2 or more cycles before the end of the opcode should be
+allowed.  */
+#define OPINFO_DISABLES_IRQ(opinfo)             \
+    ((opinfo) & OPINFO_DISABLES_IRQ_MSK)
+
+/* Return nonzero if `opinfo' has changed the I flag from 1 to 0, so that an
+IRQ that happened 2 or more cycles before the end of the opcode should not
+be allowed.  */
+#define OPINFO_ENABLES_IRQ(opinfo)              \
+    ((opinfo) & OPINFO_ENABLES_IRQ_MSK)
+
+/* Set the information for `opinfo'.  `number' is the opcode number,
+`delays_interrupt' must be non-zero if it causes a 1-cycle interrupt
+delay, `disables_interrupts' must be non-zero if it disabled IRQs.  */
+#define OPINFO_SET(opinfo,                                                \
+                   number, delays_interrupt, disables_irq, enables_irq)   \
+    ((opinfo) = ((number)                                                 \
+                 | ((delays_interrupt) ? OPINFO_DELAYS_INTERRUPT_MSK : 0) \
+                 | ((disables_irq) ? OPINFO_DISABLES_IRQ_MSK : 0)         \
+                 | ((enables_irq) ? OPINFO_ENABLES_IRQ_MSK : 0)))
+
+/* Set whether the opcode causes the 1-cycle interrupt delay according to
+`delay'.  */
+#define OPINFO_SET_DELAYS_INTERRUPT(opinfo, delay)   \
+    do {                                             \
+        if ((delay))                                 \
+            (opinfo) |= OPINFO_DELAYS_INTERRUPT_MSK; \
+    } while (0)
+
+/* Set whether the opcode disables previously enabled IRQs according to
+`disable'.  */
+#define OPINFO_SET_DISABLES_IRQ(opinfo, disable) \
+    do {                                         \
+        if ((disable))                           \
+            (opinfo) |= OPINFO_DISABLES_IRQ_MSK; \
+    } while (0)
+
+/* Set whether the opcode enables previously disabled IRQs according to
+`enable'.  */
+#define OPINFO_SET_ENABLES_IRQ(opinfo, enable)  \
+    do {                                        \
+        if ((enable))                           \
+            (opinfo) |= OPINFO_ENABLES_IRQ_MSK; \
+    } while (0)
+
+
+
+typedef struct mos6510_regs_s {
+	unsigned int pc;        /* `unsigned int' required by the drive code. */
+	BYTE a;
+	BYTE x;
+	BYTE y;
+	BYTE sp;
+	BYTE p;
+	BYTE n;
+	BYTE z;
+} mos6510_regs_t;
+
+typedef struct R65C02_regs_s
+{
+	unsigned int pc;
+	BYTE a;
+	BYTE x;
+	BYTE y;
+	BYTE sp;
+	BYTE p;
+	BYTE n;
+	BYTE z;
+} R65C02_regs_t;
+
+#define DRIVE_RAM_SIZE 32768
+
+typedef BYTE drive_read_func_t(struct drive_context_s *, WORD);
+typedef void drive_store_func_t(struct drive_context_s *, WORD,
+	BYTE);
+
+typedef struct drivecpud_context_s {
+	/* Drive RAM */
+	BYTE drive_ram[DRIVE_RAM_SIZE];
+
+	/* functions */
+	drive_read_func_t  *read_func[0x101];
+	drive_store_func_t *store_func[0x101];
+//	drive_read_func_t  *read_func_watch[0x101];
+//	drive_store_func_t *store_func_watch[0x101];
+//	drive_read_func_t  *read_func_nowatch[0x101];
+//	drive_store_func_t *store_func_nowatch[0x101];
+
+	int sync_factor;
+} drivecpud_context_t;
+
+typedef struct drive_context_s {
+	int mynumber;         /* init to [0123] */
+	CLOCK *clk_ptr;       /* shortcut to drive_clk[mynumber] */
+
+	struct drivecpu_context_s *cpu;
+	struct drivecpud_context_s *cpud;
+	struct drivefunc_context_s *func;
+} drive_context_t;
+
+static int drive_trap_handler(drive_context_t *d)
+{
+	return -1;
+}
+
+typedef struct drivecpu_context_s
+{
+	int traceflg;
+	/* This is non-zero each time a Read-Modify-Write instructions that accesses
+	memory is executed.  We can emulate the RMW bug of the 6502 this way.  */
+	int rmw_flag; /* init to 0 */
+
+				  /* Interrupt/alarm status.  */
+	struct interrupt_cpu_status_s *int_status;
+
+	struct alarm_context_s *alarm_context;
+
+	/* Clk guard.  */
+	struct clk_guard_s *clk_guard;
+
+	struct monitor_interface_s *monitor_interface;
+
+	/* Value of clk for the last time mydrive_cpu_execute() was called.  */
+	CLOCK last_clk;
+
+	/* Number of cycles in excess we executed last time mydrive_cpu_execute()
+	was called.  */
+	CLOCK last_exc_cycles;
+
+	CLOCK stop_clk;
+
+	CLOCK cycle_accum;
+	BYTE *d_bank_base;
+	unsigned int d_bank_start;
+	unsigned int d_bank_limit;
+
+	/* Information about the last executed opcode.  */
+	unsigned int last_opcode_info;
+
+	/* Address of the last executed opcode. This is used by watchpoints. */
+	unsigned int last_opcode_addr;
+
+	/* Public copy of the registers.  */
+	mos6510_regs_t cpu_regs;
+//	R65C02_regs_t cpu_R65C02_regs;
+
+	BYTE *pageone;        /* init to NULL */
+
+	int monspace;         /* init to e_disk[89]_space */
+
+	char *snap_module_name;
+
+	char *identification_string;
+} drivecpu_context_t;
+
+#define LOAD(a)           (drv->cpud->read_func[(a) >> 8](drv, (WORD)(a)))
+#define LOAD_ZERO(a)      (drv->cpud->read_func[0](drv, (WORD)(a)))
+#define LOAD_ADDR(a)      (LOAD(a) | (LOAD((a) + 1) << 8))
+#define LOAD_ZERO_ADDR(a) (LOAD_ZERO(a) | (LOAD_ZERO((a) + 1) << 8))
+#define STORE(a, b)       (drv->cpud->store_func[(a) >> 8](drv, (WORD)(a), \
+                          (BYTE)(b)))
+#define STORE_ZERO(a, b)  (drv->cpud->store_func[0](drv, (WORD)(a), \
+                          (BYTE)(b)))
+
+#define JUMP(addr)                                       \
+
+#define P_SIGN          0x80
+#define P_OVERFLOW      0x40
+#define P_UNUSED        0x20
+#define P_BREAK         0x10
+#define P_DECIMAL       0x08
+#define P_INTERRUPT     0x04
+#define P_ZERO          0x02
+#define P_CARRY         0x01
+
+#define CPU_WDC65C02   0
+#define CPU_R65C02     1
+#define CPU_65SC02     2
+
+#define CLK (*(drv->clk_ptr))
+#define RMW_FLAG (cpu->rmw_flag)
+#define PAGE_ONE (cpu->pageone)
+#define LAST_OPCODE_INFO (cpu->last_opcode_info)
+#define LAST_OPCODE_ADDR (cpu->last_opcode_addr)
+#define TRACEFLG (debug.drivecpu_traceflg[drv->mynumber])
+
+#define CPU_INT_STATUS (cpu->int_status)
+
+#define ALARM_CONTEXT (cpu->alarm_context)
+
+#define ROM_TRAP_ALLOWED() 1
+
+#define ROM_TRAP_HANDLER() drive_trap_handler(drv)
+
+#define CALLER (cpu->monspace)
+
+#define DMA_FUNC drive_generic_dma()
+
+#define DMA_ON_RESET
+
+#define cpu_reset() (cpu_reset)(drv)
+#define bank_limit (cpu->d_bank_limit)
+#define bank_start (cpu->d_bank_start)
+#define bank_base (cpu->d_bank_base)
+
+/* WDC_STP() and WDC_WAI() are not used on the R65C02. */
+#define WDC_STP()
+#define WDC_WAI()
+
+#define GLOBAL_REGS cpu->cpu_R65C02_regs
+
+#define DRIVE_CPU
+
+static void drive_generic_dma(void)
+{
+}
+static void interrupt_trigger_dma(interrupt_cpu_status_t *cs, CLOCK cpu_clk)
+{
+	cs->global_pending_int = (enum cpu_int)
+		(cs->global_pending_int | IK_DMA);
+}
+static void interrupt_ack_dma(interrupt_cpu_status_t *cs)
+{
+	cs->global_pending_int = (enum cpu_int)
+		(cs->global_pending_int & ~IK_DMA);
+}
+static void interrupt_do_trap(interrupt_cpu_status_t *cs, WORD address)
+{
+	cs->global_pending_int &= ~IK_TRAP;
+	cs->trap_func(address, cs->trap_data);
+}
+static void interrupt_ack_reset(interrupt_cpu_status_t *cs)
+{
+	cs->global_pending_int &= ~IK_RESET;
+
+	if (cs->reset_trap_func)
+		cs->reset_trap_func();
+}
+static void interrupt_ack_nmi(interrupt_cpu_status_t *cs)
+{
+	cs->global_pending_int =
+		(cs->global_pending_int & ~IK_NMI);
+
+	if (cs->nmi_trap_func) {
+		cs->nmi_trap_func();
+	}
+}
+static void interrupt_ack_irq(interrupt_cpu_status_t *cs)
+{
+	cs->global_pending_int =
+		(cs->global_pending_int & ~IK_IRQPEND);
+	cs->irq_pending_clk = CLOCK_MAX;
+}
+static int interrupt_check_nmi_delay(interrupt_cpu_status_t *cs,
+	CLOCK cpu_clk)
+{
+	CLOCK nmi_clk = cs->nmi_clk + INTERRUPT_DELAY;
+
+	/* Branch instructions delay IRQs and NMI by one cycle if branch
+	is taken with no page boundary crossing.  */
+	if (OPINFO_DELAYS_INTERRUPT(*cs->last_opcode_info_ptr))
+		nmi_clk++;
+
+	if (cpu_clk >= nmi_clk)
+		return 1;
+
+	return 0;
+}
+static int interrupt_check_irq_delay(interrupt_cpu_status_t *cs,
+	CLOCK cpu_clk)
+{
+	CLOCK irq_clk = cs->irq_clk + INTERRUPT_DELAY;
+
+	/* Branch instructions delay IRQs and NMI by one cycle if branch
+	is taken with no page boundary crossing.  */
+	if (OPINFO_DELAYS_INTERRUPT(*cs->last_opcode_info_ptr))
+		irq_clk++;
+
+	/* If an opcode changes the I flag from 1 to 0, the 6510 needs
+	one more opcode before it triggers the IRQ routine.  */
+	if (cpu_clk >= irq_clk) {
+		if (!OPINFO_ENABLES_IRQ(*cs->last_opcode_info_ptr)) {
+			return 1;
+		} else {
+			cs->global_pending_int |= IK_IRQPEND;
+		}
+	}
+	return 0;
+}
+
+struct alarm_context_s {
+	CLOCK next_pending_alarm_clk;
+};
+typedef struct alarm_context_s alarm_context_t;
+
+static void alarm_context_dispatch(alarm_context_t *context, CLOCK cpu_clk)
+{
+}
+static CLOCK alarm_context_next_pending_clk(alarm_context_t *context)
+{
+	return context->next_pending_alarm_clk;
+}
+
+static void cpu_4510(void)
+{
+	int cpu_type = CPU_R65C02;
+	drivecpu_context_t *cpu = NULL;
+	drive_context_t *drv = NULL;
+
+#define reg_a   (cpu->cpu_regs.a)
+#define reg_x   (cpu->cpu_regs.x)
+#define reg_y   (cpu->cpu_regs.y)
+#define reg_pc  (cpu->cpu_regs.pc)
+#define reg_sp  (cpu->cpu_regs.sp)
+#define reg_p   (cpu->cpu_regs.p)
+#define flag_z  (cpu->cpu_regs.z)
+#define flag_n  (cpu->cpu_regs.n)
+
+#include "65c02core.cpp"
+}
+
+static void init_65c02(struct drive_context_s *drv)
+{
+	drivecpu_context_t *cpu = drv->cpu;
+
+	cpu->rmw_flag = 0;
+	cpu->d_bank_limit = 0;
+	cpu->d_bank_start = 0;
+	cpu->pageone = NULL;
+}
+
+#endif
