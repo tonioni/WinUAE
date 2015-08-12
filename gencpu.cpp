@@ -3848,7 +3848,7 @@ static void gen_opcode (unsigned int opcode)
 		clear_m68k_offset();
 		tail_ce020_done = true;
 		fill_prefetch_full ();
-		branch_inst = 2;
+		branch_inst = 1;
 		break;
 	case i_RTD:
 		addop_ce020 (curi, 0);
@@ -3871,7 +3871,7 @@ static void gen_opcode (unsigned int opcode)
 		tail_ce020_done = true;
 		fill_prefetch_full ();
 	    need_endlabel = 1;
-		branch_inst = 2;
+		branch_inst = 1;
 		break;
 	case i_LINK:
 		// ce confirmed
@@ -3939,7 +3939,7 @@ static void gen_opcode (unsigned int opcode)
 		clear_m68k_offset();
 		fill_prefetch_full ();
 	    need_endlabel = 1;
-		branch_inst = 2;
+		branch_inst = 1;
 		break;
 	case i_TRAPV:
 		sync_m68k_pc ();
@@ -3968,6 +3968,7 @@ static void gen_opcode (unsigned int opcode)
 		clear_m68k_offset();
 		fill_prefetch_full ();
 	    need_endlabel = 1;
+		branch_inst = 1;
 		tail_ce020_done = true;
 		break;
 	case i_JSR:

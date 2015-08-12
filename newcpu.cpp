@@ -1284,7 +1284,7 @@ static void build_cpufunctbl (void)
 			if (f == op_illg_1)
 				abort ();
 			cpufunctbl[opcode] = f;
-			memcpy(&cpudatatbl[opcode], &cpudatatbl[idx], sizeof cputbl_data);
+			memcpy(&cpudatatbl[opcode], &cpudatatbl[idx], sizeof(struct cputbl_data));
 			opcnt++;
 		}
 	}
@@ -2877,7 +2877,7 @@ static void m68k_reset2(bool hardreset)
 
 	regs.halted = 0;
 	gui_data.cpu_halted = 0;
-	gui_led (LED_CPU, 0);
+	gui_led (LED_CPU, 0, -1);
 
 	regs.spcflags = 0;
 	m68k_reset_delay = 0;
@@ -4391,7 +4391,7 @@ void cpu_halt (int id)
 		write_log (_T("CPU halted: reason = %d PC=%08x\n"), id, M68K_GETPC);
 		regs.halted = id;
 		gui_data.cpu_halted = id;
-		gui_led(LED_CPU, 0);
+		gui_led(LED_CPU, 0, -1);
 		if (id >= 0) {
 			regs.intmask = 7;
 			MakeSR ();
@@ -6712,6 +6712,7 @@ static void pipeline_020(uae_u16 w, uaecptr pc)
 	int branch = cpudatatbl[w].branch;
 	if (regs.pipeline_pos > 0 && branch) {
 		// Short branches (Bcc.s) still do one more prefetch.
+#if 0
 		// RTS and other unconditional single opcode instruction stop immediately.
 		if (branch == 2) {
 			// Immediate stop
@@ -6720,6 +6721,9 @@ static void pipeline_020(uae_u16 w, uaecptr pc)
 			// Stop 1 word early than normally
 			regs.pipeline_stop = 1;
 		}
+#else
+		regs.pipeline_stop = 1;
+#endif
 	}
 }
 
