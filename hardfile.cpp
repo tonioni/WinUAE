@@ -1181,15 +1181,20 @@ static uae_u64 get_scsi_6_offset(struct hardfiledata *hfd, struct hd_hardfiledat
 int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8 *cmdbuf, int scsi_cmd_len,
 	uae_u8 *scsi_data, int *data_len, uae_u8 *r, int *reply_len, uae_u8 *s, int *sense_len)
 {
+	if (cmdbuf == NULL)
+		return 0;
+
 	uae_u64 len, offset;
 	int lr = 0, ls = 0;
 	int scsi_len = -1;
 	int status = 0;
 	int lun;
-	uae_u8 cmd = cmdbuf[0];
+	uae_u8 cmd;
 	bool sasi = hfd->ci.unit_feature_level >= HD_LEVEL_SASI && hfd->ci.unit_feature_level <= HD_LEVEL_SASI_ENHANCED;
 	bool sasie = hfd->ci.unit_feature_level == HD_LEVEL_SASI_ENHANCED;
 	bool omti = hfd->ci.unit_feature_level == HD_LEVEL_SASI_CHS;
+
+	cmd = cmdbuf[0];
 
 	if (log_scsiemu) {
 		write_log (_T("SCSIEMU HD %d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X CMDLEN=%d DATA=%p\n"), hfd->unitnum,
@@ -1198,14 +1203,8 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			scsi_cmd_len, scsi_data);
 	}
 
-	if (cmd == 0x03) { /* REQUEST SENSE */
-		if (hfd->unit_attention) {
-			s[0] = 0x70;
-			s[2] = 6; /* UNIT ATTENTION */
-			s[12] = (hfd->unit_attention >> 8) & 0xff;
-			s[13] = (hfd->unit_attention >> 0) & 0xff;
-			*sense_len = 0x12;
-		}
+	/* REQUEST SENSE */
+	if (cmd == 0x03) {
 		return 0;
 	}
 
@@ -1344,7 +1343,6 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	switch (cmdbuf[0])
 	{
 	case 0x00: /* TEST UNIT READY */
-		hfd->unit_attention = 0;
 		if (nodisk (hfd))
 			goto nodisk;
 		scsi_len = 0;
@@ -1682,6 +1680,9 @@ miscompare:
 		break;
 	}
 scsi_done:
+
+	if (ls > 7)
+		s[7] = ls - 8;
 
 	if (log_scsiemu && ls) {
 		write_log (_T("-> SENSE STATUS: KEY=%d ASC=%02X ASCQ=%02X\n"), s[2], s[12], s[13]);

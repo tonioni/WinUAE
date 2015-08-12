@@ -20,31 +20,32 @@ struct scsi_data_tape
 
 struct scsi_data
 {
-    int id;
+	int id;
 	void *privdata;
-    int cmd_len;
-    uae_u8 *data;
-    int data_len;
-    int status;
-    uae_u8 sense[256];
-    int sense_len;
-    uae_u8 reply[256];
-    uae_u8 cmd[16];
+	int cmd_len;
+	uae_u8 *data;
+	int data_len;
+	int status;
+	uae_u8 sense[256];
+	int sense_len;
+	uae_u8 reply[256];
+	uae_u8 cmd[16];
 	uae_u8 msgout[4];
-    int reply_len;
-    int direction;
+	int reply_len;
+	int direction;
 	uae_u8 message[1];
 	int blocksize;
 
-    int offset;
-    uae_u8 *buffer;
+	int offset;
+	uae_u8 *buffer;
 	int buffer_size;
-    struct hd_hardfiledata *hfd;
+	struct hd_hardfiledata *hfd;
 	struct scsi_data_tape *tape;
-    int device_type;
+	int device_type;
 	int nativescsiunit;
 	int cd_emu_unit;
 	bool atapi;
+	uae_u32 unit_attention;
 };
 
 extern struct scsi_data *scsi_alloc_hd(int, struct hd_hardfiledata*);

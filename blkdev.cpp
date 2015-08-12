@@ -54,25 +54,6 @@ struct blkdevstate
 
 struct blkdevstate state[MAX_TOTAL_SCSI_DEVICES];
 
-#if 0
-static int scsiemu[MAX_TOTAL_SCSI_DEVICES];
-
-static struct device_functions *device_func[MAX_TOTAL_SCSI_DEVICES];
-static int openlist[MAX_TOTAL_SCSI_DEVICES];
-static int waspaused[MAX_TOTAL_SCSI_DEVICES];
-static int delayed[MAX_TOTAL_SCSI_DEVICES];
-static uae_sem_t unitsem[MAX_TOTAL_SCSI_DEVICES];
-static int unitsem_cnt[MAX_TOTAL_SCSI_DEVICES];
-
-static int play_end_pos[MAX_TOTAL_SCSI_DEVICES];
-static uae_u8 play_qcode[MAX_TOTAL_SCSI_DEVICES][SUBQ_SIZE];
-
-static TCHAR newimagefiles[MAX_TOTAL_SCSI_DEVICES][256];
-static int imagechangetime[MAX_TOTAL_SCSI_DEVICES];
-static bool cdimagefileinuse[MAX_TOTAL_SCSI_DEVICES];
-static int wasopen[MAX_TOTAL_SCSI_DEVICES];
-#endif
-
 static bool dev_init;
 
 /* convert minutes, seconds and frames -> logical sector number */
@@ -1307,11 +1288,20 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 	int v;
 	int status = 0;
 	struct device_info di;
-	uae_u8 cmd = cmdbuf[0];
+	uae_u8 cmd;
 	int dlen, lun;
 	
-	if (cmd == 0x03) { /* REQUEST SENSE */
-		st->mediawaschanged = false;
+	if (cmdbuf == NULL) {
+		if (st->mediawaschanged) {
+			st->mediawaschanged = false;
+			return (0x28 << 8) | (0x00);
+		}
+		return 0;
+	}
+
+	cmd = cmdbuf[0];
+
+	if (cmd == 0x03) {
 		return 0;
 	}
 	
@@ -1333,22 +1323,6 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		s[12] = 0x25; /* INVALID LUN */
 		ls = 0x12;
 		write_log (_T("CD SCSIEMU %d: CMD=%02X LUN=%d ignored\n"), unitnum, cmdbuf[0], lun);
-		goto end;
-	}
-
-	// media changed and not inquiry
-	if (st->mediawaschanged && cmd != 0x12) {
-		if (log_scsiemu) {
-			write_log (_T("CD SCSIEMU %d: MEDIUM MAY HAVE CHANGED STATE\n"), unitnum);
-		}
-		lr = -1;
-		status = 2; /* CHECK CONDITION */
-		s[0] = 0x70;
-		s[2] = 6; /* UNIT ATTENTION */
-		s[12] = 0x28; /* MEDIUM MAY HAVE CHANGED */
-		ls = 0x12;
-		if (cmd == 0x00)
-			st->mediawaschanged = false;
 		goto end;
 	}
 

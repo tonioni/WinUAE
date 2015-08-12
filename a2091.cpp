@@ -1073,7 +1073,7 @@ static void wd_cmd_sel_xfer (struct wd_chip_state *wd, struct wd_state *wds, boo
 			if (scsi->direction != 0) {
 				// TC = 0 but we may have data
 				if (scsi->direction < 0) {
-					if (scsi->data_len == 0) {
+					if (scsi->data_len == 0 || scsi->offset >= scsi->data_len) {
 						// no data, continue normally to status phase
 						setphase (wd, 0x46);
 						goto end;

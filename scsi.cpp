@@ -240,7 +240,7 @@ void scsi_clear_sense(struct scsi_data *sd)
 static void showsense(struct scsi_data *sd)
 {
 	if (log_scsiemu) {
-		for (int i = 0; i < sd->data_len; i++) {
+		for (int i = 0; i < sd->sense_len; i++) {
 			if (i > 0)
 				write_log (_T("."));
 			write_log (_T("%02X"), sd->buffer[i]);
@@ -257,10 +257,12 @@ static void copysense(struct scsi_data *sd)
 		len = 4;
 	memset(sd->buffer, 0, len);
 	memcpy(sd->buffer, sd->sense, sd->sense_len > len ? len : sd->sense_len);
+	if (len > 7 && sd->sense_len > 7)
+		sd->buffer[7] = sd->sense_len - 8;
 	if (sd->sense_len == 0)
 		sd->buffer[0] = 0x70;
-	sd->data_len = len;
 	showsense (sd);
+	sd->data_len = len;
 	scsi_clear_sense(sd);
 }
 static void copyreply(struct scsi_data *sd)
@@ -272,12 +274,69 @@ static void copyreply(struct scsi_data *sd)
 	}
 }
 
+static void scsi_set_unit_attention(struct scsi_data *sd, uae_u8 v1, uae_u8 v2)
+{
+	sd->unit_attention = (v1 << 8) | v2;
+}
+
 void scsi_emulate_reset_device(struct scsi_data *sd)
 {
 	if (!sd)
 		return;
-	if (sd->device_type == UAEDEV_HDF && sd->nativescsiunit < 0)
-		sd->hfd->hfd.unit_attention = (0x29 << 8) | 0x02; //  SCSI bus reset occurred
+	if (sd->device_type == UAEDEV_HDF && sd->nativescsiunit < 0) {
+		scsi_clear_sense(sd);
+		//  SCSI bus reset occurred
+		scsi_set_unit_attention(sd, 0x29, 0x02);
+	}
+}
+
+static bool handle_ca(struct scsi_data *sd)
+{
+	bool cc = sd->sense_len > 2 && sd->sense[2] >= 2;
+	bool ua = sd->unit_attention != 0;
+	uae_u8 cmd = sd->cmd[0];
+
+	// INQUIRY
+	if (cmd == 0x12) {
+		if (ua && cc && sd->sense[2] == 6) {
+			// INQUIRY clears UA only if previous
+			// command was aborted due to UA
+			sd->unit_attention = 0;
+		}
+		return true;
+	}
+
+	// REQUEST SENSE
+	if (cmd == 0x03) {
+		if (ua) {
+			uae_u8 *s = sd->sense;
+			scsi_clear_sense(sd);
+			s[0] = 0x70;
+			s[2] = 6; /* UNIT ATTENTION */
+			s[12] = (sd->unit_attention >> 8) & 0xff;
+			s[13] = (sd->unit_attention >> 0) & 0xff;
+			sd->sense_len = 0x12;
+		}
+		sd->unit_attention = 0;
+		copysense(sd);
+		return true;
+	}
+
+	scsi_clear_sense(sd);
+
+	if (ua) {
+		uae_u8 *s = sd->sense;
+		s[0] = 0x70;
+		s[2] = 6; /* UNIT ATTENTION */
+		s[12] = (sd->unit_attention >> 8) & 0xff;
+		s[13] = (sd->unit_attention >> 0) & 0xff;
+		sd->sense_len = 0x12;
+		sd->unit_attention = 0;
+		sd->status = 2;
+		return false;
+	}
+
+	return true;
 }
 
 void scsi_emulate_cmd(struct scsi_data *sd)
@@ -295,33 +354,45 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 		sd->cmd[0], sd->cmd[1], sd->cmd[2], sd->cmd[3], sd->cmd[4], sd->cmd[5], sd->device_type, sd->nativescsiunit);
 #endif
 	if (sd->device_type == UAEDEV_CD && sd->cd_emu_unit >= 0) {
-		if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
-			scsi_cd_emulate(sd->cd_emu_unit, sd->cmd, 0, 0, 0, 0, 0, 0, 0, sd->atapi); /* ack request sense */
-			copysense(sd);
-		} else {
-			scsi_clear_sense(sd);
-			sd->status = scsi_cd_emulate(sd->cd_emu_unit, sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len, sd->atapi);
-			copyreply(sd);
+		uae_u32 ua = 0;
+		ua = scsi_cd_emulate(sd->cd_emu_unit, NULL, 0, 0, 0, 0, 0, 0, 0, sd->atapi);
+		if (ua)
+			sd->unit_attention = ua;
+		if (handle_ca(sd)) {
+			if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
+				scsi_cd_emulate(sd->cd_emu_unit, sd->cmd, 0, 0, 0, 0, 0, 0, 0, sd->atapi); /* ack request sense */
+			} else {
+				sd->status = scsi_cd_emulate(sd->cd_emu_unit, sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len, sd->atapi);
+				copyreply(sd);
+			}
 		}
 	} else if (sd->device_type == UAEDEV_HDF && sd->nativescsiunit < 0) {
-		if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
-			scsi_hd_emulate(&sd->hfd->hfd, sd->hfd, sd->cmd, 0, 0, 0, 0, 0, sd->sense, &sd->sense_len);
-			copysense(sd);
-		} else {
-			scsi_clear_sense(sd);
-			sd->status = scsi_hd_emulate(&sd->hfd->hfd, sd->hfd,
-				sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
-			copyreply(sd);
+		uae_u32 ua = 0;
+		ua = scsi_hd_emulate(&sd->hfd->hfd, sd->hfd, NULL, 0, 0, 0, 0, 0, 0, 0);
+		if (ua)
+			sd->unit_attention = ua;
+		if (handle_ca(sd)) {
+			if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
+				scsi_hd_emulate(&sd->hfd->hfd, sd->hfd, sd->cmd, 0, 0, 0, 0, 0, sd->sense, &sd->sense_len);
+			} else {
+				sd->status = scsi_hd_emulate(&sd->hfd->hfd, sd->hfd,
+					sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
+				copyreply(sd);
+			}
 		}
 	} else if (sd->device_type == UAEDEV_TAPE && sd->nativescsiunit < 0) {
-		if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
-			scsi_tape_emulate(sd->tape, sd->cmd, 0, 0, 0, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len); /* get request sense extra bits */
-			copysense(sd);
-		} else {
-			scsi_clear_sense(sd);
-			sd->status = scsi_tape_emulate(sd->tape,
-				sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
-			copyreply(sd);
+		uae_u32 ua = 0;
+		ua = scsi_tape_emulate(sd->tape, NULL, 0, 0, 0, 0, 0, 0, 0);
+		if (ua)
+			sd->unit_attention = ua;
+		if (handle_ca(sd)) {
+			if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
+				scsi_tape_emulate(sd->tape, sd->cmd, 0, 0, 0, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len); /* get request sense extra bits */
+			} else {
+				sd->status = scsi_tape_emulate(sd->tape,
+					sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
+				copyreply(sd);
+			}
 		}
 	} else if (sd->nativescsiunit >= 0) {
 		struct amigascsi as;
@@ -861,10 +932,15 @@ static int countbits(uae_u8 v)
 	return cnt;
 }
 
-static void raw_scsi_reset_bus(struct raw_scsi *rs)
+static void raw_scsi_reset_bus(struct soft_scsi *scsi)
 {
-	for (int i = 0; i < 8; i++)
-		scsi_emulate_reset_device(rs->device[i]);
+	struct raw_scsi *r = &scsi->rscsi;
+#if RAW_SCSI_DEBUG
+	write_log(_T("SCSI BUS reset\n"));
+#endif
+	for (int i = 0; i < 8; i++) {
+		scsi_emulate_reset_device(r->device[i]);
+	}
 }
 
 
@@ -1336,7 +1412,7 @@ static void ncr5380_reset(struct soft_scsi *scsi)
 
 	scsi->irq = true;
 	memset(scsi->regs, 0, sizeof scsi->regs);
-	raw_scsi_reset_bus(r);
+	raw_scsi_reset_bus(scsi);
 	scsi->regs[1] = 0x80;
 }
 
