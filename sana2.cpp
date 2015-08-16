@@ -1573,6 +1573,11 @@ static void dev_reset (void)
 
 	write_log (_T("%s reset\n"), getdevname());
 	for (i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
+		if (td[i] && td[i]->active) {
+			write_log(_T("- %d: '%s'\n"), i, td[i]->name);
+		}
+	}
+	for (i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
 		dev = &devst[i];
 		if (dev->opencnt) {
 			struct asyncreq *ar = dev->ar;
