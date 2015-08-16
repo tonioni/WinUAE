@@ -909,6 +909,7 @@ static uae_u8 floppy_seekcyl[4];
 static int floppy_delay_hsync;
 static bool floppy_did_reset;
 static bool floppy_irq;
+static uae_u8 floppy_rate;
 
 #define PC_SEEK_DELAY 50
 
@@ -919,6 +920,13 @@ static void floppy_reset(void)
 	floppy_dir = 0;
 	floppy_did_reset = true;
 }
+
+static void floppy_hardreset(void)
+{
+	floppy_rate = FLOPPY_RATE_300K;
+	floppy_reset();
+}
+
 
 static void do_floppy_irq2(void)
 {
@@ -1024,6 +1032,11 @@ static int floppy_selected(void)
 	if (motormask & (1 << sel))
 		return sel;
 	return -1;
+}
+
+static bool floppy_valid_rate(struct floppy_reserved *fr)
+{
+	return fr->rate == floppy_rate;
 }
 
 static void floppy_do_cmd(struct x86_bridge *xb)
@@ -1175,7 +1188,9 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 			int cyl = pcf->cyl;
 			bool nodata = false;
 			if (valid_floppy) {
-				if (fr.img && pcf->cyl != floppy_cmd[2]) {
+				if (!floppy_valid_rate(&fr)) {
+					nodata = true;
+				} else if (fr.img && pcf->cyl != floppy_cmd[2]) {
 					floppy_status[0] |= 0x40; // abnormal termination
 					floppy_status[2] |= 0x20; // wrong cylinder
 				} else if (fr.img) {
@@ -1240,7 +1255,7 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 
 		case 10:
 		write_log(_T("Floppy read ID\n"));
-		if (!valid_floppy || !fr.img) {
+		if (!valid_floppy || !fr.img || !floppy_valid_rate(&fr)) {
 			floppy_status[0] |= 0x40; // abnormal termination
 			floppy_status[1] |= 0x04; // no data
 		}
@@ -1412,6 +1427,9 @@ static void outfloppy(struct x86_bridge *xb, int portnum, uae_u8 v)
 		case 0x3f7: // configuration control
 		if (xb->type >= TYPE_2286) {
 			write_log(_T("FDC Control Register %02x\n"), v);
+			floppy_rate = v & 3;
+		} else {
+			floppy_rate = FLOPPY_RATE_300K;
 		}
 		break;
 	}
@@ -2837,6 +2855,7 @@ static void bridge_reset(struct x86_bridge *xb)
 	}
 
 	inittiming();
+	floppy_hardreset();
 }
 
 int is_x86_cpu(struct uae_prefs *p)

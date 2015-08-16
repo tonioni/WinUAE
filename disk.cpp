@@ -4712,6 +4712,19 @@ bool disk_reserved_getinfo(int num, struct floppy_reserved *fr)
 		fr->secs = drv->num_secs;
 		fr->heads = 2;
 		fr->disk_changed = drv->dskchange || fr->img == NULL;
+		if (currprefs.floppyslots[i].dfxtype == DRV_PC_ONLY_80) {
+			if (fr->cyls < 80) {
+				// 360k in 80 track drive
+				fr->rate = FLOPPY_RATE_300K;
+			} else {
+				if (drv->num_secs > 14)
+					fr->rate = FLOPPY_RATE_500K; // 1.4M
+				else
+					fr->rate = FLOPPY_RATE_250K; // 720K
+			}
+		} else {
+			fr->rate = FLOPPY_RATE_300K;
+		}
 		return true;
 	}
 	return false;

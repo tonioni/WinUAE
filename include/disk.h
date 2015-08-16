@@ -27,6 +27,11 @@ struct diskinfo
 	TCHAR diskname[110];
 };
 
+#define FLOPPY_RATE_500K 0
+#define FLOPPY_RATE_300K 1
+#define FLOPPY_RATE_250K 2
+#define FLOPPY_RATE_1M 3
+
 struct floppy_reserved
 {
 	int num;
@@ -38,6 +43,7 @@ struct floppy_reserved
 	int secs;
 	int drive_cyls;
 	bool disk_changed;
+	int rate;
 };
 void disk_reserved_setinfo(int num, int cyl, int head, int motor);
 bool disk_reserved_getinfo(int num, struct floppy_reserved *fr);
