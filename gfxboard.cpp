@@ -216,6 +216,7 @@ static uae_u8 cirrus_pci[0x44];
 static uae_u8 p4_pci[0x44];
 static int vga_width, vga_height;
 static bool vga_refresh_active;
+static bool vga_changed;
 
 static uae_u32 vgaioregionptr, vgavramregionptr, vgabank0regionptr, vgabank1regionptr;
 
@@ -280,6 +281,7 @@ static bool gfxboard_setmode(void)
 	write_log(_T("GFXBOARD %dx%dx%d\n"), vga_width, vga_height, bpp);
 	gfx_set_picasso_modeinfo(vga_width, vga_height, bpp, RGBFB_NONE);
 	fullrefresh = 2;
+	vga_changed = false;
 	return true;
 }
 
@@ -336,6 +338,8 @@ DisplaySurface *qemu_console_surface(QemuConsole *con)
 
 void qemu_console_resize(QemuConsole *con, int width, int height)
 {
+	if (width != vga_width || vga_height != height)
+		vga_changed = true;
 	vga_width = width;
 	vga_height = height;
 }
@@ -377,6 +381,8 @@ int surface_stride(DisplaySurface *s)
 }
 uint8_t *surface_data(DisplaySurface *s)
 {
+	if (vga_changed)
+		return NULL;
 	if (s == &fakesurface || !vga_refresh_active)
 		return fakesurface_surface;
 	if (gfxboard_surface == NULL)
@@ -431,7 +437,7 @@ void gfxboard_vsync_handler (void)
 		monswitch_delay = 0;
 	}
 
-	if (!monswitch_delay && monswitch_current && picasso_on && picasso_requested_on) {
+	if (!monswitch_delay && monswitch_current && picasso_on && picasso_requested_on && !vga_changed) {
 		picasso_getwritewatch (vram_start_offset);
 		if (fullrefresh)
 			vga.vga.graphic_mode = -1;
@@ -440,7 +446,7 @@ void gfxboard_vsync_handler (void)
 		vga_refresh_active = false;
 	}
 
-	if (picasso_on) {
+	if (picasso_on && !vga_changed) {
 		if (currprefs.leds_on_screen & STATUSLINE_RTG) {
 			if (gfxboard_surface == NULL) {
 				gfxboard_surface = gfx_lock_picasso (false, false);
