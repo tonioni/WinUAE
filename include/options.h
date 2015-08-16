@@ -590,6 +590,7 @@ struct uae_prefs {
 	bool rtg_more_compatible;
 	uae_u32 custom_memory_addrs[MAX_CUSTOM_MEMORY_ADDRS];
 	uae_u32 custom_memory_sizes[MAX_CUSTOM_MEMORY_ADDRS];
+	int uaeboard;
 
 	bool kickshifter;
 	bool filesys_no_uaefsdb;

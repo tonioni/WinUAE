@@ -1,4 +1,15 @@
 
+Beta 8:
+
+- Many saved accelerator board enabled configurations loaded incorrectly in b7.
+- PicassoIV ROM selection in expansion panel caused crashes. (b6)
+- Added DCTV emulation. Colors are not yet correct.
+  Blurriness is mostly correct, DCTV is composite out only, horizontal resolution is only 320 pixels,
+  color resolution is worse (color bleeding). Some filtering is still needed to simulate real composite
+  signal.
+- Another Cirrus Logic mode change crash fix. (x86 bridgeboard reset when in text mode).
+- x86 bridgeboard 720k/1440k floppy images supported.
+
 Beta 7:
 
 - 68030 prefetch/ce mode now also uses improved prefetch pipeline emulation.

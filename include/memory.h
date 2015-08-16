@@ -321,6 +321,7 @@ extern addrbank clock_bank;
 extern addrbank cia_bank;
 extern addrbank rtarea_bank;
 extern addrbank filesys_bank;
+extern addrbank uaeboard_bank;
 extern addrbank expamem_bank;
 extern addrbank expamem_null, expamem_none;
 extern addrbank fastmem_bank;

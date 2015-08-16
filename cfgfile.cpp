@@ -1887,8 +1887,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_str (f, _T("filesys_inject_icons_project"), p->filesys_inject_icons_project);
 	cfgfile_dwrite_str (f, _T("filesys_inject_icons_tool"), p->filesys_inject_icons_tool);
 	cfgfile_dwrite_str (f, _T("scsidev_mode"), uaescsidevmodes[p->uaescsidevmode]);
-
 #endif
+
+	cfgfile_dwrite(f, _T("uaeboard_mode"),  _T("%d"), p->uaeboard);
+
 	write_inputdevice_config (p, f);
 }
 
@@ -4315,6 +4317,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval (option, value, _T("cpu_frequency"), &p->cpu_frequency, 1)
 		|| cfgfile_intval(option, value, _T("kickstart_ext_rom_file2addr"), &p->romextfile2addr, 1)
 		|| cfgfile_intval(option, value, _T("genlock_mix"), &p->genlock_mix, 1)
+		|| cfgfile_intval(option, value, _T("uaeboard_mode"), &p->uaeboard, 1)
 		|| cfgfile_intval (option, value, _T("catweasel"), &p->catweasel, 1))
 		return 1;
 

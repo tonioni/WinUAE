@@ -349,10 +349,10 @@ static bool write_slot (TCHAR *p, struct uae_input_device *uid, int i, int j)
 	}
 	uae_u64 flags = uid->flags[i][j];
 	if (uid->custom[i][j] && _tcslen (uid->custom[i][j]) > 0) {
-		_stprintf (p, _T("'%s'.%d"), uid->custom[i][j], flags & ID_FLAG_SAVE_MASK_CONFIG);
+		_stprintf (p, _T("'%s'.%d"), uid->custom[i][j], (int)(flags & ID_FLAG_SAVE_MASK_CONFIG));
 		ok = true;
 	} else if (uid->eventid[i][j] > 0) {
-		_stprintf (p, _T("%s.%d"), events[uid->eventid[i][j]].confname, flags & ID_FLAG_SAVE_MASK_CONFIG);
+		_stprintf (p, _T("%s.%d"), events[uid->eventid[i][j]].confname, (int)(flags & ID_FLAG_SAVE_MASK_CONFIG));
 		ok = true;
 	} else {
 		_tcscpy (p, _T("NULL"));
@@ -1117,7 +1117,7 @@ fail:
 
 static uaecptr get_intuitionbase (void)
 {
-	if (magicmouse_ibase == 0xffffffff)
+	if (magicmouse_ibase == 0xffffffff || regs.halted)
 		return 0;
 	if (magicmouse_ibase)
 		return magicmouse_ibase;
@@ -1126,7 +1126,7 @@ static uaecptr get_intuitionbase (void)
 }
 static uaecptr get_gfxbase (void)
 {
-	if (magicmouse_gfxbase == 0xffffffff)
+	if (magicmouse_gfxbase == 0xffffffff || regs.halted)
 		return 0;
 	if (magicmouse_gfxbase)
 		return magicmouse_gfxbase;
@@ -1247,6 +1247,17 @@ void input_mousehack_mouseoffset (uaecptr pointerprefs)
 	mouseoffset_y = (uae_s16)get_word (pointerprefs + 30);
 }
 
+void mousehack_wakeup(void)
+{
+	if (mousehack_alive_cnt == 0)
+		mousehack_alive_cnt = -100;
+	else if (mousehack_alive_cnt > 0)
+		mousehack_alive_cnt = 100;
+	if (uaeboard_bank.baseaddr) {
+		uaeboard_bank.baseaddr[0x201] &= ~3;
+	}
+}
+
 int input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp, uae_u32 moffset)
 {
 	if (mode == 4) {
@@ -1288,10 +1299,7 @@ int input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr
 			diminfo, props, vp, x1, y1, x2, y2, vp_xoffset, vp_yoffset,
 			(props & 0x00020000) ? _T("dbl") : _T(""));
 	} else if (mode == 2) {
-		if (mousehack_alive_cnt == 0)
-			mousehack_alive_cnt = -100;
-		else if (mousehack_alive_cnt > 0)
-			mousehack_alive_cnt = 100;
+		mousehack_wakeup();
 	}
 	return 1;
 }
@@ -1428,43 +1436,88 @@ void getgfxoffset (float *dx, float *dy, float*, float*);
 static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 {
 	uae_u8 *p;
-	uae_u8 tmp1[4], tmp2[4];
-
-	mousehack_enable ();
-	if (!mousehack_address)
-		return;
-	p = get_real_address (mousehack_address);
-
-	memcpy (tmp1, p + MH_ABSX, sizeof tmp1);
-	memcpy (tmp2, p + MH_BUTTONBITS, sizeof tmp2);
 
 	x -= mouseoffset_x + 1;
 	y -= mouseoffset_y + 2;
 
-	//write_log (_T("%04dx%04d %08x\n"), x, y, buttonbits);
+	mousehack_enable ();
+	if (mousehack_address) {
+		uae_u8 tmp1[4], tmp2[4];
+		p = get_real_address (mousehack_address);
 
-	p[MH_ABSX] = x >> 8;
-	p[MH_ABSX + 1] = x;
-	p[MH_ABSY] = y >> 8;
-	p[MH_ABSY + 1] = y;
+		memcpy (tmp1, p + MH_ABSX, sizeof tmp1);
+		memcpy (tmp2, p + MH_BUTTONBITS, sizeof tmp2);
 
-	p[MH_BUTTONBITS + 0] = buttonbits >> 24;
-	p[MH_BUTTONBITS + 1] = buttonbits >> 16;
-	p[MH_BUTTONBITS + 2] = buttonbits >>  8;
-	p[MH_BUTTONBITS + 3] = buttonbits >>  0;
+		//write_log (_T("%04dx%04d %08x\n"), x, y, buttonbits);
 
-	if (!memcmp (tmp1, p + MH_ABSX, sizeof tmp1) && !memcmp (tmp2, p + MH_BUTTONBITS, sizeof tmp2))
-		return;
-	p[MH_E] = 0xc0 | 1;
-	p[MH_CNT]++;
-	tablet_data = 1;
+		p[MH_ABSX] = x >> 8;
+		p[MH_ABSX + 1] = x;
+		p[MH_ABSY] = y >> 8;
+		p[MH_ABSY + 1] = y;
 
+		p[MH_BUTTONBITS + 0] = buttonbits >> 24;
+		p[MH_BUTTONBITS + 1] = buttonbits >> 16;
+		p[MH_BUTTONBITS + 2] = buttonbits >>  8;
+		p[MH_BUTTONBITS + 3] = buttonbits >>  0;
+
+		if (!memcmp (tmp1, p + MH_ABSX, sizeof tmp1) && !memcmp (tmp2, p + MH_BUTTONBITS, sizeof tmp2))
+			return;
+		p[MH_E] = 0xc0 | 1;
+		p[MH_CNT]++;
+		tablet_data = 1;
 #if 0
-	if (inputdevice_is_tablet () <= 0) {
-		tabletlib_tablet_info (1000, 1000, 0, 0, 0, 0, 1000, 1000);
-		tabletlib_tablet (x, y, 0, 0, buttonbits, -1, 0, 0, 0);
-	}
+		if (inputdevice_is_tablet () <= 0) {
+			tabletlib_tablet_info (1000, 1000, 0, 0, 0, 0, 1000, 1000);
+			tabletlib_tablet (x, y, 0, 0, buttonbits, -1, 0, 0, 0);
+		}
 #endif
+	}
+	p = uaeboard_bank.baseaddr + 0x200;
+	if (p) {
+		uae_u8 tmp[16];
+
+		memcpy(tmp, p + 2, 2 * 5);
+		p[0] = 0;
+		p[1] = 0;
+		p[2 * 1 + 0] = x >> 8;
+		p[2 * 1 + 1] = (uae_u8)x;
+		p[2 * 2 + 0] = y >> 8;
+		p[2 * 2 + 1] = (uae_u8)y;
+		p[2 * 3 + 0] = 0;
+		p[2 * 3 + 1] = 0;
+		p[2 * 4 + 0] = 0;
+		p[2 * 4 + 1] = 0;
+		p[2 * 5 + 0] = buttonbits >> 8;
+		p[2 * 5 + 1] = (uae_u8)buttonbits;
+		if (memcmp(tmp, p + 2, 2 * 5)) {
+			p[1] |= 2;
+		}
+
+		p += 0x10;
+		memcpy(tmp, p, 2 * 4);
+		if (picasso_on) {
+			p[0 * 2 + 0] = picasso_vidinfo.width >> 8;
+			p[0 * 2 + 1] = (uae_u8)picasso_vidinfo.width;
+			p[1 * 2 + 0] = picasso_vidinfo.height >> 8;
+			p[1 * 2 + 1] = (uae_u8)picasso_vidinfo.height;
+			p[2 * 2 + 0] = picasso96_state.Width >> 8;
+			p[2 * 2 + 1] = (uae_u8)picasso96_state.Width;
+			p[2 * 3 + 0] = picasso96_state.Height >> 8;
+			p[2 * 3 + 1] = (uae_u8)picasso96_state.Height;
+		} else {
+			p[2 * 0 + 0] = 0;
+			p[2 * 0 + 1] = 0;
+			p[2 * 1 + 0] = 0;
+			p[2 * 1 + 1] = 0;
+			p[2 * 2 + 0] = 0;
+			p[2 * 2 + 1] = 0;
+			p[2 * 3 + 0] = 0;
+			p[2 * 3 + 1] = 0;
+		}
+		if (memcmp(tmp, p, 2 * 4)) {
+			p[1] |= 4;
+		}
+	}
 }
 
 #if 0

@@ -1777,8 +1777,43 @@ static void setsystime_vblank (void)
 	Unit *u;
 	for (u = units; u; u = u->next) {
 		if (is_virtual (u->unit) && filesys_isvolume (u)) {
-			put_byte (u->volume + 173 - 32, 1);
+			put_byte (u->volume + 173 - 32, get_byte(u->volume + 173 - 32) | 1);
 			uae_Signal (get_long (u->volume + 176 - 32), 1 << 13);
+			break;
+		}
+	}
+}
+
+static uae_u32 REGPARAM2 debugger_helper(TrapContext *context)
+{
+	int mode = m68k_dreg(regs, 1);
+	switch (mode)
+	{
+		case 1:
+		// Execute debugger_boot() to get here.
+		write_log(_T("debugger #1\n"));
+		// return RunCommand(() parameters
+		// does nothing if D1 == 0.
+		break;
+		case 2:
+		// called when RunCommand() returns
+		// D0 = RunCommand() return code.
+		write_log(_T("debugger #2\n"));
+		break;
+		default:
+		write_log(_T("Unknown debugger hook %d\n"), mode);
+		return 0;
+	}
+	return 1;
+}
+
+static void debugger_boot(void)
+{
+	Unit *u;
+	for (u = units; u; u = u->next) {
+		if (is_virtual(u->unit) && filesys_isvolume(u)) {
+			put_byte(u->volume + 173 - 32, get_byte(u->volume + 173 - 32) | 2);
+			uae_Signal(get_long(u->volume + 176 - 32), 1 << 13);
 			break;
 		}
 	}
@@ -8019,6 +8054,10 @@ void filesys_install (void)
 	org (rtarea_base + 0xFF38);
 	calltrap (deftrap2 (mousehack_done, 0, _T("mousehack_done")));
 	dw (RTS);
+
+	org(rtarea_base + 0xFF3C);
+	calltrap(deftrap2(debugger_helper, 0, _T("debugger_helper")));
+	dw(RTS);
 
 	org (rtarea_base + 0xFF40);
 	calltrap (deftrap2 (startup_handler, 0, _T("startup_handler")));

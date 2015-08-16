@@ -38,6 +38,7 @@
 #include "uae/ppc.h"
 #include "autoconf.h"
 #include "specialmonitors.h"
+#include "inputdevice.h"
 #include "pci.h"
 #include "x86.h"
 
@@ -47,6 +48,7 @@
 #define BOARD_AUTOCONFIG_Z2 2
 #define BOARD_AUTOCONFIG_Z3 3
 #define BOARD_NONAUTOCONFIG 4
+#define BOARD_IGNORE 5
 
 #define EXP_DEBUG 0
 
@@ -1069,6 +1071,135 @@ static void REGPARAM2 filesys_bput (uaecptr addr, uae_u32 b)
 
 #endif /* FILESYS */
 
+// experimental hardware uae board
+
+DECLARE_MEMORY_FUNCTIONS(uaeboard);
+addrbank uaeboard_bank = {
+	uaeboard_lget, uaeboard_wget, uaeboard_bget,
+	uaeboard_lput, uaeboard_wput, uaeboard_bput,
+	default_xlate, default_check, NULL, _T("uaeboard"), _T("uae x autoconfig board"),
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE | ABFLAG_INDIRECT
+};
+
+static uae_u32 uaeboard_start; /* Determined by the OS */
+
+static uae_u32 REGPARAM2 uaeboard_lget(uaecptr addr)
+{
+	uae_u8 *m;
+#ifdef JIT
+	special_mem |= S_READ;
+#endif
+	addr -= uaeboard_start & 65535;
+	addr &= 65535;
+	if (addr == 0x200 || addr == 0x201) {
+		mousehack_wakeup();
+	}
+	m = uaeboard_bank.baseaddr + addr;
+#if EXP_DEBUG
+	write_log(_T("uaeboard_lget %x %x\n"), addr, do_get_mem_long((uae_u32 *)m));
+#endif
+	return do_get_mem_long((uae_u32 *)m);
+}
+
+static uae_u32 REGPARAM2 uaeboard_wget(uaecptr addr)
+{
+	uae_u8 *m;
+#ifdef JIT
+	special_mem |= S_READ;
+#endif
+	addr -= uaeboard_start & 65535;
+	addr &= 65535;
+	if (addr == 0x200 || addr == 0x201) {
+		mousehack_wakeup();
+	}
+	m = uaeboard_bank.baseaddr + addr;
+#if EXP_DEBUG
+	write_log(_T("uaeboard_wget %x %x\n"), addr, do_get_mem_word((uae_u16 *)m));
+#endif
+	return do_get_mem_word((uae_u16 *)m);
+}
+
+static uae_u32 REGPARAM2 uaeboard_bget(uaecptr addr)
+{
+#ifdef JIT
+	special_mem |= S_READ;
+#endif
+	addr -= uaeboard_start & 65535;
+	addr &= 65535;
+	if (addr == 0x200 || addr == 0x201) {
+		mousehack_wakeup();
+	}
+#if EXP_DEBUG
+	write_log(_T("uaeboard_bget %x %x\n"), addr, uaeboard_bank.baseaddr[addr]);
+#endif
+	return uaeboard_bank.baseaddr[addr];
+}
+
+static void REGPARAM2 uaeboard_lput(uaecptr addr, uae_u32 l)
+{
+#ifdef JIT
+	special_mem |= S_WRITE;
+#endif
+	write_log(_T("uaeboard_lput called PC=%08x\n"), M68K_GETPC);
+}
+
+static void REGPARAM2 uaeboard_wput(uaecptr addr, uae_u32 w)
+{
+#ifdef JIT
+	special_mem |= S_WRITE;
+#endif
+	write_log(_T("uaeboard_wput called PC=%08x\n"), M68K_GETPC);
+}
+
+static void REGPARAM2 uaeboard_bput(uaecptr addr, uae_u32 b)
+{
+#ifdef JIT
+	special_mem |= S_WRITE;
+#endif
+#if EXP_DEBUG
+	write_log(_T("uaeboard_bput %x %x\n"), addr, b);
+#endif
+}
+
+
+static addrbank *expamem_map_uaeboard(void)
+{
+	uaeboard_start = expamem_z2_pointer;
+	map_banks_z2(&uaeboard_bank, uaeboard_start >> 16, 1);
+	return &uaeboard_bank;
+}
+static addrbank* expamem_init_uaeboard(int devnum)
+{
+	uae_u8 *p = uaeboard_bank.baseaddr;
+
+	expamem_init_clear();
+	expamem_write(0x00, Z2_MEM_64KB | zorroII);
+
+	expamem_write(0x08, no_shutup);
+
+	expamem_write(0x04, 1);
+	expamem_write(0x10, 6502 >> 8);
+	expamem_write(0x14, 6502 & 0xff);
+
+	expamem_write(0x18, 0x00); /* ser.no. Byte 0 */
+	expamem_write(0x1c, 0x00); /* ser.no. Byte 1 */
+	expamem_write(0x20, 0x00); /* ser.no. Byte 2 */
+	expamem_write(0x24, 0x01); /* ser.no. Byte 3 */
+
+							   /* er_InitDiagVec */
+	expamem_write(0x28, 0x00); /* Rom-Offset hi */
+	expamem_write(0x2c, 0x00); /* ROM-Offset lo */
+
+	memcpy(p, expamem, 0x100);
+
+	p += 0x100;
+	p[0] = 0x00;
+	p[1] = 0x00;
+	p[2] = 0x02;
+	p[3] = 0x00;
+	return NULL;
+}
+
 /*
 *  Z3fastmem Memory
 */
@@ -1947,6 +2078,12 @@ void expamem_reset (void)
 		cards[cardno].initnum = expamem_init_filesys;
 		cards[cardno++].map = expamem_map_filesys;
 	}
+	if (currprefs.uaeboard) {
+		cards[cardno].flags = 0;
+		cards[cardno].name = _T("UAEBOARD");
+		cards[cardno].initnum = expamem_init_uaeboard;
+		cards[cardno++].map = expamem_map_uaeboard;
+	}
 #endif
 #ifdef CATWEASEL
 	if (currprefs.catweasel && catweasel_init ()) {
@@ -2111,6 +2248,10 @@ void expansion_init (void)
 		exit (0);
 	}
 #endif
+	if (currprefs.uaeboard) {
+		uaeboard_bank.allocated = 0x10000;
+		mapped_malloc(&uaeboard_bank);
+	}
 }
 
 void expansion_cleanup (void)
@@ -2131,6 +2272,9 @@ void expansion_cleanup (void)
 #ifdef FILESYS
 	mapped_free (&filesys_bank);
 #endif
+	if (currprefs.uaeboard) {
+		mapped_free(&uaeboard_bank);
+	}
 
 #ifdef CATWEASEL
 	catweasel_free ();
@@ -2990,13 +3134,13 @@ const struct expansionromtype expansionroms[] = {
 	// only here for rom selection
 	{
 		_T("picassoiv"), _T("Picasso IV"), _T("Village Tronic"),
-		NULL, NULL, NULL, ROMTYPE_PICASSOIV | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG, true,
+		NULL, NULL, NULL, ROMTYPE_PICASSOIV | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_RTG,
 	},
 	{
 		_T("x86_vga"), _T("x86 VGA"), _T("x86"),
-		NULL, NULL, NULL, ROMTYPE_x86_VGA | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG, true,
+		NULL, NULL, NULL, ROMTYPE_x86_VGA | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_RTG,
 	},

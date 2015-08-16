@@ -1817,7 +1817,7 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 				if (size >= 1024 * 1024 * 1024)
 					_stprintf (tmp, _T("%.1fG"), ((double)(uae_u32)(size / (1024 * 1024))) / 1024.0);
 				else if (size < 10 * 1024 * 1024)
-					_stprintf (tmp, _T("%dK"), size / 1024);
+					_stprintf (tmp, _T("%lldK"), size / 1024);
 				else
 					_stprintf (tmp, _T("%.1fM"), ((double)(uae_u32)(size / (1024))) / 1024.0);
 			}
