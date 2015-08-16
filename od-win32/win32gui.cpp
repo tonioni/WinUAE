@@ -7382,19 +7382,19 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			SendDlgItemMessage(hDlg, IDC_GENLOCKMIX, CB_ADDSTRING, 0, (LPARAM)buffer);
 		}
 
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_RESETCONTENT, 0, 0);
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("-"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("-"));
 		WIN32GUI_LoadUIString(IDS_AUTODETECT, buffer, sizeof buffer / sizeof (TCHAR));
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)buffer);
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Commodore A2024"));
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Individual Computers Graffiti"));
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Black Belt Systems HAM-E"));
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Black Belt Systems HAM-E Plus"));
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Newtronic Video DAC 18"));
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Archos AVideo 12"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)buffer);
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Commodore A2024"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Individual Computers Graffiti"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Black Belt Systems HAM-E"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Black Belt Systems HAM-E Plus"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Newtronic Video DAC 18"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Archos AVideo 12"));
 		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Archos AVideo 24"));
 		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Impulse FireCracker 24"));
-		//SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("DCTV"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Digital Creations DCTV"));
 
 #ifndef	AGA
 		ew (hDlg, IDC_AGA, FALSE);
