@@ -16,6 +16,7 @@
 #include "memory.h"
 #include "newcpu.h"
 #include "uae/ppc.h"
+#include "x86.h"
 
 static const int pissoff_nojit_value = 256 * CYCLE_UNIT;
 
@@ -48,6 +49,12 @@ void events_schedule (void)
 
 void do_cycles_slow (unsigned long cycles_to_add)
 {
+#ifdef WITH_X86
+	if (x86_turbo_on) {
+		execute_other_cpu_single();
+	}
+#endif
+
 	if ((pissoff -= cycles_to_add) >= 0)
 		return;
 

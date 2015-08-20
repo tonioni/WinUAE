@@ -1,4 +1,17 @@
 
+Beta 9:
+
+- x86 floppy controller EOT parameter was read from wrong offset. Note that previously 1.4M floppy in
+  720K drive (configured in 2286+ BIOS) worked, not anymore.
+- Added x86 bridgeboard 1.2M PC floppy image support.
+- Added Advanced chipset option that emulates some 68040/060 board's (for example Blizzard 1240/1260)
+  custom register byte write "bug" where byte write to custom register does not write same value to
+  both upper and lower byte. Previously this was always enabled if CPU type was 68060.
+  (Writing to even address: zero written to odd address, writing to odd address: works "correctly")
+- Fixed emulation boot crash if mouse driver was enabled (b8)
+- x86 IDE config didn't load correctly. (Reset and save needed to fix it). x86 VGA also needs config
+  reset.
+
 Beta 8:
 
 - Many saved accelerator board enabled configurations loaded incorrectly in b7.

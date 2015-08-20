@@ -14,3 +14,5 @@ void x86_bridge_rethink(void);
 #define X86_STATE_ACTIVE 2
 
 int is_x86_cpu(struct uae_prefs*);
+void x86_bridge_execute_until(int until);
+extern bool x86_turbo_on;

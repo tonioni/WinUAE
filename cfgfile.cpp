@@ -6992,6 +6992,8 @@ int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int r
 		p->sound_filter_type = FILTER_SOUND_TYPE_A1200;
 	else if (p->sound_filter_type == FILTER_SOUND_TYPE_A1200 && !(p->chipset_mask & CSMASK_AGA))
 		p->sound_filter_type = FILTER_SOUND_TYPE_A500;
+	if (p->cpu_model >= 68040)
+		p->cs_bytecustomwritebug = true;
 	return v;
 }
 
@@ -7024,6 +7026,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_slowmemisfast = 0;
 	p->cs_ciatodbug = false;
 	p->cs_z3autoconfig = false;
+	p->cs_bytecustomwritebug = false;
 
 	switch (p->cs_compatible)
 	{
@@ -7149,6 +7152,8 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_z3autoconfig = true;
 		break;
 	}
+	if (p->cpu_model >= 68040)
+		p->cs_bytecustomwritebug = true;
 	return 1;
 }
 

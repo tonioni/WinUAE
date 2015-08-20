@@ -684,3 +684,5 @@ extern bool can_cpu_tracer (void);
 
 void cpu_semaphore_get(void);
 void cpu_semaphore_release(void);
+bool execute_other_cpu(int until);
+void execute_other_cpu_single(void);

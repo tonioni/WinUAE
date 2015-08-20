@@ -146,6 +146,7 @@ void cmos_writereg(Bitu port,Bitu val,Bitu iolen)
 extern double vblank_hz;
 extern unsigned long int timeframes;
 extern int vpos;
+extern bool x86_turbo_on;
 
 Bitu cmos_readreg(Bitu port,Bitu iolen) {
 #if 0
@@ -154,8 +155,6 @@ Bitu cmos_readreg(Bitu port,Bitu iolen) {
 		return 0xff;
 	}
 #endif
-	Bitu drive_a, drive_b;
-	Bit8u hdparm;
 	time_t curtime;
 	struct tm *loctime;
 	int reg = cmos.reg;
@@ -191,10 +190,20 @@ Bitu cmos_readreg(Bitu port,Bitu iolen) {
 	case 0x05:		/* Hours Alarm */
 		return cmos.regs[reg];
 	case 0x0a:		/* Status register A */
-		if (vblank_hz > 0 && (timeframes % (int)vblank_hz) == 0 && vpos == 0) { // && PIC_TickIndex()<0.002) {
-			return (cmos.regs[0x0a]&0x7f) | 0x80;
+		if (x86_turbo_on) {
+			static bool toggle;
+			toggle = !toggle;
+			if (toggle) {
+				return (cmos.regs[0x0a] & 0x7f) | 0x80;
+			} else {
+				return (cmos.regs[0x0a] & 0x7f);
+			}
 		} else {
-			return (cmos.regs[0x0a]&0x7f);
+			if (vblank_hz > 0 && (timeframes % (int)vblank_hz) == 0 && vpos == 0) { // && PIC_TickIndex()<0.002) {
+				return (cmos.regs[0x0a]&0x7f) | 0x80;
+			} else {
+				return (cmos.regs[0x0a]&0x7f);
+			}
 		}
 	case 0x0c:		/* Status register C */
 		cmos.timer.acknowledged=true;

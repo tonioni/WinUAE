@@ -181,7 +181,7 @@ typedef struct {
 	int revolutions;
 	int prevtracklen;
 	int trackspeed;
-	int num_tracks, write_num_tracks, num_secs;
+	int num_tracks, write_num_tracks, num_secs, num_heads;
 	int hard_num_cyls;
 	bool dskeject;
 	bool dskchange;
@@ -1092,6 +1092,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 	if (drv->forcedwrprot)
 		drv->wrprot = true;
 	drv->ddhd = 1;
+	drv->num_heads = 2;
 	drv->num_secs = 0;
 	drv->hard_num_cyls = p->floppyslots[dnum].dfxtype == DRV_525_SD ? 40 : 80;
 	drv->tracktiming[0] = 0;
@@ -1237,21 +1238,32 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 
 	} else if (canauto && (
 
-		// double sided
+		// 320k double sided
+		size == 8 * 40 * 2 * 512 ||
+		// 320k single sided
+		size == 8 * 40 * 1 * 512 ||
+
+		// 360k double sided
 		size == 9 * 40 * 2 * 512 ||
-		// single sided
+		// 360k single sided
 		size == 9 * 40 * 1 * 512 ||
 
-		// double sided
+		// 1.2M double sided
+		size == 15 * 80 * 2 * 512 ||
+
+		// 720k/1440k double sided
 		size == 9 * 80 * 2 * 512 || size == 18 * 80 * 2 * 512 || size == 10 * 80 * 2 * 512 || size == 20 * 80 * 2 * 512 ||
 		size == 9 * 81 * 2 * 512 || size == 18 * 81 * 2 * 512 || size == 10 * 81 * 2 * 512 || size == 20 * 81 * 2 * 512 ||
 		size == 9 * 82 * 2 * 512 || size == 18 * 82 * 2 * 512 || size == 10 * 82 * 2 * 512 || size == 20 * 82 * 2 * 512 ||
-		// single sided
+		// 720k/1440k single sided
 		size == 9 * 80 * 1 * 512 || size == 18 * 80 * 1 * 512 || size == 10 * 80 * 1 * 512 || size == 20 * 80 * 1 * 512 ||
 		size == 9 * 81 * 1 * 512 || size == 18 * 81 * 1 * 512 || size == 10 * 81 * 1 * 512 || size == 20 * 81 * 1 * 512 ||
 		size == 9 * 82 * 1 * 512 || size == 18 * 82 * 1 * 512 || size == 10 * 82 * 1 * 512 || size == 20 * 82 * 1 * 512)) {
 			/* PC formatted image */
 			int i, side;
+
+			drv->num_secs = 9;
+			drv->ddhd = 1;
 
 			for (side = 2; side > 0; side--) {
 				if (       size ==  9 * 80 * side * 512 || size ==  9 * 81 * side * 512 || size ==  9 * 82 * side * 512) {
@@ -1274,8 +1286,17 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 					drv->num_secs = 9;
 					drv->ddhd = 1;
 					break;
+				} else if (size == 8 * 40 * side * 512) {
+					drv->num_secs = 8;
+					drv->ddhd = 1;
+					break;
+				} else if (size == 15 * 80 * side * 512) {
+					drv->num_secs = 15;
+					drv->ddhd = 1;
+					break;
 				}
 			}
+
 			drv->num_tracks = size / (drv->num_secs * 512);
 
 			drv->filetype = ADF_PCDOS;
@@ -1294,6 +1315,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 				tid++;
 
 			}
+			drv->num_heads = side;
 			if (side == 1)
 				drv->num_tracks *= 2;
 
@@ -4693,7 +4715,7 @@ void disk_reserved_setinfo(int num, int cyl, int head, int motor)
 		drive *drv = &floppy[i];
 		reserved_side = head;
 		drv->cyl = cyl;
-		drv->state = motor;
+		drv->state = motor != 0;
 		update_drive_gui(i, false);
 	}
 }
@@ -4710,20 +4732,26 @@ bool disk_reserved_getinfo(int num, struct floppy_reserved *fr)
 		fr->cyls = drv->num_tracks / 2;
 		fr->drive_cyls = currprefs.floppyslots[i].dfxtype == DRV_PC_ONLY_40 ? 40 : 80;
 		fr->secs = drv->num_secs;
-		fr->heads = 2;
+		fr->heads = drv->num_heads;
 		fr->disk_changed = drv->dskchange || fr->img == NULL;
 		if (currprefs.floppyslots[i].dfxtype == DRV_PC_ONLY_80) {
 			if (fr->cyls < 80) {
-				// 360k in 80 track drive
-				fr->rate = FLOPPY_RATE_300K;
+				if (drv->num_secs < 9)
+					fr->rate = FLOPPY_RATE_250K; // 320k in 80 track drive
+				else
+					fr->rate = FLOPPY_RATE_300K; // 360k in 80 track drive
 			} else {
 				if (drv->num_secs > 14)
-					fr->rate = FLOPPY_RATE_500K; // 1.4M
+					fr->rate = FLOPPY_RATE_500K; // 1.2M/1.4M
 				else
 					fr->rate = FLOPPY_RATE_250K; // 720K
 			}
 		} else {
-			fr->rate = FLOPPY_RATE_300K;
+			if (drv->num_secs < 9)
+				fr->rate = FLOPPY_RATE_300K;// 320k in 40 track drive
+			else
+				fr->rate = FLOPPY_RATE_250K;// 360k in 40 track drive
+			// yes, above values are swapped compared to 1.2M drive case
 		}
 		return true;
 	}

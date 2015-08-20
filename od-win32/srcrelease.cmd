@@ -198,7 +198,7 @@ zip -9 -r winuaesrc *
 copy winuaesrc.zip d:\amiga\winuaepackets\winuaesrc%1.zip
 move winuaesrc.zip d:\amiga
 cd c:\projects\winuae\src\od-win32
-zip -9 winuaedebug%1 winuae_msvc11\fullrelease\winuae.pdb winuae_msvc11\x64\fullrelease\winuae.pdb
+zip -9 winuaedebug%1 winuae_msvc14\fullrelease\winuae.pdb winuae_msvc14\x64\fullrelease\winuae.pdb
 move winuaedebug%1.zip d:\amiga\winuaepackets\debug\
-copy winuae_msvc11\fullrelease\winuae.pdb winuae_msvc11\x64\fullrelease\winuae.pdb d:\amiga\dump
+copy winuae_msvc14\fullrelease\winuae.pdb winuae_msvc14\x64\fullrelease\winuae.pdb d:\amiga\dump
 copy d:\amiga\winuae.exe d:\amiga\dump

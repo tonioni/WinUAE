@@ -1112,6 +1112,7 @@
 #define IDC_DBG_MEMDOWN                 1754
 #define IDC_CS_1MCHIPJUMPER             1754
 #define IDC_DBG_MEMUP                   1755
+#define IDC_CS_BYTECUSTOMWRITEBUG       1755
 #define IDC_DBG_MEM                     1756
 #define IDC_DBG_DASM                    1757
 #define IDC_DBG_MEMDOWNFAST             1758

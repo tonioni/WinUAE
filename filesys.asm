@@ -1275,7 +1275,7 @@ filesys_mainloop:
 	; 164: input.device ioreq (disk inserted/removed input message)
 	; 168: timer.device ioreq
 	; 172: disk change from host
-	; 173: clock reset
+	; 173: bit 0: clock reset, bit 1: debugger start
 	; 176: my task
 	; 180: device node
 	move.l #12+20+(80+44+1)+(1+3)+4+4+4+(1+3)+4+4,d0
@@ -1354,11 +1354,16 @@ FSML_loop:
 .msg
 	; SIGBREAK_CTRL_D checks
 	; clock reset
-	tst.b 173(a3)
+	btst #0,173(a3)
 	beq.s .noclk
 	bsr.w clockreset
-	clr.b 173(a3)
+	bclr #0,173(a3)
 .noclk
+	btst #1,173(a3)
+	beq.s .nodebug
+	bsr.w debuggerstart
+	bclr #1,173(a3)
+.nodebug
 	; disk change notification from native code
 	tst.b 172(a3)
 	beq.s .nodc
@@ -2073,7 +2078,7 @@ mhloop
 	asl.l #8,d0
 	move.l d0,(a1)+
 .noax
-	move.w MH_MAXAY++MH_DATA(a5),d0
+	move.w MH_MAXAY+MH_DATA(a5),d0
 	bmi.s .noay
 	move.l #TABLETA_AngleY,(a1)+
 	move.w MH_AY+MH_DATA(a5),d0
@@ -2081,7 +2086,7 @@ mhloop
 	asl.l #8,d0
 	move.l d0,(a1)+
 .noay
-	move.w MH_MAXAZ++MH_DATA(a5),d0
+	move.w MH_MAXAZ+MH_DATA(a5),d0
 	bmi.s .noaz
 	move.l #TABLETA_AngleZ,(a1)+
 	move.w MH_AZ+MH_DATA(a5),d0
@@ -2636,6 +2641,41 @@ chook:
 	movem.l (sp)+,d0-d1/a0
 	rts
 
+debuggerstart
+	move.l 4.w,a6
+	lea debuggerprocname(pc),a0
+	lea debuggerproc(pc),a1
+	moveq #15,d0
+	move.l #8000,d1
+	bsr.w createproc
+	rts
+	cnop 0,4
+	dc.l 16
+debuggerproc
+	dc.l 0
+	move.l 4.w,a6
+	moveq #0,d0
+	lea doslibname(pc),a1
+	jsr -$0228(a6) ; OpenLibrary
+	moveq #2,d1
+	move.w #$FF3C,d0
+	bsr.w getrtbase
+	move.l a0,a2
+	moveq #1,d1
+	jsr (a0) ; debugger init
+	tst.l d1
+	beq.s .dend
+	move.l d1,a3
+	jsr -$1f8(a6) ; RunCommand
+	moveq #2,d1
+	move.l a3,a0
+	jsr (a2) ; debugger end
+.dend
+	move.l a6,a1
+	move.l 4.w,a6
+	jsr -$19e(a6)
+	rts
+
 getrtbase:
 	lea start-8-4(pc),a0
 	and.l #$FFFF,d0
@@ -2658,6 +2698,7 @@ kaname: dc.b 'UAE heart beat',0
 exter_name: dc.b 'UAE filesystem',0
 fstaskname: dc.b 'UAE fs automounter',0
 fsprocname: dc.b 'UAE fs automount process',0
+debuggerprocname: dc.b 'UAE debugger',0
 doslibname: dc.b 'dos.library',0
 intlibname: dc.b 'intuition.library',0
 gfxlibname: dc.b 'graphics.library',0

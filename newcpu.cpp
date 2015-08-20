@@ -42,6 +42,7 @@
 #include "uae/ppc.h"
 #include "cpuboard.h"
 #include "threaddep/thread.h"
+#include "x86.h"
 #ifdef JIT
 #include "jit/compemu.h"
 #include <signal.h>
@@ -3333,6 +3334,27 @@ static void check_uae_int_request(void)
 	}
 }
 
+void execute_other_cpu_single(void)
+{
+#ifdef WITH_X86
+	if (!x86_turbo_on)
+		return;
+	x86_bridge_execute_until(0);
+#endif
+}
+
+bool execute_other_cpu(int until)
+{
+#ifdef WITH_X86
+	if (!x86_turbo_on)
+		return false;
+	if (!until)
+		until++;
+	x86_bridge_execute_until(until);
+#endif
+	return true;
+}
+
 void cpu_sleep_millis(int ms)
 {
 #ifdef WITH_THREADED_CPU
@@ -3343,7 +3365,13 @@ void cpu_sleep_millis(int ms)
 	if (state)
 		uae_ppc_spinlock_release();
 #endif
-	sleep_millis_main(ms);
+#ifdef WITH_X86
+	if (x86_turbo_on) {
+		execute_other_cpu(read_processor_time() + vsynctimebase / 20);
+	} else {
+		sleep_millis_main(ms);
+	}
+#endif
 #ifdef WITH_PPC
 	if (state)
 		uae_ppc_spinlock_get();

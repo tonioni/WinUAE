@@ -2555,8 +2555,8 @@ static const struct expansionboardsettings bridge_settings[] = {
 static const struct expansionboardsettings x86at_bridge_settings[] = {
 	{
 		// 14
-		_T("Default video\0Monochrome\0Color\0"),
-		_T("video\0mono\0color\0"),
+		_T("Default video\0") _T("Monochrome\0") _T("Color\0"),
+		_T("video\0") _T("mono\0") _T("color\0"),
 		true, false, 14
 	},
 	{
@@ -2566,13 +2566,13 @@ static const struct expansionboardsettings x86at_bridge_settings[] = {
 		false
 	},
 	{	// 16 - 18
-		_T("Memory\0""1M\0""2M\0""4M\0""8M\0""16M\0""32M\0"),
-		_T("memory\0""1M\0""2M\0""4M\0""8M\0""16M\0""32M\0"),
+		_T("Memory\0") _T("1M\0") _T("2M\0") _T("4M\0") _T("8M\0") _T("16M\0") _T("32M\0"),
+		_T("memory\0") _T("1M\0") _T("2M\0") _T("4M\0") _T("8M\0") _T("16M\0") _T("32M\0"),
 		true, false, 0
 	},
 	{	// 19 - 20
-		_T("CPU core\0DOSBox simple\0DOSBox normal\0DOSBox full\0DOSBox auto"),
-		_T("cpu\0dbsimple\0dbnormal\0dbfull\0dbauto\0"),
+		_T("CPU core\0") _T("DOSBox simple\0") _T("DOSBox normal\0") _T("DOSBox full\0") _T("DOSBox auto\0"),
+		_T("cpu\0") _T("dbsimple\0") _T("dbnormal\0") _T("dbfull\0") _T("dbauto\0"),
 		true, false, 0
 	},
 	{	// 22
@@ -2589,19 +2589,19 @@ static const struct expansionboardsettings x86at_bridge_settings[] = {
 static const struct expansionboardsettings x86_bridge_settings[] = {
 	{
 		// 2-3
-		_T("Memory (SW1:3-4)\0""128K\0""256K\0""512K\0""640K\0"),
-		_T("memory\0""128k\0""256k\0""512k\0""640k\0"),
+		_T("Memory (SW1:3-4)\0") _T("128K\0") _T("256K\0") _T("512K\0") _T("640K\0"),
+		_T("memory\0") _T("128k\0") _T("256k\0") _T("512k\0") _T("640k\0"),
 		true, false, 2
 	},
 	{
 		// 4-5
-		_T("Default video (J1)\0Monochrome\0Color 40x25\0Color 80x25\0None\0"),
-		_T("video\0mono\0color40\0color80\0none\0"),
+		_T("Default video (J1)\0") _T("Monochrome\0") _T("Color 40x25\0") _T("Color 80x25\0") _T("None\0"),
+		_T("video\0") _T("mono\0") _T("color40\0") _T("color80\0") _T("none\0"),
 		true, false, 0
 	},
 	{	// 19 - 21
-		_T("CPU core\0Fake86\0DOSBox simple\0DOSBox normal\0DOSBox full\0DOSBox auto\0"),
-		_T("cpu\0fake86\0dbsimple\0dbnormal\0dbfull\0dbauto\0"),
+		_T("CPU core\0") _T("Fake86\0") _T("DOSBox simple\0") _T("DOSBox normal\0") _T("DOSBox full\0") _T("DOSBox auto\0"),
+		_T("cpu\0") _T("fake86\0") _T("dbsimple\0") _T("dbnormal\0") _T("dbfull\0") _T("dbauto\0"),
 		true, false, 19 - 6
 	},
 	{	// 22
@@ -2626,20 +2626,20 @@ static const struct expansionboardsettings x86_bridge_sidecar_settings[] = {
 	},
 	{
 		// 2-3
-		_T("Memory (SW1:3-4)\0""128K\0""256K\0""512K\0""640K\0"),
-		_T("memory\0""128k\0""256k\0""512k\0""640k\0"),
+		_T("Memory (SW1:3-4)\0") _T("128K\0") _T("256K\0") _T("512K\0") _T("640K\0"),
+		_T("memory\0") _T("128k\0") _T("256k\0") _T("512k\0") _T("640k\0"),
 		true
 	},
 	{
 		// 4-5
-		_T("Default video (SW1:5-6)\0Monochrome\0Color 40x25\0Color 80x25\0None\0"),
-		_T("video\0mono\0color40\0color80\0none\0"),
+		_T("Default video (SW1:5-6)\0") _T("Monochrome\0") _T("Color 40x25\0") _T("Color 80x25\0") _T("None\0"),
+		_T("video\0") _T("mono\0") _T("color40\0") _T("color80\0") _T("none\0"),
 		true
 	},
 	{
 		// 6-7
-		_T("Floppy drives (SW1:7-8)\0""1\0""2\0""3\0""4\0"),
-		_T("floppy\0""floppy1\0""floppy2\0""floppy3\0""floppy4\0"),
+		_T("Floppy drives (SW1:7-8)\0") _T("1\0") _T("2\0") _T("3\0") _T("4\0"),
+		_T("floppy\0") _T("floppy1\0") _T("floppy2\0") _T("floppy3\0") _T("floppy4\0"),
 		true
 	},
 	{
@@ -2654,8 +2654,8 @@ static const struct expansionboardsettings x86_bridge_sidecar_settings[] = {
 	},
 	{
 		// 10-11
-		_T("Address sector (SW2:3-4)\0A0000-AFFFF (1)\0A0000-AFFFF (2)\0D0000-DFFFF\0E0000-EFFFF\0"),
-		_T("memory\0sector_a0000_1\0sector_a0000_2\0sector_d0000\0sector_e0000\0"),
+		_T("Address sector (SW2:3-4)\0") _T("A0000-AFFFF (1)\0") _T("A0000-AFFFF (2)\0") _T("D0000-DFFFF\0") _T("E0000-EFFFF\0"),
+		_T("memory\0") _T("sector_a0000_1\0") _T("sector_a0000_2\0") _T("sector_d0000\0") _T("sector_e0000\0"),
 		true
 	},
 	{
@@ -2664,8 +2664,8 @@ static const struct expansionboardsettings x86_bridge_sidecar_settings[] = {
 		_T("parport_card")
 	},
 	{	// 19 - 22
-		_T("CPU core\0Fake86\0DOSBox simple\0DOSBox normal\0DOSBox full\0DOSBox auto\0"),
-		_T("cpu\0fake86\0dbsimple\0dbnormal\0dbfull\0dbauto\0"),
+		_T("CPU core\0") _T("Fake86\0") _T("DOSBox simple\0") _T("DOSBox normal\0") _T("DOSBox full\0") _T("DOSBox auto\0"),
+		_T("cpu\0") _T("fake86\0") _T("dbsimple\0") _T("dbnormal\0") _T("dbfull\0") _T("dbauto\0"),
 		true, false, 19 - 13
 	},
 	{
@@ -3067,19 +3067,19 @@ const struct expansionromtype expansionroms[] = {
 	},
 #endif
 	{
-		_T("x86_at_hd_1"), _T("x86 AT IDE Primary"), _T("x86"),
+		_T("x86athdprimary"), _T("AT IDE Primary"), _T("x86"),
 		x86_at_hd_init_1, NULL, x86_add_at_hd_unit_1, ROMTYPE_X86_AT_HD1 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_IDE
 	},
 	{
-		_T("x86_at_hd_2"), _T("x86 AT IDE Secondary"), _T("x86"),
+		_T("x86athdsecondary"), _T("AT IDE Secondary"), _T("x86"),
 		x86_at_hd_init_2, NULL, x86_add_at_hd_unit_2, ROMTYPE_X86_AT_HD2 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_IDE
 	},
 	{
-		_T("x86_at_hd_xt"), _T("x86 XTIDE Universal BIOS HD"), _T("x86"),
+		_T("x86athdxt"), _T("XTIDE Universal BIOS HD"), _T("x86"),
 		x86_at_hd_init_xt, NULL, x86_add_at_hd_unit_xt, ROMTYPE_X86_XT_IDE | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_IDE
@@ -3139,7 +3139,7 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_RTG,
 	},
 	{
-		_T("x86_vga"), _T("x86 VGA"), _T("x86"),
+		_T("x86vga"), _T("x86 VGA"), _T("x86"),
 		NULL, NULL, NULL, ROMTYPE_x86_VGA | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_RTG,

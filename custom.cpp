@@ -4632,7 +4632,7 @@ static void REFPTR(uae_u16 v)
 	refptr = v;
 	refptr_val = (v & 0xfe00) | ((v & 0x01fe) >> 1);
 	if (v & 1) {
-		v |= 0x80 << 9;
+		refptr_val |= 0x80 << 9;
 	}
 	if (v & 2) {
 		refptr_val |= 1;
@@ -8014,7 +8014,8 @@ static void hsync_handler_post (bool onvsync)
 				// CPU in STOP state: sleep if enough time left.
 				frame_time_t rpt = read_processor_time ();
 				while (!vsync_isdone () && (int)vsyncmintime - (int)(rpt + vsynctimebase / 10) > 0 && (int)vsyncmintime - (int)rpt < vsynctimebase) {
-					cpu_sleep_millis(1);
+					if (!execute_other_cpu(rpt + vsynctimebase / 10))
+						cpu_sleep_millis(1);
 					rpt = read_processor_time ();
 				}
 			} else if (currprefs.m68k_speed_throttle) {
@@ -8067,7 +8068,8 @@ static void hsync_handler_post (bool onvsync)
 				frame_time_t rpt = read_processor_time ();
 				// sleep if more than 2ms "free" time
 				while (!vsync_isdone () && (int)vsyncmintime - (int)(rpt + vsynctimebase / 10) > 0 && (int)vsyncmintime - (int)rpt < vsynctimebase) {
-					cpu_sleep_millis(1);
+					if (!execute_other_cpu(rpt + vsynctimebase / 10))
+						cpu_sleep_millis(1);
 					rpt = read_processor_time ();
 					//write_log (_T("*"));
 				}
@@ -9015,7 +9017,7 @@ static void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	if (currprefs.cpu_model == 68060) {
+	if (currprefs.cs_bytecustomwritebug) {
 		if (addr & 1)
 			custom_wput (addr & ~1, rval);
 		else

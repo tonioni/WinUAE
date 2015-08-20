@@ -62,6 +62,10 @@ void intcall86(uint8_t intnum);
 void x86_doirq(uint8_t irqnum);
 
 static frame_time_t last_cycles;
+static bool x86_turbo_allowed;
+static bool x86_turbo_enabled;
+bool x86_turbo_on;
+bool x86_cpu_active;
 
 void CPU_Init(Section*);
 void CPU_ShutDown(Section*);
@@ -909,21 +913,30 @@ static uae_u8 floppy_seekcyl[4];
 static int floppy_delay_hsync;
 static bool floppy_did_reset;
 static bool floppy_irq;
-static uae_u8 floppy_rate;
+static uae_s8 floppy_rate;
 
 #define PC_SEEK_DELAY 50
 
 static void floppy_reset(void)
 {
+	struct x86_bridge *xb = bridges[0];
+
 	write_log(_T("Floppy reset\n"));
 	floppy_idx = 0;
 	floppy_dir = 0;
 	floppy_did_reset = true;
+	if (0 && xb->type == TYPE_2286) {
+		// apparently A2286 BIOS AT driver assumes
+		// floppy reset also resets IDE.
+		// Perhaps this is forgotten feature from
+		// Commodore PC model that uses same BIOS variant?
+		x86_ide_hd_put(-1, 0, 0);
+	}
 }
 
 static void floppy_hardreset(void)
 {
-	floppy_rate = FLOPPY_RATE_300K;
+	floppy_rate = -1;
 	floppy_reset();
 }
 
@@ -1036,7 +1049,7 @@ static int floppy_selected(void)
 
 static bool floppy_valid_rate(struct floppy_reserved *fr)
 {
-	return fr->rate == floppy_rate;
+	return fr->rate == floppy_rate || floppy_rate < 0;
 }
 
 static void floppy_do_cmd(struct x86_bridge *xb)
@@ -1113,10 +1126,10 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 			write_log(_T("Floppy%d write MT=%d MF=%d C=%d:H=%d:R=%d:N=%d:EOT=%d:GPL=%d:DTL=%d\n"),
 					  (floppy_cmd[0] & 0x80) ? 1 : 0, (floppy_cmd[0] & 0x40) ? 1 : 0,
 					  floppy_cmd[2], floppy_cmd[3], floppy_cmd[4], floppy_cmd[5],
-					  floppy_cmd[6], floppy_cmd[7], floppy_cmd[8], floppy_cmd[9]);
+					  floppy_cmd[6], floppy_cmd[7], floppy_cmd[8]);
 			write_log(_T("DMA addr %08x len %04x\n"), dmachan[2].page | dmachan[2].addr, dmachan[2].reload);
 			floppy_delay_hsync = 50;
-			int eot = floppy_cmd[7];
+			int eot = floppy_cmd[6];
 			bool mt = (floppy_cmd[0] & 0x80) != 0;
 			int cyl = pcf->cyl;
 			if (valid_floppy) {
@@ -1142,10 +1155,11 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 							break;
 						if (pcf->sector == eot) {
 							pcf->sector = 0;
-							if (pcf->head)
-								pcf->cyl++;
-							if (mt)
+							if (mt) {
+								if (pcf->head)
+									pcf->cyl++;
 								pcf->head ^= 1;
+							}
 							break;
 						}
 						if (pcf->sector >= fr.secs) {
@@ -1180,15 +1194,17 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 			write_log(_T("Floppy%d read MT=%d MF=%d SK=%d C=%d:H=%d:R=%d:N=%d:EOT=%d:GPL=%d:DTL=%d\n"),
 				floppy_num, (floppy_cmd[0] & 0x80) ? 1 : 0, (floppy_cmd[0] & 0x40) ? 1 : 0, (floppy_cmd[0] & 0x20) ? 1 : 0,
 				floppy_cmd[2], floppy_cmd[3], floppy_cmd[4], floppy_cmd[5],
-				floppy_cmd[6], floppy_cmd[7], floppy_cmd[8], floppy_cmd[9]);
+				floppy_cmd[6], floppy_cmd[7], floppy_cmd[8]);
 			write_log(_T("DMA addr %08x len %04x\n"), dmachan[2].page | dmachan[2].addr, dmachan[2].reload);
 			floppy_delay_hsync = 50;
-			int eot = floppy_cmd[7];
+			int eot = floppy_cmd[6];
 			bool mt = (floppy_cmd[0] & 0x80) != 0;
 			int cyl = pcf->cyl;
 			bool nodata = false;
 			if (valid_floppy) {
 				if (!floppy_valid_rate(&fr)) {
+					nodata = true;
+				} else if (pcf->head && fr.heads == 1) {
 					nodata = true;
 				} else if (fr.img && pcf->cyl != floppy_cmd[2]) {
 					floppy_status[0] |= 0x40; // abnormal termination
@@ -1211,10 +1227,11 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 							break;
 						if (pcf->sector == eot) {
 							pcf->sector = 0;
-							if (pcf->head)
-								pcf->cyl++;
-							if (mt)
+							if (mt) {
+								if (pcf->head)
+									pcf->cyl++;
 								pcf->head ^= 1;
+							}
 							break;
 						}
 						if (pcf->sector >= fr.secs) {
@@ -1255,7 +1272,7 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 
 		case 10:
 		write_log(_T("Floppy read ID\n"));
-		if (!valid_floppy || !fr.img || !floppy_valid_rate(&fr)) {
+		if (!valid_floppy || !fr.img || !floppy_valid_rate(&fr) || (pcf->head && fr.heads == 1)) {
 			floppy_status[0] |= 0x40; // abnormal termination
 			floppy_status[1] |= 0x04; // no data
 		}
@@ -1354,6 +1371,10 @@ end:
 
 static void outfloppy(struct x86_bridge *xb, int portnum, uae_u8 v)
 {
+	if (!x86_turbo_allowed) {
+		x86_turbo_allowed = true;
+	}
+
 	switch (portnum)
 	{
 		case 0x3f2: // dpc
@@ -1429,7 +1450,7 @@ static void outfloppy(struct x86_bridge *xb, int portnum, uae_u8 v)
 			write_log(_T("FDC Control Register %02x\n"), v);
 			floppy_rate = v & 3;
 		} else {
-			floppy_rate = FLOPPY_RATE_300K;
+			floppy_rate = -1;
 		}
 		break;
 	}
@@ -1953,6 +1974,15 @@ void portout(uint16_t portnum, uint8_t v)
 		case 0x30e:
 		case 0x30f:
 		x86_ide_hd_put(portnum, v, 0);
+		break;
+
+		case 0x101:
+		case 0x102:
+		// A2286 BIOS timer test fails if CPU is too fast
+		// so we'll run normal speed until tests are done
+		if (!x86_turbo_allowed) {
+			x86_turbo_allowed = true;
+		}
 		break;
 
 		default:
@@ -2750,6 +2780,41 @@ void x86_bridge_reset(void)
 	}
 }
 
+static void x86_cpu_execute(int cnt)
+{
+	struct x86_bridge *xb = bridges[0];
+	if (!xb->x86_reset) {
+		if (xb->dosbox_cpu) {
+			if (xb->x86_reset_requested) {
+				xb->x86_reset_requested = false;
+				reset_x86_cpu(xb);
+			}
+			CPU_Cycles = cnt;
+			(*cpudecoder)();
+			check_x86_irq();
+		} else {
+			exec86(cnt);
+		}
+	}
+}
+
+void x86_bridge_execute_until(int until)
+{
+	struct x86_bridge *xb = bridges[0];
+	if (!xb)
+		return;
+	if (!x86_turbo_allowed)
+		return;
+	for (;;) {
+		x86_cpu_execute(until ? 10 : 1);
+		if (until == 0)
+			break;
+		frame_time_t rpt = read_processor_time();
+		if ((int)until - (int)rpt <= 0)
+			break;
+	}
+}
+
 void x86_bridge_hsync(void)
 {
 	struct x86_bridge *xb = bridges[0];
@@ -2776,28 +2841,17 @@ void x86_bridge_hsync(void)
 			do_floppy_irq();
 	}
 
-	if (!xb->x86_reset) {
-		if (xb->dosbox_cpu) {
-			if (xb->x86_reset_requested) {
-				xb->x86_reset_requested = false;
-				reset_x86_cpu(xb);
-			}
-			int maxcnt = 3;
-			for (int i = 0; i < maxcnt; i++) {
-				CPU_Cycles = 40;
-				(*cpudecoder)();
-				check_x86_irq();
-				timing(maxhpos / maxcnt);
-			}
-		} else {
-			exec86(30);
-			timing(maxhpos / 3);
-			exec86(30);
-			timing(maxhpos / 3);
-			exec86(30);
-			timing(maxhpos / 3);
-		}
+	for (int i = 0; i < 3; i++) {
+		x86_cpu_execute(40);
+		timing(maxhpos / 3);
 	}
+
+	if (x86_turbo_allowed && x86_turbo_enabled && !x86_turbo_on) {
+		x86_turbo_on = true;
+	} else if ((!x86_turbo_allowed || !x86_turbo_enabled) && x86_turbo_on) {
+		x86_turbo_on = false;
+	}
+	
 }
 
 static void ew(uae_u8 *acmemory, int addr, uae_u8 value)
@@ -2819,6 +2873,8 @@ static void bridge_reset(struct x86_bridge *xb)
 	xb->amiga_forced_interrupts = false;
 	xb->amiga_irq = false;
 	xb->pc_irq3a = xb->pc_irq3b = xb->pc_irq7 = false;
+	x86_turbo_allowed = false;
+	x86_cpu_active = false;
 	memset(xb->amiga_io, 0, 0x10000);
 	memset(xb->io_ports, 0, 0x10000);
 	for (int i = 0; i < 2; i++) {
