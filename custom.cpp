@@ -1943,6 +1943,7 @@ STATIC_INLINE void shift32plus (uae_u64 *p, int n)
 
 STATIC_INLINE void aga_shift (uae_u64 *p, int n)
 {
+	if (n == 0) return;
 	shift32plus (p, n);
 	p[0] <<= n;
 }
@@ -1957,6 +1958,7 @@ STATIC_INLINE void shift32plusn (uae_u64 *p, int n)
 
 STATIC_INLINE void aga_shift_n (uae_u64 *p, int n)
 {
+	if (n == 0) return;
 	shift32plusn (p, n);
 	p[1] >>= n;
 }
