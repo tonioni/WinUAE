@@ -62,6 +62,8 @@ void intcall86(uint8_t intnum);
 void x86_doirq(uint8_t irqnum);
 
 static frame_time_t last_cycles;
+#define DEFAULT_X86_INSTRUCTION_COUNT 40
+static int x86_instruction_count;
 static bool x86_turbo_allowed;
 static bool x86_turbo_enabled;
 bool x86_turbo_on;
@@ -249,16 +251,12 @@ static uae_u8 x86_bridge_put_io(struct x86_bridge *xb, uaecptr addr, uae_u8 v)
 #if X86_DEBUG_BRIDGE_IRQ
 			write_log(_T("IO_PC_INTERRUPT_CONTROL %02x\n"), v);
 #endif
-			if (xb->amiga_forced_interrupts) {
-				if (v & 1)
-					x86_doirq(1);
-				if (xb->amiga_io[IO_CONTROL_REGISTER] & 8) {
-					if (!(v & 2) || !(v & 4))
-						x86_doirq(3);
-					if (!(v & 8))
-						x86_doirq(7);
-				}
-			}
+			if (xb->type < TYPE_2286 && (v & 1))
+				x86_doirq(1);
+			if (!(v & 2) || !(v & 4))
+				x86_doirq(3);
+			if (!(v & 8))
+				x86_doirq(7);
 		}
 		break;
 		case IO_CONTROL_REGISTER:
@@ -875,7 +873,10 @@ void x86_doirq(uint8_t irqnum)
 		keyboardwaitack = 1;
 }
 
-bool x86_is_keyboard(void);
+void x86_doirq_keyboard(void)
+{
+	x86_doirq(1);
+}
 
 void check_x86_irq(void)
 {
@@ -925,7 +926,7 @@ static void floppy_reset(void)
 	floppy_idx = 0;
 	floppy_dir = 0;
 	floppy_did_reset = true;
-	if (0 && xb->type == TYPE_2286) {
+	if (xb->type == TYPE_2286) {
 		// apparently A2286 BIOS AT driver assumes
 		// floppy reset also resets IDE.
 		// Perhaps this is forgotten feature from
@@ -2780,6 +2781,30 @@ void x86_bridge_reset(void)
 	}
 }
 
+static void check_floppy_delay(void)
+{
+	for (int i = 0; i < 4; i++) {
+		if (floppy_seeking[i]) {
+			bool neg = floppy_seeking[i] < 0;
+			if (floppy_seeking[i] > 0)
+				floppy_seeking[i]--;
+			else if (neg)
+				floppy_seeking[i]++;
+			if (floppy_seeking[i] == 0)
+				do_floppy_seek(i, neg);
+		}
+	}
+	if (floppy_delay_hsync > 1 || floppy_delay_hsync < -1) {
+		if (floppy_delay_hsync > 0)
+			floppy_delay_hsync--;
+		else
+			floppy_delay_hsync++;
+		if (floppy_delay_hsync == 1 || floppy_delay_hsync == -1)
+			do_floppy_irq();
+	}
+}
+
+
 static void x86_cpu_execute(int cnt)
 {
 	struct x86_bridge *xb = bridges[0];
@@ -2796,6 +2821,9 @@ static void x86_cpu_execute(int cnt)
 			exec86(cnt);
 		}
 	}
+
+	// BIOS has CPU loop delays in floppy driver...
+	check_floppy_delay();
 }
 
 void x86_bridge_execute_until(int until)
@@ -2821,29 +2849,22 @@ void x86_bridge_hsync(void)
 	if (!xb)
 		return;
 
-	for (int i = 0; i < 4; i++) {
-		if (floppy_seeking[i]) {
-			bool neg = floppy_seeking[i] < 0;
-			if (floppy_seeking[i] > 0)
-				floppy_seeking[i]--;
-			else if (neg)
-				floppy_seeking[i]++;
-			if (floppy_seeking[i] == 0)
-				do_floppy_seek(i, neg);
-		}
-	}
-	if (floppy_delay_hsync > 1 || floppy_delay_hsync < -1) {
-		if (floppy_delay_hsync > 0)
-			floppy_delay_hsync--;
-		else
-			floppy_delay_hsync++;
-		if (floppy_delay_hsync == 1 || floppy_delay_hsync == -1)
-			do_floppy_irq();
-	}
+	check_floppy_delay();
 
 	for (int i = 0; i < 3; i++) {
-		x86_cpu_execute(40);
+		x86_cpu_execute(x86_instruction_count);
 		timing(maxhpos / 3);
+	}
+
+	if (currprefs.x86_speed_throttle != changed_prefs.x86_speed_throttle) {
+		currprefs.x86_speed_throttle = changed_prefs.x86_speed_throttle;
+		x86_instruction_count = DEFAULT_X86_INSTRUCTION_COUNT;
+		if (currprefs.x86_speed_throttle < 0) {
+			x86_turbo_enabled = true;
+		} else {
+			x86_turbo_enabled = false;
+			x86_instruction_count = DEFAULT_X86_INSTRUCTION_COUNT + DEFAULT_X86_INSTRUCTION_COUNT * currprefs.x86_speed_throttle / 1000;
+		}
 	}
 
 	if (x86_turbo_allowed && x86_turbo_enabled && !x86_turbo_on) {
@@ -2851,7 +2872,6 @@ void x86_bridge_hsync(void)
 	} else if ((!x86_turbo_allowed || !x86_turbo_enabled) && x86_turbo_on) {
 		x86_turbo_on = false;
 	}
-	
 }
 
 static void ew(uae_u8 *acmemory, int addr, uae_u8 value)
@@ -2875,6 +2895,7 @@ static void bridge_reset(struct x86_bridge *xb)
 	xb->pc_irq3a = xb->pc_irq3b = xb->pc_irq7 = false;
 	x86_turbo_allowed = false;
 	x86_cpu_active = false;
+	x86_instruction_count = DEFAULT_X86_INSTRUCTION_COUNT;
 	memset(xb->amiga_io, 0, 0x10000);
 	memset(xb->io_ports, 0, 0x10000);
 	for (int i = 0; i < 2; i++) {
@@ -2922,15 +2943,17 @@ int is_x86_cpu(struct uae_prefs *p)
 			return X86_STATE_STOP;
 		else if (x86_found < 0)
 			return X86_STATE_INACTIVE;
-		if (is_device_rom(&currprefs, ROMTYPE_A1060, 0) < 0 &&
-			is_device_rom(&currprefs, ROMTYPE_A2088, 0) < 0 &&
-			is_device_rom(&currprefs, ROMTYPE_A2088T, 0) < 0 &&
-			is_device_rom(&currprefs, ROMTYPE_A2286, 0) < 0 &&
-			is_device_rom(&currprefs, ROMTYPE_A2386, 0) < 0) {
-			x86_found = -1;
+		if (is_device_rom(p, ROMTYPE_A1060, 0) < 0 &&
+			is_device_rom(p, ROMTYPE_A2088, 0) < 0 &&
+			is_device_rom(p, ROMTYPE_A2088T, 0) < 0 &&
+			is_device_rom(p, ROMTYPE_A2286, 0) < 0 &&
+			is_device_rom(p, ROMTYPE_A2386, 0) < 0) {
+			if (p == &currprefs)
+				x86_found = -1;
 			return X86_STATE_INACTIVE;
 		} else {
-			x86_found = 1;
+			if (p == &currprefs)
+				x86_found = 1;
 		}
 	}
 	if (!xb || xb->x86_reset)

@@ -1,4 +1,24 @@
 
+Beta 10:
+
+- IDE emulation internal operation change. Previously next block was read from hardfile after previous
+  block was transferred. Now all blocks are buffered first before transferring (or if write: all data
+  is received first and then all buffered data is written to HDF). Fixes A2286 BIOS built-in IDE driver
+  which does not wait for interrupt or DRQ status bit between transferred blocks. (Which technically is
+  a bug, driver is depending on some specific HD manufacturer/model internal implementation detail)
+- Amiga to PC bridgeboard interrupt enable/disable state fixed. A2286 Janus hardfile access does not hang
+  anymore.
+- Added x86 CPU speed adjustment (CPU panel, full left = fastest possible mode). Note that some BIOS
+  drivers use CPU delay loops, unexpected things can happen.. Fastest possible enables extra hack
+  ("immediate" floppy to prevent floppy detection fail). Speed adjustment is only enabled after initial
+  BIOS diagnostics checks have been done because some timer tests fail if CPU is too fast..
+- Added right control = right Windows key option. (Keyboards without right Windows key, quicker to use
+  than creating custom mapping, note that it also disables keyboard layout B RCTRL=fire mapping)
+- GUI window is now per-monitor high DPI aware.
+- 3-State Apollo 500/2000 IDE/SCSI combo HD controller fully implemented. ROM added to ROM scanner.
+  3rd party replacement ROM available from Aminet. (http://aminet.net/package/disk/cdrom/AT_ApolloDev)
+- CDFS automount without physical drives mounted 10 empty image drives (b1).
+
 Beta 9:
 
 - x86 floppy controller EOT parameter was read from wrong offset. Note that previously 1.4M floppy in

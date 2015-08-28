@@ -1696,7 +1696,8 @@ static void show_rom_list (void)
 		127, 140, -1, -1, // kommos
 		128, -1, -1, // vector falcon
 		132, -1, -1, // add500
-		139, -1, -2, // nexus
+		139, -1, -1, // nexus
+		138, 146, -1, -2, // roctec
 
 		18, -1, 19, -1, 74, 23, -1, -1,  // CD32 FMV
 		91, -1, -2, // Picasso IV
@@ -1750,6 +1751,7 @@ static void show_rom_list (void)
 		_T("Vector Falcon 8000 SCSI\0")
 		_T("Archos ADD-500\0")
 		_T("Preferred Technologies Nexus\0")
+		_T("Roctec RH800C\0")
 
 		_T("CD32 Full Motion Video\0")
 		_T("Picasso IV\0")
@@ -4034,6 +4036,7 @@ static struct miscentry misclist[] = {
 	{ 0, 1, _T("100/120Hz VSync black frame insertion"), &workprefs.lightboost_strobo },
 	{ 0, 0, _T("Master floppy write protection"), &workprefs.floppy_read_only },
 	{ 0, 0, _T("Hide all UAE autoconfig boards"), &workprefs.uae_hide_autoconfig },
+	{ 0, 1, _T("Right Control = Right Windows key"), &workprefs.right_control_is_right_win_key },
 	{ 0, NULL }
 };
 
@@ -10280,19 +10283,21 @@ static void enable_for_cpudlg (HWND hDlg)
 	BOOL enable = FALSE, jitenable = FALSE;
 	BOOL cpu_based_enable = FALSE;
 
-	ew (hDlg, IDC_SPEED, !workprefs.cpu_cycle_exact);
-	ew (hDlg, IDC_COMPATIBLE24, workprefs.cpu_model <= 68030);
-	//ew (hDlg, IDC_CS_HOST, !workprefs.cpu_cycle_exact);
-	//ew (hDlg, IDC_CS_68000, !workprefs.cpu_cycle_exact);
-	//ew (hDlg, IDC_CS_ADJUSTABLE, !workprefs.cpu_cycle_exact);
-	ew (hDlg, IDC_CPUIDLE, workprefs.m68k_speed != 0 ? TRUE : FALSE);
-	ew (hDlg, IDC_PPC_CPUIDLE, workprefs.ppc_mode != 0);
+	ew(hDlg, IDC_SPEED, !workprefs.cpu_cycle_exact);
+	ew(hDlg, IDC_COMPATIBLE24, workprefs.cpu_model <= 68030);
+	//ew(hDlg, IDC_CS_HOST, !workprefs.cpu_cycle_exact);
+	//ew(hDlg, IDC_CS_68000, !workprefs.cpu_cycle_exact);
+	//ew(hDlg, IDC_CS_ADJUSTABLE, !workprefs.cpu_cycle_exact);
+	ew(hDlg, IDC_CPUIDLE, workprefs.m68k_speed != 0 ? TRUE : FALSE);
+	ew(hDlg, IDC_PPC_CPUIDLE, workprefs.ppc_mode != 0);
+	ew(hDlg, IDC_SPEED_x86, is_x86_cpu(&workprefs));
+	ew(hDlg, IDC_CPUTEXT_x86, is_x86_cpu(&workprefs));
 #if !defined(CPUEMU_0) || defined(CPUEMU_68000_ONLY)
-	ew (hDlg, IDC_CPU1, FALSE);
-	ew (hDlg, IDC_CPU2, FALSE);
-	ew (hDlg, IDC_CPU3, FALSE);
-	ew (hDlg, IDC_CPU4, FALSE);
-	ew (hDlg, IDC_CPU5, FALSE);
+	ew(hDlg, IDC_CPU1, FALSE);
+	ew(hDlg, IDC_CPU2, FALSE);
+	ew(hDlg, IDC_CPU3, FALSE);
+	ew(hDlg, IDC_CPU4, FALSE);
+	ew(hDlg, IDC_CPU5, FALSE);
 #endif
 
 	cpu_based_enable = workprefs.cpu_model >= 68020 && workprefs.address_space_24 == 0;
@@ -10328,8 +10333,10 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_MMUENABLE, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0);
 	ew (hDlg, IDC_CPU_PPC, workprefs.cpu_model >= 68040 && (workprefs.ppc_mode == 1 || (workprefs.ppc_mode == 0 && !is_ppc_cpu(&workprefs))));
 
-	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, workprefs.m68k_speed < 0 ? MAKELONG (-9, 0) : MAKELONG (-9, 50));
-	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPAGESIZE, 0, 1);
+	SendDlgItemMessage(hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, workprefs.m68k_speed < 0 ? MAKELONG(-9, 0) : MAKELONG(-9, 50));
+	SendDlgItemMessage(hDlg, IDC_SPEED, TBM_SETPAGESIZE, 0, 1);
+	SendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETRANGE, TRUE, MAKELONG(-1, 100));
+	SendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETPAGESIZE, 0, 1);
 }
 
 static double getcpufreq (int m)
@@ -10344,6 +10351,13 @@ static void values_to_cpudlg (HWND hDlg)
 {
 	TCHAR buffer[8] = _T("");
 	int cpu;
+
+	SendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETPOS, TRUE, (int)(workprefs.x86_speed_throttle / 100));
+	if (workprefs.x86_speed_throttle < 0)
+		_tcscpy(buffer, _T("Max"));
+	else
+		_stprintf(buffer, _T("%+d%%"), (int)(workprefs.x86_speed_throttle / 10));
+	SetDlgItemText(hDlg, IDC_CPUTEXT_x86, buffer);
 
 	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPOS, TRUE, (int)(workprefs.m68k_speed_throttle / 100));
 	_stprintf (buffer, _T("%+d%%"), (int)(workprefs.m68k_speed_throttle / 10));
@@ -10410,6 +10424,7 @@ static void values_from_cpudlg (HWND hDlg)
 	workprefs.m68k_speed_throttle = SendMessage (GetDlgItem (hDlg, IDC_SPEED), TBM_GETPOS, 0, 0) * 100;
 	if (workprefs.m68k_speed_throttle > 0 && workprefs.m68k_speed < 0)
 		workprefs.m68k_speed_throttle = 0;
+	workprefs.x86_speed_throttle = SendMessage(GetDlgItem(hDlg, IDC_SPEED_x86), TBM_GETPOS, 0, 0) * 100;
 
 	newcpu = ischecked (hDlg, IDC_CPU0) ? 68000
 		: ischecked (hDlg, IDC_CPU1) ? 68010
@@ -18188,6 +18203,10 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	return ret;
 }
 
+#ifndef WM_DPICHANGED
+#define WM_DPICHANGED       0x02E0
+#endif
+
 static int dialogreturn;
 static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -18197,6 +18216,16 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 	switch (msg)
 	{
+	case  WM_DPICHANGED:
+	{
+		int dx = LOWORD(wParam);
+		int dy = HIWORD(wParam);
+		RECT *r = (RECT*)lParam;
+		gui_width = r->right - r->left;
+		gui_height = r->bottom - r->top;
+		gui_size_changed = 1;
+	}
+	break;
 	case WM_SIZING:
 	{
 		if (!recursive && gui_resize_enabled) {

@@ -2261,6 +2261,9 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		if (scancode == 0xaa || scancode == 0)
 			return;
 
+		if (currprefs.right_control_is_right_win_key && scancode == DIK_RCONTROL) {
+			scancode = DIK_RWIN;
+		}
 
 		if (!istest) {
 			if (scancode == DIK_SYSRQ)
@@ -3424,6 +3427,8 @@ static void read_kb (void)
 				int pressed = (didod[j].dwData & 0x80) ? 1 : 0;
 
 				//write_log (_T("%d: %02X %d\n"), j, scancode, pressed);
+				if (currprefs.right_control_is_right_win_key && scancode == DIK_RCONTROL)
+					scancode = DIK_RWIN;
 				if (!istest)
 					scancode = keyhack (scancode, pressed, i);
 				if (scancode < 0)

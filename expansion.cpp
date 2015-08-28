@@ -2803,8 +2803,8 @@ const struct expansionromtype expansionroms[] = {
 		bridge_settings
 	},
 	{
-		_T("apollo"), _T("Apollo"), _T("ACT"),
-		apollo_init_hd, NULL, apollo_add_scsi_unit, ROMTYPE_APOLLO, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		_T("apollo"), _T("Apollo 500/2000"), _T("3-State"),
+		apollo_init_hd, NULL, apollo_add_scsi_unit, ROMTYPE_APOLLOHD, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE,
 		8738, 0, 0

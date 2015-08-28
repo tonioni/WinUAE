@@ -58,7 +58,7 @@ static struct {
 	Bit8u outport;
 } keyb;
 
-extern void x86_doirq(unsigned char);
+extern void x86_doirq_keyboard(void);
 
 bool x86_is_keyboard(void)
 {
@@ -72,7 +72,7 @@ static void KEYBOARD_SetPort60(Bit8u val) {
 //		PIC_ActivateIRQ(6);
 //	else
 //		PIC_ActivateIRQ(1);
-	x86_doirq(1);
+	x86_doirq_keyboard();
 }
 
 static void KEYBOARD_TransferBuffer(Bitu val) {

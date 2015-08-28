@@ -543,6 +543,7 @@
 #define IDC_PPC_CPUIDLE                 1231
 #define IDC_11KHZ                       1232
 #define IDC_22KHZ                       1233
+#define IDC_SPEED_x86                   1233
 #define IDC_44KHZ                       1234
 #define IDC_48KHZ                       1235
 #define IDC_SOUNDSIZE                   1236
@@ -717,6 +718,7 @@
 #define IDC_FLUSHPRINTER                1510
 #define IDC_MAPDRIVES_REMOVABLE         1510
 #define IDC_PORT0_TEST                  1510
+#define IDC_CPUTEXT_x86                 1510
 #define IDC_SCREENRESTEXT               1511
 #define IDC_MAPDRIVES_AUTO              1511
 #define IDC_WIDTHTEXT                   1512
@@ -1097,7 +1099,6 @@
 #define IDC_DBG_AMEM                    1745
 #define IDC_CS_DIPAGNUS                 1745
 #define IDC_DBG_SP_VBR                  1746
-#define IDC_CS_CDTVRAMEXP2              1746
 #define IDC_CS_CDTVCR                   1746
 #define IDC_DBG_MMISC                   1747
 #define IDC_DBG_PC                      1748
@@ -1105,7 +1106,6 @@
 #define IDC_DBG_FPREG                   1750
 #define IDC_DBG_FPSR                    1751
 #define IDC_DBG_OUTPUT2                 1752
-#define IDC_CS_RESETWARNING2            1752
 #define IDC_CS_CIATODBUG                1752
 #define IDC_DBG_MEMINPUT                1753
 #define IDC_CS_Z3AUTOCONFIG             1753

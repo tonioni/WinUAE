@@ -1178,7 +1178,7 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 	int h, i, maxh, cnt;
 	uae_u32 cycles;
 
-	if (!dma_record[0])
+	if (!dma_record[0] || hpos < 0 || vpos < 0)
 		return;
 	dr = &dma_record[dma_record_toggle ^ toggle][vpos * NR_DMA_REC_HPOS];
 	if (logfile)

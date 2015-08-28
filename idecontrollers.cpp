@@ -1234,7 +1234,7 @@ void alf_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *r
 // prod 0x23 = SCSI only
 // prod 0x33 = IDE only
 
-const uae_u8 apollo_autoconfig[16] = { 0xd2, 0x23, 0x00, 0x00, 0x22, 0x22, 0x00, 0x00, 0x00, 0x00, APOLLO_ROM_OFFSET >> 8, APOLLO_ROM_OFFSET & 0xff };
+const uae_u8 apollo_autoconfig[16] = { 0xd1, 0x22, 0x00, 0x00, 0x22, 0x22, 0x00, 0x00, 0x00, 0x00, APOLLO_ROM_OFFSET >> 8, APOLLO_ROM_OFFSET & 0xff };
 const uae_u8 apollo_autoconfig_cpuboard[16] = { 0xd2, 0x23, 0x00, 0x00, 0x22, 0x22, 0x00, 0x00, 0x00, 0x00, APOLLO_ROM_OFFSET >> 8, APOLLO_ROM_OFFSET & 0xff };
 const uae_u8 apollo_autoconfig_cpuboard_060[16] = { 0xd2, 0x23, 0x00, 0x00, 0x22, 0x22, 0x00, 0x00, 0x00, 0x02, APOLLO_ROM_OFFSET >> 8, APOLLO_ROM_OFFSET & 0xff };
 
@@ -1251,7 +1251,6 @@ static addrbank *apollo_init(struct romconfig *rc, bool cpuboard)
 	ide->configured = 0;
 	ide->bank = &ide_bank_generic;
 	ide->rom_size = 32768;
-	ide->mask = 131072 - 1;
 	ide->type = APOLLO_IDE;
 
 	memset(ide->acmemory, 0xff, sizeof ide->acmemory);
@@ -1259,6 +1258,7 @@ static addrbank *apollo_init(struct romconfig *rc, bool cpuboard)
 	ide->rom = xcalloc(uae_u8, ide->rom_size);
 	memset(ide->rom, 0xff, ide->rom_size);
 	ide->rom_mask = ide->rom_size - 1;
+	ide->keepautoconfig = false;
 	autoconfig = apollo_autoconfig;
 	if (cpuboard) {
 		if (currprefs.cpu_model == 68060)
@@ -1266,22 +1266,28 @@ static addrbank *apollo_init(struct romconfig *rc, bool cpuboard)
 		else
 			autoconfig = apollo_autoconfig_cpuboard;
 	}
-	struct zfile *z = read_device_from_romconfig(rc, roms);
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = autoconfig[i];
 		ew(ide, i * 4, b);
 	}
-	if (z) {
-		int len = zfile_size(z);
-		// skip 68060 $f0 ROM block
-		if (len >= 65536)
-			zfile_fseek(z, 32768, SEEK_SET);
-		for (int i = 0; i < 32768; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			ide->rom[i] = b;
+	if (cpuboard) {
+		ide->mask = 131072 - 1;
+		struct zfile *z = read_device_from_romconfig(rc, roms);
+		if (z) {
+			int len = zfile_size(z);
+			// skip 68060 $f0 ROM block
+			if (len >= 65536)
+				zfile_fseek(z, 32768, SEEK_SET);
+			for (int i = 0; i < 32768; i++) {
+				uae_u8 b;
+				zfile_fread(&b, 1, 1, z);
+				ide->rom[i] = b;
+			}
+			zfile_fclose(z);
 		}
-		zfile_fclose(z);
+	} else {
+		ide->mask = 65536 - 1;
+		load_rom_rc(rc, roms, 16384, 0, ide->rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 	}
 	return ide->bank;
 }
@@ -1297,7 +1303,7 @@ addrbank *apollo_init_cpu(struct romconfig *rc)
 
 void apollo_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	add_ide_standard_unit(ch, ci, rc, apollo_board, APOLLO_IDE, false, false, 2);
+	add_ide_standard_unit(ch, ci, rc, apollo_board, APOLLO_IDE, true, false, 2);
 }
 
 addrbank *masoboshi_init(struct romconfig *rc)
@@ -1417,10 +1423,11 @@ void mtec_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *
 addrbank *rochard_init(struct romconfig *rc)
 {
 	struct ide_board *ide = getide(rc);
-	int roms[2];
+	int roms[3];
 
 	roms[0] = 138;
-	roms[1] = -1;
+	roms[1] = 146;
+	roms[2] = -1;
 	ide->configured = 0;
 	ide->bank = &ide_bank_generic;
 	ide->rom_size = 32768;

@@ -445,9 +445,6 @@ static void serdatcopy(void)
 	serdatshift_masked = serdatshift & ((1 << bits) - 1);
 	data_in_sershift = 1;
 	data_in_serdat = 0;
-	INTREQ(0x8000 | 0x0001);
-	serial_check_irq();
-	checksend();
 
 	if (seriallog) {
 		gotlogwrite = true;
@@ -487,6 +484,8 @@ static void serdatcopy(void)
 		event2_newevent_x(-1, per, 0, sersend_ce);
 	}
 
+	INTREQ(0x8000 | 0x0001);
+	checksend();
 }
 
 void serial_hsynchandler (void)

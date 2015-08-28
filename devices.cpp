@@ -57,6 +57,7 @@
 #include "pci.h"
 #include "pci_hw.h"
 #include "x86.h"
+#include "ethernet.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -353,6 +354,7 @@ void do_leave_program (void)
 	cfgfile_addcfgparam (0);
 	machdep_free ();
 	driveclick_free();
+	ethernet_enumerate_free();
 }
 
 void virtualdevice_init (void)

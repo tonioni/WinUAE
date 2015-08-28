@@ -242,7 +242,7 @@
     </Link>
     <Manifest>
       <AdditionalManifestFiles>../resources/winuae.exe.manifest</AdditionalManifestFiles>
-      <EnableDPIAwareness>true</EnableDPIAwareness>
+      <EnableDPIAwareness>PerMonitorHighDPIAware</EnableDPIAwareness>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -301,7 +301,7 @@
     </Link>
     <Manifest>
       <AdditionalManifestFiles>..\resources\winuae64.exe.manifest</AdditionalManifestFiles>
-      <EnableDPIAwareness>true</EnableDPIAwareness>
+      <EnableDPIAwareness>PerMonitorHighDPIAware</EnableDPIAwareness>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -377,7 +377,7 @@
     </Link>
     <Manifest>
       <AdditionalManifestFiles>../resources/winuae.exe.manifest</AdditionalManifestFiles>
-      <EnableDPIAwareness>true</EnableDPIAwareness>
+      <EnableDPIAwareness>PerMonitorHighDPIAware</EnableDPIAwareness>
       <OutputManifestFile>$(IntDir)$(TargetName)$(TargetExt).embed.manifest</OutputManifestFile>
       <AdditionalOptions>/validate_manifest %(AdditionalOptions)</AdditionalOptions>
     </Manifest>
@@ -455,7 +455,7 @@
     </Link>
     <Manifest>
       <AdditionalManifestFiles>../resources/winuae.exe.manifest</AdditionalManifestFiles>
-      <EnableDPIAwareness>true</EnableDPIAwareness>
+      <EnableDPIAwareness>PerMonitorHighDPIAware</EnableDPIAwareness>
       <OutputManifestFile>$(IntDir)$(TargetName)$(TargetExt).embed.manifest</OutputManifestFile>
       <AdditionalOptions>/validate_manifest %(AdditionalOptions)</AdditionalOptions>
     </Manifest>
@@ -529,7 +529,7 @@
     </Link>
     <Manifest>
       <AdditionalManifestFiles>..\resources\winuae64.exe.manifest</AdditionalManifestFiles>
-      <EnableDPIAwareness>true</EnableDPIAwareness>
+      <EnableDPIAwareness>PerMonitorHighDPIAware</EnableDPIAwareness>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Test|x64'">
@@ -600,7 +600,7 @@
     </Link>
     <Manifest>
       <AdditionalManifestFiles>..\resources\winuae64.exe.manifest</AdditionalManifestFiles>
-      <EnableDPIAwareness>true</EnableDPIAwareness>
+      <EnableDPIAwareness>PerMonitorHighDPIAware</EnableDPIAwareness>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">
@@ -675,7 +675,7 @@
     </Link>
     <Manifest>
       <AdditionalManifestFiles>../resources/winuae.exe.manifest</AdditionalManifestFiles>
-      <EnableDPIAwareness>true</EnableDPIAwareness>
+      <EnableDPIAwareness>PerMonitorHighDPIAware</EnableDPIAwareness>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">
@@ -746,7 +746,7 @@
     </Link>
     <Manifest>
       <AdditionalManifestFiles>..\resources\winuae64.exe.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
-      <EnableDPIAwareness>true</EnableDPIAwareness>
+      <EnableDPIAwareness>PerMonitorHighDPIAware</EnableDPIAwareness>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>

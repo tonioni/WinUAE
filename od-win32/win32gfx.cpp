@@ -2137,7 +2137,8 @@ int check_prefs_changed_gfx (void)
 		currprefs.win32_iconified_nosound != changed_prefs.win32_iconified_nosound ||
 		currprefs.win32_iconified_pause != changed_prefs.win32_iconified_pause ||
 		currprefs.win32_iconified_input != changed_prefs.win32_iconified_input ||
-		currprefs.win32_ctrl_F11_is_quit != changed_prefs.win32_ctrl_F11_is_quit)
+		currprefs.win32_ctrl_F11_is_quit != changed_prefs.win32_ctrl_F11_is_quit ||
+		currprefs.right_control_is_right_win_key != changed_prefs.right_control_is_right_win_key)
 	{
 		currprefs.win32_minimize_inactive = changed_prefs.win32_minimize_inactive;
 		currprefs.leds_on_screen = changed_prefs.leds_on_screen;
@@ -2157,6 +2158,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.win32_iconified_pause = changed_prefs.win32_iconified_pause;
 		currprefs.win32_iconified_input = changed_prefs.win32_iconified_input;
 		currprefs.win32_ctrl_F11_is_quit = changed_prefs.win32_ctrl_F11_is_quit;
+		currprefs.right_control_is_right_win_key = changed_prefs.right_control_is_right_win_key;
 		inputdevice_unacquire ();
 		currprefs.keyboard_leds_in_use = changed_prefs.keyboard_leds_in_use = (currprefs.keyboard_leds[0] | currprefs.keyboard_leds[1] | currprefs.keyboard_leds[2]) != 0;
 		pause_sound ();

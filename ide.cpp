@@ -714,7 +714,7 @@ static void do_process_packet_command (struct ide_hdf *ide)
 
 static void do_process_rw_command (struct ide_hdf *ide)
 {
-	unsigned int cyl, head, sec, nsec;
+	unsigned int cyl, head, sec, nsec, nsec_total;
 	uae_u64 lba;
 	bool last;
 
@@ -733,18 +733,29 @@ static void do_process_rw_command (struct ide_hdf *ide)
 		ide_fail_err (ide, IDE_ERR_IDNF);
 		return;
 	}
+	nsec_total = nsec;
+	ide_grow_buffer(ide, nsec_total * ide->blocksize);
+
 	if (nsec > ide->data_multi)
 		nsec = ide->data_multi;
 
-	ide_grow_buffer(ide, nsec * ide->blocksize);
+	if (ide->buffer_offset == 0) {
+		// store initial lba and number of sectors to transfer
+		ide->start_lba = lba;
+		ide->start_nsec = nsec_total;
+	}
+
 	if (ide->direction) {
-		hdf_write (&ide->hdhfd.hfd, ide->secbuf, lba * ide->blocksize, nsec * ide->blocksize);
 		if (IDE_LOG > 1)
-			write_log (_T("IDE%d write, %d bytes written\n"), ide->num, nsec * ide->blocksize);
+			write_log (_T("IDE%d write, %d/%d bytes, buffer offset %d\n"), ide->num, nsec * ide->blocksize, nsec_total * ide->blocksize, ide->buffer_offset);
 	} else {
-		hdf_read (&ide->hdhfd.hfd, ide->secbuf, lba * ide->blocksize, nsec * ide->blocksize);
+		if (ide->buffer_offset == 0) {
+			hdf_read(&ide->hdhfd.hfd, ide->secbuf, ide->start_lba * ide->blocksize, ide->start_nsec * ide->blocksize);
+			if (IDE_LOG > 1)
+				write_log(_T("IDE%d initial read, %d bytes\n"), ide->num, nsec_total * ide->blocksize);
+		}
 		if (IDE_LOG > 1)
-			write_log (_T("IDE%d read, read %d bytes\n"), ide->num, nsec * ide->blocksize);
+			write_log (_T("IDE%d read, read %d/%d bytes, buffer offset=%d\n"), ide->num, nsec * ide->blocksize, nsec_total * ide->blocksize, ide->buffer_offset);
 	}
 	ide->intdrq = true;
 	last = dec_nsec (ide, nsec) == 0;
@@ -754,10 +765,24 @@ static void do_process_rw_command (struct ide_hdf *ide)
 	}
 	if (last && ide->direction) {
 		ide->intdrq = false;
+		hdf_write (&ide->hdhfd.hfd, ide->secbuf, ide->start_lba * ide->blocksize, ide->start_nsec * ide->blocksize);
 		if (IDE_LOG > 1)
-			write_log (_T("IDE%d write finished\n"), ide->num);
+			write_log (_T("IDE%d write finished, %d bytes\n"), ide->num, ide->start_nsec * ide->blocksize);
 	}
-	ide_fast_interrupt (ide);
+
+	if (ide->direction) {
+		if (last) {
+			ide_fast_interrupt(ide);
+		} else {
+			ide->irq_delay = 1;
+		}
+	} else {
+		if (ide->buffer_offset == 0) {
+			ide_fast_interrupt(ide);
+		} else {
+			ide->irq_delay = 1;
+		}
+	}
 }
 
 static void ide_read_sectors (struct ide_hdf *ide, int flags)
@@ -792,6 +817,7 @@ static void ide_read_sectors (struct ide_hdf *ide, int flags)
 	ide->data_offset = 0;
 	ide->data_size = nsec * ide->blocksize;
 	ide->direction = 0;
+	ide->buffer_offset = 0;
 	// read start: preload sector(s), then trigger interrupt.
 	process_rw_command (ide);
 }
@@ -829,6 +855,7 @@ static void ide_write_sectors (struct ide_hdf *ide, int flags)
 	ide->data_offset = 0;
 	ide->data_size = nsec * ide->blocksize;
 	ide->direction = 1;
+	ide->buffer_offset = 0;
 	// write start: set DRQ and clear BSY. No interrupt.
 	ide->regs.ide_status |= IDE_STATUS_DRQ;
 	ide->regs.ide_status &= ~IDE_STATUS_BSY;
@@ -956,9 +983,9 @@ static uae_u16 ide_get_data_2(struct ide_hdf *ide, int bussize)
 		}
 	} else {
 		if (bussize) {
-			v = ide->secbuf[ide->data_offset + 1] | (ide->secbuf[ide->data_offset + 0] << 8);
+			v = ide->secbuf[ide->buffer_offset + ide->data_offset + 1] | (ide->secbuf[ide->buffer_offset + ide->data_offset + 0] << 8);
 		} else {
-			v = ide->secbuf[ide->data_offset];
+			v = ide->secbuf[ide->buffer_offset + ide->data_offset];
 		}
 		if (IDE_LOG > 4)
 			write_log (_T("IDE%d DATA read %04x\n"), ide->num, v);
@@ -968,8 +995,10 @@ static uae_u16 ide_get_data_2(struct ide_hdf *ide, int bussize)
 		} else {
 			ide->data_size -= inc;
 			if (((ide->data_offset % ide->blocksize) == 0) && ((ide->data_offset / ide->blocksize) % ide->data_multi) == 0) {
-				if (ide->data_size)
-					process_rw_command (ide);
+				if (ide->data_size) {
+					ide->buffer_offset += ide->data_offset;
+					do_process_rw_command(ide);
+				}
 			}
 		}
 		if (ide->data_size == 0) {
@@ -1006,11 +1035,20 @@ static void ide_put_data_2(struct ide_hdf *ide, uae_u16 v, int bussize)
 		return;
 	}
 	ide_grow_buffer(ide, ide->packet_data_offset + ide->data_offset + 2);
-	if (bussize) {
-		ide->secbuf[ide->packet_data_offset + ide->data_offset + 1] = v & 0xff;
-		ide->secbuf[ide->packet_data_offset + ide->data_offset + 0] = v >> 8;
+	if (ide->packet_state) {
+		if (bussize) {
+			ide->secbuf[ide->packet_data_offset + ide->data_offset + 1] = v & 0xff;
+			ide->secbuf[ide->packet_data_offset + ide->data_offset + 0] = v >> 8;
+		} else {
+			ide->secbuf[ide->packet_data_offset + ide->data_offset] = v;
+		}
 	} else {
-		ide->secbuf[ide->packet_data_offset + ide->data_offset] = v;
+		if (bussize) {
+			ide->secbuf[ide->buffer_offset + ide->data_offset + 1] = v & 0xff;
+			ide->secbuf[ide->buffer_offset + ide->data_offset + 0] = v >> 8;
+		} else {
+			ide->secbuf[ide->buffer_offset + ide->data_offset] = v;
+		}
 	}
 	ide->data_offset += inc;
 	ide->data_size -= inc;
@@ -1026,7 +1064,9 @@ static void ide_put_data_2(struct ide_hdf *ide, uae_u16 v, int bussize)
 		if (ide->data_size == 0) {
 			process_rw_command (ide);
 		} else if (((ide->data_offset % ide->blocksize) == 0) && ((ide->data_offset / ide->blocksize) % ide->data_multi) == 0) {
-			process_rw_command (ide);
+			int off = ide->data_offset;
+			do_process_rw_command(ide);
+			ide->buffer_offset += off;
 		}
 	}
 }

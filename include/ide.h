@@ -61,6 +61,7 @@ struct ide_hdf
 
 	uae_u8 *secbuf;
 	int secbuf_size;
+	int buffer_offset;
 	int data_offset;
 	int data_size;
 	int data_multi;
@@ -68,6 +69,8 @@ struct ide_hdf
 	bool intdrq;
 	bool lba48;
 	bool lba48cmd;
+	uae_u64 start_lba;
+	int start_nsec;
 	uae_u8 multiple_mode;
 	int irq_delay;
 	int irq;

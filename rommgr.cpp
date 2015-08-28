@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 145
+#define NEXT_ROM_ID 147
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -419,10 +419,16 @@ static struct romdata roms[] = {
 	0xe8201bad, 0xdefea015,0x596fce32,0x11e84397,0x23046a31,0x5a7726dc, NULL, NULL },
 	{ _T("Masoboshi MC-702"), 2, 201, 2, 201, _T("MASOBOSHI\0"), 32768, 120, 0, 0, ROMTYPE_MASOBOSHI, 0, 0, NULL,
 	0xcd99b98a, 0x3897e46a,0x66d5833f,0x849b8e81,0x30acb3cb,0x319a2fa0, NULL, NULL },
-	{ _T("Roctec RocHard RH800C"), 1, 0, 1, 0, _T("ROCHARD\0"), 16384, 138, 0, 0, ROMTYPE_ROCHARD, 0, 0, NULL,
+	{ _T("Roctec RocHard RH800C v1"), 1, 0, 1, 0, _T("ROCHARD\0"), 16384, 138, 0, 0, ROMTYPE_ROCHARD, 0, 0, NULL,
 	0x0e980aec, 0xbcafa14d,0xe80576cb,0xe3e0c638,0x1ca90379,0xe078a8bd, NULL, NULL },
 	ALTROMPN(138, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xde3a855b, 0xda2fe069, 0xd78c9ccc, 0xc221711f, 0x1e598298, 0x2bdabffd)
 	ALTROMPN(138, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xb0ed3006, 0x0a88d84e, 0x2094f9e5, 0x18d37f90, 0x34764f22, 0x9696c3d9)
+	{ _T("Roctec RocHard RH800C v2"), 2, 0, 2, 0, _T("ROCHARD\0"), 16384, 146, 0, 0, ROMTYPE_ROCHARD, 0, 0, NULL,
+	0x5c27be3f, 0xacdb8bc7,0x64493f65,0x9da4c1e8,0x3005ceeb,0xced73dbc, NULL, NULL },
+	ALTROMPN(146, 1, 1, 8192, ROMTYPE_ODD |  ROMTYPE_8BIT, NULL, 0xc5b8f068, 0x6ada1205, 0x44d284d0, 0x326d68cb, 0x7a2d9fb4, 0x77f35852)
+	ALTROMPN(146, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xc88843cb, 0x3d7eb1b6, 0x8139b81b, 0x0665684c, 0x536ab3d0, 0x52a5dd9d)
+	{ _T("Apollo 500/2000"), 0, 0, 0, 0, _T("APOLLOHD\0"), 16384, 145, 0, 0, ROMTYPE_APOLLOHD, 0, 0, NULL,
+	0x931bad25, 0x24b4ee4c,0x129c7a93,0xf83ad570,0x66afd80c,0x4179f39c, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

@@ -552,6 +552,7 @@ struct uae_prefs {
 
 	int m68k_speed;
 	double m68k_speed_throttle;
+	double x86_speed_throttle;
 	int cpu_model;
 	int mmu_model;
 	int cpu060_revision;
@@ -673,6 +674,7 @@ struct uae_prefs {
 	TCHAR win32_guipage[32];
 	TCHAR win32_guiactivepage[32];
 	bool win32_filesystem_mangle_reserved_names;
+	bool right_control_is_right_win_key;
 #ifdef WITH_SLIRP
 	struct slirp_redir slirp_redirs[MAX_SLIRP_REDIRS]; 
 #endif

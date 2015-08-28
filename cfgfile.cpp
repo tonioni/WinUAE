@@ -1810,6 +1810,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_write_str (f, _T("cpu_speed"), p->m68k_speed < 0 ? _T("max") : _T("real"));
 	}
 	cfgfile_write (f, _T("cpu_throttle"), _T("%.1f"), p->m68k_speed_throttle);
+	cfgfile_dwrite(f, _T("cpu_x86_throttle"), _T("%.1f"), p->x86_speed_throttle);
 
 	/* do not reorder start */
 	write_compatibility_cpu(f, p);
@@ -4545,7 +4546,10 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		p->m68k_speed *= CYCLE_UNIT;
 		return 1;
 	}
-	if (cfgfile_doubleval (option, value, _T("cpu_throttle"), &p->m68k_speed_throttle)) {
+	if (cfgfile_doubleval(option, value, _T("cpu_throttle"), &p->m68k_speed_throttle)) {
+		return 1;
+	}
+	if (cfgfile_doubleval(option, value, _T("cpu_x86_throttle"), &p->x86_speed_throttle)) {
 		return 1;
 	}
 	if (cfgfile_intval (option, value, _T("finegrain_cpu_speed"), &p->m68k_speed, 1)) {
