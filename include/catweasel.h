@@ -1,3 +1,5 @@
+#ifndef UAE_CATWEASEL_H
+#define UAE_CATWEASEL_H
 
 #ifdef CATWEASEL
 
@@ -92,4 +94,6 @@ int catweasel_diskready(catweasel_drive *d);
 int catweasel_track0(catweasel_drive *d);
 
 
-#endif
+#endif /* CATWEASEL */
+
+#endif /* UAE_CATWEASEL_H */

@@ -6,10 +6,13 @@
 * Copyright 1995 Bernd Schmidt
 */
 
+#ifndef UAE_NEWCPU_H
+#define UAE_NEWCPU_H
+
+#include "uae/types.h"
 #include "readcpu.h"
 #include "machdep/m68k.h"
 #include "events.h"
-
 #ifdef WITH_SOFTFLOAT
 #include <softfloat.h>
 #endif
@@ -650,11 +653,11 @@ extern cpuop_func *cpufunctbl[65536] ASM_SYM_FOR_FUNC ("cpufunctbl");
 extern void flush_icache(uaecptr, int);
 extern void flush_icache_hard(uaecptr, int);
 extern void compemu_reset(void);
-extern bool check_prefs_changed_comp (void);
 #else
 #define flush_icache(uaecptr, int) do {} while (0)
 #define flush_icache_hard(uaecptr, int) do {} while (0)
 #endif
+bool check_prefs_changed_comp (void);
 extern void flush_dcache (uaecptr, int);
 extern void flush_mmu (uaecptr, int);
 
@@ -686,3 +689,5 @@ void cpu_semaphore_get(void);
 void cpu_semaphore_release(void);
 bool execute_other_cpu(int until);
 void execute_other_cpu_single(void);
+
+#endif /* UAE_NEWCPU_H */

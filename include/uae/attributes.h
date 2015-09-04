@@ -21,4 +21,6 @@
 #define UAE_PRINTF_FORMAT(f, a)
 #endif
 
+#define UAE_WPRINTF_FORMAT(f, a)
+
 #endif /* UAE_ATTRIBUTES_H */

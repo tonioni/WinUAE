@@ -5,6 +5,11 @@
   *
   */
 
+#ifndef UAE_IDENTIFY_H
+#define UAE_IDENTIFY_H
+
+#include "uae/types.h"
+
 struct mem_labels
 {
     const TCHAR *name;
@@ -32,3 +37,4 @@ extern const struct mem_labels int_labels[];
 extern const struct mem_labels trap_labels[];
 extern const struct customData custd[];
 
+#endif /* UAE_IDENTIFY_H */

@@ -6,6 +6,11 @@
   * (c) 1995 Bernd Schmidt
   */
 
+#ifndef UAE_BLITTER_H
+#define UAE_BLITTER_H
+
+#include "uae/types.h"
+
 struct bltinfo {
     int blitzero;
     int blitashift, blitbshift, blitdownashift, blitdownbshift;
@@ -60,3 +65,5 @@ extern uae_u32 blit_masktable[BLITTER_MAX_WORDS];
 #define BLIT_MODE_APPROXIMATE 0
 #define BLIT_MODE_COMPATIBLE 1
 #define BLIT_MODE_EXACT 2
+
+#endif /* UAE_BLITTER_H */

@@ -1,3 +1,7 @@
+#ifndef UAE_FLASHROM_H
+#define UAE_FLASHROM_H
+
+#include "uae/types.h"
 
 /* FLASH */
 
@@ -23,4 +27,4 @@ int eeprom_i2c_set(void *i2c, int line, int level);
 #define FLASHROM_EVERY_OTHER_BYTE_ODD 2
 #define FLASHROM_PARALLEL_EEPROM 4
 
-
+#endif /* UAE_FLASHROM_H */

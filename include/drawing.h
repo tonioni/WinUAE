@@ -4,6 +4,11 @@
 * Copyright 1996-1998 Bernd Schmidt
 */
 
+#ifndef UAE_DRAWING_H
+#define UAE_DRAWING_H
+
+#include "uae/types.h"
+
 #define SMART_UPDATE 1
 
 #ifdef SUPPORT_PENGUINS
@@ -289,6 +294,7 @@ extern void set_custom_limits (int w, int h, int dx, int dy);
 extern void check_custom_limits (void);
 extern void get_custom_topedge (int *x, int *y, bool max);
 extern void get_custom_raw_limits (int *pw, int *ph, int *pdx, int *pdy);
+void get_custom_mouse_limits (int *pw, int *ph, int *pdx, int *pdy, int dbl);
 extern void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq);
 extern void allocvidbuffer (struct vidbuffer *buf, int width, int height, int depth);
 extern void freevidbuffer (struct vidbuffer *buf);
@@ -315,3 +321,5 @@ STATIC_INLINE void toggle_inhibit_frame (int bit)
 {
 	inhibit_frame ^= 1 << bit;
 }
+
+#endif /* UAE_DRAWING_H */

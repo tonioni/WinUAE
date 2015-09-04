@@ -28,6 +28,6 @@ extern int arcadia_flag, arcadia_coin[2];
 #define ARCADIA_BIOS 1
 #define ARCADIA_GAME 2
 
-#endif
+#endif /* ARCADIA */
 
-#endif // UAE_ARCADIA_H
+#endif /* UAE_ARCADIA_H */

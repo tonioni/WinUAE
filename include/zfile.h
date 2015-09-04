@@ -9,6 +9,8 @@
 #ifndef UAE_ZFILE_H
 #define UAE_ZFILE_H
 
+#include "uae/types.h"
+
 struct zfile;
 struct zvolume;
 struct zdirectory;
@@ -153,4 +155,4 @@ struct mystat
 extern void timeval_to_amiga (struct mytimeval *tv, int* days, int* mins, int* ticks, int tickcount);
 extern void amiga_to_timeval (struct mytimeval *tv, int days, int mins, int ticks, int tickcount);
 
-#endif // UAE_ZFILE_H
+#endif /* UAE_ZFILE_H */

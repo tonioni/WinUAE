@@ -10,8 +10,10 @@
   * Copyright 1996 Ed Hanway
   */
 
-#ifndef TRAPS_H
-#define TRAPS_H
+#ifndef UAE_TRAPS_H
+#define UAE_TRAPS_H
+
+#include "uae/types.h"
 
 /*
  * Data passed to a trap handler
@@ -55,4 +57,4 @@ void init_extended_traps (void);
 #define deftrap2(f, mode, str) define_trap((f), (mode), (str))
 #define deftrapres(f, mode, str) define_trap((f), (mode | TRAPFLAG_UAERES), (str))
 
-#endif
+#endif /* UAE_TRAPS_H */

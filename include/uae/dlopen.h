@@ -17,6 +17,8 @@
 #define UAE_DLHANDLE void *
 #endif
 
+/* General loadable module support */
+
 UAE_DLHANDLE uae_dlopen(const TCHAR *path);
 void *uae_dlsym(UAE_DLHANDLE handle, const char *symbol);
 void uae_dlclose(UAE_DLHANDLE handle);

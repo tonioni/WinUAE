@@ -6,6 +6,11 @@
   * (c) 1996 Ed Hanway
   */
 
+#ifndef UAE_AUTOCONF_H
+#define UAE_AUTOCONF_H
+
+#include "uae/types.h"
+
 #define RTAREA_DEFAULT 0xf00000
 #define RTAREA_BACKUP  0xef0000
 #define RTAREA_BACKUP_2 0xdb0000
@@ -31,6 +36,7 @@ extern uaecptr makedatatable (uaecptr resid, uaecptr resname, uae_u8 type, uae_s
 extern void align (int);
 
 extern volatile int uae_int_requested, uaenet_int_requested;
+extern volatile int uaenet_vsync_requested;
 extern void set_uae_int_flag (void);
 
 #define RTS 0x4e75
@@ -101,7 +107,6 @@ extern bool expansion_is_next_board_fastram(void);
 extern void uaegfx_install_code (uaecptr);
 
 extern uae_u32 emulib_target_getcpurate (uae_u32, uae_u32*);
-
 
 typedef addrbank*(*DEVICE_INIT)(struct romconfig*);
 typedef void(*DEVICE_ADD)(int, struct uaedev_config_info*, struct romconfig*);
@@ -190,3 +195,5 @@ struct cpuboardtype
 	int defaultsubtype;
 };
 extern const struct cpuboardtype cpuboards[];
+
+#endif /* UAE_AUTOCONF_H */

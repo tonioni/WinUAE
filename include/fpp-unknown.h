@@ -8,6 +8,11 @@
   * Copyright 1996 Herman ten Brugge
   */
 
+#ifndef UAE_FPP_UNKNOWN_H
+#define UAE_FPP_UNKNOWN_H
+
+#include "uae/types.h"
+
 #ifndef HAVE_to_single
 STATIC_INLINE double to_single (uae_u32 value)
 {
@@ -137,3 +142,5 @@ STATIC_INLINE void from_double(double src, uae_u32 * wrd1, uae_u32 * wrd2)
     *wrd2 = (uae_u32) (frac * 9007199254740992.0 - tmp * 4294967296.0);
 }
 #endif
+
+#endif /* UAE_FPP_UNKNOWN_H */

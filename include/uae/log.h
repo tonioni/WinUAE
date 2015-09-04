@@ -6,8 +6,8 @@
  * See the file 'COPYING' for full license text.
  */
 
-#ifndef UAE_LOGGING_H
-#define UAE_LOGGING_H
+#ifndef UAE_LOG_H
+#define UAE_LOG_H
 
 /* This file is intended to be included by external libraries as well,
  * so don't pull in too much UAE-specific stuff. */
@@ -47,6 +47,10 @@ void uae_fatal(const char *format, ...) UAE_PRINTF_FORMAT(1, 2);
 
 /* Helpers to log use of stubbed functions */
 
+#ifdef _MSC_VER
+#define __func__ __FUNCTION__
+#endif
+
 #define UAE_LOG_STUB(format, ...) \
 { \
 	uae_log(" -- stub -- %s " format "\n", __func__, ##__VA_ARGS__); \
@@ -75,7 +79,7 @@ void uae_fatal(const char *format, ...) UAE_PRINTF_FORMAT(1, 2);
 
 void write_log (const char *, ...) UAE_PRINTF_FORMAT(1, 2);
 #if SIZEOF_TCHAR != 1
-void write_log (const TCHAR *, ...) UAE_PRINTF_FORMAT(1, 2);
+void write_log (const TCHAR *, ...) UAE_WPRINTF_FORMAT(1, 2);
 #endif
 
 #endif
@@ -91,4 +95,4 @@ void write_log (const TCHAR *, ...) UAE_PRINTF_FORMAT(1, 2);
 
 #endif
 
-#endif /* UAE_LOGGING_H */
+#endif /* UAE_LOG_H */

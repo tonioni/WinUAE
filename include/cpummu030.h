@@ -1,5 +1,7 @@
-#ifndef CPUMMU030_H
-#define CPUMMU030_H
+#ifndef UAE_CPUMMU030_H
+#define UAE_CPUMMU030_H
+
+#include "uae/types.h"
 
 #include "mmu_common.h"
 
@@ -470,4 +472,4 @@ extern void m68k_do_rte_mmu030 (uaecptr a7);
 extern void flush_mmu030 (uaecptr, int);
 extern void m68k_do_bsr_mmu030 (uaecptr oldpc, uae_s32 offset);
 
-#endif
+#endif /* UAE_CPUMMU030_H */

@@ -6,8 +6,10 @@
   * Copyright 1997 Bernd Schmidt
   */
 
-#ifndef FILESYS_H
-#define FILESYS_H
+#ifndef UAE_FILESYS_H
+#define UAE_FILESYS_H
+
+#include "uae/types.h"
 
 struct hardfilehandle;
 
@@ -156,4 +158,4 @@ extern void getchsgeometry (uae_u64 size, int *pcyl, int *phead, int *psectorspe
 extern void getchsgeometry_hdf (struct hardfiledata *hfd, uae_u64 size, int *pcyl, int *phead, int *psectorspertrack);
 extern void getchspgeometry (uae_u64 total, int *pcyl, int *phead, int *psectorspertrack, bool idegeometry);
 
-#endif /* MEMORY_H */
+#endif /* UAE_FILESYS_H */

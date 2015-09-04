@@ -34,9 +34,13 @@ typedef uint32_t uae_u32;
 #ifndef uae_s64
 typedef long long int uae_s64;
 #endif
-
 #ifndef uae_u64
 typedef unsigned long long int uae_u64;
+#endif
+
+#ifdef HAVE___UINT128_T
+#define HAVE_UAE_U128
+typedef __uint128_t uae_u128;
 #endif
 
 /* Parts of the UAE/WinUAE code uses the bool type (from C++).
@@ -78,9 +82,6 @@ typedef char TCHAR;
 #endif
 #endif
 
-#ifndef BOOL
-#define BOOL int
-#endif
 #ifndef FALSE
 #define FALSE 0
 #endif

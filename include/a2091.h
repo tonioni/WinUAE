@@ -1,6 +1,5 @@
-
-#ifndef A2091_H
-#define A2091_H
+#ifndef UAE_A2091_H
+#define UAE_A2091_H
 
 #ifdef A2091
 
@@ -147,6 +146,6 @@ extern int add_wd_scsi_hd (struct wd_state *wd, int ch, struct hd_hardfiledata *
 extern int add_wd_scsi_cd (struct wd_state *wd, int ch, int unitnum);
 extern int add_wd_scsi_tape (struct wd_state *wd, int ch, const TCHAR *tape_directory, bool readonly);
 
-#endif
+#endif /* A2091 */
 
-#endif /* A2091H */
+#endif /* UAE_A2091_H */

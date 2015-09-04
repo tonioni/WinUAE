@@ -7,6 +7,11 @@
   * Copyright 1997 Christian Schmitt <schmitt@freiburg.linux.de>
   */
 
+#ifndef UAE_SERIAL_H
+#define UAE_SERIAL_H
+
+#include "uae/types.h"
+
 extern void serial_init (void);
 extern void serial_exit (void);
 extern void serial_dtr_off (void);
@@ -29,7 +34,7 @@ extern void serial_flush_buffer (void);
 extern void serial_hsynchandler (void);
 extern void serial_check_irq (void);
 
-extern int uaeser_getdatalenght (void);
+extern int uaeser_getdatalength (void);
 extern int uaeser_getbytespending (void*);
 extern int uaeser_open (void*, void*, int);
 extern void uaeser_close (void*);
@@ -47,3 +52,5 @@ extern int enet_readseravail (void);
 extern int enet_readser (uae_u16 *buffer);
 extern int enet_open (TCHAR *name);
 extern void enet_close (void);
+
+#endif /* UAE_SERIAL_H */

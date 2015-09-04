@@ -1,6 +1,8 @@
 #ifndef UAE_BLKDEV_H
 #define UAE_BLKDEV_H
 
+#include "uae/types.h"
+
 #define DEVICE_SCSI_BUFSIZE (65536 - 1024)
 
 #define SCSI_UNIT_DISABLED -1

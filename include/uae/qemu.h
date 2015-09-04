@@ -4,13 +4,14 @@
 /* This file is intended to be included by external libraries as well,
  * so don't pull in too much UAE-specific stuff. */
 
+#include "uae/types.h"
 #include "uae/api.h"
 
 /* The qemu-uae major version must match this */
 #define QEMU_UAE_VERSION_MAJOR 3
 
 /* The qemu-uae minor version must be at least this */
-#define QEMU_UAE_VERSION_MINOR 4
+#define QEMU_UAE_VERSION_MINOR 5
 
 UAE_DECLARE_IMPORT_FUNCTION(
 	void, qemu_uae_version, int *major, int *minor, int *revision)

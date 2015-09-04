@@ -2217,7 +2217,7 @@ uae_s32 getz2size (struct uae_prefs *p)
 	return start;
 }
 
-ULONG getz2endaddr (void)
+uae_u32 getz2endaddr (void)
 {
 	ULONG start;
 	start = currprefs.fastmem_size;

@@ -7,6 +7,11 @@
   * Copyright 1999 Bernd Schmidt
   */
 
+#ifndef UAE_FSDB_H
+#define UAE_FSDB_H
+
+#include "uae/types.h"
+
 #ifndef FSDB_FILE
 #define FSDB_FILE _T("_UAEFSDB.___")
 #endif
@@ -85,9 +90,9 @@ typedef struct a_inode_struct {
     uae_u32 uniq;
     /* For a directory that is being ExNext()ed, the number of child ainos
        which must be kept locked in core.  */
-    unsigned long locked_children;
+    unsigned int locked_children;
     /* How many ExNext()s are going on in this directory?  */
-    unsigned long exnext_count;
+    unsigned int exnext_count;
     /* AmigaOS locking bits.  */
     int shlock;
     long db_offset;
@@ -192,3 +197,5 @@ extern int custom_fsdb_used_as_nname (a_inode *base, const TCHAR *nname);
 #define MYVOLUMEINFO_CDFS 16
 
 extern int my_getvolumeinfo (const TCHAR *root);
+
+#endif /* UAE_FSDB_H */

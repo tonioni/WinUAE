@@ -557,7 +557,7 @@ struct uaeserialdatawin32
 	void *user;
 };
 
-int uaeser_getdatalenght (void)
+int uaeser_getdatalength (void)
 {
 	return sizeof (struct uaeserialdatawin32);
 }

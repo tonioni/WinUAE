@@ -1,3 +1,6 @@
+#ifndef UAE_RTGMODES_H
+#define UAE_RTGMODES_H
+
 /* Types for RGBFormat used */
 typedef enum {
     RGBFB_NONE,		/* no valid RGB format (should not happen) */
@@ -63,3 +66,5 @@ typedef enum {
 
 #define	RGBFB_PLANAR	RGBFB_NONE
 #define	RGBFB_CHUNKY	RGBFB_CLUT
+
+#endif /* UAE_RTGMODES_H */

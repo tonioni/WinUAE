@@ -23,8 +23,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef NATIVE_FLAGS_X86_H
-#define NATIVE_FLAGS_X86_H
+#ifndef UAE_FLAGS_X86_H
+#define UAE_FLAGS_X86_H
 
 /* Native integer code conditions */
 enum {
@@ -44,4 +44,4 @@ enum {
 	NATIVE_CC_LE = 14
 };
 
-#endif /* NATIVE_FLAGS_X86_H */
+#endif /* UAE_FLAGS_X86_H */
