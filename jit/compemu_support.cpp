@@ -10,7 +10,7 @@
 
 #include "options.h"
 #include "events.h"
-#include "include/memory.h"
+#include "memory.h"
 #include "custom.h"
 #include "newcpu.h"
 #include "comptbl.h"
@@ -21,7 +21,7 @@
 
 // %%% BRIAN KING WAS HERE %%%
 extern bool canbang;
-#include <sys/mman.h>
+//#include <sys/mman.h>
 extern void jit_abort(const TCHAR*,...);
 compop_func *compfunctbl[65536];
 compop_func *nfcompfunctbl[65536];
@@ -5007,15 +5007,6 @@ STATIC_INLINE void writemem(int address, int source, int offset, int size, int t
 void writebyte(int address, int source, int tmp)
 {
 	int distrust = currprefs.comptrustbyte;
-#if 0
-	switch (currprefs.comptrustbyte) {
-	case 0: distrust=0; break;
-	case 1: distrust=1; break;
-	case 2: distrust=((start_pc&0xF80000)==0xF80000); break;
-	case 3: distrust=!have_done_picasso; break;
-	default: abort();
-	}
-#endif
 	if ((special_mem&S_WRITE) || distrust)
 		writemem_special(address,source,20,1,tmp);
 	else
@@ -5026,15 +5017,6 @@ STATIC_INLINE void writeword_general(int address, int source, int tmp,
 	int clobber)
 {
 	int distrust = currprefs.comptrustword;
-#if 0
-	switch (currprefs.comptrustword) {
-	case 0: distrust=0; break;
-	case 1: distrust=1; break;
-	case 2: distrust=((start_pc&0xF80000)==0xF80000); break;
-	case 3: distrust=!have_done_picasso; break;
-	default: abort();
-	}
-#endif
 	if ((special_mem&S_WRITE) || distrust)
 		writemem_special(address,source,16,2,tmp);
 	else
@@ -5055,15 +5037,6 @@ STATIC_INLINE void writelong_general(int address, int source, int tmp,
 	int clobber)
 {
 	int  distrust = currprefs.comptrustlong;
-#if 0
-	switch (currprefs.comptrustlong) {
-	case 0: distrust=0; break;
-	case 1: distrust=1; break;
-	case 2: distrust=((start_pc&0xF80000)==0xF80000); break;
-	case 3: distrust=!have_done_picasso; break;
-	default: abort();
-	}
-#endif
 	if ((special_mem&S_WRITE) || distrust)
 		writemem_special(address,source,12,4,tmp);
 	else
@@ -5137,15 +5110,6 @@ STATIC_INLINE void readmem(int address, int dest, int offset, int size, int tmp)
 void readbyte(int address, int dest, int tmp)
 {
 	int distrust = currprefs.comptrustbyte;
-#if 0
-	switch (currprefs.comptrustbyte) {
-	case 0: distrust=0; break;
-	case 1: distrust=1; break;
-	case 2: distrust=((start_pc&0xF80000)==0xF80000); break;
-	case 3: distrust=!have_done_picasso; break;
-	default: abort();
-	}
-#endif
 	if ((special_mem&S_READ) || distrust)
 		readmem_special(address,dest,8,1,tmp);
 	else
@@ -5155,15 +5119,6 @@ void readbyte(int address, int dest, int tmp)
 void readword(int address, int dest, int tmp)
 {
 	int distrust = currprefs.comptrustword;
-#if 0
-	switch (currprefs.comptrustword) {
-	case 0: distrust=0; break;
-	case 1: distrust=1; break;
-	case 2: distrust=((start_pc&0xF80000)==0xF80000); break;
-	case 3: distrust=!have_done_picasso; break;
-	default: abort();
-	}
-#endif
 	if ((special_mem&S_READ) || distrust)
 		readmem_special(address,dest,4,2,tmp);
 	else
@@ -5173,15 +5128,6 @@ void readword(int address, int dest, int tmp)
 void readlong(int address, int dest, int tmp)
 {
 	int distrust = currprefs.comptrustlong;
-#if 0
-	switch (currprefs.comptrustlong) {
-	case 0: distrust=0; break;
-	case 1: distrust=1; break;
-	case 2: distrust=((start_pc&0xF80000)==0xF80000); break;
-	case 3: distrust=!have_done_picasso; break;
-	default: abort();
-	}
-#endif
 	if ((special_mem&S_READ) || distrust)
 		readmem_special(address,dest,0,4,tmp);
 	else
@@ -5220,15 +5166,6 @@ STATIC_INLINE void get_n_addr_real(int address, int dest, int tmp)
 void get_n_addr(int address, int dest, int tmp)
 {
 	int distrust = currprefs.comptrustnaddr;
-#if 0
-	switch (currprefs.comptrustnaddr) {
-	case 0: distrust=0; break;
-	case 1: distrust=1; break;
-	case 2: distrust=((start_pc&0xF80000)==0xF80000); break;
-	case 3: distrust=!have_done_picasso; break;
-	default: abort();
-	}
-#endif
 	if (special_mem || distrust)
 		get_n_addr_old(address,dest,tmp);
 	else
@@ -5669,10 +5606,7 @@ void build_comp(void)
 #endif
 	raw_init_cpu();
 #ifdef NATMEM_OFFSET
-	write_log (_T("JIT: Setting signal handler\n"));
-#ifndef _WIN32
-	signal(SIGSEGV,vec);
-#endif
+	install_exception_handler();
 #endif
 	write_log (_T("JIT: Building Compiler function table\n"));
 	for (opcode = 0; opcode < 65536; opcode++) {
