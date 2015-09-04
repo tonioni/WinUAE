@@ -1,11 +1,12 @@
+#ifndef UAE_ISOFS_H
+#define UAE_ISOFS_H
 
-#ifndef _ISOFS_FS_H
-#define _ISOFS_FS_H
+#include "uae/types.h"
 
-#ifdef WINDOWS
-typedef int gid_t;
-typedef int uid_t;
-#endif
+typedef int isofs_gid_t;
+typedef int isofs_uid_t;
+typedef int isofs_mode_t;
+typedef uae_s64 isofs_off_t;
 
 #define ISO_SYSTEM_ID_CDTV "CDTV"
 
@@ -187,7 +188,7 @@ struct iso_inode_info {
 	unsigned char i_format_parm[3];
 	unsigned long i_next_section_block;
 	unsigned long i_next_section_offset;
-	off_t i_section_size;
+	isofs_off_t i_section_size;
 	//struct inode vfs_inode;
 };
 
@@ -216,10 +217,10 @@ struct isofs_sb_info {
 	unsigned int  s_uid_set:1;
 	unsigned int  s_gid_set:1;
 
-	mode_t s_fmode;
-	mode_t s_dmode;
-	gid_t s_gid;
-	uid_t s_uid;
+	isofs_mode_t s_fmode;
+	isofs_mode_t s_dmode;
+	isofs_gid_t s_gid;
+	isofs_uid_t s_uid;
 	//struct nls_table *s_nls_iocharset; /* Native language support table */
 	unsigned int s_cdtv:1;
 };
@@ -239,10 +240,10 @@ struct iso9660_options{
 	unsigned char map;
 	unsigned char check;
 	unsigned int blocksize;
-	mode_t fmode;
-	mode_t dmode;
-	gid_t gid;
-	uid_t uid;
+	isofs_mode_t fmode;
+	isofs_mode_t dmode;
+	isofs_gid_t gid;
+	isofs_uid_t uid;
 	char *iocharset;
 	/* LVE */
 	uae_s32 session;
@@ -383,4 +384,4 @@ struct rock_ridge {
 
 # pragma pack ()
 
-#endif /* _ISOFS_FS_H */
+#endif /* UAE_ISOFS_H */

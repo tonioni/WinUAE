@@ -1,12 +1,11 @@
-
 /*
-* UAE - The Un*x Amiga Emulator
-*
-* Linux isofs/UAE filesystem wrapper
-*
-* Copyright 2012 Toni Wilen
-*
-*/
+ * UAE - The Un*x Amiga Emulator
+ *
+ * Linux isofs/UAE filesystem wrapper
+ *
+ * Copyright 2012 Toni Wilen
+ *
+ */
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -14,6 +13,7 @@
 #include "options.h"
 #include "blkdev.h"
 #include "isofs_api.h"
+#include "uae/string.h"
 #include "zfile.h"
 
 #include "isofs.h"
@@ -23,7 +23,7 @@
 #define HASH_SIZE 65536
 
 #define CD_BLOCK_SIZE 2048
-#define ISOFS_INVALID_MODE -1
+#define ISOFS_INVALID_MODE ((isofs_mode_t) -1)
 
 #define ISOFS_I(x) (&x->ei)
 #define ISOFS_SB(x) (&x->ei)
@@ -50,8 +50,8 @@ struct inode
 {
 	struct inode *next;
 	uae_u32 i_mode;
-	uid_t i_uid;
-	gid_t i_gid;
+	isofs_uid_t i_uid;
+	isofs_gid_t i_gid;
 	uae_u32 i_ino;
 	uae_u32 i_size;
 	uae_u32 i_blocks;
@@ -124,10 +124,11 @@ static void unlock_inode(struct inode *inode)
 
 static void iput(struct inode *inode)
 {
-	struct super_block *sb = inode->i_sb;
-
 	if (!inode || inode->linked)
 		return;
+
+	struct super_block *sb = inode->i_sb;
+
 #if 0
 	struct inode *in;
 	while (inode->i_sb->inode_cnt > MAX_CACHE_INODE_COUNT) {
@@ -511,7 +512,7 @@ out_nomem:
 	return -ENOMEM;
 
 out_noread:
-	write_log (_T("ISOFS: unable to read i-node block %u\n"), block);
+	write_log (_T("ISOFS: unable to read i-node block %lu\n"), block);
 	xfree(tmpde);
 	return -EIO;
 
@@ -600,6 +601,8 @@ static int isofs_read_inode(struct inode *inode)
 		ret = isofs_read_level3_size(inode);
 		if (ret < 0)
 			goto fail;
+		// FIXME: this value is never used (?), because it is overwritten
+		// with ret = 0 further down.
 		ret = -EIO;
 	} else {
 		ei->i_next_section_block = 0;
@@ -899,7 +902,7 @@ static int rock_check_overflow(struct rock_state *rs, int sig)
 /*
  * return length of name field; 0: not found, -1: to be ignored
  */
-int get_rock_ridge_filename(struct iso_directory_record *de,
+static int get_rock_ridge_filename(struct iso_directory_record *de,
 			    char *retname, struct inode *inode)
 {
 	struct rock_state rs;
@@ -1851,8 +1854,8 @@ root_found:
 	first_data_zone = isonum_733(rootp->extent) + isonum_711(rootp->ext_attr_length);
 	sbi->s_firstdatazone = first_data_zone;
 
-	write_log (_T("ISOFS: Max size:%d   Log zone size:%d\n"), sbi->s_max_size, 1UL << sbi->s_log_zone_size);
-	write_log (_T("ISOFS: First datazone:%d\n"), sbi->s_firstdatazone);
+	write_log (_T("ISOFS: Max size:%ld   Log zone size:%ld\n"), sbi->s_max_size, 1UL << sbi->s_log_zone_size);
+	write_log (_T("ISOFS: First datazone:%ld\n"), sbi->s_firstdatazone);
 	if(sbi->s_high_sierra)
 		write_log(_T("ISOFS: Disc in High Sierra format.\n"));
 	ch = getname(pri->system_id, 4);
@@ -2012,7 +2015,7 @@ out_no_read:
 	write_log (_T("ISOFS: bread failed, dev=%d, iso_blknum=%d, block=%d\n"), s->unitnum, iso_blknum, block);
 	goto out_freebh;
 out_bad_zone_size:
-	write_log(_T("ISOFS: Bad logical zone size %d\n"), sbi->s_log_zone_size);
+	write_log(_T("ISOFS: Bad logical zone size %ld\n"), sbi->s_log_zone_size);
 	goto out_freebh;
 out_bad_size:
 	write_log (_T("ISOFS: Logical zone size(%d) < hardware blocksize(%u)\n"), orig_zonesize, opt.blocksize);
@@ -2149,7 +2152,7 @@ static struct inode *isofs_find_entry(struct inode *dir, char *tmpname, TCHAR *t
 		dpnt = de->name;
 		/* Basic sanity check, whether name doesn't exceed dir entry */
 		if (de_len < dlen + sizeof(struct iso_directory_record)) {
-			write_log (_T("iso9660: Corrupted directory entry in block %u of inode %u\n"), block, dir->i_ino);
+			write_log (_T("iso9660: Corrupted directory entry in block %lu of inode %u\n"), block, dir->i_ino);
 			return 0;
 		}
 
@@ -2190,7 +2193,7 @@ static struct inode *isofs_find_entry(struct inode *dir, char *tmpname, TCHAR *t
 }
 
 /* Acorn extensions written by Matthew Wilcox <willy@bofh.ai> 1998 */
-int get_acorn_filename(struct iso_directory_record *de, char *retname, struct inode *inode)
+static int get_acorn_filename(struct iso_directory_record *de, char *retname, struct inode *inode)
 {
 	int std;
 	unsigned char *chr;
@@ -2292,7 +2295,7 @@ static int do_isofs_readdir(struct inode *inode, struct file *filp, char *tmpnam
 		}
 		/* Basic sanity check, whether name doesn't exceed dir entry */
 		if (de_len < de->name_len[0] + sizeof(struct iso_directory_record)) {
-			write_log (_T("iso9660: Corrupted directory entry in block %u of inode %u\n"), block, inode->i_ino);
+			write_log (_T("iso9660: Corrupted directory entry in block %lu of inode %u\n"), block, inode->i_ino);
 			return 0;
 		}
 
@@ -2363,12 +2366,18 @@ static int do_isofs_readdir(struct inode *inode, struct file *filp, char *tmpnam
 		filp->f_pos += de_len;
 		if (len > 0) {
 			if (jname == NULL) {
-				char t = p[len];
-				p[len] = 0;
-				au_copy (outname, 1000, p);
-				p[len] = t;
+				if (p == NULL) {
+					write_log(_T("ISOFS: no name copied (p == NULL)\n"));
+					outname[0] = _T('\0');
+				}
+				else {
+					char t = p[len];
+					p[len] = 0;
+					au_copy (outname, MAX_DPATH, p);
+					p[len] = t;
+				}
 			} else {
-				_tcscpy (outname, jname);
+				uae_tcslcpy (outname, jname, MAX_DPATH);
 				xfree (jname);
 			}
 			dinode = isofs_iget(inode->i_sb, bh_block, offset_saved, outname);
@@ -2442,11 +2451,11 @@ bool isofs_mediainfo(void *sbp, struct isofs_info *ii)
 		_stprintf (ii->devname, _T("CD%d"), sb->unitnum);
 		if (sys_command_info (sb->unitnum, &di, true)) {
 			totalblocks = di.cylinders * di.sectorspertrack * di.trackspercylinder;
-			_tcscpy (ii->devname, di.label);
+			uae_tcslcpy (ii->devname, di.label, sizeof (ii->devname));
 		}
 		ii->unknown_media = sb->unknown_media;
 		if (sb->root) {
-			_tcscpy (ii->volumename, sb->root->name);
+			uae_tcslcpy (ii->volumename, sb->root->name, sizeof(ii->volumename));
 			ii->blocks = sbi->s_max_size;
 			ii->totalblocks = totalblocks ? totalblocks : ii->blocks;
 			ii->creation = sb->root->i_ctime.tv_sec;
@@ -2573,7 +2582,7 @@ struct cd_openfile_s
 {
 	struct super_block *sb;
 	struct inode *inode;
-	uae_u64 seek;
+	uae_s64 seek;
 };
 
 struct cd_openfile_s *isofs_openfile(void *sbp, uae_u64 uniq, int flags)
