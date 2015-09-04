@@ -2035,6 +2035,10 @@ static struct zfile *board_rom_open(int *roms, const TCHAR *name)
 	if (rl)
 		zf = read_rom(rl->rd);
 	if (!zf && name) {
+		zf = zfile_fopen(name, _T("rb"), ZFD_NORMAL);
+		if (zf) {
+			return zf;
+		}
 		TCHAR path[MAX_DPATH];
 		fetch_rompath(path, sizeof path / sizeof(TCHAR));
 		_tcscat(path, name);
