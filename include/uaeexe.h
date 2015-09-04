@@ -4,6 +4,11 @@
  *  (c) 1997 by Samuel Devulder
  */
 
+#ifndef UAE_UAEEXE_H
+#define UAE_UAEEXE_H
+
+#include "uae/types.h"
+
 struct uae_xcmd {
     struct uae_xcmd *prev, *next;
     TCHAR *cmd;
@@ -18,4 +23,4 @@ struct uae_xcmd {
 extern void uaeexe_install (void);
 extern int uaeexe (const TCHAR *cmd);
 
-
+#endif /* UAE_UAEEXE_H */

@@ -1,3 +1,7 @@
+#ifndef UAE_CDTV_H
+#define UAE_CDTV_H
+
+#include "uae/types.h"
 
 #ifdef CDTV
 
@@ -25,5 +29,6 @@ extern void cdtv_scsi_clear_int (void);
 
 extern bool cdtv_front_panel (int);
 
-#endif
+#endif /* CDTV */
 
+#endif /* UAE_CDTV_H */

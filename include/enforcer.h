@@ -1,9 +1,9 @@
-#ifndef UAE__ENFORCER_H
-#define UAE__ENFORCER_H
+#ifndef UAE_ENFORCER_H
+#define UAE_ENFORCER_H
 
 int enforcer_enable(int);
 int enforcer_disable(void);
 
 extern int enforcermode;
 
-#endif
+#endif /* UAE_ENFORCER_H */

@@ -6,6 +6,10 @@
   * Copyright 1995-1997 Bernd Schmidt
   */
 
+#ifndef UAE_XWIN_H
+#define UAE_XWIN_H
+
+#include "uae/types.h"
 #include "machdep/rpt.h"
 
 typedef uae_u32 xcolnr;
@@ -27,7 +31,10 @@ extern void setup_brkhandler (void);
 extern int isfullscreen (void);
 extern void toggle_fullscreen (int);
 extern bool toggle_rtg (int);
+
 extern void toggle_mousegrab (void);
+void setmouseactivexy (int x, int y, int dir);
+
 extern void desktop_coords (int *dw, int *dh, int *x, int *y, int *w, int *h);
 extern bool vsync_switchmode (int);
 extern frame_time_t vsync_busywait_end (int*);
@@ -54,9 +61,13 @@ extern int lockscr (struct vidbuffer*, bool);
 extern void unlockscr (struct vidbuffer*);
 extern bool target_graphics_buffer_update (void);
 
+void getgfxoffset (float *dxp, float *dyp, float *mxp, float *myp);
+double getcurrentvblankrate (void); /* todo: remove from od-win32/win32gfx.h */
+
 extern int debuggable (void);
 extern void LED (int);
 extern void screenshot (int,int);
+void refreshtitle (void);
 
 extern int bits_in_mask (unsigned long mask);
 extern int mask_shift (unsigned long mask);
@@ -161,3 +172,4 @@ extern struct vidbuf_description gfxvidinfo;
 extern struct bstring *video_mode_menu;
 extern void vidmode_menu_selected(int);
 
+#endif /* UAE_XWIN_H */

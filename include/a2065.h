@@ -1,3 +1,5 @@
+#ifndef UAE_A2065_H
+#define UAE_A2065_H
 
 #ifdef A2065
 
@@ -10,3 +12,4 @@ extern void rethink_a2065 (void);
 
 #endif
 
+#endif /* UAE_A2065_H */

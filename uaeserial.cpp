@@ -277,7 +277,7 @@ static uae_u32 REGPARAM2 dev_open (TrapContext *context)
 	if (i == MAX_TOTAL_DEVICES)
 		return openfail (ioreq, IOERR_OPENFAIL);
 	dev = &devst[i];
-	dev->sysdata = xcalloc (uae_u8, uaeser_getdatalenght ());
+	dev->sysdata = xcalloc (uae_u8, uaeser_getdatalength ());
 	if (!uaeser_open (dev->sysdata, dev, unit)) {
 		xfree (dev->sysdata);
 		return openfail (ioreq, IOERR_OPENFAIL);

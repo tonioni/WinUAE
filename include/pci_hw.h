@@ -1,4 +1,7 @@
+#ifndef UAE_PCI_HW_H
+#define UAE_PCI_HW_H
 
+#include "uae/types.h"
 
 #define MAX_PCI_BOARDS 6
 #define MAX_PCI_BARS 7
@@ -120,3 +123,5 @@ extern const struct pci_board es1370_pci_board;
 extern const struct pci_board fm801_pci_board;
 extern const struct pci_board fm801_pci_board_func1;
 extern const struct pci_board solo1_pci_board;
+
+#endif /* UAE_PCI_HW_H */

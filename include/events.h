@@ -1,6 +1,3 @@
-#ifndef EVENTS_H
-#define EVENTS_H
-
  /*
   * UAE - The Un*x Amiga Emulator
   *
@@ -11,6 +8,11 @@
   *
   * Copyright 1995-1998 Bernd Schmidt
   */
+
+#ifndef UAE_EVENTS_H
+#define UAE_EVENTS_H
+
+#include "uae/types.h"
 
 #undef EVENT_DEBUG
 
@@ -153,5 +155,4 @@ STATIC_INLINE void event2_remevent (int no)
 	eventtab2[no].active = 0;
 }
 
-
-#endif
+#endif /* UAE_EVENTS_H */

@@ -10,6 +10,8 @@
 #ifndef UAE_OPTIONS_H
 #define UAE_OPTIONS_H
 
+#include "uae/types.h"
+
 #define UAEMAJOR 3
 #define UAEMINOR 2
 #define UAESUBREV 0
@@ -676,7 +678,7 @@ struct uae_prefs {
 	bool win32_filesystem_mangle_reserved_names;
 	bool right_control_is_right_win_key;
 #ifdef WITH_SLIRP
-	struct slirp_redir slirp_redirs[MAX_SLIRP_REDIRS]; 
+	struct slirp_redir slirp_redirs[MAX_SLIRP_REDIRS];
 #endif
 	int statecapturerate, statecapturebuffersize;
 

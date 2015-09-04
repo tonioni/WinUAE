@@ -6,9 +6,10 @@
 * (c) 1995 Bernd Schmidt
 */
 
-#ifndef CUSTOM_H
-#define CUSTOM_H
+#ifndef UAE_CUSTOM_H
+#define UAE_CUSTOM_H
 
+#include "uae/types.h"
 #include "machdep/rpt.h"
 
 /* These are the masks that are ORed together in the chipset_mask option.
@@ -238,5 +239,6 @@ extern int current_maxvpos (void);
 extern struct chipset_refresh *get_chipset_refresh (void);
 extern void compute_framesync (void);
 extern void getsyncregisters(uae_u16 *phsstrt, uae_u16 *phsstop, uae_u16 *pvsstrt, uae_u16 *pvsstop);
+int is_bitplane_dma (int hpos);
 
-#endif /* CUSTOM_H */
+#endif /* UAE_CUSTOM_H */

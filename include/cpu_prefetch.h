@@ -1,3 +1,7 @@
+#ifndef UAE_CPU_PREFETCH_H
+#define UAE_CPU_PREFETCH_H
+
+#include "uae/types.h"
 
 #ifdef CPUEMU_20
 
@@ -502,3 +506,5 @@ STATIC_INLINE uae_u32 get_disp_ea_000 (uae_u32 base, uae_u32 dp)
 		regd = (uae_s32)(uae_s16)regd;
 	return base + (uae_s8)dp + regd;
 }
+
+#endif /* UAE_CPU_PREFETCH_H */

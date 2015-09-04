@@ -1,3 +1,7 @@
+#ifndef UAE_GAYLE_H
+#define UAE_GAYLE_H
+
+#include "uae/types.h"
 
 extern void gayle_reset (int);
 extern void gayle_hsync (void);
@@ -18,3 +22,5 @@ extern int gary_timeout; // non-existing memory access = delay
 #define PCMCIA_COMMON_SIZE 0x400000
 
 extern void gayle_dataflyer_enable(bool);
+
+#endif /* UAE_GAYLE_H */

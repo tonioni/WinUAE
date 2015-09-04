@@ -1,3 +1,8 @@
+#ifndef UAE_IDECONTROLLERS_H
+#define UAE_IDECONTROLLERS_H
+
+#include "uae/types.h"
+
 // Other IDE controllers
 
 void idecontroller_free(void);
@@ -45,3 +50,5 @@ addrbank *x86_at_hd_init_2(struct romconfig *rc);
 void x86_add_at_hd_unit_2(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 addrbank *x86_at_hd_init_xt(struct romconfig *rc);
 void x86_add_at_hd_unit_xt(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+#endif /* UAE_IDECONTROLLERS_H */

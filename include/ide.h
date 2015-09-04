@@ -1,3 +1,7 @@
+#ifndef UAE_IDE_H
+#define UAE_IDE_H
+
+#include "uae/types.h"
 
 /* IDE drive registers */
 #define IDE_DATA	0x00
@@ -130,30 +134,32 @@ uae_u8 *ide_save_state(uae_u8 *dst, struct ide_hdf *ide);
 uae_u8 *ide_restore_state(uae_u8 *src, struct ide_hdf *ide);
 
 #define IDE_MEMORY_FUNCTIONS(x, y, z) \
-static void REGPARAM2 x ## _bput(uaecptr addr, uae_u32 b) \
+void REGPARAM2 x ## _bput(uaecptr addr, uae_u32 b) \
 { \
-	y ## _write_byte(## z, addr, b); \
+	y ## _write_byte(z, addr, b); \
 } \
-static void REGPARAM2 x ## _wput(uaecptr addr, uae_u32 b) \
+void REGPARAM2 x ## _wput(uaecptr addr, uae_u32 b) \
 { \
-	y ## _write_word(## z, addr, b); \
+	y ## _write_word(z, addr, b); \
 } \
-static void REGPARAM2 x ## _lput(uaecptr addr, uae_u32 b) \
+void REGPARAM2 x ## _lput(uaecptr addr, uae_u32 b) \
 { \
-	y ## _write_word(## z, addr, b >> 16); \
-	y ## _write_word(## z, addr + 2, b); \
+	y ## _write_word(z, addr, b >> 16); \
+	y ## _write_word(z, addr + 2, b); \
 } \
-static uae_u32 REGPARAM2 x ## _bget(uaecptr addr) \
+uae_u32 REGPARAM2 x ## _bget(uaecptr addr) \
 { \
-return y ## _read_byte(## z, addr); \
+return y ## _read_byte(z, addr); \
 } \
-static uae_u32 REGPARAM2 x ## _wget(uaecptr addr) \
+uae_u32 REGPARAM2 x ## _wget(uaecptr addr) \
 { \
-return y ## _read_word(## z, addr); \
+return y ## _read_word(z, addr); \
 } \
-static uae_u32 REGPARAM2 x ## _lget(uaecptr addr) \
+uae_u32 REGPARAM2 x ## _lget(uaecptr addr) \
 { \
-	uae_u32 v = y ## _read_word(## z, addr) << 16; \
-	v |= y ## _read_word(## z, addr + 2); \
+	uae_u32 v = y ## _read_word(z, addr) << 16; \
+	v |= y ## _read_word(z, addr + 2); \
 	return v; \
 }
+
+#endif /* UAE_IDE_H */

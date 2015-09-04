@@ -6,15 +6,27 @@
 * Copyright 2013-2014 Frode Solheim
 */
 
-#ifndef _UAE_UNI_COMMON_H_
-#define _UAE_UNI_COMMON_H_
+#ifndef UAE_UNI_COMMON_H
+#define UAE_UNI_COMMON_H
 
 #define UNI_VERSION 1
 
 #ifndef UNI_MIN_VERSION
 // MIN_UNI_VERSION decides which callback functions are declared available.
-// The default, unless overriden is to required the current UNI version.
+// The default, unless overridden is to require the current UNI version.
 #define UNI_MIN_VERSION UNI_VERSION
+#endif
+
+#ifdef _WIN32
+#ifdef UNI_IMPORT
+#define UNIAPI __declspec(dllimport)
+#else
+#define UNIAPI __declspec(dllexport)
+#endif
+#define UNICALL __cdecl
+#else
+#define UNIAPI
+#define UNICALL
 #endif
 
 #define UNI_ERROR_NOT_ENABLED            0x70000001
@@ -29,22 +41,27 @@
 #define UNI_ERROR_INIT_FAILED            0x70000009
 #define UNI_ERROR_INTERFACE_TOO_OLD      0x7000000a
 
-// these errors are only return from the Amiga-side uni wrappers
+// these errors are only returned from the Amiga-side uni wrappers
 #define UNI_ERROR_AMIGALIB_NOT_OPEN      0x71000000
 
-// On all current platforms, char, short and int short be 1, 2 and 4 bytes
-// respectively, so we just use these simple types.
+#include <stdint.h>
 
-typedef char           uni_char;
-typedef unsigned char  uni_uchar;
-typedef short          uni_short;
-typedef unsigned short uni_ushort;
-typedef int            uni_long;
-typedef unsigned int   uni_ulong;
+typedef int8_t   uni_byte;
+typedef uint8_t  uni_ubyte;
+typedef int16_t  uni_word;
+typedef uint16_t uni_uword;
+typedef int32_t  uni_long;
+typedef uint32_t uni_ulong;
+
+// deprecated typedefs
+typedef int8_t   uni_char;
+typedef uint8_t  uni_uchar;
+typedef int16_t  uni_short;
+typedef uint16_t uni_ushort;
 
 typedef int (UNICALL *uni_version_function)();
 typedef void * (UNICALL *uni_resolve_function)(uni_ulong ptr);
-typedef const uni_char * (UNICALL *uni_uae_version_function)(void);
+typedef const char * (UNICALL *uni_uae_version_function)(void);
 
 struct uni {
     uni_long d1;
@@ -77,4 +94,4 @@ struct uni {
 #endif
 };
 
-#endif // _UAE_UNI_COMMON_H_
+#endif /* UAE_UNI_COMMON_H */

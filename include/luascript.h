@@ -6,8 +6,8 @@
 * Copyright 2013 Frode SOlheim
 */
 
-#ifndef LUASCRIPT_H_
-#define LUASCRIPT_H_
+#ifndef UAE_LUASCRIPT_H
+#define UAE_LUASCRIPT_H
 
 #ifdef WITH_LUA
 #include <lauxlib.h>
@@ -21,6 +21,6 @@ void uae_lua_run_handler(const char *name);
 void uae_lua_aquire_lock();
 void uae_lua_release_lock();
 
-#endif // WITH_LUA
+#endif /* WITH_LUA */
 
-#endif // LUASCRIPT_H_
+#endif /* UAE_LUASCRIPT_H */

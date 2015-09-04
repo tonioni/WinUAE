@@ -1,3 +1,7 @@
+#ifndef UAE_SCSI_H
+#define UAE_SCSI_H
+
+#include "uae/types.h"
 
 #define SCSI_DEFAULT_DATA_BUFFER_SIZE (256 * 512)
 
@@ -126,27 +130,27 @@ void scsi_addnative(struct scsi_data **sd);
 #define SCSI_MEMORY_FUNCTIONS(x, y, z) \
 static void REGPARAM2 x ## _bput(uaecptr addr, uae_u32 b) \
 { \
-	y ## _bput(& ## z, addr, b); \
+	y ## _bput(&z, addr, b); \
 } \
 static void REGPARAM2 x ## _wput(uaecptr addr, uae_u32 b) \
 { \
-	y ## _wput(& ## z, addr, b); \
+	y ## _wput(&z, addr, b); \
 } \
 static void REGPARAM2 x ## _lput(uaecptr addr, uae_u32 b) \
 { \
-	y ## _lput(& ## z, addr, b); \
+	y ## _lput(&z, addr, b); \
 } \
 static uae_u32 REGPARAM2 x ## _bget(uaecptr addr) \
 { \
-return y ## _bget(& ## z, addr); \
+return y ## _bget(&z, addr); \
 } \
 static uae_u32 REGPARAM2 x ## _wget(uaecptr addr) \
 { \
-return y ## _wget(& ## z, addr); \
+return y ## _wget(&z, addr); \
 } \
 static uae_u32 REGPARAM2 x ## _lget(uaecptr addr) \
 { \
-return y ## _lget(& ## z, addr); \
+return y ## _lget(&z, addr); \
 }
 
 void soft_scsi_put(uaecptr addr, int size, uae_u32 v);
@@ -237,3 +241,5 @@ void x86_xt_hd_bput(int, uae_u8);
 uae_u8 x86_xt_hd_bget(int);
 addrbank *x86_xt_hd_init(struct romconfig *rc);
 void x86_add_xt_hd_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+#endif /* UAE_SCSI_H */

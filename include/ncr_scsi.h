@@ -1,3 +1,7 @@
+#ifndef UAE_NCR_SCSI_H
+#define UAE_NCR_SCSI_H
+
+#include "uae/types.h"
 
 void ncr710_io_bput_a4000t(uaecptr, uae_u32);
 uae_u32 ncr710_io_bget_a4000t(uaecptr);
@@ -28,3 +32,4 @@ extern void blizzardppc_add_scsi_unit(int ch, struct uaedev_config_info *ci, str
 extern void a4091_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void wildfire_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
+#endif /* UAE_NCR_SCSI_H */

@@ -1,3 +1,7 @@
+#ifndef UAE_CD32_FMV_H
+#define UAE_CD32_FMV_H
+
+#include "uae/types.h"
 
 extern addrbank *cd32_fmv_init (uaecptr);
 extern void cd32_fmv_reset(void);
@@ -13,3 +17,5 @@ extern void cd32_fmv_new_border_color(uae_u32);
 extern void cd32_fmv_set_sync(double svpos, double adjust);
 
 extern int cd32_fmv_active;
+
+#endif /* UAE_CD32_FMV_H */

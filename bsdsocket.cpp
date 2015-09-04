@@ -158,7 +158,7 @@ uae_u32 callfdcallback (TrapContext *context, SB, uae_u32 fd, uae_u32 action)
 	return v;
 }
 
-BOOL checksd(TrapContext *context, SB, int sd)
+bool checksd(TrapContext *context, SB, int sd)
 {
 	int iCounter;
 	SOCKET s;

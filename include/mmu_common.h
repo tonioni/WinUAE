@@ -1,15 +1,12 @@
+#ifndef UAE_MMU_COMMON_H
+#define UAE_MMU_COMMON_H
 
-#ifndef MMU_COMMON_H
-#define MMU_COMMON_H
+#include "uae/types.h"
+#include "uae/likely.h"
 
 #define MMUDEBUG 0
 #define MMUINSDEBUG 0
 #define MMUDEBUGMISC 0
-
-#ifdef _MSC_VER
-#define unlikely(x) x
-#define likely(x) x
-#endif
 
 #ifdef __cplusplus
 struct m68k_exception {
@@ -156,4 +153,4 @@ extern void(*x_phys_put_byte)(uaecptr, uae_u32);
 extern void(*x_phys_put_word)(uaecptr, uae_u32);
 extern void(*x_phys_put_long)(uaecptr, uae_u32);
 
-#endif
+#endif /* UAE_MMU_COMMON_H */
