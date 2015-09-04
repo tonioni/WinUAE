@@ -12,7 +12,16 @@
 #include "slirp_config.h"
 
 #ifdef _WIN32
-# include <inttypes.h>
+# include <stdint.h>
+
+typedef uint8_t u_int8_t;
+typedef uint16_t u_int16_t;
+typedef uint32_t u_int32_t;
+typedef uint64_t u_int64_t;
+
+typedef u_int8_t uint8;
+typedef u_int16_t uint16;
+typedef u_int32_t uint32;
 
 #ifdef _MSC_VER
 #define container_of(address, type, field) ((type *)( \
@@ -364,7 +373,7 @@ struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
 #define MAX_MRU 16384
 #endif
 
-#ifndef _WIN32
+#ifndef _MSC_VER
 #define min(x,y) ((x) < (y) ? (x) : (y))
 #define max(x,y) ((x) > (y) ? (x) : (y))
 #endif

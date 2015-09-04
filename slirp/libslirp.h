@@ -9,10 +9,6 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #include <arpa/inet.h>
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 int slirp_init(void);
 void slirp_cleanup(void);
 
@@ -33,9 +29,5 @@ int slirp_add_exec(int do_pty, const char *args, int addr_low_byte,
                    int guest_port);
 
 extern char slirp_hostname[33];
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
