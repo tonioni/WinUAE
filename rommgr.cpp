@@ -97,12 +97,6 @@ struct romdata *getromdatabypath (const TCHAR *path)
 
 #define NEXT_ROM_ID 156
 
-static struct romheader romheaders[] = {
-	{ _T("Freezer Cartridges"), 1 },
-	{ _T("Arcadia Games"), 2 },
-	{ NULL, 0 }
-};
-
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
 #define ALTROMPN(id,grp,num,size,flags,pn,crc32,a,b,c,d,e) \
@@ -513,7 +507,7 @@ void romlist_clear (void)
 	int i;
 	int mask = 0;
 	struct romdata *parent;
-	TCHAR *pn;
+	const TCHAR *pn;
 
 	xfree (rl);
 	rl = 0;
@@ -539,7 +533,7 @@ void romlist_clear (void)
 					_tcscat (newpn, _T("/"));
 				}
 				_tcscat (newpn, rd->partnumber);
-				xfree (parent->partnumber);
+				xfree ((char *) parent->partnumber);
 				parent->partnumber = newpn;
 			}
 		}
@@ -593,7 +587,6 @@ struct romlist **getromlistbyident (int ver, int rev, int subver, int subrev, co
 	struct romdata *rd;
 	struct romlist **rdout, *rltmp;
 	void *buf;
-	static struct romlist rlstatic;
 
 	for (i = 0; roms[i].name; i++);
 	if (all)
@@ -625,7 +618,7 @@ struct romlist **getromlistbyident (int ver, int rev, int subver, int subrev, co
 		if (!ok)
 			continue;
 		if (model && ok < 2) {
-			TCHAR *p = rd->model;
+			const TCHAR *p = rd->model;
 			ok = 0;
 			while (p && *p) {
 				if (!_tcscmp(rd->model, model)) {
@@ -672,7 +665,7 @@ struct romdata *getarcadiarombyname (const TCHAR *name)
 	int i;
 	for (i = 0; roms[i].name; i++) {
 		if (roms[i].group == 0 && (roms[i].type == ROMTYPE_ARCADIAGAME || roms[i].type == ROMTYPE_ARCADIAGAME)) {
-			TCHAR *p = roms[i].name;
+			const TCHAR *p = roms[i].name;
 			p = p + _tcslen (p) + 1;
 			if (_tcslen (name) >= _tcslen (p) + 4) {
 				const TCHAR *p2 = name + _tcslen (name) - _tcslen (p) - 4;
@@ -1357,7 +1350,7 @@ struct zfile *read_rom (struct romdata *prd)
 	struct romdata *rd2 = prd;
 	struct romdata *rd = prd;
 	struct romdata *rdpair = NULL;
-	TCHAR *name;
+	const TCHAR *name;
 	int id = rd->id;
 	uae_u32 crc32;
 	int size;
@@ -1697,7 +1690,7 @@ const struct expansionromtype *get_device_expansion_rom(int romtype)
 
 static void device_rom_defaults(struct boardromconfig *brc, int romtype, int devnum)
 {
-	memset(brc, 0, sizeof boardromconfig);
+	memset(brc, 0, sizeof(boardromconfig));
 	brc->device_type = romtype;
 	brc->device_num = devnum;
 	for (int i = 0; i < MAX_BOARD_ROMS; i++) {
@@ -1727,7 +1720,7 @@ struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int 
 					ok++;
 			}
 			if (ok == MAX_BOARD_ROMS)
-				memset(brc, 0, sizeof boardromconfig);
+				memset(brc, 0, sizeof(boardromconfig));
 		}
 		for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
 			brc = &p->expansionboard[i];

@@ -1,6 +1,5 @@
-
-extern addrbank gfxboard_bank_memory;
-extern addrbank gfxboard_bank_registers;
+#ifndef UAE_GFXBOARD_H
+#define UAE_GFXBOARD_H
 
 extern addrbank *gfxboard_init_memory (int devnum);
 extern addrbank *gfxboard_init_memory_p4_z2(int devnum);
@@ -52,3 +51,5 @@ extern uae_u8 vga_ram_get(int offset);
 #define GFXBOARD_PICASSO4_Z3 11
 #define GFXBOARD_A2410 12
 #define GFXBOARD_VGA 13
+
+#endif /* UAE_GFXBOARD_H */

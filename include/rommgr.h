@@ -1,3 +1,6 @@
+#ifndef UAE_ROMMGR_H
+#define UAE_ROMMGR_H
+
 extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 
 #define ROMTYPE_SUB_MASK    0x000000ff
@@ -115,15 +118,15 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_ALL_CART (ROMTYPE_AR | ROMTYPE_HRTMON | ROMTYPE_NORDIC | ROMTYPE_XPOWER | ROMTYPE_CD32CART)
 
 struct romheader {
-	TCHAR *name;
+	const TCHAR *name;
 	int id;
 };
 
 struct romdata {
-	TCHAR *name;
+	const TCHAR *name;
 	int ver, rev;
 	int subver, subrev;
-	TCHAR *model;
+	const TCHAR *model;
 	uae_u32 size;
 	int id;
 	int cpu;
@@ -131,11 +134,11 @@ struct romdata {
 	int type;
 	int group;
 	int title;
-	TCHAR *partnumber;
+	const TCHAR *partnumber;
 	uae_u32 crc32;
 	uae_u32 sha1[5];
-	TCHAR *configname;
-	TCHAR *defaultfilename;
+	const TCHAR *configname;
+	const TCHAR *defaultfilename;
 };
 
 struct romlist {
@@ -183,6 +186,7 @@ extern void addkeyfile (const TCHAR *path);
 extern int romlist_count (void);
 extern struct romlist *romlist_getit (void);
 extern int configure_rom (struct uae_prefs *p, const int *rom, int msg);
+
 int is_device_rom(struct uae_prefs *p, int romtype, int devnum);
 struct zfile *read_device_rom(struct uae_prefs *p, int romtype, int devnum, int *roms);
 struct romconfig *get_device_romconfig(struct uae_prefs *p, int romtype, int devnum);
@@ -201,3 +205,5 @@ struct boardromconfig *get_boardromconfig(struct uae_prefs *p, int romtype, int 
 #define LOADROM_ZEROFILL 8
 #define LOADROM_ODDFILL(x) ((x << 16) | LOADROM_EVENONLY)
 bool load_rom_rc(struct romconfig *rc, uae_u32 romtype, int maxfilesize, int fileoffset, uae_u8 *rom, int maxromsize, int flags);
+
+#endif /* UAE_ROMMGR_H */
