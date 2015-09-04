@@ -32,6 +32,12 @@
 #endif
 #include "execio.h"
 
+/* These variables are referenced by custom.cpp and newcpu.cpp */
+volatile int uaenet_int_requested = 0;
+volatile int uaenet_vsync_requested = 0;
+
+#ifdef SANA2
+
 static void uaenet_gotdata (void *dev, const uae_u8 *data, int len);
 static int uaenet_getdata (void *dev, uae_u8 *d, int *len);
 
@@ -146,8 +152,6 @@ struct s2packet {
 	int len;
 };
 
-volatile int uaenet_int_requested;
-volatile int uaenet_vsync_requested;
 static int uaenet_int_late;
 
 static uaecptr timerdevname;
@@ -930,7 +934,7 @@ static int uaenet_getdata (void *devv, uae_u8 *d, int *len)
 	return gotit;
 }
 
-void checkevents (struct s2devstruct *dev, int mask, int sem)
+static void checkevents (struct s2devstruct *dev, int mask, int sem)
 {
 	struct asyncreq *ar;
 
@@ -1746,3 +1750,5 @@ void netdev_reset (void)
 		return;
 	dev_reset ();
 }
+
+#endif /* SANA2 */
