@@ -244,8 +244,8 @@ void tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 /*	int ts_present = 0; */
 
 	DEBUG_CALL("tcp_input");
-	DEBUG_ARGS((" m = %8lx  iphlen = %2d  inso = %lx\n", 
-		    (long )m, iphlen, (long )inso ));
+	DEBUG_ARGS((" m = %p  iphlen = %2d  inso = %p\n", 
+		    m, iphlen, inso ));
 	
 	/*
 	 * If called with m == 0, then we're continuing the connect
@@ -1065,8 +1065,8 @@ trimthenstep6:
 		if (SEQ_LEQ(ti->ti_ack, tp->snd_una)) {
 			if (ti->ti_len == 0 && tiwin == tp->snd_wnd) {
 			  tcpstat.tcps_rcvdupack++;
-			  DEBUG_MISC((" dup ack  m = %lx  so = %lx \n",
-				      (long )m, (long )so));
+			  DEBUG_MISC((" dup ack  m = %p  so = %p \n",
+				      m, so));
 				/*
 				 * If we have outstanding data (other than
 				 * a window probe), this is a completely
@@ -1488,7 +1488,7 @@ void tcp_dooptions(struct tcpcb *tp, u_char *cp, int cnt, struct tcpiphdr *ti)
 	int opt, optlen;
 
 	DEBUG_CALL("tcp_dooptions");
-	DEBUG_ARGS((" tp = %lx  cnt=%i \n", (long )tp, cnt));
+	DEBUG_ARGS((" tp = %p  cnt=%i \n", tp, cnt));
 
 	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		opt = cp[0];
@@ -1597,7 +1597,7 @@ void tcp_xmit_timer(struct tcpcb *tp, int rtt)
 	short delta;
 
 	DEBUG_CALL("tcp_xmit_timer");
-	DEBUG_ARG("tp = %lx", (long)tp);
+	DEBUG_ARG("tp = %p", tp);
 	DEBUG_ARG("rtt = %d", rtt);
 	
 	tcpstat.tcps_rttupdated++;
@@ -1685,7 +1685,7 @@ int tcp_mss(struct tcpcb *tp, u_int offer)
 	int mss;
 	
 	DEBUG_CALL("tcp_mss");
-	DEBUG_ARG("tp = %lx", (long)tp);
+	DEBUG_ARG("tp = %p", tp);
 	DEBUG_ARG("offer = %d", offer);
 	
 	mss = min(if_mtu, if_mru) - sizeof(struct tcpiphdr);

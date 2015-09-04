@@ -103,7 +103,7 @@ struct mbuf *m_get(void)
 	m->m_nextpkt = 0;
 	m->m_prevpkt = 0;
 end_error:
-	DEBUG_ARG("m = %lx", (long )m);
+	DEBUG_ARG("m = %p", m);
 	return m;
 }
 
@@ -111,7 +111,7 @@ void m_free(struct mbuf *m)
 {
 	
   DEBUG_CALL("m_free");
-  DEBUG_ARG("m = %lx", (long )m);
+  DEBUG_ARG("m = %p", m);
 	
   if(m) {
 	/* Remove from m_usedlist */
@@ -230,7 +230,7 @@ struct mbuf *dtom(void *dat)
 	struct mbuf *m;
 	
 	DEBUG_CALL("dtom");
-	DEBUG_ARG("dat = %lx", (long )dat);
+	DEBUG_ARG("dat = %p", dat);
 
 	/* bug corrected for M_EXT buffers */
 	for (m = m_usedlist.m_next; m != &m_usedlist; m = m->m_next) {

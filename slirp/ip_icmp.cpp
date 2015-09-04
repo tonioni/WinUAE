@@ -128,7 +128,7 @@ void icmp_input(struct mbuf *m, int hlen)
   /* int code; */
 	
   DEBUG_CALL("icmp_input");
-  DEBUG_ARG("m = %lx", (long )m);
+  DEBUG_ARG("m = %p", m);
   DEBUG_ARG("m_len = %d", m->m_len);
 
   icmpstat.icps_received++;
@@ -262,7 +262,7 @@ void icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize, const 
   register struct mbuf *m;
 
   DEBUG_CALL("icmp_error");
-  DEBUG_ARG("msrc = %lx", (long )msrc);
+  DEBUG_ARG("msrc = %p", msrc);
   DEBUG_ARG("msrc_len = %d", msrc->m_len);
 
   if(type!=ICMP_UNREACH && type!=ICMP_TIMXCEED) goto end_error;
