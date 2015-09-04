@@ -97,7 +97,8 @@ bool PAGING_ForcePageInit(Bitu lin_addr);
 
 void MEM_SetLFB(Bitu page, Bitu pages, PageHandler *handler, PageHandler *mmiohandler);
 void MEM_SetPageHandler(Bitu phys_page, Bitu pages, PageHandler * handler);
-void MEM_ResetPageHandler(Bitu phys_page, Bitu pages);
+void MEM_ResetPageHandlerRAM(Bitu phys_page, Bitu pages);
+void MEM_ResetPageHandlerROM(Bitu phys_page, Bitu pages);
 
 
 #ifdef _MSC_VER

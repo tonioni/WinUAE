@@ -25,7 +25,7 @@
 #include "cpu.h"
 #include "callback.h"
 #include "pic.h"
-//#include "timer.h"
+#include "timer.h"
 #include "setup.h"
 
 #define PIC_QUEUESIZE 512
@@ -498,7 +498,6 @@ bool PIC_RunQueue(void) {
 	return true;
 }
 
-#if 0
 /* The TIMER Part */
 struct TickerBlock {
 	TIMER_TickHandler handler;
@@ -548,7 +547,6 @@ void TIMER_AddTick(void) {
 		ticker=nextticker;
 	}
 }
-#endif
 
 void x86_pic_write(Bitu port, Bitu val)
 {
@@ -580,7 +578,7 @@ Bitu x86_pic_read(Bitu port)
 }
 
 class PIC:public Module_base{
-private:
+//private:
 //	IO_ReadHandleObject ReadHandler[4];
 //	IO_WriteHandleObject WriteHandler[4];
 public:

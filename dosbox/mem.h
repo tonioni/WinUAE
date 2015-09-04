@@ -57,8 +57,6 @@ MemHandle MEM_NextHandleAt(MemHandle handle,Bitu where);
 	Working on big or little endian machines 
 */
 
-#if defined(WORDS_BIGENDIAN) || !defined(C_UNALIGNED_MEMORY)
-
 void bridge_mono_hit(void);
 void bridge_color_hit(void);
 extern HostPt mono_start, mono_end, color_start, color_end;
@@ -69,6 +67,8 @@ static INLINE void bridge_special_addr_check(HostPt off)
 	if (off >= color_start && off < color_end)
 		bridge_color_hit();
 }
+
+#if defined(WORDS_BIGENDIAN) || !defined(C_UNALIGNED_MEMORY)
 
 static INLINE Bit8u host_readb(HostPt off) {
 	return off[0];
@@ -108,12 +108,15 @@ static INLINE Bit32u host_readd(HostPt off) {
 	return *(Bit32u *)off;
 }
 static INLINE void host_writeb(HostPt off,Bit8u val) {
+	bridge_special_addr_check(off);
 	*(Bit8u *)(off)=val;
 }
 static INLINE void host_writew(HostPt off,Bit16u val) {
+	bridge_special_addr_check(off);
 	*(Bit16u *)(off)=val;
 }
 static INLINE void host_writed(HostPt off,Bit32u val) {
+	bridge_special_addr_check(off);
 	*(Bit32u *)(off)=val;
 }
 

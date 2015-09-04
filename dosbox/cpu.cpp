@@ -2170,7 +2170,7 @@ class CPU: public Module_base {
 private:
 	static bool inited;
 public:
-	CPU(Section* configuration):Module_base(configuration) {
+	CPU(Section* configuration, int cpumode, int cpuarch):Module_base(configuration) {
 //		if(inited) {
 //			Change_Config(configuration);
 //			return;
@@ -2226,10 +2226,10 @@ public:
 #endif
 		MAPPER_AddHandler(CPU_CycleDecrease,MK_f11,MMOD1,"cycledown","Dec Cycles");
 		MAPPER_AddHandler(CPU_CycleIncrease,MK_f12,MMOD1,"cycleup"  ,"Inc Cycles");
-		Change_Config(configuration);	
+		Change_Config(configuration, cpumode, cpuarch);	
 		CPU_JMP(false,0,0,0);					//Setup the first cpu core
 	}
-	bool Change_Config(Section* newconfig){
+	bool Change_Config(Section* newconfig, int cpumode, int cpuarch){
 		Section_prop * section=static_cast<Section_prop *>(newconfig);
 		CPU_AutoDetermineMode=CPU_AUTODETERMINE_NONE;
 		//CPU_CycleLeft=0;//needed ?
@@ -2320,7 +2320,15 @@ public:
 		CPU_CycleUp=section->Get_int("cycleup");
 		CPU_CycleDown=section->Get_int("cycledown");
 		//std::string core(section->Get_string("core"));
+
 		std::string core = "simple";
+		if (cpumode == 2)
+			core = "normal";
+		else if (cpumode == 3)
+			core = "full";
+		else if (cpumode == 4)
+			core = "auto";
+
 		cpudecoder=&CPU_Core_Normal_Run;
 		if (core == "normal") {
 			cpudecoder=&CPU_Core_Normal_Run;
@@ -2357,7 +2365,21 @@ public:
 
 		CPU_ArchitectureType = CPU_ARCHTYPE_MIXED;
 		//std::string cputype(section->Get_string("cputype"));
+
 		std::string cputype = "auto";
+		if (cpuarch == 1)
+			cputype = "386";
+		else if (cpuarch == 2)
+			cputype = "386_prefetch";
+		else if (cpuarch == 3)
+			cputype = "386_slow";
+		else if (cpuarch == 4)
+			cputype = "486_slow";
+		else if (cpuarch == 5)
+			cputype = "486_prefetch";
+		else if (cpuarch == 6)
+			cputype = "pentium_slow";
+
 		if (cputype == "auto") {
 			CPU_ArchitectureType = CPU_ARCHTYPE_MIXED;
 		} else if (cputype == "386") {
@@ -2420,8 +2442,8 @@ void CPU_ShutDown(Section* sec) {
 	test = NULL;
 }
 
-void CPU_Init(Section* sec) {
-	test = new CPU(sec);
+void CPU_Init(Section* sec, int cpumode, int cpuarch) {
+	test = new CPU(sec, cpumode, cpuarch);
 	sec->AddDestroyFunction(&CPU_ShutDown,true);
 }
 //initialize static members

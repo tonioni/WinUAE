@@ -8,6 +8,7 @@ void x86_bridge_hsync(void);
 void x86_bridge_reset(void);
 void x86_bridge_free(void);
 void x86_bridge_rethink(void);
+void x86_bridge_sync_change(void);
 
 #define X86_STATE_INACTIVE 0
 #define X86_STATE_STOP 1

@@ -30,6 +30,8 @@ typedef Bit32u Bitu;
 typedef Bit32s Bits;
 typedef double Real64;
 
+#define C_UNALIGNED_MEMORY
+
 #define LONGTYPE(a) a##LL
 
 #define INLINE __inline
