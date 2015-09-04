@@ -136,7 +136,7 @@ int statvfs ();
 Return the actual number of bytes read, zero for EOF, or negative
 for an error.  */
 
-int safe_read (int desc, TCHAR *ptr, int len)
+static int safe_read (int desc, TCHAR *ptr, int len)
 {
 	int n_chars;
 

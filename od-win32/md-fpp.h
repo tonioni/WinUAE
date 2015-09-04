@@ -9,6 +9,8 @@
   * Modified 2005 Peter Keunecke
   */
 
+#include <math.h>
+
 #define	FPCR_ROUNDING_MODE	0x00000030
 #define	FPCR_ROUND_NEAR		0x00000000
 #define	FPCR_ROUND_ZERO		0x00000010
@@ -174,8 +176,13 @@ STATIC_INLINE double to_double_x(uae_u32 wrd1, uae_u32 wrd2)
 		uae_u32 u[2];
 	} val;
 
-	val.u[0] = wrd2; // little endian
+#ifdef WORDS_BIGENDIAN
+	val.u[0] = wrd1;
+	val.u[1] = wrd2;
+#else
 	val.u[1] = wrd1;
+	val.u[0] = wrd2;
+#endif
 	return val.d;
 }
 #endif

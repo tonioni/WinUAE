@@ -33,7 +33,7 @@
 #include "cpummu030.h"
 #include "debug.h"
 
-#ifdef WITH_SOFTFLOAT 
+#ifdef WITH_SOFTFLOAT
 #include "softfloatx80.h"
 #endif
 
@@ -566,20 +566,20 @@ static void native_set_fpucw (uae_u32 m68k_cw)
 		__asm {
 			fldcw word ptr x87_cw
 		}
-#elif defined(X86_ASSEMBLY)
+#elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
 		__asm__ ("fldcw %0" : : "m" (*&x87_cw));
+#else
+		#warning floating point control not specified
 #endif
+#endif /* USE_X86_FPUCW */
 #endif
-#endif
+#else
+#warning NATIVE_FPUCW not enabled
 #endif
 	}
 }
 
-#if defined(uae_s64) /* Close enough for government work? */
 typedef uae_s64 tointtype;
-#else
-typedef uae_s32 tointtype;
-#endif
 
 static void fpu_format_error (void)
 {
@@ -945,7 +945,7 @@ static tointtype toint(fpdata *src, int size)
 #ifdef WITH_SOFTFLOAT
 	if (currprefs.fpu_softfloat) {
 		if (floatx80_compare(src->fpx, fxsizes[size * 2 + 0], fxstatus) == float_relation_greater)
-			return floatx80_to_int32(fxsizes[size * 2 + 0], fxstatus);	
+			return floatx80_to_int32(fxsizes[size * 2 + 0], fxstatus);
 		if (floatx80_compare(src->fpx, fxsizes[size * 2 + 1], fxstatus) == float_relation_less)
 			return floatx80_to_int32(fxsizes[size * 2 + 1], fxstatus);
 		return floatx80_to_int32(src->fpx, fxstatus);
@@ -1022,7 +1022,7 @@ static bool fp_is_infinity (fpdata *fpd)
 #ifdef _MSC_VER
 	return !_finite (fpd->fp);
 #elif defined(HAVE_ISINF)
-	return _isinf (fpd->fp);
+	return isinf(fpd->fp);
 #else
 	return false;
 #endif
@@ -1063,7 +1063,7 @@ uae_u32 fpp_get_fpsr (void)
 	if (answer & (1 << 10))
 		answer |= 0x10; // DZ = DZ
 	if (answer & ((1 << 12) | (1 << 9) | (1 << 8)))
-		answer |= 0x08; // INEX = INEX1 | INEX2 | OVFL 
+		answer |= 0x08; // INEX = INEX1 | INEX2 | OVFL
 
 	regs.fpsr = answer;
 

@@ -1371,7 +1371,7 @@ void cd32_fmv_set_sync(double svpos, double adjust)
 	fmv_syncadjust = adjust;
 }
 
-void fmv_next_cd_audio_buffer_callback(int bufnum)
+static void fmv_next_cd_audio_buffer_callback(int bufnum)
 {
 	uae_sem_wait(&play_sem);
 	if (bufnum >= 0) {

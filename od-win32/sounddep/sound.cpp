@@ -175,7 +175,6 @@ float scaled_sample_evtime_orig;
 extern float sampler_evtime;
 
 void update_sound (double clk)
-
 {
 	if (!have_sound)
 		return;

@@ -12,6 +12,7 @@
 #include "sysdeps.h"
 
 #include "options.h"
+#include "dongle.h"
 #include "events.h"
 #include "uae.h"
 

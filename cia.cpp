@@ -2207,7 +2207,6 @@ static uae_u32 REGPARAM2 clock_wget (uaecptr addr)
 
 static uae_u32 REGPARAM2 clock_bget (uaecptr addr)
 {
-	time_t t;
 	struct tm *ct;
 	uae_u8 v = 0;
 
@@ -2229,7 +2228,7 @@ static uae_u32 REGPARAM2 clock_bget (uaecptr addr)
 			v = regs.irc >> 8;
 		return v;
 	}
-	t = time (0);
+	time_t t = time (0);
 	t += currprefs.cs_rtc_adjust;
 	ct = localtime (&t);
 	addr >>= 2;

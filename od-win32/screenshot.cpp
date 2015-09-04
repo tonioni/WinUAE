@@ -312,7 +312,7 @@ int screenshot_prepare (void)
 void Screenshot_RGBinfo (int rb, int gb, int bb, int rs, int gs, int bs)
 {
 	if (!bi)
-		bi = xcalloc (BITMAPINFO, sizeof BITMAPINFO + 256 * sizeof RGBQUAD);
+		bi = xcalloc (BITMAPINFO, sizeof(BITMAPINFO) + 256 * sizeof(RGBQUAD));
 	rgb_rb = rb;
 	rgb_gb = gb;
 	rgb_bb = rb;
@@ -389,16 +389,16 @@ static int savebmp (FILE *fp)
 	BITMAPFILEHEADER bfh;
 	// write the file header, bitmap information and pixel data
 	bfh.bfType = 19778;
-	bfh.bfSize = sizeof (BITMAPFILEHEADER) + sizeof (BITMAPINFOHEADER) + (bi->bmiHeader.biClrUsed * sizeof RGBQUAD) + bi->bmiHeader.biSizeImage;
+	bfh.bfSize = sizeof (BITMAPFILEHEADER) + sizeof (BITMAPINFOHEADER) + (bi->bmiHeader.biClrUsed * sizeof(RGBQUAD)) + bi->bmiHeader.biSizeImage;
 	bfh.bfReserved1 = 0;
 	bfh.bfReserved2 = 0;
-	bfh.bfOffBits = sizeof (BITMAPFILEHEADER) + sizeof (BITMAPINFOHEADER) + bi->bmiHeader.biClrUsed * sizeof RGBQUAD;
+	bfh.bfOffBits = sizeof (BITMAPFILEHEADER) + sizeof (BITMAPINFOHEADER) + bi->bmiHeader.biClrUsed * sizeof(RGBQUAD);
 	if (fwrite (&bfh, 1, sizeof (BITMAPFILEHEADER), fp) < sizeof (BITMAPFILEHEADER))
 		return 0; // failed to write bitmap file header
 	if (fwrite (bi, 1, sizeof (BITMAPINFOHEADER), fp) < sizeof (BITMAPINFOHEADER))
 		return 0; // failed to write bitmap infomation header
 	if (bi->bmiHeader.biClrUsed) {
-		if (fwrite (bi->bmiColors, 1, bi->bmiHeader.biClrUsed * sizeof RGBQUAD, fp) < bi->bmiHeader.biClrUsed * sizeof RGBQUAD)
+		if (fwrite (bi->bmiColors, 1, bi->bmiHeader.biClrUsed * sizeof(RGBQUAD), fp) < bi->bmiHeader.biClrUsed * sizeof(RGBQUAD))
 			return 0; // failed to write bitmap file header
 	}
 	if (fwrite (lpvBits, 1, bi->bmiHeader.biSizeImage, fp) < bi->bmiHeader.biSizeImage)

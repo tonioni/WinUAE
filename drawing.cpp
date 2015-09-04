@@ -308,7 +308,7 @@ static void clearbuffer (struct vidbuffer *dst)
 	}
 }
 
-void reset_decision_table (void)
+static void reset_decision_table (void)
 {
 	for (int i = 0; i < sizeof linestate / sizeof *linestate; i++) {
 		linestate[i] = LINE_UNDECIDED;
@@ -1039,11 +1039,11 @@ STATIC_INLINE void fill_line_16 (uae_u8 *buf, int start, int stop, bool blank)
 	unsigned int i;
 	unsigned int rem = 0;
 	xcolnr col = getbgc (blank);
-	if (((long)&b[start]) & 1)
+	if (((uintptr_t)&b[start]) & 1)
 		b[start++] = (uae_u16) col;
 	if (start >= stop)
 		return;
-	if (((long)&b[stop]) & 1) {
+	if (((uintptr_t)&b[stop]) & 1) {
 		rem++;
 		stop--;
 	}
@@ -2371,7 +2371,7 @@ void init_row_map (void)
 	oldgenlock = init_genlock_data;
 }
 
-void init_aspect_maps (void)
+static void init_aspect_maps (void)
 {
 	int i, maxl, h;
 

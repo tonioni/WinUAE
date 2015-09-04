@@ -15,21 +15,9 @@
 #include "zfile.h"
 #include "gui.h"
 #include "uae.h"
+#include "uae/endian.h"
 
 #include <stdint.h>
-
-#ifndef _MSC_VER
-#include <endian.h>
-#else
-static uint16_t be16toh(uint16_t v)
-{
-	return (v << 8) | (v >> 8);
-}
-static uint32_t le32toh(uint32_t v)
-{
-	return v;
-}
-#endif
 
 #define MAX_REVS 5
 

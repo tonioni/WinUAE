@@ -12,6 +12,7 @@
 
 #include "options.h"
 #include "filesys.h"
+#include "scsi.h"
 #include "blkdev.h"
 #include "zfile.h"
 #include "memory.h"

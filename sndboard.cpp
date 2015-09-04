@@ -1294,10 +1294,10 @@ static void sndboard_free_capture(void)
 	if (capture_started)
 		pAudioClient->Stop();
 	capture_started = false;
-    SAFE_RELEASE(pEnumerator)
-    SAFE_RELEASE(pDevice)
-    SAFE_RELEASE(pAudioClient)
-    SAFE_RELEASE(pCaptureClient)
+	SAFE_RELEASE(pEnumerator)
+	SAFE_RELEASE(pDevice)
+	SAFE_RELEASE(pAudioClient)
+	SAFE_RELEASE(pCaptureClient)
 }
 
 static bool sndboard_init_capture(int freq)
@@ -1318,7 +1318,7 @@ static bool sndboard_init_capture(int freq)
 	hr = pEnumerator->GetDefaultAudioEndpoint(eCapture, eConsole, &pDevice);
 	EXIT_ON_ERROR(hr)
 
-    hr = pDevice->Activate(IID_IAudioClient, CLSCTX_ALL, NULL, (void**)&pAudioClient);
+	hr = pDevice->Activate(IID_IAudioClient, CLSCTX_ALL, NULL, (void**)&pAudioClient);
 	EXIT_ON_ERROR(hr)
 
 	memset (&wavfmtsrc, 0, sizeof wavfmtsrc);
@@ -1363,7 +1363,7 @@ static bool sndboard_init_capture(int freq)
 
 
 	hr = pAudioClient->GetService(IID_IAudioCaptureClient, (void**)&pCaptureClient);
-    EXIT_ON_ERROR(hr)
+	EXIT_ON_ERROR(hr)
 		
 	hr = pAudioClient->Start();
 	EXIT_ON_ERROR(hr)
@@ -1381,8 +1381,4 @@ Exit:;
 	return false;
 }
 
-
 #endif
-
-
-

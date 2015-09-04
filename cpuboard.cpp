@@ -946,10 +946,11 @@ static void cyberstorm_maprom(void)
 {
 	if (a3000hmem_bank.allocated <= 2 * 524288)
 		return;
-	if (maprom_state && is_ppc())
+	if (maprom_state && is_ppc()) {
 		map_banks(&blizzardmaprom2_bank, CYBERSTORM_MAPROM_BASE >> 16, 524288 >> 16, 0);
-	else
+	} else {
 		map_banks(&blizzardmaprom_bank, CYBERSTORM_MAPROM_BASE >> 16, 524288 >> 16, 0);
+	}
 }
 
 static void cyberstormmk2_maprom(void)
@@ -1710,7 +1711,7 @@ void cpuboard_init(void)
 		mapped_malloc(&blizzardmaprom_bank);
 
 	} else if (is_csmk3()) {
-	
+
 		blizzardram_bank.start = CS_RAM_BASE;
 		blizzardram_bank.allocated = cpuboard_size;
 		blizzardram_bank.mask = blizzardram_bank.allocated - 1;

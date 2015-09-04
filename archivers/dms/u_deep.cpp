@@ -48,7 +48,7 @@ static USHORT son[T];   /* pointers to child nodes (son[], son[] + 1) */
 
 
 
-void Init_DEEP_Tabs(void){
+static void Init_DEEP_Tabs(void){
 	USHORT i, j;
 
 	for (i = 0; i < N_CHAR; i++) {

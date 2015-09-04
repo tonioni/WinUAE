@@ -4,14 +4,14 @@
 typedef void *PVOID;
 typedef char *PCHAR;
 
-typedef unsigned char UBYTE;
-typedef unsigned short UWORD;
-typedef unsigned long UDWORD;
-typedef unsigned __int64 UQUAD;
-typedef signed char SBYTE;
-typedef signed short SWORD;
-typedef signed long SDWORD;
-typedef signed __int64 SQUAD;
+typedef uae_u8 UBYTE;
+typedef uae_u16 UWORD;
+typedef uae_u32 UDWORD;
+typedef uae_u64 UQUAD;
+typedef uae_s8 SBYTE;
+typedef uae_s16 SWORD;
+typedef uae_s32 SDWORD;
+typedef uae_s64 SQUAD;
 
 typedef UBYTE *PUBYTE;
 typedef UWORD *PUWORD;

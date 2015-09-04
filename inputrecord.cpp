@@ -25,6 +25,7 @@
 #include "uae.h"
 #include "disk.h"
 #include "fsdb.h"
+#include "xwin.h"
 
 #if INPUTRECORD_DEBUG > 0
 #include "memory.h"
@@ -55,8 +56,6 @@ static uae_u32 pcs[16];
 static uae_u32 pcs2[16];
 extern void activate_debugger (void);
 static int warned;
-
-extern void refreshtitle (void);
 
 static void setlasthsync (void)
 {

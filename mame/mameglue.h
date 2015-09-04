@@ -1,4 +1,4 @@
-
+#include "uae/types.h"
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -41,6 +41,7 @@ inline UINT64 mulu_32x32(UINT32 a, UINT32 b)
 {
 	return (UINT64)a * (UINT64)b;
 }
+
 #define NULL 0
 
 class direct_read_data

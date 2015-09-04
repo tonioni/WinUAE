@@ -1568,7 +1568,8 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
 
 	uae_u8 r, g, b;
-	uae_u8 or, og, ob;
+	/* or is an alternative operator and cannot be used as an identifier */
+	uae_u8 or_, og, ob;
 	int pcnt = 0;
 	int bank = 0;
 	int mode_active = 0;
@@ -1640,7 +1641,7 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 				if (mode_active) {
 					if (cookie_line || x < cookiestartx) {
 						r = g = b = 0;
-						or = og = ob = 0;
+						or_ = og = ob = 0;
 					} else {
 						if (mode_active == ham_e_magic_cookie_reg) {
 							uae_u8 *pal = &graffiti_palette[val * 4];
@@ -1670,7 +1671,7 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 					if (hameplus) {
 						uae_u8 ar, ag, ab;
 
-						ar = (r + or) / 2;
+						ar = (r + or_) / 2;
 						ag = (g + og) / 2;
 						ab = (b + ob) / 2;
 
@@ -1693,7 +1694,7 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 								PRGB(dst, d2, r, g, b);
 							}
 						}
-						or = r;
+						or_ = r;
 						og = g;
 						ob = b;
 					} else {
@@ -2245,6 +2246,8 @@ static void load_genlock_image(void)
 	png_uint_32 width, height;
 	int depth, color_type;
 	struct png_cb cb;
+	png_bytepp row_pp;
+	png_size_t cols;
 
 	xfree(genlock_image);
 	genlock_image = NULL;
@@ -2290,13 +2293,13 @@ static void load_genlock_image(void)
 	if (!(color_type & PNG_COLOR_MASK_ALPHA))
 		png_set_add_alpha(png_ptr, 0, PNG_FILLER_AFTER);
 
-	png_size_t cols = png_get_rowbytes(png_ptr, info_ptr);
+	cols = png_get_rowbytes(png_ptr, info_ptr);
 
 	genlock_image_pitch = width * 4;
 	genlock_image_width = width;
 	genlock_image_height = height;
 
-	png_bytepp row_pp = new png_bytep[height];
+	row_pp = new png_bytep[height];
 	
 	genlock_image = xcalloc(uae_u8, width * height * 4);
 	

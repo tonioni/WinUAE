@@ -162,9 +162,6 @@ static struct ncr_state *ncr_a4000t;
 static struct ncr_state *ncra4091[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr_state *ncr_wildfire;
 
-extern void cyberstorm_mk3_ppc_irq(int);
-extern void blizzardppc_irq(int);
-
 static void set_irq2(int level)
 {
 	if (level)
@@ -390,11 +387,13 @@ static void ncr_io_bput(struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 	addr &= IO_MASK;
 	lsi_mmio_write(ncr->devobject.lsistate, beswap(addr), val, 1);
 }
+
 static void ncr710_io_bput(struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 {
 	addr &= IO_MASK;
 	lsi710_mmio_write(ncr->devobject.lsistate, beswap(addr), val, 1);
 }
+
 void cpuboard_ncr710_io_bput(uaecptr addr, uae_u32 v)
 {
 	ncr710_io_bput(ncr_cpuboard, addr, v);
@@ -419,11 +418,13 @@ static uae_u32 ncr_io_bget(struct ncr_state *ncr, uaecptr addr)
 	addr &= IO_MASK;
 	return lsi_mmio_read(ncr->devobject.lsistate, beswap(addr), 1);
 }
+
 static uae_u32 ncr710_io_bget(struct ncr_state *ncr, uaecptr addr)
 {
 	addr &= IO_MASK;
 	return lsi710_mmio_read(ncr->devobject.lsistate, beswap(addr), 1);
 }
+
 uae_u32 cpuboard_ncr710_io_bget(uaecptr addr)
 {
 	return ncr710_io_bget(ncr_cpuboard, addr);

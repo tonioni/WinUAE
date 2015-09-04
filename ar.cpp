@@ -213,7 +213,6 @@
 #include "savestate.h"
 #include "crc32.h"
 #include "akiko.h"
-#include "picasso96.h"
 
 #define DEBUG
 #ifdef DEBUG

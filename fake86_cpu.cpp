@@ -126,7 +126,7 @@ extern uint16_t	VGA_SC[0x100], VGA_CRTC[0x100], VGA_ATTR[0x100], VGA_GC[0x100];
 extern uint8_t updatedscreen;
 #endif
 
-union _bytewordregs_ regs;
+static union _bytewordregs_ regs;
 
 #if 0
 uint8_t	portram[0x10000];

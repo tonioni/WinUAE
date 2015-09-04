@@ -72,9 +72,13 @@ inline int c99_snprintf(char* str, size_t size, const char* format, ...)
 #define ABS(x) abs(x)
 #endif
 
+#ifdef USE_GLIB
+#include <glib.h>
+#else
 #define g_free free
 #define g_malloc malloc
 #define g_new(type, num) ((type*)calloc(sizeof(type),num))
+#endif
 
 enum device_endian {
     DEVICE_NATIVE_ENDIAN,

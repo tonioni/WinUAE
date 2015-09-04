@@ -2989,13 +2989,13 @@ static void REGPARAM2 ncr80_bput(struct soft_scsi *ncr, uaecptr addr, uae_u32 b)
 	ncr80_bput2(ncr, addr, b, 1);
 }
 
-
 static void REGPARAM2 soft_generic_bput (uaecptr addr, uae_u32 b)
 {
 	struct soft_scsi *ncr = getscsiboard(addr);
 	if (ncr)
 		ncr80_bput(ncr, addr, b);
 }
+
 static void REGPARAM2 soft_generic_wput (uaecptr addr, uae_u32 b)
 {
 	struct soft_scsi *ncr = getscsiboard(addr);
@@ -3078,7 +3078,7 @@ uae_u32 soft_scsi_get(uaecptr addr, int size)
 /*
 	$8380 select unit (unit mask)
 
-	$8200 
+	$8200
 	 6: REQ (1=active)
 	 8: BSY (0=active)
 	10: C/D (1=data)
@@ -3093,7 +3093,7 @@ uae_u32 soft_scsi_get(uaecptr addr, int size)
 addrbank *supra_init(struct romconfig *rc)
 {
 	struct soft_scsi *scsi = getscsi(rc);
-	
+
 	if (!scsi)
 		return &expamem_null;
 
