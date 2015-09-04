@@ -1,4 +1,30 @@
 
+Beta 11
+
+- Fixed A2386SX default video mode configuration, it is software controlled, not jumper like in
+  older models. Fixes unexpected "Invalid configuration information" BIOS messages.
+- Added A2386SX-only hack to enable working 1.4M floppy images, I assume it thinks connected drive is
+  Amiga 1760k drive and it programs FDC to use 720k (1.4M half speed) bit rate.
+- Autodetect *.ima PC disk images inside archives.
+- Increased IDE emulation multiple transfer support from 64 blocks to 128 blocks (Max possible).
+- Universal XTIDE BIOS load address is now user configurable. (Exxxx does not work in AT systems)
+- x86 IDE emulation used wrong byte swapping mode if data port width was 16/32-bit (AT systems)
+- Added support for IDE emulation edge triggered interrupts. ISA bus uses edge triggered interrupts,
+  Fixes A2386SX IDE configuration hang.
+- Only first non-autoconfig "board" was initialized if more than one was configured (for example
+  both x86 AT IDE and XT IDE controller was enabled)
+- Write-protect 0xDC000 region from Amiga-side writes if it is used by XTIDE Universal BIOS. This
+  address conflicts with Amiga-PC shared memory space but fortunately it seems only beginning of this
+  space is actually used for Amiga-PC communication.
+- XTIDE Universal BIOS hardware is now correctly emulated.
+- Per-monitor high DPI update caused repeated GUI re-open in some situations.
+- DOSBox CPU modes now use DOSBox hardware timer emulation, fixes A2386SX floppy access delays.
+- Added all currently available bridgeboard BIOS ROMs to ROM scanner.
+- Cleaned up internal expansion ROM selection code.
+
+NOTE: Nearly all previously created DOS HD images are not supported anymore due to wrong
+byte swapping. They need to be created from scratch.
+
 Beta 10:
 
 - IDE emulation internal operation change. Previously next block was read from hardfile after previous

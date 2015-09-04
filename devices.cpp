@@ -417,3 +417,8 @@ void devices_restore_start(void)
 	changed_prefs.mbresmem_low_size = 0;
 	changed_prefs.mbresmem_high_size = 0;
 }
+
+void devices_syncchange(void)
+{
+	x86_bridge_sync_change();
+}

@@ -294,7 +294,7 @@ void desktop_coords (int *dw, int *dh, int *ax, int *ay, int *aw, int *ah)
 	*ah = amigawin_rect.bottom - *ay;
 }
 
-int target_get_display (const TCHAR *name)
+static int target_get_display2(const TCHAR *name, int mode)
 {
 	int found, found2;
 
@@ -302,6 +302,10 @@ int target_get_display (const TCHAR *name)
 	found2 = -1;
 	for (int i = 0; Displays[i].monitorname; i++) {
 		struct MultiDisplay *md = &Displays[i];
+		if (mode == 1 && md->monitorid[0] == '\\')
+			continue;
+		if (mode == 2 && md->monitorid[0] != '\\')
+			continue;
 		if (!_tcscmp (md->monitorid, name)) {
 			if (found < 0) {
 				found = i + 1;
@@ -318,6 +322,10 @@ int target_get_display (const TCHAR *name)
 	found = -1;
 	for (int i = 0; Displays[i].monitorname; i++) {
 		struct MultiDisplay *md = &Displays[i];
+		if (mode == 1 && md->adapterid[0] == '\\')
+			continue;
+		if (mode == 2 && md->adapterid[0] != '\\')
+			continue;
 		if (!_tcscmp (md->adapterid, name)) {
 			if (found < 0) {
 				found = i + 1;
@@ -334,6 +342,10 @@ int target_get_display (const TCHAR *name)
 
 	for (int i = 0; Displays[i].monitorname; i++) {
 		struct MultiDisplay *md = &Displays[i];
+		if (mode == 1 && md->adaptername[0] == '\\')
+			continue;
+		if (mode == 2 && md->adaptername[0] != '\\')
+			continue;
 		if (!_tcscmp (md->adaptername, name)) {
 			if (found < 0) {
 				found = i + 1;
@@ -350,6 +362,10 @@ int target_get_display (const TCHAR *name)
 
 	for (int i = 0; Displays[i].monitorname; i++) {
 		struct MultiDisplay *md = &Displays[i];
+		if (mode == 1 && md->monitorname[0] == '\\')
+			continue;
+		if (mode == 2 && md->monitorname[0] != '\\')
+			continue;
 		if (!_tcscmp (md->monitorname, name)) {
 			if (found < 0) {
 				found = i + 1;
@@ -363,11 +379,38 @@ int target_get_display (const TCHAR *name)
 	}
 	if (found >= 0)
 		return found;
-	if (found2 >= 0)
-		return found2;
+	if (mode == 3) {
+		if (found2 >= 0)
+			return found2;
+	}
 
 	return -1;
 }
+
+int target_get_display(const TCHAR *name)
+{
+	int disp;
+
+	//write_log(_T("target_get_display '%s'\n"), name);
+	disp = target_get_display2(name, 0);
+	//write_log(_T("Scan 0: %d\n"), disp);
+	if (disp >= 0)
+		return disp;
+	disp = target_get_display2(name, 1);
+	//write_log(_T("Scan 1: %d\n"), disp);
+	if (disp >= 0)
+		return disp;
+	disp = target_get_display2(name, 2);
+	//write_log(_T("Scan 2: %d\n"), disp);
+	if (disp >= 0)
+		return disp;
+	disp = target_get_display2(name, 3);
+	//write_log(_T("Scan 3: %d\n"), disp);
+	if (disp >= 0)
+		return disp;
+	return -1;
+}
+
 const TCHAR *target_get_display_name (int num, bool friendlyname)
 {
 	if (num <= 0)

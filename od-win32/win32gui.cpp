@@ -18218,12 +18218,14 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	{
 	case  WM_DPICHANGED:
 	{
-		int dx = LOWORD(wParam);
-		int dy = HIWORD(wParam);
-		RECT *r = (RECT*)lParam;
-		gui_width = r->right - r->left;
-		gui_height = r->bottom - r->top;
-		gui_size_changed = 1;
+		if (!gui_size_changed && hGUIWnd != NULL) {
+			int dx = LOWORD(wParam);
+			int dy = HIWORD(wParam);
+			RECT *r = (RECT*)lParam;
+			gui_width = r->right - r->left;
+			gui_height = r->bottom - r->top;
+			gui_size_changed = 1;
+		}
 	}
 	break;
 	case WM_SIZING:

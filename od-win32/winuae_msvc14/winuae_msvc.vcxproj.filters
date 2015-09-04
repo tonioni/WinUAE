@@ -790,9 +790,6 @@
     <ClCompile Include="..\..\dosbox\db_memory.cpp">
       <Filter>x86</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\fake86_cpu.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\x86.cpp">
       <Filter>x86</Filter>
     </ClCompile>
@@ -800,6 +797,12 @@
       <Filter>x86</Filter>
     </ClCompile>
     <ClCompile Include="..\..\dosbox\fpu.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dosbox\timer.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\fake86_cpu.cpp">
       <Filter>x86</Filter>
     </ClCompile>
   </ItemGroup>

@@ -95,6 +95,9 @@ void cmos_writereg(Bitu port,Bitu val,Bitu iolen)
 	int reg = cmos.reg;
 	if (reg >= 64 && x86_cmos_bank)
 		reg += 64;
+
+	//write_log("cmos_write %02x (%d) = %02x\n", cmos.reg, x86_cmos_bank, val);
+
 	reg &= cmos.ram_mask;
 
 	switch (reg)
@@ -148,7 +151,7 @@ extern unsigned long int timeframes;
 extern int vpos;
 extern bool x86_turbo_on;
 
-Bitu cmos_readreg(Bitu port,Bitu iolen) {
+static Bitu cmos_readreg2(Bitu port,Bitu iolen) {
 #if 0
 	if (cmos.reg>0x3f) {
 		LOG(LOG_BIOS,LOG_ERROR)("CMOS:Read from illegal register %x",cmos.reg);
@@ -323,6 +326,13 @@ Bitu cmos_readreg(Bitu port,Bitu iolen) {
 		LOG(LOG_BIOS,LOG_NORMAL)("CMOS:Read from reg %X",cmos.reg);
 		return cmos.regs[reg];
 	}
+}
+
+Bitu cmos_readreg(Bitu port, Bitu iolen)
+{
+	Bitu v = cmos_readreg2(port, iolen);
+	//write_log("cmos_read %02x (%d) = %02x\n", cmos.reg, x86_cmos_bank, v);
+	return v;
 }
 
 void CMOS_SetRegister(Bitu regNr, Bit8u val) {
