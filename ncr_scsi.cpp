@@ -762,7 +762,6 @@ static const uae_u8 warpengine_a4000_autoconfig[16] = {
 
 addrbank *ncr710_warpengine_autoconfig_init(struct romconfig *rc)
 {
-	int roms[2];
 	struct ncr_state *ncr = getscsi(rc);
 
 	if (!ncr)
@@ -771,9 +770,6 @@ addrbank *ncr710_warpengine_autoconfig_init(struct romconfig *rc)
 	ncr_we = ncr;
 	xfree(ncr->rom);
 	ncr->rom = NULL;
-
-	roms[0] = 93;
-	roms[1] = -1;
 
 	ncr->enabled = true;
 	memset (ncr->acmemory, 0xff, sizeof ncr->acmemory);
@@ -795,7 +791,7 @@ addrbank *ncr710_warpengine_autoconfig_init(struct romconfig *rc)
 		ew(ncr, i * 4, b);
 	}
 	ncr->rom = xcalloc (uae_u8, WARP_ENGINE_ROM_SIZE * 4);
-	struct zfile *z = read_device_from_romconfig(rc, roms);
+	struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_CB_WENGINE);
 	if (z) {
 		for (int i = 0; i < WARP_ENGINE_ROM_SIZE; i++) {
 			uae_u8 b = 0xff;
@@ -816,17 +812,12 @@ addrbank *ncr710_warpengine_autoconfig_init(struct romconfig *rc)
 addrbank *ncr710_a4091_autoconfig_init (struct romconfig *rc)
 {
 	struct ncr_state *ncr = getscsi(rc);
-	int roms[3];
 
 	if (!ncr)
 		return &expamem_null;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
-
-	roms[0] = 58;
-	roms[1] = 57;
-	roms[2] = -1;
 
 	ncr->enabled = true;
 	memset (ncr->acmemory, 0xff, sizeof ncr->acmemory);
@@ -838,7 +829,7 @@ addrbank *ncr710_a4091_autoconfig_init (struct romconfig *rc)
 
 	ncr_reset_board(ncr);
 
-	struct zfile *z = read_device_from_romconfig(rc, roms);
+	struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_A4091);
 	if (z) {
 		ncr->rom = xmalloc (uae_u8, A4091_ROM_SIZE * 4);
 		for (int i = 0; i < A4091_ROM_SIZE; i++) {

@@ -169,6 +169,7 @@ struct card_data
 	struct romconfig *rc;
 	const TCHAR *name;
 	int flags;
+	int zorro;
 };
 
 static struct card_data cards[MAX_EXPANSION_BOARD_SPACE];
@@ -509,10 +510,19 @@ void expamem_next (addrbank *mapped, addrbank *next)
 
 	expamem_init_clear();
 	expamem_init_clear_zero();
-	++ecard;
-	if (ecard < cardno) {
-		call_card_init(ecard);
-	} else {
+	for (;;) {
+		++ecard;
+		if (ecard >= cardno)
+			break;
+		struct card_data *ec = &cards[ecard];
+		if (ec->initrc && ec->zorro == BOARD_NONAUTOCONFIG) {
+			ec->initrc(cards[ecard].rc);
+		} else {
+			call_card_init(ecard);
+			break;
+		}
+	}
+	if (ecard >= cardno) {
 		expamem_init_clear2();
 		expamem_init_last();
 	}
@@ -1903,11 +1913,13 @@ static void add_cpu_expansions(int zorro)
 		cards[cardno].name = cst->name;
 		cards[cardno].initrc = cst->init;
 		cards[cardno].rc = rc;
+		cards[cardno].zorro = zorro;
 		cards[cardno++].map = NULL;
 		if (cst->init2) {
 			cards[cardno].flags = cst->initflag;
 			cards[cardno].name = cst->name;
 			cards[cardno].initrc = cst->init2;
+			cards[cardno].zorro = zorro;
 			cards[cardno++].map = NULL;
 		}
 	}
@@ -1950,12 +1962,14 @@ static void add_expansions(int zorro)
 						cards[cardno].name = ert->name;
 						cards[cardno].initrc = ert->init;
 						cards[cardno].rc = rc;
+						cards[cardno].zorro = zorro;
 						cards[cardno++].map = NULL;
 						if (ert->init2) {
 							cards[cardno].flags = 0;
 							cards[cardno].name = ert->name;
 							cards[cardno].initrc = ert->init2;
 							cards[cardno].rc = rc;
+							cards[cardno].zorro = zorro;
 							cards[cardno++].map = NULL;
 						}
 					}
@@ -2552,7 +2566,7 @@ static const struct expansionboardsettings bridge_settings[] = {
 	}
 };
 
-static const struct expansionboardsettings x86at_bridge_settings[] = {
+static const struct expansionboardsettings x86at286_bridge_settings[] = {
 	{
 		// 14
 		_T("Default video\0") _T("Monochrome\0") _T("Color\0"),
@@ -2566,8 +2580,8 @@ static const struct expansionboardsettings x86at_bridge_settings[] = {
 		false
 	},
 	{	// 16 - 18
-		_T("Memory\0") _T("1M\0") _T("2M\0") _T("4M\0") _T("8M\0") _T("16M\0") _T("32M\0"),
-		_T("memory\0") _T("1M\0") _T("2M\0") _T("4M\0") _T("8M\0") _T("16M\0") _T("32M\0"),
+		_T("Memory\0") _T("1M\0") _T("2M\0") _T("4M\0") _T("8M\0") _T("16M\0"),
+		_T("memory\0") _T("1M\0") _T("2M\0") _T("4M\0") _T("8M\0") _T("16M\0"),
 		true, false, 0
 	},
 	{	// 19 - 20
@@ -2580,11 +2594,47 @@ static const struct expansionboardsettings x86at_bridge_settings[] = {
 		_T("fpu"),
 		false, false, 1
 	},
+	{	// 23 - 25
+		_T("CPU Arch\0") _T("auto") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"), 
+		_T("cpuarch\0") _T("auto") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
+		true, false, 0
+	},
 	{
 		NULL
 	}
 };
 
+static const struct expansionboardsettings x86at386_bridge_settings[] = {
+	{
+		// 15
+		_T("Keyboard lock"),
+		_T("keylock"),
+		false, false, 15
+	},
+	{	// 16 - 18
+		_T("Memory\0") _T("1M\0") _T("2M\0") _T("4M\0") _T("8M\0") _T("16M\0") _T("32M\0") _T("64M\0"),
+		_T("memory\0") _T("1M\0") _T("2M\0") _T("4M\0") _T("8M\0") _T("16M\0") _T("32M\0") _T("64M\0"),
+		true, false, 0
+	},
+	{	// 19 - 20
+		_T("CPU core\0") _T("DOSBox simple\0") _T("DOSBox normal\0") _T("DOSBox full\0") _T("DOSBox auto\0"),
+		_T("cpu\0") _T("dbsimple\0") _T("dbnormal\0") _T("dbfull\0") _T("dbauto\0"),
+		true, false, 0
+	},
+	{	// 22
+		_T("FPU"),
+		_T("fpu"),
+		false, false, 1
+	},
+	{	// 23 - 25
+		_T("CPU Arch\0") _T("auto\0") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
+		_T("cpuarch\0") _T("auto\0") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
+		true, false, 0
+	},
+	{
+		NULL
+	}
+};
 
 static const struct expansionboardsettings x86_bridge_settings[] = {
 	{
@@ -2667,6 +2717,17 @@ static const struct expansionboardsettings x86_bridge_sidecar_settings[] = {
 		_T("CPU core\0") _T("Fake86\0") _T("DOSBox simple\0") _T("DOSBox normal\0") _T("DOSBox full\0") _T("DOSBox auto\0"),
 		_T("cpu\0") _T("fake86\0") _T("dbsimple\0") _T("dbnormal\0") _T("dbfull\0") _T("dbauto\0"),
 		true, false, 19 - 13
+	},
+	{
+		NULL
+	}
+};
+
+static const struct expansionboardsettings x86_athdxt_settings[] = {
+	{
+		_T("ROM Address\0") _T("0xCC000\0") _T("0xDC000\0") _T("0xEC000\0"),
+		_T("baseaddress\0") _T("0xcc000\0") _T("0xdc000\0") _T("0xec000\0"),
+		true
 	},
 	{
 		NULL
@@ -3082,7 +3143,10 @@ const struct expansionromtype expansionroms[] = {
 		_T("x86athdxt"), _T("XTIDE Universal BIOS HD"), _T("x86"),
 		x86_at_hd_init_xt, NULL, x86_add_at_hd_unit_xt, ROMTYPE_X86_XT_IDE | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_IDE
+		false, EXPANSIONTYPE_IDE,
+		0, 0, 0, false, NULL,
+		false,
+		x86_athdxt_settings
 	},
 
 	{
@@ -3119,7 +3183,7 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_X86_BRIDGE,
 		0, 0, 0, false, NULL,
 		false,
-		x86at_bridge_settings
+		x86at286_bridge_settings
 	},
 	{
 		_T("a2386"), _T("A2386SX"), _T("Commodore"),
@@ -3128,7 +3192,7 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_X86_BRIDGE,
 		0, 0, 0, false, NULL,
 		false,
-		x86at_bridge_settings
+		x86at386_bridge_settings
 	},
 
 	// only here for rom selection

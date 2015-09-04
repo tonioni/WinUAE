@@ -43,6 +43,7 @@ struct ide_board
 	int type;
 	int userdata;
 	int subtype;
+	uae_u16 data_latch;
 	struct romconfig *rc, *original_rc;
 	struct ide_board **self_ptr;
 };
@@ -57,6 +58,7 @@ struct ide_hdf
 	struct ide_hdf *pair; // master<>slave
 	struct ide_thread_state *its;
 	bool byteswap;
+	int byteswapped_buffer;
 	bool adide;
 
 	uae_u8 *secbuf;
@@ -74,12 +76,14 @@ struct ide_hdf
 	uae_u8 multiple_mode;
 	int irq_delay;
 	int irq;
+	bool irq_new;
 	int num;
 	int blocksize;
 	int maxtransferstate;
 	int ata_level;
 	int ide_drv;
 	int media_type;
+	bool mode_8bit;
 
 	bool atapi;
 	bool atapi_drdy;
@@ -107,7 +111,7 @@ void ide_put_data_8bit(struct ide_hdf *ide, uae_u8 v);
 uae_u8 ide_get_data_8bit(struct ide_hdf *ide);
 
 bool ide_interrupt_hsync(struct ide_hdf *ide);
-bool ide_irq_check(struct ide_hdf *ide);
+bool ide_irq_check(struct ide_hdf *ide, bool edge_triggered);
 bool ide_drq_check(struct ide_hdf *ide);
 bool ide_isdrive(struct ide_hdf *ide);
 void ide_initialize(struct ide_hdf **idetable, int chpair);

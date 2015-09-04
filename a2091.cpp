@@ -3475,7 +3475,6 @@ void a2091_reset (void)
 addrbank *a2091_init (struct romconfig *rc)
 {
 	struct wd_state *wd = getscsi(rc);
-	int roms[6];
 	int slotsize;
 
 	if (!wd)
@@ -3504,13 +3503,6 @@ addrbank *a2091_init (struct romconfig *rc)
 	ew (wd, 0x20, 0x00); /* ser.no. Byte 2 */
 	ew (wd, 0x24, 0x00); /* ser.no. Byte 3 */
 
-	roms[0] = 55; // 7.0
-	roms[1] = 54; // 6.6
-	roms[2] = 53; // 6.0
-	roms[3] = 56; // guru
-	roms[4] = 87;
-	roms[5] = -1;
-
 	wd->rombankswitcher = 0;
 	wd->rombank = 0;
 	slotsize = 65536;
@@ -3519,7 +3511,7 @@ addrbank *a2091_init (struct romconfig *rc)
 	wd->rom_size = 16384;
 	wd->rom_mask = wd->rom_size - 1;
 	if (!rc->autoboot_disabled) {
-		struct zfile *z = read_device_from_romconfig(rc, roms);
+		struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_A2091);
 		if (z) {
 			wd->rom_size = zfile_size (z);
 			zfile_fread (wd->rom, wd->rom_size, 1, z);
@@ -3543,7 +3535,6 @@ addrbank *a2091_init (struct romconfig *rc)
 addrbank *a2090_init (struct romconfig *rc)
 {
 	struct wd_state *wd = getscsi(rc);
-	int roms[6];
 	int slotsize;
 
 	if (!wd)
@@ -3573,9 +3564,6 @@ addrbank *a2090_init (struct romconfig *rc)
 
 	//ew(wd, 0x30, 0x80); // SCSI only flag
 
-	roms[0] = 122;
-	roms[1] = -1;
-
 	wd->rombankswitcher = 0;
 	wd->rombank = 0;
 	slotsize = 65536;
@@ -3584,7 +3572,7 @@ addrbank *a2090_init (struct romconfig *rc)
 	wd->rom_size = 16384;
 	wd->rom_mask = wd->rom_size - 1;
 	if (!rc->autoboot_disabled) {
-		struct zfile *z = read_device_from_romconfig(rc, roms);
+		struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_A2090);
 		if (z) {
 			wd->rom_size = zfile_size (z);
 			zfile_fread (wd->rom, wd->rom_size, 1, z);
@@ -3648,7 +3636,6 @@ static bool is_gvp_accelerator(void)
 static addrbank *gvp_init(struct romconfig *rc, bool series2, bool accel)
 {
 	struct wd_state *wd = getscsi(rc);
-	int roms[6];
 	bool isscsi = true;
 	const uae_u8 *ac;
 	int romtype;
@@ -3671,11 +3658,6 @@ static addrbank *gvp_init(struct romconfig *rc, bool series2, bool accel)
 	wd->gdmac.series2 = series2;
 	wd->gdmac.use_version = series2;
 	wd->board_mask = 65535;
-
-	roms[0] = 109;
-	roms[1] = 110;
-	roms[2] = 111;
-	roms[3] = -1;
 
 	wd->rom_size = 32768;
 	wd->rom = xcalloc(uae_u8, 2 * wd->rom_size);
@@ -3704,7 +3686,7 @@ static addrbank *gvp_init(struct romconfig *rc, bool series2, bool accel)
 	xfree(wd->gdmac.buffer);
 	wd->gdmac.buffer = xcalloc(uae_u8, 16384);
 	if (!rc->autoboot_disabled) {
-		struct zfile *z = read_device_from_romconfig(rc, roms);
+		struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_GVPS2);
 		if (z) {
 			int size = zfile_size(z);
 			if (series2) {

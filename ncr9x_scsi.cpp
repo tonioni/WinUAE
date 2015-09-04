@@ -1362,7 +1362,6 @@ void ncr9x_reset(void)
 
 addrbank *ncr_fastlane_autoconfig_init(struct romconfig *rc)
 {
-	int roms[2];
 	struct ncr9x_state *ncr = getscsi(rc);
 
 	xfree(ncr->rom);
@@ -1370,9 +1369,6 @@ addrbank *ncr_fastlane_autoconfig_init(struct romconfig *rc)
 
 	if (!ncr)
 		return &expamem_null;
-
-	roms[0] = 102;
-	roms[1] = -1;
 
 	ncr->enabled = true;
 	memset (ncr->acmemory, 0xff, sizeof ncr->acmemory);
@@ -1385,7 +1381,7 @@ addrbank *ncr_fastlane_autoconfig_init(struct romconfig *rc)
 
 	ncr9x_reset_board(ncr);
 
-	struct zfile *z = read_device_from_romconfig(rc, roms);
+	struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_FASTLANE);
 	ncr->rom = xcalloc (uae_u8, FASTLANE_ROM_SIZE * 4);
 	if (z) {
 		// memory board at offset 0x100
@@ -1421,7 +1417,6 @@ static const uae_u8 oktagon_eeprom[16] =
 
 addrbank *ncr_oktagon_autoconfig_init(struct romconfig *rc)
 {
-	int roms[2];
 	struct ncr9x_state *ncr = getscsi(rc);
 
 	if (!ncr)
@@ -1431,9 +1426,6 @@ addrbank *ncr_oktagon_autoconfig_init(struct romconfig *rc)
 	ncr->rom = NULL;
 	eeprom_free(ncr->eeprom);
 	ncr->eeprom = NULL;
-
-	roms[0] = 103;
-	roms[1] = -1;
 
 	ncr->enabled = true;
 	memset (ncr->acmemory, 0xff, sizeof ncr->acmemory);
@@ -1454,7 +1446,7 @@ addrbank *ncr_oktagon_autoconfig_init(struct romconfig *rc)
 	ncr9x_reset_board(ncr);
 
 	if (!rc->autoboot_disabled) {
-		struct zfile *z = read_device_from_romconfig(rc, roms);
+		struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_OKTAGON);
 		if (z) {
 			// memory board at offset 0x100
 			memset(ncr->rom, 0xff, OKTAGON_ROM_SIZE * 4);
@@ -1486,7 +1478,6 @@ addrbank *ncr_oktagon_autoconfig_init(struct romconfig *rc)
 
 addrbank *ncr_dkb_autoconfig_init(struct romconfig *rc)
 {
-	int roms[2];
 	struct ncr9x_state *ncr = getscsi(rc);
 
 	if (!ncr)
@@ -1494,9 +1485,6 @@ addrbank *ncr_dkb_autoconfig_init(struct romconfig *rc)
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
-
-	roms[0] = 112;
-	roms[1] = -1;
 
 	ncr->enabled = true;
 	memset (ncr->acmemory, 0xff, sizeof ncr->acmemory);
@@ -1510,7 +1498,7 @@ addrbank *ncr_dkb_autoconfig_init(struct romconfig *rc)
 
 	ncr9x_reset_board(ncr);
 
-	struct zfile *z = read_device_from_romconfig(rc, roms);
+	struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_CB_DKB12x0);
 	ncr->rom = xcalloc (uae_u8, DKB_ROM_SIZE * 2);
 	if (z) {
 		// memory board at offset 0x100
@@ -1538,7 +1526,6 @@ addrbank *ncr_dkb_autoconfig_init(struct romconfig *rc)
 
 addrbank *ncr_ematrix_autoconfig_init(struct romconfig *rc)
 {
-	int roms[2];
 	struct ncr9x_state *ncr = getscsi(rc);
 
 	if (!ncr)
@@ -1546,9 +1533,6 @@ addrbank *ncr_ematrix_autoconfig_init(struct romconfig *rc)
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
-
-	roms[0] = 144;
-	roms[1] = -1;
 
 	ncr->enabled = true;
 	memset(ncr->acmemory, 0xff, sizeof ncr->acmemory);
@@ -1562,7 +1546,7 @@ addrbank *ncr_ematrix_autoconfig_init(struct romconfig *rc)
 
 	ncr9x_reset_board(ncr);
 
-	struct zfile *z = read_device_from_romconfig(rc, roms);
+	struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_CB_EMATRIX);
 	ncr->rom = xcalloc(uae_u8, 65536);
 	if (z) {
 		int i;

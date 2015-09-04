@@ -158,6 +158,7 @@ extern void getromname (const struct romdata*, TCHAR*);
 extern struct romdata *getromdatabyname (const TCHAR*);
 extern struct romlist *getromlistbyids (const int *ids, const TCHAR *romname);
 extern struct romdata *getromdatabyids (const int *ids);
+extern struct romlist *getromlistbyromtype(uae_u32 romtype);
 extern void romwarning(const int *ids);
 extern struct romlist *getromlistbyromdata (const struct romdata *rd);
 extern void romlist_add (const TCHAR *path, struct romdata *rd);
@@ -165,7 +166,7 @@ extern TCHAR *romlist_get (const struct romdata *rd);
 extern void romlist_clear (void);
 extern struct zfile *read_rom (struct romdata *rd);
 extern struct zfile *read_rom_name (const TCHAR *filename);
-extern struct zfile *read_device_from_romconfig(struct romconfig *rc, const int *roms);
+extern struct zfile *read_device_from_romconfig(struct romconfig *rc, uae_u32 romtype);
 
 extern int load_keyring (struct uae_prefs *p, const TCHAR *path);
 extern uae_u8 *target_load_keyfile (struct uae_prefs *p, const TCHAR *path, int *size, TCHAR *name);
@@ -199,4 +200,4 @@ struct boardromconfig *get_boardromconfig(struct uae_prefs *p, int romtype, int 
 #define LOADROM_ONEFILL 4
 #define LOADROM_ZEROFILL 8
 #define LOADROM_ODDFILL(x) ((x << 16) | LOADROM_EVENONLY)
-bool load_rom_rc(struct romconfig *rc, const int *roms, int maxfilesize, int fileoffset, uae_u8 *rom, int maxromsize, int flags);
+bool load_rom_rc(struct romconfig *rc, uae_u32 romtype, int maxfilesize, int fileoffset, uae_u8 *rom, int maxromsize, int flags);

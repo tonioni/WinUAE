@@ -552,7 +552,7 @@ static bool isdataflyerscsiplus(uaecptr addr, uae_u32 *v, int size)
 				break;
 				case 3:
 				*v = 0;
-				if (ide_irq_check(idedrive[0]))
+				if (ide_irq_check(idedrive[0], false))
 					*v = dataflyer_byte;
 				break;
 				case 4: // select SCSI

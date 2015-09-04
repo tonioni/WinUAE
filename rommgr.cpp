@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 147
+#define NEXT_ROM_ID 156
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -449,6 +449,29 @@ static struct romdata roms[] = {
 
 	{ _T("Picasso IV"), 7, 4, 7, 4, _T("PIV\0"), 131072, 91, 0, 0, ROMTYPE_PIV, 0, 0, NULL,
 	0xa8133e7e, 0xcafafb91,0x6f16b9f3,0xec9b49aa,0x4b40eb4e,0xeceb5b5b },
+
+	{ _T("A1060 BIOS 2.06"), 2, 6, 2, 6, _T("A1060\0"), 16384, 147, 0, 0, ROMTYPE_A1060, 0, 0, _T("380619-03"),
+	0x185f2bbd, 0xeba74ad1,0x000a5351,0xa5d99179,0xbf75f831,0xac2d2402, NULL, NULL },
+	{ _T("A2088 BIOS 3.4"), 3, 4, 3, 4, _T("A2088\0"), 16384, 148, 0, 0, ROMTYPE_A2088, 0, 0, _T("380788-04"),
+	0x05552160, 0xd1defdee,0x1c0eae41,0x07d81e26,0x74915cd2,0x9d352f2e, NULL, NULL },
+	{ _T("A2088 BIOS 3.6.1"), 3, 61, 3, 61, _T("A2088\0"), 16384, 149, 0, 0, ROMTYPE_A2088, 0, 0, _T("380788-06"),
+	0x5fd93e56, 0xc1b707a8,0xa62907d7,0x5299f10a,0xa60efd1f,0x44514b26, NULL, NULL },
+	{ _T("A2088T BIOS 4.10"), 4, 10, 4, 11, _T("A2088T\0"), 32768, 150, 0, 0, ROMTYPE_A2088T, 0, 0, _T("390657-02"),
+	0x20c5d1a9, 0x08e3fbb7,0x28dfc514,0x24083313,0x373ea7a5,0xa2c3e965, NULL, NULL },
+	{ _T("A2088T BIOS 4.11"), 4, 11, 4, 11, _T("A2088T\0"), 32768, 151, 0, 0, ROMTYPE_A2088T, 0, 0, _T("390547-02"),
+	0x074bc9b0, 0x2a3f56bc,0xe395f203,0x46eb68c4,0xade7153e,0x3e69f892, NULL, NULL },
+	{ _T("A2088T BIOS 4.12"), 4, 12, 4, 12, _T("A2088T\0"), 32768, 152, 0, 0, ROMTYPE_A2088T, 0, 0, _T("390547-03"),
+	0x92447176, 0x582fa254,0x73aa2679,0xefcd41a5,0xbdadf1a2,0x6a87a75f, NULL, NULL },
+	{ _T("A2286 BIOS 3.6"), 3, 6, 3, 6, _T("A2286\0"), 32768, 153, 0, 0, ROMTYPE_A2286, 0, 0, NULL,
+	0x63d75f70, 0x9f5d6c78,0x656d2fe7,0x36608644,0x771b6d30,0x31083264, NULL, NULL },
+	ALTROMPN(153, 1, 1, 16384, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("380682-03"), 0xb3f76402, 0xef9ba5f2, 0x2714ad6d, 0xfa5e0aef, 0x2d09ce83, 0x578ee26d)
+	ALTROMPN(153, 1, 2, 16384, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("380683-03"), 0xab053693, 0x75229d80, 0x443fad78, 0xa298d04b, 0x37c8e6c3, 0x2c1b6df0)
+	{ _T("A2286 BIOS 4.2"), 4, 2, 4, 2, _T("A2286\0"), 32768, 154, 0, 0, ROMTYPE_A2286, 0, 0, NULL,
+	0xd572e205, 0x74fdf0f8,0x325fbc41,0x2b98c72d,0xf5095804,0x831c46b5, NULL, NULL },
+	ALTROMPN(154, 1, 1, 16384, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("380682-04"), 0xc23dcd55, 0x38dc24b7, 0x14427b15, 0xd5214cc9, 0xb9be0de7, 0x20bd6a34)
+	ALTROMPN(154, 1, 2, 16384, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("380683-04"), 0xdad80c0b, 0x12fe2916, 0x64f8c412, 0x3877a24e, 0x05837091, 0x44d8acd0)
+	{ _T("A2386SX BIOS 1.0"), 1, 0, 1, 0, _T("A2386SX\0"), 65536, 155, 0, 0, ROMTYPE_A2386, 0, 0, NULL,
+	0x37003e0c, 0x2e127e9c,0x8581d30c,0x2e46404b,0x21608e3c,0xe935fa27, NULL, NULL },
 
 	{ _T("Arcadia OnePlay 2.11"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 49, 0, 0, ROMTYPE_ARCADIABIOS, 0, 0 },
 	{ _T("Arcadia TenPlay 2.11"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 50, 0, 0, ROMTYPE_ARCADIABIOS, 0, 0 },
@@ -1149,6 +1172,22 @@ struct romlist *getromlistbyromdata (const struct romdata *rd)
 	return getromlistbyids(ids, NULL);
 }
 
+struct romlist *getromlistbyromtype(uae_u32 romtype)
+{
+	int i = 0;
+	while (roms[i].name) {
+		if (roms[i].type == romtype) {
+			struct romdata *rd = &roms[i];
+			for (int j = 0; j < romlist_cnt; j++) {
+				if (rl[j].rd->id == rd->id)
+					return &rl[j];
+			}
+		}
+		i++;
+	}
+	return NULL;
+}
+
 struct romlist *getromlistbyids (const int *ids, const TCHAR *romname)
 {
 	struct romdata *rd;
@@ -1740,19 +1779,28 @@ struct romconfig *get_device_romconfig(struct uae_prefs *p, int romtype, int dev
 	return NULL;
 }
 
-struct zfile *read_device_from_romconfig(struct romconfig *rc, const int *roms)
+static bool isspecialrom(const TCHAR *name)
 {
-	if (!_tcsicmp(rc->romfile, _T(":NOROM")))
-		return NULL;
-	struct zfile *z = read_rom_name (rc->romfile);
-	if (!z && roms) {
-		struct romlist *rl = getromlistbyids(roms, rc->romfile);
+	if (!_tcsicmp(name, _T(":NOROM")))
+		return true;
+	if (!_tcsicmp(name, _T(":ENABLED")))
+		return true;
+	return false;
+}
+
+struct zfile *read_device_from_romconfig(struct romconfig *rc, uae_u32 romtype)
+{
+	struct zfile *z = NULL;
+	if (isspecialrom(rc->romfile))
+		return z;
+	z = read_rom_name (rc->romfile);
+	if (z)
+		return z;
+	if (romtype) {
+		struct romlist *rl = getromlistbyromtype(romtype);
 		if (rl) {
 			struct romdata *rd = rl->rd;
-			z = read_rom (rd);
-		}
-		if (!z) {
-			romwarning (roms);
+			z = read_rom(rd);
 		}
 	}
 	return z;
@@ -1764,7 +1812,7 @@ struct zfile *read_device_rom(struct uae_prefs *p, int romtype, int devnum, int 
 	struct boardromconfig *brc = get_device_rom(p, romtype, devnum, &idx);
 	if (brc) {
 		const TCHAR *romname = brc->roms[idx].romfile;
-		if (!_tcsicmp(romname, _T(":NOROM")))
+		if (isspecialrom(romname))
 			return NULL;
 		struct zfile *z = read_rom_name (romname);
 		if (!z && roms) {
@@ -1787,7 +1835,7 @@ int is_device_rom(struct uae_prefs *p, int romtype, int devnum)
 		const TCHAR *romname = brc->roms[idx].romfile;
 		if (_tcslen(romname) == 0)
 			return -1;
-		if (!_tcsicmp(romname, _T(":NOROM")))
+		if (isspecialrom(romname))
 			return 0;
 		return 1;
 	}
@@ -1813,24 +1861,27 @@ struct boardromconfig *get_boardromconfig(struct uae_prefs *p, int romtype, int 
 	return NULL;
 }
 
-bool load_rom_rc(struct romconfig *rc, const int *roms, int maxfilesize, int fileoffset, uae_u8 *rom, int maxromsize, int flags)
+bool load_rom_rc(struct romconfig *rc, uae_u32 romtype, int maxfilesize, int fileoffset, uae_u8 *rom, int maxromsize, int flags)
 {
 	if (flags & LOADROM_ONEFILL)
 		memset(rom, 0xff, maxromsize);
 	if (flags & LOADROM_ZEROFILL)
 		memset(rom, 0x00, maxromsize);
-	struct zfile *f = read_device_from_romconfig(rc, roms);
+	struct zfile *f = read_device_from_romconfig(rc, romtype);
 	if (!f)
 		return false;
 	zfile_fseek(f, fileoffset, SEEK_SET);
 	int cnt = 0;
 	int pos = 0;
+	int bytes = 0;
 	bool eof = false;
 	while (cnt < maxromsize && cnt < maxfilesize && pos < maxromsize) {
 		uae_u8 b = 0xff;
 		if (!eof) {
 			if (!zfile_fread(&b, 1, 1, f))
 				eof = true;
+			else
+				bytes++;
 		}
 		if (eof) {
 			int bitcnt = 0;
@@ -1851,6 +1902,8 @@ bool load_rom_rc(struct romconfig *rc, const int *roms, int maxfilesize, int fil
 		}
 		cnt++;
 	}
+	if (f)
+		write_log(_T("ROM '%s' loaded, %d bytes.\n"), zfile_getname(f), bytes);
 	zfile_fclose(f);
 	int posend = pos;
 	if (!(flags & LOADROM_FILL))
