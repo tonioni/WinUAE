@@ -511,7 +511,7 @@ out_nomem:
 	return -ENOMEM;
 
 out_noread:
-	write_log (_T("ISOFS: unable to read i-node block %u\n"), block);
+	write_log (_T("ISOFS: unable to read i-node block %lu\n"), block);
 	xfree(tmpde);
 	return -EIO;
 
@@ -1851,8 +1851,8 @@ root_found:
 	first_data_zone = isonum_733(rootp->extent) + isonum_711(rootp->ext_attr_length);
 	sbi->s_firstdatazone = first_data_zone;
 
-	write_log (_T("ISOFS: Max size:%d   Log zone size:%d\n"), sbi->s_max_size, 1UL << sbi->s_log_zone_size);
-	write_log (_T("ISOFS: First datazone:%d\n"), sbi->s_firstdatazone);
+	write_log (_T("ISOFS: Max size:%ld   Log zone size:%ld\n"), sbi->s_max_size, 1UL << sbi->s_log_zone_size);
+	write_log (_T("ISOFS: First datazone:%ld\n"), sbi->s_firstdatazone);
 	if(sbi->s_high_sierra)
 		write_log(_T("ISOFS: Disc in High Sierra format.\n"));
 	ch = getname(pri->system_id, 4);
@@ -2012,7 +2012,7 @@ out_no_read:
 	write_log (_T("ISOFS: bread failed, dev=%d, iso_blknum=%d, block=%d\n"), s->unitnum, iso_blknum, block);
 	goto out_freebh;
 out_bad_zone_size:
-	write_log(_T("ISOFS: Bad logical zone size %d\n"), sbi->s_log_zone_size);
+	write_log(_T("ISOFS: Bad logical zone size %ld\n"), sbi->s_log_zone_size);
 	goto out_freebh;
 out_bad_size:
 	write_log (_T("ISOFS: Logical zone size(%d) < hardware blocksize(%u)\n"), orig_zonesize, opt.blocksize);
@@ -2149,7 +2149,7 @@ static struct inode *isofs_find_entry(struct inode *dir, char *tmpname, TCHAR *t
 		dpnt = de->name;
 		/* Basic sanity check, whether name doesn't exceed dir entry */
 		if (de_len < dlen + sizeof(struct iso_directory_record)) {
-			write_log (_T("iso9660: Corrupted directory entry in block %u of inode %u\n"), block, dir->i_ino);
+			write_log (_T("iso9660: Corrupted directory entry in block %lu of inode %u\n"), block, dir->i_ino);
 			return 0;
 		}
 
@@ -2292,7 +2292,7 @@ static int do_isofs_readdir(struct inode *inode, struct file *filp, char *tmpnam
 		}
 		/* Basic sanity check, whether name doesn't exceed dir entry */
 		if (de_len < de->name_len[0] + sizeof(struct iso_directory_record)) {
-			write_log (_T("iso9660: Corrupted directory entry in block %u of inode %u\n"), block, inode->i_ino);
+			write_log (_T("iso9660: Corrupted directory entry in block %lu of inode %u\n"), block, inode->i_ino);
 			return 0;
 		}
 
