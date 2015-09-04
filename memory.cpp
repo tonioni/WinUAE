@@ -552,7 +552,7 @@ static void REGPARAM2 chipmem_bput_ce2 (uaecptr addr, uae_u32 b)
 
 #endif
 
-uae_u32 REGPARAM2 chipmem_lget (uaecptr addr)
+static uae_u32 REGPARAM2 chipmem_lget (uaecptr addr)
 {
 	uae_u32 *m;
 
@@ -625,24 +625,28 @@ static uae_u32 chipmem_dummy (void)
 	/* not really right but something random that has more ones than zeros.. */
 	return 0xffff & ~((1 << (uaerand () & 31)) | (1 << (uaerand () & 31)));
 }
-void REGPARAM2 chipmem_dummy_bput (uaecptr addr, uae_u32 b)
+
+static void REGPARAM2 chipmem_dummy_bput (uaecptr addr, uae_u32 b)
 {
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
 }
-void REGPARAM2 chipmem_dummy_wput (uaecptr addr, uae_u32 b)
+
+static void REGPARAM2 chipmem_dummy_wput (uaecptr addr, uae_u32 b)
 {
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
 }
-void REGPARAM2 chipmem_dummy_lput (uaecptr addr, uae_u32 b)
+
+static void REGPARAM2 chipmem_dummy_lput (uaecptr addr, uae_u32 b)
 {
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
 }
+
 static uae_u32 REGPARAM2 chipmem_dummy_bget (uaecptr addr)
 {
 #ifdef JIT
@@ -1308,7 +1312,6 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
 #endif
 	if (i < size - 20)
 		kickstart_fix_checksum (mem, size);
-
 	j = 1;
 	while (j < i)
 		j <<= 1;
@@ -1485,7 +1488,6 @@ extern int seriallog;
 static bool load_kickstart_replacement (void)
 {
 	struct zfile *f;
-	
 	f = zfile_fopen_data (_T("aros.gz"), arosrom_len, arosrom);
 	if (!f)
 		return false;
@@ -1499,6 +1501,7 @@ static bool load_kickstart_replacement (void)
 	extendedkickmem_type = EXTENDED_ROM_KS;
 	mapped_malloc (&extendedkickmem_bank);
 	read_kickstart (f, extendedkickmem_bank.baseaddr, ROM_SIZE_512, 0, 1);
+
 
 	kickmem_bank.allocated = ROM_SIZE_512;
 	kickmem_bank.mask = ROM_SIZE_512 - 1;
@@ -1645,10 +1648,7 @@ void mapped_free (addrbank *ab)
 
 #else
 
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <unistd.h>
-#include <sys/mman.h>
+#include <uae/mman.h>
 
 shmpiece *shm_start;
 
@@ -1701,7 +1701,7 @@ static void delete_shmmaps (uae_u32 start, uae_u32 size)
 				size = x->size;
 			}
 
-			shmdt (x->native_address);
+			uae_shmdt (x->native_address);
 			size -= x->size;
 			start += x->size;
 			if (x->next)
@@ -1737,7 +1737,7 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
 	y = xmalloc (shmpiece, 1);
 	*y = *x;
 	base = ((uae_u8 *) NATMEM_OFFSET) + start;
-	y->native_address = (uae_u8*)shmat (what, y->id, base, 0);
+	y->native_address = (uae_u8*)uae_shmat (what, y->id, base, 0);
 	if (y->native_address == (void *) -1) {
 		write_log (_T("NATMEM: Failure to map existing at %08x (%p)\n"), start, base);
 		dumplist ();
@@ -1778,7 +1778,7 @@ bool mapped_malloc (addrbank *ab)
 		return ab->baseaddr != NULL;
 	}
 
-	id = shmget (IPC_PRIVATE, ab->allocated, 0x1ff, ab->label);
+	id = uae_shmget (UAE_IPC_PRIVATE, ab->allocated, 0x1ff, ab->label);
 	if (id == -1) {
 		nocanbang ();
 		if (recurse)
@@ -1789,8 +1789,8 @@ bool mapped_malloc (addrbank *ab)
 		return ab->baseaddr != NULL;
 	}
 	if (!(ab->flags & ABFLAG_NOALLOC)) {
-		answer = shmat (ab, id, 0, 0);
-		shmctl (id, IPC_RMID, NULL);
+		answer = uae_shmat (ab, id, 0, 0);
+		uae_shmctl (id, UAE_IPC_RMID, NULL);
 	} else {
 		answer = ab->baseaddr;
 	}
@@ -2230,7 +2230,7 @@ uae_u32 getz2endaddr (void)
 	return start + 2 * 1024 * 1024;
 }
 
-void map_banks_set(addrbank *bank, int start, int size, int realsize)
+static void map_banks_set(addrbank *bank, int start, int size, int realsize)
 {
 	bank->startmask = start << 16;
 	map_banks(bank, start, size, realsize);
@@ -2509,8 +2509,9 @@ void memory_reset (void)
 		map_banks_set(&rtarea_bank, rtarea_base >> 16, 1, 0);
 #endif
 
-	if ((cloanto_rom || currprefs.cs_ksmirror_e0) && (currprefs.maprom != 0xe00000) && !extendedkickmem_type)
+	if ((cloanto_rom || currprefs.cs_ksmirror_e0) && (currprefs.maprom != 0xe00000) && !extendedkickmem_type) {
 		map_banks(&kickmem_bank, 0xE0, 8, 0);
+	}
 	if (currprefs.cs_ksmirror_a8) {
 		if (extendedkickmem2_bank.allocated) {
 			map_banks_set(&extendedkickmem2_bank, 0xa8, 16, 0);
@@ -2992,7 +2993,7 @@ uae_u8 *save_bram (int *len)
 	return bogomem_bank.baseaddr;
 }
 
-uae_u8 *save_mem25bitram (int *len)
+static uae_u8 *save_mem25bitram (int *len)
 {
 	*len = mem25bit_bank.allocated;
 	return mem25bit_bank.baseaddr;
