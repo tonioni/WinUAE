@@ -69,9 +69,6 @@ static int g_allocated_handles = 0;
 static int g_max_handle = -1;
 
 #ifdef _WIN32
-#ifndef LT_MODULE_EXT
-#define LT_MODULE_EXT _T(".dll")
-#endif
 #ifndef OS_NAME
 #define OS_NAME _T("windows")
 #endif

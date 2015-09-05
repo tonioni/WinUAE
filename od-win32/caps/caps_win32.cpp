@@ -1,18 +1,19 @@
-
 #include "sysconfig.h"
 #include "sysdeps.h"
 
 #ifdef CAPS
 
+#ifdef _WIN32
 #include <shlobj.h>
+#endif
 
 #include "caps_win32.h"
 #include "zfile.h"
 #include "gui.h"
-#include "win32.h"
 #include "uae.h"
+#include "uae/dlopen.h"
 
-#include "ComType.h"
+#include "Comtype.h"
 #include "CapsAPI.h"
 
 #define CAPS_TRACKTIMING 1
@@ -25,78 +26,84 @@ static int caps_flags = DI_LOCK_DENVAR|DI_LOCK_DENNOISE|DI_LOCK_NOISE|DI_LOCK_UP
 static struct CapsVersionInfo cvi;
 static bool oldlib, canseed;
 
-typedef SDWORD (__cdecl* CAPSINIT)(void);
+#ifdef _WIN32
+#define CAPSCALL __cdecl
+#else
+#define CAPSCALL
+#endif
+
+typedef SDWORD (CAPSCALL * CAPSINIT)(void);
 static CAPSINIT pCAPSInit;
-typedef SDWORD (__cdecl* CAPSADDIMAGE)(void);
+typedef SDWORD (CAPSCALL * CAPSADDIMAGE)(void);
 static CAPSADDIMAGE pCAPSAddImage;
-typedef SDWORD (__cdecl* CAPSLOCKIMAGEMEMORY)(SDWORD,PUBYTE,UDWORD,UDWORD);
+typedef SDWORD (CAPSCALL * CAPSLOCKIMAGEMEMORY)(SDWORD,PUBYTE,UDWORD,UDWORD);
 static CAPSLOCKIMAGEMEMORY pCAPSLockImageMemory;
-typedef SDWORD (__cdecl* CAPSUNLOCKIMAGE)(SDWORD);
+typedef SDWORD (CAPSCALL * CAPSUNLOCKIMAGE)(SDWORD);
 static CAPSUNLOCKIMAGE pCAPSUnlockImage;
-typedef SDWORD (__cdecl* CAPSLOADIMAGE)(SDWORD,UDWORD);
+typedef SDWORD (CAPSCALL * CAPSLOADIMAGE)(SDWORD,UDWORD);
 static CAPSLOADIMAGE pCAPSLoadImage;
-typedef SDWORD (__cdecl* CAPSGETIMAGEINFO)(PCAPSIMAGEINFO,SDWORD);
+typedef SDWORD (CAPSCALL * CAPSGETIMAGEINFO)(PCAPSIMAGEINFO,SDWORD);
 static CAPSGETIMAGEINFO pCAPSGetImageInfo;
-typedef SDWORD (__cdecl* CAPSLOCKTRACK)(PCAPSTRACKINFO,SDWORD,UDWORD,UDWORD,UDWORD);
+typedef SDWORD (CAPSCALL * CAPSLOCKTRACK)(PCAPSTRACKINFO,SDWORD,UDWORD,UDWORD,UDWORD);
 static CAPSLOCKTRACK pCAPSLockTrack;
-typedef SDWORD (__cdecl* CAPSUNLOCKTRACK)(SDWORD,UDWORD);
+typedef SDWORD (CAPSCALL * CAPSUNLOCKTRACK)(SDWORD,UDWORD);
 static CAPSUNLOCKTRACK pCAPSUnlockTrack;
-typedef SDWORD (__cdecl* CAPSUNLOCKALLTRACKS)(SDWORD);
+typedef SDWORD (CAPSCALL * CAPSUNLOCKALLTRACKS)(SDWORD);
 static CAPSUNLOCKALLTRACKS pCAPSUnlockAllTracks;
-typedef SDWORD (__cdecl* CAPSGETVERSIONINFO)(PCAPSVERSIONINFO,UDWORD);
+typedef SDWORD (CAPSCALL * CAPSGETVERSIONINFO)(PCAPSVERSIONINFO,UDWORD);
 static CAPSGETVERSIONINFO pCAPSGetVersionInfo;
-typedef SDWORD (__cdecl* CAPSGETINFO)(PVOID pinfo, SDWORD id, UDWORD cylinder, UDWORD head, UDWORD inftype, UDWORD infid);
+typedef SDWORD (CAPSCALL * CAPSGETINFO)(PVOID pinfo, SDWORD id, UDWORD cylinder, UDWORD head, UDWORD inftype, UDWORD infid);
 static CAPSGETINFO pCAPSGetInfo;
-typedef SDWORD (__cdecl* CAPSSETREVOLUTION)(SDWORD id, UDWORD value);
+typedef SDWORD (CAPSCALL * CAPSSETREVOLUTION)(SDWORD id, UDWORD value);
 static CAPSSETREVOLUTION pCAPSSetRevolution;
-typedef SDWORD (__cdecl* CAPSGETIMAGETYPEMEMORY)(PUBYTE buffer, UDWORD length);
+typedef SDWORD (CAPSCALL * CAPSGETIMAGETYPEMEMORY)(PUBYTE buffer, UDWORD length);
 static CAPSGETIMAGETYPEMEMORY pCAPSGetImageTypeMemory;
 
 int caps_init (void)
 {
 	static int init, noticed;
 	int i;
-	HMODULE h;
-	TCHAR *dllname = _T("CAPSImg.dll");
 
 	if (init)
 		return 1;
-	h = WIN32_LoadLibrary (dllname);
+	UAE_DLHANDLE h = uae_dlopen_plugin(_T("CAPSImg"));
 	if (!h) {
 		TCHAR tmp[MAX_DPATH];
 		if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_PROGRAM_FILES_COMMON, NULL, 0, tmp))) {
 			_tcscat (tmp, _T("\\Software Preservation Society\\"));
-			_tcscat (tmp, dllname);
-			h = LoadLibrary (tmp);
-			if (!h) {
-				if (noticed)
-					return 0;
-				notify_user (NUMSG_NOCAPS);
-				noticed = 1;
-				return 0;
-			}
+			_tcscat (tmp, _T("CAPSImg.dll"));
+			h = uae_dlopen(tmp);
 		}
 	}
-	if (GetProcAddress (h, "CAPSLockImageMemory") == 0 || GetProcAddress (h, "CAPSGetVersionInfo") == 0) {
+	if (!h) {
+		if (noticed)
+			return 0;
+		notify_user (NUMSG_NOCAPS);
+		noticed = 1;
+		return 0;
+	}
+
+	if (uae_dlsym(h, "CAPSLockImageMemory") == 0 || uae_dlsym(h, "CAPSGetVersionInfo") == 0) {
 		if (noticed)
 			return 0;
 		notify_user (NUMSG_OLDCAPS);
 		noticed = 1;
 		return 0;
 	}
-	pCAPSInit = (CAPSINIT)GetProcAddress (h, "CAPSInit");
-	pCAPSAddImage = (CAPSADDIMAGE)GetProcAddress (h, "CAPSAddImage");
-	pCAPSLockImageMemory = (CAPSLOCKIMAGEMEMORY)GetProcAddress (h, "CAPSLockImageMemory");
-	pCAPSUnlockImage = (CAPSUNLOCKIMAGE)GetProcAddress (h, "CAPSUnlockImage");
-	pCAPSLoadImage = (CAPSLOADIMAGE)GetProcAddress (h, "CAPSLoadImage");
-	pCAPSGetImageInfo = (CAPSGETIMAGEINFO)GetProcAddress (h, "CAPSGetImageInfo");
-	pCAPSLockTrack = (CAPSLOCKTRACK)GetProcAddress (h, "CAPSLockTrack");
-	pCAPSUnlockTrack = (CAPSUNLOCKTRACK)GetProcAddress (h, "CAPSUnlockTrack");
-	pCAPSUnlockAllTracks = (CAPSUNLOCKALLTRACKS)GetProcAddress (h, "CAPSUnlockAllTracks");
-	pCAPSGetVersionInfo = (CAPSGETVERSIONINFO)GetProcAddress (h, "CAPSGetVersionInfo");
-	pCAPSGetInfo = (CAPSGETINFO)GetProcAddress (h, "CAPSGetInfo");
-	pCAPSSetRevolution = (CAPSSETREVOLUTION)GetProcAddress(h, "CAPSSetRevolution");
-	pCAPSGetImageTypeMemory = (CAPSGETIMAGETYPEMEMORY)GetProcAddress(h, "CAPSGetImageTypeMemory");
+
+	pCAPSInit = (CAPSINIT) uae_dlsym(h, "CAPSInit");
+	pCAPSAddImage = (CAPSADDIMAGE) uae_dlsym(h, "CAPSAddImage");
+	pCAPSLockImageMemory = (CAPSLOCKIMAGEMEMORY) uae_dlsym(h, "CAPSLockImageMemory");
+	pCAPSUnlockImage = (CAPSUNLOCKIMAGE) uae_dlsym(h, "CAPSUnlockImage");
+	pCAPSLoadImage = (CAPSLOADIMAGE) uae_dlsym(h, "CAPSLoadImage");
+	pCAPSGetImageInfo = (CAPSGETIMAGEINFO) uae_dlsym(h, "CAPSGetImageInfo");
+	pCAPSLockTrack = (CAPSLOCKTRACK) uae_dlsym(h, "CAPSLockTrack");
+	pCAPSUnlockTrack = (CAPSUNLOCKTRACK) uae_dlsym(h, "CAPSUnlockTrack");
+	pCAPSUnlockAllTracks = (CAPSUNLOCKALLTRACKS) uae_dlsym(h, "CAPSUnlockAllTracks");
+	pCAPSGetVersionInfo = (CAPSGETVERSIONINFO) uae_dlsym(h, "CAPSGetVersionInfo");
+	pCAPSGetInfo = (CAPSGETINFO) uae_dlsym(h, "CAPSGetInfo");
+	pCAPSSetRevolution = (CAPSSETREVOLUTION) uae_dlsym(h, "CAPSSetRevolution");
+	pCAPSGetImageTypeMemory = (CAPSGETIMAGETYPEMEMORY) uae_dlsym(h, "CAPSGetImageTypeMemory");
 
 	init = 1;
 	cvi.type = 1;
@@ -227,9 +234,7 @@ static void mfmcopy (uae_u16 *mfm, uae_u8 *data, int len)
 
 static int load (struct CapsTrackInfoT2 *ci, int drv, int track, bool seed, bool newtrack)
 {
-	int flags;
-	
-	flags = caps_flags;
+	int flags = caps_flags;
 	if (canseed) {
 		ci->type = 2;
 		if (seed) {
@@ -356,4 +361,4 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
 	return 1;
 }
 
-#endif
+#endif /* CAPS */
