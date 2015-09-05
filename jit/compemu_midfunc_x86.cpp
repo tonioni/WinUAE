@@ -790,6 +790,24 @@ MIDFUNC(2,bsf_l_rr,(W4 d, RR4 s))
 }
 MENDFUNC(2,bsf_l_rr,(W4 d, RR4 s))
 
+#ifdef UAE
+/* FIXME: enable */
+#else
+/* Set the Z flag depending on the value in s. Note that the
+   value has to be 0 or -1 (or, more precisely, for non-zero
+   values, bit 14 must be set)! */
+MIDFUNC(2,simulate_bsf,(W4 tmp, RW4 s))
+{
+    CLOBBER_BSF;
+    s=rmw_specific(s,4,4,FLAG_NREG3);
+    tmp=writereg(tmp,4);
+    raw_flags_set_zero(s, tmp);
+    unlock2(tmp);
+    unlock2(s);
+}
+MENDFUNC(2,simulate_bsf,(W4 tmp, RW4 s))
+#endif
+
 MIDFUNC(2,imul_32_32,(RW4 d, RR4 s))
 {
 	CLOBBER_MUL;
