@@ -330,6 +330,10 @@
 #undef HAVE_ISINF
 #define isnan _isnan
 
+#ifndef LT_MODULE_EXT
+#define LT_MODULE_EXT _T(".dll")
+#endif
+
 /* Define if you have the bcopy function.  */
 /* #undef HAVE_BCOPY */
 

@@ -6495,27 +6495,6 @@ HMODULE WIN32_LoadLibrary2 (const TCHAR *name)
 	return m;
 }
 
-HMODULE uae_dlopen_plugin(const TCHAR *name)
-{
-	HMODULE h;
-	TCHAR path[MAX_DPATH];
-#ifdef WIN64
-	_tcscpy(path, name);
-	_tcscat(path, _T("_x64.dll"));
-	h = WIN32_LoadLibrary(path);
-	if (h)
-		return h;
-	_tcscpy(path, _T("qemu\\"));
-	_tcscat(path, name);
-	_tcscat(path, _T("_x64.dll"));
-#else
-	_tcscpy(path, name);
-	_tcscat(path, _T(".dll"));
-#endif
-	h = WIN32_LoadLibrary(path);
-	return h;
-}
-
 int isdllversion (const TCHAR *name, int version, int revision, int subver, int subrev)
 {
 	DWORD  dwVersionHandle, dwFileVersionInfoSize;

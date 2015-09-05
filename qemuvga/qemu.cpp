@@ -30,7 +30,7 @@ static void init_ppc(UAE_DLHANDLE handle)
 	}
 }
 
-#ifndef WINUAE
+#ifdef WITH_QEMU_SLIRP
 static void init_slirp(UAE_DLHANDLE handle)
 {
 	UAE_IMPORT_FUNCTION(handle, qemu_uae_slirp_init);
@@ -52,7 +52,7 @@ UAE_DLHANDLE uae_qemu_uae_init(void)
 	}
 	initialized = true;
 
-	handle = uae_dlopen(_T("qemu-uae"));
+	handle = uae_dlopen_plugin(_T("qemu-uae"));
 	if (!handle) {
 		gui_message(_T("Error loading qemu-uae plugin\n"));
 		return handle;
@@ -98,8 +98,7 @@ UAE_DLHANDLE uae_qemu_uae_init(void)
 	}
 
 	init_ppc(handle);
-
-#ifndef WINUAE
+#ifdef WITH_QEMU_SLIRP
 	init_slirp(handle);
 #endif
 
