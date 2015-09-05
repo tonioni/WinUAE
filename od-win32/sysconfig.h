@@ -1,3 +1,5 @@
+#ifndef WINUAE_SYSCONFIG_H
+#define WINUAE_SYSCONFIG_H
 
 #pragma warning (disable : 4761)
 #pragma warning (disable : 4996)
@@ -13,7 +15,9 @@
 #define X86_MSVC_ASSEMBLY
 #define X86_MSVC_ASSEMBLY_MEMACCESS
 #define OPTIMIZED_FLAGS
+#ifndef __i386__
 #define __i386__
+#endif
 #define WINDOWS
 #define ZLIB_WINAPI
 //#define USE_SOFT_LONG_DOUBLE
@@ -315,6 +319,12 @@
 #define SIZEOF_FLOAT 4
 #define SIZEOF_DOUBLE 8
 
+#ifdef _WIN64
+#define SIZEOF_VOID_P 8
+#else
+#define SIZEOF_VOID_P 4
+#endif
+
 #define HAVE_ISNAN
 #undef HAVE_ISINF
 #define isnan _isnan
@@ -556,11 +566,6 @@
 /* Define if you have the <utime.h> header file.  */
 /* #undef HAVE_UTIME_H */
 
-/* Define if you have the <values.h> header file.  */
-#ifdef __GNUC__
-#define HAVE_VALUES_H 1
-#endif
-
 /* Define if you have the <windows.h> header file.  */
 #define HAVE_WINDOWS_H 1
 
@@ -569,3 +574,5 @@
 
 /* Define to 1 if `S_un' is a member of `struct in_addr'. */
 #define HAVE_STRUCT_IN_ADDR_S_UN 1
+
+#endif /* WINUAE_SYSCONFIG_H */
