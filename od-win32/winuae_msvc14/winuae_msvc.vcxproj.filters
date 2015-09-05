@@ -805,6 +805,9 @@
     <ClCompile Include="..\..\fake86_cpu.cpp">
       <Filter>x86</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\slirp_uae.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

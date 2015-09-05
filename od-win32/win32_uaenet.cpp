@@ -6,7 +6,11 @@
 * Copyright 2007 Toni Wilen
 */
 
-#include "slirp/slirp.h"
+#include "sysconfig.h"
+
+#ifdef WITH_SLIRP
+#include "../slirp/slirp.h"
+#endif
 
 #include <stdio.h>
 
@@ -431,67 +435,4 @@ void uaenet_close_driver (struct netdriverdata *tc)
 	for (i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
 		tc[i].active = 0;
 	}
-}
-
-
-static volatile int slirp_thread_active;
-static HANDLE slirp_thread;
-static uae_thread_id slirp_tid;
-extern uae_sem_t slirp_sem2;
-
-static void *slirp_receive_func(void *arg)
-{
-	slirp_thread_active = 1;
-	while (slirp_thread_active) {
-		// Wait for packets to arrive
-		fd_set rfds, wfds, xfds;
-		SOCKET nfds;
-		int ret, timeout;
-
-		// ... in the output queue
-		nfds = -1;
-		FD_ZERO(&rfds);
-		FD_ZERO(&wfds);
-		FD_ZERO(&xfds);
-		uae_sem_wait (&slirp_sem2);
-		timeout = slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
-		uae_sem_post (&slirp_sem2);
-		if (nfds < 0) {
-			/* Windows does not honour the timeout if there is not
-			   descriptor to wait for */
-			sleep_millis (timeout / 1000);
-			ret = 0;
-		}
-		else {
-			struct timeval tv;
-			tv.tv_sec = 0;
-			tv.tv_usec = timeout;
-			ret = select(0, &rfds, &wfds, &xfds, &tv);
-		}
-		if (ret >= 0) {
-			uae_sem_wait (&slirp_sem2);
-			slirp_select_poll(&rfds, &wfds, &xfds);
-			uae_sem_post (&slirp_sem2);
-		}
-	}
-	slirp_thread_active = -1;
-	return 0;
-}
-
-bool slirp_start (void)
-{
-	slirp_end ();
-	uae_start_thread_fast (slirp_receive_func, NULL, &slirp_tid);
-	return true;
-}
-void slirp_end (void)
-{
-	if (slirp_thread_active > 0) {
-		slirp_thread_active = 0;
-		while (slirp_thread_active == 0) {
-			sleep_millis (10);
-		}
-		uae_end_thread (&slirp_tid);
-	}
-	slirp_thread_active = 0;
 }
