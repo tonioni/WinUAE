@@ -41,6 +41,7 @@
 #include "ar.h"
 #include "pci.h"
 #include "ppc/ppcd.h"
+#include "uae/io.h"
 #include "uae/ppc.h"
 
 int debugger_active;
@@ -3735,7 +3736,7 @@ static void savemem (TCHAR **cc)
 	if (!more_params (cc))
 		goto S_argh;
 	len2 = len = readhex (cc);
-	fp = _tfopen (name, _T("wb"));
+	fp = uae_tfopen (name, _T("wb"));
 	if (fp == NULL) {
 		console_out_f (_T("Couldn't open file '%s'\n"), name);
 		return;
