@@ -19,6 +19,10 @@
 #ifdef UAE
 #define UNUSED(x)
 #define HAVE_GET_WORD_UNSWAPPED
+#include "uae.h"
+#include "uae/log.h"
+#define jit_log uae_log
+#define jit_log2(...)
 #else
 #define DEBUG 0
 #include "debug.h"
@@ -31,8 +35,6 @@
 
 // %%% BRIAN KING WAS HERE %%%
 extern bool canbang;
-//#include <sys/mman.h>
-extern void jit_abort(const TCHAR*,...);
 
 # include <csignal>
 # include <cstdlib>
@@ -231,8 +233,6 @@ static void inline flush_cpu_icache(void *from, void *to);
 static void inline write_jmp_target(uae_u32 *jmpaddr, cpuop_func* a);
 static void inline emit_jmp_target(uae_u32 a);
 
-static uae_s32 nextused[VREGS];
-
 uae_u32 m68k_pc_offset;
 
 /* Some arithmetic operations can be optimized away if the operands
@@ -386,28 +386,14 @@ static inline void adjust_jmpdep(dependency* d, cpuop_func* a)
 
 static inline void set_dhtu(blockinfo* bi, cpuop_func *dh)
 {
-#ifdef UAE
-	//write_log (_T("JIT: bi is %p\n"),bi);
-#else
-    D2(panicbug("bi is %p",bi));
-#endif
+	jit_log2("bi is %p",bi);
 	if (dh!=bi->direct_handler_to_use) {
 		dependency* x=bi->deplist;
-#ifdef UAE
-		//write_log (_T("JIT: bi->deplist=%p\n"),bi->deplist);
-#else
-	D2(panicbug("bi->deplist=%p",bi->deplist));
-#endif
+		jit_log2("bi->deplist=%p",bi->deplist);
 		while (x) {
-#ifdef UAE
-			//write_log (_T("JIT: x is %p\n"),x);
-			//write_log (_T("JIT: x->next is %p\n"),x->next);
-			//write_log (_T("JIT: x->prev_p is %p\n"),x->prev_p);
-#else
-	    D2(panicbug("x is %p",x));
-	    D2(panicbug("x->next is %p",x->next));
-	    D2(panicbug("x->prev_p is %p",x->prev_p));
-#endif
+			jit_log2("x is %p",x);
+			jit_log2("x->next is %p",x->next);
+			jit_log2("x->prev_p is %p",x->prev_p);
 
 			if (x->jmp_off) {
 				adjust_jmpdep(x,dh);
@@ -442,12 +428,7 @@ static inline void create_jmpdep(blockinfo* bi, int i, uae_u32* jmpaddr, uae_u32
 	blockinfo*  tbi=get_blockinfo_addr((void*)(uintptr)target);
 
 	Dif(!tbi) {
-#ifdef UAE
-		jit_abort (_T("JIT: Could not create jmpdep!\n"));
-#else
-	D(panicbug("Could not create jmpdep!"));
-	abort();
-#endif
+		jit_abort("Could not create jmpdep!");
 	}
 	bi->dep[i].jmp_off=jmpaddr;
 	bi->dep[i].target=tbi;
@@ -496,12 +477,7 @@ static inline blockinfo* get_blockinfo_addr_new(void* addr, int /* setstate */)
 		}
 	}
 	if (!bi) {
-#ifdef UAE
-		jit_abort (_T("JIT: Looking for blockinfo, can't find free one\n"));
-#else
-	panicbug("Looking for blockinfo, can't find free one");
-	abort();
-#endif
+		jit_abort("Looking for blockinfo, can't find free one");
 	}
 
 #if USE_MATCHSTATE
@@ -1180,43 +1156,23 @@ static inline void log_dump(void)
 
 	return;
 
-#ifdef UAE
-	write_log (_T("----------------------\n"));
-#else
-  D(panicbug("----------------------"));
-#endif
+	jit_log("----------------------");
 	for (i=0;i<N_REGS;i++) {
 		switch(nstate[i]) {
 		case L_UNKNOWN:
-#ifdef UAE
-			write_log (_T("Nat %d : UNKNOWN\n"),i);
-#else
-	  D(panicbug("Nat %d : UNKNOWN", i));
-#endif
+			jit_log("Nat %d : UNKNOWN",i);
 			break;
 		case L_UNAVAIL:
-#ifdef UAE
-			write_log (_T("Nat %d : UNAVAIL\n"),i);
-#else
-	  D(panicbug("Nat %d : UNAVAIL", i));
-#endif
+			jit_log("Nat %d : UNAVAIL",i);
 			break;
 		default:
-#ifdef UAE
-			write_log (_T("Nat %d : %d\n"),i,nstate[i]);
-#else
-	  D(panicbug("Nat %d : %d", i, nstate[i]));
-#endif
+			jit_log("Nat %d : %d",i,nstate[i]);
 			break;
 		}
 	}
 	for (i=0;i<VREGS;i++) {
 		if (vstate[i] == L_UNNEEDED) {
-#ifdef UAE
-			write_log (_T("Virt %d: UNNEEDED\n"),i);
-#else
-	  D(panicbug("Virt %d: UNNEEDED", i));
-#endif
+			jit_log("Virt %d: UNNEEDED",i);
 		}
 	}
 }
@@ -1251,12 +1207,7 @@ static  void tomem(int r)
 	if (isinreg(r)) {
 		if (live.state[r].val && live.nat[rr].nholds==1
 			&& !live.nat[rr].locked) {
-#ifdef UAE
-				// write_log (_T("JIT: RemovingA offset %x from reg %d (%d) at %p\n"),
-				//   live.state[r].val,r,rr,target);
-#else
-	    D2(panicbug("RemovingA offset %x from reg %d (%d) at %p", live.state[r].val,r,rr,target)); 
-#endif
+				jit_log2("RemovingA offset %x from reg %d (%d) at %p", live.state[r].val,r,rr,target);
 				adjust_nreg(rr,live.state[r].val);
 				live.state[r].val=0;
 				live.state[r].dirtysize=4;
@@ -1651,12 +1602,7 @@ static inline void remove_offset(int r, int spec)
 	rr=live.state[r].realreg;
 
 	if (live.nat[rr].nholds==1) {
-#ifdef UAE
-		//write_log (_T("JIT: RemovingB offset %x from reg %d (%d) at %p\n"),
-		//       live.state[r].val,r,rr,target);
-#else
-	D2(panicbug("RemovingB offset %x from reg %d (%d) at %p", live.state[r].val,r,rr,target)); 
-#endif
+		jit_log2("RemovingB offset %x from reg %d (%d) at %p", live.state[r].val,r,rr,target);
 		adjust_nreg(rr,live.state[r].val);
 		live.state[r].dirtysize=4;
 		live.state[r].val=0;
@@ -1699,11 +1645,7 @@ static inline int readreg_general(int r, int size, int spec, int can_offset)
 	int answer=-1;
 
 	if (live.state[r].status==UNDEF) {
-#ifdef UAE
-		write_log (_T("JIT: WARNING: Unexpected read of undefined register %d\n"),r);
-#else
-		D(panicbug("WARNING: Unexpected read of undefined register %d",r));
-#endif
+		jit_log("WARNING: Unexpected read of undefined register %d",r);
 	}
 	if (!can_offset)
 		remove_offset(r,spec);
@@ -1859,11 +1801,7 @@ static inline int rmw_general(int r, int wsize, int rsize, int spec)
 	int answer=-1;
 
 	if (live.state[r].status==UNDEF) {
-#ifdef UAE
-		write_log (_T("JIT: WARNING: Unexpected read of undefined register %d\n"),r);
-#else
-		D(panicbug("WARNING: Unexpected read of undefined register %d",r));
-#endif
+		jit_log("WARNING: Unexpected read of undefined register %d",r);
 	}
 	remove_offset(r,spec);
 	make_exclusive(r,0,spec);
@@ -2149,29 +2087,14 @@ static inline void f_make_exclusive(int r, int clobber)
 			}
 		}
 		Dif (live.fat[rr].nholds!=1) {
-#ifdef UAE
-			write_log (_T("JIT: realreg %d holds %d ("),rr,live.fat[rr].nholds);
-#else
-	    D(panicbug("realreg %d holds %d (",rr,live.fat[rr].nholds));
-#endif
+			jit_log("realreg %d holds %d (",rr,live.fat[rr].nholds);
 			for (i=0;i<live.fat[rr].nholds;i++) {
-#ifdef UAE
-				write_log (_T("JIT: %d(%d,%d)"),live.fat[rr].holds[i],
+				jit_log(" %d(%d,%d)",live.fat[rr].holds[i],
 					live.fate[live.fat[rr].holds[i]].realreg,
 					live.fate[live.fat[rr].holds[i]].realind);
-#else
-		D(panicbug(" %d(%d,%d)",live.fat[rr].holds[i],
-		       live.fate[live.fat[rr].holds[i]].realreg,
-		       live.fate[live.fat[rr].holds[i]].realind));
-#endif
 			}
-#ifdef UAE
-			write_log (_T("\n"));
-			jit_abort (_T("x"));
-#else
-	    D(panicbug(""));
-	    abort();
-#endif
+			jit_log("");
+			jit_abort("x");
 		}
 		return;
 	}
@@ -2662,12 +2585,7 @@ void flush(int save_regs)
 				default: break;
 				}
 				Dif (live.state[i].val && i!=PC_P) {
-#ifdef UAE
-					write_log (_T("JIT: Register %d still has val %x\n"),
-						i,live.state[i].val);
-#else
-		    D(panicbug("Register %d still has val %x", i,live.state[i].val));
-#endif
+					jit_log("Register %d still has val %x", i,live.state[i].val);
 				}
 			}
 		}
@@ -2680,11 +2598,7 @@ void flush(int save_regs)
 		raw_fp_cleanup_drop();
 	}
 	if (needflags) {
-#ifdef UAE
-		write_log (_T("JIT: Warning! flush with needflags=1!\n"));
-#else
-	D(panicbug("Warning! flush with needflags=1!"));
-#endif
+		jit_log("Warning! flush with needflags=1!");
 	}
 
 	lopt_emit_all();
@@ -2732,11 +2646,7 @@ void freescratch(void)
 	int i;
 	for (i=0;i<N_REGS;i++)
 		if (live.nat[i].locked && i!=4) {
-#ifdef UAE
-			write_log (_T("JIT: Warning! %d is locked\n"),i);
-#else
-	    D(panicbug("Warning! %d is locked",i));
-#endif
+			jit_log("Warning! %d is locked",i);
 	}
 
 	for (i=0;i<VREGS;i++)
@@ -3273,19 +3183,11 @@ static void show_checksum(blockinfo* bi)
 	}
 	else {
 		while (len>0) {
-#ifdef UAE
-			write_log (_T("%08x "),*pos);
-#else
-	    D(panicbug("%08x ",*pos));
-#endif
+			jit_log("%08x ",*pos);
 			pos++;
 			len-=4;
 		}
-#ifdef UAE
-		write_log (_T(" bla\n"));
-#else
-	D(panicbug(" bla"));
-#endif
+		jit_log(" bla");
 	}
 }
 #endif
@@ -3647,11 +3549,7 @@ void build_comp(void)
 		if (compfunctbl[opcode])
 			count++;
 	}
-#ifdef UAE
-	write_log (_T("JIT: Supposedly %d compileable opcodes!\n"),count);
-#else
-	D(panicbug("<JIT compiler> : supposedly %d compileable opcodes!",count));
-#endif
+	jit_log("Supposedly %d compileable opcodes!",count);
 
 	/* Initialise state */
 	alloc_cache();
