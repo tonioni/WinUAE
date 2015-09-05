@@ -601,7 +601,7 @@ STATIC_INLINE uae_u8* get_target(void)
 * Flags status handling. EMIT TIME!                                *
 ********************************************************************/
 
-static void bt_l_ri_noclobber(R4 r, IMM i);
+static void bt_l_ri_noclobber(RR4 r, IMM i);
 
 static void make_flags_live_internal(void)
 {
@@ -1395,7 +1395,7 @@ static int rmw_specific(int r, int wsize, int rsize, int spec)
 
 
 /* needed for restoring the carry flag on non-P6 cores */
-static void bt_l_ri_noclobber(R4 r, IMM i)
+static void bt_l_ri_noclobber(RR4 r, IMM i)
 {
 	int size=4;
 	if (i<16)

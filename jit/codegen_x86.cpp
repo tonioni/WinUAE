@@ -5,6 +5,10 @@ only target, and it's easier this way... */
 * Some basic information about the the target CPU                       *
 *************************************************************************/
 
+#define R1 RR1
+#define R2 RR2
+#define R4 RR4
+
 #define EAX_INDEX 0
 #define ECX_INDEX 1
 #define EDX_INDEX 2
