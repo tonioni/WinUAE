@@ -83,6 +83,8 @@ void PIC_Init(Section* sec);
 void PIC_Destroy(Section* sec);
 void TIMER_Destroy(Section*);
 void TIMER_Init(Section* sec);
+void TIMER_SetGate2(bool);
+bool TIMER_GetGate2(void);
 static Section_prop *dosbox_sec;
 Bitu x86_in_keyboard(Bitu port);
 void x86_out_keyboard(Bitu port, Bitu val);
@@ -1812,6 +1814,9 @@ void portout(uint16_t portnum, uint8_t v)
 		if (xb->type >= TYPE_2286) {
 			x86_out_keyboard(0x61, v);
 		} else {
+			if (xb->dosbox_cpu) {
+				TIMER_SetGate2(v & 1);
+			}
 			aio = 0x5f;
 		}
 		break;
@@ -2531,8 +2536,16 @@ uint8_t portin(uint16_t portnum)
 				}
 			}
 			v &= ~0x20;
-			if (!(xb->amiga_io[0x5f] & 1) && i8253.active[2])
-				v |= 0x20;
+			if (!(xb->amiga_io[0x5f] & 1)) {
+				bool timer2 = false;
+				if (xb->dosbox_cpu) {
+					timer2 = TIMER_GetGate2();
+				} else {
+					timer2 = i8253.active[2] != 0;
+				}
+				if (timer2)
+					v |= 0x20;
+			}
 			//write_log(_T("IN Port C %02x\n"), v);
 		}
 		break;

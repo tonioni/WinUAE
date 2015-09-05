@@ -239,7 +239,11 @@ static void write_latch(Bitu port,Bitu val,Bitu /*iolen*/) {
 		case 0x02:			/* Timer hooked to PC-Speaker */
 //			LOG(LOG_PIT,"PIT 2 Timer at %.3g Hz mode %d",PIT_TICK_RATE/(double)p->cntr,p->mode);
 //			PCSPEAKER_SetCounter(p->cntr,p->mode);
-			break;
+		// HACK. A1060 bios hardware diagnostics reads latch with timer gate 2 disabled
+		// and expects original written value.
+		if (!gate2)
+			p->read_latch = p->write_latch;
+		break;
 		default:
 			LOG(LOG_PIT,LOG_ERROR)("PIT:Illegal timer selected for writing");
 		}
@@ -358,6 +362,14 @@ static void write_p43(Bitu /*port*/,Bitu val,Bitu /*iolen*/) {
 		}
 		break;
 	}
+}
+
+bool TIMER_GetGate2(void)
+{
+	if (!gate2) {
+		return true;
+	}
+	return false;
 }
 
 void TIMER_SetGate2(bool in) {
