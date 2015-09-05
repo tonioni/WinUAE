@@ -594,7 +594,7 @@ STATIC_INLINE uae_u8* get_target(void)
 * Getting the information about the target CPU                     *
 ********************************************************************/
 
-#include "compemu_raw_x86.cpp"
+#include "codegen_x86.cpp"
 
 
 /********************************************************************
