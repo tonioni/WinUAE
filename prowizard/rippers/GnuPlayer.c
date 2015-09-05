@@ -287,7 +287,7 @@ void Depack_GnuPlayer ( void )
 
   /* sample stuff */
   free ( Whatever );
-  Whatever = (Uchar *) malloc (65436);
+  Whatever = (Uchar *) malloc (65536);
   for ( i=0 ; i<NbrSmp ; i++ )
   {
     long out_end;
