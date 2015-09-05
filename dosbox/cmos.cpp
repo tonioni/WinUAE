@@ -203,7 +203,7 @@ static Bitu cmos_readreg2(Bitu port,Bitu iolen) {
 				return (cmos.regs[0x0a] & 0x7f);
 			}
 		} else {
-			if (vblank_hz > 0 && (timeframes % (int)vblank_hz) == 0 && vpos == 0) { // && PIC_TickIndex()<0.002) {
+			if (PIC_TickIndex()<0.002) {
 				return (cmos.regs[0x0a]&0x7f) | 0x80;
 			} else {
 				return (cmos.regs[0x0a]&0x7f);
