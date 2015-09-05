@@ -106,7 +106,7 @@ uaecptr consolehook_beginio (uaecptr request)
 		buf = xmalloc (TCHAR, len + 1);
 		au_copy (buf, len, src);
 		buf[len] = 0;
-		f_out (_T("%s"), buf);
+		f_out (stdout, _T("%s"), buf);
 		xfree (buf);
 	} else if (cmd == CMD_READ) {
 
