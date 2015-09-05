@@ -279,7 +279,7 @@ static void scsi_set_unit_attention(struct scsi_data *sd, uae_u8 v1, uae_u8 v2)
 	sd->unit_attention = (v1 << 8) | v2;
 }
 
-void scsi_emulate_reset_device(struct scsi_data *sd)
+static void scsi_emulate_reset_device(struct scsi_data *sd)
 {
 	if (!sd)
 		return;
@@ -834,7 +834,7 @@ static struct soft_scsi *getscsiboard(uaecptr addr)
 	return NULL;
 }
 
-void raw_scsi_reset(struct raw_scsi *rs)
+static void raw_scsi_reset(struct raw_scsi *rs)
 {
 	rs->target = NULL;
 	rs->io = 0;
@@ -901,7 +901,7 @@ static void generic_soft_scsi_add(int ch, struct uaedev_config_info *ci, struct 
 	add_scsi_device(&ss->rscsi.device[ch], ch, ci, rc);
 }
 
-void raw_scsi_busfree(struct raw_scsi *rs)
+static void raw_scsi_busfree(struct raw_scsi *rs)
 {
 	rs->target = NULL;
 	rs->io = 0;
@@ -949,7 +949,7 @@ static void raw_scsi_set_databus(struct raw_scsi *rs, bool databusoutput)
 	rs->databusoutput = databusoutput;
 }
 
-void raw_scsi_set_signal_phase(struct raw_scsi *rs, bool busy, bool select, bool atn)
+static void raw_scsi_set_signal_phase(struct raw_scsi *rs, bool busy, bool select, bool atn)
 {
 	switch (rs->bus_phase)
 	{
@@ -1101,7 +1101,7 @@ static uae_u8 raw_scsi_get_data_2(struct raw_scsi *rs, bool next, bool nodebug)
 	return v;
 }
 
-uae_u8 raw_scsi_get_data(struct raw_scsi *rs, bool next)
+static uae_u8 raw_scsi_get_data(struct raw_scsi *rs, bool next)
 {
 	return raw_scsi_get_data_2(rs, next, true);
 }
