@@ -24,6 +24,7 @@
 
 #include "options.h"
 #include "memory.h"
+#include "uae/seh.h"
 #include "custom.h"
 #include "events.h"
 #include "newcpu.h"
@@ -116,8 +117,6 @@ extern HWND hAmigaWnd;
 #define ENDBLOCKING sb->ftable[sd - 1] &= ~SF_BLOCKINGINPROGRESS
 
 static LRESULT CALLBACK SocketWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
-
-static int PASCAL WSAEventSelect(SOCKET,HANDLE,long);
 
 #define PREPARE_THREAD EnterCriticalSection(&bsd->SockThreadCS)
 #define TRIGGER_THREAD { SetEvent(bsd->hSockReq); WaitForSingleObject(bsd->hSockReqHandled, INFINITE); LeaveCriticalSection(&bsd->SockThreadCS); }
@@ -515,7 +514,7 @@ void sockabort(SB)
 	unlocksigqueue();
 }
 
-void setWSAAsyncSelect(SB, uae_u32 sd, SOCKET s, long lEvent )
+static void setWSAAsyncSelect(SB, uae_u32 sd, SOCKET s, long lEvent )
 {
 	if (sb->mtable[sd - 1]) {
 		long wsbevents = 0;
@@ -1654,7 +1653,7 @@ int host_CloseSocket(TrapContext *context, SB, int sd)
 			sb->mtable[sd-1] = 0;
 		}
 
-		if (checksd(context, sb ,sd) == TRUE)
+		if (checksd(context, sb ,sd) == true)
 			return 0;
 
 		BEGINBLOCKING;

@@ -1,5 +1,4 @@
 
-
 typedef struct UAEREG {
     HKEY fkey;
     TCHAR *inipath;

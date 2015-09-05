@@ -158,4 +158,6 @@ extern void getchsgeometry (uae_u64 size, int *pcyl, int *phead, int *psectorspe
 extern void getchsgeometry_hdf (struct hardfiledata *hfd, uae_u64 size, int *pcyl, int *phead, int *psectorspertrack);
 extern void getchspgeometry (uae_u64 total, int *pcyl, int *phead, int *psectorspertrack, bool idegeometry);
 
+void add_cpuboard_unit(int unit, struct uaedev_config_info *uci, struct romconfig *rc);
+
 #endif /* UAE_FILESYS_H */

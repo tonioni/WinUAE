@@ -431,7 +431,7 @@ static void audio_unpack (struct cdunit *cdu, struct cdtoc *t)
 static volatile int cda_bufon[2];
 static cda_audio *cda;
 
-void next_cd_audio_buffer_callback(int bufnum)
+static void next_cd_audio_buffer_callback(int bufnum)
 {
 	uae_sem_wait(&play_sem);
 	if (bufnum >= 0) {

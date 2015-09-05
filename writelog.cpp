@@ -29,5 +29,5 @@ void write_log_standard (const char *fmt, ...)
 	fprintf (stderr, fmt, x1, x2, x3, x4, x5, x6, x7, x8);
     }
 #endif
+    va_end (ap);
 }
-

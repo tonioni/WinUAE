@@ -157,8 +157,8 @@ void if_output(struct socket *so, struct mbuf *ifm)
 	int on_fastq = 1;
 	
 	DEBUG_CALL("if_output");
-	DEBUG_ARG("so = %lx", (long)so);
-	DEBUG_ARG("ifm = %lx", (long)ifm);
+	DEBUG_ARG("so = %p", so);
+	DEBUG_ARG("ifm = %p", ifm);
 	
 	/*
 	 * First remove the mbuf from m_usedlist,

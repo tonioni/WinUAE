@@ -25,7 +25,7 @@
 #include "xwin.h"
 #include "identify.h"
 #include "audio.h"
-#include "sound.h"
+#include "sounddep/sound.h"
 #include "disk.h"
 #include "savestate.h"
 #include "autoconf.h"
@@ -278,7 +278,7 @@ uae_u32 get_ilong_debug (uaecptr addr)
 	}
 }
 
-int safe_addr (uaecptr addr, int size)
+static int safe_addr (uaecptr addr, int size)
 {
 	if (debug_mmu_mode) {
 		flagtype olds = regs.s;
@@ -652,7 +652,6 @@ static void converter (TCHAR **c)
 {
 	uae_u32 v = readint (c);
 	TCHAR s[100];
-	TCHAR *p = s;
 	int i;
 
 	for (i = 0; i < 32; i++)
@@ -775,7 +774,6 @@ static uaecptr nextaddr2 (uaecptr addr, int *next)
 static uaecptr nextaddr (uaecptr addr, uaecptr last, uaecptr *end)
 {
 	static uaecptr old;
-	uaecptr paddr = addr;
 	int next = last;
 	if (last && 0) {
 		if (addr >= last)
@@ -1206,7 +1204,7 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 			int cl = i * col, cl2;
 			int r = dr->reg;
 			bool longsize = false;
-			TCHAR *sr;
+			const TCHAR *sr;
 
 			sr = _T("    ");
 			if (dr->type == DMARECORD_COPPER)
@@ -2199,7 +2197,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 					mask <<= shift;
 				}
 				*valp = (sval & mask) | ((*valp) & ~mask);
-				write_log (_T("%p %p %08x %08x %d\n"), addr, m->addr, *valp, mask, shift);
+				write_log (_T("%08x %08x %08x %08x %d\n"), addr, m->addr, *valp, mask, shift);
 				return 1;
 			}
 			return 0;
@@ -2385,7 +2383,7 @@ uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int re
 	return vv;
 }
 
-void debug_putlpeek (uaecptr addr, uae_u32 v)
+static void debug_putlpeek (uaecptr addr, uae_u32 v)
 {
 	if (!memwatch_enabled)
 		return;
@@ -2446,6 +2444,7 @@ static void memwatch_reset (void)
 	}
 	for (int i = 0; membank_stores[i].addr; i++) {
 		struct membank_store *ms = &membank_stores[i];
+		/* name was allocated in memwatch_remap */
 		xfree ((char*)ms->newbank.name);
 		memset (ms, 0, sizeof (struct membank_store));
 		ms->addr = NULL;
@@ -2484,7 +2483,7 @@ static void memwatch_remap (uaecptr addr)
 		ms->addr = bank;
 		ms->banknr = banknr;
 		newbank = &ms->newbank;
-		memcpy (newbank, bank, sizeof addrbank);
+		memcpy (newbank, bank, sizeof(addrbank));
 		newbank->bget = mode ? mmu_bget : debug_bget;
 		newbank->wget = mode ? mmu_wget : debug_wget;
 		newbank->lget = mode ? mmu_lget : debug_lget;
@@ -2495,6 +2494,7 @@ static void memwatch_remap (uaecptr addr)
 		newbank->xlateaddr = debug_xlate;
 		newbank->wgeti = mode ? mmu_wgeti : debug_wgeti;
 		newbank->lgeti = mode ? mmu_lgeti : debug_lgeti;
+		/* name will be freed by memwatch_reset */
 		newbank->name = my_strdup (tmp);
 		if (!newbank->mask)
 			newbank->mask = -1;
@@ -2634,11 +2634,11 @@ static const struct mw_acc memwatch_access_masks[] =
 	{ MW_MASK_ALL & ~MW_MASK_CPU, _T("DMA") },
 	{ MW_MASK_BLITTER_A | MW_MASK_BLITTER_B | MW_MASK_BLITTER_C | MW_MASK_BLITTER_D, _T("BLT") },
 	{ MW_MASK_AUDIO_0 | MW_MASK_AUDIO_1 | MW_MASK_AUDIO_2 | MW_MASK_AUDIO_3, _T("AUD") },
-	{ MW_MASK_BPL_0 | MW_MASK_BPL_1 | MW_MASK_BPL_2 | MW_MASK_BPL_3 | 
+	{ MW_MASK_BPL_0 | MW_MASK_BPL_1 | MW_MASK_BPL_2 | MW_MASK_BPL_3 |
 	  MW_MASK_BPL_4 | MW_MASK_BPL_5 | MW_MASK_BPL_6 | MW_MASK_BPL_7 , _T("BPL") },
 	{ MW_MASK_SPR_0 | MW_MASK_SPR_1 | MW_MASK_SPR_2 | MW_MASK_SPR_3 |
 	  MW_MASK_SPR_4 | MW_MASK_SPR_5 | MW_MASK_SPR_6 | MW_MASK_SPR_7, _T("SPR") },
-	
+
 	{ MW_MASK_CPU, _T("CPU") },
 	{ MW_MASK_COPPER, _T("COP") },
 	{ MW_MASK_BLITTER_A, _T("BLTA") },
@@ -2666,10 +2666,10 @@ static const struct mw_acc memwatch_access_masks[] =
 	{ MW_MASK_SPR_5, _T("SPR5") },
 	{ MW_MASK_SPR_6, _T("SPR6") },
 	{ MW_MASK_SPR_7, _T("SPR7") },
-	NULL
+	{ 0, NULL },
 };
 
-static TCHAR *getsizechar (int size)
+static const TCHAR *getsizechar (int size)
 {
 	if (size == 4)
 		return _T(".l");
@@ -2985,8 +2985,9 @@ static void memory_map_dump_3(UaeMemoryMap *map, int log)
 			mirrored = caddr ? 1 : 0;
 			k++;
 			while (k < i && caddr) {
-				if (dump_xlate (k << 16) == caddr)
+				if (dump_xlate (k << 16) == caddr) {
 					mirrored++;
+				}
 				k++;
 			}
 			mirrored2 = mirrored;
@@ -3068,16 +3069,15 @@ static void memory_map_dump_3(UaeMemoryMap *map, int log)
 						map->num_regions += 1;
 					}
 				}
-
 #if 1
 				_tcscat (txt, _T("\n"));
 				if (log > 0)
-					write_log (txt);
+					write_log (_T("%s"), txt);
 				else if (log == 0)
 					console_out (txt);
 				if (tmp[0]) {
 					if (log > 0)
-						write_log (tmp);
+						write_log (_T("%s"), tmp);
 					else if (log == 0)
 						console_out (tmp);
 				}
@@ -3128,8 +3128,8 @@ static void memory_map_dump_2 (int log)
 }
 
 void memory_map_dump (void)
- {
- 	memory_map_dump_2 (1);
+{
+	memory_map_dump_2(1);
 }
 
 STATIC_INLINE uaecptr BPTR2APTR (uaecptr addr)
@@ -3213,7 +3213,7 @@ static uaecptr get_base (const uae_char *name, int offset)
 	if (!b || !b->check (v, 400) || !(b->flags & ABFLAG_RAM))
 		return 0;
 	v += offset;
-	while (v = get_long_debug (v)) {
+	while ((v = get_long_debug (v))) {
 		uae_u32 v2;
 		uae_u8 *p;
 		b = &get_mem_bank (v);
@@ -3273,7 +3273,6 @@ static void show_exec_lists (TCHAR *t)
 	uaecptr execbase = get_long_debug (4);
 	uaecptr list = 0, node;
 	TCHAR c = t[0];
-	TCHAR c2 = t[1];
 
 	if (c == 'o' || c == 'O') { // doslist
 		uaecptr dosbase = get_base ("dos.library", 378);
@@ -4267,7 +4266,7 @@ static void ppc_disasm(uaecptr addr, uaecptr *nextpc, int cnt)
 static uaecptr nxdis, nxmem;
 static bool ppcmode;
 
-static BOOL debug_line (TCHAR *input)
+static bool debug_line (TCHAR *input)
 {
 	TCHAR cmd, *inptr;
 	uaecptr addr;
@@ -5105,6 +5104,8 @@ static int mmu_hit (uaecptr addr, int size, int rwi, uae_u32 *v)
 	return 0;
 }
 
+#ifdef JIT
+
 static void mmu_free_node(struct mmunode *mn)
 {
 	if (!mn)
@@ -5128,6 +5129,8 @@ static void mmu_free(void)
 	mmubanks = NULL;
 }
 
+#endif
+
 static int getmmubank(struct mmudata *snptr, uaecptr p)
 {
 	snptr->flags = get_long_debug (p);
@@ -5146,8 +5149,8 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 	int size;
 	struct mmudata *snptr;
 	struct mmunode *mn;
-	static int wasjit;
 #ifdef JIT
+	static int wasjit;
 	if (currprefs.cachesize) {
 		wasjit = currprefs.cachesize;
 		changed_prefs.cachesize = 0;

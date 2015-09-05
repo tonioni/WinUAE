@@ -58,7 +58,7 @@ static PPCD_CB *o;
 #define Rc          LK
 
 // GPRs. sp, sd1 and sd2 are named corresponding to PPC EABI.
-static char *regname[] = {
+static const char *regname[] = {
 #ifdef UPPERCASE
  "R0" , "R1" , "R2", "R3" , "R4" , "R5" , "R6" , "R7" , 
  "R8" , "R9" , "R10", "R11", "R12", "R13", "R14", "R15", 
@@ -104,7 +104,7 @@ static char * simm(int val, int hex, int s)
 }
 
 // Simple instruction form + reserved bitmask.
-static void put(char * mnem, u32 mask, u32 chkval=0, int iclass=PPC_DISA_OTHER)
+static void put(const char * mnem, u32 mask, u32 chkval=0, int iclass=PPC_DISA_OTHER)
 {
     if( (Instr & mask) != chkval ) { ill(); return; }
     o->iclass |= iclass;
@@ -112,7 +112,7 @@ static void put(char * mnem, u32 mask, u32 chkval=0, int iclass=PPC_DISA_OTHER)
 }
 
 // Simplified mnemonic trap conditions
-static char * t_cond[32] = {
+static const char * t_cond[32] = {
  NULL, "lgt", "llt", NULL, "eq", "lge", "lle", NULL,
  "gt", NULL, NULL, NULL, "ge", NULL, NULL, NULL,
  "lt", NULL, NULL, NULL, "le", NULL, NULL, NULL,
@@ -182,7 +182,7 @@ static void trap(int L, int imm)
 // dab LSB bits : [D][A][B] (D should always present)
 // 'hex' for logic opcodes, 's' for alu opcodes, 'crfD' and 'L' for cmp opcodes
 // 'imm': 1 to show immediate operand
-static void integer(char *mnem, char form, int dab, int hex=0, int s=1, int crfD=0, int L=0, int imm=1)
+static void integer(const char *mnem, char form, int dab, int hex=0, int s=1, int crfD=0, int L=0, int imm=1)
 {
     char * ptr = o->operands;
     int rd = DIS_RD, ra = DIS_RA, rb = DIS_RB;
@@ -264,7 +264,7 @@ static void integer(char *mnem, char form, int dab, int hex=0, int s=1, int crfD
 }
 
 // Compare instructions (wraps to integer call)
-static void cmp(char *l, char *i)
+static void cmp(const char *l, const char *i)
 {
     char mnem[sizeof(o->mnemonic)];
     int rd = DIS_RD;
@@ -289,7 +289,7 @@ static void cmp(char *l, char *i)
 }
 
 // Add immediate (wraps to integer call)
-static void addi(char *suffix)
+static void addi(const char *suffix)
 {
     char mnem[sizeof(o->mnemonic)];
 
@@ -329,15 +329,15 @@ static void addi(char *suffix)
 }
 
 // Branch suffix: AA || LK.
-static char *b_opt[4] = { "", "l", "a", "la" };
+static const char *b_opt[4] = { "", "l", "a", "la" };
 
 // Branch condition code: 4 * BO[1] + (BI & 3)
-static char * b_cond[8] = {
+static const char * b_cond[8] = {
  "ge", "le", "ne", "ns", "lt", "gt", "eq", "so"
 };
 
 // Branch on CTR code: BO[0..3]
-static char * b_ctr[16] = {
+static const char * b_ctr[16] = {
  "dnzf", "dzf", NULL, NULL, "dnzt", "dzt", NULL, NULL,
  "dnz", "dz", NULL, NULL, NULL, NULL, NULL, NULL
 };
@@ -381,7 +381,7 @@ static void bcx(int Disp, int L)
     if(Disp)
     {
         bd = DIS_UIMM & ~3;
-        if(bd & 0x8000) bd |= 0xffffffffffff0000;
+        if(bd & 0x8000) bd |= 0xffffffffffff0000LL;
         o->target = (AA ? 0 : DIS_PC) + bd;
     }
     else o->target = 0;
@@ -405,7 +405,7 @@ static void bcx(int Disp, int L)
         {
             if(bo & 2) { ill(); return; }                               // BO[3]
 #ifdef  SIMPLIFIED
-            char *cond = b_cond[((bo & 8) >> 1) | (bi & 3)];
+            const char *cond = b_cond[((bo & 8) >> 1) | (bi & 3)];
             if(cond != NULL)                                            // BO[1]
             {
                 sprintf(o->mnemonic, "b%s%s%s%c", cond, r, b_opt[Disp ? AALK : LK], y);
@@ -444,9 +444,9 @@ static void bx(void)
 {
     // Calculate displacement and target address
     u64 bd = Instr & 0x03fffffc;
-    if(bd & 0x02000000) bd |= 0xfffffffffc000000;
+    if(bd & 0x02000000) bd |= 0xfffffffffc000000LL;
     o->target = (AA ? 0 : DIS_PC) + bd;
- 
+
     o->iclass |= PPC_DISA_BRANCH;
     sprintf(o->mnemonic, "b%s", b_opt[AALK]);
     place_target(o->operands, 0);
@@ -461,7 +461,7 @@ static void mcrf(void)
 }
 
 // CR logic operations
-static void crop(char *name, char *simp="", int ddd=0, int daa=0)
+static void crop(const char *name, const char *simp="", int ddd=0, int daa=0)
 {
     if(Instr & 1) { ill(); return; }
 
@@ -506,7 +506,7 @@ static void crop(char *name, char *simp="", int ddd=0, int daa=0)
 }
 
 // Rotate left word.
-static void rlw(char *name, int rb, int ins=0)
+static void rlw(const char *name, int rb, int ins=0)
 {
     int mb = DIS_MB, me = DIS_ME;
     char * ptr = o->operands;
@@ -564,7 +564,7 @@ static void rld(char *name, int rb, int mtype)
 }
 
 // Load/Store.
-static void ldst(char *name, int x/*indexed*/, int load=1, int L=0, int string=0, int fload=0)
+static void ldst(const char *name, int x/*indexed*/, int load=1, int L=0, int string=0, int fload=0)
 {
     if(x) integer(name, fload ? 'F' : 'X', DAB_D|DAB_A|DAB_B);
     else
@@ -586,7 +586,7 @@ static void ldst(char *name, int x/*indexed*/, int load=1, int L=0, int string=0
 }
 
 // Cache.
-static void cache(char *name, int flag=PPC_DISA_OTHER)
+static void cache(const char *name, int flag=PPC_DISA_OTHER)
 {
     if (DIS_RD) { ill(); return; }
     else
@@ -600,7 +600,7 @@ static void cache(char *name, int flag=PPC_DISA_OTHER)
     }
 }
 
-static void movesr(char *name, int from, int L, int xform)
+static void movesr(const char *name, int from, int L, int xform)
 {
     int reg = DIS_RD, sreg = DIS_RA & 0xF, regb = DIS_RB;
 
@@ -660,7 +660,7 @@ static void mcrxr(void)
     o->r[0] = DIS_RD >> 2;
 }
 
-static char *spr_name(int n)
+static const char *spr_name(int n)
 {
     static char def[8];
 
@@ -758,7 +758,7 @@ static char *spr_name(int n)
     return def;
 }
 
-static char *tbr_name(int n)
+static const char *tbr_name(int n)
 {
     static char def[8];
 
@@ -776,7 +776,7 @@ static char *tbr_name(int n)
 static void movespr(int from)
 {
     int spr = (DIS_RB << 5) | DIS_RA, f = 1;
-    char *fix;
+    const char *fix;
 
     if( !((spr == 1) || (spr == 8) || (spr == 9)) ) o->iclass |= PPC_DISA_OEA;
 
@@ -813,7 +813,7 @@ static void movespr(int from)
 static void movetbr(void)
 {
     int tbr = (DIS_RB << 5) | DIS_RA, f = 1;
-    char *fix;
+    const char *fix;
 
     // Handle simplified mnemonic
     if (tbr == 268) { fix = "tbl"; o->iclass |= PPC_DISA_SIMPLIFIED; }
@@ -857,7 +857,7 @@ static void sradi(void)
     o->iclass = PPC_DISA_INTEGER | PPC_DISA_64;
 }
 
-static void lsswi(char *name)
+static void lsswi(const char *name)
 {
     int rd = DIS_RD, ra = DIS_RA, nb = DIS_RB;
     strcpy (o->mnemonic, name);
@@ -874,7 +874,7 @@ static void lsswi(char *name)
 #define FPU_DACB    4
 #define FPU_D       5
 
-static void fpu(char *name, u32 mask, int type, int flag=PPC_DISA_OTHER)
+static void fpu(const char *name, u32 mask, int type, int flag=PPC_DISA_OTHER)
 {
     int d = DIS_RD, a = DIS_RA, c = DIS_RC, b = DIS_RB;
 
@@ -909,7 +909,7 @@ static void fpu(char *name, u32 mask, int type, int flag=PPC_DISA_OTHER)
     o->iclass = PPC_DISA_FPU | flag;
 }
 
-static void fcmp(char *name)
+static void fcmp(const char *name)
 {
     int crfd = DIS_RD >> 2, ra = DIS_RA, rb = DIS_RB;
 
@@ -933,7 +933,7 @@ static void mtfsf(void)
     o->iclass = PPC_DISA_FPU;
 }
 
-static void mtfsb(char *name)
+static void mtfsb(const char *name)
 {
     int crbd = DIS_RD;
 
@@ -1766,6 +1766,6 @@ char *PPCDisasmSimple(u64 pc, u32 instr)
     dis_out.instr = instr;
 
     PPCDisasm(&dis_out);
-    sprintf(output, "%08X  %08X  %-10s %s", pc, instr, dis_out.mnemonic, dis_out.operands);
+    sprintf(output, "%08llX  %08X  %-10s %s", pc, instr, dis_out.mnemonic, dis_out.operands);
     return output;
 }

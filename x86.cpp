@@ -3434,7 +3434,7 @@ void DOSBOX_RunMachine(void)
 {
 }
 
-void GFX_SetTitle(long a, long b, bool c)
+void GFX_SetTitle(Bit32s cycles, Bits frameskip, bool paused)
 {
 }
 

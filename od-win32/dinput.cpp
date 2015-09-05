@@ -402,12 +402,12 @@ static bool test_rawinput (int usage)
 
 	rid.usUsagePage = 1;
 	rid.usUsage = usage;
-	if (RegisterRawInputDevices (&rid, 1, sizeof RAWINPUTDEVICE) == FALSE) {
+	if (RegisterRawInputDevices (&rid, 1, sizeof(RAWINPUTDEVICE)) == FALSE) {
 		write_log (_T("RAWINPUT test failed, usage=%d ERR=%d\n"), usage, GetLastError ());
 		return false;
 	}
 	rid.dwFlags |= RIDEV_REMOVE;
-	if (RegisterRawInputDevices (&rid, 1, sizeof RAWINPUTDEVICE) == FALSE) {
+	if (RegisterRawInputDevices (&rid, 1, sizeof(RAWINPUTDEVICE)) == FALSE) {
 		write_log (_T("RAWINPUT test failed (release), usage=%d, ERR=%d\n"), usage, GetLastError ());
 		return false;
 	}
@@ -501,7 +501,7 @@ static int doregister_rawinput (void)
 	if (!add)
 		rawinput_reg = -rawinput_reg;
 	//write_log (_T("+++++++++++++++++++++++++++%x\n"), hMainWnd);
-	if (RegisterRawInputDevices (rid, num, sizeof RAWINPUTDEVICE) == FALSE) {
+	if (RegisterRawInputDevices (rid, num, sizeof(RAWINPUTDEVICE)) == FALSE) {
 		write_log (_T("RAWINPUT %sregistration failed %d\n"),
 			add ? _T("") : _T("un"), GetLastError ());
 		return 0;
@@ -1118,7 +1118,7 @@ static void rawinputfriendlynames (void)
 			for (i = 0; SetupDiEnumDeviceInfo (di, i, &dd); i++) {
 				TCHAR devpath[MAX_DPATH];
 				DWORD size = 0;
-				if (SetupDiGetDeviceInstanceId (di, &dd, devpath, sizeof devpath / sizeof TCHAR , &size)) {
+				if (SetupDiGetDeviceInstanceId (di, &dd, devpath, sizeof devpath / sizeof(TCHAR), &size)) {
 					DEVINST devinst = dd.DevInst;
 
 					TCHAR *cg = outGUID (&guid[ii]);
@@ -1127,15 +1127,15 @@ static void rawinputfriendlynames (void)
 						ULONG size2;
 						TCHAR bufguid[MAX_DPATH];
 	
-						size2 = sizeof bufguid / sizeof TCHAR;
+						size2 = sizeof bufguid / sizeof(TCHAR);
 						if (CM_Get_DevNode_Registry_Property (devinst, CM_DRP_CLASSGUID, NULL, bufguid, &size2, 0) != CR_SUCCESS)
 							break;
 						if (_tcsicmp (cg, bufguid))
 							break;
 
-						size2 = sizeof devname / sizeof TCHAR;
+						size2 = sizeof devname / sizeof(TCHAR);
 						if (CM_Get_DevNode_Registry_Property (devinst, CM_DRP_FRIENDLYNAME, NULL, devname, &size2, 0) != CR_SUCCESS) {
-							ULONG size2 = sizeof devname / sizeof TCHAR;
+							ULONG size2 = sizeof devname / sizeof(TCHAR);
 							if (CM_Get_DevNode_Registry_Property (devinst, CM_DRP_DEVICEDESC, NULL, devname, &size2, 0) != CR_SUCCESS)
 								devname[0] = 0;
 						}
@@ -1818,7 +1818,7 @@ static bool initialize_rawinput (void)
 															did->axisname[axiscnt] = my_strdup (tmp);
 															did->axissort[axiscnt] = hidtable[ht].priority * 2 + l;
 															did->axismappings[axiscnt] = acnt;
-															memcpy (&did->hidvcaps[axiscnt], &vcaps[i], sizeof HIDP_VALUE_CAPS);
+															memcpy (&did->hidvcaps[axiscnt], &vcaps[i], sizeof(HIDP_VALUE_CAPS));
 															did->axistype[axiscnt] = l + 1;
 															axiscnt++;
 														}
@@ -1827,7 +1827,7 @@ static bool initialize_rawinput (void)
 													did->axissort[axiscnt] = hidtable[ht].priority * 2;
 													did->axisname[axiscnt] = my_strdup (hidtable[ht].name);
 													did->axismappings[axiscnt] = acnt;
-													memcpy (&did->hidvcaps[axiscnt], &vcaps[i], sizeof HIDP_VALUE_CAPS);
+													memcpy (&did->hidvcaps[axiscnt], &vcaps[i], sizeof(HIDP_VALUE_CAPS));
 													fixhidvcaps (&rdi->hid, &did->hidvcaps[axiscnt]);
 													did->axistype[axiscnt] = hidtable[ht].type;
 													axiscnt++;
@@ -2120,8 +2120,8 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 							}
 						}
 					}
-					memcpy (did->prevusagelist, did->usagelist, usagelength * sizeof USAGE_AND_PAGE);
-					memset (did->prevusagelist + usagelength, 0, (did->maxusagelistlength - usagelength) * sizeof USAGE_AND_PAGE);
+					memcpy (did->prevusagelist, did->usagelist, usagelength * sizeof(USAGE_AND_PAGE));
+					memset (did->prevusagelist + usagelength, 0, (did->maxusagelistlength - usagelength) * sizeof(USAGE_AND_PAGE));
 					for (int axisnum = 0; axisnum < did->axles; axisnum++) {
 						ULONG val;
 						int usage = did->axismappings[axisnum];
@@ -3670,8 +3670,8 @@ static void read_joystick (void)
 								write_log (_T("%d/%d OFF\n"), did->prevusagelist[j].UsagePage, did->prevusagelist[j].Usage);
 							}
 						}
-						memcpy (did->prevusagelist, did->usagelist, usagelength * sizeof USAGE_AND_PAGE);
-						memset (did->prevusagelist + usagelength, 0, (did->maxusagelistlength - usagelength) * sizeof USAGE_AND_PAGE);
+						memcpy (did->prevusagelist, did->usagelist, usagelength * sizeof(USAGE_AND_PAGE));
+						memset (did->prevusagelist + usagelength, 0, (did->maxusagelistlength - usagelength) * sizeof(USAGE_AND_PAGE));
 					}
 				}
 			}

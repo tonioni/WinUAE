@@ -153,7 +153,7 @@ cda_audio::cda_audio(int num_sectors, int sectorsize, int samplerate)
 	}
 	this->num_sectors = num_sectors;
 	for (int i = 0; i < 2; i++) {
-		memset (&whdr[i], 0, sizeof WAVEHDR);
+		memset (&whdr[i], 0, sizeof(WAVEHDR));
 		whdr[i].dwBufferLength = sectorsize * num_sectors;
 		whdr[i].lpData = (LPSTR)buffers[i];
 		mmr = waveOutPrepareHeader (wavehandle, &whdr[i], sizeof (WAVEHDR));

@@ -620,8 +620,6 @@ int hdf_dup (struct hardfiledata *dhfd, const struct hardfiledata *shfd)
 	return hdf_dup_target (dhfd, shfd);
 }
 
-extern int get_guid_target (uae_u8 *out);
-
 static uae_u64 vhd_read (struct hardfiledata *hfd, void *v, uae_u64 offset, uae_u64 len)
 {
 	uae_u64 read;
@@ -1927,7 +1925,6 @@ static uae_u32 REGPARAM2 hardfile_open (TrapContext *context)
 {
 	uaecptr ioreq = m68k_areg (regs, 1); /* IOReq */
 	int unit = mangleunit (m68k_dreg (regs, 0));
-	struct hardfileprivdata *hfpd = &hardfpd[unit];
 	int err = IOERR_OPENFAIL;
 
 	/* boot device port size == 0!? KS 1.x size = 12???
@@ -1935,7 +1932,8 @@ static uae_u32 REGPARAM2 hardfile_open (TrapContext *context)
 	 * int size = get_word (ioreq + 0x12);
 	 */
 	/* Check unit number */
-	if (unit >= 0) {
+	if (unit >= 0 && unit < MAX_FILESYSTEM_UNITS) {
+		struct hardfileprivdata *hfpd = &hardfpd[unit];
 		struct hardfiledata *hfd = get_hardfile_data (unit);
 		if (hfd && (hfd->handle_valid || hfd->drive_empty) && start_thread (context, unit)) {
 			put_word (hfpd->base + 32, get_word (hfpd->base + 32) + 1);
@@ -1958,6 +1956,9 @@ static uae_u32 REGPARAM2 hardfile_close (TrapContext *context)
 {
 	uaecptr request = m68k_areg (regs, 1); /* IOReq */
 	int unit = mangleunit (get_long (request + 24));
+	if (unit < 0 || unit >= MAX_FILESYSTEM_UNITS) {
+		return 0;
+	}
 	struct hardfileprivdata *hfpd = &hardfpd[unit];
 
 	if (!hfpd)

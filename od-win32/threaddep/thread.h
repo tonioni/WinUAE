@@ -1,4 +1,3 @@
-
 typedef HANDLE uae_sem_t;
 typedef HANDLE uae_thread_id;
 

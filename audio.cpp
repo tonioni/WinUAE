@@ -899,7 +899,7 @@ void sample16ss_handler (void)
 /* This interpolator examines sample points when Paula switches the output
 * voltage and computes the average of Paula's output */
 
-void sample16ss_anti_handler (void)
+static void sample16ss_anti_handler (void)
 {
 	int data0, data1, data2, data3;
 	int datas[AUDIO_CHANNELS_PAULA];
@@ -949,7 +949,7 @@ static void sample16si_anti_handler (void)
 	check_sound_buffers ();
 }
 
-void sample16ss_sinc_handler (void)
+static void sample16ss_sinc_handler (void)
 {
 	int data0, data1, data2, data3;
 	int datas[AUDIO_CHANNELS_PAULA];
@@ -1346,7 +1346,7 @@ static void loaddat (int nr, bool modper)
 			return;
 		if (modper && audap) {
 			if (cdp->dat == 0)
-				cdp[1].per = 65536 * CYCLE_UNIT;
+                cdp[1].per = 65536 * CYCLE_UNIT;
 			else if (cdp->dat > PERIOD_MIN)
 				cdp[1].per = cdp->dat * CYCLE_UNIT;
 			else
@@ -1588,7 +1588,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 	}
 }
 
-void audio_state_cda(void);
+static void audio_state_cda(void);
 
 static void audio_state_channel (int nr, bool perfin)
 {
@@ -2306,7 +2306,7 @@ void audio_enable_sndboard(bool enable)
 	audio_set_extra_channels();
 }
 
-void audio_enable_cda(bool enable)
+static void audio_enable_cda(bool enable)
 {
 	struct audio_channel_data *acd = audio_channel + AUDIO_CHANNEL_CDA_LEFT;
 	if (!enable) {

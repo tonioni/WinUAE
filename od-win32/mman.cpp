@@ -7,13 +7,16 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 #include "memory.h"
-#include "sys/mman.h"
+#include "uae/mman.h"
 #include "options.h"
 #include "autoconf.h"
 #include "gfxboard.h"
 #include "cpuboard.h"
 #include "rommgr.h"
+#include "newcpu.h"
+#ifdef WINUAE
 #include "win32.h"
+#endif
 
 #if defined(NATMEM_OFFSET)
 
@@ -25,7 +28,7 @@ uae_u32 max_z3fastmem;
 #define MAXZ3MEM32 0x7F000000
 #define MAXZ3MEM64 0xF0000000
 
-static struct shmid_ds shmids[MAX_SHMID];
+static struct uae_shmid_ds shmids[MAX_SHMID];
 uae_u8 *natmem_offset_allocated, *natmem_offset, *natmem_offset_end;
 static uae_u8 *p96mem_offset;
 static int p96mem_size;
@@ -45,6 +48,9 @@ static void virtualfreewithlock (LPVOID addr, SIZE_T size, DWORD freetype)
 	VirtualFree(addr, size, freetype);
 }
 
+#ifdef JIT
+#ifdef _WIN32
+
 void cache_free (uae_u8 *cache)
 {
 	virtualfreewithlock (cache, 0, MEM_RELEASE);
@@ -54,6 +60,9 @@ uae_u8 *cache_alloc (int size)
 {
 	return virtualallocwithlock (NULL, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 }
+
+#endif /*_WIN32 */
+#endif /* JIT */
 
 static uae_u32 lowmem (void)
 {
@@ -97,13 +106,15 @@ void mman_ResetWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize)
 }
 
 static uae_u64 size64;
+#ifdef _WIN32
 typedef BOOL (CALLBACK* GLOBALMEMORYSTATUSEX)(LPMEMORYSTATUSEX);
+#endif
 
 static void clear_shm (void)
 {
 	shm_start = NULL;
 	for (int i = 0; i < MAX_SHMID; i++) {
-		memset (&shmids[i], 0, sizeof (struct shmid_ds));
+		memset (&shmids[i], 0, sizeof(struct uae_shmid_ds));
 		shmids[i].key = -1;
 	}
 }
@@ -112,17 +123,26 @@ bool preinit_shm (void)
 {
 	uae_u64 total64;
 	uae_u64 totalphys64;
+#ifdef _WIN32
 	MEMORYSTATUS memstats;
 	GLOBALMEMORYSTATUSEX pGlobalMemoryStatusEx;
 	MEMORYSTATUSEX memstatsex;
+#endif
 	uae_u32 max_allowed_mman;
 
 	if (natmem_offset_allocated)
+#ifdef _WIN32
 		VirtualFree (natmem_offset_allocated, 0, MEM_RELEASE);
+#else
+#endif
 	natmem_offset_allocated = NULL;
 	natmem_offset = NULL;
-	if (p96mem_offset)
+	if (p96mem_offset) {
+#ifdef _WIN32
 		VirtualFree (p96mem_offset, 0, MEM_RELEASE);
+#else
+#endif
+	}
 	p96mem_offset = NULL;
 
 	GetSystemInfo (&si);
@@ -139,6 +159,7 @@ bool preinit_shm (void)
 	if (maxmem > max_allowed_mman)
 		max_allowed_mman = maxmem;
 
+#ifdef _WIN32
 	memstats.dwLength = sizeof(memstats);
 	GlobalMemoryStatus(&memstats);
 	totalphys64 = memstats.dwTotalPhys;
@@ -151,6 +172,8 @@ bool preinit_shm (void)
 			total64 = memstatsex.ullAvailPageFile + memstatsex.ullTotalPhys;
 		}
 	}
+#else
+#endif
 	size64 = total64;
 	if (os_64bit) {
 		if (size64 > MAXZ3MEM64)
@@ -186,7 +209,7 @@ bool preinit_shm (void)
 	if (natmem_size <= 768 * 1024 * 1024) {
 		uae_u32 p = 0x78000000 - natmem_size;
 		for (;;) {
-			natmem_offset_allocated = (uae_u8*)VirtualAlloc ((void*)p, natmem_size, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_READWRITE);
+			natmem_offset_allocated = (uae_u8*) VirtualAlloc((void*)(intptr_t)p, natmem_size, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_READWRITE);
 			if (natmem_offset_allocated)
 				break;
 			p -= 128 * 1024 * 1024;
@@ -196,8 +219,10 @@ bool preinit_shm (void)
 	}
 	if (!natmem_offset_allocated) {
 		DWORD vaflags = MEM_RESERVE | MEM_WRITE_WATCH;
+#ifdef _WIN32
 		if (!os_vista)
 			vaflags |= MEM_TOP_DOWN;
+#endif
 		for (;;) {
 			natmem_offset_allocated = (uae_u8*)VirtualAlloc (NULL, natmem_size, vaflags, PAGE_READWRITE);
 			if (natmem_offset_allocated)
@@ -239,7 +264,7 @@ static void resetmem (bool decommit)
 	if (!shm_start)
 		return;
 	for (i = 0; i < MAX_SHMID; i++) {
-		struct shmid_ds *s = &shmids[i];
+		struct uae_shmid_ds *s = &shmids[i];
 		int size = s->size;
 		uae_u8 *shmaddr;
 		uae_u8 *result;
@@ -298,13 +323,12 @@ static int doinit_shm (void)
 	uae_u32 size, totalsize, z3size, natmemsize, othersize;
 	uae_u32 startbarrier, z3offset, align;
 	int rounds = 0;
-	ULONG z3rtgmem_size;
+	uae_u32 z3rtgmem_size;
 
 	canbang = 1;
 	natmem_offset = natmem_offset_allocated;
 	for (;;) {
 		int lowround = 0;
-		uae_u8 *blah = NULL;
 		if (rounds > 0)
 			write_log (_T("NATMEM: retrying %d..\n"), rounds);
 		rounds++;
@@ -327,7 +351,7 @@ static int doinit_shm (void)
 			int change = lowmem ();
 			if (!change)
 				return 0;
-			write_log (_T("NATMEM: %d, %dM > %dM = %dM\n"), ++lowround, totalsize >> 20, size64 >> 20, (totalsize - change) >> 20);
+			write_log (_T("NATMEM: %d, %dM > %lldM = %dM\n"), ++lowround, totalsize >> 20, size64 >> 20, (totalsize - change) >> 20);
 			totalsize -= change;
 		}
 		if ((rounds > 1 && totalsize < 0x10000000) || rounds > 20) {
@@ -514,15 +538,15 @@ void mapped_free (addrbank *ab)
 
 	while(x) {
 		if(ab->baseaddr == x->native_address)
-			shmdt (x->native_address);
+			uae_shmdt (x->native_address);
 		x = x->next;
 	}
 	x = shm_start;
 	while(x) {
-		struct shmid_ds blah;
+		struct uae_shmid_ds blah;
 		if (ab->baseaddr == x->native_address) {
-			if (shmctl (x->id, IPC_STAT, &blah) == 0)
-				shmctl (x->id, IPC_RMID, &blah);
+			if (uae_shmctl (x->id, UAE_IPC_STAT, &blah) == 0)
+				uae_shmctl (x->id, UAE_IPC_RMID, &blah);
 		}
 		x = x->next;
 	}
@@ -530,9 +554,9 @@ void mapped_free (addrbank *ab)
 	write_log(_T("mapped_free direct %s\n"), ab->name);
 }
 
-static key_t get_next_shmkey (void)
+static uae_key_t get_next_shmkey (void)
 {
-	key_t result = -1;
+	uae_key_t result = -1;
 	int i;
 	for (i = 0; i < MAX_SHMID; i++) {
 		if (shmids[i].key == -1) {
@@ -544,7 +568,7 @@ static key_t get_next_shmkey (void)
 	return result;
 }
 
-STATIC_INLINE key_t find_shmkey (key_t key)
+STATIC_INLINE uae_key_t find_shmkey (uae_key_t key)
 {
 	int result = -1;
 	if(shmids[key].key == key) {
@@ -553,16 +577,10 @@ STATIC_INLINE key_t find_shmkey (key_t key)
 	return result;
 }
 
-int mprotect (void *addr, size_t len, int prot)
-{
-	int result = 0;
-	return result;
-}
-
-void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
+void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 {
 	void *result = (void *)-1;
-	BOOL got = FALSE, readonly = FALSE, maprom = FALSE;
+	bool got = false, readonly = false, maprom = false;
 	int p96special = FALSE;
 
 #ifdef NATMEM_OFFSET
@@ -582,47 +600,47 @@ void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 	if ((uae_u8*)shmaddr < natmem_offset) {
 		if(!_tcscmp (shmids[shmid].name, _T("chip"))) {
 			shmaddr=natmem_offset;
-			got = TRUE;
+			got = true;
 			if (getz2endaddr () <= 2 * 1024 * 1024 || currprefs.chipmem_size < 2 * 1024 * 1024)
 				size += BARRIER;
 		} else if(!_tcscmp (shmids[shmid].name, _T("kick"))) {
 			shmaddr=natmem_offset + 0xf80000;
-			got = TRUE;
+			got = true;
 			size += BARRIER;
-			readonly = TRUE;
-			maprom = TRUE;
+			readonly = true;
+			maprom = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("rom_a8"))) {
 			shmaddr=natmem_offset + 0xa80000;
-			got = TRUE;
-			readonly = TRUE;
-			maprom = TRUE;
+			got = true;
+			readonly = true;
+			maprom = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("rom_e0"))) {
 			shmaddr=natmem_offset + 0xe00000;
-			got = TRUE;
-			readonly = TRUE;
-			maprom = TRUE;
+			got = true;
+			readonly = true;
+			maprom = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("rom_f0"))) {
 			shmaddr=natmem_offset + 0xf00000;
-			got = TRUE;
-			readonly = TRUE;
+			got = true;
+			readonly = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("rom_f0_ppc"))) {
 			// this is flash and also contains IO
 			shmaddr=natmem_offset + 0xf00000;
-			got = TRUE;
-			readonly = FALSE;
+			got = true;
+			readonly = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("rtarea"))) {
 			shmaddr = natmem_offset + rtarea_base;
-			got = TRUE;
-			readonly = TRUE;
+			got = true;
+			readonly = true;
 			readonlysize = RTAREA_TRAPS;
 		} else if (!_tcscmp(shmids[shmid].name, _T("fmv_rom"))) {
-			got = TRUE;
+			got = true;
 			shmaddr = natmem_offset + 0x200000;
 		} else if (!_tcscmp(shmids[shmid].name, _T("fmv_ram"))) {
-			got = TRUE;
+			got = true;
 			shmaddr = natmem_offset + 0x280000;
 		} else if(!_tcscmp (shmids[shmid].name, _T("fast"))) {
-			got = TRUE;
+			got = true;
 			if (size < 524288) {
 				shmaddr=natmem_offset + 0xec0000;
 			} else {
@@ -631,7 +649,7 @@ void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 					size += BARRIER;
 			}
 		} else if(!_tcscmp (shmids[shmid].name, _T("fast2"))) {
-			got = TRUE;
+			got = true;
 			if (size < 524288) {
 				shmaddr=natmem_offset + 0xec0000;
 			} else {
@@ -643,13 +661,13 @@ void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 			}
 		} else if(!_tcscmp (shmids[shmid].name, _T("fast2"))) {
 			shmaddr=natmem_offset + 0x200000;
-			got = TRUE;
+			got = true;
 			if (!(currprefs.rtgmem_size && gfxboard_get_configtype(currprefs.rtgmem_type) == 3))
 				size += BARRIER;
 		} else if(!_tcscmp (shmids[shmid].name, _T("z2_gfx"))) {
 			ULONG start = getz2rtgaddr (size);
-			got = TRUE;
-			p96special = TRUE;
+			got = true;
+			p96special = true;
 			shmaddr = natmem_offset + start;
 			gfxmem_bank.start = start;
 			if (start + currprefs.rtgmem_size < 10 * 1024 * 1024)
@@ -658,62 +676,62 @@ void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 			shmaddr=natmem_offset + a3000lmem_bank.start;
 			if (!a3000hmem_bank.start)
 				size += BARRIER;
-			got = TRUE;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("csmk1_maprom"))) {
 			shmaddr = natmem_offset + 0x07f80000;
-			got = TRUE;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("25bitram"))) {
 			shmaddr = natmem_offset + 0x01000000;
-			got = TRUE;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("ramsey_high"))) {
 			shmaddr = natmem_offset + 0x08000000;
-			got = TRUE;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("dkb"))) {
 			shmaddr = natmem_offset + 0x10000000;
-			got = TRUE;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("fusionforty"))) {
 			shmaddr = natmem_offset + 0x11000000;
-			got = TRUE;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("blizzard_40"))) {
 			shmaddr = natmem_offset + 0x40000000;
-			got = TRUE;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("blizzard_48"))) {
 			shmaddr = natmem_offset + 0x48000000;
-			got = TRUE;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("blizzard_68"))) {
 			shmaddr = natmem_offset + 0x68000000;
-			got = TRUE;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("blizzard_70"))) {
 			shmaddr = natmem_offset + 0x70000000;
-			got = TRUE;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("cyberstorm"))) {
 			shmaddr = natmem_offset + 0x0c000000;
-			got = TRUE;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("cyberstormmaprom"))) {
 			shmaddr = natmem_offset + 0xfff00000;
-			got = TRUE;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("z3"))) {
 			shmaddr=natmem_offset + z3fastmem_bank.start;
 			if (!currprefs.z3fastmem2_size)
 				size += BARRIER;
-			got = TRUE;
+			got = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("z3_2"))) {
 			shmaddr=natmem_offset + z3fastmem_bank.start + currprefs.z3fastmem_size;
 			size += BARRIER;
-			got = TRUE;
+			got = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("z3_chip"))) {
 			shmaddr=natmem_offset + z3chipmem_bank.start;
 			size += BARRIER;
-			got = TRUE;
+			got = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("z3_gfx"))) {
-			got = TRUE;
-			p96special = TRUE;
+			got = true;
+			p96special = true;
 			gfxmem_bank.start = p96mem_offset - natmem_offset;
 			shmaddr = natmem_offset + gfxmem_bank.start;
 			size += BARRIER;
 		} else if(!_tcscmp (shmids[shmid].name, _T("bogo"))) {
 			shmaddr=natmem_offset+0x00C00000;
-			got = TRUE;
+			got = true;
 			if (currprefs.bogomem_size <= 0x100000)
 				size += BARRIER;
 #if 0
@@ -728,53 +746,53 @@ void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 #endif
 		} else if(!_tcscmp (shmids[shmid].name, _T("custmem1"))) {
 			shmaddr=natmem_offset + currprefs.custom_memory_addrs[0];
-			got = TRUE;
+			got = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("custmem2"))) {
 			shmaddr=natmem_offset + currprefs.custom_memory_addrs[1];
-			got = TRUE;
+			got = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("hrtmem"))) {
 			shmaddr=natmem_offset + 0x00a10000;
-			got = TRUE;
+			got = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("arhrtmon"))) {
 			shmaddr=natmem_offset + 0x00800000;
 			size += BARRIER;
-			got = TRUE;
+			got = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("xpower_e2"))) {
 			shmaddr=natmem_offset + 0x00e20000;
 			size += BARRIER;
-			got = TRUE;
+			got = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("xpower_f2"))) {
 			shmaddr=natmem_offset + 0x00f20000;
 			size += BARRIER;
-			got = TRUE;
+			got = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("nordic_f0"))) {
 			shmaddr=natmem_offset + 0x00f00000;
 			size += BARRIER;
-			got = TRUE;
+			got = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("nordic_f4"))) {
 			shmaddr=natmem_offset + 0x00f40000;
 			size += BARRIER;
-			got = TRUE;
+			got = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("nordic_f6"))) {
 			shmaddr=natmem_offset + 0x00f60000;
 			size += BARRIER;
-			got = TRUE;
+			got = true;
 		} else if(!_tcscmp(shmids[shmid].name, _T("superiv_b0"))) {
 			shmaddr=natmem_offset + 0x00b00000;
 			size += BARRIER;
-			got = TRUE;
+			got = true;
 		} else if(!_tcscmp (shmids[shmid].name, _T("superiv_d0"))) {
 			shmaddr=natmem_offset + 0x00d00000;
 			size += BARRIER;
-			got = TRUE;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("superiv_e0"))) {
 			shmaddr = natmem_offset + 0x00e00000;
 			size += BARRIER;
-			got = TRUE;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("ram_a8"))) {
 			shmaddr = natmem_offset + 0x00a80000;
 			size += BARRIER;
-			got = TRUE;
+			got = true;
 		}
 	}
 #endif
@@ -794,7 +812,7 @@ void *shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 		if (result == NULL) {
 			result = (void*)-1;
 			error_log (_T("Memory %s failed to allocate %p: VA %08X - %08X %x (%dk). Error %d."),
-				shmids[shmid].name, shmaddr, 
+				shmids[shmid].name, shmaddr,
 				(uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
 				size, size >> 10, GetLastError ());
 		} else {
@@ -811,8 +829,7 @@ void unprotect_maprom (void)
 {
 	bool protect = false;
 	for (int i = 0; i < MAX_SHMID; i++) {
-		DWORD old;
-		struct shmid_ds *shm = &shmids[i];
+		struct uae_shmid_ds *shm = &shmids[i];
 		if (shm->mode != PAGE_READONLY)
 			continue;
 		if (!shm->attached || !shm->rosize)
@@ -820,6 +837,7 @@ void unprotect_maprom (void)
 		if (shm->maprom <= 0)
 			continue;
 		shm->maprom = -1;
+		DWORD old;
 		if (!VirtualProtect (shm->attached, shm->rosize, protect ? PAGE_READONLY : PAGE_READWRITE, &old)) {
 			write_log (_T("unprotect_maprom VP %08X - %08X %x (%dk) failed %d\n"),
 				(uae_u8*)shm->attached - natmem_offset, (uae_u8*)shm->attached - natmem_offset + shm->size,
@@ -836,14 +854,14 @@ void protect_roms (bool protect)
 			return;
 	}
 	for (int i = 0; i < MAX_SHMID; i++) {
-		DWORD old;
-		struct shmid_ds *shm = &shmids[i];
+		struct uae_shmid_ds *shm = &shmids[i];
 		if (shm->mode != PAGE_READONLY)
 			continue;
 		if (!shm->attached || !shm->rosize)
 			continue;
 		if (shm->maprom < 0 && protect)
 			continue;
+		DWORD old;
 		if (!VirtualProtect (shm->attached, shm->rosize, protect ? PAGE_READONLY : PAGE_READWRITE, &old)) {
 			write_log (_T("protect_roms VP %08X - %08X %x (%dk) failed %d\n"),
 				(uae_u8*)shm->attached - natmem_offset, (uae_u8*)shm->attached - natmem_offset + shm->size,
@@ -852,17 +870,17 @@ void protect_roms (bool protect)
 	}
 }
 
-int shmdt (const void *shmaddr)
+int uae_shmdt (const void *shmaddr)
 {
 	return 0;
 }
 
-int shmget (key_t key, size_t size, int shmflg, const TCHAR *name)
+int uae_shmget (uae_key_t key, size_t size, int shmflg, const TCHAR *name)
 {
 	int result = -1;
 
-	if((key == IPC_PRIVATE) || ((shmflg & IPC_CREAT) && (find_shmkey (key) == -1))) {
-		write_log (_T("shmget of size %d (%dk) for %s\n"), size, size >> 10, name);
+	if ((key == UAE_IPC_PRIVATE) || ((shmflg & UAE_IPC_CREAT) && (find_shmkey (key) == -1))) {
+		write_log (_T("shmget of size %zd (%zdk) for %s\n"), size, size >> 10, name);
 		if ((result = get_next_shmkey ()) != -1) {
 			shmids[result].size = size;
 			_tcscpy (shmids[result].name, name);
@@ -873,18 +891,18 @@ int shmget (key_t key, size_t size, int shmflg, const TCHAR *name)
 	return result;
 }
 
-int shmctl (int shmid, int cmd, struct shmid_ds *buf)
+int uae_shmctl (int shmid, int cmd, struct uae_shmid_ds *buf)
 {
 	int result = -1;
 
 	if ((find_shmkey (shmid) != -1) && buf) {
 		switch (cmd)
 		{
-		case IPC_STAT:
+		case UAE_IPC_STAT:
 			*buf = shmids[shmid];
 			result = 0;
 			break;
-		case IPC_RMID:
+		case UAE_IPC_RMID:
 			VirtualFree (shmids[shmid].attached, shmids[shmid].size, MEM_DECOMMIT);
 			shmids[shmid].key = -1;
 			shmids[shmid].name[0] = '\0';

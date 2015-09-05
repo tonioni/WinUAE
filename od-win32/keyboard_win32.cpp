@@ -43,6 +43,11 @@
 //#define DBG_KEYBD 1
 //#define DEBUG_KBD
 
+#ifndef DIK_PREVTRACK
+/* Not defined by MinGW */
+#define DIK_PREVTRACK 0x90
+#endif
+
 static struct uae_input_device_kbr_default keytrans_amiga[] = {
 
 	{ DIK_ESCAPE, INPUTEVENT_KEY_ESC },

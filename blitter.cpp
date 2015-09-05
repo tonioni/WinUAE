@@ -341,7 +341,6 @@ int blitter_channel_state (void)
 	return channel_state (blit_cyclecounter);
 }
 
-extern int is_bitplane_dma (int hpos);
 STATIC_INLINE int canblit (int hpos)
 {
 	if (!dmaen (DMA_BLITTER))
@@ -953,21 +952,16 @@ STATIC_INLINE uae_u16 blitter_doblit (void)
 
 STATIC_INLINE void blitter_doddma (int hpos)
 {
-	int wd;
 	uae_u16 d;
 
-	wd = 0;
 	if (blit_dmacount2 == 0) {
 		d = blitter_doblit ();
-		wd = -1;
 	} else if (ddat2use) {
 		d = ddat2;
 		ddat2use = 0;
-		wd = 2;
 	} else if (ddat1use) {
 		d = ddat1;
 		ddat1use = 0;
-		wd = 1;
 	} else {
 		static int warn = 10;
 		if (warn > 0) {

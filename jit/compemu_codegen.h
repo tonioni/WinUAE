@@ -160,7 +160,6 @@ extern void comp_fbcc_opp (uae_u32 opcode);
 extern void comp_fscc_opp (uae_u32 opcode, uae_u16 extra);
 
 extern uae_u32 needed_flags;
-extern cacheline cache_tags[];
 extern uae_u8* comp_pc_p;
 extern void* pushall_call_handler;
 

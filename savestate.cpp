@@ -257,7 +257,6 @@ TCHAR *restore_path_func (uae_u8 **dstp, int type)
 {
 	TCHAR *newpath;
 	TCHAR *s;
-	TCHAR *out = NULL;
 	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
 
 	s = restore_string_func (dstp);
@@ -302,13 +301,13 @@ TCHAR *restore_path_func (uae_u8 **dstp, int type)
 
 /* read and write IFF-style hunks */
 
-static void save_chunk (struct zfile *f, uae_u8 *chunk, size_t len, TCHAR *name, int compress)
+static void save_chunk (struct zfile *f, uae_u8 *chunk, unsigned int len, const TCHAR *name, int compress)
 {
 	uae_u8 tmp[8], *dst;
 	uae_u8 zero[4]= { 0, 0, 0, 0 };
 	uae_u32 flags;
-	size_t pos;
-	size_t chunklen, len2;
+	unsigned int pos;
+	unsigned int chunklen, len2;
 	char *s;
 
 	if (!chunk)
@@ -365,10 +364,10 @@ static void save_chunk (struct zfile *f, uae_u8 *chunk, size_t len, TCHAR *name,
 	if (len2)
 		zfile_fwrite (zero, 1, len2, f);
 
-	write_log (_T("Chunk '%s' chunk size %d (%d)\n"), name, chunklen, len);
+	write_log (_T("Chunk '%s' chunk size %u (%u)\n"), name, chunklen, len);
 }
 
-static uae_u8 *restore_chunk (struct zfile *f, TCHAR *name, size_t *len, size_t *totallen, size_t *filepos)
+static uae_u8 *restore_chunk (struct zfile *f, TCHAR *name, unsigned int *len, unsigned int *totallen, size_t *filepos)
 {
 	uae_u8 tmp[6], dummy[4], *mem, *src;
 	uae_u32 flags;
@@ -497,7 +496,7 @@ void restore_state (const TCHAR *filename)
 	struct zfile *f;
 	uae_u8 *chunk,*end;
 	TCHAR name[5];
-	size_t len, totallen;
+	unsigned int len, totallen;
 	size_t filepos, filesize;
 	int z3num;
 
@@ -526,7 +525,7 @@ void restore_state (const TCHAR *filename)
 	for (;;) {
 		name[0] = 0;
 		chunk = end = restore_chunk (f, name, &len, &totallen, &filepos);
-		write_log (_T("Chunk '%s' size %d (%d)\n"), name, len, totallen);
+		write_log (_T("Chunk '%s' size %u (%u)\n"), name, len, totallen);
 		if (!_tcscmp (name, _T("END "))) {
 #ifdef _DEBUG
 			if (filesize > filepos + 8)
@@ -721,7 +720,7 @@ void restore_state (const TCHAR *filename)
 			write_log (_T("Chunk '%s', size %d bytes was not accepted!\n"),
 			name, len);
 		else if (totallen != end - chunk)
-			write_log (_T("Chunk '%s' total size %d bytes but read %d bytes!\n"),
+			write_log (_T("Chunk '%s' total size %d bytes but read %ld bytes!\n"),
 			name, totallen, end - chunk);
 		xfree (chunk);
 	}
@@ -1198,7 +1197,7 @@ int savestate_dorewind (int pos)
 		pos = replaycounter - 1;
 	if (canrewind (pos)) {
 		savestate_state = STATE_DOREWIND;
-		write_log (_T("dorewind %d (%010d/%03d) -> %d\n"), replaycounter - 1, hsync_counter, vsync_counter, pos);
+		write_log (_T("dorewind %d (%010ld/%03ld) -> %d\n"), replaycounter - 1, hsync_counter, vsync_counter, pos);
 		return 1;
 	}
 	return 0;
@@ -1342,7 +1341,7 @@ void savestate_rewind (void)
 		return;
 	}
 	inprec_setposition (st->inprecoffset, pos);
-	write_log (_T("state %d restored.  (%010d/%03d)\n"), pos, hsync_counter, vsync_counter);
+	write_log (_T("state %d restored.  (%010ld/%03ld)\n"), pos, hsync_counter, vsync_counter);
 	if (rewind) {
 		replaycounter--;
 		if (replaycounter < 0)
@@ -1729,7 +1728,7 @@ retry2:
 			staterecords_first -= staterecords_max;
 	}
 
-	write_log (_T("state capture %d (%010d/%03d,%d/%d) (%d bytes, alloc %d)\n"),
+	write_log (_T("state capture %d (%010ld/%03ld,%ld/%d) (%ld bytes, alloc %d)\n"),
 		replaycounter, hsync_counter, vsync_counter,
 		hsync_counter % current_maxvpos (), current_maxvpos (),
 		st->end - st->data, statefile_alloc);

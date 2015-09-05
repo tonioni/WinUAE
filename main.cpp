@@ -41,6 +41,7 @@
 #include "cpuboard.h"
 #include "uae/ppc.h"
 #include "devices.h"
+#include "jit/compemu.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -684,8 +685,9 @@ void fixup_prefs (struct uae_prefs *p)
 #endif
 	}
 #endif
-	if (p->maprom && !p->address_space_24)
+	if (p->maprom && !p->address_space_24) {
 		p->maprom = 0x0f000000;
+	}
 	if (((p->maprom & 0xff000000) && p->address_space_24) || (p->maprom && p->mbresmem_high_size >= 0x08000000)) {
 		p->maprom = 0x00e00000;
 	}
@@ -968,16 +970,15 @@ void do_start_program (void)
 #ifdef WITH_LUA
 	uae_lua_loadall ();
 #endif
-#if (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
-	extern int EvalException (LPEXCEPTION_POINTERS blah, int n_except);
+#ifdef USE_STRUCTURED_EXCEPTION_HANDLING
 	__try
 #endif
 	{
 		m68k_go (1);
 	}
-#if (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
+#ifdef USE_STRUCTURED_EXCEPTION_HANDLING
 #ifdef JIT
-	__except (EvalException (GetExceptionInformation (), GetExceptionCode ()))
+	__except (EvalException(GetExceptionInformation()))
 #else
 	__except (DummyException (GetExceptionInformation (), GetExceptionCode ()))
 #endif

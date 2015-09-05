@@ -37,6 +37,15 @@
 #include "cpuboard.h"
 #include "luascript.h"
 
+#define cfgfile_warning write_log
+#define cfgfile_warning_obsolete write_log
+
+#if SIZEOF_TCHAR != 1
+/* FIXME: replace strcasecmp with _tcsicmp in source code instead */
+#undef strcasecmp
+#define strcasecmp _tcsicmp
+#endif
+
 static int config_newfilesystem;
 static struct strlist *temp_lines;
 static struct strlist *error_lines;
@@ -700,11 +709,11 @@ void cfgfile_dwrite_bool (struct zfile *f, const TCHAR *option, bool b)
 {
 	cfg_dowrite (f, option, b ? _T("true") : _T("false"), 1, 0);
 }
-void cfgfile_dwrite_bool (struct zfile *f, const TCHAR *option, const TCHAR *optionext, bool b)
+static void cfgfile_dwrite_bool (struct zfile *f, const TCHAR *option, const TCHAR *optionext, bool b)
 {
 	cfg_dowrite (f, option, optionext, b ? _T("true") : _T("false"), 1, 0);
 }
-void cfgfile_dwrite_bool (struct zfile *f, const TCHAR *option, int b)
+static void cfgfile_dwrite_bool (struct zfile *f, const TCHAR *option, int b)
 {
 	cfgfile_dwrite_bool (f, option, b != 0);
 }
@@ -712,7 +721,7 @@ void cfgfile_write_str (struct zfile *f, const TCHAR *option, const TCHAR *value
 {
 	cfg_dowrite (f, option, value, 0, 0);
 }
-void cfgfile_write_str (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *value)
+static void cfgfile_write_str (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *value)
 {
 	cfg_dowrite (f, option, optionext, value, 0, 0);
 }
@@ -720,7 +729,7 @@ void cfgfile_dwrite_str (struct zfile *f, const TCHAR *option, const TCHAR *valu
 {
 	cfg_dowrite (f, option, value, 1, 0);
 }
-void cfgfile_dwrite_str (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *value)
+static void cfgfile_dwrite_str (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *value)
 {
 	cfg_dowrite (f, option, optionext, value, 1, 0);
 }
@@ -742,7 +751,7 @@ void cfgfile_target_dwrite_str (struct zfile *f, const TCHAR *option, const TCHA
 	cfg_dowrite (f, option, value, 1, 1);
 }
 
-void cfgfile_write_ext (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *format,...)
+static void cfgfile_write_ext (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *format,...)
 {
 	va_list parms;
 	TCHAR tmp[CONFIG_BLEN], tmp2[CONFIG_BLEN];
@@ -766,7 +775,8 @@ void cfgfile_write (struct zfile *f, const TCHAR *option, const TCHAR *format,..
 	cfg_dowrite (f, option, tmp, 0, 0);
 	va_end (parms);
 }
-void cfgfile_dwrite_ext (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *format,...)
+
+static void cfgfile_dwrite_ext (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *format,...)
 {
 	va_list parms;
 	TCHAR tmp[CONFIG_BLEN], tmp2[CONFIG_BLEN];
@@ -853,7 +863,8 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 	for (i = 0; i < p->mountitems; i++) {
 		struct uaedev_config_data *uci = &p->mountconfig[i];
 		struct uaedev_config_info *ci = &uci->ci;
-		TCHAR *str1, *str2, *str1b, *str2b;
+		TCHAR *str1, *str1b, *str2b;
+		const TCHAR *str2;
 		int bp = ci->bootpri;
 
 		str2 = _T("");
@@ -865,7 +876,7 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 			if (ptr) {
 				*ptr++ = 0;
 				str2 = ptr;
-				ptr = _tcschr (str2, ',');
+				ptr = (TCHAR *) _tcschr (str2, ',');
 				if (ptr)
 					*ptr = 0;
 			}
@@ -924,7 +935,7 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 				_tcscat(tmp, _T(",CF"));
 				_tcscat(tmp3, _T(",CF"));
 			}
-			TCHAR *extras = NULL;
+			const TCHAR *extras = NULL;
 			if (ct >= HD_CONTROLLER_TYPE_SCSI_FIRST && ct <= HD_CONTROLLER_TYPE_SCSI_LAST) {
 				if (ci->unit_feature_level == HD_LEVEL_SCSI_1){
 					extras = _T("SCSI1");
@@ -1479,7 +1490,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			cfgfile_write_str (f, _T("slirp_redir"), tmp);
 		}
 	}
-#endif
+#endif /* WITH_SLIRP */
 
 	cfgfile_write_bool (f, _T("synchronize_clock"), p->tod_hack);
 	cfgfile_write (f, _T("maprom"), _T("0x%x"), p->maprom);
@@ -1895,28 +1906,31 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	write_inputdevice_config (p, f);
 }
 
-int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location, bool numbercheck)
+static int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location, bool numbercheck)
 {
 	if (name != NULL && _tcscmp (option, name) != 0)
 		return 0;
 	if (strcasecmp (value, _T("yes")) == 0 || strcasecmp (value, _T("y")) == 0
-		|| strcasecmp (value, _T("true")) == 0 || strcasecmp (value, _T("t")) == 0)
+		|| strcasecmp (value, _T("true")) == 0 || strcasecmp (value, _T("t")) == 0
+		|| (numbercheck && strcasecmp (value, _T("1")) == 0))
 		*location = 1;
 	else if (strcasecmp (value, _T("no")) == 0 || strcasecmp (value, _T("n")) == 0
 		|| strcasecmp (value, _T("false")) == 0 || strcasecmp (value, _T("f")) == 0
 		|| (numbercheck && strcasecmp (value, _T("0")) == 0))
 		*location = 0;
 	else {
-		write_log (_T("Option `%s' requires a value of either `yes' or `no' (was '%s').\n"), option, value);
+		cfgfile_warning(_T("Option '%s' requires a value of either 'true' or 'false' (was '%s').\n"), option, value);
 		return -1;
 	}
 	return 1;
 }
-int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location)
+
+static int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location)
 {
 	return cfgfile_yesno (option, value, name, location, true);
 }
-int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, bool *location, bool numbercheck)
+
+static int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, bool *location, bool numbercheck)
 {
 	int val;
 	int ret = cfgfile_yesno (option, value, name, &val, numbercheck);
@@ -1928,14 +1942,14 @@ int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, b
 		*location = val != 0;
 	return 1;
 }
+
 int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, bool *location)
 {
 	return cfgfile_yesno (option, value, name, location, true);
 }
 
-int cfgfile_doubleval (const TCHAR *option, const TCHAR *value, const TCHAR *name, double *location)
+static int cfgfile_doubleval (const TCHAR *option, const TCHAR *value, const TCHAR *name, double *location)
 {
-	int base = 10;
 	TCHAR *endptr;
 	if (name != NULL && _tcscmp (option, name) != 0)
 		return 0;
@@ -1943,9 +1957,8 @@ int cfgfile_doubleval (const TCHAR *option, const TCHAR *value, const TCHAR *nam
 	return 1;
 }
 
-int cfgfile_floatval (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, float *location)
+static int cfgfile_floatval (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, float *location)
 {
-	int base = 10;
 	TCHAR *endptr;
 	if (name == NULL)
 		return 0;
@@ -1962,12 +1975,13 @@ int cfgfile_floatval (const TCHAR *option, const TCHAR *value, const TCHAR *name
 	*location = (float)_tcstod (value, &endptr);
 	return 1;
 }
-int cfgfile_floatval (const TCHAR *option, const TCHAR *value, const TCHAR *name, float *location)
+
+static int cfgfile_floatval (const TCHAR *option, const TCHAR *value, const TCHAR *name, float *location)
 {
 	return cfgfile_floatval (option, value, name, NULL, location);
 }
 
-int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, unsigned int *location, int scale)
+static int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, unsigned int *location, int scale)
 {
 	int base = 10;
 	TCHAR *endptr;
@@ -1998,12 +2012,12 @@ int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 			*location = 1;
 			return 1;
 		}
-		write_log (_T("Option '%s' requires a numeric argument but got '%s'\n"), nameext ? tmp : option, value);
+		cfgfile_warning(_T("Option '%s' requires a numeric argument but got '%s'\n"), nameext ? tmp : option, value);
 		return -1;
 	}
 	return 1;
 }
-int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, unsigned int *location, int scale)
+static int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, unsigned int *location, int scale)
 {
 	return cfgfile_intval (option, value, name, NULL, location, scale);
 }
@@ -2016,7 +2030,7 @@ int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 	*location = (int)v;
 	return r;
 }
-int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, int *location, int scale)
+static int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, int *location, int scale)
 {
 	unsigned int v = 0;
 	int r = cfgfile_intval (option, value, name, nameext, &v, scale);
@@ -2026,7 +2040,7 @@ int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 	return r;
 }
 
-int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, int *location, const TCHAR *table[], int more)
+static int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, int *location, const TCHAR *table[], int more)
 {
 	int val;
 	TCHAR tmp[MAX_DPATH];
@@ -2050,7 +2064,7 @@ int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 		} else if  (!strcasecmp (value, _T("no")) || !strcasecmp (value, _T("false"))) {
 			val = 0;
 		} else {
-			write_log (_T("Unknown value ('%s') for option '%s'.\n"), value, nameext ? tmp : option);
+			cfgfile_warning(_T("Unknown value ('%s') for option '%s'.\n"), value, nameext ? tmp : option);
 			return -1;
 		}
 	}
@@ -2062,7 +2076,7 @@ int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 	return cfgfile_strval (option, value, name, NULL, location, table, more);
 }
 
-int cfgfile_strboolval (const TCHAR *option, const TCHAR *value, const TCHAR *name, bool *location, const TCHAR *table[], int more)
+static int cfgfile_strboolval (const TCHAR *option, const TCHAR *value, const TCHAR *name, bool *location, const TCHAR *table[], int more)
 {
 	int locationint;
 	if (!cfgfile_strval (option, value, name, &locationint, table, more))
@@ -2079,7 +2093,8 @@ int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 	location[maxsz - 1] = '\0';
 	return 1;
 }
-int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, TCHAR *location, int maxsz)
+
+static int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, TCHAR *location, int maxsz)
 {
 	if (nameext) {
 		TCHAR tmp[MAX_DPATH];
@@ -2097,7 +2112,7 @@ int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 }
 
 
-int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz, struct multipath *mp)
+static int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz, struct multipath *mp)
 {
 	if (!cfgfile_string (option, value, name, location, maxsz))
 		return 0;
@@ -2123,12 +2138,13 @@ int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *name, TC
 	xfree (s);
 	return 1;
 }
-int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz)
+
+static int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz)
 {
 	return cfgfile_path (option, value, name, location, maxsz, NULL);
 }
 
-int cfgfile_multipath (const TCHAR *option, const TCHAR *value, const TCHAR *name, struct multipath *mp)
+static int cfgfile_multipath (const TCHAR *option, const TCHAR *value, const TCHAR *name, struct multipath *mp)
 {
 	TCHAR tmploc[MAX_DPATH];
 	if (!cfgfile_string (option, value, name, tmploc, 256))
@@ -2146,7 +2162,7 @@ int cfgfile_multipath (const TCHAR *option, const TCHAR *value, const TCHAR *nam
 	return 1;
 }
 
-int cfgfile_rom (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz)
+static int cfgfile_rom (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz)
 {
 	TCHAR id[MAX_DPATH];
 	if (!cfgfile_string (option, value, name, id, sizeof id / sizeof (TCHAR)))
@@ -2379,7 +2395,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 					TCHAR *next2 = _tcschr (next, ':');
 					if (next2)
 						*next2++ = 0;
-					int tmpval = 0;
 					if (!_tcsicmp (next, _T("delay"))) {
 						p->cdslots[i].delayed = true;
 						next = next2;
@@ -3087,7 +3102,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			|| (l = KBD_LANG_ES, strcasecmp (value, _T("es")) == 0))
 			p->keyboard_lang = l;
 		else
-			write_log (_T("Unknown keyboard language\n"));
+			cfgfile_warning(_T("Unknown keyboard language\n"));
 		return 1;
 	}
 
@@ -3174,7 +3189,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			else if (!_tcsnicmp (tmpp, _T("t="), 2))
 				_tcsncpy (label, equals, sizeof label / sizeof (TCHAR) - 1);
 			else if (equals) {
-				if (_tcslen (cmd) + _tcslen (tmpp) + 2 < sizeof (cmd) / sizeof(TCHAR)) {
+				if (_tcslen (cmd) + _tcslen (tmpp) + 2 < sizeof (cmd) / sizeof (TCHAR)) {
 					_tcscat (cmd, tmpp);
 					_tcscat (cmd, _T("\n"));
 				}
@@ -3235,7 +3250,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	}
 
 #ifdef WITH_SLIRP
-	if (cfgfile_string (option, value, _T("slirp_ports"), tmpbuf, sizeof (tmpbuf) / sizeof TCHAR)) {
+	if (cfgfile_string (option, value, _T("slirp_ports"), tmpbuf, sizeof (tmpbuf) / sizeof (TCHAR))) {
 		TCHAR *tmpp2 = tmpbuf;
 		_tcscat (tmpbuf, _T(","));
 		for (;;) {
@@ -3255,7 +3270,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		}
 		return 1;
 	}
-	if (cfgfile_string (option, value, _T("slirp_redir"), tmpbuf, sizeof (tmpbuf) / sizeof TCHAR)) {
+	if (cfgfile_string (option, value, _T("slirp_redir"), tmpbuf, sizeof (tmpbuf) / sizeof(TCHAR))) {
 		TCHAR *tmpp2 = tmpbuf;
 		_tcscat (tmpbuf, _T(":"));
 		for (i = 0; i < MAX_SLIRP_REDIRS; i++) {
@@ -3881,7 +3896,7 @@ empty_fs:
 	return 1;
 
 invalid_fs:
-	write_log (_T("Invalid filesystem/hardfile/cd specification.\n"));
+	cfgfile_warning(_T("Invalid filesystem/hardfile/cd specification.\n"));
 	return 1;
 }
 
@@ -4004,7 +4019,7 @@ static int cfgfile_parse_filesys (struct uae_prefs *p, const TCHAR *option, TCHA
 		xfree (str);
 		return 1;
 invalid_fs:
-		write_log (_T("Invalid filesystem/hardfile specification.\n"));
+		cfgfile_warning(_T("Invalid filesystem/hardfile specification.\n"));
 		return 1;
 
 	}
@@ -4171,7 +4186,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 {
 	int tmpval, dummyint, i;
 	bool tmpbool, dummybool;
-	TCHAR *section = 0;
 	TCHAR tmpbuf[CONFIG_BLEN];
 
 	if (cfgfile_yesno (option, value, _T("cpu_cycle_exact"), &p->cpu_cycle_exact)
@@ -4677,10 +4691,10 @@ int cfgfile_parse_option (struct uae_prefs *p, const TCHAR *option, TCHAR *value
 		// cfgfile_parse_host may modify the option (convert to lowercase).
 		TCHAR* writable_option = my_strdup(option);
 		if (cfgfile_parse_host (p, writable_option, value)) {
-			xfree(writable_option);
+			free(writable_option);
 			return 1;
 		}
-		xfree(writable_option);
+		free(writable_option);
 	}
 	if (type > 0 && (type & (CONFIG_TYPE_HARDWARE | CONFIG_TYPE_HOST)) != (CONFIG_TYPE_HARDWARE | CONFIG_TYPE_HOST))
 		return 1;
@@ -4708,7 +4722,7 @@ static int cfgfile_separate_linea (const TCHAR *filename, char *line, TCHAR *lin
 	line2 = strchr (line, '=');
 	if (! line2) {
 		TCHAR *s = au (line1);
-		write_log (_T("CFGFILE: '%s', linea was incomplete with only %s\n"), filename, s);
+		cfgfile_warning(_T("CFGFILE: '%s', linea was incomplete with only %s\n"), filename, s);
 		xfree (s);
 		return 0;
 	}
@@ -4750,7 +4764,7 @@ static int cfgfile_separate_line (TCHAR *line, TCHAR *line1b, TCHAR *line2b)
 		return 0;
 	line2 = _tcschr (line, '=');
 	if (! line2) {
-		write_log (_T("CFGFILE: line was incomplete with only %s\n"), line1);
+		cfgfile_warning(_T("CFGFILE: line was incomplete with only %s\n"), line1);
 		return 0;
 	}
 	*line2++ = '\0';
@@ -4788,7 +4802,7 @@ static int isobsolete (TCHAR *s)
 	int i = 0;
 	while (obsolete[i]) {
 		if (!strcasecmp (s, obsolete[i])) {
-			write_log (_T("obsolete config entry '%s'\n"), s);
+			cfgfile_warning_obsolete(_T("obsolete config entry '%s'\n"), s);
 			return 1;
 		}
 		i++;
@@ -4796,11 +4810,11 @@ static int isobsolete (TCHAR *s)
 	if (_tcslen (s) > 2 && !_tcsncmp (s, _T("w."), 2))
 		return 1;
 	if (_tcslen (s) >= 10 && !_tcsncmp (s, _T("gfx_opengl"), 10)) {
-		write_log (_T("obsolete config entry '%s\n"), s);
+		cfgfile_warning_obsolete(_T("obsolete config entry '%s\n"), s);
 		return 1;
 	}
 	if (_tcslen (s) >= 6 && !_tcsncmp (s, _T("gfx_3d"), 6)) {
-		write_log (_T("obsolete config entry '%s\n"), s);
+		cfgfile_warning_obsolete(_T("obsolete config entry '%s\n"), s);
 		return 1;
 	}
 	return 0;
@@ -4827,7 +4841,7 @@ static void cfgfile_parse_separated_line (struct uae_prefs *p, TCHAR *line1b, TC
 			p->all_lines = u;
 			if (!ret) {
 				u->unknown = 1;
-				write_log (_T("unknown config entry: '%s=%s'\n"), u->option, u->value);
+				cfgfile_warning(_T("unknown config entry: '%s=%s'\n"), u->option, u->value);
 			}
 		}
 	}
@@ -4873,7 +4887,6 @@ static void subst (TCHAR *p, TCHAR *f, int n)
 static int getconfigstoreline (const TCHAR *option, TCHAR *value)
 {
 	TCHAR tmp[CONFIG_BLEN * 2], tmp2[CONFIG_BLEN * 2];
-	int idx = 0;
 
 	if (!configstore)
 		return 0;
@@ -5043,7 +5056,7 @@ int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ign
 	write_log (_T("load config '%s':%d\n"), filename, type ? *type : -1);
 	v = cfgfile_load_2 (p, filename, 1, type);
 	if (!v) {
-		write_log (_T("load failed\n"));
+		cfgfile_warning(_T("cfgfile_load_2 failed\n"));
 		goto end;
 	}
 	if (userconfig)
@@ -5051,13 +5064,13 @@ int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ign
 	if (!ignorelink) {
 		if (p->config_hardware_path[0]) {
 			fetch_configurationpath (tmp, sizeof (tmp) / sizeof (TCHAR));
-			_tcsncat (tmp, p->config_hardware_path, sizeof (tmp) / sizeof (TCHAR));
+			_tcsncat (tmp, p->config_hardware_path, sizeof (tmp) / sizeof (TCHAR) - _tcslen(tmp) - 1);
 			type2 = CONFIG_TYPE_HARDWARE;
 			cfgfile_load (p, tmp, &type2, 1, 0);
 		}
 		if (p->config_host_path[0]) {
 			fetch_configurationpath (tmp, sizeof (tmp) / sizeof (TCHAR));
-			_tcsncat (tmp, p->config_host_path, sizeof (tmp) / sizeof (TCHAR));
+			_tcsncat (tmp, p->config_host_path, sizeof (tmp) / sizeof (TCHAR) - _tcslen(tmp) - 1);
 			type2 = CONFIG_TYPE_HOST;
 			cfgfile_load (p, tmp, &type2, 1, 0);
 		}
@@ -5316,14 +5329,14 @@ static void parse_hardfile_spec (struct uae_prefs *p, const TCHAR *spec)
 
 argh:
 	free (x0);
-	write_log (_T("Bad hardfile parameter specified - type \"uae -h\" for help.\n"));
+	cfgfile_warning(_T("Bad hardfile parameter specified\n"));
 	return;
 }
 
 static void parse_cpu_specs (struct uae_prefs *p, const TCHAR *spec)
 {
 	if (*spec < '0' || *spec > '4') {
-		write_log (_T("CPU parameter string must begin with '0', '1', '2', '3' or '4'.\n"));
+		cfgfile_warning(_T("CPU parameter string must begin with '0', '1', '2', '3' or '4'.\n"));
 		return;
 	}
 
@@ -5334,21 +5347,21 @@ static void parse_cpu_specs (struct uae_prefs *p, const TCHAR *spec)
 		switch (*spec) {
 		case 'a':
 			if (p->cpu_model < 68020)
-				write_log (_T("In 68000/68010 emulation, the address space is always 24 bit.\n"));
+				cfgfile_warning(_T("In 68000/68010 emulation, the address space is always 24 bit.\n"));
 			else if (p->cpu_model >= 68040)
-				write_log (_T("In 68040/060 emulation, the address space is always 32 bit.\n"));
+				cfgfile_warning(_T("In 68040/060 emulation, the address space is always 32 bit.\n"));
 			else
 				p->address_space_24 = 1;
 			break;
 		case 'c':
 			if (p->cpu_model != 68000)
-				write_log (_T("The more compatible CPU emulation is only available for 68000\n")
+				cfgfile_warning(_T("The more compatible CPU emulation is only available for 68000\n")
 				_T("emulation, not for 68010 upwards.\n"));
 			else
 				p->cpu_compatible = 1;
 			break;
 		default:
-			write_log (_T("Bad CPU parameter specified - type \"uae -h\" for help.\n"));
+			cfgfile_warning(_T("Bad CPU parameter specified.\n"));
 			break;
 		}
 		spec++;
@@ -5707,7 +5720,6 @@ uae_u32 cfgfile_modify (uae_u32 index, const TCHAR *parms, uae_u32 size, TCHAR *
 	TCHAR *argc[UAELIB_MAX_PARSE];
 	int argv, i;
 	uae_u32 err;
-	TCHAR zero = 0;
 	static TCHAR *configsearch;
 
 	*out = 0;

@@ -3422,7 +3422,7 @@ void gvp_s2_add_accelerator_scsi_unit(int ch, struct uaedev_config_info *ci, str
 	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
 }
 
-void a2091_free_device (struct wd_state *wd)
+static void a2091_free_device (struct wd_state *wd)
 {
 	freencrunit(wd);
 }
@@ -3586,7 +3586,7 @@ addrbank *a2090_init (struct romconfig *rc)
 	return wd->bank;
 }
 
-void gvp_free_device (struct wd_state *wd)
+static void gvp_free_device (struct wd_state *wd)
 {
 	freencrunit(wd);
 }

@@ -43,6 +43,7 @@
 #include "cpuboard.h"
 #include "threaddep/thread.h"
 #include "x86.h"
+#include "bsdsocket.h"
 #ifdef JIT
 #include "jit/compemu.h"
 #include <signal.h>
@@ -1910,7 +1911,7 @@ void REGPARAM2 MakeSR (void)
 		|  GET_CFLG ());
 }
 
-void SetSR (uae_u16 sr)
+static void SetSR (uae_u16 sr)
 {
 	regs.sr &= 0xff00;
 	regs.sr |= sr;
@@ -3644,8 +3645,6 @@ static int do_specialties (int cycles)
 	isstopped:
 		check_uae_int_request();
 		{
-			extern void bsdsock_fake_int_handler (void);
-			extern int volatile bsd_int_requested;
 			if (bsd_int_requested)
 				bsdsock_fake_int_handler ();
 		}

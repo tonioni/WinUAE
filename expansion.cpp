@@ -41,6 +41,7 @@
 #include "inputdevice.h"
 #include "pci.h"
 #include "x86.h"
+#include "filesys.h"
 
 // More information in first revision HRM Appendix_G
 #define BOARD_PROTOAUTOCONFIG 1
@@ -2409,8 +2410,6 @@ uae_u8 *restore_expansion (uae_u8 *src)
 }
 
 #endif /* SAVESTATE */
-
-void add_cpuboard_unit(int unit, struct uaedev_config_info *uci, struct romconfig *rc);
 
 #if 0
 static const struct expansionsubromtype a2090_sub[] = {

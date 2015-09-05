@@ -86,39 +86,39 @@ typedef enum
 static FILE *outfile;
 static unsigned int outfile_indent = 0;
 
-void set_outfile (FILE *f)
+static void set_outfile (FILE *f)
 {
 	outfile = f;
 }
 
-int set_indent (int indent)
+static int set_indent (int indent)
 {
 	int old_indent = outfile_indent;
 	outfile_indent = indent;
 	return old_indent;
 }
 
-void outindent(void)
+static void outindent(void)
 {
 	unsigned int i;
 	for (i = 0; i < outfile_indent; i++)
 		fputc(' ', outfile);
 }
 
-void outf(const char *s, ...)
+static void outf(const char *s, ...)
 {
 	va_list ap;
 	va_start(ap, s);
 	vfprintf(outfile, s, ap);
 }
 
-void outln (const char *s)
+static void outln (const char *s)
 {
 	outindent();
 	fprintf (outfile, "%s\n", s);
 }
 
-void outlnf (const char *s, ...)
+static void outlnf (const char *s, ...)
 {
 	va_list ap;
 	outindent();
@@ -378,7 +378,7 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 
 	if (bpp == DEPTH_16BPP && hmode != HMODE_DOUBLE && hmode != HMODE_DOUBLE2X && spr == 0) {
 		outln (		"int rem;");
-		outln (		"if (((long)&buf[dpix]) & 2) {");
+		outln (		"if (((uintptr_t)&buf[dpix]) & 2) {");
 		outln (		"    uae_u32 spix_val;");
 		outln (		"    uae_u32 dpix_val;");
 
@@ -390,7 +390,7 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 		outln (		"}");
 		outln (		"if (dpix >= dpix_end)");
 		outln (		"    return spix;");
-		outln (		"rem = (((long)&buf[dpix_end]) & 2);");
+		outln (		"rem = (((uintptr_t)&buf[dpix_end]) & 2);");
 		outln (		"if (rem)");
 		outln (		"    dpix_end--;");
 	}

@@ -69,8 +69,8 @@ void sbappend(struct socket *so, struct mbuf *m)
 	int ret = 0;
 	
 	DEBUG_CALL("sbappend");
-	DEBUG_ARG("so = %lx", (long)so);
-	DEBUG_ARG("m = %lx", (long)m);
+	DEBUG_ARG("so = %p", so);
+	DEBUG_ARG("m = %p", m);
 	DEBUG_ARG("m->m_len = %d", m->m_len);
 	
 	/* Shouldn't happen, but...  e.g. foreign host closes connection */
