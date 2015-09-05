@@ -107,7 +107,7 @@ MIDFUNC(2,bt_l_ri,(R4 r, IMM i)) /* This is defined as only affecting C */
 	CLOBBER_BT;
 	r=readreg(r,size);
 	raw_bt_l_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,bt_l_ri,(R4 r, IMM i)) /* This is defined as only affecting C */
 
@@ -117,8 +117,8 @@ MIDFUNC(2,bt_l_rr,(R4 r, R4 b)) /* This is defined as only affecting C */
 	r=readreg(r,4);
 	b=readreg(b,4);
 	raw_bt_l_rr(r,b);
-	unlock(r);
-	unlock(b);
+	unlock2(r);
+	unlock2(b);
 }
 MENDFUNC(2,bt_l_rr,(R4 r, R4 b)) /* This is defined as only affecting C */
 
@@ -130,7 +130,7 @@ MIDFUNC(2,btc_l_ri,(RW4 r, IMM i))
 	CLOBBER_BT;
 	r=rmw(r,size,size);
 	raw_btc_l_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,btc_l_ri,(RW4 r, IMM i))
 
@@ -140,8 +140,8 @@ MIDFUNC(2,btc_l_rr,(RW4 r, R4 b))
 	b=readreg(b,4);
 	r=rmw(r,4,4);
 	raw_btc_l_rr(r,b);
-	unlock(r);
-	unlock(b);
+	unlock2(r);
+	unlock2(b);
 }
 MENDFUNC(2,btc_l_rr,(RW4 r, R4 b))
 
@@ -153,7 +153,7 @@ MIDFUNC(2,btr_l_ri,(RW4 r, IMM i))
 	CLOBBER_BT;
 	r=rmw(r,size,size);
 	raw_btr_l_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,btr_l_ri,(RW4 r, IMM i))
 
@@ -163,8 +163,8 @@ MIDFUNC(2,btr_l_rr,(RW4 r, R4 b))
 	b=readreg(b,4);
 	r=rmw(r,4,4);
 	raw_btr_l_rr(r,b);
-	unlock(r);
-	unlock(b);
+	unlock2(r);
+	unlock2(b);
 }
 MENDFUNC(2,btr_l_rr,(RW4 r, R4 b))
 
@@ -176,7 +176,7 @@ MIDFUNC(2,bts_l_ri,(RW4 r, IMM i))
 	CLOBBER_BT;
 	r=rmw(r,size,size);
 	raw_bts_l_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,bts_l_ri,(RW4 r, IMM i))
 
@@ -186,8 +186,8 @@ MIDFUNC(2,bts_l_rr,(RW4 r, R4 b))
 	b=readreg(b,4);
 	r=rmw(r,4,4);
 	raw_bts_l_rr(r,b);
-	unlock(r);
-	unlock(b);
+	unlock2(r);
+	unlock2(b);
 }
 MENDFUNC(2,bts_l_rr,(RW4 r, R4 b))
 
@@ -196,7 +196,7 @@ MIDFUNC(2,mov_l_rm,(W4 d, IMM s))
 	CLOBBER_MOV;
 	d=writereg(d,4);
 	raw_mov_l_rm(d,s);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,mov_l_rm,(W4 d, IMM s))
 
@@ -204,7 +204,7 @@ MIDFUNC(1,call_r,(R4 r)) /* Clobbering is implicit */
 {
 	r=readreg(r,4);
 	raw_call_r(r);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(1,call_r,(R4 r)) /* Clobbering is implicit */
 
@@ -243,7 +243,7 @@ MIDFUNC(2,rol_b_ri,(RW1 r, IMM i))
 	CLOBBER_ROL;
 	r=rmw(r,1,1);
 	raw_rol_b_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,rol_b_ri,(RW1 r, IMM i))
 
@@ -254,7 +254,7 @@ MIDFUNC(2,rol_w_ri,(RW2 r, IMM i))
 	CLOBBER_ROL;
 	r=rmw(r,2,2);
 	raw_rol_w_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,rol_w_ri,(RW2 r, IMM i))
 
@@ -265,7 +265,7 @@ MIDFUNC(2,rol_l_ri,(RW4 r, IMM i))
 	CLOBBER_ROL;
 	r=rmw(r,4,4);
 	raw_rol_l_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,rol_l_ri,(RW4 r, IMM i))
 
@@ -282,8 +282,8 @@ MIDFUNC(2,rol_l_rr,(RW4 d, R1 r))
 		jit_abort (_T("JIT: Illegal register %d in raw_rol_b\n"),r);
 	}
 	raw_rol_l_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,rol_l_rr,(RW4 d, R1 r))
 
@@ -301,8 +301,8 @@ MIDFUNC(2,rol_w_rr,(RW2 d, R1 r))
 		jit_abort (_T("JIT: Illegal register %d in raw_rol_b\n"),r);
 	}
 	raw_rol_w_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,rol_w_rr,(RW2 d, R1 r))
 
@@ -321,8 +321,8 @@ MIDFUNC(2,rol_b_rr,(RW1 d, R1 r))
 		jit_abort (_T("JIT: Illegal register %d in raw_rol_b\n"),r);
 	}
 	raw_rol_b_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,rol_b_rr,(RW1 d, R1 r))
 
@@ -339,8 +339,8 @@ MIDFUNC(2,shll_l_rr,(RW4 d, R1 r))
 		jit_abort (_T("JIT: Illegal register %d in raw_rol_b\n"),r);
 	}
 	raw_shll_l_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,shll_l_rr,(RW4 d, R1 r))
 
@@ -358,8 +358,8 @@ MIDFUNC(2,shll_w_rr,(RW2 d, R1 r))
 		jit_abort (_T("JIT: Illegal register %d in raw_shll_b\n"),r);
 	}
 	raw_shll_w_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,shll_w_rr,(RW2 d, R1 r))
 
@@ -378,8 +378,8 @@ MIDFUNC(2,shll_b_rr,(RW1 d, R1 r))
 		jit_abort (_T("JIT: Illegal register %d in raw_shll_b\n"),r);
 	}
 	raw_shll_b_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,shll_b_rr,(RW1 d, R1 r))
 
@@ -390,7 +390,7 @@ MIDFUNC(2,ror_b_ri,(R1 r, IMM i))
 	CLOBBER_ROR;
 	r=rmw(r,1,1);
 	raw_ror_b_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,ror_b_ri,(R1 r, IMM i))
 
@@ -401,7 +401,7 @@ MIDFUNC(2,ror_w_ri,(R2 r, IMM i))
 	CLOBBER_ROR;
 	r=rmw(r,2,2);
 	raw_ror_w_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,ror_w_ri,(R2 r, IMM i))
 
@@ -412,7 +412,7 @@ MIDFUNC(2,ror_l_ri,(R4 r, IMM i))
 	CLOBBER_ROR;
 	r=rmw(r,4,4);
 	raw_ror_l_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,ror_l_ri,(R4 r, IMM i))
 
@@ -426,8 +426,8 @@ MIDFUNC(2,ror_l_rr,(R4 d, R1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,4,4);
 	raw_ror_l_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,ror_l_rr,(R4 d, R1 r))
 
@@ -441,8 +441,8 @@ MIDFUNC(2,ror_w_rr,(R2 d, R1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,2,2);
 	raw_ror_w_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,ror_w_rr,(R2 d, R1 r))
 
@@ -457,8 +457,8 @@ MIDFUNC(2,ror_b_rr,(R1 d, R1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,1,1);
 	raw_ror_b_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,ror_b_rr,(R1 d, R1 r))
 
@@ -475,8 +475,8 @@ MIDFUNC(2,shrl_l_rr,(RW4 d, R1 r))
 		jit_abort (_T("JIT: Illegal register %d in raw_rol_b\n"),r);
 	}
 	raw_shrl_l_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,shrl_l_rr,(RW4 d, R1 r))
 
@@ -494,8 +494,8 @@ MIDFUNC(2,shrl_w_rr,(RW2 d, R1 r))
 		jit_abort (_T("JIT: Illegal register %d in raw_shrl_b\n"),r);
 	}
 	raw_shrl_w_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,shrl_w_rr,(RW2 d, R1 r))
 
@@ -514,8 +514,8 @@ MIDFUNC(2,shrl_b_rr,(RW1 d, R1 r))
 		jit_abort (_T("JIT: Illegal register %d in raw_shrl_b\n"),r);
 	}
 	raw_shrl_b_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,shrl_b_rr,(RW1 d, R1 r))
 
@@ -530,7 +530,7 @@ MIDFUNC(2,shll_l_ri,(RW4 r, IMM i))
 	CLOBBER_SHLL;
 	r=rmw(r,4,4);
 	raw_shll_l_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,shll_l_ri,(RW4 r, IMM i))
 
@@ -541,7 +541,7 @@ MIDFUNC(2,shll_w_ri,(RW2 r, IMM i))
 	CLOBBER_SHLL;
 	r=rmw(r,2,2);
 	raw_shll_w_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,shll_w_ri,(RW2 r, IMM i))
 
@@ -552,7 +552,7 @@ MIDFUNC(2,shll_b_ri,(RW1 r, IMM i))
 	CLOBBER_SHLL;
 	r=rmw(r,1,1);
 	raw_shll_b_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,shll_b_ri,(RW1 r, IMM i))
 
@@ -567,7 +567,7 @@ MIDFUNC(2,shrl_l_ri,(RW4 r, IMM i))
 	CLOBBER_SHRL;
 	r=rmw(r,4,4);
 	raw_shrl_l_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,shrl_l_ri,(RW4 r, IMM i))
 
@@ -578,7 +578,7 @@ MIDFUNC(2,shrl_w_ri,(RW2 r, IMM i))
 	CLOBBER_SHRL;
 	r=rmw(r,2,2);
 	raw_shrl_w_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,shrl_w_ri,(RW2 r, IMM i))
 
@@ -589,7 +589,7 @@ MIDFUNC(2,shrl_b_ri,(RW1 r, IMM i))
 	CLOBBER_SHRL;
 	r=rmw(r,1,1);
 	raw_shrl_b_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,shrl_b_ri,(RW1 r, IMM i))
 
@@ -600,7 +600,7 @@ MIDFUNC(2,shra_l_ri,(RW4 r, IMM i))
 	CLOBBER_SHRA;
 	r=rmw(r,4,4);
 	raw_shra_l_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,shra_l_ri,(RW4 r, IMM i))
 
@@ -611,7 +611,7 @@ MIDFUNC(2,shra_w_ri,(RW2 r, IMM i))
 	CLOBBER_SHRA;
 	r=rmw(r,2,2);
 	raw_shra_w_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,shra_w_ri,(RW2 r, IMM i))
 
@@ -622,7 +622,7 @@ MIDFUNC(2,shra_b_ri,(RW1 r, IMM i))
 	CLOBBER_SHRA;
 	r=rmw(r,1,1);
 	raw_shra_b_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,shra_b_ri,(RW1 r, IMM i))
 
@@ -639,8 +639,8 @@ MIDFUNC(2,shra_l_rr,(RW4 d, R1 r))
 		jit_abort (_T("JIT: Illegal register %d in raw_rol_b\n"),r);
 	}
 	raw_shra_l_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,shra_l_rr,(RW4 d, R1 r))
 
@@ -658,8 +658,8 @@ MIDFUNC(2,shra_w_rr,(RW2 d, R1 r))
 		jit_abort (_T("JIT: Illegal register %d in raw_shra_b\n"),r);
 	}
 	raw_shra_w_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,shra_w_rr,(RW2 d, R1 r))
 
@@ -678,8 +678,8 @@ MIDFUNC(2,shra_b_rr,(RW1 d, R1 r))
 		jit_abort (_T("JIT: Illegal register %d in raw_shra_b\n"),r);
 	}
 	raw_shra_b_rr(d,r) ;
-	unlock(r);
-	unlock(d);
+	unlock2(r);
+	unlock2(d);
 }
 MENDFUNC(2,shra_b_rr,(RW1 d, R1 r))
 
@@ -688,7 +688,7 @@ MIDFUNC(2,setcc,(W1 d, IMM cc))
 	CLOBBER_SETCC;
 	d=writereg(d,1);
 	raw_setcc(d,cc);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,setcc,(W1 d, IMM cc))
 
@@ -707,8 +707,8 @@ MIDFUNC(3,cmov_b_rr,(RW1 d, R1 s, IMM cc))
 	s=readreg(s,1);
 	d=rmw(d,1,1);
 	raw_cmov_b_rr(d,s,cc);
-	unlock(s);
-	unlock(d);
+	unlock2(s);
+	unlock2(d);
 }
 MENDFUNC(3,cmov_b_rr,(RW1 d, R1 s, IMM cc))
 
@@ -720,8 +720,8 @@ MIDFUNC(3,cmov_w_rr,(RW2 d, R2 s, IMM cc))
 	s=readreg(s,2);
 	d=rmw(d,2,2);
 	raw_cmov_w_rr(d,s,cc);
-	unlock(s);
-	unlock(d);
+	unlock2(s);
+	unlock2(d);
 }
 MENDFUNC(3,cmov_w_rr,(RW2 d, R2 s, IMM cc))
 
@@ -733,8 +733,8 @@ MIDFUNC(3,cmov_l_rr,(RW4 d, R4 s, IMM cc))
 	s=readreg(s,4);
 	d=rmw(d,4,4);
 	raw_cmov_l_rr(d,s,cc);
-	unlock(s);
-	unlock(d);
+	unlock2(s);
+	unlock2(d);
 }
 MENDFUNC(3,cmov_l_rr,(RW4 d, R4 s, IMM cc))
 
@@ -744,7 +744,7 @@ MIDFUNC(1,setzflg_l,(RW4 r))
 		CLOBBER_BSF;
 		r=rmw(r,4,4);
 		raw_bsf_l_rr(r,r);
-		unlock(r);
+		unlock2(r);
 	}
 	else {
 		Dif (live.flags_in_flags!=VALID) {
@@ -756,9 +756,9 @@ MIDFUNC(1,setzflg_l,(RW4 r))
 			int f=writereg(S11,4);
 			int t=writereg(S12,4);
 			raw_flags_set_zero(f,r,t);
-			unlock(f);
-			unlock(r);
-			unlock(t);
+			unlock2(f);
+			unlock2(r);
+			unlock2(t);
 		}
 	}
 }
@@ -769,7 +769,7 @@ MIDFUNC(3,cmov_l_rm,(RW4 d, IMM s, IMM cc))
 	CLOBBER_CMOV;
 	d=rmw(d,4,4);
 	raw_cmov_l_rm(d,s,cc);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(3,cmov_l_rm,(RW4 d, IMM s, IMM cc))
 
@@ -779,8 +779,8 @@ MIDFUNC(2,bsf_l_rr,(W4 d, R4 s))
 	s=readreg(s,4);
 	d=writereg(d,4);
 	raw_bsf_l_rr(d,s);
-	unlock(s);
-	unlock(d);
+	unlock2(s);
+	unlock2(d);
 }
 MENDFUNC(2,bsf_l_rr,(W4 d, R4 s))
 
@@ -790,8 +790,8 @@ MIDFUNC(2,imul_32_32,(RW4 d, R4 s))
 	s=readreg(s,4);
 	d=rmw(d,4,4);
 	raw_imul_32_32(d,s);
-	unlock(s);
-	unlock(d);
+	unlock2(s);
+	unlock2(d);
 }
 MENDFUNC(2,imul_32_32,(RW4 d, R4 s))
 
@@ -801,8 +801,8 @@ MIDFUNC(2,imul_64_32,(RW4 d, RW4 s))
 	s=rmw_specific(s,4,4,MUL_NREG2);
 	d=rmw_specific(d,4,4,MUL_NREG1);
 	raw_imul_64_32(d,s);
-	unlock(s);
-	unlock(d);
+	unlock2(s);
+	unlock2(d);
 }
 MENDFUNC(2,imul_64_32,(RW4 d, RW4 s))
 
@@ -812,8 +812,8 @@ MIDFUNC(2,mul_64_32,(RW4 d, RW4 s))
 	s=rmw_specific(s,4,4,MUL_NREG2);
 	d=rmw_specific(d,4,4,MUL_NREG1);
 	raw_mul_64_32(d,s);
-	unlock(s);
-	unlock(d);
+	unlock2(s);
+	unlock2(d);
 }
 MENDFUNC(2,mul_64_32,(RW4 d, RW4 s))
 
@@ -838,11 +838,11 @@ MIDFUNC(2,sign_extend_16_rr,(W4 d, R2 s))
 	}
 	raw_sign_extend_16_rr(d,s);
 	if (!isrmw) {
-		unlock(d);
-		unlock(s);
+		unlock2(d);
+		unlock2(s);
 	}
 	else {
-		unlock(s);
+		unlock2(s);
 	}
 }
 MENDFUNC(2,sign_extend_16_rr,(W4 d, R2 s))
@@ -870,11 +870,11 @@ MIDFUNC(2,sign_extend_8_rr,(W4 d, R1 s))
 	raw_sign_extend_8_rr(d,s);
 
 	if (!isrmw) {
-		unlock(d);
-		unlock(s);
+		unlock2(d);
+		unlock2(s);
 	}
 	else {
-		unlock(s);
+		unlock2(s);
 	}
 }
 MENDFUNC(2,sign_extend_8_rr,(W4 d, R1 s))
@@ -900,11 +900,11 @@ MIDFUNC(2,zero_extend_16_rr,(W4 d, R2 s))
 	}
 	raw_zero_extend_16_rr(d,s);
 	if (!isrmw) {
-		unlock(d);
-		unlock(s);
+		unlock2(d);
+		unlock2(s);
 	}
 	else {
-		unlock(s);
+		unlock2(s);
 	}
 }
 MENDFUNC(2,zero_extend_16_rr,(W4 d, R2 s))
@@ -931,11 +931,11 @@ MIDFUNC(2,zero_extend_8_rr,(W4 d, R1 s))
 	raw_zero_extend_8_rr(d,s);
 
 	if (!isrmw) {
-		unlock(d);
-		unlock(s);
+		unlock2(d);
+		unlock2(s);
 	}
 	else {
-		unlock(s);
+		unlock2(s);
 	}
 }
 MENDFUNC(2,zero_extend_8_rr,(W4 d, R1 s))
@@ -953,8 +953,8 @@ MIDFUNC(2,mov_b_rr,(W1 d, R1 s))
 	s=readreg(s,1);
 	d=writereg(d,1);
 	raw_mov_b_rr(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,mov_b_rr,(W1 d, R1 s))
 
@@ -971,8 +971,8 @@ MIDFUNC(2,mov_w_rr,(W2 d, R2 s))
 	s=readreg(s,2);
 	d=writereg(d,2);
 	raw_mov_w_rr(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,mov_w_rr,(W2 d, R2 s))
 
@@ -984,9 +984,9 @@ MIDFUNC(3,mov_l_rrm_indexed,(W4 d,R4 baser, R4 index))
 	d=writereg(d,4);
 
 	raw_mov_l_rrm_indexed(d,baser,index);
-	unlock(d);
-	unlock(baser);
-	unlock(index);
+	unlock2(d);
+	unlock2(baser);
+	unlock2(index);
 }
 MENDFUNC(3,mov_l_rrm_indexed,(W4 d,R4 baser, R4 index))
 
@@ -998,9 +998,9 @@ MIDFUNC(3,mov_w_rrm_indexed,(W2 d, R4 baser, R4 index))
 	d=writereg(d,2);
 
 	raw_mov_w_rrm_indexed(d,baser,index);
-	unlock(d);
-	unlock(baser);
-	unlock(index);
+	unlock2(d);
+	unlock2(baser);
+	unlock2(index);
 }
 MENDFUNC(3,mov_w_rrm_indexed,(W2 d, R4 baser, R4 index))
 
@@ -1013,9 +1013,9 @@ MIDFUNC(3,mov_b_rrm_indexed,(W1 d, R4 baser, R4 index))
 
 	raw_mov_b_rrm_indexed(d,baser,index);
 
-	unlock(d);
-	unlock(baser);
-	unlock(index);
+	unlock2(d);
+	unlock2(baser);
+	unlock2(index);
 }
 MENDFUNC(3,mov_b_rrm_indexed,(W1 d, R4 baser, R4 index))
 
@@ -1030,9 +1030,9 @@ MIDFUNC(3,mov_l_mrr_indexed,(R4 baser, R4 index, R4 s))
 		jit_abort (_T("mov_l_mrr_indexed"));
 
 	raw_mov_l_mrr_indexed(baser,index,s);
-	unlock(s);
-	unlock(baser);
-	unlock(index);
+	unlock2(s);
+	unlock2(baser);
+	unlock2(index);
 }
 MENDFUNC(3,mov_l_mrr_indexed,(R4 baser, R4 index, R4 s))
 
@@ -1044,9 +1044,9 @@ MIDFUNC(3,mov_w_mrr_indexed,(R4 baser, R4 index, R2 s))
 	s=readreg(s,2);
 
 	raw_mov_w_mrr_indexed(baser,index,s);
-	unlock(s);
-	unlock(baser);
-	unlock(index);
+	unlock2(s);
+	unlock2(baser);
+	unlock2(index);
 }
 MENDFUNC(3,mov_w_mrr_indexed,(R4 baser, R4 index, R2 s))
 
@@ -1058,9 +1058,9 @@ MIDFUNC(3,mov_b_mrr_indexed,(R4 baser, R4 index, R1 s))
 	index=readreg(index,4);
 
 	raw_mov_b_mrr_indexed(baser,index,s);
-	unlock(s);
-	unlock(baser);
-	unlock(index);
+	unlock2(s);
+	unlock2(baser);
+	unlock2(index);
 }
 MENDFUNC(3,mov_b_mrr_indexed,(R4 baser, R4 index, R1 s))
 
@@ -1080,8 +1080,8 @@ MIDFUNC(3,mov_l_rm_indexed,(W4 d, IMM base, R4 index))
 	d=writereg(d,4);
 
 	raw_mov_l_rm_indexed(d,base,index);
-	unlock(index);
-	unlock(d);
+	unlock2(index);
+	unlock2(d);
 }
 MENDFUNC(3,mov_l_rm_indexed,(W4 d, IMM base, R4 index))
 
@@ -1097,8 +1097,8 @@ MIDFUNC(3,mov_l_rR,(W4 d, R4 s, IMM offset))
 	d=writereg(d,4);
 
 	raw_mov_l_rR(d,s,offset);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(3,mov_l_rR,(W4 d, R4 s, IMM offset))
 
@@ -1114,8 +1114,8 @@ MIDFUNC(3,mov_w_rR,(W2 d, R4 s, IMM offset))
 	d=writereg(d,2);
 
 	raw_mov_w_rR(d,s,offset);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(3,mov_w_rR,(W2 d, R4 s, IMM offset))
 
@@ -1131,8 +1131,8 @@ MIDFUNC(3,mov_b_rR,(W1 d, R4 s, IMM offset))
 	d=writereg(d,1);
 
 	raw_mov_b_rR(d,s,offset);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(3,mov_b_rR,(W1 d, R4 s, IMM offset))
 
@@ -1150,8 +1150,8 @@ MIDFUNC(3,mov_l_brR,(W4 d, R4 s, IMM offset))
 	d=writereg(d,4);
 
 	raw_mov_l_brR(d,s,offset);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(3,mov_l_brR,(W4 d, R4 s, IMM offset))
 
@@ -1170,8 +1170,8 @@ MIDFUNC(3,mov_w_brR,(W2 d, R4 s, IMM offset))
 	d=writereg(d,2);
 
 	raw_mov_w_brR(d,s,offset);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(3,mov_w_brR,(W2 d, R4 s, IMM offset))
 
@@ -1190,8 +1190,8 @@ MIDFUNC(3,mov_b_brR,(W1 d, R4 s, IMM offset))
 	d=writereg(d,1);
 
 	raw_mov_b_brR(d,s,offset);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(3,mov_b_brR,(W1 d, R4 s, IMM offset))
 
@@ -1207,7 +1207,7 @@ MIDFUNC(3,mov_l_Ri,(R4 d, IMM i, IMM offset))
 	d=readreg_offset(d,4);
 	offset+=get_offset(dreg);
 	raw_mov_l_Ri(d,i,offset);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(3,mov_l_Ri,(R4 d, IMM i, IMM offset))
 
@@ -1223,7 +1223,7 @@ MIDFUNC(3,mov_w_Ri,(R4 d, IMM i, IMM offset))
 	d=readreg_offset(d,4);
 	offset+=get_offset(dreg);
 	raw_mov_w_Ri(d,i,offset);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(3,mov_w_Ri,(R4 d, IMM i, IMM offset))
 
@@ -1239,7 +1239,7 @@ MIDFUNC(3,mov_b_Ri,(R4 d, IMM i, IMM offset))
 	d=readreg_offset(d,4);
 	offset+=get_offset(dreg);
 	raw_mov_b_Ri(d,i,offset);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(3,mov_b_Ri,(R4 d, IMM i, IMM offset))
 
@@ -1260,8 +1260,8 @@ MIDFUNC(3,mov_l_Rr,(R4 d, R4 s, IMM offset))
 	d=readreg(d,4);
 
 	raw_mov_l_Rr(d,s,offset);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(3,mov_l_Rr,(R4 d, R4 s, IMM offset))
 
@@ -1280,8 +1280,8 @@ MIDFUNC(3,mov_w_Rr,(R4 d, R2 s, IMM offset))
 	s=readreg(s,2);
 	d=readreg(d,4);
 	raw_mov_w_Rr(d,s,offset);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(3,mov_w_Rr,(R4 d, R2 s, IMM offset))
 
@@ -1300,8 +1300,8 @@ MIDFUNC(3,mov_b_Rr,(R4 d, R1 s, IMM offset))
 	s=readreg(s,1);
 	d=readreg(d,4);
 	raw_mov_b_Rr(d,s,offset);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(3,mov_b_Rr,(R4 d, R1 s, IMM offset))
 
@@ -1321,8 +1321,8 @@ MIDFUNC(3,lea_l_brr,(W4 d, R4 s, IMM offset))
 	s=readreg(s,4);
 	d=writereg(d,4);
 	raw_lea_l_brr(d,s,offset);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(3,lea_l_brr,(W4 d, R4 s, IMM offset))
 
@@ -1334,9 +1334,9 @@ MIDFUNC(5,lea_l_brr_indexed,(W4 d, R4 s, R4 index, IMM factor, IMM offset))
 	d=writereg(d,4);
 
 	raw_lea_l_brr_indexed(d,s,index,factor,offset);
-	unlock(d);
-	unlock(index);
-	unlock(s);
+	unlock2(d);
+	unlock2(index);
+	unlock2(s);
 }
 MENDFUNC(5,lea_l_brr_indexed,(W4 d, R4 s, R4 index, IMM factor, IMM offset))
 
@@ -1355,8 +1355,8 @@ MIDFUNC(3,mov_l_bRr,(R4 d, R4 s, IMM offset))
 	offset+=get_offset(dreg);
 
 	raw_mov_l_bRr(d,s,offset);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(3,mov_l_bRr,(R4 d, R4 s, IMM offset))
 
@@ -1375,8 +1375,8 @@ MIDFUNC(3,mov_w_bRr,(R4 d, R2 s, IMM offset))
 	d=readreg_offset(d,4);
 	offset+=get_offset(dreg);
 	raw_mov_w_bRr(d,s,offset);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(3,mov_w_bRr,(R4 d, R2 s, IMM offset))
 
@@ -1393,8 +1393,8 @@ MIDFUNC(3,mov_b_bRr,(R4 d, R1 s, IMM offset))
 	d=readreg_offset(d,4);
 	offset+=get_offset(dreg);
 	raw_mov_b_bRr(d,s,offset);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(3,mov_b_bRr,(R4 d, R1 s, IMM offset))
 
@@ -1411,7 +1411,7 @@ MIDFUNC(1,gen_bswap_32,(RW4 r))
 	CLOBBER_SW32;
 	r=rmw(r,4,4);
 	raw_bswap_32(r);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(1,gen_bswap_32,(RW4 r))
 
@@ -1428,7 +1428,7 @@ MIDFUNC(1,gen_bswap_16,(RW2 r))
 	r=rmw(r,2,2);
 
 	raw_bswap_16(r);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(1,gen_bswap_16,(RW2 r))
 
@@ -1460,15 +1460,15 @@ MIDFUNC(2,mov_l_rr,(W4 d, R4 s))
 
 	/* write_log (_T("JIT: Added %d to nreg %d(%d), now holds %d regs\n"),
 	d,s,live.state[d].realind,live.nat[s].nholds); */
-	unlock(s);
+	unlock2(s);
 #else
 	CLOBBER_MOV;
 	s=readreg(s,4);
 	d=writereg(d,4);
 
 	raw_mov_l_rr(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 #endif
 }
 MENDFUNC(2,mov_l_rr,(W4 d, R4 s))
@@ -1483,7 +1483,7 @@ MIDFUNC(2,mov_l_mr,(IMM d, R4 s))
 	s=readreg(s,4);
 
 	raw_mov_l_mr(d,s);
-	unlock(s);
+	unlock2(s);
 }
 MENDFUNC(2,mov_l_mr,(IMM d, R4 s))
 
@@ -1497,7 +1497,7 @@ MIDFUNC(2,mov_w_mr,(IMM d, R2 s))
 	s=readreg(s,2);
 
 	raw_mov_w_mr(d,s);
-	unlock(s);
+	unlock2(s);
 }
 MENDFUNC(2,mov_w_mr,(IMM d, R2 s))
 
@@ -1507,7 +1507,7 @@ MIDFUNC(2,mov_w_rm,(W2 d, IMM s))
 	d=writereg(d,2);
 
 	raw_mov_w_rm(d,s);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,mov_w_rm,(W2 d, IMM s))
 
@@ -1522,7 +1522,7 @@ MIDFUNC(2,mov_b_mr,(IMM d, R1 s))
 	s=readreg(s,1);
 
 	raw_mov_b_mr(d,s);
-	unlock(s);
+	unlock2(s);
 }
 MENDFUNC(2,mov_b_mr,(IMM d, R1 s))
 
@@ -1532,7 +1532,7 @@ MIDFUNC(2,mov_b_rm,(W1 d, IMM s))
 	d=writereg(d,1);
 
 	raw_mov_b_rm(d,s);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,mov_b_rm,(W1 d, IMM s))
 
@@ -1549,7 +1549,7 @@ MIDFUNC(2,mov_w_ri,(W2 d, IMM s))
 	d=writereg(d,2);
 
 	raw_mov_w_ri(d,s);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,mov_w_ri,(W2 d, IMM s))
 
@@ -1559,7 +1559,7 @@ MIDFUNC(2,mov_b_ri,(W1 d, IMM s))
 	d=writereg(d,1);
 
 	raw_mov_b_ri(d,s);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,mov_b_ri,(W1 d, IMM s))
 
@@ -1590,7 +1590,7 @@ MIDFUNC(2,test_l_ri,(R4 d, IMM i))
 	d=readreg(d,4);
 
 	raw_test_l_ri(d,i);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,test_l_ri,(R4 d, IMM i))
 
@@ -1601,8 +1601,8 @@ MIDFUNC(2,test_l_rr,(R4 d, R4 s))
 	s=readreg(s,4);
 
 	raw_test_l_rr(d,s);;
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,test_l_rr,(R4 d, R4 s))
 
@@ -1613,8 +1613,8 @@ MIDFUNC(2,test_w_rr,(R2 d, R2 s))
 	s=readreg(s,2);
 
 	raw_test_w_rr(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,test_w_rr,(R2 d, R2 s))
 
@@ -1625,8 +1625,8 @@ MIDFUNC(2,test_b_rr,(R1 d, R1 s))
 	s=readreg(s,1);
 
 	raw_test_b_rr(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,test_b_rr,(R1 d, R1 s))
 
@@ -1641,7 +1641,7 @@ MIDFUNC(2,and_l_ri,(RW4 d, IMM i))
 	d=rmw(d,4,4);
 
 	raw_and_l_ri(d,i);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,and_l_ri,(RW4 d, IMM i))
 
@@ -1652,8 +1652,8 @@ MIDFUNC(2,and_l,(RW4 d, R4 s))
 	d=rmw(d,4,4);
 
 	raw_and_l(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,and_l,(RW4 d, R4 s))
 
@@ -1664,8 +1664,8 @@ MIDFUNC(2,and_w,(RW2 d, R2 s))
 	d=rmw(d,2,2);
 
 	raw_and_w(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,and_w,(RW2 d, R2 s))
 
@@ -1676,8 +1676,8 @@ MIDFUNC(2,and_b,(RW1 d, R1 s))
 	d=rmw(d,1,1);
 
 	raw_and_b(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,and_b,(RW1 d, R1 s))
 
@@ -1691,7 +1691,7 @@ MIDFUNC(2,or_l_ri,(RW4 d, IMM i))
 	d=rmw(d,4,4);
 
 	raw_or_l_ri(d,i);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,or_l_ri,(RW4 d, IMM i))
 
@@ -1706,8 +1706,8 @@ MIDFUNC(2,or_l,(RW4 d, R4 s))
 	d=rmw(d,4,4);
 
 	raw_or_l(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,or_l,(RW4 d, R4 s))
 
@@ -1718,8 +1718,8 @@ MIDFUNC(2,or_w,(RW2 d, R2 s))
 	d=rmw(d,2,2);
 
 	raw_or_w(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,or_w,(RW2 d, R2 s))
 
@@ -1730,8 +1730,8 @@ MIDFUNC(2,or_b,(RW1 d, R1 s))
 	d=rmw(d,1,1);
 
 	raw_or_b(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,or_b,(RW1 d, R1 s))
 
@@ -1743,8 +1743,8 @@ MIDFUNC(2,adc_l,(RW4 d, R4 s))
 
 	raw_adc_l(d,s);
 
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,adc_l,(RW4 d, R4 s))
 
@@ -1755,8 +1755,8 @@ MIDFUNC(2,adc_w,(RW2 d, R2 s))
 	d=rmw(d,2,2);
 
 	raw_adc_w(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,adc_w,(RW2 d, R2 s))
 
@@ -1767,8 +1767,8 @@ MIDFUNC(2,adc_b,(RW1 d, R1 s))
 	d=rmw(d,1,1);
 
 	raw_adc_b(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,adc_b,(RW1 d, R1 s))
 
@@ -1785,8 +1785,8 @@ MIDFUNC(2,add_l,(RW4 d, R4 s))
 
 	raw_add_l(d,s);
 
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,add_l,(RW4 d, R4 s))
 
@@ -1802,8 +1802,8 @@ MIDFUNC(2,add_w,(RW2 d, R2 s))
 	d=rmw(d,2,2);
 
 	raw_add_w(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,add_w,(RW2 d, R2 s))
 
@@ -1819,8 +1819,8 @@ MIDFUNC(2,add_b,(RW1 d, R1 s))
 	d=rmw(d,1,1);
 
 	raw_add_b(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,add_b,(RW1 d, R1 s))
 
@@ -1843,7 +1843,7 @@ MIDFUNC(2,sub_l_ri,(RW4 d, IMM i))
 	d=rmw(d,4,4);
 
 	raw_sub_l_ri(d,i);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,sub_l_ri,(RW4 d, IMM i))
 
@@ -1856,7 +1856,7 @@ MIDFUNC(2,sub_w_ri,(RW2 d, IMM i))
 	d=rmw(d,2,2);
 
 	raw_sub_w_ri(d,i);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,sub_w_ri,(RW2 d, IMM i))
 
@@ -1870,7 +1870,7 @@ MIDFUNC(2,sub_b_ri,(RW1 d, IMM i))
 
 	raw_sub_b_ri(d,i);
 
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,sub_b_ri,(RW1 d, IMM i))
 
@@ -1891,7 +1891,7 @@ MIDFUNC(2,add_l_ri,(RW4 d, IMM i))
 	CLOBBER_ADD;
 	d=rmw(d,4,4);
 	raw_add_l_ri(d,i);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,add_l_ri,(RW4 d, IMM i))
 
@@ -1904,7 +1904,7 @@ MIDFUNC(2,add_w_ri,(RW2 d, IMM i))
 	d=rmw(d,2,2);
 
 	raw_add_w_ri(d,i);
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,add_w_ri,(RW2 d, IMM i))
 
@@ -1918,7 +1918,7 @@ MIDFUNC(2,add_b_ri,(RW1 d, IMM i))
 
 	raw_add_b_ri(d,i);
 
-	unlock(d);
+	unlock2(d);
 }
 MENDFUNC(2,add_b_ri,(RW1 d, IMM i))
 
@@ -1929,8 +1929,8 @@ MIDFUNC(2,sbb_l,(RW4 d, R4 s))
 	d=rmw(d,4,4);
 
 	raw_sbb_l(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,sbb_l,(RW4 d, R4 s))
 
@@ -1941,8 +1941,8 @@ MIDFUNC(2,sbb_w,(RW2 d, R2 s))
 	d=rmw(d,2,2);
 
 	raw_sbb_w(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,sbb_w,(RW2 d, R2 s))
 
@@ -1953,8 +1953,8 @@ MIDFUNC(2,sbb_b,(RW1 d, R1 s))
 	d=rmw(d,1,1);
 
 	raw_sbb_b(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,sbb_b,(RW1 d, R1 s))
 
@@ -1970,8 +1970,8 @@ MIDFUNC(2,sub_l,(RW4 d, R4 s))
 	d=rmw(d,4,4);
 
 	raw_sub_l(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,sub_l,(RW4 d, R4 s))
 
@@ -1987,8 +1987,8 @@ MIDFUNC(2,sub_w,(RW2 d, R2 s))
 	d=rmw(d,2,2);
 
 	raw_sub_w(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,sub_w,(RW2 d, R2 s))
 
@@ -2004,8 +2004,8 @@ MIDFUNC(2,sub_b,(RW1 d, R1 s))
 	d=rmw(d,1,1);
 
 	raw_sub_b(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,sub_b,(RW1 d, R1 s))
 
@@ -2016,8 +2016,8 @@ MIDFUNC(2,cmp_l,(R4 d, R4 s))
 	d=readreg(d,4);
 
 	raw_cmp_l(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,cmp_l,(R4 d, R4 s))
 
@@ -2027,7 +2027,7 @@ MIDFUNC(2,cmp_l_ri,(R4 r, IMM i))
 	r=readreg(r,4);
 
 	raw_cmp_l_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 MENDFUNC(2,cmp_l_ri,(R4 r, IMM i))
 
@@ -2038,8 +2038,8 @@ MIDFUNC(2,cmp_w,(R2 d, R2 s))
 	d=readreg(d,2);
 
 	raw_cmp_w(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,cmp_w,(R2 d, R2 s))
 
@@ -2050,8 +2050,8 @@ MIDFUNC(2,cmp_b,(R1 d, R1 s))
 	d=readreg(d,1);
 
 	raw_cmp_b(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,cmp_b,(R1 d, R1 s))
 
@@ -2062,8 +2062,8 @@ MIDFUNC(2,xor_l,(RW4 d, R4 s))
 	d=rmw(d,4,4);
 
 	raw_xor_l(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,xor_l,(RW4 d, R4 s))
 
@@ -2074,8 +2074,8 @@ MIDFUNC(2,xor_w,(RW2 d, R2 s))
 	d=rmw(d,2,2);
 
 	raw_xor_w(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,xor_w,(RW2 d, R2 s))
 
@@ -2086,8 +2086,8 @@ MIDFUNC(2,xor_b,(RW1 d, R1 s))
 	d=rmw(d,1,1);
 
 	raw_xor_b(d,s);
-	unlock(d);
-	unlock(s);
+	unlock2(d);
+	unlock2(s);
 }
 MENDFUNC(2,xor_b,(RW1 d, R1 s))
 
@@ -2112,8 +2112,8 @@ MIDFUNC(5,call_r_11,(W4 out1, R4 r, R4 in1, IMM osize, IMM isize))
 #if USE_NORMAL_CALLING_CONVENTION
 	raw_push_l_r(in1);
 #endif
-	unlock(in1);
-	unlock(r);
+	unlock2(in1);
+	unlock2(r);
 
 	prepare_for_call_2();
 	raw_call_r(r);
@@ -2150,9 +2150,9 @@ MIDFUNC(5,call_r_02,(R4 r, R4 in1, R4 in2, IMM isize1, IMM isize2))
 	raw_push_l_r(in2);
 	raw_push_l_r(in1);
 #endif
-	unlock(r);
-	unlock(in1);
-	unlock(in2);
+	unlock2(r);
+	unlock2(in1);
+	unlock2(in2);
 	prepare_for_call_2();
 	raw_call_r(r);
 #if USE_NORMAL_CALLING_CONVENTION
@@ -2341,7 +2341,7 @@ MIDFUNC(2,fldcw_m_indexed,(R4 index, IMM base))
 	index=readreg(index,4);
 
 	raw_fldcw_m_indexed(index,base);
-	unlock(index);
+	unlock2(index);
 }
 MENDFUNC(2,fldcw_m_indexed,(R4 index, IMM base))
 

@@ -108,7 +108,7 @@ static smallstate default_ss;
 static int optlev;
 
 static int writereg(int r, int size);
-static void unlock(int r);
+static void unlock2(int r);
 static void setlock(int r);
 static int readreg_specific(int r, int size, int spec);
 static int writereg_specific(int r, int size, int spec);
@@ -614,7 +614,7 @@ static void make_flags_live_internal(void)
 		int tmp;
 		tmp=readreg_specific(FLAGTMP,4,FLAG_NREG2);
 		raw_reg_to_flags(tmp);
-		unlock(tmp);
+		unlock2(tmp);
 
 		live.flags_in_flags=VALID;
 		return;
@@ -637,7 +637,7 @@ static void flags_to_stack(void)
 		int tmp;
 		tmp=writereg_specific(FLAGTMP,4,FLAG_NREG1);
 		raw_flags_to_reg(tmp);
-		unlock(tmp);
+		unlock2(tmp);
 	}
 	live.flags_on_stack=VALID;
 }
@@ -1013,7 +1013,7 @@ static  int alloc_reg(int r, int size, int willclobber)
 	return alloc_reg_hinted(r,size,willclobber,-1);
 }
 
-static  void unlock(int r)
+static void unlock2(int r)
 {
 	Dif (!live.nat[r].locked)
 		jit_abort (_T("unlock %d not locked"), r);
@@ -1121,7 +1121,7 @@ STATIC_INLINE void make_exclusive(int r, int size, int spec)
 		else
 			raw_mov_l_rr(nr,rr);  /* Make another copy */
 	}
-	unlock(rr);
+	unlock2(rr);
 }
 
 STATIC_INLINE void add_offset(int r, uae_u32 off)
@@ -1402,7 +1402,7 @@ static void bt_l_ri_noclobber(R4 r, IMM i)
 		size=2;
 	r=readreg(r,size);
 	raw_bt_l_ri(r,i);
-	unlock(r);
+	unlock2(r);
 }
 
 /********************************************************************
