@@ -45,7 +45,7 @@ int compile_count=0;
 int checksum_count=0;
 static uae_u8* current_compile_p=NULL;
 static uae_u8* max_compile_start;
-uae_u8* compiled_code=NULL;
+static uae_u8* compiled_code=NULL;
 static uae_s32 reg_alloc_run;
 
 static int		lazy_flush		= 1;	// Flag: lazy translation cache invalidation
@@ -67,14 +67,11 @@ static void* popall_cache_miss=NULL;
 static void* popall_recompile_block=NULL;
 static void* popall_check_checksum=NULL;
 
-extern uae_u32 oink;
-extern unsigned long foink3;
-extern unsigned long foink;
-
 /* The 68k only ever executes from even addresses. So right now, we
-waste half the entries in this array
-UPDATE: We now use those entries to store the start of the linked
-lists that we maintain for each hash result. */
+ * waste half the entries in this array
+ * UPDATE: We now use those entries to store the start of the linked
+ * lists that we maintain for each hash result.
+ */
 static cacheline cache_tags[TAGSIZE];
 static int letit=0;
 static blockinfo* hold_bi[MAX_HOLD_BI];
@@ -123,44 +120,43 @@ static uae_u8 *popallspace;
 uae_u32 m68k_pc_offset;
 
 /* Some arithmetic operations can be optimized away if the operands
-are known to be constant. But that's only a good idea when the
-side effects they would have on the flags are not important. This
-variable indicates whether we need the side effects or not
-*/
+ * are known to be constant. But that's only a good idea when the
+ * side effects they would have on the flags are not important. This
+ * variable indicates whether we need the side effects or not
+ */
 uae_u32 needflags=0;
 
 /* Flag handling is complicated.
+ *
+ * x86 instructions create flags, which quite often are exactly what we
+ * want. So at times, the "68k" flags are actually in the x86 flags.
+ *
+ * Then again, sometimes we do x86 instructions that clobber the x86
+ * flags, but don't represent a corresponding m68k instruction. In that
+ * case, we have to save them.
+ *
+ * We used to save them to the stack, but now store them back directly
+ * into the regflags.cznv of the traditional emulation. Thus some odd
+ * names.
+ *
+ * So flags can be in either of two places (used to be three; boy were
+ * things complicated back then!); And either place can contain either
+ * valid flags or invalid trash (and on the stack, there was also the
+ * option of "nothing at all", now gone). A couple of variables keep
+ * track of the respective states.
+ *
+ * To make things worse, we might or might not be interested in the flags.
+ * by default, we are, but a call to dont_care_flags can change that
+ * until the next call to live_flags. If we are not, pretty much whatever
+ * is in the register and/or the native flags is seen as valid.
+ */
 
-x86 instructions create flags, which quite often are exactly what we
-want. So at times, the "68k" flags are actually in the x86 flags.
-
-Then again, sometimes we do x86 instructions that clobber the x86
-flags, but don't represent a corresponding m68k instruction. In that
-case, we have to save them.
-
-We used to save them to the stack, but now store them back directly
-into the regflags.cznv of the traditional emulation. Thus some odd
-names.
-
-So flags can be in either of two places (used to be three; boy were
-things complicated back then!); And either place can contain either
-valid flags or invalid trash (and on the stack, there was also the
-option of "nothing at all", now gone). A couple of variables keep
-track of the respective states.
-
-To make things worse, we might or might not be interested in the flags.
-by default, we are, but a call to dont_care_flags can change that
-until the next call to live_flags. If we are not, pretty much whatever
-is in the register and/or the native flags is seen as valid.
-*/
-
-
-STATIC_INLINE blockinfo* get_blockinfo(uae_u32 cl)
+static inline blockinfo* get_blockinfo(uae_u32 cl)
 {
 	return cache_tags[cl+1].bi;
 }
 
-STATIC_INLINE blockinfo* get_blockinfo_addr(void* addr)
+static inline blockinfo* get_blockinfo_addr(void* addr)
 {
 	blockinfo*  bi=get_blockinfo(cacheline(addr));
 
@@ -174,10 +170,10 @@ STATIC_INLINE blockinfo* get_blockinfo_addr(void* addr)
 
 
 /*******************************************************************
-* All sorts of list related functions for all of the lists        *
-*******************************************************************/
+ * All sorts of list related functions for all of the lists        *
+ *******************************************************************/
 
-STATIC_INLINE void remove_from_cl_list(blockinfo* bi)
+static inline void remove_from_cl_list(blockinfo* bi)
 {
 	uae_u32 cl=cacheline(bi->pc_p);
 
@@ -191,7 +187,7 @@ STATIC_INLINE void remove_from_cl_list(blockinfo* bi)
 		cache_tags[cl].handler=(cpuop_func*)popall_execute_normal;
 }
 
-STATIC_INLINE void remove_from_list(blockinfo* bi)
+static inline void remove_from_list(blockinfo* bi)
 {
 	if (bi->prev_p)
 		*(bi->prev_p)=bi->next;
@@ -199,13 +195,13 @@ STATIC_INLINE void remove_from_list(blockinfo* bi)
 		bi->next->prev_p=bi->prev_p;
 }
 
-STATIC_INLINE void remove_from_lists(blockinfo* bi)
+static inline void remove_from_lists(blockinfo* bi)
 {
 	remove_from_list(bi);
 	remove_from_cl_list(bi);
 }
 
-STATIC_INLINE void add_to_cl_list(blockinfo* bi)
+static inline void add_to_cl_list(blockinfo* bi)
 {
 	uae_u32 cl=cacheline(bi->pc_p);
 
@@ -219,13 +215,13 @@ STATIC_INLINE void add_to_cl_list(blockinfo* bi)
 	cache_tags[cl].handler=bi->handler_to_use;
 }
 
-STATIC_INLINE void raise_in_cl_list(blockinfo* bi)
+static inline void raise_in_cl_list(blockinfo* bi)
 {
 	remove_from_cl_list(bi);
 	add_to_cl_list(bi);
 }
 
-STATIC_INLINE void add_to_active(blockinfo* bi)
+static inline void add_to_active(blockinfo* bi)
 {
 	if (active)
 		active->prev_p=&(bi->next);
@@ -235,7 +231,7 @@ STATIC_INLINE void add_to_active(blockinfo* bi)
 	bi->prev_p=&active;
 }
 
-STATIC_INLINE void add_to_dormant(blockinfo* bi)
+static inline void add_to_dormant(blockinfo* bi)
 {
 	if (dormant)
 		dormant->prev_p=&(bi->next);
@@ -245,7 +241,7 @@ STATIC_INLINE void add_to_dormant(blockinfo* bi)
 	bi->prev_p=&dormant;
 }
 
-STATIC_INLINE void remove_dep(dependency* d)
+static inline void remove_dep(dependency* d)
 {
 	if (d->prev_p)
 		*(d->prev_p)=d->next;
@@ -256,23 +252,23 @@ STATIC_INLINE void remove_dep(dependency* d)
 }
 
 /* This block's code is about to be thrown away, so it no longer
-depends on anything else */
-STATIC_INLINE void remove_deps(blockinfo* bi)
+   depends on anything else */
+static inline void remove_deps(blockinfo* bi)
 {
 	remove_dep(&(bi->dep[0]));
 	remove_dep(&(bi->dep[1]));
 }
 
-STATIC_INLINE void adjust_jmpdep(dependency* d, void* a)
+static inline void adjust_jmpdep(dependency* d, void* a)
 {
 	*(d->jmp_off)=(uae_u32)a-((uae_u32)d->jmp_off+4);
 }
 
 /********************************************************************
-* Soft flush handling support functions                            *
-********************************************************************/
+ * Soft flush handling support functions                            *
+ ********************************************************************/
 
-STATIC_INLINE void set_dhtu(blockinfo* bi, void* dh)
+static inline void set_dhtu(blockinfo* bi, void* dh)
 {
 	//write_log (_T("JIT: bi is %p\n"),bi);
 	if (dh!=bi->direct_handler_to_use) {
@@ -292,7 +288,7 @@ STATIC_INLINE void set_dhtu(blockinfo* bi, void* dh)
 	}
 }
 
-STATIC_INLINE void invalidate_block(blockinfo* bi)
+static inline void invalidate_block(blockinfo* bi)
 {
 	int i;
 
@@ -311,7 +307,7 @@ STATIC_INLINE void invalidate_block(blockinfo* bi)
 	remove_deps(bi);
 }
 
-STATIC_INLINE void create_jmpdep(blockinfo* bi, int i, uae_u32* jmpaddr, uae_u32 target)
+static inline void create_jmpdep(blockinfo* bi, int i, uae_u32* jmpaddr, uae_u32 target)
 {
 	blockinfo*  tbi=get_blockinfo_addr((void*)target);
 
@@ -327,7 +323,7 @@ STATIC_INLINE void create_jmpdep(blockinfo* bi, int i, uae_u32* jmpaddr, uae_u32
 	tbi->deplist=&(bi->dep[i]);
 }
 
-STATIC_INLINE void big_to_small_state(bigstate* b, smallstate* s)
+static inline void big_to_small_state(bigstate* b, smallstate* s)
 {
 	int i;
 	int count=0;
@@ -350,7 +346,7 @@ STATIC_INLINE void big_to_small_state(bigstate* b, smallstate* s)
 	}
 }
 
-STATIC_INLINE void attached_state(blockinfo* bi)
+static inline void attached_state(blockinfo* bi)
 {
 	bi->havestate=1;
 	if (bi->direct_handler_to_use==bi->direct_handler)
@@ -359,7 +355,7 @@ STATIC_INLINE void attached_state(blockinfo* bi)
 	bi->status=BI_TARGETTED;
 }
 
-STATIC_INLINE blockinfo* get_blockinfo_addr_new(void* addr, int setstate)
+static inline blockinfo* get_blockinfo_addr_new(void* addr, int setstate)
 {
 	blockinfo*  bi=get_blockinfo_addr(addr);
 	int i;
@@ -399,7 +395,7 @@ STATIC_INLINE blockinfo* get_blockinfo_addr_new(void* addr, int setstate)
 
 static void prepare_block(blockinfo* bi);
 
-STATIC_INLINE void alloc_blockinfos(void)
+static inline void alloc_blockinfos(void)
 {
 	int i;
 	blockinfo* bi;
@@ -415,8 +411,8 @@ STATIC_INLINE void alloc_blockinfos(void)
 }
 
 /********************************************************************
-* Preferences handling. This is just a convenient place to put it  *
-********************************************************************/
+ * Preferences handling. This is just a convenient place to put it  *
+ ********************************************************************/
 extern bool have_done_picasso;
 
 bool check_prefs_changed_comp (void)
@@ -532,15 +528,15 @@ bool check_prefs_changed_comp (void)
 }
 
 /********************************************************************
-* Get the optimizer stuff                                          *
-********************************************************************/
+ * Get the optimizer stuff                                          *
+ ********************************************************************/
 
 //#include "compemu_optimizer.c"
 #include "compemu_optimizer_x86.cpp"
 
 /********************************************************************
-* Functions to emit data into memory, and other general support    *
-********************************************************************/
+ * Functions to emit data into memory, and other general support    *
+ ********************************************************************/
 
 static uae_u8* target;
 
@@ -548,24 +544,24 @@ static  void emit_init(void)
 {
 }
 
-STATIC_INLINE void emit_byte(uae_u8 x)
+static inline void emit_byte(uae_u8 x)
 {
 	*target++=x;
 }
 
-STATIC_INLINE void emit_word(uae_u16 x)
+static inline void emit_word(uae_u16 x)
 {
 	*((uae_u16*)target)=x;
 	target+=2;
 }
 
-STATIC_INLINE void emit_long(uae_u32 x)
+static inline void emit_long(uae_u32 x)
 {
 	*((uae_u32*)target)=x;
 	target+=4;
 }
 
-STATIC_INLINE uae_u32 reverse32(uae_u32 oldv)
+static inline uae_u32 reverse32(uae_u32 oldv)
 {
 	return ((oldv>>24)&0xff) | ((oldv>>8)&0xff00) |
 		((oldv<<8)&0xff0000) | ((oldv<<24)&0xff000000);
@@ -578,12 +574,12 @@ void set_target(uae_u8* t)
 	target=t;
 }
 
-STATIC_INLINE uae_u8* get_target_noopt(void)
+static inline uae_u8* get_target_noopt(void)
 {
 	return target;
 }
 
-STATIC_INLINE uae_u8* get_target(void)
+static inline uae_u8* get_target(void)
 {
 	lopt_emit_all();
 	return get_target_noopt();
@@ -591,15 +587,15 @@ STATIC_INLINE uae_u8* get_target(void)
 
 
 /********************************************************************
-* Getting the information about the target CPU                     *
-********************************************************************/
+ * Getting the information about the target CPU                     *
+ ********************************************************************/
 
 #include "codegen_x86.cpp"
 
 
 /********************************************************************
-* Flags status handling. EMIT TIME!                                *
-********************************************************************/
+ * Flags status handling. EMIT TIME!                                *
+ ********************************************************************/
 
 static void bt_l_ri_noclobber(RR4 r, IMM i);
 
@@ -642,7 +638,7 @@ static void flags_to_stack(void)
 	live.flags_on_stack=VALID;
 }
 
-STATIC_INLINE void clobber_flags(void)
+static inline void clobber_flags(void)
 {
 	if (live.flags_in_flags==VALID && live.flags_on_stack!=VALID)
 		flags_to_stack();
@@ -650,7 +646,7 @@ STATIC_INLINE void clobber_flags(void)
 }
 
 /* Prepare for leaving the compiled stuff */
-STATIC_INLINE void flush_flags(void)
+static inline void flush_flags(void)
 {
 	flags_to_stack();
 	return;
@@ -659,8 +655,8 @@ STATIC_INLINE void flush_flags(void)
 int touchcnt;
 
 /********************************************************************
-* register allocation per block logging                            *
-********************************************************************/
+ * register allocation per block logging                            *
+ ********************************************************************/
 
 static uae_s8 vstate[VREGS];
 static uae_s8 nstate[N_REGS];
@@ -670,7 +666,7 @@ static uae_s8 nstate[N_REGS];
 #define L_NEEDED -2
 #define L_UNNEEDED -3
 
-STATIC_INLINE void log_startblock(void)
+static inline void log_startblock(void)
 {
 	int i;
 	for (i=0;i<VREGS;i++)
@@ -679,13 +675,13 @@ STATIC_INLINE void log_startblock(void)
 		nstate[i]=L_UNKNOWN;
 }
 
-STATIC_INLINE void log_isused(int n)
+static inline void log_isused(int n)
 {
 	if (nstate[n]==L_UNKNOWN)
 		nstate[n]=L_UNAVAIL;
 }
 
-STATIC_INLINE void log_isreg(int n, int r)
+static inline void log_isreg(int n, int r)
 {
 	if (nstate[n]==L_UNKNOWN)
 		nstate[n]=r;
@@ -693,7 +689,7 @@ STATIC_INLINE void log_isreg(int n, int r)
 		vstate[r]=L_NEEDED;
 }
 
-STATIC_INLINE void log_clobberreg(int r)
+static inline void log_clobberreg(int r)
 {
 	if (vstate[r]==L_UNKNOWN)
 		vstate[r]=L_UNNEEDED;
@@ -701,7 +697,7 @@ STATIC_INLINE void log_clobberreg(int r)
 
 /* This ends all possibility of clever register allocation */
 
-STATIC_INLINE void log_flush(void)
+static inline void log_flush(void)
 {
 	int i;
 	for (i=0;i<VREGS;i++)
@@ -712,7 +708,7 @@ STATIC_INLINE void log_flush(void)
 			nstate[i]=L_UNAVAIL;
 }
 
-STATIC_INLINE void log_dump(void)
+static inline void log_dump(void)
 {
 	int i;
 
@@ -733,23 +729,22 @@ STATIC_INLINE void log_dump(void)
 }
 
 /********************************************************************
-* register status handling. EMIT TIME!                             *
-********************************************************************/
+ * register status handling. EMIT TIME!                             *
+ ********************************************************************/
 
-STATIC_INLINE void set_status(int r, int status)
+static inline void set_status(int r, int status)
 {
 	if (status==ISCONST)
 		log_clobberreg(r);
 	live.state[r].status=status;
 }
 
-
-STATIC_INLINE int isinreg(int r)
+static inline int isinreg(int r)
 {
 	return live.state[r].status==CLEAN || live.state[r].status==DIRTY;
 }
 
-STATIC_INLINE void adjust_nreg(int r, uae_u32 val)
+static inline void adjust_nreg(int r, uae_u32 val)
 {
 	if (!val)
 		return;
@@ -785,7 +780,7 @@ static  void tomem(int r)
 	}
 }
 
-STATIC_INLINE int isconst(int r)
+static inline int isconst(int r)
 {
 	return live.state[r].status==ISCONST;
 }
@@ -795,7 +790,7 @@ int is_const(int r)
 	return isconst(r);
 }
 
-STATIC_INLINE void writeback_const(int r)
+static inline void writeback_const(int r)
 {
 	if (!isconst(r))
 		return;
@@ -808,7 +803,7 @@ STATIC_INLINE void writeback_const(int r)
 	set_status(r,INMEM);
 }
 
-STATIC_INLINE void tomem_c(int r)
+static inline void tomem_c(int r)
 {
 	if (isconst(r)) {
 		writeback_const(r);
@@ -842,7 +837,7 @@ static  void evict(int r)
 	set_status(r,INMEM);
 }
 
-STATIC_INLINE void free_nreg(int r)
+static inline void free_nreg(int r)
 {
 	int i=live.nat[r].nholds;
 
@@ -859,7 +854,7 @@ STATIC_INLINE void free_nreg(int r)
 }
 
 /* Use with care! */
-STATIC_INLINE void isclean(int r)
+static inline void isclean(int r)
 {
 	if (!isinreg(r))
 		return;
@@ -869,20 +864,20 @@ STATIC_INLINE void isclean(int r)
 	set_status(r,CLEAN);
 }
 
-STATIC_INLINE void disassociate(int r)
+static inline void disassociate(int r)
 {
 	isclean(r);
 	evict(r);
 }
 
-STATIC_INLINE void set_const(int r, uae_u32 val)
+static inline void set_const(int r, uae_u32 val)
 {
 	disassociate(r);
 	live.state[r].val=val;
 	set_status(r,ISCONST);
 }
 
-STATIC_INLINE uae_u32 get_offset(int r)
+static inline uae_u32 get_offset(int r)
 {
 	return live.state[r].val;
 }
@@ -1054,7 +1049,7 @@ static void mov_nregs(int d, int s)
 }
 
 
-STATIC_INLINE void make_exclusive(int r, int size, int spec)
+static inline void make_exclusive(int r, int size, int spec)
 {
 	reg_status oldstate;
 	int rr=live.state[r].realreg;
@@ -1124,12 +1119,12 @@ STATIC_INLINE void make_exclusive(int r, int size, int spec)
 	unlock2(rr);
 }
 
-STATIC_INLINE void add_offset(int r, uae_u32 off)
+static inline void add_offset(int r, uae_u32 off)
 {
 	live.state[r].val+=off;
 }
 
-STATIC_INLINE void remove_offset(int r, int spec)
+static inline void remove_offset(int r, int spec)
 {
 	int rr;
 
@@ -1165,7 +1160,7 @@ STATIC_INLINE void remove_offset(int r, int spec)
 	jit_abort (_T("JIT: Failed in remove_offset\n"));
 }
 
-STATIC_INLINE void remove_all_offsets(void)
+static inline void remove_all_offsets(void)
 {
 	int i;
 
@@ -1173,7 +1168,7 @@ STATIC_INLINE void remove_all_offsets(void)
 		remove_offset(i,-1);
 }
 
-STATIC_INLINE int readreg_general(int r, int size, int spec, int can_offset)
+static inline int readreg_general(int r, int size, int spec, int can_offset)
 {
 	int n;
 	int answer=-1;
@@ -1239,7 +1234,7 @@ static int readreg_offset(int r, int size)
 }
 
 
-STATIC_INLINE int writereg_general(int r, int size, int spec)
+static inline int writereg_general(int r, int size, int spec)
 {
 	int n;
 	int answer=-1;
@@ -1319,7 +1314,7 @@ static int writereg_specific(int r, int size, int spec)
 	return writereg_general(r,size,spec);
 }
 
-STATIC_INLINE int rmw_general(int r, int wsize, int rsize, int spec)
+static inline int rmw_general(int r, int wsize, int rsize, int spec)
 {
 	int n;
 	int answer=-1;
@@ -1406,8 +1401,8 @@ static void bt_l_ri_noclobber(RR4 r, IMM i)
 }
 
 /********************************************************************
-* FPU register status handling. EMIT TIME!                         *
-********************************************************************/
+ * FPU register status handling. EMIT TIME!                         *
+ ********************************************************************/
 
 static  void f_tomem(int r)
 {
@@ -1434,7 +1429,7 @@ static  void f_tomem_drop(int r)
 }
 
 
-STATIC_INLINE int f_isinreg(int r)
+static inline int f_isinreg(int r)
 {
 	return live.fate[r].status==CLEAN || live.fate[r].status==DIRTY;
 }
@@ -1467,7 +1462,7 @@ static void f_evict(int r)
 	live.fate[r].realreg=-1;
 }
 
-STATIC_INLINE void f_free_nreg(int r)
+static inline void f_free_nreg(int r)
 {
 	int i=live.fat[r].nholds;
 
@@ -1485,14 +1480,14 @@ STATIC_INLINE void f_free_nreg(int r)
 
 
 /* Use with care! */
-STATIC_INLINE void f_isclean(int r)
+static inline void f_isclean(int r)
 {
 	if (!f_isinreg(r))
 		return;
 	live.fate[r].status=CLEAN;
 }
 
-STATIC_INLINE void f_disassociate(int r)
+static inline void f_disassociate(int r)
 {
 	f_isclean(r);
 	f_evict(r);
@@ -1564,7 +1559,7 @@ static  void f_setlock(int r)
 	live.fat[r].locked++;
 }
 
-STATIC_INLINE int f_readreg(int r)
+static inline int f_readreg(int r)
 {
 	int n;
 	int answer=-1;
@@ -1583,7 +1578,7 @@ STATIC_INLINE int f_readreg(int r)
 	return answer;
 }
 
-STATIC_INLINE void f_make_exclusive(int r, int clobber)
+static inline void f_make_exclusive(int r, int clobber)
 {
 	freg_status oldstate;
 	int rr=live.fate[r].realreg;
@@ -1641,7 +1636,7 @@ STATIC_INLINE void f_make_exclusive(int r, int clobber)
 }
 
 
-STATIC_INLINE int f_writereg(int r)
+static inline int f_writereg(int r)
 {
 	int n;
 	int answer=-1;
@@ -1688,9 +1683,9 @@ static void fflags_into_flags_internal(uae_u32 tmp)
 
 #include "compemu_midfunc_x86.cpp"
 
-	/********************************************************************
-	* Support functions exposed to gencomp. CREATE time                *
-	********************************************************************/
+/********************************************************************
+ * Support functions exposed to gencomp. CREATE time                *
+ ********************************************************************/
 
 	int kill_rodent(int r)
 {
@@ -1723,8 +1718,8 @@ void sync_m68k_pc(void)
 }
 
 /********************************************************************
-* Support functions exposed to newcpu                              *
-********************************************************************/
+ * Support functions exposed to newcpu                              *
+ ********************************************************************/
 
 uae_u32 scratch[VREGS];
 fptype fscratch[VFREGS];
@@ -1842,7 +1837,7 @@ static void vinton(int i, uae_s8* vton, int depth)
 #if USE_MATCHSTATE
 /* This is going to be, amongst other things, a more elaborate version of
 flush() */
-STATIC_INLINE void match_states(smallstate* s)
+static inline void match_states(smallstate* s)
 {
 	uae_s8 vton[VREGS];
 	uae_s8 ndone[N_REGS];
@@ -2017,7 +2012,7 @@ STATIC_INLINE void match_states(smallstate* s)
 	}
 }
 #else
-STATIC_INLINE void match_states(smallstate* s)
+static inline void match_states(smallstate* s)
 {
 	flush(1);
 }
@@ -2134,8 +2129,8 @@ void freescratch(void)
 }
 
 /********************************************************************
-* Support functions, internal                                      *
-********************************************************************/
+ * Support functions, internal                                      *
+ ********************************************************************/
 
 
 static void align_target(uae_u32 a)
@@ -2146,7 +2141,7 @@ static void align_target(uae_u32 a)
 		*target++=0x90;
 }
 
-STATIC_INLINE int isinrom(uae_u32 addr)
+static inline int isinrom(uae_u32 addr)
 {
 	return (addr>=(uae_u32)kickmem_bank.baseaddr &&
 		addr<(uae_u32)kickmem_bank.baseaddr+8*65536);
@@ -2170,7 +2165,7 @@ static void flush_all(void)
 }
 
 /* Make sure all registers that will get clobbered by a call are
-save and sound in memory */
+   save and sound in memory */
 static void prepare_for_call_1(void)
 {
 	flush_all();  /* If there are registers that don't get clobbered,
@@ -2178,7 +2173,7 @@ static void prepare_for_call_1(void)
 }
 
 /* We will call a C routine in a moment. That will clobber all registers,
-so we need to disassociate everything */
+   so we need to disassociate everything */
 static void prepare_for_call_2(void)
 {
 	int i;
@@ -2197,8 +2192,8 @@ static void prepare_for_call_2(void)
 
 
 /********************************************************************
-* Memory access and related functions, CREATE time                 *
-********************************************************************/
+ * Memory access and related functions, CREATE time                 *
+ ********************************************************************/
 
 void register_branch(uae_u32 not_taken, uae_u32 taken, uae_u8 cond)
 {
@@ -2283,7 +2278,7 @@ static void writemem_real(int address, int source, int offset, int size, int tmp
 	}
 }
 
-STATIC_INLINE void writemem(int address, int source, int offset, int size, int tmp)
+static inline void writemem(int address, int source, int offset, int size, int tmp)
 {
 	int f=tmp;
 
@@ -2306,7 +2301,7 @@ void writebyte(int address, int source, int tmp)
 		writemem_real(address,source,20,1,tmp,0);
 }
 
-STATIC_INLINE void writeword_general(int address, int source, int tmp,
+static inline void writeword_general(int address, int source, int tmp,
 	int clobber)
 {
 	int distrust = currprefs.comptrustword;
@@ -2326,7 +2321,7 @@ void writeword(int address, int source, int tmp)
 	writeword_general(address,source,tmp,0);
 }
 
-STATIC_INLINE void writelong_general(int address, int source, int tmp,
+static inline void writelong_general(int address, int source, int tmp,
 	int clobber)
 {
 	int  distrust = currprefs.comptrustlong;
@@ -2386,7 +2381,7 @@ static void readmem_real(int address, int dest, int offset, int size, int tmp)
 
 
 
-STATIC_INLINE void readmem(int address, int dest, int offset, int size, int tmp)
+static inline void readmem(int address, int dest, int offset, int size, int tmp)
 {
 	int f=tmp;
 
@@ -2430,12 +2425,12 @@ void readlong(int address, int dest, int tmp)
 
 
 /* This one might appear a bit odd... */
-STATIC_INLINE void get_n_addr_old(int address, int dest, int tmp)
+static inline void get_n_addr_old(int address, int dest, int tmp)
 {
 	readmem(address,dest,24,4,tmp);
 }
 
-STATIC_INLINE void get_n_addr_real(int address, int dest, int tmp)
+static inline void get_n_addr_real(int address, int dest, int tmp)
 {
 	int f=tmp;
 	if (address!=dest)
@@ -2550,7 +2545,7 @@ void calc_disp_ea_020(int base, uae_u32 dp, int target, int tmp)
 	forget_about(tmp);
 }
 
-STATIC_INLINE unsigned int cft_map (unsigned int f)
+static inline unsigned int cft_map (unsigned int f)
 {
 	return ((f >> 8) & 255) | ((f & 255) << 8);
 }
@@ -2751,7 +2746,7 @@ static void check_checksum(void)
 }
 
 
-STATIC_INLINE void create_popalls(void)
+static inline void create_popalls(void)
 {
 	int i,r;
 
@@ -2835,7 +2830,7 @@ STATIC_INLINE void create_popalls(void)
 	raw_jmp_m_indexed((uae_u32)cache_tags,r,4);
 }
 
-STATIC_INLINE void reset_lists(void)
+static inline void reset_lists(void)
 {
 	int i;
 
@@ -3100,7 +3095,6 @@ static void catastrophe(void)
 }
 
 int failure;
-
 
 void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 {
