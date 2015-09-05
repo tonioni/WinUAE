@@ -1626,7 +1626,7 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 				randval = uaerand();
 				if (randval < (UAE_RAND_MAX / 2)) {
 					if (randval > (UAE_RAND_MAX / 4)) {
-						if (randval <= (3 * UAE_RAND_MAX / 8))
+						if (randval <= (3 * (UAE_RAND_MAX / 8)))
 							randval = (2 * randval) - (UAE_RAND_MAX  /4);
 						else
 							randval = (4 * randval) - UAE_RAND_MAX;
@@ -1635,7 +1635,7 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 				} else {
 					randval -= UAE_RAND_MAX / 2;
 					if (randval > (UAE_RAND_MAX / 4)) {
-						if (randval <= (3 * UAE_RAND_MAX / 8))
+						if (randval <= (3 * (UAE_RAND_MAX / 8)))
 							randval = (2 * randval) - (UAE_RAND_MAX /4);
 						else
 							randval = (4 * randval) - UAE_RAND_MAX;
@@ -1661,7 +1661,7 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 				randval = uaerand();
 				if (randval < (UAE_RAND_MAX / 2)) {
 					if (randval > (UAE_RAND_MAX / 4)) {
-						if (randval <= (3 * UAE_RAND_MAX / 8))
+						if (randval <= (3 * (UAE_RAND_MAX / 8)))
 							randval = (2 * randval) - (UAE_RAND_MAX /4);
 						else
 							randval = (4 * randval) - UAE_RAND_MAX;
@@ -1670,7 +1670,7 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 				} else {
 					randval -= UAE_RAND_MAX / 2;
 					if (randval > (UAE_RAND_MAX / 4)) {
-						if (randval <= (3 * UAE_RAND_MAX / 8))
+						if (randval <= (3 * (UAE_RAND_MAX / 8)))
 							randval = (2 * randval) - (UAE_RAND_MAX /4);
 						else
 							randval = (4 * randval) - UAE_RAND_MAX;
