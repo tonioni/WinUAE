@@ -2,6 +2,7 @@
 * CPU functions exposed to gencomp. Both CREATE and EMIT time      *
 ********************************************************************/
 
+
 /*
  *  RULES FOR HANDLING REGISTERS:
  *
@@ -19,7 +20,7 @@
  *     - 5th call get_offset for all the registers from the previous step
  *     - 6th call writereg for all written-to registers
  *     - 7th call raw_*
- *     - 8th unlock all registers that were locked
+ *     - 8th unlock2 all registers that were locked
  */
 
 MIDFUNC(0,live_flags,(void))
@@ -326,6 +327,7 @@ MIDFUNC(2,rol_b_rr,(RW1 d, RR1 r))
 }
 MENDFUNC(2,rol_b_rr,(RW1 d, RR1 r))
 
+
 MIDFUNC(2,shll_l_rr,(RW4 d, RR1 r))
 {
 	if (isconst(r)) {
@@ -382,6 +384,7 @@ MIDFUNC(2,shll_b_rr,(RW1 d, RR1 r))
 	unlock2(d);
 }
 MENDFUNC(2,shll_b_rr,(RW1 d, RR1 r))
+
 
 MIDFUNC(2,ror_b_ri,(RR1 r, IMM i))
 {
@@ -518,6 +521,8 @@ MIDFUNC(2,shrl_b_rr,(RW1 d, RR1 r))
 	unlock2(d);
 }
 MENDFUNC(2,shrl_b_rr,(RW1 d, RR1 r))
+
+
 
 MIDFUNC(2,shll_l_ri,(RW4 r, IMM i))
 {
@@ -682,6 +687,7 @@ MIDFUNC(2,shra_b_rr,(RW1 d, RR1 r))
 	unlock2(d);
 }
 MENDFUNC(2,shra_b_rr,(RW1 d, RR1 r))
+
 
 MIDFUNC(2,setcc,(W1 d, IMM cc))
 {
@@ -878,6 +884,7 @@ MIDFUNC(2,sign_extend_8_rr,(W4 d, RR1 s))
 	}
 }
 MENDFUNC(2,sign_extend_8_rr,(W4 d, RR1 s))
+
 
 MIDFUNC(2,zero_extend_16_rr,(W4 d, RR2 s))
 {
@@ -1487,6 +1494,7 @@ MIDFUNC(2,mov_l_mr,(IMM d, RR4 s))
 }
 MENDFUNC(2,mov_l_mr,(IMM d, RR4 s))
 
+
 MIDFUNC(2,mov_w_mr,(IMM d, RR2 s))
 {
 	if (isconst(s)) {
@@ -1629,6 +1637,7 @@ MIDFUNC(2,test_b_rr,(RR1 d, RR1 s))
 	unlock2(s);
 }
 MENDFUNC(2,test_b_rr,(RR1 d, RR1 s))
+
 
 MIDFUNC(2,and_l_ri,(RW4 d, IMM i))
 {
@@ -2055,6 +2064,7 @@ MIDFUNC(2,cmp_b,(RR1 d, RR1 s))
 }
 MENDFUNC(2,cmp_b,(RR1 d, RR1 s))
 
+
 MIDFUNC(2,xor_l,(RW4 d, RR4 s))
 {
 	CLOBBER_XOR;
@@ -2161,6 +2171,7 @@ MIDFUNC(5,call_r_02,(RR4 r, RR4 in1, RR4 in2, IMM isize1, IMM isize2))
 }
 MENDFUNC(5,call_r_02,(RR4 r, RR4 in1, RR4 in2, IMM isize1, IMM isize2))
 
+/* forget_about() takes a mid-layer register */
 MIDFUNC(1,forget_about,(W4 r))
 {
 	if (isinreg(r))
@@ -2379,16 +2390,6 @@ MIDFUNC(2,fabs_rr,(FW d, FR s))
 }
 MENDFUNC(2,fabs_rr,(FW d, FR s))
 
-MIDFUNC(2,frndint_rr,(FW d, FR s))
-{
-	s=f_readreg(s);
-	d=f_writereg(d);
-	raw_frndint_rr(d,s);
-	f_unlock(s);
-	f_unlock(d);
-}
-MENDFUNC(2,frndint_rr,(FW d, FR s))
-
 MIDFUNC(2,fgetexp_rr,(FW d, FR s))
 {
 	s=f_readreg(s);
@@ -2480,6 +2481,16 @@ MIDFUNC(2,fetox_rr,(FW d, FR s))
 	f_unlock(d);
 }
 MENDFUNC(2,fetox_rr,(FW d, FR s))
+
+MIDFUNC(2,frndint_rr,(FW d, FR s))
+{
+	s=f_readreg(s);
+	d=f_writereg(d);
+	raw_frndint_rr(d,s);
+	f_unlock(s);
+	f_unlock(d);
+}
+MENDFUNC(2,frndint_rr,(FW d, FR s))
 
 MIDFUNC(2,fetoxM1_rr,(FW d, FR s))
 {
