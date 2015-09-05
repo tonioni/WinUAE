@@ -70,7 +70,7 @@
 #include "win32gui.h"
 #include "autoconf.h"
 #include "gui.h"
-#include "sys/mman.h"
+#include "uae/mman.h"
 #include "avioutput.h"
 #include "ahidsound.h"
 #include "ahidsound_new.h"
