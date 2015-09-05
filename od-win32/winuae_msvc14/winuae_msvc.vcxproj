@@ -870,6 +870,7 @@
     <ClCompile Include="..\..\slirp\tcp_timer.cpp" />
     <ClCompile Include="..\..\slirp\tftp.cpp" />
     <ClCompile Include="..\..\slirp\udp.cpp" />
+    <ClCompile Include="..\..\slirp_uae.cpp" />
     <ClCompile Include="..\..\sndboard.cpp" />
     <ClCompile Include="..\..\specialmonitors.cpp" />
     <ClCompile Include="..\..\statusline.cpp" />

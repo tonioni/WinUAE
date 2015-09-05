@@ -1,5 +1,7 @@
-#ifndef _UAE_ETHERNET_H_
-#define _UAE_ETHERNET_H_
+#ifndef UAE_ETHERNET_H
+#define UAE_ETHERNET_H
+
+#include "uae/types.h"
 
 #define UAENET_NONE 0
 #define UAENET_SLIRP 1
@@ -28,11 +30,6 @@ extern int ethernet_getdatalenght (struct netdriverdata *ndd);
 extern int ethernet_getbytespending (void*);
 extern int ethernet_open (struct netdriverdata *ndd, void*, void*, ethernet_gotfunc*, ethernet_getfunc*, int);
 extern void ethernet_close (struct netdriverdata *ndd, void*);
-extern void ethernet_gotdata (struct s2devstruct *dev, const uae_u8 *data, int len);
-extern int ethernet_getdata (struct s2devstruct *dev, uae_u8 *d, int *len);
 extern void ethernet_trigger (struct netdriverdata *ndd, void*);
 
-extern bool slirp_start (void);
-extern void slirp_end (void);
-
-#endif // _UAE_ETHERNET_H_
+#endif /* UAE_ETHERNET_H */
