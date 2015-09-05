@@ -31,7 +31,7 @@
 #include "traps.h"
 #include "threaddep/thread.h"
 #include "native2amiga.h"
-#include "od-win32/win32.h"
+#include "win32.h"
 #include "sounddep/sound.h"
 #include "ahidsound_new.h"
 #include "dxwrap.h"

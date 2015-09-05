@@ -24,13 +24,16 @@
 #include "serial.h"
 #include "enforcer.h"
 
-#include "od-win32/parser.h"
+#include "parser.h"
 
 #define SERIALLOGGING 0
 #define SERIALDEBUG 3 /* 0, 1, 2 3 */
 #define SERIALHSDEBUG 0
 #define SERIAL_HSYNC_BEFORE_OVERFLOW 200
 
+#define SERIAL_MAP
+
+#ifdef SERIAL_MAP
 #define SERMAP_SIZE 256
 struct sermap_buffer
 {
@@ -154,6 +157,8 @@ bool shmem_serial_create(void)
 	}
 	return true;
 }
+
+#endif
 
 static int data_in_serdat; /* new data written to SERDAT */
 static int data_in_serdatr; /* new data received */
@@ -372,8 +377,10 @@ static void checksend(void)
 	if (data_in_sershift != 1)
 		return;
 
+#ifdef SERIAL_MAP
 	if (sermap_data && sermap_enabled)
 		shmem_serial_send(serdatshift);
+#endif
 #ifdef SERIAL_ENET
 	if (serial_enet) {
 		enet_writeser(serdatshift);
@@ -505,6 +512,7 @@ void serial_hsynchandler (void)
 
 	if (lastbitcycle_active_hsyncs > 0)
 		lastbitcycle_active_hsyncs--;
+#ifdef SERIAL_MAP
 	if (sermap2 && sermap_enabled && !data_in_serdatr) {
 		uae_u16 v = shmem_serial_receive();
 		if (v != 0xffff) {
@@ -513,6 +521,7 @@ void serial_hsynchandler (void)
 			serial_check_irq();
 		}
 	}
+#endif
 	if (data_in_serdatr)
 		serdatr_last_got++;
 	if (serial_period_hsyncs == 0)
@@ -612,7 +621,7 @@ void serial_flush_buffer (void)
 
 static uae_u8 oldserbits;
 
-static void serial_status_debug (TCHAR *s)
+static void serial_status_debug(const TCHAR *s)
 {
 #if SERIALHSDEBUG > 1
 	write_log (_T("%s: DTR=%d RTS=%d CD=%d CTS=%d DSR=%d\n"), s,
@@ -755,10 +764,15 @@ void serial_open (void)
 	if (serdev)
 		return;
 	serper = 0;
-	if (enet_is (currprefs.sername)) {
+	if (0) {
+#ifdef SERIAL_ENET
+	} else if (enet_is (currprefs.sername)) {
 		enet_open (currprefs.sername);
+#endif
+#ifdef SERIAL_MAP
 	} else if (!_tcsicmp(currprefs.sername, SERIAL_INTERNAL)) {
 		sermap_enabled = true;
+#endif
 	} else {
 		if(!openser (currprefs.sername)) {
 			write_log (_T("SERIAL: Could not open device %s\n"), currprefs.sername);
@@ -773,9 +787,13 @@ void serial_close (void)
 {
 #ifdef SERIAL_PORT
 	closeser ();
+#ifdef SERIAL_ENET
 	enet_close ();
+#endif
 	serdev = 0;
+#ifdef SERIAL_MAP
 	sermap_deactivate();
+#endif
 #endif
 }
 

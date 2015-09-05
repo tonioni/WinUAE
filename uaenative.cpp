@@ -30,9 +30,6 @@
 #include "uaenative.h"
 #include "fsdb.h"
 
-#if defined(FSUAE) && defined(WINDOWS)
-#define _WIN32
-#endif
 
 #ifndef _WIN32
 #include <dlfcn.h>
@@ -71,35 +68,26 @@ static uni_handle *g_handles = NULL;
 static int g_allocated_handles = 0;
 static int g_max_handle = -1;
 
-#if defined (_WIN32)
-    #define OS_EXTENSION _T("-windows")
-    #define FILE_EXTENSION _T(".dll")
-#elif defined (LINUX)
-    #define OS_EXTENSION _T("-linux")
-    #define FILE_EXTENSION _T(".so")
-#elif defined (MACOSX)
-    #define OS_EXTENSION _T("-macosx")
-    #define FILE_EXTENSION _T(".dylib")
-#elif defined (FREEBSD)
-    #define OS_EXTENSION _T("-freebsd")
-    #define FILE_EXTENSION _T(".so")
-#elif defined (OPENBSD)
-    #define OS_EXTENSION _T("-openbsd")
-    #define FILE_EXTENSION _T(".so")
-#else
-    #define OS_EXTENSION _T("-unknown")
-    #define FILE_EXTENSION _T(".unknown")
+#ifdef _WIN32
+#ifndef LT_MODULE_EXT
+#define LT_MODULE_EXT _T(".dll")
+#endif
+#ifndef OS_NAME
+#define OS_NAME _T("windows")
+#endif
 #endif
 
 #if defined(__x86_64__) || defined(_M_AMD64) || defined(_M_X64)
-    #define ARCH_EXTENSION _T("-x86-64")
+    #define ARCH_NAME _T("x86-64")
 #elif defined(__i386__) || defined (_M_IX86)
-    #define ARCH_EXTENSION _T("-x86")
+    #define ARCH_NAME _T("x86")
 #elif defined(__ppc__)
-    #define ARCH_EXTENSION _T("-ppc")
+    #define ARCH_NAME _T("ppc")
 #else
-    #define ARCH_EXTENSION _T("-unknown")
+    #define ARCH_NAME _T("unknown")
 #endif
+
+#define MODULE_SUFFIX (OS_NAME _T("-") ARCH_NAME LT_MODULE_EXT)
 
 static int UNICALL uni_version(void)
 {
@@ -176,15 +164,15 @@ static TCHAR *get_native_library_path (const TCHAR *library_name)
     for (const TCHAR **dir = library_dirs; *dir != NULL; dir++) {
         // name must already have been checked to not contain anything
         // to allow access to parent directories.
-        _sntprintf (path, PATH_MAX, _T("%s%s%s"), *dir, library_name,
-                OS_EXTENSION ARCH_EXTENSION FILE_EXTENSION);
+        _sntprintf (path, PATH_MAX, _T("%s/%s-%s"), *dir, library_name,
+                    MODULE_SUFFIX);
         write_log (_T("uni: checking %s\n"), path);
         if (my_existsfile (path)) {
             return my_strdup (path);
         }
 #ifdef _WIN32
         // for compatibility with existing WinUAE native interface
-        _sntprintf (path, PATH_MAX, _T("%s%s.dll"), *dir, library_name);
+        _sntprintf (path, PATH_MAX, _T("%s/%s.dll"), *dir, library_name);
         write_log (_T("uni: checking %s\n"), path);
         if (my_existsfile (path)) {
             return my_strdup (path);
@@ -489,7 +477,11 @@ uae_u32 uaenative_call_function (TrapContext *context, int flags)
     uni.function = m68k_areg (regs, 0);
     if (flags & UNI_FLAG_COMPAT) {
         uni.library = 0;
+#ifdef AHI
         uni.uaevar_compat = uaenative_get_uaevar();
+#else
+        uni.uaevar_compat = NULL;
+#endif
     }
     else if (flags & UNI_FLAG_NAMED_FUNCTION) {
         uni.library = m68k_dreg (regs, 0);
@@ -668,7 +660,7 @@ struct uae_library {
     uaecptr aptr_data_table;
 };
 
-void uae_library_install (struct uae_library *library)
+static void uae_library_install (struct uae_library *library)
 {
 	library->aptr_name = ds (library->name);
 	library->aptr_id = ds (library->id);
@@ -715,14 +707,15 @@ void uae_library_install (struct uae_library *library)
 	dl (library->aptr_data_table);
 	dl (library->traps[0].aptr);
 
-    write_log (_T("%s installed\n"), library->name);
+    write_log (_T("%s installed (%s)\n"),
+               library->name, MODULE_SUFFIX);
 }
 
-uaecptr uae_library_startup (uaecptr res_addr, struct uae_library *library)
+static uaecptr uae_library_startup (uaecptr res_addr, struct uae_library *library)
 {
 	if (library->aptr_name == 0 || !currprefs.native_code) {
 		return res_addr;
-    }
+	}
 
 	put_word (res_addr + 0x00, 0x4AFC);
 	put_long (res_addr + 0x02, res_addr);
@@ -840,11 +833,17 @@ static struct uae_library uaenative_library = {
 
 void uaenative_install (void)
 {
+    if (!currprefs.native_code) {
+        return;
+    }
     uae_library_install (&uaenative_library);
 }
 
 uaecptr uaenative_startup (uaecptr res_addr)
 {
+    if (!currprefs.native_code) {
+        return res_addr;
+    }
     return uae_library_startup (res_addr, &uaenative_library);
 }
 

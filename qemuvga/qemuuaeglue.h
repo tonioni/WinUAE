@@ -1,5 +1,5 @@
-
-
+#include "uae/inline.h"
+#include "uae/likely.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -16,14 +16,6 @@ extern void write_log (const char *, ...);
 #define glue(x, y) xglue(x, y)
 #define stringify(s)	tostring(s)
 #define tostring(s)	#s
-#endif
-
-#ifndef likely
-#if __GNUC__ < 3
-#define __builtin_expect(x, n) (x)
-#endif
-#define likely(x)   __builtin_expect(!!(x), 1)
-#define unlikely(x)   __builtin_expect(!!(x), 0)
 #endif
 
 typedef int ssize_t;

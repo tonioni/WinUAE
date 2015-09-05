@@ -20,6 +20,7 @@
 
 #include <time.h>
 #include <math.h>
+#include <string.h>
 
 #include "dosbox.h"
 //#include "timer.h"

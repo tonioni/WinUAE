@@ -5,16 +5,11 @@
 
 #include "system/systhread.h"
 
-extern void write_log (const char *, ...);
+#include "uae/log.h"
 
-int ht_printf(const char *fmt,...)
+int ht_printf(const char *format,...)
 {
-	char buffer[1000];
-	va_list parms;
-	va_start(parms, fmt);
-	vsnprintf(buffer, 1000, fmt, parms);
-	write_log("%s", buffer);
-	va_end(parms);
+	UAE_LOG_VA_ARGS_FULL(format);
 	return 0;
 }
 int ht_fprintf(FILE *f, const char *fmt, ...)

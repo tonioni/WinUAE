@@ -40,7 +40,7 @@
 #include "gui.h"
 #include "disk.h"
 #include "audio.h"
-#include "sound.h"
+#include "sounddep/sound.h"
 #include "savestate.h"
 #include "arcadia.h"
 #include "zfile.h"
@@ -56,6 +56,12 @@
 #endif
 #include "tabletlibrary.h"
 #include "statusline.h"
+
+#if SIZEOF_TCHAR != 1
+/* FIXME: replace strcasecmp with _tcsicmp in source code instead */
+#undef strcasecmp
+#define strcasecmp _tcsicmp
+#endif
 
 // 01 = host events
 // 02 = joystick
@@ -114,7 +120,7 @@ static int joymodes[MAX_JPORTS];
 static int *joyinputs[MAX_JPORTS];
 
 static int input_acquired;
-static int testmode, testmode_read, testmode_toggle;
+static int testmode;
 struct teststore
 {
 	int testmode_type;
@@ -1085,7 +1091,7 @@ static uaecptr get_base (const uae_char *name)
 	if (!b || !b->check (v, 400) || !(b->flags & ABFLAG_RAM))
 		return 0;
 	v += 378; // liblist
-	while (v = get_long (v)) {
+	while ((v = get_long (v))) {
 		uae_u32 v2;
 		uae_u8 *p;
 		b = &get_mem_bank (v);
@@ -1304,8 +1310,6 @@ int input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr
 	return 1;
 }
 
-void get_custom_mouse_limits (int *w, int *h, int *dx, int *dy, int dbl);
-
 void inputdevice_tablet_strobe (void)
 {
 	mousehack_enable ();
@@ -1430,8 +1434,6 @@ void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay
 	tablet_maxaz = maxaz;
 	inputdevice_update_tablet_params();
 }
-
-void getgfxoffset (float *dx, float *dy, float*, float*);
 
 static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 {
@@ -1655,6 +1657,7 @@ static void mousehack_helper (uae_u32 buttonmask)
 #endif
 	x = lastmx;
 	y = lastmy;
+
 	getgfxoffset (&fdx, &fdy, &fmx, &fmy);
 
 #ifdef PICASSO96
@@ -1689,8 +1692,6 @@ static void mousehack_helper (uae_u32 buttonmask)
 static int mouseedge_x, mouseedge_y, mouseedge_time;
 #define MOUSEEDGE_RANGE 100
 #define MOUSEEDGE_TIME 2
-
-extern void setmouseactivexy (int,int,int);
 
 static int mouseedge (void)
 {
@@ -1895,6 +1896,8 @@ static void mouseupdate (int pct, bool vsync)
 			}
 
 			v = getvelocity (i, 2, pct);
+			/* if v != 0, record mouse wheel key presses
+			 * according to the NewMouse standard */
 			if (v > 0)
 				record_key (0x7a << 1);
 			else if (v < 0)
@@ -2359,7 +2362,7 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 
 static int inputdelay;
 
-void inputdevice_read (void)
+static void inputdevice_read (void)
 {
 	do {
 		handle_msgpump ();
@@ -2730,7 +2733,7 @@ static uae_u8 keybuf[256];
 #define MAX_PENDING_EVENTS 20
 static int inputcode_pending[MAX_PENDING_EVENTS], inputcode_pending_state[MAX_PENDING_EVENTS];
 
-void inputdevice_release_all_keys (void)
+static void inputdevice_release_all_keys (void)
 {
 	int i;
 
@@ -3857,7 +3860,7 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 				write_log(_T("Mouse %d disabled\n"), i);
 #endif
 			}
-		}   
+		}
 		id->enabled = 1;
 		for (i = 0; i < MAX_INPUT_DEVICE_EVENTS; i++) {
 			for (j = 0; j < MAX_INPUT_SUB_EVENT; j++) {
@@ -4005,11 +4008,9 @@ static bool process_custom_event (struct uae_input_device *id, int offset, int s
 	flags = id->flags[offset][slotoffset];
 	qual = flags & ID_FLAG_QUALIFIER_MASK;
 	custom = id->custom[offset][slotoffset];
-	int af = flags & ID_FLAG_AUTOFIRE_MASK;
- 
+
 	for (idx = 1; idx < 4; idx++) {
 		uae_u64 flags2 = id->flags[offset][slotoffset + idx];
-		TCHAR *custom2 = id->custom[offset][slotoffset + idx];
 
 		// all slots must have same qualifier
 		if ((flags2 & ID_FLAG_QUALIFIER_MASK) != qual)
@@ -4632,7 +4633,6 @@ static void checkcompakb (int *kb, int *srcmap)
 		struct uae_input_device *uid = &keyboards[0];
 		while (kb[j] >= 0) {
 			int id = kb[j];
-			int evt0 = 0, evt1 = 0;
 			k = 0;
 			while (keyboard_default[k].scancode >= 0) {
 				if (keyboard_default[k].scancode == kb[j]) {
@@ -5129,7 +5129,6 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 	}
 
 	for (i = 0; i < 2; i++) {
-		int af = prefs->jports[i].autofire;
 		if (prefs->jports[i].id >= 0 && joymodes[i] <= 0) {
 			int mode = prefs->jports[i].mode;
 			if (jsem_ismouse (i, prefs) >= 0) {
@@ -5200,7 +5199,6 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 
 	for (i = 2; i < MAX_JPORTS; i++) {
 		if (prefs->jports[i].id >= 0 && joymodes[i] <= 0) {
-			int mode = prefs->jports[i].mode;
 			if (jsem_isjoy (i, prefs) >= 0) {
 				joymodes[i] = JSEM_MODE_JOYSTICK;
 				joyinputs[i] = i == 3 ? ip_parjoy2 : ip_parjoy1;
@@ -5394,7 +5392,6 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 	for (i = 2; i < MAX_JPORTS; i++) {
 		int af = prefs->jports[i].autofire;
 		if (prefs->jports[i].id >= 0) {
-			int *kb = NULL;
 			joy = jsem_isjoy (i, prefs);
 			if (joy >= 0) {
 				if (gameports)
@@ -5815,8 +5812,6 @@ void inputdevice_setkeytranslation (struct uae_input_device_kbr_default **trans,
 // return true if keyboard/scancode pair is mapped
 int inputdevice_iskeymapped (int keyboard, int scancode)
 {
-	struct uae_input_device *na = &keyboards[keyboard];
-
 	if (!keyboards || scancode < 0)
 		return 0;
 	return scancodeused[keyboard][scancode];
@@ -6075,11 +6070,11 @@ static int get_int_num (void)
 }
 static TCHAR *get_int_friendlyname (int num)
 {
-	return _T("Internal events");
+	return my_strdup(_T("Internal events"));
 }
 static TCHAR *get_int_uniquename (int num)
 {
-	return _T("INTERNALEVENTS1");
+	return my_strdup(_T("INTERNALEVENTS1"));
 }
 static int get_int_widget_num (int num)
 {

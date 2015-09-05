@@ -12,7 +12,7 @@
 #include "slirp_config.h"
 
 #ifdef _WIN32
-# include <stdint.h>
+#include <stdint.h>
 
 typedef uint8_t u_int8_t;
 typedef uint16_t u_int16_t;
