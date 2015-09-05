@@ -20,6 +20,7 @@
 
 #include <assert.h>
 #include <sstream>
+#include <stddef.h>
 #include "dosbox.h"
 #include "cpu.h"
 //#include "memory.h"
