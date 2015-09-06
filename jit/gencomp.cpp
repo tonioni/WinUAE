@@ -676,7 +676,7 @@ genmovemel (uae_u16 opcode)
     comprintf ("\tuae_u16 mask = %s;\n", gen_nextiword ());
     comprintf ("\tint native=scratchie++;\n");
     comprintf ("\tint i;\n");
-    comprintf ("\tint offset=0;\n");
+    comprintf ("\tsigned char offset=0;\n");
     genamode (table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, 1);
 	if (table68k[opcode].size == sz_long)
 	    comprintf("\tif (1 && !special_mem) {\n");
@@ -800,6 +800,7 @@ genmovemle (uae_u16 opcode)
 	 default: abort();
 	}
     }
+
 
     comprintf("\t\t}\n"
 	      "\t}");
@@ -1186,8 +1187,8 @@ genflags (flagtypes type, wordsizes size, const char *value, const char *src, co
 		      "\tmov_l_ri(zero,0);\n"
 		      "\tmov_l_ri(one,1);\n"
 		      "\tmake_flags_live();\n"
-		      "\tcmov_l_rr(zero,one,5);\n"
-		      "\t}\n");
+		      "\tcmov_l_rr(zero,one,%d);\n"
+		      "\t}\n",NATIVE_CC_NE);
 	    comprintf("\trestore_carry();\n"); /* Reload the X flag into C */
 	    switch (size)
 	    {
@@ -1206,10 +1207,10 @@ genflags (flagtypes type, wordsizes size, const char *value, const char *src, co
 	    }
 	    comprintf("\tlive_flags();\n");
 	    comprintf("\tif (needed_flags&FLAG_Z) {\n"
-		      "\tcmov_l_rr(zero,one,5);\n"
+		      "\tcmov_l_rr(zero,one,%d);\n"
 		      "\tsetzflg_l(zero);\n"
 		      "\tlive_flags();\n"
-		      "\t}\n");
+		      "\t}\n",NATIVE_CC_NE);
 	    comprintf("\tend_needflags();\n");
 	    duplicate_carry();
 	    comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
@@ -1234,6 +1235,7 @@ gen_opcode (unsigned long int opcode)
     global_iscjump=0;
     global_isaddx=0;
     global_cmov=0;
+	global_fpu=0;
     global_mayfail=0;
     hack_opcode=opcode;
     endstr[0]=0;
@@ -1418,6 +1420,7 @@ gen_opcode (unsigned long int opcode)
 	     case i_BCLR: op="btr"; break;
 	     case i_BSET: op="bts"; break;
 	     case i_BTST: op="bt"; need_write=0; break;
+	    default: abort();
 	    }
 	    comprintf("\t%s_l_rr(dst,s);\n"  /* Answer now in C */
 				  "\tsbb_l(s,s);\n" /* s is 0 if bit was 0, -1 otherwise */
@@ -1712,7 +1715,7 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tcomp_pc_p=(uae_u8*)get_const(PC_P);\n");
 	break;
      case i_Bcc:
-	comprintf("\tuae_u32 v1,v2;\n");
+	comprintf("\tuae_u32 v,v1,v2;\n");
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	/* That source is an immediate, so we can clobber it with abandon */
 	switch(curi->size) {
@@ -1826,10 +1829,10 @@ gen_opcode (unsigned long int opcode)
 	    comprintf("\tsub_w_ri(src,1);\n");
 	    comprintf("\t end_needflags();\n");
 	    start_brace();
-	    comprintf("\tuae_u32 v2;\n"
+	    comprintf("\tuae_u32 v2,v;\n"
 		      "\tuae_u32 v1=get_const(PC_P);\n");
 	    comprintf("\tv2=get_const(offs);\n"
-		      "\tregister_branch(v1,v2,3);\n");
+		      "\tregister_branch(v1,v2,%d);\n", NATIVE_CC_CC);
 	    break;
 
 	 case 8: failure; break;  /* Work out details! FIXME */
@@ -1861,7 +1864,7 @@ gen_opcode (unsigned long int opcode)
 	    comprintf("\t start_needflags();\n");
 	    comprintf("\ttest_w_rr(nsrc,nsrc);\n");
 	    comprintf("\t end_needflags();\n");
-	    comprintf("\tcmov_l_rr(PC_P,offs,5);\n");
+	    comprintf("\tcmov_l_rr(PC_P,offs,%d);\n", NATIVE_CC_NE);
 	    break;
 	 default: abort();
 	}
@@ -1974,7 +1977,7 @@ gen_opcode (unsigned long int opcode)
 		comprintf("\tmov_l_rr(tmpcnt,cnt);\n"
 			  "\tand_l_ri(tmpcnt,63);\n"
 			  "\tmov_l_ri(cdata,0);\n"
-			  "\tcmov_l_rr(cdata,data,5);\n");
+			  "\tcmov_l_rr(cdata,data,%d);\n", NATIVE_CC_NE);
 		/* cdata is now either data (for shift count!=0) or
 		   0 (for shift count==0) */
 		switch(curi->size) {
@@ -1995,7 +1998,7 @@ gen_opcode (unsigned long int opcode)
 		comprintf("test_l_ri(cnt,highmask);\n"
 			  "mov_l_ri(highshift,0);\n"
 			  "mov_l_ri(scratchie,width/2);\n"
-			  "cmov_l_rr(highshift,scratchie,5);\n");
+			  "cmov_l_rr(highshift,scratchie,%d);\n", NATIVE_CC_NE);
 		/* The x86 masks out bits, so we now make sure that things
 		   really get shifted as much as planned */
 		switch(curi->size) {
@@ -2024,7 +2027,7 @@ gen_opcode (unsigned long int opcode)
 		/* If the shift count was higher than the width, we need
 		   to pick up the sign from data */
 		comprintf("test_l_ri(tmpcnt,highmask);\n"
-			  "cmov_l_rr(cdata,data,5);\n");
+			  "cmov_l_rr(cdata,data,%d);\n", NATIVE_CC_NE);
 		/* And create the flags */
 		comprintf("\tstart_needflags();\n");
 		comprintf("\tif (needed_flags & FLAG_ZNV)\n");
@@ -2064,7 +2067,7 @@ gen_opcode (unsigned long int opcode)
 		comprintf("test_l_ri(cnt,highmask);\n"
 			  "mov_l_ri(highshift,0);\n"
 			  "mov_l_ri(scratchie,width/2);\n"
-			  "cmov_l_rr(highshift,scratchie,5);\n");
+			  "cmov_l_rr(highshift,scratchie,%d);\n",NATIVE_CC_NE);
 		/* The x86 masks out bits, so we now make sure that things
 		   really get shifted as much as planned */
 		switch(curi->size) {
@@ -2147,7 +2150,7 @@ gen_opcode (unsigned long int opcode)
 		comprintf("\tmov_l_rr(tmpcnt,cnt);\n"
 			  "\tand_l_ri(tmpcnt,63);\n"
 			  "\tmov_l_ri(cdata,0);\n"
-			  "\tcmov_l_rr(cdata,data,5);\n");
+			  "\tcmov_l_rr(cdata,data,%d);\n",NATIVE_CC_NE);
 		/* cdata is now either data (for shift count!=0) or
 		   0 (for shift count==0) */
 		switch(curi->size) {
@@ -2164,7 +2167,7 @@ gen_opcode (unsigned long int opcode)
 		}
 		comprintf("test_l_ri(cnt,highmask);\n"
 			  "mov_l_ri(scratchie,0);\n"
-			  "cmov_l_rr(scratchie,data,4);\n");
+			  "cmov_l_rr(scratchie,data,%d);\n",NATIVE_CC_EQ);
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tmov_b_rr(data,scratchie);\n");break;
 		 case sz_word: comprintf("\tmov_w_rr(data,scratchie);\n");break;
@@ -2182,7 +2185,7 @@ gen_opcode (unsigned long int opcode)
 		}
 		comprintf("test_l_ri(tmpcnt,highmask);\n"
 			  "mov_l_ri(scratchie,0);\n"
-			  "cmov_l_rr(cdata,scratchie,5);\n");
+			  "cmov_l_rr(cdata,scratchie,%d);\n",NATIVE_CC_NE);
 		/* And create the flags */
 		comprintf("\tstart_needflags();\n");
 
@@ -2219,7 +2222,7 @@ gen_opcode (unsigned long int opcode)
 		}
 		comprintf("test_l_ri(cnt,highmask);\n"
 			  "mov_l_ri(scratchie,0);\n"
-			  "cmov_l_rr(scratchie,data,4);\n");
+			  "cmov_l_rr(scratchie,data,%d);\n",NATIVE_CC_EQ);
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tmov_b_rr(data,scratchie);\n");break;
 		 case sz_word: comprintf("\tmov_w_rr(data,scratchie);\n");break;
@@ -2285,7 +2288,7 @@ gen_opcode (unsigned long int opcode)
 		comprintf("\tmov_l_rr(tmpcnt,cnt);\n"
 			  "\tand_l_ri(tmpcnt,63);\n"
 			  "\tmov_l_ri(cdata,0);\n"
-			  "\tcmov_l_rr(cdata,data,5);\n");
+			  "\tcmov_l_rr(cdata,data,%d);\n",NATIVE_CC_NE);
 		/* cdata is now either data (for shift count!=0) or
 		   0 (for shift count==0) */
 		switch(curi->size) {
@@ -2302,7 +2305,7 @@ gen_opcode (unsigned long int opcode)
 		}
 		comprintf("test_l_ri(cnt,highmask);\n"
 			  "mov_l_ri(scratchie,0);\n"
-			  "cmov_l_rr(scratchie,data,4);\n");
+			  "cmov_l_rr(scratchie,data,%d);\n",NATIVE_CC_EQ);
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tmov_b_rr(data,scratchie);\n");break;
 		 case sz_word: comprintf("\tmov_w_rr(data,scratchie);\n");break;
@@ -2320,7 +2323,7 @@ gen_opcode (unsigned long int opcode)
 		}
 		comprintf("test_l_ri(tmpcnt,highmask);\n"
 			  "mov_l_ri(scratchie,0);\n"
-			  "cmov_l_rr(cdata,scratchie,5);\n");
+			  "cmov_l_rr(cdata,scratchie,%d);\n",NATIVE_CC_NE);
 		/* And create the flags */
 		comprintf("\tstart_needflags();\n");
 		comprintf("\tif (needed_flags & FLAG_ZNV)\n");
@@ -2354,7 +2357,7 @@ gen_opcode (unsigned long int opcode)
 		}
 		comprintf("test_l_ri(cnt,highmask);\n"
 			  "mov_l_ri(scratchie,0);\n"
-			  "cmov_l_rr(scratchie,data,4);\n");
+			  "cmov_l_rr(scratchie,data,%d);\n",NATIVE_CC_EQ);
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tmov_b_rr(data,scratchie);\n");break;
 		 case sz_word: comprintf("\tmov_w_rr(data,scratchie);\n");break;
@@ -2412,7 +2415,7 @@ gen_opcode (unsigned long int opcode)
 		comprintf("\tmov_l_rr(tmpcnt,cnt);\n"
 			  "\tand_l_ri(tmpcnt,63);\n"
 			  "\tmov_l_ri(cdata,0);\n"
-			  "\tcmov_l_rr(cdata,data,5);\n");
+			  "\tcmov_l_rr(cdata,data,%d);\n",NATIVE_CC_NE);
 		/* cdata is now either data (for shift count!=0) or
 		   0 (for shift count==0) */
 		switch(curi->size) {
@@ -2429,7 +2432,7 @@ gen_opcode (unsigned long int opcode)
 		}
 		comprintf("test_l_ri(cnt,highmask);\n"
 			  "mov_l_ri(scratchie,0);\n"
-			  "cmov_l_rr(scratchie,data,4);\n");
+			  "cmov_l_rr(scratchie,data,%d);\n",NATIVE_CC_EQ);
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tmov_b_rr(data,scratchie);\n");break;
 		 case sz_word: comprintf("\tmov_w_rr(data,scratchie);\n");break;
@@ -2447,7 +2450,7 @@ gen_opcode (unsigned long int opcode)
 		}
 		comprintf("test_l_ri(tmpcnt,highmask);\n"
 			  "mov_l_ri(scratchie,0);\n"
-			  "cmov_l_rr(cdata,scratchie,5);\n");
+			  "cmov_l_rr(cdata,scratchie,%d);\n",NATIVE_CC_NE);
 		/* And create the flags */
 		comprintf("\tstart_needflags();\n");
 		comprintf("\tif (needed_flags & FLAG_ZNV)\n");
@@ -2483,7 +2486,7 @@ gen_opcode (unsigned long int opcode)
 		}
 		comprintf("test_l_ri(cnt,highmask);\n"
 			  "mov_l_ri(scratchie,0);\n"
-			  "cmov_l_rr(scratchie,data,4);\n");
+			  "cmov_l_rr(scratchie,data,%d);\n",NATIVE_CC_EQ);
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tmov_b_rr(data,scratchie);\n");break;
 		 case sz_word: comprintf("\tmov_w_rr(data,scratchie);\n");break;
