@@ -2005,6 +2005,7 @@ LENDFUNC(NONE,READ,3,raw_cmov_l_rm,(W4 d, IMM mem, IMM cond))
 
 LOWFUNC(NONE,READ,3,raw_mov_l_rR,(W4 d, R4 s, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
 	emit_byte(0x8b);
 	emit_byte(0x40+8*d+s);
 	emit_byte(offset);
@@ -2013,6 +2014,7 @@ LENDFUNC(NONE,READ,3,raw_mov_l_rR,(W4 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,READ,3,raw_mov_w_rR,(W2 d, R4 s, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
 	emit_byte(0x66);
 	emit_byte(0x8b);
 	emit_byte(0x40+8*d+s);
@@ -2022,6 +2024,7 @@ LENDFUNC(NONE,READ,3,raw_mov_w_rR,(W2 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,READ,3,raw_mov_b_rR,(W1 d, R4 s, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
 	emit_byte(0x8a);
 	emit_byte(0x40+8*d+s);
 	emit_byte(offset);
@@ -2055,6 +2058,7 @@ LENDFUNC(NONE,READ,3,raw_mov_b_brR,(W1 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_l_Ri,(R4 d, IMM i, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
 	emit_byte(0xc7);
 	emit_byte(0x40+d);
 	emit_byte(offset);
@@ -2064,6 +2068,7 @@ LENDFUNC(NONE,WRITE,3,raw_mov_l_Ri,(R4 d, IMM i, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_w_Ri,(R4 d, IMM i, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
 	emit_byte(0x66);
 	emit_byte(0xc7);
 	emit_byte(0x40+d);
@@ -2074,6 +2079,7 @@ LENDFUNC(NONE,WRITE,3,raw_mov_w_Ri,(R4 d, IMM i, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_b_Ri,(R4 d, IMM i, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
 	emit_byte(0xc6);
 	emit_byte(0x40+d);
 	emit_byte(offset);
@@ -2083,6 +2089,7 @@ LENDFUNC(NONE,WRITE,3,raw_mov_b_Ri,(R4 d, IMM i, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_l_Rr,(R4 d, R4 s, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
 	emit_byte(0x89);
 	emit_byte(0x40+8*s+d);
 	emit_byte(offset);
@@ -2091,6 +2098,7 @@ LENDFUNC(NONE,WRITE,3,raw_mov_l_Rr,(R4 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_w_Rr,(R4 d, R2 s, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
 	emit_byte(0x66);
 	emit_byte(0x89);
 	emit_byte(0x40+8*s+d);
@@ -2100,6 +2108,7 @@ LENDFUNC(NONE,WRITE,3,raw_mov_w_Rr,(R4 d, R2 s, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_b_Rr,(R4 d, R1 s, IMM offset))
 {
+	Dif(!isbyte(offset)) abort();
 	emit_byte(0x88);
 	emit_byte(0x40+8*s+d);
 	emit_byte(offset);
@@ -3135,9 +3144,14 @@ static inline void raw_flags_set_zero(int f, int r, int t)
 	raw_popfl();
 }
 
+static inline void raw_dec_sp(int off)
+{
+	if (off) raw_sub_l_ri(ESP_INDEX,off);
+}
+
 static inline void raw_inc_sp(int off)
 {
-	raw_add_l_ri(4,off);
+	if (off) raw_add_l_ri(ESP_INDEX,off);
 }
 
 
@@ -3402,6 +3416,11 @@ raw_init_cpu(void)
 
 	/* Have CMOV support? */
 	have_cmov = c->x86_hwcap & (1 << 15);
+#if defined(CPU_x86_64)
+	if (!have_cmov) {
+		jit_abort("x86-64 implementations are bound to have CMOV!");
+	}
+#endif
 
 	/* Can the host CPU suffer from partial register stalls? */
 	have_rat_stall = (c->x86_vendor == X86_VENDOR_INTEL);
