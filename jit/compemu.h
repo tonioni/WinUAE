@@ -7,6 +7,10 @@ typedef uae_u64 uintptr;
 typedef uae_u32 uintptr;
 #endif
 
+/* ARAnyM uses fpu_register name, used in scratch_t */
+/* FIXME: check that no ARAnyM code assumes different floating point type */
+typedef fptype fpu_register;
+
 /* Flags for Bernie during development/debugging. Should go away eventually */
 #define DISTRUST_CONSISTENT_MEM 0
 #define TAGMASK 0x000fffff

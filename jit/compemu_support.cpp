@@ -2297,10 +2297,6 @@ void sync_m68k_pc(void)
 	}
 }
 
-#ifdef UAE
-uae_u32 scratch[VREGS];
-fptype fscratch[VFREGS];
-#else
 /********************************************************************
  * Scratch registers management                                     *
  ********************************************************************/
@@ -2311,7 +2307,6 @@ struct scratch_t {
 };
 
 static scratch_t scratch;
-#endif
 
 /********************************************************************
  * Support functions exposed to newcpu                              *
@@ -2429,7 +2424,7 @@ void init_comp(void)
 			set_status(i,INMEM);
 		}
 		else
-			live.state[i].mem=scratch+i;
+			live.state[i].mem=scratch.regs+i;
 	}
 	live.state[PC_P].mem=(uae_u32*)&(regs.pc_p);
 	live.state[PC_P].needflush=NF_TOMEM;
@@ -2462,7 +2457,7 @@ void init_comp(void)
 			live.fate[i].status=INMEM;
 		}
 		else
-			live.fate[i].mem=(uae_u32*)(fscratch+i);
+			live.fate[i].mem=(uae_u32*)(&scratch.fregs[i]);
 	}
 
 
