@@ -2677,6 +2677,7 @@ void flush(int save_regs)
 	}
 }
 
+#if 0
 static void flush_keepflags(void)
 {
 	int i;
@@ -2712,6 +2713,7 @@ static void flush_keepflags(void)
 	}
 	raw_fp_cleanup_drop();
 }
+#endif
 
 void freescratch(void)
 {
@@ -3363,29 +3365,12 @@ static void cache_miss(void)
 
 static int called_check_checksum(blockinfo* bi);
 
-static void check_checksum(void)
+static inline int block_check_checksum(blockinfo* bi)
 {
-	blockinfo*  bi=get_blockinfo_addr(regs.pc_p);
-	uae_u32     cl=cacheline(regs.pc_p);
-	blockinfo*  bi2=get_blockinfo(cl);
-
 	uae_u32     c1,c2;
 	bool        isgood;
 
 	checksum_count++;
-	/* These are not the droids you are looking for...  */
-	if (!bi) {
-		/* Whoever is the primary target is in a dormant state, but
-		calling it was accidental, and we should just compile this
-		new block */
-		execute_normal();
-		return;
-	}
-	if (bi!=bi2) {
-		/* The block was hit accidentally, but it does exist. Cache miss */
-		cache_miss();
-		return;
-	}
 
 	if (bi->c1 || bi->c2)
 		calc_checksum(bi,&c1,&c2);
@@ -3413,8 +3398,45 @@ static void check_checksum(void)
 		jit_log2("discard %p/%p (%x %x/%x %x)",bi,bi->pc_p, c1,c2,bi->c1,bi->c2);
 		invalidate_block(bi);
 		raise_in_cl_list(bi);
-		execute_normal();
 	}
+	return isgood;
+}
+
+static int called_check_checksum(blockinfo* bi)
+{
+	int isgood=1;
+	int i;
+
+	for (i=0;i<2 && isgood;i++) {
+		if (bi->dep[i].jmp_off) {
+		isgood=block_check_checksum(bi->dep[i].target);
+		}
+	}
+	return isgood;
+}
+
+static void check_checksum(void)
+{
+	blockinfo*  bi=get_blockinfo_addr(regs.pc_p);
+	uae_u32     cl=cacheline(regs.pc_p);
+	blockinfo*  bi2=get_blockinfo(cl);
+
+	/* These are not the droids you are looking for...  */
+	if (!bi) {
+		/* Whoever is the primary target is in a dormant state, but
+		calling it was accidental, and we should just compile this
+		new block */
+		execute_normal();
+		return;
+	}
+	if (bi!=bi2) {
+		/* The block was hit accidentally, but it does exist. Cache miss */
+		cache_miss();
+		return;
+	}
+
+	if (!block_check_checksum(bi))
+		execute_normal();
 }
 
 static inline void match_states(blockinfo* bi)
