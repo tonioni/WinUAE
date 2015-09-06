@@ -90,6 +90,7 @@
 #ifdef UAE
 
 #define UNUSED(x)
+/* FIXME: Looks like HAVE_GET_WORD_UNSWAPPED should be defined for little-endian / ARAnyM */
 #define HAVE_GET_WORD_UNSWAPPED
 #include "uae.h"
 #include "uae/log.h"
@@ -700,6 +701,53 @@ public:
 	}
 };
 
+#if USE_SEPARATE_BIA
+static LazyBlockAllocator<blockinfo> BlockInfoAllocator;
+static LazyBlockAllocator<checksum_info> ChecksumInfoAllocator;
+#else
+static HardBlockAllocator<blockinfo> BlockInfoAllocator;
+static HardBlockAllocator<checksum_info> ChecksumInfoAllocator;
+#endif
+
+static inline checksum_info *alloc_checksum_info(void)
+{
+	checksum_info *csi = ChecksumInfoAllocator.acquire();
+	csi->next = NULL;
+	return csi;
+}
+
+static inline void free_checksum_info(checksum_info *csi)
+{
+	csi->next = NULL;
+	ChecksumInfoAllocator.release(csi);
+}
+
+static inline void free_checksum_info_chain(checksum_info *csi)
+{
+	while (csi != NULL) {
+		checksum_info *csi2 = csi->next;
+		free_checksum_info(csi);
+		csi = csi2;
+	}
+}
+
+static inline blockinfo *alloc_blockinfo(void)
+{
+	blockinfo *bi = BlockInfoAllocator.acquire();
+#if USE_CHECKSUM_INFO
+	bi->csi = NULL;
+#endif
+	return bi;
+}
+
+static inline void free_blockinfo(blockinfo *bi)
+{
+#if USE_CHECKSUM_INFO
+	free_checksum_info_chain(bi->csi);
+	bi->csi = NULL;
+#endif
+	BlockInfoAllocator.release(bi);
+}
 
 static inline void alloc_blockinfos(void)
 {
@@ -1103,6 +1151,7 @@ static uae_s8 nstate[N_REGS];
 #ifdef UAE
 static inline void big_to_small_state(bigstate* b, smallstate* s)
 {
+	/* FIXME: replace with ARAnyM version */
 	int i;
 	int count=0;
 
@@ -2260,6 +2309,7 @@ static void fflags_into_flags_internal(uae_u32 tmp)
  ********************************************************************/
 
 #ifdef UAE
+/* FIXME: implement */
 #else
 void set_zero(int r, int tmp)
 {
@@ -2317,13 +2367,24 @@ static inline const char *str_on_off(bool b)
 	return b ? "on" : "off";
 }
 
+static
 void compiler_init(void)
 {
 	static bool initialized = false;
 	if (initialized)
 		return;
+
+#if PROFILE_UNTRANSLATED_INSNS
+	panicbug("<JIT compiler> : gather statistics on untranslated insns count");
+#endif
+
+#if PROFILE_COMPILE_TIME
+	panicbug("<JIT compiler> : gather statistics on translation time");
+	emul_start_time = clock();
+#endif
 }
 
+static
 void compiler_exit(void)
 {
 #if PROFILE_COMPILE_TIME
@@ -2403,6 +2464,11 @@ void init_comp(void)
 	uae_u8* cb=can_byte;
 	uae_u8* cw=can_word;
 	uae_u8* au=always_used;
+
+#ifdef RECORD_REGISTER_USAGE
+	for (i=0;i<16;i++)
+		reg_count_local[i] = 0;
+#endif
 
 	for (i=0;i<VREGS;i++) {
 		live.state[i].realreg=-1;
@@ -3293,6 +3359,7 @@ static void check_checksum(void)
 static inline void match_states(blockinfo* bi)
 {
 #ifdef UAE
+	/* FIXME: replace with ARAnyM version */
 	flush(1);
 #else
 	int i;
@@ -4340,7 +4407,7 @@ void exec_nostats(void)
 #endif
 
 #ifdef UAE
-    /* Different implementation in newcpu.cpp */
+/* FIXME: check differences against UAE execute_normal (newcpu.cpp) */
 #else
 void execute_normal(void)
 {
@@ -4376,6 +4443,7 @@ void execute_normal(void)
 typedef void (*compiled_handler)(void);
 
 #ifdef UAE
+/* FIXME: check differences against UAE m68k_do_compile_execute */
 #else
 void m68k_do_compile_execute(void)
 {
@@ -4391,6 +4459,7 @@ void m68k_do_compile_execute(void)
 #endif
 
 #ifdef UAE
+/* FIXME: check differences against UAE m68k_compile_execute */
 #else
 void m68k_compile_execute (void)
 {

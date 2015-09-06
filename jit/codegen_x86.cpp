@@ -3149,6 +3149,7 @@ static inline void raw_inc_sp(int off)
 #include "exception_handler.cpp"
 #endif
 
+static
 void compiler_status() {
 	jit_log("compiled code starts at %p, current at %08x", compiled_code, (unsigned int)(current_compile_p - compiled_code));
 }
@@ -3403,6 +3404,7 @@ raw_init_cpu(void)
 	if (tune_alignment) {
 		align_loops = x86_alignments[c->x86_processor].align_loop;
 #ifdef UAE
+		/* FIXME: using hard-coded align_jumps right now */
 #else
 		align_jumps = x86_alignments[c->x86_processor].align_jump;
 #endif

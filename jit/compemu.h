@@ -98,6 +98,15 @@ extern void alloc_cache(void);
 extern void compile_block(cpu_history* pc_hist, int blocklen, int totcyles);
 extern int check_for_cache_miss(void);
 
+static inline void flush_icache(int n)
+{
+	flush_icache(0, n);
+}
+
+static inline void flush_icache_hard(int n)
+{
+	flush_icache(0, n);
+}
 
 #define scaled_cycles(x) (currprefs.m68k_speed<0?(((x)/SCALE)?(((x)/SCALE<MAXCYCLES?((x)/SCALE):MAXCYCLES)):1):(x))
 
@@ -268,6 +277,12 @@ extern int touchcnt;
 #define PEEPHOLE_O 2000000
 #define DECLARE(func) extern void func
 
+/* What we expose to the outside */
+#define DECLARE_MIDFUNC(func) extern void func
+
+#include "compemu_midfunc_x86.h"
+
+#undef DECLARE_MIDFUNC
 
 /* What we expose to the outside */
 DECLARE(bt_l_ri(RR4 r, IMM i));
