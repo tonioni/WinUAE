@@ -1,20 +1,50 @@
 /*
- * UAE - The Un*x Amiga Emulator
+ *  compiler/gencomp.c - MC680x0 compilation generator
  *
- * MC68000 compilation generator
+ *  Based on work Copyright 1995, 1996 Bernd Schmidt
+ *  Changes for UAE-JIT Copyright 2000 Bernd Meyer
  *
- * Based on work Copyright 1995, 1996 Bernd Schmidt. Changes Copyright 2000
- * Bernd Meyer
+ *  Adaptation for ARAnyM/ARM, copyright 2001-2014
+ *    Milan Jurik, Jens Heitmann
+ * 
+ *  Adaptation for Basilisk II and improvements, copyright 2000-2005
+ *    Gwenole Beauchesne
+ *
+ *  Basilisk II (C) 1997-2005 Christian Bauer
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include "sysconfig.h"
 #include "sysdeps.h"
-#include <ctype.h>
-
 #include "readcpu.h"
 
+#include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
+#include <ctype.h>
+
+#ifdef UAE
+#define JIT_PATH "jit/"
+#define GEN_PATH "jit/"
+#else
+#define JIT_PATH "compiler/"
+#define GEN_PATH ""
+#endif
 
 #define BOOL_TYPE "int"
 #define failure global_failure=1
@@ -24,6 +54,7 @@
 #define isaddx  global_isaddx=1
 #define uses_cmov global_cmov=1
 #define mayfail global_mayfail=1
+#define uses_fpu		global_fpu=1
 
 int hack_opcode;
 
@@ -34,6 +65,7 @@ static int global_isaddx;
 static int global_cmov;
 static int long_opcode;
 static int global_mayfail;
+static int global_fpu;
 
 static char endstr[1000];
 static char lines[100000];
@@ -93,9 +125,9 @@ read_counts (void)
     file = fopen ("frequent.68k", "r");
     if (file)
     {
-        if (fscanf (file, "Total: %lu\n", &total) == 0) {
-                abort ();
-        }
+	if (fscanf (file, "Total: %lu\n", &total) != 1) {
+		abort();
+	}
 	while (fscanf (file, "%lx: %lu %s\n", &opcode, &count, name) == 3)
 	{
 	    opcode_next_clev[nr] = 5;
@@ -147,48 +179,7 @@ finish_braces (void)
 	close_brace ();
 }
 
-static void
-pop_braces (int to)
-{
-    while (n_braces > to)
-	close_brace ();
-}
-
-static int
-bit_size (int size)
-{
-    switch (size)
-    {
-     case sz_byte:
-	return 8;
-     case sz_word:
-	return 16;
-     case sz_long:
-	return 32;
-     default:
-	abort ();
-    }
-    return 0;
-}
-
-static const char *
-bit_mask (int size)
-{
-    switch (size)
-    {
-     case sz_byte:
-	return "0xff";
-     case sz_word:
-	return "0xffff";
-     case sz_long:
-	return "0xffffffff";
-     default:
-	abort ();
-    }
-    return 0;
-}
-
-static __inline__ void gen_update_next_handler(void)
+static inline void gen_update_next_handler(void)
 {
     return; /* Can anything clever be done here? */
 }
@@ -264,12 +255,13 @@ gen_nextibyte (void)
 static void
 sync_m68k_pc (void)
 {
-    comprintf("\t if (m68k_pc_offset>JIT_M68K_PC_SYNC) sync_m68k_pc();\n");
+    comprintf("\t if (m68k_pc_offset>100) sync_m68k_pc();\n");
 }
 
 
 /* getv == 1: fetch data; getv != 0: check for odd address. If movem != 0,
- * the calling routine handles Apdi and Aipi modes. */
+ * the calling routine handles Apdi and Aipi modes.
+ * gb-- movem == 2 means the same thing but for a MOVE16 instruction */
 static void
 genamode (amodes mode, const char *reg, wordsizes size, const char *name, int getv, int movem)
 {
@@ -483,6 +475,7 @@ genamode (amodes mode, const char *reg, wordsizes size, const char *name, int ge
     /* We now might have to fix up the register for pre-dec or post-inc
      * addressing modes. */
     if (!movem) {
+// MJ	char x[160];
 	switch (mode)
 	{
 	 case Aipi:
@@ -592,6 +585,7 @@ genastore (const char *from, amodes mode, const char *reg, wordsizes size, const
 	abort ();
     }
 }
+
 static void genmov16(uae_u32 opcode, struct instr *curi)
 {
     comprintf("\tint src=scratchie++;\n");
@@ -602,7 +596,8 @@ static void genmov16(uae_u32 opcode, struct instr *curi)
 	comprintf("\tuae_u16 dstreg=((%s)>>12)&0x07;\n", gen_nextiword());
 	comprintf("\tmov_l_rr(src,8+srcreg);\n");
 	comprintf("\tmov_l_rr(dst,8+dstreg);\n");
-    } else {
+	}
+	else {
 	/* Other variants */
 	genamode (curi->smode, "srcreg", curi->size, "src", 0, 2);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 0, 2);
@@ -614,12 +609,12 @@ static void genmov16(uae_u32 opcode, struct instr *curi)
     comprintf("\tand_l_ri(src,~15);\n");
     comprintf("\tand_l_ri(dst,~15);\n");
 
-
     if ((opcode & 0xfff8) == 0xf620) {
 	comprintf("\tif (srcreg != dstreg)\n");
 	comprintf("\tadd_l_ri(srcreg+8,16);\n");
 	comprintf("\tadd_l_ri(dstreg+8,16);\n");
-    } else if ((opcode & 0xfff8) == 0xf600)
+    }
+    else if ((opcode & 0xfff8) == 0xf600)
 	comprintf("\tadd_l_ri(srcreg+8,16);\n");
     else if ((opcode & 0xfff8) == 0xf608)
 	comprintf("\tadd_l_ri(dstreg+8,16);\n");
@@ -659,54 +654,6 @@ static void genmov16(uae_u32 opcode, struct instr *curi)
 	      "\tmov_l_Rr(dst,tmp+3,12);\t}\n");
 
 }
-
-#if 0
-static void genmov16(void)
-{
-    comprintf("\tint src=scratchie++;\n"
-	      "\tuae_u16 dstreg=((%s)>>12)&0x07;\n",gen_nextiword());
-    comprintf("\tint dst=scratchie++;\n"
-	      "\tint tmp=scratchie;\n"
-	      "\tscratchie+=4;\n"
-	      "\tmov_l_rr(src,8+srcreg);\n"
-	      "\tand_l_ri(src,~15);\n"
-	      "\tmov_l_rr(dst,8+dstreg);\n"
-	      "\tand_l_ri(dst,~15);\n"
-	      "\tadd_l_ri(srcreg+8,16);\n"
-	      "\tadd_l_ri(dstreg+8,16);\n");
-
-    comprintf("\tif (special_mem) {\n"
-	      "\treadlong(src,tmp,scratchie);\n"
-	      "\twritelong_clobber(dst,tmp,scratchie);\n"
-	      "\tadd_l_ri(src,4);\n"
-	      "\tadd_l_ri(dst,4);\n"
-	      "\treadlong(src,tmp,scratchie);\n"
-	      "\twritelong_clobber(dst,tmp,scratchie);\n"
-	      "\tadd_l_ri(src,4);\n"
-	      "\tadd_l_ri(dst,4);\n"
-	      "\treadlong(src,tmp,scratchie);\n"
-	      "\twritelong_clobber(dst,tmp,scratchie);\n"
-	      "\tadd_l_ri(src,4);\n"
-	      "\tadd_l_ri(dst,4);\n"
-	      "\treadlong(src,tmp,scratchie);\n"
-	      "\twritelong_clobber(dst,tmp,scratchie);\n");
-    comprintf("\t} else {\n");
-    comprintf("\tget_n_addr(src,src,scratchie);\n"
-	      "\tget_n_addr(dst,dst,scratchie);\n"
-	      "\tmov_l_rR(tmp+0,src,0);\n"
-	      "\tmov_l_rR(tmp+1,src,4);\n"
-	      "\tmov_l_rR(tmp+2,src,8);\n"
-	      "\tmov_l_rR(tmp+3,src,12);\n"
-	      "\tmov_l_Rr(dst,tmp+0,0);\n"
-	      "\tforget_about(tmp+0);\n"
-	      "\tmov_l_Rr(dst,tmp+1,4);\n"
-	      "\tforget_about(tmp+1);\n"
-	      "\tmov_l_Rr(dst,tmp+2,8);\n"
-	      "\tforget_about(tmp+2);\n"
-	      "\tmov_l_Rr(dst,tmp+3,12);\n"
-	      "\t}\n");
-}
-#endif
 
 static void
 genmovemel (uae_u16 opcode)
@@ -1033,7 +980,6 @@ genflags (flagtypes type, wordsizes size, const char *value, const char *src, co
 
 	 case flag_addx:
 	 case flag_subx:
-
 	    comprintf("\tdont_care_flags();\n");
 	    {
 		const char* op;
@@ -1257,49 +1203,6 @@ genflags (flagtypes type, wordsizes size, const char *value, const char *src, co
 	failure;
 	break;
     }
-}
-
-static void
-force_range_for_rox (const char *var, wordsizes size)
-{
-    /* Could do a modulo operation here... which one is faster? */
-    switch (size)
-    {
-     case sz_long:
-	comprintf ("\tif (%s >= 33) %s -= 33;\n", var, var);
-	break;
-     case sz_word:
-	comprintf ("\tif (%s >= 34) %s -= 34;\n", var, var);
-	comprintf ("\tif (%s >= 17) %s -= 17;\n", var, var);
-	break;
-     case sz_byte:
-	comprintf ("\tif (%s >= 36) %s -= 36;\n", var, var);
-	comprintf ("\tif (%s >= 18) %s -= 18;\n", var, var);
-	comprintf ("\tif (%s >= 9) %s -= 9;\n", var, var);
-	break;
-    }
-}
-
-static const char *
-cmask (wordsizes size)
-{
-    switch (size)
-    {
-     case sz_byte:
-	return "0x80";
-     case sz_word:
-	return "0x8000";
-     case sz_long:
-	return "0x80000000";
-     default:
-	abort ();
-    }
-}
-
-static int
-source_is_imm1_8 (struct instr *i)
-{
-    return i->stype == 3;
 }
 
 static int  /* returns zero for success, non-zero for failure */
@@ -1702,9 +1605,9 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tint newad=scratchie++;\n"
 		  "\treadlong(15,newad,scratchie);\n"
 		  "\tand_l_ri(newad,~1);\n"
-		  "\tmov_l_mr((uae_u32)&regs.pc,newad);\n"
+		  "\tmov_l_mr((uintptr)&regs.pc,newad);\n"
 		  "\tget_n_addr_jmp(newad,PC_P,scratchie);\n"
-		  "\tmov_l_mr((uae_u32)&regs.pc_oldp,PC_P);\n"
+		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
 		  "\tm68k_pc_offset=0;\n"
 		  "\tadd_l(15,offs);\n");
 	gen_update_next_handler();
@@ -1732,9 +1635,9 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tint newad=scratchie++;\n"
 		  "\treadlong(15,newad,scratchie);\n"
 		  "\tand_l_ri(newad,~1);\n"
-		  "\tmov_l_mr((uae_u32)&regs.pc,newad);\n"
+		  "\tmov_l_mr((uintptr)&regs.pc,newad);\n"
 		  "\tget_n_addr_jmp(newad,PC_P,scratchie);\n"
-		  "\tmov_l_mr((uae_u32)&regs.pc_oldp,PC_P);\n"
+		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
 		  "\tm68k_pc_offset=0;\n"
 		  "\tlea_l_brr(15,15,4);\n");
 	gen_update_next_handler();
@@ -1758,9 +1661,9 @@ gen_opcode (unsigned long int opcode)
 		  "\tsub_l_ri(15,4);\n"
 		  "\twritelong_clobber(15,ret,scratchie);\n");
 	comprintf("\tand_l_ri(srca,~1);\n"
-		  "\tmov_l_mr((uae_u32)&regs.pc,srca);\n"
+		  "\tmov_l_mr((uintptr)&regs.pc,srca);\n"
 		  "\tget_n_addr_jmp(srca,PC_P,scratchie);\n"
-		  "\tmov_l_mr((uae_u32)&regs.pc_oldp,PC_P);\n"
+		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
 		  "\tm68k_pc_offset=0;\n");
 	gen_update_next_handler();
 	break;
@@ -1768,9 +1671,9 @@ gen_opcode (unsigned long int opcode)
 	isjump;
 	genamode (curi->smode, "srcreg", curi->size, "src", 0, 0);
 	comprintf("\tand_l_ri(srca,~1);\n"
-		  "\tmov_l_mr((uae_u32)&regs.pc,srca);\n"
+		  "\tmov_l_mr((uintptr)&regs.pc,srca);\n"
 		  "\tget_n_addr_jmp(srca,PC_P,scratchie);\n"
-		  "\tmov_l_mr((uae_u32)&regs.pc_oldp,PC_P);\n"
+		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
 		  "\tm68k_pc_offset=0;\n");
 	gen_update_next_handler();
 	break;
@@ -1805,8 +1708,8 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tsub_l_ri(src,m68k_pc_offset-m68k_pc_offset_thisinst-2);\n");
 	/* Leave the following as "add" --- it will allow it to be optimized
 	   away due to src being a constant ;-) */
-	comprintf("\tadd_l_ri(src,(uae_u32)comp_pc_p);\n");
-	comprintf("\tmov_l_ri(PC_P,(uae_u32)comp_pc_p);\n");
+	comprintf("\tadd_l_ri(src,(uintptr)comp_pc_p);\n");
+	comprintf("\tmov_l_ri(PC_P,(uintptr)comp_pc_p);\n");
 	/* Now they are both constant. Might as well fold in m68k_pc_offset */
 	comprintf("\tadd_l_ri(src,m68k_pc_offset);\n");
 	comprintf("\tadd_l_ri(PC_P,m68k_pc_offset);\n");
@@ -1879,7 +1782,7 @@ gen_opcode (unsigned long int opcode)
 	 default: abort();  /* Seems this only comes in word flavour */
 	}
 	comprintf("\tsub_l_ri(offs,m68k_pc_offset-m68k_pc_offset_thisinst-2);\n");
-	comprintf("\tadd_l_ri(offs,(uae_u32)comp_pc_p);\n"); /* New PC,
+	comprintf("\tadd_l_ri(offs,(uintptr)comp_pc_p);\n"); /* New PC,
 								once the
 								offset_68k is
 								* also added */
@@ -2843,12 +2746,7 @@ gen_opcode (unsigned long int opcode)
 	failure;
 	break;
      case i_MOVE16:
-	//if ((opcode & 0xfff8) == 0xf620) {
-	    genmov16(opcode,curi);
-	//} else {
-	//    isjump;
-	//    failure;
-	//}
+	genmov16(opcode,curi);
 	break;
 
      case i_MMUOP030:
@@ -2877,16 +2775,21 @@ gen_opcode (unsigned long int opcode)
 }
 
 static void
-generate_includes (FILE * f, int bigger)
+generate_includes (FILE * f)
 {
-    fprintf (f, "#include \"sysconfig.h\"\n");
-    fprintf (f, "#if defined(JIT)\n");
-    fprintf (f, "#include \"sysdeps.h\"\n");
-	if (bigger)
-		fprintf (f, "#include \"options.h\"\n");
-    fprintf (f, "#include \"memory.h\"\n");
-    fprintf (f, "#include \"newcpu.h\"\n");
-    fprintf (f, "#include \"comptbl.h\"\n");
+	fprintf (f, "#include \"sysconfig.h\"\n");
+	fprintf (f, "#if defined(JIT)\n");
+	fprintf (f, "#include \"sysdeps.h\"\n");
+#ifdef UAE
+	fprintf (f, "#include \"options.h\"\n");
+	fprintf (f, "#include \"memory.h\"\n");
+#else
+	fprintf (f, "#include \"m68k.h\"\n");
+	fprintf (f, "#include \"memory.h\"\n");
+#endif
+	fprintf (f, "#include \"readcpu.h\"\n");
+	fprintf (f, "#include \"newcpu.h\"\n");
+	fprintf (f, "#include \"comptbl.h\"\n");
 }
 
 static int postfix;
@@ -3024,14 +2927,29 @@ generate_one_opcode (int rp, int noflags)
 
     switch (table68k[opcode].stype)
     {
-    case 0: smsk = 7; break;
-    case 1: smsk = 255; break;
-    case 2: smsk = 15;	break;
-    case 3: smsk = 7; break;
-    case 4: smsk = 7; break;
-    case 5: smsk = 63; break;
-    case 7: smsk = 3; break;
-    default: abort ();
+    case 0:
+	smsk = 7;
+	break;
+    case 1:
+	smsk = 255;
+	break;
+    case 2:
+	smsk = 15;
+	break;
+    case 3:
+	smsk = 7;
+	break;
+    case 4:
+	smsk = 7;
+	break;
+    case 5:
+	smsk = 63;
+	break;
+    case 7:
+	smsk = 3;
+	break;
+    default:
+	abort ();
     }
     dmsk = 7;
 
@@ -3189,8 +3107,6 @@ generate_func (int noflags)
 		 "extern void comp_fscc_opp();\n"
 		 "extern void comp_fbcc_opp();\n\n");
 
-	printf ("#define JIT_M68K_PC_SYNC 100\n\n");
-
 	rp = 0;
 	for (j = 1; j <= 8; ++j)
 	{
@@ -3211,17 +3127,17 @@ int main(int argc, char *argv[])
     read_table68k ();
     do_merges ();
 
-    opcode_map = xmalloc (int, nr_cpuop_funcs);
-    opcode_last_postfix = xmalloc (int, nr_cpuop_funcs);
-    opcode_next_clev = xmalloc (int, nr_cpuop_funcs);
-    counts = xmalloc (unsigned long, 65536);
+    opcode_map = (int *) malloc (sizeof (int) * nr_cpuop_funcs);
+    opcode_last_postfix = (int *) malloc (sizeof (int) * nr_cpuop_funcs);
+    opcode_next_clev = (int *) malloc (sizeof (int) * nr_cpuop_funcs);
+    counts = (unsigned long *) malloc (65536 * sizeof (unsigned long));
     read_counts ();
 
     /* It would be a lot nicer to put all in one file (we'd also get rid of
      * cputbl.h that way), but cpuopti can't cope.  That could be fixed, but
      * I don't dare to touch the 68k version.  */
 
-    headerfile = fopen ("jit/comptbl.h", "wb");
+	headerfile = fopen (GEN_PATH "comptbl.h", "wb");
 
 	fprintf (headerfile, "" \
 		"#ifdef NOFLAGS_SUPPORT\n" \
@@ -3231,23 +3147,29 @@ int main(int argc, char *argv[])
 		"extern const struct comptbl op_smalltbl_0_comp_nf[];\n" \
 		"extern const struct comptbl op_smalltbl_0_comp_ff[];\n" \
 		"");
-	
-	stblfile = fopen ("jit/compstbl.cpp", "wb");
-    freopen ("jit/compemu.cpp", "wb", stdout);
 
-    generate_includes (stdout, 1);
-    generate_includes (stblfile, 1);
+	stblfile = fopen (GEN_PATH "compstbl.cpp", "wb");
+	if (freopen (GEN_PATH "compemu.cpp", "wb", stdout) == NULL) {
+		abort();
+	}
 
-    printf("#include \"compemu.h\"\n");
+    generate_includes (stdout);
+    generate_includes (stblfile);
+
+    printf("#include \"" JIT_PATH "compemu.h\"\n");
 
     noflags=0;
     generate_func (noflags);
 
+	free(opcode_map);
+	free(opcode_last_postfix);
+	free(opcode_next_clev);
+	free(counts);
 
-    opcode_map = xmalloc (int, nr_cpuop_funcs);
-    opcode_last_postfix = xmalloc (int, nr_cpuop_funcs);
-    opcode_next_clev = xmalloc (int, nr_cpuop_funcs);
-    counts = xmalloc (unsigned long, 65536);
+    opcode_map = (int *) malloc (sizeof (int) * nr_cpuop_funcs);
+    opcode_last_postfix = (int *) malloc (sizeof (int) * nr_cpuop_funcs);
+    opcode_next_clev = (int *) malloc (sizeof (int) * nr_cpuop_funcs);
+    counts = (unsigned long *) malloc (65536 * sizeof (unsigned long));
     read_counts ();
     noflags=1;
     generate_func (noflags);
@@ -3255,7 +3177,14 @@ int main(int argc, char *argv[])
     printf ("#endif\n");
     fprintf (stblfile, "#endif\n");
 
+	free(opcode_map);
+	free(opcode_last_postfix);
+	free(opcode_next_clev);
+	free(counts);
+
     free (table68k);
+	fclose (stblfile);
+	fclose (headerfile);
     return 0;
 }
 
