@@ -1,3 +1,34 @@
+/*
+ * compiler/codegen_x86.cpp - IA-32 and AMD64 code generator
+ *
+ * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
+ * 
+ * Inspired by Christian Bauer's Basilisk II
+ *
+ * This file is part of the ARAnyM project which builds a new and powerful
+ * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
+ *
+ * JIT compiler m68k -> IA-32 and AMD64
+ *
+ * Original 68040 JIT compiler for UAE, copyright 2000-2002 Bernd Meyer
+ * Adaptation for Basilisk II and improvements, copyright 2000-2004 Gwenole Beauchesne
+ * Portions related to CPU detection come from linux/arch/i386/kernel/setup.c
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 /* This should eventually end up in machdep/, but for now, x86 is the
 only target, and it's easier this way... */
 
@@ -119,18 +150,1069 @@ uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
 #define CLOBBER_BT   clobber_flags()
 #define CLOBBER_BSF  clobber_flags()
 
+
+#if USE_NEW_RTASM
+
+#if defined(CPU_x86_64)
+#define X86_TARGET_64BIT		1
+/* The address override prefix causes a 5 cycles penalty on Intel Core
+   processors. Another solution would be to decompose the load in an LEA,
+   MOV (to zero-extend), MOV (from memory): is it better? */
+#define ADDR32					x86_emit_byte(0x67),
+#else
+#define ADDR32
+#endif
+#define X86_FLAT_REGISTERS		0
+#define X86_OPTIMIZE_ALU		1
+#define X86_OPTIMIZE_ROTSHI		1
+#include "codegen_x86.h"
+
+#define x86_emit_byte(B)		emit_byte(B)
+#define x86_emit_word(W)		emit_word(W)
+#define x86_emit_long(L)		emit_long(L)
+#define x86_emit_quad(Q)		emit_quad(Q)
+#define x86_get_target()		get_target()
+#define x86_emit_failure(MSG)	jit_fail(MSG, __FILE__, __LINE__, __FUNCTION__)
+
+static void jit_fail(const char *msg, const char *file, int line, const char *function)
+{
+	panicbug("JIT failure in function %s from file %s at line %d: %s",
+			function, file, line, msg);
+	abort();
+}
+
+LOWFUNC(NONE,WRITE,1,raw_push_l_r,(R4 r))
+{
+#if defined(CPU_x86_64)
+	PUSHQr(r);
+#else
+	PUSHLr(r);
+#endif
+}
+LENDFUNC(NONE,WRITE,1,raw_push_l_r,(R4 r))
+
+LOWFUNC(NONE,READ,1,raw_pop_l_r,(R4 r))
+{
+#if defined(CPU_x86_64)
+	POPQr(r);
+#else
+	POPLr(r);
+#endif
+}
+LENDFUNC(NONE,READ,1,raw_pop_l_r,(R4 r))
+
+LOWFUNC(NONE,READ,1,raw_pop_l_m,(MEMW d))
+{
+#if defined(CPU_x86_64)
+	POPQm(d, X86_NOREG, X86_NOREG, 1);
+#else
+	POPLm(d, X86_NOREG, X86_NOREG, 1);
+#endif
+}
+LENDFUNC(NONE,READ,1,raw_pop_l_m,(MEMW d))
+
+LOWFUNC(WRITE,NONE,2,raw_bt_l_ri,(R4 r, IMM i))
+{
+	BTLir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_bt_l_ri,(R4 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_bt_l_rr,(R4 r, R4 b))
+{
+	BTLrr(b, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_bt_l_rr,(R4 r, R4 b))
+
+LOWFUNC(WRITE,NONE,2,raw_btc_l_ri,(RW4 r, IMM i))
+{
+	BTCLir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_btc_l_ri,(RW4 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_btc_l_rr,(RW4 r, R4 b))
+{
+	BTCLrr(b, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_btc_l_rr,(RW4 r, R4 b))
+
+LOWFUNC(WRITE,NONE,2,raw_btr_l_ri,(RW4 r, IMM i))
+{
+	BTRLir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_btr_l_ri,(RW4 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_btr_l_rr,(RW4 r, R4 b))
+{
+	BTRLrr(b, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_btr_l_rr,(RW4 r, R4 b))
+
+LOWFUNC(WRITE,NONE,2,raw_bts_l_ri,(RW4 r, IMM i))
+{
+	BTSLir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_bts_l_ri,(RW4 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_bts_l_rr,(RW4 r, R4 b))
+{
+	BTSLrr(b, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_bts_l_rr,(RW4 r, R4 b))
+
+LOWFUNC(WRITE,NONE,2,raw_sub_w_ri,(RW2 d, IMM i))
+{
+	SUBWir(i, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_sub_w_ri,(RW2 d, IMM i))
+
+LOWFUNC(NONE,READ,2,raw_mov_l_rm,(W4 d, MEMR s))
+{
+	MOVLmr(s, X86_NOREG, X86_NOREG, 1, d);
+}
+LENDFUNC(NONE,READ,2,raw_mov_l_rm,(W4 d, MEMR s))
+
+LOWFUNC(NONE,WRITE,2,raw_mov_l_mi,(MEMW d, IMM s))
+{
+	MOVLim(s, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,2,raw_mov_l_mi,(MEMW d, IMM s))
+
+LOWFUNC(NONE,WRITE,2,raw_mov_w_mi,(MEMW d, IMM s))
+{
+	MOVWim(s, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,2,raw_mov_w_mi,(MEMW d, IMM s))
+
+LOWFUNC(NONE,WRITE,2,raw_mov_b_mi,(MEMW d, IMM s))
+{
+	MOVBim(s, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,2,raw_mov_b_mi,(MEMW d, IMM s))
+
+LOWFUNC(WRITE,RMW,2,raw_rol_b_mi,(MEMRW d, IMM i))
+{
+	ROLBim(i, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(WRITE,RMW,2,raw_rol_b_mi,(MEMRW d, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_rol_b_ri,(RW1 r, IMM i))
+{
+	ROLBir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_rol_b_ri,(RW1 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_rol_w_ri,(RW2 r, IMM i))
+{
+	ROLWir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_rol_w_ri,(RW2 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_rol_l_ri,(RW4 r, IMM i))
+{
+	ROLLir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_rol_l_ri,(RW4 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_rol_l_rr,(RW4 d, R1 r))
+{
+	ROLLrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_rol_l_rr,(RW4 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_rol_w_rr,(RW2 d, R1 r))
+{
+	ROLWrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_rol_w_rr,(RW2 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_rol_b_rr,(RW1 d, R1 r))
+{
+	ROLBrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_rol_b_rr,(RW1 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_shll_l_rr,(RW4 d, R1 r))
+{
+	SHLLrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_shll_l_rr,(RW4 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_shll_w_rr,(RW2 d, R1 r))
+{
+	SHLWrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_shll_w_rr,(RW2 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_shll_b_rr,(RW1 d, R1 r))
+{
+	SHLBrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_shll_b_rr,(RW1 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_ror_b_ri,(RW1 r, IMM i))
+{
+	RORBir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_ror_b_ri,(RW1 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_ror_w_ri,(RW2 r, IMM i))
+{
+	RORWir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_ror_w_ri,(RW2 r, IMM i))
+
+LOWFUNC(WRITE,READ,2,raw_or_l_rm,(RW4 d, MEMR s))
+{
+	ORLmr(s, X86_NOREG, X86_NOREG, 1, d);
+}
+LENDFUNC(WRITE,READ,2,raw_or_l_rm,(RW4 d, MEMR s))
+
+LOWFUNC(WRITE,NONE,2,raw_ror_l_ri,(RW4 r, IMM i))
+{
+	RORLir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_ror_l_ri,(RW4 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_ror_l_rr,(RW4 d, R1 r))
+{
+	RORLrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_ror_l_rr,(RW4 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_ror_w_rr,(RW2 d, R1 r))
+{
+	RORWrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_ror_w_rr,(RW2 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_ror_b_rr,(RW1 d, R1 r))
+{
+	RORBrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_ror_b_rr,(RW1 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_shrl_l_rr,(RW4 d, R1 r))
+{
+	SHRLrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_shrl_l_rr,(RW4 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_shrl_w_rr,(RW2 d, R1 r))
+{
+	SHRWrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_shrl_w_rr,(RW2 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_shrl_b_rr,(RW1 d, R1 r))
+{
+	SHRBrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_shrl_b_rr,(RW1 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_shra_l_rr,(RW4 d, R1 r))
+{
+	SARLrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_shra_l_rr,(RW4 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_shra_w_rr,(RW2 d, R1 r))
+{
+	SARWrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_shra_w_rr,(RW2 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_shra_b_rr,(RW1 d, R1 r))
+{
+	SARBrr(r, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_shra_b_rr,(RW1 d, R1 r))
+
+LOWFUNC(WRITE,NONE,2,raw_shll_l_ri,(RW4 r, IMM i))
+{
+	SHLLir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_shll_l_ri,(RW4 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_shll_w_ri,(RW2 r, IMM i))
+{
+	SHLWir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_shll_w_ri,(RW2 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_shll_b_ri,(RW1 r, IMM i))
+{
+	SHLBir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_shll_b_ri,(RW1 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_shrl_l_ri,(RW4 r, IMM i))
+{
+	SHRLir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_shrl_l_ri,(RW4 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_shrl_w_ri,(RW2 r, IMM i))
+{
+	SHRWir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_shrl_w_ri,(RW2 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_shrl_b_ri,(RW1 r, IMM i))
+{
+	SHRBir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_shrl_b_ri,(RW1 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_shra_l_ri,(RW4 r, IMM i))
+{
+	SARLir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_shra_l_ri,(RW4 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_shra_w_ri,(RW2 r, IMM i))
+{
+	SARWir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_shra_w_ri,(RW2 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_shra_b_ri,(RW1 r, IMM i))
+{
+	SARBir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_shra_b_ri,(RW1 r, IMM i))
+
+LOWFUNC(WRITE,NONE,1,raw_sahf,(R2))
+{
+	SAHF();
+}
+LENDFUNC(WRITE,NONE,1,raw_sahf,(R2 dummy_ah))
+
+LOWFUNC(NONE,NONE,1,raw_cpuid,(R4))
+{
+	CPUID();
+}
+LENDFUNC(NONE,NONE,1,raw_cpuid,(R4 dummy_eax))
+
+LOWFUNC(READ,NONE,1,raw_lahf,(W2))
+{
+	LAHF();
+}
+LENDFUNC(READ,NONE,1,raw_lahf,(W2 dummy_ah))
+
+LOWFUNC(READ,NONE,2,raw_setcc,(W1 d, IMM cc))
+{
+	SETCCir(cc, d);
+}
+LENDFUNC(READ,NONE,2,raw_setcc,(W1 d, IMM cc))
+
+LOWFUNC(READ,WRITE,2,raw_setcc_m,(MEMW d, IMM cc))
+{
+	SETCCim(cc, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(READ,WRITE,2,raw_setcc_m,(MEMW d, IMM cc))
+
+LOWFUNC(READ,NONE,3,raw_cmov_l_rr,(RW4 d, R4 s, IMM cc))
+{
+	if (have_cmov)
+		CMOVLrr(cc, s, d);
+	else { /* replacement using branch and mov */
+		int8 *target_p = (int8 *)x86_get_target() + 1;
+		JCCSii(cc^1, 0);
+		MOVLrr(s, d);
+		*target_p = (uintptr)x86_get_target() - ((uintptr)target_p + 1);
+	}
+}
+LENDFUNC(READ,NONE,3,raw_cmov_l_rr,(RW4 d, R4 s, IMM cc))
+
+LOWFUNC(WRITE,NONE,2,raw_bsf_l_rr,(W4 d, R4 s))
+{
+	BSFLrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_bsf_l_rr,(W4 d, R4 s))
+
+LOWFUNC(NONE,NONE,2,raw_sign_extend_32_rr,(W4 d, R4 s))
+{
+	MOVSLQrr(s, d);
+}
+LENDFUNC(NONE,NONE,2,raw_sign_extend_32_rr,(W4 d, R4 s))
+
+LOWFUNC(NONE,NONE,2,raw_sign_extend_16_rr,(W4 d, R2 s))
+{
+	MOVSWLrr(s, d);
+}
+LENDFUNC(NONE,NONE,2,raw_sign_extend_16_rr,(W4 d, R2 s))
+
+LOWFUNC(NONE,NONE,2,raw_sign_extend_8_rr,(W4 d, R1 s))
+{
+	MOVSBLrr(s, d);
+}
+LENDFUNC(NONE,NONE,2,raw_sign_extend_8_rr,(W4 d, R1 s))
+
+LOWFUNC(NONE,NONE,2,raw_zero_extend_16_rr,(W4 d, R2 s))
+{
+	MOVZWLrr(s, d);
+}
+LENDFUNC(NONE,NONE,2,raw_zero_extend_16_rr,(W4 d, R2 s))
+
+LOWFUNC(NONE,NONE,2,raw_zero_extend_8_rr,(W4 d, R1 s))
+{
+	MOVZBLrr(s, d);
+}
+LENDFUNC(NONE,NONE,2,raw_zero_extend_8_rr,(W4 d, R1 s))
+
+LOWFUNC(NONE,NONE,2,raw_imul_32_32,(RW4 d, R4 s))
+{
+	IMULLrr(s, d);
+}
+LENDFUNC(NONE,NONE,2,raw_imul_32_32,(RW4 d, R4 s))
+
+LOWFUNC(NONE,NONE,2,raw_imul_64_32,(RW4 d, RW4 s))
+{
+	if (d!=MUL_NREG1 || s!=MUL_NREG2) {
+	write_log("Bad register in IMUL: d=%d, s=%d\n",d,s);
+	abort();
+	}
+	IMULLr(s);
+}
+LENDFUNC(NONE,NONE,2,raw_imul_64_32,(RW4 d, RW4 s))
+
+LOWFUNC(NONE,NONE,2,raw_mul_64_32,(RW4 d, RW4 s))
+{
+	if (d!=MUL_NREG1 || s!=MUL_NREG2) {
+	write_log("Bad register in MUL: d=%d, s=%d\n",d,s);
+	abort();
+	}
+	MULLr(s);
+}
+LENDFUNC(NONE,NONE,2,raw_mul_64_32,(RW4 d, RW4 s))
+
+LOWFUNC(NONE,NONE,2,raw_mul_32_32,(RW4, R4))
+{
+	abort(); /* %^$&%^$%#^ x86! */
+}
+LENDFUNC(NONE,NONE,2,raw_mul_32_32,(RW4 d, R4 s))
+
+LOWFUNC(NONE,NONE,2,raw_mov_b_rr,(W1 d, R1 s))
+{
+	MOVBrr(s, d);
+}
+LENDFUNC(NONE,NONE,2,raw_mov_b_rr,(W1 d, R1 s))
+
+LOWFUNC(NONE,NONE,2,raw_mov_w_rr,(W2 d, R2 s))
+{
+	MOVWrr(s, d);
+}
+LENDFUNC(NONE,NONE,2,raw_mov_w_rr,(W2 d, R2 s))
+
+LOWFUNC(NONE,READ,4,raw_mov_l_rrm_indexed,(W4 d,R4 baser, R4 index, IMM factor))
+{
+	ADDR32 MOVLmr(0, baser, index, factor, d);
+}
+LENDFUNC(NONE,READ,4,raw_mov_l_rrm_indexed,(W4 d,R4 baser, R4 index, IMM factor))
+
+LOWFUNC(NONE,READ,4,raw_mov_w_rrm_indexed,(W2 d, R4 baser, R4 index, IMM factor))
+{
+	ADDR32 MOVWmr(0, baser, index, factor, d);
+}
+LENDFUNC(NONE,READ,4,raw_mov_w_rrm_indexed,(W2 d, R4 baser, R4 index, IMM factor))
+
+LOWFUNC(NONE,READ,4,raw_mov_b_rrm_indexed,(W1 d, R4 baser, R4 index, IMM factor))
+{
+	ADDR32 MOVBmr(0, baser, index, factor, d);
+}
+LENDFUNC(NONE,READ,4,raw_mov_b_rrm_indexed,(W1 d, R4 baser, R4 index, IMM factor))
+
+LOWFUNC(NONE,WRITE,4,raw_mov_l_mrr_indexed,(R4 baser, R4 index, IMM factor, R4 s))
+{
+	ADDR32 MOVLrm(s, 0, baser, index, factor);
+}
+LENDFUNC(NONE,WRITE,4,raw_mov_l_mrr_indexed,(R4 baser, R4 index, IMM factor, R4 s))
+
+LOWFUNC(NONE,WRITE,4,raw_mov_w_mrr_indexed,(R4 baser, R4 index, IMM factor, R2 s))
+{
+	ADDR32 MOVWrm(s, 0, baser, index, factor);
+}
+LENDFUNC(NONE,WRITE,4,raw_mov_w_mrr_indexed,(R4 baser, R4 index, IMM factor, R2 s))
+
+LOWFUNC(NONE,WRITE,4,raw_mov_b_mrr_indexed,(R4 baser, R4 index, IMM factor, R1 s))
+{
+	ADDR32 MOVBrm(s, 0, baser, index, factor);
+}
+LENDFUNC(NONE,WRITE,4,raw_mov_b_mrr_indexed,(R4 baser, R4 index, IMM factor, R1 s))
+
+LOWFUNC(NONE,WRITE,5,raw_mov_l_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R4 s))
+{
+	ADDR32 MOVLrm(s, base, baser, index, factor);
+}
+LENDFUNC(NONE,WRITE,5,raw_mov_l_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R4 s))
+
+LOWFUNC(NONE,WRITE,5,raw_mov_w_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R2 s))
+{
+	ADDR32 MOVWrm(s, base, baser, index, factor);
+}
+LENDFUNC(NONE,WRITE,5,raw_mov_w_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R2 s))
+
+LOWFUNC(NONE,WRITE,5,raw_mov_b_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R1 s))
+{
+	ADDR32 MOVBrm(s, base, baser, index, factor);
+}
+LENDFUNC(NONE,WRITE,5,raw_mov_b_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R1 s))
+
+LOWFUNC(NONE,READ,5,raw_mov_l_brrm_indexed,(W4 d, IMM base, R4 baser, R4 index, IMM factor))
+{
+	ADDR32 MOVLmr(base, baser, index, factor, d);
+}
+LENDFUNC(NONE,READ,5,raw_mov_l_brrm_indexed,(W4 d, IMM base, R4 baser, R4 index, IMM factor))
+
+LOWFUNC(NONE,READ,5,raw_mov_w_brrm_indexed,(W2 d, IMM base, R4 baser, R4 index, IMM factor))
+{
+	ADDR32 MOVWmr(base, baser, index, factor, d);
+}
+LENDFUNC(NONE,READ,5,raw_mov_w_brrm_indexed,(W2 d, IMM base, R4 baser, R4 index, IMM factor))
+
+LOWFUNC(NONE,READ,5,raw_mov_b_brrm_indexed,(W1 d, IMM base, R4 baser, R4 index, IMM factor))
+{
+	ADDR32 MOVBmr(base, baser, index, factor, d);
+}
+LENDFUNC(NONE,READ,5,raw_mov_b_brrm_indexed,(W1 d, IMM base, R4 baser, R4 index, IMM factor))
+
+LOWFUNC(NONE,READ,4,raw_mov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor))
+{
+	ADDR32 MOVLmr(base, X86_NOREG, index, factor, d);
+}
+LENDFUNC(NONE,READ,4,raw_mov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor))
+
+LOWFUNC(NONE,READ,5,raw_cmov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor, IMM cond))
+{
+	if (have_cmov)
+		ADDR32 CMOVLmr(cond, base, X86_NOREG, index, factor, d);
+	else { /* replacement using branch and mov */
+		int8 *target_p = (int8 *)x86_get_target() + 1;
+		JCCSii(cond^1, 0);
+		ADDR32 MOVLmr(base, X86_NOREG, index, factor, d);
+		*target_p = (uintptr)x86_get_target() - ((uintptr)target_p + 1);
+	}
+}
+LENDFUNC(NONE,READ,5,raw_cmov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor, IMM cond))
+
+LOWFUNC(NONE,READ,3,raw_cmov_l_rm,(W4 d, IMM mem, IMM cond))
+{
+	if (have_cmov)
+		CMOVLmr(cond, mem, X86_NOREG, X86_NOREG, 1, d);
+	else { /* replacement using branch and mov */
+		int8 *target_p = (int8 *)x86_get_target() + 1;
+		JCCSii(cond^1, 0);
+		MOVLmr(mem, X86_NOREG, X86_NOREG, 1, d);
+		*target_p = (uintptr)x86_get_target() - ((uintptr)target_p + 1);
+	}
+}
+LENDFUNC(NONE,READ,3,raw_cmov_l_rm,(W4 d, IMM mem, IMM cond))
+
+LOWFUNC(NONE,READ,3,raw_mov_l_rR,(W4 d, R4 s, IMM offset))
+{
+	ADDR32 MOVLmr(offset, s, X86_NOREG, 1, d);
+}
+LENDFUNC(NONE,READ,3,raw_mov_l_rR,(W4 d, R4 s, IMM offset))
+
+LOWFUNC(NONE,READ,3,raw_mov_w_rR,(W2 d, R4 s, IMM offset))
+{
+	ADDR32 MOVWmr(offset, s, X86_NOREG, 1, d);
+}
+LENDFUNC(NONE,READ,3,raw_mov_w_rR,(W2 d, R4 s, IMM offset))
+
+LOWFUNC(NONE,READ,3,raw_mov_b_rR,(W1 d, R4 s, IMM offset))
+{
+	ADDR32 MOVBmr(offset, s, X86_NOREG, 1, d);
+}
+LENDFUNC(NONE,READ,3,raw_mov_b_rR,(W1 d, R4 s, IMM offset))
+
+LOWFUNC(NONE,READ,3,raw_mov_l_brR,(W4 d, R4 s, IMM offset))
+{
+	ADDR32 MOVLmr(offset, s, X86_NOREG, 1, d);
+}
+LENDFUNC(NONE,READ,3,raw_mov_l_brR,(W4 d, R4 s, IMM offset))
+
+LOWFUNC(NONE,READ,3,raw_mov_w_brR,(W2 d, R4 s, IMM offset))
+{
+	ADDR32 MOVWmr(offset, s, X86_NOREG, 1, d);
+}
+LENDFUNC(NONE,READ,3,raw_mov_w_brR,(W2 d, R4 s, IMM offset))
+
+LOWFUNC(NONE,READ,3,raw_mov_b_brR,(W1 d, R4 s, IMM offset))
+{
+	ADDR32 MOVBmr(offset, s, X86_NOREG, 1, d);
+}
+LENDFUNC(NONE,READ,3,raw_mov_b_brR,(W1 d, R4 s, IMM offset))
+
+LOWFUNC(NONE,WRITE,3,raw_mov_l_Ri,(R4 d, IMM i, IMM offset))
+{
+	ADDR32 MOVLim(i, offset, d, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,3,raw_mov_l_Ri,(R4 d, IMM i, IMM offset))
+
+LOWFUNC(NONE,WRITE,3,raw_mov_w_Ri,(R4 d, IMM i, IMM offset))
+{
+	ADDR32 MOVWim(i, offset, d, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,3,raw_mov_w_Ri,(R4 d, IMM i, IMM offset))
+
+LOWFUNC(NONE,WRITE,3,raw_mov_b_Ri,(R4 d, IMM i, IMM offset))
+{
+	ADDR32 MOVBim(i, offset, d, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,3,raw_mov_b_Ri,(R4 d, IMM i, IMM offset))
+
+LOWFUNC(NONE,WRITE,3,raw_mov_l_Rr,(R4 d, R4 s, IMM offset))
+{
+	ADDR32 MOVLrm(s, offset, d, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,3,raw_mov_l_Rr,(R4 d, R4 s, IMM offset))
+
+LOWFUNC(NONE,WRITE,3,raw_mov_w_Rr,(R4 d, R2 s, IMM offset))
+{
+	ADDR32 MOVWrm(s, offset, d, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,3,raw_mov_w_Rr,(R4 d, R2 s, IMM offset))
+
+LOWFUNC(NONE,WRITE,3,raw_mov_b_Rr,(R4 d, R1 s, IMM offset))
+{
+	ADDR32 MOVBrm(s, offset, d, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,3,raw_mov_b_Rr,(R4 d, R1 s, IMM offset))
+
+LOWFUNC(NONE,NONE,3,raw_lea_l_brr,(W4 d, R4 s, IMM offset))
+{
+	LEALmr(offset, s, X86_NOREG, 1, d);
+}
+LENDFUNC(NONE,NONE,3,raw_lea_l_brr,(W4 d, R4 s, IMM offset))
+
+LOWFUNC(NONE,NONE,5,raw_lea_l_brr_indexed,(W4 d, R4 s, R4 index, IMM factor, IMM offset))
+{
+	LEALmr(offset, s, index, factor, d);
+}
+LENDFUNC(NONE,NONE,5,raw_lea_l_brr_indexed,(W4 d, R4 s, R4 index, IMM factor, IMM offset))
+
+LOWFUNC(NONE,NONE,4,raw_lea_l_rr_indexed,(W4 d, R4 s, R4 index, IMM factor))
+{
+	LEALmr(0, s, index, factor, d);
+}
+LENDFUNC(NONE,NONE,4,raw_lea_l_rr_indexed,(W4 d, R4 s, R4 index, IMM factor))
+
+LOWFUNC(NONE,NONE,4,raw_lea_l_r_scaled,(W4 d, R4 index, IMM factor))
+{
+	LEALmr(0, X86_NOREG, index, factor, d);
+}
+LENDFUNC(NONE,NONE,4,raw_lea_l_r_scaled,(W4 d, R4 index, IMM factor))
+
+LOWFUNC(NONE,WRITE,3,raw_mov_l_bRr,(R4 d, R4 s, IMM offset))
+{
+	ADDR32 MOVLrm(s, offset, d, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,3,raw_mov_l_bRr,(R4 d, R4 s, IMM offset))
+
+LOWFUNC(NONE,WRITE,3,raw_mov_w_bRr,(R4 d, R2 s, IMM offset))
+{
+	ADDR32 MOVWrm(s, offset, d, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,3,raw_mov_w_bRr,(R4 d, R2 s, IMM offset))
+
+LOWFUNC(NONE,WRITE,3,raw_mov_b_bRr,(R4 d, R1 s, IMM offset))
+{
+	ADDR32 MOVBrm(s, offset, d, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,3,raw_mov_b_bRr,(R4 d, R1 s, IMM offset))
+
+LOWFUNC(NONE,NONE,1,raw_bswap_32,(RW4 r))
+{
+	BSWAPLr(r);
+}
+LENDFUNC(NONE,NONE,1,raw_bswap_32,(RW4 r))
+
+LOWFUNC(WRITE,NONE,1,raw_bswap_16,(RW2 r))
+{
+	ROLWir(8, r);
+}
+LENDFUNC(WRITE,NONE,1,raw_bswap_16,(RW2 r))
+
+LOWFUNC(NONE,NONE,2,raw_mov_l_rr,(W4 d, R4 s))
+{
+	MOVLrr(s, d);
+}
+LENDFUNC(NONE,NONE,2,raw_mov_l_rr,(W4 d, R4 s))
+
+LOWFUNC(NONE,WRITE,2,raw_mov_l_mr,(IMM d, R4 s))
+{
+	MOVLrm(s, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,2,raw_mov_l_mr,(IMM d, R4 s))
+
+LOWFUNC(NONE,WRITE,2,raw_mov_w_mr,(IMM d, R2 s))
+{
+	MOVWrm(s, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,2,raw_mov_w_mr,(IMM d, R2 s))
+
+LOWFUNC(NONE,READ,2,raw_mov_w_rm,(W2 d, IMM s))
+{
+	MOVWmr(s, X86_NOREG, X86_NOREG, 1, d);
+}
+LENDFUNC(NONE,READ,2,raw_mov_w_rm,(W2 d, IMM s))
+
+LOWFUNC(NONE,WRITE,2,raw_mov_b_mr,(IMM d, R1 s))
+{
+	MOVBrm(s, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(NONE,WRITE,2,raw_mov_b_mr,(IMM d, R1 s))
+
+LOWFUNC(NONE,READ,2,raw_mov_b_rm,(W1 d, IMM s))
+{
+	MOVBmr(s, X86_NOREG, X86_NOREG, 1, d);
+}
+LENDFUNC(NONE,READ,2,raw_mov_b_rm,(W1 d, IMM s))
+
+LOWFUNC(NONE,NONE,2,raw_mov_l_ri,(W4 d, IMM s))
+{
+	MOVLir(s, d);
+}
+LENDFUNC(NONE,NONE,2,raw_mov_l_ri,(W4 d, IMM s))
+
+LOWFUNC(NONE,NONE,2,raw_mov_w_ri,(W2 d, IMM s))
+{
+	MOVWir(s, d);
+}
+LENDFUNC(NONE,NONE,2,raw_mov_w_ri,(W2 d, IMM s))
+
+LOWFUNC(NONE,NONE,2,raw_mov_b_ri,(W1 d, IMM s))
+{
+	MOVBir(s, d);
+}
+LENDFUNC(NONE,NONE,2,raw_mov_b_ri,(W1 d, IMM s))
+
+LOWFUNC(RMW,RMW,2,raw_adc_l_mi,(MEMRW d, IMM s))
+{
+	ADCLim(s, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(RMW,RMW,2,raw_adc_l_mi,(MEMRW d, IMM s))
+
+LOWFUNC(WRITE,RMW,2,raw_add_l_mi,(IMM d, IMM s)) 
+{
+	ADDLim(s, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(WRITE,RMW,2,raw_add_l_mi,(IMM d, IMM s)) 
+
+LOWFUNC(WRITE,RMW,2,raw_add_w_mi,(IMM d, IMM s)) 
+{
+	ADDWim(s, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(WRITE,RMW,2,raw_add_w_mi,(IMM d, IMM s)) 
+
+LOWFUNC(WRITE,RMW,2,raw_add_b_mi,(IMM d, IMM s)) 
+{
+	ADDBim(s, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(WRITE,RMW,2,raw_add_b_mi,(IMM d, IMM s)) 
+
+LOWFUNC(WRITE,NONE,2,raw_test_l_ri,(R4 d, IMM i))
+{
+	TESTLir(i, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_test_l_ri,(R4 d, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_test_l_rr,(R4 d, R4 s))
+{
+	TESTLrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_test_l_rr,(R4 d, R4 s))
+
+LOWFUNC(WRITE,NONE,2,raw_test_w_rr,(R2 d, R2 s))
+{
+	TESTWrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_test_w_rr,(R2 d, R2 s))
+
+LOWFUNC(WRITE,NONE,2,raw_test_b_rr,(R1 d, R1 s))
+{
+	TESTBrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_test_b_rr,(R1 d, R1 s))
+
+LOWFUNC(WRITE,NONE,2,raw_xor_l_ri,(RW4 d, IMM i))
+{
+	XORLir(i, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_xor_l_ri,(RW4 d, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_and_l_ri,(RW4 d, IMM i))
+{
+	ANDLir(i, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_and_l_ri,(RW4 d, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_and_w_ri,(RW2 d, IMM i))
+{
+	ANDWir(i, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_and_w_ri,(RW2 d, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_and_l,(RW4 d, R4 s))
+{
+	ANDLrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_and_l,(RW4 d, R4 s))
+
+LOWFUNC(WRITE,NONE,2,raw_and_w,(RW2 d, R2 s))
+{
+	ANDWrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_and_w,(RW2 d, R2 s))
+
+LOWFUNC(WRITE,NONE,2,raw_and_b,(RW1 d, R1 s))
+{
+	ANDBrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_and_b,(RW1 d, R1 s))
+
+LOWFUNC(WRITE,NONE,2,raw_or_l_ri,(RW4 d, IMM i))
+{
+	ORLir(i, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_or_l_ri,(RW4 d, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_or_l,(RW4 d, R4 s))
+{
+	ORLrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_or_l,(RW4 d, R4 s))
+
+LOWFUNC(WRITE,NONE,2,raw_or_w,(RW2 d, R2 s))
+{
+	ORWrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_or_w,(RW2 d, R2 s))
+
+LOWFUNC(WRITE,NONE,2,raw_or_b,(RW1 d, R1 s))
+{
+	ORBrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_or_b,(RW1 d, R1 s))
+
+LOWFUNC(RMW,NONE,2,raw_adc_l,(RW4 d, R4 s))
+{
+	ADCLrr(s, d);
+}
+LENDFUNC(RMW,NONE,2,raw_adc_l,(RW4 d, R4 s))
+
+LOWFUNC(RMW,NONE,2,raw_adc_w,(RW2 d, R2 s))
+{
+	ADCWrr(s, d);
+}
+LENDFUNC(RMW,NONE,2,raw_adc_w,(RW2 d, R2 s))
+
+LOWFUNC(RMW,NONE,2,raw_adc_b,(RW1 d, R1 s))
+{
+	ADCBrr(s, d);
+}
+LENDFUNC(RMW,NONE,2,raw_adc_b,(RW1 d, R1 s))
+
+LOWFUNC(WRITE,NONE,2,raw_add_l,(RW4 d, R4 s))
+{
+	ADDLrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_add_l,(RW4 d, R4 s))
+
+LOWFUNC(WRITE,NONE,2,raw_add_w,(RW2 d, R2 s))
+{
+	ADDWrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_add_w,(RW2 d, R2 s))
+
+LOWFUNC(WRITE,NONE,2,raw_add_b,(RW1 d, R1 s))
+{
+	ADDBrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_add_b,(RW1 d, R1 s))
+
+LOWFUNC(WRITE,NONE,2,raw_sub_l_ri,(RW4 d, IMM i))
+{
+	SUBLir(i, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_sub_l_ri,(RW4 d, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_sub_b_ri,(RW1 d, IMM i))
+{
+	SUBBir(i, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_sub_b_ri,(RW1 d, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_add_l_ri,(RW4 d, IMM i))
+{
+	ADDLir(i, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_add_l_ri,(RW4 d, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_add_w_ri,(RW2 d, IMM i))
+{
+	ADDWir(i, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_add_w_ri,(RW2 d, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_add_b_ri,(RW1 d, IMM i))
+{
+	ADDBir(i, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_add_b_ri,(RW1 d, IMM i))
+
+LOWFUNC(RMW,NONE,2,raw_sbb_l,(RW4 d, R4 s))
+{
+	SBBLrr(s, d);
+}
+LENDFUNC(RMW,NONE,2,raw_sbb_l,(RW4 d, R4 s))
+
+LOWFUNC(RMW,NONE,2,raw_sbb_w,(RW2 d, R2 s))
+{
+	SBBWrr(s, d);
+}
+LENDFUNC(RMW,NONE,2,raw_sbb_w,(RW2 d, R2 s))
+
+LOWFUNC(RMW,NONE,2,raw_sbb_b,(RW1 d, R1 s))
+{
+	SBBBrr(s, d);
+}
+LENDFUNC(RMW,NONE,2,raw_sbb_b,(RW1 d, R1 s))
+
+LOWFUNC(WRITE,NONE,2,raw_sub_l,(RW4 d, R4 s))
+{
+	SUBLrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_sub_l,(RW4 d, R4 s))
+
+LOWFUNC(WRITE,NONE,2,raw_sub_w,(RW2 d, R2 s))
+{
+	SUBWrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_sub_w,(RW2 d, R2 s))
+
+LOWFUNC(WRITE,NONE,2,raw_sub_b,(RW1 d, R1 s))
+{
+	SUBBrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_sub_b,(RW1 d, R1 s))
+
+LOWFUNC(WRITE,NONE,2,raw_cmp_l,(R4 d, R4 s))
+{
+	CMPLrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_cmp_l,(R4 d, R4 s))
+
+LOWFUNC(WRITE,NONE,2,raw_cmp_l_ri,(R4 r, IMM i))
+{
+	CMPLir(i, r);
+}
+LENDFUNC(WRITE,NONE,2,raw_cmp_l_ri,(R4 r, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_cmp_w,(R2 d, R2 s))
+{
+	CMPWrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_cmp_w,(R2 d, R2 s))
+
+LOWFUNC(WRITE,READ,2,raw_cmp_b_mi,(MEMR d, IMM s))
+{
+	CMPBim(s, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(WRITE,READ,2,raw_cmp_b_mi,(MEMR d, IMM s))
+
+LOWFUNC(WRITE,NONE,2,raw_cmp_b_ri,(R1 d, IMM i))
+{
+	CMPBir(i, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_cmp_b_ri,(R1 d, IMM i))
+
+LOWFUNC(WRITE,NONE,2,raw_cmp_b,(R1 d, R1 s))
+{
+	CMPBrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_cmp_b,(R1 d, R1 s))
+
+LOWFUNC(WRITE,READ,4,raw_cmp_l_rm_indexed,(R4 d, IMM offset, R4 index, IMM factor))
+{
+	ADDR32 CMPLmr(offset, X86_NOREG, index, factor, d);
+}
+LENDFUNC(WRITE,READ,4,raw_cmp_l_rm_indexed,(R4 d, IMM offset, R4 index, IMM factor))
+
+LOWFUNC(WRITE,NONE,2,raw_xor_l,(RW4 d, R4 s))
+{
+	XORLrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_xor_l,(RW4 d, R4 s))
+
+LOWFUNC(WRITE,NONE,2,raw_xor_w,(RW2 d, R2 s))
+{
+	XORWrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_xor_w,(RW2 d, R2 s))
+
+LOWFUNC(WRITE,NONE,2,raw_xor_b,(RW1 d, R1 s))
+{
+	XORBrr(s, d);
+}
+LENDFUNC(WRITE,NONE,2,raw_xor_b,(RW1 d, R1 s))
+
+LOWFUNC(WRITE,RMW,2,raw_sub_l_mi,(MEMRW d, IMM s))
+{
+	SUBLim(s, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(WRITE,RMW,2,raw_sub_l_mi,(MEMRW d, IMM s))
+
+LOWFUNC(WRITE,READ,2,raw_cmp_l_mi,(MEMR d, IMM s))
+{
+	CMPLim(s, d, X86_NOREG, X86_NOREG, 1);
+}
+LENDFUNC(WRITE,READ,2,raw_cmp_l_mi,(MEMR d, IMM s))
+
+LOWFUNC(NONE,NONE,2,raw_xchg_l_rr,(RW4 r1, RW4 r2))
+{
+	XCHGLrr(r2, r1);
+}
+LENDFUNC(NONE,NONE,2,raw_xchg_l_rr,(RW4 r1, RW4 r2))
+
+LOWFUNC(NONE,NONE,2,raw_xchg_b_rr,(RW4 r1, RW4 r2))
+{
+	XCHGBrr(r2, r1);
+}
+LENDFUNC(NONE,NONE,2,raw_xchg_b_rr,(RW4 r1, RW4 r2))
+
+LOWFUNC(READ,WRITE,0,raw_pushfl,(void))
+{
+	PUSHF();
+}
+LENDFUNC(READ,WRITE,0,raw_pushfl,(void))
+
+LOWFUNC(WRITE,READ,0,raw_popfl,(void))
+{
+	POPF();
+}
+LENDFUNC(WRITE,READ,0,raw_popfl,(void))
+
+/* Generate floating-point instructions */
+static inline void x86_fadd_m(MEMR s)
+{
+	FADDLm(s,X86_NOREG,X86_NOREG,1);
+}
+
+#else
+
+const bool optimize_accum	= false;
+const bool optimize_imm8	= false;
+const bool optimize_shift_once	= false;
+
 /*************************************************************************
 * Actual encoding of the instructions on the target CPU                 *
 *************************************************************************/
 
-static inline uae_u16 swap16(uae_u16 x)
+static inline int isaccum(int r)
 {
-	return ((x&0xff00)>>8)|((x&0x00ff)<<8);
-}
-
-static inline uae_u32 swap32(uae_u32 x)
-{
-	return ((x&0xff00)<<8)|((x&0x00ff)<<24)|((x&0xff0000)>>8)|((x&0xff000000)>>24);
+	return (r == EAX_INDEX);
 }
 
 static inline int isbyte(uae_s32 x)
@@ -233,8 +1315,12 @@ LOWFUNC(WRITE,NONE,2,raw_sub_w_ri,(RW2 d, IMM i))
 		emit_byte(i);
 	}
 	else {
-		emit_byte(0x81);
-		emit_byte(0xe8+d);
+		if (optimize_accum && isaccum(d))
+			emit_byte(0x2d);
+		else {
+			emit_byte(0x81);
+			emit_byte(0xe8+d);
+		}
 		emit_word(i);
 	}
 }
@@ -271,18 +1357,31 @@ LENDFUNC(NONE,WRITE,2,raw_mov_b_mi,(MEMW d, IMM s))
 
 LOWFUNC(WRITE,RMW,2,raw_rol_b_mi,(MEMRW d, IMM i))
 {
-	emit_byte(0xc0);
-	emit_byte(0x05);
-	emit_long(d);
-	emit_byte(i);
+	if (optimize_shift_once && (i == 1)) {
+		emit_byte(0xd0);
+		emit_byte(0x05);
+		emit_long(d);
+	}
+	else {
+		emit_byte(0xc0);
+		emit_byte(0x05);
+		emit_long(d);
+		emit_byte(i);
+	}
 }
 LENDFUNC(WRITE,RMW,2,raw_rol_b_mi,(MEMRW d, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_rol_b_ri,(RW1 r, IMM i))
 {
-	emit_byte(0xc0);
-	emit_byte(0xc0+r);
-	emit_byte(i);
+	if (optimize_shift_once && (i == 1)) {
+		emit_byte(0xd0);
+		emit_byte(0xc0+r);
+	}
+	else {
+		emit_byte(0xc0);
+		emit_byte(0xc0+r);
+		emit_byte(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_rol_b_ri,(RW1 r, IMM i))
 
@@ -297,9 +1396,15 @@ LENDFUNC(WRITE,NONE,2,raw_rol_w_ri,(RW2 r, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_rol_l_ri,(RW4 r, IMM i))
 {
-	emit_byte(0xc1);
-	emit_byte(0xc0+r);
-	emit_byte(i);
+	if (optimize_shift_once && (i == 1)) {
+		emit_byte(0xd1);
+		emit_byte(0xc0+r);
+	}
+	else {
+		emit_byte(0xc1);
+		emit_byte(0xc0+r);
+		emit_byte(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_rol_l_ri,(RW4 r, IMM i))
 
@@ -349,9 +1454,15 @@ LENDFUNC(WRITE,NONE,2,raw_shll_b_rr,(RW1 d, R1 r))
 
 LOWFUNC(WRITE,NONE,2,raw_ror_b_ri,(RW1 r, IMM i))
 {
-	emit_byte(0xc0);
-	emit_byte(0xc8+r);
-	emit_byte(i);
+	if (optimize_shift_once && (i == 1)) {
+		emit_byte(0xd0);
+		emit_byte(0xc8+r);
+	}
+	else {
+		emit_byte(0xc0);
+		emit_byte(0xc8+r);
+		emit_byte(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_ror_b_ri,(RW1 r, IMM i))
 
@@ -366,9 +1477,15 @@ LENDFUNC(WRITE,NONE,2,raw_ror_w_ri,(RW2 r, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_ror_l_ri,(RW4 r, IMM i))
 {
-	emit_byte(0xc1);
-	emit_byte(0xc8+r);
-	emit_byte(i);
+	if (optimize_shift_once && (i == 1)) {
+		emit_byte(0xd1);
+		emit_byte(0xc8+r);
+	}
+	else {
+		emit_byte(0xc1);
+		emit_byte(0xc8+r);
+		emit_byte(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_ror_l_ri,(RW4 r, IMM i))
 
@@ -440,9 +1557,15 @@ LENDFUNC(WRITE,NONE,2,raw_shra_b_rr,(RW1 d, R1 r))
 
 LOWFUNC(WRITE,NONE,2,raw_shll_l_ri,(RW4 r, IMM i))
 {
-	emit_byte(0xc1);
-	emit_byte(0xe0+r);
-	emit_byte(i);
+	if (optimize_shift_once && (i == 1)) {
+		emit_byte(0xd1);
+		emit_byte(0xe0+r);
+	}
+	else {
+		emit_byte(0xc1);
+		emit_byte(0xe0+r);
+		emit_byte(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_shll_l_ri,(RW4 r, IMM i))
 
@@ -457,17 +1580,29 @@ LENDFUNC(WRITE,NONE,2,raw_shll_w_ri,(RW2 r, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_shll_b_ri,(RW1 r, IMM i))
 {
-	emit_byte(0xc0);
-	emit_byte(0xe0+r);
-	emit_byte(i);
+	if (optimize_shift_once && (i == 1)) {
+		emit_byte(0xd0);
+		emit_byte(0xe0+r);
+	}
+	else {
+		emit_byte(0xc0);
+		emit_byte(0xe0+r);
+		emit_byte(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_shll_b_ri,(RW1 r, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_shrl_l_ri,(RW4 r, IMM i))
 {
-	emit_byte(0xc1);
-	emit_byte(0xe8+r);
-	emit_byte(i);
+	if (optimize_shift_once && (i == 1)) {
+		emit_byte(0xd1);
+		emit_byte(0xe8+r);
+	}
+	else {
+		emit_byte(0xc1);
+		emit_byte(0xe8+r);
+		emit_byte(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_shrl_l_ri,(RW4 r, IMM i))
 
@@ -482,17 +1617,29 @@ LENDFUNC(WRITE,NONE,2,raw_shrl_w_ri,(RW2 r, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_shrl_b_ri,(RW1 r, IMM i))
 {
-	emit_byte(0xc0);
-	emit_byte(0xe8+r);
-	emit_byte(i);
+	if (optimize_shift_once && (i == 1)) {
+		emit_byte(0xd0);
+		emit_byte(0xe8+r);
+	}
+	else {
+		emit_byte(0xc0);
+		emit_byte(0xe8+r);
+		emit_byte(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_shrl_b_ri,(RW1 r, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_shra_l_ri,(RW4 r, IMM i))
 {
-	emit_byte(0xc1);
-	emit_byte(0xf8+r);
-	emit_byte(i);
+	if (optimize_shift_once && (i == 1)) {
+		emit_byte(0xd1);
+		emit_byte(0xf8+r);
+	}
+	else {
+		emit_byte(0xc1);
+		emit_byte(0xf8+r);
+		emit_byte(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_shra_l_ri,(RW4 r, IMM i))
 
@@ -507,9 +1654,15 @@ LENDFUNC(WRITE,NONE,2,raw_shra_w_ri,(RW2 r, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_shra_b_ri,(RW1 r, IMM i))
 {
-	emit_byte(0xc0);
-	emit_byte(0xf8+r);
-	emit_byte(i);
+	if (optimize_shift_once && (i == 1)) {
+		emit_byte(0xd0);
+		emit_byte(0xf8+r);
+	}
+	else {
+		emit_byte(0xc0);
+		emit_byte(0xf8+r);
+		emit_byte(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_shra_b_ri,(RW1 r, IMM i))
 
@@ -922,9 +2075,16 @@ LENDFUNC(NONE,WRITE,3,raw_mov_b_Rr,(R4 d, R1 s, IMM offset))
 
 LOWFUNC(NONE,NONE,3,raw_lea_l_brr,(W4 d, R4 s, IMM offset))
 {
-	emit_byte(0x8d);
-	emit_byte(0x80+8*d+s);
-	emit_long(offset);
+	if (optimize_imm8 && isbyte(offset)) {
+		emit_byte(0x8d);
+		emit_byte(0x40+8*d+s);
+		emit_byte(offset);
+	}
+	else {
+		emit_byte(0x8d);
+		emit_byte(0x80+8*d+s);
+		emit_long(offset);
+	}
 }
 LENDFUNC(NONE,NONE,3,raw_lea_l_brr,(W4 d, R4 s, IMM offset))
 
@@ -964,9 +2124,16 @@ LENDFUNC(NONE,NONE,3,raw_lea_l_rr_indexed,(W4 d, R4 s, R4 index))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_l_bRr,(R4 d, R4 s, IMM offset))
 {
-	emit_byte(0x89);
-	emit_byte(0x80+8*s+d);
-	emit_long(offset);
+	if (optimize_imm8 && isbyte(offset)) {
+		emit_byte(0x89);
+		emit_byte(0x40+8*s+d);
+		emit_byte(offset);
+	}
+	else {
+		emit_byte(0x89);
+		emit_byte(0x80+8*s+d);
+		emit_long(offset);
+	}
 }
 LENDFUNC(NONE,WRITE,3,raw_mov_l_bRr,(R4 d, R4 s, IMM offset))
 
@@ -981,9 +2148,16 @@ LENDFUNC(NONE,WRITE,3,raw_mov_w_bRr,(R4 d, R2 s, IMM offset))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_b_bRr,(R4 d, R1 s, IMM offset))
 {
-	emit_byte(0x88);
-	emit_byte(0x80+8*s+d);
-	emit_long(offset);
+	if (optimize_imm8 && isbyte(offset)) {
+		emit_byte(0x88);
+		emit_byte(0x40+8*s+d);
+		emit_byte(offset);
+	}
+	else {
+		emit_byte(0x88);
+		emit_byte(0x80+8*s+d);
+		emit_long(offset);
+	}
 }
 LENDFUNC(NONE,WRITE,3,raw_mov_b_bRr,(R4 d, R1 s, IMM offset))
 
@@ -1093,10 +2267,18 @@ LENDFUNC(RMW,RMW,2,raw_adc_l_mi,(MEMRW d, IMM s))
 
 LOWFUNC(WRITE,RMW,2,raw_add_l_mi,(IMM d, IMM s))
 {
-	emit_byte(0x81);
-	emit_byte(0x05);
-	emit_long(d);
-	emit_long(s);
+	if (optimize_imm8 && isbyte(s)) {
+		emit_byte(0x83);
+		emit_byte(0x05);
+		emit_long(d);
+		emit_byte(s);
+	}
+	else {
+		emit_byte(0x81);
+		emit_byte(0x05);
+		emit_long(d);
+		emit_long(s);
+	}
 }
 LENDFUNC(WRITE,RMW,2,raw_add_l_mi,(IMM d, IMM s))
 
@@ -1121,8 +2303,12 @@ LENDFUNC(WRITE,RMW,2,raw_add_b_mi,(IMM d, IMM s))
 
 LOWFUNC(WRITE,NONE,2,raw_test_l_ri,(R4 d, IMM i))
 {
-	emit_byte(0xf7);
-	emit_byte(0xc0+d);
+	if (optimize_accum && isaccum(d))
+		emit_byte(0xa9);
+	else {
+		emit_byte(0xf7);
+		emit_byte(0xc0+d);
+	}
 	emit_long(i);
 }
 LENDFUNC(WRITE,NONE,2,raw_test_l_ri,(R4 d, IMM i))
@@ -1270,8 +2456,12 @@ LOWFUNC(WRITE,NONE,2,raw_sub_l_ri,(RW4 d, IMM i))
 		emit_byte(i);
 	}
 	else {
-		emit_byte(0x81);
-		emit_byte(0xe8+d);
+		if (optimize_accum && isaccum(d))
+			emit_byte(0x2d);
+		else {
+			emit_byte(0x81);
+			emit_byte(0xe8+d);
+		}
 		emit_long(i);
 	}
 }
@@ -1279,8 +2469,12 @@ LENDFUNC(WRITE,NONE,2,raw_sub_l_ri,(RW4 d, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_sub_b_ri,(RW1 d, IMM i))
 {
-	emit_byte(0x80);
-	emit_byte(0xe8+d);
+	if (optimize_accum && isaccum(d))
+		emit_byte(0x2c);
+	else {
+		emit_byte(0x80);
+		emit_byte(0xe8+d);
+	}
 	emit_byte(i);
 }
 LENDFUNC(WRITE,NONE,2,raw_sub_b_ri,(RW1 d, IMM i))
@@ -1293,8 +2487,12 @@ LOWFUNC(WRITE,NONE,2,raw_add_l_ri,(RW4 d, IMM i))
 		emit_byte(i);
 	}
 	else {
-		emit_byte(0x81);
-		emit_byte(0xc0+d);
+		if (optimize_accum && isaccum(d))
+			emit_byte(0x05);
+		else {
+			emit_byte(0x81);
+			emit_byte(0xc0+d);
+		}
 		emit_long(i);
 	}
 }
@@ -1302,16 +2500,19 @@ LENDFUNC(WRITE,NONE,2,raw_add_l_ri,(RW4 d, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_add_w_ri,(RW2 d, IMM i))
 {
+	emit_byte(0x66);
 	if (isbyte(i)) {
-		emit_byte(0x66);
 		emit_byte(0x83);
 		emit_byte(0xc0+d);
 		emit_byte(i);
 	}
 	else {
-		emit_byte(0x66);
-		emit_byte(0x81);
-		emit_byte(0xc0+d);
+		if (optimize_accum && isaccum(d))
+			emit_byte(0x05);
+		else {
+			emit_byte(0x81);
+			emit_byte(0xc0+d);
+		}
 		emit_word(i);
 	}
 }
@@ -1319,8 +2520,12 @@ LENDFUNC(WRITE,NONE,2,raw_add_w_ri,(RW2 d, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_add_b_ri,(RW1 d, IMM i))
 {
-	emit_byte(0x80);
-	emit_byte(0xc0+d);
+	if (optimize_accum && isaccum(d))
+		emit_byte(0x04);
+	else {
+		emit_byte(0x80);
+		emit_byte(0xc0+d);
+	}
 	emit_byte(i);
 }
 LENDFUNC(WRITE,NONE,2,raw_add_b_ri,(RW1 d, IMM i))
@@ -1394,8 +2599,12 @@ LENDFUNC(WRITE,NONE,2,raw_cmp_w,(R2 d, R2 s))
 
 LOWFUNC(WRITE,NONE,2,raw_cmp_b_ri,(R1 d, IMM i))
 {
-	emit_byte(0x80);
-	emit_byte(0xf8+d);
+	if (optimize_accum && isaccum(d))
+		emit_byte(0x3c);
+	else {
+		emit_byte(0x80);
+		emit_byte(0xf8+d);
+	}
 	emit_byte(i);
 }
 LENDFUNC(WRITE,NONE,2,raw_cmp_b_ri,(R1 d, IMM i))
@@ -1431,19 +2640,35 @@ LENDFUNC(WRITE,NONE,2,raw_xor_b,(RW1 d, R1 s))
 
 LOWFUNC(WRITE,RMW,2,raw_sub_l_mi,(MEMRW d, IMM s))
 {
-	emit_byte(0x81);
-	emit_byte(0x2d);
-	emit_long(d);
-	emit_long(s);
+	if (optimize_imm8 && isbyte(s)) {
+		emit_byte(0x83);
+		emit_byte(0x2d);
+		emit_long(d);
+		emit_byte(s);
+	}
+	else {
+		emit_byte(0x81);
+		emit_byte(0x2d);
+		emit_long(d);
+		emit_long(s);
+	}
 }
 LENDFUNC(WRITE,RMW,2,raw_sub_l_mi,(MEMRW d, IMM s))
 
 LOWFUNC(WRITE,READ,2,raw_cmp_l_mi,(MEMR d, IMM s))
 {
-	emit_byte(0x81);
-	emit_byte(0x3d);
-	emit_long(d);
-	emit_long(s);
+	if (optimize_imm8 && isbyte(s)) {
+		emit_byte(0x83);
+		emit_byte(0x3d);
+		emit_long(d);
+		emit_byte(s);
+	}
+	else {
+		emit_byte(0x81);
+		emit_byte(0x3d);
+		emit_long(d);
+		emit_long(s);
+	}
 }
 LENDFUNC(WRITE,READ,2,raw_cmp_l_mi,(MEMR d, IMM s))
 
@@ -1466,24 +2691,57 @@ LOWFUNC(WRITE,READ,0,raw_popfl,(void))
 }
 LENDFUNC(WRITE,READ,0,raw_popfl,(void))
 
+#endif
+
 /*************************************************************************
  * Unoptimizable stuff --- jump                                          *
  *************************************************************************/
 
 static inline void raw_call_r(R4 r)
 {
+#if USE_NEW_RTASM
+    CALLsr(r);
+#else
 	emit_byte(0xff);
 	emit_byte(0xd0+r);
+#endif
+}
+
+static inline void raw_call_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
+{
+#if USE_NEW_RTASM
+	CALLsm(base, X86_NOREG, r, m);
+#else
+	int mu;
+	switch(m) {
+		case 1: mu=0; break;
+		case 2: mu=1; break;
+		case 4: mu=2; break;
+		case 8: mu=3; break;
+		default: abort();
+	}
+	emit_byte(0xff);
+	emit_byte(0x14);
+	emit_byte(0x05+8*r+0x40*mu);
+	emit_long(base);
+#endif
 }
 
 static inline void raw_jmp_r(R4 r)
 {
+#if USE_NEW_RTASM
+	JMPsr(r);
+#else
 	emit_byte(0xff);
 	emit_byte(0xe0+r);
+#endif
 }
 
 static inline void raw_jmp_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
 {
+#if USE_NEW_RTASM
+    JMPsm(base, X86_NOREG, r, m);
+#else
 	int sib;
 
 	switch (m) {
@@ -1497,6 +2755,7 @@ static inline void raw_jmp_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
 	emit_byte(0x24);
 	emit_byte(8*r+sib);
 	emit_long(base);
+#endif
 }
 
 static inline void raw_jmp_m(uae_u32 base)
@@ -1506,16 +2765,25 @@ static inline void raw_jmp_m(uae_u32 base)
 	emit_long(base);
 }
 
+
 static inline void raw_call(uae_u32 t)
 {
+#if USE_NEW_RTASM
+	CALLm(t);
+#else
 	emit_byte(0xe8);
 	emit_long(t-(uae_u32)target-4);
+#endif
 }
 
 static inline void raw_jmp(uae_u32 t)
 {
+#if USE_NEW_RTASM
+	JMPm(t);
+#else
 	emit_byte(0xe9);
 	emit_long(t-(uae_u32)target-4);
+#endif
 }
 
 static inline void raw_jl(uae_u32 t)
@@ -1561,6 +2829,11 @@ static inline void raw_jz_b_oponly(void)
 	emit_byte(0x74);
 }
 
+static inline void raw_jcc_b_oponly(int cc)
+{
+	emit_byte(0x70+cc);
+}
+
 static inline void raw_jmp_l_oponly(void)
 {
 	emit_byte(0xe9);
@@ -1579,6 +2852,91 @@ static inline void raw_ret(void)
 static inline void raw_nop(void)
 {
 	emit_byte(0x90);
+}
+
+static inline void raw_emit_nop_filler(int nbytes)
+{
+
+#if defined(CPU_x86_64)
+  /* The recommended way to pad 64bit code is to use NOPs preceded by
+     maximally four 0x66 prefixes.  Balance the size of nops.  */
+  static const uae_u8 prefixes[4] = { 0x66, 0x66, 0x66, 0x66 };
+  if (nbytes == 0)
+	  return;
+
+  int i;
+  int nnops = (nbytes + 3) / 4;
+  int len = nbytes / nnops;
+  int remains = nbytes - nnops * len;
+
+  for (i = 0; i < remains; i++) {
+	  emit_block(prefixes, len);
+	  raw_nop();
+  }
+  for (; i < nnops; i++) {
+	  emit_block(prefixes, len - 1);
+	  raw_nop();
+  }
+#else
+  /* Source: GNU Binutils 2.12.90.0.15 */
+  /* Various efficient no-op patterns for aligning code labels.
+     Note: Don't try to assemble the instructions in the comments.
+     0L and 0w are not legal.  */
+  static const uae_u8 f32_1[] =
+    {0x90};									/* nop					*/
+  static const uae_u8 f32_2[] =
+    {0x89,0xf6};							/* movl %esi,%esi		*/
+  static const uae_u8 f32_3[] =
+    {0x8d,0x76,0x00};						/* leal 0(%esi),%esi	*/
+  static const uae_u8 f32_4[] =
+    {0x8d,0x74,0x26,0x00};					/* leal 0(%esi,1),%esi	*/
+  static const uae_u8 f32_5[] =
+    {0x90,									/* nop					*/
+     0x8d,0x74,0x26,0x00};					/* leal 0(%esi,1),%esi	*/
+  static const uae_u8 f32_6[] =
+    {0x8d,0xb6,0x00,0x00,0x00,0x00};		/* leal 0L(%esi),%esi	*/
+  static const uae_u8 f32_7[] =
+    {0x8d,0xb4,0x26,0x00,0x00,0x00,0x00};	/* leal 0L(%esi,1),%esi */
+  static const uae_u8 f32_8[] =
+    {0x90,									/* nop					*/
+     0x8d,0xb4,0x26,0x00,0x00,0x00,0x00};	/* leal 0L(%esi,1),%esi */
+  static const uae_u8 f32_9[] =
+    {0x89,0xf6,								/* movl %esi,%esi		*/
+     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+  static const uae_u8 f32_10[] =
+    {0x8d,0x76,0x00,						/* leal 0(%esi),%esi	*/
+     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+  static const uae_u8 f32_11[] =
+    {0x8d,0x74,0x26,0x00,					/* leal 0(%esi,1),%esi	*/
+     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+  static const uae_u8 f32_12[] =
+    {0x8d,0xb6,0x00,0x00,0x00,0x00,			/* leal 0L(%esi),%esi	*/
+     0x8d,0xbf,0x00,0x00,0x00,0x00};		/* leal 0L(%edi),%edi	*/
+  static const uae_u8 f32_13[] =
+    {0x8d,0xb6,0x00,0x00,0x00,0x00,			/* leal 0L(%esi),%esi	*/
+     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+  static const uae_u8 f32_14[] =
+    {0x8d,0xb4,0x26,0x00,0x00,0x00,0x00,	/* leal 0L(%esi,1),%esi */
+     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+  static const uae_u8 f32_15[] =
+    {0xeb,0x0d,0x90,0x90,0x90,0x90,0x90,	/* jmp .+15; lotsa nops	*/
+     0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90};
+  static const uae_u8 f32_16[] =
+    {0xeb,0x0d,0x90,0x90,0x90,0x90,0x90,	/* jmp .+15; lotsa nops	*/
+     0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90};
+  static const uae_u8 *const f32_patt[] = {
+    f32_1, f32_2, f32_3, f32_4, f32_5, f32_6, f32_7, f32_8,
+    f32_9, f32_10, f32_11, f32_12, f32_13, f32_14, f32_15
+  };
+
+  int nloops = nbytes / 16;
+  while (nloops-- > 0)
+	emit_block(f32_16, sizeof(f32_16));
+
+  nbytes %= 16;
+  if (nbytes)
+	emit_block(f32_patt[nbytes - 1], nbytes);
+#endif
 }
 
 
@@ -1715,6 +3073,17 @@ enum {
 	X86_PROCESSOR_max
 };
 
+static const char * x86_processor_string_table[X86_PROCESSOR_max] = {
+	"80386",
+	"80486",
+	"Pentium",
+	"PentiumPro",
+	"K6",
+	"Athlon",
+	"Pentium4",
+	"x86-64"
+};
+
 static struct ptt {
 	const int align_loop;
 	const int align_loop_max_skip;
@@ -1805,7 +3174,6 @@ static void
 raw_init_cpu(void)
 {
 	struct cpuinfo_x86 *c = &cpuinfo;
-	uae_u32 xlvl;
 
 	/* Defaults */
 	c->x86_processor = X86_PROCESSOR_max;
@@ -1845,6 +3213,7 @@ raw_init_cpu(void)
 	}
 
 	/* AMD-defined flags: level 0x80000001 */
+	uae_u32 xlvl;
 	cpuid(0x80000000, &xlvl, NULL, NULL, NULL);
 	if ( (xlvl & 0xffff0000) == 0x80000000 ) {
 		if ( xlvl >= 0x80000001 ) {
@@ -2013,6 +3382,30 @@ static inline void make_tos(int r)
 	live.spos[r]=live.tos;
 	live.onstack[p]=q;
 	live.spos[q]=p;
+}
+
+static inline void make_tos2(int r, int r2)
+{
+    int q;
+
+    make_tos(r2); /* Put the reg that's supposed to end up in position2
+		     on top */
+
+    if (live.spos[r]<0) { /* Register not yet on stack */
+	make_tos(r); /* This will extend the stack */
+	return;
+    }
+    /* Register is on stack */
+    emit_byte(0xd9);
+    emit_byte(0xc9); /* Move r2 into position 2 */
+
+    q=live.onstack[live.tos-1];
+    live.onstack[live.tos]=q;
+    live.spos[q]=live.tos;
+    live.onstack[live.tos-1]=r2;
+    live.spos[r2]=live.tos-1;
+
+    make_tos(r); /* And r into 1 */
 }
 
 static inline int stackpos(int r)
@@ -3306,6 +4699,7 @@ LOWFUNC(NONE,NONE,2,raw_frem1_rr,(FRW d, FR s))
 	}
 }
 LENDFUNC(NONE,NONE,2,raw_frem1_rr,(FRW d, FR s))
+
 
 LOWFUNC(NONE,NONE,1,raw_ftst_r,(FR r))
 {

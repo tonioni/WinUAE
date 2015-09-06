@@ -75,6 +75,16 @@ typedef void *CONTEXT_T;
 #endif
 #endif
 
+static inline uae_u16 swap16(uae_u16 x)
+{
+	return ((x&0xff00)>>8)|((x&0x00ff)<<8);
+}
+
+static inline uae_u32 swap32(uae_u32 x)
+{
+	return ((x&0xff00)<<8)|((x&0x00ff)<<24)|((x&0xff0000)>>8)|((x&0xff000000)>>24);
+}
+
 #ifdef HAVE_CONTEXT_T
 /*
  * Try to handle faulted memory access in compiled code
