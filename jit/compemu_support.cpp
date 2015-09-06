@@ -2530,7 +2530,7 @@ static void load_handler(int reg, uae_u32 addr)
 *  if that assumption is wrong! No branches, no second chances, just
 *  straight go-for-it attitude */
 
-static void writemem_real(int address, int source, int offset, int size, int tmp, int clobber)
+static void writemem_real(int address, int source, int size, int tmp, int clobber)
 {
 	int f=tmp;
 
@@ -2593,7 +2593,7 @@ void writebyte(int address, int source, int tmp)
 	if ((special_mem&S_WRITE) || distrust)
 		writemem_special(address,source,20,1,tmp);
 	else
-		writemem_real(address,source,20,1,tmp,0);
+		writemem_real(address,source,1,tmp,0);
 }
 
 static inline void writeword_general(int address, int source, int tmp,
@@ -2603,7 +2603,7 @@ static inline void writeword_general(int address, int source, int tmp,
 	if ((special_mem&S_WRITE) || distrust)
 		writemem_special(address,source,16,2,tmp);
 	else
-		writemem_real(address,source,16,2,tmp,clobber);
+		writemem_real(address,source,2,tmp,clobber);
 }
 
 void writeword_clobber(int address, int source, int tmp)
@@ -2623,7 +2623,7 @@ static inline void writelong_general(int address, int source, int tmp,
 	if ((special_mem&S_WRITE) || distrust)
 		writemem_special(address,source,12,4,tmp);
 	else
-		writemem_real(address,source,12,4,tmp,clobber);
+		writemem_real(address,source,4,tmp,clobber);
 }
 
 void writelong_clobber(int address, int source, int tmp)
@@ -2642,7 +2642,7 @@ void writelong(int address, int source, int tmp)
 *  if that assumption is wrong! No branches, no second chances, just
 *  straight go-for-it attitude */
 
-static void readmem_real(int address, int dest, int offset, int size, int tmp)
+static void readmem_real(int address, int dest, int size, int tmp)
 {
 	int f=tmp;
 
@@ -2696,7 +2696,7 @@ void readbyte(int address, int dest, int tmp)
 	if ((special_mem&S_READ) || distrust)
 		readmem_special(address,dest,8,1,tmp);
 	else
-		readmem_real(address,dest,8,1,tmp);
+		readmem_real(address,dest,1,tmp);
 }
 
 void readword(int address, int dest, int tmp)
@@ -2705,7 +2705,7 @@ void readword(int address, int dest, int tmp)
 	if ((special_mem&S_READ) || distrust)
 		readmem_special(address,dest,4,2,tmp);
 	else
-		readmem_real(address,dest,4,2,tmp);
+		readmem_real(address,dest,2,tmp);
 }
 
 void readlong(int address, int dest, int tmp)
@@ -2714,7 +2714,7 @@ void readlong(int address, int dest, int tmp)
 	if ((special_mem&S_READ) || distrust)
 		readmem_special(address,dest,0,4,tmp);
 	else
-		readmem_real(address,dest,0,4,tmp);
+		readmem_real(address,dest,4,tmp);
 }
 
 
