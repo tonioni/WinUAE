@@ -98,7 +98,7 @@
 #include "uae.h"
 #include "uae/log.h"
 #define jit_log(format, ...) \
-	uae_log("JIT: " format "\n", __func__, ##__VA_ARGS__);
+	uae_log("JIT: " format "\n", ##__VA_ARGS__);
 #define jit_log2(format, ...)
 
 #define MEMBaseDiff uae_ptr32(NATMEM_OFFSET)
@@ -2535,9 +2535,9 @@ bool compiler_use_jit(void)
 void init_comp(void)
 {
 	int i;
-	uae_u8* cb=can_byte;
-	uae_u8* cw=can_word;
-	uae_u8* au=always_used;
+	uae_s8* cb=can_byte;
+	uae_s8* cw=can_word;
+	uae_s8* au=always_used;
 
 #ifdef RECORD_REGISTER_USAGE
 	for (i=0;i<16;i++)

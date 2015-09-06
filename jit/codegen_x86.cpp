@@ -97,13 +97,13 @@ only target, and it's easier this way... */
 #define STACK_ALIGN		16
 #define STACK_OFFSET	sizeof(void *)
 
-uae_u8 always_used[]={4,0xff};
+uae_s8 always_used[]={4,-1};
 #if defined(CPU_x86_64)
 uae_s8 can_byte[]={0,1,2,3,5,6,7,8,9,10,11,12,13,14,15,-1};
 uae_s8 can_word[]={0,1,2,3,5,6,7,8,9,10,11,12,13,14,15,-1};
 #else
-uae_u8 can_byte[]={0,1,2,3,0xff};
-uae_u8 can_word[]={0,1,2,3,5,6,7,0xff};
+uae_s8 can_byte[]={0,1,2,3,-1};
+uae_s8 can_word[]={0,1,2,3,5,6,7,-1};
 #endif
 
 #if USE_OPTIMIZED_CALLS
@@ -155,8 +155,10 @@ static const uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
 #define CLOBBER_TEST clobber_flags()
 #define CLOBBER_CL16
 #define CLOBBER_CL8
+#define CLOBBER_SE32
 #define CLOBBER_SE16
 #define CLOBBER_SE8
+#define CLOBBER_ZE32
 #define CLOBBER_ZE16
 #define CLOBBER_ZE8
 #define CLOBBER_SW16 clobber_flags()
