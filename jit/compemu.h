@@ -71,13 +71,6 @@ extern signed long pissoff;
 
 #define KILLTHERAT 1  /* Set to 1 to avoid some partial_rat_stalls */
 
-/* Whether to preserve registers across calls to JIT compiled routines */
-#if defined X86_ASSEMBLY
-#define USE_PUSH_POP 0
-#else
-#define USE_PUSH_POP 1
-#endif
-
 #define N_REGS 8  /* really only 7, but they are numbered 0,1,2,3,5,6,7 */
 #define N_FREGS 6 /* That leaves us two positions on the stack to play with */
 

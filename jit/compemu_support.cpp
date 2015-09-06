@@ -110,9 +110,6 @@ extern bool canbang;
 #include "debug.h"
 #endif
 
-#define PROFILE_COMPILE_TIME		1
-#define PROFILE_UNTRANSLATED_INSNS	1
-
 # include <csignal>
 # include <cstdlib>
 # include <cerrno>
@@ -1730,6 +1727,7 @@ static inline int readreg_general(int r, int size, int spec, int can_offset)
 	int n;
 	int answer=-1;
 
+	record_register(r);
 	if (live.state[r].status==UNDEF) {
 		jit_log("WARNING: Unexpected read of undefined register %d",r);
 	}
@@ -1806,6 +1804,7 @@ static inline int writereg_general(int r, int size, int spec)
 	int n;
 	int answer=-1;
 
+	record_register(r);
 	if (size<4) {
 		remove_offset(r,spec);
 	}
@@ -1886,6 +1885,7 @@ static inline int rmw_general(int r, int wsize, int rsize, int spec)
 	int n;
 	int answer=-1;
 
+	record_register(r);
 	if (live.state[r].status==UNDEF) {
 		jit_log("WARNING: Unexpected read of undefined register %d",r);
 	}
@@ -2320,6 +2320,69 @@ static scratch_t scratch;
 static inline const char *str_on_off(bool b)
 {
 	return b ? "on" : "off";
+}
+
+void compiler_init(void)
+{
+	static bool initialized = false;
+	if (initialized)
+		return;
+}
+
+void compiler_exit(void)
+{
+#if PROFILE_COMPILE_TIME
+	emul_end_time = clock();
+#endif
+
+#if PROFILE_COMPILE_TIME
+	panicbug("### Compile Block statistics");
+	panicbug("Number of calls to compile_block : %d", compile_count);
+	uae_u32 emul_time = emul_end_time - emul_start_time;
+	panicbug("Total emulation time   : %.1f sec", double(emul_time)/double(CLOCKS_PER_SEC));
+	panicbug("Total compilation time : %.1f sec (%.1f%%)", double(compile_time)/double(CLOCKS_PER_SEC), 100.0*double(compile_time)/double(emul_time));
+#endif
+
+#if PROFILE_UNTRANSLATED_INSNS
+	uae_u64 untranslated_count = 0;
+	for (int i = 0; i < 65536; i++) {
+		opcode_nums[i] = i;
+		untranslated_count += raw_cputbl_count[i];
+	}
+	panicbug("Sorting out untranslated instructions count...");
+	qsort(opcode_nums, 65536, sizeof(uae_u16), untranslated_compfn);
+	panicbug("Rank  Opc      Count Name");
+	for (int i = 0; i < untranslated_top_ten; i++) {
+		uae_u32 count = raw_cputbl_count[opcode_nums[i]];
+		struct instr *dp;
+		struct mnemolookup *lookup;
+		if (!count)
+			break;
+		dp = table68k + opcode_nums[i];
+		for (lookup = lookuptab; lookup->mnemo != (instrmnem)dp->mnemo; lookup++)
+			;
+		panicbug("%03d: %04x %10u %s", i, opcode_nums[i], count, lookup->name);
+	}
+#endif
+
+#ifdef RECORD_REGISTER_USAGE
+	int reg_count_ids[16];
+	uint64 tot_reg_count = 0;
+	for (int i = 0; i < 16; i++) {
+	    reg_count_ids[i] = i;
+	    tot_reg_count += reg_count[i];
+	}
+	qsort(reg_count_ids, 16, sizeof(int), reg_count_compare);
+	uint64 cum_reg_count = 0;
+	for (int i = 0; i < 16; i++) {
+	    int r = reg_count_ids[i];
+	    cum_reg_count += reg_count[r];
+	    panicbug("%c%d : %16ld %2.1f%% [%2.1f]", r < 8 ? 'D' : 'A', r % 8,
+		   reg_count[r],
+		   100.0*double(reg_count[r])/double(tot_reg_count),
+		   100.0*double(cum_reg_count)/double(tot_reg_count));
+	}
+#endif
 }
 
 #if 0
@@ -3362,6 +3425,14 @@ static inline void create_popalls(void)
 			raw_pop_l_r(i);
 	}
 	raw_jmp((uintptr)check_checksum);
+
+#ifdef UAE
+	/* FIXME: write-protect popallspace? */
+#else
+	// no need to further write into popallspace
+	vm_protect(popallspace, POPALLSPACE_SIZE, VM_PAGE_READ | VM_PAGE_EXECUTE);
+	flush_cpu_icache((void *)popallspace, (void *)target);
+#endif
 }
 
 static inline void reset_lists(void)
@@ -3827,7 +3898,6 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 		blockinfo* bi2;
 		int extra_len=0;
 
-		compile_count++;
 		if (current_compile_p>=max_compile_start)
 			flush_icache_hard(0, 3);
 
