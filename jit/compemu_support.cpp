@@ -4215,7 +4215,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					uae_u32* tba;
 					blockinfo* tbi;
 
-					tbi=get_blockinfo_addr_new((void*)v,1);
+					tbi=get_blockinfo_addr_new((void*)(uintptr)v,1);
 					match_states(tbi);
 
 					raw_sub_l_mi((uae_u32)&countdown,scaled_cycles(totcycles));
@@ -4307,7 +4307,12 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 		if (current_compile_p>=max_compile_start)
 			flush_icache_hard(0, 3);
 
-		do_extra_cycles(totcycles); /* for the compilation time */
+#if PROFILE_COMPILE_TIME
+		compile_time += (clock() - start_time);
+#endif
+
+		/* Account for compilation time */
+		do_extra_cycles(totcycles);
 	}
 }
 
