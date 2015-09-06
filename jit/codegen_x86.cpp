@@ -3281,7 +3281,7 @@ static struct ptt {
 	const int align_jump_max_skip;
 	const int align_func;
 }
-x86_alignments[X86_PROCESSOR_max + 1] = {
+x86_alignments[X86_PROCESSOR_max] = {
 	{  4,  3,  4,  3,  4 },
 	{ 16, 15, 16, 15, 16 },
 	{ 16,  7, 16,  7, 16 },
@@ -3289,8 +3289,7 @@ x86_alignments[X86_PROCESSOR_max + 1] = {
 	{ 32,  7, 32,  7, 32 },
 	{ 16,  7, 16,  7, 16 },
 	{  0,  0,  0,  0,  0 },
-	{ 16,  7, 16,  7, 16 },
-	{  0,  0,  0,  0,  0 }
+	{ 16,  7, 16,  7, 16 }
 };
 
 static void
@@ -3402,14 +3401,12 @@ raw_init_cpu(void)
 		uae_u32 tfms, brand_id;
 		cpuid(0x00000001, &tfms, &brand_id, NULL, &c->x86_hwcap);
 		c->x86 = (tfms >> 8) & 15;
+		if (c->x86 == 0xf)
+			c->x86 += (tfms >> 20) & 0xff; /* extended family */
 		c->x86_model = (tfms >> 4) & 15;
+		if (c->x86_model == 0xf)
+			c->x86_model |= (tfms >> 12) & 0xf0; /* extended model */
 		c->x86_brand_id = brand_id & 0xff;
-		if ( (c->x86_vendor == X86_VENDOR_AMD) &&
-			(c->x86 == 0xf)) {
-				/* AMD Extended Family and Model Values */
-				c->x86 += (tfms >> 20) & 0xff;
-				c->x86_model += (tfms >> 12) & 0xf0;
-		}
 		c->x86_mask = tfms & 15;
 	} else {
 		/* Have CPUID level 0 only - unheard of */
@@ -3453,18 +3450,28 @@ raw_init_cpu(void)
 			c->x86_processor = X86_PROCESSOR_PENTIUMPRO;
 		break;
 	case 15:
-		if (c->x86_vendor == X86_VENDOR_INTEL) {
-			/* Assume any BrandID >= 8 and family == 15 yields a Pentium 4 */
-			if (c->x86_brand_id >= 8)
+		if (c->x86_processor == X86_PROCESSOR_max) {
+			switch (c->x86_vendor) {
+			case X86_VENDOR_INTEL:
 				c->x86_processor = X86_PROCESSOR_PENTIUM4;
-		}
-		if (c->x86_vendor == X86_VENDOR_AMD) {
-			/* Assume an Athlon processor if family == 15 and it was not
-			detected as an x86-64 so far */
-			if (c->x86_processor == X86_PROCESSOR_max)
+				break;
+			case X86_VENDOR_AMD:
+				/* Assume a 32-bit Athlon processor if not in long mode */
 				c->x86_processor = X86_PROCESSOR_ATHLON;
+				break;
+			}
 		}
 		break;
+	}
+	if (c->x86_processor == X86_PROCESSOR_max) {
+		c->x86_processor = X86_PROCESSOR_I386;
+		jit_log("Error: unknown processor type\n");
+		jit_log("  Family  : %d\n", c->x86);
+		jit_log("  Model   : %d\n", c->x86_model);
+		jit_log("  Mask    : %d\n", c->x86_mask);
+		jit_log("  Vendor  : %s [%d]\n", c->x86_vendor_id, c->x86_vendor);
+		if (c->x86_brand_id)
+			fprintf(stderr, "  BrandID : %02x\n", c->x86_brand_id);
 	}
 
 	/* Have CMOV support? */
@@ -3484,7 +3491,6 @@ raw_init_cpu(void)
 	if (c->x86_processor == X86_PROCESSOR_ATHLON)
 		have_rat_stall = true;
 #endif
-	have_rat_stall = 1;
 
 	/* Alignments */
 	if (tune_alignment) {
