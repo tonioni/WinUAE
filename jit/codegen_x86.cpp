@@ -1237,6 +1237,14 @@ LOWFUNC(NONE,READ,1,raw_pop_l_r,(R4 r))
 }
 LENDFUNC(NONE,READ,1,raw_pop_l_r,(R4 r))
 
+LOWFUNC(NONE,READ,1,raw_pop_l_m,(MEMW d))
+{
+	emit_byte(0x8f);
+	emit_byte(0x05);
+	emit_long(d);
+}
+LENDFUNC(NONE,READ,1,raw_pop_l_m,(MEMW d))
+
 LOWFUNC(WRITE,NONE,2,raw_bt_l_ri,(R4 r, IMM i))
 {
 	emit_byte(0x0f);
@@ -1474,6 +1482,15 @@ LOWFUNC(WRITE,NONE,2,raw_ror_w_ri,(RW2 r, IMM i))
 	emit_byte(i);
 }
 LENDFUNC(WRITE,NONE,2,raw_ror_w_ri,(RW2 r, IMM i))
+
+// gb-- used for making an fpcr value in compemu_fpp.cpp
+LOWFUNC(WRITE,READ,2,raw_or_l_rm,(RW4 d, MEMR s))
+{
+    emit_byte(0x0b);
+    emit_byte(0x05+8*d);
+    emit_long(s);
+}
+LENDFUNC(WRITE,READ,2,raw_or_l_rm,(RW4 d, MEMR s))
 
 LOWFUNC(WRITE,NONE,2,raw_ror_l_ri,(RW4 r, IMM i))
 {
@@ -1822,6 +1839,15 @@ LOWFUNC(NONE,NONE,2,raw_mul_64_32,(RW4 d, RW4 s))
 	emit_byte(0xe2);
 }
 LENDFUNC(NONE,NONE,2,raw_mul_64_32,(RW4 d, RW4 s))
+
+LOWFUNC(NONE,NONE,2,raw_mul_32_32,(RW4 d, R4 s))
+{
+    abort(); /* %^$&%^$%#^ x86! */
+    emit_byte(0x0f);
+    emit_byte(0xaf);
+    emit_byte(0xc0+8*d+s);
+}
+LENDFUNC(NONE,NONE,2,raw_mul_32_32,(RW4 d, R4 s))
 
 LOWFUNC(NONE,NONE,2,raw_mov_b_rr,(W1 d, R1 s))
 {
@@ -2335,6 +2361,14 @@ LOWFUNC(WRITE,NONE,2,raw_test_b_rr,(R1 d, R1 s))
 }
 LENDFUNC(WRITE,NONE,2,raw_test_b_rr,(R1 d, R1 s))
 
+LOWFUNC(WRITE,NONE,2,raw_xor_l_ri,(RW4 d, IMM i))
+{
+    emit_byte(0x81);
+    emit_byte(0xf0+d);
+    emit_long(i);
+}
+LENDFUNC(WRITE,NONE,2,raw_xor_l_ri,(RW4 d, IMM i))
+
 LOWFUNC(WRITE,NONE,2,raw_and_l_ri,(RW4 d, IMM i))
 {
 	emit_byte(0x81);
@@ -2597,6 +2631,15 @@ LOWFUNC(WRITE,NONE,2,raw_cmp_w,(R2 d, R2 s))
 }
 LENDFUNC(WRITE,NONE,2,raw_cmp_w,(R2 d, R2 s))
 
+LOWFUNC(WRITE,READ,2,raw_cmp_b_mi,(MEMR d, IMM s))
+{
+    emit_byte(0x80);
+    emit_byte(0x3d);
+    emit_long(d);
+    emit_byte(s);
+}
+LENDFUNC(WRITE,READ,2,raw_cmp_l_mi,(MEMR d, IMM s))
+
 LOWFUNC(WRITE,NONE,2,raw_cmp_b_ri,(R1 d, IMM i))
 {
 	if (optimize_accum && isaccum(d))
@@ -2615,6 +2658,24 @@ LOWFUNC(WRITE,NONE,2,raw_cmp_b,(R1 d, R1 s))
 	emit_byte(0xc0+8*s+d);
 }
 LENDFUNC(WRITE,NONE,2,raw_cmp_b,(R1 d, R1 s))
+
+LOWFUNC(WRITE,READ,4,raw_cmp_l_rm_indexed,(R4 d, IMM offset, R4 index, IMM factor))
+{
+    int fi;
+    
+    switch(factor) {
+     case 1: fi=0; break;
+     case 2: fi=1; break;
+     case 4: fi=2; break;
+     case 8: fi=3; break;
+     default: abort();
+    }
+    emit_byte(0x39);
+    emit_byte(0x04+8*d);
+    emit_byte(5+8*index+0x40*fi);
+    emit_long(offset);
+}
+LENDFUNC(WRITE,READ,4,raw_cmp_l_rm_indexed,(R4 d, IMM offset, R4 index, IMM factor))
 
 LOWFUNC(WRITE,NONE,2,raw_xor_l,(RW4 d, R4 s))
 {
@@ -2679,6 +2740,17 @@ LOWFUNC(NONE,NONE,2,raw_xchg_l_rr,(RW4 r1, RW4 r2))
 }
 LENDFUNC(NONE,NONE,2,raw_xchg_l_rr,(RW4 r1, RW4 r2))
 
+LOWFUNC(NONE,NONE,2,raw_xchg_b_rr,(RW4 r1, RW4 r2))
+{
+  emit_byte(0x86);
+  emit_byte(0xc0+8*(r1&0xf)+(r2&0xf)); /* XXX this handles upper-halves registers (e.g. %ah defined as 0x10+4) */
+}
+LENDFUNC(NONE,NONE,2,raw_xchg_l_rr,(RW4 r1, RW4 r2))
+
+/*************************************************************************
+ * FIXME: mem access modes probably wrong                                *
+ *************************************************************************/
+
 LOWFUNC(READ,WRITE,0,raw_pushfl,(void))
 {
 	emit_byte(0x9c);
@@ -2690,6 +2762,14 @@ LOWFUNC(WRITE,READ,0,raw_popfl,(void))
 	emit_byte(0x9d);
 }
 LENDFUNC(WRITE,READ,0,raw_popfl,(void))
+
+/* Generate floating-point instructions */
+static inline void x86_fadd_m(MEMR s)
+{
+	emit_byte(0xdc);
+	emit_byte(0x05);
+	emit_long(s);
+}
 
 #endif
 
