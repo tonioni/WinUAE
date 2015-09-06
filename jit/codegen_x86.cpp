@@ -106,16 +106,31 @@ uae_u8 can_byte[]={0,1,2,3,0xff};
 uae_u8 can_word[]={0,1,2,3,5,6,7,0xff};
 #endif
 
-uae_u8 call_saved[]={0,0,0,0,1,0,0,0};
+#if USE_OPTIMIZED_CALLS
+/* Make sure interpretive core does not use cpuopti */
+uae_u8 call_saved[]={0,0,0,1,1,1,1,1};
+#error FIXME: code not ready
+#else
+/* cpuopti mutate instruction handlers to assume registers are saved
+   by the caller */
+uae_u8 call_saved[]={0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0};
+#endif
 
 /* This *should* be the same as call_saved. But:
-- We might not really know which registers are saved, and which aren't,
-so we need to preserve some, but don't want to rely on everyone else
-also saving those registers
-- Special registers (such like the stack pointer) should not be "preserved"
-by pushing, even though they are "saved" across function calls
+   - We might not really know which registers are saved, and which aren't,
+     so we need to preserve some, but don't want to rely on everyone else
+     also saving those registers
+   - Special registers (such like the stack pointer) should not be "preserved"
+     by pushing, even though they are "saved" across function calls
 */
-uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
+#if defined(CPU_x86_64)
+/* callee-saved registers as defined by Linux AMD64 ABI: rbx, rbp, rsp, r12 - r15 */
+/* preserve r11 because it's generally used to hold pointers to functions */
+static const uae_u8 need_to_preserve[]={0,0,0,1,0,1,0,0,0,0,0,1,1,1,1,1};
+#else
+/* callee-saved registers as defined by System V IA-32 ABI: edi, esi, ebx, ebp */
+static const uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
+#endif
 
 /* Whether classes of instructions do or don't clobber the native flags */
 #define CLOBBER_MOV
@@ -3045,18 +3060,8 @@ static inline void raw_emit_nop_filler(int nbytes)
 * Flag handling, to and fro UAE flag register                           *
 *************************************************************************/
 
-
-#define FLAG_NREG1 0  /* Set to -1 if any register will do */
-
-static inline void raw_flags_to_reg(int r)
+static inline void raw_flags_evicted(int r)
 {
-	raw_lahf(0);  /* Most flags in AH */
-	//raw_setcc(r,0); /* V flag in AL */
-	raw_setcc_m((uae_u32)live.state[FLAGTMP].mem,0);
-
-#if 1   /* Let's avoid those nasty partial register stalls */
-	//raw_mov_b_mr((uae_u32)live.state[FLAGTMP].mem,r);
-	raw_mov_b_mr(((uae_u32)live.state[FLAGTMP].mem)+1,r+4);
 	//live.state[FLAGTMP].status=CLEAN;
 	live.state[FLAGTMP].status=INMEM;
 	live.state[FLAGTMP].realreg=-1;
@@ -3066,6 +3071,19 @@ static inline void raw_flags_to_reg(int r)
 		abort();
 	}
 	live.nat[r].nholds=0;
+}
+
+#define FLAG_NREG1 0  /* Set to -1 if any register will do */
+static inline void raw_flags_to_reg(int r)
+{
+	raw_lahf(0);  /* Most flags in AH */
+	//raw_setcc(r,0); /* V flag in AL */
+	raw_setcc_m((uintptr)live.state[FLAGTMP].mem,0);
+
+#if 1   /* Let's avoid those nasty partial register stalls */
+	//raw_mov_b_mr((uintptr)live.state[FLAGTMP].mem,r);
+	raw_mov_b_mr(((uintptr)live.state[FLAGTMP].mem)+1,r+4);
+	raw_flags_evicted(r);
 #endif
 }
 
