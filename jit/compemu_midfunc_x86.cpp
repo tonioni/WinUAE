@@ -786,7 +786,12 @@ MIDFUNC(3,cmov_l_rm,(RW4 d, IMM s, IMM cc))
 }
 MENDFUNC(3,cmov_l_rm,(RW4 d, IMM s, IMM cc))
 
+#ifdef UAE
+/* FIXME: UAE version looks correct */
 MIDFUNC(2,bsf_l_rr,(W4 d, RR4 s))
+#else
+MIDFUNC(2,bsf_l_rr,(W4 d, W4 s))
+#endif
 {
 	CLOBBER_BSF;
 	s=readreg(s,4);
@@ -795,7 +800,12 @@ MIDFUNC(2,bsf_l_rr,(W4 d, RR4 s))
 	unlock2(s);
 	unlock2(d);
 }
+#ifdef UAE
+/* FIXME: UAE version looks correct */
 MENDFUNC(2,bsf_l_rr,(W4 d, RR4 s))
+#else
+MENDFUNC(2,bsf_l_rr,(W4 d, W4 s))
+#endif
 
 #ifdef UAE
 /* FIXME: enable */
@@ -1138,6 +1148,132 @@ MIDFUNC(3,mov_b_mrr_indexed,(RR4 baser, RR4 index, RR1 s))
 	unlock2(index);
 }
 MENDFUNC(3,mov_b_mrr_indexed,(RR4 baser, RR4 index, RR1 s))
+
+
+#ifdef UAE
+/* FIXME: These functions are unused */
+#else
+MIDFUNC(5,mov_l_bmrr_indexed,(IMM base, RR4 baser, RR4 index, IMM factor, RR4 s))
+{
+    int basereg=baser;
+    int indexreg=index;
+
+    CLOBBER_MOV;
+    s=readreg(s,4);
+    baser=readreg_offset(baser,4);
+    index=readreg_offset(index,4);
+
+    base+=get_offset(basereg);
+    base+=factor*get_offset(indexreg);
+
+    raw_mov_l_bmrr_indexed(base,baser,index,factor,s);
+    unlock2(s);
+    unlock2(baser);
+    unlock2(index);
+}
+MENDFUNC(5,mov_l_bmrr_indexed,(IMM base, RR4 baser, RR4 index, IMM factor, RR4 s))
+
+MIDFUNC(5,mov_w_bmrr_indexed,(IMM base, RR4 baser, RR4 index, IMM factor, RR2 s))
+{
+    int basereg=baser;
+    int indexreg=index;
+
+    CLOBBER_MOV;
+    s=readreg(s,2);
+    baser=readreg_offset(baser,4);
+    index=readreg_offset(index,4);
+
+    base+=get_offset(basereg);
+    base+=factor*get_offset(indexreg);
+
+    raw_mov_w_bmrr_indexed(base,baser,index,factor,s);
+    unlock2(s);
+    unlock2(baser);
+    unlock2(index);
+}
+MENDFUNC(5,mov_w_bmrr_indexed,(IMM base, RR4 baser, RR4 index, IMM factor, RR2 s))
+
+MIDFUNC(5,mov_b_bmrr_indexed,(IMM base, RR4 baser, RR4 index, IMM factor, RR1 s))
+{
+    int basereg=baser;
+    int indexreg=index;
+
+    CLOBBER_MOV;
+    s=readreg(s,1);
+    baser=readreg_offset(baser,4);
+    index=readreg_offset(index,4);
+
+    base+=get_offset(basereg);
+    base+=factor*get_offset(indexreg);
+
+    raw_mov_b_bmrr_indexed(base,baser,index,factor,s);
+    unlock2(s);
+    unlock2(baser);
+    unlock2(index);
+}
+MENDFUNC(5,mov_b_bmrr_indexed,(IMM base, RR4 baser, RR4 index, IMM factor, RR1 s))
+
+
+
+/* Read a long from base+baser+factor*index */
+MIDFUNC(5,mov_l_brrm_indexed,(W4 d, IMM base, RR4 baser, RR4 index, IMM factor))
+{
+    int basereg=baser;
+    int indexreg=index;
+
+    CLOBBER_MOV;
+    baser=readreg_offset(baser,4);
+    index=readreg_offset(index,4);
+    base+=get_offset(basereg);
+    base+=factor*get_offset(indexreg);
+    d=writereg(d,4);
+    raw_mov_l_brrm_indexed(d,base,baser,index,factor);
+    unlock2(d);
+    unlock2(baser);
+    unlock2(index);
+}
+MENDFUNC(5,mov_l_brrm_indexed,(W4 d, IMM base, RR4 baser, RR4 index, IMM factor))
+
+
+MIDFUNC(5,mov_w_brrm_indexed,(W2 d, IMM base, RR4 baser, RR4 index, IMM factor))
+{
+    int basereg=baser;
+    int indexreg=index;
+
+    CLOBBER_MOV;
+    remove_offset(d,-1);
+    baser=readreg_offset(baser,4);
+    index=readreg_offset(index,4);
+    base+=get_offset(basereg);
+    base+=factor*get_offset(indexreg);
+    d=writereg(d,2);
+    raw_mov_w_brrm_indexed(d,base,baser,index,factor);
+    unlock2(d);
+    unlock2(baser);
+    unlock2(index);
+}
+MENDFUNC(5,mov_w_brrm_indexed,(W2 d, IMM base, RR4 baser, RR4 index, IMM factor))
+
+
+MIDFUNC(5,mov_b_brrm_indexed,(W1 d, IMM base, RR4 baser, RR4 index, IMM factor))
+{
+    int basereg=baser;
+    int indexreg=index;
+
+    CLOBBER_MOV;
+    remove_offset(d,-1);
+    baser=readreg_offset(baser,4);
+    index=readreg_offset(index,4);
+    base+=get_offset(basereg);
+    base+=factor*get_offset(indexreg);
+    d=writereg(d,1);
+    raw_mov_b_brrm_indexed(d,base,baser,index,factor);
+    unlock2(d);
+    unlock2(baser);
+    unlock2(index);
+}
+MENDFUNC(5,mov_b_brrm_indexed,(W1 d, IMM base, RR4 baser, RR4 index, IMM factor))
+#endif
 
 /* Read a long from base+4*index */
 MIDFUNC(3,mov_l_rm_indexed,(W4 d, IMM base, RR4 index))
