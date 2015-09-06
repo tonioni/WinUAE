@@ -1335,6 +1335,14 @@ LOWFUNC(WRITE,NONE,2,raw_sub_w_ri,(RW2 d, IMM i))
 LENDFUNC(WRITE,NONE,2,raw_sub_w_ri,(RW2 d, IMM i))
 
 
+LOWFUNC(NONE,READ,2,raw_mov_l_rm,(W4 d, MEMR s))
+{
+	emit_byte(0x8b);
+	emit_byte(0x05+8*d);
+	emit_long(s);
+}
+LENDFUNC(NONE,READ,2,raw_mov_l_rm,(W4 d, MEMR s))
+
 LOWFUNC(NONE,WRITE,2,raw_mov_l_mi,(MEMW d, IMM s))
 {
 	emit_byte(0xc7);
@@ -1818,8 +1826,7 @@ LOWFUNC(NONE,NONE,2,raw_imul_64_32,(RW4 d, RW4 s))
 {
 #ifdef JIT_DEBUG
 	if (d!=MUL_NREG1 || s!=MUL_NREG2) {
-		write_log (_T("JIT: Bad register in IMUL: d=%d, s=%d\n"),d,s);
-		abort();
+		jit_abort("Bad register in IMUL: d=%d, s=%d\n"),d,s);
 	}
 #endif
 	emit_byte(0xf7);
@@ -1831,8 +1838,7 @@ LOWFUNC(NONE,NONE,2,raw_mul_64_32,(RW4 d, RW4 s))
 {
 #ifdef JIT_DEBUG
 	if (d!=MUL_NREG1 || s!=MUL_NREG2) {
-		write_log (_T("JIT: Bad register in MUL: d=%d, s=%d\n"),d,s);
-		abort();
+		jit_abort("Bad register in MUL: d=%d, s=%d",d,s);
 	}
 #endif
 	emit_byte(0xf7);
@@ -2218,14 +2224,6 @@ LOWFUNC(NONE,WRITE,2,raw_mov_l_mr,(IMM d, R4 s))
 }
 LENDFUNC(NONE,WRITE,2,raw_mov_l_mr,(IMM d, R4 s))
 
-LOWFUNC(NONE,READ,2,raw_mov_l_rm,(W4 d, MEMR s))
-{
-	emit_byte(0x8b);
-	emit_byte(0x05+8*d);
-	emit_long(s);
-}
-LENDFUNC(NONE,READ,2,raw_mov_l_rm,(W4 d, MEMR s))
-
 LOWFUNC(NONE,WRITE,2,raw_mov_w_mr,(IMM d, R2 s))
 {
 	emit_byte(0x66);
@@ -2371,18 +2369,40 @@ LENDFUNC(WRITE,NONE,2,raw_xor_l_ri,(RW4 d, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_and_l_ri,(RW4 d, IMM i))
 {
-	emit_byte(0x81);
-	emit_byte(0xe0+d);
-	emit_long(i);
+	if (optimize_imm8 && isbyte(i)) {
+		emit_byte(0x83);
+		emit_byte(0xe0+d);
+		emit_byte(i);
+	}
+	else {
+		if (optimize_accum && isaccum(d))
+			emit_byte(0x25);
+		else {
+			emit_byte(0x81);
+			emit_byte(0xe0+d);
+		}
+		emit_long(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_and_l_ri,(RW4 d, IMM i))
 
 LOWFUNC(WRITE,NONE,2,raw_and_w_ri,(RW2 d, IMM i))
 {
 	emit_byte(0x66);
-	emit_byte(0x81);
-	emit_byte(0xe0+d);
-	emit_word(i);
+	if (optimize_imm8 && isbyte(i)) {
+		emit_byte(0x83);
+		emit_byte(0xe0+d);
+		emit_byte(i);
+	}
+	else {
+		if (optimize_accum && isaccum(d))
+			emit_byte(0x25);
+		else {
+			emit_byte(0x81);
+			emit_byte(0xe0+d);
+		}
+		emit_word(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_and_w_ri,(RW2 d, IMM i))
 
@@ -2410,9 +2430,20 @@ LENDFUNC(WRITE,NONE,2,raw_and_b,(RW1 d, R1 s))
 
 LOWFUNC(WRITE,NONE,2,raw_or_l_ri,(RW4 d, IMM i))
 {
-	emit_byte(0x81);
-	emit_byte(0xc8+d);
+	if (optimize_imm8 && isbyte(i)) {
+		emit_byte(0x83);
+		emit_byte(0xc8+d);
+		emit_byte(i);
+	}
+	else {
+		if (optimize_accum && isaccum(d))
+			emit_byte(0x0d);
+		else {
+			emit_byte(0x81);
+			emit_byte(0xc8+d);
+	}
 	emit_long(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_or_l_ri,(RW4 d, IMM i))
 
@@ -2617,9 +2648,20 @@ LENDFUNC(WRITE,NONE,2,raw_cmp_l,(R4 d, R4 s))
 
 LOWFUNC(WRITE,NONE,2,raw_cmp_l_ri,(R4 r, IMM i))
 {
-	emit_byte(0x81);
-	emit_byte(0xf8+r);
-	emit_long(i);
+	if (optimize_imm8 && isbyte(i)) {
+		emit_byte(0x83);
+		emit_byte(0xf8+r);
+		emit_byte(i);
+	}
+	else {
+		if (optimize_accum && isaccum(r))
+			emit_byte(0x3d);
+		else {
+			emit_byte(0x81);
+			emit_byte(0xf8+r);
+		}
+		emit_long(i);
+	}
 }
 LENDFUNC(WRITE,NONE,2,raw_cmp_l_ri,(R4 r, IMM i))
 
