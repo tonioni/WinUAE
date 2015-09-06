@@ -2866,27 +2866,94 @@ uae_u32 get_jitted_size(void)
 	return 0;
 }
 
+const int CODE_ALLOC_MAX_ATTEMPTS = 10;
+const int CODE_ALLOC_BOUNDARIES   = 128 * 1024; // 128 KB
+
+#ifdef UAE
+
+#else
+static uint8 *do_alloc_code(uint32 size, int depth)
+{
+#if defined(__linux__) && 0
+	/*
+	  This is a really awful hack that is known to work on Linux at
+	  least.
+	  
+	  The trick here is to make sure the allocated cache is nearby
+	  code segment, and more precisely in the positive half of a
+	  32-bit address space. i.e. addr < 0x80000000. Actually, it
+	  turned out that a 32-bit binary run on AMD64 yields a cache
+	  allocated around 0xa0000000, thus causing some troubles when
+	  translating addresses from m68k to x86.
+	*/
+	static uint8 * code_base = NULL;
+	if (code_base == NULL) {
+		uintptr page_size = getpagesize();
+		uintptr boundaries = CODE_ALLOC_BOUNDARIES;
+		if (boundaries < page_size)
+			boundaries = page_size;
+		code_base = (uint8 *)sbrk(0);
+		for (int attempts = 0; attempts < CODE_ALLOC_MAX_ATTEMPTS; attempts++) {
+			if (vm_acquire_fixed(code_base, size) == 0) {
+				uint8 *code = code_base;
+				code_base += size;
+				return code;
+			}
+			code_base += boundaries;
+		}
+		return NULL;
+	}
+
+	if (vm_acquire_fixed(code_base, size) == 0) {
+		uint8 *code = code_base;
+		code_base += size;
+		return code;
+	}
+
+	if (depth >= CODE_ALLOC_MAX_ATTEMPTS)
+		return NULL;
+
+	return do_alloc_code(size, depth + 1);
+#else
+	UNUSED(depth);
+	uint8 *code = (uint8 *)vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
+	return code == VM_MAP_FAILED ? NULL : code;
+#endif
+}
+
+static inline uint8 *alloc_code(uint32 size)
+{
+	uint8 *ptr = do_alloc_code(size, 0);
+	/* allocated code must fit in 32-bit boundaries */
+	assert((uintptr)ptr <= 0xffffffff);
+	return ptr;
+}
+#endif
+
 void alloc_cache(void)
 {
 	if (compiled_code) {
 		flush_icache_hard(0, 3);
 		cache_free(compiled_code);
+		compiled_code = 0;
 	}
 	if (veccode == NULL)
 		veccode = cache_alloc (256);
 	if (popallspace == NULL)
 		popallspace = cache_alloc (1024);
 	compiled_code = NULL;
-	if (currprefs.cachesize == 0)
+
+	if (cache_size == 0)
 		return;
 
-	while (!compiled_code && currprefs.cachesize) {
-		compiled_code=cache_alloc(currprefs.cachesize*1024);
-		if (!compiled_code)
-			currprefs.cachesize/=2;
+	while (!compiled_code && cache_size) {
+		if ((compiled_code = cache_alloc(cache_size * 1024)) == NULL) {
+			compiled_code = 0;
+			cache_size /= 2;
+		}
 	}
 	if (compiled_code) {
-		max_compile_start = compiled_code + currprefs.cachesize*1024 - BYTES_PER_INST;
+		max_compile_start = compiled_code + cache_size*1024 - BYTES_PER_INST;
 		current_compile_p=compiled_code;
 	}
 }
@@ -2970,7 +3037,7 @@ static void recompile_block(void)
 	blockinfo*  bi=get_blockinfo_addr(regs.pc_p);
 
 	Dif (!bi)
-		jit_abort(_T("recompile_block"));
+		jit_abort("recompile_block");
 	raise_in_cl_list(bi);
 	execute_normal();
 	return;
@@ -3001,6 +3068,7 @@ static void check_checksum(void)
 	blockinfo*  bi2=get_blockinfo(cl);
 
 	uae_u32     c1,c2;
+	bool        isgood;
 
 	checksum_count++;
 	/* These are not the droids you are looking for...  */
@@ -3022,12 +3090,16 @@ static void check_checksum(void)
 	else {
 		c1=c2=1;  /* Make sure it doesn't match */
 	}
-	if (c1==bi->c1 && c2==bi->c2) {
+
+	isgood=(c1==bi->c1 && c2==bi->c2);
+
+	if (isgood) {
 		/* This block is still OK. So we reactivate. Of course, that
 		means we have to move it into the needs-to-be-flushed list */
 		bi->handler_to_use=bi->handler;
 		set_dhtu(bi,bi->direct_handler);
-
+	}
+	if (isgood) {
 		jit_log2("reactivate %p/%p (%x %x/%x %x)",bi,bi->pc_p, c1,c2,bi->c1,bi->c2);
 		remove_from_list(bi);
 		add_to_active(bi);
@@ -3192,6 +3264,80 @@ void compemu_reset(void)
 	set_cache_state(0);
 }
 
+// OPCODE is in big endian format, use cft_map() beforehand, if needed.
+static inline void reset_compop(int opcode)
+{
+	compfunctbl[opcode] = NULL;
+	nfcompfunctbl[opcode] = NULL;
+}
+
+static int read_opcode(const char *p)
+{
+	int opcode = 0;
+	for (int i = 0; i < 4; i++) {
+		int op = p[i];
+		switch (op) {
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+			opcode = (opcode << 4) | (op - '0');
+			break;
+		case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
+			opcode = (opcode << 4) | ((op - 'a') + 10);
+			break;
+		case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
+			opcode = (opcode << 4) | ((op - 'A') + 10);
+			break;
+		default:
+			return -1;
+		}
+	}
+	return opcode;
+}
+
+static bool merge_blacklist()
+{
+#ifdef UAE
+	const char *blacklist = "";
+#else
+	const char *blacklist = bx_options.jit.jitblacklist;
+#endif
+	if (blacklist[0] != '\0') {
+		const char *p = blacklist;
+		for (;;) {
+			if (*p == 0)
+				return true;
+
+			int opcode1 = read_opcode(p);
+			if (opcode1 < 0)
+				return false;
+			p += 4;
+
+			int opcode2 = opcode1;
+			if (*p == '-') {
+				p++;
+				opcode2 = read_opcode(p);
+				if (opcode2 < 0)
+					return false;
+				p += 4;
+			}
+
+			if (*p == 0 || *p == ',') {
+				jit_log("blacklist opcodes : %04x-%04x\n", opcode1, opcode2);
+				for (int opcode = opcode1; opcode <= opcode2; opcode++)
+					reset_compop(cft_map(opcode));
+
+				if (*(p++) == ',')
+					continue;
+
+				return true;
+			}
+
+			return false;
+		}
+	}
+	return true;
+}
+
 void build_comp(void)
 {
 	int i;
@@ -3212,7 +3358,9 @@ void build_comp(void)
 #ifdef NATMEM_OFFSET
 	install_exception_handler();
 #endif
-	write_log (_T("JIT: Building Compiler function table\n"));
+
+	jit_log("Building compiler function tables");
+	
 	for (opcode = 0; opcode < 65536; opcode++) {
 #ifdef NOFLAGS_SUPPORT
 		nfcpufunctbl[opcode] = op_illg;
@@ -3285,7 +3433,7 @@ void build_comp(void)
 		prop[opcode].set_flags =table68k[opcode].flagdead;
 		prop[opcode].use_flags =table68k[opcode].flaglive;
 		/* Unconditional jumps don't evaluate condition codes, so they
-		don't actually use any flags themselves */
+		 * don't actually use any flags themselves */
 		if (prop[opcode].is_const_jump)
 			prop[opcode].use_flags=0;
 	}
@@ -3295,6 +3443,10 @@ void build_comp(void)
 			nfcpufunctbl[tbl[i].opcode] = nfctbl[i].handler;
 	}
 #endif
+
+	/* Merge in blacklist */
+	if (!merge_blacklist())
+		jit_log("blacklist merge failure!");
 
 	count=0;
 	for (opcode = 0; opcode < 65536; opcode++) {
