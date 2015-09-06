@@ -30,8 +30,10 @@
  */
 
 #ifdef UAE
+
 #define writemem_special writemem
 #define readmem_special  readmem
+
 #else
 #if !FIXED_ADDRESSING
 #error "Only Fixed Addressing is supported with the JIT Compiler"
@@ -105,6 +107,30 @@ extern bool canbang;
 #include "compemu_prefs.cpp"
 
 #define cache_size currprefs.cachesize
+
+static inline int distrust_byte(void)
+{
+	int distrust = currprefs.comptrustbyte;
+	return distrust;
+}
+
+static inline int distrust_word(void)
+{
+	int distrust = currprefs.comptrustword;
+	return distrust;
+}
+
+static inline int distrust_long(void)
+{
+	int distrust = currprefs.comptrustlong;
+	return distrust;
+}
+
+static inline int distrust_addr(void)
+{
+	int distrust = currprefs.comptrustnaddr;
+	return distrust;
+}
 
 #else
 #define DEBUG 0
@@ -2874,8 +2900,7 @@ static inline void writemem(int address, int source, int offset, int size, int t
 
 void writebyte(int address, int source, int tmp)
 {
-	int distrust = currprefs.comptrustbyte;
-	if ((special_mem&S_WRITE) || distrust)
+	if ((special_mem & S_WRITE) || distrust_byte())
 		writemem_special(address,source,20,1,tmp);
 	else
 		writemem_real(address,source,1,tmp,0);
@@ -2884,8 +2909,7 @@ void writebyte(int address, int source, int tmp)
 static inline void writeword_general(int address, int source, int tmp,
 	int clobber)
 {
-	int distrust = currprefs.comptrustword;
-	if ((special_mem&S_WRITE) || distrust)
+	if ((special_mem & S_WRITE) || distrust_word())
 		writemem_special(address,source,16,2,tmp);
 	else
 		writemem_real(address,source,2,tmp,clobber);
@@ -2904,8 +2928,7 @@ void writeword(int address, int source, int tmp)
 static inline void writelong_general(int address, int source, int tmp,
 	int clobber)
 {
-	int  distrust = currprefs.comptrustlong;
-	if ((special_mem&S_WRITE) || distrust)
+	if ((special_mem & S_WRITE) || distrust_long())
 		writemem_special(address,source,12,4,tmp);
 	else
 		writemem_real(address,source,4,tmp,clobber);
@@ -2977,8 +3000,7 @@ static inline void readmem(int address, int dest, int offset, int size, int tmp)
 
 void readbyte(int address, int dest, int tmp)
 {
-	int distrust = currprefs.comptrustbyte;
-	if ((special_mem&S_READ) || distrust)
+	if ((special_mem & S_READ) || distrust_byte())
 		readmem_special(address,dest,8,1,tmp);
 	else
 		readmem_real(address,dest,1,tmp);
@@ -2986,8 +3008,7 @@ void readbyte(int address, int dest, int tmp)
 
 void readword(int address, int dest, int tmp)
 {
-	int distrust = currprefs.comptrustword;
-	if ((special_mem&S_READ) || distrust)
+	if ((special_mem & S_READ) || distrust_word())
 		readmem_special(address,dest,4,2,tmp);
 	else
 		readmem_real(address,dest,2,tmp);
@@ -2995,8 +3016,7 @@ void readword(int address, int dest, int tmp)
 
 void readlong(int address, int dest, int tmp)
 {
-	int distrust = currprefs.comptrustlong;
-	if ((special_mem&S_READ) || distrust)
+	if ((special_mem & S_READ) || distrust_long())
 		readmem_special(address,dest,0,4,tmp);
 	else
 		readmem_real(address,dest,4,tmp);
@@ -3033,8 +3053,7 @@ static inline void get_n_addr_real(int address, int dest, int tmp)
 
 void get_n_addr(int address, int dest, int tmp)
 {
-	int distrust = currprefs.comptrustnaddr;
-	if (special_mem || distrust)
+	if (special_mem || distrust_addr())
 		get_n_addr_old(address,dest,tmp);
 	else
 		get_n_addr_real(address,dest,tmp);
