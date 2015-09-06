@@ -1,6 +1,39 @@
+/*
+ *  compiler/compemu_midfunc_arm.cpp - Native MIDFUNCS for IA-32 and AMD64
+ *
+ * Copyright (c) 2014 Jens Heitmann of ARAnyM dev team (see AUTHORS)
+ *
+ * Inspired by Christian Bauer's Basilisk II
+ *
+ *  Original 68040 JIT compiler for UAE, copyright 2000-2002 Bernd Meyer
+ *
+ *  Adaptation for Basilisk II and improvements, copyright 2000-2002
+ *    Gwenole Beauchesne
+ *
+ *  Basilisk II (C) 1997-2002 Christian Bauer
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ *  Note:
+ *  	File is included by compemu_support.cpp
+ *
+ */
+
 /********************************************************************
-* CPU functions exposed to gencomp. Both CREATE and EMIT time      *
-********************************************************************/
+ * CPU functions exposed to gencomp. Both CREATE and EMIT time      *
+ ********************************************************************/
 
 
 /*
@@ -48,7 +81,7 @@ MIDFUNC(0,duplicate_carry,(void))
 {
 	evict(FLAGX);
 	make_flags_live_internal();
-	COMPCALL(setcc_m)((uae_u32)live.state[FLAGX].mem + 1,2);
+	COMPCALL(setcc_m)((uintptr)live.state[FLAGX].mem + 1,2);
 }
 MENDFUNC(0,duplicate_carry,(void))
 
@@ -280,7 +313,7 @@ MIDFUNC(2,rol_l_rr,(RW4 d, RR1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,4,4);
 	Dif (r!=1) {
-		jit_abort (_T("JIT: Illegal register %d in raw_rol_b\n"),r);
+		jit_abort("Illegal register %d in raw_rol_b",r);
 	}
 	raw_rol_l_rr(d,r) ;
 	unlock2(r);
@@ -299,7 +332,7 @@ MIDFUNC(2,rol_w_rr,(RW2 d, RR1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,2,2);
 	Dif (r!=1) {
-		jit_abort (_T("JIT: Illegal register %d in raw_rol_b\n"),r);
+		jit_abort("Illegal register %d in raw_rol_b",r);
 	}
 	raw_rol_w_rr(d,r) ;
 	unlock2(r);
@@ -319,7 +352,7 @@ MIDFUNC(2,rol_b_rr,(RW1 d, RR1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,1,1);
 	Dif (r!=1) {
-		jit_abort (_T("JIT: Illegal register %d in raw_rol_b\n"),r);
+		jit_abort("Illegal register %d in raw_rol_b",r);
 	}
 	raw_rol_b_rr(d,r) ;
 	unlock2(r);
@@ -338,7 +371,7 @@ MIDFUNC(2,shll_l_rr,(RW4 d, RR1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,4,4);
 	Dif (r!=1) {
-		jit_abort (_T("JIT: Illegal register %d in raw_rol_b\n"),r);
+		jit_abort("Illegal register %d in raw_rol_b",r);
 	}
 	raw_shll_l_rr(d,r) ;
 	unlock2(r);
@@ -357,7 +390,7 @@ MIDFUNC(2,shll_w_rr,(RW2 d, RR1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,2,2);
 	Dif (r!=1) {
-		jit_abort (_T("JIT: Illegal register %d in raw_shll_b\n"),r);
+		jit_abort("Illegal register %d in raw_shll_b",r);
 	}
 	raw_shll_w_rr(d,r) ;
 	unlock2(r);
@@ -377,7 +410,7 @@ MIDFUNC(2,shll_b_rr,(RW1 d, RR1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,1,1);
 	Dif (r!=1) {
-		jit_abort (_T("JIT: Illegal register %d in raw_shll_b\n"),r);
+		jit_abort("Illegal register %d in raw_shll_b",r);
 	}
 	raw_shll_b_rr(d,r) ;
 	unlock2(r);
@@ -475,7 +508,7 @@ MIDFUNC(2,shrl_l_rr,(RW4 d, RR1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,4,4);
 	Dif (r!=1) {
-		jit_abort (_T("JIT: Illegal register %d in raw_rol_b\n"),r);
+		jit_abort("Illegal register %d in raw_rol_b",r);
 	}
 	raw_shrl_l_rr(d,r) ;
 	unlock2(r);
@@ -494,7 +527,7 @@ MIDFUNC(2,shrl_w_rr,(RW2 d, RR1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,2,2);
 	Dif (r!=1) {
-		jit_abort (_T("JIT: Illegal register %d in raw_shrl_b\n"),r);
+		jit_abort("Illegal register %d in raw_shrl_b",r);
 	}
 	raw_shrl_w_rr(d,r) ;
 	unlock2(r);
@@ -514,7 +547,7 @@ MIDFUNC(2,shrl_b_rr,(RW1 d, RR1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,1,1);
 	Dif (r!=1) {
-		jit_abort (_T("JIT: Illegal register %d in raw_shrl_b\n"),r);
+		jit_abort("Illegal register %d in raw_shrl_b",r);
 	}
 	raw_shrl_b_rr(d,r) ;
 	unlock2(r);
@@ -641,7 +674,7 @@ MIDFUNC(2,shra_l_rr,(RW4 d, RR1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,4,4);
 	Dif (r!=1) {
-		jit_abort (_T("JIT: Illegal register %d in raw_rol_b\n"),r);
+		jit_abort("Illegal register %d in raw_rol_b",r);
 	}
 	raw_shra_l_rr(d,r) ;
 	unlock2(r);
@@ -660,7 +693,7 @@ MIDFUNC(2,shra_w_rr,(RW2 d, RR1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,2,2);
 	Dif (r!=1) {
-		jit_abort (_T("JIT: Illegal register %d in raw_shra_b\n"),r);
+		jit_abort("Illegal register %d in raw_shra_b",r);
 	}
 	raw_shra_w_rr(d,r) ;
 	unlock2(r);
@@ -680,7 +713,7 @@ MIDFUNC(2,shra_b_rr,(RW1 d, RR1 r))
 	r=readreg_specific(r,1,SHIFTCOUNT_NREG);
 	d=rmw(d,1,1);
 	Dif (r!=1) {
-		jit_abort (_T("JIT: Illegal register %d in raw_shra_b\n"),r);
+		jit_abort("Illegal register %d in raw_shra_b",r);
 	}
 	raw_shra_b_rr(d,r) ;
 	unlock2(r);
@@ -840,6 +873,49 @@ MIDFUNC(2,mul_64_32,(RW4 d, RW4 s))
 	unlock2(d);
 }
 MENDFUNC(2,mul_64_32,(RW4 d, RW4 s))
+
+MIDFUNC(2,mul_32_32,(RW4 d, RR4 s))
+{
+    CLOBBER_MUL;
+    s=readreg(s,4);
+    d=rmw(d,4,4);
+    raw_mul_32_32(d,s);
+    unlock2(s);
+    unlock2(d);
+}
+MENDFUNC(2,mul_32_32,(RW4 d, RR4 s))
+
+#if SIZEOF_VOID_P == 8
+MIDFUNC(2,sign_extend_32_rr,(W4 d, RR2 s))
+{
+    int isrmw;
+
+    if (isconst(s)) {
+	set_const(d,(uae_s32)live.state[s].val);
+	return;
+    }
+
+    CLOBBER_SE32;
+    isrmw=(s==d);
+    if (!isrmw) {
+	s=readreg(s,4);
+	d=writereg(d,4);
+    }
+    else {  /* If we try to lock this twice, with different sizes, we
+	       are int trouble! */
+	s=d=rmw(s,4,4);
+    }
+    raw_sign_extend_32_rr(d,s);
+    if (!isrmw) {
+	unlock2(d);
+	unlock2(s);
+    }
+    else {
+	unlock2(s);
+    }
+}
+MENDFUNC(2,sign_extend_32_rr,(W4 d, RR2 s))
+#endif
 
 MIDFUNC(2,sign_extend_16_rr,(W4 d, RR2 s))
 {
@@ -1425,7 +1501,6 @@ MENDFUNC(3,mov_b_bRr,(RR4 d, RR1 s, IMM offset))
 
 MIDFUNC(1,gen_bswap_32,(RW4 r))
 {
-	int reg=r;
 
 	if (isconst(r)) {
 		uae_u32 oldv=live.state[r].val;
@@ -1482,9 +1557,7 @@ MIDFUNC(2,mov_l_rr,(W4 d, RR4 s))
 	live.nat[s].holds[live.nat[s].nholds]=d;
 	live.nat[s].nholds++;
 	log_clobberreg(d);
-
-	/* write_log (_T("JIT: Added %d to nreg %d(%d), now holds %d regs\n"),
-	d,s,live.state[d].realind,live.nat[s].nholds); */
+	jit_log2("Added %d to nreg %d(%d), now holds %d regs", d,s,live.state[d].realind,live.nat[s].nholds);
 	unlock2(s);
 #else
 	CLOBBER_MOV;
@@ -1707,6 +1780,17 @@ MIDFUNC(2,and_b,(RW1 d, RR1 s))
 	unlock2(s);
 }
 MENDFUNC(2,and_b,(RW1 d, RR1 s))
+
+// gb-- used for making an fpcr value in compemu_fpp.cpp
+MIDFUNC(2,or_l_rm,(RW4 d, IMM s))
+{
+    CLOBBER_OR;
+    d=rmw(d,4,4);
+
+    raw_or_l_rm(d,s);
+    unlock2(d);
+}
+MENDFUNC(2,or_l_rm,(RW4 d, IMM s))
 
 MIDFUNC(2,or_l_ri,(RW4 d, IMM i))
 {
@@ -2719,3 +2803,18 @@ MIDFUNC(2,fmul_rr,(FRW d, FR s))
 	f_unlock(d);
 }
 MENDFUNC(2,fmul_rr,(FRW d, FR s))
+
+static inline void flush_cpu_icache(void *start, void *stop)
+{
+	UNUSED(start);
+	UNUSED(stop);
+}
+
+static inline void write_jmp_target(uae_u32 *jmpaddr, cpuop_func* a) {
+	*(jmpaddr)=(uintptr)a-((uintptr)jmpaddr+4);
+}
+
+static inline void emit_jmp_target(uae_u32 a) {
+	emit_long(a-((uintptr)target+4));
+}
+
