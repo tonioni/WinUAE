@@ -48,9 +48,19 @@ typedef LPEXCEPTION_POINTERS CONTEXT_T;
 
 #elif HAVE_STRUCT_UCONTEXT_UC_MCONTEXT_GREGS
 
+#ifdef CPU_x86_64
+#define CONTEXT_RIP(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_RIP])
+#define CONTEXT_RAX(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_RAX])
+#define CONTEXT_RCX(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_RCX])
+#define CONTEXT_RDX(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_RDX])
+#define CONTEXT_RBX(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_RBX])
+#define CONTEXT_RSP(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_RSP])
+#define CONTEXT_RBP(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_RBP])
+#define CONTEXT_RSI(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_RSI])
+#define CONTEXT_RDI(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_RDI])
+#else
 typedef void *CONTEXT_T;
 #define HAVE_CONTEXT_T 1
-
 #define CONTEXT_EIP(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_EIP])
 #define CONTEXT_EAX(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_EAX])
 #define CONTEXT_ECX(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_ECX])
@@ -60,8 +70,8 @@ typedef void *CONTEXT_T;
 #define CONTEXT_EBP(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_EBP])
 #define CONTEXT_ESI(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_ESI])
 #define CONTEXT_EDI(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_EDI])
-
 #define CONTEXT_CR2(context) (((struct ucontext *) context)->uc_mcontext.cr2)
+#endif
 
 #endif
 
