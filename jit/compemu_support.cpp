@@ -1,28 +1,111 @@
+/*
+ * compiler/compemu_support.cpp - Core dynamic translation engine
+ *
+ * Copyright (c) 2001-2009 Milan Jurik of ARAnyM dev team (see AUTHORS)
+ * 
+ * Inspired by Christian Bauer's Basilisk II
+ *
+ * This file is part of the ARAnyM project which builds a new and powerful
+ * TOS/FreeMiNT compatible virtual machine running on almost any hardware.
+ *
+ * JIT compiler m68k -> IA-32 and AMD64 / ARM
+ *
+ * Original 68040 JIT compiler for UAE, copyright 2000-2002 Bernd Meyer
+ * Adaptation for Basilisk II and improvements, copyright 2000-2004 Gwenole Beauchesne
+ * Portions related to CPU detection come from linux/arch/i386/kernel/setup.c
+ *
+ * ARAnyM is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * ARAnyM is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with ARAnyM; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
 
+#ifdef UAE
 #define writemem_special writemem
 #define readmem_special  readmem
-
 #define USE_MATCHSTATE 0
+#else
+#if !FIXED_ADDRESSING
+#error "Only Fixed Addressing is supported with the JIT Compiler"
+#endif
+
+#if defined(X86_ASSEMBLY) && !SAHF_SETO_PROFITABLE
+#error "Only [LS]AHF scheme to [gs]et flags is supported with the JIT Compiler"
+#endif
+
+/* NOTE: support for AMD64 assumes translation cache and other code
+ * buffers are allocated into a 32-bit address space because (i) B2/JIT
+ * code is not 64-bit clean and (ii) it's faster to resolve branches
+ * that way.
+ */
+#if !defined(CPU_i386) && !defined(CPU_x86_64) && !defined(CPU_arm)
+#error "Only IA-32, X86-64 and ARM v6 targets are supported with the JIT Compiler"
+#endif
+
+#define USE_MATCH 0
+#endif
+
+/* kludge for Brian, so he can compile under MSVC++ */
+#define USE_NORMAL_CALLING_CONVENTION 0
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#if defined(JIT)
+#ifdef JIT
 
+#ifdef UAE
 #include "options.h"
 #include "events.h"
 #include "memory.h"
 #include "custom.h"
+#else
+#include "sysdeps.h"
+#include "cpu_emulation.h"
+#include "main.h"
+#include "vm_alloc.h"
+
+#include "m68k.h"
+#include "memory.h"
+#include "readcpu.h"
+#endif
 #include "newcpu.h"
 #include "comptbl.h"
+#ifdef UAE
 #include "compemu.h"
+#else
+#include "compiler/compemu.h"
+#include "fpu/fpu.h"
+#include "fpu/flags.h"
+#include "parameters.h"
+#endif
 
 #ifdef UAE
+
 #define UNUSED(x)
 #define HAVE_GET_WORD_UNSWAPPED
 #include "uae.h"
 #include "uae/log.h"
 #define jit_log uae_log
 #define jit_log2(...)
+
+#define MEMBaseDiff ((uae_u32)NATMEM_OFFSET)
+
+// %%% BRIAN KING WAS HERE %%%
+extern bool canbang;
+
+#include "compemu_prefs.cpp"
+
+#define cache_size currprefs.cachesize
+
 #else
 #define DEBUG 0
 #include "debug.h"
@@ -30,11 +113,6 @@
 
 #define PROFILE_COMPILE_TIME		1
 #define PROFILE_UNTRANSLATED_INSNS	1
-
-#define MEMBaseDiff ((uae_u32)NATMEM_OFFSET)
-
-// %%% BRIAN KING WAS HERE %%%
-extern bool canbang;
 
 # include <csignal>
 # include <cstdlib>
@@ -100,10 +178,37 @@ static compop_func *nfcpufunctbl[65536];
 #endif
 uae_u8* comp_pc_p;
 
+#ifdef UAE
+/* defined in uae.h */
+#else
+// External variables
+// newcpu.cpp
+extern int quit_program;
+#endif
 
+// gb-- Extra data for Basilisk II/JIT
+#ifdef JIT_DEBUG
+static bool		JITDebug			= false;	// Enable runtime disassemblers through mon?
+#else
+const bool		JITDebug			= false;	// Don't use JIT debug mode at all
+#endif
+#if USE_INLINING
+static bool		follow_const_jumps	= true;		// Flag: translation through constant jumps	
+#else
+const bool		follow_const_jumps	= false;
+#endif
+
+#ifdef UAE
+/* ... */
+#else
+const uae_u32	MIN_CACHE_SIZE		= 1024;		// Minimal translation cache size (1 MB)
+static uae_u32	cache_size			= 0;		// Size of total cache allocated for compiled blocks
+static uae_u32	current_cache_size	= 0;		// Cache grows upwards: how much has been consumed already
+#endif
 static bool		lazy_flush		= true;	// Flag: lazy translation cache invalidation
 static bool		avoid_fpu		= true;	// Flag: compile FPU instructions ?
 static bool		have_cmov		= false;	// target has CMOV instructions ?
+static bool		have_lahf_lm		= true;		// target has LAHF supported in long mode ?
 static bool		have_rat_stall		= true;	// target has partial register stalls ?
 const bool		tune_alignment		= true;	// Tune code alignments for running CPU ?
 const bool		tune_nop_fillers	= true;	// Tune no-op fillers for architecture
@@ -189,7 +294,7 @@ static void* popall_check_checksum=NULL;
  * lists that we maintain for each hash result.
  */
 static cacheline cache_tags[TAGSIZE];
-static int letit=0;
+int letit=0;
 static blockinfo* hold_bi[MAX_HOLD_BI];
 static blockinfo* active;
 static blockinfo* dormant;
@@ -505,123 +610,6 @@ static inline void alloc_blockinfos(void)
 
 		prepare_block(bi);
 	}
-}
-
-/********************************************************************
- * Preferences handling. This is just a convenient place to put it  *
- ********************************************************************/
-extern bool have_done_picasso;
-
-bool check_prefs_changed_comp (void)
-{
-	bool changed = 0;
-	static int cachesize_prev, comptrust_prev;
-	static bool canbang_prev;
-
-	if (currprefs.comptrustbyte != changed_prefs.comptrustbyte ||
-		currprefs.comptrustword != changed_prefs.comptrustword ||
-		currprefs.comptrustlong != changed_prefs.comptrustlong ||
-		currprefs.comptrustnaddr!= changed_prefs.comptrustnaddr ||
-		currprefs.compnf != changed_prefs.compnf ||
-		currprefs.comp_hardflush != changed_prefs.comp_hardflush ||
-		currprefs.comp_constjump != changed_prefs.comp_constjump ||
-		currprefs.comp_oldsegv != changed_prefs.comp_oldsegv ||
-		currprefs.compfpu != changed_prefs.compfpu ||
-		currprefs.fpu_strict != changed_prefs.fpu_strict)
-		changed = 1;
-
-	currprefs.comptrustbyte = changed_prefs.comptrustbyte;
-	currprefs.comptrustword = changed_prefs.comptrustword;
-	currprefs.comptrustlong = changed_prefs.comptrustlong;
-	currprefs.comptrustnaddr= changed_prefs.comptrustnaddr;
-	currprefs.compnf = changed_prefs.compnf;
-	currprefs.comp_hardflush = changed_prefs.comp_hardflush;
-	currprefs.comp_constjump = changed_prefs.comp_constjump;
-	currprefs.comp_oldsegv = changed_prefs.comp_oldsegv;
-	currprefs.compfpu = changed_prefs.compfpu;
-	currprefs.fpu_strict = changed_prefs.fpu_strict;
-
-	if (currprefs.cachesize != changed_prefs.cachesize) {
-		if (currprefs.cachesize && !changed_prefs.cachesize) {
-			cachesize_prev = currprefs.cachesize;
-			comptrust_prev = currprefs.comptrustbyte;
-			canbang_prev = canbang;
-		} else if (!currprefs.cachesize && changed_prefs.cachesize == cachesize_prev) {
-			changed_prefs.comptrustbyte = currprefs.comptrustbyte = comptrust_prev;
-			changed_prefs.comptrustword = currprefs.comptrustword = comptrust_prev;
-			changed_prefs.comptrustlong = currprefs.comptrustlong = comptrust_prev;
-			changed_prefs.comptrustnaddr = currprefs.comptrustnaddr = comptrust_prev;
-		}
-		currprefs.cachesize = changed_prefs.cachesize;
-		alloc_cache();
-		changed = 1;
-	}
-
-	// Turn off illegal-mem logging when using JIT...
-	if(currprefs.cachesize)
-		currprefs.illegal_mem = changed_prefs.illegal_mem;// = 0;
-
-	currprefs.comp_midopt = changed_prefs.comp_midopt;
-	currprefs.comp_lowopt = changed_prefs.comp_lowopt;
-
-	if ((!canbang || !currprefs.cachesize) && currprefs.comptrustbyte != 1) {
-		// Set all of these to indirect when canbang == 0
-		// Basically, set the compforcesettings option...
-		currprefs.comptrustbyte = 1;
-		currprefs.comptrustword = 1;
-		currprefs.comptrustlong = 1;
-		currprefs.comptrustnaddr= 1;
-
-		changed_prefs.comptrustbyte = 1;
-		changed_prefs.comptrustword = 1;
-		changed_prefs.comptrustlong = 1;
-		changed_prefs.comptrustnaddr= 1;
-
-		changed = 1;
-
-		if (currprefs.cachesize)
-			write_log (_T("JIT: Reverting to \"indirect\" access, because canbang is zero!\n"));
-	}
-
-	if (changed)
-		write_log (_T("JIT: cache=%d. b=%d w=%d l=%d fpu=%d nf=%d const=%d hard=%d\n"),
-		currprefs.cachesize,
-		currprefs.comptrustbyte, currprefs.comptrustword, currprefs.comptrustlong, 
-		currprefs.compfpu, currprefs.compnf, currprefs.comp_constjump, currprefs.comp_hardflush);
-
-#if 0
-	if (!currprefs.compforcesettings) {
-		int stop=0;
-		if (currprefs.comptrustbyte!=0 && currprefs.comptrustbyte!=3)
-			stop = 1, write_log (_T("JIT: comptrustbyte is not 'direct' or 'afterpic'\n"));
-		if (currprefs.comptrustword!=0 && currprefs.comptrustword!=3)
-			stop = 1, write_log (_T("JIT: comptrustword is not 'direct' or 'afterpic'\n"));
-		if (currprefs.comptrustlong!=0 && currprefs.comptrustlong!=3)
-			stop = 1, write_log (_T("JIT: comptrustlong is not 'direct' or 'afterpic'\n"));
-		if (currprefs.comptrustnaddr!=0 && currprefs.comptrustnaddr!=3)
-			stop = 1, write_log (_T("JIT: comptrustnaddr is not 'direct' or 'afterpic'\n"));
-		if (currprefs.compnf!=1)
-			stop = 1, write_log (_T("JIT: compnf is not 'yes'\n"));
-		if (currprefs.cachesize<1024)
-			stop = 1, write_log (_T("JIT: cachesize is less than 1024\n"));
-		if (currprefs.comp_hardflush)
-			stop = 1, write_log (_T("JIT: comp_flushmode is 'hard'\n"));
-		if (!canbang)
-			stop = 1, write_log (_T("JIT: Cannot use most direct memory access,\n")
-			"     and unable to recover from failed guess!\n");
-		if (stop) {
-			gui_message("JIT: Configuration problems were detected!\n"
-				"JIT: These will adversely affect performance, and should\n"
-				"JIT: not be used. For more info, please see README.JIT-tuning\n"
-				"JIT: in the UAE documentation directory. You can force\n"
-				"JIT: your settings to be used by setting\n"
-				"JIT:      'compforcesettings=yes'\n"
-				"JIT: in your config file\n");
-			exit(1);
-		}
-	}
-#endif
-	return changed;
 }
 
 /********************************************************************
@@ -2162,6 +2150,11 @@ static void fflags_into_flags_internal(uae_u32 tmp)
 	f_unlock(r);
 }
 
+
+#if defined(CPU_arm)
+#include "compemu_midfunc_arm.cpp"
+#endif
+
 #include "compemu_midfunc_x86.cpp"
 
 /********************************************************************
@@ -2740,6 +2733,7 @@ void register_branch(uae_u32 not_taken, uae_u32 taken, uae_u8 cond)
 	branch_cc=cond;
 }
 
+/*
 static uae_u32 get_handler_address(uae_u32 addr)
 {
 	(void)cacheline(addr);
@@ -2751,6 +2745,7 @@ static uae_u32 get_handler_address(uae_u32 addr)
 #endif
 	return (uintptr)&(bi->direct_handler_to_use);
 }
+*/
 
 /* Note: get_handler may fail in 64 Bit environments, if direct_handler_to_use is
  * 		 outside 32 bit
@@ -2767,10 +2762,12 @@ static uae_u32 get_handler(uae_u32 addr)
 	return (uintptr)bi->direct_handler_to_use;
 }
 
+/*
 static void load_handler(int reg, uae_u32 addr)
 {
 	mov_l_rm(reg,get_handler_address(addr));
 }
+*/
 
 /* This version assumes that it is writing *real* memory, and *will* fail
 *  if that assumption is wrong! No branches, no second chances, just
@@ -3166,12 +3163,12 @@ static void calc_checksum(blockinfo* bi, uae_u32* c1, uae_u32* c2)
 }
 
 #if 0
-static void show_checksum(blockinfo* bi)
+static void show_checksum(CSI_TYPE* csi)
 {
 	uae_u32 k1=0;
 	uae_u32 k2=0;
-	uae_s32 len=bi->len;
-	uae_u32 tmp=(uae_u32)bi->pc_p;
+	uae_s32 len=CSI_LENGTH(csi);
+	uae_u32 tmp=(uintptr)CSI_START_P(csi);
 	uae_u32* pos;
 
 	len+=(tmp&3);
@@ -3577,9 +3574,14 @@ void build_comp(void)
 }
 
 
+static void flush_icache_none(int)
+{
+	/* Nothing to do.  */
+}
+
 void flush_icache_hard(uaecptr ptr, int n)
 {
-	blockinfo* bi;
+	blockinfo* bi, *dbi;
 
 	hard_flush_count++;
 #if 0
@@ -3590,13 +3592,13 @@ void flush_icache_hard(uaecptr ptr, int n)
 	while(bi) {
 		cache_tags[cacheline(bi->pc_p)].handler=(cpuop_func*)popall_execute_normal;
 		cache_tags[cacheline(bi->pc_p)+1].bi=NULL;
-		bi=bi->next;
+		dbi=bi; bi=bi->next;
 	}
 	bi=dormant;
 	while(bi) {
 		cache_tags[cacheline(bi->pc_p)].handler=(cpuop_func*)popall_execute_normal;
 		cache_tags[cacheline(bi->pc_p)+1].bi=NULL;
-		bi=bi->next;
+		dbi=bi; bi=bi->next;
 	}
 
 	reset_lists();
@@ -3834,7 +3836,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 
 		bi->direct_handler=(cpuop_func*)get_target();
 		set_dhtu(bi,bi->direct_handler);
-		current_block_start_target=(uae_u32)get_target();
+		current_block_start_target=(uintptr)get_target();
 
 		if (bi->count>=0) { /* Need to generate countdown code */
 			raw_mov_l_mi((uintptr)&regs.pc_p,(uintptr)pc_hist[0].location);
@@ -3889,6 +3891,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					}
 #endif
 
+					failure = 1; // gb-- defaults to failure state
 					if (comptbl[opcode] && optlev>1) {
 						failure=0;
 						if (!was_comp) {
@@ -3910,8 +3913,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 						was_comp=0;
 #endif
 					}
-					else
-						failure=1;
+
 					if (failure) {
 						if (was_comp) {
 							flush(1);
@@ -3923,10 +3925,10 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 						raw_push_l_r(REG_PAR2);
 						raw_push_l_r(REG_PAR1);
 #endif
-						raw_mov_l_mi((uae_u32)&regs.pc_p,
-							(uae_u32)pc_hist[i].location);
-						raw_call((uae_u32)cputbl[opcode]);
-						//raw_add_l_mi((uae_u32)&oink,1); // FIXME
+						raw_mov_l_mi((uintptr)&regs.pc_p,
+							(uintptr)pc_hist[i].location);
+						raw_call((uintptr)cputbl[opcode]);
+						//raw_add_l_mi((uintptr)&oink,1); // FIXME
 #if USE_NORMAL_CALLING_CONVENTION
 						raw_inc_sp(8);
 #endif
@@ -4003,13 +4005,12 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 				/* predicted outcome */
 				tbi=get_blockinfo_addr_new((void*)t1,1);
 				match_states(&(tbi->env));
-				//flush(1); /* Can only get here if was_comp==1 */
 				raw_sub_l_mi((uae_u32)&countdown,scaled_cycles(totcycles));
 				raw_jcc_l_oponly(9);
 				tba=(uae_u32*)get_target();
 				emit_long(get_handler(t1)-((uae_u32)tba+4));
-				raw_mov_l_mi((uae_u32)&regs.pc_p,t1);
-				raw_jmp((uae_u32)popall_do_nothing);
+				raw_mov_l_mi((uintptr)&regs.pc_p,t1);
+				raw_jmp((uintptr)popall_do_nothing);
 				create_jmpdep(bi,0,tba,t1);
 
 				align_target(16);
@@ -4024,8 +4025,8 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 				raw_jcc_l_oponly(9);
 				tba=(uae_u32*)get_target();
 				emit_long(get_handler(t2)-((uae_u32)tba+4));
-				raw_mov_l_mi((uae_u32)&regs.pc_p,t2);
-				raw_jmp((uae_u32)popall_do_nothing);
+				raw_mov_l_mi((uintptr)&regs.pc_p,t2);
+				raw_jmp((uintptr)popall_do_nothing);
 				create_jmpdep(bi,1,tba,t2);
 			}
 			else
@@ -4073,6 +4074,14 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 			}
 		}
 
+#if USE_MATCH	
+	if (callers_need_recompile(&live,&(bi->env))) {
+	    mark_callers_recompile(bi);
+	}
+
+	big_to_small_state(&live,&(bi->env));
+#endif
+
 #if USE_CHECKSUM_INFO
 		remove_from_list(bi);
 		if (trace_in_rom) {
@@ -4106,6 +4115,22 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 			add_to_active(bi);
 		}
 #endif
+
+#ifdef JIT_DEBUG
+		if (JITDebug)
+			bi->direct_handler_size = get_target() - (uae_u8 *)current_block_start_target;
+
+		if (JITDebug && disasm_block) {
+			uaecptr block_addr = start_pc + ((char *)pc_hist[0].location - (char *)start_pc_p);
+			D(panicbug("M68K block @ 0x%08x (%d insns)\n", block_addr, blocklen));
+			uae_u32 block_size = ((uae_u8 *)pc_hist[blocklen - 1].location - (uae_u8 *)pc_hist[0].location) + 1;
+			disasm_m68k_block((uae_u8 *)pc_hist[0].location, block_size);
+			D(panicbug("Compiled block @ 0x%08x\n", pc_hist[0].location));
+			disasm_native_block((uae_u8 *)current_block_start_target, bi->direct_handler_size);
+			getchar();
+		}
+#endif
+
 		log_dump();
 		align_target(32);
 		current_compile_p=get_target();
@@ -4121,4 +4146,111 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 	}
 }
 
+#ifdef UAE
+    /* Slightly different function defined in newcpu.cpp */
+#else
+void do_nothing(void)
+{
+    /* What did you expect this to do? */
+}
 #endif
+
+#ifdef UAE
+    /* Different implementation in newcpu.cpp */
+#else
+void exec_nostats(void)
+{
+	for (;;)  { 
+		uae_u32 opcode = GET_OPCODE;
+#ifdef FLIGHT_RECORDER
+		m68k_record_step(m68k_getpc(), opcode);
+#endif
+		(*cpufunctbl[opcode])(opcode);
+		cpu_check_ticks();
+		if (end_block(opcode) || SPCFLAGS_TEST(SPCFLAG_ALL)) {
+			return; /* We will deal with the spcflags in the caller */
+		}
+	}
+}
+#endif
+
+#ifdef UAE
+    /* Different implementation in newcpu.cpp */
+#else
+void execute_normal(void)
+{
+	if (!check_for_cache_miss()) {
+		cpu_history pc_hist[MAXRUN];
+		int blocklen = 0;
+#if 0 && FIXED_ADDRESSING
+		start_pc_p = regs.pc_p;
+		start_pc = get_virtual_address(regs.pc_p);
+#else
+		start_pc_p = regs.pc_oldp;  
+		start_pc = regs.pc; 
+#endif
+		for (;;)  { /* Take note: This is the do-it-normal loop */
+			pc_hist[blocklen++].location = (uae_u16 *)regs.pc_p;
+			uae_u32 opcode = GET_OPCODE;
+#ifdef FLIGHT_RECORDER
+			m68k_record_step(m68k_getpc(), opcode);
+#endif
+			(*cpufunctbl[opcode])(opcode);
+			cpu_check_ticks();
+			if (end_block(opcode) || SPCFLAGS_TEST(SPCFLAG_ALL) || blocklen>=MAXRUN) {
+				compile_block(pc_hist, blocklen);
+				return; /* We will deal with the spcflags in the caller */
+			}
+			/* No need to check regs.spcflags, because if they were set,
+			we'd have ended up inside that "if" */
+		}
+	}
+}
+#endif
+
+typedef void (*compiled_handler)(void);
+
+#ifdef UAE
+#else
+void m68k_do_compile_execute(void)
+{
+	for (;;) {
+		((compiled_handler)(pushall_call_handler))();
+		/* Whenever we return from that, we should check spcflags */
+		if (SPCFLAGS_TEST(SPCFLAG_ALL)) {
+			if (m68k_do_specialties ())
+				return;
+		}
+	}
+}
+#endif
+
+#ifdef UAE
+#else
+void m68k_compile_execute (void)
+{
+setjmpagain:
+    TRY(prb) {
+	for (;;) {
+	    if (quit_program > 0) {
+		if (quit_program == 1) {
+#ifdef FLIGHT_RECORDER
+		    dump_log();
+#endif
+		    break;
+		}
+		quit_program = 0;
+		m68k_reset ();
+	    }
+	    m68k_do_compile_execute();
+	}
+    }
+    CATCH(prb) {
+	flush_icache(0);
+        Exception(prb, 0);
+    	goto setjmpagain;
+    }
+}
+#endif
+
+#endif /* JIT */
