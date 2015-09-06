@@ -535,6 +535,7 @@ static inline void create_jmpdep(blockinfo* bi, int i, uae_u32* jmpaddr, uae_u32
 		jit_abort("Could not create jmpdep!");
 	}
 	bi->dep[i].jmp_off=jmpaddr;
+	bi->dep[i].source=bi;
 	bi->dep[i].target=tbi;
 	bi->dep[i].next=tbi->deplist;
 	if (bi->dep[i].next)
@@ -543,13 +544,51 @@ static inline void create_jmpdep(blockinfo* bi, int i, uae_u32* jmpaddr, uae_u32
 	tbi->deplist=&(bi->dep[i]);
 }
 
-static inline void attached_state(blockinfo* bi)
+static inline void block_need_recompile(blockinfo * bi)
 {
-	bi->havestate=1;
-	if (bi->direct_handler_to_use==bi->direct_handler)
-		set_dhtu(bi,bi->direct_pen);
-	bi->direct_handler=bi->direct_pen;
-	bi->status=BI_TARGETTED;
+	uae_u32 cl = cacheline(bi->pc_p);
+
+	set_dhtu(bi, bi->direct_pen);
+	bi->direct_handler = bi->direct_pen;
+
+	bi->handler_to_use = (cpuop_func *)popall_execute_normal;
+	bi->handler = (cpuop_func *)popall_execute_normal;
+	if (bi == cache_tags[cl + 1].bi)
+		cache_tags[cl].handler = (cpuop_func *)popall_execute_normal;
+	bi->status = BI_NEED_RECOMP;
+}
+
+static inline void mark_callers_recompile(blockinfo * bi)
+{
+  dependency *x = bi->deplist;
+
+  while (x)	{
+	dependency *next = x->next;	/* This disappears when we mark for
+								 * recompilation and thus remove the
+								 * blocks from the lists */
+	if (x->jmp_off) {
+	  blockinfo *cbi = x->source;
+
+	  Dif(cbi->status == BI_INVALID) {
+		jit_log("invalid block in dependency list"); // FIXME?
+		// abort();
+	  }
+	  if (cbi->status == BI_ACTIVE || cbi->status == BI_NEED_CHECK) {
+		block_need_recompile(cbi);
+		mark_callers_recompile(cbi);
+	  }
+	  else if (cbi->status == BI_COMPILING) {
+		redo_current_block = 1;
+	  }
+	  else if (cbi->status == BI_NEED_RECOMP) {
+		/* nothing */
+	  }
+	  else {
+		jit_log2("Status %d in mark_callers",cbi->status); // FIXME?
+	  }
+	}
+	x = next;
+  }
 }
 
 static inline blockinfo* get_blockinfo_addr_new(void* addr, int /* setstate */)
@@ -579,6 +618,91 @@ static inline blockinfo* get_blockinfo_addr_new(void* addr, int /* setstate */)
 }
 
 static void prepare_block(blockinfo* bi);
+
+/* Managment of blockinfos.
+
+   A blockinfo struct is allocated whenever a new block has to be
+   compiled. If the list of free blockinfos is empty, we allocate a new
+   pool of blockinfos and link the newly created blockinfos altogether
+   into the list of free blockinfos. Otherwise, we simply pop a structure
+   of the free list.
+
+   Blockinfo are lazily deallocated, i.e. chained altogether in the
+   list of free blockinfos whenvever a translation cache flush (hard or
+   soft) request occurs.
+*/
+
+template< class T >
+class LazyBlockAllocator
+{
+	enum {
+		kPoolSize = 1 + 4096 / sizeof(T)
+	};
+	struct Pool {
+		T chunk[kPoolSize];
+		Pool * next;
+	};
+	Pool * mPools;
+	T * mChunks;
+public:
+	LazyBlockAllocator() : mPools(0), mChunks(0) { }
+	~LazyBlockAllocator();
+	T * acquire();
+	void release(T * const);
+};
+
+template< class T >
+LazyBlockAllocator<T>::~LazyBlockAllocator()
+{
+	Pool * currentPool = mPools;
+	while (currentPool) {
+		Pool * deadPool = currentPool;
+		currentPool = currentPool->next;
+		free(deadPool);
+	}
+}
+
+template< class T >
+T * LazyBlockAllocator<T>::acquire()
+{
+	if (!mChunks) {
+		// There is no chunk left, allocate a new pool and link the
+		// chunks into the free list
+		Pool * newPool = (Pool *)malloc(sizeof(Pool));
+		for (T * chunk = &newPool->chunk[0]; chunk < &newPool->chunk[kPoolSize]; chunk++) {
+			chunk->next = mChunks;
+			mChunks = chunk;
+		}
+		newPool->next = mPools;
+		mPools = newPool;
+	}
+	T * chunk = mChunks;
+	mChunks = chunk->next;
+	return chunk;
+}
+
+template< class T >
+void LazyBlockAllocator<T>::release(T * const chunk)
+{
+	chunk->next = mChunks;
+	mChunks = chunk;
+}
+
+template< class T >
+class HardBlockAllocator
+{
+public:
+	T * acquire() {
+		T * data = (T *)current_compile_p;
+		current_compile_p += sizeof(T);
+		return data;
+	}
+
+	void release(T * const chunk) {
+		// Deallocated on invalidation
+	}
+};
+
 
 static inline void alloc_blockinfos(void)
 {
@@ -2159,7 +2283,7 @@ int kill_rodent(int r)
 uae_u32 get_const(int r)
 {
 		Dif (!isconst(r)) {
-			jit_abort (_T("Register %d should be constant, but isn't"),r);
+			jit_abort("Register %d should be constant, but isn't",r);
 	}
 	return live.state[r].val;
 }

@@ -517,9 +517,16 @@ struct blockinfo_t;
 typedef struct dep_t {
   uae_u32*            jmp_off;
   struct blockinfo_t* target;
+  struct blockinfo_t* source;
   struct dep_t**      prev_p;
   struct dep_t*       next;
 } dependency;
+
+typedef struct checksum_info_t {
+  uae_u8 *start_p;
+  uae_u32 length;
+  struct checksum_info_t *next;
+} checksum_info;
 
 typedef struct blockinfo_t {
     uae_s32 count;
@@ -565,6 +572,14 @@ typedef struct {
     uae_u8 reg;
     uae_u32 next;
 } regacc;
+
+#define BI_INVALID 0
+#define BI_ACTIVE 1
+#define BI_NEED_RECOMP 2
+#define BI_NEED_CHECK 3
+#define BI_CHECKING 4
+#define BI_COMPILING 5
+#define BI_FINALIZING 6
 
 void execute_normal(void);
 void exec_nostats(void);
