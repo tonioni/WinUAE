@@ -1148,31 +1148,7 @@ static uae_s8 nstate[N_REGS];
 #define L_NEEDED -2
 #define L_UNNEEDED -3
 
-#ifdef UAE
-static inline void big_to_small_state(bigstate* b, smallstate* s)
-{
-	/* FIXME: replace with ARAnyM version */
-	int i;
-	int count=0;
-
-	for (i=0;i<N_REGS;i++) {
-		s->nat[i].validsize=0;
-		s->nat[i].dirtysize=0;
-		if (b->nat[i].nholds) {
-			int index=b->nat[i].nholds-1;
-			int r=b->nat[i].holds[index];
-			s->nat[i].holds=r;
-			s->nat[i].validsize=b->state[r].validsize;
-			s->nat[i].dirtysize=b->state[r].dirtysize;
-			count++;
-		}
-	}
-	write_log (_T("JIT: count=%d\n"),count);
-	for (i=0;i<N_REGS;i++) {  // FIXME --- don't do dirty yet
-		s->nat[i].dirtysize=0;
-	}
-}
-#else
+#if USE_MATCH
 static inline void big_to_small_state(bigstate * /* b */, smallstate * s)
 {
   int i;
@@ -1182,9 +1158,7 @@ static inline void big_to_small_state(bigstate * /* b */, smallstate * s)
   for (i = 0; i < N_REGS; i++)
 	s->nat[i] = nstate[i];
 }
-#endif
 
-#if 0
 static inline int callers_need_recompile(bigstate * /* b */, smallstate * s)
 {
   int i;
@@ -2367,12 +2341,63 @@ static inline const char *str_on_off(bool b)
 	return b ? "on" : "off";
 }
 
+#ifdef UAE
 static
+#endif
 void compiler_init(void)
 {
 	static bool initialized = false;
 	if (initialized)
 		return;
+
+#ifdef UAE
+#else
+#ifdef JIT_DEBUG
+	// JIT debug mode ?
+	JITDebug = bx_options.startup.debugger;
+#endif
+	D(panicbug("<JIT compiler> : enable runtime disassemblers : %s", JITDebug ? "yes" : "no"));
+
+#ifdef USE_JIT_FPU
+	// Use JIT compiler for FPU instructions ?
+	avoid_fpu = !bx_options.jit.jitfpu;
+#else
+	// JIT FPU is always disabled
+	avoid_fpu = true;
+#endif
+	panicbug("<JIT compiler> : compile FPU instructions : %s", !avoid_fpu ? "yes" : "no");
+
+	// Get size of the translation cache (in KB)
+	cache_size = bx_options.jit.jitcachesize;
+	panicbug("<JIT compiler> : requested translation cache size : %d KB", cache_size);
+
+	// Initialize target CPU (check for features, e.g. CMOV, rat stalls)
+	raw_init_cpu();
+	setzflg_uses_bsf = target_check_bsf();
+	panicbug("<JIT compiler> : target processor has CMOV instructions : %s", have_cmov ? "yes" : "no");
+	panicbug("<JIT compiler> : target processor can suffer from partial register stalls : %s", have_rat_stall ? "yes" : "no");
+	panicbug("<JIT compiler> : alignment for loops, jumps are %d, %d", align_loops, align_jumps);
+
+	// Translation cache flush mechanism
+	lazy_flush = (bx_options.jit.jitlazyflush == 0) ? false : true;
+	panicbug("<JIT compiler> : lazy translation cache invalidation : %s", str_on_off(lazy_flush));
+	flush_icache = lazy_flush ? flush_icache_lazy : flush_icache_hard;
+
+	// Compiler features
+	panicbug("<JIT compiler> : register aliasing : %s", str_on_off(1));
+	panicbug("<JIT compiler> : FP register aliasing : %s", str_on_off(USE_F_ALIAS));
+	panicbug("<JIT compiler> : lazy constant offsetting : %s", str_on_off(USE_OFFSET));
+#if USE_INLINING
+	follow_const_jumps = bx_options.jit.jitinline;
+#endif
+	panicbug("<JIT compiler> : block inlining : %s", str_on_off(follow_const_jumps));
+	panicbug("<JIT compiler> : separate blockinfo allocation : %s", str_on_off(USE_SEPARATE_BIA));
+
+	// Build compiler tables
+	build_comp();
+#endif
+
+	initialized = true;
 
 #if PROFILE_UNTRANSLATED_INSNS
 	panicbug("<JIT compiler> : gather statistics on untranslated insns count");
@@ -2384,11 +2409,28 @@ void compiler_init(void)
 #endif
 }
 
+#ifdef UAE
 static
+#endif
 void compiler_exit(void)
 {
 #if PROFILE_COMPILE_TIME
 	emul_end_time = clock();
+#endif
+
+#ifdef UAE
+#else
+	// Deallocate translation cache
+	if (compiled_code) {
+		vm_release(compiled_code, cache_size * 1024);
+		compiled_code = 0;
+	}
+
+	// Deallocate popallspace
+	if (popallspace) {
+		vm_release(popallspace, POPALLSPACE_SIZE);
+		popallspace = 0;
+	}
 #endif
 
 #if PROFILE_COMPILE_TIME
@@ -4301,7 +4343,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 			}
 		}
 
-#if USE_MATCH	
+#if USE_MATCH
 	if (callers_need_recompile(&live,&(bi->env))) {
 	    mark_callers_recompile(bi);
 	}
