@@ -562,10 +562,6 @@ static inline blockinfo* get_blockinfo_addr_new(void* addr, int /* setstate */)
 	blockinfo*  bi=get_blockinfo_addr(addr);
 	int i;
 
-#if USE_OPTIMIZER
-	if (reg_alloc_run)
-		return NULL;
-#endif
 	if (!bi) {
 		for (i=0;i<MAX_HOLD_BI && !bi;i++) {
 			if (hold_bi[i]) {
@@ -611,13 +607,6 @@ static inline void alloc_blockinfos(void)
 		prepare_block(bi);
 	}
 }
-
-/********************************************************************
- * Get the optimizer stuff                                          *
- ********************************************************************/
-
-//#include "compemu_optimizer.c"
-#include "compemu_optimizer_x86.cpp"
 
 /********************************************************************
  * Functions to emit data into memory, and other general support    *
@@ -672,7 +661,6 @@ static inline uae_u32 reverse32(uae_u32 v)
 
 void set_target(uae_u8* t)
 {
-	lopt_emit_all();
 	target=t;
 }
 
@@ -683,7 +671,6 @@ static inline uae_u8* get_target_noopt(void)
 
 inline uae_u8* get_target(void)
 {
-	lopt_emit_all();
 	return get_target_noopt();
 }
 
@@ -2184,9 +2171,6 @@ int kill_rodent(int r)
 
 uae_u32 get_const(int r)
 {
-#if USE_OPTIMIZER
-	if (!reg_alloc_run)
-#endif
 		Dif (!isconst(r)) {
 			jit_abort (_T("Register %d should be constant, but isn't"),r);
 	}
@@ -2593,8 +2577,6 @@ void flush(int save_regs)
 	if (needflags) {
 		jit_log("Warning! flush with needflags=1!");
 	}
-
-	lopt_emit_all();
 }
 
 static void flush_keepflags(void)
@@ -2631,7 +2613,6 @@ static void flush_keepflags(void)
 		}
 	}
 	raw_fp_cleanup_drop();
-	lopt_emit_all();
 }
 
 void freescratch(void)
@@ -2663,7 +2644,6 @@ static void align_target(uae_u32 a)
 	if (!a)
 		return;
 
-	lopt_emit_all();
 	/* Fill with NOPs --- makes debugging with gdb easier */
 	while ((uintptr)target&(a-1))
 		*target++=0x90; // Attention x86 specific code
@@ -2738,11 +2718,6 @@ static uae_u32 get_handler_address(uae_u32 addr)
 {
 	(void)cacheline(addr);
 	blockinfo* bi=get_blockinfo_addr_new((void*)(uintptr)addr,0);
-
-#if USE_OPTIMIZER
-	if (!bi && reg_alloc_run)
-		return 0;
-#endif
 	return (uintptr)&(bi->direct_handler_to_use);
 }
 */
@@ -2754,11 +2729,6 @@ static uae_u32 get_handler(uae_u32 addr)
 {
 	(void)cacheline(addr);
 	blockinfo* bi=get_blockinfo_addr_new((void*)(uintptr)addr,0);
-
-#if USE_OPTIMIZER
-	if (!bi && reg_alloc_run)
-		return 0;
-#endif
 	return (uintptr)bi->direct_handler_to_use;
 }
 

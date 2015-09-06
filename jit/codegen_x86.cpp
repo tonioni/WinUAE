@@ -123,8 +123,6 @@ uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
 * Actual encoding of the instructions on the target CPU                 *
 *************************************************************************/
 
-//#include "compemu_optimizer_x86.c"
-
 STATIC_INLINE uae_u16 swap16(uae_u16 x)
 {
 	return ((x&0xff00)>>8)|((x&0x00ff)<<8);
@@ -1469,14 +1467,12 @@ LENDFUNC(WRITE,READ,0,raw_popfl,(void))
 
 	STATIC_INLINE void raw_call_r(R4 r)
 {
-	lopt_emit_all();
 	emit_byte(0xff);
 	emit_byte(0xd0+r);
 }
 
 STATIC_INLINE void raw_jmp_r(R4 r)
 {
-	lopt_emit_all();
 	emit_byte(0xff);
 	emit_byte(0xe0+r);
 }
@@ -1492,7 +1488,6 @@ STATIC_INLINE void raw_jmp_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
 	case 8: sib = 0xC5; break;
 	default: abort();
 	}
-	lopt_emit_all();
 	emit_byte(0xff);
 	emit_byte(0x24);
 	emit_byte(8*r+sib);
@@ -1501,7 +1496,6 @@ STATIC_INLINE void raw_jmp_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
 
 STATIC_INLINE void raw_jmp_m(uae_u32 base)
 {
-	lopt_emit_all();
 	emit_byte(0xff);
 	emit_byte(0x25);
 	emit_long(base);
@@ -1509,21 +1503,18 @@ STATIC_INLINE void raw_jmp_m(uae_u32 base)
 
 STATIC_INLINE void raw_call(uae_u32 t)
 {
-	lopt_emit_all();
 	emit_byte(0xe8);
 	emit_long(t-(uae_u32)target-4);
 }
 
 STATIC_INLINE void raw_jmp(uae_u32 t)
 {
-	lopt_emit_all();
 	emit_byte(0xe9);
 	emit_long(t-(uae_u32)target-4);
 }
 
 STATIC_INLINE void raw_jl(uae_u32 t)
 {
-	lopt_emit_all();
 	emit_byte(0x0f);
 	emit_byte(0x8c);
 	emit_long(t-(uae_u32)target-4);
@@ -1531,7 +1522,6 @@ STATIC_INLINE void raw_jl(uae_u32 t)
 
 STATIC_INLINE void raw_jz(uae_u32 t)
 {
-	lopt_emit_all();
 	emit_byte(0x0f);
 	emit_byte(0x84);
 	emit_long(t-(uae_u32)target-4);
@@ -1539,7 +1529,6 @@ STATIC_INLINE void raw_jz(uae_u32 t)
 
 STATIC_INLINE void raw_jnz(uae_u32 t)
 {
-	lopt_emit_all();
 	emit_byte(0x0f);
 	emit_byte(0x85);
 	emit_long(t-(uae_u32)target-4);
@@ -1547,51 +1536,43 @@ STATIC_INLINE void raw_jnz(uae_u32 t)
 
 STATIC_INLINE void raw_jnz_l_oponly(void)
 {
-	lopt_emit_all();
 	emit_byte(0x0f);
 	emit_byte(0x85);
 }
 
 STATIC_INLINE void raw_jcc_l_oponly(int cc)
 {
-	lopt_emit_all();
 	emit_byte(0x0f);
 	emit_byte(0x80+cc);
 }
 
 STATIC_INLINE void raw_jnz_b_oponly(void)
 {
-	lopt_emit_all();
 	emit_byte(0x75);
 }
 
 STATIC_INLINE void raw_jz_b_oponly(void)
 {
-	lopt_emit_all();
 	emit_byte(0x74);
 }
 
 STATIC_INLINE void raw_jmp_l_oponly(void)
 {
-	lopt_emit_all();
 	emit_byte(0xe9);
 }
 
 STATIC_INLINE void raw_jmp_b_oponly(void)
 {
-	lopt_emit_all();
 	emit_byte(0xeb);
 }
 
 STATIC_INLINE void raw_ret(void)
 {
-	lopt_emit_all();
 	emit_byte(0xc3);
 }
 
 STATIC_INLINE void raw_nop(void)
 {
-	lopt_emit_all();
 	emit_byte(0x90);
 }
 

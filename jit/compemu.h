@@ -35,8 +35,6 @@ typedef union {
 
 extern signed long pissoff;
 
-#define USE_OPTIMIZER 0
-#define USE_LOW_OPTIMIZER 0
 #define USE_ALIAS 1
 #define USE_F_ALIAS 1
 #define USE_SOFT_FLUSH 1
@@ -269,15 +267,9 @@ extern int touchcnt;
 #define LOWFUNC(flags,mem,nargs,func,args) STATIC_INLINE void func args
 #define LENDFUNC(flags,mem,nargs,func,args)
 
-#if USE_OPTIMIZER
-#define REGALLOC_O 2
-#define PEEPHOLE_O 3 /* Has to be >= REGALLOC */
-#define DECLARE(func) extern void func; extern void do_##func
-#else
 #define REGALLOC_O 2000000
 #define PEEPHOLE_O 2000000
 #define DECLARE(func) extern void func
-#endif
 
 
 /* What we expose to the outside */
@@ -515,7 +507,6 @@ extern void sync_m68k_pc(void);
 extern uae_u32 get_const(int r);
 extern int  is_const(int r);
 extern void register_branch(uae_u32 not_taken, uae_u32 taken, uae_u8 cond);
-extern void empty_optimizer(void);
 
 #define comp_get_ibyte(o) do_get_mem_byte((uae_u8 *)(comp_pc_p + (o) + 1))
 #define comp_get_iword(o) do_get_mem_word((uae_u16 *)(comp_pc_p + (o)))
