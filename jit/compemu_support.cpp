@@ -32,7 +32,6 @@
 #ifdef UAE
 #define writemem_special writemem
 #define readmem_special  readmem
-#define USE_MATCHSTATE 0
 #else
 #if !FIXED_ADDRESSING
 #error "Only Fixed Addressing is supported with the JIT Compiler"
@@ -553,11 +552,7 @@ static inline void attached_state(blockinfo* bi)
 	bi->status=BI_TARGETTED;
 }
 
-#ifdef UAE
-static inline blockinfo* get_blockinfo_addr_new(void* addr, int setstate)
-#else
 static inline blockinfo* get_blockinfo_addr_new(void* addr, int /* setstate */)
-#endif
 {
 	blockinfo*  bi=get_blockinfo_addr(addr);
 	int i;
@@ -580,14 +575,6 @@ static inline blockinfo* get_blockinfo_addr_new(void* addr, int /* setstate */)
 	if (!bi) {
 		jit_abort("Looking for blockinfo, can't find free one");
 	}
-
-#if USE_MATCHSTATE
-	if (setstate &&
-		!bi->havestate) {
-			big_to_small_state(&live,&(bi->env));
-			attached_state(bi);
-	}
-#endif
 	return bi;
 }
 
@@ -2322,210 +2309,10 @@ void init_comp(void)
 	raw_fp_init();
 }
 
-static void vinton(int i, uae_s8* vton, int depth)
-{
-	int n;
-	int rr;
-
-	Dif (vton[i]==-1) {
-		jit_abort (_T("JIT: Asked to load register %d, but nowhere to go\n"),i);
-	}
-	n=vton[i];
-	Dif (live.nat[n].nholds>1)
-		jit_abort (_T("vinton"));
-	if (live.nat[n].nholds && depth<N_REGS) {
-		vinton(live.nat[n].holds[0],vton,depth+1);
-	}
-	if (!isinreg(i))
-		return;  /* Oops --- got rid of that one in the recursive calls */
-	rr=live.state[i].realreg;
-	if (rr!=n)
-		mov_nregs(n,rr);
-}
-
-#if USE_MATCHSTATE
-/* This is going to be, amongst other things, a more elaborate version of
-flush() */
-static inline void match_states(smallstate* s)
-{
-	uae_s8 vton[VREGS];
-	uae_s8 ndone[N_REGS];
-	int i;
-	int again=0;
-
-	for (i=0;i<VREGS;i++)
-		vton[i]=-1;
-
-	for (i=0;i<N_REGS;i++)
-		if (s->nat[i].validsize)
-			vton[s->nat[i].holds]=i;
-
-	flush_flags(); /* low level */
-	sync_m68k_pc(); /* mid level */
-
-	/* We don't do FREGS yet, so this is raw flush() code */
-	for (i=0;i<VFREGS;i++) {
-		if (live.fate[i].needflush==NF_SCRATCH ||
-			live.fate[i].status==CLEAN) {
-				f_disassociate(i);
-		}
-	}
-	for (i=0;i<VFREGS;i++) {
-		if (live.fate[i].needflush==NF_TOMEM &&
-			live.fate[i].status==DIRTY) {
-				f_evict(i);
-		}
-	}
-	raw_fp_cleanup_drop();
-
-	/* Now comes the fun part. First, we need to remove all offsets */
-	for (i=0;i<VREGS;i++)
-		if (!isconst(i) && live.state[i].val)
-			remove_offset(i,-1);
-
-	/* Next, we evict everything that does not end up in registers,
-	write back overly dirty registers, and write back constants */
-	for (i=0;i<VREGS;i++) {
-		switch (live.state[i].status) {
-		case ISCONST:
-			if (i!=PC_P)
-				writeback_const(i);
-			break;
-		case DIRTY:
-			if (vton[i]==-1) {
-				evict(i);
-				break;
-			}
-			if (live.state[i].dirtysize>s->nat[vton[i]].dirtysize)
-				tomem(i);
-			/* Fall-through! */
-		case CLEAN:
-			if (vton[i]==-1 ||
-				live.state[i].validsize<s->nat[vton[i]].validsize)
-				evict(i);
-			else
-				make_exclusive(i,0,-1);
-			break;
-		case INMEM:
-			break;
-		case UNDEF:
-			break;
-		default:
-			write_log (_T("JIT: Weird status: %d\n"),live.state[i].status);
-			abort();
-		}
-	}
-
-	/* Quick consistency check */
-	for (i=0;i<VREGS;i++) {
-		if (isinreg(i)) {
-			int n=live.state[i].realreg;
-
-			if (live.nat[n].nholds!=1) {
-				write_log (_T("JIT: Register %d isn't alone in nreg %d\n"),
-					i,n);
-				abort();
-			}
-			if (vton[i]==-1) {
-				write_log (_T("JIT: Register %d is still in register, shouldn't be\n"),
-					i);
-				abort();
-			}
-		}
-	}
-
-	/* Now we need to shuffle things around so the VREGs are in the
-	right N_REGs. */
-	for (i=0;i<VREGS;i++) {
-		if (isinreg(i) && vton[i]!=live.state[i].realreg)
-			vinton(i,vton,0);
-	}
-
-	/* And now we may need to load some registers from memory */
-	for (i=0;i<VREGS;i++) {
-		int n=vton[i];
-		if (n==-1) {
-			Dif (isinreg(i)) {
-				write_log (_T("JIT: Register %d unexpectedly in nreg %d\n"),
-					i,live.state[i].realreg);
-				abort();
-			}
-		}
-		else {
-			switch(live.state[i].status) {
-			case CLEAN:
-			case DIRTY:
-				Dif (n!=live.state[i].realreg)
-					abort();
-				break;
-			case INMEM:
-				Dif (live.nat[n].nholds) {
-					write_log (_T("JIT: natreg %d holds %d vregs, should be empty\n"),
-						n,live.nat[n].nholds);
-				}
-				raw_mov_l_rm(n,(uae_u32)live.state[i].mem);
-				live.state[i].validsize=4;
-				live.state[i].dirtysize=0;
-				live.state[i].realreg=n;
-				live.state[i].realind=0;
-				live.state[i].val=0;
-				live.state[i].is_swapped=0;
-				live.nat[n].nholds=1;
-				live.nat[n].holds[0]=i;
-
-				set_status(i,CLEAN);
-				break;
-			case ISCONST:
-				if (i!=PC_P) {
-					write_log (_T("JIT: Got constant in matchstate for reg %d. Bad!\n"),i);
-					abort();
-				}
-				break;
-			case UNDEF:
-				break;
-			}
-		}
-	}
-
-	/* One last consistency check, and adjusting the states in live
-	to those in s */
-	for (i=0;i<VREGS;i++) {
-		int n=vton[i];
-		switch(live.state[i].status) {
-		case INMEM:
-			if (n!=-1)
-				abort();
-			break;
-		case ISCONST:
-			if (i!=PC_P)
-				abort();
-			break;
-		case CLEAN:
-		case DIRTY:
-			if (n==-1)
-				abort();
-			if (live.state[i].dirtysize>s->nat[n].dirtysize)
-				abort;
-			if (live.state[i].validsize<s->nat[n].validsize)
-				abort;
-			live.state[i].dirtysize=s->nat[n].dirtysize;
-			live.state[i].validsize=s->nat[n].validsize;
-			if (live.state[i].dirtysize)
-				set_status(i,DIRTY);
-			break;
-		case UNDEF:
-			break;
-		}
-		if (n!=-1)
-			live.nat[n].touched=touchcnt++;
-	}
-}
-#else
 static inline void match_states(smallstate* s)
 {
 	flush(1);
 }
-#endif
 
 /* Only do this if you really mean it! The next call should be to init!*/
 void flush(int save_regs)
@@ -3797,13 +3584,6 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 
 		was_comp=0;
 
-#if USE_MATCHSTATE
-		comp_pc_p=(uae_u8*)pc_hist[0].location;
-		init_comp();
-		match_states(&(bi->env));
-		was_comp=1;
-#endif
-
 		bi->direct_handler=(cpuop_func*)get_target();
 		set_dhtu(bi,bi->direct_handler);
 		current_block_start_target=(uintptr)get_target();
@@ -3964,9 +3744,6 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					cc=branch_cc^1;
 				}
 
-#if !USE_MATCHSTATE
-				flush_keepflags();
-#endif
 				tmp=live; /* ouch! This is big... */
 				raw_jcc_l_oponly(cc);
 				branchadd=(uae_u32*)get_target();
