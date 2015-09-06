@@ -1518,7 +1518,7 @@ static  int alloc_reg_hinted(int r, int size, int willclobber, int hint)
 			raw_zero_extend_16_rr(rr,rr);
 			raw_zero_extend_16_rr(bestreg,bestreg);
 			raw_bswap_32(bestreg);
-			raw_lea_l_rr_indexed(rr,rr,bestreg);
+			raw_lea_l_brr_indexed(rr,rr,bestreg,1,0);
 			live.state[r].validsize=4;
 			live.nat[rr].touched=touchcnt++;
 			return rr;
@@ -3160,10 +3160,18 @@ void calc_disp_ea_020(int base, uae_u32 dp, int target, int tmp)
 	else { /* 68000 version */
 		if ((dp & 0x800) == 0) { /* Sign extend */
 			sign_extend_16_rr(target,reg);
+#if USE_NEW_RTASM
+			lea_l_brr_indexed(target,base,target,1<<regd_shift,(uae_s32)((uae_s8)dp));
+#else
 			lea_l_brr_indexed(target,base,target,regd_shift,(uae_s32)((uae_s8)dp));
+#endif
 		}
 		else {
+#if USE_NEW_RTASM
+			lea_l_brr_indexed(target,base,reg,1<<regd_shift,(uae_s32)((uae_s8)dp));
+#else
 			lea_l_brr_indexed(target,base,reg,regd_shift,(uae_s32)((uae_s8)dp));
+#endif
 		}
 	}
 	forget_about(tmp);
@@ -4407,7 +4415,11 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					int r2 = (r==0) ? 1 : 0;
 					raw_mov_l_ri(r2,(uintptr)popall_do_nothing);
 					raw_sub_l_mi((uae_u32)&countdown,scaled_cycles(totcycles));
-					raw_cmov_l_rm_indexed(r2,(uae_u32)cache_tags,r,9);
+#if USE_NEW_RTASM
+					raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,9);
+#else
+					raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,9);
+#endif
 					raw_jmp_r(r2);
 				}
 				else if (was_comp && isconst(PC_P)) {
@@ -4433,7 +4445,11 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					int r2 = (r==0) ? 1 : 0;
 					raw_mov_l_ri(r2,(uintptr)popall_do_nothing);
 					raw_sub_l_mi((uae_u32)&countdown,scaled_cycles(totcycles));
+#if USE_NEW_RTASM
+					raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,9);
+#else
 					raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,9);
+#endif
 					raw_jmp_r(r2);
 				}
 			}

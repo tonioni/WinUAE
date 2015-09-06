@@ -166,6 +166,8 @@ static const uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
 #define CLOBBER_BT   clobber_flags()
 #define CLOBBER_BSF  clobber_flags()
 
+/* The older code generator is now deprecated.  */
+#define USE_NEW_RTASM 0
 
 #if USE_NEW_RTASM
 
@@ -192,9 +194,8 @@ static const uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
 
 static void jit_fail(const char *msg, const char *file, int line, const char *function)
 {
-	panicbug("JIT failure in function %s from file %s at line %d: %s",
+	jit_abort("failure in function %s from file %s at line %d: %s",
 			function, file, line, msg);
-	abort();
 }
 
 LOWFUNC(NONE,WRITE,1,raw_push_l_r,(R4 r))
@@ -532,7 +533,7 @@ LOWFUNC(READ,NONE,3,raw_cmov_l_rr,(RW4 d, R4 s, IMM cc))
 	if (have_cmov)
 		CMOVLrr(cc, s, d);
 	else { /* replacement using branch and mov */
-		int8 *target_p = (int8 *)x86_get_target() + 1;
+		uae_s8 *target_p = (uae_s8 *)x86_get_target() + 1;
 		JCCSii(cc^1, 0);
 		MOVLrr(s, d);
 		*target_p = (uintptr)x86_get_target() - ((uintptr)target_p + 1);
@@ -703,7 +704,7 @@ LOWFUNC(NONE,READ,5,raw_cmov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor,
 	if (have_cmov)
 		ADDR32 CMOVLmr(cond, base, X86_NOREG, index, factor, d);
 	else { /* replacement using branch and mov */
-		int8 *target_p = (int8 *)x86_get_target() + 1;
+		uae_s8 *target_p = (uae_s8 *)x86_get_target() + 1;
 		JCCSii(cond^1, 0);
 		ADDR32 MOVLmr(base, X86_NOREG, index, factor, d);
 		*target_p = (uintptr)x86_get_target() - ((uintptr)target_p + 1);
@@ -716,7 +717,7 @@ LOWFUNC(NONE,READ,3,raw_cmov_l_rm,(W4 d, IMM mem, IMM cond))
 	if (have_cmov)
 		CMOVLmr(cond, mem, X86_NOREG, X86_NOREG, 1, d);
 	else { /* replacement using branch and mov */
-		int8 *target_p = (int8 *)x86_get_target() + 1;
+		uae_s8 *target_p = (uae_s8 *)x86_get_target() + 1;
 		JCCSii(cond^1, 0);
 		MOVLmr(mem, X86_NOREG, X86_NOREG, 1, d);
 		*target_p = (uintptr)x86_get_target() - ((uintptr)target_p + 1);

@@ -1292,7 +1292,11 @@ MIDFUNC(3,mov_l_rm_indexed,(W4 d, IMM base, RR4 index))
 	base+=get_offset(indexreg)*4;
 	d=writereg(d,4);
 
+#if USE_NEW_RTASM
+	raw_mov_l_rm_indexed(d,base,index,4);
+#else
 	raw_mov_l_rm_indexed(d,base,index);
+#endif
 	unlock2(index);
 	unlock2(d);
 }
