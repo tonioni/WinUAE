@@ -71,7 +71,21 @@ static char endstr[1000];
 static char lines[100000];
 static int comp_index=0;
 
-static int cond_codes_x86[]={-1,-1,7,6,3,2,5,4,-1,-1,9,8,13,12,15,14};
+#if defined(CPU_arm)
+# include "flags_arm.h"
+#else
+# include "flags_x86.h"
+#endif
+
+static int cond_codes[]={-1,-1,
+		NATIVE_CC_HI,NATIVE_CC_LS,
+		NATIVE_CC_CC,NATIVE_CC_CS,
+		NATIVE_CC_NE,NATIVE_CC_EQ,
+		-1,-1,
+		NATIVE_CC_PL,NATIVE_CC_MI,
+		NATIVE_CC_GE,NATIVE_CC_LT,
+		NATIVE_CC_GT,NATIVE_CC_LE
+		};
 
 static void comprintf(const char* format, ...)
 {
@@ -117,7 +131,7 @@ static void
 read_counts (void)
 {
     FILE *file;
-    unsigned long opcode, count = 0, total;
+    unsigned long opcode, count, total;
     char name[20];
     int nr = 0;
     memset (counts, 0, 65536 * sizeof *counts);
@@ -637,8 +651,9 @@ static void genmov16(uae_u32 opcode, struct instr *curi)
 	      "\treadlong(src,tmp,scratchie);\n"
 	      "\twritelong_clobber(dst,tmp,scratchie);\n");
     comprintf("\t} else {\n");
-    comprintf("\t\tint tmp=scratchie;\n");
+    comprintf("\tint tmp=scratchie;\n");
     comprintf("\tscratchie+=4;\n");
+	
     comprintf("\tget_n_addr(src,src,scratchie);\n"
 	      "\tget_n_addr(dst,dst,scratchie);\n"
 	      "\tmov_l_rR(tmp+0,src,0);\n"
@@ -651,8 +666,8 @@ static void genmov16(uae_u32 opcode, struct instr *curi)
 	      "\tforget_about(tmp+1);\n"
 	      "\tmov_l_Rr(dst,tmp+2,8);\n"
 	      "\tforget_about(tmp+2);\n"
-	      "\tmov_l_Rr(dst,tmp+3,12);\t}\n");
-
+	      "\tmov_l_Rr(dst,tmp+3,12);\n");
+	comprintf("\t}\n");
 }
 
 static void
@@ -763,7 +778,8 @@ genmovemle (uae_u16 opcode)
 	    break;
 	 default: abort();
 	}
-    } else {  /* Pre-decrement */
+    }
+    else {  /* Pre-decrement */
 	comprintf("\tfor (i=0;i<16;i++) {\n"
 		  "\t\tif ((mask>>i)&1) {\n");
 	switch(table68k[opcode].size) {
@@ -1719,7 +1735,7 @@ gen_opcode (unsigned long int opcode)
 	    comprintf("\tv1=get_const(PC_P);\n"
 		      "\tv2=get_const(src);\n"
 		      "\tregister_branch(v1,v2,%d);\n",
-		      cond_codes_x86[curi->cc]);
+		      cond_codes[curi->cc]);
 	    comprintf("\tmake_flags_live();\n"); /* Load the flags */
 	    isjump;
 	}
@@ -1835,9 +1851,9 @@ gen_opcode (unsigned long int opcode)
 	    comprintf("\tlea_l_brr(scratchie,src,(uae_s32)-1);\n"
 		      "\tmov_w_rr(src,scratchie);\n");
 	    comprintf("\tcmov_l_rr(offs,PC_P,%d);\n",
-		      cond_codes_x86[curi->cc]);
+		      cond_codes[curi->cc]);
 	    comprintf("\tcmov_l_rr(src,nsrc,%d);\n",
-		      cond_codes_x86[curi->cc]);
+		      cond_codes[curi->cc]);
 	    /* OK, now for cc=true, we have src==nsrc and offs==PC_P,
 	       so whether we move them around doesn't matter. However,
 	       if cc=false, we have offs==jump_pc, and src==nsrc-1 */
@@ -1885,7 +1901,7 @@ gen_opcode (unsigned long int opcode)
 	    comprintf("\tmake_flags_live();\n"); /* Load the flags */
 	    /* All condition codes can be inverted by changing the LSB */
 	    comprintf("\tsetcc(val,%d);\n",
-		      cond_codes_x86[curi->cc]^1); break;
+		      cond_codes[curi->cc]^1); break;
 	 default: abort();
 	}
 	comprintf("\tsub_b_ri(val,1);\n");
