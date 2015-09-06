@@ -2884,10 +2884,10 @@ static void writemem_real(int address, int source, int size, int tmp, int clobbe
 		}
 	}
 	switch (size) { /* f now holds the offset */
-	case 1: mov_b_mrr_indexed(address,f,source); break;
-	case 2: mid_bswap_16(source); mov_w_mrr_indexed(address,f,source);
+	case 1: mov_b_mrr_indexed(address,f,1,source); break;
+	case 2: mid_bswap_16(source); mov_w_mrr_indexed(address,f,1,source);
 		mid_bswap_16(source); break;	   /* base, index, source */
-	case 4: mid_bswap_32(source); mov_l_mrr_indexed(address,f,source);
+	case 4: mid_bswap_32(source); mov_l_mrr_indexed(address,f,1,source);
 		mid_bswap_32(source); break;
 	}
 }
@@ -2984,9 +2984,9 @@ static void readmem_real(int address, int dest, int size, int tmp)
 	/* f now holds the offset */
 
 	switch(size) {
-	case 1: mov_b_rrm_indexed(dest,address,f); break;
-	case 2: mov_w_rrm_indexed(dest,address,f); mid_bswap_16(dest); break;
-	case 4: mov_l_rrm_indexed(dest,address,f); mid_bswap_32(dest); break;
+	case 1: mov_b_rrm_indexed(dest,address,f,1); break;
+	case 2: mov_w_rrm_indexed(dest,address,f,1); mid_bswap_16(dest); break;
+	case 4: mov_l_rrm_indexed(dest,address,f,1); mid_bswap_32(dest); break;
 	}
 	forget_about(tmp);
 }

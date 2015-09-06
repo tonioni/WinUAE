@@ -1856,77 +1856,141 @@ LOWFUNC(NONE,NONE,2,raw_mov_w_rr,(W2 d, R2 s))
 }
 LENDFUNC(NONE,NONE,2,raw_mov_w_rr,(W2 d, R2 s))
 
-LOWFUNC(NONE,READ,3,raw_mov_l_rrm_indexed,(W4 d, R4 baser, R4 index))
+LOWFUNC(NONE,READ,4,raw_mov_l_rrm_indexed,(W4 d,R4 baser, R4 index, IMM factor))
 {
-	emit_byte(0x8b);
-	if (baser==5) {
-		emit_byte(0x44+8*d);
-		emit_byte(8*index+baser);
-		emit_byte(0);
-		return;
-	}
-	emit_byte(0x04+8*d);
-	emit_byte(8*index+baser);
-}
-LENDFUNC(NONE,READ,3,raw_mov_l_rrm_indexed,(W4 d, R4 baser, R4 index))
+	int isebp=(baser==5)?0x40:0;
+	int fi;
 
-LOWFUNC(NONE,READ,3,raw_mov_w_rrm_indexed,(W2 d, R4 baser, R4 index))
+	switch(factor) {
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
+	}
+
+
+	emit_byte(0x8b);
+	emit_byte(0x04+8*d+isebp);
+	emit_byte(baser+8*index+0x40*fi);
+	if (isebp)
+		emit_byte(0x00);
+}
+LENDFUNC(NONE,READ,4,raw_mov_l_rrm_indexed,(W4 d,R4 baser, R4 index, IMM factor))
+
+LOWFUNC(NONE,READ,4,raw_mov_w_rrm_indexed,(W2 d, R4 baser, R4 index, IMM factor))
 {
+	int fi;
+	int isebp;
+
+	switch(factor) {
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
+	}
+	isebp=(baser==5)?0x40:0;
+
 	emit_byte(0x66);
 	emit_byte(0x8b);
-	if (baser==5) {
-		emit_byte(0x44+8*d);
-		emit_byte(8*index+baser);
-		emit_byte(0);
-		return;
+	emit_byte(0x04+8*d+isebp);
+	emit_byte(baser+8*index+0x40*fi);
+	if (isebp)
+		emit_byte(0x00);
 	}
-	emit_byte(0x04+8*d);
-	emit_byte(8*index+baser);
-}
-LENDFUNC(NONE,READ,3,raw_mov_w_rrm_indexed,(W2 d, R4 baser, R4 index))
+LENDFUNC(NONE,READ,4,raw_mov_w_rrm_indexed,(W2 d, R4 baser, R4 index, IMM factor))
 
-LOWFUNC(NONE,READ,3,raw_mov_b_rrm_indexed,(W1 d, R4 baser, R4 index))
+LOWFUNC(NONE,READ,4,raw_mov_b_rrm_indexed,(W1 d, R4 baser, R4 index, IMM factor))
 {
+	int fi;
+	int isebp;
+
+	switch(factor) {
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
+	}
+	isebp=(baser==5)?0x40:0;
+
 	emit_byte(0x8a);
-	if (baser==5) {
-		emit_byte(0x44+8*d);
-		emit_byte(8*index+baser);
-		emit_byte(0);
-		return;
-	}
-	emit_byte(0x04+8*d);
-	emit_byte(8*index+baser);
+	emit_byte(0x04+8*d+isebp);
+	emit_byte(baser+8*index+0x40*fi);
+	if (isebp)
+		emit_byte(0x00);
 }
-LENDFUNC(NONE,READ,3,raw_mov_b_rrm_indexed,(W1 d, R4 baser, R4 index))
+LENDFUNC(NONE,READ,4,raw_mov_b_rrm_indexed,(W1 d, R4 baser, R4 index, IMM factor))
 
-LOWFUNC(NONE,WRITE,3,raw_mov_l_mrr_indexed,(R4 baser, R4 index, R4 s))
+LOWFUNC(NONE,WRITE,4,raw_mov_l_mrr_indexed,(R4 baser, R4 index, IMM factor, R4 s))
 {
+	int fi;
+	int isebp;
+
+	switch(factor) {
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
+	}
+
+
+	isebp=(baser==5)?0x40:0;
+
 	emit_byte(0x89);
-	if (baser==5) {
-		emit_byte(0x44+8*s);
-		emit_byte(8*index+baser);
-		emit_byte(0);
-		return;
-	}
-	emit_byte(0x04+8*s);
-	emit_byte(8*index+baser);
+	emit_byte(0x04+8*s+isebp);
+	emit_byte(baser+8*index+0x40*fi);
+	if (isebp)
+		emit_byte(0x00);
 }
-LENDFUNC(NONE,WRITE,3,raw_mov_l_mrr_indexed,(R4 baser, R4 index, R4 s))
+LENDFUNC(NONE,WRITE,4,raw_mov_l_mrr_indexed,(R4 baser, R4 index, IMM factor, R4 s))
 
-LOWFUNC(NONE,WRITE,3,raw_mov_w_mrr_indexed,(R4 baser, R4 index, R2 s))
+LOWFUNC(NONE,WRITE,4,raw_mov_w_mrr_indexed,(R4 baser, R4 index, IMM factor, R2 s))
 {
+	int fi;
+	int isebp;
+
+	switch(factor) {
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
+	}
+	isebp=(baser==5)?0x40:0;
+
 	emit_byte(0x66);
 	emit_byte(0x89);
-	if (baser==5) {
-		emit_byte(0x44+8*s);
-		emit_byte(8*index+baser);
-		emit_byte(0);
-		return;
-	}
-	emit_byte(0x04+8*s);
-	emit_byte(8*index+baser);
+	emit_byte(0x04+8*s+isebp);
+	emit_byte(baser+8*index+0x40*fi);
+	if (isebp)
+		emit_byte(0x00);
 }
-LENDFUNC(NONE,WRITE,3,raw_mov_w_mrr_indexed,(R4 baser, R4 index, R2 s))
+LENDFUNC(NONE,WRITE,4,raw_mov_w_mrr_indexed,(R4 baser, R4 index, IMM factor, R2 s))
+
+LOWFUNC(NONE,WRITE,4,raw_mov_b_mrr_indexed,(R4 baser, R4 index, IMM factor, R1 s))
+{
+	int fi;
+	int isebp;
+
+	switch(factor) {
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
+	}
+	isebp=(baser==5)?0x40:0;
+
+	emit_byte(0x88);
+	emit_byte(0x04+8*s+isebp);
+	emit_byte(baser+8*index+0x40*fi);
+	if (isebp)
+		emit_byte(0x00);
+}
+LENDFUNC(NONE,WRITE,4,raw_mov_b_mrr_indexed,(R4 baser, R4 index, IMM factor, R1 s))
 
 LOWFUNC(NONE,WRITE,3,raw_mov_b_mrr_indexed,(R4 baser, R4 index, R1 s))
 {

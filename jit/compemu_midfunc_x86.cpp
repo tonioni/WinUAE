@@ -1061,50 +1061,51 @@ MIDFUNC(2,mov_w_rr,(W2 d, RR2 s))
 }
 MENDFUNC(2,mov_w_rr,(W2 d, RR2 s))
 
-MIDFUNC(3,mov_l_rrm_indexed,(W4 d,RR4 baser, RR4 index))
+MIDFUNC(4,mov_l_rrm_indexed,(W4 d,RR4 baser, RR4 index, IMM factor))
 {
 	CLOBBER_MOV;
 	baser=readreg(baser,4);
 	index=readreg(index,4);
 	d=writereg(d,4);
 
-	raw_mov_l_rrm_indexed(d,baser,index);
+	raw_mov_l_rrm_indexed(d,baser,index,factor);
 	unlock2(d);
 	unlock2(baser);
 	unlock2(index);
 }
-MENDFUNC(3,mov_l_rrm_indexed,(W4 d,RR4 baser, RR4 index))
+MENDFUNC(4,mov_l_rrm_indexed,(W4 d,RR4 baser, RR4 index, IMM factor))
 
-MIDFUNC(3,mov_w_rrm_indexed,(W2 d, RR4 baser, RR4 index))
+MIDFUNC(4,mov_w_rrm_indexed,(W2 d, RR4 baser, RR4 index, IMM factor))
 {
 	CLOBBER_MOV;
 	baser=readreg(baser,4);
 	index=readreg(index,4);
 	d=writereg(d,2);
 
-	raw_mov_w_rrm_indexed(d,baser,index);
+	raw_mov_w_rrm_indexed(d,baser,index,factor);
 	unlock2(d);
 	unlock2(baser);
 	unlock2(index);
 }
-MENDFUNC(3,mov_w_rrm_indexed,(W2 d, RR4 baser, RR4 index))
+MENDFUNC(4,mov_w_rrm_indexed,(W2 d, RR4 baser, RR4 index, IMM factor))
 
-MIDFUNC(3,mov_b_rrm_indexed,(W1 d, RR4 baser, RR4 index))
+MIDFUNC(4,mov_b_rrm_indexed,(W1 d, RR4 baser, RR4 index, IMM factor))
 {
 	CLOBBER_MOV;
 	baser=readreg(baser,4);
 	index=readreg(index,4);
 	d=writereg(d,1);
 
-	raw_mov_b_rrm_indexed(d,baser,index);
+	raw_mov_b_rrm_indexed(d,baser,index,factor);
 
 	unlock2(d);
 	unlock2(baser);
 	unlock2(index);
 }
-MENDFUNC(3,mov_b_rrm_indexed,(W1 d, RR4 baser, RR4 index))
+MENDFUNC(4,mov_b_rrm_indexed,(W1 d, RR4 baser, RR4 index, IMM factor))
 
-MIDFUNC(3,mov_l_mrr_indexed,(RR4 baser, RR4 index, RR4 s))
+
+MIDFUNC(4,mov_l_mrr_indexed,(RR4 baser, RR4 index, IMM factor, RR4 s))
 {
 	CLOBBER_MOV;
 	baser=readreg(baser,4);
@@ -1112,42 +1113,43 @@ MIDFUNC(3,mov_l_mrr_indexed,(RR4 baser, RR4 index, RR4 s))
 	s=readreg(s,4);
 
 	Dif (baser==s || index==s)
-		jit_abort (_T("mov_l_mrr_indexed"));
+		jit_abort("mov_l_mrr_indexed");
 
-	raw_mov_l_mrr_indexed(baser,index,s);
+
+	raw_mov_l_mrr_indexed(baser,index,factor,s);
 	unlock2(s);
 	unlock2(baser);
 	unlock2(index);
 }
-MENDFUNC(3,mov_l_mrr_indexed,(RR4 baser, RR4 index, RR4 s))
+MENDFUNC(4,mov_l_mrr_indexed,(RR4 baser, RR4 index, IMM factor, RR4 s))
 
-MIDFUNC(3,mov_w_mrr_indexed,(RR4 baser, RR4 index, RR2 s))
+MIDFUNC(4,mov_w_mrr_indexed,(RR4 baser, RR4 index, IMM factor, RR2 s))
 {
 	CLOBBER_MOV;
 	baser=readreg(baser,4);
 	index=readreg(index,4);
 	s=readreg(s,2);
 
-	raw_mov_w_mrr_indexed(baser,index,s);
+	raw_mov_w_mrr_indexed(baser,index,factor,s);
 	unlock2(s);
 	unlock2(baser);
 	unlock2(index);
 }
-MENDFUNC(3,mov_w_mrr_indexed,(RR4 baser, RR4 index, RR2 s))
+MENDFUNC(4,mov_w_mrr_indexed,(RR4 baser, RR4 index, IMM factor, RR2 s))
 
-MIDFUNC(3,mov_b_mrr_indexed,(RR4 baser, RR4 index, RR1 s))
+MIDFUNC(4,mov_b_mrr_indexed,(RR4 baser, RR4 index, IMM factor, RR1 s))
 {
 	CLOBBER_MOV;
 	s=readreg(s,1);
 	baser=readreg(baser,4);
 	index=readreg(index,4);
 
-	raw_mov_b_mrr_indexed(baser,index,s);
+	raw_mov_b_mrr_indexed(baser,index,factor,s);
 	unlock2(s);
 	unlock2(baser);
 	unlock2(index);
 }
-MENDFUNC(3,mov_b_mrr_indexed,(RR4 baser, RR4 index, RR1 s))
+MENDFUNC(4,mov_b_mrr_indexed,(RR4 baser, RR4 index, IMM factor, RR1 s))
 
 
 #ifdef UAE
