@@ -3415,11 +3415,58 @@ void flush_icache(uaecptr ptr, int n)
 /*
 static void catastrophe(void)
 {
-	jit_abort(_T("catastprophe"));
+	jit_abort("catastprophe");
 }
 */
 
 int failure;
+
+#define TARGET_M68K		0
+#define TARGET_POWERPC	1
+#define TARGET_X86		2
+#define TARGET_X86_64	3
+#define TARGET_ARM		4
+#if defined(CPU_i386)
+#define TARGET_NATIVE	TARGET_X86
+#endif
+#if defined(CPU_powerpc)
+#define TARGET_NATIVE	TARGET_POWERPC
+#endif
+#if defined(CPU_x86_64)
+#define TARGET_NATIVE	TARGET_X86_64
+#endif
+#if defined(CPU_arm)
+#define TARGET_NATIVE	TARGET_ARM
+#endif
+
+#ifdef UAE
+#else
+void disasm_block(int /* target */, uint8 * /* start */, size_t /* length */)
+{
+	if (!JITDebug)
+		return;
+}
+
+static inline void disasm_native_block(uint8 *start, size_t length)
+{
+	disasm_block(TARGET_NATIVE, start, length);
+}
+
+static inline void disasm_m68k_block(uint8 *start, size_t length)
+{
+	disasm_block(TARGET_M68K, start, length);
+}
+#endif
+
+#ifdef UAE
+#define DO_GET_OPCODE(a) (cft_map((uae_u16)*(a)))
+#else
+#ifdef HAVE_GET_WORD_UNSWAPPED
+# define DO_GET_OPCODE(a) (do_get_mem_word_unswapped((uae_u16 *)(a)))
+#else
+# define DO_GET_OPCODE(a) (do_get_mem_word((uae_u16 *)(a)))
+#endif
+#endif
 
 #ifdef JIT_DEBUG
 static uae_u8 *last_regs_pc_p = 0;
@@ -3528,7 +3575,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 		i=blocklen;
 		while (i--) {
 			uae_u16* currpcp=pc_hist[i].location;
-			int op=cft_map(*currpcp);
+			uae_u32 op=DO_GET_OPCODE(currpcp);
 
 #if USE_CHECKSUM_INFO
 			trace_in_rom = trace_in_rom && isinrom((uintptr)currpcp);
@@ -3609,9 +3656,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 				get_target_noopt()<max_compile_start;i++) {
 					cpuop_func **cputbl;
 					compop_func **comptbl;
-					uae_u16 opcode;
-
-					opcode=cft_map((uae_u16)*pc_hist[i].location);
+					uae_u32 opcode=DO_GET_OPCODE(pc_hist[i].location);
 					special_mem=pc_hist[i].specmem;
 					needed_flags=(liveflags[i+1] & prop[opcode].set_flags);
 					if (!needed_flags && currprefs.compnf) {
@@ -3707,7 +3752,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 
 					if (x==0xff || 1) {  /* To be on the safe side */
 						uae_u16* next=(uae_u16*)next_pc_p;
-						uae_u16 op=cft_map(*next);
+						uae_u32 op=DO_GET_OPCODE(next);
 
 						x=0x1f;
 						x&=(~prop[op].set_flags);
