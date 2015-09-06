@@ -481,7 +481,7 @@ static inline void remove_deps(blockinfo* bi)
 
 static inline void adjust_jmpdep(dependency* d, cpuop_func* a)
 {
-	*(d->jmp_off)=(uae_u32)a-((uae_u32)d->jmp_off+4);
+	write_jmp_target(d->jmp_off, a);
 }
 
 /********************************************************************
@@ -3807,7 +3807,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 
 				align_target(16);
 				/* not-predicted outcome */
-				*branchadd=(uae_u32)get_target()-((uae_u32)branchadd+4);
+				write_jmp_target(branchadd, (cpuop_func *)get_target());
 				live=tmp; /* Ouch again */
 				tbi=get_blockinfo_addr_new((void*)t2,1);
 				match_states(&(tbi->env));
