@@ -3754,8 +3754,7 @@ void build_comp(void)
 #ifdef NOFLAGS_SUPPORT
 		nfcpufunctbl[opcode] = op_illg;
 #endif
-		compfunctbl[opcode] = NULL;
-		nfcompfunctbl[opcode] = NULL;
+		reset_compop(opcode);
 		prop[opcode].use_flags = 0x1f;
 		prop[opcode].set_flags = 0x1f;
 		prop[opcode].is_jump=1;
