@@ -3058,8 +3058,6 @@ void alloc_cache(void)
 	}
 	if (veccode == NULL)
 		veccode = cache_alloc (256);
-	if (popallspace == NULL)
-		popallspace = cache_alloc (1024);
 	compiled_code = NULL;
 
 	if (cache_size == 0)
@@ -3283,31 +3281,42 @@ static inline void create_popalls(void)
 	int i,r;
 
 #ifdef UAE
+	if (popallspace == NULL)
+		popallspace = cache_alloc(POPALLSPACE_SIZE);
 #else
-  if ((popallspace = alloc_code(POPALLSPACE_SIZE)) == NULL) {
-	  write_log("FATAL: Could not allocate popallspace!\n");
-	  abort();
-  }
-  vm_protect(popallspace, POPALLSPACE_SIZE, VM_PAGE_READ | VM_PAGE_WRITE);
-
-  int stack_space = STACK_OFFSET;
-  for (i=0;i<N_REGS;i++) {
-	  if (need_to_preserve[i])
-		  stack_space += sizeof(void *);
-  }
-  stack_space %= STACK_ALIGN;
-  if (stack_space)
-	  stack_space = STACK_ALIGN - stack_space;
+	if ((popallspace = alloc_code(POPALLSPACE_SIZE)) == NULL) {
+		write_log("FATAL: Could not allocate popallspace!\n");
+		abort();
+	}
+	vm_protect(popallspace, POPALLSPACE_SIZE, VM_PAGE_READ | VM_PAGE_WRITE);
 #endif
+
+	int stack_space = STACK_OFFSET;
+	for (i=0;i<N_REGS;i++) {
+		if (need_to_preserve[i])
+			stack_space += sizeof(void *);
+	}
+	stack_space %= STACK_ALIGN;
+	if (stack_space)
+		stack_space = STACK_ALIGN - stack_space;
 
 	current_compile_p=popallspace;
 	set_target(current_compile_p);
-#if USE_PUSH_POP
-	/* If we can't use gcc inline assembly, we need to pop some
-	registers before jumping back to the various get-out routines.
-	This generates the code for it.
-	*/
-	popall_do_nothing=current_compile_p;
+
+	current_compile_p=get_target();
+	pushall_call_handler=get_target();
+	for (i=N_REGS;i--;) {
+		if (need_to_preserve[i])
+			raw_push_l_r(i);
+	}
+	r=REG_PC_TMP;
+	raw_mov_l_rm(r,(uintptr)&regs.pc_p);
+	raw_and_l_ri(r,TAGMASK);
+	raw_jmp_m_indexed((uintptr)cache_tags,r,SIZEOF_VOID_P);
+
+	/* now the exit points */
+	align_target(32);
+	popall_do_nothing=get_target();
 	for (i=0;i<N_REGS;i++) {
 		if (need_to_preserve[i])
 			raw_pop_l_r(i);
@@ -3353,31 +3362,6 @@ static inline void create_popalls(void)
 			raw_pop_l_r(i);
 	}
 	raw_jmp((uintptr)check_checksum);
-	align_target(32);
-
-	current_compile_p=get_target();
-#else
-	popall_exec_nostats=exec_nostats;
-	popall_execute_normal=execute_normal;
-	popall_cache_miss=cache_miss;
-	popall_recompile_block=recompile_block;
-	popall_do_nothing=do_nothing;
-	popall_check_checksum=check_checksum;
-#endif
-
-	/* And now, the code to do the matching pushes and then jump
-	into a handler routine */
-	pushall_call_handler=get_target();
-#if USE_PUSH_POP
-	for (i=N_REGS;i--;) {
-		if (need_to_preserve[i])
-			raw_push_l_r(i);
-	}
-#endif
-	r=REG_PC_TMP;
-	raw_mov_l_rm(r,(uae_u32)&regs.pc_p);
-	raw_and_l_ri(r,TAGMASK);
-	raw_jmp_m_indexed((uae_u32)cache_tags,r,4);
 }
 
 static inline void reset_lists(void)
@@ -3618,8 +3602,8 @@ void build_comp(void)
 	jit_log("Supposedly %d compileable opcodes!",count);
 
 	/* Initialise state */
-	alloc_cache();
 	create_popalls();
+	alloc_cache();
 	reset_lists();
 
 	for (i=0;i<TAGSIZE;i+=2) {
