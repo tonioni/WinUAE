@@ -2433,11 +2433,6 @@ void init_comp(void)
 	raw_fp_init();
 }
 
-static inline void match_states(smallstate* s)
-{
-	flush(1);
-}
-
 /* Only do this if you really mean it! The next call should be to init!*/
 void flush(int save_regs)
 {
@@ -3237,6 +3232,49 @@ static void check_checksum(void)
 		raise_in_cl_list(bi);
 		execute_normal();
 	}
+}
+
+static inline void match_states(blockinfo* bi)
+{
+#ifdef UAE
+	flush(1);
+#else
+	int i;
+	smallstate* s=&(bi->env);
+
+	if (bi->status==BI_NEED_CHECK) {
+		block_check_checksum(bi);
+	}
+	if (bi->status==BI_ACTIVE ||
+		bi->status==BI_FINALIZING) {  /* Deal with the *promises* the
+						 block makes (about not using
+						 certain vregs) */
+		for (i=0;i<16;i++) {
+			if (s->virt[i]==L_UNNEEDED) {
+				D2(panicbug("unneeded reg %d at %p",i,target));
+				COMPCALL(forget_about)(i); // FIXME
+			}
+		}
+	}
+	flush(1);
+
+	/* And now deal with the *demands* the block makes */
+	for (i=0;i<N_REGS;i++) {
+		int v=s->nat[i];
+		if (v>=0) {
+			// printf("Loading reg %d into %d at %p\n",v,i,target);
+			readreg_specific(v,4,i);
+			// do_load_reg(i,v);
+			// setlock(i);
+		}
+	}
+	for (i=0;i<N_REGS;i++) {
+		int v=s->nat[i];
+		if (v>=0) {
+			unlock2(i);
+		}
+	}
+#endif
 }
 
 
@@ -4068,7 +4106,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 		
 				/* predicted outcome */
 				tbi=get_blockinfo_addr_new((void*)t1,1);
-				match_states(&(tbi->env));
+				match_states(tbi);
 				raw_sub_l_mi((uae_u32)&countdown,scaled_cycles(totcycles));
 				raw_jcc_l_oponly(9);
 				tba=(uae_u32*)get_target();
@@ -4082,7 +4120,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 				write_jmp_target(branchadd, (cpuop_func *)get_target());
 				live=tmp; /* Ouch again */
 				tbi=get_blockinfo_addr_new((void*)t2,1);
-				match_states(&(tbi->env));
+				match_states(tbi);
 
 				//flush(1); /* Can only get here if was_comp==1 */
 				raw_sub_l_mi((uae_u32)&countdown,scaled_cycles(totcycles));
@@ -4115,7 +4153,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					blockinfo* tbi;
 
 					tbi=get_blockinfo_addr_new((void*)v,1);
-					match_states(&(tbi->env));
+					match_states(tbi);
 
 					raw_sub_l_mi((uae_u32)&countdown,scaled_cycles(totcycles));
 					raw_jcc_l_oponly(9);
