@@ -3263,8 +3263,10 @@ void alloc_cache(void)
 		cache_free(compiled_code);
 		compiled_code = 0;
 	}
+#ifdef JIT_EXCEPTION_HANDLER
 	if (veccode == NULL)
 		veccode = cache_alloc (256);
+#endif
 	compiled_code = NULL;
 
 	if (cache_size == 0)

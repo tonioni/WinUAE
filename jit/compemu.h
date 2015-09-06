@@ -7,6 +7,10 @@ typedef uae_u64 uintptr;
 typedef uae_u32 uintptr;
 #endif
 
+#ifndef CPU_x86_64
+#define JIT_EXCEPTION_HANDLER
+#endif
+
 /* ARAnyM uses fpu_register name, used in scratch_t */
 /* FIXME: check that no ARAnyM code assumes different floating point type */
 typedef fptype fpu_register;
