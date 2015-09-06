@@ -90,14 +90,16 @@
 #endif
 
 #ifdef UAE
+#include "uae/log.h"
 
 #define UNUSED(x)
 /* FIXME: Looks like HAVE_GET_WORD_UNSWAPPED should be defined for little-endian / ARAnyM */
 #define HAVE_GET_WORD_UNSWAPPED
 #include "uae.h"
 #include "uae/log.h"
-#define jit_log uae_log
-#define jit_log2(...)
+#define jit_log(format, ...) \
+	uae_log("JIT: " format "\n", __func__, ##__VA_ARGS__);
+#define jit_log2(format, ...)
 
 #define MEMBaseDiff ((uae_u32)NATMEM_OFFSET)
 
