@@ -101,6 +101,10 @@
 
 #define MEMBaseDiff ((uae_u32)NATMEM_OFFSET)
 
+#ifdef NATMEM_OFFSET
+#define FIXED_ADDRESSING 1
+#endif
+
 // %%% BRIAN KING WAS HERE %%%
 extern bool canbang;
 
@@ -1229,18 +1233,18 @@ static inline void log_isused(int n)
 
 static inline void log_visused(int r)
 {
-  if (vstate[r] == L_UNKNOWN)
-	vstate[r] = L_NEEDED;
+	if (vstate[r] == L_UNKNOWN)
+		vstate[r] = L_NEEDED;
 }
 
 static inline void do_load_reg(int n, int r)
 {
-  if (r == FLAGTMP)
-	raw_load_flagreg(n, r);
-  else if (r == FLAGX)
-	raw_load_flagx(n, r);
-  else
-	raw_mov_l_rm(n, (uintptr) live.state[r].mem);
+	if (r == FLAGTMP)
+		raw_load_flagreg(n, r);
+	else if (r == FLAGX)
+		raw_load_flagx(n, r);
+	else
+		raw_mov_l_rm(n, (uintptr) live.state[r].mem);
 }
 
 static inline void check_load_reg(int n, int r)
@@ -2967,6 +2971,7 @@ static void readmem_real(int address, int dest, int size, int tmp)
 		case 4: mov_l_brR(dest,address,MEMBaseDiff); mid_bswap_32(dest); break;
 		}
 		forget_about(tmp);
+		(void) f;
 		return;
 	}
 #endif
@@ -3024,24 +3029,31 @@ void readlong(int address, int dest, int tmp)
 		readmem_real(address,dest,4,tmp);
 }
 
-
-
-/* This one might appear a bit odd... */
-static inline void get_n_addr_old(int address, int dest, int tmp)
-{
-	readmem(address,dest,24,4,tmp);
-}
-
 static inline void get_n_addr_real(int address, int dest, int tmp)
 {
+	// a is the register containing the virtual address
+	// after the offset had been fetched
+	int a=tmp;
+
+	// f is the register that will contain the offset
 	int f=tmp;
-	if (address!=dest)
+
+	// a == f == tmp if (address == dest)
+	if (address!=dest) {
+		a=address;
 		f=dest;
+	}
 
 #ifdef NATMEM_OFFSET
 	if (canbang) {
+#if FIXED_ADDRESSING
 		lea_l_brr(dest,address,MEMBaseDiff);
+#else
+# error "Only fixed adressing mode supported"
+#endif
 		forget_about(tmp);
+		(void) f;
+		(void) a;
 		return;
 	}
 #endif
@@ -3051,6 +3063,12 @@ static inline void get_n_addr_real(int address, int dest, int tmp)
 	mov_l_rm_indexed(f,(uae_u32)baseaddr,f);
 	add_l(dest,f);
 	forget_about(tmp);
+}
+
+/* This one might appear a bit odd... */
+static inline void get_n_addr_old(int address, int dest, int tmp)
+{
+	readmem(address,dest,24,4,tmp);
 }
 
 void get_n_addr(int address, int dest, int tmp)
@@ -3843,12 +3861,6 @@ void build_comp(void)
 		empty_ss.nat[i].dirtysize=0;
 	}
 	default_ss=empty_ss;
-#if 0
-	default_ss.nat[6].holds=11;
-	default_ss.nat[6].validsize=4;
-	default_ss.nat[5].holds=12;
-	default_ss.nat[5].validsize=4;
-#endif
 }
 
 
@@ -4000,6 +4012,7 @@ int failure;
 #endif
 
 #ifdef UAE
+/* FIXME: disasm_* functions disabled */
 #else
 void disasm_block(int /* target */, uint8 * /* start */, size_t /* length */)
 {
