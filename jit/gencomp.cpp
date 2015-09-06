@@ -1956,7 +1956,11 @@ gen_opcode (unsigned long int opcode)
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
 		"  FAIL(1);\n"
+#ifdef UAE
 		"  return 0;\n"
+#else
+		"  return;\n"
+#endif
 		"} \n");
 	    start_brace();
 	}
@@ -2123,7 +2127,11 @@ gen_opcode (unsigned long int opcode)
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
 		"  FAIL(1);\n"
+#ifdef UAE
 		"  return 0;\n"
+#else
+		"  return;\n"
+#endif
 		"} \n");
 	    start_brace();
 	}
@@ -2134,7 +2142,11 @@ gen_opcode (unsigned long int opcode)
 	   thing ;-) */
 	comprintf("if (needed_flags & FLAG_V) {\n"
 		  "  FAIL(1);\n"
+#ifdef UAE
 		  "  return 0;\n"
+#else
+		  "  return;\n"
+#endif
 		  "} \n");
 
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0);
@@ -2269,7 +2281,11 @@ gen_opcode (unsigned long int opcode)
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
 		"  FAIL(1);\n"
+#ifdef UAE
 		"  return 0;\n"
+#else
+		"  return;\n"
+#endif
 		"} \n");
 	    start_brace();
 	}
@@ -2533,7 +2549,11 @@ gen_opcode (unsigned long int opcode)
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
 		"  FAIL(1);\n"
+#ifdef UAE
 		"  return 0;\n"
+#else
+		"  return;\n"
+#endif
 		"} \n");
 	    start_brace();
 	}
@@ -2568,7 +2588,11 @@ gen_opcode (unsigned long int opcode)
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
 		"  FAIL(1);\n"
+#ifdef UAE
 		"  return 0;\n"
+#else
+		"  return;\n"
+#endif
 		"} \n");
 	    start_brace();
 	}
@@ -3060,7 +3084,9 @@ generate_one_opcode (int rp, int noflags)
 	if (global_cmov)   flags|=4;
 	if (global_isaddx) flags|=8;
 	if (global_iscjump) flags|=16;
+#ifdef UAE
 	comprintf ("return 0;\n");
+#endif
 	comprintf ("}\n");
 
 	char *name = ua (lookuptab[i].name);
