@@ -1499,7 +1499,7 @@ MIDFUNC(3,mov_b_bRr,(RR4 d, RR1 s, IMM offset))
 }
 MENDFUNC(3,mov_b_bRr,(RR4 d, RR1 s, IMM offset))
 
-MIDFUNC(1,gen_bswap_32,(RW4 r))
+MIDFUNC(1,mid_bswap_32,(RW4 r))
 {
 
 	if (isconst(r)) {
@@ -1513,9 +1513,9 @@ MIDFUNC(1,gen_bswap_32,(RW4 r))
 	raw_bswap_32(r);
 	unlock2(r);
 }
-MENDFUNC(1,gen_bswap_32,(RW4 r))
+MENDFUNC(1,mid_bswap_32,(RW4 r))
 
-MIDFUNC(1,gen_bswap_16,(RW2 r))
+MIDFUNC(1,mid_bswap_16,(RW2 r))
 {
 	if (isconst(r)) {
 		uae_u32 oldv=live.state[r].val;
@@ -1530,7 +1530,9 @@ MIDFUNC(1,gen_bswap_16,(RW2 r))
 	raw_bswap_16(r);
 	unlock2(r);
 }
-MENDFUNC(1,gen_bswap_16,(RW2 r))
+MENDFUNC(1,mid_bswap_16,(RW2 r))
+
+
 
 MIDFUNC(2,mov_l_rr,(W4 d, RR4 s))
 {

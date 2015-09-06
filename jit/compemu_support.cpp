@@ -2753,8 +2753,8 @@ static void writemem_real(int address, int source, int offset, int size, int tmp
 			f=source;
 		switch(size) {
 		case 1: mov_b_bRr(address,source,MEMBaseDiff); break;
-		case 2: mov_w_rr(f,source); gen_bswap_16(f); mov_w_bRr(address,f,MEMBaseDiff); break;
-		case 4: mov_l_rr(f,source); gen_bswap_32(f); mov_l_bRr(address,f,MEMBaseDiff); break;
+		case 2: mov_w_rr(f,source); mid_bswap_16(f); mov_w_bRr(address,f,MEMBaseDiff); break;
+		case 4: mov_l_rr(f,source); mid_bswap_32(f); mov_l_bRr(address,f,MEMBaseDiff); break;
 		}
 		forget_about(tmp);
 		forget_about(f);
@@ -2770,19 +2770,19 @@ static void writemem_real(int address, int source, int offset, int size, int tmp
 		if (size > 1) {
 			add_l(f,address); /* f now holds the final address */
 			switch (size) {
-			case 2: gen_bswap_16(source); mov_w_Rr(f,source,0);
-				gen_bswap_16(source); return;
-			case 4: gen_bswap_32(source); mov_l_Rr(f,source,0);
-				gen_bswap_32(source); return;
+			case 2: mid_bswap_16(source); mov_w_Rr(f,source,0);
+				mid_bswap_16(source); return;
+			case 4: mid_bswap_32(source); mov_l_Rr(f,source,0);
+				mid_bswap_32(source); return;
 			}
 		}
 	}
 	switch (size) { /* f now holds the offset */
 	case 1: mov_b_mrr_indexed(address,f,source); break;
-	case 2: gen_bswap_16(source); mov_w_mrr_indexed(address,f,source);
-		gen_bswap_16(source); break;	   /* base, index, source */
-	case 4: gen_bswap_32(source); mov_l_mrr_indexed(address,f,source);
-		gen_bswap_32(source); break;
+	case 2: mid_bswap_16(source); mov_w_mrr_indexed(address,f,source);
+		mid_bswap_16(source); break;	   /* base, index, source */
+	case 4: mid_bswap_32(source); mov_l_mrr_indexed(address,f,source);
+		mid_bswap_32(source); break;
 	}
 }
 
@@ -2866,8 +2866,8 @@ static void readmem_real(int address, int dest, int offset, int size, int tmp)
 	if (canbang) {  /* Woohoo! go directly at the memory! */
 		switch(size) {
 		case 1: mov_b_brR(dest,address,MEMBaseDiff); break;
-		case 2: mov_w_brR(dest,address,MEMBaseDiff); gen_bswap_16(dest); break;
-		case 4: mov_l_brR(dest,address,MEMBaseDiff); gen_bswap_32(dest); break;
+		case 2: mov_w_brR(dest,address,MEMBaseDiff); mid_bswap_16(dest); break;
+		case 4: mov_l_brR(dest,address,MEMBaseDiff); mid_bswap_32(dest); break;
 		}
 		forget_about(tmp);
 		return;
@@ -2881,8 +2881,8 @@ static void readmem_real(int address, int dest, int offset, int size, int tmp)
 
 	switch(size) {
 	case 1: mov_b_rrm_indexed(dest,address,f); break;
-	case 2: mov_w_rrm_indexed(dest,address,f); gen_bswap_16(dest); break;
-	case 4: mov_l_rrm_indexed(dest,address,f); gen_bswap_32(dest); break;
+	case 2: mov_w_rrm_indexed(dest,address,f); mid_bswap_16(dest); break;
+	case 4: mov_l_rrm_indexed(dest,address,f); mid_bswap_32(dest); break;
 	}
 	forget_about(tmp);
 }
