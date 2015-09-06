@@ -684,29 +684,28 @@ genmovemel (uae_u16 opcode)
 	    comprintf("\tif (1 && !special_mem) {\n");
 
     /* Fast but unsafe...  */
-    comprintf("\t\tget_n_addr(srca,native,scratchie);\n");
+    comprintf("\tget_n_addr(srca,native,scratchie);\n");
 
-
-    comprintf("\t\tfor (i=0;i<16;i++) {\n"
-	      "\t\t\tif ((mask>>i)&1) {\n");
+    comprintf("\tfor (i=0;i<16;i++) {\n"
+	      "\t\tif ((mask>>i)&1) {\n");
     switch(table68k[opcode].size) {
      case sz_long:
-	comprintf("\t\t\t\tmov_l_rR(i,native,offset);\n"
-		  "\t\t\t\tgen_bswap_32(i);\n"
-		  "\t\t\t\toffset+=4;\n");
+	comprintf("\t\t\tmov_l_rR(i,native,offset);\n"
+		  "\t\t\tgen_bswap_32(i);\n"
+		  "\t\t\toffset+=4;\n");
 	break;
      case sz_word:
-	comprintf("\t\t\t\tmov_w_rR(i,native,offset);\n"
-		  "\t\t\t\tgen_bswap_16(i);\n"
-		  "\t\t\t\tsign_extend_16_rr(i,i);\n"
-		  "\t\t\t\toffset+=2;\n");
+	comprintf("\t\t\tmov_w_rR(i,native,offset);\n"
+		  "\t\t\tgen_bswap_16(i);\n"
+		  "\t\t\tsign_extend_16_rr(i,i);\n"
+		  "\t\t\toffset+=2;\n");
 	break;
      default: abort();
     }
-    comprintf("\t\t\t}\n"
-	      "\t\t}\n");
+    comprintf("\t\t}\n"
+	      "\t}");
     if (table68k[opcode].dmode == Aipi) {
-	comprintf("\t\tlea_l_brr(8+dstreg,srca,offset);\n");
+	comprintf("\t\t\tlea_l_brr(8+dstreg,srca,offset);\n");
     }
     /* End fast but unsafe.   */
 
