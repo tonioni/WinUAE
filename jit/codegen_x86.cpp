@@ -2864,18 +2864,17 @@ static inline void raw_jmp_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
 #if USE_NEW_RTASM
     JMPsm(base, X86_NOREG, r, m);
 #else
-	int sib;
-
+	int mu;
 	switch (m) {
-	case 1: sib = 0x05; break;
-	case 2: sib = 0x45; break;
-	case 4: sib = 0x85; break;
-	case 8: sib = 0xC5; break;
-	default: abort();
+		case 1: mu=0; break;
+		case 2: mu=1; break;
+		case 4: mu=2; break;
+		case 8: mu=3; break;
+		default: abort();
 	}
 	emit_byte(0xff);
 	emit_byte(0x24);
-	emit_byte(8*r+sib);
+	emit_byte(0x05+8*r+0x40*mu);
 	emit_long(base);
 #endif
 }
