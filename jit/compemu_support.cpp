@@ -3366,6 +3366,15 @@ static inline void create_popalls(void)
 	current_compile_p=popallspace;
 	set_target(current_compile_p);
 
+	/* We need to guarantee 16-byte stack alignment on x86 at any point
+	   within the JIT generated code. We have multiple exit points
+	   possible but a single entry. A "jmp" is used so that we don't
+	   have to generate stack alignment in generated code that has to
+	   call external functions (e.g. a generic instruction handler).
+
+	   In summary, JIT generated code is not leaf so we have to deal
+	   with it here to maintain correct stack alignment. */
+	align_target(align_jumps);
 	current_compile_p=get_target();
 	pushall_call_handler=get_target();
 	for (i=N_REGS;i--;) {
@@ -3378,47 +3387,47 @@ static inline void create_popalls(void)
 	raw_jmp_m_indexed((uintptr)cache_tags,r,SIZEOF_VOID_P);
 
 	/* now the exit points */
-	align_target(32);
+	align_target(align_jumps);
 	popall_do_nothing=get_target();
 	for (i=0;i<N_REGS;i++) {
 		if (need_to_preserve[i])
 			raw_pop_l_r(i);
 	}
 	raw_jmp((uintptr)do_nothing);
-	align_target(32);
 
+	align_target(align_jumps);
 	popall_execute_normal=get_target();
 	for (i=0;i<N_REGS;i++) {
 		if (need_to_preserve[i])
 			raw_pop_l_r(i);
 	}
 	raw_jmp((uintptr)execute_normal);
-	align_target(32);
 
+	align_target(align_jumps);
 	popall_cache_miss=get_target();
 	for (i=0;i<N_REGS;i++) {
 		if (need_to_preserve[i])
 			raw_pop_l_r(i);
 	}
 	raw_jmp((uintptr)cache_miss);
-	align_target(32);
 
+	align_target(align_jumps);
 	popall_recompile_block=get_target();
 	for (i=0;i<N_REGS;i++) {
 		if (need_to_preserve[i])
 			raw_pop_l_r(i);
 	}
 	raw_jmp((uintptr)recompile_block);
-	align_target(32);
 
+	align_target(align_jumps);
 	popall_exec_nostats=get_target();
 	for (i=0;i<N_REGS;i++) {
 		if (need_to_preserve[i])
 			raw_pop_l_r(i);
 	}
 	raw_jmp((uintptr)exec_nostats);
-	align_target(32);
 
+	align_target(align_jumps);
 	popall_check_checksum=get_target();
 	for (i=0;i<N_REGS;i++) {
 		if (need_to_preserve[i])
@@ -3450,13 +3459,13 @@ static void prepare_block(blockinfo* bi)
 	int i;
 
 	set_target(current_compile_p);
-	align_target(32);
+	align_target(align_jumps);
 	bi->direct_pen=(cpuop_func*)get_target();
 	raw_mov_l_rm(0,(uintptr)&(bi->pc_p));
 	raw_mov_l_mr((uintptr)&regs.pc_p,0);
 	raw_jmp((uintptr)popall_execute_normal);
 
-	align_target(32);
+	align_target(align_jumps);
 	bi->direct_pcc=(cpuop_func*)get_target();
 	raw_mov_l_rm(0,(uintptr)&(bi->pc_p));
 	raw_mov_l_mr((uintptr)&regs.pc_p,0);
@@ -4288,7 +4297,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 #endif
 
 		log_dump();
-		align_target(32);
+		align_target(align_jumps);
 		current_compile_p=get_target();
 
 		raise_in_cl_list(bi);

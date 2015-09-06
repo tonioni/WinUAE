@@ -3402,7 +3402,10 @@ raw_init_cpu(void)
 	/* Alignments */
 	if (tune_alignment) {
 		align_loops = x86_alignments[c->x86_processor].align_loop;
+#ifdef UAE
+#else
 		align_jumps = x86_alignments[c->x86_processor].align_jump;
+#endif
 	}
 	{ 
 		TCHAR *s = au (c->x86_vendor_id);
