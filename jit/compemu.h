@@ -79,7 +79,6 @@ union cacheline {
 #error implementation in progress
 #endif
 
-#define USE_ALIAS 1
 #define USE_F_ALIAS 1
 #define USE_SOFT_FLUSH 1
 #define USE_OFFSET 1

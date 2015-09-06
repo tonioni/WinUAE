@@ -1655,7 +1655,6 @@ MIDFUNC(2,mov_l_rr,(W4 d, RR4 s))
 		COMPCALL(mov_l_ri)(d,live.state[s].val);
 		return;
 	}
-#if USE_ALIAS
 	olds=s;
 	disassociate(d);
 	s=readreg_offset(s,4);
@@ -1671,15 +1670,6 @@ MIDFUNC(2,mov_l_rr,(W4 d, RR4 s))
 	log_clobberreg(d);
 	jit_log2("Added %d to nreg %d(%d), now holds %d regs", d,s,live.state[d].realind,live.nat[s].nholds);
 	unlock2(s);
-#else
-	CLOBBER_MOV;
-	s=readreg(s,4);
-	d=writereg(d,4);
-
-	raw_mov_l_rr(d,s);
-	unlock2(d);
-	unlock2(s);
-#endif
 }
 MENDFUNC(2,mov_l_rr,(W4 d, RR4 s))
 
