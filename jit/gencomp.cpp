@@ -1184,7 +1184,7 @@ genflags (flagtypes type, wordsizes size, const char *value, const char *src, co
 		      "\tint one=scratchie++;\n"
 		      "\tif (needed_flags&FLAG_Z) {\n"
 		      "\tmov_l_ri(zero,0);\n"
-		      "\tmov_l_ri(one,1);\n"
+		      "\tmov_l_ri(one,-1);\n"
 		      "\tmake_flags_live();\n"
 		      "\tcmov_l_rr(zero,one,%d);\n"
 		      "\t}\n",NATIVE_CC_NE);
@@ -1207,7 +1207,7 @@ genflags (flagtypes type, wordsizes size, const char *value, const char *src, co
 	    comprintf("\tlive_flags();\n");
 	    comprintf("\tif (needed_flags&FLAG_Z) {\n"
 		      "\tcmov_l_rr(zero,one,%d);\n"
-		      "\tsetzflg_l(zero);\n"
+		      "\tset_zero(zero, one);\n" /* No longer need one */
 		      "\tlive_flags();\n"
 		      "\t}\n",NATIVE_CC_NE);
 	    comprintf("\tend_needflags();\n");
@@ -1267,6 +1267,7 @@ gen_opcode (unsigned long int opcode)
      case sz_long: ssize="l"; break;
      default: abort();
     }
+    (void)ssize;
 
     switch (curi->mnemo)
     {
@@ -1364,6 +1365,7 @@ gen_opcode (unsigned long int opcode)
 	genastore ("dst", curi->smode, "srcreg", curi->size, "src");
 	break;
      case i_NEGX:
+	isaddx;
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	start_brace ();
 	comprintf("\tint dst=scratchie++;\n");
@@ -1404,6 +1406,7 @@ gen_opcode (unsigned long int opcode)
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	start_brace();
 	comprintf("\tint s=scratchie++;\n"
+		  "\tint tmp=scratchie++;\n"
 		  "\tmov_l_rr(s,src);\n");
 	if (curi->size == sz_byte)
 	    comprintf("\tand_l_ri(s,7);\n");
@@ -1427,7 +1430,7 @@ gen_opcode (unsigned long int opcode)
 				  "\tdont_care_flags();\n",op);
 		if (!noflags) {
 		  comprintf("\tstart_needflags();\n"
-					"\tsetzflg_l(s);\n"
+					"\tset_zero(s,tmp);\n"
 					"\tlive_flags();\n"
 					"\tend_needflags();\n");
 		}
@@ -1435,43 +1438,7 @@ gen_opcode (unsigned long int opcode)
 		genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	}
 	break;
-	/*if (!noflags) {
-	    failure;
-	    break;
-	}
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
-	start_brace();
-	comprintf("\tint s=scratchie++;\n"
-		  "\tmov_l_rr(s,src);\n");
-	if (curi->size == sz_byte)
-	    comprintf("\tand_l_ri(s,7);\n");
-	else
-	    comprintf("\tand_l_ri(s,31);\n");
 
-	{
-	    char* op;
-	    int need_write=1;
-
-	    switch(curi->mnemo) {
-	     case i_BCHG: op="btc"; break;
-	     case i_BCLR: op="btr"; break;
-	     case i_BSET: op="bts"; break;
-	     case i_BTST: op="bt"; need_write=0; break;
-	    }
-	    comprintf("\t%s_l_rr(dst,s);\n"  // Answer now in C
-		      "\tsbb_l(s,s);\n" // s is 0 if bit was 0,  -1 otherwise
-		      "\tmake_flags_live();\n" // Get the flags back
-		      "\tdont_care_flags();\n"
-		      "\tstart_needflags();\n"
-		      "\tbsf_l_rr(s,s);\n"
-		      "\tlive_flags();\n"
-		      "\tend_needflags();\n",op);
-	    if (need_write)
-		genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
-	}
-	break;
-*/
      case i_CMPM:
      case i_CMP:
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
@@ -1622,7 +1589,6 @@ gen_opcode (unsigned long int opcode)
 	start_brace();
 	comprintf("\tint newad=scratchie++;\n"
 		  "\treadlong(15,newad,scratchie);\n"
-		  "\tand_l_ri(newad,~1);\n"
 		  "\tmov_l_mr((uintptr)&regs.pc,newad);\n"
 		  "\tget_n_addr_jmp(newad,PC_P,scratchie);\n"
 		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
@@ -1652,7 +1618,6 @@ gen_opcode (unsigned long int opcode)
      case i_RTS:
 	comprintf("\tint newad=scratchie++;\n"
 		  "\treadlong(15,newad,scratchie);\n"
-		  "\tand_l_ri(newad,~1);\n"
 		  "\tmov_l_mr((uintptr)&regs.pc,newad);\n"
 		  "\tget_n_addr_jmp(newad,PC_P,scratchie);\n"
 		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
@@ -1678,8 +1643,7 @@ gen_opcode (unsigned long int opcode)
 		  "\tmov_l_ri(ret,retadd);\n"
 		  "\tsub_l_ri(15,4);\n"
 		  "\twritelong_clobber(15,ret,scratchie);\n");
-	comprintf("\tand_l_ri(srca,~1);\n"
-		  "\tmov_l_mr((uintptr)&regs.pc,srca);\n"
+	comprintf("\tmov_l_mr((uintptr)&regs.pc,srca);\n"
 		  "\tget_n_addr_jmp(srca,PC_P,scratchie);\n"
 		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
 		  "\tm68k_pc_offset=0;\n");
@@ -1688,19 +1652,15 @@ gen_opcode (unsigned long int opcode)
      case i_JMP:
 	isjump;
 	genamode (curi->smode, "srcreg", curi->size, "src", 0, 0);
-	comprintf("\tand_l_ri(srca,~1);\n"
-		  "\tmov_l_mr((uintptr)&regs.pc,srca);\n"
+	comprintf("\tmov_l_mr((uintptr)&regs.pc,srca);\n"
 		  "\tget_n_addr_jmp(srca,PC_P,scratchie);\n"
 		  "\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
 		  "\tm68k_pc_offset=0;\n");
 	gen_update_next_handler();
 	break;
      case i_BSR:
-	if (curi->size==sz_long)
-	    failure;
 	is_const_jump;
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
-	comprintf("\tand_l_ri(src,~1);\n");
 	start_brace();
 	comprintf("\tuae_u32 retadd=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset;\n");
 	comprintf("\tint ret=scratchie++;\n"
@@ -1722,7 +1682,6 @@ gen_opcode (unsigned long int opcode)
 	 case sz_word: comprintf("\tsign_extend_16_rr(src,src);\n"); break;
 	 case sz_long: break;
 	}
-	comprintf("\tand_l_ri(src,~1);\n");
 	comprintf("\tsub_l_ri(src,m68k_pc_offset-m68k_pc_offset_thisinst-2);\n");
 	/* Leave the following as "add" --- it will allow it to be optimized
 	   away due to src being a constant ;-) */
@@ -2416,6 +2375,18 @@ gen_opcode (unsigned long int opcode)
 	break;
 
      case i_LSL:
+	mayfail;
+	if (curi->smode==Dreg) {
+		comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
+				"  FAIL(1);\n"
+#ifdef UAE
+				"  return 0;\n"
+#else
+				"  return;\n"
+#endif
+				"} \n");
+		start_brace();
+	}
 	comprintf("\tdont_care_flags();\n");
 
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0);
@@ -3146,7 +3117,6 @@ generate_func (int noflags)
 		 "#define PART_7 1\n"
 		 "#define PART_8 1\n"
 		 "#endif\n\n"
-		 "extern void setzflg_l(uae_u32);\n"
 		 "extern void comp_fpp_opp();\n"
 		 "extern void comp_fscc_opp();\n"
 		 "extern void comp_fbcc_opp();\n\n");

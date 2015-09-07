@@ -750,7 +750,7 @@ MIDFUNC(3,cmov_l_rr,(RW4 d, RR4 s, IMM cc))
 	unlock2(d);
 }
 MENDFUNC(3,cmov_l_rr,(RW4 d, RR4 s, IMM cc))
-
+/*
 MIDFUNC(1,setzflg_l,(RW4 r))
 {
 	if (setzflg_uses_bsf) {
@@ -776,7 +776,7 @@ MIDFUNC(1,setzflg_l,(RW4 r))
 	}
 }
 MENDFUNC(1,setzflg_l,(RW4 r))
-
+*/
 MIDFUNC(3,cmov_l_rm,(RW4 d, IMM s, IMM cc))
 {
 	CLOBBER_CMOV;
@@ -807,9 +807,6 @@ MENDFUNC(2,bsf_l_rr,(W4 d, RR4 s))
 MENDFUNC(2,bsf_l_rr,(W4 d, W4 s))
 #endif
 
-#ifdef UAE
-/* FIXME: enable */
-#else
 /* Set the Z flag depending on the value in s. Note that the
    value has to be 0 or -1 (or, more precisely, for non-zero
    values, bit 14 must be set)! */
@@ -823,7 +820,6 @@ MIDFUNC(2,simulate_bsf,(W4 tmp, RW4 s))
     unlock2(s);
 }
 MENDFUNC(2,simulate_bsf,(W4 tmp, RW4 s))
-#endif
 
 MIDFUNC(2,imul_32_32,(RW4 d, RR4 s))
 {

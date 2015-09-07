@@ -81,7 +81,6 @@ DECLARE_MIDFUNC(setcc_m(IMM d, IMM cc));
 DECLARE_MIDFUNC(cmov_b_rr(RW1 d, RR1 s, IMM cc));
 DECLARE_MIDFUNC(cmov_w_rr(RW2 d, RR2 s, IMM cc));
 DECLARE_MIDFUNC(cmov_l_rr(RW4 d, RR4 s, IMM cc));
-DECLARE_MIDFUNC(setzflg_l(RW4 r));
 DECLARE_MIDFUNC(cmov_l_rm(RW4 d, IMM s, IMM cc));
 DECLARE_MIDFUNC(bsf_l_rr(W4 d, RR4 s));
 DECLARE_MIDFUNC(pop_m(IMM d));

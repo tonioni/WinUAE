@@ -3140,8 +3140,8 @@ static inline void raw_flags_evicted(int r)
 	live.nat[r].nholds=0;
 }
 
-#define FLAG_NREG1 0  /* Set to -1 if any register will do */
-static inline void raw_flags_to_reg(int r)
+#define FLAG_NREG1_FLAGREG 0  /* Set to -1 if any register will do */
+static inline void raw_flags_to_reg_FLAGREG(int r)
 {
 	raw_lahf(0);  /* Most flags in AH */
 	//raw_setcc(r,0); /* V flag in AL */
@@ -3154,12 +3154,40 @@ static inline void raw_flags_to_reg(int r)
 #endif
 }
 
-#define FLAG_NREG2 0  /* Set to -1 if any register will do */
-static inline void raw_reg_to_flags(int r)
+#define FLAG_NREG2_FLAGREG 0  /* Set to -1 if any register will do */
+static inline void raw_reg_to_flags_FLAGREG(int r)
 {
 	raw_cmp_b_ri(r,-127); /* set V */
 	raw_sahf(0);
 }
+
+#define FLAG_NREG3_FLAGREG 0  /* Set to -1 if any register will do */
+static __inline__ void raw_flags_set_zero_FLAGREG(int s, int tmp)
+{
+    raw_mov_l_rr(tmp,s);
+    raw_lahf(s); /* flags into ah */
+    raw_and_l_ri(s,0xffffbfff);
+    raw_and_l_ri(tmp,0x00004000);
+    raw_xor_l_ri(tmp,0x00004000);
+    raw_or_l(s,tmp);
+    raw_sahf(s);
+}
+
+static inline void raw_flags_init_FLAGREG(void) { }
+
+#define FLAG_SUFFIX FLAGREG
+
+#define FLAG_GLUE_2(x, y)		x ## _ ## y
+#define FLAG_GLUE_1(x, y)		FLAG_GLUE_2(x, y)
+#define FLAG_GLUE(x)			FLAG_GLUE_1(x, FLAG_SUFFIX)
+
+#define raw_flags_init			FLAG_GLUE(raw_flags_init)
+#define FLAG_NREG1				FLAG_GLUE(FLAG_NREG1)
+#define raw_flags_to_reg		FLAG_GLUE(raw_flags_to_reg)
+#define FLAG_NREG2				FLAG_GLUE(FLAG_NREG2)
+#define raw_reg_to_flags		FLAG_GLUE(raw_reg_to_flags)
+#define FLAG_NREG3				FLAG_GLUE(FLAG_NREG3)
+#define raw_flags_set_zero		FLAG_GLUE(raw_flags_set_zero)
 
 /* Apparently, there are enough instructions between flag store and
 flag reload to avoid the partial memory stall */
