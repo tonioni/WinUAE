@@ -70,40 +70,25 @@ MIDFUNC(0,dont_care_flags,(void))
 }
 MENDFUNC(0,dont_care_flags,(void))
 
-/*
- * Copy m68k C flag into m68k X flag
- *
- * FIXME: This needs to be moved into the machdep
- * part of the source because it depends on what bit
- * is used to hold X.
- */
 MIDFUNC(0,duplicate_carry,(void))
 {
 	evict(FLAGX);
 	make_flags_live_internal();
-	COMPCALL(setcc_m)((uintptr)live.state[FLAGX].mem + 1,2);
+	COMPCALL(setcc_m)((uintptr)live.state[FLAGX].mem,NATIVE_CC_CS);
+	log_vwrite(FLAGX);
 }
 MENDFUNC(0,duplicate_carry,(void))
 
-/*
- * Set host C flag from m68k X flag.
- *
- * FIXME: This needs to be moved into the machdep
- * part of the source because it depends on what bit
- * is used to hold X.
- */
 MIDFUNC(0,restore_carry,(void))
 {
 	if (!have_rat_stall) { /* Not a P6 core, i.e. no partial stalls */
-		bt_l_ri_noclobber(FLAGX, 8);
+		bt_l_ri_noclobber(FLAGX,0);
 	}
 	else {  /* Avoid the stall the above creates.
-			This is slow on non-P6, though.
-			*/
-		COMPCALL(rol_w_ri(FLAGX, 8));
+		   This is slow on non-P6, though.
+		*/
+		COMPCALL(rol_b_ri(FLAGX,8));
 		isclean(FLAGX);
-		/* Why is the above faster than the below? */
-		//raw_rol_b_mi((uae_u32)live.state[FLAGX].mem,8);
 	}
 }
 MENDFUNC(0,restore_carry,(void))
@@ -1537,6 +1522,10 @@ MENDFUNC(3,lea_l_brr,(W4 d, RR4 s, IMM offset))
 
 MIDFUNC(5,lea_l_brr_indexed,(W4 d, RR4 s, RR4 index, IMM factor, IMM offset))
 {
+	if (!offset) {
+		COMPCALL(lea_l_rr_indexed)(d,s,index,factor);
+		return;
+	}
 	CLOBBER_LEA;
 	s=readreg(s,4);
 	index=readreg(index,4);
@@ -1548,6 +1537,20 @@ MIDFUNC(5,lea_l_brr_indexed,(W4 d, RR4 s, RR4 index, IMM factor, IMM offset))
 	unlock2(s);
 }
 MENDFUNC(5,lea_l_brr_indexed,(W4 d, RR4 s, RR4 index, IMM factor, IMM offset))
+
+MIDFUNC(4,lea_l_rr_indexed,(W4 d, RR4 s, RR4 index, IMM factor))
+{
+    CLOBBER_LEA;
+    s=readreg(s,4);
+    index=readreg(index,4);
+    d=writereg(d,4);
+
+    raw_lea_l_rr_indexed(d,s,index,factor);
+    unlock2(d);
+    unlock2(index);
+    unlock2(s);
+}
+MENDFUNC(4,lea_l_rr_indexed,(W4 d, RR4 s, RR4 index, IMM factor))
 
 /* write d to the long at the address contained in s+offset */
 MIDFUNC(3,mov_l_bRr,(RR4 d, RR4 s, IMM offset))
