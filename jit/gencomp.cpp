@@ -41,9 +41,11 @@
 #ifdef UAE
 #define JIT_PATH "jit/"
 #define GEN_PATH "jit/"
+#define RETURN "return 0;"
 #else
 #define JIT_PATH "compiler/"
 #define GEN_PATH ""
+#define RETURN "return;"
 #endif
 
 #define BOOL_TYPE "int"
@@ -1915,11 +1917,7 @@ gen_opcode (unsigned long int opcode)
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
 		"  FAIL(1);\n"
-#ifdef UAE
-		"  return 0;\n"
-#else
-		"  return;\n"
-#endif
+		"  " RETURN "\n"
 		"} \n");
 	    start_brace();
 	}
@@ -2086,11 +2084,7 @@ gen_opcode (unsigned long int opcode)
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
 		"  FAIL(1);\n"
-#ifdef UAE
-		"  return 0;\n"
-#else
-		"  return;\n"
-#endif
+		"  " RETURN "\n"
 		"} \n");
 	    start_brace();
 	}
@@ -2101,11 +2095,7 @@ gen_opcode (unsigned long int opcode)
 	   thing ;-) */
 	comprintf("if (needed_flags & FLAG_V) {\n"
 		  "  FAIL(1);\n"
-#ifdef UAE
-		  "  return 0;\n"
-#else
-		  "  return;\n"
-#endif
+		  "  " RETURN "\n"
 		  "} \n");
 
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0);
@@ -2240,11 +2230,7 @@ gen_opcode (unsigned long int opcode)
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
 		"  FAIL(1);\n"
-#ifdef UAE
-		"  return 0;\n"
-#else
-		"  return;\n"
-#endif
+		"  " RETURN "\n"
 		"} \n");
 	    start_brace();
 	}
@@ -2379,11 +2365,7 @@ gen_opcode (unsigned long int opcode)
 	if (curi->smode==Dreg) {
 		comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
 				"  FAIL(1);\n"
-#ifdef UAE
-				"  return 0;\n"
-#else
-				"  return;\n"
-#endif
+				"  " RETURN "\n"
 				"} \n");
 		start_brace();
 	}
@@ -2520,11 +2502,7 @@ gen_opcode (unsigned long int opcode)
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
 		"  FAIL(1);\n"
-#ifdef UAE
-		"  return 0;\n"
-#else
-		"  return;\n"
-#endif
+		"  " RETURN "\n"
 		"} \n");
 	    start_brace();
 	}
@@ -2559,11 +2537,7 @@ gen_opcode (unsigned long int opcode)
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
 		"  FAIL(1);\n"
-#ifdef UAE
-		"  return 0;\n"
-#else
-		"  return;\n"
-#endif
+		"  " RETURN "\n"
 		"} \n");
 	    start_brace();
 	}
