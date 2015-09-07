@@ -96,6 +96,7 @@ DECLARE_MIDFUNC(zero_extend_16_rr(W4 d, RR2 s));
 DECLARE_MIDFUNC(zero_extend_8_rr(W4 d, RR1 s));
 DECLARE_MIDFUNC(imul_64_32(RW4 d, RW4 s));
 DECLARE_MIDFUNC(mul_64_32(RW4 d, RW4 s));
+DECLARE_MIDFUNC(simulate_bsf(W4 tmp, RW4 s));
 DECLARE_MIDFUNC(imul_32_32(RW4 d, RR4 s));
 DECLARE_MIDFUNC(mul_32_32(RW4 d, RR4 s));
 DECLARE_MIDFUNC(mov_b_rr(W1 d, RR1 s));

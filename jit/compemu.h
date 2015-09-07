@@ -201,7 +201,7 @@ typedef struct {
   uae_u32 val;
   uae_u8 is_swapped;
   uae_u8 status;
-  uae_u8 realreg;
+  uae_s8 realreg; /* gb-- realreg can hold -1 */
   uae_u8 realind; /* The index in the holds[] array */
   uae_u8 needflush;
   uae_u8 validsize;
@@ -213,7 +213,7 @@ typedef struct {
   uae_u32* mem;
   double val;
   uae_u8 status;
-  uae_u8 realreg;
+  uae_s8 realreg; /* gb-- realreg can hold -1 */
   uae_u8 realind;
   uae_u8 needflush;
 } freg_status;
@@ -292,7 +292,7 @@ typedef struct {
 extern int touchcnt;
 
 
-#define IMM uae_u32
+#define IMM  uae_s32
 #define RR1  uae_u32
 #define RR2  uae_u32
 #define RR4  uae_u32
