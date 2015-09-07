@@ -3360,6 +3360,11 @@ cpuid(uae_u32 op, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx)
 	raw_pop_l_r(1);
 	raw_pop_l_r(0);
 	raw_ret();
+#ifdef USE_UDIS86
+	if (!op) { /* Only disassemble once! */
+		UDISFN(cpuid_space, target)
+	}
+#endif
 	set_target(tmp);
 
 	((compop_func*)cpuid_space)(0);
