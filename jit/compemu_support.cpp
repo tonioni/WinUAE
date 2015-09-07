@@ -3055,8 +3055,14 @@ void readlong(int address, int dest, int tmp)
 		readmem_real(address,dest,4,tmp);
 }
 
-static inline void get_n_addr_real(int address, int dest, int tmp)
+void get_n_addr(int address, int dest, int tmp)
 {
+	if (special_mem || distrust_addr()) {
+		/* This one might appear a bit odd... */
+		readmem(address,dest,24,4,tmp);
+		return;
+	}
+
 	// a is the register containing the virtual address
 	// after the offset had been fetched
 	int a=tmp;
@@ -3089,20 +3095,6 @@ static inline void get_n_addr_real(int address, int dest, int tmp)
 	mov_l_rm_indexed(f,uae_p32(baseaddr),f);
 	add_l(dest,f);
 	forget_about(tmp);
-}
-
-/* This one might appear a bit odd... */
-static inline void get_n_addr_old(int address, int dest, int tmp)
-{
-	readmem(address,dest,24,4,tmp);
-}
-
-void get_n_addr(int address, int dest, int tmp)
-{
-	if (special_mem || distrust_addr())
-		get_n_addr_old(address,dest,tmp);
-	else
-		get_n_addr_real(address,dest,tmp);
 }
 
 void get_n_addr_jmp(int address, int dest, int tmp)
