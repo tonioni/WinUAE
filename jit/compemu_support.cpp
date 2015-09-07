@@ -2750,9 +2750,13 @@ static void align_target(uae_u32 a)
 	if (!a)
 		return;
 
-	/* Fill with NOPs --- makes debugging with gdb easier */
-	while ((uintptr)target&(a-1))
-		*target++=0x90; // Attention x86 specific code
+	if (tune_nop_fillers)
+		raw_emit_nop_filler(a - (((uintptr)target) & (a - 1)));
+	else {
+		/* Fill with NOPs --- makes debugging with gdb easier */
+		while ((uintptr)target&(a-1))
+			*target++=0x90; // Attention x86 specific code
+	}
 }
 
 static inline int isinrom(uintptr addr)
