@@ -735,33 +735,7 @@ MIDFUNC(3,cmov_l_rr,(RW4 d, RR4 s, IMM cc))
 	unlock2(d);
 }
 MENDFUNC(3,cmov_l_rr,(RW4 d, RR4 s, IMM cc))
-/*
-MIDFUNC(1,setzflg_l,(RW4 r))
-{
-	if (setzflg_uses_bsf) {
-		CLOBBER_BSF;
-		r=rmw(r,4,4);
-		raw_bsf_l_rr(r,r);
-		unlock2(r);
-	}
-	else {
-		Dif (live.flags_in_flags!=VALID) {
-			jit_abort (_T("JIT: setzflg() wanted flags in native flags, they are %d\n"),
-				live.flags_in_flags);
-		}
-		r=readreg(r,4);
-		{
-			int f=writereg(S11,4);
-			int t=writereg(S12,4);
-			raw_flags_set_zero(f,r,t);
-			unlock2(f);
-			unlock2(r);
-			unlock2(t);
-		}
-	}
-}
-MENDFUNC(1,setzflg_l,(RW4 r))
-*/
+
 MIDFUNC(3,cmov_l_rm,(RW4 d, IMM s, IMM cc))
 {
 	CLOBBER_CMOV;

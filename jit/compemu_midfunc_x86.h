@@ -87,6 +87,7 @@ DECLARE_MIDFUNC(push_l_i(IMM i));
 DECLARE_MIDFUNC(push_l(RR4 s));
 DECLARE_MIDFUNC(clear_16(RW4 r));
 DECLARE_MIDFUNC(clear_8(RW4 r));
+DECLARE_MIDFUNC(sign_extend_32_rr(W4 d, RR2 s));
 DECLARE_MIDFUNC(sign_extend_16_rr(W4 d, RR2 s));
 DECLARE_MIDFUNC(sign_extend_8_rr(W4 d, RR1 s));
 DECLARE_MIDFUNC(zero_extend_16_rr(W4 d, RR2 s));
