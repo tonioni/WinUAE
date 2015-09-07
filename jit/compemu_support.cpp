@@ -232,8 +232,8 @@ const bool		follow_const_jumps	= false;
 #else
 const uae_u32	MIN_CACHE_SIZE		= 1024;		// Minimal translation cache size (1 MB)
 static uae_u32	cache_size			= 0;		// Size of total cache allocated for compiled blocks
-static uae_u32	current_cache_size	= 0;		// Cache grows upwards: how much has been consumed already
 #endif
+static uae_u32		current_cache_size	= 0;		// Cache grows upwards: how much has been consumed already
 static bool		lazy_flush		= true;	// Flag: lazy translation cache invalidation
 static bool		avoid_fpu		= true;	// Flag: compile FPU instructions ?
 static bool		have_cmov		= false;	// target has CMOV instructions ?
@@ -549,7 +549,7 @@ static inline void invalidate_block(blockinfo* bi)
 	bi->direct_handler=NULL;
 	set_dhtu(bi,bi->direct_pen);
 	bi->needed_flags=0xff;
-
+	bi->status=BI_INVALID;
 	for (i=0;i<2;i++) {
 		bi->dep[i].jmp_off=NULL;
 		bi->dep[i].target=NULL;
@@ -789,9 +789,7 @@ static inline void alloc_blockinfos(void)
 	for (i=0;i<MAX_HOLD_BI;i++) {
 		if (hold_bi[i])
 			return;
-		bi=hold_bi[i]=(blockinfo*)current_compile_p;
-		current_compile_p+=sizeof(blockinfo);
-
+		bi=hold_bi[i]=alloc_blockinfo();
 		prepare_block(bi);
 	}
 }
@@ -3311,28 +3309,39 @@ static void calc_checksum(blockinfo* bi, uae_u32* c1, uae_u32* c2)
 {
 	uae_u32 k1=0;
 	uae_u32 k2=0;
-	uae_s32 len=bi->len;
-	uintptr tmp = (uintptr)bi->min_pcp;
-	uae_u32* pos;
 
-	len+=(tmp&3);
-	tmp &= ~((uintptr)3);
-	pos=(uae_u32*)tmp;
+#if USE_CHECKSUM_INFO
+	checksum_info *csi = bi->csi;
+	Dif(!csi) abort();
+	while (csi) {
+		uae_s32 len = csi->length;
+		uintptr tmp = (uintptr)csi->start_p;
+#else
+		uae_s32 len=bi->len;
+		uintptr tmp = (uintptr)bi->min_pcp;
+#endif
+		uae_u32* pos;
 
-	if (len >= 0 && len <= MAX_CHECKSUM_LEN) {
-		while (len>0) {
-			k1+=*pos;
-			k2^=*pos;
-			pos++;
-			len-=4;
+		len+=(tmp&3);
+		tmp &= ~((uintptr)3);
+		pos=(uae_u32*)tmp;
+
+		if (len >= 0 && len <= MAX_CHECKSUM_LEN) {
+			while (len>0) {
+				k1+=*pos;
+				k2^=*pos;
+				pos++;
+				len-=4;
+			}
 		}
-		*c1 = k1;
-		*c2 = k2;
+
+#if USE_CHECKSUM_INFO
+		csi = csi->next;
 	}
-	else {
-		*c1=0;
-		*c2=0;
-	}
+#endif
+
+	*c1 = k1;
+	*c2 = k2;
 }
 
 #if 0
@@ -3414,6 +3423,9 @@ static inline int block_check_checksum(blockinfo* bi)
 {
 	uae_u32     c1,c2;
 	bool        isgood;
+    
+	if (bi->status!=BI_NEED_CHECK)
+		return 1;  /* This block is in a checked state */
 
 	checksum_count++;
 
@@ -3430,12 +3442,15 @@ static inline int block_check_checksum(blockinfo* bi)
 		means we have to move it into the needs-to-be-flushed list */
 		bi->handler_to_use=bi->handler;
 		set_dhtu(bi,bi->direct_handler);
+		bi->status=BI_CHECKING;
+		isgood=called_check_checksum(bi);
 	}
 	if (isgood) {
 		jit_log2("reactivate %p/%p (%x %x/%x %x)",bi,bi->pc_p, c1,c2,bi->c1,bi->c2);
 		remove_from_list(bi);
 		add_to_active(bi);
 		raise_in_cl_list(bi);
+		bi->status=BI_ACTIVE;
 	}
 	else {
 		/* This block actually changed. We need to invalidate it,
@@ -3486,10 +3501,6 @@ static void check_checksum(void)
 
 static inline void match_states(blockinfo* bi)
 {
-#ifdef UAE
-	/* FIXME: replace with ARAnyM version */
-	flush(1);
-#else
 	int i;
 	smallstate* s=&(bi->env);
 
@@ -3502,7 +3513,7 @@ static inline void match_states(blockinfo* bi)
 						 certain vregs) */
 		for (i=0;i<16;i++) {
 			if (s->virt[i]==L_UNNEEDED) {
-				D2(panicbug("unneeded reg %d at %p",i,target));
+				jit_log2("unneeded reg %d at %p",i,target);
 				COMPCALL(forget_about)(i); // FIXME
 			}
 		}
@@ -3525,9 +3536,7 @@ static inline void match_states(blockinfo* bi)
 			unlock2(i);
 		}
 	}
-#endif
 }
-
 
 static inline void create_popalls(void)
 {
@@ -3670,8 +3679,7 @@ static void prepare_block(blockinfo* bi)
 	raw_mov_l_rm(0,(uintptr)&(bi->pc_p));
 	raw_mov_l_mr((uintptr)&regs.pc_p,0);
 	raw_jmp((uintptr)popall_check_checksum);
-
-	align_target(32);
+	flush_cpu_icache((void *)current_compile_p, (void *)target);
 	current_compile_p=get_target();
 
 	bi->deplist=NULL;
@@ -3680,7 +3688,7 @@ static void prepare_block(blockinfo* bi)
 		bi->dep[i].next=NULL;
 	}
 	bi->env=default_ss;
-	bi->status=BI_NEW;
+	bi->status=BI_INVALID;
 	bi->havestate=0;
 	//bi->env=empty_ss;
 }
@@ -3891,10 +3899,18 @@ void build_comp(void)
 	}
 	compemu_reset();
 
+#if 0
 	for (i=0;i<N_REGS;i++) {
 		empty_ss.nat[i].holds=-1;
 		empty_ss.nat[i].validsize=0;
 		empty_ss.nat[i].dirtysize=0;
+	}
+#endif
+	for (i=0;i<VREGS;i++) {
+		empty_ss.virt[i]=L_NEEDED;
+	}
+	for (i=0;i<N_REGS;i++) {
+		empty_ss.nat[i]=L_UNKNOWN;
 	}
 	default_ss=empty_ss;
 }
@@ -3919,12 +3935,14 @@ void flush_icache_hard(uaecptr ptr, int n)
 		cache_tags[cacheline(bi->pc_p)].handler=(cpuop_func*)popall_execute_normal;
 		cache_tags[cacheline(bi->pc_p)+1].bi=NULL;
 		dbi=bi; bi=bi->next;
+		free_blockinfo(dbi);
 	}
 	bi=dormant;
 	while(bi) {
 		cache_tags[cacheline(bi->pc_p)].handler=(cpuop_func*)popall_execute_normal;
 		cache_tags[cacheline(bi->pc_p)+1].bi=NULL;
 		dbi=bi; bi=bi->next;
+		free_blockinfo(dbi);
 	}
 
 	reset_lists();
@@ -3955,18 +3973,20 @@ void flush_icache(uaecptr ptr, int n)
 	bi=active;
 	while (bi) {
 		uae_u32 cl=cacheline(bi->pc_p);
-		if (!bi->handler) {
-			/* invalidated block */
+		if (bi->status==BI_INVALID ||
+			bi->status==BI_NEED_RECOMP) { 
 			if (bi==cache_tags[cl+1].bi)
 				cache_tags[cl].handler=(cpuop_func*)popall_execute_normal;
 			bi->handler_to_use=(cpuop_func*)popall_execute_normal;
 			set_dhtu(bi,bi->direct_pen);
+			bi->status=BI_INVALID;
 		}
 		else {
 			if (bi==cache_tags[cl+1].bi)
 				cache_tags[cl].handler=(cpuop_func*)popall_check_checksum;
 			bi->handler_to_use=(cpuop_func*)popall_check_checksum;
 			set_dhtu(bi,bi->direct_pcc);
+			bi->status=BI_NEED_CHECK;
 		}
 		bi2=bi;
 		bi=bi->next;
@@ -4140,6 +4160,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 		blockinfo* bi2;
 		int extra_len=0;
 
+		redo_current_block=0;
 		if (current_compile_p>=max_compile_start)
 			flush_icache_hard(0, 3);
 
@@ -4149,16 +4170,16 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 		bi2=get_blockinfo(cl);
 
 		optlev=bi->optlevel;
-		if (bi->handler) {
+		if (bi->status!=BI_INVALID) {
 			Dif (bi!=bi2) {
 				/* I don't think it can happen anymore. Shouldn't, in
 				any case. So let's make sure... */
 				jit_abort("WOOOWOO count=%d, ol=%d %p %p", bi->count,bi->optlevel,bi->handler_to_use, cache_tags[cl].handler);
 			}
 
-			Dif (bi->count!=-1 && bi->status!=BI_TARGETTED) {
+			Dif (bi->count!=-1 && bi->status!=BI_NEED_RECOMP) {
+				jit_abort("bi->count=%d, bi->status=%d",bi->count,bi->status);
 				/* What the heck? We are not supposed to be here! */
-				jit_abort("BI_TARGETTED");
 			}
 		}
 		if (bi->count==-1) {
@@ -4223,23 +4244,15 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 
 		bi->needed_flags=liveflags[0];
 
-		/* This is the non-direct handler */
-		align_target(32);
-		set_target(get_target()+1);
-		align_target(16);
-		/* Now aligned at n*32+16 */
-
-		bi->handler=
-			bi->handler_to_use=(cpuop_func*)get_target();
-		raw_cmp_l_mi(uae_p32(&regs.pc_p),uae_p32(pc_hist[0].location));
-		raw_jnz(uae_p32(popall_cache_miss));
-		/* This was 16 bytes on the x86, so now aligned on (n+1)*32 */
-
+		align_target(align_loops);
 		was_comp=0;
 
 		bi->direct_handler=(cpuop_func*)get_target();
 		set_dhtu(bi,bi->direct_handler);
+		bi->status=BI_COMPILING;
 		current_block_start_target=(uintptr)get_target();
+	
+		log_startblock();
 
 		if (bi->count>=0) { /* Need to generate countdown code */
 			raw_mov_l_mi((uintptr)&regs.pc_p,(uintptr)pc_hist[0].location);
@@ -4257,7 +4270,26 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 			taken_pc_p=0;
 			branch_cc=0; // Only to be initialized. Will be set together with next_pc_p
 
-			log_startblock();
+			comp_pc_p=(uae_u8*)pc_hist[0].location;
+			init_comp();
+			was_comp=1;
+
+#ifdef USE_CPU_EMUL_SERVICES
+			raw_sub_l_mi((uintptr)&emulated_ticks,blocklen);
+			raw_jcc_b_oponly(NATIVE_CC_GT);
+			uae_s8 *branchadd=(uae_s8*)get_target();
+			emit_byte(0);
+			raw_call((uintptr)cpu_do_check_ticks);
+			*branchadd=(uintptr)get_target()-((uintptr)branchadd+1);
+#endif
+
+#ifdef JIT_DEBUG
+			if (JITDebug) {
+				raw_mov_l_mi((uintptr)&last_regs_pc_p,(uintptr)pc_hist[0].location);
+				raw_mov_l_mi((uintptr)&last_compiled_block_addr,current_block_start_target);
+			}
+#endif
+		
 			for (i=0;i<blocklen &&
 				get_target_noopt()<max_compile_start;i++) {
 					cpuop_func **cputbl;
@@ -4299,7 +4331,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 							comp_pc_p=(uae_u8*)pc_hist[i].location;
 							init_comp();
 						}
-						was_comp++;
+						was_comp=1;
 
 						comptbl[opcode](opcode);
 						freescratch();
@@ -4321,9 +4353,9 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 							was_comp=0;
 						}
 						raw_mov_l_ri(REG_PAR1,(uae_u32)opcode);
-						raw_mov_l_ri(REG_PAR2,uae_p32(&regs));
+						//raw_mov_l_ri(REG_PAR2,uae_p32(&regs));
 #if USE_NORMAL_CALLING_CONVENTION
-						raw_push_l_r(REG_PAR2);
+						//raw_push_l_r(REG_PAR2);
 						raw_push_l_r(REG_PAR1);
 #endif
 						raw_mov_l_mi((uintptr)&regs.pc_p,
@@ -4331,7 +4363,8 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 						raw_call((uintptr)cputbl[opcode]);
 						//raw_add_l_mi((uintptr)&oink,1); // FIXME
 #if USE_NORMAL_CALLING_CONVENTION
-						raw_inc_sp(8);
+						//raw_inc_sp(8);
+						raw_inc_sp(4);
 #endif
 
 						if (i<blocklen-1) {
@@ -4348,7 +4381,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 						}
 					}
 			}
-#if 0 /* This isn't completely kosher yet; It really needs to be
+#if 1 /* This isn't completely kosher yet; It really needs to be
 			be integrated into a general inter-block-dependency scheme */
 			if (next_pc_p && taken_pc_p &&
 				was_comp && taken_pc_p==current_block_pc_p) {
@@ -4375,6 +4408,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 
 			}
 #endif
+			log_flush();
 
 			if (next_pc_p) { /* A branch was registered */
 				uintptr t1=next_pc_p;
@@ -4411,7 +4445,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 				raw_jmp((uintptr)popall_do_nothing);
 				create_jmpdep(bi,0,tba,t1);
 
-				align_target(16);
+				align_target(align_jumps);
 				/* not-predicted outcome */
 				write_jmp_target(branchadd, (cpuop_func *)get_target());
 				live=tmp; /* Ouch again */
@@ -4424,6 +4458,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 				tba=(uae_u32*)get_target();
 				emit_jmp_target(get_handler(t2));
 				raw_mov_l_mi((uintptr)&regs.pc_p,t2);
+				flush_reg_count();
 				raw_jmp((uintptr)popall_do_nothing);
 				create_jmpdep(bi,1,tba,t2);
 			}
@@ -4440,11 +4475,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					int r2 = (r==0) ? 1 : 0;
 					raw_mov_l_ri(r2,(uintptr)popall_do_nothing);
 					raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
-#if USE_NEW_RTASM
 					raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,9);
-#else
-					raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,9);
-#endif
 					raw_jmp_r(r2);
 				}
 				else if (was_comp && isconst(PC_P)) {
@@ -4470,11 +4501,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					int r2 = (r==0) ? 1 : 0;
 					raw_mov_l_ri(r2,(uintptr)popall_do_nothing);
 					raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
-#if USE_NEW_RTASM
 					raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,9);
-#else
-					raw_cmov_l_rm_indexed(r2, uae_p32(cache_tags),r,9);
-#endif
 					raw_jmp_r(r2);
 				}
 			}
@@ -4522,6 +4549,8 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 		}
 #endif
 
+		current_cache_size += get_target() - (uae_u8 *)current_compile_p;
+
 #ifdef JIT_DEBUG
 		if (JITDebug)
 			bi->direct_handler_size = get_target() - (uae_u8 *)current_block_start_target;
@@ -4539,18 +4568,37 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 
 		log_dump();
 		align_target(align_jumps);
-		current_compile_p=get_target();
 
 #ifdef USE_UDIS86
 		UDISFN(current_block_start_target, target)
 #endif
 
+		/* This is the non-direct handler */
+		bi->handler=
+			bi->handler_to_use=(cpuop_func *)get_target();
+		raw_cmp_l_mi((uintptr)&regs.pc_p,(uintptr)pc_hist[0].location);
+		raw_jnz((uintptr)popall_cache_miss);
+		comp_pc_p=(uae_u8*)pc_hist[0].location;
+
+		bi->status=BI_FINALIZING;
+		init_comp();
+		match_states(bi);
+		flush(1);
+
+		raw_jmp((uintptr)bi->direct_handler);
+
+		flush_cpu_icache((void *)current_block_start_target, (void *)target);
+		current_compile_p=get_target();
 		raise_in_cl_list(bi);
 		bi->nexthandler=current_compile_p;
 
 		/* We will flush soon, anyway, so let's do it now */
 		if (current_compile_p>=max_compile_start)
 			flush_icache_hard(0, 3);
+
+		bi->status=BI_ACTIVE;
+		if (redo_current_block)
+			block_need_recompile(bi);
 
 #if PROFILE_COMPILE_TIME
 		compile_time += (clock() - start_time);

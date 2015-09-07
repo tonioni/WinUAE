@@ -62,10 +62,7 @@ struct blockinfo_t;
 
 struct cpu_history {
   uae_u16* location;
-  uae_u8  cycles;
   uae_u8  specmem;
-  uae_u8  dummy2;
-  uae_u8  dummy3;
 };
 
 union cacheline {
@@ -265,14 +262,9 @@ typedef struct {
 } bigstate;
 
 typedef struct {
-    uae_s8 holds;
-    uae_u8 validsize;
-    uae_u8 dirtysize;
-} n_smallstatus;
-
-typedef struct {
-    /* Integer part */
-    n_smallstatus  nat[N_REGS];
+	/* Integer part */
+	uae_s8 virt[VREGS];
+	uae_s8 nat[N_REGS];
 } smallstate;
 
 extern int touchcnt;
