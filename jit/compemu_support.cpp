@@ -101,7 +101,7 @@
 	uae_log("JIT: " format "\n", ##__VA_ARGS__);
 #define jit_log2(format, ...)
 
-#define MEMBaseDiff uae_ptr32(NATMEM_OFFSET)
+#define MEMBaseDiff uae_p32(NATMEM_OFFSET)
 
 #ifdef NATMEM_OFFSET
 #define FIXED_ADDRESSING 1
@@ -1544,7 +1544,7 @@ static  int alloc_reg_hinted(int r, int size, int willclobber, int hint)
 				else if (r==FLAGX)
 					raw_load_flagx(bestreg,r);
 				else {
-					raw_mov_l_rm(bestreg,uae_ptr32(live.state[r].mem));
+					raw_mov_l_rm(bestreg,uae_p32(live.state[r].mem));
 				}
 				live.state[r].dirtysize=0;
 				set_status(r,CLEAN);
@@ -2758,8 +2758,8 @@ static void align_target(uae_u32 a)
 static inline int isinrom(uintptr addr)
 {
 #ifdef UAE
-	return (addr >= uae_ptr32(kickmem_bank.baseaddr) &&
-			addr < uae_ptr32(kickmem_bank.baseaddr + 8 * 65536));
+	return (addr >= uae_p32(kickmem_bank.baseaddr) &&
+			addr < uae_p32(kickmem_bank.baseaddr + 8 * 65536));
 #else
 	return ((addr >= (uintptr)ROMBaseHost) && (addr < (uintptr)ROMBaseHost + ROMSize));
 #endif
@@ -2870,7 +2870,7 @@ static void writemem_real(int address, int source, int size, int tmp, int clobbe
 
 	mov_l_rr(f,address);
 	shrl_l_ri(f,16);  /* The index into the baseaddr table */
-	mov_l_rm_indexed(f,uae_ptr32(baseaddr),f);
+	mov_l_rm_indexed(f,uae_p32(baseaddr),f);
 
 	if (address==source) { /* IBrowse does this! */
 		if (size > 1) {
@@ -2898,7 +2898,7 @@ static inline void writemem(int address, int source, int offset, int size, int t
 
 	mov_l_rr(f,address);
 	shrl_l_ri(f,16);   /* The index into the mem bank table */
-	mov_l_rm_indexed(f,uae_ptr32(mem_banks),f);
+	mov_l_rm_indexed(f,uae_p32(mem_banks),f);
 	/* Now f holds a pointer to the actual membank */
 	mov_l_rR(f,f,offset);
 	/* Now f holds the address of the b/w/lput function */
@@ -2980,7 +2980,7 @@ static void readmem_real(int address, int dest, int size, int tmp)
 
 	mov_l_rr(f,address);
 	shrl_l_ri(f,16);   /* The index into the baseaddr table */
-	mov_l_rm_indexed(f,uae_ptr32(baseaddr),f);
+	mov_l_rm_indexed(f,uae_p32(baseaddr),f);
 	/* f now holds the offset */
 
 	switch(size) {
@@ -2999,7 +2999,7 @@ static inline void readmem(int address, int dest, int offset, int size, int tmp)
 
 	mov_l_rr(f,address);
 	shrl_l_ri(f,16);   /* The index into the mem bank table */
-	mov_l_rm_indexed(f,uae_ptr32(mem_banks),f);
+	mov_l_rm_indexed(f,uae_p32(mem_banks),f);
 	/* Now f holds a pointer to the actual membank */
 	mov_l_rR(f,f,offset);
 	/* Now f holds the address of the b/w/lget function */
@@ -3062,7 +3062,7 @@ static inline void get_n_addr_real(int address, int dest, int tmp)
 	mov_l_rr(f,address);
 	mov_l_rr(dest,address); // gb-- nop if dest==address
 	shrl_l_ri(f,16);
-	mov_l_rm_indexed(f,uae_ptr32(baseaddr),f);
+	mov_l_rm_indexed(f,uae_p32(baseaddr),f);
 	add_l(dest,f);
 	forget_about(tmp);
 }
@@ -3093,7 +3093,7 @@ void get_n_addr_jmp(int address, int dest, int tmp)
 		f=dest;
 	mov_l_rr(f,address);
 	shrl_l_ri(f,16);   /* The index into the baseaddr bank table */
-	mov_l_rm_indexed(dest,uae_ptr32(baseaddr),f);
+	mov_l_rm_indexed(dest,uae_p32(baseaddr),f);
 	add_l(dest,address);
 	and_l_ri (dest, ~1);
 	forget_about(tmp);
@@ -3558,9 +3558,9 @@ static inline void create_popalls(void)
 	}
 	raw_dec_sp(stack_space);
 	r=REG_PC_TMP;
-	raw_mov_l_rm(r,(uintptr)&regs.pc_p);
+	raw_mov_l_rm(r, uae_p32(&regs.pc_p));
 	raw_and_l_ri(r,TAGMASK);
-	raw_jmp_m_indexed((uintptr)cache_tags,r,SIZEOF_VOID_P);
+	raw_jmp_m_indexed(uae_p32(cache_tags), r, SIZEOF_VOID_P);
 
 	/* now the exit points */
 	align_target(align_jumps);
@@ -3570,7 +3570,7 @@ static inline void create_popalls(void)
 		if (need_to_preserve[i])
 			raw_pop_l_r(i);
 	}
-	raw_jmp((uintptr)do_nothing);
+	raw_jmp(uae_p32(do_nothing));
 
 	align_target(align_jumps);
 	popall_execute_normal=get_target();
@@ -3579,7 +3579,7 @@ static inline void create_popalls(void)
 		if (need_to_preserve[i])
 			raw_pop_l_r(i);
 	}
-	raw_jmp((uintptr)execute_normal);
+	raw_jmp(uae_p32(execute_normal));
 
 	align_target(align_jumps);
 	popall_cache_miss=get_target();
@@ -3588,7 +3588,7 @@ static inline void create_popalls(void)
 		if (need_to_preserve[i])
 			raw_pop_l_r(i);
 	}
-	raw_jmp((uintptr)cache_miss);
+	raw_jmp(uae_p32(cache_miss));
 
 	align_target(align_jumps);
 	popall_recompile_block=get_target();
@@ -3597,7 +3597,7 @@ static inline void create_popalls(void)
 		if (need_to_preserve[i])
 			raw_pop_l_r(i);
 	}
-	raw_jmp((uintptr)recompile_block);
+	raw_jmp(uae_p32(recompile_block));
 
 	align_target(align_jumps);
 	popall_exec_nostats=get_target();
@@ -3606,7 +3606,7 @@ static inline void create_popalls(void)
 		if (need_to_preserve[i])
 			raw_pop_l_r(i);
 	}
-	raw_jmp((uintptr)exec_nostats);
+	raw_jmp(uae_p32(exec_nostats));
 
 	align_target(align_jumps);
 	popall_check_checksum=get_target();
@@ -3615,7 +3615,7 @@ static inline void create_popalls(void)
 		if (need_to_preserve[i])
 			raw_pop_l_r(i);
 	}
-	raw_jmp((uintptr)check_checksum);
+	raw_jmp(uae_p32(check_checksum));
 
 #ifdef UAE
 	/* FIXME: write-protect popallspace? */
@@ -4216,8 +4216,8 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 
 		bi->handler=
 			bi->handler_to_use=(cpuop_func*)get_target();
-		raw_cmp_l_mi(uae_ptr32(&regs.pc_p),uae_ptr32(pc_hist[0].location));
-		raw_jnz(uae_ptr32(popall_cache_miss));
+		raw_cmp_l_mi(uae_p32(&regs.pc_p),uae_p32(pc_hist[0].location));
+		raw_jnz(uae_p32(popall_cache_miss));
 		/* This was 16 bytes on the x86, so now aligned on (n+1)*32 */
 
 		was_comp=0;
@@ -4306,7 +4306,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 							was_comp=0;
 						}
 						raw_mov_l_ri(REG_PAR1,(uae_u32)opcode);
-						raw_mov_l_ri(REG_PAR2,uae_ptr32(&regs));
+						raw_mov_l_ri(REG_PAR2,uae_p32(&regs));
 #if USE_NORMAL_CALLING_CONVENTION
 						raw_push_l_r(REG_PAR2);
 						raw_push_l_r(REG_PAR1);
@@ -4327,7 +4327,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 							raw_jz_b_oponly();
 							branchadd=(uae_s8*)get_target();
 							emit_byte(0);
-							raw_sub_l_mi(uae_ptr32(&countdown),scaled_cycles(totcycles));
+							raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
 							raw_jmp((uintptr)popall_do_nothing);
 							*branchadd=(uintptr)get_target()-(uintptr)branchadd-1;
 						}
@@ -4388,7 +4388,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 				/* predicted outcome */
 				tbi=get_blockinfo_addr_new((void*)t1,1);
 				match_states(tbi);
-				raw_sub_l_mi(uae_ptr32(&countdown),scaled_cycles(totcycles));
+				raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
 				raw_jcc_l_oponly(9);
 				tba=(uae_u32*)get_target();
 				emit_jmp_target(get_handler(t1));
@@ -4404,7 +4404,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 				match_states(tbi);
 
 				//flush(1); /* Can only get here if was_comp==1 */
-				raw_sub_l_mi(uae_ptr32(&countdown),scaled_cycles(totcycles));
+				raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
 				raw_jcc_l_oponly(9);
 				tba=(uae_u32*)get_target();
 				emit_jmp_target(get_handler(t2));
@@ -4424,7 +4424,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					raw_and_l_ri(r,TAGMASK);
 					int r2 = (r==0) ? 1 : 0;
 					raw_mov_l_ri(r2,(uintptr)popall_do_nothing);
-					raw_sub_l_mi(uae_ptr32(&countdown),scaled_cycles(totcycles));
+					raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
 #if USE_NEW_RTASM
 					raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,9);
 #else
@@ -4440,7 +4440,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					tbi=get_blockinfo_addr_new((void*)(uintptr)v,1);
 					match_states(tbi);
 
-					raw_sub_l_mi(uae_ptr32(&countdown),scaled_cycles(totcycles));
+					raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
 					raw_jcc_l_oponly(9);
 					tba=(uae_u32*)get_target();
 					emit_jmp_target(get_handler(v));
@@ -4454,11 +4454,11 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					raw_and_l_ri(r,TAGMASK);
 					int r2 = (r==0) ? 1 : 0;
 					raw_mov_l_ri(r2,(uintptr)popall_do_nothing);
-					raw_sub_l_mi(uae_ptr32(&countdown),scaled_cycles(totcycles));
+					raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
 #if USE_NEW_RTASM
 					raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,9);
 #else
-					raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,9);
+					raw_cmov_l_rm_indexed(r2, uae_p32(cache_tags),r,9);
 #endif
 					raw_jmp_r(r2);
 				}

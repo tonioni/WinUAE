@@ -482,20 +482,19 @@ LONG WINAPI EvalException(LPEXCEPTION_POINTERS info);
 #endif
 #endif
 
-#ifdef CPU_64_BIT
-static inline uae_u32 uae_ptr32(const void* address)
-{
-	uintptr value = (uintptr) address;
-	if (value > 0xffffffffLL) {
-		abort();
-	}
-	return value;
-}
-#else
-#define uae_ptr32(x) ((uae_u32)(x))
-#endif
-
-
 #endif
 
 #endif /* COMPEMU_H */
+
+#ifdef CPU_64_BIT
+static inline uae_u32 check_uae_p32(uae_u64 address)
+{
+	if (address > 0xffffffffLL) {
+		abort();
+	}
+	return (uae_u32) address;
+}
+#define uae_p32(x) (check_uae_p32((uae_u64)(x)))
+#else
+#define uae_p32(x) ((uae_u32)(x))
+#endif
