@@ -467,7 +467,7 @@ extern void compile_block(cpu_history* pc_hist, int blocklen, int totcyles);
 /* Flags for Bernie during development/debugging. Should go away eventually */
 #define DISTRUST_CONSISTENT_MEM 0
 
-extern signed long pissoff;
+extern uae_s32 pissoff;
 
 typedef struct {
     uae_u8 use_flags;

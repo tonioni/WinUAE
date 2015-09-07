@@ -52,7 +52,7 @@
 bool check_prefs_changed_comp (void) { return false; }
 #endif
 /* For faster JIT cycles handling */
-signed long pissoff = 0;
+uae_s32 pissoff = 0;
 
 /* Opcode of faulting instruction */
 static uae_u16 last_op_for_exception_3;
