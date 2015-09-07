@@ -1228,30 +1228,26 @@ MIDFUNC(5,mov_b_brrm_indexed,(W1 d, IMM base, RR4 baser, RR4 index, IMM factor))
 }
 MENDFUNC(5,mov_b_brrm_indexed,(W1 d, IMM base, RR4 baser, RR4 index, IMM factor))
 
-/* Read a long from base+4*index */
-MIDFUNC(3,mov_l_rm_indexed,(W4 d, IMM base, RR4 index))
+/* Read a long from base+factor*index */
+MIDFUNC(4,mov_l_rm_indexed,(W4 d, IMM base, RR4 index, IMM factor))
 {
 	int indexreg=index;
 
 	if (isconst(index)) {
-		COMPCALL(mov_l_rm)(d,base+4*live.state[index].val);
+		COMPCALL(mov_l_rm)(d,base+factor*live.state[index].val);
 		return;
 	}
 
 	CLOBBER_MOV;
 	index=readreg_offset(index,4);
-	base+=get_offset(indexreg)*4;
+	base+=get_offset(indexreg)*factor;
 	d=writereg(d,4);
 
-#if USE_NEW_RTASM
-	raw_mov_l_rm_indexed(d,base,index,4);
-#else
-	raw_mov_l_rm_indexed(d,base,index);
-#endif
+	raw_mov_l_rm_indexed(d,base,index,factor);
 	unlock2(index);
 	unlock2(d);
 }
-MENDFUNC(3,mov_l_rm_indexed,(W4 d, IMM base, RR4 index))
+MENDFUNC(4,mov_l_rm_indexed,(W4 d, IMM base, RR4 index, IMM factor))
 
 /* read the long at the address contained in s+offset and store in d */
 MIDFUNC(3,mov_l_rR,(W4 d, RR4 s, IMM offset))

@@ -109,7 +109,6 @@ DECLARE_MIDFUNC(mov_l_bmrr_indexed(IMM base, RR4 baser, RR4 index, IMM factor, R
 DECLARE_MIDFUNC(mov_w_bmrr_indexed(IMM base, RR4 baser, RR4 index, IMM factor, RR2 s));
 DECLARE_MIDFUNC(mov_b_bmrr_indexed(IMM base, RR4 baser, RR4 index, IMM factor, RR1 s));
 DECLARE_MIDFUNC(mov_l_brrm_indexed(W4 d, IMM base, RR4 baser, RR4 index, IMM factor));
-DECLARE_MIDFUNC(mov_l_rm_indexed(W4 d, IMM base, RR4 index));
 DECLARE_MIDFUNC(mov_w_brrm_indexed(W2 d, IMM base, RR4 baser, RR4 index, IMM factor));
 DECLARE_MIDFUNC(mov_b_brrm_indexed(W1 d, IMM base, RR4 baser, RR4 index, IMM factor));
 DECLARE_MIDFUNC(mov_l_rm_indexed(W4 d, IMM base, RR4 index, IMM factor));
