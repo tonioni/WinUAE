@@ -1148,9 +1148,6 @@ MIDFUNC(4,mov_b_mrr_indexed,(RR4 baser, RR4 index, IMM factor, RR1 s))
 MENDFUNC(4,mov_b_mrr_indexed,(RR4 baser, RR4 index, IMM factor, RR1 s))
 
 
-#ifdef UAE
-/* FIXME: These functions are unused */
-#else
 MIDFUNC(5,mov_l_bmrr_indexed,(IMM base, RR4 baser, RR4 index, IMM factor, RR4 s))
 {
     int basereg=baser;
@@ -1271,7 +1268,6 @@ MIDFUNC(5,mov_b_brrm_indexed,(W1 d, IMM base, RR4 baser, RR4 index, IMM factor))
     unlock2(index);
 }
 MENDFUNC(5,mov_b_brrm_indexed,(W1 d, IMM base, RR4 baser, RR4 index, IMM factor))
-#endif
 
 /* Read a long from base+4*index */
 MIDFUNC(3,mov_l_rm_indexed,(W4 d, IMM base, RR4 index))
