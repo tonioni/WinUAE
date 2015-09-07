@@ -1711,7 +1711,7 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tm68k_pc_offset=0;\n");
 	comprintf("\tadd_l(PC_P,src);\n");
 
-	comprintf("\tcomp_pc_p=(uae_u8*)get_const(PC_P);\n");
+	comprintf("\tcomp_pc_p=(uae_u8*)(uintptr)get_const(PC_P);\n");
 	break;
      case i_Bcc:
 	comprintf("\tuae_u32 v,v1,v2;\n");
@@ -1748,7 +1748,7 @@ gen_opcode (unsigned long int opcode)
 	switch(curi->cc) {
 	 case 0:  /* Unconditional jump */
 	    comprintf("\tmov_l_rr(PC_P,src);\n");
-	    comprintf("\tcomp_pc_p=(uae_u8*)get_const(PC_P);\n");
+	    comprintf("\tcomp_pc_p=(uae_u8*)(uintptr)get_const(PC_P);\n");
 	    break;
 	 case 1: break; /* This is silly! */
 	 case 8: failure; break;  /* Work out details! FIXME */
