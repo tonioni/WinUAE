@@ -680,3 +680,17 @@ void jit_abort (const TCHAR *format,...)
 	happened = 1;
 	uae_reset (1, 0);
 }
+
+void jit_abort(const char *format, ...)
+{
+	char buffer[WRITE_LOG_BUF_SIZE];
+	va_list parms;
+	TCHAR *b;
+
+	va_start(parms, format);
+	vsprintf(buffer, format, parms);
+	b = au(buffer);
+	jit_abort(_T("%s"), b);
+	xfree(b);
+	va_end(parms);
+}
