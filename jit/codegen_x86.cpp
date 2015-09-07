@@ -2307,7 +2307,7 @@ LENDFUNC(NONE,READ,2,raw_mov_w_rm,(W2 d, IMM s))
 LOWFUNC(NONE,WRITE,2,raw_mov_b_mr,(IMM d, R1 s))
 {
 	emit_byte(0x88);
-	emit_byte(0x05+8*s);
+	emit_byte(0x05+8*(s&0xf)); /* XXX this handles %ah case (defined as 0x10+4) and others */
 	emit_long(d);
 }
 LENDFUNC(NONE,WRITE,2,raw_mov_b_mr,(IMM d, R1 s))
@@ -3149,7 +3149,7 @@ static inline void raw_flags_to_reg_FLAGREG(int r)
 
 #if 1   /* Let's avoid those nasty partial register stalls */
 	//raw_mov_b_mr((uintptr)live.state[FLAGTMP].mem,r);
-	raw_mov_b_mr(((uintptr)live.state[FLAGTMP].mem)+1,r+4);
+	raw_mov_b_mr(((uintptr)live.state[FLAGTMP].mem)+1,AH_INDEX);
 	raw_flags_evicted(r);
 #endif
 }
@@ -3201,30 +3201,23 @@ static inline void raw_load_flagreg(uae_u32 target, uae_u32 r)
 #endif
 }
 
+#ifdef UAE
 /* FLAGX is word-sized */
+#else
+/* FLAGX is byte sized, and we *do* write it at that size */
+#endif
 static inline void raw_load_flagx(uae_u32 target, uae_u32 r)
 {
+#ifdef UAE
 	if (live.nat[target].canword)
+#else
+	if (live.nat[target].canbyte)
+		raw_mov_b_rm(target,(uintptr)live.state[r].mem);
+	else if (live.nat[target].canword)
+#endif
 		raw_mov_w_rm(target,(uintptr)live.state[r].mem);
 	else
 		raw_mov_l_rm(target,(uintptr)live.state[r].mem);
-}
-
-#define NATIVE_FLAG_Z 0x40
-#define NATIVE_CC_EQ  4
-static inline void raw_flags_set_zero(int f, int r, int t)
-{
-	// FIXME: this is really suboptimal
-	raw_pushfl();
-	raw_pop_l_r(f);
-	raw_and_l_ri(f,~NATIVE_FLAG_Z);
-	raw_test_l_rr(r,r);
-	raw_mov_l_ri(r,0);
-	raw_mov_l_ri(t,NATIVE_FLAG_Z);
-	raw_cmov_l_rr(r,t,NATIVE_CC_EQ);
-	raw_or_l(f,r);
-	raw_push_l_r(f);
-	raw_popfl();
 }
 
 static inline void raw_dec_sp(int off)
@@ -3236,7 +3229,6 @@ static inline void raw_inc_sp(int off)
 {
 	if (off) raw_add_l_ri(ESP_INDEX,off);
 }
-
 
 /*************************************************************************
  * Handling mistaken direct memory access (removed from ARAnyM sources)  *
