@@ -2018,7 +2018,7 @@ MIDFUNC(2,sub_l_ri,(RW4 d, IMM i))
 	}
 #if USE_OFFSET
 	if (!needflags) {
-		add_offset(d,-(signed)i);
+		add_offset(d,-i);
 		return;
 	}
 #endif
