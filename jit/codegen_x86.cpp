@@ -3310,6 +3310,97 @@ static __inline__ void raw_flags_set_zero_FLAGREG(int s, int tmp)
 
 static inline void raw_flags_init_FLAGREG(void) { }
 
+#define FLAG_NREG1_FLAGSTK -1  /* Set to -1 if any register will do */
+static inline void raw_flags_to_reg_FLAGSTK(int r)
+{
+	raw_pushfl();
+	raw_pop_l_r(r);
+	raw_mov_l_mr((uintptr)live.state[FLAGTMP].mem,r);
+	raw_flags_evicted(r);
+}
+
+#define FLAG_NREG2_FLAGSTK -1  /* Set to -1 if any register will do */
+static inline void raw_reg_to_flags_FLAGSTK(int r)
+{
+	raw_push_l_r(r);
+	raw_popfl();
+}
+
+#define FLAG_NREG3_FLAGSTK -1  /* Set to -1 if any register will do */
+static inline void raw_flags_set_zero_FLAGSTK(int s, int tmp)
+{
+    raw_mov_l_rr(tmp,s);
+    raw_pushfl();
+    raw_pop_l_r(s);
+    raw_and_l_ri(s,0xffffffbf);
+    raw_and_l_ri(tmp,0x00000040);
+    raw_xor_l_ri(tmp,0x00000040);
+    raw_or_l(s,tmp);
+    raw_push_l_r(s);
+    raw_popfl();
+}
+
+static inline void raw_flags_init_FLAGSTK(void) { }
+
+#if defined(__x86_64__)
+/* Try to use the LAHF/SETO method on x86_64 since it is faster.
+   This can't be the default because some older CPUs don't support
+   LAHF/SAHF in long mode.  */
+static int FLAG_NREG1_FLAGGEN = 0;
+static inline void raw_flags_to_reg_FLAGGEN(int r)
+{
+	if (have_lahf_lm) {
+		// NOTE: the interpreter uses the normal EFLAGS layout
+		//   pushf/popf CF(0) ZF( 6) SF( 7) OF(11)
+		//   sahf/lahf  CF(8) ZF(14) SF(15) OF( 0)
+		assert(r == 0);
+		raw_setcc(r,0);					/* V flag in AL */
+		raw_lea_l_r_scaled(0,0,8);		/* move it to its EFLAGS location */
+		raw_mov_b_mr(((uintptr)live.state[FLAGTMP].mem)+1,0);
+		raw_lahf(0);					/* most flags in AH */
+		raw_mov_b_mr((uintptr)live.state[FLAGTMP].mem,AH_INDEX);
+		raw_flags_evicted(r);
+	}
+	else
+		raw_flags_to_reg_FLAGSTK(r);
+}
+
+static int FLAG_NREG2_FLAGGEN = 0;
+static inline void raw_reg_to_flags_FLAGGEN(int r)
+{
+	if (have_lahf_lm) {
+		raw_xchg_b_rr(0,AH_INDEX);
+		raw_cmp_b_ri(r,-120); /* set V */
+		raw_sahf(0);
+	}
+	else
+		raw_reg_to_flags_FLAGSTK(r);
+}
+
+static int FLAG_NREG3_FLAGGEN = 0;
+static inline void raw_flags_set_zero_FLAGGEN(int s, int tmp)
+{
+	if (have_lahf_lm)
+		raw_flags_set_zero_FLAGREG(s, tmp);
+	else
+		raw_flags_set_zero_FLAGSTK(s, tmp);
+}
+
+static inline void raw_flags_init_FLAGGEN(void)
+{
+	if (have_lahf_lm) {
+		FLAG_NREG1_FLAGGEN = FLAG_NREG1_FLAGREG;
+		FLAG_NREG2_FLAGGEN = FLAG_NREG2_FLAGREG;
+		FLAG_NREG1_FLAGGEN = FLAG_NREG3_FLAGREG;
+	}
+	else {
+		FLAG_NREG1_FLAGGEN = FLAG_NREG1_FLAGSTK;
+		FLAG_NREG2_FLAGGEN = FLAG_NREG2_FLAGSTK;
+		FLAG_NREG1_FLAGGEN = FLAG_NREG3_FLAGSTK;
+	}
+}
+#endif
+
 #define FLAG_SUFFIX FLAGREG
 
 #define FLAG_GLUE_2(x, y)		x ## _ ## y
