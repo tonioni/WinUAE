@@ -845,7 +845,12 @@ static inline uae_u32 reverse32(uae_u32 v)
  * Getting the information about the target CPU                     *
  ********************************************************************/
 
+#if defined(CPU_arm) 
+#include "codegen_arm.cpp"
+#endif
+#if defined(CPU_i386) || defined(CPU_x86_64)
 #include "codegen_x86.cpp"
+#endif
 
 void set_target(uae_u8* t)
 {
@@ -1221,6 +1226,7 @@ static inline void log_startblock(void)
 
 	for (i = 0; i < VREGS; i++) {
 		vstate[i]=L_UNKNOWN;
+	vwritten[i] = 0;
 	}
 	for (i=0;i<N_REGS;i++)
 		nstate[i]=L_UNKNOWN;
@@ -1262,8 +1268,13 @@ static inline void log_vwrite(int r)
 /* Using an n-reg to hold a v-reg */
 static inline void log_isreg(int n, int r)
 {
-	if (nstate[n] == L_UNKNOWN)
+	if (nstate[n] == L_UNKNOWN && r < 16 && !vwritten[r] && USE_MATCH)
 		nstate[n]=r;
+	else {
+		do_load_reg(n, r);
+		if (nstate[n] == L_UNKNOWN)
+			nstate[n] = L_UNAVAIL;
+	}
 	if (vstate[r]==L_UNKNOWN)
 		vstate[r]=L_NEEDED;
 }
@@ -1360,6 +1371,7 @@ static  void tomem(int r)
 		case 4: raw_mov_l_mr((uintptr)live.state[r].mem,rr); break;
 		default: abort();
 		}
+		log_vwrite(r);
 		set_status(r,CLEAN);
 		live.state[r].dirtysize=0;
 	}
@@ -1384,6 +1396,7 @@ static inline void writeback_const(int r)
 	}
 
 	raw_mov_l_mi((uintptr)live.state[r].mem,live.state[r].val);
+	log_vwrite(r);
 	live.state[r].val=0;
 	set_status(r,INMEM);
 }
@@ -1478,7 +1491,7 @@ static  int alloc_reg_hinted(int r, int size, int willclobber, int hint)
 	when=2000000000;
 
 	/* XXX use a regalloc_order table? */
-	for (i=N_REGS;i--;) {
+	for (i=0;i<N_REGS;i++) {
 		badness=live.nat[i].touched;
 		if (live.nat[i].nholds==0)
 			badness=0;
@@ -1513,6 +1526,7 @@ static  int alloc_reg_hinted(int r, int size, int willclobber, int hint)
 			jit_abort("live.nat[rr].nholds!=1");
 		if (size==4 && live.state[r].validsize==2) {
 			log_isused(bestreg);
+			log_visused(r);
 			raw_mov_l_rm(bestreg,(uintptr)live.state[r].mem);
 			raw_bswap_32(bestreg);
 			raw_zero_extend_16_rr(rr,rr);
@@ -1539,16 +1553,9 @@ static  int alloc_reg_hinted(int r, int size, int willclobber, int hint)
 				log_isused(bestreg);
 			}
 			else {
-				if (r==FLAGTMP)
-					raw_load_flagreg(bestreg,r);
-				else if (r==FLAGX)
-					raw_load_flagx(bestreg,r);
-				else {
-					raw_mov_l_rm(bestreg,uae_p32(live.state[r].mem));
-				}
+				log_isreg(bestreg, r);  /* This will also load it! */
 				live.state[r].dirtysize=0;
 				set_status(r,CLEAN);
-				log_isreg(bestreg,r);
 			}
 		}
 		else {
@@ -1567,10 +1574,12 @@ static  int alloc_reg_hinted(int r, int size, int willclobber, int hint)
 			live.state[r].val=0;
 			set_status(r,DIRTY);
 			if (size == 4) {
+				log_clobberreg(r);
 				log_isused(bestreg);
 			}			
 			else {
-				log_isreg(bestreg,r);
+				log_visused(r);
+				log_isused(bestreg);
 			}
 		}
 		else {
@@ -1624,8 +1633,8 @@ static void mov_nregs(int d, int s)
 	if (nd>0)
 		free_nreg(d);
 
-	raw_mov_l_rr(d,s);
 	log_isused(d);
+	raw_mov_l_rr(d,s);
 
 	for (i=0;i<live.nat[s].nholds;i++) {
 		int vs=live.nat[s].holds[i];
@@ -2299,8 +2308,17 @@ static void fflags_into_flags_internal(uae_u32 tmp)
 
 	clobber_flags();
 	r=f_readreg(FP_RESULT);
-	raw_fflags_into_flags(r);
+	if (FFLAG_NREG_CLOBBER_CONDITION) {
+		int tmp2=tmp;
+		tmp=writereg_specific(tmp,4,FFLAG_NREG);
+		raw_fflags_into_flags(r);
+		unlock2(tmp);
+		forget_about(tmp2);
+	}
+	else
+		raw_fflags_into_flags(r);
 	f_unlock(r);
+	live_flags();
 }
 
 
@@ -2308,7 +2326,10 @@ static void fflags_into_flags_internal(uae_u32 tmp)
 #include "compemu_midfunc_arm.cpp"
 #endif
 
+#if defined(CPU_i386) || defined(CPU_x86_64)
 #include "compemu_midfunc_x86.cpp"
+#endif
+
 
 /********************************************************************
  * Support functions exposed to gencomp. CREATE time                *
@@ -2649,6 +2670,7 @@ void flush(int save_regs)
 				case INMEM:
 					if (live.state[i].val) {
 						raw_add_l_mi((uintptr)live.state[i].mem,live.state[i].val);
+						log_vwrite(i);
 						live.state[i].val=0;
 					}
 					break;
@@ -2857,6 +2879,7 @@ static void writemem_real(int address, int source, int size, int tmp, int clobbe
 	if (canbang) {  /* Woohoo! go directly at the memory! */
 		if (clobber)
 			f=source;
+
 		switch(size) {
 		case 1: mov_b_bRr(address,source,MEMBaseDiff); break;
 		case 2: mov_w_rr(f,source); mid_bswap_16(f); mov_w_bRr(address,f,MEMBaseDiff); break;
@@ -3160,18 +3183,10 @@ void calc_disp_ea_020(int base, uae_u32 dp, int target, int tmp)
 	else { /* 68000 version */
 		if ((dp & 0x800) == 0) { /* Sign extend */
 			sign_extend_16_rr(target,reg);
-#if USE_NEW_RTASM
 			lea_l_brr_indexed(target,base,target,1<<regd_shift,(uae_s32)((uae_s8)dp));
-#else
-			lea_l_brr_indexed(target,base,target,regd_shift,(uae_s32)((uae_s8)dp));
-#endif
 		}
 		else {
-#if USE_NEW_RTASM
 			lea_l_brr_indexed(target,base,reg,1<<regd_shift,(uae_s32)((uae_s8)dp));
-#else
-			lea_l_brr_indexed(target,base,reg,regd_shift,(uae_s32)((uae_s8)dp));
-#endif
 		}
 	}
 	forget_about(tmp);
