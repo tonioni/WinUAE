@@ -129,7 +129,7 @@ uae_u8 call_saved[]={0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0};
 static const uae_u8 need_to_preserve[]={0,0,0,1,0,1,0,0,0,0,0,1,1,1,1,1};
 #else
 /* callee-saved registers as defined by System V IA-32 ABI: edi, esi, ebx, ebp */
-static const uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
+static const uae_u8 need_to_preserve[]={0,0,0,1,0,1,1,1};
 #endif
 
 /* Whether classes of instructions do or don't clobber the native flags */
@@ -1221,9 +1221,9 @@ static inline void x86_fadd_m(MEMR s)
 
 #else
 
-const bool optimize_accum	= false;
-const bool optimize_imm8	= false;
-const bool optimize_shift_once	= false;
+const bool optimize_accum	= true;
+const bool optimize_imm8	= true;
+const bool optimize_shift_once	= true;
 
 /*************************************************************************
 * Actual encoding of the instructions on the target CPU                 *
@@ -3502,11 +3502,7 @@ raw_init_cpu(void)
 	/* Alignments */
 	if (tune_alignment) {
 		align_loops = x86_alignments[c->x86_processor].align_loop;
-#ifdef UAE
-		/* FIXME: using hard-coded align_jumps right now */
-#else
 		align_jumps = x86_alignments[c->x86_processor].align_jump;
-#endif
 	}
 	{ 
 		TCHAR *s = au (c->x86_vendor_id);
@@ -3901,6 +3897,7 @@ LOWFUNC(NONE,NONE,2,raw_fmov_rr,(FW d, FR s))
 {
 	int ds;
 
+	usereg(s);
 	ds=stackpos(s);
 	if (ds==0 && live.spos[d]>=0) {
 		/* source is on top of stack, and we already have the dest */
@@ -3929,6 +3926,7 @@ LOWFUNC(NONE,NONE,2,raw_fsqrt_rr,(FW d, FR s))
 	int ds;
 
 	if (d!=s) {
+		usereg(s);
 		ds=stackpos(s);
 		emit_byte(0xd9);
 		emit_byte(0xc0+ds); /* duplicate source */
@@ -3949,6 +3947,7 @@ LOWFUNC(NONE,NONE,2,raw_fabs_rr,(FW d, FR s))
 	int ds;
 
 	if (d!=s) {
+		usereg(s);
 		ds=stackpos(s);
 		emit_byte(0xd9);
 		emit_byte(0xc0+ds); /* duplicate source */
@@ -3969,6 +3968,7 @@ LOWFUNC(NONE,NONE,2,raw_frndint_rr,(FW d, FR s))
 	int ds;
 
 	if (d!=s) {
+		usereg(s);
 		ds=stackpos(s);
 		emit_byte(0xd9);
 		emit_byte(0xc0+ds); /* duplicate source */
@@ -4057,6 +4057,7 @@ LOWFUNC(NONE,NONE,2,raw_fcos_rr,(FW d, FR s))
 	int ds;
 
 	if (d!=s) {
+		usereg(s);
 		ds=stackpos(s);
 		emit_byte(0xd9);
 		emit_byte(0xc0+ds); /* duplicate source */
@@ -4779,6 +4780,7 @@ LOWFUNC(NONE,NONE,2,raw_fneg_rr,(FW d, FR s))
 	int ds;
 
 	if (d!=s) {
+		usereg(s);
 		ds=stackpos(s);
 		emit_byte(0xd9);
 		emit_byte(0xc0+ds); /* duplicate source */
@@ -4797,6 +4799,9 @@ LENDFUNC(NONE,NONE,2,raw_fneg_rr,(FW d, FR s))
 LOWFUNC(NONE,NONE,2,raw_fadd_rr,(FRW d, FR s))
 {
 	int ds;
+
+	usereg(s);
+	usereg(d);
 
 	if (live.spos[s]==live.tos) {
 		/* Source is on top of stack */
@@ -4818,6 +4823,9 @@ LOWFUNC(NONE,NONE,2,raw_fsub_rr,(FRW d, FR s))
 {
 	int ds;
 
+	usereg(s);
+	usereg(d);
+
 	if (live.spos[s]==live.tos) {
 		/* Source is on top of stack */
 		ds=stackpos(d);
@@ -4838,6 +4846,9 @@ LOWFUNC(NONE,NONE,2,raw_fcmp_rr,(FR d, FR s))
 {
 	int ds;
 
+	usereg(s);
+	usereg(d);
+
 	make_tos(d);
 	ds=stackpos(s);
 
@@ -4849,6 +4860,9 @@ LENDFUNC(NONE,NONE,2,raw_fcmp_rr,(FR d, FR s))
 LOWFUNC(NONE,NONE,2,raw_fmul_rr,(FRW d, FR s))
 {
 	int ds;
+
+	usereg(s);
+	usereg(d);
 
 	if (live.spos[s]==live.tos) {
 		/* Source is on top of stack */
@@ -4870,6 +4884,9 @@ LOWFUNC(NONE,NONE,2,raw_fdiv_rr,(FRW d, FR s))
 {
 	int ds;
 
+	usereg(s);
+	usereg(d);
+
 	if (live.spos[s]==live.tos) {
 		/* Source is on top of stack */
 		ds=stackpos(d);
@@ -4890,20 +4907,18 @@ LOWFUNC(NONE,NONE,2,raw_frem_rr,(FRW d, FR s))
 {
 	int ds;
 
-	if (live.spos[d]==live.tos && live.spos[s]==live.tos-1) {
-		//write_log (_T("frem found x in TOS-1 and y in TOS\n"));
-		emit_byte(0xd9);
-		emit_byte(0xf8);    /* fprem rem(y/x) */
+	usereg(s);
+	usereg(d);
+    
+	make_tos2(d,s);
+	ds=stackpos(s);
+
+	if (ds!=1) {
+		printf("Failed horribly in raw_frem_rr! ds is %d\n",ds);
+		abort();
 	}
-	else {
-		make_tos(s);        /* tos=x */
-		ds=stackpos(d);
-		emit_byte(0xd9);
-		emit_byte(0xc0+ds); /* fld y */
-		emit_byte(0xd9);
-		emit_byte(0xf8);    /* fprem rem(y/x) */
-		tos_make(d);        /* store y=rem(y/x) */
-	}
+	emit_byte(0xd9);
+	emit_byte(0xf8); /* take rem from dest by source */
 }
 LENDFUNC(NONE,NONE,2,raw_frem_rr,(FRW d, FR s))
 
@@ -4911,20 +4926,18 @@ LOWFUNC(NONE,NONE,2,raw_frem1_rr,(FRW d, FR s))
 {
 	int ds;
 
-	if (live.spos[d]==live.tos && live.spos[s]==live.tos-1) {
-		//write_log (_T("frem1 found x in TOS-1 and y in TOS\n"));
-		emit_byte(0xd9);
-		emit_byte(0xf5);    /* fprem1 rem1(y/x) */
+	usereg(s);
+	usereg(d);
+    
+	make_tos2(d,s);
+	ds=stackpos(s);
+
+	if (ds!=1) {
+		printf("Failed horribly in raw_frem1_rr! ds is %d\n",ds);
+		abort();
 	}
-	else {
-		make_tos(s);        /* tos=x */
-		ds=stackpos(d);
-		emit_byte(0xd9);
-		emit_byte(0xc0+ds); /* fld y */
-		emit_byte(0xd9);
-		emit_byte(0xf5);    /* fprem1 rem1(y/x) */
-		tos_make(d);        /* store y=rem(y/x) */
-	}
+	emit_byte(0xd9);
+	emit_byte(0xf5); /* take rem1 from dest by source */
 }
 LENDFUNC(NONE,NONE,2,raw_frem1_rr,(FRW d, FR s))
 
@@ -4936,6 +4949,10 @@ LOWFUNC(NONE,NONE,1,raw_ftst_r,(FR r))
 	emit_byte(0xe4);
 }
 LENDFUNC(NONE,NONE,1,raw_ftst_r,(FR r))
+
+/* %eax register is clobbered if target processor doesn't support fucomi */
+#define FFLAG_NREG_CLOBBER_CONDITION !have_cmov
+#define FFLAG_NREG EAX_INDEX
 
 static inline void raw_fflags_into_flags(int r)
 {
