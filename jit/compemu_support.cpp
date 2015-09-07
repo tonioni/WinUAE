@@ -252,7 +252,12 @@ static int		optcount[10]		= {
 };
 
 #ifdef UAE
-/* FIXME: currently in compemu.h */
+/* FIXME: op_properties is currently in compemu.h */
+
+static inline bool is_const_jump(uae_u32 opcode)
+{
+	return prop[opcode].is_const_jump != 0;
+}
 #else
 struct op_properties {
 	uae_u8 use_flags;

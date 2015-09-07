@@ -50,7 +50,10 @@ typedef uae_u32 uintptr;
 extern void compiler_dumpstate(void);
 #endif
 
-#define TAGMASK 0x000fffff
+/* Now that we do block chaining, and also have linked lists on each tag,
+   TAGMASK can be much smaller and still do its job. Saves several megs
+   of memory! */
+#define TAGMASK 0x0000ffff
 #define TAGSIZE (TAGMASK+1)
 #define MAXRUN 1024
 #define cacheline(x) (((uintptr)x)&TAGMASK)
@@ -76,8 +79,27 @@ union cacheline {
 #error implementation in progress
 #endif
 
+/* (gb) When on, this option can save save up to 30% compilation time
+ *  when many lazy flushes occur (e.g. apps in MacOS 8.x).
+ */
+#define USE_SEPARATE_BIA 1
+
+/* Use chain of checksum_info_t to compute the block checksum */
+#define USE_CHECKSUM_INFO 1
+
+/* Use code inlining, aka follow-up of constant jumps */
+#define USE_INLINING 1
+
+/* Inlining requires the chained checksuming information */
+#if USE_INLINING
+#undef  USE_CHECKSUM_INFO
+#define USE_CHECKSUM_INFO 1
+#endif
+
+/* Does flush_icache_range() only check for blocks falling in the requested range? */
+#define LAZY_FLUSH_ICACHE_RANGE 0
+
 #define USE_F_ALIAS 1
-#define USE_SOFT_FLUSH 1
 #define USE_OFFSET 1
 #define COMP_DEBUG 1
 
@@ -422,10 +444,6 @@ static inline void build_comp() { }
 #endif /* !USE_JIT */
 
 #ifdef UAE
-
-#define BI_NEW 0
-#define BI_COUNTING 1
-#define BI_TARGETTED 2
 
 typedef struct {
     uae_u8 type;
