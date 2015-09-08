@@ -168,8 +168,13 @@ static const uae_u8 need_to_preserve[]={0,0,0,1,0,1,1,1};
 #define CLOBBER_BT   clobber_flags()
 #define CLOBBER_BSF  clobber_flags()
 
+#ifdef CPU_x86_64
+/* Must use USE_NEW_RTASM for 64-bit */
+#define USE_NEW_RTASM 1
+#else
 /* The older code generator is now deprecated.  */
 #define USE_NEW_RTASM 1
+#endif
 
 #if USE_NEW_RTASM
 
@@ -1814,7 +1819,7 @@ LENDFUNC(NONE,NONE,2,raw_imul_32_32,(RW4 d, R4 s))
 LOWFUNC(NONE,NONE,2,raw_imul_64_32,(RW4 d, RW4 s))
 {
 	if (d!=MUL_NREG1 || s!=MUL_NREG2) {
-		jit_abort("Bad register in IMUL: d=%d, s=%d\n"),d,s);
+		jit_abort("Bad register in IMUL: d=%d, s=%d\n",d,s);
 	}
 	emit_byte(0xf7);
 	emit_byte(0xea);
@@ -3090,7 +3095,7 @@ static inline void raw_call(uae_u32 t)
 	CALLm(t);
 #else
 	emit_byte(0xe8);
-	emit_long(t-(uae_u32)target-4);
+	emit_long(t-(uintptr)target-4);
 #endif
 }
 
@@ -3100,7 +3105,7 @@ static inline void raw_jmp(uae_u32 t)
 	JMPm(t);
 #else
 	emit_byte(0xe9);
-	emit_long(t-(uae_u32)target-4);
+	emit_long(t-(uintptr)target-4);
 #endif
 }
 
