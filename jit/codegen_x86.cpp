@@ -3577,19 +3577,10 @@ static void
 cpuid(uae_u32 op, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx)
 {
 	const int CPUID_SPACE = 4096;
-#ifdef UAE
-	uae_u8* cpuid_space = (uae_u8 *)cache_alloc(CPUID_SPACE);
-	if (cpuid_space == 0) {
-#else
 	uae_u8* cpuid_space = (uae_u8 *)vm_acquire(CPUID_SPACE);
 	if (cpuid_space == VM_MAP_FAILED)
-#endif
 		jit_abort("Could not allocate cpuid_space");
-#ifdef UAE
-	}
-#else
 	vm_protect(cpuid_space, CPUID_SPACE, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE);
-#endif
 
 	static uae_u32 s_op, s_eax, s_ebx, s_ecx, s_edx;
 	uae_u8* tmp=get_target();
@@ -3624,11 +3615,7 @@ cpuid(uae_u32 op, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx)
 	if (ecx != NULL) *ecx = s_ecx;
 	if (edx != NULL) *edx = s_edx;
 
-#ifdef UAE
-	cache_free (cpuid_space);
-#else
 	vm_release(cpuid_space, CPUID_SPACE);
-#endif
 }
 
 static void

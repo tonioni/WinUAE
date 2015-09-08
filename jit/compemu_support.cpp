@@ -92,6 +92,15 @@
 #ifdef UAE
 #include "uae/log.h"
 
+#include "uae/vm.h"
+#define vm_acquire(size) uae_vm_alloc(size, UAE_VM_32BIT, UAE_VM_READ_WRITE)
+#define vm_protect(address, size, protect) uae_vm_protect(address, size, protect)
+#define vm_release(address, size) uae_vm_free(address, size)
+#define VM_PAGE_READ UAE_VM_READ
+#define VM_PAGE_WRITE UAE_VM_WRITE
+#define VM_PAGE_EXECUTE UAE_VM_EXECUTE
+#define VM_MAP_FAILED UAE_VM_ALLOC_FAILED
+
 #define UNUSED(x)
 /* FIXME: Looks like HAVE_GET_WORD_UNSWAPPED should be defined for little-endian / ARAnyM */
 #define HAVE_GET_WORD_UNSWAPPED
@@ -686,7 +695,11 @@ LazyBlockAllocator<T>::~LazyBlockAllocator()
 	while (currentPool) {
 		Pool * deadPool = currentPool;
 		currentPool = currentPool->next;
+#ifdef UAE
+		vm_release(deadPool, sizeof(Pool));
+#else
 		free(deadPool);
+#endif
 	}
 }
 
@@ -696,7 +709,11 @@ T * LazyBlockAllocator<T>::acquire()
 	if (!mChunks) {
 		// There is no chunk left, allocate a new pool and link the
 		// chunks into the free list
+#ifdef UAE
+		Pool * newPool = (Pool *) vm_acquire(sizeof(Pool));
+#else
 		Pool * newPool = (Pool *)malloc(sizeof(Pool));
+#endif
 		for (T * chunk = &newPool->chunk[0]; chunk < &newPool->chunk[kPoolSize]; chunk++) {
 			chunk->next = mChunks;
 			mChunks = chunk;
@@ -3204,11 +3221,11 @@ uae_u32 get_jitted_size(void)
 const int CODE_ALLOC_MAX_ATTEMPTS = 10;
 const int CODE_ALLOC_BOUNDARIES   = 128 * 1024; // 128 KB
 
-#ifdef UAE
-
-#else
-static uint8 *do_alloc_code(uint32 size, int depth)
+static uae_u8 *do_alloc_code(uae_u32 size, int depth)
 {
+#ifdef UAE
+	return (uae_u8*) vm_acquire(size);
+#else
 #if defined(__linux__) && 0
 	/*
 	  This is a really awful hack that is known to work on Linux at
@@ -3254,39 +3271,43 @@ static uint8 *do_alloc_code(uint32 size, int depth)
 	uint8 *code = (uint8 *)vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 	return code == VM_MAP_FAILED ? NULL : code;
 #endif
+#endif
 }
 
-static inline uint8 *alloc_code(uint32 size)
+static inline uae_u8 *alloc_code(uae_u32 size)
 {
-	uint8 *ptr = do_alloc_code(size, 0);
+	uae_u8 *ptr = do_alloc_code(size, 0);
 	/* allocated code must fit in 32-bit boundaries */
 	assert((uintptr)ptr <= 0xffffffff);
 	return ptr;
 }
-#endif
 
 void alloc_cache(void)
 {
+#ifdef JIT_EXCEPTION_HANDLER
+	if (veccode == NULL) {
+		veccode = alloc_code(256);
+		vm_protect(veccode, 256, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE);
+	}
+#endif
 	if (compiled_code) {
 		flush_icache_hard(0, 3);
-		cache_free(compiled_code);
+		vm_release(compiled_code, cache_size * 1024);
 		compiled_code = 0;
 	}
-#ifdef JIT_EXCEPTION_HANDLER
-	if (veccode == NULL)
-		veccode = cache_alloc (256);
-#endif
 	compiled_code = NULL;
 
 	if (cache_size == 0)
 		return;
 
 	while (!compiled_code && cache_size) {
-		if ((compiled_code = cache_alloc(cache_size * 1024)) == NULL) {
+		if ((compiled_code = alloc_code(cache_size * 1024)) == NULL) {
 			compiled_code = 0;
 			cache_size /= 2;
 		}
 	}
+	vm_protect(compiled_code, cache_size * 1024, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE);
+	
 	if (compiled_code) {
 		max_compile_start = compiled_code + cache_size*1024 - BYTES_PER_INST;
 		current_compile_p=compiled_code;
@@ -3531,14 +3552,15 @@ static inline void create_popalls(void)
 	int i,r;
 
 #ifdef UAE
-	if (popallspace == NULL)
-		popallspace = cache_alloc(POPALLSPACE_SIZE);
-#else
+	if (popallspace == NULL) {
+#endif
 	if ((popallspace = alloc_code(POPALLSPACE_SIZE)) == NULL) {
 		write_log("FATAL: Could not allocate popallspace!\n");
 		abort();
 	}
 	vm_protect(popallspace, POPALLSPACE_SIZE, VM_PAGE_READ | VM_PAGE_WRITE);
+#ifdef UAE
+	}
 #endif
 
 	int stack_space = STACK_OFFSET;
@@ -3629,16 +3651,12 @@ static inline void create_popalls(void)
 	}
 	raw_jmp(uae_p32(check_checksum));
 
-#ifdef UAE
-	/* FIXME: write-protect popallspace? */
 #ifdef USE_UDIS86
 	UDISFN(pushall_call_handler, get_target());
 #endif
-#else
 	// no need to further write into popallspace
 	vm_protect(popallspace, POPALLSPACE_SIZE, VM_PAGE_READ | VM_PAGE_EXECUTE);
 	flush_cpu_icache((void *)popallspace, (void *)target);
-#endif
 }
 
 static inline void reset_lists(void)

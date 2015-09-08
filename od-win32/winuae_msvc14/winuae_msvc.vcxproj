@@ -877,6 +877,7 @@
     <ClCompile Include="..\..\tabletlibrary.cpp" />
     <ClCompile Include="..\..\test_card.cpp" />
     <ClCompile Include="..\..\uaenative.cpp" />
+    <ClCompile Include="..\..\vm.cpp" />
     <ClCompile Include="..\..\x86.cpp" />
     <ClCompile Include="..\ahidsound_dsonly.cpp" />
     <ClCompile Include="..\ahidsound_new.cpp" />
