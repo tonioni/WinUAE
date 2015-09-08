@@ -152,13 +152,6 @@ static inline int distrust_addr(void)
 #define RECORD_REGISTER_USAGE		1
 #endif
 
-#ifdef WIN32
-#undef write_log
-#define write_log dummy_write_log
-static void dummy_write_log(const char *, ...) { }
-static void dummy_write_log(const TCHAR *, ...) { }
-#endif
-
 #ifdef JIT_DEBUG
 #undef abort
 #define abort() do { \
