@@ -1,6 +1,3 @@
-#ifndef UAE_SYSDEPS_H
-#define UAE_SYSDEPS_H
-
 /*
   * UAE - The Un*x Amiga Emulator
   *
@@ -14,6 +11,18 @@
   *
   * Copyright 1996, 1997 Bernd Schmidt
   */
+#ifndef UAE_SYSDEPS_H
+#define UAE_SYSDEPS_H
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+#include "sysconfig.h"
+
+#ifndef UAE
+#define UAE
+#endif
+
 #ifdef __cplusplus
 #include <string>
 using namespace std;
@@ -27,9 +36,13 @@ using namespace std;
 #include <assert.h>
 #include <limits.h>
 
+#ifndef UAE
+#define UAE
+#endif
+
 #if defined(__x86_64__) || defined(_M_AMD64)
 #define CPU_x86_64 1
-#define CPU_64BIT 1
+#define CPU_64_BIT 1
 #elif defined(__i386__) || defined(_M_IX86)
 #define CPU_i386 1
 #elif defined(__arm__) || defined(_M_ARM)
@@ -39,6 +52,26 @@ using namespace std;
 #else
 #error unrecognized CPU type
 #endif
+
+#ifdef _MSC_VER
+/* Parameters are passed in ECX, EDX for both x86 and x86-64 (RCX, RDX).
+ * For x86-64, __fastcall is the default, so it isn't really required. */
+#define JITCALL __fastcall
+#elif defined(CPU_x86_64)
+/* Parameters are passed in RDI, RSI by default (System V AMD64 ABI). */
+#define JITCALL
+#elif defined(HAVE_FUNC_ATTRIBUTE_REGPARM)
+/* Parameters are passed in EAX, EDX on x86 with regparm(2). */
+#define JITCALL __attribute__((regparm(2)))
+/* This was originally regparm(3), but as far as I can see only two register
+ * params are supported by the JIT code. It probably just worked anyway
+ * if all functions used max two arguments. */
+#elif !defined(JIT)
+#define JITCALL
+#endif
+#define REGPARAM
+#define REGPARAM2 JITCALL
+#define REGPARAM3 JITCALL
 
 #include <tchar.h>
 
@@ -127,68 +160,6 @@ struct utimbuf
     time_t actime;
     time_t modtime;
 };
-#endif
-
-#if defined(__GNUC__) && defined(AMIGA)
-/* gcc on the amiga need that __attribute((regparm)) must */
-/* be defined in function prototypes as well as in        */
-/* function definitions !                                 */
-#define REGPARAM2 REGPARAM
-#else /* not(GCC & AMIGA) */
-#define REGPARAM2
-#endif
-
-/* sam: some definitions so that SAS/C can compile UAE */
-#if defined(__SASC) && defined(AMIGA)
-#define REGPARAM2
-#define REGPARAM
-#define S_IRUSR S_IREAD
-#define S_IWUSR S_IWRITE
-#define S_IXUSR S_IEXECUTE
-#define S_ISDIR(val) (S_IFDIR & val)
-#define mkdir(x,y) mkdir(x)
-#define truncate(x,y) 0
-#define creat(x,y) open("T:creat",O_CREAT|O_TEMP|O_RDWR) /* sam: for zfile.c */
-#define strcasecmp stricmp
-#define utime(file,time) 0
-struct utimbuf
-{
-    time_t actime;
-    time_t modtime;
-};
-#endif
-
-#if defined(WARPUP)
-#include "devices/timer.h"
-#include "osdep/posixemu.h"
-#define REGPARAM
-#define REGPARAM2
-#define RETSIGTYPE
-#define USE_ZFILE
-#define strcasecmp stricmp
-#define memcpy q_memcpy
-#define memset q_memset
-#define strdup my_strdup
-#define random uaerand
-#define creat(x,y) open("T:creat",O_CREAT|O_RDWR|O_TRUNC,777)
-extern void* q_memset(void*,int,size_t);
-extern void* q_memcpy(void*,const void*,size_t);
-#endif
-
-#ifdef __DOS__
-#include <pc.h>
-#include <io.h>
-#endif
-
-/* Acorn specific stuff */
-#ifdef ACORN
-
-#define S_IRUSR S_IREAD
-#define S_IWUSR S_IWRITE
-#define S_IXUSR S_IEXEC
-
-#define strcasecmp stricmp
-
 #endif
 
 #ifndef L_tmpnam
@@ -331,8 +302,6 @@ extern void to_upper (TCHAR *s, int len);
 
 #define mkdir(a,b) mkdir(a)
 
-#include "uae/regparam.h"
-
 #elif defined _MSC_VER
 
 #ifdef HAVE_GETTIMEOFDAY
@@ -349,13 +318,6 @@ extern void gettimeofday( struct timeval *tv, void *blah );
 #define FILEFLAG_EXECUTE 0x10
 #define FILEFLAG_SCRIPT  0x20
 #define FILEFLAG_PURE    0x40
-
-#ifdef REGPARAM2
-#undef REGPARAM2
-#endif
-#define REGPARAM2 __fastcall
-#define REGPARAM3 __fastcall
-#define REGPARAM
 
 #include <io.h>
 #define O_BINARY _O_BINARY
