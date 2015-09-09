@@ -168,13 +168,8 @@ static const uae_u8 need_to_preserve[]={0,0,0,1,0,1,1,1};
 #define CLOBBER_BT   clobber_flags()
 #define CLOBBER_BSF  clobber_flags()
 
-#ifdef CPU_x86_64
-/* Must use USE_NEW_RTASM for 64-bit */
-#define USE_NEW_RTASM 1
-#else
 /* The older code generator is now deprecated.  */
 #define USE_NEW_RTASM 1
-#endif
 
 #if USE_NEW_RTASM
 

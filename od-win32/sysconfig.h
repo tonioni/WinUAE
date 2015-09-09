@@ -155,11 +155,8 @@
 #undef X86_MSVC_ASSEMBLY
 #undef JIT
 #define X64_MSVC_ASSEMBLY
-#define CPU_64_BIT
-#define CPU_x86_64 1
 #define SIZEOF_VOID_P 8
 #else
-#define CPU_i386 1
 #define SIZEOF_VOID_P 4
 #endif
 

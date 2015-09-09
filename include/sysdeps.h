@@ -26,6 +26,20 @@ using namespace std;
 #include <errno.h>
 #include <assert.h>
 #include <limits.h>
+
+#if defined(__x86_64__) || defined(_M_AMD64)
+#define CPU_x86_64 1
+#define CPU_64BIT 1
+#elif defined(__i386__) || defined(_M_IX86)
+#define CPU_i386 1
+#elif defined(__arm__) || defined(_M_ARM)
+#define CPU_arm 1
+#elif defined(__powerpc__) || defined(_M_PPC)
+#define CPU_powerpc 1
+#else
+#error unrecognized CPU type
+#endif
+
 #include <tchar.h>
 
 #ifndef __STDC__
@@ -253,6 +267,7 @@ extern TCHAR *utf8u (const char *s);
 extern void unicode_init (void);
 extern void to_lower (TCHAR *s, int len);
 extern void to_upper (TCHAR *s, int len);
+
 /* We can only rely on GNU C getting enums right. Mickeysoft VSC++ is known
  * to have problems, and it's likely that other compilers choke too. */
 #ifdef __GNUC__

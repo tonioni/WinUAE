@@ -39,6 +39,65 @@
 #include <ctype.h>
 
 #ifdef UAE
+/*
+#define DISABLE_I_OR_AND_EOR
+#define DISABLE_I_SUB
+#define DISABLE_I_SUBA
+#define DISABLE_I_SUBX
+#define DISABLE_I_ADD
+#define DISABLE_I_ADDA
+#define DISABLE_I_ADDX
+#define DISABLE_I_NEG
+#define DISABLE_I_NEGX
+#define DISABLE_I_CLR
+#define DISABLE_I_NOT
+#define DISABLE_I_TST
+#define DISABLE_I_BCHG_BCLR_BSET_BTST
+#define DISABLE_I_CMPM_CMP
+#define DISABLE_I_CMPA
+#define DISABLE_I_MOVE
+#define DISABLE_I_MOVEA
+#define DISABLE_I_SWAP
+#define DISABLE_I_EXG
+#define DISABLE_I_EXT
+#define DISABLE_I_MVEL
+#define DISABLE_I_MVMLE
+#define DISABLE_I_RTD
+#define DISABLE_I_LINK
+#define DISABLE_I_UNLK
+#define DISABLE_I_RTS
+#define DISABLE_I_JSR
+#define DISABLE_I_JMP
+#define DISABLE_I_BSR
+#define DISABLE_I_BCC
+#define DISABLE_I_LEA
+#define DISABLE_I_PEA
+#define DISABLE_I_DBCC
+#define DISABLE_I_SCC
+#define DISABLE_I_MULU
+#define DISABLE_I_MULS
+#define DISABLE_I_ASR
+#define DISABLE_I_ASL
+#define DISABLE_I_LSR
+#define DISABLE_I_LSL
+#define DISABLE_I_ROL
+#define DISABLE_I_ROR
+#define DISABLE_I_MULL
+#define DISABLE_I_FPP
+#define DISABLE_I_FBCC
+#define DISABLE_I_FSCC
+#define DISABLE_I_MOVE16
+*/
+
+#define DISABLE_I_LSL
+#define DISABLE_I_LSR
+
+#ifdef CPU_x86_64
+#define DISABLE_I_FPP
+#endif
+#endif /* UAE */
+
+#ifdef UAE
 #define JIT_PATH "jit/"
 #define GEN_PATH "jit/"
 #define RETURN "return 0;"
@@ -1273,9 +1332,13 @@ gen_opcode (unsigned long int opcode)
 
     switch (curi->mnemo)
     {
+
      case i_OR:
      case i_AND:
      case i_EOR:
+#ifdef DISABLE_I_OR_AND_EOR
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	switch(curi->mnemo) {
@@ -1291,17 +1354,26 @@ gen_opcode (unsigned long int opcode)
 	failure;
 	isjump;
 	break;
+
      case i_ANDSR:
 	failure;
 	isjump;
 	break;
+
      case i_SUB:
+#ifdef DISABLE_I_SUB
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	genflags (flag_sub, curi->size, "", "src", "dst");
 	genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	break;
+
      case i_SUBA:
+#ifdef DISABLE_I_SUBA
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0);
 	start_brace();
@@ -1315,24 +1387,37 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tsub_l(dst,tmp);\n");
 	genastore ("dst", curi->dmode, "dstreg", sz_long, "dst");
 	break;
+
      case i_SUBX:
+#ifdef DISABLE_I_SUBX
+    failure;
+#endif
 	isaddx;
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	genflags (flag_subx, curi->size, "", "src", "dst");
 	genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	break;
+
      case i_SBCD:
 	failure;
 	/* I don't think so! */
 	break;
+
      case i_ADD:
+#ifdef DISABLE_I_ADD
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	genflags (flag_add, curi->size, "", "src", "dst");
 	genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	break;
      case i_ADDA:
+
+#ifdef DISABLE_I_ADDA
+	failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0);
 	start_brace();
@@ -1346,7 +1431,11 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tadd_l(dst,tmp);\n");
 	genastore ("dst", curi->dmode, "dstreg", sz_long, "dst");
 	break;
+
      case i_ADDX:
+#ifdef DISABLE_I_ADDX
+    failure;
+#endif
 	isaddx;
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
@@ -1354,11 +1443,16 @@ gen_opcode (unsigned long int opcode)
 	genflags (flag_addx, curi->size, "", "src", "dst");
 	genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	break;
+
      case i_ABCD:
 	failure;
 	/* No BCD maths for me.... */
 	break;
+
      case i_NEG:
+#ifdef DISABLE_I_NEG
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	start_brace ();
 	comprintf("\tint dst=scratchie++;\n");
@@ -1366,7 +1460,11 @@ gen_opcode (unsigned long int opcode)
 	genflags (flag_sub, curi->size, "", "src", "dst");
 	genastore ("dst", curi->smode, "srcreg", curi->size, "src");
 	break;
+
      case i_NEGX:
+#ifdef DISABLE_I_NEGX
+    failure;
+#endif
 	isaddx;
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	start_brace ();
@@ -1380,7 +1478,11 @@ gen_opcode (unsigned long int opcode)
 	failure;
 	/* Nope! */
 	break;
+
      case i_CLR:
+#ifdef DISABLE_I_CLR
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 2, 0);
 	start_brace();
 	comprintf("\tint dst=scratchie++;\n");
@@ -1388,7 +1490,11 @@ gen_opcode (unsigned long int opcode)
 	genflags (flag_logical, curi->size, "dst", "", "");
 	genastore ("dst", curi->smode, "srcreg", curi->size, "src");
 	break;
+
      case i_NOT:
+#ifdef DISABLE_I_NOT
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	start_brace ();
 	comprintf("\tint dst=scratchie++;\n");
@@ -1396,7 +1502,11 @@ gen_opcode (unsigned long int opcode)
 	genflags (flag_eor, curi->size, "", "src", "dst");
 	genastore ("dst", curi->smode, "srcreg", curi->size, "src");
 	break;
+
      case i_TST:
+#ifdef DISABLE_I_TST
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genflags (flag_logical, curi->size, "src", "", "");
 	break;
@@ -1404,7 +1514,10 @@ gen_opcode (unsigned long int opcode)
      case i_BCLR:
      case i_BSET:
      case i_BTST:
-			genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
+#ifdef DISABLE_I_BCHG_BCLR_BSET_BTST
+    failure;
+#endif
+	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	start_brace();
 	comprintf("\tint s=scratchie++;\n"
@@ -1443,12 +1556,19 @@ gen_opcode (unsigned long int opcode)
 
      case i_CMPM:
      case i_CMP:
+#ifdef DISABLE_I_CMPM_CMP
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	start_brace ();
 	genflags (flag_cmp, curi->size, "", "src", "dst");
 	break;
+
      case i_CMPA:
+#ifdef DISABLE_I_CMPA
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0);
 	start_brace();
@@ -1463,15 +1583,21 @@ gen_opcode (unsigned long int opcode)
 	break;
 	/* The next two are coded a little unconventional, but they are doing
 	 * weird things... */
+
      case i_MVPRM:
 	isjump;
 	failure;
 	break;
+
      case i_MVPMR:
 	isjump;
 	failure;
 	break;
+
      case i_MOVE:
+#ifdef DISABLE_I_MOVE
+    failure;
+#endif
 	switch(curi->dmode) {
 	 case Dreg:
 	 case Areg:
@@ -1488,7 +1614,11 @@ gen_opcode (unsigned long int opcode)
 	    break;
 	}
 	break;
+
      case i_MOVEA:
+#ifdef DISABLE_I_MOVEA
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 2, 0);
 
@@ -1506,18 +1636,27 @@ gen_opcode (unsigned long int opcode)
 	isjump;
 	failure;
 	break;
+
      case i_MV2SR:
 	isjump;
 	failure;
 	break;
+
      case i_SWAP:
+#ifdef DISABLE_I_SWAP
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", sz_long, "src", 1, 0);
 	comprintf("\tdont_care_flags();\n");
 	comprintf("\trol_l_ri(src,16);\n");
 	genflags (flag_logical, sz_long, "src", "", "");
 	genastore ("src", curi->smode, "srcreg", sz_long, "src");
 	break;
+
      case i_EXG:
+#ifdef DISABLE_I_EXG
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	start_brace();
@@ -1526,7 +1665,11 @@ gen_opcode (unsigned long int opcode)
 	genastore ("dst", curi->smode, "srcreg", curi->size, "src");
 	genastore ("tmp", curi->dmode, "dstreg", curi->size, "dst");
 	break;
-     case i_EXT:
+
+case i_EXT:
+#ifdef DISABLE_I_EXT
+	failure;
+#endif
 	genamode (curi->smode, "srcreg", sz_long, "src", 1, 0);
 	comprintf("\tdont_care_flags();\n");
 	start_brace ();
@@ -1552,39 +1695,58 @@ gen_opcode (unsigned long int opcode)
 	genastore ("dst", curi->smode, "srcreg",
 		   curi->size == sz_word ? sz_word : sz_long, "src");
 	break;
-     case i_MVMEL:
+
+case i_MVMEL:
+#ifdef DISABLE_I_MVEL
+	failure;
+#endif
 	genmovemel (opcode);
 	break;
+
      case i_MVMLE:
+#ifdef DISABLE_I_MVMLE
+    failure;
+#endif
 	genmovemle (opcode);
 	break;
-     case i_TRAP:
+
+case i_TRAP:
 	isjump;
 	failure;
 	break;
+
      case i_MVR2USP:
 	isjump;
 	failure;
 	break;
+
      case i_MVUSP2R:
 	isjump;
 	failure;
 	break;
+
      case i_RESET:
 	isjump;
 	failure;
 	break;
+
      case i_NOP:
 	break;
+
      case i_STOP:
 	isjump;
 	failure;
 	break;
+
      case i_RTE:
 	isjump;
 	failure;
 	break;
+
      case i_RTD:
+#ifdef DISABLE_I_RTD
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "offs", 1, 0);
 	/* offs is constant */
 	comprintf("\tadd_l_ri(offs,4);\n");
@@ -1599,7 +1761,11 @@ gen_opcode (unsigned long int opcode)
 	gen_update_next_handler();
 	isjump;
 	break;
+
      case i_LINK:
+#ifdef DISABLE_I_LINK
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", sz_long, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "offs", 1, 0);
 	comprintf("\tsub_l_ri(15,4);\n"
@@ -1610,14 +1776,22 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tadd_l(15,offs);\n");
 	genastore ("src", curi->smode, "srcreg", sz_long, "src");
 	break;
+
      case i_UNLK:
+#ifdef DISABLE_I_UNLK
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	comprintf("\tmov_l_rr(15,src);\n"
 		  "\treadlong(15,src,scratchie);\n"
 		  "\tadd_l_ri(15,4);\n");
 	genastore ("src", curi->smode, "srcreg", curi->size, "src");
 	break;
-     case i_RTS:
+
+case i_RTS:
+#ifdef DISABLE_I_RTS
+	failure;
+#endif
 	comprintf("\tint newad=scratchie++;\n"
 		  "\treadlong(15,newad,scratchie);\n"
 		  "\tmov_l_mr((uintptr)&regs.pc,newad);\n"
@@ -1628,15 +1802,21 @@ gen_opcode (unsigned long int opcode)
 	gen_update_next_handler();
 	isjump;
 	break;
+
      case i_TRAPV:
 	isjump;
 	failure;
 	break;
+
      case i_RTR:
 	isjump;
 	failure;
 	break;
+
      case i_JSR:
+#ifdef DISABLE_I_JSR
+    failure;
+#endif
 	isjump;
 	genamode (curi->smode, "srcreg", curi->size, "src", 0, 0);
 	start_brace();
@@ -1651,7 +1831,11 @@ gen_opcode (unsigned long int opcode)
 		  "\tm68k_pc_offset=0;\n");
 	gen_update_next_handler();
 	break;
+
      case i_JMP:
+#ifdef DISABLE_I_JMP
+    failure;
+#endif
 	isjump;
 	genamode (curi->smode, "srcreg", curi->size, "src", 0, 0);
 	comprintf("\tmov_l_mr((uintptr)&regs.pc,srca);\n"
@@ -1660,7 +1844,11 @@ gen_opcode (unsigned long int opcode)
 		  "\tm68k_pc_offset=0;\n");
 	gen_update_next_handler();
 	break;
+
      case i_BSR:
+#ifdef DISABLE_I_BSR
+    failure;
+#endif
 	is_const_jump;
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	start_brace();
@@ -1675,7 +1863,11 @@ gen_opcode (unsigned long int opcode)
 
 	comprintf("\tcomp_pc_p=(uae_u8*)(uintptr)get_const(PC_P);\n");
 	break;
+
      case i_Bcc:
+#ifdef DISABLE_I_BCC
+    failure;
+#endif
 	comprintf("\tuae_u32 v,v1,v2;\n");
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	/* That source is an immediate, so we can clobber it with abandon */
@@ -1731,12 +1923,20 @@ gen_opcode (unsigned long int opcode)
 	 default: abort();
 	}
 	break;
+
      case i_LEA:
+#ifdef DISABLE_I_LEA
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 0, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 2, 0);
 	genastore ("srca", curi->dmode, "dstreg", curi->size, "dst");
 	break;
+
      case i_PEA:
+#ifdef DISABLE_I_PEA
+    failure;
+#endif
 	if (table68k[opcode].smode==Areg ||
 	    table68k[opcode].smode==Aind ||
 	    table68k[opcode].smode==Aipi ||
@@ -1749,7 +1949,11 @@ gen_opcode (unsigned long int opcode)
 	genamode (Apdi, "7", sz_long, "dst", 2, 0);
 	genastore ("srca", Apdi, "7", sz_long, "dst");
 	break;
+
      case i_DBcc:
+#ifdef DISABLE_I_DBCC
+    failure;
+#endif
 	isjump;
 	uses_cmov;
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
@@ -1833,6 +2037,9 @@ gen_opcode (unsigned long int opcode)
 	break;
 
      case i_Scc:
+#ifdef DISABLE_I_SCC
+    failure;
+#endif
 	genamode (curi->smode, "srcreg", curi->size, "src", 2, 0);
 	start_brace ();
 	comprintf ("\tint val = scratchie++;\n");
@@ -1870,15 +2077,21 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tsub_b_ri(val,1);\n");
 	genastore ("val", curi->smode, "srcreg", curi->size, "src");
 	break;
-     case i_DIVU:
+
+case i_DIVU:
 	isjump;
 	failure;
 	break;
+
      case i_DIVS:
 	isjump;
 	failure;
 	break;
-     case i_MULU:
+
+case i_MULU:
+#ifdef DISABLE_I_MULU
+	failure;
+#endif
 	comprintf("\tdont_care_flags();\n");
 	genamode (curi->smode, "srcreg", sz_word, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", sz_word, "dst", 1, 0);
@@ -1892,7 +2105,11 @@ gen_opcode (unsigned long int opcode)
 	genflags (flag_logical, sz_long, "dst", "", "");
 	genastore ("dst", curi->dmode, "dstreg", sz_long, "dst");
 	break;
+
      case i_MULS:
+#ifdef DISABLE_I_MULS
+    failure;
+#endif
 	comprintf("\tdont_care_flags();\n");
 	genamode (curi->smode, "srcreg", sz_word, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", sz_word, "dst", 1, 0);
@@ -1902,7 +2119,8 @@ gen_opcode (unsigned long int opcode)
 	genflags (flag_logical, sz_long, "dst", "", "");
 	genastore ("dst", curi->dmode, "dstreg", sz_long, "dst");
 	break;
-     case i_CHK:
+
+case i_CHK:
 	isjump;
 	failure;
 	break;
@@ -1913,6 +2131,9 @@ gen_opcode (unsigned long int opcode)
 	break;
 
      case i_ASR:
+#ifdef DISABLE_I_ASR
+    failure;
+#endif
 	mayfail;
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
@@ -2080,6 +2301,9 @@ gen_opcode (unsigned long int opcode)
 	break;
 
      case i_ASL:
+#ifdef DISABLE_I_ASL
+    failure;
+#endif
 	mayfail;
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
@@ -2225,7 +2449,10 @@ gen_opcode (unsigned long int opcode)
 	}
 	break;
 
-     case i_LSR:
+case i_LSR:
+#ifdef DISABLE_I_LSR
+	failure;
+#endif
 	mayfail;
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
@@ -2360,7 +2587,10 @@ gen_opcode (unsigned long int opcode)
 	}
 	break;
 
-     case i_LSL:
+case i_LSL:
+#ifdef DISABLE_I_LSL
+	failure;
+#endif
 	mayfail;
 	if (curi->smode==Dreg) {
 		comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
@@ -2497,7 +2727,10 @@ gen_opcode (unsigned long int opcode)
 	}
 	break;
 
-     case i_ROL:
+case i_ROL:
+#ifdef DISABLE_I_ROL
+	failure;
+#endif
 	mayfail;
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
@@ -2533,6 +2766,9 @@ gen_opcode (unsigned long int opcode)
 	break;
 
      case i_ROR:
+#ifdef DISABLE_I_ROR
+    failure;
+#endif
 	mayfail;
 	if (curi->smode==Dreg) {
 	    comprintf("if ((uae_u32)srcreg==(uae_u32)dstreg) {\n"
@@ -2574,72 +2810,95 @@ gen_opcode (unsigned long int opcode)
      case i_ROXL:
 	failure;
 	break;
+
      case i_ROXR:
 	failure;
 	break;
+
      case i_ASRW:
 	failure;
 	break;
+
      case i_ASLW:
 	failure;
 	break;
+
      case i_LSRW:
 	failure;
 	break;
+
      case i_LSLW:
 	failure;
 	break;
+
      case i_ROLW:
 	failure;
 	break;
+
      case i_RORW:
 	failure;
 	break;
+
      case i_ROXLW:
 	failure;
 	break;
+
      case i_ROXRW:
 	failure;
 	break;
+
      case i_MOVEC2:
 	isjump;
 	failure;
 	break;
+
      case i_MOVE2C:
 	isjump;
 	failure;
 	break;
+
      case i_CAS:
 	failure;
 	break;
+
      case i_CAS2:
 	failure;
 	break;
+
      case i_MOVES:		/* ignore DFC and SFC because we have no MMU */
 	isjump;
 	failure;
 	break;
+
      case i_BKPT:		/* only needed for hardware emulators */
 	isjump;
 	failure;
 	break;
+
      case i_CALLM:		/* not present in 68030 */
 	isjump;
 	failure;
 	break;
+
      case i_RTM:		/* not present in 68030 */
 	isjump;
 	failure;
 	break;
+
      case i_TRAPcc:
 	isjump;
 	failure;
 	break;
+
      case i_DIVL:
 	isjump;
 	failure;
 	break;
+
      case i_MULL:
+#ifdef DISABLE_I_MULL
+    failure;
+#endif
 	if (!noflags) {
 	    failure;
 	    break;
@@ -2676,43 +2935,62 @@ gen_opcode (unsigned long int opcode)
      case i_BFINS:
 	failure;
 	break;
+
      case i_PACK:
 	failure;
 	break;
+
      case i_UNPK:
 	failure;
 	break;
-     case i_TAS:
+
+case i_TAS:
 	failure;
 	break;
+
      case i_FPP:
+#ifdef DISABLE_I_FPP
+    failure;
+#endif
 	mayfail;
 	comprintf("\tuae_u16 extra=%s;\n",gen_nextiword());
 	comprintf("\tcomp_fpp_opp(opcode,extra);\n");
 	break;
+
      case i_FBcc:
+#ifdef DISABLE_I_FBCC
+    failure;
+#endif
 	isjump;
 	uses_cmov;
 	mayfail;
 	comprintf("\tcomp_fbcc_opp(opcode);\n");
 	break;
+
      case i_FDBcc:
 	isjump;
 	failure;
 	break;
+
      case i_FScc:
+#ifdef DISABLE_I_FSCC
+    failure;
+#endif
 	mayfail;
 	uses_cmov;
 	comprintf("\tuae_u16 extra=%s;\n",gen_nextiword());
 	comprintf("\tcomp_fscc_opp(opcode,extra);\n");
 	break;
+
      case i_FTRAPcc:
 	isjump;
 	failure;
 	break;
+
      case i_FSAVE:
 	failure;
 	break;
+
      case i_FRESTORE:
 	failure;
 	break;
@@ -2725,6 +3003,7 @@ gen_opcode (unsigned long int opcode)
 	failure;
 	comprintf ("\tflush_icache();\n");  /* Differentiate a bit more? */
 	break;
+
      case i_CPUSHL:
      case i_CPUSHP:
      case i_CPUSHA:
@@ -2732,7 +3011,11 @@ gen_opcode (unsigned long int opcode)
 		    translating at this point */
 	failure;
 	break;
+
      case i_MOVE16:
+#ifdef DISABLE_I_MOVE16
+    failure;
+#endif
 	genmov16(opcode,curi);
 	break;
 
@@ -2749,8 +3032,9 @@ gen_opcode (unsigned long int opcode)
 	isjump;
 	failure;
 	break;
-     default:
-	abort ();
+
+	 default:
+		abort();
 	break;
     }
     comprintf("%s",endstr);
