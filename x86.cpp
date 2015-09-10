@@ -13,7 +13,9 @@
 #define X86_DEBUG_BRIDGE 1
 #define FLOPPY_IO_DEBUG 0
 #define X86_DEBUG_BRIDGE_IO 0
+#define X86_DEBUG_BRIDGE_IRQ 0
 #define X86_IO_PORT_DEBUG 0
+#define X86_DEBUG_SPECIAL_IO 0
 
 #define DEBUG_DMA 0
 #define DEBUG_PIT 0
@@ -129,6 +131,7 @@ struct x86_bridge
 	bool amiga_irq;
 	bool amiga_forced_interrupts;
 	bool pc_irq3a, pc_irq3b, pc_irq7;
+	int delayed_interrupt;
 	uae_u8 pc_jumpers;
 	int pc_maxbaseram;
 	int bios_size;
@@ -398,6 +401,9 @@ static uae_u8 x86_bridge_get_io(struct x86_bridge *xb, uaecptr addr)
 		break;
 	}
 
+#if X86_DEBUG_BRIDGE_IO > 1
+	write_log(_T("IO read %08x %02x\n"), addr, v);
+#endif
 	return v;
 }
 
@@ -1578,27 +1584,35 @@ static void set_pc_address_access(struct x86_bridge *xb, uaecptr addr)
 {
 	if (addr >= 0xb0000 && addr < 0xb2000) {
 		// mono
-		if (xb->amiga_io[IO_MODE_REGISTER] & 8)
-			set_interrupt(xb, 0);
+		if (xb->amiga_io[IO_MODE_REGISTER] & 8) {
+			xb->delayed_interrupt |= 1 << 0;
+			//set_interrupt(xb, 0);
+		}
 	}
 	if (addr >= 0xb8000 && addr < 0xc0000) {
 		// color
-		if (xb->amiga_io[IO_MODE_REGISTER] & 16)
-			set_interrupt(xb, 1);
+		if (xb->amiga_io[IO_MODE_REGISTER] & 16) {
+			xb->delayed_interrupt |= 1 << 1;
+			//set_interrupt(xb, 1);
+		}
 	}
 }
 
 static void set_pc_io_access(struct x86_bridge *xb, uaecptr portnum, bool write)
 {
 	uae_u8 mode_register = xb->amiga_io[IO_MODE_REGISTER];
-	if (write && portnum >= 0x3b0 && portnum < 0x3bf) {
-		// mono crt
-		if (mode_register & 8)
-			set_interrupt(xb, 2);
-	} else if (write && portnum >= 0x3d0 && portnum < 0x3df) {
-		// color crt
-		if (mode_register & 16)
-			set_interrupt(xb, 3);
+	if (write && (portnum == 0x3b1 || portnum == 0x3b3 || portnum == 0x3b5 || portnum == 0x3b7 || portnum == 0x3b8)) {
+		// mono crt data register
+		if (mode_register & 8) {
+			xb->delayed_interrupt |= 1 << 2;
+			//set_interrupt(xb, 2);
+		}
+	} else if (write && (portnum == 0x3d1 || portnum == 0x3d3 || portnum == 0x3d5 || portnum == 0x3d7 || portnum == 0x3d8 || portnum == 0x3d9 || portnum == 0x3dd)) {
+			// color crt data register
+		if (mode_register & 16) {
+			xb->delayed_interrupt |= 1 << 3;
+			//set_interrupt(xb, 3);
+		}
 	} else if (portnum >= 0x37a && portnum < 0x37b) {
 		// LPT1
 		set_interrupt(xb, 5);
@@ -1624,6 +1638,23 @@ static bool is_port_enabled(struct x86_bridge *xb, uint16_t portnum)
 	// Keyboard
 	// ???
 	return true;
+}
+
+static uae_u8 get0x3da(struct x86_bridge *xb)
+{
+	static int toggle;
+	uae_u8 v = 0;
+	// not really correct but easy.
+	if (vpos < 40) {
+		v |= 8 | 1;
+	}
+	if (toggle) {
+		// hblank or vblank active
+		v |= 1;
+	}
+	// just toggle to keep programs happy and fast..
+	toggle = !toggle;
+	return v;
 }
 
 static uae_u8 vlsi_in(struct x86_bridge *xb, int portnum)
@@ -1675,7 +1706,6 @@ static void vlsi_reg_out(struct x86_bridge *xb, int reg, uae_u8 v)
 
 	}
 }
-
 
 static void vlsi_out(struct x86_bridge *xb, int portnum, uae_u8 v)
 {
@@ -1821,7 +1851,9 @@ void portout(uint16_t portnum, uint8_t v)
 		}
 		break;
 		case 0x62:
-		//write_log(_T("AMIGA SYSINT. %02x\n"), v);
+#if X86_DEBUG_SPECIAL_IO
+		write_log(_T("AMIGA SYSINT. %02x\n"), v);
+#endif
 		set_interrupt(xb, 7);
 		aio = 0x3f;
 		if (xb->type > TYPE_SIDECAR) {
@@ -1833,7 +1865,9 @@ void portout(uint16_t portnum, uint8_t v)
 		}
 		break;
 		case 0x63:
+#if X86_DEBUG_SPECIAL_IO
 		write_log(_T("OUT CONFIG %02x\n"), v);
+#endif
 		if (xb->type > TYPE_SIDECAR) {
 			if (xb->io_ports[0x63] & 8) {
 				v |= 8;
@@ -2003,6 +2037,9 @@ void portout(uint16_t portnum, uint8_t v)
 		aio = 0x19f; // ??
 		break;
 		case 0x379:
+#if X86_DEBUG_SPECIAL_IO
+		write_log(_T("0x379: %02x\n"), v);
+#endif
 		if (xb->amiga_io[IO_MODE_REGISTER] & 2) {
 			xb->amiga_forced_interrupts = (v & 40) ? false : true;
 		}
@@ -2411,13 +2448,7 @@ uint8_t portin(uint16_t portnum)
 
 		case 0x3ba:
 		if (mda_emu) {
-			v = 0;
-			// not really correct but easy.
-			if (vpos < 20)
-				v |= 8 | 1;
-			if (get_cycles() - last_cycles > maxhpos / 2)
-				v |= 1;
-			last_cycles = get_cycles();
+			v = get0x3da(xb);
 		} else if (ISVGA()) {
 			if (x86_vga_mode == 0)
 				v = vga_io_get(portnum);
@@ -2425,13 +2456,7 @@ uint8_t portin(uint16_t portnum)
 		break;
 		case 0x3da:
 		if (cga_emu) {
-			v = 0;
-			// not really correct but easy.
-			if (vpos < 20)
-				v |= 8 | 1;
-			if (get_cycles() - last_cycles > maxhpos / 2)
-				v |= 1;
-			last_cycles = get_cycles();
+			v = get0x3da(xb);
 		} else if (ISVGA()) {
 			if (x86_vga_mode == 1)
 				v = vga_io_get(portnum);
@@ -2915,6 +2940,8 @@ void x86_bridge_rethink(void)
 	if (!xb)
 		return;
 	if (!(xb->amiga_io[IO_CONTROL_REGISTER] & 1)) {
+		xb->amiga_io[IO_AMIGA_INTERRUPT_STATUS] |= xb->delayed_interrupt;
+		xb->delayed_interrupt = 0;
 		uae_u8 intreq = xb->amiga_io[IO_AMIGA_INTERRUPT_STATUS];
 		uae_u8 intena = xb->amiga_io[IO_INTERRUPT_MASK];
 		uae_u8 status = intreq & ~intena;
@@ -3036,6 +3063,17 @@ void x86_bridge_sync_change(void)
 	xb->dosbox_vpos_tick = maxvpos * vblank_hz / 1000;
 	if (xb->dosbox_vpos_tick >= xb->dosbox_vpos_tick)
 		xb->dosbox_tick_vpos_cnt -= xb->dosbox_vpos_tick;
+}
+
+void x86_bridge_vsync(void)
+{
+	struct x86_bridge *xb = bridges[0];
+	if (!xb)
+		return;
+
+	if (xb->delayed_interrupt) {
+		x86_bridge_rethink();
+	}
 }
 
 void x86_bridge_hsync(void)

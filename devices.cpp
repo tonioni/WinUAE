@@ -119,6 +119,9 @@ void devices_vsync_pre(void)
 #endif
 	cpuboard_vsync();
 	statusline_vsync();
+#ifdef WITH_X86
+	x86_bridge_vsync();
+#endif
 }
 
 void devices_vsync_post(void)
