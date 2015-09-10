@@ -81,10 +81,12 @@ struct ncr9x_state
 	SCSIDevice *scsid[8];
 	SCSIBus scsibus;
 	uae_u32 board_mask;
+	uae_u32 board_mask2;
 	uae_u8 *rom;
 	uae_u8 acmemory[128];
 	int configured;
 	uaecptr baseaddress;
+	uaecptr baseaddress2;
 	uae_u32 expamem_hi;
 	uae_u32 expamem_lo;
 	bool enabled;
@@ -93,6 +95,7 @@ struct ncr9x_state
 	addrbank *bank;
 	bool chipirq, boardirq, boardirqlatch;
 	bool intena;
+	bool irq6;
 	void (*irq_func)(struct ncr9x_state*);
 	int led;
 	uaecptr dma_ptr;
@@ -159,6 +162,7 @@ static struct ncr9x_state *ncr_oktagon2008_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_masoboshi_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_dkb1200_scsi;
 static struct ncr9x_state *ncr_ematrix530_scsi;
+static struct ncr9x_state *ncr_multievolution_scsi;
 
 static struct ncr9x_state *ncr_units[MAX_NCR9X_UNITS + 1];
 
@@ -230,7 +234,10 @@ void ncr9x_rethink(void)
 {
 	for (int i = 0; ncr_units[i]; i++) {
 		if (ncr_units[i]->boardirq) {
-			INTREQ_0(0x8000 | 0x0008);
+			if (ncr_units[i]->irq6)
+				INTREQ_0(0x8000 | 0x2000);
+			else
+				INTREQ_0(0x8000 | 0x0008);
 			return;
 		}
 	}
@@ -636,7 +643,19 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 	uaecptr oldaddr = addr;
 
 	addr &= ncr->board_mask;
-	if (isncr(ncr, ncr_masoboshi_scsi)) {
+	if (ncr == ncr_multievolution_scsi) {
+		reg_shift = 1;
+		if (addr & 0x1000) {
+			if (ncr->fakedma_data_offset < ncr->fakedma_data_size) {
+				ncr->fakedma_data_buf[ncr->fakedma_data_offset++] = val;
+				if (ncr->fakedma_data_offset == ncr->fakedma_data_size) {
+					memcpy(ncr->fakedma_data_write_buffer, ncr->fakedma_data_buf, ncr->fakedma_data_size);
+					esp_fake_dma_done(ncr->devobject.lsistate);
+				}
+			}
+			return;
+		}
+	} else if (isncr(ncr, ncr_masoboshi_scsi)) {
 
 		if (addr >= 0xf040 && addr < 0xf048) {
 			if (addr == 0xf040)
@@ -897,7 +916,23 @@ static uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 	uaecptr oldaddr = addr;
 
 	addr &= ncr->board_mask;
-	if (isncr(ncr, ncr_masoboshi_scsi)) {
+
+	if (ncr == ncr_multievolution_scsi) {
+
+		reg_shift = 1;
+		if (addr & 0x1000) {
+			if (ncr->fakedma_data_offset >= ncr->fakedma_data_size)
+				return 0;
+			if (ncr->fakedma_data_offset == ncr->fakedma_data_size - 1) {
+				esp_fake_dma_done(ncr->devobject.lsistate);
+				//write_log(_T("MultiEvolution fake dma finished\n"));
+			}
+			v = ncr->fakedma_data_buf[ncr->fakedma_data_offset++];
+			//write_log(_T("MultiEvolution fake dma %02x %d/%d\n"), v, ncr->fakedma_data_offset, ncr->fakedma_data_size);
+			return v;
+		}
+
+	} else if (isncr(ncr, ncr_masoboshi_scsi)) {
 
 		if (addr == MASOBOSHI_ESP_ADDR + 3 * 2 && (ncr->states[0] & 0x80))
 			return 2;
@@ -1264,6 +1299,8 @@ static struct ncr9x_state *getscsiboard(uaecptr addr)
 			return ncr_units[i];
 		if ((addr & ~ncr_units[i]->board_mask) == ncr_units[i]->baseaddress)
 			return ncr_units[i];
+		if (ncr_units[i]->baseaddress2 && (addr & ~ncr_units[i]->board_mask2) == ncr_units[i]->baseaddress2)
+			return ncr_units[i];
 	}
 	return NULL;
 }
@@ -1307,11 +1344,31 @@ static uae_u32 REGPARAM2 ncr9x_generic_lget (uaecptr addr)
 		return ncr9x_lget(ncr, addr);
 	return 0;
 }
+uae_u8 *REGPARAM2 ncr9x_generic_xlate(uaecptr addr)
+{
+	struct ncr9x_state *ncr = getscsiboard(addr);
+	if (!ncr)
+		return NULL;
+	addr &= ncr->board_mask;
+	return ncr->rom + addr;
+
+}
+int REGPARAM2 ncr9x_generic_check(uaecptr a, uae_u32 b)
+{
+	struct ncr9x_state *ncr = getscsiboard(a);
+	if (!ncr)
+		return 0;
+	a &= ncr->board_mask;
+	if (a >= ncr->rom_start && a + b < ncr->rom_end)
+		return 1;
+	return 0;
+}
+
 static addrbank ncr9x_bank_generic = {
 	ncr9x_generic_lget, ncr9x_generic_wget, ncr9x_generic_bget,
 	ncr9x_generic_lput, ncr9x_generic_wput, ncr9x_generic_bput,
-	default_xlate, default_check, NULL, NULL, _T("53C94/FAS216"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	ncr9x_generic_xlate, ncr9x_generic_check, NULL, NULL, _T("53C94/FAS216"),
+	ncr9x_generic_lget, ncr9x_generic_wget, ABFLAG_IO | ABFLAG_SAFE
 };
 
 uae_u32 cpuboard_ncr9x_scsi_get(uaecptr addr)
@@ -1358,6 +1415,39 @@ void ncr9x_reset(void)
 		ncr9x_reset_board(ncr_units[i]);
 		ncr_units[i]->enabled = false;
 	}
+}
+
+addrbank *ncr_multievolution_init(struct romconfig *rc)
+{
+	struct ncr9x_state *ncr = getscsi(rc);
+
+	xfree(ncr->rom);
+	ncr->rom = NULL;
+
+	if (!ncr)
+		return &expamem_null;
+
+	ncr->bank = &ncr9x_bank_generic;
+	ncr->enabled = true;
+	ncr->rom = xcalloc(uae_u8, 65536);
+
+	ncr->configured = -1;
+	ncr->board_mask = 0x1ffff;
+	ncr->board_mask2 = 0xffff;
+	ncr->baseaddress = 0xf00000;
+	ncr->baseaddress2 = 0xef0000;
+	ncr->rom_start = 0;
+	ncr->rom_offset = 0;
+	ncr->rom_end = 0x10000;
+	ncr->io_start = 0x1e000;
+	ncr->io_end = ncr->io_start + 0x2000;
+	ncr->irq6 = true;
+
+	load_rom_rc(rc, ROMTYPE_MEVOLUTION, 65536, 0, ncr->rom, 65536, 0);
+
+	map_banks(ncr->bank, ncr->baseaddress2 >> 16, (ncr->board_mask + 1) >> 16, 0);
+
+	return &expamem_null;
 }
 
 addrbank *ncr_fastlane_autoconfig_init(struct romconfig *rc)
@@ -1707,6 +1797,13 @@ void ematrix_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconf
 	ncr9x_add_scsi_unit(&ncr_ematrix530_scsi, ch, ci, rc);
 	ncr9x_esp_scsi_init(ncr_ematrix530_scsi, fake_dma_read_ematrix, fake_dma_write_ematrix, set_irq2);
 	esp_dma_enable(ncr_ematrix530_scsi->devobject.lsistate, 1);
+}
+
+void multievolution_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	ncr9x_add_scsi_unit(&ncr_multievolution_scsi, ch, ci, rc);
+	ncr9x_esp_scsi_init(ncr_multievolution_scsi, fake_dma_read, fake_dma_write, set_irq2);
+	esp_dma_enable(ncr_multievolution_scsi->devobject.lsistate, 1);
 }
 
 #endif

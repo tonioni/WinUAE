@@ -14,11 +14,13 @@ extern void fastlane_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct
 extern void oktagon_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void masoboshi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void ematrix_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void multievolution_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 extern addrbank *ncr_fastlane_autoconfig_init(struct romconfig*);
 extern addrbank *ncr_oktagon_autoconfig_init(struct romconfig*);
 extern addrbank *ncr_dkb_autoconfig_init(struct romconfig*);
 extern addrbank *ncr_ematrix_autoconfig_init(struct romconfig *rc);
+extern addrbank *ncr_multievolution_init(struct romconfig*);
 
 extern void cpuboard_ncr9x_scsi_put(uaecptr, uae_u32);
 extern uae_u32 cpuboard_ncr9x_scsi_get(uaecptr);

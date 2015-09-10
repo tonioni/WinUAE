@@ -48,8 +48,10 @@
 
 #define BOARD_AUTOCONFIG_Z2 2
 #define BOARD_AUTOCONFIG_Z3 3
-#define BOARD_NONAUTOCONFIG 4
-#define BOARD_IGNORE 5
+#define BOARD_NONAUTOCONFIG_BEFORE 4
+#define BOARD_NONAUTOCONFIG_AFTER_Z2 5
+#define BOARD_NONAUTOCONFIG_AFTER_Z3 6
+#define BOARD_IGNORE 7
 
 #define EXP_DEBUG 0
 
@@ -179,6 +181,13 @@ static int ecard, cardno, z3num;
 static addrbank *expamem_bank_current;
 
 static uae_u16 uae_id;
+
+static bool isnonautoconfig(int v)
+{
+	return v == BOARD_NONAUTOCONFIG_AFTER_Z2 ||
+		v == BOARD_NONAUTOCONFIG_AFTER_Z3 ||
+		v == BOARD_NONAUTOCONFIG_BEFORE;
+}
 
 /* ********************************************************** */
 
@@ -516,7 +525,7 @@ void expamem_next (addrbank *mapped, addrbank *next)
 		if (ecard >= cardno)
 			break;
 		struct card_data *ec = &cards[ecard];
-		if (ec->initrc && ec->zorro == BOARD_NONAUTOCONFIG) {
+		if (ec->initrc && isnonautoconfig(ec->zorro)) {
 			ec->initrc(cards[ecard].rc);
 		} else {
 			call_card_init(ecard);
@@ -1275,7 +1284,7 @@ static void fastmem_autoconfig(int boardnum, int zorro, uae_u8 type, uae_u32 ser
 	} else if (boardnum == 0) {
 		for (int i = 0; expansionroms[i].name; i++) {
 			const struct expansionromtype *erc = &expansionroms[i];
-			if (erc->zorro == zorro && cfgfile_board_enabled(&currprefs, erc->romtype, 0)) {
+			if (((erc->zorro == zorro) || (zorro < 0 && erc->zorro >= BOARD_NONAUTOCONFIG_BEFORE)) && cfgfile_board_enabled(&currprefs, erc->romtype, 0)) {
 				struct romconfig *rc = get_device_romconfig(&currprefs, erc->romtype, 0);
 				if (erc->subtypes) {
 					const struct expansionsubromtype *srt = &erc->subtypes[rc->subtype];
@@ -1387,7 +1396,8 @@ static addrbank *expamem_init_fastcard_2(int boardnum)
 		}
 	}
 
-	fastmem_autoconfig(boardnum, 2, type, serial, allocated);
+	fastmem_autoconfig(boardnum, BOARD_AUTOCONFIG_Z2, type, serial, allocated);
+	fastmem_autoconfig(boardnum, -1, type, serial, allocated);
 
 	return NULL;
 }
@@ -1549,7 +1559,7 @@ static addrbank *expamem_init_z3fastmem_2(int boardnum, addrbank *bank, uae_u32 
 		code = Z3_MEM_16MB; /* Z3 physical board size is always at least 16M */
 
 	expamem_init_clear ();
-	fastmem_autoconfig(boardnum, 3, add_memory | zorroIII | code, 1, allocated);
+	fastmem_autoconfig(boardnum, BOARD_AUTOCONFIG_Z3, add_memory | zorroIII | code, 1, allocated);
 	map_banks_z3(bank, start >> 16, size >> 16);
 	return NULL;
 }
@@ -2021,7 +2031,8 @@ void expamem_reset (void)
 	}
 
 	// add possible non-autoconfig boards
-	add_cpu_expansions(BOARD_NONAUTOCONFIG);
+	add_cpu_expansions(BOARD_NONAUTOCONFIG_BEFORE);
+	add_expansions(BOARD_NONAUTOCONFIG_BEFORE);
 
 	bool fastmem_after = false;
 	if (currprefs.fastmem_autoconfig) {
@@ -2052,6 +2063,9 @@ void expamem_reset (void)
 	// immediately after Z2Fast so that they can be emulated as A590/A2091 with fast ram.
 	add_cpu_expansions(BOARD_AUTOCONFIG_Z2);
 	add_expansions(BOARD_AUTOCONFIG_Z2);
+
+	add_cpu_expansions(BOARD_NONAUTOCONFIG_AFTER_Z2);
+	add_expansions(BOARD_NONAUTOCONFIG_AFTER_Z2);
 
 	if (fastmem_after && currprefs.fastmem_autoconfig) {
 		if (fastmem_bank.baseaddr != NULL && (fastmem_bank.allocated <= 262144 || currprefs.chipmem_size <= 2 * 1024 * 1024)) {
@@ -2198,7 +2212,8 @@ void expamem_reset (void)
 
 	}
 
-	add_expansions(BOARD_NONAUTOCONFIG);
+	add_cpu_expansions(BOARD_NONAUTOCONFIG_AFTER_Z3);
+	add_expansions(BOARD_NONAUTOCONFIG_AFTER_Z3);
 
 	expamem_z3_pointer = 0;
 	expamem_z3_sum = 0;
@@ -2657,6 +2672,11 @@ static const struct expansionboardsettings x86_bridge_settings[] = {
 		_T("FPU (DOSBox CPU only)"),
 		_T("fpu")
 	},
+	{	// 23 - 25
+		_T("CPU Arch (DOSBox CPU only)\0") _T("auto") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
+		_T("cpuarch\0") _T("auto") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
+		true, false, 0
+	},
 	{
 		NULL
 	}
@@ -2712,10 +2732,19 @@ static const struct expansionboardsettings x86_bridge_sidecar_settings[] = {
 		_T("Disable parallel port emulation (J11)"),
 		_T("parport_card")
 	},
-	{	// 19 - 22
+	{	// 19 - 21
 		_T("CPU core\0") _T("Fake86\0") _T("DOSBox simple\0") _T("DOSBox normal\0") _T("DOSBox full\0") _T("DOSBox auto\0"),
 		_T("cpu\0") _T("fake86\0") _T("dbsimple\0") _T("dbnormal\0") _T("dbfull\0") _T("dbauto\0"),
 		true, false, 19 - 13
+	},
+	{	// 22
+		_T("FPU (DOSBox CPU only)"),
+		_T("fpu")
+	},
+	{	// 23 - 25
+		_T("CPU Arch (DOSBox CPU only)\0") _T("auto") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
+		_T("cpuarch\0") _T("auto") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
+		true, false, 0
 	},
 	{
 		NULL
@@ -2840,7 +2869,7 @@ const struct expansionromtype expansionroms[] = {
 	},
 	{
 		_T("grex"), _T("G-REX"), _T("DCE"),
-		grex_init, NULL, NULL, ROMTYPE_GREX | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		grex_init, NULL, NULL, ROMTYPE_GREX | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_PCI_BRIDGE
 	},
@@ -2934,7 +2963,7 @@ const struct expansionromtype expansionroms[] = {
 	},
 	{
 		_T("dataflyerscsiplus"), _T("DataFlyer SCSI+"), _T("Expansion Systems"),
-		dataflyer_init, NULL, dataflyer_add_scsi_unit, ROMTYPE_DATAFLYER | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		dataflyer_init, NULL, dataflyer_add_scsi_unit, ROMTYPE_DATAFLYER | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI
 	},
@@ -2974,7 +3003,7 @@ const struct expansionromtype expansionroms[] = {
 	},
 	{
 		_T("kommos"), _T("A500/A2000 SCSI"), _T("Jürgen Kommos"),
-		kommos_init, NULL, kommos_add_scsi_unit, ROMTYPE_KOMMOS, 0, 0, BOARD_NONAUTOCONFIG, true,
+		kommos_init, NULL, kommos_add_scsi_unit, ROMTYPE_KOMMOS, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI
 	},
@@ -2986,8 +3015,15 @@ const struct expansionromtype expansionroms[] = {
 		2079, 3, 0
 	},
 	{
+		_T("multievolution"), _T("Multi Evolution 500/2000"), _T("MacroSystem"),
+		ncr_multievolution_init, NULL, multievolution_add_scsi_unit, ROMTYPE_MEVOLUTION, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI,
+		18260, 8, 0, true
+	},
+	{
 		_T("paradox"), _T("Paradox SCSI"), _T("Mainhattan Data"),
-		paradox_init, NULL, paradox_add_scsi_unit, ROMTYPE_PARADOX | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, false,
+		paradox_init, NULL, paradox_add_scsi_unit, ROMTYPE_PARADOX | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, false,
 		NULL, 0,
 		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_PARALLEL_ADAPTER
 	},
@@ -3052,7 +3088,7 @@ const struct expansionromtype expansionroms[] = {
 #if 0 /* driver is MIA, 3rd party ScottDevice driver is not enough for full implementation. */
 	{
 		_T("microforge"), _T("Hard Disk"), _T("Micro Forge"),
-		microforge_init, NULL, microforge_add_scsi_unit, ROMTYPE_MICROFORGE | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		microforge_init, NULL, microforge_add_scsi_unit, ROMTYPE_MICROFORGE | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_SASI | EXPANSIONTYPE_SCSI
 	},
@@ -3060,37 +3096,37 @@ const struct expansionromtype expansionroms[] = {
 
 	{
 		_T("omtiadapter"), _T("OMTI-Adapter"), _T("C't"),
-		omtiadapter_init, NULL, omtiadapter_scsi_unit, ROMTYPE_OMTIADAPTER | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		omtiadapter_init, NULL, omtiadapter_scsi_unit, ROMTYPE_OMTIADAPTER | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("alf1"), _T("A.L.F."), _T("Elaborate Bytes"),
-		alf1_init, NULL, alf1_add_scsi_unit, ROMTYPE_ALF1 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		alf1_init, NULL, alf1_add_scsi_unit, ROMTYPE_ALF1 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("promigos"), _T("Promigos"), _T("Flesch und Hörnemann"),
-		promigos_init, NULL, promigos_add_scsi_unit, ROMTYPE_PROMIGOS | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		promigos_init, NULL, promigos_add_scsi_unit, ROMTYPE_PROMIGOS | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("tecmar"), _T("T-Card/T-Disk"), _T("Tecmar"),
-		tecmar_init, NULL, tecmar_add_scsi_unit, ROMTYPE_TECMAR | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,	
+		tecmar_init, NULL, tecmar_add_scsi_unit, ROMTYPE_TECMAR | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,	
 		NULL, 0,
 		false, EXPANSIONTYPE_SASI | EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("system2000"), _T("System 2000"), _T("Vortex"),
-		system2000_init, NULL, system2000_add_scsi_unit, ROMTYPE_SYSTEM2000 | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG, true,
+		system2000_init, NULL, system2000_add_scsi_unit, ROMTYPE_SYSTEM2000 | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("xebec"), _T("9720H"), _T("Xebec"),
-		xebec_init, NULL, xebec_add_scsi_unit, ROMTYPE_XEBEC | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		xebec_init, NULL, xebec_add_scsi_unit, ROMTYPE_XEBEC | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_SASI | EXPANSIONTYPE_SCSI
 	},
@@ -3121,26 +3157,26 @@ const struct expansionromtype expansionroms[] = {
 #if 0
 	{
 		_T("x86_xt_hd"), _T("x86 XT"), _T("x86"),
-		x86_xt_hd_init, NULL, x86_add_xt_hd_unit, ROMTYPE_X86_HD | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG, true,
+		x86_xt_hd_init, NULL, x86_add_xt_hd_unit, ROMTYPE_X86_HD | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
 	},
 #endif
 	{
 		_T("x86athdprimary"), _T("AT IDE Primary"), _T("x86"),
-		x86_at_hd_init_1, NULL, x86_add_at_hd_unit_1, ROMTYPE_X86_AT_HD1 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		x86_at_hd_init_1, NULL, x86_add_at_hd_unit_1, ROMTYPE_X86_AT_HD1 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_IDE
 	},
 	{
 		_T("x86athdsecondary"), _T("AT IDE Secondary"), _T("x86"),
-		x86_at_hd_init_2, NULL, x86_add_at_hd_unit_2, ROMTYPE_X86_AT_HD2 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG, true,
+		x86_at_hd_init_2, NULL, x86_add_at_hd_unit_2, ROMTYPE_X86_AT_HD2 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_IDE
 	},
 	{
 		_T("x86athdxt"), _T("XTIDE Universal BIOS HD"), _T("x86"),
-		x86_at_hd_init_xt, NULL, x86_add_at_hd_unit_xt, ROMTYPE_X86_XT_IDE | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG, true,
+		x86_at_hd_init_xt, NULL, x86_add_at_hd_unit_xt, ROMTYPE_X86_XT_IDE | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_IDE,
 		0, 0, 0, false, NULL,
@@ -3448,7 +3484,7 @@ static const struct cpuboardsubtype dbk_sub[] = {
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024,
 		0,
-		dkb_wildfire_pci_init, NULL, BOARD_NONAUTOCONFIG, 0
+		dkb_wildfire_pci_init, NULL, BOARD_NONAUTOCONFIG_BEFORE, 0
 	},
 	{
 		NULL

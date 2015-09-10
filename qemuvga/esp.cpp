@@ -434,9 +434,12 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
             if ((s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0 || s->pio_on) {
                 /* Data out.  */
                 //write_log("esp: PIO data read not implemented\n");
-                s->rregs[ESP_FIFO] = s->async_buf[s->ti_rptr++];
+				if (s->async_buf)
+	                s->rregs[ESP_FIFO] = s->async_buf[s->ti_rptr++];
+				else
+					s->rregs[ESP_FIFO] = 0;
 				s->pio_on = 1;
-				if (s->ti_size == 1) {
+				if (s->ti_size == 1 && s->current_req) {
 					scsiesp_req_continue(s->current_req);
 				}
             } else {
@@ -461,7 +464,14 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
 
         return old_val;
 	case ESP_RFLAGS:
-		return s->rregs[saddr] | s->rregs[ESP_RSEQ] << 5;
+	{
+		int v;
+		if (s->ti_size >= 7)
+			v = 31;
+		else
+			v = (1 << s->ti_size) - 1;
+		return v | (s->rregs[ESP_RSEQ] << 5);
+	}
 	case ESP_RES4:
 		return 0x80 | 0x20 | 0x2;
     default:

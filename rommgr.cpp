@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 156
+#define NEXT_ROM_ID 157
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -423,6 +423,10 @@ static struct romdata roms[] = {
 	ALTROMPN(146, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xc88843cb, 0x3d7eb1b6, 0x8139b81b, 0x0665684c, 0x536ab3d0, 0x52a5dd9d)
 	{ _T("Apollo 500/2000"), 0, 0, 0, 0, _T("APOLLOHD\0"), 16384, 145, 0, 0, ROMTYPE_APOLLOHD, 0, 0, NULL,
 	0x931bad25, 0x24b4ee4c,0x129c7a93,0xf83ad570,0x66afd80c,0x4179f39c, NULL, NULL },
+	{ _T("Multi Evolution 500/200"), 3, 0, 3, 0, _T("MULTIEVOLUTION\0"), 65536, 156, 0, 0, ROMTYPE_MEVOLUTION, 0, 0, NULL,
+	0xd13a2c89, 0xf9e38c4b,0xf5c6499d,0x486946ba,0x7b7636b8,0x0845265b, NULL, NULL },
+	ALTROMPN(156, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x339b3549, 0x74de857b, 0x42f9a8e0, 0xc1f3c29e, 0x06982622, 0x853d08fe)
+	ALTROMPN(156, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x3aca5d1f, 0x786f2197, 0xc614be91, 0xae7e87da, 0xb42c3290, 0xd7997763)
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },
