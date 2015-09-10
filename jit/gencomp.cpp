@@ -89,9 +89,6 @@
 #define DISABLE_I_MOVE16
 */
 
-#define DISABLE_I_LSL
-#define DISABLE_I_LSR
-
 #ifdef CPU_x86_64
 #define DISABLE_I_FPP
 #endif

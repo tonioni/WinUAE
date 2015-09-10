@@ -74,7 +74,11 @@ MIDFUNC(0,duplicate_carry,(void))
 {
 	evict(FLAGX);
 	make_flags_live_internal();
-	COMPCALL(setcc_m)((uintptr)live.state[FLAGX].mem,NATIVE_CC_CS);
+#ifdef UAE
+	COMPCALL(setcc_m)((uintptr)live.state[FLAGX].mem + 1, NATIVE_CC_CS);
+#else
+	COMPCALL(setcc_m)((uintptr)live.state[FLAGX].mem, NATIVE_CC_CS);
+#endif
 	log_vwrite(FLAGX);
 }
 MENDFUNC(0,duplicate_carry,(void))
@@ -82,12 +86,20 @@ MENDFUNC(0,duplicate_carry,(void))
 MIDFUNC(0,restore_carry,(void))
 {
 	if (!have_rat_stall) { /* Not a P6 core, i.e. no partial stalls */
-		bt_l_ri_noclobber(FLAGX,0);
+#ifdef UAE
+		bt_l_ri_noclobber(FLAGX, 8);
+#else
+		bt_l_ri_noclobber(FLAGX, 0);
+#endif
 	}
 	else {  /* Avoid the stall the above creates.
 		   This is slow on non-P6, though.
 		*/
-		COMPCALL(rol_b_ri(FLAGX,8));
+#ifdef UAE
+		COMPCALL(rol_w_ri(FLAGX, 8));
+#else
+		COMPCALL(rol_b_ri(FLAGX, 8));
+#endif
 		isclean(FLAGX);
 	}
 }
