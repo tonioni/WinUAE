@@ -561,7 +561,8 @@ static void cirrus_invalidate_region(CirrusVGAState * s, int off_begin,
 				     int off_pitch, int bytesperline,
 				     int lines)
 {
-    int y;
+#if 0
+	int y;
     int off_cur;
     int off_cur_end;
 
@@ -571,6 +572,7 @@ static void cirrus_invalidate_region(CirrusVGAState * s, int off_begin,
         memory_region_set_dirty(&s->vga.vram, off_cur, off_cur_end - off_cur);
 	off_begin += off_pitch;
     }
+#endif
 }
 
 static int cirrus_bitblt_common_patterncopy(CirrusVGAState * s,
@@ -1987,7 +1989,7 @@ static void cirrus_mem_writeb_mode4and5_8bpp(CirrusVGAState * s,
 	val <<= 1;
 	dst++;
     }
-    memory_region_set_dirty(&s->vga.vram, offset, 8);
+    linear_memory_region_set_dirty(&s->vga.vram, offset, 8);
 }
 
 static void cirrus_mem_writeb_mode4and5_16bpp(CirrusVGAState * s,
@@ -2011,7 +2013,7 @@ static void cirrus_mem_writeb_mode4and5_16bpp(CirrusVGAState * s,
 	val <<= 1;
 	dst += 2;
     }
-    memory_region_set_dirty(&s->vga.vram, offset, 16);
+    linear_memory_region_set_dirty(&s->vga.vram, offset, 16);
 }
 
 /***************************************
@@ -2107,7 +2109,7 @@ static void cirrus_vga_mem_write(void *opaque,
 		mode = s->vga.gr[0x05] & 0x7;
 		if (mode < 4 || mode > 5 || ((s->vga.gr[0x0B] & 0x4) == 0)) {
 		    *(s->vga.vram_ptr + bank_offset) = mem_value;
-                    memory_region_set_dirty(&s->vga.vram, bank_offset,
+                    linear_memory_region_set_dirty(&s->vga.vram, bank_offset,
                                             sizeof(mem_value));
 		} else {
 		    if ((s->vga.gr[0x0B] & 0x14) != 0x14) {
@@ -2405,7 +2407,7 @@ static void cirrus_linear_write(void *opaque, hwaddr addr,
 	mode = s->vga.gr[0x05] & 0x7;
 	if (mode < 4 || mode > 5 || ((s->vga.gr[0x0B] & 0x4) == 0)) {
 	    *(s->vga.vram_ptr + addr) = (uint8_t) val;
-            memory_region_set_dirty(&s->vga.vram, addr, 1);
+            linear_memory_region_set_dirty(&s->vga.vram, addr, 1);
 	} else {
 	    if ((s->vga.gr[0x0B] & 0x14) != 0x14) {
 		cirrus_mem_writeb_mode4and5_8bpp(s, mode, addr, val);

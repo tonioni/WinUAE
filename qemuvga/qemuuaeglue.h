@@ -25,7 +25,6 @@ typedef int ssize_t;
 #define container_of(address, type, field) ((type *)( \
         (PCHAR)(address) - \
         (ULONG_PTR)(&((type *)0)->field)))
-#define STATIC_INLINE static __forceinline
 
 #define snprintf c99_snprintf
 inline int c99_vsnprintf(char* str, size_t size, const char* format, va_list ap)

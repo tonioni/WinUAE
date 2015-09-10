@@ -910,7 +910,7 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
             write_log("vga: chain4: [0x" TARGET_FMT_plx "]\n", addr);
 #endif
             s->plane_updated |= mask; /* only used to detect font change */
-            memory_region_set_dirty(&s->vram, addr, 1);
+            vga_memory_region_set_dirty(&s->vram, addr, 1);
         }
     } else if (s->gr[VGA_GFX_MODE] & 0x10) {
         /* odd/even mode (aka text mode mapping) */
@@ -923,7 +923,7 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
             write_log("vga: odd/even: [0x" TARGET_FMT_plx "]\n", addr);
 #endif
             s->plane_updated |= mask; /* only used to detect font change */
-            memory_region_set_dirty(&s->vram, addr, 1);
+            vga_memory_region_set_dirty(&s->vram, addr, 1);
         }
     } else {
         /* standard VGA latched access */
@@ -998,7 +998,7 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
         write_log("vga: latch: [0x" TARGET_FMT_plx "] mask=0x%08x val=0x%08x\n",
                addr * 4, write_mask, val);
 #endif
-        memory_region_set_dirty(&s->vram, addr << 2, sizeof(uint32_t));
+        vga_memory_region_set_dirty(&s->vram, addr << 2, sizeof(uint32_t));
     }
 }
 

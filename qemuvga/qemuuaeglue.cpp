@@ -12,9 +12,6 @@ void memory_region_transaction_begin(void)
 void memory_region_transaction_commit(void)
 {
 }
-void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr, hwaddr size)
-{
-}
 void memory_region_add_subregion(MemoryRegion *mr,
                                  hwaddr offset,
                                  MemoryRegion *subregion)

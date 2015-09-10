@@ -399,6 +399,18 @@ void qemu_console_resize(QemuConsole *con, int width, int height)
 	vga_height = height;
 }
 
+void linear_memory_region_set_dirty(MemoryRegion *mr, hwaddr addr, hwaddr size)
+{
+}
+
+void vga_memory_region_set_dirty(MemoryRegion *mr, hwaddr addr, hwaddr size)
+{
+	if (vga.vga.graphic_mode != 1)
+		return;
+	if (!fullrefresh)
+		fullrefresh = 1;
+}
+
 #if 0
 static uae_u8 pal64 (uae_u8 v)
 {
