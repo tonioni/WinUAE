@@ -451,9 +451,7 @@ typedef struct {
     uae_u32 next;
 } regacc;
 
-#ifndef CPU_x86_64
 #define JIT_EXCEPTION_HANDLER
-#endif
 
 /* ARAnyM uses fpu_register name, used in scratch_t */
 /* FIXME: check that no ARAnyM code assumes different floating point type */

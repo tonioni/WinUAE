@@ -3796,7 +3796,9 @@ void build_comp(void)
 #endif
 	raw_init_cpu();
 #ifdef NATMEM_OFFSET
+#ifdef JIT_EXCEPTION_HANDLER
 	install_exception_handler();
+#endif
 #endif
 
 	jit_log("Building compiler function tables");
