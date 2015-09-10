@@ -385,6 +385,13 @@ static bool execution_order(const TCHAR *input, double *outval)
 		return ok;
 }
 
+static bool is_separator(TCHAR c)
+{
+	if (is_operator(c))
+		return true;
+	return c == 0 || c == ')' || c == ' ';
+}
+
 static bool parse_values(const TCHAR *ins, TCHAR *out)
 {
 	int ident = 0;
@@ -401,6 +408,18 @@ static bool parse_values(const TCHAR *ins, TCHAR *out)
 	}
 	while (*in) {
 		TCHAR *instart = in;
+		if (!_tcsncmp(in, _T("true"), 4) && is_separator(in[4])) {
+			in[0] = '1';
+			in[1] = ' ';
+			in[2] = ' ';
+			in[3] = ' ';
+		} else if (!_tcsncmp(in, _T("false"), 5) && is_separator(in[5])) {
+			in[0] = '0';
+			in[1] = ' ';
+			in[2] = ' ';
+			in[3] = ' ';
+			in[4] = ' ';
+		}
 		if (_istdigit (*in)) {
 			if (ident >= MAX_VALUES)
 				return false;
