@@ -424,6 +424,11 @@ static void sigsegv_handler(int signum, siginfo_t *info, void *context)
 
 static void install_exception_handler(void)
 {
+#ifdef JIT_EXCEPTION_HANDLER
+	if (veccode == NULL) {
+		veccode = (uae_u8 *) uae_vm_alloc(256, UAE_VM_32BIT, UAE_VM_READ_WRITE_EXECUTE);
+	}
+#endif
 #ifdef USE_STRUCTURED_EXCEPTION_HANDLING
 	/* Structured exception handler is installed in main.cpp */
 #elif defined(_WIN32)

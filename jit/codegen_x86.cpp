@@ -3604,7 +3604,7 @@ cpuid(uae_u32 op, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx)
 #endif
 	set_target(tmp);
 
-	((compop_func*)cpuid_space)(0);
+	((cpuop_func*)cpuid_space)(0);
 	if (eax != NULL) *eax = s_eax;
 	if (ebx != NULL) *ebx = s_ebx;
 	if (ecx != NULL) *ecx = s_ecx;

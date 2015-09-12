@@ -150,6 +150,11 @@ static inline int distrust_addr(void)
 #else
 #define DEBUG 0
 #include "debug.h"
+
+#ifndef WIN32
+#define PROFILE_COMPILE_TIME		1
+#define PROFILE_UNTRANSLATED_INSNS	1
+#endif
 #endif
 
 # include <csignal>
@@ -205,7 +210,7 @@ static int untranslated_compfn(const void *e1, const void *e2)
 static compop_func *compfunctbl[65536];
 static compop_func *nfcompfunctbl[65536];
 #ifdef NOFLAGS_SUPPORT
-static compop_func *nfcpufunctbl[65536];
+static cpuop_func *nfcpufunctbl[65536];
 #endif
 uae_u8* comp_pc_p;
 
@@ -256,6 +261,8 @@ static int		optcount[10]		= {
 #ifdef UAE
 /* FIXME: op_properties is currently in compemu.h */
 
+op_properties prop[65536];
+
 static inline bool is_const_jump(uae_u32 opcode)
 {
 	return prop[opcode].is_const_jump != 0;
@@ -289,7 +296,7 @@ static inline bool may_trap(uae_u32 opcode)
 static inline unsigned int cft_map (unsigned int f)
 {
 #ifndef HAVE_GET_WORD_UNSWAPPED
-    return f;
+	return f;
 #else
 	return ((f >> 8) & 255) | ((f & 255) << 8);
 #endif
@@ -329,20 +336,23 @@ static void* popall_check_checksum=NULL;
  * UPDATE: We now use those entries to store the start of the linked
  * lists that we maintain for each hash result.
  */
-static cacheline cache_tags[TAGSIZE];
+static
+cacheline cache_tags[TAGSIZE];
 int letit=0;
-static blockinfo* hold_bi[MAX_HOLD_BI];
-static blockinfo* active;
-static blockinfo* dormant;
-
-op_properties prop[65536];
+static
+blockinfo* hold_bi[MAX_HOLD_BI];
+static
+blockinfo* active;
+static
+blockinfo* dormant;
 
 #ifdef NOFLAGS_SUPPORT
 /* 68040 */
-extern const struct comptbl op_smalltbl_0_nf[];
+extern const struct cputbl op_smalltbl_0_nf[];
 #endif
 extern const struct comptbl op_smalltbl_0_comp_nf[];
 extern const struct comptbl op_smalltbl_0_comp_ff[];
+
 #ifdef NOFLAGS_SUPPORT
 /* 68020 + 68881 */
 extern const struct cputbl op_smalltbl_1_nf[];
@@ -356,9 +366,12 @@ extern const struct cputbl op_smalltbl_4_nf[];
 extern const struct cputbl op_smalltbl_5_nf[];
 #endif
 
-static bigstate live;
-static smallstate empty_ss;
-static smallstate default_ss;
+static
+bigstate live;
+static
+smallstate empty_ss;
+static
+smallstate default_ss;
 static int optlev;
 
 static int writereg(int r, int size);
@@ -2543,7 +2556,8 @@ void compiler_exit(void)
 #endif
 }
 
-#if 0
+#ifdef UAE
+#else
 bool compiler_use_jit(void)
 {
 	// Check for the "jit" prefs item
@@ -3284,12 +3298,6 @@ static inline uae_u8 *alloc_code(uae_u32 size)
 
 void alloc_cache(void)
 {
-#ifdef JIT_EXCEPTION_HANDLER
-	if (veccode == NULL) {
-		veccode = alloc_code(256);
-		vm_protect(veccode, 256, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE);
-	}
-#endif
 	if (compiled_code) {
 		flush_icache_hard(0, 3);
 		vm_release(compiled_code, cache_size * 1024);
@@ -3781,7 +3789,6 @@ static bool merge_blacklist()
 void build_comp(void)
 {
 	int i;
-	int jumpcount=0;
 	unsigned long opcode;
 	const struct comptbl* tbl=op_smalltbl_0_comp_ff;
 	const struct comptbl* nftbl=op_smalltbl_0_comp_nf;
@@ -3795,6 +3802,7 @@ void build_comp(void)
 		: op_smalltbl_5_nf);
 #endif
 	raw_init_cpu();
+
 #ifdef NATMEM_OFFSET
 #ifdef JIT_EXCEPTION_HANDLER
 	install_exception_handler();
@@ -3804,10 +3812,10 @@ void build_comp(void)
 	jit_log("Building compiler function tables");
 	
 	for (opcode = 0; opcode < 65536; opcode++) {
+		reset_compop(opcode);
 #ifdef NOFLAGS_SUPPORT
 		nfcpufunctbl[opcode] = op_illg;
 #endif
-		reset_compop(opcode);
 		prop[opcode].use_flags = 0x1f;
 		prop[opcode].set_flags = 0x1f;
 		prop[opcode].is_jump=1;
@@ -3840,15 +3848,14 @@ void build_comp(void)
 		compop_func *f;
 		compop_func *nff;
 #ifdef NOFLAGS_SUPPORT
-		compop_func *nfcf;
+		cpuop_func *nfcf;
 #endif
 		int isjmp,isaddx,iscjmp;
-		int lvl;
 
-		lvl = (currprefs.cpu_model - 68000) / 10;
-		if (lvl > 4)
-			lvl--;
-		if (table68k[opcode].mnemo == i_ILLG || table68k[opcode].clev > lvl)
+		int cpu_level = (currprefs.cpu_model - 68000) / 10;
+		if (cpu_level > 4)
+			cpu_level--;
+		if ((instrmnem)table68k[opcode].mnemo == i_ILLG || table68k[opcode].clev > cpu_level)
 			continue;
 
 		if (table68k[opcode].handler != -1) {
