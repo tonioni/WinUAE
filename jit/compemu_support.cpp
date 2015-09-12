@@ -102,8 +102,6 @@
 #define VM_MAP_FAILED UAE_VM_ALLOC_FAILED
 
 #define UNUSED(x)
-/* FIXME: Looks like HAVE_GET_WORD_UNSWAPPED should be defined for little-endian / ARAnyM */
-#define HAVE_GET_WORD_UNSWAPPED
 #include "uae.h"
 #include "uae/log.h"
 #define jit_log(format, ...) \
@@ -295,10 +293,14 @@ static inline bool may_trap(uae_u32 opcode)
 
 static inline unsigned int cft_map (unsigned int f)
 {
+#ifdef UAE
+	return ((f >> 8) & 255) | ((f & 255) << 8);
+#else
 #ifndef HAVE_GET_WORD_UNSWAPPED
 	return f;
 #else
 	return ((f >> 8) & 255) | ((f & 255) << 8);
+#endif
 #endif
 }
 
@@ -563,7 +565,11 @@ static inline void invalidate_block(blockinfo* bi)
 	int i;
 
 	bi->optlevel=0;
+#ifdef UAE
 	bi->count=currprefs.optcount[0]-1;
+#else
+	bi->count=optcount[0]-1;
+#endif
 	bi->handler=NULL;
 	bi->handler_to_use=(cpuop_func*)popall_execute_normal;
 	bi->direct_handler=NULL;
@@ -2601,7 +2607,11 @@ void init_comp(void)
 
 	for (i=0;i<VREGS;i++) {
 		if (i<16) { /* First 16 registers map to 68k registers */
+#ifdef UAE
 			live.state[i].mem=&regs.regs[i];
+#else
+			live.state[i].mem=((uae_u32*)&regs)+i;
+#endif
 			live.state[i].needflush=NF_TOMEM;
 			set_status(i,INMEM);
 		}
@@ -2629,12 +2639,20 @@ void init_comp(void)
 
 	for (i=0;i<VFREGS;i++) {
 		if (i<8) { /* First 8 registers map to 68k FPU registers */
+#ifdef UAE
 			live.fate[i].mem=(uae_u32*)(&regs.fp[i].fp);
+#else
+			live.fate[i].mem=(uae_u32*)fpu_register_address(i);
+#endif
 			live.fate[i].needflush=NF_TOMEM;
 			live.fate[i].status=INMEM;
 		}
 		else if (i==FP_RESULT) {
+#ifdef UAE
 			live.fate[i].mem=(uae_u32*)(&regs.fp_result);
+#else
+			live.fate[i].mem=(uae_u32*)(&fpu.result);
+#endif
 			live.fate[i].needflush=NF_TOMEM;
 			live.fate[i].status=INMEM;
 		}
@@ -3659,8 +3677,10 @@ static inline void create_popalls(void)
 	}
 	raw_jmp(uae_p32(check_checksum));
 
+#ifdef UAE
 #ifdef USE_UDIS86
 	UDISFN(pushall_call_handler, get_target());
+#endif
 #endif
 	// no need to further write into popallspace
 	vm_protect(popallspace, POPALLSPACE_SIZE, VM_PAGE_READ | VM_PAGE_EXECUTE);
@@ -3712,7 +3732,10 @@ void compemu_reset(void)
 	set_cache_state(0);
 }
 
+#ifdef UAE
+#else
 // OPCODE is in big endian format, use cft_map() beforehand, if needed.
+#endif
 static inline void reset_compop(int opcode)
 {
 	compfunctbl[opcode] = NULL;
@@ -3804,8 +3827,13 @@ void build_comp(void)
 	raw_init_cpu();
 
 #ifdef NATMEM_OFFSET
+#ifdef UAE
 #ifdef JIT_EXCEPTION_HANDLER
 	install_exception_handler();
+#endif
+#else
+	signal(SIGSEGV, (sighandler_t)segfault_vec);
+	D(panicbug("<JIT compiler> : NATMEM OFFSET handler installed"));
 #endif
 #endif
 
@@ -4145,9 +4173,15 @@ void compiler_dumpstate(void)
 }
 #endif
 
+#ifdef UAE
 void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 {
 	if (letit && compiled_code && currprefs.cpu_model>=68020) {
+#else
+static void compile_block(cpu_history* pc_hist, int blocklen)
+{
+	if (letit && compiled_code) {
+#endif
 #if PROFILE_COMPILE_TIME
 		compile_count++;
 		clock_t start_time = clock();
@@ -4199,9 +4233,15 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 		}
 		if (bi->count==-1) {
 			optlev++;
+#ifdef UAE
 			while (!currprefs.optcount[optlev])
 				optlev++;
 			bi->count=currprefs.optcount[optlev]-1;
+#else
+			while (!optcount[optlev])
+				optlev++;
+			bi->count=optcount[optlev]-1;
+#endif
 		}
 		current_block_pc_p=(uintptr)pc_hist[0].location;
 
@@ -4310,9 +4350,13 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					cpuop_func **cputbl;
 					compop_func **comptbl;
 					uae_u32 opcode=DO_GET_OPCODE(pc_hist[i].location);
-					special_mem=pc_hist[i].specmem;
 					needed_flags=(liveflags[i+1] & prop[opcode].set_flags);
+#ifdef UAE
+					special_mem=pc_hist[i].specmem;
 					if (!needed_flags && currprefs.compnf) {
+#else
+					if (!needed_flags) {
+#endif
 #ifdef NOFLAGS_SUPPORT
 						cputbl=nfcpufunctbl;
 #else
@@ -4368,17 +4412,17 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 							was_comp=0;
 						}
 						raw_mov_l_ri(REG_PAR1,(uae_u32)opcode);
-						//raw_mov_l_ri(REG_PAR2,uae_p32(&regs));
 #if USE_NORMAL_CALLING_CONVENTION
-						//raw_push_l_r(REG_PAR2);
 						raw_push_l_r(REG_PAR1);
 #endif
 						raw_mov_l_mi((uintptr)&regs.pc_p,
 							(uintptr)pc_hist[i].location);
 						raw_call((uintptr)cputbl[opcode]);
-						//raw_add_l_mi((uintptr)&oink,1); // FIXME
+#if PROFILE_UNTRANSLATED_INSNS
+						// raw_cputbl_count[] is indexed with plain opcode (in m68k order)
+						raw_add_l_mi((uintptr)&raw_cputbl_count[cft_map(opcode)],1);
+#endif
 #if USE_NORMAL_CALLING_CONVENTION
-						//raw_inc_sp(8);
 						raw_inc_sp(4);
 #endif
 
@@ -4390,7 +4434,9 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 							raw_jz_b_oponly();
 							branchadd=(uae_s8*)get_target();
 							emit_byte(0);
+#ifdef UAE
 							raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
+#endif
 							raw_jmp((uintptr)popall_do_nothing);
 							*branchadd=(uintptr)get_target()-(uintptr)branchadd-1;
 						}
@@ -4452,8 +4498,13 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 				/* predicted outcome */
 				tbi=get_blockinfo_addr_new((void*)t1,1);
 				match_states(tbi);
+#ifdef UAE
 				raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
 				raw_jcc_l_oponly(9);
+#else
+				raw_cmp_l_mi((uintptr)specflags,0);
+				raw_jcc_l_oponly(NATIVE_CC_EQ);
+#endif
 				tba=(uae_u32*)get_target();
 				emit_jmp_target(get_handler(t1));
 				raw_mov_l_mi((uintptr)&regs.pc_p,t1);
@@ -4469,8 +4520,13 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 				match_states(tbi);
 
 				//flush(1); /* Can only get here if was_comp==1 */
+#ifdef UAE
 				raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
 				raw_jcc_l_oponly(9);
+#else
+				raw_cmp_l_mi((uintptr)specflags,0);
+				raw_jcc_l_oponly(NATIVE_CC_EQ);
+#endif
 				tba=(uae_u32*)get_target();
 				emit_jmp_target(get_handler(t2));
 				raw_mov_l_mi((uintptr)&regs.pc_p,t2);
@@ -4491,8 +4547,13 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					raw_and_l_ri(r,TAGMASK);
 					int r2 = (r==0) ? 1 : 0;
 					raw_mov_l_ri(r2,(uintptr)popall_do_nothing);
+#ifdef UAE
 					raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
 					raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,9);
+#else
+					raw_cmp_l_mi((uintptr)specflags,0);
+					raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,NATIVE_CC_EQ);
+#endif
 					raw_jmp_r(r2);
 				}
 				else if (was_comp && isconst(PC_P)) {
@@ -4503,8 +4564,13 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					tbi=get_blockinfo_addr_new((void*)(uintptr)v,1);
 					match_states(tbi);
 
+#ifdef UAE
 					raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
 					raw_jcc_l_oponly(9);
+#else
+					raw_cmp_l_mi((uintptr)specflags,0);
+					raw_jcc_l_oponly(NATIVE_CC_EQ);
+#endif
 					tba=(uae_u32*)get_target();
 					emit_jmp_target(get_handler(v));
 					raw_mov_l_mi((uintptr)&regs.pc_p,v);
@@ -4517,8 +4583,13 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 					raw_and_l_ri(r,TAGMASK);
 					int r2 = (r==0) ? 1 : 0;
 					raw_mov_l_ri(r2,(uintptr)popall_do_nothing);
+#ifdef UAE
 					raw_sub_l_mi(uae_p32(&countdown),scaled_cycles(totcycles));
 					raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,9);
+#else
+					raw_cmp_l_mi((uintptr)specflags,0);
+					raw_cmov_l_rm_indexed(r2,(uintptr)cache_tags,r,SIZEOF_VOID_P,NATIVE_CC_EQ);
+#endif
 					raw_jmp_r(r2);
 				}
 			}
@@ -4586,8 +4657,10 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 		log_dump();
 		align_target(align_jumps);
 
+#ifdef UAE
 #ifdef USE_UDIS86
 		UDISFN(current_block_start_target, target)
+#endif
 #endif
 
 		/* This is the non-direct handler */
@@ -4620,10 +4693,16 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 #if PROFILE_COMPILE_TIME
 		compile_time += (clock() - start_time);
 #endif
-
+#ifdef UAE
 		/* Account for compilation time */
 		do_extra_cycles(totcycles);
 	}
+#else
+	}
+
+	/* Account for compilation time */
+	cpu_do_check_ticks();
+#endif
 }
 
 #ifdef UAE
