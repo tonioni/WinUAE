@@ -220,7 +220,13 @@ static int handle_satn_stop(ESPState *s)
 
 static void write_response(ESPState *s)
 {
-    s->ti_buf[0] = s->status;
+	// Multi Evolution driver reads FIFO after
+	// Message Accepted command. This makes
+	// sure wrong buffer is not read.
+	s->pio_on = 0;
+	s->async_buf = NULL;
+
+	s->ti_buf[0] = s->status;
     s->ti_buf[1] = 0;
     if (s->dma) {
         s->dma_memory_write(s->dma_opaque, s->ti_buf, 2);
@@ -434,11 +440,12 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
             if ((s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0 || s->pio_on) {
                 /* Data out.  */
                 //write_log("esp: PIO data read not implemented\n");
-				if (s->async_buf)
+				if (s->async_buf) {
 	                s->rregs[ESP_FIFO] = s->async_buf[s->ti_rptr++];
-				else
+					s->pio_on = 1;
+				} else {
 					s->rregs[ESP_FIFO] = 0;
-				s->pio_on = 1;
+				}
 				if (s->ti_size == 1 && s->current_req) {
 					scsiesp_req_continue(s->current_req);
 				}
