@@ -1,5 +1,28 @@
 
-Beta 11
+Beta 12:
+
+- Boolean config true value converts to 1 and false to zero before doing any calculations.
+  someboolentry=[1-someboolentry] custom even string now works as expected.
+- Bridgeboard in VGA graphics mode only updated part of display (and sometimes nothing was updated).
+- ESP (53C94, FAS216 etc..) SCSI updates to support Multi Evolution (Needs FIFO used count and does odd things)
+- Multi Evolution 500/2000 SCSI controller emulation added.
+- XT bridgeboard timer gate 2 pin was not hooked up in DOSBox CPU mode. ("Timer2 control function failed")
+- Removed RTC status bit hack, PIC_TickIndex() works now. ("The Real Time Clock has not been initialized")
+- Delay bridgeboard emulated MDA/CGA VRAM write interrupts until next vblank to reduce number of
+  interrupts. (Real hardware may or may not do same)
+- Initialize bridgeboard add-on IDE controllers after Z2 boards (was after Z3 which prevents them to
+  initialize if used KS ROM does not support Z3 boards and at least one Z3 board was enabled).
+- Adjusted MDA/CGA emulation mode hsync/vsync reporting, some programs had really slow screen updates.
+
+Multi Evolution 500/2000:
+- Not autoconfig but has boot ROM at $f00000 region. (Autoconfig is only for RAM expansion)
+- Boots also under KS 1.2. (Boot ROM does some ugly system patches)
+- Long word wide fake DMA.
+- Boot image that also shows SCSI detection diagnostics messages.
+- At least v3.0 ROM version driver does odd things, it sends MESSAGE ACCEPTED command first, then
+  it reads the message byte.
+
+Beta 11:
 
 - Fixed A2386SX default video mode configuration, it is software controlled, not jumper like in
   older models. Fixes unexpected "Invalid configuration information" BIOS messages.
@@ -120,7 +143,7 @@ Beta 6:
   have BIOS support for AT IDE. At least fdisk and formatting confirmed working.
 - Added IDE commands 0x40 and 0x41 (READ VERIFY SECTOR(S)), BIOS code uses it during formatting.
 - Added support for XTIDE Universal BIOS (https://code.google.com/p/xtideuniversalbios/) See notes.
-- Added supprtt for IDE emulation 8-bit data port width. (XT mode XTIDE Universal BIOS)
+- Added support for IDE emulation 8-bit data port width. (XT mode XTIDE Universal BIOS)
 - Only show SASI harddrive types if selected controller uses SASI-like commands.
 - Cirrus Logic hardware emulation text modes used graphics mode resolution when selecting host screen
   size. Larger than 8 pixel font width text mode was too narrow.
