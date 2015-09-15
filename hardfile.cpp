@@ -1453,6 +1453,12 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 				p[2] = 0x20;
 				p[3] = 0;
 				r[0] += 4;
+			} else if (pcode == 1) {
+				// error recovery page
+				p[0] = 1;
+				p[1] = 0x0a;
+				r[0] += p[1] + 2;
+				// return defaults (0)
 			} else if (pcode == 3) {
 				// format parameters
 				p[0] = 3;
