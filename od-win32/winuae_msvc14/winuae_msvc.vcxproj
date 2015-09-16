@@ -298,6 +298,7 @@
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <IgnoreAllDefaultLibraries>
       </IgnoreAllDefaultLibraries>
+      <BaseAddress>0x40000000</BaseAddress>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>..\resources\winuae64.exe.manifest</AdditionalManifestFiles>
@@ -526,6 +527,7 @@
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <TargetMachine>MachineX64</TargetMachine>
       <LargeAddressAware>true</LargeAddressAware>
+      <BaseAddress>0x40000000</BaseAddress>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>..\resources\winuae64.exe.manifest</AdditionalManifestFiles>
@@ -597,6 +599,7 @@
       <FixedBaseAddress>false</FixedBaseAddress>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <TargetMachine>MachineX64</TargetMachine>
+      <BaseAddress>0x40000000</BaseAddress>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>..\resources\winuae64.exe.manifest</AdditionalManifestFiles>
@@ -743,6 +746,7 @@
       <FixedBaseAddress>false</FixedBaseAddress>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <TargetMachine>MachineX64</TargetMachine>
+      <BaseAddress>0x40000000</BaseAddress>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>..\resources\winuae64.exe.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
