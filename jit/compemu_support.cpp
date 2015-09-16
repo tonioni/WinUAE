@@ -294,7 +294,7 @@ static inline bool may_trap(uae_u32 opcode)
 static inline unsigned int cft_map (unsigned int f)
 {
 #ifdef UAE
-	return ((f >> 8) & 255) | ((f & 255) << 8);
+	return f;
 #else
 #ifndef HAVE_GET_WORD_UNSWAPPED
 	return f;
@@ -3850,25 +3850,25 @@ void build_comp(void)
 	}
 
 	for (i = 0; tbl[i].opcode < 65536; i++) {
-		int isjmp=(tbl[i].specific&1);
-		int isaddx=(tbl[i].specific&8);
-		int iscjmp=(tbl[i].specific&16);
+		int isjmp = (tbl[i].specific & 1);
+		int isaddx = (tbl[i].specific & 8);
+		int iscjmp = (tbl[i].specific & 16);
 
-		prop[tbl[i].opcode].is_jump=isjmp;
-		prop[tbl[i].opcode].is_const_jump=iscjmp;
-		prop[tbl[i].opcode].is_addx=isaddx;
-		compfunctbl[tbl[i].opcode] = tbl[i].handler;
+		prop[cft_map(tbl[i].opcode)].is_jump = isjmp;
+		prop[cft_map(tbl[i].opcode)].is_const_jump = iscjmp;
+		prop[cft_map(tbl[i].opcode)].is_addx = isaddx;
+		compfunctbl[cft_map(tbl[i].opcode)] = tbl[i].handler;
 	}
 	for (i = 0; nftbl[i].opcode < 65536; i++) {
-		nfcompfunctbl[nftbl[i].opcode] = nftbl[i].handler;
+		nfcompfunctbl[cft_map(nftbl[i].opcode)] = nftbl[i].handler;
 #ifdef NOFLAGS_SUPPORT
-		nfcpufunctbl[nftbl[i].opcode] = nfctbl[i].handler;
+		nfcpufunctbl[cft_map(nftbl[i].opcode)] = nfctbl[i].handler;
 #endif
 	}
 
 #ifdef NOFLAGS_SUPPORT
 	for (i = 0; nfctbl[i].handler; i++) {
-		nfcpufunctbl[nfctbl[i].opcode] = nfctbl[i].handler;
+		nfcpufunctbl[cft_map(nfctbl[i].opcode)] = nfctbl[i].handler;
 	}
 #endif
 
@@ -3887,36 +3887,36 @@ void build_comp(void)
 			continue;
 
 		if (table68k[opcode].handler != -1) {
-			f = compfunctbl[table68k[opcode].handler];
-			nff = nfcompfunctbl[table68k[opcode].handler];
+			f = compfunctbl[cft_map(table68k[opcode].handler)];
+			nff = nfcompfunctbl[cft_map(table68k[opcode].handler)];
 #ifdef NOFLAGS_SUPPORT
-			nfcf = nfcpufunctbl[table68k[opcode].handler];
+			nfcf = nfcpufunctbl[cft_map(table68k[opcode].handler)];
 #endif
-			isjmp=prop[table68k[opcode].handler].is_jump;
-			iscjmp=prop[table68k[opcode].handler].is_const_jump;
-			isaddx=prop[table68k[opcode].handler].is_addx;
-			prop[opcode].is_jump=isjmp;
-			prop[opcode].is_const_jump=iscjmp;
-			prop[opcode].is_addx=isaddx;
-			compfunctbl[opcode] = f;
-			nfcompfunctbl[opcode] = nff;
+			isjmp = prop[cft_map(table68k[opcode].handler)].is_jump;
+			iscjmp = prop[cft_map(table68k[opcode].handler)].is_const_jump;
+			isaddx = prop[cft_map(table68k[opcode].handler)].is_addx;
+			prop[cft_map(opcode)].is_jump = isjmp;
+			prop[cft_map(opcode)].is_const_jump = iscjmp;
+			prop[cft_map(opcode)].is_addx = isaddx;
+			compfunctbl[cft_map(opcode)] = f;
+			nfcompfunctbl[cft_map(opcode)] = nff;
 #ifdef NOFLAGS_SUPPORT
 			Dif (nfcf == op_illg)
 				abort();
-			nfcpufunctbl[opcode] = nfcf;
+			nfcpufunctbl[cft_map(opcode)] = nfcf;
 #endif
 		}
-		prop[opcode].set_flags =table68k[opcode].flagdead;
-		prop[opcode].use_flags =table68k[opcode].flaglive;
+		prop[cft_map(opcode)].set_flags = table68k[opcode].flagdead;
+		prop[cft_map(opcode)].use_flags = table68k[opcode].flaglive;
 		/* Unconditional jumps don't evaluate condition codes, so they
 		 * don't actually use any flags themselves */
-		if (prop[opcode].is_const_jump)
-			prop[opcode].use_flags=0;
+		if (prop[cft_map(opcode)].is_const_jump)
+			prop[cft_map(opcode)].use_flags = 0;
 	}
 #ifdef NOFLAGS_SUPPORT
 	for (i = 0; nfctbl[i].handler != NULL; i++) {
 		if (nfctbl[i].specific)
-			nfcpufunctbl[tbl[i].opcode] = nfctbl[i].handler;
+			nfcpufunctbl[cft_map(tbl[i].opcode)] = nfctbl[i].handler;
 	}
 #endif
 
@@ -3926,7 +3926,7 @@ void build_comp(void)
 
 	count=0;
 	for (opcode = 0; opcode < 65536; opcode++) {
-		if (compfunctbl[opcode])
+		if (compfunctbl[cft_map(opcode)])
 			count++;
 	}
 	jit_log("Supposedly %d compileable opcodes!",count);
@@ -4131,7 +4131,11 @@ static inline void disasm_m68k_block(uint8 *start, size_t length)
 #endif
 
 #ifdef UAE
-#define DO_GET_OPCODE(a) (cft_map((uae_u16)*(a)))
+static inline unsigned int get_opcode_cft_map(unsigned int f)
+{
+	return ((f >> 8) & 255) | ((f & 255) << 8);
+}
+#define DO_GET_OPCODE(a) (get_opcode_cft_map((uae_u16)*(a)))
 #else
 #ifdef HAVE_GET_WORD_UNSWAPPED
 # define DO_GET_OPCODE(a) (do_get_mem_word_unswapped((uae_u16 *)(a)))
