@@ -573,6 +573,17 @@ void write_log (const TCHAR *format, ...)
 			_ftprintf (debugfile, _T("%s"), ts);
 		_ftprintf (debugfile, _T("%s"), bufp);
 	}
+
+#if 0
+	static int is_debugger_present = -1;
+	if (is_debugger_present == -1) {
+		is_debugger_present = IsDebuggerPresent();
+	}
+	if (is_debugger_present) {
+		OutputDebugString(bufp);
+	}
+#endif
+
 	lfdetected = 0;
 	if (_tcslen (bufp) > 0 && bufp[_tcslen (bufp) - 1] == '\n')
 		lfdetected = 1;

@@ -135,7 +135,12 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 {
 	uae_u8 *fault_pc = (uae_u8 *) CONTEXT_PC(context);
 #ifdef CPU_64_BIT
-	if (fault_addr > 0xffffffff) {
+#if 0
+	if ((fault_addr & 0xffffffff00000000) == 0xffffffff00000000) {
+		fault_addr &= 0xffffffff;
+	}
+#endif
+	if (fault_addr > (uintptr_t) 0xffffffff) {
 		return 0;
 	}
 #endif
@@ -402,6 +407,14 @@ LONG WINAPI EvalException(LPEXCEPTION_POINTERS info)
 	return EXCEPTION_CONTINUE_SEARCH;
 }
 
+static void *installed_vector_handler;
+
+static LONG CALLBACK JITVectoredHandler(PEXCEPTION_POINTERS info)
+{
+//	write_log(_T("JitVectoredHandler\n"));
+	return EvalException(info);
+}
+
 #elif defined(HAVE_CONTEXT_T)
 
 static void sigsegv_handler(int signum, siginfo_t *info, void *context)
@@ -432,8 +445,14 @@ static void install_exception_handler(void)
 #ifdef USE_STRUCTURED_EXCEPTION_HANDLING
 	/* Structured exception handler is installed in main.cpp */
 #elif defined(_WIN32)
-	write_log (_T("JIT: Installing unhandled exception filter\n"));
+#if 1
+	write_log(_T("JIT: Installing vectored exception handler\n"));
+	installed_vector_handler = AddVectoredExceptionHandler(
+		0, JITVectoredHandler);
+#else
+	write_log(_T("JIT: Installing unhandled exception filter\n"));
 	SetUnhandledExceptionFilter(EvalException);
+#endif
 #elif defined(HAVE_CONTEXT_T)
 	write_log (_T("JIT: Installing segfault handler\n"));
 	struct sigaction act;

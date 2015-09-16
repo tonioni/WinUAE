@@ -79,6 +79,9 @@ union cacheline {
 #error implementation in progress
 #endif
 
+#ifdef UAE
+/* Temporarily disabled due to some issues on x86-64 */
+#else
 /* (gb) When on, this option can save save up to 30% compilation time
  *  when many lazy flushes occur (e.g. apps in MacOS 8.x).
  */
@@ -89,6 +92,7 @@ union cacheline {
 
 /* Use code inlining, aka follow-up of constant jumps */
 #define USE_INLINING 1
+#endif
 
 /* Inlining requires the chained checksuming information */
 #if USE_INLINING
@@ -486,7 +490,12 @@ STATIC_INLINE int end_block(uae_u16 opcode)
 #ifdef _WIN32
 LONG WINAPI EvalException(LPEXCEPTION_POINTERS info);
 #if defined(_MSC_VER) && !defined(NO_WIN32_EXCEPTION_HANDLER)
+#ifdef _WIN64
+/* Structured exception handling is table based for Windows x86-64, so
+ * Windows will not be able to find the exception handler. */
+#else
 #define USE_STRUCTURED_EXCEPTION_HANDLING
+#endif
 #endif
 #endif
 
@@ -495,14 +504,16 @@ LONG WINAPI EvalException(LPEXCEPTION_POINTERS info);
 #endif /* COMPEMU_H */
 
 #ifdef CPU_64_BIT
-static inline uae_u32 check_uae_p32(uae_u64 address)
+static inline uae_u32 check_uae_p32(uae_u64 address, const char *file, int line)
 {
-	if (address > 0xffffffffLL) {
+	if (address > (uintptr_t) 0xffffffff) {
+		write_log("JIT: 64-bit pointer (0x%llx) at %s:%d (fatal)\n",
+			address, file, line);
 		abort();
 	}
 	return (uae_u32) address;
 }
-#define uae_p32(x) (check_uae_p32((uae_u64)(x)))
+#define uae_p32(x) (check_uae_p32((uae_u64)(x), __FILE__, __LINE__))
 #else
 #define uae_p32(x) ((uae_u32)(x))
 #endif

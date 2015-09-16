@@ -118,9 +118,25 @@ static void *uae_vm_alloc_with_flags(uae_u32 size, int flags, int protect)
 	void *address = NULL;
 	uae_log("uae_vm_alloc(%u, %d, %d)\n", size, flags, protect);
 #ifdef _WIN32
-	int va_type = MEM_COMMIT;
+	int va_type = MEM_COMMIT | MEM_RESERVE;
 	int va_protect = protect_to_native(protect);
-	address = VirtualAlloc(NULL, size, va_type, va_protect);
+#ifdef CPU_64_BIT
+	if (flags & UAE_VM_32BIT) {
+		/* Stupid algorithm to find available space, but should
+		 * work well enough when there is not a lot of allocations. */
+		uae_u8 *p = (uae_u8 *) 0x50000000;
+		while (address == NULL) {
+			address = VirtualAlloc(p, size, va_type, va_protect);
+			p += uae_vm_page_size();
+			if (p > (void*) 0x60000000) {
+				break;
+			}
+		}
+	}
+#endif
+	if (!address) {
+		address = VirtualAlloc(NULL, size, va_type, va_protect);
+	}
 #else
 	//size = size < uae_vm_page_size() ? uae_vm_page_size() : size;
 	int mmap_flags = MAP_PRIVATE | MAP_ANON;
@@ -132,11 +148,15 @@ static void *uae_vm_alloc_with_flags(uae_u32 size, int flags, int protect)
 #endif
 	address = mmap(0, size, mmap_prot, mmap_flags, -1, 0);
 	if (address == MAP_FAILED) {
-		uae_log("uae_vm_alloc(%u, %d, %d) mmap failed (%d)\n",
-				size, flags, protect, errno);
+		address = NULL;
 		return NULL;
 	}
 #endif
+	if (address == NULL) {
+	    uae_log("uae_vm_alloc(%u, %d, %d) mmap failed (%d)\n",
+		    size, flags, protect, errno);
+	    return NULL;
+	}
 #ifdef TRACK_ALLOCATIONS
 	add_allocation(address, size);
 #endif

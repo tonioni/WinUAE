@@ -241,10 +241,10 @@ typedef unsigned short	_us;
 typedef signed int	_sl;
 typedef unsigned int	_ul;
 
-#define _UC(X)		((_uc  )(unsigned long)(X))
-#define _US(X)		((_us  )(unsigned long)(X))
-#define _SL(X)		((_sl  )(unsigned long)(X))
-#define _UL(X)		((_ul  )(unsigned long)(X))
+#define _UC(X)		((_uc  )(uintptr_t)(X))
+#define _US(X)		((_us  )(uintptr_t)(X))
+#define _SL(X)		((_sl  )(uintptr_t)(X))
+#define _UL(X)		((_ul  )(uintptr_t)(X))
 
 #define _PUC(X)		((_uc *)(X))
 #define _PUS(X)		((_us *)(X))

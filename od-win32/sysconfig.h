@@ -153,7 +153,6 @@
 #ifdef WIN64
 #undef X86_MSVC_ASSEMBLY_MEMACCESS
 #undef X86_MSVC_ASSEMBLY
-#undef JIT
 #define X64_MSVC_ASSEMBLY
 #define SIZEOF_VOID_P 8
 #else
