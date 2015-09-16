@@ -81,6 +81,20 @@ typedef void *CONTEXT_T;
 #define CONTEXT_ESI(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_ESI])
 #define CONTEXT_EDI(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_EDI])
 
+#elif defined(__DARWIN_UNIX03) && defined(_STRUCT_X86_EXCEPTION_STATE32)
+
+typedef void *CONTEXT_T;
+#define HAVE_CONTEXT_T 1
+#define CONTEXT_EIP(context) (*((unsigned long *) &((ucontext_t *) context)->uc_mcontext->__ss.__eip))
+#define CONTEXT_EAX(context) (((ucontext_t *) context)->uc_mcontext->__ss.__eax)
+#define CONTEXT_ECX(context) (((ucontext_t *) context)->uc_mcontext->__ss.__ecx)
+#define CONTEXT_EDX(context) (((ucontext_t *) context)->uc_mcontext->__ss.__edx)
+#define CONTEXT_EBX(context) (((ucontext_t *) context)->uc_mcontext->__ss.__ebx)
+#define CONTEXT_ESP(context) (*((unsigned long *) &((ucontext_t *) context)->uc_mcontext->__ss.__esp))
+#define CONTEXT_EBP(context) (((ucontext_t *) context)->uc_mcontext->__ss.__ebp)
+#define CONTEXT_ESI(context) (((ucontext_t *) context)->uc_mcontext->__ss.__esi)
+#define CONTEXT_EDI(context) (((ucontext_t *) context)->uc_mcontext->__ss.__edi)
+
 #endif
 
 #if defined(CPU_x86_64)
@@ -460,6 +474,9 @@ static void install_exception_handler(void)
 	sigemptyset (&act.sa_mask);
 	act.sa_flags = SA_SIGINFO;
 	sigaction(SIGSEGV, &act, NULL);
+#ifdef MACOSX
+	sigaction(SIGBUS, &act, NULL);
+#endif
 #else
 	write_log (_T("JIT: No segfault handler installed\n"));
 #endif
