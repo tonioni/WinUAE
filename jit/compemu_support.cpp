@@ -124,24 +124,36 @@ extern bool canbang;
 static inline int distrust_byte(void)
 {
 	int distrust = currprefs.comptrustbyte;
+#ifdef JIT_ALWAYS_DISTRUST
+	distrust = 1;
+#endif
 	return distrust;
 }
 
 static inline int distrust_word(void)
 {
 	int distrust = currprefs.comptrustword;
+#ifdef JIT_ALWAYS_DISTRUST
+	distrust = 1;
+#endif
 	return distrust;
 }
 
 static inline int distrust_long(void)
 {
 	int distrust = currprefs.comptrustlong;
+#ifdef JIT_ALWAYS_DISTRUST
+	distrust = 1;
+#endif
 	return distrust;
 }
 
 static inline int distrust_addr(void)
 {
 	int distrust = currprefs.comptrustnaddr;
+#ifdef JIT_ALWAYS_DISTRUST
+	distrust = 1;
+#endif
 	return distrust;
 }
 
