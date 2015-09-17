@@ -303,6 +303,7 @@ static bool handle_ca(struct scsi_data *sd)
 			// command was aborted due to UA
 			sd->unit_attention = 0;
 		}
+		memset(sd->reply, 0, sizeof(sd->reply));
 		return true;
 	}
 
