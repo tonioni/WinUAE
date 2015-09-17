@@ -286,31 +286,31 @@ LENDFUNC(WRITE,NONE,2,raw_sub_w_ri,(RW2 d, IMM i))
 
 LOWFUNC(NONE,READ,2,raw_mov_l_rm,(W4 d, MEMR s))
 {
-	MOVLmr(s, X86_NOREG, X86_NOREG, 1, d);
+	ADDR32 MOVLmr(s, X86_NOREG, X86_NOREG, 1, d);
 }
 LENDFUNC(NONE,READ,2,raw_mov_l_rm,(W4 d, MEMR s))
 
 LOWFUNC(NONE,WRITE,2,raw_mov_l_mi,(MEMW d, IMM s))
 {
-	MOVLim(s, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 MOVLim(s, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,2,raw_mov_l_mi,(MEMW d, IMM s))
 
 LOWFUNC(NONE,WRITE,2,raw_mov_w_mi,(MEMW d, IMM s))
 {
-	MOVWim(s, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 MOVWim(s, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,2,raw_mov_w_mi,(MEMW d, IMM s))
 
 LOWFUNC(NONE,WRITE,2,raw_mov_b_mi,(MEMW d, IMM s))
 {
-	MOVBim(s, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 MOVBim(s, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,2,raw_mov_b_mi,(MEMW d, IMM s))
 
 LOWFUNC(WRITE,RMW,2,raw_rol_b_mi,(MEMRW d, IMM i))
 {
-	ROLBim(i, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 ROLBim(i, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(WRITE,RMW,2,raw_rol_b_mi,(MEMRW d, IMM i))
 
@@ -382,7 +382,7 @@ LENDFUNC(WRITE,NONE,2,raw_ror_w_ri,(RW2 r, IMM i))
 
 LOWFUNC(WRITE,READ,2,raw_or_l_rm,(RW4 d, MEMR s))
 {
-	ORLmr(s, X86_NOREG, X86_NOREG, 1, d);
+	ADDR32 ORLmr(s, X86_NOREG, X86_NOREG, 1, d);
 }
 LENDFUNC(WRITE,READ,2,raw_or_l_rm,(RW4 d, MEMR s))
 
@@ -526,7 +526,7 @@ LENDFUNC(READ,NONE,2,raw_setcc,(W1 d, IMM cc))
 
 LOWFUNC(READ,WRITE,2,raw_setcc_m,(MEMW d, IMM cc))
 {
-	SETCCim(cc, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 SETCCim(cc, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(READ,WRITE,2,raw_setcc_m,(MEMW d, IMM cc))
 
@@ -721,7 +721,7 @@ LOWFUNC(NONE,READ,3,raw_cmov_l_rm,(W4 d, IMM mem, IMM cond))
 	else { /* replacement using branch and mov */
 		uae_s8 *target_p = (uae_s8 *)x86_get_target() + 1;
 		JCCSii(cond^1, 0);
-		MOVLmr(mem, X86_NOREG, X86_NOREG, 1, d);
+		ADDR32 MOVLmr(mem, X86_NOREG, X86_NOREG, 1, d);
 		*target_p = (uintptr)x86_get_target() - ((uintptr)target_p + 1);
 	}
 }
@@ -801,25 +801,25 @@ LENDFUNC(NONE,WRITE,3,raw_mov_b_Rr,(R4 d, R1 s, IMM offset))
 
 LOWFUNC(NONE,NONE,3,raw_lea_l_brr,(W4 d, R4 s, IMM offset))
 {
-	LEALmr(offset, s, X86_NOREG, 1, d);
+	ADDR32 LEALmr(offset, s, X86_NOREG, 1, d);
 }
 LENDFUNC(NONE,NONE,3,raw_lea_l_brr,(W4 d, R4 s, IMM offset))
 
 LOWFUNC(NONE,NONE,5,raw_lea_l_brr_indexed,(W4 d, R4 s, R4 index, IMM factor, IMM offset))
 {
-	LEALmr(offset, s, index, factor, d);
+	ADDR32 LEALmr(offset, s, index, factor, d);
 }
 LENDFUNC(NONE,NONE,5,raw_lea_l_brr_indexed,(W4 d, R4 s, R4 index, IMM factor, IMM offset))
 
 LOWFUNC(NONE,NONE,4,raw_lea_l_rr_indexed,(W4 d, R4 s, R4 index, IMM factor))
 {
-	LEALmr(0, s, index, factor, d);
+	ADDR32 LEALmr(0, s, index, factor, d);
 }
 LENDFUNC(NONE,NONE,4,raw_lea_l_rr_indexed,(W4 d, R4 s, R4 index, IMM factor))
 
 LOWFUNC(NONE,NONE,4,raw_lea_l_r_scaled,(W4 d, R4 index, IMM factor))
 {
-	LEALmr(0, X86_NOREG, index, factor, d);
+	ADDR32 LEALmr(0, X86_NOREG, index, factor, d);
 }
 LENDFUNC(NONE,NONE,4,raw_lea_l_r_scaled,(W4 d, R4 index, IMM factor))
 
@@ -861,31 +861,31 @@ LENDFUNC(NONE,NONE,2,raw_mov_l_rr,(W4 d, R4 s))
 
 LOWFUNC(NONE,WRITE,2,raw_mov_l_mr,(IMM d, R4 s))
 {
-	MOVLrm(s, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 MOVLrm(s, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,2,raw_mov_l_mr,(IMM d, R4 s))
 
 LOWFUNC(NONE,WRITE,2,raw_mov_w_mr,(IMM d, R2 s))
 {
-	MOVWrm(s, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 MOVWrm(s, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,2,raw_mov_w_mr,(IMM d, R2 s))
 
 LOWFUNC(NONE,READ,2,raw_mov_w_rm,(W2 d, IMM s))
 {
-	MOVWmr(s, X86_NOREG, X86_NOREG, 1, d);
+	ADDR32 MOVWmr(s, X86_NOREG, X86_NOREG, 1, d);
 }
 LENDFUNC(NONE,READ,2,raw_mov_w_rm,(W2 d, IMM s))
 
 LOWFUNC(NONE,WRITE,2,raw_mov_b_mr,(IMM d, R1 s))
 {
-	MOVBrm(s, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 MOVBrm(s, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(NONE,WRITE,2,raw_mov_b_mr,(IMM d, R1 s))
 
 LOWFUNC(NONE,READ,2,raw_mov_b_rm,(W1 d, IMM s))
 {
-	MOVBmr(s, X86_NOREG, X86_NOREG, 1, d);
+	ADDR32 MOVBmr(s, X86_NOREG, X86_NOREG, 1, d);
 }
 LENDFUNC(NONE,READ,2,raw_mov_b_rm,(W1 d, IMM s))
 
@@ -909,25 +909,25 @@ LENDFUNC(NONE,NONE,2,raw_mov_b_ri,(W1 d, IMM s))
 
 LOWFUNC(RMW,RMW,2,raw_adc_l_mi,(MEMRW d, IMM s))
 {
-	ADCLim(s, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 ADCLim(s, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(RMW,RMW,2,raw_adc_l_mi,(MEMRW d, IMM s))
 
 LOWFUNC(WRITE,RMW,2,raw_add_l_mi,(IMM d, IMM s)) 
 {
-	ADDLim(s, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 ADDLim(s, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(WRITE,RMW,2,raw_add_l_mi,(IMM d, IMM s)) 
 
 LOWFUNC(WRITE,RMW,2,raw_add_w_mi,(IMM d, IMM s)) 
 {
-	ADDWim(s, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 ADDWim(s, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(WRITE,RMW,2,raw_add_w_mi,(IMM d, IMM s)) 
 
 LOWFUNC(WRITE,RMW,2,raw_add_b_mi,(IMM d, IMM s)) 
 {
-	ADDBim(s, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 ADDBim(s, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(WRITE,RMW,2,raw_add_b_mi,(IMM d, IMM s)) 
 
@@ -1137,7 +1137,7 @@ LENDFUNC(WRITE,NONE,2,raw_cmp_w,(R2 d, R2 s))
 
 LOWFUNC(WRITE,READ,2,raw_cmp_b_mi,(MEMR d, IMM s))
 {
-	CMPBim(s, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 CMPBim(s, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(WRITE,READ,2,raw_cmp_b_mi,(MEMR d, IMM s))
 
@@ -1179,13 +1179,13 @@ LENDFUNC(WRITE,NONE,2,raw_xor_b,(RW1 d, R1 s))
 
 LOWFUNC(WRITE,RMW,2,raw_sub_l_mi,(MEMRW d, IMM s))
 {
-	SUBLim(s, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 SUBLim(s, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(WRITE,RMW,2,raw_sub_l_mi,(MEMRW d, IMM s))
 
 LOWFUNC(WRITE,READ,2,raw_cmp_l_mi,(MEMR d, IMM s))
 {
-	CMPLim(s, d, X86_NOREG, X86_NOREG, 1);
+	ADDR32 CMPLim(s, d, X86_NOREG, X86_NOREG, 1);
 }
 LENDFUNC(WRITE,READ,2,raw_cmp_l_mi,(MEMR d, IMM s))
 
@@ -1216,7 +1216,7 @@ LENDFUNC(WRITE,READ,0,raw_popfl,(void))
 /* Generate floating-point instructions */
 static inline void x86_fadd_m(MEMR s)
 {
-	FADDLm(s,X86_NOREG,X86_NOREG,1);
+	ADDR32 FADDLm(s,X86_NOREG,X86_NOREG,1);
 }
 
 #else
@@ -3029,7 +3029,7 @@ static inline void raw_call_r(R4 r)
 static inline void raw_call_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
 {
 #if USE_NEW_RTASM
-	CALLsm(base, X86_NOREG, r, m);
+	ADDR32 CALLsm(base, X86_NOREG, r, m);
 #else
 	int mu;
 	switch(m) {
@@ -3059,7 +3059,7 @@ static inline void raw_jmp_r(R4 r)
 static inline void raw_jmp_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
 {
 #if USE_NEW_RTASM
-    JMPsm(base, X86_NOREG, r, m);
+	ADDR32 JMPsm(base, X86_NOREG, r, m);
 #else
 	int mu;
 	switch (m) {
@@ -3087,7 +3087,7 @@ static inline void raw_jmp_m(uae_u32 base)
 static inline void raw_call(uae_u32 t)
 {
 #if USE_NEW_RTASM
-	CALLm(t);
+	ADDR32 CALLm(t);
 #else
 	emit_byte(0xe8);
 	emit_long(t-(uintptr)target-4);
@@ -3097,7 +3097,7 @@ static inline void raw_call(uae_u32 t)
 static inline void raw_jmp(uae_u32 t)
 {
 #if USE_NEW_RTASM
-	JMPm(t);
+	ADDR32 JMPm(t);
 #else
 	emit_byte(0xe9);
 	emit_long(t-(uintptr)target-4);
