@@ -81,7 +81,21 @@ typedef void *CONTEXT_T;
 #define CONTEXT_ESI(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_ESI])
 #define CONTEXT_EDI(context) (((struct ucontext *) context)->uc_mcontext.gregs[REG_EDI])
 
-#elif defined(__DARWIN_UNIX03) && defined(_STRUCT_X86_EXCEPTION_STATE32)
+#elif defined(__DARWIN_UNIX03) && defined(CPU_x86_64)
+
+typedef void *CONTEXT_T;
+#define HAVE_CONTEXT_T 1
+#define CONTEXT_RIP(context) (*((unsigned long *) &((ucontext_t *) context)->uc_mcontext->__ss.__rip))
+#define CONTEXT_RAX(context) (((ucontext_t *) context)->uc_mcontext->__ss.__rax)
+#define CONTEXT_RCX(context) (((ucontext_t *) context)->uc_mcontext->__ss.__rcx)
+#define CONTEXT_RDX(context) (((ucontext_t *) context)->uc_mcontext->__ss.__rdx)
+#define CONTEXT_RBX(context) (((ucontext_t *) context)->uc_mcontext->__ss.__rbx)
+#define CONTEXT_RSP(context) (*((unsigned long *) &((ucontext_t *) context)->uc_mcontext->__ss.__rsp))
+#define CONTEXT_RBP(context) (((ucontext_t *) context)->uc_mcontext->__ss.__rbp)
+#define CONTEXT_RSI(context) (((ucontext_t *) context)->uc_mcontext->__ss.__rsi)
+#define CONTEXT_RDI(context) (((ucontext_t *) context)->uc_mcontext->__ss.__rdi)
+
+#elif defined(__DARWIN_UNIX03) && defined(CPU_i386)
 
 typedef void *CONTEXT_T;
 #define HAVE_CONTEXT_T 1
