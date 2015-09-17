@@ -70,7 +70,7 @@ only target, and it's easier this way... */
 #define REG_RESULT EAX_INDEX
 
 /* The registers subroutines take their first and second argument in */
-#ifdef _MSC_VER
+#ifdef _WIN32
 /* Handle the _fastcall parameters of ECX and EDX */
 #define REG_PAR1 ECX_INDEX
 #define REG_PAR2 EDX_INDEX
@@ -83,7 +83,7 @@ only target, and it's easier this way... */
 #endif
 
 #define REG_PC_PRE EAX_INDEX /* The register we use for preloading regs.pc_p */
-#ifdef _MSC_VER
+#ifdef _WIN32
 #define REG_PC_TMP ECX_INDEX
 #else
 #define REG_PC_TMP ECX_INDEX /* Another register that is not the above */

@@ -53,7 +53,7 @@ using namespace std;
 #error unrecognized CPU type
 #endif
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 /* Parameters are passed in ECX, EDX for both x86 and x86-64 (RCX, RDX).
  * For x86-64, __fastcall is the default, so it isn't really required. */
 #define JITCALL __fastcall
