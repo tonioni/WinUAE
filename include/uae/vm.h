@@ -15,6 +15,7 @@
 #define UAE_VM_EXECUTE 4
 
 #define UAE_VM_32BIT (1 << 8)
+#define UAE_VM_WRITE_WATCH (1 << 9)
 #define UAE_VM_ALLOC_FAILED NULL
 
 /* Even though it looks like you can OR together vm protection values,
@@ -33,15 +34,13 @@ void *uae_vm_alloc(uae_u32 size);
 void *uae_vm_alloc(uae_u32 size, int flags);
 #endif
 void *uae_vm_alloc(uae_u32 size, int flags, int protect);
-void uae_vm_protect(void *address, int size, int protect);
-void uae_vm_free(void *address, int size);
+bool uae_vm_protect(void *address, int size, int protect);
+bool uae_vm_free(void *address, int size);
 
-#if 0
-/* Replacement functions for mman - implement later */
 void *uae_vm_reserve(uae_u32 size, int flags);
+void *uae_vm_reserve_fixed(void *address, uae_u32 size, int flags);
 void *uae_vm_commit(void *address, uae_u32 size, int protect);
-void *uae_vm_decommit(uae_u32 size, int flags);
-#endif
+bool uae_vm_decommit(void *address, uae_u32 size);
 
 int uae_vm_page_size(void);
 
