@@ -456,10 +456,7 @@ typedef struct {
 } regacc;
 
 #define JIT_EXCEPTION_HANDLER
-#ifdef _WIN64
-/* Direct addressing currently causes crash on 64-bit Windows. */
-#define JIT_ALWAYS_DISTRUST
-#endif
+// #define JIT_ALWAYS_DISTRUST
 
 /* ARAnyM uses fpu_register name, used in scratch_t */
 /* FIXME: check that no ARAnyM code assumes different floating point type */
