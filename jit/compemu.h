@@ -50,7 +50,10 @@ typedef uae_u32 uintptr;
 extern void compiler_dumpstate(void);
 #endif
 
-#define TAGMASK 0x000fffff
+/* Now that we do block chaining, and also have linked lists on each tag,
+   TAGMASK can be much smaller and still do its job. Saves several megs
+   of memory! */
+#define TAGMASK 0x0000ffff
 #define TAGSIZE (TAGMASK+1)
 #define MAXRUN 1024
 #define cacheline(x) (((uintptr)x)&TAGMASK)
@@ -62,10 +65,7 @@ struct blockinfo_t;
 
 struct cpu_history {
   uae_u16* location;
-  uae_u8  cycles;
   uae_u8  specmem;
-  uae_u8  dummy2;
-  uae_u8  dummy3;
 };
 
 union cacheline {
@@ -79,8 +79,31 @@ union cacheline {
 #error implementation in progress
 #endif
 
+#ifdef UAE
+/* Temporarily disabled due to some issues on x86-64 */
+#else
+/* (gb) When on, this option can save save up to 30% compilation time
+ *  when many lazy flushes occur (e.g. apps in MacOS 8.x).
+ */
+#define USE_SEPARATE_BIA 1
+
+/* Use chain of checksum_info_t to compute the block checksum */
+#define USE_CHECKSUM_INFO 1
+
+/* Use code inlining, aka follow-up of constant jumps */
+#define USE_INLINING 1
+#endif
+
+/* Inlining requires the chained checksuming information */
+#if USE_INLINING
+#undef  USE_CHECKSUM_INFO
+#define USE_CHECKSUM_INFO 1
+#endif
+
+/* Does flush_icache_range() only check for blocks falling in the requested range? */
+#define LAZY_FLUSH_ICACHE_RANGE 0
+
 #define USE_F_ALIAS 1
-#define USE_SOFT_FLUSH 1
 #define USE_OFFSET 1
 #define COMP_DEBUG 1
 
@@ -182,7 +205,7 @@ typedef struct {
   uae_u32 val;
   uae_u8 is_swapped;
   uae_u8 status;
-  uae_u8 realreg;
+  uae_s8 realreg; /* gb-- realreg can hold -1 */
   uae_u8 realind; /* The index in the holds[] array */
   uae_u8 needflush;
   uae_u8 validsize;
@@ -194,7 +217,7 @@ typedef struct {
   uae_u32* mem;
   double val;
   uae_u8 status;
-  uae_u8 realreg;
+  uae_s8 realreg; /* gb-- realreg can hold -1 */
   uae_u8 realind;
   uae_u8 needflush;
 } freg_status;
@@ -265,20 +288,15 @@ typedef struct {
 } bigstate;
 
 typedef struct {
-    uae_s8 holds;
-    uae_u8 validsize;
-    uae_u8 dirtysize;
-} n_smallstatus;
-
-typedef struct {
-    /* Integer part */
-    n_smallstatus  nat[N_REGS];
+	/* Integer part */
+	uae_s8 virt[VREGS];
+	uae_s8 nat[N_REGS];
 } smallstate;
 
 extern int touchcnt;
 
 
-#define IMM uae_u32
+#define IMM  uae_s32
 #define RR1  uae_u32
 #define RR2  uae_u32
 #define RR4  uae_u32
@@ -431,18 +449,16 @@ static inline void build_comp() { }
 
 #ifdef UAE
 
-#define BI_NEW 0
-#define BI_COUNTING 1
-#define BI_TARGETTED 2
-
 typedef struct {
     uae_u8 type;
     uae_u8 reg;
     uae_u32 next;
 } regacc;
 
-#ifndef CPU_x86_64
 #define JIT_EXCEPTION_HANDLER
+#ifdef _WIN64
+/* Direct addressing currently causes crash on 64-bit Windows. */
+#define JIT_ALWAYS_DISTRUST
 #endif
 
 /* ARAnyM uses fpu_register name, used in scratch_t */
@@ -457,7 +473,7 @@ extern void compile_block(cpu_history* pc_hist, int blocklen, int totcyles);
 /* Flags for Bernie during development/debugging. Should go away eventually */
 #define DISTRUST_CONSISTENT_MEM 0
 
-extern signed long pissoff;
+extern uae_s32 pissoff;
 
 typedef struct {
     uae_u8 use_flags;
@@ -478,10 +494,30 @@ STATIC_INLINE int end_block(uae_u16 opcode)
 #ifdef _WIN32
 LONG WINAPI EvalException(LPEXCEPTION_POINTERS info);
 #if defined(_MSC_VER) && !defined(NO_WIN32_EXCEPTION_HANDLER)
+#ifdef _WIN64
+/* Structured exception handling is table based for Windows x86-64, so
+ * Windows will not be able to find the exception handler. */
+#else
 #define USE_STRUCTURED_EXCEPTION_HANDLING
+#endif
 #endif
 #endif
 
 #endif
 
 #endif /* COMPEMU_H */
+
+#ifdef CPU_64_BIT
+static inline uae_u32 check_uae_p32(uae_u64 address, const char *file, int line)
+{
+	if (address > (uintptr_t) 0xffffffff) {
+		write_log("JIT: 64-bit pointer (0x%llx) at %s:%d (fatal)\n",
+			address, file, line);
+		abort();
+	}
+	return (uae_u32) address;
+}
+#define uae_p32(x) (check_uae_p32((uae_u64)(x), __FILE__, __LINE__))
+#else
+#define uae_p32(x) ((uae_u32)(x))
+#endif

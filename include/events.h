@@ -69,7 +69,7 @@ enum {
 };
 
 extern int pissoff_value;
-extern signed long pissoff;
+extern uae_s32 pissoff;
 
 #define countdown pissoff
 #define do_cycles do_cycles_slow

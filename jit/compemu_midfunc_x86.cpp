@@ -70,40 +70,37 @@ MIDFUNC(0,dont_care_flags,(void))
 }
 MENDFUNC(0,dont_care_flags,(void))
 
-/*
- * Copy m68k C flag into m68k X flag
- *
- * FIXME: This needs to be moved into the machdep
- * part of the source because it depends on what bit
- * is used to hold X.
- */
 MIDFUNC(0,duplicate_carry,(void))
 {
 	evict(FLAGX);
 	make_flags_live_internal();
-	COMPCALL(setcc_m)((uintptr)live.state[FLAGX].mem + 1,2);
+#ifdef UAE
+	COMPCALL(setcc_m)((uintptr)live.state[FLAGX].mem + 1, NATIVE_CC_CS);
+#else
+	COMPCALL(setcc_m)((uintptr)live.state[FLAGX].mem, NATIVE_CC_CS);
+#endif
+	log_vwrite(FLAGX);
 }
 MENDFUNC(0,duplicate_carry,(void))
 
-/*
- * Set host C flag from m68k X flag.
- *
- * FIXME: This needs to be moved into the machdep
- * part of the source because it depends on what bit
- * is used to hold X.
- */
 MIDFUNC(0,restore_carry,(void))
 {
 	if (!have_rat_stall) { /* Not a P6 core, i.e. no partial stalls */
+#ifdef UAE
 		bt_l_ri_noclobber(FLAGX, 8);
+#else
+		bt_l_ri_noclobber(FLAGX, 0);
+#endif
 	}
 	else {  /* Avoid the stall the above creates.
-			This is slow on non-P6, though.
-			*/
+		   This is slow on non-P6, though.
+		*/
+#ifdef UAE
 		COMPCALL(rol_w_ri(FLAGX, 8));
+#else
+		COMPCALL(rol_b_ri(FLAGX, 8));
+#endif
 		isclean(FLAGX);
-		/* Why is the above faster than the below? */
-		//raw_rol_b_mi((uae_u32)live.state[FLAGX].mem,8);
 	}
 }
 MENDFUNC(0,restore_carry,(void))
@@ -751,32 +748,6 @@ MIDFUNC(3,cmov_l_rr,(RW4 d, RR4 s, IMM cc))
 }
 MENDFUNC(3,cmov_l_rr,(RW4 d, RR4 s, IMM cc))
 
-MIDFUNC(1,setzflg_l,(RW4 r))
-{
-	if (setzflg_uses_bsf) {
-		CLOBBER_BSF;
-		r=rmw(r,4,4);
-		raw_bsf_l_rr(r,r);
-		unlock2(r);
-	}
-	else {
-		Dif (live.flags_in_flags!=VALID) {
-			jit_abort (_T("JIT: setzflg() wanted flags in native flags, they are %d\n"),
-				live.flags_in_flags);
-		}
-		r=readreg(r,4);
-		{
-			int f=writereg(S11,4);
-			int t=writereg(S12,4);
-			raw_flags_set_zero(f,r,t);
-			unlock2(f);
-			unlock2(r);
-			unlock2(t);
-		}
-	}
-}
-MENDFUNC(1,setzflg_l,(RW4 r))
-
 MIDFUNC(3,cmov_l_rm,(RW4 d, IMM s, IMM cc))
 {
 	CLOBBER_CMOV;
@@ -807,9 +778,6 @@ MENDFUNC(2,bsf_l_rr,(W4 d, RR4 s))
 MENDFUNC(2,bsf_l_rr,(W4 d, W4 s))
 #endif
 
-#ifdef UAE
-/* FIXME: enable */
-#else
 /* Set the Z flag depending on the value in s. Note that the
    value has to be 0 or -1 (or, more precisely, for non-zero
    values, bit 14 must be set)! */
@@ -823,7 +791,6 @@ MIDFUNC(2,simulate_bsf,(W4 tmp, RW4 s))
     unlock2(s);
 }
 MENDFUNC(2,simulate_bsf,(W4 tmp, RW4 s))
-#endif
 
 MIDFUNC(2,imul_32_32,(RW4 d, RR4 s))
 {
@@ -1061,50 +1028,51 @@ MIDFUNC(2,mov_w_rr,(W2 d, RR2 s))
 }
 MENDFUNC(2,mov_w_rr,(W2 d, RR2 s))
 
-MIDFUNC(3,mov_l_rrm_indexed,(W4 d,RR4 baser, RR4 index))
+MIDFUNC(4,mov_l_rrm_indexed,(W4 d,RR4 baser, RR4 index, IMM factor))
 {
 	CLOBBER_MOV;
 	baser=readreg(baser,4);
 	index=readreg(index,4);
 	d=writereg(d,4);
 
-	raw_mov_l_rrm_indexed(d,baser,index);
+	raw_mov_l_rrm_indexed(d,baser,index,factor);
 	unlock2(d);
 	unlock2(baser);
 	unlock2(index);
 }
-MENDFUNC(3,mov_l_rrm_indexed,(W4 d,RR4 baser, RR4 index))
+MENDFUNC(4,mov_l_rrm_indexed,(W4 d,RR4 baser, RR4 index, IMM factor))
 
-MIDFUNC(3,mov_w_rrm_indexed,(W2 d, RR4 baser, RR4 index))
+MIDFUNC(4,mov_w_rrm_indexed,(W2 d, RR4 baser, RR4 index, IMM factor))
 {
 	CLOBBER_MOV;
 	baser=readreg(baser,4);
 	index=readreg(index,4);
 	d=writereg(d,2);
 
-	raw_mov_w_rrm_indexed(d,baser,index);
+	raw_mov_w_rrm_indexed(d,baser,index,factor);
 	unlock2(d);
 	unlock2(baser);
 	unlock2(index);
 }
-MENDFUNC(3,mov_w_rrm_indexed,(W2 d, RR4 baser, RR4 index))
+MENDFUNC(4,mov_w_rrm_indexed,(W2 d, RR4 baser, RR4 index, IMM factor))
 
-MIDFUNC(3,mov_b_rrm_indexed,(W1 d, RR4 baser, RR4 index))
+MIDFUNC(4,mov_b_rrm_indexed,(W1 d, RR4 baser, RR4 index, IMM factor))
 {
 	CLOBBER_MOV;
 	baser=readreg(baser,4);
 	index=readreg(index,4);
 	d=writereg(d,1);
 
-	raw_mov_b_rrm_indexed(d,baser,index);
+	raw_mov_b_rrm_indexed(d,baser,index,factor);
 
 	unlock2(d);
 	unlock2(baser);
 	unlock2(index);
 }
-MENDFUNC(3,mov_b_rrm_indexed,(W1 d, RR4 baser, RR4 index))
+MENDFUNC(4,mov_b_rrm_indexed,(W1 d, RR4 baser, RR4 index, IMM factor))
 
-MIDFUNC(3,mov_l_mrr_indexed,(RR4 baser, RR4 index, RR4 s))
+
+MIDFUNC(4,mov_l_mrr_indexed,(RR4 baser, RR4 index, IMM factor, RR4 s))
 {
 	CLOBBER_MOV;
 	baser=readreg(baser,4);
@@ -1112,47 +1080,45 @@ MIDFUNC(3,mov_l_mrr_indexed,(RR4 baser, RR4 index, RR4 s))
 	s=readreg(s,4);
 
 	Dif (baser==s || index==s)
-		jit_abort (_T("mov_l_mrr_indexed"));
+		jit_abort("mov_l_mrr_indexed");
 
-	raw_mov_l_mrr_indexed(baser,index,s);
+
+	raw_mov_l_mrr_indexed(baser,index,factor,s);
 	unlock2(s);
 	unlock2(baser);
 	unlock2(index);
 }
-MENDFUNC(3,mov_l_mrr_indexed,(RR4 baser, RR4 index, RR4 s))
+MENDFUNC(4,mov_l_mrr_indexed,(RR4 baser, RR4 index, IMM factor, RR4 s))
 
-MIDFUNC(3,mov_w_mrr_indexed,(RR4 baser, RR4 index, RR2 s))
+MIDFUNC(4,mov_w_mrr_indexed,(RR4 baser, RR4 index, IMM factor, RR2 s))
 {
 	CLOBBER_MOV;
 	baser=readreg(baser,4);
 	index=readreg(index,4);
 	s=readreg(s,2);
 
-	raw_mov_w_mrr_indexed(baser,index,s);
+	raw_mov_w_mrr_indexed(baser,index,factor,s);
 	unlock2(s);
 	unlock2(baser);
 	unlock2(index);
 }
-MENDFUNC(3,mov_w_mrr_indexed,(RR4 baser, RR4 index, RR2 s))
+MENDFUNC(4,mov_w_mrr_indexed,(RR4 baser, RR4 index, IMM factor, RR2 s))
 
-MIDFUNC(3,mov_b_mrr_indexed,(RR4 baser, RR4 index, RR1 s))
+MIDFUNC(4,mov_b_mrr_indexed,(RR4 baser, RR4 index, IMM factor, RR1 s))
 {
 	CLOBBER_MOV;
 	s=readreg(s,1);
 	baser=readreg(baser,4);
 	index=readreg(index,4);
 
-	raw_mov_b_mrr_indexed(baser,index,s);
+	raw_mov_b_mrr_indexed(baser,index,factor,s);
 	unlock2(s);
 	unlock2(baser);
 	unlock2(index);
 }
-MENDFUNC(3,mov_b_mrr_indexed,(RR4 baser, RR4 index, RR1 s))
+MENDFUNC(4,mov_b_mrr_indexed,(RR4 baser, RR4 index, IMM factor, RR1 s))
 
 
-#ifdef UAE
-/* FIXME: These functions are unused */
-#else
 MIDFUNC(5,mov_l_bmrr_indexed,(IMM base, RR4 baser, RR4 index, IMM factor, RR4 s))
 {
     int basereg=baser;
@@ -1273,28 +1239,27 @@ MIDFUNC(5,mov_b_brrm_indexed,(W1 d, IMM base, RR4 baser, RR4 index, IMM factor))
     unlock2(index);
 }
 MENDFUNC(5,mov_b_brrm_indexed,(W1 d, IMM base, RR4 baser, RR4 index, IMM factor))
-#endif
 
-/* Read a long from base+4*index */
-MIDFUNC(3,mov_l_rm_indexed,(W4 d, IMM base, RR4 index))
+/* Read a long from base+factor*index */
+MIDFUNC(4,mov_l_rm_indexed,(W4 d, IMM base, RR4 index, IMM factor))
 {
 	int indexreg=index;
 
 	if (isconst(index)) {
-		COMPCALL(mov_l_rm)(d,base+4*live.state[index].val);
+		COMPCALL(mov_l_rm)(d,base+factor*live.state[index].val);
 		return;
 	}
 
 	CLOBBER_MOV;
 	index=readreg_offset(index,4);
-	base+=get_offset(indexreg)*4;
+	base+=get_offset(indexreg)*factor;
 	d=writereg(d,4);
 
-	raw_mov_l_rm_indexed(d,base,index);
+	raw_mov_l_rm_indexed(d,base,index,factor);
 	unlock2(index);
 	unlock2(d);
 }
-MENDFUNC(3,mov_l_rm_indexed,(W4 d, IMM base, RR4 index))
+MENDFUNC(4,mov_l_rm_indexed,(W4 d, IMM base, RR4 index, IMM factor))
 
 /* read the long at the address contained in s+offset and store in d */
 MIDFUNC(3,mov_l_rR,(W4 d, RR4 s, IMM offset))
@@ -1539,6 +1504,10 @@ MENDFUNC(3,lea_l_brr,(W4 d, RR4 s, IMM offset))
 
 MIDFUNC(5,lea_l_brr_indexed,(W4 d, RR4 s, RR4 index, IMM factor, IMM offset))
 {
+	if (!offset) {
+		COMPCALL(lea_l_rr_indexed)(d,s,index,factor);
+		return;
+	}
 	CLOBBER_LEA;
 	s=readreg(s,4);
 	index=readreg(index,4);
@@ -1550,6 +1519,20 @@ MIDFUNC(5,lea_l_brr_indexed,(W4 d, RR4 s, RR4 index, IMM factor, IMM offset))
 	unlock2(s);
 }
 MENDFUNC(5,lea_l_brr_indexed,(W4 d, RR4 s, RR4 index, IMM factor, IMM offset))
+
+MIDFUNC(4,lea_l_rr_indexed,(W4 d, RR4 s, RR4 index, IMM factor))
+{
+    CLOBBER_LEA;
+    s=readreg(s,4);
+    index=readreg(index,4);
+    d=writereg(d,4);
+
+    raw_lea_l_rr_indexed(d,s,index,factor);
+    unlock2(d);
+    unlock2(index);
+    unlock2(s);
+}
+MENDFUNC(4,lea_l_rr_indexed,(W4 d, RR4 s, RR4 index, IMM factor))
 
 /* write d to the long at the address contained in s+offset */
 MIDFUNC(3,mov_l_bRr,(RR4 d, RR4 s, IMM offset))
@@ -2047,7 +2030,7 @@ MIDFUNC(2,sub_l_ri,(RW4 d, IMM i))
 	}
 #if USE_OFFSET
 	if (!needflags) {
-		add_offset(d,-(signed)i);
+		add_offset(d,-i);
 		return;
 	}
 #endif

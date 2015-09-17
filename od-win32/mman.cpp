@@ -8,6 +8,7 @@
 #include "sysdeps.h"
 #include "memory.h"
 #include "uae/mman.h"
+#include "uae/vm.h"
 #include "options.h"
 #include "autoconf.h"
 #include "gfxboard.h"
@@ -149,11 +150,11 @@ bool preinit_shm (void)
 	max_allowed_mman = 512 + 256;
 #if 1
 	if (os_64bit) {
-#ifdef WIN64
-		max_allowed_mman = 3072;
-#else
+//#ifdef WIN64
+//		max_allowed_mman = 3072;
+//#else
 		max_allowed_mman = 2048;
-#endif
+//#endif
 	}
 #endif
 	if (maxmem > max_allowed_mman)
@@ -204,24 +205,43 @@ bool preinit_shm (void)
 
 	//natmem_size = 257 * 1024 * 1024;
 
-	write_log (_T("Total physical RAM %lluM, all RAM %lluM. Attempting to reserve: %uM.\n"), totalphys64 >> 20, total64 >> 20, natmem_size >> 20);
-	natmem_offset_allocated = 0;
-	if (natmem_size <= 768 * 1024 * 1024) {
-		uae_u32 p = 0x78000000 - natmem_size;
-		for (;;) {
-			natmem_offset_allocated = (uae_u8*) VirtualAlloc((void*)(intptr_t)p, natmem_size, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_READWRITE);
-			if (natmem_offset_allocated)
-				break;
-			p -= 128 * 1024 * 1024;
-			if (p <= 128 * 1024 * 1024)
-				break;
+	if (natmem_size > 0x80000000) {
+		natmem_size = 0x80000000;
+	}
+
+	write_log (_T("NATMEM: Total physical RAM %llu MB, all RAM %llu MB\n"),
+				  totalphys64 >> 20, total64 >> 20);
+	write_log(_T("NATMEM: Attempting to reserve: %u MB\n"), natmem_size >> 20);
+
+#if 1
+	natmem_offset_allocated = (uae_u8 *) uae_vm_reserve(
+		natmem_size, UAE_VM_32BIT | UAE_VM_WRITE_WATCH);
+#else
+	natmem_size = 0x20000000;
+	natmem_offset_allocated = (uae_u8 *) uae_vm_reserve_fixed(
+		(void *) 0x90000000, natmem_size, UAE_VM_32BIT | UAE_VM_WRITE_WATCH);
+#endif
+
+	if (!natmem_offset_allocated) {
+		if (natmem_size <= 768 * 1024 * 1024) {
+			uae_u32 p = 0x78000000 - natmem_size;
+			for (;;) {
+				natmem_offset_allocated = (uae_u8*) VirtualAlloc((void*)(intptr_t)p, natmem_size, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_READWRITE);
+				if (natmem_offset_allocated)
+					break;
+				p -= 128 * 1024 * 1024;
+				if (p <= 128 * 1024 * 1024)
+					break;
+			}
 		}
 	}
 	if (!natmem_offset_allocated) {
 		DWORD vaflags = MEM_RESERVE | MEM_WRITE_WATCH;
 #ifdef _WIN32
+#ifndef _WIN64
 		if (!os_vista)
 			vaflags |= MEM_TOP_DOWN;
+#endif
 #endif
 		for (;;) {
 			natmem_offset_allocated = (uae_u8*)VirtualAlloc (NULL, natmem_size, vaflags, PAGE_READWRITE);
@@ -241,13 +261,14 @@ bool preinit_shm (void)
 		}
 	}
 	natmem_offset = natmem_offset_allocated;
-	if (natmem_size <= 257 * 1024 * 1024)
+	if (natmem_size <= 257 * 1024 * 1024) {
 		max_z3fastmem = 0;
-	else
+	} else {
 		max_z3fastmem = natmem_size;
-	write_log (_T("Reserved: 0x%p-0x%p (%08x %dM)\n"),
-		natmem_offset, (uae_u8*)natmem_offset + natmem_size,
-		natmem_size, natmem_size >> 20);
+	}
+	write_log (_T("NATMEM: Reserved %p-%p (0x%08x %dM)\n"),
+			   natmem_offset, (uae_u8 *) natmem_offset + natmem_size,
+			   natmem_size, natmem_size / (1024 * 1024));
 
 	clear_shm ();
 
@@ -442,9 +463,9 @@ static int doinit_shm (void)
 	if (!natmem_offset) {
 		write_log (_T("NATMEM: No special area could be allocated! err=%d\n"), GetLastError ());
 	} else {
-		write_log (_T("NATMEM: Our special area: 0x%p-0x%p (%08x %dM)\n"),
-			natmem_offset, (uae_u8*)natmem_offset + natmemsize,
-			natmemsize, natmemsize >> 20);
+		write_log(_T("NATMEM: Our special area: %p-%p (0x%08x %dM)\n"),
+				  natmem_offset, (uae_u8*)natmem_offset + natmemsize,
+				  natmemsize, natmemsize / (1024 * 1024));
 		if (changed_prefs.rtgmem_size)
 			write_log (_T("NATMEM: P96 special area: 0x%p-0x%p (%08x %dM)\n"),
 			p96mem_offset, (uae_u8*)p96mem_offset + changed_prefs.rtgmem_size,

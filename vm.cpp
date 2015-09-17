@@ -1,0 +1,410 @@
+/*
+ * Multi-platform virtual memory functions for UAE.
+ * Copyright (C) 2015 Frode Solheim
+ *
+ * Licensed under the terms of the GNU General Public License version 2.
+ * See the file 'COPYING' for full license text.
+ */
+
+#include "sysconfig.h"
+#include "sysdeps.h"
+#include "uae/vm.h"
+#include "uae/log.h"
+#include "memory.h"
+#ifdef _WIN32
+
+#else
+#include <sys/mman.h>
+#endif
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+#if defined(__APPLE__)
+#include <sys/sysctl.h>
+#endif
+
+#ifdef LINUX
+#define HAVE_MAP_32BIT 1
+#endif
+
+/* Commiting memory on Windows zeroes the region. We do the same on other
+ * platforms so the functions exhibits the same behavior. I.e. a decommit
+ * followed by a commit results in zeroed memory. */
+#define CLEAR_MEMORY_ON_COMMIT
+
+// #define TRACK_ALLOCATIONS
+
+#ifdef TRACK_ALLOCATIONS
+
+struct alloc_size {
+	void *address;
+	uae_u32 size;
+};
+
+#define MAX_ALLOCATIONS 2048
+/* A bit inefficient, but good enough for few and rare allocs. Storing
+ * the size at the start of the allocated memory would be better, but this
+ * could be awkward if/when you want to allocate page-aligned memory. */
+static struct alloc_size alloc_sizes[MAX_ALLOCATIONS];
+
+static void add_allocation(void *address, uae_u32 size)
+{
+	uae_log("VM: add_allocation %p (%d)\n", address, size);
+	for (int i = 0; i < MAX_ALLOCATIONS; i++) {
+		if (alloc_sizes[i].address == NULL) {
+			alloc_sizes[i].address = address;
+			alloc_sizes[i].size = size;
+			return;
+		}
+	}
+	abort();
+}
+
+static uae_u32 find_allocation(void *address)
+{
+	for (int i = 0; i < MAX_ALLOCATIONS; i++) {
+		if (alloc_sizes[i].address == address) {
+			return alloc_sizes[i].size;
+		}
+	}
+	abort();
+}
+
+static uae_u32 remove_allocation(void *address)
+{
+	for (int i = 0; i < MAX_ALLOCATIONS; i++) {
+		if (alloc_sizes[i].address == address) {
+			alloc_sizes[i].address = NULL;
+			uae_u32 size = alloc_sizes[i].size;
+			alloc_sizes[i].size = 0;
+			return size;
+		}
+	}
+	abort();
+}
+
+#endif /* TRACK_ALLOCATIONS */
+
+static int protect_to_native(int protect)
+{
+#ifdef _WIN32
+	if (protect == UAE_VM_NO_ACCESS) return PAGE_NOACCESS;
+	if (protect == UAE_VM_READ) return PAGE_READONLY;
+	if (protect == UAE_VM_READ_WRITE) return PAGE_READWRITE;
+	if (protect == UAE_VM_READ_EXECUTE) return PAGE_EXECUTE_READ;
+	if (protect == UAE_VM_READ_WRITE_EXECUTE) return PAGE_EXECUTE_READWRITE;
+	uae_log("VM: Invalid protect value %d\n", protect);
+	return PAGE_NOACCESS;
+#else
+	if (protect == UAE_VM_NO_ACCESS) return PROT_NONE;
+	if (protect == UAE_VM_READ) return PROT_READ;
+	if (protect == UAE_VM_READ_WRITE) return PROT_READ | PROT_WRITE;
+	if (protect == UAE_VM_READ_EXECUTE) return PROT_READ | PROT_EXEC;
+	if (protect == UAE_VM_READ_WRITE_EXECUTE) {
+		return PROT_READ | PROT_WRITE | PROT_EXEC;
+	}
+	uae_log("VM: Invalid protect value %d\n", protect);
+	return PROT_NONE;
+#endif
+}
+
+static const char *protect_description(int protect)
+{
+	if (protect == UAE_VM_NO_ACCESS) return "NO_ACCESS";
+	if (protect == UAE_VM_READ) return "READ";
+	if (protect == UAE_VM_READ_WRITE) return "READ_WRITE";
+	if (protect == UAE_VM_READ_EXECUTE) return "READ_EXECUTE";
+	if (protect == UAE_VM_READ_WRITE_EXECUTE) return "READ_WRITE_EXECUTE";
+	return "UNKNOWN";
+}
+
+int uae_vm_page_size(void)
+{
+	static int page_size = 0;
+	if (page_size == 0) {
+#ifdef _WIN32
+		SYSTEM_INFO si;
+		GetSystemInfo(&si);
+		page_size = si.dwPageSize;
+#else
+		page_size = sysconf(_SC_PAGESIZE);
+#endif
+	}
+	return page_size;
+}
+
+static void *uae_vm_alloc_with_flags(uae_u32 size, int flags, int protect)
+{
+	void *address = NULL;
+	uae_log("VM: Allocate 0x%-8x bytes [%d] (%s)\n",
+			size, flags, protect_description(protect));
+#ifdef _WIN32
+	int va_type = MEM_COMMIT | MEM_RESERVE;
+	if (flags & UAE_VM_WRITE_WATCH) {
+		va_type |= MEM_WRITE_WATCH;
+	}
+	int va_protect = protect_to_native(protect);
+#ifdef CPU_64_BIT
+	if (flags & UAE_VM_32BIT) {
+		/* Stupid algorithm to find available space, but should
+		 * work well enough when there is not a lot of allocations. */
+		uae_u8 *p = (uae_u8 *) 0x50000000;
+		while (address == NULL) {
+			if (p >= (void*) 0x60000000) {
+				break;
+			}
+			address = VirtualAlloc(p, size, va_type, va_protect);
+			p += uae_vm_page_size();
+		}
+	}
+#endif
+	if (!address) {
+		address = VirtualAlloc(NULL, size, va_type, va_protect);
+	}
+#else
+	//size = size < uae_vm_page_size() ? uae_vm_page_size() : size;
+	int mmap_flags = MAP_PRIVATE | MAP_ANON;
+	int mmap_prot = protect_to_native(protect);
+#ifdef CPU_64_BIT
+	if (flags & UAE_VM_32BIT) {
+#ifdef HAVE_MAP_32BIT
+		mmap_flags |= MAP_32BIT;
+#else
+		/* Stupid algorithm to find available space, but should
+		 * work well enough when there is not a lot of allocations. */
+		uae_u8 *p = natmem_offset - 0x10000000;
+		uae_u8 *p_end = p + 0x10000000;
+		while (address == NULL) {
+			if (p >= p_end) {
+				break;
+			}
+			printf("%p\n", p);
+			address = mmap(p, size, mmap_prot, mmap_flags, -1, 0);
+			/* FIXME: check 32-bit result */
+			if (address == MAP_FAILED) {
+				address = NULL;
+			}
+			p += uae_vm_page_size();
+		}
+#endif
+	}
+#endif
+	if (address == NULL) {
+		address = mmap(0, size, mmap_prot, mmap_flags, -1, 0);
+		if (address == MAP_FAILED) {
+			address = NULL;
+		}
+	}
+#endif
+	if (address == NULL) {
+		uae_log("VM: uae_vm_alloc(%u, %d, %d) mmap failed (%d)\n",
+		    size, flags, protect, errno);
+	    return NULL;
+	}
+#ifdef TRACK_ALLOCATIONS
+	add_allocation(address, size);
+#endif
+	uae_log("VM: %p\n", address);
+	return address;
+}
+
+void *uae_vm_alloc(uae_u32 size, int flags, int protect)
+{
+	return uae_vm_alloc_with_flags(size, flags, protect);
+}
+
+static bool do_protect(void *address, int size, int protect)
+{
+#ifdef TRACK_ALLOCATIONS
+	uae_u32 allocated_size = find_allocation(address);
+	assert(allocated_size == size);
+#endif
+#ifdef _WIN32
+	DWORD old;
+	if (VirtualProtect(address, size, protect_to_native(protect), &old) == 0) {
+		uae_log("VM: uae_vm_protect(%p, %d, %d) VirtualProtect failed (%d)\n",
+				address, size, protect, GetLastError());
+		return false;
+	}
+#else
+	if (mprotect(address, size, protect_to_native(protect)) != 0) {
+		uae_log("VM: uae_vm_protect(%p, %d, %d) mprotect failed (%d)\n",
+				address, size, protect, errno);
+		return false;
+	}
+#endif
+	return true;
+}
+
+bool uae_vm_protect(void *address, int size, int protect)
+{
+	return do_protect(address, size, protect);
+}
+
+static bool do_free(void *address, int size)
+{
+#ifdef TRACK_ALLOCATIONS
+	uae_u32 allocated_size = remove_allocation(address);
+	assert(allocated_size == size);
+#endif
+#ifdef _WIN32
+	return VirtualFree(address, 0, MEM_RELEASE) != 0;
+#else
+	if (munmap(address, size) != 0) {
+		uae_log("VM: uae_vm_free(%p, %d) munmap failed (%d)\n",
+				address, size, errno);
+		return false;
+	}
+#endif
+	return true;
+}
+
+bool uae_vm_free(void *address, int size)
+{
+	uae_log("VM: Free     0x%-8x bytes at %p\n", size, address);
+	return do_free(address, size);
+}
+
+static void *try_reserve(uintptr_t try_addr, uae_u32 size, int flags)
+{
+	void *address = NULL;
+	if (try_addr) {
+		uae_log("VM: Reserve  0x%-8x bytes, try address 0x%llx\n",
+				size, (uae_u64) try_addr);
+	} else {
+		uae_log("VM: Reserve  0x%-8x bytes\n", size);
+	}
+#ifdef _WIN32
+	int va_type = MEM_RESERVE;
+	if (flags & UAE_VM_WRITE_WATCH) {
+		va_type |= MEM_WRITE_WATCH;
+	}
+	int va_protect = protect_to_native(UAE_VM_NO_ACCESS);
+	address = VirtualAlloc((void *) try_addr, size, va_type, va_protect);
+	if (address == NULL) {
+		return NULL;
+	}
+#else
+	int mmap_flags = MAP_PRIVATE | MAP_ANON;
+	address = mmap((void *) try_addr, size, PROT_NONE, mmap_flags, -1, 0);
+	if (address == MAP_FAILED) {
+		return NULL;
+	}
+#endif
+#ifdef CPU_64_BIT
+	if (flags & UAE_VM_32BIT) {
+		uintptr_t end = (uintptr_t) address + size;
+		if (address && end > (uintptr_t) 0x100000000ULL) {
+			uae_log("VM: Reserve  0x%-8x bytes, got address 0x%llx (> 32-bit)\n",
+					size, (uae_u64) (uintptr_t) address);
+#ifdef _WIN32
+			VirtualFree(address, 0, MEM_RELEASE);
+#else
+			munmap(address, size);
+#endif
+			return NULL;
+		}
+	}
+#endif
+	return address;
+}
+
+void *uae_vm_reserve(uae_u32 size, int flags)
+{
+	void *address = NULL;
+#ifdef _WIN32
+	address = try_reserve(0x80000000, size, flags);
+	if (address == NULL && (flags & UAE_VM_32BIT)) {
+		if (size <= 768 * 1024 * 1024) {
+			address = try_reserve(0x78000000 - size, size, flags);
+		}
+	}
+	if (address == NULL && (flags & UAE_VM_32BIT) == 0) {
+		address = try_reserve(0, size, flags);
+	}
+#else
+#ifdef CPU_64_BIT
+	if (flags & UAE_VM_32BIT) {
+#else
+	if (true) {
+#endif
+		uintptr_t try_addr = 0x50000000;
+		while (address == NULL) {
+			address = try_reserve(try_addr, size, flags);
+			if (address == NULL) {
+				try_addr -= 0x4000000;
+				if (try_addr < 0x20000000) {
+					break;
+				}
+				continue;
+			}
+		}
+	}
+	if (address == NULL && (flags & UAE_VM_32BIT) == 0) {
+		address = try_reserve(0, size, flags);
+	}
+#endif
+	if (address) {
+		uae_log("VM: Reserve  0x%-8x bytes, got address 0x%llx\n",
+				size, (uae_u64) (uintptr_t) address);
+	} else {
+		uae_log("VM: Reserve  0x%-8x bytes failed!\n", size);
+	}
+	return address;
+}
+
+void *uae_vm_reserve_fixed(void *want_addr, uae_u32 size, int flags)
+{
+	void *address = NULL;
+	uae_log("VM: Reserve  0x%-8x bytes at %p (fixed)\n", size, want_addr);
+	address = try_reserve((uintptr_t) want_addr, size, flags);
+	if (address == NULL) {
+		uae_log("VM: Reserve  0x%-8x bytes at %p failed!\n", size, want_addr);
+		return NULL;
+	}
+	if (address != want_addr) {
+		do_free(address, size);
+		return NULL;
+	}
+	uae_log("VM: Reserve  0x%-8x bytes, got address 0x%llx\n",
+			size, (uae_u64) (uintptr_t) address);
+	return address;
+}
+
+void *uae_vm_commit(void *address, uae_u32 size, int protect)
+{
+	uae_log("VM: Commit   0x%-8x bytes at %p (%s)\n",
+			size, address, protect_description(protect));
+#ifdef _WIN32
+	int va_type = MEM_COMMIT ;
+	int va_protect = protect_to_native(protect);
+	address = VirtualAlloc(address, size, va_type, va_protect);
+#else
+#ifdef CLEAR_MEMORY_ON_COMMIT
+	do_protect(address, size, UAE_VM_READ_WRITE);
+	memset(address, 0, size);
+#endif
+	do_protect(address, size, protect);
+#endif
+	return address;
+}
+
+bool uae_vm_decommit(void *address, uae_u32 size)
+{
+	uae_log("VM: Decommit 0x%-8x bytes at %p\n", size, address);
+#ifdef _WIN32
+	return VirtualFree (address, size, MEM_DECOMMIT) != 0;
+#else
+#if 0
+	/* FIXME: perhaps we can unmmap and mmap the memory region again to
+	 * allow the operating system to throw away the (unused) pages. Of
+	 * course, we have problem if re-mmaping it fails. If we do this,
+	 * we may be able to remove the memory clear operation in
+	 * uae_vm_commit. We might also be able to use mmap with MAP_FIXED
+	 * to more "safely" overwrite the old mapping. */
+	munmap(address, size);
+	mmap(...);
+#endif
+	return do_protect(address, size, UAE_VM_NO_ACCESS);
+#endif
+}

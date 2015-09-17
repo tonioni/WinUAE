@@ -52,7 +52,7 @@
 bool check_prefs_changed_comp (void) { return false; }
 #endif
 /* For faster JIT cycles handling */
-signed long pissoff = 0;
+uae_s32 pissoff = 0;
 
 /* Opcode of faulting instruction */
 static uae_u16 last_op_for_exception_3;
@@ -1294,6 +1294,8 @@ static void build_cpufunctbl (void)
 		opcnt, lvl,
 		currprefs.cpu_cycle_exact ? -1 : currprefs.cpu_compatible ? 1 : 0, currprefs.address_space_24);
 #ifdef JIT
+	write_log(_T("JIT: &countdown =  %p\n"), &countdown);
+	write_log(_T("JIT: &build_comp = %p\n"), &build_comp);
 	build_comp ();
 #endif
 

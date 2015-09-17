@@ -574,7 +574,9 @@ static void native_set_fpucw (uae_u32 m68k_cw)
 #endif /* USE_X86_FPUCW */
 #endif
 #else
+#ifndef _MSC_VER
 #warning NATIVE_FPUCW not enabled
+#endif
 #endif
 	}
 }
