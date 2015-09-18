@@ -123,6 +123,9 @@ extern bool canbang;
 
 #define cache_size currprefs.cachesize
 
+#define uint32 uae_u32
+#define uint8 uae_u8
+
 static inline int distrust_byte(void)
 {
 	int distrust = currprefs.comptrustbyte;
@@ -3359,11 +3362,6 @@ uae_u32 get_jitted_size(void)
 
 const int CODE_ALLOC_MAX_ATTEMPTS = 10;
 const int CODE_ALLOC_BOUNDARIES   = 128 * 1024; // 128 KB
-
-#ifdef UAE
-#define uint32 uae_u32
-#define uint8 uae_u8
-#endif
 
 static uint8 *do_alloc_code(uint32 size, int depth)
 {
