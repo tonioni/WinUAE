@@ -311,38 +311,7 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 		    abort ();
 		}
 		if (pr) {
-			if (currprefs.comp_oldsegv) {
-				uae_u32 addr = uae_p32(fault_addr) - uae_p32(NATMEM_OFFSET);
-#ifdef DEBUG_ACCESS
-				if ((addr >= 0x10000000 && addr < 0x40000000) ||
-					(addr >= 0x50000000)) {
-						write_log (_T("JIT: Suspicious address 0x%x in SEGV handler.\n"), addr);
-				}
-#endif
-				if (dir==SIG_READ) {
-					switch (size) {
-					case 1: *((uae_u8*)pr)=get_byte (addr); break;
-					case 2: *((uae_u16*)pr)=swap16(get_word (addr)); break;
-					case 4: *((uae_u32*)pr)=swap32(get_long (addr)); break;
-					default: abort();
-					}
-				}
-				else { /* write */
-					switch (size) {
-					case 1: put_byte (addr,*((uae_u8*)pr)); break;
-					case 2: put_word (addr,swap16(*((uae_u16*)pr))); break;
-					case 4: put_long (addr,swap32(*((uae_u32*)pr))); break;
-					default: abort();
-					}
-				}
-#ifdef DEBUG_ACCESS
-				write_log (_T("JIT: Handled one access!\n"));
-#endif
-				fflush(stdout);
-				segvcount++;
-				CONTEXT_PC(context) += len;
-			}
-			else {
+			{
 				uae_u32 addr = uae_p32(fault_addr) - uae_p32(NATMEM_OFFSET);
 #ifdef DEBUG_ACCESS
 				if ((addr >= 0x10000000 && addr < 0x40000000) ||

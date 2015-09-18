@@ -16,7 +16,6 @@ bool check_prefs_changed_comp (void)
 		currprefs.compnf != changed_prefs.compnf ||
 		currprefs.comp_hardflush != changed_prefs.comp_hardflush ||
 		currprefs.comp_constjump != changed_prefs.comp_constjump ||
-		currprefs.comp_oldsegv != changed_prefs.comp_oldsegv ||
 		currprefs.compfpu != changed_prefs.compfpu ||
 		currprefs.fpu_strict != changed_prefs.fpu_strict)
 		changed = 1;
@@ -28,7 +27,6 @@ bool check_prefs_changed_comp (void)
 	currprefs.compnf = changed_prefs.compnf;
 	currprefs.comp_hardflush = changed_prefs.comp_hardflush;
 	currprefs.comp_constjump = changed_prefs.comp_constjump;
-	currprefs.comp_oldsegv = changed_prefs.comp_oldsegv;
 	currprefs.compfpu = changed_prefs.compfpu;
 	currprefs.fpu_strict = changed_prefs.fpu_strict;
 

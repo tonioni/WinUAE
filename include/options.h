@@ -389,7 +389,6 @@ struct uae_prefs {
 	bool compfpu;
 	bool comp_hardflush;
 	bool comp_constjump;
-	bool comp_oldsegv;
 	int cachesize;
 	bool fpu_strict;
 
