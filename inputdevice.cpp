@@ -158,6 +158,29 @@ int inputdevice_uaelib (const TCHAR *s, const TCHAR *parm)
 {
 	int i;
 
+	if (!_tcsncmp(s, _T("KEY_RAW_"), 8)) {
+		// KEY_RAW_UP <code>
+		// KEY_RAW_DOWN <code>
+		int v;
+		const TCHAR *value = parm;
+		TCHAR *endptr;
+		int base = 10;
+		int state = _tcscmp(s, _T("KEY_RAW_UP")) ? 1 : 0;
+		if (value[0] == '0' && _totupper(value[1]) == 'X')
+			value += 2, base = 16;
+		v = _tcstol(value, &endptr, base);
+		for (i = 1; events[i].name; i++) {
+			struct inputevent *ie = &events[i];
+			if (_tcsncmp(ie->confname, _T("KEY_"), 4))
+				continue;
+			if (ie->data == v) {
+				handle_input_event(i, state, 1, 0, false, false);
+				return 1;
+			}
+		}
+		return 0;
+	}
+
 	for (i = 1; events[i].name; i++) {
 		if (!_tcscmp (s, events[i].confname)) {
 			handle_input_event (i, parm ? _tstol (parm) : 0, 1, 0, false, false);
