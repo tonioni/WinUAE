@@ -14,9 +14,6 @@ extern void a1000_reset (void);
 
 #ifdef JIT
 extern int special_mem;
-
-extern uae_u8 *cache_alloc (int);
-extern void cache_free (uae_u8*);
 #endif
 
 #define S_READ 1

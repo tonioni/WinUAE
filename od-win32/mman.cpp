@@ -49,22 +49,6 @@ static void virtualfreewithlock (LPVOID addr, SIZE_T size, DWORD freetype)
 	VirtualFree(addr, size, freetype);
 }
 
-#ifdef JIT
-#ifdef _WIN32
-
-void cache_free (uae_u8 *cache)
-{
-	virtualfreewithlock (cache, 0, MEM_RELEASE);
-}
-
-uae_u8 *cache_alloc (int size)
-{
-	return virtualallocwithlock (NULL, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-}
-
-#endif /*_WIN32 */
-#endif /* JIT */
-
 static uae_u32 lowmem (void)
 {
 	uae_u32 change = 0;

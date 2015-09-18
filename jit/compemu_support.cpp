@@ -121,8 +121,6 @@ extern bool canbang;
 
 #include "compemu_prefs.cpp"
 
-#define cache_size currprefs.cachesize
-
 #define uint32 uae_u32
 #define uint8 uae_u8
 
@@ -249,12 +247,8 @@ static bool		follow_const_jumps	= true;		// Flag: translation through constant j
 const bool		follow_const_jumps	= false;
 #endif
 
-#ifdef UAE
-/* ... */
-#else
-const uae_u32	MIN_CACHE_SIZE		= 1024;		// Minimal translation cache size (1 MB)
-static uae_u32	cache_size			= 0;		// Size of total cache allocated for compiled blocks
-#endif
+const uae_u32 MIN_CACHE_SIZE = 1024; // Minimal translation cache size (1 MB)
+static uae_u32 cache_size = 0; // Size of total cache allocated for compiled blocks
 static uae_u32		current_cache_size	= 0;		// Cache grows upwards: how much has been consumed already
 static bool		lazy_flush		= true;	// Flag: lazy translation cache invalidation
 #ifdef UAE
@@ -3440,6 +3434,9 @@ void alloc_cache(void)
 		compiled_code = 0;
 	}
 
+#ifdef UAE
+	cache_size = currprefs.cachesize;
+#endif
 	if (cache_size == 0)
 		return;
 
