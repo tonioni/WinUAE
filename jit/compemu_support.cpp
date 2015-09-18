@@ -3703,10 +3703,10 @@ static inline void create_popalls(void)
 	if ((popallspace = alloc_code(POPALLSPACE_SIZE)) == NULL) {
 		jit_abort("Could not allocate popallspace!");
 	}
-	vm_protect(popallspace, POPALLSPACE_SIZE, VM_PAGE_READ | VM_PAGE_WRITE);
 #ifdef UAE
 	}
 #endif
+	vm_protect(popallspace, POPALLSPACE_SIZE, VM_PAGE_READ | VM_PAGE_WRITE);
 
 	int stack_space = STACK_OFFSET;
 	for (i=0;i<N_REGS;i++) {
