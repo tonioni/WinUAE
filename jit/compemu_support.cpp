@@ -4226,9 +4226,7 @@ int failure;
 #define TARGET_NATIVE	TARGET_ARM
 #endif
 
-#ifdef UAE
-/* FIXME: disasm_* functions disabled */
-#else
+static
 void disasm_block(int /* target */, uint8 * /* start */, size_t /* length */)
 {
 	if (!JITDebug)
@@ -4244,7 +4242,6 @@ static inline void disasm_m68k_block(uint8 *start, size_t length)
 {
 	disasm_block(TARGET_M68K, start, length);
 }
-#endif
 
 #ifdef UAE
 static inline unsigned int get_opcode_cft_map(unsigned int f)
