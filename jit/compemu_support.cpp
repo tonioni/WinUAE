@@ -114,6 +114,8 @@
 #define FIXED_ADDRESSING 1
 #endif
 
+#define SAHF_SETO_PROFITABLE
+
 // %%% BRIAN KING WAS HERE %%%
 extern bool canbang;
 
@@ -161,7 +163,7 @@ static inline int distrust_addr(void)
 #define DEBUG 0
 #include "debug.h"
 
-#ifndef WIN32
+#if DEBUG
 #define PROFILE_COMPILE_TIME		1
 #define PROFILE_UNTRANSLATED_INSNS	1
 #endif
@@ -197,7 +199,7 @@ static int reg_count_compare(const void *ap, const void *bp)
 }
 #endif
 
-#if PROFILE_COMPILE_TIME
+#ifdef PROFILE_COMPILE_TIME
 #include <time.h>
 static uae_u32 compile_count	= 0;
 static clock_t compile_time		= 0;
@@ -205,8 +207,8 @@ static clock_t emul_start_time	= 0;
 static clock_t emul_end_time	= 0;
 #endif
 
-#if PROFILE_UNTRANSLATED_INSNS
-const int untranslated_top_ten = 20;
+#ifdef PROFILE_UNTRANSLATED_INSNS
+static const int untranslated_top_ten = 20;
 static uae_u32 raw_cputbl_count[65536] = { 0, };
 static uae_u16 opcode_nums[65536];
 
@@ -704,7 +706,7 @@ template< class T >
 class LazyBlockAllocator
 {
 	enum {
-		kPoolSize = 1 + 4096 / sizeof(T)
+		kPoolSize = 1 + (16384 - sizeof(T) - sizeof(void *)) / sizeof(T)
 	};
 	struct Pool {
 		T chunk[kPoolSize];
@@ -726,11 +728,7 @@ LazyBlockAllocator<T>::~LazyBlockAllocator()
 	while (currentPool) {
 		Pool * deadPool = currentPool;
 		currentPool = currentPool->next;
-#ifdef UAE
 		vm_release(deadPool, sizeof(Pool));
-#else
-		free(deadPool);
-#endif
 	}
 }
 
@@ -741,10 +739,13 @@ T * LazyBlockAllocator<T>::acquire()
 		// There is no chunk left, allocate a new pool and link the
 		// chunks into the free list
 #ifdef UAE
-		Pool * newPool = (Pool *) vm_acquire(sizeof(Pool));
+		Pool * newPool = (Pool *)vm_acquire(sizeof(Pool));
 #else
-		Pool * newPool = (Pool *)malloc(sizeof(Pool));
+		Pool * newPool = (Pool *)vm_acquire(sizeof(Pool), VM_MAP_DEFAULT | VM_MAP_32BIT);
 #endif
+		if (newPool == VM_MAP_FAILED) {
+			jit_abort("Could not allocate block pool!");
+		}
 		for (T * chunk = &newPool->chunk[0]; chunk < &newPool->chunk[kPoolSize]; chunk++) {
 			chunk->next = mChunks;
 			mChunks = chunk;
@@ -2490,11 +2491,11 @@ void compiler_init(void)
 
 	initialized = true;
 
-#if PROFILE_UNTRANSLATED_INSNS
+#ifdef PROFILE_UNTRANSLATED_INSNS
 	panicbug("<JIT compiler> : gather statistics on untranslated insns count");
 #endif
 
-#if PROFILE_COMPILE_TIME
+#ifdef PROFILE_COMPILE_TIME
 	panicbug("<JIT compiler> : gather statistics on translation time");
 	emul_start_time = clock();
 #endif
@@ -2505,7 +2506,7 @@ static
 #endif
 void compiler_exit(void)
 {
-#if PROFILE_COMPILE_TIME
+#ifdef PROFILE_COMPILE_TIME
 	emul_end_time = clock();
 #endif
 
@@ -2524,7 +2525,7 @@ void compiler_exit(void)
 	}
 #endif
 
-#if PROFILE_COMPILE_TIME
+#ifdef PROFILE_COMPILE_TIME
 	panicbug("### Compile Block statistics");
 	panicbug("Number of calls to compile_block : %d", compile_count);
 	uae_u32 emul_time = emul_end_time - emul_start_time;
@@ -2532,7 +2533,7 @@ void compiler_exit(void)
 	panicbug("Total compilation time : %.1f sec (%.1f%%)", double(compile_time)/double(CLOCKS_PER_SEC), 100.0*double(compile_time)/double(emul_time));
 #endif
 
-#if PROFILE_UNTRANSLATED_INSNS
+#ifdef PROFILE_UNTRANSLATED_INSNS
 	uae_u64 untranslated_count = 0;
 	for (int i = 0; i < 65536; i++) {
 		opcode_nums[i] = i;
@@ -2896,31 +2897,15 @@ void register_branch(uae_u32 not_taken, uae_u32 taken, uae_u8 cond)
 	branch_cc=cond;
 }
 
-/*
-static uae_u32 get_handler_address(uae_u32 addr)
-{
-	(void)cacheline(addr);
-	blockinfo* bi=get_blockinfo_addr_new((void*)(uintptr)addr,0);
-	return (uintptr)&(bi->direct_handler_to_use);
-}
-*/
-
 /* Note: get_handler may fail in 64 Bit environments, if direct_handler_to_use is
  * 		 outside 32 bit
  */
-static uae_u32 get_handler(uae_u32 addr)
+static uintptr get_handler(uintptr addr)
 {
 	(void)cacheline(addr);
 	blockinfo* bi=get_blockinfo_addr_new((void*)(uintptr)addr,0);
 	return (uintptr)bi->direct_handler_to_use;
 }
-
-/*
-static void load_handler(int reg, uae_u32 addr)
-{
-	mov_l_rm(reg,get_handler_address(addr));
-}
-*/
 
 /* This version assumes that it is writing *real* memory, and *will* fail
 *  if that assumption is wrong! No branches, no second chances, just
@@ -4198,7 +4183,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 {
 	if (letit && compiled_code) {
 #endif
-#if PROFILE_COMPILE_TIME
+#ifdef PROFILE_COMPILE_TIME
 		compile_count++;
 		clock_t start_time = clock();
 #endif
@@ -4434,7 +4419,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 						raw_mov_l_mi((uintptr)&regs.pc_p,
 							(uintptr)pc_hist[i].location);
 						raw_call((uintptr)cputbl[opcode]);
-#if PROFILE_UNTRANSLATED_INSNS
+#ifdef PROFILE_UNTRANSLATED_INSNS
 						// raw_cputbl_count[] is indexed with plain opcode (in m68k order)
 						raw_add_l_mi((uintptr)&raw_cputbl_count[cft_map(opcode)],1);
 #endif
@@ -4573,11 +4558,11 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 					raw_jmp_r(r2);
 				}
 				else if (was_comp && isconst(PC_P)) {
-					uae_u32 v=live.state[PC_P].val;
+					uintptr v = live.state[PC_P].val;
 					uae_u32* tba;
 					blockinfo* tbi;
 
-					tbi=get_blockinfo_addr_new((void*)(uintptr)v,1);
+					tbi = get_blockinfo_addr_new((void*) v, 1);
 					match_states(tbi);
 
 #ifdef UAE
@@ -4807,26 +4792,26 @@ void m68k_do_compile_execute(void)
 void m68k_compile_execute (void)
 {
 setjmpagain:
-    TRY(prb) {
-	for (;;) {
-	    if (quit_program > 0) {
-		if (quit_program == 1) {
+	TRY(prb) {
+		for (;;) {
+			if (quit_program > 0) {
+				if (quit_program == 1) {
 #ifdef FLIGHT_RECORDER
-		    dump_log();
+					dump_flight_recorder();
 #endif
-		    break;
+					break;
+				}
+				quit_program = 0;
+				m68k_reset ();
+			}
+			m68k_do_compile_execute();
 		}
-		quit_program = 0;
-		m68k_reset ();
-	    }
-	    m68k_do_compile_execute();
 	}
-    }
-    CATCH(prb) {
-	flush_icache(0);
-        Exception(prb, 0);
-    	goto setjmpagain;
-    }
+	CATCH(prb) {
+		flush_icache(0);
+		Exception(prb, 0);
+		goto setjmpagain;
+	}
 }
 #endif
 

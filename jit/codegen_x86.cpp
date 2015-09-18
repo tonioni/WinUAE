@@ -3342,7 +3342,7 @@ static inline void raw_flags_set_zero_FLAGSTK(int s, int tmp)
 
 static inline void raw_flags_init_FLAGSTK(void) { }
 
-#if defined(__x86_64__)
+#if defined(CPU_x86_64)
 /* Try to use the LAHF/SETO method on x86_64 since it is faster.
    This can't be the default because some older CPUs don't support
    LAHF/SAHF in long mode.  */
@@ -3401,7 +3401,13 @@ static inline void raw_flags_init_FLAGGEN(void)
 }
 #endif
 
+#ifdef SAHF_SETO_PROFITABLE
 #define FLAG_SUFFIX FLAGREG
+#elif defined CPU_x86_64
+#define FLAG_SUFFIX FLAGGEN
+#else
+#define FLAG_SUFFIX FLAGSTK
+#endif
 
 #define FLAG_GLUE_2(x, y)		x ## _ ## y
 #define FLAG_GLUE_1(x, y)		FLAG_GLUE_2(x, y)
@@ -3743,6 +3749,7 @@ raw_init_cpu(void)
 			c->cpuid_level, c->x86, c->x86_model, c->x86_mask, s, c->x86_vendor);
 		xfree (s);
 	}
+	raw_flags_init();
 }
 
 #if 0
