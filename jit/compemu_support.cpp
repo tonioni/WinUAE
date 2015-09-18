@@ -242,9 +242,13 @@ static bool		JITDebug			= false;	// Enable runtime disassemblers through mon?
 const bool		JITDebug			= false;	// Don't use JIT debug mode at all
 #endif
 #if USE_INLINING
-static bool		follow_const_jumps	= true;		// Flag: translation through constant jumps	
+#ifdef UAE
+#define follow_const_jumps (currprefs.comp_constjump != 0)
 #else
-const bool		follow_const_jumps	= false;
+static bool follow_const_jumps = true; // Flag: translation through constant jumps
+#endif
+#else
+const bool follow_const_jumps = false;
 #endif
 
 const uae_u32 MIN_CACHE_SIZE = 1024; // Minimal translation cache size (1 MB)

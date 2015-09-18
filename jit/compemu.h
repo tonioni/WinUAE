@@ -80,9 +80,6 @@ union cacheline {
 #error implementation in progress
 #endif
 
-#ifdef UAE
-/* Temporarily disabled due to some issues on x86-64 */
-#else
 /* (gb) When on, this option can save save up to 30% compilation time
  *  when many lazy flushes occur (e.g. apps in MacOS 8.x).
  */
@@ -93,7 +90,6 @@ union cacheline {
 
 /* Use code inlining, aka follow-up of constant jumps */
 #define USE_INLINING 1
-#endif
 
 /* Inlining requires the chained checksuming information */
 #if USE_INLINING

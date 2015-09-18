@@ -75,7 +75,7 @@ bool check_prefs_changed_comp (void)
 	}
 
 	if (changed)
-		write_log (_T("JIT: cache=%d. b=%d w=%d l=%d fpu=%d nf=%d const=%d hard=%d\n"),
+		write_log (_T("JIT: cache=%d. b=%d w=%d l=%d fpu=%d nf=%d inline=%d hard=%d\n"),
 		currprefs.cachesize,
 		currprefs.comptrustbyte, currprefs.comptrustword, currprefs.comptrustlong, 
 		currprefs.compfpu, currprefs.compnf, currprefs.comp_constjump, currprefs.comp_hardflush);
