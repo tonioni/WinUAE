@@ -3351,6 +3351,9 @@ generate_one_opcode (int rp, int noflags)
 	else
 		strcpy(flags, "0");
 
+#ifdef UAE
+	comprintf ("return 0;\n");
+#endif
 	comprintf ("}\n");
 
 	char *name = ua (lookuptab[i].name);
