@@ -626,6 +626,10 @@ public:
 		 * (Visual C debug mode). We want zeroed memory though. */
 		memset((void*)MemBase,0,memsize*1024*1024);
 #endif
+
+		// make sure (unused) lfb is out side of our memory range
+		memory.lfb.start_page = (128 * 1024 * 1024) / 4096;
+
 		memory.pages = (memsize*1024*1024)/4096;
 		/* Allocate the data for the different page information blocks */
 		memory.phandlers=new  PageHandler * [memory.pages];
