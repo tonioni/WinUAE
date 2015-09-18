@@ -40,10 +40,8 @@ typedef uae_u64 uintptr;
 #else
 typedef uae_u32 uintptr;
 #endif
+/* FIXME: cpummu.cpp also checks for USE_JIT, possibly others */
 #define USE_JIT
-#ifdef CPU_i386
-#define USE_JIT_FPU
-#endif
 #endif
 
 #ifdef USE_JIT

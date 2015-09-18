@@ -257,7 +257,15 @@ static uae_u32	cache_size			= 0;		// Size of total cache allocated for compiled 
 #endif
 static uae_u32		current_cache_size	= 0;		// Cache grows upwards: how much has been consumed already
 static bool		lazy_flush		= true;	// Flag: lazy translation cache invalidation
-static bool		avoid_fpu		= true;	// Flag: compile FPU instructions ?
+#ifdef UAE
+#ifdef USE_JIT_FPU
+#define avoid_fpu (!currprefs.compfpu)
+#else
+#define avoid_fpu (true)
+#endif
+#else
+static bool avoid_fpu = true; // Flag: compile FPU instructions ?
+#endif
 static bool		have_cmov		= false;	// target has CMOV instructions ?
 static bool		have_lahf_lm		= true;		// target has LAHF supported in long mode ?
 static bool		have_rat_stall		= true;	// target has partial register stalls ?
@@ -3960,13 +3968,6 @@ void build_comp(void)
 		prop[cft_map(tbl[i].opcode)].is_addx = isaddx;
 
 		bool uses_fpu = (tbl[i].specific & COMP_OPCODE_USES_FPU) != 0;
-#ifdef UAE
-#ifdef USE_JIT_FPU
-		avoid_fpu = false;
-#else
-		avoid_fpu = true;
-#endif
-#endif
 		if (uses_fpu && avoid_fpu)
 			compfunctbl[cft_map(tbl[i].opcode)] = NULL;
 		else

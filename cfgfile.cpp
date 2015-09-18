@@ -1401,7 +1401,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("comp_constjump"), p->comp_constjump);
 	cfgfile_write_bool (f, _T("comp_oldsegv"), p->comp_oldsegv);
 	cfgfile_write_str (f, _T("comp_flushmode"), flushmode[p->comp_hardflush]);
+#ifdef USE_JIT_FPU
 	cfgfile_write_bool (f, _T("compfpu"), p->compfpu);
+#endif
 	cfgfile_write_bool (f, _T("comp_midopt"), p->comp_midopt);
 	cfgfile_write_bool (f, _T("comp_lowopt"), p->comp_lowopt);
 	cfgfile_write_bool (f, _T("avoid_cmov"), p->avoid_cmov);
@@ -4277,7 +4279,9 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("comp_constjump"), &p->comp_constjump)
 		|| cfgfile_yesno (option, value, _T("comp_oldsegv"), &p->comp_oldsegv)
 		|| cfgfile_yesno (option, value, _T("compforcesettings"), &dummybool)
+#ifdef USE_JIT_FPU
 		|| cfgfile_yesno (option, value, _T("compfpu"), &p->compfpu)
+#endif
 		|| cfgfile_yesno (option, value, _T("comp_midopt"), &p->comp_midopt)
 		|| cfgfile_yesno (option, value, _T("comp_lowopt"), &p->comp_lowopt)
 		|| cfgfile_yesno (option, value, _T("rtg_nocustom"), &p->picasso96_nocustom)
@@ -6022,7 +6026,11 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->comp_hardflush = 0;
 	p->comp_constjump = 1;
 	p->comp_oldsegv = 0;
+#ifdef USE_JIT_FPU
 	p->compfpu = 1;
+#else
+	p->compfpu = 0;
+#endif
 	p->cachesize = 0;
 	p->avoid_cmov = 0;
 	p->comp_midopt = 0;
