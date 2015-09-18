@@ -6036,15 +6036,6 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->comp_midopt = 0;
 	p->comp_lowopt = 0;
 
-	for (i = 0;i < 10; i++)
-		p->optcount[i] = -1;
-	p->optcount[0] = 4;	/* How often a block has to be executed before it is translated */
-	p->optcount[1] = 0;	/* How often to use the naive translation */
-	p->optcount[2] = 0;
-	p->optcount[3] = 0;
-	p->optcount[4] = 0;
-	p->optcount[5] = 0;
-
 	p->gfx_framerate = 1;
 	p->gfx_autoframerate = 50;
 	p->gfx_size_fs.width = 800;

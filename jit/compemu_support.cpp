@@ -275,7 +275,11 @@ static bool		setzflg_uses_bsf	= false;	// setzflg virtual instruction can use na
 static int		align_loops		= 32;	// Align the start of loops
 static int		align_jumps		= 32;	// Align the start of jumps
 static int		optcount[10]		= {
+#ifdef UAE
+	4,		// How often a block has to be executed before it is translated
+#else
 	10,		// How often a block has to be executed before it is translated
+#endif
 	0,		// How often to use naive translation
 	0, 0, 0, 0,
 	-1, -1, -1, -1
@@ -590,11 +594,7 @@ static inline void invalidate_block(blockinfo* bi)
 	int i;
 
 	bi->optlevel=0;
-#ifdef UAE
-	bi->count=currprefs.optcount[0]-1;
-#else
 	bi->count=optcount[0]-1;
-#endif
 	bi->handler=NULL;
 	bi->handler_to_use=(cpuop_func*)popall_execute_normal;
 	bi->direct_handler=NULL;
@@ -4352,15 +4352,9 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		}
 		if (bi->count==-1) {
 			optlev++;
-#ifdef UAE
-			while (!currprefs.optcount[optlev])
-				optlev++;
-			bi->count=currprefs.optcount[optlev]-1;
-#else
 			while (!optcount[optlev])
 				optlev++;
 			bi->count=optcount[optlev]-1;
-#endif
 		}
 		current_block_pc_p=(uintptr)pc_hist[0].location;
 

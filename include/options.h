@@ -397,7 +397,6 @@ struct uae_prefs {
 	bool comp_oldsegv;
 
 	int cachesize;
-	int optcount[10];
 
 	bool avoid_cmov;
 
