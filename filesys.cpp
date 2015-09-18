@@ -7364,18 +7364,17 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	}
 	blocksize = rl (bufrdb + 16);
 	readblocksize = blocksize > hfd->ci.blocksize ? blocksize : hfd->ci.blocksize;
+
 	badblock = rl (bufrdb + 24);
 	if (badblock != -1) {
-		rdbmnt
-		write_log (_T("RDB: badblock list is not yet supported. Contact the author.\n"));
-		return -2;
+		write_log (_T("RDB: badblock list %08x\n"), badblock);
 	}
+
 	driveinitblock = rl (bufrdb + 36);
 	if (driveinitblock != -1) {
-		rdbmnt
-		write_log (_T("RDB: driveinit is not yet supported. Contact the author.\n"));
-		return -2;
+		write_log (_T("RDB: driveinit = %08x\n"), driveinitblock);
 	}
+
 	hfd->rdbcylinders = rl (bufrdb + 64);
 	hfd->rdbsectors = rl (bufrdb + 68);
 	hfd->rdbheads = rl (bufrdb + 72);
