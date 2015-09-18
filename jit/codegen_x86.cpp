@@ -194,6 +194,38 @@ static const uae_u8 need_to_preserve[]={0,0,0,1,0,1,1,1};
 #define x86_get_target()		get_target()
 #define x86_emit_failure(MSG)	jit_fail(MSG, __FILE__, __LINE__, __FUNCTION__)
 
+// Some mappings to mark compemu_support calls as only used by compemu
+// These are still mainly x86 minded. Should be more CPU independent in the future
+#define compemu_raw_add_l_mi(a,b)		raw_add_l_mi(a,b)
+#define compemu_raw_and_l_ri(a,b)		raw_and_l_ri(a,b)
+#define compemu_raw_bswap_32(a)			raw_bswap_32(a)
+#define compemu_raw_bt_l_ri(a,b)		raw_bt_l_ri(a,b)
+#define compemu_raw_call(a)				raw_call(a)
+#define compemu_raw_cmov_l_rm_indexed(a,b,c,d,e)	raw_cmov_l_rm_indexed(a,b,c,d,e)
+#define compemu_raw_cmp_l_mi(a,b)		raw_cmp_l_mi(a,b)
+#define compemu_raw_cmp_l_mi8(a,b)		raw_cmp_l_mi(a,b)
+#define compemu_raw_jcc_b_oponly(a)		raw_jcc_b_oponly(a)
+#define compemu_raw_jcc_l_oponly(a)		raw_jcc_l_oponly(a)
+#define compemu_raw_jl(a)				raw_jl(a)
+#define compemu_raw_jmp(a)				raw_jmp(a)
+#define compemu_raw_jmp_m_indexed(a,b,c)	raw_jmp_m_indexed(a,b,c)
+#define compemu_raw_jmp_r(a)			raw_jmp_r(a)
+#define compemu_raw_jnz(a)				raw_jnz(a)
+#define compemu_raw_jz_b_oponly()		raw_jz_b_oponly()
+#define compemu_raw_lea_l_brr(a,b,c) 	raw_lea_l_brr(a,b,c)
+#define compemu_raw_lea_l_brr_indexed(a,b,c,d,e)	raw_lea_l_brr_indexed(a,b,c,d,e)
+#define compemu_raw_mov_b_mr(a,b)		raw_mov_b_mr(a,b)
+#define compemu_raw_mov_l_mi(a,b)		raw_mov_l_mi(a,b)
+#define compemu_raw_mov_l_mr(a,b)		raw_mov_l_mr(a,b)
+#define compemu_raw_mov_l_ri(a,b)		raw_mov_l_ri(a,b)
+#define compemu_raw_mov_l_rm(a,b)		raw_mov_l_rm(a,b)
+#define compemu_raw_mov_l_rr(a,b)		raw_mov_l_rr(a,b)
+#define compemu_raw_mov_w_mr(a,b)		raw_mov_w_mr(a,b)
+#define compemu_raw_sub_l_mi(a,b)		raw_sub_l_mi(a,b)
+#define compemu_raw_test_l_rr(a,b) 		raw_test_l_rr(a,b)
+#define compemu_raw_zero_extend_16_rr(a,b)	raw_zero_extend_16_rr(a,b)
+#define compemu_raw_lea_l_rr_indexed(a,b,c,d)	raw_lea_l_rr_indexed(a,b,c,d)
+
 static void jit_fail(const char *msg, const char *file, int line, const char *function)
 {
 	jit_abort("failure in function %s from file %s at line %d: %s",
@@ -588,8 +620,7 @@ LENDFUNC(NONE,NONE,2,raw_imul_32_32,(RW4 d, R4 s))
 LOWFUNC(NONE,NONE,2,raw_imul_64_32,(RW4 d, RW4 s))
 {
 	if (d!=MUL_NREG1 || s!=MUL_NREG2) {
-	write_log("Bad register in IMUL: d=%d, s=%d\n",d,s);
-	abort();
+		jit_abort("Bad register in IMUL: d=%d, s=%d",d,s);
 	}
 	IMULLr(s);
 }
@@ -598,8 +629,7 @@ LENDFUNC(NONE,NONE,2,raw_imul_64_32,(RW4 d, RW4 s))
 LOWFUNC(NONE,NONE,2,raw_mul_64_32,(RW4 d, RW4 s))
 {
 	if (d!=MUL_NREG1 || s!=MUL_NREG2) {
-	write_log("Bad register in MUL: d=%d, s=%d\n",d,s);
-	abort();
+		jit_abort("Bad register in MUL: d=%d, s=%d",d,s);
 	}
 	MULLr(s);
 }
@@ -3342,7 +3372,7 @@ static inline void raw_flags_set_zero_FLAGSTK(int s, int tmp)
 
 static inline void raw_flags_init_FLAGSTK(void) { }
 
-#if defined(__x86_64__)
+#if defined(CPU_x86_64)
 /* Try to use the LAHF/SETO method on x86_64 since it is faster.
    This can't be the default because some older CPUs don't support
    LAHF/SAHF in long mode.  */
@@ -3401,7 +3431,13 @@ static inline void raw_flags_init_FLAGGEN(void)
 }
 #endif
 
+#ifdef SAHF_SETO_PROFITABLE
 #define FLAG_SUFFIX FLAGREG
+#elif defined CPU_x86_64
+#define FLAG_SUFFIX FLAGGEN
+#else
+#define FLAG_SUFFIX FLAGSTK
+#endif
 
 #define FLAG_GLUE_2(x, y)		x ## _ ## y
 #define FLAG_GLUE_1(x, y)		FLAG_GLUE_2(x, y)
@@ -3456,6 +3492,20 @@ static inline void raw_inc_sp(int off)
 	if (off) raw_add_l_ri(ESP_INDEX,off);
 }
 
+static inline void raw_push_regs_to_preserve(void) {
+	for (int i=N_REGS;i--;) {
+		if (need_to_preserve[i])
+			raw_push_l_r(i);
+	}
+}
+
+static inline void raw_pop_preserved_regs(void) {
+	for (int i=0;i<N_REGS;i++) {
+		if (need_to_preserve[i])
+			raw_pop_l_r(i);
+	}
+}
+
 /*************************************************************************
  * Handling mistaken direct memory access (removed from ARAnyM sources)  *
  *************************************************************************/
@@ -3466,7 +3516,7 @@ static inline void raw_inc_sp(int off)
 
 static
 void compiler_status() {
-	jit_log("compiled code starts at %p, current at %08x", compiled_code, (unsigned int)(current_compile_p - compiled_code));
+	jit_log("compiled code starts at %p, current at %p (size 0x%x)", compiled_code, current_compile_p, (unsigned int)(current_compile_p - compiled_code));
 }
 
 /*************************************************************************
@@ -3481,8 +3531,10 @@ struct cpuinfo_x86 {
 	uae_u32	x86_hwcap;
 	uae_u8	x86_model;
 	uae_u8	x86_mask;
-	int		cpuid_level;    // Maximum supported CPUID level, -1=no CPUID
-	char		x86_vendor_id[16];
+	bool	x86_has_xmm2;
+	int	cpuid_level;    // Maximum supported CPUID level, -1=no CPUID
+	char	x86_vendor_id[16];
+	uintptr	x86_clflush_size;
 };
 struct cpuinfo_x86 cpuinfo;
 
@@ -3568,55 +3620,66 @@ static void
 		c->x86_vendor = X86_VENDOR_UNKNOWN;
 }
 
+/*
+ * Generic CPUID function
+ * clear %ecx since some cpus (Cyrix MII) do not set or clear %ecx
+ * resulting in stale register contents being returned.
+ */
+/* Some CPUID calls want 'count' to be placed in ecx */
+#ifdef __GNUC__
+static void cpuid_count(uae_u32 op, uae_u32 count, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx)
+{
+	uae_u32 _eax, _ebx, _ecx, _edx;
+	_eax = op;
+	_ecx = count;
+	__asm__ __volatile__(
+	"   movl %0,%%eax \n"
+	"   movl %2,%%ecx \n"
+	"	cpuid \n"
+	"   movl %%eax,%0 \n"
+	"   movl %%ebx,%1 \n"
+	"   movl %%ecx,%2 \n"
+	"   movl %%edx,%3 \n"
+		: "+m" (_eax),
+		  "=m" (_ebx),
+		  "+m" (_ecx),
+		  "=m" (_edx)
+		:
+		: "eax", "ebx", "ecx", "edx");
+	*eax = _eax;
+	*ebx = _ebx;
+	*ecx = _ecx;
+	*edx = _edx;
+}
+#endif
+
+#ifdef _MSC_VER
+static void cpuid_count(uae_u32 op, uae_u32 count, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx)
+{
+	int cpuinfo[4];
+	cpuinfo[0] = op;
+	cpuinfo[1] = 0;
+	cpuinfo[2] = count;
+	cpuinfo[3] = 0;
+	__cpuidex(cpuinfo, op, count);
+	*eax = cpuinfo[0];
+	*ebx = cpuinfo[1];
+	*ecx = cpuinfo[2];
+	*edx = cpuinfo[3];
+	}
+#endif
+
 static void
 cpuid(uae_u32 op, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx)
 {
-	const int CPUID_SPACE = 4096;
-	uae_u8* cpuid_space = (uae_u8 *)vm_acquire(CPUID_SPACE);
-	if (cpuid_space == VM_MAP_FAILED)
-		jit_abort("Could not allocate cpuid_space");
-	vm_protect(cpuid_space, CPUID_SPACE, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE);
-
-	static uae_u32 s_op, s_eax, s_ebx, s_ecx, s_edx;
-	uae_u8* tmp=get_target();
-
-	s_op = op;
-	set_target(cpuid_space);
-	raw_push_l_r(0); /* eax */
-	raw_push_l_r(1); /* ecx */
-	raw_push_l_r(2); /* edx */
-	raw_push_l_r(3); /* ebx */
-	raw_mov_l_rm(0,(uintptr)&s_op);
-	raw_cpuid(0);
-	raw_mov_l_mr((uintptr)&s_eax,0);
-	raw_mov_l_mr((uintptr)&s_ebx,3);
-	raw_mov_l_mr((uintptr)&s_ecx,1);
-	raw_mov_l_mr((uintptr)&s_edx,2);
-	raw_pop_l_r(3);
-	raw_pop_l_r(2);
-	raw_pop_l_r(1);
-	raw_pop_l_r(0);
-	raw_ret();
-#ifdef USE_UDIS86
-	if (!op) { /* Only disassemble once! */
-		UDISFN(cpuid_space, target)
-	}
-#endif
-	set_target(tmp);
-
-	((cpuop_func*)cpuid_space)(0);
-	if (eax != NULL) *eax = s_eax;
-	if (ebx != NULL) *ebx = s_ebx;
-	if (ecx != NULL) *ecx = s_ecx;
-	if (edx != NULL) *edx = s_edx;
-
-	vm_release(cpuid_space, CPUID_SPACE);
+	cpuid_count(op, 0, eax, ebx, ecx, edx);
 }
 
 static void
 raw_init_cpu(void)
 {
 	struct cpuinfo_x86 *c = &cpuinfo;
+	uae_u32 dummy;
 
 	/* Defaults */
 	c->x86_processor = X86_PROCESSOR_max;
@@ -3625,6 +3688,11 @@ raw_init_cpu(void)
 	c->x86_model = c->x86_mask = 0;	/* So far unknown... */
 	c->x86_vendor_id[0] = '\0';		/* Unset */
 	c->x86_hwcap = 0;
+#ifdef CPU_x86_64
+	c->x86_clflush_size = 64;
+#else
+	c->x86_clflush_size = 32;
+#endif
 
 	/* Get vendor name */
 	c->x86_vendor_id[12] = '\0';
@@ -3639,7 +3707,7 @@ raw_init_cpu(void)
 	c->x86_brand_id = 0;
 	if ( c->cpuid_level >= 0x00000001 ) {
 		uae_u32 tfms, brand_id;
-		cpuid(0x00000001, &tfms, &brand_id, NULL, &c->x86_hwcap);
+		cpuid(0x00000001, &tfms, &brand_id, &dummy, &c->x86_hwcap);
 		c->x86 = (tfms >> 8) & 15;
 		if (c->x86 == 0xf)
 			c->x86 += (tfms >> 20) & 0xff; /* extended family */
@@ -3648,6 +3716,10 @@ raw_init_cpu(void)
 			c->x86_model |= (tfms >> 12) & 0xf0; /* extended model */
 		c->x86_brand_id = brand_id & 0xff;
 		c->x86_mask = tfms & 15;
+		if (c->x86_hwcap & (1 << 19))
+		{
+			c->x86_clflush_size = ((brand_id >> 8) & 0xff) * 8;
+		}
 	} else {
 		/* Have CPUID level 0 only - unheard of */
 		c->x86 = 4;
@@ -3655,11 +3727,11 @@ raw_init_cpu(void)
 
 	/* AMD-defined flags: level 0x80000001 */
 	uae_u32 xlvl;
-	cpuid(0x80000000, &xlvl, NULL, NULL, NULL);
+	cpuid(0x80000000, &xlvl, &dummy, &dummy, &dummy);
 	if ( (xlvl & 0xffff0000) == 0x80000000 ) {
 		if ( xlvl >= 0x80000001 ) {
 			uae_u32 features, extra_features;
-			cpuid(0x80000001, NULL, NULL, &extra_features, &features);
+			cpuid(0x80000001, &dummy, &dummy, &extra_features, &features);
 			if (features & (1 << 29)) {
 				/* Assume x86-64 if long mode is supported */
 				c->x86_processor = X86_PROCESSOR_X86_64;
@@ -3705,22 +3777,24 @@ raw_init_cpu(void)
 	}
 	if (c->x86_processor == X86_PROCESSOR_max) {
 		c->x86_processor = X86_PROCESSOR_I386;
-		jit_log("Error: unknown processor type\n");
-		jit_log("  Family  : %d\n", c->x86);
-		jit_log("  Model   : %d\n", c->x86_model);
-		jit_log("  Mask    : %d\n", c->x86_mask);
-		jit_log("  Vendor  : %s [%d]\n", c->x86_vendor_id, c->x86_vendor);
+		jit_log("Error: unknown processor type");
+		jit_log("  Family  : %d", c->x86);
+		jit_log("  Model   : %d", c->x86_model);
+		jit_log("  Mask    : %d", c->x86_mask);
+		jit_log("  Vendor  : %s [%d]", c->x86_vendor_id, c->x86_vendor);
 		if (c->x86_brand_id)
-			fprintf(stderr, "  BrandID : %02x\n", c->x86_brand_id);
+			jit_log("  BrandID : %02x", c->x86_brand_id);
 	}
 
 	/* Have CMOV support? */
-	have_cmov = c->x86_hwcap & (1 << 15);
+	have_cmov = (c->x86_hwcap & (1 << 15)) != 0;
 #if defined(CPU_x86_64)
 	if (!have_cmov) {
 		jit_abort("x86-64 implementations are bound to have CMOV!");
 	}
 #endif
+
+	c->x86_has_xmm2 = (c->x86_hwcap & (1 << 26)) != 0;
 
 	/* Can the host CPU suffer from partial register stalls? */
 	have_rat_stall = (c->x86_vendor == X86_VENDOR_INTEL);
@@ -3737,15 +3811,17 @@ raw_init_cpu(void)
 		align_loops = x86_alignments[c->x86_processor].align_loop;
 		align_jumps = x86_alignments[c->x86_processor].align_jump;
 	}
-	{ 
-		TCHAR *s = au (c->x86_vendor_id);
-		write_log (_T("CPUID level=%d, Family=%d, Model=%d, Mask=%d, Vendor=%s [%d]\n"),
-			c->cpuid_level, c->x86, c->x86_model, c->x86_mask, s, c->x86_vendor);
-		xfree (s);
-	}
+
+	jit_log("Max CPUID level=%d Processor is %s [%s]",
+			c->cpuid_level, c->x86_vendor_id,
+			x86_processor_string_table[c->x86_processor]);
+
+	raw_flags_init();
 }
 
 #if 0
+static void __attribute_noinline__ prevent_redzone_use(void) {}
+
 static bool target_check_bsf(void)
 {
 	bool mismatch = false;
@@ -3754,8 +3830,9 @@ static bool target_check_bsf(void)
 			for (int g_OF = 0; g_OF <= 1; g_OF++) {
 				for (int g_SF = 0; g_SF <= 1; g_SF++) {
 					for (int value = -1; value <= 1; value++) {
-						unsigned long flags = (g_SF << 7) | (g_OF << 11) | (g_ZF << 6) | g_CF;
-						long tmp = value;
+						uintptr flags = (g_SF << 7) | (g_OF << 11) | (g_ZF << 6) | g_CF;
+						intptr tmp = value;
+						prevent_redzone_use();
 						__asm__ __volatile__ ("push %0; popf; bsf %1,%1; pushf; pop %0"
 							: "+r" (flags), "+r" (tmp) : : "cc");
 						int OF = (flags >> 11) & 1;
@@ -3768,7 +3845,9 @@ static bool target_check_bsf(void)
 					}
 				}}}}
 	if (mismatch)
+	{
 		jit_log("Target CPU defines all flags on BSF instruction");
+	}
 	return !mismatch;
 }
 #endif

@@ -70,6 +70,13 @@ struct cputbl {
 #ifdef JIT
 typedef uae_u32 REGPARAM3 compop_func (uae_u32) REGPARAM;
 
+#define COMP_OPCODE_ISJUMP      0x0001
+#define COMP_OPCODE_LONG_OPCODE 0x0002
+#define COMP_OPCODE_CMOV        0x0004
+#define COMP_OPCODE_ISADDX      0x0008
+#define COMP_OPCODE_ISCJUMP     0x0010
+#define COMP_OPCODE_USES_FPU    0x0020
+
 struct comptbl {
 	compop_func *handler;
 	uae_u32 opcode;

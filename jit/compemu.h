@@ -41,6 +41,9 @@ typedef uae_u64 uintptr;
 typedef uae_u32 uintptr;
 #endif
 #define USE_JIT
+#ifdef CPU_i386
+#define USE_JIT_FPU
+#endif
 #endif
 
 #ifdef USE_JIT
@@ -141,6 +144,7 @@ union cacheline {
 #define KILLTHERAT 1  /* Set to 1 to avoid some partial_rat_stalls */
 
 #if defined(CPU_arm)
+#define USE_DATA_BUFFER
 #define N_REGS 13  /* really 16, but 13 to 15 are SP, LR, PC */
 #else
 #if defined(CPU_x86_64)
@@ -295,7 +299,6 @@ typedef struct {
 
 extern int touchcnt;
 
-
 #define IMM  uae_s32
 #define RR1  uae_u32
 #define RR2  uae_u32
@@ -331,7 +334,12 @@ extern int touchcnt;
 #define DECLARE_MIDFUNC(func) extern void func
 
 #if defined(CPU_arm)
+
 #include "compemu_midfunc_arm.h"
+
+#if defined(USE_JIT2)
+#include "compemu_midfunc_arm2.h"
+#endif
 #endif
 
 #if defined(CPU_i386) || defined(CPU_x86_64)
@@ -359,6 +367,7 @@ extern void calc_disp_ea_020(int base, uae_u32 dp, int target, int tmp);
 /* Set native Z flag only if register is zero */
 extern void set_zero(int r, int tmp);
 extern int kill_rodent(int r);
+#define SYNC_PC_OFFSET 100
 extern void sync_m68k_pc(void);
 extern uae_u32 get_const(int r);
 extern int  is_const(int r);
@@ -500,17 +509,25 @@ LONG WINAPI EvalException(LPEXCEPTION_POINTERS info);
 #endif
 #endif
 
+void jit_abort(const char *format,...);
+#if SIZEOF_TCHAR != 1
+void jit_abort(const TCHAR *format, ...);
 #endif
 
-#endif /* COMPEMU_H */
+#else
+
+#define jit_abort(...) abort()
+#define jit_log panicbug
+#define jit_log2(...)
+
+#endif
 
 #ifdef CPU_64_BIT
 static inline uae_u32 check_uae_p32(uae_u64 address, const char *file, int line)
 {
 	if (address > (uintptr_t) 0xffffffff) {
-		write_log("JIT: 64-bit pointer (0x%llx) at %s:%d (fatal)\n",
+		jit_abort("JIT: 64-bit pointer (0x%llx) at %s:%d (fatal)",
 			address, file, line);
-		abort();
 	}
 	return (uae_u32) address;
 }
@@ -518,3 +535,5 @@ static inline uae_u32 check_uae_p32(uae_u64 address, const char *file, int line)
 #else
 #define uae_p32(x) ((uae_u32)(x))
 #endif
+
+#endif /* COMPEMU_H */
