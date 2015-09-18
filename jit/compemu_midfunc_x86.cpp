@@ -2889,14 +2889,53 @@ MIDFUNC(2,fmul_rr,(FRW d, FR s))
 }
 MENDFUNC(2,fmul_rr,(FRW d, FR s))
 
+#ifdef __GNUC__
+
+static inline void mfence(void)
+{
+#ifdef CPU_i386
+	if (!cpuinfo.x86_has_xmm2)
+		__asm__ __volatile__("lock; addl $0,0(%%esp)":::"memory");
+	else
+#endif
+		__asm__ __volatile__("mfence":::"memory");
+}
+
+static inline void clflush(volatile void *__p)
+{
+	__asm__ __volatile__("clflush %0" : "+m" (*(volatile char *)__p));
+}
+
+static inline void flush_cpu_icache(void *start, void *stop)
+{
+	mfence();
+	if (cpuinfo.x86_clflush_size != 0)
+	{
+		volatile char *vaddr = (volatile char *)(((uintptr)start / cpuinfo.x86_clflush_size) * cpuinfo.x86_clflush_size);
+		volatile char *vend = (volatile char *)((((uintptr)stop + cpuinfo.x86_clflush_size - 1) / cpuinfo.x86_clflush_size) * cpuinfo.x86_clflush_size);
+		while (vaddr < vend)
+		{
+			clflush(vaddr);
+			vaddr += cpuinfo.x86_clflush_size;
+		}
+	}
+	mfence();
+}
+
+#else
+
 static inline void flush_cpu_icache(void *start, void *stop)
 {
 	UNUSED(start);
 	UNUSED(stop);
 }
 
+#endif
+
 static inline void write_jmp_target(uae_u32 *jmpaddr, cpuop_func* a) {
-	*(jmpaddr)=(uintptr)a-((uintptr)jmpaddr+4);
+	uintptr rel = (uintptr) a - ((uintptr) jmpaddr + 4);
+	*(jmpaddr) = (uae_u32) rel;
+	flush_cpu_icache((void *) jmpaddr, (void *) &jmpaddr[1]);
 }
 
 static inline void emit_jmp_target(uae_u32 a) {
