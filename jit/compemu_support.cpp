@@ -75,7 +75,7 @@
 #include "vm_alloc.h"
 
 #include "m68k.h"
-#include "memory.h"
+#include "memory-uae.h"
 #include "readcpu.h"
 #endif
 #include "newcpu.h"
@@ -310,7 +310,7 @@ static inline unsigned int cft_map (unsigned int f)
 #ifdef UAE
 	return f;
 #else
-#ifndef HAVE_GET_WORD_UNSWAPPED
+#if !defined(HAVE_GET_WORD_UNSWAPPED) || defined(FULLMMU)
 	return f;
 #else
 	return ((f >> 8) & 255) | ((f & 255) << 8);
@@ -336,7 +336,7 @@ static uae_u8* current_compile_p=NULL;
 static uae_u8* max_compile_start;
 static uae_u8* compiled_code=NULL;
 static uae_s32 reg_alloc_run;
-const int POPALLSPACE_SIZE = 1024; /* That should be enough space */
+const int POPALLSPACE_SIZE = 2048; /* That should be enough space */
 static uae_u8 *popallspace=NULL;
 
 void* pushall_call_handler=NULL;
@@ -1674,7 +1674,7 @@ static  int alloc_reg_hinted(int r, int size, int willclobber, int hint)
 			compemu_raw_zero_extend_16_rr(rr,rr);
 			compemu_raw_zero_extend_16_rr(bestreg,bestreg);
 			compemu_raw_bswap_32(bestreg);
-			raw_lea_l_brr_indexed(rr,rr,bestreg,1,0);
+			compemu_raw_lea_l_rr_indexed(rr, rr, bestreg, 1);
 			live.state[r].validsize=4;
 			live.nat[rr].touched=touchcnt++;
 			return rr;
@@ -1765,7 +1765,6 @@ static  void setlock(int r)
 
 static void mov_nregs(int d, int s)
 {
-	(void)live.nat[s].nholds;
 	int nd=live.nat[d].nholds;
 	int i;
 
@@ -3014,7 +3013,6 @@ void register_branch(uae_u32 not_taken, uae_u32 taken, uae_u8 cond)
  */
 static uintptr get_handler(uintptr addr)
 {
-	(void)cacheline(addr);
 	blockinfo* bi=get_blockinfo_addr_new((void*)(uintptr)addr,0);
 	return (uintptr)bi->direct_handler_to_use;
 }
@@ -3362,11 +3360,13 @@ uae_u32 get_jitted_size(void)
 const int CODE_ALLOC_MAX_ATTEMPTS = 10;
 const int CODE_ALLOC_BOUNDARIES   = 128 * 1024; // 128 KB
 
-static uae_u8 *do_alloc_code(uae_u32 size, int depth)
-{
 #ifdef UAE
-	return (uae_u8*) vm_acquire(size);
-#else
+#define uint32 uae_u32
+#define uint8 uae_u8
+#endif
+
+static uint8 *do_alloc_code(uint32 size, int depth)
+{
 #if defined(__linux__) && 0
 	/*
 	  This is a really awful hack that is known to work on Linux at
@@ -3409,15 +3409,18 @@ static uae_u8 *do_alloc_code(uae_u32 size, int depth)
 	return do_alloc_code(size, depth + 1);
 #else
 	UNUSED(depth);
+#ifdef UAE
+	return (uae_u8*) vm_acquire(size);
+#else
 	uint8 *code = (uint8 *)vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 	return code == VM_MAP_FAILED ? NULL : code;
 #endif
 #endif
 }
 
-static inline uae_u8 *alloc_code(uae_u32 size)
+static inline uint8 *alloc_code(uint32 size)
 {
-	uae_u8 *ptr = do_alloc_code(size, 0);
+	uint8 *ptr = do_alloc_code(size, 0);
 	/* allocated code must fit in 32-bit boundaries */
 	assert((uintptr)ptr <= 0xffffffff);
 	return ptr;
@@ -3430,7 +3433,6 @@ void alloc_cache(void)
 		vm_release(compiled_code, cache_size * 1024);
 		compiled_code = 0;
 	}
-	compiled_code = NULL;
 
 	if (cache_size == 0)
 		return;
@@ -3444,8 +3446,17 @@ void alloc_cache(void)
 	vm_protect(compiled_code, cache_size * 1024, VM_PAGE_READ | VM_PAGE_WRITE | VM_PAGE_EXECUTE);
 	
 	if (compiled_code) {
+		jit_log("Actual translation cache size : %d KB at %p-%p", cache_size, compiled_code, compiled_code + cache_size*1024);
+#ifdef USE_DATA_BUFFER
+		max_compile_start = compiled_code + cache_size*1024 - BYTES_PER_INST - DATA_BUFFER_SIZE;
+#else
 		max_compile_start = compiled_code + cache_size*1024 - BYTES_PER_INST;
+#endif
 		current_compile_p=compiled_code;
+		current_cache_size = 0;
+#if defined(USE_DATA_BUFFER)
+		reset_data_buffer();
+#endif
 	}
 }
 
@@ -3724,70 +3735,49 @@ static inline void create_popalls(void)
 	align_target(align_jumps);
 	current_compile_p=get_target();
 	pushall_call_handler=get_target();
-	for (i=N_REGS;i--;) {
-		if (need_to_preserve[i])
-			raw_push_l_r(i);
-	}
+	raw_push_regs_to_preserve();
 	raw_dec_sp(stack_space);
 	r=REG_PC_TMP;
-	raw_mov_l_rm(r, uae_p32(&regs.pc_p));
-	raw_and_l_ri(r,TAGMASK);
-	raw_jmp_m_indexed(uae_p32(cache_tags), r, SIZEOF_VOID_P);
+	compemu_raw_mov_l_rm(r, uae_p32(&regs.pc_p));
+	compemu_raw_and_l_ri(r,TAGMASK);
+	compemu_raw_jmp_m_indexed(uae_p32(cache_tags), r, SIZEOF_VOID_P);
 
 	/* now the exit points */
 	align_target(align_jumps);
 	popall_do_nothing=get_target();
 	raw_inc_sp(stack_space);
-	for (i=0;i<N_REGS;i++) {
-		if (need_to_preserve[i])
-			raw_pop_l_r(i);
-	}
-	raw_jmp(uae_p32(do_nothing));
+	raw_pop_preserved_regs();
+	compemu_raw_jmp(uae_p32(do_nothing));
 
 	align_target(align_jumps);
 	popall_execute_normal=get_target();
 	raw_inc_sp(stack_space);
-	for (i=0;i<N_REGS;i++) {
-		if (need_to_preserve[i])
-			raw_pop_l_r(i);
-	}
-	raw_jmp(uae_p32(execute_normal));
+	raw_pop_preserved_regs();
+	compemu_raw_jmp(uae_p32(execute_normal));
 
 	align_target(align_jumps);
 	popall_cache_miss=get_target();
 	raw_inc_sp(stack_space);
-	for (i=0;i<N_REGS;i++) {
-		if (need_to_preserve[i])
-			raw_pop_l_r(i);
-	}
-	raw_jmp(uae_p32(cache_miss));
+	raw_pop_preserved_regs();
+	compemu_raw_jmp(uae_p32(cache_miss));
 
 	align_target(align_jumps);
 	popall_recompile_block=get_target();
 	raw_inc_sp(stack_space);
-	for (i=0;i<N_REGS;i++) {
-		if (need_to_preserve[i])
-			raw_pop_l_r(i);
-	}
-	raw_jmp(uae_p32(recompile_block));
+	raw_pop_preserved_regs();
+	compemu_raw_jmp(uae_p32(recompile_block));
 
 	align_target(align_jumps);
 	popall_exec_nostats=get_target();
 	raw_inc_sp(stack_space);
-	for (i=0;i<N_REGS;i++) {
-		if (need_to_preserve[i])
-			raw_pop_l_r(i);
-	}
-	raw_jmp(uae_p32(exec_nostats));
+	raw_pop_preserved_regs();
+	compemu_raw_jmp(uae_p32(exec_nostats));
 
 	align_target(align_jumps);
 	popall_check_checksum=get_target();
 	raw_inc_sp(stack_space);
-	for (i=0;i<N_REGS;i++) {
-		if (need_to_preserve[i])
-			raw_pop_l_r(i);
-	}
-	raw_jmp(uae_p32(check_checksum));
+	raw_pop_preserved_regs();
+	compemu_raw_jmp(uae_p32(check_checksum));
 
 #ifdef UAE
 #ifdef USE_UDIS86
@@ -3796,7 +3786,8 @@ static inline void create_popalls(void)
 #endif
 	// no need to further write into popallspace
 	vm_protect(popallspace, POPALLSPACE_SIZE, VM_PAGE_READ | VM_PAGE_EXECUTE);
-	flush_cpu_icache((void *)popallspace, (void *)target);
+	// No need to flush. Initialized and not modified
+	// flush_cpu_icache((void *)popallspace, (void *)target);
 }
 
 static inline void reset_lists(void)
@@ -3816,15 +3807,15 @@ static void prepare_block(blockinfo* bi)
 	set_target(current_compile_p);
 	align_target(align_jumps);
 	bi->direct_pen=(cpuop_func*)get_target();
-	raw_mov_l_rm(0,(uintptr)&(bi->pc_p));
-	raw_mov_l_mr((uintptr)&regs.pc_p,0);
-	raw_jmp((uintptr)popall_execute_normal);
+	compemu_raw_mov_l_rm(0,(uintptr)&(bi->pc_p));
+	compemu_raw_mov_l_mr((uintptr)&regs.pc_p,0);
+	compemu_raw_jmp((uintptr)popall_execute_normal);
 
 	align_target(align_jumps);
 	bi->direct_pcc=(cpuop_func*)get_target();
-	raw_mov_l_rm(0,(uintptr)&(bi->pc_p));
-	raw_mov_l_mr((uintptr)&regs.pc_p,0);
-	raw_jmp((uintptr)popall_check_checksum);
+	compemu_raw_mov_l_rm(0,(uintptr)&(bi->pc_p));
+	compemu_raw_mov_l_mr((uintptr)&regs.pc_p,0);
+	compemu_raw_jmp((uintptr)popall_check_checksum);
 	flush_cpu_icache((void *)current_compile_p, (void *)target);
 	current_compile_p=get_target();
 
@@ -3905,7 +3896,7 @@ static bool merge_blacklist()
 			}
 
 			if (*p == 0 || *p == ',') {
-				jit_log("blacklist opcodes : %04x-%04x\n", opcode1, opcode2);
+				jit_log("blacklist opcodes : %04x-%04x", opcode1, opcode2);
 				for (int opcode = opcode1; opcode <= opcode2; opcode++)
 					reset_compop(cft_map(opcode));
 
@@ -3945,7 +3936,7 @@ void build_comp(void)
 #endif
 #else
 	signal(SIGSEGV, (sighandler_t)segfault_vec);
-	D(panicbug("<JIT compiler> : NATMEM OFFSET handler installed"));
+	D(bug("<JIT compiler> : NATMEM OFFSET handler installed"));
 #endif
 #endif
 
