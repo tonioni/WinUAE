@@ -84,9 +84,5 @@ extern uae_u32 uaerandgetseed (void);
 
 int get_guid_target (uae_u8 *out);
 void filesys_addexternals (void);
-void jit_abort(const char *format,...);
-#if SIZEOF_TCHAR != 1
-void jit_abort(const TCHAR *format, ...);
-#endif
 
 #endif /* UAE_UAE_H */

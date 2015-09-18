@@ -194,6 +194,38 @@ static const uae_u8 need_to_preserve[]={0,0,0,1,0,1,1,1};
 #define x86_get_target()		get_target()
 #define x86_emit_failure(MSG)	jit_fail(MSG, __FILE__, __LINE__, __FUNCTION__)
 
+// Some mappings to mark compemu_support calls as only used by compemu
+// These are still mainly x86 minded. Should be more CPU independent in the future
+#define compemu_raw_add_l_mi(a,b)		raw_add_l_mi(a,b)
+#define compemu_raw_and_l_ri(a,b)		raw_and_l_ri(a,b)
+#define compemu_raw_bswap_32(a)			raw_bswap_32(a)
+#define compemu_raw_bt_l_ri(a,b)		raw_bt_l_ri(a,b)
+#define compemu_raw_call(a)				raw_call(a)
+#define compemu_raw_cmov_l_rm_indexed(a,b,c,d,e)	raw_cmov_l_rm_indexed(a,b,c,d,e)
+#define compemu_raw_cmp_l_mi(a,b)		raw_cmp_l_mi(a,b)
+#define compemu_raw_cmp_l_mi8(a,b)		raw_cmp_l_mi(a,b)
+#define compemu_raw_jcc_b_oponly(a)		raw_jcc_b_oponly(a)
+#define compemu_raw_jcc_l_oponly(a)		raw_jcc_l_oponly(a)
+#define compemu_raw_jl(a)				raw_jl(a)
+#define compemu_raw_jmp(a)				raw_jmp(a)
+#define compemu_raw_jmp_m_indexed(a,b,c)	raw_jmp_m_indexed(a,b,c)
+#define compemu_raw_jmp_r(a)			raw_jmp_r(a)
+#define compemu_raw_jnz(a)				raw_jnz(a)
+#define compemu_raw_jz_b_oponly()		raw_jz_b_oponly()
+#define compemu_raw_lea_l_brr(a,b,c) 	raw_lea_l_brr(a,b,c)
+#define compemu_raw_lea_l_brr_indexed(a,b,c,d,e)	raw_lea_l_brr_indexed(a,b,c,d,e)
+#define compemu_raw_mov_b_mr(a,b)		raw_mov_b_mr(a,b)
+#define compemu_raw_mov_l_mi(a,b)		raw_mov_l_mi(a,b)
+#define compemu_raw_mov_l_mr(a,b)		raw_mov_l_mr(a,b)
+#define compemu_raw_mov_l_ri(a,b)		raw_mov_l_ri(a,b)
+#define compemu_raw_mov_l_rm(a,b)		raw_mov_l_rm(a,b)
+#define compemu_raw_mov_l_rr(a,b)		raw_mov_l_rr(a,b)
+#define compemu_raw_mov_w_mr(a,b)		raw_mov_w_mr(a,b)
+#define compemu_raw_sub_l_mi(a,b)		raw_sub_l_mi(a,b)
+#define compemu_raw_test_l_rr(a,b) 		raw_test_l_rr(a,b)
+#define compemu_raw_zero_extend_16_rr(a,b)	raw_zero_extend_16_rr(a,b)
+#define compemu_raw_lea_l_rr_indexed(a,b,c,d)	raw_lea_l_rr_indexed(a,b,c,d)
+
 static void jit_fail(const char *msg, const char *file, int line, const char *function)
 {
 	jit_abort("failure in function %s from file %s at line %d: %s",
@@ -588,8 +620,7 @@ LENDFUNC(NONE,NONE,2,raw_imul_32_32,(RW4 d, R4 s))
 LOWFUNC(NONE,NONE,2,raw_imul_64_32,(RW4 d, RW4 s))
 {
 	if (d!=MUL_NREG1 || s!=MUL_NREG2) {
-	write_log("Bad register in IMUL: d=%d, s=%d\n",d,s);
-	abort();
+		jit_abort("Bad register in IMUL: d=%d, s=%d",d,s);
 	}
 	IMULLr(s);
 }
@@ -598,8 +629,7 @@ LENDFUNC(NONE,NONE,2,raw_imul_64_32,(RW4 d, RW4 s))
 LOWFUNC(NONE,NONE,2,raw_mul_64_32,(RW4 d, RW4 s))
 {
 	if (d!=MUL_NREG1 || s!=MUL_NREG2) {
-	write_log("Bad register in MUL: d=%d, s=%d\n",d,s);
-	abort();
+		jit_abort("Bad register in MUL: d=%d, s=%d",d,s);
 	}
 	MULLr(s);
 }
@@ -3462,6 +3492,20 @@ static inline void raw_inc_sp(int off)
 	if (off) raw_add_l_ri(ESP_INDEX,off);
 }
 
+static inline void raw_push_regs_to_preserve(void) {
+	for (int i=N_REGS;i--;) {
+		if (need_to_preserve[i])
+			raw_push_l_r(i);
+	}
+}
+
+static inline void raw_pop_preserved_regs(void) {
+	for (int i=0;i<N_REGS;i++) {
+		if (need_to_preserve[i])
+			raw_pop_l_r(i);
+	}
+}
+
 /*************************************************************************
  * Handling mistaken direct memory access (removed from ARAnyM sources)  *
  *************************************************************************/
@@ -3472,7 +3516,7 @@ static inline void raw_inc_sp(int off)
 
 static
 void compiler_status() {
-	jit_log("compiled code starts at %p, current at %08x", compiled_code, (unsigned int)(current_compile_p - compiled_code));
+	jit_log("compiled code starts at %p, current at %p (size 0x%x)", compiled_code, current_compile_p, (unsigned int)(current_compile_p - compiled_code));
 }
 
 /*************************************************************************
