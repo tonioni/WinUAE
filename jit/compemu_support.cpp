@@ -3847,15 +3847,28 @@ void build_comp(void)
 	}
 
 	for (i = 0; tbl[i].opcode < 65536; i++) {
-		int isjmp = (tbl[i].specific & 1);
-		int isaddx = (tbl[i].specific & 8);
-		int iscjmp = (tbl[i].specific & 16);
+		int isjmp = (tbl[i].specific & COMP_OPCODE_ISJUMP);
+		int isaddx = (tbl[i].specific & COMP_OPCODE_ISADDX);
+		int iscjmp = (tbl[i].specific & COMP_OPCODE_ISCJUMP);
 
 		prop[cft_map(tbl[i].opcode)].is_jump = isjmp;
 		prop[cft_map(tbl[i].opcode)].is_const_jump = iscjmp;
 		prop[cft_map(tbl[i].opcode)].is_addx = isaddx;
-		compfunctbl[cft_map(tbl[i].opcode)] = tbl[i].handler;
+
+		bool uses_fpu = (tbl[i].specific & COMP_OPCODE_USES_FPU) != 0;
+#ifdef UAE
+#ifdef USE_JIT_FPU
+		avoid_fpu = false;
+#else
+		avoid_fpu = true;
+#endif
+#endif
+		if (uses_fpu && avoid_fpu)
+			compfunctbl[cft_map(tbl[i].opcode)] = NULL;
+		else
+			compfunctbl[cft_map(tbl[i].opcode)] = tbl[i].handler;
 	}
+
 	for (i = 0; nftbl[i].opcode < 65536; i++) {
 		nfcompfunctbl[cft_map(nftbl[i].opcode)] = nftbl[i].handler;
 #ifdef NOFLAGS_SUPPORT

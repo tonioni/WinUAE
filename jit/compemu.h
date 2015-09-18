@@ -41,6 +41,9 @@ typedef uae_u64 uintptr;
 typedef uae_u32 uintptr;
 #endif
 #define USE_JIT
+#ifdef CPU_i386
+#define USE_JIT_FPU
+#endif
 #endif
 
 #ifdef USE_JIT
@@ -359,6 +362,7 @@ extern void calc_disp_ea_020(int base, uae_u32 dp, int target, int tmp);
 /* Set native Z flag only if register is zero */
 extern void set_zero(int r, int tmp);
 extern int kill_rodent(int r);
+#define SYNC_PC_OFFSET 100
 extern void sync_m68k_pc(void);
 extern uae_u32 get_const(int r);
 extern int  is_const(int r);
