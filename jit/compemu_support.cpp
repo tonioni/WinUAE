@@ -726,11 +726,20 @@ class LazyBlockAllocator
 	T * mChunks;
 public:
 	LazyBlockAllocator() : mPools(0), mChunks(0) { }
+#ifdef UAE
+#else
 	~LazyBlockAllocator();
+#endif
 	T * acquire();
 	void release(T * const);
 };
 
+#ifdef UAE
+/* uae_vm_release may do logging, which isn't safe to do when the application
+ * is shutting down. Better to release memory manually with a function call
+ * to a release_all method on shutdown, or even simpler, just let the OS
+ * handle it (we're shutting down anyway). */
+#else
 template< class T >
 LazyBlockAllocator<T>::~LazyBlockAllocator()
 {
@@ -741,6 +750,7 @@ LazyBlockAllocator<T>::~LazyBlockAllocator()
 		vm_release(deadPool, sizeof(Pool));
 	}
 }
+#endif
 
 template< class T >
 T * LazyBlockAllocator<T>::acquire()
