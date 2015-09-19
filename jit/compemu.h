@@ -40,10 +40,8 @@ typedef uae_u64 uintptr;
 #else
 typedef uae_u32 uintptr;
 #endif
+/* FIXME: cpummu.cpp also checks for USE_JIT, possibly others */
 #define USE_JIT
-#ifdef CPU_i386
-#define USE_JIT_FPU
-#endif
 #endif
 
 #ifdef USE_JIT
@@ -82,9 +80,6 @@ union cacheline {
 #error implementation in progress
 #endif
 
-#ifdef UAE
-/* Temporarily disabled due to some issues on x86-64 */
-#else
 /* (gb) When on, this option can save save up to 30% compilation time
  *  when many lazy flushes occur (e.g. apps in MacOS 8.x).
  */
@@ -95,7 +90,6 @@ union cacheline {
 
 /* Use code inlining, aka follow-up of constant jumps */
 #define USE_INLINING 1
-#endif
 
 /* Inlining requires the chained checksuming information */
 #if USE_INLINING

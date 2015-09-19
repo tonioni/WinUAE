@@ -93,13 +93,20 @@
 #include "uae/log.h"
 
 #include "uae/vm.h"
-#define vm_acquire(size) uae_vm_alloc(size, UAE_VM_32BIT, UAE_VM_READ_WRITE)
-#define vm_protect(address, size, protect) uae_vm_protect(address, size, protect)
-#define vm_release(address, size) uae_vm_free(address, size)
 #define VM_PAGE_READ UAE_VM_READ
 #define VM_PAGE_WRITE UAE_VM_WRITE
 #define VM_PAGE_EXECUTE UAE_VM_EXECUTE
 #define VM_MAP_FAILED UAE_VM_ALLOC_FAILED
+#define VM_MAP_DEFAULT 1
+#define VM_MAP_32BIT 1
+#define vm_protect(address, size, protect) uae_vm_protect(address, size, protect)
+#define vm_release(address, size) uae_vm_free(address, size)
+
+static inline void *vm_acquire(size_t size, int options = VM_MAP_DEFAULT)
+{
+	assert(options == (VM_MAP_DEFAULT | VM_MAP_32BIT));
+	return uae_vm_alloc(size, UAE_VM_32BIT, UAE_VM_READ_WRITE);
+}
 
 #define UNUSED(x)
 #include "uae.h"
@@ -121,45 +128,37 @@ extern bool canbang;
 
 #include "compemu_prefs.cpp"
 
-#define cache_size currprefs.cachesize
-
 #define uint32 uae_u32
 #define uint8 uae_u8
 
+static inline int distrust_check(int value)
+{
+#ifdef JIT_ALWAYS_DISTRUST
+	return 1;
+#else
+	int distrust = value;
+	return distrust;
+#endif
+}
+
 static inline int distrust_byte(void)
 {
-	int distrust = currprefs.comptrustbyte;
-#ifdef JIT_ALWAYS_DISTRUST
-	distrust = 1;
-#endif
-	return distrust;
+	return distrust_check(currprefs.comptrustbyte);
 }
 
 static inline int distrust_word(void)
 {
-	int distrust = currprefs.comptrustword;
-#ifdef JIT_ALWAYS_DISTRUST
-	distrust = 1;
-#endif
-	return distrust;
+	return distrust_check(currprefs.comptrustword);
 }
 
 static inline int distrust_long(void)
 {
-	int distrust = currprefs.comptrustlong;
-#ifdef JIT_ALWAYS_DISTRUST
-	distrust = 1;
-#endif
-	return distrust;
+	return distrust_check(currprefs.comptrustlong);
 }
 
 static inline int distrust_addr(void)
 {
-	int distrust = currprefs.comptrustnaddr;
-#ifdef JIT_ALWAYS_DISTRUST
-	distrust = 1;
-#endif
-	return distrust;
+	return distrust_check(currprefs.comptrustnaddr);
 }
 
 #else
@@ -244,20 +243,28 @@ static bool		JITDebug			= false;	// Enable runtime disassemblers through mon?
 const bool		JITDebug			= false;	// Don't use JIT debug mode at all
 #endif
 #if USE_INLINING
-static bool		follow_const_jumps	= true;		// Flag: translation through constant jumps	
+#ifdef UAE
+#define follow_const_jumps (currprefs.comp_constjump != 0)
 #else
-const bool		follow_const_jumps	= false;
+static bool follow_const_jumps = true; // Flag: translation through constant jumps
+#endif
+#else
+const bool follow_const_jumps = false;
 #endif
 
-#ifdef UAE
-/* ... */
-#else
-const uae_u32	MIN_CACHE_SIZE		= 1024;		// Minimal translation cache size (1 MB)
-static uae_u32	cache_size			= 0;		// Size of total cache allocated for compiled blocks
-#endif
+const uae_u32 MIN_CACHE_SIZE = 1024; // Minimal translation cache size (1 MB)
+static uae_u32 cache_size = 0; // Size of total cache allocated for compiled blocks
 static uae_u32		current_cache_size	= 0;		// Cache grows upwards: how much has been consumed already
 static bool		lazy_flush		= true;	// Flag: lazy translation cache invalidation
-static bool		avoid_fpu		= true;	// Flag: compile FPU instructions ?
+#ifdef UAE
+#ifdef USE_JIT_FPU
+#define avoid_fpu (!currprefs.compfpu)
+#else
+#define avoid_fpu (true)
+#endif
+#else
+static bool avoid_fpu = true; // Flag: compile FPU instructions ?
+#endif
 static bool		have_cmov		= false;	// target has CMOV instructions ?
 static bool		have_lahf_lm		= true;		// target has LAHF supported in long mode ?
 static bool		have_rat_stall		= true;	// target has partial register stalls ?
@@ -267,7 +274,11 @@ static bool		setzflg_uses_bsf	= false;	// setzflg virtual instruction can use na
 static int		align_loops		= 32;	// Align the start of loops
 static int		align_jumps		= 32;	// Align the start of jumps
 static int		optcount[10]		= {
+#ifdef UAE
+	4,		// How often a block has to be executed before it is translated
+#else
 	10,		// How often a block has to be executed before it is translated
+#endif
 	0,		// How often to use naive translation
 	0, 0, 0, 0,
 	-1, -1, -1, -1
@@ -582,11 +593,7 @@ static inline void invalidate_block(blockinfo* bi)
 	int i;
 
 	bi->optlevel=0;
-#ifdef UAE
-	bi->count=currprefs.optcount[0]-1;
-#else
 	bi->count=optcount[0]-1;
-#endif
 	bi->handler=NULL;
 	bi->handler_to_use=(cpuop_func*)popall_execute_normal;
 	bi->direct_handler=NULL;
@@ -741,11 +748,7 @@ T * LazyBlockAllocator<T>::acquire()
 	if (!mChunks) {
 		// There is no chunk left, allocate a new pool and link the
 		// chunks into the free list
-#ifdef UAE
-		Pool * newPool = (Pool *)vm_acquire(sizeof(Pool));
-#else
 		Pool * newPool = (Pool *)vm_acquire(sizeof(Pool), VM_MAP_DEFAULT | VM_MAP_32BIT);
-#endif
 		if (newPool == VM_MAP_FAILED) {
 			jit_abort("Could not allocate block pool!");
 		}
@@ -3407,12 +3410,8 @@ static uint8 *do_alloc_code(uint32 size, int depth)
 	return do_alloc_code(size, depth + 1);
 #else
 	UNUSED(depth);
-#ifdef UAE
-	return (uae_u8*) vm_acquire(size);
-#else
 	uint8 *code = (uint8 *)vm_acquire(size, VM_MAP_DEFAULT | VM_MAP_32BIT);
 	return code == VM_MAP_FAILED ? NULL : code;
-#endif
 #endif
 }
 
@@ -3432,6 +3431,9 @@ void alloc_cache(void)
 		compiled_code = 0;
 	}
 
+#ifdef UAE
+	cache_size = currprefs.cachesize;
+#endif
 	if (cache_size == 0)
 		return;
 
@@ -3777,6 +3779,10 @@ static inline void create_popalls(void)
 	raw_pop_preserved_regs();
 	compemu_raw_jmp(uae_p32(check_checksum));
 
+#if defined(USE_DATA_BUFFER)
+	reset_data_buffer();
+#endif
+
 #ifdef UAE
 #ifdef USE_UDIS86
 	UDISFN(pushall_call_handler, get_target());
@@ -3960,13 +3966,6 @@ void build_comp(void)
 		prop[cft_map(tbl[i].opcode)].is_addx = isaddx;
 
 		bool uses_fpu = (tbl[i].specific & COMP_OPCODE_USES_FPU) != 0;
-#ifdef UAE
-#ifdef USE_JIT_FPU
-		avoid_fpu = false;
-#else
-		avoid_fpu = true;
-#endif
-#endif
 		if (uses_fpu && avoid_fpu)
 			compfunctbl[cft_map(tbl[i].opcode)] = NULL;
 		else
@@ -4225,8 +4224,8 @@ int failure;
 #endif
 
 #ifdef UAE
-/* FIXME: disasm_* functions disabled */
-#else
+static
+#endif
 void disasm_block(int /* target */, uint8 * /* start */, size_t /* length */)
 {
 	if (!JITDebug)
@@ -4242,7 +4241,6 @@ static inline void disasm_m68k_block(uint8 *start, size_t length)
 {
 	disasm_block(TARGET_M68K, start, length);
 }
-#endif
 
 #ifdef UAE
 static inline unsigned int get_opcode_cft_map(unsigned int f)
@@ -4292,9 +4290,9 @@ void compiler_dumpstate(void)
 #endif
 
 #ifdef UAE
-void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
+void compile_block(cpu_history *pc_hist, int blocklen, int totcycles)
 {
-	if (letit && compiled_code && currprefs.cpu_model>=68020) {
+	if (letit && compiled_code && currprefs.cpu_model >= 68020) {
 #else
 static void compile_block(cpu_history* pc_hist, int blocklen)
 {
@@ -4351,15 +4349,9 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 		}
 		if (bi->count==-1) {
 			optlev++;
-#ifdef UAE
-			while (!currprefs.optcount[optlev])
-				optlev++;
-			bi->count=currprefs.optcount[optlev]-1;
-#else
 			while (!optcount[optlev])
 				optlev++;
 			bi->count=optcount[optlev]-1;
-#endif
 		}
 		current_block_pc_p=(uintptr)pc_hist[0].location;
 
@@ -4395,16 +4387,20 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 				max_pcp=(uintptr)currpcp;
 #endif
 
+#ifdef UAE
 			if (currprefs.compnf) {
+#endif
 				liveflags[i]=((liveflags[i+1]&
 					(~prop[op].set_flags))|
 					prop[op].use_flags);
 				if (prop[op].is_addx && (liveflags[i+1]&FLAG_Z)==0)
 					liveflags[i]&= ~FLAG_Z;
+#ifdef UAE
 			}
 			else {
 				liveflags[i]=0x1f;
 			}
+#endif
 		}
 
 #if USE_CHECKSUM_INFO

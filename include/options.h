@@ -387,19 +387,12 @@ struct uae_prefs {
 	int comptrustnaddr;
 	bool compnf;
 	bool compfpu;
-	bool comp_midopt;
-	bool comp_lowopt;
-	bool fpu_strict;
-	bool fpu_softfloat;
-
 	bool comp_hardflush;
 	bool comp_constjump;
-	bool comp_oldsegv;
-
 	int cachesize;
-	int optcount[10];
+	bool fpu_strict;
 
-	bool avoid_cmov;
+	bool fpu_softfloat;
 
 	int gfx_framerate, gfx_autoframerate;
 	struct wh gfx_size_win;

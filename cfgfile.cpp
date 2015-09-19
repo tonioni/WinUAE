@@ -108,10 +108,8 @@ static const struct cfg_lines opttable[] =
 	{_T("comp_trustlong"), _T("How to access longs in compiler (direct/indirect/indirectKS/afterPic") },
 	{_T("comp_nf"), _T("Whether to optimize away flag generation where possible") },
 	{_T("comp_fpu"), _T("Whether to provide JIT FPU emulation") },
-	{_T("compforcesettings"), _T("Whether to force the JIT compiler settings") },
 	{_T("cachesize"), _T("How many MB to use to buffer translated instructions")},
 	{_T("override_dga_address"),_T("Address from which to map the frame buffer (upper 16 bits) (DANGEROUS!)")},
-	{_T("avoid_cmov"), _T("Set to yes on machines that lack the CMOV instruction") },
 	{_T("avoid_dga"), _T("Set to yes if the use of DGA extension creates problems") },
 	{_T("avoid_vid"), _T("Set to yes if the use of the Vidmode extension creates problems") },
 	{_T("parallel_on_demand"), _T("") },
@@ -1399,12 +1397,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_str (f, _T("comp_trustnaddr"), compmode[p->comptrustnaddr]);
 	cfgfile_write_bool (f, _T("comp_nf"), p->compnf);
 	cfgfile_write_bool (f, _T("comp_constjump"), p->comp_constjump);
-	cfgfile_write_bool (f, _T("comp_oldsegv"), p->comp_oldsegv);
 	cfgfile_write_str (f, _T("comp_flushmode"), flushmode[p->comp_hardflush]);
+#ifdef USE_JIT_FPU
 	cfgfile_write_bool (f, _T("compfpu"), p->compfpu);
-	cfgfile_write_bool (f, _T("comp_midopt"), p->comp_midopt);
-	cfgfile_write_bool (f, _T("comp_lowopt"), p->comp_lowopt);
-	cfgfile_write_bool (f, _T("avoid_cmov"), p->avoid_cmov);
+#endif
 	cfgfile_write (f, _T("cachesize"), _T("%d"), p->cachesize);
 
 	for (i = 0; i < MAX_JPORTS; i++) {
@@ -2557,7 +2553,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno (option, value, _T("sound_cdaudio"), &p->sound_cdaudio)
 		|| cfgfile_yesno (option, value, _T("sound_stereo_swap_paula"), &p->sound_stereo_swap_paula)
 		|| cfgfile_yesno (option, value, _T("sound_stereo_swap_ahi"), &p->sound_stereo_swap_ahi)
-		|| cfgfile_yesno (option, value, _T("avoid_cmov"), &p->avoid_cmov)
 		|| cfgfile_yesno (option, value, _T("log_illegal_mem"), &p->illegal_mem)
 		|| cfgfile_yesno (option, value, _T("filesys_no_fsdb"), &p->filesys_no_uaefsdb)
 		|| cfgfile_yesno (option, value, _T("gfx_blacker_than_black"), &p->gfx_blackerthanblack)
@@ -4275,11 +4270,9 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("fpu_softfloat"), &p->fpu_softfloat)
 		|| cfgfile_yesno (option, value, _T("comp_nf"), &p->compnf)
 		|| cfgfile_yesno (option, value, _T("comp_constjump"), &p->comp_constjump)
-		|| cfgfile_yesno (option, value, _T("comp_oldsegv"), &p->comp_oldsegv)
-		|| cfgfile_yesno (option, value, _T("compforcesettings"), &dummybool)
+#ifdef USE_JIT_FPU
 		|| cfgfile_yesno (option, value, _T("compfpu"), &p->compfpu)
-		|| cfgfile_yesno (option, value, _T("comp_midopt"), &p->comp_midopt)
-		|| cfgfile_yesno (option, value, _T("comp_lowopt"), &p->comp_lowopt)
+#endif
 		|| cfgfile_yesno (option, value, _T("rtg_nocustom"), &p->picasso96_nocustom)
 		|| cfgfile_yesno (option, value, _T("floppy_write_protect"), &p->floppy_read_only)
 		|| cfgfile_yesno (option, value, _T("uae_hide_autoconfig"), &p->uae_hide_autoconfig)
@@ -6021,21 +6014,12 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->compnf = 1;
 	p->comp_hardflush = 0;
 	p->comp_constjump = 1;
-	p->comp_oldsegv = 0;
+#ifdef USE_JIT_FPU
 	p->compfpu = 1;
+#else
+	p->compfpu = 0;
+#endif
 	p->cachesize = 0;
-	p->avoid_cmov = 0;
-	p->comp_midopt = 0;
-	p->comp_lowopt = 0;
-
-	for (i = 0;i < 10; i++)
-		p->optcount[i] = -1;
-	p->optcount[0] = 4;	/* How often a block has to be executed before it is translated */
-	p->optcount[1] = 0;	/* How often to use the naive translation */
-	p->optcount[2] = 0;
-	p->optcount[3] = 0;
-	p->optcount[4] = 0;
-	p->optcount[5] = 0;
 
 	p->gfx_framerate = 1;
 	p->gfx_autoframerate = 50;
