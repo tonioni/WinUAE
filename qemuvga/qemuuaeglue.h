@@ -133,6 +133,7 @@ STATIC_INLINE int ldl_le_p(const void *ptr)
 }
 STATIC_INLINE void cpu_to_32wu(uint32_t *p, uint32_t v)
 {
+	stl_le_p(p, v);
 }
 
 void graphic_hw_update(QemuConsole *con);
