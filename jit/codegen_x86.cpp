@@ -4323,7 +4323,8 @@ LOWFUNC(NONE,NONE,2,raw_fsin_rr,(FW d, FR s))
 }
 LENDFUNC(NONE,NONE,2,raw_fsin_rr,(FW d, FR s))
 
-static const double one=1;
+float one = 1;
+
 LOWFUNC(NONE,NONE,2,raw_ftwotox_rr,(FW d, FR s))
 {
 	int ds;
