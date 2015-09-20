@@ -306,6 +306,11 @@ static const TCHAR *obsolete[] = {
 
 	_T("cpuboard_ext_rom_file"),
 
+	_T("comp_oldsegv"),
+	_T("comp_midopt"),
+	_T("comp_lowopt"),
+	_T("avoid_cmov"),
+
 	NULL
 };
 
