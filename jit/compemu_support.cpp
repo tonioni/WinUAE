@@ -3710,10 +3710,19 @@ static inline void create_popalls(void)
 #ifdef UAE
 	if (popallspace == NULL) {
 #endif
-	if ((popallspace = alloc_code(POPALLSPACE_SIZE)) == NULL) {
-		jit_abort("Could not allocate popallspace!");
-	}
+		if ((popallspace = alloc_code(POPALLSPACE_SIZE)) == NULL) {
 #ifdef UAE
+			jit_log("WARNING: Could not allocate popallspace!");
+			if (currprefs.cachesize > 0) {
+#endif
+				jit_abort("Could not allocate popallspace!");
+#ifdef UAE
+			}
+			/* This is not fatal if JIT is not used. If JIT is
+			 * turned on, it will crash, but it would have crashed
+			 * anyway. */
+			return;
+		}
 	}
 #endif
 	vm_protect(popallspace, POPALLSPACE_SIZE, VM_PAGE_READ | VM_PAGE_WRITE);
