@@ -6020,7 +6020,12 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->comp_hardflush = 0;
 	p->comp_constjump = 1;
 #ifdef USE_JIT_FPU
+#ifdef CPU_x86_64
+	/* Set default to off, since JIT FPU isn't 64-bit safe yet. */
+	p->compfpu = 0;
+#else
 	p->compfpu = 1;
+#endif
 #else
 	p->compfpu = 0;
 #endif
