@@ -1500,18 +1500,27 @@ static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 
 		uae_u8 *p = uaeboard_bank.baseaddr + 0x200;
 		memcpy(tmp, p + 2, 2 * 5);
+
+		// status
 		p[0] = 0;
 		p[1] = 0;
+		// host x
 		p[2 * 1 + 0] = x >> 8;
 		p[2 * 1 + 1] = (uae_u8)x;
+		// host y
 		p[2 * 2 + 0] = y >> 8;
 		p[2 * 2 + 1] = (uae_u8)y;
+		// host wheel
 		p[2 * 3 + 0] = 0;
 		p[2 * 3 + 1] = 0;
+		// host hwheel
 		p[2 * 4 + 0] = 0;
 		p[2 * 4 + 1] = 0;
+		// buttons
 		p[2 * 5 + 0] = buttonbits >> 8;
 		p[2 * 5 + 1] = (uae_u8)buttonbits;
+
+		// mouse state changed?
 		if (memcmp(tmp, p + 2, 2 * 5)) {
 			p[1] |= 2;
 		}
@@ -1519,12 +1528,16 @@ static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 		p += 0x10;
 		memcpy(tmp, p, 2 * 4);
 		if (picasso_on) {
+			// RTG host resolution width
 			p[0 * 2 + 0] = picasso_vidinfo.width >> 8;
 			p[0 * 2 + 1] = (uae_u8)picasso_vidinfo.width;
+			// RTG host resolution height
 			p[1 * 2 + 0] = picasso_vidinfo.height >> 8;
 			p[1 * 2 + 1] = (uae_u8)picasso_vidinfo.height;
+			// RTG resolution width
 			p[2 * 2 + 0] = picasso96_state.Width >> 8;
 			p[2 * 2 + 1] = (uae_u8)picasso96_state.Width;
+			// RTG resolution height
 			p[2 * 3 + 0] = picasso96_state.Height >> 8;
 			p[2 * 3 + 1] = (uae_u8)picasso96_state.Height;
 		} else {
@@ -1537,6 +1550,8 @@ static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 			p[2 * 3 + 0] = 0;
 			p[2 * 3 + 1] = 0;
 		}
+
+		// display size changed?
 		if (memcmp(tmp, p, 2 * 4)) {
 			p[1] |= 4;
 		}

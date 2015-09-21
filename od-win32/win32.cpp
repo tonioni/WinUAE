@@ -4667,6 +4667,11 @@ static int betamessage (void)
 	struct tm *t;
 	__int64 ltime;
 	DWORD dwType, size;
+#ifdef _WIN64
+	const TCHAR *tokenname = _T("BetaToken64");
+#else
+	const TCHAR *tokenname = _T("BetaToken");
+#endif
 
 	ft64.QuadPart = 0;
 	for (;;) {
@@ -4687,7 +4692,7 @@ static int betamessage (void)
 		ft64.HighPart = ft.dwHighDateTime;
 		dwType = REG_QWORD;
 		size = sizeof regft64;
-		if (!regquerylonglong (NULL, _T("BetaToken"), &regft64))
+		if (!regquerylonglong (NULL, tokenname, &regft64))
 			break;
 		GetSystemTime(&st);
 		SystemTimeToFileTime(&st, &sft);
@@ -4727,7 +4732,7 @@ static int betamessage (void)
 			return 0;
 		if (ft64.QuadPart > 0) {
 			regft64 = ft64.QuadPart;
-			regsetlonglong (NULL, _T("BetaToken"), regft64);
+			regsetlonglong (NULL, tokenname, regft64);
 		}
 	}
 #endif

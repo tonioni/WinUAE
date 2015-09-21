@@ -1,8 +1,32 @@
 
+Beta 13:
+
+- SCSI emulation INQUIRY command didn't clear old data in output buffer (b7)
+- Do not abort uaehf.device RDB parsing if drive init or bad block list is set.
+- A2386SX 16M+ memory size crash fix.
+- Implemented previously empty QEMU byteswap function, fixes 16-bit Cirrus Logic VGA text mode.
+- zlib and libpng (used by screenshot function) updated to latest versions.
+- Added PC 3.5" HD 21 sectors/track format to PC floppy size autodetection list. (DMF format)
+- Renamed GUI Flash RAM file title, it is also used for A2286/A2386SX CMOS RAM.
+- Big Aranym JIT merge. 64-bit version JIT supported. Includes big 32-bit JIT
+  changes. May cause breakage. (Frode) PPC support is not (yet) 64-bit compatible.
+
+64-bit compatible JIT notes:
+
+- 2G of Amiga address space available (vs ~1G to ~1.5G in 32-bit version under 64-bit OS).
+  Because JIT still requires Amiga address space inside first 4G of host process address space and
+  Windows allocates few pages in the middle of first 4G, 2G is the current max. Technically
+  this is not a problem because AmigaOS is not really designed to support RAM at 2G-4G of
+  address space, programs may use signed pointers and some exec functions use address bit 31
+  for error state. (In theory 3G may be possible later if it is really needed)
+- Use "UAE" RAM allocation mode (not "Real") if you want max available Z3 RAM (up to
+  1.5G. Z3 RAM + RTG VRAM + 256M must be less than or equal to 2G. Anything more = crash.
+- 64-bit JIT FPU is not fully functional yet. Do not enable.
+
 Beta 12:
 
 - Boolean config true value converts to 1 and false to zero before doing any calculations.
-  someboolentry=[1-someboolentry] custom even string now works as expected.
+  someboolentry=[1-someboolentry] custom event string now works as expected.
 - Bridgeboard in VGA graphics mode only updated part of display (and sometimes nothing was updated).
 - ESP (53C94, FAS216 etc..) SCSI updates to support Multi Evolution (Needs FIFO used count and does odd things)
 - Multi Evolution 500/2000 SCSI controller emulation added.
