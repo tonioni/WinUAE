@@ -2009,6 +2009,27 @@ static int readreg_offset(int r, int size)
 	return readreg_general(r,size,-1,1);
 }
 
+#ifdef UAE
+/* Allocate midlevel register to physical x86(-64) register, but make sure
+ * it is one of the (32-bit) x86 general purpose registers. */
+static int readreg_x86(int r, int size)
+{
+	/* First, try to use the normal register allocation routine. */
+	int s = readreg(r, size);
+#ifdef CPU_x86_64
+	if (s > EDI_INDEX) {
+		/* We got a x86-64-specific register */
+		jit_log("Got register %d in readreg_x86, must re-assign", s);
+		unlock2(s);
+		/* It would be better to loop through live.nat and find a
+		 * suitable register which does not need saving to memory. */
+		s = readreg_specific(r, size, EDI_INDEX);
+	}
+#endif
+	return s;
+}
+#endif
+
 /* writereg_general(r, size, spec)
  *
  * INPUT

@@ -548,6 +548,9 @@ void comp_fbcc_opp (uae_u32 opcode)
 		return;
 	}
 
+	// comp_pc_p is expected to be bound to 32-bit addresses
+	assert((uintptr) comp_pc_p <= 0xffffffffUL);
+
 	if (opcode & 0x20) {  /* only cc from 00 to 1f are defined */
 		FAIL (1);
 		return;
@@ -558,9 +561,13 @@ void comp_fbcc_opp (uae_u32 opcode)
 	else {
 		off = comp_get_ilong ((m68k_pc_offset += 4) - 4);
 	}
-	mov_l_ri (S1, uae_p32(
-			  comp_pc_p + off - (m68k_pc_offset - start_68k_offset)));
-	mov_l_ri (PC_P, uae_p32(comp_pc_p));
+
+	/* Note, "off" will sometimes be (unsigned) "negative", so the following
+         * uintptr can be > 0xffffffff, but the result will be correct due to
+         * wraparound when truncated to 32 bit in the call to mov_l_ri. */
+	mov_l_ri(S1, (uintptr)
+		(comp_pc_p + off - (m68k_pc_offset - start_68k_offset)));
+	mov_l_ri(PC_P, (uintptr) comp_pc_p);
 
 	/* Now they are both constant. Might as well fold in m68k_pc_offset */
 	add_l_ri (S1, m68k_pc_offset);

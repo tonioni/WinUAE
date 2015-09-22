@@ -4053,6 +4053,10 @@ LENDFUNC(NONE,WRITE,2,raw_fmovi_mr,(MEMW m, FR r))
 
 LOWFUNC(NONE,WRITE,3,raw_fmovi_mrb,(MEMW m, FR r, double *bounds))
 {
+#ifdef CPU_x86_64
+	/* FIXME: raw_fmovi_mrb is not 64-bit compatible yet. */
+	raw_fmovi_mr(m, r);
+#else
 	/* Clamp value to the given range and convert to integer.
 	ideally, the clamping should be done using two FCMOVs, but
 	this requires two free fp registers, and we can only be sure
@@ -4094,6 +4098,7 @@ LOWFUNC(NONE,WRITE,3,raw_fmovi_mrb,(MEMW m, FR r, double *bounds))
 	emit_byte(0xdb);
 	emit_byte(0x1d);
 	emit_long(m);
+#endif
 }
 LENDFUNC(NONE,WRITE,3,raw_fmovi_mrb,(MEMW m, FR r, double *bounds))
 
@@ -4213,6 +4218,9 @@ LENDFUNC(NONE,NONE,2,raw_fmov_rr,(FW d, FR s))
 
 LOWFUNC(NONE,READ,2,raw_fldcw_m_indexed,(R4 index, IMM base))
 {
+	/* FLDCW cannot be used with x86-64-only registers */
+	assert(index <= EDI_INDEX);
+	ADDR32
 	emit_byte(0xd9);
 	emit_byte(0xa8+index);
 	emit_long(base);
@@ -4323,7 +4331,7 @@ LOWFUNC(NONE,NONE,2,raw_fsin_rr,(FW d, FR s))
 }
 LENDFUNC(NONE,NONE,2,raw_fsin_rr,(FW d, FR s))
 
-float one = 1;
+static const double one = 1;
 
 LOWFUNC(NONE,NONE,2,raw_ftwotox_rr,(FW d, FR s))
 {
@@ -4340,9 +4348,7 @@ LOWFUNC(NONE,NONE,2,raw_ftwotox_rr,(FW d, FR s))
 	emit_byte(0xe1);    /* fsub frac(x) = x - int(x) */
 	emit_byte(0xd9);
 	emit_byte(0xf0);    /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one)); /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one); /* Add '1' without using extra stack space */
 	emit_byte(0xd9);
 	emit_byte(0xfd);    /* fscale (2^frac(x))*2^int(x) */
 	emit_byte(0xdd);
@@ -4376,9 +4382,7 @@ LOWFUNC(NONE,NONE,2,raw_fetox_rr,(FW d, FR s))
 	emit_byte(0xe1);    /* fsub x*log2(e) - int(x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);    /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one); /* Add '1' without using extra stack space */
 	emit_byte(0xd9);
 	emit_byte(0xfd);    /* fscale (2^frac(x))*2^int(x*log2(e)) */
 	emit_byte(0xdd);
@@ -4645,9 +4649,7 @@ LOWFUNC(NONE,NONE,2,raw_ftentox_rr,(FW d, FR s))
 	emit_byte(0xe1);    /* fsub x*log2(10) - int(x*log2(10))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);    /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one);
 	emit_byte(0xd9);
 	emit_byte(0xfd);    /* fscale (2^frac(x))*2^int(x*log2(10)) */
 	emit_byte(0xdd);
@@ -5051,9 +5053,7 @@ LOWFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
 	emit_byte(0xe1);     /* fsub -x*log2(e) - int(-x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);     /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one);
 	emit_byte(0xd9);
 	emit_byte(0xfd);     /* fscale (2^frac(x))*2^int(x*log2(e)) */
 	emit_byte(0xd9);
@@ -5068,9 +5068,7 @@ LOWFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
 	emit_byte(0xe1);     /* fsub x*log2(e) - int(x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);     /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one);
 	emit_byte(0xd9);
 	emit_byte(0xfd);     /* fscale (2^frac(x))*2^int(x*log2(e)) */
 	emit_byte(0xdd);
@@ -5146,9 +5144,7 @@ LOWFUNC(NONE,NONE,2,raw_fcosh_rr,(FW d, FR s))
 	emit_byte(0xe1);     /* fsub -x*log2(e) - int(-x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);     /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one);
 	emit_byte(0xd9);
 	emit_byte(0xfd);     /* fscale (2^frac(x))*2^int(x*log2(e)) */
 	emit_byte(0xd9);
@@ -5163,9 +5159,7 @@ LOWFUNC(NONE,NONE,2,raw_fcosh_rr,(FW d, FR s))
 	emit_byte(0xe1);     /* fsub x*log2(e) - int(x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);     /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one);
 	emit_byte(0xd9);
 	emit_byte(0xfd);     /* fscale (2^frac(x))*2^int(x*log2(e)) */
 	emit_byte(0xdd);
@@ -5237,9 +5231,7 @@ LOWFUNC(NONE,NONE,2,raw_ftanh_rr,(FW d, FR s))
 	emit_byte(0xe1);     /* fsub -x*log2(e) - int(-x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);     /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one);
 	emit_byte(0xd9);
 	emit_byte(0xfd);     /* fscale (2^frac(x))*2^int(x*log2(e)) */
 	emit_byte(0xd9);
@@ -5254,9 +5246,7 @@ LOWFUNC(NONE,NONE,2,raw_ftanh_rr,(FW d, FR s))
 	emit_byte(0xe1);     /* fsub x*log2(e) - int(x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);     /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one);
 	emit_byte(0xd9);
 	emit_byte(0xfd);     /* fscale (2^frac(x))*2^int(x*log2(e)) */
 	emit_byte(0xdd);

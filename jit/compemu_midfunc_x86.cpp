@@ -2536,9 +2536,8 @@ MENDFUNC(2,fmov_rr,(FW d, FR s))
 
 MIDFUNC(2,fldcw_m_indexed,(RR4 index, IMM base))
 {
-	index=readreg(index,4);
-
-	raw_fldcw_m_indexed(index,base);
+	index = readreg_x86(index, 4);
+	raw_fldcw_m_indexed(index, base);
 	unlock2(index);
 }
 MENDFUNC(2,fldcw_m_indexed,(RR4 index, IMM base))
