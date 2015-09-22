@@ -4218,6 +4218,9 @@ LENDFUNC(NONE,NONE,2,raw_fmov_rr,(FW d, FR s))
 
 LOWFUNC(NONE,READ,2,raw_fldcw_m_indexed,(R4 index, IMM base))
 {
+	/* FLDCW cannot be used with x86-64-only registers */
+	assert(index <= EDI_INDEX);
+	ADDR32
 	emit_byte(0xd9);
 	emit_byte(0xa8+index);
 	emit_long(base);
