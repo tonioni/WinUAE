@@ -4328,7 +4328,7 @@ LOWFUNC(NONE,NONE,2,raw_fsin_rr,(FW d, FR s))
 }
 LENDFUNC(NONE,NONE,2,raw_fsin_rr,(FW d, FR s))
 
-float one = 1;
+static const double one = 1;
 
 LOWFUNC(NONE,NONE,2,raw_ftwotox_rr,(FW d, FR s))
 {
@@ -4345,9 +4345,7 @@ LOWFUNC(NONE,NONE,2,raw_ftwotox_rr,(FW d, FR s))
 	emit_byte(0xe1);    /* fsub frac(x) = x - int(x) */
 	emit_byte(0xd9);
 	emit_byte(0xf0);    /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one)); /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one); /* Add '1' without using extra stack space */
 	emit_byte(0xd9);
 	emit_byte(0xfd);    /* fscale (2^frac(x))*2^int(x) */
 	emit_byte(0xdd);
@@ -4381,9 +4379,7 @@ LOWFUNC(NONE,NONE,2,raw_fetox_rr,(FW d, FR s))
 	emit_byte(0xe1);    /* fsub x*log2(e) - int(x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);    /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one); /* Add '1' without using extra stack space */
 	emit_byte(0xd9);
 	emit_byte(0xfd);    /* fscale (2^frac(x))*2^int(x*log2(e)) */
 	emit_byte(0xdd);
@@ -4650,9 +4646,7 @@ LOWFUNC(NONE,NONE,2,raw_ftentox_rr,(FW d, FR s))
 	emit_byte(0xe1);    /* fsub x*log2(10) - int(x*log2(10))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);    /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one);
 	emit_byte(0xd9);
 	emit_byte(0xfd);    /* fscale (2^frac(x))*2^int(x*log2(10)) */
 	emit_byte(0xdd);
@@ -5056,9 +5050,7 @@ LOWFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
 	emit_byte(0xe1);     /* fsub -x*log2(e) - int(-x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);     /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one);
 	emit_byte(0xd9);
 	emit_byte(0xfd);     /* fscale (2^frac(x))*2^int(x*log2(e)) */
 	emit_byte(0xd9);
@@ -5073,9 +5065,7 @@ LOWFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
 	emit_byte(0xe1);     /* fsub x*log2(e) - int(x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);     /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one);
 	emit_byte(0xd9);
 	emit_byte(0xfd);     /* fscale (2^frac(x))*2^int(x*log2(e)) */
 	emit_byte(0xdd);
@@ -5151,9 +5141,7 @@ LOWFUNC(NONE,NONE,2,raw_fcosh_rr,(FW d, FR s))
 	emit_byte(0xe1);     /* fsub -x*log2(e) - int(-x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);     /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one);
 	emit_byte(0xd9);
 	emit_byte(0xfd);     /* fscale (2^frac(x))*2^int(x*log2(e)) */
 	emit_byte(0xd9);
@@ -5168,9 +5156,7 @@ LOWFUNC(NONE,NONE,2,raw_fcosh_rr,(FW d, FR s))
 	emit_byte(0xe1);     /* fsub x*log2(e) - int(x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);     /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one);
 	emit_byte(0xd9);
 	emit_byte(0xfd);     /* fscale (2^frac(x))*2^int(x*log2(e)) */
 	emit_byte(0xdd);
@@ -5242,9 +5228,7 @@ LOWFUNC(NONE,NONE,2,raw_ftanh_rr,(FW d, FR s))
 	emit_byte(0xe1);     /* fsub -x*log2(e) - int(-x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);     /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one);
 	emit_byte(0xd9);
 	emit_byte(0xfd);     /* fscale (2^frac(x))*2^int(x*log2(e)) */
 	emit_byte(0xd9);
@@ -5259,9 +5243,7 @@ LOWFUNC(NONE,NONE,2,raw_ftanh_rr,(FW d, FR s))
 	emit_byte(0xe1);     /* fsub x*log2(e) - int(x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);     /* f2xm1 (2^frac(x))-1 */
-	emit_byte(0xd8);
-	emit_byte(0x05);
-	emit_long(uae_p32(&one));  /* fadd (2^frac(x))-1 + 1 */
+	x86_fadd_m((uintptr) &one);
 	emit_byte(0xd9);
 	emit_byte(0xfd);     /* fscale (2^frac(x))*2^int(x*log2(e)) */
 	emit_byte(0xdd);
