@@ -4053,6 +4053,10 @@ LENDFUNC(NONE,WRITE,2,raw_fmovi_mr,(MEMW m, FR r))
 
 LOWFUNC(NONE,WRITE,3,raw_fmovi_mrb,(MEMW m, FR r, double *bounds))
 {
+#ifdef CPU_x86_64
+	/* FIXME: raw_fmovi_mrb is not 64-bit compatible yet. */
+	raw_fmovi_mr(m, r);
+#else
 	/* Clamp value to the given range and convert to integer.
 	ideally, the clamping should be done using two FCMOVs, but
 	this requires two free fp registers, and we can only be sure
@@ -4094,6 +4098,7 @@ LOWFUNC(NONE,WRITE,3,raw_fmovi_mrb,(MEMW m, FR r, double *bounds))
 	emit_byte(0xdb);
 	emit_byte(0x1d);
 	emit_long(m);
+#endif
 }
 LENDFUNC(NONE,WRITE,3,raw_fmovi_mrb,(MEMW m, FR r, double *bounds))
 
