@@ -1462,7 +1462,7 @@ static addrbank *x86_at_hd_init(struct romconfig *rc, int type)
 	ide->configured = 1;
 	ide->bank = &ide_bank_generic;
 
-	struct zfile *f = read_device_from_romconfig(rc, NULL);
+	struct zfile *f = read_device_from_romconfig(rc, 0);
 	if (f) {
 		x86_xt_ide_bios(f, rc);
 		zfile_fclose(f);

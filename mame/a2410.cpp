@@ -17,6 +17,7 @@
 #include "picasso96.h"
 #include "statusline.h"
 #include "newcpu.h"
+#include "gfxboard.h"
 
 static int tms_vp, tms_hp;
 rectangle tms_rectangle;

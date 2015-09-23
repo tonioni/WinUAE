@@ -83,8 +83,8 @@ static bool memlogw = false;
 struct gfxboard
 {
 	const TCHAR *name;
-	TCHAR *manufacturername;
-	TCHAR *configname;
+	const TCHAR *manufacturername;
+	const TCHAR *configname;
 	int manufacturer;
 	int model_memory;
 	int model_registers;

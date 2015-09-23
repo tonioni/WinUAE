@@ -1846,7 +1846,7 @@ static void a2090_st506(struct wd_state *wd, uae_u8 b)
 	}
 	uaecptr cbp = wd->cdmac.c8727_st506_cb << 9;
 	if (!valid_address(cbp, 16)) {
-		write_log(_T("Invalid ST-506 command block address %08x\n"), cb);
+		write_log(_T("Invalid ST-506 command block address %08x\n"), cbp);
 		return;
 	}
 	for (int i = 0; i < sizeof cb; i++) {

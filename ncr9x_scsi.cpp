@@ -1344,7 +1344,7 @@ static uae_u32 REGPARAM2 ncr9x_generic_lget (uaecptr addr)
 		return ncr9x_lget(ncr, addr);
 	return 0;
 }
-uae_u8 *REGPARAM2 ncr9x_generic_xlate(uaecptr addr)
+static uae_u8 *REGPARAM2 ncr9x_generic_xlate(uaecptr addr)
 {
 	struct ncr9x_state *ncr = getscsiboard(addr);
 	if (!ncr)
@@ -1353,7 +1353,7 @@ uae_u8 *REGPARAM2 ncr9x_generic_xlate(uaecptr addr)
 	return ncr->rom + addr;
 
 }
-int REGPARAM2 ncr9x_generic_check(uaecptr a, uae_u32 b)
+static int REGPARAM2 ncr9x_generic_check(uaecptr a, uae_u32 b)
 {
 	struct ncr9x_state *ncr = getscsiboard(a);
 	if (!ncr)
