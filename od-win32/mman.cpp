@@ -23,7 +23,12 @@
 
 uae_u32 max_z3fastmem;
 
-/* JIT can access few bytes outside of memory block if it executes code at the very end of memory block */
+/* BARRIER is used in case Amiga memory is access across memory banks,
+ * for example move.l $1fffffff,d0 when $10000000-$1fffffff is mapped and
+ * $20000000+ is not mapped.
+ * Note: BARRIER will probably effectively be rounded up the host memory
+ * page size.
+ */
 #define BARRIER 32
 
 #define MAXZ3MEM32 0x7F000000
@@ -801,6 +806,14 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 		}
 	}
 #endif
+
+	uintptr_t natmem_end = (uintptr_t) natmem_offset + natmem_size;
+	if ((uintptr_t) shmaddr + size > natmem_end) {
+		/* We cannot add a barrier beyond the end of the reserved memory. */
+		assert((uintptr_t) shmaddr + size - natmem_end == BARRIER);
+		write_log(_T("NATMEM: Removing barrier (%d bytes) beyond reserved memory\n"), BARRIER);
+		size -= BARRIER;
+	}
 
 	if (shmids[shmid].key == shmid && shmids[shmid].size) {
 		DWORD protect = readonly ? PAGE_READONLY : PAGE_READWRITE;
