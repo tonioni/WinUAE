@@ -153,6 +153,94 @@ static int delete_trigger(blockinfo *bi, void *pc)
 	return 0;
 }
 
+static bool decode_instruction(uae_u8 *pc, int *r, int *dir, int *size, int *len)
+{
+	*r = -1;
+	*size = 4;
+	*dir = -1;
+	*len = 0;
+
+#ifdef CPU_x86_64
+	if (*pc == 0x67) {
+		/* Skip address-size override prefix */
+		pc += 1;
+		*len += 1;
+	}
+	if (*pc == 0x40) {
+		/* Skip REX prefix */
+		pc += 1;
+		*len += 1;
+	}
+#endif
+	if (*pc == 0x66) {
+		pc += 1;
+		*size = 2;
+		*len += 1;
+	}
+
+	switch (pc[0]) {
+	case 0x8a:
+		if ((pc[1] & 0xc0) == 0x80) {
+			*r = (pc[1] >> 3) & 7;
+			*dir = SIG_READ;
+			*size = 1;
+			*len += 6;
+			break;
+		}
+		break;
+	case 0x88:
+		if ((pc[1] & 0xc0) == 0x80) {
+			*r = (pc[1] >> 3) & 7;
+			*dir = SIG_WRITE;
+			*size = 1;
+			*len += 6;
+			break;
+		}
+		break;
+	case 0x8b:
+		switch (pc[1] & 0xc0) {
+		case 0x80:
+			*r = (pc[1] >> 3) & 7;
+			*dir = SIG_READ;
+			*len += 6;
+			break;
+		case 0x40:
+			*r = (pc[1] >> 3) & 7;
+			*dir = SIG_READ;
+			*len += 3;
+			break;
+		case 0x00:
+			*r = (pc[1] >> 3) & 7;
+			*dir = SIG_READ;
+			*len += 2;
+			break;
+		default:
+			break;
+		}
+		break;
+	case 0x89:
+		switch (pc[1]&0xc0) {
+		case 0x80:
+			*r = (pc[1] >> 3) & 7;
+			*dir = SIG_WRITE;
+			*len += 6;
+			break;
+		case 0x40:
+			*r = (pc[1] >> 3) & 7;
+			*dir = SIG_WRITE;
+			*len += 3;
+			break;
+		case 0x00:
+			*r = (pc[1] >> 3) & 7;
+			*dir = SIG_WRITE;
+			*len += 2;
+			break;
+		}
+		break;
+	}
+	return r != 0;
+}
+
 #ifdef HAVE_CONTEXT_T
 /*
  * Try to handle faulted memory access in compiled code
@@ -188,80 +276,7 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 		write_log (_T("JIT: Argh --- Am already in a handler. Shouldn't happen!\n"));
 
 	if (canbang && fault_pc >= compiled_code && fault_pc <= current_compile_p) {
-		uae_u8 *pc = fault_pc;
-#ifdef CPU_x86_64
-		if (*pc == 0x67) {
-			/* Skip address-size override prefix */
-			pc++;
-			len++;
-		}
-#endif
-		if (*pc == 0x66) {
-			pc++;
-			size = 2;
-			len++;
-		}
-
-		switch (pc[0]) {
-		case 0x8a:
-			if ((pc[1]&0xc0)==0x80) {
-				r=(pc[1]>>3)&7;
-				dir=SIG_READ;
-				size=1;
-				len+=6;
-				break;
-			}
-			break;
-		case 0x88:
-			if ((pc[1]&0xc0)==0x80) {
-				r=(pc[1]>>3)&7;
-				dir=SIG_WRITE;
-				size=1;
-				len+=6;
-				break;
-			}
-			break;
-		case 0x8b:
-			switch (pc[1]&0xc0) {
-			case 0x80:
-				r=(pc[1]>>3)&7;
-				dir=SIG_READ;
-				len+=6;
-				break;
-			case 0x40:
-				r=(pc[1]>>3)&7;
-				dir=SIG_READ;
-				len+=3;
-				break;
-			case 0x00:
-				r=(pc[1]>>3)&7;
-				dir=SIG_READ;
-				len+=2;
-				break;
-			default:
-				break;
-			}
-			break;
-		case 0x89:
-			switch (pc[1]&0xc0) {
-			case 0x80:
-				r=(pc[1]>>3)&7;
-				dir=SIG_WRITE;
-				len+=6;
-				break;
-			case 0x40:
-				r=(pc[1]>>3)&7;
-				dir=SIG_WRITE;
-				len+=3;
-				break;
-			case 0x00:
-				r=(pc[1]>>3)&7;
-				dir=SIG_WRITE;
-				len+=2;
-				break;
-			}
-			break;
-		}
+		decode_instruction(fault_pc, &r, &dir, &size, &len);
 	}
 
 	if (r!=-1) {
@@ -432,8 +447,18 @@ static void sigsegv_handler(int signum, siginfo_t *info, void *context)
 
 #endif
 
+// #define TEST_EXCEPTION_HANDLER
+
+#ifdef TEST_EXCEPTION_HANDLER
+#include "test_exception_handler.cpp"
+#endif
+
 static void install_exception_handler(void)
 {
+#ifdef TEST_EXCEPTION_HANDLER
+	test_exception_handler();
+#endif
+
 #ifdef JIT_EXCEPTION_HANDLER
 	if (veccode == NULL) {
 		veccode = (uae_u8 *) uae_vm_alloc(256, UAE_VM_32BIT, UAE_VM_READ_WRITE_EXECUTE);
