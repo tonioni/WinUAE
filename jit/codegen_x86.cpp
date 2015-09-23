@@ -4933,9 +4933,7 @@ LOWFUNC(NONE,NONE,2,raw_facos_rr,(FW d, FR s))
 	emit_byte(0xc9);    /* fxch swap x with sqrt(1-(x^2))  */
 	emit_byte(0xd9);
 	emit_byte(0xf3);    /* fpatan atan(x/sqrt(1-(x^2))) & pop */
-	emit_byte(0xdb);
-	emit_byte(0x2d);
-	emit_long(uae_p32(&pihalf)); /* fld load pi/2 from pihalf */
+	raw_fldt((uintptr) &pihalf); /* fld load pi/2 from pihalf */
 	emit_byte(0xde);
 	emit_byte(0xe1);    /* fsubrp pi/2 - asin(x) & pop */
 	tos_make(d);        /* store y=acos(x) */
