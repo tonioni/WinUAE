@@ -3993,6 +3993,7 @@ DEFINE_OP(flds,  FLDSm);
 DEFINE_OP(fsts,  FSTSm);
 DEFINE_OP(fstpt, FSTPTm);
 DEFINE_OP(fldt,  FLDTm);
+DEFINE_OP(fistpl, FISTPLm);
 #else
 #define DEFINE_OP(NAME, OP1, OP2)		\
 static inline void raw_##NAME(uint32 m)		\
@@ -4010,6 +4011,7 @@ DEFINE_OP(flds,  0xd9, 0x05);
 DEFINE_OP(fsts,  0xd9, 0x15);
 DEFINE_OP(fstpt, 0xdb, 0x3d);
 DEFINE_OP(fldt,  0xdb, 0x2d);
+DEFINE_OP(fistpl, 0xdb, 0x1d);
 #endif
 #undef DEFINE_OP
 
@@ -4053,26 +4055,14 @@ LENDFUNC(NONE,WRITE,2,raw_fmovi_mr,(MEMW m, FR r))
 
 LOWFUNC(NONE,WRITE,3,raw_fmovi_mrb,(MEMW m, FR r, double *bounds))
 {
-#ifdef CPU_x86_64
-	/* FIXME: raw_fmovi_mrb is not 64-bit compatible yet. */
-	raw_fmovi_mr(m, r);
-#else
-	/* Clamp value to the given range and convert to integer.
-	ideally, the clamping should be done using two FCMOVs, but
-	this requires two free fp registers, and we can only be sure
-	of having one. Using a jump for the lower bound and an FCMOV
-	for the upper bound, we can do it with one scratch register.
-	*/
+	/* Clamp value to the given range and convert to integer. */
 
 	int rs;
 	usereg(r);
 	rs = stackpos(r)+1;
 
 	/* Lower bound onto stack */
-	emit_byte(0xdd);
-	emit_byte(0x05);
-/* FIXME: 32-bit address prefix needed? */
-	emit_long(uae_p32(&bounds[0])); /* fld double from lower */
+	raw_fldl((uintptr) &bounds[0]); /* fld double from lower */
 
 	/* Clamp to lower */
 	emit_byte(0xdb);
@@ -4083,10 +4073,7 @@ LOWFUNC(NONE,WRITE,3,raw_fmovi_mrb,(MEMW m, FR r, double *bounds))
 	/* Upper bound onto stack */
 	emit_byte(0xdd);
 	emit_byte(0xd8);	/* fstp st(0) */
-	emit_byte(0xdd);
-	emit_byte(0x05);
-/* FIXME: 32-bit address prefix needed? */
-	emit_long(uae_p32(&bounds[1])); /* fld double from upper */
+	raw_fldl((uintptr) &bounds[1]); /* fld double from upper */
 
 	/* Clamp to upper */
 	emit_byte(0xdb);
@@ -4095,10 +4082,7 @@ LOWFUNC(NONE,WRITE,3,raw_fmovi_mrb,(MEMW m, FR r, double *bounds))
 	emit_byte(0xd0+rs); /* fcmovnbe upper,r */
 
 	/* Store to destination */
-	emit_byte(0xdb);
-	emit_byte(0x1d);
-	emit_long(m);
-#endif
+	raw_fistpl(m);
 }
 LENDFUNC(NONE,WRITE,3,raw_fmovi_mrb,(MEMW m, FR r, double *bounds))
 
