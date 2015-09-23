@@ -7711,7 +7711,7 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_MBMEM2, mbram2);
 }
 
-extern uae_u32 natmem_size;
+extern uae_u32 natmem_reserved_size;
 static void setmax32bitram (HWND hDlg)
 {
 	TCHAR tmp[256];
@@ -7725,13 +7725,13 @@ static void setmax32bitram (HWND hDlg)
 		size += 2 * 16 * 1024 * 1024;
 	if (changed_prefs.mbresmem_high_size >= 128 * 1024 * 1024 && (size || workprefs.z3chipmem_size))
 		size += (changed_prefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024;
-	if (natmem_size > 0x40000000)
-		z3size_real = natmem_size - 0x40000000;
-	if (natmem_size > 0x10000000)
-		z3size_uae = natmem_size - 0x10000000;
+	if (natmem_reserved_size > 0x40000000)
+		z3size_real = natmem_reserved_size - 0x40000000;
+	if (natmem_reserved_size > 0x10000000)
+		z3size_uae = natmem_reserved_size - 0x10000000;
 	size += ((workprefs.z3chipmem_size + sizealign) & ~sizealign);
 	_stprintf (tmp, L"Configured 32-bit RAM: %dM, reserved: %dM, Z3 available: %dM (UAE), %dM (Real)",
-		size / (1024 * 1024), (natmem_size - 256 * 1024 * 1024) / (1024 * 1024), z3size_uae / (1024 * 1024), z3size_real / (1024 * 1024));
+		size / (1024 * 1024), (natmem_reserved_size - 256 * 1024 * 1024) / (1024 * 1024), z3size_uae / (1024 * 1024), z3size_real / (1024 * 1024));
 	SetDlgItemText (hDlg, IDC_MAX32RAM, tmp);
 }
 
