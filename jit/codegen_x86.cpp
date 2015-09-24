@@ -5016,6 +5016,9 @@ LOWFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
 	if (tr>=0) {
 		emit_byte(0xd9);
 		emit_byte(0xca); /* fxch swap with temp-reg */
+#ifdef CPU_x86_64
+		emit_byte(0x48);  /* Use rsp register */
+#endif
 		emit_byte(0x83);
 		emit_byte(0xc4);
 		emit_byte(0xf4); /* add -12 to esp */
@@ -5063,6 +5066,9 @@ LOWFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
 		emit_byte(0xca); /* fxch swap temp-reg with e^-x in tr */
 		emit_byte(0xde);
 		emit_byte(0xe9); /* fsubp (e^x)-(e^-x) */
+#ifdef CPU_x86_64
+		emit_byte(0x48); /* Use rsp register */
+#endif
 		emit_byte(0x83);
 		emit_byte(0xc4);
 		emit_byte(0x0c); /* delayed add +12 to esp */
