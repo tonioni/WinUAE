@@ -1557,7 +1557,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 			else
 				_stprintf (offtxt, _T("$%04x"), disp16);
 			addr = m68k_areg (regs, reg) + disp16;
-			_stprintf (buffer, _T("(A%d, %s) == $%08x"), reg, offtxt, (unsigned long)addr);
+			_stprintf (buffer, _T("(A%d, %s) == $%08x"), reg, offtxt, addr);
 		}
 		break;
 	case Ad8r:
@@ -1601,7 +1601,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 	case PC16:
 		disp16 = get_iword_debug (pc); pc += 2;
 		addr += (uae_s16)disp16;
-		_stprintf (buffer, _T("(PC,$%04x) == $%08x"), disp16 & 0xffff, (unsigned long)addr);
+		_stprintf (buffer, _T("(PC,$%04x) == $%08x"), disp16 & 0xffff, addr);
 		break;
 	case PC8r:
 		dp = get_iword_debug (pc); pc += 2;
@@ -3984,7 +3984,7 @@ static void m68k_run_1_ce (void)
 cont:
 				if (cputrace.needendcycles) {
 					cputrace.needendcycles = 0;
-					write_log (_T("STARTCYCLES=%08x ENDCYCLES=%08x\n"), cputrace.startcycles, get_cycles ());
+					write_log (_T("STARTCYCLES=%08x ENDCYCLES=%08lx\n"), cputrace.startcycles, get_cycles ());
 					log_dma_record ();
 				}
 

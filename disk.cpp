@@ -1066,7 +1066,7 @@ static void update_disk_statusline(int num)
 	drive *drv = &floppy[num];
 	if (!drv->diskfile)
 		return;
-	TCHAR *fname = zfile_getoriginalname(drv->diskfile);
+	const TCHAR *fname = zfile_getoriginalname(drv->diskfile);
 	if (!fname)
 		fname = zfile_getname(drv->diskfile);
 	if (!fname)
@@ -2955,7 +2955,7 @@ void DISK_select (uae_u8 data)
 			if ((prev_data & 0x04) != (data & 0x04))
 				write_log (_T(" side %d "), (data & 0x04) ? 1 : 0);
 		} else {
-			write_log (_T(" %d%d%d%d% "), (selected & 1) ? 0 : 1, (selected & 2) ? 0 : 1, (selected & 4) ? 0 : 1, (selected & 8) ? 0 : 1);
+			write_log (_T(" %d%d%d%d "), (selected & 1) ? 0 : 1, (selected & 2) ? 0 : 1, (selected & 4) ? 0 : 1, (selected & 8) ? 0 : 1);
 			if ((prev_data & 0x80) != (data & 0x80))
 				write_log (_T(" dskmotor %d "), (data & 0x80) ? 1 : 0);
 			if ((prev_data & 0x02) != (data & 0x02))
@@ -4694,7 +4694,7 @@ int disk_prevnext (int drive, int dir)
 	return 1;
 }
 
-int getdebug(void)
+static int getdebug(void)
 {
 	return floppy[0].mfmpos;
 }
