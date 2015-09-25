@@ -25,8 +25,6 @@ int enforcermode = 0;
 #ifdef AHI
 
 #if defined(JIT)
-#define special_mem_r special_mem |= S_READ
-#define special_mem_w special_mem |= S_WRITE
 #define NMEM_OFFSET NATMEM_OFFSET
 #else
 #define special_mem_r
@@ -543,7 +541,6 @@ static uae_u8 * REGPARAM2 chipmem_xlate2 (uaecptr addr)
 
 static uae_u32 REGPARAM2 dummy_lget2 (uaecptr addr)
 {
-	special_mem_r;
 	enforcer_display_hit (_T("LONG READ from"), m68k_getpc (), addr);
 	if (enforcermode & 1) {
 		set_special (SPCFLAG_TRAP);
@@ -558,8 +555,6 @@ static int warned_JIT_0xF10000 = 0;
 
 static uae_u32 REGPARAM2 dummy_wget2 (uaecptr addr)
 {
-	special_mem_r;
-
 #ifdef JIT
 	if (addr >= 0x00F10000 && addr <= 0x00F7FFFF) {
 		if (!warned_JIT_0xF10000) {
@@ -579,7 +574,6 @@ static uae_u32 REGPARAM2 dummy_wget2 (uaecptr addr)
 
 static uae_u32	REGPARAM2 dummy_bget2 (uaecptr addr)
 {
-	special_mem_r;
 	enforcer_display_hit (_T("BYTE READ from"), m68k_getpc (), addr);
 	if (enforcermode & 1) {
 		set_special (SPCFLAG_TRAP);
@@ -590,7 +584,6 @@ static uae_u32	REGPARAM2 dummy_bget2 (uaecptr addr)
 
 static void REGPARAM2 dummy_lput2 (uaecptr addr, uae_u32 l)
 {
-	special_mem_w;
 	enforcer_display_hit (_T("LONG WRITE to"), m68k_getpc (), addr);
 	if (enforcermode & 1) {
 		set_special (SPCFLAG_TRAP);
@@ -600,7 +593,6 @@ static void REGPARAM2 dummy_lput2 (uaecptr addr, uae_u32 l)
 
 static void REGPARAM2 dummy_wput2 (uaecptr addr, uae_u32 w)
 {
-	special_mem_w;
 	enforcer_display_hit (_T("WORD WRITE to"), m68k_getpc (), addr);
 	if (enforcermode & 1) {
 		set_special (SPCFLAG_TRAP);
@@ -610,7 +602,6 @@ static void REGPARAM2 dummy_wput2 (uaecptr addr, uae_u32 w)
 
 static void REGPARAM2 dummy_bput2 (uaecptr addr, uae_u32 b)
 {
-	special_mem_w;
 	enforcer_display_hit (_T("BYTE WRITE to"), m68k_getpc (), addr);
 	if (enforcermode & 1) {
 		set_special (SPCFLAG_TRAP);
@@ -620,7 +611,6 @@ static void REGPARAM2 dummy_bput2 (uaecptr addr, uae_u32 b)
 
 static int REGPARAM2 dummy_check2 (uaecptr addr, uae_u32 size)
 {
-	special_mem_r;
 	enforcer_display_hit (_T("CHECK from "), m68k_getpc (), addr);
 	return 0;
 }

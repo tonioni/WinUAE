@@ -220,6 +220,7 @@ extern int input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, 
 extern void input_mousehack_mouseoffset (uaecptr pointerprefs);
 extern int mousehack_alive (void);
 extern void mousehack_wakeup(void);
+extern void mousehack_write(int reg, uae_u16 val);
 extern void setmouseactive (int);
 extern bool ismouseactive (void);
 

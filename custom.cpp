@@ -8604,7 +8604,8 @@ addrbank custom_bank = {
 	custom_lget, custom_wget, custom_bget,
 	custom_lput, custom_wput, custom_bput,
 	default_xlate, default_check, NULL, NULL, _T("Custom chipset"),
-	custom_lgeti, custom_wgeti, ABFLAG_IO, NULL, 0x1ff, 0xdff000
+	custom_lgeti, custom_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE, NULL, 0x1ff, 0xdff000
 };
 
 static uae_u32 REGPARAM2 custom_wgeti (uaecptr addr)
@@ -8624,9 +8625,6 @@ static uae_u32 REGPARAM2 custom_wget_1(int hpos, uaecptr addr, int noput, bool i
 {
 	uae_u16 v;
 	int missing;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 0xfff;
 #if CUSTOM_DEBUG > 2
 	write_log (_T("%d:%d:wget: %04X=%04X pc=%p\n"), current_hpos(), vpos, addr, addr & 0x1fe, m68k_getpc ());
@@ -8773,9 +8771,6 @@ static uae_u32 REGPARAM2 custom_wget (uaecptr addr)
 static uae_u32 REGPARAM2 custom_bget (uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0)
 		return dummy_get(addr, 1, false);
 	v = custom_wget2 (addr & ~1, true);
@@ -8785,9 +8780,6 @@ static uae_u32 REGPARAM2 custom_bget (uaecptr addr)
 
 static uae_u32 REGPARAM2 custom_lget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0)
 		return dummy_get(addr, 4, false);
 	return ((uae_u32)custom_wget (addr) << 16) | custom_wget (addr + 2);
@@ -9007,9 +8999,6 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 static void REGPARAM2 custom_wput (uaecptr addr, uae_u32 value)
 {
 	int hpos = current_hpos ();
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 
 	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0) {
 		dummy_put(addr, 2, value);
@@ -9046,9 +9035,6 @@ static void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 		rval = (value << 8) | (value & 0xff);
 	}
 
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (currprefs.cs_bytecustomwritebug) {
 		if (addr & 1)
 			custom_wput (addr & ~1, rval);
@@ -9061,9 +9047,6 @@ static void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 
 static void REGPARAM2 custom_lput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0) {
 		dummy_put(addr, 4, value);
 		return;

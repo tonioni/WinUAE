@@ -1165,9 +1165,6 @@ static void ncr9x_bput2(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 static uae_u32 REGPARAM2 ncr9x_lget(struct ncr9x_state *ncr, uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= ncr->board_mask;
 	if (isncr(ncr, ncr_oktagon2008_scsi)) {
 		v =  ncr9x_io_bget(ncr, addr + 0) << 24;
@@ -1186,9 +1183,6 @@ static uae_u32 REGPARAM2 ncr9x_lget(struct ncr9x_state *ncr, uaecptr addr)
 static uae_u32 REGPARAM2 ncr9x_wget(struct ncr9x_state *ncr, uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= ncr->board_mask;
 	if (isncr(ncr, ncr_oktagon2008_scsi)) {
 		v = ncr9x_io_bget(ncr, addr) << 8;
@@ -1203,9 +1197,6 @@ static uae_u32 REGPARAM2 ncr9x_wget(struct ncr9x_state *ncr, uaecptr addr)
 static uae_u32 REGPARAM2 ncr9x_bget(struct ncr9x_state *ncr, uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= ncr->board_mask;
 	if (!ncr->configured) {
 		addr &= 65535;
@@ -1219,9 +1210,6 @@ static uae_u32 REGPARAM2 ncr9x_bget(struct ncr9x_state *ncr, uaecptr addr)
 
 static void REGPARAM2 ncr9x_lput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= ncr->board_mask;
 	if (isncr(ncr, ncr_oktagon2008_scsi)) {
 		ncr9x_io_bput(ncr, addr + 0, l >> 24);
@@ -1238,9 +1226,6 @@ static void REGPARAM2 ncr9x_lput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 
 static void REGPARAM2 ncr9x_wput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	w &= 0xffff;
 	addr &= ncr->board_mask;
 	if (!ncr->configured) {
@@ -1267,9 +1252,6 @@ static void REGPARAM2 ncr9x_wput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 
 static void REGPARAM2 ncr9x_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	b &= 0xff;
 	addr &= ncr->board_mask;
 	if (!ncr->configured) {
@@ -1368,7 +1350,8 @@ static addrbank ncr9x_bank_generic = {
 	ncr9x_generic_lget, ncr9x_generic_wget, ncr9x_generic_bget,
 	ncr9x_generic_lput, ncr9x_generic_wput, ncr9x_generic_bput,
 	ncr9x_generic_xlate, ncr9x_generic_check, NULL, NULL, _T("53C94/FAS216"),
-	ncr9x_generic_lget, ncr9x_generic_wget, ABFLAG_IO | ABFLAG_SAFE
+	ncr9x_generic_lget, ncr9x_generic_wget,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 uae_u32 cpuboard_ncr9x_scsi_get(uaecptr addr)

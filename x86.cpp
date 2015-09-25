@@ -2781,9 +2781,6 @@ static struct x86_bridge *get_x86_bridge(uaecptr addr)
 
 static uae_u32 REGPARAM2 x86_bridge_wget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u16 v = 0;
 	struct x86_bridge *xb = get_x86_bridge(addr);
 	if (!xb)
@@ -2814,9 +2811,6 @@ static uae_u32 REGPARAM2 x86_bridge_lget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 x86_bridge_bget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u8 v = 0;
 	struct x86_bridge *xb = get_x86_bridge(addr);
 	if (!xb)
@@ -2844,9 +2838,6 @@ static uae_u32 REGPARAM2 x86_bridge_bget(uaecptr addr)
 
 static void REGPARAM2 x86_bridge_wput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	struct x86_bridge *xb = get_x86_bridge(addr);
 	if (!xb)
 		return;
@@ -2883,9 +2874,6 @@ static void REGPARAM2 x86_bridge_lput(uaecptr addr, uae_u32 b)
 }
 static void REGPARAM2 x86_bridge_bput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	struct x86_bridge *xb = get_x86_bridge(addr);
 	if (!xb)
 		return;
@@ -2931,7 +2919,8 @@ addrbank x86_bridge_bank = {
 	x86_bridge_lget, x86_bridge_wget, x86_bridge_bget,
 	x86_bridge_lput, x86_bridge_wput, x86_bridge_bput,
 	default_xlate, default_check, NULL, NULL, _T("X86 BRIDGE"),
-	x86_bridge_lget, x86_bridge_wget, ABFLAG_IO | ABFLAG_SAFE
+	x86_bridge_lget, x86_bridge_wget,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 void x86_bridge_rethink(void)

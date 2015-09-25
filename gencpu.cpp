@@ -2734,7 +2734,7 @@ static void resetvars (void)
 	dstllrmw = NULL;
 	getpc = "m68k_getpc ()";
 
-	if (using_indirect) {
+	if (using_indirect > 0) {
 		// tracer
 		getpc = "m68k_getpci ()";
 		if (!using_ce020 && !using_prefetch_020 && !using_ce) {
@@ -2997,12 +2997,21 @@ static void resetvars (void)
 		srcli = "get_dilong";
 		srcwi = "get_diword";
 		srcbi = "get_dibyte";
-		srcl = "get_long";
-		dstl = "put_long";
-		srcw = "get_word";
-		dstw = "put_word";
-		srcb = "get_byte";
-		dstb = "put_byte";
+		if (using_indirect < 0) {
+			srcl = "get_long_jit";
+			dstl = "put_long_jit";
+			srcw = "get_word_jit";
+			dstw = "put_word_jit";
+			srcb = "get_byte_jit";
+			dstb = "put_byte_jit";
+		} else {
+			srcl = "get_long";
+			dstl = "put_long";
+			srcw = "get_word";
+			dstw = "put_word";
+			srcb = "get_byte";
+			dstb = "put_byte";
+		}
 	}
 	if (!dstld)
 		dstld = dstl;
@@ -3912,7 +3921,7 @@ static void gen_opcode (unsigned int opcode)
 	case i_RTS:
 		addop_ce020 (curi, 0);
 		printf ("\tuaecptr pc = %s;\n", getpc);
-		if (using_indirect && !using_ce020 && !using_prefetch_020 && !using_ce) {
+		if (using_indirect > 0 && !using_ce020 && !using_prefetch_020 && !using_ce) {
 			printf("\tm68k_do_rtsi_jit ();\n");
 		} else if (using_ce020 == 1) {
 			add_head_cycs (1);
@@ -4055,7 +4064,7 @@ static void gen_opcode (unsigned int opcode)
 			need_endlabel = 1;
 		}
 		addcycles000 (2);
-		if (using_indirect && !using_ce020 && !using_prefetch_020 && !using_ce) {
+		if (using_indirect > 0 && !using_ce020 && !using_prefetch_020 && !using_ce) {
 			printf("\tm68k_do_bsri_jit (%s + %d, s);\n", getpc, m68k_pc_offset);
 		} else if (using_ce020 == 1) {
 			printf ("\tm68k_do_bsr_ce020 (%s + %d, s);\n", getpc, m68k_pc_offset);
@@ -5043,7 +5052,7 @@ bccl_not68020:
 			if (using_mmu == 68060 && (curi->mnemo == i_BFCHG || curi->mnemo == i_BFCLR ||  curi->mnemo == i_BFSET ||  curi->mnemo == i_BFINS)) {
 				getb = "mmu060_get_rmw_bitfield";
 				putb = "mmu060_put_rmw_bitfield";
-			} else if (using_mmu || using_ce020 || using_indirect) {
+			} else if (using_mmu || using_ce020 || using_indirect > 0) {
 				getb = "x_get_bitfield";
 				putb = "x_put_bitfield";
 			} else {
@@ -5759,7 +5768,7 @@ static void generate_cpu (int id, int mode)
 	}
 
 	postfix = id;
-	if (id == 0 || id == 11 || id == 13 || id == 20 || id == 21 || id == 22 || id == 23 || id == 24 || id == 31 || id == 32 || id == 33 || id == 40) {
+	if (id == 0 || id == 11 || id == 13 || id == 20 || id == 21 || id == 22 || id == 23 || id == 24 || id == 31 || id == 32 || id == 33 || id == 40 || id == 50) {
 		if (generate_stbl)
 			fprintf (stblfile, "#ifdef CPUEMU_%d%s\n", postfix, extraup);
 		postfix2 = postfix;
@@ -5770,7 +5779,6 @@ static void generate_cpu (int id, int mode)
 		generate_includes (stdout, id);
 	}
 
-	using_indirect = 0;
 	using_exception_3 = 1;
 	using_prefetch = 0;
 	using_prefetch_020 = 0;
@@ -5781,6 +5789,7 @@ static void generate_cpu (int id, int mode)
 	memory_cycle_cnt = 4;
 	mmu_postfix = "";
 	using_simple_cycles = 0;
+	using_indirect = using_ce || using_ce020 || using_prefetch_020 || id >= 50;
 
 	if (id == 11 || id == 12) { // 11 = 68010 prefetch, 12 = 68000 prefetch
 		cpu_level = id == 11 ? 1 : 0;
@@ -5866,26 +5875,34 @@ static void generate_cpu (int id, int mode)
 		for (rp = 0; rp < nr_cpuop_funcs; rp++)
 			opcode_next_clev[rp] = cpu_level;
 	} else if (id < 6) {
-		cpu_level = 5 - (id - 0); // "generic" + direct
+		cpu_level = 5 - (id - 0); // "generic"
 	} else if (id >= 40 && id < 46) {
-		cpu_level = 5 - (id - 40); // "generic" + indirect
+		cpu_level = 5 - (id - 40); // "generic" + direct
 		if (id == 40) {
 			read_counts();
 			for (rp = 0; rp < nr_cpuop_funcs; rp++)
 				opcode_next_clev[rp] = cpu_level;
 		}
-	}
-	using_indirect = using_ce || using_ce020 || using_prefetch_020 || id >= 40;
+		using_indirect = -1;
+	} else if (id >= 50 && id < 56) {
+		cpu_level = 5 - (id - 50); // "generic" + indirect
+		if (id == 50) {
+			read_counts();
+			for (rp = 0; rp < nr_cpuop_funcs; rp++)
+				opcode_next_clev[rp] = cpu_level;
+		}
+	 }
+ 
 
 	if (generate_stbl) {
-		if ((id > 0 && id < 6) || (id >= 20 && id < 40) || (id > 40 && id < 46))
+		if ((id > 0 && id < 6) || (id >= 20 && id < 40) || (id > 40 && id < 46) || (id > 50 && id < 56))
 			fprintf (stblfile, "#ifndef CPUEMU_68000_ONLY\n");
 		fprintf (stblfile, "const struct cputbl CPUFUNC(op_smalltbl_%d%s)[] = {\n", postfix, extra);
 	}
 	endlabelno = id * 10000;
 	generate_func (extra);
 	if (generate_stbl) {
-		if ((id > 0 && id < 6) || (id >= 20 && id < 40) || (id > 40 && id < 46))
+		if ((id > 0 && id < 6) || (id >= 20 && id < 40) || (id > 40 && id < 46) || (id > 50 && id < 56))
 			fprintf (stblfile, "#endif /* CPUEMU_68000_ONLY */\n");
 		if (postfix2 >= 0)
 			fprintf (stblfile, "#endif /* CPUEMU_%d%s */\n", postfix2, extraup);
@@ -5915,7 +5932,7 @@ int main(int argc, char *argv[])
 	stblfile = fopen ("cpustbl.cpp", "wb");
 	generate_includes (stblfile, 0);
 
-	for (i = 0; i <= 45; i++) {
+	for (i = 0; i <= 55; i++) {
 		if ((i >= 6 && i < 11) || (i > 14 && i < 20) || (i > 25 && i < 31) || (i > 33 && i < 40))
 			continue;
 		generate_stbl = 1;

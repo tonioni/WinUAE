@@ -2281,9 +2281,6 @@ static void dmac_a2091_write_byte (struct wd_state *wd, uaecptr addr, uae_u32 b)
 static uae_u32 REGPARAM2 dmac_a2091_lget (struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 65535;
 	v = dmac_a2091_read_word(wd, addr) << 16;
 	v |= dmac_a2091_read_word(wd, addr + 2) & 0xffff;
@@ -2293,9 +2290,6 @@ static uae_u32 REGPARAM2 dmac_a2091_lget (struct wd_state *wd, uaecptr addr)
 static uae_u32 REGPARAM2 dmac_a2091_wget(struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 65535;
 	v = dmac_a2091_read_word(wd, addr);
 	return v;
@@ -2304,9 +2298,6 @@ static uae_u32 REGPARAM2 dmac_a2091_wget(struct wd_state *wd, uaecptr addr)
 static uae_u32 REGPARAM2 dmac_a2091_bget(struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 65535;
 	v = dmac_a2091_read_byte(wd, addr);
 	return v;
@@ -2314,9 +2305,6 @@ static uae_u32 REGPARAM2 dmac_a2091_bget(struct wd_state *wd, uaecptr addr)
 
 static void REGPARAM2 dmac_a2091_lput(struct wd_state *wd, uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= 65535;
 	dmac_a2091_write_word(wd, addr + 0, l >> 16);
 	dmac_a2091_write_word(wd, addr + 2, l);
@@ -2324,9 +2312,6 @@ static void REGPARAM2 dmac_a2091_lput(struct wd_state *wd, uaecptr addr, uae_u32
 
 static void REGPARAM2 dmac_a2091_wput(struct wd_state *wd, uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= 65535;
 	dmac_a2091_write_word(wd, addr, w);
 }
@@ -2335,9 +2320,6 @@ extern addrbank dmaca2091_bank;
 
 static void REGPARAM2 dmac_a2091_bput(struct wd_state *wd, uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	b &= 0xff;
 	addr &= 65535;
 	if (wd->autoconfig) {
@@ -2362,9 +2344,6 @@ static void REGPARAM2 dmac_a2091_bput(struct wd_state *wd, uaecptr addr, uae_u32
 static uae_u32 REGPARAM2 dmac_a2091_wgeti(struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v = 0xffff;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 65535;
 	if (addr >= CDMAC_ROM_OFFSET)
 		v = (wd->rom[addr & wd->rom_mask] << 8) | wd->rom[(addr + 1) & wd->rom_mask];
@@ -2375,9 +2354,6 @@ static uae_u32 REGPARAM2 dmac_a2091_wgeti(struct wd_state *wd, uaecptr addr)
 static uae_u32 REGPARAM2 dmac_a2091_lgeti(struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 65535;
 	v = dmac_a2091_wgeti(wd, addr) << 16;
 	v |= dmac_a2091_wgeti(wd, addr + 2);
@@ -2470,7 +2446,8 @@ addrbank dmaca2091_bank = {
 	dmac_a2091_lget, dmac_a2091_wget, dmac_a2091_bget,
 	dmac_a2091_lput, dmac_a2091_wput, dmac_a2091_bput,
 	dmac_a2091_xlate, dmac_a2091_check, NULL, NULL, _T("A2090/A2091/A590"),
-	dmac_a2091_lgeti, dmac_a2091_wgeti, ABFLAG_IO | ABFLAG_SAFE
+	dmac_a2091_lgeti, dmac_a2091_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 
@@ -2820,9 +2797,6 @@ static void dmac_gvp_write_word(struct wd_state *wd, uaecptr addr, uae_u32 b)
 static uae_u32 REGPARAM2 dmac_gvp_lget(struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= wd->board_mask;
 	v = dmac_gvp_read_word(wd, addr) << 16;
 	v |= dmac_gvp_read_word(wd, addr + 2) & 0xffff;
@@ -2832,9 +2806,6 @@ static uae_u32 REGPARAM2 dmac_gvp_lget(struct wd_state *wd, uaecptr addr)
 static uae_u32 REGPARAM2 dmac_gvp_wget(struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= wd->board_mask;
 	v = dmac_gvp_read_word(wd, addr);
 	return v;
@@ -2843,9 +2814,6 @@ static uae_u32 REGPARAM2 dmac_gvp_wget(struct wd_state *wd, uaecptr addr)
 static uae_u32 REGPARAM2 dmac_gvp_bget(struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= wd->board_mask;
 	v = dmac_gvp_read_byte(wd, addr);
 	return v;
@@ -2853,9 +2821,6 @@ static uae_u32 REGPARAM2 dmac_gvp_bget(struct wd_state *wd, uaecptr addr)
 
 static void REGPARAM2 dmac_gvp_lput(struct wd_state *wd, uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= wd->board_mask;
 	dmac_gvp_write_word(wd, addr + 0, l >> 16);
 	dmac_gvp_write_word(wd, addr + 2, l);
@@ -2863,17 +2828,11 @@ static void REGPARAM2 dmac_gvp_lput(struct wd_state *wd, uaecptr addr, uae_u32 l
 
 static void REGPARAM2 dmac_gvp_wput(struct wd_state *wd, uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= wd->board_mask;
 	dmac_gvp_write_word(wd, addr, w);
 }
 static void REGPARAM2 dmac_gvp_bput(struct wd_state *wd, uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	b &= 0xff;
 	addr &= wd->board_mask;
 	if (wd->autoconfig) {
@@ -2898,9 +2857,6 @@ static void REGPARAM2 dmac_gvp_bput(struct wd_state *wd, uaecptr addr, uae_u32 b
 static uae_u32 REGPARAM2 dmac_gvp_wgeti(struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v = 0xffff;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= wd->board_mask;
 	if (addr >= GVP_ROM_OFFSET) {
 		addr -= GVP_ROM_OFFSET;
@@ -2913,9 +2869,6 @@ static uae_u32 REGPARAM2 dmac_gvp_wgeti(struct wd_state *wd, uaecptr addr)
 static uae_u32 REGPARAM2 dmac_gvp_lgeti(struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= wd->board_mask;
 	v = dmac_gvp_wgeti(wd, addr) << 16;
 	v |= dmac_gvp_wgeti(wd, addr + 2);
@@ -2992,7 +2945,8 @@ addrbank gvp_bank = {
 	dmac_gvp_lget, dmac_gvp_wget, dmac_gvp_bget,
 	dmac_gvp_lput, dmac_gvp_wput, dmac_gvp_bput,
 	dmac_gvp_xlate, dmac_gvp_check, NULL, NULL, _T("GVP"),
-	dmac_gvp_lgeti, dmac_gvp_wgeti, ABFLAG_IO | ABFLAG_SAFE
+	dmac_gvp_lgeti, dmac_gvp_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 /* SUPERDMAC (A3000 mainboard built-in) */
@@ -3191,9 +3145,6 @@ static void REGPARAM3 mbdmac_bput (uaecptr, uae_u32) REGPARAM;
 static uae_u32 REGPARAM2 mbdmac_lget (uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v =  mbdmac_read_word (wd_a3000, addr + 0) << 16;
 	v |= mbdmac_read_word (wd_a3000, addr + 2) << 0;
 	return v;
@@ -3201,24 +3152,15 @@ static uae_u32 REGPARAM2 mbdmac_lget (uaecptr addr)
 static uae_u32 REGPARAM2 mbdmac_wget (uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v =  mbdmac_read_word (wd_a3000, addr);
 	return v;
 }
 static uae_u32 REGPARAM2 mbdmac_bget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return mbdmac_read_byte (wd_a3000, addr);
 }
 static void REGPARAM2 mbdmac_lput (uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if ((addr & 0xffff) == 0x40) {
 		// long write to 0x40 = write byte to SASR
 		mbdmac_write_byte (wd_a3000, 0x41, l);
@@ -3229,16 +3171,10 @@ static void REGPARAM2 mbdmac_lput (uaecptr addr, uae_u32 l)
 }
 static void REGPARAM2 mbdmac_wput (uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	mbdmac_write_word (wd_a3000, addr + 0, w);
 }
 static void REGPARAM2 mbdmac_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	mbdmac_write_byte (wd_a3000, addr, b);
 }
 
@@ -3246,7 +3182,8 @@ addrbank mbdmac_a3000_bank = {
 	mbdmac_lget, mbdmac_wget, mbdmac_bget,
 	mbdmac_lput, mbdmac_wput, mbdmac_bput,
 	default_xlate, default_check, NULL, NULL, _T("A3000 DMAC"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 static void ew (struct wd_state *wd, int addr, uae_u32 value)

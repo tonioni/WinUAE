@@ -759,9 +759,6 @@ static uae_u8 cdtvcr_bget2 (uaecptr addr)
 static uae_u32 REGPARAM2 cdtvcr_lget (uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = (cdtvcr_bget2 (addr) << 24) | (cdtvcr_bget2 (addr + 1) << 16) |
 		(cdtvcr_bget2 (addr + 2) << 8) | (cdtvcr_bget2 (addr + 3));
 #if CDTVCR_DEBUG
@@ -774,26 +771,17 @@ static uae_u32 REGPARAM2 cdtvcr_lget (uaecptr addr)
 static uae_u32 REGPARAM2 cdtvcr_wgeti (uaecptr addr)
 {
 	uae_u32 v = 0xffff;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return v;
 }
 static uae_u32 REGPARAM2 cdtvcr_lgeti (uaecptr addr)
 {
 	uae_u32 v = 0xffff;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return v;
 }
 
 static uae_u32 REGPARAM2 cdtvcr_wget (uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = (cdtvcr_bget2 (addr) << 8) | cdtvcr_bget2 (addr + 1);
 #if CDTVCR_DEBUG
 	if (cdtvcr_debug(addr))
@@ -805,9 +793,6 @@ static uae_u32 REGPARAM2 cdtvcr_wget (uaecptr addr)
 static uae_u32 REGPARAM2 cdtvcr_bget (uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = cdtvcr_bget2 (addr);
 #if CDTVCR_DEBUG
 	if (cdtvcr_debug(addr))
@@ -818,9 +803,6 @@ static uae_u32 REGPARAM2 cdtvcr_bget (uaecptr addr)
 
 static void REGPARAM2 cdtvcr_lput (uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 #if CDTVCR_DEBUG
 	if (cdtvcr_debug(addr))
 		write_log (_T("cdtvcr_lput %08X=%08X PC=%08X\n"), addr, l, M68K_GETPC);
@@ -833,9 +815,6 @@ static void REGPARAM2 cdtvcr_lput (uaecptr addr, uae_u32 l)
 
 static void REGPARAM2 cdtvcr_wput (uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 #if CDTVCR_DEBUG
 	if (cdtvcr_debug(addr))
 		write_log (_T("cdtvcr_wput %08X=%04X PC=%08X\n"), addr, w & 65535, M68K_GETPC);
@@ -846,9 +825,6 @@ static void REGPARAM2 cdtvcr_wput (uaecptr addr, uae_u32 w)
 
 static void REGPARAM2 cdtvcr_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 #if CDTVCR_DEBUG
 	if (cdtvcr_debug(addr))
 		write_log (_T("cdtvcr_bput %08X=%02X PC=%08X\n"), addr, b & 255, M68K_GETPC);
@@ -861,7 +837,8 @@ addrbank cdtvcr_bank = {
 	cdtvcr_lget, cdtvcr_wget, cdtvcr_bget,
 	cdtvcr_lput, cdtvcr_wput, cdtvcr_bput,
 	default_xlate, default_check, NULL, NULL, _T("CDTV-CR"),
-	cdtvcr_lgeti, cdtvcr_wgeti, ABFLAG_IO | ABFLAG_SAFE
+	cdtvcr_lgeti, cdtvcr_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 static void *dev_thread (void *p)

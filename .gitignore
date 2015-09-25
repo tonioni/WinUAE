@@ -61,6 +61,7 @@ aros.rom.cpp
 /cpuemu_32.cpp
 /cpuemu_33.cpp
 /cpuemu_40.cpp
+/cpuemu_50.cpp
 /cpustbl.cpp
 /cputbl.h
 /jit/compemu.cpp

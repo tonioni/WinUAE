@@ -458,9 +458,6 @@ static uaecptr beswap(int endianswap, uaecptr addr)
 
 static uae_u32 REGPARAM2 pci_config_lget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u32 v = 0xffffffff;
 	int endianswap;
 	uae_u8 *config = get_pci_config(addr, -4, 0, &endianswap);
@@ -485,9 +482,6 @@ static uae_u32 REGPARAM2 pci_config_lget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 pci_config_wget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u32 v = 0xffff;
 	int endianswap;
 	uae_u8 *config = get_pci_config(addr, -2, 0, &endianswap);
@@ -508,9 +502,6 @@ static uae_u32 REGPARAM2 pci_config_wget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 pci_config_bget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u8 v = 0xff;
 	int endianswap;
 	uae_u8 *config = get_pci_config(addr, -1, 0, &endianswap);
@@ -529,9 +520,6 @@ static uae_u32 REGPARAM2 pci_config_bget(uaecptr addr)
 }
 static void REGPARAM2 pci_config_lput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	int endianswap;
 	uae_u8 *config = get_pci_config(addr, 4, b, &endianswap);
 	if (config) {
@@ -552,9 +540,6 @@ static void REGPARAM2 pci_config_lput(uaecptr addr, uae_u32 b)
 }
 static void REGPARAM2 pci_config_wput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	int endianswap;
 	uae_u8 *config = get_pci_config(addr, 2, b, &endianswap);
 	if (config) {
@@ -571,9 +556,6 @@ static void REGPARAM2 pci_config_wput(uaecptr addr, uae_u32 b)
 }
 static void REGPARAM2 pci_config_bput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	int endianswap;
 	uae_u8 *config = get_pci_config(addr, 1, b, &endianswap);
 	if (config) {
@@ -600,9 +582,6 @@ static uae_u16 endianswap_word(uae_u16 v)
 
 static uae_u32 REGPARAM2 pci_io_lget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u32 v = 0xffffffff;
 	int endianswap;
 	struct pci_board_state *pcibs;
@@ -623,9 +602,6 @@ static uae_u32 REGPARAM2 pci_io_lget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 pci_io_wget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u32 v = 0xffff;
 	int endianswap;
 	struct pci_board_state *pcibs;
@@ -652,9 +628,6 @@ static uae_u32 REGPARAM2 pci_io_wget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 pci_io_bget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u32 v = 0xff;
 	int endianswap;
 	struct pci_board_state *pcibs;
@@ -680,9 +653,6 @@ static uae_u32 REGPARAM2 pci_io_bget(uaecptr addr)
 }
 static void REGPARAM2 pci_io_lput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_io(&addr, &pcibs, &endianswap, -4);
@@ -697,9 +667,6 @@ static void REGPARAM2 pci_io_lput(uaecptr addr, uae_u32 b)
 }
 static void REGPARAM2 pci_io_wput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_io(&addr, &pcibs, &endianswap, -2);
@@ -717,9 +684,6 @@ static void REGPARAM2 pci_io_wput(uaecptr addr, uae_u32 b)
 }
 static void REGPARAM2 pci_io_bput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_io(&addr, &pcibs, &endianswap, -1);
@@ -737,9 +701,6 @@ static void REGPARAM2 pci_io_bput(uaecptr addr, uae_u32 b)
 
 static uae_u32 REGPARAM2 pci_mem_lget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u32 v = 0xffffffff;
 	int endianswap;
 	struct pci_board_state *pcibs;
@@ -753,9 +714,6 @@ static uae_u32 REGPARAM2 pci_mem_lget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 pci_mem_wget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u32 v = 0xffff;
 	int endianswap;
 	struct pci_board_state *pcibs;
@@ -772,9 +730,6 @@ static uae_u32 REGPARAM2 pci_mem_wget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 pci_mem_bget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u32 v = 0xff;
 	int endianswap;
 	struct pci_board_state *pcibs;
@@ -790,9 +745,6 @@ static uae_u32 REGPARAM2 pci_mem_bget(uaecptr addr)
 }
 static void REGPARAM2 pci_mem_lput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_mem(&addr, &pcibs, &endianswap);
@@ -804,9 +756,6 @@ static void REGPARAM2 pci_mem_lput(uaecptr addr, uae_u32 b)
 }
 static void REGPARAM2 pci_mem_wput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_mem(&addr, &pcibs, &endianswap);
@@ -821,9 +770,6 @@ static void REGPARAM2 pci_mem_wput(uaecptr addr, uae_u32 b)
 }
 static void REGPARAM2 pci_mem_bput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_mem(&addr, &pcibs, &endianswap);
@@ -838,9 +784,6 @@ static void REGPARAM2 pci_mem_bput(uaecptr addr, uae_u32 b)
 
 static uae_u32 REGPARAM2 pci_bridge_lget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u32 v = 0;
 	struct pci_bridge *pcib = get_pci_bridge(addr);
 	if (!pcib)
@@ -877,9 +820,6 @@ static uae_u32 REGPARAM2 pci_bridge_lget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 pci_bridge_wget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u16 v = 0;
 #if PCI_DEBUG_BRIDGE
 	write_log(_T("pci_bridge_wget %08x PC=%08x\n"), addr, M68K_GETPC);
@@ -888,9 +828,6 @@ static uae_u32 REGPARAM2 pci_bridge_wget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 pci_bridge_bget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u8 v = 0;
 	struct pci_bridge *pcib = get_pci_bridge(addr);
 	if (!pcib)
@@ -912,9 +849,6 @@ static uae_u32 REGPARAM2 pci_bridge_bget(uaecptr addr)
 }
 static void REGPARAM2 pci_bridge_lput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 #if PCI_DEBUG_BRIDGE
 	write_log(_T("pci_bridge_lput %08x %08x PC=%08x\n"), addr, b, M68K_GETPC);
 #endif
@@ -940,9 +874,6 @@ static void REGPARAM2 pci_bridge_lput(uaecptr addr, uae_u32 b)
 }
 static void REGPARAM2 pci_bridge_wput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	struct pci_bridge *pcib = get_pci_bridge(addr);
 	if (!pcib)
 		return;
@@ -979,9 +910,6 @@ static void REGPARAM2 pci_bridge_wput(uaecptr addr, uae_u32 b)
 }
 static void REGPARAM2 pci_bridge_bput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	struct pci_bridge *pcib = get_pci_bridge(addr);
 	if (!pcib)
 		return;
@@ -1049,9 +977,6 @@ static void mediator_set_window_offset(struct pci_bridge *pcib, uae_u16 v)
 
 static uae_u32 REGPARAM2 pci_bridge_bget_2(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u8 v = 0xff;
 	struct pci_bridge *pcib = get_pci_bridge_2(addr);
 	if (!pcib)
@@ -1088,9 +1013,6 @@ static uae_u32 REGPARAM2 pci_bridge_bget_2(uaecptr addr)
 }
 static uae_u32 REGPARAM2 pci_bridge_wget_2(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u16 v = 0xffff;
 #if PCI_DEBUG_BRIDGE
 	write_log(_T("pci_bridge_wget_2 %08x PC=%08x\n"), addr, M68K_GETPC);
@@ -1113,9 +1035,6 @@ static uae_u32 REGPARAM2 pci_bridge_wget_2(uaecptr addr)
 }
 static uae_u32 REGPARAM2 pci_bridge_lget_2(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u32 v = 0xffffffff;
 #if PCI_DEBUG_BRIDGE
 	write_log(_T("pci_bridge_lget_2 %08x PC=%08x\n"), addr, M68K_GETPC);
@@ -1130,9 +1049,6 @@ static uae_u32 REGPARAM2 pci_bridge_lget_2(uaecptr addr)
 
 static void REGPARAM2 pci_bridge_bput_2(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	struct pci_bridge *pcib = get_pci_bridge_2(addr);
 	if (!pcib)
 		return;
@@ -1195,9 +1111,6 @@ static void REGPARAM2 pci_bridge_bput_2(uaecptr addr, uae_u32 b)
 }
 static void REGPARAM2 pci_bridge_wput_2(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	struct pci_bridge *pcib = get_pci_bridge_2(addr);
 	if (!pcib)
 		return;
@@ -1237,9 +1150,6 @@ static void REGPARAM2 pci_bridge_wput_2(uaecptr addr, uae_u32 b)
 }
 static void REGPARAM2 pci_bridge_lput_2(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 #if PCI_DEBUG_BRIDGE
 	write_log(_T("pci_bridge_lput_2 %08x %08x PC=%08x\n"), addr, b, M68K_GETPC);
 #endif
@@ -1255,31 +1165,36 @@ addrbank pci_config_bank = {
 	pci_config_lget, pci_config_wget, pci_config_bget,
 	pci_config_lput, pci_config_wput, pci_config_bput,
 	default_xlate, default_check, NULL, NULL, _T("PCI CONFIG"),
-	pci_config_lget, pci_config_wget, ABFLAG_IO | ABFLAG_SAFE
+	pci_config_lget, pci_config_wget,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 addrbank pci_io_bank = {
 	pci_io_lget, pci_io_wget, pci_io_bget,
 	pci_io_lput, pci_io_wput, pci_io_bput,
 	default_xlate, default_check, NULL, NULL, _T("PCI IO"),
-	pci_io_lget, pci_io_wget, ABFLAG_IO | ABFLAG_SAFE
+	pci_io_lget, pci_io_wget,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 addrbank pci_mem_bank = {
 	pci_mem_lget, pci_mem_wget, pci_mem_bget,
 	pci_mem_lput, pci_mem_wput, pci_mem_bput,
 	default_xlate, default_check, NULL, NULL, _T("PCI MEMORY"),
-	pci_mem_lget, pci_mem_wget, ABFLAG_IO | ABFLAG_SAFE
+	pci_mem_lget, pci_mem_wget,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 addrbank pci_bridge_bank = {
 	pci_bridge_lget, pci_bridge_wget, pci_bridge_bget,
 	pci_bridge_lput, pci_bridge_wput, pci_bridge_bput,
 	default_xlate, default_check, NULL, NULL, _T("PCI BRIDGE"),
-	pci_bridge_lget, pci_bridge_wget, ABFLAG_IO | ABFLAG_SAFE
+	pci_bridge_lget, pci_bridge_wget,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 addrbank pci_bridge_bank_2 = {
 	pci_bridge_lget_2, pci_bridge_wget_2, pci_bridge_bget_2,
 	pci_bridge_lput_2, pci_bridge_wput_2, pci_bridge_bput_2,
 	default_xlate, default_check, NULL, NULL, _T("PCI BRIDGE #2"),
-	pci_bridge_lget_2, pci_bridge_wget_2, ABFLAG_IO | ABFLAG_SAFE
+	pci_bridge_lget_2, pci_bridge_wget_2,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 static bool validate_pci_dma(struct pci_board_state *pcibs, uaecptr addr, int size)

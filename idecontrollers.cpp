@@ -466,10 +466,6 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 	uaecptr oaddr = addr;
 	uae_u8 v = 0xff;
 
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
-
 	addr &= board->mask;
 
 #if DEBUG_IDE
@@ -647,10 +643,6 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 {
 	uae_u32 v = 0xffff;
 
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
-
 	addr &= board->mask;
 
 	if (addr < 0x40 && (!board->configured || board->keepautoconfig)) {
@@ -798,10 +790,6 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 	uaecptr oaddr = addr;
 	addr &= board->mask;
 
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
-
 #if DEBUG_IDE
 	write_log(_T("IDE IO BYTE WRITE %08x=%02x %08x\n"), addr, v, M68K_GETPC);
 #endif
@@ -925,13 +913,6 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 {
 	addr &= board->mask;
 
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
-
-	if (addr == 0xf04a)
-		addr &= 0xffff;
-
 #if DEBUG_IDE
 	write_log(_T("IDE IO WORD WRITE %08x=%04x %08x\n"), addr, v, M68K_GETPC);
 #endif
@@ -1031,7 +1012,8 @@ addrbank gvp_ide_controller_bank = {
 	ide_controller_gvp_lget, ide_controller_gvp_wget, ide_controller_gvp_bget,
 	ide_controller_gvp_lput, ide_controller_gvp_wput, ide_controller_gvp_bput,
 	default_xlate, default_check, NULL, NULL, _T("GVP IDE"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 IDE_MEMORY_FUNCTIONS(ide_rom_gvp, ide, gvp_ide_rom_board);
@@ -1040,7 +1022,8 @@ addrbank gvp_ide_rom_bank = {
 	ide_rom_gvp_lget, ide_rom_gvp_wget, ide_rom_gvp_bget,
 	ide_rom_gvp_lput, ide_rom_gvp_wput, ide_rom_gvp_bput,
 	default_xlate, default_check, NULL, NULL, _T("GVP BOOT"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 static void REGPARAM2 ide_generic_bput (uaecptr addr, uae_u32 b)
@@ -1091,7 +1074,8 @@ static addrbank ide_bank_generic = {
 	ide_generic_lget, ide_generic_wget, ide_generic_bget,
 	ide_generic_lput, ide_generic_wput, ide_generic_bput,
 	default_xlate, default_check, NULL, NULL, _T("IDE"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 

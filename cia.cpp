@@ -1732,7 +1732,8 @@ addrbank cia_bank = {
 	cia_lget, cia_wget, cia_bget,
 	cia_lput, cia_wput, cia_bput,
 	default_xlate, default_check, NULL, NULL, _T("CIA"),
-	cia_lgeti, cia_wgeti, ABFLAG_IO, NULL, 0x3f01, 0xbfc000
+	cia_lgeti, cia_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE, NULL, 0x3f01, 0xbfc000
 };
 
 // Gayle or Fat Gary does not enable CIA /CS lines if both CIAs are selected
@@ -1844,10 +1845,6 @@ static uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 	int r = (addr & 0xf00) >> 8;
 	uae_u8 v = 0xff;
 
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
-
 	if (isgarynocia(addr))
 		return dummy_get(addr, 1, false);
 
@@ -1899,10 +1896,6 @@ static uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 {
 	int r = (addr & 0xf00) >> 8;
 	uae_u16 v = 0xffff;
-
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 
 	if (isgarynocia(addr))
 		return dummy_get(addr, 2, false);
@@ -1969,10 +1962,6 @@ static void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
 {
 	int r = (addr & 0xf00) >> 8;
 
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
-
 	if (isgarynocia(addr)) {
 		dummy_put(addr, 1, false);
 		return;
@@ -1998,10 +1987,6 @@ static void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
 static void REGPARAM2 cia_wput (uaecptr addr, uae_u32 value)
 {
 	int r = (addr & 0xf00) >> 8;
-
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 
 	if (isgarynocia(addr)) {
 		dummy_put(addr, 2, false);
@@ -2044,7 +2029,8 @@ addrbank clock_bank = {
 	clock_lget, clock_wget, clock_bget,
 	clock_lput, clock_wput, clock_bput,
 	default_xlate, default_check, NULL, NULL, _T("Battery backed up clock (none)"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO, NULL, 0x3f, 0xd80000
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE, NULL, 0x3f, 0xd80000
 };
 
 static unsigned int clock_control_d;
@@ -2210,10 +2196,6 @@ static uae_u32 REGPARAM2 clock_bget (uaecptr addr)
 	struct tm *ct;
 	uae_u8 v = 0;
 
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
-
 	if ((addr & 0xffff) >= 0x8000 && currprefs.cs_fatgaryrev >= 0)
 		return dummy_get(addr, 1, false);
 
@@ -2259,9 +2241,6 @@ static void REGPARAM2 clock_wput (uaecptr addr, uae_u32 value)
 
 static void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 //	write_log(_T("W: %x (%x): %x, PC=%08x\n"), addr, (addr & 0xff) >> 2, value & 0xff, M68K_GETPC);
 
 	if ((addr & 0xffff) >= 0x8000 && currprefs.cs_fatgaryrev >= 0) {

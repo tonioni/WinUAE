@@ -949,9 +949,6 @@ extern addrbank specialmonitors_bank;
 
 static void REGPARAM2 sm_bput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	b &= 0xff;
 	addr &= 65535;
 	if (!sm_configured) {
@@ -978,9 +975,6 @@ static void REGPARAM2 sm_bput(uaecptr addr, uae_u32 b)
 }
 static void REGPARAM2 sm_wput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= 65535;
 	if (addr < 10) {
 		firecracker24_write(addr, b, 2);
@@ -992,9 +986,6 @@ static void REGPARAM2 sm_wput(uaecptr addr, uae_u32 b)
 
 static void REGPARAM2 sm_lput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= 65535;
 	if (addr < 10) {
 		firecracker24_write(addr + 0, b >> 16, 2);
@@ -1009,9 +1000,6 @@ static void REGPARAM2 sm_lput(uaecptr addr, uae_u32 b)
 static uae_u32 REGPARAM2 sm_bget(uaecptr addr)
 {
 	uae_u8 v = 0;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 65535;
 	if (!sm_configured) {
 		if (addr >= sizeof sm_acmemory)
@@ -1030,9 +1018,6 @@ static uae_u32 REGPARAM2 sm_bget(uaecptr addr)
 static uae_u32 REGPARAM2 sm_wget(uaecptr addr)
 {
 	uae_u16 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 65535;
 	if (addr < 10) {
 		v = firecracker24_read(addr, 2);
@@ -1045,9 +1030,6 @@ static uae_u32 REGPARAM2 sm_wget(uaecptr addr)
 static uae_u32 REGPARAM2 sm_lget(uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 65535;
 	if (addr < 10) {
 		v  = firecracker24_read(addr + 0, 2) << 16;
@@ -1065,7 +1047,8 @@ addrbank specialmonitors_bank = {
 	sm_lget, sm_wget, sm_bget,
 	sm_lput, sm_wput, sm_bput,
 	default_xlate, default_check, NULL, NULL, _T("DisplayAdapter"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE
 };
 
 static void ew(int addr, uae_u32 value)

@@ -53,6 +53,8 @@
 #define BOARD_NONAUTOCONFIG_AFTER_Z3 6
 #define BOARD_IGNORE 7
 
+#define KS12_BOOT_HACK 0
+
 #define EXP_DEBUG 0
 
 #define MAX_EXPANSION_BOARD_SPACE 16
@@ -189,6 +191,17 @@ static bool isnonautoconfig(int v)
 		v == BOARD_NONAUTOCONFIG_BEFORE;
 }
 
+static bool ks12orolder(void)
+{
+	/* check if Kickstart version is below 1.3 */
+	return kickstart_version
+		&& (/* Kickstart 1.0 & 1.1! */
+			kickstart_version == 0xFFFF
+			/* Kickstart < 1.3 */
+			|| kickstart_version < 34);
+}
+
+
 /* ********************************************************** */
 
 /* Please note: ZorroIII implementation seems to work different
@@ -301,14 +314,16 @@ addrbank expamem_bank = {
 	expamem_lget, expamem_wget, expamem_bget,
 	expamem_lput, expamem_wput, expamem_bput,
 	default_xlate, default_check, NULL, NULL, _T("Autoconfig Z2"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 DECLARE_MEMORY_FUNCTIONS(expamemz3);
 static addrbank expamemz3_bank = {
 	expamemz3_lget, expamemz3_wget, expamemz3_bget,
 	expamemz3_lput, expamemz3_wput, expamemz3_bput,
 	default_xlate, default_check, NULL, NULL, _T("Autoconfig Z3"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 static addrbank *expamem_map_clear (void)
@@ -356,9 +371,6 @@ static uae_u8 REGPARAM2 expamem_read(int addr)
 
 static void REGPARAM2 expamem_write(uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= 0xffff;
 	if (addr == 00 || addr == 02 || addr == 0x40 || addr == 0x42) {
 		expamem[addr] = (value & 0xf0);
@@ -568,9 +580,6 @@ static uae_u32 REGPARAM2 expamem_wget (uaecptr addr)
 static uae_u32 REGPARAM2 expamem_bget (uaecptr addr)
 {
 	uae_u8 b;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (!chipdone) {
 		chipdone = true;
 		addextrachip (get_long (4));
@@ -592,9 +601,6 @@ static uae_u32 REGPARAM2 expamem_bget (uaecptr addr)
 
 static void REGPARAM2 expamem_lput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (expamem_bank_current && expamem_bank_current != &expamem_bank) {
 		expamem_bank_current->lput(addr, value);
 		return;
@@ -606,9 +612,6 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 {
 #if EXP_DEBUG
 	write_log (_T("expamem_wput %x %x\n"), addr, value);
-#endif
-#ifdef JIT
-	special_mem |= S_WRITE;
 #endif
 	value &= 0xffff;
 	if (cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype].e8) {
@@ -673,9 +676,6 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 {
 #if EXP_DEBUG
 	write_log (_T("expamem_bput %x %x\n"), addr, value);
-#endif
-#ifdef JIT
-	special_mem |= S_WRITE;
 #endif
 	value &= 0xff;
 	if (cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype].e8) {
@@ -801,9 +801,6 @@ static void REGPARAM2 expamemz3_wput (uaecptr addr, uae_u32 value)
 }
 static void REGPARAM2 expamemz3_lput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	write_log (_T("warning: Z3 WRITE.L to address $%08x : value $%08x\n"), addr, value);
 }
 
@@ -844,33 +841,37 @@ static addrbank *expamem_init_cd32fmv (int devnum)
 
 
 MEMORY_FUNCTIONS(fastmem);
-MEMORY_FUNCTIONS_NOJIT(fastmem_nojit);
+MEMORY_FUNCTIONS(fastmem_nojit);
 MEMORY_FUNCTIONS(fastmem2);
-MEMORY_FUNCTIONS_NOJIT(fastmem2_nojit);
+MEMORY_FUNCTIONS(fastmem2_nojit);
 
 addrbank fastmem_bank = {
 	fastmem_lget, fastmem_wget, fastmem_bget,
 	fastmem_lput, fastmem_wput, fastmem_bput,
 	fastmem_xlate, fastmem_check, NULL, _T("fast"), _T("Fast memory"),
-	fastmem_lget, fastmem_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	fastmem_lget, fastmem_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
 addrbank fastmem_nojit_bank = {
 	fastmem_nojit_lget, fastmem_nojit_wget, fastmem_bget,
 	fastmem_nojit_lput, fastmem_nojit_wput, fastmem_bput,
 	fastmem_nojit_xlate, fastmem_nojit_check, NULL, NULL, _T("Fast memory (nojit)"),
-	fastmem_nojit_lget, fastmem_nojit_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	fastmem_nojit_lget, fastmem_nojit_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, S_READ, S_WRITE
 };
 addrbank fastmem2_bank = {
 	fastmem2_lget, fastmem2_wget, fastmem2_bget,
 	fastmem2_lput, fastmem2_wput, fastmem2_bput,
 	fastmem2_xlate, fastmem2_check, NULL,_T("fast2"), _T("Fast memory 2"),
-	fastmem2_lget, fastmem2_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	fastmem2_lget, fastmem2_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
 addrbank fastmem2_nojit_bank = {
 	fastmem2_nojit_lget, fastmem2_nojit_wget, fastmem2_nojit_bget,
 	fastmem2_nojit_lput, fastmem2_nojit_wput, fastmem2_nojit_bput,
 	fastmem2_nojit_xlate, fastmem2_nojit_check, NULL, NULL, _T("Fast memory #2 (nojit)"),
-	fastmem2_nojit_lget, fastmem2_nojit_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	fastmem2_nojit_lget, fastmem2_nojit_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, S_READ, S_WRITE
 };
 
 static addrbank *fastbanks[] = 
@@ -894,27 +895,18 @@ static uae_u32 catweasel_start;
 
 static uae_u32 REGPARAM2 catweasel_lget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	write_log (_T("catweasel_lget @%08X!\n"),addr);
 	return 0;
 }
 
 static uae_u32 REGPARAM2 catweasel_wget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	write_log (_T("catweasel_wget @%08X!\n"),addr);
 	return 0;
 }
 
 static uae_u32 REGPARAM2 catweasel_bget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr -= catweasel_start & catweasel_mask;
 	addr &= catweasel_mask;
 	return catweasel_do_bget (addr);
@@ -922,25 +914,16 @@ static uae_u32 REGPARAM2 catweasel_bget (uaecptr addr)
 
 static void REGPARAM2 catweasel_lput (uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	write_log (_T("catweasel_lput @%08X=%08X!\n"),addr,l);
 }
 
 static void REGPARAM2 catweasel_wput (uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	write_log (_T("catweasel_wput @%08X=%04X!\n"),addr,w);
 }
 
 static void REGPARAM2 catweasel_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr -= catweasel_start & catweasel_mask;
 	addr &= catweasel_mask;
 	catweasel_do_bput (addr, b);
@@ -961,7 +944,8 @@ static addrbank catweasel_bank = {
 	catweasel_lget, catweasel_wget, catweasel_bget,
 	catweasel_lput, catweasel_wput, catweasel_bput,
 	catweasel_xlate, catweasel_check, NULL, NULL, _T("Catweasel"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE
 };
 
 static addrbank *expamem_map_catweasel (void)
@@ -1015,7 +999,8 @@ addrbank filesys_bank = {
 	filesys_lget, filesys_wget, filesys_bget,
 	filesys_lput, filesys_wput, filesys_bput,
 	default_xlate, default_check, NULL, _T("filesys"), _T("Filesystem autoconfig"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE | ABFLAG_INDIRECT
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_INDIRECT, S_READ, S_WRITE
 };
 
 static uae_u32 filesys_start; /* Determined by the OS */
@@ -1023,9 +1008,6 @@ static uae_u32 filesys_start; /* Determined by the OS */
 static uae_u32 REGPARAM2 filesys_lget (uaecptr addr)
 {
 	uae_u8 *m;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr -= filesys_start & 65535;
 	addr &= 65535;
 	m = filesys_bank.baseaddr + addr;
@@ -1038,9 +1020,6 @@ static uae_u32 REGPARAM2 filesys_lget (uaecptr addr)
 static uae_u32 REGPARAM2 filesys_wget (uaecptr addr)
 {
 	uae_u8 *m;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr -= filesys_start & 65535;
 	addr &= 65535;
 	m = filesys_bank.baseaddr + addr;
@@ -1052,9 +1031,6 @@ static uae_u32 REGPARAM2 filesys_wget (uaecptr addr)
 
 static uae_u32 REGPARAM2 filesys_bget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr -= filesys_start & 65535;
 	addr &= 65535;
 #if EXP_DEBUG
@@ -1065,25 +1041,16 @@ static uae_u32 REGPARAM2 filesys_bget (uaecptr addr)
 
 static void REGPARAM2 filesys_lput (uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	write_log (_T("filesys_lput called PC=%08x\n"), M68K_GETPC);
 }
 
 static void REGPARAM2 filesys_wput (uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	write_log (_T("filesys_wput called PC=%08x\n"), M68K_GETPC);
 }
 
 static void REGPARAM2 filesys_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 #if EXP_DEBUG
 	write_log (_T("filesys_bput %x %x\n"), addr, b);
 #endif
@@ -1098,7 +1065,8 @@ addrbank uaeboard_bank = {
 	uaeboard_lget, uaeboard_wget, uaeboard_bget,
 	uaeboard_lput, uaeboard_wput, uaeboard_bput,
 	default_xlate, default_check, NULL, _T("uaeboard"), _T("uae x autoconfig board"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE | ABFLAG_INDIRECT
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_INDIRECT, S_READ, S_WRITE
 };
 
 static uae_u32 uaeboard_start; /* Determined by the OS */
@@ -1106,9 +1074,6 @@ static uae_u32 uaeboard_start; /* Determined by the OS */
 static uae_u32 REGPARAM2 uaeboard_lget(uaecptr addr)
 {
 	uae_u8 *m;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr -= uaeboard_start & 65535;
 	addr &= 65535;
 	if (addr == 0x200 || addr == 0x201) {
@@ -1124,9 +1089,6 @@ static uae_u32 REGPARAM2 uaeboard_lget(uaecptr addr)
 static uae_u32 REGPARAM2 uaeboard_wget(uaecptr addr)
 {
 	uae_u8 *m;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr -= uaeboard_start & 65535;
 	addr &= 65535;
 	if (addr == 0x200 || addr == 0x201) {
@@ -1141,9 +1103,6 @@ static uae_u32 REGPARAM2 uaeboard_wget(uaecptr addr)
 
 static uae_u32 REGPARAM2 uaeboard_bget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr -= uaeboard_start & 65535;
 	addr &= 65535;
 	if (addr == 0x200 || addr == 0x201) {
@@ -1157,25 +1116,22 @@ static uae_u32 REGPARAM2 uaeboard_bget(uaecptr addr)
 
 static void REGPARAM2 uaeboard_lput(uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
-	write_log(_T("uaeboard_lput called PC=%08x\n"), M68K_GETPC);
+	if (addr >= 0x200 + 0x20 && addr < 0x200 + 0x24) {
+		mousehack_write(addr - 0x200, l >> 16);
+		mousehack_write(addr - 0x200 + 2, l);
+	}
+	write_log(_T("uaeboard_lput %08x = %08x PC=%08x\n"), addr, l, M68K_GETPC);
 }
 
 static void REGPARAM2 uaeboard_wput(uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
-	write_log(_T("uaeboard_wput called PC=%08x\n"), M68K_GETPC);
+	if (addr >= 0x200 + 0x20 && addr < 0x200 + 0x24)
+		mousehack_write(addr - 0x200, w);
+	write_log(_T("uaeboard_wput %08x = %04x PC=%08x\n"), addr, w, M68K_GETPC);
 }
 
 static void REGPARAM2 uaeboard_bput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 #if EXP_DEBUG
 	write_log(_T("uaeboard_bput %x %x\n"), addr, b);
 #endif
@@ -1232,19 +1188,22 @@ addrbank z3fastmem_bank = {
 	z3fastmem_lget, z3fastmem_wget, z3fastmem_bget,
 	z3fastmem_lput, z3fastmem_wput, z3fastmem_bput,
 	z3fastmem_xlate, z3fastmem_check, NULL, _T("z3"), _T("Zorro III Fast RAM"),
-	z3fastmem_lget, z3fastmem_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	z3fastmem_lget, z3fastmem_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
 addrbank z3fastmem2_bank = {
 	z3fastmem2_lget, z3fastmem2_wget, z3fastmem2_bget,
 	z3fastmem2_lput, z3fastmem2_wput, z3fastmem2_bput,
 	z3fastmem2_xlate, z3fastmem2_check, NULL, _T("z3_2"), _T("Zorro III Fast RAM #2"),
-	z3fastmem2_lget, z3fastmem2_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	z3fastmem2_lget, z3fastmem2_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
 addrbank z3chipmem_bank = {
 	z3chipmem_lget, z3chipmem_wget, z3chipmem_bget,
 	z3chipmem_lput, z3chipmem_wput, z3chipmem_bput,
 	z3chipmem_xlate, z3chipmem_check, NULL, _T("z3_chip"), _T("MegaChipRAM"),
-	z3chipmem_lget, z3chipmem_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	z3chipmem_lget, z3chipmem_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
 
 /* ********************************************************** */
@@ -1459,8 +1418,22 @@ static addrbank *expamem_map_filesys (void)
 #define FILESYS_BOOTPOINT 0x01e6
 #define FILESYS_DIAGAREA 0x2000
 
+static void fixromoffset(uae_u8 *p, int offset)
+{
+	uaecptr a;
+
+	a = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3] << 0);
+	a += offset;
+	p[0] = a >> 24;
+	p[1] = a >> 16;
+	p[2] = a >> 8;
+	p[3] = a >> 0;
+}
+
 static addrbank* expamem_init_filesys (int devnum)
 {
+	bool ks12 = ks12orolder();
+
 	/* struct DiagArea - the size has to be large enough to store several device ROMTags */
 	uae_u8 diagarea[] = { 0x90, 0x00, /* da_Config, da_Flags */
 		0x02, 0x00, /* da_Size */
@@ -1472,7 +1445,7 @@ static addrbank* expamem_init_filesys (int devnum)
 	};
 
 	expamem_init_clear ();
-	expamem_write (0x00, Z2_MEM_64KB | rom_card | zorroII);
+	expamem_write (0x00, Z2_MEM_64KB | zorroII | (ks12 ? 0 : rom_card));
 
 	expamem_write (0x08, no_shutup);
 
@@ -1502,6 +1475,25 @@ static addrbank* expamem_init_filesys (int devnum)
 	do_put_mem_word ((uae_u16 *)(expamem + FILESYS_DIAGAREA + FILESYS_BOOTPOINT), 0x4EF9); /* JMP */
 	do_put_mem_long ((uae_u32 *)(expamem + FILESYS_DIAGAREA + FILESYS_BOOTPOINT + 2), EXPANSION_bootcode);
 
+#if KS12_BOOT_HACK
+	for (int i = 0; i < 65536 - 26; i++) {
+		uae_u8 *romp = rtarea_bank.baseaddr + i;
+		if (romp[0] == 0x4a && romp[1] == 0xfc) {
+			romp[2] = 0;
+			romp[3] = 0;
+			romp[4] = 0;
+			romp[5] = 0;
+			if (ks12) {
+				// relocate struct resident
+				fixromoffset(romp + 2, i);
+				fixromoffset(romp + 6, i);
+				fixromoffset(romp + 14, i);
+				fixromoffset(romp + 18, i);
+				fixromoffset(romp + 22, i);
+			}
+		}
+	}
+#endif
 	memcpy (filesys_bank.baseaddr, expamem, 0x3000);
 	return NULL;
 }
@@ -2006,21 +1998,21 @@ void expamem_reset (void)
 	allocate_expamem ();
 	expamem_bank.name = _T("Autoconfig [reset]");
 
-	/* check if Kickstart version is below 1.3 */
-	if (kickstart_version && do_mount
-		&& (/* Kickstart 1.0 & 1.1! */
-		kickstart_version == 0xFFFF
-		/* Kickstart < 1.3 */
-		|| kickstart_version < 34))
-	{
-		/* warn user */
-		write_log (_T("Kickstart version is below 1.3!  Disabling automount devices.\n"));
-		do_mount = 0;
-	}
-	if (need_uae_boot_rom () == 0)
+	if (need_uae_boot_rom() == 0)
 		do_mount = 0;
 	if (uae_boot_rom_type <= 0)
 		do_mount = 0;
+
+	/* check if Kickstart version is below 1.3 */
+	if (ks12orolder() && do_mount) {
+		/* warn user */
+		write_log (_T("Kickstart version is below 1.3!  Disabling automount devices.\n"));
+#if KS12_BOOT_HACK
+		do_mount = -1;
+#else
+		do_mount = 0;
+#endif
+	}
 
 	if (currprefs.cpuboard_type) {
 		// This may require first 128k slot.

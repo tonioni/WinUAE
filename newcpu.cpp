@@ -920,12 +920,21 @@ static void set_x_funcs (void)
 		} else {
 			x_prefetch = NULL;
 			set_x_ifetches();
-			x_put_long = put_long;
-			x_put_word = put_word;
-			x_put_byte = put_byte;
-			x_get_long = get_long;
-			x_get_word = get_word;
-			x_get_byte = get_byte;
+			if (currprefs.cachesize) {
+				x_put_long = put_long_jit;
+				x_put_word = put_word_jit;
+				x_put_byte = put_byte_jit;
+				x_get_long = get_long_jit;
+				x_get_word = get_word_jit;
+				x_get_byte = get_byte_jit;
+			} else {
+				x_put_long = put_long;
+				x_put_word = put_word;
+				x_put_byte = put_byte;
+				x_get_long = get_long;
+				x_get_word = get_word;
+				x_get_byte = get_byte;
+			}
 			x_do_cycles = do_cycles;
 			x_do_cycles_pre = do_cycles;
 			x_do_cycles_post = do_cycles_post;
@@ -1173,21 +1182,21 @@ static uae_u32 REGPARAM2 op_unimpl_1 (uae_u32 opcode)
 	return 4;
 }
 
-// generic+direct, generic+indirect, more compatible, cycle-exact, mmu
-static const struct cputbl *cputbls[6][5] =
+// generic+direct, generic+direct+jit, generic+indirect, more compatible, cycle-exact, mmu
+static const struct cputbl *cputbls[6][6] =
 {
 	// 68000
-	{ op_smalltbl_5_ff, op_smalltbl_45_ff, op_smalltbl_12_ff, op_smalltbl_14_ff, NULL },
+	{ op_smalltbl_5_ff, op_smalltbl_45_ff, op_smalltbl_55_ff, op_smalltbl_12_ff, op_smalltbl_14_ff, NULL },
 	// 68010
-	{ op_smalltbl_4_ff, op_smalltbl_44_ff, op_smalltbl_11_ff, op_smalltbl_13_ff, NULL },
+	{ op_smalltbl_4_ff, op_smalltbl_44_ff, op_smalltbl_54_ff, op_smalltbl_11_ff, op_smalltbl_13_ff, NULL },
 	// 68020
-	{ op_smalltbl_3_ff, op_smalltbl_43_ff, op_smalltbl_20_ff, op_smalltbl_21_ff, NULL },
+	{ op_smalltbl_3_ff, op_smalltbl_43_ff, op_smalltbl_53_ff, op_smalltbl_20_ff, op_smalltbl_21_ff, NULL },
 	// 68030
-	{ op_smalltbl_2_ff, op_smalltbl_42_ff, op_smalltbl_22_ff, op_smalltbl_23_ff, op_smalltbl_32_ff },
+	{ op_smalltbl_2_ff, op_smalltbl_42_ff, op_smalltbl_52_ff, op_smalltbl_22_ff, op_smalltbl_23_ff, op_smalltbl_32_ff },
 	// 68040
-	{ op_smalltbl_1_ff, op_smalltbl_41_ff, op_smalltbl_25_ff, op_smalltbl_25_ff, op_smalltbl_31_ff },
+	{ op_smalltbl_1_ff, op_smalltbl_41_ff, op_smalltbl_51_ff, op_smalltbl_25_ff, op_smalltbl_25_ff, op_smalltbl_31_ff },
 	// 68060
-	{ op_smalltbl_0_ff, op_smalltbl_40_ff, op_smalltbl_24_ff, op_smalltbl_24_ff, op_smalltbl_33_ff }
+	{ op_smalltbl_0_ff, op_smalltbl_40_ff, op_smalltbl_50_ff, op_smalltbl_24_ff, op_smalltbl_24_ff, op_smalltbl_33_ff }
 };
 
 static void build_cpufunctbl (void)
@@ -1199,19 +1208,19 @@ static void build_cpufunctbl (void)
 
 	if (!currprefs.cachesize) {
 		if (currprefs.mmu_model)
-			mode = 4;
+			mode = 5;
 		else if (currprefs.cpu_cycle_exact)
-			mode = 3;
+			mode = 4;
 		else if (currprefs.cpu_compatible)
-			mode = 2;
+			mode = 3;
 		else
 			mode = 0;
 		m68k_pc_indirect = mode != 0 ? 1 : 0;
 	} else {
-		mode = 0;
+		mode = 1;
 		m68k_pc_indirect = 0;
 		if (currprefs.comptrustbyte) {
-			mode = 1;
+			mode = 2;
 			m68k_pc_indirect = -1;
 		}
 	}

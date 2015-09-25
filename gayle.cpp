@@ -425,9 +425,6 @@ static int gayle_read (uaecptr addr)
 	uaecptr oaddr = addr;
 	uae_u32 v = 0;
 	int got = 0;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (currprefs.cs_ide == IDE_A600A1200) {
 		if ((addr & 0xA0000) != 0xA0000)
 			return 0;
@@ -466,9 +463,6 @@ static void gayle_write (uaecptr addr, int val)
 {
 	uaecptr oaddr = addr;
 	int got = 0;
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (currprefs.cs_ide == IDE_A600A1200) {
 		if ((addr & 0xA0000) != 0xA0000)
 			return;
@@ -508,7 +502,8 @@ addrbank gayle_bank = {
 	gayle_lget, gayle_wget, gayle_bget,
 	gayle_lput, gayle_wput, gayle_bput,
 	default_xlate, default_check, NULL, NULL, _T("Gayle (low)"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE
 };
 
 void gayle_dataflyer_enable(bool enable)
@@ -599,9 +594,6 @@ static uae_u32 REGPARAM2 gayle_lget (uaecptr addr)
 	struct ide_hdf *ide = NULL;
 	int ide_reg;
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 #ifdef NCR
 	if (currprefs.cs_mbdmac == 2 && (addr & 0xffff) == 0x3000)
 		return 0xffffffff; // NCR DIP BANK
@@ -636,9 +628,6 @@ static uae_u32 REGPARAM2 gayle_wget (uaecptr addr)
 	struct ide_hdf *ide = NULL;
 	int ide_reg;
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 #ifdef NCR
 	if (currprefs.cs_mbdmac == 2 && (addr & (0xffff - 1)) == 0x3000)
 		return 0xffff; // NCR DIP BANK
@@ -663,9 +652,6 @@ static uae_u32 REGPARAM2 gayle_wget (uaecptr addr)
 static uae_u32 REGPARAM2 gayle_bget (uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 #ifdef NCR
 	if (currprefs.cs_mbdmac == 2 && (addr & (0xffff - 3)) == 0x3000)
 		return 0xff; // NCR DIP BANK
@@ -688,9 +674,6 @@ static void REGPARAM2 gayle_lput (uaecptr addr, uae_u32 value)
 {
 	struct ide_hdf *ide = NULL;
 	int ide_reg;
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (isdataflyerscsiplus(addr, &value, -4)) {
 		return;
 	}
@@ -723,9 +706,6 @@ static void REGPARAM2 gayle_wput (uaecptr addr, uae_u32 value)
 {
 	struct ide_hdf *ide = NULL;
 	int ide_reg;
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 #ifdef NCR
 	if (isdataflyerscsiplus(addr, &value, -2)) {
 		return;
@@ -750,9 +730,6 @@ static void REGPARAM2 gayle_wput (uaecptr addr, uae_u32 value)
 
 static void REGPARAM2 gayle_bput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 #ifdef NCR
 	if (isdataflyerscsiplus(addr, &value, -1)) {
 		return;
@@ -794,15 +771,13 @@ addrbank gayle2_bank = {
 	gayle2_lget, gayle2_wget, gayle2_bget,
 	gayle2_lput, gayle2_wput, gayle2_bput,
 	default_xlate, default_check, NULL, NULL, _T("Gayle (high)"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE
 };
 
 static uae_u32 REGPARAM2 gayle2_lget (uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = gayle2_wget (addr) << 16;
 	v |= gayle2_wget (addr + 2);
 	return v;
@@ -810,44 +785,29 @@ static uae_u32 REGPARAM2 gayle2_lget (uaecptr addr)
 static uae_u32 REGPARAM2 gayle2_wget (uaecptr addr)
 {
 	uae_u16 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = gayle2_bget (addr) << 8;
 	v |= gayle2_bget (addr + 1);
 	return v;
 }
 static uae_u32 REGPARAM2 gayle2_bget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return gayle2_read (addr);
 }
 
 static void REGPARAM2 gayle2_lput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	gayle2_wput (addr, value >> 16);
 	gayle2_wput (addr + 2, value & 0xffff);
 }
 
 static void REGPARAM2 gayle2_wput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	gayle2_bput (addr, value >> 8);
 	gayle2_bput (addr + 1, value & 0xff);
 }
 
 static void REGPARAM2 gayle2_bput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	gayle2_write (addr, value);
 }
 
@@ -941,50 +901,32 @@ static void REGPARAM3 mbres_bput (uaecptr, uae_u32) REGPARAM;
 static uae_u32 REGPARAM2 mbres_lget (uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = mbres_wget (addr) << 16;
 	v |= mbres_wget (addr + 2);
 	return v;
 }
 static uae_u32 REGPARAM2 mbres_wget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return mbres_read (addr, 2);
 }
 static uae_u32 REGPARAM2 mbres_bget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return mbres_read (addr, 1);
 }
 
 static void REGPARAM2 mbres_lput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	mbres_wput (addr, value >> 16);
 	mbres_wput (addr + 2, value & 0xffff);
 }
 
 static void REGPARAM2 mbres_wput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	mbres_write (addr, value, 2);
 }
 
 static void REGPARAM2 mbres_bput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	mbres_write (addr, value, 1);
 }
 
@@ -992,7 +934,8 @@ static addrbank mbres_sub_bank = {
 	mbres_lget, mbres_wget, mbres_bget,
 	mbres_lput, mbres_wput, mbres_bput,
 	default_xlate, default_check, NULL, NULL, _T("Motherboard Resources"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE,
 };
 
 static struct addrbank_sub mbres_sub_banks[] = {
@@ -1005,7 +948,8 @@ addrbank mbres_bank = {
 	sub_bank_lget, sub_bank_wget, sub_bank_bget,
 	sub_bank_lput, sub_bank_wput, sub_bank_bput,
 	sub_bank_xlate, sub_bank_check, NULL, NULL, _T("Motherboard Resources"),
-	sub_bank_lgeti, sub_bank_wgeti, ABFLAG_IO, mbres_sub_banks
+	sub_bank_lgeti, sub_bank_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE, mbres_sub_banks
 };
 
 void gayle_hsync (void)
@@ -1516,7 +1460,8 @@ static addrbank gayle_common_bank = {
 	gayle_common_lget, gayle_common_wget, gayle_common_bget,
 	gayle_common_lput, gayle_common_wput, gayle_common_bput,
 	gayle_common_xlate, gayle_common_check, NULL, NULL, _T("Gayle PCMCIA Common"),
-	gayle_common_lget, gayle_common_wget, ABFLAG_RAM | ABFLAG_SAFE
+	gayle_common_lget, gayle_common_wget,
+	ABFLAG_RAM | ABFLAG_SAFE, 0, 0
 };
 
 
@@ -1531,15 +1476,13 @@ static addrbank gayle_attr_bank = {
 	gayle_attr_lget, gayle_attr_wget, gayle_attr_bget,
 	gayle_attr_lput, gayle_attr_wput, gayle_attr_bput,
 	default_xlate, default_check, NULL, NULL, _T("Gayle PCMCIA Attribute/Misc"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 static uae_u32 REGPARAM2 gayle_attr_lget (uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = gayle_attr_wget (addr) << 16;
 	v |= gayle_attr_wget (addr + 2);
 	return v;
@@ -1547,9 +1490,6 @@ static uae_u32 REGPARAM2 gayle_attr_lget (uaecptr addr)
 static uae_u32 REGPARAM2 gayle_attr_wget (uaecptr addr)
 {
 	uae_u16 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 
 	if (pcmcia_type == PCMCIA_IDE && pcmcia_configured >= 0) {
 		struct ide_hdf *ide = NULL;
@@ -1567,25 +1507,15 @@ static uae_u32 REGPARAM2 gayle_attr_wget (uaecptr addr)
 }
 static uae_u32 REGPARAM2 gayle_attr_bget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return gayle_attr_read (addr);
 }
 static void REGPARAM2 gayle_attr_lput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	gayle_attr_wput (addr, value >> 16);
 	gayle_attr_wput (addr + 2, value & 0xffff);
 }
 static void REGPARAM2 gayle_attr_wput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
-
 	if (pcmcia_type == PCMCIA_IDE && pcmcia_configured >= 0) {
 		struct ide_hdf *ide = NULL;
 		int reg = get_pcmcmia_ide_reg (addr, 2, &ide);
@@ -1602,9 +1532,6 @@ static void REGPARAM2 gayle_attr_wput (uaecptr addr, uae_u32 value)
 }
 static void REGPARAM2 gayle_attr_bput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	gayle_attr_write (addr, value);
 }
 
@@ -1612,9 +1539,6 @@ static void REGPARAM2 gayle_attr_bput (uaecptr addr, uae_u32 value)
 static uae_u32 REGPARAM2 gayle_common_lget (uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = gayle_common_wget (addr) << 16;
 	v |= gayle_common_wget (addr + 2);
 	return v;
@@ -1622,41 +1546,26 @@ static uae_u32 REGPARAM2 gayle_common_lget (uaecptr addr)
 static uae_u32 REGPARAM2 gayle_common_wget (uaecptr addr)
 {
 	uae_u16 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = gayle_common_bget (addr) << 8;
 	v |= gayle_common_bget (addr + 1);
 	return v;
 }
 static uae_u32 REGPARAM2 gayle_common_bget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return gayle_common_read (addr);
 }
 static void REGPARAM2 gayle_common_lput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	gayle_common_wput (addr, value >> 16);
 	gayle_common_wput (addr + 2, value & 0xffff);
 }
 static void REGPARAM2 gayle_common_wput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	gayle_common_bput (addr, value >> 8);
 	gayle_common_bput (addr + 1, value & 0xff);
 }
 static void REGPARAM2 gayle_common_bput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	gayle_common_write (addr, value);
 }
 

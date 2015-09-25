@@ -308,7 +308,8 @@ static addrbank blizzardio_bank = {
 	blizzardio_lget, blizzardio_wget, blizzardio_bget,
 	blizzardio_lput, blizzardio_wput, blizzardio_bput,
 	default_xlate, default_check, NULL, NULL, _T("CPUBoard IO"),
-	blizzardio_wget, blizzardio_bget, ABFLAG_IO
+	blizzardio_wget, blizzardio_bget,
+	ABFLAG_IO, S_READ, S_WRITE
 };
 
 DECLARE_MEMORY_FUNCTIONS(blizzardram);
@@ -316,7 +317,8 @@ static addrbank blizzardram_bank = {
 	blizzardram_lget, blizzardram_wget, blizzardram_bget,
 	blizzardram_lput, blizzardram_wput, blizzardram_bput,
 	blizzardram_xlate, blizzardram_check, NULL, NULL, _T("CPUBoard RAM"),
-	blizzardram_lget, blizzardram_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	blizzardram_lget, blizzardram_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
 
 DECLARE_MEMORY_FUNCTIONS(blizzardea);
@@ -324,7 +326,8 @@ static addrbank blizzardea_bank = {
 	blizzardea_lget, blizzardea_wget, blizzardea_bget,
 	blizzardea_lput, blizzardea_wput, blizzardea_bput,
 	blizzardea_xlate, blizzardea_check, NULL, _T("rom_ea"), _T("CPUBoard E9/EA Autoconfig"),
-	blizzardea_lget, blizzardea_wget, ABFLAG_IO | ABFLAG_SAFE
+	blizzardea_lget, blizzardea_wget,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 DECLARE_MEMORY_FUNCTIONS(blizzarde8);
@@ -332,7 +335,8 @@ static addrbank blizzarde8_bank = {
 	blizzarde8_lget, blizzarde8_wget, blizzarde8_bget,
 	blizzarde8_lput, blizzarde8_wput, blizzarde8_bput,
 	blizzarde8_xlate, blizzarde8_check, NULL, NULL, _T("CPUBoard E8 Autoconfig"),
-	blizzarde8_lget, blizzarde8_wget, ABFLAG_IO | ABFLAG_SAFE
+	blizzarde8_lget, blizzarde8_wget,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 DECLARE_MEMORY_FUNCTIONS(blizzardf0);
@@ -340,7 +344,8 @@ static addrbank blizzardf0_bank = {
 	blizzardf0_lget, blizzardf0_wget, blizzardf0_bget,
 	blizzardf0_lput, blizzardf0_wput, blizzardf0_bput,
 	blizzardf0_xlate, blizzardf0_check, NULL, _T("rom_f0_ppc"), _T("CPUBoard F00000"),
-	blizzardf0_lget, blizzardf0_wget, ABFLAG_ROM
+	blizzardf0_lget, blizzardf0_wget,
+	ABFLAG_ROM, S_READ, S_WRITE
 };
 
 DECLARE_MEMORY_FUNCTIONS(blizzardram_nojit);
@@ -348,7 +353,8 @@ static addrbank blizzardram_nojit_bank = {
 	blizzardram_nojit_lget, blizzardram_nojit_wget, blizzardram_nojit_bget,
 	blizzardram_nojit_lput, blizzardram_nojit_wput, blizzardram_nojit_bput,
 	blizzardram_nojit_xlate, blizzardram_nojit_check, NULL, NULL, _T("CPUBoard RAM"),
-	blizzardram_nojit_lget, blizzardram_nojit_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	blizzardram_nojit_lget, blizzardram_nojit_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, S_READ, S_WRITE
 };
 
 DECLARE_MEMORY_FUNCTIONS(blizzardmaprom);
@@ -356,14 +362,16 @@ static addrbank blizzardmaprom_bank = {
 	blizzardmaprom_lget, blizzardmaprom_wget, blizzardmaprom_bget,
 	blizzardmaprom_lput, blizzardmaprom_wput, blizzardmaprom_bput,
 	blizzardmaprom_xlate, blizzardmaprom_check, NULL, _T("maprom"), _T("CPUBoard MAPROM"),
-	blizzardmaprom_lget, blizzardmaprom_wget, ABFLAG_RAM
+	blizzardmaprom_lget, blizzardmaprom_wget,
+	ABFLAG_RAM, S_READ, S_WRITE
 };
 DECLARE_MEMORY_FUNCTIONS(blizzardmaprom2);
 static addrbank blizzardmaprom2_bank = {
 	blizzardmaprom2_lget, blizzardmaprom2_wget, blizzardmaprom2_bget,
 	blizzardmaprom2_lput, blizzardmaprom2_wput, blizzardmaprom2_bput,
 	blizzardmaprom2_xlate, blizzardmaprom2_check, NULL, _T("maprom2"), _T("CPUBoard MAPROM2"),
-	blizzardmaprom2_lget, blizzardmaprom2_wget, ABFLAG_RAM
+	blizzardmaprom2_lget, blizzardmaprom2_wget,
+	ABFLAG_RAM, S_READ, S_WRITE
 };
 
 // hack to map F41000 SCSI SCRIPTS RAM to JIT friendly address
@@ -395,9 +403,9 @@ int REGPARAM2 cyberstorm_scsi_ram_check(uaecptr a, uae_u32 b)
 
 MEMORY_FUNCTIONS(blizzardram);
 
-MEMORY_BGET(blizzardram_nojit, 1);
-MEMORY_WGET(blizzardram_nojit, 1);
-MEMORY_LGET(blizzardram_nojit, 1);
+MEMORY_BGET(blizzardram_nojit);
+MEMORY_WGET(blizzardram_nojit);
+MEMORY_LGET(blizzardram_nojit);
 MEMORY_CHECK(blizzardram_nojit);
 MEMORY_XLATE(blizzardram_nojit);
 
@@ -405,9 +413,6 @@ static void REGPARAM2 blizzardram_nojit_lput(uaecptr addr, uae_u32 l)
 {
 	uae_u32 *m;
 
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= blizzardram_nojit_bank.mask;
 	if (maprom_state && addr >= maprom_base)
 		return;
@@ -418,9 +423,6 @@ static void REGPARAM2 blizzardram_nojit_wput(uaecptr addr, uae_u32 w)
 {
 	uae_u16 *m;
 
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= blizzardram_nojit_bank.mask;
 	if (maprom_state && addr >= maprom_base)
 		return;
@@ -429,9 +431,6 @@ static void REGPARAM2 blizzardram_nojit_wput(uaecptr addr, uae_u32 w)
 }
 static void REGPARAM2 blizzardram_nojit_bput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= blizzardram_nojit_bank.mask;
 	if (maprom_state && addr >= maprom_base)
 		return;
@@ -446,27 +445,24 @@ static void no_rom_protect(void)
 	protect_roms(false);
 }
 
-MEMORY_BGET(blizzardmaprom2, 1);
-MEMORY_WGET(blizzardmaprom2, 1);
-MEMORY_LGET(blizzardmaprom2, 1);
-MEMORY_BPUT(blizzardmaprom2, 1);
-MEMORY_WPUT(blizzardmaprom2, 1);
-MEMORY_LPUT(blizzardmaprom2, 1);
+MEMORY_BGET(blizzardmaprom2);
+MEMORY_WGET(blizzardmaprom2);
+MEMORY_LGET(blizzardmaprom2);
+MEMORY_BPUT(blizzardmaprom2);
+MEMORY_WPUT(blizzardmaprom2);
+MEMORY_LPUT(blizzardmaprom2);
 MEMORY_CHECK(blizzardmaprom2);
 MEMORY_XLATE(blizzardmaprom2);
 
-MEMORY_BGET(blizzardmaprom, 1);
-MEMORY_WGET(blizzardmaprom, 1);
-MEMORY_LGET(blizzardmaprom, 1);
+MEMORY_BGET(blizzardmaprom);
+MEMORY_WGET(blizzardmaprom);
+MEMORY_LGET(blizzardmaprom);
 MEMORY_CHECK(blizzardmaprom);
 MEMORY_XLATE(blizzardmaprom);
 
 static void REGPARAM2 blizzardmaprom_lput(uaecptr addr, uae_u32 l)
 {
 	uae_u32 *m;
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (is_blizzard2060() && !maprom_state)
 		return;
 	addr &= blizzardmaprom_bank.mask;
@@ -481,9 +477,6 @@ static void REGPARAM2 blizzardmaprom_lput(uaecptr addr, uae_u32 l)
 static void REGPARAM2 blizzardmaprom_wput(uaecptr addr, uae_u32 w)
 {
 	uae_u16 *m;
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (is_blizzard2060() && !maprom_state)
 		return;
 	addr &= blizzardmaprom_bank.mask;
@@ -497,9 +490,6 @@ static void REGPARAM2 blizzardmaprom_wput(uaecptr addr, uae_u32 w)
 }
 static void REGPARAM2 blizzardmaprom_bput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (is_blizzard2060() && !maprom_state)
 		return;
 	addr &= blizzardmaprom_bank.mask;
@@ -536,9 +526,6 @@ static uae_u8 *REGPARAM2 blizzarde8_xlate(uaecptr addr)
 
 static uae_u32 REGPARAM2 blizzardf0_bget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u8 v;
 
 	blizzardf0_slow(1);
@@ -569,9 +556,6 @@ static uae_u32 REGPARAM2 blizzardf0_bget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 blizzardf0_lget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u32 *m;
 
 	//write_log(_T("F0 LONGGET %08x\n"), addr);
@@ -584,9 +568,6 @@ static uae_u32 REGPARAM2 blizzardf0_lget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 blizzardf0_wget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u16 *m, v;
 
 	blizzardf0_slow(2);
@@ -603,9 +584,6 @@ static uae_u32 REGPARAM2 blizzardf0_wget(uaecptr addr)
 
 static void REGPARAM2 blizzardf0_bput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	blizzardf0_slow(1);
 
 	if (is_csmk3() || is_blizzardppc()) {
@@ -633,16 +611,10 @@ static void REGPARAM2 blizzardf0_bput(uaecptr addr, uae_u32 b)
 }
 static void REGPARAM2 blizzardf0_lput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	blizzardf0_slow(4);
 }
 static void REGPARAM2 blizzardf0_wput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	blizzardf0_slow(2);
 	if (is_dkb_wildfire()) {
 		blizzardf0_bput(addr + 0, b >> 8);
@@ -655,9 +627,6 @@ MEMORY_XLATE(blizzardf0);
 
 static uae_u32 REGPARAM2 blizzardea_lget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u32 v = 0;
 	if (cpuboard_non_byte_ea) {
 		v = blizzardea_bget(addr + 3) <<  0;
@@ -669,9 +638,6 @@ static uae_u32 REGPARAM2 blizzardea_lget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 blizzardea_wget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u32 v = 0;
 	if (cpuboard_non_byte_ea) {
 		v  = blizzardea_bget(addr + 1) <<  0;
@@ -681,9 +647,6 @@ static uae_u32 REGPARAM2 blizzardea_wget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 blizzardea_bget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	uae_u8 v;
 
 	addr &= blizzardea_bank.mask;
@@ -743,9 +706,6 @@ static uae_u32 REGPARAM2 blizzardea_bget(uaecptr addr)
 
 static void REGPARAM2 blizzardea_lput(uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (cpuboard_non_byte_ea) {
 		blizzardea_bput(addr + 3, l >> 0);
 		blizzardea_bput(addr + 2, l >> 8);
@@ -755,9 +715,6 @@ static void REGPARAM2 blizzardea_lput(uaecptr addr, uae_u32 l)
 }
 static void REGPARAM2 blizzardea_wput(uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (cpuboard_non_byte_ea) {
 		blizzardea_bput(addr + 1, w >> 0);
 		blizzardea_bput(addr + 0, w >> 8);
@@ -765,10 +722,6 @@ static void REGPARAM2 blizzardea_wput(uaecptr addr, uae_u32 w)
 }
 static void REGPARAM2 blizzardea_bput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
-
 	addr &= blizzardea_bank.mask;
 	if (is_tekmagic()) {
 		cpuboard_non_byte_ea = true;
@@ -809,21 +762,12 @@ static void REGPARAM2 blizzardea_bput(uaecptr addr, uae_u32 b)
 
 static void REGPARAM2 blizzarde8_lput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 }
 static void REGPARAM2 blizzarde8_wput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 }
 static void REGPARAM2 blizzarde8_bput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	b &= 0xff;
 	addr &= 65535;
 	if (addr == 0x48 && !configured) {
@@ -843,27 +787,18 @@ static void REGPARAM2 blizzarde8_bput(uaecptr addr, uae_u32 b)
 static uae_u32 REGPARAM2 blizzarde8_bget(uaecptr addr)
 {
 	uae_u32 v = 0xffff;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = blizzardea_bank.baseaddr[addr & blizzardea_bank.mask];
 	return v;
 }
 static uae_u32 REGPARAM2 blizzarde8_wget(uaecptr addr)
 {
 	uae_u32 v = 0xffff;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = (blizzardea_bank.baseaddr[addr & blizzardea_bank.mask] << 8) | blizzardea_bank.baseaddr[(addr + 1) & blizzardea_bank.mask];
 	return v;
 }
 static uae_u32 REGPARAM2 blizzarde8_lget(uaecptr addr)
 {
 	uae_u32 v = 0xffff;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = (blizzarde8_wget(addr) << 16) | blizzarde8_wget(addr + 2);
 	return v;
 }
@@ -980,9 +915,6 @@ void blizzardppc_irq(int level)
 static uae_u32 REGPARAM2 blizzardio_bget(uaecptr addr)
 {
 	uae_u8 v = 0;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	//write_log(_T("CS IO XBGET %08x=%02X PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
 	if (is_csmk3() || is_blizzardppc()) {
 		uae_u32 bank = addr & 0x10000;
@@ -1021,9 +953,6 @@ static uae_u32 REGPARAM2 blizzardio_bget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 blizzardio_wget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (is_csmk3() || is_blizzardppc()) {
 		;//write_log(_T("CS IO WGET %08x\n"), addr);
 		//activate_debugger();
@@ -1067,9 +996,6 @@ static uae_u32 REGPARAM2 blizzardio_wget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 blizzardio_lget(uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	write_log(_T("CS IO LGET %08x PC=%08x\n"), addr, M68K_GETPC);
 	if (is_blizzard2060() && mapromconfigured()) {
 		if (addr & 0x10000000) {
@@ -1082,9 +1008,6 @@ static uae_u32 REGPARAM2 blizzardio_lget(uaecptr addr)
 }
 static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 #if CPUBOARD_IO_LOG > 1
 	write_log(_T("CS IO XBPUT %08x %02x PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
 #endif
@@ -1284,9 +1207,6 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 }
 static void REGPARAM2 blizzardio_wput(uaecptr addr, uae_u32 v)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (is_fusionforty()) {
 		write_log(_T("FusionForty IO WPUT %08x %04x\n"), addr, v);
 	} else if (is_blizzard()) {
@@ -1311,9 +1231,6 @@ static void REGPARAM2 blizzardio_wput(uaecptr addr, uae_u32 v)
 }
 static void REGPARAM2 blizzardio_lput(uaecptr addr, uae_u32 v)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	write_log(_T("CS IO LPUT %08x %08x\n"), addr, v);
 	if (is_csmk1()) {
 		if (addr == 0x80f80000) {

@@ -34,7 +34,8 @@ addrbank rtarea_bank = {
 	rtarea_lget, rtarea_wget, rtarea_bget,
 	rtarea_lput, rtarea_wput, rtarea_bput,
 	rtarea_xlate, rtarea_check, NULL, _T("rtarea"), _T("UAE Boot ROM"),
-	rtarea_lget, rtarea_wget, ABFLAG_ROMIN
+	rtarea_lget, rtarea_wget,
+	ABFLAG_ROMIN, S_READ, S_WRITE
 };
 
 static uae_u8 *REGPARAM2 rtarea_xlate (uaecptr addr)
@@ -51,25 +52,16 @@ static int REGPARAM2 rtarea_check (uaecptr addr, uae_u32 size)
 
 static uae_u32 REGPARAM2 rtarea_lget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 0xFFFF;
 	return (uae_u32)(rtarea_wget (addr) << 16) + rtarea_wget (addr + 2);
 }
 static uae_u32 REGPARAM2 rtarea_wget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 0xFFFF;
 	return (rtarea_bank.baseaddr[addr] << 8) + rtarea_bank.baseaddr[addr + 1];
 }
 static uae_u32 REGPARAM2 rtarea_bget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 0xFFFF;
 	return rtarea_bank.baseaddr[addr];
 }
@@ -78,9 +70,6 @@ static uae_u32 REGPARAM2 rtarea_bget (uaecptr addr)
 
 static void REGPARAM2 rtarea_bput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= 0xffff;
 	if (addr < RTAREA_WRITEOFFSET)
 		return;
@@ -88,9 +77,6 @@ static void REGPARAM2 rtarea_bput (uaecptr addr, uae_u32 value)
 }
 static void REGPARAM2 rtarea_wput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= 0xffff;
 	if (addr < RTAREA_WRITEOFFSET)
 		return;
@@ -99,9 +85,6 @@ static void REGPARAM2 rtarea_wput (uaecptr addr, uae_u32 value)
 }
 static void REGPARAM2 rtarea_lput (uaecptr addr, uae_u32 value)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= 0xffff;
 	if (addr < RTAREA_WRITEOFFSET)
 		return;

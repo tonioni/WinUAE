@@ -455,9 +455,6 @@ static uae_u32 ncr_bget2 (struct ncr_state *ncr, uaecptr addr)
 static uae_u32 REGPARAM2 ncr_lget (struct ncr_state *ncr, uaecptr addr)
 {
 	uae_u32 v = 0;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (ncr) {
 		addr &= ncr->board_mask;
 		if (ncr == ncr_we) {
@@ -480,9 +477,6 @@ static uae_u32 REGPARAM2 ncr_lget (struct ncr_state *ncr, uaecptr addr)
 static uae_u32 REGPARAM2 ncr_wget (struct ncr_state *ncr, uaecptr addr)
 {
 	uae_u32 v = 0;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (ncr) {
 		v = (ncr_bget2 (ncr, addr) << 8) | ncr_bget2 (ncr, addr + 1);
 	}
@@ -492,9 +486,6 @@ static uae_u32 REGPARAM2 ncr_wget (struct ncr_state *ncr, uaecptr addr)
 static uae_u32 REGPARAM2 ncr_bget (struct ncr_state *ncr, uaecptr addr)
 {
 	uae_u32 v = 0;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (ncr) {
 		addr &= ncr->board_mask;
 		if (!ncr->configured) {
@@ -510,9 +501,6 @@ static uae_u32 REGPARAM2 ncr_bget (struct ncr_state *ncr, uaecptr addr)
 
 static void REGPARAM2 ncr_lput (struct ncr_state *ncr, uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (!ncr)
 		return;
 	addr &= ncr->board_mask;
@@ -539,9 +527,6 @@ static void REGPARAM2 ncr_lput (struct ncr_state *ncr, uaecptr addr, uae_u32 l)
 
 static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (!ncr)
 		return;
 	w &= 0xffff;
@@ -566,9 +551,6 @@ static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
 
 static void REGPARAM2 ncr_bput (struct ncr_state *ncr, uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (!ncr)
 		return;
 	b &= 0xff;
@@ -677,13 +659,15 @@ static addrbank ncr_bank_cs_scsi_ram = {
 	cs_lget, cs_wget, cs_bget,
 	cs_lput, cs_wput, cs_bput,
 	cyberstorm_scsi_ram_xlate, cyberstorm_scsi_ram_check, NULL, NULL, _T("CyberStorm SCSI RAM"),
-	cs_lget, cs_wget, ABFLAG_IO | ABFLAG_THREADSAFE
+	cs_lget, cs_wget,
+	ABFLAG_IO | ABFLAG_THREADSAFE, S_READ, S_WRITE
 };
 static addrbank ncr_bank_cs_scsi_io = {
 	cs_lget, cs_wget, cs_bget,
 	cs_lput, cs_wput, cs_bput,
 	default_xlate, default_check, NULL, NULL, _T("CyberStorm SCSI IO"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_THREADSAFE
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO | ABFLAG_THREADSAFE, S_READ, S_WRITE
 };
 
 static struct addrbank_sub ncr_sub_bank_cs[] = {
@@ -703,14 +687,16 @@ addrbank ncr_bank_cyberstorm = {
 	sub_bank_lget, sub_bank_wget, sub_bank_bget,
 	sub_bank_lput, sub_bank_wput, sub_bank_bput,
 	sub_bank_xlate, sub_bank_check, NULL, NULL, _T("CyberStorm SCSI"),
-	sub_bank_lgeti, sub_bank_wgeti, ABFLAG_IO | ABFLAG_THREADSAFE, ncr_sub_bank_cs
+	sub_bank_lgeti, sub_bank_wgeti,
+	ABFLAG_IO | ABFLAG_THREADSAFE, S_READ, S_WRITE, ncr_sub_bank_cs
 };
 
 addrbank ncr_bank_generic = {
 	ncr_generic_lget, ncr_generic_wget, ncr_generic_bget,
 	ncr_generic_lput, ncr_generic_wput, ncr_generic_bput,
 	default_xlate, default_check, NULL, NULL, _T("NCR53C700/800"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_THREADSAFE
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO | ABFLAG_THREADSAFE, S_READ, S_WRITE
 };
 
 static void ew (struct ncr_state *ncr, int addr, uae_u8 value)

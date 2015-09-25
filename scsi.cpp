@@ -2901,9 +2901,6 @@ void parallel_port_scsi_write(int reg, uae_u8 v, uae_u8 dir)
 static uae_u32 REGPARAM2 ncr80_lget(struct soft_scsi *ncr, uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v =  ncr80_bget2(ncr, addr + 0, 4) << 24;
 	v |= ncr80_bget2(ncr, addr + 1, 4) << 16;
 	v |= ncr80_bget2(ncr, addr + 2, 4) <<  8;
@@ -2914,9 +2911,6 @@ static uae_u32 REGPARAM2 ncr80_lget(struct soft_scsi *ncr, uaecptr addr)
 static uae_u32 REGPARAM2 ncr80_wget(struct soft_scsi *ncr, uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = ncr80_bget2(ncr, addr, 2) << 8;
 	v |= ncr80_bget2(ncr, addr + 1, 2);
 	return v;
@@ -2925,9 +2919,6 @@ static uae_u32 REGPARAM2 ncr80_wget(struct soft_scsi *ncr, uaecptr addr)
 static uae_u32 REGPARAM2 ncr80_bget(struct soft_scsi *ncr, uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= ncr->board_mask;
 	if (!ncr->configured) {
 		addr &= 65535;
@@ -2941,9 +2932,6 @@ static uae_u32 REGPARAM2 ncr80_bget(struct soft_scsi *ncr, uaecptr addr)
 
 static void REGPARAM2 ncr80_lput(struct soft_scsi *ncr, uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	ncr80_bput2(ncr, addr + 0, l >> 24, 4);
 	ncr80_bput2(ncr, addr + 1, l >> 16, 4);
 	ncr80_bput2(ncr, addr + 2, l >>  8, 4);
@@ -2952,9 +2940,6 @@ static void REGPARAM2 ncr80_lput(struct soft_scsi *ncr, uaecptr addr, uae_u32 l)
 
 static void REGPARAM2 ncr80_wput(struct soft_scsi *ncr, uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	w &= 0xffff;
 	if (!ncr->configured) {
 		return;
@@ -2965,9 +2950,6 @@ static void REGPARAM2 ncr80_wput(struct soft_scsi *ncr, uaecptr addr, uae_u32 w)
 
 static void REGPARAM2 ncr80_bput(struct soft_scsi *ncr, uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	b &= 0xff;
 	addr &= ncr->board_mask;
 	if (!ncr->configured) {
@@ -3052,7 +3034,8 @@ addrbank soft_bank_generic = {
 	soft_generic_lget, soft_generic_wget, soft_generic_bget,
 	soft_generic_lput, soft_generic_wput, soft_generic_bput,
 	soft_xlate, soft_check, NULL, NULL, _T("LOWLEVEL/5380 SCSI"),
-	soft_generic_lget, soft_generic_wget, ABFLAG_IO | ABFLAG_SAFE
+	soft_generic_lget, soft_generic_wget,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 void soft_scsi_put(uaecptr addr, int size, uae_u32 v)

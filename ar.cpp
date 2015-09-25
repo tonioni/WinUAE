@@ -472,19 +472,22 @@ static addrbank hrtmem_bank = {
 	hrtmem_lget, hrtmem_wget, hrtmem_bget,
 	hrtmem_lput, hrtmem_wput, hrtmem_bput,
 	hrtmem_xlate, hrtmem_check, NULL, NULL, _T("Cartridge Bank"),
-	hrtmem_lget, hrtmem_wget, ABFLAG_RAM
+	hrtmem_lget, hrtmem_wget,
+	ABFLAG_RAM, S_READ, S_WRITE
 };
 static addrbank hrtmem2_bank = {
 	hrtmem2_lget, hrtmem2_wget, hrtmem2_bget,
 	hrtmem2_lput, hrtmem2_wput, hrtmem2_bput,
 	hrtmem2_xlate, hrtmem2_check, NULL, NULL, _T("Cartridge Bank 2"),
-	hrtmem2_lget, hrtmem2_wget, ABFLAG_RAM
+	hrtmem2_lget, hrtmem2_wget,
+	ABFLAG_RAM, S_READ, S_WRITE
 };
 static addrbank hrtmem3_bank = {
 	hrtmem3_lget, hrtmem3_wget, hrtmem3_bget,
 	hrtmem3_lput, hrtmem3_wput, hrtmem3_bput,
 	hrtmem3_xlate, hrtmem3_check, NULL, NULL, _T("Cartridge Bank 3"),
-	hrtmem3_lget, hrtmem3_wget, ABFLAG_RAM
+	hrtmem3_lget, hrtmem3_wget,
+	ABFLAG_RAM, S_READ, S_WRITE
 };
 
 static void copyfromamiga (uae_u8 *dst, uaecptr src, int len)
@@ -694,9 +697,6 @@ static uae_u32 ar_null(int size)
 static uae_u32 REGPARAM2 arram_lget (uaecptr addr)
 {
 	uae_u32 *m;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (ar_hidden)
 		return ar_null(4);
 	addr -= arram_start;
@@ -722,9 +722,6 @@ static uae_u32 REGPARAM2 arram_lget (uaecptr addr)
 static uae_u32 REGPARAM2 arram_wget (uaecptr addr)
 {
 	uae_u16 *m;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (ar_hidden)
 		return ar_null(4);
 	addr -= arram_start;
@@ -735,9 +732,6 @@ static uae_u32 REGPARAM2 arram_wget (uaecptr addr)
 
 static uae_u32 REGPARAM2 arram_bget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (ar_hidden)
 		return ar_null(4);
 	addr -= arram_start;
@@ -749,9 +743,6 @@ void REGPARAM2 arram_lput (uaecptr addr, uae_u32 l)
 {
 	uae_u32 *m;
 
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (ar_hidden)
 		return;
 	addr -= arram_start;
@@ -778,9 +769,6 @@ void REGPARAM2 arram_wput (uaecptr addr, uae_u32 w)
 {
 	uae_u16 *m;
 
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (ar_hidden)
 		return;
 	addr -= arram_start;
@@ -791,9 +779,6 @@ void REGPARAM2 arram_wput (uaecptr addr, uae_u32 w)
 
 void REGPARAM2 arram_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (ar_hidden)
 		return;
 	addr -= arram_start;
@@ -817,9 +802,6 @@ static uae_u8 *REGPARAM2 arram_xlate (uaecptr addr)
 
 static uae_u32 REGPARAM2 arrom_lget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (ar_hidden)
 		return ar_null(4);
 	addr -= arrom_start;
@@ -829,9 +811,6 @@ static uae_u32 REGPARAM2 arrom_lget (uaecptr addr)
 
 static uae_u32 REGPARAM2 arrom_wget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (ar_hidden)
 		return ar_null(2);
 	addr -= arrom_start;
@@ -841,9 +820,6 @@ static uae_u32 REGPARAM2 arrom_wget (uaecptr addr)
 
 static uae_u32 REGPARAM2 arrom_bget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (ar_hidden)
 		return ar_null(1);
 	addr -= arrom_start;
@@ -853,9 +829,6 @@ static uae_u32 REGPARAM2 arrom_bget (uaecptr addr)
 
 static void REGPARAM2 arrom_lput (uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (ar_hidden)
 		return;
 	addr -= arrom_start;
@@ -868,9 +841,6 @@ static void REGPARAM2 arrom_lput (uaecptr addr, uae_u32 l)
 
 static void REGPARAM2 arrom_wput (uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (ar_hidden)
 		return;
 	addr -= arrom_start;
@@ -881,9 +851,6 @@ static void REGPARAM2 arrom_wput (uaecptr addr, uae_u32 w)
 
 static void REGPARAM2 arrom_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (ar_hidden)
 		return;
 	addr -= arrom_start;
@@ -909,13 +876,15 @@ static addrbank arrom_bank = {
 	arrom_lget, arrom_wget, arrom_bget,
 	arrom_lput, arrom_wput, arrom_bput,
 	arrom_xlate, arrom_check, NULL, NULL, _T("Action Replay ROM"),
-	arrom_lget, arrom_wget, ABFLAG_ROM
+	arrom_lget, arrom_wget,
+	ABFLAG_ROM, S_READ, S_WRITE
 };
 static addrbank arram_bank = {
 	arram_lget, arram_wget, arram_bget,
 	arram_lput, arram_wput, arram_bput,
 	arram_xlate, arram_check, NULL, NULL, _T("Action Replay RAM"),
-	arram_lget, arram_wget, ABFLAG_RAM
+	arram_lget, arram_wget,
+	ABFLAG_RAM, S_READ, S_WRITE
 };
 
 

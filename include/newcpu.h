@@ -625,32 +625,38 @@ extern void fill_prefetch_030 (void);
 /* 68060 */
 extern const struct cputbl op_smalltbl_0_ff[];
 extern const struct cputbl op_smalltbl_40_ff[];
+extern const struct cputbl op_smalltbl_50_ff[];
 extern const struct cputbl op_smalltbl_24_ff[]; // CE
 extern const struct cputbl op_smalltbl_33_ff[]; // MMU
 /* 68040 */
 extern const struct cputbl op_smalltbl_1_ff[];
 extern const struct cputbl op_smalltbl_41_ff[];
+extern const struct cputbl op_smalltbl_51_ff[];
 extern const struct cputbl op_smalltbl_25_ff[]; // CE
 extern const struct cputbl op_smalltbl_31_ff[]; // MMU
 /* 68030 */
 extern const struct cputbl op_smalltbl_2_ff[];
 extern const struct cputbl op_smalltbl_42_ff[];
+extern const struct cputbl op_smalltbl_52_ff[];
 extern const struct cputbl op_smalltbl_22_ff[]; // prefetch
 extern const struct cputbl op_smalltbl_23_ff[]; // CE
 extern const struct cputbl op_smalltbl_32_ff[]; // MMU
 /* 68020 */
 extern const struct cputbl op_smalltbl_3_ff[];
 extern const struct cputbl op_smalltbl_43_ff[];
+extern const struct cputbl op_smalltbl_53_ff[];
 extern const struct cputbl op_smalltbl_20_ff[]; // prefetch
 extern const struct cputbl op_smalltbl_21_ff[]; // CE
 /* 68010 */
 extern const struct cputbl op_smalltbl_4_ff[];
 extern const struct cputbl op_smalltbl_44_ff[];
+extern const struct cputbl op_smalltbl_54_ff[];
 extern const struct cputbl op_smalltbl_11_ff[]; // prefetch
 extern const struct cputbl op_smalltbl_13_ff[]; // CE
 /* 68000 */
 extern const struct cputbl op_smalltbl_5_ff[];
 extern const struct cputbl op_smalltbl_45_ff[];
+extern const struct cputbl op_smalltbl_55_ff[];
 extern const struct cputbl op_smalltbl_12_ff[]; // prefetch
 extern const struct cputbl op_smalltbl_14_ff[]; // CE
 

@@ -481,9 +481,6 @@ void address_space::write_word(UINT32 a, UINT16 b)
 static uae_u32 REGPARAM2 tms_bget(uaecptr addr)
 {
 	uae_u32 v = 0xff;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 65535;
 	if (!tms_configured) {
 		v = tms_config[addr];
@@ -500,9 +497,6 @@ static uae_u32 REGPARAM2 tms_bget(uaecptr addr)
 static uae_u32 REGPARAM2 tms_wget(uaecptr addr)
 {
 	uae_u16 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 65535;
 	if (tms_configured) {
 		v = tms_device.host_r(tms_space, addr >> 1);
@@ -517,9 +511,6 @@ static uae_u32 REGPARAM2 tms_wget(uaecptr addr)
 static uae_u32 REGPARAM2 tms_lget(uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 65535;
 	v = tms_wget(addr) << 16;
 	v |= tms_wget(addr + 2);
@@ -529,9 +520,6 @@ static uae_u32 REGPARAM2 tms_lget(uaecptr addr)
 
 static void REGPARAM2 tms_wput(uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= 65535;
 	if (tms_configured) {
 		//write_log(_T("TMS write %08x = %04x PC=%08x\n"), addr, w & 0xffff, M68K_GETPC);
@@ -542,9 +530,6 @@ static void REGPARAM2 tms_wput(uaecptr addr, uae_u32 w)
 
 static void REGPARAM2 tms_lput(uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= 65535;
 	tms_wput(addr, l >> 16);
 	tms_wput(addr + 2, l);
@@ -552,9 +537,6 @@ static void REGPARAM2 tms_lput(uaecptr addr, uae_u32 l)
 
 static void REGPARAM2 tms_bput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	b &= 0xff;
 	addr &= 65535;
 	if (!tms_configured) {
@@ -580,7 +562,8 @@ addrbank tms_bank = {
 	tms_lget, tms_wget, tms_bget,
 	tms_lput, tms_wput, tms_bput,
 	default_xlate, default_check, NULL, NULL, _T("A2410"),
-	tms_lget, tms_wget, ABFLAG_IO
+	tms_lget, tms_wget,
+	ABFLAG_IO, S_READ, S_WRITE
 };
 
 static bool a2410_modechanged;

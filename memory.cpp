@@ -284,18 +284,12 @@ uae_u32 dummy_get (uaecptr addr, int size, bool inst)
 
 static uae_u32 REGPARAM2 dummy_lget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (currprefs.illegal_mem)
 		dummylog (0, addr, 4, 0, 0);
 	return dummy_get (addr, 4, false);
 }
 uae_u32 REGPARAM2 dummy_lgeti (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (currprefs.illegal_mem)
 		dummylog (0, addr, 4, 0, 1);
 	return dummy_get (addr, 4, true);
@@ -303,9 +297,6 @@ uae_u32 REGPARAM2 dummy_lgeti (uaecptr addr)
 
 static uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 #if 0
 	if (addr == 0xb0b000) {
 		extern uae_u16 isideint(void);
@@ -318,9 +309,6 @@ static uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
 }
 uae_u32 REGPARAM2 dummy_wgeti (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (currprefs.illegal_mem)
 		dummylog (0, addr, 2, 0, 1);
 	return dummy_get (addr, 2, true);
@@ -328,9 +316,6 @@ uae_u32 REGPARAM2 dummy_wgeti (uaecptr addr)
 
 static uae_u32 REGPARAM2 dummy_bget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	if (currprefs.illegal_mem)
 		dummylog (0, addr, 1, 0, 0);
 	return dummy_get (addr, 1, false);
@@ -338,27 +323,18 @@ static uae_u32 REGPARAM2 dummy_bget (uaecptr addr)
 
 static void REGPARAM2 dummy_lput (uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (currprefs.illegal_mem)
 		dummylog (1, addr, 4, l, 0);
 	dummy_put (addr, 4, l);
 }
 static void REGPARAM2 dummy_wput (uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (currprefs.illegal_mem)
 		dummylog (1, addr, 2, w, 0);
 	dummy_put (addr, 2, w);
 }
 static void REGPARAM2 dummy_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (currprefs.illegal_mem)
 		dummylog (1, addr, 1, b, 0);
 	dummy_put (addr, 1, b);
@@ -366,23 +342,14 @@ static void REGPARAM2 dummy_bput (uaecptr addr, uae_u32 b)
 
 static int REGPARAM2 dummy_check (uaecptr addr, uae_u32 size)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return 0;
 }
 
 static void REGPARAM2 none_put (uaecptr addr, uae_u32 v)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 }
 static uae_u32 REGPARAM2 ones_get (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return 0xffffffff;
 }
 
@@ -481,9 +448,6 @@ static uae_u32 REGPARAM2 chipmem_lget_ce2 (uaecptr addr)
 {
 	uae_u32 *m;
 
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= chipmem_bank.mask;
 	m = (uae_u32 *)(chipmem_bank.baseaddr + addr);
 	ce2_timeout ();
@@ -494,9 +458,6 @@ static uae_u32 REGPARAM2 chipmem_wget_ce2 (uaecptr addr)
 {
 	uae_u16 *m, v;
 
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= chipmem_bank.mask;
 	m = (uae_u16 *)(chipmem_bank.baseaddr + addr);
 	ce2_timeout ();
@@ -506,9 +467,6 @@ static uae_u32 REGPARAM2 chipmem_wget_ce2 (uaecptr addr)
 
 static uae_u32 REGPARAM2 chipmem_bget_ce2 (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= chipmem_bank.mask;
 	ce2_timeout ();
 	return chipmem_bank.baseaddr[addr];
@@ -518,9 +476,6 @@ static void REGPARAM2 chipmem_lput_ce2 (uaecptr addr, uae_u32 l)
 {
 	uae_u32 *m;
 
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= chipmem_bank.mask;
 	m = (uae_u32 *)(chipmem_bank.baseaddr + addr);
 	ce2_timeout ();
@@ -531,9 +486,6 @@ static void REGPARAM2 chipmem_wput_ce2 (uaecptr addr, uae_u32 w)
 {
 	uae_u16 *m;
 
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= chipmem_bank.mask;
 	m = (uae_u16 *)(chipmem_bank.baseaddr + addr);
 	ce2_timeout ();
@@ -542,9 +494,6 @@ static void REGPARAM2 chipmem_wput_ce2 (uaecptr addr, uae_u32 w)
 
 static void REGPARAM2 chipmem_bput_ce2 (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= chipmem_bank.mask;
 	ce2_timeout ();
 	chipmem_bank.baseaddr[addr] = b;
@@ -628,44 +577,24 @@ static uae_u32 chipmem_dummy (void)
 
 static void REGPARAM2 chipmem_dummy_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 }
-
 static void REGPARAM2 chipmem_dummy_wput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 }
-
 static void REGPARAM2 chipmem_dummy_lput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 }
 
 static uae_u32 REGPARAM2 chipmem_dummy_bget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return chipmem_dummy ();
 }
 static uae_u32 REGPARAM2 chipmem_dummy_wget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return chipmem_dummy ();
 }
 static uae_u32 REGPARAM2 chipmem_dummy_lget (uaecptr addr)
 {
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return (chipmem_dummy () << 16) | chipmem_dummy ();
 }
 
@@ -867,9 +796,6 @@ MEMORY_XLATE(kickmem);
 static void REGPARAM2 kickmem_lput (uaecptr addr, uae_u32 b)
 {
 	uae_u32 *m;
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (currprefs.rom_readwrite && rom_write_enabled) {
 		addr &= kickmem_bank.mask;
 		m = (uae_u32 *)(kickmem_bank.baseaddr + addr);
@@ -896,9 +822,6 @@ static void REGPARAM2 kickmem_lput (uaecptr addr, uae_u32 b)
 static void REGPARAM2 kickmem_wput (uaecptr addr, uae_u32 b)
 {
 	uae_u16 *m;
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (currprefs.rom_readwrite && rom_write_enabled) {
 		addr &= kickmem_bank.mask;
 		m = (uae_u16 *)(kickmem_bank.baseaddr + addr);
@@ -918,9 +841,6 @@ static void REGPARAM2 kickmem_wput (uaecptr addr, uae_u32 b)
 
 static void REGPARAM2 kickmem_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (currprefs.rom_readwrite && rom_write_enabled) {
 		addr &= kickmem_bank.mask;
 		kickmem_bank.baseaddr[addr] = b;
@@ -939,9 +859,6 @@ static void REGPARAM2 kickmem_bput (uaecptr addr, uae_u32 b)
 static void REGPARAM2 kickmem2_lput (uaecptr addr, uae_u32 l)
 {
 	uae_u32 *m;
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= kickmem_bank.mask;
 	m = (uae_u32 *)(kickmem_bank.baseaddr + addr);
 	do_put_mem_long (m, l);
@@ -950,9 +867,6 @@ static void REGPARAM2 kickmem2_lput (uaecptr addr, uae_u32 l)
 static void REGPARAM2 kickmem2_wput (uaecptr addr, uae_u32 w)
 {
 	uae_u16 *m;
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= kickmem_bank.mask;
 	m = (uae_u16 *)(kickmem_bank.baseaddr + addr);
 	do_put_mem_word (m, w);
@@ -960,9 +874,6 @@ static void REGPARAM2 kickmem2_wput (uaecptr addr, uae_u32 w)
 
 static void REGPARAM2 kickmem2_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= kickmem_bank.mask;
 	kickmem_bank.baseaddr[addr] = b;
 }
@@ -988,25 +899,16 @@ MEMORY_XLATE(extendedkickmem);
 
 static void REGPARAM2 extendedkickmem_lput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (currprefs.illegal_mem)
 		write_log (_T("Illegal extendedkickmem lput at %08x\n"), addr);
 }
 static void REGPARAM2 extendedkickmem_wput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (currprefs.illegal_mem)
 		write_log (_T("Illegal extendedkickmem wput at %08x\n"), addr);
 }
 static void REGPARAM2 extendedkickmem_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (currprefs.illegal_mem)
 		write_log (_T("Illegal extendedkickmem lput at %08x\n"), addr);
 }
@@ -1024,25 +926,16 @@ MEMORY_XLATE(extendedkickmem2);
 
 static void REGPARAM2 extendedkickmem2_lput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (currprefs.illegal_mem)
 		write_log (_T("Illegal extendedkickmem2 lput at %08x\n"), addr);
 }
 static void REGPARAM2 extendedkickmem2_wput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (currprefs.illegal_mem)
 		write_log (_T("Illegal extendedkickmem2 wput at %08x\n"), addr);
 }
 static void REGPARAM2 extendedkickmem2_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	if (currprefs.illegal_mem)
 		write_log (_T("Illegal extendedkickmem2 lput at %08x\n"), addr);
 }
@@ -1108,28 +1001,32 @@ addrbank dummy_bank = {
 	dummy_lget, dummy_wget, dummy_bget,
 	dummy_lput, dummy_wput, dummy_bput,
 	default_xlate, dummy_check, NULL, NULL, NULL,
-	dummy_lgeti, dummy_wgeti, ABFLAG_NONE
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_NONE, S_READ, S_WRITE
 };
 
 addrbank ones_bank = {
 	ones_get, ones_get, ones_get,
 	none_put, none_put, none_put,
 	default_xlate, dummy_check, NULL, NULL, _T("Ones"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_NONE
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_NONE, S_READ, S_WRITE
 };
 
 addrbank chipmem_bank = {
 	chipmem_lget, chipmem_wget, chipmem_bget,
 	chipmem_lput, chipmem_wput, chipmem_bput,
 	chipmem_xlate, chipmem_check, NULL, _T("chip"), _T("Chip memory"),
-	chipmem_lget, chipmem_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	chipmem_lget, chipmem_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
 
 addrbank chipmem_dummy_bank = {
 	chipmem_dummy_lget, chipmem_dummy_wget, chipmem_dummy_bget,
 	chipmem_dummy_lput, chipmem_dummy_wput, chipmem_dummy_bput,
 	default_xlate, dummy_check, NULL, NULL, _T("Dummy Chip memory"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE
 };
 
 
@@ -1138,7 +1035,8 @@ addrbank chipmem_bank_ce2 = {
 	chipmem_lget_ce2, chipmem_wget_ce2, chipmem_bget_ce2,
 	chipmem_lput_ce2, chipmem_wput_ce2, chipmem_bput_ce2,
 	chipmem_xlate, chipmem_check, NULL, NULL, _T("Chip memory (68020 'ce')"),
-	chipmem_lget_ce2, chipmem_wget_ce2, ABFLAG_RAM
+	chipmem_lget_ce2, chipmem_wget_ce2,
+	ABFLAG_RAM, S_READ, S_WRITE
 };
 #endif
 
@@ -1146,62 +1044,71 @@ addrbank bogomem_bank = {
 	bogomem_lget, bogomem_wget, bogomem_bget,
 	bogomem_lput, bogomem_wput, bogomem_bput,
 	bogomem_xlate, bogomem_check, NULL, _T("bogo"), _T("Slow memory"),
-	bogomem_lget, bogomem_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	bogomem_lget, bogomem_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
 
 addrbank cardmem_bank = {
 	cardmem_lget, cardmem_wget, cardmem_bget,
 	cardmem_lput, cardmem_wput, cardmem_bput,
 	cardmem_xlate, cardmem_check, NULL, _T("rom_e0"), _T("CDTV memory card"),
-	cardmem_lget, cardmem_wget, ABFLAG_RAM
+	cardmem_lget, cardmem_wget,
+	ABFLAG_RAM, 0, 0
 };
 
 addrbank mem25bit_bank = {
 	mem25bit_lget, mem25bit_wget, mem25bit_bget,
 	mem25bit_lput, mem25bit_wput, mem25bit_bput,
 	mem25bit_xlate, mem25bit_check, NULL, _T("25bitmem"), _T("25bit memory"),
-	mem25bit_lget, mem25bit_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	mem25bit_lget, mem25bit_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
 
 addrbank a3000lmem_bank = {
 	a3000lmem_lget, a3000lmem_wget, a3000lmem_bget,
 	a3000lmem_lput, a3000lmem_wput, a3000lmem_bput,
 	a3000lmem_xlate, a3000lmem_check, NULL, _T("ramsey_low"), _T("RAMSEY memory (low)"),
-	a3000lmem_lget, a3000lmem_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	a3000lmem_lget, a3000lmem_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
 
 addrbank a3000hmem_bank = {
 	a3000hmem_lget, a3000hmem_wget, a3000hmem_bget,
 	a3000hmem_lput, a3000hmem_wput, a3000hmem_bput,
 	a3000hmem_xlate, a3000hmem_check, NULL, _T("ramsey_high"), _T("RAMSEY memory (high)"),
-	a3000hmem_lget, a3000hmem_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	a3000hmem_lget, a3000hmem_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
 
 addrbank kickmem_bank = {
 	kickmem_lget, kickmem_wget, kickmem_bget,
 	kickmem_lput, kickmem_wput, kickmem_bput,
 	kickmem_xlate, kickmem_check, NULL, _T("kick"), _T("Kickstart ROM"),
-	kickmem_lget, kickmem_wget, ABFLAG_ROM | ABFLAG_THREADSAFE
+	kickmem_lget, kickmem_wget,
+	ABFLAG_ROM | ABFLAG_THREADSAFE, 0, S_WRITE
 };
 
 addrbank kickram_bank = {
 	kickmem_lget, kickmem_wget, kickmem_bget,
 	kickmem2_lput, kickmem2_wput, kickmem2_bput,
 	kickmem_xlate, kickmem_check, NULL, NULL, _T("Kickstart Shadow RAM"),
-	kickmem_lget, kickmem_wget, ABFLAG_UNK | ABFLAG_SAFE
+	kickmem_lget, kickmem_wget,
+	ABFLAG_UNK | ABFLAG_SAFE, 0, 0
 };
 
 addrbank extendedkickmem_bank = {
 	extendedkickmem_lget, extendedkickmem_wget, extendedkickmem_bget,
 	extendedkickmem_lput, extendedkickmem_wput, extendedkickmem_bput,
 	extendedkickmem_xlate, extendedkickmem_check, NULL, NULL, _T("Extended Kickstart ROM"),
-	extendedkickmem_lget, extendedkickmem_wget, ABFLAG_ROM | ABFLAG_THREADSAFE
+	extendedkickmem_lget, extendedkickmem_wget,
+	ABFLAG_ROM | ABFLAG_THREADSAFE, 0, S_WRITE
 };
 addrbank extendedkickmem2_bank = {
 	extendedkickmem2_lget, extendedkickmem2_wget, extendedkickmem2_bget,
 	extendedkickmem2_lput, extendedkickmem2_wput, extendedkickmem2_bput,
 	extendedkickmem2_xlate, extendedkickmem2_check, NULL, _T("rom_a8"), _T("Extended 2nd Kickstart ROM"),
-	extendedkickmem2_lget, extendedkickmem2_wget, ABFLAG_ROM | ABFLAG_THREADSAFE
+	extendedkickmem2_lget, extendedkickmem2_wget,
+	ABFLAG_ROM | ABFLAG_THREADSAFE, 0, S_WRITE
 };
 
 MEMORY_FUNCTIONS(custmem1);
@@ -1211,13 +1118,15 @@ addrbank custmem1_bank = {
 	custmem1_lget, custmem1_wget, custmem1_bget,
 	custmem1_lput, custmem1_wput, custmem1_bput,
 	custmem1_xlate, custmem1_check, NULL, _T("custmem1"), _T("Non-autoconfig RAM #1"),
-	custmem1_lget, custmem1_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	custmem1_lget, custmem1_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
 addrbank custmem2_bank = {
 	custmem2_lget, custmem2_wget, custmem2_bget,
 	custmem2_lput, custmem2_wput, custmem2_bput,
 	custmem2_xlate, custmem2_check, NULL, _T("custmem2"), _T("Non-autoconfig RAM #2"),
-	custmem2_lget, custmem2_wget, ABFLAG_RAM | ABFLAG_THREADSAFE
+	custmem2_lget, custmem2_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
 
 #define fkickmem_size ROM_SIZE_512

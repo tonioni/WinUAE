@@ -1410,9 +1410,6 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 static uae_u32 REGPARAM2 dmac_lget (uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 65535;
 	v = (dmac_bget2 (addr) << 24) | (dmac_bget2 (addr + 1) << 16) |
 		(dmac_bget2 (addr + 2) << 8) | (dmac_bget2 (addr + 3));
@@ -1425,9 +1422,6 @@ static uae_u32 REGPARAM2 dmac_lget (uaecptr addr)
 static uae_u32 REGPARAM2 dmac_wget (uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 65535;
 	v = (dmac_bget2 (addr) << 8) | dmac_bget2 (addr + 1);
 #ifdef CDTV_DEBUG
@@ -1439,9 +1433,6 @@ static uae_u32 REGPARAM2 dmac_wget (uaecptr addr)
 static uae_u32 REGPARAM2 dmac_bget (uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= 65535;
 	v = dmac_bget2 (addr);
 	if (configured <= 0)
@@ -1451,9 +1442,6 @@ static uae_u32 REGPARAM2 dmac_bget (uaecptr addr)
 
 static void REGPARAM2 dmac_lput (uaecptr addr, uae_u32 l)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= 65535;
 #ifdef CDTV_DEBUG
 	write_log (_T("dmac_lput %08X=%08X PC=%08X\n"), addr, l, M68K_GETPC);
@@ -1466,9 +1454,6 @@ static void REGPARAM2 dmac_lput (uaecptr addr, uae_u32 l)
 
 static void REGPARAM2 dmac_wput (uaecptr addr, uae_u32 w)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= 65535;
 #ifdef CDTV_DEBUG
 	write_log (_T("dmac_wput %04X=%04X PC=%08X\n"), addr, w & 65535, M68K_GETPC);
@@ -1479,9 +1464,6 @@ static void REGPARAM2 dmac_wput (uaecptr addr, uae_u32 w)
 
 static void REGPARAM2 dmac_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	addr &= 65535;
 	b &= 0xff;
 	if (addr == 0x48) {
@@ -1529,28 +1511,21 @@ static void ew (int addr, uae_u32 value)
 static uae_u32 REGPARAM2 dmac_wgeti (uaecptr addr)
 {
 	uae_u32 v = 0xffff;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return v;
 }
 static uae_u32 REGPARAM2 dmac_lgeti (uaecptr addr)
 {
 	uae_u32 v = 0xffff;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	return v;
 }
-
 
 addrbank dmac_bank = {
 	dmac_lget, dmac_wget, dmac_bget,
 	dmac_lput, dmac_wput, dmac_bput,
 	default_xlate, default_check, NULL, NULL, _T("CDTV DMAC/CD Controller"),
-	dmac_lgeti, dmac_wgeti, ABFLAG_IO
+	dmac_lgeti, dmac_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE
 };
-
 
 /* CDTV batterybacked RAM emulation */
 #define CDTV_NVRAM_MASK 16383

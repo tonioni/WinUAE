@@ -521,9 +521,6 @@ static uae_u8 toccata_get(uaecptr addr)
 static void REGPARAM2 toccata_bput(uaecptr addr, uae_u32 b)
 {
 	struct toccata_data *data = &toccata;
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	b &= 0xff;
 	addr &= BOARD_MASK;
 	if (!data->configured) {
@@ -547,18 +544,12 @@ static void REGPARAM2 toccata_bput(uaecptr addr, uae_u32 b)
 
 static void REGPARAM2 toccata_wput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	toccata_bput(addr + 0, b >> 8);
 	toccata_bput(addr + 1, b >> 0);
 }
 
 static void REGPARAM2 toccata_lput(uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
 	toccata_bput(addr + 0, b >> 24);
 	toccata_bput(addr + 1, b >> 16);
 	toccata_bput(addr + 2, b >>  8);
@@ -569,9 +560,6 @@ static uae_u32 REGPARAM2 toccata_bget(uaecptr addr)
 {
 	struct toccata_data *data = &toccata;
 	uae_u8 v = 0;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	addr &= BOARD_MASK;
 	if (!data->configured) {
 		if (addr >= sizeof data->acmemory)
@@ -585,9 +573,6 @@ static uae_u32 REGPARAM2 toccata_bget(uaecptr addr)
 static uae_u32 REGPARAM2 toccata_wget(uaecptr addr)
 {
 	uae_u16 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = toccata_get(addr) << 8;
 	v |= toccata_get(addr + 1) << 0;
 	return v;
@@ -595,9 +580,6 @@ static uae_u32 REGPARAM2 toccata_wget(uaecptr addr)
 static uae_u32 REGPARAM2 toccata_lget(uaecptr addr)
 {
 	uae_u32 v;
-#ifdef JIT
-	special_mem |= S_READ;
-#endif
 	v = toccata_get(addr) << 24;
 	v |= toccata_get(addr + 1) << 16;
 	v |= toccata_get(addr + 2) << 8;
@@ -609,7 +591,8 @@ addrbank toccata_bank = {
 	toccata_lget, toccata_wget, toccata_bget,
 	toccata_lput, toccata_wput, toccata_bput,
 	default_xlate, default_check, NULL, NULL, _T("Toccata"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE
 };
 
 static void ew (uae_u8 *acmemory, int addr, uae_u32 value)
