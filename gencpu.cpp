@@ -5789,7 +5789,7 @@ static void generate_cpu (int id, int mode)
 	memory_cycle_cnt = 4;
 	mmu_postfix = "";
 	using_simple_cycles = 0;
-	using_indirect = using_ce || using_ce020 || using_prefetch_020 || id >= 50;
+	using_indirect = 0;
 
 	if (id == 11 || id == 12) { // 11 = 68010 prefetch, 12 = 68000 prefetch
 		cpu_level = id == 11 ? 1 : 0;
@@ -5893,6 +5893,8 @@ static void generate_cpu (int id, int mode)
 		}
 	 }
  
+	if (!using_indirect)
+		using_indirect = using_ce || using_ce020 || using_prefetch_020 || id >= 50;
 
 	if (generate_stbl) {
 		if ((id > 0 && id < 6) || (id >= 20 && id < 40) || (id > 40 && id < 46) || (id > 50 && id < 56))
