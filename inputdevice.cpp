@@ -1498,12 +1498,39 @@ static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 	if (uaeboard_bank.baseaddr) {
 		uae_u8 tmp[16];
 
+/*
+
+	00 W Misc bit flags
+		- Bit 0 = mouse is currently out of Amiga window bounds
+		  (Below mouse X / Y value can be out of bounds, negative or too large)
+		- Bit 1 = mouse coordinate / button state changed
+		- Bit 2 = window size changed
+		- Bit 15 = bit set = activated
+	02 W PC Mouse absolute X position relative to emulation top / left corner
+	04 W PC Mouse absolute Y position relative to emulation top / left corner
+	06 W PC Mouse relative wheel (counter that counts up or down)
+	08 W PC Mouse relative horizontal wheel (same as above)
+	0A W PC Mouse button flags (bit 0 set: left button pressed, bit 1 = right, and so on)
+
+	10 W PC emulation window width (Host OS pixels)
+	12 W PC emulation window height (Host OS pixels)
+	14 W RTG hardware emulation width (Amiga pixels)
+	16 W RTG hardware emulation height (Amiga pixels)
+	
+	20 W Amiga Mouse X (write-only)
+	22 W Amiga Mouse Y (write-only)
+
+	Big endian. All read only except last two.
+	Changed bit = bit automatically clears when Misc value is read.
+
+*/
+
 		uae_u8 *p = uaeboard_bank.baseaddr + 0x200;
 		memcpy(tmp, p + 2, 2 * 5);
 
 		// status
-		p[0] = 0;
-		p[1] = 0;
+		p[0] = 0x00 | (currprefs.input_tablet != 0 ? 0x80 : 0x00);
+		p[1] = 0x00;
 		// host x
 		p[2 * 1 + 0] = x >> 8;
 		p[2 * 1 + 1] = (uae_u8)x;
@@ -1538,8 +1565,8 @@ static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 			p[2 * 2 + 0] = picasso96_state.Width >> 8;
 			p[2 * 2 + 1] = (uae_u8)picasso96_state.Width;
 			// RTG resolution height
-			p[2 * 3 + 0] = picasso96_state.Height >> 8;
-			p[2 * 3 + 1] = (uae_u8)picasso96_state.Height;
+			p[3 * 2 + 0] = picasso96_state.Height >> 8;
+			p[3 * 2 + 1] = (uae_u8)picasso96_state.Height;
 		} else {
 			p[2 * 0 + 0] = 0;
 			p[2 * 0 + 1] = 0;
@@ -1557,6 +1584,20 @@ static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 		}
 	}
 }
+
+void mousehack_write(int reg, uae_u16 val)
+{
+	switch (reg)
+	{
+		case 0x20:
+		write_log(_T("Mouse X = %d\n"), val);
+		break;
+		case 0x22:
+		write_log(_T("Mouse Y = %d\n"), val);
+		break;
+	}
+}
+
 
 #if 0
 static void inputdevice_mh_abs_v36 (int x, int y)
