@@ -319,7 +319,6 @@ static bool handle_ca(struct scsi_data *sd)
 			sd->sense_len = 0x12;
 		}
 		sd->unit_attention = 0;
-		copysense(sd);
 		return true;
 	}
 
@@ -362,6 +361,7 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 		if (handle_ca(sd)) {
 			if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
 				scsi_cd_emulate(sd->cd_emu_unit, sd->cmd, 0, 0, 0, 0, 0, 0, 0, sd->atapi); /* ack request sense */
+				copysense(sd);
 			} else {
 				sd->status = scsi_cd_emulate(sd->cd_emu_unit, sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len, sd->atapi);
 				copyreply(sd);
@@ -375,6 +375,7 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 		if (handle_ca(sd)) {
 			if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
 				scsi_hd_emulate(&sd->hfd->hfd, sd->hfd, sd->cmd, 0, 0, 0, 0, 0, sd->sense, &sd->sense_len);
+				copysense(sd);
 			} else {
 				sd->status = scsi_hd_emulate(&sd->hfd->hfd, sd->hfd,
 					sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
@@ -389,6 +390,7 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 		if (handle_ca(sd)) {
 			if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
 				scsi_tape_emulate(sd->tape, sd->cmd, 0, 0, 0, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len); /* get request sense extra bits */
+				copysense(sd);
 			} else {
 				sd->status = scsi_tape_emulate(sd->tape,
 					sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
