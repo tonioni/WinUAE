@@ -5962,8 +5962,6 @@ end:
 #ifdef RETROPLATFORM
 	rp_free ();
 #endif
-	if (hWinUAEKey)
-		RegCloseKey (hWinUAEKey);
 	CloseHandle (hMutex);
 	WIN32_CleanupLibraries ();
 	WIN32_UnregisterClasses ();
@@ -5972,6 +5970,8 @@ end:
 	//_CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
 #endif
 	close_console();
+	if (hWinUAEKey)
+		RegCloseKey(hWinUAEKey);
 	_fcloseall();
 	for (i = 0; i < argc; i++)
 		xfree (argv[i]);
