@@ -27,7 +27,7 @@
 #include "parser.h"
 
 #define SERIALLOGGING 0
-#define SERIALDEBUG 3 /* 0, 1, 2 3 */
+#define SERIALDEBUG 1 /* 0, 1, 2 3 */
 #define SERIALHSDEBUG 0
 #define SERIAL_HSYNC_BEFORE_OVERFLOW 200
 

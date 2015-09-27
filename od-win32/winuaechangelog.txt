@@ -1,4 +1,20 @@
 
+Beta 14:
+
+- 64-bit JIT fixes. JIT FPU also fixed. (Frode)
+- RDB parser dumps block contents to the log if parsing fails.
+- SCSI tape request sense tape position bits (end/beginning) was not reported correctly (b7)
+- UAE devices (uaeserial, uaescsi and so on) are now supported under KS 1.2.
+- Directory harddrives and uaehf.device is now KS 1.2 automount/boot capable.
+  KS 1.2 HD boot hack from Multi Evolution driver.
+
+KS 1.2 boot notes:
+- Logic reverse engineered from Multi Evolution SCSI driver.
+- First drive in Harddrives panel is boot drive, even if it has lower boot priority than other drives.
+- If boot priority = -128 (no autoboot): don't enable fake DF0: boot disk hack.
+- Ugly hack. Temporarily patches DoIO() to inject fake df0: boot block and PutMsg() to get control after
+  dos has been initialized.
+
 Beta 13:
 
 - SCSI emulation INQUIRY command didn't clear old data in output buffer (b7)

@@ -811,6 +811,9 @@
     <ClCompile Include="..\..\vm.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\cpuemu_50.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">
