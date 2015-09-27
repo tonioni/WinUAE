@@ -53,7 +53,7 @@
 #define BOARD_NONAUTOCONFIG_AFTER_Z3 6
 #define BOARD_IGNORE 7
 
-#define KS12_BOOT_HACK 0
+#define KS12_BOOT_HACK 1
 
 #define EXP_DEBUG 0
 
@@ -1418,18 +1418,6 @@ static addrbank *expamem_map_filesys (void)
 #define FILESYS_BOOTPOINT 0x01e6
 #define FILESYS_DIAGAREA 0x2000
 
-static void fixromoffset(uae_u8 *p, int offset)
-{
-	uaecptr a;
-
-	a = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3] << 0);
-	a += offset;
-	p[0] = a >> 24;
-	p[1] = a >> 16;
-	p[2] = a >> 8;
-	p[3] = a >> 0;
-}
-
 static addrbank* expamem_init_filesys (int devnum)
 {
 	bool ks12 = ks12orolder();
@@ -1476,24 +1464,38 @@ static addrbank* expamem_init_filesys (int devnum)
 	do_put_mem_long ((uae_u32 *)(expamem + FILESYS_DIAGAREA + FILESYS_BOOTPOINT + 2), EXPANSION_bootcode);
 
 #if KS12_BOOT_HACK
-	for (int i = 0; i < 65536 - 26; i++) {
-		uae_u8 *romp = rtarea_bank.baseaddr + i;
-		if (romp[0] == 0x4a && romp[1] == 0xfc) {
-			romp[2] = 0;
-			romp[3] = 0;
-			romp[4] = 0;
-			romp[5] = 0;
-			if (ks12) {
-				// relocate struct resident
-				fixromoffset(romp + 2, i);
-				fixromoffset(romp + 6, i);
-				fixromoffset(romp + 14, i);
-				fixromoffset(romp + 18, i);
-				fixromoffset(romp + 22, i);
-			}
-		}
+	if (ks12) {
+		uaecptr name = ds(_T("UAE boot"));
+		align(2);
+		uaecptr code = here();
+		// allocate fake diagarea
+		dl(0x48e73f3e); // movem.l d2-d7/a2-a6,-(sp)
+		dw(0x203c); // move.l #x,d0
+		dl(0x0300);
+		dw(0x7201); // moveq #1,d1
+		dl(0x4eaeff3a); // jsr -0xc6(a6)
+		dw(0x2440); // move.l d0,a2 ;diag area
+		dw(0x9bcd); // sub.l a5,a5 ;expansionbase
+		dw(0x97cb); // sub.l a3,a3 ;configdev
+		dw(0x4eb9); // jsr
+		dl(ROM_filesys_diagentry);
+		dl(0x4cdf7cfc); // movem.l (sp)+,d2-d7/a2-a6
+		dw(0x4e75);
+		// struct Resident
+		uaecptr addr = here();
+		dw(0x4afc);
+		dl(addr);
+		dl(addr + 26);
+		db(1); // RTF_COLDSTART
+		db(1); // version
+		db(0); // NT_UNKNOWN
+		db(0); // priority
+		dl(name);
+		dl(name);
+		dl(code);
 	}
 #endif
+
 	memcpy (filesys_bank.baseaddr, expamem, 0x3000);
 	return NULL;
 }
@@ -2006,10 +2008,10 @@ void expamem_reset (void)
 	/* check if Kickstart version is below 1.3 */
 	if (ks12orolder() && do_mount) {
 		/* warn user */
-		write_log (_T("Kickstart version is below 1.3!  Disabling automount devices.\n"));
 #if KS12_BOOT_HACK
 		do_mount = -1;
 #else
+		write_log(_T("Kickstart version is below 1.3!  Disabling automount devices.\n"));
 		do_mount = 0;
 #endif
 	}

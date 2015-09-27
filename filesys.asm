@@ -35,8 +35,9 @@ PP_FSPTR = 404
 PP_ADDTOFSRES = 408
 PP_FSRES = 412
 PP_FSRES_CREATED = 416
-PP_EXPLIB = 420
-PP_FSHDSTART = 424
+PP_DEVICEPROC = 420
+PP_EXPLIB = 424
+PP_FSHDSTART = 428
 PP_TOTAL = (PP_FSHDSTART+140)
 
 NOTIFY_CLASS = $40000000
@@ -197,7 +198,7 @@ FSIN_init_units:
 	bcc.b FSIN_units_ok
 	move.l d6,-(sp)
 FSIN_nextsub:
-	moveq #1,d7
+	move.l $110(a5),d7
 	tst.w d5
 	beq.s .oldks
 	bset #2,d7
@@ -205,6 +206,7 @@ FSIN_nextsub:
 	move.l a3,a0
 	bsr.w make_dev
 	move.l (sp)+,a3
+	move.l d1,PP_DEVICEPROC(a3)
 	cmp.l #-2,d0
 	beq.s FSIN_nomoresub
 	swap d6
@@ -1006,7 +1008,8 @@ action_exall
 
 	; mount harddrives, virtual or hdf
 
-make_dev: ; IN: A0 param_packet, D6: unit_no, D7: b0=autoboot,b1=onthefly,b2=v36+
+make_dev: ; IN: A0 param_packet, D6: unit_no
+; D7: b0=autoboot,b1=onthefly,b2=v36+,b3=force manual add
 	; A4: expansionbase
 
 	bsr.w fsres
@@ -1119,6 +1122,8 @@ MKDV_is_filesys:
 	move.l d0,36(a3)       ; dn_GlobalVec
 
 MKDV_doboot:
+	btst #3,d7
+	bne.s MKDV_noboot
 	btst #0,d7
 	beq.b MKDV_noboot
 	cmp.b #-128,d3
@@ -1138,10 +1143,12 @@ MKDV_doboot:
 	jsr -$0084(a6) ;Forbid
 	jsr  -270(a6) ; Enqueue()
 	jsr -$008a(a6) ;Permit
+	moveq #0,d1
 	moveq #0,d0
 	rts
 
 MKDV_noboot:
+	moveq #0,d3
 	move.l a1,a2 ; bootnode
 	move.l a3,a0 ; parmpacket
 	moveq #0,d1
@@ -1167,6 +1174,7 @@ MKDV_noboot:
 	tst.b -3(a0,d2.l)
 	bne.s .devpr1
 	move.l 4.w,a6
+	add.l #4100,d2
 	move.l d2,d0
 	moveq #1,d1
 	jsr AllocMem(a6)
@@ -1185,7 +1193,12 @@ MKDV_noboot:
 	jsr -$0228(a6) ; OpenLibrary
 	move.l d0,a6
 	move.l a2,d1
-	jsr -$0AE(a6) ; DeviceProc (start fs handler, ignore return code)
+	move.l sp,d3
+	; deviceproc needs lots of stack
+	lea 4100(a2),sp
+	jsr -$0AE(a6) ; DeviceProc (start fs handler)
+	move.l d3,sp
+	move.l d1,d3
 	move.l a6,a1
 	move.l 4.w,a6
 	jsr -$019e(a6); CloseLibrary
@@ -1193,6 +1206,7 @@ MKDV_noboot:
 	move.l d2,d0
 	jsr FreeMem(a6)
 .noproc
+	move.l d3,d1
 	moveq #0,d0
 	rts
 
@@ -2676,6 +2690,10 @@ debuggerproc
 	jsr -$19e(a6)
 	rts
 
+bootres_code:
+	
+	rts
+
 getrtbase:
 	lea start-8-4(pc),a0
 	and.l #$FFFF,d0
@@ -2705,4 +2723,7 @@ gfxlibname: dc.b 'graphics.library',0
 explibname: dc.b 'expansion.library',0
 fsresname: dc.b 'FileSystem.resource',0
 fchipname: dc.b 'megachip memory',0
+	even
+rom_end:
+
 	END
