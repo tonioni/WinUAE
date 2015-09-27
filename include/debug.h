@@ -91,6 +91,7 @@ extern struct breakpoint_node bpnodes[BREAKPOINT_TOTAL];
 #define MW_MASK_SPR_5			0x01000000
 #define MW_MASK_SPR_6			0x02000000
 #define MW_MASK_SPR_7			0x04000000
+#define MW_MASK_NONE			0x08000000
 #define MW_MASK_ALL				(0x08000000 - 1)
 
 #define MEMWATCH_TOTAL 20

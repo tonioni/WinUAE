@@ -2632,6 +2632,7 @@ struct mw_acc
 static const struct mw_acc memwatch_access_masks[] =
 {
 	{ MW_MASK_ALL, _T("ALL") },
+	{ MW_MASK_NONE, _T("NONE") },
 	{ MW_MASK_ALL & ~MW_MASK_CPU, _T("DMA") },
 	{ MW_MASK_BLITTER_A | MW_MASK_BLITTER_B | MW_MASK_BLITTER_C | MW_MASK_BLITTER_D, _T("BLT") },
 	{ MW_MASK_AUDIO_0 | MW_MASK_AUDIO_1 | MW_MASK_AUDIO_2 | MW_MASK_AUDIO_3, _T("AUD") },
