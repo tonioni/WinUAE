@@ -638,7 +638,7 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 			// this is flash and also contains IO
 			shmaddr=natmem_offset + 0xf00000;
 			got = true;
-			readonly = true;
+			readonly = false;
 		} else if (!_tcscmp(shmids[shmid].name, _T("rtarea"))) {
 			shmaddr = natmem_offset + rtarea_base;
 			got = true;
