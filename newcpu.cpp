@@ -5374,10 +5374,12 @@ static void addmovemreg (TCHAR *out, int *prevreg, int *lastreg, int *first, int
 	if (reg < 0 || fpmode == 2 || (*prevreg) + 1 != reg || (reg & 8) != ((*prevreg & 8))) {
 		_stprintf (p, _T("%s%s"), (*first) ? _T("") : _T("/"), movemregs[*lastreg]);
 		p = p + _tcslen (p);
-		if ((*lastreg) + 2 == reg) {
-			_stprintf (p, _T("/%s"), movemregs[*prevreg]);
-		} else if ((*lastreg) != (*prevreg)) {
-			_stprintf (p, _T("-%s"), movemregs[*prevreg]);
+		if (*lastreg != *prevreg) {
+			if ((*lastreg) + 2 == reg) {
+				_stprintf(p, _T("/%s"), movemregs[*prevreg]);
+			} else if ((*lastreg) != (*prevreg)) {
+				_stprintf(p, _T("-%s"), movemregs[*prevreg]);
+			}
 		}
 		*lastreg = reg;
 		*first = 0;
