@@ -1,4 +1,25 @@
 
+Beta 15:
+
+- KS1.2 boot hack improved, now also works with KS 1.1, KS 1.0 and even with 0.7 beta!
+- Added old style >2M chip RAM support back as a fallback, used when new method can't extend chip ram size.
+- Fixed CAS2 instruction comparison failed case, memory operands should be written to Dc, not Du.
+- Support DSKLEN writes while disk DMA is active, update only remaining DMA length without modifying DMA state (undocumented feature).
+- If ROM scanner finds same ROM image multiple times, select plain file version if possible (not in archive).
+
+Pre-KS 1.2 boot notes:
+- KS 1.1 and older DOS is pure BCPL. Added separate BCPL entry point to directory filesystem
+  handler that makes BCPL DOS happy.
+- Expansion.library does not exist: MakeDosNode and AddDosNode replacements added.
+- Directory filesystem automount/boot fully supported.
+- Hardfiles work more or less same as with KS 1.3.
+- Boot priority sorting is not supported, first drive is always boot drive. (This can change in the future,
+  don't depend on current behavior!)
+- WB 1.3 L:FastFileSystem is supported with 1.2 and older versions. (Automatically puts it inside BCPL wrapper and
+  patches 1.2+ only CopyMem() calls)
+- BCPL stuff from AROS m68k. Most of DOS BCPL was re-implemented and documented by Jason and me in AROS m68k.
+- This completes one of the most pointless features ever. Until next most pointless feature.
+
 Beta 14:
 
 - 64-bit JIT fixes. JIT FPU also fixed. (Frode)

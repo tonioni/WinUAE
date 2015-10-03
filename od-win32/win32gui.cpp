@@ -1469,30 +1469,47 @@ static void abspathtorelative (TCHAR *name)
 
 static int addrom (UAEREG *fkey, struct romdata *rd, const TCHAR *name)
 {
-	TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
+	TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH], tmp3[MAX_DPATH];
+	TCHAR pathname[MAX_DPATH];
 
 	_stprintf (tmp1, _T("ROM_%03d"), rd->id);
 	if (rd->group) {
 		TCHAR *p = tmp1 + _tcslen (tmp1);
 		_stprintf (p, _T("_%02d_%02d"), rd->group >> 16, rd->group & 65535);
 	}
-	if (regexists (fkey, tmp1))
-		return 0;
 	getromname (rd, tmp2);
+	pathname[0] = 0;
 	if (name) {
-		TCHAR name2[MAX_DPATH];
-		_tcscpy (name2, name);
-		_tcscat (tmp2, _T(" / \""));
+		_tcscpy (pathname, name);
 		if (getregmode ())
-			abspathtorelative (name2);
-		_tcscat (tmp2, name2);
-		_tcscat (tmp2, _T("\""));
+			abspathtorelative (pathname);
 	}
 	if (rd->crc32 == 0xffffffff) {
 		if (rd->configname)
 			_stprintf (tmp2, _T(":%s"), rd->configname);
 		else
 			_stprintf (tmp2, _T(":ROM_%03d"), rd->id);
+	}
+	int size = sizeof tmp3 / sizeof(TCHAR);
+	if (regquerystr(fkey, tmp1, tmp3, &size)) {
+		TCHAR *s = _tcschr(tmp3, '\"');
+		if (s && _tcslen(s) > 1) {
+			TCHAR *s2 = s + 1;
+			s = _tcschr(s2, '\"');
+			if (s)
+				*s = 0;
+			// select plain file if previously found was inside archive
+			if (my_existsfile(s2) && !my_existsfile(pathname)) {
+				_tcscpy(pathname, s2);
+			} else {
+				return 1;
+			}
+		}
+	}
+	if (pathname[0]) {
+		_tcscat(tmp2, _T(" / \""));
+		_tcscat(tmp2, pathname);
+		_tcscat(tmp2, _T("\""));
 	}
 	if (!regsetstr (fkey, tmp1, tmp2))
 		return 0;
