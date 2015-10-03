@@ -4947,8 +4947,8 @@ bccl_not68020:
 			printf ("\t}}\n");
 			pop_braces (old_brace_level);
 			printf ("\tif (! GET_ZFLG ()) {\n");
-			printf ("\tm68k_dreg (regs, (extra >> 6) & 7) = (m68k_dreg (regs, (extra >> 6) & 7) & ~0xffff) | (dst2 & 0xffff);\n");
-			printf ("\tm68k_dreg (regs, (extra >> 22) & 7) = (m68k_dreg (regs, (extra >> 22) & 7) & ~0xffff) | (dst1 & 0xffff);\n");
+			printf ("\tm68k_dreg (regs, (extra >> 0) & 7) = (m68k_dreg (regs, (extra >> 6) & 7) & ~0xffff) | (dst2 & 0xffff);\n");
+			printf ("\tm68k_dreg (regs, (extra >> 16) & 7) = (m68k_dreg (regs, (extra >> 22) & 7) & ~0xffff) | (dst1 & 0xffff);\n");
 			printf ("\t}\n");
 		} else {
 			int old_brace_level = n_braces;
@@ -4962,8 +4962,8 @@ bccl_not68020:
 			printf ("\t}}\n");
 			pop_braces (old_brace_level);
 			printf ("\tif (! GET_ZFLG ()) {\n");
-			printf ("\tm68k_dreg (regs, (extra >> 6) & 7) = dst2;\n");
-			printf ("\tm68k_dreg (regs, (extra >> 22) & 7) = dst1;\n");
+			printf ("\tm68k_dreg (regs, (extra >> 0) & 7) = dst2;\n");
+			printf ("\tm68k_dreg (regs, (extra >> 16) & 7) = dst1;\n");
 			printf ("\t}\n");
 		}
 		break;
