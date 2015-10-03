@@ -3785,7 +3785,12 @@ void DSKLEN (uae_u16 v, int hpos)
 	dsklen = v;
 	dsklength2 = dsklength = dsklen & 0x3fff;
 
-	if ((dsklen & 0x8000) && (prev & 0x8000)) {
+	if ((v & 0x8000) && (prev & 0x8000)) {
+		if (dskdmaen == DSKDMA_READ) {
+			// update only currently active DMA length, don't change DMA state
+			write_log(_T("warning: Disk read DMA length rewrite %d -> %d\n"), prev & 0x3fff, v & 0x3fff);
+			return;
+		}
 		dskdmaen = DSKDMA_READ;
 		DISK_start ();
 	}
@@ -3821,6 +3826,10 @@ void DSKLEN (uae_u16 v, int hpos)
 			return;
 		if (dsklength == 1) {
 			disk_dmafinished ();
+			return;
+		}
+		if (dskdmaen == DSKDMA_WRITE) {
+			write_log(_T("warning: Disk write DMA length rewrite %d -> %d\n"), prev & 0x3fff, v & 0x3fff);
 			return;
 		}
 		dskdmaen = DSKDMA_WRITE;
@@ -4019,7 +4028,7 @@ void DSKSYNC (int hpos, uae_u16 v)
 
 STATIC_INLINE bool iswrite (void)
 {
-	return dskdmaen == 3;
+	return dskdmaen == DSKDMA_WRITE;
 }
 
 void DSKDAT (uae_u16 v)
