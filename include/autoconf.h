@@ -50,7 +50,7 @@ extern uaecptr ROM_filesys_resname, ROM_filesys_resid;
 extern uaecptr ROM_filesys_diagentry;
 extern uaecptr ROM_hardfile_resname, ROM_hardfile_resid;
 extern uaecptr ROM_hardfile_init;
-extern uaecptr filesys_initcode;
+extern uaecptr filesys_initcode, filesys_initcode_ptr;
 
 extern int is_hardfile (int unit_no);
 extern int nr_units (void);

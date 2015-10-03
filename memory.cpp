@@ -1530,8 +1530,12 @@ chk_sum:
 #endif
 
 	kickstart_version = (kickmem_bank.baseaddr[12] << 8) | kickmem_bank.baseaddr[13];
-	if (kickstart_version == 0xffff)
-		kickstart_version = 0;
+	if (kickstart_version == 0xffff) {
+		// 1.0-1.1 and older
+		kickstart_version = (kickmem_bank.baseaddr[16] << 8) | kickmem_bank.baseaddr[17];
+		if (kickstart_version > 33)
+			kickstart_version = 0;
+	}
 	zfile_fclose (f);
 	return 1;
 err:

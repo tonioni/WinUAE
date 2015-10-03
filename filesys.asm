@@ -24,6 +24,8 @@
 ; 2009.12.27 console hook
 ; 2010.05.27 Z3Chip
 ; 2011.12.17 built-in CDFS support
+; 2015.09.27 KS 1.2 boot hack supported
+; 2015.09.28 KS 1.2 boot hack improved, 1.1 and older BCPL-only DOS support.
 
 AllocMem = -198
 FreeMem = -210
@@ -48,6 +50,7 @@ NRF_WAIT_REPLY = 8
 NRF_NOTIFY_INITIAL = 16
 NRF_MAGIC = $80000000
 
+; normal filehandler segment entrypoint
 	dc.l 16 								; 4
 our_seglist:
 	dc.l 0 									; 8 /* NextSeg */
@@ -61,7 +64,7 @@ startjmp:
 	dc.l exter_server-start		;4 28
 	dc.l bootcode-start			;5 32
 	dc.l setup_exter-start		;6 36
-	dc.l 0      				;7 40
+	dc.l bcplwrapper-start ;7 40
 	dc.l clipboard_init-start 	;8 44
 	;52
 
@@ -73,6 +76,25 @@ bootcode:
 	move.l d0,a0
 	jsr (a0)
 	rts
+
+; BCPL filehandler segment entry point
+; for KS 1.1 and older.
+	cnop 0,4
+	dc.l (bcpl_end-bcpl_start)/4+1
+our_bcpl_seglist:
+	dc.l 0
+	dc.l (bcpl_end-bcpl_start)/4+1
+bcpl_start:
+	; d1 = startup packet
+	lsl.l #2,d1
+	move.l d1,d7
+	bra.w filesys_mainloop_bcpl
+	cnop 0,4
+	dc.l 0
+	dc.l 1
+	dc.l 4
+	dc.l 2
+bcpl_end:
 
 residenthack
 	movem.l d0-d2/a0-a2/a6,-(sp)
@@ -151,6 +173,10 @@ filesys_init:
 	move.w #$FFEC,d0 ; filesys base
 	bsr getrtbase
 	move.l (a0),a5
+	moveq #0,d5
+	moveq #0,d0
+	cmp.w #33,20(a6) ; 1.1 or older?
+	bcs.s FSIN_explibok
 	lea.l explibname(pc),a1 ; expansion lib name
 	moveq #36,d0
 	moveq #1,d5
@@ -166,6 +192,8 @@ FSIN_explibok:
 
 	; create fake configdev
 	exg a4,a6
+	move.l a6,d0
+	beq.s .nocd
 	jsr -$030(a6) ;expansion/AllocConfigDev
 	tst.l d0
 	beq.s .nocd
@@ -226,8 +254,14 @@ FSIN_units_ok:
 
 FSIN_none:
 	move.l 4.w,a6
+	move.l a4,d0
+	beq.s .noexpclose
 	move.l a4,a1
 	jsr -414(a6) ; CloseLibrary
+.noexpclose
+
+	cmp.w #34,20(a6) ; 1.2 or older?
+	bcs.s FSIN_tooold
 
 	; add MegaChipRAM
 	moveq #3,d4 ; MEMF_CHIP | MEMF_PUBLIC
@@ -238,6 +272,7 @@ FSIN_ksold
 	move.w #$FF80,d0
 	bsr.w getrtbase
 	jsr (a0) ; d1 = size, a1 = start address
+	move.l d0,d5
 	move.l a1,a0
 	move.l d1,d0
 	beq.s FSIN_fchip_done
@@ -246,6 +281,23 @@ FSIN_ksold
 	lea fchipname(pc),a1
 	jsr -618(a6) ; AddMemList
 FSIN_fchip_done
+
+	; add >2MB-6MB chip RAM to memory list (if not already done)
+	lea $210000,a1
+	; do not add if RAM detected already
+	jsr -$216(a6) ; TypeOfMem
+	tst.l d0
+	bne.s FSIN_chip_done
+	move.l d4,d1
+	moveq #-10,d2
+	move.l #$200000,a0
+	move.l d5,d0
+	sub.l a0,d0
+	bcs.b FSIN_chip_done
+	beq.b FSIN_chip_done
+	sub.l a1,a1
+	jsr -618(a6) ; AddMemList
+FSIN_chip_done
 
 	lea fstaskname(pc),a0
 	lea fsmounttask(pc),a1
@@ -256,6 +308,8 @@ FSIN_fchip_done
 	move.w #$FF48,d0 ; store task pointer
 	bsr.w getrtbase
 	jsr (a0)
+
+FSIN_tooold
 
 	movem.l (sp)+,d0-d7/a0-a6
 general_ret:
@@ -1009,7 +1063,7 @@ action_exall
 	; mount harddrives, virtual or hdf
 
 make_dev: ; IN: A0 param_packet, D6: unit_no
-; D7: b0=autoboot,b1=onthefly,b2=v36+,b3=force manual add
+	; D7: b0=autoboot,b1=onthefly,b2=v36+,b3=force manual add
 	; A4: expansionbase
 
 	bsr.w fsres
@@ -1064,7 +1118,7 @@ mountalways
 do_mount:
 	move.l a4,a6
 	move.l a0,-(sp)
-	jsr -144(a6) ; MakeDosNode()
+	bsr.w makedosnode
 	move.l (sp)+,a0 ; parmpacket
 	move.l a0,a1
 	move.l d0,a3 ; devicenode
@@ -1103,6 +1157,13 @@ nordbfs2:
 	tst.l d3
 	bmi.w general_ret
 
+	move.l 4.w,a6
+	move.l a1,-(sp)
+	lea bcplfsname(pc),a1
+	jsr -$126(a6) ; FindTask
+	move.l (sp)+,a1
+	move.l d0,d1
+
 	move.w #$FF18,d0 ; update dn_SegList if needed (filesys_dev_bootfilesys)
 	bsr.w getrtbase
 	jsr (a0)
@@ -1114,12 +1175,17 @@ nordbfs2:
 
 MKDV_is_filesys:
 	move.l #6000,20(a3)     ; dn_StackSize
-	lea.l our_seglist(pc),a0
+	lea	our_seglist(pc),a0
+	moveq #-1,d0
+	move.l a4,d1
+	bne.s .expgv
+	lea our_bcpl_seglist(pc),a0
+	moveq #0,d0
+.expgv
+	move.l d0,36(a3)       ; dn_GlobalVec
 	move.l a0,d0
 	lsr.l  #2,d0
 	move.l d0,32(a3)        ; dn_SegList
-	moveq #-1,d0
-	move.l d0,36(a3)       ; dn_GlobalVec
 
 MKDV_doboot:
 	btst #3,d7
@@ -1161,7 +1227,7 @@ MKDV_noboot:
 .nob
 	moveq #-128,d0
 	move.l a4,a6 ; expansion base
-	jsr  -150(a6) ; AddDosNode
+	bsr.w adddosnode
 	btst #1,d7
 	beq.s .noproc
 	btst #2,d7
@@ -1189,8 +1255,7 @@ MKDV_noboot:
 	clr.b (a1)
 	move.l 4.w,a6
 	lea doslibname(pc),a1
-	moveq #0,d0
-	jsr -$0228(a6) ; OpenLibrary
+	jsr -$0198(a6) ; OldOpenLibrary
 	move.l d0,a6
 	move.l a2,d1
 	move.l sp,d3
@@ -1265,6 +1330,8 @@ clockreset:
 .cr	rts
 
 filesys_mainloop:
+	moveq #0,d7
+filesys_mainloop_bcpl:
 	move.l 4.w,a6
 	sub.l a1,a1
 	jsr -294(a6) ; FindTask
@@ -1273,8 +1340,7 @@ filesys_mainloop:
 
 	; Open DOS library
 	lea.l doslibname(pc),a1
-	moveq.l #0,d0
-	jsr -552(a6) ; OpenLibrary
+	jsr -$198(a6) ; OpenLibrary
 	move.l d0,a2
 
 	; Allocate some memory. Usage:
@@ -1321,12 +1387,15 @@ filesys_mainloop:
 	moveq.l #0,d5 ; No commands queued.
 
 	; Fetch our startup packet
+	move.l d7,d3
+	bne.s .got_bcpl
 	move.l a5,a0
 	jsr -384(a6) ; WaitPort
 	move.l a5,a0
 	jsr -372(a6) ; GetMsg
 	move.l d0,a4
-	move.l 10(a4),d3 ; ln_Name
+	move.l 10(a4),d3 ; ln_Name -> startup dos packet
+.got_bcpl
 	move.w #$FF40,d0 ; startup_handler
 	bsr.w getrtbase
 	moveq.l #0,d0
@@ -2694,6 +2763,165 @@ bootres_code:
 	
 	rts
 
+; KS 1.1 and older don't have expansion.library
+; emulate missing functions
+
+makedosnode:
+	cmp.w #0,a6
+	beq.s makedosnodec
+	jsr -144(a6) ; MakeDosNode()
+	rts
+makedosnodec
+	movem.l d2-d7/a2-a6,-(sp)
+	move.l a0,a2
+	move.l 4.w,a6
+	move.l #44+16+4*17+128,d0
+	move.l #65536+1,d1
+	jsr -$c6(a6)
+	move.l d0,a3 ;devicenode
+	lea 44(a3),a4 ;fssm
+	lea 16(a4),a5 ;environ
+	lea 4*17(a5),a6
+
+	move.l a5,a1
+	lea 4*4(a2),a0
+	moveq #17-1,d0
+.cenv
+	move.l (a0)+,(a1)+
+	dbf d0,.cenv
+
+	move.l a6,a0
+	move.l (a2),a1
+	addq.l #1,a0
+.copy1
+	move.b (a1)+,(a0)+
+	bne.s .copy1
+	move.l a0,d0
+	addq.l #3,d0
+	and.b #~3,d0
+	move.l d0,d6
+	move.l a0,d0
+	subq.l #2,d0
+	sub.l a6,d0
+	move.b d0,(a6)
+
+	move.l d6,a0
+	move.l 1*4(a2),a1
+	addq.l #1,a0
+.copy2
+	move.b (a1)+,(a0)+
+	bne.s .copy2
+	move.l a0,d0
+	subq.l #2,d0
+	sub.l d6,d0
+	move.l d6,a0
+	move.b d0,(a0)
+
+	move.l 2*4(a2),(a4) ;fssm_unit
+	move.l d6,d0
+	lsr.l #2,d0
+	move.l d0,4(a4) ;fssm_device
+	lea 4*4(a2),a0
+	move.l a5,d0
+	lsr.l #2,d0
+	move.l d0,8(a4) ;fssm_Environ
+	move.l 3*4(a2),12(a4) ;fssm_flags
+
+	move.l a4,d0
+	lsr.l #2,d0
+	move.l d0,28(a3) ;dn_startup
+	move.l a6,d0
+	lsr.l #2,d0
+	move.l d0,40(a3) ;dn_name
+	moveq #10,d0
+	move.l d0,24(a3) ;dn_priority
+	move.l #4000,20(a3) ;dn_stack
+	
+	move.l a3,d0
+	
+	movem.l (sp)+,d2-d7/a2-a6
+	rts
+
+adddosnode:
+	;d0 = bootpri
+	;d1 = flags
+	;a0 = devicenode
+	cmp.w #0,a6
+	beq.s adddosnodec
+	jsr  -150(a6) ; AddDosNode
+	rts
+adddosnodec
+	movem.l d2-d4/a2-a6,-(sp)
+	move.l a0,a2
+	move.l 4.w,a6
+	lea doslibname(pc),a1
+	jsr -$0198(a6) ; OldOpenLibrary
+	move.l d0,a5
+
+	move.l 34(a5),a0 ;dl_root
+	move.l 24(a0),d0 ;rn_info
+	lsl.l #2,d0
+	move.l d0,a3 ;dosinfo
+	
+	move.l 4(a3),(a2)
+	move.l a2,d0
+	lsr.l #2,d0
+	move.l d0,4(a3)
+
+	move.l a5,a1
+	move.l 4.w,a6
+	jsr -$019e(a6); CloseLibrary
+	movem.l (sp)+,d2-d4/a2-a6
+	rts
+
+	;wrap BCPL filesystem call to non-BCPL filesystem
+	;d1 = dospacket that BCPL entry point fetched
+	;We need to put dospacket back in the pr_MsgPort.
+
+	cnop 0,4
+	dc.l (bcplwrapper_end-bcplwrapper_start)/4+1
+bcplwrapper:
+	dc.l 0
+	dc.l (bcplwrapper_end-bcplwrapper_start)/4+1
+bcplwrapper_start:
+	move.l d1,d2
+	move.l 4.w,a6
+	sub.l a1,a1
+	jsr -$126(a6) ;FindTask
+	move.l d0,a0
+	lea 92(a0),a0 ;pr_MsgPort
+	lsl.l #2,d2
+	move.l d2,a1
+	move.l (a1),a1 ;dp_Link = Message
+	jsr -$16e(a6) ;PutMsg
+	move.l d2,d1
+	lea wb13ffspatches(pc),a1
+	move.w #$FF2C,d0
+	bsr.w getrtbase
+	jsr (a0)
+	jmp (a0)
+	;CopyMem() patches
+wb13ffspatches:
+	moveq #$30,d0
+	bra.s copymem
+	moveq #$28,d0
+	bra.s copymem
+	move.l d6,d0
+	bra.s copymem
+	move.l d6,d0
+copymem:
+	move.b (a0)+,(a1)+
+	subq.l #1,d0
+	bgt.s copymem
+	rts	
+
+	cnop 0,4
+	dc.l 0
+	dc.l 1
+	dc.l 4
+	dc.l 2
+bcplwrapper_end:
+
 getrtbase:
 	lea start-8-4(pc),a0
 	and.l #$FFFF,d0
@@ -2723,6 +2951,7 @@ gfxlibname: dc.b 'graphics.library',0
 explibname: dc.b 'expansion.library',0
 fsresname: dc.b 'FileSystem.resource',0
 fchipname: dc.b 'megachip memory',0
+bcplfsname: dc.b "File System",0
 	even
 rom_end:
 

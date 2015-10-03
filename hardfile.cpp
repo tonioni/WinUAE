@@ -2347,7 +2347,7 @@ void hardfile_reset (void)
 		if (hfpd->base && valid_address (hfpd->base, 36) && get_word (hfpd->base + 32) > 0) {
 			for (j = 0; j < MAX_ASYNC_REQUESTS; j++) {
 				uaecptr request;
-				if ((request = hfpd->d_request[i]))
+				if ((request = hfpd->d_request[j]))
 					abort_async (hfpd, request, 0, 0);
 			}
 		}
@@ -2395,12 +2395,8 @@ void hardfile_install (void)
 	dw (0);
 
 	/* initcode */
-#if 0
-	initcode = here ();
-	calltrap (deftrap (hardfile_init)); dw (RTS);
-#else
 	initcode = filesys_initcode;
-#endif
+
 	/* Open */
 	openfunc = here ();
 	calltrap (deftrap (hardfile_open)); dw (RTS);
@@ -2458,5 +2454,6 @@ void hardfile_install (void)
 	dl (0x00000100); /* ??? */
 	dl (functable);
 	dl (datatable);
+	filesys_initcode_ptr = here();
 	dl (initcode);
 }
