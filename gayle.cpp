@@ -1461,7 +1461,7 @@ static addrbank gayle_common_bank = {
 	gayle_common_lput, gayle_common_wput, gayle_common_bput,
 	gayle_common_xlate, gayle_common_check, NULL, NULL, _T("Gayle PCMCIA Common"),
 	gayle_common_lget, gayle_common_wget,
-	ABFLAG_RAM | ABFLAG_SAFE, 0, 0
+	ABFLAG_RAM | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 
