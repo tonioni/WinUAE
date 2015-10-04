@@ -62,6 +62,9 @@
     <Filter Include="x86">
       <UniqueIdentifier>{c9a4aeea-c63c-40e4-9da2-371acd5ea8fe}</UniqueIdentifier>
     </Filter>
+    <Filter Include="support">
+      <UniqueIdentifier>{fe9d96c8-c5ef-4f92-b9dc-79b5d3e4145c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ahidsound_dsonly.cpp">
@@ -813,6 +816,9 @@
     </ClCompile>
     <ClCompile Include="..\..\cpuemu_50.cpp">
       <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\support\time.cpp">
+      <Filter>support</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
