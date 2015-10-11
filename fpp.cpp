@@ -23,6 +23,8 @@
 
 #include "options.h"
 #include "memory.h"
+#include "uae/attributes.h"
+#include "uae/vm.h"
 #include "custom.h"
 #include "events.h"
 #include "newcpu.h"
@@ -35,11 +37,6 @@
 
 #ifdef WITH_SOFTFLOAT
 #include "softfloatx80.h"
-#endif
-
-#ifdef X86_MSVC_ASSEMBLY
-#define X86_MSVC_ASSEMBLY_FPU
-#define NATIVE_FPUCW
 #endif
 
 #define DEBUG_FPP 0
@@ -505,80 +502,115 @@ bool fpu_get_constant(fpdata *fp, int cr)
 	return fpu_get_constant_fp(fp, cr);
 }
 
-static void native_set_fpucw (uae_u32 m68k_cw)
-{
 #ifdef WITH_SOFTFLOAT
-	if (currprefs.fpu_softfloat) {
-		switch((m68k_cw >> 6) & 3)
-		{
-			case 0: // X
-			default: // undefined
-				fxstatus.float_rounding_precision = 80;
-			break;
-			case 1: // S
-				fxstatus.float_rounding_precision = 32;
-			break;
-			case 2: // D
-				fxstatus.float_rounding_precision = 64;
-			break;
-		}
-		switch((m68k_cw >> 4) & 3)
-		{
-			case 0: // to neareset
-				fxstatus.float_rounding_precision = float_round_nearest_even;
-			break;
-			case 1: // to zero
-				fxstatus.float_rounding_mode = float_round_to_zero;
-			break;
-			case 2: // to minus
-				fxstatus.float_rounding_mode = float_round_down;
-			break;
-			case 3: // to plus
-				fxstatus.float_rounding_mode = float_round_up;
-			break;
-		}
-	} else
+
+static inline void set_fpucw_softfloat(uae_u32 m68k_cw)
+{
+	switch((m68k_cw >> 6) & 3) {
+	case 0: // X
+	default: // undefined
+		fxstatus.float_rounding_precision = 80;
+		break;
+	case 1: // S
+		fxstatus.float_rounding_precision = 32;
+		break;
+	case 2: // D
+		fxstatus.float_rounding_precision = 64;
+		break;
+	}
+	switch((m68k_cw >> 4) & 3) {
+	case 0: // to neareset
+		fxstatus.float_rounding_precision = float_round_nearest_even;
+		break;
+	case 1: // to zero
+		fxstatus.float_rounding_mode = float_round_to_zero;
+		break;
+	case 2: // to minus
+		fxstatus.float_rounding_mode = float_round_down;
+		break;
+	case 3: // to plus
+		fxstatus.float_rounding_mode = float_round_up;
+		break;
+	}
+	return;
+}
+
+#endif /* WITH_SOFTFLOAT */
+
+#if defined(CPU_i386) || defined(CPU_x86_64)
+
+/* The main motivation for dynamically creating an x86(-64) function in
+ * memory is because MSVC (x64) does not allow you to use inline assembly,
+ * and the x86-64 versions of _control87/_controlfp functions only modifies
+ * SSE2 registers. */
+
+static uae_u16 x87_cw = 0;
+static char *x87_fldcw_code = NULL;
+typedef void (uae_cdecl *x87_fldcw_function)(void);
+
+static void init_fpucw_x87(void)
+{
+	if (x87_fldcw_code) {
+		return;
+	}
+	x87_fldcw_code = (char *) uae_vm_alloc(
+		uae_vm_page_size(), UAE_VM_32BIT, UAE_VM_READ_WRITE_EXECUTE);
+	char *c = x87_fldcw_code;
+	/* mov eax,0x0 */
+	*(c++) = 0xb8;
+	*(c++) = 0x00;
+	*(c++) = 0x00;
+	*(c++) = 0x00;
+	*(c++) = 0x00;
+#ifdef CPU_x86_64
+	/* Address override prefix */
+	*(c++) = 0x67;
 #endif
-	{
-#ifdef NATIVE_FPUCW
-#ifdef _WIN32
-		static int ex = 0;
-		// RN, RZ, RM, RP
-		static const unsigned int fp87_round[4] = { _RC_NEAR, _RC_CHOP, _RC_DOWN, _RC_UP };
-		// Extend X, Single S, Double D, Undefined
-		static const unsigned int fp87_prec[4] = { _PC_64 , _PC_24 , _PC_53, 0 };
-#ifdef WIN64
-		_controlfp (ex | fp87_round[(m68k_cw >> 4) & 3], _MCW_RC);
-#else
-		_control87 (ex | fp87_round[(m68k_cw >> 4) & 3] | fp87_prec[(m68k_cw >> 6) & 3], _MCW_RC | _MCW_PC);
-#endif
-#else
+	/* fldcw WORD PTR [eax+addr] */
+	*(c++) = 0xd9;
+	*(c++) = 0xa8;
+	*(c++) = (((uintptr_t) &x87_cw)      ) & 0xff;
+	*(c++) = (((uintptr_t) &x87_cw) >>  8) & 0xff;
+	*(c++) = (((uintptr_t) &x87_cw) >> 16) & 0xff;
+	*(c++) = (((uintptr_t) &x87_cw) >> 24) & 0xff;
+	/* ret */
+	*(c++) = 0xc3;
+	/* Write-protect the function */
+	uae_vm_protect(x87_fldcw_code, uae_vm_page_size(), UAE_VM_READ_EXECUTE);
+}
+
+static inline void set_fpucw_x87(uae_u32 m68k_cw)
+{
 	static const uae_u16 x87_cw_tab[] = {
 		0x137f, 0x1f7f, 0x177f, 0x1b7f,	/* Extended */
 		0x107f, 0x1c7f, 0x147f, 0x187f,	/* Single */
 		0x127f, 0x1e7f, 0x167f, 0x1a7f,	/* Double */
 		0x137f, 0x1f7f, 0x177f, 0x1b7f	/* undefined */
 	};
-#if USE_X86_FPUCW
-		uae_u16 x87_cw = x87_cw_tab[(m68k_cw >> 4) & 0xf];
+	x87_cw = x87_cw_tab[(m68k_cw >> 4) & 0xf];
+#if defined(X86_MSVC_ASSEMBLY) && 0
+	__asm { fldcw word ptr x87_cw }
+#elif defined(__GNUC__) && 0
+	__asm__("fldcw %0" : : "m" (*&x87_cw));
+#else
+	((x87_fldcw_function) x87_fldcw_code)();
+#endif
+}
 
-#if defined(X86_MSVC_ASSEMBLY)
-		__asm {
-			fldcw word ptr x87_cw
-		}
-#elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
-		__asm__ ("fldcw %0" : : "m" (*&x87_cw));
-#else
-		#warning floating point control not specified
-#endif
-#endif /* USE_X86_FPUCW */
-#endif
-#else
-#ifndef _MSC_VER
-#warning NATIVE_FPUCW not enabled
-#endif
-#endif
+#endif /* defined(CPU_i386) || defined(CPU_x86_64) */
+
+static void native_set_fpucw(uae_u32 m68k_cw)
+{
+#ifdef WITH_SOFTFLOAT
+	if (currprefs.fpu_softfloat) {
+		set_fpucw_softfloat(m68k_cw);
+		/* FIXME: consider removing return to *also* set x87 fpucw? */
+		return;
 	}
+#endif
+#if defined(CPU_i386) || defined(CPU_x86_64)
+	set_fpucw_x87(m68k_cw);
+#endif
 }
 
 typedef uae_s64 tointtype;
@@ -3102,6 +3134,10 @@ void fpuop_arithmetic (uae_u32 opcode, uae_u16 extra)
 
 void fpu_reset (void)
 {
+#if defined(CPU_i386) || defined(CPU_x86_64)
+	init_fpucw_x87();
+#endif
+
 	regs.fpcr = regs.fpsr = regs.fpiar = 0;
 	regs.fpu_exp_state = 0;
 	fpset (&regs.fp_result, 1);

@@ -12,6 +12,14 @@
 /* This file is intended to be included by external libraries as well,
  * so don't pull in too much UAE-specific stuff. */
 
+#ifdef _WIN32
+#define uae_cdecl __cdecl
+#elif defined(__GNUC__) && defined(__i386__)
+#define uae_cdecl __attribute__((cdecl))
+#else
+#define uae_cdecl
+#endif
+
 /* This attribute allows (some) compiles to emit warnings when incorrect
  * arguments are used with the format string. */
 
