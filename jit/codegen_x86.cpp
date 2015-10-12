@@ -212,6 +212,36 @@ static const uae_u8 need_to_preserve[]={0,0,0,1,0,1,1,1};
 #define x86_get_target()		get_target()
 #define x86_emit_failure(MSG)	jit_fail(MSG, __FILE__, __LINE__, __FUNCTION__)
 
+static inline void x86_64_addr32(void)
+{
+#ifdef CPU_x86_64
+	emit_byte(0x67);
+#endif
+}
+
+static inline void x86_64_rex(bool w, uae_u32 *r, uae_u32 *x, uae_u32 *b)
+{
+#ifdef CPU_x86_64
+	int rex_byte = 0x40;
+	if (*b >= R8_INDEX) {
+		*b -= R8_INDEX;
+		rex_byte |= 1;
+	}
+	if (rex_byte != 0x40) {
+		emit_byte(rex_byte);
+	}
+#endif
+}
+
+static inline void x86_64_prefix(
+	bool addr32, bool w, uae_u32 *r, uae_u32 *x, uae_u32 *b)
+{
+	if (addr32) {
+		x86_64_addr32();
+	}
+	x86_64_rex(w, r, x, b);
+}
+
 // Some mappings to mark compemu_support calls as only used by compemu
 // These are still mainly x86 minded. Should be more CPU independent in the future
 #define compemu_raw_add_l_mi(a,b)		raw_add_l_mi(a,b)
@@ -4230,8 +4260,9 @@ LENDFUNC(NONE,NONE,2,raw_fmov_rr,(FW d, FR s))
 
 LOWFUNC(NONE,READ,2,raw_fldcw_m_indexed,(R4 index, IMM base))
 {
+	x86_64_prefix(true, false, NULL, NULL, &index);
 	emit_byte(0xd9);
-	emit_byte(0xa8+index);
+	emit_byte(0xa8 + index);
 	emit_long(base);
 }
 LENDFUNC(NONE,READ,2,raw_fldcw_m_indexed,(R4 index, IMM base))
