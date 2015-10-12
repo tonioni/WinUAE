@@ -440,6 +440,7 @@ static int doinit_shm (void)
 			addr = expansion_startaddress(addr, z3rtgallocsize);
 			if (gfxboard_get_configtype(changed_prefs.rtgmem_type) == 3) {
 				p96base_offset = addr;
+				write_log("NATMEM: p96base_offset = 0x%x\n", p96base_offset);
 				// adjust p96mem_offset to beginning of natmem
 				// by subtracting start of original p96mem_offset from natmem_offset
 				if (p96base_offset >= 0x10000000) {
@@ -457,7 +458,7 @@ static int doinit_shm (void)
 				  natmem_offset, (uae_u8*)natmem_offset + natmemsize,
 				  natmemsize, natmemsize / (1024 * 1024));
 		if (changed_prefs.rtgmem_size)
-			write_log (_T("NATMEM: P96 special area: 0x%p-0x%p (%08x %dM)\n"),
+			write_log (_T("NATMEM: P96 special area: %p-%p (0x%08x %dM)\n"),
 			p96mem_offset, (uae_u8*)p96mem_offset + changed_prefs.rtgmem_size,
 			changed_prefs.rtgmem_size, changed_prefs.rtgmem_size >> 20);
 		canbang = jit_direct_compatible_memory ? 1 : 0;

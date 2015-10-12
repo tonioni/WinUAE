@@ -28,6 +28,7 @@
 #include "flashrom.h"
 #include "uae.h"
 #include "uae/ppc.h"
+#include "uae/vm.h"
 #include "idecontrollers.h"
 #include "scsi.h"
 #include "cpummu030.h"
@@ -1402,7 +1403,13 @@ void cpuboard_cleanup(void)
 	if (blizzard_jit) {
 		mapped_free(&blizzardram_bank);
 	} else {
-		xfree(blizzardram_nojit_bank.baseaddr);
+		if (blizzardram_nojit_bank.baseaddr) {
+#ifdef CPU_64_BIT
+			uae_vm_free(blizzardram_nojit_bank.baseaddr, blizzardram_nojit_bank.allocated);
+#else
+			xfree(blizzardram_nojit_bank.baseaddr);
+#endif
+		}
 	}
 	if (blizzardmaprom_bank_mapped)
 		mapped_free(&blizzardmaprom_bank);
@@ -1546,8 +1553,18 @@ void cpuboard_init(void)
 				mapped_malloc(&blizzardram_bank);
 			}
 		} else {
-			if (cpuboard_size)
+			if (cpuboard_size) {
+#ifdef CPU_64_BIT
+				blizzardram_bank.baseaddr = (uae_u8 *) uae_vm_alloc(
+					blizzardram_bank.allocated, UAE_VM_32BIT, UAE_VM_READ_WRITE);
+#else
 				blizzardram_bank.baseaddr = xmalloc(uae_u8, blizzardram_bank.allocated);
+#endif
+				write_log("MMAN: Allocated %d bytes (%d MB) for blizzardram_bank at %p\n",
+						  blizzardram_bank.allocated,
+						  blizzardram_bank.allocated / (1024 * 1024),
+						  blizzardram_bank.baseaddr);
+			}
 		}
 		blizzardram_nojit_bank.baseaddr = blizzardram_bank.baseaddr;
 
