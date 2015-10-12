@@ -96,6 +96,14 @@ only target, and it's easier this way... */
 
 #define STACK_ALIGN		16
 #define STACK_OFFSET	sizeof(void *)
+#ifdef _WIN64
+/* In the Microsoft x64 calling convention, it's the caller's responsibility
+ * to allocate 32 bytes of "shadow space" on the stack right before calling
+ * the function (regardless of the actual number of parameters used). */
+#define STACK_SHADOW_SPACE 32
+#else
+#define STACK_SHADOW_SPACE 0
+#endif
 
 uae_s8 always_used[]={4,-1};
 #if defined(CPU_x86_64)
@@ -124,9 +132,19 @@ uae_u8 call_saved[]={0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0};
      by pushing, even though they are "saved" across function calls
 */
 #if defined(CPU_x86_64)
+#ifdef _WIN64
+/* https://msdn.microsoft.com/en-us/library/6t169e9c.aspx:
+ * "The registers RBX, RBP, RDI, RSI, RSP, R12, R13, R14, and R15 are
+ * considered nonvolatile and must be saved and restored by a function that
+ * uses them". Also saving r11 for now (see comment below). */
+static const uae_u8 need_to_preserve[]={0,0,0,1,0,1,1,1,0,0,0,1,1,1,1,1};
+#else
 /* callee-saved registers as defined by Linux AMD64 ABI: rbx, rbp, rsp, r12 - r15 */
 /* preserve r11 because it's generally used to hold pointers to functions */
+/* FIXME: not really sure what the point of saving r11 is (??). If functions
+ * cannot assume calle preserves it, it will not be used across calls anyway? */
 static const uae_u8 need_to_preserve[]={0,0,0,1,0,1,0,0,0,0,0,1,1,1,1,1};
+#endif
 #else
 /* callee-saved registers as defined by System V IA-32 ABI: edi, esi, ebx, ebp */
 static const uae_u8 need_to_preserve[]={0,0,0,1,0,1,1,1};
@@ -3484,12 +3502,22 @@ static inline void raw_load_flagx(uae_u32 target, uae_u32 r)
 
 static inline void raw_dec_sp(int off)
 {
-	if (off) raw_sub_l_ri(ESP_INDEX,off);
+	if (off) {
+#ifdef CPU_x86_64
+		emit_byte(0x48); /* REX prefix */
+#endif
+		raw_sub_l_ri(ESP_INDEX,off);
+	}
 }
 
 static inline void raw_inc_sp(int off)
 {
-	if (off) raw_add_l_ri(ESP_INDEX,off);
+	if (off) {
+#ifdef CPU_x86_64
+		emit_byte(0x48); /* REX prefix */
+#endif
+		raw_add_l_ri(ESP_INDEX,off);
+	}
 }
 
 static inline void raw_push_regs_to_preserve(void) {
