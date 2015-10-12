@@ -234,7 +234,9 @@ MENDFUNC(2,mov_l_rm,(W4 d, IMM s))
 MIDFUNC(1,call_r,(RR4 r)) /* Clobbering is implicit */
 {
 	r=readreg(r,4);
+	raw_dec_sp(STACK_SHADOW_SPACE);
 	raw_call_r(r);
+	raw_inc_sp(STACK_SHADOW_SPACE);
 	unlock2(r);
 }
 MENDFUNC(1,call_r,(RR4 r)) /* Clobbering is implicit */
@@ -2313,7 +2315,9 @@ MIDFUNC(5,call_r_11,(W4 out1, RR4 r, RR4 in1, IMM osize, IMM isize))
 	unlock2(r);
 
 	prepare_for_call_2();
+	raw_dec_sp(STACK_SHADOW_SPACE);
 	raw_call_r(r);
+	raw_inc_sp(STACK_SHADOW_SPACE);
 
 #if USE_NORMAL_CALLING_CONVENTION
 	raw_inc_sp(4);
@@ -2351,7 +2355,9 @@ MIDFUNC(5,call_r_02,(RR4 r, RR4 in1, RR4 in2, IMM isize1, IMM isize2))
 	unlock2(in1);
 	unlock2(in2);
 	prepare_for_call_2();
+	raw_dec_sp(STACK_SHADOW_SPACE);
 	raw_call_r(r);
+	raw_inc_sp(STACK_SHADOW_SPACE);
 #if USE_NORMAL_CALLING_CONVENTION
 	raw_inc_sp(8);
 #endif

@@ -4488,7 +4488,9 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 			compemu_raw_jcc_b_oponly(NATIVE_CC_GT);
 			uae_s8 *branchadd=(uae_s8*)get_target();
 			skip_byte();
+			raw_dec_sp(STACK_SHADOW_SPACE);
 			compemu_raw_call((uintptr)cpu_do_check_ticks);
+			raw_inc_sp(STACK_SHADOW_SPACE);
 			*branchadd=(uintptr)get_target()-((uintptr)branchadd+1);
 #endif
 
@@ -4533,7 +4535,9 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 						prepare_for_call_1();
 						unlock2(arg);
 						prepare_for_call_2();
+						raw_dec_sp(STACK_SHADOW_SPACE);
 						compemu_raw_call((uintptr)m68k_record_step);
+						raw_inc_sp(STACK_SHADOW_SPACE);
 					}
 #endif
 
@@ -4571,7 +4575,9 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 #endif
 						compemu_raw_mov_l_mi((uintptr)&regs.pc_p,
 							(uintptr)pc_hist[i].location);
+						raw_dec_sp(STACK_SHADOW_SPACE);
 						compemu_raw_call((uintptr)cputbl[opcode]);
+						raw_inc_sp(STACK_SHADOW_SPACE);
 #ifdef PROFILE_UNTRANSLATED_INSNS
 						// raw_cputbl_count[] is indexed with plain opcode (in m68k order)
 						compemu_raw_add_l_mi((uintptr)&raw_cputbl_count[cft_map(opcode)],1);
