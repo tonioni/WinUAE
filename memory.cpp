@@ -787,9 +787,9 @@ static void REGPARAM3 kickmem_lput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 kickmem_wput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 kickmem_bput (uaecptr, uae_u32) REGPARAM;
 
-MEMORY_BGET(kickmem, 0);
-MEMORY_WGET(kickmem, 0);
-MEMORY_LGET(kickmem, 0);
+MEMORY_BGET(kickmem);
+MEMORY_WGET(kickmem);
+MEMORY_LGET(kickmem);
 MEMORY_CHECK(kickmem);
 MEMORY_XLATE(kickmem);
 
@@ -891,9 +891,9 @@ static void REGPARAM3 extendedkickmem_lput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 extendedkickmem_wput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 extendedkickmem_bput (uaecptr, uae_u32) REGPARAM;
 
-MEMORY_BGET(extendedkickmem, 0);
-MEMORY_WGET(extendedkickmem, 0);
-MEMORY_LGET(extendedkickmem, 0);
+MEMORY_BGET(extendedkickmem);
+MEMORY_WGET(extendedkickmem);
+MEMORY_LGET(extendedkickmem);
 MEMORY_CHECK(extendedkickmem);
 MEMORY_XLATE(extendedkickmem);
 
@@ -918,9 +918,9 @@ static void REGPARAM3 extendedkickmem2_lput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 extendedkickmem2_wput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 extendedkickmem2_bput (uaecptr, uae_u32) REGPARAM;
 
-MEMORY_BGET(extendedkickmem2, 0);
-MEMORY_WGET(extendedkickmem2, 0);
-MEMORY_LGET(extendedkickmem2, 0);
+MEMORY_BGET(extendedkickmem2);
+MEMORY_WGET(extendedkickmem2);
+MEMORY_LGET(extendedkickmem2);
 MEMORY_CHECK(extendedkickmem2);
 MEMORY_XLATE(extendedkickmem2);
 
@@ -1705,6 +1705,7 @@ bool mapped_malloc (addrbank *ab)
 		answer = uae_shmat (ab, id, 0, 0);
 		uae_shmctl (id, UAE_IPC_RMID, NULL);
 	} else {
+		write_log(_T("MMAN: mapped_malloc using existing baseaddr %p\n"), ab->baseaddr);
 		answer = ab->baseaddr;
 	}
 	if (answer != (void *) -1) {
