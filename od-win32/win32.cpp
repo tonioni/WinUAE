@@ -98,6 +98,7 @@
 #endif
 #include "uae/ppc.h"
 #include "fsdb.h"
+#include "uae/time.h"
 
 extern int harddrive_dangerous, do_rdbdump;
 extern int no_rawinput, no_directinput, no_windowsmouse;
@@ -124,9 +125,7 @@ static int doquit;
 static int console_started;
 void *globalipc;
 
-int qpcdivisor = 0;
 int cpu_mmx = 1;
-static int userdtsc = 0;
 int D3DEX = 1;
 int d3ddebug = 0;
 int max_uae_width;
@@ -305,143 +304,6 @@ void sleep_millis_amiga(int ms)
 #ifdef WITH_THREADED_CPU
 	cpu_semaphore_get();
 #endif
-}
-
-frame_time_t read_processor_time_qpf (void)
-{
-	LARGE_INTEGER counter;
-	frame_time_t t;
-	QueryPerformanceCounter (&counter);
-	if (qpcdivisor == 0)
-		t = (frame_time_t)(counter.LowPart);
-	else
-		t = (frame_time_t)(counter.QuadPart >> qpcdivisor);
-	if (!t)
-		t++;
-	return t;
-}
-frame_time_t read_processor_time_rdtsc (void)
-{
-	frame_time_t foo = 0;
-#if defined(X86_MSVC_ASSEMBLY)
-	frame_time_t bar;
-	__asm
-	{
-		rdtsc
-			mov foo, eax
-			mov bar, edx
-	}
-	/* very high speed CPU's RDTSC might overflow without this.. */
-	foo >>= 6;
-	foo |= bar << 26;
-	if (!foo)
-		foo++;
-#endif
-	return foo;
-}
-frame_time_t read_processor_time (void)
-{
-	frame_time_t t;
-#if 0
-	static int cnt;
-
-	cnt++;
-	if (cnt > 1000000) {
-		write_log (_T("**************\n"));
-		cnt = 0;
-	}
-#endif
-	if (userdtsc)
-		t = read_processor_time_rdtsc ();
-	else
-		t = read_processor_time_qpf ();
-	return t;
-}
-
-uae_u32 read_system_time (void)
-{
-	return GetTickCount ();
-}
-
-#include <process.h>
-static volatile int dummythread_die;
-static void _cdecl dummythread (void *dummy)
-{
-	SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_LOWEST);
-	while (!dummythread_die);
-}
-static uae_u64 win32_read_processor_time (void)
-{
-#if defined(X86_MSVC_ASSEMBLY)
-	uae_u32 foo, bar;
-	__asm
-	{
-		cpuid
-			rdtsc
-			mov foo, eax
-			mov bar, edx
-	}
-	return (((uae_u64)bar) << 32) | foo;
-#else
-	return 0;
-#endif
-}
-static void figure_processor_speed_rdtsc (void)
-{
-	static int freqset;
-	uae_u64 clockrate;
-	int oldpri;
-	HANDLE th;
-
-	if (freqset)
-		return;
-	th = GetCurrentThread ();
-	freqset = 1;
-	oldpri = GetThreadPriority (th);
-	SetThreadPriority (th, THREAD_PRIORITY_HIGHEST);
-	dummythread_die = -1;
-	_beginthread (&dummythread, 0, 0);
-	sleep_millis (500);
-	clockrate = win32_read_processor_time ();
-	sleep_millis (500);
-	clockrate = (win32_read_processor_time () - clockrate) * 2;
-	dummythread_die = 0;
-	SetThreadPriority (th, oldpri);
-	write_log (_T("CLOCKFREQ: RDTSC %.2fMHz\n"), clockrate / 1000000.0);
-	syncbase = clockrate >> 6;
-}
-
-static void figure_processor_speed_qpf (void)
-{
-	LARGE_INTEGER freq;
-	static LARGE_INTEGER freq2;
-	uae_u64 qpfrate;
-
-	if (!QueryPerformanceFrequency (&freq))
-		return;
-	if (freq.QuadPart == freq2.QuadPart)
-		return;
-	freq2.QuadPart = freq.QuadPart;
-	qpfrate = freq.QuadPart;
-	/* limit to 10MHz */
-	qpcdivisor = 0;
-	while (qpfrate >= 10000000) {
-		qpfrate >>= 1;
-		qpcdivisor++;
-	}
-	write_log (_T("CLOCKFREQ: QPF %.2fMHz (%.2fMHz, DIV=%d)\n"), freq.QuadPart / 1000000.0,
-		qpfrate / 1000000.0, 1 << qpcdivisor);
-	syncbase = (int)qpfrate;
-}
-
-static void figure_processor_speed (void)
-{
-	if (SystemInfo.dwNumberOfProcessors > 1)
-		userdtsc = 0;
-	if (userdtsc)
-		figure_processor_speed_rdtsc ();
-	if (!userdtsc)
-		figure_processor_speed_qpf ();
 }
 
 static int windowmouse_max_w;
@@ -2341,7 +2203,7 @@ bool handle_events (void)
 	}
 	cnt1--;
 	if (cnt1 <= 0) {
-		figure_processor_speed ();
+		uae_time_calibrate();
 		flush_log ();
 		cnt1 = 50 * 5;
 		cnt2--;
@@ -2677,7 +2539,7 @@ static int WIN32_InitLibraries (void)
 		pre_gui_message (_T("No QueryPerformanceFrequency() supported, exiting..\n"));
 		return 0;
 	}
-	figure_processor_speed ();
+	uae_time_init();
 	if (!timebegin ()) {
 		pre_gui_message (_T("MMTimer second initialization failed, exiting.."));
 		return 0;
@@ -5432,7 +5294,7 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		return 1;
 	}
 	if (!_tcscmp (arg, _T("forcerdtsc"))) {
-		userdtsc = 1;
+		uae_time_use_rdtsc(true);
 		return 1;
 	}
 	if (!_tcscmp (arg, _T("ddsoftwarecolorkey"))) {

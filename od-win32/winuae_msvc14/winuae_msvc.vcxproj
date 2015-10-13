@@ -882,6 +882,7 @@
     <ClCompile Include="..\..\sndboard.cpp" />
     <ClCompile Include="..\..\specialmonitors.cpp" />
     <ClCompile Include="..\..\statusline.cpp" />
+    <ClCompile Include="..\..\support\time.cpp" />
     <ClCompile Include="..\..\tabletlibrary.cpp" />
     <ClCompile Include="..\..\test_card.cpp" />
     <ClCompile Include="..\..\uaenative.cpp" />
