@@ -671,10 +671,10 @@ BEGIN
                     "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,114,31,86,10
     CONTROL         "NTSC [] North American and Japanese display standard, 60Hz refresh rate. Other countries use PAL (50Hz. display refresh rate)",IDC_NTSC,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,114,47,86,10
-    CONTROL         "Cycle-exact [] The most compatible A500/A1200 emulation mode. Very fast PC recommended.",IDC_CYCLEEXACT,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,14,69,170,10
-    RTEXT           "Chipset Extra:",IDC_STATIC,72,89,71,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_CS_EXT,148,90,49,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Cycle-exact (DMA/Memory accesses)",IDC_CYCLEEXACTMEMORY,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,14,69,194,10
+    RTEXT           "Chipset Extra:",IDC_STATIC,72,108,71,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_CS_EXT,148,109,49,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Options",IDC_STATIC,221,0,173,137
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,16,150,10
@@ -696,6 +696,8 @@ BEGIN
     LTEXT           "Genlock emulation mode",IDC_STATIC,237,59,117,15,SS_CENTERIMAGE
     COMBOBOX        IDC_GENLOCKMODE,237,77,103,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_GENLOCKMIX,346,77,38,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Cycle-exact (Full) [] The most compatible A500/A1200 emulation mode.",IDC_CYCLEEXACT,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,82,194,10
 END
 
 IDD_CHIPSET2 DIALOGEX 0, 0, 396, 305

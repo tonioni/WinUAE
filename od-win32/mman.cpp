@@ -426,6 +426,9 @@ static int doinit_shm (void)
 		if (jit_direct_compatible_memory) {
 			p96mem_offset = natmem_offset + p96base_offset;
 		} else {
+			currprefs.rtgmem_size = changed_prefs.rtgmem_size = 0;
+			error_log(_T("RTG memory is not supported in this configuration."));
+#if 0
 			// calculate Z3 alignment (argh, I thought only Z2 needed this..)
 			uae_u32 addr = Z3BASE_REAL;
 			int z3off = cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype].z3extra;
@@ -448,6 +451,7 @@ static int doinit_shm (void)
 					p96mem_offset = natmem_offset + p96base_offset;
 				}
 			}
+#endif
 		}
 	}
 

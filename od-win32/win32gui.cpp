@@ -2385,6 +2385,11 @@ static void ejectfloppy (int n)
 		eject_cd ();
 	} else {
 		workprefs.floppyslots[n].df[0] = 0;
+		// no disk in drive when GUI was entered
+		// make sure possibly disks inserted after GUI was entered
+		// are removed.
+		if (changed_prefs.floppyslots[n].df[0] == 0)
+			disk_insert(n, _T(""));
 	}
 }
 
@@ -6325,7 +6330,7 @@ static void enable_for_displaydlg (HWND hDlg)
 	ew (hDlg, IDC_SCREENMODE_RTG2, rtg);
 	ew (hDlg, IDC_XCENTER, TRUE);
 	ew (hDlg, IDC_YCENTER, TRUE);
-	ew (hDlg, IDC_FRAMERATE, !workprefs.cpu_cycle_exact);
+	ew (hDlg, IDC_FRAMERATE, !workprefs.cpu_memory_cycle_exact);
 	ew (hDlg, IDC_LORES, !workprefs.gfx_autoresolution);
 
 	ew(hDlg, IDC_AUTORESOLUTIONVGA, workprefs.gfx_resolution >= RES_HIRES && workprefs.gfx_vresolution >= VRES_DOUBLE);
@@ -6351,10 +6356,12 @@ static void enable_for_displaydlg (HWND hDlg)
 
 static void enable_for_chipsetdlg (HWND hDlg)
 {
-	int enable = workprefs.cpu_cycle_exact ? FALSE : TRUE;
+	int enable = workprefs.cpu_memory_cycle_exact ? FALSE : TRUE;
 
 #if !defined (CPUEMU_13)
 	ew (hDlg, IDC_CYCLEEXACT, FALSE);
+#else
+	ew (hDlg, IDC_CYCLEEXACTMEMORY, workprefs.cpu_model >= 68020);
 #endif
 #if 0
 	ew (hDlg, IDC_BLITIMM, enable);
@@ -6765,7 +6772,7 @@ static void values_to_displaydlg (HWND hDlg)
 	ew (hDlg, IDC_RATE2TEXT, selectcr->locked != 0);
 	ew (hDlg, IDC_FRAMERATE2, selectcr->locked != 0);
 
-	v = workprefs.cpu_cycle_exact ? 1 : workprefs.gfx_framerate;
+	v = workprefs.cpu_memory_cycle_exact ? 1 : workprefs.gfx_framerate;
 	SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETPOS, TRUE, (int)v);
 
 	CheckRadioButton (hDlg, IDC_LM_NORMAL, IDC_LM_PDOUBLED3, IDC_LM_NORMAL + (workprefs.gfx_vresolution ? 1 : 0) + workprefs.gfx_pscanlines);
@@ -7302,6 +7309,7 @@ static void values_to_chipsetdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_BLITWAIT, workprefs.waiting_blits);
 	CheckRadioButton (hDlg, IDC_COLLISION0, IDC_COLLISION3, IDC_COLLISION0 + workprefs.collision_level);
 	CheckDlgButton (hDlg, IDC_CYCLEEXACT, workprefs.cpu_cycle_exact);
+	CheckDlgButton (hDlg, IDC_CYCLEEXACTMEMORY, workprefs.cpu_memory_cycle_exact);
 	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_SETCURSEL, workprefs.cs_compatible, 0);
 	SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_SETCURSEL, workprefs.monitoremu, 0);
 	SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_SETCURSEL, workprefs.genlock_image, 0);
@@ -7312,15 +7320,43 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 {
 	BOOL success = FALSE;
 	int nn;
-	bool n;
+	bool n1, n2;
+	int id = LOWORD(wParam);
 
 	workprefs.genlock = ischecked (hDlg, IDC_GENLOCK);
 	workprefs.immediate_blits = ischecked (hDlg, IDC_BLITIMM);
 	workprefs.waiting_blits = ischecked (hDlg, IDC_BLITWAIT) ? 1 : 0;
-	n = ischecked (hDlg, IDC_CYCLEEXACT);
-	if (workprefs.cpu_cycle_exact != n) {
-		workprefs.cpu_cycle_exact = workprefs.blitter_cycle_exact = n;
-		if (n) {
+	n2 = ischecked (hDlg, IDC_CYCLEEXACTMEMORY);
+	n1 = ischecked (hDlg, IDC_CYCLEEXACT);
+	if (workprefs.cpu_cycle_exact != n1 || workprefs.cpu_memory_cycle_exact != n2) {
+		if (id == IDC_CYCLEEXACTMEMORY) {
+			if (n2) {
+				// n2: f -> t
+				if (workprefs.cpu_model < 68020) {
+					n1 = true;
+					CheckDlgButton (hDlg, IDC_CYCLEEXACT, n1);
+				}
+			} else {
+				// n2: t -> f
+				n1 = false;
+				CheckDlgButton (hDlg, IDC_CYCLEEXACT, n1);
+			}
+		} else if (id == IDC_CYCLEEXACT) {
+			if (n1) {
+				// n1: f -> t
+				n2 = true;
+				CheckDlgButton (hDlg, IDC_CYCLEEXACTMEMORY, n2);
+			} else {
+				// n1: t -> f
+				if (workprefs.cpu_model < 68020) {
+					n2 = false;
+					CheckDlgButton (hDlg, IDC_CYCLEEXACTMEMORY, n2);
+				}
+			}
+		}
+		workprefs.cpu_cycle_exact = n1;
+		workprefs.cpu_memory_cycle_exact = workprefs.blitter_cycle_exact = n2;
+		if (n2) {
 			if (workprefs.cpu_model == 68000)
 				workprefs.cpu_compatible = 1;
 			if (workprefs.cpu_model <= 68030)
@@ -7338,9 +7374,9 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		: ischecked (hDlg, IDC_ECS_DENISE) ? CSMASK_ECS_DENISE
 		: ischecked (hDlg, IDC_ECS) ? CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE
 		: CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
-	n = ischecked (hDlg, IDC_NTSC);
-	if (workprefs.ntscmode != n) {
-		workprefs.ntscmode = n;
+	n1 = ischecked (hDlg, IDC_NTSC);
+	if (workprefs.ntscmode != n1) {
+		workprefs.ntscmode = n1;
 	}
 	nn = SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_GETCURSEL, 0, 0);
 	if (nn != CB_ERR) {
@@ -10300,7 +10336,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	BOOL enable = FALSE, jitenable = FALSE;
 	BOOL cpu_based_enable = FALSE;
 
-	ew(hDlg, IDC_SPEED, !workprefs.cpu_cycle_exact);
+	ew(hDlg, IDC_SPEED, !workprefs.cpu_memory_cycle_exact);
 	ew(hDlg, IDC_COMPATIBLE24, workprefs.cpu_model <= 68030);
 	//ew(hDlg, IDC_CS_HOST, !workprefs.cpu_cycle_exact);
 	//ew(hDlg, IDC_CS_68000, !workprefs.cpu_cycle_exact);
@@ -10334,7 +10370,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_CS_CACHE_TEXT, enable);
 	ew (hDlg, IDC_CACHE, enable);
 	ew (hDlg, IDC_JITENABLE, jitenable);
-	ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_cycle_exact);
+	ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_memory_cycle_exact);
 	ew (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_model > 0);
 	ew (hDlg, IDC_FPU_UNIMPLEMENTED, workprefs.fpu_model && !workprefs.cachesize);
 	ew (hDlg, IDC_CPU_UNIMPLEMENTED, workprefs.cpu_model == 68060 && !workprefs.cachesize);
@@ -10432,7 +10468,7 @@ static void values_from_cpudlg (HWND hDlg)
 	int newcpu, oldcpu, newfpu, newtrust, oldcache, jitena, idx;
 	static int cachesize_prev, trust_prev;
 
-	workprefs.cpu_compatible = workprefs.cpu_cycle_exact | (ischecked (hDlg, IDC_COMPATIBLE) ? 1 : 0);
+	workprefs.cpu_compatible = workprefs.cpu_memory_cycle_exact | (ischecked (hDlg, IDC_COMPATIBLE) ? 1 : 0);
 	workprefs.fpu_strict = ischecked (hDlg, IDC_COMPATIBLE_FPU) ? 1 : 0;
 	workprefs.fpu_no_unimplemented = ischecked (hDlg, IDC_FPU_UNIMPLEMENTED) ? 0 : 1;
 	workprefs.int_no_unimplemented = ischecked (hDlg, IDC_CPU_UNIMPLEMENTED) ? 0 : 1;
@@ -10465,7 +10501,7 @@ static void values_from_cpudlg (HWND hDlg)
 	case 68000:
 	case 68010:
 		workprefs.fpu_model = newfpu == 0 ? 0 : (newfpu == 2 ? 68882 : 68881);
-		if (workprefs.cpu_compatible || workprefs.cpu_cycle_exact)
+		if (workprefs.cpu_compatible || workprefs.cpu_memory_cycle_exact)
 			workprefs.fpu_model = 0;
 		if (newcpu != oldcpu)
 			workprefs.address_space_24 = 1;
@@ -10515,6 +10551,7 @@ static void values_from_cpudlg (HWND hDlg)
 	} else if (jitena && !oldcache) {
 		workprefs.cachesize = 8192;
 		workprefs.cpu_cycle_exact = false;
+		workprefs.cpu_memory_cycle_exact = false;
 		if (!cachesize_prev)
 			trust_prev = 0;
 		if (cachesize_prev) {

@@ -1248,6 +1248,7 @@
 #define IDC_CPUBOARDMEM                 1843
 #define IDC_Z3MAPPING                   1844
 #define IDC_CPUBOARD_SUBTYPE            1845
+#define IDC_CYCLEEXACTMEMORY            1846
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

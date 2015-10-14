@@ -1,4 +1,22 @@
 
+Beta 16:
+
+- Added Mediator 1200SX autoconfig data.
+- Added support for 68020+ CPU floating bus data when clock chip is not connected (Not yet correctly emulated, need
+  accurate CPU cycle sequence and more)
+- SPS plugin was not searched from all supported directories.
+- Don't add fake uae boot rom expansion board if "hide uae expansions" is enabled.
+- FPU FPCR and FPIAR was swapped in disassembler.
+- CIA-B TOD accurate cycle counting code used CIA-A "is tod on?" variable.. (2.7.x or somewhere close)
+- Use official AD1848 crystal value in Toccata emulation (24.576MHz), it seems some Toccata boards have correct
+  crystals and some not exactly correct (For example 24.582MHz). Now 48000Hz output is exactly 48000Hz. (was 48011)
+- 64-bit JIT FPU rounding mode fix and other 64-bit FPU fixes. (Frode)
+- 64-bit QEMU PPC plugin fixed (Frode)
+- Added memory accesses only -cycle-exact mode. In this mode CPU does not internally count cycles, only external
+  memory accesses are counted, including chipset DMA contention. (This was previously only used when 68040/060 and
+  cycle exact was enabled). 68020+ only, at least for now. More compatible (prefetch + caches) also required.
+- GUI disk eject button worked unreliably if disk was inserted and then immediately ejected.
+
 Beta 15:
 
 - KS1.2 boot hack improved, now also works with KS 1.1, KS 1.0 and even with 0.7 beta!

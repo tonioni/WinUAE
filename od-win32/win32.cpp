@@ -6280,9 +6280,6 @@ HMODULE WIN32_LoadLibrary_2 (const TCHAR *name, int expand)
 	HMODULE m = NULL;
 	TCHAR *newname;
 	DWORD err = -1;
-#ifdef CPU_64_BIT
-	TCHAR *p;
-#endif
 	int round;
 
 	newname = xmalloc (TCHAR, _tcslen (name) + 1 + 10);
@@ -6292,6 +6289,7 @@ HMODULE WIN32_LoadLibrary_2 (const TCHAR *name, int expand)
 		TCHAR s[MAX_DPATH], dir[MAX_DPATH], dir2[MAX_DPATH];
 		_tcscpy (newname, name);
 #ifdef CPU_64_BIT
+		TCHAR *p = NULL;
 		switch(round)
 		{
 		case 0:
@@ -6303,25 +6301,35 @@ HMODULE WIN32_LoadLibrary_2 (const TCHAR *name, int expand)
 			break;
 		case 1:
 			p = _tcschr (newname, '.');
-			_tcscpy (p, _T("_x64"));
-			_tcscat (p, _tcschr (name, '.'));
+			if (p) {
+				_tcscpy(p, _T("_x64"));
+				_tcscat(p, _tcschr(name, '.'));
+			}
 			break;
 		case 2:
 			p = _tcschr (newname, '.');
-			_tcscpy (p, _T("x64"));
-			_tcscat (p, _tcschr (name, '.'));
+			if (p) {
+				_tcscpy(p, _T("x64"));
+				_tcscat(p, _tcschr(name, '.'));
+			}
 			break;
 		case 3:
 			p = _tcschr (newname, '.');
-			_tcscpy (p, _T("_64"));
-			_tcscat (p, _tcschr (name, '.'));
+			if (p) {
+				_tcscpy(p, _T("_64"));
+				_tcscat(p, _tcschr(name, '.'));
+			}
 			break;
 		case 4:
 			p = _tcschr (newname, '.');
-			_tcscpy (p, _T("64"));
-			_tcscat (p, _tcschr (name, '.'));
+			if (p) {
+				_tcscpy(p, _T("64"));
+				_tcscat(p, _tcschr(name, '.'));
+			}
 			break;
 		}
+		if (!p)
+			continue;
 #endif
 		get_plugin_path (s, sizeof s / sizeof (TCHAR), NULL);
 		_tcscat (s, newname);
@@ -6418,6 +6426,8 @@ void target_addtorecent (const TCHAR *name, int t)
 {
 	TCHAR tmp[MAX_DPATH];
 
+	if (name == NULL || name[0] == 0)
+		return;
 	tmp[0] = 0;
 	GetFullPathName (name, sizeof tmp / sizeof (TCHAR), tmp, NULL);
 	if (os_win7) {
