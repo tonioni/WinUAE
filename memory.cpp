@@ -232,26 +232,9 @@ void dummy_put (uaecptr addr, int size, uae_u32 val)
 	}
 }
 
-uae_u32 dummy_get (uaecptr addr, int size, bool inst)
+uae_u32 dummy_get_safe(uaecptr addr, int size, bool inst, uae_u32 defvalue)
 {
-	uae_u32 v = NONEXISTINGDATA;
-
-#if FLASHEMU
-	if (addr >= 0xf00000 && addr < 0xf80000 && size < 2) {
-		if (addr < 0xf60000)
-			return flash_read(addr);
-		return 8;
-	}
-#endif
-
-	if (gary_nonrange(addr) || (size > 1 && gary_nonrange(addr + size - 1))) {
-		if (gary_timeout)
-			gary_wait (addr, size, false);
-		if (gary_toenb)
-			exception2 (addr, false, size, (regs.s ? 4 : 0) | (inst ? 0 : 1));
-		return v;
-	}
-
+	uae_u32 v = defvalue;
 	if (currprefs.cpu_model >= 68040)
 		return v;
 	if (!currprefs.cpu_compatible)
@@ -275,24 +258,43 @@ uae_u32 dummy_get (uaecptr addr, int size, bool inst)
 			v = (addr & 1) ? (v & 0xff) : ((v >> 8) & 0xff);
 		}
 	}
-#if 0
-	if (addr >= 0x10000000)
-		write_log (_T("%08X %d = %08x\n"), addr, size, v);
-#endif
 	return v;
+}
+
+uae_u32 dummy_get (uaecptr addr, int size, bool inst, uae_u32 defvalue)
+{
+	uae_u32 v = defvalue;
+
+#if FLASHEMU
+	if (addr >= 0xf00000 && addr < 0xf80000 && size < 2) {
+		if (addr < 0xf60000)
+			return flash_read(addr);
+		return 8;
+	}
+#endif
+
+	if (gary_nonrange(addr) || (size > 1 && gary_nonrange(addr + size - 1))) {
+		if (gary_timeout)
+			gary_wait (addr, size, false);
+		if (gary_toenb)
+			exception2 (addr, false, size, (regs.s ? 4 : 0) | (inst ? 0 : 1));
+		return v;
+	}
+
+	return dummy_get_safe(addr, size, inst, defvalue);
 }
 
 static uae_u32 REGPARAM2 dummy_lget (uaecptr addr)
 {
 	if (currprefs.illegal_mem)
 		dummylog (0, addr, 4, 0, 0);
-	return dummy_get (addr, 4, false);
+	return dummy_get (addr, 4, false, NONEXISTINGDATA);
 }
 uae_u32 REGPARAM2 dummy_lgeti (uaecptr addr)
 {
 	if (currprefs.illegal_mem)
 		dummylog (0, addr, 4, 0, 1);
-	return dummy_get (addr, 4, true);
+	return dummy_get (addr, 4, true, NONEXISTINGDATA);
 }
 
 static uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
@@ -305,20 +307,20 @@ static uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
 #endif
 	if (currprefs.illegal_mem)
 		dummylog (0, addr, 2, 0, 0);
-	return dummy_get (addr, 2, false);
+	return dummy_get (addr, 2, false, NONEXISTINGDATA);
 }
 uae_u32 REGPARAM2 dummy_wgeti (uaecptr addr)
 {
 	if (currprefs.illegal_mem)
 		dummylog (0, addr, 2, 0, 1);
-	return dummy_get (addr, 2, true);
+	return dummy_get (addr, 2, true, NONEXISTINGDATA);
 }
 
 static uae_u32 REGPARAM2 dummy_bget (uaecptr addr)
 {
 	if (currprefs.illegal_mem)
 		dummylog (0, addr, 1, 0, 0);
-	return dummy_get (addr, 1, false);
+	return dummy_get (addr, 1, false, NONEXISTINGDATA);
 }
 
 static void REGPARAM2 dummy_lput (uaecptr addr, uae_u32 l)
@@ -603,6 +605,8 @@ static uae_u32 REGPARAM2 chipmem_agnus_lget (uaecptr addr)
 	uae_u32 *m;
 
 	addr &= chipmem_full_mask;
+	if (addr >= chipmem_full_size - 3)
+		return 0;
 	m = (uae_u32 *)(chipmem_bank.baseaddr + addr);
 	return do_get_mem_long (m);
 }
@@ -612,6 +616,8 @@ uae_u32 REGPARAM2 chipmem_agnus_wget (uaecptr addr)
 	uae_u16 *m;
 
 	addr &= chipmem_full_mask;
+	if (addr >= chipmem_full_size - 1)
+		return 0;
 	m = (uae_u16 *)(chipmem_bank.baseaddr + addr);
 	return do_get_mem_word (m);
 }
@@ -619,6 +625,8 @@ uae_u32 REGPARAM2 chipmem_agnus_wget (uaecptr addr)
 static uae_u32 REGPARAM2 chipmem_agnus_bget (uaecptr addr)
 {
 	addr &= chipmem_full_mask;
+	if (addr >= chipmem_full_size)
+		return 0;
 	return chipmem_bank.baseaddr[addr];
 }
 
@@ -627,7 +635,7 @@ static void REGPARAM2 chipmem_agnus_lput (uaecptr addr, uae_u32 l)
 	uae_u32 *m;
 
 	addr &= chipmem_full_mask;
-	if (addr >= chipmem_full_size)
+	if (addr >= chipmem_full_size - 3)
 		return;
 	m = (uae_u32 *)(chipmem_bank.baseaddr + addr);
 	do_put_mem_long (m, l);
@@ -638,7 +646,7 @@ void REGPARAM2 chipmem_agnus_wput (uaecptr addr, uae_u32 w)
 	uae_u16 *m;
 
 	addr &= chipmem_full_mask;
-	if (addr >= chipmem_full_size)
+	if (addr >= chipmem_full_size - 1)
 		return;
 	m = (uae_u16 *)(chipmem_bank.baseaddr + addr);
 	do_put_mem_word (m, w);
