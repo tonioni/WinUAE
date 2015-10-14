@@ -1402,7 +1402,7 @@ struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct
 		if (!hdf_hd_open (&ide->hdhfd))
 			return NULL;
 		ide->blocksize = ide->hdhfd.hfd.ci.blocksize;
-		ide->lba48 = ide->hdhfd.size >= 128 * (uae_u64)0x40000000 ? 1 : 0;
+		ide->lba48 = (ide->hdhfd.hfd.ci.unit_special_flags & 1) || ide->hdhfd.size >= 128 * (uae_u64)0x40000000 ? 1 : 0;
 		gui_flicker_led (LED_HD, ch, -1);
 		ide->cd_unit_num = -1;
 		ide->media_type = ci->controller_media_type;
