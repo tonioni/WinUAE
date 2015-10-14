@@ -1662,6 +1662,11 @@ static const uae_u8 autoconfig_mediator_1200tx_1[16] = { 0xca,0x3c,0x00,0x00,0x0
 static const uae_u8 autoconfig_mediator_1200tx_2_4m[16] = { 0xc7,0xbc,0x00,0x00,0x08,0x9e,0x00,0x00,0x00,0x00,0x00,0x00 };
 static const uae_u8 autoconfig_mediator_1200tx_2_8m[16] = { 0xc0,0xbc,0x00,0x00,0x08,0x9e,0x00,0x00,0x00,0x00,0x00,0x00 };
 
+// Mediator 1200 SX
+static const uae_u8 autoconfig_mediator_1200sx_1[16] = { 0xca,0x28,0x00,0x00,0x08,0x9e,0x00,0x00,0x00,0x00,0x00,0x00 };
+static const uae_u8 autoconfig_mediator_1200sx_2_4m[16] = { 0xc7,0xa8,0x00,0x00,0x08,0x9e,0x00,0x00,0x00,0x00,0x00,0x00 };
+static const uae_u8 autoconfig_mediator_1200sx_2_8m[16] = { 0xc0,0xa8,0x00,0x00,0x08,0x9e,0x00,0x00,0x00,0x00,0x00,0x00 };
+
 // Mediator 1200
 static const uae_u8 autoconfig_mediator_1200_1[16] = { 0xca, 0x20, 0x00, 0x00, 0x08, 0x9e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 static const uae_u8 autoconfig_mediator_1200_2_4m[16] = { 0xcf, 0xa0, 0x00, 0x00, 0x08, 0x9e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -1675,12 +1680,14 @@ struct mediator_autoconfig
 };
 
 #define MED_1200 0
-#define MED_1200TX 1
-#define MED_4000MK2 2
+#define MED_1200SX 1
+#define MED_1200TX 2
+#define MED_4000MK2 3
 
 static struct mediator_autoconfig mediator_ac[] =
 {
 	{ autoconfig_mediator_1200_1, autoconfig_mediator_1200_2_4m, autoconfig_mediator_1200_2_8m },
+	{ autoconfig_mediator_1200sx_1, autoconfig_mediator_1200sx_2_4m, autoconfig_mediator_1200sx_2_8m },
 	{ autoconfig_mediator_1200tx_1, autoconfig_mediator_1200tx_2_4m, autoconfig_mediator_1200tx_2_8m },
 	{ autoconfig_mediator_4000mk2_2, autoconfig_mediator_4000mk2_256m, autoconfig_mediator_4000mk2_512m }
 };
@@ -1860,12 +1867,18 @@ addrbank *mediator_init(struct romconfig *rc)
 		else
 			return mediator_pci_init_1200_1(rc, ac);
 		case 1:
-		ac = &mediator_ac[MED_1200TX];
+		ac = &mediator_ac[MED_1200SX];
 		if (rc->device_settings & 4)
 			return mediator_pci_init_1200_2(rc, ac);
 		else
 			return mediator_pci_init_1200_1(rc, ac);
 		case 2:
+		ac = &mediator_ac[MED_1200TX];
+		if (rc->device_settings & 4)
+			return mediator_pci_init_1200_2(rc, ac);
+		else
+			return mediator_pci_init_1200_1(rc, ac);
+		case 3:
 		ac = &mediator_ac[MED_4000MK2];
 		if (rc->device_settings & 4)
 			return mediator_pci_init_4000_2(rc, ac);
@@ -1887,12 +1900,18 @@ addrbank *mediator_init2(struct romconfig *rc)
 		else
 			return mediator_pci_init_1200_2(rc, ac);
 		case 1:
-		ac = &mediator_ac[MED_1200TX];
+		ac = &mediator_ac[MED_1200SX];
 		if (rc->device_settings & 4)
 			return mediator_pci_init_1200_1(rc, ac);
 		else
 			return mediator_pci_init_1200_2(rc, ac);
 		case 2:
+		ac = &mediator_ac[MED_1200TX];
+		if (rc->device_settings & 4)
+			return mediator_pci_init_1200_1(rc, ac);
+		else
+			return mediator_pci_init_1200_2(rc, ac);
+		case 3:
 		ac = &mediator_ac[MED_4000MK2];
 		if (rc->device_settings & 4)
 			return mediator_pci_init_4000_1(rc, ac);
