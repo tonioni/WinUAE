@@ -7001,7 +7001,7 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 	do_put_mem_word((uae_u16 *)(filesys_bank.baseaddr + 0x210c), 0);
 	do_put_mem_word((uae_u16 *)(filesys_bank.baseaddr + 0x210e), nr_units());
 	do_put_mem_word((uae_u16 *)(filesys_bank.baseaddr + 0x2110), 0);
-	do_put_mem_word((uae_u16 *)(filesys_bank.baseaddr + 0x2112), 1);
+	do_put_mem_word((uae_u16 *)(filesys_bank.baseaddr + 0x2112), 1 | (currprefs.uae_hide_autoconfig ? 16 : 0));
 
 	native2amiga_startup();
 
@@ -7161,7 +7161,7 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 		resaddr += 22;
 
 		// filesys.asm make_dev D7
-		do_put_mem_word((uae_u16 *)(filesys_bank.baseaddr + 0x2112), 1 | 2 | 8);
+		do_put_mem_word((uae_u16 *)(filesys_bank.baseaddr + 0x2112), 1 | 2 | 8 | 16);
 	}
 
 	m68k_areg (regs, 0) = residents;

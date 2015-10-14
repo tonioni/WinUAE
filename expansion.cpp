@@ -1457,15 +1457,16 @@ static void add_ks12_boot_hack(void)
 static addrbank* expamem_init_filesys (int devnum)
 {
 	bool ks12 = ks12orolder();
+	bool hide = currprefs.uae_hide_autoconfig;
 
 	/* struct DiagArea - the size has to be large enough to store several device ROMTags */
 	uae_u8 diagarea[] = { 0x90, 0x00, /* da_Config, da_Flags */
 		0x02, 0x00, /* da_Size */
 		FILESYS_DIAGPOINT >> 8, FILESYS_DIAGPOINT & 0xff,
 		FILESYS_BOOTPOINT >> 8, FILESYS_BOOTPOINT & 0xff,
-		0, 14, // Name offset
+		0, hide ? 0 : 14, // Name offset
 		0, 0, 0, 0,
-		'U', 'A', 'E', 0
+		hide ? 0 : 'U', hide ? 0 : 'A', hide ? 0 : 'E', 0
 	};
 
 	expamem_init_clear ();
@@ -2548,6 +2549,9 @@ static const struct expansionsubromtype supra_sub[] = {
 static const struct expansionsubromtype mediator_sub[] = {
 	{
 		_T("1200"), _T("1200"), ROMTYPE_NOT | ROMTYPE_MEDIATOR
+	},
+	{
+		_T("1200SX"), _T("1200sx"), ROMTYPE_NOT | ROMTYPE_MEDIATOR
 	},
 	{
 		_T("1200TX"), _T("1200tx"), ROMTYPE_NOT | ROMTYPE_MEDIATOR

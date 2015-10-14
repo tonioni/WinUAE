@@ -194,6 +194,8 @@ FSIN_explibok:
 	exg a4,a6
 	move.l a6,d0
 	beq.s .nocd
+	btst #4,$110+3(a5)
+	bne.s .nocd
 	jsr -$030(a6) ;expansion/AllocConfigDev
 	tst.l d0
 	beq.s .nocd
@@ -1063,7 +1065,7 @@ action_exall
 	; mount harddrives, virtual or hdf
 
 make_dev: ; IN: A0 param_packet, D6: unit_no
-	; D7: b0=autoboot,b1=onthefly,b2=v36+,b3=force manual add
+	; D7: b0=autoboot,b1=onthefly,b2=v36+,b3=force manual add,b4=nofakeboard
 	; A4: expansionbase
 
 	bsr.w fsres
