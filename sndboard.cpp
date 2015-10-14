@@ -197,7 +197,10 @@ static void calculate_volume_toccata(void)
 
 static const int freq_crystals[] = {
 	// AD1848 documentation says 24.576MHz but photo of board shows 24.582MHz
-	24582000,
+	// Added later: It seems there are boards that have correct crystal and
+	// also boards with wrong crystal..
+	// So we can use correct one in emulation.
+	24576000,
 	16934400
 };
 static const int freq_dividers[] = {
