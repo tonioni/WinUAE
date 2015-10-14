@@ -333,104 +333,11 @@ STATIC_INLINE void ipl_fetch (void)
 	regs.ipl = regs.ipl_pin;
 }
 
-STATIC_INLINE uae_u32 mem_access_delay_word_read (uaecptr addr)
-{
-	uae_u32 v;
-	switch (ce_banktype[addr >> 16])
-	{
-	case CE_MEMBANK_CHIP16:
-	case CE_MEMBANK_CHIP32:
-		v = wait_cpu_cycle_read (addr, 1);
-		break;
-	case CE_MEMBANK_FAST16:
-	case CE_MEMBANK_FAST32:
-		v = get_word (addr);
-		x_do_cycles_post (4 * cpucycleunit, v);
-		break;
-	default:
-		v = get_word (addr);
-		break;
-	}
-	regs.db = v;
-	return v;
-}
-STATIC_INLINE uae_u32 mem_access_delay_wordi_read (uaecptr addr)
-{
-	uae_u32 v;
-	switch (ce_banktype[addr >> 16])
-	{
-	case CE_MEMBANK_CHIP16:
-	case CE_MEMBANK_CHIP32:
-		v = wait_cpu_cycle_read (addr, 1);
-		break;
-	case CE_MEMBANK_FAST16:
-	case CE_MEMBANK_FAST32:
-		v = get_wordi (addr);
-		x_do_cycles_post (4 * cpucycleunit, v);
-		break;
-	default:
-		v = get_wordi (addr);
-		break;
-	}
-	regs.db = v;
-	return v;
-}
-
-STATIC_INLINE uae_u32 mem_access_delay_byte_read (uaecptr addr)
-{
-	uae_u32  v;
-	switch (ce_banktype[addr >> 16])
-	{
-	case CE_MEMBANK_CHIP16:
-	case CE_MEMBANK_CHIP32:
-		v = wait_cpu_cycle_read (addr, 0);
-		break;
-	case CE_MEMBANK_FAST16:
-	case CE_MEMBANK_FAST32:
-		v = get_byte (addr);
-		x_do_cycles_post (4 * cpucycleunit, v);
-		break;
-	default:
-		v = get_byte (addr);
-		break;
-	}
-	regs.db = (v << 8) | v;
-	return v;
-}
-STATIC_INLINE void mem_access_delay_byte_write (uaecptr addr, uae_u32 v)
-{
-	regs.db = (v << 8)  | v;
-	switch (ce_banktype[addr >> 16])
-	{
-	case CE_MEMBANK_CHIP16:
-	case CE_MEMBANK_CHIP32:
-		wait_cpu_cycle_write (addr, 0, v);
-		return;
-	case CE_MEMBANK_FAST16:
-	case CE_MEMBANK_FAST32:
-		put_byte (addr, v);
-		x_do_cycles_post (4 * cpucycleunit, v);
-		return;
-	}
-	put_byte (addr, v);
-}
-STATIC_INLINE void mem_access_delay_word_write (uaecptr addr, uae_u32 v)
-{
-	regs.db = v;
-	switch (ce_banktype[addr >> 16])
-	{
-	case CE_MEMBANK_CHIP16:
-	case CE_MEMBANK_CHIP32:
-		wait_cpu_cycle_write (addr, 1, v);
-		return;
-	case CE_MEMBANK_FAST16:
-	case CE_MEMBANK_FAST32:
-		put_word (addr, v);
-		x_do_cycles_post (4 * cpucycleunit, v);
-		return;
-	}
-	put_word (addr, v);
-}
+uae_u32 mem_access_delay_word_read (uaecptr addr);
+uae_u32 mem_access_delay_wordi_read (uaecptr addr);
+uae_u32 mem_access_delay_byte_read (uaecptr addr);
+void mem_access_delay_byte_write (uaecptr addr, uae_u32 v);
+void mem_access_delay_word_write (uaecptr addr, uae_u32 v);
 
 STATIC_INLINE uae_u32 get_long_ce000 (uaecptr addr)
 {

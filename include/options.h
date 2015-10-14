@@ -170,6 +170,7 @@ struct uaedev_config_info {
 	int controller_unit;
 	int controller_media_type; // 1 = CF IDE, 0 = normal
 	int unit_feature_level;
+	int unit_special_flags;
 	bool physical_geometry; // if false: use defaults
 	int pcyls, pheads, psecs;
 	int flags;
@@ -454,6 +455,7 @@ struct uae_prefs {
 	int cpu_clock_multiplier;
 	int cpu_frequency;
 	bool blitter_cycle_exact;
+	bool cpu_memory_cycle_exact;
 	int floppy_speed;
 	int floppy_write_length;
 	int floppy_random_bits_min;

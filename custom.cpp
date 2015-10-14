@@ -446,7 +446,7 @@ STATIC_INLINE int ecsshres(void)
 
 STATIC_INLINE int nodraw (void)
 {
-	return !currprefs.cpu_cycle_exact && framecnt != 0;
+	return !currprefs.cpu_memory_cycle_exact && framecnt != 0;
 }
 
 static int doflickerfix (void)
@@ -7251,7 +7251,7 @@ static bool framewait (void)
 	int clockadjust = 0;
 	int vstb = vsynctimebase;
 
-	if (currprefs.m68k_speed < 0 && !currprefs.cpu_cycle_exact) {
+	if (currprefs.m68k_speed < 0 && !currprefs.cpu_memory_cycle_exact) {
 
 #if 0
 		static uae_u32 prevtick;
@@ -7904,7 +7904,7 @@ static void hsync_handler_post (bool onvsync)
 {
 	last_copper_hpos = 0;
 #ifdef CPUEMU_13
-	if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
+	if (currprefs.cpu_memory_cycle_exact || currprefs.blitter_cycle_exact) {
 		memset (cycle_line, 0, sizeof cycle_line);
 	}
 #endif
@@ -7996,7 +7996,7 @@ static void hsync_handler_post (bool onvsync)
 	}
 
 #ifdef CPUEMU_13
-	if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
+	if (currprefs.cpu_memory_cycle_exact || currprefs.blitter_cycle_exact) {
 		int hp = maxhpos - 1, i;
 		for (i = 0; i < 4; i++) {
 			alloc_cycle (hp, i == 0 ? CYCLE_STROBE : CYCLE_REFRESH); /* strobe */
@@ -8037,7 +8037,7 @@ static void hsync_handler_post (bool onvsync)
 		port_get_custom (1, out);
 	}
 #endif
-	if (!currprefs.cpu_thread && currprefs.m68k_speed < 0 && !currprefs.cpu_cycle_exact) {
+	if (!currprefs.cpu_thread && currprefs.m68k_speed < 0 && !currprefs.cpu_memory_cycle_exact) {
 		static int sleeps_remaining;
 		if (is_last_line ()) {
 			sleeps_remaining = (165 - currprefs.cpu_idle) / 6;
@@ -8757,7 +8757,7 @@ static uae_u32 REGPARAM2 custom_wget (uaecptr addr)
 	uae_u32 v;
 
 	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0)
-		return dummy_get(addr, 2, false);
+		return dummy_get(addr, 2, false, 0);
 	if (addr & 1) {
 		/* think about move.w $dff005,d0.. (68020+ only) */
 		addr &= ~1;
@@ -8772,7 +8772,7 @@ static uae_u32 REGPARAM2 custom_bget (uaecptr addr)
 {
 	uae_u32 v;
 	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0)
-		return dummy_get(addr, 1, false);
+		return dummy_get(addr, 1, false, 0);
 	v = custom_wget2 (addr & ~1, true);
 	v >>= (addr & 1 ? 0 : 8);
 	return v;
@@ -8781,7 +8781,7 @@ static uae_u32 REGPARAM2 custom_bget (uaecptr addr)
 static uae_u32 REGPARAM2 custom_lget (uaecptr addr)
 {
 	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0)
-		return dummy_get(addr, 4, false);
+		return dummy_get(addr, 4, false, 0);
 	return ((uae_u32)custom_wget (addr) << 16) | custom_wget (addr + 2);
 }
 static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int noget)
@@ -9755,9 +9755,9 @@ static int dma_cycle (void)
 	blitter_nasty = 1;
 	if (cpu_tracer  < 0)
 		return current_hpos ();
-	if (!currprefs.cpu_cycle_exact)
+	if (!currprefs.cpu_memory_cycle_exact)
 		return current_hpos ();
-	while (currprefs.cpu_cycle_exact) {
+	while (currprefs.cpu_memory_cycle_exact) {
 		int bpldma;
 		int blitpri = dmacon & DMA_BLITPRI;
 		hpos_old = current_hpos ();

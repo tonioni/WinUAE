@@ -283,7 +283,8 @@ extern uae_u32 last_custom_value1;
 /* Default memory access functions */
 
 extern void dummy_put (uaecptr addr, int size, uae_u32 val);
-extern uae_u32 dummy_get (uaecptr addr, int size, bool inst);
+extern uae_u32 dummy_get (uaecptr addr, int size, bool inst, uae_u32 defvalue);
+extern uae_u32 dummy_get_safe(uaecptr addr, int size, bool inst, uae_u32 defvalue);
 
 extern int REGPARAM3 default_check(uaecptr addr, uae_u32 size) REGPARAM;
 extern uae_u8 *REGPARAM3 default_xlate(uaecptr addr) REGPARAM;

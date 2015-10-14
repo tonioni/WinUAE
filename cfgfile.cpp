@@ -332,12 +332,11 @@ static TCHAR *cfgfile_option_find_it(const TCHAR *s, const TCHAR *option, bool c
 		*tmpp++ = 0;
 		if (checkequals) {
 			tmpp2 = _tcschr(p, '=');
-			if (!tmpp2)
-				return NULL;
-			*tmpp2++ = 0;
+			if (tmpp2)
+				*tmpp2++ = 0;
 		}
 		if (!strcasecmp(p, option)) {
-			if (checkequals)
+			if (checkequals && tmpp2)
 				return tmpp2;
 			return p;
 		}
@@ -961,6 +960,12 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 				_tcscat(tmp3, _T(","));
 				_tcscat(tmp, extras);
 				_tcscat(tmp3, extras);
+			}
+			if (ci->unit_special_flags) {
+				TCHAR tmpx[32];
+				_stprintf(tmpx, _T(",flags=0x%x"), ci->unit_special_flags);
+				_tcscat(tmp, tmpx);
+				_tcscat(tmp3, tmpx);
 			}
 			if (ci->type == UAEDEV_HDF)
 				cfgfile_write_str (f, _T("hardfile2"), tmp);
@@ -1853,6 +1858,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	}
 
 	cfgfile_write_bool (f, _T("cpu_cycle_exact"), p->cpu_cycle_exact);
+	// must be after cpu_cycle_exact
+	cfgfile_write_bool (f, _T("cpu_memory_cycle_exact"), p->cpu_memory_cycle_exact);
 	cfgfile_write_bool (f, _T("blitter_cycle_exact"), p->blitter_cycle_exact);
 	cfgfile_write_bool (f, _T("cycle_exact"), p->cpu_cycle_exact && p->blitter_cycle_exact ? 1 : 0);
 	cfgfile_dwrite_bool (f, _T("fpu_no_unimplemented"), p->fpu_no_unimplemented);
@@ -3847,6 +3854,11 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 				else if (cfgfile_option_find(tmpp2, _T("HD")))
 					uci.controller_media_type = 0;
 
+				TCHAR *pflags;
+				if ((pflags = cfgfile_option_get(tmpp2, _T("flags")))) {
+					getintval(&pflags, &uci.unit_special_flags, 0);
+				}
+
 				if (cfgfile_option_find(tmpp2, _T("SCSI2")))
 					uci.unit_feature_level = HD_LEVEL_SCSI_2;
 				else if (cfgfile_option_find(tmpp2, _T("SCSI1")))
@@ -4188,17 +4200,27 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 	bool tmpbool, dummybool;
 	TCHAR tmpbuf[CONFIG_BLEN];
 
-	if (cfgfile_yesno (option, value, _T("cpu_cycle_exact"), &p->cpu_cycle_exact)
-		|| cfgfile_yesno (option, value, _T("blitter_cycle_exact"), &p->blitter_cycle_exact)) {
-			if (p->cpu_model >= 68020 && p->cachesize > 0)
-				p->cpu_cycle_exact = p->blitter_cycle_exact = 0;
-			/* we don't want cycle-exact in 68020/40+JIT modes */
-			return 1;
+	if (cfgfile_yesno (option, value, _T("cpu_cycle_exact"), &p->cpu_cycle_exact)) {
+		/* we don't want cycle-exact in 68020/40+JIT modes */
+		if (p->cpu_model >= 68020 && p->cachesize > 0)
+			p->cpu_cycle_exact = p->cpu_memory_cycle_exact = p->blitter_cycle_exact = 0;
+		p->cpu_memory_cycle_exact = p->cpu_cycle_exact;
+		return 1;
+	}
+	if (cfgfile_yesno (option, value, _T("blitter_cycle_exact"), &p->blitter_cycle_exact)) {
+		if (p->cpu_model >= 68020 && p->cachesize > 0)
+			p->cpu_cycle_exact = p->cpu_memory_cycle_exact = p->blitter_cycle_exact = 0;
+		return 1;
+	}
+	if (cfgfile_yesno (option, value, _T("cpu_memory_cycle_exact"), &p->cpu_memory_cycle_exact)) {
+		if (!p->cpu_memory_cycle_exact)
+			p->cpu_cycle_exact = false;
+		return 1;
 	}
 	if (cfgfile_yesno (option, value, _T("cycle_exact"), &tmpbool)) {
-		p->cpu_cycle_exact = p->blitter_cycle_exact = tmpbool;
+		p->cpu_cycle_exact = p->cpu_memory_cycle_exact = p->blitter_cycle_exact = tmpbool;
 		if (p->cpu_model >= 68020 && p->cachesize > 0)
-			p->cpu_cycle_exact = p->blitter_cycle_exact = false;
+			p->cpu_cycle_exact = p->cpu_memory_cycle_exact = p->blitter_cycle_exact = false;
 		// if old version and CE and fastest possible: set to approximate
 		if (p->cpu_cycle_exact && p->config_version < ((2 << 16) | (8 << 8) | (2 << 0)) && p->m68k_speed < 0)
 			p->m68k_speed = 0;
@@ -6168,6 +6190,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->cpu_compatible = 1;
 	p->address_space_24 = 1;
 	p->cpu_cycle_exact = 0;
+	p->cpu_memory_cycle_exact = 0;
 	p->blitter_cycle_exact = 0;
 	p->chipset_mask = CSMASK_ECS_AGNUS;
 	p->genlock = 0;
@@ -6319,6 +6342,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->cpu_compatible = 1;
 	p->address_space_24 = 1;
 	p->cpu_cycle_exact = 0;
+	p->cpu_memory_cycle_exact = 0;
 	p->blitter_cycle_exact = 0;
 	p->chipset_mask = CSMASK_ECS_AGNUS;
 	p->immediate_blits = 0;
@@ -6394,6 +6418,7 @@ static void set_68020_compa (struct uae_prefs *p, int compa, int cd32)
 		p->m68k_speed = 0;
 		if (p->cpu_model == 68020 && p->cachesize == 0) {
 			p->cpu_cycle_exact = 1;
+			p->cpu_memory_cycle_exact = 1;
 			p->cpu_clock_multiplier = 4 << 8;
 		}
 	break;
@@ -6426,7 +6451,7 @@ static void set_68000_compa (struct uae_prefs *p, int compa)
 	switch (compa)
 	{
 	case 0:
-		p->cpu_cycle_exact = p->blitter_cycle_exact = 1;
+		p->cpu_cycle_exact = p->cpu_memory_cycle_exact = p->blitter_cycle_exact = 1;
 		break;
 	case 1:
 		break;
@@ -6991,7 +7016,7 @@ int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int r
 		v = bip_super (p, config, compa, romcheck);
 		break;
 	}
-	if ((p->cpu_model >= 68020 || !p->cpu_cycle_exact) && !p->immediate_blits)
+	if ((p->cpu_model >= 68020 || !p->cpu_cycle_exact || !p->cpu_memory_cycle_exact) && !p->immediate_blits)
 		p->waiting_blits = 1;
 	if (p->sound_filter_type == FILTER_SOUND_TYPE_A500 && (p->chipset_mask & CSMASK_AGA))
 		p->sound_filter_type = FILTER_SOUND_TYPE_A1200;

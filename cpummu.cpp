@@ -1246,7 +1246,7 @@ void REGPARAM2 mmu_set_funcs(void)
 {
 	if (currprefs.mmu_model != 68040 && currprefs.mmu_model != 68060)
 		return;
-	if (currprefs.cpu_cycle_exact || currprefs.cpu_compatible) {
+	if (currprefs.cpu_memory_cycle_exact || currprefs.cpu_compatible) {
 		x_phys_get_iword = get_word_icache040;
 		x_phys_get_ilong = get_long_icache040;
 		x_phys_get_byte = get_byte_cache_040;

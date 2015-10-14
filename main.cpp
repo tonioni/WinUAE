@@ -246,7 +246,7 @@ void fixup_cpu (struct uae_prefs *p)
 		break;
 	}
 
-	if (p->cpu_thread && (p->cpu_compatible || p->ppc_mode || p->cpu_cycle_exact || p->cpu_model < 68020)) {
+	if (p->cpu_thread && (p->cpu_compatible || p->ppc_mode || p->cpu_cycle_exact || p->cpu_memory_cycle_exact || p->cpu_model < 68020)) {
 		p->cpu_thread = false;
 		error_log(_T("Threaded CPU mode is not compatible with PPC emulation, More compatible or Cycle Exact modes. CPU type must be 68020 or higher."));
 	}
@@ -270,6 +270,9 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log (_T("JIT requires 68020 or better CPU."));
 	}
 
+	if (!p->cpu_memory_cycle_exact && p->cpu_cycle_exact)
+		p->cpu_memory_cycle_exact = true;
+
 	if (p->cpu_model >= 68040 && p->cachesize && p->cpu_compatible)
 		p->cpu_compatible = false;
 
@@ -278,7 +281,7 @@ void fixup_cpu (struct uae_prefs *p)
 		p->mmu_model = 0;
 	}
 
-	if (p->cachesize && p->cpu_cycle_exact) {
+	if (p->cachesize && (p->cpu_cycle_exact || p->cpu_memory_cycle_exact)) {
 		error_log (_T("JIT and cycle-exact can't be enabled simultaneously."));
 		p->cachesize = 0;
 	}
@@ -302,10 +305,10 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log (_T("Immediate blitter and waiting blits can't be enabled simultaneously.\n"));
 		p->waiting_blits = 0;
 	}
-	if (p->cpu_cycle_exact)
+	if (p->cpu_cycle_exact || p->cpu_memory_cycle_exact)
 		p->cpu_compatible = true;
 
-	if (p->cpu_cycle_exact && p->produce_sound == 0) {
+	if ((p->cpu_cycle_exact || p->cpu_memory_cycle_exact) && p->produce_sound == 0) {
 		p->produce_sound = 1;
 		error_log(_T("Cycle-exact mode requires at least Disabled but emulated sound setting."));
 	}

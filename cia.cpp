@@ -745,7 +745,7 @@ static int ciab_tod_event_state;
 static void CIAB_tod_inc (bool irq)
 {
 	ciab_tod_event_state = 3; // done
-	if (!ciaatodon)
+	if (!ciabtodon)
 		return;
 	ciabtod++;
 	ciabtod &= 0xFFFFFF;
@@ -1795,7 +1795,7 @@ static void cia_wait_post (int cianummask, uae_u32 value)
 		do_cycles (8 * CYCLE_UNIT /2);
 	} else {
 		int c = 6 * CYCLE_UNIT / 2;
-		if (currprefs.cpu_cycle_exact)
+		if (currprefs.cpu_memory_cycle_exact)
 			x_do_cycles_post (c, value);
 		else
 			do_cycles (c);
@@ -1846,7 +1846,7 @@ static uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 	uae_u8 v = 0xff;
 
 	if (isgarynocia(addr))
-		return dummy_get(addr, 1, false);
+		return dummy_get(addr, 1, false, 0);
 
 	if (!isgaylenocia (addr))
 		return v;
@@ -1898,7 +1898,7 @@ static uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 	uae_u16 v = 0xffff;
 
 	if (isgarynocia(addr))
-		return dummy_get(addr, 2, false);
+		return dummy_get(addr, 2, false, 0);
 
 	if (!isgaylenocia (addr))
 		return v;
@@ -2178,7 +2178,7 @@ void rtc_hardreset (void)
 static uae_u32 REGPARAM2 clock_lget (uaecptr addr)
 {
 	if ((addr & 0xffff) >= 0x8000 && currprefs.cs_fatgaryrev >= 0)
-		return dummy_get(addr, 4, false);
+		return dummy_get(addr, 4, false, 0);
 
 	return (clock_wget (addr) << 16) | clock_wget (addr + 2);
 }
@@ -2186,7 +2186,7 @@ static uae_u32 REGPARAM2 clock_lget (uaecptr addr)
 static uae_u32 REGPARAM2 clock_wget (uaecptr addr)
 {
 	if ((addr & 0xffff) >= 0x8000 && currprefs.cs_fatgaryrev >= 0)
-		return dummy_get(addr, 2, false);
+		return dummy_get(addr, 2, false, 0);
 
 	return (clock_bget (addr) << 8) | clock_bget (addr + 1);
 }
@@ -2197,7 +2197,7 @@ static uae_u32 REGPARAM2 clock_bget (uaecptr addr)
 	uae_u8 v = 0;
 
 	if ((addr & 0xffff) >= 0x8000 && currprefs.cs_fatgaryrev >= 0)
-		return dummy_get(addr, 1, false);
+		return dummy_get(addr, 1, false, 0);
 
 #ifdef CDTV
 	if (currprefs.cs_cdtvram && (addr & 0xffff) >= 0x8000)
@@ -2206,9 +2206,7 @@ static uae_u32 REGPARAM2 clock_bget (uaecptr addr)
 
 	addr &= 0x3f;
 	if ((addr & 3) == 2 || (addr & 3) == 0 || currprefs.cs_rtc == 0) {
-		if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible)
-			v = regs.irc >> 8;
-		return v;
+		return dummy_get_safe(addr, 1, false, v);
 	}
 	time_t t = time (0);
 	t += currprefs.cs_rtc_adjust;
