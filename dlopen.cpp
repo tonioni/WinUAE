@@ -70,6 +70,11 @@ UAE_DLHANDLE uae_dlopen_plugin(const TCHAR *name)
 		return NULL;
 	}
 	UAE_DLHANDLE handle = uae_dlopen(path);
+#elif defined(WINUAE)
+	TCHAR path[MAX_DPATH];
+	_tcscpy(path, name);
+	_tcscat(path, LT_MODULE_EXT);
+	UAE_DLHANDLE handle = WIN32_LoadLibrary(path);
 #else
 	TCHAR path[MAX_DPATH];
 	_tcscpy(path, name);
@@ -88,8 +93,10 @@ UAE_DLHANDLE uae_dlopen_plugin(const TCHAR *name)
 
 void uae_dlopen_patch_common(UAE_DLHANDLE handle)
 {
-	write_log(_T("DLOPEN: Patching common functions\n"));
 	void *ptr;
 	ptr = uae_dlsym(handle, "uae_log");
-	if (ptr) *((uae_log_function *) ptr) = &uae_log;
+	if (ptr) {
+		write_log(_T("DLOPEN: Patching common functions\n"));
+		*((uae_log_function *)ptr) = &uae_log;
+	}
 }
