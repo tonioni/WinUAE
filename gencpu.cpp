@@ -3739,7 +3739,7 @@ static void gen_opcode (unsigned int opcode)
 			genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 			printf ("\tregs.sr = src;\n");
 		}
-		addcycles000(4);
+		addcycles000(2 * 4);
 		makefromsr ();
 		printf ("\tm68k_setstopped ();\n");
 		sync_m68k_pc ();
