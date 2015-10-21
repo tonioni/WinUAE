@@ -2229,7 +2229,7 @@ addrbank *gfxboard_init_memory (int devnum)
 
 		p4rom = read_device_rom(&currprefs, ROMTYPE_PICASSOIV, 0, roms);
 
-		if (!p4rom && currprefs.picassoivromfile[0])
+		if (!p4rom && currprefs.picassoivromfile[0] && zfile_exists(currprefs.picassoivromfile))
 			p4rom = read_rom_name(currprefs.picassoivromfile);
 
 		if (!p4rom && rl)
