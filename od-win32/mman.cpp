@@ -426,32 +426,33 @@ static int doinit_shm (void)
 		if (jit_direct_compatible_memory) {
 			p96mem_offset = natmem_offset + p96base_offset;
 		} else {
-			currprefs.rtgmem_size = changed_prefs.rtgmem_size = 0;
-			error_log(_T("RTG memory is not supported in this configuration."));
-#if 0
-			// calculate Z3 alignment (argh, I thought only Z2 needed this..)
-			uae_u32 addr = Z3BASE_REAL;
-			int z3off = cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype].z3extra;
-			if (z3off) {
-				addr = expansion_startaddress(addr, z3off);
-				addr += z3off;
-			}
-			addr = expansion_startaddress(addr, changed_prefs.z3fastmem_size);
-			addr += changed_prefs.z3fastmem_size;
-			addr = expansion_startaddress(addr, changed_prefs.z3fastmem2_size);
-			addr += changed_prefs.z3fastmem2_size;
-			addr = expansion_startaddress(addr, z3rtgallocsize);
-			if (gfxboard_get_configtype(changed_prefs.rtgmem_type) == 3) {
-				p96base_offset = addr;
-				write_log("NATMEM: p96base_offset = 0x%x\n", p96base_offset);
-				// adjust p96mem_offset to beginning of natmem
-				// by subtracting start of original p96mem_offset from natmem_offset
-				if (p96base_offset >= 0x10000000) {
-					natmem_offset = natmem_reserved - p96base_offset;
-					p96mem_offset = natmem_offset + p96base_offset;
+			if (changed_prefs.cachesize) {
+				currprefs.rtgmem_size = changed_prefs.rtgmem_size = 0;
+				error_log(_T("RTG memory is not supported in this configuration."));
+			} else {
+				// calculate Z3 alignment (argh, I thought only Z2 needed this..)
+				uae_u32 addr = Z3BASE_REAL;
+				int z3off = cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype].z3extra;
+				if (z3off) {
+					addr = expansion_startaddress(addr, z3off);
+					addr += z3off;
+				}
+				addr = expansion_startaddress(addr, changed_prefs.z3fastmem_size);
+				addr += changed_prefs.z3fastmem_size;
+				addr = expansion_startaddress(addr, changed_prefs.z3fastmem2_size);
+				addr += changed_prefs.z3fastmem2_size;
+				addr = expansion_startaddress(addr, z3rtgallocsize);
+				if (gfxboard_get_configtype(changed_prefs.rtgmem_type) == 3) {
+					p96base_offset = addr;
+					write_log("NATMEM: p96base_offset = 0x%x\n", p96base_offset);
+					// adjust p96mem_offset to beginning of natmem
+					// by subtracting start of original p96mem_offset from natmem_offset
+					if (p96base_offset >= 0x10000000) {
+						natmem_offset = natmem_reserved - p96base_offset;
+						p96mem_offset = natmem_offset + p96base_offset;
+					}
 				}
 			}
-#endif
 		}
 	}
 
