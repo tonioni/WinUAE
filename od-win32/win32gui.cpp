@@ -9484,6 +9484,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	TCHAR tmp[MAX_DPATH];
 	static int recursive = 0;
 	int v;
 
@@ -9503,9 +9504,11 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MBH_MEM));
 		CheckDlgButton(hDlg, IDC_FASTMEMAUTOCONFIG, workprefs.fastmem_autoconfig);
 		SendDlgItemMessage (hDlg, IDC_Z3MAPPING, CB_RESETCONTENT, 0, 0);
-		SendDlgItemMessage (hDlg, IDC_Z3MAPPING, CB_ADDSTRING, 0, (LPARAM)_T("Automatic (*)"));
-		SendDlgItemMessage(hDlg, IDC_Z3MAPPING, CB_ADDSTRING, 0, (LPARAM)_T("UAE"));
-		SendDlgItemMessage(hDlg, IDC_Z3MAPPING, CB_ADDSTRING, 0, (LPARAM)_T("Real"));
+		WIN32GUI_LoadUIString (IDS_AUTOMATIC, tmp, sizeof tmp / sizeof (TCHAR));
+		_tcscat(tmp, _T(" (*)"));
+		SendDlgItemMessage (hDlg, IDC_Z3MAPPING, CB_ADDSTRING, 0, (LPARAM)tmp);
+		SendDlgItemMessage(hDlg, IDC_Z3MAPPING, CB_ADDSTRING, 0, (LPARAM)_T("UAE (0x10000000)"));
+		SendDlgItemMessage(hDlg, IDC_Z3MAPPING, CB_ADDSTRING, 0, (LPARAM)_T("Real (0x40000000)"));
 		SendDlgItemMessage (hDlg, IDC_Z3MAPPING, CB_SETCURSEL, workprefs.z3_mapping_mode, 0);
 		recursive--;
 
@@ -19213,7 +19216,7 @@ void gui_led (int led, int on, int brightness)
 	} else if (led == LED_SND && gui_data.drive_disabled[3]) {
 		pos = 0;
 		ptr = drive_text + pos * LED_STRING_WIDTH;
-		if (gui_data.sndbuf_status < 3 && !pause_emulation) {
+		if (gui_data.sndbuf_status < 3 && !pause_emulation && !sound_paused()) {
 			_stprintf (ptr, _T("SND: %+.0f%%"), (double)((gui_data.sndbuf) / 10.0));
 		} else {
 			_tcscpy (ptr, _T("SND: -"));

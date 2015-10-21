@@ -660,11 +660,11 @@ FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     GROUPBOX        "Chipset",IDC_STATIC,1,0,212,136
     CONTROL         "OCS [] Original chipset. A1000 and most A500s.",IDC_OCS,
-                    "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,14,15,88,10
+                    "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,12,15,88,10
     CONTROL         "ECS Agnus [] Enhanced chipset (ECS Agnus chip only). CDTV and later A500 and A2000 hardware revisions.",IDC_ECS_AGNUS,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,14,31,88,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,12,31,88,10
     CONTROL         "Full ECS [] Full ECS chipset (ECS Agnus and ECS Denise chips). A500+, A600 and A3000.",IDC_ECS,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,14,47,88,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,12,47,88,10
     CONTROL         "AGA [] Advanced Graphics Architecture chipset. A1200, A4000 and CD32.",IDC_AGA,
                     "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,114,15,86,10
     CONTROL         "ECS Denise [] Enhanced chipset (ECS Denise chip only). Normally paired with ECS Agnus.",IDC_ECS_DENISE,
@@ -672,7 +672,7 @@ BEGIN
     CONTROL         "NTSC [] North American and Japanese display standard, 60Hz refresh rate. Other countries use PAL (50Hz. display refresh rate)",IDC_NTSC,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,114,47,86,10
     CONTROL         "Cycle-exact (DMA/Memory accesses)",IDC_CYCLEEXACTMEMORY,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,14,69,194,10
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,12,81,194,10
     RTEXT           "Chipset Extra:",IDC_STATIC,72,108,71,15,SS_CENTERIMAGE
     COMBOBOX        IDC_CS_EXT,148,109,49,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Options",IDC_STATIC,221,0,173,137
@@ -697,7 +697,7 @@ BEGIN
     COMBOBOX        IDC_GENLOCKMODE,237,77,103,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_GENLOCKMIX,346,77,38,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Cycle-exact (Full) [] The most compatible A500/A1200 emulation mode.",IDC_CYCLEEXACT,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,82,194,10
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,12,68,194,10
 END
 
 IDD_CHIPSET2 DIALOGEX 0, 0, 396, 305

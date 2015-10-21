@@ -517,6 +517,12 @@ static void boardmessage(addrbank *mapped, bool success)
 		type & rom_card ? _T("ROM") : (type & add_memory ? _T("RAM") : _T("IO ")),
 		mapped->name,
 		success ? _T("") : _T(" SHUT UP"));
+#if 0
+	for (int i = 0; i < 16; i++) {
+		write_log(_T("%s%02X"), i > 0 ? _T(".") : _T(""), expamem_read(i * 4));
+	}
+	write_log(_T("\n"));
+#endif
 }
 
 void expamem_shutup(addrbank *mapped)

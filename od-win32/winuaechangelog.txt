@@ -1,4 +1,19 @@
 
+Beta 17:
+
+- Trace mode in 68000 cycle-exact was 4 cycles too long.
+- 68000 cycle-exact mode STOP needs at least 8 cycles before it can wake up.
+- Memory-only cycle exact crash when entering GUI.
+- Memory-only cycle exact shortcut config entry cycle_exact=memory (Old false and true values have not changed)
+- Only use picassoiv_rom_file config entry if it contains valid path. (Workaround for some config files that
+  contain picassoiv_rom_file=:NOROM for some reason)
+- Z3 Picasso IV was disabled if there was not enough address space even when JIT was disabled (b16).
+- JIT on/off change was not delayed until it was safe to do, like other CPU option changes. uae-configuration
+  (or similar) on the fly config changes were unreliable in this situation.
+- FAT drive mounted as a directory harddrive: file's modification time was not always correct. (2.6.0, wrong
+  date field name)
+- Warp mode fps limit added, config file only: warp_limit=fps
+
 Beta 16:
 
 - Added Mediator 1200SX autoconfig data.
