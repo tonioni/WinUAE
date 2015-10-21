@@ -1524,6 +1524,8 @@ void close_sound_device (struct sound_data *sd)
 void pause_sound_device (struct sound_data *sd)
 {
 	sd->paused = 1;
+	gui_data.sndbuf_status = 0;
+	gui_data.sndbuf = 0;
 	if (sd->devicetype == SOUND_DEVICE_AL)
 		pause_audio_al (sd);
 	else if (sd->devicetype == SOUND_DEVICE_DS)
@@ -1617,6 +1619,11 @@ void close_sound (void)
 	extrasndbuffered = 0;
 	xfree(extrasndbuf);
 	extrasndbuf = NULL;
+}
+
+bool sound_paused(void)
+{
+	return sdp->paused;
 }
 
 void pause_sound (void)
