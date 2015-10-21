@@ -1503,6 +1503,7 @@ static void update_68k_cycles (void)
 static void prefs_changed_cpu (void)
 {
 	fixup_cpu (&changed_prefs);
+	check_prefs_changed_comp(false);
 	currprefs.cpu_model = changed_prefs.cpu_model;
 	currprefs.fpu_model = changed_prefs.fpu_model;
 	currprefs.mmu_model = changed_prefs.mmu_model;
@@ -1519,7 +1520,7 @@ static int check_prefs_changed_cpu2(void)
 	int changed = 0;
 
 #ifdef JIT
-	changed = check_prefs_changed_comp() ? 1 : 0;
+	changed = check_prefs_changed_comp(true) ? 1 : 0;
 #endif
 	if (changed
 		|| currprefs.cpu_model != changed_prefs.cpu_model
@@ -1601,7 +1602,7 @@ void init_m68k (void)
 #ifdef JIT
 	/* We need to check whether NATMEM settings have changed
 	* before starting the CPU */
-	check_prefs_changed_comp ();
+	check_prefs_changed_comp(false);
 #endif
 }
 
@@ -2188,6 +2189,7 @@ CHK:
 
 Illegal Instruction:
 Privilege violation:
+Trace:
 Line A:
 Line F:
 
@@ -2248,7 +2250,7 @@ static void Exception_ce000 (int nr)
 			start = 0;
 		else if (nr >= 32 && nr < 32 + 16) // TRAP #x
 			start = 4;
-		else if (nr == 4 || nr == 8 || nr == 10 || nr == 11) // ILLG, PRIV, LINEA, LINEF
+		else if (nr == 4 || nr == 8 || nr == 9 || nr == 10 || nr == 11) // ILLG, PRIV, TRACE, LINEA, LINEF
 			start = 4;
 	}
 
@@ -4863,19 +4865,24 @@ static void m68k_run_2ce (void)
 			}
 
 			while (!exit) {
+#if 0
 				static int prevopcode;
+#endif
 				r->instruction_pc = m68k_getpc ();
 
+#if 0
 				if (regs.irc == 0xfffb) {
 					gui_message (_T("OPCODE %04X HAS FAULTY PREFETCH! PC=%08X"), prevopcode, r->instruction_pc);
 				}
+#endif
 
 				//write_log (_T("%x %04x\n"), r->instruction_pc, regs.irc);
 
 				r->opcode = regs.irc;
+#if 0
 				prevopcode = r->opcode;
 				regs.irc = 0xfffb;
-
+#endif
 				//write_log (_T("%08x %04x\n"), r->instruction_pc, opcode);
 
 #if DEBUG_CD32CDTVIO
@@ -4952,23 +4959,100 @@ static void m68k_run_2p (void)
 {
 	struct regstruct *r = &regs;
 	bool exit = false;
+	bool first = true;
 
 	while (!exit) {
 		TRY(prb) {
+
+			if (first) {
+				if (cpu_tracer < 0) {
+					memcpy (&r->regs, &cputrace.regs, 16 * sizeof (uae_u32));
+					r->ir = cputrace.ir;
+					r->irc = cputrace.irc;
+					r->sr = cputrace.sr;
+					r->usp = cputrace.usp;
+					r->isp = cputrace.isp;
+					r->intmask = cputrace.intmask;
+					r->stopped = cputrace.stopped;
+
+					r->msp = cputrace.msp;
+					r->vbr = cputrace.vbr;
+					r->caar = cputrace.caar;
+					r->cacr = cputrace.cacr;
+					r->cacheholdingdata020 = cputrace.cacheholdingdata020;
+					r->cacheholdingaddr020 = cputrace.cacheholdingaddr020;
+					r->prefetch020addr = cputrace.prefetch020addr;
+					memcpy (&r->prefetch020, &cputrace.prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u32));
+					memcpy (&caches020, &cputrace.caches020, sizeof caches020);
+
+					m68k_setpc (cputrace.pc);
+					if (!r->stopped) {
+						if (cputrace.state > 1)
+							Exception (cputrace.state);
+						else if (cputrace.state == 1)
+							(*cpufunctbl[cputrace.opcode])(cputrace.opcode);
+					}
+					if (regs.stopped)
+						set_special (SPCFLAG_STOP);
+					set_cpu_tracer (false);
+					goto cont;
+				}
+				set_cpu_tracer (false);
+				first = false;
+			}
+
 			while (!exit) {
 				r->instruction_pc = m68k_getpc ();
+				r->opcode = regs.irc;
 
 #if DEBUG_CD32CDTVIO
 				out_cd32io (m68k_getpc ());
 #endif
 
-				x_do_cycles (cpu_cycles);
+				if (cpu_tracer) {
 
-				r->opcode = regs.irc;
-				count_instr (r->opcode);
+#if CPUTRACE_DEBUG
+					validate_trace ();
+#endif
+					memcpy (&cputrace.regs, &r->regs, 16 * sizeof (uae_u32));
+					cputrace.opcode = r->opcode;
+					cputrace.ir = r->ir;
+					cputrace.irc = r->irc;
+					cputrace.sr = r->sr;
+					cputrace.usp = r->usp;
+					cputrace.isp = r->isp;
+					cputrace.intmask = r->intmask;
+					cputrace.stopped = r->stopped;
+					cputrace.state = 1;
+					cputrace.pc = m68k_getpc ();
+
+					cputrace.msp = r->msp;
+					cputrace.vbr = r->vbr;
+					cputrace.caar = r->caar;
+					cputrace.cacr = r->cacr;
+					cputrace.cacheholdingdata020 = r->cacheholdingdata020;
+					cputrace.cacheholdingaddr020 = r->cacheholdingaddr020;
+					cputrace.prefetch020addr = r->prefetch020addr;
+					memcpy (&cputrace.prefetch020, &r->prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u32));
+					memcpy (&cputrace.caches020, &caches020, sizeof caches020);
+
+					cputrace.memoryoffset = 0;
+					cputrace.cyclecounter = cputrace.cyclecounter_pre = cputrace.cyclecounter_post = 0;
+					cputrace.readcounter = cputrace.writecounter = 0;
+				}
+
+				if (inputrecord_debug & 4) {
+					if (input_record > 0)
+						inprec_recorddebug_cpu (1);
+					else if (input_play > 0)
+						inprec_playdebug_cpu (1);
+				}
+
+				x_do_cycles (cpu_cycles);
 
 				cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode);
 				cpu_cycles = adjust_cycles (cpu_cycles);
+cont:
 				if (r->spcflags) {
 					if (do_specialties (cpu_cycles))
 						exit = true;;
@@ -6714,10 +6798,11 @@ void m68k_setstopped (void)
 	regs.stopped = 1;
 	/* A traced STOP instruction drops through immediately without
 	actually stopping.  */
-	if ((regs.spcflags & SPCFLAG_DOTRACE) == 0)
+	if ((regs.spcflags & SPCFLAG_DOTRACE) == 0) {
 		set_special (SPCFLAG_STOP);
-	else
+	} else {
 		m68k_resumestopped ();
+	}
 }
 
 void m68k_resumestopped (void)
@@ -6725,9 +6810,8 @@ void m68k_resumestopped (void)
 	if (!regs.stopped)
 		return;
 	regs.stopped = 0;
-	if (currprefs.cpu_cycle_exact) {
-		if (currprefs.cpu_model == 68000)
-			x_do_cycles (6 * cpucycleunit);
+	if (currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000) {
+		x_do_cycles (6 * cpucycleunit);
 	}
 	fill_prefetch ();
 	unset_special (SPCFLAG_STOP);

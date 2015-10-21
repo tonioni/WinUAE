@@ -236,6 +236,8 @@ static const TCHAR *autoext2[] = { _T("disabled"), _T("copy"), _T("replace"), 0 
 static const TCHAR *leds[] = { _T("power"), _T("df0"), _T("df1"), _T("df2"), _T("df3"), _T("hd"), _T("cd"), _T("fps"), _T("cpu"), _T("snd"), _T("md"), 0 };
 static const int leds_order[] = { 3, 6, 7, 8, 9, 4, 5, 2, 1, 0, 9 };
 static const TCHAR *lacer[] = { _T("off"), _T("i"), _T("p"), 0 };
+/* another boolean to choice update.. */
+static const TCHAR *cycleexact[] = { _T("false"), _T("memory"), _T("true"), 0  };
 
 static const TCHAR *hdcontrollers[] = {
 	_T("uae"),
@@ -1861,7 +1863,14 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	// must be after cpu_cycle_exact
 	cfgfile_write_bool (f, _T("cpu_memory_cycle_exact"), p->cpu_memory_cycle_exact);
 	cfgfile_write_bool (f, _T("blitter_cycle_exact"), p->blitter_cycle_exact);
-	cfgfile_write_bool (f, _T("cycle_exact"), p->cpu_cycle_exact && p->blitter_cycle_exact ? 1 : 0);
+	// must be after cpu_cycle_exact, cpu_memory_cycle_exact and blitter_cycle_exact
+	if (p->cpu_cycle_exact && p->blitter_cycle_exact)
+		cfgfile_write_str (f, _T("cycle_exact"), cycleexact[2]);
+	else if (p->cpu_memory_cycle_exact && p->blitter_cycle_exact)
+		cfgfile_write_str (f, _T("cycle_exact"), cycleexact[1]);
+	else
+		cfgfile_write_str (f, _T("cycle_exact"), cycleexact[0]);
+
 	cfgfile_dwrite_bool (f, _T("fpu_no_unimplemented"), p->fpu_no_unimplemented);
 	cfgfile_dwrite_bool (f, _T("cpu_no_unimplemented"), p->int_no_unimplemented);
 	cfgfile_write_bool (f, _T("fpu_strict"), p->fpu_strict);
@@ -1894,6 +1903,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, _T("state_replay_buffers"), _T("%d"), p->statecapturebuffersize);
 	cfgfile_dwrite_bool (f, _T("state_replay_autoplay"), p->inprec_autoplay);
 	cfgfile_dwrite_bool (f, _T("warp"), p->turbo_emulation);
+	cfgfile_dwrite (f, _T("warp_limit"), _T("%d"), p->turbo_emulation_limit);
 
 #ifdef FILESYS
 	write_filesys_config (p, f);
@@ -2496,6 +2506,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("sound_stereo_mixing_delay"), &p->sound_mixed_stereo_delay, 1)
 		|| cfgfile_intval (option, value, _T("sampler_frequency"), &p->sampler_freq, 1)
 		|| cfgfile_intval (option, value, _T("sampler_buffer"), &p->sampler_buffer, 1)
+		|| cfgfile_intval (option, value, _T("warp_limit"), &p->turbo_emulation_limit, 1)
 
 		|| cfgfile_intval (option, value, _T("gfx_framerate"), &p->gfx_framerate, 1)
 		|| cfgfile_intval (option, value, _T("gfx_top_windowed"), &p->gfx_size_win.x, 1)
@@ -4197,7 +4208,7 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCHAR *value)
 {
 	int tmpval, dummyint, i;
-	bool tmpbool, dummybool;
+	bool dummybool;
 	TCHAR tmpbuf[CONFIG_BLEN];
 
 	if (cfgfile_yesno (option, value, _T("cpu_cycle_exact"), &p->cpu_cycle_exact)) {
@@ -4214,11 +4225,19 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 	}
 	if (cfgfile_yesno (option, value, _T("cpu_memory_cycle_exact"), &p->cpu_memory_cycle_exact)) {
 		if (!p->cpu_memory_cycle_exact)
-			p->cpu_cycle_exact = false;
+			p->blitter_cycle_exact = p->cpu_cycle_exact = false;
 		return 1;
 	}
-	if (cfgfile_yesno (option, value, _T("cycle_exact"), &tmpbool)) {
-		p->cpu_cycle_exact = p->cpu_memory_cycle_exact = p->blitter_cycle_exact = tmpbool;
+	if (cfgfile_strval (option, value, _T("cycle_exact"), &tmpval, cycleexact, 0)) {
+		if (tmpval > 0) {
+			p->blitter_cycle_exact = true;
+			p->cpu_cycle_exact = tmpval > 1;
+			p->cpu_memory_cycle_exact = true;
+		} else {
+			p->blitter_cycle_exact = false;
+			p->cpu_cycle_exact = false;
+			p->cpu_memory_cycle_exact = false;
+		}
 		if (p->cpu_model >= 68020 && p->cachesize > 0)
 			p->cpu_cycle_exact = p->cpu_memory_cycle_exact = p->blitter_cycle_exact = false;
 		// if old version and CE and fastest possible: set to approximate
@@ -6091,6 +6110,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->uaeserial = 0;
 	p->cpu_idle = 0;
 	p->turbo_emulation = 0;
+	p->turbo_emulation_limit = 0;
 	p->headless = 0;
 	p->catweasel = 0;
 	p->tod_hack = 0;
@@ -6354,6 +6374,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->uaeserial = 0;
 	p->cpu_idle = 0;
 	p->turbo_emulation = 0;
+	p->turbo_emulation_limit = 0;
 	p->catweasel = 0;
 	p->tod_hack = 0;
 	p->maprom = 0;

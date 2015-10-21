@@ -221,7 +221,7 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log (_T("24-bit address space is not supported with 68040/060 configurations."));
 		p->address_space_24 = 0;
 	}
-	if (p->cpu_model < 68020 && p->fpu_model && (p->cpu_compatible || p->cpu_cycle_exact)) {
+	if (p->cpu_model < 68020 && p->fpu_model && (p->cpu_compatible || p->cpu_memory_cycle_exact)) {
 		error_log (_T("FPU is not supported with 68000/010 configurations."));
 		p->fpu_model = 0;
 	}
@@ -246,7 +246,7 @@ void fixup_cpu (struct uae_prefs *p)
 		break;
 	}
 
-	if (p->cpu_thread && (p->cpu_compatible || p->ppc_mode || p->cpu_cycle_exact || p->cpu_memory_cycle_exact || p->cpu_model < 68020)) {
+	if (p->cpu_thread && (p->cpu_compatible || p->ppc_mode || p->cpu_memory_cycle_exact || p->cpu_model < 68020)) {
 		p->cpu_thread = false;
 		error_log(_T("Threaded CPU mode is not compatible with PPC emulation, More compatible or Cycle Exact modes. CPU type must be 68020 or higher."));
 	}
@@ -281,7 +281,7 @@ void fixup_cpu (struct uae_prefs *p)
 		p->mmu_model = 0;
 	}
 
-	if (p->cachesize && (p->cpu_cycle_exact || p->cpu_memory_cycle_exact)) {
+	if (p->cachesize && p->cpu_memory_cycle_exact) {
 		error_log (_T("JIT and cycle-exact can't be enabled simultaneously."));
 		p->cachesize = 0;
 	}
@@ -305,10 +305,10 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log (_T("Immediate blitter and waiting blits can't be enabled simultaneously.\n"));
 		p->waiting_blits = 0;
 	}
-	if (p->cpu_cycle_exact || p->cpu_memory_cycle_exact)
+	if (p->cpu_memory_cycle_exact)
 		p->cpu_compatible = true;
 
-	if ((p->cpu_cycle_exact || p->cpu_memory_cycle_exact) && p->produce_sound == 0) {
+	if (p->cpu_memory_cycle_exact && p->produce_sound == 0) {
 		p->produce_sound = 1;
 		error_log(_T("Cycle-exact mode requires at least Disabled but emulated sound setting."));
 	}
@@ -328,7 +328,6 @@ void fixup_prefs (struct uae_prefs *p)
 
 	built_in_chipset_prefs (p);
 	fixup_cpu (p);
-
 
 	if (p->cpuboard_type && p->cpuboardmem1_size > cpuboard_maxmemory(p)) {
 		error_log(_T("Unsupported accelerator board memory size %d (0x%x).\n"), p->cpuboardmem1_size, p->cpuboardmem1_size);

@@ -467,6 +467,7 @@ struct uae_prefs {
 	int boot_rom;
 	bool rom_readwrite;
 	int turbo_emulation;
+	int turbo_emulation_limit;
 	bool headless;
 	int filesys_limit;
 	int filesys_max_name;

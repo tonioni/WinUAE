@@ -5157,7 +5157,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 		wasjit = currprefs.cachesize;
 		changed_prefs.cachesize = 0;
 		console_out (_T("MMU: JIT disabled\n"));
-		check_prefs_changed_comp ();
+		check_prefs_changed_comp(false);
 	}
 	if (mode == 0) {
 		if (mmu_enabled) {

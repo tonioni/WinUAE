@@ -670,7 +670,7 @@ extern void compemu_reset(void);
 #define flush_icache(uaecptr, int) do {} while (0)
 #define flush_icache_hard(uaecptr, int) do {} while (0)
 #endif
-bool check_prefs_changed_comp (void);
+bool check_prefs_changed_comp (bool);
 extern void flush_dcache (uaecptr, int);
 extern void flush_mmu (uaecptr, int);
 

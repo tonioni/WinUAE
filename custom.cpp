@@ -3793,15 +3793,24 @@ void compute_vsynctime (void)
 	}
 	if (!fake_vblank_hz)
 		fake_vblank_hz = vblank_hz;
-	if (currprefs.turbo_emulation)
-		vsynctimebase = vsynctimebase_orig = 1;
-	else
-		vsynctimebase = vsynctimebase_orig = (int)(syncbase / fake_vblank_hz);
+
+	if (currprefs.turbo_emulation) {
+		if (currprefs.turbo_emulation_limit > 0) {
+			vsynctimebase = (int)(syncbase / currprefs.turbo_emulation_limit);
+		} else {
+			vsynctimebase = 1;
+		}
+	} else {
+		vsynctimebase = (int)(syncbase / fake_vblank_hz);
+	}
+	vsynctimebase_orig = vsynctimebase;
+
 #if 0
 	if (!picasso_on) {
 		updatedisplayarea ();
 	}
 #endif
+
 	if (islinetoggle ()) {
 		shpos += 0.5;
 	}
@@ -9672,6 +9681,12 @@ void check_prefs_changed_custom (void)
 	if (!config_changed)
 		return;
 	currprefs.gfx_framerate = changed_prefs.gfx_framerate;
+	if (currprefs.turbo_emulation_limit != changed_prefs.turbo_emulation_limit) {
+		currprefs.turbo_emulation_limit = changed_prefs.turbo_emulation_limit;
+		if (changed_prefs.turbo_emulation) {
+			warpmode (changed_prefs.turbo_emulation);
+		}
+	}
 	if (currprefs.turbo_emulation != changed_prefs.turbo_emulation)
 		warpmode (changed_prefs.turbo_emulation);
 	if (inputdevice_config_change_test ()) 

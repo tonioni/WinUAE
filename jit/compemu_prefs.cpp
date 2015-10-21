@@ -3,7 +3,7 @@
  ********************************************************************/
 extern bool have_done_picasso;
 
-bool check_prefs_changed_comp (void)
+bool check_prefs_changed_comp (bool checkonly)
 {
 	bool changed = 0;
 	static int cachesize_prev, comptrust_prev;
@@ -19,6 +19,9 @@ bool check_prefs_changed_comp (void)
 		currprefs.compfpu != changed_prefs.compfpu ||
 		currprefs.fpu_strict != changed_prefs.fpu_strict)
 		changed = 1;
+
+	if (checkonly)
+		return changed;
 
 	currprefs.comptrustbyte = changed_prefs.comptrustbyte;
 	currprefs.comptrustword = changed_prefs.comptrustword;
