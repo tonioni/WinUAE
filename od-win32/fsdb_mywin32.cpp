@@ -632,7 +632,7 @@ bool my_stat (const TCHAR *name, struct mystat *statbuf)
 			if (wtsec == ctsec || wtsec + 1 == ctsec) {
 				ft = fi.ftCreationTime;
 			} else {
-				ft = fi.ftLastAccessTime;
+				ft = fi.ftLastWriteTime;
 			}
 		} else {
 			ft = fi.ftLastWriteTime;
