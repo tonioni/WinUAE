@@ -844,7 +844,14 @@ static TCHAR *parsetextpath (const TCHAR *s)
 static void parse_cmdline (int argc, TCHAR **argv)
 {
 	int i;
+	static bool started;
 	bool firstconfig = true;
+	bool loaded = false;
+
+	// only parse command line when starting for the first time
+	if (started)
+		return;
+	started = true;
 
 	for (i = 1; i < argc; i++) {
 		if (!_tcsncmp (argv[i], _T("-diskswapper="), 13)) {
@@ -862,11 +869,13 @@ static void parse_cmdline (int argc, TCHAR **argv)
 			target_cfgfile_load (&currprefs, txt, firstconfig ? CONFIG_TYPE_ALL : CONFIG_TYPE_HARDWARE | CONFIG_TYPE_HOST | CONFIG_TYPE_NORESET, 0);
 			xfree (txt);
 			firstconfig = false;
+			loaded = true;
 		} else if (_tcsncmp (argv[i], _T("-statefile="), 11) == 0) {
 			TCHAR *txt = parsetextpath (argv[i] + 11);
 			savestate_state = STATE_DORESTORE;
 			_tcscpy (savestate_fname, txt);
 			xfree (txt);
+			loaded = true;
 		} else if (_tcscmp (argv[i], _T("-f")) == 0) {
 			/* Check for new-style "-f xxx" argument, where xxx is config-file */
 			if (i + 1 == argc) {
@@ -878,6 +887,7 @@ static void parse_cmdline (int argc, TCHAR **argv)
 				xfree (txt);
 				firstconfig = false;
 			}
+			loaded = true;
 		} else if (_tcscmp (argv[i], _T("-s")) == 0) {
 			if (i + 1 == argc)
 				write_log (_T("Missing argument for '-s' option.\n"));
@@ -894,15 +904,33 @@ static void parse_cmdline (int argc, TCHAR **argv)
 				_tcscat(txt2, _T(","));
 			cfgfile_parse_option (&currprefs, _T("cdimage0"), txt2, 0);
 			xfree(txt2);
-			xfree (txt);
-		} else {
-			if (argv[i][0] == '-' && argv[i][1] != '\0') {
+			xfree(txt);
+			loaded = true;
+		} else if (argv[i][0] == '-' && argv[i][1] != '\0') {
 				const TCHAR *arg = argv[i] + 2;
 				int extra_arg = *arg == '\0';
 				if (extra_arg)
 					arg = i + 1 < argc ? argv[i + 1] : 0;
 				if (parse_cmdline_option (&currprefs, argv[i][1], arg) && extra_arg)
 					i++;
+		} else if (i == argc - 1) {
+			// if last config entry is an orphan and nothing else was loaded:
+			// check if it is config file or statefile
+			if (!loaded) {
+				TCHAR *txt = parsetextpath(argv[i]);
+				struct zfile *z = zfile_fopen(txt, _T("rb"), ZFD_NORMAL);
+				if (z) {
+					int type = zfile_gettype(z);
+					zfile_fclose(z);
+					if (type == ZFILE_CONFIGURATION) {
+						currprefs.mountitems = 0;
+						target_cfgfile_load(&currprefs, txt, CONFIG_TYPE_ALL, 0);
+					} else if (type == ZFILE_STATEFILE) {
+						savestate_state = STATE_DORESTORE;
+						_tcscpy(savestate_fname, txt);
+					}
+				}
+				xfree(txt);
 			}
 		}
 	}
