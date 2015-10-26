@@ -2529,7 +2529,6 @@ static int WIN32_InitLibraries (void)
 	LARGE_INTEGER freq;
 	SETCURRENTPROCESSEXPLICITAPPUSERMODEIDD pSetCurrentProcessExplicitAppUserModelID; 
 
-	CoInitializeEx (NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 	/* Determine our processor speed and capabilities */
 	if (!init_mmtimer ()) {
 		pre_gui_message (_T("MMTimer initialization failed, exiting.."));
@@ -5519,7 +5518,6 @@ static TCHAR **parseargstrings (TCHAR *s, TCHAR **xargv)
 	return args;
 }
 
-
 static int process_arg (TCHAR *cmdline, TCHAR **xargv, TCHAR ***xargv3)
 {
 	int i, xargc;
@@ -5535,6 +5533,21 @@ static int process_arg (TCHAR *cmdline, TCHAR **xargv, TCHAR ***xargv3)
 	xargc = 0;
 	xargv[xargc++] = my_strdup (_wpgmptr);
 	fd = 0;
+	for (i = 0; argv[i]; i++) {
+		// resolve .lnk paths
+		const TCHAR *arg = argv[i];
+		if (_tcslen(arg) > 4 && !_tcsicmp(arg + _tcslen(arg) - 4, _T(".lnk"))) {
+			if (my_existsfile(arg)) {
+				TCHAR s[MAX_DPATH];
+				_tcscpy(s, arg);
+				if (my_resolveshortcut(s, MAX_DPATH)) {
+					xfree(argv[i]);
+					argv[i] = my_strdup(s);
+				}
+			}
+		}
+	}
+
 	for (i = 0; argv[i]; i++) {
 		TCHAR *f = argv[i];
 		ok = 0;
@@ -6560,6 +6573,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	currprefs.win32_filesystem_mangle_reserved_names = true;
 	SetDllDirectory (_T(""));
 	/* Make sure we do an InitCommonControls() to get some advanced controls */
+	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 	InitCommonControls ();
 
 	original_affinity = 1;
