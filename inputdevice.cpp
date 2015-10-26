@@ -5567,7 +5567,7 @@ static void matchdevices (struct inputdevice_functions *inf, struct uae_input_de
 				} else if (p1 && p2 && p1 - bname == p2 - bname2) {
 					*p1 = 0;
 					*p2 = 0;
-					if (bname && !_tcscmp (bname2, bname))
+					if (bname[0] && !_tcscmp (bname2, bname))
 						matched = true;
 				}
 				if (matched) {
@@ -5842,7 +5842,7 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 			}
 		} else if (jportskb[i] >= 0) {
 			TCHAR tmp[10];
-			_stprintf (tmp, _T("kbd%d"), jportskb[i]);
+			_stprintf (tmp, _T("kbd%d"), jportskb[i] + 1);
 			inputdevice_joyport_config (prefs, tmp, i, jportsmode[i], 0, true);
 		}
 		prefs->jports[i].autofire = jportaf[i];
