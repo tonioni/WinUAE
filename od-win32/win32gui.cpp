@@ -17643,6 +17643,9 @@ static HWND updatePanel (int id)
 	int fullpanel;
 	struct newresource *tres;
 
+	if (!hDlg)
+		return NULL;
+
 	if (first) {
 		first = false;
 		getguisize (hDlg, &gui_width, &gui_height);

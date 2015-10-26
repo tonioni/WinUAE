@@ -1,4 +1,18 @@
 
+Beta 18:
+
+- If dragndrop to GUI closed GUI (for example config file with show_gui=no), invalid GUI windows handle was accessed.
+- Don't parse command line again when restarting emulation (for example by loading new config when emulation has
+  already been started). Previously command line overrode new config.
+- "Forget" all remembered scan line states when forcing full refresh, previously some border region scan lines
+  were not refreshed properly when display parameters, for example centering, changed.
+- Fixed named pipe unicode format buffer size calculation bug.
+- If last command line parameter is a path and it looks like config file or state file: load it automatically.
+  Adds support for dragndrop over winuae.exe shortcut with other parameters in shortcut's Target field.
+- Automatically resolve all shortcut (*.lnk) paths in command line.
+- D3D9 non-shader mode forgot scanline texture when switching modes.
+- Fixed off by one bug in input device re-enumeration causing keyboard layout B->A or C->B change.
+
 Beta 17:
 
 - Trace mode in 68000 cycle-exact was 4 cycles too long.

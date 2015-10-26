@@ -3572,7 +3572,7 @@ addrbank *system2000_init(struct romconfig *rc)
 	scsi->baseaddress = 0xf00000;
 	scsi->configured = 1;
 	if (!rc->autoboot_disabled) {
-		load_rom_rc(rc, NULL, 16384, 0, scsi->rom, 16384, 0);
+		load_rom_rc(rc, ROMTYPE_SYSTEM2000, 16384, 0, scsi->rom, 16384, 0);
 	}
 	return scsi->bank;
 }

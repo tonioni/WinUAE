@@ -3167,7 +3167,7 @@ const struct expansionromtype expansionroms[] = {
 	},
 	{
 		_T("amax"), _T("AMAX ROM dongle"), _T("ReadySoft"),
-		NULL, 0, NULL, NULL, NULL, ROMTYPE_AMAX | ROMTYPE_NONE, 0, 0, 0, false
+		NULL, NULL, NULL, ROMTYPE_AMAX | ROMTYPE_NONE, 0, 0, 0, false
 	},
 
 #if 0
