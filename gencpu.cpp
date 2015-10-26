@@ -4186,7 +4186,6 @@ bccl_not68020:
 		//genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA | GF_NOREFILL);
 		//genamode (curi, curi->dmode, "dstreg", curi->size, "offs", 1, 0, GF_AA | GF_NOREFILL);
 		printf ("\tuaecptr oldpc = %s;\n", getpc);
-		addcycles000_nonce("\t\t", 2);
 		addcycles000 (2);
 		push_ins_cnt();
 		printf ("\tif (!cctrue (%d)) {\n", curi->cc);
@@ -4208,10 +4207,10 @@ bccl_not68020:
 		add_head_cycs (6);
 		fill_prefetch_1 (2);
 		fill_prefetch_full_020 ();
-		returncycles ("\t\t\t", 8);
+		returncycles ("\t\t\t", 10);
 		printf ("\t\t}\n");
 		add_head_cycs (10);
-		addcycles000_nonce("\t\t", 2);
+		addcycles000_nonce("\t\t", 2 + 2);
 		printf ("\t} else {\n");
 		addcycles000_onlyce(2);
 		addcycles000_nonce("\t\t", 2);
