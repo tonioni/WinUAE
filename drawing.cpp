@@ -254,7 +254,8 @@ bool picasso_on;
 uae_sem_t gui_sem;
 int inhibit_frame;
 
-int framecnt = 0;
+int framecnt;
+int custom_frame_redraw_necessary;
 static int frame_redraw_necessary;
 static int picasso_redraw_necessary;
 
@@ -3035,8 +3036,11 @@ static void center_image (void)
 	thisframe_y_adjust_real = thisframe_y_adjust << linedbl;
 	max_ypos_thisframe = (maxvpos_display - minfirstline + 1) << linedbl;
 
-	if (prev_x_adjust != visible_left_border || prev_y_adjust != thisframe_y_adjust)
-		frame_redraw_necessary |= interlace_seen > 0 && linedbl ? 2 : 1;
+	if (prev_x_adjust != visible_left_border || prev_y_adjust != thisframe_y_adjust) {
+		int redraw = interlace_seen > 0 && linedbl ? 2 : 1;
+		if (redraw > frame_redraw_necessary)
+			frame_redraw_necessary = redraw;
+	}
 
 	max_diwstop = 0;
 	min_diwstart = MAX_STOP;
@@ -3230,8 +3234,13 @@ static void init_drawing_frame (void)
 	first_drawn_line = 32767;
 
 	first_block_line = last_block_line = NO_BLOCK;
-	if (frame_redraw_necessary)
+	if (frame_redraw_necessary) {
+		reset_decision_table();
+		custom_frame_redraw_necessary = 1;
 		frame_redraw_necessary--;
+	} else {
+		custom_frame_redraw_necessary = 0;
+	}
 
 	center_image ();
 
@@ -3893,15 +3902,11 @@ void freevidbuffer (struct vidbuffer *buf)
 
 void reset_drawing (void)
 {
-	unsigned int i;
-
 	max_diwstop = 0;
 
 	lores_reset ();
 
-	for (i = 0; i < sizeof linestate / sizeof *linestate; i++) {
-		linestate[i] = LINE_UNDECIDED;
-	}
+	reset_decision_table();
 
 	init_aspect_maps ();
 

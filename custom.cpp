@@ -3586,7 +3586,7 @@ static void finish_decisions (void)
 	dip = curr_drawinfo + next_lineno;
 	dip_old = prev_drawinfo + next_lineno;
 	dp = line_decisions + next_lineno;
-	changed = thisline_changed;
+	changed = thisline_changed | custom_frame_redraw_necessary;
 	if (thisline_decision.plfleft >= 0 && thisline_decision.nr_planes > 0)
 		record_diw_line (thisline_decision.plfleft, diwfirstword, diwlastword);
 

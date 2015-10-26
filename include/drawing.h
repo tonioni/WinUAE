@@ -76,7 +76,7 @@ STATIC_INLINE int coord_window_to_diw_x (int x)
 }
 
 extern int framecnt;
-
+extern int custom_frame_redraw_necessary;
 
 /* color values in two formats: 12 (OCS/ECS) or 24 (AGA) bit Amiga RGB (color_regs),
 * and the native color value; both for each Amiga hardware color register.
