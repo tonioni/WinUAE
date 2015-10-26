@@ -2122,11 +2122,11 @@ static int restoredeviceobjects (void)
 				createmasktexture (filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS], s);
 			}
 		}
-		if (filterd3d->gfx_filter_scanlines > 0) {
-			createsltexture ();
-			createscanlines (1);
-		}
 		break;
+	}
+	if (filterd3d->gfx_filter_scanlines > 0) {
+		createsltexture();
+		createscanlines(1);
 	}
 	if (wasshader && !shaderon)
 		write_log (_T("Falling back to non-shader mode\n"));
@@ -2181,7 +2181,8 @@ static void D3D_free2 (void)
 	resetcount = 0;
 	devicelost = 0;
 	renderdisabled = false;
-	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen & ~STATUSLINE_TARGET;
+	changed_prefs.leds_on_screen &= ~STATUSLINE_TARGET;
+	currprefs.leds_on_screen &= ~STATUSLINE_TARGET;
 }
 
 void D3D_free (bool immediate)
@@ -2554,7 +2555,8 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 		break;
 	}
 
-	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
+	changed_prefs.leds_on_screen |= STATUSLINE_TARGET;
+	currprefs.leds_on_screen |= STATUSLINE_TARGET;
 
 	if (!restoredeviceobjects ()) {
 		D3D_free (true);
@@ -2666,7 +2668,8 @@ bool D3D_alloctexture (int w, int h)
 	if (fakemode)
 		return false;
 
-	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
+	changed_prefs.leds_on_screen |= STATUSLINE_TARGET;
+	currprefs.leds_on_screen |= STATUSLINE_TARGET;
 
 	freetextures ();
 	return alloctextures ();

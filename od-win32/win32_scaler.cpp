@@ -755,7 +755,8 @@ void S2X_reset (void)
 
 void S2X_free (void)
 {
-	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen & ~STATUSLINE_TARGET;
+	changed_prefs.leds_on_screen &= ~STATUSLINE_TARGET;
+	currprefs.leds_on_screen &= ~STATUSLINE_TARGET;
 
 	freesurface (tempsurf);
 	tempsurf = 0;
@@ -786,7 +787,8 @@ bool S2X_init (int dw, int dh, int dd)
 
 	S2X_free ();
 	d3d = currprefs.gfx_api;
-	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
+	changed_prefs.leds_on_screen |= STATUSLINE_TARGET;
+	currprefs.leds_on_screen |= STATUSLINE_TARGET;
 
 	if (d3d)
 		dd = amiga_depth2;
