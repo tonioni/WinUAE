@@ -781,6 +781,15 @@ void record_diw_line (int plfstrt, int first, int last)
 	}
 }
 
+STATIC_INLINE int get_shdelay_add(void)
+{
+	if (bplres == RES_SUPERHIRES)
+		return 0;
+	int add = bpldelay_sh;
+	add >>= RES_MAX - currprefs.gfx_resolution;
+	return add;
+}
+
 /*
 * Screen update macros/functions
 */
@@ -973,6 +982,17 @@ static void pfield_init_linetoscr (bool border)
 
 	if (dip_for_drawing->nr_sprites == 0)
 		return;
+
+	if (aga_mode) {
+		int add = get_shdelay_add();
+		if (add) {
+			if (sprite_playfield_start > 0) {
+				sprite_playfield_start -= add;
+			} else {
+				playfield_start -= add;
+			}
+		}
+	}
 
 	/* We need to clear parts of apixels.  */
 	if (linetoscr_diw_start < native_ddf_left) {
@@ -1173,6 +1193,7 @@ static void fill_line_border (int lineno)
 	}
 }
 
+static int sprite_shdelay;
 #define SPRITE_DEBUG 0
 static uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga)
 {
@@ -1181,6 +1202,8 @@ static uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga)
 	int *shift_lookup = dualpf ? (bpldualpfpri ? dblpf_ms2 : dblpf_ms1) : dblpf_ms;
 	int maskshift, plfmask;
 
+	// shdelay hack, above &spritepixels[pos] is correct. 
+	pos += sprite_shdelay;
 	/* The value in the shift lookup table is _half_ the shift count we
 	need.  This is because we can't shift 32 bits at once (undefined
 	behaviour in C).  */
@@ -1635,14 +1658,6 @@ static int pfield_do_nothing(int a, int b, int c)
 static call_linetoscr pfield_do_linetoscr_shdelay_normal;
 static call_linetoscr pfield_do_linetoscr_shdelay_sprite;
 
-STATIC_INLINE int get_shdelay_add(void)
-{
-	if (bplres == RES_SUPERHIRES)
-		return 0;
-	int add = bpldelay_sh;
-	add >>= RES_MAX - currprefs.gfx_resolution;
-	return add;
-}
 static int pfield_do_linetoscr_normal_shdelay(int spix, int dpix, int dpix_end)
 {
 	int add = get_shdelay_add();
@@ -1656,11 +1671,13 @@ static int pfield_do_linetoscr_sprite_shdelay(int spix, int dpix, int dpix_end)
 {
 	int add = get_shdelay_add();
 	int add2 = add * gfxvidinfo.drawbuffer.pixbytes;
-	spritepixels -= add;
+	sprite_shdelay = add;
+	spritepixels += add;
 	xlinebuffer += add2;
 	int out = pfield_do_linetoscr_shdelay_sprite(spix, dpix, dpix_end);
 	xlinebuffer -= add2;
-	spritepixels += add;
+	spritepixels -= add;
+	sprite_shdelay = 0;
 	return out;
 }
 
