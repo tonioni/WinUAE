@@ -3442,8 +3442,8 @@ static void decide_sprites (int hpos, bool usepointx)
 			if (hw_xp > last_sprite_point && hw_xp <= point + pointx) {
 				add_sprite (&count, MAX_SPRITES + i, sprxp, posns, nrs);
 			}
-		} else if (!(fmode & 0x80) && xpos >= 2 && xpos <= 9) {
-			// right border wrap around
+		} else if (!(fmode & 0x80) && xpos >= (2 << sprite_buffer_res) && xpos <= (9 << sprite_buffer_res)) {
+			// right border wrap around. SPRxCTL horizontal bits do not matter.
 			sprxp += (maxhpos * 2) << sprite_buffer_res;
 			hw_xp = sprxp >> sprite_buffer_res;
 			if (hw_xp > last_sprite_point && hw_xp <= point + pointx) {
@@ -3714,8 +3714,12 @@ static void reset_decisions (void)
 	bitplane_maybe_start_hpos = -1;
 	bitplane_off_delay = -1;
 
-	if (line_cyclebased)
+	if (line_cyclebased) {
 		line_cyclebased--;
+		if (!line_cyclebased) {
+			bpl_dma_off_when_active = 0;
+		}
+	}
 
 	memset (outword, 0, sizeof outword);
 	// fetched must not be cleared (Sony VX-90 / Royal Amiga Force)
