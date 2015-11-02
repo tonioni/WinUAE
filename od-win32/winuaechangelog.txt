@@ -1,4 +1,11 @@
 
+Beta 19:
+
+- Sprite in far right border feature (b1) didn't work correctly in AGA modes that require hires/shres horizontal
+  sprite resolution support. (Alien Breed 3D garbage sprite in right border)
+- AGA hires/shres horizontal scrolling feature was not fully in sync with sprites (Banshee)
+- In some situations bitplane DMA emulation internal state flag got stuck in active state (Aladdin blank screen).
+
 Beta 18:
 
 - If dragndrop to GUI closed GUI (for example config file with show_gui=no), invalid GUI windows handle was accessed.
