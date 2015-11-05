@@ -277,6 +277,7 @@ static int esp_do_dma(ESPState *s)
         len = s->async_len;
     }
 	len2 = len;
+	s->dma_pending = len2;
     if (to_device) {
         len = s->dma_memory_read(s->dma_opaque, s->async_buf, len2);
     } else {
@@ -312,7 +313,22 @@ static int esp_do_dma(ESPState *s)
 void esp_fake_dma_done(void *opaque)
 {
 	ESPState *s = (ESPState*)opaque;
-	scsiesp_req_continue(s->current_req);
+	int to_device = (s->ti_size < 0);
+	int len = s->dma_pending;
+
+	s->dma_pending = 0;
+	s->dma_left -= len;
+	s->async_buf += len;
+	s->async_len -= len;
+	if (to_device)
+		s->ti_size += len;
+	else
+		s->ti_size -= len;
+	if (s->async_len == 0) {
+		scsiesp_req_continue(s->current_req);
+	} else {
+		esp_do_dma(s);
+	}
 }
 
 void esp_command_complete(SCSIRequest *req, uint32_t status,
@@ -322,6 +338,7 @@ void esp_command_complete(SCSIRequest *req, uint32_t status,
 
     s->ti_size = 0;
     s->dma_left = 0;
+	s->dma_pending = 0;
     s->async_len = 0;
     s->status = status;
     s->rregs[ESP_RSTAT] = STAT_ST;

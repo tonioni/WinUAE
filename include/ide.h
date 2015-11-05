@@ -33,6 +33,7 @@ struct ide_board
 	uae_u8 *rom;
 	uae_u8 acmemory[128];
 	int rom_size;
+	int rom_start;
 	int rom_mask;
 	uaecptr baseaddress;
 	int configured;

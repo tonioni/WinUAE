@@ -2814,6 +2814,15 @@ static void nexus_memory_callback(struct romconfig *rc, uae_u8 *ac, int size)
 	else
 		ac[1] = 8;
 }
+static const struct expansionboardsettings golemfast_settings[] = {
+	{
+		_T("IDE"),
+		_T("ide")
+	},
+	{
+		NULL
+	}
+};
 static const struct expansionboardsettings nexus_settings[] = {
 	{
 		_T("MEM TEST"),
@@ -3024,11 +3033,20 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("golem"), _T("Golem"), _T("Kupke"),
+		_T("golem"), _T("Golem SCSI II"), _T("Kupke"),
 		golem_init, NULL, golem_add_scsi_unit, ROMTYPE_GOLEM, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		true, EXPANSIONTYPE_SCSI,
 		2079, 3, 0
+	},
+	{
+		_T("golemfast"), _T("Golem Fast SCSI/IDE"), _T("Kupke"),
+		golemfast_init, NULL, golemfast_add_idescsi_unit, ROMTYPE_GOLEMFAST, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE,
+		0, 0, 0, false, NULL,
+		true,
+		golemfast_settings
 	},
 	{
 		_T("multievolution"), _T("Multi Evolution 500/2000"), _T("MacroSystem"),

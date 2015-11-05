@@ -1125,12 +1125,16 @@ uae_u32 ide_read_reg (struct ide_hdf *ide, int ide_reg)
 	if (ide->regs.ide_status & IDE_STATUS_BSY)
 		ide_reg = IDE_STATUS;
 	if (!ide_isdrive (ide)) {
-		if (ide_reg == IDE_STATUS && ide->pair->irq)
-			ide->pair->irq = 0;
-		if (ide_isdrive (ide->pair))
-			v = 0x01;
-		else
-			v = 0xff;
+		if (ide_reg == IDE_STATUS) {
+			if (ide->pair->irq)
+				ide->pair->irq = 0;
+			if (ide_isdrive (ide->pair))
+				v = 0x01;
+			else
+				v = 0xff;
+		} else {
+			v = 0;
+		}
 		goto end;
 	}
 

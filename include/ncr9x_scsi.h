@@ -15,6 +15,7 @@ extern void oktagon_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct 
 extern void masoboshi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void ematrix_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void multievolution_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void golemfast_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 extern addrbank *ncr_fastlane_autoconfig_init(struct romconfig*);
 extern addrbank *ncr_oktagon_autoconfig_init(struct romconfig*);
@@ -28,6 +29,10 @@ extern uae_u32 cpuboard_ncr9x_scsi_get(uaecptr);
 uae_u32 masoboshi_ncr9x_scsi_get(uaecptr addr, int devnum);
 void masoboshi_ncr9x_scsi_put(uaecptr addr, uae_u32 v, int devnum);
 void ncr_masoboshi_autoconfig_init(struct romconfig*, uaecptr);
+
+uae_u32 golemfast_ncr9x_scsi_get(uaecptr addr, int devnum);
+void golemfast_ncr9x_scsi_put(uaecptr addr, uae_u32 v, int devnum);
+void ncr_golemfast_autoconfig_init(struct romconfig*, uaecptr);
 
 #define BLIZZARD_2060_SCSI_OFFSET 0x1ff00
 #define BLIZZARD_2060_DMA_OFFSET 0x1fff0

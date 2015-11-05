@@ -103,6 +103,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_x86_VGA		0x00100035
 #define ROMTYPE_APOLLOHD	0x00100036
 #define ROMTYPE_MEVOLUTION	0x00100037
+#define ROMTYPE_GOLEMFAST	0x00100038
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000

@@ -43,7 +43,8 @@
 #define PROTAR_IDE (MTEC_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define ROCHARD_IDE (PROTAR_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define x86_AT_IDE (ROCHARD_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
-#define TOTAL_IDE (x86_AT_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define GOLEMFAST_IDE (x86_AT_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
+#define TOTAL_IDE (GOLEMFAST_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 
 #define ALF_ROM_OFFSET 0x0100
 #define GVP_IDE_ROM_OFFSET 0x8000
@@ -93,6 +94,7 @@ static struct ide_board *mtec_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *protar_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *rochard_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *x86_at_ide_board[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ide_board *golemfast_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 
 static struct ide_hdf *idecontroller_drive[TOTAL_IDE * 2];
 static struct ide_thread_state idecontroller_its;
@@ -451,6 +453,16 @@ static int get_rochard_reg(uaecptr addr, struct ide_board *board, int *portnum)
 	return reg;
 }
 
+static int get_golemfast_reg(uaecptr addr, struct ide_board *board)
+{
+	int reg = -1;
+	if ((addr & 0x8001) != 0x8000)
+		return -1;
+	reg = (addr >> 2) & 7;
+	if (addr & 0x2000)
+		reg |= IDE_SECONDARY;
+	return reg;
+}
 
 static int getidenum(struct ide_board *board, struct ide_board **arr)
 {
@@ -490,6 +502,30 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 		write_log(_T("ALF GET %08x %02x %d %08x\n"), addr, v, regnum, M68K_GETPC);
 #endif
 
+	} else if (board->type == GOLEMFAST_IDE) {
+
+		if (!(addr & 0x8000)) {
+			if (board->rom) {
+				v = board->rom[addr & board->rom_mask];
+			}
+		} else if ((addr & 0x8700) == 0x8400 || (addr & 0x8700) == 0x8000) {
+			v = golemfast_ncr9x_scsi_get(oaddr, getidenum(board, golemfast_board));
+		} else if ((addr & 0x8700) == 0x8100) {
+			int regnum = get_golemfast_reg(addr, board);
+			if (regnum >= 0) {
+				v = get_ide_reg(board, regnum);
+			}
+		} else if ((addr & 0x8700) == 0x8300) {
+			v = board->original_rc->device_id ^ 7;
+			if (!board->original_rc->autoboot_disabled)
+				v |= 0x20;
+			if (!(board->original_rc->device_settings & 1))
+				v |= 0x08;
+			if (ide_irq_check(board->ide[0], false) || ide_drq_check(board->ide[0]))
+				v |= 0x80; // IDE IRQ | DRQ
+			//write_log(_T("READ JUMPER %08x %02x %08x\n"), addr, v, M68K_GETPC);
+		}
+		
 	} else if (board->type == MASOBOSHI_IDE) {
 		int regnum = -1;
 		bool rom = false;
@@ -689,6 +725,21 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 #endif
 			}
 
+		} else if (board->type == GOLEMFAST_IDE) {
+
+			if ((addr & 0x8700) == 0x8100) {
+				int regnum = get_golemfast_reg(addr, board);
+				if (regnum == IDE_DATA) {
+					v = get_ide_reg(board, IDE_DATA);
+				} else {
+					v = ide_read_byte(board, addr) << 8;
+					v |= ide_read_byte(board, addr + 1);
+				}
+			} else {
+				v = ide_read_byte(board, addr) << 8;
+				v |= ide_read_byte(board, addr + 1);
+			}
+
 		} else if (board->type == MASOBOSHI_IDE) {
 
 			if (addr >= MASOBOSHI_ROM_OFFSET && addr < MASOBOSHI_ROM_OFFSET_END) {
@@ -804,6 +855,8 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 				rochard_scsi_init(board->original_rc, board->baseaddress);
 			} else if (board->type == MASOBOSHI_IDE) {
 				ncr_masoboshi_autoconfig_init(board->original_rc, board->baseaddress);
+			} else if (board->type == GOLEMFAST_IDE) {
+				ncr_golemfast_autoconfig_init(board->original_rc, board->baseaddress);
 			}
 			expamem_next(ab, NULL);
 			return;
@@ -822,6 +875,16 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 #if DEBUG_IDE_ALF
 			write_log(_T("ALF PUT %08x %02x %d %08x\n"), addr, v, regnum, M68K_GETPC);
 #endif
+		} else if (board->type == GOLEMFAST_IDE) {
+
+			if ((addr & 0x8700) == 0x8400 || (addr & 0x8700) == 0x8000) {
+				golemfast_ncr9x_scsi_put(oaddr, v, getidenum(board, golemfast_board));
+			} else if ((addr & 0x8700) == 0x8100) {
+				int regnum = get_golemfast_reg(addr, board);
+				if (regnum >= 0)
+					put_ide_reg(board, regnum, v);
+			}
+
 		} else if (board->type == MASOBOSHI_IDE) {
 
 #if DEBUG_IDE_MASOBOSHI
@@ -928,6 +991,22 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 #endif
 			}
 
+
+		} else if (board->type == GOLEMFAST_IDE) {
+
+			if ((addr & 0x8700) == 0x8100) {
+				int regnum = get_golemfast_reg(addr, board);
+				if (regnum == IDE_DATA) {
+					put_ide_reg(board, IDE_DATA, v);
+				} else {
+					ide_write_byte(board, addr, v >> 8);
+					ide_write_byte(board, addr + 1, v);
+				}
+			} else {
+				ide_write_byte(board, addr, v >> 8);
+				ide_write_byte(board, addr + 1, v);
+			}
+		
 		} else if (board->type == MASOBOSHI_IDE) {
 
 			int regnum = get_masoboshi_reg(addr, board);
@@ -1006,6 +1085,28 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 	}
 }
 
+static uae_u32 ide_read_wordi(struct ide_board *board, uaecptr addr)
+{
+	uae_u16 v = 0;
+	if (board->type == GOLEMFAST_IDE) {
+
+		if (!(addr & 0x8000)) {
+			if (board->rom) {
+				v = board->rom[addr & board->rom_mask] << 8;
+				v |= board->rom[(addr + 1) & board->rom_mask];
+			}
+		}
+
+	} else {
+
+		v = dummy_wgeti(addr);
+
+	}
+	return v;
+}
+
+
+
 IDE_MEMORY_FUNCTIONS(ide_controller_gvp, ide, gvp_ide_controller_board);
 
 addrbank gvp_ide_controller_bank = {
@@ -1070,11 +1171,48 @@ static uae_u32 REGPARAM2 ide_generic_lget (uaecptr addr)
 	}
 	return 0;
 }
+static uae_u32 REGPARAM2 ide_generic_wgeti(uaecptr addr)
+{
+	struct ide_board *ide = getideboard(addr);
+	if (ide)
+		return ide_read_wordi(ide, addr);
+	return 0;
+}
+static uae_u32 REGPARAM2 ide_generic_lgeti(uaecptr addr)
+{
+	struct ide_board *ide = getideboard(addr);
+	if (ide) {
+		uae_u32 v = ide_read_wordi(ide, addr) << 16;
+		v |= ide_read_wordi(ide, addr + 2);
+		return v;
+	}
+	return 0;
+}
+static uae_u8 *REGPARAM2 ide_generic_xlate(uaecptr addr)
+{
+	struct ide_board *ide = getideboard(addr);
+	if (!ide)
+		return NULL;
+	addr &= ide->rom_mask;
+	return ide->rom + addr;
+
+}
+static int REGPARAM2 ide_generic_check(uaecptr a, uae_u32 b)
+{
+	struct ide_board *ide = getideboard(a);
+	if (!ide)
+		return 0;
+	a &= ide->rom_mask;
+	if (a >= ide->rom_start && a + b < ide->rom_size)
+		return 1;
+	return 0;
+}
+
 static addrbank ide_bank_generic = {
 	ide_generic_lget, ide_generic_wget, ide_generic_bget,
 	ide_generic_lput, ide_generic_wput, ide_generic_bput,
-	default_xlate, default_check, NULL, NULL, _T("IDE"),
-	dummy_lgeti, dummy_wgeti,
+	ide_generic_xlate, ide_generic_check, NULL, NULL, _T("IDE"),
+	ide_generic_lgeti, ide_generic_wgeti,
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
@@ -1381,8 +1519,6 @@ addrbank *mtec_init(struct romconfig *rc)
 	ide->rom_size = 32768;
 	ide->mask = 65536 - 1;
 
-	memset(ide->acmemory, 0xff, sizeof ide->acmemory);
-
 	ide->rom = xcalloc(uae_u8, ide->rom_size);
 	memset(ide->rom, 0xff, ide->rom_size);
 	ide->rom_mask = ide->rom_size - 1;
@@ -1405,8 +1541,6 @@ addrbank *rochard_init(struct romconfig *rc)
 	ide->rom_size = 32768;
 	ide->mask = 65536 - 1;
 	ide->subtype = rc->subtype;
-
-	memset(ide->acmemory, 0xff, sizeof ide->acmemory);
 
 	ide->rom = xcalloc(uae_u8, ide->rom_size);
 	memset(ide->rom, 0xff, ide->rom_size);
@@ -1433,6 +1567,42 @@ void rochard_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romc
 			rochard_add_scsi_unit(ch, ci, rc);
 	}
 }
+
+addrbank *golemfast_init(struct romconfig *rc)
+{
+	struct ide_board *ide = getide(rc);
+
+	ide->configured = 0;
+	ide->bank = &ide_bank_generic;
+	ide->rom_size = 32768;
+	ide->mask = 65536 - 1;
+
+	ide->rom = xcalloc(uae_u8, ide->rom_size);
+	memset(ide->rom, 0xff, ide->rom_size);
+	ide->rom_mask = ide->rom_size - 1;
+	load_rom_rc(rc, ROMTYPE_GOLEMFAST, 16384, 0, ide->rom, 32768, 0);
+	memcpy(ide->acmemory, ide->rom, sizeof ide->acmemory);
+	return ide->bank;
+}
+
+static void golemfast_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	add_ide_standard_unit(ch, ci, rc, golemfast_board, GOLEMFAST_IDE, false, false, 2);
+}
+
+void golemfast_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	if (ch < 0) {
+		golemfast_add_ide_unit(ch, ci, rc);
+		golemfast_add_scsi_unit(ch, ci, rc);
+	} else {
+		if (ci->controller_type < HD_CONTROLLER_TYPE_SCSI_FIRST)
+			golemfast_add_ide_unit(ch, ci, rc);
+		else
+			golemfast_add_scsi_unit(ch, ci, rc);
+	}
+}
+
 
 extern void x86_xt_ide_bios(struct zfile*, struct romconfig*);
 static addrbank *x86_at_hd_init(struct romconfig *rc, int type)
