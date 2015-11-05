@@ -312,6 +312,7 @@ static const TCHAR *obsolete[] = {
 	_T("comp_midopt"),
 	_T("comp_lowopt"),
 	_T("avoid_cmov"),
+	_T("compforcesettings"),
 
 	NULL
 };
@@ -4556,16 +4557,21 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 
 	/* old-style CPU configuration */
 	if (cfgfile_string (option, value, _T("cpu_type"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
+		// 68000/010 32-bit addressing was not available until 2.8.2
+		bool force24bit = p->config_version <= ((2 << 16) | (8 << 8) | (1 << 0));
 		p->fpu_model = 0;
 		p->address_space_24 = 0;
 		p->cpu_model = 680000;
 		if (!_tcscmp (tmpbuf, _T("68000"))) {
 			p->cpu_model = 68000;
+			if (force24bit)
+				p->address_space_24 = 1;
 		} else if (!_tcscmp (tmpbuf, _T("68010"))) {
 			p->cpu_model = 68010;
+			if (force24bit)
+				p->address_space_24 = 1;
 		} else if (!_tcscmp (tmpbuf, _T("68ec020"))) {
 			p->cpu_model = 68020;
-			p->address_space_24 = 1;
 		} else if (!_tcscmp (tmpbuf, _T("68020"))) {
 			p->cpu_model = 68020;
 		} else if (!_tcscmp (tmpbuf, _T("68ec020/68881"))) {
@@ -7082,11 +7088,25 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	switch (p->cs_compatible)
 	{
 	case CP_GENERIC: // generic
-		p->cs_rtc = 2;
-		p->cs_fatgaryrev = 0;
-		p->cs_ide = -1;
-		p->cs_mbdmac = -1;
-		p->cs_ramseyrev = 0x0f;
+		if (p->cpu_model >= 68020) {
+			// big box-like
+			p->cs_rtc = 2;
+			p->cs_fatgaryrev = 0;
+			p->cs_ide = -1;
+			p->cs_mbdmac = -1;
+			p->cs_ramseyrev = 0x0f;
+		} else if (p->cpu_compatible) {
+			// very A500-like
+			p->cs_df0idhw = 0;
+			p->cs_resetwarning = 0;
+			if (p->bogomem_size || p->chipmem_size > 0x80000 || p->fastmem_size)
+				p->cs_rtc = 1;
+			p->cs_ciatodbug = true;
+		} else {
+			// sort of A500-like
+			p->cs_ide = -1;
+			p->cs_rtc = 1;
+		}
 		break;
 	case CP_CDTV: // CDTV
 		p->cs_rtc = 1;
