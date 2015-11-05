@@ -1101,7 +1101,7 @@ addrbank kickram_bank = {
 	kickmem2_lput, kickmem2_wput, kickmem2_bput,
 	kickmem_xlate, kickmem_check, NULL, NULL, _T("Kickstart Shadow RAM"),
 	kickmem_lget, kickmem_wget,
-	ABFLAG_UNK | ABFLAG_SAFE, 0, 0
+	ABFLAG_UNK | ABFLAG_SAFE, 0, S_WRITE
 };
 
 addrbank extendedkickmem_bank = {
