@@ -465,7 +465,6 @@ int sys_command_open (int unitnum)
 	blkdev_fix_prefs (&currprefs);
 	if (!dev_init) {
 		device_func_init (0);
-		dev_init = true;
 	}
 
 	if (st->isopen) {
@@ -519,12 +518,14 @@ void device_func_reset (void)
 		st->cdimagefileinuse = false;
 		st->newimagefile[0] = 0;
 	}
+	dev_init = false;
 }
 
 int device_func_init (int flags)
 {
 	blkdev_fix_prefs (&currprefs);
 	install_driver (flags);
+	dev_init = true;
 	return 1;
 }
 
