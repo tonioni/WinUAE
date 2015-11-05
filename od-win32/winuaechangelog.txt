@@ -1,4 +1,23 @@
 
+Beta 20:
+
+- Map ROM feature was not JIT direct compatible (JIT update few betas ago)
+- Do not initialize CD drivers twice. (scsi passthrought, ioctl, image)
+- Fix compatibility with old config files (before 68000/010 32-bit addressing option was added),
+  force 24-bit addressing if config file was saved with 2.8.1 or older.
+- Another old config compatibily update, if 68000/010 with chipset extra set to Generic, use more A500-like
+  mainboard config than bigbox-like.
+- Added Kupke Golem FastSCSI/IDE combo board.
+- FastLane SCSI autoconfig mapping fixed.
+- ROM scanner prefer roms not in archives update (b15) had exactly opposite effect..
+
+Kupke Golem FastSCSI/IDE:
+- SCSI/IDE combo board. Whole board or only IDE can be disabled.
+- Fake DMA (SCSI long word wide, usual word wide PIO IDE)
+- 4.2 ROM added ("fastscsi device (romversion) V4.2 (06-FEB-95)")
+- Boot ROM made in 1995 without custom filesystem support..
+- Does not copy ROM code to RAM, driver code executes directly from ROM.
+
 Beta 19:
 
 - Sprite in far right border feature (b1) didn't work correctly in AGA modes that require hires/shres horizontal

@@ -1498,10 +1498,8 @@ static int addrom (UAEREG *fkey, struct romdata *rd, const TCHAR *name)
 			s = _tcschr(s2, '\"');
 			if (s)
 				*s = 0;
-			// select plain file if previously found was inside archive
+			// if plain file already in registry: do not overwrite it
 			if (my_existsfile(s2) && !my_existsfile(pathname)) {
-				_tcscpy(pathname, s2);
-			} else {
 				return 1;
 			}
 		}

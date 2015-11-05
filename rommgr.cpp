@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 157
+#define NEXT_ROM_ID 159
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -427,6 +427,10 @@ static struct romdata roms[] = {
 	0xd13a2c89, 0xf9e38c4b,0xf5c6499d,0x486946ba,0x7b7636b8,0x0845265b, NULL, NULL },
 	ALTROMPN(156, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x339b3549, 0x74de857b, 0x42f9a8e0, 0xc1f3c29e, 0x06982622, 0x853d08fe)
 	ALTROMPN(156, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x3aca5d1f, 0x786f2197, 0xc614be91, 0xae7e87da, 0xb42c3290, 0xd7997763)
+	{ _T("Kupke Golem v4.2"), 4, 2, 4, 2, _T("GOLEMFAST\0"), 16384, 157, 0, 0, ROMTYPE_GOLEMFAST, 0, 0, NULL,
+	0x5e94ee56, 0xf83dae55, 0x49f9b735, 0x52d5c6e0, 0x41da4c6c, 0x995a7f47, NULL, NULL },
+	ALTROMPN(157, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xec13fda0, 0x6af1447c, 0x4363c46d, 0x05697458, 0x01daa30c, 0x03c01c9f)
+	ALTROMPN(157, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x39b0075e, 0xf6644ea0, 0x6c3ed349, 0xfb0fb6b4, 0xa9f07655, 0x0b104179)
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },
@@ -451,7 +455,9 @@ static struct romdata roms[] = {
 	{ _T("A1060 BIOS 2.06"), 2, 6, 2, 6, _T("A1060\0"), 16384, 147, 0, 0, ROMTYPE_A1060, 0, 0, _T("380619-03"),
 	0x185f2bbd, 0xeba74ad1,0x000a5351,0xa5d99179,0xbf75f831,0xac2d2402, NULL, NULL },
 	{ _T("A2088 BIOS 3.4"), 3, 4, 3, 4, _T("A2088\0"), 16384, 148, 0, 0, ROMTYPE_A2088, 0, 0, _T("380788-04"),
-	0x05552160, 0xd1defdee,0x1c0eae41,0x07d81e26,0x74915cd2,0x9d352f2e, NULL, NULL },
+	0x05552160, 0xd1defdee, 0x1c0eae41, 0x07d81e26, 0x74915cd2, 0x9d352f2e, NULL, NULL },
+	{ _T("A2088 BIOS 3.5"), 3, 5, 3, 5, _T("A2088\0"), 16384, 158, 0, 0, ROMTYPE_A2088, 0, 0, _T("380788-04"),
+	0xf8e1ad83, 0x45a2b7db,0x6e86fe80,0x5cfef63c,0x65c331a7,0x16a6e9e8, NULL, NULL },
 	{ _T("A2088 BIOS 3.6.1"), 3, 61, 3, 61, _T("A2088\0"), 16384, 149, 0, 0, ROMTYPE_A2088, 0, 0, _T("380788-06"),
 	0x5fd93e56, 0xc1b707a8,0xa62907d7,0x5299f10a,0xa60efd1f,0x44514b26, NULL, NULL },
 	{ _T("A2088T BIOS 4.10"), 4, 10, 4, 11, _T("A2088T\0"), 32768, 150, 0, 0, ROMTYPE_A2088T, 0, 0, _T("390657-02"),

@@ -70,3 +70,4 @@ aros.rom.cpp
 /linetoscr.cpp
 *.iobj
 *.ipdb
+*.opendb
