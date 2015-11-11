@@ -399,7 +399,7 @@ retry:
 				reseterrormode (ciw);
 				DWORD err = GetLastError ();
 				write_log (_T("IOCTL_CDROM_RAW_READ(%d,%d) failed, err=%d\n"), sector, rri.TrackMode, err);
-				if ((err == ERROR_INVALID_FUNCTION || err == ERROR_INVALID_PARAMETER) && origsector == sector && origdata == data) {
+				if ((err == ERROR_INVALID_FUNCTION || err == ERROR_INVALID_PARAMETER) && origsector == sector && origdata == data && origsector >= 0) {
 					write_log (_T("-> fallback to SPTI mode\n"));
 					ciw->usesptiread = true;
 					size = origsize;

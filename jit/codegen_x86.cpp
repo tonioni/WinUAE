@@ -3855,8 +3855,9 @@ raw_init_cpu(void)
 	c->x86_has_xmm2 = (c->x86_hwcap & (1 << 26)) != 0;
 
 	/* Can the host CPU suffer from partial register stalls? */
-	have_rat_stall = (c->x86_vendor == X86_VENDOR_INTEL);
-#if 1
+	// non-RAT_STALL mode is currently broken
+	have_rat_stall = true; //(c->x86_vendor == X86_VENDOR_INTEL);
+#if 0
 	/* It appears that partial register writes are a bad idea even on
 	AMD K7 cores, even though they are not supposed to have the
 	dreaded rat stall. Why? Anyway, that's why we lie about it ;-) */
