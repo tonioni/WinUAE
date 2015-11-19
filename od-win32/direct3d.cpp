@@ -46,6 +46,9 @@ static int psEnabled, psActive, shaderon;
 static struct gfx_filterdata *filterd3d;
 static int filterd3didx;
 
+typedef HRESULT(CALLBACK* DWMISCOMPOSITIONENABLED)(BOOL*);
+static HMODULE dwmapihandle;
+
 static bool showoverlay = true;
 
 #define MAX_PASSES 2
@@ -2259,7 +2262,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 {
 	HRESULT ret, hr;
 	static TCHAR errmsg[100] = { 0 };
-	D3DDISPLAYMODE mode;
+	D3DDISPLAYMODE mode = { 0 };
 	D3DCAPS9 d3dCaps;
 	int adapter;
 	DWORD flags;
@@ -2267,7 +2270,8 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 	typedef HRESULT (WINAPI *LPDIRECT3DCREATE9EX)(UINT, IDirect3D9Ex**);
 	LPDIRECT3DCREATE9EX d3dexp = NULL;
 	int vsync = isvsync ();
-	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
+	struct apmode *apm = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
+	struct apmode ap;
 	D3DADAPTER_IDENTIFIER9 did;
 
 	filterd3didx = picasso_on;
@@ -2334,6 +2338,26 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 	else
 		D3DHEAD = _T("D3D9");
 
+	memcpy(&ap, apm, sizeof ap);
+
+	if (os_vista && isfullscreen() <= 0 && apm->gfx_backbuffers > 1 && !apm->gfx_vsync) {
+		BOOL dwm = FALSE;
+		DWMISCOMPOSITIONENABLED pDwmIsCompositionEnabled;
+		if (!dwmapihandle)
+			dwmapihandle = LoadLibrary(_T("dwmapi.dll"));
+		if (dwmapihandle) {
+			pDwmIsCompositionEnabled = (DWMISCOMPOSITIONENABLED)GetProcAddress(dwmapihandle, "DwmIsCompositionEnabled");
+			if (pDwmIsCompositionEnabled) {
+				pDwmIsCompositionEnabled(&dwm);
+			}
+		}
+		if (dwm) {
+			struct apmode *ap2 = picasso_on ? &changed_prefs.gfx_apmode[APMODE_RTG] : &changed_prefs.gfx_apmode[APMODE_NATIVE];
+			write_log(_T("Switch from triple buffer to double buffer.\n"));
+			ap.gfx_vflip = 0;
+			ap.gfx_backbuffers = 1;
+		}
+	}
 
 	adapter = getd3dadapter (d3d);
 
@@ -2356,17 +2380,17 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 	memset (&dpp, 0, sizeof (dpp));
 	dpp.Windowed = isfullscreen () <= 0;
 	dpp.BackBufferFormat = mode.Format;
-	dpp.BackBufferCount = ap->gfx_backbuffers;
+	dpp.BackBufferCount = ap.gfx_backbuffers;
 	dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
 	dpp.BackBufferWidth = w_w;
 	dpp.BackBufferHeight = w_h;
-	dpp.PresentationInterval = !ap->gfx_vflip ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
+	dpp.PresentationInterval = !ap.gfx_vflip ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
 
 	modeex.Width = w_w;
 	modeex.Height = w_h;
 	modeex.RefreshRate = 0;
-	modeex.ScanLineOrdering = ap->gfx_interlaced ? D3DSCANLINEORDERING_INTERLACED : D3DSCANLINEORDERING_PROGRESSIVE;
+	modeex.ScanLineOrdering = ap.gfx_interlaced ? D3DSCANLINEORDERING_INTERLACED : D3DSCANLINEORDERING_PROGRESSIVE;
 	modeex.Format = mode.Format;
 
 	vsync2 = 0;
@@ -2378,7 +2402,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 			dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 			getvsyncrate (dpp.FullScreen_RefreshRateInHz, &hzmult);
 			if (hzmult < 0) {
-				if (!ap->gfx_strobo) {
+				if (!ap.gfx_strobo) {
 					if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
 						dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
 				}  else {
@@ -2389,16 +2413,35 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 			}
 		}
 		*freq = modeex.RefreshRate;
+	} else {
+		if (mode.RefreshRate > 0) {
+			if (vsync > 0) {
+				dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
+				getvsyncrate(mode.RefreshRate, &hzmult);
+				if (hzmult < 0) {
+					if (!ap.gfx_strobo) {
+						if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
+							dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
+					} else {
+						vsync2 = -2;
+					}
+				} else if (hzmult > 0) {
+					vsync2 = 1;
+				}
+			}
+			*freq = mode.RefreshRate;
+		}
 	}
+
 	if (vsync < 0) {
 		vsync2 = 0;
-		getvsyncrate (dpp.FullScreen_RefreshRateInHz, &hzmult);
+		getvsyncrate (isfullscreen() > 0 ? dpp.FullScreen_RefreshRateInHz : mode.RefreshRate, &hzmult);
 		if (hzmult > 0) {
 			vsync2 = 1;
 		} else if (hzmult < 0) {
-			if (ap->gfx_strobo) {
+			if (ap.gfx_strobo) {
 				vsync2 = -2;
-			} else if (ap->gfx_vflip) {
+			} else if (ap.gfx_vflip) {
 				if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
 					dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
 				else
@@ -2494,10 +2537,10 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 		(d3dCaps.VertexShaderVersion >> 8) & 0xff, d3dCaps.VertexShaderVersion & 0xff,
 		modeex.Width, modeex.Height,
 		dpp.FullScreen_RefreshRateInHz,
-		ap->gfx_interlaced ? _T("i") : _T("p"),
+		ap.gfx_interlaced ? _T("i") : _T("p"),
 		dpp.Windowed ? _T("") : _T(" FS"),
-		vsync, ap->gfx_backbuffers,
-		ap->gfx_vflip < 0 ? _T("WE") : (ap->gfx_vflip > 0 ? _T("WS") :  _T("I")), 
+		vsync, ap.gfx_backbuffers,
+		ap.gfx_vflip < 0 ? _T("WE") : (ap.gfx_vflip > 0 ? _T("WS") :  _T("I")), 
 		t_depth, adapter
 	);
 
@@ -2567,7 +2610,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 	d3d_enabled = 1;
 	wasstilldrawing_broken = true;
 
-	if (vsync < 0 && ap->gfx_vflip == 0) {
+	if (vsync < 0 && ap.gfx_vflip == 0) {
 		hr = d3ddev->CreateQuery(D3DQUERYTYPE_EVENT, &query);
 		if (FAILED (hr))
 			write_log (_T("%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
@@ -2583,7 +2626,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 		if (forcedframelatency >= 0)
 			hr = d3ddevex->SetMaximumFrameLatency (forcedframelatency);
 		else if (dpp.PresentationInterval == D3DPRESENT_INTERVAL_IMMEDIATE && (v > 1 || !vsync))
-			hr = d3ddevex->SetMaximumFrameLatency (vsync ? (hzmult < 0 ? 2 : 1) : 0);
+			hr = d3ddevex->SetMaximumFrameLatency (vsync ? (hzmult < 0 && !ap.gfx_strobo ? 2 : 1) : 0);
 		if (FAILED (hr))
 			write_log (_T("%s: SetMaximumFrameLatency() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 	}
