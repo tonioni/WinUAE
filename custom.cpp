@@ -5492,8 +5492,9 @@ static void DDFSTOP (int hpos, uae_u16 v)
 		if (plf_state == plf_passed_stop && plf_end_hpos == hpos + DDF_OFFSET) {
 			plf_state = plf_active;
 			plf_end_hpos = 256 + DDF_OFFSET;
+			// don't let one_fetch_cycle_0() to do this again
+			ddfstop_written_hpos = hpos;
 		}
-		ddfstop_written_hpos = hpos;
 	} else if (hpos == ddfstop - DDF_OFFSET) {
 		// if old ddfstop would have matched, emulate it here
 		if (plf_state == plf_active) {
