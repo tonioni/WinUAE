@@ -428,7 +428,8 @@ static int doinit_shm (void)
 		} else {
 			if (changed_prefs.cachesize) {
 				currprefs.rtgmem_size = changed_prefs.rtgmem_size = 0;
-				error_log(_T("RTG memory is not supported in this configuration."));
+				currprefs.rtgmem_type = changed_prefs.rtgmem_type = 0;
+				error_log(_T("RTG board is not anymore supported when JIT is enabled and RTG VRAM is located outside of NATMEM (Real Z3 mode under 32-bit Windows)."));
 			} else {
 				// calculate Z3 alignment (argh, I thought only Z2 needed this..)
 				uae_u32 addr = Z3BASE_REAL;
