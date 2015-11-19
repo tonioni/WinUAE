@@ -2409,7 +2409,7 @@ struct winuae_lang langs[] =
 	{ LANG_UZBEK, _T("Uzbek") },
 	{ LANG_VIETNAMESE, _T("Vietnamese") },
 	{ LANG_ENGLISH, _T("default") },
-	{ 0x400, _T("guidll.dll")},
+	{ 0x400, _T("guidll.dll") },
 	{ 0, NULL }
 };
 static TCHAR *getlanguagename(DWORD id)
@@ -6339,6 +6339,9 @@ HMODULE WIN32_LoadLibrary_2 (const TCHAR *name, int expand)
 				_tcscpy(p, _T("64"));
 				_tcscat(p, _tcschr(name, '.'));
 			}
+			break;
+		case 5:
+			p = newname;
 			break;
 		}
 		if (!p)
