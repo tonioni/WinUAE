@@ -1516,7 +1516,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_str (f, _T("absolute_mouse"), abspointers[p->input_tablet]);
 	cfgfile_dwrite_bool (f, _T("tablet_library"), p->tablet_library);
 	cfgfile_dwrite_bool (f, _T("clipboard_sharing"), p->clipboard_sharing);
-	cfgfile_dwrite_bool (f, _T("native_code"), p->native_code);
+	cfgfile_dwrite_bool(f, _T("native_code"), p->native_code);
 
 	cfgfile_write (f, _T("gfx_display"), _T("%d"), p->gfx_apmode[APMODE_NATIVE].gfx_display);
 	cfgfile_write_str (f, _T("gfx_display_friendlyname"), target_get_display_name (p->gfx_apmode[APMODE_NATIVE].gfx_display, true));
@@ -1672,6 +1672,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, _T("show_leds_rtg"), !!(p->leds_on_screen & STATUSLINE_RTG));
 	write_leds(f, _T("show_leds_enabled"), p->leds_on_screen_mask[0]);
 	write_leds(f, _T("show_leds_enabled_rtg"), p->leds_on_screen_mask[1]);
+	cfgfile_dwrite_bool(f, _T("show_refresh_indicator"), p->refresh_indicator);
 
 	if (p->osd_pos.y || p->osd_pos.x) {
 		cfgfile_dwrite (f, _T("osd_position"), _T("%.1f%s:%.1f%s"),
@@ -2567,29 +2568,30 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_string (option, value, _T("config_description"), p->description, sizeof p->description / sizeof (TCHAR)))
 		return 1;
 
-	if (cfgfile_yesno (option, value, _T("use_debugger"), &p->start_debugger)
-		|| cfgfile_yesno (option, value, _T("floppy0wp"), &p->floppyslots[0].forcedwriteprotect)
-		|| cfgfile_yesno (option, value, _T("floppy1wp"), &p->floppyslots[1].forcedwriteprotect)
-		|| cfgfile_yesno (option, value, _T("floppy2wp"), &p->floppyslots[2].forcedwriteprotect)
-		|| cfgfile_yesno (option, value, _T("floppy3wp"), &p->floppyslots[3].forcedwriteprotect)
-		|| cfgfile_yesno (option, value, _T("sampler_stereo"), &p->sampler_stereo)
-		|| cfgfile_yesno (option, value, _T("sound_auto"), &p->sound_auto)
-		|| cfgfile_yesno (option, value, _T("sound_cdaudio"), &p->sound_cdaudio)
-		|| cfgfile_yesno (option, value, _T("sound_stereo_swap_paula"), &p->sound_stereo_swap_paula)
-		|| cfgfile_yesno (option, value, _T("sound_stereo_swap_ahi"), &p->sound_stereo_swap_ahi)
-		|| cfgfile_yesno (option, value, _T("log_illegal_mem"), &p->illegal_mem)
-		|| cfgfile_yesno (option, value, _T("filesys_no_fsdb"), &p->filesys_no_uaefsdb)
-		|| cfgfile_yesno (option, value, _T("gfx_blacker_than_black"), &p->gfx_blackerthanblack)
-		|| cfgfile_yesno (option, value, _T("gfx_black_frame_insertion"), &p->lightboost_strobo)
-		|| cfgfile_yesno (option, value, _T("gfx_flickerfixer"), &p->gfx_scandoubler)
-		|| cfgfile_yesno (option, value, _T("gfx_autoresolution_vga"), &p->gfx_autoresolution_vga)
-		|| cfgfile_yesno (option, value, _T("magic_mouse"), &p->input_magic_mouse)
-		|| cfgfile_yesno (option, value, _T("warp"), &p->turbo_emulation)
-		|| cfgfile_yesno (option, value, _T("headless"), &p->headless)
-		|| cfgfile_yesno (option, value, _T("clipboard_sharing"), &p->clipboard_sharing)
-		|| cfgfile_yesno (option, value, _T("native_code"), &p->native_code)
-		|| cfgfile_yesno (option, value, _T("tablet_library"), &p->tablet_library)
-		|| cfgfile_yesno (option, value, _T("bsdsocket_emu"), &p->socket_emu))
+	if (cfgfile_yesno(option, value, _T("use_debugger"), &p->start_debugger)
+		|| cfgfile_yesno(option, value, _T("floppy0wp"), &p->floppyslots[0].forcedwriteprotect)
+		|| cfgfile_yesno(option, value, _T("floppy1wp"), &p->floppyslots[1].forcedwriteprotect)
+		|| cfgfile_yesno(option, value, _T("floppy2wp"), &p->floppyslots[2].forcedwriteprotect)
+		|| cfgfile_yesno(option, value, _T("floppy3wp"), &p->floppyslots[3].forcedwriteprotect)
+		|| cfgfile_yesno(option, value, _T("sampler_stereo"), &p->sampler_stereo)
+		|| cfgfile_yesno(option, value, _T("sound_auto"), &p->sound_auto)
+		|| cfgfile_yesno(option, value, _T("sound_cdaudio"), &p->sound_cdaudio)
+		|| cfgfile_yesno(option, value, _T("sound_stereo_swap_paula"), &p->sound_stereo_swap_paula)
+		|| cfgfile_yesno(option, value, _T("sound_stereo_swap_ahi"), &p->sound_stereo_swap_ahi)
+		|| cfgfile_yesno(option, value, _T("log_illegal_mem"), &p->illegal_mem)
+		|| cfgfile_yesno(option, value, _T("filesys_no_fsdb"), &p->filesys_no_uaefsdb)
+		|| cfgfile_yesno(option, value, _T("gfx_blacker_than_black"), &p->gfx_blackerthanblack)
+		|| cfgfile_yesno(option, value, _T("gfx_black_frame_insertion"), &p->lightboost_strobo)
+		|| cfgfile_yesno(option, value, _T("gfx_flickerfixer"), &p->gfx_scandoubler)
+		|| cfgfile_yesno(option, value, _T("gfx_autoresolution_vga"), &p->gfx_autoresolution_vga)
+		|| cfgfile_yesno(option, value, _T("show_refresh_indicator"), &p->refresh_indicator)
+		|| cfgfile_yesno(option, value, _T("magic_mouse"), &p->input_magic_mouse)
+		|| cfgfile_yesno(option, value, _T("warp"), &p->turbo_emulation)
+		|| cfgfile_yesno(option, value, _T("headless"), &p->headless)
+		|| cfgfile_yesno(option, value, _T("clipboard_sharing"), &p->clipboard_sharing)
+		|| cfgfile_yesno(option, value, _T("native_code"), &p->native_code)
+		|| cfgfile_yesno(option, value, _T("tablet_library"), &p->tablet_library)
+		|| cfgfile_yesno(option, value, _T("bsdsocket_emu"), &p->socket_emu))
 		return 1;
 
 	if (cfgfile_strval (option, value, _T("sound_output"), &p->produce_sound, soundmode1, 1)

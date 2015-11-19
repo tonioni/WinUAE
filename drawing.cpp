@@ -163,6 +163,10 @@ static union {
 	uae_u32 apixels_l[MAX_PIXELS_PER_LINE * 2 / sizeof (uae_u32)];
 } pixdata;
 
+static uae_u8 *refresh_indicator_buffer;
+static uae_u8 *refresh_indicator_changed, *refresh_indicator_changed_prev;
+static int refresh_indicator_height;
+
 #ifdef OS_WITHOUT_MEMORY_MANAGEMENT
 uae_u16 *spixels;
 #else
@@ -2342,6 +2346,26 @@ static void pfield_doline (int lineno)
 	case 8: pfield_doline_n8 (data, wordcount); break;
 #endif
 	}
+
+	if (refresh_indicator_buffer && refresh_indicator_height > lineno) {
+		uae_u8 *opline = refresh_indicator_buffer + lineno * MAX_PIXELS_PER_LINE * 2;
+		wordcount *= 32;
+		if (!memcmp(opline, data, wordcount)) {
+			if (refresh_indicator_changed[lineno] != 0xff) {
+				refresh_indicator_changed[lineno]++;
+				if (refresh_indicator_changed[lineno] > refresh_indicator_changed_prev[lineno]) {
+					refresh_indicator_changed_prev[lineno] = refresh_indicator_changed[lineno];
+				}
+			}
+		} else {
+			memcpy(opline, data, wordcount);
+			if (refresh_indicator_changed[lineno] != refresh_indicator_changed_prev[lineno])
+				refresh_indicator_changed_prev[lineno] = 0;
+			refresh_indicator_changed[lineno] = 0;
+		}
+	}
+
+
 }
 
 void init_row_map (void)
@@ -2460,9 +2484,9 @@ static void do_flush_line_1 (struct vidbuffer *vb, int lineno)
 	if (lineno > last_drawn_line)
 		last_drawn_line = lineno;
 
-	if (gfxvidinfo.maxblocklines == 0)
+	if (gfxvidinfo.maxblocklines == 0) {
 		flush_line (vb, lineno);
-	else {
+	} else {
 		if ((last_block_line + 2) < lineno) {
 			if (first_block_line != NO_BLOCK)
 				flush_block (vb, first_block_line, last_block_line);
@@ -3425,6 +3449,63 @@ static void lightpen_update (struct vidbuffer *vb)
 		lightpen_active = 0;
 }
 
+static void refresh_indicator_init(void)
+{
+	xfree(refresh_indicator_buffer);
+	refresh_indicator_buffer = NULL;
+	xfree(refresh_indicator_changed);
+	refresh_indicator_changed = NULL;
+	xfree(refresh_indicator_changed_prev);
+	refresh_indicator_changed_prev = NULL;
+
+	if (!currprefs.refresh_indicator)
+		return;
+
+	refresh_indicator_height = 600;
+	refresh_indicator_buffer = xcalloc(uae_u8, MAX_PIXELS_PER_LINE * 2 * refresh_indicator_height);
+	refresh_indicator_changed = xcalloc(uae_u8, refresh_indicator_height);
+	refresh_indicator_changed_prev = xcalloc(uae_u8, refresh_indicator_height);
+}
+
+static const int refresh_indicator_colors[] = { 0x777, 0x0f0, 0x00f, 0xff0, 0xf0f };
+
+static void refresh_indicator_update(struct vidbuffer *vb)
+{
+	for (int i = 0; i < max_ypos_thisframe; i++) {
+		int i1 = i + min_ypos_for_screen;
+		int line = i + thisframe_y_adjust_real;
+		int whereline = amiga2aspect_line_map[i1];
+		int wherenext = amiga2aspect_line_map[i1 + 1];
+
+		if (whereline >= vb->inheight)
+			break;
+		if (whereline < 0)
+			continue;
+		if (line >= refresh_indicator_height)
+			break;
+
+		xlinebuffer = row_map[whereline];
+		uae_u8 pixel = refresh_indicator_changed_prev[line];
+		if (wherenext >= 0) {
+			pixel = refresh_indicator_changed_prev[line & ~1];
+		}
+
+		int color1 = 0;
+		int color2 = 0;
+		if (pixel <= 4) {
+			color1 = color2 = refresh_indicator_colors[pixel];
+		} else if (pixel <= 8) {
+			color2 = refresh_indicator_colors[pixel - 5];
+		}
+		for (int x = 0; x < 8; x++) {
+			putpixel(xlinebuffer, gfxvidinfo.drawbuffer.pixbytes, x, xcolors[color1], 1);
+		}
+		for (int x = 8; x < 16; x++) {
+			putpixel(xlinebuffer, gfxvidinfo.drawbuffer.pixbytes, x, xcolors[color2], 1);
+		}
+	}
+}
+
 struct vidbuffer *xvbin, *xvbout;
 
 #define LARGEST_LINE_DEBUG 0
@@ -3569,6 +3650,8 @@ static void finish_drawing_frame (void)
 
 	if (lightpen_active)
 		lightpen_update (vb);
+	if (refresh_indicator_buffer)
+		refresh_indicator_update(vb);
 
 	if (currprefs.monitoremu && gfxvidinfo.tempbuffer.bufmem_allocated) {
 		setspecialmonitorpos(&gfxvidinfo.tempbuffer);
@@ -3766,10 +3849,9 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 		return;
 
 	state = linestate + lineno;
-	changed += frame_redraw_necessary + ((
-		(lineno >= lightpen_y1 && lineno < lightpen_y2) ||
-		(lineno >= statusbar_y1 && lineno < statusbar_y2))
-		? 1 : 0);
+	changed |= frame_redraw_necessary != 0 || refresh_indicator_buffer != NULL ||
+		((lineno >= lightpen_y1 && lineno < lightpen_y2) ||
+		(lineno >= statusbar_y1 && lineno < statusbar_y2));
 
 	switch (how) {
 	case nln_normal:
@@ -3804,7 +3886,7 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 //			*state = LINE_BLACK;
 		break;
 	case nln_lower_black:
-		changed += state[0] != LINE_DONE;
+		changed |= state[0] != LINE_DONE;
 		state[1] = LINE_DONE;
 		*state = changed ? LINE_DECIDED : LINE_DONE;
 //		if (lineno == (maxvpos + lof_store) * 2 - 1)
@@ -3817,7 +3899,7 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 			state[1] = LINE_BLACK;
 		break;
 	case nln_upper_black:
-		changed += state[0] != LINE_DONE;
+		changed |= state[0] != LINE_DONE;
 		*state = changed ? LINE_DECIDED : LINE_DONE;
 		state[-1] = LINE_DONE;
 		if (!interlace_seen && lineno == (maxvpos + lof_store) * 2 - 2)
@@ -3952,6 +4034,8 @@ void reset_drawing (void)
 
 void drawing_init (void)
 {
+	refresh_indicator_init();
+
 	gen_pfield_tables ();
 
 	uae_sem_init (&gui_sem, 0, 1);
