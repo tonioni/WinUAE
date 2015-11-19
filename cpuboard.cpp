@@ -1521,6 +1521,8 @@ void cpuboard_init(void)
 		mapped_malloc(&blizzardea_bank);
 
 	} else if (is_blizzard() || is_blizzardppc()) {
+retry:
+		cpuboard_size = currprefs.cpuboardmem1_size;
 		if (cpuboard_size < 256 * 1024 * 1024) {
 			blizzardram_bank.start = BLIZZARD_RAM_BASE_48;
 			blizzardram_bank.allocated = cpuboard_size;
@@ -1559,8 +1561,16 @@ void cpuboard_init(void)
 					blizzardram_bank.allocated, UAE_VM_32BIT, UAE_VM_READ_WRITE);
 #else
 				blizzardram_bank.baseaddr = xmalloc(uae_u8, blizzardram_bank.allocated);
+				if (!blizzardram_bank.baseaddr) {
+					write_log(_T("MMAN: blizzardram_bank %d MB allocation failed\n"), blizzardram_bank.allocated / (1024 * 1024));
+					if (currprefs.cpuboardmem1_size > 16 * 1024 * 1024) {
+						currprefs.cpuboardmem1_size /= 2;
+						changed_prefs.cpuboardmem1_size = currprefs.cpuboardmem1_size;
+						goto retry;
+					}
+				}
 #endif
-				write_log("MMAN: Allocated %d bytes (%d MB) for blizzardram_bank at %p\n",
+				write_log(_T("MMAN: Allocated %d bytes (%d MB) for blizzardram_bank at %p\n"),
 						  blizzardram_bank.allocated,
 						  blizzardram_bank.allocated / (1024 * 1024),
 						  blizzardram_bank.baseaddr);
