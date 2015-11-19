@@ -2695,7 +2695,7 @@ static void Exception_normal (int nr)
 			mmu_set_super (regs.s != 0);
 	}
 
-	if (m68k_areg(regs, 7) & 1) {
+	if ((m68k_areg(regs, 7) & 1) && currprefs.cpu_model < 68020) {
 		if (nr == 2 || nr == 3)
 			cpu_halt (CPU_HALT_DOUBLE_FAULT);
 		else
@@ -6348,7 +6348,7 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
-		dstbak = dst = xmalloc (uae_u8, 1000);
+		dstbak = dst = xmalloc (uae_u8, 10000);
 
 	save_u32 (2 | 4 | 8);
 	save_u16 (cputrace.opcode);
@@ -6531,7 +6531,7 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
-		dstbak = dst = xmalloc (uae_u8, 1000);
+		dstbak = dst = xmalloc (uae_u8, 1000 + 20000);
 	model = currprefs.cpu_model;
 	save_u32 (model);					/* MODEL */
 	save_u32(0x80000000 | 0x40000000 | 0x20000000 | 0x10000000 | 0x8000000 |(currprefs.address_space_24 ? 1 : 0)); /* FLAGS */
