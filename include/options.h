@@ -14,7 +14,7 @@
 
 #define UAEMAJOR 3
 #define UAEMINOR 2
-#define UAESUBREV 0
+#define UAESUBREV 1
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -542,6 +542,7 @@ struct uae_prefs {
 	TCHAR statefile[MAX_DPATH];
 	TCHAR inprecfile[MAX_DPATH];
 	bool inprec_autoplay;
+	bool refresh_indicator;
 
 	struct multipath path_floppy;
 	struct multipath path_hardfile;

@@ -1,4 +1,22 @@
 
+- Restoring statefile with FPU crashed.
+- If Blizzard RAM allocation fails in non-JIT compatible special case mode, halve memory size and try again
+  instead of crashing.
+- DDFSTOP special case (changing value during cycle when old DDFSTOP would have matched) triggered
+  also when it should not have triggered. (Real / Complex)
+- 68020+ accept odd stack when processing exceptions. For some reason I had assumed exceptions need
+  aligned supervisor stack.
+- GUI Picasso IV ROM config never listed rom scanner detected ROM.
+- If RTG board and JIT is enabled but RTG VRAM is located outside of natmem region (For example "real" Z3 address
+  at 0x40000000 under 32-bit Windows), disable the board instead of trying to config it in unusable address.
+  Previously used hack is not anymore compatible with updated JIT.
+- libpng updated to 1.6.19.
+- CPU state file buffer overflow when saving 68040+ state.
+- If triple buffering, windowed, no vsync and desktop compositing (DWM) enabled, use double buffering.
+- 64-bit version didn't load any plugin DLLs without extension (_x64 etc..)
+
+3.2.0
+
 Beta 20:
 
 - Map ROM feature was not JIT direct compatible (JIT update few betas ago)

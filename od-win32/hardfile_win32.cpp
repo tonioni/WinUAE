@@ -494,6 +494,7 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 	if (!DeviceIoControl (hDevice, IOCTL_DISK_GET_DRIVE_GEOMETRY, NULL, 0, (void*)&dg, sizeof (dg), &returnedLength, NULL)) {
 		DWORD err = GetLastError();
 		if (isnomediaerr (err)) {
+			write_log(_T("IOCTL_DISK_GET_DRIVE_GEOMETRY no disk, error code %d.\n"), err);
 			udi->nomedia = 1;
 			return true;
 		}
