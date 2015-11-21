@@ -5007,14 +5007,17 @@ bccl_not68020:
 	case i_BKPT:		/* only needed for hardware emulators */
 		sync_m68k_pc ();
 		printf ("\top_illg (opcode);\n");
+		did_prefetch = -1;
 		break;
 	case i_CALLM:		/* not present in 68030 */
 		sync_m68k_pc ();
 		printf ("\top_illg (opcode);\n");
+		did_prefetch = -1;
 		break;
 	case i_RTM:		/* not present in 68030 */
 		sync_m68k_pc ();
 		printf ("\top_illg (opcode);\n");
+		did_prefetch = -1;
 		break;
 	case i_TRAPcc:
 		if (curi->smode != am_unknown && curi->smode != am_illg)
@@ -5065,6 +5068,8 @@ bccl_not68020:
 			printf ("\tuae_u32 bdata[2];\n");
 			printf ("\tuae_s32 offset = extra & 0x800 ? m68k_dreg(regs, (extra >> 6) & 7) : (extra >> 6) & 0x1f;\n");
 			printf ("\tint width = (((extra & 0x20 ? m68k_dreg(regs, extra & 7) : extra) -1) & 0x1f) +1;\n");
+			if (curi->mnemo == i_BFFFO)
+				printf("\tuae_u32 offset2 = offset;\n");
 			if (curi->dmode == Dreg) {
 				printf ("\tuae_u32 tmp = m68k_dreg(regs, dstreg);\n");
 				printf ("\toffset &= 0x1f;\n");
@@ -5096,8 +5101,8 @@ bccl_not68020:
 				break;
 			case i_BFFFO:
 				printf ("\t{ uae_u32 mask = 1 << (width - 1);\n");
-				printf ("\twhile (mask) { if (tmp & mask) break; mask >>= 1; offset++; }}\n");
-				printf ("\tm68k_dreg (regs, (extra >> 12) & 7) = offset;\n");
+				printf ("\twhile (mask) { if (tmp & mask) break; mask >>= 1; offset2++; }}\n");
+				printf ("\tm68k_dreg (regs, (extra >> 12) & 7) = offset2;\n");
 				break;
 			case i_BFSET:
 				printf ("\ttmp = 0xffffffffu >> (32 - width);\n");
