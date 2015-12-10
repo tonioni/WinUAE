@@ -355,32 +355,34 @@ static uae_u8 GetBytesPerPixel (uae_u32 RGBfmt)
 	return 0;
 }
 
-STATIC_INLINE bool validatecoords2 (struct RenderInfo *ri, uae_u32 X, uae_u32 Y, uae_u32 Width, uae_u32 Height)
+STATIC_INLINE bool validatecoords2 (struct RenderInfo *ri, uae_u32 *Xp, uae_u32 *Yp, uae_u32 *Widthp, uae_u32 *Heightp)
 {
-	if (Width >= 32768)
-		return false;
-	if (Height >= 32768)
-		return false;
-	if (X >= 32768)
-		return false;
-	if (Y >= 32768)
-		return false;
+	uae_u32 Width = *Widthp;
+	uae_u32 Height = *Heightp;
+	uae_u32 X = *Xp;
+	uae_u32 Y = *Yp;
 	if (!Width || !Height)
 		return true;
 	if (ri) {
 		int bpp = GetBytesPerPixel (ri->RGBFormat);
-		if (Width * bpp > ri->BytesPerRow)
+		if (X * bpp >= ri->BytesPerRow)
 			return false;
-		if (!valid_address (ri->AMemory, (Height - 1) * ri->BytesPerRow + (Width - 1) * bpp))
+		uae_u32 X2 = X + Width;
+		if (X2 * bpp > ri->BytesPerRow) {
+			X2 = ri->BytesPerRow / bpp;
+			Width = X2 - X;
+			*Widthp = Width;
+		}
+		if (!valid_address (ri->AMemory, (Y + Height - 1) * ri->BytesPerRow + (X + Width - 1) * bpp))
 			return false;
 	}
 	return true;
 }
-static bool validatecoords (struct RenderInfo *ri, uae_u32 X, uae_u32 Y, uae_u32 Width, uae_u32 Height)
+static bool validatecoords (struct RenderInfo *ri, uae_u32 *X, uae_u32 *Y, uae_u32 *Width, uae_u32 *Height)
 {
 	if (validatecoords2 (ri, X, Y, Width, Height))
 		return true;
-	write_log (_T("RTG invalid region: %08X:%d:%d (%dx%d)-(%dx%d)\n"), ri->AMemory, ri->BytesPerRow, ri->RGBFormat, X, Y, Width, Height);
+	write_log (_T("RTG invalid region: %08X:%d:%d (%dx%d)-(%dx%d)\n"), ri->AMemory, ri->BytesPerRow, ri->RGBFormat, *X, *Y, *Width, *Height);
 	return false;
 }
 
@@ -2760,10 +2762,10 @@ static void do_xor8 (uae_u8 *p, int w, uae_u32 v)
 static uae_u32 REGPARAM2 picasso_InvertRect (TrapContext *ctx)
 {
 	uaecptr renderinfo = m68k_areg (regs, 1);
-	unsigned long X = (uae_u16)m68k_dreg (regs, 0);
-	unsigned long Y = (uae_u16)m68k_dreg (regs, 1);
-	unsigned long Width = (uae_u16)m68k_dreg (regs, 2);
-	unsigned long Height = (uae_u16)m68k_dreg (regs, 3);
+	uae_u32 X = (uae_u16)m68k_dreg (regs, 0);
+	uae_u32 Y = (uae_u16)m68k_dreg (regs, 1);
+	uae_u32 Width = (uae_u16)m68k_dreg (regs, 2);
+	uae_u32 Height = (uae_u16)m68k_dreg (regs, 3);
 	uae_u8 mask = (uae_u8)m68k_dreg (regs, 4);
 	int Bpp = GetBytesPerPixel (m68k_dreg (regs, 7));
 	uae_u32 xorval;
@@ -2779,7 +2781,7 @@ static uae_u32 REGPARAM2 picasso_InvertRect (TrapContext *ctx)
 	if (CopyRenderInfoStructureA2U (renderinfo, &ri)) {
 		P96TRACE((_T("InvertRect %dbpp 0x%lx\n"), Bpp, (long)mask));
 
-		if (!validatecoords (&ri, X, Y, Width, Height))
+		if (!validatecoords (&ri, &X, &Y, &Width, &Height))
 			return 1;
 
 		if (mask != 0xFF && Bpp > 1)
@@ -2828,7 +2830,7 @@ static uae_u32 REGPARAM2 picasso_FillRect (TrapContext *ctx)
 	if (NOBLITTER)
 		return 0;
 	if (CopyRenderInfoStructureA2U (renderinfo, &ri)) {
-		if (!validatecoords (&ri, X, Y, Width, Height))
+		if (!validatecoords (&ri, &X, &Y, &Width, &Height))
 			return 1;
 
 		Bpp = GetBytesPerPixel (RGBFormat);
@@ -2915,18 +2917,18 @@ STATIC_INLINE int BlitRectHelper (void)
 {
 	struct RenderInfo *ri = blitrectdata.ri;
 	struct RenderInfo *dstri = blitrectdata.dstri;
-	unsigned long srcx = blitrectdata.srcx;
-	unsigned long srcy = blitrectdata.srcy;
-	unsigned long dstx = blitrectdata.dstx;
-	unsigned long dsty = blitrectdata.dsty;
-	unsigned long width = blitrectdata.width;
-	unsigned long height = blitrectdata.height;
+	uae_u32 srcx = blitrectdata.srcx;
+	uae_u32 srcy = blitrectdata.srcy;
+	uae_u32 dstx = blitrectdata.dstx;
+	uae_u32 dsty = blitrectdata.dsty;
+	uae_u32 width = blitrectdata.width;
+	uae_u32 height = blitrectdata.height;
 	uae_u8 mask = blitrectdata.mask;
 	BLIT_OPCODE opcode = blitrectdata.opcode;
 
-	if (!validatecoords (ri, srcx, srcy, width, height))
+	if (!validatecoords (ri, &srcx, &srcy, &width, &height))
 		return 1;
-	if (!validatecoords (dstri, dstx, dsty, width, height))
+	if (!validatecoords (dstri, &dstx, &dsty, &width, &height))
 		return 1;
 
 	uae_u8 Bpp = GetBytesPerPixel (ri->RGBFormat);
@@ -3101,10 +3103,10 @@ static uae_u32 REGPARAM2 picasso_BlitPattern (TrapContext *ctx)
 {
 	uaecptr rinf = m68k_areg (regs, 1);
 	uaecptr pinf = m68k_areg (regs, 2);
-	unsigned long X = (uae_u16)m68k_dreg (regs, 0);
-	unsigned long Y = (uae_u16)m68k_dreg (regs, 1);
-	unsigned long W = (uae_u16)m68k_dreg (regs, 2);
-	unsigned long H = (uae_u16)m68k_dreg (regs, 3);
+	uae_u32 X = (uae_u16)m68k_dreg (regs, 0);
+	uae_u32 Y = (uae_u16)m68k_dreg (regs, 1);
+	uae_u32 W = (uae_u16)m68k_dreg (regs, 2);
+	uae_u32 H = (uae_u16)m68k_dreg (regs, 3);
 	uae_u8 Mask = (uae_u8)m68k_dreg (regs, 4);
 	uae_u32 RGBFmt = m68k_dreg (regs, 7);
 	uae_u8 Bpp = GetBytesPerPixel (RGBFmt);
@@ -3120,7 +3122,7 @@ static uae_u32 REGPARAM2 picasso_BlitPattern (TrapContext *ctx)
 	if (NOBLITTER)
 		return 0;
 	if(CopyRenderInfoStructureA2U (rinf, &ri) && CopyPatternStructureA2U (pinf, &pattern)) {
-		if (!validatecoords (&ri, X, Y, W, H))
+		if (!validatecoords (&ri, &X, &Y, &W, &H))
 			return 1;
 
 		Bpp = GetBytesPerPixel(ri.RGBFormat);
@@ -3266,10 +3268,10 @@ static uae_u32 REGPARAM2 picasso_BlitTemplate (TrapContext *ctx)
 	uae_u8 inversion = 0;
 	uaecptr rinf = m68k_areg (regs, 1);
 	uaecptr tmpl = m68k_areg (regs, 2);
-	unsigned long X = (uae_u16)m68k_dreg (regs, 0);
-	unsigned long Y = (uae_u16)m68k_dreg (regs, 1);
-	unsigned long W = (uae_u16)m68k_dreg (regs, 2);
-	unsigned long H = (uae_u16)m68k_dreg (regs, 3);
+	uae_u32 X = (uae_u16)m68k_dreg (regs, 0);
+	uae_u32 Y = (uae_u16)m68k_dreg (regs, 1);
+	uae_u32 W = (uae_u16)m68k_dreg (regs, 2);
+	uae_u32 H = (uae_u16)m68k_dreg (regs, 3);
 	uae_u16 Mask = (uae_u16)m68k_dreg (regs, 4);
 	struct Template tmp;
 	struct RenderInfo ri;
@@ -3282,7 +3284,7 @@ static uae_u32 REGPARAM2 picasso_BlitTemplate (TrapContext *ctx)
 	if (NOBLITTER)
 		return 0;
 	if (CopyRenderInfoStructureA2U (rinf, &ri) && CopyTemplateStructureA2U (tmpl, &tmp)) {
-		if (!validatecoords (&ri, X, Y, W, H))
+		if (!validatecoords (&ri, &X, &Y, &W, &H))
 			return 1;
 
 		Bpp = GetBytesPerPixel (ri.RGBFormat);
