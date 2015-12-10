@@ -1038,10 +1038,162 @@ static void add_media_insert_queue(HWND hwnd, const TCHAR *drvname, int retrycnt
 static int touch_touched;
 static DWORD touch_time;
 
+#define MAX_TOUCHES 10
+struct touch_store
+{
+	int id;
+	int port;
+	int button;
+	int axis;
+};
+static struct touch_store touches[MAX_TOUCHES];
+
+static void touch_event(int id, int pressrel, int x, int y, RECT *rcontrol)
+{
+	struct touch_store *ts = NULL;
+	int buttonheight = rcontrol->bottom - (rcontrol->bottom - rcontrol->top) / 5;
+	
+	int new_slot = -1;
+	for (int i = 0; i < MAX_TOUCHES; i++) {
+		struct touch_store *tts = &touches[i];
+		if (tts->id < 0 && new_slot < 0)
+			new_slot = i;
+		if (tts->id == id) {
+			ts = tts;
+			break;
+		}
+	}
+	if (!ts) {
+		if (pressrel == 0)
+			return;
+		if (new_slot < 0)
+			return;
+		ts = &touches[new_slot];
+		ts->axis = -1;
+		ts->button = -1;
+		ts->id = id;
+
+	}
+
+	if (ts->id == id && pressrel < 0) {
+		if (ts->port == 0) {
+			if (ts->button == 0)
+				inputdevice_uaelib(_T("JOY1_FIRE_BUTTON"), 0, 0, false);
+			if (ts->button == 1)
+				inputdevice_uaelib(_T("JOY1_2ND_BUTTON"), 0, 0, false);
+		} else if (ts->port == 1) {
+			if (ts->button == 0)
+				inputdevice_uaelib(_T("JOY2_FIRE_BUTTON"), 0, 0, false);
+			if (ts->button == 1)
+				inputdevice_uaelib(_T("JOY2_2ND_BUTTON"), 0, 0, false);
+		}
+		ts->button = -1;
+		if (ts->axis > 0) {
+			RECT *r = &rcontrol[ts->port];
+			if (ts->port == 0) {
+				inputdevice_uaelib(_T("MOUSE1_HORIZ"), 0, r->right - r->left, false);
+				inputdevice_uaelib(_T("MOUSE1_VERT"), 0, r->top - r->bottom, false);
+			} else {
+				inputdevice_uaelib(_T("JOY2_HORIZ"), 0, 0, false);
+				inputdevice_uaelib(_T("JOY2_VERT"), 0, 0, false);
+			}
+		}
+		ts->axis = -1;
+	}
+
+	for (int i = 0; i < 2; i++) {
+		RECT *r = &rcontrol[i];
+		if (x >= r->left && x < r->right && y >= r->top && y < r->bottom) {
+			if (pressrel > 0) {
+				ts->port = i;
+				if (y >= buttonheight) {
+					ts->button = x > r->left + (r->right - r->left) / 2 ? 1 : 0;
+				} else {
+					ts->axis = 1;
+				}
+			}
+		}
+	}
+
+	if (ts->id == id && ts->axis > 0) {
+		RECT *r = &rcontrol[ts->port];
+		int xdiff = (r->left + (r->right - r->left) / 2) - x;
+		int ydiff = (r->top + (r->bottom - r->top - buttonheight) / 2) - y;
+
+		if (ts->port == 0) {
+			int div = (r->top - r->bottom) / 10;
+			xdiff /= div;
+			ydiff /= div;
+			inputdevice_uaelib(_T("MOUSE1_HORIZ"), xdiff, r->right - r->left, false);
+			inputdevice_uaelib(_T("MOUSE1_VERT"), ydiff, r->top - r->bottom, false);
+		} else {
+			int div = (r->top - r->bottom) / 3;
+			if (xdiff <= -div)
+				inputdevice_uaelib(_T("JOY2_HORIZ"), -1, 1, false);
+			else if (xdiff >= div)
+				inputdevice_uaelib(_T("JOY2_HORIZ"), 1, 1, false);
+			else
+				inputdevice_uaelib(_T("JOY2_HORIZ"), 0, 1, false);
+			if (ydiff <= -div)
+				inputdevice_uaelib(_T("JOY2_VERT"), -1, 1, false);
+			else if (ydiff >= div)
+				inputdevice_uaelib(_T("JOY2_VERT"), 1, 1, false);
+			else
+				inputdevice_uaelib(_T("JOY2_VERT"), 0, 1, false);
+		}
+	}
+
+	if (ts->id == id && pressrel > 0) {
+		if (ts->port == 0) {
+			if (ts->button == 0)
+				inputdevice_uaelib(_T("JOY1_FIRE_BUTTON"), 0, 0, false);
+			if (ts->button == 1)
+				inputdevice_uaelib(_T("JOY1_2ND_BUTTON"), 0, 0, false);
+		} else if (ts->port == 1) {
+			if (ts->button == 0)
+				inputdevice_uaelib(_T("JOY2_FIRE_BUTTON"), 0, 0, false);
+			if (ts->button == 1)
+				inputdevice_uaelib(_T("JOY2_2ND_BUTTON"), 0, 0, false);
+		}
+	}
+}
+
 static void processtouch(HWND hwnd, WPARAM wParam, LPARAM lParam)
 {
 	if (!pGetTouchInputInfo || !pCloseTouchInputHandle)
 		return;
+
+	RECT rgui, rcontrol[2];
+	int bottom;
+	if (isfullscreen()) {
+		rgui.left = amigawin_rect.left;
+		rgui.top = amigawin_rect.top;
+		rgui.right = amigawin_rect.right;
+		rgui.bottom = amigawin_rect.top + 30;
+		bottom = amigawin_rect.bottom;
+	} else {
+		rgui.left = mainwin_rect.left;
+		rgui.top = mainwin_rect.top;
+		rgui.right = mainwin_rect.right;
+		rgui.bottom = amigawin_rect.top + GetSystemMetrics(SM_CYMENU) + 2;
+		bottom = mainwin_rect.bottom;
+	}
+	int maxx = rgui.right - rgui.left;
+	int maxy = rgui.bottom - rgui.top;
+	int max = maxx > maxy ? maxx : maxy;
+
+	// left control region
+	rcontrol[0].left = rgui.left;
+	rcontrol[0].right = rcontrol[0].left + max / 2;
+	rcontrol[0].bottom = bottom;
+	rcontrol[0].top = bottom - max / 2;
+
+	// right control region
+	rcontrol[1].right = rgui.right;
+	rcontrol[1].left = rcontrol[1].right - max / 2;
+	rcontrol[1].bottom = bottom;
+	rcontrol[1].top = bottom - max / 2;
+
 	UINT cInputs = LOWORD(wParam);
 	PTOUCHINPUT pInputs = new TOUCHINPUT[cInputs];
 	if (NULL != pInputs) {
@@ -1053,20 +1205,17 @@ static void processtouch(HWND hwnd, WPARAM wParam, LPARAM lParam)
 #if TOUCH_DEBUG
 				write_log(_T("ID=%08x FLAGS=%08x MASK=%08x X=%d Y=%d \n"), ti->dwID, ti->dwFlags, ti->dwMask, x, y);
 #endif
+				if (currprefs.input_tablet == TABLET_OFF) {
+					if (ti->dwFlags & TOUCHEVENTF_DOWN)
+						touch_event(ti->dwID, 1,  x, y, rcontrol);
+					if (ti->dwFlags & TOUCHEVENTF_UP)
+						touch_event(ti->dwID, -1, x, y, rcontrol);
+					if (ti->dwFlags & TOUCHEVENTF_MOVE)
+						touch_event(ti->dwID, 0, x, y, rcontrol);
+				}
+
 				if (ti->dwFlags & TOUCHEVENTF_PRIMARY) {
-					RECT r;
-					if (isfullscreen()) {
-						r.left = amigawin_rect.left;
-						r.top = amigawin_rect.top;
-						r.right = amigawin_rect.right;
-						r.bottom = amigawin_rect.top + 30;
-					} else {
-						r.left = mainwin_rect.left;
-						r.top = mainwin_rect.top;
-						r.right = mainwin_rect.right;
-						r.bottom = amigawin_rect.top + GetSystemMetrics(SM_CYMENU) + 2;
-					}
-					if (x < r.left || x >= r.right || y < r.top || y >= r.bottom) {
+					if (x < rgui.left || x >= rgui.right || y < rgui.top || y >= rgui.bottom) {
 						touch_touched = 0;
 					} else {
 						if (ti->dwFlags & (TOUCHEVENTF_DOWN | TOUCHEVENTF_MOVE)) {
@@ -1124,6 +1273,18 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		handle_rawinput (lParam);
 		DefWindowProc (hWnd, message, wParam, lParam);
 		return 0;
+	case WM_INPUT_DEVICE_CHANGE:
+		if (is_hid_rawinput()) {
+			if (handle_rawinput_change(lParam, wParam)) {
+				// wait 2 seconds before re-enumerating
+				if (device_change_timer)
+					KillTimer(hWnd, 4);
+				device_change_timer = 1;
+				SetTimer(hWnd, 4, 2000, NULL);
+			}
+			return 0;
+		}
+		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
 
 	switch (message)
@@ -1546,7 +1707,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 					}
 				}
 			}
-			if (devicechange) {
+			if (devicechange && !is_hid_rawinput()) {
 				if (device_change_timer)
 					KillTimer(hWnd, 4);
 				device_change_timer = 1;
@@ -1809,6 +1970,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	case WM_HELP:
 	case WM_DEVICECHANGE:
 	case WM_INPUT:
+	case WM_INPUT_DEVICE_CHANGE:
 	case WM_USER + 1:
 	case WM_USER + 2:
 	case WM_COMMAND:
@@ -2646,8 +2808,8 @@ void logging_init (void)
 		}
 	}
 
-	write_log (_T("\n%s (%d.%d %s%s[%d])"), VersionStr,
-		osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.szCSDVersion,
+	write_log (_T("\n%s (%d.%d.%d %s%s[%d])"), VersionStr,
+		osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.dwBuildNumber, osVersion.szCSDVersion,
 		_tcslen (osVersion.szCSDVersion) > 0 ? _T(" ") : _T(""), os_admin);
 	write_log (_T(" %d-bit %X.%X.%X %d %s"),
 		wow64 ? 64 : 32,

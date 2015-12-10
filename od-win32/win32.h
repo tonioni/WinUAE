@@ -15,17 +15,17 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEPUBLICBETA 0
+#define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 #define LANG_DLL_FULL_VERSION_MATCH 0
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("")
+#define WINUAEBETA _T("1")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2015, 11, 19)
+#define WINUAEDATE MAKEBD(2015, 12, 10)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -116,7 +116,9 @@ extern void sleep_millis_amiga (int ms);
 extern void wait_keyrelease (void);
 extern void keyboard_settrans (void);
 
-extern void handle_rawinput (LPARAM lParam);
+extern void handle_rawinput(LPARAM lParam);
+extern bool handle_rawinput_change(LPARAM lParam, WPARAM wParam);
+extern bool is_hid_rawinput(void);
 
 #define DEFAULT_PRIORITY 2
 struct threadpriorities {

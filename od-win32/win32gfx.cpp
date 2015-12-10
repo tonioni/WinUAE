@@ -1883,6 +1883,7 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_apmode[1].gfx_refreshrate != changed_prefs.gfx_apmode[1].gfx_refreshrate ? 2 | 16 : 0;
 #endif
 	c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (2|8|16) : 0;
+	c |= currprefs.gfx_autoresolution_vga != changed_prefs.gfx_autoresolution_vga ? (2|8|16) : 0;
 	c |= currprefs.gfx_api != changed_prefs.gfx_api ? (1|8|32) : 0;
 	c |= currprefs.lightboost_strobo != changed_prefs.lightboost_strobo ? (2|16) : 0;
 
@@ -1936,6 +1937,7 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_autoresolution_minv != changed_prefs.gfx_autoresolution_minv ? (128) : 0;
 	c |= currprefs.gfx_iscanlines != changed_prefs.gfx_iscanlines ? (2 | 8) : 0;
 	c |= currprefs.gfx_pscanlines != changed_prefs.gfx_pscanlines ? (2 | 8) : 0;
+
 	c |= currprefs.monitoremu != changed_prefs.monitoremu ? (2 | 8) : 0;
 	c |= currprefs.genlock_image != changed_prefs.genlock_image ? (2 | 8) : 0;
 	c |= currprefs.genlock != changed_prefs.genlock ? (2 | 8) : 0;
@@ -1972,6 +1974,7 @@ int check_prefs_changed_gfx (void)
 		cfgfile_configuration_change (1);
 
 		currprefs.gfx_autoresolution = changed_prefs.gfx_autoresolution;
+		currprefs.gfx_autoresolution_vga = changed_prefs.gfx_autoresolution_vga;
 		currprefs.color_mode = changed_prefs.color_mode;
 		currprefs.gfx_api = changed_prefs.gfx_api;
 		currprefs.lightboost_strobo = changed_prefs.lightboost_strobo;
@@ -1979,6 +1982,11 @@ int check_prefs_changed_gfx (void)
 		if (changed_prefs.gfx_apmode[0].gfx_fullscreen == GFX_FULLSCREEN) { 
 			if (currprefs.gfx_api != changed_prefs.gfx_api)
 				display_change_requested = 1;
+		}
+
+		if (c & 128) {
+			// hres/vres change
+			rp_screenmode_changed();
 		}
 
 		if (display_change_requested) {

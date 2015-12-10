@@ -43,6 +43,6 @@ extern void scaleresource_init (const TCHAR*, int);
 extern int scaleresource_choosefont (HWND hDlg, int fonttype);
 extern void scaleresource_setdefaults (void);
 extern void scaleresource_setfont (HWND hDlg);
-extern void scaleresource_getdpimult (double*, double*);
+extern void scaleresource_getdpimult (double*, double*, int*, int*);
 
 #endif

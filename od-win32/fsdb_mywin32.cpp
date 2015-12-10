@@ -546,7 +546,7 @@ FILE *my_opentext (const TCHAR *name)
 	f = _tfopen (name, _T("rb"));
 	if (!f)
 		return NULL;
-	v = fread (tmp, 1, 4, f);
+	v = fread (tmp, 1, sizeof tmp, f);
 	fclose (f);
 	if (v == 4) {
 		if (tmp[0] == 0xef && tmp[1] == 0xbb && tmp[2] == 0xbf)

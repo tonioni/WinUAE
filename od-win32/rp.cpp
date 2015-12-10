@@ -776,10 +776,14 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		p->gfx_resolution = hres;
 		p->gfx_vresolution = vres;
 
-		if (sm->lClipWidth <= 0)
+		if (sm->lClipWidth <= 0) {
 			p->gfx_size_win.width = shift (AMIGA_WIDTH_MAX, -hdbl);
-		else
-			p->gfx_size_win.width = sm->lClipWidth >> (RES_MAX - hdbl);
+		} else {
+			if (hdbl > RES_MAX)
+				p->gfx_size_win.width = sm->lClipWidth << (hdbl - RES_MAX);
+			else
+				p->gfx_size_win.width = sm->lClipWidth >> (RES_MAX - hdbl);
+		}
 
 		if (sm->lClipHeight <= 0) {
 			p->gfx_size_win.height = shift (AMIGA_HEIGHT_MAX, -vdbl);

@@ -2098,6 +2098,7 @@ static int gui_width, gui_height;
 static int gui_fullscreen;
 static bool gui_resize_enabled;
 static bool gui_resize_allowed;
+
 // Internal panel max size: 396, 318
 
 static int mm = 0;
@@ -5431,7 +5432,7 @@ static void ziplog(const char *name, const TCHAR *path, zipFile zf)
 			}
 			zipCloseFileInZip(zf);
 		}
-		xfree(s);
+		fclose(s);
 	}
 }
 static void zipconfig(const char *name, zipFile zf)
@@ -5454,13 +5455,25 @@ static void zipconfig(const char *name, zipFile zf)
 static void savelog (HWND hDlg, int all)
 {
 	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
+	TCHAR name[MAX_DPATH];
 	tmp[0] = 0;
+
+	_stprintf(name, _T("winuae%s_%s_%d.%d.%d.%s"),
+#ifdef _WIN64
+		_T("64"),
+#else
+		_T(""),
+#endif
+		all ? _T("debug") : _T("config"),
+		UAEMAJOR, UAEMINOR, UAESUBREV,
+		all ? _T("zip") : _T("txt"));
+
 	if (all) {
 		OPENFILENAME openFileName = { 0 };
 
 		flush_log ();
-		_tcscat (tmp, _T("winuae_debug.zip"));
-		_tcscpy (tmp2, tmp);
+		_tcscpy(tmp, name);
+		_tcscpy(tmp2, tmp);
 
 		openFileName.lStructSize = sizeof (OPENFILENAME);
 		openFileName.hwndOwner = hDlg;
@@ -5486,7 +5499,7 @@ static void savelog (HWND hDlg, int all)
 	} else {
 		if (GetTempPath (MAX_DPATH, tmp) <= 0)
 			return;
-		_tcscat (tmp, _T("winuae_config.txt"));
+		_tcscat(tmp, name);
 		FILE *f = _tfopen (tmp, _T("wt, ccs=UTF-8"));
 		saveconfig (f);
 		fclose (f);
@@ -10012,12 +10025,17 @@ static void setstatefilename (HWND hDlg)
 	setchecked (hDlg, IDC_STATECLEAR, workprefs.statefile[0] != 0);
 }
 
+static int previous_dpix, previous_dpiy;
+
 static void setdefaultguisize (void)
 {
 	double dpix = 1.0, dpiy = 1.0;
 
-	if (isfullscreen() <= 0)
-		scaleresource_getdpimult(&dpix, &dpiy);
+	previous_dpix = 0;
+	previous_dpiy = 0;
+	if (isfullscreen() <= 0) {
+		scaleresource_getdpimult(&dpix, &dpiy, &previous_dpix, &previous_dpiy);
+	}
 
 	gui_width = (int)(GUI_INTERNAL_WIDTH * dpix);
 	gui_height = (int)(GUI_INTERNAL_HEIGHT * dpiy);
@@ -10200,7 +10218,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 					v = 140 - v * 10;
 				}
 				if (isfullscreen() <= 0)
-					scaleresource_getdpimult(&dpix, &dpiy);
+					scaleresource_getdpimult(&dpix, &dpiy, &previous_dpix, &previous_dpiy);
 				gui_width = (int)(GUI_INTERNAL_WIDTH * dpix * v / 100);
 				gui_height = (int)(GUI_INTERNAL_HEIGHT * dpiy * v / 100);
 				if (gui_width < MIN_GUI_INTERNAL_WIDTH || gui_height < MIN_GUI_INTERNAL_HEIGHT) {
@@ -18279,10 +18297,14 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		if (!gui_size_changed && hGUIWnd != NULL) {
 			int dx = LOWORD(wParam);
 			int dy = HIWORD(wParam);
-			RECT *r = (RECT*)lParam;
-			gui_width = r->right - r->left;
-			gui_height = r->bottom - r->top;
-			gui_size_changed = 1;
+			if (dx != previous_dpix || dy != previous_dpiy) {
+				RECT *r = (RECT*)lParam;
+				previous_dpix = dx;
+				previous_dpiy = dy;
+				gui_width = r->right - r->left;
+				gui_height = r->bottom - r->top;
+				gui_size_changed = 1;
+			}
 		}
 	}
 	break;
