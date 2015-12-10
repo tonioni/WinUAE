@@ -16,7 +16,9 @@
 *
 */
 
-//#define DONGLE_DEBUG
+#define DONGLE_DEBUG 0
+#define SWITCH_DEBUG 0
+#define INPUT_DEBUG 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -189,6 +191,18 @@ int inputdevice_uaelib (const TCHAR *s, const TCHAR *parm)
 	}
 	return 0;
 }
+
+int inputdevice_uaelib(const TCHAR *s, int parm, int max, bool autofire)
+{
+	for (int i = 1; events[i].name; i++) {
+		if (!_tcscmp(s, events[i].confname)) {
+			handle_input_event(i, parm, max, autofire, false, false);
+			return 1;
+		}
+	}
+	return 0;
+}
+
 
 static struct uae_input_device *joysticks;
 static struct uae_input_device *mice;
@@ -485,7 +499,7 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 	while (i < MAX_INPUT_DEVICE_EVENTS && kbr->extra[i] >= 0) {
 
 		slotorder = slotorder1;
-		// if gameports non-custom mapping in slot0 -> save slot4 as slot0
+		// if gameports non-custom mapping in slot0 -> save slot8 as slot0
 		if (kbr->port[i][0] && !(kbr->flags[i][0] & ID_FLAG_GAMEPORTSCUSTOM_MASK))
 			slotorder = slotorder2;
 
@@ -2088,7 +2102,7 @@ static uae_u16 getjoystate (int joy)
 	uae_u16 v;
 
 	v = (uae_u8)mouse_x[joy] | (mouse_y[joy] << 8);
-#ifdef DONGLE_DEBUG
+#if DONGLE_DEBUG
 	if (notinrom ())
 		write_log (_T("JOY%dDAT %04X %s\n"), joy, v, debuginfo (0));
 #endif
@@ -2709,7 +2723,7 @@ void POTGO (uae_u16 v)
 
 	if (inputdevice_logging & 16)
 		write_log (_T("POTGO_W: %04X %08X\n"), v, M68K_GETPC);
-#ifdef DONGLE_DEBUG
+#if DONGLE_DEBUG
 	if (notinrom ())
 		write_log (_T("POTGO %04X %s\n"), v, debuginfo(0));
 #endif
@@ -2748,7 +2762,7 @@ uae_u16 POTGOR (void)
 
 	v = handle_joystick_potgor (potgo_value) & 0x5500;
 	v = dongle_potgor (v);
-#ifdef DONGLE_DEBUG
+#if DONGLE_DEBUG
 	if (notinrom ())
 		write_log (_T("POTGOR %04X %s\n"), v, debuginfo(0));
 #endif
@@ -3725,8 +3739,6 @@ static int getoldport (struct uae_input_device *id)
 	return -1;
 }
 
-#define SWITCHDEBUG_DEBUG 0
-
 static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 {
 	int i, j;
@@ -3737,7 +3749,7 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 	int otherbuttonpressed = 0;
 	int acc = input_acquired;
 
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 	write_log (_T("switchdevice '%s' %d %d\n"), id->name, num, buttonmode);
 #endif
 
@@ -3771,7 +3783,7 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 		}
 	}
 	if (!name) {
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 		write_log(_T("device not found!?\n"));
 #endif
 		return 0;
@@ -3782,16 +3794,16 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 	} else {
 		newport = num ? 1 : 0;
 	}
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 	write_log (_T("newport = %d ismouse=%d flags=%d name=%s\n"), newport, ismouse, flags, name);
 #endif
 	/* "GamePorts" switch if in GamePorts mode or Input mode and GamePorts port was not NONE */
 	if (currprefs.input_selected_setting == GAMEPORT_INPUT_SETTINGS || currprefs.jports[newport].id != JPORT_NONE) {
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 		write_log (_T("GAMEPORTS MODE %d %d\n"), currprefs.input_selected_setting, currprefs.jports[newport].id);
 #endif
 		if ((num == 0 || num == 1) && currprefs.jports[newport].id != JPORT_CUSTOM) {
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 			write_log (_T("Port supported\n"));
 #endif
 			bool issupermouse = false;
@@ -3799,13 +3811,13 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 			int om1 = jsem_ismouse (0, &currprefs);
 			int om2 = jsem_ismouse (1, &currprefs);
 			if ((om1 >= 0 || om2 >= 0) && ismouse) {
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 				write_log (_T("END3\n"));
 #endif
 				return 0;
 			}
 			if (flags) {
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 				write_log (_T("END2\n"));
 #endif
 				return 0;
@@ -3820,7 +3832,7 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 					else
 						supermouse = i;
 				}
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 				write_log (_T("inputdevice gameports change supermouse=%d num=%d\n"), supermouse, nummouse);
 #endif
 				if (supermouse >= 0 && nummouse == 1) {
@@ -3828,7 +3840,7 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 					name = idev[IDTYPE_MOUSE].get_uniquename (supermouse);
 					fname = idev[IDTYPE_MOUSE].get_friendlyname(supermouse);
 					issupermouse = true;
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 					write_log (_T("inputdevice gameports change '%s' -> '%s'\n"), oldname, name);
 #endif
 				}
@@ -3845,13 +3857,13 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 				// disable old device
 				int devnum;
 				devnum = jsem_ismouse(newport, &currprefs);
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 				write_log(_T("ismouse num = %d supermouse=%d\n"), devnum, issupermouse);
 #endif
 				if (devnum >= 0) {
 					if (changed_prefs.mouse_settings[currprefs.input_selected_setting][devnum].enabled) {
 						changed_prefs.mouse_settings[currprefs.input_selected_setting][devnum].enabled = false;
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 						write_log(_T("input panel mouse device '%s' disabled\n"), changed_prefs.mouse_settings[currprefs.input_selected_setting][devnum].name);
 #endif
 					}
@@ -3859,7 +3871,7 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 				for (int l = 0; l < idev[IDTYPE_MOUSE].get_num(); l++) {
 					if (changed_prefs.mouse_settings[currprefs.input_selected_setting][l].enabled) {
 						if (idev[IDTYPE_MOUSE].get_flags(l)) {
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 							write_log (_T("enabled supermouse %d detected\n"), l);
 #endif
 							issupermouse = true;
@@ -3874,13 +3886,13 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 				}
 
 				devnum = jsem_isjoy(newport, &currprefs);
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 				write_log(_T("isjoy num = %d\n"), devnum);
 #endif
 				if (devnum >= 0) {
 					if (changed_prefs.joystick_settings[currprefs.input_selected_setting][devnum].enabled) {
 						changed_prefs.joystick_settings[currprefs.input_selected_setting][devnum].enabled = false;
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 						write_log(_T("input panel joystick device '%s' disabled\n"), changed_prefs.joystick_settings[currprefs.input_selected_setting][devnum].name);
 #endif
 					}
@@ -3894,12 +3906,12 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 				inputdevice_acquire (TRUE);
 			return 1;
 		}
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 		write_log (_T("END1\n"));
 #endif
 		return 0;
 	} else {
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 		write_log (_T("INPUTPANEL MODE %d\n"), flags);
 #endif
 		int oldport = getoldport (id);
@@ -3909,7 +3921,7 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 		if (flags)
 			return 0;
 		if (oldport <= 0) {
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 			write_log(_T("OLDPORT %d\n"), oldport);
 #endif
 			return 0;
@@ -3919,7 +3931,7 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 		if (ismouse) {
 			for (i = 0; i < MAX_INPUT_SETTINGS; i++) {
 				if (mice[i].enabled && idev[IDTYPE_MOUSE].get_flags (i)) {
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 					write_log(_T("SUPERMOUSE %d enabled\n"), i);
 #endif
 					return 0;
@@ -3929,13 +3941,13 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 		for (i = 0; i < MAX_INPUT_SETTINGS; i++) {
 			if (getoldport (&joysticks[i]) == newport) {
 				joysticks[i].enabled = 0;
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 				write_log(_T("Joystick %d disabled\n"), i);
 #endif
 			}
 			if (getoldport (&mice[i]) == newport) {
 				mice[i].enabled = 0;
-#if SWITCHDEBUG_DEBUG
+#if SWITCH_DEBUG
 				write_log(_T("Mouse %d disabled\n"), i);
 #endif
 			}
@@ -4178,6 +4190,11 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 		inprec_realtime ();
 	if (input_play)
 		return;
+
+#if INPUT_DEBUG
+	write_log(_T("setbuttonstateall %d %d\n"), button, buttonstate);
+#endif
+
 	if (!id->enabled) {
 		frame_time_t t = read_processor_time ();
 
@@ -7573,13 +7590,17 @@ int inputdevice_joyport_config (struct uae_prefs *p, const TCHAR *value, int por
 					if (mode >= 0)
 						p->jports[portnum].mode = mode;
 					if (start < JSEM_JOYS)
-						default_keyboard_layout[portnum] = start;
+						default_keyboard_layout[portnum] = start + 1;
 					set_config_changed ();
 					return 1;
 				}
 				// joystick not found, select default
 				if (start == JSEM_JOYS && p->jports[portnum].id < JSEM_JOYS) {
-					p->jports[portnum].id = default_keyboard_layout[portnum];
+					if (default_keyboard_layout[portnum] > 0) {
+						p->jports[portnum].id = default_keyboard_layout[portnum] - 1;
+					} else {
+						p->jports[portnum].id = JPORT_NONE;
+					}
 					set_config_changed ();
 					return 1;
 				}

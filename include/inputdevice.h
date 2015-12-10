@@ -336,6 +336,7 @@ extern int jsem_ismouse (int port, const struct uae_prefs *p);
 extern int jsem_iskbdjoy (int port, const struct uae_prefs *p);
 
 extern int inputdevice_uaelib (const TCHAR *, const TCHAR *);
+extern int inputdevice_uaelib(const TCHAR *s, int parm, int max, bool autofire);
 
 extern int inputdevice_testread (int*, int*, int*, bool);
 extern int inputdevice_istest (void);
