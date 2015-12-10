@@ -2292,10 +2292,10 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 		if (!warned) {
 			if (os_vista)
 				_tcscpy(errmsg, _T("Direct3D: Optional DirectX9 components are not installed.\n")
-					_T("\nhttp://go.microsoft.com/fwlink/?linkid=56513"));
+					_T("\nhttps://www.microsoft.com/en-us/download/details.aspx?id=8109"));
 			else
 				_tcscpy (errmsg, _T("Direct3D: Newer DirectX Runtime required or optional DirectX9 components are not installed.\n")
-					_T("\nhttp://go.microsoft.com/fwlink/?linkid=56513"));
+					_T("\nhttps://www.microsoft.com/en-us/download/details.aspx?id=8109"));
 			warned = true;
 		}
 		return errmsg;
@@ -2515,23 +2515,23 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 	max_texture_w = d3dCaps.MaxTextureWidth;
 	max_texture_h = d3dCaps.MaxTextureHeight;
 
-	write_log (_T("%s: %08X "), D3DHEAD, flags, d3dCaps.Caps, d3dCaps.Caps2, d3dCaps.Caps3);
+	write_log (_T("%s: %08X %08X %08X %08X"), D3DHEAD, flags, d3dCaps.Caps, d3dCaps.Caps2, d3dCaps.Caps3);
 	if (d3dCaps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY)
-		write_log (_T("SQUAREONLY "));
+		write_log (_T(" SQUAREONLY"));
 	if (d3dCaps.TextureCaps & D3DPTEXTURECAPS_POW2)
-		write_log (_T("POW2 "));
+		write_log (_T(" POW2"));
 	if (d3dCaps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL)
-		write_log (_T("NPOTCONDITIONAL "));
+		write_log (_T(" NPOTCONDITIONAL"));
 	if (d3dCaps.TextureCaps & D3DPTEXTURECAPS_ALPHA)
-		write_log (_T("ALPHA "));
+		write_log (_T(" ALPHA"));
 	if (d3dCaps.Caps2 & D3DCAPS2_DYNAMICTEXTURES)
-		write_log (_T("DYNAMIC "));
+		write_log (_T(" DYNAMIC"));
 	if (d3dCaps.Caps & D3DCAPS_READ_SCANLINE)
-		write_log (_T("SCANLINE "));
+		write_log (_T(" SCANLINE"));
 	
 	write_log (_T("\n"));
 
-	write_log (_T("%s: PS=%d.%d VS=%d.%d %d*%d*%d%s%s VS=%d B=%d%s %d-bit %d\n"),
+	write_log (_T("%s: PS=%d.%d VS=%d.%d %d*%d*%d%s%s VS=%d B=%d%s %d-bit %d (%dx%d)\n"),
 		D3DHEAD,
 		(d3dCaps.PixelShaderVersion >> 8) & 0xff, d3dCaps.PixelShaderVersion & 0xff,
 		(d3dCaps.VertexShaderVersion >> 8) & 0xff, d3dCaps.VertexShaderVersion & 0xff,
@@ -2541,7 +2541,8 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 		dpp.Windowed ? _T("") : _T(" FS"),
 		vsync, ap.gfx_backbuffers,
 		ap.gfx_vflip < 0 ? _T("WE") : (ap.gfx_vflip > 0 ? _T("WS") :  _T("I")), 
-		t_depth, adapter
+		t_depth, adapter,
+		max_texture_w, max_texture_h
 	);
 
 	if ((d3dCaps.PixelShaderVersion < D3DPS_VERSION(2,0) || !psEnabled || max_texture_w < 2048 || max_texture_h < 2048 || (!shaderon && SHADER > 0)) && d3d_ex) {
