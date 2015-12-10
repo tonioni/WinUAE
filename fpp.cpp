@@ -581,6 +581,21 @@ static void init_fpucw_x87(void)
 
 static inline void set_fpucw_x87(uae_u32 m68k_cw)
 {
+#ifdef _MSC_VER
+	static int ex = 0;
+	// RN, RZ, RM, RP
+	static const unsigned int fp87_round[4] = { _RC_NEAR, _RC_CHOP, _RC_DOWN, _RC_UP };
+	// Extend X, Single S, Double D, Undefined
+	static const unsigned int fp87_prec[4] = { _PC_64, _PC_24, _PC_53, 0 };
+#ifdef WIN64
+	// x64 only sets SSE2, must also call x87_fldcw_code() to set FPU rounding mode.
+	_controlfp(ex | fp87_round[(m68k_cw >> 4) & 3], _MCW_RC);
+#else
+	// x86 sets both FPU and SSE2 rounding mode, don't need x87_fldcw_code()
+	_control87(ex | fp87_round[(m68k_cw >> 4) & 3] | fp87_prec[(m68k_cw >> 6) & 3], _MCW_RC | _MCW_PC);
+	return;
+#endif
+#endif
 	static const uae_u16 x87_cw_tab[] = {
 		0x137f, 0x1f7f, 0x177f, 0x1b7f,	/* Extended */
 		0x107f, 0x1c7f, 0x147f, 0x187f,	/* Single */
