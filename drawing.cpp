@@ -243,7 +243,6 @@ static int bplehb, bplham, bpldualpf, bpldualpfpri, bpldualpf2of, bplplanecnt, e
 static bool issprites;
 static int bplres;
 static int plf1pri, plf2pri, bplxor, bpldelay_sh;
-static bool enabled_sh;
 static uae_u32 plf_sprite_mask;
 static int sbasecol[2] = { 16, 16 };
 static int hposblank;
@@ -830,7 +829,7 @@ STATIC_INLINE xcolnr getbgc (bool blank)
 	//return colors_for_drawing.acolors[0];
 	return xcolors[0xf0f];
 #endif
-	return (blank || hposblank || colors_for_drawing.borderblank) ? 0 : colors_for_drawing.acolors[0];
+	return (blank || hposblank || ce_is_borderblank(colors_for_drawing.extra)) ? 0 : colors_for_drawing.acolors[0];
 }
 
 
@@ -902,7 +901,7 @@ static void pfield_init_linetoscr (bool border)
 	// before first bitplane pixel appears.
 	// This means "bordersprite" condition is possible under OCS/ECS too. Argh!
 	if (dip_for_drawing->nr_sprites) {
-		if (!colors_for_drawing.borderblank) {
+		if (!ce_is_borderblank(colors_for_drawing.extra)) {
 			/* bordersprite off or not supported: sprites are visible until diw_end */
 			if (playfield_end < linetoscr_diw_end && hblank_right_stop > playfield_end) {
 				playfield_end = linetoscr_diw_end;
@@ -923,7 +922,7 @@ static void pfield_init_linetoscr (bool border)
 
 #ifdef AGA
 	may_require_hard_way = false;
-	if (dp_for_drawing->bordersprite_seen && !colors_for_drawing.borderblank && dip_for_drawing->nr_sprites) {
+	if (dp_for_drawing->bordersprite_seen && !ce_is_borderblank(colors_for_drawing.extra) && dip_for_drawing->nr_sprites) {
 		int min = visible_right_border, max = visible_left_border, i;
 		for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
 			int x;
@@ -957,7 +956,7 @@ static void pfield_init_linetoscr (bool border)
 	int first_x = sprite_first_x;
 	int last_x = sprite_last_x;
 	if (first_x < last_x) {
-		if (dp_for_drawing->bordersprite_seen && !colors_for_drawing.borderblank) {
+		if (dp_for_drawing->bordersprite_seen && !ce_is_borderblank(colors_for_drawing.extra)) {
 			if (first_x > visible_left_border)
 				first_x = visible_left_border;
 			if (last_x < visible_right_border)
@@ -1276,7 +1275,7 @@ static uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga)
 static bool get_genlock_very_rare_and_complex_case(uae_u8 v)
 {
 	// border color without BRDNTRAN bit set = transparent
-	if (v == 0 && !colors_for_drawing.borderntrans)
+	if (v == 0 && !ce_is_borderntrans(colors_for_drawing.extra))
 		return false;
 	if (ecs_genlock_features_colorkey) {
 		// color key match?
@@ -1666,6 +1665,10 @@ static int pfield_do_linetoscr_normal_shdelay(int spix, int dpix, int dpix_end)
 {
 	int add = get_shdelay_add();
 	int add2 = add * gfxvidinfo.drawbuffer.pixbytes;
+	if (add) {
+		// Clear skipped pixel(s).
+		pfield_do_linetoscr_shdelay_sprite(spix, dpix, dpix + add);
+	}
 	xlinebuffer += add2;
 	int out = pfield_do_linetoscr_shdelay_normal(spix, dpix, dpix_end);
 	xlinebuffer -= add2;
@@ -1673,12 +1676,28 @@ static int pfield_do_linetoscr_normal_shdelay(int spix, int dpix, int dpix_end)
 }
 static int pfield_do_linetoscr_sprite_shdelay(int spix, int dpix, int dpix_end)
 {
+	int out = spix;
+	if (dpix < real_playfield_start && dpix_end > real_playfield_start) {
+		// Crosses real_playfield_start.
+		// Render only from dpix to real_playfield_start.
+		int len = real_playfield_start - dpix;
+		out = pfield_do_linetoscr_spriteonly(out, dpix, dpix + len);
+		dpix = real_playfield_start;
+	} else if (dpix_end <= real_playfield_start) {
+		// Does not cross real_playfield_start, nothing special needed.
+		out = pfield_do_linetoscr_spriteonly(out, dpix, dpix_end);
+		return out;
+	}
+	// Render bitplane with subpixel scroll, from real_playfield_start to end.
 	int add = get_shdelay_add();
 	int add2 = add * gfxvidinfo.drawbuffer.pixbytes;
+	if (add) {
+		pfield_do_linetoscr_shdelay_sprite(out, dpix, dpix + add);
+	}
 	sprite_shdelay = add;
 	spritepixels += add;
 	xlinebuffer += add2;
-	int out = pfield_do_linetoscr_shdelay_sprite(spix, dpix, dpix_end);
+	out = pfield_do_linetoscr_shdelay_sprite(out, dpix, dpix_end);
 	xlinebuffer -= add2;
 	spritepixels -= add;
 	sprite_shdelay = 0;
@@ -1688,7 +1707,6 @@ static int pfield_do_linetoscr_sprite_shdelay(int spix, int dpix, int dpix_end)
 static void pfield_set_linetoscr (void)
 {
 	xlinecheck(start, stop);
-	enabled_sh = false;
 	spritepixels = spritepixels_buffer;
 	pfield_do_linetoscr_spriteonly = pfield_do_nothing;
 #ifdef AGA
@@ -1794,7 +1812,6 @@ static void pfield_set_linetoscr (void)
 			pfield_do_linetoscr_shdelay_sprite = pfield_do_linetoscr_sprite;
 			pfield_do_linetoscr_normal = pfield_do_linetoscr_normal_shdelay;
 			pfield_do_linetoscr_sprite = pfield_do_linetoscr_sprite_shdelay;
-			enabled_sh = true;
 		}
 	}
 #endif
@@ -1932,7 +1949,7 @@ static void pfield_do_linetoscr_bordersprite_aga (int start, int stop, bool blan
 		pfield_do_fill_line (start, stop, blank);
 		return;
 	}
-	src_pixel = pfield_do_linetoscr_spriteonly(src_pixel, start, stop);
+	pfield_do_linetoscr_spriteonly(src_pixel, start, stop);
 }
 
 static void dummy_worker (int start, int stop, bool blank)
@@ -2564,12 +2581,13 @@ static void pfield_expand_dp_bplcon (void)
 	sbasecol[0] = ((dp_for_drawing->bplcon4 >> 4) & 15) << 4;
 	sbasecol[1] = ((dp_for_drawing->bplcon4 >> 0) & 15) << 4;
 	bplxor = dp_for_drawing->bplcon4 >> 8;
-	int obpldelay_sh = bpldelay_sh;
-	bpldelay_sh = dp_for_drawing->bplcon2 >> 14;
-	if ((bpldelay_sh && !obpldelay_sh) || (!bpldelay_sh && obpldelay_sh))
+	int sh = (colors_for_drawing.extra >> CE_SHRES_DELAY) & 3;
+	if (sh != bpldelay_sh) {
+		bpldelay_sh = sh;
 		pfield_mode_changed = true;
+	}
 #endif
-	ecs_genlock_features_active = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && ((dp_for_drawing->bplcon2 & 0x0c00) || colors_for_drawing.borderntrans) ? 1 : 0;
+	ecs_genlock_features_active = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && ((dp_for_drawing->bplcon2 & 0x0c00) || ce_is_borderntrans(colors_for_drawing.extra)) ? 1 : 0;
 	if (ecs_genlock_features_active) {
 		ecs_genlock_features_colorkey = false;
 		ecs_genlock_features_mask = 0;
@@ -2650,8 +2668,7 @@ static void adjust_drawing_colors (int ctable, int need_full)
 		} else {
 			memcpy (colors_for_drawing.acolors, curr_color_tables[ctable].acolors,
 				sizeof colors_for_drawing.acolors);
-			colors_for_drawing.borderblank = curr_color_tables[ctable].borderblank;
-			colors_for_drawing.bordersprite = curr_color_tables[ctable].bordersprite;
+			colors_for_drawing.extra = curr_color_tables[ctable].extra;
 			color_match_type = color_match_acolors;
 		}
 		drawing_color_matches = ctable;
@@ -2742,9 +2759,17 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 			pfield_expand_dp_bplconx (regno, value);
 		} else if (regno >= 0) {
 			if (regno == 0 && (value & COLOR_CHANGE_BRDBLANK)) {
-				colors_for_drawing.borderblank = (value & 1) != 0;
-				colors_for_drawing.bordersprite = (value & 3) == 2;
-				colors_for_drawing.borderntrans = (value & 5) == 4;
+				colors_for_drawing.extra &= ~(1 << CE_BORDERBLANK);
+				colors_for_drawing.extra &= ~(1 << CE_BORDERNTRANS);
+				colors_for_drawing.extra &= ~(1 << CE_BORDERSPRITE);
+				colors_for_drawing.extra |= (value & 1) != 0 ? (1 << CE_BORDERBLANK) : 0;
+				colors_for_drawing.extra |= (value & 3) == 2 ? (1 << CE_BORDERSPRITE) : 0;
+				colors_for_drawing.extra |= (value & 5) == 4 ? (1 << CE_BORDERNTRANS) : 0;
+			} else if (regno == 0 && (value & COLOR_CHANGE_SHRES_DELAY)) {
+				colors_for_drawing.extra &= ~(1 << CE_SHRES_DELAY);
+				colors_for_drawing.extra &= ~(1 << (CE_SHRES_DELAY + 1));
+				colors_for_drawing.extra |= (value & 3) << CE_SHRES_DELAY;
+				pfield_expand_dp_bplcon();
 			} else {
 				color_reg_set (&colors_for_drawing, regno, value);
 				colors_for_drawing.acolors[regno] = getxcolor (value);
@@ -2873,7 +2898,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		if (dip_for_drawing->nr_sprites) {
 			int i;
 #ifdef AGA
-			if (colors_for_drawing.bordersprite && dp_for_drawing->bordersprite_seen && !colors_for_drawing.borderblank)
+			if (ce_is_bordersprite(colors_for_drawing.extra) && dp_for_drawing->bordersprite_seen && !ce_is_borderblank(colors_for_drawing.extra))
 				clear_bitplane_border_aga ();
 #endif
 
@@ -2888,7 +2913,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		}
 
 #ifdef AGA
-		if (dip_for_drawing->nr_sprites && colors_for_drawing.bordersprite && !colors_for_drawing.borderblank && dp_for_drawing->bordersprite_seen)
+		if (dip_for_drawing->nr_sprites && ce_is_bordersprite(colors_for_drawing.extra) && !ce_is_borderblank(colors_for_drawing.extra) && dp_for_drawing->bordersprite_seen)
 			do_color_changes (pfield_do_linetoscr_bordersprite_aga, pfield_do_linetoscr_spr, lineno);
 		else
 #endif
@@ -2918,7 +2943,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		adjust_drawing_colors (dp_for_drawing->ctable, 0);
 
 #ifdef AGA /* this makes things complex.. */
-		if (dp_for_drawing->bordersprite_seen && !colors_for_drawing.borderblank && dip_for_drawing->nr_sprites) {
+		if (dp_for_drawing->bordersprite_seen && !ce_is_borderblank(colors_for_drawing.extra) && dip_for_drawing->nr_sprites) {
 			dosprites = true;
 			pfield_expand_dp_bplcon ();
 			pfield_init_linetoscr (true);

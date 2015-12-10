@@ -190,8 +190,10 @@ static void out_linetoscr_do_dstpix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE_
 
 static void out_linetoscr_do_incspix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE_T cmode, int spr)
 {
-	if (spr < 0)
+	if (spr < 0) {
+		outln("    spix++;");
 		return;
+	}
 	if (hmode == HMODE_HALVE1F) {
 		outln (         "    {");
 		outln (         "    uae_u32 tmp_val;");

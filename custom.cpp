@@ -1723,6 +1723,27 @@ STATIC_INLINE void flush_display (int fm)
 	toscr_nbits = 0;
 }
 
+static void record_color_change(int hpos, int regno, unsigned long value);
+
+static void hack_shres_delay(int hpos)
+{
+	if (!(currprefs.chipset_mask & CSMASK_AGA) && !toscr_delay_sh[0] && !toscr_delay_sh[1])
+		return;
+	int o0 = toscr_delay_sh[0];
+	int o1 = toscr_delay_sh[1];
+	int shdelay1 = (bplcon1 >> 8) & 3;
+	int shdelay2 = (bplcon1 >> 12) & 3;
+	toscr_delay_sh[0] = (shdelay1 & 3) >> toscr_res;
+	toscr_delay_sh[1] = (shdelay2 & 3) >> toscr_res;
+	if (hpos >= 0 && toscr_delay_sh[0] != o0 || toscr_delay_sh[1] != o1) {
+		record_color_change(hpos, 0, COLOR_CHANGE_SHRES_DELAY | toscr_delay_sh[0]);
+		current_colors.extra &= ~(1 << CE_SHRES_DELAY);
+		current_colors.extra &= ~(1 << (CE_SHRES_DELAY + 1));
+		current_colors.extra |= toscr_delay_sh[0] << CE_SHRES_DELAY;
+		remembered_color_entry = -1;
+	}
+}
+
 static void update_denise_shifter_planes (int hpos)
 {
 	int np = GET_PLANES (bplcon0d);
@@ -1768,6 +1789,7 @@ static void update_denise (int hpos)
 		toscr_nr_planes2 = toscr_nr_planes;
 	}
 	toscr_nr_planes_shifter = toscr_nr_planes2;
+	hack_shres_delay(hpos);
 }
 
 STATIC_INLINE void fetch_start (int hpos)
@@ -2945,15 +2967,16 @@ static bool isbrdblank (int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
 	brdblank = false;
 	brdntrans = false;
 #endif
-	if (hpos >= 0 && (current_colors.borderblank != brdblank || current_colors.borderntrans != brdntrans)) {
-		record_color_change (hpos, 0, COLOR_CHANGE_BRDBLANK | (brdblank ? 1 : 0) | (current_colors.bordersprite ? 2 : 0) | (brdntrans ? 4 : 0));
-		current_colors.borderblank = brdblank;
-		current_colors.borderntrans = brdntrans;
+	if (hpos >= 0 && (ce_is_borderblank(current_colors.extra) != brdblank || ce_is_borderntrans(current_colors.extra) != brdntrans)) {
+		record_color_change (hpos, 0, COLOR_CHANGE_BRDBLANK | (brdblank ? 1 : 0) | (ce_is_bordersprite(current_colors.extra) ? 2 : 0) | (brdntrans ? 4 : 0));
+		current_colors.extra &= ~(1 << CE_BORDERBLANK);
+		current_colors.extra &= ~(1 << CE_BORDERNTRANS);
+		current_colors.extra |= brdblank ? (1 << CE_BORDERBLANK) : 0;
+		current_colors.extra |= brdntrans ? (1 << CE_BORDERNTRANS) : 0;
 		remembered_color_entry = -1;
 	}
 	return brdblank;
 }
-
 
 static bool issprbrd (int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
 {
@@ -2963,14 +2986,15 @@ static bool issprbrd (int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
 #else
 	brdsprt = false;
 #endif
-	if (hpos >= 0 && current_colors.bordersprite != brdsprt) {
-		record_color_change (hpos, 0, COLOR_CHANGE_BRDBLANK | (current_colors.borderblank ? 1 : 0) | (current_colors.borderntrans ? 4 : 0) | (brdsprt ? 2 : 0));
-		current_colors.bordersprite = brdsprt;
+	if (hpos >= 0 && ce_is_bordersprite(current_colors.extra) != brdsprt) {
+		record_color_change (hpos, 0, COLOR_CHANGE_BRDBLANK | (ce_is_borderblank(current_colors.extra) ? 1 : 0) | (ce_is_borderntrans(current_colors.extra) ? 4 : 0) | (brdsprt ? 2 : 0));
+		current_colors.extra &= ~(1 << CE_BORDERSPRITE);
+		current_colors.extra |= brdsprt ? (1 << CE_BORDERSPRITE) : 0;
 		remembered_color_entry = -1;
-		if (brdsprt && !current_colors.borderblank)
+		if (brdsprt && !ce_is_borderblank(current_colors.extra))
 			thisline_decision.bordersprite_seen = true;
 	}
-	return brdsprt && !current_colors.borderblank;
+	return brdsprt && !ce_is_borderblank(current_colors.extra);
 }
 
 static void record_register_change (int hpos, int regno, uae_u16 value)
@@ -5278,17 +5302,6 @@ static void BPLCON0 (int hpos, uae_u16 v)
 		BPLCON0_Denise (hpos, v, true);
 }
 
-static void hack_bplcon2(void)
-{
-	// AGA subpixel scrolling in lores/hires modes
-	int shdelay1 = (bplcon1 >> 8) & 3;
-	int shdelay2 = (bplcon1 >> 12) & 3;
-	toscr_delay_sh[0] = (shdelay1 & 3) >> toscr_res;
-	toscr_delay_sh[1] = (shdelay2 & 3) >> toscr_res;
-	bplcon2 &= ~0xc000;
-	bplcon2 |= toscr_delay_sh[0] << 14;
-}
-
 static void BPLCON1 (int hpos, uae_u16 v)
 {
 	if (!(currprefs.chipset_mask & CSMASK_AGA))
@@ -5300,16 +5313,7 @@ static void BPLCON1 (int hpos, uae_u16 v)
 	decide_fetch_safe (hpos);
 	bplcon1_written = true;
 	bplcon1 = v;
-
-	if (currprefs.chipset_mask & CSMASK_AGA) {
-		int o0 = toscr_delay_sh[0];
-		int o1 = toscr_delay_sh[1];
-		hack_bplcon2();
-		if (toscr_delay_sh[0] != o0 || toscr_delay_sh[1] != o1) {
-			// HACK: Use BPLCON2 unused bits to store sh shift
-			record_register_change(hpos, 0x104, bplcon2);
-		}
-	}
+	hack_shres_delay(hpos);
 }
 
 static void BPLCON2(int hpos, uae_u16 v)
@@ -5320,8 +5324,6 @@ static void BPLCON2(int hpos, uae_u16 v)
 		return;
 	decide_line (hpos);
 	bplcon2 = v;
-	if (currprefs.chipset_mask & CSMASK_AGA)
-		hack_bplcon2();
 	record_register_change (hpos, 0x104, bplcon2);
 }
 
@@ -8411,6 +8413,8 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	sprite_entries[1][1].first_pixel = MAX_SPR_PIXELS;
 	memset (spixels, 0, 2 * MAX_SPR_PIXELS * sizeof *spixels);
 	memset (&spixstate, 0, sizeof spixstate);
+	toscr_delay_sh[0] = 0;
+	toscr_delay_sh[1] = 0;
 
 	cop_state.state = COP_stop;
 	cop_state.movedelay = 0;
@@ -9225,10 +9229,17 @@ uae_u8 *restore_custom (uae_u8 *src)
 	i = RW;					/* 1FA ? */
 	if (i & 0x8000)
 		currprefs.ntscmode = changed_prefs.ntscmode = i & 1;
-	fmode = RW;				/* 1FC FMODE */
+	fmode = fmode_saved = RW; /* 1FC FMODE */
 	last_custom_value1 = RW;/* 1FE ? */
 
-	current_colors.borderblank = isbrdblank (-1, bplcon0, bplcon3);
+	current_colors.extra = 0;
+	if (isbrdblank (-1, bplcon0, bplcon3))
+		current_colors.extra |= 1 << CE_BORDERBLANK;
+	if (issprbrd(-1, bplcon0, bplcon3))
+		current_colors.extra |= 1 << CE_BORDERSPRITE;
+	if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) && (bplcon0 & 1) && (bplcon3 & 0x10))
+		current_colors.extra |= 1 << CE_BORDERNTRANS;
+
 	DISK_restore_custom (dskpt, dsklen, dskbytr);
 
 	return src;
