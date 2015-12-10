@@ -19,6 +19,7 @@ int no_windowsmouse = 0;
 
 #define _WIN32_WINNT 0x501 /* enable RAWINPUT support */
 
+#define RAWINPUT_DEBUG 0
 #define DI_DEBUG 1
 #define IGNOREEVERYTHING 0
 
@@ -70,6 +71,7 @@ extern "C"
 #define DID_JOYSTICK 2
 #define DID_KEYBOARD 3
 
+#define DIDC_NONE 0
 #define DIDC_DX 1
 #define DIDC_RAW 2
 #define DIDC_WIN 3
@@ -100,7 +102,7 @@ struct didata {
 	int connection;
 	int acquireattempts;
 	LPDIRECTINPUTDEVICE8 lpdi;
-	HANDLE rawinput;
+	HANDLE rawinput, rawhidhandle;
 	HIDP_CAPS hidcaps;
 	HIDP_VALUE_CAPS hidvcaps[MAX_MAPPINGS];
 	PCHAR hidbuffer, hidbufferprev;
@@ -143,6 +145,9 @@ static LPDIRECTINPUT8 g_lpdi;
 static struct didata di_mouse[MAX_INPUT_DEVICES];
 static struct didata di_keyboard[MAX_INPUT_DEVICES];
 static struct didata di_joystick[MAX_INPUT_DEVICES];
+#define MAX_RAW_HANDLES 500
+static int raw_handles;
+static HANDLE rawinputhandles[MAX_RAW_HANDLES];
 static int num_mouse, num_keyboard, num_joystick;
 static int dd_inited, mouse_inited, keyboard_inited, joystick_inited;
 static int stopoutput;
@@ -150,7 +155,6 @@ static HANDLE kbhandle = INVALID_HANDLE_VALUE;
 static int originalleds, oldleds, newleds, disabledleds, ledstate;
 static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmousemode, winmousewheelbuttonstart;
 static int normalkb, superkb, rawkb;
-static int rawhid;
 static bool rawinput_enabled_mouse, rawinput_enabled_keyboard;
 static bool rawinput_decided;
 static bool rawhid_found;
@@ -419,7 +423,7 @@ static int doregister_rawinput (void)
 {
 	int num;
 	bool add;
-	RAWINPUTDEVICE rid[2 + MAX_INPUT_DEVICES] = { 0 };
+	RAWINPUTDEVICE rid[2 + 2 + MAX_INPUT_DEVICES] = { 0 };
 	int activate;
 
 	if (!rawinput_available)
@@ -435,13 +439,22 @@ static int doregister_rawinput (void)
 			activate++;
 	}
 
+#if RAWINPUT_DEBUG
+	write_log(_T("RAWHID ACT=%d REG=%d\n"), activate, rawinput_registered);
+#endif
+
 	if (rawinput_registered && activate)
 		return 1;
 	if (!rawinput_registered && !activate)
 		return 1;
+
 	add = activate != 0;
 
 	rawinput_registered = add;
+
+	// never unregister
+	if (!add)
+		return 1;
 
 	memset (rid, 0, sizeof rid);
 	num = 0;
@@ -450,9 +463,12 @@ static int doregister_rawinput (void)
 	rid[num].usUsage = 2;
 	if (!add) {
 		rid[num].dwFlags = RIDEV_REMOVE;
-	} else if (hMainWnd) {
-		rid[num].dwFlags = RIDEV_INPUTSINK;
-		rid[num].hwndTarget = hMainWnd;
+	} else {
+		if (hMainWnd) {
+			rid[num].dwFlags = RIDEV_INPUTSINK;
+			rid[num].hwndTarget = hMainWnd;
+		}
+		rid[num].dwFlags |= (os_vista ? RIDEV_DEVNOTIFY : 0);
 	}
 	num++;
 
@@ -466,18 +482,49 @@ static int doregister_rawinput (void)
 			rid[num].dwFlags = RIDEV_INPUTSINK;
 			rid[num].hwndTarget = hMainWnd;
 		}
-		rid[num].dwFlags |= RIDEV_NOHOTKEYS;
+		rid[num].dwFlags |= RIDEV_NOHOTKEYS | (os_vista ? RIDEV_DEVNOTIFY : 0);
 	}
 	num++;
 
 	/* joystick */
 	int off = num;
+
+	// game pad
+	rid[num].usUsagePage = 1;
+	rid[num].usUsage = 4;
+	if (!add) {
+		rid[num].dwFlags = RIDEV_REMOVE;
+	} else {
+		if (hMainWnd) {
+			rid[num].dwFlags = RIDEV_INPUTSINK;
+			rid[num].hwndTarget = hMainWnd;
+		}
+		rid[num].dwFlags |= (os_vista ? RIDEV_DEVNOTIFY : 0);
+	}
+	num++;
+
+	// joystick
+	rid[num].usUsagePage = 1;
+	rid[num].usUsage = 5;
+	if (!add) {
+		rid[num].dwFlags = RIDEV_REMOVE;
+	} else {
+		if (hMainWnd) {
+			rid[num].dwFlags = RIDEV_INPUTSINK;
+			rid[num].hwndTarget = hMainWnd;
+		}
+		rid[num].dwFlags |= (os_vista ? RIDEV_DEVNOTIFY : 0);
+	}
+	num++;
+
 	for (int i = 0; i < num_joystick; i++) {
 		struct didata *did = &di_joystick[i];
 		if (did->connection != DIDC_RAW)
 			continue;
 		int j;
 		for (j = off; j < num; j++) {
+			if (rid[j].usUsagePage == 1 && (rid[j].usUsage == 4 || rid[j].usUsage == 5))
+				break;
 			if (rid[j].usUsage == did->hidcaps.Usage && rid[j].usUsagePage == did->hidcaps.UsagePage)
 				break;
 		}
@@ -491,35 +538,39 @@ static int doregister_rawinput (void)
 					rid[num].dwFlags = RIDEV_INPUTSINK;
 					rid[num].hwndTarget = hMainWnd;
 				}
+				rid[num].dwFlags |= (os_vista ? RIDEV_DEVNOTIFY : 0);
 			}
+#if RAWINPUT_DEBUG
+			write_log(_T("RAWHID ADD=%d NUM=%d %04x/%04x\n"), add, num, did->hidcaps.Usage, did->hidcaps.UsagePage);
+#endif
 			num++;
 		}
 	}
 
-	//write_log (_T("RegisterRawInputDevices = %d (%d)\n"), activate, num);
+#if RAWINPUT_DEBUG
+	write_log (_T("RegisterRawInputDevices: ACT=%d NUM=%d HWND=%p\n"), activate, num, hMainWnd);
+#endif
+
 	rawinput_reg = num;
-	if (!add)
-		rawinput_reg = -rawinput_reg;
-	//write_log (_T("+++++++++++++++++++++++++++%x\n"), hMainWnd);
 	if (RegisterRawInputDevices (rid, num, sizeof(RAWINPUTDEVICE)) == FALSE) {
 		write_log (_T("RAWINPUT %sregistration failed %d\n"),
 			add ? _T("") : _T("un"), GetLastError ());
 		return 0;
 	}
-	//write_log (_T("-------------------------- %x\n"), hMainWnd);
 
 	return 1;
 }
 
 static void cleardid (struct didata *did)
 {
-	int i;
 	memset (did, 0, sizeof (*did));
-	for (i = 0; i < MAX_MAPPINGS; i++) {
+	for (int i = 0; i < MAX_MAPPINGS; i++) {
 		did->axismappings[i] = -1;
 		did->buttonmappings[i] = -1;
 		did->buttonaxisparent[i] = -1;
 	}
+	did->parjoy = INVALID_HANDLE_VALUE;
+	did->rawhidhandle = INVALID_HANDLE_VALUE;
 }
 
 
@@ -1010,7 +1061,7 @@ static void sortobjects (struct didata *did)
 
 #if DI_DEBUG
 	if (did->axles + did->buttons > 0) {
-		write_log (_T("%s: (%04X/%04X)\n"), did->name, did->vid, did->pid);
+		write_log (_T("%s: [%04X/%04X]\n"), did->name, did->vid, did->pid);
 		if (did->connection == DIDC_DX)
 			write_log (_T("PGUID=%s\n"), outGUID (&did->pguid));
 		for (i = 0; i < did->axles; i++) {
@@ -1092,7 +1143,7 @@ static void rawinputfixname (const TCHAR *name, const TCHAR *friendlyname)
 //				else
 				_stprintf (tmp, _T("%s"), friendlyname);
 				did->name = my_strdup (tmp);
-				write_log (_T("'%s' ('%s')\n"), did->name, did->configname);
+				write_log (_T("[%04X/%04X] '%s' -> '%s'\n"), did->vid, did->pid, did->configname, did->name);
 			}
 		}
 	}
@@ -1464,6 +1515,27 @@ static void dumphidend (void)
 	write_log (_T("\n"));
 }
 
+static const TCHAR *tohex(TCHAR *s)
+{
+	static TCHAR out[128 * 6];
+
+	int len = 0;
+	TCHAR *d = out;
+	uae_u8 *ss = (uae_u8*)s;
+	while (*s && len < 128 - 1) {
+		if (len > 0) {
+			*d++ = ' ';
+		}
+		_stprintf(d, _T("%02X %02X"), ss[0], ss[1]);
+		d += _tcslen(d);
+		ss += 2;
+		s++;
+		len++;
+	}
+	*d = 0;
+	return out;
+}
+
 #define MAX_RAW_KEYBOARD 0
 
 static bool initialize_rawinput (void)
@@ -1514,7 +1586,7 @@ static bool initialize_rawinput (void)
 				continue;
 			for (int i = 0; hidnorawinput[i].vid; i++) {
 				if (hidnorawinput[i].vid == rdi->hid.dwVendorId && hidnorawinput[i].pid == rdi->hid.dwProductId) {
-					write_log (_T("Found USB HID device that requires calibration (%04x/%04x), disabling HID RAWINPUT support\n"),
+					write_log (_T("Found USB HID device that requires calibration (%04X/%04X), disabling HID RAWINPUT support\n"),
 						rdi->hid.dwVendorId, rdi->hid.dwProductId);
 					rawinput_enabled_hid = 0;
 				}
@@ -1523,10 +1595,13 @@ static bool initialize_rawinput (void)
 	}
 
 	rnum_raw = rnum_mouse = rnum_kb = rnum_hid = 0;
+	raw_handles = 0;
 	for (int rawcnt = 0; rawcnt < gotnum; rawcnt++) {
 		int type = ridl[rawcnt].dwType;
 		HANDLE h = ridl[rawcnt].hDevice;
 
+		if (raw_handles < MAX_RAW_HANDLES)
+			rawinputhandles[raw_handles++] = h;
 		if (GetRawInputDeviceInfo (h, RIDI_DEVICENAME, NULL, &vtmp) == 1)
 			continue;
 		if (vtmp >= bufsize)
@@ -1607,7 +1682,7 @@ static bool initialize_rawinput (void)
 				continue;
 			}
 
-			write_log (_T("%p %d %04x/%04x (%d/%d)\n"), h, type, rdi->hid.dwVendorId, rdi->hid.dwProductId, rdi->hid.usUsage, rdi->hid.usUsagePage);
+			write_log (_T("%p %d %04X/%04X (%d/%d)\n"), h, type, rdi->hid.dwVendorId, rdi->hid.dwProductId, rdi->hid.usUsage, rdi->hid.usUsagePage);
 
 			if (type == RIM_TYPEMOUSE) {
 				if (rdpdevice (buf1))
@@ -1635,13 +1710,19 @@ static bool initialize_rawinput (void)
 				if (rdpdevice (buf1))
 					continue;
 				if (rdi->hid.usUsage != 4 && rdi->hid.usUsage != 5) {
-					write_log (_T("RAWHID: Usage not 4 or 5 (%d)\n"), rdi->hid.usUsage);
+					write_log (_T("RAWHID: Usage not 4 or 5 (%04X)\n"), rdi->hid.usUsage);
 					continue;
 				}
+				if (rdi->hid.usUsagePage >= 0x80) {
+					write_log(_T("RAWHID: Usage %d, reserved page %04X\n"), rdi->hid.usUsage, rdi->hid.usUsagePage);
+					continue;
+				}
+#if 0
 				if (rdi->hid.usUsagePage >= 0xff00) { // vendor specific
-					write_log (_T("RAWHID: Ignored vendor specific %04x\n"), rdi->hid.usUsagePage);
+					write_log (_T("RAWHID: Ignored vendor specific %04X\n"), rdi->hid.usUsagePage);
 					continue;
 				}
+#endif
 				for (i = 0; hidnorawinput[i].vid; i++) {
 					if (rdi->hid.dwProductId == hidnorawinput[i].pid && rdi->hid.dwVendorId == hidnorawinput[i].vid)
 						break;
@@ -1663,16 +1744,36 @@ static bool initialize_rawinput (void)
 			}
 
 			prodname[0] = 0;
-			HANDLE hhid = CreateFile (buf1, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);			
+			HANDLE hhid = NULL;
+			hhid = CreateFile (buf1, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			// mouse and keyboard don't allow READ or WRITE access
+			if (hhid == INVALID_HANDLE_VALUE) {
+				hhid = CreateFile(buf1, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			}
 			if (hhid != INVALID_HANDLE_VALUE) {
 				if (!HidD_GetProductString (hhid, prodname, sizeof prodname)) {
 					prodname[0] = 0;
 				} else {
-					while (_tcslen (prodname) > 0 && prodname[_tcslen (prodname) - 1] == ' ')
+					while (_tcslen (prodname) > 0 && prodname[_tcslen (prodname) - 1] == ' ') {
 						prodname[_tcslen (prodname) - 1] = 0;
+					}
+					// Corrupted productstrings do exist so lets just ignore it if has non-ASCII characters
+					for (int i = 0; i < _tcslen(prodname); i++) {
+						if (prodname[i] >= 0x100 || prodname[i] < 32) {
+							prodname[0] = 0;
+							write_log(_T("HidD_GetProductString ignored!\n"));
+							break;
+						}
+					}
 				}
+				if (prodname[0])
+					write_log(_T("(%s) '%s'\n"), tohex(prodname), prodname);
 			} else {
 				write_log (_T("HID CreateFile failed %d\n"), GetLastError ());
+			}
+
+			if (type == RIM_TYPEMOUSE) {
+				prodname[0] = 0;
 			}
 
 			rnum_raw++;
@@ -1690,9 +1791,10 @@ static bool initialize_rawinput (void)
 			}
 			did->name = my_strdup (tmp);
 			did->rawinput = h;
+			did->rawhidhandle = hhid;
 			did->connection = DIDC_RAW;
 
-			write_log (_T("%p %p %s: "), h, hhid, type == RIM_TYPEHID ? _T("hid") : (type == RIM_TYPEMOUSE ? _T("mouse") : _T("keyboard")));
+			write_log (_T("%p %p [%04X/%04X] %s: "), h, hhid, did->vid, did->pid, type == RIM_TYPEHID ? _T("hid") : (type == RIM_TYPEMOUSE ? _T("mouse") : _T("keyboard")));
 			did->sortname = my_strdup (buf1);
 			write_log (_T("'%s'\n"), buf1);
 			did->configname = my_strdup (buf1);
@@ -1867,8 +1969,6 @@ static bool initialize_rawinput (void)
 					rhid--;
 				}
 			}
-			if (hhid != INVALID_HANDLE_VALUE)
-				CloseHandle (hhid);
 		}
 	}
 
@@ -2063,22 +2163,34 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		PRAWHID hid = &raw->data.hid;
 		HANDLE h = raw->header.hDevice;
 		PCHAR rawdata;
-		if (rawinput_log & 4) {
+		if ((rawinput_log & 4) || RAWINPUT_DEBUG) {
 			uae_u8 *r = hid->bRawData;
 			write_log (_T("%d %d "), hid->dwCount, hid->dwSizeHid);
 			for (int i = 0; i < hid->dwSizeHid; i++)
 				write_log (_T("%02X"), r[i]);
-			write_log (_T("\n"));
+			write_log (_T(" H=%p\n"), h);
 		}
 		for (num = 0; num < num_joystick; num++) {
 			did = &di_joystick[num];
 			if (did->connection != DIDC_RAW)
 				continue;
-			if (did->acquired) {
-				if (did->rawinput == h)
-					break;
+			if (did->acquired && did->rawinput == h)
+				break;
+		}
+
+#ifdef RAWINPUT_DEBUG
+		if (num >= num_joystick) {
+			write_log(_T("RAWHID unknown input handle %p\n"), h);
+			for (num = 0; num < num_joystick; num++) {
+				did = &di_joystick[num];
+				if (did->connection != DIDC_RAW)
+					continue;
+				if (!did->acquired && did->rawinput == h) {
+					write_log(_T("RAWHID %d %p was unacquired!\n"), num, did->rawinput);
+				}
 			}
 		}
+#endif
 
 		if (num < num_joystick) {
 
@@ -2381,6 +2493,115 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 				my_kbd_handler (num, scancode, pressed);
 		}
 	}
+}
+
+bool is_hid_rawinput(void)
+{
+	if (no_rawinput)
+		return false;
+	if (!rawinput_enabled_hid)
+		return false;
+	if (!os_vista)
+		return false;
+	return true;
+}
+
+static bool match_rawinput(struct didata *didp, const TCHAR *name, HANDLE h)
+{
+	for (int i = 0; i < MAX_INPUT_DEVICES; i++) {
+		struct didata *did = &didp[i];
+		if (did->connection != DIDC_RAW)
+			continue;
+		if (!_tcscmp(name, did->configname)) {
+#if RAWINPUT_DEBUG
+			write_log(_T("- matched: %p -> %p (%s)\n"), did->rawinput, h, name);
+#endif
+			for (int j = 0; j < raw_handles; j++) {
+				if (rawinputhandles[j] == did->rawinput) {
+					rawinputhandles[j] = h;
+				}
+			}
+			did->rawinput = h;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool handle_rawinput_change(LPARAM lParam, WPARAM wParam)
+{
+	HANDLE h = (HANDLE)lParam;
+	UINT vtmp;
+	uae_u8 buf[10000];
+	bool ret = true;
+
+#if RAWINPUT_DEBUG
+	PRID_DEVICE_INFO rdi;
+	write_log(_T("WM_INPUT_DEVICE_CHANGE  %p %08x\n"), lParam, wParam);
+#endif
+
+	for (int i = 0; i < raw_handles; i++) {
+		if (rawinputhandles[i] == h) {
+#if RAWINPUT_DEBUG
+			write_log(_T("- Already existing\n"));
+#endif
+			ret = false;
+		}
+	}
+	if (ret) {
+#if RAWINPUT_DEBUG
+		write_log(_T("- Not found, re-enumerating if no match..\n"));
+#endif
+	}
+
+	// existing removed
+	if (wParam == GIDC_REMOVAL && !ret) {
+#if RAWINPUT_DEBUG
+		write_log(_T("- Existing device removed, re-enumerating..\n"));
+#endif
+		return true;
+	}
+
+	if (wParam != GIDC_ARRIVAL)
+		return false;
+
+	if (GetRawInputDeviceInfo(h, RIDI_DEVICENAME, NULL, &vtmp) == -1)
+		return false;
+	if (vtmp >= sizeof buf)
+		return false;
+	if (GetRawInputDeviceInfo(h, RIDI_DEVICENAME, buf, &vtmp) == -1)
+		return false;
+
+	TCHAR *dn = (TCHAR*)buf;
+	// name matches? Replace handle, do not re-enumerate
+	if (match_rawinput(di_mouse, dn, h))
+		return false;
+	if (match_rawinput(di_keyboard, dn, h))
+		return false;
+	if (match_rawinput(di_joystick, dn, h))
+		return false;
+
+	// new device
+#if RAWINPUT_DEBUG
+	rdi = (PRID_DEVICE_INFO)buf;
+	memset(rdi, 0, sizeof(RID_DEVICE_INFO));
+	rdi->cbSize = sizeof(RID_DEVICE_INFO);
+	if (GetRawInputDeviceInfo(h, RIDI_DEVICEINFO, NULL, &vtmp) == -1)
+		return false;
+	if (vtmp >= sizeof buf)
+		return false;
+	if (GetRawInputDeviceInfo(h, RIDI_DEVICEINFO, buf, &vtmp) == -1)
+		return false;
+
+	write_log(_T("Type = %d\n"), rdi->dwType);
+	if (rdi->dwType == RIM_TYPEHID) {
+		RID_DEVICE_INFO_HID *hid = &rdi->hid;
+		write_log(_T("%04x %04x %04x %04x %04x\n"),
+			hid->dwVendorId, hid->dwProductId, hid->dwVersionNumber, hid->usUsage, hid->usUsagePage);
+	}
+#endif
+
+	return ret;
 }
 
 void handle_rawinput (LPARAM lParam)
@@ -2727,12 +2948,13 @@ static void di_dev_free (struct didata *did)
 	xfree (did->configname);
 	if (did->hidpreparseddata)
 		HidD_FreePreparsedData (did->hidpreparseddata);
+	if (did->rawhidhandle != INVALID_HANDLE_VALUE)
+		CloseHandle(did->rawhidhandle);
 	xfree (did->hidbuffer);
 	xfree (did->hidbufferprev);
 	xfree (did->usagelist);
 	xfree (did->prevusagelist);
-	memset (did, 0, sizeof (struct didata));
-	did->parjoy = INVALID_HANDLE_VALUE;
+	cleardid(did);
 }
 
 static int di_do_init (void)
@@ -2952,8 +3174,6 @@ static void close_mouse (void)
 
 static int acquire_mouse (int num, int flags)
 {
-	LPDIRECTINPUTDEVICE8 lpdi = di_mouse[num].lpdi;
-	struct didata *did = &di_mouse[num];
 	DIPROPDWORD dipdw;
 	HRESULT hr;
 
@@ -2961,6 +3181,13 @@ static int acquire_mouse (int num, int flags)
 		doregister_rawinput ();
 		return 1;
 	}
+
+	struct didata *did = &di_mouse[num];
+
+	if (did->connection == DIDC_NONE)
+		return 0;
+
+	LPDIRECTINPUTDEVICE8 lpdi = did->lpdi;
 
 	unacquire (lpdi, _T("mouse"));
 	did->acquireattempts = MAX_ACQUIRE_ATTEMPTS;
@@ -2974,23 +3201,23 @@ static int acquire_mouse (int num, int flags)
 		hr = IDirectInputDevice8_SetProperty (lpdi, DIPROP_BUFFERSIZE, &dipdw.diph);
 		if (FAILED (hr))
 			write_log (_T("mouse setpropertry failed, %s\n"), DXError (hr));
-		di_mouse[num].acquired = acquire (lpdi, _T("mouse")) ? 1 : -1;
+		did->acquired = acquire (lpdi, _T("mouse")) ? 1 : -1;
 	} else {
-		di_mouse[num].acquired = 1;
+		did->acquired = 1;
 	}
-	if (di_mouse[num].acquired > 0) {
-		if (di_mouse[num].rawinput)
+	if (did->acquired > 0) {
+		if (did->rawinput)
 			rawmouse++;
-		else if (di_mouse[num].superdevice)
+		else if (did->superdevice)
 			supermouse++;
-		else if (di_mouse[num].wininput) {
+		else if (did->wininput) {
 			winmouse++;
 			winmousenumber = num;
-			winmousemode = di_mouse[num].wininput == 2;
+			winmousemode = did->wininput == 2;
 		} else
 			normalmouse++;
 	}
-	return di_mouse[num].acquired > 0 ? 1 : 0;
+	return did->acquired > 0 ? 1 : 0;
 }
 
 static void unacquire_mouse (int num)
@@ -2999,17 +3226,23 @@ static void unacquire_mouse (int num)
 		doregister_rawinput ();
 		return;
 	}
-	unacquire (di_mouse[num].lpdi, _T("mouse"));
-	if (di_mouse[num].acquired > 0) {
-		if (di_mouse[num].rawinput)
+
+	struct didata *did = &di_mouse[num];
+
+	if (did->connection == DIDC_NONE)
+		return;
+
+	unacquire (did->lpdi, _T("mouse"));
+	if (did->acquired > 0) {
+		if (did->rawinput)
 			rawmouse--;
-		else if (di_mouse[num].superdevice)
+		else if (did->superdevice)
 			supermouse--;
-		else if (di_mouse[num].wininput)
+		else if (did->wininput)
 			winmouse--;
 		else
 			normalmouse--;
-		di_mouse[num].acquired = 0;
+		did->acquired = 0;
 	}
 }
 
@@ -3272,8 +3505,6 @@ static void flushmsgpump (void)
 
 static int acquire_kb (int num, int flags)
 {
-	LPDIRECTINPUTDEVICE8 lpdi;
-
 	if (num < 0) {
 		doregister_rawinput ();
 		if (currprefs.keyboard_leds_in_use) {
@@ -3301,29 +3532,34 @@ static int acquire_kb (int num, int flags)
 		return 1;
 	}
 
-	lpdi = di_keyboard[num].lpdi;
+	struct didata *did = &di_keyboard[num];
+
+	if (did->connection == DIDC_NONE)
+		return 0;
+
+	LPDIRECTINPUTDEVICE8 lpdi = did->lpdi;
+
 	unacquire (lpdi, _T("keyboard"));
-	di_keyboard[num].acquireattempts = MAX_ACQUIRE_ATTEMPTS;
+	did->acquireattempts = MAX_ACQUIRE_ATTEMPTS;
 
 	//lock_kb ();
-	setcoop (&di_keyboard[num], DISCL_NOWINKEY | DISCL_FOREGROUND | DISCL_EXCLUSIVE, _T("keyboard"));
+	setcoop (did, DISCL_NOWINKEY | DISCL_FOREGROUND | DISCL_EXCLUSIVE, _T("keyboard"));
 	kb_do_refresh = ~0;
-	di_keyboard[num].acquired = -1;
+	did->acquired = -1;
 	if (acquire (lpdi, _T("keyboard"))) {
-		if (di_keyboard[num].rawinput)
+		if (did->rawinput)
 			rawkb++;
-		else if (di_keyboard[num].superdevice)
+		else if (did->superdevice)
 			superkb++;
 		else
 			normalkb++;
-		di_keyboard[num].acquired = 1;
+		did->acquired = 1;
 	}
-	return di_keyboard[num].acquired > 0 ? 1 : 0;
+	return did->acquired > 0 ? 1 : 0;
 }
 
 static void unacquire_kb (int num)
 {
-	LPDIRECTINPUTDEVICE8 lpdi;
 	if (num < 0) {
 		doregister_rawinput ();
 		if (currprefs.keyboard_leds_in_use) {
@@ -3342,18 +3578,24 @@ static void unacquire_kb (int num)
 		}
 		return;
 	}
-	lpdi = di_keyboard[num].lpdi;
+
+	struct didata *did = &di_keyboard[num];
+
+	if (did->connection == DIDC_NONE)
+		return;
+
+	LPDIRECTINPUTDEVICE8 lpdi = did->lpdi;
+
 	unacquire (lpdi, _T("keyboard"));
-	if (di_keyboard[num].acquired > 0) {
-		if (di_keyboard[num].rawinput)
+	if (did->acquired > 0) {
+		if (did->rawinput)
 			rawkb--;
-		else if (di_keyboard[num].superdevice)
+		else if (did->superdevice)
 			superkb--;
 		else
 			normalkb--;
-		di_keyboard[num].acquired = 0;
+		did->acquired = 0;
 	}
-	//unlock_kb ();
 }
 
 static int refresh_kb (LPDIRECTINPUTDEVICE8 lpdi, int num)
@@ -3818,7 +4060,6 @@ static void close_joystick (void)
 	joystick_inited = 0;
 	for (i = 0; i < num_joystick; i++)
 		di_dev_free (&di_joystick[i]);
-	rawhid = 0;
 	di_free ();
 }
 
@@ -3835,19 +4076,24 @@ void dinput_window (void)
 
 static int acquire_joystick (int num, int flags)
 {
-	LPDIRECTINPUTDEVICE8 lpdi;
-	DIPROPDWORD dipdw;
-	HRESULT hr;
-
 	if (num < 0) {
 		doregister_rawinput ();
 		return 1;
 	}
-	lpdi = di_joystick[num].lpdi;
+
+	struct didata *did = &di_joystick[num];
+
+	if (did->connection == DIDC_NONE)
+		return 0;
+
+	LPDIRECTINPUTDEVICE8 lpdi = did->lpdi;
 	unacquire (lpdi, _T("joystick"));
-	di_joystick[num].acquireattempts = MAX_ACQUIRE_ATTEMPTS;
-	if (di_joystick[num].connection == DIDC_DX && lpdi) {
-		setcoop (&di_joystick[num], flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), _T("joystick"));
+	did->acquireattempts = MAX_ACQUIRE_ATTEMPTS;
+	if (did->connection == DIDC_DX && lpdi) {
+		DIPROPDWORD dipdw;
+		HRESULT hr;
+
+		setcoop (did, flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), _T("joystick"));
 		memset (&dipdw, 0, sizeof (dipdw));
 		dipdw.diph.dwSize = sizeof (DIPROPDWORD);
 		dipdw.diph.dwHeaderSize = sizeof (DIPROPHEADER);
@@ -3857,31 +4103,29 @@ static int acquire_joystick (int num, int flags)
 		hr = IDirectInputDevice8_SetProperty (lpdi, DIPROP_BUFFERSIZE, &dipdw.diph);
 		if (FAILED (hr))
 			write_log (_T("joystick setproperty failed, %s\n"), DXError (hr));
-		di_joystick[num].acquired = acquire (lpdi, _T("joystick")) ? 1 : -1;
-	} else if (di_joystick[num].connection == DIDC_RAW) {
-		rawhid++;
-		di_joystick[num].acquired = 1;
+		did->acquired = acquire (lpdi, _T("joystick")) ? 1 : -1;
+	} else if (did->connection == DIDC_RAW) {
+		did->acquired = 1;
 	} else {
-		di_joystick[num].acquired = 1;
+		did->acquired = 1;
 	}
-	return di_joystick[num].acquired > 0 ? 1 : 0;
+	return did->acquired > 0 ? 1 : 0;
 }
 
 static void unacquire_joystick (int num)
 {
-	struct didata *did = &di_joystick[num];
-
 	if (num < 0) {
 		doregister_rawinput ();
 		return;
 	}
 
+	struct didata *did = &di_joystick[num];
+
+	if (did->connection == DIDC_NONE)
+		return;
+
 	unacquire (did->lpdi, _T("joystick"));
-	if (did->connection == DIDC_RAW) {
-		if (di_joystick[num].acquired)
-			rawhid--;
-	}
-	di_joystick[num].acquired = 0;
+	did->acquired = 0;
 }
 
 static int get_joystick_flags (int num)
