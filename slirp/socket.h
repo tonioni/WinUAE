@@ -20,7 +20,7 @@
 struct socket {
   struct socket *so_next,*so_prev;      /* For a linked list of sockets */
 
-  SOCKET s;                           /* The actual socket */
+  SLIRP_SOCKET s;                           /* The actual socket */
 
 			/* XXX union these with not-yet-used sbuf params */
   struct mbuf *so_m;	           /* Pointer to the original SYN packet,

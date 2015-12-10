@@ -80,8 +80,8 @@ void snooze _P((void));
 void relay _P((int));
 void add_emu _P((char *));
 void u_sleep _P((int));
-void fd_nonblock _P((SOCKET));
-void fd_block _P((SOCKET));
+void fd_nonblock _P((SLIRP_SOCKET));
+void fd_block _P((SLIRP_SOCKET));
 int rsh_exec _P((struct socket *, struct socket *, char *, char *, char *));
 
 #endif

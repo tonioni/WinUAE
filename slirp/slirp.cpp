@@ -191,11 +191,11 @@ static void updtime(void)
 }
 #endif
 
-int slirp_select_fill(SOCKET *pnfds, 
+int slirp_select_fill(int *pnfds, 
 					  fd_set *readfds, fd_set *writefds, fd_set *xfds)
 {
     struct socket *so, *so_next;
-    SOCKET nfds;
+    int nfds;
     int timeout, tmp_time;
 
     /* fail safe */

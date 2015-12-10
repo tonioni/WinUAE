@@ -324,7 +324,7 @@ int udp_output(struct socket *so, struct mbuf *m,
     return udp_output2(so, m, &saddr, &daddr, so->so_iptos);
 }
 
-SOCKET udp_attach(struct socket *so)
+SLIRP_SOCKET udp_attach(struct socket *so)
 {
   struct sockaddr_in addr;
 	

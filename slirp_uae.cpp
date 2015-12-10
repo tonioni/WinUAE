@@ -142,7 +142,7 @@ static void *slirp_receive_func(void *arg)
 	while (slirp_thread_active) {
 		// Wait for packets to arrive
 		fd_set rfds, wfds, xfds;
-		SOCKET nfds;
+		int nfds;
 		int ret, timeout;
 
 		// ... in the output queue
@@ -163,6 +163,9 @@ static void *slirp_receive_func(void *arg)
 			tv.tv_sec = 0;
 			tv.tv_usec = timeout;
 			ret = select(0, &rfds, &wfds, &xfds, &tv);
+			if (ret == SOCKET_ERROR) {
+				write_log(_T("SLIRP socket ERR=%d\n"), WSAGetLastError());
+			}
 		}
 		if (ret >= 0) {
 			uae_sem_wait (&slirp_sem2);

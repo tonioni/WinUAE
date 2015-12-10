@@ -769,7 +769,7 @@ u_sleep(int usec)
  */
 
 void
-fd_nonblock(SOCKET fd)
+fd_nonblock(SLIRP_SOCKET fd)
 {
 #if defined USE_FIONBIO && defined FIONBIO
 	ioctlsockopt_t opt = 1;
@@ -785,7 +785,7 @@ fd_nonblock(SOCKET fd)
 }
 
 void
-fd_block(SOCKET fd)
+fd_block(SLIRP_SOCKET fd)
 {
 #if defined USE_FIONBIO && defined FIONBIO
 	ioctlsockopt_t opt = 0;
