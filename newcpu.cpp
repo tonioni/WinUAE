@@ -2330,6 +2330,8 @@ kludge_me_do:
 	m68k_setpc (newpc);
 	regs.ir = x_get_word (m68k_getpc ()); // prefetch 1
 	x_do_cycles (2 * cpucycleunit);
+	regs.ipl_pin = intlev();
+	ipl_fetch();
 	regs.irc = x_get_word (m68k_getpc () + 2); // prefetch 2
 #ifdef JIT
 	set_special (SPCFLAG_END_COMPILE);
@@ -2944,9 +2946,19 @@ static void do_interrupt (int nr)
 	unset_special (SPCFLAG_STOP);
 	assert (nr < 8 && nr >= 0);
 
-	Exception (nr + 24);
+	for (;;) {
+		Exception (nr + 24);
+		regs.intmask = nr;
+		if (!currprefs.cpu_compatible)
+			break;
+		if (m68k_interrupt_delay)
+			nr = regs.ipl;
+		else
+			nr = intlev();
+		if (nr <= 0 || regs.intmask >= nr)
+			break;
+	}
 
-	regs.intmask = nr;
 	doint ();
 }
 
