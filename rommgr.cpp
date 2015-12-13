@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 159
+#define NEXT_ROM_ID 160
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -431,6 +431,8 @@ static struct romdata roms[] = {
 	0x5e94ee56, 0xf83dae55, 0x49f9b735, 0x52d5c6e0, 0x41da4c6c, 0x995a7f47, NULL, NULL },
 	ALTROMPN(157, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xec13fda0, 0x6af1447c, 0x4363c46d, 0x05697458, 0x01daa30c, 0x03c01c9f)
 	ALTROMPN(157, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x39b0075e, 0xf6644ea0, 0x6c3ed349, 0xfb0fb6b4, 0xa9f07655, 0x0b104179)
+	{ _T("Phoenix Board SCSI v.J"), 3, 1, 3, 1, _T("PBSCSI\0"), 32768, 159, 0, 0, ROMTYPE_PHOENIXB, 0, 0, NULL,
+	0x1f672e4b, 0xb20d50b8, 0x31ec9823, 0xfa732fc6, 0x522ecc6a, 0xae36ec33, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

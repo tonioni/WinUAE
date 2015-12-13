@@ -53,7 +53,8 @@
 #define OMTI_SYSTEM2000 22
 #define OMTI_ADAPTER 23
 #define OMTI_X86 24
-#define NCR_LAST 25
+#define NCR5380_PHOENIXBOARD 25
+#define NCR_LAST 26
 
 extern int log_scsiemu;
 
@@ -2085,6 +2086,17 @@ static int microforge_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
 	return reg;
 }
 
+static int phoenixboard_reg(struct soft_scsi *ncr, uaecptr addr)
+{
+	if (addr & 1)
+		return -1;
+	if (addr & 0xc000)
+		return -1;
+	addr >>= 1;
+	addr &= 7;
+	return addr;
+}
+
 static uae_u8 read_supra_dma(struct soft_scsi *ncr, uaecptr addr)
 {
 	uae_u8 val = 0;
@@ -2576,6 +2588,14 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 			}
 		}
 
+	} else if (ncr->type == NCR5380_PHOENIXBOARD) {
+
+		reg = phoenixboard_reg(ncr, addr);
+		if (reg >= 0) {
+			v = ncr5380_bget(ncr, reg);
+		} else if (addr < 0x8000) {
+			v = ncr->rom[addr];
+		}
 	}
 #if NCR5380_DEBUG > 1
 	if ((origaddr >= 0xf00000 && size == 1) || (origaddr < 0xf00000))
@@ -2816,6 +2836,13 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 			if ((addr & 0x8000) == 0x8000) {
 				omti_bput(ncr, 0, val);
 			}
+		}
+
+	} else if (ncr->type == NCR5380_PHOENIXBOARD) {
+
+		reg = phoenixboard_reg(ncr, addr);
+		if (reg >= 0) {
+			ncr5380_bput(ncr, reg, val);
 		}
 
 	}
@@ -3059,6 +3086,24 @@ uae_u32 soft_scsi_get(uaecptr addr, int size)
 	else
 		v = soft_generic_bget(addr);
 	return v;
+}
+
+void soft_scsi_free(void)
+{
+	parallel_port_scsi = false;
+	parallel_port_scsi_data = NULL;
+	x86_hd_data = NULL;
+	for (int i = 0; soft_scsi_devices[i]; i++) {
+		soft_scsi_free_unit(soft_scsi_devices[i]);
+		soft_scsi_devices[i] = NULL;
+	}
+}
+
+void soft_scsi_reset(void)
+{
+	for (int i = 0; soft_scsi_devices[i]; i++) {
+		raw_scsi_reset(&soft_scsi_devices[i]->rscsi);
+	}
 }
 
 /*
@@ -3358,7 +3403,7 @@ static void expansion_add_protoautoconfig_data(uae_u8 *p, uae_u16 manufacturer_i
 	memset(p, 0, 4096);
 	p[0x02] = product_id;
 	p[0x08] = manufacturer_id >> 8;
-	p[0x0a] = manufacturer_id;
+	p[0x0a] = (uae_u8)manufacturer_id;
 }
 
 static void expansion_add_protoautoconfig_box(uae_u8 *p, int box_size, uae_u16 manufacturer_id, uae_u8 product_id)
@@ -3620,20 +3665,23 @@ void x86_add_xt_hd_unit(int ch, struct uaedev_config_info *ci, struct romconfig 
 	generic_soft_scsi_add(ch, ci, rc, OMTI_X86, 0, 0, ROMTYPE_X86_HD);
 }
 
-void soft_scsi_free(void)
+addrbank *phoenixboard_init(struct romconfig *rc)
 {
-	parallel_port_scsi = false;
-	parallel_port_scsi_data = NULL;
-	x86_hd_data = NULL;
-	for (int i = 0; soft_scsi_devices[i]; i++) {
-		soft_scsi_free_unit(soft_scsi_devices[i]);
-		soft_scsi_devices[i] = NULL;
-	}
+	struct soft_scsi *scsi = getscsi(rc);
+
+	if (!scsi)
+		return NULL;
+
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_PHOENIXB);
+	load_rom_rc(rc, ROMTYPE_PHOENIXB, 8192, rc->autoboot_disabled ? 0 : 8192, scsi->rom, 16384, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+	load_rom_rc(rc, ROMTYPE_PHOENIXB, 16384, 16384, scsi->rom + 16384, 16384, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+	memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
+
+	return scsi->bank;
 }
 
-void soft_scsi_reset(void)
+void phoenixboard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	for (int i = 0; soft_scsi_devices[i]; i++) {
-		raw_scsi_reset(&soft_scsi_devices[i]->rscsi);
-	}
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_PHOENIXBOARD, 65536, 32768, ROMTYPE_PHOENIXB);
 }
+

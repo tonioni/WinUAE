@@ -238,6 +238,9 @@ void system2000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romc
 addrbank *omtiadapter_init(struct romconfig *rc);
 void omtiadapter_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
+addrbank *phoenixboard_init(struct romconfig *rc);
+void phoenixboard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
 void x86_xt_hd_bput(int, uae_u8);
 uae_u8 x86_xt_hd_bget(int);
 addrbank *x86_xt_hd_init(struct romconfig *rc);

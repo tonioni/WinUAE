@@ -3091,6 +3091,12 @@ const struct expansionromtype expansionroms[] = {
 		8512, 10, 0, false, fastlane_memory_callback
 	},
 	{
+		_T("phoenixboard"), _T("Phoenix Board SCSI"), _T("Phoenix Microtechnologies"),
+		phoenixboard_init, NULL, phoenixboard_add_scsi_unit, ROMTYPE_PHOENIXB, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI,
+	},
+	{
 		_T("ptnexus"), _T("Nexus"), _T("Preferred Technologies"),
 		ptnexus_init, NULL, ptnexus_add_scsi_unit, ROMTYPE_PTNEXUS | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
