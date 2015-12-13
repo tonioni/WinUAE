@@ -1569,11 +1569,15 @@ int enummidiports (void)
 	MIDIOUTCAPS midiOutCaps;
 	MIDIINCAPS midiInCaps;
 	int i, j, num, total;
+	int innum, outnum;
 	
-	write_log (_T("MIDI port enumeration..\n"));
-	num = midiOutGetNumDevs ();
+	outnum = midiOutGetNumDevs();
+	innum = midiInGetNumDevs();
+	write_log (_T("MIDI port enumeration.. IN=%d OUT=%d\n"), innum, outnum);
+
+	num = outnum;
 	for (i = 0; i < num + 1 && i < MAX_MIDI_PORTS - 1; i++) {
-		MMRESULT r = midiOutGetDevCaps (i - 1, &midiOutCaps, sizeof (midiOutCaps));
+		MMRESULT r = midiOutGetDevCaps ((UINT)(i - 1), &midiOutCaps, sizeof (midiOutCaps));
 		if (r != MMSYSERR_NOERROR) {
 			num = i;
 			break;
@@ -1594,8 +1598,7 @@ int enummidiports (void)
 			}
 		}
 	}
-
-	num = midiInGetNumDevs ();
+	num = innum;
 	for (i = 0; i < num && i < MAX_MIDI_PORTS - 1; i++) {
 		if (midiInGetDevCaps (i, &midiInCaps, sizeof (midiInCaps)) != MMSYSERR_NOERROR) {
 			num = i;
