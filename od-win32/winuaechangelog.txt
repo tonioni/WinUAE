@@ -1,4 +1,52 @@
 
+Beta 2:
+
+- SASI/SASI (CHS) options were not visible in GUI when listing SASI controllers.
+- No MIDI out devices detected, 64-bit only.
+- AVIOutput with "capture before filtering": width is now always divisible by 16 and height is divisible by two.
+- Added config file only optional AVIOutput position and offset parameters: recording_width and recording_height,
+  (resolution of video) and recording_x and recording_y, offset from top/left of Amiga display. If offsets are not
+  set or negative, Amiga display is automatically centered. Only available in "capture before filtering" mode.
+  GUI setting may be added later.
+- Windowed mode bottom bar CPU state didn't show PPC state if x86 and PPC CPU expansion was active at the same time.
+- Phoenix Board SCSI emulation added.
+
+Phoenix Board SCSI:
+- Autoconfig, 5380 SCSI chip.
+- Very simple design, PIO SCSI, software handshake. (No "fake DMA").
+- Boot ROM version J added, pbscsi.device 3.1. ("Phoenix Board SCSI J 29/7/92")
+
+Beta 1:
+
+- 68020+ BFFFO instruction's result value must be calculated from full offset (was offset AND 31),
+  even when effective address is data register.
+- When loading config with joystick that is not available, switch to keyboard layout that was
+  previously selected or none, not layout A. Set layout A in default.uae if you want old behavior.
+- If IPL rises during interrupt exception processing, new interrupt exception should start immediately when
+  previous one was about to execute first instruction. Previously one instruction was always executed before
+  new instruction exception processing started.
+- Per-monitor high DPI update still caused repeated GUI window closing/opening.
+- Slirp code had undefined C (unsigned <= 0 comparisons, in WinUAE only), probably accidentally worked when
+  using older compiler. Caused slirp thread to use 100% CPU time continuously.
+- Keyboard names are now listed in Input panel device list. (Replaces "HID Keyboard Device" or similar generic name)
+- AGA FMODE register was reset to original value if state was restored and then display parameters changed (for
+  example window was resized) and program didn't update FMODE for example in copper list. (3.1.0b10)
+- AGA subpixel bitplane delay emulation rewritten. (Fire and Ice CD32 config screen jitter, Banshee flickering
+  vertical line)
+- Fixed wrong free call in function that creates zipped debugging log files.
+- Renamed log file zip file name. includes now 64-bit identifier and version number.
+- Added Windows build number to log version string.
+- Filter reserved USB HID usage IDs, not just vendor reserved IDs.
+- Changed HID RawInput handling, never unregister raw input, use rawinput device change events to detect device
+  insertions/removals instead of generic change support that also includes other types of media changes.
+  This update also works around odd Windows 10 (10586 only?) rawinput side-effect where device handle can change
+  after RegisterRawInputDevices() call. Raw input device change notification support is Vista or later only.
+- Updated built-in HRTmon to 2.36
+- Clip out of bounds RTG coordinates instead of rejecting graphics operation completely.
+- SSE2 rounding mode should match FPU rounding mode. (3.2.0b16)
+
+3.2.1
+
 - Restoring statefile with FPU crashed.
 - If Blizzard RAM allocation fails in non-JIT compatible special case mode, halve memory size and try again
   instead of crashing.

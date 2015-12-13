@@ -137,6 +137,7 @@ volatile bool vblank_found_rtg;
 static HANDLE flipevent, flipevent2, vblankwaitevent;
 static volatile int flipevent_mode;
 static CRITICAL_SECTION screen_cs;
+static bool screen_cs_allocated;
 
 void gfx_lock (void)
 {
@@ -2732,7 +2733,10 @@ int graphics_init (bool mousecapture)
 
 int graphics_setup (void)
 {
-	InitializeCriticalSection (&screen_cs);
+	if (!screen_cs_allocated) {
+		InitializeCriticalSection(&screen_cs);
+		screen_cs_allocated = true;
+	}
 #ifdef PICASSO96
 	InitPicasso96 ();
 #endif
