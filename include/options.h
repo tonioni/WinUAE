@@ -678,6 +678,7 @@ struct uae_prefs {
 	struct slirp_redir slirp_redirs[MAX_SLIRP_REDIRS];
 #endif
 	int statecapturerate, statecapturebuffersize;
+	int aviout_width, aviout_height, aviout_xoffset, aviout_yoffset;
 
 	/* input */
 

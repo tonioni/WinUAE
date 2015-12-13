@@ -3440,6 +3440,8 @@ void target_default_options (struct uae_prefs *p, int type)
 		WIN32GUI_LoadUIString (IDS_INPUT_CUSTOM, buf, sizeof buf / sizeof (TCHAR));
 		for (int i = 0; i < GAMEPORT_INPUT_SETTINGS; i++)
 			_stprintf (p->input_config_name[i], buf, i + 1);
+		p->aviout_xoffset = -1;
+		p->aviout_yoffset = -1;
 	}
 	if (type == 1 || type == 0 || type == 3) {
 		p->win32_uaescsimode = UAESCSI_CDEMU;
@@ -3570,6 +3572,11 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite (f, _T("framelatency"), _T("%d"), forcedframelatency);
 	if (scsiromselected > 0)
 		cfgfile_target_write(f, _T("expansion_gui_page"), expansionroms[scsiromselected].name);
+
+	cfgfile_target_dwrite(f, _T("recording_width"), _T("%d"), p->aviout_width);
+	cfgfile_target_dwrite(f, _T("recording_height"), _T("%d"), p->aviout_height);
+	cfgfile_target_dwrite(f, _T("recording_x"), _T("%d"), p->aviout_xoffset);
+	cfgfile_target_dwrite(f, _T("recording_y"), _T("%d"), p->aviout_yoffset);
 }
 
 void target_restart (void)
@@ -3615,7 +3622,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 	int i, v;
 	bool tbool;
 
-	int result = (cfgfile_yesno(option, value, _T("middle_mouse"), &p->win32_middle_mouse)
+	if (cfgfile_yesno(option, value, _T("middle_mouse"), &p->win32_middle_mouse)
 		|| cfgfile_yesno(option, value, _T("map_drives"), &p->win32_automount_drives)
 		|| cfgfile_yesno(option, value, _T("map_drives_auto"), &p->win32_automount_removable)
 		|| cfgfile_yesno(option, value, _T("map_cd_drives"), &p->win32_automount_cddrives)
@@ -3656,8 +3663,14 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_yesno(option, value, _T("right_control_is_right_win"), &p->right_control_is_right_win_key)
 		|| cfgfile_intval(option, value, _T("extraframewait"), &extraframewait, 1)
 		|| cfgfile_intval(option, value, _T("framelatency"), &forcedframelatency, 1)
-		|| cfgfile_intval(option, value, _T("cpu_idle"), &p->cpu_idle, 1));
+		|| cfgfile_intval(option, value, _T("cpu_idle"), &p->cpu_idle, 1))
+		return 1;
 
+	if (cfgfile_intval(option, value, _T("recording_width"), &p->aviout_width, 1)
+		|| cfgfile_intval(option, value, _T("recording_height"), &p->aviout_height, 1)
+		|| cfgfile_intval(option, value, _T("recording_x"), &p->aviout_xoffset, 1)
+		|| cfgfile_intval(option, value, _T("recording_y"), &p->aviout_yoffset, 1))
+		return 1;
 
 	if (cfgfile_string(option, value, _T("expansion_gui_page"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
 		TCHAR *p = _tcschr(tmpbuf, ',');
@@ -3867,7 +3880,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		i++;
 	}
 
-	return result;
+	return 0;
 }
 
 static void createdir (const TCHAR *path)

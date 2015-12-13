@@ -63,6 +63,8 @@ static int first_frame = 1;
 int avioutput_audio, avioutput_video, avioutput_enabled, avioutput_requested;
 static int videoallocated;
 
+static int aviout_width_out, aviout_height_out;
+static int aviout_xoffset_out, aviout_yoffset_out;
 int avioutput_width, avioutput_height, avioutput_bits;
 int avioutput_fps = VBLANK_HZ_PAL;
 int avioutput_framelimiter = 0, avioutput_nosoundoutput = 0;
@@ -505,6 +507,8 @@ void AVIOutput_ReleaseVideo (void)
 static int AVIOutput_AllocateVideo (void)
 {
 	avioutput_width = avioutput_height = avioutput_bits = 0;
+	aviout_width_out = aviout_height_out = 0;
+	aviout_xoffset_out = aviout_yoffset_out = 0;
 
 	avioutput_fps = (int)(vblank_hz + 0.5);
 	if (!avioutput_fps)
@@ -516,6 +520,10 @@ static int AVIOutput_AllocateVideo (void)
 		} else {
 			freertgbuffer (getrtgbuffer (&avioutput_width, &avioutput_height, &pitch, &avioutput_bits, NULL));
 		}
+		aviout_width_out = avioutput_width + 15;
+		aviout_width_out &= ~15;
+		aviout_height_out = avioutput_height + 1;
+		aviout_height_out &= ~1;
 	}
 
 	if (avioutput_width == 0 || avioutput_height == 0 || avioutput_bits == 0) {
@@ -531,14 +539,30 @@ static int AVIOutput_AllocateVideo (void)
 		avioutput_height = workprefs.gfx_size.height;
 		avioutput_bits = WIN32GFX_GetDepth (0);
 	}
+	if (!aviout_height_out)
+		aviout_height_out = avioutput_height;
+	if (!aviout_width_out)
+		aviout_width_out = avioutput_width;
+
+	if (avioutput_originalsize) {
+		if (currprefs.aviout_width > 0)
+			aviout_width_out = currprefs.aviout_width;
+		if (currprefs.aviout_height > 0)
+			aviout_height_out = currprefs.aviout_height;
+		if (currprefs.aviout_xoffset >= 0)
+			aviout_xoffset_out = currprefs.aviout_xoffset;
+		if (currprefs.aviout_yoffset >= 0)
+			aviout_yoffset_out = currprefs.aviout_yoffset;
+	}
+
 	if (avioutput_bits == 0)
 		avioutput_bits = 24;
 	if (avioutput_bits > 24)
 		avioutput_bits = 24;
 	lpbi = (LPBITMAPINFOHEADER)xcalloc (uae_u8, lpbisize ());
 	lpbi->biSize = sizeof (BITMAPINFOHEADER);
-	lpbi->biWidth = avioutput_width;
-	lpbi->biHeight = avioutput_height;
+	lpbi->biWidth = aviout_width_out;
+	lpbi->biHeight = aviout_height_out;
 	lpbi->biPlanes = 1;
 	lpbi->biBitCount = avioutput_bits;
 	lpbi->biCompression = BI_RGB; // uncompressed format
@@ -951,7 +975,7 @@ static int getFromBuffer (struct avientry *ae, int original)
 	int maxw, maxh;
 
 	mem = NULL;
-	dpitch = ((avioutput_width * avioutput_bits + 31) & ~31) / 8;
+	dpitch = ((aviout_width_out * avioutput_bits + 31) & ~31) / 8;
 	if (original || WIN32GFX_IsPicassoScreen ()) {
 		if (!WIN32GFX_IsPicassoScreen ()) {
 			src = getfilterbuffer (&w, &h, &spitch, &d);
@@ -970,16 +994,46 @@ static int getFromBuffer (struct avientry *ae, int original)
 	}
 	if (!src)
 		return 0;
-	dst += dpitch * avioutput_height;
-	for (y = 0; y < (maxh > avioutput_height ? avioutput_height : maxh); y++) {
-		uae_u8 *d;
+
+	int xoffset = currprefs.aviout_xoffset < 0 ? (aviout_width_out - avioutput_width) / 2 : -currprefs.aviout_xoffset;
+	int yoffset = currprefs.aviout_yoffset < 0 ? (aviout_height_out - avioutput_height) / 2 : -currprefs.aviout_yoffset;
+
+	dst += dpitch * aviout_height_out;
+	if (yoffset > 0) {
+		if (yoffset >= aviout_height_out - avioutput_height)
+			yoffset = aviout_height_out - avioutput_height;
+		dst -= dpitch * yoffset;
+	} else if (yoffset < 0) {
+		yoffset = -yoffset;
+		if (yoffset >= avioutput_height - aviout_height_out)
+			yoffset = avioutput_height - aviout_height_out;
+		src += spitch * yoffset;
+	}
+	int xoffset2 = 0;
+	if (xoffset < 0) {
+		xoffset2 = -xoffset;
+		xoffset = 0;
+	}
+	int dbpx = avioutput_bits / 8;
+	int sbpx = avioutput_bits / 8;
+	if (sbpx == 3)
+		sbpx = 4;
+
+	for (y = 0; y < avioutput_height && y < maxh && y < aviout_height_out; y++) {
+		uae_u8 *s, *d;
 		dst -= dpitch;
 		d = dst;
-		for (x = 0; x < (maxw > avioutput_width ? avioutput_width : maxw); x++) {
+		s = src;
+		if (xoffset > 0) {
+			d += xoffset * dbpx;
+		} else if (xoffset2 > 0) {
+			s += xoffset2 * sbpx;
+		}
+		for (x = 0; x < avioutput_width && x < maxw && x < aviout_width_out; x++) {
 			if (avioutput_bits == 8) {
-				*d++ = src[x];
+				*d++ = s[x];
 			} else if (avioutput_bits == 16) {
-				uae_u16 v = ((uae_u16*)src)[x];
+				uae_u16 v = ((uae_u16*)s)[x];
 				uae_u16 v2 = v;
 				if (rgb_type == 3) {
 					v2 = v & 31;
@@ -993,11 +1047,11 @@ static int getFromBuffer (struct avientry *ae, int original)
 				((uae_u16*)d)[0] = v2;
 				d += 2;
 			} else if (avioutput_bits == 32) {
-				uae_u32 v = ((uae_u32*)src)[x];
+				uae_u32 v = ((uae_u32*)s)[x];
 				((uae_u32*)d)[0] = v;
 				d += 4;
 			} else if (avioutput_bits == 24) {
-				uae_u32 v = ((uae_u32*)src)[x];
+				uae_u32 v = ((uae_u32*)s)[x];
 				*d++ = v;
 				*d++ = v >> 8;
 				*d++ = v >> 16;
