@@ -11631,7 +11631,7 @@ static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype)
 		const struct expansionromtype *ert = get_unit_expansion_rom(ctype);
 		SendDlgItemMessage (hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("SCSI-1"));
 		SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("SCSI-2"));
-		if (ert && (ert->deviceflags & (EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_CUSTOM_SECONDARY))) {
+		if (ert && (ert->deviceflags & (EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_CUSTOM_SECONDARY | EXPANSIONTYPE_SASI))) {
 			SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("SASI"));
 			SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_ADDSTRING, 0, (LPARAM)_T("SASI CHS"));
 		}
@@ -19198,11 +19198,11 @@ void gui_led (int led, int on, int brightness)
 		else
 			on = 1;
 		bool m68klabelchange = false;
-		TCHAR *m68label = _T("CPU");
+		const TCHAR *m68label = _T("CPU");
 		ptr[0] = 0;
 		p = ptr;
 		if (is_ppc_cpu(&currprefs)) {
-			_tcscpy(ptr, _T("PPC: "));
+			_tcscat(ptr, _T("PPC: "));
 			if (ppc_state == PPC_STATE_ACTIVE)
 				_tcscat(ptr, _T("RUN"));
 			else if (ppc_state == PPC_STATE_CRASH)
@@ -19218,7 +19218,7 @@ void gui_led (int led, int on, int brightness)
 		}
 		int state = is_x86_cpu(&currprefs);
 		if (state > 0) {
-			_tcscpy(ptr, _T("x86: "));
+			_tcscat(ptr, _T("x86: "));
 			if (state == X86_STATE_ACTIVE)
 				_tcscat(ptr, _T("RUN"));
 			else
