@@ -1506,7 +1506,7 @@ static void do_blitter2 (int hpos, int copper)
 		cycles = blt_info.vblitsize;
 	} else {
 		cycles = blt_info.vblitsize * blt_info.hblitsize;
-		blit_firstline_cycles = blit_first_cycle + (blit_diag[0] * blt_info.hblitsize + cpu_cycles) * CYCLE_UNIT;
+		blit_firstline_cycles = blit_first_cycle + (blit_diag[0] * blt_info.hblitsize) * CYCLE_UNIT + cpu_cycles;
 	}
 
 	if (cleanstart) {
@@ -1683,7 +1683,7 @@ void maybe_blit (int hpos, int hack)
 		goto end;
 	}
 
-	if (hack == 1 && get_cycles() < blit_firstline_cycles)
+	if (hack == 1 && (int)get_cycles() - (int)blit_firstline_cycles < 0)
 		goto end;
 
 	blitter_handler (0);
