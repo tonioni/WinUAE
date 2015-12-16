@@ -89,6 +89,7 @@ static int cdtvcr_media;
 static int subqcnt;
 static int cd_audio_status;
 static int cdtvcr_wait_sectors;
+static int cd_led;
 
 #define MAX_SUBCODEBUFFER 36
 static volatile int subcodebufferoffset, subcodebufferoffsetw;
@@ -242,8 +243,10 @@ static void cdtvcr_4510_reset(uae_u8 v)
 
 void rethink_cdtvcr(void)
 {
-	if ((cdtvcr_4510_ram[CDTVCR_INTREQ] & cdtvcr_4510_ram[CDTVCR_INTENA]) && !cdtvcr_4510_ram[CDTVCR_INTDISABLE])
+	if ((cdtvcr_4510_ram[CDTVCR_INTREQ] & cdtvcr_4510_ram[CDTVCR_INTENA]) && !cdtvcr_4510_ram[CDTVCR_INTDISABLE]) {
 		INTREQ_0 (0x8000 | 0x0008);
+		cd_led ^= LED_CD_ACTIVE2;
+	}
 }
 
 static void cdtvcr_cmd_done(void)
@@ -947,6 +950,14 @@ void CDTVCR_hsync_handler (void)
 			setsubchannel(dst);
 		}
 	}
+
+	if (cdtvcr_wait_sectors)
+		cd_led |= LED_CD_ACTIVE;
+	else
+		cd_led &= ~LED_CD_ACTIVE;
+	if ((cd_led & ~LED_CD_ACTIVE2) && !cdtvcr_4510_ram[CDTVCR_CD_PLAYING])
+		gui_flicker_led(LED_CD, 0, cd_led);
+
 	rethink_cdtvcr();
 }
 
