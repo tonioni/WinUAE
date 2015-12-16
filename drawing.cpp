@@ -1,4 +1,3 @@
-//#define XLINECHECK
 
 /*
 * UAE - The Un*x Amiga Emulator
@@ -51,6 +50,9 @@ happening, all ports should restrict window widths to be multiples of 16 pixels.
 #include "debug.h"
 #include "cd32_fmv.h"
 #include "specialmonitors.h"
+
+#define BG_COLOR_DEBUG 0
+//#define XLINECHECK
 
 extern int sprite_buffer_res;
 static int lores_factor;
@@ -815,7 +817,7 @@ static int unpainted;
 
 STATIC_INLINE xcolnr getbgc (bool blank)
 {
-#if 0
+#if BG_COLOR_DEBUG
 	if (blank)
 		return xcolors[0x088];
 	else if (hposblank == 1)
@@ -824,7 +826,7 @@ STATIC_INLINE xcolnr getbgc (bool blank)
 		return xcolors[0x0f0];
 	else if (hposblank == 3)
 		return xcolors[0x00f];
-	else if (colors_for_drawing.borderblank)
+	else if (ce_is_borderblank(colors_for_drawing.extra))
 		return xcolors[0x880];
 	//return colors_for_drawing.acolors[0];
 	return xcolors[0xf0f];
@@ -3884,17 +3886,19 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 		break;
 	case nln_doubled:
 		*state = changed ? LINE_DECIDED_DOUBLE : LINE_DONE;
-		changed += state[1] != LINE_REMEMBERED_AS_PREVIOUS;
+		changed |= state[1] != LINE_REMEMBERED_AS_PREVIOUS;
 		state[1] = changed ? LINE_AS_PREVIOUS : LINE_DONE_AS_PREVIOUS;
 		break;
 	case nln_nblack:
 		*state = changed ? LINE_DECIDED : LINE_DONE;
-		if (state[1] != LINE_REMEMBERED_AS_BLACK)
+		if (state[1] != LINE_REMEMBERED_AS_BLACK) {
 			state[1] = LINE_BLACK;
+		}
 		break;
 	case nln_lower:
-		if (state[-1] == LINE_UNDECIDED)
+		if (lineno > 0 && state[-1] == LINE_UNDECIDED) {
 			state[-1] = LINE_DECIDED; //LINE_BLACK;
+		}
 		*state = changed ? LINE_DECIDED : LINE_DONE;
 		break;
 	case nln_upper:
@@ -3919,16 +3923,22 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 		break;
 	case nln_upper_black_always:
 		*state = LINE_DECIDED;
-		state[-1] = LINE_BLACK;
-		if (!interlace_seen && lineno == (maxvpos + lof_store) * 2 - 2)
+		if (lineno > 0) {
+			state[-1] = LINE_BLACK;
+		}
+		if (!interlace_seen && lineno == (maxvpos + lof_store) * 2 - 2) {
 			state[1] = LINE_BLACK;
+		}
 		break;
 	case nln_upper_black:
 		changed |= state[0] != LINE_DONE;
 		*state = changed ? LINE_DECIDED : LINE_DONE;
-		state[-1] = LINE_DONE;
-		if (!interlace_seen && lineno == (maxvpos + lof_store) * 2 - 2)
+		if (lineno > 0) {
+			state[-1] = LINE_DONE;
+		}
+		if (!interlace_seen && lineno == (maxvpos + lof_store) * 2 - 2) {
 			state[1] = LINE_DONE;
+		}
 		break;
 	}
 }
