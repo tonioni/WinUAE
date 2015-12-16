@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 0
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("2")
+#define WINUAEBETA _T("3")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2015, 12, 13)
+#define WINUAEDATE MAKEBD(2015, 12, 16)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -92,6 +92,7 @@ extern int framecnt;
 extern TCHAR VersionStr[256];
 extern TCHAR BetaStr[64];
 extern int os_admin, os_64bit, os_vista, os_win7, cpu_number, os_touch;
+extern BOOL os_dwm_enabled;
 extern OSVERSIONINFO osVersion;
 extern int paraport_mask;
 extern int gui_active;

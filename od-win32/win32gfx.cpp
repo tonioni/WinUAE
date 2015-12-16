@@ -1093,14 +1093,16 @@ bool render_screen (bool immediate)
 	int cnt;
 
 	render_ok = false;
-	if (minimized || picasso_on || monitor_off || dx_islost ())
+	if (minimized || picasso_on || monitor_off || dx_islost ()) {
 		return render_ok;
+	}
 	cnt = 0;
 	while (wait_render) {
 		sleep_millis (1);
 		cnt++;
-		if (cnt > 500)
+		if (cnt > 500) {
 			return render_ok;
+		}
 	}
 	flushymin = 0;
 	flushymax = currentmode->amiga_height;

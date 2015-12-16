@@ -4794,6 +4794,7 @@ static int dxdetect (void)
 }
 
 int os_admin, os_64bit, os_win7, os_vista, cpu_number, os_touch;
+BOOL os_dwm_enabled;
 
 static int isadminpriv (void)
 {
@@ -4895,6 +4896,21 @@ static int osdetect (void)
 				os_touch = 1;
 		}
 	}
+
+	if (os_vista) {
+		typedef HRESULT(CALLBACK* DWMISCOMPOSITIONENABLED)(BOOL*);
+		HMODULE dwmapihandle;
+		DWMISCOMPOSITIONENABLED pDwmIsCompositionEnabled;
+		dwmapihandle = LoadLibrary(_T("dwmapi.dll"));
+		if (dwmapihandle) {
+			pDwmIsCompositionEnabled = (DWMISCOMPOSITIONENABLED)GetProcAddress(dwmapihandle, "DwmIsCompositionEnabled");
+			if (pDwmIsCompositionEnabled) {
+				pDwmIsCompositionEnabled(&os_dwm_enabled);
+			}
+			FreeLibrary(dwmapihandle);
+		}
+	}
+
 
 	return 1;
 }

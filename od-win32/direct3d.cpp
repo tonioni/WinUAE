@@ -46,9 +46,6 @@ static int psEnabled, psActive, shaderon;
 static struct gfx_filterdata *filterd3d;
 static int filterd3didx;
 
-typedef HRESULT(CALLBACK* DWMISCOMPOSITIONENABLED)(BOOL*);
-static HMODULE dwmapihandle;
-
 static bool showoverlay = true;
 
 #define MAX_PASSES 2
@@ -2340,23 +2337,10 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 
 	memcpy(&ap, apm, sizeof ap);
 
-	if (os_vista && isfullscreen() <= 0 && apm->gfx_backbuffers > 1 && !apm->gfx_vsync) {
-		BOOL dwm = FALSE;
-		DWMISCOMPOSITIONENABLED pDwmIsCompositionEnabled;
-		if (!dwmapihandle)
-			dwmapihandle = LoadLibrary(_T("dwmapi.dll"));
-		if (dwmapihandle) {
-			pDwmIsCompositionEnabled = (DWMISCOMPOSITIONENABLED)GetProcAddress(dwmapihandle, "DwmIsCompositionEnabled");
-			if (pDwmIsCompositionEnabled) {
-				pDwmIsCompositionEnabled(&dwm);
-			}
-		}
-		if (dwm) {
-			struct apmode *ap2 = picasso_on ? &changed_prefs.gfx_apmode[APMODE_RTG] : &changed_prefs.gfx_apmode[APMODE_NATIVE];
-			write_log(_T("Switch from triple buffer to double buffer.\n"));
-			ap.gfx_vflip = 0;
-			ap.gfx_backbuffers = 1;
-		}
+	if (os_dwm_enabled && isfullscreen() <= 0 && apm->gfx_backbuffers > 1 && !apm->gfx_vsync) {
+		write_log(_T("Switch from triple buffer to double buffer (%d).\n"), apm->gfx_vflip);
+		ap.gfx_vflip = 0;
+		ap.gfx_backbuffers = 1;
 	}
 
 	adapter = getd3dadapter (d3d);

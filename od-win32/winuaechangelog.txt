@@ -1,4 +1,11 @@
 
+Beta 3:
+
+- Debugger thought slow ram was IO region if ECS Agnus.
+- CDTV-CR mode CD led didn't flash when reading data, only when playing audio.
+- Fixed linestate array buffer underrun if mode was interlaced. Most common side-effect was blanked
+  screen in interlaced modes, especially in fields or fields+ mode, if build was full optimized.
+
 Beta 2:
 
 - SASI/SASI (CHS) options were not visible in GUI when listing SASI controllers.
