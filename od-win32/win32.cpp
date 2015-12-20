@@ -1041,93 +1041,147 @@ static DWORD touch_time;
 #define MAX_TOUCHES 10
 struct touch_store
 {
-	int id;
+	bool inuse;
+	DWORD id;
 	int port;
 	int button;
 	int axis;
 };
 static struct touch_store touches[MAX_TOUCHES];
 
-static void touch_event(int id, int pressrel, int x, int y, RECT *rcontrol)
+static void touch_release(struct touch_store *ts, const RECT *rcontrol)
+{
+	if (ts->port == 0) {
+		if (ts->button == 0)
+			inputdevice_uaelib(_T("JOY1_FIRE_BUTTON"), 0, 1, false);
+		if (ts->button == 1)
+			inputdevice_uaelib(_T("JOY1_2ND_BUTTON"), 0, 1, false);
+	} else if (ts->port == 1) {
+		if (ts->button == 0)
+			inputdevice_uaelib(_T("JOY2_FIRE_BUTTON"), 0, 1, false);
+		if (ts->button == 1)
+			inputdevice_uaelib(_T("JOY2_2ND_BUTTON"), 0, 1, false);
+	}
+	if (ts->axis >= 0) {
+		const RECT *r = &rcontrol[ts->port];
+		if (ts->port == 0) {
+			inputdevice_uaelib(_T("MOUSE1_HORIZ"), 0, -1, false);
+			inputdevice_uaelib(_T("MOUSE1_VERT"), 0, -1, false);
+		} else {
+			inputdevice_uaelib(_T("JOY2_HORIZ"), 0, 1, false);
+			inputdevice_uaelib(_T("JOY2_VERT"), 0, 1, false);
+		}
+	}
+	ts->button = -1;
+	ts->axis = -1;
+}
+
+static void touch_event(DWORD id, int pressrel, int x, int y, const RECT *rcontrol)
 {
 	struct touch_store *ts = NULL;
-	int buttonheight = rcontrol->bottom - (rcontrol->bottom - rcontrol->top) / 5;
+	int buttony = rcontrol->bottom - (rcontrol->bottom - rcontrol->top) / 4;
 	
 	int new_slot = -1;
 	for (int i = 0; i < MAX_TOUCHES; i++) {
 		struct touch_store *tts = &touches[i];
-		if (tts->id < 0 && new_slot < 0)
+		if (!tts->inuse && new_slot < 0)
 			new_slot = i;
-		if (tts->id == id) {
+		if (tts->inuse && tts->id == id) {
 			ts = tts;
+#if TOUCH_DEBUG > 1
+			write_log(_T("touch_event: old touch event %d\n"), id);
+#endif
 			break;
 		}
 	}
 	if (!ts) {
+		// do not allocate new if release
 		if (pressrel == 0)
 			return;
 		if (new_slot < 0)
 			return;
+#if TOUCH_DEBUG > 1
+		write_log(_T("touch_event: new touch event %d\n"), id);
+#endif
 		ts = &touches[new_slot];
+		ts->inuse = true;
 		ts->axis = -1;
 		ts->button = -1;
 		ts->id = id;
 
 	}
 
-	if (ts->id == id && pressrel < 0) {
-		if (ts->port == 0) {
-			if (ts->button == 0)
-				inputdevice_uaelib(_T("JOY1_FIRE_BUTTON"), 0, 0, false);
-			if (ts->button == 1)
-				inputdevice_uaelib(_T("JOY1_2ND_BUTTON"), 0, 0, false);
-		} else if (ts->port == 1) {
-			if (ts->button == 0)
-				inputdevice_uaelib(_T("JOY2_FIRE_BUTTON"), 0, 0, false);
-			if (ts->button == 1)
-				inputdevice_uaelib(_T("JOY2_2ND_BUTTON"), 0, 0, false);
-		}
-		ts->button = -1;
-		if (ts->axis > 0) {
-			RECT *r = &rcontrol[ts->port];
-			if (ts->port == 0) {
-				inputdevice_uaelib(_T("MOUSE1_HORIZ"), 0, r->right - r->left, false);
-				inputdevice_uaelib(_T("MOUSE1_VERT"), 0, r->top - r->bottom, false);
-			} else {
-				inputdevice_uaelib(_T("JOY2_HORIZ"), 0, 0, false);
-				inputdevice_uaelib(_T("JOY2_VERT"), 0, 0, false);
-			}
-		}
-		ts->axis = -1;
+	// Touch release? Release buttons, center stick/mouse.
+	if (ts->inuse && ts->id == id && pressrel < 0) {
+		touch_release(ts, rcontrol);
+		ts->inuse = false;
+		return;
 	}
 
+	// Check hit boxes if new touch.
 	for (int i = 0; i < 2; i++) {
-		RECT *r = &rcontrol[i];
+		const RECT *r = &rcontrol[i];
 		if (x >= r->left && x < r->right && y >= r->top && y < r->bottom) {
-			if (pressrel > 0) {
+
+#if TOUCH_DEBUG > 1
+			write_log(_T("touch_event: press=%d rect=%d wm=%d\n"), pressrel, i, dinput_winmouse());
+#endif
+			if (pressrel == 0) {
+				// move? port can't change, axis<>button not allowed
+				if (ts->port == i) {
+					if (y >= buttony && ts->button >= 0) {
+						int button = x > r->left + (r->right - r->left) / 2 ? 1 : 0;
+						if (button != ts->button) {
+							// button change, release old button
+							touch_release(ts, rcontrol);
+							ts->button = button;
+							pressrel = 1;
+						}
+					}
+				}
+			} else if (pressrel > 0) {
+				// new touch
 				ts->port = i;
-				if (y >= buttonheight) {
+				if (ts->button < 0 && y >= buttony) {
 					ts->button = x > r->left + (r->right - r->left) / 2 ? 1 : 0;
-				} else {
+				} else if (ts->axis < 0 && y < buttony) {
 					ts->axis = 1;
 				}
 			}
 		}
 	}
 
-	if (ts->id == id && ts->axis > 0) {
-		RECT *r = &rcontrol[ts->port];
+	// Directions hit?
+	if (ts->inuse && ts->id == id && ts->axis >= 0) {
+		const RECT *r = &rcontrol[ts->port];
 		int xdiff = (r->left + (r->right - r->left) / 2) - x;
-		int ydiff = (r->top + (r->bottom - r->top - buttonheight) / 2) - y;
+		int ydiff = (r->top + (buttony - r->top) / 2) - y;
+
+#if TOUCH_DEBUG > 1
+		write_log(_T("touch_event: rect=%d xdiff %03d ydiff %03d\n"), ts->port, xdiff, ydiff);
+#endif
+		xdiff = -xdiff;
+		ydiff = -ydiff;
 
 		if (ts->port == 0) {
-			int div = (r->top - r->bottom) / 10;
-			xdiff /= div;
-			ydiff /= div;
-			inputdevice_uaelib(_T("MOUSE1_HORIZ"), xdiff, r->right - r->left, false);
-			inputdevice_uaelib(_T("MOUSE1_VERT"), ydiff, r->top - r->bottom, false);
+
+			int div = (r->bottom - r->top) / (2 * 5);
+			if (div <= 0)
+				div = 1;
+			int vx = xdiff / div;
+			int vy = ydiff / div;
+
+#if TOUCH_DEBUG > 1
+			write_log(_T("touch_event: xdiff %03d ydiff %03d div %03d vx %03d vy %03d\n"), xdiff, ydiff, div, vx, vy);
+#endif
+			inputdevice_uaelib(_T("MOUSE1_HORIZ"), vx, -1, false);
+			inputdevice_uaelib(_T("MOUSE1_VERT"), vy, -1, false);
+
 		} else {
-			int div = (r->top - r->bottom) / 3;
+
+			int div = (r->bottom - r->top) / (2 * 3);
+			if (div <= 0)
+				div = 1;
 			if (xdiff <= -div)
 				inputdevice_uaelib(_T("JOY2_HORIZ"), -1, 1, false);
 			else if (xdiff >= div)
@@ -1143,26 +1197,27 @@ static void touch_event(int id, int pressrel, int x, int y, RECT *rcontrol)
 		}
 	}
 
-	if (ts->id == id && pressrel > 0) {
+	// Buttons hit?
+	if (ts->inuse && ts->id == id && pressrel > 0) {
 		if (ts->port == 0) {
 			if (ts->button == 0)
-				inputdevice_uaelib(_T("JOY1_FIRE_BUTTON"), 0, 0, false);
+				inputdevice_uaelib(_T("JOY1_FIRE_BUTTON"), 1, 1, false);
 			if (ts->button == 1)
-				inputdevice_uaelib(_T("JOY1_2ND_BUTTON"), 0, 0, false);
+				inputdevice_uaelib(_T("JOY1_2ND_BUTTON"), 1, 1, false);
 		} else if (ts->port == 1) {
 			if (ts->button == 0)
-				inputdevice_uaelib(_T("JOY2_FIRE_BUTTON"), 0, 0, false);
+				inputdevice_uaelib(_T("JOY2_FIRE_BUTTON"), 1, 1, false);
 			if (ts->button == 1)
-				inputdevice_uaelib(_T("JOY2_2ND_BUTTON"), 0, 0, false);
+				inputdevice_uaelib(_T("JOY2_2ND_BUTTON"), 1, 1, false);
 		}
 	}
 }
 
+static int touch_prev_x, touch_prev_y;
+static DWORD touch_prev_flags;
+
 static void processtouch(HWND hwnd, WPARAM wParam, LPARAM lParam)
 {
-	if (!pGetTouchInputInfo || !pCloseTouchInputHandle)
-		return;
-
 	RECT rgui, rcontrol[2];
 	int bottom;
 	if (isfullscreen()) {
@@ -1194,6 +1249,9 @@ static void processtouch(HWND hwnd, WPARAM wParam, LPARAM lParam)
 	rcontrol[1].bottom = bottom;
 	rcontrol[1].top = bottom - max / 2;
 
+	if (!pGetTouchInputInfo || !pCloseTouchInputHandle)
+		return;
+
 	UINT cInputs = LOWORD(wParam);
 	PTOUCHINPUT pInputs = new TOUCHINPUT[cInputs];
 	if (NULL != pInputs) {
@@ -1202,42 +1260,48 @@ static void processtouch(HWND hwnd, WPARAM wParam, LPARAM lParam)
 				PTOUCHINPUT ti = &pInputs[i];
 				int x = ti->x / 100;
 				int y = ti->y / 100;
-#if TOUCH_DEBUG
-				write_log(_T("ID=%08x FLAGS=%08x MASK=%08x X=%d Y=%d \n"), ti->dwID, ti->dwFlags, ti->dwMask, x, y);
-#endif
-				if (currprefs.input_tablet == TABLET_OFF) {
-					if (ti->dwFlags & TOUCHEVENTF_DOWN)
-						touch_event(ti->dwID, 1,  x, y, rcontrol);
-					if (ti->dwFlags & TOUCHEVENTF_UP)
-						touch_event(ti->dwID, -1, x, y, rcontrol);
-					if (ti->dwFlags & TOUCHEVENTF_MOVE)
-						touch_event(ti->dwID, 0, x, y, rcontrol);
-				}
 
-				if (ti->dwFlags & TOUCHEVENTF_PRIMARY) {
-					if (x < rgui.left || x >= rgui.right || y < rgui.top || y >= rgui.bottom) {
-						touch_touched = 0;
-					} else {
-						if (ti->dwFlags & (TOUCHEVENTF_DOWN | TOUCHEVENTF_MOVE)) {
-							if (!touch_touched && (ti->dwFlags & TOUCHEVENTF_DOWN)) {
-								touch_touched = 1;
-								touch_time = ti->dwTime;
+				if (x != touch_prev_x || y != touch_prev_y || ti->dwFlags != touch_prev_flags) {
+					touch_prev_x = x;
+					touch_prev_y = y;
+					touch_prev_flags = ti->dwFlags;
 #if TOUCH_DEBUG
-								write_log(_T("TOUCHED %d\n"), touch_time);
+					write_log(_T("ID=%08x FLAGS=%08x MASK=%08x X=%d Y=%d \n"), ti->dwID, ti->dwFlags, ti->dwMask, x, y);
 #endif
-							}
-							if (touch_touched && ti->dwTime >= touch_time + 2 * 1000) {
+					if (currprefs.input_tablet == TABLET_OFF && dinput_winmouse() < 0) {
+						if (ti->dwFlags & TOUCHEVENTF_DOWN)
+							touch_event(ti->dwID, 1,  x, y, rcontrol);
+						if (ti->dwFlags & TOUCHEVENTF_UP)
+							touch_event(ti->dwID, -1, x, y, rcontrol);
+						if (ti->dwFlags & TOUCHEVENTF_MOVE)
+							touch_event(ti->dwID, 0, x, y, rcontrol);
+					}
+
+					if (ti->dwFlags & TOUCHEVENTF_PRIMARY) {
+						if (x < rgui.left || x >= rgui.right || y < rgui.top || y >= rgui.bottom) {
+							touch_touched = 0;
+						} else {
+							if (ti->dwFlags & (TOUCHEVENTF_DOWN | TOUCHEVENTF_MOVE)) {
+								if (!touch_touched && (ti->dwFlags & TOUCHEVENTF_DOWN)) {
+									touch_touched = 1;
+									touch_time = ti->dwTime;
 #if TOUCH_DEBUG
-								write_log(_T("TOUCHED GUI\n"), touch_time);
+									write_log(_T("TOUCHED %d\n"), touch_time);
 #endif
-								inputdevice_add_inputcode(AKS_ENTERGUI, 1);
+								}
+							} else if (ti->dwFlags & TOUCHEVENTF_UP) {
+
+								if (touch_touched && ti->dwTime >= touch_time + 2 * 1000) {
+#if TOUCH_DEBUG
+									write_log(_T("TOUCHED GUI\n"), touch_time);
+#endif
+									inputdevice_add_inputcode(AKS_ENTERGUI, 1);
+								}
+#if TOUCH_DEBUG
+								write_log(_T("RELEASED\n"));
+#endif
 								touch_touched = 0;
 							}
-						} else if (ti->dwFlags & TOUCHEVENTF_UP) {
-#if TOUCH_DEBUG
-							write_log(_T("RELEASED\n"));
-#endif
-							touch_touched = 0;
 						}
 					}
 				}
@@ -2811,10 +2875,10 @@ void logging_init (void)
 	write_log (_T("\n%s (%d.%d.%d %s%s[%d])"), VersionStr,
 		osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.dwBuildNumber, osVersion.szCSDVersion,
 		_tcslen (osVersion.szCSDVersion) > 0 ? _T(" ") : _T(""), os_admin);
-	write_log (_T(" %d-bit %X.%X.%X %d %s"),
+	write_log (_T(" %d-bit %X.%X.%X %d %s %d"),
 		wow64 ? 64 : 32,
 		SystemInfo.wProcessorArchitecture, SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
-		SystemInfo.dwNumberOfProcessors, filedate);
+		SystemInfo.dwNumberOfProcessors, filedate, os_touch);
 	write_log (_T("\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation.")
 		_T("\n(c) 1998-2015 Toni Wilen      - Win32 port, core code updates.")
 		_T("\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI.")
