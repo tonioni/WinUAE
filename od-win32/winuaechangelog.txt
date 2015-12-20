@@ -1,4 +1,15 @@
 
+Beta 4:
+
+- Serial emulation didn't flush transmit buffer, it was possible last few characters remained in buffer.
+- AVIOutput hang if sound emulation was idle. (Sound was autoswitched off)
+- Added hidden (no overlays) touch mouse and joystick support. Only enabled when touch panel is detected,
+  Game Ports panel mouse driver is not active and Windows mouse is not selected. Multi-touch supported.
+  Located in bottom half of screen, left side is always mouse, right side is always joystick.
+  First basic implementation. Nothing is configurable. Tested only with Wisky 7.85 Windows tablet.
+- Sending input event externally (via uae-configuration for example) that goes to inactive Amiga-side port
+  now also enables it automatically. Previously event was ignored.
+
 Beta 3:
 
 - Debugger thought slow ram was IO region if ECS Agnus.
