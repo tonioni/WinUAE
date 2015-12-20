@@ -1576,6 +1576,8 @@ void AVIOutput_WriteAudio(uae_u8 *sndbuffer, int sndbufsize)
 {
 	if (!avioutput_audio || !avioutput_enabled)
 		return;
+	if (!sndbufsize)
+		return;
 	if (avioutput_failed)
 		return;
 
@@ -1590,7 +1592,6 @@ void AVIOutput_WriteAudio(uae_u8 *sndbuffer, int sndbufsize)
 	}
 	memcpy(avi_sndbuffer + avi_sndbuffered, sndbuffer, sndbufsize);
 	avi_sndbuffered += sndbufsize;
-
 }
 
 void frame_drawn (void)
