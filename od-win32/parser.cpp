@@ -1091,17 +1091,27 @@ void closeser (void)
 
 static void outser (void)
 {
-	DWORD actual;
-	if (datainoutput > 0 && WaitForSingleObject (writeevent, 0) == WAIT_OBJECT_0 ) {
+	if (datainoutput <= 0)
+		return;
+	DWORD v = WaitForSingleObject (writeevent, 0);
+	if (v == WAIT_OBJECT_0) {
+		DWORD actual;
 		memcpy (outputbufferout, outputbuffer, datainoutput);
 		WriteFile (hCom, outputbufferout, datainoutput, &actual, &writeol);
 		datainoutput = 0;
 	}
 }
 
+void writeser_flush(void)
+{
+	outser();
+}
+
 void writeser (int c)
 {
-	//write_log(_T("writeser %d (buf=%d)\n"), c, datainoutput);
+#if 0
+	write_log(_T("writeser %04X (buf=%d)\n"), c, datainoutput);
+#endif
 	if (tcpserial) {
 		if (tcp_is_connected ()) {
 			char buf[1];

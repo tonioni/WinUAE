@@ -5057,8 +5057,11 @@ void INTREQ_f (uae_u16 v)
 		setclr (&intreq, v);
 		send_intreq_do (v);
 	} else {
+		uae_u16 old = intreq;
 		setclr (&intreq, v);
 		setclr (&intreq_internal, v);
+		if ((old & 0x0800) && !(intreq & 0x0800))
+			serial_rbf_clear();
 	}
 }
 
@@ -5070,6 +5073,9 @@ bool INTREQ_0 (uae_u16 v)
 #endif
 	uae_u16 old = intreq;
 	setclr (&intreq, v);
+
+	if ((old & 0x0800) && !(intreq & 0x0800))
+		serial_rbf_clear();
 
 	if (int_recursive) {
 		// don't add new event if this call came from send_intreq_do/rethink
