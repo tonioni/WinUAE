@@ -61,11 +61,12 @@ only target, and it's easier this way... */
 #define STACK_ALIGN		16
 #define STACK_OFFSET	sizeof(void *)
 
-uae_u8 always_used[]={4,0xff};
 #if defined(__x86_64__)
+uae_u8 always_used[] = { 4, 12, 0xff };
 uae_s8 can_byte[]={0,1,2,3,5,6,7,8,9,10,11,12,13,14,15,-1};
 uae_s8 can_word[]={0,1,2,3,5,6,7,8,9,10,11,12,13,14,15,-1};
 #else
+uae_u8 always_used[] = { 4, 0xff };
 uae_u8 can_byte[]={0,1,2,3,0xff};
 uae_u8 can_word[]={0,1,2,3,5,6,7,0xff};
 #endif
