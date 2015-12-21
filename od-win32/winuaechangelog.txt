@@ -1,4 +1,8 @@
 
+3.2.2
+
+- JIT x64 R12 special case fix.
+
 Beta 4:
 
 - Serial emulation didn't flush transmit buffer, it was possible last few characters remained in buffer.
