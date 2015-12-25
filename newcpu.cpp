@@ -5162,6 +5162,7 @@ static void m68k_run_2 (void)
 }
 
 /* fake MMU 68k  */
+#if 0
 static void m68k_run_mmu (void)
 {
 	for (;;) {
@@ -5178,6 +5179,7 @@ static void m68k_run_mmu (void)
 		}
 	}
 }
+#endif
 
 #endif /* CPUEMU_0 */
 
