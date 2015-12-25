@@ -5185,6 +5185,7 @@ static void m68k_run_mmu (void)
 
 int in_m68k_go = 0;
 
+#if 0
 static void exception2_handle (uaecptr addr, uaecptr fault)
 {
 	last_addr_for_exception_3 = addr;
@@ -5193,6 +5194,7 @@ static void exception2_handle (uaecptr addr, uaecptr fault)
 	last_instructionaccess_for_exception_3 = 0;
 	Exception (2);
 }
+#endif
 
 static bool cpu_hardreset, cpu_keyboardreset;
 
