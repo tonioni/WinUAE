@@ -4119,7 +4119,7 @@ cont:
 
 #endif
 
-#ifdef CPUEMU_20
+#if defined(CPUEMU_20) && defined(JIT)
 // emulate simple prefetch
 static uae_u16 get_word_020_prefetchf (uae_u32 pc)
 {
