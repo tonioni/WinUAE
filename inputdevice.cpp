@@ -8371,7 +8371,7 @@ void inputdevice_fix_prefs(struct uae_prefs *p)
 		if (!matched[i]) {
 			struct jport_config *jp = &jport_config_store[i];
 			if (jp->id[0]) {
-				if (inputdevice_joyport_config(p, jp->configname, i, jp->mode, 0)) {
+				if (inputdevice_joyport_config(p, jp->id, i, jp->mode, 0)) {
 					inputdevice_validate_jports(p, i, matched);
 					inputdevice_store_used_device(p, i);
 					matched[i] = true;
