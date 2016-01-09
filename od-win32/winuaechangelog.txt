@@ -1,4 +1,62 @@
 
+
+- Added extra validation checks for STORAGE_DEVICE_DESCRIPTOR, buggy drivers may return invalid (negative) offset
+  values.
+- 64-bit JIT harmless "Warning! 12 is locked" log spamming disabled.
+- Updated copper/blitter cycle conflict emulation. It only triggers when CPU writes to COPJMP, Copper is waiting and
+  Copper DMA is enabled (and blitter uses same cycle). If Copper DMA was off, bug won't trigger, even if DMA gets
+  enabled few cycles later. Copper bug emulation is again always enabled if 68000 and cycle-exact config.
+- Cancel main thread sleep state immediately (Sleep due to CPU idle or similar) if PPC thread caused mainboard interrupt-
+  This should reduce PPC to M68K interrupt emulation latency.
+- Hardware RTG emulation rendered same frame twice in some situations. Caused very slow performance in triple buffered mode.
+- Debugger keyboard presses were buffered and output to Amiga-side when debugger was exited.
+- Starting disk DMA does not flush Paula internal 16 bit buffer. Poll DSKBYTR for DSKSYNC, immediately start disk DMA with
+  WORDSYNC enabled: following sync word must not be missed. (Original Virus really slow loading in cycle-exact mode)
+- Chip ram was marked as 16-bit Fast RAM for the CPU (no DMA contention emulation) if any memwatch point was active.
+- Amithlon partition type (0x78/0x30) support was broken, partitions were detected but it was not possible to mount them.
+- Added SX32 Pro board and ROM image. (Not all RAM sizes are correctly mapped)
+- Only unmap Z3 Fast RAM at reset if Z3 mapping mode is "Real" for better compatibility with old configs that assume
+  Z3 RAM does not temporarily disappear at boot.
+- JIT on/off on the fly change without other CPU settings changed at the same time with uae-configuration didn't work.
+- Hardware emulation autoconfig board UAE interface first working feature: uae-configuration now works under OS4
+  Requires also updated uae-configuration, interface can also work under other non-m68k AmigaOS operating systems,
+  only requirement is simple native uae-configuration port. Interface design is not final yet.
+- If CSPPC or BPPC is booted with empty or zero size flash rom image, fake resident idtag is automatically added that
+  fools official flash rom updater to detect working board, "updating" the empty flash with full image (updater
+  contains full flash rom image in encrypted format)
+- Debugger memwatch points can now match only CPU instruction (CPUI) or only CPU data accesses (CPUD, CPUDR, CPUDW)
+- "Heat map" debugger added, shows optional visual heatmap of CPU and DMA accesses. Can list highest addresses used by
+  CPU instruction fetches or all addresses that single device accessed (Some DMA channel, CPU)
+- Some AGA modes were incorrectly detected as overrunning causing screen corruption.
+- AROS ROM updated.
+
+Input system and mapping updates:
+
+- Added SPC_SWAPJOYPORTS input event, swaps gameports joystick ports.
+- Added END+J default mapping = SPC_SWAPJOYPORTS.
+- Device autoswitch didn't ignore button release without matching press.
+- Device autoswitch switches to new Game Ports custom event if it has fire button mapped to mouse or gamepad.
+- "WinUAE null keyboard" renamed to "WinUAE keyboard", this is now the default global virtual keyboard. GamePorts panel
+  only uses this keyboard, multiple keyboards are only supported in Input panel mode and only if manually enabled.
+  Reduces complexity and confusion when moving configurations between systems with different number of keyboards.
+- Game Ports custom mapping rewritten. Now Game Ports list has 6 custom slots which can me inserted to any joystick port.
+  New custom mapping data is also saved to separate config entries, one per slot.
+- Old Game Ports custom config is automatically converted to new custom mapping system.
+- Removed X-Arcade built-in layouts. Re-create them with new custom mapping system if needed.
+- Cleared custom input event string equals setting event to "<none>".
+- Fixed since the beginning bug that caused incorrectly matched input device(s) and input config when config was loaded
+  with different connected input devices and order of devices was also different.
+- Rewritten game ports validation (Detect and fix if same device in multiple ports etc..).
+- Old config files should still work like previously except: game Ports custom mapping and first keyboard input config
+  goes to WinUAE keyboard slot.
+- Last few Game Ports panel inserted devices (layout or real input device) are remembered. For example if config is loaded
+  with joypad A inserted in port 2 but pad is not plugged in, then user manually changes it to joypad B. Now if pad A is
+  later reinserted and pad B is removed, A is automatically put in port 2. It also works with keyboard layouts or new
+  custom layouts, if keyboard layout was previously selected, then it was later replaced with gamepad, if gamepad is unplugged
+  on the fly, previous keyboard layout is automatically selected.
+
+Game Ports panel "simple" custom mapping should be finally very intuitive to use.
+
 3.2.2
 
 - JIT x64 R12 special case fix.

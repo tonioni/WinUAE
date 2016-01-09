@@ -6,7 +6,7 @@ extern addrbank *gfxboard_init_memory_p4_z2(int devnum);
 extern addrbank *gfxboard_init_registers(int devnum);
 extern void gfxboard_free (void);
 extern void gfxboard_reset (void);
-extern void gfxboard_vsync_handler (void);
+extern bool gfxboard_vsync_handler (void);
 extern void gfxboard_hsync_handler(void);
 extern int gfxboard_get_configtype (int);
 extern bool gfxboard_is_registers (int);
@@ -27,7 +27,7 @@ extern addrbank *tms_init(int devnum);
 extern void tms_free(void);
 extern void tms_reset(void);
 extern void tms_hsync_handler(void);
-extern void tms_vsync_handler(void);
+extern bool tms_vsync_handler(void);
 extern bool tms_toggle(int);
 
 extern void vga_io_put(int portnum, uae_u8 v);

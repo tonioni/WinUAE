@@ -504,7 +504,6 @@ BEGIN
     PUSHBUTTON      "Remap / Test [] Remap or test Port 2 configuration.",IDC_PORT1_REMAP,310,74,78,14
     PUSHBUTTON      "Swap ports [] Swap ports 1 and 2.",IDC_SWAP,45,100,78,14
     LTEXT           "Emulated parallel port joystick adapter",IDC_STATIC,10,124,179,15,SS_CENTERIMAGE
-    RTEXT           "X-Arcade layout information []#1",IDC_STATIC,217,124,170,15,SS_NOTIFY | SS_CENTERIMAGE
     COMBOBOX        IDC_PORT2_JOYS,45,142,342,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Remap [] Remap Parallel port joystick port 1 configurarion.",IDC_PORT2_REMAP,352,159,36,14
     COMBOBOX        IDC_PORT3_JOYS,45,178,342,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
@@ -1297,8 +1296,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,2,2,0
- PRODUCTVERSION 3,2,2,0
+ FILEVERSION 3,3,0,0
+ PRODUCTVERSION 3,3,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1314,12 +1313,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "3.2.2.0"
+            VALUE "FileVersion", "3.3.0.0"
             VALUE "InternalName", "WinUAE"
-            VALUE "LegalCopyright", "© 1996-2015 under the GNU Public License (GPL)"
+            VALUE "LegalCopyright", "© 1996-2016 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "3.2.2.0"
+            VALUE "ProductVersion", "3.3.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1437,8 +1436,6 @@ IDR_DRIVE_SPINND_A500_1 WAVE                    "drive_spinnd.wav"
 //
 // Bitmap
 //
-
-IDB_XARCADE             BITMAP                  "xarcade-winuae.bmp"
 
 IDB_LCD160X43           BITMAP                  "lcd.bmp"
 
@@ -1854,7 +1851,7 @@ BEGIN
     IDS_SOUND_4CHANNEL      "4 Channels"
     IDS_HF_FS_CUSTOM        "Custom"
     IDS_SELECTFS            "Select file system handler (FFS, PFS, SFS, etc.)"
-    IDS_KEYJOY              "Keyboard Layout A (Numeric keypad, 0 and 5 = Fire)\nKeyboard Layout B (Cursor keys, Right CTRL and ALT = Fire)\nKeyboard Layout C (W=Up S=Down A=Left D=Right, Left ALT = Fire)\nX-Arcade (Left)\nX-Arcade (Right)"
+    IDS_KEYJOY              "Keyboard Layout A (Numeric keypad, 0 and 5 = Fire)\nKeyboard Layout B (Cursor keys, Right CTRL and ALT = Fire)\nKeyboard Layout C (W=Up S=Down A=Left D=Right, Left ALT = Fire)"
     IDS_STATEFILE_UNCOMPRESSED "Uncompressed"
     IDS_STATEFILE_RAMDUMP   "RAM dump"
     IDS_STATEFILE_WAVE      "Wave audio dump"

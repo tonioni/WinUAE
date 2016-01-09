@@ -75,7 +75,7 @@ extern void DISK_reset (void);
 extern int disk_getwriteprotect (struct uae_prefs *p, const TCHAR *name);
 extern int disk_setwriteprotect (struct uae_prefs *p, int num, const TCHAR *name, bool writeprotected);
 extern bool disk_creatediskfile (const TCHAR *name, int type, drive_type adftype, const TCHAR *disk_name, bool ffs, bool bootable, struct zfile *copyfrom);
-extern void dumpdisk (void);
+extern void dumpdisk (const TCHAR*);
 extern int DISK_history_add (const TCHAR *name, int idx, int type, int donotcheck);
 extern TCHAR *DISK_history_get (int idx, int type);
 int DISK_examine_image (struct uae_prefs *p, int num, struct diskinfo *di);

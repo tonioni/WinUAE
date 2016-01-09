@@ -518,7 +518,8 @@ void alloc_cycle_blitter (int hpos, uaecptr *ptr, int chnum)
 			warned--;
 			//activate_debugger ();
 		}
-		if ((currprefs.cs_hacks & 1) && currprefs.cpu_model == 68000)
+		//if ((currprefs.cs_hacks & 1) && currprefs.cpu_model == 68000)
+		if (currprefs.cpu_model == 68000 && currprefs.cpu_cycle_exact && currprefs.blitter_cycle_exact)
 			*ptr = srcptr;
 	}
 	alloc_cycle (hpos, CYCLE_BLITTER);
@@ -2185,7 +2186,7 @@ static void maybe_finish_last_fetch (int pos, int fm)
 	static int warned = 20;
 	bool done = false;
 
-	if (plf_state != plf_passed_stop2 || (fetch_state != fetch_started && fetch_state != fetch_started_first) || !dmaen (DMA_BITPLANE)) {
+	if (plf_state != plf_passed_stop2 || (fetch_state != fetch_started && fetch_state != fetch_started_first) || aga_plf_passed_stop2 || !dmaen (DMA_BITPLANE)) {
 		finish_last_fetch (pos, fm, true);
 		return;
 	}
@@ -3746,7 +3747,7 @@ static void reset_decisions (void)
 	}
 
 	memset (outword, 0, sizeof outword);
-	// fetched must not be cleared (Sony VX-90 / Royal Amiga Force)
+	// fetched[] must not be cleared (Sony VX-90 / Royal Amiga Force)
 	todisplay_fetched[0] = todisplay_fetched[1] = false;
 	memset (todisplay, 0, sizeof todisplay);
 	memset (todisplay2, 0, sizeof todisplay2);
@@ -4809,7 +4810,7 @@ static void COPJMP (int num, int vblank)
 
 	if (!oldstrobe)
 		cop_state.state_prev = cop_state.state;
-	if ((cop_state.state == COP_wait || cop_state.state == COP_waitforever) && !vblank) {
+	if ((cop_state.state == COP_wait || cop_state.state == COP_waitforever) && !vblank && dmaen(DMA_COPPER)) {
 		cop_state.state = COP_strobe_delay1x;
 	} else {
 		cop_state.state = vblank ? COP_start_delay : (copper_access ? COP_strobe_delay1 : COP_strobe_extra);
@@ -6326,12 +6327,12 @@ static void update_copper (int until_hpos)
 		case COP_strobe_delay1x:
 			// First cycle after COPJMP and Copper was waiting. This is the buggy one.
 			// Cycle can be free and copper won't allocate it.
-			// If Blitter uses this cycle = Copper's address gets copied blitter DMA pointer..
+			// If Blitter uses this cycle = Copper's PC gets copied to blitter DMA pointer..
 			cop_state.state = COP_strobe_delay2x;
 			break;
 		case COP_strobe_delay2x:
 			// Second cycle fetches following word and tosses it away. Must be free cycle
-			// but is not allocated, blitter or cpu can still use it.
+			// but it is not allocated, blitter or cpu can still use it.
 			if (copper_cant_read (old_hpos, 1))
 				continue;
 			cycle_line[old_hpos] |= CYCLE_COPPER_SPECIAL;
@@ -8181,7 +8182,7 @@ static void hsync_handler_post (bool onvsync)
 	if (uae_int_requested) {
 		if (uae_int_requested & 0xff00)
 			INTREQ(0x8000 | 0x2000);
-		if (uae_int_requested & 0x0ff)
+		if (uae_int_requested & 0x00ff)
 			INTREQ(0x8000 | 0x0008);
 	}
 
@@ -9863,16 +9864,28 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 			reg |= 2;
 		else
 			reg |= 1;
-		dr = record_dma (reg, v, addr, hpos, vpos, DMARECORD_CPU);
+		dr = record_dma (reg, v, addr, hpos, vpos, mode == -2 || mode == 2 ? DMARECORD_CPU_I : DMARECORD_CPU_D);
 		checknasty (hpos, vpos);
 	}
 #endif
-	if (mode < 0)
-		v = get_long (addr);
-	else if (mode > 0)
-		v = get_word (addr);
-	else if (mode == 0)
-		v = get_byte (addr);
+	switch(mode)
+	{
+		case -1:
+		v = get_long(addr);
+		break;
+		case -2:
+		v = get_longi(addr);
+		break;
+		case 1:
+		v = get_word(addr);
+		break;
+		case 2:
+		v = get_wordi(addr);
+		break;
+		case 0:
+		v = get_byte(addr);
+		break;
+	}
 
 #ifdef DEBUGGER
 	if (debug_dma)
@@ -9905,16 +9918,27 @@ uae_u32 wait_cpu_cycle_read_ce020 (uaecptr addr, int mode)
 			reg |= 2;
 		else
 			reg |= 1;
-		dr = record_dma (reg, v, addr, hpos, vpos, DMARECORD_CPU);
+		dr = record_dma (reg, v, addr, hpos, vpos, mode == -2 || mode == 2 ? DMARECORD_CPU_I : DMARECORD_CPU_D);
 		checknasty (hpos, vpos);
 	}
 #endif
-	if (mode < 0)
-		v = get_long (addr);
-	else if (mode > 0)
-		v = get_word (addr);
-	else if (mode == 0)
-		v = get_byte (addr);
+	switch (mode) {
+		case -1:
+		v = get_long(addr);
+		break;
+		case -2:
+		v = get_longi(addr);
+		break;
+		case 1:
+		v = get_word(addr);
+		break;
+		case 2:
+		v = get_wordi(addr);
+		break;
+		case 0:
+		v = get_byte(addr);
+		break;
+	}
 
 #ifdef DEBUGGER
 	if (debug_dma)
@@ -9944,7 +9968,7 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 			reg |= 2;
 		else
 			reg |= 1;
-		record_dma (reg, v, addr, hpos, vpos, DMARECORD_CPU);
+		record_dma (reg, v, addr, hpos, vpos, DMARECORD_CPU_D);
 		checknasty (hpos, vpos);
 	}
 #endif
@@ -9979,7 +10003,7 @@ void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
 			reg |= 2;
 		else
 			reg |= 1;
-		record_dma (reg, v, addr, hpos, vpos, DMARECORD_CPU);
+		record_dma (reg, v, addr, hpos, vpos, DMARECORD_CPU_D);
 		checknasty (hpos, vpos);
 	}
 #endif

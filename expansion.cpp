@@ -315,7 +315,7 @@ addrbank expamem_bank = {
 	expamem_lput, expamem_wput, expamem_bput,
 	default_xlate, default_check, NULL, NULL, _T("Autoconfig Z2"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
+	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 DECLARE_MEMORY_FUNCTIONS(expamemz3);
 static addrbank expamemz3_bank = {
@@ -323,7 +323,7 @@ static addrbank expamemz3_bank = {
 	expamemz3_lput, expamemz3_wput, expamemz3_bput,
 	default_xlate, default_check, NULL, NULL, _T("Autoconfig Z3"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
+	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
 static addrbank *expamem_map_clear (void)
@@ -1006,7 +1006,7 @@ addrbank filesys_bank = {
 	filesys_lput, filesys_wput, filesys_bput,
 	default_xlate, default_check, NULL, _T("filesys"), _T("Filesystem autoconfig"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_INDIRECT, S_READ, S_WRITE
+	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
 static uae_u32 filesys_start; /* Determined by the OS */
@@ -1072,25 +1072,15 @@ addrbank uaeboard_bank = {
 	uaeboard_lput, uaeboard_wput, uaeboard_bput,
 	default_xlate, default_check, NULL, _T("uaeboard"), _T("uae x autoconfig board"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_INDIRECT, S_READ, S_WRITE
+	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
 static uae_u32 uaeboard_start; /* Determined by the OS */
-
-static uae_u32 REGPARAM2 uaeboard_lget(uaecptr addr)
-{
-	uae_u8 *m;
-	addr -= uaeboard_start & 65535;
-	addr &= 65535;
-	if (addr == 0x200 || addr == 0x201) {
-		mousehack_wakeup();
-	}
-	m = uaeboard_bank.baseaddr + addr;
-#if EXP_DEBUG
-	write_log(_T("uaeboard_lget %x %x\n"), addr, do_get_mem_long((uae_u32 *)m));
-#endif
-	return do_get_mem_long((uae_u32 *)m);
-}
+#define UAEBOARD_RAM_SIZE 16384
+#define UAEBOARD_RAM_OFFSET (65536 - UAEBOARD_RAM_SIZE)
+#define UAEBOARD_IO_INTERFACE (UAEBOARD_RAM_OFFSET - 16)
+static uae_u8 uaeboard_io_state;
+static uae_u32 uaeboard_io_size, uaeboard_mem_ptr, uaeboard_mem_use;
 
 static uae_u32 REGPARAM2 uaeboard_wget(uaecptr addr)
 {
@@ -1104,7 +1094,39 @@ static uae_u32 REGPARAM2 uaeboard_wget(uaecptr addr)
 #if EXP_DEBUG
 	write_log(_T("uaeboard_wget %x %x\n"), addr, do_get_mem_word((uae_u16 *)m));
 #endif
-	return do_get_mem_word((uae_u16 *)m);
+	uae_u16 v = do_get_mem_word((uae_u16 *)m);
+
+	if (addr >= UAEBOARD_IO_INTERFACE) {
+		if (uaeboard_io_state & 16) {
+			uaeboard_mem_ptr &= (UAEBOARD_RAM_SIZE - 1);
+			if (uaeboard_mem_ptr + uaeboard_io_size > UAEBOARD_RAM_SIZE)
+				uaeboard_mem_ptr = 0;
+			if (addr == UAEBOARD_IO_INTERFACE + 8) {
+				uaeboard_io_state |= 32;
+				uaeboard_mem_use = uaeboard_mem_ptr + UAEBOARD_RAM_OFFSET;
+				v = uaeboard_mem_use >> 16;
+			} else if (addr == UAEBOARD_IO_INTERFACE + 8 + 2) {
+				uaeboard_io_state |= 64;
+				uaeboard_mem_use = uaeboard_mem_ptr + UAEBOARD_RAM_OFFSET;
+				v = uaeboard_mem_use >> 0;
+			}
+			if ((uaeboard_io_state & (32 | 64 | 128)) == (32 | 64)) {
+				uaeboard_mem_ptr += uaeboard_io_size;
+				uaeboard_io_state |= 128;
+			}
+		}
+	}
+
+	return v;
+}
+
+static uae_u32 REGPARAM2 uaeboard_lget(uaecptr addr)
+{
+	addr -= uaeboard_start & 65535;
+	addr &= 65535;
+	uae_u32 v = uaeboard_wget(addr) << 16;
+	v |= uaeboard_wget(addr + 2);
+	return v;
 }
 
 static uae_u32 REGPARAM2 uaeboard_bget(uaecptr addr)
@@ -1113,6 +1135,19 @@ static uae_u32 REGPARAM2 uaeboard_bget(uaecptr addr)
 	addr &= 65535;
 	if (addr == 0x200 || addr == 0x201) {
 		mousehack_wakeup();
+	} else if (addr == UAEBOARD_IO_INTERFACE) {
+		uaeboard_bank.baseaddr[UAEBOARD_IO_INTERFACE] = uaeboard_io_state == 0;
+		if (!uaeboard_io_state) {
+			// mark allocated
+			uaeboard_io_state = 1;
+		}
+	} else if (addr == UAEBOARD_IO_INTERFACE + 2) {
+		if (uaeboard_io_state & 8) {
+			uaeboard_bank.baseaddr[addr] = 1;
+			uaeboard_io_state |= 16;
+		}
+	} else if (addr == uaeboard_mem_use) {
+		uaeboard_bank.baseaddr[addr] = 1;
 	}
 #if EXP_DEBUG
 	write_log(_T("uaeboard_bget %x %x\n"), addr, uaeboard_bank.baseaddr[addr]);
@@ -1120,29 +1155,73 @@ static uae_u32 REGPARAM2 uaeboard_bget(uaecptr addr)
 	return uaeboard_bank.baseaddr[addr];
 }
 
+static void REGPARAM2 uaeboard_wput(uaecptr addr, uae_u32 w)
+{
+	addr -= uaeboard_start & 65535;
+	addr &= 65535;
+	if (addr >= 0x200 + 0x20 && addr < 0x200 + 0x24) {
+		mousehack_write(addr - 0x200, w);
+	} else if (addr >= UAEBOARD_IO_INTERFACE) {
+		uae_u16 *m = (uae_u16 *)(uaeboard_bank.baseaddr + addr);
+		do_put_mem_word(m, w);
+		if (uaeboard_io_state) {
+			if (addr == UAEBOARD_IO_INTERFACE + 4)
+				uaeboard_io_state |= 2;
+			if (addr == UAEBOARD_IO_INTERFACE + 6)
+				uaeboard_io_state |= 4;
+			if (uaeboard_io_state == (1 | 2 | 4)) {
+				uae_u32 *m2 = (uae_u32 *)(uaeboard_bank.baseaddr + UAEBOARD_IO_INTERFACE + 4);
+				// size received
+				uaeboard_io_state |= 8;
+				uaeboard_io_size = do_get_mem_long(m2);
+			}
+		}
+		// writing command byte executes it
+		if (addr == uaeboard_mem_use) {
+			w &= 0xffff;
+			if (w != 0xffff && w != 0) {
+				uae_u32 *m2 = (uae_u32 *)(uaeboard_bank.baseaddr + addr);
+				do_put_mem_long(m2 + 1, uaeboard_demux(m2));
+			}
+		}
+	}
+#if EXP_DEBUG
+	write_log(_T("uaeboard_wput %08x = %04x PC=%08x\n"), addr, w, M68K_GETPC);
+#endif
+}
+
 static void REGPARAM2 uaeboard_lput(uaecptr addr, uae_u32 l)
 {
+	addr -= uaeboard_start & 65535;
+	addr &= 65535;
 	if (addr >= 0x200 + 0x20 && addr < 0x200 + 0x24) {
 		mousehack_write(addr - 0x200, l >> 16);
 		mousehack_write(addr - 0x200 + 2, l);
+	} else if (addr >= UAEBOARD_IO_INTERFACE) {
+		uaeboard_wput(addr, l >> 16);
+		uaeboard_wput(addr + 2, l);
 	}
+#if EXP_DEBUG
 	write_log(_T("uaeboard_lput %08x = %08x PC=%08x\n"), addr, l, M68K_GETPC);
-}
-
-static void REGPARAM2 uaeboard_wput(uaecptr addr, uae_u32 w)
-{
-	if (addr >= 0x200 + 0x20 && addr < 0x200 + 0x24)
-		mousehack_write(addr - 0x200, w);
-	write_log(_T("uaeboard_wput %08x = %04x PC=%08x\n"), addr, w, M68K_GETPC);
+#endif
 }
 
 static void REGPARAM2 uaeboard_bput(uaecptr addr, uae_u32 b)
 {
+	addr -= uaeboard_start & 65535;
+	addr &= 65535;
+	if (addr == uaeboard_mem_use) {
+		uaeboard_io_size = 0;
+		uaeboard_mem_use = 0;
+		uaeboard_io_state = 0;
+	}
+	if (addr >= UAEBOARD_RAM_OFFSET) {
+		uaeboard_bank.baseaddr[addr] = b;
+	}
 #if EXP_DEBUG
 	write_log(_T("uaeboard_bput %x %x\n"), addr, b);
 #endif
 }
-
 
 static addrbank *expamem_map_uaeboard(void)
 {
@@ -1155,7 +1234,7 @@ static addrbank* expamem_init_uaeboard(int devnum)
 	uae_u8 *p = uaeboard_bank.baseaddr;
 
 	expamem_init_clear();
-	expamem_write(0x00, Z2_MEM_64KB | zorroII);
+	expamem_write(0x00, (currprefs.uaeboard > 1 ? Z2_MEM_128KB : Z2_MEM_64KB) | zorroII);
 
 	expamem_write(0x08, no_shutup);
 
@@ -1175,10 +1254,18 @@ static addrbank* expamem_init_uaeboard(int devnum)
 	memcpy(p, expamem, 0x100);
 
 	p += 0x100;
+
 	p[0] = 0x00;
 	p[1] = 0x00;
 	p[2] = 0x02;
 	p[3] = 0x00;
+
+	p[4] = (uae_u8)(UAEBOARD_IO_INTERFACE >> 24);
+	p[5] = (uae_u8)(UAEBOARD_IO_INTERFACE >> 16);
+	p[6] = (uae_u8)(UAEBOARD_IO_INTERFACE >> 8);
+	p[7] = (uae_u8)(UAEBOARD_IO_INTERFACE >> 0);
+	uaeboard_io_state = 0;
+
 	return NULL;
 }
 
@@ -1295,7 +1382,7 @@ static void fastmem_autoconfig(int boardnum, int zorro, uae_u8 type, uae_u32 ser
 	ac[0x04 / 4] = pid;
 	ac[0x08 / 4] = flags;
 	ac[0x10 / 4] = mid >> 8;
-	ac[0x14 / 4] = mid;
+	ac[0x14 / 4] = (uae_u8)mid;
 	ac[0x18 / 4] = serial >> 24;
 	ac[0x1c / 4] = serial >> 16;
 	ac[0x20 / 4] = serial >> 8;
@@ -1451,7 +1538,7 @@ static void add_ks12_boot_hack(void)
 	dl(addr);
 	dl(addr + 26);
 	db(1); // RTF_COLDSTART
-	db(kickstart_version); // version
+	db((uae_u8)kickstart_version); // version
 	db(0); // NT_UNKNOWN
 	db(1); // priority
 	dl(name);
@@ -2184,19 +2271,20 @@ void expamem_reset (void)
 		add_cpu_expansions(BOARD_AUTOCONFIG_Z3);
 
 		if (z3fastmem_bank.baseaddr != NULL) {
+			bool alwaysmapz3 = currprefs.z3_mapping_mode != Z3MAPPING_REAL;
 			z3num = 0;
 			cards[cardno].flags = 2 | 1;
 			cards[cardno].name = _T("Z3Fast");
 			cards[cardno].initnum = expamem_init_z3fastmem;
 			cards[cardno++].map = expamem_map_z3fastmem;
-			if (expamem_z3hack(&currprefs))
+			if (alwaysmapz3 || expamem_z3hack(&currprefs))
 				map_banks_z3(&z3fastmem_bank, z3fastmem_bank.start >> 16, currprefs.z3fastmem_size >> 16);
 			if (z3fastmem2_bank.baseaddr != NULL) {
 				cards[cardno].flags = 2 | 1;
 				cards[cardno].name = _T("Z3Fast2");
 				cards[cardno].initnum = expamem_init_z3fastmem2;
 				cards[cardno++].map = expamem_map_z3fastmem2;
-				if (expamem_z3hack(&currprefs))
+				if (alwaysmapz3 || expamem_z3hack(&currprefs))
 					map_banks_z3(&z3fastmem2_bank, z3fastmem2_bank.start >> 16, currprefs.z3fastmem2_size >> 16);
 			}
 		}
@@ -3582,6 +3670,19 @@ static const struct cpuboardsubtype icboard_sub[] = {
 		NULL
 	}
 };
+static const struct cpuboardsubtype dceboard_sub[] = {
+	{
+		_T("SX32 Pro"),
+		_T("sx32pro"),
+		ROMTYPE_CB_SX32PRO, 0,
+		NULL, 0,
+		BOARD_MEMORY_EMATRIX,
+		64 * 1024 * 1024
+	},
+	{
+		NULL
+	}
+};
 
 static const struct cpuboardsubtype dummy_sub[] = {
 	{ NULL }
@@ -3602,6 +3703,11 @@ const struct cpuboardtype cpuboards[] = {
 		BOARD_COMMODORE,
 		_T("Commodore"),
 		commodore_sub, 0
+	},
+	{
+		BOARD_DCE,
+		_T("DCE"),
+		dceboard_sub, 0
 	},
 	{
 		BOARD_DKB,

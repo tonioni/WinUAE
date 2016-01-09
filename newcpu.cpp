@@ -821,7 +821,7 @@ static void set_x_funcs (void)
 			x_do_cycles_post = do_cycles_ce_post;
 		} else if (currprefs.cpu_memory_cycle_exact) {
 			// cpu_memory_cycle_exact + cpu_compatible
-			x_prefetch = get_word_prefetch;
+			x_prefetch = get_word_000_prefetch;
 			x_get_ilong = NULL;
 			x_get_iword = get_iiword;
 			x_get_ibyte = get_iibyte;
@@ -838,7 +838,7 @@ static void set_x_funcs (void)
 			x_do_cycles_post = do_cycles_post;
 		} else if (currprefs.cpu_compatible) {
 			// cpu_compatible only
-			x_prefetch = get_word_prefetch;
+			x_prefetch = get_word_000_prefetch;
 			x_get_ilong = NULL;
 			x_get_iword = get_iiword;
 			x_get_ibyte = get_iibyte;
@@ -940,7 +940,7 @@ static void set_x_funcs (void)
 		} else if (currprefs.cpu_compatible) {
 			// cpu_compatible only
 			if (currprefs.cpu_model == 68020 && !currprefs.cachesize) {
-				x_prefetch = get_word_prefetch;
+				x_prefetch = get_word_020_prefetch;
 				x_get_ilong = get_long_020_prefetch;
 				x_get_iword = get_word_020_prefetch;
 				x_get_ibyte = NULL;
@@ -956,7 +956,7 @@ static void set_x_funcs (void)
 				x_do_cycles_pre = do_cycles;
 				x_do_cycles_post = do_cycles_post;
 			} else if (currprefs.cpu_model == 68030 && !currprefs.cachesize) {
-				x_prefetch = get_word_prefetch;
+				x_prefetch = get_word_020_prefetch;
 				x_get_ilong = get_long_030_prefetch;
 				x_get_iword = get_word_030_prefetch;
 				x_get_ibyte = NULL;
@@ -3440,11 +3440,21 @@ static void do_trace (void)
 static void check_uae_int_request(void)
 {
 	if (uae_int_requested || uaenet_int_requested) {
-		if ((uae_int_requested & 0x00ff) || uaenet_int_requested)
+		bool irq = false;
+		if ((uae_int_requested & 0x00ff) || uaenet_int_requested) {
 			INTREQ_f(0x8000 | 0x0008);
-		if (uae_int_requested & 0xff00)
+			irq = true;
+		}
+		if (uae_int_requested & 0xff00) {
 			INTREQ_f(0x8000 | 0x2000);
-		set_special(SPCFLAG_INT);
+			irq = true;
+		}
+		if (uae_int_requested & 0xff0000) {
+			if (!cpuboard_is_ppcboard_irq())
+				uae_int_requested &= ~0x010000;
+		}
+		if (irq)
+			set_special(SPCFLAG_INT);
 	}
 }
 
@@ -6862,7 +6872,7 @@ uae_u32 mem_access_delay_wordi_read (uaecptr addr)
 	{
 	case CE_MEMBANK_CHIP16:
 	case CE_MEMBANK_CHIP32:
-		v = wait_cpu_cycle_read (addr, 1);
+		v = wait_cpu_cycle_read (addr, 2);
 		break;
 	case CE_MEMBANK_FAST16:
 	case CE_MEMBANK_FAST32:
@@ -7180,15 +7190,15 @@ uae_u32 mem_access_delay_longi_read_ce020 (uaecptr addr)
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP16:
-		v  = wait_cpu_cycle_read_ce020 (addr + 0, 1) << 16;
-		v |= wait_cpu_cycle_read_ce020 (addr + 2, 1) <<  0;
+		v  = wait_cpu_cycle_read_ce020 (addr + 0, 2) << 16;
+		v |= wait_cpu_cycle_read_ce020 (addr + 2, 2) <<  0;
 		break;
 	case CE_MEMBANK_CHIP32:
 		if ((addr & 3) != 0) {
-			v  = wait_cpu_cycle_read_ce020 (addr + 0, 1) << 16;
-			v |= wait_cpu_cycle_read_ce020 (addr + 2, 1) <<  0;
+			v  = wait_cpu_cycle_read_ce020 (addr + 0, 2) << 16;
+			v |= wait_cpu_cycle_read_ce020 (addr + 2, 2) <<  0;
 		} else {
-			v = wait_cpu_cycle_read_ce020 (addr, -1);
+			v = wait_cpu_cycle_read_ce020 (addr, -2);
 		}
 		break;
 	case CE_MEMBANK_FAST32:

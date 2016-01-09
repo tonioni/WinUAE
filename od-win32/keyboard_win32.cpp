@@ -86,7 +86,7 @@ static struct uae_input_device_kbr_default keytrans_amiga[] = {
 	{ DIK_G, INPUTEVENT_KEY_G },
 	{ DIK_H, INPUTEVENT_KEY_H },
 	{ DIK_I, INPUTEVENT_KEY_I },
-	{ DIK_J, INPUTEVENT_KEY_J },
+	{ DIK_J, INPUTEVENT_KEY_J, 0, INPUTEVENT_SPC_SWAPJOYPORTS, ID_FLAG_QUALIFIER_SPECIAL },
 	{ DIK_K, INPUTEVENT_KEY_K },
 	{ DIK_L, INPUTEVENT_KEY_L },
 	{ DIK_M, INPUTEVENT_KEY_M },
@@ -320,15 +320,12 @@ static int kb_cd32_se[] = { DIK_A, -1, DIK_D, -1, DIK_W, -1, DIK_S, -1, -1, DIK_
 
 static int kb_cdtv[] = { DIK_NUMPAD1, -1, DIK_NUMPAD3, -1, DIK_NUMPAD7, -1, DIK_NUMPAD9, -1, -1 };
 
-static int kb_xa1[] = { DIK_NUMPAD4, -1, DIK_NUMPAD6, -1, DIK_NUMPAD8, -1, DIK_NUMPAD2, DIK_NUMPAD5, -1, DIK_LCONTROL, -1, DIK_LMENU, -1, DIK_SPACE, -1, -1 };
-static int kb_xa2[] = { DIK_D, -1, DIK_G, -1, DIK_R, -1, DIK_F, -1, DIK_A, -1, DIK_S, -1, DIK_Q, -1 };
 static int kb_arcadia[] = { DIK_F2, -1, DIK_1, -1, DIK_2, -1, DIK_5, -1, DIK_6, -1, -1 };
-static int kb_arcadiaxa[] = { DIK_1, -1, DIK_2, -1, DIK_3, -1, DIK_4, -1, DIK_6, -1, DIK_LBRACKET, DIK_LSHIFT, -1, DIK_RBRACKET, -1, DIK_C, -1, DIK_5, -1, DIK_Z, -1, DIK_X, -1, -1 };
 
 static int *kbmaps[] = {
 	kb_np, kb_ck, kb_se, kb_np3, kb_ck3, kb_se3,
 	kb_cd32_np, kb_cd32_ck, kb_cd32_se,
-	kb_xa1, kb_xa2, kb_arcadia, kb_arcadiaxa, kb_cdtv
+	kb_arcadia, kb_cdtv
 };
 
 static bool specialpressed (void)
@@ -389,7 +386,7 @@ static const int np[] = {
 	DIK_NUMPAD3, 3, DIK_NUMPAD4, 4, DIK_NUMPAD5, 5, DIK_NUMPAD6, 6, DIK_NUMPAD7, 7,
 	DIK_NUMPAD8, 8, DIK_NUMPAD9, 9, -1 };
 
-void my_kbd_handler (int keyboard, int scancode, int newstate)
+bool my_kbd_handler (int keyboard, int scancode, int newstate)
 {
 	int code = 0;
 	int scancode_new;
@@ -426,7 +423,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	if (scancode == DIK_F9 && specialpressed ()) {
 		if (newstate)
 			toggle_rtg (-1);
-		return;
+		return true;
 	}
 
 	scancode_new = scancode;
@@ -437,7 +434,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 		int defaultguikey = amode ? DIK_F12 : DIK_NUMLOCK;
 		if (currprefs.win32_guikey >= 0x100) {
 			if (scancode_new == DIK_F12)
-				return;
+				return true;
 		} else if (currprefs.win32_guikey >= 0) {
 			if (scancode_new == defaultguikey && currprefs.win32_guikey != scancode_new) {
 				scancode = 0;
@@ -607,7 +604,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 
 	if (code) {
 		inputdevice_add_inputcode (code, 1);
-		return;
+		return true;
 	}
 
 
@@ -629,10 +626,10 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 
 	if (special) {
 		inputdevice_checkqualifierkeycode (keyboard, scancode, newstate);
-		return;
+		return true;
 	}
 
-	inputdevice_translatekeycode (keyboard, scancode, newstate);
+	return inputdevice_translatekeycode (keyboard, scancode, newstate) != 0;
 }
 
 void keyboard_settrans (void)

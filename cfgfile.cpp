@@ -291,7 +291,6 @@ static const TCHAR *obsolete[] = {
 	_T("gfx_filter_vert_zoom"),_T("gfx_filter_horiz_zoom"),
 	_T("gfx_filter_vert_zoom_mult"), _T("gfx_filter_horiz_zoom_mult"),
 	_T("gfx_filter_vert_offset"), _T("gfx_filter_horiz_offset"),
-	_T("rtg_vert_zoom_multf"), _T("rtg_horiz_zoom_multf"),
 	
 	// created by some buggy beta
 	_T("uaehf0%s,%s"),
@@ -1234,6 +1233,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, _T("config_version"), _T("%d.%d.%d"), UAEMAJOR, UAEMINOR, UAESUBREV);
 	cfgfile_write_str (f, _T("config_hardware_path"), p->config_hardware_path);
 	cfgfile_write_str (f, _T("config_host_path"), p->config_host_path);
+	cfgfile_write_str (f, _T("config_all_path"), p->config_all_path);
 	if (p->config_window_title[0])
 		cfgfile_write_str (f, _T("config_window_title"), p->config_window_title);
 
@@ -1420,12 +1420,12 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		struct jport *jp = &p->jports[i];
 		int v = jp->id;
 		TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
-		if (v == JPORT_CUSTOM) {
-			_tcscpy (tmp2, _T("custom"));
-		} else if (v == JPORT_NONE) {
+		if (v == JPORT_NONE) {
 			_tcscpy (tmp2, _T("none"));
+		} else if (v < JSEM_CUSTOM) {
+			_stprintf(tmp2, _T("kbd%d"), v + 1);
 		} else if (v < JSEM_JOYS) {
-			_stprintf (tmp2, _T("kbd%d"), v + 1);
+			_stprintf(tmp2, _T("custom%d"), v - JSEM_CUSTOM);
 		} else if (v < JSEM_MICE) {
 			_stprintf (tmp2, _T("joy%d"), v - JSEM_JOYS);
 		} else {
@@ -1456,6 +1456,15 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			}
 		}
 	}
+	for (i = 0; i < MAX_JPORTS_CUSTOM; i++) {
+		struct jport_custom *jp = &p->jports_custom[i];
+		if (jp->custom[0]) {
+			TCHAR tmp1[MAX_DPATH];
+			_stprintf(tmp1, _T("joyportcustom%d"), i);
+			cfgfile_write(f, tmp1, jp->custom);
+		}
+	}
+
 	if (p->dongle) {
 		if (p->dongle + 1 >= sizeof (dongles) / sizeof (TCHAR*))
 			cfgfile_write (f, _T("dongle"), _T("%d"), p->dongle);
@@ -2998,28 +3007,41 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}
 
+	if (cfgfile_string(option, value, _T("joyportcustom0"), p->jports_custom[0].custom, sizeof p->jports_custom[0].custom / sizeof(TCHAR)))
+		return 1;
+	if (cfgfile_string(option, value, _T("joyportcustom1"), p->jports_custom[1].custom, sizeof p->jports_custom[1].custom / sizeof(TCHAR)))
+		return 1;
+	if (cfgfile_string(option, value, _T("joyportcustom2"), p->jports_custom[2].custom, sizeof p->jports_custom[2].custom / sizeof(TCHAR)))
+		return 1;
+	if (cfgfile_string(option, value, _T("joyportcustom3"), p->jports_custom[3].custom, sizeof p->jports_custom[3].custom / sizeof(TCHAR)))
+		return 1;
+	if (cfgfile_string(option, value, _T("joyportcustom4"), p->jports_custom[4].custom, sizeof p->jports_custom[4].custom / sizeof(TCHAR)))
+		return 1;
+	if (cfgfile_string(option, value, _T("joyportcustom5"), p->jports_custom[5].custom, sizeof p->jports_custom[5].custom / sizeof(TCHAR)))
+		return 1;
+
 	if (_tcscmp (option, _T("joyportfriendlyname0")) == 0 || _tcscmp (option, _T("joyportfriendlyname1")) == 0) {
-		inputdevice_joyport_config (p, value, _tcscmp (option, _T("joyportfriendlyname0")) == 0 ? 0 : 1, -1, 2, true);
+		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportfriendlyname0")) == 0 ? 0 : 1, -1, 2);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyportfriendlyname2")) == 0 || _tcscmp (option, _T("joyportfriendlyname3")) == 0) {
-		inputdevice_joyport_config (p, value, _tcscmp (option, _T("joyportfriendlyname2")) == 0 ? 2 : 3, -1, 2, true);
+		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportfriendlyname2")) == 0 ? 2 : 3, -1, 2);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyportname0")) == 0 || _tcscmp (option, _T("joyportname1")) == 0) {
-		inputdevice_joyport_config (p, value, _tcscmp (option, _T("joyportname0")) == 0 ? 0 : 1, -1, 1, true);
+		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportname0")) == 0 ? 0 : 1, -1, 1);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyportname2")) == 0 || _tcscmp (option, _T("joyportname3")) == 0) {
-		inputdevice_joyport_config (p, value, _tcscmp (option, _T("joyportname2")) == 0 ? 2 : 3, -1, 1, true);
+		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportname2")) == 0 ? 2 : 3, -1, 1);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyport0")) == 0 || _tcscmp (option, _T("joyport1")) == 0) {
-		inputdevice_joyport_config (p, value, _tcscmp (option, _T("joyport0")) == 0 ? 0 : 1, -1, 0, true);
+		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyport0")) == 0 ? 0 : 1, -1, 0);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyport2")) == 0 || _tcscmp (option, _T("joyport3")) == 0) {
-		inputdevice_joyport_config (p, value, _tcscmp (option, _T("joyport2")) == 0 ? 2 : 3, -1, 0, true);
+		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyport2")) == 0 ? 2 : 3, -1, 0);
 		return 1;
 	}
 	if (cfgfile_strval (option, value, _T("joyport0mode"), &p->jports[0].mode, joyportmodes, 0))
@@ -3038,6 +3060,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	if (cfgfile_strval (option, value, _T("joyport3autofire"), &p->jports[3].autofire, joyaf, 0))
 		return 1;
+
 	if (cfgfile_yesno (option, value, _T("joyport0keyboardoverride"), &vb)) {
 		p->jports[0].nokeyboardoverride = !vb;
 		return 1;
@@ -4726,9 +4749,11 @@ int cfgfile_parse_option (struct uae_prefs *p, const TCHAR *option, TCHAR *value
 		return 1;
 	if (!_tcscmp (option, _T("config_host")))
 		return 1;
+	if (cfgfile_path (option, value, _T("config_all_path"), p->config_all_path, sizeof p->config_all_path / sizeof(TCHAR)))
+		return 1;
 	if (cfgfile_path (option, value, _T("config_hardware_path"), p->config_hardware_path, sizeof p->config_hardware_path / sizeof (TCHAR)))
 		return 1;
-	if (cfgfile_path (option, value, _T("config_host_path"), p->config_host_path, sizeof p->config_host_path / sizeof (TCHAR)))
+	if (cfgfile_path (option, value, _T("config_host_path"), p->config_host_path, sizeof p->config_host_path / sizeof(TCHAR)))
 		return 1;
 	if (type == 0 || (type & CONFIG_TYPE_HARDWARE)) {
 		if (cfgfile_parse_hardware (p, option, value))
@@ -5017,7 +5042,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 	if (real) {
 		p->config_version = 0;
 		config_newfilesystem = 0;
-		store_inputdevice_config (p);
+		inputdevice_config_load_start(p);
 		//reset_inputdevice_config (p);
 	}
 
@@ -5057,7 +5082,8 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 			} else {
 				cfgfile_string (line1b, line2b, _T("config_description"), p->description, sizeof p->description / sizeof (TCHAR));
 				cfgfile_path (line1b, line2b, _T("config_hardware_path"), p->config_hardware_path, sizeof p->config_hardware_path / sizeof (TCHAR));
-				cfgfile_path (line1b, line2b, _T("config_host_path"), p->config_host_path, sizeof p->config_host_path / sizeof (TCHAR));
+				cfgfile_path (line1b, line2b, _T("config_host_path"), p->config_host_path, sizeof p->config_host_path / sizeof(TCHAR));
+				cfgfile_path (line1b, line2b, _T("config_all_path"), p->config_all_path, sizeof p->config_all_path / sizeof(TCHAR));
 				cfgfile_string (line1b, line2b, _T("config_window_title"), p->config_window_title, sizeof p->config_window_title / sizeof (TCHAR));
 			}
 		}
@@ -5109,6 +5135,12 @@ int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ign
 	if (userconfig)
 		target_addtorecent (filename, 0);
 	if (!ignorelink) {
+		if (p->config_all_path[0]) {
+			fetch_configurationpath(tmp, sizeof(tmp) / sizeof(TCHAR));
+			_tcsncat(tmp, p->config_all_path, sizeof(tmp) / sizeof(TCHAR) - _tcslen(tmp) - 1);
+			type2 = CONFIG_TYPE_HOST | CONFIG_TYPE_HARDWARE;
+			cfgfile_load(p, tmp, &type2, 1, 0);
+		}
 		if (p->config_hardware_path[0]) {
 			fetch_configurationpath (tmp, sizeof (tmp) / sizeof (TCHAR));
 			_tcsncat (tmp, p->config_hardware_path, sizeof (tmp) / sizeof (TCHAR) - _tcslen(tmp) - 1);
@@ -6463,7 +6495,7 @@ static void set_68020_compa (struct uae_prefs *p, int compa, int cd32)
 	case 3:
 		p->cpu_compatible = 0;
 		p->address_space_24 = 0;
-		p->cachesize = 8192;
+		p->cachesize = MAX_JIT_CACHE;
 		break;
 	}
 }
@@ -6513,7 +6545,7 @@ static int bip_a3000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	if (compa == 0)
 		p->mmu_model = 68030;
 	else
-		p->cachesize = 8192;
+		p->cachesize = MAX_JIT_CACHE;
 	p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
 	p->cpu_compatible = p->address_space_24 = 0;
 	p->m68k_speed = -1;
@@ -6564,7 +6596,7 @@ static int bip_a4000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->m68k_speed = -1;
 	p->immediate_blits = 0;
 	p->produce_sound = 2;
-	p->cachesize = 8192;
+	p->cachesize = MAX_JIT_CACHE;
 	p->floppyslots[0].dfxtype = DRV_35_HD;
 	p->floppyslots[1].dfxtype = DRV_35_HD;
 	p->floppy_speed = 0;
@@ -6598,7 +6630,7 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->m68k_speed = -1;
 	p->immediate_blits = 0;
 	p->produce_sound = 2;
-	p->cachesize = 8192;
+	p->cachesize = MAX_JIT_CACHE;
 	p->floppyslots[0].dfxtype = DRV_35_HD;
 	p->floppyslots[1].dfxtype = DRV_35_HD;
 	p->floppy_speed = 0;
@@ -6943,7 +6975,7 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->m68k_speed = -1;
 	p->immediate_blits = 1;
 	p->produce_sound = 2;
-	p->cachesize = 8192;
+	p->cachesize = MAX_JIT_CACHE;
 	p->floppyslots[0].dfxtype = DRV_35_HD;
 	p->floppyslots[1].dfxtype = DRV_35_HD;
 	p->floppy_speed = 0;

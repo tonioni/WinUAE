@@ -2978,15 +2978,15 @@ static void resetvars (void)
 		getpc = "m68k_getpci ()";
 	} else if (using_prefetch) {
 		// 68000 prefetch
-		prefetch_word = "get_word_prefetch";
-		prefetch_long = "get_long_prefetch";
-		srcwi = "get_wordi_prefetch";
-		srcl = "get_long_prefetch";
-		dstl = "put_long_prefetch";
-		srcw = "get_word_prefetch";
-		dstw = "put_word_prefetch";
-		srcb = "get_byte_prefetch";
-		dstb = "put_byte_prefetch";
+		prefetch_word = "get_word_000_prefetch";
+		prefetch_long = "get_long_000_prefetch";
+		srcwi = "get_wordi_000";
+		srcl = "get_long_000";
+		dstl = "put_long_000";
+		srcw = "get_word_000";
+		dstw = "put_word_000";
+		srcb = "get_byte_000";
+		dstb = "put_byte_000";
 		getpc = "m68k_getpci ()";
 	} else {
 		// generic + direct

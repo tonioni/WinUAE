@@ -15,17 +15,17 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEPUBLICBETA 0
+#define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
-#define LANG_DLL_FULL_VERSION_MATCH 0
+#define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("")
+#define WINUAEBETA _T("1")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2015, 12, 21)
+#define WINUAEDATE MAKEBD(2016, 1, 9)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -53,7 +53,7 @@ extern TCHAR start_path_exe[MAX_DPATH];
 extern TCHAR start_path_data[MAX_DPATH];
 extern TCHAR start_path_plugins[MAX_DPATH];
 
-extern void my_kbd_handler (int, int, int);
+extern bool my_kbd_handler (int, int, int);
 extern void clearallkeys (void);
 extern int getcapslock (void);
 

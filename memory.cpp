@@ -539,11 +539,6 @@ void REGPARAM2 chipmem_lput (uaecptr addr, uae_u32 l)
 	do_put_mem_long (m, l);
 }
 
-#if 0
-static int tables[256];
-static int told, toldv;
-#endif
-
 void REGPARAM2 chipmem_wput (uaecptr addr, uae_u32 w)
 {
 	uae_u16 *m;
@@ -551,17 +546,6 @@ void REGPARAM2 chipmem_wput (uaecptr addr, uae_u32 w)
 	addr &= chipmem_bank.mask;
 	m = (uae_u16 *)(chipmem_bank.baseaddr + addr);
 	do_put_mem_word (m, w);
-#if 0
-	if (addr == 4) {
-		write_log (_T("*"));
-#if 0
-		if (told)
-			tables[toldv] += hsync_counter - told;
-		told = hsync_counter;
-		toldv = w;
-#endif
-	}
-#endif
 }
 
 void REGPARAM2 chipmem_bput (uaecptr addr, uae_u32 b)
@@ -1026,7 +1010,7 @@ addrbank chipmem_bank = {
 	chipmem_lput, chipmem_wput, chipmem_bput,
 	chipmem_xlate, chipmem_check, NULL, _T("chip"), _T("Chip memory"),
 	chipmem_lget, chipmem_wget,
-	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CHIPRAM, 0, 0
 };
 
 addrbank chipmem_dummy_bank = {
@@ -1034,7 +1018,7 @@ addrbank chipmem_dummy_bank = {
 	chipmem_dummy_lput, chipmem_dummy_wput, chipmem_dummy_bput,
 	default_xlate, dummy_check, NULL, NULL, _T("Dummy Chip memory"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO, S_READ, S_WRITE
+	ABFLAG_IO | ABFLAG_CHIPRAM, S_READ, S_WRITE
 };
 
 
@@ -1044,7 +1028,7 @@ addrbank chipmem_bank_ce2 = {
 	chipmem_lput_ce2, chipmem_wput_ce2, chipmem_bput_ce2,
 	chipmem_xlate, chipmem_check, NULL, NULL, _T("Chip memory (68020 'ce')"),
 	chipmem_lget_ce2, chipmem_wget_ce2,
-	ABFLAG_RAM, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_CHIPRAM, S_READ, S_WRITE
 };
 #endif
 
@@ -1426,12 +1410,26 @@ static bool load_kickstart_replacement (void)
 
 	zfile_fclose (f);
 
-	changed_prefs.custom_memory_addrs[0] = currprefs.custom_memory_addrs[0] = 0xa80000;
-	changed_prefs.custom_memory_sizes[0] = currprefs.custom_memory_sizes[0] = 512 * 1024;
-	changed_prefs.custom_memory_addrs[1] = currprefs.custom_memory_addrs[1] = 0xb00000;
-	changed_prefs.custom_memory_sizes[1] = currprefs.custom_memory_sizes[1] = 512 * 1024;
-
 	seriallog = -1;
+
+	// if 68000-68020 config without any other fast ram with m68k aros: enable special extra RAM.
+	if (currprefs.cpu_model <= 68020 &&
+		currprefs.cachesize == 0 &&
+		currprefs.fastmem_size == 0 &&
+		currprefs.z3fastmem_size == 0 &&
+		currprefs.mbresmem_high_size == 0 &&
+		currprefs.mbresmem_low_size == 0 &&
+		currprefs.cpuboardmem1_size == 0) {
+
+		changed_prefs.custom_memory_addrs[0] = currprefs.custom_memory_addrs[0] = 0xa80000;
+		changed_prefs.custom_memory_sizes[0] = currprefs.custom_memory_sizes[0] = 512 * 1024;
+		changed_prefs.custom_memory_mask[0] = currprefs.custom_memory_mask[0] = 0;
+		changed_prefs.custom_memory_addrs[1] = currprefs.custom_memory_addrs[1] = 0xb00000;
+		changed_prefs.custom_memory_sizes[1] = currprefs.custom_memory_sizes[1] = 512 * 1024;
+		changed_prefs.custom_memory_mask[1] = currprefs.custom_memory_mask[1] = 0;
+
+	}
+
 	return true;
 }
 
@@ -2027,7 +2025,7 @@ static void fill_ce_banks (void)
 	memset(ce_cachable + (a3000lmem_bank.start >> 16), 1 | 2, currprefs.mbresmem_low_size >> 16);
 	memset(ce_cachable + (mem25bit_bank.start >> 16), 1 | 2, currprefs.mem25bit_size >> 16);
 
-	if (&get_mem_bank (0) == &chipmem_bank) {
+	if (get_mem_bank (0).flags & ABFLAG_CHIPRAM) {
 		for (i = 0; i < (0x200000 >> 16); i++) {
 			ce_banktype[i] = (currprefs.cs_mbdmac || (currprefs.chipset_mask & CSMASK_AGA)) ? CE_MEMBANK_CHIP32 : CE_MEMBANK_CHIP16;
 		}
@@ -2044,7 +2042,7 @@ static void fill_ce_banks (void)
 		addrbank *b;
 		ce_banktype[i] = CE_MEMBANK_CIA;
 		b = &get_mem_bank (i << 16);
-		if (b != &cia_bank) {
+		if (!(b->flags & ABFLAG_CIA)) {
 			ce_banktype[i] = CE_MEMBANK_FAST32;
 			ce_cachable[i] = 1;
 		}
@@ -2472,17 +2470,18 @@ void memory_reset (void)
 #endif
 #endif
 
-	if (currprefs.custom_memory_sizes[0]) {
-		map_banks (&custmem1_bank,
-			currprefs.custom_memory_addrs[0] >> 16,
-			currprefs.custom_memory_sizes[0] >> 16, 0);
+	for (int i = 0; i < 2; i++) {
+		if (currprefs.custom_memory_sizes[i]) {
+			map_banks (i == 0 ? &custmem1_bank : &custmem2_bank,
+				currprefs.custom_memory_addrs[i] >> 16,
+				currprefs.custom_memory_sizes[i] >> 16, 0);
+			if (currprefs.custom_memory_mask[i]) {
+				for (int j = currprefs.custom_memory_addrs[i]; j & currprefs.custom_memory_mask[i]; j += currprefs.custom_memory_sizes[i]) {
+					map_banks(i == 0 ? &custmem1_bank : &custmem2_bank, j >> 16, currprefs.custom_memory_sizes[i] >> 16, 0);
+				}
+			}
+		}
 	}
-	if (currprefs.custom_memory_sizes[1]) {
-		map_banks (&custmem2_bank,
-			currprefs.custom_memory_addrs[1] >> 16,
-			currprefs.custom_memory_sizes[1] >> 16, 0);
-	}
-
 
 	if (mem_hardreset) {
 		memory_clear ();
@@ -2785,13 +2784,14 @@ static void ppc_generate_map_banks(addrbank *bank, int start, int size)
 			uae_u32 addr = bankaddr + i;
 			addrbank *ab2 = get_sub_bank(&addr);
 			if (ab2 != ab && ab != NULL) {
-				ppc_map_banks(subbankaddr, (bankaddr + i) - subbankaddr, ab->name, ab->baseaddr, ab == &dummy_bank);
+				ppc_map_banks(subbankaddr, (bankaddr + i) - subbankaddr, ab->name, (ab->flags & ABFLAG_PPCIOSPACE) ? NULL : ab->baseaddr, ab == &dummy_bank);
 				subbankaddr = bankaddr + i;
 			}
 			ab = ab2;
 		}
 	} else {
-		ppc_map_banks(bankaddr, banksize, bank->name, bank->baseaddr, bank == &dummy_bank);
+		// ABFLAG_PPCIOSPACE = map as indirect even if baseaddr is non-NULL
+		ppc_map_banks(bankaddr, banksize, bank->name, (bank->flags & ABFLAG_PPCIOSPACE) ? NULL: bank->baseaddr, bank == &dummy_bank);
 	}
 }
 #endif

@@ -1368,7 +1368,7 @@ static const int msi_cpuboard[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
 #define MIN_M68K_PRIORITY 1
 #define MAX_M68K_PRIORITY 16
 #define MIN_CACHE_SIZE 0
-#define MAX_CACHE_SIZE 8
+#define MAX_CACHE_SIZE 9
 #define MIN_REFRESH_RATE 1
 #define MAX_REFRESH_RATE 10
 #define MIN_SOUND_MEM 0
@@ -2008,8 +2008,8 @@ struct ConfigStruct {
 	FILETIME t;
 };
 
-static TCHAR *configreg[] = { _T("ConfigFile"), _T("ConfigFileHardware"), _T("ConfigFileHost") };
-static TCHAR *configreg2[] = { _T(""), _T("ConfigFileHardware_Auto"), _T("ConfigFileHost_Auto") };
+static const TCHAR *configreg[] = { _T("ConfigFile"), _T("ConfigFileHardware"), _T("ConfigFileHost") };
+static const TCHAR *configreg2[] = { _T(""), _T("ConfigFileHardware_Auto"), _T("ConfigFileHost_Auto") };
 static struct ConfigStruct **configstore;
 static int configstoresize, configstoreallocated, configtype, configtypepanel;
 
@@ -3876,7 +3876,7 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 		if (inputdevice_get_compatibility_input (&workprefs, portnum, &mode, events, &axistable) > 0) {
 			int evtnum;
 			for (int i = 0; (evtnum = events[i]) >= 0; i++) {
-				struct inputevent *evt = inputdevice_get_eventinfo (evtnum);
+				const struct inputevent *evt = inputdevice_get_eventinfo (evtnum);
 				LV_ITEM lvstruct = { 0 };
 				int devnum;
 				int status;
@@ -4033,7 +4033,7 @@ struct miscentry
 	int ival, imask;
 };
 
-static struct miscentry misclist[] = { 
+static const struct miscentry misclist[] = { 
 	{ 0, 1, _T("Untrap = middle button"),  &workprefs.win32_middle_mouse },
 	{ 0, 0, _T("Show GUI on startup"), &workprefs.start_gui },
 	{ 0, 1, _T("Use CTRL-F11 to quit"), &workprefs.win32_ctrl_F11_is_quit },
@@ -4254,7 +4254,7 @@ void InitializeListView (HWND hDlg)
 		listview_column_width[0] = 150;
 		for (i = 0; misclist[i].name; i++) {
 			TCHAR tmpentry[MAX_DPATH], itemname[MAX_DPATH];
-			struct miscentry *me = &misclist[i];
+			const struct miscentry *me = &misclist[i];
 			int type = me->type;
 			bool checked = false;
 
@@ -10131,7 +10131,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			if (nmlistview->hdr.code == LVN_ITEMCHANGED) {
 				int item = nmlistview->iItem;
 				if (item >= 0) {
-					struct miscentry *me = &misclist[item];
+					const struct miscentry *me = &misclist[item];
 					bool checked = (nmlistview->uNewState & LVIS_STATEIMAGEMASK) == 0x2000;
 					if (me->b) {
 						*me->b = checked;
@@ -10346,9 +10346,9 @@ static INT_PTR CALLBACK MiscDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	return MiscDlgProc (hDlg, msg, wParam, lParam);
 }
 
-static int cpu_ids[]   = { IDC_CPU0, IDC_CPU1, IDC_CPU2, IDC_CPU3, IDC_CPU4, IDC_CPU5 };
-static int fpu_ids[]   = { IDC_FPU0, IDC_FPU1, IDC_FPU2, IDC_FPU3 };
-static int trust_ids[] = { IDC_TRUST0, IDC_TRUST1, IDC_TRUST1, IDC_TRUST1 };
+static const int cpu_ids[]   = { IDC_CPU0, IDC_CPU1, IDC_CPU2, IDC_CPU3, IDC_CPU4, IDC_CPU5 };
+static const int fpu_ids[]   = { IDC_FPU0, IDC_FPU1, IDC_FPU2, IDC_FPU3 };
+static const int trust_ids[] = { IDC_TRUST0, IDC_TRUST1, IDC_TRUST1, IDC_TRUST1 };
 
 static void enable_for_cpudlg (HWND hDlg)
 {
@@ -10568,7 +10568,7 @@ static void values_from_cpudlg (HWND hDlg)
 		trust_prev = workprefs.comptrustbyte;
 		workprefs.cachesize = 0;
 	} else if (jitena && !oldcache) {
-		workprefs.cachesize = 8192;
+		workprefs.cachesize = MAX_JIT_CACHE;
 		workprefs.cpu_cycle_exact = false;
 		workprefs.cpu_memory_cycle_exact = false;
 		if (!cachesize_prev)
@@ -13863,9 +13863,10 @@ static void enable_for_portsdlg (HWND hDlg)
 	ew (hDlg, IDC_PS_PARAMS, full_property_sheet && ghostscript_available && isprinter);
 }
 
-static int joys[] = { IDC_PORT0_JOYS, IDC_PORT1_JOYS, IDC_PORT2_JOYS, IDC_PORT3_JOYS };
-static int joysm[] = { IDC_PORT0_JOYSMODE, IDC_PORT1_JOYSMODE, -1, -1 };
-static int joysaf[] = { IDC_PORT0_AF, IDC_PORT1_AF, -1, -1 };
+static const int joys[] = { IDC_PORT0_JOYS, IDC_PORT1_JOYS, IDC_PORT2_JOYS, IDC_PORT3_JOYS };
+static const int joysm[] = { IDC_PORT0_JOYSMODE, IDC_PORT1_JOYSMODE, -1, -1 };
+static const int joysaf[] = { IDC_PORT0_AF, IDC_PORT1_AF, -1, -1 };
+static const int joyremap[] = { IDC_PORT0_REMAP, IDC_PORT1_REMAP, IDC_PORT2_REMAP, IDC_PORT3_REMAP };
 
 static void updatejoyport (HWND hDlg, int changedport)
 {
@@ -13921,9 +13922,11 @@ static void updatejoyport (HWND hDlg, int changedport)
 			for (j = 0; j < inputdevice_get_device_total (IDTYPE_MOUSE); j++, total++)
 				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name (IDTYPE_MOUSE, j));
 		}
-		if (v == JPORT_CUSTOM) {
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)_T("<Custom mapping>"));
-			total++;
+		for (j = 0; j < MAX_JPORTS_CUSTOM; j++, total++) {
+			_stprintf(tmp2, _T("<%s>"), szNone.c_str());
+			inputdevice_parse_jport_custom(&workprefs, j, i, tmp2);
+			_stprintf(tmp, _T("Custom %d: %s"), j + 1, tmp2);
+			SendDlgItemMessage(hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
 
 		idx = inputdevice_getjoyportdevice (i, v);
@@ -13936,6 +13939,8 @@ static void updatejoyport (HWND hDlg, int changedport)
 		SendDlgItemMessage (hDlg, id, CB_SETCURSEL, idx, 0);
 		if (joysaf[i] >= 0)
 			SendDlgItemMessage (hDlg, joysaf[i], CB_SETCURSEL, workprefs.jports[i].autofire, 0);
+
+		ew(hDlg, joyremap[i], idx >= 2);
 	}
 }
 
@@ -13975,18 +13980,19 @@ static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 			if (i < 2)
 				max += inputdevice_get_device_total (IDTYPE_MOUSE);
 			v -= 2;
-			if (v < 0)
+			if (v < 0) {
 				*port = JPORT_NONE;
-			else if (v >= max && prevport == JPORT_CUSTOM)
-				*port = JPORT_CUSTOM;
-			else if (v >= max)
+			} else if (v >= max + MAX_JPORTS_CUSTOM) {
 				*port = JPORT_NONE;
-			else if (v < JSEM_LASTKBD)
+			} else if (v >= max) {
+				*port = JSEM_CUSTOM + v - max;
+			} else if (v < JSEM_LASTKBD) {
 				*port = JSEM_KBDLAYOUT + (int)v;
-			else if (v >= JSEM_LASTKBD + inputdevice_get_device_total (IDTYPE_JOYSTICK))
+			} else if (v >= JSEM_LASTKBD + inputdevice_get_device_total (IDTYPE_JOYSTICK)) {
 				*port = JSEM_MICE + (int)v - inputdevice_get_device_total (IDTYPE_JOYSTICK) - JSEM_LASTKBD;
-			else
+			} else {
 				*port = JSEM_JOYS + (int)v - JSEM_LASTKBD;
+			}
 		}
 		if (idm >= 0) {
 			v = SendDlgItemMessage (hDlg, idm, CB_GETCURSEL, 0, 0L);
@@ -14003,7 +14009,7 @@ static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 			changed = 1;
 	}
 	if (changed)
-		inputdevice_validate_jports (&workprefs, changedport);
+		inputdevice_validate_jports (&workprefs, changedport, NULL);
 }
 
 static int midi2dev (struct midiportinfo **mid, int idx, int def)
@@ -14788,9 +14794,13 @@ static void doinputcustom (HWND hDlg, int newcustom)
 		&flags, &port, NULL, custom1, input_selected_sub_num);
 	if (_tcslen (custom1) > 0 || newcustom) {
 		if (askinputcustom (hDlg, custom1, sizeof custom1 / sizeof (TCHAR), IDS_SB_CUSTOMEVENT)) {
-			if (custom1[0])
-			inputdevice_set_mapping (input_selected_device, input_selected_widget,
-				NULL, custom1, flags, port, input_selected_sub_num);
+			if (custom1[0]) {
+				inputdevice_set_mapping (input_selected_device, input_selected_widget,
+					NULL, custom1, flags, port, input_selected_sub_num);
+			} else {
+				inputdevice_set_mapping(input_selected_device, input_selected_widget,
+					NULL, NULL, 0, -1, input_selected_sub_num);
+			}
 		}
 	}
 }
@@ -15045,6 +15055,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 					}
 				}
 				inputmap_remap_event = 0;
+				inputdevice_generate_jport_custom(&workprefs, inputmap_port);
 				InitializeListView (myDlg);
 				input_find (hDlg, myDlg, 0, FALSE, false);
 				return;
@@ -15165,6 +15176,9 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 //				write_log (_T("%d %d %d\n"), input_selected_device, input_selected_widget, evtnum);
 				if (evtnum >= 0)
 					inputdevice_set_gameports_mapping (&workprefs, input_selected_device, input_selected_widget, evtnum, 0, inputmap_port, workprefs.input_selected_setting);
+
+				inputdevice_generate_jport_custom(&workprefs, inputmap_port);
+
 				InitializeListView (hDlg);
 				inputmap_remap_counter++;
 				if (inputmap_remap_counter >= max || inputmap_oneshot) {
@@ -15309,7 +15323,7 @@ static void input_find (HWND hDlg, HWND mainDlg, int mode, int set, bool oneshot
 		inputmap_oneshot = oneshot;
 		inputmap_disable (hDlg, true);
 		inputdevice_settest (TRUE);
-		inputdevice_acquire (-1);
+		inputdevice_acquire (mode ? -1 : -2);
 		TCHAR tmp2[MAX_DPATH];
 		GetWindowText (guiDlg, tmp, sizeof tmp / sizeof (TCHAR));
 		WIN32GUI_LoadUIString (IDS_REMAPTITLE, tmp2, sizeof tmp2 / sizeof (TCHAR));
@@ -15438,7 +15452,7 @@ static void fillinputmapadd (HWND hDlg)
 	int evt = 1;
 	for (;;) {
 		bool ignore = false;
-		struct inputevent *ie = inputdevice_get_eventinfo (evt);
+		const struct inputevent *ie = inputdevice_get_eventinfo (evt);
 		if (!ie)
 			break;
 		if (_tcslen (ie->name) == 0) {
@@ -15482,10 +15496,11 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		fillinputmapadd (hDlg);
 		inputdevice_updateconfig (NULL, &workprefs);
 		InitializeListView (hDlg);
-		if (workprefs.jports[inputmap_port].id != JPORT_CUSTOM) {
-			ew (hDlg, IDC_INPUTMAP_CAPTURE, FALSE);
-			ew (hDlg, IDC_INPUTMAP_DELETE, FALSE);
-			ew (hDlg, IDC_INPUTMAP_CUSTOM, FALSE);
+		if (!JSEM_ISCUSTOM(inputmap_port, &workprefs)) {
+			ew(hDlg, IDC_INPUTMAP_CAPTURE, FALSE);
+			ew(hDlg, IDC_INPUTMAP_DELETE, FALSE);
+			ew(hDlg, IDC_INPUTMAP_DELETEALL, FALSE);
+			ew(hDlg, IDC_INPUTMAP_CUSTOM, FALSE);
 		}
 		break;
 	}
@@ -15507,7 +15522,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 					if (lv->iItem >= 0) {
 						inputmap_selected = lv->iItem;
 						inputmap_remap_counter = getremapcounter (lv->iItem);
-						if (workprefs.jports[inputmap_port].id == JPORT_CUSTOM) {
+						if (JSEM_ISCUSTOM(inputmap_port, &workprefs)) {
 							input_find (hDlg, hDlg, 1, true, true);
 						}
 					}
@@ -15545,39 +15560,36 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			if (inputmap_remap_counter < 0)
 				inputmap_remap_counter = 0;
 			inputmap_port_remap = inputmap_port;
-			if (workprefs.jports[inputmap_port].id != JPORT_CUSTOM) {
-				inputdevice_compa_prepare_custom (&workprefs, inputmap_port, -1, false);
-				inputdevice_updateconfig (NULL, &workprefs);
-				InitializeListView (hDlg);
-			}
+			inputdevice_compa_prepare_custom (&workprefs, inputmap_port, -1, false);
+			inputdevice_updateconfig (NULL, &workprefs);
+			InitializeListView (hDlg);
 			ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
 			ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
 			ListView_SetItemState (h, inputmap_remap_counter, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
 			input_find (hDlg, hDlg, 1, true, false);
 			break;
 			case IDC_INPUTMAP_CUSTOM:
-			if (workprefs.jports[inputmap_port].id == JPORT_CUSTOM) {
-				tmp[0] = 0;
-				SendDlgItemMessage (hDlg, IDC_INPUTMAPADD, WM_GETTEXT, (WPARAM)sizeof tmp / sizeof (TCHAR), (LPARAM)tmp);
-				i = 1;
-				for (;;) {
-					struct inputevent *ie = inputdevice_get_eventinfo (i);
-					if (!ie)
-						break;
-					if (_tcslen (ie->name) > 0 && !_tcsicmp (tmp, ie->name)) {
-						inputmap_remap_counter = -2;
-						inputmap_remap_event = i;
-						inputmap_port_remap = inputmap_port;
-						input_find (hDlg, hDlg, 1, true, false);
-						break;
-					}
-					i++;
+			tmp[0] = 0;
+			SendDlgItemMessage (hDlg, IDC_INPUTMAPADD, WM_GETTEXT, (WPARAM)sizeof tmp / sizeof (TCHAR), (LPARAM)tmp);
+			i = 1;
+			for (;;) {
+				const struct inputevent *ie = inputdevice_get_eventinfo (i);
+				if (!ie)
+					break;
+				if (_tcslen (ie->name) > 0 && !_tcsicmp (tmp, ie->name)) {
+					inputmap_remap_counter = -2;
+					inputmap_remap_event = i;
+					inputmap_port_remap = inputmap_port;
+					input_find (hDlg, hDlg, 1, true, false);
+					break;
 				}
+				i++;
 			}
 			break;
 			case IDC_INPUTMAP_DELETE:
-			if (workprefs.jports[inputmap_port].id == JPORT_CUSTOM) {
+			if (JSEM_ISCUSTOM(inputmap_port, &workprefs)) {
 				update_listview_inputmap (hDlg, inputmap_selected);
+				inputdevice_generate_jport_custom(&workprefs, inputmap_port);
 				InitializeListView (hDlg);
 			}
 			break;
@@ -15646,7 +15658,7 @@ static void input_togglesetmode (void)
 	evtnum = inputdevice_get_mapping (input_selected_device, input_selected_widget,
 		&flags, NULL, name, custom, input_selected_sub_num);
 	if (evtnum) {
-		struct inputevent *evt = inputdevice_get_eventinfo (evtnum);
+		const struct inputevent *evt = inputdevice_get_eventinfo (evtnum);
 		if (evt && (evt->allow_mask & AM_SETTOGGLE)) {
 			if ((flags & (IDEV_MAPPED_SET_ONOFF | IDEV_MAPPED_SET_ONOFF_VAL)) == (IDEV_MAPPED_SET_ONOFF | IDEV_MAPPED_SET_ONOFF_VAL)) {
 				flags &= ~(IDEV_MAPPED_SET_ONOFF | IDEV_MAPPED_SET_ONOFF_VAL);
@@ -18983,7 +18995,9 @@ int gui_init (void)
 	int ret;
 
 	read_rom_list ();
-	inputdevice_updateconfig (NULL, &workprefs);
+	default_prefs(&workprefs, 0);
+	prefs_to_gui(&changed_prefs);
+	inputdevice_updateconfig(NULL, &workprefs);
 	for (;;) {
 		ret = GetSettings (1, currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL);
 		if (!restart_requested)

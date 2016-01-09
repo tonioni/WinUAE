@@ -33,6 +33,9 @@
 #include "scsi.h"
 #include "cpummu030.h"
 
+// 00F83B7C 3.1 ROM expansion board diagrom
+
+#define PPC_IRQ_DEBUG 0
 #define CPUBOARD_IO_LOG 0
 #define CPUBOARD_IRQ_LOG 0
 
@@ -165,6 +168,9 @@ static void set_ppc_interrupt(void)
 {
 	if (ppc_irq_pending)
 		return;
+#if PPC_IRQ_DEBUG
+	write_log(_T("set_ppc_interrupt\n"));
+#endif
 	uae_ppc_interrupt(true);
 	ppc_irq_pending = true;
 }
@@ -172,6 +178,9 @@ static void clear_ppc_interrupt(void)
 {
 	if (!ppc_irq_pending)
 		return;
+#if PPC_IRQ_DEBUG
+	write_log(_T("clear_ppc_interrupt\n"));
+#endif
 	uae_ppc_interrupt(false);
 	ppc_irq_pending = false;
 }
@@ -298,6 +307,10 @@ static bool is_apollo(void)
 static bool is_kupke(void)
 {
 	return ISCPUBOARD(BOARD_KUPKE, 0);
+}
+static bool is_sx32pro(void)
+{
+	return ISCPUBOARD(BOARD_DCE, 0);
 }
 static bool is_aca500(void)
 {
@@ -855,13 +868,33 @@ static void cyberstormmk1_copymaprom(void)
 	}
 }
 
+bool cpuboard_is_ppcboard_irq(void)
+{
+	if (is_csmk3() || is_blizzardppc()) {
+		if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_SCSI_EN | P5_IRQ_SCSI))) {
+			return true;
+		} else if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_PPC_1 | P5_IRQ_PPC_2))) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void cpuboard_rethink(void)
 {
 	if (is_csmk3() || is_blizzardppc()) {
 		if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_SCSI_EN | P5_IRQ_SCSI))) {
 			INTREQ_0(0x8000 | 0x0008);
+			if (currprefs.cachesize)
+				uae_int_requested |= 0x010000;
+			uae_ppc_wakeup_main();
 		} else if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_PPC_1 | P5_IRQ_PPC_2))) {
 			INTREQ_0(0x8000 | 0x0008);
+			if (currprefs.cachesize)
+				uae_int_requested |= 0x010000;
+			uae_ppc_wakeup_main();
+		} else {
+			uae_int_requested &= ~0x010000;
 		}
 		check_ppc_int_lvl();
 		ppc_interrupt(intlev());
@@ -1186,6 +1219,11 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 					if (regval != oldval)
 						write_log(_T("CS: interrupt level: %02x\n"), regval);
 #endif
+				} else if (addr == CSIII_REG_IRQ) {
+#if CPUBOARD_IRQ_LOG > 0
+					if (regval != oldval)
+						write_log(_T("CS: IRQ: %02x\n"), regval);
+#endif
 				} else if (addr == CSIII_REG_SHADOW) {
 					if (is_csmk3() && ((oldval ^ regval) & 1)) {
 						maprom_state = (regval & 1) ? 0 : 1;
@@ -1447,7 +1485,13 @@ void cpuboard_init(void)
 
 	cpuboard_size = currprefs.cpuboardmem1_size;
 
-	if (is_aca500()) {
+	if (is_kupke() || is_mtec_ematrix530() || is_sx32pro()) {
+		// plain 64k autoconfig, nothing else.
+		blizzardea_bank.allocated = 65536;
+		blizzardea_bank.mask = blizzardea_bank.allocated - 1;
+		mapped_malloc(&blizzardea_bank);
+
+	} else if (is_aca500()) {
 
 		blizzardf0_bank.start = 0x00f00000;
 		blizzardf0_bank.allocated = 524288;
@@ -1481,12 +1525,6 @@ void cpuboard_init(void)
 		blizzardf0_bank.allocated = 65536;
 		blizzardf0_bank.mask = blizzardf0_bank.allocated - 1;
 		mapped_malloc(&blizzardf0_bank);
-
-	} else if (is_kupke() || is_mtec_ematrix530()) {
-
-		blizzardea_bank.allocated = 65536;
-		blizzardea_bank.mask = blizzardea_bank.allocated - 1;
-		mapped_malloc(&blizzardea_bank);
 
 	} else if (is_apollo()) {
 
@@ -1710,42 +1748,30 @@ void cpuboard_clear(void)
 		memset(blizzardf0_bank.baseaddr + 0x40000, 0, 0x10000);
 }
 
-static uaecptr cpuboardfakeres_init, cpuboardfakeres_name, cpuboardfakeres_id, base;
+// Adds resource resident that CSPPC/BPPC flash updater checks.
 
-#if 0
-uaecptr cpuboardfakeresident_startup (uaecptr resaddr)
-{
-	if (!cpuboardfakeres_name)
-		return resaddr;
-	put_word (resaddr + 0x0, 0x4AFC);
-	put_long (resaddr + 0x2, resaddr);
-	put_long (resaddr + 0x6, resaddr + 0x1A);
-	put_word (resaddr + 0xA, 0x0201);
-	put_word (resaddr + 0xC, 0x0078);
-	put_long (resaddr + 0xE, cpuboardfakeres_name);
-	put_long (resaddr + 0x12, cpuboardfakeres_id);
-	put_long (resaddr + 0x16, cpuboardfakeres_init);
-	resaddr += 0x1A;
-	return resaddr;
-}
+#define FAKEPPCROM_OFFSET 32
+static const uae_u8 fakeppcrom[] = {
+	// struct Resident
+	0x4a, 0xfc,
+	0x00, 0xf0, 0x00, FAKEPPCROM_OFFSET,
+	0x00, 0xf0, 0x01, 0x00,
+	0x02, 0x01, 0x00, 0x78,
+	0x00, 0xf0, 0x00, FAKEPPCROM_OFFSET + 30,
+	0x00, 0xf0, 0x00, FAKEPPCROM_OFFSET + 30,
+	0x00, 0xf0, 0x00, FAKEPPCROM_OFFSET + 26,
+	// moveq #0,d0; rts
+	0x70, 0x00, 0x4e, 0x75
+};
+static const char fakeppcromtxt_cs[] = { "CyberstormPPC.IDTag" };
+static const char fakeppcromtxt_bz[] = { "BlizzardPPC.IDTag" };
 
-void cpuboardfakeres_install (void)
+static void makefakeppcrom(uae_u8 *rom, int type)
 {
-	cpuboardfakeres_name = NULL;
-	if (ISCPUBOARD(BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_PPC)) {
-		cpuboardfakeres_name = ds (_T("CyberstormMK3.IDTag"));
-	} else if (ISCPUBOARD(BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_MK3)) {
-		cpuboardfakeres_name = ds (_T("CyberstormPPC.IDTag"));
-	}
-	if (cpuboardfakeres_name) {
-		cpuboardfakeres_init = here();
-		dw(0x4e71);
-		dw(0x7000);
-		dw(0x4e75);
-		cpuboardfakeres_id = cpuboardfakeres_name;
-	}
+	memcpy(rom + FAKEPPCROM_OFFSET, fakeppcrom, sizeof fakeppcrom);
+	const char *txt = type ? fakeppcromtxt_bz : fakeppcromtxt_cs;
+	memcpy(rom + FAKEPPCROM_OFFSET + sizeof fakeppcrom, txt, strlen(txt) + 1);
 }
-#endif
 
 bool is_ppc_cpu(struct uae_prefs *p)
 {
@@ -1883,10 +1909,7 @@ static void fixserial(uae_u8 *rom, int size)
 	int seroffset = 17, longseroffset = 24;
 	uae_u32 serialnum = 0x1234;
 	char serial[10];
-
-#if 0
-	return;
-#endif
+	int type = -1;
 
 	if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_PPC)) {
 		value1 = 'I';
@@ -1899,12 +1922,14 @@ static void fixserial(uae_u8 *rom, int size)
 			value3 = 'A';
 		seroffset = 19;
 		sprintf(serial, "%04X", serialnum);
+		type = 1;
 	} else if (ISCPUBOARD(BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_PPC)) {
 		value1 = 'D';
 		value2 = 'B';
 		sprintf(serial, "%05X", serialnum);
 		value3 = 0;
 		seroffset = 18;
+		type = 0;
 	} else if (ISCPUBOARD(BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_MK3)) {
 		value1 = 'F';
 		sprintf(serial, "%05X", serialnum);
@@ -1927,6 +1952,9 @@ static void fixserial(uae_u8 *rom, int size)
 			rom[longseroffset + 3] = serialnum >>  0;
 		}
 	}
+
+	if (type >= 0 && rom[0] == 0 && rom[1] == 0)
+		makefakeppcrom(rom, type);
 }
 
 static struct zfile *flashfile_open(const TCHAR *name)
@@ -2153,6 +2181,10 @@ addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 			roms[0] = 126;
 		break;
 
+		case BOARD_DCE:
+			roms[0] = 160;
+		break;
+
 		default:
 			return &expamem_null;
 	}
@@ -2215,7 +2247,15 @@ addrbank *cpuboard_autoconfig_init(struct romconfig *rc)
 
 	protect_roms(false);
 	cpuboard_non_byte_ea = true;
-	if (is_mtec_ematrix530()) {
+	if (is_sx32pro()) {
+		earom_size = 65536;
+		for (int i = 0; i < 32768; i++) {
+			uae_u8 b = 0xff;
+			zfile_fread(&b, 1, 1, autoconfig_rom);
+			blizzardea_bank.baseaddr[i * 2 + 0] = b;
+			blizzardea_bank.baseaddr[i * 2 + 1] = 0xff;
+		}
+	} else if (is_mtec_ematrix530()) {
 		earom_size = 65536;
 		for (int i = 0; i < 32768; i++) {
 			uae_u8 b = 0xff;

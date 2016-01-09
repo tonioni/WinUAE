@@ -43,6 +43,7 @@ void uae_ppc_hsync_handler(void);
 void uae_ppc_wakeup(void);
 void ppc_map_banks(uae_u32, uae_u32, const TCHAR*, void*, bool);
 bool uae_self_is_ppc(void);
+void uae_ppc_wakeup_main(void);
 
 void uae_ppc_execute_quick(void);
 void uae_ppc_execute_check(void);

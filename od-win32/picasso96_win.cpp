@@ -686,7 +686,7 @@ static bool rtg_render (void)
 		if (uaegfx) {
 			flushed = picasso_flushpixels (gfxmem_bank.start + natmem_offset, picasso96_state.XYOffset - gfxmem_bank.start);
 		} else {
-			gfxboard_vsync_handler ();
+			flushed = gfxboard_vsync_handler ();
 		}
 	}
 	return flushed;

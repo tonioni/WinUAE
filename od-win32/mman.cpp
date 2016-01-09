@@ -892,6 +892,10 @@ void protect_roms (bool protect)
 			write_log (_T("protect_roms VP %08lX - %08lX %x (%dk) failed %d\n"),
 				(uae_u8*)shm->attached - natmem_offset, (uae_u8*)shm->attached - natmem_offset + shm->size,
 				shm->size, shm->size >> 10, GetLastError ());
+		} else {
+			write_log(_T("ROM VP %08lX - %08lX %x (%dk) %s\n"),
+				(uae_u8*)shm->attached - natmem_offset, (uae_u8*)shm->attached - natmem_offset + shm->size,
+				shm->size, shm->size >> 10, protect ? _T("WPROT") : _T("UNPROT"));
 		}
 	}
 }

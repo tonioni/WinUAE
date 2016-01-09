@@ -767,14 +767,18 @@ static void a2410_rethink(void)
 		INTREQ_0(0x8000 | 0x0008);
 }
 
-void tms_vsync_handler(void)
+bool tms_vsync_handler(void)
 {
+	bool flushed = false;
 	if (!a2410_enabled)
 		tms_vsync_handler2(false);
 
-	if (a2410_surface)
+	if (a2410_surface) {
 		gfx_unlock_picasso(false);
+		flushed = true;
+	}
 	a2410_surface = NULL;
+	return flushed;
 }
 
 static void tms_hsync_handler2(void)

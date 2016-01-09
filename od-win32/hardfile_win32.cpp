@@ -1218,6 +1218,10 @@ static void generatestorageproperty (struct uae_driveinfo *udi, int ignoreduplic
 	_stprintf (udi->device_name, _T("%s"), udi->device_path);
 	udi->removablemedia = 1;
 }
+static bool validoffset(ULONG offset, ULONG max)
+{
+	return offset > 0 && offset < max;
+}
 
 static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_driveinfo *udi, int ignoreduplicates)
 {
@@ -1225,10 +1229,11 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 	TCHAR orgname[1024];
 	PUCHAR p;
 	int i, j;
-	int size;
+	ULONG size, size2;
 
 	devDesc = (PSTORAGE_DEVICE_DESCRIPTOR) outBuf;
 	size = devDesc->Version;
+	size2 = devDesc->Size > returnedLength ? returnedLength : devDesc->Size;
 	p = (PUCHAR) outBuf;
 	if (offsetof(STORAGE_DEVICE_DESCRIPTOR, CommandQueueing) > size) {
 		write_log (_T("too short STORAGE_DEVICE_DESCRIPTOR only %d bytes\n"), size);
@@ -1238,22 +1243,22 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 		write_log (_T("not a direct access device, ignored (type=%d)\n"), devDesc->DeviceType);
 		return -2;
 	}
-	if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, VendorIdOffset) && devDesc->VendorIdOffset && p[devDesc->VendorIdOffset]) {
+	if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, VendorIdOffset) && validoffset(devDesc->VendorIdOffset, size2) && p[devDesc->VendorIdOffset]) {
 		j = 0;
 		for (i = devDesc->VendorIdOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
 			udi->vendor_id[j++] = p[i];
 	}
-	if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, ProductIdOffset) && devDesc->ProductIdOffset && p[devDesc->ProductIdOffset]) {
+	if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, ProductIdOffset) && validoffset(devDesc->ProductIdOffset, size2) && p[devDesc->ProductIdOffset]) {
 		j = 0;
 		for (i = devDesc->ProductIdOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
 			udi->product_id[j++] = p[i];
 	}
-	if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, ProductRevisionOffset) && devDesc->ProductRevisionOffset && p[devDesc->ProductRevisionOffset]) {
+	if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, ProductRevisionOffset) && validoffset(devDesc->ProductRevisionOffset, size2) && p[devDesc->ProductRevisionOffset]) {
 		j = 0;
 		for (i = devDesc->ProductRevisionOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
 			udi->product_rev[j++] = p[i];
 	}
-	if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, SerialNumberOffset) && devDesc->SerialNumberOffset && p[devDesc->SerialNumberOffset]) {
+	if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, SerialNumberOffset) && validoffset(devDesc->SerialNumberOffset, size2) && p[devDesc->SerialNumberOffset]) {
 		j = 0;
 		for (i = devDesc->SerialNumberOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
 			udi->product_serial[j++] = p[i];
@@ -1299,6 +1304,25 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 		}
 	}
 	return -1;
+}
+
+static void checkhdname(struct uae_driveinfo *udi)
+{
+	int cnt = 1;
+	int off = _tcslen(udi->device_name);
+	TCHAR tmp[MAX_DPATH];
+	_tcscpy(tmp, udi->device_name);
+	udi->device_name[0] = 0;
+	for (;;) {
+		if (isharddrive(tmp) < 0) {
+			_tcscpy(udi->device_name, tmp);
+			return;
+		}
+		tmp[off] = '_';
+		tmp[off + 1] = cnt + '0';
+		tmp[off + 2] = 0;
+		cnt++;
+	}
 }
 
 static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWORD *index2, uae_u8 *buffer, int ignoreduplicates)
@@ -1394,7 +1418,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	}
 	udi = &uae_drives[udiindex < 0 ? *index2 : udiindex];
 	memcpy (udi, &tmpudi, sizeof (struct uae_driveinfo));
-
+	struct uae_driveinfo *udi2 = udi;
 
 	_tcscpy (orgname, udi->device_name);
 	udi->bytespersector = 512;
@@ -1482,7 +1506,6 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	}
 	dli = (DRIVE_LAYOUT_INFORMATION*)outBuf;
 	if (dli->PartitionCount) {
-		struct uae_driveinfo *udi2 = udi;
 		int nonzeropart = 0;
 		int gotpart = 0;
 		int safepart = 0;
@@ -1502,16 +1525,18 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 				write_log (_T("type not 0x76 or 0x30\n"));
 				continue;
 			}
+			udi++;
+			(*index2)++;
 			memmove (udi, udi2, sizeof (*udi));
 			udi->device_name[0] = 0;
 			udi->offset = pi->StartingOffset.QuadPart;
 			udi->size = pi->PartitionLength.QuadPart;
 			write_log (_T("used\n"));
 			_stprintf (udi->device_name, _T(":P#%d_%s"), pi->PartitionNumber, orgname);
+			_stprintf(udi->device_full_path, _T("%s:%s"), udi->device_name, udi->device_path);
+			checkhdname(udi);
 			udi->dangerous = -5;
 			udi->partitiondrive = true;
-			udi++;
-			(*index2)++;
 			safepart = 1;
 			gotpart = 1;
 		}
@@ -1531,17 +1556,10 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			goto end;
 	}
 amipartfound:
-	_stprintf (udi->device_name, _T(":%s"), orgname);
-	_stprintf (udi->device_full_path, _T("%s:%s"), udi->device_name, udi->device_path);
+	_stprintf (udi2->device_name, _T(":%s"), orgname);
+	_stprintf (udi2->device_full_path, _T("%s:%s"), udi2->device_name, udi2->device_path);
+	checkhdname(udi2);
 	if (udiindex < 0) {
-		int cnt = 1;
-		int off = _tcslen (udi->device_name);
-		while (isharddrive (udi->device_name) >= 0) {
-			udi->device_name[off] = '_';
-			udi->device_name[off + 1] = cnt + '0';
-			udi->device_name[off + 2] = 0;
-			cnt++;
-		}
 		(*index2)++;
 	}
 end:
@@ -1742,17 +1760,18 @@ int hdf_getnumharddrives (void)
 
 TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangerousdrive)
 {
+	struct uae_driveinfo *udi = &uae_drives[index];
 	static TCHAR name[512];
 	TCHAR tmp[32];
-	uae_u64 size = uae_drives[index].size;
-	int nomedia = uae_drives[index].nomedia;
+	uae_u64 size = udi->size;
+	int nomedia = udi->nomedia;
 	TCHAR *dang = _T("?");
 	TCHAR *rw = _T("RW");
 	bool noaccess = false;
 
 	if (dangerousdrive)
 		*dangerousdrive = 0;
-	switch (uae_drives[index].dangerous)
+	switch (udi->dangerous)
 	{
 	case -10:
 		dang = _T("[???]");
@@ -1793,7 +1812,7 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 		if (dangerousdrive)
 			*dangerousdrive = -1;
 		if (flags & 1) {
-			_stprintf (name, _T("[ACCESS DENIED] %s"), uae_drives[index].device_name + 1);
+			_stprintf (name, _T("[ACCESS DENIED] %s"), udi->device_name + 1);
 			return name;
 		}
 	} else {
@@ -1803,14 +1822,14 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 				*dangerousdrive &= ~1;
 		}
 
-		if (uae_drives[index].readonly) {
+		if (udi->readonly) {
 			rw = _T("RO");
 			if (dangerousdrive && !nomedia)
 				*dangerousdrive |= 2;
 		}
 
 		if (sectorsize)
-			*sectorsize = uae_drives[index].bytespersector;
+			*sectorsize = udi->bytespersector;
 		if (flags & 1) {
 			if (nomedia) {
 				_tcscpy (tmp, _T("N/A"));
@@ -1822,15 +1841,15 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 				else
 					_stprintf (tmp, _T("%.1fM"), ((double)(uae_u32)(size / (1024))) / 1024.0);
 			}
-			_stprintf (name, _T("%10s [%s,%s] %s"), dang, tmp, rw, uae_drives[index].device_name + 1);
+			_stprintf (name, _T("%10s [%s,%s] %s"), dang, tmp, rw, udi->device_name + 1);
 			return name;
 		}
 	}
 	if (flags & 4)
-		return uae_drives[index].device_full_path;
+		return udi->device_full_path;
 	if (flags & 2)
-		return uae_drives[index].device_path;
-	return uae_drives[index].device_name;
+		return udi->device_path;
+	return udi->device_name;
 }
 
 static int hmc (struct hardfiledata *hfd)

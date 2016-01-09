@@ -108,6 +108,15 @@ static void getconsole (void)
 	}
 }
 
+static void flushmsgpump(void)
+{
+	MSG msg;
+	while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+}
+
 void activate_console (void)
 {
 	if (!consoleopen)
@@ -350,6 +359,7 @@ void console_out (const TCHAR *txt)
 
 bool console_isch (void)
 {
+	flushmsgpump();
 	if (console_buffer) {
 		return 0;
 	} else if (realconsole) {
@@ -364,6 +374,7 @@ bool console_isch (void)
 
 TCHAR console_getch (void)
 {
+	flushmsgpump();
 	if (console_buffer) {
 		return 0;
 	} else if (realconsole) {
@@ -386,6 +397,7 @@ int console_get (TCHAR *out, int maxlen)
 {
 	*out = 0;
 
+	flushmsgpump();
 	set_console_input_mode(1);
 	if (consoleopen > 0) {
 		return console_get_gui (out, maxlen);

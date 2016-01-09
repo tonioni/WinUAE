@@ -11,6 +11,7 @@
 #define MOUSECLIP_LOG 0
 #define MOUSECLIP_HIDE 1
 #define TOUCH_SUPPORT 1
+#define TOUCH_DEBUG 1
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -182,6 +183,8 @@ static int timermode, timeon;
 static int timehandlecounter;
 static HANDLE timehandle[MAX_TIMEHANDLES];
 static bool timehandleinuse[MAX_TIMEHANDLES];
+static HANDLE cpu_wakeup_event;
+static volatile bool cpu_wakeup_event_triggered;
 int sleep_resolution;
 static CRITICAL_SECTION cs_time;
 
@@ -252,9 +255,18 @@ static int init_mmtimer (void)
 	sleep_resolution = 1000 / mm_timerres;
 	for (i = 0; i < MAX_TIMEHANDLES; i++)
 		timehandle[i] = CreateEvent (NULL, TRUE, FALSE, NULL);
+	cpu_wakeup_event = CreateEvent(NULL, FALSE, FALSE, NULL);
 	InitializeCriticalSection (&cs_time);
 	timehandlecounter = 0;
 	return 1;
+}
+
+void sleep_cpu_wakeup(void)
+{
+	if (!cpu_wakeup_event_triggered) {
+		cpu_wakeup_event_triggered = true;
+		SetEvent(cpu_wakeup_event);
+	}
 }
 
 static void sleep_millis2 (int ms, bool main)
@@ -263,8 +275,12 @@ static void sleep_millis2 (int ms, bool main)
 	int start = 0;
 	int cnt;
 
-	if (main)
+	if (main) {
+		if (WaitForSingleObject(cpu_wakeup_event, 0) == WAIT_OBJECT_0) {
+			return;
+		}
 		start = read_processor_time ();
+	}
 	EnterCriticalSection (&cs_time);
 	for (;;) {
 		timehandlecounter++;
@@ -278,7 +294,15 @@ static void sleep_millis2 (int ms, bool main)
 	}
 	LeaveCriticalSection (&cs_time);
 	TimerEvent = timeSetEvent (ms, 0, (LPTIMECALLBACK)timehandle[cnt], 0, TIME_ONESHOT | TIME_CALLBACK_EVENT_SET);
-	WaitForSingleObject (timehandle[cnt], ms);
+	if (main) {
+		HANDLE evt[2];
+		evt[0] = timehandle[cnt];
+		evt[1] = cpu_wakeup_event;
+		DWORD status = WaitForMultipleObjects(2, evt, FALSE, ms);
+		cpu_wakeup_event_triggered = false;
+	} else {
+		WaitForSingleObject(timehandle[cnt], ms);
+	}
 	ResetEvent (timehandle[cnt]);
 	timeKillEvent (TimerEvent);
 	timehandleinuse[cnt] = false;
@@ -949,8 +973,11 @@ void setmouseactivexy (int x, int y, int dir)
 
 int isfocus (void)
 {
-	if (isfullscreen () > 0)
-		return 2;
+	if (isfullscreen () > 0) {
+		if (!minimized)
+			return 2;
+		return 0;
+	}
 	if (currprefs.input_tablet >= TABLET_MOUSEHACK && currprefs.input_magic_mouse) {
 		if (mouseinside)
 			return 2;
@@ -1034,7 +1061,6 @@ static void add_media_insert_queue(HWND hwnd, const TCHAR *drvname, int retrycnt
 }
 
 #if TOUCH_SUPPORT
-#define TOUCH_DEBUG 0
 static int touch_touched;
 static DWORD touch_time;
 
@@ -2880,7 +2906,7 @@ void logging_init (void)
 		SystemInfo.wProcessorArchitecture, SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
 		SystemInfo.dwNumberOfProcessors, filedate, os_touch);
 	write_log (_T("\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation.")
-		_T("\n(c) 1998-2015 Toni Wilen      - Win32 port, core code updates.")
+		_T("\n(c) 1998-2016 Toni Wilen      - Win32 port, core code updates.")
 		_T("\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI.")
 		_T("\n(c) 1996-1999 Mathias Ortmann - Win32 port and bsdsocket support.")
 		_T("\n(c) 2000-2001 Bernd Meyer     - JIT engine.")

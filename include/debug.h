@@ -21,7 +21,7 @@ extern int debugging;
 extern int memwatch_enabled;
 extern int exception_debugging;
 extern int debug_copper;
-extern int debug_dma;
+extern int debug_dma, debug_heatmap;
 extern int debug_sprite_mask;
 extern int debug_bpl_mask, debug_bpl_mask_one;
 extern int debugger_active;
@@ -64,35 +64,39 @@ struct breakpoint_node {
 };
 extern struct breakpoint_node bpnodes[BREAKPOINT_TOTAL];
 
-#define MW_MASK_CPU				0x00000001
-#define MW_MASK_BLITTER_A		0x00000002
-#define MW_MASK_BLITTER_B		0x00000004
-#define MW_MASK_BLITTER_C		0x00000008
-#define MW_MASK_BLITTER_D		0x00000010
-#define MW_MASK_COPPER			0x00000020
-#define MW_MASK_DISK			0x00000040
-#define MW_MASK_AUDIO_0			0x00000080
-#define MW_MASK_AUDIO_1			0x00000100
-#define MW_MASK_AUDIO_2			0x00000200
-#define MW_MASK_AUDIO_3			0x00000400
-#define MW_MASK_BPL_0			0x00000800
-#define MW_MASK_BPL_1			0x00001000
-#define MW_MASK_BPL_2			0x00002000
-#define MW_MASK_BPL_3			0x00004000
-#define MW_MASK_BPL_4			0x00008000
-#define MW_MASK_BPL_5			0x00010000
-#define MW_MASK_BPL_6			0x00020000
-#define MW_MASK_BPL_7			0x00040000
-#define MW_MASK_SPR_0			0x00080000
-#define MW_MASK_SPR_1			0x00100000
-#define MW_MASK_SPR_2			0x00200000
-#define MW_MASK_SPR_3			0x00400000
-#define MW_MASK_SPR_4			0x00800000
-#define MW_MASK_SPR_5			0x01000000
-#define MW_MASK_SPR_6			0x02000000
-#define MW_MASK_SPR_7			0x04000000
-#define MW_MASK_NONE			0x08000000
-#define MW_MASK_ALL				(0x08000000 - 1)
+#define MW_MASK_CPU_I			0x00000001
+#define MW_MASK_CPU_D_R			0x00000002
+#define MW_MASK_CPU_D_W			0x00000004
+#define MW_MASK_BLITTER_A		0x00000008
+#define MW_MASK_BLITTER_B		0x00000010
+#define MW_MASK_BLITTER_C		0x00000020
+#define MW_MASK_BLITTER_D_N		0x00000040
+#define MW_MASK_BLITTER_D_L		0x00000080
+#define MW_MASK_BLITTER_D_F		0x00000100
+#define MW_MASK_COPPER			0x00000200
+#define MW_MASK_DISK			0x00000400
+#define MW_MASK_AUDIO_0			0x00000800
+#define MW_MASK_AUDIO_1			0x00001000
+#define MW_MASK_AUDIO_2			0x00002000
+#define MW_MASK_AUDIO_3			0x00004000
+#define MW_MASK_BPL_0			0x00008000
+#define MW_MASK_BPL_1			0x00010000
+#define MW_MASK_BPL_2			0x00020000
+#define MW_MASK_BPL_3			0x00040000
+#define MW_MASK_BPL_4			0x00080000
+#define MW_MASK_BPL_5			0x00100000
+#define MW_MASK_BPL_6			0x00200000
+#define MW_MASK_BPL_7			0x00400000
+#define MW_MASK_SPR_0			0x00800000
+#define MW_MASK_SPR_1			0x01000000
+#define MW_MASK_SPR_2			0x02000000
+#define MW_MASK_SPR_3			0x04000000
+#define MW_MASK_SPR_4			0x08000000
+#define MW_MASK_SPR_5			0x10000000
+#define MW_MASK_SPR_6			0x20000000
+#define MW_MASK_SPR_7			0x40000000
+#define MW_MASK_NONE			0x80000000
+#define MW_MASK_ALL				(MW_MASK_NONE - 1)
 
 #define MEMWATCH_TOTAL 20
 struct memwatch_node {
@@ -152,21 +156,22 @@ struct dma_rec
 #define DMA_EVENT_COPPERWANTED 128
 
 #define DMARECORD_REFRESH 1
-#define DMARECORD_CPU 2
-#define DMARECORD_COPPER 3
-#define DMARECORD_AUDIO 4
-#define DMARECORD_BLITTER 5
-#define DMARECORD_BLITTER_FILL 6
-#define DMARECORD_BLITTER_LINE 7
-#define DMARECORD_BITPLANE 8
-#define DMARECORD_SPRITE 9
-#define DMARECORD_DISK 10
-#define DMARECORD_MAX 11
+#define DMARECORD_CPU_I 2
+#define DMARECORD_CPU_D 3
+#define DMARECORD_COPPER 4
+#define DMARECORD_AUDIO 5
+#define DMARECORD_BLITTER 6
+#define DMARECORD_BLITTER_FILL 7
+#define DMARECORD_BLITTER_LINE 8
+#define DMARECORD_BITPLANE 9
+#define DMARECORD_SPRITE 10
+#define DMARECORD_DISK 11
+#define DMARECORD_MAX 12
 
-extern struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos, int type);
-extern void record_dma_reset (void);
-extern void record_dma_event (int evt, int hpos, int vpos);
-extern void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors);
+extern struct dma_rec *record_dma(uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos, int type);
+extern void record_dma_reset(void);
+extern void record_dma_event(int evt, int hpos, int vpos);
+extern void debug_draw(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors);
 
 #else
 

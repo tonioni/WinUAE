@@ -1976,11 +1976,11 @@ static bool initialize_rawinput (void)
 		struct didata *did = di_keyboard + num_keyboard;
 		num_keyboard++;
 		rnum_kb++;
-		did->name = my_strdup (_T("WinUAE null keyboard"));
+		did->name = my_strdup (_T("WinUAE keyboard"));
 		did->rawinput = NULL;
 		did->connection = DIDC_RAW;
 		did->sortname = my_strdup (_T("NULLKEYBOARD"));
-		did->priority = -3;
+		did->priority = 2;
 		did->configname = my_strdup (_T("NULLKEYBOARD"));
 		addrkblabels (did);
 	}
@@ -2417,11 +2417,10 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			if (did->acquired) {
 				if (did->rawinput == h)
 					break;
-				if (h == NULL && num_keyboard == 1)
-					break;
 			}
 		}
 		if (num == num_keyboard) {
+			// find winuae keyboard
 			for (num = 0; num < num_keyboard; num++) {
 				did = &di_keyboard[num];
 				if (did->connection == DIDC_RAW && did->acquired && did->rawinput == NULL)
@@ -2435,7 +2434,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		}
 
 		// More complex press/release check because we want to support
-		// keys that never return releases, only pressed but also need
+		// keys that never return releases, only presses but also need
 		// handle normal keys that can repeat.
 
 #if 0
@@ -2444,7 +2443,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 #endif
 
 		if (pressed) {
-			// previously pressed key and next press is same key? Repeat. Ignore it.
+			// previously pressed key and current press is same key? Repeat. Ignore it.
 			if (scancode == rawprevkey)
 				return;
 			rawprevkey = scancode;
@@ -2489,8 +2488,9 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			if (isfocus () < 2 && currprefs.input_tablet >= TABLET_MOUSEHACK && currprefs.input_magic_mouse) 
 				return;
 			di_keycodes[num][scancode] = pressed;
-			if (stopoutput == 0)
+			if (stopoutput == 0) {
 				my_kbd_handler (num, scancode, pressed);
+			}
 		}
 	}
 }
@@ -3506,6 +3506,7 @@ static void flushmsgpump (void)
 static int acquire_kb (int num, int flags)
 {
 	if (num < 0) {
+		flushmsgpump();
 		doregister_rawinput ();
 		if (currprefs.keyboard_leds_in_use) {
 			//write_log (_T("***********************acquire_kb_led\n"));
@@ -3527,7 +3528,6 @@ static int acquire_kb (int num, int flags)
 				//write_log (_T("stored %08x -> %08x\n"), originalleds, newleds);
 			}
 			set_leds (newleds);
-			flushmsgpump ();
 		}
 		return 1;
 	}
@@ -4153,12 +4153,20 @@ int dinput_wmkey (uae_u32 key)
 int input_get_default_keyboard (int i)
 {
 	if (rawinput_enabled_keyboard) {
-		return 1;
+		if (i < 0)
+			return 0;
+		if (i >= num_keyboard)
+			return 0;
+		struct didata *did = &di_keyboard[i];
+		if (did->connection == DIDC_RAW && !did->rawinput)
+			return 1;
 	} else {
+		if (i < 0)
+			return 0;
 		if (i == 0)
 			return 1;
-		return 0;
 	}
+	return 0;
 }
 
 static void setid (struct uae_input_device *uid, int i, int slot, int sub, int port, int evt, bool gp)

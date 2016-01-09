@@ -602,7 +602,7 @@ static bool is_valid_data_sector(int sector)
 /* open device */
 static int sys_cddev_open (void)
 {
-	struct device_info di;
+	struct device_info di = { 0 };
 	unitnum = get_standard_cd_unit (CD_STANDARD_UNIT_CD32);
 	sys_command_info (unitnum, &di, 0);
 	write_log (_T("using drive %s (unit %d, media %d)\n"), di.label, unitnum, di.media_inserted);

@@ -3389,7 +3389,7 @@ static void draw_debug_status_line (int line)
 	if (xlinebuffer == 0)
 		xlinebuffer = row_map[line];
 	xlinebuffer_genlock = row_map_genlock[line];
-	debug_draw_cycles(xlinebuffer, gfxvidinfo.drawbuffer.pixbytes, line, gfxvidinfo.drawbuffer.outwidth, gfxvidinfo.drawbuffer.outheight, xredcolors, xgreencolors, xbluecolors);
+	debug_draw(xlinebuffer, gfxvidinfo.drawbuffer.pixbytes, line, gfxvidinfo.drawbuffer.outwidth, gfxvidinfo.drawbuffer.outheight, xredcolors, xgreencolors, xbluecolors);
 }
 
 #define LIGHTPEN_HEIGHT 12
@@ -3667,7 +3667,7 @@ static void finish_drawing_frame (void)
 			do_flush_line (vb, line);
 		}
 	}
-	if (debug_dma > 1) {
+	if (debug_dma > 1 || debug_heatmap > 1) {
 		for (i = 0; i < vb->outheight; i++) {
 			int line = i;
 			draw_debug_status_line (line);

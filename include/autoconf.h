@@ -97,6 +97,7 @@ extern void filesys_store_devinfo (uae_u8 *);
 extern void hardfile_install (void);
 extern void hardfile_reset (void);
 extern void emulib_install (void);
+extern uae_u32 uaeboard_demux (uae_u32*);
 extern void expansion_init (void);
 extern void expansion_cleanup (void);
 extern void expansion_clear (void);

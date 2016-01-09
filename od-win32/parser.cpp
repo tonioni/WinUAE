@@ -84,28 +84,28 @@ static HMODULE gsdll;
 static void *gsinstance;
 static int gs_exitcode;
 
-typedef int (CALLBACK* GSAPI_REVISION)(gsapi_revision_t *pr, int len);
+typedef int (GSDLLAPI* GSAPI_REVISION)(gsapi_revision_t *pr, int len);
 static GSAPI_REVISION ptr_gsapi_revision;
-typedef int (CALLBACK* GSAPI_NEW_INSTANCE)(void **pinstance, void *caller_handle);
+typedef int (GSDLLAPI* GSAPI_NEW_INSTANCE)(void **pinstance, void *caller_handle);
 static GSAPI_NEW_INSTANCE ptr_gsapi_new_instance;
-typedef void (CALLBACK* GSAPI_DELETE_INSTANCE)(void *instance);
+typedef void (GSDLLAPI* GSAPI_DELETE_INSTANCE)(void *instance);
 static GSAPI_DELETE_INSTANCE ptr_gsapi_delete_instance;
-typedef int (CALLBACK* GSAPI_SET_STDIO)(void *instance,
+typedef int (GSDLLAPI* GSAPI_SET_STDIO)(void *instance,
 	int (GSDLLCALLPTR stdin_fn)(void *caller_handle, char *buf, int len),
 	int (GSDLLCALLPTR stdout_fn)(void *caller_handle, const char *str, int len),
 	int (GSDLLCALLPTR stderr_fn)(void *caller_handle, const char *str, int len));
 static GSAPI_SET_STDIO ptr_gsapi_set_stdio;
-typedef int (CALLBACK* GSAPI_INIT_WITH_ARGS)(void *instance, int argc, char **argv);
-static GSAPI_INIT_WITH_ARGS ptr_gsapi_init_with_args;
+typedef int (GSDLLAPI* GSAPI_INIT_WITH_ARGSW)(void *instance, int argc, wchar_t **argv);
+static GSAPI_INIT_WITH_ARGSW ptr_gsapi_init_with_argsW;
 
-typedef int (CALLBACK* GSAPI_EXIT)(void *instance);
+typedef int (GSDLLAPI* GSAPI_EXIT)(void *instance);
 static GSAPI_EXIT ptr_gsapi_exit;
 
-typedef int (CALLBACK* GSAPI_RUN_STRING_BEGIN)(void *instance, int user_errors, int *pexit_code);
+typedef int (GSDLLAPI* GSAPI_RUN_STRING_BEGIN)(void *instance, int user_errors, int *pexit_code);
 static GSAPI_RUN_STRING_BEGIN ptr_gsapi_run_string_begin;
-typedef int (CALLBACK* GSAPI_RUN_STRING_CONTINUE)(void *instance, const char *str, unsigned int length, int user_errors, int *pexit_code);
+typedef int (GSDLLAPI* GSAPI_RUN_STRING_CONTINUE)(void *instance, const char *str, unsigned int length, int user_errors, int *pexit_code);
 static GSAPI_RUN_STRING_CONTINUE ptr_gsapi_run_string_continue;
-typedef int (CALLBACK* GSAPI_RUN_STRING_END)(void *instance, int user_errors, int *pexit_code);
+typedef int (GSDLLAPI* GSAPI_RUN_STRING_END)(void *instance, int user_errors, int *pexit_code);
 static GSAPI_RUN_STRING_END ptr_gsapi_run_string_end;
 
 static uae_u8 **psbuffer;
@@ -135,32 +135,32 @@ static int openprinter_ps (void)
 	int gsargc, gsargc2, i;
 	TCHAR *tmpparms[100];
 	TCHAR tmp[MAX_DPATH];
-	char *gsparms[100];
+	TCHAR *gsparms[100];
 
 	if (ptr_gsapi_new_instance (&gsinstance, NULL) < 0)
 		return 0;
 	cmdlineparser (currprefs.ghostscript_parameters, tmpparms, 100 - 10);
 
 	gsargc2 = 0;
-	gsparms[gsargc2++] = ua (_T("WinUAE"));
+	gsparms[gsargc2++] = my_strdup(_T("WinUAE"));
 	for (gsargc = 0; gsargv[gsargc]; gsargc++) {
-		gsparms[gsargc2++] = ua (gsargv[gsargc]);
+		gsparms[gsargc2++] = my_strdup(gsargv[gsargc]);
 	}
 	for (i = 0; tmpparms[i]; i++)
-		gsparms[gsargc2++] = ua (tmpparms[i]);
+		gsparms[gsargc2++] = my_strdup(tmpparms[i]);
 	if (currprefs.prtname[0]) {
 		_stprintf (tmp, _T("-sOutputFile=%%printer%%%s"), currprefs.prtname);
-		gsparms[gsargc2++] = ua (tmp);
+		gsparms[gsargc2++] = my_strdup(tmp);
 	}
 	if (postscript_print_debugging) {
 		for (i = 0; i < gsargc2; i++) {
-			TCHAR *parm = au (gsparms[i]);
+			TCHAR *parm = gsparms[i];
 			write_log (_T("GSPARM%d: '%s'\n"), i, parm);
 			xfree (parm);
 		}
 	}
 	__try {
-		int rc = ptr_gsapi_init_with_args (gsinstance, gsargc2, gsparms);
+		int rc = ptr_gsapi_init_with_argsW (gsinstance, gsargc2, gsparms);
 		for (i = 0; i < gsargc2; i++) {
 			xfree (gsparms[i]);
 		}
@@ -212,10 +212,10 @@ static void *prt_thread (void *p)
 				ptr_gsapi_run_string_end (gsinstance, 0, &gs_exitcode);
 			}
 		} else {
-			write_log (_T("gsdll32.dll failed to initialize\n"));
+			write_log (_T("gsdllxx.dll failed to initialize\n"));
 		}
 	} else {
-		write_log (_T("gsdll32.dll failed to load\n"));
+		write_log (_T("gsdllxx.dll failed to load\n"));
 	}
 	unload_ghostscript ();
 	prt_running--;
@@ -437,10 +437,10 @@ int load_ghostscript (void)
 	ptr_gsapi_run_string_begin = (GSAPI_RUN_STRING_BEGIN)GetProcAddress (gsdll, "gsapi_run_string_begin");
 	ptr_gsapi_run_string_continue = (GSAPI_RUN_STRING_CONTINUE)GetProcAddress (gsdll, "gsapi_run_string_continue");
 	ptr_gsapi_run_string_end = (GSAPI_RUN_STRING_END)GetProcAddress (gsdll, "gsapi_run_string_end");
-	ptr_gsapi_init_with_args = (GSAPI_INIT_WITH_ARGS)GetProcAddress (gsdll, "gsapi_init_with_args");
+	ptr_gsapi_init_with_argsW = (GSAPI_INIT_WITH_ARGSW)GetProcAddress (gsdll, "gsapi_init_with_argsW");
 	if (!ptr_gsapi_new_instance || !ptr_gsapi_delete_instance || !ptr_gsapi_exit ||
 		!ptr_gsapi_run_string_begin || !ptr_gsapi_run_string_continue || !ptr_gsapi_run_string_end ||
-		!ptr_gsapi_init_with_args) {
+		!ptr_gsapi_init_with_argsW) {
 			unload_ghostscript ();
 			write_log (_T("incompatible %s! (3)\n"), path);
 			return -3;

@@ -377,7 +377,7 @@ static int port_insert (int inputmap_port, int devicetype, DWORD flags, const TC
 	inputdevice_compa_clear (&changed_prefs, inputmap_port);
 	
 	if (_tcslen (name) == 0) {
-		inputdevice_joyport_config (&changed_prefs, _T("none"), inputmap_port, 0, 0, true);
+		inputdevice_joyport_config (&changed_prefs, _T("none"), inputmap_port, 0, 0);
 		return TRUE;
 	}
 	devicetype2 = -1;
@@ -399,10 +399,10 @@ static int port_insert (int inputmap_port, int devicetype, DWORD flags, const TC
 		_stprintf (tmp2, _T("KeyboardLayout%d"), i);
 		if (!_tcscmp (tmp2, name)) {
 			_stprintf (tmp2, _T("kbd%d"), i + 1);
-			return inputdevice_joyport_config (&changed_prefs, tmp2, inputmap_port, devicetype2, 0, true);
+			return inputdevice_joyport_config (&changed_prefs, tmp2, inputmap_port, devicetype2, 0);
 		}
 	}
-	return inputdevice_joyport_config (&changed_prefs, name, inputmap_port, devicetype2, 1, true);
+	return inputdevice_joyport_config (&changed_prefs, name, inputmap_port, devicetype2, 1);
 }
 
 static int cd_insert (int num, const TCHAR *name)
@@ -647,6 +647,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 		else if (p->gf[0].gfx_filter_autoscale == AUTOSCALE_RESIZE || p->gf[0].gfx_filter_autoscale == AUTOSCALE_NORMAL)
 			cf |= RP_CLIPFLAGS_AUTOCLIP;
 	}
+
 	if (full) {
 		m &= ~RP_SCREENMODE_DISPLAYMASK;
 		m |= p->gfx_apmode[rtg ? APMODE_RTG : APMODE_NATIVE].gfx_display << 8;
@@ -739,6 +740,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 				vmult *= 1 << (vres - max_vert_dbl);
 				vres = max_vert_dbl;
 			}
+
 		} else {
 
 			half = false;
@@ -819,6 +821,18 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	p->gfx_xcenter_size = -1;
 	p->gfx_ycenter_size = -1;
 
+	int m = 1;
+	if (fs < 2) {
+		if (smm == RP_SCREENMODE_SCALE_2X) {
+			m = 2;
+		} else if (smm == RP_SCREENMODE_SCALE_3X) {
+			m = 3;
+		} else if (smm == RP_SCREENMODE_SCALE_4X) {
+			m = 4;
+		}
+	}
+	p->rtg_horiz_zoom_mult = p->rtg_vert_zoom_mult = m;
+
 	if (WIN32GFX_IsPicassoScreen ()) {
 
 		int m = 1;
@@ -834,7 +848,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 				m = 4;
 			}
 		}
-		p->rtg_horiz_zoom_mult = p->rtg_vert_zoom_mult = m;
+
 		p->gfx_size_win.width = picasso_vidinfo.width * m;
 		p->gfx_size_win.height = picasso_vidinfo.height * m;
 
@@ -842,6 +856,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		vmult = m;
 
 	} else {
+
 		if (stretch) {
 			hmult = vmult = 0;
 		} else if (integerscale) {
@@ -1372,7 +1387,8 @@ void rp_fixup_options (struct uae_prefs *p)
 
 	fixup_size (p);
 	get_screenmode (&sm, p, false);
-	sm.dwScreenMode = rp_screenmode;
+	sm.dwScreenMode &= ~RP_SCREENMODE_SCALEMASK;
+	sm.dwScreenMode |= rp_screenmode;
 	set_screenmode (&sm, &currprefs);
 	set_screenmode (&sm, &changed_prefs);
 
@@ -1469,7 +1485,7 @@ void rp_input_change (int num)
 		return;
 
 	name[0] = 0;
-	if (currprefs.jports[num].id == JPORT_CUSTOM) {
+	if (JSEM_ISCUSTOM(num, &currprefs)) {
 		port_get_custom (num, name);
 	} else if (k >= 0) {
 		_stprintf (name, _T("KeyboardLayout%d"), k);

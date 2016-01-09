@@ -57,7 +57,7 @@ int debugging;
 int exception_debugging;
 int no_trace_exceptions;
 int debug_copper = 0;
-int debug_dma = 0;
+int debug_dma = 0, debug_heatmap = 0;
 int debug_sprite_mask = 0xff;
 int debug_illegal = 0;
 uae_u64 debug_illegal_mask;
@@ -163,7 +163,8 @@ static TCHAR help[] = {
 	_T("  dm                    Dump current address space map.\n")
 	_T("  v <vpos> [<hpos>]     Show DMA data (accurate only in cycle-exact mode).\n")
 	_T("                        v [-1 to -4] = enable visual DMA debugger.\n")
-	_T("  ?<value>              Hex ($ and 0x)/Bin (%)/Dec (!) converter.\n")
+	_T("  vh [<ratio> <lines>]  \"Heat map\"\n")
+	_T("  ?<value>              Hex ($ and 0x)/Bin (%)/Dec (!) converter and calculator.\n")
 #ifdef _WIN32
 	_T("  x                     Close debugger.\n")
 	_T("  xx                    Switch between console and GUI debugger.\n")
@@ -176,6 +177,80 @@ static TCHAR help[] = {
 void debug_help (void)
 {
 	console_out (help);
+}
+
+
+struct mw_acc {
+	uae_u32 mask;
+	const TCHAR *name;
+};
+
+static const struct mw_acc memwatch_access_masks[] =
+{
+	{ MW_MASK_ALL, _T("ALL") },
+	{ MW_MASK_NONE, _T("NONE") },
+	{ MW_MASK_ALL & ~(MW_MASK_CPU_I | MW_MASK_CPU_D_R | MW_MASK_CPU_D_W), _T("DMA") },
+
+	{ MW_MASK_BLITTER_A | MW_MASK_BLITTER_B | MW_MASK_BLITTER_C | MW_MASK_BLITTER_D_N | MW_MASK_BLITTER_D_L | MW_MASK_BLITTER_D_F, _T("BLT") },
+	{ MW_MASK_BLITTER_D_N | MW_MASK_BLITTER_D_L | MW_MASK_BLITTER_D_F, _T("BLTD") },
+
+	{ MW_MASK_AUDIO_0 | MW_MASK_AUDIO_1 | MW_MASK_AUDIO_2 | MW_MASK_AUDIO_3, _T("AUD") },
+
+	{ MW_MASK_BPL_0 | MW_MASK_BPL_1 | MW_MASK_BPL_2 | MW_MASK_BPL_3 |
+		MW_MASK_BPL_4 | MW_MASK_BPL_5 | MW_MASK_BPL_6 | MW_MASK_BPL_7, _T("BPL") },
+
+	{ MW_MASK_SPR_0 | MW_MASK_SPR_1 | MW_MASK_SPR_2 | MW_MASK_SPR_3 |
+		MW_MASK_SPR_4 | MW_MASK_SPR_5 | MW_MASK_SPR_6 | MW_MASK_SPR_7, _T("SPR") },
+
+	{ MW_MASK_CPU_I | MW_MASK_CPU_D_R | MW_MASK_CPU_D_W, _T("CPU") },
+	{ MW_MASK_CPU_D_R | MW_MASK_CPU_D_W, _T("CPUD") },
+	{ MW_MASK_CPU_I, _T("CPUI") },
+	{ MW_MASK_CPU_D_R, _T("CPUDR") },
+	{ MW_MASK_CPU_D_W, _T("CPUDW") },
+
+	{ MW_MASK_COPPER, _T("COP") },
+
+	{ MW_MASK_BLITTER_A, _T("BLTA") },
+	{ MW_MASK_BLITTER_B, _T("BLTB") },
+	{ MW_MASK_BLITTER_C, _T("BLTC") },
+	{ MW_MASK_BLITTER_D_N, _T("BLTDN") },
+	{ MW_MASK_BLITTER_D_L, _T("BLTDL") },
+	{ MW_MASK_BLITTER_D_F, _T("BLTDF") },
+
+	{ MW_MASK_DISK, _T("DSK") },
+
+	{ MW_MASK_AUDIO_0, _T("AUD0") },
+	{ MW_MASK_AUDIO_1, _T("AUD1") },
+	{ MW_MASK_AUDIO_2, _T("AUD2") },
+	{ MW_MASK_AUDIO_3, _T("AUD3") },
+
+	{ MW_MASK_BPL_0, _T("BPL0") },
+	{ MW_MASK_BPL_1, _T("BPL1") },
+	{ MW_MASK_BPL_2, _T("BPL2") },
+	{ MW_MASK_BPL_3, _T("BPL3") },
+	{ MW_MASK_BPL_4, _T("BPL4") },
+	{ MW_MASK_BPL_5, _T("BPL5") },
+	{ MW_MASK_BPL_6, _T("BPL6") },
+	{ MW_MASK_BPL_7, _T("BPL7") },
+
+	{ MW_MASK_SPR_0, _T("SPR0") },
+	{ MW_MASK_SPR_1, _T("SPR1") },
+	{ MW_MASK_SPR_2, _T("SPR2") },
+	{ MW_MASK_SPR_3, _T("SPR3") },
+	{ MW_MASK_SPR_4, _T("SPR4") },
+	{ MW_MASK_SPR_5, _T("SPR5") },
+	{ MW_MASK_SPR_6, _T("SPR6") },
+	{ MW_MASK_SPR_7, _T("SPR7") },
+
+	{ 0, NULL },
+};
+
+static void mw_help(void)
+{
+	for (int i = 0; memwatch_access_masks[i].mask; i++) {
+		console_out_f(_T("%s "), memwatch_access_masks[i].name);
+	}
+	console_out_f(_T("\n"));
 }
 
 static int debug_linecounter;
@@ -1047,13 +1122,38 @@ STATIC_INLINE void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8)
 #define lc(x) ledcolor (x, xredcolors, xgreencolors, xbluecolors, NULL)
 
 static uae_u32 intlevc[] = { 0x000000, 0x444444, 0x008800, 0xffff00, 0x000088, 0x880000, 0xff0000, 0xffffff };
+static uae_u8 debug_colors_rgb[DMARECORD_MAX * 4];
+static uae_u32 debug_colors_l[DMARECORD_MAX];
 
-void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
+static void set_dbg_color(int index, uae_u8 r, uae_u8 g, uae_u8 b)
+{
+	debug_colors_rgb[index * 4 + 0] = r;
+	debug_colors_rgb[index * 4 + 1] = g;
+	debug_colors_rgb[index * 4 + 2] = b;
+	debug_colors_l[index] = lc((r << 16) | (g << 8) | (b << 0));
+}
+
+static void set_debug_colors(uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
+{
+	set_dbg_color(0,						0x22, 0x22, 0x22);
+	set_dbg_color(DMARECORD_REFRESH,		0x44, 0x44, 0x44);
+	set_dbg_color(DMARECORD_CPU_D,			0xa2, 0x53, 0x42);
+	set_dbg_color(DMARECORD_CPU_I,			0xad, 0x98, 0xd6);
+	set_dbg_color(DMARECORD_COPPER,			0xee, 0xee, 0x00);
+	set_dbg_color(DMARECORD_AUDIO,			0xff, 0x00, 0x00);
+	set_dbg_color(DMARECORD_BLITTER,		0x00, 0x88, 0x88);
+	set_dbg_color(DMARECORD_BLITTER_FILL,	0x00, 0x88, 0xff);
+	set_dbg_color(DMARECORD_BLITTER_LINE,	0x00, 0xff, 0x00);
+	set_dbg_color(DMARECORD_BITPLANE,		0x00, 0x00, 0xff);
+	set_dbg_color(DMARECORD_SPRITE,			0xff, 0x00, 0xff);
+	set_dbg_color(DMARECORD_DISK,			0xff, 0xff, 0xff);
+}
+
+static void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
 {
 	int y, x, xx, dx, xplus, yplus;
 	struct dma_rec *dr;
 	int t;
-	uae_u32 cc[DMARECORD_MAX];
 
 	if (debug_dma >= 4)
 		yplus = 2;
@@ -1076,25 +1176,13 @@ void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int height, u
 
 	dx = width - xplus * ((maxhpos + 1) & ~1) - 16;
 
-	cc[0] = lc(0x222222);
-	cc[DMARECORD_REFRESH] = lc(0x444444);
-	cc[DMARECORD_CPU] = lc(0x888888);
-	cc[DMARECORD_COPPER] = lc(0xeeee00);
-	cc[DMARECORD_AUDIO] = lc(0xff0000);
-	cc[DMARECORD_BLITTER] = lc(0x008888);
-	cc[DMARECORD_BLITTER_FILL] = lc(0x0088ff);
-	cc[DMARECORD_BLITTER_LINE] = lc(0x00ff00);
-	cc[DMARECORD_BITPLANE] = lc(0x0000ff);
-	cc[DMARECORD_SPRITE] = lc(0xff00ff);
-	cc[DMARECORD_DISK] = lc(0xffffff);
-
 	uae_s8 intlev = 0;
 	for (x = 0; x < maxhpos; x++) {
-		uae_u32 c = cc[0];
+		uae_u32 c = debug_colors_l[0];
 		xx = x * xplus + dx;
 		dr = &dma_record[t][y * NR_DMA_REC_HPOS + x];
 		if (dr->reg != 0xffff) {
-			c = cc[dr->type];
+			c = debug_colors_l[dr->type];
 		}
 		if (dr->intlev > intlev)
 			intlev = dr->intlev;
@@ -1108,25 +1196,319 @@ void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int height, u
 	putpixel (buf, bpp, dx + 3, 0);
 }
 
-#define HEATMAP_COUNT 50
+#define HEATMAP_WIDTH 256
+#define HEATMAP_HEIGHT 256
+#define HEATMAP_COUNT 32
+#define HEATMAP_DIV 8
+static const int max_heatmap = 16 * 1048576; // 16M
+static uae_u32 *heatmap_debug_colors;
+
 static struct memory_heatmap *heatmap;
 struct memory_heatmap
 {
+	uae_u32 mask;
+	uae_u32 cpucnt;
 	uae_u16 cnt;
 	uae_u16 type;
 };
 
-static void memwatch_heatmap (uaecptr addr, int rwi, int size)
+static void debug_draw_heatmap(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
 {
+	struct memory_heatmap *mht = heatmap;
+	int dx = 16;
+	int y = line;
+
+	if (y < 0 || y >= HEATMAP_HEIGHT)
+		return;
+
+	mht += y * HEATMAP_WIDTH;
+
+	for (int x = 0; x < HEATMAP_WIDTH; x++) {
+		uae_u32 c = heatmap_debug_colors[mht->cnt * DMARECORD_MAX + mht->type];
+		//c = heatmap_debug_colors[(HEATMAP_COUNT - 1) * DMARECORD_MAX + DMARECORD_CPU_I];
+		int xx = x + dx;
+		putpixel(buf, bpp, xx, c);
+		if (mht->cnt > 0)
+			mht->cnt--;
+		mht++;
+	}
 }
 
-static void record_dma_heatmap (uaecptr addr, int type)
+void debug_draw(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
 {
-	if (addr >= 0x01000000 || !heatmap)
+	if (!heatmap_debug_colors) {
+		heatmap_debug_colors = xcalloc(uae_u32, DMARECORD_MAX * HEATMAP_COUNT);
+		set_debug_colors(xredcolors, xgreencolors, xbluecolors);
+		for (int i = 0; i < HEATMAP_COUNT; i++) {
+			uae_u32 *cp = heatmap_debug_colors + i * DMARECORD_MAX;
+			for (int j = 0; j < DMARECORD_MAX; j++) {
+				uae_u8 r = debug_colors_rgb[j * 4 + 0];
+				uae_u8 g = debug_colors_rgb[j * 4 + 1];
+				uae_u8 b = debug_colors_rgb[j * 4 + 2];
+				r = r * i / HEATMAP_COUNT;
+				g = g * i / HEATMAP_COUNT;
+				b = b * i / HEATMAP_COUNT;
+				cp[j] = lc((r << 16) | (g << 8) | (b << 0));
+			}
+		}
+	}
+
+	if (heatmap) {
+		debug_draw_heatmap(buf, bpp, line, width, height, xredcolors, xgreencolors, xbluecolors);
+	} else {
+		debug_draw_cycles(buf, bpp, line, width, height, xredcolors, xgreencolors, xbluecolors);
+	}
+}
+
+struct heatmapstore
+{
+	TCHAR *s;
+	double v;
+};
+
+static void heatmap_stats(TCHAR **c)
+{
+	int range = 95;
+	int maxlines = 30;
+	double max;
+	int maxcnt;
+	uae_u32 mask = MW_MASK_CPU_I;
+	const TCHAR *maskname = NULL;
+
+	if (more_params(c)) {
+		if (**c == 'c' && peek_next_char(c) == 0) {
+			for (int i = 0; i < max_heatmap / HEATMAP_DIV; i++) {
+				struct memory_heatmap *hm = &heatmap[i];
+				memset(hm, 0, sizeof(struct memory_heatmap));
+			}
+			console_out(_T("heatmap data cleared\n"));
+			return;
+		}
+		if (!isdigit(peek_next_char(c))) {
+			TCHAR str[100];
+			if (next_string(c, str, sizeof str / sizeof (TCHAR), true)) {
+				for (int j = 0; memwatch_access_masks[j].mask; j++) {
+					if (!_tcsicmp(str, memwatch_access_masks[j].name)) {
+						mask = memwatch_access_masks[j].mask;
+						maskname = memwatch_access_masks[j].name;
+						console_out_f(_T("Mask %08x Name %s\n"), mask, maskname);
+						break;
+					}
+				}
+			}
+			if (more_params(c)) {
+				maxlines = readint(c);
+			}
+		} else {
+			range = readint(c);
+			if (more_params(c)) {
+				maxlines = readint(c);
+			}
+		}
+	}
+	if (maxlines <= 0)
+		maxlines = 10000;
+
+	if (mask != MW_MASK_CPU_I) {
+
+		int found = -1;
+		int firstaddress = 0;
+		for (int lines = 0; lines < maxlines; lines++) {
+
+			for (; firstaddress < max_heatmap / HEATMAP_DIV; firstaddress++) {
+				struct memory_heatmap *hm = &heatmap[firstaddress];
+				if (hm->mask & mask)
+					break;
+			}
+
+			if (firstaddress == max_heatmap / HEATMAP_DIV)
+				return;
+
+			int lastaddress;
+			for (lastaddress = firstaddress; lastaddress < max_heatmap / HEATMAP_DIV; lastaddress++) {
+				struct memory_heatmap *hm = &heatmap[lastaddress];
+				if (!(hm->mask & mask))
+					break;
+			}
+			lastaddress--;
+
+			console_out_f(_T("%03d: %08x - %08x %08x (%d) %s\n"), 
+				lines,
+				firstaddress * HEATMAP_DIV, lastaddress * HEATMAP_DIV + HEATMAP_DIV - 1,
+				lastaddress * HEATMAP_DIV - firstaddress * HEATMAP_DIV + HEATMAP_DIV - 1,
+				lastaddress * HEATMAP_DIV - firstaddress * HEATMAP_DIV + HEATMAP_DIV - 1, 
+				maskname);
+
+			firstaddress = lastaddress + 1;
+		}
+
+	} else {
+#define MAX_HEATMAP_LINES 1000
+		struct heatmapstore linestore[MAX_HEATMAP_LINES] = { 0 };
+		int storecnt = 0;
+		uae_u32 maxlimit = 0xffffffff;
+
+		max = 0;
+		maxcnt = 0;
+		for (int i = 0; i < max_heatmap / HEATMAP_DIV; i++) {
+			struct memory_heatmap *hm = &heatmap[i];
+			if (hm->cpucnt > 0) {
+				max += hm->cpucnt;
+				maxcnt++;
+			}
+		}
+
+		if (!maxcnt) {
+			console_out(_T("No CPU accesses found\n"));
+			return;
+		}
+
+		for (int lines = 0; lines < maxlines; lines++) {
+
+			int found = -1;
+			int foundcnt = 0;
+
+			for (int i = 0; i < max_heatmap / HEATMAP_DIV; i++) {
+				struct memory_heatmap *hm = &heatmap[i];
+				if (hm->cpucnt > 0 && hm->cpucnt > foundcnt && hm->cpucnt < maxlimit) {
+					foundcnt = hm->cpucnt;
+					found = i;
+				}
+			}
+			if (found < 0)
+				break;
+
+			int totalcnt = 0;
+			int cntrange = foundcnt * range / 100;
+			if (cntrange <= 0)
+				cntrange = 1;
+
+			int lastaddress;
+			for (lastaddress = found; lastaddress < max_heatmap / HEATMAP_DIV; lastaddress++) {
+				struct memory_heatmap *hm = &heatmap[lastaddress];
+				if (hm->cpucnt == 0 || hm->cpucnt < cntrange || hm->cpucnt >= maxlimit)
+					break;
+				totalcnt += hm->cpucnt;
+			}
+			lastaddress--;
+
+			int firstaddress;
+			for (firstaddress = found - 1; firstaddress >= 0; firstaddress--) {
+				struct memory_heatmap *hm = &heatmap[firstaddress];
+				if (hm->cpucnt == 0 || hm->cpucnt < cntrange || hm->cpucnt >= maxlimit)
+					break;
+				totalcnt += hm->cpucnt;
+			}
+			firstaddress--;
+
+			firstaddress *= HEATMAP_DIV;
+			lastaddress *= HEATMAP_DIV;
+
+			TCHAR tmp[100];
+			double pct = totalcnt / max * 100.0;
+			_stprintf(tmp, _T("%03d: %08x - %08x %08x (%d) %.5f%%\n"), lines + 1,
+				firstaddress, lastaddress + HEATMAP_DIV - 1,
+				lastaddress - firstaddress + HEATMAP_DIV - 1,
+				lastaddress - firstaddress + HEATMAP_DIV - 1,
+				pct);
+			linestore[storecnt].s = my_strdup(tmp);
+			linestore[storecnt].v = pct;
+
+			storecnt++;
+			if (storecnt >= MAX_HEATMAP_LINES)
+				break;
+
+			maxlimit = foundcnt;
+		}
+
+		for (int lines1 = 0; lines1 < storecnt; lines1++) {
+			for (int lines2 = lines1 + 1; lines2 < storecnt; lines2++) {
+				if (linestore[lines1].v < linestore[lines2].v) {
+					struct heatmapstore hms;
+					memcpy(&hms, &linestore[lines1], sizeof(struct heatmapstore));
+					memcpy(&linestore[lines1], &linestore[lines2], sizeof(struct heatmapstore));
+					memcpy(&linestore[lines2], &hms, sizeof(struct heatmapstore));
+				}
+			}
+		}
+		for (int lines1 = 0; lines1 < storecnt; lines1++) {
+			console_out(linestore[lines1].s);
+			xfree(linestore[lines1].s);
+		}
+
+	}
+
+}
+
+static void free_heatmap(void)
+{
+	xfree(heatmap);
+	heatmap = NULL;
+	debug_heatmap = 0;
+}
+
+static void init_heatmap(void)
+{
+	if (!heatmap)
+		heatmap = xcalloc(struct memory_heatmap, max_heatmap / HEATMAP_DIV);
+}
+
+static void memwatch_heatmap (uaecptr addr, int rwi, int size, uae_u32 accessmask)
+{
+	if (addr >= max_heatmap || !heatmap)
 		return;
-	struct memory_heatmap *hp = &heatmap[addr / 2];
-	hp->cnt = HEATMAP_COUNT;
-	hp->type = type;
+	struct memory_heatmap *hm = &heatmap[addr / HEATMAP_DIV];
+	if (accessmask & MW_MASK_CPU_I) {
+		hm->cpucnt++;
+	}
+	hm->cnt = HEATMAP_COUNT - 1;
+	int type = 0;
+	for (int i = 0; i < 32; i++) {
+		if (accessmask & (1 << i)) {
+			switch (1 << i)
+			{
+				case MW_MASK_BPL_0:
+				case MW_MASK_BPL_1:
+				case MW_MASK_BPL_2:
+				case MW_MASK_BPL_3:
+				case MW_MASK_BPL_4:
+				case MW_MASK_BPL_5:
+				case MW_MASK_BPL_6:
+				case MW_MASK_BPL_7:
+				type = DMARECORD_BITPLANE;
+				break;
+				case MW_MASK_AUDIO_0:
+				case MW_MASK_AUDIO_1:
+				case MW_MASK_AUDIO_2:
+				case MW_MASK_AUDIO_3:
+				type = DMARECORD_AUDIO;
+				break;
+				case MW_MASK_BLITTER_A:
+				case MW_MASK_BLITTER_B:
+				case MW_MASK_BLITTER_C:
+				case MW_MASK_BLITTER_D_N:
+				case MW_MASK_BLITTER_D_F:
+				case MW_MASK_BLITTER_D_L:
+				type = DMARECORD_BLITTER;
+				break;
+				case MW_MASK_COPPER:
+				type = DMARECORD_COPPER;
+				break;
+				case MW_MASK_DISK:
+				type = DMARECORD_DISK;
+				break;
+				case MW_MASK_CPU_I:
+				type = DMARECORD_CPU_I;
+				break;
+				case MW_MASK_CPU_D_R:
+				case MW_MASK_CPU_D_W:
+				type = DMARECORD_CPU_D;
+				break;
+			}
+		}
+	}
+	hm->type = type;
+	hm->mask |= accessmask;
 }
 
 void record_dma_event (int evt, int hpos, int vpos)
@@ -1145,8 +1527,6 @@ struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, in
 {
 	struct dma_rec *dr;
 
-	if (!heatmap)
-		heatmap = xcalloc (struct memory_heatmap, 16 * 1024 * 1024 / 2);
 	if (!dma_record[0]) {
 		dma_record[0] = xmalloc (struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
 		dma_record[1] = xmalloc (struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
@@ -1155,8 +1535,6 @@ struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, in
 	}
 	if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
 		return NULL;
-
-	record_dma_heatmap (addr, type);
 
 	dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
 	if (dr->reg != 0xffff) {
@@ -1768,7 +2146,6 @@ static addrbank **debug_mem_banks;
 static addrbank *debug_mem_area;
 struct memwatch_node mwnodes[MEMWATCH_TOTAL];
 static struct memwatch_node mwhit;
-static int addressspaceheatmap;
 
 static uae_u8 *illgdebug, *illghdebug;
 static int illgdebug_break;
@@ -2088,8 +2465,8 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 	if (illgdebug)
 		illg_debug_do (addr, rwi, size, val);
 
-	if (addressspaceheatmap)
-		memwatch_heatmap (addr, rwi, size);
+	if (heatmap)
+		memwatch_heatmap (addr, rwi, size, accessmask);
 
 	addr = munge24 (addr);
 	if (smc_table && (rwi >= 2))
@@ -2272,7 +2649,7 @@ static uae_u32 REGPARAM2 debug_lget (uaecptr addr)
 	uae_u32 off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->lget (addr);
-	memwatch_func (addr, 1, 4, &v, MW_MASK_CPU, 0);
+	memwatch_func (addr, 1, 4, &v, MW_MASK_CPU_D_R, 0);
 	return v;
 }
 static uae_u32 REGPARAM2 mmu_lgeti (uaecptr addr)
@@ -2297,7 +2674,7 @@ static uae_u32 REGPARAM2 debug_wget (uaecptr addr)
 	int off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->wget (addr);
-	memwatch_func (addr, 1, 2, &v, MW_MASK_CPU, 0);
+	memwatch_func (addr, 1, 2, &v, MW_MASK_CPU_D_R, 0);
 	return v;
 }
 static uae_u32 REGPARAM2 debug_bget (uaecptr addr)
@@ -2305,7 +2682,7 @@ static uae_u32 REGPARAM2 debug_bget (uaecptr addr)
 	int off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->bget (addr);
-	memwatch_func (addr, 1, 1, &v, MW_MASK_CPU, 0);
+	memwatch_func (addr, 1, 1, &v, MW_MASK_CPU_D_R, 0);
 	return v;
 }
 static uae_u32 REGPARAM2 debug_lgeti (uaecptr addr)
@@ -2313,7 +2690,7 @@ static uae_u32 REGPARAM2 debug_lgeti (uaecptr addr)
 	int off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->lgeti (addr);
-	memwatch_func (addr, 4, 4, &v, MW_MASK_CPU, 0);
+	memwatch_func (addr, 4, 4, &v, MW_MASK_CPU_I, 0);
 	return v;
 }
 static uae_u32 REGPARAM2 debug_wgeti (uaecptr addr)
@@ -2321,25 +2698,25 @@ static uae_u32 REGPARAM2 debug_wgeti (uaecptr addr)
 	int off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->wgeti (addr);
-	memwatch_func (addr, 4, 2, &v, MW_MASK_CPU, 0);
+	memwatch_func (addr, 4, 2, &v, MW_MASK_CPU_I, 0);
 	return v;
 }
 static void REGPARAM2 debug_lput (uaecptr addr, uae_u32 v)
 {
 	int off = debug_mem_off (&addr);
-	if (memwatch_func (addr, 2, 4, &v, MW_MASK_CPU, 0))
+	if (memwatch_func (addr, 2, 4, &v, MW_MASK_CPU_D_W, 0))
 		debug_mem_banks[off]->lput (addr, v);
 }
 static void REGPARAM2 debug_wput (uaecptr addr, uae_u32 v)
 {
 	int off = debug_mem_off (&addr);
-	if (memwatch_func (addr, 2, 2, &v, MW_MASK_CPU, 0))
+	if (memwatch_func (addr, 2, 2, &v, MW_MASK_CPU_D_W, 0))
 		debug_mem_banks[off]->wput (addr, v);
 }
 static void REGPARAM2 debug_bput (uaecptr addr, uae_u32 v)
 {
 	int off = debug_mem_off (&addr);
-	if (memwatch_func (addr, 2, 1, &v, MW_MASK_CPU, 0))
+	if (memwatch_func (addr, 2, 1, &v, MW_MASK_CPU_D_W, 0))
 		debug_mem_banks[off]->bput (addr, v);
 }
 static int REGPARAM2 debug_check (uaecptr addr, uae_u32 size)
@@ -2388,40 +2765,40 @@ static void debug_putlpeek (uaecptr addr, uae_u32 v)
 {
 	if (!memwatch_enabled)
 		return;
-	memwatch_func (addr, 2, 4, &v, MW_MASK_CPU, 0);
+	memwatch_func (addr, 2, 4, &v, MW_MASK_CPU_D_W, 0);
 }
 void debug_wputpeek (uaecptr addr, uae_u32 v)
 {
 	if (!memwatch_enabled)
 		return;
-	memwatch_func (addr, 2, 2, &v, MW_MASK_CPU, 0);
+	memwatch_func (addr, 2, 2, &v, MW_MASK_CPU_D_W, 0);
 }
 void debug_bputpeek (uaecptr addr, uae_u32 v)
 {
 	if (!memwatch_enabled)
 		return;
-	memwatch_func (addr, 2, 1, &v, MW_MASK_CPU, 0);
+	memwatch_func (addr, 2, 1, &v, MW_MASK_CPU_D_W, 0);
 }
 void debug_bgetpeek (uaecptr addr, uae_u32 v)
 {
 	uae_u32 vv = v;
 	if (!memwatch_enabled)
 		return;
-	memwatch_func (addr, 1, 1, &vv, MW_MASK_CPU, 0);
+	memwatch_func (addr, 1, 1, &vv, MW_MASK_CPU_D_R, 0);
 }
 void debug_wgetpeek (uaecptr addr, uae_u32 v)
 {
 	uae_u32 vv = v;
 	if (!memwatch_enabled)
 		return;
-	memwatch_func (addr, 1, 2, &vv, MW_MASK_CPU, 0);
+	memwatch_func (addr, 1, 2, &vv, MW_MASK_CPU_D_R, 0);
 }
 void debug_lgetpeek (uaecptr addr, uae_u32 v)
 {
 	uae_u32 vv = v;
 	if (!memwatch_enabled)
 		return;
-	memwatch_func (addr, 1, 4, &vv, MW_MASK_CPU, 0);
+	memwatch_func (addr, 1, 4, &vv, MW_MASK_CPU_D_R, 0);
 }
 
 struct membank_store
@@ -2623,54 +3000,6 @@ addrbank *get_mem_bank_real(uaecptr addr)
 	return ab;
 }
 
-struct mw_acc
-{
-	uae_u32 mask;
-	const TCHAR *name;
-};
-
-static const struct mw_acc memwatch_access_masks[] =
-{
-	{ MW_MASK_ALL, _T("ALL") },
-	{ MW_MASK_NONE, _T("NONE") },
-	{ MW_MASK_ALL & ~MW_MASK_CPU, _T("DMA") },
-	{ MW_MASK_BLITTER_A | MW_MASK_BLITTER_B | MW_MASK_BLITTER_C | MW_MASK_BLITTER_D, _T("BLT") },
-	{ MW_MASK_AUDIO_0 | MW_MASK_AUDIO_1 | MW_MASK_AUDIO_2 | MW_MASK_AUDIO_3, _T("AUD") },
-	{ MW_MASK_BPL_0 | MW_MASK_BPL_1 | MW_MASK_BPL_2 | MW_MASK_BPL_3 |
-	  MW_MASK_BPL_4 | MW_MASK_BPL_5 | MW_MASK_BPL_6 | MW_MASK_BPL_7 , _T("BPL") },
-	{ MW_MASK_SPR_0 | MW_MASK_SPR_1 | MW_MASK_SPR_2 | MW_MASK_SPR_3 |
-	  MW_MASK_SPR_4 | MW_MASK_SPR_5 | MW_MASK_SPR_6 | MW_MASK_SPR_7, _T("SPR") },
-
-	{ MW_MASK_CPU, _T("CPU") },
-	{ MW_MASK_COPPER, _T("COP") },
-	{ MW_MASK_BLITTER_A, _T("BLTA") },
-	{ MW_MASK_BLITTER_B, _T("BLTB") },
-	{ MW_MASK_BLITTER_C, _T("BLTC") },
-	{ MW_MASK_BLITTER_D, _T("BLTD") },
-	{ MW_MASK_DISK, _T("DSK") },
-	{ MW_MASK_AUDIO_0, _T("AUD0") },
-	{ MW_MASK_AUDIO_1, _T("AUD1") },
-	{ MW_MASK_AUDIO_2, _T("AUD2") },
-	{ MW_MASK_AUDIO_3, _T("AUD3") },
-	{ MW_MASK_BPL_0, _T("BPL0") },
-	{ MW_MASK_BPL_1, _T("BPL1") },
-	{ MW_MASK_BPL_2, _T("BPL2") },
-	{ MW_MASK_BPL_3, _T("BPL3") },
-	{ MW_MASK_BPL_4, _T("BPL4") },
-	{ MW_MASK_BPL_5, _T("BPL5") },
-	{ MW_MASK_BPL_6, _T("BPL6") },
-	{ MW_MASK_BPL_7, _T("BPL7") },
-	{ MW_MASK_SPR_0, _T("SPR0") },
-	{ MW_MASK_SPR_1, _T("SPR1") },
-	{ MW_MASK_SPR_2, _T("SPR2") },
-	{ MW_MASK_SPR_3, _T("SPR3") },
-	{ MW_MASK_SPR_4, _T("SPR4") },
-	{ MW_MASK_SPR_5, _T("SPR5") },
-	{ MW_MASK_SPR_6, _T("SPR6") },
-	{ MW_MASK_SPR_7, _T("SPR7") },
-	{ 0, NULL },
-};
-
 static const TCHAR *getsizechar (int size)
 {
 	if (size == 4)
@@ -2865,7 +3194,7 @@ static void memwatch (TCHAR **c)
 		}
 	}
 	if (!mwn->access_mask)
-		mwn->access_mask = MW_MASK_CPU;
+		mwn->access_mask = MW_MASK_CPU_D_R | MW_MASK_CPU_D_W | MW_MASK_CPU_I;
 	if (mwn->frozen && mwn->rwi == 0)
 		mwn->rwi = 3;
 	memwatch_setup ();
@@ -4278,7 +4607,7 @@ static bool debug_line (TCHAR *input)
 
 	switch (cmd)
 	{
-		case 'c': dumpcia (); dumpdisk (); dumpcustom (); break;
+		case 'c': dumpcia (); dumpdisk (_T("DEBUG")); dumpcustom (); break;
 		case 'i':
 		{
 			if (*inptr == 'l') {
@@ -4574,15 +4903,57 @@ static bool debug_line (TCHAR *input)
 		case 'V':
 			{
 				int v1 = vpos, v2 = 0;
-				if (more_params (&inptr))
-					v1 = readint (&inptr);
-				if (more_params (&inptr))
-					v2 = readint (&inptr);
-				if (debug_dma) {
-					decode_dma_record (v2, v1, cmd == 'v', false);
+				if (*inptr == 'h') {
+					inptr++;
+					if (more_params(&inptr) && *inptr == '?') {
+						mw_help();
+					} else if (!heatmap) {
+						debug_heatmap = 1;
+						init_heatmap();
+						if (more_params(&inptr)) {
+							v1 = readint(&inptr);
+							if (v1 < 0) {
+								debug_heatmap = 2;
+							}
+						}
+						TCHAR buf[200];
+						TCHAR *pbuf;
+						_stprintf(buf, _T("0 dff000 200 NONE"));
+						pbuf = buf;
+						memwatch(&pbuf);
+						_stprintf(buf, _T("1 0 %08x NONE"), currprefs.chipmem_size);
+						pbuf = buf;
+						memwatch(&pbuf);
+						if (currprefs.bogomem_size) {
+							_stprintf(buf, _T("2 c00000 %08x NONE"), currprefs.bogomem_size);
+							pbuf = buf;
+							memwatch(&pbuf);
+						}
+						console_out_f(_T("Heatmap enabled\n"));
+					} else {
+						if (*inptr == 'd') {
+							console_out_f(_T("Heatmap disabled\n"));
+							free_heatmap();
+						} else {
+							heatmap_stats(&inptr);
+						}
+					}
 				} else {
-					debug_dma = v1 < 0 ? -v1 : 1;
-					console_out_f (_T("DMA debugger enabled, mode=%d.\n"), debug_dma);
+					if (more_params(&inptr) && *inptr == '?') {
+						mw_help();
+					} else {
+						free_heatmap();
+						if (more_params (&inptr))
+							v1 = readint (&inptr);
+						if (more_params (&inptr))
+							v2 = readint (&inptr);
+						if (debug_dma) {
+							decode_dma_record (v2, v1, cmd == 'v', false);
+						} else {
+							debug_dma = v1 < 0 ? -v1 : 1;
+							console_out_f (_T("DMA debugger enabled, mode=%d.\n"), debug_dma);
+						}
+					}
 				}
 			}
 			break;

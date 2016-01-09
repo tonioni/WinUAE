@@ -13,8 +13,8 @@
 #include "uae/types.h"
 
 #define UAEMAJOR 3
-#define UAEMINOR 2
-#define UAESUBREV 2
+#define UAEMINOR 3
+#define UAESUBREV 0
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -59,9 +59,13 @@ struct uae_input_device {
 	uae_s8 enabled;
 };
 
+#define MAX_JPORTS_CUSTOM 6
 #define MAX_JPORTS 4
 #define NORMAL_JPORTS 2
 #define MAX_JPORTNAME 128
+struct jport_custom {
+	TCHAR custom[MAX_DPATH];
+};
 struct jport {
 	int id;
 	int mode; // 0=def,1=mouse,2=joy,3=anajoy,4=lightpen
@@ -71,7 +75,7 @@ struct jport {
 	bool nokeyboardoverride;
 };
 #define JPORT_NONE -1
-#define JPORT_CUSTOM -2
+
 #define JPORT_AF_NORMAL 1
 #define JPORT_AF_TOGGLE 2
 #define JPORT_AF_ALWAYS 3
@@ -337,6 +341,7 @@ struct uae_prefs {
 	int config_version;
 	TCHAR config_hardware_path[MAX_DPATH];
 	TCHAR config_host_path[MAX_DPATH];
+	TCHAR config_all_path[MAX_DPATH];
 	TCHAR config_window_title[256];
 
 	bool illegal_mem;
@@ -591,6 +596,7 @@ struct uae_prefs {
 	bool rtg_more_compatible;
 	uae_u32 custom_memory_addrs[MAX_CUSTOM_MEMORY_ADDRS];
 	uae_u32 custom_memory_sizes[MAX_CUSTOM_MEMORY_ADDRS];
+	uae_u32 custom_memory_mask[MAX_CUSTOM_MEMORY_ADDRS];
 	int uaeboard;
 
 	bool kickshifter;
@@ -683,6 +689,7 @@ struct uae_prefs {
 	/* input */
 
 	struct jport jports[MAX_JPORTS];
+	struct jport_custom jports_custom[MAX_JPORTS_CUSTOM];
 	int input_selected_setting;
 	int input_joymouse_multiplier;
 	int input_joymouse_deadzone;

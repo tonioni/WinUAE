@@ -455,6 +455,13 @@ bool uae_self_is_ppc(void)
 	return impl.in_cpu_thread();
 }
 
+void uae_ppc_wakeup_main(void)
+{
+	if (uae_self_is_ppc()) {
+		sleep_cpu_wakeup();
+	}
+}
+
 void ppc_map_banks(uae_u32 start, uae_u32 size, const TCHAR *name, void *addr, bool remove)
 {
 	if (ppc_state == PPC_STATE_INACTIVE || !impl.map_memory)
@@ -603,6 +610,7 @@ STATIC_INLINE bool spinlock_pre(uaecptr addr)
 {
 	addrbank *ab = &get_mem_bank(addr);
 	if ((ab->flags & ABFLAG_THREADSAFE) == 0) {
+		sleep_cpu_wakeup();
 		uae_ppc_spinlock_get();
 		return true;
 	}
@@ -641,6 +649,21 @@ bool UAECALL uae_ppc_io_mem_write(uint32_t addr, uint32_t data, int size)
 		put_byte(addr, data);
 		break;
 	}
+
+	if (addr >= 0xdff000 && addr < 0xe00000) {
+		int reg = addr & 0x1fe;
+		switch (reg) {
+			case 0x09c: // INTREQ
+			case 0x09a: // INTENA
+			if (data & 0x8000) {
+				// possible interrupt change:
+				// make sure M68K thread reacts to it ASAP.
+				uae_int_requested |= 0x010000;
+			}
+			break;
+		}
+	}
+
 	spinlock_post(locked);
 
 #if PPC_ACCESS_LOG >= 2
@@ -658,12 +681,13 @@ bool UAECALL uae_ppc_io_mem_read(uint32_t addr, uint32_t *data, int size)
 	while (ppc_thread_running && ppc_cpu_lock_state < 0 && ppc_state);
 
 	if (addr >= 0xdff000 && addr < 0xe00000) {
+		int reg = addr & 0x1fe;
 		// shortcuts for common registers
-		if (addr == 0xdff01c) { // INTENAR
+		switch (reg) {
+			case 0x01c: // INTENAR
 			*data = intena;
 			return true;
-		}
-		if (addr == 0xdff01e) { // INTREQR
+			case 0x01e: // INTREQR
 			*data = intreq;
 			return true;
 		}
@@ -692,7 +716,8 @@ bool UAECALL uae_ppc_io_mem_read(uint32_t addr, uint32_t *data, int size)
 	}
 #endif
 #if PPC_ACCESS_LOG >= 2
-	write_log(_T("PPC read %08x=%08x %d\n"), addr, v, size);
+	if (addr < 0xb00000 || addr > 0xc00000)
+		write_log(_T("PPC read %08x=%08x %d\n"), addr, v, size);
 #endif
 	return true;
 }

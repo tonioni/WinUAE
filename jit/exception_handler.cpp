@@ -424,6 +424,9 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 		(addr >= 0x50000000)) {
 			write_log (_T("JIT: Suspicious address 0x%x in SEGV handler.\n"), addr);
 	}
+	addrbank *ab = &get_mem_bank(addr);
+	if (ab)
+		write_log(_T("JIT: Address bank: %s, address %08x\n"), ab->name ? ab->name : _T("NONE"), addr);
 #endif
 
 	uae_u8* original_target = target;

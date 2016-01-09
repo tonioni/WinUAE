@@ -360,6 +360,78 @@ static int native_dos_op (uae_u32 mode, uae_u32 p1, uae_u32 p2, uae_u32 p3)
 	return 0;
 }
 
+static uae_u32 uaelib_demux_common(uae_u32 ARG0, uae_u32 ARG1, uae_u32 ARG2, uae_u32 ARG3, uae_u32 ARG4, uae_u32 ARG5)
+{
+	switch (ARG0) {
+		case 0: return emulib_GetVersion();
+		case 1: return emulib_GetUaeConfig(ARG1);
+		case 2: return emulib_SetUaeConfig(ARG1);
+		case 3: return emulib_HardReset();
+		case 4: return emulib_Reset();
+		case 5: return emulib_InsertDisk(ARG1, ARG2);
+		case 6: return emulib_EnableSound(ARG1);
+		case 7: return emulib_EnableJoystick(ARG1);
+		case 8: return emulib_SetFrameRate(ARG1);
+		case 9: return emulib_ChgCMemSize(ARG1);
+		case 10: return emulib_ChgSMemSize(ARG1);
+		case 11: return emulib_ChgFMemSize(ARG1);
+		case 12: return emulib_ChangeLanguage(ARG1);
+			/* The next call brings bad luck */
+		case 13: return emulib_ExitEmu();
+		case 14: return emulib_GetDisk(ARG1, ARG2);
+		case 15: return emulib_Debug();
+
+		case 68: return emulib_Minimize();
+		case 69: return emulib_ExecuteNativeCode();
+
+		case 70: return 0; /* RESERVED. Something uses this.. */
+
+		case 80:
+		if (!currprefs.maprom)
+			return 0xffffffff;
+		/* Disable possible ROM protection */
+		unprotect_maprom();
+		return currprefs.maprom;
+		case 81: return cfgfile_uaelib(ARG1, ARG2, ARG3, ARG4);
+		case 82: return cfgfile_uaelib_modify(ARG1, ARG2, ARG3, ARG4, ARG5);
+		case 83: currprefs.mmkeyboard = ARG1 ? 1 : 0; return currprefs.mmkeyboard;
+#ifdef DEBUGGER
+		case 84: return mmu_init(ARG1, ARG2, ARG3);
+#endif
+		case 85: return native_dos_op(ARG1, ARG2, ARG3, ARG4);
+		case 86:
+		if (valid_address(ARG1, 1)) {
+			TCHAR *s = au((char*)get_real_address(ARG1));
+			write_log(_T("DBG: %s\n"), s);
+			xfree(s);
+			return 1;
+		}
+		return 0;
+		case 87:
+		{
+			uae_u32 d0, d1;
+			d0 = emulib_target_getcpurate(ARG1, &d1);
+			m68k_dreg(regs, 1) = d1;
+			return d0;
+		}
+
+	}
+	return 0;
+}
+
+uae_u32 uaeboard_demux(uae_u32 *board)
+{
+	uae_u32 arg0, arg1, arg2, arg3, arg4, arg5;
+
+	arg0 = do_get_mem_word((uae_u16*)&board[0]);
+	arg1 = do_get_mem_long(&board[2]);
+	arg2 = do_get_mem_long(&board[3]);
+	arg3 = do_get_mem_long(&board[4]);
+	arg4 = do_get_mem_long(&board[5]);
+	arg5 = do_get_mem_long(&board[6]);
+	return uaelib_demux_common(arg0, arg1, arg2, arg3, arg4, arg5);
+}
+
 static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
 {
 #define ARG0 (get_long (m68k_areg (regs, 7) + 4))
@@ -371,65 +443,9 @@ static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
 
 #ifdef PICASSO96
 	if (ARG0 >= 16 && ARG0 <= 39)
-		return picasso_demux (ARG0, context);
+		return picasso_demux(ARG0, context);
 #endif
-
-	switch (ARG0)
-	{
-	case 0: return emulib_GetVersion ();
-	case 1: return emulib_GetUaeConfig (ARG1);
-	case 2: return emulib_SetUaeConfig (ARG1);
-	case 3: return emulib_HardReset ();
-	case 4: return emulib_Reset ();
-	case 5: return emulib_InsertDisk (ARG1, ARG2);
-	case 6: return emulib_EnableSound (ARG1);
-	case 7: return emulib_EnableJoystick (ARG1);
-	case 8: return emulib_SetFrameRate (ARG1);
-	case 9: return emulib_ChgCMemSize (ARG1);
-	case 10: return emulib_ChgSMemSize (ARG1);
-	case 11: return emulib_ChgFMemSize (ARG1);
-	case 12: return emulib_ChangeLanguage (ARG1);
-		/* The next call brings bad luck */
-	case 13: return emulib_ExitEmu ();
-	case 14: return emulib_GetDisk (ARG1, ARG2);
-	case 15: return emulib_Debug ();
-
-	case 68: return emulib_Minimize ();
-	case 69: return emulib_ExecuteNativeCode ();
-
-	case 70: return 0; /* RESERVED. Something uses this.. */
-
-	case 80:
-		if (!currprefs.maprom)
-			return 0xffffffff;
-		/* Disable possible ROM protection */
-		unprotect_maprom ();
-		return currprefs.maprom;
-	case 81: return cfgfile_uaelib (ARG1, ARG2, ARG3, ARG4);
-	case 82: return cfgfile_uaelib_modify (ARG1, ARG2, ARG3, ARG4, ARG5);
-	case 83: currprefs.mmkeyboard = ARG1 ? 1 : 0; return currprefs.mmkeyboard;
-#ifdef DEBUGGER
-	case 84: return mmu_init (ARG1, ARG2, ARG3);
-#endif
-	case 85: return native_dos_op (ARG1, ARG2, ARG3, ARG4);
-	case 86:
-		if (valid_address (ARG1, 1)) {
-			TCHAR *s = au ((char*)get_real_address (ARG1));
-			write_log (_T("DBG: %s\n"), s);
-			xfree (s);
-			return 1;
-		}
-		return 0;
-	case 87:
-		{
-			uae_u32 d0, d1;
-			d0 = emulib_target_getcpurate (ARG1, &d1);
-			m68k_dreg (regs, 1) = d1;
-			return d0;
-		}
-
-	}
-	return 0;
+	return uaelib_demux_common(ARG0, ARG1, ARG2, ARG3, ARG4, ARG5);
 }
 
 extern int uaelib_debug;
