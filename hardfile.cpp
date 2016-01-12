@@ -1415,14 +1415,18 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			goto outofbounds;
 		scsi_len = (uae_u32)cmd_writex (hfd, scsi_data, offset, len);
 		break;
+	case 0x5a: // MODE SENSE(10)
 	case 0x1a: /* MODE SENSE(6) */
 		{
 			uae_u8 *p;
+			bool pcodeloop = false;
+			bool sense10 = cmdbuf[0] == 0x5a;
 			int pc = cmdbuf[2] >> 6;
 			int pcode = cmdbuf[2] & 0x3f;
 			int dbd = cmdbuf[1] & 8;
-			int alen = cmdbuf[4];
 			int cyl, cylsec, head, tracksec;
+			int totalsize, bdsize, alen;
+
 			if (nodisk (hfd))
 				goto nodisk;
 			if (hdhfd) {
@@ -1435,56 +1439,102 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			}
 			//write_log (_T("MODE SENSE PC=%d CODE=%d DBD=%d\n"), pc, pcode, dbd);
 			p = r;
-			p[0] = 4 - 1;
-			p[1] = 0;
-			p[2] = (hfd->ci.readonly || hfd->dangerous) ? 0x80 : 0x00;
-			p[3] = 0;
-			p += 4;
+
+			if (sense10) {
+				totalsize = 8 - 2;
+				alen = (cmdbuf[7] << 8) | cmdbuf[8];
+				p[2] = 0;
+				p[3] = (hfd->ci.readonly || hfd->dangerous) ? 0x80 : 0x00;
+				p[4] = 0;
+				p[5] = 0;
+				p[6] = 0;
+				p[7] = 0;
+				p += 8;
+			} else {
+				totalsize = 4 - 1;
+				alen = cmdbuf[4];
+				p[1] = 0;
+				p[2] = (hfd->ci.readonly || hfd->dangerous) ? 0x80 : 0x00;
+				p[3] = 0;
+				p += 4;
+			}
+
+			bdsize = 0;
 			if (!dbd) {
 				uae_u32 blocks = (uae_u32)(hfd->virtsize / hfd->ci.blocksize);
-				p[-1] = 8;
 				wl(p + 0, blocks < 0x01000000 ? blocks : 0);
 				wl(p + 4, hfd->ci.blocksize);
-				p += 8;
+				bdsize = 8;
+				p += bdsize;
 			}
-			if (pcode == 0) {
-				p[0] = 0;
-				p[1] = 0;
-				p[2] = 0x20;
-				p[3] = 0;
-				r[0] += 4;
-			} else if (pcode == 1) {
-				// error recovery page
-				p[0] = 1;
-				p[1] = 0x0a;
-				r[0] += p[1] + 2;
-				// return defaults (0)
-			} else if (pcode == 3) {
-				// format parameters
-				p[0] = 3;
-				p[1] = 22;
-				p[3] = 1;
-				p[10] = tracksec >> 8;
-				p[11] = tracksec;
-				p[12] = hfd->ci.blocksize >> 8;
-				p[13] = hfd->ci.blocksize;
-				p[15] = 1; // interleave
-				p[20] = 0x80;
-				r[0] += p[1] + 2;
-			} else if (pcode == 4) {
-				// rigid drive geometry
-				p[0] = 4;
-				wl(p + 1, cyl);
-				p[1] = 22;
-				p[5] = head;
-				wl(p + 13, cyl);
-				ww(p + 20, 5400);
-				r[0] += p[1] + 2;
+
+			if (pcode == 0x3f) {
+				pcode = 1; // page = 0 must be last
+				pcodeloop = true;
+			}
+			for (;;) {
+				int psize = 0;
+				if (pcode == 0) {
+					p[0] = 0;
+					p[1] = 0;
+					p[2] = 0x20;
+					p[3] = 0;
+					psize = 4;
+				} else if (pcode == 1) {
+					// error recovery page
+					p[0] = 1;
+					p[1] = 0x0a;
+					psize = p[1] + 2;
+					// return defaults (0)
+				} else if (pcode == 3) {
+					// format parameters
+					p[0] = 3;
+					p[1] = 22;
+					p[3] = 1;
+					p[10] = tracksec >> 8;
+					p[11] = tracksec;
+					p[12] = hfd->ci.blocksize >> 8;
+					p[13] = hfd->ci.blocksize;
+					p[15] = 1; // interleave
+					p[20] = 0x80;
+					psize = p[1] + 2;
+				} else if (pcode == 4) {
+					// rigid drive geometry
+					p[0] = 4;
+					wl(p + 1, cyl);
+					p[1] = 22;
+					p[5] = head;
+					wl(p + 13, cyl);
+					ww(p + 20, 5400);
+					psize = p[1] + 2;
+				} else {
+					if (!pcodeloop)
+						goto err;
+				}
+				totalsize += psize;
+				p += psize;
+				if (!pcodeloop)
+					break;
+				if (pcode == 0)
+					break;
+				pcode++;
+				if (pcode == 0x3f)
+					pcode = 0;
+			}
+
+			if (sense10) {
+				totalsize += bdsize;
+				r[6] = bdsize >> 8;
+				r[7] = bdsize & 0xff;
+				r[0] = totalsize >> 8;
+				r[1] = totalsize & 0xff;
 			} else {
-				goto err;
+				totalsize += bdsize;
+				r[3] = (uae_u8)bdsize;
+				r[0] = (uae_u8)totalsize;
 			}
-			r[0] += r[3];
-			scsi_len = lr = r[0] + 1;
+
+			scsi_len = lr = totalsize + 1;
 			if (scsi_len > alen)
 				scsi_len = alen;
 			if (lr > alen)
@@ -1494,7 +1544,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		break;
 	case 0x1d: /* SEND DIAGNOSTICS */
 		break;
-	case 0x25: /* READ_CAPACITY */
+	case 0x25: /* READ CAPACITY */
 		{
 			int pmi = cmdbuf[8] & 1;
 			uae_u32 lba = (cmdbuf[2] << 24) | (cmdbuf[3] << 16) | (cmdbuf[4] << 8) | cmdbuf[5];
@@ -1502,7 +1552,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			int cyl, cylsec, head, tracksec;
 			if (nodisk (hfd))
 				goto nodisk;
-			blocks = (uae_u32)(hfd->virtsize / hfd->ci.blocksize - 1);
+			blocks = (uae_u32)(hfd->virtsize / hfd->ci.blocksize);
 			if (hdhfd) {
 				cyl = hdhfd->cyls;
 				head = hdhfd->heads;
@@ -1521,7 +1571,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 					lba = blocks;
 				blocks = lba;
 			}
-			wl (r, blocks);
+			wl (r, blocks - 1);
 			wl (r + 4, hfd->ci.blocksize);
 			scsi_len = lr = 8;
 		}
@@ -2444,7 +2494,7 @@ void hardfile_install (void)
 	dw (0x0032); /* 50 */
 	dw (0xD000);
 	dw (0x0016); /* LIB_REVISION */
-	dw (0x0000);
+	dw (0x0001);
 	dw (0xC000);
 	dw (0x0018); /* LIB_IDSTRING */
 	dl (ROM_hardfile_resid);
