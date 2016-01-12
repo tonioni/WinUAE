@@ -1,4 +1,14 @@
 
+Beta 2:
+
+- Game Ports panel keyboard layouts didn't load from config file. (b1)
+- Only first (of 3) Input panel keyboard config slot was loaded correctly. (b1)
+- Other input handling fixes (very old, old and b1) and updates. Some problems probably still remain unfixed.
+- GUI allowed unsupported combination: more compatible CPU ticked in JIT + 68040/68060 modes.
+- Hardfile SCSI emulation READ CAPACITY block count off by one if PMI bit was set.
+- MODE SENSE (10) added to HD SCSI emulator.
+
+Beta 1:
 
 - Added extra validation checks for STORAGE_DEVICE_DESCRIPTOR, buggy drivers may return invalid (negative) offset
   values.
@@ -27,7 +37,7 @@
 - Debugger memwatch points can now match only CPU instruction (CPUI) or only CPU data accesses (CPUD, CPUDR, CPUDW)
 - "Heat map" debugger added, shows optional visual heatmap of CPU and DMA accesses. Can list highest addresses used by
   CPU instruction fetches or all addresses that single device accessed (Some DMA channel, CPU)
-- Some AGA modes were incorrectly detected as overrunning causing screen corruption.
+- Some AGA modes were incorrectly detected as bitplane DMA overrunning causing screen corruption.
 - AROS ROM updated.
 
 Input system and mapping updates:

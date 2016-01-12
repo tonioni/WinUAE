@@ -10389,7 +10389,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_CS_CACHE_TEXT, enable);
 	ew (hDlg, IDC_CACHE, enable);
 	ew (hDlg, IDC_JITENABLE, jitenable);
-	ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_memory_cycle_exact);
+	ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_memory_cycle_exact && !(workprefs.cachesize && workprefs.cpu_model >= 68040));
 	ew (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_model > 0);
 	ew (hDlg, IDC_FPU_UNIMPLEMENTED, workprefs.fpu_model && !workprefs.cachesize);
 	ew (hDlg, IDC_CPU_UNIMPLEMENTED, workprefs.cpu_model == 68060 && !workprefs.cachesize);
@@ -10583,8 +10583,12 @@ static void values_from_cpudlg (HWND hDlg)
 	}
 	if (!workprefs.cachesize)
 		setchecked (hDlg, IDC_JITENABLE, false);
-	if (oldcache == 0 && workprefs.cachesize > 0)
+	if (oldcache == 0 && workprefs.cachesize > 0) {
 		canbang = 1;
+	}
+	if (workprefs.cachesize && workprefs.cpu_model >= 68040) {
+		workprefs.cpu_compatible = false;
+	}
 #endif
 	if (ischecked(hDlg, IDC_CPU_PPC)) {
 		if (workprefs.ppc_mode == 0)

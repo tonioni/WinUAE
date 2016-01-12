@@ -1137,13 +1137,13 @@ static void rawinputfixname (const TCHAR *name, const TCHAR *friendlyname)
 				p2++;
 			}
 			if (_tcslen (p2) >= _tcslen (tmp) && !_tcsncmp (p2, tmp, _tcslen (tmp))) {
+				write_log(_T("[%04X/%04X] '%s' (%s) -> '%s'\n"), did->vid, did->pid, did->configname, did->name, friendlyname);
 				xfree (did->name);
 //				if (did->vid > 0 && did->pid > 0)
 //					_stprintf (tmp, _T("%s [%04X/%04X]"), friendlyname, did->vid, did->pid);
 //				else
 				_stprintf (tmp, _T("%s"), friendlyname);
 				did->name = my_strdup (tmp);
-				write_log (_T("[%04X/%04X] '%s' -> '%s'\n"), did->vid, did->pid, did->configname, did->name);
 			}
 		}
 	}
@@ -1488,11 +1488,10 @@ static void dumphidbuttoncaps (PHIDP_BUTTON_CAPS pcaps, int size)
 	}
 }
 
-static void dumphidcaps (struct didata *did, int cnt)
+static void dumphidcaps (struct didata *did)
 {
 	HIDP_CAPS caps = did->hidcaps;
 
-	write_log (_T("\n******** %d USB HID: '%s'\n"), cnt, did->name);
 	write_log (_T("Usage: %04x\n"), caps.Usage);
 	write_log (_T("UsagePage: %04x\n"), caps.UsagePage);
 	write_log (_T("InputReportByteLength: %u\n"), caps.InputReportByteLength);
@@ -1852,7 +1851,8 @@ static bool initialize_rawinput (void)
 					if (HidP_GetCaps (did->hidpreparseddata, &did->hidcaps) == HIDP_STATUS_SUCCESS) {
 						PHIDP_BUTTON_CAPS bcaps;
 						USHORT size = did->hidcaps.NumberInputButtonCaps;
-						dumphidcaps (did, rawcnt);
+						write_log(_T("RAWHID: %d/%d %d '%s' ('%s')\n"), rawcnt, gotnum, num_joystick - 1, did->name, did->configname);
+						dumphidcaps (did);
 						bcaps = xmalloc (HIDP_BUTTON_CAPS, size);
 						if (HidP_GetButtonCaps (HidP_Input, bcaps, &size, did->hidpreparseddata) == HIDP_STATUS_SUCCESS) {
 							dumphidbuttoncaps (bcaps, size);
@@ -3041,6 +3041,16 @@ static int di_do_init (void)
 	sortdd (di_joystick, num_joystick, DID_JOYSTICK);
 	sortdd (di_mouse, num_mouse, DID_MOUSE);
 	sortdd (di_keyboard, num_keyboard, DID_KEYBOARD);
+
+	for (int i = 0; i < num_joystick; i++) {
+		write_log(_T("M %02d: '%s' (%s)\n"), i, di_mouse[i].name, di_mouse[i].configname);
+	}
+	for (int i = 0; i < num_joystick; i++) {
+		write_log(_T("J %02d: '%s' (%s)\n"), i, di_joystick[i].name, di_joystick[i].configname);
+	}
+	for (int i = 0; i < num_keyboard; i++) {
+		write_log(_T("K %02d: '%s' (%s)\n"), i, di_keyboard[i].name, di_keyboard[i].configname);
+	}
 
 	return 1;
 }
