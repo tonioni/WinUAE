@@ -120,7 +120,7 @@ bool scsi_emulate_analyze (struct scsi_data *sd)
 	data_len = sd->data_len;
 	data_len2 = 0;
 	cmd_len = scsicmdsizes[sd->cmd[0] >> 5];
-	if (sd->hfd && sd->hfd->ansi_version < 2 && cmd_len > 10)
+	if (sd->hdhfd && sd->hdhfd->ansi_version < 2 && cmd_len > 10)
 		goto nocmd;
 	sd->cmd_len = cmd_len;
 	switch (sd->cmd[0])
@@ -140,7 +140,7 @@ bool scsi_emulate_analyze (struct scsi_data *sd)
 		}
 	break;
 	case 0x0c: // INITIALIZE DRIVE CHARACTERICS (SASI)
-		if (sd->hfd && sd->hfd->hfd.ci.unit_feature_level < HD_LEVEL_SASI)
+		if (sd->hfd && sd->hfd->ci.unit_feature_level < HD_LEVEL_SASI)
 			goto nocmd;
 		data_len = 8;
 	break;
@@ -370,15 +370,15 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 		}
 	} else if (sd->device_type == UAEDEV_HDF && sd->nativescsiunit < 0) {
 		uae_u32 ua = 0;
-		ua = scsi_hd_emulate(&sd->hfd->hfd, sd->hfd, NULL, 0, 0, 0, 0, 0, 0, 0);
+		ua = scsi_hd_emulate(sd->hfd, sd->hdhfd, NULL, 0, 0, 0, 0, 0, 0, 0);
 		if (ua)
 			sd->unit_attention = ua;
 		if (handle_ca(sd)) {
 			if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
-				scsi_hd_emulate(&sd->hfd->hfd, sd->hfd, sd->cmd, 0, 0, 0, 0, 0, sd->sense, &sd->sense_len);
+				scsi_hd_emulate(sd->hfd, sd->hdhfd, sd->cmd, 0, 0, 0, 0, 0, sd->sense, &sd->sense_len);
 				copysense(sd);
 			} else {
-				sd->status = scsi_hd_emulate(&sd->hfd->hfd, sd->hfd,
+				sd->status = scsi_hd_emulate(sd->hfd, sd->hdhfd,
 					sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
 				copyreply(sd);
 			}
@@ -429,10 +429,24 @@ static void allocscsibuf(struct scsi_data *sd)
 	sd->buffer = xcalloc(uae_u8, sd->buffer_size);
 }
 
+struct scsi_data *scsi_alloc_generic(struct hardfiledata *hfd, int type)
+{
+	struct scsi_data *sd = xcalloc(struct scsi_data, 1);
+	sd->hfd = hfd;
+	sd->id = -1;
+	sd->nativescsiunit = -1;
+	sd->cd_emu_unit = -1;
+	sd->blocksize = hfd->ci.blocksize;
+	sd->device_type = type;
+	allocscsibuf(sd);
+	return sd;
+}
+
 struct scsi_data *scsi_alloc_hd(int id, struct hd_hardfiledata *hfd)
 {
 	struct scsi_data *sd = xcalloc (struct scsi_data, 1);
-	sd->hfd = hfd;
+	sd->hdhfd = hfd;
+	sd->hfd = &hfd->hfd;
 	sd->id = id;
 	sd->nativescsiunit = -1;
 	sd->cd_emu_unit = -1;
@@ -563,7 +577,7 @@ void free_scsi (struct scsi_data *sd)
 {
 	if (!sd)
 		return;
-	hdf_hd_close (sd->hfd);
+	hdf_hd_close(sd->hdhfd);
 	scsi_free (sd);
 }
 

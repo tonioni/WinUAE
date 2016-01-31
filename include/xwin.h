@@ -17,8 +17,6 @@ typedef uae_u32 xcolnr;
 typedef int (*allocfunc_type)(int, int, int, xcolnr *);
 
 extern xcolnr xcolors[4096];
-extern xcolnr xcolors_16[4096];
-extern xcolnr xcolors_32[4096];
 extern uae_u32 p96_rgbx16[65536];
 
 extern int graphics_setup (void);

@@ -1681,8 +1681,9 @@ bool mapped_malloc (addrbank *ab)
 	static int recurse;
 
 	ab->startmask = ab->start;
-	if (!needmman () && (!rtgmem || currprefs.cpu_model < 68020)) {
-		nocanbang ();
+	if ((!needmman () && (!rtgmem || currprefs.cpu_model < 68020)) || (ab->flags & ABFLAG_ALLOCINDIRECT)) {
+		if (!(ab->flags & ABFLAG_ALLOCINDIRECT))
+			nocanbang ();
 		ab->flags &= ~ABFLAG_DIRECTMAP;
 		if (ab->flags & ABFLAG_NOALLOC) {
 #if MAPPED_MALLOC_DEBUG
@@ -2425,7 +2426,7 @@ void memory_reset (void)
 	}
 
 #ifdef AUTOCONFIG
-	if (need_uae_boot_rom ())
+	if (need_uae_boot_rom () && currprefs.uaeboard < 2)
 		map_banks_set(&rtarea_bank, rtarea_base >> 16, 1, 0);
 #endif
 

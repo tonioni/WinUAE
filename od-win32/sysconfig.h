@@ -165,6 +165,8 @@
 #undef ENFORCER
 #endif
 
+typedef long uae_atomic;
+
 /* src/sysconfig.h.  Generated automatically by configure.  */
 /* src/sysconfig.h.in.  Generated automatically from configure.in by autoheader.  */
 

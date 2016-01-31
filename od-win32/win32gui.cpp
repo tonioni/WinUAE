@@ -1368,7 +1368,7 @@ static const int msi_cpuboard[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
 #define MIN_M68K_PRIORITY 1
 #define MAX_M68K_PRIORITY 16
 #define MIN_CACHE_SIZE 0
-#define MAX_CACHE_SIZE 9
+#define MAX_CACHE_SIZE 5
 #define MIN_REFRESH_RATE 1
 #define MAX_REFRESH_RATE 10
 #define MIN_SOUND_MEM 0
@@ -2212,7 +2212,7 @@ static void gui_to_prefs (void)
 	/* filesys hack */
 	currprefs.mountitems = changed_prefs.mountitems;
 	memcpy (&currprefs.mountconfig, &changed_prefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
-	fixup_prefs (&changed_prefs);
+	fixup_prefs (&changed_prefs, true);
 	updatewinfsmode (&changed_prefs);
 }
 
@@ -6598,7 +6598,7 @@ void init_da (HWND hDlg)
 		da_mode_selected = 0;
 	SendDlgItemMessage (hDlg, IDC_DA_MODE, CB_SETCURSEL, da_mode_selected, 0);
 	SendDlgItemMessage (hDlg, IDC_DA_SLIDER, TBM_SETPAGESIZE, 0, 1);
-	SendDlgItemMessage (hDlg, IDC_DA_SLIDER, TBM_SETRANGE, TRUE, MAKELONG (-99, 99));
+	SendDlgItemMessage (hDlg, IDC_DA_SLIDER, TBM_SETRANGE, TRUE, MAKELONG (-200, 200));
 	p = getp_da ();
 	if (p)
 		set_da (hDlg);
@@ -6875,10 +6875,12 @@ static void values_to_displaydlg (HWND hDlg)
 	else
 		SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_SETCURSEL, 5, 0);
 
-	CheckDlgButton (hDlg, IDC_AUTORESOLUTIONVGA, workprefs.gfx_autoresolution_vga);
-	CheckDlgButton (hDlg, IDC_BLACKER_THAN_BLACK, workprefs.gfx_blackerthanblack);
-	CheckDlgButton (hDlg, IDC_LORES_SMOOTHED, workprefs.gfx_lores_mode);
-	CheckDlgButton (hDlg, IDC_FLICKERFIXER, workprefs.gfx_scandoubler);
+	CheckDlgButton(hDlg, IDC_AUTORESOLUTIONVGA, workprefs.gfx_autoresolution_vga);
+	CheckDlgButton(hDlg, IDC_BLACKER_THAN_BLACK, workprefs.gfx_blackerthanblack);
+	CheckDlgButton(hDlg, IDC_LORES_SMOOTHED, workprefs.gfx_lores_mode);
+	CheckDlgButton(hDlg, IDC_FLICKERFIXER, workprefs.gfx_scandoubler);
+	CheckDlgButton(hDlg, IDC_GRAYSCALE, workprefs.gfx_grayscale);
+	CheckDlgButton(hDlg, IDC_ATARICOLORFIX, workprefs.gfx_threebitcolors);
 
 	CheckDlgButton (hDlg, IDC_XCENTER, workprefs.gfx_xcenter);
 	CheckDlgButton (hDlg, IDC_YCENTER, workprefs.gfx_ycenter);
@@ -7000,8 +7002,10 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	workprefs.gfx_lores_mode = ischecked (hDlg, IDC_LORES_SMOOTHED);
 	workprefs.gfx_scandoubler = ischecked (hDlg, IDC_FLICKERFIXER);
 	workprefs.gfx_blackerthanblack = ischecked (hDlg, IDC_BLACKER_THAN_BLACK);
-	workprefs.gfx_autoresolution_vga = ischecked (hDlg, IDC_AUTORESOLUTIONVGA);
-	
+	workprefs.gfx_autoresolution_vga = ischecked(hDlg, IDC_AUTORESOLUTIONVGA);
+	workprefs.gfx_grayscale = ischecked(hDlg, IDC_GRAYSCALE);
+	workprefs.gfx_threebitcolors = ischecked(hDlg, IDC_ATARICOLORFIX);
+
 	int vres = workprefs.gfx_vresolution;
 	int viscan = workprefs.gfx_iscanlines;
 	int vpscan = workprefs.gfx_pscanlines;
@@ -7550,6 +7554,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_IDE2, workprefs.cs_ide > 0 && (workprefs.cs_ide & 2));
 	CheckDlgButton(hDlg, IDC_CS_1MCHIPJUMPER, workprefs.cs_1mchipjumper || workprefs.chipmem_size >= 0x100000);
 	CheckDlgButton(hDlg, IDC_CS_BYTECUSTOMWRITEBUG, workprefs.cs_bytecustomwritebug);
+	CheckDlgButton(hDlg, IDC_CS_COMPOSITECOLOR, workprefs.cs_color_burst);
 	txt[0] = 0;
 	_stprintf (txt, _T("%d"), workprefs.cs_rtc_adjust);
 	SetDlgItemText(hDlg, IDC_CS_RTCADJUST, txt);
@@ -7629,6 +7634,7 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		: ischecked (hDlg, IDC_CS_RTC2) ? 1 : ischecked (hDlg, IDC_CS_RTC3) ? 2 : 3;
 	workprefs.cs_1mchipjumper = ischecked(hDlg, IDC_CS_1MCHIPJUMPER);
 	workprefs.cs_bytecustomwritebug = ischecked(hDlg, IDC_CS_BYTECUSTOMWRITEBUG);
+	workprefs.cs_color_burst = ischecked(hDlg, IDC_CS_COMPOSITECOLOR);
 
 	if (workprefs.cs_rtc) {
 		txt[0] = 0;
@@ -7712,6 +7718,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_RTCADJUST, e);
 	ew(hDlg, IDC_CS_1MCHIPJUMPER, e && workprefs.chipmem_size < 0x100000);
 	ew(hDlg, IDC_CS_BYTECUSTOMWRITEBUG, e);
+	ew(hDlg, IDC_CS_COMPOSITECOLOR, e);
 }
 
 static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -9590,6 +9597,8 @@ static void values_to_kickstartdlg (HWND hDlg)
 	SetDlgItemText(hDlg, IDC_RTCFILE, workprefs.rtcfile);
 	CheckDlgButton(hDlg, IDC_KICKSHIFTER, workprefs.kickshifter);
 	CheckDlgButton(hDlg, IDC_MAPROM, workprefs.maprom);
+
+	SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_SETCURSEL, workprefs.uaeboard, 0);
 }
 
 static void values_from_kickstartdlg(HWND hDlg)
@@ -9597,6 +9606,8 @@ static void values_from_kickstartdlg(HWND hDlg)
 	getromfile(hDlg, IDC_ROMFILE, workprefs.romfile, sizeof(workprefs.romfile) / sizeof(TCHAR));
 	getromfile(hDlg, IDC_ROMFILE2, workprefs.romextfile, sizeof(workprefs.romextfile) / sizeof(TCHAR));
 	getromfile(hDlg, IDC_CARTFILE, workprefs.cartfile, sizeof(workprefs.cartfile) / sizeof(TCHAR));
+
+	workprefs.uaeboard = SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_GETCURSEL, 0, 0);
 }
 
 static void init_kickstart (HWND hDlg)
@@ -9617,6 +9628,14 @@ static void init_kickstart (HWND hDlg)
 	ew (hDlg, IDC_CARTCHOOSER), FALSE);
 	ew (hDlg, IDC_FLASHCHOOSER), FALSE);
 #endif
+
+	ew(hDlg, IDC_UAEBOARD_TYPE, full_property_sheet);
+
+	SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Original UAE (FS + F0 ROM)"));
+	SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("New UAE (64k + F0 ROM)"));
+	SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("New UAE (128k, ROM, Direct)"));
+	SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("New UAE (128k, ROM, Indirect)"));
 
 	if (!regexiststree(NULL, _T("DetectedROMs")))
 		scan_roms (NULL, rp_isactive () ? 0 : 1);
@@ -9697,6 +9716,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			case IDC_ROMFILE:
 			case IDC_ROMFILE2:
 			case IDC_CARTFILE:
+			case IDC_UAEBOARD_TYPE:
 				values_from_kickstartdlg (hDlg);
 				break;
 			}
@@ -10454,7 +10474,14 @@ static void values_to_cpudlg (HWND hDlg)
 
 	CheckRadioButton (hDlg, IDC_TRUST0, IDC_TRUST1, trust_ids[workprefs.comptrustbyte]);
 
-	SendDlgItemMessage (hDlg, IDC_CACHE, TBM_SETPOS, TRUE, workprefs.cachesize / 1024);
+	int idx = 0;
+	for (int i = 0; i < MAX_CACHE_SIZE; i++) {
+		if (workprefs.cachesize >= (1024 << i) && workprefs.cachesize < (1024 << i) * 2) {
+			idx = i + 1;
+			break;
+		}
+	}
+	SendDlgItemMessage (hDlg, IDC_CACHE, TBM_SETPOS, TRUE, idx);
 	_stprintf (buffer, _T("%d MB"), workprefs.cachesize / 1024 );
 	SetDlgItemText (hDlg, IDC_CACHETEXT, buffer);
 
@@ -10562,7 +10589,11 @@ static void values_from_cpudlg (HWND hDlg)
 #ifdef JIT
 	oldcache = workprefs.cachesize;
 	jitena = (ischecked (hDlg, IDC_JITENABLE) ? 1 : 0) && !workprefs.address_space_24 && workprefs.cpu_model >= 68020;
-	workprefs.cachesize = SendMessage (GetDlgItem (hDlg, IDC_CACHE), TBM_GETPOS, 0, 0) * 1024;
+	workprefs.cachesize = 1024 << SendMessage (GetDlgItem (hDlg, IDC_CACHE), TBM_GETPOS, 0, 0);
+	if (workprefs.cachesize <= 1024)
+		workprefs.cachesize = 0;
+	else
+		workprefs.cachesize /= 2;
 	if (!jitena) {
 		cachesize_prev = workprefs.cachesize;
 		trust_prev = workprefs.comptrustbyte;
@@ -14463,6 +14494,8 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			joyxprevious[1] = temp;
 			enable_for_gameportsdlg (hDlg);
 			updatejoyport (hDlg, -1);
+			inputdevice_forget_unplugged_device(0);
+			inputdevice_forget_unplugged_device(1);
 		} else if (LOWORD (wParam) == IDC_PORT0_REMAP) {
 			ports_remap (hDlg, 0);
 			enable_for_gameportsdlg (hDlg);
@@ -14504,8 +14537,10 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 						port = 2;
 					if (LOWORD (wParam) == IDC_PORT3_JOYS)
 						port = 3;
-					if (port >= 0)
+					if (port >= 0) {
 						processport (hDlg, true, port);
+						inputdevice_forget_unplugged_device(port);
+					}
 					break;
 				}
 			}

@@ -12,6 +12,8 @@
 
 #include "uae/types.h"
 
+#include "traps.h"
+
 #define UAEMAJOR 3
 #define UAEMINOR 3
 #define UAESUBREV 0
@@ -66,12 +68,15 @@ struct uae_input_device {
 struct jport_custom {
 	TCHAR custom[MAX_DPATH];
 };
+struct inputdevconfig {
+	TCHAR name[MAX_JPORTNAME];
+	TCHAR configname[MAX_JPORTNAME];
+};
 struct jport {
 	int id;
 	int mode; // 0=def,1=mouse,2=joy,3=anajoy,4=lightpen
 	int autofire;
-	TCHAR name[MAX_JPORTNAME];
-	TCHAR configname[MAX_JPORTNAME];
+	struct inputdevconfig idc;
 	bool nokeyboardoverride;
 };
 #define JPORT_NONE -1
@@ -422,10 +427,12 @@ struct uae_prefs {
 	int gfx_max_horizontal, gfx_max_vertical;
 	int gfx_saturation, gfx_luminance, gfx_contrast, gfx_gamma, gfx_gamma_ch[3];
 	bool gfx_blackerthanblack;
+	bool gfx_threebitcolors;
 	int gfx_api;
 	int color_mode;
 	int gfx_extrawidth;
 	bool lightboost_strobo;
+	bool gfx_grayscale;
 
 	struct gfx_filterdata gf[2];
 
@@ -521,6 +528,7 @@ struct uae_prefs {
 	bool cs_1mchipjumper;
 	bool cs_cia6526;
 	bool cs_bytecustomwritebug;
+	bool cs_color_burst;
 	int cs_hacks;
 
 	struct boardromconfig expansionboard[MAX_EXPANSION_BOARDS];
@@ -775,8 +783,8 @@ extern int cfgfile_parse_option (struct uae_prefs *p, const TCHAR *option, TCHAR
 extern int cfgfile_get_description (const TCHAR *filename, TCHAR *description, TCHAR *hostlink, TCHAR *hardwarelink, int *type);
 extern void cfgfile_show_usage (void);
 extern int cfgfile_searchconfig(const TCHAR *in, int index, TCHAR *out, int outsize);
-extern uae_u32 cfgfile_uaelib (int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen);
-extern uae_u32 cfgfile_uaelib_modify (uae_u32 mode, uae_u32 parms, uae_u32 size, uae_u32 out, uae_u32 outsize);
+extern uae_u32 cfgfile_uaelib(TrapContext *ctx, int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen);
+extern uae_u32 cfgfile_uaelib_modify(TrapContext *ctx, uae_u32 mode, uae_u32 parms, uae_u32 size, uae_u32 out, uae_u32 outsize);
 extern uae_u32 cfgfile_modify (uae_u32 index, const TCHAR *parms, uae_u32 size, TCHAR *out, uae_u32 outsize);
 extern void cfgfile_addcfgparam (TCHAR *);
 extern int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck);
@@ -785,7 +793,7 @@ extern int built_in_cpuboard_prefs(struct uae_prefs *p);
 extern int cmdlineparser (const TCHAR *s, TCHAR *outp[], int max);
 extern int cfgfile_configuration_change (int);
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);
-extern void fixup_prefs (struct uae_prefs *prefs);
+extern void fixup_prefs (struct uae_prefs *prefs, bool userconfig);
 extern void fixup_cpu (struct uae_prefs *prefs);
 bool cfgfile_board_enabled(struct uae_prefs *p, int romtype, int devnum);
 

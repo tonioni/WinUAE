@@ -261,6 +261,7 @@ extern int intputdevice_compa_get_eventtype (int evt, const int **axistable);
 extern void inputdevice_sparecopy (struct uae_input_device *uid, int num, int sub);
 extern void inputdevice_parse_jport_custom(struct uae_prefs *pr, int index, int port, TCHAR *outname);
 extern void inputdevice_generate_jport_custom(struct uae_prefs *pr, int port);
+extern void inputdevice_forget_unplugged_device(int portnum);
 
 extern uae_u16 potgo_value;
 extern uae_u16 POTGOR (void);
@@ -280,11 +281,11 @@ extern void inputdevice_reset (void);
 extern void write_inputdevice_config (struct uae_prefs *p, struct zfile *f);
 extern void read_inputdevice_config (struct uae_prefs *p, const TCHAR *option, TCHAR *value);
 extern void reset_inputdevice_config (struct uae_prefs *pr);
-extern int inputdevice_joyport_config(struct uae_prefs *p, const TCHAR *value, int portnum, int mode, int type);
+extern int inputdevice_joyport_config(struct uae_prefs *p, const TCHAR *value1, const TCHAR *value2, int portnum, int mode, int type, bool candefault);
 extern void inputdevice_joyport_config_store(struct uae_prefs *p, const TCHAR *value, int portnum, int mode, int type);
 extern int inputdevice_getjoyportdevice (int port, int val);
 extern void inputdevice_validate_jports (struct uae_prefs *p, int changedport, bool *fixedports);
-extern void inputdevice_fix_prefs(struct uae_prefs *p);
+extern void inputdevice_fix_prefs(struct uae_prefs *p, bool userconfig);
 extern void inputdevice_config_load_start(struct uae_prefs *p);
 
 extern void inputdevice_init (void);

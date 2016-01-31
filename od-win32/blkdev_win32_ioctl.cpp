@@ -15,6 +15,7 @@
 #include <sys/timeb.h>
 
 #include "options.h"
+#include "traps.h"
 #include "uae.h"
 #include "threaddep/thread.h"
 #include "blkdev.h"

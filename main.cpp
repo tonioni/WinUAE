@@ -322,7 +322,7 @@ void fixup_cpu (struct uae_prefs *p)
 	}
 }
 
-void fixup_prefs (struct uae_prefs *p)
+void fixup_prefs (struct uae_prefs *p, bool userconfig)
 {
 	int err = 0;
 
@@ -716,7 +716,7 @@ void fixup_prefs (struct uae_prefs *p)
 
 	built_in_chipset_prefs (p);
 	blkdev_fix_prefs (p);
-	inputdevice_fix_prefs(p);
+	inputdevice_fix_prefs(p, userconfig);
 	target_fixup_options (p);
 }
 
@@ -970,7 +970,7 @@ static void parse_cmdline_and_init_file (int argc, TCHAR **argv)
 		target_cfgfile_load (&currprefs, optionsfile, CONFIG_TYPE_DEFAULT, default_config);
 #endif
 	}
-	fixup_prefs (&currprefs);
+	fixup_prefs (&currprefs, false);
 
 	parse_cmdline (argc, argv);
 }
@@ -1042,7 +1042,7 @@ static int real_main2 (int argc, TCHAR **argv)
 	set_config_changed ();
 	if (restart_config[0]) {
 		default_prefs (&currprefs, 0);
-		fixup_prefs (&currprefs);
+		fixup_prefs (&currprefs, true);
 	}
 
 	if (! graphics_setup ()) {
@@ -1065,7 +1065,7 @@ static int real_main2 (int argc, TCHAR **argv)
 
 	if (console_emulation) {
 		consolehook_config (&currprefs);
-		fixup_prefs (&currprefs);
+		fixup_prefs (&currprefs, true);
 	}
 
 	if (! setup_sound ()) {
@@ -1117,7 +1117,7 @@ static int real_main2 (int argc, TCHAR **argv)
 #endif
 #endif
 
-	fixup_prefs (&currprefs);
+	fixup_prefs (&currprefs, true);
 #ifdef RETROPLATFORM
 	rp_fixup_options (&currprefs);
 #endif

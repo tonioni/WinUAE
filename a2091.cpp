@@ -1557,12 +1557,11 @@ uae_u8 wdscsi_get (struct wd_chip_state *wd, struct wd_state *wds)
 
 static void xt_default_geometry(struct wd_state *wds)
 {
-	wds->cdmac.xt_cyls = wds->wc.scsi->hfd->cyls > 1023 ? 1023 : wds->wc.scsi->hfd->cyls;
-	wds->cdmac.xt_heads = wds->wc.scsi->hfd->heads > 31 ? 31 : wds->wc.scsi->hfd->heads;
-	wds->cdmac.xt_sectors = wds->wc.scsi->hfd->secspertrack;
+	wds->cdmac.xt_cyls = wds->wc.scsi->hdhfd->cyls > 1023 ? 1023 : wds->wc.scsi->hdhfd->cyls;
+	wds->cdmac.xt_heads = wds->wc.scsi->hdhfd->heads > 31 ? 31 : wds->wc.scsi->hdhfd->heads;
+	wds->cdmac.xt_sectors = wds->wc.scsi->hdhfd->secspertrack;
 	write_log(_T("XT Default CHS %d %d %d\n"), wds->cdmac.xt_cyls, wds->cdmac.xt_heads, wds->cdmac.xt_sectors);
 }
-
 
 static void xt_set_status(struct wd_state *wds, uae_u8 state)
 {
@@ -1677,7 +1676,7 @@ static uae_u8 read_xt_reg(struct wd_state *wds, int reg)
 		break;
 	case XD_JUMPER:
 		// 20M: 2 40M: 0, xt.device checks it.
-		v = wds->wc.scsi->hfd->size >= 41615 * 2 * 512 ? 0 : 2;
+		v = wds->wc.scsi->hdhfd->size >= 41615 * 2 * 512 ? 0 : 2;
 		break;
 	case XD_RESERVED:
 		break;

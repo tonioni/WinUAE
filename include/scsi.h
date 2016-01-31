@@ -44,7 +44,8 @@ struct scsi_data
 	int offset;
 	uae_u8 *buffer;
 	int buffer_size;
-	struct hd_hardfiledata *hfd;
+	struct hd_hardfiledata *hdhfd;
+	struct hardfiledata *hfd;
 	struct scsi_data_tape *tape;
 	int device_type;
 	int nativescsiunit;
@@ -53,6 +54,7 @@ struct scsi_data
 	uae_u32 unit_attention;
 };
 
+extern struct scsi_data *scsi_alloc_generic(struct hardfiledata *hfd, int type);
 extern struct scsi_data *scsi_alloc_hd(int, struct hd_hardfiledata*);
 extern struct scsi_data *scsi_alloc_cd(int, int, bool);
 extern struct scsi_data *scsi_alloc_tape(int id, const TCHAR *tape_directory, bool readonly);

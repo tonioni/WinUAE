@@ -890,12 +890,12 @@ void protect_roms (bool protect)
 		DWORD old;
 		if (!VirtualProtect (shm->attached, shm->rosize, protect ? PAGE_READONLY : PAGE_READWRITE, &old)) {
 			write_log (_T("protect_roms VP %08lX - %08lX %x (%dk) failed %d\n"),
-				(uae_u8*)shm->attached - natmem_offset, (uae_u8*)shm->attached - natmem_offset + shm->size,
-				shm->size, shm->size >> 10, GetLastError ());
+				(uae_u8*)shm->attached - natmem_offset, (uae_u8*)shm->attached - natmem_offset + shm->rosize,
+				shm->rosize, shm->rosize >> 10, GetLastError ());
 		} else {
 			write_log(_T("ROM VP %08lX - %08lX %x (%dk) %s\n"),
-				(uae_u8*)shm->attached - natmem_offset, (uae_u8*)shm->attached - natmem_offset + shm->size,
-				shm->size, shm->size >> 10, protect ? _T("WPROT") : _T("UNPROT"));
+				(uae_u8*)shm->attached - natmem_offset, (uae_u8*)shm->attached - natmem_offset + shm->rosize,
+				shm->rosize, shm->rosize >> 10, protect ? _T("WPROT") : _T("UNPROT"));
 		}
 	}
 }
