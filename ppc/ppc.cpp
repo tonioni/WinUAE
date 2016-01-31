@@ -404,11 +404,12 @@ static void map_banks(void)
 
 	for (int i = 0; i < map.num_regions; i++) {
 		UaeMemoryRegion *r = &map.regions[i];
-		regions[i].start = r->start;
-		regions[i].size = r->size;
-		regions[i].name = ua(r->name);
-		regions[i].alias = r->alias;
-		regions[i].memory = r->memory;
+		PPCMemoryRegion *pr = &regions[i];
+		pr->start = r->start;
+		pr->size = r->size;
+		pr->name = ua(r->name);
+		pr->alias = r->alias;
+		pr->memory = r->memory;
 	}
 
 	if (impl.in_cpu_thread && impl.in_cpu_thread() == false) {
@@ -462,6 +463,20 @@ void uae_ppc_wakeup_main(void)
 	}
 }
 
+static void ppc_map_region(PPCMemoryRegion *r)
+{
+	if (impl.in_cpu_thread() == false) {
+		/* map_memory will acquire the qemu global lock, so we must ensure
+		* the PPC CPU can finish any I/O requests and release the lock. */
+		uae_ppc_spinlock_release();
+	}
+	impl.map_memory(r, -1);
+	if (impl.in_cpu_thread() == false) {
+		uae_ppc_spinlock_get();
+	}
+	free((void*)r->name);
+}
+
 void ppc_map_banks(uae_u32 start, uae_u32 size, const TCHAR *name, void *addr, bool remove)
 {
 	if (ppc_state == PPC_STATE_INACTIVE || !impl.map_memory)
@@ -474,16 +489,19 @@ void ppc_map_banks(uae_u32 start, uae_u32 size, const TCHAR *name, void *addr, b
 	r.alias = remove ? 0xffffffff : 0;
 	r.memory = addr;
 
-	if (impl.in_cpu_thread() == false) {
-		/* map_memory will acquire the qemu global lock, so we must ensure
-		 * the PPC CPU can finish any I/O requests and release the lock. */
-		uae_ppc_spinlock_release();
+	// Map first half directly, it contains code only.
+	// Second half has dynamic data, it must not be direct mapped.
+	if (r.start == rtarea_base && rtarea_base) {
+		r.memory = rtarea_bank.baseaddr;
+		r.size = RTAREA_DATAREGION;
+		ppc_map_region(&r);
+		r.start = start + RTAREA_DATAREGION;
+		r.size = size - RTAREA_DATAREGION;
+		r.name = ua(name);
+		r.alias = remove ? 0xffffffff : 0;
+		r.memory = NULL;
 	}
-	impl.map_memory(&r, -1);
-	if (impl.in_cpu_thread() == false) {
-		uae_ppc_spinlock_get();
-	}
-	free((void*)r.name);
+	ppc_map_region(&r);
 }
 
 void uae_ppc_get_model(const TCHAR **model, uint32_t *hid1)
@@ -658,7 +676,7 @@ bool UAECALL uae_ppc_io_mem_write(uint32_t addr, uint32_t data, int size)
 			if (data & 0x8000) {
 				// possible interrupt change:
 				// make sure M68K thread reacts to it ASAP.
-				uae_int_requested |= 0x010000;
+				atomic_or(&uae_int_requested, 0x010000);
 			}
 			break;
 		}
