@@ -131,6 +131,7 @@ struct BitMap
     uae_u8 Depth;
     uae_u16 pad;
     uae_u8 *Planes[8];
+	uaecptr APlanes[8];
 };
 
 /************************************************************************/
@@ -229,6 +230,7 @@ struct RenderInfo {
 #define PSSO_Pattern_sizeof 18
 struct Pattern {
     uae_u8 *Memory;
+	uaecptr AMemory;
     uae_u16 XOffset, YOffset;
     uae_u32 FgPen, BgPen;
     uae_u8 Size;					/* Width: 16, Height: (1<<pat_Size) */
@@ -245,6 +247,7 @@ struct Pattern {
 
 struct Template {
     uae_u8 *Memory;
+	uaecptr AMemory;
     uae_s16 BytesPerRow;
     uae_u8 XOffset;
     uae_u8 DrawMode;

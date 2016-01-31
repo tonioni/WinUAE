@@ -1096,7 +1096,7 @@ static void *dev_thread (void *devs)
 
 static uae_u32 REGPARAM2 dev_init_2 (TrapContext *context, int type)
 {
-	uae_u32 base = m68k_dreg (regs, 0);
+	uae_u32 base = trap_get_dreg (context, 0);
 	if (log_scsi)
 		write_log (_T("%s init\n"), getdevname (type));
 	return base;
@@ -1253,25 +1253,25 @@ static uaecptr ROM_diskdev_resname = 0,
 	ROM_diskdev_init = 0;
 
 
-static uaecptr diskdev_startup (uaecptr resaddr)
+static uaecptr diskdev_startup (TrapContext *ctx, uaecptr resaddr)
 {
 	/* Build a struct Resident. This will set up and initialize
 	* the cd.device */
 	if (log_scsi)
 		write_log (_T("diskdev_startup(0x%x)\n"), resaddr);
-	put_word (resaddr + 0x0, 0x4AFC);
-	put_long (resaddr + 0x2, resaddr);
-	put_long (resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
-	put_word (resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
-	put_word (resaddr + 0xC, 0x0305); /* NT_DEVICE; pri 05 */
-	put_long (resaddr + 0xE, ROM_diskdev_resname);
-	put_long (resaddr + 0x12, ROM_diskdev_resid);
-	put_long (resaddr + 0x16, ROM_diskdev_init);
+	trap_put_word(ctx, resaddr + 0x0, 0x4AFC);
+	trap_put_long(ctx, resaddr + 0x2, resaddr);
+	trap_put_long(ctx, resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
+	trap_put_word(ctx, resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
+	trap_put_word(ctx, resaddr + 0xC, 0x0305); /* NT_DEVICE; pri 05 */
+	trap_put_long(ctx, resaddr + 0xE, ROM_diskdev_resname);
+	trap_put_long(ctx, resaddr + 0x12, ROM_diskdev_resid);
+	trap_put_long(ctx, resaddr + 0x16, ROM_diskdev_init);
 	resaddr += 0x1A;
 	return resaddr;
 }
 
-uaecptr scsidev_startup (uaecptr resaddr)
+uaecptr scsidev_startup(TrapContext *ctx, uaecptr resaddr)
 {
 	if (currprefs.scsi != 1)
 		return resaddr;
@@ -1279,17 +1279,17 @@ uaecptr scsidev_startup (uaecptr resaddr)
 		write_log (_T("scsidev_startup(0x%x)\n"), resaddr);
 	/* Build a struct Resident. This will set up and initialize
 	* the uaescsi.device */
-	put_word (resaddr + 0x0, 0x4AFC);
-	put_long (resaddr + 0x2, resaddr);
-	put_long (resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
-	put_word (resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
-	put_word (resaddr + 0xC, 0x0305); /* NT_DEVICE; pri 05 */
-	put_long (resaddr + 0xE, ROM_scsidev_resname);
-	put_long (resaddr + 0x12, ROM_scsidev_resid);
-	put_long (resaddr + 0x16, ROM_scsidev_init); /* calls scsidev_init */
+	trap_put_word(ctx, resaddr + 0x0, 0x4AFC);
+	trap_put_long(ctx, resaddr + 0x2, resaddr);
+	trap_put_long(ctx, resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
+	trap_put_word(ctx, resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
+	trap_put_word(ctx, resaddr + 0xC, 0x0305); /* NT_DEVICE; pri 05 */
+	trap_put_long(ctx, resaddr + 0xE, ROM_scsidev_resname);
+	trap_put_long(ctx, resaddr + 0x12, ROM_scsidev_resid);
+	trap_put_long(ctx, resaddr + 0x16, ROM_scsidev_init); /* calls scsidev_init */
 	resaddr += 0x1A;
 	return resaddr;
-	return diskdev_startup (resaddr);
+	//return diskdev_startup(ctx, resaddr);
 }
 
 static void diskdev_install (void)

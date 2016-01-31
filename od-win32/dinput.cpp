@@ -34,6 +34,7 @@ int no_windowsmouse = 0;
 
 #include "sysdeps.h"
 #include "options.h"
+#include "traps.h"
 #include "rp.h"
 #include "inputdevice.h"
 #include "keybuf.h"

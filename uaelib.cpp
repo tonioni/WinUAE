@@ -130,14 +130,14 @@ static uae_u32 emulib_ChangeLanguage (uae_u32 which)
 * Changes chip memory size
 *  (reboots)
 */
-static uae_u32 REGPARAM2 emulib_ChgCMemSize (uae_u32 memsize)
+static uae_u32 REGPARAM2 emulib_ChgCMemSize(TrapContext *ctx, uae_u32 memsize)
 {
 	if (memsize != 0x80000 && memsize != 0x100000 &&
 		memsize != 0x200000) {
 			memsize = 0x200000;
 			write_log (_T("Unsupported chipmem size!\n"));
 	}
-	m68k_dreg (regs, 0) = 0;
+	trap_set_dreg(ctx, 0,  0);
 
 	changed_prefs.chipmem_size = memsize;
 	uae_reset(1, 1);
@@ -148,7 +148,7 @@ static uae_u32 REGPARAM2 emulib_ChgCMemSize (uae_u32 memsize)
 * Changes slow memory size
 *  (reboots)
 */
-static uae_u32 REGPARAM2 emulib_ChgSMemSize (uae_u32 memsize)
+static uae_u32 REGPARAM2 emulib_ChgSMemSize(TrapContext *ctx, uae_u32 memsize)
 {
 	if (memsize != 0x80000 && memsize != 0x100000 &&
 		memsize != 0x180000 && memsize != 0x1C0000) {
@@ -156,7 +156,7 @@ static uae_u32 REGPARAM2 emulib_ChgSMemSize (uae_u32 memsize)
 			write_log (_T("Unsupported bogomem size!\n"));
 	}
 
-	m68k_dreg (regs, 0) = 0;
+	trap_set_dreg(ctx, 0, 0);
 	changed_prefs.bogomem_size = memsize;
 	uae_reset (1, 1);
 	return 1;
@@ -166,14 +166,14 @@ static uae_u32 REGPARAM2 emulib_ChgSMemSize (uae_u32 memsize)
 * Changes fast memory size
 *  (reboots)
 */
-static uae_u32 REGPARAM2 emulib_ChgFMemSize (uae_u32 memsize)
+static uae_u32 REGPARAM2 emulib_ChgFMemSize(TrapContext *ctx, uae_u32 memsize)
 {
 	if (memsize != 0x100000 && memsize != 0x200000 &&
 		memsize != 0x400000 && memsize != 0x800000) {
 			memsize = 0;
 			write_log (_T("Unsupported fastmem size!\n"));
 	}
-	m68k_dreg (regs, 0) = 0;
+	trap_set_dreg(ctx, 0, 0);
 	changed_prefs.fastmem_size = memsize;
 	uae_reset (1, 1);
 	return 0;
@@ -182,19 +182,15 @@ static uae_u32 REGPARAM2 emulib_ChgFMemSize (uae_u32 memsize)
 /*
 * Inserts a disk
 */
-static uae_u32 emulib_InsertDisk (uaecptr name, uae_u32 drive)
+static uae_u32 emulib_InsertDisk(TrapContext *ctx, uaecptr name, uae_u32 drive)
 {
-	int i = 0;
 	char real_name[256];
 	TCHAR *s;
 
 	if (drive > 3)
 		return 0;
 
-	while ((real_name[i] = get_byte (name + i)) != 0 && i++ != 254)
-		;
-
-	if (i == 255)
+	if (trap_get_string(ctx, real_name, name, sizeof real_name) >= sizeof real_name)
 		return 0; /* ENAMETOOLONG */
 
 	s = au (real_name);
@@ -207,7 +203,7 @@ static uae_u32 emulib_InsertDisk (uaecptr name, uae_u32 drive)
 /*
 * Exits the emulator
 */
-static uae_u32 emulib_ExitEmu (void)
+static uae_u32 emulib_ExitEmu(void)
 {
 	uae_quit ();
 	return 1;
@@ -216,39 +212,36 @@ static uae_u32 emulib_ExitEmu (void)
 /*
 * Gets UAE Configuration
 */
-static uae_u32 emulib_GetUaeConfig (uaecptr place)
+static uae_u32 emulib_GetUaeConfig(TrapContext *ctx, uaecptr place)
 {
-	int i, j;
-
-	put_long (place, version);
-	put_long (place + 4, chipmem_bank.allocated);
-	put_long (place + 8, bogomem_bank.allocated);
-	put_long (place + 12, fastmem_bank.allocated);
-	put_long (place + 16, currprefs.gfx_framerate);
-	put_long (place + 20, currprefs.produce_sound);
-	put_long (place + 24, currprefs.jports[0].id | (currprefs.jports[1].id << 8));
-	put_long (place + 28, currprefs.keyboard_lang);
+	trap_put_long(ctx, place, version);
+	trap_put_long(ctx, place + 4, chipmem_bank.allocated);
+	trap_put_long(ctx, place + 8, bogomem_bank.allocated);
+	trap_put_long(ctx, place + 12, fastmem_bank.allocated);
+	trap_put_long(ctx, place + 16, currprefs.gfx_framerate);
+	trap_put_long(ctx, place + 20, currprefs.produce_sound);
+	trap_put_long(ctx, place + 24, currprefs.jports[0].id | (currprefs.jports[1].id << 8));
+	trap_put_long(ctx, place + 28, currprefs.keyboard_lang);
 	if (disk_empty (0))
-		put_byte (place + 32, 0);
+		trap_put_byte(ctx, place + 32, 0);
 	else
-		put_byte (place + 32, 1);
+		trap_put_byte(ctx, place + 32, 1);
 	if (disk_empty (1))
-		put_byte (place + 33, 0);
+		trap_put_byte(ctx, place + 33, 0);
 	else
-		put_byte (place + 33, 1);
+		trap_put_byte(ctx, place + 33, 1);
 	if (disk_empty(2))
-		put_byte (place + 34, 0);
+		trap_put_byte(ctx, place + 34, 0);
 	else
-		put_byte (place + 34, 1);
+		trap_put_byte(ctx, place + 34, 1);
 	if (disk_empty(3))
-		put_byte (place + 35, 0);
+		trap_put_byte(ctx, place + 35, 0);
 	else
-		put_byte (place + 35, 1);
+		trap_put_byte(ctx, place + 35, 1);
 
-	for (j = 0; j < 4; j++) {
-		char *s = ua (currprefs.floppyslots[j].df);
-		for (i = 0; i < 256; i++)
-			put_byte (place + 36 + i + j * 256, s[i]);
+	for (int i = 0; i < 4; i++) {
+		char *s = ua (currprefs.floppyslots[i].df);
+		trap_put_string(ctx, s, place + 36 + i * 256, 256);
 		xfree (s);
 	}
 	return 1;
@@ -259,7 +252,7 @@ static uae_u32 emulib_GetUaeConfig (uaecptr place)
 *
 * NOT IMPLEMENTED YET
 */
-static uae_u32 emulib_SetUaeConfig (uaecptr place)
+static uae_u32 emulib_SetUaeConfig(uaecptr place)
 {
 	return 1;
 }
@@ -267,22 +260,21 @@ static uae_u32 emulib_SetUaeConfig (uaecptr place)
 /*
 * Gets the name of the disk in the given drive
 */
-static uae_u32 emulib_GetDisk (uae_u32 drive, uaecptr name)
+static uae_u32 emulib_GetDisk(TrapContext *ctx, uae_u32 drive, uaecptr name)
 {
-	int i;
 	if (drive > 3)
 		return 0;
 
-	for (i = 0; i < 256; i++) {
-		put_byte (name + i, currprefs.floppyslots[drive].df[i]);
-	}
+	char *n = ua(currprefs.floppyslots[drive].df);
+	trap_put_string(ctx, (uae_u8*)n, name, 256);
+	xfree(n);
 	return 1;
 }
 
 /*
 * Enter debugging state
 */
-static uae_u32 emulib_Debug (void)
+static uae_u32 emulib_Debug(void)
 {
 #ifdef DEBUGGER
 	activate_debugger ();
@@ -337,48 +329,45 @@ static uae_u32 emulib_Minimize (void)
 	return 0; // OSDEP_minimize_uae();
 }
 
-static int native_dos_op (uae_u32 mode, uae_u32 p1, uae_u32 p2, uae_u32 p3)
+static int native_dos_op(TrapContext *ctx, uae_u32 mode, uae_u32 p1, uae_u32 p2, uae_u32 p3)
 {
 	TCHAR tmp[MAX_DPATH];
 	char *s;
-	int v, i;
+	int v;
 
 	if (mode)
 		return -1;
 	/* receive native path from lock
 	* p1 = dos.library:Lock, p2 = buffer, p3 = max buffer size
 	*/
-	v = get_native_path (p1, tmp);
+	v = get_native_path(ctx, p1, tmp);
 	if (v)
 		return v;
 	s = ua (tmp);
-	for (i = 0; i <= strlen (s) && i < p3 - 1; i++) {
-		put_byte (p2 + i, s[i]);
-		put_byte (p2 + i + 1, 0);
-	}
+	trap_put_string(ctx, (uae_u8*)s, p2, p3);
 	xfree (s);
 	return 0;
 }
 
-static uae_u32 uaelib_demux_common(uae_u32 ARG0, uae_u32 ARG1, uae_u32 ARG2, uae_u32 ARG3, uae_u32 ARG4, uae_u32 ARG5)
+static uae_u32 uaelib_demux_common(TrapContext *ctx, uae_u32 ARG0, uae_u32 ARG1, uae_u32 ARG2, uae_u32 ARG3, uae_u32 ARG4, uae_u32 ARG5)
 {
 	switch (ARG0) {
 		case 0: return emulib_GetVersion();
-		case 1: return emulib_GetUaeConfig(ARG1);
+		case 1: return emulib_GetUaeConfig(ctx, ARG1);
 		case 2: return emulib_SetUaeConfig(ARG1);
 		case 3: return emulib_HardReset();
 		case 4: return emulib_Reset();
-		case 5: return emulib_InsertDisk(ARG1, ARG2);
+		case 5: return emulib_InsertDisk(ctx, ARG1, ARG2);
 		case 6: return emulib_EnableSound(ARG1);
 		case 7: return emulib_EnableJoystick(ARG1);
 		case 8: return emulib_SetFrameRate(ARG1);
-		case 9: return emulib_ChgCMemSize(ARG1);
-		case 10: return emulib_ChgSMemSize(ARG1);
-		case 11: return emulib_ChgFMemSize(ARG1);
+		case 9: return emulib_ChgCMemSize(ctx, ARG1);
+		case 10: return emulib_ChgSMemSize(ctx, ARG1);
+		case 11: return emulib_ChgFMemSize(ctx, ARG1);
 		case 12: return emulib_ChangeLanguage(ARG1);
 			/* The next call brings bad luck */
 		case 13: return emulib_ExitEmu();
-		case 14: return emulib_GetDisk(ARG1, ARG2);
+		case 14: return emulib_GetDisk(ctx, ARG1, ARG2);
 		case 15: return emulib_Debug();
 
 		case 68: return emulib_Minimize();
@@ -392,16 +381,18 @@ static uae_u32 uaelib_demux_common(uae_u32 ARG0, uae_u32 ARG1, uae_u32 ARG2, uae
 		/* Disable possible ROM protection */
 		unprotect_maprom();
 		return currprefs.maprom;
-		case 81: return cfgfile_uaelib(ARG1, ARG2, ARG3, ARG4);
-		case 82: return cfgfile_uaelib_modify(ARG1, ARG2, ARG3, ARG4, ARG5);
+		case 81: return cfgfile_uaelib(ctx, ARG1, ARG2, ARG3, ARG4);
+		case 82: return cfgfile_uaelib_modify(ctx, ARG1, ARG2, ARG3, ARG4, ARG5);
 		case 83: currprefs.mmkeyboard = ARG1 ? 1 : 0; return currprefs.mmkeyboard;
 #ifdef DEBUGGER
 		case 84: return mmu_init(ARG1, ARG2, ARG3);
 #endif
-		case 85: return native_dos_op(ARG1, ARG2, ARG3, ARG4);
+		case 85: return native_dos_op(ctx, ARG1, ARG2, ARG3, ARG4);
 		case 86:
 		if (valid_address(ARG1, 1)) {
-			TCHAR *s = au((char*)get_real_address(ARG1));
+			uae_char tmp[MAX_DPATH];
+			trap_get_string(ctx, tmp, ARG1, sizeof tmp);
+			TCHAR *s = au(tmp);
 			write_log(_T("DBG: %s\n"), s);
 			xfree(s);
 			return 1;
@@ -411,7 +402,7 @@ static uae_u32 uaelib_demux_common(uae_u32 ARG0, uae_u32 ARG1, uae_u32 ARG2, uae
 		{
 			uae_u32 d0, d1;
 			d0 = emulib_target_getcpurate(ARG1, &d1);
-			m68k_dreg(regs, 1) = d1;
+			trap_set_dreg(ctx, 1, d1);
 			return d0;
 		}
 
@@ -429,27 +420,27 @@ uae_u32 uaeboard_demux(uae_u32 *board)
 	arg3 = do_get_mem_long(&board[4]);
 	arg4 = do_get_mem_long(&board[5]);
 	arg5 = do_get_mem_long(&board[6]);
-	return uaelib_demux_common(arg0, arg1, arg2, arg3, arg4, arg5);
+	return uaelib_demux_common(NULL, arg0, arg1, arg2, arg3, arg4, arg5);
 }
 
-static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
+static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *ctx)
 {
-#define ARG0 (get_long (m68k_areg (regs, 7) + 4))
-#define ARG1 (get_long (m68k_areg (regs, 7) + 8))
-#define ARG2 (get_long (m68k_areg (regs, 7) + 12))
-#define ARG3 (get_long (m68k_areg (regs, 7) + 16))
-#define ARG4 (get_long (m68k_areg (regs, 7) + 20))
-#define ARG5 (get_long (m68k_areg (regs, 7) + 24))
+#define ARG0 (trap_get_long(ctx, trap_get_areg(ctx, 7) + 4))
+#define ARG1 (trap_get_long(ctx, trap_get_areg(ctx, 7) + 8))
+#define ARG2 (trap_get_long(ctx, trap_get_areg(ctx, 7) + 12))
+#define ARG3 (trap_get_long(ctx, trap_get_areg(ctx, 7) + 16))
+#define ARG4 (trap_get_long(ctx, trap_get_areg(ctx, 7) + 20))
+#define ARG5 (trap_get_long(ctx, trap_get_areg(ctx, 7) + 24))
 
 #ifdef PICASSO96
 	if (ARG0 >= 16 && ARG0 <= 39)
-		return picasso_demux(ARG0, context);
+		return picasso_demux(ARG0, ctx);
 #endif
-	return uaelib_demux_common(ARG0, ARG1, ARG2, ARG3, ARG4, ARG5);
+	return uaelib_demux_common(ctx, ARG0, ARG1, ARG2, ARG3, ARG4, ARG5);
 }
 
 extern int uaelib_debug;
-static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
+static uae_u32 REGPARAM2 uaelib_demux (TrapContext *ctx)
 {
 	uae_u32 v;
 	struct regstruct *r = &regs;
@@ -459,7 +450,7 @@ static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
 		ARG0,
 		r->regs[0],r->regs[1],r->regs[2],r->regs[3],r->regs[4],r->regs[5],r->regs[6],r->regs[7],
 		r->regs[8],r->regs[9],r->regs[10],r->regs[11],r->regs[12],r->regs[13],r->regs[14],r->regs[15]);
-	v = uaelib_demux2 (context);
+	v = uaelib_demux2 (ctx);
 	if (uaelib_debug)
 		write_log (_T("=%08x\n"), v);
 	return v;

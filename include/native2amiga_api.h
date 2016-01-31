@@ -16,7 +16,6 @@ void uae_PutMsg(uaecptr port, uaecptr msg);
 void uae_Signal(uaecptr task, uae_u32 mask);
 void uae_NotificationHack(uaecptr, uaecptr);
 #endif
-void uae_NewList(uaecptr list);
-int native2amiga_isfree (void);
+int native2amiga_isfree(void);
 
 #endif /* UAE_NATIVE2AMIGA_API_H */

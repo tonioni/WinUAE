@@ -73,8 +73,8 @@ enum
 {
 	ABFLAG_UNK = 0, ABFLAG_RAM = 1, ABFLAG_ROM = 2, ABFLAG_ROMIN = 4, ABFLAG_IO = 8,
 	ABFLAG_NONE = 16, ABFLAG_SAFE = 32, ABFLAG_INDIRECT = 64, ABFLAG_NOALLOC = 128,
-	ABFLAG_RTG = 256, ABFLAG_THREADSAFE = 512, ABFLAG_DIRECTMAP = 1024,
-	ABFLAG_CHIPRAM = 2048, ABFLAG_CIA = 4096, ABFLAG_PPCIOSPACE = 8192
+	ABFLAG_RTG = 256, ABFLAG_THREADSAFE = 512, ABFLAG_DIRECTMAP = 1024, ABFLAG_ALLOCINDIRECT = 2048,
+	ABFLAG_CHIPRAM = 4096, ABFLAG_CIA = 8192, ABFLAG_PPCIOSPACE = 16384,
 };
 typedef struct {
 	/* These ones should be self-explanatory... */
@@ -267,9 +267,10 @@ extern addrbank extendedkickmem2_bank;
 extern addrbank custmem1_bank;
 extern addrbank custmem2_bank;
 
-extern void rtarea_init (void);
-extern void rtarea_init_mem (void);
-extern void rtarea_setup (void);
+extern void rtarea_init(void);
+extern void rtarea_free(void);
+extern void rtarea_init_mem(void);
+extern void rtarea_setup(void);
 extern void expamem_init (void);
 extern void expamem_reset (void);
 extern void expamem_next (addrbank *mapped, addrbank *next);
@@ -531,6 +532,31 @@ STATIC_INLINE uae_u8 *get_real_address (uaecptr addr)
 STATIC_INLINE int valid_address (uaecptr addr, uae_u32 size)
 {
 	return get_mem_bank (addr).check(addr, size);
+}
+
+STATIC_INLINE void put_long_host(void *addr, uae_u32 v)
+{
+	do_put_mem_long((uae_u32*)addr, v);
+}
+STATIC_INLINE void put_word_host(void *addr, uae_u16 v)
+{
+	do_put_mem_word((uae_u16*)addr, v);
+}
+STATIC_INLINE void put_byte_host(void *addr, uae_u8 v)
+{
+	*((uae_u8*)addr) = v;
+}
+STATIC_INLINE uae_u32 get_long_host(void *addr)
+{
+	return do_get_mem_long((uae_u32*)addr);
+}
+STATIC_INLINE uae_u16 get_word_host(void *addr)
+{
+	return do_get_mem_word((uae_u16*)addr);
+}
+STATIC_INLINE uae_u32 get_byte_host(void *addr)
+{
+	return *((uae_u8*)addr);
 }
 
 extern int addr_valid (const TCHAR*, uaecptr,uae_u32);

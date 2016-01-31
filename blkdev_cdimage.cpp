@@ -17,6 +17,7 @@
 #include <sys/timeb.h>
 
 #include "options.h"
+#include "traps.h"
 #include "blkdev.h"
 #include "zfile.h"
 #include "gui.h"

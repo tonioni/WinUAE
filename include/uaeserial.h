@@ -11,10 +11,10 @@
 
 #include "uae/types.h"
 
-uaecptr uaeserialdev_startup (uaecptr resaddr);
-void uaeserialdev_install (void);
-void uaeserialdev_reset (void);
-void uaeserialdev_start_threads (void);
+uaecptr uaeserialdev_startup(TrapContext*, uaecptr resaddr);
+void uaeserialdev_install(void);
+void uaeserialdev_reset(void);
+void uaeserialdev_start_threads(void);
 
 extern int log_uaeserial;
 

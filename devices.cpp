@@ -98,6 +98,7 @@ void devices_reset(int hardreset)
 #endif
 #ifdef AUTOCONFIG
 	expamem_reset ();
+	rtarea_reset();
 #endif
 	uae_int_requested = 0;
 }
@@ -112,6 +113,7 @@ void devices_vsync_pre(void)
 	filesys_vsync ();
 	sampler_vsync ();
 	clipboard_vsync ();
+	uaenet_vsync();
 #ifdef RETROPLATFORM
 	rp_vsync ();
 #endif
@@ -222,6 +224,8 @@ void devices_rethink(void)
 #endif
 	rethink_gayle ();
 	idecontroller_rethink();
+	rethink_uae_int();
+	rethink_traps();
 	/* cpuboard_rethink must be last */
 	cpuboard_rethink();
 }
@@ -360,6 +364,7 @@ void do_leave_program (void)
 	machdep_free ();
 	driveclick_free();
 	ethernet_enumerate_free();
+	rtarea_free();
 }
 
 void virtualdevice_init (void)

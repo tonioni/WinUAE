@@ -41,16 +41,16 @@ static uaecptr res_init, res_name, res_id, base;
 
 static uae_u32 REGPARAM2 res_getfunc (TrapContext *ctx)
 {
-	uaecptr funcname = m68k_areg (regs, 0);
+	uaecptr funcname = trap_get_areg(ctx, 0);
 	uae_char tmp[256];
 	uae_u32 p;
 	TCHAR *s;
 
 	if (funcname == 0)
 		return 0;
-	strcpyah_safe (tmp, funcname, sizeof tmp);
-	s = au (tmp);
-	p = find_trap (s);
+	trap_get_string(ctx, tmp, funcname, sizeof tmp);
+	s = au(tmp);
+	p = find_trap(s);
 	xfree (s);
 	return p;
 }
@@ -58,26 +58,26 @@ static uae_u32 REGPARAM2 res_getfunc (TrapContext *ctx)
 static uae_u32 REGPARAM2 res_initcode (TrapContext *ctx)
 {
 	uaecptr rb;
-	base = m68k_dreg (regs, 0);
+	base = trap_get_dreg (ctx, 0);
 	rb = base + SIZEOF_LIBRARY;
-	put_word (rb + 0, UAEMAJOR);
-	put_word (rb + 2, UAEMINOR);
-	put_word (rb + 4, UAESUBREV);
-	put_word (rb + 6, 0);
-	put_long (rb + 8, rtarea_base);
+	trap_put_word(ctx, rb + 0, UAEMAJOR);
+	trap_put_word(ctx, rb + 2, UAEMINOR);
+	trap_put_word(ctx, rb + 4, UAESUBREV);
+	trap_put_word(ctx, rb + 6, 0);
+	trap_put_long(ctx, rb + 8, rtarea_base);
 	return base;
 }
 
-uaecptr uaeres_startup (uaecptr resaddr)
+uaecptr uaeres_startup (TrapContext *ctx, uaecptr resaddr)
 {
-	put_word (resaddr + 0x0, 0x4AFC);
-	put_long (resaddr + 0x2, resaddr);
-	put_long (resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
-	put_word (resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
-	put_word (resaddr + 0xC, 0x0878); /* NT_DEVICE; pri 05 */
-	put_long (resaddr + 0xE, res_name);
-	put_long (resaddr + 0x12, res_id);
-	put_long (resaddr + 0x16, res_init);
+	trap_put_word(ctx, resaddr + 0x0, 0x4AFC);
+	trap_put_long(ctx, resaddr + 0x2, resaddr);
+	trap_put_long(ctx, resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
+	trap_put_word(ctx, resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
+	trap_put_word(ctx, resaddr + 0xC, 0x0878); /* NT_DEVICE; pri 05 */
+	trap_put_long(ctx, resaddr + 0xE, res_name);
+	trap_put_long(ctx, resaddr + 0x12, res_id);
+	trap_put_long(ctx, resaddr + 0x16, res_init);
 	resaddr += 0x1A;
 	return resaddr;
 }

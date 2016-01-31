@@ -279,12 +279,12 @@ uae_u32 uaenative_open_library (TrapContext *context, int flags)
     uaecptr name;
     uae_u32 min_version;
     if (flags & UNI_FLAG_COMPAT) {
-        name = m68k_areg (regs, 0);
+        name = trap_get_areg(context, 0);
         min_version = 0;
     }
     else {
-        name = m68k_areg (regs, 1);
-        min_version = m68k_dreg (regs, 0);
+        name = trap_get_areg(context, 1);
+        min_version = trap_get_dreg(context, 0);
     }
 
     uae_u32 result = open_library (
@@ -342,12 +342,12 @@ uae_u32 uaenative_get_function (TrapContext *context, int flags)
     uaecptr name;
     uae_u32 library;
     if (flags & UNI_FLAG_COMPAT) {
-        name = m68k_areg (regs, 0);
-        library = m68k_dreg (regs, 1);
+        name = trap_get_areg(context, 0);
+        library = trap_get_dreg(context, 1);
     }
     else {
-        library = m68k_areg (regs, 0);
-        name = m68k_areg (regs, 1);
+        library = trap_get_areg(context, 0);
+        name = trap_get_areg(context, 1);
     }
 
     uae_u32 result = get_function_handle (
@@ -464,14 +464,14 @@ static void *uaenative_thread(void *arg)
     return NULL;
 }
 
-uae_u32 uaenative_call_function (TrapContext *context, int flags)
+uae_u32 uaenative_call_function (TrapContext *ctx, int flags)
 {
     if (!currprefs.native_code) {
         return UNI_ERROR_NOT_ENABLED;
     }
 
     struct uni uni;
-    uni.function = m68k_areg (regs, 0);
+    uni.function = trap_get_areg(ctx, 0);
     if (flags & UNI_FLAG_COMPAT) {
         uni.library = 0;
 #ifdef AHI
@@ -481,7 +481,7 @@ uae_u32 uaenative_call_function (TrapContext *context, int flags)
 #endif
     }
     else if (flags & UNI_FLAG_NAMED_FUNCTION) {
-        uni.library = m68k_dreg (regs, 0);
+        uni.library = trap_get_dreg(ctx, 0);
     }
     else {
         uni.library = 0;
@@ -491,7 +491,8 @@ uae_u32 uaenative_call_function (TrapContext *context, int flags)
 
     if (uni.library) {
         // library handle given, function is pointer to function name
-        const char *function = (const char *) get_real_address (uni.function);
+		uae_u8 function[256];
+		trap_get_string(ctx, function, uni.function, sizeof function);
 
         library_data = get_library_data_from_handle (uni.library);
         if (library_data == NULL) {
@@ -500,7 +501,7 @@ uae_u32 uaenative_call_function (TrapContext *context, int flags)
             return UNI_ERROR_INVALID_LIBRARY;
         }
 
-        uni.native_function = dl_symbol (library_data->dl_handle, function);
+        uni.native_function = dl_symbol (library_data->dl_handle, (const char*)function);
         if (uni.native_function == NULL) {
             write_log (_T("uni: get_function - function (%s) not found ")
                        _T("in library %d (%p)\n"), function, uni.library,
@@ -524,36 +525,36 @@ uae_u32 uaenative_call_function (TrapContext *context, int flags)
         }
     }
 
-    if (context == NULL) {
+    if (ctx == NULL) {
         // we have no context and cannot call into m68k space
         flags &= ~UNI_FLAG_ASYNCHRONOUS;
     }
 
-    uni.d1 = m68k_dreg (regs, 1);
-    uni.d2 = m68k_dreg (regs, 2);
-    uni.d3 = m68k_dreg (regs, 3);
-    uni.d4 = m68k_dreg (regs, 4);
-    uni.d5 = m68k_dreg (regs, 5);
-    uni.d6 = m68k_dreg (regs, 6);
-    uni.d7 = m68k_dreg (regs, 7);
-    uni.a1 = m68k_areg (regs, 1);
-    uni.a2 = m68k_areg (regs, 2);
-    uni.a3 = m68k_areg (regs, 3);
-    uni.a4 = m68k_areg (regs, 4);
-    uni.a5 = m68k_areg (regs, 5);
-    uni.a7 = m68k_areg (regs, 7);
+    uni.d1 = trap_get_dreg(ctx, 1);
+    uni.d2 = trap_get_dreg(ctx, 2);
+    uni.d3 = trap_get_dreg(ctx, 3);
+    uni.d4 = trap_get_dreg(ctx, 4);
+    uni.d5 = trap_get_dreg(ctx, 5);
+    uni.d6 = trap_get_dreg(ctx, 6);
+    uni.d7 = trap_get_dreg(ctx, 7);
+    uni.a1 = trap_get_areg(ctx, 1);
+    uni.a2 = trap_get_areg(ctx, 2);
+    uni.a3 = trap_get_areg(ctx, 3);
+    uni.a4 = trap_get_areg(ctx, 4);
+    uni.a5 = trap_get_areg(ctx, 5);
+    uni.a7 = trap_get_areg(ctx, 7);
 
     uni.flags = flags;
     uni.error = 0;
 
     if (flags & UNI_FLAG_ASYNCHRONOUS) {
-        uaecptr sysbase = get_long (4);
-        uni.task = get_long (sysbase + 276); // ThisTask
+        uaecptr sysbase = trap_get_long(ctx, 4);
+        uni.task = trap_get_long(ctx, sysbase + 276); // ThisTask
 
         // make sure signal bit is cleared
         m68k_dreg (regs, 0) = 0;
         m68k_dreg (regs, 1) = 1 << SIGBIT;
-        CallLib (context, sysbase, -0x132); // SetSignal
+        CallLib (ctx, sysbase, -0x132); // SetSignal
 
         // start thread if necessary
         if (!library_data->thread_id) {
@@ -571,8 +572,8 @@ uae_u32 uaenative_call_function (TrapContext *context, int flags)
         uae_sem_post(&library_data->full_count);
 
         // wait for signal
-        m68k_dreg (regs, 0) = 1 << SIGBIT;
-        CallLib (context, sysbase, -0x13e); // Wait
+        trap_set_dreg(ctx, 0, 1 << SIGBIT);
+        CallLib(ctx, sysbase, -0x13e); // Wait
         write_log (_T("uni: -- Got async result --\n"));
     }
     else {
@@ -590,10 +591,10 @@ uae_u32 uaenative_close_library(TrapContext *context, int flags)
 
     uae_u32 handle;
     if (flags & UNI_FLAG_COMPAT) {
-        handle = m68k_dreg (regs, 1);
+        handle = trap_get_dreg(context, 1);
     }
     else {
-        handle = m68k_areg (regs, 1);
+        handle = trap_get_areg(context, 1);
     }
 
     struct library_data *library_data = get_library_data_from_handle (handle);
@@ -708,20 +709,20 @@ static void uae_library_install (struct uae_library *library)
                library->name, MODULE_SUFFIX);
 }
 
-static uaecptr uae_library_startup (uaecptr res_addr, struct uae_library *library)
+static uaecptr uae_library_startup (TrapContext *ctx, uaecptr res_addr, struct uae_library *library)
 {
 	if (library->aptr_name == 0 || !currprefs.native_code) {
 		return res_addr;
 	}
 
-	put_word (res_addr + 0x00, 0x4AFC);
-	put_long (res_addr + 0x02, res_addr);
-	put_long (res_addr + 0x06, res_addr + 0x1A); // Continue scan here
-	put_word (res_addr + 0x0A, 0x8004);          // RTF_AUTOINIT, RT_VERSION
-	put_word (res_addr + 0x0C, 0x0970);          // NT_LIBRARY, RT_PRI
-	put_long (res_addr + 0x0E, library->aptr_name);
-	put_long (res_addr + 0x12, library->aptr_id);
-	put_long (res_addr + 0x16, library->aptr_init);
+	trap_put_word(ctx, res_addr + 0x00, 0x4AFC);
+	trap_put_long(ctx, res_addr + 0x02, res_addr);
+	trap_put_long(ctx, res_addr + 0x06, res_addr + 0x1A); // Continue scan here
+	trap_put_word(ctx, res_addr + 0x0A, 0x8004);          // RTF_AUTOINIT, RT_VERSION
+	trap_put_word(ctx, res_addr + 0x0C, 0x0970);          // NT_LIBRARY, RT_PRI
+	trap_put_long(ctx, res_addr + 0x0E, library->aptr_name);
+	trap_put_long(ctx, res_addr + 0x12, library->aptr_id);
+	trap_put_long(ctx, res_addr + 0x16, library->aptr_init);
 
 	return res_addr + 0x1A;
 }
@@ -730,7 +731,7 @@ static uaecptr uae_library_startup (uaecptr res_addr, struct uae_library *librar
 
 static uae_u32 REGPARAM2 lib_init (TrapContext *context)
 {
-	uaecptr aptr_base = m68k_dreg (regs, 0);
+	uaecptr aptr_base = trap_get_dreg(context, 0);
 #if 0
 	uaecptr aptr_data = aptr_base + SIZEOF_LIBRARY; // sizeof(Library)
 	// our library data area, LIB_DATA_SIZE must be at least as big
@@ -743,15 +744,15 @@ static uae_u32 REGPARAM2 lib_open (TrapContext *context)
 {
 	// we could do some security checks here if only some specific Amiga
 	// tasks can call us or something like that
-	put_word (m68k_areg (regs, 6) + 32,
-	          get_word (m68k_areg (regs, 6) + 32) + 1);
-	return m68k_areg (regs, 6);
+	trap_put_word(context, trap_get_areg(context, 6) + 32,
+		trap_get_word(context, trap_get_areg(context, 6) + 32) + 1);
+	return trap_get_areg(context, 6);
 }
 
 static uae_u32 REGPARAM2 lib_close (TrapContext *context)
 {
-	put_word (m68k_areg (regs, 6) + 32,
-	          get_word (m68k_areg (regs, 6) + 32) - 1);
+	trap_put_word(context, trap_get_areg(context, 6) + 32,
+	          trap_get_word(context, trap_get_areg(context, 6) + 32) - 1);
 	return 0;
 }
 
@@ -836,12 +837,12 @@ void uaenative_install (void)
     uae_library_install (&uaenative_library);
 }
 
-uaecptr uaenative_startup (uaecptr res_addr)
+uaecptr uaenative_startup(TrapContext *ctx, uaecptr res_addr)
 {
     if (!currprefs.native_code) {
         return res_addr;
     }
-    return uae_library_startup (res_addr, &uaenative_library);
+    return uae_library_startup(ctx, res_addr, &uaenative_library);
 }
 
 #endif // WITH_UAENATIVE

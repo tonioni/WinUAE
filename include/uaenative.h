@@ -26,7 +26,7 @@ uae_u32 uaenative_close_library(TrapContext *context, int flags);
 void *uaenative_get_uaevar(void);
 
 void uaenative_install ();
-uaecptr uaenative_startup (uaecptr resaddr);
+uaecptr uaenative_startup(TrapContext*, uaecptr resaddr);
 
 /* This function must return a list of directories to look for native
  * libraries in. The returned list must be NULL-terminated, and must not

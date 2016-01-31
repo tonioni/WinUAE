@@ -12,6 +12,7 @@
 #include "options.h"
 #include "memory.h"
 
+#include "traps.h"
 #include "blkdev.h"
 #include "scsidev.h"
 #include "savestate.h"

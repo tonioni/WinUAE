@@ -15,10 +15,38 @@
 #define RTAREA_BACKUP  0xef0000
 #define RTAREA_BACKUP_2 0xdb0000
 #define RTAREA_SIZE 0x10000
-#define RTAREA_TRAPS 0x2000
-#define RTAREA_RTG 0x3000
+
+#define RTAREA_TRAPS 0x3000
+#define RTAREA_RTG 0x3800
+#define RTAREA_TRAMPOLINE 0x3b00
+#define RTAREA_DATAREGION 0xF000
+
 #define RTAREA_FSBOARD 0xFFEC
-#define RTAREA_INT 0xFFEB
+#define RTAREA_HEARTBEAT 0xFFF0
+#define RTAREA_TRAPTASK 0xFFF4
+#define RTAREA_EXTERTASK 0xFFF8
+#define RTAREA_INTREQ 0xFFFC
+
+#define RTAREA_TRAP_DATA 0x4000
+#define RTAREA_TRAP_DATA_SIZE 0x8000
+#define RTAREA_TRAP_DATA_SLOT_SIZE 0x2000 // 8192
+#define RTAREA_TRAP_DATA_SECOND 80
+#define RTAREA_TRAP_DATA_TASKWAIT (RTAREA_TRAP_DATA_SECOND - 4)
+#define RTAREA_TRAP_DATA_EXTRA 144
+#define RTAREA_TRAP_DATA_EXTRA_SIZE (RTAREA_TRAP_DATA_SLOT_SIZE - RTAREA_TRAP_DATA_EXTRA)
+
+#define RTAREA_TRAP_SEND_DATA 0xc0000
+#define RTAREA_TRAP_SEND_DATA_SIZE 0x2000
+
+#define RTAREA_TRAP_STATUS 0xF000
+#define RTAREA_TRAP_STATUS_SIZE 8
+#define RTAREA_TRAP_STATUS_SECOND 4
+
+#define RTAREA_TRAP_SEND_STATUS 0xF100
+
+#define RTAREA_SYSBASE 0x3FFC
+
+#define RTAREA_TRAP_DATA_NUM (RTAREA_TRAP_DATA_SIZE / RTAREA_TRAP_DATA_SLOT_SIZE)
 
 extern uae_u32 addr (int);
 extern void db (uae_u8);
@@ -35,9 +63,9 @@ extern uaecptr makedatatable (uaecptr resid, uaecptr resname, uae_u8 type, uae_s
 
 extern void align (int);
 
-extern volatile int uae_int_requested, uaenet_int_requested;
-extern volatile int uaenet_vsync_requested;
-extern void set_uae_int_flag (void);
+extern volatile uae_atomic uae_int_requested;
+extern void rtarea_reset(void);
+extern bool rethink_traps(void);
 
 #define RTS 0x4e75
 #define RTE 0x4e73
@@ -93,6 +121,7 @@ extern void filesys_vsync (void);
 
 extern void filesys_install (void);
 extern void filesys_install_code (void);
+extern uaecptr filesys_get_entry(int);
 extern void filesys_store_devinfo (uae_u8 *);
 extern void hardfile_install (void);
 extern void hardfile_reset (void);

@@ -26,6 +26,8 @@
 
 #ifdef BSDSOCKET
 
+#define NEWTRAP 1
+
 int log_bsd = 0;
 struct socketbase *socketbases;
 static uae_u32 SockLibBase;
@@ -91,69 +93,73 @@ uae_u32 addmem (uae_u32 * dst, const uae_char *src, int len)
 }
 
 /* Get current task */
-static uae_u32 gettask (TrapContext *context)
+static uae_u32 gettask (TrapContext *ctx)
 {
-	uae_u32 currtask, a1 = m68k_areg (regs, 1);
+	uae_u32 currtask, a1 = trap_get_areg(ctx, 1);
 	TCHAR *tskname;
 
-	m68k_areg (regs, 1) = 0;
-	currtask = CallLib (context, get_long (4), -0x126); /* FindTask */
+	trap_call_add_areg(ctx, 1, 0);
+	currtask = trap_call_lib(ctx, trap_get_long(ctx, 4), -0x126); /* FindTask */
 
-	m68k_areg (regs, 1) = a1;
+	trap_set_areg(ctx, 1, a1);
 
-	tskname = au((char*)get_real_address (get_long (currtask + 10)));
-	BSDTRACE ((_T("[%s] "), tskname));
-	xfree (tskname);
+	if (ISBSDTRACE) {
+		tskname = au((char*)get_real_address (trap_get_long(ctx, currtask + 10)));
+		BSDTRACE ((_T("[%s] "), tskname));
+		xfree (tskname);
+	}
 	return currtask;
 }
 
 /* errno/herrno setting */
-void bsdsocklib_seterrno (SB, int sb_errno)
+void bsdsocklib_seterrno (TrapContext *ctx, SB, int sb_errno)
 {
 	sb->sb_errno = sb_errno;
 	if (sb->sb_errno >= 1001 && sb->sb_errno <= 1005)
-		bsdsocklib_setherrno(sb,sb->sb_errno-1000);
+		bsdsocklib_setherrno(ctx, sb,sb->sb_errno-1000);
 	if (sb->errnoptr) {
 		switch (sb->errnosize) {
 		case 1:
-			put_byte (sb->errnoptr, sb_errno);
-			break;
+			trap_put_byte(ctx, sb->errnoptr, sb_errno);
+		break;
 		case 2:
-			put_word (sb->errnoptr, sb_errno);
-			break;
+			trap_put_word(ctx, sb->errnoptr, sb_errno);
+		break;
 		case 4:
-			put_long (sb->errnoptr, sb_errno);
+			trap_put_long(ctx, sb->errnoptr, sb_errno);
+		break;
 		}
 	}
 }
 
-void bsdsocklib_setherrno (SB, int sb_herrno)
+void bsdsocklib_setherrno(TrapContext *ctx, SB, int sb_herrno)
 {
 	sb->sb_herrno = sb_herrno;
 
 	if (sb->herrnoptr) {
 		switch (sb->herrnosize) {
 		case 1:
-			put_byte (sb->herrnoptr, sb_herrno);
-			break;
+			trap_put_byte(ctx, sb->herrnoptr, sb_herrno);
+		break;
 		case 2:
-			put_word (sb->herrnoptr, sb_herrno);
-			break;
+			trap_put_word(ctx, sb->herrnoptr, sb_herrno);
+		break;
 		case 4:
-			put_long (sb->herrnoptr, sb_herrno);
+			trap_put_long(ctx, sb->herrnoptr, sb_herrno);
+		break;
 		}
 	}
 }
 
-uae_u32 callfdcallback (TrapContext *context, SB, uae_u32 fd, uae_u32 action)
+uae_u32 callfdcallback (TrapContext *ctx, SB, uae_u32 fd, uae_u32 action)
 {
 	uae_u32 v;
 	if (!sb->fdcallback)
 		return 0;
 	BSDTRACE((_T("FD_CALLBACK(%d,%d) "), fd, action));
-	m68k_dreg (regs, 0) = fd;
-	m68k_dreg (regs, 1) = action;
-	v = CallFunc (context, sb->fdcallback);
+	trap_call_add_dreg(ctx, 0, fd);
+	trap_call_add_dreg(ctx, 1, action);
+	v = trap_call_func(ctx, sb->fdcallback);
 	BSDTRACE((_T("-> %d\n"), v));
 	return v;
 }
@@ -182,14 +188,14 @@ bool checksd(TrapContext *context, SB, int sd)
 	return false;
 }
 
-void setsd(TrapContext *context, SB, int sd, SOCKET_TYPE s)
+void setsd(TrapContext *ctx, SB, int sd, SOCKET_TYPE s)
 {
-	callfdcallback (context, sb, sd - 1, FDCB_ALLOC);
+	callfdcallback(ctx, sb, sd - 1, FDCB_ALLOC);
 	sb->dtable[sd - 1] = s;
 }
 
 /* Socket descriptor/opaque socket handle management */
-int getsd (TrapContext *context, SB, SOCKET_TYPE s)
+int getsd (TrapContext *ctx, SB, SOCKET_TYPE s)
 {
 	int i, fdcb;
 	SOCKET_TYPE *dt = sb->dtable;
@@ -204,7 +210,7 @@ int getsd (TrapContext *context, SB, SOCKET_TYPE s)
 	fdcb = 0;
 	for (i = 0; i < sb->dtablesize; i++) {
 		if (dt[i] == -1) {
-			if (callfdcallback (context, sb, i, FDCB_CHECK)) {
+			if (callfdcallback(ctx, sb, i, FDCB_CHECK)) {
 				/* fd was allocated by link lib */
 				dt[i] = -2;
 				continue;
@@ -220,7 +226,7 @@ int getsd (TrapContext *context, SB, SOCKET_TYPE s)
 	if (fdcb) {
 		for (i = 0; i < sb->dtablesize; i++) {
 			if (dt[i] == -2) {
-				if (!callfdcallback (context, sb, i, FDCB_CHECK)) {
+				if (!callfdcallback(ctx, sb, i, FDCB_CHECK)) {
 					dt[i] = s;
 					sb->ftable[i] = SF_BLOCKING;
 					return i + 1;
@@ -230,7 +236,7 @@ int getsd (TrapContext *context, SB, SOCKET_TYPE s)
 	}
 
 	/* descriptor table full. */
-	bsdsocklib_seterrno (sb, 24); /* EMFILE */
+	bsdsocklib_seterrno(ctx, sb, 24); /* EMFILE */
 
 	return -1;
 }
@@ -239,7 +245,7 @@ SOCKET_TYPE getsock (SB, int sd)
 {
 	if ((unsigned int) (sd - 1) >= (unsigned int) sb->dtablesize) {
 		BSDTRACE ((_T("Invalid Socket Descriptor (%d)\n"), sd));
-		bsdsocklib_seterrno (sb, 38); /* ENOTSOCK */
+		bsdsocklib_seterrno(NULL, sb, 38); /* ENOTSOCK */
 		return -1;
 	}
 	if (sb->dtable[sd - 1] == INVALID_SOCKET) {
@@ -269,11 +275,11 @@ SOCKET_TYPE getsock (SB, int sd)
 	return sb->dtable[sd - 1];
 }
 
-void releasesock (TrapContext *context, SB, int sd)
+void releasesock (TrapContext *ctx, SB, int sd)
 {
 	if ((unsigned int) (sd - 1) < (unsigned int) sb->dtablesize) {
 		sb->dtable[sd - 1] = -1;
-		callfdcallback (context, sb, sd - 1, FDCB_FREE);
+		callfdcallback(ctx, sb, sd - 1, FDCB_FREE);
 	}
 }
 
@@ -328,56 +334,56 @@ void bsdsock_fake_int_handler(void)
 	unlocksigqueue ();
 }
 
-void waitsig (TrapContext *context, SB)
+void waitsig (TrapContext *ctx, SB)
 {
 	long sigs;
-	m68k_dreg (regs, 0) = (((uae_u32) 1) << sb->signal) | sb->eintrsigs;
-	if ((sigs = CallLib (context, sb->sysbase, -0x13e)) & sb->eintrsigs) { /* Wait */
+	trap_call_add_dreg(ctx, 0, (((uae_u32) 1) << sb->signal) | sb->eintrsigs);
+	if ((sigs = trap_call_lib(ctx, sb->sysbase, -0x13e)) & sb->eintrsigs) { /* Wait */
 		sockabort (sb);
-		bsdsocklib_seterrno (sb, 4); /* EINTR */
+		bsdsocklib_seterrno(ctx, sb, 4); /* EINTR */
 
 		// Set signal
-		m68k_dreg (regs, 0) = sigs;
-		m68k_dreg (regs, 1) = sb->eintrsigs;
-		sigs = CallLib (context, sb->sysbase, -0x132); /* SetSignal() */
+		trap_call_add_dreg(ctx, 0, sigs);
+		trap_call_add_dreg(ctx, 1, sb->eintrsigs);
+		sigs = trap_call_lib(ctx, sb->sysbase, -0x132); /* SetSignal() */
 
 		sb->eintr = 1;
 	} else
 		sb->eintr = 0;
 }
 
-void cancelsig (TrapContext *context, SB)
+void cancelsig (TrapContext *ctx, SB)
 {
 	locksigqueue ();
 	if (sb->dosignal)
 		sb->dosignal = 2;
 	unlocksigqueue ();
 
-	m68k_dreg (regs, 0) = 0;
-	m68k_dreg (regs, 1) = ((uae_u32) 1) << sb->signal;
-	CallLib (context, sb->sysbase, -0x132); /* SetSignal() */
+	trap_call_add_dreg(ctx, 0, 0);
+	trap_call_add_dreg(ctx, 1, ((uae_u32) 1) << sb->signal);
+	trap_call_lib(ctx, sb->sysbase, -0x132); /* SetSignal() */
 }
 
 /* Allocate and initialize per-task state structure */
-static struct socketbase *alloc_socketbase (TrapContext *context)
+static struct socketbase *alloc_socketbase (TrapContext *ctx)
 {
 	SB;
 	int i;
 
 	if ((sb = xcalloc (struct socketbase, 1)) != NULL) {
-		sb->ownertask = gettask (context);
-		sb->sysbase = get_long (4);
+		sb->ownertask = gettask(ctx);
+		sb->sysbase = trap_get_long(ctx, 4);
 
-		m68k_dreg (regs, 0) = -1;
-		sb->signal = CallLib (context, sb->sysbase, -0x14A); /* AllocSignal */
+		trap_call_add_dreg(ctx, 0, -1);
+		sb->signal = trap_call_lib(ctx, sb->sysbase, -0x14A); /* AllocSignal */
 
 		if (sb->signal == -1) {
 			write_log (_T("bsdsocket: ERROR: Couldn't allocate signal for task 0x%08x.\n"), sb->ownertask);
 			free (sb);
 			return NULL;
 		}
-		m68k_dreg (regs, 0) = SCRATCHBUFSIZE;
-		m68k_dreg (regs, 1) = 0;
+//		trap_get_dreg(ctx, 0) = SCRATCHBUFSIZE;
+//		trap_get_dreg(ctx, 1) = 0;
 
 		sb->dtablesize = DEFAULT_DTABLE_SIZE;
 		/* @@@ check malloc() result */
@@ -392,7 +398,7 @@ static struct socketbase *alloc_socketbase (TrapContext *context)
 		sb->logfacility = 1 << 3; /* LOG_USER */
 		sb->logmask = 0xff;
 
-		if (!host_sbinit (context, sb)) {
+		if (!host_sbinit(ctx, sb)) {
 			/* @@@ free everything   */
 		}
 
@@ -409,35 +415,35 @@ static struct socketbase *alloc_socketbase (TrapContext *context)
 	return NULL;
 }
 
-STATIC_INLINE struct socketbase *get_socketbase (TrapContext *context)
+STATIC_INLINE struct socketbase *get_socketbase (TrapContext *ctx)
 {
-	return (struct socketbase*)get_pointer (m68k_areg (regs, 6) + offsetof (struct UAEBSDBase, sb));
+	return (struct socketbase*)get_pointer (trap_get_areg(ctx, 6) + offsetof (struct UAEBSDBase, sb));
 }
 
-static void free_socketbase (TrapContext *context)
+static void free_socketbase (TrapContext *ctx)
 {
 	struct socketbase *sb, *nsb;
 
-	if ((sb = get_socketbase (context)) != NULL) {
-		m68k_dreg (regs, 0) = sb->signal;
-		CallLib (context, sb->sysbase, -0x150); /* FreeSignal */
+	if ((sb = get_socketbase (ctx)) != NULL) {
+		trap_call_add_dreg(ctx, 0, sb->signal);
+		trap_call_lib(ctx, sb->sysbase, -0x150); /* FreeSignal */
 
 		if (sb->hostent) {
-			m68k_areg (regs, 1) = sb->hostent;
-			m68k_dreg (regs, 0) = sb->hostentsize;
-			CallLib (context, sb->sysbase, -0xD2); /* FreeMem */
+			trap_call_add_areg(ctx, 1, sb->hostent);
+			trap_call_add_dreg(ctx, 0, sb->hostentsize);
+			trap_call_lib(ctx, sb->sysbase, -0xD2); /* FreeMem */
 
 		}
 		if (sb->protoent) {
-			m68k_areg (regs, 1) = sb->protoent;
-			m68k_dreg (regs, 0) = sb->protoentsize;
-			CallLib (context, sb->sysbase, -0xD2); /* FreeMem */
+			trap_call_add_areg(ctx, 1, sb->protoent);
+			trap_call_add_dreg(ctx, 0, sb->protoentsize);
+			trap_call_lib(ctx, sb->sysbase, -0xD2); /* FreeMem */
 
 		}
 		if (sb->servent) {
-			m68k_areg (regs, 1) = sb->servent;
-			m68k_dreg (regs, 0) = sb->serventsize;
-			CallLib (context, sb->sysbase, -0xD2); /* FreeMem */
+			trap_call_add_areg(ctx, 1, sb->servent);
+			trap_call_add_dreg(ctx, 0, sb->serventsize);
+			trap_call_lib(ctx, sb->sysbase, -0xD2); /* FreeMem */
 
 		}
 		host_sbcleanup (sb);
@@ -477,7 +483,7 @@ static void free_socketbase (TrapContext *context)
 	}
 }
 
-static uae_u32 REGPARAM2 bsdsocklib_Expunge (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_Expunge (TrapContext *ctx)
 {
 	BSDTRACE ((_T("Expunge() -> [ignored]\n")));
 	return 0;
@@ -485,7 +491,7 @@ static uae_u32 REGPARAM2 bsdsocklib_Expunge (TrapContext *context)
 
 static uae_u32 functable, datatable, inittable;
 
-static uae_u32 REGPARAM2 bsdsocklib_Open (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_Open (TrapContext *ctx)
 {
 	uae_u32 result = 0;
 	int opencount;
@@ -493,17 +499,18 @@ static uae_u32 REGPARAM2 bsdsocklib_Open (TrapContext *context)
 
 	BSDTRACE ((_T("OpenLibrary() -> ")));
 
-	if ((sb = alloc_socketbase (context)) != NULL) {
-		put_word (SockLibBase + 32, opencount = get_word (SockLibBase + 32) + 1);
+	if ((sb = alloc_socketbase(ctx)) != NULL) {
+		trap_put_word(ctx, SockLibBase + 32, opencount = trap_get_word(ctx, SockLibBase + 32) + 1);
 
-		m68k_areg (regs, 0) = functable;
-		m68k_areg (regs, 1) = datatable;
-		m68k_areg (regs, 2) = 0;
-		m68k_dreg (regs, 0) = sizeof (struct UAEBSDBase);
-		m68k_dreg (regs, 1) = 0;
-		result = CallLib (context, sb->sysbase, -0x54); /* MakeLibrary */
+		
+		trap_call_add_areg(ctx, 0, functable);
+		trap_call_add_areg(ctx, 1, datatable);
+		trap_call_add_areg(ctx, 2, 0);
+		trap_call_add_dreg(ctx, 0, sizeof (struct UAEBSDBase));
+		trap_call_add_dreg(ctx, 1, 0);
+		result = trap_call_lib(ctx, sb->sysbase, -0x54); /* MakeLibrary */
 
-		put_pointer (result + offsetof (struct UAEBSDBase, sb), sb);
+		put_pointer(result + offsetof(struct UAEBSDBase, sb), sb);
 
 		BSDTRACE ((_T("%0x [%d]\n"), result, opencount));
 	} else
@@ -512,20 +519,20 @@ static uae_u32 REGPARAM2 bsdsocklib_Open (TrapContext *context)
 	return result;
 }
 
-static uae_u32 REGPARAM2 bsdsocklib_Close (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_Close (TrapContext *ctx)
 {
 	int opencount;
 
-	uae_u32 base = m68k_areg (regs, 6);
+	uae_u32 base = trap_get_areg(ctx, 6);
 	uae_u32 negsize = get_word (base + 16);
 
-	free_socketbase (context);
+	free_socketbase(ctx);
 
-	put_word (SockLibBase + 32, opencount = get_word (SockLibBase + 32) - 1);
+	trap_put_word(ctx, SockLibBase + 32, opencount = trap_get_word(ctx, SockLibBase + 32) - 1);
 
-	m68k_areg (regs, 1) = base - negsize;
-	m68k_dreg (regs, 0) = negsize + get_word (base + 18);
-	CallLib (context, get_long (4), -0xD2); /* FreeMem */
+	trap_call_add_areg(ctx, 1, base - negsize);
+	trap_call_add_dreg(ctx, 0, negsize + trap_get_word(ctx, base + 18));
+	trap_call_lib(ctx, trap_get_long(ctx, 4), -0xD2); /* FreeMem */
 
 	BSDTRACE ((_T("CloseLibrary() -> [%d]\n"), opencount));
 
@@ -533,151 +540,151 @@ static uae_u32 REGPARAM2 bsdsocklib_Close (TrapContext *context)
 }
 
 /* socket(domain, type, protocol)(d0/d1/d2) */
-static uae_u32 REGPARAM2 bsdsocklib_socket (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_socket (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	return host_socket (context, sb, m68k_dreg (regs, 0), m68k_dreg (regs, 1),
-		m68k_dreg (regs, 2));
+	struct socketbase *sb = get_socketbase (ctx);
+	return host_socket(ctx, sb, trap_get_dreg(ctx, 0), trap_get_dreg(ctx, 1),
+		trap_get_dreg(ctx, 2));
 }
 
 /* bind(s, name, namelen)(d0/a0/d1) */
-static uae_u32 REGPARAM2 bsdsocklib_bind (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_bind (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	return host_bind (context, sb, m68k_dreg (regs, 0), m68k_areg (regs, 0),
-		m68k_dreg (regs, 1));
+	struct socketbase *sb = get_socketbase (ctx);
+	return host_bind(ctx, sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0),
+		trap_get_dreg(ctx, 1));
 }
 
 /* listen(s, backlog)(d0/d1) */
-static uae_u32 REGPARAM2 bsdsocklib_listen (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_listen (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	return host_listen (context, sb, m68k_dreg (regs, 0), m68k_dreg (regs, 1));
+	struct socketbase *sb = get_socketbase (ctx);
+	return host_listen(ctx, sb, trap_get_dreg(ctx, 0), trap_get_dreg(ctx, 1));
 }
 
 /* accept(s, addr, addrlen)(d0/a0/a1) */
-static uae_u32 REGPARAM2 bsdsocklib_accept (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_accept (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	host_accept (context, sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), m68k_areg (regs, 1));
+	struct socketbase *sb = get_socketbase (ctx);
+	host_accept(ctx, sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0), trap_get_areg(ctx, 1));
 	return sb->resultval;
 }
 
 /* connect(s, name, namelen)(d0/a0/d1) */
-static uae_u32 REGPARAM2 bsdsocklib_connect (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_connect (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	host_connect (context, sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), m68k_dreg (regs, 1));
+	struct socketbase *sb = get_socketbase (ctx);
+	host_connect(ctx, sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0), trap_get_dreg(ctx, 1));
 	return sb->sb_errno ? -1 : 0;
 }
 
 /* sendto(s, msg, len, flags, to, tolen)(d0/a0/d1/d2/a1/d3) */
-static uae_u32 REGPARAM2 bsdsocklib_sendto (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_sendto (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	host_sendto (context, sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), m68k_dreg (regs, 1),
-		m68k_dreg (regs, 2), m68k_areg (regs, 1), m68k_dreg (regs, 3));
+	struct socketbase *sb = get_socketbase (ctx);
+	host_sendto(ctx, sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0), trap_get_dreg(ctx, 1),
+		trap_get_dreg(ctx, 2), trap_get_areg(ctx, 1), trap_get_dreg(ctx, 3));
 	return sb->resultval;
 }
 
 /* send(s, msg, len, flags)(d0/a0/d1/d2) */
-static uae_u32 REGPARAM2 bsdsocklib_send (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_send (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	host_sendto (context, sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), m68k_dreg (regs, 1),
-		m68k_dreg (regs, 2), 0, 0);
+	struct socketbase *sb = get_socketbase (ctx);
+	host_sendto(ctx, sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0), trap_get_dreg(ctx, 1),
+		trap_get_dreg(ctx, 2), 0, 0);
 	return sb->resultval;
 }
 
 /* recvfrom(s, buf, len, flags, from, fromlen)(d0/a0/d1/d2/a1/a2) */
-static uae_u32 REGPARAM2 bsdsocklib_recvfrom (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_recvfrom (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	host_recvfrom (context, sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), m68k_dreg (regs, 1),
-		m68k_dreg (regs, 2), m68k_areg (regs, 1), m68k_areg (regs, 2));
+	struct socketbase *sb = get_socketbase (ctx);
+	host_recvfrom(ctx, sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0), trap_get_dreg(ctx, 1),
+		trap_get_dreg(ctx, 2), trap_get_areg(ctx, 1), trap_get_areg(ctx, 2));
 	return sb->resultval;
 }
 
 /* recv(s, buf, len, flags)(d0/a0/d1/d2) */
-static uae_u32 REGPARAM2 bsdsocklib_recv (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_recv (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	host_recvfrom (context, sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), m68k_dreg (regs, 1),
-		m68k_dreg (regs, 2), 0, 0);
+	struct socketbase *sb = get_socketbase (ctx);
+	host_recvfrom(ctx, sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0), trap_get_dreg(ctx, 1),
+		trap_get_dreg(ctx, 2), 0, 0);
 	return sb->resultval;
 }
 
 /* shutdown(s, how)(d0/d1) */
-static uae_u32 REGPARAM2 bsdsocklib_shutdown (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_shutdown (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	return host_shutdown (sb, m68k_dreg (regs, 0), m68k_dreg (regs, 1));
+	struct socketbase *sb = get_socketbase (ctx);
+	return host_shutdown (sb, trap_get_dreg(ctx, 0), trap_get_dreg(ctx, 1));
 }
 
 /* setsockopt(s, level, optname, optval, optlen)(d0/d1/d2/a0/d3) */
-static uae_u32 REGPARAM2 bsdsocklib_setsockopt (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_setsockopt (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	host_setsockopt (sb, m68k_dreg (regs, 0), m68k_dreg (regs, 1), m68k_dreg (regs, 2),
-		m68k_areg (regs, 0), m68k_dreg (regs, 3));
+	struct socketbase *sb = get_socketbase (ctx);
+	host_setsockopt (sb, trap_get_dreg(ctx, 0), trap_get_dreg(ctx, 1), trap_get_dreg(ctx, 2),
+		trap_get_areg(ctx, 0), trap_get_dreg(ctx, 3));
 	return sb->resultval;
 }
 
 /* getsockopt(s, level, optname, optval, optlen)(d0/d1/d2/a0/a1) */
-static uae_u32 REGPARAM2 bsdsocklib_getsockopt (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_getsockopt (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	return host_getsockopt (sb, m68k_dreg (regs, 0), m68k_dreg (regs, 1), m68k_dreg (regs, 2),
-		m68k_areg (regs, 0), m68k_areg (regs, 1));
+	struct socketbase *sb = get_socketbase (ctx);
+	return host_getsockopt (sb, trap_get_dreg(ctx, 0), trap_get_dreg(ctx, 1), trap_get_dreg(ctx, 2),
+		trap_get_areg(ctx, 0), trap_get_areg(ctx, 1));
 }
 
 /* getsockname(s, hostname, namelen)(d0/a0/a1) */
-static uae_u32 REGPARAM2 bsdsocklib_getsockname (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_getsockname (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	return host_getsockname (sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), m68k_areg (regs, 1));
+	struct socketbase *sb = get_socketbase (ctx);
+	return host_getsockname (sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0), trap_get_areg(ctx, 1));
 }
 
 /* getpeername(s, hostname, namelen)(d0/a0/a1) */
-static uae_u32 REGPARAM2 bsdsocklib_getpeername (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_getpeername (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	return host_getpeername (sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), m68k_areg (regs, 1));
+	struct socketbase *sb = get_socketbase (ctx);
+	return host_getpeername (sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0), trap_get_areg(ctx, 1));
 }
 
 /* *------ generic system calls related to sockets */
 /* IoctlSocket(d, request, argp)(d0/d1/a0) */
-static uae_u32 REGPARAM2 bsdsocklib_IoctlSocket (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_IoctlSocket (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	return host_IoctlSocket (context, sb, m68k_dreg (regs, 0), m68k_dreg (regs, 1), m68k_areg (regs, 0));
+	struct socketbase *sb = get_socketbase (ctx);
+	return host_IoctlSocket(ctx, sb, trap_get_dreg(ctx, 0), trap_get_dreg(ctx, 1), trap_get_areg(ctx, 0));
 }
 
 /* *------ AmiTCP/IP specific stuff */
 /* CloseSocket(d)(d0) */
-static uae_u32 REGPARAM2 bsdsocklib_CloseSocket (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_CloseSocket (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	return host_CloseSocket (context, sb, m68k_dreg (regs, 0));
+	struct socketbase *sb = get_socketbase (ctx);
+	return host_CloseSocket(ctx, sb, trap_get_dreg(ctx, 0));
 }
 
 /* WaitSelect(nfds, readfds, writefds, execptfds, timeout, maskp)(d0/a0/a1/a2/a3/d1) */
-static uae_u32 REGPARAM2 bsdsocklib_WaitSelect (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_WaitSelect (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	host_WaitSelect (context, sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), m68k_areg (regs, 1),
-		m68k_areg (regs, 2), m68k_areg (regs, 3), m68k_dreg (regs, 1));
+	struct socketbase *sb = get_socketbase (ctx);
+	host_WaitSelect(ctx, sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0), trap_get_areg(ctx, 1),
+		trap_get_areg(ctx, 2), trap_get_areg(ctx, 3), trap_get_dreg(ctx, 1));
 	return sb->resultval;
 }
 
 /* SetSocketSignals(SIGINTR, SIGIO, SIGURG)(d0/d1/d2) */
-static uae_u32 REGPARAM2 bsdsocklib_SetSocketSignals (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_SetSocketSignals (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
+	struct socketbase *sb = get_socketbase (ctx);
 
-	BSDTRACE ((_T("SetSocketSignals(0x%08x,0x%08x,0x%08x) -> "), m68k_dreg (regs, 0), m68k_dreg (regs, 1), m68k_dreg (regs, 2)));
-	sb->eintrsigs = m68k_dreg (regs, 0);
-	sb->eventsigs = m68k_dreg (regs, 1);
+	BSDTRACE ((_T("SetSocketSignals(0x%08x,0x%08x,0x%08x) -> "), trap_get_dreg(ctx, 0), trap_get_dreg(ctx, 1), trap_get_dreg(ctx, 2)));
+	sb->eintrsigs = trap_get_dreg(ctx, 0);
+	sb->eventsigs = trap_get_dreg(ctx, 1);
 
 	return 0;
 }
@@ -685,6 +692,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SetSocketSignals (TrapContext *context)
 /* SetDTableSize(size)(d0) */
 static uae_u32 bsdsocklib_SetDTableSize (SB, int newSize)
 {
+	TrapContext *ctx = NULL;
 	int *newdtable;
 	int *newftable;
 	unsigned int *newmtable;
@@ -701,7 +709,7 @@ static uae_u32 bsdsocklib_SetDTableSize (SB, int newSize)
 
 	if (newdtable == NULL || newftable == NULL || newmtable == NULL) {
 		sb->resultval = -1;
-		bsdsocklib_seterrno(sb, ENOMEM);
+		bsdsocklib_seterrno(ctx, sb, ENOMEM);
 		free (newdtable);
 		free (newftable);
 		free (newmtable);
@@ -737,17 +745,17 @@ static int sockpoolindex (long id)
 }
 
 /* ObtainSocket(id, domain, type, protocol)(d0/d1/d2/d3) */
-static uae_u32 REGPARAM2 bsdsocklib_ObtainSocket (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_ObtainSocket (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
+	struct socketbase *sb = get_socketbase (ctx);
 	int sd;
 	int id;
 	SOCKET_TYPE s;
 	int i;
 
-	id = m68k_dreg (regs, 0);
+	id = trap_get_dreg(ctx, 0);
 
-	BSDTRACE ((_T("ObtainSocket(%d,%d,%d,%d) -> "), id, m68k_dreg (regs, 1), m68k_dreg (regs, 2), m68k_dreg (regs, 3)));
+	BSDTRACE ((_T("ObtainSocket(%d,%d,%d,%d) -> "), id, trap_get_dreg(ctx, 1), trap_get_dreg(ctx, 2), trap_get_dreg(ctx, 3)));
 
 	i = sockpoolindex (id);
 
@@ -757,13 +765,13 @@ static uae_u32 REGPARAM2 bsdsocklib_ObtainSocket (TrapContext *context)
 	}
 	s = sockdata->sockpoolsocks[i];
 
-	sd = getsd (context, sb, s);
+	sd = getsd(ctx, sb, s);
 
 	BSDTRACE ((_T(" -> Socket=%d\n"), sd));
 
 	if (sd != -1) {
 		sb->ftable[sd - 1] = sockdata->sockpoolflags[i];
-		callfdcallback (context, sb, sd - 1, FDCB_ALLOC);
+		callfdcallback(ctx, sb, sd - 1, FDCB_ALLOC);
 		sockdata->sockpoolids[i] = UNIQUE_ID;
 		return sd - 1;
 	}
@@ -772,17 +780,17 @@ static uae_u32 REGPARAM2 bsdsocklib_ObtainSocket (TrapContext *context)
 }
 
 /* ReleaseSocket(fd, id)(d0/d1) */
-static uae_u32 REGPARAM2 bsdsocklib_ReleaseSocket (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_ReleaseSocket (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
+	struct socketbase *sb = get_socketbase (ctx);
 	int sd;
 	int id;
 	SOCKET_TYPE s;
 	int i;
 	uae_u32 flags;
 
-	sd = m68k_dreg (regs, 0);
-	id = m68k_dreg (regs, 1);
+	sd = trap_get_dreg(ctx, 0);
+	id = trap_get_dreg(ctx, 1);
 
 	sd++;
 	BSDTRACE ((_T("ReleaseSocket(%d,%d) -> "), sd, id));
@@ -796,7 +804,7 @@ static uae_u32 REGPARAM2 bsdsocklib_ReleaseSocket (TrapContext *context)
 			write_log (_T("bsdsocket: ERROR: ReleaseSocket() is not supported for sockets with async event notification enabled!\n"));
 			return -1;
 		}
-		releasesock (context, sb, sd);
+		releasesock(ctx, sb, sd);
 
 		if (id == UNIQUE_ID) {
 			for (;;) {
@@ -835,17 +843,17 @@ static uae_u32 REGPARAM2 bsdsocklib_ReleaseSocket (TrapContext *context)
 }
 
 /* ReleaseCopyOfSocket(fd, id)(d0/d1) */
-static uae_u32 REGPARAM2 bsdsocklib_ReleaseCopyOfSocket (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_ReleaseCopyOfSocket (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
+	struct socketbase *sb = get_socketbase (ctx);
 	int sd;
 	int id;
 	SOCKET_TYPE s;
 	int i;
 	uae_u32 flags;
 
-	sd = m68k_dreg (regs, 0);
-	id = m68k_dreg (regs, 1);
+	sd = trap_get_dreg(ctx, 0);
+	id = trap_get_dreg(ctx, 1);
 
 	sd++;
 	BSDTRACE ((_T("ReleaseSocket(%d,%d) -> "), sd, id));
@@ -897,18 +905,18 @@ static uae_u32 REGPARAM2 bsdsocklib_ReleaseCopyOfSocket (TrapContext *context)
 }
 
 /* Errno()() */
-static uae_u32 REGPARAM2 bsdsocklib_Errno (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_Errno (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
+	struct socketbase *sb = get_socketbase (ctx);
 	BSDTRACE ((_T("Errno() -> %d\n"), sb->sb_errno));
 	return sb->sb_errno;
 }
 
 /* SetErrnoPtr(errno_p, size)(a0/d0) */
-static uae_u32 REGPARAM2 bsdsocklib_SetErrnoPtr (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_SetErrnoPtr (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	uae_u32 errnoptr = m68k_areg (regs, 0), size = m68k_dreg (regs, 0);
+	struct socketbase *sb = get_socketbase (ctx);
+	uae_u32 errnoptr = trap_get_areg(ctx, 0), size = trap_get_dreg(ctx, 0);
 
 	BSDTRACE ((_T("SetErrnoPtr(0x%08x,%d) -> "), errnoptr, size));
 
@@ -918,144 +926,144 @@ static uae_u32 REGPARAM2 bsdsocklib_SetErrnoPtr (TrapContext *context)
 		BSDTRACE ((_T("OK\n")));
 		return 0;
 	}
-	bsdsocklib_seterrno (sb, 22); /* EINVAL */
+	bsdsocklib_seterrno(ctx, sb, 22); /* EINVAL */
 
 	return -1;
 }
 
 /* *------ inet library calls related to inet address manipulation */
 /* Inet_NtoA(in)(d0) */
-static uae_u32 REGPARAM2 bsdsocklib_Inet_NtoA (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_Inet_NtoA (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	return host_Inet_NtoA (context, sb, m68k_dreg (regs, 0));
+	struct socketbase *sb = get_socketbase (ctx);
+	return host_Inet_NtoA(ctx, sb, trap_get_dreg(ctx, 0));
 }
 
 /* inet_addr(cp)(a0) */
-static uae_u32 REGPARAM2 bsdsocklib_inet_addr (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_inet_addr (TrapContext *ctx)
 {
-	return host_inet_addr (m68k_areg (regs, 0));
+	return host_inet_addr (trap_get_areg(ctx, 0));
 }
 
 /* Inet_LnaOf(in)(d0) */
-static uae_u32 REGPARAM2 bsdsocklib_Inet_LnaOf (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_Inet_LnaOf (TrapContext *ctx)
 {
 	write_log (_T("bsdsocket: UNSUPPORTED: Inet_LnaOf()\n"));
 	return 0;
 }
 
 /* Inet_NetOf(in)(d0) */
-static uae_u32 REGPARAM2 bsdsocklib_Inet_NetOf (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_Inet_NetOf (TrapContext *ctx)
 {
 	write_log (_T("bsdsocket: UNSUPPORTED: Inet_NetOf()\n"));
 	return 0;
 }
 
 /* Inet_MakeAddr(net, host)(d0/d1) */
-static uae_u32 REGPARAM2 bsdsocklib_Inet_MakeAddr (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_Inet_MakeAddr (TrapContext *ctx)
 {
 	write_log (_T("bsdsocket: UNSUPPORTED: Inet_MakeAddr()\n"));
 	return 0;
 }
 
 /* inet_network(cp)(a0) */
-static uae_u32 REGPARAM2 bsdsocklib_inet_network (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_inet_network (TrapContext *ctx)
 {
-	return host_inet_addr (m68k_areg (regs, 0));
+	return host_inet_addr (trap_get_areg(ctx, 0));
 }
 
 /* *------ gethostbyname etc */
 /* gethostbyname(name)(a0) */
-static uae_u32 REGPARAM2 bsdsocklib_gethostbyname (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_gethostbyname (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	host_gethostbynameaddr (context, sb, m68k_areg (regs, 0), 0, -1);
+	struct socketbase *sb = get_socketbase (ctx);
+	host_gethostbynameaddr(ctx, sb, trap_get_areg(ctx, 0), 0, -1);
 	return sb->sb_herrno ? 0 : sb->hostent;
 }
 
 /* gethostbyaddr(addr, len, type)(a0/d0/d1) */
-static uae_u32 REGPARAM2 bsdsocklib_gethostbyaddr (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_gethostbyaddr (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	host_gethostbynameaddr (context, sb, m68k_areg (regs, 0), m68k_dreg (regs, 0), m68k_dreg (regs, 1));
+	struct socketbase *sb = get_socketbase (ctx);
+	host_gethostbynameaddr(ctx, sb, trap_get_areg(ctx, 0), trap_get_dreg(ctx, 0), trap_get_dreg(ctx, 1));
 	return sb->sb_herrno ? 0 : sb->hostent;
 }
 
 /* getnetbyname(name)(a0) */
-static uae_u32 REGPARAM2 bsdsocklib_getnetbyname (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_getnetbyname (TrapContext *ctx)
 {
 	write_log (_T("bsdsocket: UNSUPPORTED: getnetbyname()\n"));
 	return 0;
 }
 
 /* getnetbyaddr(net, type)(d0/d1) */
-static uae_u32 REGPARAM2 bsdsocklib_getnetbyaddr (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_getnetbyaddr (TrapContext *ctx)
 {
 	write_log (_T("bsdsocket: UNSUPPORTED: getnetbyaddr()\n"));
 	return 0;
 }
 
 /* getservbyname(name, proto)(a0/a1) */
-static uae_u32 REGPARAM2 bsdsocklib_getservbyname (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_getservbyname (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	host_getservbynameport (context, sb, m68k_areg (regs, 0), m68k_areg (regs, 1), 0);
+	struct socketbase *sb = get_socketbase (ctx);
+	host_getservbynameport(ctx, sb, trap_get_areg(ctx, 0), trap_get_areg(ctx, 1), 0);
 	return sb->sb_errno ? 0 : sb->servent;
 }
 
 /* getservbyport(port, proto)(d0/a0) */
-static uae_u32 REGPARAM2 bsdsocklib_getservbyport (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_getservbyport (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	host_getservbynameport (context, sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), 1);
+	struct socketbase *sb = get_socketbase (ctx);
+	host_getservbynameport(ctx, sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0), 1);
 	return sb->sb_errno ? 0 : sb->servent;
 }
 
 /* getprotobyname(name)(a0) */
-static uae_u32 REGPARAM2 bsdsocklib_getprotobyname (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_getprotobyname (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	host_getprotobyname (context, sb, m68k_areg (regs, 0));
+	struct socketbase *sb = get_socketbase (ctx);
+	host_getprotobyname(ctx, sb, trap_get_areg(ctx, 0));
 	return sb->sb_errno ? 0 : sb->protoent;
 }
 
 /* getprotobynumber(proto)(d0)  */
-static uae_u32 REGPARAM2 bsdsocklib_getprotobynumber (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_getprotobynumber (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	host_getprotobynumber (context, sb, m68k_dreg (regs, 0));
+	struct socketbase *sb = get_socketbase (ctx);
+	host_getprotobynumber(ctx, sb, trap_get_dreg(ctx, 0));
 	return sb->sb_errno ? 0 : sb->protoent;
 }
 
 /* *------ AmiTCP/IP 1.1 extensions */
 /* Dup2Socket(fd1, fd2)(d0/d1) */
-static uae_u32 REGPARAM2 bsdsocklib_Dup2Socket (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_Dup2Socket (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	return host_dup2socket (context, sb, m68k_dreg (regs, 0), m68k_dreg (regs, 1));
+	struct socketbase *sb = get_socketbase (ctx);
+	return host_dup2socket(ctx, sb, trap_get_dreg(ctx, 0), trap_get_dreg(ctx, 1));
 }
 
-static uae_u32 REGPARAM2 bsdsocklib_sendmsg (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_sendmsg (TrapContext *ctx)
 {
 	write_log (_T("bsdsocket: UNSUPPORTED: sendmsg()\n"));
 	return 0;
 }
 
-static uae_u32 REGPARAM2 bsdsocklib_recvmsg (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_recvmsg (TrapContext *ctx)
 {
 	write_log (_T("bsdsocket: UNSUPPORTED: recvmsg()\n"));
 	return 0;
 }
 
-static uae_u32 REGPARAM2 bsdsocklib_gethostname (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_gethostname (TrapContext *ctx)
 {
-	return host_gethostname (m68k_areg (regs, 0), m68k_dreg (regs, 0));
+	return host_gethostname (trap_get_areg(ctx, 0), trap_get_dreg(ctx, 0));
 }
 
-static uae_u32 REGPARAM2 bsdsocklib_gethostid (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_gethostid (TrapContext *ctx)
 {
 	write_log (_T("bsdsocket: WARNING: Process '%s' calls deprecated function gethostid() - returning 127.0.0.1\n"),
-		get_real_address (get_long (gettask (context) + 10)));
+		get_real_address (get_long (gettask(ctx) + 10)));
 	return 0x7f000001;
 }
 
@@ -1091,10 +1099,10 @@ static const uae_u32 number_sys_error = sizeof (errortexts) / sizeof (*errortext
 
 /* *------ syslog functions */
 /* Syslog(level, format, ap)(d0/a0/a1) */
-static uae_u32 REGPARAM2 bsdsocklib_vsyslog (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_vsyslog (TrapContext *ctx)
 {
 #if 0
-	struct socketbase *sb = get_socketbase (context);
+	struct socketbase *sb = get_socketbase (ctx);
 	uae_char format_dst[512];
 	char out[256];
 	TCHAR *s;
@@ -1102,9 +1110,9 @@ static uae_u32 REGPARAM2 bsdsocklib_vsyslog (TrapContext *context)
 	int paramcnt, len;
 	uae_char *found = NULL;
 
-	uae_u32 level = m68k_dreg (regs, 0);
-	uaecptr format = m68k_areg (regs, 0);
-	uaecptr params = m68k_areg (regs, 1);
+	uae_u32 level = trap_get_dreg(ctx, 0);
+	uaecptr format = trap_get_areg(ctx, 0);
+	uaecptr params = trap_get_areg(ctx, 1);
 
 	strcpyah_safe (format_dst, format, sizeof format_dst);
 
@@ -1289,15 +1297,15 @@ static uae_u32 strErrptr;
 
 #define LOG_FACMASK     0x03f8
 
-static void tagcopy (uae_u32 currtag, uae_u32 currval, uae_u32 tagptr, uae_u32 * ptr)
+static void tagcopy(TrapContext *ctx, uae_u32 currtag, uae_u32 currval, uae_u32 tagptr, uae_u32 * ptr)
 {
 	switch (currtag & 0x8001)
 	{
 		case 0x0000:	/* SBTM_GETVAL */
-		put_long (tagptr + 4, ptr ? *ptr : 0);
+		trap_put_long(ctx, tagptr + 4, ptr ? *ptr : 0);
 		break;
 		case 0x8000:	/* SBTM_GETREF */
-		put_long (currval, ptr ? *ptr : 0);
+		trap_put_long(ctx, currval, ptr ? *ptr : 0);
 		break;
 		case 0x0001:	/* SBTM_SETVAL */
 		if (ptr)
@@ -1305,15 +1313,15 @@ static void tagcopy (uae_u32 currtag, uae_u32 currval, uae_u32 tagptr, uae_u32 *
 		break;
 		default:		/* SBTM_SETREF */
 		if (ptr)
-			*ptr = get_long (currval);
+			*ptr = trap_get_long(ctx, currval);
 		break;
 	}
 }
 
-static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList(TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (context);
-	uae_u32 tagptr = m68k_areg (regs, 0);
+	struct socketbase *sb = get_socketbase(ctx);
+	uae_u32 tagptr = trap_get_areg(ctx, 0);
 	uae_u32 tagsprocessed = 0;
 	uae_u32 currtag;
 	uae_u32 currval;
@@ -1321,8 +1329,8 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 	BSDTRACE ((_T("SocketBaseTagList(")));
 
 	for (;;) {
-		currtag = get_long (tagptr);
-		currval = get_long (tagptr + 4);
+		currtag = trap_get_long(ctx, tagptr);
+		currval = trap_get_long(ctx, tagptr + 4);
 		tagsprocessed++;
 
 		if (!(currtag & TAG_USER)) {
@@ -1346,7 +1354,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 					break;
 				default:
 					write_log (_T("bsdsocket: WARNING: Unsupported tag type (%08x) in SocketBaseTagList(%x)\n"),
-						currtag, m68k_areg (regs, 0));
+						currtag, trap_get_areg(ctx, 0));
 					goto done;
 			}
 
@@ -1360,26 +1368,26 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 			{
 				case SBTC_BREAKMASK:
 					BSDTRACE ((_T("SBTC_BREAKMASK),0x%x,0x%x"), currval, sb->eintrsigs));
-					tagcopy (currtag, currval, tagptr, &sb->eintrsigs);
+					tagcopy(ctx, currtag, currval, tagptr, &sb->eintrsigs);
 					break;
 				case SBTC_SIGIOMASK:
 					BSDTRACE ((_T("SBTC_SIGIOMASK),0x%x,0x%x"), currval, sb->eventsigs));
-					tagcopy (currtag, currval, tagptr, &sb->eventsigs);
+					tagcopy(ctx, currtag, currval, tagptr, &sb->eventsigs);
 					break;
 				case SBTC_SIGURGMASK:
 					BSDTRACE ((_T("SBTC_SIGURGMASK),0x%x"), currval));
 					break;
 				case SBTC_SIGEVENTMASK:
 					BSDTRACE ((_T("SBTC_SIGEVENTMASK),0x%x,0x%x"), currval, sb->eventsigs));
-					tagcopy (currtag, currval, tagptr, &sb->eventsigs);
+					tagcopy(ctx, currtag, currval, tagptr, &sb->eventsigs);
 					break;
 				case SBTC_ERRNO:
 					BSDTRACE ((_T("SBTC_ERRNO),%x,%d"), currval, sb->sb_errno));
-					tagcopy (currtag, currval, tagptr, (uae_u32*)&sb->sb_errno);
+					tagcopy(ctx, currtag, currval, tagptr, (uae_u32*)&sb->sb_errno);
 					break;
 				case SBTC_HERRNO:
 					BSDTRACE ((_T("SBTC_HERRNO),%x,%d"), currval, sb->sb_herrno));
-					tagcopy (currtag, currval, tagptr, (uae_u32*)&sb->sb_herrno);
+					tagcopy(ctx, currtag, currval, tagptr, (uae_u32*)&sb->sb_herrno);
 					break;
 				case SBTC_DTABLESIZE:
 					BSDTRACE ((_T("SBTC_DTABLESIZE),0x%x"), currval));
@@ -1392,26 +1400,26 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 
 				case SBTC_FDCALLBACK:
 					BSDTRACE ((_T("SBTC_FDCALLBACK),%08x"), currval));
-					tagcopy (currtag, currval, tagptr, &sb->fdcallback);
+					tagcopy(ctx, currtag, currval, tagptr, &sb->fdcallback);
 					break;
 
 				case SBTC_LOGSTAT:
 					BSDTRACE ((_T("SBTC_LOGSTAT),%08x"), currval));
-					tagcopy (currtag, currval, tagptr, &sb->logstat);
+					tagcopy(ctx, currtag, currval, tagptr, &sb->logstat);
 					sb->logstat &= 0xff;
 					break;
 				case SBTC_LOGTAGPTR:
 					BSDTRACE ((_T("SBTC_LOGTAGPTR),%08x"), currval));
-					tagcopy (currtag, currval, tagptr, &sb->logptr);
+					tagcopy(ctx, currtag, currval, tagptr, &sb->logptr);
 					break;
 				case SBTC_LOGFACILITY:
 					BSDTRACE ((_T("SBTC_LOGFACILITY),%08x"), currval));
 					if (((currtag & 1) && currval != 0 && (currval & ~LOG_FACMASK)) || !(currtag & 1))
-						tagcopy (currtag, currval, tagptr, &sb->logfacility);
+						tagcopy(ctx, currtag, currval, tagptr, &sb->logfacility);
 					break;
 				case SBTC_LOGMASK:
 					BSDTRACE ((_T("SBTC_LOGMASK),%08x"), currval));
-					tagcopy (currtag, currval, tagptr, &sb->logmask);
+					tagcopy(ctx, currtag, currval, tagptr, &sb->logmask);
 					sb->logmask &= 0xff;
 					break;
 
@@ -1422,15 +1430,15 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 					} else {
 						unsigned long ulTmp;
 						if (currtag & 0x8000) { /* SBTM_GETREF */
-							ulTmp = get_long (currval);
+							ulTmp = trap_get_long(ctx, currval);
 						} else { /* SBTM_GETVAL */
 							ulTmp = currval;
 						}
 						BSDTRACE ((_T("IOERRNOSTRPTR),%lu"), ulTmp));
 						if (ulTmp < number_sys_error) {
-							tagcopy (currtag, currval, tagptr, &iotextptrs[ulTmp]);
+							tagcopy(ctx, currtag, currval, tagptr, &iotextptrs[ulTmp]);
 						} else {
-							tagcopy (currtag, currval, tagptr, &strErrptr);
+							tagcopy(ctx, currtag, currval, tagptr, &strErrptr);
 						}
 					}
 					break;
@@ -1441,15 +1449,15 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 					} else {
 						unsigned long ulTmp;
 						if (currtag & 0x8000) { /* SBTM_GETREF */
-							ulTmp = get_long (currval);
+							ulTmp = trap_get_long(ctx, currval);
 						} else { /* SBTM_GETVAL */
 							ulTmp = currval;
 						}
 						BSDTRACE ((_T("S2ERRNOSTRPTR),%lu"), ulTmp));
 						if (ulTmp < number_sys_error) {
-							tagcopy (currtag, currval, tagptr, &sana2iotextptrs[ulTmp]);
+							tagcopy(ctx, currtag, currval, tagptr, &sana2iotextptrs[ulTmp]);
 						} else {
-							tagcopy (currtag, currval, tagptr, &strErrptr);
+							tagcopy(ctx, currtag, currval, tagptr, &strErrptr);
 						}
 					}
 					break;
@@ -1460,15 +1468,15 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 					} else {
 						unsigned long ulTmp;
 						if (currtag & 0x8000) { /* SBTM_GETREF */
-							ulTmp = get_long (currval);
+							ulTmp = trap_get_long(ctx, currval);
 						} else { /* SBTM_GETVAL */
 							ulTmp = currval;
 						}
 						BSDTRACE ((_T("S2WERRNOSTRPTR),%lu"), ulTmp));
 						if (ulTmp < number_sys_error) {
-							tagcopy (currtag, currval, tagptr, &sana2wiretextptrs[ulTmp]);
+							tagcopy(ctx, currtag, currval, tagptr, &sana2wiretextptrs[ulTmp]);
 						} else {
-							tagcopy (currtag, currval, tagptr, &strErrptr);
+							tagcopy(ctx, currtag, currval, tagptr, &strErrptr);
 						}
 					}
 					break;
@@ -1479,15 +1487,15 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 					} else {
 						unsigned long ulTmp;
 						if (currtag & 0x8000) { /* SBTM_GETREF */
-							ulTmp = get_long (currval);
+							ulTmp = trap_get_long(ctx, currval);
 						} else { /* SBTM_GETVAL */
 							ulTmp = currval;
 						}
 						BSDTRACE ((_T("ERRNOSTRPTR),%lu"), ulTmp));
 						if (ulTmp < number_sys_error) {
-							tagcopy (currtag, currval, tagptr, &errnotextptrs[ulTmp]);
+							tagcopy(ctx, currtag, currval, tagptr, &errnotextptrs[ulTmp]);
 						} else {
-							tagcopy (currtag, currval, tagptr, &strErrptr);
+							tagcopy(ctx, currtag, currval, tagptr, &strErrptr);
 						}
 					}
 					break;
@@ -1498,42 +1506,42 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 					} else {
 						unsigned long ulTmp;
 						if (currtag & 0x8000) { /* SBTM_GETREF */
-							ulTmp = get_long (currval);
+							ulTmp = trap_get_long(ctx, currval);
 						} else { /* SBTM_GETVAL */
 							ulTmp = currval;
 						}
 						BSDTRACE ((_T("HERRNOSTRPTR),%lu"), ulTmp));
 						if (ulTmp < number_host_error) {
-							tagcopy (currtag, currval, tagptr, &herrnotextptrs[ulTmp]);
+							tagcopy(ctx, currtag, currval, tagptr, &herrnotextptrs[ulTmp]);
 						} else {
-							tagcopy (currtag, currval, tagptr, &strErrptr);
+							tagcopy(ctx, currtag, currval, tagptr, &strErrptr);
 						}
 					}
 					break;
 
 				case SBTC_ERRNOBYTEPTR:
 					BSDTRACE ((_T("SBTC_ERRNOBYTEPTR),0x%x"), currval));
-					tagcopy (currtag, currval, tagptr, &sb->errnoptr);
+					tagcopy(ctx, currtag, currval, tagptr, &sb->errnoptr);
 					sb->errnosize = 1;
 					break;
 				case SBTC_ERRNOWORDPTR:
 					BSDTRACE ((_T("SBTC_ERRNOWORDPTR),0x%x"), currval));
-					tagcopy (currtag, currval, tagptr, &sb->errnoptr);
+					tagcopy(ctx, currtag, currval, tagptr, &sb->errnoptr);
 					sb->errnosize = 2;
 					break;
 				case SBTC_ERRNOLONGPTR:
 					BSDTRACE ((_T("SBTC_ERRNOLONGPTR),0x%x"), currval));
-					tagcopy (currtag, currval, tagptr, &sb->errnoptr);
+					tagcopy(ctx, currtag, currval, tagptr, &sb->errnoptr);
 					sb->errnosize = 4;
 					break;
 				case SBTC_HERRNOLONGPTR:
 					BSDTRACE ((_T("SBTC_HERRNOLONGPTR),0x%x"), currval));
-					tagcopy (currtag, currval, tagptr, &sb->herrnoptr);
+					tagcopy(ctx, currtag, currval, tagptr, &sb->herrnoptr);
 					sb->herrnosize = 4;
 					break;
 				default:
 					write_log (_T("bsdsocket: WARNING: Unsupported tag type (%08x=%d) in SocketBaseTagList(%x)\n"),
-						currtag, (currtag / 2) & SBTS_CODE, m68k_areg (regs, 0));
+						currtag, (currtag / 2) & SBTS_CODE, trap_get_areg(ctx, 0));
 					goto done;
 			}
 		}
@@ -1548,13 +1556,13 @@ done:
 	return tagsprocessed;
 }
 
-static uae_u32 REGPARAM2 bsdsocklib_GetSocketEvents (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_GetSocketEvents(TrapContext *ctx)
 {
 #ifdef _WIN32
-	struct socketbase *sb = get_socketbase (context);
+	struct socketbase *sb = get_socketbase(ctx);
 	int i;
 	int flags;
-	uae_u32 ptr = m68k_areg (regs, 0);
+	uae_u32 ptr = trap_get_areg(ctx, 0);
 
 	BSDTRACE ((_T("GetSocketEvents(0x%x) -> "), ptr));
 
@@ -1566,7 +1574,7 @@ static uae_u32 REGPARAM2 bsdsocklib_GetSocketEvents (TrapContext *context)
 			flags = sb->ftable[sb->eventindex] & SET_ALL;
 			if (flags) {
 				sb->ftable[sb->eventindex] &= ~SET_ALL;
-				put_long (m68k_areg (regs, 0), flags >> 8);
+				trap_put_long(ctx, trap_get_areg(ctx, 0), flags >> 8);
 				BSDTRACE ((_T("%d (0x%x)\n"), sb->eventindex + 1, flags >> 8));
 				return sb->eventindex; // xxx
 			}
@@ -1577,17 +1585,17 @@ static uae_u32 REGPARAM2 bsdsocklib_GetSocketEvents (TrapContext *context)
 	return -1;
 }
 
-static uae_u32 REGPARAM2 bsdsocklib_getdtablesize (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_getdtablesize(TrapContext *ctx)
 {
-	return get_socketbase (context)->dtablesize;
+	return get_socketbase(ctx)->dtablesize;
 }
 
-static uae_u32 REGPARAM2 bsdsocklib_null (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_null(TrapContext *ctx)
 {
 	return 0;
 }
 
-static uae_u32 REGPARAM2 bsdsocklib_init (TrapContext *context)
+static uae_u32 REGPARAM2 bsdsocklib_init(TrapContext *ctx)
 {
 	uae_u32 tmp1;
 	int i;
@@ -1596,19 +1604,35 @@ static uae_u32 REGPARAM2 bsdsocklib_init (TrapContext *context)
 	if (SockLibBase)
 		bsdlib_reset ();
 
-	m68k_areg (regs, 0) = functable;
-	m68k_areg (regs, 1) = datatable;
-	m68k_areg (regs, 2) = 0;
-	m68k_dreg (regs, 0) = LIBRARY_SIZEOF;
-	m68k_dreg (regs, 1) = 0;
-	tmp1 = CallLib (context, m68k_areg (regs, 6), -0x54); /* MakeLibrary */
+#if NEWTRAP
+	trap_call_add_areg(ctx, 0, functable);
+	trap_call_add_areg(ctx, 1, datatable);
+	trap_call_add_areg(ctx, 2, 0);
+	trap_call_add_dreg(ctx, 0, LIBRARY_SIZEOF);
+	trap_call_add_dreg(ctx, 1, 0);
+	tmp1 = trap_call_lib(ctx, trap_get_areg(ctx, 6), -0x54); /* MakeLibrary */
+#else
+	trap_get_areg(ctx, 0) = functable;
+	trap_get_areg(ctx, 1) = datatable;
+	trap_get_areg(ctx, 2) = 0;
+	trap_get_dreg(ctx, 0) = LIBRARY_SIZEOF;
+	trap_get_dreg(ctx, 1) = 0;
+	tmp1 = CallLib(ctx, trap_get_areg(ctx, 6), -0x54); /* MakeLibrary */
+#endif
 
 	if (!tmp1) {
 		write_log (_T("bsdoscket: FATAL: Cannot create bsdsocket.library!\n"));
 		return 0;
 	}
-	m68k_areg (regs, 1) = tmp1;
-	CallLib (context, m68k_areg (regs, 6), -0x18c); /* AddLibrary */
+	
+#if NEWTRAP
+	trap_call_add_areg(ctx, 1, tmp1);
+	trap_call_lib(ctx, trap_get_areg(ctx, 6), -0x18c); /* AddLibrary */
+#else
+	trap_get_areg(ctx, 1) = tmp1;
+	CallLib (ctx, trap_get_areg(ctx, 6), -0x18c); /* AddLibrary */
+#endif
+
 	SockLibBase = tmp1;
 
 	/* Install error strings in Amiga memory */
@@ -1623,9 +1647,15 @@ static uae_u32 REGPARAM2 bsdsocklib_init (TrapContext *context)
 		tmp1 += _tcslen (sana2wire_errlist[i]) + 1;
 	tmp1 += _tcslen (strErr) + 1;
 
-	m68k_dreg (regs, 0) = tmp1;
-	m68k_dreg (regs, 1) = 0;
-	tmp1 = CallLib (context, m68k_areg (regs, 6), -0xC6); /* AllocMem */
+#if NEWTRAP
+	trap_call_add_dreg(ctx, 0, tmp1);
+	trap_call_add_dreg(ctx, 1, 0);
+	tmp1 = trap_call_lib(ctx, trap_get_areg(ctx, 6), -0xC6); /* AllocMem */
+#else		
+	trap_get_dreg(ctx, 0) = tmp1;
+	trap_get_dreg(ctx, 1) = 0;
+	tmp1 = CallLib (ctx, trap_get_areg(ctx, 6), -0xC6); /* AllocMem */
+#endif
 
 	if (!tmp1) {
 		write_log (_T("bsdsocket: FATAL: Ran out of memory while creating bsdsocket.library!\n"));
@@ -1651,7 +1681,7 @@ static uae_u32 REGPARAM2 bsdsocklib_init (TrapContext *context)
 	put_long (context->regs.vbr + 0x78, tmp1);
 #endif
 
-	m68k_dreg (regs, 0) = 1;
+	trap_set_dreg(ctx, 0, 1);
 	return 0;
 }
 
@@ -1732,18 +1762,18 @@ static uae_u32 sockfuncvecs[sizeof (sockfuncs) / sizeof (*sockfuncs)];
 
 static uae_u32 res_name, res_id, res_init;
 
-uaecptr bsdlib_startup (uaecptr resaddr)
+uaecptr bsdlib_startup (TrapContext *ctx, uaecptr resaddr)
 {
 	if (res_name == 0 || !currprefs.socket_emu)
 		return resaddr;
-	put_word (resaddr + 0x0, 0x4AFC);
-	put_long (resaddr + 0x2, resaddr);
-	put_long (resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
-	put_word (resaddr + 0xA, 0x8004); /* RTF_AUTOINIT, RT_VERSION */
-	put_word (resaddr + 0xC, 0x0970); /* NT_LIBRARY, RT_PRI */
-	put_long (resaddr + 0xE, res_name);
-	put_long (resaddr + 0x12, res_id);
-	put_long (resaddr + 0x16, res_init);
+	trap_put_word(ctx, resaddr + 0x0, 0x4AFC);
+	trap_put_long(ctx, resaddr + 0x2, resaddr);
+	trap_put_long(ctx, resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
+	trap_put_word(ctx, resaddr + 0xA, 0x8004); /* RTF_AUTOINIT, RT_VERSION */
+	trap_put_word(ctx, resaddr + 0xC, 0x0970); /* NT_LIBRARY, RT_PRI */
+	trap_put_long(ctx, resaddr + 0xE, res_name);
+	trap_put_long(ctx, resaddr + 0x12, res_id);
+	trap_put_long(ctx, resaddr + 0x16, res_init);
 	resaddr += 0x1A;
 	return resaddr;
 }

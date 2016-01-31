@@ -7,6 +7,7 @@
 #endif
 #include "threaddep/thread.h"
 #include "options.h"
+#include "traps.h"
 #include "sana2.h"
 #include "uae/slirp.h"
 

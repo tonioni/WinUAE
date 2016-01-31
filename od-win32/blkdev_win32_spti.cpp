@@ -17,6 +17,7 @@
 
 #ifdef WINDDK
 
+#include "traps.h"
 #include "memory.h"
 #include "threaddep/thread.h"
 #include "blkdev.h"

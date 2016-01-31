@@ -14,6 +14,7 @@
 
 #include "options.h"
 #include "uae.h"
+#include "traps.h"
 #include "memory.h"
 #include "rommgr.h"
 #include "custom.h"
@@ -163,6 +164,10 @@ uaecptr ROM_hardfile_init;
 int uae_boot_rom_type;
 int uae_boot_rom_size; /* size = code size only */
 static bool chipdone;
+
+#define FILESYS_DIAGPOINT 0x01e0
+#define FILESYS_BOOTPOINT 0x01e6
+#define FILESYS_DIAGAREA 0x2000
 
 /* ********************************************************** */
 
@@ -1004,8 +1009,8 @@ DECLARE_MEMORY_FUNCTIONS(filesys);
 addrbank filesys_bank = {
 	filesys_lget, filesys_wget, filesys_bget,
 	filesys_lput, filesys_wput, filesys_bput,
-	default_xlate, default_check, NULL, _T("filesys"), _T("Filesystem autoconfig"),
-	dummy_lgeti, dummy_wgeti,
+	filesys_xlate, filesys_check, NULL, _T("filesys"), _T("Filesystem autoconfig"),
+	filesys_lget, filesys_wget,
 	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
@@ -1061,6 +1066,18 @@ static void REGPARAM2 filesys_bput (uaecptr addr, uae_u32 b)
 	write_log (_T("filesys_bput %x %x\n"), addr, b);
 #endif
 }
+static int REGPARAM2 filesys_check(uaecptr addr, uae_u32 size)
+{
+	addr -= filesys_bank.start & 65535;
+	addr &= 65535;
+	return (addr + size) <= filesys_bank.allocated;
+}
+static uae_u8 *REGPARAM2 filesys_xlate(uaecptr addr)
+{
+	addr -= filesys_bank.start & 65535;
+	addr &= 65535;
+	return filesys_bank.baseaddr + addr;
+}
 
 #endif /* FILESYS */
 
@@ -1070,7 +1087,7 @@ DECLARE_MEMORY_FUNCTIONS(uaeboard);
 addrbank uaeboard_bank = {
 	uaeboard_lget, uaeboard_wget, uaeboard_bget,
 	uaeboard_lput, uaeboard_wput, uaeboard_bput,
-	default_xlate, default_check, NULL, _T("uaeboard"), _T("uae x autoconfig board"),
+	default_xlate, default_check, NULL, _T("uaeboard"), _T("UAE Board"),
 	dummy_lgeti, dummy_wgeti,
 	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
@@ -1162,8 +1179,8 @@ static void REGPARAM2 uaeboard_wput(uaecptr addr, uae_u32 w)
 	if (addr >= 0x200 + 0x20 && addr < 0x200 + 0x24) {
 		mousehack_write(addr - 0x200, w);
 	} else if (addr >= UAEBOARD_IO_INTERFACE) {
-		uae_u16 *m = (uae_u16 *)(uaeboard_bank.baseaddr + addr);
-		do_put_mem_word(m, w);
+		uae_u8 *m = uaeboard_bank.baseaddr + addr;
+		put_word_host(m, w);
 		if (uaeboard_io_state) {
 			if (addr == UAEBOARD_IO_INTERFACE + 4)
 				uaeboard_io_state |= 2;
@@ -1180,10 +1197,13 @@ static void REGPARAM2 uaeboard_wput(uaecptr addr, uae_u32 w)
 		if (addr == uaeboard_mem_use) {
 			w &= 0xffff;
 			if (w != 0xffff && w != 0) {
-				uae_u32 *m2 = (uae_u32 *)(uaeboard_bank.baseaddr + addr);
-				do_put_mem_long(m2 + 1, uaeboard_demux(m2));
+				uae_u8 *m2 = uaeboard_bank.baseaddr + addr;
+				put_long_host(m2 + 4, uaeboard_demux((uae_u32*)m2));
 			}
 		}
+	} else if (addr >= 0x2000 && addr <= 0x3000) {
+		uae_u8 *m = uaeboard_bank.baseaddr + addr;
+		put_word_host(m, w);
 	}
 #if EXP_DEBUG
 	write_log(_T("uaeboard_wput %08x = %04x PC=%08x\n"), addr, w, M68K_GETPC);
@@ -1215,7 +1235,7 @@ static void REGPARAM2 uaeboard_bput(uaecptr addr, uae_u32 b)
 		uaeboard_mem_use = 0;
 		uaeboard_io_state = 0;
 	}
-	if (addr >= UAEBOARD_RAM_OFFSET) {
+	if (addr >= UAEBOARD_RAM_OFFSET || (addr >= 0x2000 && addr <= 0x3000)) {
 		uaeboard_bank.baseaddr[addr] = b;
 	}
 #if EXP_DEBUG
@@ -1227,14 +1247,18 @@ static addrbank *expamem_map_uaeboard(void)
 {
 	uaeboard_start = expamem_z2_pointer;
 	map_banks_z2(&uaeboard_bank, uaeboard_start >> 16, 1);
+	if (currprefs.uaeboard > 1)
+		map_banks_z2(&rtarea_bank, (uaeboard_start + 65536) >> 16, 1);
 	return &uaeboard_bank;
 }
 static addrbank* expamem_init_uaeboard(int devnum)
 {
-	uae_u8 *p = uaeboard_bank.baseaddr;
+	bool ks12 = ks12orolder();
+	bool hide = currprefs.uae_hide_autoconfig;
+	bool rom = currprefs.uaeboard > 1;
 
 	expamem_init_clear();
-	expamem_write(0x00, (currprefs.uaeboard > 1 ? Z2_MEM_128KB : Z2_MEM_64KB) | zorroII);
+	expamem_write(0x00, (currprefs.uaeboard > 1 ? Z2_MEM_128KB : Z2_MEM_64KB) | zorroII | (ks12 || !rom ? 0 : rom_card));
 
 	expamem_write(0x08, no_shutup);
 
@@ -1245,11 +1269,54 @@ static addrbank* expamem_init_uaeboard(int devnum)
 	expamem_write(0x18, 0x00); /* ser.no. Byte 0 */
 	expamem_write(0x1c, 0x00); /* ser.no. Byte 1 */
 	expamem_write(0x20, 0x00); /* ser.no. Byte 2 */
-	expamem_write(0x24, 0x01); /* ser.no. Byte 3 */
+	expamem_write(0x24, 0x02); /* ser.no. Byte 3 */
 
-							   /* er_InitDiagVec */
-	expamem_write(0x28, 0x00); /* Rom-Offset hi */
-	expamem_write(0x2c, 0x00); /* ROM-Offset lo */
+	uae_u8 *p = uaeboard_bank.baseaddr;
+
+	if (rom) {
+
+		int diagoffset = 0x80;
+		int diagpoint = 24;
+		int bootpoint = diagpoint + 16;
+		/* struct DiagArea - the size has to be large enough to store several device ROMTags */
+		const uae_u8 diagarea[] = {
+			0x90, 0x00, /* da_Config, da_Flags */
+			0x03, 0x00, /* da_Size */
+			(uae_u8)(diagpoint >> 8), (uae_u8)diagpoint,
+			(uae_u8)(bootpoint >> 8), (uae_u8)bootpoint,
+			0, (uae_u8)(hide ? 0 : 14), // Name offset
+			0, 0, 0, 0,
+			(uae_u8)(hide ? 0 : 'U'), (uae_u8)(hide ? 0 : 'A'), (uae_u8)(hide ? 0 : 'E'), 0
+		};
+		expamem_write(0x28, diagoffset >> 8); /* ROM-Offset hi */
+		expamem_write(0x2c, diagoffset & 0xff); /* ROM-Offset lo */
+	   /* Build a DiagArea */
+		memcpy(expamem + diagoffset, diagarea, sizeof diagarea);
+		diagpoint += diagoffset;
+		bootpoint += diagoffset;
+
+		if (currprefs.uaeboard > 2) {
+			/* Call hwtrap_install */
+			put_word_host(expamem + diagpoint + 0, 0x4EB9); /* JSR */
+			put_long_host(expamem + diagpoint + 2, filesys_get_entry(9));
+			diagpoint += 6;
+		}
+		/* Call DiagEntry */
+		put_word_host(expamem + diagpoint + 0, 0x4EF9); /* JMP */
+		put_long_host(expamem + diagpoint + 2, ROM_filesys_diagentry);
+
+		/* What comes next is a plain bootblock */
+		put_word_host(expamem + bootpoint + 0, 0x4EF9); /* JMP */
+		put_long_host(expamem + bootpoint + 2, EXPANSION_bootcode);
+
+		put_long_host(rtarea_bank.baseaddr + RTAREA_FSBOARD, 0xea0000 + 0x2000);
+
+	} else {
+
+		expamem_write(0x28, 0x00); /* ROM-Offset hi */
+		expamem_write(0x2c, 0x00); /* ROM-Offset lo */
+
+	}
 
 	memcpy(p, expamem, 0x100);
 
@@ -1509,10 +1576,6 @@ static addrbank *expamem_map_filesys (void)
 	return &filesys_bank;
 }
 
-#define FILESYS_DIAGPOINT 0x01e0
-#define FILESYS_BOOTPOINT 0x01e6
-#define FILESYS_DIAGAREA 0x2000
-
 #if KS12_BOOT_HACK
 static void add_ks12_boot_hack(void)
 {
@@ -1553,13 +1616,14 @@ static addrbank* expamem_init_filesys (int devnum)
 	bool hide = currprefs.uae_hide_autoconfig;
 
 	/* struct DiagArea - the size has to be large enough to store several device ROMTags */
-	uae_u8 diagarea[] = { 0x90, 0x00, /* da_Config, da_Flags */
+	const uae_u8 diagarea[] = {
+		0x90, 0x00, /* da_Config, da_Flags */
 		0x02, 0x00, /* da_Size */
 		FILESYS_DIAGPOINT >> 8, FILESYS_DIAGPOINT & 0xff,
 		FILESYS_BOOTPOINT >> 8, FILESYS_BOOTPOINT & 0xff,
-		0, hide ? 0 : 14, // Name offset
+		0, (uae_u8)(hide ? 0 : 14), // Name offset
 		0, 0, 0, 0,
-		hide ? 0 : 'U', hide ? 0 : 'A', hide ? 0 : 'E', 0
+		(uae_u8)(hide ? 0 : 'U'), (uae_u8)(hide ? 0 : 'A'), (uae_u8)(hide ? 0 : 'E'), 0
 	};
 
 	expamem_init_clear ();
@@ -1586,12 +1650,12 @@ static addrbank* expamem_init_filesys (int devnum)
 	memcpy (expamem + FILESYS_DIAGAREA, diagarea, sizeof diagarea);
 
 	/* Call DiagEntry */
-	do_put_mem_word ((uae_u16 *)(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT), 0x4EF9); /* JMP */
-	do_put_mem_long ((uae_u32 *)(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT + 2), ROM_filesys_diagentry);
+	put_word_host(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT, 0x4EF9); /* JMP */
+	put_long_host(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT + 2, ROM_filesys_diagentry);
 
 	/* What comes next is a plain bootblock */
-	do_put_mem_word ((uae_u16 *)(expamem + FILESYS_DIAGAREA + FILESYS_BOOTPOINT), 0x4EF9); /* JMP */
-	do_put_mem_long ((uae_u32 *)(expamem + FILESYS_DIAGAREA + FILESYS_BOOTPOINT + 2), EXPANSION_bootcode);
+	put_word_host(expamem + FILESYS_DIAGAREA + FILESYS_BOOTPOINT, 0x4EF9); /* JMP */
+	put_long_host(expamem + FILESYS_DIAGAREA + FILESYS_BOOTPOINT + 2, EXPANSION_bootcode);
 
 	if (ks12)
 		add_ks12_boot_hack();
@@ -1946,6 +2010,10 @@ static uaecptr check_boot_rom (int *boot_rom_type)
 	uaecptr b = RTAREA_DEFAULT;
 	addrbank *ab;
 
+	if (currprefs.uaeboard > 1) {
+		*boot_rom_type = 2;
+		return 0x00eb0000; // FIXME!
+	}
 	*boot_rom_type = 0;
 	if (currprefs.boot_rom == 1)
 		return 0;
@@ -2106,7 +2174,7 @@ void expamem_reset (void)
 		do_mount = 0;
 
 	/* check if Kickstart version is below 1.3 */
-	if (ks12orolder() && do_mount) {
+	if (ks12orolder() && do_mount && currprefs.uaeboard < 2) {
 		/* warn user */
 #if KS12_BOOT_HACK
 		do_mount = -1;
@@ -2201,7 +2269,7 @@ void expamem_reset (void)
 	}
 #endif
 #ifdef FILESYS
-	if (do_mount) {
+	if (do_mount && currprefs.uaeboard < 2) {
 		cards[cardno].flags = 0;
 		cards[cardno].name = _T("UAEFS");
 		cards[cardno].initnum = expamem_init_filesys;
@@ -2373,10 +2441,12 @@ void expansion_init (void)
 	allocate_expamem ();
 
 #ifdef FILESYS
-	filesys_bank.allocated = 0x10000;
-	if (!mapped_malloc (&filesys_bank)) {
-		write_log (_T("virtual memory exhausted (filesysory)!\n"));
-		exit (0);
+	if (currprefs.uaeboard < 2) {
+		filesys_bank.allocated = 0x10000;
+		if (!mapped_malloc (&filesys_bank)) {
+			write_log (_T("virtual memory exhausted (filesysory)!\n"));
+			exit (0);
+		}
 	}
 #endif
 	if (currprefs.uaeboard) {

@@ -13,7 +13,7 @@
 
 #include "uae/types.h"
 
-uaecptr scsidev_startup (uaecptr resaddr);
+uaecptr scsidev_startup(TrapContext*, uaecptr resaddr);
 void scsidev_install (void);
 void scsidev_reset (void);
 void scsidev_start_threads (void);

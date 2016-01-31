@@ -43,68 +43,68 @@ void tabletlib_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay, 
 	tablet_resy = yres;
 }
 
-static void filltags (uaecptr tabletdata)
+static void filltags (TrapContext *ctx, uaecptr tabletdata)
 {
 	uaecptr p = tablettags;
 	if (!p)
 		return;
-	put_word (tabletdata + 0, 0);
-	put_word (tabletdata + 2, 0);
-	put_long (tabletdata + 4, tablet_x);
-	put_long (tabletdata + 8, tablet_y);
-	put_long (tabletdata + 12, tablet_maxx);
-	put_long (tabletdata + 16, tablet_maxy);
+	trap_put_word(ctx, tabletdata + 0, 0);
+	trap_put_word(ctx, tabletdata + 2, 0);
+	trap_put_long(ctx, tabletdata + 4, tablet_x);
+	trap_put_long(ctx, tabletdata + 8, tablet_y);
+	trap_put_long(ctx, tabletdata + 12, tablet_maxx);
+	trap_put_long(ctx, tabletdata + 16, tablet_maxy);
 
 	//write_log(_T("P=%08X BUT=%08X\n"), tablet_pressure, tablet_buttonbits);
 
 	// pressure
-	put_long (p, 0x8003a000 + 6);
+	trap_put_long(ctx, p, 0x8003a000 + 6);
 	p += 4;
-	put_long (p, tablet_pressure);
+	trap_put_long(ctx, p, tablet_pressure);
 	p += 4;
 	// buttonbits
-	put_long (p, 0x8003a000 + 7);
+	trap_put_long(ctx, p, 0x8003a000 + 7);
 	p += 4;
-	put_long (p, tablet_buttonbits);
+	trap_put_long(ctx, p, tablet_buttonbits);
 	p += 4;
 	// resolutionx
-	put_long (p, 0x8003a000 + 9);
+	trap_put_long(ctx, p, 0x8003a000 + 9);
 	p += 4;
-	put_long (p, tablet_resx);
+	trap_put_long(ctx, p, tablet_resx);
 	p += 4;
 	// resolutiony
-	put_long (p, 0x8003a000 + 10);
+	trap_put_long(ctx, p, 0x8003a000 + 10);
 	p += 4;
-	put_long (p, tablet_resy);
+	trap_put_long(ctx, p, tablet_resy);
 	p += 4;
 	if (tablet_inproximity == 0) {
 		// inproximity
-		put_long (p, 0x8003a000 + 8);
+		trap_put_long(ctx, p, 0x8003a000 + 8);
 		p += 4;
-		put_long (p, 0);
+		trap_put_long(ctx, p, 0);
 		p += 4;
 	}
-	put_long (p, 0);
+	trap_put_long(ctx, p, 0);
 }
 
 static uae_u32 REGPARAM2 lib_initcode (TrapContext *ctx)
 {
-	base = m68k_dreg (regs, 0);
+	base = trap_get_dreg(ctx, 0);
 	tablettags = base + SIZEOF_LIBRARY;
 	tablet_inproximity = -1;
 	tablet_x = tablet_y = 0;
 	tablet_buttonbits = tablet_pressure = 0;
-	ksversion = get_word (m68k_areg (regs, 6) + 20);
+	ksversion = trap_get_word(ctx, trap_get_areg(ctx, 6) + 20);
 	return base;
 }
 static uae_u32 REGPARAM2 lib_openfunc (TrapContext *ctx)
 {
-	put_word (m68k_areg (regs, 6) + 32, get_word (m68k_areg (regs, 6) + 32) + 1);
-	return m68k_areg (regs, 6);
+	trap_put_word(ctx, trap_get_areg(ctx, 6) + 32, trap_get_word(ctx, trap_get_areg(ctx, 6) + 32) + 1);
+	return trap_get_areg(ctx, 6);
 }
 static uae_u32 REGPARAM2 lib_closefunc (TrapContext *ctx)
 {
-	put_word (m68k_areg (regs, 6) + 32, get_word (m68k_areg (regs, 6) + 32) - 1);
+	trap_put_word(ctx, trap_get_areg(ctx, 6) + 32, trap_get_word(ctx, trap_get_areg(ctx, 6) + 32) - 1);
 	return 0;
 }
 static uae_u32 REGPARAM2 lib_expungefunc (TrapContext *context)
@@ -117,52 +117,53 @@ static uae_u32 REGPARAM2 lib_expungefunc (TrapContext *context)
 #define TAG_MORE   (2L)		/* ti_Data is pointer to another array of TagItems */
 #define TAG_SKIP   (3L)		/* skip this and the next ti_Data items */
 
-static uae_u32 REGPARAM2 lib_allocfunc (TrapContext *context)
+static uae_u32 REGPARAM2 lib_allocfunc (TrapContext *ctx)
 {
-	uae_u32 tags = m68k_areg (regs, 0);
+	uae_u32 tags = trap_get_areg(ctx, 0);
 	uae_u32 mem;
-	m68k_dreg (regs, 0) = 24;
-	m68k_dreg (regs, 1) = 65536 + 1;
-	mem = CallLib (context, get_long (4), -0xC6); /* AllocMem */
+
+	trap_call_add_dreg(ctx, 0, 24);
+	trap_call_add_dreg(ctx, 1, 65536 + 1);
+	mem = trap_call_lib(ctx, trap_get_long(ctx, 4), -0xC6); /* AllocMem */
 	if (!mem)
 		return 0;
 	for (;;) {
-		uae_u32 t = get_long(tags);
+		uae_u32 t = trap_get_long(ctx, tags);
 		if (t == TAG_DONE)
 			break;
 		if (t == TAG_SKIP) {
-			tags += 8 + get_long(tags + 4) * 8;
+			tags += 8 + trap_get_long(ctx, tags + 4) * 8;
 		} else if (t == TAG_MORE) {
-			tags = get_long(tags + 4);
+			tags = trap_get_long(ctx, tags + 4);
 		} else if (t == TAG_IGNORE) {
 			tags += 8;
 		} else {
 			t -= 0x8003a000;
 			// clear "unknown" tags
 			if (t != 6 && t != 8)
-				put_long(tags, TAG_IGNORE);
+				trap_put_long(ctx, tags, TAG_IGNORE);
 			tags += 8;
 		}
 	}
-	put_long (mem + 20, tablettags);
-	filltags (mem);
+	trap_put_long(ctx, mem + 20, tablettags);
+	filltags(ctx, mem);
 	return mem;
 }
-static uae_u32 REGPARAM2 lib_freefunc (TrapContext *context)
+static uae_u32 REGPARAM2 lib_freefunc (TrapContext *ctx)
 {
-	m68k_areg (regs, 1) = m68k_areg (regs, 0);
-	m68k_dreg (regs, 0) = 24;
-	CallLib(context, get_long (4), -0xD2);
+	trap_call_add_areg(ctx, 1, trap_get_areg(ctx, 0));
+	trap_call_add_dreg(ctx, 0, 24);
+	trap_call_lib(ctx, trap_get_long(ctx, 4), -0xD2);
 	return 0;
 }
-static uae_u32 REGPARAM2 lib_dofunc (TrapContext *context)
+static uae_u32 REGPARAM2 lib_dofunc (TrapContext *ctx)
 {
-	uaecptr im = m68k_areg (regs, 0);
-	uaecptr td = m68k_areg (regs, 1);
-	filltags (td);
+	uaecptr im = trap_get_areg(ctx, 0);
+	uaecptr td = trap_get_areg(ctx, 1);
+	filltags(ctx, td);
 	if (ksversion < 39)
 		return 0;
-	td = get_long (im + 52);
+	td = trap_get_long(ctx, im + 52);
 	if (!td)
 		return 0;
 	return 1;
@@ -173,18 +174,18 @@ static uae_u32 REGPARAM2 lib_unkfunc (TrapContext *context)
 	return 0;
 }
 
-uaecptr tabletlib_startup (uaecptr resaddr)
+uaecptr tabletlib_startup(TrapContext *ctx, uaecptr resaddr)
 {
 	if (!currprefs.tablet_library)
 		return resaddr;
-	put_word (resaddr + 0x0, 0x4AFC);
-	put_long (resaddr + 0x2, resaddr);
-	put_long (resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
-	put_word (resaddr + 0xA, 0x8127); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
-	put_word (resaddr + 0xC, 0x0900); /* NT_LIBRARY; pri 00 */
-	put_long (resaddr + 0xE, lib_name);
-	put_long (resaddr + 0x12, lib_id);
-	put_long (resaddr + 0x16, lib_init);
+	trap_put_word(ctx, resaddr + 0x0, 0x4AFC);
+	trap_put_long(ctx, resaddr + 0x2, resaddr);
+	trap_put_long(ctx, resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
+	trap_put_word(ctx, resaddr + 0xA, 0x8127); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
+	trap_put_word(ctx, resaddr + 0xC, 0x0900); /* NT_LIBRARY; pri 00 */
+	trap_put_long(ctx, resaddr + 0xE, lib_name);
+	trap_put_long(ctx, resaddr + 0x12, lib_id);
+	trap_put_long(ctx, resaddr + 0x16, lib_init);
 	resaddr += 0x1A;
 	return resaddr;
 }

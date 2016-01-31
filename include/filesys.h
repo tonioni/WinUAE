@@ -10,6 +10,7 @@
 #define UAE_FILESYS_H
 
 #include "uae/types.h"
+#include "traps.h"
 
 struct hardfilehandle;
 
@@ -130,12 +131,12 @@ extern int hdf_open (struct hardfiledata *hfd, const TCHAR *altname);
 extern int hdf_dup (struct hardfiledata *dhfd, const struct hardfiledata *shfd);
 extern void hdf_close (struct hardfiledata *hfd);
 extern int hdf_read_rdb (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len);
-extern int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len);
-extern int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len);
+extern int hdf_read(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len);
+extern int hdf_write(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len);
 extern int hdf_getnumharddrives (void);
 extern TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangerousdrive);
 extern int isspecialdrive(const TCHAR *name);
-extern int get_native_path(uae_u32 lock, TCHAR *out);
+extern int get_native_path(TrapContext *ctx, uae_u32 lock, TCHAR *out);
 extern void hardfile_do_disk_change (struct uaedev_config_data *uci, bool insert);
 extern void hardfile_send_disk_change (struct hardfiledata *hfd, bool insert);
 extern int hardfile_media_change (struct hardfiledata *hfd, struct uaedev_config_info *ci, bool inserted, bool timer);

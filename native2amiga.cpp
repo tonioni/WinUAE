@@ -106,23 +106,16 @@ void uae_NotificationHack (uaecptr port, uaecptr nr)
 
 #endif
 
-void uae_NewList (uaecptr list)
+uaecptr uae_AllocMem (TrapContext *ctx, uae_u32 size, uae_u32 flags, uaecptr sysbase)
 {
-	x_put_long (list, list + 4);
-	x_put_long (list + 4, 0);
-	x_put_long (list + 8, list);
+	trap_set_dreg(ctx, 0, size);
+	trap_set_dreg(ctx, 1, flags);
+	return CallLib(ctx, sysbase, -198); /* AllocMem */
 }
 
-uaecptr uae_AllocMem (TrapContext *context, uae_u32 size, uae_u32 flags, uaecptr sysbase)
+void uae_FreeMem (TrapContext *ctx, uaecptr memory, uae_u32 size, uaecptr sysbase)
 {
-	m68k_dreg (regs, 0) = size;
-	m68k_dreg (regs, 1) = flags;
-	return CallLib (context, sysbase, -198); /* AllocMem */
-}
-
-void uae_FreeMem (TrapContext *context, uaecptr memory, uae_u32 size, uaecptr sysbase)
-{
-	m68k_dreg (regs, 0) = size;
-	m68k_areg (regs, 1) = memory;
-	CallLib (context, sysbase, -0xD2); /* FreeMem */
+	trap_set_dreg(ctx, 0, size);
+	trap_set_areg(ctx, 1, memory);
+	CallLib(ctx, sysbase, -0xD2); /* FreeMem */
 }

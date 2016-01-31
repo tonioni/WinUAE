@@ -161,7 +161,7 @@ struct regstruct
 	uae_u32 instruction_pc;
 
 	uae_u16 irc, ir, db;
-	volatile uae_u32 spcflags;
+	volatile uae_atomic spcflags;
 	uae_u32 last_prefetch;
 	uae_u32 chipset_latch_rw;
 	uae_u32 chipset_latch_read;
@@ -270,31 +270,20 @@ extern int mmu_enabled, mmu_triggered;
 extern int cpu_cycles;
 extern int cpucycleunit;
 extern int m68k_pc_indirect;
+
+STATIC_INLINE void set_special_exter(uae_u32 x)
+{
+	atomic_or(&regs.spcflags, x);
+}
 STATIC_INLINE void set_special (uae_u32 x)
 {
-#ifdef WITH_THREADED_CPU
-#ifdef _WIN32
-	_InterlockedOr((volatile long*)&regs.spcflags, x);
-#else
-	regs.spcflags |= x;
-#endif
-#else
-	regs.spcflags |= x;
-#endif
+	atomic_or(&regs.spcflags, x);
 	cycles_do_special ();
 }
 
 STATIC_INLINE void unset_special (uae_u32 x)
 {
-#ifdef WITH_THREADED_CPU
-#ifdef _WIN32
-	_InterlockedAnd((volatile long*)&regs.spcflags, ~x);
-#else
-	regs.spcflags &= ~x;
-#endif
-#else
-	regs.spcflags &= ~x;
-#endif
+	atomic_and(&regs.spcflags, ~x);
 }
 
 #define m68k_dreg(r,num) ((r).regs[(num)])
