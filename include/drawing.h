@@ -126,7 +126,7 @@ struct color_entry {
 #define CONVERT_RGB(c) 0
 #endif
 
-STATIC_INLINE xcolnr getxcolor (int c)
+STATIC_INLINE xcolnr getxcolor(int c)
 {
 #ifdef AGA
 	if (direct_rgb)
