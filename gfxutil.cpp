@@ -154,11 +154,15 @@ static void video_calc_gammatable (void)
 			v = video_gamma((float)(i - 256), gams[j], bri, con);
 
 			vi = (uae_u32)v;
-			if (vi > 255)
-				vi = 255;
 
 			if (currprefs.gfx_luminance == 0 && currprefs.gfx_contrast == 0 && currprefs.gfx_gamma == 0)
 				vi = i & 0xff;
+
+			if (currprefs.gfx_threebitcolors)
+				vi *= 2;
+
+			if (vi > 255)
+				vi = 255;
 
 			gamma[i][j] = vi;
 		}
@@ -363,12 +367,13 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 		r = gamma[r + j][0];
 		g = gamma[g + j][1];
 		b = gamma[b + j][2];
-		xcolors[i] = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs) | doAlpha (alpha, aw, as);
+		xcolors[i] = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs) | doAlpha(alpha, aw, as);
 		if (byte_swap) {
-			if (bpp <= 16)
-				xcolors[i] = bswap_16 (xcolors[i]);
-			else
-				xcolors[i] = bswap_32 (xcolors[i]);
+			if (bpp <= 16) {
+				xcolors[i] = bswap_16(xcolors[i]);
+			} else {
+				xcolors[i] = bswap_32(xcolors[i]);
+			}
 		}
 		if (bpp <= 16) {
 			/* Fill upper 16 bits of each colour value
