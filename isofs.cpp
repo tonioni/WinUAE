@@ -2455,7 +2455,11 @@ bool isofs_mediainfo(void *sbp, struct isofs_info *ii)
 		}
 		ii->unknown_media = sb->unknown_media;
 		if (sb->root) {
-			uae_tcslcpy (ii->volumename, sb->root->name, sizeof(ii->volumename));
+			if (_tcslen(sb->root->name) == 0) {
+				uae_tcslcpy(ii->volumename, _T("NO_LABEL"), sizeof(ii->volumename));
+			} else {
+				uae_tcslcpy (ii->volumename, sb->root->name, sizeof(ii->volumename));
+			}
 			ii->blocks = sbi->s_max_size;
 			ii->totalblocks = totalblocks ? totalblocks : ii->blocks;
 			ii->creation = sb->root->i_ctime.tv_sec;
