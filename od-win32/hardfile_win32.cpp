@@ -1285,6 +1285,12 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 		_tcscpy (udi->device_name, udi->device_path);
 	}
 	udi->removablemedia = devDesc->RemovableMedia;
+	while (_tcslen(udi->device_name) > 0 && udi->device_name[_tcslen(udi->device_name) - 1] == ':')
+		udi->device_name[_tcslen(udi->device_name) - 1] = 0;
+	for (int i = 0; i < _tcslen(udi->device_name); i++) {
+		if (udi->device_name[i] == ':')
+			udi->device_name[i] = '_';
+	}
 	write_log (_T("device id string: '%s'\n"), udi->device_name);
 	if (ignoreduplicates) {
 		if (!udi->removablemedia) {
