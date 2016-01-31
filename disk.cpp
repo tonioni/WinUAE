@@ -160,6 +160,7 @@ typedef enum { ADF_NONE = -1, ADF_NORMAL, ADF_EXT1, ADF_EXT2, ADF_FDI, ADF_IPF, 
 typedef struct {
 	struct zfile *diskfile;
 	struct zfile *writediskfile;
+	struct zfile *pcdecodedfile;
 	drive_filetype filetype;
 	trackid trackdata[MAX_TRACKS];
 	trackid writetrackdata[MAX_TRACKS];
@@ -641,10 +642,12 @@ static void drive_image_free (drive *drv)
 		break;
 	}
 	drv->filetype = ADF_NONE;
-	zfile_fclose (drv->diskfile);
+	zfile_fclose(drv->diskfile);
 	drv->diskfile = NULL;
-	zfile_fclose (drv->writediskfile);
+	zfile_fclose(drv->writediskfile);
 	drv->writediskfile = NULL;
+	zfile_fclose(drv->pcdecodedfile);
+	drv->pcdecodedfile = NULL;
 }
 
 static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR *fname, bool fake, bool writeprotected);
@@ -2205,7 +2208,7 @@ static uae_u8 mfmdecode (uae_u16 **mfmp, int shift)
 	return out;
 }
 
-static int drive_write_pcdos (drive *drv)
+static int drive_write_pcdos (drive *drv, struct zfile *zf, bool count)
 {
 	int i;
 	int drvsec = drv->num_secs;
@@ -2213,8 +2216,9 @@ static int drive_write_pcdos (drive *drv)
 	int length = 2 * fwlen;
 	uae_u16 *mbuf = drv->bigmfmbuf;
 	uae_u16 *mend = mbuf + length;
-	int secwritten = 0, shift = 0, sector = -1;
-	int sectable[18];
+	int secwritten = 0, seccnt = 0;
+	int shift = 0, sector = -1;
+	int sectable[24];
 	uae_u8 secbuf[3 + 1 + 512];
 	uae_u8 mark;
 	uae_u16 crc;
@@ -2225,14 +2229,14 @@ static int drive_write_pcdos (drive *drv)
 	secbuf[0] = secbuf[1] = secbuf[2] = 0xa1;
 	secbuf[3] = 0xfb;
 
-	while (secwritten < drvsec) {
+	while (seccnt < drvsec) {
 		int mfmcount;
 
 		mfmcount = 0;
 		while (getmfmword (mbuf, shift) != 0x4489) {
 			mfmcount++;
 			if (mbuf >= mend)
-				return 1;
+				return -1;
 			shift++;
 			if (shift == 16) {
 				shift = 0;
@@ -2246,7 +2250,7 @@ static int drive_write_pcdos (drive *drv)
 		while (getmfmword (mbuf, shift) == 0x4489) {
 			mfmcount++;
 			if (mbuf >= mend)
-				return 1;
+				return -1;
 			mbuf++;
 		}
 		if (mfmcount < 3) // ignore if less than 3 sync markers
@@ -2270,9 +2274,9 @@ static int drive_write_pcdos (drive *drv)
 			for (i = 0; i < 28; i++)
 				mfmdecode (&mbuf, shift);
 
-			if (get_crc16 (tmp, 8) != crc || cyl != drv->cyl || head != side || size != 2 || sector < 1 || sector > drv->num_secs) {
+			if (get_crc16 (tmp, 8) != crc || cyl != drv->cyl || head != side || size != 2 || sector < 1 || sector > drv->num_secs || sector >= sizeof sectable) {
 				write_log (_T("PCDOS: track %d, corrupted sector header\n"), drv->cyl * 2 + side);
-				return 1;
+				return -1;
 			}
 			sector--;
 			continue;
@@ -2291,17 +2295,22 @@ static int drive_write_pcdos (drive *drv)
 				drv->cyl * 2 + side, sector + 1);
 			continue;
 		}
-		sectable[sector] = 1;
-		secwritten++;
-		zfile_fseek (drv->diskfile, drv->trackdata[drv->cyl * 2 + side].offs + sector * 512, SEEK_SET);
-		zfile_fwrite (secbuf + 4, sizeof (uae_u8), 512, drv->diskfile);
-		write_log (_T("PCDOS: track %d sector %d written\n"), drv->cyl * 2 + side, sector + 1);
+		seccnt++;
+		if (count && sectable[sector])
+			break;
+		if (!sectable[sector]) {
+			secwritten++;
+			sectable[sector] = 1;
+			zfile_fseek (zf, drv->trackdata[drv->cyl * 2 + side].offs + sector * 512, SEEK_SET);
+			zfile_fwrite (secbuf + 4, sizeof (uae_u8), 512, zf);
+			//write_log (_T("PCDOS: track %d sector %d written\n"), drv->cyl * 2 + side, sector + 1);
+		}
 		sector = -1;
 	}
-	if (secwritten != drv->num_secs)
+	if (!count && secwritten != drv->num_secs)
 		write_log (_T("PCDOS: track %d, %d corrupted sectors ignored\n"),
 		drv->cyl * 2 + side, drv->num_secs - secwritten);
-	return 0;
+	return secwritten;
 }
 
 static int drive_write_adf_amigados (drive *drv)
@@ -2442,8 +2451,8 @@ static void drive_write_data (drive * drv)
 	case ADF_SCP:
 		break;
 	case ADF_PCDOS:
-		ret = drive_write_pcdos (drv);
-		if (ret)
+		ret = drive_write_pcdos (drv, drv->diskfile, 0);
+		if (ret < 0)
 			write_log (_T("not a PC formatted track %d (error %d)\n"), drv->cyl * 2 + side, ret);
 		break;
 	}
@@ -4763,19 +4772,52 @@ void disk_reserved_setinfo(int num, int cyl, int head, int motor)
 
 bool disk_reserved_getinfo(int num, struct floppy_reserved *fr)
 {
-	int i = get_reserved_id(num);
-	if (i >= 0) {
-		drive *drv = &floppy[i];
-		fr->num = i;
+	int idx = get_reserved_id(num);
+	if (idx >= 0) {
+		drive *drv = &floppy[idx];
+		fr->num = idx;
 		fr->img = drv->diskfile;
 		fr->wrprot = drv->wrprot;
+		if (drv->diskfile && !drv->pcdecodedfile && (drv->filetype == ADF_EXT2 || drv->filetype == ADF_FDI || drv->filetype == ADF_IPF || drv->filetype == ADF_SCP)) {
+			int cyl = drv->cyl;
+			int side2 = side;
+			struct zfile *z = zfile_fopen_empty(NULL, zfile_getfilename(drv->diskfile));
+			if (z) {
+				bool ok = false;
+				drv->num_secs = 21; // max possible
+				drive_fill_bigbuf(drv, true);
+				int secs = drive_write_pcdos(drv, z, 1);
+				if (secs >= 8) {
+					ok = true;
+					drv->num_secs = secs;
+					for (int i = 0; i < drv->num_tracks; i++) {
+						drv->cyl = i / 2;
+						side = i & 1;
+						drive_fill_bigbuf(drv, true);
+						drive_write_pcdos(drv, z, 0);
+					}
+				}
+				drv->cyl = cyl;
+				side = side2;
+				if (ok) {
+					write_log(_T("Created  internal PC disk image cyl=%d secs=%d size=%d\n"), drv->num_tracks / 2, drv->num_secs, zfile_size(z));
+					drv->pcdecodedfile = z;
+				} else {
+					write_log(_T("Failed to create internal PC disk image\n"));
+					zfile_fclose(z);
+				}
+			}
+		}
+		if (drv->pcdecodedfile) {
+			fr->img = drv->pcdecodedfile;
+		}
 		fr->cyl = drv->cyl;
 		fr->cyls = drv->num_tracks / 2;
-		fr->drive_cyls = currprefs.floppyslots[i].dfxtype == DRV_PC_ONLY_40 ? 40 : 80;
+		fr->drive_cyls = currprefs.floppyslots[idx].dfxtype == DRV_PC_ONLY_40 ? 40 : 80;
 		fr->secs = drv->num_secs;
 		fr->heads = drv->num_heads;
 		fr->disk_changed = drv->dskchange || fr->img == NULL;
-		if (currprefs.floppyslots[i].dfxtype == DRV_PC_ONLY_80) {
+		if (currprefs.floppyslots[idx].dfxtype == DRV_PC_ONLY_80) {
 			if (fr->cyls < 80) {
 				if (drv->num_secs < 9)
 					fr->rate = FLOPPY_RATE_250K; // 320k in 80 track drive
