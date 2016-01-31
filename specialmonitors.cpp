@@ -2438,3 +2438,83 @@ bool emulate_genlock(struct vidbuffer *src, struct vidbuffer *dst)
 	}
 	return v;
 }
+
+extern uae_u8 *row_map_color_burst_buffer;
+
+static bool do_grayscale(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
+{
+	int y, x, vdbl;
+	int ystart, yend, isntsc;
+
+	isntsc = (beamcon0 & 0x20) ? 0 : 1;
+	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+		isntsc = currprefs.ntscmode ? 1 : 0;
+
+	if (gfxvidinfo.ychange == 1)
+		vdbl = 0;
+	else
+		vdbl = 1;
+
+	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
+	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
+
+	uae_u8 r = 0, g = 0, b = 0;
+	for (y = ystart; y < yend; y++) {
+		int yoff = (((y * 2 + oddlines) - src->yoffset) >> vdbl);
+		if (yoff < 0)
+			continue;
+		if (yoff >= src->inheight)
+			continue;
+
+		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
+		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) >> vdbl) * dst->rowbytes;
+		uae_u8 line_colorburst = currprefs.gfx_grayscale ? 0 : row_map_color_burst_buffer[yoff];
+
+		for (x = 0; x < src->inwidth; x++) {
+			uae_u8 *s = line + x * src->pixbytes;
+			uae_u8 *d = dstline + x * dst->pixbytes;
+			uae_u8 *s2 = s + src->rowbytes;
+			uae_u8 *d2 = d + dst->rowbytes;
+
+			r = FVR(src, s);
+			g = FVG(src, s);
+			b = FVB(src, s);
+
+			if (!line_colorburst) {
+				int v = (r * 30 + g * 60 + b * 10) / 100;
+				if (v > 255)
+					v = 255;
+				PUT_PRGB(d, d2, dst, v, v, v, 0, doublelines, false);
+			} else {
+				PUT_PRGB(d, d2, dst, r, g, b, 0, doublelines, false);
+			}
+		}
+	}
+
+	dst->nativepositioning = true;
+	return true;
+}
+
+bool emulate_grayscale(struct vidbuffer *src, struct vidbuffer *dst)
+{
+	bool v;
+	if (interlace_seen) {
+		if (currprefs.gfx_iscanlines) {
+			v = do_grayscale(src, dst, false, lof_store ? 0 : 1);
+			if (v && currprefs.gfx_iscanlines > 1)
+				blank_generic(src, dst, lof_store ? 1 : 0);
+		} else {
+			v = do_grayscale(src, dst, false, 0);
+			v |= do_grayscale(src, dst, false, 1);
+		}
+	} else {
+		if (currprefs.gfx_pscanlines) {
+			v = do_grayscale(src, dst, false, lof_store ? 0 : 1);
+			if (v && currprefs.gfx_pscanlines > 1)
+				blank_generic(src, dst, lof_store ? 1 : 0);
+		} else {
+			v = do_grayscale(src, dst, true, 0);
+		}
+	}
+	return v;
+}

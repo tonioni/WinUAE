@@ -9,5 +9,6 @@ void specialmonitor_reset(void);
 bool specialmonitor_need_genlock(void);
 addrbank *specialmonitor_autoconfig_init(int devnum);
 bool emulate_genlock(struct vidbuffer*, struct vidbuffer*);
+bool emulate_grayscale(struct vidbuffer*, struct vidbuffer*);
 
 #endif /* UAE_SPECIALMONITORS_H */
