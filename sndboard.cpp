@@ -269,9 +269,9 @@ static void codec_stop(void)
 void sndboard_rethink(void)
 {
 	struct toccata_data *data = &toccata;
-	uae_int_requested &= ~0x200;
+	atomic_and(&uae_int_requested, ~0x200);
 	if (data->toccata_irq)
-		uae_int_requested |= 0x200;
+		atomic_or(&uae_int_requested, 0x200);
 }
 
 static void sndboard_process_capture(void)
@@ -638,7 +638,7 @@ void sndboard_free(void)
 {
 	struct toccata_data *data = &toccata;
 	data->toccata_irq = 0;
-	uae_int_requested &= ~0x200;
+	atomic_and(&uae_int_requested, ~0x200);
 }
 
 void sndboard_reset(void)

@@ -558,14 +558,14 @@ void a2065_hsync_handler (void)
 void rethink_a2065 (void)
 {
 	bool was = (uae_int_requested & 4) != 0;
-	uae_int_requested &= ~4;
+	atomic_and(&uae_int_requested, ~4);
 	if (!configured)
 		return;
 	csr[0] &= ~CSR0_INTR;
 	if (csr[0] & (CSR0_BABL | CSR0_MISS | CSR0_MERR | CSR0_RINT | CSR0_TINT | CSR0_IDON))
 		csr[0] |= CSR0_INTR;
 	if ((csr[0] & (CSR0_INTR | CSR0_INEA)) == (CSR0_INTR | CSR0_INEA)) {
-		uae_int_requested |= 4;
+		atomic_or(&uae_int_requested, 4);
 		if (!was && log_a2065 > 2)
 			write_log(_T("A2065 +IRQ\n"));
 	}

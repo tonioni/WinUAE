@@ -138,7 +138,7 @@ void pci_free(void)
 	for (int i = 0; i < MAX_PCI_BOARDS; i++) {
 		hsyncs[i] = NULL;
 	}
-	uae_int_requested &= ~(0x10 | 0x100);
+	atomic_and(&uae_int_requested, ~(0x10 | 0x100));
 }
 void pci_reset(void)
 {
@@ -155,7 +155,7 @@ void pci_hsync(void)
 
 void pci_rethink(void)
 {
-	uae_int_requested &= ~(0x10 | 0x100);
+	atomic_and(&uae_int_requested, ~(0x10 | 0x100));
 	for (int i = 0; i < PCI_BRIDGE_MAX; i++) {
 		struct pci_bridge *pcib = bridges[i];
 		if (!pcib)
@@ -173,7 +173,7 @@ void pci_rethink(void)
 			}
 		}
 		if (pcib->irq & pcib->intena) {
-			uae_int_requested |= pcib->intreq_mask;
+			atomic_or(&uae_int_requested, pcib->intreq_mask);
 		}
 	}
 }

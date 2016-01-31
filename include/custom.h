@@ -71,6 +71,7 @@ STATIC_INLINE int dmaen (unsigned int dmamask)
 #define SPCFLAG_COPPER 4
 #define SPCFLAG_INT 8
 #define SPCFLAG_BRK 16
+#define SPCFLAG_UAEINT 32
 #define SPCFLAG_TRACE 64
 #define SPCFLAG_DOTRACE 128
 #define SPCFLAG_DOINT 256 /* arg, JIT fails without this.. */
@@ -89,11 +90,12 @@ extern uae_u16 adkcon;
 extern unsigned int joy0dir, joy1dir;
 extern int joy0button, joy1button;
 
-extern void INTREQ (uae_u16);
-extern bool INTREQ_0 (uae_u16);
-extern void INTREQ_f (uae_u16);
-extern void send_interrupt (int num, int delay);
-extern uae_u16 INTREQR (void);
+extern void INTREQ(uae_u16);
+extern bool INTREQ_0(uae_u16);
+extern void INTREQ_f(uae_u16);
+extern void send_interrupt(int num, int delay);
+extern void rethink_uae_int(void);
+extern uae_u16 INTREQR(void);
 
 /* maximums for statically allocated tables */
 #ifdef UAE_MINI

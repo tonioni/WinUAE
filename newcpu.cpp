@@ -3439,19 +3439,19 @@ static void do_trace (void)
 
 static void check_uae_int_request(void)
 {
-	if (uae_int_requested || uaenet_int_requested) {
+	if (uae_int_requested) {
 		bool irq = false;
-		if ((uae_int_requested & 0x00ff) || uaenet_int_requested) {
-			INTREQ_f(0x8000 | 0x0008);
+		if (uae_int_requested & 0x00ff) {
+			INTREQ_0(0x8000 | 0x0008);
 			irq = true;
 		}
 		if (uae_int_requested & 0xff00) {
-			INTREQ_f(0x8000 | 0x2000);
+			INTREQ_0(0x8000 | 0x2000);
 			irq = true;
 		}
 		if (uae_int_requested & 0xff0000) {
 			if (!cpuboard_is_ppcboard_irq())
-				uae_int_requested &= ~0x010000;
+				atomic_and(&uae_int_requested, ~0x010000);
 		}
 		if (irq)
 			set_special(SPCFLAG_INT);
@@ -3569,6 +3569,9 @@ static bool haltloop(void)
 				ovpos = vpos;
 				while (ovpos == vpos) {
 					x_do_cycles(8 * CYCLE_UNIT);
+					unset_special(SPCFLAG_UAEINT);
+					check_uae_int_request();
+					ppc_interrupt(intlev());
 					uae_ppc_execute_check();
 					if (regs.spcflags & SPCFLAG_COPPER)
 						do_copper();
@@ -3673,6 +3676,7 @@ static int do_specialties (int cycles)
 	
 	if (regs.spcflags & SPCFLAG_CHECK) {
 		if (regs.halted) {
+			unset_special(SPCFLAG_CHECK);
 			if (haltloop())
 				return 1;
 		}
@@ -3828,6 +3832,11 @@ static int do_specialties (int cycles)
 
 	if (regs.spcflags & SPCFLAG_TRACE)
 		do_trace ();
+
+	if (regs.spcflags & SPCFLAG_UAEINT) {
+		check_uae_int_request();
+		unset_special(SPCFLAG_UAEINT);
+	}
 
 	if (m68k_interrupt_delay) {
 		if (time_for_interrupt ()) {
@@ -4401,7 +4410,7 @@ void exec_nostats (void)
 #endif
 		}
 
-		if (end_block(r->opcode) || r->spcflags || uae_int_requested || uaenet_int_requested)
+		if (end_block(r->opcode) || r->spcflags || uae_int_requested)
 			return; /* We will deal with the spcflags in the caller */
 	}
 }
@@ -4440,7 +4449,7 @@ void execute_normal (void)
 		total_cycles += cpu_cycles;
 		pc_hist[blocklen].specmem = special_mem;
 		blocklen++;
-		if (end_block (r->opcode) || blocklen >= MAXRUN || r->spcflags || uae_int_requested || uaenet_int_requested) {
+		if (end_block (r->opcode) || blocklen >= MAXRUN || r->spcflags || uae_int_requested) {
 			compile_block (pc_hist, blocklen, total_cycles);
 			return; /* We will deal with the spcflags in the caller */
 		}

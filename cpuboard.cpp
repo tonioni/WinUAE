@@ -33,7 +33,9 @@
 #include "scsi.h"
 #include "cpummu030.h"
 
-// 00F83B7C 3.1 ROM expansion board diagrom
+// ROM expansion board diagrom call
+// 00F83B7C 3.1 A4000
+// 00F83C96 3.1 A1200
 
 #define PPC_IRQ_DEBUG 0
 #define CPUBOARD_IO_LOG 0
@@ -886,15 +888,15 @@ void cpuboard_rethink(void)
 		if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_SCSI_EN | P5_IRQ_SCSI))) {
 			INTREQ_0(0x8000 | 0x0008);
 			if (currprefs.cachesize)
-				uae_int_requested |= 0x010000;
+				atomic_or(&uae_int_requested, 0x010000);
 			uae_ppc_wakeup_main();
 		} else if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_PPC_1 | P5_IRQ_PPC_2))) {
 			INTREQ_0(0x8000 | 0x0008);
 			if (currprefs.cachesize)
-				uae_int_requested |= 0x010000;
+				atomic_or(&uae_int_requested, 0x010000);
 			uae_ppc_wakeup_main();
 		} else {
-			uae_int_requested &= ~0x010000;
+			atomic_and(&uae_int_requested, ~0x010000);
 		}
 		check_ppc_int_lvl();
 		ppc_interrupt(intlev());

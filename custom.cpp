@@ -4979,6 +4979,31 @@ STATIC_INLINE int use_eventmode (uae_u16 v)
 	return 0;
 }
 
+
+void rethink_uae_int(void)
+{
+	bool irq2 = false;
+	bool irq6 = false;
+
+	if (uae_int_requested) {
+		if (uae_int_requested & 0xff00)
+			irq6 = true;
+		if (uae_int_requested & 0x00ff)
+			irq2 = true;
+	}
+
+	{
+		extern void bsdsock_fake_int_handler(void);
+		extern int volatile bsd_int_requested;
+		if (bsd_int_requested)
+			bsdsock_fake_int_handler();
+	}
+
+	uae_u16 mask = (irq6 ? 0x2000 : 0) | (irq2 ? 0x0008 : 0);
+	if (mask)
+		INTREQ_0(0x8000 | mask);
+}
+
 static void rethink_intreq (void)
 {
 	serial_check_irq ();
@@ -5280,7 +5305,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
 		v &= ~0x00F1;
 	else if (! (currprefs.chipset_mask & CSMASK_AGA))
 		v &= ~0x00B0;
-	v &= ~(0x0080 | 0x0020);
+	v &= ~0x0080;
 
 #if SPRBORDER
 	v |= 1;
@@ -8179,25 +8204,7 @@ static void hsync_handler_post (bool onvsync)
 		reset_decisions ();
 	}
 
-	if (uae_int_requested) {
-		if (uae_int_requested & 0xff00)
-			INTREQ(0x8000 | 0x2000);
-		if (uae_int_requested & 0x00ff)
-			INTREQ(0x8000 | 0x0008);
-	}
-
-	{
-		if (uaenet_int_requested || (uaenet_vsync_requested && vpos == 10)) {
-			INTREQ (0x8000 | 0x0008);
-		}
-	}
-
-	{
-		extern void bsdsock_fake_int_handler (void);
-		extern int volatile bsd_int_requested;
-		if (bsd_int_requested)
-			bsdsock_fake_int_handler ();
-	}
+	rethink_uae_int();
 
 	/* Default to no bitplane DMA overriding sprite DMA */
 	plfstrt_sprite = 0xff;
