@@ -243,4 +243,29 @@ void uae_set_thread_priority (uae_thread_id *tid, int pri)
 	}
 }
 
+void atomic_and(volatile uae_atomic *p, uae_u32 v)
+{
+	_InterlockedAnd(p, v);
+}
+void atomic_or(volatile uae_atomic *p, uae_u32 v)
+{
+	_InterlockedOr(p, v);
+}
+void atomic_set(volatile uae_atomic *p, uae_u32 v)
+{
+}
+uae_atomic atomic_inc(volatile uae_atomic *p)
+{
+	return _InterlockedIncrement(p);
+}
+uae_atomic atomic_dec(volatile uae_atomic *p)
+{
+	return _InterlockedDecrement(p);
+}
+
+uae_u32 atomic_bit_test_and_reset(volatile uae_atomic *p, uae_u32 v)
+{
+	return _interlockedbittestandreset(p, v);
+}
 #endif
+

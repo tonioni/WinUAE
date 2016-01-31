@@ -215,6 +215,12 @@ typedef uae_u32 uaecptr;
 #define UVAL64(a) (a ## ul)
 #endif
 
+void atomic_and(volatile uae_atomic *p, uae_u32 v);
+void atomic_or(volatile uae_atomic *p, uae_u32 v);
+uae_atomic atomic_inc(volatile uae_atomic *p);
+uae_atomic atomic_dec(volatile uae_atomic *p);
+uae_u32 atomic_bit_test_and_reset(volatile uae_atomic *p, uae_u32 v);
+
 #ifdef HAVE_STRDUP
 #define my_strdup _tcsdup
 #else
