@@ -115,9 +115,19 @@ void uae_sem_post (uae_sem_t * event)
 	SetEvent (*event);
 }
 
+int uae_sem_trywait_delay(uae_sem_t * event, int millis)
+{
+	int v = WaitForSingleObject(*event, millis);
+	if (v == WAIT_OBJECT_0)
+		return 0;
+	if (v == WAIT_ABANDONED)
+		return -2;
+	return -1;
+}
+
 int uae_sem_trywait (uae_sem_t * event)
 {
-	return WaitForSingleObject (*event, 0) == WAIT_OBJECT_0 ? 0 : -1;
+	return uae_sem_trywait_delay(event, 0);
 }
 
 void uae_sem_destroy (uae_sem_t * event)
