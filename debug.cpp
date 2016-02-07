@@ -3661,14 +3661,14 @@ static void show_exec_lists (TCHAR *t)
 		static const int it2[] = { 1, 1, 1, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 6, 6, 7 };
 		list = execbase + 84;
 		for (int i = 0; i < 16; i++) {
-			console_out_f (_T("%2d %d: %08x\n"), i + 1, it2[i], list);
+			console_out_f (_T("%2d %d: %08X\n"), i + 1, it2[i], list);
 			if (it[i]) {
-				console_out_f (_T("  [H] %08x\n"), get_long_debug (list));
+				console_out_f (_T("  [H] %08X\n"), get_long_debug (list));
 				node = get_long_debug (list + 8);
 				if (node) {
 					uae_u8 *addr = get_real_address (get_long_debug (node + 10));
 					TCHAR *name = addr ? au ((char*)addr) : au("<null>");
-					console_out_f (_T("      %08x (C=%08X D=%08X) '%s'\n"), node, get_long_debug (list + 4), get_long_debug (list), name);
+					console_out_f (_T("      %08X (C=%08X D=%08X) '%s'\n"), node, get_long_debug (list + 4), get_long_debug (list), name);
 					xfree (name);
 				}
 			} else {
@@ -3678,7 +3678,8 @@ static void show_exec_lists (TCHAR *t)
 				while (get_long_debug (node)) {
 					uae_u8 *addr = get_real_address (get_long_debug (node + 10));
 					TCHAR *name = addr ? au ((char*)addr) : au("<null>");
-					console_out_f (_T("  [S] %08x (C=%08x D=%08X) '%s'\n"), node, get_long_debug (node + 18), get_long_debug (node + 14), name);
+					uae_s8 pri = get_byte_debug(node + 9);
+					console_out_f (_T("  [S] %08x %+03d (C=%08x D=%08X) '%s'\n"), node, pri, get_long_debug (node + 18), get_long_debug (node + 14), name);
 					if (i == 4 - 1 || i == 14 - 1) {
 						if (!_tcsicmp (name, _T("cia-a")) || !_tcsicmp (name, _T("cia-b"))) {
 							static const TCHAR *ciai[] = { _T("A"), _T("B"), _T("ALRM"), _T("SP"), _T("FLG") };
