@@ -4254,7 +4254,6 @@ void picasso_invalidate (int x, int y, int w, int h)
 
 bool picasso_flushpixels (uae_u8 *src, int off)
 {
-	int i;
 	uae_u8 *src_start;
 	uae_u8 *src_end;
 	int lock = 0;
@@ -4296,7 +4295,7 @@ bool picasso_flushpixels (uae_u8 *src, int off)
 		if (full_refresh < 0) {
 			gwwcnt = (src_end - src_start) / gwwpagesize + 1;
 			full_refresh = 1;
-			for (i = 0; i < gwwcnt; i++)
+			for (int i = 0; i < gwwcnt; i++)
 				gwwbuf[i] = src_start + i * gwwpagesize;
 		} else {
 			ULONG ps;
@@ -4342,7 +4341,7 @@ bool picasso_flushpixels (uae_u8 *src, int off)
 			break;
 		}
 
-		for (i = 0; i < gwwcnt; i++) {
+		for (int i = 0; i < gwwcnt; i++) {
 			uae_u8 *p = (uae_u8*)gwwbuf[i];
 
 			if (p >= src_start && p < src_end) {
@@ -4358,12 +4357,13 @@ bool picasso_flushpixels (uae_u8 *src, int off)
 				if (y < pheight) {
 					int w = gwwpagesize / picasso96_state.BytesPerPixel;
 					x = (realoffset % picasso96_state.BytesPerRow) / picasso96_state.BytesPerPixel;
-					if (x < pwidth)
+					if (x < pwidth) {
 						copyrow (src + off, dst, x, y, pwidth - x,
 							picasso96_state.BytesPerRow, picasso96_state.BytesPerPixel,
 							picasso_vidinfo.rowbytes, picasso_vidinfo.pixbytes,
 							picasso96_state.RGBFormat == host_mode, picasso_convert);
 						flushlines++;
+					}
 					w = (gwwpagesize - (picasso96_state.BytesPerRow - x * picasso96_state.BytesPerPixel)) / picasso96_state.BytesPerPixel;
 					if (y < miny)
 						miny = y;
@@ -4418,11 +4418,6 @@ bool picasso_flushpixels (uae_u8 *src, int off)
 	if (lock)
 		gfx_unlock_picasso (true);
 	if (dst && gwwcnt) {
-		if (doskip () && p96skipmode == 3) {
-			;
-		} else {
-			mman_ResetWatch (src_start, src_end - src_start);
-		}
 		full_refresh = 0;
 	}
 	return lock != 0; 
