@@ -158,8 +158,11 @@ static void video_calc_gammatable (void)
 			if (currprefs.gfx_luminance == 0 && currprefs.gfx_contrast == 0 && currprefs.gfx_gamma == 0)
 				vi = i & 0xff;
 
-			if (currprefs.gfx_threebitcolors)
+			if (currprefs.gfx_threebitcolors == 1) {
 				vi *= 2;
+			} else if (currprefs.gfx_threebitcolors == 2) {
+				vi = (vi + (vi & 7)) * 2;
+			}
 
 			if (vi > 255)
 				vi = 255;

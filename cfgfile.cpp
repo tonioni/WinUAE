@@ -285,6 +285,13 @@ static const TCHAR *serialcrlf[] = {
 	_T("crlf_cr"),
 	NULL
 };
+static const TCHAR *threebitcolors[] = {
+	_T("disabled"),
+	_T("3to4bit"),
+	_T("3to8bit"),
+	NULL
+};
+
 static const TCHAR *obsolete[] = {
 	_T("accuracy"), _T("gfx_opengl"), _T("gfx_32bit_blits"), _T("32bit_blits"),
 	_T("gfx_immediate_blits"), _T("gfx_ntsc"), _T("win32"), _T("gfx_filter_bits"),
@@ -1577,7 +1584,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_str (f, _T("gfx_center_vertical"), centermode1[p->gfx_ycenter]);
 	cfgfile_write_str (f, _T("gfx_colour_mode"), colormode1[p->color_mode]);
 	cfgfile_write_bool(f, _T("gfx_blacker_than_black"), p->gfx_blackerthanblack);
-	cfgfile_dwrite_bool(f, _T("gfx_atari_palette_fix"), p->gfx_threebitcolors);
+	cfgfile_dwrite_bool(f, _T("gfx_monochrome"), p->gfx_grayscale);
+	cfgfile_write_str(f, _T("gfx_atari_palette_fix"), threebitcolors[p->gfx_threebitcolors]);
 	cfgfile_dwrite_bool (f, _T("gfx_black_frame_insertion"), p->lightboost_strobo);
 	cfgfile_write_str (f, _T("gfx_api"), filterapi[p->gfx_api]);
 	cfgfile_dwrite (f, _T("gfx_horizontal_tweak"), _T("%d"), p->gfx_extrawidth);
@@ -1941,6 +1949,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_str (f, _T("filesys_inject_icons_tool"), p->filesys_inject_icons_tool);
 	cfgfile_dwrite_str (f, _T("scsidev_mode"), uaescsidevmodes[p->uaescsidevmode]);
 #endif
+	cfgfile_dwrite_bool(f, _T("harddrive_write_protect"), p->harddrive_read_only);
 
 	write_inputdevice_config (p, f);
 }
@@ -2599,7 +2608,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno(option, value, _T("sound_stereo_swap_ahi"), &p->sound_stereo_swap_ahi)
 		|| cfgfile_yesno(option, value, _T("log_illegal_mem"), &p->illegal_mem)
 		|| cfgfile_yesno(option, value, _T("filesys_no_fsdb"), &p->filesys_no_uaefsdb)
-		|| cfgfile_yesno(option, value, _T("gfx_atari_palette_fix"), &p->gfx_threebitcolors)
+		|| cfgfile_yesno(option, value, _T("gfx_monochrome"), &p->gfx_grayscale)
 		|| cfgfile_yesno(option, value, _T("gfx_blacker_than_black"), &p->gfx_blackerthanblack)
 		|| cfgfile_yesno(option, value, _T("gfx_black_frame_insertion"), &p->lightboost_strobo)
 		|| cfgfile_yesno(option, value, _T("gfx_flickerfixer"), &p->gfx_scandoubler)
@@ -2638,6 +2647,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_strval (option, value, _T("gfx_max_horizontal"), &p->gfx_max_horizontal, maxhoriz, 0)
 		|| cfgfile_strval (option, value, _T("gfx_max_vertical"), &p->gfx_max_vertical, maxvert, 0)
 		|| cfgfile_strval (option, value, _T("gfx_api"), &p->gfx_api, filterapi, 0)
+		|| cfgfile_strval(option, value, _T("gfx_atari_palette_fix"), &p->gfx_threebitcolors, threebitcolors, 0)
 		|| cfgfile_strval (option, value, _T("magic_mousecursor"), &p->input_magic_mouse_cursor, magiccursors, 0)
 		|| cfgfile_strval (option, value, _T("absolute_mouse"), &p->input_tablet, abspointers, 0))
 		return 1;
@@ -4359,6 +4369,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 #endif
 		|| cfgfile_yesno (option, value, _T("rtg_nocustom"), &p->picasso96_nocustom)
 		|| cfgfile_yesno (option, value, _T("floppy_write_protect"), &p->floppy_read_only)
+		|| cfgfile_yesno(option, value, _T("harddrive_write_protect"), &p->harddrive_read_only)
 		|| cfgfile_yesno (option, value, _T("uae_hide_autoconfig"), &p->uae_hide_autoconfig)
 		|| cfgfile_yesno(option, value, _T("toccata"), &p->sound_toccata)
 		|| cfgfile_yesno(option, value, _T("es1370_pci"), &p->sound_es1370)
@@ -5054,7 +5065,6 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 	if (real) {
 		p->config_version = 0;
 		config_newfilesystem = 0;
-		inputdevice_config_load_start(p);
 		//reset_inputdevice_config (p);
 	}
 
@@ -6068,14 +6078,12 @@ void default_prefs (struct uae_prefs *p, int type)
 		p->mountconfig[i].unitnum = -1;
 	}
 
-	memset (&p->jports[0], 0, sizeof (struct jport));
-	memset (&p->jports[1], 0, sizeof (struct jport));
-	memset (&p->jports[2], 0, sizeof (struct jport));
-	memset (&p->jports[3], 0, sizeof (struct jport));
-	p->jports[0].id = JSEM_MICE;
-	p->jports[1].id = JSEM_KBDLAYOUT;
+	p->jports[0].id = -1;
+	p->jports[1].id = -1;
 	p->jports[2].id = -1;
 	p->jports[3].id = -1;
+	inputdevice_joyport_config_store(p, _T("mouse"), 0, -1, 0);
+	inputdevice_joyport_config_store(p, _T("kbd1"), 1, -1, 0);
 	p->keyboard_lang = KBD_LANG_US;
 
 	p->produce_sound = 3;
