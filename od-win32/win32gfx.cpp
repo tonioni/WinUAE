@@ -1543,6 +1543,7 @@ static void close_hwnds (void)
 #endif
 	closeblankwindows ();
 	deletestatusline();
+	rawinput_release();
 	if (hStatusWnd) {
 		ShowWindow (hStatusWnd, SW_HIDE);
 		DestroyWindow (hStatusWnd);
@@ -2170,6 +2171,7 @@ int check_prefs_changed_gfx (void)
 
 	currprefs.win32_norecyclebin = changed_prefs.win32_norecyclebin;
 	currprefs.filesys_limit = changed_prefs.filesys_limit;
+	currprefs.harddrive_read_only = changed_prefs.harddrive_read_only;
 
 	if (currprefs.win32_logfile != changed_prefs.win32_logfile) {
 		currprefs.win32_logfile = changed_prefs.win32_logfile;
@@ -4187,6 +4189,7 @@ static int create_windows_2 (void)
 	firstwindow = false;
 	setDwmEnableMMCSS (true);
 	prevsbheight = sbheight;
+	rawinput_alloc();
 	return 1;
 }
 

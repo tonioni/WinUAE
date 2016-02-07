@@ -401,61 +401,15 @@ static int rawinput_available;
 static bool rawinput_registered;
 static int rawinput_reg;
 
-static bool test_rawinput (int usage)
-{
-	RAWINPUTDEVICE rid = { 0 };
-
-	rid.usUsagePage = 1;
-	rid.usUsage = usage;
-	if (RegisterRawInputDevices (&rid, 1, sizeof(RAWINPUTDEVICE)) == FALSE) {
-		write_log (_T("RAWINPUT test failed, usage=%d ERR=%d\n"), usage, GetLastError ());
-		return false;
-	}
-	rid.dwFlags |= RIDEV_REMOVE;
-	if (RegisterRawInputDevices (&rid, 1, sizeof(RAWINPUTDEVICE)) == FALSE) {
-		write_log (_T("RAWINPUT test failed (release), usage=%d, ERR=%d\n"), usage, GetLastError ());
-		return false;
-	}
-	write_log (_T("RAWINPUT test ok, usage=%d\n"), usage);
-	return true;
-}
-
-static int doregister_rawinput (void)
+static int doregister_rawinput (bool add)
 {
 	int num;
-	bool add;
 	RAWINPUTDEVICE rid[2 + 2 + MAX_INPUT_DEVICES] = { 0 };
-	int activate;
 
 	if (!rawinput_available)
 		return 0;
 
-	activate = 0;
-	for (int i = 0; i < MAX_INPUT_DEVICES; i++) {
-		if (di_mouse[i].acquired)
-			activate++;
-		if (di_joystick[i].acquired)
-			activate++;
-		if (di_keyboard[i].acquired)
-			activate++;
-	}
-
-#if RAWINPUT_DEBUG
-	write_log(_T("RAWHID ACT=%d REG=%d\n"), activate, rawinput_registered);
-#endif
-
-	if (rawinput_registered && activate)
-		return 1;
-	if (!rawinput_registered && !activate)
-		return 1;
-
-	add = activate != 0;
-
 	rawinput_registered = add;
-
-	// never unregister
-	if (!add)
-		return 1;
 
 	memset (rid, 0, sizeof rid);
 	num = 0;
@@ -518,6 +472,7 @@ static int doregister_rawinput (void)
 	}
 	num++;
 
+#if 0
 	for (int i = 0; i < num_joystick; i++) {
 		struct didata *did = &di_joystick[i];
 		if (did->connection != DIDC_RAW)
@@ -547,6 +502,7 @@ static int doregister_rawinput (void)
 			num++;
 		}
 	}
+#endif
 
 #if RAWINPUT_DEBUG
 	write_log (_T("RegisterRawInputDevices: ACT=%d NUM=%d HWND=%p\n"), activate, num, hMainWnd);
@@ -560,6 +516,14 @@ static int doregister_rawinput (void)
 	}
 
 	return 1;
+}
+
+void rawinput_alloc(void)
+{
+	doregister_rawinput(true);
+}
+void rawinput_release(void)
+{
 }
 
 static void cleardid (struct didata *did)
@@ -1234,7 +1198,7 @@ static const TCHAR *rawkeyboardlabels[256] =
 	_T("VOLUMEDOWN"),NULL,_T("VOLUMEUP"),NULL,_T("WEBHOME"),_T("NUMPADCOMMA"),NULL,
 	_T("DIVIDE"),NULL,_T("SYSRQ"),_T("RMENU"),
 	NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
-	_T("PAUSE"),NULL,_T("HOME"),_T("UP"),_T("PRIOR"),NULL,_T("LEFT"),NULL,_T("RIGHT"),NULL,_T("END"),
+	_T("PAUSE"),NULL,_T("HOME"),_T("UP"),_T("PREV"),NULL,_T("LEFT"),NULL,_T("RIGHT"),NULL,_T("END"),
 	_T("DOWN"),_T("NEXT"),_T("INSERT"),_T("DELETE"),
 	NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 	_T("LWIN"),_T("RWIN"),_T("APPS"),_T("POWER"),_T("SLEEP"),
@@ -1998,6 +1962,7 @@ static bool initialize_rawinput (void)
 	for (int i = 0; i < num_joystick; i++)
 		sortobjects (&di_joystick[i]);
 
+	rawinput_alloc();
 	return 1;
 
 error2:
@@ -2188,6 +2153,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 					continue;
 				if (!did->acquired && did->rawinput == h) {
 					write_log(_T("RAWHID %d %p was unacquired!\n"), num, did->rawinput);
+					return;
 				}
 			}
 		}
@@ -2988,12 +2954,8 @@ static int di_do_init (void)
 	}
 
 	if (!rawinput_decided) {
-		if (num_mouse > 0 && !test_rawinput (2))
-			num_mouse = 0;
-		if (num_keyboard > 0 && !test_rawinput (6))
-			num_keyboard = 0;
-		rawinput_enabled_keyboard = num_keyboard > 0;
-		rawinput_enabled_mouse = num_mouse > 0;
+		rawinput_enabled_keyboard = true;
+		rawinput_enabled_mouse = true;
 		rawinput_decided = true;
 	}
 	if (!rawhid_found) {
@@ -3189,7 +3151,6 @@ static int acquire_mouse (int num, int flags)
 	HRESULT hr;
 
 	if (num < 0) {
-		doregister_rawinput ();
 		return 1;
 	}
 
@@ -3234,7 +3195,6 @@ static int acquire_mouse (int num, int flags)
 static void unacquire_mouse (int num)
 {
 	if (num < 0) {
-		doregister_rawinput ();
 		return;
 	}
 
@@ -3518,7 +3478,6 @@ static int acquire_kb (int num, int flags)
 {
 	if (num < 0) {
 		flushmsgpump();
-		doregister_rawinput ();
 		if (currprefs.keyboard_leds_in_use) {
 			//write_log (_T("***********************acquire_kb_led\n"));
 			if (!currprefs.win32_kbledmode) {
@@ -3572,7 +3531,6 @@ static int acquire_kb (int num, int flags)
 static void unacquire_kb (int num)
 {
 	if (num < 0) {
-		doregister_rawinput ();
 		if (currprefs.keyboard_leds_in_use) {
 			//write_log (_T("*********************** unacquire_kb_led\n"));
 			if (originalleds != -1) {
@@ -4088,7 +4046,6 @@ void dinput_window (void)
 static int acquire_joystick (int num, int flags)
 {
 	if (num < 0) {
-		doregister_rawinput ();
 		return 1;
 	}
 
@@ -4126,7 +4083,6 @@ static int acquire_joystick (int num, int flags)
 static void unacquire_joystick (int num)
 {
 	if (num < 0) {
-		doregister_rawinput ();
 		return;
 	}
 
