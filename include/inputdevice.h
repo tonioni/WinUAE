@@ -177,7 +177,7 @@ extern int inputdevice_iterate (int devnum, int num, TCHAR *name, int *af);
 extern bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int num, int evtnum, uae_u64 flags, int port, int input_selected_setting);
 extern int inputdevice_set_mapping (int devnum, int num, const TCHAR *name, TCHAR *custom, uae_u64 flags, int port, int sub);
 extern int inputdevice_get_mapping (int devnum, int num, uae_u64 *pflags, int *port, TCHAR *name, TCHAR *custom, int sub);
-extern void inputdevice_copyconfig (const struct uae_prefs *src, struct uae_prefs *dst);
+extern void inputdevice_copyconfig (struct uae_prefs *src, struct uae_prefs *dst);
 extern void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int devnum, int selectedwidget);
 extern void inputdevice_swap_ports (struct uae_prefs *p, int devnum);
 extern void inputdevice_swap_compa_ports (struct uae_prefs *p, int portswap);
@@ -220,7 +220,7 @@ extern uae_u8 handle_joystick_buttons (uae_u8, uae_u8);
 extern int magicmouse_alive (void);
 extern int is_tablet (void);
 extern int inputdevice_is_tablet (void);
-extern int input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp, uae_u32 moffset);
+extern int input_mousehack_status(TrapContext *ctx, int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp, uae_u32 moffset);
 extern void input_mousehack_mouseoffset (uaecptr pointerprefs);
 extern int mousehack_alive (void);
 extern void mousehack_wakeup(void);
@@ -236,8 +236,8 @@ extern void setjoystickstate (int joy, int axle, int state, int max);
 extern int getjoystickstate (int mouse);
 void setmousestate (int mouse, int axis, int data, int isabs);
 extern int getmousestate (int mouse);
-extern void inputdevice_updateconfig (const struct uae_prefs *srcprefs, struct uae_prefs *dstprefs);
-extern void inputdevice_updateconfig_internal (const struct uae_prefs *srcprefs, struct uae_prefs *dstprefs);
+extern void inputdevice_updateconfig (struct uae_prefs *srcprefs, struct uae_prefs *dstprefs);
+extern void inputdevice_updateconfig_internal (struct uae_prefs *srcprefs, struct uae_prefs *dstprefs);
 extern void inputdevice_devicechange (struct uae_prefs *prefs);
 
 #define INTERNALEVENT_CPURESET 0

@@ -165,6 +165,13 @@ static struct temp_uids temp_uid;
 static int temp_uid_index[MAX_INPUT_DEVICES][IDTYPE_MAX];
 static int temp_uid_cnt[IDTYPE_MAX];
 
+struct jport_config {
+	struct inputdevconfig idc;
+	TCHAR id[MAX_JPORTNAME];
+	int mode;
+};
+static struct jport_config jport_config_store[MAX_JPORTS];
+
 static int isdevice (struct uae_input_device *id)
 {
 	int i, j;
@@ -1014,8 +1021,13 @@ void reset_inputdevice_config (struct uae_prefs *prefs)
 	for (int i = 0; i < MAX_INPUT_SETTINGS; i++)
 		reset_inputdevice_slot (prefs, i);
 	reset_inputdevice_config_temp();
-}
 
+	for (int i = 0; i < MAX_JPORTS; i++) {
+		struct jport_config *jp = &jport_config_store[i];
+		memset(jp, 0, sizeof(struct jport_config));
+	}
+	inputdevice_store_clear();
+}
 
 static void set_kbr_default_event (struct uae_input_device *kbr, struct uae_input_device_kbr_default *trans, int num)
 {
@@ -1906,6 +1918,9 @@ int mousehack_alive (void)
 
 static uaecptr get_base (const uae_char *name)
 {
+	if (trap_is_indirect())
+		return 0;
+
 	uaecptr v = get_long (4);
 	addrbank *b = &get_mem_bank(v);
 
@@ -1944,20 +1959,26 @@ fail:
 
 static uaecptr get_intuitionbase (void)
 {
-	if (magicmouse_ibase == 0xffffffff || regs.halted)
+	if (magicmouse_ibase == 0xffffffff)
 		return 0;
 	if (magicmouse_ibase)
 		return magicmouse_ibase;
-	magicmouse_ibase = get_base ("intuition.library");
+	if (rtarea_bank.baseaddr)
+		magicmouse_ibase = get_long_host(rtarea_bank.baseaddr + RTAREA_INTBASE);
+	if (!magicmouse_ibase)
+		magicmouse_ibase = get_base("intuition.library");
 	return magicmouse_ibase;
 }
 static uaecptr get_gfxbase (void)
 {
-	if (magicmouse_gfxbase == 0xffffffff || regs.halted)
+	if (magicmouse_gfxbase == 0xffffffff)
 		return 0;
 	if (magicmouse_gfxbase)
 		return magicmouse_gfxbase;
-	magicmouse_gfxbase = get_base ("graphics.library");
+	if (rtarea_bank.baseaddr)
+		magicmouse_gfxbase = get_long_host(rtarea_bank.baseaddr + RTAREA_GFXBASE);
+	if (!magicmouse_gfxbase)
+		magicmouse_gfxbase = get_base("graphics.library");
 	return magicmouse_gfxbase;
 }
 
@@ -2003,7 +2024,7 @@ int inputdevice_is_tablet (void)
 	return v ? 1 : 0;
 }
 
-static uaecptr mousehack_address;
+static uae_u8 *mousehack_address;
 static bool mousehack_enabled;
 
 static void mousehack_reset (void)
@@ -2014,8 +2035,11 @@ static void mousehack_reset (void)
 	mousehack_alive_cnt = 0;
 	vp_xoffset = vp_yoffset = 0;
 	tablet_data = 0;
-	if (mousehack_address && valid_address(mousehack_address + MH_E, 1))
-		put_byte (mousehack_address + MH_E, 0);
+	if (rtarea_bank.baseaddr) {
+		put_long_host(rtarea_bank.baseaddr + RTAREA_INTXY, 0xffffffff);
+		if (mousehack_address)
+			put_byte_host(mousehack_address + MH_E, 0);
+	}
 	mousehack_address = 0;
 	mousehack_enabled = false;
 }
@@ -2033,9 +2057,9 @@ static bool mousehack_enable (void)
 		mode |= 1;
 	if (inputdevice_is_tablet () > 0)
 		mode |= 2;
-	if (mousehack_address && valid_address(mousehack_address + MH_E, 1)) {
+	if (mousehack_address && rtarea_bank.baseaddr) {
 		write_log (_T("Mouse driver enabled (%s)\n"), ((mode & 3) == 3 ? _T("tablet+mousehack") : ((mode & 3) == 2) ? _T("tablet") : _T("mousehack")));
-		put_byte (mousehack_address + MH_E, mode);
+		put_byte_host(mousehack_address + MH_E, mode);
 		mousehack_enabled = true;
 	}
 	return true;
@@ -2046,7 +2070,7 @@ static void inputdevice_update_tablet_params(void)
 	uae_u8 *p;
 	if (inputdevice_is_tablet() <= 0 || !mousehack_address)
 		return;
-	p = get_real_address(mousehack_address);
+	p = mousehack_address;
 
 	p[MH_MAXX] = tablet_maxx >> 8;
 	p[MH_MAXX + 1] = tablet_maxx;
@@ -2085,20 +2109,20 @@ void mousehack_wakeup(void)
 	}
 }
 
-int input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp, uae_u32 moffset)
+int input_mousehack_status(TrapContext *ctx, int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp, uae_u32 moffset)
 {
 	if (mode == 4) {
 		return mousehack_enable () ? 1 : 0;
 	} else if (mode == 5) {
-		mousehack_address = m68k_dreg (regs, 0);
+		mousehack_address = (trap_get_dreg(ctx, 0) & 0xffff) + rtarea_bank.baseaddr;
 		mousehack_enable ();
 		inputdevice_update_tablet_params ();
 	} else if (mode == 0) {
 		if (mousehack_address) {
-			uae_u8 v = get_byte (mousehack_address + MH_E);
+			uae_u8 v = get_byte_host(mousehack_address + MH_E);
 			v |= 0x40;
-			put_byte (mousehack_address + MH_E, v);
-			write_log (_T("Tablet driver running (%08x,%02x)\n"), mousehack_address, v);
+			put_byte_host(mousehack_address + MH_E, v);
+			write_log (_T("Tablet driver running (%p,%02x)\n"), mousehack_address, v);
 		}
 	} else if (mode == 1) {
 		int x1 = -1, y1 = -1, x2 = -1, y2 = -1;
@@ -2108,25 +2132,23 @@ int input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr
 		vp_xoffset = 0;
 		vp_yoffset = 0;
 		if (diminfo) {
-			x1 = get_word (diminfo + 50);
-			y1 = get_word (diminfo + 52);
-			x2 = get_word (diminfo + 54);
-			y2 = get_word (diminfo + 56);
+			x1 = trap_get_word(ctx, diminfo + 50);
+			y1 = trap_get_word(ctx, diminfo + 52);
+			x2 = trap_get_word(ctx, diminfo + 54);
+			y2 = trap_get_word(ctx, diminfo + 56);
 			dimensioninfo_width = x2 - x1 + 1;
 			dimensioninfo_height = y2 - y1 + 1;
 		}
 		if (vp) {
-			vp_xoffset = get_word (vp + 28);
-			vp_yoffset = get_word (vp + 30);
+			vp_xoffset = trap_get_word(ctx, vp + 28);
+			vp_yoffset = trap_get_word(ctx, vp + 30);
 		}
 		if (dispinfo)
-			props = get_long (dispinfo + 18);
+			props = trap_get_long(ctx, dispinfo + 18);
 		dimensioninfo_dbl = (props & 0x00020000) ? 1 : 0;
 		write_log (_T("%08x %08x %08x (%dx%d)-(%dx%d) d=%dx%d %s\n"),
 			diminfo, props, vp, x1, y1, x2, y2, vp_xoffset, vp_yoffset,
 			(props & 0x00020000) ? _T("dbl") : _T(""));
-	} else if (mode == 2) {
-		mousehack_wakeup();
 	}
 	return 1;
 }
@@ -2139,7 +2161,7 @@ void inputdevice_tablet_strobe (void)
 	if (!tablet_data)
 		return;
 	if (mousehack_address)
-		put_byte (mousehack_address + MH_CNT, get_byte (mousehack_address + MH_CNT) + 1);
+		put_byte_host(mousehack_address + MH_CNT, get_byte_host(mousehack_address + MH_CNT) + 1);
 }
 
 void inputdevice_tablet (int x, int y, int z, int pressure, uae_u32 buttonbits, int inproximity, int ax, int ay, int az)
@@ -2151,7 +2173,7 @@ void inputdevice_tablet (int x, int y, int z, int pressure, uae_u32 buttonbits, 
 	if (inputdevice_is_tablet () <= 0 || !mousehack_address)
 		return;
 	//write_log (_T("%d %d %d %d %08X %d %d %d %d\n"), x, y, z, pressure, buttonbits, inproximity, ax, ay, az);
-	p = get_real_address (mousehack_address);
+	p = mousehack_address;
 
 	memcpy (tmp, p + MH_START, MH_END - MH_START); 
 #if 0
@@ -2264,7 +2286,7 @@ static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 	mousehack_enable ();
 	if (mousehack_address) {
 		uae_u8 tmp1[4], tmp2[4];
-		uae_u8 *p = get_real_address (mousehack_address);
+		uae_u8 *p = mousehack_address;
 
 		memcpy (tmp1, p + MH_ABSX, sizeof tmp1);
 		memcpy (tmp2, p + MH_BUTTONBITS, sizeof tmp2);
@@ -2591,14 +2613,19 @@ static int mouseedge (void)
 	ib = get_intuitionbase ();
 	if (!ib)
 		return 0;
-	if (get_word (ib + 20) < 31) // version < 31
-		return 0;
-	if (get_long (ib + 34 + 0) == 0) // ViewPort == NULL
-		return 0;
-	if (get_long (ib + 60) == 0) // FirstScreen == NULL
-		return 0;
-	x = get_word (ib + 70);
-	y = get_word (ib + 68);
+	if (trap_is_indirect()) {
+		uae_u32 xy = get_long_host(rtarea_bank.baseaddr + RTAREA_INTXY);
+		if (xy == 0xffffffff)
+			return 0;
+		y = xy >> 16;
+		x = xy & 0xffff;
+	} else {
+		if (get_word(ib + 20) < 31) // version < 31
+			return 0;
+		x = get_word(ib + 70);
+		y = get_word(ib + 68);
+	}
+
 	if (x || y)
 		isnonzero = 1;
 	if (!isnonzero)
@@ -6525,7 +6552,7 @@ static void resetinput (void)
 	}
 }
 
-void inputdevice_updateconfig_internal (const struct uae_prefs *srcprefs, struct uae_prefs *dstprefs)
+void inputdevice_updateconfig_internal (struct uae_prefs *srcprefs, struct uae_prefs *dstprefs)
 {
 	keyboard_default = keyboard_default_table[currprefs.input_keyboard_type];
 
@@ -6582,9 +6609,15 @@ void inputdevice_updateconfig_internal (const struct uae_prefs *srcprefs, struct
 
 	disableifempty (dstprefs);
 	scanevents (dstprefs);
+
+	if (srcprefs) {
+		for (int i = 0; i < MAX_JPORTS; i++) {
+			copyjport(dstprefs, srcprefs, i);
+		}
+	}
 }
 
-void inputdevice_updateconfig (const struct uae_prefs *srcprefs, struct uae_prefs *dstprefs)
+void inputdevice_updateconfig (struct uae_prefs *srcprefs, struct uae_prefs *dstprefs)
 {
 	inputdevice_updateconfig_internal (srcprefs, dstprefs);
 	
@@ -6684,8 +6717,8 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 			df[i] = false;
 			if (fn2[0] && un2[0]) {
 				for (int k = 0; k < num; k++) {
-					TCHAR *un = inf->get_uniquename(i);
-					TCHAR *fn = inf->get_friendlyname(i);
+					TCHAR *un = inf->get_uniquename(k);
+					TCHAR *fn = inf->get_friendlyname(k);
 					if (!_tcscmp(fn2, fn) && !_tcscmp(un2, un)) {
 						xfree(fn2);
 						xfree(un2);
@@ -7525,7 +7558,7 @@ int inputdevice_config_change_test (void)
 }
 
 // copy configuration #src to configuration #dst
-void inputdevice_copyconfig (const struct uae_prefs *src, struct uae_prefs *dst)
+void inputdevice_copyconfig (struct uae_prefs *src, struct uae_prefs *dst)
 {
 	dst->input_selected_setting = src->input_selected_setting;
 	dst->input_joymouse_multiplier = src->input_joymouse_multiplier;
@@ -8380,14 +8413,6 @@ void restore_inputdevice_config (struct uae_prefs *p, int portnum)
 }
 #endif
 
-struct jport_config
-{
-	struct inputdevconfig idc;
-	TCHAR id[MAX_JPORTNAME];
-	int mode;
-};
-static struct jport_config jport_config_store[MAX_JPORTS];
-
 void inputdevice_joyport_config_store(struct uae_prefs *p, const TCHAR *value, int portnum, int mode, int type)
 {
 	struct jport_config *jp = &jport_config_store[portnum];
@@ -8675,15 +8700,6 @@ void inputdevice_fix_prefs(struct uae_prefs *p, bool userconfig)
 		struct jport_config *jp = &jport_config_store[i];
 		memset(jp, 0, sizeof(struct jport_config));
 	}
-}
-
-void inputdevice_config_load_start(struct uae_prefs *p)
-{
-	for (int i = 0; i < MAX_JPORTS; i++) {
-		struct jport_config *jp = &jport_config_store[i];
-		memset(jp, 0, sizeof(struct jport_config));
-	}
-	inputdevice_store_clear();
 }
 
 // for state recorder use only!
