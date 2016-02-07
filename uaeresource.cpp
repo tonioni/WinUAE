@@ -74,7 +74,7 @@ uaecptr uaeres_startup (TrapContext *ctx, uaecptr resaddr)
 	trap_put_long(ctx, resaddr + 0x2, resaddr);
 	trap_put_long(ctx, resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
 	trap_put_word(ctx, resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
-	trap_put_word(ctx, resaddr + 0xC, 0x0878); /* NT_DEVICE; pri 05 */
+	trap_put_word(ctx, resaddr + 0xC, 0x0805); /* NT_DEVICE; pri 05 */
 	trap_put_long(ctx, resaddr + 0xE, res_name);
 	trap_put_long(ctx, resaddr + 0x12, res_id);
 	trap_put_long(ctx, resaddr + 0x16, res_init);

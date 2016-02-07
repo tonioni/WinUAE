@@ -91,7 +91,8 @@ struct device_info {
 
 struct amigascsi
 {
-    uae_u8 *data;
+    uae_u8 *data_h;
+	uaecptr data_a;
     uae_s32 len;
     uae_u8 cmd[16];
     uae_s32 cmd_len;
@@ -178,7 +179,7 @@ int sys_command_cd_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 extern int sys_command_read (int unitnum, uae_u8 *data, int block, int size);
 extern int sys_command_write (int unitnum, uae_u8 *data, int block, int size);
 extern int sys_command_scsi_direct_native (int unitnum, int type, struct amigascsi *as);
-extern int sys_command_scsi_direct (int unitnum, int type, uaecptr request);
+extern int sys_command_scsi_direct(TrapContext *ctx, int unitnum, int type, uaecptr request);
 extern int sys_command_ismedia (int unitnum, int quick);
 extern struct device_info *sys_command_info_session (int unitnum, struct device_info *di, int, int);
 extern bool blkdev_get_info (struct uae_prefs *p, int unitnum, struct device_info *di);

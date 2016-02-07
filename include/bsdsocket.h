@@ -133,10 +133,10 @@ struct UAEBSDBase {
 #define FDCB_ALLOC 1
 #define FDCB_CHECK 2
 
-uae_u32 addstr (uae_u32 * dst, const TCHAR *src);
-uae_u32 addstr_ansi (uae_u32 * dst, const uae_char *src);
-uae_u32 strncpyha (uae_u32 dst, const uae_char *src, int size);
-uae_u32 addmem (uae_u32 * dst, const uae_char *src, int len);
+uae_u32 addstr(TrapContext *ctx, uae_u32 * dst, const TCHAR *src);
+uae_u32 addstr_ansi(TrapContext *ctx, uae_u32 * dst, const uae_char *src);
+uae_u32 strncpyha(TrapContext *ctx, uae_u32 dst, const uae_char *src, int size);
+uae_u32 addmem(TrapContext *ctx, uae_u32 * dst, const uae_char *src, int len);
 
 #define SB struct socketbase *sb
 

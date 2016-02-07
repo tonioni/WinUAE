@@ -2113,7 +2113,7 @@ uae_u32 host_Inet_NtoA(TrapContext *ctx, SB, uae_u32 in)
 
 	if ((addr = inet_ntoa(ina)) != NULL) {
 		scratchbuf = m68k_areg (regs,6) + offsetof(struct UAEBSDBase,scratchbuf);
-		strncpyha(scratchbuf,addr,SCRATCHBUFSIZE);
+		strncpyha(ctx, scratchbuf,addr,SCRATCHBUFSIZE);
 		if (ISBSDTRACE) {
 			TCHAR *s = au (addr);
 			BSDTRACE((_T("%s\n"),s));
@@ -2519,13 +2519,13 @@ kludge:
 		put_long (sb->hostent + 16, sb->hostent + 24 + numaliases * 4);
 
 		for (i = 0; i < numaliases; i++)
-			put_long (sb->hostent + 20 + i * 4, addstr_ansi (&aptr, h->h_aliases[i]));
+			put_long (sb->hostent + 20 + i * 4, addstr_ansi(ctx, &aptr, h->h_aliases[i]));
 		put_long (sb->hostent + 20 + numaliases * 4, 0);
 		for (i = 0; i < numaddr; i++)
-			put_long (sb->hostent + 24 + (numaliases + i) * 4, addmem (&aptr, h->h_addr_list[i], h->h_length));
+			put_long (sb->hostent + 24 + (numaliases + i) * 4, addmem(ctx, &aptr, h->h_addr_list[i], h->h_length));
 		put_long (sb->hostent + 24 + numaliases * 4 + numaddr * 4, 0);
 		put_long (sb->hostent, aptr);
-		addstr_ansi (&aptr, h->h_name);
+		addstr_ansi(ctx, &aptr, h->h_name);
 
 		if (ISBSDTRACE) {
 			TCHAR *s = au (h->h_name);
@@ -2616,10 +2616,10 @@ void host_getprotobyname(TrapContext *ctx, SB, uae_u32 name)
 		put_long (sb->protoent+8,p->p_proto);
 
 		for (i = 0; i < numaliases; i++)
-			put_long (sb->protoent + 12 + i * 4, addstr_ansi (&aptr, p->p_aliases[i]));
+			put_long (sb->protoent + 12 + i * 4, addstr_ansi(ctx, &aptr, p->p_aliases[i]));
 		put_long (sb->protoent + 12 + numaliases * 4,0);
 		put_long (sb->protoent, aptr);
-		addstr_ansi (&aptr, p->p_name);
+		addstr_ansi(ctx, &aptr, p->p_name);
 		if (ISBSDTRACE) {
 			TCHAR *s = au (p->p_name);
 			BSDTRACE((_T("OK (%s, %d):%d\n"), s, p->p_proto, argsp->wscnt));
@@ -2713,12 +2713,12 @@ void host_getservbynameport(TrapContext *ctx, SB, uae_u32 nameport, uae_u32 prot
 		put_long (sb->servent + 8, (unsigned short)htons(s->s_port));
 
 		for (i = 0; i < numaliases; i++)
-			put_long (sb->servent + 16 + i * 4,addstr_ansi (&aptr,s->s_aliases[i]));
+			put_long (sb->servent + 16 + i * 4,addstr_ansi(ctx, &aptr,s->s_aliases[i]));
 		put_long (sb->servent + 16 + numaliases * 4,0);
 		put_long (sb->servent, aptr);
-		addstr_ansi (&aptr, s->s_name);
+		addstr_ansi(ctx, &aptr, s->s_name);
 		put_long (sb->servent + 12, aptr);
-		addstr_ansi (&aptr, s->s_proto);
+		addstr_ansi(ctx, &aptr, s->s_proto);
 
 		if (ISBSDTRACE) {
 			TCHAR *ss = au (s->s_name);

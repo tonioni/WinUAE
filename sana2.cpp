@@ -1754,8 +1754,11 @@ uaecptr netdev_startup(TrapContext *ctx, uaecptr resaddr)
 	trap_put_word(ctx, resaddr + 0x0, 0x4AFC);
 	trap_put_long(ctx, resaddr + 0x2, resaddr);
 	trap_put_long(ctx, resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
-	trap_put_word(ctx, resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
-	trap_put_word(ctx, resaddr + 0xC, 0x0305); /* NT_DEVICE; pri 05 */
+	if (kickstart_version >= 37) {
+		trap_put_long(ctx, resaddr + 0xA, 0x84010300 | AFTERDOS_PRI); /* RTF_AUTOINIT|RTF_AFTERDOS; Version 1; NT_DEVICE; pri */
+	} else {
+		trap_put_long(ctx, resaddr + 0xA, 0x81010305); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1; NT_DEVICE; pri 05 */
+	}
 	trap_put_long(ctx, resaddr + 0xE, ROM_netdev_resname);
 	trap_put_long(ctx, resaddr + 0x12, ROM_netdev_resid);
 	trap_put_long(ctx, resaddr + 0x16, ROM_netdev_init); /* calls netdev_init */

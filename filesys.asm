@@ -32,6 +32,7 @@ AllocMem = -198
 FreeMem = -210
 
 TRAP_DATA_NUM = 4
+TRAP_DATA_SEND_NUM = 1
 
 TRAP_DATA = $4000
 TRAP_DATA_SIZE = $8000
@@ -50,6 +51,11 @@ TRAP_STATUS_STATUS = 3
 TRAP_DATA_DATA = 4
 
 RTAREA_SYSBASE = $3FFC
+RTAREA_GFXBASE = $3FF8
+RTAREA_INTBASE = $3FF4
+RTAREA_INTXY = $3FF0
+
+RTAREA_MOUSEHACK = $3E00
 
 RTAREA_TRAPTASK = $FFF4
 RTAREA_EXTERTASK = $FFF8
@@ -90,7 +96,7 @@ startjmp:
 	dc.l bootcode-start			;5 32
 	dc.l setup_exter-start		;6 36
 	dc.l bcplwrapper-start ;7 40
-	dc.l clipboard_init-start 	;8 44
+	dc.l afterdos-start 	;8 44
 	dc.l hwtrap_install-start ;9 48
 	dc.l hwtrap_entry-start ; 10 52
 
@@ -122,76 +128,30 @@ bcpl_start:
 	dc.l 2
 bcpl_end:
 
-residenthack
-	movem.l d0-d2/a0-a2/a6,-(sp)
-
-	move.w #$FF38,d0
-	moveq #17,d1
-	bsr.w getrtbase
-	jsr (a0)
-	tst.l d0
-	beq.s .rsh
+afterdos:
+	movem.l d2-d7/a2-a6,-(sp)
 
 	move.l 4.w,a6
-	cmp.w #37,20(a6)
-	bcs.s .rsh
-	moveq #residentcodeend-residentcodestart,d0
-	move.l d0,d2
-	moveq #1,d1
-	jsr AllocMem(a6)
-	tst.l d0
-	beq.s .rsh
-	move.l d0,a2
-
-	move.l a2,a0
-	lea residentcodestart(pc),a1
-.cp1
-	move.l (a1)+,(a0)+
-	subq.l #4,d2
-	bne.s .cp1
-
-	jsr -$0078(a6) ;Disable
-	move.l a6,a1
-	move.w #-$48,a0 ;InitCode
-	move.l a2,d0
-	jsr -$01a4(a6) ;SetFunction
-	move.l d0,residentcodejump2-residentcodestart+2(a2)
-	lea myafterdos(pc),a0
-	move.l a0,residentcodejump1-residentcodestart+2(a2)
-	jsr -$27C(a6) ;CacheClearU
-	jsr -$007e(a6) ;Enable
-.rsh
-	movem.l (sp)+,d0-d2/a0-a2/a6
-	rts
+	lea gfxlibname(pc),a1
+	moveq #0,d0
+	jsr -$0228(a6) ;OpenLibrary
+	move.l d0,d1
+	move.w #RTAREA_GFXBASE,d0
+	bsr.w getrtbase
+	move.l d1,(a0)
+	lea intlibname(pc),a1
+	moveq #0,d0
+	jsr -$0228(a6) ;OpenLibrary
+	move.l d0,d1
+	move.w #RTAREA_INTBASE,d0
+	bsr.w getrtbase
+	move.l d1,(a0)
 	
-myafterdos
-	move.l (sp),a0
-	move.l 2(a0),a0
-	move.l a0,-(sp)
-	jsr (a0) ;jump to original InitCode
-	move.l (sp)+,a0
-	addq.l #4,sp ;remove return address
-	movem.l d0-d7/a1-a6,-(sp)
-	move.l a6,a1
-	move.l a0,d0
-	move.w #-$48,a0 ;InitCode
-	jsr -$01a4(a6) ;SetFunction (restore original)
 	bsr.w clipboard_init
 	bsr.w consolehook
-	movem.l (sp)+,d0-d7/a1-a6
-	rts ;return directly to caller
-
-	cnop 0,4
-residentcodestart:
-	btst #2,d0 ;RTF_AFTERDOS?
-	beq.s resjump
-residentcodejump1
-	jsr $f00000
-resjump
-residentcodejump2
-	jmp $f00000
-	cnop 0,4
-residentcodeend:
+	movem.l (sp)+,d2-d7/a2-a6
+	moveq #0,d0
+	rts
 
 filesys_init:
 	movem.l d0-d7/a0-a6,-(sp)
@@ -665,7 +625,7 @@ exter_server_exit:
 
 	; d0 = exter task, d1 = trap task
 heartbeatvblank:
-	movem.l d0-d3/a0-a2,-(sp)
+	movem.l d0-d3/a0-a4,-(sp)
 	move.l d0,d2
 	move.l d1,d3
 
@@ -677,39 +637,60 @@ heartbeatvblank:
 	jsr (a0)
 	move.l d0,a2 ; intreq
 
-	moveq #22+3*4,d0
+	moveq #22+5*4,d0
 	move.l #65536+1,d1
 	jsr AllocMem(a6)
-	move.l d0,a1
+	move.l d0,a4
 	
-	lea 22(a1),a0
-	move.l a2,(a0)
-	move.l d2,4(a0)
-	move.l d3,8(a0)
-	move.l a0,14(a1)
+	lea 22(a4),a3
+	move.l a3,a1
+	move.l a2,(a1)+
+	move.l d2,(a1)+
+	move.l d3,(a1)+
+	move.w #RTAREA_INTBASE,d0
+	bsr.w getrtbase
+	move.l a0,(a1)+
+	move.w #RTAREA_INTXY,d0
+	bsr.w getrtbase
+	move.l a0,(a1)+
+	
+	move.l a3,14(a4)
 
-	move.b #2,8(a1) ;NT_INTERRUPT
-	move.b #-10,9(a1) ;priority
+	move.b #2,8(a4) ;NT_INTERRUPT
+	move.b #-10,9(a4) ;priority
 	lea kaname(pc),a0
-	move.l a0,10(a1)
+	move.l a0,10(a4)
 	lea kaint(pc),a0
-	move.l a0,18(a1)
+	move.l a0,18(a4)
+	move.l a4,a1
 	moveq #5,d0 ;INTB_VERTB
 	jsr -$00a8(a6)
 
-	movem.l (sp)+,d0-d3/a0-a2
+	movem.l (sp)+,d0-d3/a0-a4
 	rts
 
 kaint:
 	move.l (a1),a0
 	addq.l #1,(a0)
+	move.l 3*4(a1),a0 ;RTAREA_INTBASE
+	move.l (a0),d0
+	beq.s .noint
+	move.l d0,a0
+	cmp.w #31,20(a0) ;version < 31
+	bcs.s .noint
+	tst.l 34(a0) ;ViewPort == NULL
+	beq.s .noint
+	tst.l 60(a0) ;FirstScreen == NULL
+	beq.s .noint
+	move.l 4*4(a1),a1
+	move.l 68(a0),(a1) ;Y.W X.W
+.noint
 	moveq #0,d0
 	rts
 
 setup_exter:
 	movem.l d0-d3/d7/a0-a2,-(sp)
 	move.l d0,d7
-	bsr.w residenthack
 	move.l #RTAREA_INTREQ,d0
 	bsr.w getrtbase
 	move.l a0,a2
@@ -2030,8 +2011,8 @@ MH_IEPT = (MH_IEH+22) ;IEPointerTable/IENewTablet
 MH_IENTTAGS = (MH_IEPT+32) ;space for ient_TagList
 MH_IO = (MH_IENTTAGS+16*4*2)
 MH_TM = (MH_IO+4)
-MH_DATA = (MH_TM+4)
-MH_END = (MH_DATA+MH_DATA_SIZE)
+MH_DATAPTR = (MH_TM+4)
+MH_END = (MH_DATAPTR+4)
 
 MH_MOUSEHACK = 0
 MH_TABLET = 1
@@ -2156,10 +2137,10 @@ mousehack_task:
 
 	sub.l a1,a1
 	jsr -$0126(a6) ;FindTask
-	move.l d0,a4
+	move.l d0,a2
 	
 	moveq #20,d0
-	move.l a4,a1
+	move.l a2,a1
 	jsr -$012c(a6) ;SetTaskPri
 
 	moveq #0,d0
@@ -2168,19 +2149,23 @@ mousehack_task:
 	jsr AllocMem(a6)
 	move.l d0,a5
 
+	move.w #RTAREA_MOUSEHACK,d0
+	bsr.w getrtbase
+	move.l a0,MH_DATAPTR(a5)
+	move.l a0,a4
+
 	lea MH_FOO(a5),a3
 	move.l a6,MH_FOO_EXECBASE(a3)
-	move.l a4,MH_FOO_TASK(a3)
+	move.l a2,MH_FOO_TASK(a3)
 	move.l d6,MH_FOO_MASK(a3)
 	moveq #-1,d0
 	move.w d0,MH_FOO_CNT(a3)
 
-    ; send data structure address
+	; send data structure address
 	move.w #$FF38,d0
 	moveq #5,d1
 	bsr.w getrtbase
-	move.l a5,d0
-	add.l #MH_DATA,d0
+	move.l a4,d0
 	jsr (a0)
 
 	lea MH_INT(a5),a1
@@ -2214,6 +2199,10 @@ mhloop
 	jsr -$0228(a6) ;OpenLibrary
 	move.l d0,MH_FOO_INTBASE(a3)
 	beq.s mhloop
+	move.l d0,d1
+	move.w #RTAREA_INTBASE,d0
+	bsr.w getrtbase
+	move.l d1,(a0)
 .intyes
 	tst.l MH_FOO_GFXBASE(a3)
 	bne.s .gfxyes
@@ -2224,6 +2213,10 @@ mhloop
 	jsr -$0228(a6) ;OpenLibrary
 	move.l d0,MH_FOO_GFXBASE(a3)
 	beq.w mhloop
+	move.l d0,d1
+	move.w #RTAREA_GFXBASE,d0
+	bsr.w getrtbase
+	move.l d1,(a0)
 .gfxyes
 
 	tst.l MH_IO(a5)
@@ -2237,7 +2230,7 @@ mhloop
 	move.l d0,d2
 	jsr -$008a(a6) ;Permit
 	tst.l d2
-	beq.s mhloop
+	beq.w mhloop
 	lea inp_dev(pc),a0
 	moveq #0,d0
 	moveq #0,d1
@@ -2275,6 +2268,8 @@ mhloop
 
 	cmp.w #36,d7
 	bcs.s .nodims
+	cmp.w #50,d7
+	bcc.s .nodims
 	subq.l #1,MH_FOO_LIMITCNT(a3)
 	bpl.s .nodims
 	move.l a3,a0
@@ -2289,7 +2284,7 @@ mhloop
 	move.l #22,36(a1) ;sizeof(struct InputEvent)
 	move.l a2,40(a1)
 
-	move.b MH_E+MH_DATA(a5),d0
+	move.b MH_E(a4),d0
 	cmp.w #39,d7
 	bcs.w .notablet
 	btst #MH_TABLET,d0
@@ -2310,72 +2305,72 @@ mhloop
 	clr.w 6(a2) ;ie_Code
 	bsr.w buttonstoqual
 
-	move.w MH_X+MH_DATA(a5),12+2(a0) ;ient_TabletX
+	move.w MH_X(a4),12+2(a0) ;ient_TabletX
 	clr.w 16(a0)
-	move.w MH_Y++MH_DATA(a5),16+2(a0) ;ient_TabletY
+	move.w MH_Y(a4),16+2(a0) ;ient_TabletY
 	clr.w 20(a0)
-	move.w MH_MAXX+MH_DATA(a5),20+2(a0) ;ient_RangeX
+	move.w MH_MAXX(a4),20+2(a0) ;ient_RangeX
 	clr.w 24(a0)
-	move.w MH_MAXY+MH_DATA(a5),24+2(a0) ;ient_RangeY
+	move.w MH_MAXY(a4),24+2(a0) ;ient_RangeY
 	lea MH_IENTTAGS(a5),a1
 	move.l a1,28(a0) ;ient_TagList
 	move.l #TABLETA_Pressure,(a1)+
-	move.w MH_PRESSURE+MH_DATA(a5),d0
+	move.w MH_PRESSURE(a4),d0
 	ext.l d0
 	asl.l #8,d0
 	move.l d0,(a1)+
 	move.l #TABLETA_ButtonBits,(a1)+
-	move.l MH_BUTTONBITS+MH_DATA(a5),(a1)+
+	move.l MH_BUTTONBITS(a4),(a1)+
 	
 	moveq #0,d0
 
-	move.w MH_RESX+MH_DATA(a5),d0
+	move.w MH_RESX(a4),d0
 	bmi.s .noresx
 	move.l #TABLETA_ResolutionX,(a1)+
 	move.l d0,(a1)+
 .noresx
-	move.w MH_RESY+MH_DATA(a5),d0
+	move.w MH_RESY(a4),d0
 	bmi.s .noresy
 	move.l #TABLETA_ResolutionY,(a1)+
 	move.l d0,(a1)+
 .noresy
 
-	move.w MH_MAXZ+MH_DATA(a5),d0
+	move.w MH_MAXZ(a4),d0
 	bmi.s .noz
 	move.l #TABLETA_RangeZ,(a1)+
 	move.l d0,(a1)+
-	move.w MH_Z+MH_DATA(a5),d0
+	move.w MH_Z(a4),d0
 	move.l #TABLETA_TabletZ,(a1)+
 	move.l d0,(a1)+
 .noz
 
-	move.w MH_MAXAX+MH_DATA(a5),d0
+	move.w MH_MAXAX(a4),d0
 	bmi.s .noax
 	move.l #TABLETA_AngleX,(a1)+
-	move.w MH_AX+MH_DATA(a5),d0
+	move.w MH_AX(a4),d0
 	ext.l d0
 	asl.l #8,d0
 	move.l d0,(a1)+
 .noax
-	move.w MH_MAXAY+MH_DATA(a5),d0
+	move.w MH_MAXAY(a4),d0
 	bmi.s .noay
 	move.l #TABLETA_AngleY,(a1)+
-	move.w MH_AY+MH_DATA(a5),d0
+	move.w MH_AY(a4),d0
 	ext.l d0
 	asl.l #8,d0
 	move.l d0,(a1)+
 .noay
-	move.w MH_MAXAZ+MH_DATA(a5),d0
+	move.w MH_MAXAZ(a4),d0
 	bmi.s .noaz
 	move.l #TABLETA_AngleZ,(a1)+
-	move.w MH_AZ+MH_DATA(a5),d0
+	move.w MH_AZ(a4),d0
 	ext.l d0
 	asl.l #8,d0
 	move.l d0,(a1)+
 .noaz
 	
 	moveq #0,d0
-	move.w MH_INPROXIMITY+MH_DATA(a5),d0
+	move.w MH_INPROXIMITY(a4),d0
 	bmi.s .noproxi
 	move.l #TABLETA_InProximity,(a1)+
 	move.l d0,(a1)+
@@ -2387,7 +2382,7 @@ mhloop
 	;create mouse button events if button state changed
 	move.w #$68,d3 ;IECODE_LBUTTON->IECODE_RBUTTON->IECODE_MBUTTON
 	moveq #1,d2
-	move.l MH_BUTTONBITS+MH_DATA(a5),d4
+	move.l MH_BUTTONBITS(a4),d4
 .nextbut
 	move.l d4,d0
 	and.l d2,d0
@@ -2418,7 +2413,7 @@ mhloop
 
 .notablet
 
-	move.b MH_E+MH_DATA(a5),d0
+	move.b MH_E(a4),d0
 	btst #MH_MOUSEHACK,d0
 	beq.w mhloop
 
@@ -2429,7 +2424,7 @@ mhloop
 
 	move.l MH_FOO_INTBASE(a3),a0
 
-	move.w MH_ABSX+MH_DATA(a5),d0
+	move.w MH_ABSX(a4),d0
 	move.w 34+14(a0),d1
 	add.w d1,d1
 	sub.w d1,d0
@@ -2438,7 +2433,7 @@ mhloop
 .xn
 	move.w d0,10(a2)
 
-	move.w MH_ABSY+MH_DATA(a5),d0
+	move.w MH_ABSY(a4),d0
 	move.w 34+12(a0),d1
 	add.w d1,d1
 	sub.w d1,d0
@@ -2456,7 +2451,7 @@ mhend
 
 buttonstoqual:
 	;IEQUALIFIER_MIDBUTTON=0x1000/IEQUALIFIER_RBUTTON=0x2000/IEQUALIFIER_LEFTBUTTON=0x4000
-	move.l MH_BUTTONBITS+MH_DATA(a5),d1
+	move.l MH_BUTTONBITS(a4),d1
 	moveq #0,d0
 	btst #0,d1
 	beq.s .btq1
@@ -2478,23 +2473,25 @@ mousehackint:
 	beq.s .l1
 	tst.l MH_TM(a1)
 	beq.s .l1
-	move.w MH_CNT+MH_DATA(a1),d0
+	move.l MH_DATAPTR(a1),a0
+	move.w MH_CNT(a0),d0
 	cmp.w MH_FOO+MH_FOO_CNT(a1),d0
 	beq.s .l2
 	move.w d0,MH_FOO+MH_FOO_CNT(a1)
 .l1
+	move.l a1,-(sp)
 	move.l MH_FOO+MH_FOO_EXECBASE(a1),a6
 	move.l MH_FOO+MH_FOO_MASK(a1),d0
 	move.l MH_FOO+MH_FOO_TASK(a1),a1
 	jsr -$0144(a6) ; Signal
+	move.l (sp)+,a1
 .l2
 	subq.w #1,MH_FOO+MH_FOO_ALIVE(a1)
 	bpl.s .l3
 	move.w #50,MH_FOO+MH_FOO_ALIVE(a1)
-	move.w #$FF38,d0
-	moveq #2,d1
+	move.w #RTAREA_INTREQ+3,d0
 	bsr.w getrtbase
-	jsr (a0)
+	st (a0)
 .l3
 	lea $dff000,a0
 	moveq #0,d0
@@ -3137,7 +3134,7 @@ hwtrap_install:
 	move.l a2,14(a1)
 	lea.l hwtrap_interrupt(pc),a0
 	move.l a0,18(a1)
-	move.w #$0270,8(a1)
+	move.w #$027a,8(a1)
 	moveq #13,d0 ;EXTER
 	jsr -168(a6) ; AddIntServer
 	movem.l (sp)+,a2/a6
@@ -3230,7 +3227,7 @@ hwtrap_interrupt:
 	move.l a2,d0
 	clr.w d0
 	move.l d0,a0
-	moveq #TRAP_DATA_NUM-1,d1
+	moveq #TRAP_DATA_NUM+TRAP_DATA_SEND_NUM-1,d1
 	move.l a0,a1
 	move.l RTAREA_SYSBASE(a0),a6
 	add.l #TRAP_DATA,a0

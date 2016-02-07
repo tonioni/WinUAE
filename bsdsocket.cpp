@@ -45,48 +45,63 @@ struct sockd {
 static long curruniqid = 65536;
 static struct sockd *sockdata;
 
-uae_u32 strncpyha (uae_u32 dst, const uae_char *src, int size)
+uae_u32 strncpyha(TrapContext *ctx, uae_u32 dst, const uae_char *src, int size)
 {
 	uae_u32 res = dst;
-	if (!addr_valid (_T("strncpyha"), dst, size))
-		return res;
-	while (size--) {
-		put_byte (dst++, *src);
-		if (!*src++)
+	if (trap_is_indirect()) {
+		trap_put_string(ctx, src, dst, size);
+	} else {
+		if (!addr_valid(_T("strncpyha"), dst, size))
 			return res;
+		while (size--) {
+			put_byte (dst++, *src);
+			if (!*src++)
+				return res;
+		}
 	}
 	return res;
 }
 
-uae_u32 addstr (uae_u32 * dst, const TCHAR *src)
+uae_u32 addstr(TrapContext *ctx, uae_u32 * dst, const TCHAR *src)
 {
 	uae_u32 res = *dst;
 	int len;
-	char *s = ua (src);
-	len = strlen (s) + 1;
-	strcpyha_safe (*dst, s);
+	char *s = ua(src);
+	len = strlen(s) + 1;
+	if (trap_is_indirect()) {
+		trap_put_bytes(ctx, dst, res, len);
+	} else {
+		strcpyha_safe (*dst, s);
+	}
 	(*dst) += len;
 	xfree (s);
 	return res;
 }
-uae_u32 addstr_ansi (uae_u32 * dst, const uae_char *src)
+uae_u32 addstr_ansi(TrapContext *ctx, uae_u32 * dst, const uae_char *src)
 {
 	uae_u32 res = *dst;
 	int len;
 	len = strlen (src) + 1;
-	strcpyha_safe (*dst, src);
+	if (trap_is_indirect()) {
+		trap_put_bytes(ctx, dst, res, len);
+	} else {
+		strcpyha_safe (*dst, src);
+	}
 	(*dst) += len;
 	return res;
 }
 
-uae_u32 addmem (uae_u32 * dst, const uae_char *src, int len)
+uae_u32 addmem(TrapContext *ctx, uae_u32 * dst, const uae_char *src, int len)
 {
 	uae_u32 res = *dst;
 
 	if (!src)
 		return 0;
-
-	memcpyha_safe (*dst, (uae_u8*)src, len);
+	if (trap_is_indirect()) {
+		trap_put_bytes(ctx, src, res, len);
+	} else {
+		memcpyha_safe (*dst, (uae_u8*)src, len);
+	}
 	(*dst) += len;
 
 	return res;
@@ -1663,14 +1678,14 @@ static uae_u32 REGPARAM2 bsdsocklib_init(TrapContext *ctx)
 	}
 
 	for (i = 0; i < (int) (number_sys_error); i++)
-		errnotextptrs[i] = addstr (&tmp1, errortexts[i]);
+		errnotextptrs[i] = addstr(ctx, &tmp1, errortexts[i]);
 	for (i = 0; i < (int) (number_host_error); i++)
-		herrnotextptrs[i] = addstr (&tmp1, herrortexts[i]);
+		herrnotextptrs[i] = addstr(ctx, &tmp1, herrortexts[i]);
 	for (i = 0; i < (int) (number_sana2io_error); i++)
-		sana2iotextptrs[i] = addstr (&tmp1, sana2io_errlist[i]);
+		sana2iotextptrs[i] = addstr(ctx, &tmp1, sana2io_errlist[i]);
 	for (i = 0; i < (int) (number_sana2wire_error); i++)
-		sana2wiretextptrs[i] = addstr (&tmp1, sana2wire_errlist[i]);
-	strErrptr = addstr (&tmp1, strErr);
+		sana2wiretextptrs[i] = addstr(ctx, &tmp1, sana2wire_errlist[i]);
+	strErrptr = addstr(ctx, &tmp1, strErr);
 
 #if 0
 	/* @@@ someone please implement a proper interrupt handler setup here :) */
@@ -1769,8 +1784,11 @@ uaecptr bsdlib_startup (TrapContext *ctx, uaecptr resaddr)
 	trap_put_word(ctx, resaddr + 0x0, 0x4AFC);
 	trap_put_long(ctx, resaddr + 0x2, resaddr);
 	trap_put_long(ctx, resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
-	trap_put_word(ctx, resaddr + 0xA, 0x8004); /* RTF_AUTOINIT, RT_VERSION */
-	trap_put_word(ctx, resaddr + 0xC, 0x0970); /* NT_LIBRARY, RT_PRI */
+	if (kickstart_version >= 37) {
+		trap_put_long(ctx, resaddr + 0xA, 0x84040900 | AFTERDOS_PRI); /* RTF_AUTOINIT, RT_VERSION NT_LIBRARY, RT_PRI */
+	} else {
+		trap_put_long(ctx, resaddr + 0xA, 0x80040905); /* RTF_AUTOINIT, RT_VERSION NT_LIBRARY, RT_PRI */
+	}
 	trap_put_long(ctx, resaddr + 0xE, res_name);
 	trap_put_long(ctx, resaddr + 0x12, res_id);
 	trap_put_long(ctx, resaddr + 0x16, res_init);

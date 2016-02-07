@@ -192,7 +192,6 @@ BEGIN
     CONTROL         "Double, fields",IDC_LM_IDOUBLED2,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,264,90,10
     CONTROL         "Double, fields+",IDC_LM_IDOUBLED3,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,277,90,10
     CONTROL         "Monochrome video out",IDC_GRAYSCALE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,167,139,10
-    CONTROL         "Dark palette fix",IDC_ATARICOLORFIX,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,295,129,10
 END
 
 IDD_MEMORY DIALOGEX 0, 0, 396, 246
@@ -2012,7 +2011,7 @@ BEGIN
     IDS_WSTYLE_EXTENDED     "Extended"
     IDS_MISCLISTITEMS1      "Untrap = middle button\nShow GUI on startup\nUse CTRL-F11 to quit\nDon't show taskbar button\nDon't show notification icon\n"
     IDS_MISCLISTITEMS2      "Always on top\nDisable screensaver\nSynchronize clock\nOne second reboot pause\nFaster RTG\nClipboard sharing\nAllow native code\n"
-    IDS_MISCLISTITEMS3      "Native on-screen display\nRTG on-screen display\nCreate winuaelog.txt log\nLog illegal memory accesses\nBlank unused displays\nStart mouse uncaptured\nStart minimized\nMinimize when focus is lost\n100/120Hz VSync black frame insertion\nMaster floppy write protection\nHide all UAE autoconfig boards\n"
+    IDS_MISCLISTITEMS3      "Native on-screen display\nRTG on-screen display\nCreate winuaelog.txt log\nLog illegal memory accesses\nBlank unused displays\nStart mouse uncaptured\nStart minimized\nMinimize when focus is lost\n100/120Hz VSync black frame insertion\nMaster floppy write protection\nMaster harddrive write protection\nHide all UAE autoconfig boards\n"
     IDS_JOYMODE_WHEELMOUSE  "Wheel Mouse"
     IDS_NUMSG_KS68030PLUS   "The selected system ROM requires a 68030 or higher CPU."
     IDS_SELECTTAPE          "Select a Tape directory or archive file..."
@@ -2031,10 +2030,10 @@ BEGIN
     IDS_FILTER_PAL_EXTRA    "Brightness\nContrast\nSaturation\nGamma\nScanlines\nBlurriness\nNoise\n"
     IDS_FILTER_3D_EXTRA     "Point/Bilinear\nScanline opacity\nScanline level\n"
     IDS_ALWAYS_ON           "Always on"
-    IDS_DISPLAY_ATTRIBUTES  "Brightness\nContrast\nGamma\nGamma [R]\nGamma [G]\nGamma [B]"
+    IDS_DISPLAY_ATTRIBUTES  "Brightness\nContrast\nGamma\nGamma [R]\nGamma [G]\nGamma [B]\nDark palette fix"
     IDS_NUMSG_NO_PPC        "PPC CPU was started but PPC CPU emulation core plugin was not found. Download available from http://www.winuae.net/"
     IDS_NUMSG_UAEBOOTROM_PCC 
-                            "PPC native OS booted with UAE boot ROM active. UAE expansions are not hardware emulated and are not PPC compatible. (UAE HD controller, uaescsi.device, uaeserial, bsdsocket and so on..)"
+                            "PPC native OS booted with incompatible UAE boot ROM enabled.\nSelect ROM panel ""New UAE (128k, ROM, Indirect)"" option\nor disable all UAE expansions.\n"
     IDS_AUTOSCALE_OVERSCAN_BLANK "Overscan blanking"
 END
 

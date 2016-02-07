@@ -268,9 +268,11 @@ static uae_u32 open_library (const char *name, uae_u32 min_version)
     return handle;
 }
 
-uae_u32 uaenative_open_library (TrapContext *context, int flags)
+uae_u32 uaenative_open_library (TrapContext *ctx, int flags)
 {
-    if (!currprefs.native_code) {
+    char namebuf[256];
+	
+	if (!currprefs.native_code) {
         write_log(_T("uni: tried to open native library, but native code ")
                   _T("is not enabled\n"));
         return UNI_ERROR_NOT_ENABLED;
@@ -279,16 +281,17 @@ uae_u32 uaenative_open_library (TrapContext *context, int flags)
     uaecptr name;
     uae_u32 min_version;
     if (flags & UNI_FLAG_COMPAT) {
-        name = trap_get_areg(context, 0);
+        name = trap_get_areg(ctx, 0);
         min_version = 0;
     }
     else {
-        name = trap_get_areg(context, 1);
-        min_version = trap_get_dreg(context, 0);
+        name = trap_get_areg(ctx, 1);
+        min_version = trap_get_dreg(ctx, 0);
     }
 
-    uae_u32 result = open_library (
-        (const char *) get_real_address (name), min_version);
+	trap_get_string(ctx, namebuf, name, sizeof namebuf);
+
+    uae_u32 result = open_library(namebuf, min_version);
 
     if ((flags & UNI_FLAG_COMPAT) && !(result & 0x80000000)) {
         // error opening library, return 0 for error in compatibility mode
@@ -330,9 +333,11 @@ static uae_u32 get_function_handle (uae_u32 handle, const char *name)
     return register_handle (library_data, function_address);
 }
 
-uae_u32 uaenative_get_function (TrapContext *context, int flags)
+uae_u32 uaenative_get_function (TrapContext *ctx, int flags)
 {
-    if (!currprefs.native_code) {
+	char namebuf[256];
+	
+	if (!currprefs.native_code) {
         return UNI_ERROR_NOT_ENABLED;
     }
 
@@ -342,16 +347,17 @@ uae_u32 uaenative_get_function (TrapContext *context, int flags)
     uaecptr name;
     uae_u32 library;
     if (flags & UNI_FLAG_COMPAT) {
-        name = trap_get_areg(context, 0);
-        library = trap_get_dreg(context, 1);
+        name = trap_get_areg(ctx, 0);
+        library = trap_get_dreg(ctx, 1);
     }
     else {
-        library = trap_get_areg(context, 0);
-        name = trap_get_areg(context, 1);
+        library = trap_get_areg(ctx, 0);
+        name = trap_get_areg(ctx, 1);
     }
 
-    uae_u32 result = get_function_handle (
-        library, (const char *) get_real_address (name));
+	trap_get_string(ctx, namebuf, name, sizeof namebuf);
+	
+	uae_u32 result = get_function_handle (library, namebuf);
 
     if ((flags & UNI_FLAG_COMPAT) && !(result & 0x80000000)) {
         // error getting function, return 0 for error in compatibility mode
@@ -406,7 +412,8 @@ static uae_u32 do_call_function_compat_asm (struct uni *uni)
 
 #endif
 
-static void do_call_function (struct uni *uni) {
+static void do_call_function (struct uni *uni)
+{
     printf("uni: calling native function %p\n", uni->native_function);
 
     unsigned long start_time;
@@ -552,9 +559,9 @@ uae_u32 uaenative_call_function (TrapContext *ctx, int flags)
         uni.task = trap_get_long(ctx, sysbase + 276); // ThisTask
 
         // make sure signal bit is cleared
-        m68k_dreg (regs, 0) = 0;
-        m68k_dreg (regs, 1) = 1 << SIGBIT;
-        CallLib (ctx, sysbase, -0x132); // SetSignal
+		trap_call_add_dreg(ctx, 0, 0);
+		trap_call_add_dreg(ctx, 1, 1 << SIGBIT);
+		trap_call_lib(ctx, sysbase, -0x132); // SetSignal
 
         // start thread if necessary
         if (!library_data->thread_id) {
@@ -572,8 +579,8 @@ uae_u32 uaenative_call_function (TrapContext *ctx, int flags)
         uae_sem_post(&library_data->full_count);
 
         // wait for signal
-        trap_set_dreg(ctx, 0, 1 << SIGBIT);
-        CallLib(ctx, sysbase, -0x13e); // Wait
+		trap_call_add_dreg(ctx, 0, 1 << SIGBIT);
+		trap_call_lib(ctx, sysbase, -0x13e); // Wait
         write_log (_T("uni: -- Got async result --\n"));
     }
     else {
@@ -583,7 +590,7 @@ uae_u32 uaenative_call_function (TrapContext *ctx, int flags)
     return uni.result;
 }
 
-uae_u32 uaenative_close_library(TrapContext *context, int flags)
+uae_u32 uaenative_close_library(TrapContext *ctx, int flags)
 {
     if (!currprefs.native_code) {
         return UNI_ERROR_NOT_ENABLED;
@@ -591,10 +598,10 @@ uae_u32 uaenative_close_library(TrapContext *context, int flags)
 
     uae_u32 handle;
     if (flags & UNI_FLAG_COMPAT) {
-        handle = trap_get_dreg(context, 1);
+        handle = trap_get_dreg(ctx, 1);
     }
     else {
-        handle = trap_get_areg(context, 1);
+        handle = trap_get_areg(ctx, 1);
     }
 
     struct library_data *library_data = get_library_data_from_handle (handle);
@@ -719,7 +726,7 @@ static uaecptr uae_library_startup (TrapContext *ctx, uaecptr res_addr, struct u
 	trap_put_long(ctx, res_addr + 0x02, res_addr);
 	trap_put_long(ctx, res_addr + 0x06, res_addr + 0x1A); // Continue scan here
 	trap_put_word(ctx, res_addr + 0x0A, 0x8004);          // RTF_AUTOINIT, RT_VERSION
-	trap_put_word(ctx, res_addr + 0x0C, 0x0970);          // NT_LIBRARY, RT_PRI
+	trap_put_word(ctx, res_addr + 0x0C, 0x0905);          // NT_LIBRARY, RT_PRI
 	trap_put_long(ctx, res_addr + 0x0E, library->aptr_name);
 	trap_put_long(ctx, res_addr + 0x12, library->aptr_id);
 	trap_put_long(ctx, res_addr + 0x16, library->aptr_init);

@@ -1,4 +1,95 @@
 
+Beta 4:
+
+- Default game ports config without default.uae (Mouse + keyboard layout A) was not set. (b3)
+- On the fly input device change crash fix. (b3)
+- Monochrome mode config file entry added.
+- Atari ST dark palette fix moved to Brightness/Contrast/etc select menu and added alternate mode.
+- UAE expansion resident structures are now injected to execbase ResList. Now less important expansions are initialized
+  later. Previously all were initialized during diag init time. Now also uses normal RTF_AFTERDOS resident to start
+  clipboard sharing instead of ugly hack.
+- Simplified rawinput support, also removed rawinput checks, added when long time ago WINE didn't fully support rawinput.
+- Added harddrive master write protection checkbox to Misc panel. WARNING: don't use it with hardfiles unless you know
+  exactly what you are doing.
+- UAE Boot ROM with PPC native OS message now asks to enable correct boot ROM mode.
+ 
+OS4 UAE expansion updates:
+
+- Clipboard sharing is now supported.
+- Magic mouse is now supported.
+- Virtual mouse driver is now supported.
+- uaenative.library converted to new trap system but not tested.
+- uaescsi.device initialization converted to new trap system, device will open now without crashing but any CD access
+  commands will not work (and most likely will also crash strangely).
+
+Still not supported:
+
+- Directory filesystem on the fly insertion/removal, including CDFS CD swaps. Getting this to work will be extremely
+  complex task. Not sure if it is worth the trouble.
+- bsdsocket.library
+- uaeahi (Probably not needed, PCI sound card emulation is better choice)
+
+Beta 3:
+
+- When matching config file and on the fly connected game controllers, first check if both id and friendly name match and
+  only if no match, check id only and finally name only. Some multi slot controller adapters have unique name for each
+  port but all ports have same ID. (Was id and then name matching previously)
+- Remembered input device selections are now forgotten when new config is loaded.
+- On the fly unplugged devices are now properly remembered and re-inserted if on the fly reconnected.
+- PC Bridge disk drives raw image support (extended adf, ipf and so on.) Standard DOS disks only, no copy protections
+  or other tricks supported. Read-only, writing is not supported.
+- JIT slider now only shows power of 2 cache size values and max is 16384. (Max was already changed in previous betas)
+- Linked config files loaded unreliably (or never) due to uninitialized variable.
+- Real storage device (harddisk, memory card etc..) failed to open the device if it didn't have device path, only
+  drive letter.
+- CDFS automount didn't mount CDs with empty label, dos does not like empty volume names, replace empty name with "NO_LABEL"
+- BPLCON0 BYPASS bit emulated. AGA-only, bypasses palette selection, creates gray scale output. (Microcosm cheat mode effect)
+- Added A1000 composite out monochrome output mode emulation when BPLCON0 COLOR bit is zeroed. Option in advanced
+  chipset panel. Only emulated if no video port display devices enabled, monochrome emulation shares same code (and
+  in real world it is also not possible, RGB video out is not affected by COLOR bit). Also added always-on monochrome
+  mode option to Display panel. (Uses HRM documented gray scale brightness = 30% red, 60% green and 10% blue)
+- "Atari ST palette fix" added to Display panel, called "Dark palette fix". It is wrong to mention Atari ST in GUI :)
+  There are few stupid Atari ST ports that use original palette (3 bits/component) = halved brightness in Amiga.
+- UAE autoconfig board/boot ROM selection added to ROM panel. Do not touch unless you wan to run OS4 + UAE expansions.
+  OS4 + UAE expansions: must be set to last option, "New UAE (128k, ROM, Indirect)". (Quickly added to GUI, probably
+  will change in future versions)
+
+OS4 compatible UAE autoconfig board, boot ROM and communication interface.
+
+Currently supported UAE devices:
+
+- Directory harddrives.
+- uaehf.device (UAE HD controller hardfiles)
+- uaegfx RTG. (Copy OS3.x uaegfx and uaegfx.info to OS4.x Devs:Monitors)
+- uaenet.device
+- uae.resource
+- uaelib ("uaelib_demux" trap)
+
+Not yet supported (lots more work needed):
+
+- bsdsocket.library (This is the most difficult)
+- uaenative.library
+- clipboard sharing
+- uaescsi.device
+- virtual mouse driver
+- on the fly directory harddrive changes.
+
+And everything else that was not mentioned.
+
+Notes:
+
+- Slower than normal host<>Amiga communication because every read or write that accesses Amiga memory needs to be
+  done in Amiga side (due to non-1:1 logical/physical mapping). It will never be as fast as direct communication.
+- Remember to set ROM panel UAE expansion type to "New UAE (128k, ROM, Indirect)".
+- Directory harddrive (copied from HDF) OS4 installation will boot but it is not recommended, it is slowe
+  than HDF and there is mysterious issue that causes random read errors. (Missing font requester when booting is the
+  most common side-effect)
+- Most UAE expansions have preliminary updates for indirect trap support and support required multiple major
+  changes = many things can be strangely broken..
+
+Development speed of OS4 compatible UAE expansion and priority of features mainly depends on donations.
+
+
 Beta 2:
 
 - Game Ports panel keyboard layouts didn't load from config file. (b1)

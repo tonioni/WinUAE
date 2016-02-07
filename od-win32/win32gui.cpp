@@ -4056,6 +4056,7 @@ static const struct miscentry misclist[] = {
 	{ 0, 1, _T("Minimize when focus is lost"), &workprefs.win32_minimize_inactive },
 	{ 0, 1, _T("100/120Hz VSync black frame insertion"), &workprefs.lightboost_strobo },
 	{ 0, 0, _T("Master floppy write protection"), &workprefs.floppy_read_only },
+	{ 0, 0, _T("Master harddrive write protection"), &workprefs.harddrive_read_only },
 	{ 0, 0, _T("Hide all UAE autoconfig boards"), &workprefs.uae_hide_autoconfig },
 	{ 0, 1, _T("Right Control = Right Windows key"), &workprefs.right_control_is_right_win_key },
 	{ 0, NULL }
@@ -6507,10 +6508,13 @@ static int display_mode_index (uae_u32 x, uae_u32 y, uae_u32 d)
 	return j;
 }
 
-static int da_mode_selected;
+static int da_mode_selected, da_mode_multiplier;
 
-static int *getp_da (void)
+static int *getp_da (HWND hDlg)
 {
+	int vmin = -200;
+	int vmax = 200;
+	da_mode_multiplier = 10;
 	int *p = 0;
 	switch (da_mode_selected)
 	{
@@ -6532,18 +6536,30 @@ static int *getp_da (void)
 	case 5:
 		p = &workprefs.gfx_gamma_ch[2];
 		break;
+	case 6:
+		p = &workprefs.gfx_threebitcolors;
+		vmin = 0;
+		vmax = 2;
+		da_mode_multiplier = 1;
+		break;
 	}
+	if (*p < vmin * da_mode_multiplier)
+		*p = vmin * da_mode_multiplier;
+	if (*p > vmax * da_mode_multiplier)
+		*p = vmax * da_mode_multiplier;
+	SendDlgItemMessage(hDlg, IDC_DA_SLIDER, TBM_SETPAGESIZE, 0, 1);
+	SendDlgItemMessage(hDlg, IDC_DA_SLIDER, TBM_SETRANGE, TRUE, MAKELONG(vmin, vmax));
 	return p;
 }
 
 static void set_da (HWND hDlg)
 {
-	int *p = getp_da ();
+	int *p = getp_da (hDlg);
 	if (!p)
 		return;
 	TCHAR buf[10];
-	SendDlgItemMessage (hDlg, IDC_DA_SLIDER, TBM_SETPOS, TRUE, (*p) / 10);
-	_stprintf(buf, _T("%.1f"), (double)((*p) / 10.0));
+	SendDlgItemMessage (hDlg, IDC_DA_SLIDER, TBM_SETPOS, TRUE, (*p) / da_mode_multiplier);
+	_stprintf(buf, _T("%.1f"), (double)((*p) / (double)da_mode_multiplier));
 	SetDlgItemText (hDlg, IDC_DA_TEXT, buf);
 }
 
@@ -6555,6 +6571,7 @@ static void update_da (HWND hDlg)
 	currprefs.gfx_gamma_ch[2] = workprefs.gfx_gamma_ch[2];
 	currprefs.gfx_luminance = workprefs.gfx_luminance;
 	currprefs.gfx_contrast = workprefs.gfx_contrast;
+	currprefs.gfx_threebitcolors = workprefs.gfx_threebitcolors;
 	set_da (hDlg);
 	init_colors ();
 	init_custom ();
@@ -6566,10 +6583,10 @@ static void handle_da (HWND hDlg)
 	int *p;
 	int v;
 
-	p = getp_da ();
+	p = getp_da (hDlg);
 	if (!p)
 		return;
-	v = SendDlgItemMessage (hDlg, IDC_DA_SLIDER, TBM_GETPOS, 0, 0) * 10;
+	v = SendDlgItemMessage (hDlg, IDC_DA_SLIDER, TBM_GETPOS, 0, 0) * da_mode_multiplier;
 	if (v == *p)
 		return;
 	*p = v;
@@ -6597,9 +6614,7 @@ void init_da (HWND hDlg)
 	if (da_mode_selected == CB_ERR)
 		da_mode_selected = 0;
 	SendDlgItemMessage (hDlg, IDC_DA_MODE, CB_SETCURSEL, da_mode_selected, 0);
-	SendDlgItemMessage (hDlg, IDC_DA_SLIDER, TBM_SETPAGESIZE, 0, 1);
-	SendDlgItemMessage (hDlg, IDC_DA_SLIDER, TBM_SETRANGE, TRUE, MAKELONG (-200, 200));
-	p = getp_da ();
+	p = getp_da (hDlg);
 	if (p)
 		set_da (hDlg);
 }
@@ -6880,7 +6895,6 @@ static void values_to_displaydlg (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_LORES_SMOOTHED, workprefs.gfx_lores_mode);
 	CheckDlgButton(hDlg, IDC_FLICKERFIXER, workprefs.gfx_scandoubler);
 	CheckDlgButton(hDlg, IDC_GRAYSCALE, workprefs.gfx_grayscale);
-	CheckDlgButton(hDlg, IDC_ATARICOLORFIX, workprefs.gfx_threebitcolors);
 
 	CheckDlgButton (hDlg, IDC_XCENTER, workprefs.gfx_xcenter);
 	CheckDlgButton (hDlg, IDC_YCENTER, workprefs.gfx_ycenter);
@@ -7004,7 +7018,6 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	workprefs.gfx_blackerthanblack = ischecked (hDlg, IDC_BLACKER_THAN_BLACK);
 	workprefs.gfx_autoresolution_vga = ischecked(hDlg, IDC_AUTORESOLUTIONVGA);
 	workprefs.gfx_grayscale = ischecked(hDlg, IDC_GRAYSCALE);
-	workprefs.gfx_threebitcolors = ischecked(hDlg, IDC_ATARICOLORFIX);
 
 	int vres = workprefs.gfx_vresolution;
 	int viscan = workprefs.gfx_iscanlines;
@@ -7267,7 +7280,7 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		if (LOWORD (wParam) == IDC_DA_RESET) {
 			int *p;
 			da_mode_selected = SendDlgItemMessage (hDlg, IDC_DA_MODE, CB_GETCURSEL, 0, 0);
-			p = getp_da ();
+			p = getp_da (hDlg);
 			if (p)
 				*p = 0;
 			init_da (hDlg);

@@ -20,18 +20,18 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("2")
+#define WINUAEBETA _T("4")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2016, 1, 31)
+#define WINUAEDATE MAKEBD(2016, 2, 7)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
 
 #ifndef WINUAEEXTRA
-#define WINUAEEXTRA _T("OS4_UAE")
+#define WINUAEEXTRA _T("")
 #endif
 #ifndef WINUAEREV
 #define WINUAEREV _T("")
@@ -162,6 +162,9 @@ int isdllversion (const TCHAR *name, int version, int revision, int subver, int 
 extern int screenshot_prepare (void);
 extern int screenshot_prepare (int);
 extern void screenshot_free (void);
+
+extern void rawinput_release(void);
+extern void rawinput_alloc(void);
 
 struct winuae_lang
 {

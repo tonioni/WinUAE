@@ -491,7 +491,6 @@
 #define IDC_AUTORESOLUTIONVGA           1181
 #define IDC_RATE2ENABLE                 1182
 #define IDC_GRAYSCALE                   1183
-#define IDC_ATARICOLORFIX               1184
 #define IDC_FRAMERATE                   1185
 #define IDC_XSIZE                       1187
 #define IDC_YSIZE                       1188

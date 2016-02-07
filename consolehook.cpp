@@ -81,7 +81,7 @@ int consolehook_activate (void)
 	return console_emulation;
 }
 
-void consolehook_ret (uaecptr condev, uaecptr oldbeginio)
+void consolehook_ret(TrapContext *ctx, uaecptr condev, uaecptr oldbeginio)
 {
 	beginio = oldbeginio;
 	write_log (_T("console.device at %08X\n"), condev);
@@ -89,28 +89,36 @@ void consolehook_ret (uaecptr condev, uaecptr oldbeginio)
 	uae_start_thread (_T("consolereader"), console_thread, NULL, NULL);
 }
 
-uaecptr consolehook_beginio (uaecptr request)
+uaecptr consolehook_beginio(TrapContext *ctx, uaecptr request)
 {
-	uae_u32 io_data = get_long (request + 40); // 0x28
-	uae_u32 io_length = get_long (request + 36); // 0x24
-	uae_u32 io_actual = get_long (request + 32); // 0x20
-	uae_u32 io_offset = get_long (request + 44); // 0x2c
-	uae_u16 cmd = get_word (request + 28);
+	uae_u32 io_data = trap_get_long(ctx, request + 40); // 0x28
+	uae_u32 io_length = trap_get_long(ctx, request + 36); // 0x24
+	uae_u32 io_actual = trap_get_long(ctx, request + 32); // 0x20
+	uae_u32 io_offset = trap_get_long(ctx, request + 44); // 0x2c
+	uae_u16 cmd = trap_get_word(ctx, request + 28);
 
 	if (cmd == CMD_WRITE) {
-		TCHAR *buf;
-		const char *src = (char*)get_real_address (io_data);
 		int len = io_length;
-		if (io_length == -1)
-			len = strlen (src);
-		buf = xmalloc (TCHAR, len + 1);
-		au_copy (buf, len, src);
+		char *dbuf;
+		TCHAR *buf;
+		if (len == -1) {
+			dbuf = xmalloc(char, MAX_DPATH);
+			trap_get_string(ctx, dbuf, io_data, MAX_DPATH);
+			len = strlen(dbuf);
+		} else {
+			dbuf = xmalloc(char, len);
+			trap_get_bytes(ctx, dbuf, io_data, len);
+		}
+		buf = xmalloc(TCHAR, len + 1);
+		au_copy(buf, len, dbuf);
 		buf[len] = 0;
-		f_out (stdout, _T("%s"), buf);
-		xfree (buf);
+		f_out(stdout, _T("%s"), buf);
+		xfree(buf);
+		xfree(dbuf);
 	} else if (cmd == CMD_READ) {
 
 		write_log (_T("%08x: CMD=%d LEN=%d OFF=%d ACT=%d\n"), request, cmd, io_length, io_offset, io_actual);
+
 	}
 	return beginio;
 }

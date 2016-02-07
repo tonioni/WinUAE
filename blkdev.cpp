@@ -1097,7 +1097,7 @@ void scsi_atapi_fixup_post (uae_u8 *scsi_cmd, int len, uae_u8 *olddata, uae_u8 *
 
 static void scsi_atapi_fixup_inquiry (struct amigascsi *as)
 {
-	uae_u8 *scsi_data = as->data;
+	uae_u8 *scsi_data = as->data_h;
 	uae_u32 scsi_len = as->len;
 	uae_u8 *scsi_cmd = as->cmd;
 	uae_u8 cmd;
@@ -2073,7 +2073,7 @@ static int execscsicmd_direct (int unitnum, int type, struct amigascsi *as)
 	int replylen = 0;
 
 	memcpy (cmd, as->cmd, as->cmd_len);
-	scsi_datap = scsi_datap_org = as->len ? as->data : 0;
+	scsi_datap = scsi_datap_org = as->len ? as->data_h : 0;
 	if (as->sense_len > 32)
 		as->sense_len = 32;
 
@@ -2135,7 +2135,7 @@ int sys_command_scsi_direct_native (int unitnum, int type, struct amigascsi *as)
 	return ret;
 }
 
-int sys_command_scsi_direct (int unitnum, int type, uaecptr acmd)
+int sys_command_scsi_direct(TrapContext *ctx, int unitnum, int type, uaecptr acmd)
 {
 	int ret, i;
 	struct amigascsi as = { 0 };
@@ -2148,7 +2148,7 @@ int sys_command_scsi_direct (int unitnum, int type, uaecptr acmd)
 	bank = &get_mem_bank (ap);
 	if (!bank || !bank->check(ap, as.len))
 		return IOERR_BADADDRESS;
-	as.data = bank->xlateaddr (ap);
+	as.data_h = bank->xlateaddr (ap);
 
 	ap = get_long (acmd + 12);
 	as.cmd_len = get_word (acmd + 16);

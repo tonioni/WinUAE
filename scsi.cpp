@@ -409,7 +409,7 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 			as.flags &= ~1;
 		as.sense_len = 32;
 		as.cmd_len = sd->cmd_len;
-		as.data = sd->buffer;
+		as.data_h = sd->buffer;
 		as.len = sd->direction < 0 ? DEVICE_SCSI_BUFSIZE : sd->data_len;
 		sys_command_scsi_direct_native(sd->nativescsiunit, -1, &as);
 		sd->status = as.status;

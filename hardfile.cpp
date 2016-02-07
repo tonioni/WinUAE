@@ -1149,6 +1149,11 @@ static int checkbounds (struct hardfiledata *hfd, uae_u64 offset, uae_u64 len)
 	return 1;
 }
 
+static bool is_writeprotected(struct hardfiledata *hfd)
+{
+	return hfd->ci.readonly || hfd->dangerous || currprefs.harddrive_read_only;
+}
+
 static int nodisk (struct hardfiledata *hfd)
 {
 	if (hfd->drive_empty)
@@ -1395,7 +1400,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		// do nothing
 		if (nodisk (hfd))
 			goto nodisk;
-		if (hfd->ci.readonly || hfd->dangerous)
+		if (is_writeprotected(hfd))
 			goto readprot;
 		scsi_len = 0;
 		break;
@@ -1442,7 +1447,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	case 0x0a: /* WRITE (6) */
 		if (nodisk (hfd))
 			goto nodisk;
-		if (hfd->ci.readonly || hfd->dangerous)
+		if (is_writeprotected(hfd))
 			goto readprot;
 		offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf);
 		if (offset == ~0)
@@ -1485,7 +1490,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 				totalsize = 8 - 2;
 				alen = (cmdbuf[7] << 8) | cmdbuf[8];
 				p[2] = 0;
-				p[3] = (hfd->ci.readonly || hfd->dangerous) ? 0x80 : 0x00;
+				p[3] = is_writeprotected(hfd) ? 0x80 : 0x00;
 				p[4] = 0;
 				p[5] = 0;
 				p[6] = 0;
@@ -1495,7 +1500,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 				totalsize = 4 - 1;
 				alen = cmdbuf[4];
 				p[1] = 0;
-				p[2] = (hfd->ci.readonly || hfd->dangerous) ? 0x80 : 0x00;
+				p[2] = is_writeprotected(hfd) ? 0x80 : 0x00;
 				p[3] = 0;
 				p += 4;
 			}
@@ -1640,7 +1645,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	case 0x2a: /* WRITE (10) */
 		if (nodisk (hfd))
 			goto nodisk;
-		if (hfd->ci.readonly || hfd->dangerous)
+		if (is_writeprotected(hfd))
 			goto readprot;
 		offset = rl (cmdbuf + 2);
 		offset *= hfd->ci.blocksize;
@@ -1697,7 +1702,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	case 0xaa: /* WRITE (12) */
 		if (nodisk (hfd))
 			goto nodisk;
-		if (hfd->ci.readonly || hfd->dangerous)
+		if (is_writeprotected(hfd))
 			goto readprot;
 		offset = rl (cmdbuf + 2);
 		offset *= hfd->ci.blocksize;
@@ -2006,7 +2011,7 @@ static int start_thread (TrapContext *ctx, int unit)
 		return 1;
 	memset (hfpd, 0, sizeof (struct hardfileprivdata));
 	hfpd->base = trap_get_areg(ctx, 6);
-	init_comm_pipe (&hfpd->requests, 100, 1);
+	init_comm_pipe (&hfpd->requests, 300, 3);
 	uae_sem_init (&hfpd->sync_sem, 0, 0);
 	uae_start_thread (_T("hardfile"), hardfile_thread, hfpd, NULL);
 	uae_sem_wait (&hfpd->sync_sem);
@@ -2070,8 +2075,11 @@ static uae_u32 REGPARAM2 hardfile_close (TrapContext *ctx)
 		return 0;
 	scsi_free(hfpd->sd);
 	trap_put_word(ctx, hfpd->base + 32, trap_get_word(ctx, hfpd->base + 32) - 1);
-	if (trap_get_word(ctx, hfpd->base + 32) == 0)
-		write_comm_pipe_u32 (&hfpd->requests, 0, 1);
+	if (trap_get_word(ctx, hfpd->base + 32) == 0) {
+		write_comm_pipe_pvoid(&hfpd->requests, NULL, 0);
+		write_comm_pipe_pvoid(&hfpd->requests, NULL, 0);
+		write_comm_pipe_u32(&hfpd->requests, 0, 1);
+	}
 	return 0;
 }
 
@@ -2152,7 +2160,7 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 	case CMD_FORMAT: /* Format */
 		if (nodisk (hfd))
 			goto no_disk;
-		if (hfd->ci.readonly || hfd->dangerous) {
+		if (is_writeprotected(hfd)) {
 			error = 28; /* write protect */
 		} else {
 			offset = get_long_host(iobuf + 44);
@@ -2179,7 +2187,7 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 	case NSCMD_TD_FORMAT64:
 		if (nodisk (hfd))
 			goto no_disk;
-		if (hfd->ci.readonly || hfd->dangerous) {
+		if (is_writeprotected(hfd)) {
 			error = 28; /* write protect */
 		} else {
 			offset64 = get_long_host(iobuf + 44) | ((uae_u64)get_long_host(iobuf + 32) << 32);
@@ -2242,7 +2250,7 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 		break;
 
 	case CMD_PROTSTATUS:
-		if (hfd->ci.readonly || hfd->dangerous)
+		if (is_writeprotected(hfd))
 			actual = -1;
 		else
 			actual = 0;
