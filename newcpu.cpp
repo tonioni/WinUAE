@@ -2094,7 +2094,7 @@ void REGPARAM2 MakeFromSR (void)
 		unset_special (SPCFLAG_TRACE);
 }
 
-static void exception_trace (int nr)
+static void exception_check_trace (int nr)
 {
 	unset_special (SPCFLAG_TRACE | SPCFLAG_DOTRACE);
 	if (regs.t1 && !regs.t0) {
@@ -2104,7 +2104,7 @@ static void exception_trace (int nr)
 		if (nr == 5 || nr == 6 || nr == 7 || (nr >= 32 && nr <= 47))
 			set_special (SPCFLAG_DOTRACE);
 	}
-	regs.t1 = regs.t0 = regs.m = 0;
+	regs.t1 = regs.t0 = 0;
 }
 
 static void exception_debug (int nr)
@@ -2336,7 +2336,7 @@ kludge_me_do:
 #ifdef JIT
 	set_special (SPCFLAG_END_COMPILE);
 #endif
-	exception_trace (nr);
+	exception_check_trace (nr);
 }
 #endif
 
@@ -2567,7 +2567,7 @@ static void Exception_mmu030 (int nr, uaecptr oldpc)
 	}
 	m68k_setpci (newpc);
 	fill_prefetch ();
-	exception_trace (nr);
+	exception_check_trace (nr);
 }
 
 // 68040/060 MMU
@@ -2629,7 +2629,7 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 	}
 	m68k_setpci (newpc);
 	fill_prefetch ();
-	exception_trace (nr);
+	exception_check_trace (nr);
 }
 
 static void add_approximate_exception_cycles(int nr)
@@ -2757,7 +2757,7 @@ static void Exception_normal (int nr)
 #ifdef JIT
 						set_special (SPCFLAG_END_COMPILE);
 #endif
-						exception_trace (nr);
+						exception_check_trace (nr);
 						return;
 
 					} else {
@@ -2880,7 +2880,7 @@ kludge_me_do:
 	set_special (SPCFLAG_END_COMPILE);
 #endif
 	fill_prefetch ();
-	exception_trace (nr);
+	exception_check_trace (nr);
 }
 
 // address = format $2 stack frame address field
@@ -3511,6 +3511,46 @@ void cpu_sleep_millis(int ms)
 // 1-9 = wait, levels
 // 10 = max wait
 
+static bool haltloop_do(int vsynctimeline, int rpt_end, int lines)
+{
+	int ovpos = vpos;
+	while (lines-- >= 0) {
+		ovpos = vpos;
+		while (ovpos == vpos) {
+			x_do_cycles(8 * CYCLE_UNIT);
+			unset_special(SPCFLAG_UAEINT);
+			check_uae_int_request();
+			ppc_interrupt(intlev());
+			uae_ppc_execute_check();
+			if (regs.spcflags & SPCFLAG_COPPER)
+				do_copper();
+			if (regs.spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE)) {
+				if (regs.spcflags & SPCFLAG_BRK) {
+					unset_special(SPCFLAG_BRK);
+	#ifdef DEBUGGER
+					if (debugging)
+						debug();
+	#endif
+				}
+				return true;
+			}
+		}
+
+		// sync chipset with real time
+		for (;;) {
+			check_uae_int_request();
+			ppc_interrupt(intlev());
+			uae_ppc_execute_check();
+			if (event_wait)
+				break;
+			int d = read_processor_time() - rpt_end;
+			if (d < -2 * vsynctimeline || d >= 0)
+				break;
+		}
+	}
+	return false;
+}
+
 static bool haltloop(void)
 {
 #ifdef WITH_PPC
@@ -3565,41 +3605,8 @@ static bool haltloop(void)
 			if (lines > maxvpos / 2)
 				lines = maxvpos / 2;
 
-			while (lines-- >= 0) {
-				ovpos = vpos;
-				while (ovpos == vpos) {
-					x_do_cycles(8 * CYCLE_UNIT);
-					unset_special(SPCFLAG_UAEINT);
-					check_uae_int_request();
-					ppc_interrupt(intlev());
-					uae_ppc_execute_check();
-					if (regs.spcflags & SPCFLAG_COPPER)
-						do_copper();
-					if (regs.spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE)) {
-						if (regs.spcflags & SPCFLAG_BRK) {
-							unset_special(SPCFLAG_BRK);
-#ifdef DEBUGGER
-							if (debugging)
-								debug();
-#endif
-						}
-						return true;
-					}
-				}
-
-				// sync chipset with real time
-				for (;;) {
-					check_uae_int_request();
-					ppc_interrupt(intlev());
-					uae_ppc_execute_check();
-					if (event_wait)
-						break;
-					int d = read_processor_time() - rpt_end;
-					if (d < -2 * vsynctimeline || d >= 0)
-						break;
-				}
-			}
-
+			if (haltloop_do(vsynctimeline, rpt_end, lines))
+				return true;
 
 		}
 
