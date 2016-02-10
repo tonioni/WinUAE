@@ -179,6 +179,7 @@ extern int inputdevice_set_mapping (int devnum, int num, const TCHAR *name, TCHA
 extern int inputdevice_get_mapping (int devnum, int num, uae_u64 *pflags, int *port, TCHAR *name, TCHAR *custom, int sub);
 extern void inputdevice_copyconfig (struct uae_prefs *src, struct uae_prefs *dst);
 extern void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int devnum, int selectedwidget);
+extern void inputdevice_copyjports(struct uae_prefs *srcprefs, struct uae_prefs *dstprefs);
 extern void inputdevice_swap_ports (struct uae_prefs *p, int devnum);
 extern void inputdevice_swap_compa_ports (struct uae_prefs *p, int portswap);
 extern void inputdevice_config_change (void);
@@ -280,7 +281,7 @@ extern void inputdevice_reset (void);
 
 extern void write_inputdevice_config (struct uae_prefs *p, struct zfile *f);
 extern void read_inputdevice_config (struct uae_prefs *p, const TCHAR *option, TCHAR *value);
-extern void reset_inputdevice_config (struct uae_prefs *pr);
+extern void reset_inputdevice_config (struct uae_prefs *pr, bool reset);
 extern int inputdevice_joyport_config(struct uae_prefs *p, const TCHAR *value1, const TCHAR *value2, int portnum, int mode, int type, bool candefault);
 extern void inputdevice_joyport_config_store(struct uae_prefs *p, const TCHAR *value, int portnum, int mode, int type);
 extern int inputdevice_getjoyportdevice (int port, int val);

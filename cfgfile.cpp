@@ -1585,7 +1585,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_str (f, _T("gfx_colour_mode"), colormode1[p->color_mode]);
 	cfgfile_write_bool(f, _T("gfx_blacker_than_black"), p->gfx_blackerthanblack);
 	cfgfile_dwrite_bool(f, _T("gfx_monochrome"), p->gfx_grayscale);
-	cfgfile_write_str(f, _T("gfx_atari_palette_fix"), threebitcolors[p->gfx_threebitcolors]);
+	cfgfile_dwrite_str(f, _T("gfx_atari_palette_fix"), threebitcolors[p->gfx_threebitcolors]);
 	cfgfile_dwrite_bool (f, _T("gfx_black_frame_insertion"), p->lightboost_strobo);
 	cfgfile_write_str (f, _T("gfx_api"), filterapi[p->gfx_api]);
 	cfgfile_dwrite (f, _T("gfx_horizontal_tweak"), _T("%d"), p->gfx_extrawidth);
@@ -6036,14 +6036,14 @@ static void default_prefs_mini (struct uae_prefs *p, int type)
 
 #include "sounddep/sound.h"
 
-void default_prefs (struct uae_prefs *p, int type)
+void default_prefs (struct uae_prefs *p, bool reset, int type)
 {
 	int i;
 	int roms[] = { 6, 7, 8, 9, 10, 14, 5, 4, 3, 2, 1, -1 };
 	TCHAR zero = 0;
 	struct zfile *f;
 
-	reset_inputdevice_config (p);
+	reset_inputdevice_config (p, reset);
 	memset (p, 0, sizeof (*p));
 	_tcscpy (p->description, _T("UAE default configuration"));
 	p->config_hardware_path[0] = 0;
@@ -6082,8 +6082,10 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->jports[1].id = -1;
 	p->jports[2].id = -1;
 	p->jports[3].id = -1;
-	inputdevice_joyport_config_store(p, _T("mouse"), 0, -1, 0);
-	inputdevice_joyport_config_store(p, _T("kbd1"), 1, -1, 0);
+	if (reset) {
+		inputdevice_joyport_config_store(p, _T("mouse"), 0, -1, 0);
+		inputdevice_joyport_config_store(p, _T("kbd1"), 1, -1, 0);
+	}
 	p->keyboard_lang = KBD_LANG_US;
 
 	p->produce_sound = 3;

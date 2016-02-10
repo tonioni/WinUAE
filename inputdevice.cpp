@@ -1016,17 +1016,19 @@ static void reset_inputdevice_config_temp(void)
 	temp_uid.lastdevtype = -1;
 }
 
-void reset_inputdevice_config (struct uae_prefs *prefs)
+void reset_inputdevice_config (struct uae_prefs *prefs, bool reset)
 {
 	for (int i = 0; i < MAX_INPUT_SETTINGS; i++)
 		reset_inputdevice_slot (prefs, i);
 	reset_inputdevice_config_temp();
 
-	for (int i = 0; i < MAX_JPORTS; i++) {
-		struct jport_config *jp = &jport_config_store[i];
-		memset(jp, 0, sizeof(struct jport_config));
+	if (reset) {
+		for (int i = 0; i < MAX_JPORTS; i++) {
+			struct jport_config *jp = &jport_config_store[i];
+			memset(jp, 0, sizeof(struct jport_config));
+		}
+		inputdevice_store_clear();
 	}
-	inputdevice_store_clear();
 }
 
 static void set_kbr_default_event (struct uae_input_device *kbr, struct uae_input_device_kbr_default *trans, int num)
@@ -2315,6 +2317,7 @@ static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 		}
 #endif
 	}
+#if 0
 	if (uaeboard_bank.baseaddr) {
 		uae_u8 tmp[16];
 
@@ -2403,8 +2406,10 @@ static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 			p[1] |= 4;
 		}
 	}
+#endif
 }
 
+#if 0
 void mousehack_write(int reg, uae_u16 val)
 {
 	switch (reg)
@@ -2417,7 +2422,7 @@ void mousehack_write(int reg, uae_u16 val)
 		break;
 	}
 }
-
+#endif
 
 #if 0
 static void inputdevice_mh_abs_v36 (int x, int y)
@@ -6552,12 +6557,10 @@ static void resetinput (void)
 	}
 }
 
-void inputdevice_updateconfig_internal (struct uae_prefs *srcprefs, struct uae_prefs *dstprefs)
+void inputdevice_copyjports(struct uae_prefs *srcprefs, struct uae_prefs *dstprefs)
 {
-	keyboard_default = keyboard_default_table[currprefs.input_keyboard_type];
-
 	for (int i = 0; i < MAX_JPORTS; i++) {
-		copyjport (srcprefs, dstprefs, i);
+		copyjport(srcprefs, dstprefs, i);
 	}
 	if (srcprefs) {
 		for (int i = 0; i < MAX_JPORTS_CUSTOM; i++) {
@@ -6565,6 +6568,13 @@ void inputdevice_updateconfig_internal (struct uae_prefs *srcprefs, struct uae_p
 		}
 	}
 
+}
+
+void inputdevice_updateconfig_internal (struct uae_prefs *srcprefs, struct uae_prefs *dstprefs)
+{
+	keyboard_default = keyboard_default_table[currprefs.input_keyboard_type];
+
+	inputdevice_copyjports(srcprefs, dstprefs);
 	resetinput ();
 
 	joysticks = dstprefs->joystick_settings[dstprefs->input_selected_setting];

@@ -21,7 +21,7 @@ void consolehook_config (struct uae_prefs *p)
 	struct uaedev_config_info ci = { 0 };
 	int roms[] = { 15, 31, 16, 46, -1 };
 
-	default_prefs (p, 0);
+	default_prefs (p, true, 0);
 	//p->headless = 1;
 	p->produce_sound = 0;
 	p->gfx_resolution = 0;

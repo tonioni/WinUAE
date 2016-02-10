@@ -755,7 +755,7 @@ extern void error_log (const TCHAR*, ...);
 extern TCHAR *get_error_log (void);
 extern bool is_error_log (void);
 
-extern void default_prefs (struct uae_prefs *, int);
+extern void default_prefs (struct uae_prefs *, bool, int);
 extern void discard_prefs (struct uae_prefs *, int);
 
 int parse_cmdline_option (struct uae_prefs *, TCHAR, const TCHAR*);

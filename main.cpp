@@ -1041,7 +1041,7 @@ static int real_main2 (int argc, TCHAR **argv)
 #endif
 	set_config_changed ();
 	if (restart_config[0]) {
-		default_prefs (&currprefs, 0);
+		default_prefs (&currprefs, true, 0);
 		fixup_prefs (&currprefs, true);
 	}
 
