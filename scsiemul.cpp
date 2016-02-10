@@ -448,7 +448,7 @@ static int command_read(TrapContext *ctx, struct devstruct *dev, uaecptr data, u
 		uae_u8 buffer[4096];
 		if (!sys_command_read (dev->unitnum, buffer, offset, 1))
 			return 20;
-		memcpyha_safe (data, buffer, blocksize);
+		trap_memcpyha_safe(ctx, data, buffer, blocksize);
 		data += blocksize;
 		offset++;
 		length--;
@@ -464,7 +464,7 @@ static int command_write(TrapContext *ctx, struct devstruct *dev, uaecptr data, 
 	while (length > 0) {
 		uae_u8 buffer[4096];
 		int err;
-		memcpyah_safe (buffer, data, blocksize);
+		trap_memcpyah_safe(ctx, buffer, data, blocksize);
 		err = sys_command_write (dev->unitnum, buffer, offset, 1);
 		if (!err)
 			return 20;
@@ -498,20 +498,21 @@ static int command_cd_read(TrapContext *ctx, struct devstruct *dev, uaecptr data
 		}
 		if (startoffset > 0) {
 			len = blocksize - startoffset;
-			if (len > length) len = length;
-			memcpyha_safe (data, temp + startoffset, len);
+			if (len > length)
+				len = length;
+			trap_memcpyha_safe(ctx, data, temp + startoffset, len);
 			length -= len;
 			data += len;
 			startoffset = 0;
 			*io_actual += len;
 		} else if (length >= blocksize) {
 			len = blocksize;
-			memcpyha_safe (data, temp, len);
+			trap_memcpyha_safe(ctx, data, temp, len);
 			length -= len;
 			data += len;
 			*io_actual += len;
 		} else {
-			memcpyha_safe (data, temp, length);
+			trap_memcpyha_safe(ctx, data, temp, length);
 			*io_actual += length;
 			length = 0;
 		}
@@ -797,11 +798,11 @@ static int dev_do_io_cd (TrapContext *ctx, struct devstruct *dev, uae_u8 *iobuf,
 		if (sys_command_cd_toc (dev->di.unitnum, &toc)) {
 			if (io_offset == 0 && io_length > 0) {
 				int pos = toc.lastaddress;
-				put_byte (io_data, toc.first_track);
-				put_byte (io_data + 1, toc.last_track);
+				trap_put_byte(ctx, io_data, toc.first_track);
+				trap_put_byte(ctx, io_data + 1, toc.last_track);
 				if (msf)
 					pos = lsn2msf (pos);
-				put_long (io_data + 2, pos);
+				trap_put_long(ctx, io_data + 2, pos);
 				io_offset++;
 				io_length--;
 				io_data += 6;
@@ -810,11 +811,11 @@ static int dev_do_io_cd (TrapContext *ctx, struct devstruct *dev, uae_u8 *iobuf,
 			for (int i = toc.first_track_offset; i < toc.last_track_offset && io_length > 0; i++) {
 				if (io_offset == toc.toc[i].point) {
 					int pos = toc.toc[i].paddress;
-					put_byte (io_data, (toc.toc[i].control << 4) | toc.toc[i].adr);
-					put_byte (io_data + 1, toc.toc[i].point);
+					trap_put_byte(ctx, io_data, (toc.toc[i].control << 4) | toc.toc[i].adr);
+					trap_put_byte(ctx, io_data + 1, toc.toc[i].point);
 					if (msf)
 						pos = lsn2msf (pos);
-					put_long (io_data + 2, pos);
+					trap_put_long(ctx, io_data + 2, pos);
 					io_offset++;
 					io_length--;
 					io_data += 6;
@@ -847,6 +848,7 @@ static int dev_do_io_cd (TrapContext *ctx, struct devstruct *dev, uae_u8 *iobuf,
 	{
 		uae_u16 status = 0;
 		struct cd_toc_head toc;
+		uae_u8 cdinfo[34] = { 0 };
 		uae_u8 subq[SUBQ_SIZE] = { 0 };
 		sys_command_cd_qcode (dev->di.unitnum, subq);
 		status |= 1 << 0; // door closed
@@ -863,31 +865,32 @@ static int dev_do_io_cd (TrapContext *ctx, struct devstruct *dev, uae_u8 *iobuf,
 					status |= 1 << 4; // data track
 			}
 		}
-		put_word (io_data +  0, 75);		// PlaySpeed
-		put_word (io_data +  2, 1200);		// ReadSpeed (randomly chose 16x)
-		put_word (io_data +  4, 1200);		// ReadXLSpeed
-		put_word (io_data +  6, dev->configblocksize); // SectorSize
-		put_word (io_data +  8, -1);		// XLECC
-		put_word (io_data + 10, 0);			// EjectReset
-		put_word (io_data + 12, 0);			// Reserved * 4
-		put_word (io_data + 14, 0);
-		put_word (io_data + 16, 0);
-		put_word (io_data + 18, 0);
-		put_word (io_data + 20, 1200);		// MaxSpeed
-		put_word (io_data + 22, 0xffff);	// AudioPrecision (volume)
-		put_word (io_data + 24, status);	// Status
-		put_word (io_data + 26, 0);			// Reserved2 * 4
-		put_word (io_data + 28, 0);
-		put_word (io_data + 30, 0);
-		put_word (io_data + 32, 0);
+		put_word_host(cdinfo +  0, 75);		// PlaySpeed
+		put_word_host(cdinfo +  2, 1200);		// ReadSpeed (randomly chose 16x)
+		put_word_host(cdinfo +  4, 1200);		// ReadXLSpeed
+		put_word_host(cdinfo +  6, dev->configblocksize); // SectorSize
+		put_word_host(cdinfo +  8, -1);		// XLECC
+		put_word_host(cdinfo + 10, 0);			// EjectReset
+		put_word_host(cdinfo + 12, 0);			// Reserved * 4
+		put_word_host(cdinfo + 14, 0);
+		put_word_host(cdinfo + 16, 0);
+		put_word_host(cdinfo + 18, 0);
+		put_word_host(cdinfo + 20, 1200);		// MaxSpeed
+		put_word_host(cdinfo + 22, 0xffff);	// AudioPrecision (volume)
+		put_word_host(cdinfo + 24, status);	// Status
+		put_word_host(cdinfo + 26, 0);			// Reserved2 * 4
+		put_word_host(cdinfo + 28, 0);
+		put_word_host(cdinfo + 30, 0);
+		put_word_host(cdinfo + 32, 0);
 		io_actual = 34;
+		trap_put_bytes(ctx, cdinfo, io_data, io_actual);
 	}
 	break;
 	case CD_CONFIG:
 	{
-		while (get_long (io_data) != TAG_DONE) {
-			uae_u32 tag = get_long (io_data);
-			uae_u32 data = get_long (io_data + 4);
+		while (trap_get_long(ctx, io_data) != TAG_DONE) {
+			uae_u32 tag = trap_get_long(ctx, io_data);
+			uae_u32 data = trap_get_long(ctx, io_data + 4);
 			if (tag == 4) {
 				// TAGCD_SECTORSIZE
 				if (data == 2048 || data == 2336 || data == 2352)
@@ -947,19 +950,21 @@ static int dev_do_io_cd (TrapContext *ctx, struct devstruct *dev, uae_u8 *iobuf,
 		uae_u8 subq[SUBQ_SIZE];
 		if (sys_command_cd_qcode (dev->di.unitnum, subq)) {
 			if (subq[1] == AUDIO_STATUS_IN_PROGRESS || subq[1] == AUDIO_STATUS_PAUSED) {
-				put_byte (io_data + 0, subq[4 + 0]);
-				put_byte (io_data + 1, frombcd (subq[4 + 1]));
-				put_byte (io_data + 2, frombcd (subq[4 + 2]));
-				put_byte (io_data + 3, subq[4 + 6]);
+				uae_u8 subqdata[12];
+				put_byte_host(subqdata + 0, subq[4 + 0]);
+				put_byte_host(subqdata + 1, frombcd (subq[4 + 1]));
+				put_byte_host(subqdata + 2, frombcd (subq[4 + 2]));
+				put_byte_host(subqdata + 3, subq[4 + 6]);
 				int trackpos = fromlongbcd (subq + 4 + 3);
 				int diskpos = fromlongbcd (subq + 4 + 7);
 				if (command == CD_QCODELSN) {
 					trackpos = msf2lsn (trackpos);
 					diskpos = msf2lsn (diskpos);
 				}
-				put_long (io_data + 4, trackpos);
-				put_long (io_data + 8, diskpos);
+				put_long_host(subqdata + 4, trackpos);
+				put_long_host(subqdata + 8, diskpos);
 				io_actual = 12;
+				trap_put_bytes(ctx, subqdata, io_data, io_actual);
 			} else {
 				io_error = IOERR_InvalidState;
 			}

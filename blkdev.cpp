@@ -1097,7 +1097,7 @@ void scsi_atapi_fixup_post (uae_u8 *scsi_cmd, int len, uae_u8 *olddata, uae_u8 *
 
 static void scsi_atapi_fixup_inquiry (struct amigascsi *as)
 {
-	uae_u8 *scsi_data = as->data_h;
+	uae_u8 *scsi_data = as->data;
 	uae_u32 scsi_len = as->len;
 	uae_u8 *scsi_cmd = as->cmd;
 	uae_u8 cmd;
@@ -2073,7 +2073,7 @@ static int execscsicmd_direct (int unitnum, int type, struct amigascsi *as)
 	int replylen = 0;
 
 	memcpy (cmd, as->cmd, as->cmd_len);
-	scsi_datap = scsi_datap_org = as->len ? as->data_h : 0;
+	scsi_datap = scsi_datap_org = as->len ? as->data : 0;
 	if (as->sense_len > 32)
 		as->sense_len = 32;
 
@@ -2101,8 +2101,9 @@ static int execscsicmd_direct (int unitnum, int type, struct amigascsi *as)
 	} else {
 		int i;
 		if (replylen > 0) {
-			for (i = 0; i < replylen; i++)
+			for (int i = 0; i < replylen; i++) {
 				scsi_datap[i] = replydata[i];
+			}
 			datalen = replylen;
 		}
 		for (i = 0; i < as->sense_len; i++)
@@ -2120,7 +2121,7 @@ static int execscsicmd_direct (int unitnum, int type, struct amigascsi *as)
 	return io_error;
 }
 
-int sys_command_scsi_direct_native (int unitnum, int type, struct amigascsi *as)
+int sys_command_scsi_direct_native(int unitnum, int type, struct amigascsi *as)
 {
 	struct blkdevstate *st = &state[unitnum];
 	if (st->scsiemu || (type >= 0 && st->type != type)) {
@@ -2137,42 +2138,60 @@ int sys_command_scsi_direct_native (int unitnum, int type, struct amigascsi *as)
 
 int sys_command_scsi_direct(TrapContext *ctx, int unitnum, int type, uaecptr acmd)
 {
-	int ret, i;
+	int ret;
 	struct amigascsi as = { 0 };
 	uaecptr ap;
 	addrbank *bank;
+	uae_u8 scsicmd[30];
 
-	ap = get_long (acmd + 0);
-	as.len = get_long (acmd + 4);
+	trap_get_bytes(ctx, scsicmd, acmd, sizeof scsicmd);
 
-	bank = &get_mem_bank (ap);
-	if (!bank || !bank->check(ap, as.len))
-		return IOERR_BADADDRESS;
-	as.data_h = bank->xlateaddr (ap);
-
-	ap = get_long (acmd + 12);
-	as.cmd_len = get_word (acmd + 16);
+	as.cmd_len = get_word_host(scsicmd + 16);
 	if (as.cmd_len > sizeof as.cmd)
 		return IOERR_BADLENGTH;
-	for (i = 0; i < as.cmd_len; i++)
-		as.cmd[i] = get_byte (ap++);
-	while (i < sizeof as.cmd)
-		as.cmd[i++] = 0;
-	as.flags = get_byte (acmd + 20);
-	as.sense_len = get_word (acmd + 26);
+	as.flags = get_byte_host(scsicmd + 20);
+	ap = get_long_host(scsicmd + 0);
+	as.len = get_long_host(scsicmd + 4);
+
+	if (trap_is_indirect()) {
+		if (!(as.flags & 1)) { // write?
+			as.data = xmalloc(uae_u8, as.len);
+			trap_get_bytes(ctx, as.data, ap, as.len);
+		} else {
+			as.data = xcalloc(uae_u8, as.len);
+		}
+	} else {
+		bank = &get_mem_bank (ap);
+		if (!bank || !bank->check(ap, as.len))
+			return IOERR_BADADDRESS;
+		as.data = bank->xlateaddr (ap);
+	}
+
+	ap = get_long_host(scsicmd + 12);
+	trap_get_bytes(ctx, as.cmd, ap, as.cmd_len);
+	as.sense_len = get_word_host(scsicmd + 26);
 
 	ret = sys_command_scsi_direct_native (unitnum, type, &as);
 
-	put_long (acmd + 8, as.actual);
-	put_word (acmd + 18, as.cmdactual);
-	put_byte (acmd + 21, as.status);
-	put_word (acmd + 28, as.sactual);
+	put_long_host(scsicmd + 8, as.actual);
+	put_word_host(scsicmd + 18, as.cmdactual);
+	put_byte_host(scsicmd + 21, as.status);
+	put_word_host(scsicmd + 28, as.sactual);
 
 	if (as.flags & (2 | 4)) { // autosense
-		ap = get_long (acmd + 22);
-		for (i = 0; i < as.sactual && i < as.sense_len; i++)
-			put_byte (ap + i, as.sensedata[i]);
+		ap = get_long_host(scsicmd + 22);
+		trap_put_bytes(ctx, as.sensedata, ap, as.sactual > as.sense_len ? as.sense_len : as.sactual);
 	}
+
+	trap_put_bytes(ctx, scsicmd, acmd, sizeof scsicmd);
+
+	if (trap_is_indirect()) {
+		if (as.flags & 1) { // read?
+			trap_put_bytes(ctx, as.data, ap, as.len);
+		}
+		xfree(as.data);
+	}
+
 	return ret;
 }
 

@@ -206,7 +206,7 @@ static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 
 	/* the Amiga does not tell us how long the timeout shall be, so make it _very_ long (specified in seconds) */
 	swb.spt.TimeOutValue = 80 * 60;
-	scsi_datap = scsi_datap_org = as->len ? as->data_h : 0;
+	scsi_datap = scsi_datap_org = as->len ? as->data : 0;
 	swb.spt.DataIn = (as->flags & 1) ? SCSI_IOCTL_DATA_IN : SCSI_IOCTL_DATA_OUT;
 	for (i = 0; i < as->cmd_len; i++)
 		swb.spt.Cdb[i] = as->cmd[i];

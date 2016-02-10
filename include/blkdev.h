@@ -91,8 +91,7 @@ struct device_info {
 
 struct amigascsi
 {
-    uae_u8 *data_h;
-	uaecptr data_a;
+    uae_u8 *data;
     uae_s32 len;
     uae_u8 cmd[16];
     uae_s32 cmd_len;
