@@ -150,13 +150,15 @@ static void video_calc_gammatable (void)
 
 	for (int i = 0; i < (256 * 3); i++) {
 		for (int j = 0; j < 3; j++) {
-			int val = i - 256;
+			float val = i - 256;
 			float v;
 
-			if (currprefs.gfx_threebitcolors == 1) {
+			if (currprefs.gfx_threebitcolors == 2) {
 				val *= 2;
-			} else if (currprefs.gfx_threebitcolors == 2) {
-				val = (val + (val & 7)) * 2;
+			} else if (currprefs.gfx_threebitcolors == 3) {
+				val = (val * 252.0) / 119.0;
+			} else if (currprefs.gfx_threebitcolors == 1) {
+				val = (val * 252.0) / 238.0;
 			}
 
 			if (currprefs.gfx_luminance == 0 && currprefs.gfx_contrast == 0 && currprefs.gfx_gamma == 0) {

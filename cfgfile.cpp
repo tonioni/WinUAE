@@ -287,6 +287,7 @@ static const TCHAR *serialcrlf[] = {
 };
 static const TCHAR *threebitcolors[] = {
 	_T("disabled"),
+	_T("3to4to8bit"),
 	_T("3to4bit"),
 	_T("3to8bit"),
 	NULL
