@@ -44,8 +44,7 @@ extern void init_row_map (void);
 extern void init_hz_normal (void);
 extern void init_custom (void);
 
-extern bool picasso_requested_on;
-extern bool picasso_on;
+extern bool picasso_requested_on, picasso_requested_forced_on, picasso_on;
 extern void set_picasso_hack_rate (int hz);
 
 /* Set to 1 to leave out the current frame in average frame time calculation.

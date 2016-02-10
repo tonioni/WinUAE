@@ -3099,19 +3099,19 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
 
 /* memory helpers */
 
-void memcpyha_safe (uaecptr dst, const uae_u8 *src, int size)
+void memcpyha_safe(uaecptr dst, const uae_u8 *src, int size)
 {
 	if (!addr_valid (_T("memcpyha"), dst, size))
 		return;
 	while (size--)
 		put_byte (dst++, *src++);
 }
-void memcpyha (uaecptr dst, const uae_u8 *src, int size)
+void memcpyha(uaecptr dst, const uae_u8 *src, int size)
 {
 	while (size--)
 		put_byte (dst++, *src++);
 }
-void memcpyah_safe (uae_u8 *dst, uaecptr src, int size)
+void memcpyah_safe(uae_u8 *dst, uaecptr src, int size)
 {
 	if (!addr_valid (_T("memcpyah"), src, size))
 		return;

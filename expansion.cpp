@@ -1001,8 +1001,7 @@ static addrbank *expamem_init_catweasel (int devnum)
 #ifdef FILESYS
 
 /*
-* Filesystem device ROM
-* This is very simple, the Amiga shouldn't be doing things with it.
+* Filesystem device ROM/RAM space
 */
 
 DECLARE_MEMORY_FUNCTIONS(filesys);
@@ -1015,6 +1014,11 @@ addrbank filesys_bank = {
 };
 
 static uae_u32 filesys_start; /* Determined by the OS */
+
+static bool filesys_write(uaecptr addr)
+{
+	return addr >= 0x4000;
+}
 
 static uae_u32 REGPARAM2 filesys_lget (uaecptr addr)
 {
@@ -1050,22 +1054,38 @@ static uae_u32 REGPARAM2 filesys_bget (uaecptr addr)
 	return filesys_bank.baseaddr[addr];
 }
 
+
+static void REGPARAM2 filesys_bput(uaecptr addr, uae_u32 b)
+{
+	addr -= filesys_start & 65535;
+	addr &= 65535;
+	if (!filesys_write(addr))
+		return;
+	filesys_bank.baseaddr[addr] = b;
+}
+
 static void REGPARAM2 filesys_lput (uaecptr addr, uae_u32 l)
 {
-	write_log (_T("filesys_lput called PC=%08x\n"), M68K_GETPC);
+	addr -= filesys_start & 65535;
+	addr &= 65535;
+	if (!filesys_write(addr))
+		return;
+	filesys_bank.baseaddr[addr + 0] = l >> 24;
+	filesys_bank.baseaddr[addr + 1] = l >> 16;
+	filesys_bank.baseaddr[addr + 2] = l >> 8;
+	filesys_bank.baseaddr[addr + 3] = l >> 0;
 }
 
 static void REGPARAM2 filesys_wput (uaecptr addr, uae_u32 w)
 {
-	write_log (_T("filesys_wput called PC=%08x\n"), M68K_GETPC);
+	addr -= filesys_start & 65535;
+	addr &= 65535;
+	if (!filesys_write(addr))
+		return;
+	filesys_bank.baseaddr[addr + 0] = w >> 8;
+	filesys_bank.baseaddr[addr + 1] = w & 0xff;
 }
 
-static void REGPARAM2 filesys_bput (uaecptr addr, uae_u32 b)
-{
-#if EXP_DEBUG
-	write_log (_T("filesys_bput %x %x\n"), addr, b);
-#endif
-}
 static int REGPARAM2 filesys_check(uaecptr addr, uae_u32 size)
 {
 	addr -= filesys_bank.start & 65535;
@@ -1087,59 +1107,45 @@ DECLARE_MEMORY_FUNCTIONS(uaeboard);
 addrbank uaeboard_bank = {
 	uaeboard_lget, uaeboard_wget, uaeboard_bget,
 	uaeboard_lput, uaeboard_wput, uaeboard_bput,
-	default_xlate, default_check, NULL, _T("uaeboard"), _T("UAE Board"),
+	uaeboard_xlate, uaeboard_check, NULL, _T("uaeboard"), _T("UAE Board"),
 	dummy_lgeti, dummy_wgeti,
 	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
-static uae_u32 uaeboard_start; /* Determined by the OS */
-#define UAEBOARD_RAM_SIZE 16384
-#define UAEBOARD_RAM_OFFSET (65536 - UAEBOARD_RAM_SIZE)
-#define UAEBOARD_IO_INTERFACE (UAEBOARD_RAM_OFFSET - 16)
-static uae_u8 uaeboard_io_state;
-static uae_u32 uaeboard_io_size, uaeboard_mem_ptr, uaeboard_mem_use;
+uae_u32 uaeboard_base; /* Determined by the OS */
+static uae_u32 uaeboard_ram_start;
+#define UAEBOARD_WRITEOFFSET 0x4000
+
+uaecptr uaeboard_alloc_ram(uae_u32 size)
+{
+	size += 7;
+	size &= ~7;
+	uaecptr p = uaeboard_ram_start + uaeboard_base;
+	memset(uaeboard_bank.baseaddr + uaeboard_ram_start, 0, size);
+	uaeboard_ram_start += size;
+	return p;
+}
+
+static bool uaeboard_write(uaecptr addr)
+{
+	if (addr >= UAEBOARD_WRITEOFFSET)
+		return true;
+	return false;
+}
 
 static uae_u32 REGPARAM2 uaeboard_wget(uaecptr addr)
 {
 	uae_u8 *m;
-	addr -= uaeboard_start & 65535;
+	addr -= uaeboard_base & 65535;
 	addr &= 65535;
-	if (addr == 0x200 || addr == 0x201) {
-		mousehack_wakeup();
-	}
 	m = uaeboard_bank.baseaddr + addr;
-#if EXP_DEBUG
-	write_log(_T("uaeboard_wget %x %x\n"), addr, do_get_mem_word((uae_u16 *)m));
-#endif
 	uae_u16 v = do_get_mem_word((uae_u16 *)m);
-
-	if (addr >= UAEBOARD_IO_INTERFACE) {
-		if (uaeboard_io_state & 16) {
-			uaeboard_mem_ptr &= (UAEBOARD_RAM_SIZE - 1);
-			if (uaeboard_mem_ptr + uaeboard_io_size > UAEBOARD_RAM_SIZE)
-				uaeboard_mem_ptr = 0;
-			if (addr == UAEBOARD_IO_INTERFACE + 8) {
-				uaeboard_io_state |= 32;
-				uaeboard_mem_use = uaeboard_mem_ptr + UAEBOARD_RAM_OFFSET;
-				v = uaeboard_mem_use >> 16;
-			} else if (addr == UAEBOARD_IO_INTERFACE + 8 + 2) {
-				uaeboard_io_state |= 64;
-				uaeboard_mem_use = uaeboard_mem_ptr + UAEBOARD_RAM_OFFSET;
-				v = uaeboard_mem_use >> 0;
-			}
-			if ((uaeboard_io_state & (32 | 64 | 128)) == (32 | 64)) {
-				uaeboard_mem_ptr += uaeboard_io_size;
-				uaeboard_io_state |= 128;
-			}
-		}
-	}
-
 	return v;
 }
 
 static uae_u32 REGPARAM2 uaeboard_lget(uaecptr addr)
 {
-	addr -= uaeboard_start & 65535;
+	addr -= uaeboard_base & 65535;
 	addr &= 65535;
 	uae_u32 v = uaeboard_wget(addr) << 16;
 	v |= uaeboard_wget(addr + 2);
@@ -1148,109 +1154,63 @@ static uae_u32 REGPARAM2 uaeboard_lget(uaecptr addr)
 
 static uae_u32 REGPARAM2 uaeboard_bget(uaecptr addr)
 {
-	addr -= uaeboard_start & 65535;
+	addr -= uaeboard_base & 65535;
 	addr &= 65535;
-	if (addr == 0x200 || addr == 0x201) {
-		mousehack_wakeup();
-	} else if (addr == UAEBOARD_IO_INTERFACE) {
-		uaeboard_bank.baseaddr[UAEBOARD_IO_INTERFACE] = uaeboard_io_state == 0;
-		if (!uaeboard_io_state) {
-			// mark allocated
-			uaeboard_io_state = 1;
-		}
-	} else if (addr == UAEBOARD_IO_INTERFACE + 2) {
-		if (uaeboard_io_state & 8) {
-			uaeboard_bank.baseaddr[addr] = 1;
-			uaeboard_io_state |= 16;
-		}
-	} else if (addr == uaeboard_mem_use) {
-		uaeboard_bank.baseaddr[addr] = 1;
-	}
-#if EXP_DEBUG
-	write_log(_T("uaeboard_bget %x %x\n"), addr, uaeboard_bank.baseaddr[addr]);
-#endif
 	return uaeboard_bank.baseaddr[addr];
 }
 
 static void REGPARAM2 uaeboard_wput(uaecptr addr, uae_u32 w)
 {
-	addr -= uaeboard_start & 65535;
+	addr -= uaeboard_base & 65535;
 	addr &= 65535;
-	if (addr >= 0x200 + 0x20 && addr < 0x200 + 0x24) {
-		mousehack_write(addr - 0x200, w);
-	} else if (addr >= UAEBOARD_IO_INTERFACE) {
-		uae_u8 *m = uaeboard_bank.baseaddr + addr;
-		put_word_host(m, w);
-		if (uaeboard_io_state) {
-			if (addr == UAEBOARD_IO_INTERFACE + 4)
-				uaeboard_io_state |= 2;
-			if (addr == UAEBOARD_IO_INTERFACE + 6)
-				uaeboard_io_state |= 4;
-			if (uaeboard_io_state == (1 | 2 | 4)) {
-				uae_u32 *m2 = (uae_u32 *)(uaeboard_bank.baseaddr + UAEBOARD_IO_INTERFACE + 4);
-				// size received
-				uaeboard_io_state |= 8;
-				uaeboard_io_size = do_get_mem_long(m2);
-			}
-		}
-		// writing command byte executes it
-		if (addr == uaeboard_mem_use) {
-			w &= 0xffff;
-			if (w != 0xffff && w != 0) {
-				uae_u8 *m2 = uaeboard_bank.baseaddr + addr;
-				put_long_host(m2 + 4, uaeboard_demux((uae_u32*)m2));
-			}
-		}
-	} else if (addr >= 0x2000 && addr <= 0x3000) {
-		uae_u8 *m = uaeboard_bank.baseaddr + addr;
-		put_word_host(m, w);
-	}
-#if EXP_DEBUG
-	write_log(_T("uaeboard_wput %08x = %04x PC=%08x\n"), addr, w, M68K_GETPC);
-#endif
+	if (!uaeboard_write(addr))
+		return;
+	uae_u8 *m = uaeboard_bank.baseaddr + addr;
+	put_word_host(m, w);
 }
 
 static void REGPARAM2 uaeboard_lput(uaecptr addr, uae_u32 l)
 {
-	addr -= uaeboard_start & 65535;
+	addr -= uaeboard_base & 65535;
 	addr &= 65535;
-	if (addr >= 0x200 + 0x20 && addr < 0x200 + 0x24) {
-		mousehack_write(addr - 0x200, l >> 16);
-		mousehack_write(addr - 0x200 + 2, l);
-	} else if (addr >= UAEBOARD_IO_INTERFACE) {
-		uaeboard_wput(addr, l >> 16);
-		uaeboard_wput(addr + 2, l);
-	}
-#if EXP_DEBUG
-	write_log(_T("uaeboard_lput %08x = %08x PC=%08x\n"), addr, l, M68K_GETPC);
-#endif
+	if (!uaeboard_write(addr))
+		return;
+	uaeboard_wput(addr, l >> 16);
+	uaeboard_wput(addr + 2, l);
 }
 
 static void REGPARAM2 uaeboard_bput(uaecptr addr, uae_u32 b)
 {
-	addr -= uaeboard_start & 65535;
+	addr -= uaeboard_base & 65535;
 	addr &= 65535;
-	if (addr == uaeboard_mem_use) {
-		uaeboard_io_size = 0;
-		uaeboard_mem_use = 0;
-		uaeboard_io_state = 0;
-	}
-	if (addr >= UAEBOARD_RAM_OFFSET || (addr >= 0x2000 && addr <= 0x3000)) {
-		uaeboard_bank.baseaddr[addr] = b;
-	}
-#if EXP_DEBUG
-	write_log(_T("uaeboard_bput %x %x\n"), addr, b);
-#endif
+	if (!uaeboard_write(addr))
+		return;
+	uaeboard_bank.baseaddr[addr] = b;
+}
+
+static int REGPARAM2 uaeboard_check(uaecptr addr, uae_u32 size)
+{
+	addr -= uaeboard_base & 65535;
+	addr &= 65535;
+	return (addr + size) <= uaeboard_bank.allocated;
+}
+static uae_u8 *REGPARAM2 uaeboard_xlate(uaecptr addr)
+{
+	addr -= uaeboard_base & 65535;
+	addr &= 65535;
+	return filesys_bank.baseaddr + addr;
 }
 
 static addrbank *expamem_map_uaeboard(void)
 {
-	uaeboard_start = expamem_z2_pointer;
-	map_banks_z2(&uaeboard_bank, uaeboard_start >> 16, 1);
+	uaeboard_base = expamem_z2_pointer;
+	uaeboard_ram_start = UAEBOARD_WRITEOFFSET;
+	map_banks_z2(&uaeboard_bank, uaeboard_base >> 16, 1);
 	if (currprefs.uaeboard > 1)
-		map_banks_z2(&rtarea_bank, (uaeboard_start + 65536) >> 16, 1);
+		map_banks_z2(&rtarea_bank, (uaeboard_base + 65536) >> 16, 1);
 	return &uaeboard_bank;
 }
+
 static addrbank* expamem_init_uaeboard(int devnum)
 {
 	bool ks12 = ks12orolder();
@@ -1319,19 +1279,6 @@ static addrbank* expamem_init_uaeboard(int devnum)
 	}
 
 	memcpy(p, expamem, 0x100);
-
-	p += 0x100;
-
-	p[0] = 0x00;
-	p[1] = 0x00;
-	p[2] = 0x02;
-	p[3] = 0x00;
-
-	p[4] = (uae_u8)(UAEBOARD_IO_INTERFACE >> 24);
-	p[5] = (uae_u8)(UAEBOARD_IO_INTERFACE >> 16);
-	p[6] = (uae_u8)(UAEBOARD_IO_INTERFACE >> 8);
-	p[7] = (uae_u8)(UAEBOARD_IO_INTERFACE >> 0);
-	uaeboard_io_state = 0;
 
 	return NULL;
 }
@@ -2441,12 +2388,10 @@ void expansion_init (void)
 	allocate_expamem ();
 
 #ifdef FILESYS
-	if (currprefs.uaeboard < 2) {
-		filesys_bank.allocated = 0x10000;
-		if (!mapped_malloc (&filesys_bank)) {
-			write_log (_T("virtual memory exhausted (filesysory)!\n"));
-			exit (0);
-		}
+	filesys_bank.allocated = 0x10000;
+	if (!mapped_malloc (&filesys_bank)) {
+		write_log (_T("virtual memory exhausted (filesysory)!\n"));
+		exit (0);
 	}
 #endif
 	if (currprefs.uaeboard) {

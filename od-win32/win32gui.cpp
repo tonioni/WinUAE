@@ -2058,7 +2058,7 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 	}
 	type2 = type;
 	if (type == 0 || type == 3) {
-		default_prefs (p, type);
+		default_prefs (p, true, type);
 		write_log(_T("config reset\n"));
 #if 0
 		if (isdefault == 0) {
@@ -6539,7 +6539,7 @@ static int *getp_da (HWND hDlg)
 	case 6:
 		p = &workprefs.gfx_threebitcolors;
 		vmin = 0;
-		vmax = 2;
+		vmax = 3;
 		da_mode_multiplier = 1;
 		break;
 	}
@@ -18765,7 +18765,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	allow_quit = all_options;
 	pguiprefs = &currprefs;
 	memset (&workprefs, 0, sizeof (struct uae_prefs));
-	default_prefs (&workprefs, 0);
+	default_prefs (&workprefs, false, 0);
 
 	szNone = WIN32GUI_LoadUIString (IDS_NONE);
 	prefs_to_gui (&changed_prefs);
@@ -19047,7 +19047,7 @@ int gui_init (void)
 	int ret;
 
 	read_rom_list ();
-	default_prefs(&workprefs, 0);
+	default_prefs(&workprefs, false, 0);
 	prefs_to_gui(&changed_prefs);
 	inputdevice_updateconfig(NULL, &workprefs);
 	for (;;) {

@@ -489,9 +489,9 @@ void ppc_map_banks(uae_u32 start, uae_u32 size, const TCHAR *name, void *addr, b
 	r.alias = remove ? 0xffffffff : 0;
 	r.memory = addr;
 
-	// Map first half directly, it contains code only.
-	// Second half has dynamic data, it must not be direct mapped.
 	if (r.start == rtarea_base && rtarea_base) {
+		// Map first half directly, it contains code only.
+		// Second half has dynamic data, it must not be direct mapped.
 		r.memory = rtarea_bank.baseaddr;
 		r.size = RTAREA_DATAREGION;
 		ppc_map_region(&r);
@@ -500,6 +500,16 @@ void ppc_map_banks(uae_u32 start, uae_u32 size, const TCHAR *name, void *addr, b
 		r.name = ua(name);
 		r.alias = remove ? 0xffffffff : 0;
 		r.memory = NULL;
+	} else if (r.start == uaeboard_base && uaeboard_base) {
+		// Opposite here, first half indirect, second half direct.
+		r.memory = NULL;
+		r.size = UAEBOARD_DATAREGION_START;
+		ppc_map_region(&r);
+		r.start = start + UAEBOARD_DATAREGION_START;
+		r.size = UAEBOARD_DATAREGION_SIZE;
+		r.name = ua(name);
+		r.alias = remove ? 0xffffffff : 0;
+		r.memory = uaeboard_bank.baseaddr + UAEBOARD_DATAREGION_START;
 	}
 	ppc_map_region(&r);
 }

@@ -1,4 +1,21 @@
 
+Beta 5:
+
+- Game Ports mouse and joystick was always reset to defaults (b4)
+- Dark palette fix adjustment is now calculated before other adjustments (brightness, contrast, gamme)
+- Dark palette fix third option added, pre-converted Atari ST palette increased to full range, 12-bit EEE becomes
+  nearly full white, FCFCFC in 24-bit RGB space. (Not FFFFFF because palette would not be linear anymore)
+
+OS4 UAE expansion updates:
+
+- Directory filesystem random errors fixed.
+- Directory filesystem/CDFS CD on the fly insertion/removal supported! (It wasn't that difficult after all)
+- uaescsi.device supported.
+
+NOTE: Try not to change uaegfx resolution in OS4, it can cause mysterious crashes or side-effects. Fix coming later.
+
+TODO: bsdsocket.library and fixing random hangs.
+
 Beta 4:
 
 - Default game ports config without default.uae (Mouse + keyboard layout A) was not set. (b3)

@@ -66,6 +66,7 @@ extern uae_u16 kickstart_version;
 extern int uae_boot_rom_type;
 extern int uae_boot_rom_size;
 extern uaecptr rtarea_base;
+extern uaecptr uaeboard_base;
 
 extern uae_u8* baseaddr[];
 

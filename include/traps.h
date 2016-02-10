@@ -101,6 +101,9 @@ void trap_reset(void);
 typedef uae_u32 (*TRAP_CALLBACK)(TrapContext*, void*);
 void trap_callback(TRAP_CALLBACK, void*);
 
+void trap_memcpyha_safe(TrapContext *ctx, uaecptr dst, const uae_u8 *src, int size);
+void trap_memcpyah_safe(TrapContext *ctx, uae_u8 *dst, uaecptr src, int size);
+
 TrapContext *alloc_host_main_trap_context(void);
 void free_host_trap_context(TrapContext*);
 

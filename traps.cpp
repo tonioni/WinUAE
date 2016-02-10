@@ -224,7 +224,7 @@ struct TrapContext
 	uaecptr amiga_trap_data;
 	uaecptr amiga_trap_status;
 	/* do not ack automatically */
-	volatile int trap_background;
+	volatile uae_atomic trap_background;
 	volatile bool trap_done;
 	uae_u32 calllib_regs[16];
 	uae_u8 calllib_reg_inuse[16];
@@ -392,9 +392,12 @@ void trap_background_set_complete(TrapContext *ctx)
 		return;
 	if (!ctx || !ctx->trap_background)
 		return;
-	ctx->trap_background--;
+	atomic_dec(&ctx->trap_background);
 	if (!ctx->trap_background) {
-		while (!ctx->trap_done);
+		if (!ctx->trap_done) {
+			write_log(_T("trap_background_set_complete(%d) still waiting!?\n"), ctx->tindex);
+			while (!ctx->trap_done);
+		}
 		hardware_trap_ack(ctx);
 	}
 }
@@ -885,7 +888,7 @@ void trap_set_background(TrapContext *ctx)
 		return;
 	if (!trap_is_indirect())
 		return;
-	ctx->trap_background++;
+	atomic_inc(&ctx->trap_background);
 }
 
 bool trap_valid_address(TrapContext *ctx, uaecptr addr, uae_u32 size)
@@ -1336,5 +1339,22 @@ void trap_multi(TrapContext *ctx, struct trapmd *data, int items)
 				data[md->trapmd_index].params[md->parm_num] = v;
 			}
 		}
+	}
+}
+
+void trap_memcpyha_safe(TrapContext *ctx, uaecptr dst, const uae_u8 *src, int size)
+{
+	if (trap_is_indirect()) {
+		trap_put_bytes(ctx, src, dst, size);
+	} else {
+		memcpyha_safe(dst, src, size);
+	}
+}
+void trap_memcpyah_safe(TrapContext *ctx, uae_u8 *dst, uaecptr src, int size)
+{
+	if (trap_is_indirect()) {
+		trap_get_bytes(ctx, dst, src, size);
+	} else {
+		memcpyah_safe(dst, src, size);
 	}
 }

@@ -651,6 +651,12 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 			got = true;
 			readonly = true;
 			readonlysize = RTAREA_TRAPS;
+		} else if (!_tcscmp(shmids[shmid].name, _T("uaeboard"))) {
+			if (currprefs.uaeboard > 1)
+				shmaddr = natmem_offset + rtarea_base - 65536;
+			else
+				shmaddr = natmem_offset + 0xe90000; // FIXME!
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("fmv_rom"))) {
 			got = true;
 			shmaddr = natmem_offset + 0x200000;
@@ -752,16 +758,6 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 			got = true;
 			if (currprefs.bogomem_size <= 0x100000)
 				size += BARRIER;
-#if 0
-		} else if(!_tcscmp (shmids[shmid].name, _T("filesys"))) {
-			static uae_u8 *filesysptr;
-			if (filesysptr == NULL)
-				filesysptr = xcalloc (uae_u8, size);
-			result = filesysptr;
-			shmids[shmid].attached = result;
-			shmids[shmid].fake = true;
-			return result;
-#endif
 		} else if(!_tcscmp (shmids[shmid].name, _T("custmem1"))) {
 			shmaddr=natmem_offset + currprefs.custom_memory_addrs[0];
 			got = true;

@@ -536,7 +536,13 @@ static void setcursorshape (void)
 
 static void releasecapture (void)
 {
-	//write_log (_T("releasecapture %d\n"), showcursor);
+	//write_log(_T("releasecapture %d\n"), showcursor);
+#if 0
+	CURSORINFO pci;
+	pci.cbSize = sizeof pci;
+	GetCursorInfo(&pci);
+	write_log(_T("PCI %08x %p %d %d\n"), pci.flags, pci.hCursor, pci.ptScreenPos.x, pci.ptScreenPos.y);
+#endif
 	if (!showcursor)
 		return;
 	ClipCursor (NULL);
@@ -679,7 +685,6 @@ static void setmouseactive2 (int active, bool allowpause)
 				showcursor = 1;
 				updatemouseclip ();
 			}
-			showcursor = 1;
 			setcursor (-30000, -30000);
 		}
 		inputdevice_acquire (TRUE);
@@ -1579,6 +1584,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			device_change_timer = 0;
 			KillTimer(hWnd, 4);
 			inputdevice_devicechange (&changed_prefs);
+			inputdevice_copyjports(&changed_prefs, &workprefs);
 		} else if (wParam == 1) {
 #ifdef PARALLEL_PORT
 			finishjob ();

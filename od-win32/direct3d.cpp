@@ -99,6 +99,7 @@ static LPDIRECT3DTEXTURE9 lpPostTempTexture;
 #define SHADER_POST 0
 static struct shaderdata shaders[MAX_SHADERS];
 
+static IDirect3DSurface9 *screenshotsurface;
 static D3DFORMAT tformat;
 static int d3d_enabled, d3d_ex;
 static IDirect3D9 *d3d;
@@ -2168,6 +2169,9 @@ static int restoredeviceobjects (void)
 static void D3D_free2 (void)
 {
 	invalidatedeviceobjects ();
+	if (screenshotsurface)
+		screenshotsurface->Release();
+	screenshotsurface = NULL;
 	if (d3ddev) {
 		d3ddev->Release ();
 		d3ddev = NULL;
@@ -2614,6 +2618,11 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 			hr = d3ddevex->SetMaximumFrameLatency (vsync ? (hzmult < 0 && !ap.gfx_strobo ? 2 : 1) : 0);
 		if (FAILED (hr))
 			write_log (_T("%s: SetMaximumFrameLatency() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+	}
+
+	hr = d3ddev->CreateOffscreenPlainSurface(w_w, w_h, D3DFMT_A8R8G8B8, D3DPOOL_SCRATCH, &screenshotsurface, NULL);
+	if (FAILED(hr)) {
+		write_log(_T("%s: CreateOffscreenPlainSurface failed: %s\n"), D3DHEAD, D3D_ErrorString(hr));
 	}
 
 	return 0;

@@ -1302,6 +1302,7 @@ typedef struct _unit {
 
 	/* Amiga stuff */
 	uaecptr dosbase;
+	/* volume points to our IO board, always 1:1 mapping */
 	uaecptr volume;
 	uaecptr port;	/* Our port */
 	uaecptr locklist;
@@ -1369,20 +1370,22 @@ static uae_u32 a_uniq, key_uniq;
 
 static void readdpacket(TrapContext *ctx, dpacket *packet, uaecptr pck)
 {
+	// Read enough to get also all 64-bit fields
 	packet->packet_addr = pck;
-	trap_get_bytes(ctx, packet->packet_data, pck, 48);
+	trap_get_bytes(ctx, packet->packet_data, pck, dp_Max);
 }
 static void writedpacket(TrapContext *ctx, dpacket *packet)
 {
-	trap_put_bytes(ctx, packet->packet_data, packet->packet_addr, 48);
+	// 32 = saves both 32-bit and 64-bit RESx fields
+	trap_put_bytes(ctx, packet->packet_data + 12, packet->packet_addr + 12, 32 - 12);
 }
 
 static void set_quadp(TrapContext *ctx, uaecptr p, uae_s64 v)
 {
 	if (!trap_valid_address(ctx, p, 8))
 		return;
-	put_long(p, v >> 32);
-	put_long(p + 4, (uae_u64)v);
+	trap_put_long(ctx, p, v >> 32);
+	trap_put_long(ctx, p + 4, (uae_u64)v);
 }
 static uae_u64 get_quadp(TrapContext *ctx, uaecptr p)
 {
@@ -1419,8 +1422,7 @@ static int flush_cache (Unit *unit, int num);
 
 static TCHAR *char1(TrapContext *ctx, uaecptr addr)
 {
-	static uae_char buf[1024];
-	static TCHAR bufx[1024];
+	uae_char buf[1024];
 
 #if TRAPMD
 	trap_get_string(ctx, (uae_u8*)buf, addr, sizeof(buf));
@@ -1431,13 +1433,12 @@ static TCHAR *char1(TrapContext *ctx, uaecptr addr)
 		addr++;
 	} while (buf[i++] && i < sizeof (buf));
 #endif
-	return au_fs_copy (bufx, sizeof (bufx) / sizeof (TCHAR), buf);
+	return au_fs(buf);
 }
 
 static TCHAR *bstr1(TrapContext *ctx, uaecptr addr)
 {
-	static TCHAR bufx[257];
-	static uae_char buf[257];
+	uae_char buf[257];
 	int n = trap_get_byte(ctx, addr);
 
 	addr++;
@@ -1448,7 +1449,7 @@ static TCHAR *bstr1(TrapContext *ctx, uaecptr addr)
 		buf[i] = trap_get_byte(ctx, addr);
 #endif
 	buf[n] = 0;
-	return au_fs_copy (bufx, sizeof (bufx) / sizeof (TCHAR), buf);
+	return au_fs(buf);
 }
 
 static TCHAR *bstr(TrapContext *ctx, Unit *unit, uaecptr addr)
@@ -1469,14 +1470,9 @@ static TCHAR *bstr(TrapContext *ctx, Unit *unit, uaecptr addr)
 }
 static TCHAR *cstr(TrapContext *ctx, Unit *unit, uaecptr addr)
 {
-	int i;
 	uae_char buf[257];
 
-	for (i = 0;;i++,addr++) {
-		buf[i] = trap_get_byte(ctx, addr);
-		if (!buf[i])
-			break;
-	}
+	trap_get_string(ctx, buf, addr, sizeof buf);
 	au_fs_copy (unit->tmpbuf3, sizeof (unit->tmpbuf3) / sizeof (TCHAR), buf);
 	return unit->tmpbuf3;
 }
@@ -1685,14 +1681,20 @@ static uae_s64 key_seek(Key *k, uae_s64 offset, int whence)
 	return fs_lseek64 (k->fd, offset, whence);
 }
 
-static void set_highcyl(TrapContext *ctx, UnitInfo *ui, uae_u32 blocks)
+static void set_highcyl(uaecptr volume, uae_u32 blocks)
 {
-	uaecptr startup = trap_get_long(ctx, ui->devicenode + 7 * 4) << 2;
-	uaecptr env = trap_get_long(ctx, startup + 8) << 2;
-	trap_put_long(ctx, env + 10 * 4, blocks);
+	put_long(volume + 184 - 32, blocks);
+#if 0
+	// FIXME!
+	if (trap_is_indirect())
+		return;
+	uaecptr startup = get_long(ui->devicenode + 7 * 4) << 2;
+	uaecptr env = get_long(startup + 8) << 2;
+	put_long(env + 10 * 4, blocks);
+#endif
 }
 
-static void set_volume_name(TrapContext *ctx, Unit *unit, struct mytimeval *tv)
+static void set_volume_name(Unit *unit, struct mytimeval *tv)
 {
 	int namelen;
 	int i;
@@ -1700,16 +1702,16 @@ static void set_volume_name(TrapContext *ctx, Unit *unit, struct mytimeval *tv)
 
 	s = ua_fs (unit->ui.volname, -1);
 	namelen = strlen (s);
-	trap_put_byte(ctx, unit->volume + 44, namelen);
+	put_byte(unit->volume + 44, namelen);
 	for (i = 0; i < namelen; i++)
-		trap_put_byte(ctx, unit->volume + 45 + i, s[i]);
-	trap_put_byte(ctx, unit->volume + 45 + namelen, 0);
+		put_byte(unit->volume + 45 + i, s[i]);
+	put_byte(unit->volume + 45 + namelen, 0);
 	if (tv && (tv->tv_sec || tv->tv_usec)) {
 		int days, mins, ticks;
 		timeval_to_amiga (tv, &days, &mins, &ticks, 50);
-		trap_put_long(ctx, unit->volume + 16, days);
-		trap_put_long(ctx, unit->volume + 20, mins);
-		trap_put_long(ctx, unit->volume + 24, ticks);
+		put_long(unit->volume + 16, days);
+		put_long(unit->volume + 20, mins);
+		put_long(unit->volume + 24, ticks);
 	}
 	xfree (s);
 	unit->rootnode.aname = unit->ui.volname;
@@ -1717,11 +1719,11 @@ static void set_volume_name(TrapContext *ctx, Unit *unit, struct mytimeval *tv)
 	unit->rootnode.mountcount = unit->mountcount;
 }
 
-static int filesys_isvolume(TrapContext *ctx, Unit *unit)
+static int filesys_isvolume(Unit *unit)
 {
 	if (!unit->volume)
 		return 0;
-	return trap_get_byte(ctx, unit->volume + 44) || unit->ui.unknown_media;
+	return get_byte(unit->volume + 44) || unit->ui.unknown_media;
 }
 
 static void clear_exkeys (Unit *unit)
@@ -1770,21 +1772,6 @@ static void filesys_delayed_change (Unit *u, int frames, const TCHAR *rootdir, c
 		write_log (_T("FILESYS: delayed insert %d: '%s' ('%s')\n"), u->unit, volume ? volume : _T("<none>"), rootdir);
 }
 
-static uae_u32 filesys_eject_cb(TrapContext *ctx, void *ud)
-{
-	UnitInfo *ui = (UnitInfo*)ud;
-	Unit *u = ui->self;
-
-	if (!filesys_isvolume(ctx, u))
-		return 0;
-	u->mount_changed = -1;
-	u->mountcount++;
-	write_log(_T("FILESYS: volume '%s' removal request\n"), u->ui.volname);
-	// -1 = remove, -2 = remove + remove device node
-	trap_put_byte(ctx, u->volume + 172 - 32, ui->unit_type == UNIT_CDFS ? -1 : -2);
-	uae_Signal(trap_get_long(ctx, u->volume + 176 - 32), 1 << 13);
-	return 1;
-}
 int filesys_eject(int nr)
 {
 	UnitInfo *ui = &mountinfo.ui[nr];
@@ -1796,7 +1783,14 @@ int filesys_eject(int nr)
 		return 0;
 	if (!is_virtual (nr))
 		return 0;
-	trap_callback(filesys_eject_cb, ui);
+	if (!filesys_isvolume(u))
+		return 0;
+	u->mount_changed = -1;
+	u->mountcount++;
+	write_log(_T("FILESYS: volume '%s' removal request\n"), u->ui.volname);
+	// -1 = remove, -2 = remove + remove device node
+	put_byte(u->volume + 172 - 32, ui->unit_type == UNIT_CDFS ? -1 : -2);
+	uae_Signal(get_long(u->volume + 176 - 32), 1 << 13);
 	return 1;
 }
 
@@ -1807,8 +1801,6 @@ static int heartbeat_task;
 // This uses filesystem process to reduce resource usage
 void setsystime (void)
 {
-	TrapContext *ctx = NULL;
-
 	if (!currprefs.tod_hack || !rtarea_bank.baseaddr)
 		return;
 	heartbeat = get_long_host(rtarea_bank.baseaddr + RTAREA_HEARTBEAT);
@@ -1822,9 +1814,9 @@ static void setsystime_vblank (void)
 	TrapContext *ctx = NULL;
 
 	for (u = units; u; u = u->next) {
-		if (is_virtual(u->unit) && filesys_isvolume(ctx, u)) {
-			trap_put_byte(ctx, u->volume + 173 - 32, trap_get_byte(ctx, u->volume + 173 - 32) | 1);
-			uae_Signal(trap_get_long(ctx, u->volume + 176 - 32), 1 << 13);
+		if (is_virtual(u->unit) && filesys_isvolume(u)) {
+			put_byte(u->volume + 173 - 32, get_byte(u->volume + 173 - 32) | 1);
+			uae_Signal(get_long(u->volume + 176 - 32), 1 << 13);
 			break;
 		}
 	}
@@ -1859,9 +1851,9 @@ static void debugger_boot(void)
 	TrapContext *ctx = NULL;
 
 	for (u = units; u; u = u->next) {
-		if (is_virtual(u->unit) && filesys_isvolume(ctx, u)) {
-			trap_put_byte(ctx, u->volume + 173 - 32, trap_get_byte(ctx, u->volume + 173 - 32) | 2);
-			uae_Signal(trap_get_long(ctx, u->volume + 176 - 32), 1 << 13);
+		if (is_virtual(u->unit) && filesys_isvolume(u)) {
+			put_byte(u->volume + 173 - 32, get_byte(u->volume + 173 - 32) | 2);
+			uae_Signal(get_long(u->volume + 176 - 32), 1 << 13);
 			break;
 		}
 	}
@@ -1881,7 +1873,7 @@ int filesys_insert (int nr, const TCHAR *volume, const TCHAR *rootdir, bool read
 	if (nr < 0) {
 		for (u = units; u; u = u->next) {
 			if (is_virtual (u->unit)) {
-				if (!filesys_isvolume(ctx, u) && mountinfo.ui[u->unit].canremove)
+				if (!filesys_isvolume(u) && mountinfo.ui[u->unit].canremove)
 					break;
 			}
 		}
@@ -1908,7 +1900,7 @@ int filesys_insert (int nr, const TCHAR *volume, const TCHAR *rootdir, bool read
 		return -1;
 	if (!is_virtual(nr))
 		return 0;
-	if (filesys_isvolume(ctx, u)) {
+	if (filesys_isvolume(u)) {
 		filesys_delayed_change (u, 50, rootdir, volume, readonly, flags);
 		return -1;
 	}
@@ -1921,13 +1913,13 @@ int filesys_insert (int nr, const TCHAR *volume, const TCHAR *rootdir, bool read
 
 	write_log (_T("filesys_insert %d done!\n"), nr);
 
-	trap_put_byte(ctx, u->volume + 172 - 32, -3); // wait for insert
-	uae_Signal (trap_get_long(ctx, u->volume + 176 - 32), 1 << 13);
+	put_byte(u->volume + 172 - 32, -3); // wait for insert
+	uae_Signal (get_long(u->volume + 176 - 32), 1 << 13);
 
 	return 100 + nr;
 }
 
-static uae_u32 filesys_media_change_reply (TrapContext *ctx, int mode)
+static uae_u32 filesys_media_change_reply (int mode)
 {
 	int nr;
 	UnitInfo *ui = NULL;
@@ -1985,7 +1977,7 @@ static uae_u32 filesys_media_change_reply (TrapContext *ctx, int mode)
 				if (!u->ui.cdfs_superblock)
 					return 0;
 				struct isofs_info ii;
-				set_highcyl(ctx, ui, 0);
+				set_highcyl(u->volume, 0);
 				bool r = isofs_mediainfo (ui->cdfs_superblock, &ii);
 				if (r && ii.media) {
 					u->ui.unknown_media = ii.unknown_media;
@@ -1993,7 +1985,7 @@ static uae_u32 filesys_media_change_reply (TrapContext *ctx, int mode)
 						u->ui.volname = ui->volname = my_strdup (ii.volumename);
 						ctime.tv_sec = ii.creation;
 						ctime.tv_usec = 0;
-						set_highcyl(ctx, ui, ii.blocks);
+						set_highcyl(u->volume, ii.blocks);
 #ifdef RETROPLATFORM
 						rp_cd_image_change (ui->cddevno, ii.devname);
 #endif
@@ -2015,7 +2007,7 @@ static uae_u32 filesys_media_change_reply (TrapContext *ctx, int mode)
 				write_log (_T("FILESYS: inserted unreadable volume NR=%d RO=%d\n"), nr, u->mount_readonly);
 			} else {
 				write_log (_T("FILESYS: inserted volume NR=%d RO=%d '%s' ('%s')\n"), nr, u->mount_readonly, ui->volname, u->mount_rootdir);
-				set_volume_name(ctx, u, &ctime);
+				set_volume_name(u, &ctime);
 				if (u->mount_flags >= 0)
 					ui->volflags = u->volflags = u->ui.volflags = u->mount_flags;
 				if (uci != NULL) {
@@ -2027,8 +2019,8 @@ static uae_u32 filesys_media_change_reply (TrapContext *ctx, int mode)
 					if (uci != NULL)
 						uci->ci.readonly = u->mount_readonly;
 				}
-				trap_put_byte(ctx, u->volume + 44, 0);
-				trap_put_byte(ctx, u->volume + 172 - 32, 1);
+				put_byte(u->volume + 44, 0);
+				put_byte(u->volume + 172 - 32, 1);
 			}
 		
 			xfree (u->mount_volume);
@@ -2067,7 +2059,7 @@ int filesys_media_change (const TCHAR *rootdir, int inserted, struct uaedev_conf
 			ui = &mountinfo.ui[u->unit];
 			// inserted == 2: drag&drop insert, do not replace existing normal drives
 			if (inserted < 2 && ui->rootdir && !memcmp (ui->rootdir, rootdir, _tcslen (rootdir)) && _tcslen (rootdir) + 3 >= _tcslen (ui->rootdir)) {
-				if (filesys_isvolume(ctx, u) && inserted) {
+				if (filesys_isvolume(u) && inserted) {
 					if (uci)ctx, 
 						filesys_delayed_change (u, 50, rootdir, uci->ci.volname, uci->ci.readonly, 0);
 					return 0;
@@ -2112,7 +2104,7 @@ int filesys_media_change (const TCHAR *rootdir, int inserted, struct uaedev_conf
 
 		/* new volume inserted and it was previously mounted? */
 		if (nr >= 0) {
-			if (!filesys_isvolume(ctx, u)) /* not going to mount twice */
+			if (!filesys_isvolume(u)) /* not going to mount twice */
 				return filesys_insert(nr, volptr, rootdir, false, -1);
 			return 0;
 		}
@@ -2241,12 +2233,12 @@ bool filesys_do_disk_change (int cdunitnum, bool insert)
 	if (!ui->cd_open)
 		return false;
 	if (insert) {
-		if (filesys_isvolume(ctx, u))
+		if (filesys_isvolume(u))
 			return false;
 		filesys_insert (nr, NULL, _T("/"), true, MYVOLUMEINFO_CDFS | MYVOLUMEINFO_READONLY);
 		return true;
 	} else {
-		if (!filesys_isvolume(ctx, u))
+		if (!filesys_isvolume(u))
 			return false;
 		filesys_eject (nr);
 		return true;
@@ -3064,7 +3056,7 @@ static Unit *startup_create_unit(TrapContext *ctx, UnitInfo *uinfo, int num)
 }
 
 
-static bool mount_cd(TrapContext *ctx, UnitInfo *uinfo, int nr, struct mytimeval *ctime, uae_u64 *uniq)
+static bool mount_cd(UnitInfo *uinfo, int nr, struct mytimeval *ctime, uae_u64 *uniq, uaecptr volume)
 {
 	uinfo->cddevno = nr - cd_unit_offset;
 	if (!sys_command_open (uinfo->cddevno)) {
@@ -3087,7 +3079,7 @@ static bool mount_cd(TrapContext *ctx, UnitInfo *uinfo, int nr, struct mytimeval
 					ctime->tv_sec = ii.creation;
 					ctime->tv_usec = 0;
 				}
-				set_highcyl(ctx, uinfo, ii.totalblocks);
+				set_highcyl(volume, ii.totalblocks);
 #ifdef RETROPLATFORM
 				rp_cd_image_change (uinfo->cddevno, ii.devname);
 #endif
@@ -3104,8 +3096,6 @@ static void *filesys_thread (void *unit_v);
 #endif
 static void filesys_start_thread (UnitInfo *ui, int nr)
 {
-	TrapContext *ctx = NULL;
-
 	ui->unit_pipe = 0;
 	ui->back_pipe = 0;
 	ui->reset_state = FS_STARTUP;
@@ -3117,14 +3107,14 @@ static void filesys_start_thread (UnitInfo *ui, int nr)
 	if (is_virtual (nr)) {
 		ui->unit_pipe = xmalloc (smp_comm_pipe, 1);
 		ui->back_pipe = xmalloc (smp_comm_pipe, 1);
-		init_comm_pipe (ui->unit_pipe, 300, 3);
+		init_comm_pipe (ui->unit_pipe, 400, 3);
 		init_comm_pipe (ui->back_pipe, 100, 1);
 		uae_start_thread (_T("filesys"), filesys_thread, (void *)ui, &ui->tid);
 	}
 #endif
 	if (isrestore ()) {
 		if (ui->unit_type == UNIT_CDFS) {
-			mount_cd(ctx, ui, nr, NULL, &ui->self->rootnode.uniq_external);
+			mount_cd(ui, nr, NULL, &ui->self->rootnode.uniq_external, ui->self->volume);
 		}
 		startup_update_unit (ui->self, ui);
 	}
@@ -3133,6 +3123,17 @@ static void filesys_start_thread (UnitInfo *ui, int nr)
 
 static uae_u32 REGPARAM2 startup_handler(TrapContext *ctx)
 {
+	uae_u32 mode = trap_get_dreg(ctx, 0);
+
+	if (mode == 1) {
+		uaecptr addr = 0;
+		if (currprefs.uaeboard > 1) {
+			// return board ram instead of allocating normal RAM
+			addr = uaeboard_alloc_ram(trap_get_dreg(ctx, 1));
+		}
+		return addr;
+	}
+
 	/* Just got the startup packet. It's in D3. DosBase is in A2,
 	* our allocated volume structure is in A3, A5 is a pointer to
 	* our port. */
@@ -3142,7 +3143,7 @@ static uae_u32 REGPARAM2 startup_handler(TrapContext *ctx)
 	uaecptr arg1 = trap_get_long(ctx, pkt + dp_Arg1);
 	uaecptr arg2 = trap_get_long(ctx, pkt + dp_Arg2);
 	uaecptr arg3 = trap_get_long(ctx, pkt + dp_Arg3);
-	uaecptr devnode;
+	uaecptr devnode, volume;
 	int nr;
 	Unit *unit;
 	UnitInfo *uinfo;
@@ -3176,11 +3177,12 @@ static uae_u32 REGPARAM2 startup_handler(TrapContext *ctx)
 	uinfo = mountinfo.ui + nr;
 	//devnode = arg3 << 2;
 	devnode = uinfo->devicenode;
+	volume = trap_get_areg(ctx, 3) + 32;
 	cdays = 3800 + nr;
 
 	if (uinfo->unit_type == UNIT_CDFS) {
 		ed = ef = 0;
-		if (!mount_cd(ctx, uinfo, nr, &ctime, &uniq)) {
+		if (!mount_cd(uinfo, nr, &ctime, &uniq, volume)) {
 			trap_put_long(ctx, pkt + dp_Res1, DOS_FALSE);
 			trap_put_long(ctx, pkt + dp_Res2, ERROR_DEVICE_NOT_MOUNTED);
 			return 0;
@@ -3214,7 +3216,7 @@ static uae_u32 REGPARAM2 startup_handler(TrapContext *ctx)
 	unit->dosbase = trap_get_areg(ctx, 2);
 
 	/* make new volume */
-	unit->volume = trap_get_areg(ctx, 3) + 32;
+	unit->volume = volume;
 	trap_put_long(ctx, unit->volume + 180 - 32, devnode);
 #ifdef UAE_FILESYS_THREADS
 	unit->locklist = trap_get_areg(ctx, 3) + 8;
@@ -3238,7 +3240,7 @@ static uae_u32 REGPARAM2 startup_handler(TrapContext *ctx)
 	if (!uinfo->wasisempty && !uinfo->unknown_media) {
 		int isvirtual = unit->volflags & (MYVOLUMEINFO_ARCHIVE | MYVOLUMEINFO_CDFS);
 		/* Set volume if non-empty */
-		set_volume_name(ctx, unit, &ctime);
+		set_volume_name(unit, &ctime);
 		if (!isvirtual)
 			fsdb_clean_dir (&unit->rootnode);
 	}
@@ -3272,7 +3274,7 @@ static void	do_info(TrapContext *ctx, Unit *unit, dpacket *packet, uaecptr info,
 	if (unit->volflags & MYVOLUMEINFO_ARCHIVE) {
 		ret = zfile_fs_usage_archive (unit->ui.rootdir, 0, &fsu);
 		fs = true;
-		media = filesys_isvolume(ctx, unit) != 0;
+		media = filesys_isvolume(unit) != 0;
 	} else if (unit->volflags & MYVOLUMEINFO_CDFS) {
 		struct isofs_info ii;
 		ret = isofs_mediainfo (unit->ui.cdfs_superblock, &ii) ? 0 : 1;
@@ -3290,7 +3292,7 @@ static void	do_info(TrapContext *ctx, Unit *unit, dpacket *packet, uaecptr info,
 		if (ret)
 			err = dos_errno ();
 		fs = true;
-		media = filesys_isvolume(ctx, unit) != 0;
+		media = filesys_isvolume(unit) != 0;
 	}
 	if (ret != 0) {
 		PUT_PCK_RES1 (packet, DOS_FALSE);
@@ -3572,7 +3574,7 @@ static void action_add_notify(TrapContext *ctx, Unit *unit, dpacket *packet)
 
 	TRACE((_T("ACTION_ADD_NOTIFY\n")));
 
-	name = my_strdup (char1(ctx, trap_get_long(ctx, nr + 4)));
+	name = char1(ctx, trap_get_long(ctx, nr + 4));
 	flags = trap_get_long(ctx, nr + 12);
 
 	if (!(flags & (NRF_SEND_MESSAGE | NRF_SEND_SIGNAL))) {
@@ -3643,9 +3645,9 @@ static void free_lock(TrapContext *ctx, Unit *unit, uaecptr lock)
 	if (! lock)
 		return;
 
-	uaecptr curlock = trap_get_long(ctx, unit->volume + 28);
+	uaecptr curlock = get_long(unit->volume + 28);
 	if (lock == curlock << 2) {
-		trap_put_long(ctx, unit->volume + 28, trap_get_long(ctx, lock));
+		put_long(unit->volume + 28, trap_get_long(ctx, lock));
 	} else {
 		uaecptr current = curlock;
 		uaecptr next = 0;
@@ -4157,7 +4159,7 @@ static void record_timeout(TrapContext *ctx, Unit *unit)
 				PUT_PCK_RES2 (lr->packet, ERROR_LOCK_TIMEOUT);
 				// mark packet as complete
 				trap_put_long(ctx, lr->msg + 4, 0xfffffffe);
-				uae_Signal (trap_get_long(ctx, unit->volume + 176 - 32), 1 << 13);
+				uae_Signal (get_long(unit->volume + 176 - 32), 1 << 13);
 				if (prev)
 					prev->next = lr->next;
 				else
@@ -4678,9 +4680,9 @@ static uae_u32 REGPARAM2 fsmisc_helper(TrapContext *ctx)
 	case 0:
 	return exall_helper(ctx);
 	case 1:
-	return filesys_media_change_reply (ctx, 0);
+	return filesys_media_change_reply (0);
 	case 2:
-	return filesys_media_change_reply (ctx, 1);
+	return filesys_media_change_reply (1);
 	case 3:
 		uae_u32 t = getlocaltime ();
 		uae_u32 secs = (uae_u32)t - (8 * 365 + 2) * 24 * 60 * 60;
@@ -4790,7 +4792,7 @@ static void populate_directory (Unit *unit, a_inode *base)
 		unit->total_locked_ainos++;
 	}
 	TRACE3((_T("Populating directory, child %s, locked_children %d\n"),
-		base->child->nname, base->locked_children));
+		base->child ? base->child->nname : _T("<NULL>"), base->locked_children));
 	for (;;) {
 		uae_u64 uniq = 0;
 		TCHAR fn[MAX_DPATH];
@@ -5214,7 +5216,7 @@ static void	action_read(TrapContext *ctx, Unit *unit, dpacket *packet)
 		}
 		PUT_PCK_RES1 (packet, actual);
 		size = 0;
-	} else if (!trap_valid_address(ctx, addr, size)) {
+	} else {
 		/* check if filesize < size */
 		uae_s64 filesize, cur;
 
@@ -5251,10 +5253,8 @@ static void	action_read(TrapContext *ctx, Unit *unit, dpacket *packet)
 				PUT_PCK_RES1 (packet, 0);
 				PUT_PCK_RES2 (packet, dos_errno ());
 			} else {
-				int i;
 				PUT_PCK_RES1 (packet, actual);
-				for (i = 0; i < actual; i++)
-					trap_put_byte(ctx, addr + i, buf[i]);
+				trap_put_bytes(ctx, buf, addr, actual);
 				k->file_pos += actual;
 			}
 			xfree (buf);
@@ -5262,14 +5262,21 @@ static void	action_read(TrapContext *ctx, Unit *unit, dpacket *packet)
 			size = 0;
 		}
 	}
+
 	if (size) {
+
+		if (key_seek(k, k->file_pos, SEEK_SET) < 0) {
+			PUT_PCK_RES1(packet, 0);
+			PUT_PCK_RES2(packet, dos_errno());
+			return;
+		}
+
 		if (trap_is_indirect()) {
 
 			uae_u8 buf[RTAREA_TRAP_DATA_EXTRA_SIZE];
 			actual = 0;
-			int sizecnt = size;
-			while (sizecnt > 0) {
-				int toread = sizecnt > RTAREA_TRAP_DATA_EXTRA_SIZE ? RTAREA_TRAP_DATA_EXTRA_SIZE : sizecnt;
+			while (size > 0) {
+				int toread = size > RTAREA_TRAP_DATA_EXTRA_SIZE ? RTAREA_TRAP_DATA_EXTRA_SIZE : size;
 				int read = fs_read(k->fd, buf, toread);
 				if (read < 0) {
 					actual = -1;
@@ -5278,7 +5285,7 @@ static void	action_read(TrapContext *ctx, Unit *unit, dpacket *packet)
 				if (read == 0)
 					break;
 				trap_put_bytes(ctx, buf, addr, read);
-				sizecnt -= read;
+				size -= read;
 				addr += read;
 				actual += read;
 				if (read < toread)
@@ -5289,13 +5296,6 @@ static void	action_read(TrapContext *ctx, Unit *unit, dpacket *packet)
 
 			/* normal fast read */
 			uae_u8 *realpt = get_real_address (addr);
-
-			if (key_seek(k, k->file_pos, SEEK_SET) < 0) {
-				PUT_PCK_RES1 (packet, 0);
-				PUT_PCK_RES2 (packet, dos_errno ());
-				return;
-			}
-
 			actual = fs_read (k->fd, realpt, size);
 
 		}
@@ -5341,10 +5341,18 @@ static void action_write(TrapContext *ctx, Unit *unit, dpacket *packet)
 	}
 
 	if (size == 0) {
+
 		actual = 0;
 		PUT_PCK_RES1 (packet, 0);
 		PUT_PCK_RES2 (packet, 0);
+
 	} else if (trap_valid_address(ctx, addr, size)) {
+
+		if (key_seek(k, k->file_pos, SEEK_SET) < 0) {
+			PUT_PCK_RES1(packet, 0);
+			PUT_PCK_RES2(packet, dos_errno());
+			return;
+		}
 
 		if (trap_is_indirect()) {
 
@@ -5371,13 +5379,6 @@ static void action_write(TrapContext *ctx, Unit *unit, dpacket *packet)
 		} else {
 
 			uae_u8 *realpt = get_real_address (addr);
-
-			if (key_seek(k, k->file_pos, SEEK_SET) < 0) {
-				PUT_PCK_RES1 (packet, 0);
-				PUT_PCK_RES2 (packet, dos_errno ());
-				return;
-			}
-
 			actual = fs_write (k->fd, realpt, size);
 		}
 
@@ -5397,8 +5398,7 @@ static void action_write(TrapContext *ctx, Unit *unit, dpacket *packet)
 			return;
 		}
 
-		for (i = 0; i < size; i++)
-			buf[i] = trap_get_byte(ctx, addr + i);
+		trap_get_bytes(ctx, buf, addr, size);
 
 		actual = fs_write (k->fd, buf, size);
 		xfree (buf);
@@ -6093,7 +6093,7 @@ static void	action_rename_object(TrapContext *ctx, Unit *unit, dpacket *packet)
 
 static void	action_current_volume(TrapContext *ctx, Unit *unit, dpacket *packet)
 {
-	if (filesys_isvolume(ctx, unit))
+	if (filesys_isvolume(unit))
 		PUT_PCK_RES1 (packet, unit->volume >> 2);
 	else
 		PUT_PCK_RES1 (packet, 0);
@@ -6114,7 +6114,7 @@ static void	action_rename_disk(TrapContext *ctx, Unit *unit, dpacket *packet)
 	/* get volume name */
 	xfree (unit->ui.volname);
 	unit->ui.volname = bstr1(ctx, name);
-	set_volume_name(ctx, unit, 0);
+	set_volume_name(unit, 0);
 
 	PUT_PCK_RES1 (packet, DOS_TRUE);
 }
@@ -6553,16 +6553,16 @@ static uae_u32 REGPARAM2 exter_int_helper(TrapContext *ctx)
 			uaecptr msg = trap_get_areg(ctx, 4);
 			unit->cmds_complete = unit->cmds_acked;
 			while (comm_pipe_has_data(unit->ui.back_pipe)) {
-				uaecptr locks, lockend;
+				uaecptr locks, lockend, lockv;
 				int cnt = 0;
 				locks = read_comm_pipe_int_blocking(unit->ui.back_pipe);
 				lockend = locks;
-				while (trap_get_long(ctx, lockend) != 0) {
-					if (trap_get_long(ctx, lockend) == lockend) {
+				while ((lockv = trap_get_long(ctx, lockend)) != 0) {
+					if (lockv == lockend) {
 						write_log(_T("filesystem lock queue corrupted!\n"));
 						break;
 					}
-					lockend = trap_get_long(ctx, lockend);
+					lockend = lockv;
 					cnt++;
 				}
 				TRACE3((_T("message_lock: %d %x %x %x\n"), cnt, locks, lockend, trap_get_areg(ctx, 3)));
@@ -7081,7 +7081,7 @@ static uae_u32 REGPARAM2 filesys_handler(TrapContext *ctx)
 	dpacket packet;
 	readdpacket(ctx, &packet, packet_addr);
 
-	if (! handle_packet(ctx, unit, &packet, 0, filesys_isvolume(ctx, unit))) {
+	if (! handle_packet(ctx, unit, &packet, 0, filesys_isvolume(unit))) {
 error:
 		PUT_PCK_RES1 (&packet, DOS_FALSE);
 		PUT_PCK_RES2 (&packet, ERROR_ACTION_NOT_KNOWN);
@@ -7876,9 +7876,8 @@ static TCHAR *device_dupfix (TrapContext *ctx, uaecptr expbase, TCHAR *devname)
 	return my_strdup (newname);
 }
 
-static const TCHAR *dostypes (uae_u32 dostype)
+static const TCHAR *dostypes(TCHAR *dt, uae_u32 dostype)
 {
-	static TCHAR dt[32];
 	int j;
 
 	j = 0;
@@ -7905,6 +7904,7 @@ static void dump_partinfo (struct hardfiledata *hfd, uae_u8 *pp)
 	int lowcyl, highcyl;
 	uae_u32 block, flags;
 	uae_u8 buf[512];
+	TCHAR dt[32];
 
 	flags = rl (pp + 20);
 	pp[37 + pp[36]] = 0;
@@ -7920,7 +7920,7 @@ static void dump_partinfo (struct hardfiledata *hfd, uae_u8 *pp)
 	highcyl = rl (pp + 40);
 	size = ((uae_u64)blocksize) * surfaces * spt * (highcyl - lowcyl + 1);
 
-	write_log (_T("Partition '%s' Dostype=%08X (%s) Flags: %08X\n"), s[0] ? s : _T("_NULL_"), dostype, dostypes (dostype), flags);
+	write_log (_T("Partition '%s' Dostype=%08X (%s) Flags: %08X\n"), s[0] ? s : _T("_NULL_"), dostype, dostypes (dt, dostype), flags);
 	write_log (_T("BlockSize: %d, Surfaces: %d, SectorsPerBlock %d\n"),
 		blocksize, surfaces, spb);
 	write_log (_T("SectorsPerTrack: %d, Reserved: %d, LowCyl %d, HighCyl %d, Size %dM\n"),
@@ -7934,7 +7934,7 @@ static void dump_partinfo (struct hardfiledata *hfd, uae_u8 *pp)
 	} else {
 		block = lowcyl * surfaces * spt;
 		if (hdf_read (hfd, buf, (uae_u64)blocksize * block, sizeof buf)) {
-			write_log (_T("First block %d dostype: %08X (%s)\n"), block, rl (buf), dostypes (rl (buf)));
+			write_log (_T("First block %d dostype: %08X (%s)\n"), block, rl (buf), dostypes (dt, rl (buf)));
 		} else {
 			write_log (_T("First block %d read failed!\n"), block);
 		}
@@ -7965,6 +7965,8 @@ static void dumprdbblock(const uae_u8 *buf, int block)
 
 static void dump_rdb (UnitInfo *uip, struct hardfiledata *hfd, uae_u8 *bufrdb, uae_u8 *buf, int readblocksize)
 {
+	TCHAR dt[32];
+
 	write_log (_T("RDB: HostID: %08x Flags: %08x\n"),
 		rl (bufrdb + 3 * 4), rl (bufrdb + 5 * 4));
 	write_log (_T("RDB: BL: %d BH: %d LC: %d HC: %d CB: %d HB: %d\n"),
@@ -8016,7 +8018,7 @@ static void dump_rdb (UnitInfo *uip, struct hardfiledata *hfd, uae_u8 *bufrdb, u
 		uae_u32 dostype = rl (buf + 32);
 		int version = (buf[36] << 8) | buf[37];
 		int revision = (buf[38] << 8) | buf[39];
-		write_log (_T("LSEG: %08x (%s) %d.%d\n"), dostype, dostypes (dostype), version, revision);
+		write_log (_T("LSEG: %08x (%s) %d.%d\n"), dostype, dostypes (dt, dostype), version, revision);
 	}
 }
 
@@ -8025,6 +8027,7 @@ static void dump_rdb (UnitInfo *uip, struct hardfiledata *hfd, uae_u8 *bufrdb, u
 static int rdb_mount (TrapContext *ctx, UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacket)
 {
 	int lastblock = 63, blocksize, readblocksize, badblock, driveinitblock;
+	TCHAR dt[32];
 	uae_u8 bufrdb[FILESYS_MAX_BLOCKSIZE], *buf = 0;
 	uae_u8 *fsmem = 0;
 	int rdblock, partblock, fileblock, lsegblock, i;
@@ -8202,7 +8205,7 @@ static int rdb_mount (TrapContext *ctx, UnitInfo *uip, int unit_no, int partnum,
 	for (;;) {
 		if (fileblock == -1) {
 			if (!fsnode)
-				write_log (_T("RDB: FS %08X (%s) not in FileSystem.resource or in RDB\n"), dostype, dostypes (dostype));
+				write_log (_T("RDB: FS %08X (%s) not in FileSystem.resource or in RDB\n"), dostype, dostypes (dt, dostype));
 			goto error;
 		}
 		if (!legalrdbblock (uip, fileblock)) {
@@ -8224,9 +8227,9 @@ static int rdb_mount (TrapContext *ctx, UnitInfo *uip, int unit_no, int partnum,
 	newversion = (buf[36] << 8) | buf[37];
 	newrevision = (buf[38] << 8) | buf[39];
 
-	write_log (_T("RDB: RDB filesystem %08X (%s) version %d.%d\n"), dostype, dostypes (dostype), newversion, newrevision);
+	write_log (_T("RDB: RDB filesystem %08X (%s) version %d.%d\n"), dostype, dostypes (dt, dostype), newversion, newrevision);
 	if (fsnode) {
-		write_log (_T("RDB: %08X (%s) in FileSystem.resource version %d.%d\n"), dostype, dostypes (dostype), oldversion, oldrevision);
+		write_log (_T("RDB: %08X (%s) in FileSystem.resource version %d.%d\n"), dostype, dostypes (dt, dostype), oldversion, oldrevision);
 	}
 	if (newversion * 65536 + newrevision <= oldversion * 65536 + oldrevision && oldversion >= 0) {
 		write_log (_T("RDB: FS in FileSystem.resource is newer or same, ignoring RDB filesystem\n"));
@@ -8323,6 +8326,7 @@ static int dofakefilesys (TrapContext *ctx, UnitInfo *uip, uaecptr parmpacket, s
 {
 	int i, size;
 	TCHAR tmp[MAX_DPATH];
+	TCHAR dt[32];
 	uae_u8 buf[512];
 	struct zfile *zf;
 	int ver = -1, rev = -1;
@@ -8370,14 +8374,14 @@ static int dofakefilesys (TrapContext *ctx, UnitInfo *uip, uaecptr parmpacket, s
 		autofs = true;
 	}
 	if (tmp[0] == 0) {
-		write_log (_T("RDB: no filesystem for dostype 0x%08X (%s)\n"), dostype, dostypes (dostype));
+		write_log (_T("RDB: no filesystem for dostype 0x%08X (%s)\n"), dostype, dostypes (dt, dostype));
 		addfakefilesys(ctx, parmpacket, dostype, ver, rev, ci);
 		if ((dostype & 0xffffff00) == 0x444f5300)
 			return FILESYS_HARDFILE;
 		write_log (_T("RDB: mounted without filesys\n"));
 		return FILESYS_HARDFILE;
 	}
-	write_log (_T("RDB: fakefilesys, trying to load '%s', dostype 0x%08X (%s)\n"), tmp, dostype, dostypes (dostype));
+	write_log (_T("RDB: fakefilesys, trying to load '%s', dostype 0x%08X (%s)\n"), tmp, dostype, dostypes (dt, dostype));
 	zf = zfile_fopen (tmp, _T("rb"), ZFD_NORMAL);
 	if (!zf) {
 		addfakefilesys(ctx, parmpacket, dostype, ver, rev, ci);
@@ -8395,7 +8399,7 @@ static int dofakefilesys (TrapContext *ctx, UnitInfo *uip, uaecptr parmpacket, s
 		if (fsdostype == dostype) {
 			oldversion = trap_get_word(ctx, fsnode + 18);
 			oldrevision = trap_get_word(ctx, fsnode + 20);
-			write_log (_T("RDB: %08X (%s) in FileSystem.resource version %d.%d\n"), dostype, dostypes (dostype), oldversion, oldrevision);
+			write_log (_T("RDB: %08X (%s) in FileSystem.resource version %d.%d\n"), dostype, dostypes(dt, dostype), oldversion, oldrevision);
 			break;
 		}
 		fsnode = trap_get_long(ctx, fsnode);
@@ -8460,7 +8464,7 @@ static int dofakefilesys (TrapContext *ctx, UnitInfo *uip, uaecptr parmpacket, s
 	trap_put_long(ctx, parmpacket + PP_FSSIZE, uip->rdb_filesyssize);
 	trap_put_long(ctx, parmpacket + PP_ADDTOFSRES, oldversion < 0 ? -1 : 0);
 	addfakefilesys(ctx, parmpacket, dostype, ver, rev, ci);
-	write_log (_T("RDB: faked RDB filesystem %08X (%s %d.%d) loaded. ADD2FS=%d\n"), dostype, dostypes (dostype), ver, rev, oldversion < 0 ? 1 : 0);
+	write_log (_T("RDB: faked RDB filesystem %08X (%s %d.%d) loaded. ADD2FS=%d\n"), dostype, dostypes (dt, dostype), ver, rev, oldversion < 0 ? 1 : 0);
 	return FILESYS_HARDFILE;
 }
 
