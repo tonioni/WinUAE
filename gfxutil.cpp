@@ -136,8 +136,7 @@ static int lf, hf;
 
 static void video_calc_gammatable (void)
 {
-	float bri, con, gam, gams[3], v;
-	uae_u32 vi;
+	float bri, con, gam, gams[3];
 
 	bri = ((float)(currprefs.gfx_luminance)) * (128.0f / 1000.0f);
 	con = ((float)(currprefs.gfx_contrast + 1000)) / 1000.0f;
@@ -151,23 +150,27 @@ static void video_calc_gammatable (void)
 
 	for (int i = 0; i < (256 * 3); i++) {
 		for (int j = 0; j < 3; j++) {
-			v = video_gamma((float)(i - 256), gams[j], bri, con);
-
-			vi = (uae_u32)v;
-
-			if (currprefs.gfx_luminance == 0 && currprefs.gfx_contrast == 0 && currprefs.gfx_gamma == 0)
-				vi = i & 0xff;
+			int val = i - 256;
+			float v;
 
 			if (currprefs.gfx_threebitcolors == 1) {
-				vi *= 2;
+				val *= 2;
 			} else if (currprefs.gfx_threebitcolors == 2) {
-				vi = (vi + (vi & 7)) * 2;
+				val = (val + (val & 7)) * 2;
 			}
 
-			if (vi > 255)
-				vi = 255;
+			if (currprefs.gfx_luminance == 0 && currprefs.gfx_contrast == 0 && currprefs.gfx_gamma == 0) {
+				v = val;
+			} else {
+				v = video_gamma(val, gams[j], bri, con);
+			}
 
-			gamma[i][j] = vi;
+			if (v < 0.0)
+				v = 0.0;
+			if (v > 255.0)
+				v = 255.0;
+
+			gamma[i][j] = (uae_u32)v;
 		}
 	}
 }
