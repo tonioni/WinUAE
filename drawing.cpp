@@ -259,8 +259,7 @@ static bool ecs_genlock_features_active;
 static uae_u8 ecs_genlock_features_mask;
 static bool ecs_genlock_features_colorkey;
 
-bool picasso_requested_on;
-bool picasso_on;
+bool picasso_requested_on, picasso_requested_forced_on, picasso_on;
 
 uae_sem_t gui_sem;
 int inhibit_frame;
@@ -3816,9 +3815,10 @@ static void check_picasso (void)
 		picasso_refresh ();
 	picasso_redraw_necessary = 0;
 
-	if (picasso_requested_on == picasso_on)
+	if (picasso_requested_on == picasso_on && !picasso_requested_forced_on)
 		return;
 
+	picasso_requested_forced_on = false;
 	picasso_on = picasso_requested_on;
 
 	if (!picasso_on)
