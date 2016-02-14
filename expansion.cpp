@@ -1116,12 +1116,29 @@ uae_u32 uaeboard_base; /* Determined by the OS */
 static uae_u32 uaeboard_ram_start;
 #define UAEBOARD_WRITEOFFSET 0x4000
 
+uae_u8 *uaeboard_map_ram(uaecptr p)
+{
+	if (currprefs.uaeboard > 1) {
+		p -= uaeboard_base;
+		return uaeboard_bank.baseaddr + p;
+	} else {
+		p -= filesys_start;
+		return filesys_bank.baseaddr + p;
+	}
+}
+
 uaecptr uaeboard_alloc_ram(uae_u32 size)
 {
+	uaecptr p;
 	size += 7;
 	size &= ~7;
-	uaecptr p = uaeboard_ram_start + uaeboard_base;
-	memset(uaeboard_bank.baseaddr + uaeboard_ram_start, 0, size);
+	if (currprefs.uaeboard > 1) {
+		p = uaeboard_ram_start + uaeboard_base;
+		memset(uaeboard_bank.baseaddr + uaeboard_ram_start, 0, size);
+	} else {
+		p = uaeboard_ram_start + filesys_start;
+		memset(filesys_bank.baseaddr + uaeboard_ram_start, 0, size);
+	}
 	uaeboard_ram_start += size;
 	return p;
 }
@@ -1517,6 +1534,7 @@ static addrbank *expamem_map_filesys (void)
 		regs.halted = -2;
 	}
 
+	uaeboard_ram_start = UAEBOARD_WRITEOFFSET;
 	filesys_start = expamem_z2_pointer;
 	map_banks_z2(&filesys_bank, filesys_start >> 16, 1);
 	expamem_map_filesys_update();
