@@ -330,11 +330,19 @@ static int openfail (TrapContext *ctx, uaecptr ioreq, int error)
 }
 
 static uaecptr uaenet_worker;
+static int uaenet_signal_state;
+
+static void uaenet_signal_done(int cmd)
+{
+	uaenet_signal_state = 1;
+}
 
 static void uaenet_int(void)
 {
-	if (uaenet_worker)
-		uae_Signal(uaenet_worker, 0x100);
+	if (uaenet_worker && uaenet_signal_state) {
+		uaenet_signal_state = 0;
+		uae_Signal_with_Func(uaenet_worker, 0x100, uaenet_signal_done);
+	}
 }
 
 static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx);
@@ -1886,6 +1894,7 @@ void netdev_start_threads (void)
 
 void netdev_reset (void)
 {
+	uaenet_signal_state = 1;
 	if (!currprefs.sana2)
 		return;
 	dev_reset ();
