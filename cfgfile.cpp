@@ -36,6 +36,7 @@
 #include "gfxboard.h"
 #include "cpuboard.h"
 #include "luascript.h"
+#include "native2amiga_api.h"
 
 #define cfgfile_warning write_log
 #define cfgfile_warning_obsolete write_log
@@ -5874,7 +5875,9 @@ uae_u32 cfgfile_modify (uae_u32 index, const TCHAR *parms, uae_u32 size, TCHAR *
 
 	for (i = 0; i < argv; i++) {
 		if (i + 2 <= argv) {
-			if (!_tcsicmp (argc[i], _T("dbg"))) {
+			if (!_tcsicmp (argc[i], _T("shellexec"))) {
+				uae_ShellExecute(argc[i + 1]);
+			} else if (!_tcsicmp (argc[i], _T("dbg"))) {
 				debug_parser (argc[i + 1], out, outsize);
 			} else if (!inputdevice_uaelib (argc[i], argc[i + 1])) {
 				if (!cfgfile_parse_uaelib_option (&changed_prefs, argc[i], argc[i + 1], 0)) {

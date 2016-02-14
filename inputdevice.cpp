@@ -58,6 +58,7 @@
 #endif
 #include "tabletlibrary.h"
 #include "statusline.h"
+#include "native2amiga_api.h"
 
 #if SIZEOF_TCHAR != 1
 /* FIXME: replace strcasecmp with _tcsicmp in source code instead */
@@ -3436,8 +3437,10 @@ static int handle_custom_event (const TCHAR *custom)
 			config_changed = 0;
 		} else if (!_tcsicmp (p, _T("do_config_check"))) {
 			set_config_changed ();
-		} else if (!_tcsnicmp (p, _T("dbg "), 4)) {
-			debug_parser (p + 4, NULL, -1);
+		} else if (!_tcsnicmp(p, _T("shellexec "), 10)) {
+			uae_ShellExecute(p + 10);
+		} else if (!_tcsnicmp(p, _T("dbg "), 4)) {
+			debug_parser(p + 4, NULL, -1);
 		} else if (!_tcsnicmp (p, _T("kbr "), 4)) {
 			inject_events (p + 4);
 		} else if (!_tcsnicmp (p, _T("evt "), 4)) {
@@ -6716,7 +6719,7 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 	matchdevices (&idev[IDTYPE_JOYSTICK], joysticks);
 	matchdevices (&idev[IDTYPE_KEYBOARD], keyboards);
 
-	// find which one was remove or inserted
+	// find out which one was removed or inserted
 	for (int j = 0; j <= IDTYPE_KEYBOARD; j++) {
 		struct inputdevice_functions *inf = &idev[j];
 		int num = inf->get_num();
@@ -6730,8 +6733,6 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 					TCHAR *un = inf->get_uniquename(k);
 					TCHAR *fn = inf->get_friendlyname(k);
 					if (!_tcscmp(fn2, fn) && !_tcscmp(un2, un)) {
-						xfree(fn2);
-						xfree(un2);
 						devcfg[i][j].name[0] = 0;
 						devcfg[i][j].configname[0] = 0;
 						df[k] = true;
@@ -8320,6 +8321,7 @@ static void inputdevice_get_previous_joy(struct uae_prefs *p, int portnum)
 {
 	bool found = false;
 	int idx = 0;
+	struct jport *jpx = &p->jports[portnum];
 	for (;;) {
 		struct jport *jp = inputdevice_get_used_device(portnum, idx);
 		if (!jp)
@@ -8329,10 +8331,12 @@ static void inputdevice_get_previous_joy(struct uae_prefs *p, int portnum)
 			if (!found && jp->id == -2)
 				found = inputdevice_joyport_config(p, jp->idc.name, NULL, portnum, jp->mode, 1, true) != 0;
 		} else if (jp->id < JSEM_JOYS && jp->id >= 0) {
-			p->jports[portnum].id = jp->id;
+			jpx->id = jp->id;
 			found = true;
 		}
 		if (found) {
+			jpx->mode = jp->mode;
+			jpx->autofire = jp->autofire;
 			inputdevice_set_newest_used_device(portnum, jp);
 			break;
 		}

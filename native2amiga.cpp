@@ -30,7 +30,7 @@ static uae_sem_t n2asem;
 
 void native2amiga_install (void)
 {
-	init_comm_pipe (&native2amiga_pending, 100, 2);
+	init_comm_pipe (&native2amiga_pending, 300, 2);
 	uae_sem_init (&n2asem, 0, 1);
 }
 
@@ -56,52 +56,83 @@ int native2amiga_isfree (void)
 
 #ifdef SUPPORT_THREADS
 
+void uae_nativesem_wait(void)
+{
+	uae_sem_wait(&n2asem);
+}
+void uae_nativesem_post(void)
+{
+	uae_sem_post(&n2asem);
+}
+
 void uae_Cause (uaecptr interrupt)
 {
-	uae_sem_wait (&n2asem);
+	uae_nativesem_wait();
 	write_comm_pipe_int (&native2amiga_pending, 3, 0);
 	write_comm_pipe_u32 (&native2amiga_pending, interrupt, 1);
 	do_uae_int_requested ();
-	uae_sem_post (&n2asem);
+	uae_nativesem_post();
 }
 
 void uae_ReplyMsg (uaecptr msg)
 {
-	uae_sem_wait (&n2asem);
+	uae_nativesem_wait();
 	write_comm_pipe_int (&native2amiga_pending, 2, 0);
 	write_comm_pipe_u32 (&native2amiga_pending, msg, 1);
 	do_uae_int_requested ();
-	uae_sem_post (&n2asem);
+	uae_nativesem_post();
 }
 
 void uae_PutMsg (uaecptr port, uaecptr msg)
 {
-	uae_sem_wait (&n2asem);
+	uae_nativesem_wait();
 	write_comm_pipe_int (&native2amiga_pending, 1, 0);
 	write_comm_pipe_u32 (&native2amiga_pending, port, 0);
 	write_comm_pipe_u32 (&native2amiga_pending, msg, 1);
 	do_uae_int_requested ();
-	uae_sem_post (&n2asem);
+	uae_nativesem_post();
 }
 
 void uae_Signal (uaecptr task, uae_u32 mask)
 {
-	uae_sem_wait (&n2asem);
+	uae_nativesem_wait();
 	write_comm_pipe_int (&native2amiga_pending, 0, 0);
 	write_comm_pipe_u32 (&native2amiga_pending, task, 0);
 	write_comm_pipe_int (&native2amiga_pending, mask, 1);
 	do_uae_int_requested ();
-	uae_sem_post (&n2asem);
+	uae_nativesem_post();
 }
+
+void uae_Signal_with_Func(uaecptr task, uae_u32 mask, UAE_PROCESSED state)
+{
+	uae_nativesem_wait();
+	write_comm_pipe_int(&native2amiga_pending, 0 | 0x80, 0);
+	write_comm_pipe_pvoid(&native2amiga_pending, state, 0);
+	write_comm_pipe_u32(&native2amiga_pending, task, 0);
+	write_comm_pipe_int(&native2amiga_pending, mask, 1);
+	do_uae_int_requested();
+	uae_nativesem_post();
+}
+
 
 void uae_NotificationHack (uaecptr port, uaecptr nr)
 {
-	uae_sem_wait (&n2asem);
+	uae_nativesem_wait();
 	write_comm_pipe_int (&native2amiga_pending, 4, 0);
 	write_comm_pipe_int (&native2amiga_pending, port, 0);
 	write_comm_pipe_int (&native2amiga_pending, nr, 1);
 	do_uae_int_requested ();
-	uae_sem_post (&n2asem);
+	uae_nativesem_post();
+}
+
+void uae_ShellExecute(TCHAR *command)
+{
+	TCHAR *cmd = my_strdup(command);
+	uae_nativesem_wait();
+	write_comm_pipe_int(&native2amiga_pending, 5, 0);
+	write_comm_pipe_pvoid(&native2amiga_pending, cmd, 1);
+	do_uae_int_requested();
+	uae_nativesem_post();
 }
 
 #endif

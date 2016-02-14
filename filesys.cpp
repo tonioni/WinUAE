@@ -95,8 +95,6 @@ int log_filesys = 0;
 
 #define UNIT_LED(unit) ((unit)->ui.unit_type == UNIT_CDFS ? LED_CD : LED_HD)
 
-static uae_sem_t test_sem;
-
 static int bootrom_header;
 
 static uae_u32 dlg (uae_u32 a)
@@ -139,6 +137,7 @@ static uaecptr bootrom_start;
 static uae_u32 fsdevname, fshandlername, filesys_configdev;
 static uae_u32 cdfs_devname, cdfs_handlername;
 static uaecptr afterdos_name, afterdos_id, afterdos_initcode;
+static uaecptr shell_execute_data, shell_execute_process;
 static int filesys_in_interrupt;
 static uae_u32 mountertask;
 static int automountunit = -1;
@@ -148,6 +147,7 @@ static uaecptr ROM_filesys_doio, ROM_filesys_doio_original;
 static uaecptr ROM_filesys_putmsg, ROM_filesys_putmsg_original;
 static uaecptr ROM_filesys_putmsg_return;
 static uaecptr ROM_filesys_hack_remove;
+static smp_comm_pipe shellexecute_pipe;
 
 #define FS_STARTUP 0
 #define FS_GO_DOWN 1
@@ -5323,7 +5323,6 @@ static void action_write(TrapContext *ctx, Unit *unit, dpacket *packet)
 	uae_u32 size = GET_PCK_ARG3 (packet);
 	uae_u32 actual;
 	uae_u8 *buf;
-	int i;
 
 	if (k == 0) {
 		PUT_PCK_RES1 (packet, DOS_FALSE);
@@ -6529,8 +6528,7 @@ static void action_free_record64(TrapContext *ctx, Unit *unit, dpacket *packet)
 * know whether AmigaOS takes care of that, but this does. */
 static uae_sem_t singlethread_int_sem;
 
-#if 1
-
+#define SHELLEXEC_MAX_CMD_LEN 512
 
 static uae_u32 REGPARAM2 exter_int_helper(TrapContext *ctx)
 {
@@ -6538,6 +6536,39 @@ static uae_u32 REGPARAM2 exter_int_helper(TrapContext *ctx)
 	uaecptr port;
 	int n = trap_get_dreg(ctx, 0);
 	static int unit_no;
+
+	if (n == 20) {
+		// d1 = shellexec process
+		shell_execute_process = trap_get_dreg(ctx, 1);
+		return 0;
+	} else if (n == 21) {
+		trap_set_areg(ctx, 0, 0);
+		if (comm_pipe_has_data(&shellexecute_pipe)) {
+			TCHAR *p = (TCHAR*)read_comm_pipe_pvoid_blocking(&shellexecute_pipe);
+			if (p) {
+				int maxsize = SHELLEXEC_MAX_CMD_LEN - 1;
+				if (shell_execute_data) {
+					uae_char *src = ua(p);
+					uae_u8 *dst = uaeboard_map_ram(shell_execute_data);
+					uae_char *srcp = src;
+					while (maxsize-- > 0) {
+						uae_u8 v = *srcp++;
+						*dst++ = v;
+						if (!v)
+							break;
+					}
+					*dst = 0;
+					xfree(src);
+				}
+				trap_set_areg(ctx, 0, shell_execute_data);
+			}
+			xfree(p);
+		}
+		return 0;
+	} else if (n == 22) {
+		// ack
+		return 0;
+	}
 
 	if (n == 1) {
 		/* Release a message_lock. This is called as soon as the message is
@@ -6599,6 +6630,12 @@ static uae_u32 REGPARAM2 exter_int_helper(TrapContext *ctx)
 		/* First, check signals/messages */
 		while (comm_pipe_has_data(&native2amiga_pending)) {
 			int cmd = read_comm_pipe_int_blocking(&native2amiga_pending);
+			if (cmd & 0x80) {
+				cmd &= ~0x80;
+				// tell the sender that message was processed
+				UAE_PROCESSED func = (UAE_PROCESSED)read_comm_pipe_pvoid_blocking(&native2amiga_pending);
+				func(cmd);
+			}
 			switch (cmd) {
 				case 0: /* Signal() */
 				trap_set_areg(ctx, 1, read_comm_pipe_u32_blocking(&native2amiga_pending));
@@ -6623,10 +6660,19 @@ static uae_u32 REGPARAM2 exter_int_helper(TrapContext *ctx)
 				trap_set_areg(ctx, 1, read_comm_pipe_u32_blocking(&native2amiga_pending));
 				return 5;
 
-				case 5: /* CallLib() */
+				case 5: /* shell execute */
 				{
-					int num = read_comm_pipe_u32_blocking(&native2amiga_pending);
-					return 6;
+					TCHAR *p = (TCHAR*)read_comm_pipe_pvoid_blocking(&native2amiga_pending);
+					write_comm_pipe_pvoid(&shellexecute_pipe, p, 0);
+					if (shell_execute_data) {
+						if (!shell_execute_process)
+							break;
+						trap_set_areg(ctx, 1, shell_execute_process - 92);
+						trap_set_dreg(ctx, 1, 1 << 13);
+						return 2; // signal process
+					}
+					shell_execute_data = uaeboard_alloc_ram(SHELLEXEC_MAX_CMD_LEN);
+					return 6; // create process
 				}
 
 				default:
@@ -6667,152 +6713,6 @@ end:
 	}
 	return 0;
 }
-
-#else
-
-static uae_u32 REGPARAM2 exter_int_helper(TrapContext *ctx)
-{
-	UnitInfo *uip = mountinfo.ui;
-	uaecptr port;
-	int n = trap_get_dreg (ctx, 0);
-	static int unit_no;
-
-	switch (n) {
-	case 0:
-		/* Determine whether a given EXTER interrupt is for us. */
-		if (uae_int_requested & 1) {
-			if (uae_sem_trywait (&singlethread_int_sem) != 0)
-				/* Pretend it isn't for us. We might get it again later. */
-				return 0;
-			/* Clear the interrupt flag _before_ we do any processing.
-			* That way, we can get too many interrupts, but never not
-			* enough. */
-			filesys_in_interrupt++;
-			atomic_and(&uae_int_requested, ~1);
-			unit_no = 0;
-			return 1;
-		}
-		return 0;
-	case 1:
-		/* Release a message_lock. This is called as soon as the message is
-		* received by the assembly code. We use the opportunity to check
-		* whether we have some locks that we can give back to the assembler
-		* code.
-		* Note that this is called from the main loop, unlike the other cases
-		* in this switch statement which are called from the interrupt handler.
-		*/
-#ifdef UAE_FILESYS_THREADS
-		{
-			Unit *unit = find_unit (trap_get_areg (ctx, 5));
-			uaecptr msg = trap_get_areg (ctx, 4);
-			unit->cmds_complete = unit->cmds_acked;
-			while (comm_pipe_has_data (unit->ui.back_pipe)) {
-				uaecptr locks, lockend;
-				int cnt = 0;
-				locks = read_comm_pipe_int_blocking (unit->ui.back_pipe);
-				lockend = locks;
-				while (trap_get_long(ctx, lockend) != 0) {
-					if (trap_get_long(ctx, lockend) == lockend) {
-						write_log (_T("filesystem lock queue corrupted!\n"));
-						break;
-					}
-					lockend = trap_get_long(ctx, lockend);
-					cnt++;
-				}
-				TRACE3((_T("message_lock: %d %x %x %x\n"), cnt, locks, lockend, trap_get_areg (ctx, 3)));
-				trap_put_long(ctx, lockend, trap_get_long(ctx, trap_get_areg (ctx, 3)));
-				trap_put_long(ctx, trap_get_areg (ctx, 3), locks);
-			}
-		}
-#else
-		write_log (_T("exter_int_helper should not be called with arg 1!\n"));
-#endif
-		break;
-	case 2:
-		/* Find work that needs to be done:
-		* return d0 = 0: none
-		*        d0 = 1: PutMsg(), port in a0, message in a1
-		*        d0 = 2: Signal(), task in a1, signal set in d1
-		*        d0 = 3: ReplyMsg(), message in a1
-		*        d0 = 4: Cause(), interrupt in a1
-		*        d0 = 5: Send FileNofication message, port in a0, notifystruct in a1
-		*/
-
-#ifdef SUPPORT_THREADS
-		/* First, check signals/messages */
-		while (comm_pipe_has_data (&native2amiga_pending)) {
-			int cmd = read_comm_pipe_int_blocking (&native2amiga_pending);
-			switch (cmd) {
-			case 0: /* Signal() */
-				trap_set_areg(ctx, 1, read_comm_pipe_u32_blocking (&native2amiga_pending));
-				trap_set_dreg(ctx, 1, read_comm_pipe_u32_blocking (&native2amiga_pending));
-				return 2;
-
-			case 1: /* PutMsg() */
-				trap_set_areg(ctx, 0, read_comm_pipe_u32_blocking(&native2amiga_pending));
-				trap_set_areg(ctx, 1, read_comm_pipe_u32_blocking(&native2amiga_pending));
-				return 1;
-
-			case 2: /* ReplyMsg() */
-				trap_set_areg(ctx, 1, read_comm_pipe_u32_blocking(&native2amiga_pending));
-				return 3;
-
-			case 3: /* Cause() */
-				trap_set_areg(ctx, 1, read_comm_pipe_u32_blocking(&native2amiga_pending));
-				return 4;
-
-			case 4: /* NotifyHack() */
-				trap_set_areg(ctx, 0, read_comm_pipe_u32_blocking(&native2amiga_pending));
-				trap_set_areg(ctx, 1, read_comm_pipe_u32_blocking(&native2amiga_pending));
-				return 5;
-
-			default:
-				write_log (_T("exter_int_helper: unknown native action %X\n"), cmd);
-				break;
-			}
-		}
-#endif
-
-		/* Find some unit that needs a message sent, and return its port,
-		* or zero if all are done.
-		* Take care not to dereference self for units that didn't have their
-		* startup packet sent. */
-		for (;;) {
-			if (unit_no >= MAX_FILESYSTEM_UNITS)
-				return 0;
-
-			if (uip[unit_no].open > 0 && uip[unit_no].self != 0
-				&& uip[unit_no].self->cmds_acked == uip[unit_no].self->cmds_complete
-				&& uip[unit_no].self->cmds_acked != uip[unit_no].self->cmds_sent)
-				break;
-			unit_no++;
-		}
-		uip[unit_no].self->cmds_acked = uip[unit_no].self->cmds_sent;
-		port = uip[unit_no].self->port;
-		if (port) {
-			trap_set_areg (ctx, 0, port);
-			trap_set_areg (ctx, 1, find_unit (port)->dummy_message);
-			unit_no++;
-			return 1;
-		}
-		break;
-	case 3:
-		uae_sem_wait (&singlethread_int_sem);
-		break;
-	case 4:
-		/* Exit the interrupt, and release the single-threading lock. */
-		filesys_in_interrupt--;
-		uae_sem_post (&singlethread_int_sem);
-		break;
-
-	default:
-		write_log (_T("Shouldn't happen in exter_int_helper.\n"));
-		break;
-	}
-	return 0;
-}
-
-#endif
 
 static int handle_packet(TrapContext *ctx, Unit *unit, dpacket *pck, uae_u32 msg, int isvolume)
 {
@@ -7109,12 +7009,6 @@ void filesys_start_threads (void)
 	}
 }
 
-void filesys_cleanup (void)
-{
-	filesys_free_handles ();
-	free_mountinfo ();
-}
-
 void filesys_free_handles (void)
 {
 	Unit *u, *u1;
@@ -7167,6 +7061,9 @@ void filesys_reset (void)
 	load_injected_icons();
 	filesys_reset2 ();
 	initialize_mountinfo ();
+
+	shell_execute_data = 0;
+	shell_execute_process = 0;
 }
 
 static void filesys_prepare_reset2 (void)
@@ -8764,6 +8661,15 @@ void filesys_vsync (void)
 	}
 }
 
+void filesys_cleanup(void)
+{
+	filesys_free_handles();
+	free_mountinfo();
+	destroy_comm_pipe(&shellexecute_pipe);
+	uae_sem_destroy(&singlethread_int_sem);
+	shell_execute_data = 0;
+}
+
 void filesys_install (void)
 {
 	uaecptr loop;
@@ -8771,7 +8677,7 @@ void filesys_install (void)
 	TRACEI ((_T("Installing filesystem\n")));
 
 	uae_sem_init (&singlethread_int_sem, 0, 1);
-	uae_sem_init (&test_sem, 0, 1);
+	init_comm_pipe(&shellexecute_pipe, 100, 1);
 
 	ROM_filesys_resname = ds_ansi ("UAEunixfs.resource");
 	ROM_filesys_resid = ds_ansi ("UAE unixfs 0.4");
