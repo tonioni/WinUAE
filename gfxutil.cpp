@@ -140,7 +140,7 @@ static void video_calc_gammatable (void)
 
 	bri = ((float)(currprefs.gfx_luminance)) * (128.0f / 1000.0f);
 	con = ((float)(currprefs.gfx_contrast + 1000)) / 1000.0f;
-	gam = ((float)(1000 - currprefs.gfx_gamma)) / 1000.0f;
+	gam = ((float)(1000 - currprefs.gfx_gamma)) / 1000.0f - 1.0;
 	gams[0] = gam + ((float)(1000 - currprefs.gfx_gamma_ch[0])) / 1000.0f;
 	gams[1] = gam + ((float)(1000 - currprefs.gfx_gamma_ch[1])) / 1000.0f;
 	gams[2] = gam + ((float)(1000 - currprefs.gfx_gamma_ch[2])) / 1000.0f;
@@ -161,7 +161,8 @@ static void video_calc_gammatable (void)
 				val = (val * 252.0) / 238.0;
 			}
 
-			if (currprefs.gfx_luminance == 0 && currprefs.gfx_contrast == 0 && currprefs.gfx_gamma == 0) {
+			if (currprefs.gfx_luminance == 0 && currprefs.gfx_contrast == 0 && currprefs.gfx_gamma == 0 &&
+				currprefs.gfx_gamma_ch[0] == 0 && currprefs.gfx_gamma_ch[1] == 0 && currprefs.gfx_gamma_ch[2] == 0) {
 				v = val;
 			} else {
 				v = video_gamma(val, gams[j], bri, con);
@@ -172,7 +173,7 @@ static void video_calc_gammatable (void)
 			if (v > 255.0)
 				v = 255.0;
 
-			gamma[i][j] = (uae_u32)v;
+			gamma[i][j] = (uae_u32)(v + 0.5);
 		}
 	}
 }
