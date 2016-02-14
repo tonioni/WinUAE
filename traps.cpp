@@ -425,19 +425,25 @@ static volatile uae_atomic outtrap_alloc[RTAREA_TRAP_DATA_SEND_NUM];
 
 TrapContext *alloc_host_main_trap_context(void)
 {
-	int trap_slot = RTAREA_TRAP_DATA_NUM;
-	if (atomic_inc(&outtrap_alloc[trap_slot - RTAREA_TRAP_DATA_NUM])) {
-		while (outtrap_alloc[trap_slot - RTAREA_TRAP_DATA_NUM] > RTAREA_TRAP_DATA_SEND_NUM)
-			sleep_millis(1);
+	if (trap_is_indirect()) {
+		int trap_slot = RTAREA_TRAP_DATA_NUM;
+		if (atomic_inc(&outtrap_alloc[trap_slot - RTAREA_TRAP_DATA_NUM])) {
+			while (outtrap_alloc[trap_slot - RTAREA_TRAP_DATA_NUM] > RTAREA_TRAP_DATA_SEND_NUM)
+				sleep_millis(1);
+		}
+		TrapContext *ctx = &outtrap[trap_slot - RTAREA_TRAP_DATA_NUM];
+		return ctx;
+	} else {
+		return NULL;
 	}
-	TrapContext *ctx = &outtrap[trap_slot - RTAREA_TRAP_DATA_NUM];
-	return ctx;
 }
 
 void free_host_trap_context(TrapContext *ctx)
 {
-	int trap_slot = RTAREA_TRAP_DATA_NUM;
-	atomic_dec(&outtrap_alloc[trap_slot]);
+	if (trap_is_indirect()) {
+		int trap_slot = RTAREA_TRAP_DATA_NUM;
+		atomic_dec(&outtrap_alloc[trap_slot]);
+	}
 }
 
 static uae_u32 call_hardware_trap_back_back(TrapContext *ctx, uae_u16 cmd, uae_u32 p1, uae_u32 p2, uae_u32 p3, uae_u32 p4)
@@ -520,6 +526,24 @@ void trap_callback(TRAP_CALLBACK cb, void *ud)
 	}
 }
 
+TrapContext *alloc_host_thread_trap_context(void)
+{
+	if (trap_is_indirect()) {
+		int trap_slot = RTAREA_TRAP_DATA_NUM;
+		TrapContext *ctx = alloc_host_main_trap_context();
+		ctx->host_trap_data = rtarea_bank.baseaddr + RTAREA_TRAP_DATA + trap_slot * RTAREA_TRAP_DATA_SLOT_SIZE;
+		ctx->amiga_trap_data = rtarea_base + RTAREA_TRAP_DATA + trap_slot * RTAREA_TRAP_DATA_SLOT_SIZE;
+		ctx->host_trap_status = rtarea_bank.baseaddr + RTAREA_TRAP_STATUS + trap_slot * RTAREA_TRAP_STATUS_SIZE;
+		ctx->amiga_trap_status = rtarea_base + RTAREA_TRAP_STATUS + trap_slot * RTAREA_TRAP_STATUS_SIZE;
+
+		// Set status to allocated, we are skipping hwtrap_entry()
+		put_long_host(ctx->host_trap_status + 4, 0x00000000);
+		put_long_host(ctx->host_trap_status, 0x00000080);
+		return ctx;
+	} else {
+		return NULL;
+	}
+}
 
 /*
 * Set up extended trap context and call handler function
@@ -1189,6 +1213,13 @@ int trap_get_string(TrapContext *ctx, void *haddrp, uaecptr addr, int maxlen)
 	}
 	return len;
 }
+uae_char *trap_get_alloc_string(TrapContext *ctx, uaecptr addr, int maxlen)
+{
+	uae_char *buf = xmalloc(uae_char, maxlen);
+	trap_get_string(ctx, buf, addr, maxlen);
+	return buf;
+}
+
 int trap_get_bstr(TrapContext *ctx, uae_u8 *haddr, uaecptr addr, int maxlen)
 {
 	int len = 0;

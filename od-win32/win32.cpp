@@ -3051,11 +3051,11 @@ uae_u8 *target_load_keyfile (struct uae_prefs *p, const TCHAR *path, int *sizep,
 	int size;
 	TCHAR *libname = _T("amigaforever.dll");
 
-	h = WIN32_LoadLibrary (libname);
+	h = WIN32_LoadLibrary(libname);
 	if (!h) {
 		TCHAR path[MAX_DPATH];
 		_stprintf (path, _T("%s..\\Player\\%s"), start_path_exe, libname);
-		h = WIN32_LoadLibrary2 (path);
+		h = WIN32_LoadLibrary(path);
 		if (!h) {
 			TCHAR *afr = _wgetenv (_T("AMIGAFOREVERROOT"));
 			if (afr) {
@@ -3063,7 +3063,7 @@ uae_u8 *target_load_keyfile (struct uae_prefs *p, const TCHAR *path, int *sizep,
 				_tcscpy (tmp, afr);
 				fixtrailing (tmp);
 				_stprintf (path, _T("%sPlayer\\%s"), tmp, libname);
-				h = WIN32_LoadLibrary2 (path);
+				h = WIN32_LoadLibrary(path);
 			}
 		}
 	}
@@ -4755,7 +4755,8 @@ static void WIN32_HandleRegistryStuff (void)
 	else
 		regsetint (NULL, _T("RelativePaths"), relativepaths);
 
-	regqueryint (NULL, _T("QuickStartMode"), &quickstart);
+	if (!regqueryint (NULL, _T("QuickStartMode"), &quickstart))
+		quickstart = 1;
 	reopen_console ();
 	fetch_path (_T("ConfigurationPath"), path, sizeof (path) / sizeof (TCHAR));
 	path[_tcslen (path) - 1] = 0;
@@ -6665,12 +6666,6 @@ end:
 HMODULE WIN32_LoadLibrary (const TCHAR *name)
 {
 	return WIN32_LoadLibrary_2 (name, TRUE);
-}
-HMODULE WIN32_LoadLibrary2 (const TCHAR *name)
-{
-	HMODULE m = LoadLibrary (name);
-	LLError (m, name);
-	return m;
 }
 
 int isdllversion (const TCHAR *name, int version, int revision, int subver, int subrev)

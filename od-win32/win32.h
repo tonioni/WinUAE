@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("5")
+#define WINUAEBETA _T("6")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2016, 2, 10)
+#define WINUAEDATE MAKEBD(2016, 2, 14)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -156,7 +156,6 @@ void associate_file_extensions (void);
 
 #define WIN32_PLUGINDIR _T("plugins\\")
 HMODULE WIN32_LoadLibrary (const TCHAR *);
-HMODULE WIN32_LoadLibrary2 (const TCHAR *);
 int isdllversion (const TCHAR *name, int version, int revision, int subver, int subrev);
 
 extern int screenshot_prepare (void);

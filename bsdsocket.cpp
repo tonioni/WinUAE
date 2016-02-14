@@ -119,7 +119,9 @@ static uae_u32 gettask (TrapContext *ctx)
 	trap_set_areg(ctx, 1, a1);
 
 	if (ISBSDTRACE) {
-		tskname = au((char*)get_real_address (trap_get_long(ctx, currtask + 10)));
+		uae_char name[256];
+		trap_get_string(ctx, name, trap_get_long(ctx, currtask + 10), sizeof name);
+		tskname = au(name);
 		BSDTRACE ((_T("[%s] "), tskname));
 		xfree (tskname);
 	}
@@ -179,17 +181,17 @@ uae_u32 callfdcallback (TrapContext *ctx, SB, uae_u32 fd, uae_u32 action)
 	return v;
 }
 
-bool checksd(TrapContext *context, SB, int sd)
+bool checksd(TrapContext *ctx, SB, int sd)
 {
 	int iCounter;
 	SOCKET s;
 
-	s = getsock(sb,sd);
+	s = getsock(ctx, sb, sd);
 	if (s != INVALID_SOCKET) {
 		for (iCounter  = 1; iCounter <= sb->dtablesize; iCounter++) {
 			if (iCounter != sd) {
-				if (getsock(sb,iCounter) == s) {
-					releasesock(context, sb, sd);
+				if (getsock(ctx, sb, iCounter) == s) {
+					releasesock(ctx, sb, sd);
 					return true;
 				}
 			}
@@ -256,30 +258,35 @@ int getsd (TrapContext *ctx, SB, SOCKET_TYPE s)
 	return -1;
 }
 
-SOCKET_TYPE getsock (SB, int sd)
+SOCKET_TYPE getsock (TrapContext *ctx, SB, int sd)
 {
 	if ((unsigned int) (sd - 1) >= (unsigned int) sb->dtablesize) {
 		BSDTRACE ((_T("Invalid Socket Descriptor (%d)\n"), sd));
-		bsdsocklib_seterrno(NULL, sb, 38); /* ENOTSOCK */
+		bsdsocklib_seterrno(ctx, sb, 38); /* ENOTSOCK */
 		return -1;
 	}
 	if (sb->dtable[sd - 1] == INVALID_SOCKET) {
 		struct socketbase *sb1, *nsb;
 		uaecptr ot;
-		if (!addr_valid (_T("getsock1"), sb->ownertask + 10, 4))
+		uae_char name[256];
+
+		if (!trap_valid_address(ctx, sb->ownertask + 10, 4))
 			return -1;
-		ot = get_long (sb->ownertask + 10);
-		if (!addr_valid (_T("getsock2"), ot, 1))
+		ot = trap_get_long(ctx, sb->ownertask + 10);
+		if (!trap_valid_address(ctx, ot, 1))
 			return -1;
+		trap_get_string(ctx, name, ot, sizeof name);
 		// Fix for Newsrog (All Tasks of Newsrog using the same dtable)
 		for (sb1 = socketbases; sb1; sb1 = nsb) {
 			uaecptr ot1;
-			if (!addr_valid (_T("getsock3"), sb1->ownertask + 10, 4))
+			uae_char name1[256];
+			if (!trap_valid_address(ctx, sb1->ownertask + 10, 4))
 				break;
-			ot1 = get_long (sb1->ownertask + 10);
-			if (!addr_valid (_T("getsock4"), ot1, 1))
+			ot1 = trap_get_long(ctx, sb1->ownertask + 10);
+			if (!trap_valid_address(ctx, ot1, 1))
 				break;
-			if (strcmp((char*)get_real_address (ot1), (char*)get_real_address (ot)) == 0) {
+			trap_get_string(ctx, name1, ot1, sizeof name1);
+			if (strcmp(name, name1) == 0) {
 				// Task with same name already exists -> use same dtable
 				if (sb1->dtable[sd - 1] != INVALID_SOCKET)
 					return sb1->dtable[sd - 1];
@@ -649,7 +656,7 @@ static uae_u32 REGPARAM2 bsdsocklib_setsockopt (TrapContext *ctx)
 static uae_u32 REGPARAM2 bsdsocklib_getsockopt (TrapContext *ctx)
 {
 	struct socketbase *sb = get_socketbase (ctx);
-	return host_getsockopt (sb, trap_get_dreg(ctx, 0), trap_get_dreg(ctx, 1), trap_get_dreg(ctx, 2),
+	return host_getsockopt (ctx, sb, trap_get_dreg(ctx, 0), trap_get_dreg(ctx, 1), trap_get_dreg(ctx, 2),
 		trap_get_areg(ctx, 0), trap_get_areg(ctx, 1));
 }
 
@@ -657,14 +664,14 @@ static uae_u32 REGPARAM2 bsdsocklib_getsockopt (TrapContext *ctx)
 static uae_u32 REGPARAM2 bsdsocklib_getsockname (TrapContext *ctx)
 {
 	struct socketbase *sb = get_socketbase (ctx);
-	return host_getsockname (sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0), trap_get_areg(ctx, 1));
+	return host_getsockname (ctx, sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0), trap_get_areg(ctx, 1));
 }
 
 /* getpeername(s, hostname, namelen)(d0/a0/a1) */
 static uae_u32 REGPARAM2 bsdsocklib_getpeername (TrapContext *ctx)
 {
 	struct socketbase *sb = get_socketbase (ctx);
-	return host_getpeername (sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0), trap_get_areg(ctx, 1));
+	return host_getpeername (ctx, sb, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0), trap_get_areg(ctx, 1));
 }
 
 /* *------ generic system calls related to sockets */
@@ -810,7 +817,7 @@ static uae_u32 REGPARAM2 bsdsocklib_ReleaseSocket (TrapContext *ctx)
 	sd++;
 	BSDTRACE ((_T("ReleaseSocket(%d,%d) -> "), sd, id));
 
-	s = getsock (sb, sd);
+	s = getsock (ctx, sb, sd);
 
 	if (s != -1) {
 		flags = sb->ftable[sd - 1];
@@ -873,7 +880,7 @@ static uae_u32 REGPARAM2 bsdsocklib_ReleaseCopyOfSocket (TrapContext *ctx)
 	sd++;
 	BSDTRACE ((_T("ReleaseSocket(%d,%d) -> "), sd, id));
 
-	s = getsock (sb, sd);
+	s = getsock (ctx, sb, sd);
 
 	if (s != -1) {
 		flags = sb->ftable[sd - 1];
@@ -931,7 +938,8 @@ static uae_u32 REGPARAM2 bsdsocklib_Errno (TrapContext *ctx)
 static uae_u32 REGPARAM2 bsdsocklib_SetErrnoPtr (TrapContext *ctx)
 {
 	struct socketbase *sb = get_socketbase (ctx);
-	uae_u32 errnoptr = trap_get_areg(ctx, 0), size = trap_get_dreg(ctx, 0);
+	uae_u32 errnoptr = trap_get_areg(ctx, 0);
+	uae_u32 size = trap_get_dreg(ctx, 0);
 
 	BSDTRACE ((_T("SetErrnoPtr(0x%08x,%d) -> "), errnoptr, size));
 
@@ -957,7 +965,7 @@ static uae_u32 REGPARAM2 bsdsocklib_Inet_NtoA (TrapContext *ctx)
 /* inet_addr(cp)(a0) */
 static uae_u32 REGPARAM2 bsdsocklib_inet_addr (TrapContext *ctx)
 {
-	return host_inet_addr (trap_get_areg(ctx, 0));
+	return host_inet_addr(ctx, trap_get_areg(ctx, 0));
 }
 
 /* Inet_LnaOf(in)(d0) */
@@ -984,7 +992,7 @@ static uae_u32 REGPARAM2 bsdsocklib_Inet_MakeAddr (TrapContext *ctx)
 /* inet_network(cp)(a0) */
 static uae_u32 REGPARAM2 bsdsocklib_inet_network (TrapContext *ctx)
 {
-	return host_inet_addr (trap_get_areg(ctx, 0));
+	return host_inet_addr(ctx, trap_get_areg(ctx, 0));
 }
 
 /* *------ gethostbyname etc */
@@ -1072,13 +1080,13 @@ static uae_u32 REGPARAM2 bsdsocklib_recvmsg (TrapContext *ctx)
 
 static uae_u32 REGPARAM2 bsdsocklib_gethostname (TrapContext *ctx)
 {
-	return host_gethostname (trap_get_areg(ctx, 0), trap_get_dreg(ctx, 0));
+	return host_gethostname(ctx, trap_get_areg(ctx, 0), trap_get_dreg(ctx, 0));
 }
 
 static uae_u32 REGPARAM2 bsdsocklib_gethostid (TrapContext *ctx)
 {
-	write_log (_T("bsdsocket: WARNING: Process '%s' calls deprecated function gethostid() - returning 127.0.0.1\n"),
-		get_real_address (get_long (gettask(ctx) + 10)));
+	write_log (_T("bsdsocket: WARNING: Process %08x calls deprecated function gethostid() - returning 127.0.0.1\n"),
+		trap_get_long(ctx, gettask(ctx) + 10));
 	return 0x7f000001;
 }
 

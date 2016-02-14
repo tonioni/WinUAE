@@ -92,7 +92,7 @@ startjmp:
 	bra.w filesys_mainloop		;1 16
 	dc.l make_dev-start			;2 20
 	dc.l filesys_init-start		;3 24
-	dc.l exter_server-start		;4 28
+	dc.l 0		;4 28
 	dc.l bootcode-start			;5 32
 	dc.l setup_exter-start		;6 36
 	dc.l bcplwrapper-start ;7 40
@@ -385,7 +385,8 @@ FSIN_chip_done
 	EREM
 
 createproc
-	movem.l d2-d4/a2/a6,-(sp)
+	movem.l d2-d5/a2/a6,-(sp)
+	moveq #0,d5
 	move.l 4.w,a6
 	move.l d0,d2
 	move.l d1,d4
@@ -400,11 +401,13 @@ createproc
 	move.l a2,d1
 	lsr.l #2,d3
 	jsr -$08a(a6) ; CreateProc
+	move.l d0,d5
 	move.l a6,a1
 	move.l 4.w,a6
 	jsr -$019e(a6); CloseLibrary
 .noproc
-	movem.l (sp)+,d2-d4/a2/a6
+	move.l d5,d0
+	movem.l (sp)+,d2-d5/a2/a6
 	rts
 
 	; this is getting ridiculous but I don't see any other solutions..
@@ -499,7 +502,7 @@ EXTT_loop
 	jsr (a0)
 	tst.l d0
 	beq.w exter_task_wait
-	addq.w #1,d7
+	moveq #11,d7
 	cmp.w #1,d0
 	blt.w EXTT_loop
 	bgt.b EXTT_signal_reply
@@ -523,7 +526,7 @@ EXTT_cause:
 	bra.b EXTT_loop
 EXTT_notificationhack:
 	cmp.w #5,d0
-	bgt.b EXTT_loop
+	bgt.b EXTT_shellexec
 	movem.l a0-a1,-(sp)
 	moveq #38,d0
 	move.l #65536+1,d1
@@ -540,8 +543,22 @@ EXTT_notificationhack:
 	move.l a2,a1
 	jsr -366(a6) ; PutMsg
 	bra.w EXTT_loop
+EXTT_shellexec
+	cmp.w #6,d0
+	bgt.w EXTT_loop
+	lea shellexecname(pc),a0
+	lea shellexecproc(pc),a1
+	moveq #1,d0
+	move.l #10000,d1
+	bsr.w createproc
+	move.l d0,d1
+	move.w #$FF50,d0 ; exter_int_helper
+	bsr.w getrtbase
+	moveq #20,d0
+	jsr (a0)
+	bra.w EXTT_loop
 
-
+	
 exter_server_new:
 	moveq #0,d0
 	move.l (a1)+,a0 ;IO Base
@@ -556,72 +573,102 @@ exter_server_new:
 	tst.w d0
 	rts
 
-exter_server:
-	movem.l a2,-(sp)
-	tst.b (a1)
-	beq.w exter_server_exit
-	move.w #$FF50,d0 ; exter_int_helper
-	bsr.w getrtbase
-	moveq #0,d0
-	jsr (a0)
-	tst.l d0
-	beq.w exter_server_exit
-	; This is the hard part - we have to send some messages.
+	cnop 0,4
+	dc.l 16
+shellexecproc:
+	dc.l 0
+
 	move.l 4.w,a6
-EXTS_loop:
+	lea doslibname(pc),a1
+	moveq #0,d0
+	jsr -$228(a6) ; OpenLibrary
+	move.l d0,a5
+	exg a5,a6
+	bra.s .seproc1
+
+.seproc0
+	exg a5,a6
+	moveq #0,d0	
+	bset #13,d0 ; SIGBREAK_CTRL_D
+	jsr -$013e(a6) ;Wait
+	exg a5,a6
+	
+.seproc1
 	move.w #$FF50,d0 ; exter_int_helper
 	bsr.w getrtbase
-	moveq.l #2,d0
+	moveq #21,d0
 	jsr (a0)
-	cmp.w #1,d0
-	blt.w EXTS_done
-	bgt.b EXTS_signal_reply
-	jsr -366(a6) ; PutMsg
-	bra.b EXTS_loop
-EXTS_signal_reply:
-	cmp.w #2,d0
-	bgt.b EXTS_reply
-	move.l d1,d0
-	jsr -$144(a6)	; Signal
-	bra.b EXTS_loop
-EXTS_reply:
-	cmp.w #3,d0
-	bgt.b EXTS_cause
-	jsr -$17a(a6)   ; ReplyMsg
-	bra.b EXTS_loop
-EXTS_cause:
-	cmp.w #4,d0
-	bgt.b EXTS_notificationhack
-	jsr -$b4(a6)	; Cause
-	bra.b EXTS_loop
-EXTS_notificationhack:
-	cmp.w #5,d0
-	bgt.b EXTS_done
-	movem.l a0-a1,-(sp)
-	moveq #38,d0
-	move.l #65536+1,d1
-	jsr AllocMem(a6)
-	movem.l (sp)+,a0-a1
-	move.l d0,a2
-	move.b #8,8(a2)
-	move.l a0,14(a2)
-	move.w #38,18(a2)
-	move.l #NOTIFY_CLASS,20(a2)
-	move.w #NOTIFY_CODE,24(a2)
-	move.l a1,26(a2)
-	move.l 16(a1),a0
-	move.l a2,a1
-	jsr -366(a6) ; PutMsg
-	bra.w EXTS_loop
-EXTS_done:
-	move.w #$FF50,d0 ;exter_int_helper
+	; a0 = command
+	move.l a0,d7
+	beq.s .seproc0
+
+	move.l sp,a4
+	lea -5*8-512(sp),sp
+	move.l sp,d6
+	move.l d6,a2
+
+	lea 5*8(a2),a3
+	move.l a3,a1
+	move.l d7,a0
+.seproc2
+	move.b (a0)+,(a1)+
+	bne.s .seproc2
+	move.l d7,a0
+	clr.b (a0)
+
+	; SYS_Input
+	move.l #$80000000+32+1,(a2)+
+	lea nil_name(pc),a0
+	move.l a0,d1
+	move.l #1005,d2
+	jsr -$1e(a6) ;Open
+	move.l d0,(a2)+
+
+	; SYS_Output
+	move.l #$80000000+32+2,(a2)+
+	lea nil_name(pc),a0
+	move.l a0,d1
+	jsr -$1e(a6) ;Open
+	move.l d0,(a2)+
+
+	; SYS_Async
+	move.l #$80000000+32+3,(a2)+
+	moveq #-1,d0
+	move.l d0,(a2)+
+
+	clr.l (a2)+
+	clr.l (a2)
+
+	cmp.w #36,20(a6)
+	bcc.s .seproc3
+
+	move.l d6,a2
+	move.l a3,d1 ;Command
+	moveq #0,d2 ;Input
+	move.l 1*8+4(a2),d3 ;Output
+	jsr -$de(a6) ;Execute
+
+	move.l 0*8+4(a2),d1
+	jsr -$24(a6) ;Close
+	move.l 1*8+4(a2),d1
+	jsr -$24(a6) ;Close
+
+	bra.s .seproc4
+
+.seproc3
+	move.l a3,d1
+	move.l d6,d2
+	jsr -$25e(a6) ; SystemTagList	
+
+.seproc4
+	move.l a4,sp
+
+	move.w #$FF50,d0 ; exter_int_helper
 	bsr.w getrtbase
-	moveq.l #4,d0
-	jsr (a0)	
-	moveq.l #1,d0 ; clear Z - it was for us.
-exter_server_exit:
-	movem.l (sp)+,a2
-	rts
+	moveq #22,d0
+	jsr (a0)
+
+	bra.w .seproc0
 
 	; d0 = exter task, d1 = trap task
 heartbeatvblank:
@@ -1149,7 +1196,23 @@ action_inhibit
 	bsr dodiskchange
 	rts
 
+sethighcyl
+	move.l 184(a3),d0 ;highcyl or -1
+	cmp.l #-1,d0
+	beq.s .nohighcyl
+	move.l 180(a3),a0 ;devicenode
+	move.l 7*4(a0),a0 ;startup
+	add.l a0,a0
+	add.l a0,a0
+	move.l 8(a0),a0 ; dosenvec
+	add.l a0,a0
+	add.l a0,a0
+	move.l d0,10*4(a0)
+.nohighcyl
+	rts
+
 diskchange
+	bsr.w sethighcyl
 	move.b 172(a3),d0
 	bmi.s .nodisk
 	moveq #1,d0
@@ -1535,16 +1598,30 @@ filesys_mainloop_bcpl:
 	; 173: bit 0: clock reset, bit 1: debugger start
 	; 176: my task
 	; 180: device node
-	move.l #12+20+(80+44+1)+(1+3)+4+4+4+(1+3)+4+4,d0
+	; 184: highcyl (-1 = ignore)
+
+	move.l #12+20+(80+44+1)+3+4+4+4+(1+3)+4+4+4,d1
+	move.w #$FF40,d0 ; startup_handler
+	bsr.w getrtbase
+	moveq #1,d0
+	jsr (a0)
+	; if d0 != 0, it becomes our memory space
+	; "allocated" from our autoconfig RAM space
+	tst.l d0
+	bne.s .havemem
+	move.l d1,d0
 	move.l #$10001,d1 ; MEMF_PUBLIC | MEMF_CLEAR
 	jsr AllocMem(a6)
+.havemem
 	move.l d0,a3
-	moveq.l #0,d6
+	moveq #0,d6
 	move.l d6,(a3)
 	move.l d6,4(a3)
 	move.l d6,8(a3)
 	move.l a2,160(a3)
 	st 158(a3)
+	moveq #-1,d0
+	move.l d0,184(a3)
 
 	sub.l a1,a1
 	jsr -294(a6) ; FindTask
@@ -1573,11 +1650,14 @@ filesys_mainloop_bcpl:
 	move.l d0,a4
 	move.l 10(a4),d3 ; ln_Name -> startup dos packet
 .got_bcpl
+
 	move.w #$FF40,d0 ; startup_handler
 	bsr.w getrtbase
-	moveq.l #0,d0
+	moveq #0,d0
 	jsr (a0)
 	move.l d0,d2
+
+	bsr.w sethighcyl
 
 	moveq #1,d0
 	bsr.w addvolumenode
@@ -3362,20 +3442,17 @@ hw_get_byte:
 hw_copy_bytes:
 	; a0 = src, a1 = dest, d2 = bytes
 	move.l d2,d0
-	jsr -$270(a6) ; CopyMem
-	rts
+	jmp -$270(a6) ; CopyMem
 hw_copy_words:
 	; a0 = src, a1 = dest, d2 = words
 	move.l d2,d0
 	add.l d0,d0
-	jsr -$270(a6) ; CopyMem
-	rts
+	jmp -$270(a6) ; CopyMem
 hw_copy_longs:
 	; a0 = src, a1 = dest, d2 = longs
 	move.l d2,d0
 	lsl.l #2,d0
-	jsr -$270(a6) ; CopyMem
-	rts
+	jmp -$270(a6) ; CopyMem
 hw_copy_string:
 	; a0 = src, a1 = dest, d2 = maxlen
 	moveq #0,d0
@@ -3501,6 +3578,7 @@ devsn_name: dc.b 'DEVS',0
 devs_name: dc.b 'DEVS:',0
 clip_name: dc.b 'DEVS:clipboard.device',0
 ram_name: dc.b 'RAM:',0
+nil_name: dc.b "NIL:",0
 clip_dev: dc.b 'clipboard.device',0
  ;argghh but StartNotify()ing non-existing ENV: causes "Insert disk ENV: in any drive" dialog..
 pointer_prefs: dc.b 'RAM:Env/Sys/Pointer.prefs',0
@@ -3520,6 +3598,7 @@ explibname: dc.b 'expansion.library',0
 fsresname: dc.b 'FileSystem.resource',0
 fchipname: dc.b 'megachip memory',0
 bcplfsname: dc.b "File System",0
+shellexecname: dc.b "UAE shell execute",0
 	even
 rom_end:
 

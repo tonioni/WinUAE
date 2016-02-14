@@ -1,8 +1,20 @@
 
+Beta 6:
+
+- Fixed uaehf.device and input on the fly device change invalid free() calls.
+- Game Ports panel autofire/joystick type setting was not remembered.
+- Do not queue new uaenet.device uae_Signal() call if previous is still in queue.
+- Do not call any host OS functions from uaegfx trap functions, trap function can run in different thread context
+  which can cause strange side-effects. OS4.x uaegfx resolution changes should be safe again.
+- Added shellexec custom input event/uae-configuration command that can execute Amiga-side commands or scripts.
+  Uses SystemTagList() with NIL: Input and Output handles if KS2+, Execute() with NIL: Output if pre-KS2.
+  Only works when UAE Boot ROM is active, dos.library has been initialized and AmigaOS is running normally.
+- Display panel color component gamma value calculation fixed, any brightness or contrast modification was too dark.
+
 Beta 5:
 
 - Game Ports mouse and joystick was always reset to defaults (b4)
-- Dark palette fix adjustment is now calculated before other adjustments (brightness, contrast, gamme)
+- Dark palette fix adjustment is now calculated before other adjustments (brightness, contrast, gamma)
 - Dark palette fix third option added, pre-converted Atari ST palette increased to full range, 12-bit EEE becomes
   nearly full white, FCFCFC in 24-bit RGB space. (Not FFFFFF because palette would not be linear anymore)
 
@@ -98,7 +110,7 @@ Notes:
 - Slower than normal host<>Amiga communication because every read or write that accesses Amiga memory needs to be
   done in Amiga side (due to non-1:1 logical/physical mapping). It will never be as fast as direct communication.
 - Remember to set ROM panel UAE expansion type to "New UAE (128k, ROM, Indirect)".
-- Directory harddrive (copied from HDF) OS4 installation will boot but it is not recommended, it is slowe
+- Directory harddrive (copied from HDF) OS4 installation will boot but it is not recommended, it is slower
   than HDF and there is mysterious issue that causes random read errors. (Missing font requester when booting is the
   most common side-effect)
 - Most UAE expansions have preliminary updates for indirect trap support and support required multiple major

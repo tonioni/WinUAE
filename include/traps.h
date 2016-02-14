@@ -105,6 +105,7 @@ void trap_memcpyha_safe(TrapContext *ctx, uaecptr dst, const uae_u8 *src, int si
 void trap_memcpyah_safe(TrapContext *ctx, uae_u8 *dst, uaecptr src, int size);
 
 TrapContext *alloc_host_main_trap_context(void);
+TrapContext *alloc_host_thread_trap_context(void);
 void free_host_trap_context(TrapContext*);
 
 uae_u32 trap_get_dreg(TrapContext *ctx, int reg);
@@ -129,6 +130,7 @@ void trap_get_words(TrapContext *ctx, uae_u16 *haddr, uaecptr addr, int cnt);
 
 int trap_put_string(TrapContext *ctx, const void *haddrp, uaecptr addr, int maxlen);
 int trap_get_string(TrapContext *ctx, void *haddrp, uaecptr addr, int maxlen);
+uae_char *trap_get_alloc_string(TrapContext *ctx, uaecptr addr, int maxlen);
 
 void trap_set_longs(TrapContext *ctx, uaecptr addr, uae_u32 v, int cnt);
 void trap_set_words(TrapContext *ctx, uaecptr addr, uae_u16 v, int cnt);
