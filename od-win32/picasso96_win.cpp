@@ -89,6 +89,15 @@ int p96refresh_active;
 bool have_done_picasso = 1; /* For the JIT compiler */
 static int p96syncrate;
 int p96hsync_counter, full_refresh;
+
+
+#define PICASSO_STATE_SETDISPLAY 1
+#define PICASSO_STATE_SETPANNING 2
+#define PICASSO_STATE_SETGC 4
+#define PICASSO_STATE_SETDAC 8
+#define PICASSO_STATE_SETSWITCH 16
+static uae_atomic picasso_state_change;
+
 #if defined(X86_MSVC_ASSEMBLY)
 #define SWAPSPEEDUP
 #endif
@@ -179,6 +188,7 @@ typedef enum {
 #include "win32gui.h"
 #include "resource.h"
 
+static void init_picasso_screen(void);
 static uae_u32 p2ctab[256][2];
 static int set_gc_called = 0, init_picasso_screen_called = 0;
 //fastscreen
@@ -764,124 +774,6 @@ static void rtg_clear (void)
 	rtg_clear_flag = 4;
 }
 
-static void picasso_handle_vsync2 (void)
-{
-	static int vsynccnt;
-	int thisisvsync = 1;
-	int vsync = isvsync_rtg ();
-	int mult;
-	bool rendered = false;
-	bool uaegfx = currprefs.rtgmem_type < GFXBOARD_HARDWARE;
-
-	if (picasso_on) {
-		if (vsync < 0) {
-			vsync_busywait_end (NULL);
-			vsync_busywait_do (NULL, false, false);
-		}
-	}
-
-	getvsyncrate (currprefs.chipset_refreshrate, &mult);
-	if (vsync && mult < 0) {
-		vsynccnt++;
-		if (vsynccnt < 2)
-			thisisvsync = 0;
-		else
-			vsynccnt = 0;
-	}
-
-	p96_framecnt++;
-
-	if (!uaegfx && !picasso_on) {
-		rtg_render ();
-		return;
-	}
-
-	if (!picasso_on)
-		return;
-
-	if (uaegfx)
-		mouseupdate ();
-
-	if (thisisvsync) {
-		rendered = rtg_render ();
-		frame_drawn ();
-	}
-
-	if (uaegfx) {
-		if (setupcursor_needed)
-			setupcursor ();
-		if (thisisvsync)
-			picasso_trigger_vblank ();
-	}
-
-	if (vsync < 0) {
-		vsync_busywait_start ();
-	}
-
-	if (thisisvsync && !rendered)
-		rtg_show ();
-}
-
-static int p96hsync;
-
-void picasso_handle_vsync (void)
-{
-	bool uaegfx = currprefs.rtgmem_type < GFXBOARD_HARDWARE;
-
-	if (currprefs.rtgmem_size == 0)
-		return;
-
-	if (!picasso_on && uaegfx) {
-		createwindowscursor(0, 0, 0, 0, 0, 1);
-		picasso_trigger_vblank ();
-		return;
-	}
-
-	int vsync = isvsync_rtg ();
-	if (vsync < 0) {
-		p96hsync = 0;
-		picasso_handle_vsync2 ();
-	} else if (currprefs.win32_rtgvblankrate == 0) {
-		picasso_handle_vsync2 ();
-	}
-}
-
-void picasso_handle_hsync (void)
-{
-	bool uaegfx = currprefs.rtgmem_type < GFXBOARD_HARDWARE;
-
-	if (currprefs.rtgmem_size == 0)
-		return;
-
-	int vsync = isvsync_rtg ();
-	if (vsync < 0) {
-		p96hsync++;
-		if (p96hsync >= p96syncrate * 3) {
-			p96hsync = 0;
-			// kickstart vblank vsync_busywait stuff
-			picasso_handle_vsync ();
-		}
-		return;
-	}
-
-	if (currprefs.win32_rtgvblankrate == 0)
-		return;
-
-	p96hsync++;
-	if (p96hsync >= p96syncrate) {
-		if (!picasso_on) {
-			if (uaegfx) {
-				createwindowscursor(0, 0, 0, 0, 0, 1);
-				picasso_trigger_vblank ();
-			}
-		} else {
-			picasso_handle_vsync2 ();
-		}
-		p96hsync = 0;
-	}
-}
-
-
 static int set_panning_called = 0;
 
 
@@ -1104,6 +996,158 @@ void picasso_refresh (void)
 		write_log (_T("ERROR - picasso_refresh() can't refresh!\n"));
 	}
 }
+
+
+static void picasso_handle_vsync2(void)
+{
+	static int vsynccnt;
+	int thisisvsync = 1;
+	int vsync = isvsync_rtg();
+	int mult;
+	bool rendered = false;
+	bool uaegfx = currprefs.rtgmem_type < GFXBOARD_HARDWARE;
+
+	int state = picasso_state_change;
+	if (state & PICASSO_STATE_SETDAC) {
+		atomic_and(&picasso_state_change, ~PICASSO_STATE_SETDAC);
+		rtg_clear();
+	}
+	if (state & PICASSO_STATE_SETGC) {
+		atomic_and(&picasso_state_change, ~PICASSO_STATE_SETGC);
+		set_gc_called = 1;
+		picasso_changed = true;
+		init_picasso_screen();
+		init_hz_p96();
+	}
+	if (state & PICASSO_STATE_SETSWITCH) {
+		atomic_and(&picasso_state_change, ~PICASSO_STATE_SETSWITCH);
+		/* Do not switch immediately.  Tell the custom chip emulation about the
+		* desired state, and wait for custom.c to call picasso_enablescreen
+		* whenever it is ready to change the screen state.  */
+		if (picasso_on == picasso_requested_on && picasso_requested_on && picasso_changed) {
+			picasso_requested_forced_on = true;
+		}
+		picasso_changed = false;
+		picasso_active = picasso_requested_on;
+	}
+	if (state & PICASSO_STATE_SETPANNING) {
+		atomic_and(&picasso_state_change, ~PICASSO_STATE_SETPANNING);
+		full_refresh = 1;
+		set_panning_called = 1;
+		init_picasso_screen();
+		set_panning_called = 0;
+
+	}
+
+	if (picasso_on) {
+		if (vsync < 0) {
+			vsync_busywait_end(NULL);
+			vsync_busywait_do(NULL, false, false);
+		}
+	}
+
+	getvsyncrate(currprefs.chipset_refreshrate, &mult);
+	if (vsync && mult < 0) {
+		vsynccnt++;
+		if (vsynccnt < 2)
+			thisisvsync = 0;
+		else
+			vsynccnt = 0;
+	}
+
+	p96_framecnt++;
+
+	if (!uaegfx && !picasso_on) {
+		rtg_render();
+		return;
+	}
+
+	if (!picasso_on)
+		return;
+
+	if (uaegfx)
+		mouseupdate();
+
+	if (thisisvsync) {
+		rendered = rtg_render();
+		frame_drawn();
+	}
+
+	if (uaegfx) {
+		if (setupcursor_needed)
+			setupcursor();
+		if (thisisvsync)
+			picasso_trigger_vblank();
+	}
+
+	if (vsync < 0) {
+		vsync_busywait_start();
+	}
+
+	if (thisisvsync && !rendered)
+		rtg_show();
+}
+
+static int p96hsync;
+
+void picasso_handle_vsync(void)
+{
+	bool uaegfx = currprefs.rtgmem_type < GFXBOARD_HARDWARE;
+
+	if (currprefs.rtgmem_size == 0)
+		return;
+
+	if (!picasso_on && uaegfx) {
+		createwindowscursor(0, 0, 0, 0, 0, 1);
+		picasso_trigger_vblank();
+		return;
+	}
+
+	int vsync = isvsync_rtg();
+	if (vsync < 0) {
+		p96hsync = 0;
+		picasso_handle_vsync2();
+	} else if (currprefs.win32_rtgvblankrate == 0) {
+		picasso_handle_vsync2();
+	}
+}
+
+void picasso_handle_hsync(void)
+{
+	bool uaegfx = currprefs.rtgmem_type < GFXBOARD_HARDWARE;
+
+	if (currprefs.rtgmem_size == 0)
+		return;
+
+	int vsync = isvsync_rtg();
+	if (vsync < 0) {
+		p96hsync++;
+		if (p96hsync >= p96syncrate * 3) {
+			p96hsync = 0;
+			// kickstart vblank vsync_busywait stuff
+			picasso_handle_vsync();
+		}
+		return;
+	}
+
+	if (currprefs.win32_rtgvblankrate == 0)
+		return;
+
+	p96hsync++;
+	if (p96hsync >= p96syncrate) {
+		if (!picasso_on) {
+			if (uaegfx) {
+				createwindowscursor(0, 0, 0, 0, 0, 1);
+				picasso_trigger_vblank();
+			}
+		} else {
+			picasso_handle_vsync2();
+		}
+		p96hsync = 0;
+	}
+}
+
+
 
 #define BLT_SIZE 4
 #define BLT_MULT 1
@@ -1921,8 +1965,6 @@ static uae_u32 REGPARAM2 picasso_FindCard (TrapContext *ctx)
 
 static void FillBoardInfo(TrapContext *ctx, uaecptr amigamemptr, struct LibResolution *res, int width, int height, int depth)
 {
-	int i;
-
 	switch (depth)
 	{
 	case 8:
@@ -1939,24 +1981,23 @@ static void FillBoardInfo(TrapContext *ctx, uaecptr amigamemptr, struct LibResol
 		res->Modes[TRUEALPHA] = amigamemptr;
 		break;
 	}
-	for (i = 0; i < PSSO_ModeInfo_sizeof; i++)
-		trap_put_byte(ctx, amigamemptr + i, 0);
+	trap_set_bytes(ctx, amigamemptr, 0, PSSO_ModeInfo_sizeof);
 
 	trap_put_word(ctx, amigamemptr + PSSO_ModeInfo_Width, width);
 	trap_put_word(ctx, amigamemptr + PSSO_ModeInfo_Height, height);
 	trap_put_byte(ctx, amigamemptr + PSSO_ModeInfo_Depth, depth);
 	trap_put_byte(ctx, amigamemptr + PSSO_ModeInfo_Flags, 0);
 	trap_put_word(ctx, amigamemptr + PSSO_ModeInfo_HorTotal, width);
-	trap_put_word(ctx, amigamemptr + PSSO_ModeInfo_HorBlankSize, 0);
+	trap_put_word(ctx, amigamemptr + PSSO_ModeInfo_HorBlankSize, 1);
 	trap_put_word(ctx, amigamemptr + PSSO_ModeInfo_HorSyncStart, 0);
-	trap_put_word(ctx, amigamemptr + PSSO_ModeInfo_HorSyncSize, 0);
+	trap_put_word(ctx, amigamemptr + PSSO_ModeInfo_HorSyncSize, 1);
 	trap_put_byte(ctx, amigamemptr + PSSO_ModeInfo_HorSyncSkew, 0);
 	trap_put_byte(ctx, amigamemptr + PSSO_ModeInfo_HorEnableSkew, 0);
 
 	trap_put_word(ctx, amigamemptr + PSSO_ModeInfo_VerTotal, height);
-	trap_put_word(ctx, amigamemptr + PSSO_ModeInfo_VerBlankSize, 0);
+	trap_put_word(ctx, amigamemptr + PSSO_ModeInfo_VerBlankSize, 1);
 	trap_put_word(ctx, amigamemptr + PSSO_ModeInfo_VerSyncStart, 0);
-	trap_put_word(ctx, amigamemptr + PSSO_ModeInfo_VerSyncSize, 0);
+	trap_put_word(ctx, amigamemptr + PSSO_ModeInfo_VerSyncSize, 1);
 
 	trap_put_byte(ctx, amigamemptr + PSSO_ModeInfo_first_union, 98);
 	trap_put_byte(ctx, amigamemptr + PSSO_ModeInfo_second_union, 14);
@@ -2068,8 +2109,7 @@ static void CopyLibResolutionStructureU2A(TrapContext *ctx, struct LibResolution
 {
 	int i;
 
-	for (i = 0; i < PSSO_LibResolution_sizeof; i++)
-		trap_put_byte(ctx, amigamemptr + i, 0);
+	trap_set_bytes(ctx, amigamemptr, 0, PSSO_LibResolution_sizeof);
 	for (i = 0; i < strlen (libres->P96ID); i++)
 		trap_put_byte(ctx, amigamemptr + PSSO_LibResolution_P96ID + i, libres->P96ID[i]);
 	trap_put_long(ctx, amigamemptr + PSSO_LibResolution_DisplayID, libres->DisplayID);
@@ -2280,9 +2320,7 @@ static void picasso96_alloc2 (TrapContext *ctx)
 
 	for (i = 0; i < cnt; i++) {
 		int depth;
-		for (depth = 8; depth <= 32; depth++) {
-			if (!p96depth (depth))
-				continue;
+		for (depth = 1; depth <= 4; depth++) {
 			switch (depth) {
 			case 1:
 				if (newmodes[i].res.width > chunky.width)
@@ -2351,16 +2389,16 @@ static void inituaegfx(TrapContext *ctx, uaecptr ABI)
 	trap_put_long(ctx, ABI + PSSO_BoardInfo_PixelClockCount + TRUEALPHA * 4, 1);
 
 	/* we have 16 bits for horizontal and vertical timings - hack */
-	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxHorValue + PLANAR * 2, 0xffff);
-	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxHorValue + CHUNKY * 2, 0xffff);
-	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxHorValue + HICOLOR * 2, 0xffff);
-	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxHorValue + TRUECOLOR * 2, 0xffff);
-	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxHorValue + TRUEALPHA * 2, 0xffff);
-	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxVerValue + PLANAR * 2, 0xffff);
-	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxVerValue + CHUNKY * 2, 0xffff);
-	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxVerValue + HICOLOR * 2, 0xffff);
-	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxVerValue + TRUECOLOR * 2, 0xffff);
-	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxVerValue + TRUEALPHA * 2, 0xffff);
+	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxHorValue + PLANAR * 2, 0x4000);
+	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxHorValue + CHUNKY * 2, 0x4000);
+	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxHorValue + HICOLOR * 2, 0x4000);
+	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxHorValue + TRUECOLOR * 2, 0x4000);
+	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxHorValue + TRUEALPHA * 2, 0x4000);
+	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxVerValue + PLANAR * 2, 0x4000);
+	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxVerValue + CHUNKY * 2, 0x4000);
+	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxVerValue + HICOLOR * 2, 0x4000);
+	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxVerValue + TRUECOLOR * 2, 0x4000);
+	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxVerValue + TRUEALPHA * 2, 0x4000);
 
 	flags = trap_get_long(ctx, ABI + PSSO_BoardInfo_Flags);
 	flags &= 0xffff0000;
@@ -2525,29 +2563,23 @@ static uae_u32 REGPARAM2 picasso_InitCard (TrapContext *ctx)
 static uae_u32 REGPARAM2 picasso_SetSwitch (TrapContext *ctx)
 {
 	uae_u16 flag = trap_get_dreg(ctx, 0) & 0xFFFF;
-	TCHAR p96text[100];
 
-	/* Do not switch immediately.  Tell the custom chip emulation about the
-	* desired state, and wait for custom.c to call picasso_enablescreen
-	* whenever it is ready to change the screen state.  */
+	atomic_or(&picasso_state_change, PICASSO_STATE_SETSWITCH);
 	picasso_requested_on = flag != 0;
-	if (picasso_on == picasso_requested_on && picasso_requested_on && picasso_changed) {
-		picasso_requested_forced_on = true;
-	}
-	picasso_changed = false;
-	picasso_active = picasso_requested_on;
+
+	TCHAR p96text[100];
 	p96text[0] = 0;
 	if (flag)
-		_stprintf (p96text, _T("Picasso96 %dx%dx%d (%dx%dx%d)"),
-		picasso96_state.Width, picasso96_state.Height, picasso96_state.BytesPerPixel * 8,
-		picasso_vidinfo.width, picasso_vidinfo.height, picasso_vidinfo.pixbytes * 8);
-	write_log (_T("SetSwitch() - %s\n"), flag ? p96text : _T("amiga"));
+		_stprintf(p96text, _T("Picasso96 %dx%dx%d (%dx%dx%d)"),
+			picasso96_state.Width, picasso96_state.Height, picasso96_state.BytesPerPixel * 8,
+			picasso_vidinfo.width, picasso_vidinfo.height, picasso_vidinfo.pixbytes * 8);
+	write_log(_T("SetSwitch() - %s\n"), flag ? p96text : _T("amiga"));
+
 	/* Put old switch-state in D0 */
 	return !flag;
 }
 
 
-static void init_picasso_screen (void);
 void picasso_enablescreen (int on)
 {
 	if (!init_picasso_screen_called)
@@ -2629,8 +2661,8 @@ static uae_u32 REGPARAM2 picasso_SetDAC (TrapContext *ctx)
 	/* Fill in some static UAE related structure about this new DAC setting
 	* Lets us keep track of what pixel format the Amiga is thinking about in our frame-buffer */
 
+	atomic_or(&picasso_state_change, PICASSO_STATE_SETDAC);
 	P96TRACE_SETUP((_T("SetDAC()\n")));
-	rtg_clear ();
 	return 1;
 }
 
@@ -2687,11 +2719,11 @@ static uae_u32 REGPARAM2 picasso_SetGC (TrapContext *ctx)
 	picasso96_state.GC_Flags = trap_get_byte(ctx, modeinfo + PSSO_ModeInfo_Flags);
 
 	P96TRACE_SETUP((_T("SetGC(%d,%d,%d,%d)\n"), picasso96_state.Width, picasso96_state.Height, picasso96_state.GC_Depth, border));
-	set_gc_called = 1;
-	picasso_changed = true;
+
 	picasso96_state.HostAddress = NULL;
-	init_picasso_screen ();
-	init_hz_p96 ();
+
+	atomic_or(&picasso_state_change, PICASSO_STATE_SETGC);
+
 	return 1;
 }
 
@@ -2766,14 +2798,12 @@ static uae_u32 REGPARAM2 picasso_SetPanning (TrapContext *ctx)
 	if (rgbf != picasso96_state.RGBFormat)
 		setconvert(ctx);
 
-	full_refresh = 1;
-	set_panning_called = 1;
 	P96TRACE_SETUP((_T("SetPanning(%d, %d, %d) (%dx%d) Start 0x%x, BPR %d Bpp %d RGBF %d\n"),
 		Width, picasso96_state.XOffset, picasso96_state.YOffset,
 		bme_width, bme_height,
 		start_of_screen, picasso96_state.BytesPerRow, picasso96_state.BytesPerPixel, picasso96_state.RGBFormat));
-	init_picasso_screen ();
-	set_panning_called = 0;
+
+	atomic_or(&picasso_state_change, PICASSO_STATE_SETPANNING);
 
 	return 1;
 }
@@ -3555,7 +3585,7 @@ static uae_u32 REGPARAM2 picasso_SetDisplay (TrapContext *ctx)
 	uae_u32 state = trap_get_dreg(ctx, 0);
 	P96TRACE_SETUP((_T("SetDisplay(%d)\n"), state));
 	resetpalette ();
-	picasso_changed = true;
+	atomic_or(&picasso_state_change, PICASSO_STATE_SETDISPLAY);
 	return !state;
 }
 
