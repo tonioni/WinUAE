@@ -1730,7 +1730,6 @@ static void dev_reset (void)
 			while (ar) {
 				if (!ar->ready) {
 					dev->ar->ready = 1;
-					do_abort_async(NULL, dev, ar->request, ar->arequest);
 				}
 				ar = ar->next;
 			}
