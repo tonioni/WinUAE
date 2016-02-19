@@ -78,12 +78,9 @@ int get_fs_usage (const TCHAR *path, const TCHAR *disk, struct fs_usage *fsp)
 		return -1;
 	}
 
-	fsp->fsu_blocks = 0x7fffffff;
-	fsp->fsu_bavail = 0x7fffffff;
-	if (TotalNumberOfBytes.QuadPart / 1024 < (1 << 31))
-		fsp->fsu_blocks = (unsigned long)(TotalNumberOfBytes.QuadPart / 1024);
-	if (FreeBytesAvailable.QuadPart / 1024 < (1 << 31))
-		fsp->fsu_bavail = (unsigned long)(FreeBytesAvailable.QuadPart / 1024);
+	fsp->total = TotalNumberOfBytes.QuadPart;
+	fsp->avail = TotalNumberOfFreeBytes.QuadPart;
+
 	return 0;
 }
 

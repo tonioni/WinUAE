@@ -3283,8 +3283,8 @@ static void	do_info(TrapContext *ctx, Unit *unit, dpacket *packet, uaecptr info,
 			nr = unit->unit - cd_unit_offset;
 			blocksize = ii.blocksize;
 			if (ii.media) {
-				fsu.fsu_blocks = ii.blocks;
-				fsu.fsu_bavail = 0;
+				fsu.total = ii.blocks * ii.blocksize;
+				fsu.avail = 0;
 			}
 		}
 	} else {
@@ -3326,17 +3326,28 @@ static void	do_info(TrapContext *ctx, Unit *unit, dpacket *packet, uaecptr info,
 		put_long_host(buf + 28, 0);
 	} else {
 		if (fs && currprefs.filesys_limit) {
-			if (fsu.fsu_blocks > (uae_u64)currprefs.filesys_limit * 1024 / blocksize) {
-				uae_u32 oldblocks = fsu.fsu_blocks;
-				fsu.fsu_blocks = (uae_u32)((uae_u64)currprefs.filesys_limit * 1024 / blocksize);
-				fsu.fsu_bavail = (uae_u32)((uae_u64)fsu.fsu_bavail * fsu.fsu_blocks / oldblocks);
+			if (fsu.total > (uae_s64)currprefs.filesys_limit * 1024) {
+				uae_s64 oldtotal = fsu.total;
+				fsu.total = currprefs.filesys_limit * 1024;
+				fsu.avail = ((fsu.avail / 1024) * (fsu.total / 1024)) / (oldtotal / 1024);
+				fsu.avail *= 1024;
 			}
 		}
-		put_long_host(buf + 12, fsu.fsu_blocks); /* numblocks */
-		put_long_host(buf + 16, fsu.fsu_blocks - fsu.fsu_bavail); /* inuse */
+		uae_s64 numblocks = 0;
+		while (blocksize < 32768 || numblocks == 0) {
+			numblocks = fsu.total / blocksize;
+			if (numblocks <= 0x7fffffff)
+				break;
+			blocksize *= 2;
+		}
+		uae_s64 inuse = (fsu.total - fsu.avail + blocksize - 1) / blocksize;
+
+		put_long_host(buf + 12, (uae_u32)numblocks); /* numblocks */
+		put_long_host(buf + 16, (uae_u32)inuse); /* inuse */
+		put_long_host(buf + 20, blocksize); /* bytesperblock */
 		put_long_host(buf + 24, dostype); /* disk type */
 		put_long_host(buf + 28, unit->volume >> 2); /* volume node */
-		put_long_host(buf + 32, (trap_get_long(ctx, unit->volume + 28) || unit->keys) ? -1 : 0); /* inuse */
+		put_long_host(buf + 32, (get_long(unit->volume + 28) || unit->keys) ? -1 : 0); /* inuse */
 	}
 	trap_put_bytes(ctx, buf, info, sizeof buf);
 	PUT_PCK_RES1 (packet, DOS_TRUE);
@@ -8482,14 +8493,30 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *ctx)
 		trap_put_long(ctx, parmpacket + 76, uip[unit_no].bootpri); /* bootPri */
 		trap_put_long(ctx, parmpacket + 80, DISK_TYPE_DOS); /* DOS\0 */
 		if (type == FILESYS_VIRTUAL) {
+			// generate some sane-looking geometry if some program really cares..
+			uae_s64 hicyl = 100;
+			uae_u32 heads = 16;
+			if (currprefs.filesys_limit) {
+				hicyl = ((currprefs.filesys_limit * 1024) / 512) / (heads * 127);
+			} else {
+				struct fs_usage fsu;
+				if (!get_fs_usage(uip->rootdir, 0, &fsu)) {
+					for (;;) {
+						hicyl = (fsu.total / 512) / (heads * 127);
+						if (hicyl < 65536 || heads == 64)
+							break;
+						heads *= 2;
+					}
+				}
+			}
 			trap_put_long(ctx, parmpacket + 4, fsdevname);
 			trap_put_long(ctx, parmpacket + 20, 512 >> 2); /* longwords per block */
-			trap_put_long(ctx, parmpacket + 28, 15); /* heads */
+			trap_put_long(ctx, parmpacket + 28, heads); /* heads */
 			trap_put_long(ctx, parmpacket + 32, 1); /* sectors per block */
 			trap_put_long(ctx, parmpacket + 36, 127); /* sectors per track */
 			trap_put_long(ctx, parmpacket + 40, 2); /* reserved blocks */
-			trap_put_long(ctx, parmpacket + 52, 0); /* lowCyl */
-			trap_put_long(ctx, parmpacket + 56, 1); /* hiCyl */
+			trap_put_long(ctx, parmpacket + 52, 1); /* lowCyl */
+			trap_put_long(ctx, parmpacket + 56, (uae_u32)hicyl); /* hiCyl */
 		} else {
 			uae_u8 buf[512];
 			trap_put_long(ctx, parmpacket + 4, ROM_hardfile_resname);

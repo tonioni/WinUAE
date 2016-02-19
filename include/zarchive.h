@@ -72,7 +72,6 @@ struct zvolume
     struct znode *parentz;
     struct zvolume *parent;
     uae_s64 size;
-    unsigned int blocks;
     unsigned int id;
     uae_s64 archivesize;
     unsigned int method;
