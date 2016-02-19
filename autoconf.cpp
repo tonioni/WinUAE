@@ -218,8 +218,13 @@ static void REGPARAM2 rtarea_lput (uaecptr addr, uae_u32 value)
 
 void rtarea_reset(void)
 {
-	memset(rtarea_bank.baseaddr + RTAREA_TRAP_DATA, 0, RTAREA_TRAP_DATA_SLOT_SIZE * (RTAREA_TRAP_DATA_NUM + RTAREA_TRAP_DATA_SEND_NUM));
-	memset(rtarea_bank.baseaddr + RTAREA_TRAP_STATUS, 0, RTAREA_TRAP_STATUS_SIZE * (RTAREA_TRAP_DATA_NUM + RTAREA_TRAP_DATA_SEND_NUM));
+	uae_u8 *p = rtarea_bank.baseaddr;
+	if (p) {
+		memset(p + RTAREA_TRAP_DATA, 0, RTAREA_TRAP_DATA_SLOT_SIZE * (RTAREA_TRAP_DATA_NUM + RTAREA_TRAP_DATA_SEND_NUM));
+		memset(p + RTAREA_TRAP_STATUS, 0, RTAREA_TRAP_STATUS_SIZE * (RTAREA_TRAP_DATA_NUM + RTAREA_TRAP_DATA_SEND_NUM));
+		memset(p + RTAREA_HEARTBEAT, 0, 0x10000 - RTAREA_HEARTBEAT);
+		memset(p + RTAREA_VARIABLES, 0, RTAREA_VARIABLES_SIZE);
+	}
 	trap_reset();
 }
 
