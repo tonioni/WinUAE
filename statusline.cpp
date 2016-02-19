@@ -10,6 +10,7 @@
 #include "gui.h"
 #include "custom.h"
 #include "drawing.h"
+#include "inputdevice.h"
 #include "statusline.h"
 
 #define STATUSLINE_MS 3000
@@ -152,18 +153,27 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 				num3 = 12;
 			}
 		} else if (led == LED_FPS) {
-			int fps = (gui_data.fps + 5) / 10;
 			pos = 2;
-			on_rgb = 0x000000;
-			off_rgb = gui_data.fps_color ? 0xcccc00 : 0x000000;
-			if (fps > 999)
-				fps = 999;
-			num1 = fps / 100;
-			num2 = (fps - num1 * 100) / 10;
-			num3 = fps % 10;
-			am = 3;
-			if (num1 == 0)
+			if (pause_emulation) {
+				num1 = -1;
+				num2 = -1;
+				num3 = 16;
+				on_rgb = 0xcccccc;
+				off_rgb = 0x000000;
 				am = 2;
+			} else {
+				int fps = (gui_data.fps + 5) / 10;
+				on_rgb = 0x000000;
+				off_rgb = gui_data.fps_color ? 0xcccc00 : 0x000000;
+				if (fps > 999)
+					fps = 999;
+				num1 = fps / 100;
+				num2 = (fps - num1 * 100) / 10;
+				num3 = fps % 10;
+				am = 3;
+				if (num1 == 0)
+					am = 2;
+			}
 		} else if (led == LED_CPU) {
 			int idle = (gui_data.idle + 5) / 10;
 			pos = 1;
