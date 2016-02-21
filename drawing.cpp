@@ -96,7 +96,9 @@ static int res_shift;
 
 static int linedbl, linedbld;
 
-int interlace_seen = 0;
+int interlace_seen;
+int detected_screen_resolution;
+
 #define AUTO_LORES_FRAMES 10
 static int can_use_lores = 0, frame_res, frame_res_lace;
 static int resolution_count[RES_MAX + 1], lines_count;
@@ -3167,18 +3169,22 @@ static void init_drawing_frame (void)
 	int i, maxline;
 	static int frame_res_old;
 
-	if (currprefs.gfx_resolution == changed_prefs.gfx_resolution && lines_count > 0) {
-		int largest_count = 0;
-		int largest_count_res = 0;
-		int largest_res = 0;
-		for (int i = 0; i <= RES_MAX; i++) {
-			if (resolution_count[i])
-				largest_res = i;
-			if (resolution_count[i] >= largest_count) {
-				largest_count = resolution_count[i];
-				largest_count_res = i;
-			}
+	int largest_res = 0;
+	int largest_count = 0;
+	int largest_count_res = 0;
+	for (int i = 0; i <= RES_MAX; i++) {
+		if (resolution_count[i])
+			largest_res = i;
+		if (resolution_count[i] >= largest_count) {
+			largest_count = resolution_count[i];
+			largest_count_res = i;
 		}
+	}
+	if (currprefs.gfx_resolution == changed_prefs.gfx_resolution && lines_count > 0) {
+		detected_screen_resolution = largest_res;
+	}
+
+	if (currprefs.gfx_resolution == changed_prefs.gfx_resolution && lines_count > 0) {
 
 		if (currprefs.gfx_autoresolution_vga && programmedmode && gfxvidinfo.gfx_resolution_reserved >= RES_HIRES && gfxvidinfo.gfx_vresolution_reserved >= VRES_DOUBLE) {
 			if (largest_res == RES_SUPERHIRES && (gfxvidinfo.gfx_resolution_reserved < RES_SUPERHIRES || gfxvidinfo.gfx_vresolution_reserved < 1)) {
