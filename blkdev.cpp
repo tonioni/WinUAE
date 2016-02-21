@@ -2041,12 +2041,17 @@ end:
 	*data_len = scsi_len;
 	*reply_len = lr;
 	*sense_len = ls;
-	if (lr > 0) {
-		if (log_scsiemu) {
+	if (log_scsiemu) {
+		if (lr > 0) {
 			write_log (_T("CD SCSIEMU REPLY: "));
-			for (int i = 0; i < lr && i < 40; i++)
+			for (int i = 0; i < lr && i < 100; i++)
 				write_log (_T("%02X."), r[i]);
 			write_log (_T("\n"));
+		} else if (scsi_len > 0) {
+			write_log(_T("CD SCSIEMU DATA: "));
+			for (int i = 0; i < scsi_len && i < 100; i++)
+				write_log(_T("%02X."), scsi_data[i]);
+			write_log(_T("\n"));
 		}
 	}
 	if (ls) {
@@ -2171,7 +2176,20 @@ int sys_command_scsi_direct(TrapContext *ctx, int unitnum, int type, uaecptr acm
 	trap_get_bytes(ctx, as.cmd, ap, as.cmd_len);
 	as.sense_len = get_word_host(scsicmd + 26);
 
+	if (log_scsiemu) {
+		write_log(_T("HD_SCSICMD0: DATA=%08x LEN=%d CMD=%08x LEN=%d FLAGS=%02x SENSE=%08x LEN=%d\n"),
+			get_long_host(scsicmd + 0), as.len,
+			get_long_host(scsicmd + 12), as.cmd_len,
+			as.flags,
+			get_long_host(scsicmd + 22), as.sense_len);
+	}
+
 	ret = sys_command_scsi_direct_native (unitnum, type, &as);
+
+	if (log_scsiemu) {
+		write_log(_T("HD_SCSICMD1: ACTUAL=%d CMDACTUAL=%d STATUS=%d SACTUAL=%d\n"),
+			as.actual, as.cmdactual, as.status, as.sactual);
+	}
 
 	put_long_host(scsicmd + 8, as.actual);
 	put_word_host(scsicmd + 18, as.cmdactual);
@@ -2180,14 +2198,18 @@ int sys_command_scsi_direct(TrapContext *ctx, int unitnum, int type, uaecptr acm
 
 	if (as.flags & (2 | 4)) { // autosense
 		ap = get_long_host(scsicmd + 22);
-		trap_put_bytes(ctx, as.sensedata, ap, as.sactual > as.sense_len ? as.sense_len : as.sactual);
+		if (as.sactual)
+			trap_put_bytes(ctx, as.sensedata, ap, as.sactual > as.sense_len ? as.sense_len : as.sactual);
+		if (as.sense_len > as.sactual)
+			trap_set_bytes(ctx, ap + as.sactual, 0, as.sense_len - as.sactual);
 	}
 
 	trap_put_bytes(ctx, scsicmd, acmd, sizeof scsicmd);
 
 	if (trap_is_indirect()) {
 		if (as.flags & 1) { // read?
-			trap_put_bytes(ctx, as.data, ap, as.len);
+			int len = as.actual > as.len ? as.len : as.actual;
+			trap_put_bytes(ctx, as.data, get_long_host(scsicmd + 0), len);
 		}
 		xfree(as.data);
 	}
