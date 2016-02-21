@@ -1,4 +1,21 @@
 
+Beta 7:
+
+- Fullscreen + paused + enter GUI: GUI was invisible.
+- OSD FPS counter shows 'P' in pause mode.
+- Directory filesystem drive total/used values are not anymore converted to internal block count before
+  again converting to AmigaOS block count. Reported Amiga-side size is now accurate.
+- Create more sane looking fake geometry for directory harddrives. (Not that anyone really cares)
+- Directory filesystem harddrive block size is dynamically adjusted to enable correct drive size information
+  even if drive is large (>2T), as long as AOS also supports it (OS3.9+ probably required).
+- If m68k FPU is in float (32-bit) precision mode, force output register value to 32-bit precision after each
+  host FPU operation to guarantee correct result. (Kilofix / Iris missing geometry)
+- Clear UAE boot ROM temporary variables at reset. (OS4.x reset loop after warm reset)
+- Added 20 bytes of empty space after directory filesystem volume node. If OS4 decides to use it for something.
+  (OS4 volume node is 20 bytes larger. UAE puts it in hardware board space, it can't use DOS functions to allocate it).
+- Implemented OS4 ACTION_FILESYSTEM_ATTR directory filesystem dos packet.
+- Selecting none in Game Ports reverted back to previously selected device/layout.
+
 Beta 6:
 
 - Fixed uaehf.device and input on the fly device change invalid free() calls.

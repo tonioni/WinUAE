@@ -2068,7 +2068,7 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 		}
 #endif
 	}
-		
+	ct2 = 0;
 	regqueryint (NULL, _T("ConfigFile_NoAuto"), &ct2);
 	v = cfgfile_load (p, fname, &type2, ct2, isdefault ? 0 : 1);
 	if (!v)
@@ -2131,12 +2131,14 @@ void gui_display (int shortcut)
 		return;
 	here++;
 	gui_active++;
+
+	if (isfullscreen() > 0 && currprefs.gfx_api == 0)
+		screenshot_prepare();
+	flipgui(true);
+
 	if (setpaused (7)) {
-		if (isfullscreen() > 0 && currprefs.gfx_api == 0)
-			screenshot_prepare ();
-		flipgui (true);
-		wait_keyrelease ();
 		inputdevice_unacquire ();
+		wait_keyrelease();
 		clearallkeys ();
 		setmouseactive (0);
 	}
@@ -2180,8 +2182,8 @@ void gui_display (int shortcut)
 #ifdef AVIOUTPUT
 		AVIOutput_Begin ();
 #endif
-		flipgui (false);
 	}
+	flipgui(false);
 	fpscounter_reset ();
 	screenshot_free ();
 	write_disk_history ();

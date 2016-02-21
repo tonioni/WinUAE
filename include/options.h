@@ -71,6 +71,7 @@ struct jport_custom {
 struct inputdevconfig {
 	TCHAR name[MAX_JPORTNAME];
 	TCHAR configname[MAX_JPORTNAME];
+	TCHAR shortid[16];
 };
 struct jport {
 	int id;
@@ -79,6 +80,7 @@ struct jport {
 	struct inputdevconfig idc;
 	bool nokeyboardoverride;
 };
+#define JPORT_UNPLUGGED -2
 #define JPORT_NONE -1
 
 #define JPORT_AF_NORMAL 1
@@ -248,18 +250,22 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CDTVCR, CP_CD32, CP_A500, CP_A500P, CP_A600, 
 #define CHIPSET_REFRESH_NTSC (MAX_CHIPSET_REFRESH + 1)
 struct chipset_refresh
 {
+	bool inuse;
 	int index;
 	bool locked;
 	bool rtg;
 	int horiz;
 	int vert;
 	int lace;
+	int resolution;
+	int resolution_pct;
 	int ntsc;
 	int vsync;
 	int framelength;
 	double rate;
 	TCHAR label[16];
 	TCHAR commands[256];
+	TCHAR filterprofile[64];
 };
 
 #define APMODE_NATIVE 0

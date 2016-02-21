@@ -989,7 +989,7 @@ fsres4
 addvolumenode
 	movem.l d7/a6,-(sp)
 	move.l d0,d7
-	tst.b 32+44(a3)
+	tst.b 32+64(a3)
 	beq.s .end ;empty volume string = empty drive
 	move.l 160(a3),a6
 	cmp.w #37, 20(a6)
@@ -1156,16 +1156,16 @@ diskinsertremove:
 dodiskchange
 	tst.b d0
 	beq.s .eject
-	tst.b 32+44(a3)
+	tst.b 32+64(a3)
 	bne.s .end
 	moveq #0,d0
 .dc2
-	tst.b 32+45(a3,d0.w)
+	tst.b 32+65(a3,d0.w)
 	beq.s .dc1
 	addq.b #1,d0
 	bra.s .dc2
 .dc1
-	move.b d0,32+44(a3)
+	move.b d0,32+64(a3)
 	beq.s .end
 	move.l d1,d0
 	bsr.w addvolumenode
@@ -1173,9 +1173,9 @@ dodiskchange
 	bsr.w diskinsertremove
 	bra.s .end
 .eject
-	tst.b 32+44(a3)
+	tst.b 32+64(a3)
 	beq.s .end
-	clr.b 32+44(a3)
+	clr.b 32+64(a3)
 	move.l d1,d0
 	bsr.w remvolumenode
 	moveq #0,d0
@@ -1588,7 +1588,7 @@ filesys_mainloop_bcpl:
 	; 4: command chain
 	; 8: second thread's lock chain
 	; 12: dummy message
-	; 32: the volume (44+80+1 bytes)
+	; 32: the volume (44+20+60+1 bytes. 20 = extra volnode space)
 	; 157: mousehack started-flag
 	; 158: device node on/off status
 	; 160: dosbase
@@ -1600,7 +1600,7 @@ filesys_mainloop_bcpl:
 	; 180: device node
 	; 184: highcyl (-1 = ignore)
 
-	move.l #12+20+(80+44+1)+3+4+4+4+(1+3)+4+4+4,d1
+	move.l #12+20+(44+20+60+1)+3+4+4+4+(1+3)+4+4+4,d1
 	move.w #$FF40,d0 ; startup_handler
 	bsr.w getrtbase
 	moveq #1,d0
@@ -3014,7 +3014,7 @@ debuggerproc
 	lea doslibname(pc),a1
 	jsr -$0228(a6) ; OpenLibrary
 	moveq #2,d1
-	move.w #$FF3C,d0
+	move.w #$FF78,d0
 	bsr.w getrtbase
 	move.l a0,a2
 	moveq #1,d1
@@ -3169,7 +3169,7 @@ bcplwrapper_start:
 	jsr -$16e(a6) ;PutMsg
 	move.l d2,d1
 	lea wb13ffspatches(pc),a1
-	move.w #$FF2C,d0
+	move.w #$FF68,d0
 	bsr.w getrtbase
 	jsr (a0)
 	jmp (a0)
@@ -3232,11 +3232,14 @@ hwtrap_entry:
 .nexttrap
 	tas.b TRAP_STATUS_STATUS(a1)
 	beq.s .foundfree
+.nexttrap2
 	add.w #TRAP_DATA_SLOT_SIZE,a0
 	add.w #TRAP_STATUS_SLOT_SIZE,a1
 	dbf d0,.nexttrap
 	bra.s .retry
 .foundfree
+	tst TRAP_STATUS_STATUS(a1)
+	bpl.s .nexttrap2
 
 	; clear secondary status
 	clr.b TRAP_STATUS_STATUS2(a1)
@@ -3561,10 +3564,6 @@ hw_multi:
 	rts
 
 
-hwtrap_name
-	dc.b "UAE board",0
-	
-
 getrtbase:
 	lea start-8-4(pc),a0
 	and.l #$FFFF,d0
@@ -3599,7 +3598,9 @@ fsresname: dc.b 'FileSystem.resource',0
 fchipname: dc.b 'megachip memory',0
 bcplfsname: dc.b "File System",0
 shellexecname: dc.b "UAE shell execute",0
-	even
+hwtrap_name:
+	dc.b "UAE board",0
+		even
 rom_end:
 
 	END

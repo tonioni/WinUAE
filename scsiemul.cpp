@@ -98,9 +98,9 @@ static void io_log(const TCHAR *msg, uae_u8 *iobuf, uaecptr request)
 {
 	if (log_scsi)
 		write_log (_T("%s: %08X %d %08X %d %d io_actual=%d io_error=%d\n"),
-		msg, request, get_word (request + 28), get_long_host(iobuf + 40),
+		msg, request, get_word_host(iobuf + 28), get_long_host(iobuf + 40),
 		get_long_host(iobuf + 36), get_long_host(iobuf + 44),
-		get_long_host(iobuf + 32), get_byte (request + 31));
+		get_long_host(iobuf + 32), get_byte_host(iobuf + 31));
 }
 
 static struct devstruct *getdevstruct (int unit)
@@ -978,8 +978,9 @@ static int dev_do_io_cd (TrapContext *ctx, struct devstruct *dev, uae_u8 *iobuf,
 		{
 			uae_u32 sdd = get_long_host(iobuf + 40);
 			io_error = sys_command_scsi_direct(ctx, dev->unitnum, INQ_ROMD, sdd);
+			io_actual = 0;
 			if (log_scsi)
-				write_log (_T("scsidev cd: did io: sdd %08x request %08x error %d\n"), sdd, request, get_byte (request + 31));
+				write_log (_T("scsidev cd: did io: sdd %08x request %08x error %d\n"), sdd, request, io_error);
 		}
 		break;
 	case NSCMD_DEVICEQUERY:

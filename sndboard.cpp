@@ -1136,7 +1136,9 @@ SWVoiceOut *AUD_open_out(
 	out->fmt = settings->fmt;
 	out->bytesperframe = out->ch * bits / 8;
 
-	write_log(_T("QEMU AUDIO: freq=%d ch=%d bits=%d (fmt=%d) '%s'\n"), out->freq, out->ch, bits, settings->fmt, name);
+	TCHAR *name2 = au(name);
+	write_log(_T("QEMU AUDIO: freq=%d ch=%d bits=%d (fmt=%d) '%s'\n"), out->freq, out->ch, bits, settings->fmt, name2);
+	xfree(name2);
 
 	qemu_voice_out = out;
 

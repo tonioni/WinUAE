@@ -68,7 +68,6 @@ int regsetint (UAEREG *root, const TCHAR *name, int val)
 
 int regqueryint (UAEREG *root, const TCHAR *name, int *val)
 {
-	*val = 0;
 	if (inimode) {
 		int ret = 0;
 		TCHAR tmp[100];
