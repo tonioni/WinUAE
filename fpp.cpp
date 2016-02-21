@@ -545,7 +545,7 @@ static inline void set_fpucw_softfloat(uae_u32 m68k_cw)
  * SSE2 registers. */
 
 static uae_u16 x87_cw = 0;
-static char *x87_fldcw_code = NULL;
+static uae_u8 *x87_fldcw_code = NULL;
 typedef void (uae_cdecl *x87_fldcw_function)(void);
 
 static void init_fpucw_x87(void)
@@ -553,9 +553,9 @@ static void init_fpucw_x87(void)
 	if (x87_fldcw_code) {
 		return;
 	}
-	x87_fldcw_code = (char *) uae_vm_alloc(
+	x87_fldcw_code = (uae_u8 *) uae_vm_alloc(
 		uae_vm_page_size(), UAE_VM_32BIT, UAE_VM_READ_WRITE_EXECUTE);
-	char *c = x87_fldcw_code;
+	uae_u8 *c = x87_fldcw_code;
 	/* mov eax,0x0 */
 	*(c++) = 0xb8;
 	*(c++) = 0x00;
@@ -2692,7 +2692,7 @@ static bool arithmetic_fp(fptype src, int reg, int extra)
 			return false;
 	}
 	// round to float?
-	if (sgl || (extra & 0x44) == 0x40)
+	if (sgl || (extra & 0x44) == 0x40 || ((regs.fpcr >> 6) & 3) == 1)
 		fround (reg);
 	MAKE_FPSR (&regs.fp[reg].fp);
 	return true;
