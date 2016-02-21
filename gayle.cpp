@@ -617,6 +617,8 @@ static uae_u32 REGPARAM2 gayle_lget (uaecptr addr)
 	if (ide_reg == IDE_DATA) {
 		v = ide_get_data (ide) << 16;
 		v |= ide_get_data (ide);
+		if (GAYLE_LOG > 4)
+			write_log(_T("IDE_DATA_LONG %08X=%08X PC=%X\n"), addr, v, M68K_GETPC);
 		return v;
 	}
 	v = gayle_wget (addr) << 16;
@@ -643,8 +645,12 @@ static uae_u32 REGPARAM2 gayle_wget (uaecptr addr)
 	}
 #endif
 	ide_reg = get_gayle_ide_reg (addr, &ide);
-	if (ide_reg == IDE_DATA)
-		return ide_get_data (ide);
+	if (ide_reg == IDE_DATA) {
+		v = ide_get_data (ide);
+		if (GAYLE_LOG > 4)
+			write_log(_T("IDE_DATA_WORD %08X=%04X PC=%X\n"), addr, v & 0xffff, M68K_GETPC);
+		return v;
+	}
 	v = gayle_bget (addr) << 8;
 	v |= gayle_bget (addr + 1);
 	return v;
