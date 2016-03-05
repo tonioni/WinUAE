@@ -13,6 +13,7 @@ extern int avioutput_fps;
 extern int avioutput_framelimiter, avioutput_nosoundoutput;
 extern int avioutput_nosoundsync, avioutput_originalsize;
 extern int screenshot_originalsize;
+extern int screenshot_clipmode;
 
 extern TCHAR avioutput_filename_gui[MAX_DPATH];
 extern TCHAR avioutput_filename_auto[MAX_DPATH];

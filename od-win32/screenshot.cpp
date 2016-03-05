@@ -18,11 +18,13 @@
 #include "registry.h"
 #include "gfxfilter.h"
 #include "xwin.h"
+#include "drawing.h"
 
 #include "png.h"
 
 int screenshotmode = PNG_SCREENSHOTS;
 int screenshot_originalsize = 0;
+int screenshot_clipmode = 0;
 
 static void namesplit (TCHAR *s)
 {
@@ -101,19 +103,22 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 
 	screenshot_free ();
 
-	regqueryint (NULL, _T("Screenshot_Original"), &screenshot_originalsize);
+	regqueryint(NULL, _T("Screenshot_Original"), &screenshot_originalsize);
+	regqueryint(NULL, _T("Screenshot_ClipMode"), &screenshot_clipmode);
 	if (imagemode < 0)
 		imagemode = screenshot_originalsize;
 
 	if (imagemode) {
-		int spitch, dpitch, x, y;
+		int spitch, dpitch;
 		uae_u8 *src, *dst, *mem;
 		bool needfree = false;
 		uae_u8 *palette = NULL;
 		int rgb_bb2, rgb_gb2, rgb_rb2;
 		int rgb_bs2, rgb_gs2, rgb_rs2;
 		uae_u8 pal[256 * 3];
-		
+		int screenshot_width = 0, screenshot_height = 0;
+		int screenshot_xoffset = -1, screenshot_yoffset = -1;
+
 		if (WIN32GFX_IsPicassoScreen ()) {
 			src = mem = getrtgbuffer (&width, &height, &spitch, &bits, pal);
 			needfree = true;
@@ -156,10 +161,78 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 			}
 			goto donormal;
 		}
+
+		int screenshot_xmult = currprefs.screenshot_xmult + 1;
+		int screenshot_ymult = currprefs.screenshot_ymult + 1;
+
+		screenshot_width = width;
+		screenshot_height = height;
+		if (currprefs.screenshot_width > 0)
+			screenshot_width = currprefs.screenshot_width;
+		if (currprefs.screenshot_height > 0)
+			screenshot_height = currprefs.screenshot_height;
+		screenshot_xoffset = currprefs.screenshot_xoffset;
+		screenshot_yoffset = currprefs.screenshot_yoffset;
+
+		if (!WIN32GFX_IsPicassoScreen() && screenshot_clipmode == 1) {
+			int cw, ch, cx, cy, crealh = 0;
+			if (get_custom_limits(&cw, &ch, &cx, &cy, &crealh)) {
+				int maxw = currprefs.screenshot_max_width << currprefs.gfx_resolution;
+				int maxh = currprefs.screenshot_max_height << currprefs.gfx_vresolution;
+				int minw = currprefs.screenshot_min_width << currprefs.gfx_resolution;
+				int minh = currprefs.screenshot_min_height << currprefs.gfx_vresolution;
+				if (minw > AMIGA_WIDTH_MAX << currprefs.gfx_resolution)
+					minw = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
+				if (minh > AMIGA_HEIGHT_MAX << currprefs.gfx_resolution)
+					minh = AMIGA_HEIGHT_MAX << currprefs.gfx_resolution;
+				if (maxw < minw)
+					maxw = minw;
+				if (maxh < minh)
+					maxh = minh;
+				screenshot_width = cw;
+				screenshot_height = ch;
+				screenshot_xoffset = cx;
+				screenshot_yoffset = cy;
+				if (screenshot_width < minw && minw > 0) {
+					screenshot_xoffset -= (minw - screenshot_width) / 2;
+					screenshot_width = minw;
+				}
+				if (screenshot_height < minh && minh > 0) {
+					screenshot_yoffset -= (minh - screenshot_height) / 2;
+					screenshot_height = minh;
+				}
+				if (screenshot_width > maxw && maxw > 0) {
+					screenshot_xoffset += (screenshot_width - maxw) / 2;
+					screenshot_width = maxw;
+				}
+				if (screenshot_height > maxh && maxh > 0) {
+					screenshot_yoffset += (screenshot_height - maxh) / 2;
+					screenshot_height = maxh;
+				}
+			}
+		}
+
+		if (screenshot_xmult < 1)
+			screenshot_xmult = 1;
+		if (screenshot_ymult < 1)
+			screenshot_ymult = 1;
+
+		int maxw_output = currprefs.screenshot_output_width;
+		int maxh_output = currprefs.screenshot_output_height;
+		while (maxw_output > screenshot_width * screenshot_xmult && screenshot_xmult < 8) {
+			screenshot_xmult++;
+		}
+		while (maxh_output > screenshot_height * screenshot_ymult && screenshot_ymult < 8) {
+			screenshot_ymult++;
+		}
+
+		int xoffset = screenshot_xoffset < 0 ? (screenshot_width - width) / 2 : -screenshot_xoffset;
+		int yoffset = screenshot_yoffset < 0 ? (screenshot_height - height) / 2 : -screenshot_yoffset;
+
 		ZeroMemory (bi, sizeof(bi));
 		bi->bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
-		bi->bmiHeader.biWidth = width;
-		bi->bmiHeader.biHeight = height;
+		bi->bmiHeader.biWidth = screenshot_width * screenshot_xmult;
+		bi->bmiHeader.biHeight = screenshot_height * screenshot_ymult;
 		bi->bmiHeader.biPlanes = 1;
 		bi->bmiHeader.biBitCount = bits <= 8 ? 8 : 24;
 		bi->bmiHeader.biCompression = BI_RGB;
@@ -185,50 +258,101 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 			}
 			goto oops;
 		}
-		dst = (uae_u8*)lpvBits + (height - 1) * dpitch;
-		if (bits <=8) {
-			for (y = 0; y < height; y++) {
-				memcpy (dst, src, width);
-				src += spitch;
-				dst -= dpitch;
+
+		int dpitch2 = dpitch;
+		dpitch *= screenshot_ymult;
+
+		dst = (uae_u8*)lpvBits;
+		dst += dpitch * screenshot_height;
+		if (yoffset > 0) {
+			if (yoffset >= screenshot_height - height)
+				yoffset = screenshot_height - height;
+			dst -= dpitch * yoffset;
+		} else if (yoffset < 0) {
+			yoffset = -yoffset;
+			if (yoffset >= height - screenshot_height)
+				yoffset = height - screenshot_height;
+			src += spitch * yoffset;
+		}
+
+		int xoffset2 = 0;
+		if (xoffset < 0) {
+			xoffset2 = -xoffset;
+			xoffset = 0;
+		}
+		int dbpx = bits / 8;
+		int sbpx = bits / 8;
+		if (sbpx == 3)
+			sbpx = 4;
+
+		int xmult = screenshot_xmult;
+		int ymult = screenshot_ymult;
+
+		for (int y = 0; y < screenshot_height && y < height; y++) {
+			uae_u8 *s, *d;
+			dst -= dpitch;
+			d = dst;
+			s = src;
+			if (xoffset > 0) {
+				d += xoffset * dbpx;
+			} else if (xoffset2 > 0) {
+				s += xoffset2 * sbpx;
 			}
-		} else {
-			for (y = 0; y < height; y++) {
-				for (x = 0; x < width; x++) {
+			for (int x = 0; x < screenshot_width && x < width; x++) {
+				int xx = x * screenshot_xmult;
+				if (bits <= 8) {
+					uae_u8 *d2 = d;
+					for (int y2 = 0; y2 < ymult; y2++) {
+						for (int x2 = 0; x2 < xmult; x2++) {
+							d[xx + x2] = s[x];
+						}
+						d2 += dpitch2;
+					}
+				} else {
 					int shift;
 					uae_u32 v = 0;
-					uae_u32 v2;
+					uae_u32 v2, v2a, v2b, v2c;
 
 					if (bits == 16)
-						v = ((uae_u16*)src)[x];
+						v = ((uae_u16*)s)[x];
 					else if (bits == 32)
-						v = ((uae_u32*)src)[x];
+						v = ((uae_u32*)s)[x];
 
 					shift = 8 - rgb_bb2;
 					v2 = (v >> rgb_bs2) & ((1 << rgb_bb2) - 1);
 					v2 <<= shift;
 					if (rgb_bb2 < 8)
 						v2 |= (v2 >> shift) & ((1 < shift) - 1);
-					dst[x * 3 + 0] = v2;
+					v2a = v2;
 
 					shift = 8 - rgb_gb2;
 					v2 = (v >> rgb_gs2) & ((1 << rgb_gb2) - 1);
 					v2 <<= (8 - rgb_gb2);
 					if (rgb_gb < 8)
 						v2 |= (v2 >> shift) & ((1 < shift) - 1);
-					dst[x * 3 + 1] = v2;
+					v2b = v2;
 
 					shift = 8 - rgb_rb2;
 					v2 = (v >> rgb_rs2) & ((1 << rgb_rb2) - 1);
 					v2 <<= (8 - rgb_rb2);
 					if (rgb_rb < 8)
 						v2 |= (v2 >> shift) & ((1 < shift) - 1);
-					dst[x * 3 + 2] = v2;
+					v2c = v2;
 
+					uae_u8 *d2 = d;
+					for (int y2 = 0; y2 < ymult; y2++) {
+						for (int x2 = 0; x2 < xmult; x2++) {
+							d2[(xx + x2) * 3 + 0] = v2a;
+							d2[(xx + x2) * 3 + 1] = v2b;
+							d2[(xx + x2) * 3 + 2] = v2c;
+						}
+						d2 += dpitch2;
+					}
 				}
-				src += spitch;
-				dst -= dpitch;
 			}
+
+
+			src += spitch;
 		}
 		if (needfree) {
 			if (WIN32GFX_IsPicassoScreen())
