@@ -1022,16 +1022,16 @@ static tointtype toint(fpdata *src, int size)
 			switch (regs.fpcr & 0x30)
 			{
 				case FPCR_ROUND_ZERO:
-					result = (int)fp_round_to_zero (fp);
+					result = fp_round_to_zero (fp);
 					break;
 				case FPCR_ROUND_MINF:
-					result = (int)fp_round_to_minus_infinity (fp);
+					result = fp_round_to_minus_infinity (fp);
 					break;
 				case FPCR_ROUND_NEAR:
 					result = fp_round_to_nearest (fp);
 					break;
 				case FPCR_ROUND_PINF:
-					result = (int)fp_round_to_plus_infinity (fp);
+					result = fp_round_to_plus_infinity (fp);
 					break;
 			}
 			return result;
