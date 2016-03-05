@@ -296,7 +296,8 @@ int zfile_gettype (struct zfile *z)
 			return ZFILE_NVR;
 		if (strcasecmp (ext, _T("uae")) == 0)
 			return ZFILE_CONFIGURATION;
-		if (strcasecmp (ext, _T("cue")) == 0 || strcasecmp (ext, _T("iso")) == 0 || strcasecmp (ext, _T("ccd")) == 0 || strcasecmp (ext, _T("mds")) == 0 || strcasecmp (ext, _T("chd")) == 0)
+		if (strcasecmp(ext, _T("cue")) == 0 || strcasecmp(ext, _T("iso")) == 0 || strcasecmp(ext, _T("ccd")) == 0 ||
+			strcasecmp(ext, _T("mds")) == 0 || strcasecmp(ext, _T("chd")) == 0 || strcasecmp(ext, _T("nrg")) == 0)
 			return ZFILE_CDIMAGE;
 	}
 	memset (buf, 0, sizeof (buf));

@@ -1729,7 +1729,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		if (!cr->inuse)
 			continue;
 		cr->index = i;
-		_stprintf (tmp, _T("%f"), cr->rate);
+		if (cr->rate == 0)
+			_tcscpy(tmp, _T("0"));
+		else
+			_stprintf (tmp, _T("%f"), cr->rate);
 		TCHAR *s = tmp + _tcslen (tmp);
 		if (cr->label[0] > 0 && i < MAX_CHIPSET_REFRESH)
 			s += _stprintf (s, _T(",t=%s"), cr->label);
@@ -1857,8 +1860,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	}
 	cfgfile_dwrite(f, _T("cpuboardmem1_size"), _T("%d"), p->cpuboardmem1_size / 0x100000);
 	cfgfile_dwrite(f, _T("cpuboardmem2_size"), _T("%d"), p->cpuboardmem2_size / 0x100000);
-	cfgfile_write(f, _T("gfxcard_size"), _T("%d"), p->rtgmem_size / 0x100000);
-	cfgfile_write_str(f, _T("gfxcard_type"), gfxboard_get_configname(p->rtgmem_type));
+	cfgfile_write(f, _T("gfxcard_size"), _T("%d"), p->rtgboards[0].rtgmem_size / 0x100000);
+	cfgfile_write_str(f, _T("gfxcard_type"), gfxboard_get_configname(p->rtgboards[0].rtgmem_type));
 	cfgfile_write_bool(f, _T("gfxcard_hardware_vblank"), p->rtg_hardwareinterrupt);
 	cfgfile_write_bool (f, _T("gfxcard_hardware_sprite"), p->rtg_hardwaresprite);
 	cfgfile_write (f, _T("chipmem_size"), _T("%d"), p->chipmem_size == 0x20000 ? -1 : (p->chipmem_size == 0x40000 ? 0 : p->chipmem_size / 0x80000));
@@ -4453,7 +4456,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval (option, value, _T("megachipmem_size"), &p->z3chipmem_size, 0x100000)
 		|| cfgfile_intval (option, value, _T("z3mem_start"), &p->z3autoconfig_start, 1)
 		|| cfgfile_intval (option, value, _T("bogomem_size"), &p->bogomem_size, 0x40000)
-		|| cfgfile_intval (option, value, _T("gfxcard_size"), &p->rtgmem_size, 0x100000)
+		|| cfgfile_intval (option, value, _T("gfxcard_size"), &p->rtgboards[0].rtgmem_size, 0x100000)
 		|| cfgfile_intval(option, value, _T("rtg_modes"), &p->picasso96_modeflags, 1)
 		|| cfgfile_intval (option, value, _T("floppy_speed"), &p->floppy_speed, 1)
 		|| cfgfile_intval (option, value, _T("cd_speed"), &p->cd_speed, 1)
@@ -4511,14 +4514,15 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 
 	if (cfgfile_string(option, value, _T("gfxcard_type"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
-		p->rtgmem_type = 0;
+		p->rtgboards[0].rtgmem_type = 0;
 		i = 0;
 		for (;;) {
 			const TCHAR *t = gfxboard_get_configname(i);
-			if (!t)
+			if (!t) {
 				break;
+			}
 			if (!_tcsicmp(t, tmpbuf)) {
-				p->rtgmem_type = i;
+				p->rtgboards[0].rtgmem_type = i;
 				break;
 			}
 			i++;
@@ -5588,7 +5592,7 @@ int parse_cmdline_option (struct uae_prefs *p, TCHAR c, const TCHAR *arg)
 		break;
 
 	case 'U':
-		p->rtgmem_size = _tstoi (arg) * 0x100000;
+		p->rtgboards[0].rtgmem_size = _tstoi (arg) * 0x100000;
 		break;
 
 	case 'F':
@@ -6335,8 +6339,8 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->z3autoconfig_start = 0x10000000;
 	p->chipmem_size = 0x00080000;
 	p->bogomem_size = 0x00080000;
-	p->rtgmem_size = 0x00000000;
-	p->rtgmem_type = GFXBOARD_UAE_Z3;
+	p->rtgboards[0].rtgmem_size = 0x00000000;
+	p->rtgboards[0].rtgmem_type = GFXBOARD_UAE_Z3;
 	p->custom_memory_addrs[0] = 0;
 	p->custom_memory_sizes[0] = 0;
 	p->custom_memory_addrs[1] = 0;
@@ -6499,8 +6503,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->z3fastmem_size = 0x00000000;
 	p->z3fastmem2_size = 0x00000000;
 	p->z3chipmem_size = 0x00000000;
-	p->rtgmem_size = 0x00000000;
-	p->rtgmem_type = GFXBOARD_UAE_Z3;
+	p->rtgboards[0].rtgmem_size = 0x00000000;
+	p->rtgboards[0].rtgmem_type = GFXBOARD_UAE_Z3;
 
 	p->cs_rtc = 0;
 	p->cs_a1000ram = false;
@@ -7031,7 +7035,7 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->bogomem_size = 0;
 	p->chipmem_size = 0x400000;
 	p->z3fastmem_size = 8 * 1024 * 1024;
-	p->rtgmem_size = 16 * 1024 * 1024;
+	p->rtgboards[0].rtgmem_size = 16 * 1024 * 1024;
 	p->cpu_model = 68040;
 	p->fpu_model = 68040;
 	p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;

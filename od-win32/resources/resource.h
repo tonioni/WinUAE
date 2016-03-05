@@ -952,6 +952,8 @@
 #define IDC_STATEREC_AUTOPLAY           1652
 #define IDC_SOUNDFREQTXT                1653
 #define IDC_PANEL_FRAME                 1653
+#define IDC_SCREENSHOT_ORIGINALSIZE2    1653
+#define IDC_SCREENSHOT_CLIP             1653
 #define IDC_SOUNDFILTERTXT              1654
 #define IDC_PANEL_FRAME_OUTER           1654
 #define IDC_SOUNDSTEREO                 1655

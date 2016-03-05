@@ -895,8 +895,14 @@ static int ioctl_command_qcode (int unitnum, uae_u8 *buf, int sector)
 		tolongbcd (p + 3, msf);
 	}
 
-//	write_log (_T("%6d %02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x\n"),
-//		pos, p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11]);
+#if 0
+	uae_u8 *s = buf + 4;
+	write_log(_T("CTRLADR:%02X TRK=%02X IDX=%02X MSF=%02X:%02X:%02X %02X:%02X:%02X\n"),
+		s[0], s[1], s[2],
+		s[3], s[4], s[5],
+		s[7], s[8], s[9]);
+#endif
+
 	return 1;
 
 }

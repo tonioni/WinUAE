@@ -611,7 +611,9 @@ int host_socket(TrapContext *ctx, SB, int af, int type, int protocol)
 	unsigned long nonblocking = 1;
 	int faketype;
 
-	BSDTRACE((_T("socket(%s,%s,%d) -> "),af == AF_INET ? _T("AF_INET") : _T("AF_other"),type == SOCK_STREAM ? _T("SOCK_STREAM") : type == SOCK_DGRAM ? _T("SOCK_DGRAM ") : _T("SOCK_RAW"),protocol));
+	BSDTRACE((_T("socket(%s,%s,%d) -> "),
+		af == AF_INET ? _T("AF_INET") : _T("AF_other"),
+		type == SOCK_STREAM ? _T("SOCK_STREAM") : type == SOCK_DGRAM ? _T("SOCK_DGRAM ") : _T("SOCK_RAW"),protocol));
 
 	faketype = type;
 	if (protocol == IPPROTO_UDP && type == SOCK_RAW && !rawsockets)
@@ -1089,16 +1091,29 @@ void host_sendto (TrapContext *ctx, SB, uae_u32 sd, uae_u32 msg, uae_u32 len, ua
 		BSDTRACE((_T("send(%d,0x%x,%d,%d):%d -> "),sd,msg,len,flags,wscnt));
 
 	sd++;
-	s = getsock(ctx, sb,sd);
+	s = getsock(ctx, sb, sd);
 
 	if (s != INVALID_SOCKET) {
 		if (!addr_valid (_T("host_sendto1"), msg, 4))
 			return;
 		realpt = (char*)get_real_address (msg);
 
+		if (ISBSDTRACE) {
+			write_log(_T("FT %08x "), sb->ftable[sd - 1]);
+			for (int i = 0; i < 28; i++) {
+				if (i > 0)
+					write_log(_T("."));
+				write_log(_T("%02X"), (uae_u8)realpt[i]);
+			}
+			write_log(_T(" -> "));
+		}
+
 		if (to) {
 			if (tolen > sizeof buf) {
 				write_log (_T("BSDSOCK: WARNING - Target address in sendto() too large (%d):%d!\n"), tolen,wscnt);
+				sb->resultval = -1;
+				bsdsocklib_seterrno(ctx, sb, 22); // EINVAL
+				goto error;
 			} else {
 				if (!addr_valid (_T("host_sendto2"), to, tolen))
 					return;
@@ -1141,6 +1156,9 @@ void host_sendto (TrapContext *ctx, SB, uae_u32 sd, uae_u32 msg, uae_u32 len, ua
 				sb->ftable[sd-1]|= SF_RAW_RUDP;
 			} else {
 				write_log(_T("Unknown RAW protocol %d\n"), realpt[9]);
+				sb->resultval = -1;
+				bsdsocklib_seterrno(ctx, sb, 22); // EINVAL
+				goto error;
 			}
 		}
 
@@ -1223,6 +1241,7 @@ void host_sendto (TrapContext *ctx, SB, uae_u32 sd, uae_u32 msg, uae_u32 len, ua
 	} else
 		sb->resultval = -1;
 
+error:
 	if (sb->resultval == -1)
 		BSDTRACE((_T("sendto failed (%d):%d\n"),sb->sb_errno,wscnt));
 	else

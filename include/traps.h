@@ -113,10 +113,12 @@ uae_u32 trap_get_areg(TrapContext *ctx, int reg);
 void trap_set_dreg(TrapContext *ctx, int reg, uae_u32 v);
 void trap_set_areg(TrapContext *ctx, int reg, uae_u32 v);
 
+void trap_put_quad(TrapContext *ctx, uaecptr addr, uae_u64 v);
 void trap_put_long(TrapContext *ctx, uaecptr addr, uae_u32 v);
 void trap_put_word(TrapContext *ctx, uaecptr addr, uae_u16 v);
 void trap_put_byte(TrapContext *ctx, uaecptr addr, uae_u8 v);
 
+uae_u64 trap_get_quad(TrapContext *ctx, uaecptr addr);
 uae_u32 trap_get_long(TrapContext *ctx, uaecptr addr);
 uae_u16 trap_get_word(TrapContext *ctx, uaecptr addr);
 uae_u8 trap_get_byte(TrapContext *ctx, uaecptr addr);

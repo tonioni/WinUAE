@@ -1369,33 +1369,6 @@ typedef struct _unit {
 
 static uae_u32 a_uniq, key_uniq;
 
-
-static void readdpacket(TrapContext *ctx, dpacket *packet, uaecptr pck)
-{
-	// Read enough to get also all 64-bit fields
-	packet->packet_addr = pck;
-	trap_get_bytes(ctx, packet->packet_data, pck, dp_Max);
-}
-static void writedpacket(TrapContext *ctx, dpacket *packet)
-{
-	// 32 = saves both 32-bit and 64-bit RESx fields
-	trap_put_bytes(ctx, packet->packet_data + 12, packet->packet_addr + 12, 32 - 12);
-}
-
-static void set_quadp(TrapContext *ctx, uaecptr p, uae_s64 v)
-{
-	if (!trap_valid_address(ctx, p, 8))
-		return;
-	trap_put_long(ctx, p, v >> 32);
-	trap_put_long(ctx, p + 4, (uae_u64)v);
-}
-static uae_u64 get_quadp(TrapContext *ctx, uaecptr p)
-{
-	if (!trap_valid_address(ctx, p, 8))
-		return 0;
-	return ((uae_u64)trap_get_long(ctx, p) << 32) | trap_get_long(ctx, p + 4);
-}
-
 #define PUT_PCK_RES1(p,v) do { put_long_host((p)->packet_data + dp_Res1, (v)); } while (0)
 #define PUT_PCK_RES2(p,v) do { put_long_host((p)->packet_data + dp_Res2, (v)); } while (0)
 #define GET_PCK_TYPE(p) ((uae_s32)(get_long_host((p)->packet_data + dp_Type)))
@@ -1419,6 +1392,37 @@ static uae_u64 get_quadp(TrapContext *ctx, uaecptr p)
 #define GET_PCK64_ARG3(p) ((uae_s32)(get_long_host((p)->packet_data + dp64_Arg3)))
 #define GET_PCK64_ARG4(p) ((uae_s32)(get_long_host((p)->packet_data + dp64_Arg4)))
 #define GET_PCK64_ARG5(p) ( (((uae_s64)(get_long_host((p)->packet_data + dp64_Arg5))) << 32) | (((uae_s64)(get_long_host((p)->packet_data + dp64_Arg5 + 4))) << 0) )
+
+static void readdpacket(TrapContext *ctx, dpacket *packet, uaecptr pck)
+{
+	// Read enough to get also all 64-bit fields
+	packet->packet_addr = pck;
+	trap_get_bytes(ctx, packet->packet_data, pck, dp_Max);
+}
+static void writedpacket(TrapContext *ctx, dpacket *packet)
+{
+	int type = GET_PCK_TYPE(packet);
+	if (type >= 8000 && type < 9000 && GET_PCK64_RES0(packet) == DP64_INIT) {
+		// 64-bit RESx fields
+		trap_put_bytes(ctx, packet->packet_data + 12, packet->packet_addr + 12, 32 - 12);
+	} else {
+		// dp_Res1 and dp_Res2
+		trap_put_bytes(ctx, packet->packet_data + 12, packet->packet_addr + 12, 20 - 12);
+	}
+}
+
+static void set_quadp(TrapContext *ctx, uaecptr p, uae_s64 v)
+{
+	if (!trap_valid_address(ctx, p, 8))
+		return;
+	trap_put_quad(ctx, p, v);
+}
+static uae_u64 get_quadp(TrapContext *ctx, uaecptr p)
+{
+	if (!trap_valid_address(ctx, p, 8))
+		return 0;
+	return trap_get_quad(ctx, p);
+}
 
 static int flush_cache (Unit *unit, int num);
 
@@ -4090,7 +4094,14 @@ static void get_fileinfo(TrapContext *ctx, Unit *unit, dpacket *packet, uaecptr 
 			put_byte_host(buf + i, 0), i++;
 		xfree (x2);
 	}
-	trap_put_bytes(ctx, buf, info, sizeof buf);
+	// Must not write Fib_reserved at the end.
+	if (kickstart_version >= 36) {
+		// FIB + fib_OwnerUID and fib_OwnerGID
+		trap_put_bytes(ctx, buf, info, (sizeof buf) - 32);
+	} else {
+		// FIB only
+		trap_put_bytes(ctx, buf, info, (sizeof buf) - 36);
+	}
 	PUT_PCK_RES1 (packet, DOS_TRUE);
 }
 
@@ -8572,7 +8583,7 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *ctx)
 				hicyl = ((currprefs.filesys_limit * 1024) / 512) / (heads * 127);
 			} else {
 				struct fs_usage fsu;
-				if (!get_fs_usage(uip->rootdir, 0, &fsu)) {
+				if (!get_fs_usage(uip[unit_no].rootdir, 0, &fsu)) {
 					for (;;) {
 						hicyl = (fsu.total / 512) / (heads * 127);
 						if (hicyl < 65536 || heads == 64)

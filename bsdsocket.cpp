@@ -409,11 +409,11 @@ static struct socketbase *alloc_socketbase (TrapContext *ctx)
 
 		sb->dtablesize = DEFAULT_DTABLE_SIZE;
 		/* @@@ check malloc() result */
-		sb->dtable = (SOCKET*)malloc (sb->dtablesize * sizeof (*sb->dtable));
-		sb->ftable = (int*)malloc (sb->dtablesize * sizeof (*sb->ftable));
+		sb->dtable = xmalloc(SOCKET, sb->dtablesize);
+		sb->ftable = xcalloc(int, sb->dtablesize);
 
 		for (i = sb->dtablesize; i--;)
-			sb->dtable[i] = -1;
+			sb->dtable[i] = INVALID_SOCKET;
 
 		sb->eintrsigs = 0x1000; /* SIGBREAKF_CTRL_C */
 
@@ -732,9 +732,9 @@ static uae_u32 bsdsocklib_SetDTableSize (SB, int newSize)
 	if (newdtable == NULL || newftable == NULL || newmtable == NULL) {
 		sb->resultval = -1;
 		bsdsocklib_seterrno(ctx, sb, ENOMEM);
-		free (newdtable);
-		free (newftable);
-		free (newmtable);
+		xfree(newdtable);
+		xfree(newftable);
+		xfree(newmtable);
 		return -1;
 	}
 
@@ -745,9 +745,9 @@ static uae_u32 bsdsocklib_SetDTableSize (SB, int newSize)
 		newdtable[i] = -1;
 
 	sb->dtablesize = newSize;
-	free(sb->dtable);
-	free(sb->ftable);
-	free(sb->mtable);
+	xfree(sb->dtable);
+	xfree(sb->ftable);
+	xfree(sb->mtable);
 	sb->dtable = (SOCKET*)newdtable;
 	sb->ftable = newftable;
 	sb->mtable = newmtable;

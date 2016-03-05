@@ -8407,19 +8407,6 @@ void inputdevice_validate_jports (struct uae_prefs *p, int changedport, bool *fi
 	}
 }
 
-#if 0
-void store_inputdevice_config (struct uae_prefs *p)
-{
-	for (int i = 0; i < MAX_JPORTS; i++) {
-		memcpy (&stored_ports[i], &p->jports[i], sizeof (struct jport));
-	}
-}
-void restore_inputdevice_config (struct uae_prefs *p, int portnum)
-{
-	memcpy (&p->jports[portnum], &stored_ports[portnum], sizeof (struct jport));
-}
-#endif
-
 void inputdevice_joyport_config_store(struct uae_prefs *p, const TCHAR *value, int portnum, int mode, int type)
 {
 	struct jport *jp = &p->jports[portnum];
@@ -8430,7 +8417,8 @@ void inputdevice_joyport_config_store(struct uae_prefs *p, const TCHAR *value, i
 	} else {
 		_tcscpy(jp->idc.shortid, value);
 	}
-	jp->mode = mode;
+	if (mode >= 0)
+		jp->mode = mode;
 }
 
 int inputdevice_joyport_config (struct uae_prefs *p, const TCHAR *value1, const TCHAR *value2, int portnum, int mode, int type, bool candefault)

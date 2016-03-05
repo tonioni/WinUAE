@@ -971,7 +971,13 @@ void trap_set_areg(TrapContext *ctx, int reg, uae_u32 v)
 		m68k_areg(regs, reg) = v;
 	}
 }
-
+void trap_put_quad(TrapContext *ctx, uaecptr addr, uae_u64 v)
+{
+	uae_u8 out[8];
+	put_long_host(out + 0, v >> 32);
+	put_long_host(out + 4, (uae_u32)(v >> 0));
+	trap_put_bytes(ctx, out, addr, 8);
+}
 void trap_put_long(TrapContext *ctx, uaecptr addr, uae_u32 v)
 {
 	if (trap_is_indirect_null(ctx)) {
@@ -997,6 +1003,12 @@ void trap_put_byte(TrapContext *ctx, uaecptr addr, uae_u8 v)
 	}
 }
 
+uae_u64 trap_get_quad(TrapContext *ctx, uaecptr addr)
+{
+	uae_u8 in[8];
+	trap_get_bytes(ctx, in, addr, 8);
+	return ((uae_u64)get_long_host(in + 0) << 32) | get_long_host(in + 4);
+}
 uae_u32 trap_get_long(TrapContext *ctx, uaecptr addr)
 {
 	if (trap_is_indirect_null(ctx)) {

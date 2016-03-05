@@ -1,4 +1,28 @@
 
+Beta 8:
+
+- Game Ports joystick type was always empty (undefined).
+- Quickstart panel CDTV/CD32 CD path name label was "DF1:", not "CD". (Broke when bridgeboard drive support was added)
+- Dragndrop to emulation window didn't work correctly until GUI was opened at least once.
+- Added screenshot autoclip mode, uses autoscale display size/position detection.
+  Also added following config file only entries: (all config entries need win32. prefix)
+  screenshot_min_width and screenshot_min_height: minimum autoclip size in lores pixels.
+  screenshot_max_width and screenshot_max_height: maximum autoclip size in lores pixels.
+  screenshot_width and screenshot_height: forced screenshot size (non-autoclip mode only)
+  screenshot_x and screenshot_y: position/offset of screenshot (non-autoclip mode only)
+  screenshot_mult_width and screenshot_mult_height: 1x, 2x, 3x, .. 8x screenshot size multiplier.
+  screenshot_output_width_limit and screenshot_output_height_limit: minimum screenshot size, if original size is smaller,
+  multiplier is increased until width/height is same or larger.
+- More internal changes to support more than one enabled RTG board at the same time. (Still lots more to do..)
+- 68020/030 RTE didn't generate exception when it encountered 68040+ or 68010 only stack frame types.
+- Return error code instead of crashing if bsdsocket emulation sendto() tries to use unsupported raw protocol.
+- Switching from relative path mode back to normal mode could have caused repeated crashing.
+- Do not write reserved block at the end of FileInfoBlock back to Amiga side, Pre-2.x dos commands don't allocate
+  complete FIB structure. (Was side-effect of OS4.x compatible trap system)
+- Basic NERO nrg CD image support added. Data and audio tracks seems to work.
+- CDFS mounting selects Joliet volume label if found. (Joliet volume label is not restricted to capital ASCII letters)
+- uaenet.device S2_READORPHAN should not filter unknown multicast addresses.
+
 Beta 7:
 
 - Fullscreen + paused + enter GUI: GUI was invisible.

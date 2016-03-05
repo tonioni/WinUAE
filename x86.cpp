@@ -171,7 +171,7 @@ static int x86_found;
 #define IO_KEYBOARD_REGISTER_A2000 0x1fff
 #define IO_A2386_CONFIG 0x1f9f
 
-#define ISVGA() (currprefs.rtgmem_type == GFXBOARD_VGA)
+#define ISVGA() (currprefs.rtgboards[0].rtgmem_type == GFXBOARD_VGA)
 
 static struct x86_bridge *bridges[X86_BRIDGE_MAX];
 

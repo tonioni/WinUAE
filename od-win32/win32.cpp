@@ -1531,7 +1531,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		return 0;
 
 	case WM_DROPFILES:
-		dragdrop (hWnd, (HDROP)wParam, &changed_prefs, -1);
+		dragdrop (hWnd, (HDROP)wParam, &changed_prefs, -2);
 		return 0;
 
 	case WM_TIMER:
@@ -3020,8 +3020,8 @@ void fullpath (TCHAR *path, int size)
 done:;
 	} else {
 		TCHAR tmp[MAX_DPATH];
-		_tcscpy (tmp, path);
-		GetFullPathName (tmp, size, path, NULL);
+		_tcscpy(tmp, path);
+		DWORD err = GetFullPathName (tmp, size, path, NULL);
 	}
 }
 void getpathpart (TCHAR *outpath, int size, const TCHAR *inpath)
@@ -3466,11 +3466,11 @@ void target_fixup_options (struct uae_prefs *p)
 		error_log (_T("DirectDraw is not RTG hardware sprite compatible."));
 		p->rtg_hardwaresprite = false;
 	}
-	if (p->rtgmem_type >= GFXBOARD_HARDWARE) {
+	if (p->rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE) {
 		p->rtg_hardwareinterrupt = false;
 		p->rtg_hardwaresprite = false;
 		p->win32_rtgmatchdepth = false;
-		if (gfxboard_need_byteswap (p->rtgmem_type))
+		if (gfxboard_need_byteswap (&p->rtgboards[0]))
 			p->color_mode = 5;
 		if (p->ppc_model && !p->gfx_api) {
 			error_log (_T("Graphics board and PPC: Direct3D enabled."));
@@ -3556,6 +3556,7 @@ void target_default_options (struct uae_prefs *p, int type)
 
 static const TCHAR *scsimode[] = { _T("SCSIEMU"), _T("SPTI"), _T("SPTI+SCSISCAN"), NULL };
 static const TCHAR *statusbarmode[] = { _T("none"), _T("normal"), _T("extended"), NULL };
+static const TCHAR *configmult[] = { _T("1x"), _T("2x"), _T("3x"), _T("4x"), _T("5x"), _T("6x"), _T("7x"), _T("8x"), NULL };
 
 static struct midiportinfo *getmidiport (struct midiportinfo **mi, int devid)
 {
@@ -3673,6 +3674,18 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite(f, _T("recording_height"), _T("%d"), p->aviout_height);
 	cfgfile_target_dwrite(f, _T("recording_x"), _T("%d"), p->aviout_xoffset);
 	cfgfile_target_dwrite(f, _T("recording_y"), _T("%d"), p->aviout_yoffset);
+	cfgfile_target_dwrite(f, _T("screenshot_width"), _T("%d"), p->screenshot_width);
+	cfgfile_target_dwrite(f, _T("screenshot_height"), _T("%d"), p->screenshot_height);
+	cfgfile_target_dwrite(f, _T("screenshot_x"), _T("%d"), p->screenshot_xoffset);
+	cfgfile_target_dwrite(f, _T("screenshot_y"), _T("%d"), p->screenshot_yoffset);
+	cfgfile_target_dwrite(f, _T("screenshot_min_width"), _T("%d"), p->screenshot_min_width);
+	cfgfile_target_dwrite(f, _T("screenshot_min_height"), _T("%d"), p->screenshot_min_height);
+	cfgfile_target_dwrite(f, _T("screenshot_max_width"), _T("%d"), p->screenshot_max_width);
+	cfgfile_target_dwrite(f, _T("screenshot_max_height"), _T("%d"), p->screenshot_max_height);
+	cfgfile_target_dwrite(f, _T("screenshot_output_width_limit"), _T("%d"), p->screenshot_output_width);
+	cfgfile_target_dwrite(f, _T("screenshot_output_height_limit"), _T("%d"), p->screenshot_output_height);
+	cfgfile_target_dwrite_str(f, _T("screenshot_mult_width"), configmult[p->screenshot_xmult]);
+	cfgfile_target_dwrite_str(f, _T("screenshot_mult_height"), configmult[p->screenshot_ymult]);
 }
 
 void target_restart (void)
@@ -3765,9 +3778,26 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 	if (cfgfile_intval(option, value, _T("recording_width"), &p->aviout_width, 1)
 		|| cfgfile_intval(option, value, _T("recording_height"), &p->aviout_height, 1)
 		|| cfgfile_intval(option, value, _T("recording_x"), &p->aviout_xoffset, 1)
-		|| cfgfile_intval(option, value, _T("recording_y"), &p->aviout_yoffset, 1))
+		|| cfgfile_intval(option, value, _T("recording_y"), &p->aviout_yoffset, 1)
+
+		|| cfgfile_intval(option, value, _T("screenshot_width"), &p->screenshot_width, 1)
+		|| cfgfile_intval(option, value, _T("screenshot_height"), &p->screenshot_height, 1)
+		|| cfgfile_intval(option, value, _T("screenshot_x"), &p->screenshot_xoffset, 1)
+		|| cfgfile_intval(option, value, _T("screenshot_y"), &p->screenshot_yoffset, 1)
+		|| cfgfile_intval(option, value, _T("screenshot_min_width"), &p->screenshot_min_width, 1)
+		|| cfgfile_intval(option, value, _T("screenshot_min_height"), &p->screenshot_min_height, 1)
+		|| cfgfile_intval(option, value, _T("screenshot_max_width"), &p->screenshot_max_width, 1)
+		|| cfgfile_intval(option, value, _T("screenshot_max_height"), &p->screenshot_max_height, 1)
+		|| cfgfile_intval(option, value, _T("screenshot_output_width_limit"), &p->screenshot_output_width, 1)
+		|| cfgfile_intval(option, value, _T("screenshot_output_height_limit"), &p->screenshot_output_height, 1))
+
 		return 1;
 
+	if (cfgfile_strval(option, value, _T("screenshot_mult_width"), &p->screenshot_xmult, configmult, 0))
+		return 1;
+	if (cfgfile_strval(option, value, _T("screenshot_mult_height"), &p->screenshot_ymult, configmult, 0))
+		return 1;
+		
 	if (cfgfile_string(option, value, _T("expansion_gui_page"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
 		TCHAR *p = _tcschr(tmpbuf, ',');
 		if (p != NULL)
@@ -4098,7 +4128,7 @@ void fetch_path (const TCHAR *name, TCHAR *out, int size)
 			_tcscpy (out, start_path_data);
 	}
 	fixtrailing (out);
-	fullpath (out, size);
+	fullpath (out, size2);
 }
 
 int get_rom_path (TCHAR *out, pathtype mode)
@@ -4759,7 +4789,8 @@ static void WIN32_HandleRegistryStuff (void)
 		quickstart = 1;
 	reopen_console ();
 	fetch_path (_T("ConfigurationPath"), path, sizeof (path) / sizeof (TCHAR));
-	path[_tcslen (path) - 1] = 0;
+	if (path[0])
+		path[_tcslen (path) - 1] = 0;
 	if (GetFileAttributes (path) == 0xffffffff) {
 		TCHAR path2[MAX_DPATH];
 		_tcscpy (path2, path);
@@ -6705,9 +6736,9 @@ int get_guid_target (uae_u8 *out)
 	if (CoCreateGuid (&guid) != S_OK)
 		return 0;
 	out[0] = guid.Data1 >> 24;
-	out[1] = guid.Data1 >> 16;
-	out[2] = guid.Data1 >>  8;
-	out[3] = guid.Data1 >>  0;
+	out[1] = (uae_u8)(guid.Data1 >> 16);
+	out[2] = (uae_u8)(guid.Data1 >>  8);
+	out[3] = (uae_u8)(guid.Data1 >>  0);
 	out[4] = guid.Data2 >>  8;
 	out[5] = guid.Data2 >>  0;
 	out[6] = guid.Data3 >>  8;

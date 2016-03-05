@@ -27,6 +27,12 @@
 #include "threaddep/thread.h"
 #include "uae.h"
 #include "custom.h"
+#include "rommgr.h"
+
+#if CDTVCR_4510_EMULATION
+static void init_65c02(void);
+static void cpu_4510(void);
+#endif
 
 #define CDTVCR_MASK 0xffff
 
@@ -896,6 +902,12 @@ void CDTVCR_hsync_handler (void)
 	if (!currprefs.cs_cdtvcr)
 		return;
 
+#if CDTVCR_4510_EMULATION
+	for (int i = 0; i < 10; i++) {
+		cpu_4510();
+	}
+#endif
+
 	if (cdtvcr_wait_sectors > 0 && currprefs.cd_speed == 0) {
 		cdtvcr_wait_sectors = 0;
 		cdtvcr_cmd_done();
@@ -995,6 +1007,10 @@ void cdtvcr_reset(void)
 	cdtvcr_battram_reset();
 	cdtvcr_clock[0] = 0xe3;
 	cdtvcr_clock[1] = 0x1b;
+
+#if CDTVCR_4510_EMULATION
+	init_65c02();
+#endif
 }
 
 void cdtvcr_free(void)
@@ -1065,6 +1081,8 @@ static void monitor_check_watchpoints(unsigned int lastpc, unsigned int pc)
 static void monitor_startup(int mem)
 {
 }
+
+#define CYCLE_EXACT_ALARM
 
 #define INTERRUPT_DELAY 2
 
@@ -1228,7 +1246,7 @@ typedef struct R65C02_regs_s
 	BYTE z;
 } R65C02_regs_t;
 
-#define DRIVE_RAM_SIZE 32768
+#define DRIVE_RAM_SIZE 65536
 
 typedef BYTE drive_read_func_t(struct drive_context_s *, WORD);
 typedef void drive_store_func_t(struct drive_context_s *, WORD,
@@ -1322,7 +1340,7 @@ typedef struct drivecpu_context_s
 #define STORE_ZERO(a, b)  (drv->cpud->store_func[0](drv, (WORD)(a), \
                           (BYTE)(b)))
 
-#define JUMP(addr)                                       \
+#define JUMP(addr) reg_pc = (unsigned int)(addr); 
 
 #define P_SIGN          0x80
 #define P_OVERFLOW      0x40
@@ -1461,11 +1479,18 @@ static CLOCK alarm_context_next_pending_clk(alarm_context_t *context)
 	return context->next_pending_alarm_clk;
 }
 
+static struct drive_context_s m_4510_context;
+static struct drivecpu_context_s m_4510_cpu_context;
+static struct drivecpud_context_s m_4510_cpud_context;
+static CLOCK m_4510_clk;
+static struct alarm_context_s m_4510_alarm_context;
+static struct interrupt_cpu_status_s m_4510_interrupt;
+
 static void cpu_4510(void)
 {
 	int cpu_type = CPU_R65C02;
-	drivecpu_context_t *cpu = NULL;
-	drive_context_t *drv = NULL;
+	drivecpu_context_t *cpu = &m_4510_cpu_context;
+	drive_context_t *drv = &m_4510_context;
 
 #define reg_a   (cpu->cpu_regs.a)
 #define reg_x   (cpu->cpu_regs.x)
@@ -1479,14 +1504,48 @@ static void cpu_4510(void)
 #include "65c02core.cpp"
 }
 
-static void init_65c02(struct drive_context_s *drv)
+BYTE read_4510(struct drive_context_s *c, WORD offset)
 {
-	drivecpu_context_t *cpu = drv->cpu;
+	if (offset >= 32768)
+		return c->cpud->drive_ram[offset];
+	return 0;
+}
+void write_4510(struct drive_context_s *c, WORD offset, BYTE v)
+{
+	if (offset >= 32768)
+		return;
+	c->cpud->drive_ram[offset] = v;
+}
+
+static void init_65c02(void)
+{
+	drive_context_s *d = &m_4510_context;
+	drivecpu_context_s *cpu = &m_4510_cpu_context;
+	drivecpud_context_s *cpud = &m_4510_cpud_context;
+
+	d->cpu = cpu;
+	d->cpud = cpud;
+	d->clk_ptr = &m_4510_clk;
 
 	cpu->rmw_flag = 0;
 	cpu->d_bank_limit = 0;
 	cpu->d_bank_start = 0;
 	cpu->pageone = NULL;
+	cpu->alarm_context = &m_4510_alarm_context;
+	cpu->int_status = &m_4510_interrupt;
+
+	cpu->int_status->global_pending_int = IK_RESET;
+
+	for(int i = 0; i < 256; i++) {
+		cpud->read_func[i] = read_4510;
+		cpud->store_func[i] = write_4510;
+	}
+
+	struct zfile *zf = read_rom_name(_T("d:\\amiga\\roms\\cdtv-cr-4510.bin"));
+	if (zf) {
+		zfile_fread(cpud->drive_ram + 32768, 1, 32768, zf);
+		zfile_fclose(zf);
+	}
 }
 
 #endif

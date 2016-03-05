@@ -692,14 +692,13 @@ static void from_iff(TrapContext *ctx, uaecptr data, uae_u32 len)
 	buf = xmalloc(uae_u8, (len + 3) & ~3);
 	trap_get_bytes(ctx, buf, data, (len + 3) & ~3);
 
-#if 1
+#if 0
 	FILE *f = fopen("clipboard.dat", "wb");
 	if (f) {
 		fwrite(buf, 1, len, f);
 		fclose(f);
 	}
 #endif
-
 
 	if (clipboard_debug)
 		debugwrite(ctx, _T("clipboard_a2p"), data, len);

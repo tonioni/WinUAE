@@ -4552,7 +4552,7 @@ bool toggle_rtg (int mode)
 		if (picasso_on)
 			return false;
 	}
-	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE) {
+	if (currprefs.rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE) {
 		return gfxboard_toggle (mode);
 	} else {
 		// can always switch from RTG to custom
@@ -4618,10 +4618,6 @@ HDC gethdc (void)
 	frame_missed = frame_counted = frame_errors = 0;
 	frame_usage = frame_usage_avg = frame_usage_total = 0;
 
-#ifdef OPENGL
-	if (OGL_isenabled ())
-		return OGL_getDC (0);
-#endif
 #ifdef D3D
 	if (D3D_isenabled ())
 		return D3D_getDC (0);
@@ -4633,12 +4629,6 @@ HDC gethdc (void)
 
 void releasehdc (HDC hdc)
 {
-#ifdef OPENGL
-	if (OGL_isenabled ()) {
-		OGL_getDC (hdc);
-		return;
-	}
-#endif
 #ifdef D3D
 	if (D3D_isenabled ()) {
 		D3D_getDC (hdc);

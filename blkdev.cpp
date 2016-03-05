@@ -493,9 +493,6 @@ void sys_command_close (int unitnum)
 		tape_free (st->tape);
 		st->tape = NULL;
 	}
-#ifdef RETROPLATFORM
-	rp_cd_device_enable (unitnum, false);
-#endif
 	sys_command_close_internal (unitnum);
 }
 
@@ -742,7 +739,7 @@ int sys_command_cd_pause (int unitnum, int paused)
 	int v;
 	if (state[unitnum].device_func->pause == NULL) {
 		int as = audiostatus (unitnum);
-		uae_u8 cmd[10] = {0x4b,0,0,0,0,0,0,0,paused?0:1,0};
+		uae_u8 cmd[10] = {0x4b,0,0,0,0,0,0,0,(uae_u8)(paused?0:1),0};
 		do_scsi (unitnum, cmd, sizeof cmd);
 		v = as == AUDIO_STATUS_PAUSED;
 	} else {
@@ -880,7 +877,7 @@ int sys_command_cd_read (int unitnum, uae_u8 *data, int block, int size)
 	if (!getsem (unitnum))
 		return 0;
 	if (state[unitnum].device_func->read == NULL) {
-		uae_u8 cmd1[12] = { 0x28, 0, block >> 24, block >> 16, block >> 8, block >> 0, 0, size >> 8, size >> 0, 0, 0, 0 };
+		uae_u8 cmd1[12] = { 0x28, 0, (uae_u8)(block >> 24), (uae_u8)(block >> 16), (uae_u8)(block >> 8), (uae_u8)(block >> 0), 0, (uae_u8)(size >> 8), (uae_u8)(size >> 0), 0, 0, 0 };
 		v = do_scsi (unitnum, cmd1, sizeof cmd1, data, size * 2048);
 #if 0
 		if (!v) {
@@ -902,7 +899,7 @@ int sys_command_cd_rawread (int unitnum, uae_u8 *data, int block, int size, int 
 	if (!getsem (unitnum))
 		return 0;
 	if (state[unitnum].device_func->rawread == NULL) {
-		uae_u8 cmd[12] = { 0xbe, 0, block >> 24, block >> 16, block >> 8, block >> 0, size >> 16, size >> 8, size >> 0, 0x10, 0, 0 };
+		uae_u8 cmd[12] = { 0xbe, 0, (uae_u8)(block >> 24), (uae_u8)(block >> 16), (uae_u8)(block >> 8), (uae_u8)(block >> 0), (uae_u8)(size >> 16), (uae_u8)(size >> 8), (uae_u8)(size >> 0), 0x10, 0, 0 };
 		v = do_scsi (unitnum, cmd, sizeof cmd, data, size * sectorsize);
 	} else {
 		v = state[unitnum].device_func->rawread (unitnum, data, block, size, sectorsize, 0xffffffff);
@@ -918,7 +915,7 @@ int sys_command_cd_rawread (int unitnum, uae_u8 *data, int block, int size, int 
 	if (!getsem (unitnum))
 		return 0;
 	if (state[unitnum].device_func->rawread == NULL) {
-		uae_u8 cmd[12] = { 0xbe, 0, block >> 24, block >> 16, block >> 8, block >> 0, size >> 16, size >> 8, size >> 0, 0x10, 0, 0 };
+		uae_u8 cmd[12] = { 0xbe, 0, (uae_u8)(block >> 24), (uae_u8)(block >> 16), (uae_u8)(block >> 8), (uae_u8)(block >> 0), (uae_u8)(size >> 16), (uae_u8)(size >> 8), (uae_u8)(size >> 0), 0x10, 0, 0 };
 		v = do_scsi (unitnum, cmd, sizeof cmd, data, size * sectorsize);
 	} else {
 		v = state[unitnum].device_func->rawread (unitnum, data, block, size, sectorsize, (sectortype << 16) | (scsicmd9 << 8) | subs);
@@ -936,7 +933,7 @@ int sys_command_read (int unitnum, uae_u8 *data, int block, int size)
 	if (!getsem (unitnum))
 		return 0;
 	if (state[unitnum].device_func->read == NULL) {
-		uae_u8 cmd[12] = { 0xa8, 0, 0, 0, 0, 0, size >> 24, size >> 16, size >> 8, size >> 0, 0, 0 };
+		uae_u8 cmd[12] = { 0xa8, 0, 0, 0, 0, 0, (uae_u8)(size >> 24), (uae_u8)(size >> 16), (uae_u8)(size >> 8), (uae_u8)(size >> 0), 0, 0 };
 		cmd[2] = (uae_u8)(block >> 24);
 		cmd[3] = (uae_u8)(block >> 16);
 		cmd[4] = (uae_u8)(block >> 8);

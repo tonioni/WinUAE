@@ -109,7 +109,7 @@
 #define USS_FORMAT_STRING_SAVE _T("(*.uss)\0*.uss\0")
 #define HDF_FORMAT_STRING _T("(*.hdf;*.vhd;*.rdf;*.hdz;*.rdz;*.chd)\0*.hdf;*.vhd;*.rdf;*.hdz;*.rdz;*.chd\0")
 #define INP_FORMAT_STRING _T("(*.inp)\0*.inp\0")
-#define  CD_FORMAT_STRING _T("(*.cue;*.ccd;*.mds;*.iso;*.chd)\0*.cue;*.ccd;*.mds;*.iso;*.chd;") ARCHIVE_STRING _T("\0")
+#define  CD_FORMAT_STRING _T("(*.cue;*.ccd;*.mds;*.iso;*.chd;*.nrg)\0*.cue;*.ccd;*.mds;*.iso;*.chd;*.nrg;") ARCHIVE_STRING _T("\0")
 #define CONFIG_HOST _T("Host")
 #define CONFIG_HARDWARE _T("Hardware")
 
@@ -6336,7 +6336,7 @@ static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 static void enable_for_displaydlg (HWND hDlg)
 {
-	int rtg = ((!workprefs.address_space_24 || gfxboard_get_configtype(workprefs.rtgmem_type) == 2) && workprefs.rtgmem_size) || workprefs.rtgmem_type >= GFXBOARD_HARDWARE;
+	int rtg = ((!workprefs.address_space_24 || gfxboard_get_configtype(&workprefs.rtgboards[0]) == 2) && workprefs.rtgboards[0].rtgmem_size) || workprefs.rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE;
 #ifndef PICASSO96
 	rtg = FALSE;
 #endif
@@ -7804,7 +7804,7 @@ static void setmax32bitram (HWND hDlg)
 	uae_u32 size, rtgz3size, z3size_uae = 0, z3size_real = 0;
 	uae_u32 sizealign = 16 * 1024 * 1024 - 1;
 
-	rtgz3size = gfxboard_get_configtype(workprefs.rtgmem_type) == 3 ? workprefs.rtgmem_size : 0;
+	rtgz3size = gfxboard_get_configtype(&workprefs.rtgboards[0]) == 3 ? workprefs.rtgboards[0].rtgmem_size : 0;
 	size = ((workprefs.z3fastmem_size + sizealign) & ~sizealign) + ((workprefs.z3fastmem2_size + sizealign) & ~sizealign) +
 		((rtgz3size + sizealign) & ~sizealign);
 	if (cfgfile_board_enabled(&currprefs, ROMTYPE_A4091, 0))
@@ -8794,7 +8794,7 @@ static void updatecpuboardsubtypes(HWND hDlg)
 static void set_expansion_rtg_rom(void)
 {
 	int idx;
-	uae_u32 romtype = gfxboard_get_romtype(workprefs.rtgmem_type);
+	uae_u32 romtype = gfxboard_get_romtype(&workprefs.rtgboards[0]);
 	if (romtype) {
 		struct boardromconfig *bc = get_device_rom_new(&workprefs, romtype, 0, &idx);
 		if (bc && bc->roms[idx].romfile[0] == 0) {
@@ -9124,10 +9124,10 @@ static void enable_for_expansiondlg(HWND hDlg)
 
 	en = !!full_property_sheet;
 
-	int rtg = workprefs.rtgmem_size && full_property_sheet && workprefs.rtgmem_type < GFXBOARD_HARDWARE;
-	int rtg2 = workprefs.rtgmem_size || workprefs.rtgmem_type >= GFXBOARD_HARDWARE;
-	int rtg3 = workprefs.rtgmem_size && workprefs.rtgmem_type < GFXBOARD_HARDWARE;
-	int rtg4 = workprefs.rtgmem_type < GFXBOARD_HARDWARE;
+	int rtg = workprefs.rtgboards[0].rtgmem_size && full_property_sheet && workprefs.rtgboards[0].rtgmem_type < GFXBOARD_HARDWARE;
+	int rtg2 = workprefs.rtgboards[0].rtgmem_size || workprefs.rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE;
+	int rtg3 = workprefs.rtgboards[0].rtgmem_size && workprefs.rtgboards[0].rtgmem_type < GFXBOARD_HARDWARE;
+	int rtg4 = workprefs.rtgboards[0].rtgmem_type < GFXBOARD_HARDWARE;
 
 	ew(hDlg, IDC_P96RAM, rtg2);
 	ew(hDlg, IDC_P96MEM, rtg2);
@@ -9158,43 +9158,44 @@ static void values_to_expansiondlg(HWND hDlg)
 
 	int min_mem = MIN_P96_MEM;
 	int max_mem = MAX_P96_MEM_Z3;
-	if (gfxboard_get_configtype(workprefs.rtgmem_type) == 2) {
-		int v = workprefs.rtgmem_size;
+	struct rtgboardconfig *rbc = &workprefs.rtgboards[0];
+	if (gfxboard_get_configtype(rbc) == 2) {
+		int v = rbc->rtgmem_size;
 		max_mem = 0;
-		workprefs.rtgmem_size = 1024 * 1024;
+		rbc->rtgmem_size = 1024 * 1024;
 		while (getz2size(&workprefs) > 0) {
-			workprefs.rtgmem_size *= 2;
+			rbc->rtgmem_size *= 2;
 			max_mem++;
 		}
-		if (workprefs.rtgmem_type >= GFXBOARD_HARDWARE && v > gfxboard_get_vram_max(workprefs.rtgmem_type))
-			v = gfxboard_get_vram_max(workprefs.rtgmem_type);
-		if (workprefs.rtgmem_type >= GFXBOARD_HARDWARE && v < gfxboard_get_vram_min(workprefs.rtgmem_type))
-			v = gfxboard_get_vram_min(workprefs.rtgmem_type);
-		workprefs.rtgmem_size = v;
-		while (getz2size(&workprefs) < 0 && workprefs.rtgmem_size > 0)
-			workprefs.rtgmem_size -= 1024 * 1024;
-	} else if (gfxboard_get_configtype(workprefs.rtgmem_type) == 3) {
-		int v = workprefs.rtgmem_size;
-		if (workprefs.rtgmem_type >= GFXBOARD_HARDWARE && v > gfxboard_get_vram_max(workprefs.rtgmem_type))
-			v = gfxboard_get_vram_max(workprefs.rtgmem_type);
-		if (workprefs.rtgmem_type >= GFXBOARD_HARDWARE && v < gfxboard_get_vram_min(workprefs.rtgmem_type))
-			v = gfxboard_get_vram_min(workprefs.rtgmem_type);
-		workprefs.rtgmem_size = v;
+		if (rbc->rtgmem_type >= GFXBOARD_HARDWARE && v > gfxboard_get_vram_max(rbc))
+			v = gfxboard_get_vram_max(rbc);
+		if (rbc->rtgmem_type >= GFXBOARD_HARDWARE && v < gfxboard_get_vram_min(rbc))
+			v = gfxboard_get_vram_min(rbc);
+		rbc->rtgmem_size = v;
+		while (getz2size(&workprefs) < 0 && rbc->rtgmem_size > 0)
+			rbc->rtgmem_size -= 1024 * 1024;
+	} else if (gfxboard_get_configtype(rbc) == 3) {
+		int v = rbc->rtgmem_size;
+		if (rbc->rtgmem_type >= GFXBOARD_HARDWARE && v > gfxboard_get_vram_max(rbc))
+			v = gfxboard_get_vram_max(rbc);
+		if (rbc->rtgmem_type >= GFXBOARD_HARDWARE && v < gfxboard_get_vram_min(rbc))
+			v = gfxboard_get_vram_min(rbc);
+		rbc->rtgmem_size = v;
 	} else {
-		int v = workprefs.rtgmem_size;
-		if (workprefs.rtgmem_type >= GFXBOARD_HARDWARE && v > gfxboard_get_vram_max(workprefs.rtgmem_type))
-			v = gfxboard_get_vram_max(workprefs.rtgmem_type);
-		if (workprefs.rtgmem_type >= GFXBOARD_HARDWARE && v < gfxboard_get_vram_min(workprefs.rtgmem_type))
-			v = gfxboard_get_vram_min(workprefs.rtgmem_type);
-		workprefs.rtgmem_size = v;
+		int v = rbc->rtgmem_size;
+		if (rbc->rtgmem_type >= GFXBOARD_HARDWARE && v > gfxboard_get_vram_max(rbc))
+			v = gfxboard_get_vram_max(rbc);
+		if (rbc->rtgmem_type >= GFXBOARD_HARDWARE && v < gfxboard_get_vram_min(rbc))
+			v = gfxboard_get_vram_min(rbc);
+		rbc->rtgmem_size = v;
 	}
-	if (workprefs.rtgmem_type >= GFXBOARD_HARDWARE) {
-		switch (gfxboard_get_vram_min(workprefs.rtgmem_type)) {
+	if (rbc->rtgmem_type >= GFXBOARD_HARDWARE) {
+		switch (gfxboard_get_vram_min(rbc)) {
 			case 0x00100000: min_mem = 1; break;
 			case 0x00200000: min_mem = 2; break;
 			case 0x00400000: min_mem = 3; break;
 		}
-		switch (gfxboard_get_vram_max(workprefs.rtgmem_type)) {
+		switch (gfxboard_get_vram_max(rbc)) {
 			case 0x00100000: max_mem = 1; break;
 			case 0x00200000: max_mem = 2; break;
 			case 0x00400000: max_mem = 3; break;
@@ -9202,7 +9203,7 @@ static void values_to_expansiondlg(HWND hDlg)
 	}
 	SendDlgItemMessage(hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG(min_mem, max_mem));
 	int mem_size = 0;
-	switch (workprefs.rtgmem_size) {
+	switch (rbc->rtgmem_size) {
 		case 0x00000000: mem_size = 0; break;
 		case 0x00100000: mem_size = 1; break;
 		case 0x00200000: mem_size = 2; break;
@@ -9219,7 +9220,7 @@ static void values_to_expansiondlg(HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_P96MEM, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText(hDlg, IDC_P96RAM, memsize_names[msi_gfx[mem_size]]);
 
-	SendDlgItemMessage(hDlg, IDC_RTG_Z2Z3, CB_SETCURSEL, workprefs.rtgmem_size == 0 ? 0 : workprefs.rtgmem_type + 1, 0);
+	SendDlgItemMessage(hDlg, IDC_RTG_Z2Z3, CB_SETCURSEL, rbc->rtgmem_size == 0 ? 0 : rbc->rtgmem_type + 1, 0);
 	SendDlgItemMessage(hDlg, IDC_RTG_8BIT, CB_SETCURSEL, (workprefs.picasso96_modeflags & RGBFF_CLUT) ? 1 : 0, 0);
 	SendDlgItemMessage(hDlg, IDC_RTG_16BIT, CB_SETCURSEL,
 					   (manybits(workprefs.picasso96_modeflags, RGBFF_R5G6B5PC | RGBFF_R5G6B5PC | RGBFF_R5G6B5 | RGBFF_R5G5B5 | RGBFF_B5G6R5PC | RGBFF_B5G5R5PC)) ? 1 :
@@ -9330,7 +9331,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)_T("A8B8G8R8"));
 		SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)_T("R8G8B8A8"));
 		SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)_T("B8G8R8A8 (*)"));
-		SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, gfxboard_get_configtype(workprefs.rtgmem_type) == 3 ? MAX_P96_MEM_Z3 : MAX_P96_MEM_Z2));
+		SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, gfxboard_get_configtype(&workprefs.rtgboards[0]) == 3 ? MAX_P96_MEM_Z3 : MAX_P96_MEM_Z2));
 		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_RESETCONTENT, 0, 0);
 		WIN32GUI_LoadUIString (IDS_DISABLED, tmp, sizeof tmp / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)tmp);
@@ -9358,7 +9359,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		break;
 
 	case WM_HSCROLL:
-		workprefs.rtgmem_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_P96MEM), TBM_GETPOS, 0, 0)]];
+		workprefs.rtgboards[0].rtgmem_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_P96MEM), TBM_GETPOS, 0, 0)]];
 		values_to_expansiondlg(hDlg);
 		enable_for_expansiondlg(hDlg);
 		break;
@@ -9420,12 +9421,12 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 					v = SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_GETCURSEL, 0, 0L);
 					if (v != CB_ERR) {
 						if (v == 0) {
-							workprefs.rtgmem_type = 1;
-							workprefs.rtgmem_size = 0;
+							workprefs.rtgboards[0].rtgmem_type = 1;
+							workprefs.rtgboards[0].rtgmem_size = 0;
 						} else {
-							workprefs.rtgmem_type = v - 1;
-							if (workprefs.rtgmem_size == 0)
-								workprefs.rtgmem_size = 4096 * 1024;
+							workprefs.rtgboards[0].rtgmem_type = v - 1;
+							if (workprefs.rtgboards[0].rtgmem_size == 0)
+								workprefs.rtgboards[0].rtgmem_size = 4096 * 1024;
 						}
 						set_expansion_rtg_rom();
 						enable_for_expansiondlg (hDlg);
@@ -12055,7 +12056,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 
 	switch (msg) {
 	case WM_DROPFILES:
-		dragdrop (hDlg, (HDROP)wParam, &changed_prefs, -1);
+		dragdrop (hDlg, (HDROP)wParam, &changed_prefs, -2);
 		return FALSE;
 
 	case WM_INITDIALOG:
@@ -13096,13 +13097,16 @@ static void addfloppytype (HWND hDlg, int n)
 		}
 		CheckDlgButton (hDlg, f_enable, state ? BST_CHECKED : BST_UNCHECKED);
 		TCHAR tmp[10];
+		tmp[0] = 0;
 		if (n < 2 || nn - 1 < DRV_PC_ONLY_40) {
-			_stprintf(tmp, _T("DF%d:"), n);
+			if (!showcd || n != 1)
+				_stprintf(tmp, _T("DF%d:"), n);
 		} else {
 			int t = nn - 1 == DRV_PC_ONLY_40 ? 40 : 80;
 			_stprintf(tmp, _T("%c: (%d)"), n == 2 ? 'A' : 'B', t);
 		}
-		SetWindowText(GetDlgItem(hDlg, f_enable), tmp);
+		if (tmp[0])
+			SetWindowText(GetDlgItem(hDlg, f_enable), tmp);
 	}
 	chk = !showcd && disk_getwriteprotect (&workprefs, text) && state == TRUE ? BST_CHECKED : 0;
 	if (f_wp >= 0)
@@ -17175,7 +17179,8 @@ static void values_to_avioutputdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDSYNC, avioutput_nosoundsync ? TRUE : FALSE);
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_ORIGINALSIZE, avioutput_originalsize ? TRUE : FALSE);
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_ACTIVATED, avioutput_requested ? BST_CHECKED : BST_UNCHECKED);
-	CheckDlgButton (hDlg, IDC_SCREENSHOT_ORIGINALSIZE, screenshot_originalsize ? TRUE : FALSE);
+	CheckDlgButton(hDlg, IDC_SCREENSHOT_ORIGINALSIZE, screenshot_originalsize ? TRUE : FALSE);
+	CheckDlgButton(hDlg, IDC_SCREENSHOT_CLIP, screenshot_clipmode ? TRUE : FALSE);
 	CheckDlgButton (hDlg, IDC_SAMPLERIPPER_ACTIVATED, sampleripper_enabled ? BST_CHECKED : BST_UNCHECKED);
 	CheckDlgButton (hDlg, IDC_STATEREC_RECORD, input_record ? BST_CHECKED : BST_UNCHECKED);
 	CheckDlgButton (hDlg, IDC_STATEREC_PLAY, input_play ? BST_CHECKED : BST_UNCHECKED);
@@ -17200,6 +17205,12 @@ static void enable_for_avioutputdlg (HWND hDlg)
 	ew (hDlg, IDC_SAMPLERIPPER_ACTIVATED, full_property_sheet ? FALSE : TRUE);
 
 	ew (hDlg, IDC_AVIOUTPUT_FILE, TRUE);
+
+	if (!screenshot_originalsize) {
+		CheckDlgButton(hDlg, IDC_SCREENSHOT_CLIP, BST_UNCHECKED);
+		screenshot_clipmode = 0;
+	}
+	ew (hDlg, IDC_SCREENSHOT_CLIP, screenshot_originalsize != 0);
 
 	if(workprefs.produce_sound < 2) {
 		ew (hDlg, IDC_AVIOUTPUT_AUDIO, FALSE);
@@ -17260,7 +17271,8 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		pages[AVIOUTPUT_ID] = hDlg;
 		currentpage = AVIOUTPUT_ID;
 		AVIOutput_GetSettings ();
-		regqueryint (NULL, _T("Screenshot_Original"), &screenshot_originalsize);
+		regqueryint(NULL, _T("Screenshot_Original"), &screenshot_originalsize);
+		regqueryint(NULL, _T("Screenshot_ClipMode"), &screenshot_clipmode);
 		enable_for_avioutputdlg (hDlg);
 		if (!avioutput_filename_gui[0]) {
 			fetch_path (_T("VideoPath"), avioutput_filename_gui, sizeof (avioutput_filename_gui) / sizeof (TCHAR));
@@ -17333,8 +17345,12 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			AVIOutput_SetSettings ();
 			break;
 		case IDC_SCREENSHOT_ORIGINALSIZE:
-			screenshot_originalsize = ischecked (hDlg, IDC_SCREENSHOT_ORIGINALSIZE) ? 1 : 0;
-			regsetint (NULL, _T("Screenshot_Original"), screenshot_originalsize);
+			screenshot_originalsize = ischecked(hDlg, IDC_SCREENSHOT_ORIGINALSIZE) ? 1 : 0;
+			regsetint(NULL, _T("Screenshot_Original"), screenshot_originalsize);
+			break;
+		case IDC_SCREENSHOT_CLIP:
+			screenshot_clipmode = ischecked(hDlg, IDC_SCREENSHOT_CLIP) ? 1 : 0;
+			regsetint(NULL, _T("Screenshot_ClipMode"), screenshot_clipmode);
 			break;
 		case IDC_STATEREC_SAVE:
 			if (input_record > INPREC_RECORD_NORMAL) {

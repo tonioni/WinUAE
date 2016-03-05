@@ -2181,8 +2181,8 @@ static void illg_init (void)
 		}
 		addr = end - 1;
 	}
-	if (currprefs.rtgmem_size)
-		memset (illghdebug + (gfxmem_bank.start >> 16), 3, currprefs.rtgmem_size >> 16);
+	if (currprefs.rtgboards[0].rtgmem_size)
+		memset (illghdebug + (gfxmem_bank.start >> 16), 3, currprefs.rtgboards[0].rtgmem_size >> 16);
 
 	i = 0;
 	while (custd[i].name) {

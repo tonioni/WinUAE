@@ -99,7 +99,7 @@ struct gfxboard
 	uae_u32 romtype;
 };
 
-#define ISP4() (currprefs.rtgmem_type == GFXBOARD_PICASSO4_Z2 || currprefs.rtgmem_type == GFXBOARD_PICASSO4_Z3)
+#define ISP4() (gb->rbc->rtgmem_type == GFXBOARD_PICASSO4_Z2 || gb->rbc->rtgmem_type == GFXBOARD_PICASSO4_Z3)
 
 // Picasso II: 8* 4x256 (1M) or 16* 4x256 (2M)
 // Piccolo: 8* 4x256 + 2* 16x256 (2M)
@@ -177,6 +177,8 @@ static const struct gfxboard boards[] =
 
 struct rtggfxboard
 {
+	int rtg_index;
+	struct rtgboardconfig *rbc;
 	TCHAR memorybankname[40];
 	TCHAR wbsmemorybankname[40];
 	TCHAR lbsmemorybankname[40];
@@ -292,7 +294,10 @@ static addrbank gfxboard_bank_special = {
 
 static void init_board (struct rtggfxboard *gb)
 {
+	struct rtgboardconfig *rbc = &currprefs.rtgboards[gb->rtg_index];
+	gb->rbc = rbc;
 	int vramsize = gb->board->vrammax;
+
 
 	gb->vga_width = 0;
 	mapped_free(&gfxmem_bank);
@@ -316,14 +321,14 @@ static void init_board (struct rtggfxboard *gb)
 	gb->vramrealstart = gb->vram;
 	gb->vram += gb->vram_start_offset;
 	gfxmem_bank.baseaddr = gb->vram;
-	gfxmem_bank.allocated = currprefs.rtgmem_size;
-	gb->vga.vga.vram_size_mb = currprefs.rtgmem_size >> 20;
+	gfxmem_bank.allocated = rbc->rtgmem_size;
+	gb->vga.vga.vram_size_mb = rbc->rtgmem_size >> 20;
 	gb->vgaioregion.opaque = &gb->vgaioregionptr;
 	gb->vgavramregion.opaque = &gb->vgavramregionptr;
 	gb->vga.vga.vram.opaque = &gb->vgavramregionptr;
 	vga_common_init(&gb->vga.vga);
 	cirrus_init_common(&gb->vga, gb->board->chiptype, 0,  NULL, NULL, gb->board->manufacturer == 0);
-	picasso_allocatewritewatch (currprefs.rtgmem_size);
+	picasso_allocatewritewatch (rbc->rtgmem_size);
 }
 
 static void vga_update_size(struct rtggfxboard *gb)
@@ -356,7 +361,7 @@ bool gfxboard_toggle (int mode)
 {
 	struct rtggfxboard *gb = &rtggfxboards[0];
 
-	if (currprefs.rtgmem_type == GFXBOARD_A2410) {
+	if (currprefs.rtgboards[gb->rtg_index].rtgmem_type == GFXBOARD_A2410) {
 		return tms_toggle(mode);
 	}
 
@@ -488,7 +493,7 @@ void gfxboard_refresh (void)
 void gfxboard_hsync_handler(void)
 {
 	struct rtggfxboard *gb = &rtggfxboards[0];
-	if (currprefs.rtgmem_type == GFXBOARD_A2410) {
+	if (gb->rbc->rtgmem_type == GFXBOARD_A2410) {
 		tms_hsync_handler();
 	}
 }
@@ -498,7 +503,7 @@ bool gfxboard_vsync_handler (void)
 	struct rtggfxboard *gb = &rtggfxboards[0];
 	bool flushed = false;
 
-	if (currprefs.rtgmem_type == GFXBOARD_A2410) {
+	if (gb->rbc->rtgmem_type == GFXBOARD_A2410) {
 		return tms_vsync_handler();
 	}
 
@@ -1441,7 +1446,7 @@ static int REGPARAM2 gfxboard_check (uaecptr addr, uae_u32 size)
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr -= gb->gfxboardmem_start & gfxmem_bank.mask;
 	addr &= gfxmem_bank.mask;
-	return (addr + size) <= currprefs.rtgmem_size;
+	return (addr + size) <= gb->rbc->rtgmem_size;
 }
 static uae_u8 *REGPARAM2 gfxboard_xlate (uaecptr addr)
 {
@@ -1736,9 +1741,12 @@ static void REGPARAM2 gfxboard_bput_regs_autoconfig (uaecptr addr, uae_u32 b)
 void gfxboard_free(void)
 {
 	struct rtggfxboard *gb = &rtggfxboards[0];
-	if (currprefs.rtgmem_type == GFXBOARD_A2410) {
-		tms_free();
-		return;
+	if (gb->rbc) {
+		if (gb->rbc->rtgmem_type == GFXBOARD_A2410) {
+			tms_free();
+			gb->rbc = NULL;
+			return;
+		}
 	}
 	if (gb->vram) {
 		gfxmem_bank.baseaddr = gb->vramrealstart;
@@ -1763,13 +1771,14 @@ void gfxboard_free(void)
 void gfxboard_reset (void)
 {
 	struct rtggfxboard *gb = &rtggfxboards[0];
-	if (currprefs.rtgmem_type == GFXBOARD_A2410) {
+	gb->rbc = &currprefs.rtgboards[gb->rtg_index];
+	if (gb->rbc->rtgmem_type == GFXBOARD_A2410) {
 		tms_reset();
 		return;
 	}
-	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE) {
-		gb->board = &boards[currprefs.rtgmem_type - GFXBOARD_HARDWARE];
-		gfxmem_bank.mask = currprefs.rtgmem_size - 1;
+	if (gb->rbc->rtgmem_type >= GFXBOARD_HARDWARE) {
+		gb->board = &boards[gb->rbc->rtgmem_type - GFXBOARD_HARDWARE];
+		gfxmem_bank.mask = gb->rbc->rtgmem_size - 1;
 	}
 	gfxboard_free();
 	if (gb->board) {
@@ -2141,8 +2150,9 @@ const TCHAR *gfxboard_get_configname(int type)
 	return boards[type - GFXBOARD_HARDWARE].configname;
 }
 
-int gfxboard_get_configtype(int type)
+int gfxboard_get_configtype(struct rtgboardconfig *rbc)
 {
+	int type = rbc->rtgmem_type;
 	if (type == GFXBOARD_UAE_Z2)
 		return 2;
 	if (type == GFXBOARD_UAE_Z3)
@@ -2152,8 +2162,9 @@ int gfxboard_get_configtype(int type)
 	return gb->board->configtype;
 }
 
-bool gfxboard_need_byteswap (int type)
+bool gfxboard_need_byteswap (struct rtgboardconfig *rbc)
 {
+	int type = rbc->rtgmem_type;
 	if (type < GFXBOARD_HARDWARE)
 		return false;
 	struct rtggfxboard *gb = &rtggfxboards[0];
@@ -2161,15 +2172,17 @@ bool gfxboard_need_byteswap (int type)
 	return gb->board->swap;
 }
 
-int gfxboard_get_autoconfig_size(int type)
+int gfxboard_get_autoconfig_size(struct rtgboardconfig *rbc)
 {
+	int type = rbc->rtgmem_type;
 	if (type == GFXBOARD_PICASSO4_Z3)
 		return 32 * 1024 * 1024;
 	return -1;
 }
 
-int gfxboard_get_vram_min (int type)
+int gfxboard_get_vram_min (struct rtgboardconfig *rbc)
 {
+	int type = rbc->rtgmem_type;
 	if (type < GFXBOARD_HARDWARE)
 		return -1;
 	struct rtggfxboard *gb = &rtggfxboards[0];
@@ -2177,8 +2190,9 @@ int gfxboard_get_vram_min (int type)
 	return gb->board->vrammin;
 }
 
-int gfxboard_get_vram_max (int type)
+int gfxboard_get_vram_max (struct rtgboardconfig *rbc)
 {
+	int type = rbc->rtgmem_type;
 	if (type < GFXBOARD_HARDWARE)
 		return -1;
 	struct rtggfxboard *gb = &rtggfxboards[0];
@@ -2186,8 +2200,9 @@ int gfxboard_get_vram_max (int type)
 	return gb->board->vrammax;
 }
 
-bool gfxboard_is_registers (int type)
+bool gfxboard_is_registers (struct rtgboardconfig *rbc)
 {
+	int type = rbc->rtgmem_type;
 	if (type < 2)
 		return false;
 	struct rtggfxboard *gb = &rtggfxboards[0];
@@ -2195,8 +2210,9 @@ bool gfxboard_is_registers (int type)
 	return gb->board->model_registers != 0;
 }
 
-int gfxboard_num_boards (int type)
+int gfxboard_num_boards (struct rtgboardconfig *rbc)
 {
+	int type = rbc->rtgmem_type;
 	if (type < 2)
 		return 1;
 	struct rtggfxboard *gb = &rtggfxboards[0];
@@ -2208,8 +2224,9 @@ int gfxboard_num_boards (int type)
 	return 2;
 }
 
-uae_u32 gfxboard_get_romtype(int type)
+uae_u32 gfxboard_get_romtype(struct rtgboardconfig *rbc)
 {
+	int type = rbc->rtgmem_type;
 	if (type < 2)
 		return 0;
 	struct rtggfxboard *gb = &rtggfxboards[0];
@@ -2368,7 +2385,7 @@ addrbank *gfxboard_init_memory (int devnum)
 	gfxboard_bank_memory.bget = gfxboard_bget_mem_autoconfig;
 	gfxboard_bank_memory.bput = gfxboard_bput_mem_autoconfig;
 
-	if (currprefs.rtgmem_type == GFXBOARD_VGA) {
+	if (gb->rbc->rtgmem_type == GFXBOARD_VGA) {
 		init_board(gb);
 		gb->configured_mem = 1;
 		gb->configured_regs = 1;

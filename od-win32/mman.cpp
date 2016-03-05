@@ -57,6 +57,9 @@ static void virtualfreewithlock (LPVOID addr, SIZE_T size, DWORD freetype)
 static uae_u32 lowmem (void)
 {
 	uae_u32 change = 0;
+	struct rtgboardconfig *rbc = &changed_prefs.rtgboards[0];
+	struct rtgboardconfig *crbc = &currprefs.rtgboards[0];
+
 	if (currprefs.z3fastmem_size + currprefs.z3fastmem2_size + currprefs.z3chipmem_size >= 8 * 1024 * 1024) {
 		if (currprefs.z3fastmem2_size) {
 			change = currprefs.z3fastmem2_size;
@@ -75,10 +78,10 @@ static uae_u32 lowmem (void)
 			currprefs.z3fastmem_size /= 2;
 			changed_prefs.z3fastmem_size = currprefs.z3fastmem_size;
 		}
-	} else if (currprefs.rtgmem_type == GFXBOARD_UAE_Z3 && currprefs.rtgmem_size >= 1 * 1024 * 1024) {
-		change = currprefs.rtgmem_size - currprefs.rtgmem_size / 2;
-		currprefs.rtgmem_size /= 2;
-		changed_prefs.rtgmem_size = currprefs.rtgmem_size;
+	} else if (crbc->rtgmem_type == GFXBOARD_UAE_Z3 && crbc->rtgmem_size >= 1 * 1024 * 1024) {
+		change = crbc->rtgmem_size - crbc->rtgmem_size / 2;
+		crbc->rtgmem_size /= 2;
+		rbc->rtgmem_size = crbc->rtgmem_size;
 	}
 	if (currprefs.z3fastmem2_size < 128 * 1024 * 1024)
 		currprefs.z3fastmem2_size = changed_prefs.z3fastmem2_size = 0;
@@ -301,15 +304,15 @@ static void resetmem (bool decommit)
 	}
 }
 
-static ULONG getz2rtgaddr (int rtgsize)
+static ULONG getz2rtgaddr(struct rtgboardconfig *rbc)
 {
 	ULONG start;
 	start = changed_prefs.fastmem_size;
 	if (changed_prefs.fastmem2_size >= 524288)
 		start += changed_prefs.fastmem2_size;
-	start += rtgsize - 1;
-	start &= ~(rtgsize - 1);
-	while (start & (changed_prefs.rtgmem_size - 1) && start < 4 * 1024 * 1024)
+	start += rbc->rtgmem_size - 1;
+	start &= ~(rbc->rtgmem_size - 1);
+	while (start & (rbc->rtgmem_size - 1) && start < 4 * 1024 * 1024)
 		start += 1024 * 1024;
 	return start + 2 * 1024 * 1024;
 }
@@ -335,6 +338,8 @@ static int doinit_shm (void)
 	uae_u32 startbarrier, z3offset, align;
 	int rounds = 0;
 	uae_u32 z3rtgmem_size;
+	struct rtgboardconfig *rbc = &changed_prefs.rtgboards[0];
+	struct rtgboardconfig *crbc = &currprefs.rtgboards[0];
 
 	canbang = 1;
 	natmem_offset = natmem_reserved;
@@ -349,7 +354,7 @@ static int doinit_shm (void)
 		othersize = 0;
 		size = 0x1000000;
 		startbarrier = changed_prefs.mbresmem_high_size >= 128 * 1024 * 1024 ? (changed_prefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024 : 0;
-		z3rtgmem_size = gfxboard_get_configtype(changed_prefs.rtgmem_type) == 3 ? changed_prefs.rtgmem_size : 0;
+		z3rtgmem_size = gfxboard_get_configtype(rbc) == 3 ? rbc->rtgmem_size : 0;
 		if (changed_prefs.cpu_model >= 68020)
 			size = 0x10000000;
 		z3size = ((changed_prefs.z3fastmem_size + align) & ~align) + ((changed_prefs.z3fastmem2_size + align) & ~align) + ((changed_prefs.z3chipmem_size + align) & ~align);
@@ -411,15 +416,15 @@ static int doinit_shm (void)
 	p96mem_size = z3rtgmem_size;
 	p96base_offset = 0;
 	uae_u32 z3rtgallocsize = 0;
-	if (changed_prefs.rtgmem_size && gfxboard_get_configtype(changed_prefs.rtgmem_type) == 3) {
-		z3rtgallocsize = gfxboard_get_autoconfig_size(changed_prefs.rtgmem_type) < 0 ? changed_prefs.rtgmem_size : gfxboard_get_autoconfig_size(changed_prefs.rtgmem_type);
+	if (rbc->rtgmem_size && gfxboard_get_configtype(rbc) == 3) {
+		z3rtgallocsize = gfxboard_get_autoconfig_size(rbc) < 0 ? rbc->rtgmem_size : gfxboard_get_autoconfig_size(rbc);
 		if (changed_prefs.z3autoconfig_start == Z3BASE_UAE)
 			p96base_offset = natmemsize + startbarrier + z3offset;
 		else
 			p96base_offset = expansion_startaddress(natmemsize + startbarrier + z3offset, z3rtgallocsize);
-	} else if (changed_prefs.rtgmem_size && gfxboard_get_configtype(changed_prefs.rtgmem_type) == 2) {
-		p96base_offset = getz2rtgaddr (changed_prefs.rtgmem_size);
-	} else if (changed_prefs.rtgmem_size && gfxboard_get_configtype(changed_prefs.rtgmem_type) == 1) {
+	} else if (rbc->rtgmem_size && gfxboard_get_configtype(rbc) == 2) {
+		p96base_offset = getz2rtgaddr (rbc);
+	} else if (rbc->rtgmem_size && gfxboard_get_configtype(rbc) == 1) {
 		p96base_offset = 0xa80000;
 	}
 	if (p96base_offset) {
@@ -427,8 +432,8 @@ static int doinit_shm (void)
 			p96mem_offset = natmem_offset + p96base_offset;
 		} else {
 			if (changed_prefs.cachesize) {
-				currprefs.rtgmem_size = changed_prefs.rtgmem_size = 0;
-				currprefs.rtgmem_type = changed_prefs.rtgmem_type = 0;
+				crbc->rtgmem_size = rbc->rtgmem_size = 0;
+				crbc->rtgmem_type = rbc->rtgmem_type = 0;
 				error_log(_T("RTG board is not anymore supported when JIT is enabled and RTG VRAM is located outside of NATMEM (Real Z3 mode under 32-bit Windows)."));
 			} else {
 				// calculate Z3 alignment (argh, I thought only Z2 needed this..)
@@ -443,7 +448,7 @@ static int doinit_shm (void)
 				addr = expansion_startaddress(addr, changed_prefs.z3fastmem2_size);
 				addr += changed_prefs.z3fastmem2_size;
 				addr = expansion_startaddress(addr, z3rtgallocsize);
-				if (gfxboard_get_configtype(changed_prefs.rtgmem_type) == 3) {
+				if (gfxboard_get_configtype(rbc) == 3) {
 					p96base_offset = addr;
 					write_log("NATMEM: p96base_offset = 0x%x\n", p96base_offset);
 					// adjust p96mem_offset to beginning of natmem
@@ -463,10 +468,10 @@ static int doinit_shm (void)
 		write_log(_T("NATMEM: Our special area: %p-%p (0x%08x %dM)\n"),
 				  natmem_offset, (uae_u8*)natmem_offset + natmemsize,
 				  natmemsize, natmemsize / (1024 * 1024));
-		if (changed_prefs.rtgmem_size)
+		if (rbc->rtgmem_size)
 			write_log (_T("NATMEM: P96 special area: %p-%p (0x%08x %dM)\n"),
-			p96mem_offset, (uae_u8*)p96mem_offset + changed_prefs.rtgmem_size,
-			changed_prefs.rtgmem_size, changed_prefs.rtgmem_size >> 20);
+			p96mem_offset, (uae_u8*)p96mem_offset + rbc->rtgmem_size,
+			rbc->rtgmem_size, rbc->rtgmem_size >> 20);
 		canbang = jit_direct_compatible_memory ? 1 : 0;
 		if (p96mem_size)
 			natmem_offset_end = p96mem_offset + p96mem_size;
@@ -488,15 +493,15 @@ bool init_shm (void)
 		oz3fastmem_size == changed_prefs.z3fastmem_size &&
 		oz3fastmem2_size == changed_prefs.z3fastmem2_size &&
 		oz3chipmem_size == changed_prefs.z3chipmem_size &&
-		ortgmem_size == changed_prefs.rtgmem_size &&
-		ortgmem_type == changed_prefs.rtgmem_type)
+		ortgmem_size == changed_prefs.rtgboards[0].rtgmem_size &&
+		ortgmem_type == changed_prefs.rtgboards[0].rtgmem_type)
 		return false;
 
 	oz3fastmem_size = changed_prefs.z3fastmem_size;
 	oz3fastmem2_size = changed_prefs.z3fastmem2_size;
 	oz3chipmem_size = changed_prefs.z3chipmem_size;;
-	ortgmem_size = changed_prefs.rtgmem_size;
-	ortgmem_type = changed_prefs.rtgmem_type;
+	ortgmem_size = changed_prefs.rtgboards[0].rtgmem_size;
+	ortgmem_type = changed_prefs.rtgboards[0].rtgmem_type;
 
 	doinit_shm ();
 
@@ -604,6 +609,7 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 #ifdef NATMEM_OFFSET
 	unsigned int size = shmids[shmid].size;
 	unsigned int readonlysize = size;
+	struct rtgboardconfig *rbc = &currprefs.rtgboards[0];
 
 	if (shmids[shmid].attached)
 		return shmids[shmid].attached;
@@ -669,7 +675,7 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 				shmaddr=natmem_offset + 0xec0000;
 			} else {
 				shmaddr=natmem_offset + 0x200000;
-				if (!(currprefs.rtgmem_size && gfxboard_get_configtype(currprefs.rtgmem_type) == 3))
+				if (!(rbc->rtgmem_size && gfxboard_get_configtype(rbc) == 3))
 					size += BARRIER;
 			}
 		} else if(!_tcscmp (shmids[shmid].name, _T("fast2"))) {
@@ -680,21 +686,21 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 				shmaddr=natmem_offset + 0x200000;
 				if (currprefs.fastmem_size >= 524288)
 					shmaddr=natmem_offset + 0x200000 + currprefs.fastmem_size;
-				if (!(currprefs.rtgmem_size && gfxboard_get_configtype(currprefs.rtgmem_type) == 3))
+				if (!(rbc->rtgmem_size && gfxboard_get_configtype(rbc) == 3))
 					size += BARRIER;
 			}
 		} else if(!_tcscmp (shmids[shmid].name, _T("fast2"))) {
 			shmaddr=natmem_offset + 0x200000;
 			got = true;
-			if (!(currprefs.rtgmem_size && gfxboard_get_configtype(currprefs.rtgmem_type) == 3))
+			if (!(rbc->rtgmem_size && gfxboard_get_configtype(rbc) == 3))
 				size += BARRIER;
 		} else if(!_tcscmp (shmids[shmid].name, _T("z2_gfx"))) {
-			ULONG start = getz2rtgaddr (size);
+			ULONG start = getz2rtgaddr(rbc);
 			got = true;
 			p96special = true;
 			shmaddr = natmem_offset + start;
 			gfxmem_bank.start = start;
-			if (start + currprefs.rtgmem_size < 10 * 1024 * 1024)
+			if (start + rbc->rtgmem_size < 10 * 1024 * 1024)
 				size += BARRIER;
 		} else if(!_tcscmp (shmids[shmid].name, _T("ramsey_low"))) {
 			shmaddr=natmem_offset + a3000lmem_bank.start;

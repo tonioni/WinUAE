@@ -535,6 +535,11 @@ STATIC_INLINE int valid_address (uaecptr addr, uae_u32 size)
 	return get_mem_bank (addr).check(addr, size);
 }
 
+STATIC_INLINE void put_quad_host(void *addr, uae_u64 v)
+{
+	do_put_mem_long((uae_u32*)addr, v >> 32);
+	do_put_mem_long(((uae_u32*)addr) + 1, (uae_u32)v);
+}
 STATIC_INLINE void put_long_host(void *addr, uae_u32 v)
 {
 	do_put_mem_long((uae_u32*)addr, v);
@@ -546,6 +551,12 @@ STATIC_INLINE void put_word_host(void *addr, uae_u16 v)
 STATIC_INLINE void put_byte_host(void *addr, uae_u8 v)
 {
 	*((uae_u8*)addr) = v;
+}
+STATIC_INLINE uae_u64 get_quad_host(void *addr)
+{
+	uae_u64 v = ((uae_u64)do_get_mem_long((uae_u32*)addr)) << 32;
+	v |= do_get_mem_long(((uae_u32*)addr) + 1);
+	return v;
 }
 STATIC_INLINE uae_u32 get_long_host(void *addr)
 {

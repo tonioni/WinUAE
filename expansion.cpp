@@ -1101,8 +1101,6 @@ static uae_u8 *REGPARAM2 filesys_xlate(uaecptr addr)
 
 #endif /* FILESYS */
 
-// experimental hardware uae board
-
 DECLARE_MEMORY_FUNCTIONS(uaeboard);
 addrbank uaeboard_bank = {
 	uaeboard_lget, uaeboard_wget, uaeboard_bget,
@@ -1606,7 +1604,7 @@ static addrbank* expamem_init_filesys (int devnum)
 	expamem_write (0x24, 0x01); /* ser.no. Byte 3 */
 
 	/* er_InitDiagVec */
-	expamem_write (0x28, 0x20); /* Rom-Offset hi */
+	expamem_write (0x28, 0x20); /* ROM-Offset hi */
 	expamem_write (0x2c, 0x00); /* ROM-Offset lo */
 
 	expamem_write (0x40, 0x00); /* Ctrl/Statusreg.*/
@@ -1824,8 +1822,9 @@ static void allocate_expamem (void)
 	currprefs.fastmem2_size = changed_prefs.fastmem2_size;
 	currprefs.z3fastmem_size = changed_prefs.z3fastmem_size;
 	currprefs.z3fastmem2_size = changed_prefs.z3fastmem2_size;
-	currprefs.rtgmem_size = changed_prefs.rtgmem_size;
-	currprefs.rtgmem_type = changed_prefs.rtgmem_type;
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		memcpy(&currprefs.rtgboards[i], &changed_prefs.rtgboards[i], sizeof(struct rtgboardconfig));
+	}
 	currprefs.z3chipmem_size = changed_prefs.z3chipmem_size;
 
 	z3chipmem_bank.start = Z3BASE_UAE;
@@ -1920,10 +1919,11 @@ static void allocate_expamem (void)
 	}
 
 #ifdef PICASSO96
-	if (gfxmem_bank.allocated != currprefs.rtgmem_size) {
+	struct rtgboardconfig *rbc = &currprefs.rtgboards[0];
+	if (gfxmem_bank.allocated != rbc->rtgmem_size) {
 		mapped_free (&gfxmem_bank);
-		if (currprefs.rtgmem_type < GFXBOARD_HARDWARE)
-			mapped_malloc_dynamic (&currprefs.rtgmem_size, &changed_prefs.rtgmem_size, &gfxmem_bank, 1, currprefs.rtgmem_type ? _T("z3_gfx") : _T("z2_gfx"));
+		if (rbc->rtgmem_type < GFXBOARD_HARDWARE)
+			mapped_malloc_dynamic (&rbc->rtgmem_size, &changed_prefs.rtgboards[0].rtgmem_size, &gfxmem_bank, 1, rbc->rtgmem_type ? _T("z3_gfx") : _T("z2_gfx"));
 		memory_hardreset (1);
 	}
 #endif
@@ -1962,7 +1962,7 @@ static void allocate_expamem (void)
 #ifdef PICASSO96
 		if (gfxmem_bank.allocated > 0 && gfxmem_bank.start > 0) {
 			restore_ram (p96_filepos, gfxmem_bank.baseaddr);
-			map_banks(&gfxmem_bank, gfxmem_bank.start >> 16, currprefs.rtgmem_size >> 16,
+			map_banks(&gfxmem_bank, gfxmem_bank.start >> 16, currprefs.rtgboards[0].rtgmem_size >> 16,
 				gfxmem_bank.allocated);
 		}
 #endif
@@ -2009,7 +2009,7 @@ static uaecptr check_boot_rom (int *boot_rom_type)
 		return b;
 	if (currprefs.input_tablet > 0)
 		return b;
-	if (currprefs.rtgmem_size && currprefs.rtgmem_type < GFXBOARD_HARDWARE)
+	if (currprefs.rtgboards[0].rtgmem_size && currprefs.rtgboards[0].rtgmem_type < GFXBOARD_HARDWARE)
 		return b;
 	if (currprefs.win32_automount_removable)
 		return b;
@@ -2256,31 +2256,37 @@ void expamem_reset (void)
 	}
 #endif
 #ifdef PICASSO96
-	if (currprefs.rtgmem_type == GFXBOARD_UAE_Z2 && gfxmem_bank.baseaddr != NULL) {
-		cards[cardno].flags = 4;
-		cards[cardno].name = _T("Z2RTG");
-		cards[cardno].initnum = expamem_init_gfxcard_z2;
-		cards[cardno++].map = expamem_map_gfxcard_z2;
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		struct rtgboardconfig *rbc = &currprefs.rtgboards[i];
+		if (rbc->rtgmem_size && rbc->rtgmem_type == GFXBOARD_UAE_Z2 && gfxmem_bank.baseaddr != NULL) {
+			cards[cardno].flags = 4;
+			cards[cardno].name = _T("Z2RTG");
+			cards[cardno].initnum = expamem_init_gfxcard_z2;
+			cards[cardno++].map = expamem_map_gfxcard_z2;
+		}
 	}
 #endif
 #ifdef GFXBOARD
-	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_get_configtype(currprefs.rtgmem_type) <= 2) {
-		cards[cardno].flags = 4;
-		if (currprefs.rtgmem_type == GFXBOARD_A2410) {
-			cards[cardno].name = _T("Gfxboard A2410");
-			cards[cardno++].initnum = tms_init;
-		} else {
-			cards[cardno].name = _T("Gfxboard VRAM Zorro II");
-			cards[cardno++].initnum = gfxboard_init_memory;
-			if (gfxboard_num_boards (currprefs.rtgmem_type) == 3) {
-				cards[cardno].flags = 0;
-				cards[cardno].name = _T("Gfxboard VRAM Zorro II Extra");
-				cards[cardno++].initnum = gfxboard_init_memory_p4_z2;
-			}
-			if (gfxboard_is_registers (currprefs.rtgmem_type)) {
-				cards[cardno].flags = 0;
-				cards[cardno].name = _T ("Gfxboard Registers");
-				cards[cardno++].initnum = gfxboard_init_registers;
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		struct rtgboardconfig *rbc = &currprefs.rtgboards[i];
+		if (rbc->rtgmem_size && rbc->rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_get_configtype(rbc) <= 2) {
+			cards[cardno].flags = 4;
+			if (rbc->rtgmem_type == GFXBOARD_A2410) {
+				cards[cardno].name = _T("Gfxboard A2410");
+				cards[cardno++].initnum = tms_init;
+			} else {
+				cards[cardno].name = _T("Gfxboard VRAM Zorro II");
+				cards[cardno++].initnum = gfxboard_init_memory;
+				if (gfxboard_num_boards (rbc) == 3) {
+					cards[cardno].flags = 0;
+					cards[cardno].name = _T("Gfxboard VRAM Zorro II Extra");
+					cards[cardno++].initnum = gfxboard_init_memory_p4_z2;
+				}
+				if (gfxboard_is_registers (rbc)) {
+					cards[cardno].flags = 0;
+					cards[cardno].name = _T ("Gfxboard Registers");
+					cards[cardno++].initnum = gfxboard_init_registers;
+				}
 			}
 		}
 	}
@@ -2324,7 +2330,7 @@ void expamem_reset (void)
 		if (z3chipmem_bank.baseaddr != NULL)
 			map_banks_z3(&z3chipmem_bank, z3chipmem_bank.start >> 16, currprefs.z3chipmem_size >> 16);
 #ifdef PICASSO96
-		if (currprefs.rtgmem_type == GFXBOARD_UAE_Z3 && gfxmem_bank.baseaddr != NULL) {
+		if (currprefs.rtgboards[0].rtgmem_size && currprefs.rtgboards[0].rtgmem_type == GFXBOARD_UAE_Z3 && gfxmem_bank.baseaddr != NULL) {
 			cards[cardno].flags = 4 | 1;
 			cards[cardno].name = _T("Z3RTG");
 			cards[cardno].initnum = expamem_init_gfxcard_z3;
@@ -2332,7 +2338,7 @@ void expamem_reset (void)
 		}
 #endif
 #ifdef GFXBOARD
-		if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_get_configtype(currprefs.rtgmem_type) == 3) {
+		if (currprefs.rtgboards[0].rtgmem_size && currprefs.rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_get_configtype(&currprefs.rtgboards[0]) == 3) {
 			cards[cardno].flags = 4 | 1;
 			cards[cardno].name = _T ("Gfxboard VRAM Zorro III");
 			cards[cardno++].initnum = gfxboard_init_memory;
@@ -2429,8 +2435,10 @@ void expansion_cleanup (void)
 	mapped_free (&z3chipmem_bank);
 
 #ifdef PICASSO96
-	if (currprefs.rtgmem_type < GFXBOARD_HARDWARE)
-		mapped_free (&gfxmem_bank);
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		if (currprefs.rtgboards[i].rtgmem_type < GFXBOARD_HARDWARE)
+			mapped_free (&gfxmem_bank);
+	}
 #endif
 
 #ifdef FILESYS
@@ -2527,7 +2535,7 @@ void restore_zram (int len, size_t filepos, int num)
 void restore_pram (int len, size_t filepos)
 {
 	p96_filepos = filepos;
-	changed_prefs.rtgmem_size = len;
+	changed_prefs.rtgboards[0].rtgmem_size = len;
 }
 
 uae_u8 *save_expansion (int *len, uae_u8 *dstptr)

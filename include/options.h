@@ -338,6 +338,12 @@ struct boardromconfig
 	int device_num;
 	struct romconfig roms[MAX_BOARD_ROMS];
 };
+#define MAX_RTG_BOARDS 4
+struct rtgboardconfig
+{
+	int rtgmem_type;
+	uae_u32 rtgmem_size;
+};
 
 #define Z3MAPPING_AUTO 0
 #define Z3MAPPING_UAE 1
@@ -597,7 +603,6 @@ struct uae_prefs {
 	uae_u32 mbresmem_low_size;
 	uae_u32 mbresmem_high_size;
 	uae_u32 mem25bit_size;
-	uae_u32 rtgmem_size;
 	int cpuboard_type;
 	int cpuboard_subtype;
 	int cpuboard_settings;
@@ -606,8 +611,8 @@ struct uae_prefs {
 	int ppc_implementation;
 	bool rtg_hardwareinterrupt;
 	bool rtg_hardwaresprite;
-	int rtgmem_type;
 	bool rtg_more_compatible;
+	struct rtgboardconfig rtgboards[MAX_RTG_BOARDS];
 	uae_u32 custom_memory_addrs[MAX_CUSTOM_MEMORY_ADDRS];
 	uae_u32 custom_memory_sizes[MAX_CUSTOM_MEMORY_ADDRS];
 	uae_u32 custom_memory_mask[MAX_CUSTOM_MEMORY_ADDRS];
@@ -700,6 +705,11 @@ struct uae_prefs {
 #endif
 	int statecapturerate, statecapturebuffersize;
 	int aviout_width, aviout_height, aviout_xoffset, aviout_yoffset;
+	int screenshot_width, screenshot_height, screenshot_xoffset, screenshot_yoffset;
+	int screenshot_min_width, screenshot_min_height;
+	int screenshot_max_width, screenshot_max_height;
+	int screenshot_output_width, screenshot_output_height;
+	int screenshot_xmult, screenshot_ymult;
 
 	/* input */
 
