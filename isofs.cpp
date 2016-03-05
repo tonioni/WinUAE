@@ -1493,47 +1493,52 @@ error:
 #endif
 
 
-static TCHAR *get_joliet_filename(struct iso_directory_record * de, struct inode * inode)
+static TCHAR *get_joliet_name(char *name, unsigned char len, bool utf8)
 {
-	unsigned char utf8;
-	//struct nls_table *nls;
-	int len;
 	TCHAR *out;
-
-	utf8 = ISOFS_SB(inode->i_sb)->s_utf8;
-	//nls = ISOFS_SB(inode->i_sb)->s_nls_iocharset;
 
 	if (utf8) {
 		/* probably never used */
-		len = de->name_len[0];
-		uae_char *o = xmalloc (uae_char, len + 1);
+		uae_char *o = xmalloc(uae_char, len + 1);
 		for (int i = 0; i < len; i++)
-			o[i] = de->name[i];
+			o[i] = name[i];
 		o[len] = 0;
-		out = utf8u (o);
-		xfree (o);
+		out = utf8u(o);
+		xfree(o);
 	} else {
-		len = de->name_len[0] / 2;
-		out = xmalloc (TCHAR, len + 1);
+		len /= 2;
+		out = xmalloc(TCHAR, len + 1);
 		for (int i = 0; i < len; i++)
-			out[i] = isonum_722 (de->name + i * 2);
+			out[i] = isonum_722(name + i * 2);
 		out[len] = 0;
 	}
 
-	if ((len > 2) && (out[len-2] == ';') && (out[len-1] == '1')) {
+	if ((len > 2) && (out[len - 2] == ';') && (out[len - 1] == '1')) {
 		len -= 2;
 		out[len] = 0;
 	}
 
 	/*
-	 * Windows doesn't like periods at the end of a name,
-	 * so neither do we
-	 */
-	while (len >= 2 && (out[len-1] == '.')) {
+	* Windows doesn't like periods at the end of a name,
+	* so neither do we
+	*/
+	while (len >= 2 && (out[len - 1] == '.')) {
 		len--;
 		out[len] = 0;
 	}
+	return out;
+}
 
+static TCHAR *get_joliet_filename(struct iso_directory_record * de, struct inode * inode)
+{
+	unsigned char utf8;
+	//struct nls_table *nls;
+	TCHAR *out;
+
+	utf8 = ISOFS_SB(inode->i_sb)->s_utf8;
+	//nls = ISOFS_SB(inode->i_sb)->s_nls_iocharset;
+
+	out = get_joliet_name(de->name, de->name_len[0], utf8 != 0);
 	return out;
 }
 
@@ -1958,6 +1963,14 @@ root_found:
 			inode = isofs_iget(s, sbi->s_firstdatazone, 0, NULL);
 			if (IS_ERR(inode))
 				goto out_no_root;
+			TCHAR *volname = get_joliet_name(pri->volume_id, 28, sbi->s_utf8);
+			if (volname && _tcslen(volname) > 0) {
+				xfree(volume_name);
+				volume_name = volname;
+				write_log(_T("ISOFS: Joliet Volume ID: '%s'\n"), volume_name);
+			} else {
+				xfree(volname);
+			}
 		}
 	}
 
