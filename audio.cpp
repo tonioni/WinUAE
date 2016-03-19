@@ -433,7 +433,7 @@ static void put_sound_word_right (uae_u32 w)
 		right_word_saved[saved_ptr] = w;
 		return;
 	}
-	PUT_SOUND_WORD (w);
+	PUT_SOUND_WORD(w);
 }
 
 static void put_sound_word_left (uae_u32 w)
@@ -454,10 +454,10 @@ static void put_sound_word_left (uae_u32 w)
 		rold = right_word_saved[saved_ptr] - SOUND16_BASE_VAL;
 		w = (lnew * mixed_mul2 + rold * mixed_mul1) / MIXED_STEREO_SCALE;
 
-		PUT_SOUND_WORD (w);
-		PUT_SOUND_WORD (tmp);
+		PUT_SOUND_WORD(tmp);
+		PUT_SOUND_WORD(w);
 	} else {
-		PUT_SOUND_WORD (w);
+		PUT_SOUND_WORD(w);
 	}
 }
 
@@ -467,7 +467,7 @@ static void put_sound_word_right2 (uae_u32 w)
 		right2_word_saved[saved_ptr2] = w;
 		return;
 	}
-	PUT_SOUND_WORD (w);
+	PUT_SOUND_WORD(w);
 }
 
 static void put_sound_word_left2 (uae_u32 w)
@@ -488,10 +488,10 @@ static void put_sound_word_left2 (uae_u32 w)
 		rold = right2_word_saved[saved_ptr2] - SOUND16_BASE_VAL;
 		w = (lnew * mixed_mul2 + rold * mixed_mul1) / MIXED_STEREO_SCALE;
 
-		PUT_SOUND_WORD (w);
-		PUT_SOUND_WORD (tmp);
+		PUT_SOUND_WORD(tmp);
+		PUT_SOUND_WORD(w);
 	} else {
-		PUT_SOUND_WORD (w);
+		PUT_SOUND_WORD(w);
 	}
 }
 
