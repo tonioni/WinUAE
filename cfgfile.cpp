@@ -1770,6 +1770,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			_tcscat (s, _T(",nvsync"));
 		if (cr->rtg)
 			_tcscat (s, _T(",rtg"));
+		if (cr->exit)
+			_tcscat(s, _T(",exit"));
 		if (cr->filterprofile[0]) {
 			TCHAR *se = cfgfile_escape(cr->filterprofile, _T(","), true);
 			s += _stprintf(s, _T(",filter=%s"), cr->filterprofile);
@@ -3252,8 +3254,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		tmpbuf[sizeof tmpbuf / sizeof (TCHAR) - 1] = '\0';
 
 		int vert = -1, horiz = -1, lace = -1, ntsc = -1, framelength = -1, vsync = -1, hres = 0;
-		bool locked = false;
-		bool rtg = false;
+		bool locked = false, rtg = false, exit = false;
 		bool cmdmode = false;
 		double rate = -1;
 		int rpct = 0;
@@ -3327,6 +3328,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 					framelength = 0;
 				if (!_tcsnicmp(tmpp, _T("rtg"), 3))
 					rtg = true;
+				if (!_tcsnicmp(tmpp, _T("exit"), 4))
+					exit = true;
 			}
 			tmpp = next;
 			if (tmpp >= end)
@@ -3355,6 +3358,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 				cr->vsync = vsync;
 				cr->locked = locked;
 				cr->rtg = rtg;
+				cr->exit = exit;
 				cr->framelength = framelength;
 				cr->rate = rate;
 				_tcscpy(cr->commands, cmd);
@@ -3801,6 +3805,28 @@ static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struc
 			_tcscpy (uci->filesys, val);
 		if (!_tcsicmp (key, _T("device")))
 			_tcscpy (uci->devname, val);
+		if (!_tcsicmp(key, _T("badblocks"))) {
+			TCHAR *p = val;
+			while (p && *p && uci->badblock_num < MAX_UAEDEV_BADBLOCKS) {
+				struct uaedev_badblock *bb = &uci->badblocks[uci->badblock_num];
+				if (!_istdigit(*p))
+					break;
+				bb->first = _tstol(p);
+				bb->last = bb->first;
+				TCHAR *p1 = _tcschr(p, ',');
+				TCHAR *p2 = NULL;
+				if (p1) {
+					p2 = p1 + 1;
+					*p1 = 0;
+				}
+				p1 = _tcschr(p, '-');
+				if (p1) {
+					bb->last = _tstol(p1 + 1);
+				}
+				uci->badblock_num++;
+				p = p2;
+			}
+		}
 		xfree (val);
 		xfree (key);
 	}

@@ -4283,9 +4283,15 @@ static void init_hz (bool checkvposw)
 
 		if (hsyncendpos < 2)
 			hsyncendpos = 2;
+
+		if (hsyncstartpos - hsyncendpos < maxhpos / 2)
+			hsyncstartpos = maxhpos;
+
 	} else {
+
 		hsyncstartpos = maxhpos_short + 13;
 		hsyncendpos = 24;
+
 	}
 	hpos_offset = 0;
 	eventtab[ev_hsync].oldcycles = get_cycles ();
@@ -5639,7 +5645,7 @@ static void BLTBPTH (int hpos, uae_u16 v)
 {
 	maybe_blit (hpos, 0);
 	if (bltstate != BLT_done && currprefs.blitter_cycle_exact && currprefs.cpu_cycle_exact) {
-		bltptx = (bltapt & 0xffff) | ((uae_u32)v << 16);
+		bltptx = (bltbpt & 0xffff) | ((uae_u32)v << 16);
 		bltptxpos = hpos;
 		bltptxc = 2;
 	} else {

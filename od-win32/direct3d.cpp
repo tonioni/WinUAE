@@ -2942,7 +2942,7 @@ static void D3D_render2 (void)
 	LPDIRECT3DTEXTURE9 srctex = texture;
 	UINT uPasses, uPass;
 
-	if (!isd3d ())
+	if (!isd3d () || !texture)
 		return;
 
 	hr = d3ddev->Clear (0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, d3ddebug ? 0x80 : 0, 0), 0, 0);

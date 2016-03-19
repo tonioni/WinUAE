@@ -45,6 +45,7 @@ TRAP_STATUS = $F000
 TRAP_STATUS_SLOT_SIZE = 8
 TRAP_STATUS_SECOND = 4
 
+TRAP_STATUS_LOCK_WORD = 2
 TRAP_STATUS_STATUS2 = 2
 TRAP_STATUS_STATUS = 3
 
@@ -458,15 +459,15 @@ trap_task_check:
 .nexttrap
 	tst.b TRAP_STATUS_STATUS(a1)
 	beq.s .next
-	cmp.b #$fe,TRAP_STATUS_SECOND+TRAP_STATUS_STATUS(a1)
+	cmp.b #$fd,TRAP_STATUS_SECOND+TRAP_STATUS_STATUS(a1)
 	bne.s .next
 	addq.l #1,d7
-	lea TRAP_DATA_SECOND(a0),a4
+	lea TRAP_DATA_SECOND+4(a0),a4
 	lea TRAP_STATUS_SECOND(a1),a5
 	movem.l d6/d7/a0/a1/a4/a5/a6,-(sp)
 	move.w (a5),d4 ;command
-	movem.l 4(a4),a0-a2
-	movem.l 4(a4),d0-d2
+	movem.l (a4),a0-a2
+	movem.l (a4),d0-d2
 	cmp.w #18,d4
 	bne.s .notcalllib
 	bsr.w hw_call_lib
@@ -477,7 +478,7 @@ trap_task_check:
 	bsr.w hw_call_func
 .calldone
 	movem.l (sp)+,d6/d7/a0-a1/a4/a5/a6
-	move.l d0,4(a4)
+	move.l d0,(a4)
 	move.b #2,TRAP_STATUS_STATUS(a5)
 .next
 	add.w #TRAP_DATA_SLOT_SIZE,a0
@@ -1931,7 +1932,8 @@ createport:
 	lea 20(a2),a0
 	bsr.w newlist
 	move.l a2,a0
-.f	move.l a0,d0
+.f
+	move.l a0,d0
 	movem.l (sp)+,d2/a2/a6
 	rts
 
@@ -1952,7 +1954,8 @@ createio:
 	move.b #10,8(a0) ;NT_MESSAGE
 	move.w d2,18(a0)
 	move.l a2,14(a0)
-.f	tst.l d0
+.f
+	tst.l d0
 	movem.l (sp)+,d2/a2/a6
 	rts
 
@@ -1977,7 +1980,8 @@ allocdevice
 	tst.l d1
 	bne.s .f
 	move.l a2,d0
-.f	tst.l d0
+.f
+	tst.l d0
 	movem.l (sp)+,d2-d3/a2/a6
 	rts
 
@@ -2007,7 +2011,8 @@ createtask:
 	move.l a1,d2
 	jsr -$011a(a6) ;AddTask
 	move.l d2,d0
-.f	movem.l (sp)+,d2/d3/d4/a2/a3/a6
+.f
+	movem.l (sp)+,d2/d3/d4/a2/a3/a6
 	rts
 
 ; mousehack/tablet
@@ -2019,24 +2024,34 @@ mousehack_init:
 	bsr createtask
 	rts
 
-mhdoiotimer:
+mhdoio:
+	sub.w #24,sp
+	clr.l (a2)
+	clr.l 14(a2)
+	clr.l 18(a2)
+	move.l a2,a0
+	move.l sp,a1
+	moveq #24/4-1,d0
+.mhdoioc
+	move.l (a0)+,(a1)+
+	dbf d0,.mhdoioc
+	cmp.w #36,20(a6)
+	bcc.s .mhdoio36
 	move.l MH_TM(a5),a1
 	move.w #10,28(a1) ;TR_GETSYSTIME
 	move.b #1,30(a1) ;IOF_QUICK
 	jsr -$01c8(a6) ;DoIO
 	move.l MH_TM(a5),a1
-	move.l 32(a1),14(a2)
-	move.l 36(a1),18(a2)
+	move.l 32(a1),14(sp)
+	move.l 36(a1),18(sp)
+.mhdoio36
 	move.l MH_IO(a5),a1
+	move.w #11,28(a1) ;IND_WRITEEVENT
+	move.l #22,36(a1) ;sizeof(struct InputEvent)
 	move.b #1,30(a1) ;IOF_QUICK
+	move.l sp,40(a1)
 	jsr -$01c8(a6) ;DoIO
-	rts
-mhdoio:
-	clr.l 14(a2)
-	clr.l 18(a2)
-	move.l MH_IO(a5),a1
-	move.b #1,30(a1) ;IOF_QUICK
-	jsr -$01c8(a6) ;DoIO
+	add.w #24,sp
 	rts
 
 MH_E = 0
@@ -2358,11 +2373,7 @@ mhloop
 	move.l d0,MH_FOO_LIMITCNT(a3)
 .nodims
 
-	move.l MH_IO(a5),a1
 	lea MH_IEV(a5),a2
-	move.w #11,28(a1) ;IND_WRITEEVENT
-	move.l #22,36(a1) ;sizeof(struct InputEvent)
-	move.l a2,40(a1)
 
 	move.b MH_E(a4),d0
 	cmp.w #39,d7
@@ -2458,7 +2469,38 @@ mhloop
 	clr.l (a1) ;TAG_DONE
 
 	bsr.w mhdoio
-	
+
+.notablet
+	move.b MH_E(a4),d0
+	btst #MH_TABLET,d0
+	bne.s .yestablet
+	btst #MH_MOUSEHACK,d0
+	beq.w mhloop
+.yestablet
+
+	move.l MH_FOO_INTBASE(a3),a0
+
+	move.w MH_ABSX(a4),d0
+	move.w 34+14(a0),d1
+	add.w d1,d1
+	sub.w d1,d0
+	bpl.s .xn
+	moveq #0,d0
+.xn
+	move.w d0,10(a2)	;ie_Addr/X
+
+	move.w MH_ABSY(a4),d0
+	move.w 34+12(a0),d1
+	add.w d1,d1
+	sub.w d1,d0
+	bpl.s .yn
+	moveq #0,d0
+.yn
+	move.w d0,12(a2)	;ie_Addr/Y
+
+	btst #MH_TABLET,MH_E(a4)
+	beq.s .notablet2
+
 	;create mouse button events if button state changed
 	move.w #$68,d3 ;IECODE_LBUTTON->IECODE_RBUTTON->IECODE_MBUTTON
 	moveq #1,d2
@@ -2471,16 +2513,14 @@ mhloop
 	cmp.l d0,d1
 	beq.s .nobut
 	
-	clr.l (a2)
 	move.w #$0200,4(a2) ;ie_Class=IECLASS_RAWMOUSE,ie_SubClass=0
-	clr.l 10(a2)	;ie_Addr/X+Y
 	move.w d3,d1
 	tst.b d0
 	bne.s .butdown
 	bset #7,d1 ;IECODE_UP_PREFIX
 .butdown
 	move.w d1,6(a2) ;ie_Code
-	clr.w 8(a2) ;ie_Qualifier
+	bsr.w buttonstoqual
 
 	bsr.w mhdoio
 
@@ -2491,38 +2531,26 @@ mhloop
 	bne.s .nextbut
 	move.l d4,MH_FOO_BUTTONS(a3)
 
-.notablet
-
-	move.b MH_E(a4),d0
-	btst #MH_MOUSEHACK,d0
+.notablet2
+	btst #MH_MOUSEHACK,MH_E(a4)
 	beq.w mhloop
 
-	clr.l (a2)
 	move.w #$0400,4(a2) ;IECLASS_POINTERPOS
 	clr.w 6(a2) ;ie_Code
+
 	bsr.w buttonstoqual
+	cmp.w #36,20(a6)
+	bcs.s .mhvpre36
+	move.l a6,-(sp)
+	move.l MH_IO(a5),a6
+	move.l 20(a6),a6
+	jsr -$2a(a6) ;PeekQualifier
+	move.l (sp)+,a6
+	and.w #$7fff,d0
+	move.w d0,8(a2) ;ie_Qualifier
+.mhvpre36	
 
-	move.l MH_FOO_INTBASE(a3),a0
-
-	move.w MH_ABSX(a4),d0
-	move.w 34+14(a0),d1
-	add.w d1,d1
-	sub.w d1,d0
-	bpl.s .xn
-	moveq #0,d0
-.xn
-	move.w d0,10(a2)
-
-	move.w MH_ABSY(a4),d0
-	move.w 34+12(a0),d1
-	add.w d1,d1
-	sub.w d1,d0
-	bpl.s .yn
-	moveq #0,d0
-.yn
-	move.w d0,12(a2)
-
-	bsr.w mhdoiotimer
+	bsr.w mhdoio
 
 	bra.w mhloop
 
@@ -3221,7 +3249,7 @@ hwtrap_install:
 	rts
 
 hwtrap_entry:
-	movem.l d0-d1/a0-a3,-(sp)
+	movem.l d0-d1/a0-a1,-(sp)
 .retry
 	move.l #TRAP_STATUS,d0
 	bsr.w getrtbase
@@ -3230,7 +3258,7 @@ hwtrap_entry:
 	bsr.w getrtbase
 	moveq #TRAP_DATA_NUM-1,d0
 .nexttrap
-	tas.b TRAP_STATUS_STATUS(a1)
+	tst.w TRAP_STATUS_LOCK_WORD(a1)
 	beq.s .foundfree
 .nexttrap2
 	add.w #TRAP_DATA_SLOT_SIZE,a0
@@ -3238,12 +3266,7 @@ hwtrap_entry:
 	dbf d0,.nexttrap
 	bra.s .retry
 .foundfree
-	tst TRAP_STATUS_STATUS(a1)
-	bpl.s .nexttrap2
 
-	; clear secondary status
-	clr.b TRAP_STATUS_STATUS2(a1)
-	
 	; store registers
 	movem.l d2-d7,TRAP_DATA_DATA+2*4(a0)
 	movem.l a2-a6,TRAP_DATA_DATA+8*4+2*4(a0)
@@ -3255,27 +3278,62 @@ hwtrap_entry:
 	move.l a0,a2 ; data
 	move.l a1,a3 ; status
 
+	move.l 4.w,a6
 	clr.l TRAP_DATA_TASKWAIT(a2)
 	tst.b (a3)
 	beq.s .nowait
-	move.l 4.w,a6
 	sub.l a1,a1
 	jsr -$126(a6) ; FindTask
 	move.l d0,TRAP_DATA_TASKWAIT(a2)
 .nowait
 	
 	; trap number, this triggers the trap
-	move.w 6*4(sp),(a3)
+	move.w 4*4(sp),(a3)
+
+	move.l #$80000000,d5
+	move.w #10000,d4
 
 .waittrap
 	tst.b TRAP_STATUS_STATUS2(a3)
 	bne.s .triggered
+	cmp.b #$fe,TRAP_STATUS_SECOND+TRAP_STATUS_STATUS(a3)
+	bne.s .waittrap1
+	move.b #4,TRAP_STATUS_SECOND+TRAP_STATUS_STATUS(a3)
+	move.l a2,a0
+	move.l a3,a1
+	moveq #1,d0
+	bsr.w hwtrap_command
+	move.b #3,TRAP_STATUS_SECOND+TRAP_STATUS_STATUS(a3)
+	bra.s .waittrap
+.waittrap1
 	tst.l TRAP_DATA_TASKWAIT(a2)
-	beq.s .waittrap
+	bne.s .waittrap2
+	cmp.l #$80000000,d5
+	bne.s .waittrap
+	subq.w #1,d4
+	bpl.s .waittrap
+	; lower priority after some busy wait rounds
+	sub.l a1,a1
+	jsr -$126(a6) ; FindTask
+	move.l d0,a1
+	moveq #-120,d0
+	jsr -$12c(a6) ; SetTaskPri
+	move.l d0,d5
+	bra.s .waittrap
+.waittrap2
 	move.l #$100,d0
 	jsr -$13e(a6) ; Wait
 	bra.s .waittrap
 .triggered
+	cmp.l #$80000000,d5
+	beq.s .triggered1
+	; restore original priority
+	sub.l a1,a1
+	jsr -$126(a6) ; FindTask
+	move.l d0,a1
+	move.l d5,d0
+	jsr -$12c(a6) ; SetTaskPri
+.triggered1
 	move.b #1,TRAP_STATUS_STATUS2(a3)
 
 	move.l a2,a0
@@ -3285,17 +3343,17 @@ hwtrap_entry:
 	movem.l TRAP_DATA_DATA(a0),d0-d7
 	movem.l TRAP_DATA_DATA+8*4+2*4(a0),a2-a6
 	move.l TRAP_DATA_DATA+8*4(a0),-(sp) ;A0
-	move.l TRAP_DATA_DATA+9*4(a0),-(sp) ;A1
+	move.l TRAP_DATA_DATA+8*4+1*4(a0),-(sp) ;A1
 
 	clr.l TRAP_DATA_TASKWAIT(a0)
 
 	; free trap data entry
-	clr.b TRAP_STATUS_STATUS(a1)
+	clr.w TRAP_STATUS_LOCK_WORD(a1)
 
 	move.l (sp)+,a1
 	move.l (sp)+,a0
-	; pop trap number and d0-d1/a0-a3
-	lea 6*4+2(sp),sp
+	; pop trap number and d0-d1/a0-a1
+	lea 4*4+2(sp),sp
 	rts
 
 hwtrap_interrupt:
@@ -3319,7 +3377,15 @@ hwtrap_interrupt:
 	tst.b TRAP_STATUS_STATUS(a1)
 	beq.s .next
 	cmp.b #$ff,TRAP_STATUS_SECOND+TRAP_STATUS_STATUS(a1)
-	beq.s .foundactive
+	bne.s .next
+	moveq #0,d0
+	bsr.s hwtrap_command
+	beq.s .trapdone
+	move.b #$fd,TRAP_STATUS_SECOND+TRAP_STATUS_STATUS(a1)
+	bra.s .checkagain
+.trapdone
+	move.b #1,TRAP_STATUS_SECOND+TRAP_STATUS_STATUS(a1)
+	bra.s .checkagain
 .next
 	add.w #TRAP_DATA_SLOT_SIZE,a0
 	add.w #TRAP_STATUS_SLOT_SIZE,a1
@@ -3358,35 +3424,48 @@ hwtrap_interrupt:
 	movem.l (sp)+,d2/d3/a2/a3
 	rts
 
-.foundactive
-	movem.l d1-d4/a1-a6,-(sp)
-	lea TRAP_DATA_SECOND(a0),a4
+	; a0: data
+	; a1: status
+	; d0: task=1,int=0
+hwtrap_command:
+	movem.l d1-d5/a1-a5,-(sp)
+	move.w d0,d5
+	lea TRAP_DATA_SECOND+4(a0),a4
 	lea TRAP_STATUS_SECOND(a1),a5
 	move.w (a5),d4 ;command
 	add.w d4,d4
 	lea trapjumps(pc),a3
 	move.w 0(a3,d4.w),d1
 	bne.s .intisok
+	tst.w d5
+	beq.s .needint
+	move.w #hw_call_lib-trapjumps,d1
+	cmp.w #2*18,d4
+	beq.s .intisok
+	move.w #hw_call_func-trapjumps,d1
+	cmp.w #2*19,d4
+	beq.s .intisok
+.needint
 	move.l #RTAREA_TRAPTASK,d0
 	bsr.w getrtbase
 	move.l (a0),d0
 	beq.s .intisok
 	; call func or lib, task needed
 	move.l d0,a1
-	move.b #$fe,TRAP_STATUS_STATUS(a5)
 	move.l #$0100,d0
 	jsr -$144(a6) ; Signal
+	moveq #1,d0
 	bra.s .exitactive
 .intisok
 	add.w d1,a3
-	movem.l 4(a4),a0-a2
-	movem.l 4(a4),d0-d2
+	movem.l (a4),a0-a2
+	movem.l (a4),d0-d2
 	jsr (a3)
-	move.l d0,4(a4)
-	move.b #1,TRAP_STATUS_STATUS(a5)
+	move.l d0,(a4)
+	moveq #0,d0
 .exitactive
-	movem.l (sp)+,d1-d4/a1-a6
-	bra.w .checkagain
+	movem.l (sp)+,d1-d5/a1-a5
+	rts
 
 trapjumps:
 	dc.w hw_multi-trapjumps; 0

@@ -1,4 +1,20 @@
 
+Beta 9:
+
+- Fixed swapped audio channels if stereo separation was set (b1 cleanup missed code path)
+- Fixed uaehf.device SCSI emulation sense data possible crash/wrong status. (trap update related)
+- 32M UAE RTG board was always address space aligned. It is wrong in UAE mapping mode.
+- Only swallow hardware horizontal and vertical mouse movement when in mouse driver mode, not mouse wheel.
+- Improved programmed refresh rate hsync start and end validation to prevent crashes if weird mode is set.
+  (BoggleDop / Sanity)
+- Added hardfile virtual bad block support. uaehf.device and hardware SCSI emulation only. Create geometry text file
+  (<name of hardfile.hdf>.geo) in same directory as hardfile, add badblocks=<blocks> line. (<blocks> can be range, 10-100
+  or single value or multiple ranges/values, for example 10-100,200,1000-20000) Max 8 bad block values/ranges supported.
+  Error is returned if block in badblock range is attempted to be read or written.
+- OS4.x UAE trap mode now uses hybrid busy wait mode. Performance has improved again, directory filesystem speed is now
+  fully usable and uaegfx is also noticeably faster.
+- UAE indirect trap stability updates.
+
 Beta 8:
 
 - Game Ports joystick type was always empty (undefined).

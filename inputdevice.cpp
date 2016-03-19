@@ -5034,6 +5034,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 	uae_u32 nmask = (buttonstate ? 1 : 0) << button;
 	uae_u64 qualmask[MAX_INPUT_SUB_EVENT];
 	bool qualonly;
+	bool doit = true;
 
 	if (input_play && buttonstate)
 		inprec_realtime ();
@@ -5065,93 +5066,101 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 	if (button >= ID_BUTTON_TOTAL)
 		return;
 
-	getqualmask (qualmask, id, ID_BUTTON_OFFSET + button, &qualonly);
-
-	bool didcustom = false;
-
-	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
-		int sub = sublevdir[buttonstate == 0 ? 1 : 0][i];
-		uae_u64 *flagsp = &id->flags[ID_BUTTON_OFFSET + button][sub];
-		int evt = id->eventid[ID_BUTTON_OFFSET + button][sub];
-		TCHAR *custom = id->custom[ID_BUTTON_OFFSET + button][sub];
-		uae_u64 flags = flagsp[0];
-		int autofire = (flags & ID_FLAG_AUTOFIRE) ? 1 : 0;
-		int toggle = (flags & ID_FLAG_TOGGLE) ? 1 : 0;
-		int inverttoggle = (flags & ID_FLAG_INVERTTOGGLE) ? 1 : 0;
-		int invert = (flags & ID_FLAG_INVERT) ? 1 : 0;
-		int setmode = (flags & ID_FLAG_SET_ONOFF) ? 1: 0;
-		int setval = (flags & ID_FLAG_SET_ONOFF_VAL) ? SET_ONOFF_ON_VALUE : SET_ONOFF_OFF_VALUE;
-		int state;
-
-		 if (buttonstate < 0) {
-			state = buttonstate;
-		} else if (invert) {
-			state = buttonstate ? 0 : 1;
-		} else {
-			state = buttonstate;
-		}
-		if (setmode) {
-			if (state)
-				state = setval;
-		}
-
-		if (!state) {
-			didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire, i);
-		}
-
-		setqualifiers (evt, state > 0);
-
-		if (qualonly)
-			continue;
-
-		if (state < 0) {
-			if (!checkqualifiers (evt, flags, qualmask, NULL))
-				continue;
-			handle_input_event (evt, 1, 1, 0, true, false);
-			didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, 0, i);
-		} else if (inverttoggle) {
-			/* pressed = firebutton, not pressed = autofire */
-			if (state) {
-				queue_input_event (evt, NULL, -1, 0, 0, 1);
-				handle_input_event (evt, 1, 1, 0, true, false);
-			} else {
-				handle_input_event (evt, 1, 1, autofire, true, false);
-			}
-			didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire, i);
-		} else if (toggle) {
-			if (!state)
-				continue;
-			if (omask & mask)
-				continue;
-			if (!checkqualifiers (evt, flags, qualmask, NULL))
-				continue;
-			*flagsp ^= ID_FLAG_TOGGLED;
-			int toggled = (*flagsp & ID_FLAG_TOGGLED) ? 1 : 0;
-			handle_input_event (evt, toggled, 1, autofire, true, false);
-			didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, toggled, qualmask, autofire, i);
-		} else {
-			if (!checkqualifiers (evt, flags, qualmask, NULL)) {
-				if (!state && !(flags & ID_FLAG_CANRELEASE)) {
-					if (!invert)
-						continue;
-				} else if (state) {
-					continue;
-				}
-			}
-			if (!state)
-				*flagsp &= ~ID_FLAG_CANRELEASE;
-			else
-				*flagsp |= ID_FLAG_CANRELEASE;
-			if ((omask ^ nmask) & mask) {
-				handle_input_event (evt, state, 1, autofire, true, false);
-				if (state)
-					didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire, i);
-			}
-		}
+	if (currprefs.input_tablet == TABLET_REAL && mousehack_alive()) {
+		// mouse driver injects all buttons when tablet mode
+		if (id == &mice[0])
+			doit = false;
 	}
 
-	if (!didcustom)
-		queue_input_event (-1, NULL, -1, 0, 0, 1);
+	if (doit) {
+		getqualmask (qualmask, id, ID_BUTTON_OFFSET + button, &qualonly);
+
+		bool didcustom = false;
+
+		for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
+			int sub = sublevdir[buttonstate == 0 ? 1 : 0][i];
+			uae_u64 *flagsp = &id->flags[ID_BUTTON_OFFSET + button][sub];
+			int evt = id->eventid[ID_BUTTON_OFFSET + button][sub];
+			TCHAR *custom = id->custom[ID_BUTTON_OFFSET + button][sub];
+			uae_u64 flags = flagsp[0];
+			int autofire = (flags & ID_FLAG_AUTOFIRE) ? 1 : 0;
+			int toggle = (flags & ID_FLAG_TOGGLE) ? 1 : 0;
+			int inverttoggle = (flags & ID_FLAG_INVERTTOGGLE) ? 1 : 0;
+			int invert = (flags & ID_FLAG_INVERT) ? 1 : 0;
+			int setmode = (flags & ID_FLAG_SET_ONOFF) ? 1: 0;
+			int setval = (flags & ID_FLAG_SET_ONOFF_VAL) ? SET_ONOFF_ON_VALUE : SET_ONOFF_OFF_VALUE;
+			int state;
+
+			 if (buttonstate < 0) {
+				state = buttonstate;
+			} else if (invert) {
+				state = buttonstate ? 0 : 1;
+			} else {
+				state = buttonstate;
+			}
+			if (setmode) {
+				if (state)
+					state = setval;
+			}
+
+			if (!state) {
+				didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire, i);
+			}
+
+			setqualifiers (evt, state > 0);
+
+			if (qualonly)
+				continue;
+
+			if (state < 0) {
+				if (!checkqualifiers (evt, flags, qualmask, NULL))
+					continue;
+				handle_input_event (evt, 1, 1, 0, true, false);
+				didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, 0, i);
+			} else if (inverttoggle) {
+				/* pressed = firebutton, not pressed = autofire */
+				if (state) {
+					queue_input_event (evt, NULL, -1, 0, 0, 1);
+					handle_input_event (evt, 1, 1, 0, true, false);
+				} else {
+					handle_input_event (evt, 1, 1, autofire, true, false);
+				}
+				didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire, i);
+			} else if (toggle) {
+				if (!state)
+					continue;
+				if (omask & mask)
+					continue;
+				if (!checkqualifiers (evt, flags, qualmask, NULL))
+					continue;
+				*flagsp ^= ID_FLAG_TOGGLED;
+				int toggled = (*flagsp & ID_FLAG_TOGGLED) ? 1 : 0;
+				handle_input_event (evt, toggled, 1, autofire, true, false);
+				didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, toggled, qualmask, autofire, i);
+			} else {
+				if (!checkqualifiers (evt, flags, qualmask, NULL)) {
+					if (!state && !(flags & ID_FLAG_CANRELEASE)) {
+						if (!invert)
+							continue;
+					} else if (state) {
+						continue;
+					}
+				}
+				if (!state)
+					*flagsp &= ~ID_FLAG_CANRELEASE;
+				else
+					*flagsp |= ID_FLAG_CANRELEASE;
+				if ((omask ^ nmask) & mask) {
+					handle_input_event (evt, state, 1, autofire, true, false);
+					if (state)
+						didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire, i);
+				}
+			}
+		}
+
+		if (!didcustom)
+			queue_input_event (-1, NULL, -1, 0, 0, 1);
+	}
 
 	if (id2 && ((omask ^ nmask) & mask)) {
 		if (buttonstate)
@@ -8135,7 +8144,7 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 	oldm_p = &oldm_axis[mouse][axis];
 	if (!isabs) {
 		// eat relative movements while in mousehack mode
-		if (currprefs.input_tablet == TABLET_MOUSEHACK && mousehack_alive ())
+		if (currprefs.input_tablet == TABLET_MOUSEHACK && mousehack_alive () && axis < 2)
 			return;
 		*oldm_p = *mouse_p;
 		*mouse_p += data;
@@ -8150,7 +8159,7 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 			lastmy = data;
 		if (axis)
 			mousehack_helper (mice2[mouse].buttonmask);
-		if (currprefs.input_tablet == TABLET_MOUSEHACK && mousehack_alive ())
+		if (currprefs.input_tablet == TABLET_MOUSEHACK && mousehack_alive () && axis < 2)
 			return;
 	}
 	v = (int)d;

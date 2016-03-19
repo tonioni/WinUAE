@@ -509,9 +509,9 @@ BEGIN
     PUSHBUTTON      "Swap ports [] Swap ports 1 and 2.",IDC_SWAP,45,100,78,14
     LTEXT           "Emulated parallel port joystick adapter",IDC_STATIC,10,124,179,15,SS_CENTERIMAGE
     COMBOBOX        IDC_PORT2_JOYS,45,142,342,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Remap [] Remap Parallel port joystick port 1 configurarion.",IDC_PORT2_REMAP,352,159,36,14
+    PUSHBUTTON      "Remap / Test [] Remap or test Parallel port joystick port 1 configurarion.",IDC_PORT2_REMAP,310,159,78,14
     COMBOBOX        IDC_PORT3_JOYS,45,178,342,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Remap [] Remap Parallel port joystick port 2 configurarion.",IDC_PORT3_REMAP,352,194,36,14
+    PUSHBUTTON      "Remap / Test [] Remap or test Parallel port joystick port 2 configurarion.",IDC_PORT3_REMAP,310,194,78,14
     GROUPBOX        "Mouse extra settings",IDC_STATIC,1,219,393,68
     RTEXT           "Mouse speed:",IDC_STATIC,19,237,82,10,SS_CENTERIMAGE
     EDITTEXT        IDC_INPUTSPEEDM,115,237,25,13,ES_NUMBER

@@ -247,12 +247,6 @@ static void get_prefetch_020 (void)
 		return;
 	printf ("\tregs.irc = %s (%d);\n", prefetch_word, m68k_pc_offset);
 }
-static void get_prefetch_020_0 (void)
-{
-	if (!isprefetch020() || no_prefetch_ce020)
-		return;
-	printf ("\tregs.irc = %s (0);\n", prefetch_word);
-}
 static void get_prefetch_020_continue(void)
 {
 	if (!isprefetch020())

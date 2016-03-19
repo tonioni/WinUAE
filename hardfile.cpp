@@ -1137,16 +1137,25 @@ static uae_u64 cmd_write(TrapContext *ctx, struct hardfiledata *hfd, uaecptr dat
 	return total;
 }
 
-static int checkbounds (struct hardfiledata *hfd, uae_u64 offset, uae_u64 len)
+static int checkbounds (struct hardfiledata *hfd, uae_u64 offset, uae_u64 len, int mode)
 {
 	uae_u64 max = hfd->virtsize;
 	if (offset >= max || offset + len > max || (offset > 0xffffffff && (uae_s64)offset < 0)) {
 		write_log (_T("UAEHF SCSI: out of bounds, %08X-%08X + %08X-%08X > %08X-%08X\n"),
 			(uae_u32)(offset >> 32),(uae_u32)offset,(uae_u32)(len >> 32),(uae_u32)len,
 			(uae_u32)(max >> 32),(uae_u32)max);
-		return 0;
+		return -1;
 	}
-	return 1;
+	if ((mode == 1 || mode == 2) && hfd->ci.badblock_num) {
+		offset /= hfd->ci.blocksize;
+		len /= hfd->ci.blocksize;
+		for (int i = 0; i < hfd->ci.badblock_num; i++) {
+			struct uaedev_badblock *bb = &hfd->ci.badblocks[i];
+			if (offset + len >= bb->first && offset < bb->last)
+				return true;
+		}
+	}
+	return 0;
 }
 
 static bool is_writeprotected(struct hardfiledata *hfd)
@@ -1230,6 +1239,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 
 	uae_u64 len, offset;
 	int lr = 0, ls = 0;
+	int chkerr;
 	int scsi_len = -1;
 	int status = 0;
 	int lun;
@@ -1293,11 +1303,14 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			if (nodisk(hfd))
 				goto nodisk;
 			offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf);
-			if (offset == ~0)
-				goto outofbounds;
+			if (offset == ~0) {
+				chkerr = 1;
+				goto checkfail;
+			}
 			offset *= hfd->ci.blocksize;
-			if (!checkbounds(hfd, offset, hfd->ci.blocksize))
-				goto outofbounds;
+			chkerr = checkbounds(hfd, offset, hfd->ci.blocksize, 1);
+			if (chkerr)
+				goto checkfail;
 			scsi_len = 0;
 			goto scsi_done;
 			case 0x0c: /* INITIALIZE DRIVE CHARACTERISTICS */
@@ -1408,37 +1421,46 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		if (nodisk(hfd))
 			goto nodisk;
 		offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf);
-		if (offset == ~0)
-			goto outofbounds;
+		if (offset == ~0) {
+			chkerr = 1;
+			goto checkfail;
+		}
 		offset *= hfd->ci.blocksize;
-		if (!checkbounds(hfd, offset, hfd->ci.blocksize))
-			goto outofbounds;
+		chkerr = checkbounds(hfd, offset, hfd->ci.blocksize, 1);
+		if (chkerr)
+			goto checkfail;
 		scsi_len = 0;
 		break;
 	case 0x0b: /* SEEK (6) */
 		if (nodisk (hfd))
 			goto nodisk;
 		offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf);
-		if (offset == ~0)
-			goto outofbounds;
+		if (offset == ~0) {
+			chkerr = 1;
+			goto checkfail;
+		}
 		offset *= hfd->ci.blocksize;
-		if (!checkbounds(hfd, offset, hfd->ci.blocksize))
-			goto outofbounds;
+		chkerr = checkbounds(hfd, offset, hfd->ci.blocksize, 3);
+		if (chkerr)
+			goto checkfail;
 		scsi_len = 0;
 		break;
 	case 0x08: /* READ (6) */
 		if (nodisk (hfd))
 			goto nodisk;
 		offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf);
-		if (offset == ~0)
-			goto outofbounds;
+		if (offset == ~0) {
+			chkerr = 1;
+			goto checkfail;
+		}
 		offset *= hfd->ci.blocksize;
 		len = cmdbuf[4];
 		if (!len)
 			len = 256;
 		len *= hfd->ci.blocksize;
-		if (!checkbounds(hfd, offset, len))
-			goto outofbounds;
+		chkerr = checkbounds(hfd, offset, len, 1);
+		if (chkerr)
+			goto checkfail;
 		scsi_len = (uae_u32)cmd_readx(hfd, scsi_data, offset, len);
 		break;
 	case 0x0f: /* WRITE SECTOR BUFFER */
@@ -1450,15 +1472,18 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		if (is_writeprotected(hfd))
 			goto readprot;
 		offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf);
-		if (offset == ~0)
-			goto outofbounds;
+		if (offset == ~0) {
+			chkerr = 1;
+			goto checkfail;
+		}
 		offset *= hfd->ci.blocksize;
 		len = cmdbuf[4];
 		if (!len)
 			len = 256;
 		len *= hfd->ci.blocksize;
-		if (!checkbounds(hfd, offset, len))
-			goto outofbounds;
+		chkerr = checkbounds(hfd, offset, len, 2);
+		if (chkerr)
+			goto checkfail;
 		scsi_len = (uae_u32)cmd_writex(hfd, scsi_data, offset, len);
 		break;
 	case 0x5a: // MODE SENSE(10)
@@ -1627,8 +1652,9 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			goto nodisk;
 		offset = rl (cmdbuf + 2);
 		offset *= hfd->ci.blocksize;
-		if (!checkbounds (hfd, offset, hfd->ci.blocksize))
-			goto outofbounds;
+		chkerr = checkbounds(hfd, offset, hfd->ci.blocksize, 3);
+		if (chkerr)
+			goto checkfail;
 		scsi_len = 0;
 		break;
 	case 0x28: /* READ (10) */
@@ -1638,8 +1664,9 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		offset *= hfd->ci.blocksize;
 		len = rl (cmdbuf + 7 - 2) & 0xffff;
 		len *= hfd->ci.blocksize;
-		if (!checkbounds (hfd, offset, len))
-			goto outofbounds;
+		chkerr = checkbounds(hfd, offset, len, 1);
+		if (chkerr)
+			goto checkfail;
 		scsi_len = (uae_u32)cmd_readx (hfd, scsi_data, offset, len);
 		break;
 	case 0x2a: /* WRITE (10) */
@@ -1651,8 +1678,9 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		offset *= hfd->ci.blocksize;
 		len = rl (cmdbuf + 7 - 2) & 0xffff;
 		len *= hfd->ci.blocksize;
-		if (!checkbounds (hfd, offset, len))
-			goto outofbounds;
+		chkerr = checkbounds(hfd, offset, len, 2);
+		if (chkerr)
+			goto checkfail;
 		scsi_len = (uae_u32)cmd_writex (hfd, scsi_data, offset, len);
 		break;
 	case 0x2f: /* VERIFY (10) */
@@ -1665,18 +1693,19 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 				offset *= hfd->ci.blocksize;
 				len = rl (cmdbuf + 7 - 2) & 0xffff;
 				len *= hfd->ci.blocksize;
-				uae_u8 *vb = xmalloc (uae_u8, hfd->ci.blocksize);
-				if (checkbounds (hfd, offset, len)) {
-					while (len > 0) {
-						int readlen = cmd_readx (hfd, vb, offset, hfd->ci.blocksize);
-						if (readlen != hfd->ci.blocksize || memcmp (vb, scsi_data, hfd->ci.blocksize)) {
-							xfree (vb);
-							goto miscompare;
-						}
-						scsi_data += hfd->ci.blocksize;
-						offset += hfd->ci.blocksize;
-						len -= hfd->ci.blocksize;
+				chkerr = checkbounds (hfd, offset, len, 1);
+				if (chkerr)
+					goto checkfail;
+				uae_u8 *vb = xmalloc(uae_u8, hfd->ci.blocksize);
+				while (len > 0) {
+					int readlen = cmd_readx (hfd, vb, offset, hfd->ci.blocksize);
+					if (readlen != hfd->ci.blocksize || memcmp (vb, scsi_data, hfd->ci.blocksize)) {
+						xfree (vb);
+						goto miscompare;
 					}
+					scsi_data += hfd->ci.blocksize;
+					offset += hfd->ci.blocksize;
+					len -= hfd->ci.blocksize;
 				}
 				xfree (vb);
 			}
@@ -1695,8 +1724,9 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		offset *= hfd->ci.blocksize;
 		len = rl (cmdbuf + 6);
 		len *= hfd->ci.blocksize;
-		if (!checkbounds(hfd, offset, len))
-			goto outofbounds;
+		chkerr = checkbounds(hfd, offset, len, 1);
+		if (chkerr)
+			goto checkfail;
 		scsi_len = (uae_u32)cmd_readx (hfd, scsi_data, offset, len);
 		break;
 	case 0xaa: /* WRITE (12) */
@@ -1708,8 +1738,9 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		offset *= hfd->ci.blocksize;
 		len = rl (cmdbuf + 6);
 		len *= hfd->ci.blocksize;
-		if (!checkbounds(hfd, offset, len))
-			goto outofbounds;
+		chkerr = checkbounds(hfd, offset, len, 2);
+		if (chkerr)
+			goto checkfail;
 		scsi_len = (uae_u32)cmd_writex (hfd, scsi_data, offset, len);
 		break;
 	case 0x37: /* READ DEFECT DATA */
@@ -1764,11 +1795,19 @@ errreq:
 		s[12] = 0x24; /* ILLEGAL FIELD IN CDB */
 		ls = 0x12;
 		break;
-outofbounds:
+checkfail:
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
-		s[2] = 5; /* ILLEGAL REQUEST */
-		s[12] = 0x21; /* LOGICAL BLOCK OUT OF RANGE */
+		if (chkerr < 0) {
+			s[2] = 5; /* ILLEGAL REQUEST */
+			s[12] = 0x21; /* LOGICAL BLOCK OUT OF RANGE */
+		} else {
+			s[2] = 3; /* MEDIUM ERROR */
+			if (chkerr == 1)
+				s[12] = 0x11; /* Unrecovered Read Error */
+			if (chkerr == 2)
+				s[12] = 0x0c; /* Write Error */
+		}
 		ls = 0x12;
 		break;
 miscompare:
@@ -1881,11 +1920,11 @@ static int handle_scsi (TrapContext *ctx, uae_u8 *iobuf, uaecptr request, struct
 			trap_set_bytes(ctx, scsi_sense + sd->sense_len, 0, scsi_sense_len - sd->sense_len);
 		}
 	}
-	if (scsi_len < 0) {
+	if (sd->data_len < 0) {
 		put_long_host(scsicmd + 8, 0); /* scsi_Actual */
 		ret = 20;
 	} else {
-		put_long_host(scsicmd + 8, scsi_len); /* scsi_Actual */
+		put_long_host(scsicmd + 8, sd->data_len); /* scsi_Actual */
 	}
 	
 	trap_put_bytes(ctx, scsicmd, scsicmdaddr, sizeof scsicmd);
@@ -2102,6 +2141,21 @@ static void unaligned (int cmd, uae_u64 offset, uae_u64 len, int blocksize)
 		blocksize);
 }
 
+static bool isbadblock(struct hardfiledata *hfd, uae_u64 offset, uae_u64 len)
+{
+	if (!hfd->ci.badblock_num)
+		return false;
+	offset /= hfd->ci.blocksize;
+	len /= hfd->ci.blocksize;
+	for (int i = 0; i < hfd->ci.badblock_num; i++) {
+		struct uaedev_badblock *bb = &hfd->ci.badblocks[i];
+		if (offset + len >= bb->first && offset < bb->last) {
+			return true;
+		}
+	}
+	return false;
+}
+
 static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struct hardfileprivdata *hfpd, uae_u8 *iobuf, uaecptr request)
 {
 	uae_u32 dataptr, offset, actual = 0, cmd;
@@ -2133,6 +2187,9 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 			outofbounds (cmd, offset, len, hfd->virtsize);
 			goto bad_len;
 		}
+		if (isbadblock(hfd, offset, len)) {
+			goto bad_block;
+		}
 		actual = (uae_u32)cmd_read(ctx, hfd, dataptr, offset, len);
 		break;
 
@@ -2153,6 +2210,9 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 		if (len + offset64 > hfd->virtsize || (uae_s64)offset64 < 0) {
 			outofbounds (cmd, offset64, len, hfd->virtsize);
 			goto bad_len;
+		}
+		if (isbadblock(hfd, offset64, len)) {
+			goto bad_block;
 		}
 		actual = (uae_u32)cmd_read(ctx, hfd, dataptr, offset64, len);
 		break;
@@ -2177,6 +2237,9 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 			if (len + offset > hfd->virtsize) {
 				outofbounds (cmd, offset, len, hfd->virtsize);
 				goto bad_len;
+			}
+			if (isbadblock(hfd, offset, len)) {
+				goto bad_block;
 			}
 			actual = (uae_u32)cmd_write(ctx, hfd, dataptr, offset, len);
 		}
@@ -2204,6 +2267,9 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 			if (len + offset64 > hfd->virtsize || (uae_s64)offset64 < 0) {
 				outofbounds (cmd, offset64, len, hfd->virtsize);
 				goto bad_len;
+			}
+			if (isbadblock(hfd, offset64, len)) {
+				goto bad_block;
 			}
 			actual = (uae_u32)cmd_write(ctx, hfd, dataptr, offset64, len);
 		}
@@ -2315,6 +2381,9 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 		}
 		break;
 
+bad_block:
+		error = 45; // HFERR_BadStatus
+		break;
 bad_command:
 		error = IOERR_BADADDRESS;
 		break;

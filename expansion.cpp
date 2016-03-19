@@ -396,12 +396,13 @@ static void call_card_init(int index)
 	addrbank *ab, *abe;
 	uae_u8 code;
 	uae_u32 expamem_z3_pointer_old;
+	card_data *cd = &cards[ecard];
 
-	expamem_bank.name = cards[ecard].name ? cards[ecard].name : _T("None");
-	if (cards[ecard].initnum)
-		ab = cards[ecard].initnum(0);
+	expamem_bank.name = cd->name ? cd->name : _T("None");
+	if (cd->initnum)
+		ab = cd->initnum(0);
 	else
-		ab = cards[ecard].initrc(cards[ecard].rc);
+		ab = cd->initrc(cd->rc);
 	expamem_z3_size = 0;
 	if (ab == &expamem_none) {
 		expamem_init_clear();
@@ -460,8 +461,8 @@ static void call_card_init(int index)
 		expamem_z3_sum += expamem_z3_size;
 
 		expamem_z3_pointer_old = expamem_z3_pointer;
-		// align 32M boards (FastLane is 32M and needs to be aligned)
-		if (expamem_z3_size <= 32 * 1024 * 1024)
+		// align non-UAE 32M boards (FastLane is 32M and needs to be aligned)
+		if (expamem_z3_size <= 32 * 1024 * 1024 && !(cd->flags & 16))
 			expamem_z3_pointer = (expamem_z3_pointer + expamem_z3_size - 1) & ~(expamem_z3_size - 1);
 
 		expamem_z3_sum += expamem_z3_pointer - expamem_z3_pointer_old;
@@ -483,7 +484,7 @@ static void call_card_init(int index)
 	if (ab) {
 		// non-NULL: not using expamem_bank
 		expamem_bank_current = ab;
-		if ((cards[ecard].flags & 1) && currprefs.cs_z3autoconfig && !currprefs.address_space_24) {
+		if ((cd->flags & 1) && currprefs.cs_z3autoconfig && !currprefs.address_space_24) {
 			map_banks(&expamemz3_bank, 0xff000000 >> 16, 1, 0);
 			map_banks(&dummy_bank, 0xE8, 1, 0);
 		} else {
@@ -492,7 +493,7 @@ static void call_card_init(int index)
 				map_banks(&dummy_bank, 0xff000000 >> 16, 1, 0);
 		}
 	} else {
-		if ((cards[ecard].flags & 1) && currprefs.cs_z3autoconfig && !currprefs.address_space_24) {
+		if ((cd->flags & 1) && currprefs.cs_z3autoconfig && !currprefs.address_space_24) {
 			map_banks(&expamemz3_bank, 0xff000000 >> 16, 1, 0);
 			map_banks(&dummy_bank, 0xE8, 1, 0);
 			expamem_bank_current = &expamem_bank;
@@ -2312,14 +2313,14 @@ void expamem_reset (void)
 		if (z3fastmem_bank.baseaddr != NULL) {
 			bool alwaysmapz3 = currprefs.z3_mapping_mode != Z3MAPPING_REAL;
 			z3num = 0;
-			cards[cardno].flags = 2 | 1;
+			cards[cardno].flags = 16 | 2 | 1;
 			cards[cardno].name = _T("Z3Fast");
 			cards[cardno].initnum = expamem_init_z3fastmem;
 			cards[cardno++].map = expamem_map_z3fastmem;
 			if (alwaysmapz3 || expamem_z3hack(&currprefs))
 				map_banks_z3(&z3fastmem_bank, z3fastmem_bank.start >> 16, currprefs.z3fastmem_size >> 16);
 			if (z3fastmem2_bank.baseaddr != NULL) {
-				cards[cardno].flags = 2 | 1;
+				cards[cardno].flags = 16 | 2 | 1;
 				cards[cardno].name = _T("Z3Fast2");
 				cards[cardno].initnum = expamem_init_z3fastmem2;
 				cards[cardno++].map = expamem_map_z3fastmem2;
@@ -2331,7 +2332,7 @@ void expamem_reset (void)
 			map_banks_z3(&z3chipmem_bank, z3chipmem_bank.start >> 16, currprefs.z3chipmem_size >> 16);
 #ifdef PICASSO96
 		if (currprefs.rtgboards[0].rtgmem_size && currprefs.rtgboards[0].rtgmem_type == GFXBOARD_UAE_Z3 && gfxmem_bank.baseaddr != NULL) {
-			cards[cardno].flags = 4 | 1;
+			cards[cardno].flags = 16 | 4 | 1;
 			cards[cardno].name = _T("Z3RTG");
 			cards[cardno].initnum = expamem_init_gfxcard_z3;
 			cards[cardno++].map = expamem_map_gfxcard_z3;

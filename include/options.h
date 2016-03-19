@@ -161,6 +161,12 @@ struct wh {
 #define BOOTPRI_NOAUTOMOUNT -129
 #define ISAUTOBOOT(ci) ((ci)->bootpri > BOOTPRI_NOAUTOBOOT)
 #define ISAUTOMOUNT(ci) ((ci)->bootpri > BOOTPRI_NOAUTOMOUNT)
+#define MAX_UAEDEV_BADBLOCKS 8
+struct uaedev_badblock
+{
+	uae_u32 first;
+	uae_u32 last;
+};
 struct uaedev_config_info {
 	int type;
 	TCHAR devname[MAX_DPATH];
@@ -198,6 +204,8 @@ struct uaedev_config_info {
 	int forceload;
 	int device_emu_unit;
 	bool inject_icons;
+	int badblock_num;
+	struct uaedev_badblock badblocks[MAX_UAEDEV_BADBLOCKS];
 };
 
 struct uaedev_config_data
@@ -254,6 +262,7 @@ struct chipset_refresh
 	int index;
 	bool locked;
 	bool rtg;
+	bool exit;
 	int horiz;
 	int vert;
 	int lace;

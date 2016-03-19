@@ -98,8 +98,10 @@
 * 0x400002/0x400003: mirrors 0x400000/0x400001
 * 0x400006/0x400007: when written to, turns chip-ram overlay off
 *
-* cartridge hardware also snoops CPU accesses to custom chip
-* registers (DFF000-DFF1FE). All CPU custom chip accesses are
+* Reset condition: first chip ram (or non-custom register) write after hardware reset.
+*
+* cartridge hardware also snoops CPU write accesses to custom chip
+* registers (DFF000-DFF1FE). All CPU custom chip write accesses are
 * saved to RAM at 0x44f000-0x44f1ff. Note that emulated AR3 also
 * saves copper's custom chip accesses. This fix stops programs
 * that try to trick AR by using copper to update write-only
@@ -220,8 +222,6 @@
 #else
 #define write_log_debug
 #endif
-
-extern void activate_debugger (void);
 
 static const TCHAR *cart_memnames[] = { NULL, _T("hrtmon"), _T("arhrtmon"), _T("superiv") };
 
