@@ -2583,11 +2583,7 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 
 	if (!regs.s) {
 		regs.usp = m68k_areg (regs, 7);
-		if (currprefs.cpu_model == 68060) {
-			m68k_areg (regs, 7) = regs.isp;
-			if (interrupt)
-				regs.m = 0;
-		} else if (currprefs.cpu_model >= 68020) {
+		if (currprefs.cpu_model >= 68020 && currprefs.cpu_model < 68060) {
 			m68k_areg (regs, 7) = regs.m ? regs.msp : regs.isp;
 		} else {
 			m68k_areg (regs, 7) = regs.isp;
@@ -2595,7 +2591,7 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 		regs.s = 1;
 		mmu_set_super (1);
 	}
-    
+
 	newpc = x_get_long (regs.vbr + 4 * nr);
 #if 0
 	write_log (_T("Exception %d: %08x -> %08x\n"), nr, currpc, newpc);
@@ -2613,7 +2609,13 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 	} else if (nr == 5 || nr == 6 || nr == 7 || nr == 9) {
         Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x2);
 	} else if (regs.m && interrupt) { /* M + Interrupt */
-        Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x1);
+		Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x0);
+		MakeSR();
+		regs.m = 0;
+		if (currprefs.cpu_model < 68060) {
+			regs.msp = m68k_areg(regs, 7);
+			Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x1);
+		}
 	} else if (nr == 61) {
         Exception_build_stack_frame(oldpc, regs.instruction_pc, regs.mmu_ssw, nr, 0x0);
 	} else {
@@ -2683,11 +2685,7 @@ static void Exception_normal (int nr)
 
 	if (!regs.s) {
 		regs.usp = m68k_areg (regs, 7);
-		if (currprefs.cpu_model == 68060) {
-			m68k_areg (regs, 7) = regs.isp;
-			if (interrupt)
-				regs.m = 0;
-		} else if (currprefs.cpu_model >= 68020) {
+		if (currprefs.cpu_model >= 68020 && currprefs.cpu_model < 68060) {
 			m68k_areg (regs, 7) = regs.m ? regs.msp : regs.isp;
 		} else {
 			m68k_areg (regs, 7) = regs.isp;
@@ -2826,16 +2824,18 @@ static void Exception_normal (int nr)
 		} else if (regs.m && interrupt) { /* M + Interrupt */
 			m68k_areg (regs, 7) -= 2;
 			x_put_word (m68k_areg (regs, 7), vector_nr * 4);
-			m68k_areg (regs, 7) -= 4;
-			x_put_long (m68k_areg (regs, 7), currpc);
-			m68k_areg (regs, 7) -= 2;
-			x_put_word (m68k_areg (regs, 7), regs.sr);
-			regs.sr |= (1 << 13);
-			regs.msp = m68k_areg (regs, 7);
-			regs.m = 0;
-			m68k_areg (regs, 7) = regs.isp;
-			m68k_areg (regs, 7) -= 2;
-			x_put_word (m68k_areg (regs, 7), 0x1000 + vector_nr * 4);
+			if (currprefs.cpu_model < 68060) {
+				m68k_areg (regs, 7) -= 4;
+				x_put_long (m68k_areg (regs, 7), currpc);
+				m68k_areg (regs, 7) -= 2;
+				x_put_word (m68k_areg (regs, 7), regs.sr);
+				regs.sr |= (1 << 13);
+				regs.msp = m68k_areg(regs, 7);
+				regs.m = 0;
+				m68k_areg(regs, 7) = regs.isp;
+				m68k_areg (regs, 7) -= 2;
+				x_put_word (m68k_areg (regs, 7), 0x1000 + vector_nr * 4);
+			}
 		} else {
 			m68k_areg (regs, 7) -= 2;
 			x_put_word (m68k_areg (regs, 7), vector_nr * 4);
@@ -2865,6 +2865,9 @@ static void Exception_normal (int nr)
 	x_put_long (m68k_areg (regs, 7), currpc);
 	m68k_areg (regs, 7) -= 2;
 	x_put_word (m68k_areg (regs, 7), regs.sr);
+	if (currprefs.cpu_model == 68060 && interrupt) {
+		regs.m = 0;
+	}
 kludge_me_do:
 	newpc = x_get_long (regs.vbr + 4 * vector_nr);
 	exception_in_exception = 0;
@@ -2949,7 +2952,7 @@ static void do_interrupt (int nr)
 	for (;;) {
 		Exception (nr + 24);
 		regs.intmask = nr;
-		if (!currprefs.cpu_compatible)
+		if (!currprefs.cpu_compatible || currprefs.cpu_model == 68060)
 			break;
 		if (m68k_interrupt_delay)
 			nr = regs.ipl;
