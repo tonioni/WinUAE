@@ -24,6 +24,7 @@
 #include "threaddep/thread.h"
 #include "native2amiga.h"
 #include "inputdevice.h"
+#include "uae/ppc.h"
 
 /* Commonly used autoconfig strings */
 
@@ -38,6 +39,7 @@ uae_sem_t hardware_trap_event[RTAREA_TRAP_DATA_SIZE / RTAREA_TRAP_DATA_SLOT_SIZE
 uae_sem_t hardware_trap_event2[RTAREA_TRAP_DATA_SIZE / RTAREA_TRAP_DATA_SLOT_SIZE];
 
 static uaecptr rt_trampoline_ptr, trap_entry;
+static bool rtarea_write_enabled;
 extern volatile uae_atomic hwtrap_waiting;
 extern volatile int trap_mode;
 
@@ -181,6 +183,8 @@ static uae_u32 REGPARAM2 rtarea_bget (uaecptr addr)
 
 static bool rtarea_write(uaecptr addr)
 {
+	if (rtarea_write_enabled)
+		return true;
 	if (addr >= RTAREA_WRITEOFFSET)
 		return true;
 	if (addr >= RTAREA_SYSBASE && addr < RTAREA_SYSBASE + 4)
@@ -268,6 +272,7 @@ static void REGPARAM2 rtarea_wput (uaecptr addr, uae_u32 value)
 		}
 	}
 }
+
 static void REGPARAM2 rtarea_lput (uaecptr addr, uae_u32 value)
 {
 	addr &= 0xffff;
@@ -374,17 +379,96 @@ uae_u32 ds_bstr_ansi (const uae_char *str)
 	return addr (rt_straddr) >> 2;
 }
 
+#define MAX_ABSOLUTE_ROM_ADDRESS 1024
+
+static int absolute_rom_address;
+static uaecptr absolute_rom_addresses[MAX_ABSOLUTE_ROM_ADDRESS];
+static uaecptr rombase_new;
+
+void save_rom_absolute(uaecptr addr)
+{
+	if (rombase_new)
+		return;
+	if (absolute_rom_address >= MAX_ABSOLUTE_ROM_ADDRESS) {
+		write_log(_T("MAX_ABSOLUTE_ROM_ADDRESS is too low!"));
+		abort();
+	}
+	for (int i = 0; i < absolute_rom_address; i++) {
+		if (absolute_rom_addresses[i] == addr) {
+			write_log(_T("Address %08x already added\n"), addr);
+			return;
+		}
+	}
+	absolute_rom_addresses[absolute_rom_address++] = addr;
+}
+
+void add_rom_absolute(uaecptr addr)
+{
+	uaecptr h = here();
+	dl(addr);
+	save_rom_absolute(h);
+}
+
+uae_u32 boot_rom_copy(TrapContext *ctx, uaecptr rombase, int mode)
+{
+	uaecptr reloc = 0;
+	if (currprefs.uaeboard < 3)
+		return 0;
+	if (!mode) {
+		rtarea_write_enabled = true;
+		protect_roms(false);
+		rombase_new = rombase;
+		int size = 4 + 2 + 4;
+		for (int i = 0; i < absolute_rom_address; i++) {
+			uae_u32 a = absolute_rom_addresses[i];
+			if (a >= rtarea_base && a < rtarea_base + 0x10000) {
+				size += 2;
+			} else {
+				size += 4;
+			}
+		}
+		reloc = uaeboard_alloc_ram(size);
+		uae_u8 *p = uaeboard_map_ram(reloc);
+		put_long_host(p, rtarea_base);
+		p += 4;
+		for (int i = 0; i < absolute_rom_address; i++) {
+			uae_u32 a = absolute_rom_addresses[i];
+			if (a >= rtarea_base && a < rtarea_base + 0x10000) {
+				put_word_host(p, a & 0xffff);
+				p += 2;
+			}
+		}
+		put_word_host(p, 0);
+		p += 2;
+		for (int i = 0; i < absolute_rom_address; i++) {
+			uae_u32 a = absolute_rom_addresses[i];
+			if (a < rtarea_base || a >= rtarea_base + 0x10000) {
+				put_long_host(p, a);
+				p += 4;
+			}
+		}
+		put_long_host(p, 0);
+		write_log(_T("ROMBASE %08x RAMBASE %08x RELOC %08x (%d)\n"), rtarea_base, rombase, reloc, absolute_rom_address);
+	} else {
+		rtarea_write_enabled = false;
+		protect_roms(true);
+		write_log(_T("ROMBASE changed.\n"), absolute_rom_address);
+		reloc = 1;
+	}
+	return reloc;
+}
+
 void calltrap (uae_u32 n)
 {
 	if (currprefs.uaeboard > 2) {
 		dw(0x4eb9); // JSR rt_trampoline_ptr
-		dl(rt_trampoline_ptr);
+		add_rom_absolute(rt_trampoline_ptr);
 		uaecptr a = here();
 		org(rt_trampoline_ptr);
 		dw(0x3f3c); // MOVE.W #n,-(SP)
 		dw(n);
 		dw(0x4ef9); // JMP rt_trampoline_entry
-		dl(trap_entry);
+		add_rom_absolute(trap_entry);
 		org(a);
 		rt_trampoline_ptr += 3 * 2 + 1 * 4;
 	} else {
@@ -462,6 +546,8 @@ void rtarea_init(void)
 
 	rt_trampoline_ptr = rtarea_base + RTAREA_TRAMPOLINE;
 	trap_entry = 0;
+	absolute_rom_address = 0;
+	rombase_new = 0;
 
 	init_traps ();
 

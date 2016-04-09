@@ -1,4 +1,20 @@
 
+Beta 10:
+
+- if uaenet.device is online and packet(s) have arrived but there is no pending CMD_READ/CMD_READORPHANs:
+  wait about 2s before dropping it, it is possible that multiple packets will arrive so quickly that Amiga-side
+  TCP/IP stack don't have time to queue more read commands before packets get dropped.
+- uaenet.device stability fix.
+- Loading config with unplugged joystick or mouse inserted in either port: previous device was not autoselected.
+- Filter panel scaling mode active and mouse driver enabled: mouse got stuck in a corner in some situations.
+- Screenshot input event set to toggle-mode in Input panel: key/button press = create screenshots continuously
+  every frame, following key/button press = stop automatic screenshots.
+- one genlinetoscr function (16-bit 4x horizontal stretch) used genlock function in non-genlock mode.
+- Adaptive Sync "vsync" mode added. Optimal setting designed for G-Sync/FreeSync monitors. Also allows 100/120Hz
+  black frame insertion mode. Not very stable yet. (Don't try to use without adaptive sync hardware..)
+- 68040 MMU mode SR M-bit handling was missing. 68060 SR M-bit handling was not correct.
+- Disable bsdsocket.library if indirect UAE Boot ROM is enabled, it is not (yet?) compatible.
+
 Beta 9:
 
 - Fixed swapped audio channels if stereo separation was set (b1 cleanup missed code path)

@@ -561,9 +561,9 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 			OffsetRect (zr, 0, (int)(-filter_vert_offset * ahs));
 
 			diff = dr->right - dr->left;
-			filterxmult = diff / (dst_width * scale);
+			filterxmult = diff / ((float)dst_width * scale);
 			diff = dr->bottom - dr->top;
-			filterymult = diff / (dst_height * scale);
+			filterymult = diff / ((float)dst_height * scale);
 			goto end;
 		}
 

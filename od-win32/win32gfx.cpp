@@ -1106,7 +1106,7 @@ bool render_screen (bool immediate)
 	}
 	flushymin = 0;
 	flushymax = currentmode->amiga_height;
-	EnterCriticalSection (&screen_cs);
+	gfx_lock();
 	if (currentmode->flags & DM_D3D) {
 		v = D3D_renderframe (immediate);
 	} else if (currentmode->flags & DM_SWSCALE) {
@@ -1116,7 +1116,7 @@ bool render_screen (bool immediate)
 		v = true;
 	}
 	render_ok = v;
-	LeaveCriticalSection (&screen_cs);
+	gfx_unlock();
 	return render_ok;
 }
 
@@ -1139,7 +1139,7 @@ static void doflipevent (int mode)
 bool show_screen_maybe (bool show)
 {
 	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
-	if (!ap->gfx_vflip || ap->gfx_vsyncmode == 0 || !ap->gfx_vsync) {
+	if (!ap->gfx_vflip || ap->gfx_vsyncmode == 0 || ap->gfx_vsync <= 0) {
 		if (show)
 			show_screen (0);
 		return false;
@@ -1155,30 +1155,59 @@ bool show_screen_maybe (bool show)
 
 void show_screen_special (void)
 {
-	EnterCriticalSection (&screen_cs);
 	if (currentmode->flags & DM_D3D) {
+		gfx_lock();
 		D3D_showframe_special (1);
+		gfx_unlock();
 	}
-	LeaveCriticalSection (&screen_cs);
 }
+static frame_time_t strobo_time;
+
+static void CALLBACK blackinsertion_cb(
+	UINT      uTimerID,
+	UINT      uMsg,
+	DWORD_PTR dwUser,
+	DWORD_PTR dw1,
+	DWORD_PTR dw2
+	)
+{
+	if (!screen_is_initialized)
+		return;
+	for (;;) {
+		frame_time_t ct = read_processor_time();
+		if ((int)strobo_time - (int)ct <= 0 || (int)strobo_time - (int)ct > vsynctimebase / 2) {
+			break;
+		}
+	}
+	if (!screen_is_initialized)
+		return;
+	show_screen_special();
+}
+
 
 void show_screen (int mode)
 {
-	EnterCriticalSection (&screen_cs);
+	gfx_lock();
 	if (mode == 2) {
 		if (currentmode->flags & DM_D3D) {
 			D3D_showframe_special (1);
 		}
-		LeaveCriticalSection (&screen_cs);
+		gfx_unlock();
 		return;
 	}
 	if (!render_ok) {
-		LeaveCriticalSection (&screen_cs);
+		gfx_unlock();
 		return;
 	}
 	if (currentmode->flags & DM_D3D) {
-		D3D_showframe ();
-
+		struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
+		if (isfullscreen() > 0 && isvsync() == 0 && ap->gfx_strobo && ap->gfx_refreshrate > 80) {
+		//if (isvsync() == 0 && ap->gfx_strobo) {
+			int ms = (int)((1000 / 2) / vblank_hz) - 1;
+			strobo_time = read_processor_time() + vsynctimebase / 2;
+			timeSetEvent(ms, 0, blackinsertion_cb, NULL, TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
+		}
+		D3D_showframe();
 #ifdef GFXFILTER
 	} else if (currentmode->flags & DM_SWSCALE) {
 		if (!dx_islost () && !picasso_on)
@@ -1188,7 +1217,7 @@ void show_screen (int mode)
 		if (!dx_islost () && !picasso_on)
 			DirectDraw_Flip (1);
 	}
-	LeaveCriticalSection (&screen_cs);
+	gfx_unlock();
 	render_ok = false;
 }
 
@@ -1440,10 +1469,10 @@ uae_u8 *gfx_lock_picasso (bool fullupdate, bool doclear)
 	if (rtg_locked) {
 		return p;
 	}
-	EnterCriticalSection (&screen_cs);
+	gfx_lock();
 	p = gfx_lock_picasso2 (fullupdate);
 	if (!p) {
-		LeaveCriticalSection (&screen_cs);
+		gfx_unlock();
 	} else {
 		rtg_locked = true;
 		if (doclear) {
@@ -1460,7 +1489,7 @@ uae_u8 *gfx_lock_picasso (bool fullupdate, bool doclear)
 void gfx_unlock_picasso (bool dorender)
 {
 	if (!rtg_locked)
-		EnterCriticalSection (&screen_cs);
+		gfx_lock();
 	rtg_locked = false;
 	if (currprefs.gfx_api) {
 		if (dorender) {
@@ -1472,14 +1501,14 @@ void gfx_unlock_picasso (bool dorender)
 		D3D_unlocktexture ();
 		if (dorender) {
 			if (D3D_renderframe (false)) {
-				LeaveCriticalSection (&screen_cs);
+				gfx_unlock();
 				render_ok = true;
 				show_screen_maybe (true);
 			} else {
-				LeaveCriticalSection (&screen_cs);
+				gfx_unlock();
 			}
 		} else {
-			LeaveCriticalSection (&screen_cs);
+			gfx_unlock();
 		}
 	} else {
 		DirectDraw_SurfaceUnlock ();
@@ -1491,7 +1520,7 @@ void gfx_unlock_picasso (bool dorender)
 				p96_double_buffer_needs_flushing = 0;
 			}
 		}
-		LeaveCriticalSection (&screen_cs);
+		gfx_unlock();
 	}
 }
 
@@ -1730,6 +1759,7 @@ static int open_windows (bool mousecapture)
 
 	changevblankthreadmode (VBLANKTH_IDLE);
 
+	screen_is_initialized = 0;
 	inputdevice_unacquire ();
 	wait_keyrelease ();
 	reset_sound ();
@@ -1737,7 +1767,9 @@ static int open_windows (bool mousecapture)
 
 	updatewinfsmode (&currprefs);
 #ifdef D3D
+	gfx_lock();
 	D3D_free (false);
+	gfx_unlock();
 #endif
 #ifdef OPENGL
 	OGL_free ();

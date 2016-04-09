@@ -1221,9 +1221,12 @@ static addrbank *expamem_map_uaeboard(void)
 {
 	uaeboard_base = expamem_z2_pointer;
 	uaeboard_ram_start = UAEBOARD_WRITEOFFSET;
+	uaeboard_bank.start = uaeboard_base;
 	map_banks_z2(&uaeboard_bank, uaeboard_base >> 16, 1);
-	if (currprefs.uaeboard > 1)
+	if (currprefs.uaeboard > 1) {
+		rtarea_bank.start = uaeboard_base + 65536;
 		map_banks_z2(&rtarea_bank, (uaeboard_base + 65536) >> 16, 1);
+	}
 	return &uaeboard_bank;
 }
 
@@ -1244,7 +1247,7 @@ static addrbank* expamem_init_uaeboard(int devnum)
 
 	expamem_write(0x18, 0x00); /* ser.no. Byte 0 */
 	expamem_write(0x1c, 0x00); /* ser.no. Byte 1 */
-	expamem_write(0x20, 0x00); /* ser.no. Byte 2 */
+	expamem_write(0x20, currprefs.uaeboard); /* ser.no. Byte 2 */
 	expamem_write(0x24, 0x02); /* ser.no. Byte 3 */
 
 	uae_u8 *p = uaeboard_bank.baseaddr;

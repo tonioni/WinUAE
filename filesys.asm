@@ -93,7 +93,7 @@ startjmp:
 	bra.w filesys_mainloop		;1 16
 	dc.l make_dev-start			;2 20
 	dc.l filesys_init-start		;3 24
-	dc.l 0		;4 28
+	dc.l moverom-start		;4 28
 	dc.l bootcode-start			;5 32
 	dc.l setup_exter-start		;6 36
 	dc.l bcplwrapper-start ;7 40
@@ -432,7 +432,7 @@ mountproc
 	dc.l 0
 	moveq #2,d1
 	move.w #$FF48,d0 ; get new unit number
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	move.l d0,d1
 	bmi.s .out
@@ -498,7 +498,7 @@ exter_task_wait
 	moveq #10,d7
 EXTT_loop
 	move.w #$FF50,d0 ; exter_int_helper
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	move.l d7,d0
 	jsr (a0)
 	tst.l d0
@@ -554,7 +554,7 @@ EXTT_shellexec
 	bsr.w createproc
 	move.l d0,d1
 	move.w #$FF50,d0 ; exter_int_helper
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	moveq #20,d0
 	jsr (a0)
 	bra.w EXTT_loop
@@ -596,7 +596,7 @@ shellexecproc:
 	
 .seproc1
 	move.w #$FF50,d0 ; exter_int_helper
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	moveq #21,d0
 	jsr (a0)
 	; a0 = command
@@ -665,7 +665,7 @@ shellexecproc:
 	move.l a4,sp
 
 	move.w #$FF50,d0 ; exter_int_helper
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	moveq #22,d0
 	jsr (a0)
 
@@ -679,7 +679,7 @@ heartbeatvblank:
 
 	move.w #$FF38,d0
 	moveq #18,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	move.l d2,d0
 	move.l d3,d2
 	jsr (a0)
@@ -790,7 +790,7 @@ setup_exter:
 
 	move.w #$FF38,d0
 	moveq #4,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	tst.l d0
 	beq.s .nomh
@@ -1314,7 +1314,7 @@ make_dev: ; IN: A0 param_packet, D6: unit_no
 	bsr.w getrtbase
 	move.l (a0),a5
 	move.w #$FF28,d0 ; fill in unit-dependent info (filesys_dev_storeinfo)
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	move.l a0,a1
 	move.l (sp)+,a0
 	clr.l PP_FSSIZE(a0) ; filesystem size
@@ -1352,7 +1352,7 @@ mountalways
 	; do not mount but we might need to load possible custom filesystem(s)
 	move.l a0,a1
 	move.w #$FF20,d0 ; record in ui.startup (filesys_dev_remember)
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	bra.s dont_mount
 
@@ -1364,7 +1364,7 @@ do_mount:
 	move.l a0,a1
 	move.l d0,a3 ; devicenode
 	move.w #$FF20,d0 ; record in ui.startup (filesys_dev_remember)
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	moveq #0,d0
 	move.l d0,8(a3)          ; dn_Task
@@ -1406,7 +1406,7 @@ nordbfs2:
 	move.l d0,d1
 
 	move.w #$FF18,d0 ; update dn_SegList if needed (filesys_dev_bootfilesys)
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 
 	move.l d3,d0
@@ -1557,7 +1557,7 @@ addfsonthefly ; d1 = fs index
 
 clockreset:
 	move.w #$ff58,d0 ; fsmisc_helper
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	moveq #3,d0 ; get time
 	jsr (a0)
 	move.l 168(a3),a1
@@ -1603,7 +1603,7 @@ filesys_mainloop_bcpl:
 
 	move.l #12+20+(44+20+60+1)+3+4+4+4+(1+3)+4+4+4,d1
 	move.w #$FF40,d0 ; startup_handler
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	moveq #1,d0
 	jsr (a0)
 	; if d0 != 0, it becomes our memory space
@@ -1653,7 +1653,7 @@ filesys_mainloop_bcpl:
 .got_bcpl
 
 	move.w #$FF40,d0 ; startup_handler
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	moveq #0,d0
 	jsr (a0)
 	move.l d0,d2
@@ -1710,7 +1710,7 @@ FSML_loop:
 	beq.s .nodc
 	; call filesys_media_change_reply (pre)
 	move.w #$ff58,d0 ; fsmisc_helper
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	moveq #1,d0 ; filesys_media_change_reply
 	jsr (a0)
 	tst.l d0
@@ -1720,7 +1720,7 @@ FSML_loop:
 	clr.b 172(a3)
 	; call filesys_media_change_reply (post)
 	move.w #$ff58,d0 ; fsmisc_helper
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	moveq #2,d0 ; filesys_media_change_reply
 	jsr (a0)
 .nodc
@@ -1761,7 +1761,7 @@ nonnotif
 
 	; It's a dummy packet indicating that some queued command finished.
 	move.w #$FF50,d0 ; exter_int_helper
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	moveq #1,d0
 	jsr (a0)
 FSML_check_queue_other:
@@ -1804,7 +1804,7 @@ FSML_FromDOS:
 FSML_DoCommand:
 	bsr.b LockCheck  ; Make sure there are enough locks for the C code to grab.
 	move.w #$FF30,d0 ; filesys_handler
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	tst.l d0
 	beq.b FSML_Reply
@@ -1834,7 +1834,7 @@ FSML_ReplyOne2:
 	bne.s FSML_ReplyOne3
 	; Arghh.. we need more entries. (some buggy programs fail if eac_Entries = 0 with continue enabled)
 	move.w #$ff58,d0 ; fsmisc_helper
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	moveq #0,d0 ; exall
 	jsr (a0)
 	bra.s .exaretry
@@ -2213,7 +2213,7 @@ getgfxlimits:
 	move.w MH_FOO_MOFFSET(a5),d2
 	move.w #$FF38,d0
 	moveq #1,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 
 .nosend
@@ -2259,7 +2259,7 @@ mousehack_task:
 	; send data structure address
 	move.w #$FF38,d0
 	moveq #5,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	move.l a4,d0
 	jsr (a0)
 
@@ -2274,7 +2274,7 @@ mousehack_task:
 	moveq #5,d0 ;INTB_VERTB
 	jsr -$00a8(a6)
 
-mhloop
+mhloop:
 	move.l d6,d0
 	jsr -$013e(a6) ;Wait
 
@@ -2356,7 +2356,7 @@ mhloop
 	;tell native side that mousehack is now active
 	move.w #$FF38,d0
 	moveq #0,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	bra.w mhloop
 .yestim
@@ -2547,7 +2547,7 @@ mhloop
 	jsr -$2a(a6) ;PeekQualifier
 	move.l (sp)+,a6
 	and.w #$7fff,d0
-	move.w d0,8(a2) ;ie_Qualifier
+	or.w d0,8(a2) ;ie_Qualifier
 .mhvpre36	
 
 	bsr.w mhdoio
@@ -2626,7 +2626,7 @@ clipboard_init:
 
 	move.w #$FF38,d0
 	moveq #17,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	btst #0,d0
 	beq.s .noclip
@@ -2642,7 +2642,7 @@ clipboard_init:
 
 	move.w #$FF38,d0
 	moveq #14,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	move.l a5,d0
 	jsr (a0)
 
@@ -2660,7 +2660,7 @@ clipboard_init:
 clipkill
 	move.w #$FF38,d0
 	moveq #10,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	rts
 
@@ -2718,7 +2718,7 @@ prefsread:
 	bne.s .pr4
 	move.w #$FF38,d0
 	moveq #16,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 .pr1
 	move.l d4,d1
@@ -2760,7 +2760,7 @@ clipboard_proc:
 
 	move.w #$FF38,d0
 	moveq #13,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	tst.l d0
 	beq.w clipdie
@@ -2848,7 +2848,7 @@ cfversion
 
 	move.w #$FF38,d0
 	moveq #15,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	tst.l CLIP_WRITE_SIZE(a5)
 	bne.s clipsignal
@@ -2875,7 +2875,7 @@ clipsignal
 	;and notify host-side
 	move.w #$FF38,d0
 	moveq #12,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	tst.l d0
 	beq.s .nowrite
@@ -2945,7 +2945,7 @@ clipread:
 	jsr -$01c8(a6) ;DoIO
 	move.w #$FF38,d0
 	moveq #11,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	move.l 32(a4),d0
 	jsr (a0)
 	move.l a2,a1
@@ -2987,7 +2987,7 @@ consolehook:
 	moveq #-1,d2
 	move.w #$FF38,d0
 	moveq #17,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	btst #1,d0
 	beq.s .ch2
@@ -3006,7 +3006,7 @@ consolehook:
 	move.l a0,a1
 	move.w #$FF38,d0
 	moveq #101,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	moveq #1,d2
 .ch1
@@ -3020,7 +3020,7 @@ chook:
 	movem.l d0-d1/a0,-(sp)
 	move.w #$FF38,d0
 	moveq #102,d1
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	movem.l (sp)+,d0-d1/a0
 	rts
@@ -3043,7 +3043,7 @@ debuggerproc
 	jsr -$0228(a6) ; OpenLibrary
 	moveq #2,d1
 	move.w #$FF78,d0
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	move.l a0,a2
 	moveq #1,d1
 	jsr (a0) ; debugger init
@@ -3198,7 +3198,7 @@ bcplwrapper_start:
 	move.l d2,d1
 	lea wb13ffspatches(pc),a1
 	move.w #$FF68,d0
-	bsr.w getrtbase
+	bsr.w getrtbaselocal
 	jsr (a0)
 	jmp (a0)
 	;CopyMem() patches
@@ -3643,11 +3643,140 @@ hw_multi:
 	rts
 
 
+	; this is called from external executable
+
+moverom:
+	; a0 = ram copy
+
+	move.l a0,a5 ; ram copy
+	
+	moveq #20,d7
+	move.l 4.w,a6
+
+	jsr -$0084(a6) ;Forbid
+	
+	move.w #$FF38,d0
+	bsr.w getrtbase
+	move.l a5,d2
+	moveq #19,d1
+	jsr (a0)
+	;ROM is now write-enabled
+	;d0 = temp space
+	tst.l d0
+	beq.w .mov1
+	move.l d0,a3
+	move.l (a3)+,a4 ; ROM
+
+	; Copy ROM to RAM
+	move.l a4,a0
+	move.l a5,a1
+	move.w #65536/4-1,d0
+.mov5
+	move.l (a0)+,(a1)+
+	dbf d0,.mov5
+
+	move.l a5,d1
+	sub.l a4,d1
+
+	; Handle relocations from UAE side
+	
+	; Relative
+	move.l a3,a0
+.mov7
+	moveq #0,d0
+	move.w (a0)+,d0
+	beq.s .mov6
+	lea 0(a4,d0.l),a1
+	add.l d1,(a1)
+	lea 0(a5,d0.l),a1
+	add.l d1,(a1)
+	bra.s .mov7
+.mov6
+
+	; Absolute
+.mov9
+	moveq #0,d0
+	move.l (a0)+,d0
+	beq.s .mov8
+	move.l d0,a1
+	add.l d1,(a1)
+	bra.s .mov9
+.mov8
+
+	moveq #0,d0
+	bsr.w getrtbase
+	lea getrtbase(pc),a1
+	sub.l a0,a1
+	
+	add.l a5,a1
+	; replace RAM copy relative getrtbase
+	; fetch with absolute lea rombase,a0
+	move.w #$41f9,(a1)+
+	move.l a4,(a1)+
+	; and.l #$ffff,d0
+	move.w #$0280,(a1)+
+	move.l #$0000ffff,(a1)+
+	; add.l d0,a0; rts
+	move.l #$d1c04e75,(a1)
+	
+	; redirect some commonly used
+	; functions to RAM code
+	lea moveromreloc(pc),a0
+.mov3
+	moveq #0,d0
+	move.w (a0)+,d0
+	beq.s .mov2
+	add.w #8+4,d0
+	lea 0(a4,d0.l),a1
+	; JMP xxxxxxxx
+	move.w #$4ef9,(a1)+
+	lea 0(a5,d0.l),a2
+	move.l a2,(a1)
+	bra.s .mov3
+.mov2
+
+	cmp.w #36,20(a6)
+	bcs.s .mov4
+	jsr -$27c(a6) ; CacheClearU
+.mov4
+
+	; Tell UAE that all is done
+	; Re-enables write protection
+	move.w #$FF38,d0
+	bsr.w getrtbase
+	move.l a5,d2
+	moveq #20,d1
+	jsr (a0)
+	moveq #0,d7
+
+.mov1
+	jsr -$008a(a6)
+	
+	move.l d7,d0
+	rts
+	
+moveromreloc:
+	dc.w FSML_loop-start
+	dc.w mhloop-start
+	dc.w kaint-start
+	dc.w trap_task_wait-start
+	dc.w exter_task_wait-start
+	dc.w 0
+
+	cnop 0,4
+getrtbaselocal:
+	lea start-8-4(pc),a0
+	and.l #$FFFF,d0
+	add.l d0,a0
+	rts
+	cnop 0,4
 getrtbase:
 	lea start-8-4(pc),a0
 	and.l #$FFFF,d0
 	add.l d0,a0
 	rts
+	nop
+	nop
 
 inp_dev: dc.b 'input.device',0
 tim_dev: dc.b 'timer.device',0

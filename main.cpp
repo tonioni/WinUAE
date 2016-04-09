@@ -160,14 +160,21 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 {
 	fixup_prefs_dim2 (&prefs->gfx_size_fs);
 	fixup_prefs_dim2 (&prefs->gfx_size_win);
-	if (prefs->gfx_apmode[1].gfx_vsync)
+	if (prefs->gfx_apmode[1].gfx_vsync > 0)
 		prefs->gfx_apmode[1].gfx_vsyncmode = 1;
 
 	for (int i = 0; i < 2; i++) {
 		struct apmode *ap = &prefs->gfx_apmode[i];
 		ap->gfx_vflip = 0;
 		ap->gfx_strobo = false;
-		if (ap->gfx_vsync) {
+		if (ap->gfx_vsync < 0) {
+			// adaptive sync
+			ap->gfx_vsyncmode = 0;
+			ap->gfx_vflip = 0;
+			if (ap->gfx_backbuffers >= 2)
+				ap->gfx_backbuffers = 1;
+			ap->gfx_strobo = prefs->lightboost_strobo;
+		} else if (ap->gfx_vsync > 0) {
 			if (ap->gfx_vsyncmode) {
 				// low latency vsync: no flip only if no-buffer
 				if (ap->gfx_backbuffers >= 1)
@@ -569,7 +576,7 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 	}
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		if ((p->rtgboards[i].rtgmem_size > 0 && p->rtgboards[i].rtgmem_type == GFXBOARD_UAE_Z3) && p->address_space_24) {
-			error_log (_T("UAEGFX RTG can't be used if address space is 24-bit."));
+			error_log (_T("UAEGFX Z3 RTG can't be used if address space is 24-bit."));
 			p->rtgboards[i].rtgmem_size = 0;
 			err = 1;
 		}
@@ -582,6 +589,10 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		err = 1;
 	}
 #endif
+	if (p->socket_emu && p->uaeboard >= 3) {
+		write_log(_T("bsdsocket.library is not compatible with indirect UAE Boot ROM.\n"));
+		p->socket_emu = 0;
+	}
 
 	if (p->nr_floppies < 0 || p->nr_floppies > 4) {
 		error_log (_T("Invalid number of floppies.  Using 2."));

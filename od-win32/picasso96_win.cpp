@@ -4588,7 +4588,8 @@ static uae_u32 REGPARAM2 picasso_SetMemoryMode(TrapContext *ctx)
 
 #define PUTABI(func) \
 	if (ABI) \
-		trap_put_long(ctx, ABI + func, here ());
+		trap_put_long(ctx, ABI + func, here ()); \
+		save_rom_absolute(ABI + func);
 
 #define RTGCALL(func,funcdef,call) \
 	PUTABI (func); \
@@ -4620,11 +4621,12 @@ static uae_u32 REGPARAM2 picasso_SetMemoryMode(TrapContext *ctx)
 
 #define RTGNONE(func) \
 	if (ABI) \
-		trap_put_long(ctx, ABI + func, start);
+		trap_put_long(ctx, ABI + func, start); \
+		save_rom_absolute(ABI + func);
 
 static void inituaegfxfuncs(TrapContext *ctx, uaecptr start, uaecptr ABI)
 {
-	if (uaegfx_old)
+	if (uaegfx_old || !ABI)
 		return;
 	org (start);
 

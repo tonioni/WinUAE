@@ -2036,6 +2036,7 @@ BEGIN
     IDS_NUMSG_UAEBOOTROM_PCC 
                             "PPC native OS booted with incompatible UAE boot ROM enabled.\nSelect ROM panel ""New UAE (128k, ROM, Indirect)"" option\nor disable all UAE expansions.\n"
     IDS_AUTOSCALE_OVERSCAN_BLANK "Overscan blanking"
+    IDS_SCREEN_ADAPTIVE_SYNC "Adaptive Sync"
 END
 
 #endif    // English resources

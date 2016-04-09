@@ -1743,7 +1743,7 @@ static void pfield_set_linetoscr (void)
 			switch (gfxvidinfo.drawbuffer.pixbytes) {
 				case 2:
 				pfield_do_linetoscr_normal = need_genlock_data ? linetoscr_16_stretch2_aga_genlock : linetoscr_16_stretch2_aga;
-				pfield_do_linetoscr_sprite = need_genlock_data ? linetoscr_16_stretch2_aga_spr_genlock : linetoscr_16_stretch2_aga_spr_genlock;
+				pfield_do_linetoscr_sprite = need_genlock_data ? linetoscr_16_stretch2_aga_spr_genlock : linetoscr_16_stretch2_aga_spr;
 				pfield_do_linetoscr_spriteonly = linetoscr_16_stretch2_aga_spronly;
 				break;
 				case 4:
@@ -2012,12 +2012,13 @@ static void init_ham_decoding (void)
 		} else { /* AGA mode HAM6 */
 			while (unpainted_amiga-- > 0) {
 				int pv = pixdata.apixels[ham_decode_pixel++] ^ bplxor;
+				uae_u32 pc = ((pv & 0xf) << 0) | ((pv & 0xf) << 4);
 				switch (pv & 0x30)
 				{
 				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_aga[pv] & 0xffffff; break;
-				case 0x10: ham_lastcolor &= 0xFFFF00; ham_lastcolor |= (pv & 0xF) << 4; break;
-				case 0x20: ham_lastcolor &= 0x00FFFF; ham_lastcolor |= (pv & 0xF) << 20; break;
-				case 0x30: ham_lastcolor &= 0xFF00FF; ham_lastcolor |= (pv & 0xF) << 12; break;
+				case 0x10: ham_lastcolor &= 0xFFFF00; ham_lastcolor |= pc << 0; break;
+				case 0x20: ham_lastcolor &= 0x00FFFF; ham_lastcolor |= pc << 16; break;
+				case 0x30: ham_lastcolor &= 0xFF00FF; ham_lastcolor |= pc << 8; break;
 				}
 			}
 		}
@@ -2071,12 +2072,13 @@ static void decode_ham (int pix, int stoppos, bool blank)
 		} else { /* AGA mode HAM6 */
 			while (todraw_amiga-- > 0) {
 				int pv = pixdata.apixels[ham_decode_pixel] ^ bplxor;
+				uae_u32 pc = ((pv & 0xf) << 0) | ((pv & 0xf) << 4);
 				switch (pv & 0x30)
 				{
 				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_aga[pv] & 0xffffff; break;
-				case 0x10: ham_lastcolor &= 0xFFFF00; ham_lastcolor |= (pv & 0xF) << 4; break;
-				case 0x20: ham_lastcolor &= 0x00FFFF; ham_lastcolor |= (pv & 0xF) << 20; break;
-				case 0x30: ham_lastcolor &= 0xFF00FF; ham_lastcolor |= (pv & 0xF) << 12; break;
+				case 0x10: ham_lastcolor &= 0xFFFF00; ham_lastcolor |= pc << 0; break;
+				case 0x20: ham_lastcolor &= 0x00FFFF; ham_lastcolor |= pc << 16; break;
+				case 0x30: ham_lastcolor &= 0xFF00FF; ham_lastcolor |= pc << 8; break;
 				}
 				ham_linebuf[ham_decode_pixel++] = ham_lastcolor;
 			}
@@ -4162,7 +4164,7 @@ void drawing_init (void)
 
 int isvsync_chipset (void)
 {
-	if (picasso_on || !currprefs.gfx_apmode[0].gfx_vsync || (currprefs.gfx_apmode[0].gfx_vsync == 0 && !currprefs.gfx_apmode[0].gfx_fullscreen))
+	if (picasso_on || currprefs.gfx_apmode[0].gfx_vsync <= 0 || (currprefs.gfx_apmode[0].gfx_vsync <= 0 && !currprefs.gfx_apmode[0].gfx_fullscreen))
 		return 0;
 	if (currprefs.gfx_apmode[0].gfx_vsyncmode == 0)
 		return 1;
@@ -4173,7 +4175,7 @@ int isvsync_chipset (void)
 
 int isvsync_rtg (void)
 {
-	if (!picasso_on || !currprefs.gfx_apmode[1].gfx_vsync || (currprefs.gfx_apmode[1].gfx_vsync == 0 && !currprefs.gfx_apmode[1].gfx_fullscreen))
+	if (!picasso_on || currprefs.gfx_apmode[1].gfx_vsync <= 0 || (currprefs.gfx_apmode[1].gfx_vsync <= 0 && !currprefs.gfx_apmode[1].gfx_fullscreen))
 		return 0;
 	if (currprefs.gfx_apmode[1].gfx_vsyncmode == 0)
 		return 1;

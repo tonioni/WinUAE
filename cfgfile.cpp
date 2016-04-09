@@ -196,7 +196,7 @@ static const TCHAR *joyportmodes[] = { _T(""), _T("mouse"), _T("mousenowheel"), 
 static const TCHAR *joyaf[] = { _T("none"), _T("normal"), _T("toggle"), _T("always"), 0 };
 static const TCHAR *epsonprinter[] = { _T("none"), _T("ascii"), _T("epson_matrix_9pin"), _T("epson_matrix_24pin"), _T("epson_matrix_48pin"), 0 };
 static const TCHAR *aspects[] = { _T("none"), _T("vga"), _T("tv"), 0 };
-static const TCHAR *vsyncmodes[] = { _T("false"), _T("true"), _T("autoswitch"), 0 };
+static const TCHAR *vsyncmodes[] = { _T("adaptive"), _T("false"), _T("true"), _T("autoswitch"), 0 };
 static const TCHAR *vsyncmodes2[] = { _T("normal"), _T("busywait"), 0 };
 static const TCHAR *filterapi[] = { _T("directdraw"), _T("direct3d"), 0 };
 static const TCHAR *dongles[] =
@@ -1571,9 +1571,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, _T("gfx_backbuffers_rtg"), _T("%d"), p->gfx_apmode[1].gfx_backbuffers);
 	if (p->gfx_apmode[APMODE_NATIVE].gfx_interlaced)
 		cfgfile_write_bool (f, _T("gfx_interlace"), p->gfx_apmode[APMODE_NATIVE].gfx_interlaced);
-	cfgfile_write_str (f, _T("gfx_vsync"), vsyncmodes[p->gfx_apmode[0].gfx_vsync]);
+	cfgfile_write_str (f, _T("gfx_vsync"), vsyncmodes[p->gfx_apmode[0].gfx_vsync + 1]);
 	cfgfile_write_str (f, _T("gfx_vsyncmode"), vsyncmodes2[p->gfx_apmode[0].gfx_vsyncmode]);
-	cfgfile_write_str (f, _T("gfx_vsync_picasso"), vsyncmodes[p->gfx_apmode[1].gfx_vsync]);
+	cfgfile_write_str (f, _T("gfx_vsync_picasso"), vsyncmodes[p->gfx_apmode[1].gfx_vsync + 1]);
 	cfgfile_write_str (f, _T("gfx_vsyncmode_picasso"), vsyncmodes2[p->gfx_apmode[1].gfx_vsyncmode]);
 	cfgfile_write_bool (f, _T("gfx_lores"), p->gfx_resolution == 0);
 	cfgfile_write_str (f, _T("gfx_resolution"), lorestype1[p->gfx_resolution]);
@@ -2813,13 +2813,17 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}
 	if (_tcscmp (option, _T("gfx_vsync")) == 0) {
-		if (cfgfile_strval (option, value, _T("gfx_vsync"), &p->gfx_apmode[APMODE_NATIVE].gfx_vsync, vsyncmodes, 0) >= 0)
+		if (cfgfile_strval (option, value, _T("gfx_vsync"), &p->gfx_apmode[APMODE_NATIVE].gfx_vsync, vsyncmodes, 0) >= 0) {
+			p->gfx_apmode[APMODE_NATIVE].gfx_vsync--;
 			return 1;
+		}
 		return cfgfile_yesno (option, value, _T("gfx_vsync"), &p->gfx_apmode[APMODE_NATIVE].gfx_vsync);
 	}
 	if (_tcscmp (option, _T("gfx_vsync_picasso")) == 0) {
-		if (cfgfile_strval (option, value, _T("gfx_vsync_picasso"), &p->gfx_apmode[APMODE_RTG].gfx_vsync, vsyncmodes, 0) >= 0)
+		if (cfgfile_strval (option, value, _T("gfx_vsync_picasso"), &p->gfx_apmode[APMODE_RTG].gfx_vsync, vsyncmodes, 0) >= 0) {
+			p->gfx_apmode[APMODE_RTG].gfx_vsync--;
 			return 1;
+		}
 		return cfgfile_yesno (option, value, _T("gfx_vsync_picasso"), &p->gfx_apmode[APMODE_RTG].gfx_vsync);
 	}
 	if (cfgfile_strval (option, value, _T("gfx_vsyncmode"), &p->gfx_apmode[APMODE_NATIVE].gfx_vsyncmode, vsyncmodes2, 0))

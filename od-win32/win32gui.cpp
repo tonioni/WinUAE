@@ -6824,13 +6824,20 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
-	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_AUTOSWITCH, buffer, sizeof buffer / sizeof(TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
+	WIN32GUI_LoadUIString(IDS_SCREEN_ADAPTIVE_SYNC, buffer, sizeof buffer / sizeof(TCHAR));
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);	
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_SETCURSEL,
 		workprefs.gfx_apmode[0].gfx_fullscreen, 0);
-	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_SETCURSEL,
-		workprefs.gfx_apmode[0].gfx_vsync + (workprefs.gfx_apmode[0].gfx_vsyncmode || !workprefs.gfx_apmode[0].gfx_vsync ? 0 : 2), 0);
+	v = workprefs.gfx_apmode[0].gfx_vsync;
+	if (v < 0)
+		v = 5;
+	else if (v > 0) {
+		v = v + (workprefs.gfx_apmode[0].gfx_vsyncmode || !v ? 0 : 2);
+	}
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_SETCURSEL, v, 0);
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_RESETCONTENT, 0, 0);
@@ -6851,14 +6858,20 @@ static void values_to_displaydlg (HWND hDlg)
 #endif
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
+	WIN32GUI_LoadUIString(IDS_SCREEN_ADAPTIVE_SYNC, buffer, sizeof buffer / sizeof(TCHAR));
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
 #if 0
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
 #endif
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_SETCURSEL,
 		workprefs.gfx_apmode[1].gfx_fullscreen, 0);
-	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_SETCURSEL,
-		workprefs.gfx_apmode[1].gfx_vsync, 0);
+	v = workprefs.gfx_apmode[1].gfx_vsync;
+	if (v < 0)
+		v = 2;
+	else if (v > 0)
+		v = 1;
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_SETCURSEL, v, 0);
 
 	SendDlgItemMessage(hDlg, IDC_LORES, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString(IDS_RES_LORES, buffer, sizeof buffer / sizeof (TCHAR));
@@ -7053,20 +7066,33 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	int oldvs = workprefs.gfx_apmode[0].gfx_vsync;
 	workprefs.gfx_apmode[0].gfx_vsync = 0;
 	workprefs.gfx_apmode[0].gfx_vsyncmode = 0;
-	if (i > 0) {
-		i--;
-		workprefs.gfx_apmode[0].gfx_vsync = (i & 1) + 1;
-		workprefs.gfx_apmode[0].gfx_vsyncmode = (i < 2) ? 1 : 0;
+	if (i == 1) {
+		workprefs.gfx_apmode[0].gfx_vsync = 1;
+		workprefs.gfx_apmode[0].gfx_vsyncmode = 1;
+	} else if (i == 2) {
+		workprefs.gfx_apmode[0].gfx_vsync = 2;
+		workprefs.gfx_apmode[0].gfx_vsyncmode = 1;
+	} else if (i == 3) {
+		workprefs.gfx_apmode[0].gfx_vsync = 1;
+		workprefs.gfx_apmode[0].gfx_vsyncmode = 0;
+	} else if (i == 4) {
+		workprefs.gfx_apmode[0].gfx_vsync = 2;
+		workprefs.gfx_apmode[0].gfx_vsyncmode = 0;
+	} else if (i == 5) {
+		workprefs.gfx_apmode[0].gfx_vsync = -1;
+		workprefs.gfx_apmode[0].gfx_vsyncmode = 0;
 	}
 
 	workprefs.gfx_apmode[1].gfx_fullscreen = SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0);
 	i = SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG2, CB_GETCURSEL, 0, 0);
 	workprefs.gfx_apmode[1].gfx_vsync = 0;
 	workprefs.gfx_apmode[1].gfx_vsyncmode = 0;
-	if (i > 0) {
-		i--;
-		workprefs.gfx_apmode[1].gfx_vsync = (i & 1) + 1;
+	if (i == 1) {
+		workprefs.gfx_apmode[1].gfx_vsync = 1;
 		workprefs.gfx_apmode[1].gfx_vsyncmode = 1;
+	} else if (i == 2) {
+		workprefs.gfx_apmode[1].gfx_vsync = -1;
+		workprefs.gfx_apmode[1].gfx_vsyncmode = 0;
 	}
 	
 	bool updaterate = false, updateslider = false;

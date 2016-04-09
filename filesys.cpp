@@ -8674,12 +8674,21 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *ctx)
 			v |= 1;
 		if (consolehook_activate())
 			v |= 2;
+		if (currprefs.uaeboard > 2)
+			v |= 4;
 		trap_dos_active();
 		return v;
 	} else if (mode == 18) {
 		put_long_host(rtarea_bank.baseaddr + RTAREA_EXTERTASK, trap_get_dreg(ctx, 0));
 		put_long_host(rtarea_bank.baseaddr + RTAREA_TRAPTASK, trap_get_dreg(ctx, 2));
 		return rtarea_base + RTAREA_HEARTBEAT;
+	} else if (mode == 19) {
+		// boot rom copy
+		// d2 = ram address
+		return boot_rom_copy(ctx, trap_get_dreg(ctx, 2), 0);
+	} else if (mode == 20) {
+		// boot rom copy done
+		return boot_rom_copy(ctx, trap_get_dreg(ctx, 2), 1);
 	} else if (mode == 101) {
 		consolehook_ret(ctx, trap_get_areg(ctx, 1), trap_get_areg(ctx, 2));
 	} else if (mode == 102) {
