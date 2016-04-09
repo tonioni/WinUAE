@@ -1596,6 +1596,12 @@ void AVIOutput_WriteAudio(uae_u8 *sndbuffer, int sndbufsize)
 
 void frame_drawn (void)
 {
+	if (screenshot_multi) {
+		screenshot(1, 1);
+		if (screenshot_multi > 0)
+			screenshot_multi--;
+	}
+
 	if (!avioutput_enabled)
 		return;
 	if (avioutput_failed)

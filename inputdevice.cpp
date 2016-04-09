@@ -3790,9 +3790,17 @@ static bool inputdevice_handle_inputcode2 (int code, int state)
 		break;
 	}
 #endif
-
-	if (!state)
+	if (!state) {
+		switch(code)
+		{
+			case AKS_SCREENSHOT_FILE:
+			// stop multiscreenshot
+			screenshot(4, 1);
+			break;
+		}
 		return false;
+	}
+
 	switch (code)
 	{
 	case AKS_ENTERGUI:
@@ -3800,7 +3808,11 @@ static bool inputdevice_handle_inputcode2 (int code, int state)
 		setsystime ();
 		break;
 	case AKS_SCREENSHOT_FILE:
-		screenshot (1, 1);
+		if (state > 1) {
+			screenshot(3, 1);
+		} else {
+			screenshot(1, 1);
+		}
 		break;
 	case AKS_SCREENSHOT_CLIPBOARD:
 		screenshot (0, 1);
@@ -4082,8 +4094,6 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 		return 0; // qualifiers do nothing
 	if (ie->unit == 0 && ie->data >= AKS_FIRST) {
 		isaks = true;
-		if (!state) // release AKS_ does nothing
-			return 0;
 	}
 
 	if (!isaks) {
@@ -5121,9 +5131,9 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 				/* pressed = firebutton, not pressed = autofire */
 				if (state) {
 					queue_input_event (evt, NULL, -1, 0, 0, 1);
-					handle_input_event (evt, 1, 1, 0, true, false);
+					handle_input_event (evt, 2, 1, 0, true, false);
 				} else {
-					handle_input_event (evt, 1, 1, autofire, true, false);
+					handle_input_event (evt, 2, 1, autofire, true, false);
 				}
 				didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire, i);
 			} else if (toggle) {
@@ -5134,7 +5144,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 				if (!checkqualifiers (evt, flags, qualmask, NULL))
 					continue;
 				*flagsp ^= ID_FLAG_TOGGLED;
-				int toggled = (*flagsp & ID_FLAG_TOGGLED) ? 1 : 0;
+				int toggled = (*flagsp & ID_FLAG_TOGGLED) ? 2 : 0;
 				handle_input_event (evt, toggled, 1, autofire, true, false);
 				didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, toggled, qualmask, autofire, i);
 			} else {
@@ -6979,9 +6989,9 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int keyst
 					na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] &= ~ID_FLAG_TOGGLED;
 					if (state) {
 						queue_input_event (evt, NULL, -1, 0, 0, 1);
-						handled |= handle_input_event (evt, 1, 1, 0, true, false);
+						handled |= handle_input_event (evt, 2, 1, 0, true, false);
 					} else {
-						handled |= handle_input_event (evt, 1, 1, autofire, true, false);
+						handled |= handle_input_event (evt, 2, 1, autofire, true, false);
 					}
 					didcustom |= process_custom_event (na, j, state, qualmask, autofire, k);
 				} else if (toggle) {
@@ -6990,7 +7000,7 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int keyst
 					if (!checkqualifiers (evt, flags, qualmask, na->eventid[j]))
 						continue;
 					*flagsp ^= ID_FLAG_TOGGLED;
-					toggled = (*flagsp & ID_FLAG_TOGGLED) ? 1 : 0;
+					toggled = (*flagsp & ID_FLAG_TOGGLED) ? 2 : 0;
 					handled |= handle_input_event (evt, toggled, 1, autofire, true, false);
 					if (k == 0) {
 						didcustom |= process_custom_event (na, j, state, qualmask, autofire, k);
@@ -8702,6 +8712,8 @@ void inputdevice_fix_prefs(struct uae_prefs *p, bool userconfig)
 					write_log(_T("Unplugged stored, port %d '%s' (%s)\n"), i, jp->idc.name, jp->idc.configname);
 					inputdevice_store_used_device(&jpt, i, defaultports);
 					freejport(p, i);
+					inputdevice_get_previous_joy(p, i);
+					matched[i] = true;
 				}
 			}
 		}

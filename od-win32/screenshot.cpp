@@ -19,12 +19,14 @@
 #include "gfxfilter.h"
 #include "xwin.h"
 #include "drawing.h"
+#include "fsdb.h"
 
 #include "png.h"
 
 int screenshotmode = PNG_SCREENSHOTS;
 int screenshot_originalsize = 0;
 int screenshot_clipmode = 0;
+int screenshot_multi = 0;
 
 static void namesplit (TCHAR *s)
 {
@@ -75,6 +77,7 @@ static BITMAPINFO *bi; // bitmap info
 static LPVOID lpvBits = NULL; // pointer to bitmap bits array
 static HBITMAP offscreen_bitmap;
 static int screenshot_prepared;
+static int screenshot_multi_start;
 
 void screenshot_free (void)
 {
@@ -530,6 +533,14 @@ static int savebmp (FILE *fp)
 	return 0;
 }
 
+static void screenshot_prepare_multi(void)
+{
+	screenshot_multi_start = true;
+}
+
+static int filenumber = 0;
+static int dirnumber = 1;
+
 /*
 Captures the Amiga display (DirectDraw, D3D or OpenGL) surface and saves it to file as a 24bit bitmap.
 */
@@ -538,6 +549,8 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode, str
 	static int recursive;
 	FILE *fp = NULL;
 	int failed = 0;
+	int screenshot_max = 1000; // limit 999 iterations / screenshots
+	TCHAR *format = _T("%s%s%s%03d.%s");
 
 	HBITMAP offscreen_bitmap = NULL; // bitmap that is converted to a DIB
 	HDC offscreen_dc = NULL; // offscreen DC that we can select offscreen bitmap into
@@ -562,7 +575,6 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode, str
 		TCHAR path[MAX_DPATH];
 		TCHAR name[MAX_DPATH];
 		TCHAR underline[] = _T("_");
-		int number = 0;
 
 		if (spath) {
 			fp = _tfopen (spath, _T("wb"));
@@ -580,6 +592,28 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode, str
 		}
 		fetch_path (_T("ScreenshotPath"), path, sizeof (path) / sizeof (TCHAR));
 		CreateDirectory (path, NULL);
+		if (screenshot_multi) {
+			TCHAR *p = path + _tcslen(path);
+			while(dirnumber < 1000) {
+				_stprintf(p, _T("%03d\\"), dirnumber);
+				if (!screenshot_multi_start)
+					break;
+				filenumber = 0;
+				if (!my_existsdir(path) && !my_existsfile(path))
+					break;
+				dirnumber++;
+			}
+			format = _T("%s%s%s%05d.%s");
+			screenshot_max = 100000;
+			screenshot_multi_start = 0;
+			if (dirnumber == 1000) {
+				failed = 1;
+				goto oops;
+			}
+			CreateDirectory(path, NULL);
+		}
+
+
 		name[0] = 0;
 		if (currprefs.floppyslots[0].dfxtype >= 0)
 			_tcscpy (name, currprefs.floppyslots[0].df);
@@ -589,9 +623,9 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode, str
 			underline[0] = 0;
 		namesplit (name);
 
-		while(++number < 1000) // limit 999 iterations / screenshots
+		while(++filenumber < screenshot_max)
 		{
-			_stprintf (filename, _T("%s%s%s%03d.%s"), path, name, underline, number, screenshotmode ? _T("png") : _T("bmp"));
+			_stprintf (filename, format, path, name, underline, filenumber, screenshotmode ? _T("png") : _T("bmp"));
 			if ((fp = _tfopen (filename, _T("rb"))) == NULL) // does file not exist?
 			{
 				int nok = 0;
@@ -632,6 +666,9 @@ oops:
 
 	recursive--;
 
+	if (failed)
+		screenshot_multi = 0;
+
 	return failed == 0;
 }
 
@@ -639,9 +676,20 @@ oops:
 
 void screenshot (int mode, int doprepare)
 {
-#if 1
-	screenshotf (NULL, mode, doprepare, -1, NULL);
-#else
+	if (mode == 2) {
+		screenshot_multi = 10;
+		screenshot_prepare_multi();
+	} else if (mode == 3) {
+		screenshot_multi = -1;
+		screenshot_prepare_multi();
+	} else if (mode == 4) {
+		screenshot_multi = 0;
+		filenumber = 0;
+	} else {
+		screenshotf(NULL, mode, doprepare, -1, NULL);
+	}
+
+#if 0
 	struct vidbuffer vb;
 	int w = gfxvidinfo.drawbuffer.inwidth;
 	int h = gfxvidinfo.drawbuffer.inheight;
