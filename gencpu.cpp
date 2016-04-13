@@ -3036,6 +3036,14 @@ static void gen_opcode (unsigned int opcode)
 
 	m68k_pc_offset = 2;
 
+	// do not unnecessarily create useless mmuop030
+	// functions when CPU is not 68030
+	if (curi->mnemo == i_MMUOP030 && cpu_level != 3) {
+		printf("\top_illg (opcode);\n");
+		did_prefetch = -1;
+		goto end;
+	}
+
 	switch (curi->plev) {
 	case 0: /* not privileged */
 		break;
@@ -5351,26 +5359,27 @@ bccl_not68020:
 		printf ("\tmmu_op (opcode, 0);\n");
 		break;
 	case i_MMUOP030:
-		printf ("\tuaecptr pc = %s;\n", getpc);
-		printf ("\tuae_u16 extra = %s (2);\n", prefetch_word);
+		printf("\tuaecptr pc = %s;\n", getpc);
+		printf("\tuae_u16 extra = %s (2);\n", prefetch_word);
 		m68k_pc_offset += 2;
-		sync_m68k_pc ();
+		sync_m68k_pc();
 		if (curi->smode == Areg || curi->smode == Dreg)
 			printf("\tuae_u16 extraa = 0;\n");
 		else
-			genamode (curi, curi->smode, "srcreg", curi->size, "extra", 0, 0, 0);
-		sync_m68k_pc ();
+			genamode(curi, curi->smode, "srcreg", curi->size, "extra", 0, 0, 0);
+		sync_m68k_pc();
 		if (using_ce020 || using_prefetch_020) {
-			printf ("\tif (mmu_op30 (pc, opcode, extra, extraa)) goto %s;\n", endlabelstr);
+			printf("\tif (mmu_op30 (pc, opcode, extra, extraa)) goto %s;\n", endlabelstr);
 			need_endlabel = 1;
 		} else {
-			printf ("\tmmu_op30 (pc, opcode, extra, extraa);\n");
+			printf("\tmmu_op30 (pc, opcode, extra, extraa);\n");
 		}
 		break;
 	default:
 		term ();
 		break;
 	}
+end:
 	if (!genastore_done)
 		returntail (0);
 	finish_braces ();
