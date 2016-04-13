@@ -1353,15 +1353,19 @@ static void build_cpufunctbl (void)
 
 		/* unimplemented opcode? */
 		if (table->unimpclev > 0 && lvl >= table->unimpclev) {
-			if (currprefs.int_no_unimplemented && currprefs.cpu_model == 68060) {
-				cpufunctbl[opcode] = op_unimpl_1;
-				continue;
-			} else {
-				// emulate 68060 unimplemented instructions if int_no_unimplemented=false
-				if (currprefs.cpu_model != 68060 && table->unimpclev != 5) {
+			if (currprefs.cpu_model == 68060) {
+				// unimpclev == 5: not implemented in 68060.
+				if (currprefs.int_no_unimplemented && table->unimpclev == 5) {
+					cpufunctbl[opcode] = op_unimpl_1;
+					continue;
+				}
+				if (!currprefs.int_no_unimplemented || table->unimpclev != 5) {
 					cpufunctbl[opcode] = op_illg_1;
 					continue;
 				}
+			} else {
+				cpufunctbl[opcode] = op_illg_1;
+				continue;
 			}
 		}
 
@@ -1508,6 +1512,7 @@ static void prefs_changed_cpu (void)
 	currprefs.fpu_model = changed_prefs.fpu_model;
 	currprefs.mmu_model = changed_prefs.mmu_model;
 	currprefs.cpu_compatible = changed_prefs.cpu_compatible;
+	currprefs.address_space_24 = changed_prefs.address_space_24;
 	currprefs.cpu_cycle_exact = changed_prefs.cpu_cycle_exact;
 	currprefs.cpu_memory_cycle_exact = changed_prefs.cpu_memory_cycle_exact;
 	currprefs.int_no_unimplemented = changed_prefs.int_no_unimplemented;
