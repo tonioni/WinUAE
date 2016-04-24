@@ -295,6 +295,7 @@ void reset_all_systems (void)
 
 void do_leave_program (void)
 {
+	free_traps();
 	sampler_free ();
 	graphics_leave ();
 	inputdevice_close ();

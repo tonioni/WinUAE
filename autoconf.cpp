@@ -533,7 +533,6 @@ void rtarea_init_mem (void)
 void rtarea_free(void)
 {
 	mapped_free(&rtarea_bank);
-	free_traps();
 }
 
 void rtarea_init(void)
