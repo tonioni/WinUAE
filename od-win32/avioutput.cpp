@@ -919,6 +919,57 @@ static void AVIOuput_WAVWriteAudio (uae_u8 *sndbuffer, int sndbufsize)
 	fwrite (sndbuffer, 1, sndbufsize, wavfile);
 }
 
+static int getFromRenderTarget(struct avientry *avie)
+{
+	int ok = 0;
+	int w, h, bits;
+	HRESULT hr;
+	D3DLOCKED_RECT l;
+	LPDIRECT3DSURFACE9 s = D3D_capture(&w, &h, &bits);
+	if (s) {
+		hr = s->LockRect(&l, NULL, D3DLOCK_READONLY);
+		if (SUCCEEDED(hr)) {
+			int dpitch = ((aviout_width_out * avioutput_bits + 31) & ~31) / 8;
+			if (bits == 32) {
+				for (int y = 0; y < h; y++) {
+					uae_u8 *d = (uae_u8*)avie->lpVideo + (h - y - 1) * dpitch;
+					uae_u32 *s = (uae_u32*)((uae_u8*)l.pBits + y * l.Pitch);
+					for (int x = 0; x < w; x++) {
+						uae_u32 v = *s++;
+						d[0] = v >> 0;
+						d[1] = v >> 8;
+						d[2] = v >> 16;
+						d += 3;
+					}
+				}
+			} else if (bits == 16 || bits == 15) {
+				for (int y = 0; y < h; y++) {
+					uae_u8 *d = (uae_u8*)avie->lpVideo + (h - y - 1) * dpitch;
+					uae_u16 *s = (uae_u16*)((uae_u8*)l.pBits + y * l.Pitch);
+					for (int x = 0; x < w; x++) {
+						uae_u16 v = s[x];
+						uae_u16 v2 = v;
+						if (bits == 16) {
+							v2 = v & 31;
+							v2 |= ((v & (31 << 5)) << 1) | (((v >> 5) & 1) << 5);
+							v2 |= (v & (31 << 10)) << 1;
+						} else {
+							v2 = v & 31;
+							v2 |= (v >> 1) & (31 << 5);
+							v2 |= (v >> 1) & (31 << 10);
+						}
+						((uae_u16*)d)[0] = v2;
+						d += 2;
+					}
+				}
+			}
+			s->UnlockRect();
+		}
+		ok = 1;
+	}
+	return ok;
+}
+
 static int getFromDC (struct avientry *avie)
 {
 	HDC hdc;
@@ -1083,7 +1134,11 @@ void AVIOutput_WriteVideo (void)
 	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen ()) {
 		v = getFromBuffer (ae, 1);
 	} else {
-		v = getFromDC (ae);
+		if (D3D_isenabled()) {
+			v = getFromRenderTarget(ae);
+		} else {
+			v = getFromDC (ae);
+		}
 	}
 	if (v)
 		queueavientry (ae);

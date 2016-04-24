@@ -2620,7 +2620,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 			write_log (_T("%s: SetMaximumFrameLatency() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 	}
 
-	hr = d3ddev->CreateOffscreenPlainSurface(w_w, w_h, D3DFMT_A8R8G8B8, D3DPOOL_SCRATCH, &screenshotsurface, NULL);
+	hr = d3ddev->CreateOffscreenPlainSurface(w_w, w_h, tformat, D3DPOOL_SYSTEMMEM, &screenshotsurface, NULL);
 	if (FAILED(hr)) {
 		write_log(_T("%s: CreateOffscreenPlainSurface failed: %s\n"), D3DHEAD, D3D_ErrorString(hr));
 	}
@@ -3468,6 +3468,31 @@ void D3D_guimode (bool guion)
 	if (FAILED (hr))
 		write_log (_T("%s: SetDialogBoxMode %s\n"), D3DHEAD, D3D_ErrorString (hr));
 	guimode = guion;
+}
+
+LPDIRECT3DSURFACE9 D3D_capture(int *w, int *h, int *bits)
+{
+	LPDIRECT3DSURFACE9 rt;
+	HRESULT hr;
+
+	waitfakemode();
+	if (!isd3d())
+		return NULL;
+	hr = d3ddev->GetRenderTarget(0, &rt);
+	if (FAILED(hr)) {
+		write_log(_T("%s: GetRenderTarget() failed: %s\n"), D3DHEAD, D3D_ErrorString(hr));
+		return NULL;
+	}
+	hr = d3ddev->GetRenderTargetData(rt, screenshotsurface);
+	rt->Release();
+	if (FAILED(hr)) {
+		write_log(_T("%s: GetRenderTargetData() failed: %s\n"), D3DHEAD, D3D_ErrorString(hr));
+		return NULL;
+	}
+	*w = window_w;
+	*h = window_h;
+	*bits = t_depth;
+	return screenshotsurface;
 }
 
 HDC D3D_getDC (HDC hdc)

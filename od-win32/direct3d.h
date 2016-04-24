@@ -22,6 +22,7 @@ extern double D3D_getrefreshrate (void);
 extern void D3D_vblank_reset (double freq);
 extern void D3D_restore (void);
 extern LPDIRECT3DTEXTURE9 cursorsurfaced3d;
+extern LPDIRECT3DSURFACE9 D3D_capture(int*,int*,int*);
 
 #define CURSORMAXWIDTH 64
 #define CURSORMAXHEIGHT 64

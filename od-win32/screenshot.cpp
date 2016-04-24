@@ -369,51 +369,119 @@ donormal:
 		width = WIN32GFX_GetWidth ();
 		height = WIN32GFX_GetHeight ();
 
-		surface_dc = gethdc ();
-		if (surface_dc == NULL)
+		if (D3D_isenabled()) {
+			int w, h, bits;
+			HRESULT hr;
+			D3DLOCKED_RECT l;
+			LPDIRECT3DSURFACE9 s = D3D_capture(&w, &h, &bits);
+			if (s) {
+				hr = s->LockRect(&l, NULL, D3DLOCK_READONLY);
+				if (SUCCEEDED(hr)) {
+					int dpitch = (((w * 24 + 31) & ~31) / 8);
+					lpvBits = xmalloc(uae_u8, dpitch * h); 
+
+					ZeroMemory(bi, sizeof(bi));
+					bi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+					bi->bmiHeader.biWidth = w;
+					bi->bmiHeader.biHeight = h;
+					bi->bmiHeader.biPlanes = 1;
+					bi->bmiHeader.biBitCount = 24;
+					bi->bmiHeader.biCompression = BI_RGB;
+					bi->bmiHeader.biSizeImage = dpitch * bi->bmiHeader.biHeight;
+					bi->bmiHeader.biXPelsPerMeter = 0;
+					bi->bmiHeader.biYPelsPerMeter = 0;
+					bi->bmiHeader.biClrUsed = 0;
+					bi->bmiHeader.biClrImportant = 0;
+
+					if (lpvBits) {
+						if (bits == 32) {
+							for (int y = 0; y < h; y++) {
+								uae_u8 *d = (uae_u8*)lpvBits + (h - y - 1) * dpitch;
+								uae_u32 *s = (uae_u32*)((uae_u8*)l.pBits + y * l.Pitch);
+								for (int x = 0; x < w; x++) {
+									uae_u32 v = *s++;
+									d[0] = v >> 0;
+									d[1] = v >> 8;
+									d[2] = v >> 16;
+									d += 3;
+								}
+							}
+						} else if (bits == 16 || bits == 15) {
+							for (int y = 0; y < h; y++) {
+								uae_u8 *d = (uae_u8*)lpvBits + (h - y - 1) * dpitch;
+								uae_u16 *s = (uae_u16*)((uae_u8*)l.pBits + y * l.Pitch);
+								for (int x = 0; x < w; x++) {
+									uae_u16 v = s[x];
+									uae_u16 v2 = v;
+									if (bits == 16) {
+										v2 = v & 31;
+										v2 |= ((v & (31 << 5)) << 1) | (((v >> 5) & 1) << 5);
+										v2 |= (v & (31 << 10)) << 1;
+									} else {
+										v2 = v & 31;
+										v2 |= (v >> 1) & (31 << 5);
+										v2 |= (v >> 1) & (31 << 10);
+									}
+									((uae_u16*)d)[0] = v2;
+									d += 2;
+								}
+							}
+						}
+					}
+					s->UnlockRect();
+				}
+			}
+
+		} else {
+			surface_dc = gethdc ();
+			if (surface_dc == NULL)
+				goto oops;
+
+			// need a HBITMAP to convert it to a DIB
+			if ((offscreen_bitmap = CreateCompatibleBitmap (surface_dc, width, height)) == NULL)
+				goto oops; // error
+
+			// The bitmap is empty, so let's copy the contents of the surface to it.
+			// For that we need to select it into a device context.
+			if ((offscreen_dc = CreateCompatibleDC (surface_dc)) == NULL)
+				goto oops; // error
+
+			// select offscreen_bitmap into offscreen_dc
+			hgdiobj = SelectObject (offscreen_dc, offscreen_bitmap);
+
+			// now we can copy the contents of the surface to the offscreen bitmap
+			BitBlt (offscreen_dc, 0, 0, width, height, surface_dc, 0, 0, SRCCOPY);
+
+			// de-select offscreen_bitmap
+			SelectObject (offscreen_dc, hgdiobj);
+
+			ZeroMemory (bi, sizeof(bi));
+			bi->bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
+			bi->bmiHeader.biWidth = width;
+			bi->bmiHeader.biHeight = height;
+			bi->bmiHeader.biPlanes = 1;
+			bi->bmiHeader.biBitCount = 24;
+			bi->bmiHeader.biCompression = BI_RGB;
+			bi->bmiHeader.biSizeImage = (((bi->bmiHeader.biWidth * bi->bmiHeader.biBitCount + 31) & ~31) / 8) * bi->bmiHeader.biHeight;
+			bi->bmiHeader.biXPelsPerMeter = 0;
+			bi->bmiHeader.biYPelsPerMeter = 0;
+			bi->bmiHeader.biClrUsed = 0;
+			bi->bmiHeader.biClrImportant = 0;
+
+			// Reserve memory for bitmap bits
+			if (!(lpvBits = xmalloc (uae_u8, bi->bmiHeader.biSizeImage)))
+				goto oops; // out of memory
+
+			// Have GetDIBits convert offscreen_bitmap to a DIB (device-independent bitmap):
+			if (!GetDIBits (offscreen_dc, offscreen_bitmap, 0, bi->bmiHeader.biHeight, lpvBits, bi, DIB_RGB_COLORS))
+				goto oops; // GetDIBits FAILED
+
+			releasehdc (surface_dc);
+			surface_dc = NULL;
+		}
+
+		if (!lpvBits)
 			goto oops;
-
-		// need a HBITMAP to convert it to a DIB
-		if ((offscreen_bitmap = CreateCompatibleBitmap (surface_dc, width, height)) == NULL)
-			goto oops; // error
-
-		// The bitmap is empty, so let's copy the contents of the surface to it.
-		// For that we need to select it into a device context.
-		if ((offscreen_dc = CreateCompatibleDC (surface_dc)) == NULL)
-			goto oops; // error
-
-		// select offscreen_bitmap into offscreen_dc
-		hgdiobj = SelectObject (offscreen_dc, offscreen_bitmap);
-
-		// now we can copy the contents of the surface to the offscreen bitmap
-		BitBlt (offscreen_dc, 0, 0, width, height, surface_dc, 0, 0, SRCCOPY);
-
-		// de-select offscreen_bitmap
-		SelectObject (offscreen_dc, hgdiobj);
-
-		ZeroMemory (bi, sizeof(bi));
-		bi->bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
-		bi->bmiHeader.biWidth = width;
-		bi->bmiHeader.biHeight = height;
-		bi->bmiHeader.biPlanes = 1;
-		bi->bmiHeader.biBitCount = 24;
-		bi->bmiHeader.biCompression = BI_RGB;
-		bi->bmiHeader.biSizeImage = (((bi->bmiHeader.biWidth * bi->bmiHeader.biBitCount + 31) & ~31) / 8) * bi->bmiHeader.biHeight;
-		bi->bmiHeader.biXPelsPerMeter = 0;
-		bi->bmiHeader.biYPelsPerMeter = 0;
-		bi->bmiHeader.biClrUsed = 0;
-		bi->bmiHeader.biClrImportant = 0;
-
-		// Reserve memory for bitmap bits
-		if (!(lpvBits = xmalloc (uae_u8, bi->bmiHeader.biSizeImage)))
-			goto oops; // out of memory
-
-		// Have GetDIBits convert offscreen_bitmap to a DIB (device-independent bitmap):
-		if (!GetDIBits (offscreen_dc, offscreen_bitmap, 0, bi->bmiHeader.biHeight, lpvBits, bi, DIB_RGB_COLORS))
-			goto oops; // GetDIBits FAILED
-
-		releasehdc (surface_dc);
-		surface_dc = NULL;
 	}
 	screenshot_prepared = TRUE;
 	return 1;
