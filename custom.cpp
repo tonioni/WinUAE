@@ -38,6 +38,7 @@
 #include "savestate.h"
 #include "ar.h"
 #include "debug.h"
+#include "akiko.h"
 #if defined(ENFORCER)
 #include "enforcer.h"
 #endif
@@ -139,6 +140,7 @@ static bool genlockhtoggle;
 static bool genlockvtoggle;
 static bool graphicsbuffer_retry;
 static int scanlinecount;
+static int cia_hsync;
 
 #define LOF_TOGGLES_NEEDED 3
 //#define NLACE_CNT_NEEDED 50
@@ -7971,8 +7973,11 @@ static void hsync_handler_post (bool onvsync)
 	bool ciahsyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock && (!currprefs.ntscmode || genlockhtoggle));
 	bool ciavsyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock && genlockvtoggle);
 
-	CIA_hsync_posthandler (ciahsyncs);
-	if (ciahsyncs) {
+	if (currprefs.cs_cd32cd) {
+		CIA_hsync_posthandler(true);
+		CIAB_tod_handler(18);
+	} else if (ciahsyncs) {
+		CIA_hsync_posthandler(ciahsyncs);
 		if (beamcon0 & (0x80 | 0x100)) {
 			if (hsstop < (maxhpos & ~1) && hsstrt < maxhpos)
 				CIAB_tod_handler(hsstop);
@@ -7980,7 +7985,17 @@ static void hsync_handler_post (bool onvsync)
 			CIAB_tod_handler(18);
 		}
 	}
-	if (currprefs.cs_ciaatod > 0) {
+
+	if (currprefs.cs_cd32cd) {
+
+		if (cia_hsync < maxhpos) {
+			CIAA_tod_inc(cia_hsync);
+			cia_hsync += (akiko_ntscmode() ? 262 : 313) * maxhpos;
+		} else {
+			cia_hsync -= maxhpos;
+		}
+
+	} else if (currprefs.cs_ciaatod > 0) {
 #if 0
 		static uae_s32 oldtick;
 		uae_s32 tick = read_system_time (); // milliseconds
@@ -7994,7 +8009,6 @@ static void hsync_handler_post (bool onvsync)
 			oldtick += ms;
 		}
 #else
-		static int cia_hsync;
 		if (cia_hsync < maxhpos) {
 			int newcount;
 			CIAA_tod_inc (cia_hsync);
@@ -8356,6 +8370,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	nr_armed = 0;
 
 	if (!savestate_state) {
+		cia_hsync = 0;
 		extra_cycle = 0;
 		hsync_counter = 0;
 		vsync_counter = 0;

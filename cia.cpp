@@ -1736,18 +1736,6 @@ addrbank cia_bank = {
 	ABFLAG_IO | ABFLAG_CIA, S_READ, S_WRITE, NULL, 0x3f01, 0xbfc000
 };
 
-// Gayle or Fat Gary does not enable CIA /CS lines if both CIAs are selected
-// Old Gary based Amigas enable both CIAs in this situation
-
-STATIC_INLINE bool issinglecia (void)
-{
-	return currprefs.cs_ide || currprefs.cs_pcmcia || currprefs.cs_mbdmac;
-}
-STATIC_INLINE bool isgayle (void)
-{
-	return currprefs.cs_ide || currprefs.cs_pcmcia;
-}
-
 static void cia_wait_pre (int cianummask)
 {
 	if (currprefs.cachesize || currprefs.cpu_thread)
@@ -1821,7 +1809,20 @@ static void cia_wait_post (int cianummask, uae_u32 value)
 	}
 }
 
-static bool iscia(uaecptr addr)
+// Gayle or Fat Gary does not enable CIA /CS lines if both CIAs are selected
+// Old Gary based Amigas enable both CIAs in this situation
+
+STATIC_INLINE bool issinglecia(void)
+{
+	return currprefs.cs_ide || currprefs.cs_pcmcia || currprefs.cs_mbdmac || currprefs.cs_cd32cd;
+}
+STATIC_INLINE bool isgayle(void)
+{
+	return currprefs.cs_ide || currprefs.cs_pcmcia;
+}
+
+// Gayle CIA select
+STATIC_INLINE bool iscia(uaecptr addr)
 {
 	uaecptr mask = addr & 0xf000;
 	return mask == 0xe000 || mask == 0xd000;
@@ -1840,18 +1841,34 @@ static bool isgarynocia(uaecptr addr)
 	return !iscia(addr) && currprefs.cs_fatgaryrev >= 0;
 }
 
+static int cia_chipselect(uaecptr addr)
+{
+	int cs = (addr >> 12) & 3;
+	if (currprefs.cs_cd32cd) {
+		// Unexpected Akiko CIA select:
+		// 0,1 = CIA-A
+		if (cs == 0)
+			cs = 1;
+		// 2,3 = CIA-B
+		if (cs == 3)
+			cs = 2;
+	}
+	return cs;
+}
+
 static uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 {
 	int r = (addr & 0xf00) >> 8;
-	uae_u8 v = 0xff;
+	uae_u8 v = 0;
 
 	if (isgarynocia(addr))
 		return dummy_get(addr, 1, false, 0);
 
 	if (!isgaylenocia (addr))
-		return v;
+		return dummy_get(addr, 1, false, 0);
 
-	switch ((addr >> 12) & 3) {
+	switch (cia_chipselect(addr))
+	{
 	case 0:
 		if (!issinglecia ()) {
 			cia_wait_pre (1 | 2);
@@ -1864,7 +1881,7 @@ static uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 		if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible) {
 			v = (addr & 1) ? regs.irc : ReadCIAB (r);
 		} else {
-			v = (addr & 1) ? 0xff : ReadCIAB (r);
+			v = (addr & 1) ? dummy_get_safe(addr, 1, false, 0) : ReadCIAB (r);
 		}
 		cia_wait_post (2, v);
 		break;
@@ -1873,7 +1890,7 @@ static uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 		if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible)
 			v = (addr & 1) ? ReadCIAA (r) : regs.irc >> 8;
 		else
-			v = (addr & 1) ? ReadCIAA (r) : 0xff;
+			v = (addr & 1) ? ReadCIAA (r) : dummy_get_safe(addr, 1, false, 0);
 		cia_wait_post (1, v);
 		break;
 	case 3:
@@ -1895,18 +1912,19 @@ static uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 static uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 {
 	int r = (addr & 0xf00) >> 8;
-	uae_u16 v = 0xffff;
+	uae_u16 v = 0;
 
 	if (isgarynocia(addr))
 		return dummy_get(addr, 2, false, 0);
 
 	if (!isgaylenocia (addr))
-		return v;
+		return dummy_get_safe(addr, 2, false, 0);
 
-	switch ((addr >> 12) & 3)
+	switch (cia_chipselect(addr))
 	{
 	case 0:
-		if (!issinglecia ()) {
+		if (!issinglecia ())
+		{
 			cia_wait_pre (1 | 2);
 			v = (ReadCIAB (r) << 8) | ReadCIAA (r);
 			cia_wait_post (1 | 2, v);
@@ -1914,12 +1932,12 @@ static uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 		break;
 	case 1:
 		cia_wait_pre (2);
-		v = (ReadCIAB (r) << 8) | 0xff;
+		v = (ReadCIAB (r) << 8) | dummy_get_safe(addr, 1, false, 0);
 		cia_wait_post (2, v);
 		break;
 	case 2:
 		cia_wait_pre (1);
-		v = (0xff << 8) | ReadCIAA (r);
+		v = (dummy_get_safe(addr, 1, false, 0) << 8) | ReadCIAA (r);
 		cia_wait_post (1, v);
 		break;
 	case 3:
@@ -1970,14 +1988,16 @@ static void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
 	if (!isgaylenocia (addr))
 		return;
 
-	if (!issinglecia () || (addr & 0x3000) != 0) {
-		cia_wait_pre (((addr & 0x2000) == 0 ? 1 : 0) | ((addr & 0x1000) == 0 ? 2 : 0));
-		if ((addr & 0x2000) == 0)
+	int cs = cia_chipselect(addr);
+
+	if (!issinglecia () || (cs & 3) != 0) {
+		cia_wait_pre (((cs & 2) == 0 ? 1 : 0) | ((cs & 1) == 0 ? 2 : 0));
+		if ((cs & 2) == 0)
 			WriteCIAB (r, value);
-		if ((addr & 0x1000) == 0)
+		if ((cs & 1) == 0)
 			WriteCIAA (r, value);
-		cia_wait_post (((addr & 0x2000) == 0 ? 1 : 0) | ((addr & 0x1000) == 0 ? 2 : 0), value);
-		if (((addr & 0x3000) == 0x3000) && (warned > 0 || currprefs.illegal_mem)) {
+		cia_wait_post (((cs & 2) == 0 ? 1 : 0) | ((cs & 1) == 0 ? 2 : 0), value);
+		if (((cs & 3) == 3) && (warned > 0 || currprefs.illegal_mem)) {
 			write_log (_T("cia_bput: unknown CIA address %08X=%082X PC=%08X\n"), addr, value & 0xff, M68K_GETPC);
 			warned--;
 		}
@@ -1996,14 +2016,16 @@ static void REGPARAM2 cia_wput (uaecptr addr, uae_u32 value)
 	if (!isgaylenocia (addr))
 		return;
 
-	if (!issinglecia () || (addr & 0x3000) != 0) {
-		cia_wait_pre (((addr & 0x2000) == 0 ? 1 : 0) | ((addr & 0x1000) == 0 ? 2 : 0));
-		if ((addr & 0x2000) == 0)
+	int cs = cia_chipselect(addr);
+
+	if (!issinglecia () || (cs & 3) != 0) {
+		cia_wait_pre (((cs & 2) == 0 ? 1 : 0) | ((cs & 1) == 0 ? 2 : 0));
+		if ((cs & 2) == 0)
 			WriteCIAB (r, value >> 8);
-		if ((addr & 0x1000) == 0)
+		if ((cs & 1) == 0)
 			WriteCIAA (r, value & 0xff);
-		cia_wait_post (((addr & 0x2000) == 0 ? 1 : 0) | ((addr & 0x1000) == 0 ? 2 : 0), value);
-		if (((addr & 0x3000) == 0x3000) && (warned > 0 || currprefs.illegal_mem)) {
+		cia_wait_post (((cs & 2) == 0 ? 1 : 0) | ((cs & 1) == 0 ? 2 : 0), value);
+		if (((cs & 3) == 3) && (warned > 0 || currprefs.illegal_mem)) {
 			write_log (_T("cia_wput: unknown CIA address %08X=%04X %08X\n"), addr, value & 0xffff, M68K_GETPC);
 			warned--;
 		}
