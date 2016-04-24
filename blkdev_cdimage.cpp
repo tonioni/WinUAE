@@ -1035,7 +1035,14 @@ static int command_toc (int unitnum, struct cd_toc_head *th)
 	th->firstaddress = 0;
 	th->lastaddress = cdu->toc[cdu->tracks].address;
 
+	uae_u8 ctrl_mask = 4;
+	for (int i = 0; i < cdu->tracks; i++) {
+		if (!(cdu->toc[i].ctrl & 4))
+			ctrl_mask = 0x00;
+	}
+
 	toc->adr = 1;
+	toc->control = ctrl_mask;
 	toc->point = 0xa0;
 	toc->track = th->first_track;
 	toc++;
@@ -1052,12 +1059,14 @@ static int command_toc (int unitnum, struct cd_toc_head *th)
 
 	th->last_track_offset = cdu->tracks;
 	toc->adr = 1;
+	toc->control = ctrl_mask;
 	toc->point = 0xa1;
 	toc->track = th->last_track;
 	toc->paddress = th->lastaddress;
 	toc++;
 
 	toc->adr = 1;
+	toc->control = ctrl_mask;
 	toc->point = 0xa2;
 	toc->paddress = th->lastaddress;
 	toc++;

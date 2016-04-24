@@ -4615,11 +4615,13 @@ static bool debug_line (TCHAR *input)
 				next_char (&inptr);
 				if (more_params (&inptr)) {
 					debug_illegal_mask = readhex (&inptr);
+					if (more_params(&inptr))
+						debug_illegal_mask |= ((uae_u64)readhex(&inptr)) << 32;
 				} else {
 					debug_illegal_mask = debug_illegal ? 0 : -1;
 					debug_illegal_mask &= ~((uae_u64)255 << 24); // mask interrupts
 				}
-				console_out_f (_T("Exception breakpoint mask: %0I64X\n"), debug_illegal_mask);
+				console_out_f (_T("Exception breakpoint mask: %08X %08X\n"), (uae_u32)(debug_illegal_mask >> 32), (uae_u32)debug_illegal_mask);
 				debug_illegal = debug_illegal_mask ? 1 : 0;
 			} else {
 				addr = 0xffffffff;

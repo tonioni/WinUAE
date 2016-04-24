@@ -1,4 +1,40 @@
 
+Beta 11:
+
+- Screenshot/capture without "before filtering" ticked now uses much faster GetRenderTargetData()
+  function in D3D mode to capture the output.
+- Ticked 68060 unimplemented CPU emu checkbox also enabled 68030 MMU instructions.
+- Terminate indirect UAE Boot ROM trap threads before unmapping Amiga side memory to prevent
+  random crashes when exiting emulator with traps active.
+- Debugger il mask is now accepted in two 32-bit parts, 64-bit values are not supported by debugger input.
+- Added gfx_black_frame_insertion_ratio config entry, sets timing between normal and black frames in adaptive
+  sync mode. Default is 50 (50%, normal and black frames have same duration).
+- CD32 emulation updates, mostly previously unknown undocumented features:
+  - It seems unmapped addresses don't "float", all invalid reads seem to always return zeros.
+  - CIA chip select, address bits 12 and 13 are CIA selects. Gary: 0=none,1=A,2=B,3=A+B,
+    Gayle: 0=none,1=A,2=B,3=none, Akiko: 0=A,1=A,2=B,3=B (Very unexpected)
+  - CIA address space: Gary: $A00000-$BFFFFF, Gayle: $BFDxxx and $BFExxx, Akiko: $BFE000-$BFFFFF.
+  - Custom register mirror at $B90000-$B9FFFF! (This is really weird..)
+  - Usual custom register mirror at $C00000-$CFFFFF.
+  - Akiko addresses are mapped from $B80000 to $B87FFF (was $B8FFFF) and has 64 byte mirroring (was no
+    mirroring)
+  - Akiko ID at $B80000.l is $C0CACAFE (was only $CAFE at $B80002.w, KS checks this address for $CAFE)
+  - All write-only registers seem to read same data as nearby read-only register.
+  - Interrupt registers only have bits 24 to 31 writable, other bits always read as zeros.
+  - Config ($B80024) register has bits 23 to 31 writable, other bits always read as zeros.
+  - Subchannel arrived interrupt bit is set at boot for some unknown reason, subchannel index
+    register ($B80018) works strangely and has unexpected value at boot ($C2).
+  - Match Akiko C2P behavior with real hardware when reading bytes/words or when doing multiple read passes.
+  - When booted with CD inserted: first packet from CD MCU is always "media inserted" packet.
+  - $B80028.b reads last received command packet byte.
+  - Writing to $B80028.b sends command bytes to CD MCU. (This is not emulated yet and no program uses it)
+  - Akiko internal CIAs don't have external TOD input pins. CIA-A TOD which normally counts vsyncs or
+    power supply ticks count rate is selected with $B80020 bit 23 (0=50Hz, 1=60Hz). CIA-B (hsync)
+    timing logic is not known yet but it is also internally generated.
+  - Old interrupt request set/clear hacks removed.
+  - All CD status return codes (including errors) include door status (open/closed) in bit 0.
+  - Contents of unused TOC entry bytes now contain real hardware matching values.
+
 Beta 10:
 
 - if uaenet.device is online and packet(s) have arrived but there is no pending CMD_READ/CMD_READORPHANs:

@@ -1582,6 +1582,14 @@ static addrbank* expamem_init_filesys (int devnum)
 	bool ks12 = ks12orolder();
 	bool hide = currprefs.uae_hide_autoconfig;
 
+#if 0
+	FILE *f = fopen("d:\\amiga\\amiga\\source\\acap\\autoconf", "rb");
+	fread(expamem, 1, 256, f);
+	fclose(f);
+	memcpy(filesys_bank.baseaddr, expamem, 0x3000);
+	return NULL;
+#endif
+
 	/* struct DiagArea - the size has to be large enough to store several device ROMTags */
 	const uae_u8 diagarea[] = {
 		0x90, 0x00, /* da_Config, da_Flags */
