@@ -453,6 +453,7 @@ struct uae_prefs {
 	int color_mode;
 	int gfx_extrawidth;
 	bool lightboost_strobo;
+	int lightboost_strobo_ratio;
 	bool gfx_grayscale;
 
 	struct gfx_filterdata gf[2];

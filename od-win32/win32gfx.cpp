@@ -1203,9 +1203,11 @@ void show_screen (int mode)
 		struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 		if (isfullscreen() > 0 && isvsync() == 0 && ap->gfx_strobo && ap->gfx_refreshrate > 80) {
 		//if (isvsync() == 0 && ap->gfx_strobo) {
-			int ms = (int)((1000 / 2) / vblank_hz) - 1;
-			strobo_time = read_processor_time() + vsynctimebase / 2;
-			timeSetEvent(ms, 0, blackinsertion_cb, NULL, TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
+			int ratio = currprefs.lightboost_strobo_ratio;
+			int ms = 1000 / vblank_hz;
+			int waitms = ms * ratio / 100 - 1;
+			strobo_time = read_processor_time() + vsynctimebase * ratio / 100;
+			timeSetEvent(waitms, 0, blackinsertion_cb, NULL, TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
 		}
 		D3D_showframe();
 #ifdef GFXFILTER
