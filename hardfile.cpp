@@ -2112,10 +2112,10 @@ static uae_u32 REGPARAM2 hardfile_close (TrapContext *ctx)
 
 	if (!hfpd)
 		return 0;
-	scsi_free(hfpd->sd);
-	hfpd->sd = NULL;
 	trap_put_word(ctx, hfpd->base + 32, trap_get_word(ctx, hfpd->base + 32) - 1);
 	if (trap_get_word(ctx, hfpd->base + 32) == 0) {
+		scsi_free(hfpd->sd);
+		hfpd->sd = NULL;
 		write_comm_pipe_pvoid(&hfpd->requests, NULL, 0);
 		write_comm_pipe_pvoid(&hfpd->requests, NULL, 0);
 		write_comm_pipe_u32(&hfpd->requests, 0, 1);
