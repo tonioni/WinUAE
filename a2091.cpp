@@ -3297,8 +3297,9 @@ void a3000scsi_reset (void)
 	init_wd_scsi (wd);
 	wd->enabled = true;
 	wd->configured = -1;
+	wd->baseaddress = 0xdd0000;
 	wd->dmac_type = COMMODORE_SDMAC;
-	map_banks(&mbdmac_a3000_bank, 0xDD, 1, 0);
+	map_banks(&mbdmac_a3000_bank, wd->baseaddress >> 16, 1, 0);
 	wd_cmd_reset (&wd->wc, false);
 	reset_dmac(wd);
 }
