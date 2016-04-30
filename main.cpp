@@ -618,7 +618,7 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 	}
 	if (p->parallel_postscript_emulation)
 		p->parallel_postscript_detection = 1;
-	if (p->cs_compatible == 1) {
+	if (p->cs_compatible == CP_GENERIC) {
 		p->cs_fatgaryrev = p->cs_ramseyrev = p->cs_mbdmac = -1;
 		p->cs_ide = 0;
 		if (p->cpu_model >= 68020) {

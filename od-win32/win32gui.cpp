@@ -6389,7 +6389,6 @@ static void enable_for_chipsetdlg (HWND hDlg)
 		CheckDlgButton (hDlg, IDC_BLITWAIT, FALSE);
 	}
 	ew (hDlg, IDC_BLITWAIT, workprefs.immediate_blits ? FALSE : TRUE);
-	ew (hDlg, IDC_CS_EXT, workprefs.cs_compatible ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCKMODE, workprefs.genlock ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCKMIX, workprefs.genlock ? TRUE : FALSE);
 }
@@ -7372,6 +7371,8 @@ static void values_to_chipsetdlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_GENLOCKMIX, CB_SETCURSEL, workprefs.genlock_mix / 25, 0);
 }
 
+static int cs_compatible = CP_GENERIC;
+
 static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	BOOL success = FALSE;
@@ -7437,6 +7438,7 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	nn = SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_GETCURSEL, 0, 0);
 	if (nn != CB_ERR) {
 		workprefs.cs_compatible = nn;
+		cs_compatible = nn;
 		built_in_chipset_prefs (&workprefs);
 	}
 	nn = SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_GETCURSEL, 0, 0);
@@ -7465,7 +7467,7 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		currentpage = CHIPSET_ID;
 
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_RESETCONTENT, 0, 0);
-		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T(""));
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("Custom"));
 		WIN32GUI_LoadUIString(IDS_GENERIC, buffer, sizeof buffer / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)buffer);
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("CDTV"));
@@ -7564,7 +7566,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 		CheckRadioButton(hDlg, IDC_CS_RTC1, IDC_CS_RTC4, IDC_CS_RTC4);
 		break;
 	}
-	CheckDlgButton(hDlg, IDC_CS_COMPATIBLE, workprefs.cs_compatible);
+	CheckDlgButton(hDlg, IDC_CS_COMPATIBLE, workprefs.cs_compatible != 0);
 	CheckDlgButton(hDlg, IDC_CS_RESETWARNING, workprefs.cs_resetwarning);
 	CheckDlgButton(hDlg, IDC_CS_NOEHB, workprefs.cs_denisenoehb);
 	CheckDlgButton(hDlg, IDC_CS_DIPAGNUS, workprefs.cs_dipagnus);
@@ -7642,7 +7644,17 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	TCHAR txt[32], *p;
 	int v;
 
-	workprefs.cs_compatible = ischecked (hDlg, IDC_CS_COMPATIBLE);
+	if (workprefs.cs_compatible != ischecked(hDlg, IDC_CS_COMPATIBLE)) {
+		if (ischecked(hDlg, IDC_CS_COMPATIBLE)) {
+			if (!cs_compatible)
+				cs_compatible = CP_GENERIC;
+			workprefs.cs_compatible = cs_compatible;
+		} else {
+			workprefs.cs_compatible = 0;
+		}
+		built_in_chipset_prefs(&workprefs);
+		values_to_chipsetdlg2(hDlg);
+	}
 	workprefs.cs_resetwarning = ischecked (hDlg, IDC_CS_RESETWARNING);
 	workprefs.cs_ciatodbug = ischecked (hDlg, IDC_CS_CIATODBUG);
 	workprefs.cs_denisenoehb = ischecked (hDlg, IDC_CS_NOEHB);
@@ -7770,6 +7782,7 @@ static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	case WM_INITDIALOG:
 		pages[CHIPSET2_ID] = hDlg;
 		currentpage = CHIPSET2_ID;
+		cs_compatible = workprefs.cs_compatible;
 	case WM_USER:
 		recursive++;
 		values_to_chipsetdlg2 (hDlg);

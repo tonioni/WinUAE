@@ -6263,7 +6263,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->clipboard_sharing = false;
 	p->native_code = false;
 
-	p->cs_compatible = 1;
+	p->cs_compatible = CP_GENERIC;
 	p->cs_rtc = 2;
 	p->cs_df0idhw = 1;
 	p->cs_a1000ram = 0;
@@ -7220,6 +7220,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_ciatodbug = false;
 	p->cs_z3autoconfig = false;
 	p->cs_bytecustomwritebug = false;
+	p->cs_1mchipjumper = false;
 
 	switch (p->cs_compatible)
 	{
@@ -7229,7 +7230,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 			p->cs_rtc = 2;
 			p->cs_fatgaryrev = 0;
 			p->cs_ide = -1;
-			p->cs_mbdmac = -1;
+			p->cs_mbdmac = 0;
 			p->cs_ramseyrev = 0x0f;
 		} else if (p->cpu_compatible) {
 			// very A500-like
