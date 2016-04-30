@@ -4063,6 +4063,15 @@ void compute_framesync (void)
 
 	}
 
+	if (gfxvidinfo.drawbuffer.inwidth < 16)
+		gfxvidinfo.drawbuffer.inwidth = 16;
+	if (gfxvidinfo.drawbuffer.inwidth2 < 16)
+		gfxvidinfo.drawbuffer.inwidth2 = 16;
+	if (gfxvidinfo.drawbuffer.inheight < 1)
+		gfxvidinfo.drawbuffer.inheight = 1;
+	if (gfxvidinfo.drawbuffer.inheight2 < 1)
+		gfxvidinfo.drawbuffer.inheight2 = 1;
+
 	if (gfxvidinfo.drawbuffer.inwidth > gfxvidinfo.drawbuffer.width_allocated)
 		gfxvidinfo.drawbuffer.inwidth = gfxvidinfo.drawbuffer.width_allocated;
 	if (gfxvidinfo.drawbuffer.inwidth2 > gfxvidinfo.drawbuffer.width_allocated)
