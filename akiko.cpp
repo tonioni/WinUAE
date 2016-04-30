@@ -1487,7 +1487,7 @@ static uae_u32 akiko_bget2 (uaecptr addr, int msg)
 
 		case 0x28:
 			write_log(_T("Unimplemented Akiko PIO read: %02x PC=%08X\n"), v, M68K_GETPC);
-		v = cdrom_last_rx;
+			v = cdrom_last_rx;
 			break;
 
 		default:

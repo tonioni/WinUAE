@@ -3235,6 +3235,8 @@ static uae_u32 REGPARAM2 startup_handler(TrapContext *ctx)
 	put_long(unit->volume + 24, 0);
 	put_long(unit->volume + 28, 0); /* lock list */
 	put_long(unit->volume + 40, (unit->volume + 64) >> 2); /* Name */
+	//put_long(unit->volume + 44, 68);
+	//put_long(unit->volume + 48, 68);
 
 	put_byte(unit->volume + 64, 0);
 	if (!uinfo->wasisempty && !uinfo->unknown_media) {

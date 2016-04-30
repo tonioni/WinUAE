@@ -1,4 +1,22 @@
 
+Beta 12:
+
+- Dummy 68030 MMU instructions were also accidentally disabled in "generic" 680x0 core. (b11)
+- AGA mode HAM6 colors were not 100% accurate. (Was fixed in b11)
+- Stop with HALT10 if compatible CPU is not ticked and exception begins with SSP pointing to non-existing
+  address space.
+- Prevent programmed mode display width and height to become too small. Program doing something very stupid
+  or crashing program can write very random values to programmable refresh rate custom registers.
+- Switching Advanced chipset compatible option off and then back on does not anymore reset chipset extra
+  back to Generic in non-quickstart mode.
+- 1M/512k+512k Advanced chipset option was not reset when Advanced chipset was in compatibility mode.
+- A3000 SCSI + any WD based Z2 SCSI controller: autoconfig didn't work.
+
+Offtopic PC story: yesterday one of my GTX980 (Gigabyte Gaming G1) decided to release some magic smoke mid game,
+I guess something shorted and power supply shut the system down instantly. Today I tested both (SLI setup,
+I wasn't sure which one died, backplate hides most of the PCB), one works, another shows fire
+and smoke signals.. Fortunately everything else appears to be fine.
+
 Beta 11:
 
 - Screenshot/capture without "before filtering" ticked now uses much faster GetRenderTargetData()
