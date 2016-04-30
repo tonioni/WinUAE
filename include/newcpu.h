@@ -687,6 +687,7 @@ extern bool can_cpu_tracer (void);
 #define CPU_HALT_AUTOCONFIG_CONFLICT 7
 #define CPU_HALT_PCI_CONFLICT 8
 #define CPU_HALT_CPU_STUCK 9
+#define CPU_HALT_SSP_IN_NON_EXISTING_ADDRESS 10
 
 void cpu_semaphore_get(void);
 void cpu_semaphore_release(void);

@@ -2712,6 +2712,14 @@ static void Exception_normal (int nr)
 		return;
 	}
 
+	if (!currprefs.cpu_compatible) {
+		addrbank *ab = &get_mem_bank(m68k_areg(regs, 7));
+		if (!ab || !(ab->flags & ABFLAG_RAM)) {
+			cpu_halt(CPU_HALT_SSP_IN_NON_EXISTING_ADDRESS);
+			return;
+		}
+	}
+	
 	if (currprefs.cpu_model > 68000) {
 		currpc = exception_pc (nr);
 		if (nr == 2 || nr == 3) {

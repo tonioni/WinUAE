@@ -190,9 +190,9 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 					am = 3;
 				} else {
 					on_rgb = 0xcccc00;
-					num1 = -1;
-					num2 = 11;
-					num3 = gui_data.cpu_halted;
+					num1 = gui_data.cpu_halted >= 10 ? 11 : -1;
+					num2 = gui_data.cpu_halted >= 10 ? gui_data.cpu_halted / 10 : 11;
+					num3 = gui_data.cpu_halted % 10;
 					am = 2;
 				}
 			} else {
