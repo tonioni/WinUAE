@@ -235,14 +235,15 @@ void dummy_put (uaecptr addr, int size, uae_u32 val)
 uae_u32 dummy_get_safe(uaecptr addr, int size, bool inst, uae_u32 defvalue)
 {
 	uae_u32 v = defvalue;
+	uae_u32 mask = size == 4 ? 0xffffffff : (1 << (size * 8)) - 1;
 	if (currprefs.cpu_model >= 68040)
-		return v;
+		return v & mask;
 	if (!currprefs.cpu_compatible)
-		return v;
+		return v & mask;
 	if (currprefs.address_space_24)
 		addr &= 0x00ffffff;
 	if (addr >= 0x10000000)
-		return v;
+		return v & mask;
 	// CD32 returns zeros from all unmapped addresses
 	if (currprefs.cs_cd32cd)
 		return 0;
@@ -261,7 +262,7 @@ uae_u32 dummy_get_safe(uaecptr addr, int size, bool inst, uae_u32 defvalue)
 			v = (addr & 1) ? (v & 0xff) : ((v >> 8) & 0xff);
 		}
 	}
-	return v;
+	return v & mask;
 }
 
 uae_u32 dummy_get (uaecptr addr, int size, bool inst, uae_u32 defvalue)
