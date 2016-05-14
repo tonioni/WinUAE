@@ -449,7 +449,7 @@ static void sersend_ce(uae_u32 v)
 		lastbitcycle = get_cycles() + ((serper & 0x7fff) + 1) * CYCLE_UNIT;
 		lastbitcycle_active_hsyncs = ((serper & 0x7fff) + 1) / maxhpos + 2;
 	} else if (data_in_sershift == 1 || data_in_sershift == 2) {
-		event2_newevent_x(-1, maxhpos, 0, sersend_ce);
+		event2_newevent_x_replace(maxhpos, 0, sersend_ce);
 	}
 }
 
@@ -501,7 +501,7 @@ static void serdatcopy(void)
 		}
 		if (per < 4)
 			per = 4;
-		event2_newevent_x(-1, per, 0, sersend_ce);
+		event2_newevent_x_replace(per, 0, sersend_ce);
 	}
 
 	INTREQ(0x8000 | 0x0001);
