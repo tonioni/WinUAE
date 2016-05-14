@@ -105,6 +105,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_MEVOLUTION	0x00100037
 #define ROMTYPE_GOLEMFAST	0x00100038
 #define ROMTYPE_PHOENIXB	0x00100039
+#define ROMTYPE_IVSTPRO		0x0010003A
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000
@@ -134,7 +135,7 @@ struct romdata {
 	int id;
 	int cpu;
 	int cloanto;
-	int type;
+	uae_u32 type;
 	int group;
 	int title;
 	const TCHAR *partnumber;
@@ -198,7 +199,7 @@ void set_device_rom(struct uae_prefs *p, const TCHAR *path, int romtype, int dev
 const struct expansionromtype *get_device_expansion_rom(int romtype);
 const struct expansionromtype *get_unit_expansion_rom(int hdunit);
 struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int devnum, int *index);
-void clear_device_rom(struct uae_prefs *p, int romtype, int devnum);
+void clear_device_rom(struct uae_prefs *p, int romtype, int devnum, bool deleteDevice);
 struct boardromconfig *get_boardromconfig(struct uae_prefs *p, int romtype, int *index);
 
 #define LOADROM_FILL 1
