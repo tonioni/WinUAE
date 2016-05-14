@@ -211,6 +211,21 @@ void event2_newevent_xx (int no, evt t, uae_u32 data, evfunc2 func)
 	MISC_handler ();
 }
 
+void event2_newevent_x_replace(evt t, uae_u32 data, evfunc2 func)
+{
+	for (int i = 0; i < ev2_max; i++) {
+		if (eventtab2[i].active && eventtab2[i].handler == func) {
+			eventtab2[i].active = false;
+		}
+	}
+	if (((int)t) <= 0) {
+		func(data);
+		return;
+	}
+	event2_newevent_xx(-1, t * CYCLE_UNIT, data, func);
+}
+
+
 int current_hpos (void)
 {
 	int hp = current_hpos_safe ();
