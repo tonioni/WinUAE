@@ -520,9 +520,12 @@ void alloc_cycle_blitter (int hpos, uaecptr *ptr, int chnum)
 			warned--;
 			//activate_debugger ();
 		}
-		//if ((currprefs.cs_hacks & 1) && currprefs.cpu_model == 68000)
-		if (currprefs.cpu_model == 68000 && currprefs.cpu_cycle_exact && currprefs.blitter_cycle_exact)
+		if ((currprefs.cs_hacks & 1) && currprefs.cpu_model == 68000) {
+		//if (currprefs.cpu_model == 68000 && currprefs.cpu_cycle_exact && currprefs.blitter_cycle_exact) {
+			// batman group / batman vuelve triggers this incorrectly. More testing needed.
 			*ptr = srcptr;
+			//activate_debugger();
+		}
 	}
 	alloc_cycle (hpos, CYCLE_BLITTER);
 }
@@ -3958,6 +3961,8 @@ void compute_framesync (void)
 		vblank_hz = vblank_hz_shf;
 	}
 
+	vblank_hz = target_adjust_vblank_hz(vblank_hz);
+
 	struct chipset_refresh *cr = get_chipset_refresh ();
 	while (cr) {
 		double v = -1;
@@ -6255,6 +6260,15 @@ static void copper_write (uae_u32 v)
 	custom_wput_copper (current_hpos (), v >> 16, v & 0xffff, 0);
 }
 
+/*
+	CPU write COPJMP wakeup sequence when copper is waiting:
+	- Idle cycle (can be used by other DMA channel)
+	- Read word from current copper pointer (next word after wait instruction) to 1FE
+	  This cycle can conflict with blitter DMA.
+	Normal copper cycles resume
+	- Write word from new copper pointer to 8C
+*/
+
 static void update_copper (int until_hpos)
 {
 	int vp = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
@@ -6368,16 +6382,17 @@ static void update_copper (int until_hpos)
 			break;
 
 		case COP_strobe_delay1x:
-			// First cycle after COPJMP and Copper was waiting. This is the buggy one.
-			// Cycle can be free and copper won't allocate it.
-			// If Blitter uses this cycle = Copper's PC gets copied to blitter DMA pointer..
+			// First cycle after COPJMP and Copper was waiting.
 			cop_state.state = COP_strobe_delay2x;
 			break;
 		case COP_strobe_delay2x:
-			// Second cycle fetches following word and tosses it away. Must be free cycle
-			// but it is not allocated, blitter or cpu can still use it.
+			// Second cycle fetches following word and tosses it away.
+			// Cycle can be free and copper won't allocate it.
+			// If Blitter uses this cycle = Copper's PC gets copied to blitter DMA pointer..
 			if (copper_cant_read (old_hpos, 1))
 				continue;
+			if (debug_dma)
+				record_dma_event(DMA_EVENT_SPECIAL, old_hpos, vpos);
 			cycle_line[old_hpos] |= CYCLE_COPPER_SPECIAL;
 #ifdef DEBUGGER
 			if (debug_dma)
