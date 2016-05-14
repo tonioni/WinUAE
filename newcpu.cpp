@@ -2713,8 +2713,10 @@ static void Exception_normal (int nr)
 	}
 
 	if (!currprefs.cpu_compatible) {
-		addrbank *ab = &get_mem_bank(m68k_areg(regs, 7));
-		if (!ab || !(ab->flags & ABFLAG_RAM)) {
+		addrbank *ab = &get_mem_bank(m68k_areg(regs, 7) - 4);
+		// Not plain RAM check because some CPU type tests that
+		// don't need to return set stack to ROM..
+		if (!ab || ab == &dummy_bank || (ab->flags & ABFLAG_IO)) {
 			cpu_halt(CPU_HALT_SSP_IN_NON_EXISTING_ADDRESS);
 			return;
 		}
