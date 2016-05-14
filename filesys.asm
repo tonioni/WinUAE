@@ -250,7 +250,7 @@ FSIN_none:
 .noexpclose
 
 	cmp.w #34,20(a6) ; 1.2 or older?
-	bcs.s FSIN_tooold
+	bcs.w FSIN_tooold
 
 	; add MegaChipRAM
 	moveq #3,d4 ; MEMF_CHIP | MEMF_PUBLIC
@@ -270,6 +270,24 @@ FSIN_ksold
 	lea fchipname(pc),a1
 	jsr -618(a6) ; AddMemList
 FSIN_fchip_done
+
+	; only if >=4M chip
+	cmp.l #$400000,d5
+	bcs.s FSIN_locmem
+	cmp.l 62(a6),d5
+	beq.s FSIN_locmem
+	jsr -$78(a6)
+	move.l d5,62(a6) ;LocMem
+	moveq #0,d0
+	moveq #(82-34)/2-1,d1
+	lea 34(a6),a0
+.FSIN_locmem1
+	add.w (a0)+,d0
+	dbf d1,.FSIN_locmem1
+	not.w d0
+	move.w d0,82(a6) ;ChkSum
+	jsr -$7e(a6)
+FSIN_locmem
 
 	; add >2MB-6MB chip RAM to memory list (if not already done)
 	lea $210000,a1
