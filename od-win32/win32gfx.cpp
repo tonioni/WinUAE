@@ -83,6 +83,7 @@ struct uae_filter *usedfilter;
 int scalepicasso;
 static double remembered_vblank;
 static volatile int vblankthread_mode, vblankthread_counter;
+static int deskhz;
 
 struct winuae_currentmode {
 	unsigned int flags;
@@ -906,15 +907,17 @@ void sortdisplays (void)
 
 	int w = GetSystemMetrics (SM_CXSCREEN);
 	int h = GetSystemMetrics (SM_CYSCREEN);
+	int wv = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+	int hv = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 	int b = 0;
+	
+	deskhz = 0;
+
 	HDC hdc = GetDC (NULL);
 	if (hdc) {
 		b = GetDeviceCaps(hdc, BITSPIXEL) * GetDeviceCaps(hdc, PLANES);
 		ReleaseDC (NULL, hdc);
 	}
-	write_log (_T("Desktop: W=%d H=%d B=%d. CXVS=%d CYVS=%d\n"), w, h, b,
-		GetSystemMetrics (SM_CXVIRTUALSCREEN), GetSystemMetrics (SM_CYVIRTUALSCREEN));
-
 	md = Displays;
 	while (md->monitorname) {
 		md->DisplayModes = xmalloc (struct PicassoResolution, MAX_PICASSO_MODES);
@@ -932,6 +935,10 @@ void sortdisplays (void)
 				int idx2 = 0;
 				while (md->DisplayModes[idx2].depth >= 0 && !found) {
 					struct PicassoResolution *pr = &md->DisplayModes[idx2];
+					if (dm.dmPelsWidth == w && dm.dmPelsHeight == h && dm.dmBitsPerPel == b) {
+						if (dm.dmDisplayFrequency > deskhz)
+							deskhz = dm.dmDisplayFrequency;
+					}
 					if (pr->res.width == dm.dmPelsWidth && pr->res.height == dm.dmPelsHeight && pr->depth == dm.dmBitsPerPel / 8) {
 						for (i = 0; pr->refresh[i]; i++) {
 							if (pr->refresh[i] == dm.dmDisplayFrequency) {
@@ -964,6 +971,8 @@ void sortdisplays (void)
 		write_log (_T("%d display modes.\n"), i);
 		md++;
 	}
+	write_log(_T("Desktop: W=%d H=%d B=%d HZ=%d. CXVS=%d CYVS=%d\n"), w, h, b, deskhz, wv, hv);
+
 }
 
 /* DirectX will fail with "Mode not supported" if we try to switch to a full
@@ -1155,6 +1164,8 @@ bool show_screen_maybe (bool show)
 
 void show_screen_special (void)
 {
+	if (!screen_is_initialized)
+		return;
 	if (currentmode->flags & DM_D3D) {
 		gfx_lock();
 		D3D_showframe_special (1);
@@ -1162,6 +1173,7 @@ void show_screen_special (void)
 	}
 }
 static frame_time_t strobo_time;
+static volatile bool strobo_active;
 
 static void CALLBACK blackinsertion_cb(
 	UINT      uTimerID,
@@ -1171,22 +1183,44 @@ static void CALLBACK blackinsertion_cb(
 	DWORD_PTR dw2
 	)
 {
-	if (!screen_is_initialized)
-		return;
-	for (;;) {
-		frame_time_t ct = read_processor_time();
-		if ((int)strobo_time - (int)ct <= 0 || (int)strobo_time - (int)ct > vsynctimebase / 2) {
-			break;
+	if (screen_is_initialized)  {
+		while (strobo_active) {
+			frame_time_t ct = read_processor_time();
+			int diff = (int)strobo_time - (int)ct;
+			if (diff < -vsynctimebase / 2) {
+				break;
+			}
+			if (diff <= 0) {
+				show_screen_special();
+				break;
+			}
+			if (diff > vsynctimebase / 4) {
+				break;
+			}
 		}
 	}
-	if (!screen_is_initialized)
-		return;
-	show_screen_special();
+	strobo_active = false;
 }
 
+double target_adjust_vblank_hz(double hz)
+{
+	int maxrate;
+	if (!currprefs.lightboost_strobo)
+		return hz;
+	if (isfullscreen() > 0) {
+		maxrate = currentmode->freq;
+	} else {
+		maxrate = deskhz;
+	}
+	double nhz = hz * 2.0;
+	if (nhz >= maxrate - 1 && nhz < maxrate + 1)
+		hz -= 0.5;
+	return hz;
+}
 
 void show_screen (int mode)
 {
+	strobo_active = false;
 	gfx_lock();
 	if (mode == 2) {
 		if (currentmode->flags & DM_D3D) {
@@ -1201,13 +1235,33 @@ void show_screen (int mode)
 	}
 	if (currentmode->flags & DM_D3D) {
 		struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
-		if (isfullscreen() > 0 && isvsync() == 0 && ap->gfx_strobo && ap->gfx_refreshrate > 80) {
-		//if (isvsync() == 0 && ap->gfx_strobo) {
+		if (ap->gfx_vsync < 0 && ap->gfx_strobo) {
+			double vblank = vblank_hz;
+			if (WIN32GFX_IsPicassoScreen()) {
+				if (currprefs.win32_rtgvblankrate > 0)
+					vblank = currprefs.win32_rtgvblankrate;
+			}
+			bool ok = true;
 			int ratio = currprefs.lightboost_strobo_ratio;
-			int ms = 1000 / vblank_hz;
+			int ms = 1000 / vblank;
 			int waitms = ms * ratio / 100 - 1;
-			strobo_time = read_processor_time() + vsynctimebase * ratio / 100;
-			timeSetEvent(waitms, 0, blackinsertion_cb, NULL, TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
+			int maxrate;
+			if (isfullscreen() > 0) {
+				maxrate = currentmode->freq;
+			} else {
+				maxrate = deskhz;
+			}
+			if (maxrate > 0) {
+				double rate = vblank * 2.0;
+				rate *= ratio > 50 ? ratio / 50.0 : 50.0 / ratio;
+				if (rate > maxrate + 1.0)
+					ok = false;
+			}
+			if (ok) {
+				strobo_time = read_processor_time() + vsynctimebase * ratio / 100;
+				strobo_active = true;
+				timeSetEvent(waitms, 0, blackinsertion_cb, NULL, TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
+			}
 		}
 		D3D_showframe();
 #ifdef GFXFILTER

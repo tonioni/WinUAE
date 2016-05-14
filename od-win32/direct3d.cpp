@@ -149,7 +149,7 @@ static int max_texture_w, max_texture_h;
 static int tin_w, tin_h, tout_w, tout_h, window_h, window_w;
 static int t_depth, dmult, dmultx;
 static int required_sl_texture_w, required_sl_texture_h;
-static int vsync2, guimode, maxscanline;
+static int vsync2, guimode, maxscanline, variablerefresh;
 static int resetcount;
 static double cursor_x, cursor_y;
 static bool cursor_v, cursor_scale;
@@ -2382,6 +2382,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 	modeex.Format = mode.Format;
 
 	vsync2 = 0;
+	variablerefresh = ap.gfx_vsync < 0;
 	int hzmult = 0;
 	if (isfullscreen () > 0) {
 		dpp.FullScreen_RefreshRateInHz = getrefreshrate (modeex.Width, modeex.Height);
@@ -2615,7 +2616,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 		if (forcedframelatency >= 0)
 			hr = d3ddevex->SetMaximumFrameLatency (forcedframelatency);
 		else if (dpp.PresentationInterval == D3DPRESENT_INTERVAL_IMMEDIATE && (v > 1 || !vsync))
-			hr = d3ddevex->SetMaximumFrameLatency (vsync ? (hzmult < 0 && !ap.gfx_strobo ? 2 : 1) : 0);
+			hr = d3ddevex->SetMaximumFrameLatency (vsync ? (hzmult < 0 && !ap.gfx_strobo && !variablerefresh ? 2 : 1) : 0);
 		if (FAILED (hr))
 			write_log (_T("%s: SetMaximumFrameLatency() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 	}
@@ -3364,11 +3365,11 @@ void D3D_showframe (void)
 	if (!isd3d ())
 		return;
 	if (currprefs.turbo_emulation) {
-		if (!(dpp.PresentationInterval & D3DPRESENT_INTERVAL_IMMEDIATE) && wasstilldrawing_broken) {
+		if ((!(dpp.PresentationInterval & D3DPRESENT_INTERVAL_IMMEDIATE) || variablerefresh) && wasstilldrawing_broken) {
 			static int frameskip;
 			if (currprefs.turbo_emulation && frameskip-- > 0)
 				return;
-			frameskip = 50;
+			frameskip = 10;
 		}
 		D3D_showframe2 (false);
 	} else {
@@ -3376,8 +3377,8 @@ void D3D_showframe (void)
 		if (vsync2 == -1 && !currprefs.turbo_emulation) {
 			D3D_showframe2 (true);
 		}
+		flushgpu(true);
 	}
-	flushgpu (true);
 }
 
 void D3D_showframe_special (int mode)
