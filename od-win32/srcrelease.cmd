@@ -124,24 +124,15 @@ rm -rf fullrelease
 rm -rf test
 cd ..
 
-cd winuae_msvc10
-rm -rf debug
-rm -rf release
-rm -rf fullrelease
-rm -rf ipch
-rm -rf test
-rm -rf x64
-cd ..
-
-cd winuae_msvc11
-rm -rf debug
-rm -rf release
-rm -rf fullrelease
-rm -rf test
-rm -rf x64
-cd ..
-
 cd winuae_msvc14
+rm -rf debug
+rm -rf release
+rm -rf fullrelease
+rm -rf test
+rm -rf x64
+cd ..
+
+cd winuae_msvc15
 rm -rf debug
 rm -rf release
 rm -rf fullrelease

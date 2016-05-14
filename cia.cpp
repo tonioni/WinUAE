@@ -58,6 +58,12 @@
 
 #define TOD_HACK
 
+/* Akiko internal CIA differences:
+
+- BFE101 and BFD100: reads 3F if data direction is in.
+
+ */
+
 /* e-clock is 10 CPU cycles, 4 cycles high, 6 low
 * data transfer happens during 4 high cycles
 */

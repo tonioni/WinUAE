@@ -1086,6 +1086,10 @@ static void cdrom_run_read (void)
 				put_byte (cdrom_addressdata + seccnt * 4096 + 0xc00 + i, 0);
 			cdrom_pbx &= ~(1 << seccnt);
 			set_status (CDINTERRUPT_PBX);
+
+			if ((cdrom_flags & CDFLAG_RAW) || !(cdrom_flags & CDFLAG_CAS))
+				write_log(_T("Akiko warning: Flags = %08x!\n"), cdrom_flags);
+
 		} else {
 			inc = 0;
 		}

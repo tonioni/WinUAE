@@ -1,4 +1,34 @@
 
+Beta 13:
+
+- HALT10 was incorrectly triggered in some configurations (b12)
+- Update ExecBase.MaxLocMem (and ChkSum) if more than 2M chip RAM is configured.
+- It was not possible to fully disable enabled expansion device without restart. Checkbox was unticked but
+  device was not fully disabled.
+- Copper COPJMP blitter conflict bug emulation is again disabled (Breaks Batman Vuelve / Batman Group).
+  There is still something unknown. I did some more tests and some blitter cycle sequences do not conflict
+  with buggy copper cycle and correctly wait one extra cycle.
+- Added IVS Trumpcard Pro/GrandSlam SCSI v4.9 ROM image. Emulation not yet implemented.
+  "Trumpcard Professional Driver 4.9 - devs/IVS_SCSIpro.driver IVSSCSI 4.9 (20 Sep 1991)"'
+
+Variable Refresh rate updates. I finally bought G-Sync monitor, Acer Predator X34. Every emulator
+(any emulator!) user should get G-Sync or FreeSync hardware because variable sync has all the advantages of
+vsync without any vsync disadvantages!)
+  
+- Adaptive Sync renamed to Variable Sync. Adaptive Sync is name of DP variable refresh rate standard (which
+  AMD's FreeSync is based on). "Official" generic name is Variable Refresh Rates but Variable Sync fits
+  better with other VSync modes in GUI.
+- Variable sync + black frame insertion is now supported in windowed and full-window mode.
+  (I couldn't get G-Sync to work in normal windowed mode but it did work in full-window)
+- Variable sync + black frame insertion is now supported in RTG modes.
+- Black frame insertion is not enabled in variable sync mode if refresh rate would become larger than
+  selected display refresh rate (fullscreen) or desktop refresh rate (windowed/full-window).
+- Variable sync + black frame insertion and if doubled refresh rate is equal to selected/max hardware
+  supported refresh rate: automatically reduce internal emulated refresh rate by 0.5Hz to guarantee
+  glitch free display. (Workaround for monitors that have max refresh rate of 100Hz=PAL or 120Hz=NTSC)
+
+Continuation to offtopic PC story: returned it on monday, replacement arrived on wednesday.
+
 Beta 12:
 
 - Dummy 68030 MMU instructions were also accidentally disabled in "generic" 680x0 core. (b11)

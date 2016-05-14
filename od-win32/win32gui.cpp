@@ -1708,6 +1708,7 @@ static void show_rom_list (void)
 		130, -1, -1, // m-tec
 		129, 141, -1, -1, // adide
 		133, -1, -1, // adscsi
+		161, -1, -1, // trumpcard pro
 		127, 140, -1, -1, // kommos
 		128, -1, -1, // vector falcon
 		132, -1, -1, // add500
@@ -1762,6 +1763,7 @@ static void show_rom_list (void)
 		_T("M-Tec AT500 IDE\0")
 		_T("AdIDE\0")
 		_T("AdSCSI\0")
+		_T("IVS Trumpcard Pro/GrandSlam\0")
 		_T("Kommos A500/A2000 SCSI\0")
 		_T("Vector Falcon 8000 SCSI\0")
 		_T("Archos ADD-500\0")
@@ -7644,7 +7646,7 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	TCHAR txt[32], *p;
 	int v;
 
-	if (workprefs.cs_compatible != ischecked(hDlg, IDC_CS_COMPATIBLE)) {
+	if (!!workprefs.cs_compatible != ischecked(hDlg, IDC_CS_COMPATIBLE)) {
 		if (ischecked(hDlg, IDC_CS_COMPATIBLE)) {
 			if (!cs_compatible)
 				cs_compatible = CP_GENERIC;
@@ -8592,7 +8594,7 @@ static void values_from_expansion2dlg(HWND hDlg)
 		brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index);
 		if (brc && brc->roms[index].romfile[0])
 			changed = true;
-		clear_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum);
+		clear_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, true);
 	}
 	if (changed) {
 		init_expansion2(hDlg, false);
@@ -8605,7 +8607,7 @@ static void values_from_expansion2dlg(HWND hDlg)
 		brc = get_device_rom_new(&workprefs, ROMTYPE_CPUBOARD, 0, &index);
 		getromfile(hDlg, IDC_CPUBOARDROMFILE, brc->roms[index].romfile, sizeof(brc->roms[index].romfile) / sizeof(TCHAR));
 	} else {
-		clear_device_rom(&workprefs, ROMTYPE_CPUBOARD, 0);
+		clear_device_rom(&workprefs, ROMTYPE_CPUBOARD, 0, true);
 	}
 }
 
@@ -8844,7 +8846,7 @@ static void set_expansion_rtg_rom(void)
 		const struct expansionromtype *ert = &expansionroms[i];
 		if (ert->deviceflags & EXPANSIONTYPE_RTG) {
 			if ((ert->romtype & ROMTYPE_MASK) != (romtype & ROMTYPE_MASK)) {
-				clear_device_rom(&workprefs, ert->romtype, 0);
+				clear_device_rom(&workprefs, ert->romtype, 0, true);
 			}
 		}
 	}

@@ -58,6 +58,7 @@ extern bool show_screen_maybe (bool);
 extern int lockscr (struct vidbuffer*, bool);
 extern void unlockscr (struct vidbuffer*);
 extern bool target_graphics_buffer_update (void);
+extern double target_adjust_vblank_hz(double);
 
 void getgfxoffset (float *dxp, float *dyp, float *mxp, float *myp);
 double getcurrentvblankrate (void); /* todo: remove from od-win32/win32gfx.h */

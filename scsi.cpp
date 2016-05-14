@@ -25,7 +25,7 @@
 #include "cia.h"
 
 #define SCSI_EMU_DEBUG 0
-#define RAW_SCSI_DEBUG 1
+#define RAW_SCSI_DEBUG 0
 #define NCR5380_DEBUG 0
 #define NCR5380_DEBUG_IRQ 0
 
@@ -1086,7 +1086,9 @@ static uae_u8 raw_scsi_get_data_2(struct raw_scsi *rs, bool next, bool nodebug)
 		write_log(_T("raw_scsi: read data byte %02x (%d/%d)\n"), v, sd->offset, sd->data_len);
 #endif
 		if (scsi_receive_data(sd, &v, next)) {
+#if RAW_SCSI_DEBUG
 			write_log(_T("raw_scsi: data in finished, %d bytes: status phase\n"), sd->offset);
+#endif
 			rs->bus_phase = SCSI_SIGNAL_PHASE_STATUS;
 		}
 		break;
