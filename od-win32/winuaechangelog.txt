@@ -1,4 +1,28 @@
 
+Beta 14:
+
+- AGA subpixel scrolling: if line's parameters didn't change compared to previous field's line, line was
+  not marked as "changed" and was not alwsays redrawn correctly. (Roketz scoreboard corruption)
+- CD32: always generate subchannel interrupts and transfer subchannel frames when reading CD sectors if
+  subchannel DMA channel is enabled. (Previously was only done when playing CD audio)
+  Real hardware also transfer subchannel frames when CD is idle. This is not yet emulated.
+- Added "Paste" input event (END+INSERT default mapping), injects host clipboard text content using emulated
+  keyboard key codes. Only available when clipboard sharing is not active and only supports ROM default US
+  keyboard layout. For example can be used to paste strings directly to boot CLI, hardware debuggers or
+  non-AmigaOS operating systems.
+- Mouse/joystick autoswitching broke some betas ago.
+- Pause/GUI + black frame insertion: don't show black frame.
+- IVS Trumpcard Pro/GrandSlam SCSI emulation implemented.
+- AROS ROM updated.
+- Few weeks ago released new MSVC optimizer enabled (May not have it enabled in final version because it
+  is not yet fully production ready). Report if you notice any performance improvements.
+
+IVS Trumpcard Pro/GrandSlam SCSI:
+- Autoboot, seems to support custom filesystems.
+- 5380 based.
+- Fake DMA. Long reads, word wide writes.
+- "Trumpcard Professional Driver 4.9 - devs/IVS_SCSIpro.driver IVSSCSI 4.9 (20 Sep 1991)"
+
 Beta 13:
 
 - HALT10 was incorrectly triggered in some configurations (b12)
@@ -9,7 +33,7 @@ Beta 13:
   There is still something unknown. I did some more tests and some blitter cycle sequences do not conflict
   with buggy copper cycle and correctly wait one extra cycle.
 - Added IVS Trumpcard Pro/GrandSlam SCSI v4.9 ROM image. Emulation not yet implemented.
-  "Trumpcard Professional Driver 4.9 - devs/IVS_SCSIpro.driver IVSSCSI 4.9 (20 Sep 1991)"'
+  "Trumpcard Professional Driver 4.9 - devs/IVS_SCSIpro.driver IVSSCSI 4.9 (20 Sep 1991)"
 
 Variable Refresh rate updates. I finally bought G-Sync monitor, Acer Predator X34. Every emulator
 (any emulator!) user should get G-Sync or FreeSync hardware because variable sync has all the advantages of

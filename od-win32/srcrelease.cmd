@@ -130,6 +130,7 @@ rm -rf release
 rm -rf fullrelease
 rm -rf test
 rm -rf x64
+rm -rf packages
 cd ..
 
 cd winuae_msvc15
@@ -138,6 +139,7 @@ rm -rf release
 rm -rf fullrelease
 rm -rf test
 rm -rf x64
+rm -rf packages
 cd ..
 
 cd singlefilehelper

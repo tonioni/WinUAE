@@ -71,3 +71,5 @@ aros.rom.cpp
 *.iobj
 *.ipdb
 *.opendb
+packages
+packages.config

@@ -1409,6 +1409,7 @@ static void fastmem_autoconfig(int boardnum, int zorro, uae_u8 type, uae_u32 ser
 			flags |= force_z3 | (allocated > 0x800000 ? ext_size : subsize);
 		}
 		mid = uae_id;
+		serial = 1;
 	}
 
 	ac[0x00 / 4] = type;
@@ -1447,7 +1448,6 @@ static addrbank *expamem_init_fastcard_2(int boardnum)
 {
 	uae_u8 type = add_memory | zorroII;
 	int allocated = boardnum ? fastmem2_bank.allocated : fastmem_bank.allocated;
-	uae_u32 serial = 1;
 
 	if (allocated == 0)
 		return &expamem_null;
@@ -1481,8 +1481,7 @@ static addrbank *expamem_init_fastcard_2(int boardnum)
 		}
 	}
 
-	fastmem_autoconfig(boardnum, BOARD_AUTOCONFIG_Z2, type, serial, allocated);
-	fastmem_autoconfig(boardnum, -1, type, serial, allocated);
+	fastmem_autoconfig(boardnum, BOARD_AUTOCONFIG_Z2, type, 1, allocated);
 
 	return NULL;
 }
@@ -3171,10 +3170,10 @@ const struct expansionromtype expansionroms[] = {
 		_T("trumpcardpro"), _T("Grand Slam"), _T("IVS"),
 		trumpcardpro_init, NULL, trumpcardpro_add_scsi_unit, ROMTYPE_IVSTPRO, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
-		false, EXPANSIONTYPE_SCSI,
+		true, EXPANSIONTYPE_SCSI,
 		2112, 4, 0, false, NULL,
-		false, NULL,
-		{  0xd1, 2, 0x00, 0x00, 0x08, 0x40, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
+		true, NULL,
+		{  0xd1, 0x34, 0x00, 0x00, 0x08, 0x40, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
 	},
 	{
 		_T("kommos"), _T("A500/A2000 SCSI"), _T("Jürgen Kommos"),
