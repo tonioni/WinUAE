@@ -1747,6 +1747,7 @@ static void hack_shres_delay(int hpos)
 		current_colors.extra &= ~(1 << (CE_SHRES_DELAY + 1));
 		current_colors.extra |= toscr_delay_sh[0] << CE_SHRES_DELAY;
 		remembered_color_entry = -1;
+		thisline_changed = true;
 	}
 }
 
