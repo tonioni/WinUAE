@@ -3388,6 +3388,8 @@ void D3D_showframe_special (int mode)
 		return;
 	if (currprefs.turbo_emulation)
 		return;
+	if (pause_emulation)
+		return;
 	hr = d3ddev->Clear (0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, d3ddebug ? 0x80 : 0, 0), 0, 0);
 	D3D_showframe2 (true);
 	flushgpu (true);
@@ -3465,6 +3467,8 @@ void D3D_guimode (bool guion)
 	waitfakemode ();
 	if (!isd3d ())
 		return;
+	D3D_render2();
+	D3D_showframe2(true);
 	hr = d3ddev->SetDialogBoxMode (guion ? TRUE : FALSE);
 	if (FAILED (hr))
 		write_log (_T("%s: SetDialogBoxMode %s\n"), D3DHEAD, D3D_ErrorString (hr));
