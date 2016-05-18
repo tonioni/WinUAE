@@ -1115,7 +1115,9 @@ static uae_u8 raw_scsi_get_data_2(struct raw_scsi *rs, bool next, bool nodebug)
 		}
 		break;
 		default:
+#if RAW_SCSI_DEBUG
 		write_log(_T("raw_scsi_get_data but bus phase is %d!\n"), rs->bus_phase);
+#endif
 		break;
 	}
 
@@ -1213,8 +1215,9 @@ static void raw_scsi_write_data(struct raw_scsi *rs, uae_u8 data)
 		}
 		break;
 		default:
+#if RAW_SCSI_DEBUG
 		write_log(_T("raw_scsi_put_data but bus phase is %d!\n"), rs->bus_phase);
-		//raw_scsi_get_data_2(rs, true, false);
+#endif
 		break;
 	}
 }
@@ -2635,11 +2638,26 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 
 		reg = trumpcardpro_reg(ncr, addr);
 		if (reg >= 0) {
-			v = ncr5380_bget(ncr, reg);
+			if (reg == 8 && !ncr->dma_active) {
+				v = 0;
+			} else {
+				v = ncr5380_bget(ncr, reg);
+			}
 		} else if (addr & 0x8000) {
-			v = ncr->rom[addr & 0x7fff];
+			if (!ncr->rc->autoboot_disabled)
+				v = ncr->rom[addr & 0x7fff];
 		} else if ((addr & 0xe0) == 0xc0) {
+			struct raw_scsi *rs = &ncr->rscsi;
+			uae_u8 t = raw_scsi_get_signal_phase(rs);
 			v = ncr->irq && ncr->intena ? 4 : 0;
+			// actually this is buffer empty/full
+			v |= (t & SCSI_IO_DIRECTION) ? 2 : 0;
+			v |= ((ncr->rc->device_id ^ 7) & 7) << 3;
+
+		} else if ((addr & 0xe0) == 0xa0) {
+			// long data port
+			if (ncr->dma_active)
+				v = ncr5380_bget(ncr, 8);
 		}
 
 	}
@@ -2896,7 +2914,15 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 
 		reg = trumpcardpro_reg(ncr, addr);
 		if (reg >= 0) {
-			ncr5380_bput(ncr, reg, val);
+			if (reg == 8 && !ncr->dma_active) {
+				;
+			} else {
+				ncr5380_bput(ncr, reg, val);
+			}
+		} else if ((addr & 0xe0) == 0xa0) {
+			// word data port
+			if (ncr->dma_active)
+				ncr5380_bput(ncr, 8, val);
 		}
 	}
 
