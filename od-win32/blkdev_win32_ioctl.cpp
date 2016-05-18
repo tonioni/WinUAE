@@ -806,7 +806,7 @@ static int ioctl_command_play (int unitnum, int startlsn, int endlsn, int scan, 
 }
 
 /* read qcode */
-static int ioctl_command_qcode (int unitnum, uae_u8 *buf, int sector)
+static int ioctl_command_qcode (int unitnum, uae_u8 *buf, int sector, bool all)
 {
 	struct dev_info_ioctl *ciw = unitisopen (unitnum);
 	if (!ciw)
@@ -821,6 +821,9 @@ static int ioctl_command_qcode (int unitnum, uae_u8 *buf, int sector)
 	int status;
 	bool valid = false;
 	bool regenerate = true;
+
+	if (all)
+		return 0;
 
 	memset (buf, 0, SUBQ_SIZE);
 	p = buf;

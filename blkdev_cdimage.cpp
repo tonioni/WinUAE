@@ -790,7 +790,7 @@ static int command_play (int unitnum, int startlsn, int endlsn, int scan, play_s
 	return 1;
 }
 
-static int command_qcode (int unitnum, uae_u8 *buf, int sector)
+static int command_qcode (int unitnum, uae_u8 *buf, int sector, bool all)
 {
 	struct cdunit *cdu = unitisopen (unitnum);
 	if (!cdu)
@@ -833,7 +833,11 @@ static int command_qcode (int unitnum, uae_u8 *buf, int sector)
 	if (!td)
 		return 0;
 	getsub_deinterleaved (subbuf, cdu, td, pos);
-	memcpy (p, subbuf + 12, 12);
+	if (all)  {
+		memcpy(buf, subbuf, SUB_CHANNEL_SIZE);
+	} else {
+		memcpy (p, subbuf + 12, 12);
+	}
 
 	return 1;
 }

@@ -467,7 +467,7 @@ static bool isaudiotrack (int startlsn)
 
 static struct cd_toc *get_track (int startlsn)
 {
-	for (int i = cdrom_toc_cd_buffer.first_track_offset + 1; i <= cdrom_toc_cd_buffer.last_track_offset; i++) {
+	for (int i = cdrom_toc_cd_buffer.first_track_offset + 1; i <= cdrom_toc_cd_buffer.last_track_offset + 1; i++) {
 		struct cd_toc *s = &cdrom_toc_cd_buffer.toc[i];
 		uae_u32 addr = s->paddress;
 		if (startlsn < addr)
@@ -1090,6 +1090,23 @@ static void cdrom_run_read (void)
 			if ((cdrom_flags & CDFLAG_RAW) || !(cdrom_flags & CDFLAG_CAS))
 				write_log(_T("Akiko warning: Flags = %08x!\n"), cdrom_flags);
 
+			if (cdrom_flags & CDFLAG_SUBCODE) {
+				uae_u8 subbuf[SUB_CHANNEL_SIZE] = { 0 };
+				uae_u8 subbuf2[SUB_CHANNEL_SIZE];
+				if (sys_command_cd_qcode(unitnum, subbuf2, sector, true))
+					sub_to_interleaved(subbuf2, subbuf);
+				if (cdrom_subcodeoffset >= 128)
+					cdrom_subcodeoffset = 0;
+				else
+					cdrom_subcodeoffset = 128;
+				// 96 byte subchannel data
+				for (int i = 0; i < SUB_CHANNEL_SIZE; i++)
+					put_byte(subcode_address + cdrom_subcodeoffset + i, subbuf[i]);
+				put_long(subcode_address + cdrom_subcodeoffset + SUB_CHANNEL_SIZE, 0xffff0000);
+				cdrom_subcodeoffset += 100;
+				set_status(CDINTERRUPT_SUBCODE);
+			}
+
 		} else {
 			inc = 0;
 		}
@@ -1221,7 +1238,7 @@ void AKIKO_hsync_handler (void)
 				// 96 byte subchannel data
 				for (int i = 0; i < SUB_CHANNEL_SIZE; i++)
 					put_byte (subcode_address + cdrom_subcodeoffset + i, subcodebuffer[subcodebufferoffset * SUB_CHANNEL_SIZE + i]);
-				put_long (subcode_address + cdrom_subcodeoffset + SUB_CHANNEL_SIZE, 0xffffffff);
+				put_long (subcode_address + cdrom_subcodeoffset + SUB_CHANNEL_SIZE, 0xffff0000);
 				subcodebufferinuse[subcodebufferoffset] = 0;
 				cdrom_subcodeoffset += 100;
 				subcodebufferoffset++;
@@ -1280,7 +1297,7 @@ static void *akiko_thread (void *null)
 
 		if (frame2counter <= 0) {
 			frame2counter = 312 * 50 / 2;
-			if (unitnum >= 0 && sys_command_cd_qcode (unitnum, qcode_buf)) {
+			if (unitnum >= 0 && sys_command_cd_qcode (unitnum, qcode_buf, -1, false)) {
 				qcode_valid = 1;
 			}
 		}

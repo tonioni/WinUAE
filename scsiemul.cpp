@@ -850,7 +850,7 @@ static int dev_do_io_cd (TrapContext *ctx, struct devstruct *dev, uae_u8 *iobuf,
 		struct cd_toc_head toc;
 		uae_u8 cdinfo[34] = { 0 };
 		uae_u8 subq[SUBQ_SIZE] = { 0 };
-		sys_command_cd_qcode (dev->di.unitnum, subq);
+		sys_command_cd_qcode (dev->di.unitnum, subq, -1, false);
 		status |= 1 << 0; // door closed
 		if (dev->di.media_inserted) {
 			status |= 1 << 1;
@@ -948,7 +948,7 @@ static int dev_do_io_cd (TrapContext *ctx, struct devstruct *dev, uae_u8 *iobuf,
 	case CD_QCODELSN:
 	{
 		uae_u8 subq[SUBQ_SIZE];
-		if (sys_command_cd_qcode (dev->di.unitnum, subq)) {
+		if (sys_command_cd_qcode (dev->di.unitnum, subq, -1, false)) {
 			if (subq[1] == AUDIO_STATUS_IN_PROGRESS || subq[1] == AUDIO_STATUS_PAUSED) {
 				uae_u8 subqdata[12];
 				put_byte_host(subqdata + 0, subq[4 + 0]);

@@ -134,7 +134,7 @@ static int get_toc (void)
 
 static int get_qcode (void)
 {
-	if (!sys_command_cd_qcode (unitnum, cdrom_qcode))
+	if (!sys_command_cd_qcode (unitnum, cdrom_qcode, -1, false))
 		return 0;
 	cdrom_qcode[1] = cd_audio_status;
 	return 1;

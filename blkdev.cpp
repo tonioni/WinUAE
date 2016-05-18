@@ -827,7 +827,7 @@ uae_u32 sys_command_cd_volume (int unitnum, uae_u16 volume_left, uae_u16 volume_
 }
 
 /* read qcode */
-int sys_command_cd_qcode (int unitnum, uae_u8 *buf)
+int sys_command_cd_qcode (int unitnum, uae_u8 *buf, int sector, bool all)
 {
 	int v;
 	if (failunit (unitnum))
@@ -835,10 +835,14 @@ int sys_command_cd_qcode (int unitnum, uae_u8 *buf)
 	if (!getsem (unitnum))
 		return 0;
 	if (state[unitnum].device_func->qcode == NULL) {
-		uae_u8 cmd[10] = {0x42,2,0x40,1,0,0,0,(uae_u8)(SUBQ_SIZE>>8),(uae_u8)(SUBQ_SIZE&0xff),0};
-		v = do_scsi (unitnum, cmd, sizeof cmd, buf, SUBQ_SIZE);
+		if (all) {
+			v = 0;
+		} else {
+			uae_u8 cmd[10] = {0x42,2,0x40,1,0,0,0,(uae_u8)(SUBQ_SIZE>>8),(uae_u8)(SUBQ_SIZE&0xff),0};
+			v = do_scsi (unitnum, cmd, sizeof cmd, buf, SUBQ_SIZE);
+		}
 	} else {
-		v = state[unitnum].device_func->qcode (unitnum, buf, -1);
+		v = state[unitnum].device_func->qcode (unitnum, buf, sector, all);
 	}
 	freesem (unitnum);
 	return v;
@@ -1786,7 +1790,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 
 			if (nodisk (&di))
 				goto nodisk;
-			sys_command_cd_qcode (unitnum, buf);
+			sys_command_cd_qcode (unitnum, buf, -1, false);
 			scsi_len = 4;
 			scsi_data[0] = 0;
 			scsi_data[1] = buf[1];
@@ -1903,7 +1907,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		int start = rl (cmdbuf + 2) & 0x00ffffff;
 		if (start == 0x00ffffff) {
 			uae_u8 buf[SUBQ_SIZE] = { 0 };
-			sys_command_cd_qcode (unitnum, buf);
+			sys_command_cd_qcode (unitnum, buf, -1, false);
 			start = fromlongbcd (buf + 4 + 7);
 		}
 		int end = msf2lsn (rl (cmdbuf + 5) & 0x00ffffff);
@@ -1933,7 +1937,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		if (len > 0) {
 			if (start == -1) {
 				uae_u8 buf[SUBQ_SIZE] = { 0 };
-				sys_command_cd_qcode (unitnum, buf);
+				sys_command_cd_qcode (unitnum, buf, -1, false);
 				start = msf2lsn (fromlongbcd (buf + 4 + 7));
 			}
 			int end = start + len;
@@ -1976,7 +1980,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			goto nodisk;
 		uae_u8 buf[SUBQ_SIZE] = { 0 };
 		int resume = cmdbuf[8] & 1;
-		sys_command_cd_qcode (unitnum, buf);
+		sys_command_cd_qcode (unitnum, buf, -1, false);
 		if (buf[1] != AUDIO_STATUS_IN_PROGRESS && buf[1] != AUDIO_STATUS_PAUSED)
 			goto errreq;
 		sys_command_cd_pause (unitnum, resume ? 0 : 1);
@@ -2243,7 +2247,7 @@ uae_u8 *save_cd (int num, int *len)
 	save_u32 (currprefs.cdslots[num].type);
 	save_u32 (0);
 	save_u32 (0);
-	sys_command_cd_qcode (num, st->play_qcode);
+	sys_command_cd_qcode (num, st->play_qcode, -1, false);
 	for (int i = 0; i < SUBQ_SIZE; i++)
 		save_u8 (st->play_qcode[i]);
 	save_u32 (st->play_end_pos);
