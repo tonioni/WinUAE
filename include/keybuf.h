@@ -17,5 +17,6 @@ extern int record_key_direct (int);
 extern void keybuf_init (void);
 extern int getcapslockstate (void);
 extern void setcapslockstate (int);
+extern void keybuf_inject(uae_char*);
 
 #endif /* UAE_KEYBUF_H */

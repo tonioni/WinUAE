@@ -3738,6 +3738,8 @@ static bool needcputrace (int code)
 	return false;
 }
 
+void target_paste_to_keyboard(void);
+
 static bool inputdevice_handle_inputcode2 (int code, int state)
 {
 	static int swapperslot;
@@ -3950,6 +3952,9 @@ static bool inputdevice_handle_inputcode2 (int code, int state)
 			inputdevice_swap_compa_ports(&changed_prefs, 0);
 		else if (state == 2)
 			inputdevice_swap_compa_ports(&changed_prefs, 2);
+		break;
+	case AKS_PASTE:
+		target_paste_to_keyboard();
 		break;
 	case AKS_SWITCHINTERPOL:
 		changed_prefs.sound_interpol++;
@@ -4753,9 +4758,9 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 			if (newslot >= 0) {
 				TCHAR cust[100];
 				_stprintf(cust, _T("custom%d"), newslot);
-				inputdevice_joyport_config(&changed_prefs, cust, NULL, newport, -1, 0, true);
+				inputdevice_joyport_config(&changed_prefs, cust, cust, newport, -1, 0, true);
 			} else {
-				inputdevice_joyport_config (&changed_prefs, name, NULL, newport, -1, 1, true);
+				inputdevice_joyport_config (&changed_prefs, name, name, newport, -1, 1, true);
 			}
 			inputdevice_validate_jports (&changed_prefs, -1, NULL);
 			inputdevice_copyconfig (&changed_prefs, &currprefs);

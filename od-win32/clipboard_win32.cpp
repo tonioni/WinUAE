@@ -10,6 +10,7 @@
 #include "traps.h"
 #include "clipboard_win32.h"
 #include "clipboard.h"
+#include "keybuf.h"
 
 #include "threaddep/thread.h"
 #include "memory.h"
@@ -117,6 +118,13 @@ static int parsecsi (const char *txt, int off, int len)
 	return off;
 }
 
+static void to_keyboard(const TCHAR *pctxt)
+{
+	uae_char *txt = ua(pctxt);
+	keybuf_inject(txt);
+	xfree(txt);
+}
+
 static TCHAR *amigatopc (const char *txt)
 {
 	int i, j, cnt;
@@ -157,7 +165,6 @@ static TCHAR *amigatopc (const char *txt)
 	xfree (txt2);
 	return s;
 }
-
 
 static void to_iff_text(TrapContext *ctx, const TCHAR *pctxt)
 {
@@ -716,13 +723,13 @@ void clipboard_disable (bool disabled)
 	clip_disabled = disabled;
 }
 
-static void clipboard_read(TrapContext *ctx, HWND hwnd)
+static void clipboard_read(TrapContext *ctx, HWND hwnd, bool keyboardinject)
 {
 	HGLOBAL hglb;
 	UINT f;
 	int text = FALSE, bmp = FALSE;
 
-	if (clip_disabled)
+	if (clip_disabled || !hwnd)
 		return;
 	if (to_amiga) {
 #if DEBUG_CLIP > 0
@@ -740,7 +747,7 @@ static void clipboard_read(TrapContext *ctx, HWND hwnd)
 	while (f = EnumClipboardFormats (f)) {
 		if (f == CF_UNICODETEXT)
 			text = TRUE;
-		if (f == CF_BITMAP)
+		if (f == CF_BITMAP && !keyboardinject)
 			bmp = TRUE;
 	}
 	if (text) {
@@ -751,7 +758,11 @@ static void clipboard_read(TrapContext *ctx, HWND hwnd)
 #if DEBUG_CLIP > 0
 				write_log (_T("clipboard: CF_UNICODETEXT '%s'\n"), lptstr);
 #endif
-				to_iff_text(ctx, lptstr);
+				if (keyboardinject) {
+					to_keyboard(lptstr);
+				} else {
+					to_iff_text(ctx, lptstr);
+				}
 				GlobalUnlock (hglb);
 			}
 		}
@@ -784,7 +795,9 @@ void clipboard_changed (HWND hwnd)
 #if DEBUG_CLIP > 0
 	write_log (_T("clipboard: windows clipboard changed message\n"));
 #endif
-	if (!clipboard_data || !initialized)
+	if (!initialized)
+		return;
+	if (!clipboard_data)
 		return;
 	if (clipopen)
 		return;
@@ -792,7 +805,7 @@ void clipboard_changed (HWND hwnd)
 		clipboard_change = 1;
 		return;
 	}
-	clipboard_read(NULL, hwnd);
+	clipboard_read(NULL, hwnd, false);
 }
 
 static int clipboard_put_bmp_real (HBITMAP hbmp)
@@ -868,7 +881,7 @@ void amiga_clipboard_init(TrapContext *ctx)
 	signaling = 0;
 	write_log (_T("clipboard initialized\n"));
 	initialized = 1;
-	clipboard_read(ctx, chwnd);
+	clipboard_read(ctx, chwnd, false);
 }
 
 void amiga_clipboard_task_start(TrapContext *ctx, uaecptr data)
@@ -931,7 +944,7 @@ void clipboard_active(HWND hwnd, int active)
 	if (!initialized)
 		return;
 	if (clipactive && clipboard_change) {
-		clipboard_read(NULL, hwnd);
+		clipboard_read(NULL, hwnd, false);
 	}
 	if (!clipactive && clipboard_delayed_data) {
 		if (clipboard_delayed_size < 0) {
@@ -987,4 +1000,9 @@ void clipboard_init (HWND hwnd)
 {
 	chwnd = hwnd;
 	hdc = GetDC (chwnd);
+}
+
+void target_paste_to_keyboard(void)
+{
+	clipboard_read(NULL, chwnd, true);
 }
