@@ -2262,7 +2262,7 @@ static int getd3dadapter (IDirect3D9 *d3d)
 static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmult)
 {
 	HRESULT ret, hr;
-	static TCHAR errmsg[100] = { 0 };
+	static TCHAR errmsg[300] = { 0 };
 	D3DDISPLAYMODE mode = { 0 };
 	D3DCAPS9 d3dCaps;
 	int adapter;

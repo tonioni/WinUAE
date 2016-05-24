@@ -9655,7 +9655,11 @@ static void values_to_kickstartdlg (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_KICKSHIFTER, workprefs.kickshifter);
 	CheckDlgButton(hDlg, IDC_MAPROM, workprefs.maprom);
 
-	SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_SETCURSEL, workprefs.uaeboard, 0);
+	if (workprefs.boot_rom == 1) {
+		SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_SETCURSEL, 0, 0);
+	} else {
+		SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_SETCURSEL, workprefs.uaeboard + 1, 0);
+	}
 }
 
 static void values_from_kickstartdlg(HWND hDlg)
@@ -9664,7 +9668,14 @@ static void values_from_kickstartdlg(HWND hDlg)
 	getromfile(hDlg, IDC_ROMFILE2, workprefs.romextfile, sizeof(workprefs.romextfile) / sizeof(TCHAR));
 	getromfile(hDlg, IDC_CARTFILE, workprefs.cartfile, sizeof(workprefs.cartfile) / sizeof(TCHAR));
 
-	workprefs.uaeboard = SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_GETCURSEL, 0, 0);
+	int v = SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_GETCURSEL, 0, 0);
+	if (v > 0) {
+		workprefs.uaeboard = v - 1;
+		workprefs.boot_rom = 0;
+	} else {
+		workprefs.uaeboard = 0;
+		workprefs.boot_rom = 1; // disabled
+	}
 }
 
 static void init_kickstart (HWND hDlg)
@@ -9689,6 +9700,7 @@ static void init_kickstart (HWND hDlg)
 	ew(hDlg, IDC_UAEBOARD_TYPE, full_property_sheet);
 
 	SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("ROM disabled"));
 	SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("Original UAE (FS + F0 ROM)"));
 	SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("New UAE (64k + F0 ROM)"));
 	SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("New UAE (128k, ROM, Direct)"));

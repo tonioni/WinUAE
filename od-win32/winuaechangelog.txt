@@ -1,4 +1,14 @@
 
+Beta 15:
+
+- Remove unmatched characters from keyboard injected paste event. (Previously was replaced with spaces).
+- Delay each paste injected key press and release a bit. Some programs don't like too fast key events.
+- Restoring statefile with blitter active and it was force-finished (=not cycle-exact mode): blitter
+  interrupt was not correctly generated when restoring state file.
+- Fixed Direct3D mode DirectX9 install warning buffer overflow.
+- Added "ROM disabled" to ROM panel Boot ROM selection. "ROM disabled" = force disable UAE boot ROM even
+  if one or more UAE expansions are configured.
+
 Beta 14:
 
 - AGA subpixel scrolling: if line's parameters didn't change compared to previous field's line, line was

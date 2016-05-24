@@ -6188,10 +6188,6 @@ STATIC_INLINE int copper_cant_read2 (int hpos, int alloc)
 	if ((hpos == maxhpos - 3) && (maxhpos & 1) && alloc >= 0) {
 		if (alloc) {
 			alloc_cycle (hpos, CYCLE_COPPER);
-#ifdef DEBUGGER
-			if (debug_dma)
-				record_dma_event (DMA_EVENT_COPPERWANTED, hpos, vpos);
-#endif
 		}
 		return -1;
 	}
@@ -6202,7 +6198,7 @@ static int copper_cant_read (int hpos, int alloc)
 {
 	int cant = copper_cant_read2 (hpos, alloc);
 #ifdef DEBUGGER
-	if (cant && debug_dma && alloc)
+	if (cant && debug_dma)
 		record_dma_event (DMA_EVENT_COPPERWANTED, hpos, vpos);
 #endif
 	return cant;
