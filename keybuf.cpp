@@ -31,6 +31,7 @@ static uae_char *keyinject;
 static int keyinject_offset;
 static uae_u8 keyinject_previous;
 static bool keyinject_state;
+static bool keyinject_do;
 
 struct kbtab
 {
@@ -184,11 +185,27 @@ static void keytoscancode(int key, bool release)
 	}
 }
 
+// delay injection, some programs don't like too fast key events
+static bool can_inject(void)
+{
+	static int ovpos, cnt;
+
+	if (ovpos == vpos)
+		return false;
+	ovpos = vpos;
+	cnt++;
+	if (cnt < 4)
+		return false;
+	cnt = 0;
+	keyinject_do = true;
+	return true;
+}
+
 int keys_available (void)
 {
 	int val;
 	val = kpb_first != kpb_last;
-	if ((keyinject && keyinject[keyinject_offset]) || keyinject_state)
+	if (can_inject() && ((keyinject && keyinject[keyinject_offset]) || keyinject_state))
 		val = 1;
 	return val;
 }
@@ -197,20 +214,23 @@ int get_next_key (void)
 {
 	int key;
 
-	if (keyinject_state) {
-		key = keyinject_previous;
-		keyinject_state = false;
-		keytoscancode(key, true);
-	} else if (keyinject) {
-		key = keyinject[keyinject_offset++];
-		keyinject_previous = key;
-		keyinject_state = true;
-		if (keyinject[keyinject_offset] == 0) {
-			xfree(keyinject);
-			keyinject = NULL;
-			keyinject_offset =0;
+	if (keyinject_do) {
+		keyinject_do = false;
+		if (keyinject_state) {
+			key = keyinject_previous;
+			keyinject_state = false;
+			keytoscancode(key, true);
+		} else if (keyinject) {
+			key = keyinject[keyinject_offset++];
+			keyinject_previous = key;
+			keyinject_state = true;
+			if (keyinject[keyinject_offset] == 0) {
+				xfree(keyinject);
+				keyinject = NULL;
+				keyinject_offset =0;
+			}
+			keytoscancode(key, false);
 		}
-		keytoscancode(key, false);
 	}
 
 	assert (kpb_first != kpb_last);
@@ -248,12 +268,34 @@ int record_key_direct (int kc)
 void keybuf_init (void)
 {
 	kpb_first = kpb_last = 0;
+	keyinject_offset = 0;
+	xfree(keyinject);
+	keyinject = NULL;
 	inputdevice_updateconfig (&changed_prefs, &currprefs);
 }
 
-void keybuf_inject(uae_char *txt)
+void keybuf_inject(const uae_char *txt)
 {
+	uae_char *newbuf = xmalloc(uae_char, strlen(txt) + 1);
+	uae_char *p = newbuf;
+
+	for (int j = 0; j < strlen(txt); j++) {
+		uae_char c = txt[j];
+		bool found = false;
+		for (int i = 0; kbtable[i].ascii; i++) {
+			if (kbtable[i].ascii == c)
+				found = true;
+		}
+		if (found)
+			*p++= c;
+
+	}
+	*p = 0;
+	if (p == newbuf) {
+		xfree(newbuf);
+		return;
+	}
 	xfree(keyinject);
 	keyinject_offset = 0;
-	keyinject = strdup(txt);
+	keyinject = newbuf;
 }
