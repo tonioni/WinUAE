@@ -1103,6 +1103,15 @@ void decide_blitter (int hpos)
 {
 	int hsync = hpos < 0;
 
+	if (hsync && blt_delayed_irq) {
+		if (blt_delayed_irq > 0)
+			blt_delayed_irq--;
+		if (blt_delayed_irq <= 0) {
+			blt_delayed_irq = 0;
+			send_interrupt(6, 2 * CYCLE_UNIT);
+		}
+	}
+
 	if (immediate_blits) {
 		if (bltstate == BLT_done)
 			return;
@@ -1113,12 +1122,6 @@ void decide_blitter (int hpos)
 
 	if (blit_startcycles > 0)
 		do_startcycles (hpos);
-
-	if (blt_delayed_irq > 0 && hsync) {
-		blt_delayed_irq--;
-		if (!blt_delayed_irq)
-			send_interrupt (6, 2 * CYCLE_UNIT);
-	}
 
 	if (bltstate == BLT_done)
 		return;
@@ -1784,7 +1787,7 @@ void restore_blitter_finish (void)
 		if (blt_delayed_irq < 0) {
 			if (intreq & 0x0040)
 				blt_delayed_irq = 3;
-			intreq &= 0x0040;
+			intreq &= ~0x0040;
 		}
 	} else {
 		last_blitter_hpos = 0;
