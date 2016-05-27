@@ -188,6 +188,7 @@ static volatile bool cpu_wakeup_event_triggered;
 int sleep_resolution;
 static CRITICAL_SECTION cs_time;
 
+TCHAR executable_path[MAX_DPATH];
 TCHAR start_path_data[MAX_DPATH];
 TCHAR start_path_exe[MAX_DPATH];
 TCHAR start_path_plugins[MAX_DPATH];
@@ -4458,7 +4459,7 @@ static int shell_associate_2 (const TCHAR *extension, TCHAR *shellcommand, TCHAR
 				_tcscpy (tmp, rpath2);
 				_tcscat (tmp, _T("\\DefaultIcon"));
 				if (RegCreateKeyEx (rkey, tmp, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE | KEY_READ, NULL, &key2, &disposition) == ERROR_SUCCESS) {
-					_stprintf (tmp, _T("%s,%d"), _wpgmptr, -icon);
+					_stprintf (tmp, _T("%s,%d"), executable_path, -icon);
 					RegSetValueEx (key2, _T(""), 0, REG_SZ, (CONST BYTE *)tmp, (_tcslen (tmp) + 1) * sizeof (TCHAR));
 					RegCloseKey (key2);
 				}
@@ -4488,7 +4489,7 @@ static int shell_associate_2 (const TCHAR *extension, TCHAR *shellcommand, TCHAR
 				if (RegCreateKeyEx (rkey, path2, 0, NULL, REG_OPTION_NON_VOLATILE,
 					KEY_WRITE | KEY_READ, NULL, &key1, &disposition) == ERROR_SUCCESS) {
 						TCHAR tmp[MAX_DPATH];
-						_stprintf (tmp, _T("%s,%d"), _wpgmptr, -cc[i].icon);
+						_stprintf (tmp, _T("%s,%d"), executable_path, -cc[i].icon);
 						RegSetValueEx (key1, _T("Icon"), 0, REG_SZ, (CONST BYTE *)tmp, (_tcslen (tmp) + 1) * sizeof (TCHAR));
 						RegCloseKey (key1);
 				}
@@ -4613,7 +4614,7 @@ static void associate_init_extensions (void)
 			TCHAR tmp[MAX_DPATH];
 			DWORD size = sizeof tmp / sizeof (TCHAR);
 			if (RegQueryValueEx (key1, NULL, NULL, NULL, (LPBYTE)tmp, &size) == ERROR_SUCCESS) {
-				if (!_tcsicmp (tmp, _wpgmptr))
+				if (!_tcsicmp (tmp, executable_path))
 					setit = false;
 			}
 			RegCloseKey (key1);
@@ -4621,7 +4622,7 @@ static void associate_init_extensions (void)
 		if (setit) {
 			if (RegCreateKeyEx (rkey, rpath, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, NULL, &key1, &disposition) == ERROR_SUCCESS) {
 				DWORD val = 1;
-				RegSetValueEx (key1, _T(""), 0, REG_SZ, (CONST BYTE *)_wpgmptr, (_tcslen (_wpgmptr) + 1) * sizeof (TCHAR));
+				RegSetValueEx (key1, _T(""), 0, REG_SZ, (CONST BYTE *)executable_path, (_tcslen (executable_path) + 1) * sizeof (TCHAR));
 				RegSetValueEx (key1, _T("UseUrl"), 0, REG_DWORD, (LPBYTE)&val, sizeof val);
 				_tcscpy (rpath, start_path_exe);
 				rpath[_tcslen (rpath) - 1] = 0;
@@ -5169,7 +5170,7 @@ static void getstartpaths (void)
 	if (!_tcscmp (prevpath, _T("AMIGAFOREVERDATA")))
 		path_type = PATH_TYPE_AMIGAFOREVERDATA;
 
-	GetFullPathName (_wpgmptr, sizeof start_path_exe / sizeof (TCHAR), start_path_exe, NULL);
+	_tcscpy(start_path_exe, executable_path);
 	if((posn = _tcsrchr (start_path_exe, '\\')))
 		posn[1] = 0;
 
@@ -5414,8 +5415,8 @@ static TCHAR *getdefaultini (int *tempfile)
 	
 	*tempfile = 0;
 	path[0] = 0;
-	if (!GetFullPathName (_wpgmptr, sizeof path / sizeof (TCHAR), path, NULL))
-		_tcscpy (path, _wpgmptr);
+	if (!GetFullPathName (executable_path, sizeof path / sizeof (TCHAR), path, NULL))
+		_tcscpy (path, executable_path);
 	TCHAR *posn;
 	if((posn = _tcsrchr (path, '\\')))
 		posn[1] = 0;
@@ -5850,7 +5851,7 @@ static int process_arg (TCHAR *cmdline, TCHAR **xargv, TCHAR ***xargv3)
 		return 0;
 	added = 0;
 	xargc = 0;
-	xargv[xargc++] = my_strdup (_wpgmptr);
+	xargv[xargc++] = my_strdup (executable_path);
 	fd = 0;
 	for (i = 0; argv[i]; i++) {
 		// resolve .lnk paths
@@ -6885,6 +6886,9 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	}
 #endif
 #endif
+	executable_path[0] = 0;
+	GetModuleFileName(NULL, executable_path, sizeof executable_path / sizeof(TCHAR));
+
 	SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 	currprefs.win32_filesystem_mangle_reserved_names = true;
 	SetDllDirectory (_T(""));

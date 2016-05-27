@@ -418,7 +418,7 @@ int reginitializeinit (TCHAR **pppath)
 		int ok = 0;
 		TCHAR *posn;
 		path[0] = 0;
-		GetFullPathName (_wpgmptr, sizeof path / sizeof (TCHAR), path, NULL);
+		GetFullPathName (executable_path, sizeof path / sizeof (TCHAR), path, NULL);
 		if (_tcslen (path) > 4 && !_tcsicmp (path + _tcslen (path) - 4, _T(".exe"))) {
 			_tcscpy (path + _tcslen (path) - 3, _T("ini"));
 			if (GetFileAttributes (path) != INVALID_FILE_ATTRIBUTES)
@@ -426,7 +426,7 @@ int reginitializeinit (TCHAR **pppath)
 		}
 		if (!ok) {
 			path[0] = 0;
-			GetFullPathName (_wpgmptr, sizeof path / sizeof (TCHAR), path, NULL);
+			GetFullPathName (executable_path, sizeof path / sizeof (TCHAR), path, NULL);
 			if((posn = _tcsrchr (path, '\\')))
 				posn[1] = 0;
 			_tcscat (path, _T("winuae.ini"));
