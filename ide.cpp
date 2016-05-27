@@ -805,13 +805,13 @@ static void do_process_rw_command (struct ide_hdf *ide)
 		if (last) {
 			ide_fast_interrupt(ide);
 		} else {
-			ide->irq_delay = 1;
+			ide_interrupt(ide);
 		}
 	} else {
 		if (ide->buffer_offset == 0) {
 			ide_fast_interrupt(ide);
 		} else {
-			ide->irq_delay = 1;
+			ide_interrupt(ide);
 		}
 	}
 }
