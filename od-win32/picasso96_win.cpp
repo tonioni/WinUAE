@@ -473,20 +473,6 @@ static int CopyPatternStructureA2U(TrapContext *ctx, uaecptr amigamemptr, struct
 	return 0;
 }
 
-static void CopyColorIndexMappingA2U(TrapContext *ctx, uaecptr amigamemptr, struct ColorIndexMapping *cim, int Bpp)
-{
-	int i;
-	uae_u32 buf[1 + 256];
-
-	trap_get_longs(ctx, buf, amigamemptr, 1 + 256);
-	cim->ColorMask = buf[0];
-	for (i = 0; i < 256; i++) {
-		uae_u32 v = buf[i + 1];
-		endianswap (&v, Bpp);
-		cim->Colors[i] = v;
-	}
-}
-
 static int CopyBitMapStructureA2U(TrapContext *ctx, uaecptr amigamemptr, struct BitMap *bm)
 {
 	int i;
@@ -3762,7 +3748,7 @@ static uae_u32 REGPARAM2 picasso_BlitPlanar2Chunky (TrapContext *ctx)
 static void PlanarToDirect (TrapContext *ctx, struct RenderInfo *ri, struct BitMap *bm,
 	unsigned long srcx, unsigned long srcy,
 	unsigned long dstx, unsigned long dsty,
-	unsigned long width, unsigned long height, uae_u8 mask, struct ColorIndexMapping *cim)
+	unsigned long width, unsigned long height, uae_u8 mask, uaecptr acim)
 {
 	int j;
 	int bpp = GetBytesPerPixel (ri->RGBFormat);
@@ -3773,6 +3759,8 @@ static void PlanarToDirect (TrapContext *ctx, struct RenderInfo *ri, struct BitM
 	unsigned long rows;
 	long eol_offset;
 	bool indirect = trap_is_indirect();
+	int maxc = -1;
+	uae_u32 cim[256];
 
 	if(!bpp)
 		return;
@@ -3831,20 +3819,44 @@ static void PlanarToDirect (TrapContext *ctx, struct RenderInfo *ri, struct BitM
 					v |= ((*PLANAR[k] >> bitoffs) & 1) << k;
 				}
 			}
+
+			// most operations use only low palette values
+			// do not fetch and convert whole palette unless needed
+			if (v > maxc) {
+				if (v < 4)
+					v = 4;
+				else if (v < 8)
+					v = 8;
+				else if (v < 16)
+					v = 16;
+				else if (v < 32)
+					v = 32;
+				else if (v < 64)
+					v = 64;
+				else
+					v = 256;
+				trap_get_longs(ctx, &cim[maxc + 1], acim + 4 + (maxc + 1) * 4, v - maxc);
+				for (int i = maxc + 1; i <= v; i++) {
+					endianswap(&cim[i], bpp);
+				}
+				maxc = v;
+			}
+
+
 			switch (bpp)
 			{
 			case 2:
-				((uae_u16 *)image2)[0] = (uae_u16)(cim->Colors[v]);
+				((uae_u16 *)image2)[0] = (uae_u16)(cim[v]);
 				image2 += 2;
 				break;
 			case 3:
-				image2[0] = cim->Colors[v] >> 0;
-				image2[1] = cim->Colors[v] >> 8;
-				image2[2] = cim->Colors[v] >> 16;
+				image2[0] = cim[v] >> 0;
+				image2[1] = cim[v] >> 8;
+				image2[2] = cim[v] >> 16;
 				image2 += 3;
 				break;
 			case 4:
-				((uae_u32 *)image2)[0] = cim->Colors[v];
+				((uae_u32 *)image2)[0] = cim[v];
 				image2 += 4;
 				break;
 			}
@@ -3870,7 +3882,8 @@ static void PlanarToDirect (TrapContext *ctx, struct RenderInfo *ri, struct BitM
 			}
 		}
 	}
-	xfree(planebuf);
+	if (planebuf)
+		xfree(planebuf);
 }
 
 /*
@@ -3927,10 +3940,9 @@ static uae_u32 REGPARAM2 picasso_BlitPlanar2Direct (TrapContext *ctx)
 	}
 	if (CopyRenderInfoStructureA2U(ctx, ri, &local_ri) && CopyBitMapStructureA2U(ctx, bm, &local_bm)) {
 		Mask = 0xFF;
-		CopyColorIndexMappingA2U(ctx, cim, &local_cim, GetBytesPerPixel (local_ri.RGBFormat));
 		P96TRACE((_T("BlitPlanar2Direct(%d, %d, %d, %d, %d, %d) Minterm 0x%x, Mask 0x%x, Depth %d\n"),
 			srcx, srcy, dstx, dsty, width, height, minterm, Mask, local_bm.Depth));
-		PlanarToDirect(ctx, &local_ri, &local_bm, srcx, srcy, dstx, dsty, width, height, Mask, &local_cim);
+		PlanarToDirect(ctx, &local_ri, &local_bm, srcx, srcy, dstx, dsty, width, height, Mask, cim);
 		result = 1;
 	}
 	return result;
