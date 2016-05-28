@@ -5324,7 +5324,7 @@ static void setmultiautocomplete (HWND hDlg, int *ids)
 		setautocomplete (hDlg, ids[i]);
 }
 
-static void setpath (HWND hDlg, TCHAR *name, DWORD d, TCHAR *def)
+static void wsetpath (HWND hDlg, TCHAR *name, DWORD d, TCHAR *def)
 {
 	TCHAR tmp[MAX_DPATH];
 
@@ -5335,13 +5335,35 @@ static void setpath (HWND hDlg, TCHAR *name, DWORD d, TCHAR *def)
 
 static void values_to_pathsdialog (HWND hDlg)
 {
-	setpath (hDlg, _T("KickstartPath"), IDC_PATHS_ROM, _T("Roms"));
-	setpath (hDlg, _T("ConfigurationPath"), IDC_PATHS_CONFIG, _T("Configurations"));
-	setpath (hDlg, _T("ScreenshotPath"), IDC_PATHS_SCREENSHOT, _T("ScreenShots"));
-	setpath (hDlg, _T("StatefilePath"), IDC_PATHS_SAVESTATE, _T("Savestates"));
-	setpath (hDlg, _T("SaveimagePath"), IDC_PATHS_SAVEIMAGE, _T("SaveImages"));
-	setpath (hDlg, _T("VideoPath"), IDC_PATHS_AVIOUTPUT, _T("Videos"));
-	setpath (hDlg, _T("RipperPath"), IDC_PATHS_RIP, _T(".\\"));
+	wsetpath (hDlg, _T("KickstartPath"), IDC_PATHS_ROM, _T("Roms"));
+	wsetpath (hDlg, _T("ConfigurationPath"), IDC_PATHS_CONFIG, _T("Configurations"));
+	wsetpath (hDlg, _T("ScreenshotPath"), IDC_PATHS_SCREENSHOT, _T("ScreenShots"));
+	wsetpath (hDlg, _T("StatefilePath"), IDC_PATHS_SAVESTATE, _T("Savestates"));
+	wsetpath (hDlg, _T("SaveimagePath"), IDC_PATHS_SAVEIMAGE, _T("SaveImages"));
+	wsetpath (hDlg, _T("VideoPath"), IDC_PATHS_AVIOUTPUT, _T("Videos"));
+	wsetpath (hDlg, _T("RipperPath"), IDC_PATHS_RIP, _T(".\\"));
+}
+
+static const TCHAR *pathnames[] = {
+	_T("KickstartPath"),
+	_T("ConfigurationPath"),
+	_T("ScreenshotPath"),
+	_T("StatefilePath"),
+	_T("SaveimagePath"),
+	_T("VideoPath"),
+	_T("RipperPath"),
+	_T("LuaPath"),
+	_T("InputPath"),
+	NULL
+};
+
+static void rewritepaths(void)
+{
+	for(int i = 0; pathnames[i]; i++) {
+		TCHAR tmp[MAX_DPATH];
+		fetch_path(pathnames[i], tmp, sizeof(tmp) / sizeof TCHAR);
+		set_path(pathnames[i], tmp);
+	}
 }
 
 static void resetregistry (void)
@@ -5798,6 +5820,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			case IDC_PATHS_RELATIVE:
 				relativepaths = ischecked (hDlg, IDC_PATHS_RELATIVE) ? 1 : 0;
 				regsetint (NULL, _T("RelativePaths"), relativepaths);
+				rewritepaths();
 				break;
 			}
 		}
