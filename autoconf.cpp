@@ -54,6 +54,8 @@ addrbank rtarea_bank = {
 
 static void hwtrap_check_int(void)
 {
+	if (currprefs.uaeboard < 2)
+		return;
 	if (hwtrap_waiting == 0) {
 		atomic_and(&uae_int_requested, ~0x2000);
 	} else {
@@ -92,18 +94,24 @@ bool rethink_traps(void)
 
 static bool rtarea_trap_data(uaecptr addr)
 {
+	if (currprefs.uaeboard < 2)
+		return false;
 	if (addr >= RTAREA_TRAP_DATA && addr < RTAREA_TRAP_DATA + (RTAREA_TRAP_DATA_NUM + RTAREA_TRAP_DATA_SEND_NUM) * RTAREA_TRAP_DATA_SLOT_SIZE)
 		return true;
 	return false;
 }
 static bool rtarea_trap_status(uaecptr addr)
 {
+	if (currprefs.uaeboard < 2)
+		return false;
 	if (addr >= RTAREA_TRAP_STATUS && addr < RTAREA_TRAP_STATUS + (RTAREA_TRAP_DATA_NUM + RTAREA_TRAP_DATA_SEND_NUM) * RTAREA_TRAP_STATUS_SIZE)
 		return true;
 	return false;
 }
 static bool rtarea_trap_status_extra(uaecptr addr)
 {
+	if (currprefs.uaeboard < 2)
+		return false;
 	if (addr >= RTAREA_TRAP_STATUS + 0x100 && addr < RTAREA_TRAP_STATUS + 0x100 + (RTAREA_TRAP_DATA_NUM + RTAREA_TRAP_DATA_SEND_NUM) * RTAREA_TRAP_STATUS_SIZE)
 		return true;
 	return false;
