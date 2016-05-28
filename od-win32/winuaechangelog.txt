@@ -1,4 +1,13 @@
 
+Beta 16:
+
+- Replaced obsolete Logitech LCD API usage with current version. No other changes, still plain black and white only.
+- Fixed IDE emulation corner case when polling (not using interrupt) BSY bit.
+- Changing GUI relative path mode immediately updates paths stored in registry. (Older WinUAE versions don't
+  understand relative paths in registry, switch off relative mode if you use old versions)
+- Fixed directory filesystem slowdown introduced when it was converted to OS4 compatible trap system (b3).
+- Replaced obsoleted _wpgmptr with GetModuleFileName()
+
 Beta 15:
 
 - Remove unmatched characters from keyboard injected paste event. (Previously was replaced with spaces).
