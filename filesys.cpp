@@ -1240,7 +1240,9 @@ struct hardfiledata *get_hardfile_data (int nr)
 
 typedef struct _dpacket {
 	uaecptr packet_addr;
-	uae_u8 packet_data[dp_Max];
+	uae_u8 *packet_data;
+	uae_u8 packet_array[dp_Max];
+	bool need_flush;
 } dpacket;
 
 typedef struct {
@@ -1397,10 +1399,19 @@ static void readdpacket(TrapContext *ctx, dpacket *packet, uaecptr pck)
 {
 	// Read enough to get also all 64-bit fields
 	packet->packet_addr = pck;
-	trap_get_bytes(ctx, packet->packet_data, pck, dp_Max);
+	if (trap_is_indirect() || !valid_address(pck, dp_Max)) {
+		trap_get_bytes(ctx, packet->packet_array, pck, dp_Max);
+		packet->packet_data = packet->packet_array;
+		packet->need_flush = true;
+	} else {
+		packet->packet_data = get_real_address(pck);
+		packet->need_flush = false;
+	}
 }
 static void writedpacket(TrapContext *ctx, dpacket *packet)
 {
+	if (!packet->need_flush)
+		return;
 	int type = GET_PCK_TYPE(packet);
 	if (type >= 8000 && type < 9000 && GET_PCK64_RES0(packet) == DP64_INIT) {
 		// 64-bit RESx fields
@@ -4007,7 +4018,14 @@ static void get_fileinfo(TrapContext *ctx, Unit *unit, dpacket *packet, uaecptr 
 	int fsdb_can = fsdb_cando (unit);
 	const TCHAR *xs;
 	char *x, *x2;
-	uae_u8 buf[260] = { 0 };
+	uae_u8 *buf;
+	uae_u8 buf_array[260] = { 0 };
+
+	if (trap_is_indirect() || !valid_address(info, (sizeof buf_array) - 36)) {
+		buf = buf_array;
+	} else {
+		buf = get_real_address(info);
+	}
 
 	if (aino->vfso) {
 		fsdb_can = 1;
@@ -4096,14 +4114,18 @@ static void get_fileinfo(TrapContext *ctx, Unit *unit, dpacket *packet, uaecptr 
 			put_byte_host(buf + i, 0), i++;
 		xfree (x2);
 	}
-	// Must not write Fib_reserved at the end.
-	if (kickstart_version >= 36) {
-		// FIB + fib_OwnerUID and fib_OwnerGID
-		trap_put_bytes(ctx, buf, info, (sizeof buf) - 32);
-	} else {
-		// FIB only
-		trap_put_bytes(ctx, buf, info, (sizeof buf) - 36);
+
+	if (buf == buf_array) {
+		// Must not write Fib_reserved at the end.
+		if (kickstart_version >= 36) {
+			// FIB + fib_OwnerUID and fib_OwnerGID
+			trap_put_bytes(ctx, buf, info, (sizeof buf_array) - 32);
+		} else {
+			// FIB only
+			trap_put_bytes(ctx, buf, info, (sizeof buf_array) - 36);
+		}
 	}
+
 	PUT_PCK_RES1 (packet, DOS_TRUE);
 }
 
@@ -6714,6 +6736,7 @@ static uae_u32 REGPARAM2 exter_int_helper(TrapContext *ctx)
 		unit_no = 0;
 	}
 	if (n >= 10) {
+
 		/* Find work that needs to be done:
 		* return d0 = 0: none
 		*        d0 = 1: PutMsg(), port in a0, message in a1
@@ -6934,6 +6957,8 @@ static int filesys_iteration(UnitInfo *ui)
 	dpacket packet;
 	readdpacket(ctx, &packet, pck);
 
+	int isvolume = 0;
+#if TRAPMD
 	trapmd md[] = {
 		{ TRAPCMD_GET_LONG, { morelocks }, 2, 0 },
 		{ TRAPCMD_GET_LONG, { ui->self->locklist }, 2, 1 },
@@ -6943,14 +6968,15 @@ static int filesys_iteration(UnitInfo *ui)
 	};
 	trap_multi(ctx, md, sizeof md / sizeof(struct trapmd));
 
-	int isvolume = 0;
 	if (ui->self->volume) {
 		isvolume = md[4].params[0] || ui->self->ui.unknown_media;
 	}
-
-#if 0
+#else
 	trap_put_long(ctx, trap_get_long(ctx, morelocks), trap_get_long(ctx, ui->self->locklist));
 	trap_put_long(ctx, ui->self->locklist, morelocks);
+	if (ui->self->volume) {
+		isvolume = trap_get_byte(ctx, ui->self->volume + 64) || ui->self->ui.unknown_media;
+	}
 #endif
 
 	int ret = handle_packet(ctx, ui->self, &packet, msg, isvolume);
@@ -6965,23 +6991,24 @@ static int filesys_iteration(UnitInfo *ui)
 		{ TRAPCMD_GET_LONG, { ui->self->locklist } },
 		{ TRAPCMD_PUT_LONG, { ui->self->locklist, 0 } }
 	};
-	struct trapmd *mdp = &md2[1];
-	int mdcnt = 2;
-
+	struct trapmd *mdp;
+	int mdcnt;
 	if (ret >= 0) {
 		mdp = &md2[0];
 		mdcnt = 3;
 		/* Mark the packet as processed for the list scan in the assembly code. */
 		//trap_put_long(ctx, msg + 4, 0xffffffff);
+	} else {
+		mdp = &md2[1];
+		mdcnt = 2;
 	}
 	/* Acquire the message lock, so that we know we can safely send the message. */
 	ui->self->cmds_sent++;
+
 	/* Send back the locks. */
-
 	trap_multi(ctx, mdp, mdcnt);
-
-	if (md2[1].params[1] != 0)
-		write_comm_pipe_int(ui->back_pipe, (int)md2[1].params[1], 0);
+	if (md2[1].params[0] != 0)
+		write_comm_pipe_int(ui->back_pipe, (int)md2[1].params[0], 0);
 
 	/* The message is sent by our interrupt handler, so make sure an interrupt happens. */
 	do_uae_int_requested();
@@ -7014,6 +7041,7 @@ static void *filesys_thread (void *unit_v)
 /* Talk about spaghetti code... */
 static uae_u32 REGPARAM2 filesys_handler(TrapContext *ctx)
 {
+	bool packet_valid = false;
 	Unit *unit = find_unit(trap_get_areg(ctx, 5));
 	uaecptr packet_addr = trap_get_dreg(ctx, 3);
 	uaecptr message_addr = trap_get_areg(ctx, 4);
@@ -7078,9 +7106,12 @@ static uae_u32 REGPARAM2 filesys_handler(TrapContext *ctx)
 
 	dpacket packet;
 	readdpacket(ctx, &packet, packet_addr);
+	packet_valid = true;
 
 	if (! handle_packet(ctx, unit, &packet, 0, filesys_isvolume(unit))) {
 error:
+		if (!packet_valid)
+			readdpacket(ctx, &packet, packet_addr);
 		PUT_PCK_RES1 (&packet, DOS_FALSE);
 		PUT_PCK_RES2 (&packet, ERROR_ACTION_NOT_KNOWN);
 	}
@@ -8710,30 +8741,32 @@ void filesys_vsync (void)
 	if (uae_boot_rom_type <= 0)
 		return;
 
-	if (currprefs.uaeboard > 1) {
+	if (currprefs.uaeboard > 1 && !(uae_int_requested & 1)) {
 		bool req = false;
 		// check if there is waiting requests without signal
 		if (!uae_sem_trywait(&singlethread_int_sem)) {
 			if (comm_pipe_has_data(&native2amiga_pending))
 				req = true;
-			UnitInfo *uip = mountinfo.ui;
-			int unit_no = 0;
-			for (;;) {
-				if (unit_no >= MAX_FILESYSTEM_UNITS)
-					break;
-				if (uip[unit_no].open > 0 && uip[unit_no].self != 0
-					&& uip[unit_no].self->cmds_acked == uip[unit_no].self->cmds_complete
-					&& uip[unit_no].self->cmds_acked != uip[unit_no].self->cmds_sent)
-					break;
-				unit_no++;
-			}
-			if (unit_no < MAX_FILESYSTEM_UNITS) {
-				if (uip[unit_no].self->port)
-					req = true;
+			if (!req) {
+				UnitInfo *uip = mountinfo.ui;
+				int unit_no = 0;
+				for (;;) {
+					if (unit_no >= MAX_FILESYSTEM_UNITS)
+						break;
+					if (uip[unit_no].open > 0 && uip[unit_no].self != 0
+						&& uip[unit_no].self->cmds_acked == uip[unit_no].self->cmds_complete
+						&& uip[unit_no].self->cmds_acked != uip[unit_no].self->cmds_sent)
+						break;
+					unit_no++;
+				}
+				if (unit_no < MAX_FILESYSTEM_UNITS) {
+					if (uip[unit_no].self->port)
+						req = true;
+				}
 			}
 			uae_sem_post(&singlethread_int_sem);
 			if (req)
-				atomic_or(&uae_int_requested, 1);
+				do_uae_int_requested();
 		}
 	}
 

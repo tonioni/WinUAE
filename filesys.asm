@@ -512,7 +512,12 @@ exter_task:
 exter_task_wait
 	move.l #$100,d0
 	jsr -$13e(a6) ;Wait
+	bsr.s exter_do
+	bra.s exter_task_wait
 
+exter_done
+	rts
+exter_do
 	moveq #10,d7
 EXTT_loop
 	move.w #$FF50,d0 ; exter_int_helper
@@ -520,7 +525,7 @@ EXTT_loop
 	move.l d7,d0
 	jsr (a0)
 	tst.l d0
-	beq.w exter_task_wait
+	beq.s exter_done
 	moveq #11,d7
 	cmp.w #1,d0
 	blt.w EXTT_loop
@@ -577,16 +582,21 @@ EXTT_shellexec
 	jsr (a0)
 	bra.w EXTT_loop
 
-	
 exter_server_new:
 	moveq #0,d0
 	move.l (a1)+,a0 ;IO Base
 	tst.b (a0)
 	beq.s .nouaeint
 	move.l (a1)+,a6 ; SysBase
+	
+;	movem.l d7/a0/a2,-(sp)
+;	bsr.w exter_do
+;	movem.l (sp)+,d7/a0/a2
+	
 	move.l (a1),a1 ; Task
 	move.l #$100,d0 ; SIGF_DOS
 	jsr -$144(a6) ; Signal
+
 	moveq #1,d0
 .nouaeint
 	tst.w d0
@@ -799,7 +809,7 @@ setup_exter:
 	lea.l exter_server_new(pc),a0
 	move.l a0,18(a1)
 	move.w #$0214,8(a1)
-	moveq.l #3,d0
+	moveq #3,d0
 	jsr -168(a6) ; AddIntServer
 
 	move.l d2,d0 ; extertask
@@ -1657,7 +1667,7 @@ filesys_mainloop_bcpl:
 	bsr.w allocdevice
 	move.l d0,168(a3)
 
-	moveq.l #0,d5 ; No commands queued.
+	moveq #0,d5 ; No commands queued.
 
 	; Fetch our startup packet
 	move.l d7,d3
@@ -1784,7 +1794,7 @@ nonnotif
 	jsr (a0)
 FSML_check_queue_other:
 	; Go through the queue and reply all those that finished.
-	lea.l 4(a3),a2
+	lea 4(a3),a2
 	move.l (a2),a0
 FSML_check_old:
 	move.l a0,d0
@@ -1815,7 +1825,7 @@ FSML_FromDOS:
 	cmp.l #20,d5
 	bcs  FSML_DoCommand
 	; Too many commands queued.
-	moveq.l #1,d0
+	moveq #1,d0
 	move.l d0,4(a4)
 	bra.b FSML_Enqueue
 
@@ -1870,7 +1880,7 @@ FSML_ReplyOne3:
 
 LockCheck:
 	move.l d5,-(a7)
-	moveq.l #-4,d5  ; Keep three locks
+	moveq #-4,d5  ; Keep three locks
 	move.l (a3),a2
 	move.l a2,d7
 LKCK_Loop:
@@ -1885,8 +1895,8 @@ LKCK_ListEnd:
 	addq.l #1,d5
 	beq.b LKCK_ret
 	move.l d7,a2
-	moveq.l #24,d0 ; sizeof Lock is 20, 4 for chain
-	moveq.l #1,d1 ; MEMF_PUBLIC
+	moveq #24,d0 ; sizeof Lock is 20, 4 for chain
+	moveq #1,d1 ; MEMF_PUBLIC
 	jsr AllocMem(a6)
 	addq.w #1,d6
 	move.l d0,a2
@@ -1903,12 +1913,12 @@ LKCK_TooMany:
 	move.l (a0),d0
 	beq.b LKCK_ret
 
-	moveq.l #0,d0 ; Now we are sure that we really have too many. Delete some.
+	moveq #0,d0 ; Now we are sure that we really have too many. Delete some.
 	move.l d0,(a1)
 LKCK_TooManyLoop:
 	move.l a2,a1
 	move.l (a1),a2
-	moveq.l #24,d0
+	moveq #24,d0
 	jsr FreeMem(a6)
 	add.l #$10000,d6
 	move.l a2,d0
@@ -3251,7 +3261,7 @@ hwtrap_install:
 	clr.w d0
 	move.l d0,a0
 	move.l a6,RTAREA_SYSBASE(a0)
-	moveq.l #26,d0
+	moveq #26,d0
 	move.l #$10001,d1
 	jsr AllocMem(a6)
 	move.l d0,a1
