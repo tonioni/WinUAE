@@ -2599,7 +2599,7 @@ int WIN32_InitHtmlHelp (void)
 	return result;
 }
 
-struct winuae_lang langs[] =
+const struct winuae_lang langs[] =
 {
 	{ LANG_AFRIKAANS, _T("Afrikaans") },
 	{ LANG_ARABIC, _T("Arabic") },
@@ -2684,19 +2684,29 @@ static TCHAR *getlanguagename(DWORD id)
 HMODULE language_load (WORD language)
 {
 	HMODULE result = NULL;
-#if LANG_DLL > 0
-	TCHAR dllbuf[MAX_DPATH];
-	TCHAR *dllname;
 
-	if (language <= 0) {
+	if (language == 0xffff || language == 0) {
 		/* new user-specific Windows ME/2K/XP method to get UI language */
 		language = GetUserDefaultUILanguage ();
 		language &= 0x3ff; // low 9-bits form the primary-language ID
 	}
-	if (language == LANG_GERMAN)
-		hrtmon_lang = 2;
-	if (language == LANG_FRENCH)
-		hrtmon_lang = 3;
+
+	TCHAR kblname[KL_NAMELENGTH];
+	if (GetKeyboardLayoutName(kblname)) {
+		// This is so stupid, function that returns hex number as a string?
+		// GetKeyboardLayout() does not work. It seems to return locale, not keyboard layout.
+		TCHAR *endptr;
+		uae_u32 kbl = _tcstol(kblname, &endptr, 16);
+		uae_u32 kblid = kbl & 0x3ff;
+		if (kblid == LANG_GERMAN)
+			hrtmon_lang = 2;
+		if (kblid == LANG_FRENCH)
+			hrtmon_lang = 3;
+	}
+
+#if LANG_DLL > 0
+	TCHAR dllbuf[MAX_DPATH];
+	TCHAR *dllname;
 	dllname = getlanguagename (language);
 	if (dllname) {
 		DWORD  dwVersionHandle, dwFileVersionInfoSize;
@@ -2772,7 +2782,7 @@ static void pritransla (void)
 static void WIN32_InitLang (void)
 {
 	int lid;
-	WORD langid = -1;
+	WORD langid = 0xffff;
 
 	if (regqueryint (NULL, _T("Language"), &lid))
 		langid = (WORD)lid;
@@ -5805,8 +5815,12 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		rp_screenmode = getval (np);
 		return 2;
 	}
-	if (!_tcscmp (arg, _T("rpinputmode"))) {
-		rp_inputmode = getval (np);
+	if (!_tcscmp(arg, _T("rpinputmode"))) {
+		rp_inputmode = getval(np);
+		return 2;
+	}
+	if (!_tcscmp(arg, _T("hrtmon_keyboard"))) {
+		hrtmon_lang = getval(np);
 		return 2;
 	}
 #endif
