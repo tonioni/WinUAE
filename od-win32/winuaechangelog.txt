@@ -1,4 +1,9 @@
 
+Beta 17:
+
+- Pre-KS1.3 boot hack code and data was overwritten by new resident structure update in b4.
+- PlanarToDirect RTG optimization fixed. (b16 included forgotten borken version).
+
 Beta 16:
 
 - Replaced obsolete Logitech LCD API usage with current version. No other changes, still plain black and white only.

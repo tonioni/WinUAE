@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("16")
+#define WINUAEBETA _T("17")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2016, 5, 28)
+#define WINUAEDATE MAKEBD(2016, 5, 30)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -171,7 +171,7 @@ struct winuae_lang
     WORD id;
     TCHAR *name;
 };
-extern struct winuae_lang langs[];
+extern const struct winuae_lang langs[];
 extern HMODULE language_load (WORD language);
 extern unsigned int fpucontrol;
 extern void fpux_save (int *v);
