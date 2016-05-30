@@ -7571,6 +7571,9 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *ctx)
 		org(temp);
 
 		put_word(resaddr, 0x4e75); // rts
+		resaddr += 2;
+
+		uaecptr resaddr_tmp = resaddr;
 
 		resaddr = resaddr_hack;
 
@@ -7602,6 +7605,8 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *ctx)
 
 		// filesys.asm make_dev D7
 		put_word_host(baseaddr + 0x2112, 1 | 2 | 8 | 16);
+
+		resaddr = resaddr_tmp;
 	}
 
 	trap_set_areg(ctx, 0, last_resident);
@@ -7642,8 +7647,8 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *ctx)
 			tmp += 2;
 		}
 	}
-	//activate_debugger();
 #endif
+	//activate_debugger();
 
 	return 1;
 }
