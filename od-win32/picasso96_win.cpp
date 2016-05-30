@@ -3823,23 +3823,24 @@ static void PlanarToDirect (TrapContext *ctx, struct RenderInfo *ri, struct BitM
 			// most operations use only low palette values
 			// do not fetch and convert whole palette unless needed
 			if (v > maxc) {
-				if (v < 4)
-					v = 4;
-				else if (v < 8)
-					v = 8;
-				else if (v < 16)
-					v = 16;
-				else if (v < 32)
-					v = 32;
-				else if (v < 64)
-					v = 64;
+				int vc = v;
+				if (vc < 3)
+					vc = 3;
+				else if (vc < 7)
+					vc = 7;
+				else if (vc < 15)
+					vc = 15;
+				else if (vc < 31)
+					vc = 32;
+				else if (vc < 63)
+					vc = 63;
 				else
-					v = 256;
-				trap_get_longs(ctx, &cim[maxc + 1], acim + 4 + (maxc + 1) * 4, v - maxc);
-				for (int i = maxc + 1; i <= v; i++) {
+					vc = 255;
+				trap_get_longs(ctx, &cim[maxc + 1], acim + 4 + (maxc + 1) * 4, vc - maxc);
+				for (int i = maxc + 1; i <= vc; i++) {
 					endianswap(&cim[i], bpp);
 				}
-				maxc = v;
+				maxc = vc;
 			}
 
 
