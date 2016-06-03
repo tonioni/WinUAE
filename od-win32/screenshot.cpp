@@ -366,6 +366,7 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 
 	} else {
 donormal:
+		bool d3dcaptured = false;
 		width = WIN32GFX_GetWidth ();
 		height = WIN32GFX_GetHeight ();
 
@@ -429,10 +430,12 @@ donormal:
 						}
 					}
 					s->UnlockRect();
+					d3dcaptured = true;
 				}
 			}
 
-		} else {
+		}
+		if (!d3dcaptured) {
 			surface_dc = gethdc ();
 			if (surface_dc == NULL)
 				goto oops;
@@ -653,10 +656,14 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode, str
 				else
 #endif
 					failed = savebmp (fp);
-				fclose (fp);
+				fclose(fp);
 				fp = NULL;
-				goto oops;
+				if (failed)
+					write_log(_T("Screenshot status %d ('%s')\n"), failed, spath);
+				if (failed)
+					_tunlink(spath);
 			}
+			goto oops;
 		}
 		fetch_path (_T("ScreenshotPath"), path, sizeof (path) / sizeof (TCHAR));
 		CreateDirectory (path, NULL);
