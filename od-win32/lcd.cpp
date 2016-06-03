@@ -13,7 +13,8 @@
 extern HINSTANCE hInst;
 
 static int inited;
-static uae_u8 *bitmap, *origbitmap;
+static uae_u8 *mbitmap, *origmbitmap;
+static uae_u32 *cbitmap;
 static uae_u8 *numbers;
 static int bm_width = LOGI_LCD_MONO_WIDTH;
 static int bm_height = LOGI_LCD_MONO_HEIGHT;
@@ -32,8 +33,8 @@ typedef bool(__cdecl *LOGILCDSHUTDOWN)(void);
 static LOGILCDSHUTDOWN pLogiLcdShutdown;
 typedef bool(__cdecl *LOGILCDUPDATE)(void);
 static LOGILCDUPDATE pLogiLcdUpdate;
-typedef bool(__cdecl *LOGILCDMONOSETBACKGROUND)(BYTE[]);
-static LOGILCDMONOSETBACKGROUND pLogiLcdMonoSetBackground;
+typedef bool(__cdecl *LOGILCDSETBACKGROUND)(BYTE[]);
+static LOGILCDSETBACKGROUND pLogiLcdMonoSetBackground, pLogiLcdColorSetBackground;
 
 #define LOGITECH_LCD_DLL _T("SOFTWARE\\Classes\\CLSID\\{d0e790a5-01a7-49ae-ae0b-e986bdd0c21b}\\ServerBinary")
 
@@ -42,10 +43,12 @@ void lcd_close (void)
 	if (!lcdlib)
 		return;
 	pLogiLcdShutdown();
-	xfree(bitmap);
-	bitmap = NULL;
-	xfree(origbitmap);
-	origbitmap = NULL;
+	xfree(mbitmap);
+	mbitmap = NULL;
+	xfree(cbitmap);
+	cbitmap = NULL;
+	xfree(origmbitmap);
+	origmbitmap = NULL;
 	inited = 0;
 	FreeLibrary(lcdlib);
 	lcdlib = NULL;
@@ -77,11 +80,12 @@ static int lcd_init (void)
 	pLogiLcdIsConnected = (LOGILCDISCONNECTED)GetProcAddress(lcdlib, "LogiLcdIsConnected");
 	pLogiLcdShutdown = (LOGILCDSHUTDOWN)GetProcAddress(lcdlib, "LogiLcdShutdown");
 	pLogiLcdUpdate = (LOGILCDUPDATE)GetProcAddress(lcdlib, "LogiLcdUpdate");
-	pLogiLcdMonoSetBackground = (LOGILCDMONOSETBACKGROUND)GetProcAddress(lcdlib, "LogiLcdMonoSetBackground");
-	if (!pLogiLcdInit || !pLogiLcdIsConnected || !pLogiLcdShutdown || !pLogiLcdUpdate || !pLogiLcdMonoSetBackground)
+	pLogiLcdMonoSetBackground = (LOGILCDSETBACKGROUND)GetProcAddress(lcdlib, "LogiLcdMonoSetBackground");
+	pLogiLcdColorSetBackground = (LOGILCDSETBACKGROUND)GetProcAddress(lcdlib, "LogiLcdColorSetBackground");
+	if (!pLogiLcdInit || !pLogiLcdIsConnected || !pLogiLcdShutdown || !pLogiLcdUpdate || (!pLogiLcdMonoSetBackground && !pLogiLcdColorSetBackground))
 		goto err;
 
-	if (!pLogiLcdInit(_T("WinUAE"), LOGI_LCD_TYPE_MONO))
+	if (!pLogiLcdInit(_T("WinUAE"), LOGI_LCD_TYPE_MONO | LOGI_LCD_TYPE_COLOR))
 		goto err;
 
 	bmp = LoadBitmap (hInst, MAKEINTRESOURCE(IDB_LCD160X43));
@@ -89,16 +93,17 @@ static int lcd_init (void)
 	SelectObject (dc, bmp);
 	GetObject (bmp, sizeof (binfo), &binfo);
 
-	bitmap = xcalloc(uae_u8, binfo.bmWidth * binfo.bmHeight);
-	origbitmap = xcalloc(uae_u8, binfo.bmWidth * binfo.bmHeight);
+	cbitmap = xcalloc(uae_u32, LOGI_LCD_COLOR_WIDTH * LOGI_LCD_COLOR_HEIGHT);
+	mbitmap = xcalloc(uae_u8, binfo.bmWidth * binfo.bmHeight);
+	origmbitmap = xcalloc(uae_u8, binfo.bmWidth * binfo.bmHeight);
 
 	for (int y = 0; y < binfo.bmHeight; y++) {
 		for (int x = 0; x < binfo.bmWidth; x++) {
-			bitmap[y * binfo.bmWidth + x] = GetPixel (dc, x, y) == 0 ? 0xff : 0;
+			mbitmap[y * binfo.bmWidth + x] = GetPixel (dc, x, y) == 0 ? 0xff : 0;
 		}
 	}
-	numbers = bitmap + bm_width * bm_height;
-	memcpy (origbitmap, bitmap, bm_width * bm_height);
+	numbers = mbitmap + bm_width * bm_height;
+	memcpy (origmbitmap, mbitmap, bm_width * bm_height);
 	DeleteDC (dc);
 
 	write_log (_T("LCD enabled\n"));
@@ -113,16 +118,33 @@ err:
 	return 0;
 }
 
+static void makecolorbm(void)
+{
+	int yoff = 16;
+	for (int y = 0; y < bm_height; y++) {
+		for (int x = 0; x < bm_width; x++) {
+			uae_u8 c = mbitmap[y * bm_width + x];
+			uae_u32 cc = c >= 0x80 ? 0xffffffff : 0x00000000;
+			cbitmap[(y * 3 + yoff + 0) * LOGI_LCD_COLOR_WIDTH + x * 2 + 0] = cc;
+			cbitmap[(y * 3 + yoff + 0) * LOGI_LCD_COLOR_WIDTH + x * 2 + 1] = cc;
+			cbitmap[(y * 3 + yoff + 1) * LOGI_LCD_COLOR_WIDTH + x * 2 + 0] = cc;
+			cbitmap[(y * 3 + yoff + 1) * LOGI_LCD_COLOR_WIDTH + x * 2 + 1] = cc;
+			cbitmap[(y * 3 + yoff + 2) * LOGI_LCD_COLOR_WIDTH + x * 2 + 0] = cc;
+			cbitmap[(y * 3 + yoff + 2) * LOGI_LCD_COLOR_WIDTH + x * 2 + 1] = cc;
+		}
+	}
+}
+
 static void dorect (int *crd, int inv)
 {
 	int yy, xx;
 	int x = crd[0], y = crd[1], w = crd[2], h = crd[3];
 	for (yy = y; yy < y + h; yy++) {
 		for (xx = x; xx < x + w; xx++) {
-			uae_u8 b = origbitmap[yy * bm_width + xx];
+			uae_u8 b = origmbitmap[yy * bm_width + xx];
 			if (inv)
 				b = b == 0 ? 0xff : 0;
-			bitmap[yy * bm_width + xx] = b;
+			mbitmap[yy * bm_width + xx] = b;
 		}
 	}
 }
@@ -139,7 +161,7 @@ static void putnumber (int x, int y, int n, int inv)
 		n = 10;
 	for (yy = 0; yy < numbers_height; yy++) {
 		for (xx = 0; xx < numbers_width; xx++) {
-			dst = bitmap + (yy + y) * bm_width + (xx + x);
+			dst = mbitmap + (yy + y) * bm_width + (xx + x);
 			src = numbers + n * numbers_width + yy * bm_width + xx;
 			*dst = 0;
 			if (*src == 0)
@@ -208,7 +230,12 @@ void lcd_update (int led, int on)
 	}
 
 	if (otimeframes != timeframes) {
-		c = pLogiLcdMonoSetBackground(bitmap);
+		if (pLogiLcdMonoSetBackground)
+			c = pLogiLcdMonoSetBackground(mbitmap);
+		if (pLogiLcdColorSetBackground) {
+			makecolorbm();
+			c = pLogiLcdColorSetBackground((uae_u8*)cbitmap);
+		}
 		c = pLogiLcdUpdate();
 		otimeframes = timeframes;
 	}
