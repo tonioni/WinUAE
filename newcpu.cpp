@@ -3128,6 +3128,8 @@ uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
 		if (get_long (0x10) == 0) {
 			notify_user (NUMSG_KS68020);
 			uae_restart (-1, NULL);
+			m68k_setstopped();
+			return 4;
 		}
 	}
 
