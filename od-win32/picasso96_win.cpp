@@ -3929,7 +3929,6 @@ static uae_u32 REGPARAM2 picasso_BlitPlanar2Direct (TrapContext *ctx)
 	uae_u8 Mask = trap_get_dreg(ctx, 7);
 	struct RenderInfo local_ri;
 	struct BitMap local_bm;
-	struct ColorIndexMapping local_cim;
 	uae_u32 result = 0;
 
 	if (NOBLITTER)

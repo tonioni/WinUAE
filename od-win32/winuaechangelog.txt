@@ -1,4 +1,11 @@
 
+Beta 18:
+
+- "ROM needs 68020+" dialog repeated forever.
+- Fall back to old GDI screenshot method if GetRenderTarget() fails.
+- Logitech color LCDs work again, old API did the conversion automatically.
+- Fixed UAE boot ROM trap code corruption if "too many" UAE expansions were enabled. (b3)
+
 Beta 17:
 
 - Pre-KS1.3 boot hack code and data was overwritten by new resident structure update in b4.
