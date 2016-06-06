@@ -1,4 +1,9 @@
 
+3.3.0
+
+- 68060 mode always disabled all 68060-only unimplemented instructions, even when unimplemented emu
+  checkbox was ticked. (b11)
+
 Beta 18:
 
 - "ROM needs 68020+" dialog repeated forever.
@@ -33,7 +38,7 @@ Beta 15:
 Beta 14:
 
 - AGA subpixel scrolling: if line's parameters didn't change compared to previous field's line, line was
-  not marked as "changed" and was not alwsays redrawn correctly. (Roketz scoreboard corruption)
+  not marked as "changed" and was not always redrawn correctly. (Roketz scoreboard corruption)
 - CD32: always generate subchannel interrupts and transfer subchannel frames when reading CD sectors if
   subchannel DMA channel is enabled. (Previously was only done when playing CD audio)
   Real hardware also transfer subchannel frames when CD is idle. This is not yet emulated.

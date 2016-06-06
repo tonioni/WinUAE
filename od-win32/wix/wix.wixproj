@@ -25,7 +25,7 @@
     <Compile Include="WixUI_FeatureTree_NL.wxs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\winuae_msvc11\winuae_msvc.vcxproj">
+    <ProjectReference Include="..\winuae_msvc14\winuae_msvc.vcxproj">
       <Name>winuae</Name>
       <Project>{4adaa943-1ac8-4fb5-82e5-4fb753b6c2da}</Project>
       <Private>True</Private>

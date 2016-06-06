@@ -17,31 +17,57 @@ LANGUAGE LANG_ENGLISH, SUBLANG_NEUTRAL
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
 IDI_APPICON             ICON                    "winuae.ico"
+
 IDI_FLOPPY              ICON                    "35floppy.ico"
+
 IDI_ABOUT               ICON                    "amigainfo.ico"
+
 IDI_HARDDISK            ICON                    "drive.ico"
+
 IDI_CPU                 ICON                    "cpu.ico"
+
 IDI_GAMEPORTS           ICON                    "joystick.ico"
+
 IDI_IOPORTS             ICON                    "joystick.ico"
+
 IDI_INPUT               ICON                    "joystick.ico"
+
 IDI_MISC1               ICON                    "misc.ico"
+
 IDI_MISC2               ICON                    "misc.ico"
+
 IDI_MOVE_UP             ICON                    "move_up.ico"
+
 IDI_MOVE_DOWN           ICON                    "move_dow.ico"
+
 IDI_AVIOUTPUT           ICON                    "avioutput.ico"
+
 IDI_DISK                ICON                    "drive.ico"
+
 IDI_FOLDER              ICON                    "folder.ico"
+
 IDI_SOUND               ICON                    "sound.ico"
+
 IDI_DISPLAY             ICON                    "screen.ico"
+
 IDI_ROOT                ICON                    "root.ico"
+
 IDI_MEMORY              ICON                    "chip.ico"
+
 IDI_QUICKSTART          ICON                    "quickstart.ico"
+
 IDI_PATHS               ICON                    "paths.ico"
+
 IDI_DISKIMAGE           ICON                    "diskimage.ico"
+
 IDI_PORTS               ICON                    "port.ico"
+
 IDI_CONFIGFILE          ICON                    "configfile.ico"
+
 IDI_FILE                ICON                    "file.ico"
+
 IDI_EXPANSION           ICON                    "expansion.ico"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -76,7 +102,7 @@ END
 // Dialog
 //
 
-IDD_KICKSTART DIALOGEX 0, 0, 396, 204
+IDD_KICKSTART DIALOGEX 0, 0, 396, 259
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
@@ -92,8 +118,8 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,87,73,104,12
     CONTROL         "ShapeShifter support [] Patches the system ROM for ShapeShifter compatibility.",IDC_KICKSHIFTER,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,73,106,13
-    GROUPBOX        "Miscellaneous",IDC_STATIC,0,96,395,106
-    LTEXT           "Cartridge ROM file:",IDC_FLASHTEXT2,12,112,265,10
+    GROUPBOX        "Miscellaneous",IDC_STATIC,0,96,395,109
+    LTEXT           "Cartridge ROM file:",IDC_FLASHTEXT2,12,111,265,10
     COMBOBOX        IDC_CARTFILE,12,124,361,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "...",IDC_CARTCHOOSER,376,123,10,15
     LTEXT           "Flash RAM or A2286/A2386SX BIOS CMOS RAM file:",IDC_FLASHTEXT,12,141,265,10
@@ -102,9 +128,12 @@ BEGIN
     LTEXT           "Real Time Clock file",IDC_STATIC,12,167,313,15,SS_CENTERIMAGE
     EDITTEXT        IDC_RTCFILE,12,183,361,12,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_RTCCHOOSER,376,181,10,15
+    GROUPBOX        "Advanced UAE expansion board/Boot ROM Settings",IDC_STATIC,0,209,395,48
+    COMBOBOX        IDC_UAEBOARD_TYPE,96,228,155,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Board type:",IDC_STATIC,20,227,67,15,SS_CENTERIMAGE
 END
 
-IDD_DISPLAY DIALOGEX 0, 0, 396, 298
+IDD_DISPLAY DIALOGEX 0, 0, 396, 311
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
@@ -118,7 +147,7 @@ BEGIN
     EDITTEXT        IDC_XSIZE,59,56,56,12,ES_NUMBER
     EDITTEXT        IDC_YSIZE,122,56,56,12,ES_NUMBER
     COMBOBOX        IDC_DISPLAY_BUFFERCNT,266,56,119,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Settings",IDC_SETTINGSTEXT,1,86,283,163
+    GROUPBOX        "Settings",IDC_SETTINGSTEXT,1,86,283,183
     RTEXT           "Native:",IDC_STATIC,9,98,48,15,SS_CENTERIMAGE
     COMBOBOX        IDC_SCREENMODE_NATIVE,61,98,71,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_SCREENMODE_NATIVE2,142,98,127,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
@@ -133,21 +162,21 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,154,139,10
     CONTROL         "VGA mode resolution autoswitch [] Automatically selects between hires and superhires in programmed display modes, keeping correct aspect ratio.",IDC_AUTORESOLUTIONVGA,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,155,154,124,10
-    RTEXT           "Resolution:",IDC_STATIC,24,170,110,8,SS_CENTERIMAGE
-    COMBOBOX        IDC_LORES,142,169,127,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Resolution autoswitch:",IDC_STATIC,92,190,110,8,SS_CENTERIMAGE
-    COMBOBOX        IDC_AUTORESOLUTIONSELECT,210,189,59,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Refresh:",IDC_REFRESHTEXT,11,209,57,8
-    CONTROL         "Slider1",IDC_FRAMERATE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,71,204,99,20
-    COMBOBOX        IDC_RATE2BOX,210,209,60,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "FPS adj.:",IDC_REFRESH2TEXT,9,230,61,8
-    CONTROL         "",IDC_FRAMERATE2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,71,225,99,20
-    EDITTEXT        IDC_RATE2TEXT,210,229,46,12,ES_AUTOHSCROLL
-    CONTROL         "",IDC_RATE2ENABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,261,230,8,10
-    COMBOBOX        IDC_DA_MODE,15,260,71,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "",IDC_DA_SLIDER,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,96,256,96,20
-    EDITTEXT        IDC_DA_TEXT,205,260,56,12,ES_AUTOHSCROLL | ES_READONLY
-    PUSHBUTTON      "Reset to defaults",IDC_DA_RESET,156,278,106,14
+    RTEXT           "Resolution:",IDC_STATIC,24,192,110,8,SS_CENTERIMAGE
+    COMBOBOX        IDC_LORES,142,191,127,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Resolution autoswitch:",IDC_STATIC,92,212,110,8,SS_CENTERIMAGE
+    COMBOBOX        IDC_AUTORESOLUTIONSELECT,210,211,59,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Refresh:",IDC_REFRESHTEXT,11,231,57,8
+    CONTROL         "Slider1",IDC_FRAMERATE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,71,226,99,20
+    COMBOBOX        IDC_RATE2BOX,210,231,60,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "FPS adj.:",IDC_REFRESH2TEXT,9,252,61,8
+    CONTROL         "",IDC_FRAMERATE2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,71,247,99,20
+    EDITTEXT        IDC_RATE2TEXT,210,251,46,12,ES_AUTOHSCROLL
+    CONTROL         "",IDC_RATE2ENABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,261,252,8,10
+    COMBOBOX        IDC_DA_MODE,15,276,71,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "",IDC_DA_SLIDER,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,96,272,96,20
+    EDITTEXT        IDC_DA_TEXT,205,276,56,12,ES_AUTOHSCROLL | ES_READONLY
+    PUSHBUTTON      "Reset to defaults",IDC_DA_RESET,156,294,106,14
     GROUPBOX        "Centering",IDC_STATIC,289,86,105,46
     CONTROL         "Horizontal",IDC_XCENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,300,100,90,10
     CONTROL         "Vertical",IDC_YCENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,300,116,90,10
@@ -162,6 +191,7 @@ BEGIN
     CONTROL         "Double, frames",IDC_LM_IDOUBLED,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,251,90,10
     CONTROL         "Double, fields",IDC_LM_IDOUBLED2,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,264,90,10
     CONTROL         "Double, fields+",IDC_LM_IDOUBLED3,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,277,90,10
+    CONTROL         "Monochrome video out",IDC_GRAYSCALE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,167,139,10
 END
 
 IDD_MEMORY DIALOGEX 0, 0, 396, 246
@@ -478,11 +508,10 @@ BEGIN
     PUSHBUTTON      "Remap / Test [] Remap or test Port 2 configuration.",IDC_PORT1_REMAP,310,74,78,14
     PUSHBUTTON      "Swap ports [] Swap ports 1 and 2.",IDC_SWAP,45,100,78,14
     LTEXT           "Emulated parallel port joystick adapter",IDC_STATIC,10,124,179,15,SS_CENTERIMAGE
-    RTEXT           "X-Arcade layout information []#1",IDC_STATIC,217,124,170,15,SS_NOTIFY | SS_CENTERIMAGE
     COMBOBOX        IDC_PORT2_JOYS,45,142,342,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Remap [] Remap Parallel port joystick port 1 configurarion.",IDC_PORT2_REMAP,352,159,36,14
+    PUSHBUTTON      "Remap / Test [] Remap or test Parallel port joystick port 1 configurarion.",IDC_PORT2_REMAP,310,159,78,14
     COMBOBOX        IDC_PORT3_JOYS,45,178,342,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Remap [] Remap Parallel port joystick port 2 configurarion.",IDC_PORT3_REMAP,352,194,36,14
+    PUSHBUTTON      "Remap / Test [] Remap or test Parallel port joystick port 2 configurarion.",IDC_PORT3_REMAP,310,194,78,14
     GROUPBOX        "Mouse extra settings",IDC_STATIC,1,219,393,68
     RTEXT           "Mouse speed:",IDC_STATIC,19,237,82,10,SS_CENTERIMAGE
     EDITTEXT        IDC_INPUTSPEEDM,115,237,25,13,ES_NUMBER
@@ -753,6 +782,7 @@ BEGIN
     EDITTEXT        IDC_CS_DENISEREV,311,289,45,13,ES_AUTOHSCROLL
     CONTROL         "Custom register byte write bug",IDC_CS_BYTECUSTOMWRITEBUG,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,127,197,130,11
+    CONTROL         "Composite color burst",IDC_CS_COMPOSITECOLOR,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,196,125,12
 END
 
 IDD_AVIOUTPUT DIALOGEX 0, 0, 396, 260
@@ -775,11 +805,11 @@ BEGIN
     CONTROL         "Disable sound sync",IDC_AVIOUTPUT_NOSOUNDSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,210,85,171,10
     CONTROL         "AVI output enabled",IDC_AVIOUTPUT_ACTIVATED,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,15,100,144,14
     GROUPBOX        "Ripper",IDC_STATIC,1,126,393,53
-    PUSHBUTTON      "Save screenshot",IDC_SCREENSHOT,53,140,87,14
-    PUSHBUTTON      "Pro Wizard 1.62",IDC_PROWIZARD,245,140,87,14,WS_DISABLED
+    PUSHBUTTON      "Save screenshot",IDC_SCREENSHOT,28,140,87,14
+    PUSHBUTTON      "Pro Wizard 1.62",IDC_PROWIZARD,162,140,87,14,WS_DISABLED
     CONTROL         "Take screenshot before filtering",IDC_SCREENSHOT_ORIGINALSIZE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,54,161,162,10
-    CONTROL         "Sample ripper",IDC_SAMPLERIPPER_ACTIVATED,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,245,159,87,14
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,163,144,10
+    CONTROL         "Sample ripper",IDC_SAMPLERIPPER_ACTIVATED,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,280,140,87,14
     GROUPBOX        "Re-recorder",IDC_STATIC,1,182,393,70
     CONTROL         "Play recording",IDC_STATEREC_PLAY,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,53,194,87,14
     CONTROL         "Re-recording enabled",IDC_STATEREC_RECORD,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,214,194,118,14
@@ -789,6 +819,7 @@ BEGIN
     COMBOBOX        IDC_STATEREC_RATE,141,233,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Recording buffers:",IDC_STATIC,195,235,91,10,SS_CENTERIMAGE | WS_TABSTOP
     COMBOBOX        IDC_STATEREC_BUFFERSIZE,291,233,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Autoclip screenshot",IDC_SCREENSHOT_CLIP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,163,144,10
 END
 
 IDD_INPUT DIALOGEX 0, 0, 396, 318
@@ -994,32 +1025,32 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,347,14,35,12
     RTEXT           "Configuration:",IDC_STATIC,5,33,68,10,SS_CENTERIMAGE
     COMBOBOX        IDC_QUICKSTART_CONFIGURATION,77,31,310,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Compatibility vs Required CPU Power ",IDC_QUICKSTART_COMPA,1,58,393,33
+    GROUPBOX        "Compatibility vs Required CPU Power ",IDC_QUICKSTART_COMPA,1,58,393,36
     RTEXT           "Best compatibility",IDC_STATIC,20,73,98,10,SS_CENTERIMAGE
     CONTROL         "",IDC_QUICKSTART_COMPATIBILITY,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,145,68,115,21
     LTEXT           "Low compatibility",IDC_STATIC,279,74,92,10,SS_CENTERIMAGE
-    GROUPBOX        "Host Configuration",IDC_QUICKSTART_HOST,1,96,393,35
-    RTEXT           "Configuration:",IDC_STATIC,5,109,68,10,SS_CENTERIMAGE
-    COMBOBOX        IDC_QUICKSTART_HOSTCONFIG,77,107,310,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Emulated Drives",IDC_QUICKSTART_DF,1,135,393,93
-    CONTROL         "Floppy drive DF0:",IDC_DF0QENABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,148,77,15
-    PUSHBUTTON      "Select image file",IDC_DF0QQ,93,148,98,15
-    RTEXT           "Write-protected",IDC_DF0WPTEXTQ,196,151,69,10,SS_CENTERIMAGE
-    CONTROL         "",IDC_DF0WPQ,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,270,149,10,15
-    PUSHBUTTON      "?",IDC_INFO0Q,334,148,19,15
-    PUSHBUTTON      "Eject",IDC_EJECT0Q,358,148,30,15
-    COMBOBOX        IDC_DF0TEXTQ,9,167,379,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Floppy drive DF1:",IDC_DF1QENABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,186,77,15
-    PUSHBUTTON      "Select image file",IDC_DF1QQ,93,186,98,15
-    RTEXT           "Write-protected",IDC_DF1WPTEXTQ,195,189,69,10,SS_CENTERIMAGE
-    COMBOBOX        IDC_CD0Q_TYPE,199,187,74,50,CBS_DROPDOWNLIST | NOT WS_VISIBLE | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "",IDC_DF1WPQ,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,270,185,10,15
-    PUSHBUTTON      "?",IDC_INFO1Q,334,186,19,15
-    PUSHBUTTON      "Eject",IDC_EJECT1Q,358,186,30,15
-    COMBOBOX        IDC_DF1TEXTQ,9,204,379,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Set configuration",IDC_QUICKSTART_SETCONFIG,9,239,88,15,NOT WS_VISIBLE
-    GROUPBOX        "Mode",IDC_STATIC,250,231,144,28,BS_LEFT
-    CONTROL         "Start in Quickstart mode",IDC_QUICKSTARTMODE,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_TABSTOP,259,242,131,12
+    GROUPBOX        "Host Configuration",IDC_QUICKSTART_HOST,1,98,393,35
+    RTEXT           "Configuration:",IDC_STATIC,5,111,68,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_QUICKSTART_HOSTCONFIG,77,109,310,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Emulated Drives",IDC_QUICKSTART_DF,1,138,393,93
+    CONTROL         "Floppy drive DF0:",IDC_DF0QENABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,151,77,15
+    PUSHBUTTON      "Select image file",IDC_DF0QQ,93,151,98,15
+    RTEXT           "Write-protected",IDC_DF0WPTEXTQ,196,154,69,10,SS_CENTERIMAGE
+    CONTROL         "",IDC_DF0WPQ,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,270,152,10,15
+    PUSHBUTTON      "?",IDC_INFO0Q,334,151,19,15
+    PUSHBUTTON      "Eject",IDC_EJECT0Q,358,151,30,15
+    COMBOBOX        IDC_DF0TEXTQ,9,170,379,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Floppy drive DF1:",IDC_DF1QENABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,189,77,15
+    PUSHBUTTON      "Select image file",IDC_DF1QQ,93,189,98,15
+    RTEXT           "Write-protected",IDC_DF1WPTEXTQ,195,192,69,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_CD0Q_TYPE,199,190,74,50,CBS_DROPDOWNLIST | NOT WS_VISIBLE | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "",IDC_DF1WPQ,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,270,188,10,15
+    PUSHBUTTON      "?",IDC_INFO1Q,334,189,19,15
+    PUSHBUTTON      "Eject",IDC_EJECT1Q,358,189,30,15
+    COMBOBOX        IDC_DF1TEXTQ,9,207,379,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Set configuration",IDC_QUICKSTART_SETCONFIG,9,241,88,15,NOT WS_VISIBLE
+    GROUPBOX        "Mode",IDC_STATIC,250,233,144,28,BS_LEFT
+    CONTROL         "Start in Quickstart mode",IDC_QUICKSTARTMODE,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_TABSTOP,259,244,131,12
 END
 
 IDD_FRONTEND DIALOGEX 0, 0, 420, 242
@@ -1271,8 +1302,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,2,0,0
- PRODUCTVERSION 3,2,0,0
+ FILEVERSION 3,3,0,0
+ PRODUCTVERSION 3,3,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1288,12 +1319,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "3.2.0.0"
+            VALUE "FileVersion", "3.3.0.0"
             VALUE "InternalName", "WinUAE"
-            VALUE "LegalCopyright", "© 1996-2015 under the GNU Public License (GPL)"
+            VALUE "LegalCopyright", "© 1996-2016 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "3.2.0.0"
+            VALUE "ProductVersion", "3.3.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1309,6 +1340,7 @@ END
 //
 
 IDC_MYHAND              CURSOR                  "H_arrow.cur"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -1400,6 +1432,7 @@ GUIDELINES DESIGNINFO
 BEGIN
     IDD_KICKSTART, DIALOG
     BEGIN
+        BOTTOMMARGIN, 258
     END
 
     IDD_DISPLAY, DIALOG
@@ -1801,7 +1834,7 @@ BEGIN
     IDS_SOUND_4CHANNEL      "4 Channels"
     IDS_HF_FS_CUSTOM        "Custom"
     IDS_SELECTFS            "Select file system handler (FFS, PFS, SFS, etc.)"
-    IDS_KEYJOY              "Keyboard Layout A (Numeric keypad, 0 and 5 = Fire)\nKeyboard Layout B (Cursor keys, Right CTRL and ALT = Fire)\nKeyboard Layout C (W=Up S=Down A=Left D=Right, Left ALT = Fire)\nX-Arcade (Left)\nX-Arcade (Right)"
+    IDS_KEYJOY              "Keyboard Layout A (Numeric keypad, 0 and 5 = Fire)\nKeyboard Layout B (Cursor keys, Right CTRL and ALT = Fire)\nKeyboard Layout C (W=Up S=Down A=Left D=Right, Left ALT = Fire)"
     IDS_STATEFILE_UNCOMPRESSED "Uncompressed"
     IDS_STATEFILE_RAMDUMP   "RAM dump"
     IDS_STATEFILE_WAVE      "Wave audio dump"
@@ -1955,7 +1988,7 @@ BEGIN
     IDS_WSTYLE_EXTENDED     "Extended"
     IDS_MISCLISTITEMS1      "Untrap = middle button\nShow GUI on startup\nUse CTRL-F11 to quit\nDon't show taskbar button\nDon't show notification icon\n"
     IDS_MISCLISTITEMS2      "Always on top\nDisable screensaver\nSynchronize clock\nOne second reboot pause\nFaster RTG\nClipboard sharing\nAllow native code\n"
-    IDS_MISCLISTITEMS3      "Native on-screen display\nRTG on-screen display\nCreate winuaelog.txt log\nLog illegal memory accesses\nBlank unused displays\nStart mouse uncaptured\nStart minimized\nMinimize when focus is lost\n100/120Hz VSync black frame insertion\nMaster floppy write protection\nHide all UAE autoconfig boards\n"
+    IDS_MISCLISTITEMS3      "Native on-screen display\nRTG on-screen display\nCreate winuaelog.txt log\nLog illegal memory accesses\nBlank unused displays\nStart mouse uncaptured\nStart minimized\nMinimize when focus is lost\nBlack frame insertion\nMaster floppy write protection\nMaster harddrive write protection\nHide all UAE autoconfig boards\n"
     IDS_JOYMODE_WHEELMOUSE  "Wheel Mouse"
     IDS_NUMSG_KS68030PLUS   "The selected system ROM requires a 68030 or higher CPU."
     IDS_SELECTTAPE          "Select a Tape directory or archive file..."
@@ -1974,11 +2007,12 @@ BEGIN
     IDS_FILTER_PAL_EXTRA    "Brightness\nContrast\nSaturation\nGamma\nScanlines\nBlurriness\nNoise\n"
     IDS_FILTER_3D_EXTRA     "Point/Bilinear\nScanline opacity\nScanline level\n"
     IDS_ALWAYS_ON           "Always on"
-    IDS_DISPLAY_ATTRIBUTES  "Brightness\nContrast\nGamma\nGamma [R]\nGamma [G]\nGamma [B]"
+    IDS_DISPLAY_ATTRIBUTES  "Brightness\nContrast\nGamma\nGamma [R]\nGamma [G]\nGamma [B]\nDark palette fix"
     IDS_NUMSG_NO_PPC        "PPC CPU was started but PPC CPU emulation core plugin was not found. Download available from http://www.winuae.net/"
     IDS_NUMSG_UAEBOOTROM_PCC 
-                            "PPC native OS booted with UAE boot ROM active. UAE expansions are not hardware emulated and are not PPC compatible. (UAE HD controller, uaescsi.device, uaeserial, bsdsocket and so on..)"
+                            "PPC native OS booted with incompatible UAE boot ROM enabled.\nSelect ROM panel ""New UAE (128k, ROM, Indirect)"" option\nor disable all UAE expansions.\n"
     IDS_AUTOSCALE_OVERSCAN_BLANK "Overscan blanking"
+    IDS_SCREEN_ADAPTIVE_SYNC "Variable Sync"
 END
 
 #endif    // English resources

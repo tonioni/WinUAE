@@ -6,7 +6,7 @@
 * (c) 2006 - 2015 Toni Wilen
 */
 
-#define IDE_LOG 1
+#define IDE_LOG 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"

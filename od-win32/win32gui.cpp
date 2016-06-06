@@ -8745,6 +8745,7 @@ static void enable_for_expansion2dlg (HWND hDlg)
 	ew (hDlg, IDC_NETDEVICE, en);
 	ew (hDlg, IDC_SANA2, en);
 	ew (hDlg, IDC_A2065, en);
+	ew (hDlg, IDC_NE2000, en);
 	ew (hDlg, IDC_NETDEVICE, en && (workprefs.a2065name[0] || workprefs.ne2000pciname[0]));
 
 	ShowWindow (GetDlgItem(hDlg, IDC_CS_SCSIMODE), SW_HIDE);
