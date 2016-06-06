@@ -1354,12 +1354,18 @@ static void build_cpufunctbl (void)
 		/* unimplemented opcode? */
 		if (table->unimpclev > 0 && lvl >= table->unimpclev) {
 			if (currprefs.cpu_model == 68060) {
-				// unimpclev == 5: not implemented in 68060.
+				// remove unimplemented integer instructions
+				// unimpclev == 5: not implemented in 68060,
+				// generates unimplemented instruction exception.
 				if (currprefs.int_no_unimplemented && table->unimpclev == 5) {
 					cpufunctbl[opcode] = op_unimpl_1;
 					continue;
 				}
-				if (!currprefs.int_no_unimplemented || table->unimpclev != 5) {
+				// remove unimplemented instruction that were removed in previous models,
+				// generates normal illegal instruction exception.
+				// unimplclev < 5: instruction was removed in 68040 or previous model.
+				// clev=4: implemented in 68040 or later. unimpclev=5: not in 68060
+				if (table->unimpclev < 5 || (table->clev == 4 && table->unimpclev == 5)) {
 					cpufunctbl[opcode] = op_illg_1;
 					continue;
 				}
