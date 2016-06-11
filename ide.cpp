@@ -529,8 +529,8 @@ static int dec_nsec (struct ide_hdf *ide, int v)
 {
 	if (ide->lba48 && ide->lba48cmd) {
 		uae_u16 nsec;
-		nsec = ide->regs.ide_nsector2 * 256 + ide->regs.ide_nsector;
-		ide->regs.ide_nsector -= v;
+		nsec = (ide->regs.ide_nsector2 << 8) | ide->regs.ide_nsector;
+		nsec -= v;
 		ide->regs.ide_nsector2 = nsec >> 8;
 		ide->regs.ide_nsector = nsec & 0xff;
 		return (ide->regs.ide_nsector2 << 8) | ide->regs.ide_nsector;
