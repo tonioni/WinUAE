@@ -1495,6 +1495,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_write_str (f, _T("a2065"), p->a2065name);
 	if (p->ne2000pciname[0])
 		cfgfile_write_str(f, _T("ne2000_pci"), p->ne2000pciname);
+	if (p->ne2000pcmcianame[0])
+		cfgfile_write_str(f, _T("ne2000_pcmcia"), p->ne2000pcmcianame);
 
 #ifdef WITH_SLIRP
 	tmp[0] = 0;
@@ -4399,6 +4401,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 	if (cfgfile_string(option, value, _T("a2065"), p->a2065name, sizeof p->a2065name / sizeof(TCHAR)))
 		return 1;
 	if (cfgfile_string(option, value, _T("ne2000_pci"), p->ne2000pciname, sizeof p->ne2000pciname / sizeof(TCHAR)))
+		return 1;
+	if (cfgfile_string(option, value, _T("ne2000_pcmcia"), p->ne2000pcmcianame, sizeof p->ne2000pcmcianame / sizeof(TCHAR)))
 		return 1;
 
 	if (cfgfile_yesno(option, value, _T("immediate_blits"), &p->immediate_blits)
