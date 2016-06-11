@@ -45,14 +45,14 @@ void statusline_getpos (int *x, int *y, int width, int height)
 	}
 }
 
-static const char *numbers = { /* ugly  0123456789CHD%+-P */
-	"+++++++--++++-+++++++++++++++++-++++++++++++++++++++++++++++++++++++++++++++-++++++-++++----++---+--------------+++++++"
-	"+xxxxx+--+xx+-+xxxxx++xxxxx++x+-+x++xxxxx++xxxxx++xxxxx++xxxxx++xxxxx++xxxx+-+x++x+-+xxx++-+xx+-+x---+----------+xxxxx+"
-	"+x+++x+--++x+-+++++x++++++x++x+++x++x++++++x++++++++++x++x+++x++x+++x++x++++-+x++x+-+x++x+--+x++x+--+x+----+++--+x---x+"
-	"+x+-+x+---+x+-+xxxxx++xxxxx++xxxxx++xxxxx++xxxxx+--++x+-+xxxxx++xxxxx++x+----+xxxx+-+x++x+----+x+--+xxx+--+xxx+-+xxxxx+"
-	"+x+++x+---+x+-+x++++++++++x++++++x++++++x++x+++x+--+x+--+x+++x++++++x++x++++-+x++x+-+x++x+---+x+x+--+x+----+++--+x+++++"
-	"+xxxxx+---+x+-+xxxxx++xxxxx+----+x++xxxxx++xxxxx+--+x+--+xxxxx++xxxxx++xxxx+-+x++x+-+xxx+---+x++xx--------------+x+----"
-	"+++++++---+++-++++++++++++++----+++++++++++++++++--+++--++++++++++++++++++++-++++++-++++------------------------+++----"
+static const char *numbers = { /* ugly  0123456789CHD%+-PNK */
+	"+++++++--++++-+++++++++++++++++-++++++++++++++++++++++++++++++++++++++++++++-++++++-++++----++---+--------------+++++++++++++++++++++"
+	"+xxxxx+--+xx+-+xxxxx++xxxxx++x+-+x++xxxxx++xxxxx++xxxxx++xxxxx++xxxxx++xxxx+-+x++x+-+xxx++-+xx+-+x---+----------+xxxxx++x+++x++x++x++"
+	"+x+++x+--++x+-+++++x++++++x++x+++x++x++++++x++++++++++x++x+++x++x+++x++x++++-+x++x+-+x++x+--+x++x+--+x+----+++--+x---x++xx++x++x+x+++"
+	"+x+-+x+---+x+-+xxxxx++xxxxx++xxxxx++xxxxx++xxxxx+--++x+-+xxxxx++xxxxx++x+----+xxxx+-+x++x+----+x+--+xxx+--+xxx+-+xxxxx++x+x+x++xx++++"
+	"+x+++x+---+x+-+x++++++++++x++++++x++++++x++x+++x+--+x+--+x+++x++++++x++x++++-+x++x+-+x++x+---+x+x+--+x+----+++--+x++++++x+x+x++x+x+++"
+	"+xxxxx+---+x+-+xxxxx++xxxxx+----+x++xxxxx++xxxxx+--+x+--+xxxxx++xxxxx++xxxx+-+x++x+-+xxx+---+x++xx--------------+x+----+x++xx++x++x++"
+	"+++++++---+++-++++++++++++++----+++++++++++++++++--+++--++++++++++++++++++++-++++++-++++------------------------+++----++++++++++++++"
 };
 
 STATIC_INLINE uae_u32 ledcolor (uae_u32 c, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *a)
@@ -105,7 +105,7 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 		if (led >= LED_DF0 && led <= LED_DF3) {
 			int pled = led - LED_DF0;
 			int track = gui_data.drive_track[pled];
-			pos = 6 + pled;
+			pos = 7 + pled;
 			on_rgb = 0x00cc00;
 			on_rgb2 = 0x006600;
 			off_rgb = 0x003300;
@@ -165,14 +165,22 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 				int fps = (gui_data.fps + 5) / 10;
 				on_rgb = 0x000000;
 				off_rgb = gui_data.fps_color ? 0xcccc00 : 0x000000;
-				if (fps > 999)
-					fps = 999;
-				num1 = fps / 100;
-				num2 = (fps - num1 * 100) / 10;
-				num3 = fps % 10;
 				am = 3;
-				if (num1 == 0)
-					am = 2;
+				if (fps > 999) {
+					fps += 50;
+					fps /= 10;
+					if (fps > 999)
+						fps = 999;
+					num1 = fps / 100;
+					num2 = 18;
+					num3 = (fps - num1 * 100) / 10;
+				} else {
+					num1 = fps / 100;
+					num2 = (fps - num1 * 100) / 10;
+					num3 = fps % 10;
+					if (num1 == 0)
+						am = 2;
+				}
 			}
 		} else if (led == LED_CPU) {
 			int idle = (gui_data.idle + 5) / 10;
@@ -224,7 +232,7 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 			am = 3;
 		} else if (led == LED_MD && gui_data.drive_disabled[3]) {
 			// DF3 reused as internal non-volatile ram led (cd32/cdtv)
-			pos = 6 + 3;
+			pos = 7 + 3;
 			if (gui_data.md >= 0) {
 				on = gui_data.md;
 				on_rgb = on == 2 ? 0xcc0000 : 0x00cc00;
@@ -233,8 +241,22 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 			num1 = -1;
 			num2 = -1;
 			num3 = -1;
-		} else
+		} else if (led == LED_NET) {
+			pos = 6;
+			on = gui_data.net;
+			on_rgb = 0;
+			if (on & 1)
+				on_rgb |= 0x00cc00;
+			if (on & 2)
+				on_rgb |= 0xcc0000;
+			off_rgb = 0x000000;
+			num1 = -1;
+			num2 = -1;
+			num3 = 17;
+			am = 1;
+		} else {
 			return;
+		}
 		on_rgb |= 0x33000000;
 		off_rgb |= 0x33000000;
 		if (half > 0) {
