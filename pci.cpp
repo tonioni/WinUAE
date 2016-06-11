@@ -113,6 +113,7 @@ static void pci_board_add(struct pci_bridge *pcib, const struct pci_board *pci, 
 	pcibs->slot = slot;
 	pcibs->func = func;
 	pcibs->bridge = pcib;
+	pcibs->irq_callback = pci_irq_callback;
 	memset(pcibs->config_data, 0, sizeof pcibs->config_data);
 	for (int i = 0; i < MAX_PCI_BARS; i++) {
 		pcibs->bar_size[i] = pci->config->bars[i];
@@ -1452,7 +1453,7 @@ static const struct pci_config ncr_53c815_pci_config =
 static const struct pci_board ncr_53c815_pci_board =
 {
 	_T("NCR53C815"),
-	&ncr_53c815_pci_config, NULL, NULL, NULL, NULL, pci_irq_callback,
+	&ncr_53c815_pci_config, NULL, NULL, NULL, NULL,
 	{
 		{ wildfire_lget, wildfire_wget, wildfire_bget, wildfire_lput, wildfire_wput, wildfire_bput },
 		{ wildfire_lget, wildfire_wget, wildfire_bget, wildfire_lput, wildfire_wput, wildfire_bput },

@@ -231,7 +231,7 @@ static void ne2000_update_irq(NE2000State *s)
     write_log("NE2000: Set IRQ to %d (%02x %02x)\n",
 	   isr ? 1 : 0, s->isr, s->imr);
 #endif
-	ncs.device->irq(ncs.pcistate, isr != 0);
+	s->irq_callback(ncs.pcistate, isr != 0);
 //    qemu_set_irq(s->irq, (isr != 0));
 }
 
@@ -1046,6 +1046,7 @@ static bool ne2000_init(struct pci_board_state *pcibs)
 	ncs.pcistate = pcibs;
 	ncs.ne2000state = &ne2000state;
 	memset(&ne2000state, 0, sizeof ne2000state);
+	ncs.ne2000state->irq_callback = pcibs->irq_callback;
 
 	uae_sem_init(&ne2000_sem, 0, 1);
 	if (!receive_buffer) {
@@ -1054,8 +1055,9 @@ static bool ne2000_init(struct pci_board_state *pcibs)
 
 	td = NULL;
 	uae_u8 *m = ncs.ne2000state->c.macaddr.a;
+	const TCHAR *name = currprefs.ne2000pciname[0] ? currprefs.ne2000pciname : currprefs.ne2000pcmcianame; // hack!
 	memset(m, 0, 6);
-	if (ethernet_enumerate(&td, currprefs.ne2000pciname)) {
+	if (ethernet_enumerate(&td, name)) {
 		memcpy(m, td->mac, 6);
 		if (!m[0] && !m[1] && !m[2]) {
 			m[0] = 0x52;
@@ -1097,7 +1099,7 @@ static const struct pci_config ne2000_pci_config =
 const struct pci_board ne2000_pci_board =
 {
 	_T("RTL8029"),
-	&ne2000_pci_config, ne2000_init, ne2000_free, ne2000_reset, ne2000_hsync_handler, pci_irq_callback,
+	&ne2000_pci_config, ne2000_init, ne2000_free, ne2000_reset, ne2000_hsync_handler,
 	{
 		{ ne2000_lget, ne2000_wget, ne2000_bget, ne2000_lput, ne2000_wput, ne2000_bput },
 		{ NULL },

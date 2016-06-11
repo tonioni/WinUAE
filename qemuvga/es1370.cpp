@@ -317,6 +317,7 @@ typedef struct ES1370State {
     uint32_t mempage;
     uint32_t codec;
     uint32_t sctl;
+	pci_dev_irq irq_callback;
 } ES1370State;
 
 struct chan_bits {
@@ -362,7 +363,7 @@ static void es1370_update_status (ES1370State *s, uint32_t new_status)
     } else {
         s->status = new_status & ~STAT_INTR;
     }
-	es1370state.device->irq(es1370state.dev, !!level);
+	es1370state.irq_callback(es1370state.dev, !!level);
 //    pci_set_irq(&s->dev, !!level);
 }
 
@@ -388,7 +389,7 @@ static void es1370_reset (ES1370State *s)
             s->dac_voice[i] = NULL;
         }
 	}
-	es1370state.device->irq(es1370state.dev, false);
+	es1370state.irq_callback(es1370state.dev, false);
 //    pci_irq_deassert(&s->dev);
 }
 
@@ -1185,6 +1186,7 @@ static bool es1370_init(struct pci_board_state *pcibs)
 {
 	init(pcibs);
 	es1370_reset(&es1370state);
+	es1370state.irq_callback = pcibs->irq_callback;
 	return true;
 }
 
@@ -1197,7 +1199,7 @@ static const struct pci_config es1370_pci_config =
 const struct pci_board es1370_pci_board =
 {
 	_T("ES1370"),
-	&es1370_pci_config, es1370_init, es1370_free, es1370_reset, NULL, pci_irq_callback,
+	&es1370_pci_config, es1370_init, es1370_free, es1370_reset, NULL,
 	{
 		{ es1370_lget, es1370_wget, es1370_bget, es1370_lput, es1370_wput, es1370_bput },
 		{ NULL },

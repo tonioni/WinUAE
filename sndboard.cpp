@@ -361,7 +361,7 @@ void sndboard_hsync(void)
 				capture_read_index = 0;
 		}
 		
-		write_log(_T("%d %d %d %d\n"), capture_read_index, capture_write_index, size, bytes);
+		//write_log(_T("%d %d %d %d\n"), capture_read_index, capture_write_index, size, bytes);
 
 		if (data->data_in_record_fifo > FIFO_SIZE_HALF && oldfifo <= FIFO_SIZE_HALF) {
 			data->fifo_half |= STATUS_FIFO_RECORD;
@@ -704,9 +704,9 @@ static void fm801_swap_buffers(struct fm801_data *data)
 static void fm801_interrupt(struct fm801_data *data)
 {
 	if ((data->interrupt_status & 0x100) && !(data->interrupt_control & 1)) {
-		data->pcibs->board->irq(data->pcibs, true);
+		data->pcibs->irq_callback(data->pcibs, true);
 	} else {
-		data->pcibs->board->irq(data->pcibs, false);
+		data->pcibs->irq_callback(data->pcibs, false);
 	}
 }
 
@@ -934,7 +934,7 @@ static const struct pci_config fm801_pci_config_func1 =
 const struct pci_board fm801_pci_board =
 {
 	_T("FM801"),
-	&fm801_pci_config, fm801_init, fm801_free, fm801_reset, fm801_hsync_handler, pci_irq_callback,
+	&fm801_pci_config, fm801_init, fm801_free, fm801_reset, fm801_hsync_handler,
 	{
 		{ fm801_lget, fm801_wget, fm801_bget, fm801_lput, fm801_wput, fm801_bput },
 		{ NULL },
@@ -949,7 +949,7 @@ const struct pci_board fm801_pci_board =
 const struct pci_board fm801_pci_board_func1 =
 {
 	_T("FM801-2"),
-	&fm801_pci_config_func1, NULL, NULL, NULL, NULL, NULL,
+	&fm801_pci_config_func1, NULL, NULL, NULL, NULL,
 	{
 		{ fm801_lget, fm801_wget, fm801_bget, fm801_lput, fm801_wput, fm801_bput },
 		{ NULL },
@@ -1042,7 +1042,7 @@ static const struct pci_config solo1_pci_config =
 const struct pci_board solo1_pci_board =
 {
 	_T("SOLO1"),
-	&solo1_pci_config, solo1_init, solo1_free, solo1_reset, NULL, pci_irq_callback,
+	&solo1_pci_config, solo1_init, solo1_free, solo1_reset, NULL,
 	{
 		{ solo1_lget, solo1_wget, solo1_bget, solo1_lput, solo1_wput, solo1_bput },
 		{ solo1_lget, solo1_wget, solo1_bget, solo1_lput, solo1_wput, solo1_bput },
