@@ -225,6 +225,7 @@ static void write_response(ESPState *s)
 	// sure wrong buffer is not read.
 	s->pio_on = 0;
 	s->async_buf = NULL;
+	s->fifo_on = 1;
 
 	s->ti_buf[0] = s->status;
     s->ti_buf[1] = 0;
@@ -237,7 +238,7 @@ static void write_response(ESPState *s)
         s->ti_size = 2;
         s->ti_rptr = 0;
         s->ti_wptr = 0;
-        s->rregs[ESP_RFLAGS] = 2;
+        //s->rregs[ESP_RFLAGS] = 2;
     }
     esp_raise_irq(s);
 }
@@ -247,7 +248,7 @@ static void esp_dma_done(ESPState *s)
     s->rregs[ESP_RSTAT] |= STAT_TC;
     s->rregs[ESP_RINTR] = INTR_BS;
     s->rregs[ESP_RSEQ] = 0;
-    s->rregs[ESP_RFLAGS] = 0;
+    //s->rregs[ESP_RFLAGS] = 0;
     s->rregs[ESP_TCLO] = 0;
     s->rregs[ESP_TCMID] = 0;
     s->rregs[ESP_TCHI] = 0;
@@ -336,6 +337,7 @@ void esp_command_complete(SCSIRequest *req, uint32_t status,
 {
 	ESPState *s = (ESPState*)req->hba_private;
 
+	s->fifo_on = 0;
     s->ti_size = 0;
     s->dma_left = 0;
 	s->dma_pending = 0;
@@ -374,6 +376,8 @@ bool esp_dreq(DeviceState *dev)
 static int handle_ti(ESPState *s)
 {
     uint32_t dmalen, minlen;
+
+	s->fifo_on = 1;
 
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_ti;
@@ -452,30 +456,38 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
 
     switch (saddr) {
     case ESP_FIFO:
-        if (s->ti_size > 0) {
-            s->ti_size--;
-            if ((s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0 || s->pio_on) {
-                /* Data out.  */
-                //write_log("esp: PIO data read not implemented\n");
-				if (s->async_buf) {
-	                s->rregs[ESP_FIFO] = s->async_buf[s->ti_rptr++];
-					s->pio_on = 1;
+		if (s->fifo_on) {
+			// FIFO can be only read in PIO mode when any transfer command is active.
+			if (s->ti_size > 0) {
+				s->ti_size--;
+				if ((s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0 || s->pio_on) {
+					/* Data out.  */
+					if (s->async_buf) {
+						s->rregs[ESP_FIFO] = s->async_buf[s->ti_rptr++];
+						s->pio_on = 1;
+					} else {
+						s->rregs[ESP_FIFO] = 0;
+					}
+					if (s->ti_size <= 1 && s->current_req) {
+						// last byte is now going to FIFO, transfer ends.
+						scsiesp_req_continue(s->current_req);
+						// set ti_size back to 1, last byte is now in FIFO.
+						s->ti_size = 1;
+					} else {
+						esp_raise_irq(s);
+					}
 				} else {
-					s->rregs[ESP_FIFO] = 0;
+					s->rregs[ESP_FIFO] = s->ti_buf[s->ti_rptr++];
+					esp_raise_irq(s);
 				}
-				if (s->ti_size == 1 && s->current_req) {
-					scsiesp_req_continue(s->current_req);
-				}
-            } else {
-                s->rregs[ESP_FIFO] = s->ti_buf[s->ti_rptr++];
-            }
-			esp_raise_irq(s);
-        }
-        if (s->ti_size == 0) {
-            s->ti_rptr = 0;
-            s->ti_wptr = 0;
-			s->pio_on = 0;
-        }
+			}
+			if (s->ti_size == 0) {
+				s->ti_rptr = 0;
+				s->ti_wptr = 0;
+				s->pio_on = 0;
+				s->fifo_on = 0;
+			}
+		}
         break;
     case ESP_RINTR:
         /* Clear sequence step, interrupt register and all status bits
@@ -490,10 +502,10 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
 	case ESP_RFLAGS:
 	{
 		int v;
-		if (s->ti_size >= 7)
-			v = 31;
+		if (s->ti_size >= 16)
+			v = 16;
 		else
-			v = (1 << s->ti_size) - 1;
+			v = s->ti_size;
 		return v | (s->rregs[ESP_RSEQ] << 5);
 	}
 	case ESP_RES4:
@@ -541,6 +553,7 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
             break;
         case CMD_FLUSH:
             //s->ti_size = 0;
+			s->fifo_on = 0;
             s->rregs[ESP_RINTR] = INTR_FC;
             s->rregs[ESP_RSEQ] = 0;
             s->rregs[ESP_RFLAGS] = 0;
@@ -569,7 +582,7 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
         case CMD_MSGACC:
             s->rregs[ESP_RINTR] = INTR_DC;
             s->rregs[ESP_RSEQ] = 0;
-            s->rregs[ESP_RFLAGS] = 0;
+            //s->rregs[ESP_RFLAGS] = 0;
 			// Masoboshi driver expects phase=0!
 			s->rregs[ESP_RSTAT] &= ~7;
             esp_raise_irq(s);

@@ -40,6 +40,7 @@ struct ESPState {
     uint32_t dma_counter;
     int dma_enabled;
 	int pio_on;
+	int fifo_on;
 
     uint32_t async_len;
     uint8_t *async_buf;

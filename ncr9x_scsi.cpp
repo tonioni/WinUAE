@@ -811,6 +811,20 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 				esp_dma_enable(ncr->devobject.lsistate, 1);
 			return;
 		}
+	} else if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1230II)) {
+		addr &= 0xffff;
+		if (addr >= 0x20) {
+			if (addr & 0x10) {
+				ncr->dma_cnt = 0;
+				ncr->dma_ptr = 0;
+			}
+			ncr->dma_ptr |= (val & 0xff) << ((3 - ncr->dma_cnt) * 8);
+			ncr->dma_cnt++;
+			if (ncr->dma_cnt == 4)
+				esp_dma_enable(ncr->devobject.lsistate, 1);
+			return;
+		}
+		reg_shift = 1;
 	} else if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_2060)) {
 		if (addr >= BLIZZARD_2060_DMA_OFFSET) {
 			//write_log (_T("Blizzard DMA PUT %08x %02X\n"), addr, (uae_u8)val);
@@ -1069,6 +1083,12 @@ static uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 			}
 			return 0;
 		}
+	} else if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1230II)) {
+		addr &= 0xffff;
+		if (addr >= 0x20) {
+			return 0;
+		}
+		reg_shift = 1;
 	} else if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_2060)) {
 		if (addr >= BLIZZARD_2060_DMA_OFFSET) {
 			write_log(_T("Blizzard DMA GET %08x\n"), addr);
