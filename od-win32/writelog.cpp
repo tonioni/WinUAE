@@ -90,6 +90,14 @@ static void set_console_input_mode(int line)
 	console_input_linemode = line;
 }
 
+static BOOL WINAPI ctrlchandler(DWORD ct)
+{
+	if (ct == CTRL_C_EVENT || ct == CTRL_CLOSE_EVENT) {
+		systray(hHiddenWnd, TRUE);
+	}
+	return FALSE;
+}
+
 static void getconsole (void)
 {
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -106,6 +114,7 @@ static void getconsole (void)
 			SetConsoleScreenBufferSize (stdoutput, csbi.dwMaximumWindowSize);
 		}
 	}
+	SetConsoleCtrlHandler(ctrlchandler, TRUE);
 }
 
 static void flushmsgpump(void)
