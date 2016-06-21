@@ -58,8 +58,43 @@ extern int debug_write_memory_8 (uaecptr addr, uae_u8 v);
 extern bool debug_enforcer(void);
 
 #define BREAKPOINT_TOTAL 20
+#define BREAKPOINT_REG_Dx 0
+#define BREAKPOINT_REG_Ax 8
+#define BREAKPOINT_REG_PC 16
+#define BREAKPOINT_REG_USP 17
+#define BREAKPOINT_REG_MSP 18
+#define BREAKPOINT_REG_ISP 19
+#define BREAKPOINT_REG_VBR 20
+#define BREAKPOINT_REG_SR 21
+#define BREAKPOINT_REG_CCR 22
+#define BREAKPOINT_REG_CACR 23
+#define BREAKPOINT_REG_CAAR 24
+#define BREAKPOINT_REG_SFC 25
+#define BREAKPOINT_REG_DFC 26
+#define BREAKPOINT_REG_TC 27
+#define BREAKPOINT_REG_ITT0 28
+#define BREAKPOINT_REG_ITT1 29
+#define BREAKPOINT_REG_DTT0 30
+#define BREAKPOINT_REG_DTT1 31
+#define BREAKPOINT_REG_BUSC 32
+#define BREAKPOINT_REG_PCR 33
+#define BREAKPOINT_REG_END 34
+
+#define BREAKPOINT_CMP_EQUAL 0
+#define BREAKPOINT_CMP_NEQUAL 1
+#define BREAKPOINT_CMP_SMALLER_EQUAL 2
+#define BREAKPOINT_CMP_LARGER_EQUAL 3
+#define BREAKPOINT_CMP_SMALLER 2
+#define BREAKPOINT_CMP_LARGER 3
+#define BREAKPOINT_CMP_RANGE 4
+#define BREAKPOINT_CMP_NRANGE 5
+
 struct breakpoint_node {
-    uaecptr addr;
+	uae_u32 value1;
+	uae_u32 value2;
+	uae_u32 mask;
+	int type;
+	int oper;
     int enabled;
 };
 extern struct breakpoint_node bpnodes[BREAKPOINT_TOTAL];

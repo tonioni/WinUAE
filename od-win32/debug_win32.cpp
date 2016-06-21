@@ -518,7 +518,7 @@ static void ShowBreakpoints(void)
 	for (i = 0; i < BREAKPOINT_TOTAL; i++) {
 		if (!bpnodes[i].enabled)
 			continue;
-		m68k_disasm_2(outbp, sizeof outbp / sizeof (TCHAR), bpnodes[i].addr, NULL, 1, NULL, NULL, 0);
+		m68k_disasm_2(outbp, sizeof outbp / sizeof (TCHAR), bpnodes[i].value1, NULL, 1, NULL, NULL, 0);
 		ULBS(outbp);
 		got = 1;
 	}
@@ -1949,7 +1949,7 @@ static INT_PTR CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 					addrstr[10] = 0;
 					addr = _tcstoul(addrstr, NULL, 0);
 					for (i = 0; i < BREAKPOINT_TOTAL; i++) {
-						if (addr == bpnodes[i].addr && bpnodes[i].enabled) {
+						if (addr == bpnodes[i].value1 && bpnodes[i].enabled) {
 							int offset = 0;
 							if (size >= 9)
 								offset = 3;
