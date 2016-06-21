@@ -3449,6 +3449,20 @@ static const struct expansionboardsettings blizzardboard_settings[] = {
 	}
 };
 
+static const struct expansionboardsettings blizzardboard_settings_mk2[] = {
+	{
+		_T("MapROM"),
+		_T("maprom")
+	},
+	{
+		_T("SCSI Kit II"),
+		_T("scsikitii")
+	},
+	{
+		NULL
+	}
+};
+
 static const struct cpuboardsubtype gvpboard_sub[] = {
 	{
 		_T("A3001 Series I"),
@@ -3505,6 +3519,28 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 	}
 };
 static const struct cpuboardsubtype blizzardboard_sub[] = {
+	{
+		_T("Blizzard 1230 II"),
+		_T("Blizzard1230II"),
+		ROMTYPE_CB_B1230MK2, 0,
+		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		BOARD_MEMORY_BLIZZARD_12xx,
+		64 * 1024 * 1024,
+		0,
+		NULL, NULL, 0, 0,
+		blizzardboard_settings_mk2
+	},
+	{
+		_T("Blizzard 1230 III"),
+		_T("Blizzard1230III"),
+		ROMTYPE_CB_B1230MK3, 0,
+		NULL, 0,
+		BOARD_MEMORY_BLIZZARD_12xx,
+		32 * 1024 * 1024,
+		0,
+		NULL, NULL, 0, 0,
+		blizzardboard_settings
+	},
 	{
 		_T("Blizzard 1230 IV"),
 		_T("Blizzard1230IV"),

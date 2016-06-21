@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 162
+#define NEXT_ROM_ID 164
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -322,8 +322,12 @@ static struct romdata roms[] = {
 	{ _T("SupraDrive AMAB3"), 0, 0, 0, 0, _T("SUPRA\0"), 8192, 136, 0, 0, ROMTYPE_SUPRA, 0, 0, _T("AMAB3"),
 	0x3ead39aa, 0x02fe79ee,0xef423098,0xec6add8c,0xb92f849f,0xc64bcd41 },
 
-	{ _T("Blizzard 1230-IV"), 0, 0, 0, 0, _T("B1230\0"), 32768, 89, 0, 0, ROMTYPE_CB_BLIZ1230, 0, 0, NULL,
-	0x3078dbdc, 0x4d3e7fd0,0xa1a4c3ae,0xe17c5de3,0xcbe1af03,0x447aff92 },
+	{ _T("Blizzard 1230-II"), 0, 0, 0, 0, _T("B1230MKII\0"), 32768, 163, 0, 0, ROMTYPE_CB_B1230MK2, 0, 0, NULL,
+	0xf307cd34, 0xd2f0bfe5, 0x6e84e9f2, 0x2dc11583, 0x30702fd7, 0xd59584ee },
+	{ _T("Blizzard 1230-III"), 0, 0, 0, 0, _T("B1230MKIII\0"), 16384, 162, 0, 0, ROMTYPE_CB_B1230MK3, 0, 0, NULL,
+	0x6850607d, 0xfc37c96c, 0xfd22f442, 0xd7d64d21, 0x06683603, 0x2111fbae },
+	{ _T("Blizzard 1230-IV"), 0, 0, 0, 0, _T("B1230MKIV\0"), 32768, 89, 0, 0, ROMTYPE_CB_BLIZ1230, 0, 0, NULL,
+	0x3078dbdc, 0x4d3e7fd0, 0xa1a4c3ae, 0xe17c5de3, 0xcbe1af03, 0x447aff92 },
 	{ _T("Blizzard 1240/1260"), 0, 0, 0, 0, _T("B1240\0B1260\0"), 32768, 90, 0, 0, ROMTYPE_CB_BLIZ1260, 0, 0, NULL,
 	0xf88ae0f1, 0xf69aca4b,0xb13e3389,0x04676f0c,0x8616f8db,0x074c313d },
 	{ _T("Blizzard 2060"), 8, 5, 8, 5, _T("B2060\0"), 65536, 92, 0, 0, ROMTYPE_CB_BLIZ2060, 0, 0, NULL,
