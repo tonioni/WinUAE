@@ -4216,7 +4216,7 @@ int DISK_examine_image (struct uae_prefs *p, int num, struct diskinfo *di)
 	di->crc32 = zfile_crc32 (drv->diskfile);
 	di->unreadable = false;
 	decode_buffer (drv->bigmfmbuf, drv->cyl, 11, drv->ddhd, drv->filetype, &drvsec, sectable, 1);
-	di->hd = drvsec == 22;
+	di->hd = drv->ddhd == 2;
 	drv->cyl = oldcyl;
 	side = oldside;
 	if (sectable[0] == 0 || sectable[1] == 0) {
