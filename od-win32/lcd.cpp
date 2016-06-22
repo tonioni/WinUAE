@@ -7,6 +7,8 @@
 #include "resource.h"
 #include "gui.h"
 #include "lcd.h"
+#include "threaddep/thread.h"
+#include "uae.h"
 
 #include <LogitechLCDLib.h>
 
@@ -20,6 +22,8 @@ static int bm_width = LOGI_LCD_MONO_WIDTH;
 static int bm_height = LOGI_LCD_MONO_HEIGHT;
 static const int numbers_width = 7, numbers_height = 10;
 static HMODULE lcdlib;
+static volatile int lcd_thread_active;
+static volatile bool lcd_updated;
 
 extern unsigned long timeframes;
 
@@ -38,10 +42,18 @@ static LOGILCDSETBACKGROUND pLogiLcdMonoSetBackground, pLogiLcdColorSetBackgroun
 
 #define LOGITECH_LCD_DLL _T("SOFTWARE\\Classes\\CLSID\\{d0e790a5-01a7-49ae-ae0b-e986bdd0c21b}\\ServerBinary")
 
+static void *lcd_thread(void *null);
+
 void lcd_close (void)
 {
 	if (!lcdlib)
 		return;
+	if (lcd_thread_active > 0) {
+		lcd_thread_active = -1;
+		while (lcd_thread_active)
+			sleep_millis(10);
+	}
+
 	pLogiLcdShutdown();
 	xfree(mbitmap);
 	mbitmap = NULL;
@@ -107,6 +119,9 @@ static int lcd_init (void)
 	DeleteDC (dc);
 
 	write_log (_T("LCD enabled\n"));
+
+	lcd_thread_active = 1;
+	uae_start_thread(_T("lcd"), lcd_thread, 0, NULL);
 	return 1;
 
 err:
@@ -135,7 +150,7 @@ static void makecolorbm(void)
 	}
 }
 
-static void dorect (int *crd, int inv)
+static void dorect (const int *crd, int inv)
 {
 	int yy, xx;
 	int x = crd[0], y = crd[1], w = crd[2], h = crd[3];
@@ -178,27 +193,25 @@ static void putnumbers (int x, int y, int num, int inv)
 	putnumber (x + numbers_width, y, num < 0 ? num : num % 10, inv);
 }
 
-static int coords[] = {
+static const int coords[] = {
 	53, 2, 13, 10, // CD
 	36, 2, 13, 10, // HD
 	2, 2, 30, 10 // POWER
 };
 
-void lcd_priority (int priority)
+void lcd_priority(int priority)
 {
 }
 
-void lcd_update (int led, int on)
+void lcd_update(int led, int on)
 {
-	bool c;
 	int track, x, y;
-	static unsigned long otimeframes;
 
 	if (!inited)
 		return;
 
 	if (led < 0) {
-		c = pLogiLcdUpdate();
+		lcd_updated = true;
 		return;
 	}
 	if (on < 0)
@@ -228,17 +241,27 @@ void lcd_update (int led, int on)
 		x = 98;
 		putnumbers (x, y, gui_data.idle <= 999 ? gui_data.idle / 10 : 99, 0);
 	}
+	lcd_updated = true;
+}
 
-	if (otimeframes != timeframes) {
-		if (pLogiLcdMonoSetBackground)
-			c = pLogiLcdMonoSetBackground(mbitmap);
-		if (pLogiLcdColorSetBackground) {
-			makecolorbm();
-			c = pLogiLcdColorSetBackground((uae_u8*)cbitmap);
+static void *lcd_thread(void *null)
+{
+	while (lcd_thread_active > 0) {
+		bool c;
+		Sleep(10);
+		if (lcd_updated) {
+			if (pLogiLcdMonoSetBackground)
+				c = pLogiLcdMonoSetBackground(mbitmap);
+			if (pLogiLcdColorSetBackground) {
+				makecolorbm();
+				c = pLogiLcdColorSetBackground((uae_u8*)cbitmap);
+			}
+			c = pLogiLcdUpdate();
+			lcd_updated = false;
 		}
-		c = pLogiLcdUpdate();
-		otimeframes = timeframes;
 	}
+	lcd_thread_active = 0;
+	return NULL;
 }
 
 int lcd_open (void)
