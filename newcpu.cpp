@@ -7504,7 +7504,7 @@ static void write_dcache030x(uaecptr addr, uae_u32 val, int size)
 	c1 = getcache030(dcaches030, addr, &tag1, &lws1);
 
 	// easy one
-	if (size == 2 && aligned == 0 && wa == 1) {
+	if (size == 2 && aligned == 0 && wa) {
 		update_cache030(c1, val, tag1, lws1);
 		return;
 	}
