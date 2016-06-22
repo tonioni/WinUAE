@@ -58,9 +58,20 @@
 #include "pci_hw.h"
 #include "x86.h"
 #include "ethernet.h"
+#include "drawing.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
+
+void device_check_config(void)
+{
+	check_prefs_changed_cd();
+	check_prefs_changed_audio();
+	check_prefs_changed_custom();
+	check_prefs_changed_cpu();
+	check_prefs_picasso();
+	check_prefs_changed_gayle();
+}
 
 void devices_reset(int hardreset)
 {
