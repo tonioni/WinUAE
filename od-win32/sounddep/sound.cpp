@@ -1623,7 +1623,7 @@ void close_sound (void)
 
 bool sound_paused(void)
 {
-	return sdp->paused;
+	return sdp->paused != 0;
 }
 
 void pause_sound (void)
