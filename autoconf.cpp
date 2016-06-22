@@ -52,6 +52,12 @@ addrbank rtarea_bank = {
 	ABFLAG_ROMIN | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
+#define MAX_ABSOLUTE_ROM_ADDRESS 1024
+
+static int absolute_rom_address;
+static uaecptr absolute_rom_addresses[MAX_ABSOLUTE_ROM_ADDRESS];
+static uaecptr rombase_new;
+
 static void hwtrap_check_int(void)
 {
 	if (currprefs.uaeboard < 2)
@@ -311,6 +317,7 @@ void rtarea_reset(void)
 		memset(p + RTAREA_VARIABLES, 0, RTAREA_VARIABLES_SIZE);
 	}
 	trap_reset();
+	absolute_rom_address = 0;
 }
 
 /* some quick & dirty code to fill in the rt area and save me a lot of
@@ -386,12 +393,6 @@ uae_u32 ds_bstr_ansi (const uae_char *str)
 	strcpy ((uae_char*)rtarea_bank.baseaddr + rt_straddr + 1, str);
 	return addr (rt_straddr) >> 2;
 }
-
-#define MAX_ABSOLUTE_ROM_ADDRESS 1024
-
-static int absolute_rom_address;
-static uaecptr absolute_rom_addresses[MAX_ABSOLUTE_ROM_ADDRESS];
-static uaecptr rombase_new;
 
 void save_rom_absolute(uaecptr addr)
 {
