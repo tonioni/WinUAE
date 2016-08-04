@@ -93,10 +93,10 @@ extern uaecptr ROM_hardfile_resname, ROM_hardfile_resid;
 extern uaecptr ROM_hardfile_init;
 extern uaecptr filesys_initcode, filesys_initcode_ptr;
 
-extern int is_hardfile (int unit_no);
-extern int nr_units (void);
-extern int nr_directory_units (struct uae_prefs*);
-extern uaecptr need_uae_boot_rom (void);
+extern int is_hardfile(int unit_no);
+extern int nr_units(void);
+extern int nr_directory_units(struct uae_prefs*);
+extern uaecptr need_uae_boot_rom(struct uae_prefs*);
 
 struct mountedinfo
 {
@@ -108,7 +108,6 @@ struct mountedinfo
 	TCHAR rootdir[MAX_DPATH];
 };
 
-extern int add_filesys_unitconfig (struct uae_prefs *p, int index, TCHAR *error);
 extern int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo*);
 extern int kill_filesys_unitconfig (struct uae_prefs *p, int nr);
 extern int move_filesys_unitconfig (struct uae_prefs *p, int nr, int to);
@@ -143,17 +142,25 @@ extern uae_u32 uaeboard_demux (uae_u32*);
 extern void expansion_init (void);
 extern void expansion_cleanup (void);
 extern void expansion_clear (void);
-extern void expansion_autoconfig_put(int, uae_u8);
-extern uaecptr expansion_startaddress(uaecptr addr, uae_u32 size);
+extern uaecptr expansion_startaddress(struct uae_prefs*, uaecptr addr, uae_u32 size);
 extern bool expansion_is_next_board_fastram(void);
 extern uaecptr uaeboard_alloc_ram(uae_u32);
 extern uae_u8 *uaeboard_map_ram(uaecptr);
+extern void expansion_scan_autoconfig(struct uae_prefs*, bool);
+extern void expansion_generate_autoconfig_info(struct uae_prefs *p);
+extern struct autoconfig_info *expansion_get_autoconfig_info(struct uae_prefs*, int romtype, int devnum);
+extern struct autoconfig_info *expansion_get_autoconfig_data(struct uae_prefs *p, int index);
+extern struct autoconfig_info *expansion_get_autoconfig_by_address(struct uae_prefs *p, uaecptr addr);
+extern void expansion_set_autoconfig_sort(struct uae_prefs *p);
+extern int expansion_autoconfig_move(struct uae_prefs *p, int index, int direction);
+extern bool alloc_expansion_bank(addrbank *bank, struct autoconfig_info *aci);
+extern void free_expansion_bank(addrbank *bank);
 
 extern void uaegfx_install_code (uaecptr);
 
 extern uae_u32 emulib_target_getcpurate (uae_u32, uae_u32*);
 
-typedef addrbank*(*DEVICE_INIT)(struct romconfig*);
+typedef bool (*DEVICE_INIT)(struct autoconfig_info*);
 typedef void(*DEVICE_ADD)(int, struct uaedev_config_info*, struct romconfig*);
 typedef bool(*E8ACCESS)(int, uae_u32*, int, bool);
 typedef void(*DEVICE_MEMORY_CALLBACK)(struct romconfig*, uae_u8*, int);
@@ -168,6 +175,10 @@ typedef void(*DEVICE_MEMORY_CALLBACK)(struct romconfig*, uae_u8*, int);
 #define EXPANSIONTYPE_X86_BRIDGE 256
 #define EXPANSIONTYPE_CUSTOM_SECONDARY 512
 #define EXPANSIONTYPE_RTG 1024
+#define EXPANSIONTYPE_SOUND 2048
+#define EXPANSIONTYPE_FLOPPY 4096
+#define EXPANSIONTYPE_NET 8192
+#define EXPANSIONTYPE_INTERNAL 16384
 struct expansionboardsettings
 {
 	const TCHAR *name;

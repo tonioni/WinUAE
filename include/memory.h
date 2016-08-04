@@ -119,6 +119,34 @@ struct addrbank_sub
 	uae_u32 maskval;
 };
 
+struct autoconfig_info
+{
+	struct uae_prefs *prefs;
+	bool doinit;
+	int devnum;
+	uae_u8 autoconfig_raw[128];
+	uae_u8 autoconfig_bytes[16];
+	TCHAR name[128];
+	const uae_u8 *autoconfigp;
+	uae_u32 start;
+	uae_u32 size;
+	int zorro;
+	const TCHAR *label;
+	addrbank *addrbank;
+	struct romconfig *rc;
+	uae_u32 last_high_ram;
+	const struct cpuboardsubtype *cst;
+	const struct expansionromtype *ert;
+	struct autoconfig_info *parent;
+	const int *parent_romtype;
+	bool parent_of_previous;
+	bool parent_address_space;
+	const TCHAR *parent_name;
+	bool can_sort;
+	bool (*get_params)(struct uae_prefs*, struct expansion_params*);
+	bool (*set_params)(struct uae_prefs*, struct expansion_params*);
+};
+
 #define CE_MEMBANK_FAST32 0
 #define CE_MEMBANK_CHIP16 1
 #define CE_MEMBANK_CHIP32 2
@@ -233,6 +261,90 @@ MEMORY_BPUT(name); \
 MEMORY_CHECK(name); \
 MEMORY_XLATE(name);
 
+
+#define MEMORY_ARRAY_LGET(name, index) \
+static uae_u32 REGPARAM3 name ## index ## _lget (uaecptr) REGPARAM; \
+static uae_u32 REGPARAM2 name ## index ## _lget (uaecptr addr) \
+{ \
+	uae_u8 *m; \
+	addr -= name ## _bank[index].start & name ## _bank[index].mask; \
+	addr &= name ## _bank[index].mask; \
+	m = name ## _bank[index].baseaddr + addr; \
+	return do_get_mem_long ((uae_u32 *)m); \
+}
+#define MEMORY_ARRAY_WGET(name, index) \
+static uae_u32 REGPARAM3 name ## index ## _wget (uaecptr) REGPARAM; \
+static uae_u32 REGPARAM2 name ## index ## _wget (uaecptr addr) \
+{ \
+	uae_u8 *m; \
+	addr -= name ## _bank[index].start & name ## _bank[index].mask; \
+	addr &= name ## _bank[index].mask; \
+	m = name ## _bank[index].baseaddr + addr; \
+	return do_get_mem_word ((uae_u16 *)m); \
+}
+#define MEMORY_ARRAY_BGET(name, index) \
+static uae_u32 REGPARAM3 name ## index ## _bget (uaecptr) REGPARAM; \
+static uae_u32 REGPARAM2 name ## index ## _bget (uaecptr addr) \
+{ \
+	addr -= name ## _bank[index].start & name ## _bank[index].mask; \
+	addr &= name ## _bank[index].mask; \
+	return name ## _bank[index].baseaddr[addr]; \
+}
+#define MEMORY_ARRAY_LPUT(name, index) \
+static void REGPARAM3 name ## index ## _lput (uaecptr, uae_u32) REGPARAM; \
+static void REGPARAM2 name ## index ## _lput (uaecptr addr, uae_u32 l) \
+{ \
+	uae_u8 *m;  \
+	addr -= name ## _bank[index].start & name ## _bank[index].mask; \
+	addr &= name ## _bank[index].mask; \
+	m = name ## _bank[index].baseaddr + addr; \
+	do_put_mem_long ((uae_u32 *)m, l); \
+}
+#define MEMORY_ARRAY_WPUT(name, index) \
+static void REGPARAM3 name ## index ## _wput (uaecptr, uae_u32) REGPARAM; \
+static void REGPARAM2 name ## index ## _wput (uaecptr addr, uae_u32 w) \
+{ \
+	uae_u8 *m;  \
+	addr -= name ## _bank[index].start & name ## _bank[index].mask; \
+	addr &= name ## _bank[index].mask; \
+	m = name ## _bank[index].baseaddr + addr; \
+	do_put_mem_word ((uae_u16 *)m, w); \
+}
+#define MEMORY_ARRAY_BPUT(name, index) \
+static void REGPARAM3 name ## index ## _bput (uaecptr, uae_u32) REGPARAM; \
+static void REGPARAM2 name ## index ## _bput (uaecptr addr, uae_u32 b) \
+{ \
+	addr -= name ## _bank[index].start & name ## _bank[index].mask; \
+	addr &= name ## _bank[index].mask; \
+	name ## _bank[index].baseaddr[addr] = b; \
+}
+#define MEMORY_ARRAY_CHECK(name, index) \
+static int REGPARAM3 name ## index ## _check (uaecptr addr, uae_u32 size) REGPARAM; \
+static int REGPARAM2 name ## index ## _check (uaecptr addr, uae_u32 size) \
+{ \
+	addr -= name ## _bank[index].start & name ## _bank[index].mask; \
+	addr &= name ## _bank[index].mask; \
+	return (addr + size) <= name ## _bank[index].allocated; \
+}
+#define MEMORY_ARRAY_XLATE(name, index) \
+static uae_u8 *REGPARAM3 name ## index ## _xlate (uaecptr addr) REGPARAM; \
+static uae_u8 *REGPARAM2 name ## index ## _xlate (uaecptr addr) \
+{ \
+	addr -= name ## _bank[index].start & name ## _bank[index].mask; \
+	addr &= name ## _bank[index].mask; \
+	return name ## _bank[index].baseaddr + addr; \
+}
+
+#define MEMORY_ARRAY_FUNCTIONS(name, index) \
+MEMORY_ARRAY_LGET(name, index); \
+MEMORY_ARRAY_WGET(name, index); \
+MEMORY_ARRAY_BGET(name, index); \
+MEMORY_ARRAY_LPUT(name, index); \
+MEMORY_ARRAY_WPUT(name, index); \
+MEMORY_ARRAY_BPUT(name, index); \
+MEMORY_ARRAY_CHECK(name, index); \
+MEMORY_ARRAY_XLATE(name, index);
+
 extern addrbank chipmem_bank;
 extern addrbank chipmem_agnus_bank;
 extern addrbank chipmem_bank_ce2;
@@ -244,21 +356,17 @@ extern addrbank rtarea_bank;
 extern addrbank filesys_bank;
 extern addrbank uaeboard_bank;
 extern addrbank expamem_bank;
-extern addrbank expamem_null, expamem_none;
-extern addrbank fastmem_bank;
-extern addrbank fastmem_nojit_bank;
-extern addrbank fastmem2_bank;
-extern addrbank fastmem2_nojit_bank;
-extern addrbank gfxmem_bank;
+extern addrbank expamem_null, expamem_none, expamem_nonautoconfig;
+extern addrbank fastmem_bank[MAX_RAM_BOARDS];
+extern addrbank fastmem_nojit_bank[MAX_RAM_BOARDS];
+extern addrbank *gfxmem_banks[MAX_RTG_BOARDS];
 extern addrbank gayle_bank;
 extern addrbank gayle2_bank;
 extern addrbank mbres_bank;
 extern addrbank akiko_bank;
-extern addrbank cdtvcr_bank;
 extern addrbank cardmem_bank;
 extern addrbank bogomem_bank;
-extern addrbank z3fastmem_bank;
-extern addrbank z3fastmem2_bank;
+extern addrbank z3fastmem_bank[MAX_RAM_BOARDS];
 extern addrbank z3chipmem_bank;
 extern addrbank mem25bit_bank;
 extern addrbank a3000lmem_bank;
@@ -277,9 +385,10 @@ extern void expamem_reset (void);
 extern void expamem_next (addrbank *mapped, addrbank *next);
 extern void expamem_shutup (addrbank *mapped);
 extern bool expamem_z3hack(struct uae_prefs*);
-extern void set_expamem_z3_hack_override(bool);
-extern uaecptr expamem_z3_pointer, expamem_z2_pointer;
-extern uae_u32 expamem_z3_size, expamem_z2_size;
+extern void set_expamem_z3_hack_mode(int);
+extern uaecptr expamem_board_pointer, expamem_highmem_pointer;
+extern uaecptr expamem_z3_pointer_real, expamem_z3_pointer_uae;
+extern uae_u32 expamem_board_size;
 
 extern uae_u32 last_custom_value1;
 
@@ -626,9 +735,6 @@ extern void memcpyha_safe (uaecptr dst, const uae_u8 *src, int size);
 extern void memcpyha (uaecptr dst, const uae_u8 *src, int size);
 extern void memcpyah_safe (uae_u8 *dst, uaecptr src, int size);
 extern void memcpyah (uae_u8 *dst, uaecptr src, int size);
-
-extern uae_s32 getz2size (struct uae_prefs *p);
-uae_u32 getz2endaddr (void);
 
 #define UAE_MEMORY_REGIONS_MAX 64
 #define UAE_MEMORY_REGION_NAME_LENGTH 64

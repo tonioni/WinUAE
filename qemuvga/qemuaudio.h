@@ -31,6 +31,7 @@ struct SWVoiceOut
 	int freq, ch, bits;
 	audfmt_e fmt;
 	int left_volume, right_volume;
+	int streamid;
 };
 struct SWVoiceIn
 {

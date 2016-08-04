@@ -48,6 +48,7 @@ static int a2410_overlay_blink_rate_off;
 static int a2410_overlay_blink_cnt;
 static int tms_configured;
 static uae_u8 tms_config[128];
+static int a2410_gfxboard = -1;
 extern addrbank tms_bank;
 
 int mscreen::hpos()
@@ -139,11 +140,11 @@ UINT32 total_cycles(void)
 
 void m_to_shiftreg_cb(address_space space, offs_t offset, UINT16 *shiftreg)
 {
-	memcpy(shiftreg, &gfxmem_bank.baseaddr[TOWORD(offset)], 256 * sizeof(UINT16));
+	memcpy(shiftreg, &gfxmem_banks[a2410_gfxboard]->baseaddr[TOWORD(offset)], 256 * sizeof(UINT16));
 }
 void m_from_shiftreg_cb(address_space space, offs_t offset, UINT16* shiftreg)
 {
-	memcpy(&gfxmem_bank.baseaddr[TOWORD(offset)], shiftreg, 256 * sizeof(UINT16));
+	memcpy(&gfxmem_banks[a2410_gfxboard]->baseaddr[TOWORD(offset)], shiftreg, 256 * sizeof(UINT16));
 }
 
 UINT16 direct_read_data::read_decrypted_word(UINT32 pc)
@@ -325,7 +326,7 @@ UINT8 address_space::read_byte(UINT32 a)
 		//write_log(_T("TMS byte read RAM %08x (%08x) =%02x PC=%08x\n"), aa, addr, v, M68K_GETPC);
 		break;
 		case A2410_BANK_FRAMEBUFFER:
-		v = gfxmem_bank.baseaddr[addr];
+		v = gfxmem_banks[a2410_gfxboard]->baseaddr[addr];
 		//write_log(_T("TMS byte read framebuffer %08x (%08x) = %02x PC=%08x\n"), aa, addr, v, M68K_GETPC);
 		break;
 		case A2410_BANK_RAMDAC:
@@ -369,8 +370,8 @@ UINT16 address_space::read_word(UINT32 a)
 		//write_log(_T("TMS program word read RAM %08x (%08x) = %04x PC=%08x\n"), aa, addr, v, M68K_GETPC);
 		break;
 		case A2410_BANK_FRAMEBUFFER:
-		v = gfxmem_bank.baseaddr[addr] << 8;
-		v |= gfxmem_bank.baseaddr[addr + 1];
+		v = gfxmem_banks[a2410_gfxboard]->baseaddr[addr] << 8;
+		v |= gfxmem_banks[a2410_gfxboard]->baseaddr[addr + 1];
 		//write_log(_T("TMS gfx word read %08x (%08x) = %04x PC=%08x\n"), aa, addr, v, M68K_GETPC);
 		break;
 		case A2410_BANK_RAMDAC:
@@ -410,7 +411,7 @@ void address_space::write_byte(UINT32 a, UINT8 b)
 		//write_log(_T("TMS program byte write %08x (%08x) = %02x PC=%08x\n"), aa, addr, b, M68K_GETPC);
 		break;
 		case A2410_BANK_FRAMEBUFFER:
-		gfxmem_bank.baseaddr[addr] = b;
+		gfxmem_banks[a2410_gfxboard]->baseaddr[addr] = b;
 		//write_log(_T("TMS gfx byte write %08x (%08x) = %02x PC=%08x\n"), aa, addr, b, M68K_GETPC);
 		break;
 		case A2410_BANK_RAMDAC:
@@ -453,8 +454,8 @@ void address_space::write_word(UINT32 a, UINT16 b)
 		//write_log(_T("TMS program word write RAM %08x (%08x) = %04x PC=%08x\n"), aa, addr, b, M68K_GETPC);
 		break;
 		case A2410_BANK_FRAMEBUFFER:
-		gfxmem_bank.baseaddr[addr] = b >> 8;
-		gfxmem_bank.baseaddr[addr + 1] = b & 0xff;
+		gfxmem_banks[a2410_gfxboard]->baseaddr[addr] = b >> 8;
+		gfxmem_banks[a2410_gfxboard]->baseaddr[addr + 1] = b & 0xff;
 		//write_log(_T("TMS gfx word write %08x (%08x) = %04x PC=%08x\n"), aa, addr, b, M68K_GETPC);
 		break;
 		case A2410_BANK_RAMDAC:
@@ -574,6 +575,7 @@ static uae_u8 *a2410_surface;
 static int a2410_interlace;
 static int a2410_interrupt;
 static int a2410_hsync_max;
+static bool a2410_visible;
 
 void tms_reset(void)
 {
@@ -609,12 +611,16 @@ void tms_free(void)
 	if (a2410_surface)
 		gfx_unlock_picasso(true);
 	a2410_surface = NULL;
-	mapped_free(&gfxmem_bank);
+	if (a2410_gfxboard >= 0) {
+		gfxboard_free_vram(a2410_gfxboard);
+		gfxboard_free_slot(a2410_gfxboard);
+	}
+	a2410_gfxboard = -1;
 	xfree(program_ram);
 	program_ram = NULL;
 }
 
-addrbank *tms_init(int devnum)
+bool tms_init(struct autoconfig_info *aci)
 {
 	memset(tms_config, 0xff, sizeof tms_config);
 	ew(0x00, 0xc0 | 0x01);
@@ -624,14 +630,34 @@ addrbank *tms_init(int devnum)
 	ew(0x10, 1030 >> 8);
 	ew(0x14, 1030 & 0xff);
 
-	mapped_free(&gfxmem_bank);
+	aci->addrbank = &tms_bank;
+	aci->label = _T("A2410");
+	if (!aci->doinit) {
+		memcpy(aci->autoconfig_raw, tms_config, sizeof tms_config);
+		return true;
+	}
+
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		if (currprefs.rtgboards[i].rtgmem_type == GFXBOARD_A2410) {
+			a2410_gfxboard = currprefs.rtgboards[i].rtg_index;
+			break;
+		}
+	}
+
+	if (a2410_gfxboard < 0)
+		return false;
+
+	gfxboard_allocate_slot(currprefs.rtgboards[a2410_gfxboard].rtgmem_type, a2410_gfxboard);
+
+	mapped_free(gfxmem_banks[a2410_gfxboard]);
 	xfree(program_ram);
 
-	gfxmem_bank.label = _T("ram_a8");
-	gfxmem_bank.allocated = 1 * 1024 * 1024;
-	mapped_malloc(&gfxmem_bank);
-	picasso_allocatewritewatch(gfxmem_bank.allocated);
-	gfxmem_bank.start = 0xa80000;
+	gfxmem_banks[a2410_gfxboard]->label = _T("ram_a8");
+	gfxmem_banks[a2410_gfxboard]->allocated = 1 * 1024 * 1024;
+	gfxboard_get_a8_vram(a2410_gfxboard);
+
+	picasso_allocatewritewatch(a2410_gfxboard, gfxmem_banks[a2410_gfxboard]->allocated);
+	gfxmem_banks[a2410_gfxboard]->start = 0xa80000;
 
 	program_ram = xcalloc(uae_u8, 1 * 1024 * 1024);
 
@@ -639,7 +665,7 @@ addrbank *tms_init(int devnum)
 	tms_device.device_start();
 	tms_reset();
 
-	return &tms_bank;
+	return true;
 }
 
 void mscreen::configure(int width, int height, rectangle vis)
@@ -679,20 +705,38 @@ bool tms_toggle(int mode)
 	if (!tms_configured)
 		return false;
 
-	if (a2410_enabled) {
+	if (!mode) {
+		if (!a2410_enabled)
+			return false;
 		a2410_enabled = false;
 		a2410_modechanged = false;
-		picasso_requested_on = 0;
 		a2410_gotmode = -1;
+		a2410_visible = false;
 		return true;
 	} else {
 		if (!a2410_gotmode)
 			return false;
+		if (a2410_enabled)
+			return false;
 		a2410_gotmode = 1;
 		a2410_modechanged = true;
+		a2410_visible = true;
+		if (currprefs.rtgboards[1].rtgmem_size)
+			statusline_add_message(_T("RTG %d: A2410"), a2410_gfxboard + 1);
 		return true;
 	}
 	return false;
+}
+
+static void a2410_setmode(void)
+{
+	picasso96_state.Width = a2410_width;
+	picasso96_state.Height = a2410_height;
+	picasso96_state.BytesPerPixel = 1;
+	picasso96_state.RGBFormat = RGBFB_CLUT;
+	write_log(_T("A2410 %d*%d\n"), a2410_width, a2410_height);
+	gfx_set_picasso_modeinfo(a2410_width, a2410_height, 1, RGBFB_NONE);
+	init_hz_p96();
 }
 
 static void tms_vsync_handler2(bool internalsync)
@@ -704,48 +748,48 @@ static void tms_vsync_handler2(bool internalsync)
 	tms_device.get_display_params(&parms);
 	bool enabled = parms.enabled != 0 && a2410_gotmode > 0;
 
-	if (enabled != a2410_enabled || a2410_modechanged) {
+	if (!a2410_visible && a2410_modechanged) {
+		if (gfxboard_rtg_enable_initial(a2410_gfxboard)) {
+			a2410_setmode();
+			return;
+		}
+	}
+
+	if (a2410_visible) {
+		if (enabled != a2410_enabled || a2410_modechanged) {
+			if (a2410_surface)
+				gfx_unlock_picasso(false);
+			a2410_surface = NULL;
+
+			if (enabled) {
+				if (a2410_modechanged) {
+					a2410_setmode();
+					if (!picasso_on)
+						picasso_requested_on = true;
+				}
+				a2410_modechanged = false;
+				fullrefresh = 2;
+			}
+			a2410_enabled = enabled;
+			write_log(_T("A2410 ACTIVE=%d\n"), a2410_enabled);
+		}
+
+		if (picasso_on) {
+			if (currprefs.leds_on_screen & STATUSLINE_RTG) {
+				get_a2410_surface();
+			}
+			if (internalsync) {
+				if (request_fullrefresh) {
+					fullrefresh = 2;
+					request_fullrefresh = 0;
+				}
+			}
+		}
+
 		if (a2410_surface)
-			gfx_unlock_picasso(false);
+			gfx_unlock_picasso(true);
 		a2410_surface = NULL;
-
-		if (!enabled) {
-			picasso_requested_on = 0;
-		} else {
-			if (a2410_modechanged) {
-				picasso96_state.Width = a2410_width;
-				picasso96_state.Height = a2410_height;
-				picasso96_state.BytesPerPixel = 1;
-				picasso96_state.RGBFormat = RGBFB_CLUT;
-				write_log(_T("A2410 %d*%d\n"), a2410_width, a2410_height);
-				gfx_set_picasso_modeinfo(a2410_width, a2410_height, 1, RGBFB_NONE);
-				init_hz_p96();
-			}
-			picasso_requested_on = 1;
-			a2410_modechanged = false;
-			fullrefresh = 2;
-		}
-		a2410_enabled = enabled;
-		write_log(_T("A2410 ACTIVE=%d\n"), a2410_enabled);
 	}
-
-	if (picasso_on) {
-		if (currprefs.leds_on_screen & STATUSLINE_RTG) {
-			get_a2410_surface();
-		}
-		if (internalsync) {
-			if (fullrefresh > 0)
-				fullrefresh--;
-			if (request_fullrefresh) {
-				fullrefresh = 1;
-				request_fullrefresh = 0;
-			}
-		}
-	}
-
-	if (a2410_surface)
-		gfx_unlock_picasso(true);
-	a2410_surface = NULL;
 
 	a2410_interlace = -a2410_interlace;
 
@@ -753,7 +797,7 @@ static void tms_vsync_handler2(bool internalsync)
 	if (a2410_overlay_blink_cnt == 0 || a2410_overlay_blink_cnt == a2410_overlay_blink_rate_on) {
 		// any blink mode enabled?
 		if (a2410_palette_control[5 - 4] != 0 || (a2410_palette_control[6 - 4] & (4 | 8)))
-			fullrefresh++;
+			fullrefresh = 2;
 	}
 	if (a2410_overlay_blink_cnt > a2410_overlay_blink_rate_off + a2410_overlay_blink_rate_on) {
 		a2410_overlay_blink_cnt = 0;
@@ -798,11 +842,15 @@ static void tms_hsync_handler2(void)
 
 	if (a2410_vpos == 0) {
 		tms_vsync_handler2(true);
-		picasso_getwritewatch(a2410_vram_start_offset);
+		picasso_getwritewatch(a2410_gfxboard, a2410_vram_start_offset);
 	}
 
-	if (a2410_modechanged)
+	if (a2410_modechanged || !picasso_on)
 		return;
+
+	if (a2410_vpos == 0 && fullrefresh > 0) {
+		fullrefresh--;
+	}
 
 	tms34010_display_params parms;
 	tms_device.get_display_params(&parms);
@@ -815,7 +863,7 @@ static void tms_hsync_handler2(void)
 
 	int coladdr = parms.coladdr;
 	int vramoffset = ((parms.rowaddr << 8) & 0x7ffff);
-	uae_u16 *vram = (uae_u16*)gfxmem_bank.baseaddr + vramoffset;
+	uae_u16 *vram = (uae_u16*)gfxmem_banks[a2410_gfxboard]->baseaddr + vramoffset;
 
 	int overlayoffset = a2410_vpos - parms.veblnk;
 
@@ -833,8 +881,8 @@ static void tms_hsync_handler2(void)
 
 
 	if (!fullrefresh && !a2410_modified[overlay_yoffset]) {
-		if (!picasso_is_vram_dirty(gfxmem_bank.start + (vramoffset << 1), a2410_displaywidth)) {
-			if (!picasso_is_vram_dirty(gfxmem_bank.start + ((vramoffset + 0x200) << 1), a2410_displaywidth)) {
+		if (!picasso_is_vram_dirty(a2410_gfxboard, gfxmem_banks[a2410_gfxboard]->start + (vramoffset << 1), a2410_displaywidth)) {
+			if (!picasso_is_vram_dirty(a2410_gfxboard, gfxmem_banks[a2410_gfxboard]->start + ((vramoffset + 0x200) << 1), a2410_displaywidth)) {
 				return;
 			}
 		}

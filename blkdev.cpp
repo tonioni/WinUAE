@@ -1009,7 +1009,7 @@ struct device_info *sys_command_info (int unitnum, struct device_info *di, int q
 	struct device_info *dix;
 
 	dix = sys_command_info_session (unitnum, di, quick, -1);
-	if (dix && dix->media_inserted && !quick) {
+	if (dix && dix->media_inserted && !quick && !dix->audio_playing) {
 		TCHAR *name = NULL;
 		uae_u8 buf[2048];
 		if (sys_command_cd_read(unitnum, buf, 16, 1)) {

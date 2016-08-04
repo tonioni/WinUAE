@@ -2047,7 +2047,8 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_apmode[APMODE_NATIVE].gfx_interlaced != changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_interlaced ? (2 | 8) : 0;
 	c |= currprefs.gfx_apmode[APMODE_RTG].gfx_backbuffers != changed_prefs.gfx_apmode[APMODE_RTG].gfx_backbuffers ? (2 | 8) : 0;
 
-	c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 32 : 0;
+	c |= currprefs.win32_main_alwaysontop != changed_prefs.win32_main_alwaysontop ? 32 : 0;
+	c |= currprefs.win32_gui_alwaysontop != changed_prefs.win32_gui_alwaysontop ? 32 : 0;
 	c |= currprefs.win32_notaskbarbutton != changed_prefs.win32_notaskbarbutton ? 32 : 0;
 	c |= currprefs.win32_nonotificationicon != changed_prefs.win32_nonotificationicon ? 32 : 0;
 	c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 32 : 0;
@@ -2138,7 +2139,8 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_apmode[APMODE_NATIVE].gfx_interlaced = changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_interlaced;
 		currprefs.gfx_apmode[APMODE_RTG].gfx_backbuffers = changed_prefs.gfx_apmode[APMODE_RTG].gfx_backbuffers;
 
-		currprefs.win32_alwaysontop = changed_prefs.win32_alwaysontop;
+		currprefs.win32_main_alwaysontop = changed_prefs.win32_main_alwaysontop;
+		currprefs.win32_gui_alwaysontop = changed_prefs.win32_gui_alwaysontop;
 		currprefs.win32_nonotificationicon = changed_prefs.win32_nonotificationicon;
 		currprefs.win32_notaskbarbutton = changed_prefs.win32_notaskbarbutton;
 		currprefs.win32_borderless = changed_prefs.win32_borderless;
@@ -2889,9 +2891,10 @@ static void createstatuswindow (void)
 	RECT rc;
 	HLOCAL hloc;
 	LPINT lpParts;
-	int drive_width, hd_width, cd_width, power_width, fps_width, idle_width, snd_width, joy_width;
+	int drive_width, hd_width, cd_width, power_width;
+	int fps_width, idle_width, snd_width, joy_width, net_width;
 	int joys = currprefs.win32_statusbar > 1 ? 2 : 0;
-	int num_parts = 11 + joys + 1;
+	int num_parts = 12 + joys + 1;
 	double scaleX, scaleY;
 	WINDOWINFO wi;
 	int extra;
@@ -2926,6 +2929,7 @@ static void createstatuswindow (void)
 	power_width = (int)(42 * scaleX);
 	fps_width = (int)(64 * scaleX);
 	idle_width = (int)(64 * scaleX);
+	net_width = (int)(24 * scaleX);
 	if (is_ppc_cpu(&currprefs))
 		idle_width += (int)(68 * scaleX);
 	if (is_x86_cpu(&currprefs))
@@ -2943,7 +2947,7 @@ static void createstatuswindow (void)
 		i++;
 		window_led_msg_start = i;
 		/* Calculate the right edge coordinate for each part, and copy the coords to the array.  */
-		int startx = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - snd_width - joys * joy_width - extra;
+		int startx = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - snd_width - net_width - joys * joy_width - extra;
 		for (j = 0; j < joys; j++) {
 			lpParts[i] = startx;
 			i++;
@@ -2971,8 +2975,11 @@ static void createstatuswindow (void)
 		// cd
 		lpParts[i] = lpParts[i - 1] + hd_width;
 		i++;
-		// df0
+		// net
 		lpParts[i] = lpParts[i - 1] + cd_width;
+		i++;
+		// df0
+		lpParts[i] = lpParts[i - 1] + net_width;
 		i++;
 		// df1
 		lpParts[i] = lpParts[i - 1] + drive_width;
@@ -2992,8 +2999,8 @@ static void createstatuswindow (void)
 		window_led_joys_end = lpParts[window_led_joy_start - joys + 1];
 		window_led_hd = lpParts[i1];
 		window_led_hd_end = lpParts[i1 + 1];
-		window_led_drives = lpParts[i1 + 2];
-		window_led_drives_end = lpParts[i1 + 6];
+		window_led_drives = lpParts[i1 + 3];
+		window_led_drives_end = lpParts[i1 + 3 + 4];
 
 		/* Create the parts */
 		SendMessage (hStatusWnd, SB_SETPARTS, (WPARAM)num_parts, (LPARAM)lpParts);
@@ -3111,6 +3118,7 @@ double getcurrentvblankrate (void)
 }
 
 static int maxscanline, minscanline, prevvblankpos;
+int scanline_adjust;
 
 static bool getvblankpos (int *vp, bool updateprev)
 {
@@ -3137,6 +3145,13 @@ static bool getvblankpos (int *vp, bool updateprev)
 	if (sl > 0) {
 		if (sl < minscanline || minscanline < 0)
 			minscanline = sl;
+	}
+	if (maxscanline > minscanline) {
+		sl += scanline_adjust;
+		while (sl < 0)
+			sl += maxscanline;
+		while (sl > maxscanline)
+			sl -= maxscanline;
 	}
 	*vp = sl;
 	return true;
@@ -4187,7 +4202,7 @@ static int create_windows_2 (void)
 			currentmode->native_width = rc.right - rc.left;
 			currentmode->native_height = rc.bottom - rc.top;
 		}
-		flags |= (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0);
+		flags |= (currprefs.win32_main_alwaysontop ? WS_EX_TOPMOST : 0);
 
 		if (!borderless) {
 			RECT rc2;
@@ -4232,14 +4247,14 @@ static int create_windows_2 (void)
 
 	if (rp_isactive () && !dxfs && !d3dfs && !fsw) {
 		HWND parent = rp_getparent ();
-		hAmigaWnd = CreateWindowEx (dxfs || d3dfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | WS_EX_TOOLWINDOW | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
+		hAmigaWnd = CreateWindowEx (dxfs || d3dfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | WS_EX_TOOLWINDOW | (currprefs.win32_main_alwaysontop ? WS_EX_TOPMOST : 0),
 			_T("AmigaPowah"), _T("WinUAE"),
 			WS_POPUP,
 			0, 0, w, h,
 			parent, NULL, hInst, NULL);
 	} else {
 		hAmigaWnd = CreateWindowEx (
-			((dxfs || d3dfs || currprefs.win32_alwaysontop) ? WS_EX_TOPMOST : WS_EX_ACCEPTFILES) | exstyle,
+			((dxfs || d3dfs || currprefs.win32_main_alwaysontop) ? WS_EX_TOPMOST : WS_EX_ACCEPTFILES) | exstyle,
 			_T("AmigaPowah"), _T("WinUAE"),
 			((dxfs || d3dfs || currprefs.headless) ? WS_POPUP : (WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX))),
 			x, y, w, h,
@@ -4631,29 +4646,61 @@ void updatewinfsmode (struct uae_prefs *p)
 	set_config_changed ();
 }
 
+int rtg_index = -1;
+
 bool toggle_rtg (int mode)
 {
-	if (mode == 0) {
-		if (!picasso_on)
-			return false;
-	} else if (mode > 0) {
-		if (picasso_on)
-			return false;
-	}
-	if (currprefs.rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE) {
-		return gfxboard_toggle (mode);
-	} else {
-		// can always switch from RTG to custom
-		if (picasso_requested_on && picasso_on) {
-			picasso_requested_on = false;
-			return true;
+	int old_index = rtg_index;
+
+	if (mode < -1 && rtg_index >= 0)
+		return true;
+
+	for (;;) {
+		rtg_index++;
+		if (rtg_index >= MAX_RTG_BOARDS) {
+			rtg_index = -1;
 		}
-		if (picasso_on)
+		if (rtg_index < 0) {
+			if (picasso_on) {
+				gfxboard_rtg_disable(old_index);
+				picasso_requested_on = false;
+				statusline_add_message(_T("Chipset display"));
+				return false;
+			}
 			return false;
-		// can only switch from custom to RTG if there is some mode active
-		if (picasso_is_active ()) {
-			picasso_requested_on = true;
-			return true;
+		}
+		struct rtgboardconfig *r = &currprefs.rtgboards[rtg_index];
+		if (r->rtgmem_size > 0) {
+			if (r->rtgmem_type >= GFXBOARD_HARDWARE) {
+				int idx = gfxboard_toggle(rtg_index, mode >= -1);
+				if (idx >= 0) {
+					rtg_index = idx;
+					return true;
+				}
+				if (idx < -1) {
+					rtg_index = -1;
+					return false;
+				}
+			} else {
+				gfxboard_toggle(-1, -1);
+				if (mode < -1)
+					return true;
+				gfxboard_rtg_disable(old_index);
+				picasso_enablescreen(1);
+				// can always switch from RTG to custom
+				if (picasso_requested_on && picasso_on) {
+					picasso_requested_on = false;
+					return true;
+				}
+				if (picasso_on)
+					return false;
+				// can only switch from custom to RTG if there is some mode active
+				if (picasso_is_active ()) {
+					picasso_requested_on = true;
+					statusline_add_message(_T("RTG %d: %s"), rtg_index + 1, _T("UAEGFX"));
+					return true;
+				}
+			}
 		}
 	}
 	return false;

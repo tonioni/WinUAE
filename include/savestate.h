@@ -209,6 +209,9 @@ extern uae_u8 *save_a3000hram (int *);
 extern uae_u8 *restore_rom (uae_u8 *);
 extern uae_u8 *save_rom (int, int *, uae_u8 *);
 
+extern uae_u8 *save_expansion_info(int*, uae_u8*);
+extern uae_u8 *restore_expansion_info(uae_u8*);
+
 extern uae_u8 *restore_action_replay (uae_u8 *);
 extern uae_u8 *save_action_replay (int *, uae_u8 *);
 extern uae_u8 *restore_hrtmon (uae_u8 *);

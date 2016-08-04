@@ -66,6 +66,7 @@ struct gui_info
 	int fps, idle;
 	int fps_color;
     int sndbuf, sndbuf_status;
+	bool sndbuf_avail;
     TCHAR df[4][256];			/* inserted image */
     uae_u32 crc32[4];			/* crc32 of image */
 };

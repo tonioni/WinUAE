@@ -954,7 +954,7 @@ static void REGPARAM2 sm_bput(uaecptr addr, uae_u32 b)
 	if (!sm_configured) {
 		switch (addr) {
 			case 0x48:
-			map_banks_z2(&specialmonitors_bank, expamem_z2_pointer >> 16, 65536 >> 16);
+			map_banks_z2(&specialmonitors_bank, expamem_board_pointer >> 16, 65536 >> 16);
 			sm_configured = 1;
 			expamem_next(&specialmonitors_bank, NULL);
 			break;
@@ -1065,7 +1065,7 @@ static void ew(int addr, uae_u32 value)
 
 static const uae_u8 firecracker24_autoconfig[16] = { 0xc1, 0, 0, 0, 2104 >> 8, 2104 & 255 };
 
-addrbank *specialmonitor_autoconfig_init(int devnum)
+bool specialmonitor_autoconfig_init(struct autoconfig_info *aci)
 {
 	sm_configured = 0;
 	memset(sm_acmemory, 0xff, sizeof sm_acmemory);
@@ -1073,7 +1073,10 @@ addrbank *specialmonitor_autoconfig_init(int devnum)
 		uae_u8 b = firecracker24_autoconfig[i];
 		ew(i * 4, b);
 	}
-	return &specialmonitors_bank;
+	aci->addrbank = &specialmonitors_bank;
+	aci->autoconfigp = firecracker24_autoconfig;
+	aci->label = _T("FireCracker 24");
+	return true;
 }
 
 static bool do_firecracker24(struct vidbuffer *src, struct vidbuffer *dst)

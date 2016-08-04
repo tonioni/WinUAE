@@ -475,11 +475,11 @@ static int cdda_openwav (struct dev_info_ioctl *ciw)
 	return 1;
 }
 
-static int setstate (struct dev_info_ioctl *ciw, int state)
+static int setstate (struct dev_info_ioctl *ciw, int state, int playpos)
 {
 	ciw->cdda_play_state = state;
 	if (ciw->cdda_statusfunc)
-		return ciw->cdda_statusfunc (ciw->cdda_play_state);
+		return ciw->cdda_statusfunc (ciw->cdda_play_state, playpos);
 	return 0;
 }
 
@@ -602,13 +602,13 @@ static void *cdda_play (void *v)
 				cdda_pos += ch;
 			}
 
-			setstate (ciw, AUDIO_STATUS_IN_PROGRESS);
+			setstate (ciw, AUDIO_STATUS_IN_PROGRESS, cdda_pos);
 		}
 
 		if ((cdda_pos < ciw->cdda_end || ciw->cdda_end == 0xffffffff) && !ciw->cdda_paused && ciw->cdda_play) {
 
 			if (idleframes <= 0 && cdda_pos >= ciw->cdda_start && !isaudiotrack (&ciw->di.toc, cdda_pos)) {
-				setstate (ciw, AUDIO_STATUS_PLAY_ERROR);
+				setstate (ciw, AUDIO_STATUS_PLAY_ERROR, -1);
 				write_log (_T("IOCTL: attempted to play data track %d\n"), cdda_pos);
 				goto end; // data track?
 			}
@@ -622,6 +622,9 @@ static void *cdda_play (void *v)
 			memset (cda->buffers[bufnum], 0, CDDA_BUFFERS * readblocksize);
 
 			if (cdda_pos >= 0) {
+
+				setstate(ciw, AUDIO_STATUS_IN_PROGRESS, cdda_pos);
+
 				if (read_block (ciw, -1, cda->buffers[bufnum], cdda_pos, CDDA_BUFFERS, readblocksize)) {
 					for (i = 0; i < CDDA_BUFFERS; i++) {
 						memcpy (ciw->subcode + i * SUB_CHANNEL_SIZE, cda->buffers[bufnum] + readblocksize * i + 2352, SUB_CHANNEL_SIZE);
@@ -671,7 +674,7 @@ static void *cdda_play (void *v)
 				cda_bufon[bufnum] = 1;
 				cda->setvolume (ciw->cdda_volume[0], ciw->cdda_volume[1]);
 				if (!cda->play (bufnum)) {
-					setstate (ciw, AUDIO_STATUS_PLAY_ERROR);
+					setstate (ciw, AUDIO_STATUS_PLAY_ERROR, -1);
 					goto end; // data track?
 				}
 			}
@@ -689,10 +692,10 @@ static void *cdda_play (void *v)
 
 			if (idleframes <= 0) {
 				if (cdda_pos - CDDA_BUFFERS < ciw->cdda_end && cdda_pos >= ciw->cdda_end) {
-					setstate (ciw, AUDIO_STATUS_PLAY_COMPLETE);
+					cdda_pos = ciw->cdda_end;
+					setstate (ciw, AUDIO_STATUS_PLAY_COMPLETE, cdda_pos);
 					ciw->cdda_play_finished = 1;
 					ciw->cdda_play = -1;
-					cdda_pos = ciw->cdda_end;
 				}
 				ciw->cd_last_pos = cdda_pos;
 			}
@@ -782,16 +785,16 @@ static int ioctl_command_play (int unitnum, int startlsn, int endlsn, int scan, 
 	ciw->cdda_subfunc = subfunc;
 	ciw->cdda_statusfunc = statusfunc;
 	ciw->cdda_scan = scan > 0 ? 10 : (scan < 0 ? 10 : 0);
-	ciw->cdda_delay = setstate (ciw, -1);
-	ciw->cdda_delay_frames = setstate (ciw, -2);
-	setstate (ciw, AUDIO_STATUS_NOT_SUPPORTED);
+	ciw->cdda_delay = setstate (ciw, -1, -1);
+	ciw->cdda_delay_frames = setstate (ciw, -2, -1);
+	setstate (ciw, AUDIO_STATUS_NOT_SUPPORTED, -1);
 
 	if (!open_createfile (ciw, 0)) {
-		setstate (ciw, AUDIO_STATUS_PLAY_ERROR);
+		setstate (ciw, AUDIO_STATUS_PLAY_ERROR, -1);
 		return 0;
 	}
 	if (!isaudiotrack (&ciw->di.toc, startlsn)) {
-		setstate (ciw, AUDIO_STATUS_PLAY_ERROR);
+		setstate (ciw, AUDIO_STATUS_PLAY_ERROR, -1);
 		return 0;
 	}
 	if (!ciw->cdda_play) {

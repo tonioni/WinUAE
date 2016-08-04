@@ -329,7 +329,7 @@ DECLARE_MEMORY_FUNCTIONS(fmv_rom);
 static addrbank fmv_rom_bank = {
 	fmv_rom_lget, fmv_rom_wget, fmv_rom_bget,
 	fmv_rom_lput, fmv_rom_wput, fmv_rom_bput,
-	fmv_rom_xlate, fmv_rom_check, NULL, _T("fmv_rom"), _T("CD32 FMV ROM"),
+	fmv_rom_xlate, fmv_rom_check, NULL, _T("*"), _T("CD32 FMV ROM"),
 	fmv_rom_lget, fmv_rom_wget,
 	ABFLAG_ROM, S_READ, S_WRITE
 };
@@ -338,7 +338,7 @@ DECLARE_MEMORY_FUNCTIONS(fmv_ram);
 static addrbank fmv_ram_bank = {
 	fmv_ram_lget, fmv_ram_wget, fmv_ram_bget,
 	fmv_ram_lput, fmv_ram_wput, fmv_ram_bput,
-	fmv_ram_xlate, fmv_ram_check, NULL, _T("fmv_ram"), _T("CD32 FMV RAM"),
+	fmv_ram_xlate, fmv_ram_check, NULL, _T("*"), _T("CD32 FMV RAM"),
 	fmv_ram_lget, fmv_ram_wget,
 	ABFLAG_RAM, S_READ, S_WRITE
 };
@@ -1546,42 +1546,28 @@ void cd32_fmv_free(void)
 	l64111_reset();
 }
 
-addrbank *cd32_fmv_init (uaecptr start)
+addrbank *cd32_fmv_init (struct autoconfig_info *aci)
 {
-	struct zfile *z;
-
 	cd32_fmv_free();
-	write_log (_T("CD32 FMV mapped @$%x\n"), start);
-	if (start != fmv_start) {
-		write_log(_T("CD32 FMV invalid base address!\n"));
-		return &expamem_null;
+	write_log (_T("CD32 FMV mapped @$%x\n"), expamem_board_pointer);
+	if (expamem_board_pointer != fmv_start) {
+		write_log(_T("CD32 FMV unexpected base address!\n"));
 	}
-	if (!validate_banks_z2(&fmv_bank, fmv_start >> 16, expamem_z2_size >> 16))
+	if (!validate_banks_z2(&fmv_bank, expamem_board_pointer >> 16, expamem_board_size >> 16))
 		return &expamem_null;
 
-	z = read_rom_name(currprefs.cartfile);
-	if (!z) {
-		int ids[] = { 74, 23, -1 };
-		struct romdata *rd;
-		struct romlist *rl = getromlistbyids (ids, NULL);
-		if (rl) {
-			rd = rl->rd;
-			write_log (_T("CD32 FMV ROM %d.%d\n"), rd->ver, rd->rev);
-			z = read_rom (rd);
-		}
-	}
+	fmv_rom_bank.start = expamem_board_pointer;
+	fmv_ram_bank.start = fmv_rom_bank.start + 0x80000;
+
 	fmv_rom_bank.mask = fmv_rom_size - 1;
 	fmv_rom_bank.allocated = fmv_rom_size;
 	fmv_ram_bank.mask = fmv_ram_size - 1;
 	fmv_ram_bank.allocated = fmv_ram_size;
 
-	if (z) {
-		if (mapped_malloc(&fmv_rom_bank)) {
-			int size = zfile_size(z);
-			zfile_fread (fmv_rom_bank.baseaddr, size > fmv_rom_size ? fmv_rom_size : size, 1, z);
-		}
-		zfile_fclose (z);
+	if (mapped_malloc(&fmv_rom_bank)) {
+		load_rom_rc(aci->rc, ROMTYPE_CD32CART, 262144, 0, fmv_rom_bank.baseaddr, 262144, 0);
 	}
+
 	if (!fmv_rom_bank.baseaddr) {
 		write_log(_T("CD32 FMV without ROM is not supported.\n"));
 		return &expamem_null;

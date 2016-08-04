@@ -138,12 +138,18 @@ static int REGPARAM2 rtarea_check (uaecptr addr, uae_u32 size)
 static uae_u32 REGPARAM2 rtarea_lget (uaecptr addr)
 {
 	addr &= 0xFFFF;
+	if (addr & 1)
+		return 0;
+	if (addr >= 0xfffd)
+		return 0;
 	return (rtarea_bank.baseaddr[addr + 0] << 24) | (rtarea_bank.baseaddr[addr + 1] << 16) |
 		(rtarea_bank.baseaddr[addr + 2] << 8) | (rtarea_bank.baseaddr[addr + 3] << 0);
 }
 static uae_u32 REGPARAM2 rtarea_wget (uaecptr addr)
 {
 	addr &= 0xFFFF;
+	if (addr & 1)
+		return 0;
 
 	uaecptr addr2 = addr - RTAREA_TRAP_STATUS;
 
@@ -249,6 +255,9 @@ static void REGPARAM2 rtarea_wput (uaecptr addr, uae_u32 value)
 	addr &= 0xffff;
 	value &= 0xffff;
 
+	if (addr & 1)
+		return;
+
 	if (!rtarea_write(addr))
 		return;
 
@@ -290,6 +299,10 @@ static void REGPARAM2 rtarea_wput (uaecptr addr, uae_u32 value)
 static void REGPARAM2 rtarea_lput (uaecptr addr, uae_u32 value)
 {
 	addr &= 0xffff;
+	if (addr & 1)
+		return;
+	if (addr >= 0xfffd)
+		return;
 	if (!rtarea_write(addr))
 		return;
 	rtarea_bank.baseaddr[addr + 0] = value >> 24;
@@ -527,7 +540,7 @@ static uae_u32 REGPARAM2 uae_puts (TrapContext *ctx)
 
 void rtarea_init_mem (void)
 {
-	if (need_uae_boot_rom()) {
+	if (need_uae_boot_rom(&currprefs)) {
 		rtarea_bank.flags &= ~ABFLAG_ALLOCINDIRECT;
 	} else {
 		rtarea_bank.flags |= ABFLAG_ALLOCINDIRECT;
@@ -620,7 +633,7 @@ volatile uae_atomic uae_int_requested = 0;
 
 void rtarea_setup (void)
 {
-	uaecptr base = need_uae_boot_rom ();
+	uaecptr base = need_uae_boot_rom (&currprefs);
 	if (base) {
 		write_log (_T("RTAREA located at %08X\n"), base);
 		rtarea_base = base;

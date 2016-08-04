@@ -11,29 +11,29 @@ void idecontroller_rethink(void);
 void idecontroller_hsync(void);
 
 void gvp_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
-addrbank *gvp_ide_rom_autoconfig_init(struct romconfig*);
-addrbank *gvp_ide_controller_autoconfig_init(struct romconfig*);
+bool gvp_ide_rom_autoconfig_init(struct autoconfig_info *aci);
+bool gvp_ide_controller_autoconfig_init(struct autoconfig_info *aci);
 
 void alf_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
-addrbank *alf_init(struct romconfig*);
+bool alf_init(struct autoconfig_info *aci);
 
 void apollo_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
-addrbank *apollo_init_hd(struct romconfig*);
-addrbank *apollo_init_cpu(struct romconfig*);
+bool apollo_init_hd(struct autoconfig_info *aci);
+bool apollo_init_cpu(struct autoconfig_info *aci);
 
 void masoboshi_add_idescsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc);
-addrbank *masoboshi_init(struct romconfig*);
+bool masoboshi_init(struct autoconfig_info *aci);
 
 void adide_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
-addrbank *adide_init(struct romconfig *rc);
+bool adide_init(struct autoconfig_info *aci);
 
 void mtec_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
-addrbank *mtec_init(struct romconfig *rc);
+bool mtec_init(struct autoconfig_info *aci);
 
-addrbank *rochard_init(struct romconfig *rc);
+bool rochard_init(struct autoconfig_info *aci);
 void rochard_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
-addrbank *golemfast_init(struct romconfig *rc);
+bool golemfast_init(struct autoconfig_info *aci);
 void golemfast_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 uae_u32 REGPARAM3 apollo_ide_lget (uaecptr addr) REGPARAM;
@@ -47,11 +47,11 @@ extern const uae_u8 apollo_autoconfig_060[16];
 
 void x86_ide_hd_put(int portnum, uae_u16 v, int);
 uae_u16 x86_ide_hd_get(int portnum, int);
-addrbank *x86_at_hd_init_1(struct romconfig *rc);
+bool x86_at_hd_init_1(struct autoconfig_info *aci);
 void x86_add_at_hd_unit_1(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
-addrbank *x86_at_hd_init_2(struct romconfig *rc);
+bool x86_at_hd_init_2(struct autoconfig_info *aci);
 void x86_add_at_hd_unit_2(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
-addrbank *x86_at_hd_init_xt(struct romconfig *rc);
+bool x86_at_hd_init_xt(struct autoconfig_info *aci);
 void x86_add_at_hd_unit_xt(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 #endif /* UAE_IDECONTROLLERS_H */

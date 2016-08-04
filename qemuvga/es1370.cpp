@@ -29,6 +29,7 @@
 #include "queue.h"
 #include "qemuaudio.h"
 
+#include "options.h"
 #include "memory.h"
 #include "pci_hw.h"
 

@@ -16,9 +16,9 @@ extern void start_program (void);
 extern void leave_program (void);
 extern void real_main (int, TCHAR **);
 extern void usage (void);
-extern void sleep_millis (int ms);
-extern void sleep_millis_main(int ms);
-extern void sleep_millis_amiga(int ms);
+extern int sleep_millis (int ms);
+extern int sleep_millis_main(int ms);
+extern int sleep_millis_amiga(int ms);
 extern void sleep_cpu_wakeup(void);
 extern int sleep_resolution;
 

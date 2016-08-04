@@ -4,12 +4,12 @@
  Client  : Cloanto Italia srl
  Support : http://www.retroplatform.com
  Legal   : CONFIDENTIAL TRADE SECRET PROPERTY OF CLOANTO ITALIA SRL
-         : Copyright © Cloanto Italia srl 2007-2013.
+         : Copyright © Cloanto Italia srl 2007-2016.
          : All rights reserved, except where licensed,
          : assigned or transferred by contract.
  Authors : os, mcb
  Created : 2007-08-23 10:08:25
- Updated : 2013-03-16 07:20:00
+ Updated : 2016-06-17 15:07:10
  Comment : Reference for RetroPlatformIPC.h (RP Player interprocess communication include file)
  *****************************************************************************/
 
@@ -452,7 +452,39 @@ Data sent:
    none
 Response:
    none
+   
+   
+Message:
+   RP_IPC_TO_HOST_PREPROCESSKEY
+Description:
+   message sent by the keyboard handling functions;
+   guests are not supposed to send it directly
+Data sent:
+   -
+Response:
+   -
 
+
+Message:
+   RP_IPC_TO_HOST_PROCESSKEY
+Description:
+   message sent by the keyboard handling functions;
+   guests are not supposed to send it directly
+Data sent:
+   -
+Response:
+   -
+
+
+Message:
+   RP_IPC_TO_HOST_KEYBOARDLAYOUT
+Description:
+   the guest sends this message to notify the host
+   about a change of the guest keyboard layout
+Data sent:
+   pData = keyboard layout name (null-terminated Unicode string)
+Response:
+   none
 
 
 
@@ -630,8 +662,19 @@ Description:
    to simulate keyboard, mouse, joystick, tape button press/release
    and other guest-specific events
 Data sent:
-   pData = (Unicode) event string (guest-specific); for keyboard events ("KEY_"... string)
-   the event string is followed by a space and a "1"/"0" character (pressed/released).
+   pData = (Unicode) event string (guest-specific).
+   Keyboard events are "KEY_RAW_DOWN <x>" and "KEY_RAW_UP <x>" strings, where <x>
+   is a keycode that uniquely identifies the raw key on the guest system,
+   independently of higher-level layout (e.g. Amiga SetMap). On the Amiga, <x> would
+   be one byte. By default, <x> is decimal. Prefix hexadecimal values with "0x".
+   It is up to the host to do the appopriate mappings and request the correct raw guest
+   event, taking into account host and guest layouts.
+   Other events may be named as per cloanto.com/specs/ianames.
+LEGACY:
+>>>
+   For keyboard events other than KEY_RAW_DOWN and KEY_RAW_UP, the string is followed
+   by a space and a "1"/"0" character (down/up).
+<<<
 Response:
    LRESULT = 1 if the guest successfully simulated the specified event or 0 otherwise
 

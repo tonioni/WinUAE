@@ -115,6 +115,8 @@ static int icachelinecnt, dcachelinecnt;
 static struct cache040 icaches040[CACHESETS040];
 static struct cache040 dcaches040[CACHESETS040];
 
+int cpu_last_stop_vpos, cpu_stopped_lines;
+
 #if COUNT_INSTRS
 static unsigned long int instrcount[65536];
 static uae_u16 opcodenums[65536];
@@ -2013,6 +2015,23 @@ STATIC_INLINE int adjust_cycles (int cycles)
 	return cycles + mc;
 }
 
+static void m68k_set_stop(void)
+{
+	if (regs.stopped)
+		return;
+	regs.stopped = 1;
+	set_special(SPCFLAG_STOP);
+	cpu_last_stop_vpos = vpos;
+}
+
+static void m68k_unset_stop(void)
+{
+	regs.stopped = 0;
+	unset_special(SPCFLAG_STOP);
+	cpu_stopped_lines += vpos - cpu_last_stop_vpos;
+	cpu_last_stop_vpos = vpos;
+}
+
 void REGPARAM2 MakeSR (void)
 {
 	regs.sr = ((regs.t1 << 15) | (regs.t0 << 14)
@@ -2966,8 +2985,7 @@ static void do_interrupt (int nr)
 			inprec_playdebug_cpu (2);
 	}
 
-	regs.stopped = 0;
-	unset_special (SPCFLAG_STOP);
+	m68k_unset_stop();
 	assert (nr < 8 && nr >= 0);
 
 	for (;;) {
@@ -3505,8 +3523,9 @@ bool execute_other_cpu(int until)
 	return true;
 }
 
-void cpu_sleep_millis(int ms)
+int cpu_sleep_millis(int ms)
 {
+	int ret = 0;
 #ifdef WITH_THREADED_CPU
 	cpu_semaphore_release();
 #endif
@@ -3519,7 +3538,7 @@ void cpu_sleep_millis(int ms)
 	if (x86_turbo_on) {
 		execute_other_cpu(read_processor_time() + vsynctimebase / 20);
 	} else {
-		sleep_millis_main(ms);
+		ret = sleep_millis_main(ms);
 	}
 #endif
 #ifdef WITH_PPC
@@ -3529,6 +3548,7 @@ void cpu_sleep_millis(int ms)
 #ifdef WITH_THREADED_CPU
 	cpu_semaphore_get();
 #endif
+	return ret;
 }
 
 #define PPC_HALTLOOP_SCANLINES 25
@@ -3699,8 +3719,6 @@ void doint (void)
 	else
 		set_special (SPCFLAG_DOINT);
 }
-
-#define IDLETIME (currprefs.cpu_idle * sleep_resolution / 1000)
 
 static int do_specialties (int cycles)
 {
@@ -6863,11 +6881,10 @@ void cpureset (void)
 
 void m68k_setstopped (void)
 {
-	regs.stopped = 1;
 	/* A traced STOP instruction drops through immediately without
 	actually stopping.  */
 	if ((regs.spcflags & SPCFLAG_DOTRACE) == 0) {
-		set_special (SPCFLAG_STOP);
+		m68k_set_stop();
 	} else {
 		m68k_resumestopped ();
 	}
@@ -6877,12 +6894,11 @@ void m68k_resumestopped (void)
 {
 	if (!regs.stopped)
 		return;
-	regs.stopped = 0;
 	if (currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000) {
 		x_do_cycles (6 * cpucycleunit);
 	}
 	fill_prefetch ();
-	unset_special (SPCFLAG_STOP);
+	m68k_unset_stop();
 }
 
 

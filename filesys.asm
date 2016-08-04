@@ -88,18 +88,19 @@ our_seglist:
 	dc.l 0 									; 8 /* NextSeg */
 start:
 	bra.s startjmp
-	dc.w 11						;0 12
+	dc.w 12						;0 12
 startjmp:
-	bra.w filesys_mainloop		;1 16
-	dc.l make_dev-start			;2 20
-	dc.l filesys_init-start		;3 24
-	dc.l moverom-start		;4 28
-	dc.l bootcode-start			;5 32
-	dc.l setup_exter-start		;6 36
-	dc.l bcplwrapper-start ;7 40
-	dc.l afterdos-start 	;8 44
-	dc.l hwtrap_install-start ;9 48
-	dc.l hwtrap_entry-start ; 10 52
+	bra.w filesys_mainloop		;  1 16
+	dc.l make_dev-start				;  2 20
+	dc.l filesys_init-start		;  3 24
+	dc.l moverom-start				;  4 28
+	dc.l bootcode-start				;  5 32
+	dc.l setup_exter-start		;  6 36
+	dc.l bcplwrapper-start		;  7 40
+	dc.l afterdos-start				;  8 44
+	dc.l hwtrap_install-start ;  9 48
+	dc.l hwtrap_entry-start 	; 10 52
+	dc.l keymaphack-start			; 11 56
 
 bootcode:
 	lea.l doslibname(pc),a1
@@ -3791,6 +3792,123 @@ moveromreloc:
 	dc.w exter_task_wait-start
 	dc.w 0
 
+keymaphack:
+	move.l 4.w,a6
+
+	moveq #keymapfunc_end-keymapfunc,d0
+	moveq #1,d1
+	jsr -$c6(a6) ;AllocMem
+	tst.l d0
+	beq.s .keymap0
+	move.l d0,a3
+
+	lea keymapfunc(pc),a0
+	move.l a3,a1
+	moveq #keymapfunc_end-keymapfunc-1,d0
+.keymap1
+	move.b (a0)+,(a1)+
+	dbf d0,.keymap1
+	lea keymapfunc_patch(pc),a0
+	move.l a0,keymap_func_ptr-keymapfunc+2(a3)
+	lea keymapfunc2_patch(pc),a0
+	move.l a0,keymaplibfunc-keymapfunc+2(a3)
+
+	jsr -$84(a6)
+
+	lea 350(a6),a0 ;DeviceList
+	lea con_dev(pc),a1
+	jsr -$114(a6) ;FindName
+	tst.l d0
+	beq.s .keymap2
+	move.l d0,a1
+	move.l a3,d0
+	move.w #-$1e,a0 ;BeginIO
+	jsr -$1a4(a6)
+	move.l d0,keymap_original-keymapfunc(a3)
+.keymap2
+
+	lea 378(a6),a0 ;LibList
+	lea key_lib(pc),a1
+	jsr -$114(a6) ;FindName
+	tst.l d0
+	beq.s .keymap3
+	move.l d0,a1
+	lea keymaplibfunc-keymapfunc(a3),a0
+	move.l a0,d0
+	move.w #-$1e,a0 ;SetKeyMapDefault
+	jsr -$1a4(a6)
+	move.l d0,keymap_original2-keymapfunc(a3)
+.keymap3
+
+	jsr -$8a(a6)
+
+.keymap0	
+	rts
+
+keymapfunc
+	cmp.w #10,28(a1) ;CD_SETKEYMAP
+	beq.s keymap_func_ptr
+	cmp.w #12,28(a1) ;CD_SETDEFAULTKEYMAP
+	bne.s keymapfunc2
+keymap_func_ptr
+	jsr 0.l
+keymapfunc2
+	move.l keymap_original(pc),-(sp)
+	rts
+keymaplibfunc
+	jsr 0.l
+	move.l keymap_original2(pc),-(sp)
+	rts
+keymap_original
+	dc.l 0
+keymap_original2
+	dc.l 0
+keymapfunc_end
+
+	; a0 = keymap
+keymapfunc2_patch
+	movem.l d0-d7/a0-a6,-(sp)
+	move.l a0,a2
+	bra.s keymapfunc_entry
+
+	; a1 = request
+keymapfunc_patch
+	movem.l d0-d7/a0-a6,-(sp)
+	move.l 40(a1),a2 ;io_Data
+
+keymapfunc_entry
+	move.l 4.w,a6
+
+	subq.l #8,sp
+	move.l sp,a4
+
+	move.l a4,-(sp) ; &size
+	move.l a2,-(sp)
+	bsr.w GetKeyMapData
+	addq.l #8,sp
+	tst.l d0
+	beq.s .keymap0
+	move.l d0,d2
+
+	move.w #$ff38,d0
+	bsr.w getrtbase
+
+	moveq #21,d1
+	move.l d2,a1 ; a1 = data
+	move.l (a4),d0 ; d0 = size
+	jsr (a0)
+
+	move.l d2,a1
+	move.l (a4),d0
+	jsr -$d2(a6) ;FreeMem
+
+.keymap0
+	addq.l #8,sp
+	movem.l (sp)+,d0-d7/a0-a6
+	rts
+
+	include "filesys_helpers.asm"
+
 	cnop 0,4
 getrtbaselocal:
 	lea start-8-4(pc),a0
@@ -3809,6 +3927,7 @@ getrtbase:
 inp_dev: dc.b 'input.device',0
 tim_dev: dc.b 'timer.device',0
 con_dev: dc.b 'console.device',0
+key_lib: dc.b 'keymap.library',0
 devsn_name: dc.b 'DEVS',0
 devs_name: dc.b 'DEVS:',0
 clip_name: dc.b 'DEVS:clipboard.device',0

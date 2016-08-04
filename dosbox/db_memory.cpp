@@ -120,8 +120,9 @@ public:
 
 
 extern void write_log(const char*,...);
-extern void vga_ram_put(int offset, uint8_t v);
-extern uint8_t vga_ram_get(int offset);
+extern void vga_ram_put(int board, int offset, uint8_t v);
+extern uint8_t vga_ram_get(int board, int offset);
+extern int x86_vga_board;
 
 
 class VGA_Handler : public PageHandler {
@@ -130,11 +131,11 @@ public:
 		flags = PFLAG_NOCODE;
 	}
 	Bitu readb(PhysPt addr) {
-		return vga_ram_get(addr);
+		return vga_ram_get(x86_vga_board, addr);
 	}
 	Bitu readw(PhysPt addr) {
-		Bitu v = vga_ram_get(addr) << 0;
-		v |= vga_ram_get(addr + 1) << 8;
+		Bitu v = vga_ram_get(x86_vga_board,addr) << 0;
+		v |= vga_ram_get(x86_vga_board, addr + 1) << 8;
 		return v;
 	}
 	Bitu readd(PhysPt addr) {
@@ -143,11 +144,11 @@ public:
 		return v;
 	}
 	void writeb(PhysPt addr, Bitu val) {
-		vga_ram_put(addr, val);
+		vga_ram_put(x86_vga_board, addr, val);
 	}
 	void writew(PhysPt addr, Bitu val) {
-		vga_ram_put(addr, val);
-		vga_ram_put(addr + 1, val >> 8);
+		vga_ram_put(x86_vga_board, addr, val);
+		vga_ram_put(x86_vga_board, addr + 1, val >> 8);
 		return;
 	}
 	void writed(PhysPt addr, Bitu val) {

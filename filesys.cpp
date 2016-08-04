@@ -138,6 +138,7 @@ static uaecptr bootrom_start;
 static uae_u32 fsdevname, fshandlername, filesys_configdev;
 static uae_u32 cdfs_devname, cdfs_handlername;
 static uaecptr afterdos_name, afterdos_id, afterdos_initcode;
+static uaecptr keymaphook_name, keymaphook_id, keymaphook_initcode;
 static uaecptr shell_execute_data, shell_execute_process;
 static int filesys_in_interrupt;
 static uae_u32 mountertask;
@@ -848,55 +849,10 @@ static void add_cpuboard_unit_init(void)
 	}
 }
 
-
-static bool ismainboardide(void)
-{
-	return currprefs.cs_ide != 0;
-}
-static bool isa3000scsi(void)
-{
-	return currprefs.cs_mbdmac == 1;
-}
-static bool isa4000tscsi(void)
-{
-	return currprefs.cs_mbdmac == 2;
-}
-static bool iscdtvscsi(void)
-{
-	return currprefs.cs_cdtvscsi != 0;
-}
-// this needs better implementation.
-static void add_mainboard_unit_init(void)
-{
-	if (ismainboardide()) {
-		write_log(_T("Initializing mainboard IDE\n"));
-		gayle_add_ide_unit(-1, NULL);
-	}
-	if (isa3000scsi()) {
-		write_log(_T("Initializing A3000 mainboard SCSI\n"));
-		a3000_add_scsi_unit(-1, NULL, NULL);
-	}
-	if (isa4000tscsi()) {
-		write_log(_T("Initializing A4000T mainboard SCSI\n"));
-		a4000t_add_scsi_unit(-1, NULL, NULL);
-	}
-	if (iscdtvscsi()) {
-		write_log(_T("Initializing CDTV SCSI expansion\n"));
-		cdtv_add_scsi_unit(-1, NULL, NULL);
-	}
-}
-
 static bool add_ide_unit(int type, int unit, struct uaedev_config_info *uci)
 {
 	bool added = false;
-	if (type == HD_CONTROLLER_TYPE_IDE_MB) {
-		if (ismainboardide()) {
-			write_log(_T("Adding mainboard IDE %s unit %d ('%s')\n"),
-				getunittype(uci), unit, uci->rootdir);
-			gayle_add_ide_unit(unit, uci);
-			added = true;
-		}
-	} else if (type >= HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST && type <= HD_CONTROLLER_TYPE_IDE_LAST) {
+	if (type >= HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST && type <= HD_CONTROLLER_TYPE_IDE_LAST) {
 		for (int i = 0; expansionroms[i].name; i++) {
 			if (i == type - HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST) {
 				const struct expansionromtype *ert = &expansionroms[i];
@@ -920,34 +876,7 @@ static bool add_ide_unit(int type, int unit, struct uaedev_config_info *uci)
 static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 {
 	bool added = false;
-	if (type == HD_CONTROLLER_TYPE_SCSI_A3000) {
-#ifdef A2091
-		if (isa3000scsi()) {
-			write_log(_T("Adding A3000 mainboard SCSI %s unit %d ('%s')\n"), getunittype(uci),
-				unit, uci->rootdir);
-			a3000_add_scsi_unit (unit, uci, NULL);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_A4000T) {
-#ifdef NCR
-		if (isa4000tscsi()) {
-			write_log(_T("Adding A4000T mainboard SCSI %s unit %d ('%s')\n"), getunittype(uci),
-				unit, uci->rootdir);
-			a4000t_add_scsi_unit (unit, uci, NULL);
-			added = true;
-		}
-#endif
-	} else if (type == HD_CONTROLLER_TYPE_SCSI_CDTV) {
-#ifdef CDTV
-		if (iscdtvscsi()) {
-			write_log(_T("Adding CDTV SCSI expansion %s unit %d ('%s')\n"), getunittype(uci),
-				unit, uci->rootdir);
-			cdtv_add_scsi_unit (unit, uci, NULL);
-			added = true;
-		}
-#endif
-	} else if (type >= HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST && type <= HD_CONTROLLER_TYPE_SCSI_LAST) {
+	if (type >= HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST && type <= HD_CONTROLLER_TYPE_SCSI_LAST) {
 		for (int i = 0; expansionroms[i].name; i++) {
 			if (i == type - HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST) {
 				const struct expansionromtype *ert = &expansionroms[i];
@@ -1026,7 +955,6 @@ static void initialize_mountinfo (void)
 	}
 
 	// init all controllers first
-	add_mainboard_unit_init();
 	add_cpuboard_unit_init();
 	for (int i = 0; expansionroms[i].name; i++) {
 		const struct expansionromtype *ert = &expansionroms[i];
@@ -1065,12 +993,14 @@ static void initialize_mountinfo (void)
 				if (added)
 					break;
 			}
-		} else if (type == HD_CONTROLLER_TYPE_PCMCIA_SRAM) {
-			gayle_add_pcmcia_sram_unit (uci);
-			added = true;
-		} else if (type == HD_CONTROLLER_TYPE_PCMCIA_IDE) {
-			gayle_add_pcmcia_ide_unit (uci);
-			added = true;
+		} else if (type == HD_CONTROLLER_TYPE_PCMCIA) {
+			if (uci->controller_type_unit == 0) {
+				gayle_add_pcmcia_sram_unit (uci);
+				added = true;
+			} else {
+				gayle_add_pcmcia_ide_unit (uci);
+				added = true;
+			}
 		}
 		if (added)
 			allocuci (&currprefs, nr, -1);
@@ -2155,10 +2085,11 @@ int filesys_media_change (const TCHAR *rootdir, int inserted, struct uaedev_conf
 
 int hardfile_added (struct uaedev_config_info *ci)
 {
-	if (ci->controller_type == HD_CONTROLLER_TYPE_PCMCIA_IDE) {
-		return gayle_add_pcmcia_ide_unit(ci);
-	} else if (ci->controller_type == HD_CONTROLLER_TYPE_PCMCIA_SRAM) {
-		return gayle_add_pcmcia_sram_unit(ci);
+	if (ci->controller_type == HD_CONTROLLER_TYPE_PCMCIA) {
+		if (ci->controller_type_unit == 1)
+			return gayle_add_pcmcia_ide_unit(ci);
+		if (ci->controller_type_unit == 0)
+			return gayle_add_pcmcia_sram_unit(ci);
 	}
 	return 0;
 }
@@ -3349,12 +3280,16 @@ static void	do_info(TrapContext *ctx, Unit *unit, dpacket *packet, uaecptr info,
 		uae_s64 numblocks = 0;
 		while (blocksize < 32768 || numblocks == 0) {
 			numblocks = fsu.total / blocksize;
+			if (numblocks <= 10)
+				numblocks = 10;
 			if (numblocks <= 0x7fffffff)
 				break;
 			blocksize *= 2;
 		}
-		uae_s64 inuse = (fsu.total - fsu.avail + blocksize - 1) / blocksize;
-
+		uae_s64 inuse = (numblocks * blocksize - fsu.avail) / blocksize;
+		if (inuse > numblocks)
+			inuse = numblocks;
+		//write_log(_T("total %lld avail %lld Blocks %lld Inuse %lld blocksize %d\n"), fsu.total, fsu.avail, numblocks, inuse, blocksize);
 		put_long_host(buf + 12, (uae_u32)numblocks); /* numblocks */
 		put_long_host(buf + 16, (uae_u32)inuse); /* inuse */
 		put_long_host(buf + 20, blocksize); /* bytesperblock */
@@ -7451,8 +7386,8 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *ctx)
 	* here.
 	* We can simply add more Resident structures here. Although the Amiga OS
 	* only knows about the one at address DiagArea + 0x10, we scan for other
-	* Resident structures and call InitResident() for them at the end of the
-	* diag entry. */
+	* Resident structures and inject them to ResList in priority order
+	*/
 
 	if (kickstart_version >= 37) {
 		trap_put_word(ctx, resaddr + 0x0, 0x4afc);
@@ -7485,25 +7420,21 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *ctx)
 #ifdef WITH_TABLETLIBRARY
 	resaddr = tabletlib_startup(ctx, resaddr);
 #endif
-
-	last_resident = resaddr;
-#if 0
-	/* scan for Residents and return pointer to array of them */
-	tmp = first_resident;
-	while (tmp < last_resident && tmp >= first_resident) {
-		if (trap_get_word(ctx, tmp) == 0x4AFC &&
-			trap_get_long(ctx, tmp + 0x2) == tmp) {
-				trap_put_word(ctx, resaddr, 0x227C);         /* move.l #tmp,a1 */
-				trap_put_long(ctx, resaddr + 2, tmp);
-				trap_put_word(ctx, resaddr + 6, 0x7200);     /* moveq #0,d1 */
-				trap_put_long(ctx, resaddr + 8, 0x4EAEFF9A); /* jsr -$66(a6) ; InitResident */
-				resaddr += 12;
-				tmp = trap_get_long(ctx, tmp + 0x6);
-		} else {
-			tmp += 2;
-		}
+#ifdef RETROPLATFORM
+	if (rp_isactive()) {
+		trap_put_word(ctx, resaddr + 0x0, 0x4afc);
+		trap_put_long(ctx, resaddr + 0x2, resaddr);
+		trap_put_long(ctx, resaddr + 0x6, resaddr + 0x1A);
+		trap_put_word(ctx, resaddr + 0xA, 0x0100); /* RTF_COLDSTART; Version 0 */
+		trap_put_word(ctx, resaddr + 0xC, 0x0000); /* NT_UNKNOWN; pri */
+		trap_put_long(ctx, resaddr + 0xE, keymaphook_name);
+		trap_put_long(ctx, resaddr + 0x12, keymaphook_id);
+		trap_put_long(ctx, resaddr + 0x16, keymaphook_initcode);
+		resaddr += 0x1A;
 	}
 #endif
+
+	last_resident = resaddr;
 
 	/* call setup_exter */
 	trap_put_word(ctx, resaddr +  0, 0x7000 | (currprefs.uaeboard > 1 ? 3 : 1)); /* moveq #x,d0 */
@@ -7637,7 +7568,6 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *ctx)
 		}
 	}
 
-#if 1
 	tmp = first_resident;
 	while (tmp < last_resident && tmp >= first_resident) {
 		if (trap_get_word(ctx, tmp) == 0x4AFC && trap_get_long(ctx, tmp + 0x2) == tmp) {
@@ -7647,8 +7577,6 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *ctx)
 			tmp += 2;
 		}
 	}
-#endif
-	//activate_debugger();
 
 	return 1;
 }
@@ -8727,6 +8655,12 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *ctx)
 	} else if (mode == 20) {
 		// boot rom copy done
 		return boot_rom_copy(ctx, trap_get_dreg(ctx, 2), 1);
+	} else if (mode == 21) {
+		// keymap hook
+#ifdef RETROPLATFORM
+		rp_keymap(ctx, trap_get_areg(ctx, 1), trap_get_dreg(ctx, 0));
+#endif
+		return 1;
 	} else if (mode == 101) {
 		consolehook_ret(ctx, trap_get_areg(ctx, 1), trap_get_areg(ctx, 2));
 	} else if (mode == 102) {
@@ -8845,10 +8779,15 @@ void filesys_install (void)
 
 	fsdevname = ds_ansi ("uae.device"); /* does not really exist */
 	fshandlername = ds_bstr_ansi ("uaefs");
+
 	cdfs_devname = ds_ansi ("uaescsi.device");
 	cdfs_handlername = ds_bstr_ansi ("uaecdfs");
+
 	afterdos_name = ds_ansi("UAE afterdos");
 	afterdos_id = ds_ansi("UAE afterdos 0.1");
+
+	keymaphook_name = ds_ansi("UAE keymaphook");
+	keymaphook_id = ds_ansi("UAE keymaphook 0.1");
 
 	ROM_filesys_diagentry = here ();
 	calltrap (deftrap2 (filesys_diagentry, 0, _T("filesys_diagentry")));
@@ -8939,6 +8878,7 @@ void filesys_install_code (void)
 	b = bootrom_start + bootrom_header + 3 * 4 - 4;
 	filesys_initcode = bootrom_start + dlg (b) + bootrom_header - 4;
 	afterdos_initcode = filesys_get_entry(8);
+	keymaphook_initcode = filesys_get_entry(11);
 }
 
 #ifdef _WIN32

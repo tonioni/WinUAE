@@ -320,6 +320,7 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log(_T("Cycle-exact mode requires at least Disabled but emulated sound setting."));
 	}
 
+#if 0
 	if (p->cachesize && p->cpuboard_type && !cpuboard_jitdirectompatible(p) && !p->comptrustbyte) {
 		error_log(_T("JIT direct is not compatible with emulated Blizzard accelerator boards."));
 		p->comptrustbyte = 1;
@@ -327,6 +328,7 @@ void fixup_cpu (struct uae_prefs *p)
 		p->comptrustlong = 1;
 		p->comptrustnaddr = 1;
 	}
+#endif
 }
 
 void fixup_prefs (struct uae_prefs *p, bool userconfig)
@@ -335,6 +337,8 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 
 	built_in_chipset_prefs (p);
 	fixup_cpu (p);
+	cfgfile_compatibility_rtg(p);
+	cfgfile_compatibility_romtype(p);
 
 	if (p->cpuboard_type && p->cpuboardmem1_size > cpuboard_maxmemory(p)) {
 		error_log(_T("Unsupported accelerator board memory size %d (0x%x).\n"), p->cpuboardmem1_size, p->cpuboardmem1_size);
@@ -343,7 +347,7 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 	if (cpuboard_memorytype(p) == BOARD_MEMORY_HIGHMEM) {
 		p->mbresmem_high_size = p->cpuboardmem1_size;
 	} else if (cpuboard_memorytype(p) == BOARD_MEMORY_Z2) {
-		p->fastmem2_size = p->cpuboardmem1_size;
+		p->fastmem[0].size = p->cpuboardmem1_size;
 	} else if (cpuboard_memorytype(p) == BOARD_MEMORY_25BITMEM) {
 		p->mem25bit_size = p->cpuboardmem1_size;
 	} else if (cpuboard_memorytype(p) == BOARD_MEMORY_EMATRIX) {
@@ -374,27 +378,12 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		err = 1;
 	}
 
-	if ((p->fastmem_size & (p->fastmem_size - 1)) != 0
-		|| (p->fastmem_size != 0 && (p->fastmem_size < 0x10000 || p->fastmem_size > 0x800000)))
-	{
-		error_log (_T("Unsupported fastmem size %d (0x%x)."), p->fastmem_size, p->fastmem_size);
-		p->fastmem_size = 0;
-		err = 1;
-	}
-	if ((p->fastmem2_size & (p->fastmem2_size - 1)) != 0 || (p->fastmem2_size != 0 && (p->fastmem2_size < 0x10000 || p->fastmem2_size > 0x800000)))
-	{
-		error_log (_T("Unsupported fastmem2 size %d (0x%x)."), p->fastmem2_size, p->fastmem2_size);
-		p->fastmem2_size = 0;
-		err = 1;
-	}
-	if (p->cachesize) {
-		if (p->fastmem_size + p->fastmem2_size > 0x800000) {
-			error_log (_T("Unsupported fastmem2 size %d (0x%x)."), p->fastmem2_size, p->fastmem2_size);
-			err = 1;
-		}
-		if (p->fastmem2_size > p->fastmem_size && p->fastmem_size > 0) {
-			error_log (_T("Fastmem2 size can't be larger than fastmem1 if JIT is enabled."));
-			p->fastmem2_size = 0;
+	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
+		if ((p->fastmem[i].size & (p->fastmem[i].size - 1)) != 0
+			|| (p->fastmem[i].size != 0 && (p->fastmem[i].size < 0x10000 || p->fastmem[i].size > 0x800000)))
+		{
+			error_log (_T("Unsupported fastmem size %d (0x%x)."), p->fastmem[i].size, p->fastmem[i].size);
+			p->fastmem[i].size = 0;
 			err = 1;
 		}
 	}
@@ -417,28 +406,13 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		}
 	}
 	
-	if (p->z3fastmem_size > max_z3fastmem) {
-		error_log (_T("Zorro III fastmem size %d (0x%x) larger than max reserved %d (0x%x)."), p->z3fastmem_size, p->z3fastmem_size, max_z3fastmem, max_z3fastmem);
-		p->z3fastmem_size = max_z3fastmem;
-		err = 1;
-	}
-	if ((p->z3fastmem_size & (p->z3fastmem_size - 1)) != 0 || (p->z3fastmem_size != 0 && p->z3fastmem_size < 0x100000))
-	{
-		error_log (_T("Unsupported Zorro III fastmem size %d (0x%x)."), p->z3fastmem_size, p->z3fastmem_size);
-		p->z3fastmem_size = 0;
-		err = 1;
-	}
-
-	if (p->z3fastmem2_size > max_z3fastmem) {
-		error_log (_T("Zorro III fastmem2 size %d (0x%x) larger than max reserved %d (0x%x)."), p->z3fastmem2_size, p->z3fastmem2_size, max_z3fastmem, max_z3fastmem);
-		p->z3fastmem2_size = max_z3fastmem;
-		err = 1;
-	}
-	if ((p->z3fastmem2_size & (p->z3fastmem2_size - 1)) != 0 || (p->z3fastmem2_size != 0 && p->z3fastmem2_size < 0x100000))
-	{
-		error_log (_T("Unsupported Zorro III fastmem2 size %x (%x)."), p->z3fastmem2_size, p->z3fastmem2_size);
-		p->z3fastmem2_size = 0;
-		err = 1;
+	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
+		if ((p->z3fastmem[i].size & (p->z3fastmem[i].size - 1)) != 0 || (p->z3fastmem[i].size != 0 && p->z3fastmem[i].size < 0x100000))
+		{
+			error_log (_T("Unsupported Zorro III fastmem size %d (0x%x)."), p->z3fastmem[i].size, p->z3fastmem[i].size);
+			p->z3fastmem[i].size = 0;
+			err = 1;
+		}
 	}
 
 	p->z3autoconfig_start &= ~0xffff;
@@ -457,8 +431,9 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		err = 1;
 	}
 
-	if (p->address_space_24 && (p->z3fastmem_size != 0 || p->z3fastmem2_size != 0 || p->z3chipmem_size != 0)) {
-		p->z3fastmem_size = p->z3fastmem2_size = p->z3chipmem_size = 0;
+	if (p->address_space_24 && (p->z3fastmem[0].size != 0 || p->z3fastmem[1].size != 0 || p->z3fastmem[2].size != 0 || p->z3fastmem[3].size != 0 || p->z3chipmem_size != 0)) {
+		p->z3fastmem[0].size = p->z3fastmem[1].size = p->z3fastmem[2].size = p->z3fastmem[3].size = 0;
+		p->z3chipmem_size = 0;
 		error_log (_T("Can't use a Z3 graphics card or 32-bit memory when using a 24 bit address space."));
 	}
 
@@ -472,7 +447,7 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		p->bogomem_size = 0x180000;
 		error_log (_T("Possible Gayle bogomem conflict fixed."));
 	}
-	if (p->chipmem_size > 0x200000 && p->fastmem_size > 262144) {
+	if (p->chipmem_size > 0x200000 && (p->fastmem[0].size > 262144 || p->fastmem[1].size > 262144)) {
 		error_log(_T("You can't use fastmem and more than 2MB chip at the same time."));
 		p->chipmem_size = 0x200000;
 		err = 1;
@@ -517,10 +492,6 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		if (p->address_space_24 && rbc->rtgmem_size && rbc->rtgmem_type == GFXBOARD_UAE_Z3) {
 			error_log (_T("Z3 RTG and 24bit address space are not compatible."));
 			rbc->rtgmem_type = GFXBOARD_UAE_Z2;
-		}
-		if (rbc->rtgmem_size && rbc->rtgmem_type == GFXBOARD_UAE_Z2 && (p->chipmem_size > 2 * 1024 * 1024 || getz2size (p) > 8 * 1024 * 1024 || getz2size (p) < 0)) {
-			rbc->rtgmem_size = 0;
-			error_log (_T("Too large Z2 RTG memory size."));
 		}
 	}
 
@@ -567,10 +538,12 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		p->cachesize = 0;
 		err = 1;
 	}
-	if ((p->z3fastmem_size || p->z3fastmem2_size || p->z3chipmem_size) && p->address_space_24) {
+	if ((p->z3fastmem[0].size || p->z3fastmem[1].size || p->z3fastmem[2].size || p->z3fastmem[3].size || p->z3chipmem_size) && p->address_space_24) {
 		error_log (_T("Z3 fast memory can't be used if address space is 24-bit."));
-		p->z3fastmem_size = 0;
-		p->z3fastmem2_size = 0;
+		p->z3fastmem[0].size = 0;
+		p->z3fastmem[1].size = 0;
+		p->z3fastmem[2].size = 0;
+		p->z3fastmem[3].size = 0;
 		p->z3chipmem_size = 0;
 		err = 1;
 	}
@@ -710,6 +683,8 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 #endif
 	}
 #endif
+	if (p->gfx_framerate < 1)
+		p->gfx_framerate = 1;
 	if (p->maprom && !p->address_space_24) {
 		p->maprom = 0x0f000000;
 	}
@@ -718,20 +693,6 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 	}
 	if (p->tod_hack && p->cs_ciaatod == 0)
 		p->cs_ciaatod = p->ntscmode ? 2 : 1;
-
-	if (p->sound_toccata + p->sound_es1370 + p->sound_fm801 > 1) {
-		error_log(_T("Only one sound card can be enabled at the same time."));
-		if (p->sound_toccata) {
-			p->sound_es1370 = 0;
-			p->sound_fm801 = 0;
-		} else if (p->sound_es1370) {
-			p->sound_toccata = 0;
-			p->sound_fm801 = 0;
-		} else {
-			p->sound_toccata = 0;
-			p->sound_es1370 = 0;
-		}
-	}
 
 	built_in_chipset_prefs (p);
 	blkdev_fix_prefs (p);
@@ -860,7 +821,7 @@ static TCHAR *parsetext (const TCHAR *s)
 static TCHAR *parsetextpath (const TCHAR *s)
 {
 	TCHAR *s2 = parsetext (s);
-	TCHAR *s3 = target_expand_environment (s2);
+	TCHAR *s3 = target_expand_environment (s2, NULL, 0);
 	xfree (s2);
 	return s3;
 }
@@ -1120,7 +1081,11 @@ static int real_main2 (int argc, TCHAR **argv)
 						 a config using the cmd-line.  This case handles loads through the GUI. */
 
 #ifdef NATMEM_OFFSET
-	init_shm ();
+	if (!init_shm ()) {
+		if (currprefs.start_gui)
+			uae_restart(-1, NULL);
+		return 0;
+	}
 #endif
 #ifdef WITH_LUA
 	uae_lua_init ();

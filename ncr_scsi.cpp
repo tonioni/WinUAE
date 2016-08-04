@@ -536,9 +536,9 @@ static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
 		switch (addr)
 		{
 			case 0x44:
-			map_banks_z3(ncr->bank, expamem_z3_pointer >> 16, BOARD_SIZE >> 16);
+			map_banks_z3(ncr->bank, expamem_board_pointer >> 16, BOARD_SIZE >> 16);
 			ncr->board_mask = 0x00ffffff;
-			ncr->baseaddress = expamem_z3_pointer;
+			ncr->baseaddress = expamem_board_pointer;
 			ncr->configured = 1;
 			expamem_next (ncr->bank, NULL);
 			break;
@@ -747,12 +747,15 @@ static const uae_u8 warpengine_a4000_autoconfig[16] = {
 };
 #define WARP_ENGINE_ROM_SIZE 32768
 
-addrbank *ncr710_warpengine_autoconfig_init(struct romconfig *rc)
+bool ncr710_warpengine_autoconfig_init(struct autoconfig_info *aci)
 {
-	struct ncr_state *ncr = getscsi(rc);
+	aci->autoconfigp = warpengine_a4000_autoconfig;
+	if (!aci->doinit)
+		return true;
 
+	struct ncr_state *ncr = getscsi(aci->rc);
 	if (!ncr)
-		return &expamem_null;
+		return false;
 
 	ncr_we = ncr;
 	xfree(ncr->rom);
@@ -778,7 +781,7 @@ addrbank *ncr710_warpengine_autoconfig_init(struct romconfig *rc)
 		ew(ncr, i * 4, b);
 	}
 	ncr->rom = xcalloc (uae_u8, WARP_ENGINE_ROM_SIZE * 4);
-	struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_CB_WENGINE);
+	struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_CB_WENGINE);
 	if (z) {
 		for (int i = 0; i < WARP_ENGINE_ROM_SIZE; i++) {
 			uae_u8 b = 0xff;
@@ -793,21 +796,44 @@ addrbank *ncr710_warpengine_autoconfig_init(struct romconfig *rc)
 
 	ncr_reset_board(ncr);
 
-	return &ncr_bank_generic;
+	aci->addrbank = &ncr_bank_generic;
+	return true;
 }
 
-addrbank *ncr710_a4091_autoconfig_init (struct romconfig *rc)
+bool ncr710_a4091_autoconfig_init (struct autoconfig_info *aci)
 {
-	struct ncr_state *ncr = getscsi(rc);
+	uae_u8 *rom = NULL;
+	struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_A4091);
+	if (z) {
+		rom = xmalloc(uae_u8, A4091_ROM_SIZE * 4);
+		for (int i = 0; i < A4091_ROM_SIZE; i++) {
+			uae_u8 b;
+			zfile_fread(&b, 1, 1, z);
+			rom[i * 4 + 0] = b | 0x0f;
+			rom[i * 4 + 2] = (b << 4) | 0x0f;
+			if (i < 0x20) {
+				aci->autoconfig_raw[i * 4 + 0] = b;
+			} else if (i >= 0x40 && i < 0x60) {
+				aci->autoconfig_raw[(i - 0x40) * 4 + 2] = b;
+			}
+		}
+		zfile_fclose(z);
+	}
 
+	if (!aci->doinit) {
+		xfree(rom);
+		return true;
+	}
+
+	struct ncr_state *ncr = getscsi(aci->rc);
 	if (!ncr)
-		return &expamem_null;
+		return false;
 
 	xfree(ncr->rom);
-	ncr->rom = NULL;
+	ncr->rom = rom;
 
 	ncr->enabled = true;
-	memset (ncr->acmemory, 0xff, sizeof ncr->acmemory);
+	memcpy(ncr->acmemory, aci->autoconfig_raw, sizeof ncr->acmemory);
 	ncr->rom_start = 0;
 	ncr->rom_offset = A4091_ROM_OFFSET;
 	ncr->rom_end = A4091_IO_OFFSET;
@@ -816,24 +842,8 @@ addrbank *ncr710_a4091_autoconfig_init (struct romconfig *rc)
 
 	ncr_reset_board(ncr);
 
-	struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_A4091);
-	if (z) {
-		ncr->rom = xmalloc (uae_u8, A4091_ROM_SIZE * 4);
-		for (int i = 0; i < A4091_ROM_SIZE; i++) {
-			uae_u8 b;
-			zfile_fread (&b, 1, 1, z);
-			ncr->rom[i * 4 + 0] = b | 0x0f;
-			ncr->rom[i * 4 + 2] = (b << 4) | 0x0f;
-			if (i < 0x20) {
-				ncr->acmemory[i * 4 + 0] = b;
-			} else if (i >= 0x40 && i < 0x60) {
-				ncr->acmemory[(i - 0x40) * 4 + 2] = b;
-			}
-		}
-		zfile_fclose(z);
-	}
-
-	return &ncr_bank_generic;
+	aci->addrbank = &ncr_bank_generic;
+	return true;
 }
 
 void ncr_free(void)
@@ -913,6 +923,19 @@ static void ncr_add_scsi_unit(struct ncr_state **ncrp, int ch, struct uaedev_con
 		else if (ci->type == UAEDEV_HDF)
 			add_ncr_scsi_hd (ncr, ch, NULL, ci);
 	}
+}
+
+bool a4000t_scsi_init(struct autoconfig_info *aci)
+{
+	aci->start = 0xdd0000;
+	aci->size = 0x10000;
+	aci->addrbank = &expamem_nonautoconfig;
+	return true;
+}
+
+bool is_a4000t_scsi(void)
+{
+	return ncr_a4000t && ncr_a4000t->enabled;
 }
 
 void a4000t_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc)

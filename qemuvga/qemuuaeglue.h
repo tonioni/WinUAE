@@ -90,7 +90,7 @@ int64_t get_ticks_per_sec(void);
 
 #define isa_mem_base 0
 
-#define QemuConsole uint32_t
+#define QemuConsole void
 #define console_ch_t uint8_t
 typedef struct GraphicHwOps {
     void (*invalidate)(void *opaque);
@@ -104,7 +104,7 @@ typedef struct GraphicHwOps {
 #define ram_addr_t uint32_t
 
 typedef struct DisplaySurface {
-	void *bah;
+	void *data;
 } DisplaySurface;
 
 uint16_t le16_to_cpu(uint16_t v);

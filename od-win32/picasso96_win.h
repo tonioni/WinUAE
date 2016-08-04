@@ -558,10 +558,10 @@ extern void picasso_reset (void);
 extern bool picasso_is_active (void);
 extern int picasso_setwincursor (void);
 extern int picasso_palette (void);
-extern bool picasso_flushpixels (uae_u8 *src, int offset);
-extern void picasso_allocatewritewatch (int gfxmemsize);
-extern void picasso_getwritewatch (int offset);
-extern bool picasso_is_vram_dirty (uaecptr addr, int size);
+extern bool picasso_flushpixels (int index, uae_u8 *src, int offset);
+extern void picasso_allocatewritewatch (int index, int gfxmemsize);
+extern void picasso_getwritewatch (int index, int offset);
+extern bool picasso_is_vram_dirty (int index, uaecptr addr, int size);
 extern void picasso_statusline (uae_u8 *dst);
 extern void picasso_invalidate (int x, int y, int w, int h);
 

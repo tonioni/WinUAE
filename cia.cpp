@@ -820,24 +820,28 @@ static void check_keyboard(void)
 	}
 }
 
-void CIA_hsync_posthandler (bool dotod)
+void CIA_hsync_posthandler (bool ciahsync, bool dotod)
 {
-	// Previous line was supposed to increase TOD but
-	// no one cared. Do it now.
-	if (ciab_tod_event_state == 1)
-		CIAB_tod_inc (false);
-	ciab_tod_event_state = 0;
+	if (ciahsync) {
+		// cia hysnc
+		// Previous line was supposed to increase TOD but
+		// no one cared. Do it now.
+		if (ciab_tod_event_state == 1)
+			CIAB_tod_inc (false);
+		ciab_tod_event_state = 0;
 
-	if (currprefs.tod_hack && ciaatodon)
-		do_tod_hack (dotod);
-
-	if (resetwarning_phase) {
-		resetwarning_check ();
-		while (keys_available ())
-			get_next_key ();
+		if (currprefs.tod_hack && ciaatodon)
+			do_tod_hack (dotod);
 	} else {
-		if ((hsync_counter & 15) == 0)
-			check_keyboard();
+		// custom hsync
+		if (resetwarning_phase) {
+			resetwarning_check ();
+			while (keys_available ())
+				get_next_key ();
+		} else {
+			if ((hsync_counter & 15) == 0)
+				check_keyboard();
+		}
 	}
 }
 

@@ -19,7 +19,7 @@
 
 #include "sysconfig.h"
 
-#define USETHREADCHARACTERICS 0
+#define USETHREADCHARACTERICS 1
 #define _WIN32_WINNT 0x700 /* XButtons + MOUSEHWHEEL=XP, Jump List=Win7 */
 
 #include <windows.h>
@@ -114,7 +114,7 @@ int log_vsync, debug_vsync_min_delay, debug_vsync_forced_delay;
 int uaelib_debug;
 int pissoff_value = 15000 * CYCLE_UNIT;
 unsigned int fpucontrol;
-int extraframewait;
+int extraframewait, extraframewait2;
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -270,15 +270,34 @@ void sleep_cpu_wakeup(void)
 	}
 }
 
-static void sleep_millis2 (int ms, bool main)
+HANDLE get_sound_event(void);
+
+static int sleep_millis2 (int ms, bool main)
 {
 	UINT TimerEvent;
 	int start = 0;
 	int cnt;
+	HANDLE sound_event = get_sound_event();
+	bool wasneg = ms < 0;
+	bool pullcheck = false;
+	int ret = 0;
 
+	if (ms < 0)
+		ms = -ms;
 	if (main) {
+		if (sound_event) {
+			bool pullcheck = audio_is_event_frame_possible(ms);
+			if (pullcheck) {
+				if (WaitForSingleObject(sound_event, 0) == WAIT_OBJECT_0) {
+					if (wasneg) {
+						write_log(_T("efw %d imm abort\n"), ms);
+					}
+					return -1;
+				}
+			}
+		}
 		if (WaitForSingleObject(cpu_wakeup_event, 0) == WAIT_OBJECT_0) {
-			return;
+			return 0;
 		}
 		start = read_processor_time ();
 	}
@@ -296,10 +315,23 @@ static void sleep_millis2 (int ms, bool main)
 	LeaveCriticalSection (&cs_time);
 	TimerEvent = timeSetEvent (ms, 0, (LPTIMECALLBACK)timehandle[cnt], 0, TIME_ONESHOT | TIME_CALLBACK_EVENT_SET);
 	if (main) {
-		HANDLE evt[2];
-		evt[0] = timehandle[cnt];
-		evt[1] = cpu_wakeup_event;
-		DWORD status = WaitForMultipleObjects(2, evt, FALSE, ms);
+		int c = 0;
+		HANDLE evt[3];
+		evt[c++] = timehandle[cnt];
+		evt[c++] = cpu_wakeup_event;
+		if (sound_event && pullcheck) {
+			evt[c++] = sound_event;
+		}
+		DWORD status = WaitForMultipleObjects(c, evt, FALSE, ms);
+		if (status == WAIT_OBJECT_0 + 2)
+			ret = -1;
+		if (wasneg) {
+			if (status == WAIT_OBJECT_0 + 2) {
+				write_log(_T("efw %d delayed abort\n"), ms);
+			} else if (status == WAIT_TIMEOUT) {
+				write_log(_T("efw %d full wait\n"), ms);
+			}
+		}
 		cpu_wakeup_event_triggered = false;
 	} else {
 		WaitForSingleObject(timehandle[cnt], ms);
@@ -309,26 +341,28 @@ static void sleep_millis2 (int ms, bool main)
 	timehandleinuse[cnt] = false;
 	if (main)
 		idletime += read_processor_time () - start;
+	return ret;
 }
 
-void sleep_millis_main (int ms)
+int sleep_millis_main (int ms)
 {
-	sleep_millis2 (ms, true);
+	return sleep_millis2 (ms, true);
 }
-void sleep_millis (int ms)
+int sleep_millis (int ms)
 {
-	sleep_millis2 (ms, false);
+	return sleep_millis2 (ms, false);
 }
 
-void sleep_millis_amiga(int ms)
+int sleep_millis_amiga(int ms)
 {
 #ifdef WITH_THREADED_CPU
 	cpu_semaphore_release();
 #endif
-	sleep_millis_main(ms);
+	int ret = sleep_millis_main(ms);
 #ifdef WITH_THREADED_CPU
 	cpu_semaphore_get();
 #endif
+	return ret;
 }
 
 static int windowmouse_max_w;
@@ -772,9 +806,15 @@ static void winuae_active (HWND hWnd, int minimized)
 	clipboard_active (hAmigaWnd, 1);
 #if USETHREADCHARACTERICS
 	if (os_vista && AVTask == NULL) {
+		typedef HANDLE(WINAPI* AVSETMMTHREADCHARACTERISTICS)(LPCTSTR, LPDWORD);
 		DWORD taskIndex = 0;
-		if (!(AVTask = AvSetMmThreadCharacteristics (TEXT("Pro Audio"), &taskIndex)))
-			write_log (_T("AvSetMmThreadCharacteristics failed: %d\n"), GetLastError ());
+		AVSETMMTHREADCHARACTERISTICS pAvSetMmThreadCharacteristics =
+			(AVSETMMTHREADCHARACTERISTICS)GetProcAddress(GetModuleHandle(_T("Avrt.dll")), "AvSetMmThreadCharacteristicsW");
+		if (pAvSetMmThreadCharacteristics) {
+			if (!(AVTask = pAvSetMmThreadCharacteristics(TEXT("Pro Audio"), &taskIndex))) {
+				write_log (_T("AvSetMmThreadCharacteristics failed: %d\n"), GetLastError ());
+			}
+		}
 	}
 #endif
 }
@@ -786,9 +826,14 @@ static void winuae_inactive (HWND hWnd, int minimized)
 
 	//write_log (_T("winuae_inactive(%d)\n"), minimized);
 #if USETHREADCHARACTERICS
-	if (AVTask)
-		AvRevertMmThreadCharacteristics (AVTask);
-	AVTask = NULL;
+	if (AVTask) {
+		typedef BOOL(WINAPI* AVREVERTMMTHREADCHARACTERISTICS)(HANDLE);
+		AVREVERTMMTHREADCHARACTERISTICS pAvRevertMmThreadCharacteristics =
+			(AVREVERTMMTHREADCHARACTERISTICS)GetProcAddress(GetModuleHandle(_T("Avrt.dll")), "AvRevertMmThreadCharacteristics");
+		if (pAvRevertMmThreadCharacteristics)
+			pAvRevertMmThreadCharacteristics(AVTask);
+		AVTask = NULL;
+	}
 #endif
 	if (!currprefs.win32_powersavedisabled)
 		SetThreadExecutionState (ES_CONTINUOUS);
@@ -2427,6 +2472,8 @@ bool handle_events (void)
 			manual_painting_needed++;
 			gui_fps (0, 0, 0);
 			gui_led (LED_SND, 0, -1);
+			// we got just paused, report it to caller.
+			return 1;
 		}
 		MsgWaitForMultipleObjects (0, NULL, FALSE, 100, QS_ALLINPUT);
 		while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
@@ -3517,7 +3564,8 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_iconified_priority = 3;
 		p->win32_notaskbarbutton = false;
 		p->win32_nonotificationicon = false;
-		p->win32_alwaysontop = false;
+		p->win32_main_alwaysontop = false;
+		p->win32_gui_alwaysontop = false;
 		p->win32_guikey = -1;
 		p->win32_automount_removable = 0;
 		p->win32_automount_drives = 0;
@@ -3661,7 +3709,8 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite (f, _T("cpu_idle"), _T("%d"), p->cpu_idle);
 	cfgfile_target_dwrite_bool (f, _T("notaskbarbutton"), p->win32_notaskbarbutton);
 	cfgfile_target_dwrite_bool (f, _T("nonotificationicon"), p->win32_nonotificationicon);
-	cfgfile_target_dwrite_bool (f, _T("always_on_top"), p->win32_alwaysontop);
+	cfgfile_target_dwrite_bool (f, _T("always_on_top"), p->win32_main_alwaysontop);
+	cfgfile_target_dwrite_bool (f, _T("gui_always_on_top"), p->win32_gui_alwaysontop);
 	cfgfile_target_dwrite_bool (f, _T("no_recyclebin"), p->win32_norecyclebin);
 	if (p->win32_guikey >= 0)
 		cfgfile_target_dwrite (f, _T("guikey"), _T("0x%x"), p->win32_guikey);
@@ -3676,7 +3725,8 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_bool(f, _T("filesystem_mangle_reserved_names"), p->win32_filesystem_mangle_reserved_names);
 	cfgfile_target_dwrite_bool(f, _T("right_control_is_right_win"), p->right_control_is_right_win_key);
 
-	cfgfile_target_dwrite (f, _T("extraframewait"), _T("%d"), extraframewait);
+	cfgfile_target_dwrite(f, _T("extraframewait"), _T("%d"), extraframewait);
+	cfgfile_target_dwrite(f, _T("extraframewait_us"), _T("%d"), extraframewait2);
 	cfgfile_target_dwrite (f, _T("framelatency"), _T("%d"), forcedframelatency);
 	if (scsiromselected > 0)
 		cfgfile_target_write(f, _T("expansion_gui_page"), expansionroms[scsiromselected].name);
@@ -3715,16 +3765,22 @@ static int fetchpri (int pri, int defpri)
 	return defpri;
 }
 
-TCHAR *target_expand_environment (const TCHAR *path)
+TCHAR *target_expand_environment (const TCHAR *path, TCHAR *out, int maxlen)
 {
 	if (!path)
 		return NULL;
-	int len = ExpandEnvironmentStrings (path, NULL, 0);
-	if (len <= 0)
-		return my_strdup (path);
-	TCHAR *s = xmalloc (TCHAR, len + 1);
-	ExpandEnvironmentStrings (path, s, len);
-	return s;
+	if (out == NULL) {
+		int len = ExpandEnvironmentStrings (path, NULL, 0);
+		if (len <= 0)
+			return my_strdup (path);
+		TCHAR *s = xmalloc (TCHAR, len + 1);
+		ExpandEnvironmentStrings (path, s, len);
+		return s;
+	} else {
+		if (ExpandEnvironmentStrings(path, out, maxlen) <= 0)
+			_tcscpy(out, path);
+		return out;
+	}
 }
 
 static const TCHAR *obsolete[] = {
@@ -3769,7 +3825,8 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_intval(option, value, _T("samplersoundcard"), &p->win32_samplersoundcard, 1)
 		|| cfgfile_yesno(option, value, _T("notaskbarbutton"), &p->win32_notaskbarbutton)
 		|| cfgfile_yesno(option, value, _T("nonotificationicon"), &p->win32_nonotificationicon)
-		|| cfgfile_yesno(option, value, _T("always_on_top"), &p->win32_alwaysontop)
+		|| cfgfile_yesno(option, value, _T("always_on_top"), &p->win32_main_alwaysontop)
+		|| cfgfile_yesno(option, value, _T("gui_always_on_top"), &p->win32_gui_alwaysontop)
 		|| cfgfile_yesno(option, value, _T("powersavedisabled"), &p->win32_powersavedisabled)
 		|| cfgfile_string(option, value, _T("exec_before"), p->win32_commandpathstart, sizeof p->win32_commandpathstart / sizeof (TCHAR))
 		|| cfgfile_string(option, value, _T("exec_after"), p->win32_commandpathend, sizeof p->win32_commandpathend / sizeof (TCHAR))
@@ -3782,6 +3839,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_yesno(option, value, _T("filesystem_mangle_reserved_names"), &p->win32_filesystem_mangle_reserved_names)
 		|| cfgfile_yesno(option, value, _T("right_control_is_right_win"), &p->right_control_is_right_win_key)
 		|| cfgfile_intval(option, value, _T("extraframewait"), &extraframewait, 1)
+		|| cfgfile_intval(option, value, _T("extraframewait_us"), &extraframewait2, 1)
 		|| cfgfile_intval(option, value, _T("framelatency"), &forcedframelatency, 1)
 		|| cfgfile_intval(option, value, _T("cpu_idle"), &p->cpu_idle, 1))
 		return 1;
@@ -5365,6 +5423,8 @@ extern int log_blitter;
 extern int slirp_debug;
 extern int fakemodewaitms;
 extern float sound_sync_multiplier;
+extern int log_cd32;
+extern int scanline_adjust;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -5675,6 +5735,14 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		createbootlog = false;
 		return 1;
 	}
+	if (!_tcscmp(arg, _T("cd32log"))) {
+		log_cd32 = 1;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("cd32log2"))) {
+		log_cd32 = 2;
+		return 1;
+	}
 
 	if (!np)
 		return 0;
@@ -5685,6 +5753,11 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		return 2;
 	}
 #endif
+
+	if (!_tcscmp(arg, _T("scanlineadjust"))) {
+		scanline_adjust = getval(np);
+		return 2;
+	}
 	if (!_tcscmp (arg, _T("vsync_modechangetimeout"))) {
 		vsync_modechangetimeout = getval (np);
 		return 2;
@@ -5790,8 +5863,12 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		inputrecord_debug = getval (np);
 		return 2;
 	}
-	if (!_tcscmp (arg, _T("extraframewait"))) {
-		extraframewait = getval (np);
+	if (!_tcscmp(arg, _T("extraframewait"))) {
+		extraframewait = getval(np);
+		return 2;
+	}
+	if (!_tcscmp(arg, _T("extraframewait_us"))) {
+		extraframewait2 = getval(np);
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("framelatency"))) {
@@ -6856,7 +6933,7 @@ void *uaenative_get_uaevar (void)
 #ifdef _WIN32
     uaevar.amigawnd = hAmigaWnd;
 #endif
-    uaevar.z3offset = (uae_u32)get_real_address (z3fastmem_bank.start) - z3fastmem_bank.start;
+    uaevar.z3offset = (uae_u32)get_real_address (z3fastmem_bank[0].start) - z3fastmem_bank[0].start;
     return &uaevar;
 }
 

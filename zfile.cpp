@@ -1714,44 +1714,26 @@ static struct zfile *zfile_fopen_2 (const TCHAR *name, const TCHAR *mode, int ma
 	return l;
 }
 
-#ifdef _WIN32
-#include "win32.h"
-
-#define AF _T("%AMIGAFOREVERDATA%")
-
-static void manglefilename (TCHAR *out, const TCHAR *in)
+static void manglefilename(const TCHAR *in, TCHAR *out, int outsize)
 {
-	int i;
-
-	out[0] = 0;
-	if (!strncasecmp (in, AF, _tcslen (AF)))
-		_tcscpy (out, start_path_data);
-	if ((in[0] == '/' || in[0] == '\\') || (_tcslen(in) > 3 && in[1] == ':' && in[2] == '\\'))
-		out[0] = 0;
-	_tcscat (out, in);
-	for (i = 0; i < _tcslen (out); i++) {
+	if (!target_expand_environment(in, out, outsize))
+		_tcscpy(out, in);
+	for (int i = 0; i < _tcslen(out); i++) {
 		// remove \\ or // in the middle of path
 		if ((out[i] == '/' || out[i] == '\\') && (out[i + 1] == '/' || out[i + 1] == '\\') && i > 0) {
-			memmove (out + i, out + i + 1, (_tcslen (out + i) + 1) * sizeof (TCHAR));
+			memmove(out + i, out + i + 1, (_tcslen(out + i) + 1) * sizeof(TCHAR));
 			i--;
 			continue;
 		}
 	}
 }
-#else
-static void manglefilename(TCHAR *out, const TCHAR *in)
-{
-	_tcscpy (out, in);
-}
-#endif
-
 int zfile_zopen (const TCHAR *name, zfile_callback zc, void *user)
 {
 	struct zfile *l;
 	int ztype;
 	TCHAR path[MAX_DPATH];
 
-	manglefilename (path, name);
+	manglefilename (name, path, sizeof path / sizeof(TCHAR));
 	l = zfile_fopen_2 (path, _T("rb"), ZFD_NORMAL);
 	if (!l)
 		return 0;
@@ -1775,7 +1757,7 @@ static struct zfile *zfile_fopen_x (const TCHAR *name, const TCHAR *mode, int ma
 
 	if (_tcslen (name) == 0)
 		return NULL;
-	manglefilename (path, name);
+	manglefilename(name, path, sizeof(path) / sizeof TCHAR);
 	l = zfile_fopen_2 (path, mode, mask);
 	if (!l)
 		return 0;
@@ -1810,6 +1792,7 @@ static int isinternetfile (const TCHAR *name)
 	return 0;
 }
 #include <wininet.h>
+#include "win32.h"
 #define INETBUFFERLEN 1000000
 static struct zfile *zfile_fopen_internet (const TCHAR *name, const TCHAR *mode, int mask)
 {

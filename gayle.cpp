@@ -32,6 +32,7 @@
 #include "idecontrollers.h"
 #include "pci_hw.h"
 #include "debug.h"
+#include "autoconf.h"
 
 #define PCMCIA_SRAM 1
 #define PCMCIA_IDE 2
@@ -591,7 +592,7 @@ static bool isdataflyerscsiplus(uaecptr addr, uae_u32 *v, int size)
 
 static bool isa4000t (uaecptr *paddr)
 {
-	if (currprefs.cs_mbdmac != 2)
+	if (!is_a4000t_scsi())
 		return false;
 	uaecptr addr = *paddr;
 	if ((addr & 0xffff) >= (GAYLE_BASE_4000 & 0xffff))
@@ -607,7 +608,7 @@ static uae_u32 REGPARAM2 gayle_lget (uaecptr addr)
 	int ide_reg;
 	uae_u32 v;
 #ifdef NCR
-	if (currprefs.cs_mbdmac == 2 && (addr & 0xffff) == 0x3000)
+	if (is_a4000t_scsi() && (addr & 0xffff) == 0x3000)
 		return 0xffffffff; // NCR DIP BANK
 	if (isdataflyerscsiplus(addr, &v, 4)) {
 		return v;
@@ -643,7 +644,7 @@ static uae_u32 REGPARAM2 gayle_wget (uaecptr addr)
 	int ide_reg;
 	uae_u32 v;
 #ifdef NCR
-	if (currprefs.cs_mbdmac == 2 && (addr & (0xffff - 1)) == 0x3000)
+	if (is_a4000t_scsi() && (addr & (0xffff - 1)) == 0x3000)
 		return 0xffff; // NCR DIP BANK
 	if (isdataflyerscsiplus(addr, &v, 2)) {
 		return v;
@@ -671,7 +672,7 @@ static uae_u32 REGPARAM2 gayle_bget (uaecptr addr)
 {
 	uae_u32 v;
 #ifdef NCR
-	if (currprefs.cs_mbdmac == 2 && (addr & (0xffff - 3)) == 0x3000)
+	if (is_a4000t_scsi() && (addr & (0xffff - 3)) == 0x3000)
 		return 0xff; // NCR DIP BANK
 	if (isdataflyerscsiplus(addr, &v, 1)) {
 		return v;
@@ -1717,11 +1718,11 @@ void gayle_map_pcmcia (void)
 		return;
 	if (pcmcia_card == 0 || (gayle_cs & GAYLE_CS_DIS)) {
 		map_banks_cond (&dummy_bank, 0xa0, 8, 0);
-		if (currprefs.chipmem_size <= 4 * 1024 * 1024 && getz2endaddr () <= 4 * 1024 * 1024)
+		if (currprefs.chipmem_size <= 4 * 1024 * 1024 && !expansion_get_autoconfig_by_address(&currprefs, 4 * 1024 * 1024))
 			map_banks_cond (&dummy_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
 	} else {
 		map_banks_cond (&gayle_attr_bank, 0xa0, 8, 0);
-		if (currprefs.chipmem_size <= 4 * 1024 * 1024 && getz2endaddr () <= 4 * 1024 * 1024)
+		if (currprefs.chipmem_size <= 4 * 1024 * 1024 && !expansion_get_autoconfig_by_address(&currprefs, 4 * 1024 * 1024))
 			map_banks_cond (&gayle_common_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
 	}
 }
@@ -1754,25 +1755,43 @@ static void dumphdf (struct hardfiledata *hfd)
 }
 #endif
 
-int gayle_add_ide_unit (int ch, struct uaedev_config_info *ci)
+void gayle_add_ide_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	struct ide_hdf *ide;
 
 	if (ch >= 2 * 2)
-		return -1;
+		return;
 	ide = add_ide_unit (idedrive, TOTAL_IDE * 2, ch, ci, NULL);
-	if (ide == NULL)
-		return 0;
-	//dumphdf (&ide->hdhfd.hfd);
-	return 1;
 }
 
-int gayle_ne2000_unit(int insert)
+bool gayle_ide_init(struct autoconfig_info *aci)
+{
+	aci->addrbank = &expamem_nonautoconfig;
+	if (aci->prefs->cs_ide == 1) {
+		aci->start = GAYLE_BASE_1200;
+		aci->size = 0x10000;
+	} else {
+		aci->start = GAYLE_BASE_4000;
+		aci->size = 0x1000;
+	}
+	return true;
+}
+
+static int gayle_ne2000_unit(int insert)
 {
 	if (insert)
 		return initpcmcia(NULL, 0, PCMCIA_NE2000, 1, NULL);
 	else
 		return freepcmcia(0);
+}
+
+bool gayle_init_ne2000_pcmcia(struct autoconfig_info *aci)
+{
+	aci->start = 0xa00000;
+	aci->size = 0x1000;
+	aci->addrbank = &expamem_nonautoconfig;
+	aci->parent_address_space = true;
+	return true;
 }
 
 int gayle_add_pcmcia_sram_unit (struct uaedev_config_info *uci)
@@ -1800,6 +1819,18 @@ int gayle_modify_pcmcia_ide_unit (struct uaedev_config_info *uci, int insert)
 	else
 		return freepcmcia (0);
 }
+
+void gayle_add_pcmcia_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+}
+bool gayle_pcmcia_init(struct autoconfig_info *aci)
+{
+	aci->start = 0x600000;
+	aci->size = 0xa80000 - aci->start;
+	aci->addrbank = &expamem_nonautoconfig;
+	return true;
+}
+
 
 static void initide (void)
 {
@@ -1840,7 +1871,7 @@ void gayle_reset (int hardreset)
 	if (currprefs.cs_ide == IDE_A4000)
 		_tcscpy (bankname, _T("A4000 IDE"));
 #ifdef NCR
-	if (currprefs.cs_mbdmac == 2) {
+	if (is_a4000t_scsi()) {
 		_tcscat (bankname, _T(" + NCR53C710 SCSI"));
 		ncr_init();
 		ncr_reset();
@@ -1930,9 +1961,9 @@ uae_u8 *restore_gayle_ide (uae_u8 *src)
 	readonly = restore_u32 ();
 	src = ide_restore_state(src, ide);
 	if (ide->hdhfd.hfd.virtual_size)
-		gayle_add_ide_unit (num, NULL);
+		gayle_add_ide_unit (num, NULL, NULL);
 	else
-		gayle_add_ide_unit (num, NULL);
+		gayle_add_ide_unit (num, NULL, NULL);
 	xfree (path);
 	return src;
 }

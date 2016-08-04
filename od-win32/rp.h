@@ -18,6 +18,7 @@ extern void rp_vsync (void);
 extern HWND rp_getparent (void);
 extern void rp_rtg_switch (void);
 extern void rp_screenmode_changed (void);
+extern void rp_keymap(TrapContext*, uaecptr, uae_u32);
 
 extern TCHAR *rp_param;
 extern int rp_rpescapekey;

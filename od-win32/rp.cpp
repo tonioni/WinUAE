@@ -10,7 +10,6 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
-#include "rp.h"
 #include "options.h"
 #include "uae.h"
 #include "inputdevice.h"
@@ -33,6 +32,7 @@
 #include "drawing.h"
 #include "resource.h"
 #include "gui.h"
+#include "rp.h"
 
 static int initialized;
 static RPGUESTINFO guestinfo;
@@ -658,7 +658,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 	if (full > 1)
 		m |= RP_SCREENMODE_FULLSCREEN_SHARED;
 
-	sm->dwScreenMode = m  | (storeflags & (RP_SCREENMODE_SCALING_STRETCH | RP_SCREENMODE_SCALING_SUBPIXEL));
+	sm->dwScreenMode = m | (storeflags & (RP_SCREENMODE_SCALING_STRETCH | RP_SCREENMODE_SCALING_SUBPIXEL));
 	sm->lTargetHeight = 0;
 	sm->lTargetWidth = 0;
 	if ((storeflags & RP_SCREENMODE_SCALEMASK) == RP_SCREENMODE_SCALE_MAX) {
@@ -1193,6 +1193,16 @@ static LRESULT CALLBACK RPHostMsgFunction (UINT uMessage, WPARAM wParam, LPARAM 
 	return lr;
 }
 
+void rp_keymap(TrapContext *ctx, uaecptr ptr, uae_u32 size)
+{
+	uae_u8 *p = xmalloc(uae_u8, size);
+	if (p && size) {
+		trap_get_bytes(ctx, p, ptr, size);
+		RPSendMessagex(RP_IPC_TO_HOST_KEYBOARDLAYOUT, 0, 0, p, size, &guestinfo, NULL);
+	}
+	xfree(p);
+}
+
 static int rp_hostversion (int *ver, int *rev, int *build)
 {
 	LRESULT lr = 0;
@@ -1683,7 +1693,7 @@ static void rp_mouse (void)
 	if (!cando ())
 		return;
 	if (mousemagic)
-		flags |= RP_MOUSECAPTURE_MAGICMOUSE;
+		flags |= RP_MOUSECAPTURE_INTEGRATED;
 	if (mousecapture)
 		flags |= RP_MOUSECAPTURE_CAPTURED;
 	RPSendMessagex (RP_IPC_TO_HOST_MOUSECAPTURE, flags, 0, NULL, 0, &guestinfo, NULL);

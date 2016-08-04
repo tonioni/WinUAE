@@ -7,11 +7,12 @@ extern void pci_hsync(void);
 extern void pci_rethink(void);
 extern void pci_dump(int);
 
-extern addrbank *dkb_wildfire_pci_init(struct romconfig *rc);
-extern addrbank *prometheus_init(struct romconfig *rc);
-extern addrbank *cbvision_init(struct romconfig *rc);;
-extern addrbank *grex_init(struct romconfig *rc);
-extern addrbank *mediator_init(struct romconfig *rc);
-extern addrbank *mediator_init2(struct romconfig *rc);
+extern bool dkb_wildfire_pci_init(struct autoconfig_info *aci);
+extern bool prometheus_init(struct autoconfig_info *aci);
+extern bool cbvision_init(struct autoconfig_info *aci);
+extern bool grex_init(struct autoconfig_info *aci);
+extern bool mediator_init(struct autoconfig_info *aci);
+extern bool mediator_init2(struct autoconfig_info *aci);
+extern bool pci_expansion_init(struct autoconfig_info *aci);
 
 #endif /* UAE_PCI_H */

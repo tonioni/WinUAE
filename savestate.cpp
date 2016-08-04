@@ -407,14 +407,20 @@ static uae_u8 *restore_chunk (struct zfile *f, TCHAR *name, unsigned int *len, u
 	/* chunk data.  RAM contents will be loaded during the reset phase,
 	   no need to malloc multiple megabytes here.  */
 	if (_tcscmp (name, _T("CRAM")) != 0
-		&& _tcscmp (name, _T("BRAM")) != 0
-		&& _tcscmp (name, _T("FRAM")) != 0
-		&& _tcscmp (name, _T("ZRAM")) != 0
-		&& _tcscmp (name, _T("ZCRM")) != 0
-		&& _tcscmp (name, _T("PRAM")) != 0
-		&& _tcscmp (name, _T("A3K1")) != 0
-		&& _tcscmp (name, _T("A3K2")) != 0
-		&& _tcscmp (name, _T("BORO")) != 0
+		&& _tcscmp(name, _T("BRAM")) != 0
+		&& _tcscmp(name, _T("FRAM")) != 0
+		&& _tcscmp(name, _T("ZRAM")) != 0
+		&& _tcscmp(name, _T("FRA2")) != 0
+		&& _tcscmp(name, _T("ZRA2")) != 0
+		&& _tcscmp(name, _T("FRA3")) != 0
+		&& _tcscmp(name, _T("ZRA3")) != 0
+		&& _tcscmp(name, _T("FRA4")) != 0
+		&& _tcscmp(name, _T("ZRA4")) != 0
+		&& _tcscmp(name, _T("ZCRM")) != 0
+		&& _tcscmp(name, _T("PRAM")) != 0
+		&& _tcscmp(name, _T("A3K1")) != 0
+		&& _tcscmp(name, _T("A3K2")) != 0
+		&& _tcscmp(name, _T("BORO")) != 0
 	)
 	{
 		/* extra bytes at the end needed to handle old statefiles that now have new fields */
@@ -498,7 +504,7 @@ void restore_state (const TCHAR *filename)
 	TCHAR name[5];
 	unsigned int len, totallen;
 	size_t filepos, filesize;
-	int z3num;
+	int z3num, z2num;
 
 	chunk = 0;
 	f = zfile_fopen (filename, _T("rb"), ZFD_NORMAL);
@@ -521,7 +527,7 @@ void restore_state (const TCHAR *filename)
 	restore_header (chunk);
 	xfree (chunk);
 	devices_restore_start();
-	z3num = 0;
+	z2num = z3num = 0;
 	for (;;) {
 		name[0] = 0;
 		chunk = end = restore_chunk (f, name, &len, &totallen, &filepos);
@@ -547,10 +553,7 @@ void restore_state (const TCHAR *filename)
 			continue;
 #ifdef AUTOCONFIG
 		} else if (!_tcscmp (name, _T("FRAM"))) {
-			restore_fram (totallen, filepos, 0);
-			continue;
-		} else if (!_tcscmp (name, _T("FRA2"))) {
-			restore_fram (totallen, filepos, 1);
+			restore_fram (totallen, filepos, z2num++);
 			continue;
 		} else if (!_tcscmp (name, _T("ZRAM"))) {
 			restore_zram (totallen, filepos, z3num++);
@@ -674,10 +677,8 @@ void restore_state (const TCHAR *filename)
 #ifdef CDTV
 		else if (!_tcscmp (name, _T("CDTV")))
 			end = restore_cdtv (chunk);
-#if 0
 		else if (!_tcscmp (name, _T("DMAC")))
 			end = restore_cdtv_dmac (chunk);
-#endif
 #endif
 #if 0
 		else if (!_tcscmp (name, _T("DMC2")))
@@ -705,6 +706,8 @@ void restore_state (const TCHAR *filename)
 		else if (!_tcsncmp (name, _T("2065"), 4))
 			end = restore_a2065 (chunk);
 #endif
+		else if (!_tcsncmp (name, _T("EXPI"), 4))
+			end = restore_expansion_info(chunk);
 		else if (!_tcsncmp (name, _T("DMWP"), 4))
 			end = restore_debug_memwatch (chunk);
 
@@ -798,14 +801,14 @@ static void save_rams (struct zfile *f, int comp)
 	dst = save_a3000hram (&len);
 	save_chunk (f, dst, len, _T("A3K2"), comp);
 #ifdef AUTOCONFIG
-	dst = save_fram (&len, 0);
-	save_chunk (f, dst, len, _T("FRAM"), comp);
-	dst = save_fram (&len, 1);
-	save_chunk (f, dst, len, _T("FRA2"), comp);
-	dst = save_zram (&len, 0);
-	save_chunk (f, dst, len, _T("ZRAM"), comp);
-	dst = save_zram (&len, 1);
-	save_chunk (f, dst, len, _T("ZRAM"), comp);
+	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
+		dst = save_fram(&len, i);
+		save_chunk(f, dst, len, _T("FRAM"), comp);
+	}
+	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
+		dst = save_zram(&len, i);
+		save_chunk(f, dst, len, _T("ZRAM"), comp);
+	}
 	dst = save_zram (&len, -1);
 	save_chunk (f, dst, len, _T("ZCRM"), comp);
 	dst = save_bootrom (&len);
@@ -947,8 +950,10 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	xfree (dst);
 
 #ifdef AUTOCONFIG
-	dst = save_expansion (&len, 0);
-	save_chunk (f, dst, len, _T("EXPA"), 0);
+	dst = save_expansion_info(&len, 0);
+	save_chunk(f, dst, len, _T("EXPI"), 0);
+	dst = save_expansion(&len, 0);
+	save_chunk(f, dst, len, _T("EXPA"), 0);
 #endif
 #ifdef A2065
 	dst = save_a2065 (&len, NULL);
@@ -977,11 +982,9 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	dst = save_cdtv (&len, NULL);
 	save_chunk (f, dst, len, _T("CDTV"), 0);
 	xfree (dst);
-#if 0
 	dst = save_cdtv_dmac (&len, NULL);
 	save_chunk (f, dst, len, _T("DMAC"), 0);
 	xfree (dst);
-#endif
 #endif
 #if 0
 	dst = save_scsi_dmac (WDTYPE_A3000, &len, NULL);
@@ -1300,10 +1303,10 @@ void savestate_rewind (void)
 	p += len;
 #ifdef AUTOCONFIG
 	len = restore_u32_func (&p);
-	memcpy (save_fram (&dummy, 0), p, currprefs.fastmem_size > len ? len : currprefs.fastmem_size);
+	memcpy (save_fram (&dummy, 0), p, currprefs.fastmem[0].size > len ? len : currprefs.fastmem[0].size);
 	p += len;
 	len = restore_u32_func (&p);
-	memcpy (save_zram (&dummy, 0), p, currprefs.z3fastmem_size > len ? len : currprefs.z3fastmem_size);
+	memcpy (save_zram (&dummy, 0), p, currprefs.z3fastmem[0].size > len ? len : currprefs.z3fastmem[0].size);
 	p += len;
 #endif
 #ifdef ACTION_REPLAY

@@ -23,6 +23,8 @@ int no_windowsmouse = 0;
 #define DI_DEBUG 1
 #define IGNOREEVERYTHING 0
 
+#define NEGATIVEMINHACK 0
+
 #include "sysconfig.h"
 
 #include <stdlib.h>
@@ -362,7 +364,7 @@ static void addplusminus (struct didata *did, int i)
 	TCHAR tmp[256];
 	int j;
 
-	if (did->buttons + 1 >= MAX_MAPPINGS)
+	if (did->buttons + 1 >= ID_BUTTON_TOTAL)
 		return;
 	for (j = 0; j < 2; j++) {
 		_stprintf (tmp, _T("%s [%c]"), did->axisname[i], j ? '+' : '-');
@@ -505,7 +507,7 @@ static int doregister_rawinput (bool add)
 #endif
 
 #if RAWINPUT_DEBUG
-	write_log (_T("RegisterRawInputDevices: ACT=%d NUM=%d HWND=%p\n"), activate, num, hMainWnd);
+	write_log (_T("RegisterRawInputDevices: NUM=%d HWND=%p\n"), num, hMainWnd);
 #endif
 
 	rawinput_reg = num;
@@ -1353,19 +1355,11 @@ static void fixhidvcaps (RID_DEVICE_INFO_HID *hid, HIDP_VALUE_CAPS *caps)
 {
 	int pid = hid->dwProductId;
 	int vid = hid->dwVendorId;
-	ULONG mask = hidmask (caps->BitSize);
-	/* min is always signed.
-	 * if min < 0, max is signed, otherwise it is unsigned
-	 */
-	if (caps->PhysicalMin >= 0)
-		caps->PhysicalMax = (uae_u32)(caps->PhysicalMax & mask);
-	else
-		caps->PhysicalMax = (uae_s32)caps->PhysicalMax;
 
-	if (caps->LogicalMin >= 0)
-		caps->LogicalMax = (uae_u32)(caps->LogicalMax & mask);
-	else
-		caps->LogicalMax = (uae_s32)caps->LogicalMax;
+	caps->LogicalMin = extractbits(caps->LogicalMin, caps->BitSize, caps->LogicalMin < 0);
+	caps->LogicalMax = extractbits(caps->LogicalMax, caps->BitSize, caps->LogicalMin < 0);
+	caps->PhysicalMin = extractbits(caps->PhysicalMin, caps->BitSize, caps->PhysicalMin < 0);
+	caps->PhysicalMax = extractbits(caps->PhysicalMax, caps->BitSize, caps->PhysicalMin < 0);
 
 	for (int i = 0; quirks[i].vid; i++) {
 		if (vid == quirks[i].vid && pid == quirks[i].pid) {
@@ -1767,7 +1761,7 @@ static bool initialize_rawinput (void)
 				PRID_DEVICE_INFO_MOUSE rdim = &rdi->mouse;
 				write_log (_T("id=%d buttons=%d hw=%d rate=%d\n"),
 					rdim->dwId, rdim->dwNumberOfButtons, rdim->fHasHorizontalWheel, rdim->dwSampleRate);
-				if (rdim->dwNumberOfButtons >= MAX_MAPPINGS) {
+				if (rdim->dwNumberOfButtons >= ID_BUTTON_TOTAL) {
 					write_log (_T("bogus number of buttons, ignored\n"));
 				} else {
 					did->buttons_real = did->buttons = rdim->dwNumberOfButtons;
@@ -1822,7 +1816,8 @@ static bool initialize_rawinput (void)
 						if (HidP_GetButtonCaps (HidP_Input, bcaps, &size, did->hidpreparseddata) == HIDP_STATUS_SUCCESS) {
 							dumphidbuttoncaps (bcaps, size);
 							int buttoncnt = 0;
-							for (i = 0; i < size && buttoncnt < MAX_MAPPINGS; i++) {
+							// limit to 20, can only have 32 buttons and it also includes [-][+] axis events.
+							for (i = 0; i < size && buttoncnt < 20; i++) {
 								int first, last;
 								if (bcaps[i].UsagePage >= 0xff00)
 									continue;
@@ -1832,7 +1827,7 @@ static bool initialize_rawinput (void)
 								} else {
 									first = last = bcaps[i].NotRange.Usage;
 								}
-								for (j = first; j <= last && buttoncnt < MAX_MAPPINGS; j++) {
+								for (j = first; j <= last && buttoncnt < 20; j++) {
 									int k;
 									for (k = 0; k < buttoncnt; k++) {
 										if (did->buttonmappings[k] == j)
@@ -1857,9 +1852,31 @@ static bool initialize_rawinput (void)
 						size = did->hidcaps.NumberInputValueCaps;
 						vcaps = xmalloc (HIDP_VALUE_CAPS, size);
 						if (HidP_GetValueCaps (HidP_Input, vcaps, &size, did->hidpreparseddata) == HIDP_STATUS_SUCCESS) {
+#if 0
+							for (i = 0; i < size; i++) {
+								int usage1;
+								if (vcaps[i].IsRange)
+									usage1 = vcaps[i].Range.UsageMin;
+								else
+									usage1 = vcaps[i].NotRange.Usage;
+								for (j = i + 1; j < size; j++) {
+									int usage2;
+									if (vcaps[j].IsRange)
+										usage2 = vcaps[j].Range.UsageMin;
+									else
+										usage2 = vcaps[j].NotRange.Usage;
+									if (usage1 < usage2) {
+										HIDP_VALUE_CAPS tcaps;
+										memcpy(&tcaps, &vcaps[i], sizeof(HIDP_VALUE_CAPS));
+										memcpy(&vcaps[i], &vcaps[j], sizeof(HIDP_VALUE_CAPS));
+										memcpy(&vcaps[j], &tcaps, sizeof(HIDP_VALUE_CAPS));
+									}
+								}
+							}
+#endif
 							dumphidvaluecaps (vcaps, size);
 							int axiscnt = 0;
-							for (i = 0; i < size && axiscnt < MAX_MAPPINGS; i++) {
+							for (i = 0; i < size && axiscnt < ID_AXIS_TOTAL; i++) {
 								int first, last;
 								if (vcaps[i].IsRange) {
 									first = vcaps[i].Range.UsageMin;
@@ -1867,7 +1884,7 @@ static bool initialize_rawinput (void)
 								} else {
 									first = last = vcaps[i].NotRange.Usage;
 								}
-								for (int acnt = first; acnt <= last && axiscnt < MAX_MAPPINGS; acnt++) {
+								for (int acnt = first; acnt <= last && axiscnt < ID_AXIS_TOTAL; acnt++) {
 									int ht;
 									for (ht = 0; hidtable[ht].name; ht++) {
 										if (hidtable[ht].usage == acnt && hidtable[ht].page == vcaps[i].UsagePage) {
@@ -1878,7 +1895,7 @@ static bool initialize_rawinput (void)
 											}
 											if (k == axiscnt) {	
 												if (hidtable[ht].page == 0x01 && acnt == 0x39) { // POV
-													if (axiscnt + 1 < MAX_MAPPINGS) {
+													if (axiscnt + 1 < ID_AXIS_TOTAL) {
 														for (int l = 0; l < 2; l++) {
 															TCHAR tmp[256];
 															_stprintf (tmp, _T("%s (%c)"), hidtable[ht].name,  l == 0 ? 'X' : 'Y');
@@ -1896,6 +1913,10 @@ static bool initialize_rawinput (void)
 													did->axismappings[axiscnt] = acnt;
 													memcpy (&did->hidvcaps[axiscnt], &vcaps[i], sizeof(HIDP_VALUE_CAPS));
 													fixhidvcaps (&rdi->hid, &did->hidvcaps[axiscnt]);
+#if NEGATIVEMINHACK
+													did->hidvcaps[axiscnt].LogicalMin -= (did->hidvcaps[axiscnt].LogicalMax / 2);
+													did->hidvcaps[axiscnt].LogicalMax -= (did->hidvcaps[axiscnt].LogicalMax / 2);
+#endif
 													did->axistype[axiscnt] = hidtable[ht].type;
 													axiscnt++;
 													did->analogstick = true;
@@ -2130,11 +2151,21 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		HANDLE h = raw->header.hDevice;
 		PCHAR rawdata;
 		if ((rawinput_log & 4) || RAWINPUT_DEBUG) {
+			static uae_u8 *oldbuf;
+			static int oldbufsize;
+			if (oldbufsize != hid->dwSizeHid) {
+				xfree(oldbuf);
+				oldbufsize = hid->dwSizeHid;
+				oldbuf = xcalloc(uae_u8, oldbufsize);
+			}
 			uae_u8 *r = hid->bRawData;
-			write_log (_T("%d %d "), hid->dwCount, hid->dwSizeHid);
-			for (int i = 0; i < hid->dwSizeHid; i++)
-				write_log (_T("%02X"), r[i]);
-			write_log (_T(" H=%p\n"), h);
+			if (memcmp(r, oldbuf, oldbufsize)) {
+				write_log (_T("%d %d "), hid->dwCount, hid->dwSizeHid);
+				for (int i = 0; i < hid->dwSizeHid; i++)
+					write_log (_T("%02X"), r[i]);
+				write_log (_T(" H=%p\n"), h);
+				memcpy(oldbuf, r, oldbufsize);
+			}
 		}
 		for (num = 0; num < num_joystick; num++) {
 			did = &di_joystick[num];
@@ -2208,7 +2239,6 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 						
 						status = HidP_GetUsageValue (HidP_Input, did->hidvcaps[axisnum].UsagePage, 0, usage, &val, did->hidpreparseddata, rawdata, hid->dwSizeHid);
 						if (status == HIDP_STATUS_SUCCESS) {
-
 							int data = 0;
 							int digitalrange = 0;
 							HIDP_VALUE_CAPS *vcaps = &did->hidvcaps[axisnum];
@@ -2246,19 +2276,23 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 							} else {
 
 								int v;
-
-								v = extractbits (val, vcaps->BitSize, vcaps->LogicalMin < 0);
-						
-								//write_log (L"%d %d: %d\n", num, axisnum, v);
+				
+#if NEGATIVEMINHACK
+								v = extractbits(val, vcaps->BitSize, 0);
+								v -= (vcaps->LogicalMax - vcaps->LogicalMin) / 2;
+#else
+								v = extractbits(val, vcaps->BitSize, vcaps->LogicalMin < 0);
+#endif
 
 								if (v < vcaps->LogicalMin)
 									v = vcaps->LogicalMin;
 								else if (v > vcaps->LogicalMax)
 									v = vcaps->LogicalMax;
 
-								v -= logicalrange + vcaps->LogicalMin;
+								data = v - logicalrange + (0 - vcaps->LogicalMin);
 
-								data = v;
+								if (rawinput_log & 4)
+									write_log(_T("DEV %d AXIS %d: %d %d (%d - %d) %d %d\n"), num, axisnum, digitalrange, logicalrange, vcaps->LogicalMin, vcaps->LogicalMax, v, data);
 
 								digitalrange = logicalrange * 2 / 3;
 								if (istest) {
@@ -2268,7 +2302,6 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 										data = logicalrange;
 									else
 										data = 0;
-									//write_log (_T("%d %d: (%d-%d) %d %d\n"), num, axisnum, vcaps->LogicalMin, vcaps->LogicalMax, v, data);
 								}
 								buttonaxistype = -1;
 							}
@@ -2276,10 +2309,11 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 							if (data != axisold[num][axisnum] && logicalrange) {
 								//write_log (_T("%d %d: %d->%d %d\n"), num, axisnum, axisold[num][axisnum], data, logicalrange);
 								axisold[num][axisnum] = data;
-								int bstate = -1;
-								int bstate2 = 0;
 								for (j = 0; j < did->buttons; j++) {
 									if (did->buttonaxisparent[j] >= 0 && did->buttonmappings[j] == usage && (did->buttonaxistype[j] == buttonaxistype || buttonaxistype < 0)) {
+										int bstate = -1;
+										int bstate2 = 0;
+
 										int axistype = did->axistype[j];
 										if (did->buttonaxisparentdir[j] == 0 && data < -digitalrange) {
 											bstate = j;
@@ -2293,7 +2327,8 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 										}
 
 										if (bstate >= 0 && buttonold[num][bstate] != bstate2) {
-											//write_log (_T("%d %d %d (%s)\n"), num, bstate, bstate2, did->buttonname[bstate]);
+											if (rawinput_log & 4)
+												write_log (_T("[+-] DEV %d AXIS %d: %d %d %d %d (%s)\n"), num, axisnum, digitalrange, data, bstate, bstate2, did->buttonname[bstate]);
 											buttonold[num][bstate] = bstate2;
 											setjoybuttonstate (num, bstate, bstate2);
 										}
@@ -2738,7 +2773,7 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 #endif
 	if (pdidoi->dwType & DIDFT_AXIS) {
 		int sort = 0;
-		if (did->axles >= MAX_MAPPINGS)
+		if (did->axles >= ID_AXIS_TOTAL)
 			return DIENUM_CONTINUE;
 		did->axismappings[did->axles] = DIDFT_GETINSTANCE (pdidoi->dwType);
 		did->axisname[did->axles] = my_strdup (pdidoi->tszName);
@@ -2761,7 +2796,7 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 	}
 	if (pdidoi->dwType & DIDFT_POV) {
 		int numpov = 0;
-		if (did->axles + 1 >= MAX_MAPPINGS)
+		if (did->axles + 1 >= ID_AXIS_TOTAL)
 			return DIENUM_CONTINUE;
 		for (i = 0; i < did->axles; i++) {
 			if (did->axistype[i]) {
@@ -2784,7 +2819,7 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 	}
 
 	if (pdidoi->dwType & DIDFT_BUTTON) {
-		if (did->buttons >= MAX_MAPPINGS)
+		if (did->buttons >= ID_BUTTON_TOTAL)
 			return DIENUM_CONTINUE;
 		TCHAR *bname = did->buttonname[did->buttons] = my_strdup (pdidoi->tszName);
 		if (did->type == DID_JOYSTICK) {

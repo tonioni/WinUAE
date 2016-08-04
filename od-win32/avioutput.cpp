@@ -239,7 +239,7 @@ static void storesettings (UAEREG *avikey)
 	regsetint(avikey, _T("RecordMode"), avioutput_audio);
 	regsetstr(avikey, _T("FileName"), avioutput_filename_gui);
 }
-static void getsettings (UAEREG *avikey)
+static void getsettings (UAEREG *avikey, bool allowaudio)
 {
 	int val;
 	if (regqueryint (avikey, _T("NoSoundOutput"), &val))
@@ -254,8 +254,10 @@ static void getsettings (UAEREG *avikey)
 		avioutput_nosoundoutput = 1;
 	if (regqueryint (avikey, _T("FPS"), &val))
 		avioutput_fps = val;
-	if (regqueryint(avikey, _T("RecordMode"), &val))
-		avioutput_audio = val;
+	if (allowaudio) {
+		if (regqueryint(avikey, _T("RecordMode"), &val))
+			avioutput_audio = val;
+	}
 	val = sizeof avioutput_filename_gui / sizeof(TCHAR);
 	regquerystr(avikey, _T("FileName"), avioutput_filename_gui, &val);
 }
@@ -264,7 +266,7 @@ void AVIOutput_GetSettings (void)
 {
 	UAEREG *avikey = openavikey ();
 	if (avikey)
-		getsettings (avikey);
+		getsettings (avikey, true);
 	regclosetree (avikey);
 }
 void AVIOutput_SetSettings (void)
@@ -373,8 +375,10 @@ static int AVIOutput_ValidateAudio (WAVEFORMATEX *wft, TCHAR *name, int len)
 	aftd.cbStruct = sizeof (ACMFORMATTAGDETAILS);
 	aftd.dwFormatTag = wft->wFormatTag;
 	ret = acmFormatTagDetails (NULL, &aftd, ACM_FORMATTAGDETAILSF_FORMATTAG);
-	if (ret)
+	if (ret) {
+		write_log(_T("acmFormatTagDetails %08x failed\n"), wft->wFormatTag);
 		return 0;
+	}
 
 	memset (&afd, 0, sizeof (ACMFORMATDETAILS));
 	afd.cbStruct = sizeof (ACMFORMATDETAILS);
@@ -382,8 +386,10 @@ static int AVIOutput_ValidateAudio (WAVEFORMATEX *wft, TCHAR *name, int len)
 	afd.pwfx = wft;
 	afd.cbwfx = sizeof (WAVEFORMATEX) + wft->cbSize;
 	ret = acmFormatDetails (NULL, &afd, ACM_FORMATDETAILSF_FORMAT);
-	if (ret)
+	if (ret) {
+		write_log(_T("acmFormatDetails %08x failed\n"), wft->wFormatTag);
 		return 0;
+	}
 
 	if (name)
 		_stprintf (name, _T("%s %s"), aftd.szFormatTag, afd.szFormat);
@@ -400,7 +406,7 @@ static int AVIOutput_GetAudioFromRegistry (WAVEFORMATEX *wft)
 	avikey = openavikey ();
 	if (!avikey)
 		return 0;
-	getsettings (avikey);
+	getsettings (avikey, true);
 	if (wft) {
 		ok = -1;
 		ss = wfxMaxFmtSize;
@@ -428,8 +434,11 @@ int AVIOutput_GetAudioCodec (TCHAR *name, int len)
 	if (!AVIOutput_AllocateAudio ())
 		return 0;
 	if (AVIOutput_GetAudioFromRegistry (pwfxDst) > 0) {
-		AVIOutput_GetAudioCodecName (pwfxDst, name, len);
-		return 1;
+		if (AVIOutput_GetAudioCodecName (pwfxDst, name, len)) {
+			write_log(_T("Audio: %s\n"), name);
+			return 1;
+		}
+		write_log(_T("Failed to open audio %08x\n"), pwfxDst->wFormatTag);
 	}
 	AVIOutput_ReleaseAudio ();
 	return 0;
@@ -597,7 +606,7 @@ static int AVIOutput_GetCOMPVARSFromRegistry (COMPVARS *pcv)
 	avikey = openavikey ();
 	if (!avikey)
 		return 0;
-	getsettings (avikey);
+	getsettings (avikey, false);
 	if (pcv) {
 		ok = -1;
 		ss = pcv->cbSize;
@@ -655,8 +664,11 @@ int AVIOutput_GetVideoCodec (TCHAR *name, int len)
 		return 0;
 	AVIOutput_FreeVideoDstFormat ();
 	if (AVIOutput_GetCOMPVARSFromRegistry (pcompvars) > 0) {
-		AVIOutput_GetVideoCodecName (pcompvars, name, len);
-		return 1;
+		if (AVIOutput_GetVideoCodecName (pcompvars, name, len)) {
+			write_log(_T("Video %s\n"), name);
+			return 1;
+		}
+		write_log(_T("Failed to open video %08x\n"), pcompvars->fccType);
 	}
 	AVIOutput_ReleaseVideo ();
 	return 0;

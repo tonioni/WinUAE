@@ -465,6 +465,8 @@ static TCHAR *writets (void)
 		return NULL;
 	if (nodatestamps)
 		return NULL;
+	if (!vsync_counter)
+		return NULL;
 	_ftime (&tb);
 	t = localtime (&tb.time);
 	_tcsftime (curts, sizeof curts / sizeof (TCHAR), _T("%Y-%m-%d %H:%M:%S\n"), t);

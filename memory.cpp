@@ -1283,7 +1283,7 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 			extendedkickmem_type = EXTENDED_ROM_CDTV;
 		} else if (size > 300000) {
 			extendedkickmem_type = EXTENDED_ROM_CD32;
-		} else if (need_uae_boot_rom () != 0xf00000) {
+		} else if (need_uae_boot_rom (&currprefs) != 0xf00000) {
 			extendedkickmem_type = EXTENDED_ROM_CDTV;
 		}	
 	} else {
@@ -1344,7 +1344,7 @@ static int patch_residents (uae_u8 *kickmemory, int size)
 	// "scsi.device", "carddisk.device", "card.resource" };
 	uaecptr base = size == ROM_SIZE_512 ? 0xf80000 : 0xfc0000;
 
-	if (currprefs.cs_mbdmac != 2) {
+	if (is_device_rom(&currprefs, ROMTYPE_SCSI_A4000T, 0) < 0) {
 		for (i = 0; i < size - 100; i++) {
 			if (kickmemory[i] == 0x4a && kickmemory[i + 1] == 0xfc) {
 				uaecptr addr;
@@ -1419,8 +1419,8 @@ static bool load_kickstart_replacement (void)
 	// if 68000-68020 config without any other fast ram with m68k aros: enable special extra RAM.
 	if (currprefs.cpu_model <= 68020 &&
 		currprefs.cachesize == 0 &&
-		currprefs.fastmem_size == 0 &&
-		currprefs.z3fastmem_size == 0 &&
+		currprefs.fastmem[0].size == 0 &&
+		currprefs.z3fastmem[0].size == 0 &&
 		currprefs.mbresmem_high_size == 0 &&
 		currprefs.mbresmem_low_size == 0 &&
 		currprefs.cpuboardmem1_size == 0) {
@@ -1684,6 +1684,13 @@ bool mapped_malloc (addrbank *ab)
 	bool rtgmem = (ab->flags & ABFLAG_RTG) != 0;
 	static int recurse;
 
+	if (!_tcscmp(ab->label, _T("*"))) {
+		if (ab->start == 0 || ab->start == 0xffffffff) {
+			write_log(_T("mapped_malloc(*) without start address!\n"));
+			return false;
+		}
+	}
+
 	ab->startmask = ab->start;
 	if ((!needmman () && (!rtgmem || currprefs.cpu_model < 68020)) || (ab->flags & ABFLAG_ALLOCINDIRECT)) {
 		if (!(ab->flags & ABFLAG_ALLOCINDIRECT))
@@ -1843,12 +1850,6 @@ static void allocate_memory (void)
 		int memsize;
 		mapped_free (&chipmem_bank);
 		chipmem_bank.flags &= ~ABFLAG_NOALLOC;
-		if (currprefs.chipmem_size > 2 * 1024 * 1024) {
-			if (currprefs.fastmem_size >= 524288)
-				free_fastmemory (0);
-			if (currprefs.fastmem2_size >= 524288)
-				free_fastmemory (1);
-		}
 
 		memsize = chipmem_bank.allocated = chipmem_full_size = currprefs.chipmem_size;
 		chipmem_full_mask = chipmem_bank.mask = chipmem_bank.allocated - 1;
@@ -2022,10 +2023,13 @@ static void fill_ce_banks (void)
 	}
 	// data cachable regions (2 = burst supported)
 	memset(ce_cachable, 0, sizeof ce_cachable);
-	memset(ce_cachable + (0x00200000 >> 16), 1 | 2, currprefs.fastmem_size >> 16);
 	memset(ce_cachable + (0x00c00000 >> 16), 1, currprefs.bogomem_size >> 16);
-	memset(ce_cachable + (z3fastmem_bank.start >> 16), 1 | 2, currprefs.z3fastmem_size >> 16);
-	memset(ce_cachable + (z3fastmem2_bank.start >> 16), 1 | 2, currprefs.z3fastmem2_size >> 16);
+	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
+		if (fastmem_bank[i].start != 0xffffffff)
+			memset(ce_cachable + (fastmem_bank[i].start >> 16), 1 | 2, currprefs.fastmem[i].size >> 16);
+		if (z3fastmem_bank[i].start != 0xffffffff)
+			memset(ce_cachable + (z3fastmem_bank[i].start >> 16), 1 | 2, currprefs.z3fastmem[i].size >> 16);
+	}
 	memset(ce_cachable + (a3000hmem_bank.start >> 16), 1 | 2, currprefs.mbresmem_high_size >> 16);
 	memset(ce_cachable + (a3000lmem_bank.start >> 16), 1 | 2, currprefs.mbresmem_low_size >> 16);
 	memset(ce_cachable + (mem25bit_bank.start >> 16), 1 | 2, currprefs.mem25bit_size >> 16);
@@ -2061,7 +2065,7 @@ static void fill_ce_banks (void)
 	}
 
 	// A4000T NCR is 32-bit
-	if (currprefs.cs_mbdmac == 2) {
+	if (is_device_rom(&currprefs, ROMTYPE_SCSI_A4000T, 0) >= 0) {
 		ce_banktype[0xdd0000 >> 16] = CE_MEMBANK_FAST32;
 	}
 
@@ -2126,33 +2130,6 @@ void map_overlay (int chip)
 	cpuboard_overlay_override();
 	if (!isrestore () && valid_address (regs.pc, 4))
 		m68k_setpc_normal (m68k_getpc ());
-}
-
-uae_s32 getz2size (struct uae_prefs *p)
-{
-	ULONG start;
-	start = p->fastmem_size;
-	if (p->rtgboards[0].rtgmem_size && gfxboard_get_configtype(&p->rtgboards[0]) == 2) {
-		while (start & (p->rtgboards[0].rtgmem_size - 1) && start < 8 * 1024 * 1024)
-			start += 1024 * 1024;
-		if (start + p->rtgboards[0].rtgmem_size > 8 * 1024 * 1024)
-			return -1;
-	}
-	start += p->rtgboards[0].rtgmem_size;
-	return start;
-}
-
-uae_u32 getz2endaddr (void)
-{
-	ULONG start;
-	start = currprefs.fastmem_size;
-	if (currprefs.rtgboards[0].rtgmem_size && gfxboard_get_configtype(&currprefs.rtgboards[0]) == 2) {
-		if (!start)
-			start = 0x00200000;
-		while (start & (currprefs.rtgboards[0].rtgmem_size - 1) && start < 4 * 1024 * 1024)
-			start += 1024 * 1024;
-	}
-	return start + 2 * 1024 * 1024;
 }
 
 static void map_banks_set(addrbank *bank, int start, int size, int realsize)
@@ -2311,8 +2288,8 @@ void memory_reset (void)
 
 	/* map "nothing" to 0x200000 - 0x9FFFFF (0xBEFFFF if Gayle or Fat Gary) */
 	bnk = chipmem_bank.allocated >> 16;
-	if (bnk < 0x20 + (currprefs.fastmem_size >> 16))
-		bnk = 0x20 + (currprefs.fastmem_size >> 16);
+	if (bnk < 0x20 + (currprefs.fastmem[0].size >> 16))
+		bnk = 0x20 + (currprefs.fastmem[0].size >> 16);
 	bnk_end = currprefs.cs_cd32cd ? 0xBE : (gayleorfatgary ? 0xBF : 0xA0);
 	map_banks (&dummy_bank, bnk, bnk_end - bnk, 0);
 	if (gayleorfatgary) {
@@ -2345,7 +2322,7 @@ void memory_reset (void)
 			map_banks (&gayle2_bank, 0xDD, 2, 0);
 		}
 		gayle_map_pcmcia ();
-		if (currprefs.cs_ide == IDE_A4000 || currprefs.cs_mbdmac == 2)
+		if (currprefs.cs_ide == IDE_A4000 || is_device_rom(&currprefs, ROMTYPE_SCSI_A4000T, 0))
 			map_banks (&gayle_bank, 0xDD, 1, 0);
 		if (currprefs.cs_ide < 0 && !currprefs.cs_pcmcia)
 			map_banks (&gayle_bank, 0xD8, 6, 0);
@@ -2366,18 +2343,6 @@ void memory_reset (void)
 		map_banks (&gayle2_bank, 0xDD, 2, 0);
 	}
 #endif
-#ifdef CDTV
-	if (currprefs.cs_cdtvcr) {
-		map_banks(&cdtvcr_bank, 0xB8, 1, 0);
-	} else if (currprefs.cs_cdtvcd) {
-		cdtv_check_banks ();
-	}
-#endif
-#ifdef A2091
-	if (currprefs.cs_mbdmac == 1)
-		a3000scsi_reset ();
-#endif
-
 	if (mem25bit_bank.baseaddr)
 		map_banks(&mem25bit_bank, mem25bit_bank.start >> 16, mem25bit_bank.allocated >> 16, 0);
 	if (a3000lmem_bank.baseaddr)
@@ -2397,7 +2362,7 @@ void memory_reset (void)
 	/* map beta Kickstarts at 0x200000/0xC00000/0xF00000 */
 	if (kickmem_bank.baseaddr[0] == 0x11 && kickmem_bank.baseaddr[2] == 0x4e && kickmem_bank.baseaddr[3] == 0xf9 && kickmem_bank.baseaddr[4] == 0x00) {
 		uae_u32 addr = kickmem_bank.baseaddr[5];
-		if (addr == 0x20 && currprefs.chipmem_size <= 0x200000 && currprefs.fastmem_size == 0)
+		if (addr == 0x20 && currprefs.chipmem_size <= 0x200000 && currprefs.fastmem[0].size == 0)
 			map_banks_set(&kickmem_bank, addr, 8, 0);
 		if (addr == 0xC0 && currprefs.bogomem_size == 0)
 			map_banks_set(&kickmem_bank, addr, 8, 0);
@@ -2435,7 +2400,7 @@ void memory_reset (void)
 	}
 
 #ifdef AUTOCONFIG
-	if (need_uae_boot_rom () && currprefs.uaeboard < 2)
+	if (need_uae_boot_rom (&currprefs) && currprefs.uaeboard < 2)
 		map_banks_set(&rtarea_bank, rtarea_base >> 16, 1, 0);
 #endif
 
@@ -2808,6 +2773,8 @@ static void ppc_generate_map_banks(addrbank *bank, int start, int size)
 
 void map_banks (addrbank *bank, int start, int size, int realsize)
 {
+	if (start == 0xffffffff)
+		return;
 	map_banks2 (bank, start, size, realsize, 0);
 #ifdef WITH_PPC
 	ppc_generate_map_banks(bank, start, size);
@@ -2863,7 +2830,7 @@ bool validate_banks_z2(addrbank *bank, int start, int size)
 		}
 	}
 	if (size <= 0 || size > 0x80) {
-		error_log(_T("Z2 map_banks(%s) with invalid size %08x\n"), size);
+		error_log(_T("Z2 map_banks(%s) with invalid size %08x\n"), bank->name, size);
 		cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
 		return false;
 	}

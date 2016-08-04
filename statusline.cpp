@@ -210,7 +210,7 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 				num4 = num1 == 0 ? 13 : -1;
 				am = 3;
 			}
-		} else if (led == LED_SND) {
+		} else if (led == LED_SND && gui_data.sndbuf_avail) {
 			int snd = abs(gui_data.sndbuf + 5) / 10;
 			if (snd > 99)
 				snd = 99;

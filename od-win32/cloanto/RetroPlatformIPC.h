@@ -2,14 +2,14 @@
  Name    : RetroPlatformIPC.h
  Project : RetroPlatform Player
  Support : http://www.retroplatform.com
- Legal   : Copyright 2007-2013 Cloanto Italia srl - All rights reserved. This
+ Legal   : Copyright 2007-2015 Cloanto Italia srl - All rights reserved. This
          : file is multi-licensed under the terms of the Mozilla Public License
          : version 2.0 as published by Mozilla Corporation and the GNU General
          : Public License, version 2 or later, as published by the Free
          : Software Foundation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2013-12-06 11:14:00
+ Updated : 2015-09-04 16:43:00
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -18,14 +18,14 @@
 
 #include <windows.h>
 
-#define RETROPLATFORM_API_VER       "3.4"
-#define RETROPLATFORM_API_VER_MAJOR  3
-#define RETROPLATFORM_API_VER_MINOR  4
+#define RETROPLATFORM_API_VER       "7.1"
+#define RETROPLATFORM_API_VER_MAJOR  7
+#define RETROPLATFORM_API_VER_MINOR  1
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
 
-// Legacy Compatibility (pre-3.0)
+// Legacy Compatibility
 #define RP_NO_LEGACY	// We don't need legacy #defines
 
 
@@ -58,6 +58,9 @@
 #define RP_IPC_TO_HOST_HOSTVERSION         (WM_APP + 25)
 #define RP_IPC_TO_HOST_INPUTDEVICE         (WM_APP + 26) // introduced in RetroPlatform API 3.0
 #define RP_IPC_TO_HOST_DEVICECONTENT       (WM_APP + 27) // extended in RetroPlatform API 3.0
+#define RP_IPC_TO_HOST_PREPROCESSKEY       (WM_APP + 28) // introduced in RetroPlatform API 7.1
+#define RP_IPC_TO_HOST_PROCESSKEY          (WM_APP + 29) // introduced in RetroPlatform API 7.1
+#define RP_IPC_TO_HOST_KEYBOARDLAYOUT      (WM_APP + 30) // introduced in RetroPlatform API 7.1
 
 
 // ****************************************************************************
@@ -120,10 +123,10 @@
 typedef struct RPScreenMode
 {
 	DWORD dwScreenMode; // RP_SCREENMODE_* values and flags
-	LONG lClipLeft;     // in guest pixel units (Amiga: Super Hires or RTG); -1 = ignore (0 is a valid value); guest should also ignore this if RP_CLIPFLAGS_AUTOCLIP or RP_CLIPFLAGS_NOCLIP; see http://www.retroplatform.com/kb/19-115
-	LONG lClipTop;      // in guest pixel units (Amiga: interlaced or RTG); -1 = ignore (0 is a valid value); guest should also ignore this if RP_CLIPFLAGS_AUTOCLIP or RP_CLIPFLAGS_NOCLIP
-	LONG lClipWidth;    // in guest pixel units (Amiga: Super Hires or RTG); -1 = ignore; guest should also ignore this if RP_CLIPFLAGS_AUTOCLIP or RP_CLIPFLAGS_NOCLIP
-	LONG lClipHeight;   // in guest pixel units (Amiga: interlaced or RTG); -1 = ignore; guest should also ignore this if RP_CLIPFLAGS_AUTOCLIP or RP_CLIPFLAGS_NOCLIP
+	LONG lClipLeft;     // in guest pixel units (Amiga: Super Hires or RTG); -1 = ignore (0 is a valid value); guest should also ignore this when receiving data if RP_CLIPFLAGS_AUTOCLIP or RP_CLIPFLAGS_NOCLIP; see http://www.retroplatform.com/kb/19-115
+	LONG lClipTop;      // in guest pixel units (Amiga: interlaced or RTG); -1 = ignore (0 is a valid value); guest should also ignore this when receiving data if RP_CLIPFLAGS_AUTOCLIP or RP_CLIPFLAGS_NOCLIP
+	LONG lClipWidth;    // in guest pixel units (Amiga: Super Hires or RTG); -1 = ignore; guest should also ignore this when receiving data if RP_CLIPFLAGS_AUTOCLIP or RP_CLIPFLAGS_NOCLIP
+	LONG lClipHeight;   // in guest pixel units (Amiga: interlaced or RTG); -1 = ignore; guest should also ignore this when receiving data if RP_CLIPFLAGS_AUTOCLIP or RP_CLIPFLAGS_NOCLIP
 	HWND hGuestWindow;  // only valid for RP_IPC_TO_HOST_SCREENMODE
 	DWORD dwClipFlags;	// clip flags (or 0)
 	LONG lTargetWidth;  // in exact host pixels; if set, must also set lTargetHeight; ignored unless RP_SCREENMODE_SCALE_TARGET is set (resulting size is result of clipping and scaling); RP_SCREENMODE_SCALING_SUBPIXEL and RP_SCREENMODE_SCALING_STRETCH are taken into account
@@ -327,7 +330,7 @@ typedef struct RPDeviceContent
 #define RP_HOSTINPUT_KEYJOY_MAP3    5 // [LEGACY] Keyboard Layout 3; Amiga/C64: Keyboard Layout C for WinUAE/VICE (W, S, A, D keys, left Alt to fire, etc.)
 #define RP_HOSTINPUT_ARCADE_LEFT    6 // [LEGACY] Left part of arcade dual joystick input device ("player 1")
 #define RP_HOSTINPUT_ARCADE_RIGHT   7 // [LEGACY] Right part of arcade dual joystick input device ("player 2")
-#define RP_HOSTINPUT_KEYBOARD       8 // Keyboard Layout (e.g. "KeyboardJoystick Left=0x4B Right=0x4D Up=0x48 Down=0x50 Fire=0x4C Autofire=0x38 Fire2=0x52 Rewind=0xB5 Play=0x37 FastForward=0x4A Green=0x47 Yellow=0x49 Red=0x4F Blue=0x51" set in szContent); introduced in RP API 3.3 to replace other keyboard layout modes
+#define RP_HOSTINPUT_KEYBOARD       8 // Keyboard Layout, using DirectInput keyboard scan codes (e.g. "KeyboardJoystick Left=0x4B Right=0x4D Up=0x48 Down=0x50 Fire=0x4C Autofire=0x38 Fire2=0x52 Rewind=0xB5 Play=0x37 FastForward=0x4A Green=0x47 Yellow=0x49 Red=0x4F Blue=0x51" set in szContent); introduced in RP API 3.3 to replace other keyboard layout modes
 #define RP_HOSTINPUT_END            9 // "End of device enumeration" (dummy device used to terminate an input device set that began with the first input device)
 #define RP_HOSTINPUT_COUNT         10 // total number of device types
 
@@ -391,7 +394,12 @@ typedef struct RPDeviceContent
 
 // RP_IPC_TO_HOST_MOUSECAPTURE/RP_IPC_TO_GUEST_MOUSECAPTURE
 #define RP_MOUSECAPTURE_CAPTURED     0x00000001
-#define RP_MOUSECAPTURE_MAGICMOUSE   0x00000002
+#define RP_MOUSECAPTURE_INTEGRATED   0x00000002 // aka "magic mouse"
+
+// RP_IPC_TO_GUEST_EVENT
+//
+// KEY_RAW_<x>: <x> is a hex keycode that uniquely identifies the raw key on the guest system
+//
 
 // RP_IPC_TO_HOST_DEVICEACTIVITY
 #define RP_DEVICEACTIVITY_GREEN    0x0000 // green led
@@ -483,9 +491,51 @@ typedef struct RPScreenCapture
 #define RP_HOSTVERSION_BUILD(ver)    ((ver) & 0x3FF)
 #define RP_MAKE_HOSTVERSION(major,minor,build) ((LPARAM) (((LPARAM)((major) & 0xFFF)<<20) | ((LPARAM)((minor) & 0x3FF)<<10) | ((LPARAM)((build) & 0x3FF))))
 
+// RP_IPC_TO_HOST_PREPROCESSKEY flags
+#define RP_PREPROCESSKEY_SET_VKEY(f)		((f) & 0xFF)
+#define RP_PREPROCESSKEY_GET_VKEY(f)		((f) & 0xFF)
+#define RP_PREPROCESSKEY_SET_SCANCODE(f)	(((f) & 0xFF) << 8)
+#define RP_PREPROCESSKEY_GET_SCANCODE(f)	(((f) >> 8) & 0xFF)
+#define RP_PREPROCESSKEY_EXTENDED0			(1 << 16)
+#define RP_PREPROCESSKEY_EXTENDED1			(1 << 17)
+#define RP_PREPROCESSKEY_RAWINPUT			(1 << 18)
+#define RP_PREPROCESSKEY_CAPS_DOWN			(1 << 19)
+#define RP_PREPROCESSKEY_CAPS_TOGGLED		(1 << 20)
+#define RP_PREPROCESSKEY_SHIFT_DOWN			(1 << 21)
+#define RP_PREPROCESSKEY_LSHIFT_DOWN		(1 << 22)
+#define RP_PREPROCESSKEY_RSHIFT_DOWN		(1 << 23)
+#define RP_PREPROCESSKEY_ALT_DOWN			(1 << 24)
+#define RP_PREPROCESSKEY_LALT_DOWN			(1 << 25)
+#define RP_PREPROCESSKEY_RALT_DOWN			(1 << 26)
+#define RP_PREPROCESSKEY_CTRL_DOWN			(1 << 27)
+#define RP_PREPROCESSKEY_LCTRL_DOWN			(1 << 28)
+#define RP_PREPROCESSKEY_RCTRL_DOWN			(1 << 29)
+#define RP_PREPROCESSKEY_CHAR_KEY			(1 << 30)
+#define RP_PREPROCESSKEY_OK					(1 << 31) // out flag
 
-// Legacy Compatibility (pre-3.0)
+// RP_IPC_TO_HOST_PROCESSKEY flags
+#define RP_PROCESSKEY_SET_VKEY(f)		((f) & 0xFF)
+#define RP_PROCESSKEY_GET_VKEY(f)		((f) & 0xFF)
+#define RP_PROCESSKEY_SET_SCANCODE(f)	(((f) & 0xFF) << 8)
+#define RP_PROCESSKEY_GET_SCANCODE(f)	(((f) >> 8) & 0xFF)
+#define RP_PROCESSKEY_EXTENDED0			(1 << 16)
+#define RP_PROCESSKEY_EXTENDED1			(1 << 17)
+#define	RP_PROCESSKEY_RAWINPUT			(1 << 18)
+#define RP_PROCESSKEY_SET_CHARCOUNT(f)	(((f) & 0x03) << 19)
+#define RP_PROCESSKEY_GET_CHARCOUNT(f)	(((f) >> 19) & 0x03)
+#define RP_PROCESSKEY_KEYDOWN			(1 << 21)
+#define RP_PROCESSKEY_KEYMASK			0xFFFFFF  // returned key code mask
+#define RP_PROCESSKEY_MORE				(1 << 28) // in/out flag
+#define RP_PROCESSKEY_PRESSKEY			(1 << 29) // out flag
+#define RP_PROCESSKEY_RELEASEKEY		(1 << 30) // out flag
+#define RP_PROCESSKEY_OK				(1 << 31) // out flag
+
+
+// Legacy Compatibility
 #ifndef RP_NO_LEGACY
+// Changed in 7.0
+#define RP_MOUSECAPTURE_MAGICMOUSE RP_MOUSECAPTURE_INTEGRATED
+// Changed in 3.0
 #define RP_IPC_TO_HOST_DEVICECONTENT_LEGACY   (WM_APP + 16)
 #define RP_IPC_TO_GUEST_DEVICECONTENT_LEGACY   (WM_APP + 205)
 #define RPLATFORM_API_VER RETROPLATFORM_API_VER

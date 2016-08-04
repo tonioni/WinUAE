@@ -373,11 +373,11 @@ static void dosub (struct cdunit *cdu, uae_u8 *subbuf)
 	cdu->cdda_subfunc (subbuf2, 1);
 }
 
-static int setstate (struct cdunit *cdu, int state)
+static int setstate (struct cdunit *cdu, int state, int playpos)
 {
 	cdu->cdda_play_state = state;
 	if (cdu->cdda_statusfunc)
-		return cdu->cdda_statusfunc (cdu->cdda_play_state);
+		return cdu->cdda_statusfunc (cdu->cdda_play_state, playpos);
 	return 0;
 }
 
@@ -501,7 +501,7 @@ static void *cdda_play_func (void *v)
 				t = findtoc (cdu, &sector, false);
 				if (!t) {
 					write_log (_T("IMAGE CDDA: illegal sector number %d\n"), cdu->cdda_start);
-					setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
+					setstate (cdu, AUDIO_STATUS_PLAY_ERROR, -1);
 				} else {
 					audio_unpack (cdu, t);
 				}
@@ -550,7 +550,7 @@ static void *cdda_play_func (void *v)
 			diff -= cdu->cdda_delay;
 			if (idleframes >= 0 && diff < 0 && cdu->cdda_play > 0)
 				sleep_millis(-diff);
-			setstate (cdu, AUDIO_STATUS_IN_PROGRESS);
+			setstate (cdu, AUDIO_STATUS_IN_PROGRESS, cdda_pos);
 
 			sector = cdda_pos;
 			struct cdtoc *t1 = findtoc (cdu, &sector, false);
@@ -579,7 +579,7 @@ static void *cdda_play_func (void *v)
 			goto end;
 
 		if (idleframes <= 0 && cdda_pos >= cdu->cdda_start && !isaudiotrack (&cdu->di.toc, cdda_pos)) {
-			setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
+			setstate (cdu, AUDIO_STATUS_PLAY_ERROR, -1);
 			write_log (_T("IMAGE CDDA: attempted to play data track %d\n"), cdda_pos);
 			goto end; // data track?
 		}
@@ -590,6 +590,8 @@ static void *cdda_play_func (void *v)
 			int dofinish = 0;
 
 			gui_flicker_led (LED_CD, cdu->di.unitnum - 1, LED_CD_AUDIO);
+
+			setstate(cdu, AUDIO_STATUS_IN_PROGRESS, cdda_pos);
 
 			memset (cda->buffers[bufnum], 0, CDDA_BUFFERS * 2352);
 
@@ -681,16 +683,16 @@ static void *cdda_play_func (void *v)
 				cda->setvolume (cdu->cdda_volume[0], cdu->cdda_volume[1]);
 				if (!cda->play (bufnum)) {
 					if (cdu->cdda_play > 0)
-						setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
+						setstate (cdu, AUDIO_STATUS_PLAY_ERROR, -1);
 					goto end;
 				}
 			}
 
 			if (dofinish) {
-				if (cdu->cdda_play >= 0)
-					setstate (cdu, AUDIO_STATUS_PLAY_COMPLETE);
-				cdu->cdda_play = -1;
 				cdda_pos = cdu->cdda_end + 1;
+				if (cdu->cdda_play >= 0)
+					setstate (cdu, AUDIO_STATUS_PLAY_COMPLETE, cdda_pos);
+				cdu->cdda_play = -1;
 			}
 
 		}
@@ -774,11 +776,11 @@ static int command_play (int unitnum, int startlsn, int endlsn, int scan, play_s
 	cdu->cdda_subfunc = subfunc;
 	cdu->cdda_statusfunc = statusfunc;
 	cdu->cdda_scan = scan > 0 ? 10 : (scan < 0 ? 10 : 0);
-	cdu->cdda_delay = setstate (cdu, -1);
-	cdu->cdda_delay_frames = setstate (cdu, -2);
-	setstate (cdu, AUDIO_STATUS_NOT_SUPPORTED);
+	cdu->cdda_delay = setstate (cdu, -1, -1);
+	cdu->cdda_delay_frames = setstate (cdu, -2, -1);
+	setstate (cdu, AUDIO_STATUS_NOT_SUPPORTED, -1);
 	if (!isaudiotrack (&cdu->di.toc, startlsn)) {
-		setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
+		setstate (cdu, AUDIO_STATUS_PLAY_ERROR, -1);
 		return 0;
 	}
 	if (!cdu->thread_active) {
@@ -2099,6 +2101,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di, int
 	if (ismedia (unitnum, 1)) {
 		di->media_inserted = 1;
 		_tcscpy (di->mediapath, cdu->imgname);
+		di->audio_playing = cdu->cdda_play > 0;
 	}
 	memset (&di->toc, 0, sizeof (struct cd_toc_head));
 	command_toc (unitnum, &di->toc);

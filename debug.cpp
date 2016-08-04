@@ -916,10 +916,10 @@ int notinrom (void)
 
 static uae_u32 lastaddr (void)
 {
-	if (currprefs.z3fastmem2_size)
-		return z3fastmem2_bank.start + currprefs.z3fastmem2_size;
-	if (currprefs.z3fastmem_size)
-		return z3fastmem_bank.start + currprefs.z3fastmem_size;
+	for (int i = MAX_RAM_BOARDS - 1; i >= 0; i--) {
+		if (currprefs.z3fastmem[i].size)
+			return z3fastmem_bank[i].start + currprefs.z3fastmem[i].size;
+	}
 	if (currprefs.z3chipmem_size)
 		return z3chipmem_bank.start + currprefs.z3chipmem_size;
 	if (currprefs.mbresmem_high_size)
@@ -928,8 +928,10 @@ static uae_u32 lastaddr (void)
 		return a3000lmem_bank.start + currprefs.mbresmem_low_size;
 	if (currprefs.bogomem_size)
 		return bogomem_bank.start + currprefs.bogomem_size;
-	if (currprefs.fastmem_size)
-		return fastmem_bank.start + currprefs.fastmem_size;
+	for (int i = MAX_RAM_BOARDS - 1; i >= 0; i--) {
+		if (currprefs.fastmem[i].size)
+			return fastmem_bank[i].start + currprefs.fastmem[i].size;
+	}
 	return currprefs.chipmem_size;
 }
 
@@ -942,14 +944,14 @@ static uaecptr nextaddr2 (uaecptr addr, int *next)
 		*next = -1;
 		return 0xffffffff;
 	}
-	prev = currprefs.z3autoconfig_start + currprefs.z3fastmem_size;
-	size = currprefs.z3fastmem2_size;
+	prev = currprefs.z3autoconfig_start + currprefs.z3fastmem[0].size;
+	size = currprefs.z3fastmem[1].size;
 
-	if (currprefs.z3fastmem_size) {
+	if (currprefs.z3fastmem[0].size) {
 		prevx = prev;
 		sizex = size;
-		size = currprefs.z3fastmem_size;
-		prev = z3fastmem_bank.start;
+		size = currprefs.z3fastmem[0].size;
+		prev = z3fastmem_bank[0].start;
 		if (addr == prev + size) {
 			*next = prevx + sizex;
 			return prevx;
@@ -995,11 +997,11 @@ static uaecptr nextaddr2 (uaecptr addr, int *next)
 			return prevx;
 		}
 	}
-	if (currprefs.fastmem_size) {
+	if (currprefs.fastmem[0].size) {
 		sizex = size;
 		prevx = prev;
-		size = currprefs.fastmem_size;
-		prev = fastmem_bank.start;
+		size = currprefs.fastmem[0].size;
+		prev = fastmem_bank[0].start;
 		if (addr == prev + size) {
 			*next = prevx + sizex;
 			return prevx;
@@ -2353,8 +2355,10 @@ static void illg_init (void)
 		}
 		addr = end - 1;
 	}
-	if (currprefs.rtgboards[0].rtgmem_size)
-		memset (illghdebug + (gfxmem_bank.start >> 16), 3, currprefs.rtgboards[0].rtgmem_size >> 16);
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		if (currprefs.rtgboards[i].rtgmem_size)
+			memset (illghdebug + (gfxmem_banks[i]->start >> 16), 3, currprefs.rtgboards[i].rtgmem_size >> 16);
+	}
 
 	i = 0;
 	while (custd[i].name) {
@@ -2479,8 +2483,8 @@ static void smc_detect_init (TCHAR **c)
 	v = readint (c);
 	smc_free ();
 	smc_size = 1 << 24;
-	if (currprefs.z3fastmem_size)
-		smc_size = currprefs.z3autoconfig_start + currprefs.z3fastmem_size;
+	if (currprefs.z3fastmem[0].size)
+		smc_size = currprefs.z3autoconfig_start + currprefs.z3fastmem[0].size;
 	smc_size += 4;
 	smc_table = xmalloc (struct smc_item, smc_size);
 	if (!smc_table)
@@ -3920,6 +3924,7 @@ static void show_exec_lists (TCHAR *t)
 				list = get_long_debug(list);
 			}
 		}
+		return;
 	} else if (c == 'R') { // residents
 		list = get_long_debug(execbase + 300);
 		while (list) {

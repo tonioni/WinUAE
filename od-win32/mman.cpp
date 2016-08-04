@@ -6,10 +6,10 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
+#include "options.h"
 #include "memory.h"
 #include "uae/mman.h"
 #include "uae/vm.h"
-#include "options.h"
 #include "autoconf.h"
 #include "gfxboard.h"
 #include "cpuboard.h"
@@ -57,6 +57,7 @@ static void virtualfreewithlock (LPVOID addr, SIZE_T size, DWORD freetype)
 static uae_u32 lowmem (void)
 {
 	uae_u32 change = 0;
+#if 0
 	struct rtgboardconfig *rbc = &changed_prefs.rtgboards[0];
 	struct rtgboardconfig *crbc = &currprefs.rtgboards[0];
 
@@ -85,6 +86,7 @@ static uae_u32 lowmem (void)
 	}
 	if (currprefs.z3fastmem2_size < 128 * 1024 * 1024)
 		currprefs.z3fastmem2_size = changed_prefs.z3fastmem2_size = 0;
+#endif
 	return change;
 }
 
@@ -130,6 +132,7 @@ bool preinit_shm (void)
 #endif
 	natmem_reserved = NULL;
 	natmem_offset = NULL;
+#if 0
 	if (p96mem_offset) {
 #ifdef _WIN32
 		VirtualFree (p96mem_offset, 0, MEM_RELEASE);
@@ -137,7 +140,7 @@ bool preinit_shm (void)
 #endif
 	}
 	p96mem_offset = NULL;
-
+#endif
 	GetSystemInfo (&si);
 	max_allowed_mman = 512 + 256;
 #if 1
@@ -206,8 +209,7 @@ bool preinit_shm (void)
 	write_log(_T("NATMEM: Attempting to reserve: %u MB\n"), natmem_size >> 20);
 
 #if 1
-	natmem_reserved = (uae_u8 *) uae_vm_reserve(
-		natmem_size, UAE_VM_32BIT | UAE_VM_WRITE_WATCH);
+	natmem_reserved = (uae_u8 *) uae_vm_reserve(natmem_size, UAE_VM_32BIT | UAE_VM_WRITE_WATCH);
 #else
 	natmem_size = 0x20000000;
 	natmem_reserved = (uae_u8 *) uae_vm_reserve_fixed(
@@ -239,7 +241,7 @@ bool preinit_shm (void)
 			natmem_reserved = (uae_u8*)VirtualAlloc (NULL, natmem_size, vaflags, PAGE_READWRITE);
 			if (natmem_reserved)
 				break;
-			natmem_size -= 128 * 1024 * 1024;
+			natmem_size -= 64 * 1024 * 1024;
 			if (!natmem_size) {
 				write_log (_T("Can't allocate 257M of virtual address space!?\n"));
 				natmem_size = 17 * 1024 * 1024;
@@ -304,19 +306,6 @@ static void resetmem (bool decommit)
 	}
 }
 
-static ULONG getz2rtgaddr(struct rtgboardconfig *rbc)
-{
-	ULONG start;
-	start = changed_prefs.fastmem_size;
-	if (changed_prefs.fastmem2_size >= 524288)
-		start += changed_prefs.fastmem2_size;
-	start += rbc->rtgmem_size - 1;
-	start &= ~(rbc->rtgmem_size - 1);
-	while (start & (rbc->rtgmem_size - 1) && start < 4 * 1024 * 1024)
-		start += 1024 * 1024;
-	return start + 2 * 1024 * 1024;
-}
-
 static uae_u8 *va (uae_u32 offset, uae_u32 len, DWORD alloc, DWORD protect)
 {
 	uae_u8 *addr;
@@ -334,59 +323,62 @@ static uae_u8 *va (uae_u32 offset, uae_u32 len, DWORD alloc, DWORD protect)
 
 static int doinit_shm (void)
 {
-	uae_u32 size, totalsize, z3size, natmemsize, othersize;
-	uae_u32 startbarrier, z3offset, align;
-	int rounds = 0;
+	uae_u32 totalsize;
+	uae_u32 startbarrier, align;
 	uae_u32 z3rtgmem_size;
 	struct rtgboardconfig *rbc = &changed_prefs.rtgboards[0];
 	struct rtgboardconfig *crbc = &currprefs.rtgboards[0];
 
+	changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = 0;
+	set_expamem_z3_hack_mode(0);
+	expansion_scan_autoconfig(&currprefs, true);
+
 	canbang = 1;
 	natmem_offset = natmem_reserved;
-	for (;;) {
-		int lowround = 0;
-		if (rounds > 0)
-			write_log (_T("NATMEM: retrying %d..\n"), rounds);
-		rounds++;
 
-		align = 16 * 1024 * 1024 - 1;
-		z3size = 0;
-		othersize = 0;
-		size = 0x1000000;
-		startbarrier = changed_prefs.mbresmem_high_size >= 128 * 1024 * 1024 ? (changed_prefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024 : 0;
-		z3rtgmem_size = gfxboard_get_configtype(rbc) == 3 ? rbc->rtgmem_size : 0;
-		if (changed_prefs.cpu_model >= 68020)
-			size = 0x10000000;
-		z3size = ((changed_prefs.z3fastmem_size + align) & ~align) + ((changed_prefs.z3fastmem2_size + align) & ~align) + ((changed_prefs.z3chipmem_size + align) & ~align);
-		if (cfgfile_board_enabled(&currprefs, ROMTYPE_A4091, 0))
-			othersize += 2 * 16 * 1024 * 1024;
-		if (cfgfile_board_enabled(&currprefs, ROMTYPE_FASTLANE, 0))
-			othersize += 2 * 32 * 1024 * 1024;
-		totalsize = size + z3size + z3rtgmem_size + othersize;
-		while (totalsize > size64) {
-			int change = lowmem ();
-			if (!change)
-				return 0;
-			write_log (_T("NATMEM: %d, %dM > %lldM = %dM\n"), ++lowround, totalsize >> 20, size64 >> 20, (totalsize - change) >> 20);
-			totalsize -= change;
-		}
-		if ((rounds > 1 && totalsize < 0x10000000) || rounds > 20) {
-			write_log (_T("NATMEM: No special area could be allocated (3)!\n"));
-			return 0;
-		}
-		natmemsize = size + z3size;
+	align = 16 * 1024 * 1024 - 1;
+	totalsize = 0x01000000;
+	startbarrier = changed_prefs.mbresmem_high_size >= 128 * 1024 * 1024 ? (changed_prefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024 : 0;
 
-		if (startbarrier + natmemsize + z3rtgmem_size + 16 * si.dwPageSize <= natmem_reserved_size)
-			break;
-		write_log (_T("NATMEM: %dM area failed to allocate, err=%d (Z3=%dM,RTG=%dM)\n"),
-			natmemsize >> 20, GetLastError (), (changed_prefs.z3fastmem_size + changed_prefs.z3fastmem2_size + changed_prefs.z3chipmem_size) >> 20, z3rtgmem_size >> 20);
-		if (!lowmem ()) {
-			write_log (_T("NATMEM: No special area could be allocated (2)!\n"));
-			return 0;
+	z3rtgmem_size = gfxboard_get_configtype(rbc) == 3 ? rbc->rtgmem_size : 0;
+
+	if (changed_prefs.cpu_model >= 68020)
+		totalsize = 0x10000000;
+	totalsize += (changed_prefs.z3chipmem_size + align) & ~align;
+
+	if (changed_prefs.z3_mapping_mode == Z3MAPPING_UAE || cpuboard_memorytype(&changed_prefs) == BOARD_MEMORY_BLIZZARD_12xx ||
+		(expamem_z3_pointer_real + 16 * si.dwPageSize >= natmem_reserved_size && changed_prefs.z3_mapping_mode == Z3MAPPING_AUTO)) {
+		changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = Z3BASE_UAE;
+		if (changed_prefs.z3_mapping_mode == Z3MAPPING_AUTO)
+			write_log(_T("MMAN: Selected UAE Z3 mapping mode\n"));
+		set_expamem_z3_hack_mode(Z3MAPPING_UAE);
+		if (expamem_z3_pointer_uae > totalsize) {
+			totalsize = expamem_z3_pointer_uae;
+			startbarrier = 0;
+		}
+	} else {
+		changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = Z3BASE_REAL;
+		set_expamem_z3_hack_mode(Z3MAPPING_REAL);
+		if (expamem_z3_pointer_real > totalsize) {
+			totalsize = expamem_z3_pointer_real;
+			if (totalsize + 16 * si.dwPageSize >= natmem_reserved_size && expamem_z3_pointer_uae < totalsize) {
+				totalsize = expamem_z3_pointer_uae;
+			}
+			startbarrier = 0;
 		}
 	}
+	if (totalsize < expamem_highmem_pointer)
+		totalsize = expamem_highmem_pointer;
 
-	set_expamem_z3_hack_override(false);
+	if (totalsize > size64 || totalsize + 16 * si.dwPageSize >= natmem_reserved_size) {
+		write_log(_T("NATMEM: Not enough memory!\n"));
+		return -1;
+	}
+
+	jit_direct_compatible_memory = true;
+
+	expansion_scan_autoconfig(&currprefs, true);
+#if 0
 	z3offset = 0;
 	if (changed_prefs.z3_mapping_mode != Z3MAPPING_UAE && cpuboard_memorytype(&changed_prefs) != BOARD_MEMORY_BLIZZARD_12xx) {
 		if (1 && natmem_reserved_size > 0x40000000 && natmem_reserved_size - 0x40000000 >= (totalsize - 0x10000000 - ((changed_prefs.z3chipmem_size + align) & ~align)) && changed_prefs.z3chipmem_size <= 512 * 1024 * 1024) {
@@ -411,7 +403,9 @@ static int doinit_shm (void)
 		jit_direct_compatible_memory = true;
 		write_log(_T("Z3 UAE mapping.\n"));
 	}
+#endif
 
+#if 0
 	p96mem_offset = NULL;
 	p96mem_size = z3rtgmem_size;
 	p96base_offset = 0;
@@ -461,49 +455,59 @@ static int doinit_shm (void)
 			}
 		}
 	}
+#endif
 
 	if (!natmem_offset) {
 		write_log (_T("NATMEM: No special area could be allocated! err=%d\n"), GetLastError ());
 	} else {
 		write_log(_T("NATMEM: Our special area: %p-%p (0x%08x %dM)\n"),
-				  natmem_offset, (uae_u8*)natmem_offset + natmemsize,
-				  natmemsize, natmemsize / (1024 * 1024));
+			natmem_offset, (uae_u8*)natmem_offset + totalsize,
+			totalsize, totalsize / (1024 * 1024));
+#if 0
 		if (rbc->rtgmem_size)
 			write_log (_T("NATMEM: P96 special area: %p-%p (0x%08x %dM)\n"),
-			p96mem_offset, (uae_u8*)p96mem_offset + rbc->rtgmem_size,
-			rbc->rtgmem_size, rbc->rtgmem_size >> 20);
+				p96mem_offset, (uae_u8*)p96mem_offset + rbc->rtgmem_size,
+				rbc->rtgmem_size, rbc->rtgmem_size >> 20);
+#endif
 		canbang = jit_direct_compatible_memory ? 1 : 0;
 		if (p96mem_size)
 			natmem_offset_end = p96mem_offset + p96mem_size;
 		else
-			natmem_offset_end = natmem_offset + natmemsize;
+			natmem_offset_end = natmem_offset + totalsize;
 	}
 
 	return canbang;
 }
 
-static uae_u32 oz3fastmem_size, oz3fastmem2_size;
+static uae_u32 oz3fastmem_size[MAX_RAM_BOARDS];
 static uae_u32 oz3chipmem_size;
-static uae_u32 ortgmem_size;
-static int ortgmem_type = -1;
+static uae_u32 ortgmem_size[MAX_RTG_BOARDS];
+static int ortgmem_type[MAX_RTG_BOARDS];
 
 bool init_shm (void)
 {
-	if (
-		oz3fastmem_size == changed_prefs.z3fastmem_size &&
-		oz3fastmem2_size == changed_prefs.z3fastmem2_size &&
-		oz3chipmem_size == changed_prefs.z3chipmem_size &&
-		ortgmem_size == changed_prefs.rtgboards[0].rtgmem_size &&
-		ortgmem_type == changed_prefs.rtgboards[0].rtgmem_type)
+	bool changed = false;
+
+	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
+		if (oz3fastmem_size[i] != changed_prefs.z3fastmem[i].size)
+			changed = true;
+		if (ortgmem_size[i] != changed_prefs.rtgboards[i].rtgmem_size)
+			changed = true;
+		if (ortgmem_type[i] != changed_prefs.rtgboards[i].rtgmem_type)
+			changed = true;
+	}
+	if (!changed && oz3chipmem_size == changed_prefs.z3chipmem_size)
+		return true;
+
+	for (int i = 0; i < MAX_RAM_BOARDS;i++) {
+		oz3fastmem_size[i] = changed_prefs.z3fastmem[i].size;
+		ortgmem_size[i] = changed_prefs.rtgboards[i].rtgmem_size;
+		ortgmem_type[i] = changed_prefs.rtgboards[i].rtgmem_type;
+	}
+	oz3chipmem_size = changed_prefs.z3chipmem_size;
+
+	if (doinit_shm () < 0)
 		return false;
-
-	oz3fastmem_size = changed_prefs.z3fastmem_size;
-	oz3fastmem2_size = changed_prefs.z3fastmem2_size;
-	oz3chipmem_size = changed_prefs.z3chipmem_size;;
-	ortgmem_size = changed_prefs.rtgboards[0].rtgmem_size;
-	ortgmem_type = changed_prefs.rtgboards[0].rtgmem_type;
-
-	doinit_shm ();
 
 	resetmem (false);
 	clear_shm ();
@@ -516,7 +520,9 @@ void free_shm (void)
 {
 	resetmem (true);
 	clear_shm ();
-	ortgmem_type = -1;
+	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
+		ortgmem_type[i] = -1;
+	}
 }
 
 void mapped_free (addrbank *ab)
@@ -615,17 +621,16 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 		return shmids[shmid].attached;
 
 	if (ab->flags & ABFLAG_INDIRECT) {
-		result = xcalloc (uae_u8, size);
-		shmids[shmid].attached = result;
+		shmids[shmid].attached = ab->baseaddr;
 		shmids[shmid].fake = true;
-		return result;
+		return shmids[shmid].attached;
 	}
 
 	if ((uae_u8*)shmaddr < natmem_offset) {
 		if(!_tcscmp (shmids[shmid].name, _T("chip"))) {
 			shmaddr=natmem_offset;
 			got = true;
-			if (getz2endaddr () <= 2 * 1024 * 1024 || currprefs.chipmem_size < 2 * 1024 * 1024)
+			if (!expansion_get_autoconfig_by_address(&currprefs, 0x00200000) || currprefs.chipmem_size < 2 * 1024 * 1024)
 				size += BARRIER;
 		} else if(!_tcscmp (shmids[shmid].name, _T("kick"))) {
 			shmaddr=natmem_offset + 0xf80000;
@@ -657,51 +662,6 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 			got = true;
 			readonly = true;
 			readonlysize = RTAREA_TRAPS;
-		} else if (!_tcscmp(shmids[shmid].name, _T("uaeboard"))) {
-			if (currprefs.uaeboard > 1)
-				shmaddr = natmem_offset + rtarea_base - 65536;
-			else
-				shmaddr = natmem_offset + 0xe90000; // FIXME!
-			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("fmv_rom"))) {
-			got = true;
-			shmaddr = natmem_offset + 0x200000;
-		} else if (!_tcscmp(shmids[shmid].name, _T("fmv_ram"))) {
-			got = true;
-			shmaddr = natmem_offset + 0x280000;
-		} else if(!_tcscmp (shmids[shmid].name, _T("fast"))) {
-			got = true;
-			if (size < 524288) {
-				shmaddr=natmem_offset + 0xec0000;
-			} else {
-				shmaddr=natmem_offset + 0x200000;
-				if (!(rbc->rtgmem_size && gfxboard_get_configtype(rbc) == 3))
-					size += BARRIER;
-			}
-		} else if(!_tcscmp (shmids[shmid].name, _T("fast2"))) {
-			got = true;
-			if (size < 524288) {
-				shmaddr=natmem_offset + 0xec0000;
-			} else {
-				shmaddr=natmem_offset + 0x200000;
-				if (currprefs.fastmem_size >= 524288)
-					shmaddr=natmem_offset + 0x200000 + currprefs.fastmem_size;
-				if (!(rbc->rtgmem_size && gfxboard_get_configtype(rbc) == 3))
-					size += BARRIER;
-			}
-		} else if(!_tcscmp (shmids[shmid].name, _T("fast2"))) {
-			shmaddr=natmem_offset + 0x200000;
-			got = true;
-			if (!(rbc->rtgmem_size && gfxboard_get_configtype(rbc) == 3))
-				size += BARRIER;
-		} else if(!_tcscmp (shmids[shmid].name, _T("z2_gfx"))) {
-			ULONG start = getz2rtgaddr(rbc);
-			got = true;
-			p96special = true;
-			shmaddr = natmem_offset + start;
-			gfxmem_bank.start = start;
-			if (start + rbc->rtgmem_size < 10 * 1024 * 1024)
-				size += BARRIER;
 		} else if(!_tcscmp (shmids[shmid].name, _T("ramsey_low"))) {
 			shmaddr=natmem_offset + a3000lmem_bank.start;
 			if (!a3000hmem_bank.start)
@@ -737,28 +697,12 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 		} else if (!_tcscmp(shmids[shmid].name, _T("cyberstorm"))) {
 			shmaddr = natmem_offset + 0x0c000000;
 			got = true;
+		} else if (!_tcscmp(shmids[shmid].name, _T("*"))) {
+			shmaddr = natmem_offset + ab->start;
+			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("cyberstormmaprom"))) {
 			shmaddr = natmem_offset + 0xfff00000;
 			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("z3"))) {
-			shmaddr=natmem_offset + z3fastmem_bank.start;
-			if (!currprefs.z3fastmem2_size)
-				size += BARRIER;
-			got = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("z3_2"))) {
-			shmaddr=natmem_offset + z3fastmem_bank.start + currprefs.z3fastmem_size;
-			size += BARRIER;
-			got = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("z3_chip"))) {
-			shmaddr=natmem_offset + z3chipmem_bank.start;
-			size += BARRIER;
-			got = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("z3_gfx"))) {
-			got = true;
-			p96special = true;
-			gfxmem_bank.start = p96mem_offset - natmem_offset;
-			shmaddr = natmem_offset + gfxmem_bank.start;
-			size += BARRIER;
 		} else if(!_tcscmp (shmids[shmid].name, _T("bogo"))) {
 			shmaddr=natmem_offset+0x00C00000;
 			got = true;
@@ -839,8 +783,8 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 		result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, PAGE_READWRITE);
 		if (result == NULL) {
 			result = (void*)-1;
-			error_log (_T("Memory %s failed to allocate %p: VA %08X - %08X %x (%dk). Error %d."),
-				shmids[shmid].name, shmaddr,
+			error_log (_T("Memory %s (%s) failed to allocate %p: VA %08X - %08X %x (%dk). Error %d."),
+				shmids[shmid].name, ab ? ab->name : _T("?"), shmaddr,
 				(uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
 				size, size >> 10, GetLastError ());
 		} else {

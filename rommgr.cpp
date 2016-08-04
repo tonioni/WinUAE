@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 164
+#define NEXT_ROM_ID 165
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -346,6 +346,7 @@ static struct romdata roms[] = {
 	0x9e9781d5, 0xf65b60d1,0x4300c50f,0x2ed17cf4,0x4dcfdef9,0x16697bc9, NULL,  _T("tekmagic2060.rom") },
 	ALTROMPN(104, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x888da4cf, 0x6ae85f3a, 0x65331ba4, 0xaaba67ae, 0x34763d70, 0x2bde0495)
 	ALTROMPN(104, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xaf1f47db, 0x28d5bed0, 0xbc517d46, 0x500e8159, 0x723e0b64, 0x4733c26a)
+
 	{ _T("A2620/A2630 -07"), 0, 0, 0, 0, _T("A2620\0A2630\0"), 65536, 105, 0, 0, ROMTYPE_CB_A26x0, 0, 0, _T("390282-07/390283-07"),
 	0x169d80e9, 0x41f518cb,0x41c1dc1f,0xcc636383,0x20676af5,0x4969010c, NULL, NULL },
 	ALTROMPN(105, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390282-07"), 0xf2904058, 0x33695119, 0x5fdf5d56, 0x095a696b, 0x0ba2641d, 0x334845df)
@@ -354,6 +355,11 @@ static struct romdata roms[] = {
 	0xeb31fd9e, 0x2d6a5c68,0x1040f98d,0x7e63ad08,0x90da9e83,0x2b5c704d, NULL, NULL },
 	ALTROMPN(106, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390282-06"), 0xd6ae582c, 0x47b3dea3, 0x31db76e6, 0x1380a3d6, 0x9f191657, 0xdd1cd4b3)
 	ALTROMPN(106, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("390283-06"), 0xcd379634, 0x65e251e2, 0xf6961c8e, 0x33a86c3d, 0x01248f70, 0xa159823b)
+	{ _T("A2620/A2630 -01"), 0, 0, 0, 0, _T("A2620\0A2630\0"), 65536, 164, 0, 0, ROMTYPE_CB_A26x0, 0, 0, _T("390282-01/390283-01"),
+	0x6ee2ecdd, 0x4c82e3ba, 0x2d2dd1d3, 0x82f01098, 0xc26681b8, 0xff62f36d, NULL, NULL },
+	ALTROMPN(164, 1, 1, 32768, ROMTYPE_ODD | ROMTYPE_8BIT, _T("390282-01"), 0xdf76493b, 0x331ede0a, 0x8ca995cc, 0x1917f592, 0x18718e5b, 0x3c7fac39)
+	ALTROMPN(164, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("390283-01"), 0xd74187de, 0x681e4985, 0x4da64bf1, 0x6f2f99f7, 0x4b195f54, 0x0b8bd614)
+
 	{ _T("DKB 12x0"), 1, 23, 1, 23, _T("DKB\0"), 32768, 112, 0, 0, ROMTYPE_CB_DKB12x0, 0, 0, NULL,
 	0xf3b2b0b3, 0x1d539593,0xb1d7514e,0xeb214ab3,0x433a97fc,0x8a010366, NULL, NULL },
 	{ _T("Fusion Forty"), 0, 0, 0, 0, _T("FUSIONFORTY\0"), 131072, 113, 0, 0, ROMTYPE_CB_FUSION, 0, 0, NULL,
@@ -1665,8 +1671,14 @@ int configure_rom (struct uae_prefs *p, const int *rom, int msg)
 		_tcscpy (p->romfile, path);
 	if (rd->type & (ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS))
 		_tcscpy (p->romextfile, path);
-	if (rd->type & (ROMTYPE_CD32CART | ROMTYPE_ARCADIAGAME) ||
-		rd->type == ROMTYPE_HRTMON || rd->type == ROMTYPE_XPOWER || rd->type ==  ROMTYPE_NORDIC || rd->type == ROMTYPE_AR || rd->type ==  ROMTYPE_SUPERIV)
+	if (rd->type & ROMTYPE_CD32CART) {
+		_tcscpy(p->cartfile, path);
+		struct boardromconfig *brc = get_device_rom_new(p, ROMTYPE_CD32CART, 0, NULL);
+		if (brc)
+			_tcscpy(brc->roms[0].romfile, p->cartfile);
+	}
+	if ((rd->type & ROMTYPE_ARCADIAGAME) ||
+		rd->type == ROMTYPE_HRTMON || rd->type == ROMTYPE_XPOWER || rd->type ==  ROMTYPE_NORDIC || rd->type == ROMTYPE_AR || rd->type == ROMTYPE_SUPERIV)
 		_tcscpy (p->cartfile, path);
 	if (rd->type & ROMTYPE_CPUBOARD)
 		set_device_rom(p, path, ROMTYPE_CPUBOARD, 0);
@@ -1708,14 +1720,31 @@ const struct expansionromtype *get_device_expansion_rom(int romtype)
 	return NULL;
 }
 
-static void device_rom_defaults(struct boardromconfig *brc, int romtype, int devnum)
+static void device_rom_defaults(struct uae_prefs *p, struct boardromconfig *brc, int romtype, int devnum)
 {
 	memset(brc, 0, sizeof(boardromconfig));
 	brc->device_type = romtype;
 	brc->device_num = devnum;
 	for (int i = 0; i < MAX_BOARD_ROMS; i++) {
 		brc->roms[i].device_id = 7;	
+		brc->roms[i].back = brc;
 	}
+	int order = 0;
+	for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
+		if (p->expansionboard[i].device_order > order)
+			order = p->expansionboard[i].device_order;
+	}
+	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
+		if (p->fastmem[i].device_order > order)
+			order = p->fastmem[i].device_order;
+		if (p->z3fastmem[i].device_order > order)
+			order = p->z3fastmem[i].device_order;
+	}
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		if (p->rtgboards[i].device_order > order)
+			order = p->rtgboards[i].device_order;
+	}
+	brc->device_order = order + 1;
 }
 
 struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int devnum, int *index)
@@ -1724,10 +1753,12 @@ struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int 
 	static struct boardromconfig fake;
 	const struct expansionromtype *ert = get_device_expansion_rom(romtype);
 	if (!ert) {
-		*index = 0;
+		if (index)
+			*index = 0;
 		return &fake;
 	}
-	*index = ert->parentromtype ? 1 : 0;
+	if (index)
+		*index = ert->parentromtype ? 1 : 0;
 	struct boardromconfig *brc = get_device_rom(p, ert->parentromtype ? ert->parentromtype : romtype, devnum, &idx2);
 	if (!brc) {
 		for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
@@ -1745,7 +1776,7 @@ struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int 
 		for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
 			brc = &p->expansionboard[i];
 			if (brc->device_type == 0) {
-				device_rom_defaults(brc, romtype, devnum);
+				device_rom_defaults(p, brc, romtype, devnum);
 				return brc;
 			}
 		}

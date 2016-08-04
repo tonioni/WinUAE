@@ -421,7 +421,7 @@ static void subfunc(uae_u8 *data, int cnt)
 	uae_sem_post(&sub_sem);
 }
 
-static int statusfunc(int status)
+static int statusfunc(int status, int playpos)
 {
 	if (status == -1)
 		return 75;
@@ -842,7 +842,7 @@ static void REGPARAM2 cdtvcr_bput (uaecptr addr, uae_u32 b)
 }
 
 
-addrbank cdtvcr_bank = {
+static addrbank cdtvcr_bank = {
 	cdtvcr_lget, cdtvcr_wget, cdtvcr_bget,
 	cdtvcr_lput, cdtvcr_wput, cdtvcr_bput,
 	default_xlate, default_check, NULL, NULL, _T("CDTV-CR"),
@@ -986,6 +986,17 @@ static void close_unit (void)
 	if (unitnum >= 0)
 		sys_command_close (unitnum);
 	unitnum = -1;
+}
+
+bool cdtvcr_init(struct autoconfig_info *aci)
+{
+	aci->start = 0xb80000;
+	aci->size = 0x10000;
+	aci->addrbank = &expamem_nonautoconfig;
+	if (!aci->doinit)
+		return true;
+	map_banks(&cdtvcr_bank, 0xB8, 1, 0);
+	return true;
 }
 
 void cdtvcr_reset(void)

@@ -12,6 +12,7 @@
 #include "clipboard.h"
 #include "keybuf.h"
 
+#include "options.h"
 #include "threaddep/thread.h"
 #include "memory.h"
 #include "native2amiga_api.h"

@@ -328,7 +328,8 @@ struct gfx_filterdata
 };
 
 #define MAX_DUPLICATE_EXPANSION_BOARDS 4
-#define MAX_EXPANSION_BOARDS 4
+#define MAX_EXPANSION_BOARDS 20
+struct boardromconfig;
 struct romconfig
 {
 	TCHAR romfile[MAX_DPATH];
@@ -339,19 +340,37 @@ struct romconfig
 	int device_settings;
 	int subtype;
 	void *unitdata;
+	struct boardromconfig *back;
 };
 #define MAX_BOARD_ROMS 2
 struct boardromconfig
 {
 	int device_type;
 	int device_num;
+	int device_order;
 	struct romconfig roms[MAX_BOARD_ROMS];
 };
 #define MAX_RTG_BOARDS 4
 struct rtgboardconfig
 {
+	int rtg_index;
 	int rtgmem_type;
 	uae_u32 rtgmem_size;
+	int device_order;
+};
+#define MAX_RAM_BOARDS 4
+struct ramboard
+{
+	uae_u32 size;
+	uae_u16 manufacturer;
+	uae_u8 product;
+	uae_u8 autoconfig[16];
+	bool autoconfig_inuse;
+	int device_order;
+};
+struct expansion_params
+{
+	int device_order;
 };
 
 #define Z3MAPPING_AUTO 0
@@ -604,11 +623,10 @@ struct uae_prefs {
 	int picasso96_modeflags;
 
 	uae_u32 z3autoconfig_start;
-	uae_u32 z3fastmem_size, z3fastmem2_size;
+	struct ramboard z3fastmem[MAX_RAM_BOARDS];
+	struct ramboard fastmem[MAX_RAM_BOARDS];
 	uae_u32 z3chipmem_size;
 	uae_u32 z3chipmem_start;
-	uae_u32 fastmem_size, fastmem2_size;
-	bool fastmem_autoconfig;
 	uae_u32 chipmem_size;
 	uae_u32 bogomem_size;
 	uae_u32 mbresmem_low_size;
@@ -628,6 +646,7 @@ struct uae_prefs {
 	uae_u32 custom_memory_sizes[MAX_CUSTOM_MEMORY_ADDRS];
 	uae_u32 custom_memory_mask[MAX_CUSTOM_MEMORY_ADDRS];
 	int uaeboard;
+	int uaeboard_order;
 
 	bool kickshifter;
 	bool filesys_no_uaefsdb;
@@ -638,10 +657,11 @@ struct uae_prefs {
 	bool native_code;
 	bool uae_hide_autoconfig;
 	int z3_mapping_mode;
-	bool sound_toccata;
-	bool sound_toccata_mixer;
-	bool sound_es1370;
-	bool sound_fm801;
+	bool autoconfig_custom_sort;
+	bool obs_sound_toccata;
+	bool obs_sound_toccata_mixer;
+	bool obs_sound_es1370;
+	bool obs_sound_fm801;
 
 	int mountitems;
 	struct uaedev_config_data mountconfig[MOUNT_CONFIG_SIZE];
@@ -663,7 +683,8 @@ struct uae_prefs {
 	bool win32_logfile;
 	bool win32_notaskbarbutton;
 	bool win32_nonotificationicon;
-	bool win32_alwaysontop;
+	bool win32_gui_alwaysontop;
+	bool win32_main_alwaysontop;
 	bool win32_powersavedisabled;
 	bool win32_minimize_inactive;
 	int win32_statusbar;
@@ -748,6 +769,7 @@ struct uae_prefs {
 	TCHAR input_config_name[GAMEPORT_INPUT_SETTINGS][256];
 	int dongle;
 	int input_contact_bounce;
+	int input_device_match_mask;
 };
 
 extern int config_changed;
@@ -793,7 +815,7 @@ extern int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR 
 extern int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz);
 extern TCHAR *cfgfile_subst_path (const TCHAR *path, const TCHAR *subst, const TCHAR *file);
 
-extern TCHAR *target_expand_environment (const TCHAR *path);
+extern TCHAR *target_expand_environment (const TCHAR *path, TCHAR *out, int maxlen);
 extern int target_parse_option (struct uae_prefs *, const TCHAR *option, const TCHAR *value);
 extern void target_save_options (struct zfile*, struct uae_prefs *);
 extern void target_default_options (struct uae_prefs *, int type);
@@ -823,7 +845,9 @@ extern int cfgfile_configuration_change (int);
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);
 extern void fixup_prefs (struct uae_prefs *prefs, bool userconfig);
 extern void fixup_cpu (struct uae_prefs *prefs);
-bool cfgfile_board_enabled(struct uae_prefs *p, int romtype, int devnum);
+extern bool cfgfile_board_enabled(struct uae_prefs *p, int romtype, int devnum);
+extern void cfgfile_compatibility_romtype(struct uae_prefs *p);
+extern void cfgfile_compatibility_rtg(struct uae_prefs *p);
 
 extern void check_prefs_changed_custom (void);
 extern void check_prefs_changed_cpu (void);

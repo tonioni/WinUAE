@@ -1288,8 +1288,8 @@ static void REGPARAM2 ncr9x_wput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 		switch (addr)
 		{
 			case 0x44:
-			map_banks_z3(ncr->bank, expamem_z3_pointer >> 16, FASTLANE_BOARD_SIZE >> 16);
-			ncr->baseaddress = expamem_z3_pointer;
+			map_banks_z3(ncr->bank, expamem_board_pointer >> 16, FASTLANE_BOARD_SIZE >> 16);
+			ncr->baseaddress = expamem_board_pointer;
 			ncr->configured = 1;
 			expamem_next (ncr->bank, NULL);
 			break;
@@ -1316,9 +1316,9 @@ static void REGPARAM2 ncr9x_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 
 			case 0x48:
 			if (isncr(ncr, ncr_fastlane_scsi))
 				return;
-			map_banks_z2(ncr->bank, expamem_z2_pointer >> 16, expamem_z2_size >> 16);
+			map_banks_z2(ncr->bank, expamem_board_pointer >> 16, expamem_board_size >> 16);
 			ncr->configured = 1;
-			ncr->baseaddress = expamem_z2_pointer;
+			ncr->baseaddress = expamem_board_pointer;
 			expamem_next (ncr->bank, NULL);
 			break;
 			case 0x4c:
@@ -1479,15 +1479,18 @@ void ncr_golemfast_autoconfig_init(struct romconfig *rc, uaecptr baseaddress)
 	ncr9x_reset_board(ncr);
 }
 
-addrbank *ncr_multievolution_init(struct romconfig *rc)
+bool ncr_multievolution_init(struct autoconfig_info *aci)
 {
-	struct ncr9x_state *ncr = getscsi(rc);
+	if (!aci->doinit)
+		return true;
+
+	struct ncr9x_state *ncr = getscsi(aci->rc);
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
 
 	if (!ncr)
-		return &expamem_null;
+		return false;
 
 	ncr->bank = &ncr9x_bank_generic;
 	ncr->enabled = true;
@@ -1505,25 +1508,52 @@ addrbank *ncr_multievolution_init(struct romconfig *rc)
 	ncr->io_end = ncr->io_start + 0x2000;
 	ncr->irq6 = true;
 
-	load_rom_rc(rc, ROMTYPE_MEVOLUTION, 65536, 0, ncr->rom, 65536, 0);
+	load_rom_rc(aci->rc, ROMTYPE_MEVOLUTION, 65536, 0, ncr->rom, 65536, 0);
 
 	map_banks(ncr->bank, ncr->baseaddress2 >> 16, (ncr->board_mask + 1) >> 16, 0);
 
-	return &expamem_null;
+	aci->addrbank = &expamem_null;
+	return true;
 }
 
-addrbank *ncr_fastlane_autoconfig_init(struct romconfig *rc)
+bool ncr_fastlane_autoconfig_init(struct autoconfig_info *aci)
 {
-	struct ncr9x_state *ncr = getscsi(rc);
+	struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_FASTLANE);
+	uae_u8 *rom = xcalloc(uae_u8, FASTLANE_ROM_SIZE * 4);
+	if (z) {
+		// memory board at offset 0x100
+		int autoconfig_offset = 0;
+		memset(rom, 0xff, FASTLANE_ROM_SIZE * 4);
+		for (int i = 0; i < FASTLANE_ROM_SIZE; i++) {
+			int ia = i - autoconfig_offset;
+			uae_u8 b;
+			zfile_fread(&b, 1, 1, z);
+			rom[i * 4 + 0] = b | 0x0f;
+			rom[i * 4 + 2] = (b << 4) | 0x0f;
+			if (ia >= 0 && ia < 0x20) {
+				aci->autoconfig_raw[ia * 4 + 0] = b;
+			} else if (ia >= 0x40 && ia < 0x60) {
+				aci->autoconfig_raw[(ia - 0x40) * 4 + 2] = b;
+			}
+		}
+		zfile_fclose(z);
+	}
+
+	if (!aci->doinit) {
+		xfree(rom);
+		return true;
+	}
+
+	struct ncr9x_state *ncr = getscsi(aci->rc);
 
 	xfree(ncr->rom);
-	ncr->rom = NULL;
+	ncr->rom = rom;
 
 	if (!ncr)
-		return &expamem_null;
+		return false;
 
 	ncr->enabled = true;
-	memset (ncr->acmemory, 0xff, sizeof ncr->acmemory);
+	memcpy(ncr->acmemory, aci->autoconfig_raw, sizeof ncr->acmemory);
 	ncr->rom_start = 0x800;
 	ncr->rom_offset = 0;
 	ncr->rom_end = FASTLANE_ROM_SIZE * 4;
@@ -1533,28 +1563,8 @@ addrbank *ncr_fastlane_autoconfig_init(struct romconfig *rc)
 
 	ncr9x_reset_board(ncr);
 
-	struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_FASTLANE);
-	ncr->rom = xcalloc (uae_u8, FASTLANE_ROM_SIZE * 4);
-	if (z) {
-		// memory board at offset 0x100
-		int autoconfig_offset = 0;
-		memset(ncr->rom, 0xff, FASTLANE_ROM_SIZE * 4);
-		for (int i = 0; i < FASTLANE_ROM_SIZE; i++) {
-			int ia = i - autoconfig_offset;
-			uae_u8 b;
-			zfile_fread (&b, 1, 1, z);
-			ncr->rom[i * 4 + 0] = b | 0x0f;
-			ncr->rom[i * 4 + 2] = (b << 4) | 0x0f;
-			if (ia >= 0 && ia < 0x20) {
-				ncr->acmemory[ia * 4 + 0] = b;
-			} else if (ia >= 0x40 && ia < 0x60) {
-				ncr->acmemory[(ia - 0x40) * 4 + 2] = b;
-			}
-		}
-		zfile_fclose(z);
-	}
-
-	return ncr->bank;
+	aci->addrbank = ncr->bank;
+	return true;
 }
 
 static const uae_u8 oktagon_autoconfig[16] = {
@@ -1567,12 +1577,15 @@ static const uae_u8 oktagon_eeprom[16] =
 	0x0b, 0xf4, 0x3f, 0x0a, 0xff, 0x06, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x50, 0xaf, 0xff
 };
 
-addrbank *ncr_oktagon_autoconfig_init(struct romconfig *rc)
+bool ncr_oktagon_autoconfig_init(struct autoconfig_info *aci)
 {
-	struct ncr9x_state *ncr = getscsi(rc);
+	aci->autoconfigp = oktagon_autoconfig;
+	if (!aci->doinit)
+		return true;
 
+	struct ncr9x_state *ncr = getscsi(aci->rc);
 	if (!ncr)
-		return &expamem_null;
+		return false;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
@@ -1597,8 +1610,8 @@ addrbank *ncr_oktagon_autoconfig_init(struct romconfig *rc)
 
 	ncr9x_reset_board(ncr);
 
-	if (!rc->autoboot_disabled) {
-		struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_OKTAGON);
+	if (!aci->rc->autoboot_disabled) {
+		struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_OKTAGON);
 		if (z) {
 			// memory board at offset 0x100
 			memset(ncr->rom, 0xff, OKTAGON_ROM_SIZE * 4);
@@ -1624,16 +1637,19 @@ addrbank *ncr_oktagon_autoconfig_init(struct romconfig *rc)
 		ew(ncr, i * 4, b);
 	}
 
-	return ncr->bank;
+	aci->addrbank = ncr->bank;
+	return true;
 }
 
 
-addrbank *ncr_dkb_autoconfig_init(struct romconfig *rc)
+bool ncr_dkb_autoconfig_init(struct autoconfig_info *aci)
 {
-	struct ncr9x_state *ncr = getscsi(rc);
+	if (!aci->doinit)
+		return true;
 
+	struct ncr9x_state *ncr = getscsi(aci->rc);
 	if (!ncr)
-		return &expamem_null;
+		return false;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
@@ -1650,7 +1666,7 @@ addrbank *ncr_dkb_autoconfig_init(struct romconfig *rc)
 
 	ncr9x_reset_board(ncr);
 
-	struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_CB_DKB12x0);
+	struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_CB_DKB12x0);
 	ncr->rom = xcalloc (uae_u8, DKB_ROM_SIZE * 2);
 	if (z) {
 		// memory board at offset 0x100
@@ -1673,21 +1689,48 @@ addrbank *ncr_dkb_autoconfig_init(struct romconfig *rc)
 		zfile_fclose(z);
 	}
 
-	return ncr->bank;
+	aci->addrbank = ncr->bank;
+	return true;
 }
 
-addrbank *ncr_ematrix_autoconfig_init(struct romconfig *rc)
+bool ncr_ematrix_autoconfig_init(struct autoconfig_info *aci)
 {
-	struct ncr9x_state *ncr = getscsi(rc);
+	struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_CB_EMATRIX);
+	uae_u8 *rom = xcalloc(uae_u8, 65536);
+	if (z) {
+		int i;
+		memset(rom, 0xff, 65536);
 
+		zfile_fseek(z, 32768, SEEK_SET);
+		for (i = 0; i < (sizeof aci->autoconfig_raw) / 2; i++) {
+			uae_u8 b;
+			zfile_fread(&b, 1, 1, z);
+			aci->autoconfig_raw[i * 2] = b;
+		}
+		for (;;) {
+			uae_u8 b;
+			if (!zfile_fread(&b, 1, 1, z))
+				break;
+			rom[i * 2] = b;
+			i++;
+		}
+		zfile_fclose(z);
+	}
+
+	if (!aci->doinit) {
+		xfree(rom);
+		return true;
+	}
+
+	struct ncr9x_state *ncr = getscsi(aci->rc);
 	if (!ncr)
-		return &expamem_null;
+		return false;
 
 	xfree(ncr->rom);
 	ncr->rom = NULL;
 
 	ncr->enabled = true;
-	memset(ncr->acmemory, 0xff, sizeof ncr->acmemory);
+	memcpy(ncr->acmemory, aci->autoconfig_raw, sizeof aci->autoconfig_raw);
 	ncr->rom_start = 0;
 	ncr->rom_offset = 0;
 	ncr->rom_end = 0x8000;
@@ -1698,29 +1741,8 @@ addrbank *ncr_ematrix_autoconfig_init(struct romconfig *rc)
 
 	ncr9x_reset_board(ncr);
 
-	struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_CB_EMATRIX);
-	ncr->rom = xcalloc(uae_u8, 65536);
-	if (z) {
-		int i;
-		memset(ncr->rom, 0xff, 65536);
-
-		zfile_fseek(z, 32768, SEEK_SET);
-		for (i = 0; i < (sizeof ncr->acmemory) / 2; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			ncr->acmemory[i * 2] = b;
-		}
-		for (;;) {
-			uae_u8 b;
-			if (!zfile_fread(&b, 1, 1, z))
-				break;
-			ncr->rom[i * 2] = b;
-			i++;
-		}
-		zfile_fclose(z);
-	}
-
-	return ncr->bank;
+	aci->addrbank = ncr->bank;
+	return true;
 }
 
 void ncr_masoboshi_autoconfig_init(struct romconfig *rc, uaecptr baseaddress)

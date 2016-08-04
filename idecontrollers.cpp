@@ -1233,14 +1233,22 @@ static const uae_u8 gvp_ide2_rom_autoconfig[16] = { 0xd1, 0x0d, 0x00, 0x00, 0x07
 static const uae_u8 gvp_ide2_controller_autoconfig[16] = { 0xc1, 0x0b, 0x00, 0x00, 0x07, 0xe1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 static const uae_u8 gvp_ide1_controller_autoconfig[16] = { 0xd1, 0x08, 0x00, 0x00, 0x07, 0xe1, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 };
 
-addrbank *gvp_ide_rom_autoconfig_init(struct romconfig *rc)
+bool gvp_ide_rom_autoconfig_init(struct autoconfig_info *aci)
 {
-	struct ide_board *ide = getide(rc);
 	const uae_u8 *autoconfig;
+	if (ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_A3001SI)) {
+		autoconfig = gvp_ide1_controller_autoconfig;
+	} else {
+		autoconfig = gvp_ide2_rom_autoconfig;
+	}
+	aci->autoconfigp = autoconfig;
+	if (!aci->doinit)
+		return true;
+
+	struct ide_board *ide = getide(aci->rc);
 
 	if (ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_A3001SI)) {
 		ide->bank = &gvp_ide_rom_bank;
-		autoconfig = gvp_ide1_controller_autoconfig;
 		init_ide(ide, GVP_IDE, 2, true, false);
 		ide->rom_size = 8192;
 		gvp_ide_controller_board->intena = true;
@@ -1248,7 +1256,6 @@ addrbank *gvp_ide_rom_autoconfig_init(struct romconfig *rc)
 		gvp_ide_controller_board->configured = -1;
 	} else {
 		ide->bank = &gvp_ide_rom_bank;
-		autoconfig = gvp_ide2_rom_autoconfig;
 		ide->rom_size = 16384;
 	}
 	ide->configured = 0;
@@ -1261,17 +1268,22 @@ addrbank *gvp_ide_rom_autoconfig_init(struct romconfig *rc)
 	memset(ide->rom, 0xff, ide->rom_size);
 	ide->rom_mask = ide->rom_size - 1;
 
-	load_rom_rc(rc, ROMTYPE_CB_A3001S1, ide->rom_size, 0, ide->rom, ide->rom_size, LOADROM_FILL);
+	load_rom_rc(aci->rc, ROMTYPE_CB_A3001S1, ide->rom_size, 0, ide->rom, ide->rom_size, LOADROM_FILL);
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = autoconfig[i];
 		ew(ide, i * 4, b);
 	}
-	return ide->bank;
+	aci->addrbank = ide->bank;
+	return true;
 }
 
-addrbank *gvp_ide_controller_autoconfig_init(struct romconfig *rc)
+bool gvp_ide_controller_autoconfig_init(struct autoconfig_info *aci)
 {
-	struct ide_board *ide = getide(rc);
+	if (!aci->doinit) {
+		aci->autoconfigp = gvp_ide2_controller_autoconfig;
+		return true;
+	}
+	struct ide_board *ide = getide(aci->rc);
 
 	init_ide(ide, GVP_IDE, 2, true, false);
 	ide->configured = 0;
@@ -1281,7 +1293,8 @@ addrbank *gvp_ide_controller_autoconfig_init(struct romconfig *rc)
 		uae_u8 b = gvp_ide2_controller_autoconfig[i];
 		ew(ide, i * 4, b);
 	}
-	return ide->bank;
+	aci->addrbank = ide->bank;
+	return true;
 }
 
 void gvp_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
@@ -1298,13 +1311,17 @@ void gvp_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *r
 static const uae_u8 alf_autoconfig[16] = { 0xd1, 6, 0x00, 0x00, 0x08, 0x2c, 0x00, 0x00, 0x00, 0x00, ALF_ROM_OFFSET >> 8, ALF_ROM_OFFSET & 0xff };
 static const uae_u8 alfplus_autoconfig[16] = { 0xd1, 38, 0x00, 0x00, 0x08, 0x2c, 0x00, 0x00, 0x00, 0x00, ALF_ROM_OFFSET >> 8, ALF_ROM_OFFSET & 0xff };
 
-addrbank *alf_init(struct romconfig *rc)
+bool alf_init(struct autoconfig_info *aci)
 {
-	struct ide_board *ide = getide(rc);
 	bool alfplus = cfgfile_board_enabled(&currprefs, ROMTYPE_ALFAPLUS, 0);
+	if (!aci->doinit) {
+		aci->autoconfigp = alfplus ? alfplus_autoconfig : alf_autoconfig;
+		return true;
+	}
 
+	struct ide_board *ide = getide(aci->rc);
 	if (!ide)
-		return &expamem_null;
+		return false;
 
 	ide->configured = 0;
 
@@ -1327,8 +1344,8 @@ addrbank *alf_init(struct romconfig *rc)
 		ew(ide, i * 4, b);
 	}
 
-	if (!rc->autoboot_disabled) {
-		struct zfile *z = read_device_from_romconfig(rc, alfplus ? ROMTYPE_ALFAPLUS : ROMTYPE_ALFA);
+	if (!aci->rc->autoboot_disabled) {
+		struct zfile *z = read_device_from_romconfig(aci->rc, alfplus ? ROMTYPE_ALFAPLUS : ROMTYPE_ALFA);
 		if (z) {
 			for (int i = 0; i < 0x1000 / 2; i++) {
 				uae_u8 b;
@@ -1347,7 +1364,8 @@ addrbank *alf_init(struct romconfig *rc)
 			zfile_fclose(z);
 		}
 	}
-	return ide->bank;
+	aci->addrbank = ide->bank;
+	return true;
 }
 
 void alf_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
@@ -1363,13 +1381,25 @@ const uae_u8 apollo_autoconfig[16] = { 0xd1, 0x22, 0x00, 0x00, 0x22, 0x22, 0x00,
 const uae_u8 apollo_autoconfig_cpuboard[16] = { 0xd2, 0x23, 0x00, 0x00, 0x22, 0x22, 0x00, 0x00, 0x00, 0x00, APOLLO_ROM_OFFSET >> 8, APOLLO_ROM_OFFSET & 0xff };
 const uae_u8 apollo_autoconfig_cpuboard_060[16] = { 0xd2, 0x23, 0x00, 0x00, 0x22, 0x22, 0x00, 0x00, 0x00, 0x02, APOLLO_ROM_OFFSET >> 8, APOLLO_ROM_OFFSET & 0xff };
 
-static addrbank *apollo_init(struct romconfig *rc, bool cpuboard)
+static bool apollo_init(struct autoconfig_info *aci, bool cpuboard)
 {
-	struct ide_board *ide = getide(rc);
-	const uae_u8 *autoconfig;
+	const uae_u8 *autoconfig = apollo_autoconfig;
+	if (cpuboard) {
+		if (currprefs.cpu_model == 68060)
+			autoconfig = apollo_autoconfig_cpuboard_060;
+		else
+			autoconfig = apollo_autoconfig_cpuboard;
+	}
+
+	if (!aci->doinit) {
+		aci->autoconfigp = autoconfig;
+		return true;
+	}
+
+	struct ide_board *ide = getide(aci->rc);
 
 	if (!ide)
-		return &expamem_null;
+		return false;
 
 	ide->configured = 0;
 	ide->bank = &ide_bank_generic;
@@ -1382,20 +1412,13 @@ static addrbank *apollo_init(struct romconfig *rc, bool cpuboard)
 	memset(ide->rom, 0xff, ide->rom_size);
 	ide->rom_mask = ide->rom_size - 1;
 	ide->keepautoconfig = false;
-	autoconfig = apollo_autoconfig;
-	if (cpuboard) {
-		if (currprefs.cpu_model == 68060)
-			autoconfig = apollo_autoconfig_cpuboard_060;
-		else
-			autoconfig = apollo_autoconfig_cpuboard;
-	}
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = autoconfig[i];
 		ew(ide, i * 4, b);
 	}
 	if (cpuboard) {
 		ide->mask = 131072 - 1;
-		struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_APOLLO);
+		struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_APOLLO);
 		if (z) {
 			int len = zfile_size(z);
 			// skip 68060 $f0 ROM block
@@ -1410,18 +1433,19 @@ static addrbank *apollo_init(struct romconfig *rc, bool cpuboard)
 		}
 	} else {
 		ide->mask = 65536 - 1;
-		load_rom_rc(rc, ROMTYPE_APOLLO, 16384, 0, ide->rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+		load_rom_rc(aci->rc, ROMTYPE_APOLLO, 16384, 0, ide->rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 	}
-	return ide->bank;
+	aci->addrbank = ide->bank;
+	return true;
 }
 
-addrbank *apollo_init_hd(struct romconfig *rc)
+bool apollo_init_hd(struct autoconfig_info *aci)
 {
-	return apollo_init(rc, false);
+	return apollo_init(aci, false);
 }
-addrbank *apollo_init_cpu(struct romconfig *rc)
+bool apollo_init_cpu(struct autoconfig_info *aci)
 {
-	return apollo_init(rc, true);
+	return apollo_init(aci, true);
 }
 
 void apollo_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
@@ -1429,35 +1453,46 @@ void apollo_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig
 	add_ide_standard_unit(ch, ci, rc, apollo_board, APOLLO_IDE, true, false, 2);
 }
 
-addrbank *masoboshi_init(struct romconfig *rc)
+bool masoboshi_init(struct autoconfig_info *aci)
 {
-	struct ide_board *ide = getide(rc);
+	int rom_size = 65536;
+	uae_u8 *rom = xcalloc(uae_u8, rom_size);
+	memset(rom, 0xff, rom_size);
+
+	load_rom_rc(aci->rc, ROMTYPE_MASOBOSHI, 32768, 0, rom, 65536, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+	if (!aci->doinit) {
+		if (aci->rc && aci->rc->autoboot_disabled)
+			memcpy(aci->autoconfig_raw, rom + 0x100, sizeof aci->autoconfig_raw);
+		else
+			memcpy(aci->autoconfig_raw, rom + 0x000, sizeof aci->autoconfig_raw);
+		xfree(rom);
+		return true;
+	}
+
+	struct ide_board *ide = getide(aci->rc);
 
 	if (!ide)
-		return &expamem_null;
+		return false;
 
 	ide->configured = 0;
 
 	ide->configured = 0;
 	ide->bank = &ide_bank_generic;
 	ide->type = MASOBOSHI_IDE;
-	ide->rom_size = 65536;
-	ide->mask = 65536 - 1;
+	ide->rom_size = rom_size;
+	ide->mask = rom_size - 1;
 	ide->subtype = 0;
 
-	ide->rom = xcalloc(uae_u8, ide->rom_size);
-	memset(ide->rom, 0xff, ide->rom_size);
-	memset(ide->acmemory, 0xff, sizeof ide->acmemory);
-	ide->rom_mask = ide->rom_size - 1;
-
-	load_rom_rc(rc, ROMTYPE_MASOBOSHI, 32768, 0, ide->rom, 65536, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
-	ide->subtype = rc->subtype;
-	if (rc && rc->autoboot_disabled)
+	ide->subtype = aci->rc->subtype;
+	if (aci->rc && aci->rc->autoboot_disabled)
 		memcpy(ide->acmemory, ide->rom + 0x100, sizeof ide->acmemory);
 	else
 		memcpy(ide->acmemory, ide->rom + 0x000, sizeof ide->acmemory);
 
-	return ide->bank;
+	memset(ide->acmemory, 0xff, sizeof ide->acmemory);
+
+	aci->addrbank =ide->bank;
+	return true;
 }
 
 static void masoboshi_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
@@ -1480,9 +1515,13 @@ void masoboshi_add_idescsi_unit (int ch, struct uaedev_config_info *ci, struct r
 
 static const uae_u8 adide_autoconfig[16] = { 0xd1, 0x02, 0x00, 0x00, 0x08, 0x17, 0x00, 0x00, 0x00, 0x00, ADIDE_ROM_OFFSET >> 8, ADIDE_ROM_OFFSET & 0xff };
 
-addrbank *adide_init(struct romconfig *rc)
+bool adide_init(struct autoconfig_info *aci)
 {
-	struct ide_board *ide = getide(rc);
+	if (!aci->doinit) {
+		aci->autoconfigp = adide_autoconfig;
+		return true;
+	}
+	struct ide_board *ide = getide(aci->rc);
 
 	ide->configured = 0;
 	ide->keepautoconfig = false;
@@ -1495,14 +1534,15 @@ addrbank *adide_init(struct romconfig *rc)
 	ide->rom = xcalloc(uae_u8, ide->rom_size);
 	memset(ide->rom, 0xff, ide->rom_size);
 	ide->rom_mask = ide->rom_size - 1;
-	if (!rc->autoboot_disabled) {
-		load_rom_rc(rc, ROMTYPE_ADIDE, 16384, 0, ide->rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+	if (!aci->rc->autoboot_disabled) {
+		load_rom_rc(aci->rc, ROMTYPE_ADIDE, 16384, 0, ide->rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 	}
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = adide_autoconfig[i];
 		ew(ide, i * 4, b);
 	}
-	return ide->bank;
+	aci->addrbank = ide->bank;
+	return true;
 }
 
 void adide_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
@@ -1510,21 +1550,33 @@ void adide_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig 
 	add_ide_standard_unit(ch, ci, rc, adide_board, ADIDE_IDE, false, true, 2);
 }
 
-addrbank *mtec_init(struct romconfig *rc)
+bool mtec_init(struct autoconfig_info *aci)
 {
-	struct ide_board *ide = getide(rc);
+	uae_u8 *rom;
+	int rom_size = 32768;
+
+	rom = xcalloc(uae_u8, rom_size);
+	memset(rom, 0xff, rom_size);
+	load_rom_rc(aci->rc, ROMTYPE_MTEC, 16384, !aci->rc->autoboot_disabled ? 16384 : 0, rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+
+	if (!aci->doinit) {
+		memcpy(aci->autoconfig_raw, rom, sizeof aci->autoconfig_raw);
+		xfree(rom);
+		return true;
+	}
+
+	struct ide_board *ide = getide(aci->rc);
 
 	ide->configured = 0;
 	ide->bank = &ide_bank_generic;
-	ide->rom_size = 32768;
 	ide->mask = 65536 - 1;
 
-	ide->rom = xcalloc(uae_u8, ide->rom_size);
-	memset(ide->rom, 0xff, ide->rom_size);
-	ide->rom_mask = ide->rom_size - 1;
-	load_rom_rc(rc, ROMTYPE_MTEC, 16384, !rc->autoboot_disabled ? 16384 : 0, ide->rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+	ide->rom = rom;
+	ide->rom_size = rom_size;
 	memcpy(ide->acmemory, ide->rom, sizeof ide->acmemory);
-	return ide->bank;
+
+	aci->addrbank = ide->bank;
+	return true;
 }
 
 void mtec_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
@@ -1532,22 +1584,27 @@ void mtec_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *
 	add_ide_standard_unit(ch, ci, rc, mtec_board, MTEC_IDE, false, false, 2);
 }
 
-addrbank *rochard_init(struct romconfig *rc)
+bool rochard_init(struct autoconfig_info *aci)
 {
-	struct ide_board *ide = getide(rc);
+	if (!aci->doinit) {
+		load_rom_rc(aci->rc, ROMTYPE_ROCHARD, 8192, !aci->rc->autoboot_disabled ? 8192 : 0, aci->autoconfig_raw, sizeof aci->autoconfig_raw, 0);
+		return true;
+	}
+	struct ide_board *ide = getide(aci->rc);
 
 	ide->configured = 0;
 	ide->bank = &ide_bank_generic;
 	ide->rom_size = 32768;
 	ide->mask = 65536 - 1;
-	ide->subtype = rc->subtype;
+	ide->subtype = aci->rc->subtype;
 
 	ide->rom = xcalloc(uae_u8, ide->rom_size);
 	memset(ide->rom, 0xff, ide->rom_size);
 	ide->rom_mask = ide->rom_size - 1;
-	load_rom_rc(rc, ROMTYPE_ROCHARD, 8192, !rc->autoboot_disabled ? 8192 : 0, ide->rom, 16384, 0);
+	load_rom_rc(aci->rc, ROMTYPE_ROCHARD, 8192, !aci->rc->autoboot_disabled ? 8192 : 0, ide->rom, 16384, 0);
 	memcpy(ide->acmemory, ide->rom, sizeof ide->acmemory);
-	return ide->bank;
+	aci->addrbank = ide->bank;
+	return true;
 }
 
 static void rochard_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
@@ -1568,21 +1625,33 @@ void rochard_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romc
 	}
 }
 
-addrbank *golemfast_init(struct romconfig *rc)
+bool golemfast_init(struct autoconfig_info *aci)
 {
-	struct ide_board *ide = getide(rc);
+	int rom_size = 32768;
+	uae_u8 *rom;
+	
+	rom = xcalloc(uae_u8, rom_size);
+	memset(rom, 0xff, rom_size);
+	load_rom_rc(aci->rc, ROMTYPE_GOLEMFAST, 16384, 0, rom, 32768, 0);
 
+	if (!aci->doinit) {
+		memcpy(aci->autoconfig_raw, rom, sizeof aci->autoconfig_raw);
+		xfree(rom);
+		return true;
+	}
+
+	struct ide_board *ide = getide(aci->rc);
+
+	ide->rom = rom;
 	ide->configured = 0;
 	ide->bank = &ide_bank_generic;
-	ide->rom_size = 32768;
+	ide->rom_size = rom_size;
 	ide->mask = 65536 - 1;
 
-	ide->rom = xcalloc(uae_u8, ide->rom_size);
-	memset(ide->rom, 0xff, ide->rom_size);
 	ide->rom_mask = ide->rom_size - 1;
-	load_rom_rc(rc, ROMTYPE_GOLEMFAST, 16384, 0, ide->rom, 32768, 0);
 	memcpy(ide->acmemory, ide->rom, sizeof ide->acmemory);
-	return ide->bank;
+	aci->addrbank = ide->bank;
+	return true;
 }
 
 static void golemfast_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
@@ -1605,36 +1674,39 @@ void golemfast_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct ro
 
 
 extern void x86_xt_ide_bios(struct zfile*, struct romconfig*);
-static addrbank *x86_at_hd_init(struct romconfig *rc, int type)
+static bool x86_at_hd_init(struct autoconfig_info *aci, int type)
 {
-	struct ide_board *ide = getide(rc);
+	static const int parent[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
+	aci->parent_romtype = parent;
+	if (!aci->doinit)
+		return true;
 
+	struct ide_board *ide = getide(aci->rc);
 	if (!ide)
-		return NULL;
+		return false;
 
 	ide->intena = type == 0;
 	ide->configured = 1;
 	ide->bank = &ide_bank_generic;
 
-	struct zfile *f = read_device_from_romconfig(rc, 0);
+	struct zfile *f = read_device_from_romconfig(aci->rc, 0);
 	if (f) {
-		x86_xt_ide_bios(f, rc);
+		x86_xt_ide_bios(f, aci->rc);
 		zfile_fclose(f);
 	}
-
-	return NULL;
+	return true;
 }
-addrbank *x86_at_hd_init_1(struct romconfig *rc)
+bool x86_at_hd_init_1(struct autoconfig_info *aci)
 {
-	return x86_at_hd_init(rc, 0);
+	return x86_at_hd_init(aci, 0);
 }
-addrbank *x86_at_hd_init_2(struct romconfig *rc)
+bool x86_at_hd_init_2(struct autoconfig_info *aci)
 {
-	return x86_at_hd_init(rc, 0);
+	return x86_at_hd_init(aci, 0);
 }
-addrbank *x86_at_hd_init_xt(struct romconfig *rc)
+bool x86_at_hd_init_xt(struct autoconfig_info *aci)
 {
-	return x86_at_hd_init(rc, 1);
+	return x86_at_hd_init(aci, 1);
 }
 
 void x86_add_at_hd_unit_1(int ch, struct uaedev_config_info *ci, struct romconfig *rc)

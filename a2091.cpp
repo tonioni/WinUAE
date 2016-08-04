@@ -284,7 +284,10 @@ static void freencrunit(struct wd_state *wd)
 		}
 	}
 	scsi_freenative(wd->scsis, MAX_SCSI_UNITS);
-	xfree (wd->rom);
+	if (wd->bank.baseaddr == wd->rom)
+		free_expansion_bank(&wd->bank);
+	else
+		xfree (wd->rom);
 	wd->rom = NULL;
 	if (wd->self_ptr)
 		*wd->self_ptr = NULL;
@@ -1460,7 +1463,7 @@ void wdscsi_put (struct wd_chip_state *wd, struct wd_state *wds, uae_u8 d)
 	}
 	if (!wd->wd_used) {
 		wd->wd_used = 1;
-		write_log (_T("%s %s in use\n"), wds->bank ? wds->bank->name : _T("built-in"), WD33C93);
+		write_log (_T("%s %s in use\n"), wds->bank.name, WD33C93);
 	}
 	if (wd->sasr == WD_COMMAND_PHASE) {
 #if WD33C93_DEBUG > 1
@@ -2315,7 +2318,7 @@ static void REGPARAM2 dmac_a2091_wput(struct wd_state *wd, uaecptr addr, uae_u32
 	dmac_a2091_write_word(wd, addr, w);
 }
 
-extern addrbank dmaca2091_bank;
+extern const addrbank dmaca2091_bank;
 
 static void REGPARAM2 dmac_a2091_bput(struct wd_state *wd, uaecptr addr, uae_u32 b)
 {
@@ -2323,15 +2326,15 @@ static void REGPARAM2 dmac_a2091_bput(struct wd_state *wd, uaecptr addr, uae_u32
 	addr &= 65535;
 	if (wd->autoconfig) {
 		if (addr == 0x48 && !wd->configured) {
-			map_banks_z2 (wd->bank, b, 0x10000 >> 16);
+			map_banks_z2 (&wd->bank, b, 0x10000 >> 16);
 			wd->baseaddress = b << 16;
 			wd->configured = 1;
-			expamem_next (wd->bank, NULL);
+			expamem_next (&wd->bank, NULL);
 			return;
 		}
 		if (addr == 0x4c && !wd->configured) {
 			wd->configured = 1;
-			expamem_shutup(wd->bank);
+			expamem_shutup(&wd->bank);
 			return;
 		}
 		if (!wd->configured)
@@ -2441,10 +2444,10 @@ static void REGPARAM2 dmac_a2091_lput (uaecptr addr, uae_u32 b)
 		dmac_a2091_lput(wd, addr, b);
 }
 
-addrbank dmaca2091_bank = {
+static const addrbank dmaca2091_bank = {
 	dmac_a2091_lget, dmac_a2091_wget, dmac_a2091_bget,
 	dmac_a2091_lput, dmac_a2091_wput, dmac_a2091_bput,
-	dmac_a2091_xlate, dmac_a2091_check, NULL, NULL, _T("A2090/A2091/A590"),
+	dmac_a2091_xlate, dmac_a2091_check, NULL, _T("*"), _T("A2090/A2091/A590"),
 	dmac_a2091_lgeti, dmac_a2091_wgeti,
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
@@ -2452,7 +2455,7 @@ addrbank dmaca2091_bank = {
 
 /* GVP Series I and II */
 
-extern addrbank gvp_bank;
+extern const addrbank gvp_bank;
 
 static uae_u32 dmac_gvp_read_byte(struct wd_state *wd, uaecptr addr)
 {
@@ -2836,15 +2839,15 @@ static void REGPARAM2 dmac_gvp_bput(struct wd_state *wd, uaecptr addr, uae_u32 b
 	addr &= wd->board_mask;
 	if (wd->autoconfig) {
 		if (addr == 0x48 && !wd->configured) {
-			map_banks_z2(wd->bank, b, (wd->board_mask + 1) >> 16);
+			map_banks_z2(&wd->bank, b, (wd->board_mask + 1) >> 16);
 			wd->baseaddress = b << 16;
 			wd->configured = 1;
-			expamem_next(wd->bank, NULL);
+			expamem_next(&wd->bank, NULL);
 			return;
 		}
 		if (addr == 0x4c && !wd->configured) {
 			wd->configured = 1;
-			expamem_shutup(wd->bank);
+			expamem_shutup(&wd->bank);
 			return;
 		}
 		if (!wd->configured)
@@ -2940,7 +2943,8 @@ static uae_u8 *REGPARAM2 dmac_gvp_xlate(uaecptr addr)
 	addr &= 0xffff;
 	return wd->rom + addr;
 }
-addrbank gvp_bank = {
+
+static const addrbank gvp_bank = {
 	dmac_gvp_lget, dmac_gvp_wget, dmac_gvp_bget,
 	dmac_gvp_lput, dmac_gvp_wput, dmac_gvp_bput,
 	dmac_gvp_xlate, dmac_gvp_check, NULL, NULL, _T("GVP"),
@@ -3177,7 +3181,7 @@ static void REGPARAM2 mbdmac_bput (uaecptr addr, uae_u32 b)
 	mbdmac_write_byte (wd_a3000, addr, b);
 }
 
-addrbank mbdmac_a3000_bank = {
+static addrbank mbdmac_a3000_bank = {
 	mbdmac_lget, mbdmac_wget, mbdmac_bget,
 	mbdmac_lput, mbdmac_wput, mbdmac_bput,
 	default_xlate, default_check, NULL, NULL, _T("A3000 DMAC"),
@@ -3185,15 +3189,15 @@ addrbank mbdmac_a3000_bank = {
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
-static void ew (struct wd_state *wd, int addr, uae_u32 value)
+static void ew (uae_u8 *ac, int addr, uae_u32 value)
 {
 	addr &= 0xffff;
 	if (addr == 00 || addr == 02 || addr == 0x40 || addr == 0x42) {
-		wd->dmacmemory[addr] = (value & 0xf0);
-		wd->dmacmemory[addr + 2] = (value & 0x0f) << 4;
+		ac[addr] = (value & 0xf0);
+		ac[addr + 2] = (value & 0x0f) << 4;
 	} else {
-		wd->dmacmemory[addr] = ~(value & 0xf0);
-		wd->dmacmemory[addr + 2] = ~((value & 0x0f) << 4);
+		ac[addr] = ~(value & 0xf0);
+		ac[addr + 2] = ~((value & 0x0f) << 4);
 	}
 }
 
@@ -3289,11 +3293,17 @@ void a3000_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfi
 	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
 }
 
-void a3000scsi_reset (void)
+bool a3000scsi_init(struct autoconfig_info *aci)
 {
+	aci->addrbank = &expamem_nonautoconfig;
+	aci->start = 0xdd0000;
+	aci->size = 0x10000;
+	if (!aci->doinit) {
+		return true;
+	}
 	struct wd_state *wd = wd_a3000;
 	if (!wd)
-		return;
+		return false;
 	init_wd_scsi (wd);
 	wd->enabled = true;
 	wd->configured = -1;
@@ -3302,6 +3312,7 @@ void a3000scsi_reset (void)
 	map_banks(&mbdmac_a3000_bank, wd->baseaddress >> 16, 1, 0);
 	wd_cmd_reset (&wd->wc, false);
 	reset_dmac(wd);
+	return true;
 }
 
 void a3000scsi_free (void)
@@ -3409,46 +3420,53 @@ void a2091_reset (void)
 	}
 }
 
-addrbank *a2091_init (struct romconfig *rc)
+bool a2091_init (struct autoconfig_info *aci)
 {
-	struct wd_state *wd = getscsi(rc);
+	ew(aci->autoconfig_raw, 0x00, 0xc0 | 0x01 | 0x10 | (expansion_is_next_board_fastram() ? 0x08 : 0x00));
+	/* A590/A2091 hardware id */
+	ew(aci->autoconfig_raw, 0x04, aci->rc->subtype == 0 ? 0x02 : 0x03);
+	/* commodore's manufacturer id */
+	ew (aci->autoconfig_raw, 0x10, 0x02);
+	ew (aci->autoconfig_raw, 0x14, 0x02);
+	/* rom vector */
+	ew (aci->autoconfig_raw, 0x28, CDMAC_ROM_VECTOR >> 8);
+	ew (aci->autoconfig_raw, 0x2c, CDMAC_ROM_VECTOR);
+
+	ew (aci->autoconfig_raw, 0x18, 0x00); /* ser.no. Byte 0 */
+	ew (aci->autoconfig_raw, 0x1c, 0x00); /* ser.no. Byte 1 */
+	ew (aci->autoconfig_raw, 0x20, 0x00); /* ser.no. Byte 2 */
+	ew (aci->autoconfig_raw, 0x24, 0x00); /* ser.no. Byte 3 */
+
+	aci->label = _T("A2091");
+	if (!aci->doinit)
+		return true;
+
+	struct wd_state *wd = getscsi(aci->rc);
 	int slotsize;
 
 	if (!wd)
-		return &expamem_null;
+		return false;
 
 	init_wd_scsi(wd);
 
-	wd->cdmac.old_dmac = rc->subtype == 0;
+	wd->cdmac.old_dmac = aci->rc->subtype == 0;
 	wd->configured = 0;
 	wd->autoconfig = true;
 	wd->board_mask = 65535;
-	wd->bank = &dmaca2091_bank;
-	memset (wd->dmacmemory, 0xff, sizeof wd->dmacmemory);
-	ew(wd, 0x00, 0xc0 | 0x01 | 0x10 | (expansion_is_next_board_fastram() ? 0x08 : 0x00));
-	/* A590/A2091 hardware id */
-	ew(wd, 0x04, wd->cdmac.old_dmac ? 0x02 : 0x03);
-	/* commodore's manufacturer id */
-	ew (wd, 0x10, 0x02);
-	ew (wd, 0x14, 0x02);
-	/* rom vector */
-	ew (wd, 0x28, CDMAC_ROM_VECTOR >> 8);
-	ew (wd, 0x2c, CDMAC_ROM_VECTOR);
+	memcpy(&wd->bank, &dmaca2091_bank, sizeof addrbank);
+	memcpy(wd->dmacmemory, aci->autoconfig_raw, sizeof wd->dmacmemory);
 
-	ew (wd, 0x18, 0x00); /* ser.no. Byte 0 */
-	ew (wd, 0x1c, 0x00); /* ser.no. Byte 1 */
-	ew (wd, 0x20, 0x00); /* ser.no. Byte 2 */
-	ew (wd, 0x24, 0x00); /* ser.no. Byte 3 */
+	alloc_expansion_bank(&wd->bank, aci);
 
 	wd->rombankswitcher = 0;
 	wd->rombank = 0;
 	slotsize = 65536;
-	wd->rom = xcalloc (uae_u8, slotsize);
+	wd->rom = wd->bank.baseaddr;
 	memset(wd->rom, 0xff, slotsize);
 	wd->rom_size = 16384;
 	wd->rom_mask = wd->rom_size - 1;
-	if (!rc->autoboot_disabled) {
-		struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_A2091);
+	if (!aci->rc->autoboot_disabled) {
+		struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_A2091);
 		if (z) {
 			wd->rom_size = zfile_size (z);
 			zfile_fread (wd->rom, wd->rom_size, 1, z);
@@ -3466,50 +3484,57 @@ addrbank *a2091_init (struct romconfig *rc)
 			wd->rom_mask = wd->rom_size - 1;
 		}
 	}
-	return wd->bank;
+	aci->addrbank = &wd->bank;
+	return true;
 }
 
-addrbank *a2090_init (struct romconfig *rc)
+bool a2090_init (struct autoconfig_info *aci)
 {
-	struct wd_state *wd = getscsi(rc);
+	ew(aci->autoconfig_raw, 0x00, 0xc0 | 0x01 | 0x10);
+	/* A590/A2091 hardware id */
+	ew(aci->autoconfig_raw, 0x04, aci->rc->subtype ? 0x02 : 0x01);
+	/* commodore's manufacturer id */
+	ew(aci->autoconfig_raw, 0x10, 0x02);
+	ew(aci->autoconfig_raw, 0x14, 0x02);
+	/* rom vector */
+	ew(aci->autoconfig_raw, 0x28, DMAC_8727_ROM_VECTOR >> 8);
+	ew(aci->autoconfig_raw, 0x2c, DMAC_8727_ROM_VECTOR);
+
+	ew(aci->autoconfig_raw, 0x18, 0x00); /* ser.no. Byte 0 */
+	ew(aci->autoconfig_raw, 0x1c, 0x00); /* ser.no. Byte 1 */
+	ew(aci->autoconfig_raw, 0x20, 0x00); /* ser.no. Byte 2 */
+	ew(aci->autoconfig_raw, 0x24, 0x00); /* ser.no. Byte 3 */
+
+	aci->label = _T("A2090");
+	if (!aci->doinit)
+		return true;
+
+	struct wd_state *wd = getscsi(aci->rc);
 	int slotsize;
 
 	if (!wd)
-		return &expamem_null;
+		return false;
 
 	init_wd_scsi(wd);
 
 	wd->configured = 0;
 	wd->autoconfig = true;
 	wd->board_mask = 65535;
-	wd->bank = &dmaca2091_bank;
-	memset (wd->dmacmemory, 0xff, sizeof wd->dmacmemory);
-	ew (wd, 0x00, 0xc0 | 0x01 | 0x10);
-	/* A590/A2091 hardware id */
-	ew(wd, 0x04, rc->subtype ? 0x02 : 0x01);
-	/* commodore's manufacturer id */
-	ew (wd, 0x10, 0x02);
-	ew (wd, 0x14, 0x02);
-	/* rom vector */
-	ew (wd, 0x28, DMAC_8727_ROM_VECTOR >> 8);
-	ew (wd, 0x2c, DMAC_8727_ROM_VECTOR);
-
-	ew (wd, 0x18, 0x00); /* ser.no. Byte 0 */
-	ew (wd, 0x1c, 0x00); /* ser.no. Byte 1 */
-	ew (wd, 0x20, 0x00); /* ser.no. Byte 2 */
-	ew (wd, 0x24, 0x00); /* ser.no. Byte 3 */
-
+	memcpy(&wd->bank, &dmaca2091_bank, sizeof addrbank);
+	memcpy(wd->dmacmemory, aci->autoconfig_raw, sizeof wd->dmacmemory);
 	//ew(wd, 0x30, 0x80); // SCSI only flag
+
+	alloc_expansion_bank(&wd->bank, aci);
 
 	wd->rombankswitcher = 0;
 	wd->rombank = 0;
 	slotsize = 65536;
-	wd->rom = xcalloc (uae_u8, slotsize);
+	wd->rom = wd->bank.baseaddr;
 	memset(wd->rom, 0xff, slotsize);
 	wd->rom_size = 16384;
 	wd->rom_mask = wd->rom_size - 1;
-	if (!rc->autoboot_disabled) {
-		struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_A2090);
+	if (!aci->rc->autoboot_disabled) {
+		struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_A2090);
 		if (z) {
 			wd->rom_size = zfile_size (z);
 			zfile_fread (wd->rom, wd->rom_size, 1, z);
@@ -3520,7 +3545,7 @@ addrbank *a2090_init (struct romconfig *rc)
 			wd->rom_mask = wd->rom_size - 1;
 		}
 	}
-	return wd->bank;
+	return true;
 }
 
 static void gvp_free_device (struct wd_state *wd)
@@ -3570,25 +3595,40 @@ static bool is_gvp_accelerator(void)
 	return ISCPUBOARD(BOARD_GVP, -1);
 }
 
-static addrbank *gvp_init(struct romconfig *rc, bool series2, bool accel)
+static bool gvp_init(struct autoconfig_info *aci, bool series2, bool accel)
 {
-	struct wd_state *wd = getscsi(rc);
-	bool isscsi = true;
-	const uae_u8 *ac;
 	int romtype;
-
+	const uae_u8 *ac = gvp_scsi_ii_autoconfig;
+	if (!series2) {
+		ac = gvp_scsi_i_autoconfig_1;
+		if (aci->rc->subtype == 1) {
+			ac = gvp_scsi_i_autoconfig_2;
+		} else if (aci->rc->subtype == 2) {
+			ac = gvp_scsi_i_autoconfig_3;
+		}
+	}
 	if (!accel) {
 		romtype = series2 ? ROMTYPE_GVPS2 : ROMTYPE_GVPS1;
+		aci->label = series2 ? _T("GVP SCSI S2") : _T("GVP SCSI S1");
 	} else {
 		romtype = ROMTYPE_CPUBOARD;
+		aci->label = _T("GVP Acclerator SCSI");
 	}
 
+	if (!aci->doinit) {
+		aci->autoconfigp = ac;
+		return true;
+	}
+
+	struct wd_state *wd = getscsi(aci->rc);
+	bool isscsi = true;
+
 	if (!wd)
-		return &expamem_null;
+		return false;
 
 	init_wd_scsi(wd);
 	wd->configured = 0;
-	wd->bank = &gvp_bank;
+	memcpy(&wd->bank, &gvp_bank, sizeof addrbank);
 	wd->autoconfig = true;
 	wd->rombankswitcher = 0;
 	memset(wd->dmacmemory, 0xff, sizeof wd->dmacmemory);
@@ -3601,29 +3641,26 @@ static addrbank *gvp_init(struct romconfig *rc, bool series2, bool accel)
 	memset(wd->rom, 0xff, 2 * wd->rom_size);
 	wd->rom_mask = 32768 - 1;
 	wd->gdmac.s1_subtype = 0;
-	ac = gvp_scsi_ii_autoconfig;
 
-	ac = gvp_scsi_ii_autoconfig;
+	alloc_expansion_bank(&wd->bank, aci);
+
 	if (!series2) {
-		ac = gvp_scsi_i_autoconfig_1;
 		wd->gdmac.s1_rammask = GVP_SERIES_I_RAM_MASK_1;
 		wd->gdmac.s1_ramoffset = GVP_SERIES_I_RAM_OFFSET_1;
-		if (rc->subtype == 1) {
-			ac = gvp_scsi_i_autoconfig_2;
+		if (aci->rc->subtype == 1) {
 			wd->gdmac.s1_rammask = GVP_SERIES_I_RAM_MASK_2;
 			wd->gdmac.s1_ramoffset = GVP_SERIES_I_RAM_OFFSET_2;
-		} else if (rc->subtype == 2) {
-			ac = gvp_scsi_i_autoconfig_3;
+		} else if (aci->rc->subtype == 2) {
 			wd->gdmac.s1_rammask = GVP_SERIES_I_RAM_MASK_3;
 			wd->gdmac.s1_ramoffset = GVP_SERIES_I_RAM_OFFSET_3;
 			wd->board_mask = 131071;
 		}
-		wd->gdmac.s1_subtype = rc->subtype;
+		wd->gdmac.s1_subtype = aci->rc->subtype;
 	}
 	xfree(wd->gdmac.buffer);
 	wd->gdmac.buffer = xcalloc(uae_u8, 16384);
-	if (!rc->autoboot_disabled) {
-		struct zfile *z = read_device_from_romconfig(rc, ROMTYPE_GVPS2);
+	if (!aci->rc->autoboot_disabled) {
+		struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_GVPS2);
 		if (z) {
 			int size = zfile_size(z);
 			if (series2) {
@@ -3687,23 +3724,23 @@ static addrbank *gvp_init(struct romconfig *rc, bool series2, bool accel)
 
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = ac[i];
-		ew(wd, i * 4, b);
+		ew(wd->dmacmemory, i * 4, b);
 	}
 	gvp_reset_device(wd);
-	return wd->bank;
+	return true;
 }
 
-addrbank *gvp_init_s1(struct romconfig *rc)
+bool gvp_init_s1(struct autoconfig_info *aci)
 {
-	return gvp_init(rc, false, false);
+	return gvp_init(aci, false, false);
 }
-addrbank *gvp_init_s2(struct romconfig *rc)
+bool gvp_init_s2(struct autoconfig_info *aci)
 {
-	return gvp_init(rc, true, false);
+	return gvp_init(aci, true, false);
 }
-addrbank *gvp_init_accelerator(struct romconfig *rc)
+bool gvp_init_accelerator(struct autoconfig_info *aci)
 {
-	return gvp_init(rc, true, true);
+	return gvp_init(aci, true, true);
 }
 
 void cdtv_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc)

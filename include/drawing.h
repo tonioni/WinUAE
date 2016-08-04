@@ -194,6 +194,7 @@ STATIC_INLINE void color_reg_cpy (struct color_entry *dst, struct color_entry *s
 
 #define COLOR_CHANGE_BRDBLANK 0x80000000
 #define COLOR_CHANGE_SHRES_DELAY 0x40000000
+#define COLOR_CHANGE_HSYNC_HACK 0x20000000
 struct color_change {
 	int linepos;
 	int regno;
@@ -318,6 +319,7 @@ void get_custom_mouse_limits (int *pw, int *ph, int *pdx, int *pdy, int dbl);
 extern void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq);
 extern void allocvidbuffer (struct vidbuffer *buf, int width, int height, int depth);
 extern void freevidbuffer (struct vidbuffer *buf);
+extern void check_prefs_picasso(void);
 
 /* Finally, stuff that shouldn't really be shared.  */
 

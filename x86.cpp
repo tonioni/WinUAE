@@ -114,6 +114,7 @@ int x86_cmos_bank;
 int x86_xrom_start[2];
 int x86_xrom_end[2];
 int x86_vga_mode;
+int x86_vga_board;
 
 struct x86_bridge
 {
@@ -149,6 +150,7 @@ struct x86_bridge
 	float dosbox_vpos_tick;
 	float dosbox_tick_vpos_cnt;
 	struct romconfig *rc;
+	int vgaboard;
 };
 static int x86_found;
 
@@ -171,7 +173,7 @@ static int x86_found;
 #define IO_KEYBOARD_REGISTER_A2000 0x1fff
 #define IO_A2386_CONFIG 0x1f9f
 
-#define ISVGA() (currprefs.rtgboards[0].rtgmem_type == GFXBOARD_VGA)
+#define ISVGA() (bridges[0]->vgaboard >= 0)
 
 static struct x86_bridge *bridges[X86_BRIDGE_MAX];
 
@@ -1947,7 +1949,7 @@ void portout(uint16_t portnum, uint8_t v)
 		case 0x3cf:
 		case 0x3b9:
 		if (ISVGA()) {
-			vga_io_put(portnum, v);
+			vga_io_put(xb->vgaboard, portnum, v);
 		}
 		break;
 
@@ -1960,7 +1962,7 @@ void portout(uint16_t portnum, uint8_t v)
 			aio = 0x1ff;
 		} else if (ISVGA()) {
 			if (x86_vga_mode == 0)
-				vga_io_put(portnum, v);
+				vga_io_put(xb->vgaboard, portnum, v);
 		}
 		break;
 		case 0x3b1:
@@ -1971,7 +1973,7 @@ void portout(uint16_t portnum, uint8_t v)
 			aio = 0x2a1 + (xb->amiga_io[0x1ff] & 15) * 2;
 		} else if (ISVGA()) {
 			if (x86_vga_mode == 0)
-				vga_io_put(portnum, v);
+				vga_io_put(xb->vgaboard, portnum, v);
 		}
 		break;
 		case 0x3b8:
@@ -1989,7 +1991,7 @@ void portout(uint16_t portnum, uint8_t v)
 			aio = 0x21f;
 		} else if (ISVGA()) {
 			if (x86_vga_mode == 1)
-				vga_io_put(portnum, v);
+				vga_io_put(xb->vgaboard, portnum, v);
 		}
 		break;
 		case 0x3d1:
@@ -2000,7 +2002,7 @@ void portout(uint16_t portnum, uint8_t v)
 			aio = 0x2c1 + (xb->amiga_io[0x21f] & 15) * 2;
 		} else if (ISVGA()) {
 			if (x86_vga_mode == 1)
-				vga_io_put(portnum, v);
+				vga_io_put(xb->vgaboard, portnum, v);
 		}
 		break;
 		case 0x3d8:
@@ -2024,7 +2026,7 @@ void portout(uint16_t portnum, uint8_t v)
 			aio = 0x1f;
 		} else if (ISVGA()) {
 			if (x86_vga_mode == 0)
-				vga_io_put(portnum, v);
+				vga_io_put(xb->vgaboard, portnum, v);
 		}
 		break;
 		case 0x3da:
@@ -2032,7 +2034,7 @@ void portout(uint16_t portnum, uint8_t v)
 			aio = 0x1f;
 		} else if (ISVGA()) {
 			if (x86_vga_mode == 1)
-				vga_io_put(portnum, v);
+				vga_io_put(xb->vgaboard, portnum, v);
 		}
 		break;
 
@@ -2380,7 +2382,7 @@ uint8_t portin(uint16_t portnum)
 		case 0x3cf:
 		case 0x3b9:
 		if (ISVGA()) {
-			v = vga_io_get(portnum);
+			v = vga_io_get(xb->vgaboard, portnum);
 		}
 		break;
 
@@ -2396,7 +2398,7 @@ uint8_t portin(uint16_t portnum)
 			aio = 0x1ff;
 		} else if (ISVGA()) {
 			if (x86_vga_mode == 0)
-				v = vga_io_get(portnum);
+				v = vga_io_get(xb->vgaboard, portnum);
 		}
 		break;
 		case 0x3b1:
@@ -2407,7 +2409,7 @@ uint8_t portin(uint16_t portnum)
 			aio = 0x2a1 + (xb->amiga_io[0x1ff] & 15) * 2;
 		} else if (ISVGA()) {
 			if (x86_vga_mode == 0)
-				v = vga_io_get(portnum);
+				v = vga_io_get(xb->vgaboard, portnum);
 		}
 		break;
 		case 0x3b8:
@@ -2425,7 +2427,7 @@ uint8_t portin(uint16_t portnum)
 			aio = 0x21f;
 		} else if (ISVGA()) {
 			if (x86_vga_mode == 1)
-				v = vga_io_get(portnum);
+				v = vga_io_get(xb->vgaboard, portnum);
 		}
 		break;
 		case 0x3d1:
@@ -2436,7 +2438,7 @@ uint8_t portin(uint16_t portnum)
 			aio = 0x2c1 + (xb->amiga_io[0x21f] & 15) * 2;
 		} else if (ISVGA()) {
 			if (x86_vga_mode == 1)
-				v = vga_io_get(portnum);
+				v = vga_io_get(xb->vgaboard, portnum);
 		}
 		break;
 		case 0x3d8:
@@ -2455,7 +2457,7 @@ uint8_t portin(uint16_t portnum)
 			v = get0x3da(xb);
 		} else if (ISVGA()) {
 			if (x86_vga_mode == 0)
-				v = vga_io_get(portnum);
+				v = vga_io_get(xb->vgaboard, portnum);
 		}
 		break;
 		case 0x3da:
@@ -2463,7 +2465,7 @@ uint8_t portin(uint16_t portnum)
 			v = get0x3da(xb);
 		} else if (ISVGA()) {
 			if (x86_vga_mode == 1)
-				v = vga_io_get(portnum);
+				v = vga_io_get(xb->vgaboard, portnum);
 		}
 		break;
 		case 0x3dd:
@@ -2886,7 +2888,7 @@ static void REGPARAM2 x86_bridge_bput(uaecptr addr, uae_u32 b)
 		switch (offset)
 		{
 			case 0x48:
-			map_banks_z2(xb->bank, b, expamem_z2_size >> 16);
+			map_banks_z2(xb->bank, b, expamem_board_size >> 16);
 			xb->baseaddress = b << 16;
 			xb->configured = 1;
 			expamem_next(xb->bank, NULL);
@@ -3267,12 +3269,29 @@ void x86_xt_ide_bios(struct zfile *z, struct romconfig *rc)
 static const uae_u8 a1060_autoconfig[16] = { 0xc4, 0x01, 0x80, 0x00, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 static const uae_u8 a2386_autoconfig[16] = { 0xc4, 0x67, 0x80, 0x00, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-addrbank *x86_bridge_init(struct romconfig *rc, uae_u32 romtype, int type)
+bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 {
-	struct x86_bridge *xb = x86_bridge_alloc();
 	const uae_u8 *ac;
-	if (!xb)
-		return &expamem_null;
+	struct romconfig *rc = aci->rc;
+
+	if (type >= TYPE_2286) {
+		ac = type >= TYPE_2386 ? a2386_autoconfig : a1060_autoconfig;
+	} else {
+		ac = a1060_autoconfig;
+	}	
+		
+	for (int i = 0; i < 16; i++) {
+		ew(aci->autoconfig_raw, i * 4, ac[i]);
+	}
+	if (!aci->doinit)
+		return true;
+
+	struct x86_bridge *xb = x86_bridge_alloc();
+	if (!xb) {
+		aci->addrbank = &expamem_null;
+		return true;
+	}
+	memcpy(xb->acmemory, aci->autoconfig_raw, sizeof aci->autoconfig_raw);
 	bridges[0] = xb;
 	xb->rc = rc;
 
@@ -3288,13 +3307,11 @@ addrbank *x86_bridge_init(struct romconfig *rc, uae_u32 romtype, int type)
 		xb->dosbox_cpu = ((xb->settings >> 19) & 3) + 1;
 		xb->dosbox_cpu_arch = (xb->settings >> 23) & 7;
 		xb->settings |= 0xff;
-		ac = xb->type >= TYPE_2386 ? a2386_autoconfig : a1060_autoconfig;
 		xb->pc_maxram = (1024 * 1024) << ((xb->settings >> 16) & 7);
 		xb->bios_size = 65536;
 	} else {
 		xb->dosbox_cpu = (xb->settings >> 19) & 7;
 		xb->dosbox_cpu_arch = (xb->settings >> 23) & 7;
-		ac = a1060_autoconfig;
 		xb->pc_maxram = 1 * 1024 * 1024;
 		xb->bios_size = 32768;
 	}
@@ -3334,11 +3351,17 @@ addrbank *x86_bridge_init(struct romconfig *rc, uae_u32 romtype, int type)
 			}
 		}
 	}
-	if (ISVGA()) {
-		if (xb->dosbox_cpu) {
-			MEM_SetVGAHandler();
+	xb->vgaboard = -1;
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		if (currprefs.rtgboards[i].rtgmem_type == GFXBOARD_VGA) {
+			xb->vgaboard = i;
+			x86_vga_board = i;
+			if (xb->dosbox_cpu) {
+				MEM_SetVGAHandler();
+			}
+			load_vga_bios();
+			break;
 		}
-		load_vga_bios();
 	}
 
 	xb->pc_jumpers = (xb->settings & 0xff) ^ ((0x80 | 0x40) | (0x20 | 0x10 | 0x01 | 0x02));
@@ -3371,32 +3394,30 @@ addrbank *x86_bridge_init(struct romconfig *rc, uae_u32 romtype, int type)
 	setrombank(xb, 0x100000 - xb->bios_size, xb->bios_size);
 
 	xb->bank = &x86_bridge_bank;
-	for (int i = 0; i < 16; i++) {
-		ew(xb->acmemory, i * 4, ac[i]);
-	}
 
-	return xb->bank;
+	aci->addrbank = xb->bank;
+	return true;
 }
 
-addrbank *a1060_init(struct romconfig *rc)
+bool a1060_init(struct autoconfig_info *aci)
 {
-	return x86_bridge_init(rc, ROMTYPE_A1060, TYPE_SIDECAR);
+	return x86_bridge_init(aci, ROMTYPE_A1060, TYPE_SIDECAR);
 }
-addrbank *a2088xt_init(struct romconfig *rc)
+bool a2088xt_init(struct autoconfig_info *aci)
 {
-	return x86_bridge_init(rc, ROMTYPE_A2088, TYPE_2088);
+	return x86_bridge_init(aci, ROMTYPE_A2088, TYPE_2088);
 }
-addrbank *a2088t_init(struct romconfig *rc)
+bool a2088t_init(struct autoconfig_info *aci)
 {
-	return x86_bridge_init(rc, ROMTYPE_A2088T, TYPE_2088T);
+	return x86_bridge_init(aci, ROMTYPE_A2088T, TYPE_2088T);
 }
-addrbank *a2286_init(struct romconfig *rc)
+bool a2286_init(struct autoconfig_info *aci)
 {
-	return x86_bridge_init(rc, ROMTYPE_A2286, TYPE_2286);
+	return x86_bridge_init(aci, ROMTYPE_A2286, TYPE_2286);
 }
-addrbank *a2386_init(struct romconfig *rc)
+bool a2386_init(struct autoconfig_info *aci)
 {
-	return x86_bridge_init(rc, ROMTYPE_A2386, TYPE_2386);
+	return x86_bridge_init(aci, ROMTYPE_A2386, TYPE_2386);
 }
 
 /* dosbox cpu core support stuff */

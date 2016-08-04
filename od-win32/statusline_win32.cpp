@@ -39,7 +39,6 @@ void deletestatusline(void)
 	statusline_hdc = NULL;
 	statusline_font = NULL;
 	statusline_palette = NULL;
-	statusline_clear();
 }
 
 bool createstatusline(void)

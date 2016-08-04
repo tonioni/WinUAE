@@ -38,8 +38,8 @@ int a2065_promiscuous = 0;
 #define RAM_SIZE 0x8000
 #define RAM_MASK 0x7fff
 
-static uae_u8 config[256];
-static uae_u8 boardram[RAM_SIZE];
+static uae_u8 config[128];
+static uae_u8 *boardram;
 static volatile uae_u16 csr[4];
 static int rap;
 static int configured;
@@ -139,20 +139,6 @@ static void ew (int addr, uae_u32 value)
 		config[addr] = ~(value & 0xf0);
 		config[addr + 2] = ~((value & 0x0f) << 4);
 	}
-}
-
-void a2065_reset (void)
-{
-	am_initialized = 0;
-	csr[0] = CSR0_STOP;
-	csr[1] = csr[2] = csr[3] = 0;
-	dbyteswap = 0;
-	rap = 0;
-
-	ethernet_close (td, sysdata);
-	xfree (sysdata);
-	sysdata = NULL;
-	td = NULL;
 }
 
 #if DUMPPACKET
@@ -790,7 +776,7 @@ static uae_u32 REGPARAM2 a2065_bget (uaecptr addr)
 {
 	uae_u32 v;
 	addr &= 65535;
-	if (addr < 0x40) {
+	if (addr < sizeof config) {
 		v = config[addr];
 	} else {
 		if (!configured)
@@ -843,7 +829,7 @@ int REGPARAM2 a2065_check(uaecptr a, uae_u32 b)
 static addrbank a2065_bank = {
 	a2065_lget, a2065_wget, a2065_bget,
 	a2065_lput, a2065_wput, a2065_bput,
-	a2065_xlate, a2065_check, NULL, NULL, _T("A2065 Z2 Ethernet"),
+	a2065_xlate, a2065_check, NULL, _T("*"), _T("A2065 Z2 Ethernet"),
 	a2065_lgeti, a2065_wgeti,
 	ABFLAG_IO, S_READ, S_WRITE
 };
@@ -884,7 +870,7 @@ static uae_u32 REGPARAM2 a2065_lgeti (uaecptr addr)
 	return v;
 }
 
-static addrbank *a2065_config (void)
+static bool a2065_config (struct autoconfig_info *aci)
 {
 	memset (config, 0xff, sizeof config);
 	ew (0x00, 0xc0 | 0x01);
@@ -902,8 +888,9 @@ static addrbank *a2065_config (void)
 			realmac[1] = 0x80;
 			realmac[2] = 0x10;
 		}
-		write_log (_T("A2065: '%s' %02X:%02X:%02X:%02X:%02X:%02X\n"),
-			td->name, td->mac[0], td->mac[1], td->mac[2], td->mac[3], td->mac[4], td->mac[5]);
+		if (aci->doinit)
+			write_log (_T("A2065: '%s' %02X:%02X:%02X:%02X:%02X:%02X\n"),
+				td->name, td->mac[0], td->mac[1], td->mac[2], td->mac[3], td->mac[4], td->mac[5]);
 	} else {
 		realmac[0] = 0x00;
 		realmac[1] = 0x80;
@@ -911,8 +898,9 @@ static addrbank *a2065_config (void)
 		realmac[3] = 4;
 		realmac[4] = 3;
 		realmac[5] = 2;
-		write_log (_T("A2065: Disconnected mode %02X:%02X:%02X:%02X:%02X:%02X\n"),
-			realmac[0], realmac[1], realmac[2], realmac[3], realmac[4], realmac[5]);
+		if (aci->doinit)
+			write_log (_T("A2065: Disconnected mode %02X:%02X:%02X:%02X:%02X:%02X\n"),
+				realmac[0], realmac[1], realmac[2], realmac[3], realmac[4], realmac[5]);
 	}
 
 	ew (0x18, realmac[2]);
@@ -927,14 +915,15 @@ static addrbank *a2065_config (void)
 	fakemac[4] = realmac[4];
 	fakemac[5] = realmac[5];
 
-	if (configured) {
-		if (configured != 0xff)
-			map_banks_z2 (&a2065_bank, configured, 0x10000 >> 16);
-	} else {
-		/* KS autoconfig handles the rest */
-		return &a2065_bank;
-	}
-	return NULL;
+	aci->addrbank = &a2065_bank;
+	aci->label = _T("A2065");
+	memcpy(aci->autoconfig_raw, config, sizeof config);
+	if (!aci->doinit)
+		return true;
+
+	alloc_expansion_bank(&a2065_bank, aci);
+	boardram = a2065_bank.baseaddr + RAM_OFFSET;
+	return true;
 }
 
 uae_u8 *save_a2065 (int *len, uae_u8 *dstptr)
@@ -966,13 +955,29 @@ uae_u8 *restore_a2065 (uae_u8 *src)
 void restore_a2065_finish (void)
 {
 	if (configured)
-		a2065_config ();
+		a2065_config(NULL);
 }
 
-addrbank *a2065_init (int devnum)
+bool a2065_init (struct autoconfig_info *aci)
 {
 	configured = 0;
-	return a2065_config ();
+	return a2065_config(aci);
+}
+
+void a2065_reset(void)
+{
+	am_initialized = 0;
+	csr[0] = CSR0_STOP;
+	csr[1] = csr[2] = csr[3] = 0;
+	dbyteswap = 0;
+	rap = 0;
+
+	free_expansion_bank(&a2065_bank);
+	boardram = NULL;
+	ethernet_close(td, sysdata);
+	xfree(sysdata);
+	sysdata = NULL;
+	td = NULL;
 }
 
 #endif /* A2065 */

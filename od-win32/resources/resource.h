@@ -30,6 +30,7 @@
 #define IDS_EXPANSION                   22
 #define IDS_STRING23                    23
 #define IDS_EXPANSION2                  23
+#define IDS_BOARD                       24
 #define IDS_EXTTEXT                     100
 #define IDS_EXTACTUAL                   101
 #define IDS_SOUND                       102
@@ -392,6 +393,8 @@
 #define IDS_SLIRP                       398
 #define IDD_EXPANSION2                  398
 #define IDS_SLIRP_INBOUND               399
+#define IDD_DIALOG2                     399
+#define IDD_BOARDS                      399
 #define IDS_FILTER_PAL_EXTRA            400
 #define IDS_FILTER_3D_EXTRA             401
 #define IDS_ALWAYS_ON                   402
@@ -435,17 +438,15 @@
 #define IDC_PORT1_JOYS                  1027
 #define IDC_SCREENMODE_RTG              1027
 #define IDC_DONGLELIST                  1027
-#define IDC_MBMEM1                      1028
 #define IDC_PORT_TABLET_CURSOR          1028
 #define IDC_SAMPLERLIST                 1028
 #define IDC_DISPLAY_BUFFERCNT           1028
+#define IDC_MEMORYMEM                   1028
 #define IDC_PORT0_JOYSMODE              1029
 #define IDC_SCREENMODE_NATIVE2          1029
-#define IDC_FASTMEM2                    1029
 #define IDC_SLOWMEM                     1030
 #define IDC_PORT1_JOYSMODE              1030
 #define IDC_SCREENMODE_RTG2             1030
-#define IDC_MBMEM2                      1031
 #define IDC_PORT2_JOYS                  1031
 #define IDC_PORT3_JOYS                  1032
 #define IDC_PARALLEL                    1033
@@ -457,11 +458,9 @@
 #define IDC_CHIPRAM                     1045
 #define IDC_SLOWRAM                     1046
 #define IDC_Z3TEXT                      1047
-#define IDC_FASTRAM2                    1047
 #define IDC_Z3FASTRAM                   1048
 #define IDC_Z3FASTMEM                   1049
-#define IDC_MBRAM1                      1050
-#define IDC_MBRAM2                      1051
+#define IDC_MEMORYRAM                   1050
 #define IDC_Z3CHIPMEM                   1052
 #define IDC_Z3CHIPRAM                   1053
 #define IDC_MAX32RAM                    1054
@@ -873,6 +872,8 @@
 #define IDC_ACCELERATORBOARDCHECKBOX    1617
 #define IDC_AVIOUTPUT_AUDIO_STATIC      1618
 #define IDC_FILTERHO                    1618
+#define IDC_NE2001                      1618
+#define IDC_NE2000PCMCIA                1618
 #define IDC_AVIOUTPUT_VIDEO_STATIC      1619
 #define IDC_FILTERVO                    1619
 #define IDC_AVIOUTPUT_8BIT              1620
@@ -1133,18 +1134,13 @@
 #define IDC_CS_DMAC2                    1769
 #define IDC_CS_CDTVSCSI                 1771
 #define IDC_CS_CD32FMV                  1771
-#define IDC_CS_SCSIMODE                 1772
 #define IDC_DF0ENABLE                   1773
-#define IDC_CS_TOCCATA                  1773
 #define IDC_DF1ENABLE                   1774
 #define IDC_FS_SELECT_DIR               1774
-#define IDC_CS_TOCCATAMIXER             1774
 #define IDC_FS_SELECT_FILE              1775
 #define IDC_FLOPPY_FFS                  1775
-#define IDC_CS_ES1370                   1775
 #define IDC_DF2ENABLE                   1776
 #define IDC_FS_SELECT_EJECT             1776
-#define IDC_CS_FM801                    1776
 #define IDC_FS_RW                       1777
 #define IDC_FLOPPY_BOOTABLE             1777
 #define IDC_DF3ENABLE                   1778
@@ -1199,6 +1195,8 @@
 #define IDC_RTG_SCALE_ALLOW2            1798
 #define IDC_RTG_CENTER                  1798
 #define IDC_PORT0_REMAP                 1799
+#define IDC_RTG_Z2Z4                    1799
+#define IDC_RTG_NUM                     1799
 #define IDC_PORT2_REMAP                 1800
 #define IDC_PORT3_REMAP                 1801
 #define IDC_INPUTMAPOUT                 1801
@@ -1210,8 +1208,8 @@
 #define IDC_CD_TEXT                     1805
 #define IDC_CD_TYPE                     1806
 #define IDC_CD_SELECT                   1807
-#define IDC_FASTMEMAUTOCONFIG           1808
 #define IDC_RTG_DISPLAYSELECT           1809
+#define IDC_FASTMEMAUTOCONFIGUSE        1809
 #define IDC_MISCLIST                    1810
 #define IDC_STATENAME                   1811
 #define IDC_SAMPLER_STEREO              1812
@@ -1253,8 +1251,17 @@
 #define IDC_CPUBOARDMEM                 1843
 #define IDC_Z3MAPPING                   1844
 #define IDC_CPUBOARD_SUBTYPE            1845
+#define IDC_Z3MAPPING2                  1845
+#define IDC_MEMORYSELECT                1845
 #define IDC_CYCLEEXACTMEMORY            1846
 #define IDC_UAEBOARD_TYPE               1848
+#define IDC_AUTOCONFIG_MANUFACTURER     1849
+#define IDC_AUTOCONFIG_PRODUCT          1850
+#define IDC_BOARDLIST                   1850
+#define IDC_AUTOCONFIG_DATA             1851
+#define IDC_AUTOCONFIGCUSTOMSORT        1851
+#define IDC_BOARDS_DOWN                 1852
+#define IDC_BOARDS_UP                   1853
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1304,9 +1311,9 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        399
+#define _APS_NEXT_RESOURCE_VALUE        400
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1849
+#define _APS_NEXT_CONTROL_VALUE         1853
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

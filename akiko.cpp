@@ -31,8 +31,8 @@
 #include "debug.h"
 
 #define AKIKO_DEBUG_NVRAM 0
-#define AKIKO_DEBUG_IO 1
-#define AKIKO_DEBUG_IO_CMD 1
+#define AKIKO_DEBUG_IO 0
+#define AKIKO_DEBUG_IO_CMD 0
 
 int log_cd32 = 0;
 
@@ -412,7 +412,7 @@ static void subfunc (uae_u8 *data, int cnt)
 	uae_sem_post (&sub_sem);
 }
 
-static int statusfunc (int status)
+static int statusfunc (int status, int playpos)
 {
 	if (status == -1)
 		return 0;

@@ -99,16 +99,19 @@ struct sound_dp
 	IAudioRenderClient *pRenderClient;
 	ISimpleAudioVolume *pAudioVolume;
 	IMMDeviceEnumerator *pEnumerator;
-#if 0
 	IAudioClock *pAudioClock;
 	UINT64 wasapiclock;
-#endif
 	REFERENCE_TIME hnsRequestedDuration;
 	UINT32 bufferFrameCount;
 	UINT64 wasapiframes;
 	int wasapiexclusive;
+	int wasapipull;
 	int sndbuf;
 	int wasapigoodsize;
+	HANDLE wasapievent;
+	uae_u8 *wasapibuffer;
+	int wasapibufferlen;
+	int wasapibuffermaxlen;
 
 #if USE_XAUDIO
 	// xaudio2
@@ -145,7 +148,7 @@ static int have_sound;
 static int statuscnt;
 
 #define SND_MAX_BUFFER2 524288
-#define SND_MAX_BUFFER 8192
+#define SND_MAX_BUFFER 65536
 
 uae_u16 paula_sndbuffer[SND_MAX_BUFFER];
 uae_u16 *paula_sndbufpt;
@@ -163,6 +166,8 @@ static struct sound_data *sdp = &sdpaula;
 static uae_u8 *extrasndbuf;
 static int extrasndbufsize;
 static int extrasndbuffered;
+
+static int sound_pull = 1;
 
 int setup_sound (void)
 {
@@ -347,8 +352,11 @@ static void pause_audio_wasapi (struct sound_data *sd)
 	HRESULT hr;
 
 	hr = s->pAudioClient->Stop ();
-	if (FAILED (hr))
+	if (FAILED (hr)) {
 		write_log (_T("WASAPI: Stop() %08X\n"), hr);
+	}
+	if (s->wasapievent)
+		ResetEvent(s->wasapievent);
 }
 static void resume_audio_wasapi (struct sound_data *sd)
 {
@@ -357,17 +365,26 @@ static void resume_audio_wasapi (struct sound_data *sd)
 	BYTE *pData;
 	int framecnt;
 
+	if (s->wasapievent)
+		ResetEvent(s->wasapievent);
 	hr = s->pAudioClient->Reset ();
-	if (FAILED (hr))
+	if (FAILED (hr)) {
 		write_log (_T("WASAPI: Reset() %08X\n"), hr);
+	}
 	framecnt = s->wasapigoodsize;
 	hr = s->pRenderClient->GetBuffer (framecnt, &pData);
-	if (FAILED (hr))
+	if (FAILED (hr)) {
+		write_log(_T("WASAPI: Resume GetBuffer() %08X\n"), hr);
 		return;
+	}
 	hr = s->pRenderClient->ReleaseBuffer (framecnt, AUDCLNT_BUFFERFLAGS_SILENT);
+	if (FAILED(hr)) {
+		write_log(_T("WASAPI: Resume ReleaseBuffer() %08X\n"), hr);
+	}
 	hr = s->pAudioClient->Start ();
-	if (FAILED (hr))
+	if (FAILED (hr)) {
 		write_log (_T("WASAPI: Start() %08X\n"), hr);
+	}
 	s->wasapiframes = 0;
 	s->sndbuf = 0;
 }
@@ -1067,16 +1084,20 @@ static void close_audio_wasapi (struct sound_data *sd)
 		s->pRenderClient->Release ();
 	if (s->pAudioVolume)
 		s->pAudioVolume->Release ();
-#if 0
 	if (s->pAudioClock)
 		s->pAudioClock->Release ();
-#endif
 	if (s->pAudioClient)
 		s->pAudioClient->Release ();
 	if (s->pDevice)
 		s->pDevice->Release ();
 	if (s->pEnumerator)
 		s->pEnumerator->Release ();
+	if (s->wasapievent) {
+		CloseHandle(s->wasapievent);
+		s->wasapievent = NULL;
+	}
+	xfree(s->wasapibuffer);
+	s->wasapibuffer = NULL;
 }
 
 static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
@@ -1094,11 +1115,16 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 
 	sd->devicetype = exclusive ? SOUND_DEVICE_WASAPI_EXCLUSIVE : SOUND_DEVICE_WASAPI;
 	s->wasapiexclusive = exclusive;
+	s->wasapipull = sound_pull;
 
 	if (s->wasapiexclusive)
 		sharemode = AUDCLNT_SHAREMODE_EXCLUSIVE;
 	else
 		sharemode = AUDCLNT_SHAREMODE_SHARED;
+
+	if (s->wasapipull) {
+		s->wasapievent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	}
 
 	hr = CoCreateInstance (__uuidof(MMDeviceEnumerator), NULL,
 		CLSCTX_ALL, __uuidof(IMMDeviceEnumerator),
@@ -1214,7 +1240,12 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 		sd->freq = pwfx_saved->nSamplesPerSec;
 	}
 
+	int tmp_sndbufsize = sd->sndbufsize;
+
 	sd->samplesize = sd->channels * 16 / 8;
+	if (sd->sndbufsize > SND_MAX_BUFFER)
+		sd->sndbufsize = SND_MAX_BUFFER;
+
 	s->snd_configsize = sd->sndbufsize * sd->samplesize;
 
 	s->bufferFrameCount = (UINT32)( // frames =
@@ -1236,7 +1267,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 			);
 	}
 
-	hr = s->pAudioClient->Initialize (sharemode, AUDCLNT_STREAMFLAGS_NOPERSIST,
+	hr = s->pAudioClient->Initialize (sharemode, AUDCLNT_STREAMFLAGS_NOPERSIST | (s->wasapipull ? AUDCLNT_STREAMFLAGS_EVENTCALLBACK : 0),
 		s->hnsRequestedDuration, s->wasapiexclusive ? s->hnsRequestedDuration : 0, pwfx ? pwfx : &wavfmt.Format, NULL);
 	if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED) {
 		hr = s->pAudioClient->GetBufferSize (&s->bufferFrameCount);
@@ -1259,12 +1290,20 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 			write_log (_T("WASAPI: Activate() %08X\n"), hr);
 			goto error;
 		}
-		hr = s->pAudioClient->Initialize (sharemode, AUDCLNT_STREAMFLAGS_NOPERSIST,
+		hr = s->pAudioClient->Initialize (sharemode, AUDCLNT_STREAMFLAGS_NOPERSIST | (s->wasapipull ? AUDCLNT_STREAMFLAGS_EVENTCALLBACK : 0),
 			s->hnsRequestedDuration, s->wasapiexclusive ? s->hnsRequestedDuration : 0, pwfx ? pwfx : &wavfmt.Format, NULL);
 	}
 	if (FAILED (hr)) {
 		write_log (_T("WASAPI: Initialize() %08X\n"), hr);
 		goto error;
+	}
+
+	if (s->wasapipull) {
+		hr = s->pAudioClient->SetEventHandle(s->wasapievent);
+		if (FAILED(hr)) {
+			write_log(_T("WASAPI: SetEventHandle() %08X\n"), hr);
+			goto error;
+		}
 	}
 
 	hr = s->pAudioClient->GetBufferSize (&s->bufferFrameCount);
@@ -1292,8 +1331,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 		write_log (_T("WASAPI: GetService(ISimpleAudioVolume) %08X\n"), hr);
 		goto error;
 	}
-#if 0
-	hr = s->pAudioClient->GetService (IAudioClock, (void**)&s->pAudioClock);
+	hr = s->pAudioClient->GetService (__uuidof(IAudioClock), (void**)&s->pAudioClock);
 	if (FAILED (hr)) {
 		write_log (_T("WASAPI: GetService(IAudioClock) %08X\n"), hr);
 	} else {
@@ -1302,16 +1340,31 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 			write_log (_T("WASAPI: GetFrequency() %08X\n"), hr);
 		}
 	}
-#endif
-	sd->sndbufsize = (s->bufferFrameCount / 8) * sd->samplesize;
-	v = s->bufferFrameCount * sd->samplesize;
-	v /= 2;
-	if (sd->sndbufsize > v)
-		sd->sndbufsize = v;
-	s->wasapigoodsize = s->bufferFrameCount / 2;
+	if (s->wasapipull) {
+		if (s->wasapiexclusive) {
+			sd->sndbufsize = s->bufferFrameCount * sd->samplesize;
+			s->wasapibuffermaxlen = sd->sndbufsize;
+		} else {
+			sd->sndbufsize = s->bufferFrameCount * sd->samplesize / 2;
+			s->wasapibuffermaxlen = sd->sndbufsize * 2;
+		}
+		s->wasapigoodsize = s->bufferFrameCount;
+		s->wasapibuffer = xcalloc(uae_u8, s->wasapibuffermaxlen);
+		s->wasapibufferlen = 0;
+	} else {
+		sd->sndbufsize = (s->bufferFrameCount / 8) * sd->samplesize;
+		v = s->bufferFrameCount * sd->samplesize;
+		v /= 2;
+		if (sd->sndbufsize > v)
+			sd->sndbufsize = v;
+		s->wasapigoodsize = s->bufferFrameCount / 2;
+	}
 
-	write_log(_T("WASAPI: '%s'\nWASAPI: EX=%d CH=%d FREQ=%d BUF=%d (%d)\n"),
-		name, s->wasapiexclusive, sd->channels, sd->freq, sd->sndbufsize / sd->samplesize, s->bufferFrameCount);
+	write_log(_T("WASAPI: '%s'\nWASAPI: %s %s CH=%d FREQ=%d BUF=%d (%d)\n"),
+		name,
+		s->wasapiexclusive ? _T("Exclusive") : _T("Shared"),
+		s->wasapipull ? _T("Pull") : _T("Push"),
+		sd->channels, sd->freq, sd->sndbufsize / sd->samplesize, s->bufferFrameCount);
 
 	CoTaskMemFree (pwfx);
 	CoTaskMemFree (pwfx_saved);
@@ -1599,6 +1652,8 @@ static int open_sound (void)
 
 	have_sound = 1;
 	sound_available = 1;
+	gui_data.sndbuf_avail = !audio_is_pull();
+
 	paula_sndbufsize = sdp->sndbufsize;
 	paula_sndbufpt = paula_sndbuffer;
 	driveclick_init ();
@@ -1611,6 +1666,7 @@ void close_sound (void)
 	config_changed = 1;
 	gui_data.sndbuf = 0;
 	gui_data.sndbuf_status = 3;
+	gui_data.sndbuf_avail = false;
 	if (! have_sound)
 		return;
 	close_sound_device (sdp);
@@ -1656,6 +1712,7 @@ int init_sound (void)
 	bool started = false;
 	gui_data.sndbuf_status = 3;
 	gui_data.sndbuf = 0;
+	gui_data.sndbuf_avail = false;
 	if (!sound_available)
 		return 0;
 	if (currprefs.produce_sound <= 1)
@@ -1974,7 +2031,7 @@ static void finish_sound_buffer_xaudio2 (struct sound_data *sd, uae_u16 *sndbuff
 }
 #endif
 
-static void finish_sound_buffer_wasapi (struct sound_data *sd, uae_u16 *sndbuffer)
+static void finish_sound_buffer_wasapi_push(struct sound_data *sd, uae_u16 *sndbuffer)
 {
 	struct sound_dp *s = sd->data;
 	HRESULT hr;
@@ -1983,6 +2040,7 @@ static void finish_sound_buffer_wasapi (struct sound_data *sd, uae_u16 *sndbuffe
 	int avail;
 	int stuck = 2000;
 	int oldpadding = 0;
+	bool silence = false;
 
 	for (;;) {
 		hr = s->pAudioClient->GetCurrentPadding (&numFramesPadding);
@@ -2015,11 +2073,83 @@ static void finish_sound_buffer_wasapi (struct sound_data *sd, uae_u16 *sndbuffe
 
 	hr = s->pRenderClient->GetBuffer (sd->sndbufframes, &pData);
 	if (SUCCEEDED (hr)) {
-		memcpy (pData, sndbuffer, sd->sndbufsize);
+		if (silence)
+			memset(pData, 0, sd->sndbufsize);
+		else
+			memcpy(pData, sndbuffer, sd->sndbufsize);
 		s->pRenderClient->ReleaseBuffer (sd->sndbufframes, 0);
 	}
 
 }
+
+static bool finish_sound_buffer_wasapi_pull_do(struct sound_data *sd)
+{
+	struct sound_dp *s = sd->data;
+	HRESULT hr;
+	BYTE *pData;
+
+	if (s->wasapibufferlen <= 0)
+		return false;
+
+	int frames = s->wasapibufferlen / sd->samplesize;
+	int avail = frames;
+
+	if (!s->wasapiexclusive) {
+		UINT32 numFramesPadding;
+		hr = s->pAudioClient->GetCurrentPadding(&numFramesPadding);
+		if (FAILED(hr)) {
+			write_log(_T("WASAPI: GetCurrentPadding() %08X\n"), hr);
+			return false;
+		}
+		avail = s->bufferFrameCount - numFramesPadding;
+		if (!avail)
+			return false;
+		if (avail > frames)
+			avail = frames;
+	}
+
+	ResetEvent(s->wasapievent);
+
+	hr = s->pRenderClient->GetBuffer(avail, &pData);
+	if (SUCCEEDED(hr)) {
+		memcpy(pData, s->wasapibuffer, avail * sd->samplesize);
+		hr = s->pRenderClient->ReleaseBuffer(avail, 0);
+		if (FAILED(hr)) {
+			write_log(_T("WASAPI: ReleaseBuffer() %08X\n"), hr);
+		}
+	} else {
+		write_log(_T("WASAPI: GetBuffer() %08X\n"), hr);
+	}
+	
+	if (avail < frames) {
+		memmove(s->wasapibuffer, s->wasapibuffer + avail * sd->samplesize, s->wasapibufferlen - (avail  * sd->samplesize));
+	}
+	s->wasapibufferlen -= avail * sd->samplesize;
+
+	return true;
+}
+
+static void finish_sound_buffer_wasapi_pull(struct sound_data *sd, uae_u16 *sndbuffer)
+{
+	struct sound_dp *s = sd->data;
+
+	if (s->wasapibufferlen + sd->sndbufsize > s->wasapibuffermaxlen) {
+		write_log(_T("wasapi pull overflow! %d %d %d\n"), s->wasapibufferlen, sd->sndbufsize, s->wasapibuffermaxlen);
+		s->wasapibufferlen = 0;
+	}
+	memcpy(s->wasapibuffer + s->wasapibufferlen, sndbuffer, sd->sndbufsize);
+	s->wasapibufferlen += sd->sndbufsize;
+}
+
+static void finish_sound_buffer_wasapi(struct sound_data *sd, uae_u16 *sndbuffer)
+{
+	struct sound_dp *s = sd->data;
+	if (s->wasapipull)
+		finish_sound_buffer_wasapi_pull(sd, sndbuffer);
+	else
+		finish_sound_buffer_wasapi_push(sd, sndbuffer);
+}
+
 
 static void finish_sound_buffer_ds (struct sound_data *sd, uae_u16 *sndbuffer)
 {
@@ -2229,7 +2359,16 @@ static void channelswap6 (uae_s16 *sndbuffer, int len)
 	}
 }
 
-void send_sound (struct sound_data *sd, uae_u16 *sndbuffer)
+static bool send_sound_do(struct sound_data *sd)
+{
+	int type = sd->devicetype;
+	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
+		return finish_sound_buffer_wasapi_pull_do(sd);
+	}
+	return false;
+}
+
+static void send_sound (struct sound_data *sd, uae_u16 *sndbuffer)
 {
 	int type = sd->devicetype;
 	if (savestate_state)
@@ -2254,6 +2393,92 @@ void send_sound (struct sound_data *sd, uae_u16 *sndbuffer)
 	else if (type == SOUND_DEVICE_XAUDIO2)
 		finish_sound_buffer_xaudio2 (sd, sndbuffer);
 #endif
+}
+
+HANDLE get_sound_event(void)
+{
+	int type = sdp->devicetype;
+	if (sdp->paused)
+		return 0;
+	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
+		struct sound_dp *s = sdp->data;
+		if (s && s->wasapipull) {
+			return s->wasapievent;
+		}
+	}
+	return 0;
+}
+
+bool audio_is_event_frame_possible(int ms)
+{
+	int type = sdp->devicetype;
+	if (sdp->paused)
+		return false;
+	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
+		struct sound_dp *s = sdp->data;
+		int bufsize = (uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer;
+		bufsize /= sdp->samplesize;
+		int todo = s->bufferFrameCount - bufsize;
+		int samplesperframe = sdp->obtainedfreq / vblank_hz;
+		return samplesperframe >= todo - samplesperframe;
+	}
+	return false;
+}
+
+bool audio_is_pull(void)
+{
+	int type = sdp->devicetype;
+	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
+		struct sound_dp *s = sdp->data;
+		return s && s->wasapipull;
+	}
+	return false;
+}
+
+int audio_pull_buffer(void)
+{
+	int cnt = 0;
+	int type = sdp->devicetype;
+	
+	if (sdp->paused)
+		return 0;
+	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
+		struct sound_dp *s = sdp->data;
+		if (s->wasapibufferlen > 0) {
+			cnt++;
+			int size = (uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer;
+			if (size > sdp->sndbufsize * 2 / 3)
+				cnt++;
+		}
+	}
+	return cnt;
+}
+
+bool audio_is_pull_event(void)
+{
+	int type = sdp->devicetype;
+	if (sdp->paused)
+		return false;
+	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
+		struct sound_dp *s = sdp->data;
+		if (s->wasapipull) {
+			return WaitForSingleObject(s->wasapievent, 0) == WAIT_OBJECT_0;
+		}
+	}
+	return false;
+}
+
+bool audio_finish_pull(void)
+{
+	int type = sdp->devicetype;
+	if (sdp->paused)
+		return false;
+	if (type != SOUND_DEVICE_WASAPI && type != SOUND_DEVICE_WASAPI_EXCLUSIVE)
+		return false;
+	if (audio_pull_buffer() && audio_is_pull_event()) {
+		return send_sound_do(sdp);
+	}
+	return false;
 }
 
 void finish_sound_buffer (void)
@@ -2585,13 +2810,14 @@ int enumerate_sound_devices (void)
 {
 	if (!num_sound_devices) {
 		HMODULE l = NULL;
-		write_log (_T("Enumerating DirectSound devices..\n"));
+		if (os_vista && (sounddrivermask & SOUNDDRIVER_WASAPI)) {
+			wasapi_enum(sound_devices);
+		}
 		if ((1 || force_directsound || !os_vista) && (sounddrivermask & SOUNDDRIVER_DS)) {
+			write_log(_T("Enumerating DirectSound devices..\n"));
 			DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, sound_devices);
 		}
 		DirectSoundCaptureEnumerate ((LPDSENUMCALLBACK)DSEnumProc, record_devices);
-		if (os_vista && (sounddrivermask & SOUNDDRIVER_WASAPI))
-			wasapi_enum (sound_devices);
 #if USE_XAUDIO
 		if (sounddrivermask & SOUNDDRIVE_XAUDIO2)
 			xaudioenumerate (sound_devices);

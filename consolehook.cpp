@@ -39,7 +39,7 @@ void consolehook_config (struct uae_prefs *p)
 	p->cpu_compatible = 0;
 	p->address_space_24 = 0;
 	p->chipmem_size = 0x00200000;
-	p->fastmem_size = 0x00800000;
+	p->fastmem[0].size = 0x00800000;
 	p->bogomem_size = 0;
 	p->nr_floppies = 1;
 	p->floppyslots[1].dfxtype = DRV_NONE;

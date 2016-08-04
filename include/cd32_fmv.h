@@ -3,7 +3,7 @@
 
 #include "uae/types.h"
 
-extern addrbank *cd32_fmv_init (uaecptr);
+extern addrbank *cd32_fmv_init (struct autoconfig_info *aci);
 extern void cd32_fmv_reset(void);
 extern void cd32_fmv_free(void);
 extern void rethink_cd32fmv(void);

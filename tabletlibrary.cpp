@@ -247,7 +247,7 @@ void tabletlib_install (void)
 	dw (0x000E); /* LIB_FLAGS */
 	dw (0x0600); /* LIBF_SUMUSED | LIBF_CHANGED */
 	dw (0xD000); /* INITWORD */
-	dw (0x0027); /* LIB_VERSION */
+	dw (0x0014); /* LIB_VERSION */
 	dw (UAEMAJOR);
 	dw (0xD000); /* INITWORD */
 	dw (0x0016); /* LIB_REVISION */

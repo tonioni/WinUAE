@@ -3,7 +3,7 @@
 
 #include "uae/types.h"
 
-extern addrbank *cpuboard_autoconfig_init(struct romconfig*);
+extern bool cpuboard_autoconfig_init(struct autoconfig_info*);
 extern bool cpuboard_maprom(void);
 extern void cpuboard_map(void);
 extern void cpuboard_reset(void);
@@ -44,6 +44,7 @@ void blizzardppc_irq(int level);
 #define BOARD_MEMORY_25BITMEM 6
 #define BOARD_MEMORY_EMATRIX 7
 
+#define ISCPUBOARDP(p, type,subtype) (cpuboards[p->cpuboard_type].id == type && (type < 0 || p->cpuboard_subtype == subtype))
 #define ISCPUBOARD(type,subtype) (cpuboards[currprefs.cpuboard_type].id == type && (type < 0 || currprefs.cpuboard_subtype == subtype))
 
 #define BOARD_ACT 1

@@ -108,6 +108,25 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_GOLEMFAST	0x00100038
 #define ROMTYPE_PHOENIXB	0x00100039
 #define ROMTYPE_IVSTPRO		0x0010003A
+#define ROMTYPE_TOCCATA		0x0010003B
+#define ROMTYPE_ES1370		0x0010003C
+#define ROMTYPE_FM801		0x0010003D
+#define ROMTYPE_UAESNDZ2	0x0010003E
+#define ROMTYPE_UAESNDZ3	0x0010003F
+#define ROMTYPE_RAMZ2		0x00100040
+#define ROMTYPE_RAMZ3		0x00100041
+#define ROMTYPE_CATWEASEL	0x00100042
+#define ROMTYPE_CDTVSCSI	0x00100043
+#define ROMTYPE_MB_IDE		0x00100044
+#define ROMTYPE_SCSI_A3000	0x00100045
+#define ROMTYPE_SCSI_A4000T	0x00100046
+#define ROMTYPE_MB_PCMCIA	0x00100047
+#define ROMTYPE_MEGACHIP	0x00100048
+#define ROMTYPE_A2065		0x00100049
+#define ROMTYPE_NE2KPCI		0x0010004a
+#define ROMTYPE_NE2KPCMCIA	0x0010004b
+#define ROMTYPE_CDTVDMAC	0x0010004c
+#define ROMTYPE_CDTVCR		0x0010004d
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000
@@ -211,5 +230,7 @@ struct boardromconfig *get_boardromconfig(struct uae_prefs *p, int romtype, int 
 #define LOADROM_ZEROFILL 8
 #define LOADROM_ODDFILL(x) ((x << 16) | LOADROM_EVENONLY)
 bool load_rom_rc(struct romconfig *rc, uae_u32 romtype, int maxfilesize, int fileoffset, uae_u8 *rom, int maxromsize, int flags);
+
+#define EXPANSION_ORDER_MAX 10000
 
 #endif /* UAE_ROMMGR_H */

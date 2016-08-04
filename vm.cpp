@@ -10,6 +10,7 @@
 #include "sysdeps.h"
 #include "uae/vm.h"
 #include "uae/log.h"
+#include "options.h"
 #include "memory.h"
 #ifdef _WIN32
 

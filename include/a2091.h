@@ -73,13 +73,12 @@ struct wd_state {
 	bool enabled;
 	int configured;
 	bool autoconfig;
-	uae_u8 dmacmemory[100];
+	uae_u8 dmacmemory[128];
 	uae_u8 *rom;
 	int board_mask;
 	uaecptr baseaddress;
 	int rombankswitcher, rombank;
 	int rom_size, rom_mask;
-	addrbank *bank;
 	struct romconfig *rc;
 	struct wd_state **self_ptr;
 
@@ -96,6 +95,7 @@ struct wd_state {
 	struct wd_chip_state wc;
 	struct commodore_dmac cdmac;
 	struct gvp_dmac gdmac;
+	addrbank bank;
 };
 extern wd_state *wd_cdtv;
 
@@ -103,21 +103,20 @@ extern void init_wd_scsi (struct wd_state*);
 extern void scsi_dmac_a2091_start_dma (struct wd_state*);
 extern void scsi_dmac_a2091_stop_dma (struct wd_state*);
 
-extern addrbank *a2090_init (struct romconfig*);
+extern bool a2090_init (struct autoconfig_info *aci);
 
-extern addrbank *a2091_init (struct romconfig*);
+extern bool a2091_init (struct autoconfig_info *aci);
 extern void a2091_free(void);
 extern void a2091_reset (void);
 
-extern addrbank *gvp_init_s1(struct romconfig*);
-extern addrbank *gvp_init_s2(struct romconfig*);
-extern addrbank *gvp_init_accelerator(struct romconfig*);
+extern bool gvp_init_s1(struct autoconfig_info *aci);
+extern bool gvp_init_s2(struct autoconfig_info *aci);
+extern bool gvp_init_accelerator(struct autoconfig_info *aci);
 extern void gvp_free(void);
 extern void gvp_reset (void);
 
-extern void a3000scsi_init (void);
+extern bool a3000scsi_init(struct autoconfig_info *aci);
 extern void a3000scsi_free (void);
-extern void a3000scsi_reset (void);
 extern void rethink_a2091 (void);
 
 extern void wdscsi_put (struct wd_chip_state*, wd_state*, uae_u8);

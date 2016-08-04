@@ -7,10 +7,9 @@
 
 extern addrbank dmac_bank;
 
-extern addrbank *cdtv_init (struct romconfig *rc);
+extern bool cdtv_init (struct autoconfig_info *aci);
 extern void cdtv_free (void);
 extern void CDTV_hsync_handler(void);
-extern void cdtv_check_banks (void);
 
 void cdtv_battram_write (int addr, int v);
 uae_u8 cdtv_battram_read (int addr);
@@ -19,7 +18,7 @@ extern void cdtv_loadcardmem (uae_u8*, int);
 extern void cdtv_savecardmem (uae_u8*, int);
 
 extern void cdtv_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc);
-
+extern bool cdtvscsi_init(struct autoconfig_info *aci);
 
 extern void cdtv_getdmadata (uae_u32*);
 

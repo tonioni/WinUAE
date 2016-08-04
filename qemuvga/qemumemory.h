@@ -111,6 +111,7 @@ typedef struct MemoryRegionIoeventfd MemoryRegionIoeventfd;
 typedef struct MemoryRegion {
     /* All fields are private - violators will be prosecuted */
     void *opaque;
+	void *data;
 #if 0
 	const MemoryRegionOps *ops;
     MemoryRegion *parent;

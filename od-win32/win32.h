@@ -15,17 +15,17 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEPUBLICBETA 0
+#define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("")
+#define WINUAEBETA _T("0")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2016, 6, 6)
+#define WINUAEDATE MAKEBD(2016, 8, 4)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -112,9 +112,9 @@ extern bool winuaelog_temporary_enable;
 enum pathtype { PATH_TYPE_DEFAULT, PATH_TYPE_WINUAE, PATH_TYPE_NEWWINUAE, PATH_TYPE_NEWAF, PATH_TYPE_AMIGAFOREVERDATA, PATH_TYPE_END };
 void setpathmode (pathtype pt);
 
-extern void sleep_millis (int ms);
-extern void sleep_millis_main (int ms);
-extern void sleep_millis_amiga (int ms);
+extern int sleep_millis (int ms);
+extern int sleep_millis_main (int ms);
+extern int sleep_millis_amiga (int ms);
 extern void wait_keyrelease (void);
 extern void keyboard_settrans (void);
 

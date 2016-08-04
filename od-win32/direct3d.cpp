@@ -2409,7 +2409,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 				getvsyncrate(mode.RefreshRate, &hzmult);
 				if (hzmult < 0) {
 					if (!ap.gfx_strobo) {
-						if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
+						if ((d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO) && isfullscreen() > 0)
 							dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
 					} else {
 						vsync2 = -2;
@@ -2431,7 +2431,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 			if (ap.gfx_strobo) {
 				vsync2 = -2;
 			} else if (ap.gfx_vflip) {
-				if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
+				if ((d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO) && isfullscreen() > 0)
 					dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
 				else
 					vsync2 = -1;

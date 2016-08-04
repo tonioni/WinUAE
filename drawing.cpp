@@ -50,6 +50,7 @@ happening, all ports should restrict window widths to be multiples of 16 pixels.
 #include "debug.h"
 #include "cd32_fmv.h"
 #include "specialmonitors.h"
+#include "devices.h"
 
 #define BG_COLOR_DEBUG 0
 //#define XLINECHECK
@@ -260,6 +261,7 @@ static bool specialmonitoron;
 static bool ecs_genlock_features_active;
 static uae_u8 ecs_genlock_features_mask;
 static bool ecs_genlock_features_colorkey;
+static int hsync_shift_hack;
 
 bool picasso_requested_on, picasso_requested_forced_on, picasso_on;
 
@@ -331,7 +333,7 @@ static void reset_decision_table (void)
 STATIC_INLINE void count_frame (void)
 {
 	framecnt++;
-	if (framecnt >= currprefs.gfx_framerate)
+	if (framecnt >= currprefs.gfx_framerate || currprefs.monitoremu == MONITOREMU_A2024)
 		framecnt = 0;
 	if (inhibit_frame)
 		framecnt = 1;
@@ -861,6 +863,8 @@ static void pfield_init_linetoscr (bool border)
 	int leftborderhidden;
 	int native_ddf_left2;
 
+	hsync_shift_hack = 0;
+	
 	if (border)
 		ddf_left = DISPLAY_LEFT_SHIFT;
 
@@ -2168,16 +2172,18 @@ STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int dualpf, int has_a
 	uae_u16 *buf = spixels + e->first_pixel;
 	uae_u8 *stbuf = spixstate.bytes + e->first_pixel;
 	int spr_pos, pos;
+	int epos = e->pos;
+	int emax = e->max;
 
-	buf -= e->pos;
-	stbuf -= e->pos;
+	buf -= epos;
+	stbuf -= epos;
 
-	spr_pos = e->pos + ((DIW_DDF_OFFSET - DISPLAY_LEFT_SHIFT) << sprite_buffer_res);
+	spr_pos = epos + ((DIW_DDF_OFFSET - DISPLAY_LEFT_SHIFT) << sprite_buffer_res);
 
 	if (spr_pos < sprite_first_x)
 		sprite_first_x = spr_pos;
 
-	for (pos = e->pos; pos < e->max; pos++, spr_pos++) {
+	for (pos = epos; pos < emax; pos++, spr_pos++) {
 		if (spr_pos >= 0 && spr_pos < MAX_PIXELS_PER_LINE) {
 			spritepixels[spr_pos].data = buf[pos];
 			spritepixels[spr_pos].stdata = stbuf[pos];
@@ -2812,6 +2818,8 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 				colors_for_drawing.extra &= ~(1 << (CE_SHRES_DELAY + 1));
 				colors_for_drawing.extra |= (value & 3) << CE_SHRES_DELAY;
 				pfield_expand_dp_bplcon();
+			} else if (regno == 0 && (value & COLOR_CHANGE_HSYNC_HACK)) {
+				hsync_shift_hack = (uae_s8)value;
 			} else {
 				color_reg_set (&colors_for_drawing, regno, value);
 				colors_for_drawing.acolors[regno] = getxcolor (value);
@@ -2828,6 +2836,16 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 		(*worker_border) (visible_left_border, visible_left_border + gfxvidinfo.drawbuffer.inwidth, true);
 	}
 #endif
+	if (hsync_shift_hack > 0) {
+		// hpos shift hack
+		int shift = (hsync_shift_hack << lores_shift) * gfxvidinfo.drawbuffer.pixbytes;
+		if (shift) {
+			int firstpos = visible_left_border * gfxvidinfo.drawbuffer.pixbytes;
+			int lastpos = (visible_left_border + gfxvidinfo.drawbuffer.inwidth) * gfxvidinfo.drawbuffer.pixbytes;
+			memmove(xlinebuffer + firstpos, xlinebuffer + firstpos + shift, lastpos - firstpos - shift);
+			memset(xlinebuffer + lastpos - shift, 0, shift);
+		}
+	}
 }
 
 STATIC_INLINE bool is_color_changes(struct draw_info *di)
@@ -3816,7 +3834,7 @@ void hardware_line_completed (int lineno)
 #endif
 }
 
-static void check_picasso (void)
+void check_prefs_picasso(void)
 {
 #ifdef PICASSO96
 	if (picasso_on && picasso_redraw_necessary)
@@ -3825,6 +3843,15 @@ static void check_picasso (void)
 
 	if (picasso_requested_on == picasso_on && !picasso_requested_forced_on)
 		return;
+
+	if (picasso_requested_on) {
+		if (!toggle_rtg(-2)) {
+			picasso_requested_forced_on = false;
+			picasso_on = false;
+			picasso_requested_on = false;
+			return;
+		}
+	}
 
 	picasso_requested_forced_on = false;
 	picasso_on = picasso_requested_on;
@@ -3867,11 +3894,7 @@ bool vsync_handle_check (void)
 		notice_screen_contents_lost ();
 		notice_new_xcolors ();
 	}
-	check_prefs_changed_cd ();
-	check_prefs_changed_audio ();
-	check_prefs_changed_custom ();
-	check_prefs_changed_cpu ();
-	check_picasso ();
+	device_check_config();
 	return changed != 0;
 }
 
@@ -4124,6 +4147,7 @@ void reset_drawing (void)
 	center_reset = true;
 	specialmonitoron = false;
 	bplcolorburst_field = 1;
+	hsync_shift_hack = 0;
 }
 
 static void gen_direct_drawing_table(void)
@@ -4164,7 +4188,7 @@ void drawing_init (void)
 
 int isvsync_chipset (void)
 {
-	if (picasso_on || currprefs.gfx_apmode[0].gfx_vsync <= 0 || (currprefs.gfx_apmode[0].gfx_vsync <= 0 && !currprefs.gfx_apmode[0].gfx_fullscreen))
+	if (picasso_on || currprefs.gfx_apmode[0].gfx_vsync <= 0)
 		return 0;
 	if (currprefs.gfx_apmode[0].gfx_vsyncmode == 0)
 		return 1;
@@ -4175,7 +4199,7 @@ int isvsync_chipset (void)
 
 int isvsync_rtg (void)
 {
-	if (!picasso_on || currprefs.gfx_apmode[1].gfx_vsync <= 0 || (currprefs.gfx_apmode[1].gfx_vsync <= 0 && !currprefs.gfx_apmode[1].gfx_fullscreen))
+	if (!picasso_on || currprefs.gfx_apmode[1].gfx_vsync <= 0)
 		return 0;
 	if (currprefs.gfx_apmode[1].gfx_vsyncmode == 0)
 		return 1;
