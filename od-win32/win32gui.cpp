@@ -1284,7 +1284,7 @@ static int drag_move (HWND hWnd, LPARAM lParam)
 static HWND cachedlist = NULL;
 
 static const TCHAR *memsize_names[] = {
-	/* 0 */ szNone.c_str(),
+	/* 0 */ _T("none")
 	/* 1 */ _T("64 KB"),
 	/* 2 */ _T("128 KB"),
 	/* 3 */ _T("256 KB"),
@@ -19325,6 +19325,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	default_prefs (&workprefs, false, 0);
 
 	szNone = WIN32GUI_LoadUIString (IDS_NONE);
+	memsize_names[0] = szNone.c_str();
 	prefs_to_gui (&changed_prefs);
 
 	if (!init_called) {

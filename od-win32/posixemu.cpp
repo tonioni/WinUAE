@@ -175,12 +175,19 @@ void uae_end_thread (uae_thread_id *tid)
 	}
 }
 
+typedef BOOL(WINAPI* AVSETMMTHREADPRIORITY)(HANDLE, AVRT_PRIORITY);
+static AVSETMMTHREADPRIORITY pAvSetMmThreadPriority;
+
 int uae_start_thread (const TCHAR *name, void *(*f)(void *), void *arg, uae_thread_id *tid)
 {
 	HANDLE hThread;
 	int result = 1;
 	unsigned foo;
 	struct thparms *thp;
+
+	if (!pAvSetMmThreadPriority && AVTask) {
+		pAvSetMmThreadPriority = (AVSETMMTHREADPRIORITY)GetProcAddress(GetModuleHandle(_T("Avrt.dll")), "AvSetMmThreadPriority");
+	}
 
 	thp = xmalloc (struct thparms, 1);
 	thp->f = f;
@@ -191,8 +198,8 @@ int uae_start_thread (const TCHAR *name, void *(*f)(void *), void *arg, uae_thre
 			//write_log (_T("Thread '%s' started (%d)\n"), name, hThread);
 			if (!AVTask) {
 				SetThreadPriority (hThread, THREAD_PRIORITY_HIGHEST);
-			} else {
-				AvSetMmThreadPriority(AVTask, AVRT_PRIORITY_HIGH);
+			} else if (pAvSetMmThreadPriority) {
+				pAvSetMmThreadPriority(AVTask, AVRT_PRIORITY_HIGH);
 			}
 		}
 	} else {
@@ -212,8 +219,8 @@ int uae_start_thread_fast (void *(*f)(void *), void *arg, uae_thread_id *tid)
 	if (*tid) {
 		if (!AVTask) {
 			SetThreadPriority (*tid, THREAD_PRIORITY_HIGHEST);
-		} else {
-			AvSetMmThreadPriority(AVTask, AVRT_PRIORITY_HIGH);
+		} else if (pAvSetMmThreadPriority) {
+			pAvSetMmThreadPriority(AVTask, AVRT_PRIORITY_HIGH);
 		}
 	}
 	return v;
@@ -248,8 +255,8 @@ void uae_set_thread_priority (uae_thread_id *tid, int pri)
 	if (!AVTask) {
 		if (!SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_HIGHEST))
 			SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
-	} else {
-		AvSetMmThreadPriority(AVTask, AVRT_PRIORITY_HIGH);
+	} else if (pAvSetMmThreadPriority) {
+		pAvSetMmThreadPriority(AVTask, AVRT_PRIORITY_HIGH);
 	}
 }
 
