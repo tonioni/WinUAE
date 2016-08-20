@@ -404,6 +404,8 @@ static bool ocs_agnus_ddf_enable_toggle;
 static int bpl_dma_off_when_active;
 static int bitplane_maybe_start_hpos;
 static bool ddfstop_matched;
+static int bitplane_overrun, bitplane_overrun_hpos;
+static int bitplane_overrun_fetch_cycle, bitplane_overrun_cycle_diagram_shift;
 
 enum plfstate
 {
@@ -1069,8 +1071,12 @@ STATIC_INLINE int isocs7planes (void)
 
 int is_bitplane_dma (int hpos)
 {
-	if (hpos < bpl_hstart || fetch_state == fetch_not_started || plf_state == plf_wait)
+	if (hpos < bpl_hstart || fetch_state == fetch_not_started || plf_state == plf_wait) {
+		if (bitplane_overrun && hpos < bitplane_overrun_hpos) {
+			return curr_diagram[(hpos - bitplane_overrun_cycle_diagram_shift) & fetchstart_mask];
+		}
 		return 0;
+	}
 	if ((plf_state >= plf_end && hpos >= thisline_decision.plfright)
 		|| hpos >= estimated_last_fetch_cycle)
 		return 0;
@@ -1079,8 +1085,12 @@ int is_bitplane_dma (int hpos)
 
 STATIC_INLINE int is_bitplane_dma_inline (int hpos)
 {
-	if (hpos < bpl_hstart || fetch_state == fetch_not_started || plf_state == plf_wait)
+	if (hpos < bpl_hstart || fetch_state == fetch_not_started || plf_state == plf_wait) {
+		if (bitplane_overrun && hpos < bitplane_overrun_hpos) {
+			return curr_diagram[(hpos - bitplane_overrun_cycle_diagram_shift) & fetchstart_mask];
+		}
 		return 0;
+	}
 	if ((plf_state >= plf_end && hpos >= thisline_decision.plfright)
 		|| hpos >= estimated_last_fetch_cycle)
 		return 0;
@@ -1293,9 +1303,9 @@ static int fetch_warn (int nr, int hpos)
 {
 	static int warned1 = 30, warned2 = 30;
 	int add = fetchmode_bytes;
-	if (hpos == maxhpos - 1) {
+	if (hpos == maxhpos - 1 || hpos == 1 || hpos == 3 || hpos == 5) {
 		if (warned1 >= 0) {
-			write_log (_T("WARNING: BPL fetch conflicts with strobe refresh slot!\n"));
+			write_log (_T("WARNING: BPL fetch conflicts with strobe refresh slot %d!\n"), hpos);
 			warned1--;
 		}
 		add = refptr_val;
@@ -1320,13 +1330,14 @@ static int fetch_warn (int nr, int hpos)
 	return add;
 }
 
-static void fetch (int nr, int fm, int hpos)
+static void fetch (int nr, int fm, bool modulo, int hpos)
 {
 	if (nr < bplcon0_planes_limit) {
 		uaecptr p;
 		int add = fetchmode_bytes;
 
-		if (hpos > maxhpos - HPOS_SHIFT && !(beamcon0 & 0x80)) {
+		// refresh conflict?
+		if ((hpos > maxhpos - HPOS_SHIFT || hpos == 1 || hpos == 3 || hpos == 5) && !(beamcon0 & 0x80)) {
 			add = fetch_warn (nr, hpos);
 		}
 
@@ -1370,8 +1381,8 @@ static void fetch (int nr, int fm, int hpos)
 			break;
 #endif
 		}
-		if (plf_state == plf_passed_stop2 && fetch_cycle >= (fetch_cycle & ~fetchunit_mask) + fetch_modulo_cycle)
-			add_modulo (hpos, nr);
+		if (modulo)
+			add_modulo(hpos, nr);
 	}
 }
 
@@ -2195,73 +2206,133 @@ static void finish_last_fetch (int pos, int fm, bool reallylast)
 		}
 	}
 }
+
+static void reset_bpl_vars(void)
+{
+	out_nbits = 0;
+	out_offs = 0;
+	toscr_nbits = 0;
+	thisline_decision.bplres = bplcon0_res;
+}
+
 /* check special case where last fetch wraps to next line
  * this makes totally corrupted and flickering display on
  * real hardware due to refresh cycle conflicts
  */
 static void maybe_finish_last_fetch (int pos, int fm)
 {
-	static int warned = 20;
-	bool done = false;
-
-	if (plf_state != plf_passed_stop2 || (fetch_state != fetch_started && fetch_state != fetch_started_first) || aga_plf_passed_stop2 || !dmaen (DMA_BITPLANE)) {
+	if (plf_state > plf_passed_stop2 || plf_state < plf_passed_stop || (fetch_state != fetch_started && fetch_state != fetch_started_first) || !dmaen (DMA_BITPLANE)) {
 		finish_last_fetch (pos, fm, true);
-		return;
+	} else {
+		bitplane_overrun_fetch_cycle = fetch_cycle;
+		int cycle_start = bitplane_overrun_fetch_cycle & fetchstart_mask;
+		int left = fetchunit - cycle_start;
+		if (plf_state == plf_passed_stop_act) {
+			// not passed stop: remaining cycles + full block.
+			bitplane_overrun = 2;
+			bitplane_overrun_hpos = left + fm_maxplane;
+		} else {
+			// already passsed stop but some cycles remaining.
+			bitplane_overrun = -1;
+			// only idle cycles left?
+			left -= fetchunit - fm_maxplane;
+			if (left <= 0)
+				bitplane_overrun = 0;
+			bitplane_overrun_hpos = left;
+		}
+		bitplane_overrun_cycle_diagram_shift = fetchunit - (bitplane_overrun_fetch_cycle & fetchstart_mask);
+		finish_last_fetch(pos, fm, true);
 	}
-	do {
-		int cycle_start = fetch_cycle & fetchstart_mask;
+}
+
+static void do_overrun_fetch(int until, int fm)
+{
+	static int warned = 20;
+	bool hit = false;
+
+	if (until <= 0)
+		return;
+	for (int pos = last_fetch_hpos; pos < until; pos++) {
+		bool bpl0 = false;
+		int cycle_start = bitplane_overrun_fetch_cycle & fetchstart_mask;
+
+		if (pos < 0)
+			continue;
+
+		if ((bitplane_overrun_fetch_cycle & fetchunit_mask) == 0 && bitplane_overrun < 0) {
+			bitplane_overrun = 0;
+			return;
+		}
+
+		bool modulo = bitplane_overrun < 2;
 		switch (fm_maxplane) {
 		case 8:
 			switch (cycle_start) {
-			case 0: fetch (7, fm, pos); break;
-			case 1: fetch (3, fm, pos); break;
-			case 2: fetch (5, fm, pos); break;
-			case 3: fetch (1, fm, pos); break;
-			case 4: fetch (6, fm, pos); break;
-			case 5: fetch (2, fm, pos); break;
-			case 6: fetch (4, fm, pos); break;
-			case 7: fetch (0, fm, pos); break;
+			case 0: fetch (7, fm, modulo, pos); hit = true; break;
+			case 1: fetch (3, fm, modulo, pos); hit = true;  break;
+			case 2: fetch (5, fm, modulo, pos); hit = true;  break;
+			case 3: fetch (1, fm, modulo, pos); hit = true;  break;
+			case 4: fetch (6, fm, modulo, pos); hit = true;  break;
+			case 5: fetch (2, fm, modulo, pos); hit = true;  break;
+			case 6: fetch (4, fm, modulo, pos); hit = true;  break;
+			case 7: fetch (0, fm, modulo, pos); hit = true; bpl0 = true; break;
 			default:
-			goto end;
+			break;
 			}
 			break;
 		case 4:
 			switch (cycle_start) {
-			case 0: fetch (3, fm, pos); break;
-			case 1: fetch (1, fm, pos); break;
-			case 2: fetch (2, fm, pos); break;
-			case 3: fetch (0, fm, pos); break;
+			case 0: fetch (3, fm, modulo, pos); hit = true;  break;
+			case 1: fetch (1, fm, modulo, pos); hit = true;  break;
+			case 2: fetch (2, fm, modulo, pos); hit = true;  break;
+			case 3: fetch (0, fm, modulo, pos); hit = true;  bpl0 = true; break;
 			default:
-			goto end;
+			break;
 			}
 			break;
 		case 2:
 			switch (cycle_start) {
-			case 0: fetch (1, fm, pos); break;
-			case 1: fetch (0, fm, pos); break;
+			case 0: fetch (1, fm, modulo, pos); hit = true;  break;
+			case 1: fetch (0, fm, modulo, pos); hit = true;  bpl0 = true; break;
 			default:
-			goto end;
+			break;
 			}
 			break;	
 		}
-		fetch_cycle++;
+#if 0
+		if (bpl0) {
+			maybe_first_bpl1dat(pos);
+			beginning_of_plane_block(pos, fm);
+		}
+
 		toscr_nbits += toscr_res2p;
-
-		if (toscr_nbits > 16)
+		if (toscr_nbits > 16) {
+			uae_abort(_T("toscr_nbits > 16 (%d)"), toscr_nbits);
 			toscr_nbits = 0;
+		}
 		if (toscr_nbits == 16)
-			flush_display (fm);
-		done = true;
-		bitplane_line_crossing = pos;
-	} while ((fetch_cycle & fetchunit_mask) != 0);
+			flush_display(fm);
+		if (bpl0) {
+			bpl1dat_written = true;
+			bpl1dat_written_at_least_once = true;
+			reset_bpl_vars();
+			beginning_of_plane_block(pos, fetchmode);
+		}
+#endif
 
-	if (done && warned > 0) {
-		warned--;
-		write_log (_T("WARNING: bitplane DMA crossing scanlines!\n"));
+		if ((bitplane_overrun_fetch_cycle & fetchunit_mask) == 0) {
+			bitplane_overrun--;
+			if (hit && warned > 0) {
+				warned--;
+				write_log (_T("WARNING: bitplane DMA crossing scanlines!\n"));
+			}
+			if (bitplane_overrun <= 0)
+				break;
+		}
+
+		bitplane_overrun_fetch_cycle++;
 	}
 
-end:
-	finish_last_fetch (pos, fm, true);
 }
 
 
@@ -2370,17 +2441,20 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int dma, int fm)
 		that the remaining cycles are idle; we'll fall through the whole switch
 		without doing anything.  */
 		int cycle_start = fetch_cycle & fetchstart_mask;
+		bool modulo =  plf_state == plf_passed_stop2 && fetch_cycle >= (fetch_cycle & ~fetchunit_mask) + fetch_modulo_cycle;
+
+		
 		switch (fm_maxplane) {
 		case 8:
 			switch (cycle_start) {
-			case 0: fetch (7, fm, pos); break;
-			case 1: fetch (3, fm, pos); break;
-			case 2: fetch (5, fm, pos); break;
-			case 3: fetch (1, fm, pos); break;
-			case 4: fetch (6, fm, pos); break;
-			case 5: fetch (2, fm, pos); break;
-			case 6: fetch (4, fm, pos); break;
-			case 7: fetch (0, fm, pos); break;
+			case 0: fetch (7, fm, modulo, pos); break;
+			case 1: fetch (3, fm, modulo, pos); break;
+			case 2: fetch (5, fm, modulo, pos); break;
+			case 3: fetch (1, fm, modulo, pos); break;
+			case 4: fetch (6, fm, modulo, pos); break;
+			case 5: fetch (2, fm, modulo, pos); break;
+			case 6: fetch (4, fm, modulo, pos); break;
+			case 7: fetch (0, fm, modulo, pos); break;
 #ifdef AGA
 			default:
 			// if AGA: consider plf_passed_stop2 already
@@ -2394,10 +2468,10 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int dma, int fm)
 			break;
 		case 4:
 			switch (cycle_start) {
-			case 0: fetch (3, fm, pos); break;
-			case 1: fetch (1, fm, pos); break;
-			case 2: fetch (2, fm, pos); break;
-			case 3: fetch (0, fm, pos); break;
+			case 0: fetch (3, fm, modulo, pos); break;
+			case 1: fetch (1, fm, modulo, pos); break;
+			case 2: fetch (2, fm, modulo, pos); break;
+			case 3: fetch (0, fm, modulo, pos); break;
 #ifdef AGA
 			default:
 			if (plf_state == plf_passed_stop_act)
@@ -2408,8 +2482,8 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int dma, int fm)
 			break;
 		case 2:
 			switch (cycle_start) {
-			case 0: fetch (1, fm, pos); break;
-			case 1: fetch (0, fm, pos); break;
+			case 0: fetch (1, fm, modulo, pos); break;
+			case 1: fetch (0, fm, modulo, pos); break;
 #ifdef AGA
 			default:
 			if (plf_state == plf_passed_stop_act)
@@ -2625,6 +2699,13 @@ static void update_fetch_2 (int hpos) { update_fetch (hpos, 2); }
 static void decide_fetch (int hpos)
 {
 	if (hpos > last_fetch_hpos) {
+		if (bitplane_overrun) {
+			if (fetch_state != fetch_not_started) {
+				bitplane_overrun = 0;
+			} else {
+				do_overrun_fetch(hpos, fetchmode);
+			}
+		}
 		if (fetch_state != fetch_not_started) {
 			switch (fetchmode) {
 			case 0: update_fetch_0 (hpos); break;
@@ -2656,14 +2737,6 @@ STATIC_INLINE void decide_fetch_safe (int hpos)
 			decide_blitter (last_fetch_hpos + 1);
 		}
 	}
-}
-
-static void reset_bpl_vars (void)
-{
-	out_nbits = 0;
-	out_offs = 0;
-	toscr_nbits = 0;
-	thisline_decision.bplres = bplcon0_res;
 }
 
 static void start_bpl_dma (int hstart)
@@ -8254,13 +8327,13 @@ static void hsync_handler_post (bool onvsync)
 		static int nextwaitvpos;
 		if (vpos == 0)
 			nextwaitvpos = maxvpos_display * 1 / 4;
-		if (audio_is_pull()) {
+		if (audio_is_pull() > 0) {
 			while (audio_pull_buffer() > 1) {
 				cpu_sleep_millis(1);
 				maybe_process_pull_audio();
 			}
 		}
-		if (vpos + 1 < maxvpos + lof_store && vpos >= nextwaitvpos && (!audio_is_pull() || (audio_is_pull() && audio_pull_buffer()))) {
+		if (vpos + 1 < maxvpos + lof_store && vpos >= nextwaitvpos && (audio_is_pull() <= 0 || (audio_is_pull() > 0 && audio_pull_buffer()))) {
 			nextwaitvpos += maxvpos_display * 1 / 4;
 			vsyncmintime += vsynctimeperline;
 			if (!vsync_isdone () && !currprefs.turbo_emulation) {
