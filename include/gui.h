@@ -106,6 +106,7 @@ typedef enum {
 	NUMSG_KS68030PLUS, // 20
 	NUMSG_NO_PPC,
 	NUMSG_UAEBOOTROM_PPC,
+	NUMSG_NOMEMORY,
 	NUMSG_LAST
 } notify_user_msg;
 

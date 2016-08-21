@@ -1005,7 +1005,7 @@ static void pfield_init_linetoscr (bool border)
 			if (sprite_playfield_start > 0) {
 				sprite_playfield_start -= add;
 			} else {
-				playfield_start -= add;
+				;// this is most likely wrong: playfield_start -= add;
 			}
 		}
 	}

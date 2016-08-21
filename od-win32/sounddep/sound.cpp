@@ -1652,7 +1652,7 @@ static int open_sound (void)
 
 	have_sound = 1;
 	sound_available = 1;
-	gui_data.sndbuf_avail = !audio_is_pull();
+	gui_data.sndbuf_avail = audio_is_pull() == 0;
 
 	paula_sndbufsize = sdp->sndbufsize;
 	paula_sndbufpt = paula_sndbuffer;
@@ -2425,14 +2425,16 @@ bool audio_is_event_frame_possible(int ms)
 	return false;
 }
 
-bool audio_is_pull(void)
+int audio_is_pull(void)
 {
 	int type = sdp->devicetype;
 	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
 		struct sound_dp *s = sdp->data;
-		return s && s->wasapipull;
+		if (s && s->wasapipull) {
+			return sdp->paused ? -1 : 1;
+		}
 	}
-	return false;
+	return 0;
 }
 
 int audio_pull_buffer(void)

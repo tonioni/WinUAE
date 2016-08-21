@@ -242,7 +242,7 @@ struct rtggfxboard
 
 static struct rtggfxboard rtggfxboards[MAX_RTG_BOARDS];
 static int rtg_visible = -1;
-static int total_active_gfx_boards;
+static int total_active_gfx_boards, only_gfx_board;
 static int vram_ram_a8;
 static DisplaySurface fakesurface;
 
@@ -669,7 +669,12 @@ bool gfxboard_vsync_handler (void)
 					gb->monswitch_current = gb->monswitch_new;
 					vga_update_size(gb);
 					write_log(_T("GFXBOARD %d ACTIVE=%d\n"), i, gb->monswitch_current);
-					gfxboard_rtg_enable_initial(i);
+					if (!gfxboard_rtg_enable_initial(i)) {
+						// Nothing visible and RTG on? Re-enable our display.
+						if (rtg_visible < 0 && picasso_on) {
+							gfxboard_toggle(i, 0);
+						}
+					}
 				}
 			} else {
 				gb->monswitch_delay = 0;
@@ -1310,7 +1315,7 @@ static struct rtggfxboard *lastgetgfxboard;
 static rtggfxboard *getgfxboard(uaecptr addr)
 {
 	if (total_active_gfx_boards == 1)
-		return &rtggfxboards[0];
+		return &rtggfxboards[only_gfx_board];
 	if (lastgetgfxboard) {
 		if (addr >= lastgetgfxboard->io_start && addr < lastgetgfxboard->io_end)
 			return lastgetgfxboard;
@@ -2532,9 +2537,12 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	gfxboard_init (aci->prefs, gb);
 
 	total_active_gfx_boards = 0;
+	only_gfx_board = 0;
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
-		if (p->rtgboards[i].rtgmem_size && p->rtgboards[i].rtgmem_type >= GFXBOARD_HARDWARE)
+		if (p->rtgboards[i].rtgmem_size && p->rtgboards[i].rtgmem_type >= GFXBOARD_HARDWARE) {
 			total_active_gfx_boards++;
+			only_gfx_board = i;
+		}
 	}
 
 	memset (gb->automemory, 0xff, GFXBOARD_AUTOCONFIG_SIZE);

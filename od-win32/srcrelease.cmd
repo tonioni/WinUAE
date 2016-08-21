@@ -18,7 +18,7 @@ copy /s c:\projects\winuae\src\od-win32\* c:\projects\winuae_bak\bak\od-win32\
 copy d:\amiga\amiga\filesys.asm c:\projects\winuae_bak\bak
 
 cd bak
-del *.obj *.ilk *.exe *.pdb *.pch *.idb *.ncb *.sln *.suo *.ncb *.sdf /s
+del *.obj *.ilk *.exe *.pdb *.pch *.idb *.ncb *.sln *.suo *.ncb *.sdf *.db /s
 
 del cpudefs.cpp
 del blit.h
@@ -191,7 +191,7 @@ cd ..
 copy winuaesrc.7z e:\amiga\winuaepackets\winuaesrc%1.7z
 move winuaesrc.7z e:\amiga
 cd c:\projects\winuae\src\od-win32
-7z a winuaedebug%1 winuae_msvc14\fullrelease\winuae.pdb winuae_msvc14\x64\fullrelease\winuae.pdb
+7z a winuaedebug%1 winuae_msvc15\fullrelease\winuae.pdb winuae_msvc15\x64\fullrelease\winuae.pdb
 move winuaedebug%1.7z e:\amiga\winuaepackets\debug\
-copy winuae_msvc14\fullrelease\winuae.pdb winuae_msvc14\x64\fullrelease\winuae.pdb d:\amiga\dump
+copy winuae_msvc15\fullrelease\winuae.pdb winuae_msvc15\x64\fullrelease\winuae.pdb d:\amiga\dump
 copy d:\amiga\winuae.exe d:\amiga\dump

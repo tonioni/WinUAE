@@ -904,8 +904,8 @@ bool my_resolveshortcut(TCHAR *linkfile, int size)
 	bool ok = false;
     HRESULT hres; 
     IShellLink* psl; 
-    WCHAR szGotPath[MAX_PATH]; 
-    WCHAR szDescription[MAX_PATH]; 
+    WCHAR szGotPath[MAX_DPATH]; 
+    WCHAR szDescription[MAX_DPATH]; 
     WIN32_FIND_DATA wfd; 
  
 	const TCHAR *ext = _tcsrchr (linkfile, '.');
@@ -938,12 +938,12 @@ bool my_resolveshortcut(TCHAR *linkfile, int size)
                 if (SUCCEEDED(hres)) 
                 { 
                     // Get the path to the link target. 
-                    hres = psl->GetPath(szGotPath, MAX_PATH, (WIN32_FIND_DATA*)&wfd, SLGP_SHORTPATH); 
+                    hres = psl->GetPath(szGotPath, MAX_DPATH, (WIN32_FIND_DATA*)&wfd, SLGP_SHORTPATH);
 
                     if (SUCCEEDED(hres)) 
                     { 
                         // Get the description of the target. 
-                        hres = psl->GetDescription(szDescription, MAX_PATH); 
+                        hres = psl->GetDescription(szDescription, MAX_DPATH);
 
                         if (SUCCEEDED(hres)) 
                         {

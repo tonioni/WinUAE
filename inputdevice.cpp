@@ -2962,7 +2962,7 @@ static void inputdevice_read(bool peek)
 			break;
 		got2 = 1;
 	}
-	if (inputread < 0) {
+	if (inputread <= 0) {
 		idev[IDTYPE_MOUSE].read();
 		idev[IDTYPE_JOYSTICK].read();
 		idev[IDTYPE_KEYBOARD].read();

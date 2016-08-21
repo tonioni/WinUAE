@@ -887,6 +887,8 @@ void S2X_render (void)
 		return;
 	if (aw < 16)
 		return;
+	if (!vb->bufmem)
+		return;
 
 	sptr = vb->bufmem;
 	endsptr = vb->bufmemend;

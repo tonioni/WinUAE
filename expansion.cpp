@@ -366,6 +366,7 @@ static void expamem_init_clear_zero (void)
 		if (!currprefs.address_space_24)
 			map_banks(&expamem_bank, 0xff000000 >> 16, 1, 0);
 	}
+	expamem_bank_current = NULL;
 }
 
 static void expamem_init_clear2 (void)
@@ -1304,8 +1305,8 @@ static bool expamem_init_uaeboard(struct autoconfig_info *aci)
 
 MEMORY_ARRAY_FUNCTIONS(z3fastmem, 0);
 MEMORY_ARRAY_FUNCTIONS(z3fastmem, 1);
-
-MEMORY_FUNCTIONS(z3chipmem);
+MEMORY_ARRAY_FUNCTIONS(z3fastmem, 2);
+MEMORY_ARRAY_FUNCTIONS(z3fastmem, 3);
 
 addrbank z3fastmem_bank[MAX_RAM_BOARDS] =
 {
@@ -1322,13 +1323,29 @@ addrbank z3fastmem_bank[MAX_RAM_BOARDS] =
 		z3fastmem1_xlate, z3fastmem1_check, NULL, _T("*"), _T("Zorro III Fast RAM #2"),
 		z3fastmem1_lget, z3fastmem1_wget,
 		ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
+	},
+	{
+		z3fastmem2_lget, z3fastmem2_wget, z3fastmem2_bget,
+		z3fastmem2_lput, z3fastmem2_wput, z3fastmem2_bput,
+		z3fastmem2_xlate, z3fastmem2_check, NULL, _T("*"), _T("Zorro III Fast RAM #3"),
+		z3fastmem2_lget, z3fastmem2_wget,
+		ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
+	},
+	{
+		z3fastmem3_lget, z3fastmem3_wget, z3fastmem3_bget,
+		z3fastmem3_lput, z3fastmem3_wput, z3fastmem3_bput,
+		z3fastmem3_xlate, z3fastmem3_check, NULL, _T("*"), _T("Zorro III Fast RAM #4"),
+		z3fastmem3_lget, z3fastmem3_wget,
+		ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 	}
 };
+
+MEMORY_FUNCTIONS(z3chipmem);
 
 addrbank z3chipmem_bank = {
 	z3chipmem_lget, z3chipmem_wget, z3chipmem_bget,
 	z3chipmem_lput, z3chipmem_wput, z3chipmem_bput,
-	z3chipmem_xlate, z3chipmem_check, NULL, _T("z3_chip"), _T("MegaChipRAM"),
+	z3chipmem_xlate, z3chipmem_check, NULL, _T("*"), _T("MegaChipRAM"),
 	z3chipmem_lget, z3chipmem_wget,
 	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
@@ -1889,23 +1906,8 @@ static void allocate_expamem (void)
 
 	z3chipmem_bank.start = Z3BASE_UAE;
 
-	z3fastmem_bank[0].start = currprefs.z3autoconfig_start;
 	if (currprefs.mbresmem_high_size >= 128 * 1024 * 1024)
 		z3chipmem_bank.start += (currprefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024;
-	if (!expamem_z3hack(&currprefs))
-		z3fastmem_bank[0].start = Z3BASE_REAL;
-	if (z3fastmem_bank[0].start == Z3BASE_REAL) {
-		int z3off = cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype].z3extra;
-		if (z3off) {
-			z3fastmem_bank[0].start += z3off;
-			z3fastmem_bank[0].start = expansion_startaddress(&currprefs, z3fastmem_bank[0].start, currprefs.z3fastmem[0].size);
-		}
-	}
-	if (z3fastmem_bank[0].start == Z3BASE_UAE) {
-		if (currprefs.mbresmem_high_size >= 128 * 1024 * 1024)
-			z3fastmem_bank[0].start += (currprefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024;
-		z3fastmem_bank[0].start += currprefs.z3chipmem_size;
-	}
 
 	if (currprefs.z3chipmem_size && z3fastmem_bank[0].start - z3chipmem_bank.start < currprefs.z3chipmem_size)
 		currprefs.z3chipmem_size = changed_prefs.z3chipmem_size = 0;	
@@ -1938,7 +1940,7 @@ static void allocate_expamem (void)
 		memory_hardreset(1);
 	}
 	for (int i = 1; i < MAX_RAM_BOARDS; i++) {
-		if (currprefs.z3fastmem[i].size) {
+		if (currprefs.z3fastmem[i].size && z3fastmem_bank[i].start == 0xffffffff) {
 			z3fastmem_bank[i].start = expansion_startaddress(&currprefs, z3fastmem_bank[i - 1].start, currprefs.z3fastmem[i - 1].size);
 		}
 		if (z3fastmem_bank[i].allocated != currprefs.z3fastmem[i].size) {
@@ -1959,7 +1961,7 @@ static void allocate_expamem (void)
 	}
 	if (z3chipmem_bank.allocated != currprefs.z3chipmem_size) {
 		mapped_free (&z3chipmem_bank);
-		mapped_malloc_dynamic (&currprefs.z3chipmem_size, &changed_prefs.z3chipmem_size, &z3chipmem_bank, 16, _T("z3_chip"));
+		mapped_malloc_dynamic (&currprefs.z3chipmem_size, &changed_prefs.z3chipmem_size, &z3chipmem_bank, 16, _T("*"));
 		memory_hardreset (1);
 	}
 
@@ -2583,6 +2585,11 @@ static void expansion_parse_cards(struct uae_prefs *p, bool log)
 					_tcscpy(label, _T("<no name>"));
 				}
 			}
+			if (aci->devnum > 0) {
+				TCHAR *s = label + _tcslen(label);
+				_stprintf(s, _T(" [%d]"), aci->devnum + 1);
+			}
+
 			if (aci->addrbank != &expamem_nonautoconfig && aci->addrbank != &expamem_null && aci->addrbank != &expamem_none && (aci->autoconfig_raw[0] != 0xff || aci->autoconfigp)) {
 				uae_u8 ac2[16];
 				const uae_u8 *a = aci->autoconfigp;
@@ -2716,8 +2723,6 @@ static void expansion_recalc_order(struct uae_prefs *p)
 
 void expansion_set_autoconfig_sort(struct uae_prefs *p)
 {
-	if (!p->autoconfig_custom_sort)
-		return;
 	for (int i = 0; i < cardno; i++) {
 		set_order(p, cards[i], i + 1);
 	}

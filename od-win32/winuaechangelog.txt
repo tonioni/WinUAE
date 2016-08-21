@@ -1,4 +1,132 @@
 
+Beta 1:
+
+Big updates:
+
+- New GUI panel (currently named "Hardware info") that lists most installed hardware and allows reordering of autoconfig boards.
+- Multiple Z2/Z3 RAM boards can be enabled simultaneously. Manufacturer/product or full autoconfig data can be customized.
+- Multiple graphics boards can be active simultaneously (with some limitations). Note that there is still only one viewport,
+  END+F9 (this needs simpler option) cycles between active displays.
+- Multiple sound cards can be enabled simultaneously.
+
+Expansion device updates:
+
+- Added NE2000 PCMCIA NIC emulation, cnet.device compatible. On the fly insertion/removal supported.
+- Blizzard 1230 MK II and SCSI Kit II emulated. MapROM emulated, only power of 2 RAM sizes supported.
+- Blizzard 1230 MK III added, ROM software dumped (Physical chip is 32k, boot rom is only 16k, other 16k is
+  either duplicate of first or not mapped, physical dump needed). MapROM emulated, SCSI Kit III not emulated,
+  SCSI Kit ROM is MIA.
+- ESP/53C94/FAS216 emulation PIO mode FIFO handling updates. Multi Evolution and E-Matrix work again.
+- Catweasel MK II emulation moved to expansion select menu. Network cards may be moved later.
+- Multiple different sound cards can be enabled at the same time. (Multiple identical boards not yet possible)
+- Sound card audio internal emulation improved, now supports up to 8 simultaneous streams.
+  (1 stream = supports up to 7.1 channel audio. Each stream can have different sample rate.)
+  Each emulated sound card (and CD audio emulation) now dynamically allocate streams on the fly.
+- uaesnd hardware "emulated" Z2/Z3 DMA sound card, more information later. I also may write AHI driver later.
+- Simplified Blizzard 1230MKIV/BPPC memory layout, now it is always located at $400000-$4fffffff and
+  mirrors are removed (which weren't correctly emulated anyway). MapROM feature emulation updated.
+- Added A2620 v1 ROM image to ROM scanner, use correct autoconfig product id, A2620 is product $50, A2630 is product $51.
+
+Blizzard SCSI Kit MK II:
+- FAS216 based, true DMA.
+- SCSI Kit MK II only has SCSI chip. Everything else (including boot ROM chip) is located on accelerator board.
+
+Misc updates:
+
+- Added network led (N). red=transmit, green=receive. yellow=both in last 1 second or so.
+- Input panel always press/onoff option. Click on name of input event to change it. press:each button/key press and
+  release generates only press events. onoff:button press=activate,button release=deactivate. (for example when
+  mapped to warp mode, warp mode is active only when button is kept pressed)
+- FPS counter can now show FPS values up to 9999. (was 999.9)
+- CD32 logging can be now enabled with command line parameter (-cd32log and -cd32log2). Was compile time previously.
+- If config file has input device(s) with empty name, insert it in first free slot instead of dropping it.
+- Moved Logitech LCD updating to separate thread. LCD updates using new API are slower, at least in some situations.
+- Catch console window CTRL+C and window close button click and remove notification icon before exiting.
+- Custom game port settings were lost if they were edited again or config was loaded.
+- Floppy drives 2 and 3 didn't have same floppy sound default volume as 0 and 1.
+- Mounting file smaller than 512 bytes was mounted as a zero block size virtual harddrive.
+- Don't try to set D3DPRESENT_INTERVAL_TWO in windowed mode (D3D error in low latency vsync with 100Hz+ desktop refresh rate).
+- Limit joystick buttons to 20 (not 32) to leave space for [+][-] events, both share same max 32 button space.
+  Also check limits correctly, previously it was possible to have >32 buttons causing strange input behavior.
+- Added Single Step input event, when activated, unpauses (if paused), emulates one field and then (re-)activates pause.
+- When paused, show current field, not previous field.
+- FPS.Adj was not saved to config file and load duplicated built-in PAL/NTSC entries.
+- Environment variables in file paths (%VAR%) are now always expanded internally.
+- Event ("pull") mode audio support added, currently only supported by WASAPI (Vista or later only). Lower sound latency,
+  no need for extra sound sync adjustments and also should be more stable.
+- SND% is hidden in pull mode, status is not that simple to calculate.
+- CDTV statefiles work again, support was broken in some recent previous version.
+- Starting AVI recording from shortcut didn't initialize audio if both video and audio was enabled.
+- -scanlineadjust <lines> command line parameter, added to low latency vsync scanline counter to manually adjust frame flip
+  vertical position.
+- Added longPathAware manifest entry (Removes 260 character path limit, supported by Windows 10 version 1607 or later)
+- Network drive ("Include network drives.." option) device name is now NDHx: to reduce possible name conflicts.
+- On the fly directory/archive mounting only worked once under OS4.x.
+- Max windowed mode window size was still restricted to very old 3072*2048 max resolution.
+- added "default" displaydata parameter, always selected if no other displaydata entry matches.
+- added "custom" displaydata parameter, previously existing pal and ntsc parameters now only match standard PAL/NTSC modes, custom
+  matches any programmed (BEAMCON0 bit 7 set) mode.
+- Reduced input latency.
+
+Chipset updates:
+
+- 24-bit addressing on the fly change + reset crash fixed.
+- Disable AGA subpixel scrolling if odd and even plane has different subpixel scroll value, current emulation can't
+  support it. (Worms DC and ACSYS)
+- Added hack that fixes Smooth Copper part in demo Coolfridge / Upfront.
+- Sprite to bitplane collision stupid optimization fixed. Fixes Jumpman Junior.
+- Emulate "extreme" AGA-only bitplane DMA overrun special case, if display position is exactly right, it is possible to have
+  overrun that does not conflict with other DMA channels (at least when disk DMA is inactive), 32/64-bit fetch mode only.
+  Fixes game Moon Child.
+- Implemented "secret" Akiko PIO mode CD command/response packet transmit/receive emulation.
+- Fixed edge case where invalid word or long access (by some buggy program) to end of UAE expansion space crashed the emulation.
+
+Graphics card emulation updates:
+
+- Multiple cards can be now enabled simultaneously, for example UAEGFX + PC Bridgeboard VGA.
+- Limitations: Only one uaegfx, A2410 and x86 bridgeboard VGA supported simultaneously. Uaegfx must be first (if enabled)
+  card. Any Cirrus Logic based card can be enabled multiple times (up to 4). Invalid config is automatically fixed.
+- END+F9 cycles between displays (native->gfx board 1->gfx board 2->..->native). Inactive displays are skipped.
+- Board name is shown in status bar when manually switching.
+- After reset, board that initializes its output first gets autoselected replacing chipset display.
+- Autoswitch status bar message is only shown if more than one board is configured. Bridgeboard VGA never autoswitches.
+- NOTE: still no support for multiple outputs visible at the same time.
+
+Expansion/autoconfig handling updates:
+
+- All autoconfig boards and their final addresses are now known before emulation starts.
+- Added new GUI panel that shows all configured expansions (expansion = autoconfig boards and few other internal
+  expansions. Others will be added later, perhaps also other types of hardware information lists), autoconfig
+  addresses and board locations are always updated in real time.
+- RAM board manufacturer and product id or full autoconfig data can be set/modified per board.
+  (But you are on your own if you change board size bits without matching configured board size!)
+- All Z2/Z3 autoconfig boards (includes HD controllers, sound cards etc) can be manually reordered.
+- Multiple Z2 and Z3 RAM cards are now supported. (Max 4 at the moment)
+- All RAM size combinations are now supported (Previously second board had to be smaller or same size as previous)
+- Most autoconfig related config validations removed, for example if you add more than 8M Z2 fast, config is
+  not automatically fixed anymore, result now depends on what KS autoconfig code does.
+- Multiple Z2 HD+RAM boards are now fully supported, RAM board's autoconfig data is now always copied from
+  HD board's data structure instead of always using first HD controller's or default autoconfig Z2 RAM data.
+- Accelerator with Z2 RAM will be always paired with first Z2 RAM board.
+- New RAM select menu also shows paired Accelerator/HD expansion.
+- Default autoconfig sort order is optimized for best fit, boards are ordered from largest to smallest.
+- Moved GUI sound card options to SCSI/IDE/etc expansions section.
+- Built-in SCSI and IDE controllers are now separate expansion devices (old GUI options still work, there
+  is no need to use Expansion GUI to enable them). They are also not anymore listed in HD controller
+  list if not enabled.
+- A1200/A600 PCMCIA is now single option in HD controllers and also only listed if PCMCIA configuration
+  is enabled. SRAM/IDE selection moved to separate select menu.
+- 128k UAE Boot ROM works now even if autoconfig address is not 0xEA0000.
+- If there is not enough memory, error message is shown and GUI reappears. Memory sizes are not automatically
+  lowered and retried like previously (It would get really messy without old RAM size restrictions).
+  This can break old configs that only worked because of memory allocation retries.
+- Most RAM size/position related JIT direct restrictions should be gone.
+- Multiple PCI and x86 bridgeboards are now automatically disabled. (Has always been unsupported config)
+  Support can be added if there really is some real world situation where it makes sense.
+- Expansion device lists are now alphabetically sorted.
+- WD33C93 based SCSI controllers with drivers that execute directly from boot ROM (not copied to RAM) are now
+  JIT direct compatible, for example A590/A2091. (Others aren't yet converted to new expansion handling)
+
 3.3.0
 
 - 68060 mode always disabled all 68060-only unimplemented instructions, even when unimplemented emu
@@ -13729,7 +13857,7 @@ Beta 6:
   custom filesystem formatted regular HDF-files. (SFS, PFS etc..)
   Requires filesystem driver in WinUAE's roms-directory, named filesystem's
   "dostype in hexadecimal.fs". For example SFS's dostype is 0x53465300, file must
-  be named 53465300.fs (I know, not very logical but that was too easy to implement..)
+  be named 53465300.fs (I know, not very logvery logical but that was too easy to implement..)
 - some serial port compatibility "fixes", serial port support may not work...
 
 Beta 5:
@@ -14542,4 +14670,4 @@ Beta 1:
 - blitter "fix" (fixes Desert Dream freeze and Hostages insta-kill)
 - input device rewrite (no config file save/load and gui yet, not very useful now..)
 - Sane's AviOutput (no sound support yet due to changes in 0820 Win32 audio code)
-- JIT + some fixes (I decided to drop "JIT"-part from the name)
+- JIT + some fixes (I decided to drop "JIT"-part from the        

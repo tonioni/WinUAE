@@ -2177,6 +2177,8 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 
 #ifdef RAWINPUT_DEBUG
 		if (num >= num_joystick) {
+			if (!rawinput_enabled_hid)
+				return;
 			write_log(_T("RAWHID unknown input handle %p\n"), h);
 			for (num = 0; num < num_joystick; num++) {
 				did = &di_joystick[num];

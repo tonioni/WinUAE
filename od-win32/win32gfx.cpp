@@ -3172,6 +3172,7 @@ static bool getvblankpos2 (int *vp, int *flags, bool updateprev)
 
 static bool waitvblankstate (bool state, int *maxvpos, int *flags)
 {
+	bool waitzero = false;
 	int vp;
 	int count = 0;
 	if (flags)
@@ -3188,10 +3189,12 @@ static bool waitvblankstate (bool state, int *maxvpos, int *flags)
 		}
 		if (maxvpos)
 			*maxvpos = maxscanline;
-		if (vp < 0) {
+		if (vp < 0 || (waitzero && vp == 0)) {
 			if (state)
 				return true;
 		} else {
+			if (vp > 0)
+				waitzero = true;
 			if (!state)
 				return true;
 		}
@@ -3216,7 +3219,7 @@ static int timezeroonevblank (int startline, int endline)
 	for (;;) {
 		if (!getvblankpos (&vp, false))
 			return -1;
-		if (vp == startline)
+		if (vp == startline || (vp == 0 && startline < 0))
 			break;
 	}
 	frame_time_t start = read_processor_time ();
@@ -3950,6 +3953,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 
 	if (waitonly)
 		tsum = approx_vblank;
+	waitonly = false;
 skip:
 
 	vblank_skipeveryother = 0;

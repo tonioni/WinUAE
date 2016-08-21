@@ -1769,7 +1769,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			HANDLE lock = SHChangeNotification_Lock((HANDLE)wParam, (DWORD)lParam, &ppidl, &lEvent);
 			if (lock) {
 				if (lEvent == SHCNE_MEDIAINSERTED || lEvent == SHCNE_DRIVEADD || lEvent == SHCNE_MEDIAREMOVED || lEvent == SHCNE_DRIVEREMOVED) {
-					TCHAR drvpath[MAX_PATH + 1];
+					TCHAR drvpath[MAX_DPATH + 1];
 					if (SHGetPathFromIDList(ppidl[0], drvpath)) {
 						int inserted = (lEvent == SHCNE_MEDIAINSERTED || lEvent == SHCNE_DRIVEADD) ? 1 : 0;
 						write_log (_T("Shell Notification %d '%s'\n"), inserted, drvpath);
@@ -2149,8 +2149,8 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 			lpmmi = (LPMINMAXINFO)lParam;
 			lpmmi->ptMinTrackSize.x = 160 + window_extra_width;
 			lpmmi->ptMinTrackSize.y = 128 + window_extra_height;
-			lpmmi->ptMaxTrackSize.x = 3072 + window_extra_width;
-			lpmmi->ptMaxTrackSize.y = 2048 + window_extra_height;
+			lpmmi->ptMaxTrackSize.x = max_uae_width + window_extra_width;
+			lpmmi->ptMaxTrackSize.y = max_uae_height + window_extra_height;
 		}
 		return 0;
 

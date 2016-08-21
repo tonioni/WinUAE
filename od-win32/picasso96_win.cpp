@@ -2375,6 +2375,8 @@ static void inituaegfx(TrapContext *ctx, uaecptr ABI)
 	trap_put_long(ctx, ABI + PSSO_BoardInfo_BoardName, uaegfx_resname);
 	trap_put_long(ctx, ABI + PSSO_BoardInfo_BoardType, 1);
 
+	trap_put_long(ctx, ABI + PSSO_BoardInfo_MemoryClock, 100000000);
+
 	/* only 1 clock */
 	trap_put_long(ctx, ABI + PSSO_BoardInfo_PixelClockCount + PLANAR * 4, 1);
 	trap_put_long(ctx, ABI + PSSO_BoardInfo_PixelClockCount + CHUNKY * 4, 1);
@@ -2434,6 +2436,7 @@ static void inituaegfx(TrapContext *ctx, uaecptr ABI)
 	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxVerResolution + 4, hicolour.height);
 	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxVerResolution + 6, truecolour.height);
 	trap_put_word(ctx, ABI + PSSO_BoardInfo_MaxVerResolution + 8, alphacolour.height);
+
 	inituaegfxfuncs(ctx, uaegfx_rom, ABI);
 }
 

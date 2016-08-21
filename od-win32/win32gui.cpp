@@ -284,7 +284,7 @@ static void hide (HWND hDlg, DWORD id, int hide)
 	ShowWindow (w, hide ? SW_HIDE : SW_SHOW);
 }
 
-static int scsiromselect_table[32];
+static int scsiromselect_table[256];
 
 static void gui_add_string(int *table, HWND hDlg, int item, int id, const TCHAR *str)
 {
@@ -347,7 +347,7 @@ static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam,
 
 static int CALLBACK BrowseForFolderCallback (HWND hwnd, UINT uMsg, LPARAM lp, LPARAM pData)
 {
-	TCHAR szPath[MAX_PATH];
+	TCHAR szPath[MAX_DPATH];
 	switch(uMsg)
 	{
 	case BFFM_INITIALIZED:
@@ -1284,7 +1284,7 @@ static int drag_move (HWND hWnd, LPARAM lParam)
 static HWND cachedlist = NULL;
 
 static const TCHAR *memsize_names[] = {
-	/* 0 */ _T("none")
+	/* 0 */ _T("none"),
 	/* 1 */ _T("64 KB"),
 	/* 2 */ _T("128 KB"),
 	/* 3 */ _T("256 KB"),
@@ -9374,6 +9374,7 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 					if (v != CB_ERR && v != workprefs.cpuboard_subtype) {
 						workprefs.cpuboard_subtype = v;
 						workprefs.cpuboard_settings = 0;
+						updatecpuboardsubtypes(hDlg);
 						if (is_ppc_cpu(&workprefs)) {
 							workprefs.ppc_mode = 2;
 						} else if (workprefs.ppc_mode == 2) {
@@ -20104,6 +20105,7 @@ static const int transla[] = {
 	NUMSG_KS68030PLUS, IDS_NUMSG_KS68030PLUS,
 	NUMSG_NO_PPC, IDS_NUMSG_NO_PPC,
 	NUMSG_UAEBOOTROM_PPC, IDS_NUMSG_UAEBOOTROM_PCC,
+	NUMSG_NOMEMORY, IDS_NUMSG_NOMEMORY,
 	-1
 };
 

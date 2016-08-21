@@ -2026,8 +2026,10 @@ int filesys_media_change (const TCHAR *rootdir, int inserted, struct uaedev_conf
 		if (uci) {
 			volptr = my_strdup (uci->ci.volname);
 		} else {
-			volname[0] = 0;
-			target_get_volume_name (&mountinfo, rootdir, volname, MAX_DPATH, 1, 0);
+			struct uaedev_config_info ci2 = { 0 };
+			_tcscpy(ci2.rootdir, rootdir);
+			target_get_volume_name (&mountinfo, &ci2, 1, 0, -1);
+			_tcscpy(volname, ci2.volname);
 			volptr = volname;
 			if (!volname[0])
 				volptr = NULL;
@@ -8716,9 +8718,6 @@ void filesys_vsync (void)
 	}
 	heartbeat = get_long_host(rtarea_bank.baseaddr + RTAREA_HEARTBEAT);
 	cia_heartbeat ();
-
-	if (currprefs.uaeboard > 1)
-		return;
 
 	for (u = units; u; u = u->next) {
 		if (u->reinsertdelay > 0) {

@@ -30,7 +30,6 @@
 #include "arcadia.h"
 #include "enforcer.h"
 #include "threaddep/thread.h"
-#include "a2091.h"
 #include "gayle.h"
 #include "debug.h"
 #include "gfxboard.h"
@@ -1709,7 +1708,7 @@ bool mapped_malloc (addrbank *ab)
 		return ab->baseaddr != NULL;
 	}
 
-	id = uae_shmget (UAE_IPC_PRIVATE, ab->allocated, 0x1ff, ab->label);
+	id = uae_shmget (UAE_IPC_PRIVATE, ab, 0x1ff);
 	if (id == -1) {
 		nocanbang ();
 		if (recurse)

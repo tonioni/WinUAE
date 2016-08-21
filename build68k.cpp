@@ -291,12 +291,12 @@ int main(int argc, char **argv)
 		int slen = 0;
 
 		while (isspace(*opstrp))
-		opstrp++;
+			opstrp++;
 
 		osendp = opstrp;
 		while (*osendp) {
-		if (!isspace (*osendp))
-			slen = osendp - opstrp + 1;
+			if (!isspace (*osendp))
+				slen = osendp - opstrp + 1;
 			osendp++;
 		}
 		opstrp[slen] = 0;

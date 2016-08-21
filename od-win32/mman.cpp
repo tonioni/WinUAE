@@ -15,6 +15,7 @@
 #include "cpuboard.h"
 #include "rommgr.h"
 #include "newcpu.h"
+#include "gui.h"
 #ifdef WINUAE
 #include "win32.h"
 #endif
@@ -248,6 +249,7 @@ bool preinit_shm (void)
 				natmem_reserved = (uae_u8*)VirtualAlloc (NULL, natmem_size, vaflags, PAGE_READWRITE);
 				if (!natmem_size) {
 					write_log (_T("Can't allocate 17M of virtual address space!? Something is seriously wrong\n"));
+					notify_user(NUMSG_NOMEMORY);
 					return false;
 				}
 				break;
@@ -362,7 +364,9 @@ static int doinit_shm (void)
 		if (expamem_z3_pointer_real > totalsize) {
 			totalsize = expamem_z3_pointer_real;
 			if (totalsize + 16 * si.dwPageSize >= natmem_reserved_size && expamem_z3_pointer_uae < totalsize) {
-				totalsize = expamem_z3_pointer_uae;
+				write_log(_T("NATMEM: Not enough memory for Z3REAL!\n"));
+				notify_user(NUMSG_NOMEMORY);
+				return -1;
 			}
 			startbarrier = 0;
 		}
@@ -372,6 +376,7 @@ static int doinit_shm (void)
 
 	if (totalsize > size64 || totalsize + 16 * si.dwPageSize >= natmem_reserved_size) {
 		write_log(_T("NATMEM: Not enough memory!\n"));
+		notify_user(NUMSG_NOMEMORY);
 		return -1;
 	}
 
@@ -627,7 +632,10 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 	}
 
 	if ((uae_u8*)shmaddr < natmem_offset) {
-		if(!_tcscmp (shmids[shmid].name, _T("chip"))) {
+		if (!_tcscmp(shmids[shmid].name, _T("*"))) {
+			shmaddr = natmem_offset + ab->start;
+			got = true;
+		} else if(!_tcscmp (shmids[shmid].name, _T("chip"))) {
 			shmaddr=natmem_offset;
 			got = true;
 			if (!expansion_get_autoconfig_by_address(&currprefs, 0x00200000) || currprefs.chipmem_size < 2 * 1024 * 1024)
@@ -697,9 +705,6 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 		} else if (!_tcscmp(shmids[shmid].name, _T("cyberstorm"))) {
 			shmaddr = natmem_offset + 0x0c000000;
 			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("*"))) {
-			shmaddr = natmem_offset + ab->start;
-			got = true;
 		} else if (!_tcscmp(shmids[shmid].name, _T("cyberstormmaprom"))) {
 			shmaddr = natmem_offset + 0xfff00000;
 			got = true;
@@ -764,7 +769,7 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 	uintptr_t natmem_end = (uintptr_t) natmem_reserved + natmem_reserved_size;
 	if ((uintptr_t) shmaddr + size > natmem_end) {
 		/* We cannot add a barrier beyond the end of the reserved memory. */
-		assert((uintptr_t) shmaddr + size - natmem_end == BARRIER);
+		//assert((uintptr_t) shmaddr + size - natmem_end == BARRIER);
 		write_log(_T("NATMEM: Removing barrier (%d bytes) beyond reserved memory\n"), BARRIER);
 		size -= BARRIER;
 	}
@@ -851,15 +856,15 @@ int uae_shmdt (const void *shmaddr)
 	return 0;
 }
 
-int uae_shmget (uae_key_t key, size_t size, int shmflg, const TCHAR *name)
+int uae_shmget (uae_key_t key, addrbank *ab, int shmflg)
 {
 	int result = -1;
 
 	if ((key == UAE_IPC_PRIVATE) || ((shmflg & UAE_IPC_CREAT) && (find_shmkey (key) == -1))) {
-		write_log (_T("shmget of size %zd (%zdk) for %s\n"), size, size >> 10, name);
+		write_log (_T("shmget of size %zd (%zdk) for %s (%s)\n"), ab->allocated, ab->allocated >> 10, ab->label, ab->name);
 		if ((result = get_next_shmkey ()) != -1) {
-			shmids[result].size = size;
-			_tcscpy (shmids[result].name, name);
+			shmids[result].size = ab->allocated;
+			_tcscpy (shmids[result].name, ab->label);
 		} else {
 			result = -1;
 		}
