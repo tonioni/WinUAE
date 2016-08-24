@@ -2449,7 +2449,7 @@ static const addrbank dmaca2091_bank = {
 	dmac_a2091_lput, dmac_a2091_wput, dmac_a2091_bput,
 	dmac_a2091_xlate, dmac_a2091_check, NULL, _T("*"), _T("A2090/A2091/A590"),
 	dmac_a2091_lgeti, dmac_a2091_wgeti,
-	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
+	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
 
@@ -2949,7 +2949,7 @@ static const addrbank gvp_bank = {
 	dmac_gvp_lput, dmac_gvp_wput, dmac_gvp_bput,
 	dmac_gvp_xlate, dmac_gvp_check, NULL, NULL, _T("GVP"),
 	dmac_gvp_lgeti, dmac_gvp_wgeti,
-	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
+	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
 /* SUPERDMAC (A3000 mainboard built-in) */
@@ -3298,6 +3298,7 @@ bool a3000scsi_init(struct autoconfig_info *aci)
 	aci->addrbank = &expamem_nonautoconfig;
 	aci->start = 0xdd0000;
 	aci->size = 0x10000;
+	aci->hardwired = true;
 	if (!aci->doinit) {
 		return true;
 	}

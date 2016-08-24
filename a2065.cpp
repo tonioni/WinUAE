@@ -831,7 +831,7 @@ static addrbank a2065_bank = {
 	a2065_lput, a2065_wput, a2065_bput,
 	a2065_xlate, a2065_check, NULL, _T("*"), _T("A2065 Z2 Ethernet"),
 	a2065_lgeti, a2065_wgeti,
-	ABFLAG_IO, S_READ, S_WRITE
+	ABFLAG_IO | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
 static void REGPARAM2 a2065_bput (uaecptr addr, uae_u32 b)
