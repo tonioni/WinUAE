@@ -3148,10 +3148,10 @@ static bool getvblankpos (int *vp, bool updateprev)
 	}
 	if (maxscanline > minscanline) {
 		sl += scanline_adjust;
-		while (sl < 0)
-			sl += maxscanline;
+		while (sl < -1)
+			sl += maxscanline + 2;
 		while (sl > maxscanline)
-			sl -= maxscanline;
+			sl -= maxscanline + 2;
 	}
 	*vp = sl;
 	return true;
