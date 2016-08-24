@@ -1292,6 +1292,8 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 		}
 		hr = s->pAudioClient->Initialize (sharemode, AUDCLNT_STREAMFLAGS_NOPERSIST | (s->wasapipull ? AUDCLNT_STREAMFLAGS_EVENTCALLBACK : 0),
 			s->hnsRequestedDuration, s->wasapiexclusive ? s->hnsRequestedDuration : 0, pwfx ? pwfx : &wavfmt.Format, NULL);
+	} else if (hr == AUDCLNT_E_BUFFER_SIZE_ERROR) {
+		write_log(_T("AUDCLNT_E_BUFFER_SIZE_ERROR %d\n"), s->bufferFrameCount);
 	}
 	if (FAILED (hr)) {
 		write_log (_T("WASAPI: Initialize() %08X\n"), hr);

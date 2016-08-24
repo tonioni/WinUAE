@@ -1,4 +1,18 @@
 
+Beta 2:
+
+- Needed natmem space also included IO only Z3 boards but only RAM and VRAM boards should count.
+  Fixes most "out of memory" errors.
+- RTG VRAM outside of natmem space handling is back, RTG works again in 32-bit Windows in "Real" Z3 mode.
+  (also in "UAE" mode if RTG was not first Z3 board and previous board(s) was large enough)
+- A2065 didn't work if accessed by PPC CPU.
+- Mainboard built-in autoconfig devices were movable (CDTV and A3000 DMAC).
+- Hardware info panel move up/down buttons are now disabled when unmovable item is selected.
+- Automatic Z3 mapping mode selected UAE mode even when it was not needed. (no JIT direct and not enough natmem space)
+- Natmem allocation is still used (if possible) even when starting emulation without direct jit to have better chance
+  for on the fly direct jit switching.
+- Low latency vsync fixed.
+
 Beta 1:
 
 Big updates:
