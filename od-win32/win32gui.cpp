@@ -4252,7 +4252,7 @@ void InitializeListView (HWND hDlg)
 			else
 				_tcscpy(tmp, _T("-"));
 			lvstruct.pszText = tmp;
-			lvstruct.lParam = 0;
+			lvstruct.lParam = expansion_can_move(&workprefs, i) ? 1 : 0;
 			lvstruct.iItem = i;
 			lvstruct.iSubItem = 0;
 			result = ListView_InsertItem(list, &lvstruct);
@@ -9860,6 +9860,10 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 }
 
 
+static LRESULT ProcesssBoardsDlgProcCustomDraw(LPARAM lParam)
+{
+}
+
 static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
@@ -9914,18 +9918,41 @@ static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 		case WM_NOTIFY:
 		if (((LPNMHDR)lParam)->idFrom == IDC_BOARDLIST) {
-			int column;
-			NM_LISTVIEW *nmlistview = (NM_LISTVIEW *)lParam;
-			HWND list = nmlistview->hdr.hwndFrom;
-			switch (nmlistview->hdr.code)
+			switch (((LPNMHDR)lParam)->code)
 			{
+#if 0
+				case NM_CUSTOMDRAW:
+				{
+					LPNMLVCUSTOMDRAW lpNMLVCD = (LPNMLVCUSTOMDRAW)lParam;
+					switch (lpNMLVCD->nmcd.dwDrawStage)
+					{
+						case CDDS_PREPAINT:
+						case CDDS_ITEMPREPAINT:
+						SetWindowLongPtr(hDlg, DWLP_MSGRESULT, CDRF_NOTIFYITEMDRAW | CDRF_NOTIFYSUBITEMDRAW);
+						return TRUE;
+						case CDDS_ITEMPREPAINT| CDDS_SUBITEM:
+						if (!lpNMLVCD->nmcd.lItemlParam) {
+							
+							lpNMLVCD->clrTextBk = RGB(255,0,0);
+							SetWindowLongPtr(hDlg, DWLP_MSGRESULT, CDRF_NEWFONT);
+							return TRUE;
+						}
+						return FALSE;
+					}
+				}
+				return CDRF_DODEFAULT;
+#endif
 				case NM_CLICK:
 				{
+					int column;
+					NM_LISTVIEW *nmlistview = (NM_LISTVIEW *)lParam;
+					HWND list = nmlistview->hdr.hwndFrom;
 					int entry = listview_entry_from_click(list, &column);
 					if (entry >= 0) {
+						bool move = expansion_can_move(&workprefs, entry);
 						selected = entry;
-						ew(hDlg, IDC_BOARDS_UP, TRUE);
-						ew(hDlg, IDC_BOARDS_DOWN, TRUE);
+						ew(hDlg, IDC_BOARDS_UP, move);
+						ew(hDlg, IDC_BOARDS_DOWN, move);
 					}
 				}
 				break;
