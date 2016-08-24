@@ -1644,6 +1644,7 @@ bool cdtv_init (struct autoconfig_info *aci)
 
 	if (aci) {
 		aci->label = dmac_bank.name;
+		aci->hardwired = true;
 		if (!aci->doinit) {
 			memcpy(aci->autoconfig_raw, dmacmemory, sizeof dmacmemory);
 			return true;
@@ -1687,6 +1688,7 @@ bool cdtv_init (struct autoconfig_info *aci)
 bool cdtvscsi_init(struct autoconfig_info *aci)
 {
 	aci->parent_name = _T("CDTV DMAC");
+	aci->hardwired = true;
 	if (!aci->doinit)
 		return true;
 	cdtvscsi = true;

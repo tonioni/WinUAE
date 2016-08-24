@@ -153,6 +153,7 @@ extern struct autoconfig_info *expansion_get_autoconfig_data(struct uae_prefs *p
 extern struct autoconfig_info *expansion_get_autoconfig_by_address(struct uae_prefs *p, uaecptr addr);
 extern void expansion_set_autoconfig_sort(struct uae_prefs *p);
 extern int expansion_autoconfig_move(struct uae_prefs *p, int index, int direction);
+extern bool expansion_can_move(struct uae_prefs *p, int index);
 extern bool alloc_expansion_bank(addrbank *bank, struct autoconfig_info *aci);
 extern void free_expansion_bank(addrbank *bank);
 

@@ -847,7 +847,7 @@ static struct soft_scsi *getscsiboard(uaecptr addr)
 			return s;
 		if (s->baseaddress2 && (addr & ~s->board_mask) == s->baseaddress2)
 			return s;
-		if (s->baseaddress == 0xe80000 && addr < 65536)
+		if (s->baseaddress == AUTOCONFIG_Z2 && addr < 65536)
 			return s;
 	}
 	return NULL;
@@ -2834,7 +2834,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 
 		if (addr == 0x22) {
 			// box
-			ncr->baseaddress = 0xe80000 + ((val & 0x7f) * 4096);
+			ncr->baseaddress = AUTOCONFIG_Z2 + ((val & 0x7f) * 4096);
 			map_banks_z2(ncr->bank, ncr->baseaddress >> 16, 1);
 			expamem_next(ncr->bank, NULL);
 		} else if (addr == 0x1020) {
@@ -3613,6 +3613,8 @@ static void expansion_add_protoautoconfig_board(uae_u8 *p, int board, uae_u16 ma
 bool tecmar_init(struct autoconfig_info *aci)
 {
 	static const uae_u8 ac[16] = { 0x40, 0xff, 0, 0, 1001 >> 8, (uae_u8)1001 };
+
+	aci->hardwired = true;
 	if (!aci->doinit) {
 		aci->autoconfigp = ac;
 		return true;
@@ -3638,7 +3640,7 @@ bool tecmar_init(struct autoconfig_info *aci)
 	memset(tecmar_clock_regs, 0, sizeof tecmar_clock_regs);
 	tecmar_clock_regs[11] = 0x04 | 0x02 | 0x01;
 	scsi->configured = true;
-	scsi->baseaddress = 0xe80000;
+	scsi->baseaddress = AUTOCONFIG_Z2;
 	aci->addrbank = scsi->bank;
 	return true;
 }

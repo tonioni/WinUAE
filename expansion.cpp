@@ -248,6 +248,7 @@ static addrbank*(*expamem_map)(struct autoconfig_info*);
 static uae_u8 expamem_lo;
 static uae_u16 expamem_hi;
 uaecptr expamem_z3_pointer_real, expamem_z3_pointer_uae;
+uaecptr expamem_z3_highram_real, expamem_z3_highram_uae;
 uaecptr expamem_highmem_pointer;
 uae_u32 expamem_board_size;
 uaecptr expamem_board_pointer;
@@ -360,11 +361,11 @@ static void expamem_init_clear_zero (void)
 	if (currprefs.cpu_model < 68020) {
 		map_banks(&dummy_bank, 0xe8, 1, 0);
 		if (!currprefs.address_space_24)
-			map_banks(&dummy_bank, 0xff000000 >> 16, 1, 0);
+			map_banks(&dummy_bank, AUTOCONFIG_Z3 >> 16, 1, 0);
 	} else {
 		map_banks(&expamem_bank, 0xe8, 1, 0);
 		if (!currprefs.address_space_24)
-			map_banks(&expamem_bank, 0xff000000 >> 16, 1, 0);
+			map_banks(&expamemz3_bank, AUTOCONFIG_Z3 >> 16, 1, 0);
 	}
 	expamem_bank_current = NULL;
 }
@@ -444,7 +445,7 @@ static void call_card_init(int index)
 		expamem_init_clear_zero();
 		map_banks(&expamem_bank, 0xE8, 1, 0);
 		if (!currprefs.address_space_24)
-			map_banks(&dummy_bank, 0xff000000 >> 16, 1, 0);
+			map_banks(&dummy_bank, AUTOCONFIG_Z3 >> 16, 1, 0);
 		expamem_bank_current = NULL;
 		return;
 	}
@@ -468,22 +469,22 @@ static void call_card_init(int index)
 		// non-NULL: not using expamem_bank
 		expamem_bank_current = ab;
 		if ((cd->flags & CARD_FLAG_CAN_Z3) && currprefs.cs_z3autoconfig && !currprefs.address_space_24) {
-			map_banks(&expamemz3_bank, 0xff000000 >> 16, 1, 0);
+			map_banks(&expamemz3_bank, AUTOCONFIG_Z3 >> 16, 1, 0);
 			map_banks(&dummy_bank, 0xE8, 1, 0);
 		} else {
 			map_banks(&expamem_bank, 0xE8, 1, 0);
 			if (!currprefs.address_space_24)
-				map_banks(&dummy_bank, 0xff000000 >> 16, 1, 0);
+				map_banks(&dummy_bank, AUTOCONFIG_Z3 >> 16, 1, 0);
 		}
 	} else {
 		if ((cd->flags & CARD_FLAG_CAN_Z3) && currprefs.cs_z3autoconfig && !currprefs.address_space_24) {
-			map_banks(&expamemz3_bank, 0xff000000 >> 16, 1, 0);
+			map_banks(&expamemz3_bank, AUTOCONFIG_Z3 >> 16, 1, 0);
 			map_banks(&dummy_bank, 0xE8, 1, 0);
 			expamem_bank_current = &expamem_bank;
 		} else {
 			map_banks(&expamem_bank, 0xE8, 1, 0);
 			if (!currprefs.address_space_24)
-				map_banks(&dummy_bank, 0xff000000 >> 16, 1, 0);
+				map_banks(&dummy_bank, AUTOCONFIG_Z3 >> 16, 1, 0);
 			expamem_bank_current = NULL;
 		}
 	}
@@ -690,7 +691,7 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 		switch (addr & 0xff) {
 		case 0x22:
 			expamem_hi = value & 0x7f;
-			expamem_board_pointer = 0xe80000 | (expamem_hi * 4096);
+			expamem_board_pointer = AUTOCONFIG_Z2 | (expamem_hi * 4096);
 			if (expamem_map) {
 				expamem_next(expamem_map(&cards[ecard]->aci), NULL);
 				return;
@@ -1700,24 +1701,10 @@ static addrbank * expamem_map_z3fastmem (struct autoconfig_info *aci)
 {
 	int devnum = aci->devnum;
 	addrbank *ab = &z3fastmem_bank[devnum];
-	int z3fs = expamem_board_pointer;
-	uaecptr *startp = &ab->start;
-	int start = *startp;
-	uae_u32 allocated = ab->allocated;
+	uaecptr z3fs = expamem_board_pointer;
 	uae_u32 size = currprefs.z3fastmem[devnum].size;
 
-	if (expamem_z3hack(&currprefs)) {
-		if (z3fs && start != z3fs) {
-			write_log (_T("WARNING: Z3MEM mapping changed from $%08x to $%08x\n"), start, z3fs);
-			map_banks(&dummy_bank, start >> 16, size >> 16, allocated);
-			*startp = z3fs;
-			map_banks_z3(ab, start >> 16, size >> 16);
-		}
-	} else {
-		map_banks_z3(ab, z3fs >> 16, size >> 16);
-		start = z3fs;
-		*startp = z3fs;
-	}
+	map_banks_z3(ab, z3fs >> 16, size >> 16);
 	return ab;
 }
 
@@ -1805,6 +1792,7 @@ static bool expamem_init_gfxcard (struct autoconfig_info *aci, bool z3)
 		: Z3_SS_MEM_SAME);
 
 	aci->label = _T("UAE RTG");
+	aci->direct_vram = true;
 
 	if (size < 0x1000000 && z3)
 		code = Z3_MEM_16MB; /* Z3 physical board size is always at least 16M */
@@ -2245,11 +2233,11 @@ static void expansion_parse_autoconfig(struct card_data *cd, const uae_u8 *autoc
 		{
 			uae_u8 *slots = slots_e8;
 			int numslots = sizeof slots_e8;
-			uaecptr slotaddr = 0xe80000;
+			uaecptr slotaddr = AUTOCONFIG_Z2;
 			if (slotsize >= 8 || slottype > 0) {
 				slots = slots_20;
 				numslots = sizeof slots_20;
-				slotaddr = 0x200000;
+				slotaddr = AUTOCONFIG_Z2_MEM;
 			}
 			for (int i = 0; i < numslots; i++) {
 				if (((slotsize - 1) & i) == 0) {
@@ -2305,6 +2293,8 @@ static void reset_ac_data(struct uae_prefs *p)
 {
 	expamem_z3_pointer_real = Z3BASE_REAL;
 	expamem_z3_pointer_uae = Z3BASE_UAE;
+	expamem_z3_highram_real = 0;
+	expamem_z3_highram_uae = 0;
 
 	expamem_highmem_pointer = 0;
 	if (p->mbresmem_low_size)
@@ -2389,7 +2379,7 @@ struct autoconfig_info *expansion_get_autoconfig_by_address(struct uae_prefs *p,
 {
 	for (int i = 0; i < cardno; i++) {
 		struct card_data *cd = cards[i];
-		if (cd->base <= addr && cd->base + cd->size >= addr)
+		if (addr >= cd->base && addr < cd->base + cd->size)
 			return &cd->aci;
 	}
 	return NULL;
@@ -2423,6 +2413,7 @@ struct autoconfig_info *expansion_get_autoconfig_info(struct uae_prefs *p,int ro
 static void expansion_init_cards(struct uae_prefs *p)
 {
 	reset_ac_data(p);
+
 	for (int i = 0; i < cardno; i++) {
 		bool ok;
 		struct card_data *cd = &cards_set[i];
@@ -2496,7 +2487,9 @@ static int get_order(struct uae_prefs *p, struct card_data *cd)
 	if (!cd)
 		return EXPANSION_ORDER_MAX - 1;
 	if (cd->cst)
-		return -3; // Accelerator must be always first
+		return -4; // Accelerator must be always first
+	if (cd->aci.hardwired)
+		return -3;
 	if (cd->aci.get_params) {
 		struct expansion_params parms;
 		if (cd->aci.get_params(p, &parms))
@@ -2518,6 +2511,17 @@ static int get_order(struct uae_prefs *p, struct card_data *cd)
 	if (!_tcsicmp(cd->name, _T("MegaChipRAM")))
 		return -1;
 	return EXPANSION_ORDER_MAX - 1;
+}
+
+bool expansion_can_move(struct uae_prefs *p, int index)
+{
+	if (index < 0 || index >= cardno)
+		return false;
+	struct card_data *cd = cards[index];
+	int order1 = get_order(p, cd);
+	if (order1 < 0 || order1 >= EXPANSION_ORDER_MAX - 1)
+		return false;
+	return true;
 }
 
 static void expansion_parse_cards(struct uae_prefs *p, bool log)
@@ -2647,6 +2651,13 @@ static void expansion_parse_cards(struct uae_prefs *p, bool log)
 					expamem_z3_pointer_real += expamem_board_size;
 					expamem_z3_pointer_uae += expamem_board_size;
 					expamem_board_pointer += expamem_board_size;
+					if ((type & add_memory) || aci->direct_vram) {
+						if (expamem_z3_pointer_uae > expamem_z3_highram_uae)
+							expamem_z3_highram_uae = expamem_z3_pointer_uae;
+						if (expamem_z3_pointer_real > expamem_z3_highram_real)
+							expamem_z3_highram_real = expamem_z3_pointer_real;
+					}
+
 				}
 			} else {
 				if (log)
@@ -2852,6 +2863,8 @@ static void expansion_autoconfig_sort(struct uae_prefs *p)
 				if (cd->zorro != z)
 					continue;
 				int order = get_order(p, cd);
+				if (cd->aci.hardwired)
+					order = -1;
 				if (order >= 0)
 					continue;
 				if (testorder > order) {
@@ -2913,20 +2926,21 @@ static void expansion_autoconfig_sort(struct uae_prefs *p)
 		cards[new_cardno++] = &cards_set[i];
 	}
 	for (int i = 0; i < cardno; i++) {
+		struct autoconfig_info *aci = &cards[i]->aci;
 		tcards[i] = cards[i];
-		tcards[i]->aci.can_sort = !cards[i]->aci.parent_of_previous && get_order(p, cards[i]) < EXPANSION_ORDER_MAX - 1 && get_order(p, cards[i]) >= 0;
+		tcards[i]->aci.can_sort = !aci->hardwired && !aci->parent_of_previous && get_order(p, cards[i]) < EXPANSION_ORDER_MAX - 1 && get_order(p, cards[i]) >= 0;
 	}
 
 	if (!p->autoconfig_custom_sort) {
 
 		new_cardno = 0;
 
-		// accelerator first
+		// accelerator and hardwired first
 		for (int idx = 0; idx < cardno; idx++) {
 			struct card_data *cd = tcards[idx];
 			if (!cd)
 				continue;
-			if (cd->cst) {
+			if (cd->cst || cd->aci.hardwired || cd->size == 0) {
 				cards[new_cardno++] = cd;
 				tcards[idx] = NULL;
 				for (int j = idx + 1; j < cardno; j++) {
@@ -2938,7 +2952,6 @@ static void expansion_autoconfig_sort(struct uae_prefs *p)
 				}
 			}
 		}
-
 		// re-sort by board size
 		for (int idx = 0; idx < cardno; idx++) {
 			struct card_data *cd = tcards[idx];

@@ -157,7 +157,7 @@ static void dummylog (int rw, uaecptr addr, int size, uae_u32 val, int ins)
 	if (illegal_count >= MAX_ILG && MAX_ILG > 0)
 		return;
 	/* ignore Zorro3 expansion space */
-	if (addr >= 0xff000000 && addr <= 0xff000200)
+	if (addr >= AUTOCONFIG_Z3 && addr <= AUTOCONFIG_Z3 + 0x200)
 		return;
 	/* autoconfig and extended rom */
 	if (addr >= 0xe00000 && addr <= 0xf7ffff)
@@ -1690,8 +1690,13 @@ bool mapped_malloc (addrbank *ab)
 		}
 	}
 
-	ab->startmask = ab->start;
-	if ((!needmman () && (!rtgmem || currprefs.cpu_model < 68020)) || (ab->flags & ABFLAG_ALLOCINDIRECT)) {
+	struct uae_mman_data md;
+	uaecptr start = ab->start;
+	if (uae_mman_info(ab, &md)) {
+		start = md.start;
+	}
+	ab->startmask = start;
+	if (!md.directsupport || (ab->flags & ABFLAG_ALLOCINDIRECT)) {
 		if (!(ab->flags & ABFLAG_ALLOCINDIRECT))
 			nocanbang ();
 		ab->flags &= ~ABFLAG_DIRECTMAP;

@@ -28,6 +28,10 @@ extern bool jit_direct_compatible_memory;
 #define Z3BASE_UAE 0x10000000
 #define Z3BASE_REAL 0x40000000
 
+#define AUTOCONFIG_Z2 0x00e80000
+#define AUTOCONFIG_Z2_MEM 0x00200000
+#define AUTOCONFIG_Z3 0xff000000
+
 #ifdef ADDRESS_SPACE_24BIT
 #define MEMORY_BANKS 256
 #define MEMORY_RANGE_MASK ((1<<24)-1)
@@ -141,8 +145,10 @@ struct autoconfig_info
 	const int *parent_romtype;
 	bool parent_of_previous;
 	bool parent_address_space;
+	bool direct_vram;
 	const TCHAR *parent_name;
 	bool can_sort;
+	bool hardwired;
 	bool (*get_params)(struct uae_prefs*, struct expansion_params*);
 	bool (*set_params)(struct uae_prefs*, struct expansion_params*);
 };
@@ -388,6 +394,7 @@ extern bool expamem_z3hack(struct uae_prefs*);
 extern void set_expamem_z3_hack_mode(int);
 extern uaecptr expamem_board_pointer, expamem_highmem_pointer;
 extern uaecptr expamem_z3_pointer_real, expamem_z3_pointer_uae;
+extern uae_u32 expamem_z3_highram_real, expamem_z3_highram_uae;
 extern uae_u32 expamem_board_size;
 
 extern uae_u32 last_custom_value1;
@@ -725,8 +732,6 @@ extern uae_u32 natmem_reserved_size;
 
 extern bool mapped_malloc (addrbank*);
 extern void mapped_free (addrbank*);
-extern void clearexec (void);
-extern void mapkick (void);
 extern void a3000_fakekick (int);
 
 extern uaecptr strcpyha_safe (uaecptr dst, const uae_char *src);

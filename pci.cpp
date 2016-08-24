@@ -225,7 +225,7 @@ static void create_config_data(struct pci_board_state *s)
 
 static struct pci_bridge *get_pci_bridge(uaecptr addr)
 {
-	if (addr < 0x10000 || (addr & 0xffff0000) == 0xe80000 || (addr & 0xff000000) == 0xff000000) {
+	if (addr < 0x10000 || (addr & 0xffff0000) == AUTOCONFIG_Z2 || (addr & 0xff000000) == AUTOCONFIG_Z3) {
 		for (int i = 0; i < PCI_BRIDGE_MAX; i++) {
 			struct pci_bridge *pcib = bridges[i];
 			if (pcib && pcib->configured == 0) {
@@ -255,7 +255,7 @@ static struct pci_bridge *get_pci_bridge(uaecptr addr)
 
 static struct pci_bridge *get_pci_bridge_2(uaecptr addr)
 {
-	if (addr < 0x10000 || (addr & 0xffff0000) == 0xe80000 || (addr & 0xff000000) == 0xff000000) {
+	if (addr < 0x10000 || (addr & 0xffff0000) == AUTOCONFIG_Z2 || (addr & 0xff000000) == AUTOCONFIG_Z3) {
 		for (int i = 0; i < PCI_BRIDGE_MAX; i++) {
 			struct pci_bridge *pcib = bridges[i];
 			if (pcib && pcib->configured_2 == 0) {

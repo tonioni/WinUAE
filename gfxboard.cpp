@@ -14,7 +14,8 @@
 #define REGDEBUG 0
 #define MEMDEBUG 0
 #define MEMDEBUGMASK 0x7fffff
-#define MEMDEBUGTEST 0x1ff000
+#define MEMDEBUGTEST 0x3fc000
+#define MEMDEBUGCLEAR 0
 #define PICASSOIV_DEBUG_IO 0
 
 #if MEMLOGR
@@ -182,6 +183,7 @@ struct rtggfxboard
 	int rtg_index;
 	struct rtgboardconfig *rbc;
 	TCHAR memorybankname[40];
+	TCHAR memorybanknamenojit[40];
 	TCHAR wbsmemorybankname[40];
 	TCHAR lbsmemorybankname[40];
 	TCHAR regbankname[40];
@@ -241,8 +243,9 @@ struct rtggfxboard
 };
 
 static struct rtggfxboard rtggfxboards[MAX_RTG_BOARDS];
+static struct rtggfxboard *only_gfx_board;
 static int rtg_visible = -1;
-static int total_active_gfx_boards, only_gfx_board;
+static int total_active_gfx_boards;
 static int vram_ram_a8;
 static DisplaySurface fakesurface;
 
@@ -669,11 +672,15 @@ bool gfxboard_vsync_handler (void)
 					gb->monswitch_current = gb->monswitch_new;
 					vga_update_size(gb);
 					write_log(_T("GFXBOARD %d ACTIVE=%d\n"), i, gb->monswitch_current);
-					if (!gfxboard_rtg_enable_initial(i)) {
-						// Nothing visible and RTG on? Re-enable our display.
-						if (rtg_visible < 0 && picasso_on) {
-							gfxboard_toggle(i, 0);
+					if (gb->monswitch_current) {
+						if (!gfxboard_rtg_enable_initial(i)) {
+							// Nothing visible and RTG on? Re-enable our display.
+							if (rtg_visible < 0 && picasso_on) {
+								gfxboard_toggle(i, 0);
+							}
 						}
+					} else {
+						picasso_requested_on = false;
 					}
 				}
 			} else {
@@ -782,9 +789,9 @@ static void remap_vram (struct rtggfxboard *gb, hwaddr offset0, hwaddr offset1, 
 	gb->vram_offset[0] = offset0;
 	gb->vram_offset[1] = offset1;
 #if VRAMLOG
-	if (vram_enabled != enabled)
+	if (gb->vram_enabled != enabled)
 		write_log (_T("VRAM state=%d\n"), enabled);
-	bool was_vram_offset_enabled = vram_offset_enabled;
+	bool was_vram_offset_enabled = gb->vram_offset_enabled;
 #endif
 	gb->vram_enabled = enabled && (gb->vga.vga.sr[0x07] & 0x01);
 #if 0
@@ -793,7 +800,7 @@ static void remap_vram (struct rtggfxboard *gb, hwaddr offset0, hwaddr offset1, 
 	// offset==0 and offset1==0x8000: linear vram mapping
 	gb->vram_offset_enabled = offset0 != 0 || offset1 != 0x8000;
 #if VRAMLOG
-	if (gb->vram_offset_enabled || gb->was_vram_offset_enabled)
+	if (gb->vram_offset_enabled || was_vram_offset_enabled)
 		write_log (_T("VRAM offset %08x and %08x\n"), offset0, offset1);
 #endif
 }
@@ -1118,7 +1125,6 @@ static uae_u32 gfxboard_lget_vram (struct rtggfxboard *gb, uaecptr addr, int bs)
 	uae_u32 v;
 	if (!gb->vram_enabled) {
 		const MemoryRegionOps *bank = getvgabank (gb, &addr);
-		addr &= gb->gfxmem_bank->mask;
 		if (bs < 0) { // WORD
 			v  = bank->read (&gb->vga, addr + 1, 1) << 24;
 			v |= bank->read (&gb->vga, addr + 0, 1) << 16;
@@ -1151,7 +1157,7 @@ static uae_u32 gfxboard_lget_vram (struct rtggfxboard *gb, uaecptr addr, int bs)
 	if (!vram_enabled || vram_offset_enabled)
 #endif
 	if (memlogr)
-	write_log (_T("R %08X L %08X BS=%d EN=%d\n"), addr, v, bs, gb->vram_enabled);
+		write_log (_T("R %08X L %08X BS=%d EN=%d\n"), addr, v, bs, gb->vram_enabled);
 #endif
 	return v;
 }
@@ -1179,7 +1185,7 @@ static uae_u16 gfxboard_wget_vram (struct rtggfxboard *gb, uaecptr addr, int bs)
 	if (!vram_enabled || vram_offset_enabled)
 #endif
 	if (memlogr)
-	write_log (_T("R %08X W %08X BS=%d EN=%d\n"), addr, v, bs, gb->vram_enabled);
+		write_log (_T("R %08X W %08X BS=%d EN=%d\n"), addr, v, bs, gb->vram_enabled);
 #endif
 	return v;
 }
@@ -1203,7 +1209,7 @@ static uae_u8 gfxboard_bget_vram (struct rtggfxboard *gb, uaecptr addr, int bs)
 	if (!vram_enabled || vram_offset_enabled)
 #endif
 	if (memlogr)
-	write_log (_T("R %08X B %08X BS=0 EN=%d\n"), addr, v, gb->vram_enabled);
+		write_log (_T("R %08X B %08X BS=0 EN=%d\n"), addr, v, gb->vram_enabled);
 #endif
 	return v;
 }
@@ -1211,15 +1217,15 @@ static uae_u8 gfxboard_bget_vram (struct rtggfxboard *gb, uaecptr addr, int bs)
 static void gfxboard_lput_vram (struct rtggfxboard *gb, uaecptr addr, uae_u32 l, int bs)
 {
 #if MEMDEBUG
-	if ((addr & MEMDEBUGMASK) >= MEMDEBUGTEST && l)
-		write_log (_T("%08X L %08X\n"), addr, l);
+	if ((addr & MEMDEBUGMASK) >= MEMDEBUGTEST && (MEMDEBUGCLEAR || l))
+		write_log (_T("%08X L %08X %08X\n"), addr, l, M68K_GETPC);
 #endif
 #if MEMLOGW
 #if MEMLOGINDIRECT
 	if (!vram_enabled || vram_offset_enabled)
 #endif
 	if (memlogw)
-	write_log (_T("W %08X L %08X\n"), addr, l);
+		write_log (_T("W %08X L %08X\n"), addr, l);
 #endif
 	if (!gb->vram_enabled) {
 		const MemoryRegionOps *bank = getvgabank (gb, &addr);
@@ -1254,15 +1260,15 @@ static void gfxboard_lput_vram (struct rtggfxboard *gb, uaecptr addr, uae_u32 l,
 static void gfxboard_wput_vram (struct rtggfxboard *gb, uaecptr addr, uae_u16 w, int bs)
 {
 #if MEMDEBUG
-	if ((addr & MEMDEBUGMASK) >= MEMDEBUGTEST && w)
-		write_log (_T("%08X W %04X\n"), addr, w & 0xffff);
+	if ((addr & MEMDEBUGMASK) >= MEMDEBUGTEST && (MEMDEBUGCLEAR || w))
+		write_log (_T("%08X W %04X %08X\n"), addr, w & 0xffff, M68K_GETPC);
 #endif
 #if MEMLOGW
 #if MEMLOGINDIRECT
 	if (!vram_enabled || vram_offset_enabled)
 #endif
 	if (memlogw)
-	write_log (_T("W %08X W %04X\n"), addr, w & 0xffff);
+		write_log (_T("W %08X W %04X\n"), addr, w & 0xffff);
 #endif
 	if (!gb->vram_enabled) {
 		const MemoryRegionOps *bank = getvgabank (gb, &addr);
@@ -1284,15 +1290,15 @@ static void gfxboard_wput_vram (struct rtggfxboard *gb, uaecptr addr, uae_u16 w,
 static void gfxboard_bput_vram (struct rtggfxboard *gb, uaecptr addr, uae_u8 b, int bs)
 {
 #if MEMDEBUG
-	if ((addr & MEMDEBUGMASK) >= MEMDEBUGTEST && b)
-		write_log (_T("%08X B %02X\n"), addr, b & 0xff);
+	if ((addr & MEMDEBUGMASK) >= MEMDEBUGTEST && (MEMDEBUGCLEAR || b))
+		write_log (_T("%08X B %02X %08X\n"), addr, b & 0xff, M68K_GETPC);
 #endif
 #if MEMLOGW
 #if MEMLOGINDIRECT
 	if (!vram_enabled || vram_offset_enabled)
 #endif
 	if (memlogw)
-	write_log (_T("W %08X B %02X\n"), addr, b & 0xff);
+		write_log (_T("W %08X B %02X\n"), addr, b & 0xff);
 #endif
 	if (!gb->vram_enabled) {
 		const MemoryRegionOps *bank = getvgabank (gb, &addr);
@@ -1314,8 +1320,8 @@ static void gfxboard_bput_vram (struct rtggfxboard *gb, uaecptr addr, uae_u8 b, 
 static struct rtggfxboard *lastgetgfxboard;
 static rtggfxboard *getgfxboard(uaecptr addr)
 {
-	if (total_active_gfx_boards == 1)
-		return &rtggfxboards[only_gfx_board];
+	if (only_gfx_board)
+		return only_gfx_board;
 	if (lastgetgfxboard) {
 		if (addr >= lastgetgfxboard->io_start && addr < lastgetgfxboard->io_end)
 			return lastgetgfxboard;
@@ -1473,7 +1479,6 @@ static uae_u32 REGPARAM2 gfxboard_lget_nbsmem (uaecptr addr)
 	addr = fixaddr_bs (gb, addr, 0, &bs);
 	if (addr == -1)
 		return 0;
-//	activate_debugger();
 	return gfxboard_lget_vram (gb, addr, bs);
 }
 static uae_u32 REGPARAM2 gfxboard_wget_nbsmem (uaecptr addr)
@@ -1666,6 +1671,18 @@ static uae_u32 REGPARAM2 gfxboard_bget_mem_autoconfig (uaecptr addr)
 	return v;
 }
 
+static void copyvrambank(addrbank *dst, const addrbank *src)
+{
+	dst->start = src->start;
+	dst->startmask = src->startmask;
+	dst->mask = src->mask;
+	dst->allocated = src->allocated;
+	dst->baseaddr = src->baseaddr;
+	dst->flags = src->flags;
+	dst->jit_read_flag = src->jit_read_flag;
+	dst->jit_write_flag = src->jit_write_flag;
+}
+
 static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
@@ -1682,6 +1699,7 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 		gb->gfxboard_bank_memory.bget = gfxboard_bget_mem;
 		gb->gfxboard_bank_memory.bput = gfxboard_bput_mem;
 		gb->gfxboard_bank_memory.wput = gfxboard_wput_mem;
+		copyvrambank(&gb->gfxboard_bank_memory, gb->gfxmem_bank);
 		init_board (gb);
 		if (ISP4()) {
 			if (validate_banks_z3(&gb->gfxboard_bank_memory, gb->gfxmem_bank->start >> 16, expamem_board_size >> 16)) {
@@ -1724,6 +1742,7 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 			addrbank *ab;
 			if (ISP4()) {
 				ab = &gb->gfxboard_bank_nbsmemory;
+				copyvrambank(ab, gb->gfxmem_bank);
 				map_banks_z2 (ab, b, 0x00200000 >> 16);
 				if (gb->configured_mem <= 0) {
 					gb->configured_mem = b;
@@ -1741,8 +1760,11 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 				ab = &gb->gfxboard_bank_memory;
 				gb->gfxboard_bank_memory.bget = gfxboard_bget_mem;
 				gb->gfxboard_bank_memory.bput = gfxboard_bput_mem;
+				gb->gfxboard_bank_memory.wget = gfxboard_wget_mem;
+				gb->gfxboard_bank_memory.wput = gfxboard_wput_mem;
 				gb->gfxboardmem_start = b << 16;
 				init_board (gb);
+				copyvrambank(ab, gb->gfxmem_bank);
 				map_banks_z2 (ab, b, gb->board->banksize >> 16);
 				gb->configured_mem = b;
 				gb->mem_start[0] = b << 16;
@@ -2537,13 +2559,14 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	gfxboard_init (aci->prefs, gb);
 
 	total_active_gfx_boards = 0;
-	only_gfx_board = 0;
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		if (p->rtgboards[i].rtgmem_size && p->rtgboards[i].rtgmem_type >= GFXBOARD_HARDWARE) {
 			total_active_gfx_boards++;
-			only_gfx_board = i;
 		}
 	}
+	only_gfx_board = NULL;
+	if (total_active_gfx_boards == 1)
+		only_gfx_board = gb;
 
 	memset (gb->automemory, 0xff, GFXBOARD_AUTOCONFIG_SIZE);
 	
@@ -2613,10 +2636,11 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 		}
 	}
 
-	_stprintf (gb->memorybankname, _T("%s VRAM"), gb->board->name);
-	_stprintf (gb->wbsmemorybankname, _T("%s VRAM WORDSWAP"), gb->board->name);
-	_stprintf (gb->lbsmemorybankname, _T("%s VRAM LONGSWAP"), gb->board->name);
-	_stprintf (gb->regbankname, _T("%s REG"), gb->board->name);
+	_stprintf(gb->memorybankname, _T("%s VRAM"), gb->board->name);
+	_stprintf(gb->memorybanknamenojit, _T("%s VRAM NOJIT"), gb->board->name);
+	_stprintf(gb->wbsmemorybankname, _T("%s VRAM WORDSWAP"), gb->board->name);
+	_stprintf(gb->lbsmemorybankname, _T("%s VRAM LONGSWAP"), gb->board->name);
+	_stprintf(gb->regbankname, _T("%s REG"), gb->board->name);
 
 	memcpy(&gb->gfxboard_bank_memory, &tmpl_gfxboard_bank_memory, sizeof addrbank);
 	memcpy(&gb->gfxboard_bank_wbsmemory, &tmpl_gfxboard_bank_wbsmemory, sizeof addrbank);
@@ -2627,7 +2651,7 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	memcpy(&gb->gfxboard_bank_memory_nojit, &tmpl_gfxboard_bank_memory_nojit, sizeof addrbank);
 	
 	gb->gfxboard_bank_memory.name = gb->memorybankname;
-	gb->gfxboard_bank_memory_nojit.name = gb->memorybankname;
+	gb->gfxboard_bank_memory_nojit.name = gb->memorybanknamenojit;
 	gb->gfxboard_bank_wbsmemory.name = gb->wbsmemorybankname;
 	gb->gfxboard_bank_lbsmemory.name = gb->lbsmemorybankname;
 	gb->gfxboard_bank_registers.name = gb->regbankname;
@@ -2637,6 +2661,7 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	gb->gfxboard_bank_memory.wput = gfxboard_wput_mem_autoconfig;
 
 	aci->label = gb->board->name;
+	aci->direct_vram = true;
 	if (gb->rbc->rtgmem_type == GFXBOARD_VGA) {
 		aci->addrbank = &expamem_nonautoconfig;
 	} else {
@@ -2681,6 +2706,7 @@ bool gfxboard_init_memory_p4_z2 (struct autoconfig_info *aci)
 	aci->addrbank = &gb->gfxboard_bank_memory;
 	aci->label = gb->board->name;
 	aci->parent_of_previous = true;
+	aci->direct_vram = true;
 	return true;
 }
 

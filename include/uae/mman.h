@@ -31,4 +31,15 @@ int uae_shmctl(int shmid, int cmd, struct uae_shmid_ds *buf);
 #define UAE_IPC_CREAT   0x04
 #define UAE_IPC_STAT    0x08
 
+struct uae_mman_data
+{
+	uaecptr start;
+	uae_u32 size;
+	bool readonly;
+	uae_u32 readonlysize;
+	bool maprom;
+	bool directsupport;
+};
+bool uae_mman_info(addrbank *ab, struct uae_mman_data *md);
+
 #endif /* UAE_MMAN_H */

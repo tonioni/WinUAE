@@ -22,6 +22,8 @@
 
 #if defined(NATMEM_OFFSET)
 
+#define WIN32_NATMEM_TEST 0
+
 uae_u32 max_z3fastmem;
 
 /* BARRIER is used in case Amiga memory is access across memory banks,
@@ -36,12 +38,14 @@ uae_u32 max_z3fastmem;
 #define MAXZ3MEM64 0xF0000000
 
 static struct uae_shmid_ds shmids[MAX_SHMID];
-uae_u8 *natmem_reserved, *natmem_offset, *natmem_offset_end;
+uae_u8 *natmem_reserved, *natmem_offset;
 uae_u32 natmem_reserved_size;
 static uae_u8 *p96mem_offset;
 static int p96mem_size;
 static uae_u32 p96base_offset;
 static SYSTEM_INFO si;
+static uaecptr start_rtg = 0;
+static uaecptr end_rtg = 0;
 int maxmem;
 bool jit_direct_compatible_memory;
 
@@ -199,7 +203,9 @@ bool preinit_shm (void)
 	if (natmem_size < 17 * 1024 * 1024)
 		natmem_size = 17 * 1024 * 1024;
 
-	//natmem_size = 257 * 1024 * 1024;
+#if WIN32_NATMEM_TEST
+	natmem_size = 336 * 1024 * 1024;
+#endif
 
 	if (natmem_size > 0x80000000) {
 		natmem_size = 0x80000000;
@@ -326,10 +332,11 @@ static uae_u8 *va (uae_u32 offset, uae_u32 len, DWORD alloc, DWORD protect)
 static int doinit_shm (void)
 {
 	uae_u32 totalsize;
-	uae_u32 startbarrier, align;
+	uae_u32 align;
 	uae_u32 z3rtgmem_size;
 	struct rtgboardconfig *rbc = &changed_prefs.rtgboards[0];
 	struct rtgboardconfig *crbc = &currprefs.rtgboards[0];
+	uae_u32 extra = 65536;
 
 	changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = 0;
 	set_expamem_z3_hack_mode(0);
@@ -340,7 +347,6 @@ static int doinit_shm (void)
 
 	align = 16 * 1024 * 1024 - 1;
 	totalsize = 0x01000000;
-	startbarrier = changed_prefs.mbresmem_high_size >= 128 * 1024 * 1024 ? (changed_prefs.mbresmem_high_size - 128 * 1024 * 1024) + 16 * 1024 * 1024 : 0;
 
 	z3rtgmem_size = gfxboard_get_configtype(rbc) == 3 ? rbc->rtgmem_size : 0;
 
@@ -348,39 +354,82 @@ static int doinit_shm (void)
 		totalsize = 0x10000000;
 	totalsize += (changed_prefs.z3chipmem_size + align) & ~align;
 
+	start_rtg = 0;
+	end_rtg = 0;
+
+	int idx = 0;
+	for (;;) {
+		struct autoconfig_info *aci = expansion_get_autoconfig_data(&currprefs, idx++);
+		if (!aci)
+			break;
+		if (!aci->addrbank)
+			continue;
+		if (aci->direct_vram) {
+			if (!start_rtg)
+				start_rtg = aci->start;
+			end_rtg = aci->start + aci->size;
+		}
+	}
+
+	jit_direct_compatible_memory = currprefs.cachesize && (!currprefs.comptrustbyte || !currprefs.comptrustword || !currprefs.comptrustlong);
+
+	// choose UAE if requested, blizzard or if jit direct and only UAE mode fits in natmem space.
 	if (changed_prefs.z3_mapping_mode == Z3MAPPING_UAE || cpuboard_memorytype(&changed_prefs) == BOARD_MEMORY_BLIZZARD_12xx ||
-		(expamem_z3_pointer_real + 16 * si.dwPageSize >= natmem_reserved_size && changed_prefs.z3_mapping_mode == Z3MAPPING_AUTO)) {
+		(expamem_z3_highram_real + extra >= natmem_reserved_size && expamem_z3_highram_real < totalsize && changed_prefs.z3_mapping_mode == Z3MAPPING_AUTO && jit_direct_compatible_memory)) {
 		changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = Z3BASE_UAE;
 		if (changed_prefs.z3_mapping_mode == Z3MAPPING_AUTO)
 			write_log(_T("MMAN: Selected UAE Z3 mapping mode\n"));
 		set_expamem_z3_hack_mode(Z3MAPPING_UAE);
-		if (expamem_z3_pointer_uae > totalsize) {
-			totalsize = expamem_z3_pointer_uae;
-			startbarrier = 0;
+		if (expamem_z3_highram_uae > totalsize) {
+			totalsize = expamem_z3_highram_uae;
 		}
 	} else {
+		if (changed_prefs.z3_mapping_mode == Z3MAPPING_AUTO)
+			write_log(_T("MMAN: Selected REAL Z3 mapping mode\n"));
 		changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = Z3BASE_REAL;
 		set_expamem_z3_hack_mode(Z3MAPPING_REAL);
-		if (expamem_z3_pointer_real > totalsize) {
-			totalsize = expamem_z3_pointer_real;
-			if (totalsize + 16 * si.dwPageSize >= natmem_reserved_size && expamem_z3_pointer_uae < totalsize) {
-				write_log(_T("NATMEM: Not enough memory for Z3REAL!\n"));
-				notify_user(NUMSG_NOMEMORY);
-				return -1;
+		if (expamem_z3_highram_real > totalsize && jit_direct_compatible_memory) {
+			totalsize = expamem_z3_highram_real;
+			if (totalsize + extra >= natmem_reserved_size) {
+				jit_direct_compatible_memory = false;
+				write_log(_T("NATMEM: Not enough direct memory for Z3REAL. Switching off JIT Direct.\n"));
 			}
-			startbarrier = 0;
 		}
 	}
+	write_log(_T("Total %uM, HM %uM\n"), totalsize >> 20, expamem_highmem_pointer >> 20);
+
 	if (totalsize < expamem_highmem_pointer)
 		totalsize = expamem_highmem_pointer;
 
-	if (totalsize > size64 || totalsize + 16 * si.dwPageSize >= natmem_reserved_size) {
-		write_log(_T("NATMEM: Not enough memory!\n"));
-		notify_user(NUMSG_NOMEMORY);
-		return -1;
+	if (jit_direct_compatible_memory && (totalsize > size64 || totalsize + extra >= natmem_reserved_size)) {
+		jit_direct_compatible_memory = false;
+		write_log(_T("NATMEM: Not enough direct memory. Switching off JIT Direct.\n"));
 	}
 
-	jit_direct_compatible_memory = true;
+	// rtg outside of natmem?
+	if (end_rtg > natmem_reserved_size) {
+		if (jit_direct_compatible_memory) {
+			write_log(_T("NATMEM: VRAM outside of natmem (%08x > %08x), switching off JIT Direct.\n"), end_rtg, natmem_reserved_size);
+			jit_direct_compatible_memory = false;
+		}
+		if (end_rtg - start_rtg > natmem_reserved_size) {
+			write_log(_T("NATMEM: VRAMs don't fit in natmem space! (%08x > %08x)\n"), end_rtg - start_rtg, natmem_reserved_size);
+			notify_user(NUMSG_NOMEMORY);
+			return -1;
+		}
+		p96base_offset = start_rtg;
+		p96mem_size = end_rtg - start_rtg;
+		write_log("NATMEM: rtgbase_offset = %08x, size %08x\n", p96base_offset, p96mem_size);
+		// adjust p96mem_offset to beginning of natmem
+		// by subtracting start of original p96mem_offset from natmem_offset
+		if (p96base_offset >= 0x10000000) {
+			natmem_offset = natmem_reserved - p96base_offset;
+			p96mem_offset = natmem_offset + p96base_offset;
+		}
+	} else {
+		start_rtg = 0;
+		end_rtg = 0;
+	}
 
 	expansion_scan_autoconfig(&currprefs, true);
 #if 0
@@ -470,15 +519,11 @@ static int doinit_shm (void)
 			totalsize, totalsize / (1024 * 1024));
 #if 0
 		if (rbc->rtgmem_size)
-			write_log (_T("NATMEM: P96 special area: %p-%p (0x%08x %dM)\n"),
+			write_log (_T("NATMEM: RTG special area: %p-%p (0x%08x %dM)\n"),
 				p96mem_offset, (uae_u8*)p96mem_offset + rbc->rtgmem_size,
 				rbc->rtgmem_size, rbc->rtgmem_size >> 20);
 #endif
 		canbang = jit_direct_compatible_memory ? 1 : 0;
-		if (p96mem_size)
-			natmem_offset_end = p96mem_offset + p96mem_size;
-		else
-			natmem_offset_end = natmem_offset + totalsize;
 	}
 
 	return canbang;
@@ -496,6 +541,8 @@ bool init_shm (void)
 	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
 		if (oz3fastmem_size[i] != changed_prefs.z3fastmem[i].size)
 			changed = true;
+	}
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		if (ortgmem_size[i] != changed_prefs.rtgboards[i].rtgmem_size)
 			changed = true;
 		if (ortgmem_type[i] != changed_prefs.rtgboards[i].rtgmem_type)
@@ -506,6 +553,8 @@ bool init_shm (void)
 
 	for (int i = 0; i < MAX_RAM_BOARDS;i++) {
 		oz3fastmem_size[i] = changed_prefs.z3fastmem[i].size;
+	}
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		ortgmem_size[i] = changed_prefs.rtgboards[i].rtgmem_size;
 		ortgmem_type[i] = changed_prefs.rtgboards[i].rtgmem_type;
 	}
@@ -611,6 +660,166 @@ STATIC_INLINE uae_key_t find_shmkey (uae_key_t key)
 	return result;
 }
 
+bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
+{
+	bool got = false;
+	bool readonly = false, maprom = false;
+	bool directsupport = true;
+	uaecptr start;
+	uae_u32 size = ab->allocated;
+	uae_u32 readonlysize = size;
+
+	if (!_tcscmp(ab->label, _T("*"))) {
+		start = ab->start;
+		got = true;
+		if (expansion_get_autoconfig_by_address(&currprefs, ab->start) && !expansion_get_autoconfig_by_address(&currprefs, ab->start + size))
+			size += BARRIER;
+	} else if (!_tcscmp(ab->label, _T("chip"))) {
+		start = 0;
+		got = true;
+		if (!expansion_get_autoconfig_by_address(&currprefs, 0x00200000) || currprefs.chipmem_size < 2 * 1024 * 1024)
+			size += BARRIER;
+	} else if (!_tcscmp(ab->label, _T("kick"))) {
+		start = 0xf80000;
+		got = true;
+		size += BARRIER;
+		readonly = true;
+		maprom = true;
+	} else if (!_tcscmp(ab->label, _T("rom_a8"))) {
+		start = 0xa80000;
+		got = true;
+		readonly = true;
+		maprom = true;
+	} else if (!_tcscmp(ab->label, _T("rom_e0"))) {
+		start = 0xe00000;
+		got = true;
+		readonly = true;
+		maprom = true;
+	} else if (!_tcscmp(ab->label, _T("rom_f0"))) {
+		start = 0xf00000;
+		got = true;
+		readonly = true;
+	} else if (!_tcscmp(ab->label, _T("rom_f0_ppc"))) {
+		// this is flash and also contains IO
+		start = 0xf00000;
+		got = true;
+		readonly = false;
+	} else if (!_tcscmp(ab->label, _T("rtarea"))) {
+		start = rtarea_base;
+		got = true;
+		readonly = true;
+		readonlysize = RTAREA_TRAPS;
+	} else if (!_tcscmp(ab->label, _T("ramsey_low"))) {
+		start = a3000lmem_bank.start;
+		if (!a3000hmem_bank.start)
+			size += BARRIER;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("csmk1_maprom"))) {
+		start = 0x07f80000;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("25bitram"))) {
+		start = 0x01000000;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("ramsey_high"))) {
+		start = 0x08000000;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("dkb"))) {
+		start = 0x10000000;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("fusionforty"))) {
+		start = 0x11000000;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("blizzard_40"))) {
+		start = 0x40000000;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("blizzard_48"))) {
+		start = 0x48000000;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("blizzard_68"))) {
+		start = 0x68000000;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("blizzard_70"))) {
+		start = 0x70000000;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("cyberstorm"))) {
+		start = 0x0c000000;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("cyberstormmaprom"))) {
+		start = 0xfff00000;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("bogo"))) {
+		start = 0x00C00000;
+		got = true;
+		if (currprefs.bogomem_size <= 0x100000)
+			size += BARRIER;
+	} else if (!_tcscmp(ab->label, _T("custmem1"))) {
+		start = currprefs.custom_memory_addrs[0];
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("custmem2"))) {
+		start = currprefs.custom_memory_addrs[1];
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("hrtmem"))) {
+		start = 0x00a10000;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("arhrtmon"))) {
+		start = 0x00800000;
+		size += BARRIER;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("xpower_e2"))) {
+		start = 0x00e20000;
+		size += BARRIER;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("xpower_f2"))) {
+		start = 0x00f20000;
+		size += BARRIER;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("nordic_f0"))) {
+		start = 0x00f00000;
+		size += BARRIER;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("nordic_f4"))) {
+		start = 0x00f40000;
+		size += BARRIER;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("nordic_f6"))) {
+		start = 0x00f60000;
+		size += BARRIER;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("superiv_b0"))) {
+		start = 0x00b00000;
+		size += BARRIER;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("superiv_d0"))) {
+		start = 0x00d00000;
+		size += BARRIER;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("superiv_e0"))) {
+		start = 0x00e00000;
+		size += BARRIER;
+		got = true;
+	} else if (!_tcscmp(ab->label, _T("ram_a8"))) {
+		start = 0x00a80000;
+		size += BARRIER;
+		got = true;
+	}
+	if (got) {
+		md->start = start;
+		md->size = size;
+		md->readonly = readonly;
+		md->readonlysize = readonlysize;
+		md->maprom = maprom;
+
+		if (start_rtg && end_rtg) {
+			if (start < start_rtg || start + size > end_rtg)
+				directsupport = false;
+		} else if (start + size > natmem_reserved_size) {
+			directsupport = false;
+		}
+		md->directsupport = directsupport;
+	}
+	return got;
+}
+
 void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 {
 	void *result = (void *)-1;
@@ -620,7 +829,6 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 #ifdef NATMEM_OFFSET
 	unsigned int size = shmids[shmid].size;
 	unsigned int readonlysize = size;
-	struct rtgboardconfig *rbc = &currprefs.rtgboards[0];
 
 	if (shmids[shmid].attached)
 		return shmids[shmid].attached;
@@ -632,135 +840,13 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 	}
 
 	if ((uae_u8*)shmaddr < natmem_offset) {
-		if (!_tcscmp(shmids[shmid].name, _T("*"))) {
-			shmaddr = natmem_offset + ab->start;
-			got = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("chip"))) {
-			shmaddr=natmem_offset;
-			got = true;
-			if (!expansion_get_autoconfig_by_address(&currprefs, 0x00200000) || currprefs.chipmem_size < 2 * 1024 * 1024)
-				size += BARRIER;
-		} else if(!_tcscmp (shmids[shmid].name, _T("kick"))) {
-			shmaddr=natmem_offset + 0xf80000;
-			got = true;
-			size += BARRIER;
-			readonly = true;
-			maprom = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("rom_a8"))) {
-			shmaddr=natmem_offset + 0xa80000;
-			got = true;
-			readonly = true;
-			maprom = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("rom_e0"))) {
-			shmaddr=natmem_offset + 0xe00000;
-			got = true;
-			readonly = true;
-			maprom = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("rom_f0"))) {
-			shmaddr=natmem_offset + 0xf00000;
-			got = true;
-			readonly = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("rom_f0_ppc"))) {
-			// this is flash and also contains IO
-			shmaddr=natmem_offset + 0xf00000;
-			got = true;
-			readonly = false;
-		} else if (!_tcscmp(shmids[shmid].name, _T("rtarea"))) {
-			shmaddr = natmem_offset + rtarea_base;
-			got = true;
-			readonly = true;
-			readonlysize = RTAREA_TRAPS;
-		} else if(!_tcscmp (shmids[shmid].name, _T("ramsey_low"))) {
-			shmaddr=natmem_offset + a3000lmem_bank.start;
-			if (!a3000hmem_bank.start)
-				size += BARRIER;
-			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("csmk1_maprom"))) {
-			shmaddr = natmem_offset + 0x07f80000;
-			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("25bitram"))) {
-			shmaddr = natmem_offset + 0x01000000;
-			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("ramsey_high"))) {
-			shmaddr = natmem_offset + 0x08000000;
-			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("dkb"))) {
-			shmaddr = natmem_offset + 0x10000000;
-			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("fusionforty"))) {
-			shmaddr = natmem_offset + 0x11000000;
-			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("blizzard_40"))) {
-			shmaddr = natmem_offset + 0x40000000;
-			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("blizzard_48"))) {
-			shmaddr = natmem_offset + 0x48000000;
-			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("blizzard_68"))) {
-			shmaddr = natmem_offset + 0x68000000;
-			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("blizzard_70"))) {
-			shmaddr = natmem_offset + 0x70000000;
-			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("cyberstorm"))) {
-			shmaddr = natmem_offset + 0x0c000000;
-			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("cyberstormmaprom"))) {
-			shmaddr = natmem_offset + 0xfff00000;
-			got = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("bogo"))) {
-			shmaddr=natmem_offset+0x00C00000;
-			got = true;
-			if (currprefs.bogomem_size <= 0x100000)
-				size += BARRIER;
-		} else if(!_tcscmp (shmids[shmid].name, _T("custmem1"))) {
-			shmaddr=natmem_offset + currprefs.custom_memory_addrs[0];
-			got = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("custmem2"))) {
-			shmaddr=natmem_offset + currprefs.custom_memory_addrs[1];
-			got = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("hrtmem"))) {
-			shmaddr=natmem_offset + 0x00a10000;
-			got = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("arhrtmon"))) {
-			shmaddr=natmem_offset + 0x00800000;
-			size += BARRIER;
-			got = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("xpower_e2"))) {
-			shmaddr=natmem_offset + 0x00e20000;
-			size += BARRIER;
-			got = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("xpower_f2"))) {
-			shmaddr=natmem_offset + 0x00f20000;
-			size += BARRIER;
-			got = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("nordic_f0"))) {
-			shmaddr=natmem_offset + 0x00f00000;
-			size += BARRIER;
-			got = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("nordic_f4"))) {
-			shmaddr=natmem_offset + 0x00f40000;
-			size += BARRIER;
-			got = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("nordic_f6"))) {
-			shmaddr=natmem_offset + 0x00f60000;
-			size += BARRIER;
-			got = true;
-		} else if(!_tcscmp(shmids[shmid].name, _T("superiv_b0"))) {
-			shmaddr=natmem_offset + 0x00b00000;
-			size += BARRIER;
-			got = true;
-		} else if(!_tcscmp (shmids[shmid].name, _T("superiv_d0"))) {
-			shmaddr=natmem_offset + 0x00d00000;
-			size += BARRIER;
-			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("superiv_e0"))) {
-			shmaddr = natmem_offset + 0x00e00000;
-			size += BARRIER;
-			got = true;
-		} else if (!_tcscmp(shmids[shmid].name, _T("ram_a8"))) {
-			shmaddr = natmem_offset + 0x00a80000;
-			size += BARRIER;
+		struct uae_mman_data md;
+		if (uae_mman_info(ab, &md)) {
+			shmaddr = natmem_offset + md.start;
+			size = md.size;
+			readonlysize = md.readonlysize;
+			readonly = md.readonly;
+			maprom = md.maprom;
 			got = true;
 		}
 	}
@@ -796,7 +882,7 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 			shmids[shmid].attached = result;
 			write_log (_T("%p: VA %08lX - %08lX %x (%dk) ok (%p)%s\n"),
 				shmaddr, (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
-				size, size >> 10, shmaddr, p96special ? _T(" P96") : _T(""));
+				size, size >> 10, shmaddr, p96special ? _T(" RTG") : _T(""));
 		}
 	}
 	return result;
