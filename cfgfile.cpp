@@ -6858,6 +6858,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	cr->rate = 50.0;
 	cr->ntsc = 0;
 	cr->locked = false;
+	cr->inuse = true;
 	_tcscpy (cr->label, _T("PAL"));
 	cr = &p->cr[CHIPSET_REFRESH_NTSC];
 	cr->index = CHIPSET_REFRESH_NTSC;
@@ -6869,6 +6870,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	cr->rate = 60.0;
 	cr->ntsc = 1;
 	cr->locked = false;
+	cr->inuse = true;
 	_tcscpy (cr->label, _T("NTSC"));
 
 	p->lightboost_strobo = false;
