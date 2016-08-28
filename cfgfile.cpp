@@ -1913,12 +1913,15 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			}
 			s[_tcslen (s) - 1] = 0;
 		}
-		if (i == CHIPSET_REFRESH_PAL)
-			cfgfile_dwrite (f, _T("displaydata_pal"), tmp);
-		else if (i == CHIPSET_REFRESH_NTSC)
-			cfgfile_dwrite (f, _T("displaydata_ntsc"), tmp);
-		else
+		if (i == CHIPSET_REFRESH_PAL) {
+			if (cr->locked)
+				cfgfile_dwrite (f, _T("displaydata_pal"), tmp);
+		} else if (i == CHIPSET_REFRESH_NTSC) {
+			if (cr->locked)
+				cfgfile_dwrite (f, _T("displaydata_ntsc"), tmp);
+		} else {
 			cfgfile_dwrite (f, _T("displaydata"), tmp);
+		}
 	}
 
 	cfgfile_write_str (f, _T("collision_level"), collmode[p->collision_level]);
@@ -3532,12 +3535,12 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			if (_tcscmp (option, _T("displaydata_pal")) == 0) {
 				i = CHIPSET_REFRESH_PAL;
 				cr = &p->cr[i];
-				cr->rate = -1;
+				cr->inuse = false;
 				_tcscpy (label, _T("PAL"));
 			} else if (_tcscmp (option, _T("displaydata_ntsc")) == 0) {
 				i = CHIPSET_REFRESH_NTSC;
 				cr = &p->cr[i];
-				cr->rate = -1;
+				cr->inuse = false;
 				_tcscpy (label, _T("NTSC"));
 			}
 			if (!cr->inuse) {

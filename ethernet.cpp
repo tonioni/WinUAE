@@ -197,6 +197,7 @@ bool ethernet_enumerate (struct netdriverdata **nddp, const TCHAR *name)
 {
 	int j;
 	struct netdriverdata *nd;
+	gui_flicker_led(LED_NET, 0, 0);
 	if (name) {
 		netmode = 0;
 		*nddp = NULL;

@@ -2518,6 +2518,8 @@ bool expansion_can_move(struct uae_prefs *p, int index)
 	if (index < 0 || index >= cardno)
 		return false;
 	struct card_data *cd = cards[index];
+	if (cd->aci.parent_of_previous)
+		return false;
 	int order1 = get_order(p, cd);
 	if (order1 < 0 || order1 >= EXPANSION_ORDER_MAX - 1)
 		return false;
@@ -2675,7 +2677,7 @@ static void expansion_parse_cards(struct uae_prefs *p, bool log)
 		write_log(_T("END\n"));
 }
 
-int expansion_autoconfig_move(struct uae_prefs *p, int index, int dir)
+int expansion_autoconfig_move(struct uae_prefs *p, int index, int dir, bool test)
 {
 	if (index < 0 || index >= cardno)
 		return -1;
@@ -2699,6 +2701,9 @@ int expansion_autoconfig_move(struct uae_prefs *p, int index, int dir)
 				break;
 		}
 		dir += dir < 0 ? -1 : 1;
+	}
+	if (test) {
+		return 0;
 	}
 	set_order(p, cd1, order2);
 	set_order(p, cd2, order1);

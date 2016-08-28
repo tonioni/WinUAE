@@ -9864,6 +9864,22 @@ static LRESULT ProcesssBoardsDlgProcCustomDraw(LPARAM lParam)
 {
 }
 
+static void BoardsEnable(HWND hDlg, int selected)
+{
+	bool move_up = expansion_can_move(&workprefs, selected);
+	bool move_down = move_up;
+	if (move_up) {
+		if (expansion_autoconfig_move(&workprefs, selected, -1, true) < 0)
+			move_up = false;
+	}
+	if (move_down) {
+		if (expansion_autoconfig_move(&workprefs, selected, 1, true) < 0)
+			move_down = false;
+	}
+	ew(hDlg, IDC_BOARDS_UP, move_up);
+	ew(hDlg, IDC_BOARDS_DOWN, move_down);
+}
+
 static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
@@ -9898,16 +9914,12 @@ static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				case IDC_BOARDS_UP:
 				case IDC_BOARDS_DOWN:
 				if (selected >= 0) {
-					int newpos = expansion_autoconfig_move(&workprefs, selected, LOWORD(wParam) == IDC_BOARDS_UP ? -1 : 1);
+					int newpos = expansion_autoconfig_move(&workprefs, selected, LOWORD(wParam) == IDC_BOARDS_UP ? -1 : 1, false);
 					if (newpos >= 0) {
 						selected = newpos;
-						
-						
+						BoardsEnable(hDlg, selected);
 						InitializeListView(hDlg);
-
-
 						ListView_SetItemState(cachedlist, selected, LVIS_SELECTED, LVIS_SELECTED);
-
 					}
 				}
 				break;
@@ -9949,10 +9961,8 @@ static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 					HWND list = nmlistview->hdr.hwndFrom;
 					int entry = listview_entry_from_click(list, &column);
 					if (entry >= 0) {
-						bool move = expansion_can_move(&workprefs, entry);
 						selected = entry;
-						ew(hDlg, IDC_BOARDS_UP, move);
-						ew(hDlg, IDC_BOARDS_DOWN, move);
+						BoardsEnable(hDlg, selected);
 					}
 				}
 				break;
@@ -19740,7 +19750,8 @@ void gui_flicker_led (int led, int unitnum, int status)
 	if (led < 0) {
 		gui_flicker_led2(LED_HD, 0, 0);
 		gui_flicker_led2(LED_CD, 0, 0);
-		gui_flicker_led2(LED_NET, 0, 0);
+		if (gui_data.net >= 0)
+			gui_flicker_led2(LED_NET, 0, 0);
 		if (gui_data.md >= 0)
 			gui_flicker_led2(LED_MD, 0, 0);
 	} else {

@@ -243,19 +243,21 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 			num3 = -1;
 		} else if (led == LED_NET) {
 			pos = 6;
-			on = gui_data.net;
-			on_rgb = 0;
-			if (on & 1)
-				on_rgb |= 0x00cc00;
-			if (on & 2)
-				on_rgb |= 0xcc0000;
-			off_rgb = 0x000000;
-			num1 = -1;
-			num2 = -1;
-			num3 = 17;
-			am = 1;
+			if (gui_data.net >= 0) {
+				on = gui_data.net;
+				on_rgb = 0;
+				if (on & 1)
+					on_rgb |= 0x00cc00;
+				if (on & 2)
+					on_rgb |= 0xcc0000;
+				off_rgb = 0x000000;
+				num1 = -1;
+				num2 = -1;
+				num3 = 17;
+				am = 1;
+			}
 		} else {
-			return;
+			continue;
 		}
 		on_rgb |= 0x33000000;
 		off_rgb |= 0x33000000;

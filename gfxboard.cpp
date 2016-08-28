@@ -674,8 +674,8 @@ bool gfxboard_vsync_handler (void)
 					write_log(_T("GFXBOARD %d ACTIVE=%d\n"), i, gb->monswitch_current);
 					if (gb->monswitch_current) {
 						if (!gfxboard_rtg_enable_initial(i)) {
-							// Nothing visible and RTG on? Re-enable our display.
-							if (rtg_visible < 0 && picasso_on) {
+							// Nothing visible? Re-enable our display.
+							if (rtg_visible < 0) {
 								gfxboard_toggle(i, 0);
 							}
 						}

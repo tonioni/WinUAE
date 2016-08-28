@@ -1,4 +1,20 @@
 
+Beta 3:
+
+- PCI ES1370 fixed.
+- (Missed from b1 log): CPU Idle logic has been completely changed, now it only has two states, inactive and active.
+  Active state changes internal CPU speed state to approximate and active equals fastest possible mode.
+  Old logic was never good enough. CPU usage was never low enough and it didn't prevent audio glitches.
+- Another b1 missed log entry: conditional register breakpoints, break when any CPU register matches
+  (equals, smaller, larger, range). More information in debugger help.
+- Do not use new CPU Idle mode in PPC-only configs.
+- Low latency vsync really fixed. Can also fix other CPU usage related problems in other modes.
+- Hardware info panel up/down button disable logic improved.
+- Bitplane DMA overrun 1 cycle adjustment, now it matches real A1200 100%. Possible Disk/Audio/Sprite
+  DMA slot conflicts are not yet emulated. (Causes graphics glitches on real hardware)
+- uaegfx vblank interrupt hang fixed.
+- Network OSD led was invisible.
+
 Beta 2:
 
 - Needed natmem space also included IO only Z3 boards but only RAM and VRAM boards should count.

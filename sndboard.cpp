@@ -1882,7 +1882,11 @@ void AUD_set_active_out(SWVoiceOut *sw, int on)
 	sw->samplebuf_index = 0;
 	sw->samplebuf_total = 0;
 	calculate_volume_qemu();
-	sw->streamid = audio_enable_stream(sw->active, -1, 2);
+	audio_enable_stream(false, sw->streamid, 2);
+	sw->streamid = 0;
+	if (on) {
+		sw->streamid = audio_enable_stream(true, -1, 2);
+	}
 }
 void AUD_set_active_in(SWVoiceIn *sw, int on)
 {
@@ -1894,9 +1898,11 @@ int  AUD_is_active_in(SWVoiceIn *sw)
 void AUD_close_out(QEMUSoundCard *card, SWVoiceOut *sw)
 {
 	qemu_voice_out = NULL;
-	audio_enable_stream(false, sw->streamid, 0);
-	sw->streamid = 0;
-	xfree(sw);
+	if (sw) {
+		audio_enable_stream(false, sw->streamid, 0);
+		sw->streamid = 0;
+		xfree(sw);
+	}
 }
 SWVoiceIn *AUD_open_in(
 	QEMUSoundCard *card,

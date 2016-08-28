@@ -1243,7 +1243,7 @@ void pci_read_dma(struct pci_board_state *pcibs, uaecptr addr, uae_u8 *p, int si
 	} else {
 		write_log(_T("pci_read_dma invalid address %08x, size %d\n"), addr, size);
 		while (size > 0) {
-			*p++ = uaerand();
+			*p++ = uaerand() >> 4;
 			addr++;
 			size--;
 		}
@@ -1473,13 +1473,13 @@ static void add_pci_devices(struct pci_bridge *pcib)
 		pci_board_add(pcib, &ne2000_pci_board, slot++, 0);
 	}
 
-	if (is_device_rom(&currprefs, ROMTYPE_FM801, 0) > 0) {
+	if (is_device_rom(&currprefs, ROMTYPE_FM801, 0) >= 0) {
 		pci_board_add(pcib, &fm801_pci_board, slot, 0);
 		pci_board_add(pcib, &fm801_pci_board_func1, slot, 1);
 		slot++;
 	}
 
-	if (is_device_rom(&currprefs, ROMTYPE_ES1370, 0) > 0) {
+	if (is_device_rom(&currprefs, ROMTYPE_ES1370, 0) >= 0) {
 		pci_board_add(pcib, &es1370_pci_board, slot++, 0);
 	}
 

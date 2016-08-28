@@ -2218,13 +2218,14 @@ static void reset_bpl_vars(void)
 /* check special case where last fetch wraps to next line
  * this makes totally corrupted and flickering display on
  * real hardware due to refresh cycle conflicts
+ * Exception: AGA + 64 bit fetch: glitch free overrun is possible.
  */
 static void maybe_finish_last_fetch (int pos, int fm)
 {
 	if (plf_state > plf_passed_stop2 || plf_state < plf_passed_stop || (fetch_state != fetch_started && fetch_state != fetch_started_first) || !dmaen (DMA_BITPLANE)) {
 		finish_last_fetch (pos, fm, true);
 	} else {
-		bitplane_overrun_fetch_cycle = fetch_cycle;
+		bitplane_overrun_fetch_cycle = fetch_cycle - 1;
 		int cycle_start = bitplane_overrun_fetch_cycle & fetchstart_mask;
 		int left = fetchunit - cycle_start;
 		if (plf_state == plf_passed_stop_act) {
@@ -2299,8 +2300,13 @@ static void do_overrun_fetch(int until, int fm)
 			}
 			break;	
 		}
+
 #if 0
 		if (bpl0) {
+			bpl1dat_written = true;
+			bpl1dat_written_at_least_once = true;
+			if (thisline_decision.plfleft < 0)
+				reset_bpl_vars();
 			maybe_first_bpl1dat(pos);
 			beginning_of_plane_block(pos, fm);
 		}
@@ -2312,12 +2318,6 @@ static void do_overrun_fetch(int until, int fm)
 		}
 		if (toscr_nbits == 16)
 			flush_display(fm);
-		if (bpl0) {
-			bpl1dat_written = true;
-			bpl1dat_written_at_least_once = true;
-			reset_bpl_vars();
-			beginning_of_plane_block(pos, fetchmode);
-		}
 #endif
 
 		if ((bitplane_overrun_fetch_cycle & fetchunit_mask) == 0) {
@@ -7618,6 +7618,8 @@ static void vsync_handler_pre (void)
 			}
 		}
 	}
+	if (regs.halted < 0)
+		reset_cpu_idle();
 	cpu_last_stop_vpos = 0;
 	cpu_stopped_lines = 0;
 #endif
@@ -8341,8 +8343,8 @@ static void hsync_handler_post (bool onvsync)
 				maybe_process_pull_audio();
 			}
 		}
-		if (vpos + 1 < maxvpos + lof_store && vpos >= nextwaitvpos && (audio_is_pull() <= 0 || (audio_is_pull() > 0 && audio_pull_buffer()))) {
-			nextwaitvpos += maxvpos_display * 1 / 4;
+		if (vpos + 1 < maxvpos + lof_store && vpos >= nextwaitvpos && vpos < maxvpos - (maxvpos / 3) && (audio_is_pull() <= 0 || (audio_is_pull() > 0 && audio_pull_buffer()))) {
+			nextwaitvpos += maxvpos_display * 1 / 3;
 			vsyncmintime += vsynctimeperline;
 			if (!vsync_isdone () && !currprefs.turbo_emulation) {
 				frame_time_t rpt = read_processor_time ();
