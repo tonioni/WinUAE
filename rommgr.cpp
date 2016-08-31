@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 165
+#define NEXT_ROM_ID 167
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -355,9 +355,13 @@ static struct romdata roms[] = {
 	0xeb31fd9e, 0x2d6a5c68,0x1040f98d,0x7e63ad08,0x90da9e83,0x2b5c704d, NULL, NULL },
 	ALTROMPN(106, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390282-06"), 0xd6ae582c, 0x47b3dea3, 0x31db76e6, 0x1380a3d6, 0x9f191657, 0xdd1cd4b3)
 	ALTROMPN(106, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("390283-06"), 0xcd379634, 0x65e251e2, 0xf6961c8e, 0x33a86c3d, 0x01248f70, 0xa159823b)
+	{ _T("A2620/A2630 -04"), 0, 0, 0, 0, _T("A2620\0A2630\0"), 65536, 165, 0, 0, ROMTYPE_CB_A26x0, 0, 0, _T("390282-04/390283-04"),
+	0xd4666ae9, 0x93cbd775, 0x42843f6d, 0x8234c271, 0xab860304, 0x06a1ae0a, NULL, NULL },
+	ALTROMPN(165, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390282-04"), 0x28d5af1e, 0xc6a51a63, 0xca2a0833, 0xf32c4a59, 0x7d9d5b95, 0xcfa79a9e)
+	ALTROMPN(165, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("390283-04"), 0x325aaf5f, 0xe76b384b, 0x5740cc0e, 0x782ae887, 0xe921352b, 0x115b2489)
 	{ _T("A2620/A2630 -01"), 0, 0, 0, 0, _T("A2620\0A2630\0"), 65536, 164, 0, 0, ROMTYPE_CB_A26x0, 0, 0, _T("390282-01/390283-01"),
 	0x6ee2ecdd, 0x4c82e3ba, 0x2d2dd1d3, 0x82f01098, 0xc26681b8, 0xff62f36d, NULL, NULL },
-	ALTROMPN(164, 1, 1, 32768, ROMTYPE_ODD | ROMTYPE_8BIT, _T("390282-01"), 0xdf76493b, 0x331ede0a, 0x8ca995cc, 0x1917f592, 0x18718e5b, 0x3c7fac39)
+	ALTROMPN(164, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390282-01"), 0xdf76493b, 0x331ede0a, 0x8ca995cc, 0x1917f592, 0x18718e5b, 0x3c7fac39)
 	ALTROMPN(164, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("390283-01"), 0xd74187de, 0x681e4985, 0x4da64bf1, 0x6f2f99f7, 0x4b195f54, 0x0b8bd614)
 
 	{ _T("DKB 12x0"), 1, 23, 1, 23, _T("DKB\0"), 32768, 112, 0, 0, ROMTYPE_CB_DKB12x0, 0, 0, NULL,
@@ -380,6 +384,10 @@ static struct romdata roms[] = {
 	0x3942d827, 0x5aaf118f, 0x61fc3083, 0x1435b87c, 0x8bdab6a4, 0x59b4ee22, NULL, NULL },
 	{ _T("SX32 Pro"), 0, 0, 0, 0, _T("SX32PRO\0"), 65536, 160, 0, 0, ROMTYPE_CB_SX32PRO, 0, 0, NULL,
 	0xbfd68a88, 0x84a50880, 0x76917549, 0xadf33b16, 0x8a869adb, 0x9e5a6fac, NULL, NULL },
+	{ _T("IVS Vector 4.14"), 4, 14, 4, 14, _T("VECTOR030\0"), 65536, 166, 0, 0, ROMTYPE_CB_VECTOR, 0, 0, NULL,
+	0x3befa0c0, 0x4414673c, 0xa52f78a0, 0xae656824, 0xfd08b54f, 0xa1de237c, NULL, NULL },
+	ALTROMPN(166, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x541b5988, 0x3546517b, 0x57cecd2f, 0x9fbfcd0c, 0xf26fdbbf, 0xfb009e3e)
+	ALTROMPN(166, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xb64e3bbf, 0xd6f4fc81, 0x38325a78, 0x74ff1c15, 0x7c93f1a2, 0x444904ae)
 
 	{ _T("Preferred Technologies Nexus"), 1, 0, 1, 0, _T("PTNEXUS\0"), 8192, 139, 0, 0, ROMTYPE_PTNEXUS, 0, 0, NULL,
 	0xf495879a, 0xa3bd0202, 0xe14aa5b6, 0x49d3ce88, 0x22975950, 0x6500dbc2, NULL, NULL },
