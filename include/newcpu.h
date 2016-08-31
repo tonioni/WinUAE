@@ -604,6 +604,8 @@ extern void m68k_reset (void);
 extern void cpureset (void);
 extern void cpu_halt (int id);
 extern int cpu_sleep_millis(int ms);
+extern void cpu_change(int newmodel);
+extern void cpu_fallback(int mode);
 
 extern void fill_prefetch (void);
 extern void fill_prefetch_020 (void);
@@ -661,7 +663,6 @@ extern void compemu_reset(void);
 #endif
 bool check_prefs_changed_comp (bool);
 extern void flush_dcache (uaecptr, int);
-extern void flush_mmu (uaecptr, int);
 
 extern int movec_illg (int regno);
 extern uae_u32 val_move2c (int regno);

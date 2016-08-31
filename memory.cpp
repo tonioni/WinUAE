@@ -1683,7 +1683,7 @@ bool mapped_malloc (addrbank *ab)
 	bool rtgmem = (ab->flags & ABFLAG_RTG) != 0;
 	static int recurse;
 
-	if (!_tcscmp(ab->label, _T("*"))) {
+	if (ab->label && ab->label[0] == '*') {
 		if (ab->start == 0 || ab->start == 0xffffffff) {
 			write_log(_T("mapped_malloc(*) without start address!\n"));
 			return false;
@@ -2234,6 +2234,13 @@ void reload_roms(void)
 		restore_roms();
 }
 
+void memory_restore(void)
+{
+	last_address_space_24 = currprefs.address_space_24;
+	cpuboard_map();
+	map_banks_set(&kickmem_bank, 0xF8, 8, 0);
+}
+
 void memory_reset (void)
 {
 	int bnk, bnk_end;
@@ -2775,10 +2782,31 @@ static void ppc_generate_map_banks(addrbank *bank, int start, int size)
 }
 #endif
 
+static addrbank *highram_temp_bank[65536 - 0x100];
+
+void restore_banks(void)
+{
+	for (int bnr = 0x100; bnr < 65536; bnr++) {
+		if (highram_temp_bank[bnr - 0x100]) {
+			map_banks(highram_temp_bank[bnr - 0x100], bnr, 1, 0);
+		} else {
+			map_banks(&dummy_bank, bnr, 1, 0);
+		}
+	}
+}
+
 void map_banks (addrbank *bank, int start, int size, int realsize)
 {
 	if (start == 0xffffffff)
 		return;
+	if (start >= 0x100) {
+		int real_left = 0;
+		for (int bnr = start; bnr < start + size; bnr++) {
+			highram_temp_bank[bnr - 0x100] = bank;
+		}
+		if (currprefs.address_space_24)
+			return;
+	}
 	map_banks2 (bank, start, size, realsize, 0);
 #ifdef WITH_PPC
 	ppc_generate_map_banks(bank, start, size);

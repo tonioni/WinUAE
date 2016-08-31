@@ -920,7 +920,6 @@
     <None Include="..\resources\drive_spin.wav" />
     <None Include="..\resources\drive_spinnd.wav" />
     <None Include="..\resources\drive_startup.wav" />
-    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\resources\winuae.rc">

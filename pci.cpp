@@ -945,8 +945,8 @@ static void REGPARAM2 pci_bridge_bput(uaecptr addr, uae_u32 b)
 		} else if (addr == 8) {
 			pcib->config[2] = b;
 			if (b & 1) {
-				write_log(_T("Wildfire 68000 mode!\n"));
-				cpu_halt(CPU_HALT_ACCELERATOR_CPU_FALLBACK);
+				write_log(_T("Wildfire fallback CPU mode!\n"));
+				cpu_fallback(0);
 			}
 		}
 	}

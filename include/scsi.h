@@ -165,6 +165,11 @@ void apollo_scsi_bput(uaecptr addr, uae_u8 v);
 uae_u8 apollo_scsi_bget(uaecptr addr);
 void apollo_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
+void ivsvector_scsi_bput(uaecptr addr, uae_u8 v);
+uae_u8 ivsvector_scsi_bget(uaecptr addr);
+void ivsvector_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+bool ivsvector_init(struct autoconfig_info *aci);
+
 void soft_scsi_free(void);
 void soft_scsi_reset(void);
 

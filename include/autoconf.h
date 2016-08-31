@@ -180,6 +180,9 @@ typedef void(*DEVICE_MEMORY_CALLBACK)(struct romconfig*, uae_u8*, int);
 #define EXPANSIONTYPE_FLOPPY 4096
 #define EXPANSIONTYPE_NET 8192
 #define EXPANSIONTYPE_INTERNAL 16384
+#define EXPANSIONTYPE_FALLBACK_DISABLE 32768
+#define EXPANSIONTYPE_HAS_FALLBACK 65536
+
 struct expansionboardsettings
 {
 	const TCHAR *name;
@@ -252,5 +255,16 @@ struct cpuboardtype
 	int defaultsubtype;
 };
 extern const struct cpuboardtype cpuboards[];
+struct memoryboardtype
+{
+	const TCHAR *man;
+	const TCHAR *name;
+	uae_u8 z;
+	uae_u16 manufacturer;
+	uae_u8 product;
+	uae_u8 autoconfig[16];
+};
+extern const struct memoryboardtype memoryboards[];
+
 
 #endif /* UAE_AUTOCONF_H */

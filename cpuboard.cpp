@@ -145,8 +145,9 @@
 #define BLIZZARDMK3_MAPROM_BASE 0x1ef80000
 #define BLIZZARD_MAPROM_ENABLE  0x80ffff00
 #define BLIZZARD_BOARD_DISABLE  0x80fa0000
+#define BLIZZARD_BOARD_DISABLE2 0x80f00000
 
-#define CSMK2_BOARD_DISABLE 0x83000000
+#define CSMK2_2060_BOARD_DISABLE 0x83000000
 
 static int cpuboard_size = -1, cpuboard2_size = -1;
 static int configured;
@@ -322,10 +323,34 @@ static bool is_sx32pro(struct uae_prefs *p)
 {
 	return ISCPUBOARDP(p, BOARD_DCE, 0);
 }
+static bool is_ivsvector(struct uae_prefs *p)
+{
+	return ISCPUBOARDP(p, BOARD_IVS, BOARD_IVS_VECTOR);
+}
 static bool is_aca500(struct uae_prefs *p)
 {
 	return ISCPUBOARDP(p, BOARD_IC, BOARD_IC_ACA500);
 }
+
+extern addrbank cpuboardmem1_bank;
+MEMORY_FUNCTIONS(cpuboardmem1);
+static addrbank cpuboardmem1_bank = {
+	cpuboardmem1_lget, cpuboardmem1_wget, cpuboardmem1_bget,
+	cpuboardmem1_lput, cpuboardmem1_wput, cpuboardmem1_bput,
+	cpuboardmem1_xlate, cpuboardmem1_check, NULL, _T("*B"), _T("cpuboard ram"),
+	cpuboardmem1_lget, cpuboardmem1_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
+};
+extern addrbank cpuboardmem2_bank;
+MEMORY_FUNCTIONS(cpuboardmem2);
+static addrbank cpuboardmem2_bank = {
+	cpuboardmem2_lget, cpuboardmem2_wget, cpuboardmem2_bget,
+	cpuboardmem2_lput, cpuboardmem2_wput, cpuboardmem2_bput,
+	cpuboardmem2_xlate, cpuboardmem2_check, NULL, _T("*B"), _T("cpuboard ram #2"),
+	cpuboardmem2_lget, cpuboardmem2_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
+};
+
 
 DECLARE_MEMORY_FUNCTIONS(blizzardio);
 static addrbank blizzardio_bank = {
@@ -694,10 +719,10 @@ static uae_u32 REGPARAM2 blizzardea_lget(uaecptr addr)
 {
 	uae_u32 v = 0;
 	if (cpuboard_non_byte_ea) {
-		v = blizzardea_bget(addr + 3) <<  0;
-		v |= blizzardea_bget(addr + 2) <<  8;
+		v = blizzardea_bget(addr + 0) <<  24;
 		v |= blizzardea_bget(addr + 1) << 16;
-		v |= blizzardea_bget(addr + 0) << 24;
+		v |= blizzardea_bget(addr + 2) <<  8;
+		v |= blizzardea_bget(addr + 3) <<  0;
 	}
 	return v;
 }
@@ -705,8 +730,8 @@ static uae_u32 REGPARAM2 blizzardea_wget(uaecptr addr)
 {
 	uae_u32 v = 0;
 	if (cpuboard_non_byte_ea) {
-		v  = blizzardea_bget(addr + 1) <<  0;
-		v |= blizzardea_bget(addr + 0) <<  8;
+		v  = blizzardea_bget(addr + 0) <<  8;
+		v |= blizzardea_bget(addr + 1) <<  0;
 	}
 	return v;
 }
@@ -774,17 +799,17 @@ static uae_u32 REGPARAM2 blizzardea_bget(uaecptr addr)
 static void REGPARAM2 blizzardea_lput(uaecptr addr, uae_u32 l)
 {
 	if (cpuboard_non_byte_ea) {
-		blizzardea_bput(addr + 3, l >> 0);
-		blizzardea_bput(addr + 2, l >> 8);
-		blizzardea_bput(addr + 1, l >> 16);
 		blizzardea_bput(addr + 0, l >> 24);
+		blizzardea_bput(addr + 1, l >> 16);
+		blizzardea_bput(addr + 2, l >>  8);
+		blizzardea_bput(addr + 3, l >>  0);
 	}
 }
 static void REGPARAM2 blizzardea_wput(uaecptr addr, uae_u32 w)
 {
 	if (cpuboard_non_byte_ea) {
-		blizzardea_bput(addr + 1, w >> 0);
 		blizzardea_bput(addr + 0, w >> 8);
+		blizzardea_bput(addr + 1, w >> 0);
 	}
 }
 static void REGPARAM2 blizzardea_bput(uaecptr addr, uae_u32 b)
@@ -1369,18 +1394,18 @@ static void REGPARAM2 blizzardio_wput(uaecptr addr, uae_u32 v)
 		if((addr & 65535) == (BLIZZARD_BOARD_DISABLE & 65535)) {
 			if (v != 0xcafe)
 				return;
-			write_log(_T("Blizzard: board disable!\n"));
-			cpu_halt(CPU_HALT_ACCELERATOR_CPU_FALLBACK); // not much choice..
+			write_log(_T("Blizzard: fallback CPU!\n"));
+			cpu_fallback(0);
 		}
 	} else if (is_csmk3(&currprefs) || is_blizzardppc(&currprefs)) {
 		write_log(_T("CS IO WPUT %08x %04x\n"), addr, v);
-	} else if (is_csmk2(&currprefs)) {
+	} else if (is_csmk2(&currprefs) || is_blizzard2060(&currprefs)) {
 		write_log(_T("CS IO WPUT %08x %04x\n"), addr, v);
-		if (addr == CSMK2_BOARD_DISABLE) {
+		if (addr == CSMK2_2060_BOARD_DISABLE) {
 			if (v != 0xcafe)
 				return;
-			write_log(_T("CSMK2: board disable!\n"));
-			cpu_halt(CPU_HALT_ACCELERATOR_CPU_FALLBACK); // not much choice..
+			write_log(_T("CSMK2/2060: fallback CPU!\n"));
+			cpu_fallback(0);
 		}
 	}
 }
@@ -1425,6 +1450,9 @@ void cpuboard_map(void)
 {
 	if (!currprefs.cpuboard_type)
 		return;
+
+	bool fallback_cpu = currprefs.cpu_model < 68020;
+
 	if (is_blizzard1230mk2(&currprefs) || is_blizzard1230mk3(&currprefs)) {
 		map_banks(&blizzardram_bank, blizzardram_bank.start >> 16, cpuboard_size >> 16, 0);
 		map_banks(&blizzardio_bank, BLIZZARD_MAPROM_ENABLE >> 16, 65536 >> 16, 0);
@@ -1436,17 +1464,22 @@ void cpuboard_map(void)
 		}
 	}
 	if (is_blizzard(&currprefs) || is_blizzardppc(&currprefs)) {
-		map_banks(&blizzardram_bank, blizzardram_bank.start >> 16, cpuboard_size >> 16, 0);
-		if (!is_blizzardppc(&currprefs)) {
-			if (cpuboard_size < 256 * 1024 * 1024)
-				map_banks(&blizzardmaprom_bank, BLIZZARDMK4_MAPROM_BASE >> 16, 524288 >> 16, 0);
-			map_banks(&blizzardf0_bank, 0xf00000 >> 16, 65536 >> 16, 0);
-			map_banks(&blizzardio_bank, BLIZZARD_MAPROM_ENABLE >> 16, 65536 >> 16, 0);
-			map_banks(&blizzardio_bank, BLIZZARD_BOARD_DISABLE >> 16, 65536 >> 16, 0);
+		if (!fallback_cpu) {
+			map_banks(&blizzardram_bank, blizzardram_bank.start >> 16, cpuboard_size >> 16, 0);
+			if (!is_blizzardppc(&currprefs)) {
+				if (cpuboard_size < 256 * 1024 * 1024)
+					map_banks(&blizzardmaprom_bank, BLIZZARDMK4_MAPROM_BASE >> 16, 524288 >> 16, 0);
+				map_banks(&blizzardf0_bank, 0xf00000 >> 16, 65536 >> 16, 0);
+				map_banks(&blizzardio_bank, BLIZZARD_MAPROM_ENABLE >> 16, 65536 >> 16, 0);
+				map_banks(&blizzardio_bank, BLIZZARD_BOARD_DISABLE >> 16, 65536 >> 16, 0);
+				map_banks(&blizzardio_bank, BLIZZARD_BOARD_DISABLE2 >> 16, 65536 >> 16, 0);
+			} else {
+				map_banks(&blizzardf0_bank, 0xf00000 >> 16, 0x60000 >> 16, 0);
+				map_banks(&blizzardio_bank, 0xf60000 >> 16, (2 * 65536) >> 16, 0);
+				blizzardppc_maprom();
+			}
 		} else {
-			map_banks(&blizzardf0_bank, 0xf00000 >> 16, 0x60000 >> 16, 0);
-			map_banks(&blizzardio_bank, 0xf60000 >> 16, (2 * 65536) >> 16, 0);
-			blizzardppc_maprom();
+			map_banks(&dummy_bank, 0xf00000 >> 16, 0x80000 >> 16, 0);
 		}
 	}
 	if (is_csmk3(&currprefs)) {
@@ -1455,10 +1488,14 @@ void cpuboard_map(void)
 		cyberstorm_maprom();
 	}
 	if (is_csmk2(&currprefs)) {
-		map_banks(&blizzardio_bank, 0x88000000 >> 16, 65536 >> 16, 0);
-		map_banks(&blizzardio_bank, 0x83000000 >> 16, 65536 >> 16, 0);
-		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 65536 >> 16, 0);
-		cyberstormmk2_maprom();
+		if (!fallback_cpu) {
+			map_banks(&blizzardio_bank, 0x88000000 >> 16, 65536 >> 16, 0);
+			map_banks(&blizzardio_bank, 0x83000000 >> 16, 65536 >> 16, 0);
+			map_banks(&blizzardf0_bank, 0xf00000 >> 16, 65536 >> 16, 0);
+			cyberstormmk2_maprom();
+		} else {
+			map_banks(&dummy_bank, 0xf00000 >> 16, 0x80000 >> 16, 0);
+		}
 	}
 	if (is_csmk1(&currprefs)) {
 		map_banks(&blizzardio_bank, 0x80f80000 >> 16, 65536 >> 16, 0);
@@ -1466,10 +1503,14 @@ void cpuboard_map(void)
 		map_banks(&blizzardmaprom_bank, 0x07f80000 >> 16, 524288 >> 16, 0);
 	}
 	if (is_blizzard2060(&currprefs)) {
-		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 65536 >> 16, 0);
-		map_banks(&blizzardio_bank, 0x80000000 >> 16, 0x10000000 >> 16, 0);
-		if (mapromconfigured())
-			map_banks_nojitdirect(&blizzardmaprom_bank, (a3000hmem_bank.start + a3000hmem_bank.allocated - 524288) >> 16, 524288 >> 16, 0);
+		if (!fallback_cpu) {
+			map_banks(&blizzardf0_bank, 0xf00000 >> 16, 65536 >> 16, 0);
+			map_banks(&blizzardio_bank, 0x80000000 >> 16, 0x10000000 >> 16, 0);
+			if (mapromconfigured())
+				map_banks_nojitdirect(&blizzardmaprom_bank, (a3000hmem_bank.start + a3000hmem_bank.allocated - 524288) >> 16, 524288 >> 16, 0);
+		} else {
+			map_banks(&dummy_bank, 0xf00000 >> 16, 0x80000 >> 16, 0);
+		}
 	}
 	if (is_tekmagic(&currprefs)) {
 		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 131072 >> 16, 0);
@@ -1500,6 +1541,18 @@ void cpuboard_map(void)
 		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 524288 >> 16, 0);
 		map_banks(&blizzardf0_bank, 0xa00000 >> 16, 524288 >> 16, 0);
 		map_banks(&blizzardio_bank, 0xb00000 >> 16, 262144 >> 16, 0);
+	}
+	if (is_ivsvector(&currprefs)) {
+		if (!currprefs.address_space_24) {
+			map_banks(&cpuboardmem1_bank, cpuboardmem1_bank.start >> 16, (0x04000000 - cpuboardmem1_bank.start) >> 16, cpuboardmem1_bank.allocated);
+			if (cpuboardmem2_bank.allocated)
+				map_banks(&cpuboardmem2_bank, cpuboardmem2_bank.start >> 16, (0x10000000 - cpuboardmem2_bank.start) >> 16, cpuboardmem2_bank.allocated);
+		}
+	}
+	if (is_mtec_ematrix530(&currprefs) || is_sx32pro(&currprefs)) {
+		if (cpuboardmem1_bank.allocated) {
+			map_banks(&cpuboardmem1_bank, cpuboardmem1_bank.start >> 16, cpuboardmem1_bank.allocated >> 16, 0);
+		}
 	}
 }
 
@@ -1585,6 +1638,9 @@ void cpuboard_cleanup(void)
 
 	blizzardmaprom_bank.flags &= ~(ABFLAG_INDIRECT | ABFLAG_NOALLOC);
 	blizzardmaprom2_bank.flags &= ~(ABFLAG_INDIRECT | ABFLAG_NOALLOC);
+
+	mapped_free(&cpuboardmem1_bank);
+	mapped_free(&cpuboardmem2_bank);
 }
 
 static void cpuboard_init_2(void)
@@ -1593,12 +1649,21 @@ static void cpuboard_init_2(void)
 		return;
 
 	cpuboard_size = currprefs.cpuboardmem1_size;
+	cpuboardmem1_bank.allocated = 0;
+	cpuboardmem2_bank.allocated = 0;
 
 	if (is_kupke(&currprefs) || is_mtec_ematrix530(&currprefs) || is_sx32pro(&currprefs)) {
 		// plain 64k autoconfig, nothing else.
 		blizzardea_bank.allocated = 65536;
 		blizzardea_bank.mask = blizzardea_bank.allocated - 1;
 		mapped_malloc(&blizzardea_bank);
+
+		if (is_mtec_ematrix530(&currprefs) || is_sx32pro(&currprefs)) {
+			cpuboardmem1_bank.start = 0x18000000 - cpuboard_size;
+			cpuboardmem1_bank.allocated = cpuboard_size;
+			cpuboardmem1_bank.mask = cpuboardmem1_bank.allocated - 1;
+			mapped_malloc(&cpuboardmem1_bank);
+		}
 
 	} else if (is_aca500(&currprefs)) {
 
@@ -1795,7 +1860,24 @@ static void cpuboard_init_2(void)
 		blizzardf0_bank.mask = blizzardf0_bank.allocated - 1;
 		mapped_malloc(&blizzardf0_bank);
 
+	} else if (is_ivsvector(&currprefs)) {
+	
+		cpuboardmem1_bank.start = 0x02000000;
+		cpuboardmem1_bank.allocated = 32 * 1024 * 1024;
+		cpuboardmem1_bank.mask = cpuboardmem1_bank.allocated - 1;
+		mapped_malloc(&cpuboardmem1_bank);
+
+		cpuboardmem2_bank.start = 0x0c000000;
+		cpuboardmem2_bank.allocated = cpuboard_size;
+		cpuboardmem2_bank.mask = cpuboard_size - 1;
+		mapped_malloc(&cpuboardmem2_bank);
+
 	}
+
+	if (!cpuboardmem1_bank.baseaddr)
+		cpuboardmem1_bank.allocated = 0;
+	if (!cpuboardmem2_bank.baseaddr)
+		cpuboardmem2_bank.allocated = 0;
 }
 
 void cpuboard_init(void)
@@ -1888,6 +1970,8 @@ bool cpuboard_32bit(struct uae_prefs *p)
 {
 	int b = cpuboard_memorytype(p);
 	if (p->cpuboard_type) {
+		if (cpuboards[p->cpuboard_type].subtypes[p->cpuboard_subtype].deviceflags & EXPANSIONTYPE_HAS_FALLBACK)
+			return false;
 		if (!(cpuboards[p->cpuboard_type].subtypes[p->cpuboard_subtype].deviceflags & EXPANSIONTYPE_24BIT))
 			return true;
 	}
@@ -1896,7 +1980,7 @@ bool cpuboard_32bit(struct uae_prefs *p)
 		b == BOARD_MEMORY_BLIZZARD_PPC ||
 		b == BOARD_MEMORY_Z3 ||
 		b == BOARD_MEMORY_25BITMEM ||
-		b == BOARD_MEMORY_EMATRIX;
+		b == BOARD_MEMORY_CUSTOM_32;
 }
 
 int cpuboard_memorytype(struct uae_prefs *p)
@@ -1965,8 +2049,8 @@ bool cpuboard_io_special(int addr, uae_u32 *val, int size, bool write)
 				// bit 3: unknown
 				// bit 4: 68000 mode
 				if (w & 0x10) {
-					write_log(_T("A2630 68000 mode!\n"));
-					cpu_halt(CPU_HALT_ACCELERATOR_CPU_FALLBACK);
+					write_log(_T("A2630 fallback CPU mode!\n"));
+					cpu_fallback(0);
 				}
 				return true;
 			}
@@ -2146,6 +2230,15 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 	switch (boardid)
 	{
 		case BOARD_IC:
+		break;
+
+		case BOARD_IVS:
+		switch (p->cpuboard_subtype)
+		{
+			case BOARD_IVS_VECTOR:
+			aci->addrbank = &expamem_null;
+			return true;
+		}
 		break;
 
 		case BOARD_COMMODORE:
@@ -2353,6 +2446,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 	}
 
 	cpuboard_non_byte_ea = true;
+
 	if (is_sx32pro(p)) {
 		earom_size = 65536;
 		for (int i = 0; i < 32768; i++) {

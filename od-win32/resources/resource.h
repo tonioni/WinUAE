@@ -1252,9 +1252,9 @@
 #define IDC_CPUBOARDMEM                 1843
 #define IDC_Z3MAPPING                   1844
 #define IDC_CPUBOARD_SUBTYPE            1845
-#define IDC_Z3MAPPING2                  1845
 #define IDC_MEMORYSELECT                1845
 #define IDC_CYCLEEXACTMEMORY            1846
+#define IDC_MEMORYBOARDSELECT           1846
 #define IDC_UAEBOARD_TYPE               1848
 #define IDC_AUTOCONFIG_MANUFACTURER     1849
 #define IDC_AUTOCONFIG_PRODUCT          1850

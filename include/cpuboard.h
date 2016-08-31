@@ -42,7 +42,7 @@ void blizzardppc_irq(int level);
 #define BOARD_MEMORY_BLIZZARD_12xx 4
 #define BOARD_MEMORY_BLIZZARD_PPC 5
 #define BOARD_MEMORY_25BITMEM 6
-#define BOARD_MEMORY_EMATRIX 7
+#define BOARD_MEMORY_CUSTOM_32 7
 
 #define ISCPUBOARDP(p, type,subtype) (cpuboards[p->cpuboard_type].id == type && (type < 0 || p->cpuboard_subtype == subtype))
 #define ISCPUBOARD(type,subtype) (cpuboards[currprefs.cpuboard_type].id == type && (type < 0 || currprefs.cpuboard_subtype == subtype))
@@ -91,7 +91,10 @@ void blizzardppc_irq(int level);
 #define BOARD_RCS 11
 #define BOARD_RCS_SUB_FUSIONFORTY 0
 
-#define BOARD_IC 12
+#define BOARD_IVS 12
+#define BOARD_IVS_VECTOR 0
+
+#define BOARD_IC 13
 #define BOARD_IC_ACA500 0
 
 #endif /* UAE_CPUBOARD_H */

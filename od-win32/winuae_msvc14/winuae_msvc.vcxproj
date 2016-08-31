@@ -1,6 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="packages\VisualCppTools.14.0.24419-Pre\build\native\VisualCppTools.props" Condition="Exists('packages\VisualCppTools.14.0.24419-Pre\build\native\VisualCppTools.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -177,7 +176,6 @@
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Test|x64'">C:\Program Files %28x86%29\Microsoft DirectX SDK %28June 2010%29\Lib\x64;C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">C:\Program Files %28x86%29\Microsoft DirectX SDK %28June 2010%29\Include;C:\dev\include;$(IncludePath)</IncludePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">C:\Program Files %28x86%29\Microsoft DirectX SDK %28June 2010%29\Lib\x64;C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
-    <NuGetPackageImportStamp>7b625af1</NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Test|x64'">
     <IgnoreImportLibrary>
@@ -627,7 +625,7 @@
     </Midl>
     <ClCompile>
       <Optimization>Full</Optimization>
-      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
@@ -705,7 +703,7 @@
     </Midl>
     <ClCompile>
       <Optimization>Full</Optimization>
-      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
@@ -1046,7 +1044,6 @@
     <None Include="..\resources\move_up.ico" />
     <None Include="..\resources\paths.ico" />
     <None Include="..\resources\port.ico" />
-    <None Include="packages.config" />
     <None Include="port.ico" />
     <None Include="..\resources\quickstart.ico" />
     <None Include="..\resources\root.ico" />
@@ -1121,10 +1118,4 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('packages\VisualCppTools.14.0.24419-Pre\build\native\VisualCppTools.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\VisualCppTools.14.0.24419-Pre\build\native\VisualCppTools.props'))" />
-  </Target>
 </Project>

@@ -412,12 +412,27 @@ static int REGPARAM2 expamem_type (void)
 	return expamem_read(0) & 0xc0;
 }
 
+void expansion_cpu_fallback(void)
+{
+	if (ecard < cardno) {
+		card_data *cd = cards[ecard];
+		if (cd->cst && (cd->cst->deviceflags & EXPANSIONTYPE_FALLBACK_DISABLE)) {
+			expamem_next(NULL, NULL);
+		}
+	}
+}
+
 static void call_card_init(int index)
 {	
 	addrbank *ab, *abe;
 	card_data *cd = cards[ecard];
 	struct autoconfig_info *aci = &cd->aci;
 	bool ok = false;
+
+	if (currprefs.address_space_24 && cd->cst && (cd->cst->deviceflags & EXPANSIONTYPE_FALLBACK_DISABLE)) {
+		expamem_next(NULL, NULL);
+		return;
+	}
 
 	expamem_bank.name = cd->name ? cd->name : _T("None");
 	aci->prefs = &currprefs;
@@ -449,7 +464,7 @@ static void call_card_init(int index)
 		expamem_bank_current = NULL;
 		return;
 	}
-	if (ab == &expamem_null || ab == &expamem_nonautoconfig) {
+	if (ab == &expamem_null || ab == &expamem_nonautoconfig || cd->zorro < 1 || cd->zorro > 3) {
 		expamem_next(NULL, NULL);
 		return;
 	}
@@ -535,6 +550,11 @@ void expamem_next(addrbank *mapped, addrbank *next)
 		if (ecard >= cardno)
 			break;
 		struct card_data *ec = cards[ecard];
+		if (ec->zorro == 3 && ec->base == 0xffffffff) {
+			write_log(_T("Autoconfig chain enumeration aborted, 32-bit address space overflow.\n"));
+			ecard = cardno;
+			break;
+		}
 		if (ec->initrc && isnonautoconfig(ec->zorro)) {
 			struct autoconfig_info aci = { 0 };
 			aci.doinit = true;
@@ -1365,7 +1385,7 @@ static addrbank *expamem_map_fastcard(struct autoconfig_info *aci)
 		return ab;
 	uae_u32 size = ab->allocated;
 	ab->start = start;
-	if (ab->start) {
+	if (ab->start && size) {
 		map_banks_z2(ab, ab->start >> 16, size >> 16);
 	}
 	return ab;
@@ -1697,14 +1717,15 @@ static bool expamem_init_filesys(struct autoconfig_info *aci)
 * Zorro III expansion memory
 */
 
-static addrbank * expamem_map_z3fastmem (struct autoconfig_info *aci)
+static addrbank *expamem_map_z3fastmem (struct autoconfig_info *aci)
 {
 	int devnum = aci->devnum;
 	addrbank *ab = &z3fastmem_bank[devnum];
 	uaecptr z3fs = expamem_board_pointer;
 	uae_u32 size = currprefs.z3fastmem[devnum].size;
 
-	map_banks_z3(ab, z3fs >> 16, size >> 16);
+	if (ab->allocated)
+		map_banks_z3(ab, z3fs >> 16, size >> 16);
 	return ab;
 }
 
@@ -1742,7 +1763,7 @@ static bool expamem_init_z3fastmem(struct autoconfig_info *aci)
 
 	uae_u32 start = bank->start;
 	bool alwaysmapz3 = aci->prefs->z3_mapping_mode != Z3MAPPING_REAL;
-	if (alwaysmapz3 || expamem_z3hack(aci->prefs)) {
+	if ((alwaysmapz3 || expamem_z3hack(aci->prefs)) && bank->allocated) {
 		map_banks_z3(bank, start >> 16, size >> 16);
 	}
 	return true;
@@ -2271,7 +2292,10 @@ static void expansion_parse_autoconfig(struct card_data *cd, const uae_u8 *autoc
 		else
 			expamem_z3_size = 16 * 1024 * 1024;
 
-		expamem_z3_pointer_real = (expamem_z3_pointer_real + expamem_z3_size - 1) & ~(expamem_z3_size - 1);
+		uaecptr newp = (expamem_z3_pointer_real + expamem_z3_size - 1) & ~(expamem_z3_size - 1);
+		if (newp < expamem_z3_pointer_real)
+			newp = 0xffffffff;
+		expamem_z3_pointer_real = newp;
 
 		expamem_board_pointer = expamem_z3hack(cd->aci.prefs) ? expamem_z3_pointer_uae : expamem_z3_pointer_real;
 		expamem_board_size = expamem_z3_size;
@@ -2650,13 +2674,25 @@ static void expansion_parse_cards(struct uae_prefs *p, bool log)
 				}
 				aci->zorro = cd->zorro;
 				if (cd->zorro == 3) {
-					expamem_z3_pointer_real += expamem_board_size;
-					expamem_z3_pointer_uae += expamem_board_size;
-					expamem_board_pointer += expamem_board_size;
+					if (expamem_z3_pointer_real + expamem_board_size < expamem_z3_pointer_real) {
+						expamem_z3_pointer_real = 0xffffffff;
+					} else {
+						expamem_z3_pointer_real += expamem_board_size;
+					}
+					if (expamem_z3_pointer_uae + expamem_board_size < expamem_z3_pointer_uae) {
+						expamem_z3_pointer_uae = 0xffffffff;
+					} else {
+						expamem_z3_pointer_uae += expamem_board_size;
+					}
+					if (expamem_board_pointer + expamem_board_size < expamem_board_pointer) {
+						expamem_board_pointer = 0xffffffff;
+					} else {
+						expamem_board_pointer += expamem_board_size;
+					}
 					if ((type & add_memory) || aci->direct_vram) {
-						if (expamem_z3_pointer_uae > expamem_z3_highram_uae)
+						if (expamem_z3_pointer_uae != 0xffffffff && expamem_z3_pointer_uae > expamem_z3_highram_uae)
 							expamem_z3_highram_uae = expamem_z3_pointer_uae;
-						if (expamem_z3_pointer_real > expamem_z3_highram_real)
+						if (expamem_z3_pointer_real != 0xffffffff && expamem_z3_pointer_real > expamem_z3_highram_real)
 							expamem_z3_highram_real = expamem_z3_pointer_real;
 					}
 
@@ -3683,8 +3719,8 @@ static const struct expansionboardsettings x86at286_bridge_settings[] = {
 		false, false, 1
 	},
 	{	// 23 - 25
-		_T("CPU Arch\0") _T("auto") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"), 
-		_T("cpuarch\0") _T("auto") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
+		_T("CPU Arch\0") _T("auto\0") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"), 
+		_T("cpuarch\0") _T("auto\0") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
 		true, false, 0
 	},
 	{
@@ -4601,7 +4637,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 		_T("Blizzard 1230 IV"),
 		_T("Blizzard1230IV"),
 		ROMTYPE_CB_BLIZ1230, 0,
-		NULL, 0,
+		NULL, EXPANSIONTYPE_FALLBACK_DISABLE | EXPANSIONTYPE_HAS_FALLBACK,
 		BOARD_MEMORY_BLIZZARD_12xx,
 		256 * 1024 * 1024,
 		0,
@@ -4612,7 +4648,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 		_T("Blizzard 1260"),
 		_T("Blizzard1260"),
 		ROMTYPE_CB_BLIZ1260, 0,
-		NULL, 0,
+		NULL, EXPANSIONTYPE_FALLBACK_DISABLE | EXPANSIONTYPE_HAS_FALLBACK,
 		BOARD_MEMORY_BLIZZARD_12xx,
 		256 * 1024 * 1024,
 		0,
@@ -4623,7 +4659,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 		_T("Blizzard 2060"),
 		_T("Blizzard2060"),
 		ROMTYPE_CB_BLIZ2060, 0,
-		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_FALLBACK_DISABLE | EXPANSIONTYPE_HAS_FALLBACK,
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024,
 		0,
@@ -4655,7 +4691,7 @@ static const struct cpuboardsubtype cyberstormboard_sub[] = {
 		_T("CyberStorm MK II"),
 		_T("CyberStormMK2"),
 		ROMTYPE_CB_CSMK2, 0,
-		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_FALLBACK_DISABLE | EXPANSIONTYPE_HAS_FALLBACK,
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024
 	},
@@ -4710,7 +4746,7 @@ static const struct cpuboardsubtype mtec_sub[] = {
 		_T("e-matrix530"),
 		ROMTYPE_CB_EMATRIX, 0,
 		ematrix_add_scsi_unit, EXPANSIONTYPE_SCSI,
-		BOARD_MEMORY_EMATRIX,
+		BOARD_MEMORY_CUSTOM_32,
 		128 * 1024 * 1024,
 		0,
 		ncr_ematrix_autoconfig_init, NULL, BOARD_AUTOCONFIG_Z2, 1,
@@ -4720,6 +4756,43 @@ static const struct cpuboardsubtype mtec_sub[] = {
 		NULL
 	}
 };
+static const struct expansionboardsettings ivsvector_settings[] = {
+	{
+		// 0/1
+		_T("Memory (JP12)\0") _T("4M\0") _T("8M\0") _T("16M\0") _T("32M\0"),
+		_T("memory\0") _T("4m\0") _T("8m\0") _T("16m\0") _T("32m\0"),
+		true, false, 0
+	},
+	{
+		// 3
+		_T("Disable FastROM (JP17)"),
+		_T("disfastrom"),
+		false, false, 1
+	},
+	{
+		// 4
+		_T("Autoboot (JP20)"),
+		_T("autoboot"),
+		false, false, 0
+	},
+	{
+		// 5
+		_T("Dis68kRAM (JP14)"),
+		_T("dis68kram"),
+		false, false, 1
+	},
+	{
+		// 6
+		_T("Burst (JP13)"),
+		_T("burst"),
+		false, false, 1
+	},
+	{
+		NULL
+	}
+};
+
+
 static const struct expansionboardsettings a26x0board_settings[] = {
 	{
 		_T("OSMODE (J304)"),
@@ -4761,7 +4834,7 @@ static const struct cpuboardsubtype dbk_sub[] = {
 		_T("Wildfire"),
 		_T("wildfire"),
 		ROMTYPE_CB_DBK_WF, 0,
-		wildfire_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		wildfire_add_scsi_unit, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_HAS_FALLBACK,
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024,
 		0,
@@ -4784,6 +4857,24 @@ static const struct cpuboardsubtype fusionforty_sub[] = {
 		NULL
 	}
 };
+static const struct cpuboardsubtype ivs_sub[] = {
+	{
+		_T("Vector"),
+		_T("Vector"),
+		ROMTYPE_CB_VECTOR, 0,
+		ivsvector_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		BOARD_MEMORY_HIGHMEM,
+		32 * 1024 * 1024,
+		0,
+		ivsvector_init, NULL, BOARD_AUTOCONFIG_Z2, 1,
+		ivsvector_settings, NULL,
+		2112, 240, 0, false
+	},
+	{
+		NULL
+	}
+};
+
 static const struct cpuboardsubtype apollo_sub[] = {
 	{
 		_T("Apollo 1240/1260"),
@@ -4829,7 +4920,7 @@ static const struct cpuboardsubtype dceboard_sub[] = {
 		_T("sx32pro"),
 		ROMTYPE_CB_SX32PRO, 0,
 		NULL, 0,
-		BOARD_MEMORY_EMATRIX,
+		BOARD_MEMORY_CUSTOM_32,
 		64 * 1024 * 1024
 	},
 	{
@@ -4902,6 +4993,11 @@ const struct cpuboardtype cpuboards[] = {
 		_T("RCS Management"),
 		fusionforty_sub, 0
 	},
+	{
+		BOARD_IVS,
+		_T("Interactive Video Systems"),
+		ivs_sub, 0
+	},
 #if 0
 	{
 		BOARD_IC,
@@ -4912,4 +5008,34 @@ const struct cpuboardtype cpuboards[] = {
 	{
 		NULL
 	}
+};
+
+const struct memoryboardtype memoryboards[]
+{
+	// z2
+	{
+		_T("GVP"), _T("Impact A2000-RAM8"),
+		2, 2077, 9
+	},
+	{
+		_T("Kupke"), _T("Golem RAM-Card"),
+		2, 2073, 3
+	},
+	{
+		_T("Supra"), _T("SupraRAM 500RX"),
+		2, 1056, 10
+	},
+	{
+		_T("Supra"), _T("SupraRAM 2000"),
+		2, 1056, 9
+	},
+	// z3
+	{
+		_T("E3B"), _T("ZorRAM"),
+		3, 3643, 32
+	},
+
+	{
+		NULL
+	} 
 };

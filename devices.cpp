@@ -307,6 +307,10 @@ void reset_all_systems (void)
 
 void do_leave_program (void)
 {
+#ifdef WITH_PPC
+	// must be first
+	uae_ppc_free();
+#endif
 	free_traps();
 	sampler_free ();
 	graphics_leave ();
@@ -362,9 +366,6 @@ void do_leave_program (void)
 	device_func_reset ();
 #ifdef WITH_LUA
 	uae_lua_free ();
-#endif
-#ifdef WITH_PPC
-	uae_ppc_free();
 #endif
 #ifdef WITH_TOCCATA
 	sndboard_free();

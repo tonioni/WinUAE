@@ -1,4 +1,32 @@
 
+Beta 4:
+
+- Fixed uaegfx 8-bit mode palette updates.
+- Added A2630 v4 to ROM scanner. (v2, v3 and v5 to go)
+- Force UAE mapping mode if 1G Z3 Chip RAM size.
+- Do not map Z3 RAM (and crash) if RAM allocation fails.
+- Improved some "Too much RAM" edge cases when deciding UAE/REAL mode and if JIT direct supported.
+- cpuboard_settings config entry wasn't loaded correctly if it had any multiselect options.
+- Added IVS Vector accelerator board emulation.
+- Added support for accelerator 68000 mode fallback, IVS Vector has different boot menu logo in 68000 mode :)
+  (It is not possible to boot directly in 68000 mode, IVS Vector boot code needs to initialize first in 68030
+  before menu in 68000 mode will work)
+- Blizzard 1230/1260/2060 68EC020 fallback mode supported. Hard reset restores original CPU configuration.
+  Very pointless but IVS Vector support code already handles it.
+- Stop PPC emulation first, before freeing any emulation resources to prevent random crashes at exit.
+- Added some predefined autoconfig RAM board choices. Few popular options copypasted from amiga.resource.cx. More later..
+
+IVS Vector:
+
+- 4.14 ROM added. ("Vector Driver 4.14 - ROM IMAGE  IVSSCSI 4.14 (02 SEP 1992)")
+- Same SCSI hardware as IVS Trumpcard Pro. (53C80, fake dma etc..)
+- Main RAM is jumper selected (4/8/16/32, Accelerator select menu option selects main RAM size)
+- Supports A2630 RAM expansion (Accelerator RAM slider selects A2630 RAM size)
+- Most jumpers emulated.
+- MapROM (FastROM) hardware is not emulated.
+- 68000 mode Z2 RAM options not emulated. (Just use normal UAE RAM sliders if you want matching config)
+- Right mouse button = boot menu.
+
 Beta 3:
 
 - PCI ES1370 fixed.

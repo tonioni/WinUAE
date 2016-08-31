@@ -7945,14 +7945,33 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_Z3MAPPING, z3);
 	ew (hDlg, IDC_FASTTEXT, true);
 
-	bool isfast = fastram_select < 2 * MAX_RAM_BOARDS;
+	bool isfast = fastram_select < 2 * MAX_RAM_BOARDS && fastram_select_ramboard && fastram_select_ramboard->size;
 	ew(hDlg, IDC_AUTOCONFIG_MANUFACTURER, isfast);
 	ew(hDlg, IDC_AUTOCONFIG_PRODUCT, isfast);
-	ew(hDlg, IDC_AUTOCONFIG_DATA, fastram_select_ramboard && fastram_select_ramboard->autoconfig_inuse);
+	ew(hDlg, IDC_MEMORYBOARDSELECT, isfast);
+	ew(hDlg, IDC_AUTOCONFIG_DATA, fastram_select_ramboard && fastram_select_ramboard->autoconfig_inuse && fastram_select_ramboard->size);
 	ew(hDlg, IDC_FASTMEMAUTOCONFIGUSE, isfast);
 	ew(hDlg, IDC_MEMORYRAM, true);
 	ew(hDlg, IDC_MEMORYMEM, true);
 }
+
+static void setfastram_ramboard(HWND hDlg, int zram)
+{
+	if (!fastram_select_ramboard)
+		return;
+	int idx = 0;
+	for (int i = 0; memoryboards[i].name; i++) {
+		const struct memoryboardtype *mbt = &memoryboards[i];
+		if (mbt->z == zram) {
+			if (mbt->manufacturer == fastram_select_ramboard->manufacturer && mbt->product == fastram_select_ramboard->product) {
+				SendDlgItemMessage(hDlg, IDC_MEMORYBOARDSELECT, CB_SETCURSEL, idx, 0);
+				break;
+			}
+			idx++;
+		}
+	}
+}
+
 
 static void setfastram_selectmenu(HWND hDlg, int mode)
 {
@@ -7960,6 +7979,8 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 	int max;
 	const int *msi;
 	TCHAR tmp[200];
+	int zram = 0;
+	struct ramboard *fastram_select_ramboard_old = fastram_select_ramboard;
 
 	fastram_select_ramboard = NULL;
 	if (fastram_select < MAX_RAM_BOARDS) {
@@ -7968,12 +7989,14 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 		max = MAX_FAST_MEM;
 		fastram_select_ramboard = &workprefs.fastmem[fastram_select];
 		fastram_select_pointer = &fastram_select_ramboard->size;
+		zram = 2;
 	} else if (fastram_select >= MAX_RAM_BOARDS && fastram_select < MAX_RAM_BOARDS * 2) {
 		msi = msi_z3fast;
 		min = MIN_Z3_MEM;
 		max = MAX_Z3_MEM;
 		fastram_select_ramboard = &workprefs.z3fastmem[fastram_select - MAX_RAM_BOARDS];
 		fastram_select_pointer = &fastram_select_ramboard->size;
+		zram = 3;
 	} else if (fastram_select == 2 * MAX_RAM_BOARDS) {
 		min = 0;
 		max = MAX_CB_MEM_128M;
@@ -8038,6 +8061,23 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 	expansion_generate_autoconfig_info(&workprefs);
 	struct ramboard *rb = fastram_select_ramboard;
 	if (rb) {
+		if (fastram_select_ramboard_old != fastram_select_ramboard || mode < 0) {
+			if (zram) {
+				ew(hDlg, IDC_MEMORYBOARDSELECT, TRUE);
+				SendDlgItemMessage(hDlg, IDC_MEMORYBOARDSELECT, CB_RESETCONTENT, 0, 0);
+				for (int i = 0; memoryboards[i].name; i++) {
+					const struct memoryboardtype *mbt = &memoryboards[i];
+					if (mbt->z == zram) {
+						_stprintf(tmp, _T("%s %s"), memoryboards[i].man, memoryboards[i].name);
+						SendDlgItemMessage(hDlg, IDC_MEMORYBOARDSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
+					}
+				}
+			} else {
+				SendDlgItemMessage(hDlg, IDC_MEMORYBOARDSELECT, CB_RESETCONTENT, 0, 0);
+				ew(hDlg, IDC_MEMORYBOARDSELECT, FALSE);
+			}
+		}
+
 		struct autoconfig_info *aci = expansion_get_autoconfig_info(&workprefs, fastram_select < MAX_RAM_BOARDS ? ROMTYPE_RAMZ2 : ROMTYPE_RAMZ3, fastram_select % MAX_RAM_BOARDS);
 		if (!rb->autoconfig_inuse) {
 			if (aci) {
@@ -8086,6 +8126,8 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 				SetDlgItemText(hDlg, IDC_AUTOCONFIG_PRODUCT, _T(""));
 			}
 		}
+		setfastram_ramboard(hDlg, zram);
+
 	} else {
 		SetDlgItemText(hDlg, IDC_AUTOCONFIG_MANUFACTURER, _T(""));
 		SetDlgItemText(hDlg, IDC_AUTOCONFIG_PRODUCT, _T(""));
@@ -9998,7 +10040,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		SendDlgItemMessage(hDlg, IDC_Z3MAPPING, CB_ADDSTRING, 0, (LPARAM)_T("Real (0x40000000)"));
 		SendDlgItemMessage (hDlg, IDC_Z3MAPPING, CB_SETCURSEL, workprefs.z3_mapping_mode, 0);
 
-		setfastram_selectmenu(hDlg, 0);
+		setfastram_selectmenu(hDlg, -1);
 
 		recursive--;
 
@@ -10037,6 +10079,26 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 					if (v != CB_ERR) {
 						fastram_select = v;
 						setfastram_selectmenu(hDlg, 0);
+					}
+					break;
+					case IDC_MEMORYBOARDSELECT:
+					if (fastram_select_ramboard) {
+						v = SendDlgItemMessage(hDlg, IDC_MEMORYBOARDSELECT, CB_GETCURSEL, 0, 0L);
+						if (v != CB_ERR) {
+							int idx = 0;
+							for (int i = 0; memoryboards[i].name; i++) {
+								const struct memoryboardtype *mbt = &memoryboards[i];
+								if ((fastram_select < MAX_RAM_BOARDS && mbt->z == 2) || (fastram_select >= MAX_RAM_BOARDS && mbt->z == 3)) {
+									if (idx == v) {
+										fastram_select_ramboard->manufacturer = mbt->manufacturer;
+										fastram_select_ramboard->product = mbt->product;
+										setfastram_selectmenu(hDlg, 0);
+										break;
+									}
+									idx++;
+								}
+							}
+						}
 					}
 					break;
 				}

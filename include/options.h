@@ -622,6 +622,7 @@ struct uae_prefs {
 	bool address_space_24;
 	bool picasso96_nocustom;
 	int picasso96_modeflags;
+	int cpu_model_fallback;
 
 	uae_u32 z3autoconfig_start;
 	struct ramboard z3fastmem[MAX_RAM_BOARDS];

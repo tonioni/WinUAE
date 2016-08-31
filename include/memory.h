@@ -9,8 +9,9 @@
 #ifndef UAE_MEMORY_H
 #define UAE_MEMORY_H
 
-extern void memory_reset (void);
-extern void a1000_reset (void);
+extern void memory_reset(void);
+extern void memory_restore(void);
+extern void a1000_reset(void);
 
 #ifdef JIT
 extern int special_mem;
@@ -386,11 +387,11 @@ extern void rtarea_init(void);
 extern void rtarea_free(void);
 extern void rtarea_init_mem(void);
 extern void rtarea_setup(void);
-extern void expamem_init (void);
 extern void expamem_reset (void);
 extern void expamem_next (addrbank *mapped, addrbank *next);
 extern void expamem_shutup (addrbank *mapped);
 extern bool expamem_z3hack(struct uae_prefs*);
+extern void expansion_cpu_fallback(void);
 extern void set_expamem_z3_hack_mode(int);
 extern uaecptr expamem_board_pointer, expamem_highmem_pointer;
 extern uaecptr expamem_z3_pointer_real, expamem_z3_pointer_uae;
@@ -449,7 +450,8 @@ extern addrbank *get_mem_bank_real(uaecptr);
 #endif
 
 extern void memory_init (void);
-extern void memory_cleanup (void);
+extern void memory_cleanup(void);
+extern void restore_banks(void);
 extern void map_banks (addrbank *bank, int first, int count, int realsize);
 extern void map_banks_z2(addrbank *bank, int first, int count);
 extern void map_banks_z3(addrbank *bank, int first, int count);

@@ -115,6 +115,11 @@ static int icachelinecnt, dcachelinecnt;
 static struct cache040 icaches040[CACHESETS040];
 static struct cache040 dcaches040[CACHESETS040];
 
+static int fallback_cpu_model, fallback_mmu_model, fallback_fpu_model;
+static int fallback_cpu_compatible, fallback_cpu_address_space_24;
+static struct regstruct fallback_regs;
+static int fallback_new_cpu_model;
+
 int cpu_last_stop_vpos, cpu_stopped_lines;
 
 #if COUNT_INSTRS
@@ -3059,6 +3064,7 @@ static void m68k_reset2(bool hardreset)
 		v = get_long (4);
 		m68k_areg (regs, 7) = get_long (0);
 	}
+
 	m68k_setpc_normal(v);
 	regs.m = 0;
 	regs.stopped = 0;
@@ -3118,11 +3124,95 @@ static void m68k_reset2(bool hardreset)
 	regs.ce020memcycles = 0;
 	fill_prefetch ();
 }
+
 void m68k_reset(void)
 {
 	m68k_reset2(false);
 }
 
+void cpu_change(int newmodel)
+{
+	if (newmodel == currprefs.cpu_model)
+		return;
+	fallback_new_cpu_model = newmodel;
+	cpu_halt(CPU_HALT_ACCELERATOR_CPU_FALLBACK);
+}
+
+void cpu_fallback(int mode)
+{
+	int fallbackmodel;
+	if (currprefs.chipset_mask & CSMASK_AGA) {
+		fallbackmodel = 68020;
+	} else {
+		fallbackmodel = 68000;
+	}
+	if (mode < 0) {
+		if (currprefs.cpu_model > fallbackmodel) {
+			cpu_change(fallbackmodel);
+		} else if (fallback_new_cpu_model) {
+			cpu_change(fallback_new_cpu_model);
+		}
+	} else if (mode == 0) {
+		cpu_change(fallbackmodel);
+	} else if (mode) {
+		if (fallback_cpu_model) {
+			cpu_change(fallback_cpu_model);
+		}
+	}
+}
+
+static void cpu_do_fallback(void)
+{
+	bool fallbackmode = false;
+	if ((fallback_new_cpu_model < 68020 && !(currprefs.chipset_mask & CSMASK_AGA)) || (fallback_new_cpu_model == 68020 && (currprefs.chipset_mask & CSMASK_AGA))) {
+		// -> 68000/68010 or 68EC020
+		fallback_cpu_model = currprefs.cpu_model;
+		fallback_fpu_model = currprefs.fpu_model;
+		fallback_mmu_model = currprefs.mmu_model;
+		fallback_cpu_compatible = currprefs.cpu_compatible;
+		fallback_cpu_address_space_24 = currprefs.address_space_24;
+		changed_prefs.cpu_model = currprefs.cpu_model_fallback && fallback_new_cpu_model <= 68020 ? currprefs.cpu_model_fallback : fallback_new_cpu_model;
+		changed_prefs.fpu_model = 0;
+		changed_prefs.mmu_model = 0;
+		changed_prefs.cpu_compatible = true;
+		changed_prefs.address_space_24 = true;
+		memcpy(&fallback_regs, &regs, sizeof(struct regstruct));
+		fallback_regs.pc = M68K_GETPC;
+		fallbackmode = true;
+	} else {
+		// -> 68020+
+		changed_prefs.cpu_model = fallback_cpu_model;
+		changed_prefs.fpu_model = fallback_fpu_model;
+		changed_prefs.mmu_model = fallback_mmu_model;
+		changed_prefs.cpu_compatible = fallback_cpu_compatible;
+		changed_prefs.address_space_24 = fallback_cpu_address_space_24;
+		fallback_cpu_model = 0;
+	}
+	init_m68k();
+	m68k_reset2(false);
+	if (!fallbackmode) {
+		// restore original 68020+
+		memcpy(&regs, &fallback_regs, sizeof(regs));
+		restore_banks();
+		memory_restore();
+		memory_map_dump();
+		m68k_setpc(fallback_regs.pc);
+	} else {
+		memory_restore();
+		expansion_cpu_fallback();
+		memory_map_dump();
+	}
+}
+
+static void m68k_reset_restore(void)
+{
+	// hardreset and 68000/68020 fallback mode? Restore original mode.
+	if (fallback_cpu_model) {
+		fallback_new_cpu_model = fallback_cpu_model;
+		fallback_regs.pc = 0;
+		cpu_do_fallback();
+	}
+}
 
 void REGPARAM2 op_unimpl (uae_u16 opcode)
 {
@@ -3727,6 +3817,9 @@ static int do_specialties (int cycles)
 	
 	if (regs.spcflags & SPCFLAG_CHECK) {
 		if (regs.halted) {
+			if (regs.halted == CPU_HALT_ACCELERATOR_CPU_FALLBACK) {
+				return 1;
+			}
 			unset_special(SPCFLAG_CHECK);
 			if (haltloop())
 				return 1;
@@ -5303,6 +5396,11 @@ void m68k_go (int may_quit)
 
 		cputrace.state = -1;
 
+		if (regs.halted == CPU_HALT_ACCELERATOR_CPU_FALLBACK) {
+			regs.halted = 0;
+			cpu_do_fallback();
+		}
+
 		if (currprefs.inprecfile[0] && input_play) {
 			inprec_open (currprefs.inprecfile, NULL);
 			changed_prefs.inprecfile[0] = currprefs.inprecfile[0] = 0;
@@ -5332,6 +5430,8 @@ void m68k_go (int may_quit)
 			else if (savestate_state == STATE_REWIND)
 				savestate_rewind ();
 #endif
+			if (cpu_hardreset)
+				m68k_reset_restore();
 			prefs_changed_cpu();
 			set_cycles (start_cycles);
 			custom_reset (cpu_hardreset != 0, cpu_keyboardreset);
