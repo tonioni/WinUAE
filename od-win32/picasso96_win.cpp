@@ -912,7 +912,7 @@ static void setconvert(void)
 	else
 		alloc_colors_rgb(5, 6, 5, 11, 5, 0, 0, 0, 0, 0, p96rc, p96gc, p96bc);
 	gfx_set_picasso_colors(picasso96_state.RGBFormat);
-	picasso_palette();
+	picasso_palette(picasso96_state.CLUT);
 	if (host_mode != ohost_mode || picasso96_state.RGBFormat != orgbformat) {
 		write_log (_T("RTG conversion: Depth=%d HostRGBF=%d P96RGBF=%d Mode=%d\n"),
 			picasso_vidinfo.pixbytes, host_mode, picasso96_state.RGBFormat, picasso_convert);
@@ -2606,6 +2606,7 @@ static void resetpalette(void)
 */
 static int updateclut(TrapContext *ctx, uaecptr clut, int start, int count)
 {
+	bool uaegfx = currprefs.rtgboards[0].rtgmem_type < GFXBOARD_HARDWARE && currprefs.rtgboards[0].rtgmem_size;
 	uae_u8 clutbuf[256 * 3];
 	int i, changed = 0;
 	clut += start * 3;
@@ -2625,9 +2626,13 @@ static int updateclut(TrapContext *ctx, uaecptr clut, int start, int count)
 		picasso96_state_uaegfx.CLUT[i].Red = r;
 		picasso96_state_uaegfx.CLUT[i].Green = g;
 		picasso96_state_uaegfx.CLUT[i].Blue = b;
-		clut += 3;
+		if (uaegfx) {
+			picasso96_state.CLUT[i].Red = r;
+			picasso96_state.CLUT[i].Green = g;
+			picasso96_state.CLUT[i].Blue = b;
+		}
 	}
-	changed |= picasso_palette ();
+	changed |= picasso_palette (picasso96_state.CLUT);
 	return changed;
 }
 static uae_u32 REGPARAM2 picasso_SetColorArray (TrapContext *ctx)

@@ -2428,15 +2428,15 @@ void init_colors (void)
 
 #ifdef PICASSO96
 
-int picasso_palette (void)
+int picasso_palette (struct MyCLUTEntry *CLUT)
 {
 	int i, changed;
 
 	changed = 0;
 	for (i = 0; i < 256; i++) {
-		int r = picasso96_state.CLUT[i].Red;
-		int g = picasso96_state.CLUT[i].Green;
-		int b = picasso96_state.CLUT[i].Blue;
+		int r = CLUT[i].Red;
+		int g = CLUT[i].Green;
+		int b = CLUT[i].Blue;
 		uae_u32 v = (doMask256 (r, red_bits, red_shift)
 			| doMask256 (g, green_bits, green_shift)
 			| doMask256 (b, blue_bits, blue_shift))
