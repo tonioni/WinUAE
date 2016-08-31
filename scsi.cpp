@@ -55,7 +55,8 @@
 #define OMTI_X86 24
 #define NCR5380_PHOENIXBOARD 25
 #define NCR5380_TRUMPCARDPRO 26
-#define NCR_LAST 27
+#define NCR5380_IVSVECTOR 27 // nearly identical to trumpcard pro
+#define NCR_LAST 28
 
 extern int log_scsiemu;
 
@@ -734,6 +735,7 @@ struct soft_scsi
 	uae_u8 *rom;
 	int rom_size;
 	int board_mask;
+	int board_mask2;
 	int board_size;
 	addrbank *bank;
 	int type;
@@ -841,11 +843,11 @@ static struct soft_scsi *getscsiboard(uaecptr addr)
 {
 	for (int i = 0; soft_scsi_devices[i]; i++) {
 		struct soft_scsi *s = soft_scsi_devices[i];
+		if (s->baseaddress2 && (addr & ~s->board_mask2) == s->baseaddress2)
+			return s;
 		if (!s->baseaddress && !s->configured)
 			return s;
 		if ((addr & ~s->board_mask) == s->baseaddress)
-			return s;
-		if (s->baseaddress2 && (addr & ~s->board_mask) == s->baseaddress2)
 			return s;
 		if (s->baseaddress == AUTOCONFIG_Z2 && addr < 65536)
 			return s;
@@ -890,6 +892,7 @@ static void generic_soft_scsi_add(int ch, struct uaedev_config_info *ci, struct 
 		ss->board_size = 0x10000;
 		ss->board_mask = 0xffff;
 	}
+	ss->board_mask2 = ss->board_mask;
 	if (romsize >= 0) {
 		ss->rom_size = romsize;
 		xfree(ss->rom);
@@ -2120,11 +2123,11 @@ static int phoenixboard_reg(struct soft_scsi *ncr, uaecptr addr)
 	return addr;
 }
 
-static int trumpcardpro_reg(struct soft_scsi *ncr, uaecptr addr)
+static int trumpcardpro_reg(struct soft_scsi *ncr, uaecptr addr, bool vector)
 {
 	if (addr & 1)
 		return -1;
-	if (addr & 0x8000)
+	if (((addr & 0x8000) && !vector) || (vector && addr >= 0x100))
 		return -1;
 	if ((addr & 0xe0) == 0x60)
 		return 8;
@@ -2634,18 +2637,32 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 			v = ncr->rom[addr];
 		}
 
-	} else if (ncr->type == NCR5380_TRUMPCARDPRO) {
+	} else if (ncr->type == NCR5380_TRUMPCARDPRO || ncr->type == NCR5380_IVSVECTOR) {
 
-		reg = trumpcardpro_reg(ncr, addr);
+		reg = trumpcardpro_reg(ncr, addr, ncr->type == NCR5380_IVSVECTOR);
 		if (reg >= 0) {
 			if (reg == 8 && !ncr->dma_active) {
 				v = 0;
 			} else {
 				v = ncr5380_bget(ncr, reg);
 			}
-		} else if (addr & 0x8000) {
+		} else if ((addr & 0x8000) && ncr->type == NCR5380_TRUMPCARDPRO) {
 			if (!ncr->rc->autoboot_disabled)
 				v = ncr->rom[addr & 0x7fff];
+		} else if (addr == 0x100 && ncr->type == NCR5380_IVSVECTOR) {
+			// bits 0,1 = 0 = 32M
+			// bits 0,1 = 1 = 16M
+			// bits 0,1 = 2 = 8M
+			// bits 0,1 = 3 = 4M
+			// bit 3 = JP17 DisFastROM (1 = disabled, 0 = on)
+			// bit 5 = disable RAM in 68000 mode
+			// bit 4 = JP20 autoboot (1 = off, 0 = on)
+			// bit 6 = 68030 burst (1 = on, 0 = off)
+			v = currprefs.cpuboard_settings;
+			v |= 4;
+			v ^= 0xff & ~0x40;
+		} else if (addr > 0x100 && ncr->type == NCR5380_IVSVECTOR) {
+			v = ncr->rom[addr];
 		} else if ((addr & 0xe0) == 0xc0) {
 			struct raw_scsi *rs = &ncr->rscsi;
 			uae_u8 t = raw_scsi_get_signal_phase(rs);
@@ -2910,14 +2927,27 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 			ncr5380_bput(ncr, reg, val);
 		}
 
-	} else if (ncr->type == NCR5380_TRUMPCARDPRO) {
+	} else if (ncr->type == NCR5380_TRUMPCARDPRO || ncr->type == NCR5380_IVSVECTOR) {
 
-		reg = trumpcardpro_reg(ncr, addr);
+		reg = trumpcardpro_reg(ncr, addr, ncr->type == NCR5380_IVSVECTOR);
 		if (reg >= 0) {
 			if (reg == 8 && !ncr->dma_active) {
 				;
 			} else {
 				ncr5380_bput(ncr, reg, val);
+			}
+		} else if (addr >= 0x100 && ncr->type == NCR5380_IVSVECTOR) {
+			if (addr == 0x200 && !(val & 0x80)) {
+				if (currprefs.cpu_model >= 68020) {
+					write_log(_T("IVS Vector 68000 mode!\n"));
+					cpu_fallback(0);
+				}
+			}
+			if (addr == 0x200 && (val & 0x80)) {
+				if (currprefs.cpu_model < 68020) {
+					write_log(_T("IVS Vector 68030 mode!\n"));
+					cpu_fallback(1);
+				}
 			}
 		} else if ((addr & 0xe0) == 0xa0) {
 			// word data port
@@ -3007,6 +3037,11 @@ void parallel_port_scsi_write(int reg, uae_u8 v, uae_u8 dir)
 		cia_parallelack();
 }
 
+static bool isautoconfigaddr(uaecptr addr)
+{
+	return addr < 65536 || (addr >= 0xe80000 && addr < 0xe90000) || (addr >= 0xff000000 && addr < 0xff0000200);
+}
+
 static uae_u32 REGPARAM2 ncr80_lget(struct soft_scsi *ncr, uaecptr addr)
 {
 	uae_u32 v;
@@ -3027,9 +3062,10 @@ static uae_u32 REGPARAM2 ncr80_wget(struct soft_scsi *ncr, uaecptr addr)
 
 static uae_u32 REGPARAM2 ncr80_bget(struct soft_scsi *ncr, uaecptr addr)
 {
+	bool iaa = isautoconfigaddr(addr);
 	uae_u32 v;
 	addr &= ncr->board_mask;
-	if (!ncr->configured) {
+	if (!ncr->configured && iaa) {
 		addr &= 65535;
 		if (addr >= sizeof ncr->acmemory)
 			return 0;
@@ -3049,8 +3085,9 @@ static void REGPARAM2 ncr80_lput(struct soft_scsi *ncr, uaecptr addr, uae_u32 l)
 
 static void REGPARAM2 ncr80_wput(struct soft_scsi *ncr, uaecptr addr, uae_u32 w)
 {
+	bool iaa = isautoconfigaddr(addr);
 	w &= 0xffff;
-	if (!ncr->configured) {
+	if (!ncr->configured && iaa) {
 		return;
 	}
 	ncr80_bput2(ncr, addr, w >> 8, 2);
@@ -3059,9 +3096,10 @@ static void REGPARAM2 ncr80_wput(struct soft_scsi *ncr, uaecptr addr, uae_u32 w)
 
 static void REGPARAM2 ncr80_bput(struct soft_scsi *ncr, uaecptr addr, uae_u32 b)
 {
+	bool iaa = isautoconfigaddr(addr);
 	b &= 0xff;
 	addr &= ncr->board_mask;
-	if (!ncr->configured) {
+	if (!ncr->configured && iaa) {
 		addr &= 65535;
 		switch (addr)
 		{
@@ -3299,7 +3337,7 @@ bool kommos_init(struct autoconfig_info *aci)
 	map_banks(scsi->bank, 0xeb0000 >> 16, 1, 0);
 	scsi->baseaddress = 0xeb0000;
 	scsi->baseaddress2 = 0xf10000;
-
+	aci->addrbank = scsi->bank;
 	return true;
 }
 
@@ -3886,3 +3924,37 @@ void phoenixboard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct ro
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_PHOENIXBOARD, 65536, 32768, ROMTYPE_PHOENIXB);
 }
 
+void ivsvector_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_IVSVECTOR, 65536, 65536, ROMTYPE_CB_VECTOR);
+}
+
+bool ivsvector_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_CB_VECTOR);
+	if (!aci->doinit) {
+		load_rom_rc(aci->rc, ROMTYPE_CB_VECTOR, 65536, 0x300, aci->autoconfig_raw, 128, 0);
+		return true;
+	}
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	scsi->intena = true;
+
+	load_rom_rc(aci->rc, ROMTYPE_CB_VECTOR, 65536, 0, scsi->rom, 65536, 0);
+
+	memcpy(scsi->acmemory, scsi->rom + 0x300, sizeof scsi->acmemory);
+
+	aci->addrbank = scsi->bank;
+	aci->hardwired = true;
+
+	if (!currprefs.address_space_24) {
+		map_banks(aci->addrbank, 0x01000000 >> 16, (65536 * 16) >> 16, 65536);
+		scsi->baseaddress2 = 0x01000000;
+		scsi->board_mask2 = (65536 * 16) - 1;
+	}
+
+	return true;
+}
