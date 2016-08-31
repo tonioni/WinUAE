@@ -167,6 +167,12 @@ static struct ncr9x_state *ncr_golemfast_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 
 static struct ncr9x_state *ncr_units[MAX_NCR9X_UNITS + 1];
 
+// Only offsets 0x100 to 0x10f contains non-FF data
+static uae_u8 oktagon_eeprom[16] =
+{
+	0x0b, 0xf4, 0x3f, 0x0a, 0xff, 0x06, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x50, 0xaf, 0xff
+};
+
 static void freescsi(SCSIDevice *scsi)
 {
 	if (scsi) {
@@ -770,8 +776,10 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 	} else if (isncr(ncr, ncr_oktagon2008_scsi)) {
 		if (addr == OKTAGON_EEPROM_SCL) {
 			eeprom_i2c_set(ncr->eeprom, BITBANG_I2C_SCL, (val & 0x80) != 0);
+			memcpy(oktagon_eeprom, ncr->eeprom_data + 0x100, 16);
 		} else if (addr == OKTAGON_EEPROM_SDA) {
 			eeprom_i2c_set(ncr->eeprom, BITBANG_I2C_SDA, (val & 0x80) != 0);
+			memcpy(oktagon_eeprom, ncr->eeprom_data + 0x100, 16);
 		} else if (addr >= OKTAGON_DMA_START && addr < OKTAGON_DMA_END) {
 			ncr->data = val;
 			ncr->data_valid = true;
@@ -1569,12 +1577,6 @@ bool ncr_fastlane_autoconfig_init(struct autoconfig_info *aci)
 
 static const uae_u8 oktagon_autoconfig[16] = {
 	0xd1, 0x05, 0x00, 0x00, 0x08, 0x2c, 0x00, 0x00, 0x00, 0x00, OKTAGON_ROM_OFFSET >> 8, OKTAGON_ROM_OFFSET & 0xff
-};
-
-// Only offsets 0x100 to 0x10f contains non-FF data
-static const uae_u8 oktagon_eeprom[16] =
-{
-	0x0b, 0xf4, 0x3f, 0x0a, 0xff, 0x06, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x50, 0xaf, 0xff
 };
 
 bool ncr_oktagon_autoconfig_init(struct autoconfig_info *aci)
