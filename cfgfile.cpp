@@ -4886,12 +4886,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		p->cpuboard_settings = 0;
 		const struct cpuboardsubtype *cbst = &cpuboards[p->cpuboard_type].subtypes[p->cpuboard_subtype];
 		if (cbst->settings) {
-			const struct expansionboardsettings *cbs = cbst->settings;
-			for(i = 0; cbs[i].name; i++) {
-				if (cfgfile_option_find(tmpbuf, cbs[i].configname)) {
-					p->cpuboard_settings |= 1 << (i + cbs[i].bitshift);
-				}
-			}
+			p->cpuboard_settings = cfgfile_read_rom_settings(cbst->settings, tmpbuf);
 		}
 		return 1;
 	}
