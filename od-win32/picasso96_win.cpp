@@ -1945,10 +1945,10 @@ static uae_u32 REGPARAM2 picasso_FindCard (TrapContext *ctx)
 		picasso96_alloc2 (ctx);
 	}
 	boardinfo = AmigaBoardInfo;
-	if (gfxmem_bank.allocated && !picasso96_state_uaegfx.CardFound) {
+	if (gfxmem_bank.allocated_size && !picasso96_state_uaegfx.CardFound) {
 		/* Fill in MemoryBase, MemorySize */
 		trap_put_long(ctx, AmigaBoardInfo + PSSO_BoardInfo_MemoryBase, gfxmem_bank.start);
-		trap_put_long(ctx, AmigaBoardInfo + PSSO_BoardInfo_MemorySize, gfxmem_bank.allocated - reserved_gfxmem);
+		trap_put_long(ctx, AmigaBoardInfo + PSSO_BoardInfo_MemorySize, gfxmem_bank.allocated_size - reserved_gfxmem);
 		picasso96_state_uaegfx.CardFound = 1; /* mark our "card" as being found */
 		return -1;
 	} else
@@ -2172,11 +2172,11 @@ static void init_alloc (TrapContext *ctx, int size)
 		picasso96_amem = trap_get_long(ctx, uaegfx_base + CARD_RESLIST);
 	} else if (uaegfx_active) {
 		reserved_gfxmem = size;
-		picasso96_amem = gfxmem_bank.start + gfxmem_bank.allocated - size;
+		picasso96_amem = gfxmem_bank.start + gfxmem_bank.allocated_size - size;
 	}
 	picasso96_amemend = picasso96_amem + size;
 	write_log (_T("P96 RESINFO: %08X-%08X (%d,%d)\n"), picasso96_amem, picasso96_amemend, size / PSSO_ModeInfo_sizeof, size);
-	picasso_allocatewritewatch (0, gfxmem_bank.allocated);
+	picasso_allocatewritewatch (0, gfxmem_bank.allocated_size);
 }
 
 static int p96depth (int depth)
@@ -2224,7 +2224,7 @@ static void picasso96_alloc2 (TrapContext *ctx)
 	xfree (newmodes);
 	newmodes = NULL;
 	picasso96_amem = picasso96_amemend = 0;
-	if (gfxmem_bank.allocated == 0)
+	if (gfxmem_bank.allocated_size == 0)
 		return;
 	misscnt = 0;
 	newmodes = xmalloc (struct PicassoResolution, MAX_PICASSO_MODES);
@@ -2463,7 +2463,7 @@ static void addmode(TrapContext *ctx, uaecptr AmigaBoardInfo, uaecptr *amem, str
 	for (depth = 8; depth <= 32; depth++) {
 		if (!p96depth (depth))
 			continue;
-		if(gfxmem_bank.allocated >= w * h * (depth + 7) / 8) {
+		if(gfxmem_bank.allocated_size >= w * h * (depth + 7) / 8) {
 			FillBoardInfo(ctx, *amem, res, w, h, depth);
 			*amem += PSSO_ModeInfo_sizeof;
 		}
@@ -2687,7 +2687,7 @@ static void init_picasso_screen (void)
 		picasso_refresh ();
 	}
 	init_picasso_screen_called = 1;
-	mman_ResetWatch (gfxmem_bank.start + natmem_offset, gfxmem_bank.allocated);
+	mman_ResetWatch (gfxmem_bank.start + natmem_offset, gfxmem_bank.allocated_size);
 
 }
 
@@ -5059,7 +5059,7 @@ uae_u32 picasso_demux (uae_u32 arg, TrapContext *ctx)
      case 31: return picasso_InvertRect (ctx);
      case 32: return picasso_BlitPlanar2Direct (ctx);
      //case 34: return picasso_WaitVerticalSync (ctx);
-     case 35: return gfxmem_bank.allocated ? 1 : 0;
+     case 35: return gfxmem_bank.allocated_size ? 1 : 0;
 	 case 36: return picasso_SetSprite (ctx);
 	 case 37: return picasso_SetSpritePosition (ctx);
 	 case 38: return picasso_SetSpriteImage (ctx);

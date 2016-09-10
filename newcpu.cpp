@@ -116,7 +116,7 @@ static struct cache040 icaches040[CACHESETS040];
 static struct cache040 dcaches040[CACHESETS040];
 
 static int fallback_cpu_model, fallback_mmu_model, fallback_fpu_model;
-static int fallback_cpu_compatible, fallback_cpu_address_space_24;
+static bool fallback_cpu_compatible, fallback_cpu_address_space_24;
 static struct regstruct fallback_regs;
 static int fallback_new_cpu_model;
 
@@ -282,7 +282,13 @@ STATIC_INLINE void clear_trace (void)
 #if CPUTRACE_DEBUG
 	validate_trace ();
 #endif
+	if (cputrace.memoryoffset == MAX_CPUTRACESIZE)
+		return;
 	struct cputracememory *ctm = &cputrace.ctm[cputrace.memoryoffset++];
+	if (cputrace.memoryoffset == MAX_CPUTRACESIZE) {
+		write_log(_T("CPUTRACE overflow, stopping tracing.\n"));
+		return;
+	}
 	ctm->mode = 0;
 	cputrace.cyclecounter = 0;
 	cputrace.cyclecounter_pre = cputrace.cyclecounter_post = 0;
@@ -292,7 +298,13 @@ static void set_trace (uaecptr addr, int accessmode, int size)
 #if CPUTRACE_DEBUG
 	validate_trace ();
 #endif
+	if (cputrace.memoryoffset == MAX_CPUTRACESIZE)
+		return;
 	struct cputracememory *ctm = &cputrace.ctm[cputrace.memoryoffset++];
+	if (cputrace.memoryoffset == MAX_CPUTRACESIZE) {
+		write_log(_T("CPUTRACE overflow, stopping tracing.\n"));
+		return;
+	}
 	ctm->addr = addr;
 	ctm->data = 0xdeadf00d;
 	ctm->mode = accessmode | (size << 4);
@@ -3198,6 +3210,7 @@ static void cpu_do_fallback(void)
 		memory_map_dump();
 		m68k_setpc(fallback_regs.pc);
 	} else {
+		// 68000/010/EC020
 		memory_restore();
 		expansion_cpu_fallback();
 		memory_map_dump();
@@ -3656,8 +3669,10 @@ static bool haltloop_do(int vsynctimeline, int rpt_end, int lines)
 			x_do_cycles(8 * CYCLE_UNIT);
 			unset_special(SPCFLAG_UAEINT);
 			check_uae_int_request();
+#ifdef WITH_PPC
 			ppc_interrupt(intlev());
 			uae_ppc_execute_check();
+#endif
 			if (regs.spcflags & SPCFLAG_COPPER)
 				do_copper();
 			if (regs.spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE)) {
@@ -3675,8 +3690,10 @@ static bool haltloop_do(int vsynctimeline, int rpt_end, int lines)
 		// sync chipset with real time
 		for (;;) {
 			check_uae_int_request();
+#ifdef WITH_PPC
 			ppc_interrupt(intlev());
 			uae_ppc_execute_check();
+#endif
 			if (event_wait)
 				break;
 			int d = read_processor_time() - rpt_end;

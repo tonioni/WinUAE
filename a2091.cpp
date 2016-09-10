@@ -3295,7 +3295,7 @@ void a3000_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfi
 
 bool a3000scsi_init(struct autoconfig_info *aci)
 {
-	aci->addrbank = &expamem_nonautoconfig;
+	aci->zorro = 0;
 	aci->start = 0xdd0000;
 	aci->size = 0x10000;
 	aci->hardwired = true;

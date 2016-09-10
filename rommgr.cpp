@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 167
+#define NEXT_ROM_ID 169
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -324,16 +324,24 @@ static struct romdata roms[] = {
 
 	{ _T("Blizzard 1230-II"), 0, 0, 0, 0, _T("B1230MKII\0"), 32768, 163, 0, 0, ROMTYPE_CB_B1230MK2, 0, 0, NULL,
 	0xf307cd34, 0xd2f0bfe5, 0x6e84e9f2, 0x2dc11583, 0x30702fd7, 0xd59584ee },
-	{ _T("Blizzard 1230-III"), 0, 0, 0, 0, _T("B1230MKIII\0"), 16384, 162, 0, 0, ROMTYPE_CB_B1230MK3, 0, 0, NULL,
-	0x6850607d, 0xfc37c96c, 0xfd22f442, 0xd7d64d21, 0x06683603, 0x2111fbae },
+	{ _T("Blizzard 1230-III"), 0, 0, 0, 0, _T("B1230MKIII\0"), 32768, 162, 0, 0, ROMTYPE_CB_B1230MK3, 0, 0, NULL,
+	0x8412a22c, 0x3a4c55f3, 0xdaf62084, 0xd947e418, 0x137db019, 0xf13efc7d },
 	{ _T("Blizzard 1230-IV"), 0, 0, 0, 0, _T("B1230MKIV\0"), 32768, 89, 0, 0, ROMTYPE_CB_BLIZ1230, 0, 0, NULL,
 	0x3078dbdc, 0x4d3e7fd0, 0xa1a4c3ae, 0xe17c5de3, 0xcbe1af03, 0x447aff92 },
 	{ _T("Blizzard 1240/1260"), 0, 0, 0, 0, _T("B1240\0B1260\0"), 32768, 90, 0, 0, ROMTYPE_CB_BLIZ1260, 0, 0, NULL,
 	0xf88ae0f1, 0xf69aca4b,0xb13e3389,0x04676f0c,0x8616f8db,0x074c313d },
-	{ _T("Blizzard 2060"), 8, 5, 8, 5, _T("B2060\0"), 65536, 92, 0, 0, ROMTYPE_CB_BLIZ2060, 0, 0, NULL,
-	0xce270bc0, 0xe043c1aa,0x3bb06e06,0xd4dabff3,0x0a8c6317,0xabfef2bb },
+
+	{ _T("Blizzard 2060 v8.2"), 8, 2, 8, 2, _T("B2060\0"), 65536, 168, 0, 0, ROMTYPE_CB_BLIZ2060, 0, 0, NULL,
+	0x2f42af81, 0x003577b8, 0x4e1f2e59, 0x3add6c9f, 0xfd65a7b4, 0x2abaa933 },
+	ALTROMPN(168, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xb5892212, 0x7282a8ca, 0xf7ab194d, 0x16e1d05a, 0x582f0ebf, 0x1046b3d0)
+	ALTROMPN(168, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x821a01c0, 0x6fd29f69, 0x28c5980e, 0x313b3b15, 0xb5d683ac, 0x209dd1bf)
+	{ _T("Blizzard 2060 v8.5"), 8, 5, 8, 5, _T("B2060\0"), 65536, 92, 0, 0, ROMTYPE_CB_BLIZ2060, 0, 0, NULL,
+	0xce270bc0, 0xe043c1aa, 0x3bb06e06, 0xd4dabff3, 0x0a8c6317, 0xabfef2bb },
 	ALTROMPN(92, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xa6023f20, 0xdfb048d6, 0xbdc03587, 0x241e8121, 0x26aba603, 0xd69b0238)
 	ALTROMPN(92, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x9635a9cd, 0x47578b27, 0xc4ba6e54, 0x891930dd, 0xcb4b6a45, 0x5d6b31b2)
+
+	{ _T("Blizzard SCSI Kit III"), 1, 139, 1, 139, _T("BSCSIIII\0"), 65536, 167, 0, 0, ROMTYPE_BLIZKIT3, 0, 0, NULL,
+	0xfd2c772f, 0x1411c248, 0x72f7cb8d, 0xecbe4744, 0xf0b8d12a, 0x1aaaad44, NULL, _T("blizzard_scsi_kit_iv.rom") },
 	{ _T("Blizzard SCSI Kit IV"), 8, 5, 8, 5, _T("BSCSIIV\0"), 32768, 94, 0, 0, ROMTYPE_BLIZKIT4, 0, 0, NULL,
 	0xf53a0fca, 0xefe17ca5,0x88c44a7f,0x0f8c62be,0x20f23278,0xcfe06727, NULL, _T("blizzard_scsi_kit_iv.rom") },
 	{ _T("Fastlane"), 8, 5, 8, 5, _T("FASTLANE\0"), 20788, 102, 0, 0, ROMTYPE_FASTLANE, 0, 0, NULL,
@@ -386,8 +394,8 @@ static struct romdata roms[] = {
 	0xbfd68a88, 0x84a50880, 0x76917549, 0xadf33b16, 0x8a869adb, 0x9e5a6fac, NULL, NULL },
 	{ _T("IVS Vector 4.14"), 4, 14, 4, 14, _T("VECTOR030\0"), 65536, 166, 0, 0, ROMTYPE_CB_VECTOR, 0, 0, NULL,
 	0x3befa0c0, 0x4414673c, 0xa52f78a0, 0xae656824, 0xfd08b54f, 0xa1de237c, NULL, NULL },
-	ALTROMPN(166, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x541b5988, 0x3546517b, 0x57cecd2f, 0x9fbfcd0c, 0xf26fdbbf, 0xfb009e3e)
-	ALTROMPN(166, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xb64e3bbf, 0xd6f4fc81, 0x38325a78, 0x74ff1c15, 0x7c93f1a2, 0x444904ae)
+	ALTROMPN(166, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xb64e3bbf, 0xd6f4fc81, 0x38325a78, 0x74ff1c15, 0x7c93f1a2, 0x444904ae)
+	ALTROMPN(166, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x541b5988, 0x3546517b, 0x57cecd2f, 0x9fbfcd0c, 0xf26fdbbf, 0xfb009e3e)
 
 	{ _T("Preferred Technologies Nexus"), 1, 0, 1, 0, _T("PTNEXUS\0"), 8192, 139, 0, 0, ROMTYPE_PTNEXUS, 0, 0, NULL,
 	0xf495879a, 0xa3bd0202, 0xe14aa5b6, 0x49d3ce88, 0x22975950, 0x6500dbc2, NULL, NULL },
@@ -443,7 +451,7 @@ static struct romdata roms[] = {
 	ALTROMPN(146, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xc88843cb, 0x3d7eb1b6, 0x8139b81b, 0x0665684c, 0x536ab3d0, 0x52a5dd9d)
 	{ _T("Apollo 500/2000"), 0, 0, 0, 0, _T("APOLLOHD\0"), 16384, 145, 0, 0, ROMTYPE_APOLLOHD, 0, 0, NULL,
 	0x931bad25, 0x24b4ee4c,0x129c7a93,0xf83ad570,0x66afd80c,0x4179f39c, NULL, NULL },
-	{ _T("Multi Evolution 500/200"), 3, 0, 3, 0, _T("MULTIEVOLUTION\0"), 65536, 156, 0, 0, ROMTYPE_MEVOLUTION, 0, 0, NULL,
+	{ _T("Multi Evolution 500/2000"), 3, 0, 3, 0, _T("MULTIEVOLUTION\0"), 65536, 156, 0, 0, ROMTYPE_MEVOLUTION, 0, 0, NULL,
 	0xd13a2c89, 0xf9e38c4b,0xf5c6499d,0x486946ba,0x7b7636b8,0x0845265b, NULL, NULL },
 	ALTROMPN(156, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x339b3549, 0x74de857b, 0x42f9a8e0, 0xc1f3c29e, 0x06982622, 0x853d08fe)
 	ALTROMPN(156, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x3aca5d1f, 0x786f2197, 0xc614be91, 0xae7e87da, 0xb42c3290, 0xd7997763)

@@ -653,10 +653,10 @@ bool tms_init(struct autoconfig_info *aci)
 	xfree(program_ram);
 
 	gfxmem_banks[a2410_gfxboard]->label = _T("ram_a8");
-	gfxmem_banks[a2410_gfxboard]->allocated = 1 * 1024 * 1024;
+	gfxmem_banks[a2410_gfxboard]->reserved_size = 1 * 1024 * 1024;
 	gfxboard_get_a8_vram(a2410_gfxboard);
 
-	picasso_allocatewritewatch(a2410_gfxboard, gfxmem_banks[a2410_gfxboard]->allocated);
+	picasso_allocatewritewatch(a2410_gfxboard, gfxmem_banks[a2410_gfxboard]->allocated_size);
 	gfxmem_banks[a2410_gfxboard]->start = 0xa80000;
 
 	program_ram = xcalloc(uae_u8, 1 * 1024 * 1024);

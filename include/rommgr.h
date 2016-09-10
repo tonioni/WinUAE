@@ -129,6 +129,9 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_CDTVDMAC	0x0010004c
 #define ROMTYPE_CDTVCR		0x0010004d
 #define ROMTYPE_IVSVECTOR	0x0010004e
+#define ROMTYPE_BUDDHA		0x0010004f
+#define ROMTYPE_NE2KISA		0x00100050
+#define ROMTYPE_BLIZKIT3	0x00100051
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000

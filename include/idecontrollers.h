@@ -36,6 +36,9 @@ void rochard_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romc
 bool golemfast_init(struct autoconfig_info *aci);
 void golemfast_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
+bool buddha_init(struct autoconfig_info *aci);
+void buddha_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
 uae_u32 REGPARAM3 apollo_ide_lget (uaecptr addr) REGPARAM;
 uae_u32 REGPARAM3 apollo_ide_wget (uaecptr addr) REGPARAM;
 uae_u32 REGPARAM3 apollo_ide_bget (uaecptr addr) REGPARAM;

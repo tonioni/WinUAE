@@ -1514,7 +1514,7 @@ void cd32_fmv_hsync_handler(void)
 void cd32_fmv_reset(void)
 {
 	if (fmv_ram_bank.baseaddr)
-		memset(fmv_ram_bank.baseaddr, 0, fmv_ram_bank.allocated);
+		memset(fmv_ram_bank.baseaddr, 0, fmv_ram_bank.allocated_size);
 	cd32_fmv_state(0);
 }
 
@@ -1560,9 +1560,9 @@ addrbank *cd32_fmv_init (struct autoconfig_info *aci)
 	fmv_ram_bank.start = fmv_rom_bank.start + 0x80000;
 
 	fmv_rom_bank.mask = fmv_rom_size - 1;
-	fmv_rom_bank.allocated = fmv_rom_size;
+	fmv_rom_bank.reserved_size = fmv_rom_size;
 	fmv_ram_bank.mask = fmv_ram_size - 1;
-	fmv_ram_bank.allocated = fmv_ram_size;
+	fmv_ram_bank.reserved_size = fmv_ram_size;
 
 	if (mapped_malloc(&fmv_rom_bank)) {
 		load_rom_rc(aci->rc, ROMTYPE_CD32CART, 262144, 0, fmv_rom_bank.baseaddr, 262144, 0);

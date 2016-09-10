@@ -16,9 +16,10 @@ void esp_init(hwaddr espaddr, int it_shift,
 typedef struct ESPState ESPState;
 
 struct ESPState {
-    uint8_t rregs[ESP_REGS];
-    uint8_t wregs[ESP_REGS];
+    uint8_t rregs[ESP_REGS * 2];
+    uint8_t wregs[ESP_REGS * 2];
     qemu_irq irq;
+	int irq_raised;
     uint8_t chip_id;
     int32_t ti_size;
     uint32_t ti_rptr, ti_wptr;
@@ -49,6 +50,11 @@ struct ESPState {
     ESPDMAMemoryReadWriteFunc dma_memory_write;
     void *dma_opaque;
     int (*dma_cb)(ESPState *s);
+	bool fas4xxextra;
+	int fas408sig;
+	uint8_t fas408_buffer[128+1];
+	int fas408_buffer_size;
+	int fas408_buffer_offset;
 };
 
 #define ESP_TCLO   0x0
@@ -121,6 +127,55 @@ struct ESPState {
 #define TCHI_FAS100A 0x4
 #define TCHI_AM53C974 0x12
 
+
+/*
+The following registers are only on the ESP406/FAS408.  The
+documentation refers to them as "Control Register Set #1".
+These are the registers that are visible when bit 7 of
+register 0x0d is set.  This bit is common to both register sets.
+*/
+
+#define	NCR_JMP		0x00		/* RO - Jumper Sense Register	*/
+#define	 NCRJMP_RSVD	0xc0		/*	reserved		*/
+#define	 NCRJMP_ROMSZ	0x20		/*	ROM Size 1=16K, 0=32K	*/
+#define	 NCRJMP_J4	0x10		/*	Jumper #4		*/
+#define	 NCRJMP_J3	0x08		/*	Jumper #3		*/
+#define	 NCRJMP_J2	0x04		/*	Jumper #2		*/
+#define	 NCRJMP_J1	0x02		/*	Jumper #1		*/
+#define	 NCRJMP_J0	0x01		/*	Jumper #0		*/
+
+#define	NCR_PIOFIFO	0x04		/* WO - PIO FIFO, 4 bytes deep	*/
+
+#define	NCR_PSTAT	0x08		/* RW - PIO Status Register	*/
+#define	 NCRPSTAT_PERR	0x80		/*	PIO Error		*/
+#define	 NCRPSTAT_SIRQ	0x40		/*	Active High of SCSI IRQ */
+#define	 NCRPSTAT_ATAI	0x20		/*	ATA IRQ			*/
+#define	 NCRPSTAT_FEMPT	0x10		/*	PIO FIFO Empty		*/
+#define	 NCRPSTAT_F13	0x08		/*	PIO FIFO 1/3		*/
+#define	 NCRPSTAT_F23	0x04		/*	PIO FIFO 2/3		*/
+#define	 NCRPSTAT_FFULL	0x02		/*	PIO FIFO Full		*/
+#define	 NCRPSTAT_PIOM	0x01		/*	PIO/DMA Mode		*/
+
+#define	NCR_PIOI	0x0b		/* RW - PIO Interrupt Enable	*/
+#define	 NCRPIOI_RSVD	0xe0		/*	reserved		*/
+#define	 NCRPIOI_EMPTY	0x10		/*	IRQ When Empty		*/
+#define	 NCRPIOI_13	0x08		/*	IRQ When 1/3		*/
+#define	 NCRPIOI_23	0x04		/*	IRQ When 2/3		*/
+#define	 NCRPIOI_FULL	0x02		/*	IRQ When Full		*/
+#define	 NCRPIOI_FINV	0x01		/*	Flag Invert		*/
+
+#define	NCR_CFG5	0x0d		/* RW - Configuration #5	*/
+#define	 NCRCFG5_CRS1	0x80		/*	Select Register Set #1	*/
+#define	 NCRCFG5_SRAM	0x40		/*	SRAM Memory Map		*/
+#define	 NCRCFG5_AADDR	0x20		/*	Auto Address		*/
+#define	 NCRCFG5_PTRINC	0x10		/*	Pointer Increment	*/
+#define	 NCRCFG5_LOWPWR	0x08		/*	Low Power Mode		*/
+#define	 NCRCFG5_SINT	0x04		/*	SCSI Interrupt Enable	*/
+#define	 NCRCFG5_INTP	0x02		/*	INT Polarity		*/
+#define	 NCRCFG5_AINT	0x01		/*	ATA Interrupt Enable	*/
+
+#define	NCR_SIGNTR	0x0e		/* RO - Signature */
+
 void esp_dma_enable(ESPState *s, int irq, int level);
 void esp_request_cancelled(SCSIRequest *req);
 void esp_command_complete(SCSIRequest *req, uint32_t status, size_t resid);
@@ -128,6 +183,8 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len);
 void esp_hard_reset(ESPState *s);
 uint64_t esp_reg_read(ESPState *s, uint32_t saddr);
 void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val);
+uint64_t fas408_read_fifo(void *opaque);
+void fas408_write_fifo(void *opaque, uint64_t val);
 extern const VMStateDescription vmstate_esp;
 
 extern void esp_irq_raise(qemu_irq);
@@ -150,7 +207,7 @@ void esp_fake_dma_done(void *opaque);
 void esp_request_cancelled(SCSIRequest *req);
 void esp_command_complete(SCSIRequest *req, uint32_t status, size_t resid);
 void esp_transfer_data(SCSIRequest *req, uint32_t len);
-void esp_scsi_init(DeviceState *dev, ESPDMAMemoryReadWriteFunc read, ESPDMAMemoryReadWriteFunc write);
+void esp_scsi_init(DeviceState *dev, ESPDMAMemoryReadWriteFunc read, ESPDMAMemoryReadWriteFunc write, bool fas4xxextra);
 void esp_scsi_reset(DeviceState *dev, void *privdata);
 bool esp_dreq(DeviceState *dev);
 

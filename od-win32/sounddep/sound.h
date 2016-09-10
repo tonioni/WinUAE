@@ -55,9 +55,6 @@ void close_sound_device (struct sound_data *sd);
 void pause_sound_device (struct sound_data *sd);
 void resume_sound_device (struct sound_data *sd);
 void set_volume_sound_device (struct sound_data *sd, int volume, int mute);
-int get_offset_sound_device (struct sound_data *sd);
-int blocking_sound_device (struct sound_data *sd);
-bool is_sound_buffer(void);
 
 #if SOUNDSTUFF > 0
 extern int outputsample, doublesample;

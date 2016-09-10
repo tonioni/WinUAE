@@ -253,19 +253,24 @@ static void showsense(struct scsi_data *sd)
 }
 static void copysense(struct scsi_data *sd)
 {
+	bool sasi = sd->hfd && (sd->hfd->ci.unit_feature_level >= HD_LEVEL_SASI && sd->hfd->ci.unit_feature_level <= HD_LEVEL_SASI_ENHANCED);
 	int len = sd->cmd[4];
 	if (log_scsiemu)
 		write_log (_T("REQUEST SENSE length %d (%d)\n"), len, sd->sense_len);
-	if (len == 0)
+	if (len == 0 || sasi)
 		len = 4;
 	memset(sd->buffer, 0, len);
-	memcpy(sd->buffer, sd->sense, sd->sense_len > len ? len : sd->sense_len);
+	int tlen = sd->sense_len > len ? len : sd->sense_len;
+	memcpy(sd->buffer, sd->sense, tlen);
 	if (len > 7 && sd->sense_len > 7)
 		sd->buffer[7] = sd->sense_len - 8;
-	if (sd->sense_len == 0)
+	if (sasi) {
+		sd->buffer[0] = sd->sense[12]; // 0 <- ASC
+	} else if (sd->sense_len == 0) {
 		sd->buffer[0] = 0x70;
+	}
 	showsense (sd);
-	sd->data_len = len;
+	sd->data_len = tlen;
 	scsi_clear_sense(sd);
 }
 static void copyreply(struct scsi_data *sd)
@@ -539,6 +544,10 @@ void scsi_start_transfer(struct scsi_data *sd)
 
 int scsi_send_data(struct scsi_data *sd, uae_u8 b)
 {
+	if (sd->offset < 0) {
+		write_log(_T("SCSI data offset is negative!\n"));
+		return 0;
+	}
 	if (sd->direction == 1) {
 		if (sd->offset >= sd->buffer_size) {
 			write_log (_T("SCSI data buffer overflow!\n"));
@@ -756,7 +765,7 @@ struct soft_scsi
 	uae_u16 databuffer[2];
 	bool databuffer_empty;
 
-	// kronos
+	// kronos/xebec
 	uae_u8 *databufferptr;
 	int databuffer_size;
 	int db_read_index;
@@ -2038,9 +2047,6 @@ static int xebec_reg(struct soft_scsi *ncr, uaecptr addr)
 			return 0x80000 + (addr & 32767);
 		return -1;
 	}
-
-//	if (addr >= 0x10000)
-//		write_log(_T("XEBEC %08x PC=%08x\n"), addr, M68K_GETPC);
 	return -1;
 }
 
@@ -2216,8 +2222,7 @@ static void tecmar_clock_bput(int addr, uae_u8 v)
 {
 	if (addr == 0) {
 		tecmar_clock_reg_select = v & 63;
-	}
-	else if (addr == 1) {
+	} else if (addr == 1) {
 		tecmar_clock_regs[tecmar_clock_reg_select] = v;
 		tecmar_clock_regs[12] = 0x00;
 		tecmar_clock_regs[13] = 0x80;
@@ -2228,8 +2233,7 @@ static uae_u8 tecmar_clock_bget(int addr)
 	uae_u8 v = 0;
 	if (addr == 0) {
 		v = tecmar_clock_reg_select;
-	}
-	else if (addr == 1) {
+	} else if (addr == 1) {
 		time_t t = time(0);
 		t += currprefs.cs_rtc_adjust;
 		struct tm *ct = localtime(&t);
@@ -2585,7 +2589,8 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		if (reg >= 0 && reg < 8) {
 			v = ncr5380_bget(ncr, reg);
 		} else if (reg >= 0x80000) {
-			v = ncr->databufferptr[reg & (ncr->databuffer_size - 1)];
+			int offset = reg & (ncr->databuffer_size - 1);
+			v = ncr->databufferptr[offset];
 		}
 
 	} else if (ncr->type == NONCR_MICROFORGE) {
@@ -2882,7 +2887,8 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 		if (reg >= 0 && reg < 8) {
 			ncr5380_bput(ncr, reg, val);
 		} else if (reg >= 0x80000) {
-			ncr->databufferptr[reg & (ncr->databuffer_size - 1)] = val;
+			int offset = reg & (ncr->databuffer_size - 1);
+			ncr->databufferptr[offset] = val;
 		}
 
 	} else if (ncr->type == NONCR_MICROFORGE) {
@@ -3654,6 +3660,7 @@ bool tecmar_init(struct autoconfig_info *aci)
 
 	aci->hardwired = true;
 	if (!aci->doinit) {
+		aci->zorro = 1;
 		aci->autoconfigp = ac;
 		return true;
 	}
@@ -3690,6 +3697,9 @@ void tecmar_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 
 bool microforge_init(struct autoconfig_info *aci)
 {
+	aci->start = 0xef0000;
+	aci->size = 0x10000;
+	aci->zorro = 0;
 	if (!aci->doinit)
 		return true;
 
@@ -3699,8 +3709,8 @@ bool microforge_init(struct autoconfig_info *aci)
 
 	scsi->configured = 1;
 
-	map_banks(scsi->bank, 0xef0000 >> 16, 0x10000 >> 16, 0);
-	scsi->baseaddress = 0xef0000;
+	map_banks(scsi->bank, aci->start >> 16, aci->size >> 16, 0);
+	scsi->baseaddress = aci->start;
 	return true;
 }
 
@@ -3711,6 +3721,8 @@ void microforge_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romc
 
 bool xebec_init(struct autoconfig_info *aci)
 {
+	aci->start = 0x600000;
+	aci->size = 0x800000 - aci->start;
 	if (!aci->doinit)
 		return true;
 
@@ -3720,9 +3732,9 @@ bool xebec_init(struct autoconfig_info *aci)
 
 	scsi->configured = 1;
 
-	map_banks(scsi->bank, 0x600000 >> 16, (0x800000 - 0x600000) >> 16, 0);
+	map_banks(scsi->bank, aci->start >> 16, aci->size >> 16, 0);
 	scsi->board_mask = 0x1fffff;
-	scsi->baseaddress = 0x600000;
+	scsi->baseaddress = aci->start;
 	scsi->level6 = true;
 	scsi->intena = true;
 	scsi->dma_controller = true;
@@ -3787,15 +3799,17 @@ void hda506_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 
 bool alf1_init(struct autoconfig_info *aci)
 {
+	aci->start = 0xef0000;
+	aci->size = 0x10000;
 	if (!aci->doinit)
 		return true;
 
 	struct soft_scsi *scsi = getscsi(aci->rc);
 	if (!scsi)
 		return false;
-	map_banks(scsi->bank, 0xef0000 >> 16, 0x10000 >> 16, 0);
-	scsi->board_mask = 0xffff;
-	scsi->baseaddress = 0xef0000;
+	map_banks(scsi->bank, aci->start >> 16, aci->size >> 16, 0);
+	scsi->board_mask = aci->size - 1;
+	scsi->baseaddress = aci->start;
 	scsi->configured = 1;
 	aci->addrbank = scsi->bank;
 	return true;
@@ -3808,15 +3822,17 @@ void alf1_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig 
 
 bool promigos_init(struct autoconfig_info *aci)
 {
+	aci->start = 0xf40000;
+	aci->size = 0x10000;
 	if (!aci->doinit)
 		return true;
 
 	struct soft_scsi *scsi = getscsi(aci->rc);
 	if (!scsi)
 		return false;
-	map_banks(scsi->bank, 0xf40000 >> 16, 0x10000 >> 16, 0);
-	scsi->board_mask = 0xffff;
-	scsi->baseaddress = 0xf40000;
+	map_banks(scsi->bank, aci->start >> 16, aci->size >> 16, 0);
+	scsi->board_mask = aci->size - 1;
+	scsi->baseaddress = aci->start;
 	scsi->configured = 1;
 	scsi->intena = true;
 
@@ -3831,6 +3847,9 @@ void promigos_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romcon
 
 bool system2000_init(struct autoconfig_info *aci)
 {
+	aci->start = 0xf00000;
+	aci->size = 0x10000;
+
 	if (!aci->doinit)
 		return true;
 
@@ -3838,9 +3857,9 @@ bool system2000_init(struct autoconfig_info *aci)
 
 	if (!scsi)
 		return false;
-	map_banks(scsi->bank, 0xf00000 >> 16, 0x10000 >> 16, 0);
-	scsi->board_mask = 0xffff;
-	scsi->baseaddress = 0xf00000;
+	map_banks(scsi->bank, aci->start >> 16, aci->size >> 16, 0);
+	scsi->board_mask = aci->size - 1;
+	scsi->baseaddress = aci->start;
 	scsi->configured = 1;
 	if (!aci->rc->autoboot_disabled) {
 		load_rom_rc(aci->rc, ROMTYPE_SYSTEM2000, 16384, 0, scsi->rom, 16384, 0);
@@ -3856,6 +3875,9 @@ void system2000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romc
 
 bool omtiadapter_init(struct autoconfig_info *aci)
 {
+	aci->start = 0x8f0000;
+	aci->size = 0x10000;
+
 	if (!aci->doinit)
 		return true;
 
@@ -3863,9 +3885,9 @@ bool omtiadapter_init(struct autoconfig_info *aci)
 
 	if (!scsi)
 		return false;
-	map_banks(scsi->bank, 0x8f0000 >> 16, 0x10000 >> 16, 0);
-	scsi->board_mask = 0xffff;
-	scsi->baseaddress = 0x8f0000;
+	map_banks(scsi->bank, aci->start >> 16, aci->size >> 16, 0);
+	scsi->board_mask = aci->size - 1;
+	scsi->baseaddress = aci->start;
 	scsi->configured = 1;
 	aci->addrbank = scsi->bank;
 	return true;

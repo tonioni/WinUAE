@@ -38,6 +38,7 @@
 #include "scsi.h"
 #include "idecontrollers.h"
 #include "gfxboard.h"
+#include "pci_hw.h"
 
 #include "dosbox/dosbox.h"
 #include "dosbox/mem.h"
@@ -55,9 +56,6 @@ extern Bit32s CPU_Cycles;
 #define TYPE_2088T 2
 #define TYPE_2286 3
 #define TYPE_2386 4
-
-void x86_reset(void);
-int x86_execute(void);
 
 void exec86(uint32_t execloops);
 void reset86(int v20);
@@ -151,6 +149,10 @@ struct x86_bridge
 	float dosbox_tick_vpos_cnt;
 	struct romconfig *rc;
 	int vgaboard;
+	const struct pci_board *ne2000_isa;
+	struct pci_board_state *ne2000_isa_board_state;
+	int ne2000_io;
+	int ne2000_irq;
 };
 static int x86_found;
 
@@ -1749,6 +1751,11 @@ void portout(uint16_t portnum, uint8_t v)
 
 	set_pc_io_access(xb, portnum, true);
 
+	if (xb->ne2000_isa && portnum >= xb->ne2000_io && portnum < xb->ne2000_io + 32) {
+		xb->ne2000_isa->bars[0].bput(xb->ne2000_isa_board_state, portnum - xb->ne2000_io, v);
+		goto end;
+	}
+
 	switch(portnum)
 	{
 		case 0x20:
@@ -2173,6 +2180,7 @@ void portout(uint16_t portnum, uint8_t v)
 		break;
 	}
 
+end:
 #if X86_IO_PORT_DEBUG
 	write_log(_T("X86_OUT %08x %02X\n"), portnum, v);
 #endif
@@ -2182,6 +2190,13 @@ void portout(uint16_t portnum, uint8_t v)
 }
 void portout16(uint16_t portnum, uint16_t value)
 {
+	struct x86_bridge *xb = bridges[0];
+
+	if (xb->ne2000_isa && portnum >= xb->ne2000_io && portnum < xb->ne2000_io + 32) {
+		xb->ne2000_isa->bars[0].wput(xb->ne2000_isa_board_state, portnum - xb->ne2000_io, value);
+		return;
+	}
+
 	switch (portnum)
 	{
 		case 0x170:
@@ -2228,6 +2243,12 @@ uint8_t portin(uint16_t portnum)
 	set_pc_io_access(xb, portnum, false);
 
 	uae_u8 v = xb->io_ports[portnum];
+
+	if (xb->ne2000_isa && portnum >= xb->ne2000_io && portnum < xb->ne2000_io + 32) {
+		v = xb->ne2000_isa->bars[0].bget(xb->ne2000_isa_board_state, portnum - xb->ne2000_io);
+		goto end;
+	}
+
 	switch (portnum)
 	{
 		case 0x20:
@@ -2646,7 +2667,8 @@ uint8_t portin(uint16_t portnum)
 		write_log(_T("X86_IN unknown %02x\n"), portnum);
 		return 0;
 	}
-	
+
+end:
 	if (aio >= 0)
 		v = xb->amiga_io[aio];
 
@@ -2658,7 +2680,12 @@ uint8_t portin(uint16_t portnum)
 }
 uint16_t portin16(uint16_t portnum)
 {
+	struct x86_bridge *xb = bridges[0];
 	uae_u16 v = 0;
+	if (xb->ne2000_isa && portnum >= xb->ne2000_io && portnum < xb->ne2000_io + 32) {
+		v = xb->ne2000_isa->bars[0].wget(xb->ne2000_isa_board_state, portnum - xb->ne2000_io);
+		return v;
+	}
 	switch (portnum)
 	{
 		case 0x170:
@@ -2959,6 +2986,12 @@ void x86_bridge_reset(void)
 		struct x86_bridge *xb = bridges[i];
 		if (!xb)
 			continue;
+		if (xb->ne2000_isa) {
+			xb->ne2000_isa->free(xb->ne2000_isa_board_state);
+			xb->ne2000_isa = NULL;
+			xfree(xb->ne2000_isa_board_state);
+			xb->ne2000_isa_board_state = NULL;
+		}
 		if (xb->dosbox_cpu) {
 			if (xb->cmosfile) {
 				uae_u8 *regs = x86_cmos_regs(NULL);
@@ -3079,6 +3112,9 @@ void x86_bridge_hsync(void)
 
 	check_floppy_delay();
 
+	if (xb->ne2000_isa)
+		xb->ne2000_isa->hsync(xb->ne2000_isa_board_state);
+
 	if (!xb->x86_reset) {
 		if (xb->dosbox_cpu) {
 			xb->dosbox_tick_vpos_cnt++;
@@ -3157,6 +3193,9 @@ static void bridge_reset(struct x86_bridge *xb)
 	memcpy(xb->pc_ram + 0x100000 - xb->bios_size, xb->pc_rom + 0x100000 - xb->bios_size, xb->bios_size);
 	setrombank(xb, 0x100000 - xb->bios_size, xb->bios_size);
 
+	if (xb->ne2000_isa)
+		xb->ne2000_isa->reset(xb->ne2000_isa_board_state);
+
 	xb->amiga_io[IO_CONTROL_REGISTER] =	0xfe;
 	xb->amiga_io[IO_PC_INTERRUPT_CONTROL] = 0xff;
 	xb->amiga_io[IO_INTERRUPT_MASK] = 0xff;
@@ -3208,6 +3247,12 @@ int is_x86_cpu(struct uae_prefs *p)
 	if (!xb || xb->x86_reset)
 		return X86_STATE_STOP;
 	return X86_STATE_ACTIVE;
+}
+
+static void ne2000_isa_irq_callback(struct pci_board_state *pcibs, bool irq)
+{
+	struct x86_bridge *xb = bridges[0];
+	x86_doirq(xb->ne2000_irq);
 }
 
 static void load_vga_bios(void)
@@ -3351,6 +3396,82 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 			}
 		}
 	}
+
+	if (cfgfile_board_enabled(&currprefs, ROMTYPE_NE2KISA, 0)) {
+		struct romconfig *rc = get_device_romconfig(&currprefs, ROMTYPE_NE2KISA, 0);
+		if (rc) {
+			xb->ne2000_isa = &ne2000_pci_board;
+			xb->ne2000_isa_board_state = xcalloc(pci_board_state, 1);
+			xb->ne2000_isa_board_state->irq_callback = ne2000_isa_irq_callback;
+			switch (rc->device_settings & 7)
+			{
+				case 0:
+				xb->ne2000_io = 0x240;
+				break;
+				case 1:
+				xb->ne2000_io = 0x260;
+				break;
+				case 2:
+				xb->ne2000_io = 0x280;
+				break;
+				case 3:
+				xb->ne2000_io = 0x2a0;
+				break;
+				case 4:
+				default:
+				xb->ne2000_io = 0x300;
+				break;
+				case 5:
+				xb->ne2000_io = 0x320;
+				break;
+				case 6:
+				xb->ne2000_io = 0x340;
+				break;
+				case 7:
+				xb->ne2000_io = 0x360;
+				break;
+			}
+			switch ((rc->device_settings >> 3) & 15)
+			{
+				case 0:
+				xb->ne2000_irq = 3;
+				break;
+				case 1:
+				xb->ne2000_irq = 4;
+				break;
+				case 2:
+				xb->ne2000_irq = 5;
+				break;
+				case 3:
+				default:
+				xb->ne2000_irq = 7;
+				break;
+				case 4:
+				xb->ne2000_irq = 9;
+				break;
+				case 5:
+				xb->ne2000_irq = 10;
+				break;
+				case 6:
+				xb->ne2000_irq = 11;
+				break;
+				case 7:
+				xb->ne2000_irq = 12;
+				break;
+				case 8:
+				xb->ne2000_irq = 15;
+				break;
+			}
+			if (xb->ne2000_isa->init(xb->ne2000_isa_board_state)) {
+				write_log(_T("NE2000 ISA configured, IO=%3X, IRQ=%d\n"), xb->ne2000_io, xb->ne2000_irq);
+			} else {
+				xb->ne2000_isa = NULL;
+				xfree(xb->ne2000_isa_board_state);
+				xb->ne2000_isa_board_state = NULL;
+			}
+		}
+	}
+
 	xb->vgaboard = -1;
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		if (currprefs.rtgboards[i].rtgmem_type == GFXBOARD_VGA) {
@@ -3388,7 +3509,8 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 	if (!load_rom_rc(rc, romtype, xb->bios_size, 0, xb->pc_rom + 0x100000 - xb->bios_size, xb->bios_size, LOADROM_FILL)) {
 		error_log(_T("Bridgeboard BIOS failed to load"));
 		x86_bridge_free();
-		return &expamem_null;
+		aci->addrbank = &expamem_null;
+		return false;
 	}
 	memcpy(xb->pc_ram + 0x100000 - xb->bios_size, xb->pc_rom + 0x100000 - xb->bios_size, xb->bios_size);
 	setrombank(xb, 0x100000 - xb->bios_size, xb->bios_size);
@@ -3418,6 +3540,14 @@ bool a2286_init(struct autoconfig_info *aci)
 bool a2386_init(struct autoconfig_info *aci)
 {
 	return x86_bridge_init(aci, ROMTYPE_A2386, TYPE_2386);
+}
+
+bool isa_expansion_init(struct autoconfig_info *aci)
+{
+	static const int parent[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
+	aci->parent_romtype = parent;
+	aci->zorro = 0;
+	return true;
 }
 
 /* dosbox cpu core support stuff */

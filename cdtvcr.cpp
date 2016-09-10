@@ -992,7 +992,7 @@ bool cdtvcr_init(struct autoconfig_info *aci)
 {
 	aci->start = 0xb80000;
 	aci->size = 0x10000;
-	aci->addrbank = &expamem_nonautoconfig;
+	aci->zorro = 0;
 	if (!aci->doinit)
 		return true;
 	map_banks(&cdtvcr_bank, 0xB8, 1, 0);

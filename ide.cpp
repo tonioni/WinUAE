@@ -693,7 +693,7 @@ static void do_packet_command (struct ide_hdf *ide)
 		ide->regs.ide_status = 0;
 		if (ide->scsi->status) {
 			// error
-			ide->regs.ide_error = (ide->scsi->sense[2] << 4) | 4;
+			ide->regs.ide_error = (ide->scsi->sense[2] << 4) | 4; // ABRT
 			atapi_data_done (ide);
 			ide->regs.ide_status |= ATAPI_STATUS_CHK;
 			atapi_set_size (ide);
@@ -1005,7 +1005,7 @@ static uae_u16 ide_get_data_2(struct ide_hdf *ide, int bussize)
 		if (ide->data_offset == ide->packet_transfer_size) {
 			if (IDE_LOG > 1)
 				write_log (_T("IDE%d ATAPI partial read finished, %d bytes remaining\n"), ide->num, ide->data_size);
-			if (ide->data_size == 0) {
+			if (ide->data_size == 0 || ide->data_size == 1) { // 1 byte remaining: ignore, ATAPI has word transfer size.
 				ide->packet_state = 0;
 				atapi_data_done (ide);
 				if (IDE_LOG > 1)

@@ -2788,7 +2788,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 				TCHAR disk_name[32];
 				disk_name[0] = 0; disk_name[31] = 0;
 				GetDlgItemText (hDlg, IDC_CREATE_NAME, disk_name, 30);
-				if (disk_creatediskfile (full_path, 0, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE), NULL)) {
+				if (disk_creatediskfile (&workprefs, full_path, 0, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE), NULL)) {
 					fullpath (full_path, sizeof full_path / sizeof (TCHAR));
 					DISK_history_add (full_path, -1, HISTORY_FLOPPY, 0);
 				}
@@ -2798,7 +2798,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			TCHAR disk_name[32];
 			disk_name[0] = 0; disk_name[31] = 0;
 			GetDlgItemText (hDlg, IDC_CREATE_NAME, disk_name, 30);
-			if (disk_creatediskfile (full_path, 1, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE), NULL)) {
+			if (disk_creatediskfile (&workprefs, full_path, 1, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE), NULL)) {
 				fullpath (full_path, sizeof full_path / sizeof (TCHAR));
 				DISK_history_add (full_path, -1, HISTORY_FLOPPY, 0);
 			}
@@ -4240,53 +4240,81 @@ void InitializeListView (HWND hDlg)
 		i = 0;
 		if (full_property_sheet)
 			expansion_generate_autoconfig_info(&workprefs);
-		struct autoconfig_info *acip = NULL;
+		uaecptr highest_expamem = 0;
 		for (;;) {
 			TCHAR tmp[200];
 			struct autoconfig_info *aci = expansion_get_autoconfig_data(full_property_sheet ? &workprefs : &currprefs, i);
-			if (!aci)
+			if (aci) {
+				if (aci->zorro == 3 && aci->size != 0 && aci->start + aci->size > highest_expamem)
+					highest_expamem = aci->start + aci->size;
+			}
+			if (!aci && highest_expamem <= Z3BASE_UAE)
 				break;
-			lvstruct.mask = LVIF_TEXT | LVIF_PARAM;
-			if (aci->zorro >= 1 && aci->zorro <= 3)
+			if (aci && aci->zorro >= 1 && aci->zorro <= 3)
 				_stprintf(tmp, _T("Z%d"), aci->zorro);
 			else
 				_tcscpy(tmp, _T("-"));
+			lvstruct.mask = LVIF_TEXT | LVIF_PARAM;
 			lvstruct.pszText = tmp;
-			lvstruct.lParam = expansion_can_move(&workprefs, i) ? 1 : 0;
+			lvstruct.lParam = 0;
+			if (aci) {
+				// movable
+				if (expansion_can_move(&workprefs, i))
+					lvstruct.lParam |= 1;
+				// outside or crosses of 2G "border"
+				if (aci->zorro == 3 && aci->start + aci->size > 0x80000000 || aci->start + aci->size < aci->start)
+					lvstruct.lParam |= 2;
+				// outside of crosses 4G "border"
+				if (aci->zorro == 3 && aci->start == 0xffffffff)
+					lvstruct.lParam |= 4;
+				if (!full_property_sheet && (aci->zorro == 2 || aci->zorro == 3) && aci->addrbank && (aci->addrbank->flags & ABFLAG_RAM) && aci->addrbank->reserved_size) {
+					// failed to allocate
+					if (aci->addrbank->allocated_size == 0)
+						lvstruct.lParam |= 8;
+					// outside of JIT direct range
+					else if (canbang && (aci->addrbank->flags & ABFLAG_ALLOCINDIRECT))
+						lvstruct.lParam |= 16;
+				}
+			}
 			lvstruct.iItem = i;
 			lvstruct.iSubItem = 0;
 			result = ListView_InsertItem(list, &lvstruct);
 			tmp[0] = 0;
-			TCHAR *s = tmp + _tcslen(tmp);
-			if (aci->parent_of_previous) {
-				if (acip && (acip->parent_name || acip->parent_address_space || acip->parent_romtype))
-					_tcscat(s, _T(" -- "));
-				else
-					_tcscat(s, _T(" - "));
+			TCHAR *s = tmp;
+			if (aci && aci->parent_of_previous) {
+				_tcscat(s, _T(" - "));
 			}
-			if ((aci->parent_address_space || aci->parent_romtype) && !aci->parent_of_previous)
+			if (aci && (aci->parent_address_space || aci->parent_romtype) && !aci->parent_of_previous)
 				_tcscat(s, _T("? "));
-			_tcscat(s, aci->name);
+			if (aci)
+				_tcscat(s, aci->name);
 			ListView_SetItemText(list, result, 1, tmp);
-			if (aci->start != 0xffffffff)
-				_stprintf(tmp, _T("0x%08x"), aci->start);
-			else
-				_tcscpy(tmp, _T("-"));
-			ListView_SetItemText(list, result, 2, tmp);
-			if (aci->size != 0)
-				_stprintf(tmp, _T("0x%08x"), aci->size);
-			else
-				_tcscpy(tmp, _T("-"));
-			ListView_SetItemText(list, result, 3, tmp);
-			if (aci->autoconfig_bytes[0] != 0xff)
-				_stprintf(tmp, _T("0x%04x/0x%02x"),
+			if (aci) {
+				if (aci->start != 0xffffffff)
+					_stprintf(tmp, _T("0x%08x"), aci->start);
+				else
+					_tcscpy(tmp, _T("-"));
+				ListView_SetItemText(list, result, 2, tmp);
+				if (aci->size != 0)
+					_stprintf(tmp, _T("0x%08x"), aci->size);
+				else
+					_tcscpy(tmp, _T("-"));
+				ListView_SetItemText(list, result, 3, tmp);
+				if (aci->autoconfig_bytes[0] != 0xff)
+					_stprintf(tmp, _T("0x%04x/0x%02x"),
 					(aci->autoconfig_bytes[4] << 8) | aci->autoconfig_bytes[5], aci->autoconfig_bytes[1]);
-			else
-				_tcscpy(tmp, _T("-"));
-			ListView_SetItemText(list, result, 4, tmp);
+				else
+					_tcscpy(tmp, _T("-"));
+				ListView_SetItemText(list, result, 4, tmp);
+			} else {
+				_stprintf(tmp, _T("0x%08x"), highest_expamem);
+				ListView_SetItemText(list, result, 2, tmp);
+			}
 			i++;
-			acip = aci;
+			if (!aci)
+				break;
 		}
+
 
 	} else if (lv_type == LV_MISC2) {
 
@@ -8159,11 +8187,11 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 			}
 			SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
-		_tcscpy(tmp, _T("Motherboard Fast RAM"));
+		_tcscpy(tmp, _T("Processor Slot Fast RAM"));
 		if (workprefs.mbresmem_high_size)
 			_stprintf(tmp + _tcslen(tmp), _T(" [%dM]"), workprefs.mbresmem_high_size / (1024 * 1024));
 		SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
-		_tcscpy(tmp, _T("Processor Slot Fast RAM"));
+		_tcscpy(tmp, _T("Motherboard Fast RAM"));
 		if (workprefs.mbresmem_low_size)
 			_stprintf(tmp + _tcslen(tmp), _T(" [%dM]"), workprefs.mbresmem_low_size / (1024 * 1024));
 		SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
@@ -9974,7 +10002,6 @@ static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		if (((LPNMHDR)lParam)->idFrom == IDC_BOARDLIST) {
 			switch (((LPNMHDR)lParam)->code)
 			{
-#if 0
 				case NM_CUSTOMDRAW:
 				{
 					LPNMLVCUSTOMDRAW lpNMLVCD = (LPNMLVCUSTOMDRAW)lParam;
@@ -9985,17 +10012,33 @@ static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 						SetWindowLongPtr(hDlg, DWLP_MSGRESULT, CDRF_NOTIFYITEMDRAW | CDRF_NOTIFYSUBITEMDRAW);
 						return TRUE;
 						case CDDS_ITEMPREPAINT| CDDS_SUBITEM:
-						if (!lpNMLVCD->nmcd.lItemlParam) {
-							
-							lpNMLVCD->clrTextBk = RGB(255,0,0);
-							SetWindowLongPtr(hDlg, DWLP_MSGRESULT, CDRF_NEWFONT);
-							return TRUE;
+						{
+							BOOL ret = FALSE;
+							if (lpNMLVCD->nmcd.lItemlParam & 16) {
+								lpNMLVCD->clrText = GetSysColor(COLOR_GRAYTEXT);
+								SetWindowLongPtr(hDlg, DWLP_MSGRESULT, CDRF_NEWFONT);
+								ret = TRUE;
+							}
+							if (lpNMLVCD->nmcd.lItemlParam & 8) {
+								lpNMLVCD->clrTextBk = RGB(0xaa, 0x00, 0x00);
+								SetWindowLongPtr(hDlg, DWLP_MSGRESULT, CDRF_NEWFONT);
+								return TRUE;
+							}
+							if (lpNMLVCD->nmcd.lItemlParam & 4) {
+								lpNMLVCD->clrTextBk = RGB(0xaa, 0xaa, 0x00);
+								SetWindowLongPtr(hDlg, DWLP_MSGRESULT, CDRF_NEWFONT);
+								return TRUE;
+							}
+							if (lpNMLVCD->nmcd.lItemlParam & 2) {
+								lpNMLVCD->clrTextBk = GetSysColor(COLOR_INACTIVECAPTION);
+								SetWindowLongPtr(hDlg, DWLP_MSGRESULT, CDRF_NEWFONT);
+								return TRUE;
+							}
+							return ret;
 						}
-						return FALSE;
 					}
 				}
 				return CDRF_DODEFAULT;
-#endif
 				case NM_CLICK:
 				{
 					int column;
@@ -12254,11 +12297,13 @@ static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype)
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_RESETCONTENT, 0, 0);
 	if (ctype >= HD_CONTROLLER_TYPE_IDE_FIRST && ctype <= HD_CONTROLLER_TYPE_IDE_LAST) {
 		const struct expansionromtype *ert = get_unit_expansion_rom(ctype);
-		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("0"));
-		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("1"));
-		if (!ert || (ert->deviceflags & EXPANSIONTYPE_IDE_PORT_DOUBLED)) {
-			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("2"));
-			SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("3"));
+		int ports = 2 + (ert ? ert->extrahdports : 0);
+		for (int i = 0; i < ports; i += 2) {
+			TCHAR tmp[100];
+			_stprintf(tmp, _T("%d"), i + 0);
+			SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)tmp);
+			_stprintf(tmp, _T("%d"), i + 1);
+			SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
 		ew(hDlg, IDC_HDF_CONTROLLER_UNIT, TRUE);
 	} else if (ctype >= HD_CONTROLLER_TYPE_SCSI_FIRST && ctype <= HD_CONTROLLER_TYPE_SCSI_LAST) {

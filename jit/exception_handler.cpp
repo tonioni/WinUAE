@@ -21,8 +21,6 @@ static uae_u8 *veccode;
 
 #if defined(JIT_DEBUG)
 #define DEBUG_ACCESS
-#elif defined(CPU_x86_64)
-#define DEBUG_ACCESS
 #endif
 
 #if defined(_WIN32) && defined(CPU_x86_64)
@@ -420,8 +418,7 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 
 	uae_u32 addr = uae_p32(fault_addr) - uae_p32(NATMEM_OFFSET);
 #ifdef DEBUG_ACCESS
-	if ((addr >= 0x10000000 && addr < 0x40000000) ||
-		(addr >= 0x50000000)) {
+	if (addr >= 0x80000000) {
 			write_log (_T("JIT: Suspicious address 0x%x in SEGV handler.\n"), addr);
 	}
 	addrbank *ab = &get_mem_bank(addr);

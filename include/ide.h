@@ -27,7 +27,7 @@ struct ide_registers
 struct ide_thread_state;
 struct ide_hdf;
 
-#define MAX_IDE_PORTS_BOARD 2
+#define MAX_IDE_PORTS_BOARD 3
 struct ide_board
 {
 	uae_u8 *rom;

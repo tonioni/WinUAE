@@ -1,11 +1,12 @@
 #ifndef UAE_X86_H
 #define UAE_X86_H
 
-extern bool a1060_init(struct autoconfig_info *aci);
-extern bool a2088xt_init(struct autoconfig_info *aci);
-extern bool a2088t_init(struct autoconfig_info *aci);
-extern bool a2286_init(struct autoconfig_info *aci);
-extern bool a2386_init(struct autoconfig_info *aci);
+bool a1060_init(struct autoconfig_info *aci);
+bool a2088xt_init(struct autoconfig_info *aci);
+bool a2088t_init(struct autoconfig_info *aci);
+bool a2286_init(struct autoconfig_info *aci);
+bool a2386_init(struct autoconfig_info *aci);
+bool isa_expansion_init(struct autoconfig_info *aci);
 void x86_bridge_hsync(void);
 void x86_bridge_vsync(void);
 void x86_bridge_reset(void);

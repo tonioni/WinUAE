@@ -523,9 +523,9 @@ static uae_u32 REGPARAM2 nullfunc (TrapContext *ctx)
 
 static uae_u32 REGPARAM2 getchipmemsize (TrapContext *ctx)
 {
-	trap_set_dreg(ctx, 1, z3chipmem_bank.allocated);
+	trap_set_dreg(ctx, 1, z3chipmem_bank.allocated_size);
 	trap_set_areg(ctx, 1, z3chipmem_bank.start);
-	return chipmem_bank.allocated;
+	return chipmem_bank.allocated_size;
 }
 
 static uae_u32 REGPARAM2 uae_puts (TrapContext *ctx)
@@ -540,12 +540,8 @@ static uae_u32 REGPARAM2 uae_puts (TrapContext *ctx)
 
 void rtarea_init_mem (void)
 {
-	if (need_uae_boot_rom(&currprefs)) {
-		rtarea_bank.flags &= ~ABFLAG_ALLOCINDIRECT;
-	} else {
-		rtarea_bank.flags |= ABFLAG_ALLOCINDIRECT;
-	}
-	rtarea_bank.allocated = RTAREA_SIZE;
+	rtarea_bank.reserved_size = RTAREA_SIZE;
+	rtarea_bank.start = rtarea_base;
 	if (!mapped_malloc (&rtarea_bank)) {
 		write_log (_T("virtual memory exhausted (rtarea)!\n"));
 		abort ();

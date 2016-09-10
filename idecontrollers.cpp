@@ -44,7 +44,8 @@
 #define ROCHARD_IDE (PROTAR_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define x86_AT_IDE (ROCHARD_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
 #define GOLEMFAST_IDE (x86_AT_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
-#define TOTAL_IDE (GOLEMFAST_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define BUDDHA_IDE (GOLEMFAST_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
+#define TOTAL_IDE (BUDDHA_IDE + 3 * MAX_DUPLICATE_EXPANSION_BOARDS)
 
 #define ALF_ROM_OFFSET 0x0100
 #define GVP_IDE_ROM_OFFSET 0x8000
@@ -95,6 +96,7 @@ static struct ide_board *protar_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *rochard_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *x86_at_ide_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *golemfast_board[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ide_board *buddha_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 
 static struct ide_hdf *idecontroller_drive[TOTAL_IDE * 2];
 static struct ide_thread_state idecontroller_its;
@@ -441,6 +443,18 @@ static int get_adide_reg(uaecptr addr, struct ide_board *board)
 	return reg;
 }
 
+static int get_buddha_reg(uaecptr addr, struct ide_board *board, int *portnum)
+{
+	int reg = -1;
+	if (addr < 0x800 || addr >= 0xe00)
+		return reg;
+	*portnum = (addr - 0x800) / 0x200;
+	reg = (addr >> 2) & 15;
+	if (addr & 0x100)
+		reg |= IDE_SECONDARY;
+	return reg;
+}
+
 static int get_rochard_reg(uaecptr addr, struct ide_board *board, int *portnum)
 {
 	int reg = -1;
@@ -487,7 +501,29 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 	if (addr < 0x40 && (!board->configured || board->keepautoconfig))
 		return board->acmemory[addr];
 
-	if (board->type == ALF_IDE) {
+	if (board->type == BUDDHA_IDE) {
+
+		int portnum;
+		int regnum = get_buddha_reg(addr, board, &portnum);
+		if (regnum >= 0) {
+			if (board->ide[portnum])
+				v = get_ide_reg_multi(board, regnum, portnum, 1);
+		} else if (addr >= 0xf00 && addr < 0x1000) {
+			if ((addr & ~3) == 0xf00)
+				v = ide_irq_check(board->ide[0], false) ? 0x80 : 0x00;
+			else if ((addr & ~3) == 0xf40)
+				v = ide_irq_check(board->ide[1], false) ? 0x80 : 0x00;
+			else if ((addr & ~3) == 0xf80)
+				v = ide_irq_check(board->ide[2], false) ? 0x80 : 0x00;
+			else
+				v = 0;
+		} else if (addr >= 0x7fc && addr <= 0x7ff) {
+			v = board->userdata;
+		} else {
+			v = board->rom[addr & board->rom_mask];
+		}
+
+	} else if (board->type == ALF_IDE) {
 
 		if (addr < 0x1100 || (addr & 1)) {
 			if (board->rom)
@@ -711,7 +747,19 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 
 	if (board->configured) {
 
-		if (board->type == ALF_IDE) {
+		if (board->type == BUDDHA_IDE) {
+
+			int portnum;
+			int regnum = get_buddha_reg(addr, board, &portnum);
+			if (regnum == IDE_DATA) {
+				if (board->ide[portnum])
+					v = get_ide_reg_multi(board, IDE_DATA, portnum, 1);
+			} else {
+				v = ide_read_byte(board, addr) << 8;
+				v |= ide_read_byte(board, addr + 1);
+			}
+			
+		} else if (board->type == ALF_IDE) {
 
 			int regnum = get_alf_reg(addr, board);
 			if (regnum == IDE_DATA) {
@@ -868,7 +916,23 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 		}
 	}
 	if (board->configured) {
-		if (board->type == ALF_IDE) {
+
+		if (board->type == BUDDHA_IDE) {
+
+			int portnum;
+			int regnum = get_buddha_reg(addr, board, &portnum);
+			if (regnum >= 0) {
+				if (board->ide[portnum]) {
+					put_ide_reg_multi(board, regnum, v, portnum, 1);
+				}
+			} else if (addr >= 0xfc0 && addr < 0xfc4) {
+				board->intena = true;
+			} else if (addr >= 0x7fc && addr <= 0x7ff) {
+				board->userdata = v;
+			}
+
+		} else  if (board->type == ALF_IDE) {
+
 			int regnum = get_alf_reg(addr, board);
 			if (regnum >= 0)
 				put_ide_reg(board, regnum, v);
@@ -980,7 +1044,20 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 	write_log(_T("IDE IO WORD WRITE %08x=%04x %08x\n"), addr, v, M68K_GETPC);
 #endif
 	if (board->configured) {
-		if (board->type == ALF_IDE) {
+
+		if (board->type == BUDDHA_IDE) {
+
+			int portnum;
+			int regnum = get_buddha_reg(addr, board, &portnum);
+			if (regnum == IDE_DATA) {
+				if (board->ide[portnum])
+					put_ide_reg_multi(board, IDE_DATA, v, portnum, 1);
+			} else {
+				ide_write_byte(board, addr, v >> 8);
+				ide_write_byte(board, addr + 1, v);
+			}
+
+		} else if (board->type == ALF_IDE) {
 
 			int regnum = get_alf_reg(addr, board);
 			if (regnum == IDE_DATA) {
@@ -1573,6 +1650,7 @@ bool mtec_init(struct autoconfig_info *aci)
 
 	ide->rom = rom;
 	ide->rom_size = rom_size;
+	ide->rom_mask = rom_size - 1;
 	memcpy(ide->acmemory, ide->rom, sizeof ide->acmemory);
 
 	aci->addrbank = ide->bank;
@@ -1610,6 +1688,40 @@ bool rochard_init(struct autoconfig_info *aci)
 static void rochard_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	add_ide_standard_unit(ch, ci, rc, rochard_board, ROCHARD_IDE, false, false, 4);
+}
+
+bool buddha_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_BUDDHA);
+
+	if (!aci->doinit) {
+		aci->autoconfigp = ert->autoconfig;
+		return true;
+	}
+	struct ide_board *ide = getide(aci->rc);
+
+	ide->configured = 0;
+	ide->bank = &ide_bank_generic;
+	ide->rom_size = 65536;
+	ide->mask = 65536 - 1;
+
+	ide->rom = xcalloc(uae_u8, ide->rom_size);
+	memset(ide->rom, 0xff, ide->rom_size);
+	ide->rom_mask = ide->rom_size - 1;
+	load_rom_rc(aci->rc, ROMTYPE_BUDDHA, 32768, 0, ide->rom, 65536, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = ert->autoconfig[i];
+		if (i == 1 && (aci->rc->device_settings & 1))
+			b = 42;
+		ew(ide, i * 4, b);
+	}
+	aci->addrbank = ide->bank;
+	return true;
+}
+
+void buddha_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	add_ide_standard_unit(ch, ci, rc, buddha_board, BUDDHA_IDE, false, false, 6);
 }
 
 void rochard_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)

@@ -354,7 +354,7 @@ static void init_board (struct rtggfxboard *gb)
 	gb->vram_offset[0] = gb->vram_offset[1] = 0;
 	gb->vram_enabled = true;
 	gb->vram_offset_enabled = false;
-	gb->gfxmem_bank->allocated = vramsize;
+	gb->gfxmem_bank->reserved_size = vramsize;
 	gb->gfxmem_bank->start = gb->gfxboardmem_start;
 	if (gb->board->manufacturer) {
 		gb->gfxmem_bank->label = _T("*");
@@ -370,7 +370,8 @@ static void init_board (struct rtggfxboard *gb)
 	gb->vram += gb->vram_start_offset;
 	gb->vramend += gb->vram_start_offset;
 	gb->gfxmem_bank->baseaddr = gb->vram;
-	gb->gfxmem_bank->allocated = rbc->rtgmem_size;
+	if (rbc->rtgmem_size < gb->gfxmem_bank->allocated_size)
+		gb->gfxmem_bank->allocated_size = rbc->rtgmem_size;
 	gb->vga.vga.vram_size_mb = rbc->rtgmem_size >> 20;
 	gb->vgaioregion.opaque = &gb->vgaioregionptr;
 	gb->vgaioregion.data = gb;
@@ -1676,7 +1677,8 @@ static void copyvrambank(addrbank *dst, const addrbank *src)
 	dst->start = src->start;
 	dst->startmask = src->startmask;
 	dst->mask = src->mask;
-	dst->allocated = src->allocated;
+	dst->allocated_size = src->allocated_size;
+	dst->reserved_size = src->reserved_size;
 	dst->baseaddr = src->baseaddr;
 	dst->flags = src->flags;
 	dst->jit_read_flag = src->jit_read_flag;
@@ -1956,14 +1958,14 @@ static void REGPARAM2 gfxboard_bput_regs_autoconfig (uaecptr addr, uae_u32 b)
 		gb->gfxboard_bank_registers.bput = gfxboard_bput_regs;
 		if (gb->p4z2) {
 			ab = &gb->gfxboard_bank_special;
-			map_banks_z2(ab, b, gb->gfxboard_bank_special.allocated >> 16);
+			map_banks_z2(ab, b, gb->gfxboard_bank_special.reserved_size >> 16);
 			gb->io_start = b << 16;
-			gb->io_end = gb->io_start + gb->gfxboard_bank_special.allocated;
+			gb->io_end = gb->io_start + gb->gfxboard_bank_special.reserved_size;
 		} else {
 			ab = &gb->gfxboard_bank_registers;
-			map_banks_z2(ab, b, gb->gfxboard_bank_registers.allocated >> 16);
+			map_banks_z2(ab, b, gb->gfxboard_bank_registers.reserved_size >> 16);
 			gb->io_start = b << 16;
-			gb->io_end = gb->io_start + gb->gfxboard_bank_registers.allocated;
+			gb->io_end = gb->io_start + gb->gfxboard_bank_registers.reserved_size;
 		}
 		gb->configured_regs = b;
 		expamem_next (ab, NULL);
@@ -2662,10 +2664,9 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 
 	aci->label = gb->board->name;
 	aci->direct_vram = true;
+	aci->addrbank = &gb->gfxboard_bank_memory;
 	if (gb->rbc->rtgmem_type == GFXBOARD_VGA) {
-		aci->addrbank = &expamem_nonautoconfig;
-	} else {
-		aci->addrbank = &gb->gfxboard_bank_memory;
+		aci->zorro = 0;
 	}
 	aci->parent = aci;
 	gb->configured_mem = -1;
@@ -2730,7 +2731,7 @@ bool gfxboard_init_registers (struct autoconfig_info *aci)
 	ew (gb, 0x20, ser >>  8); /* ser.no. Byte 2 */
 	ew (gb, 0x24, ser >>  0); /* ser.no. Byte 3 */
 
-	gb->gfxboard_bank_registers.allocated = BOARD_REGISTERS_SIZE;
+	gb->gfxboard_bank_registers.reserved_size = BOARD_REGISTERS_SIZE;
 	gb->configured_regs = -1;
 
 	if (ISP4()) {
@@ -2738,7 +2739,7 @@ bool gfxboard_init_registers (struct autoconfig_info *aci)
 		copyp4autoconfig (gb, 128);
 		loadp4rom (gb);
 		v = (((gb->automemory[0] & 0xf0) | (gb->automemory[2] >> 4)) & 3) - 1;
-		gb->gfxboard_bank_special.allocated = 0x10000 << v;
+		gb->gfxboard_bank_special.reserved_size = 0x10000 << v;
 	}
 
 	gb->gfxboard_bank_registers.bget = gfxboard_bget_regs_autoconfig;

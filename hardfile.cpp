@@ -1759,9 +1759,9 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		ls = 0x12;
 #endif
 		break;
-		case 0xe0: /* RAM DIAGNOSTICS */
-		case 0xe3: /* DRIVE DIAGNOSTIC */
-		case 0xe4: /* CONTROLLER INTERNAL DIAGNOSTICS */
+	case 0xe0: /* RAM DIAGNOSTICS */
+	case 0xe3: /* DRIVE DIAGNOSTIC */
+	case 0xe4: /* CONTROLLER INTERNAL DIAGNOSTICS */
 		scsi_len = 0;
 		break;
 readprot:

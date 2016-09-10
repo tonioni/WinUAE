@@ -112,6 +112,9 @@ void devices_reset(int hardreset)
 	expamem_reset ();
 	rtarea_reset();
 #endif
+#ifdef DRIVESOUND
+	driveclick_reset();
+#endif
 	uae_int_requested = 0;
 }
 

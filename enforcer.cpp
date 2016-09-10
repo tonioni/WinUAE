@@ -529,7 +529,7 @@ static int REGPARAM2 chipmem_check2 (uaecptr addr, uae_u32 size)
 {
 	addr -= chipmem_start_addr & chipmem_bank.mask;
 	addr &= chipmem_bank.mask;
-	return (addr + size) <= chipmem_bank.allocated;
+	return (addr + size) <= chipmem_bank.allocated_size;
 }
 
 static uae_u8 * REGPARAM2 chipmem_xlate2 (uaecptr addr)

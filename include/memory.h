@@ -111,7 +111,10 @@ typedef struct {
 	uae_u32 mask;
 	uae_u32 startmask;
 	uae_u32 start;
-	uae_u32 allocated;
+	// if RAM: size of allocated RAM. Zero if failed.
+	uae_u32 allocated_size;
+	// size of bank (if IO or before RAM allocation)
+	uae_u32 reserved_size;
 } addrbank;
 
 #define MEMORY_MIN_SUBBANK 1024
@@ -223,7 +226,7 @@ static int REGPARAM2 name ## _check (uaecptr addr, uae_u32 size) \
 { \
 	addr -= name ## _bank.start & name ## _bank.mask; \
 	addr &= name ## _bank.mask; \
-	return (addr + size) <= name ## _bank.allocated; \
+	return (addr + size) <= name ## _bank.allocated_size; \
 }
 #define MEMORY_XLATE(name) \
 static uae_u8 *REGPARAM3 name ## _xlate (uaecptr addr) REGPARAM; \
@@ -331,7 +334,7 @@ static int REGPARAM2 name ## index ## _check (uaecptr addr, uae_u32 size) \
 { \
 	addr -= name ## _bank[index].start & name ## _bank[index].mask; \
 	addr &= name ## _bank[index].mask; \
-	return (addr + size) <= name ## _bank[index].allocated; \
+	return (addr + size) <= name ## _bank[index].allocated_size; \
 }
 #define MEMORY_ARRAY_XLATE(name, index) \
 static uae_u8 *REGPARAM3 name ## index ## _xlate (uaecptr addr) REGPARAM; \
@@ -363,7 +366,7 @@ extern addrbank rtarea_bank;
 extern addrbank filesys_bank;
 extern addrbank uaeboard_bank;
 extern addrbank expamem_bank;
-extern addrbank expamem_null, expamem_none, expamem_nonautoconfig;
+extern addrbank expamem_null, expamem_none;
 extern addrbank fastmem_bank[MAX_RAM_BOARDS];
 extern addrbank fastmem_nojit_bank[MAX_RAM_BOARDS];
 extern addrbank *gfxmem_banks[MAX_RTG_BOARDS];

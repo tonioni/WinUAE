@@ -1583,7 +1583,7 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
 	if (hrtmem2_size && !hrtmem2_size2)
 		hrtmem2_size2 = hrtmem2_size;
 
-	hrtmem_bank.allocated = hrtmem_size;
+	hrtmem_bank.reserved_size = hrtmem_size;
 	hrtmem_bank.label = memname1;
 	hrtmem_mask = hrtmem_size - 1;
 	mapped_malloc (&hrtmem_bank);
@@ -1596,7 +1596,7 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
 	}
 
 	hrtmem2_mask = hrtmem2_size - 1;
-	hrtmem2_bank.allocated = hrtmem2_size;
+	hrtmem2_bank.reserved_size = hrtmem2_size;
 	hrtmem2_bank.label = memname2;
 	if (hrtmem2_size) {
 		mapped_malloc (&hrtmem2_bank);
@@ -1604,7 +1604,7 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
 		memset(hrtmemory2, 0, hrtmem2_size);
 	}
 
-	hrtmem3_bank.allocated = hrtmem3_size;
+	hrtmem3_bank.reserved_size = hrtmem3_size;
 	hrtmem3_bank.label = memname3;
 	hrtmem3_mask = hrtmem3_size - 1;
 	if (hrtmem3_size) {
@@ -1857,7 +1857,7 @@ int hrtmon_load (void)
 #endif
 		cart_type = CART_HRTMON;
 	}
-	hrtmem_bank.allocated = hrtmem_size;
+	hrtmem_bank.reserved_size = hrtmem_size;
 	hrtmem_bank.label = _T("hrtmem");
 	mapped_malloc (&hrtmem_bank);
 	hrtmemory = hrtmem_bank.baseaddr;

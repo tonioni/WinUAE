@@ -929,7 +929,7 @@ bool a4000t_scsi_init(struct autoconfig_info *aci)
 {
 	aci->start = 0xdd0000;
 	aci->size = 0x10000;
-	aci->addrbank = &expamem_nonautoconfig;
+	aci->zorro = 0;
 	return true;
 }
 

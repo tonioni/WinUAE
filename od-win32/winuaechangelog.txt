@@ -1,4 +1,50 @@
 
+
+JIT Direct current rules are less complex now. It automatically switches off only in following situations:
+  - Accelerator mirrored maprom address space is not JIT Direct compatible. (CyberStorm, Blizzards etc)
+  - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
+  Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
+
+- Buddha Z2 IDE controller emulation added. Catweasel Z2 model optionally selectable (Has nearly identical Buddha hardware, CW
+  part is not emulated). No ROMs added, flash rom images are available from manufacturer's web site. IDE doubler is not emulated.
+- Reset drive sound state when emulated Amiga is reset.
+- Z3 mapping = Automatic didn't choose UAE mode if JIT direct was enabled and Real mapping would not fit in allocated natmem space
+  but UAE mapping would fit.
+- Select UAE mode if Z3 mapping is automatic and UAE fits inside 2G barrier but Real does not. (To better match pre-3.4 behavior,
+  selecting Real in this mode can cause non-booting config if config has enough Z3 RAM)
+- 3G of Z3 RAM is now possible (3x1G Z3 boards). 64-bit WinUAE only, can't be fully JIT direct compatible.
+- Hardware info GUI panel shows also last Z3 address.
+- Hardware info shows Z3 board status info: dark background = outside of 2G border (can cause problems because some exec memory
+  functions that use bit 31 for error status, reset proof programs mainly use them, usually causes reboot loop). Yellow background = board does not
+  fit in address space (32-bit overflow, start address is also 0xffffffff in this situation). Red background = memory allocation failed.
+  Lighter text = JIT direct enabled but memory is not JIT direct capable.
+- SCSI emulation request sense always returned allocation field number of bytes even if command returned less data.
+- If ATAPI CD data transfer size is odd (which is not valid), ignore last byte.
+- NE2000 ISA is now available in x86 bridgeboard emulation. 100% untested!
+- Portaudio driver converted to pull mode.
+- Added Blizzard SCSI Kit III emulation and boot ROM v1.139.
+- Blizzard 1230 MK III ROM layout changed to match SCSI Kit III ROM. (Still no proper dump but I am sure this is correct)
+- Fixed M-TEC IDE controller emulation rom handling.
+- Low latency vsync + no buffer + WASAPI pull mode should be stable again. (RTG mode: todo)
+- Sound audio switch off didn't select correct timing method in WASAPI pull mode.
+- Small Z2 RAM (256k or smaller that goes in IO Z2 space) shadowed f00000 UAE Boot ROM in some configurations.
+- If only one or more Z3 RAM boards are outside of natmem and JIT direct is enabled: don't disable JIT direct completely but only
+  force non-JIT direct capable Z3 memory banks to use indirect mode.
+- Show Tecmar T-Card as "Zorro I" (prototype/unreleased version of autoconfig) board in Hardware info GUI.
+- Certain accelerators with autoconfig board didn't appear correctly in Hardware info panel.
+- Z2/Z3 memory bank that failed to allocate (out of memory) caused a crash.
+- Save image extended adf image was created with smaller max PAL size if emulation was not already started and in NTSC mode.
+- Some fake-DMA harddrive controllers with internal buffers crashed the emulation if GUI was opened during internal DMA operation
+  and CPU mode was compatible/cycle exact.
+- Separated memory bank pre-allocation and after allocation memory size variables.
+- Return correct SASI request sense data.
+
+Blizzard SCSI Kit III:
+- PIO-only! I thought all Phase 5 SCSI controllers were true DMA...
+- FAS408 SCSI chip which is FAS216 + 128 byte PIO FIFO buffer. (was annoying to emulate without datasheet..)
+- v1.39 ROM ("$VER: A1233_VERSION 1.139 (9.5.95)") added to ROM scanner.
+- Blizzard 1230 "MK I" to go.. (Does anyone have it? With or without SCSI Kit)
+
 Beta 4:
 
 - Fixed uaegfx 8-bit mode palette updates.

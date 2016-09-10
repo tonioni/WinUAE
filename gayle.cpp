@@ -1766,7 +1766,7 @@ void gayle_add_ide_unit (int ch, struct uaedev_config_info *ci, struct romconfig
 
 bool gayle_ide_init(struct autoconfig_info *aci)
 {
-	aci->addrbank = &expamem_nonautoconfig;
+	aci->zorro = 0;
 	if (aci->prefs->cs_ide == 1) {
 		aci->start = GAYLE_BASE_1200;
 		aci->size = 0x10000;
@@ -1789,7 +1789,7 @@ bool gayle_init_ne2000_pcmcia(struct autoconfig_info *aci)
 {
 	aci->start = 0xa00000;
 	aci->size = 0x1000;
-	aci->addrbank = &expamem_nonautoconfig;
+	aci->zorro = 0;
 	aci->parent_address_space = true;
 	return true;
 }
@@ -1827,7 +1827,7 @@ bool gayle_pcmcia_init(struct autoconfig_info *aci)
 {
 	aci->start = 0x600000;
 	aci->size = 0xa80000 - aci->start;
-	aci->addrbank = &expamem_nonautoconfig;
+	aci->zorro = 0;
 	return true;
 }
 

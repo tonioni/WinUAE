@@ -325,7 +325,7 @@ static void addextrachip (uae_u32 sysbase)
 	}
 }
 
-addrbank expamem_null, expamem_none, expamem_nonautoconfig;
+addrbank expamem_null, expamem_none;
 
 DECLARE_MEMORY_FUNCTIONS(expamem);
 addrbank expamem_bank = {
@@ -464,7 +464,7 @@ static void call_card_init(int index)
 		expamem_bank_current = NULL;
 		return;
 	}
-	if (ab == &expamem_null || ab == &expamem_nonautoconfig || cd->zorro < 1 || cd->zorro > 3) {
+	if (ab == &expamem_null || cd->zorro < 1 || cd->zorro > 3) {
 		expamem_next(NULL, NULL);
 		return;
 	}
@@ -1003,12 +1003,10 @@ DECLARE_MEMORY_FUNCTIONS(filesys);
 addrbank filesys_bank = {
 	filesys_lget, filesys_wget, filesys_bget,
 	filesys_lput, filesys_wput, filesys_bput,
-	filesys_xlate, filesys_check, NULL, _T("filesys"), _T("Filesystem autoconfig"),
+	filesys_xlate, filesys_check, NULL, _T("*"), _T("Filesystem autoconfig"),
 	filesys_lget, filesys_wget,
 	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
-
-static uae_u32 filesys_start; /* Determined by the OS */
 
 static bool filesys_write(uaecptr addr)
 {
@@ -1018,7 +1016,7 @@ static bool filesys_write(uaecptr addr)
 static uae_u32 REGPARAM2 filesys_lget (uaecptr addr)
 {
 	uae_u8 *m;
-	addr -= filesys_start & 65535;
+	addr -= filesys_bank.start & 65535;
 	addr &= 65535;
 	m = filesys_bank.baseaddr + addr;
 #if EXP_DEBUG
@@ -1030,7 +1028,7 @@ static uae_u32 REGPARAM2 filesys_lget (uaecptr addr)
 static uae_u32 REGPARAM2 filesys_wget (uaecptr addr)
 {
 	uae_u8 *m;
-	addr -= filesys_start & 65535;
+	addr -= filesys_bank.start & 65535;
 	addr &= 65535;
 	m = filesys_bank.baseaddr + addr;
 #if EXP_DEBUG
@@ -1041,7 +1039,7 @@ static uae_u32 REGPARAM2 filesys_wget (uaecptr addr)
 
 static uae_u32 REGPARAM2 filesys_bget (uaecptr addr)
 {
-	addr -= filesys_start & 65535;
+	addr -= filesys_bank.start & 65535;
 	addr &= 65535;
 #if EXP_DEBUG
 	write_log (_T("filesys_bget %x %x\n"), addr, filesys_bank.baseaddr[addr]);
@@ -1052,7 +1050,7 @@ static uae_u32 REGPARAM2 filesys_bget (uaecptr addr)
 
 static void REGPARAM2 filesys_bput(uaecptr addr, uae_u32 b)
 {
-	addr -= filesys_start & 65535;
+	addr -= filesys_bank.start & 65535;
 	addr &= 65535;
 	if (!filesys_write(addr))
 		return;
@@ -1061,7 +1059,7 @@ static void REGPARAM2 filesys_bput(uaecptr addr, uae_u32 b)
 
 static void REGPARAM2 filesys_lput (uaecptr addr, uae_u32 l)
 {
-	addr -= filesys_start & 65535;
+	addr -= filesys_bank.start & 65535;
 	addr &= 65535;
 	if (!filesys_write(addr))
 		return;
@@ -1073,7 +1071,7 @@ static void REGPARAM2 filesys_lput (uaecptr addr, uae_u32 l)
 
 static void REGPARAM2 filesys_wput (uaecptr addr, uae_u32 w)
 {
-	addr -= filesys_start & 65535;
+	addr -= filesys_bank.start & 65535;
 	addr &= 65535;
 	if (!filesys_write(addr))
 		return;
@@ -1085,7 +1083,7 @@ static int REGPARAM2 filesys_check(uaecptr addr, uae_u32 size)
 {
 	addr -= filesys_bank.start & 65535;
 	addr &= 65535;
-	return (addr + size) <= filesys_bank.allocated;
+	return (addr + size) <= filesys_bank.allocated_size;
 }
 static uae_u8 *REGPARAM2 filesys_xlate(uaecptr addr)
 {
@@ -1115,7 +1113,7 @@ uae_u8 *uaeboard_map_ram(uaecptr p)
 		p -= uaeboard_base;
 		return uaeboard_bank.baseaddr + p;
 	} else {
-		p -= filesys_start;
+		p -= filesys_bank.start;
 		return filesys_bank.baseaddr + p;
 	}
 }
@@ -1129,7 +1127,7 @@ uaecptr uaeboard_alloc_ram(uae_u32 size)
 		p = uaeboard_ram_start + uaeboard_base;
 		memset(uaeboard_bank.baseaddr + uaeboard_ram_start, 0, size);
 	} else {
-		p = uaeboard_ram_start + filesys_start;
+		p = uaeboard_ram_start + filesys_bank.start;
 		memset(filesys_bank.baseaddr + uaeboard_ram_start, 0, size);
 	}
 	uaeboard_ram_start += size;
@@ -1202,7 +1200,7 @@ static int REGPARAM2 uaeboard_check(uaecptr addr, uae_u32 size)
 {
 	addr -= uaeboard_base & 65535;
 	addr &= 65535;
-	return (addr + size) <= uaeboard_bank.allocated;
+	return (addr + size) <= uaeboard_bank.allocated_size;
 }
 static uae_u8 *REGPARAM2 uaeboard_xlate(uaecptr addr)
 {
@@ -1383,7 +1381,7 @@ static addrbank *expamem_map_fastcard(struct autoconfig_info *aci)
 	addrbank *ab = &fastmem_bank[aci->devnum];
 	if (start == 0x00ff0000)
 		return ab;
-	uae_u32 size = ab->allocated;
+	uae_u32 size = ab->allocated_size;
 	ab->start = start;
 	if (ab->start && size) {
 		map_banks_z2(ab, ab->start >> 16, size >> 16);
@@ -1512,7 +1510,7 @@ static const uae_u8 a2630_autoconfig[] = { 0xe7, 0x51, 0x40, 0x00, 0x02, 0x02, 0
 
 static bool megachipram_init(struct autoconfig_info *aci)
 {
-	aci->addrbank = &expamem_nonautoconfig;
+	aci->zorro = 0;
 	aci->start = 0x10000000;
 	aci->size = aci->prefs->z3chipmem_size;
 	aci->label = _T("32-bit Chip RAM");
@@ -1576,6 +1574,15 @@ bool expansion_is_next_board_fastram(void)
 
 #ifdef FILESYS
 
+static bool expamem_rtarea_init(struct autoconfig_info *aci)
+{
+	aci->start = rtarea_base;
+	aci->size = 65536;
+	aci->addrbank = &rtarea_bank;
+	aci->label = _T("UAE Boot ROM");
+	return true;
+}
+
 /*
 * Filesystem device
 */
@@ -1585,7 +1592,7 @@ static void expamem_map_filesys_update(void)
 	/* 68k code needs to know this. */
 	uaecptr a = here();
 	org(rtarea_base + RTAREA_FSBOARD);
-	dl(filesys_start + 0x2000);
+	dl(filesys_bank.start + 0x2000);
 	org(a);
 }
 
@@ -1598,10 +1605,12 @@ static addrbank *expamem_map_filesys (struct autoconfig_info *aci)
 		// can't show dialogs from PPC thread, deadlock danger.
 		regs.halted = -2;
 	}
-
+	filesys_bank.start = expamem_board_pointer;
+	filesys_bank.mask = filesys_bank.reserved_size - 1;
+	mapped_malloc(&filesys_bank);
+	memcpy (filesys_bank.baseaddr, expamem, 0x3000);
 	uaeboard_ram_start = UAEBOARD_WRITEOFFSET;
-	filesys_start = expamem_board_pointer;
-	map_banks_z2(&filesys_bank, filesys_start >> 16, 1);
+	map_banks_z2(&filesys_bank, filesys_bank.start >> 16, 1);
 	expamem_map_filesys_update();
 	return &filesys_bank;
 }
@@ -1645,9 +1654,10 @@ static bool expamem_init_filesys(struct autoconfig_info *aci)
 	bool ks12 = ks12orolder();
 	bool hide = currprefs.uae_hide_autoconfig;
 
-	aci->label = _T("UAE Boot ROM");
+	aci->label = _T("UAE FS ROM");
 	aci->get_params = get_params_filesys;
 	aci->set_params = set_params_filesys;
+	aci->addrbank = &filesys_bank;
 
 #if 0
 	FILE *f = fopen("d:\\amiga\\amiga\\source\\acap\\autoconf", "rb");
@@ -1707,7 +1717,7 @@ static bool expamem_init_filesys(struct autoconfig_info *aci)
 	if (ks12)
 		add_ks12_boot_hack();
 
-	memcpy (filesys_bank.baseaddr, expamem, 0x3000);
+	//memcpy (filesys_bank.baseaddr, expamem, 0x3000);
 	return true;
 }
 
@@ -1724,7 +1734,7 @@ static addrbank *expamem_map_z3fastmem (struct autoconfig_info *aci)
 	uaecptr z3fs = expamem_board_pointer;
 	uae_u32 size = currprefs.z3fastmem[devnum].size;
 
-	if (ab->allocated)
+	if (ab->allocated_size)
 		map_banks_z3(ab, z3fs >> 16, size >> 16);
 	return ab;
 }
@@ -1763,7 +1773,7 @@ static bool expamem_init_z3fastmem(struct autoconfig_info *aci)
 
 	uae_u32 start = bank->start;
 	bool alwaysmapz3 = aci->prefs->z3_mapping_mode != Z3MAPPING_REAL;
-	if ((alwaysmapz3 || expamem_z3hack(aci->prefs)) && bank->allocated) {
+	if ((alwaysmapz3 || expamem_z3hack(aci->prefs)) && bank->allocated_size) {
 		map_banks_z3(bank, start >> 16, size >> 16);
 	}
 	return true;
@@ -1778,7 +1788,7 @@ static addrbank *expamem_map_gfxcard_z3 (struct autoconfig_info *aci)
 {
 	int devnum = aci->devnum;
 	gfxmem_banks[devnum]->start = expamem_board_pointer;
-	map_banks_z3(gfxmem_banks[devnum], gfxmem_banks[devnum]->start >> 16, gfxmem_banks[devnum]->allocated >> 16);
+	map_banks_z3(gfxmem_banks[devnum], gfxmem_banks[devnum]->start >> 16, gfxmem_banks[devnum]->allocated_size >> 16);
 	return gfxmem_banks[devnum];
 }
 
@@ -1786,7 +1796,7 @@ static addrbank *expamem_map_gfxcard_z2 (struct autoconfig_info *aci)
 {
 	int devnum = aci->devnum;
 	gfxmem_banks[devnum]->start = expamem_board_pointer;
-	map_banks_z2(gfxmem_banks[devnum], gfxmem_banks[devnum]->start >> 16, gfxmem_banks[devnum]->allocated >> 16);
+	map_banks_z2(gfxmem_banks[devnum], gfxmem_banks[devnum]->start >> 16, gfxmem_banks[devnum]->allocated_size >> 16);
 	return gfxmem_banks[devnum];
 }
 
@@ -1866,7 +1876,8 @@ static bool mapped_malloc_dynamic (uae_u32 *currpsize, uae_u32 *changedpsize, ad
 {
 	int alloc = *currpsize;
 
-	bank->allocated = 0;
+	bank->allocated_size = 0;
+	bank->reserved_size = alloc;
 	bank->baseaddr = NULL;
 	bank->mask = 0;
 
@@ -1874,7 +1885,6 @@ static bool mapped_malloc_dynamic (uae_u32 *currpsize, uae_u32 *changedpsize, ad
 		return false;
 
 	bank->mask = alloc - 1;
-	bank->allocated = alloc;
 	bank->label = label ? label : _T("*");
 	if (mapped_malloc (bank)) {
 		*currpsize = alloc;
@@ -1922,20 +1932,19 @@ static void allocate_expamem (void)
 		currprefs.z3chipmem_size = changed_prefs.z3chipmem_size = 0;	
 
 	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
-		if (fastmem_bank[i].allocated != currprefs.fastmem[i].size) {
+		if (fastmem_bank[i].reserved_size != currprefs.fastmem[i].size) {
 			free_fastmemory(i);
 
 			if (fastmem_bank[i].start == 0xffffffff) {
-				fastmem_bank[i].allocated = 0;
+				fastmem_bank[i].reserved_size = 0;
 			} else {
-				fastmem_bank[i].allocated = currprefs.fastmem[i].size;
-				fastmem_bank[i].mask = fastmem_bank[i].allocated - 1;
+				fastmem_bank[i].reserved_size = currprefs.fastmem[i].size;
+				fastmem_bank[i].mask = fastmem_bank[i].reserved_size - 1;
 
-				if (fastmem_bank[i].allocated && fastmem_bank[i].start != 0xffffffff) {
+				if (fastmem_bank[i].reserved_size && fastmem_bank[i].start != 0xffffffff) {
 					mapped_malloc (&fastmem_bank[i]);
 					if (fastmem_bank[i].baseaddr == 0) {
 						write_log (_T("Out of memory for fastmem card.\n"));
-						fastmem_bank[i].allocated = 0;
 					}
 				}
 			}
@@ -1943,7 +1952,7 @@ static void allocate_expamem (void)
 		}
 	}
 
-	if (z3fastmem_bank[0].allocated != currprefs.z3fastmem[0].size) {
+	if (z3fastmem_bank[0].reserved_size != currprefs.z3fastmem[0].size) {
 		mapped_free(&z3fastmem_bank[0]);
 		mapped_malloc_dynamic(&currprefs.z3fastmem[0].size, &changed_prefs.z3fastmem[0].size, &z3fastmem_bank[0], 1, _T("*"));
 		memory_hardreset(1);
@@ -1952,23 +1961,22 @@ static void allocate_expamem (void)
 		if (currprefs.z3fastmem[i].size && z3fastmem_bank[i].start == 0xffffffff) {
 			z3fastmem_bank[i].start = expansion_startaddress(&currprefs, z3fastmem_bank[i - 1].start, currprefs.z3fastmem[i - 1].size);
 		}
-		if (z3fastmem_bank[i].allocated != currprefs.z3fastmem[i].size) {
+		if (z3fastmem_bank[i].reserved_size != currprefs.z3fastmem[i].size) {
 			mapped_free (&z3fastmem_bank[i]);
 
-			z3fastmem_bank[i].allocated = currprefs.z3fastmem[i].size;
-			z3fastmem_bank[i].mask = z3fastmem_bank[i].allocated - 1;
+			z3fastmem_bank[i].reserved_size = currprefs.z3fastmem[i].size;
+			z3fastmem_bank[i].mask = z3fastmem_bank[i].reserved_size - 1;
 
-			if (z3fastmem_bank[i].allocated) {
+			if (z3fastmem_bank[i].reserved_size) {
 				mapped_malloc(&z3fastmem_bank[i]);
 				if (z3fastmem_bank[i].baseaddr == 0) {
 					write_log (_T("Out of memory for 32 bit fast memory #%d.\n"), i);
-					z3fastmem_bank[i].allocated = 0;
 				}
 			}
 			memory_hardreset (1);
 		}
 	}
-	if (z3chipmem_bank.allocated != currprefs.z3chipmem_size) {
+	if (z3chipmem_bank.reserved_size != currprefs.z3chipmem_size) {
 		mapped_free (&z3chipmem_bank);
 		mapped_malloc_dynamic (&currprefs.z3chipmem_size, &changed_prefs.z3chipmem_size, &z3chipmem_bank, 16, _T("*"));
 		memory_hardreset (1);
@@ -1976,7 +1984,7 @@ static void allocate_expamem (void)
 
 #ifdef PICASSO96
 	struct rtgboardconfig *rbc = &currprefs.rtgboards[0];
-	if (gfxmem_banks[0]->allocated != rbc->rtgmem_size) {
+	if (gfxmem_banks[0]->reserved_size != rbc->rtgmem_size) {
 		mapped_free (gfxmem_banks[0]);
 		if (rbc->rtgmem_type < GFXBOARD_HARDWARE)
 			mapped_malloc_dynamic (&rbc->rtgmem_size, &changed_prefs.rtgboards[0].rtgmem_size, gfxmem_banks[0], 1, NULL);
@@ -1987,31 +1995,31 @@ static void allocate_expamem (void)
 #ifdef SAVESTATE
 	if (savestate_state == STATE_RESTORE) {
 		for (int i = 0; i < MAX_RAM_BOARDS; i++) {
-			if (fastmem_bank[i].allocated > 0) {
+			if (fastmem_bank[i].allocated_size > 0) {
 				restore_ram (fast_filepos[i], fastmem_bank[i].baseaddr);
 				if (!fastmem_bank[i].start) {
 					// old statefile compatibility support
 					fastmem_bank[i].start = 0x00200000;
 				}
 				map_banks(&fastmem_bank[i], fastmem_bank[i].start >> 16, currprefs.fastmem[i].size >> 16,
-						fastmem_bank[i].allocated);
+						fastmem_bank[i].allocated_size);
 			}
-			if (z3fastmem_bank[i].allocated > 0) {
+			if (z3fastmem_bank[i].allocated_size > 0) {
 				restore_ram (z3_filepos[i], z3fastmem_bank[i].baseaddr);
 				map_banks(&z3fastmem_bank[i], z3fastmem_bank[i].start >> 16, currprefs.z3fastmem[i].size >> 16,
-					z3fastmem_bank[i].allocated);
+					z3fastmem_bank[i].allocated_size);
 			}
 		}
-		if (z3chipmem_bank.allocated > 0) {
+		if (z3chipmem_bank.allocated_size > 0) {
 			restore_ram (z3_fileposchip, z3chipmem_bank.baseaddr);
 			map_banks(&z3chipmem_bank, z3chipmem_bank.start >> 16, currprefs.z3chipmem_size >> 16,
-				z3chipmem_bank.allocated);
+				z3chipmem_bank.allocated_size);
 		}
 #ifdef PICASSO96
-		if (gfxmem_banks[0]->allocated > 0 && gfxmem_banks[0]->start > 0) {
+		if (gfxmem_banks[0]->allocated_size > 0 && gfxmem_banks[0]->start > 0) {
 			restore_ram (p96_filepos, gfxmem_banks[0]->baseaddr);
 			map_banks(gfxmem_banks[0], gfxmem_banks[0]->start >> 16, currprefs.rtgboards[0].rtgmem_size >> 16,
-				gfxmem_banks[0]->allocated);
+				gfxmem_banks[0]->allocated_size);
 		}
 #endif
 	}
@@ -2379,7 +2387,7 @@ void expansion_generate_autoconfig_info(struct uae_prefs *p)
 bool alloc_expansion_bank(addrbank *bank, struct autoconfig_info *aci)
 {
 	bank->start = aci->start;
-	bank->allocated = aci->size;
+	bank->reserved_size = aci->size;
 	aci->addrbank = bank;
 	return mapped_malloc(bank);
 }
@@ -2388,7 +2396,7 @@ void free_expansion_bank(addrbank *bank)
 {
 	mapped_free(bank);
 	bank->start = NULL;
-	bank->allocated = 0;
+	bank->reserved_size = 0;
 }
 
 struct autoconfig_info *expansion_get_autoconfig_data(struct uae_prefs *p, int index)
@@ -2450,6 +2458,7 @@ static void expansion_init_cards(struct uae_prefs *p)
 		aci->ert = cd->ert;
 		aci->cst = cd->cst;
 		aci->start = 0xffffffff;
+		aci->zorro = cd->zorro;
 		if (cd->initnum) {
 			ok = cd->initnum(aci);
 		} else {
@@ -2459,7 +2468,7 @@ static void expansion_init_cards(struct uae_prefs *p)
 		if (cd->flags & CARD_FLAG_CHILD)
 			aci->parent_of_previous = true;
 		
-		if (aci->addrbank != &expamem_nonautoconfig && aci->addrbank != &expamem_null && aci->addrbank != &expamem_none && (aci->autoconfig_raw[0] != 0xff || aci->autoconfigp)) {
+		if ((aci->zorro == 1 || aci->zorro == 2 || aci->zorro == 3) && aci->addrbank != &expamem_null && aci->addrbank != &expamem_none && (aci->autoconfig_raw[0] != 0xff || aci->autoconfigp)) {
 			uae_u8 ac2[16];
 			const uae_u8 *a = aci->autoconfigp;
 			if (!a) {
@@ -2567,6 +2576,7 @@ static void expansion_parse_cards(struct uae_prefs *p, bool log)
 		aci->prefs = p;
 		aci->ert = cd->ert;
 		aci->cst = cd->cst;
+		aci->zorro = cd->zorro;
 		aci->start = 0xffffffff;
 		if (cd->initnum) {
 			ok = cd->initnum(aci);
@@ -2620,7 +2630,7 @@ static void expansion_parse_cards(struct uae_prefs *p, bool log)
 				_stprintf(s, _T(" [%d]"), aci->devnum + 1);
 			}
 
-			if (aci->addrbank != &expamem_nonautoconfig && aci->addrbank != &expamem_null && aci->addrbank != &expamem_none && (aci->autoconfig_raw[0] != 0xff || aci->autoconfigp)) {
+			if ((aci->zorro == 1 || aci->zorro == 2 || aci->zorro == 3) && aci->addrbank != &expamem_none && (aci->autoconfig_raw[0] != 0xff || aci->autoconfigp)) {
 				uae_u8 ac2[16];
 				const uae_u8 *a = aci->autoconfigp;
 				if (!a) {
@@ -2668,19 +2678,21 @@ static void expansion_parse_cards(struct uae_prefs *p, bool log)
 				memcpy(aci->autoconfig_bytes, a, sizeof aci->autoconfig_bytes);
 				if (aci->addrbank) {
 					aci->addrbank->start = expamem_board_pointer;
-					if (aci->addrbank->allocated == 0 && !(type & add_memory) && expamem_board_size < 524288) {
-						aci->addrbank->allocated = expamem_board_size;
+					if (aci->addrbank->reserved_size == 0 && !(type & add_memory) && expamem_board_size < 524288) {
+						aci->addrbank->reserved_size = expamem_board_size;
 					}
 				}
 				aci->zorro = cd->zorro;
 				if (cd->zorro == 3) {
 					if (expamem_z3_pointer_real + expamem_board_size < expamem_z3_pointer_real) {
 						expamem_z3_pointer_real = 0xffffffff;
+						expamem_z3_highram_real = 0xffffffff;
 					} else {
 						expamem_z3_pointer_real += expamem_board_size;
 					}
 					if (expamem_z3_pointer_uae + expamem_board_size < expamem_z3_pointer_uae) {
 						expamem_z3_pointer_uae = 0xffffffff;
+						expamem_z3_highram_uae = 0xffffffff;
 					} else {
 						expamem_z3_pointer_uae += expamem_board_size;
 					}
@@ -2698,8 +2710,10 @@ static void expansion_parse_cards(struct uae_prefs *p, bool log)
 
 				}
 			} else {
+				cd->base = aci->start;
+				cd->size = aci->size;
 				if (log)
-					write_log(_T("'%s' no autoconfig.\n"), aci->label ? aci->label : _T("<no name>"));
+					write_log(_T("'%s' no autoconfig %08x - %08x.\n"), aci->label ? aci->label : _T("<no name>"), cd->base, cd->base + cd->size - 1);
 			}
 			_tcscpy(aci->name, label);
 			if (cd->flags & CARD_FLAG_CHILD)
@@ -2981,7 +2995,7 @@ static void expansion_autoconfig_sort(struct uae_prefs *p)
 			struct card_data *cd = tcards[idx];
 			if (!cd)
 				continue;
-			if (cd->cst || cd->aci.hardwired || cd->size == 0) {
+			if (cd->cst || cd->aci.hardwired) {
 				cards[new_cardno++] = cd;
 				tcards[idx] = NULL;
 				for (int j = idx + 1; j < cardno; j++) {
@@ -3104,12 +3118,13 @@ static void expansion_add_autoconfig(struct uae_prefs *p)
 	reset_ac(p);
 
 	if (p == &currprefs && do_mount < 0 && ks11orolder()) {
-		filesys_start = 0xe90000;
-		map_banks_z2(&filesys_bank, filesys_start >> 16, 1);
+		filesys_bank.start = 0xe90000;
+		mapped_malloc(&filesys_bank);
+		map_banks_z2(&filesys_bank, filesys_bank.start >> 16, 1);
 		expamem_init_filesys(0);
 		expamem_map_filesys_update();
 	}
-
+	
 	if (p->cpuboard_type) {
 		// This may require first 128k slot.
 		cards_set[cardno].flags = 1;
@@ -3165,6 +3180,14 @@ static void expansion_add_autoconfig(struct uae_prefs *p)
 		cards_set[cardno].zorro = 2;
 		cards_set[cardno].initnum = expamem_init_uaeboard;
 		cards_set[cardno++].map = expamem_map_uaeboard;
+	}
+	if (do_mount && p->uaeboard < 2) {
+		cards_set[cardno].flags = 0;
+		cards_set[cardno].name = _T("UAEBOOTROM");
+		cards_set[cardno].zorro = BOARD_NONAUTOCONFIG_BEFORE;
+		cards_set[cardno].initnum = expamem_rtarea_init;
+		cards_set[cardno++].map = NULL;
+
 	}
 #endif
 #ifdef PICASSO96
@@ -3308,14 +3331,14 @@ void expansion_init (void)
 	if (savestate_state != STATE_RESTORE) {
 
 		for (int i = 0; i < MAX_RAM_BOARDS; i++) {
-			fastmem_bank[i].allocated = 0;
+			fastmem_bank[i].reserved_size = 0;
 			fastmem_bank[i].mask = 0;
 			fastmem_bank[i].baseaddr = NULL;
 		}
 
 #ifdef PICASSO96
 		for (int i = 0; i < MAX_RTG_BOARDS; i++) {
-			gfxmem_banks[i]->allocated = 0;
+			gfxmem_banks[i]->reserved_size = 0;
 			gfxmem_banks[i]->mask = 0;
 			gfxmem_banks[i]->baseaddr = NULL;
 		}
@@ -3326,31 +3349,20 @@ void expansion_init (void)
 #endif
 
 		for (int i = 0; i < MAX_RAM_BOARDS; i++) {
-			z3fastmem_bank[i].allocated = 0;
+			z3fastmem_bank[i].reserved_size = 0;
 			z3fastmem_bank[i].mask = 0;
 			z3fastmem_bank[i].baseaddr = NULL;
 		}
 
-		z3chipmem_bank.allocated = 0;
+		z3chipmem_bank.reserved_size = 0;
 		z3chipmem_bank.mask = z3chipmem_bank.start = 0;
 		z3chipmem_bank.baseaddr = NULL;
 	}
 
-#ifdef FILESYS
-	filesys_start = 0;
-#endif
-
 	allocate_expamem ();
 
-#ifdef FILESYS
-	filesys_bank.allocated = 0x10000;
-	if (!mapped_malloc (&filesys_bank)) {
-		write_log (_T("virtual memory exhausted (filesysory)!\n"));
-		exit (0);
-	}
-#endif
 	if (currprefs.uaeboard) {
-		uaeboard_bank.allocated = 0x10000;
+		uaeboard_bank.reserved_size = 0x10000;
 		mapped_malloc(&uaeboard_bank);
 	}
 }
@@ -3385,9 +3397,9 @@ void expansion_cleanup (void)
 
 static void clear_bank (addrbank *ab)
 {
-	if (!ab->baseaddr || !ab->allocated)
+	if (!ab->baseaddr || !ab->allocated_size)
 		return;
-	memset (ab->baseaddr, 0, ab->allocated > 0x800000 ? 0x800000 : ab->allocated);
+	memset (ab->baseaddr, 0, ab->allocated_size > 0x800000 ? 0x800000 : ab->allocated_size);
 }
 
 void expansion_clear (void)
@@ -3408,23 +3420,23 @@ void expansion_clear (void)
 
 uae_u8 *save_fram (int *len, int num)
 {
-	*len = fastmem_bank[num].allocated;
+	*len = fastmem_bank[num].allocated_size;
 	return fastmem_bank[num].baseaddr;
 }
 
 uae_u8 *save_zram (int *len, int num)
 {
 	if (num < 0) {
-		*len = z3chipmem_bank.allocated;
+		*len = z3chipmem_bank.allocated_size;
 		return z3chipmem_bank.baseaddr;
 	}
-	*len = z3fastmem_bank[num].allocated;
+	*len = z3fastmem_bank[num].allocated_size;
 	return z3fastmem_bank[num].baseaddr;
 }
 
 uae_u8 *save_pram (int *len)
 {
-	*len = gfxmem_banks[0]->allocated;
+	*len = gfxmem_banks[0]->allocated_size;
 	return gfxmem_banks[0]->baseaddr;
 }
 
@@ -3861,6 +3873,23 @@ static const struct expansionboardsettings x86_bridge_sidecar_settings[] = {
 	}
 };
 
+static const struct expansionboardsettings ne2k_isa_settings[] = {
+	{
+		_T("IO\0") _T("240\0") _T("260\0") _T("280\0") _T("2A0\0") _T("300\0") _T("320\0") _T("340\0") _T("360\0"),
+		_T("io\0") _T("240\0") _T("260\0") _T("280\0") _T("2A0\0") _T("300\0") _T("320\0") _T("340\0") _T("360\0"),
+		true, false, 0
+	},
+	{
+		_T("IRQ\0") _T("3\0") _T("4\0") _T("5\0") _T("7\0") _T("9\0") _T("10\0") _T("11\0") _T("12\0") _T("15\0"),
+		_T("irq\0") _T("3\0") _T("4\0") _T("5\0") _T("7\0") _T("9\0") _T("10\0") _T("11\0") _T("12\0") _T("15\0"),
+		true, false, 0
+	},
+	{
+		NULL
+	}
+};
+
+
 static const struct expansionboardsettings toccata_soundcard_settings[] = {
 	{
 		_T("Paula/CD audio mixer"),
@@ -3936,6 +3965,17 @@ static const struct expansionboardsettings nexus_settings[] = {
 		NULL
 	}
 };
+static const struct expansionboardsettings buddha_settings[] = {
+	{
+		_T("Model\0") _T("Buddha\0") _T("Catweasel Z2\0"),
+		_T("model\0") _T("buddha\0") _T("cwz2\0"),
+		true, false, 0
+	},
+	{
+		NULL
+	}
+};
+
 static const struct expansionboardsettings adscsi2000_settings[] = {
 	{
 		_T("Cache (B)"),
@@ -4011,8 +4051,7 @@ const struct expansionromtype expansionroms[] = {
 		mediator_sub, 0,
 		false, EXPANSIONTYPE_PCI_BRIDGE,
 		0, 0, 0, false, NULL,
-		false,
-		mediator_settings
+		false, 0, mediator_settings
 	},
 	{
 		_T("prometheus"), _T("Prometheus"), _T("Matay"),
@@ -4020,8 +4059,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_PCI_BRIDGE,
 		0, 0, 0, false, NULL,
-		false,
-		bridge_settings
+		false, 0, bridge_settings
 	},
 
 	/* SCSI/IDE expansion */
@@ -4039,6 +4077,12 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
 		8498, 27, 0, true, NULL
+	},
+	{
+		_T("blizzardscsikitiii"), _T("SCSI Kit III"), _T("Phase 5"),
+		NULL, NULL, cpuboard_ncr9x_add_scsi_unit, ROMTYPE_BLIZKIT3, 0, 0, 0, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("blizzardscsikitiv"), _T("SCSI Kit IV"), _T("Phase 5"),
@@ -4072,7 +4116,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
 		0, 0, 0, false, NULL,
-		false, NULL,
+		false, 0, NULL,
 		{ 0xc1, 0x0c, 0x00, 0x00, 0x03, 0xec, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
 	},
 	{
@@ -4094,7 +4138,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
 		0, 0, 0, false, NULL,
-		true, a4091_settings
+		true, 0, a4091_settings
 	},
 	{
 		_T("dataflyerscsiplus"), _T("DataFlyer SCSI+"), _T("Expansion Systems"),
@@ -4133,8 +4177,16 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
 		0, 0, 0, false, NULL,
-		true,
-		adscsi2000_settings
+		true, 0, adscsi2000_settings
+	},
+	{
+		_T("buddha"), _T("Buddha"), _T("Individual Computers"),
+		buddha_init, NULL, buddha_add_ide_unit, ROMTYPE_BUDDHA, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_IDE,
+		0, 0, 0, false, NULL,
+		false, 4, buddha_settings,
+		{ 0xd1, 0x00, 0x00, 0x00, 0x12, 0x12, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00 },
 	},
 	{
 		_T("trumpcardpro"), _T("Grand Slam"), _T("IVS"),
@@ -4142,11 +4194,11 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		true, EXPANSIONTYPE_SCSI,
 		2112, 4, 0, false, NULL,
-		true, NULL,
+		true, 0, NULL,
 		{  0xd1, 0x34, 0x00, 0x00, 0x08, 0x40, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
 	},
 	{
-		_T("kommos"), _T("A500/A2000 SCSI"), _T("Jürgen Kommos"),
+		_T("kommos"), _T("Kommos A500/A2000 SCSI"), _T("Jürgen Kommos"),
 		kommos_init, NULL, kommos_add_scsi_unit, ROMTYPE_KOMMOS, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI
@@ -4164,8 +4216,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE,
 		0, 0, 0, false, NULL,
-		true,
-		golemfast_settings
+		true, 0, golemfast_settings
 	},
 	{
 		_T("multievolution"), _T("Multi Evolution 500/2000"), _T("MacroSystem"),
@@ -4198,7 +4249,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
 		1010, 0, 0, false, NULL,
-		false, NULL,
+		false, 0, NULL,
 		{ 0xc1, 2, 0x00, 0x00, 0x03, 0xf2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
 
 	},
@@ -4221,7 +4272,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
 		2102, 4, 0, false, nexus_memory_callback,
-		false, nexus_settings,
+		false, 0, nexus_settings,
 		{ 0xd1, 0x01, 0x00, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
 	},
 	{
@@ -4235,8 +4286,9 @@ const struct expansionromtype expansionroms[] = {
 		_T("rochard"), _T("RocHard RH800C"), _T("Roctec"),
 		rochard_init, NULL, rochard_add_idescsi_unit, ROMTYPE_ROCHARD | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		rochard_sub, 0,
-		true, EXPANSIONTYPE_IDE | EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE_PORT_DOUBLED,
-		2144, 2, 0
+		true, EXPANSIONTYPE_IDE | EXPANSIONTYPE_SCSI,
+		2144, 2, 0, false, NULL,
+		false, 2, NULL
 	},
 	{
 		_T("supradrive"), _T("SupraDrive"), _T("Supra Corporation"),
@@ -4305,7 +4357,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI,
 		0, 0, 0, false, NULL,
-		false, NULL,
+		false, 0, NULL,
 		{ 0xc1, 0x04, 0x00, 0x00, 0x07, 0xf2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 	},
 	{
@@ -4339,8 +4391,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_IDE,
 		0, 0, 0, false, NULL,
-		false,
-		x86_athdxt_settings
+		false, 0, x86_athdxt_settings
 	},
 
 	/* PC Bridgeboards */
@@ -4351,8 +4402,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_X86_BRIDGE,
 		0, 0, 0, false, NULL,
-		false,
-		x86_bridge_sidecar_settings
+		false, 0, x86_bridge_sidecar_settings
 	},
 	{
 		_T("a2088"), _T("A2088"), _T("Commodore"),
@@ -4360,8 +4410,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_X86_BRIDGE,
 		0, 0, 0, false, NULL,
-		false,
-		x86_bridge_settings
+		false, 0, x86_bridge_settings
 	},
 	{
 		_T("a2088t"), _T("A2088T"), _T("Commodore"),
@@ -4369,8 +4418,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_X86_BRIDGE,
 		0, 0, 0, false, NULL,
-		false,
-		x86_bridge_settings
+		false, 0, x86_bridge_settings
 	},
 	{
 		_T("a2286"), _T("A2286"), _T("Commodore"),
@@ -4378,8 +4426,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_X86_BRIDGE,
 		0, 0, 0, false, NULL,
-		false,
-		x86at286_bridge_settings
+		false, 0, x86at286_bridge_settings
 	},
 	{
 		_T("a2386"), _T("A2386SX"), _T("Commodore"),
@@ -4387,8 +4434,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_X86_BRIDGE,
 		0, 0, 0, false, NULL,
-		false,
-		x86at386_bridge_settings
+		false, 0, x86at386_bridge_settings
 	},
 
 	// only here for rom selection
@@ -4413,7 +4459,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_SOUND,
 		0, 0, 0, false, NULL,
-		false, toccata_soundcard_settings,
+		false, 0, toccata_soundcard_settings,
 		{ 0xc1, 12, 0, 0, 18260 >> 8, 18260 & 255 }
 	},
 	{
@@ -4434,7 +4480,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_SOUND,
 		0, 0, 0, false, NULL,
-		false, NULL,
+		false, 0, NULL,
 		{ 0xc1, 2, 0x00, 0x00, 6502 >> 8, 6502 & 255, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 	},
 	{
@@ -4443,7 +4489,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_SOUND,
 		0, 0, 0, false, NULL,
-		false, NULL,
+		false, 0, NULL,
 		{ 0x80, 2, 0x10, 0x00, 6502 >> 8, 6502 & 255, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 	},
 
@@ -4465,6 +4511,14 @@ const struct expansionromtype expansionroms[] = {
 		pci_expansion_init, NULL, NULL, ROMTYPE_NE2KPCI | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_NET
+	},
+	{
+		_T("ne2000_isa"), _T("NE2000 ISA"), NULL,
+		isa_expansion_init, NULL, NULL, ROMTYPE_NE2KISA | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_NET,
+		0, 0, 0, false, NULL,
+		false, 0, ne2k_isa_settings
 	},
 
 		/* Catweasel */

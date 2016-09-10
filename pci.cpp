@@ -1625,7 +1625,7 @@ static bool grex_pci_init(struct autoconfig_info *aci)
 	map_banks(&pci_bridge_bank, 0xfffe0000 >> 16, 0x10000 >> 16, 0);
 	pcib->io_offset = 0xfffa0000;
 
-	aci->addrbank = &expamem_nonautoconfig;
+	aci->zorro = 0;
 	aci->parent_of_previous = true;
 	aci->start = 0x80000000;
 	aci->size = 0x80000000;
@@ -1662,7 +1662,7 @@ static bool cbvision(struct autoconfig_info *aci)
 	map_banks(&pci_io_bank, 0xfffa0000 >> 16, 0x20000 >> 16, 0);
 	map_banks(&pci_bridge_bank, 0xfffe0000 >> 16, 0x10000 >> 16, 0);
 	pcib->io_offset = 0xfffa0000;
-	aci->addrbank = &expamem_nonautoconfig;
+	aci->zorro = 0;
 	aci->parent_of_previous = true;
 	return true;
 }
@@ -1988,6 +1988,6 @@ bool pci_expansion_init(struct autoconfig_info *aci)
 {
 	static const int parent[] = { ROMTYPE_GREX, ROMTYPE_MEDIATOR, ROMTYPE_PROMETHEUS, 0 };
 	aci->parent_romtype = parent;
-	aci->addrbank = &expamem_nonautoconfig;
+	aci->zorro = 0;
 	return true;
 }

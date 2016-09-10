@@ -31,8 +31,8 @@
 #include "debug.h"
 
 #define AKIKO_DEBUG_NVRAM 0
-#define AKIKO_DEBUG_IO 1
-#define AKIKO_DEBUG_IO_CMD 1
+#define AKIKO_DEBUG_IO 0
+#define AKIKO_DEBUG_IO_CMD 0
 
 int log_cd32 = 0;
 

@@ -28,8 +28,8 @@ static int drv_starting[4], drv_spinning[4], drv_has_spun[4], drv_has_disk[4];
 static int click_initialized, wave_initialized;
 #define DS_SHIFT 10
 static int sample_step;
-
 static uae_s16 *clickbuffer;
+static int clickcnt;
 
 uae_s16 *decodewav (uae_u8 *s, int *lenp)
 {
@@ -157,12 +157,6 @@ static void driveclick_close(void)
 void driveclick_free(void)
 {
 	driveclick_close();
-	for (int i = 0; i < 4; i++) {
-		drv_starting[i] = 0;
-		drv_spinning[i] = 0;
-		drv_has_spun[i] = 0;
-		drv_has_disk[i] = 0;
-	}
 }
 
 void driveclick_init (void)
@@ -243,9 +237,16 @@ void driveclick_reset (void)
 {
 	xfree (clickbuffer);
 	clickbuffer = NULL;
+	clickcnt = 0;
+	for (int i = 0; i < 4; i++) {
+		drv_starting[i] = 0;
+		drv_spinning[i] = 0;
+		drv_has_spun[i] = 0;
+		drv_has_disk[i] = 0;
+	}
 	if (!wave_initialized)
 		return;
-	clickbuffer = xmalloc (uae_s16, paula_sndbufsize / 2);
+	clickbuffer = xcalloc (uae_s16, paula_sndbufsize / 2);
 	sample_step = (freq << DS_SHIFT) / currprefs.sound_freq;
 }
 
@@ -320,8 +321,6 @@ static uae_s16 getsample (void)
 		return 0;
 	return total_sample / total_div;
 }
-
-static int clickcnt;
 
 static void mix (void)
 {

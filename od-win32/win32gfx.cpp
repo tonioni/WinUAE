@@ -166,6 +166,7 @@ static void vsync_sleep (bool preferbusy)
 	}
 	if (dowait && (currprefs.m68k_speed >= 0 || currprefs.m68k_speed_throttle < 0))
 		sleep_millis_main (1);
+	audio_finish_pull();
 }
 
 static void changevblankthreadmode_do (int newmode, bool fast)

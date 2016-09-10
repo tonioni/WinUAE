@@ -331,12 +331,13 @@ static uae_u8 *va (uae_u32 offset, uae_u32 len, DWORD alloc, DWORD protect)
 
 static int doinit_shm (void)
 {
-	uae_u32 totalsize;
+	uae_u32 totalsize, totalsize_z3;
 	uae_u32 align;
 	uae_u32 z3rtgmem_size;
 	struct rtgboardconfig *rbc = &changed_prefs.rtgboards[0];
 	struct rtgboardconfig *crbc = &currprefs.rtgboards[0];
 	uae_u32 extra = 65536;
+	struct uae_prefs *p = &changed_prefs;
 
 	changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = 0;
 	set_expamem_z3_hack_mode(0);
@@ -350,66 +351,70 @@ static int doinit_shm (void)
 
 	z3rtgmem_size = gfxboard_get_configtype(rbc) == 3 ? rbc->rtgmem_size : 0;
 
-	if (changed_prefs.cpu_model >= 68020)
+	if (p->cpu_model >= 68020)
 		totalsize = 0x10000000;
-	totalsize += (changed_prefs.z3chipmem_size + align) & ~align;
+	totalsize += (p->z3chipmem_size + align) & ~align;
+	totalsize_z3 = totalsize;
 
 	start_rtg = 0;
 	end_rtg = 0;
 
-	jit_direct_compatible_memory = currprefs.cachesize && (!currprefs.comptrustbyte || !currprefs.comptrustword || !currprefs.comptrustlong);
+	jit_direct_compatible_memory = p->cachesize && (!p->comptrustbyte || !p->comptrustword || !p->comptrustlong);
+#if 0
 	if (jit_direct_compatible_memory && expamem_z3_highram_uae > 0x80000000) {
 		write_log(_T("MMAN: RAM outside of 31-bit address space. Switching off JIT Direct.\n"));
 		jit_direct_compatible_memory = false;
 	}
-
-	// choose UAE if requested, blizzard or if jit direct and only UAE mode fits in natmem space.
-	if ((Z3BASE_UAE + changed_prefs.z3chipmem_size > Z3BASE_REAL && changed_prefs.z3_mapping_mode == Z3MAPPING_AUTO) ||
-		(jit_direct_compatible_memory && expamem_z3_highram_real > 0x80000000 && changed_prefs.z3_mapping_mode == Z3MAPPING_AUTO) ||
-		changed_prefs.z3_mapping_mode == Z3MAPPING_UAE || cpuboard_memorytype(&changed_prefs) == BOARD_MEMORY_BLIZZARD_12xx ||
-		(expamem_z3_highram_real + extra >= natmem_reserved_size && expamem_z3_highram_real < totalsize && changed_prefs.z3_mapping_mode == Z3MAPPING_AUTO && jit_direct_compatible_memory)) {
+#endif
+	// 1G Z3chip?
+	if ((Z3BASE_UAE + p->z3chipmem_size > Z3BASE_REAL) ||
+		// real wrapped around
+		(expamem_z3_highram_real == 0xffffffff) ||
+		// Real highram > 0x80000000 && UAE highram <= 0x80000000 && Automatic
+		(expamem_z3_highram_real > 0x80000000 && expamem_z3_highram_uae <= 0x80000000 && p->z3_mapping_mode == Z3MAPPING_AUTO) ||
+		// Wanted UAE || Blizzard RAM
+		p->z3_mapping_mode == Z3MAPPING_UAE || cpuboard_memorytype(&changed_prefs) == BOARD_MEMORY_BLIZZARD_12xx ||
+		// JIT && Automatic && Real does not fit in NATMEM && UAE fits in NATMEM
+		(expamem_z3_highram_real + extra >= natmem_reserved_size && expamem_z3_highram_uae + extra <= natmem_reserved_size && p->z3_mapping_mode == Z3MAPPING_AUTO && jit_direct_compatible_memory)) {
 		changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = Z3BASE_UAE;
-		if (changed_prefs.z3_mapping_mode == Z3MAPPING_AUTO)
+		if (p->z3_mapping_mode == Z3MAPPING_AUTO)
 			write_log(_T("MMAN: Selected UAE Z3 mapping mode\n"));
 		set_expamem_z3_hack_mode(Z3MAPPING_UAE);
-		if (expamem_z3_highram_uae > totalsize) {
-			totalsize = expamem_z3_highram_uae;
+		if (expamem_z3_highram_uae > totalsize_z3) {
+			totalsize_z3 = expamem_z3_highram_uae;
 		}
 	} else {
-		if (changed_prefs.z3_mapping_mode == Z3MAPPING_AUTO)
+		if (p->z3_mapping_mode == Z3MAPPING_AUTO)
 			write_log(_T("MMAN: Selected REAL Z3 mapping mode\n"));
 		changed_prefs.z3autoconfig_start = currprefs.z3autoconfig_start = Z3BASE_REAL;
 		set_expamem_z3_hack_mode(Z3MAPPING_REAL);
-		if (expamem_z3_highram_real > totalsize && jit_direct_compatible_memory) {
-			totalsize = expamem_z3_highram_real;
-			if (totalsize + extra >= natmem_reserved_size) {
+		if (expamem_z3_highram_real > totalsize_z3 && jit_direct_compatible_memory) {
+			totalsize_z3 = expamem_z3_highram_real;
+			if (totalsize_z3 + extra >= natmem_reserved_size) {
 				jit_direct_compatible_memory = false;
 				write_log(_T("MMAN: Not enough direct memory for Z3REAL. Switching off JIT Direct.\n"));
 			}
 		}
-		if (jit_direct_compatible_memory && expamem_z3_highram_real > 0x80000000) {
-			write_log(_T("MMAN: RAM outside of 31-bit address space. Switching off JIT Direct.\n"));
-			jit_direct_compatible_memory = false;
-		}
 	}
-	write_log(_T("Total %uM, HM %uM\n"), totalsize >> 20, expamem_highmem_pointer >> 20);
+	write_log(_T("Total %uM Z3 Total %uM, HM %uM\n"), totalsize >> 20, totalsize_z3 >> 20, expamem_highmem_pointer >> 20);
 
-	if (totalsize < expamem_highmem_pointer)
-		totalsize = expamem_highmem_pointer;
+	if (totalsize_z3 < expamem_highmem_pointer)
+		totalsize_z3 = expamem_highmem_pointer;
+
+	expansion_scan_autoconfig(&currprefs, true);
 
 	if (jit_direct_compatible_memory && (totalsize > size64 || totalsize + extra >= natmem_reserved_size)) {
 		jit_direct_compatible_memory = false;
 		write_log(_T("MMAN: Not enough direct memory. Switching off JIT Direct.\n"));
 	}
 
-	expansion_scan_autoconfig(&currprefs, true);
-
 	int idx = 0;
 	for (;;) {
 		struct autoconfig_info *aci = expansion_get_autoconfig_data(&currprefs, idx++);
 		if (!aci)
 			break;
-		if (!aci->addrbank)
+		addrbank *ab = aci->addrbank;
+		if (!ab)
 			continue;
 		if (aci->direct_vram) {
 			if (!start_rtg)
@@ -434,6 +439,7 @@ static int doinit_shm (void)
 		notify_user(NUMSG_NOMEMORY);
 		return -1;
 #else
+
 		p96base_offset = start_rtg;
 		p96mem_size = end_rtg - start_rtg;
 		write_log("MMAN: rtgbase_offset = %08x, size %08x\n", p96base_offset, p96mem_size);
@@ -447,6 +453,28 @@ static int doinit_shm (void)
 	} else {
 		start_rtg = 0;
 		end_rtg = 0;
+	}
+
+	idx = 0;
+	for (;;) {
+		struct autoconfig_info *aci = expansion_get_autoconfig_data(&currprefs, idx++);
+		if (!aci)
+			break;
+		addrbank *ab = aci->addrbank;
+		// disable JIT direct from Z3 boards that are outside of natmem
+		for (int i = 0; i < MAX_RAM_BOARDS; i++) {
+			if (&z3fastmem_bank[i] == ab) {
+				ab->flags &= ~ABFLAG_ALLOCINDIRECT;
+				ab->jit_read_flag = 0;
+				ab->jit_write_flag = 0;
+				if (aci->start + aci->size > natmem_reserved_size) {
+					write_log(_T("%s %08x-%08x: not JIT direct capable (>%08x)!\n"), ab->name, aci->start, aci->start + aci->size - 1, natmem_reserved_size);
+					ab->flags |= ABFLAG_ALLOCINDIRECT;
+					ab->jit_read_flag = S_READ;
+					ab->jit_write_flag = S_WRITE;
+				}
+			}
+		}
 	}
 
 #if 0
@@ -623,6 +651,7 @@ void mapped_free (addrbank *ab)
 		}
 		ab->baseaddr = NULL;
 		ab->flags &= ~ABFLAG_DIRECTMAP;
+		ab->allocated_size = 0;
 		write_log(_T("mapped_free indirect %s\n"), ab->name);
 		return;
 	}
@@ -632,6 +661,7 @@ void mapped_free (addrbank *ab)
 			xfree(ab->baseaddr);
 		}
 		ab->baseaddr = NULL;
+		ab->allocated_size = 0;
 		write_log(_T("mapped_free nondirect %s\n"), ab->name);
 		return;
 	}
@@ -651,6 +681,7 @@ void mapped_free (addrbank *ab)
 		x = x->next;
 	}
 	ab->baseaddr = NULL;
+	ab->allocated_size = 0;
 	write_log(_T("mapped_free direct %s\n"), ab->name);
 }
 
@@ -683,7 +714,7 @@ bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
 	bool readonly = false, maprom = false;
 	bool directsupport = true;
 	uaecptr start;
-	uae_u32 size = ab->allocated;
+	uae_u32 size = ab->reserved_size;
 	uae_u32 readonlysize = size;
 	bool barrier = false;
 
@@ -823,6 +854,8 @@ bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
 		start = 0x00a80000;
 		barrier = true;
 		got = true;
+	} else {
+		directsupport = false;
 	}
 	if (got) {
 		md->start = start;
@@ -834,12 +867,14 @@ bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
 		if (start_rtg && end_rtg) {
 			if (start < start_rtg || start + size > end_rtg)
 				directsupport = false;
-		} else if (start + size > natmem_reserved_size) {
+		} else if (start >= natmem_reserved_size || start + size > natmem_reserved_size) {
+			// start + size may cause 32-bit overflow
 			directsupport = false;
 		}
 		md->directsupport = directsupport;
-		if (barrier)
+		if (barrier) {
 			md->size += BARRIER;
+		}
 	}
 	return got;
 }
@@ -877,7 +912,7 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 #endif
 
 	uintptr_t natmem_end = (uintptr_t) natmem_reserved + natmem_reserved_size;
-	if ((uintptr_t) shmaddr + size > natmem_end) {
+	if ((uintptr_t) shmaddr + size > natmem_end && (uintptr_t)shmaddr <= natmem_end) {
 		/* We cannot add a barrier beyond the end of the reserved memory. */
 		//assert((uintptr_t) shmaddr + size - natmem_end == BARRIER);
 		write_log(_T("NATMEM: Removing barrier (%d bytes) beyond reserved memory\n"), BARRIER);
@@ -971,9 +1006,9 @@ int uae_shmget (uae_key_t key, addrbank *ab, int shmflg)
 	int result = -1;
 
 	if ((key == UAE_IPC_PRIVATE) || ((shmflg & UAE_IPC_CREAT) && (find_shmkey (key) == -1))) {
-		write_log (_T("shmget of size %zd (%zdk) for %s (%s)\n"), ab->allocated, ab->allocated >> 10, ab->label, ab->name);
+		write_log (_T("shmget of size %zd (%zdk) for %s (%s)\n"), ab->reserved_size, ab->reserved_size >> 10, ab->label, ab->name);
 		if ((result = get_next_shmkey ()) != -1) {
-			shmids[result].size = ab->allocated;
+			shmids[result].size = ab->reserved_size;
 			_tcscpy (shmids[result].name, ab->label);
 		} else {
 			result = -1;

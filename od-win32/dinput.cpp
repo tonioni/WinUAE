@@ -7,6 +7,7 @@
 */
 
 int rawinput_enabled_hid = -1;
+int xinput_enabled = 0;
 // 1 = keyboard
 // 2 = mouse
 // 4 = joystick
@@ -57,6 +58,9 @@ int no_windowsmouse = 0;
 #include <setupapi.h>
 #include <devguid.h>
 #include <cfgmgr32.h>
+#include <wbemidl.h>
+#include <oleauto.h>
+
 
 extern "C" 
 {
@@ -80,6 +84,7 @@ extern "C"
 #define DIDC_WIN 3
 #define DIDC_CAT 4
 #define DIDC_PARJOY 5
+#define DIDC_XINPUT 6
 
 #define AXISTYPE_NORMAL 0
 #define AXISTYPE_POV_X 1
@@ -1494,6 +1499,30 @@ static const TCHAR *tohex(TCHAR *s)
 	return out;
 }
 
+static void add_xinput_device(struct didata *did)
+{
+	TCHAR tmp[256];
+	
+	did->connection = DIDC_XINPUT;
+
+
+	int buttoncnt = 0;
+	for (int i = 1; i <= 16; i++) {
+		did->buttonsort[buttoncnt] = i * 2;
+		did->buttonmappings[buttoncnt] = i;
+		_stprintf(tmp, _T("Button %d"), i);
+		did->buttonname[buttoncnt] = my_strdup(tmp);
+		buttoncnt++;
+	}
+	did->buttons = buttoncnt;
+
+
+
+	fixbuttons(did);
+	fixthings(did);
+}
+
+
 #define MAX_RAW_KEYBOARD 0
 
 static bool initialize_rawinput (void)
@@ -1697,8 +1726,6 @@ static bool initialize_rawinput (void)
 				num_joystick++;
 				rhid++;
 				v = rhid;
-				if (_tcsstr (buf1, _T("IG_")))
-					did->xinput = 1;
 			}
 
 			prodname[0] = 0;
@@ -1736,6 +1763,9 @@ static bool initialize_rawinput (void)
 
 			rnum_raw++;
 			cleardid (did);
+			if (_tcsstr(buf1, _T("IG_"))) {
+				did->xinput = 1;
+			}
 			getvidpid (buf1, &did->vid, &did->pid, &did->mi);
 			if (prodname[0]) {
 				_tcscpy (tmp, prodname);
@@ -1748,6 +1778,7 @@ static bool initialize_rawinput (void)
 					_stprintf (tmp, _T("%s"), st);
 			}
 			did->name = my_strdup (tmp);
+
 			did->rawinput = h;
 			did->rawhidhandle = hhid;
 			did->connection = DIDC_RAW;
@@ -1806,6 +1837,17 @@ static bool initialize_rawinput (void)
 					did->priority = -2;
 			} else {
 				bool ok = false;
+
+#if 0
+				if (did->xinput) {
+					CloseHandle(did->rawhidhandle);
+					did->rawhidhandle = NULL;
+					rhid--;
+					rnum_raw--;
+					add_xinput_device(did);
+					continue;
+				}
+#endif
 				if (hhid != INVALID_HANDLE_VALUE && HidD_GetPreparsedData (hhid, &did->hidpreparseddata)) {
 					if (HidP_GetCaps (did->hidpreparseddata, &did->hidcaps) == HIDP_STATUS_SUCCESS) {
 						PHIDP_BUTTON_CAPS bcaps;
@@ -1953,6 +1995,7 @@ static bool initialize_rawinput (void)
 					did->hidpreparseddata = NULL;
 					num_joystick--;
 					rhid--;
+					rnum_raw--;
 				}
 			}
 		}
@@ -2961,6 +3004,118 @@ static void di_dev_free (struct didata *did)
 	cleardid(did);
 }
 
+#if 0
+#define SAFE_RELEASE(x) if(x) x->Release();
+
+// believe it or not, this is MS example code!
+BOOL IsXInputDevice(const GUID* pGuidProductFromDirectInput)
+{
+	IWbemLocator*           pIWbemLocator = NULL;
+	IEnumWbemClassObject*   pEnumDevices = NULL;
+	IWbemClassObject*       pDevices[20] = { 0 };
+	IWbemServices*          pIWbemServices = NULL;
+	BSTR                    bstrNamespace = NULL;
+	BSTR                    bstrDeviceID = NULL;
+	BSTR                    bstrClassName = NULL;
+	DWORD                   uReturned = 0;
+	bool                    bIsXinputDevice = false;
+	UINT                    iDevice = 0;
+	VARIANT                 var;
+	HRESULT                 hr;
+
+	// CoInit if needed
+	hr = CoInitialize(NULL);
+	bool bCleanupCOM = SUCCEEDED(hr);
+
+	// Create WMI
+	hr = CoCreateInstance(__uuidof(WbemLocator),
+		NULL,
+		CLSCTX_INPROC_SERVER,
+		__uuidof(IWbemLocator),
+		(LPVOID*)&pIWbemLocator);
+	if (FAILED(hr) || pIWbemLocator == NULL)
+		goto LCleanup;
+
+	bstrNamespace = SysAllocString(L"\\\\.\\root\\cimv2"); if (bstrNamespace == NULL) goto LCleanup;
+	bstrClassName = SysAllocString(L"Win32_PNPEntity");   if (bstrClassName == NULL) goto LCleanup;
+	bstrDeviceID = SysAllocString(L"DeviceID");          if (bstrDeviceID == NULL)  goto LCleanup;
+
+	// Connect to WMI 
+	hr = pIWbemLocator->ConnectServer(bstrNamespace, NULL, NULL, 0L,
+		0L, NULL, NULL, &pIWbemServices);
+	if (FAILED(hr) || pIWbemServices == NULL)
+		goto LCleanup;
+
+	// Switch security level to IMPERSONATE. 
+	CoSetProxyBlanket(pIWbemServices, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, NULL,
+		RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, NULL, EOAC_NONE);
+
+	hr = pIWbemServices->CreateInstanceEnum(bstrClassName, 0, NULL, &pEnumDevices);
+	if (FAILED(hr) || pEnumDevices == NULL)
+		goto LCleanup;
+
+	// Loop over all devices
+	for (;; )
+	{
+		// Get 20 at a time
+		hr = pEnumDevices->Next(10000, 20, pDevices, &uReturned);
+		if (FAILED(hr))
+			goto LCleanup;
+		if (uReturned == 0)
+			break;
+
+		for (iDevice = 0; iDevice<uReturned; iDevice++)
+		{
+			// For each device, get its device ID
+			hr = pDevices[iDevice]->Get(bstrDeviceID, 0L, &var, NULL, NULL);
+			if (SUCCEEDED(hr) && var.vt == VT_BSTR && var.bstrVal != NULL)
+			{
+				// Check if the device ID contains "IG_".  If it does, then it's an XInput device
+				// This information can not be found from DirectInput 
+				if (wcsstr(var.bstrVal, L"IG_"))
+				{
+					// If it does, then get the VID/PID from var.bstrVal
+					DWORD dwPid = 0, dwVid = 0;
+					WCHAR* strVid = wcsstr(var.bstrVal, L"VID_");
+					if (strVid && swscanf(strVid, L"VID_%4X", &dwVid) != 1)
+						dwVid = 0;
+					WCHAR* strPid = wcsstr(var.bstrVal, L"PID_");
+					if (strPid && swscanf(strPid, L"PID_%4X", &dwPid) != 1)
+						dwPid = 0;
+
+					// Compare the VID/PID to the DInput device
+					DWORD dwVidPid = MAKELONG(dwVid, dwPid);
+					if (pGuidProductFromDirectInput && dwVidPid == pGuidProductFromDirectInput->Data1)
+					{
+						bIsXinputDevice = true;
+						goto LCleanup;
+					}
+				}
+			}
+			SAFE_RELEASE(pDevices[iDevice]);
+		}
+	}
+
+LCleanup:
+	if (bstrNamespace)
+		SysFreeString(bstrNamespace);
+	if (bstrDeviceID)
+		SysFreeString(bstrDeviceID);
+	if (bstrClassName)
+		SysFreeString(bstrClassName);
+	for (iDevice = 0; iDevice<20; iDevice++)
+		SAFE_RELEASE(pDevices[iDevice]);
+	SAFE_RELEASE(pEnumDevices);
+	SAFE_RELEASE(pIWbemLocator);
+	SAFE_RELEASE(pIWbemServices);
+
+	if (bCleanupCOM)
+		CoUninitialize();
+
+	return bIsXinputDevice;
+}
+#endif
+
 static int di_do_init (void)
 {
 	HRESULT hr;
@@ -2981,6 +3136,10 @@ static int di_do_init (void)
 
 	if (!os_vista && rawinput_enabled_hid < 0)
 		rawinput_enabled_hid = 0;
+
+#if 0
+	IsXInputDevice(NULL);
+#endif
 
 	if (!no_rawinput) {
 		write_log (_T("RawInput enumeration..\n"));
