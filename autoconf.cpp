@@ -540,6 +540,12 @@ static uae_u32 REGPARAM2 uae_puts (TrapContext *ctx)
 
 void rtarea_init_mem (void)
 {
+	if (need_uae_boot_rom(&currprefs)) {
+		rtarea_bank.flags &= ~ABFLAG_ALLOCINDIRECT;
+	} else {
+		// not enabled and something else may use same address space
+		rtarea_bank.flags |= ABFLAG_ALLOCINDIRECT;
+	}
 	rtarea_bank.reserved_size = RTAREA_SIZE;
 	rtarea_bank.start = rtarea_base;
 	if (!mapped_malloc (&rtarea_bank)) {
