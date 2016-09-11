@@ -2338,17 +2338,19 @@ static int drive_write_adf_amigados (drive *drv)
 /* write raw track to disk file */
 static int drive_write_ext2 (uae_u16 *bigmfmbuf, struct zfile *diskfile, trackid *ti, int tracklen)
 {
-	int len, i;
+	int len, i, offset;
 
+	offset = 0;
 	len = (tracklen + 7) / 8;
 	if (len > ti->len) {
 		write_log (_T("disk raw write: image file's track %d is too small (%d < %d)!\n"), ti->track, ti->len, len);
+		offset = (len - ti->len) / 2;
 		len = ti->len;
 	}
 	diskfile_update (diskfile, ti, tracklen, TRACK_RAW);
 	for (i = 0; i < ti->len / 2; i++) {
-		uae_u16 *mfm = bigmfmbuf + i;
-		uae_u16 *mfmw = bigmfmbufw + i;
+		uae_u16 *mfm = bigmfmbuf + i + offset;
+		uae_u16 *mfmw = bigmfmbufw + i + offset;
 		uae_u8 *data = (uae_u8 *) mfm;
 		*mfmw = 256 * *data + *(data + 1);
 	}
