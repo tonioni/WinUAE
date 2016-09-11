@@ -723,7 +723,8 @@ void lsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid)
     DPRINTF("Command complete status=%d\n", (int)status);
     s->status = status;
     s->command_complete = 2;
-    if (s->waiting && s->dbc != 0) {
+	// this does not seem to be correct (breaks CSPPC SCSI)
+    if (0 && s->waiting && s->dbc != 0) {
         /* Raise phase mismatch for short transfers.  */
         lsi_bad_phase(s, out, PHASE_ST);
     } else {
