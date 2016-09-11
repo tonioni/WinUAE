@@ -430,6 +430,7 @@ static void call_card_init(int index)
 	bool ok = false;
 
 	if (currprefs.address_space_24 && cd->cst && (cd->cst->deviceflags & EXPANSIONTYPE_FALLBACK_DISABLE)) {
+		write_log(_T("Card %d: skipping autoconfig (fallback mode)\n"), ecard);
 		expamem_next(NULL, NULL);
 		return;
 	}
@@ -441,6 +442,7 @@ static void call_card_init(int index)
 	aci->ert = cd->ert;
 	aci->cst = cd->cst;
 	aci->rc = cd->rc;
+	aci->zorro = cd->zorro;
 	memset(aci->autoconfig_raw, 0xff, sizeof aci->autoconfig_raw);
 	if (cd->initnum) {
 		ok = cd->initnum(aci);
@@ -452,10 +454,12 @@ static void call_card_init(int index)
 		if (!cd->map)
 			ab = aci->addrbank;
 	} else {
+		write_log(_T("Card %d: skipping autoconfig (init failed)\n"), ecard);
 		expamem_next(NULL, NULL);
 		return;
 	}
 	if (ab == &expamem_none) {
+		write_log(_T("Card %d: skipping autoconfig (none)\n"), ecard);
 		expamem_init_clear();
 		expamem_init_clear_zero();
 		map_banks(&expamem_bank, 0xE8, 1, 0);
@@ -464,7 +468,8 @@ static void call_card_init(int index)
 		expamem_bank_current = NULL;
 		return;
 	}
-	if (ab == &expamem_null || cd->zorro < 1 || cd->zorro > 3) {
+	if (ab == &expamem_null || cd->zorro < 1 || cd->zorro > 3 || aci->zorro < 0) {
+		write_log(_T("Card %d: skipping autoconfig (not autoconfig)\n"), ecard);
 		expamem_next(NULL, NULL);
 		return;
 	}
@@ -1717,7 +1722,6 @@ static bool expamem_init_filesys(struct autoconfig_info *aci)
 	if (ks12)
 		add_ks12_boot_hack();
 
-	//memcpy (filesys_bank.baseaddr, expamem, 0x3000);
 	return true;
 }
 
@@ -3259,7 +3263,7 @@ static void expansion_add_autoconfig(struct uae_prefs *p)
 		}
 	}
 #ifdef PICASSO96
-		for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		if (p->rtgboards[i].rtgmem_size && p->rtgboards[i].rtgmem_type == GFXBOARD_UAE_Z3) {
 			cards_set[cardno].flags = 4 | CARD_FLAG_CAN_Z3 | (i << 16);
 			cards_set[cardno].name = _T("Z3RTG");
