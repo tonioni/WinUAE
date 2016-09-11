@@ -1,5 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="packages\VisualCppTools.14.0.24509-Pre\build\native\VisualCppTools.props" Condition="Exists('packages\VisualCppTools.14.0.24509-Pre\build\native\VisualCppTools.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -625,7 +626,7 @@
     </Midl>
     <ClCompile>
       <Optimization>Full</Optimization>
-      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
@@ -649,7 +650,7 @@
       <ObjectFileName>.\FullRelease/</ObjectFileName>
       <ProgramDataBaseFileName>.\FullRelease/</ProgramDataBaseFileName>
       <WarningLevel>Level3</WarningLevel>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <SuppressStartupBanner>false</SuppressStartupBanner>
       <CallingConvention>FastCall</CallingConvention>
       <CompileAs>Default</CompileAs>
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
@@ -727,7 +728,7 @@
       <ObjectFileName>$(Platform)\$(Configuration)\</ObjectFileName>
       <ProgramDataBaseFileName>$(Platform)\$(Configuration)\</ProgramDataBaseFileName>
       <WarningLevel>Level3</WarningLevel>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <SuppressStartupBanner>false</SuppressStartupBanner>
       <CallingConvention>FastCall</CallingConvention>
       <CompileAs>Default</CompileAs>
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
@@ -1044,6 +1045,7 @@
     <None Include="..\resources\move_up.ico" />
     <None Include="..\resources\paths.ico" />
     <None Include="..\resources\port.ico" />
+    <None Include="packages.config" />
     <None Include="port.ico" />
     <None Include="..\resources\quickstart.ico" />
     <None Include="..\resources\root.ico" />
@@ -1118,4 +1120,10 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('packages\VisualCppTools.14.0.24509-Pre\build\native\VisualCppTools.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\VisualCppTools.14.0.24509-Pre\build\native\VisualCppTools.props'))" />
+  </Target>
 </Project>

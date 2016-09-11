@@ -5,6 +5,23 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 6:
+
+- Workaround for possible NCR53C720+ emulation bug when read is shorter than command's allocation size. CSPPC SCSI driver gets confused
+  if it causes phase mismatch error. (b5 REQUEST SENSE fix caused this side-effect)
+- CSMK3/CSPPC/BPPC without UAE Boot ROM: accelerator boot ROM didn't work very well.
+- Picasso IV enabled + reset: always caused hard reset.
+- If extended ADF's track space is smaller than write length, ignore first bits in sector buffer (it is most likely part of the gap).
+- Fill REQUEST SENSE Information Bytes (if SCSI) or Address bytes (if SASI) if error was LBA related.
+- x86 VGA board didn't correctly skip autoconfig. (It is technically shared with normal autoconfig boards)
+- b5 memory bank update broke ECS 0.5M+0.5M config.
+- Compiled again with pre-release MSVC compiler. Does speed now match 3.3.0? (Few reported that 3.4 betas have slower performance)
+  This breaks most SHIFT+<something> shortcuts.. (It appears to be optimizer bug related to 64-bit variables in 32-bit mode)
+  Temporary change, either I'll add workaround or I'll use official version or final/fixed version will be released soon.
+  Only confirming if this helps with performance.
+
+Beta 5:
+
 - Buddha Z2 IDE controller emulation added. Catweasel Z2 model optionally selectable (Has nearly identical Buddha hardware, CW
   part is not emulated). No ROMs added, flash rom images are available from manufacturer's web site. IDE doubler is not emulated.
 - Reset drive sound state when emulated Amiga is reset.
