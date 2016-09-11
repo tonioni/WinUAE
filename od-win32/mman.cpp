@@ -424,7 +424,7 @@ static int doinit_shm (void)
 	}
 
 	// rtg outside of natmem?
-	if (end_rtg > natmem_reserved_size) {
+	if (start_rtg > 0 && start_rtg < 0xffffffff && end_rtg > natmem_reserved_size) {
 		if (jit_direct_compatible_memory) {
 			write_log(_T("MMAN: VRAM outside of natmem (%08x > %08x), switching off JIT Direct.\n"), end_rtg, natmem_reserved_size);
 			jit_direct_compatible_memory = false;
