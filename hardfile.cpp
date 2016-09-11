@@ -1152,7 +1152,7 @@ static int checkbounds (struct hardfiledata *hfd, uae_u64 offset, uae_u64 len, i
 		for (int i = 0; i < hfd->ci.badblock_num; i++) {
 			struct uaedev_badblock *bb = &hfd->ci.badblocks[i];
 			if (offset + len >= bb->first && offset < bb->last)
-				return true;
+				return 1;
 		}
 	}
 	return 0;
@@ -1203,11 +1203,11 @@ static const uae_u8 sasi_commands2[] =
 	0xff
 };
 
-static uae_u64 get_scsi_6_offset(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8 *cmdbuf)
+static uae_u64 get_scsi_6_offset(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8 *cmdbuf, uae_u64 *lba)
 {
-	bool omti = hfd->ci.unit_feature_level == HD_LEVEL_SASI_CHS;
+	bool chs = hfd->ci.unit_feature_level == HD_LEVEL_SASI_CHS;
 	uae_u64 offset;
-	if (omti) {
+	if (chs) {
 		int cyl, cylsec, head, tracksec;
 		if (hdhfd) {
 			cyl = hdhfd->cyls;
@@ -1221,6 +1221,7 @@ static uae_u64 get_scsi_6_offset(struct hardfiledata *hfd, struct hd_hardfiledat
 		int d_cyl = cmdbuf[3] | ((cmdbuf[2] >> 6) << 8) | ((cmdbuf[1] >> 7) << 10);
 		int d_sec = cmdbuf[2] & 63;
 
+		*lba = ((cmdbuf[1] & (0x1f | 0x80 | 0x40)) << 16) | (cmdbuf[2] << 8) || cmdbuf[3];
 		if (d_cyl >= cyl || d_head >= head || d_sec >= tracksec)
 			return ~0;
 		offset = d_cyl * head * tracksec + d_head * tracksec + d_sec;
@@ -1247,6 +1248,8 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	bool sasi = hfd->ci.unit_feature_level >= HD_LEVEL_SASI && hfd->ci.unit_feature_level <= HD_LEVEL_SASI_ENHANCED;
 	bool sasie = hfd->ci.unit_feature_level == HD_LEVEL_SASI_ENHANCED;
 	bool omti = hfd->ci.unit_feature_level == HD_LEVEL_SASI_CHS;
+	uae_u8 sasi_sense = 0;
+	uae_u64 current_lba = ~0;
 
 	cmd = cmdbuf[0];
 
@@ -1267,7 +1270,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	if (sasi || omti) {
 		lun = lun & 1;
 		if (lun)
-			goto sasi_nodisk;
+			goto nodisk;
 	}
 	if (cmd != 0x03 && cmd != 0x12 && lun) {
 		status = 2; /* CHECK CONDITION */
@@ -1302,15 +1305,18 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			case 0x05: /* READ VERIFY */
 			if (nodisk(hfd))
 				goto nodisk;
-			offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf);
+			offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf, &current_lba);
 			if (offset == ~0) {
 				chkerr = 1;
 				goto checkfail;
 			}
+			current_lba = offset;
 			offset *= hfd->ci.blocksize;
 			chkerr = checkbounds(hfd, offset, hfd->ci.blocksize, 1);
-			if (chkerr)
+			if (chkerr) {
+				current_lba = offset;
 				goto checkfail;
+			}
 			scsi_len = 0;
 			goto scsi_done;
 			case 0x0c: /* INITIALIZE DRIVE CHARACTERISTICS */
@@ -1420,25 +1426,29 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	case 0x09: /* READ VERIFY */
 		if (nodisk(hfd))
 			goto nodisk;
-		offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf);
+		offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf, &current_lba);
 		if (offset == ~0) {
 			chkerr = 1;
 			goto checkfail;
 		}
+		current_lba = offset;
 		offset *= hfd->ci.blocksize;
 		chkerr = checkbounds(hfd, offset, hfd->ci.blocksize, 1);
-		if (chkerr)
+		if (chkerr) {
+			current_lba = offset;
 			goto checkfail;
+		}
 		scsi_len = 0;
 		break;
 	case 0x0b: /* SEEK (6) */
 		if (nodisk (hfd))
 			goto nodisk;
-		offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf);
+		offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf, &current_lba);
 		if (offset == ~0) {
 			chkerr = 1;
 			goto checkfail;
 		}
+		current_lba = offset;
 		offset *= hfd->ci.blocksize;
 		chkerr = checkbounds(hfd, offset, hfd->ci.blocksize, 3);
 		if (chkerr)
@@ -1448,11 +1458,12 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	case 0x08: /* READ (6) */
 		if (nodisk (hfd))
 			goto nodisk;
-		offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf);
+		offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf, &current_lba);
 		if (offset == ~0) {
 			chkerr = 1;
 			goto checkfail;
 		}
+		current_lba = offset;
 		offset *= hfd->ci.blocksize;
 		len = cmdbuf[4];
 		if (!len)
@@ -1471,11 +1482,12 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			goto nodisk;
 		if (is_writeprotected(hfd))
 			goto readprot;
-		offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf);
+		offset = get_scsi_6_offset(hfd, hdhfd, cmdbuf, &current_lba);
 		if (offset == ~0) {
 			chkerr = 1;
 			goto checkfail;
 		}
+		current_lba = offset;
 		offset *= hfd->ci.blocksize;
 		len = cmdbuf[4];
 		if (!len)
@@ -1651,6 +1663,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		if (nodisk (hfd))
 			goto nodisk;
 		offset = rl (cmdbuf + 2);
+		current_lba = offset;
 		offset *= hfd->ci.blocksize;
 		chkerr = checkbounds(hfd, offset, hfd->ci.blocksize, 3);
 		if (chkerr)
@@ -1661,6 +1674,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		if (nodisk (hfd))
 			goto nodisk;
 		offset = rl (cmdbuf + 2);
+		current_lba = offset;
 		offset *= hfd->ci.blocksize;
 		len = rl (cmdbuf + 7 - 2) & 0xffff;
 		len *= hfd->ci.blocksize;
@@ -1675,6 +1689,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		if (is_writeprotected(hfd))
 			goto readprot;
 		offset = rl (cmdbuf + 2);
+		current_lba = offset;
 		offset *= hfd->ci.blocksize;
 		len = rl (cmdbuf + 7 - 2) & 0xffff;
 		len *= hfd->ci.blocksize;
@@ -1690,6 +1705,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 				goto nodisk;
 			if (bytchk) {
 				offset = rl (cmdbuf + 2);
+				current_lba = offset;
 				offset *= hfd->ci.blocksize;
 				len = rl (cmdbuf + 7 - 2) & 0xffff;
 				len *= hfd->ci.blocksize;
@@ -1721,6 +1737,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		if (nodisk (hfd))
 			goto nodisk;
 		offset = rl (cmdbuf + 2);
+		current_lba = offset;
 		offset *= hfd->ci.blocksize;
 		len = rl (cmdbuf + 6);
 		len *= hfd->ci.blocksize;
@@ -1735,6 +1752,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		if (is_writeprotected(hfd))
 			goto readprot;
 		offset = rl (cmdbuf + 2);
+		current_lba = offset;
 		offset *= hfd->ci.blocksize;
 		len = rl (cmdbuf + 6);
 		len *= hfd->ci.blocksize;
@@ -1770,12 +1788,7 @@ readprot:
 		s[2] = 7; /* DATA PROTECT */
 		s[12] = 0x27; /* WRITE PROTECTED */
 		ls = 0x12;
-		break;
-sasi_nodisk:
-		status = 2;
-		s[0] = 0x04; // Drive not ready
-		s[1] = lun << 5;
-		ls = 4;
+		sasi_sense = 0x03; // write fault
 		break;
 nodisk:
 		status = 2; /* CHECK CONDITION */
@@ -1783,6 +1796,7 @@ nodisk:
 		s[2] = 2; /* NOT READY */
 		s[12] = 0x3A; /* MEDIUM NOT PRESENT */
 		ls = 0x12;
+		sasi_sense = 0x04; // drive not ready
 		break;
 
 	default:
@@ -1794,41 +1808,41 @@ errreq:
 		s[2] = 5; /* ILLEGAL REQUEST */
 		s[12] = 0x24; /* ILLEGAL FIELD IN CDB */
 		ls = 0x12;
+		sasi_sense = 0x22; // invalid parameter
 		break;
 checkfail:
 		status = 2; /* CHECK CONDITION */
-		s[0] = 0x70;
+		s[0] = 0x70 | ((current_lba != ~0) ? 0x80 : 0x00);
 		if (chkerr < 0) {
 			s[2] = 5; /* ILLEGAL REQUEST */
 			s[12] = 0x21; /* LOGICAL BLOCK OUT OF RANGE */
+			sasi_sense = 0x21; // illegal disk address
 		} else {
 			s[2] = 3; /* MEDIUM ERROR */
-			if (chkerr == 1)
+			if (chkerr == 1) {
 				s[12] = 0x11; /* Unrecovered Read Error */
-			if (chkerr == 2)
+				sasi_sense = 0x11; // uncorrectable data error
+			}
+			if (chkerr == 2) {
 				s[12] = 0x0c; /* Write Error */
+				sasi_sense = 0x03; // write fault
+			}
 		}
 		ls = 0x12;
 		break;
 miscompare:
 		status = 2; /* CHECK CONDITION */
-		s[0] = 0x70;
+		s[0] = 0x70 | ((current_lba != ~0) ? 0x80 : 0x00);
 		s[2] = 5; /* ILLEGAL REQUEST */
 		s[12] = 0x1d; /* MISCOMPARE DURING VERIFY OPERATION */
 		ls = 0x12;
+		sasi_sense = 0x11; // uncorrectable data error
 		break;
 	}
 scsi_done:
 
 	if (ls > 7)
 		s[7] = ls - 8;
-
-	if (log_scsiemu && ls) {
-		write_log (_T("-> SENSE STATUS: KEY=%d ASC=%02X ASCQ=%02X\n"), s[2], s[12], s[13]);
-		for (int i = 0; i < ls; i++)
-			write_log (_T("%02X."), s[i]);
-		write_log (_T("\n"));	
-	}
 
 	if (log_scsiemu)
 		write_log (_T("-> DATAOUT=%d ST=%d SENSELEN=%d REPLYLEN=%d\n"), scsi_len, status, ls, lr);
@@ -1843,18 +1857,45 @@ scsi_done:
 			write_log (_T("\n"));	
 		}
 	}
-	*sense_len = ls;
 	if (ls > 0) {
-		if (omti) {
-			if (ls > 4) {
+		if (omti || sasi) {
+			if (sasi_sense != 0) {
+				bool islba = (s[0] & 0x80) != 0;
 				ls = 4;
-				*sense_len = ls;
+				s[0] = sasi_sense | (islba ? 0x80 : 0x00);
+				s[1] = (lun & 1) << 5;
+				s[2] = 0;
+				s[3] = 0;
+				if (islba) {
+					s[1] |= (current_lba >> 16) & 31;
+					s[2] = (current_lba >> 8) & 255;
+					s[3] = (current_lba >> 0) & 255;
+				}
 			}
-			hfd->scsi_sense[1] = (lun & 1) << 5;
+			if (log_scsiemu && ls) {
+				write_log(_T("-> SENSE STATUS:\n"));
+				for (int i = 0; i < ls; i++)
+					write_log(_T("%02X."), s[i]);
+				write_log(_T("\n"));
+			}
+		} else {
+			if (s[0] & 0x80) {
+				s[3] = (current_lba >> 24) & 255;
+				s[4] = (current_lba >> 16) & 255;
+				s[5] = (current_lba >>  8) & 255;
+				s[6] = (current_lba >>  0) & 255;
+			}
+			if (log_scsiemu && ls) {
+				write_log(_T("-> SENSE STATUS: KEY=%d ASC=%02X ASCQ=%02X\n"), s[2], s[12], s[13]);
+				for (int i = 0; i < ls; i++)
+					write_log(_T("%02X."), s[i]);
+				write_log(_T("\n"));
+			}
 		}
 		memset (hfd->scsi_sense, 0, MAX_SCSI_SENSE);
 		memcpy (hfd->scsi_sense, s, ls);
 	}
+	*sense_len = ls;
 	return status;
 }
 

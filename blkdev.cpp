@@ -2057,7 +2057,8 @@ end:
 	}
 	if (ls) {
 		//s[0] |= 0x80;
-		s[7] = ls - 7; // additional sense length
+		if (ls > 7)
+			s[7] = ls - 8; // additional sense length
 		if (log_scsiemu) {
 			write_log (_T("-> SENSE STATUS: KEY=%d ASC=%02X ASCQ=%02X\n"), s[2], s[12], s[13]);
 		}

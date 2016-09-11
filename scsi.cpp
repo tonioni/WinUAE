@@ -255,18 +255,14 @@ static void copysense(struct scsi_data *sd)
 {
 	bool sasi = sd->hfd && (sd->hfd->ci.unit_feature_level >= HD_LEVEL_SASI && sd->hfd->ci.unit_feature_level <= HD_LEVEL_SASI_ENHANCED);
 	int len = sd->cmd[4];
-	if (log_scsiemu)
-		write_log (_T("REQUEST SENSE length %d (%d)\n"), len, sd->sense_len);
 	if (len == 0 || sasi)
 		len = 4;
 	memset(sd->buffer, 0, len);
 	int tlen = sd->sense_len > len ? len : sd->sense_len;
+	if (log_scsiemu)
+		write_log(_T("REQUEST SENSE %d (%d -> %d)\n"), sd->cmd[4], sd->sense_len, tlen);
 	memcpy(sd->buffer, sd->sense, tlen);
-	if (len > 7 && sd->sense_len > 7)
-		sd->buffer[7] = sd->sense_len - 8;
-	if (sasi) {
-		sd->buffer[0] = sd->sense[12]; // 0 <- ASC
-	} else if (sd->sense_len == 0) {
+	if (!sasi && sd->sense_len == 0) {
 		sd->buffer[0] = 0x70;
 	}
 	showsense (sd);
