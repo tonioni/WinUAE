@@ -3713,6 +3713,7 @@ static void cpuid_count(uae_u32 op, uae_u32 count, uae_u32 *eax, uae_u32 *ebx, u
 #endif
 
 #ifdef _MSC_VER
+#include <intrin.h>
 static void cpuid_count(uae_u32 op, uae_u32 count, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx)
 {
 	int cpuinfo[4];
