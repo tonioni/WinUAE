@@ -1830,10 +1830,12 @@ static void allocate_memory (void)
 				chipmem_bank.reserved_size = memsize1 + memsize2;
 				mapped_malloc (&chipmem_bank);
 				chipmem_bank.reserved_size = currprefs.chipmem_size;
+				chipmem_bank.allocated_size = currprefs.chipmem_size;
 				bogomem_bank.baseaddr = chipmem_bank.baseaddr + memsize1;
 				bogomem_bank.mask = bogomem_bank.reserved_size - 1;
 				bogomem_bank.start = bogomem_start_addr;
 				bogomem_bank.flags |= ABFLAG_NOALLOC;
+				bogomem_bank.allocated_size = bogomem_bank.reserved_size;
 				if (chipmem_bank.baseaddr == 0) {
 					write_log (_T("Fatal error: out of memory for chipmem.\n"));
 					chipmem_bank.reserved_size = 0;
@@ -1858,6 +1860,7 @@ static void allocate_memory (void)
 				chipmem_bank.reserved_size = memsize1 + memsize2;
 				mapped_malloc (&chipmem_bank);
 				chipmem_bank.reserved_size = currprefs.chipmem_size;
+				chipmem_bank.allocated_size = currprefs.chipmem_size;
 				bogomem_bank.baseaddr = chipmem_bank.baseaddr + memsize1;
 				bogomem_bank.mask = bogomem_bank.reserved_size - 1;
 				bogomem_bank.start = chipmem_bank.start + currprefs.chipmem_size;
@@ -1887,6 +1890,7 @@ static void allocate_memory (void)
 		chipmem_bank.reserved_size = memsize;
 		mapped_malloc (&chipmem_bank);
 		chipmem_bank.reserved_size = currprefs.chipmem_size;
+		chipmem_bank.allocated_size = currprefs.chipmem_size;
 		if (chipmem_bank.baseaddr == 0) {
 			write_log (_T("Fatal error: out of memory for chipmem.\n"));
 			chipmem_bank.reserved_size = 0;
