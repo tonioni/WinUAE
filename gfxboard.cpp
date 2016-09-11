@@ -370,8 +370,10 @@ static void init_board (struct rtggfxboard *gb)
 	gb->vram += gb->vram_start_offset;
 	gb->vramend += gb->vram_start_offset;
 	gb->gfxmem_bank->baseaddr = gb->vram;
-	if (rbc->rtgmem_size < gb->gfxmem_bank->allocated_size)
-		gb->gfxmem_bank->allocated_size = rbc->rtgmem_size;
+	// restore original value because this is checked against
+	// configured size in expansion.cpp
+	gb->gfxmem_bank->allocated_size = rbc->rtgmem_size;
+	gb->gfxmem_bank->reserved_size = rbc->rtgmem_size;
 	gb->vga.vga.vram_size_mb = rbc->rtgmem_size >> 20;
 	gb->vgaioregion.opaque = &gb->vgaioregionptr;
 	gb->vgaioregion.data = gb;
@@ -1701,8 +1703,8 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 		gb->gfxboard_bank_memory.bget = gfxboard_bget_mem;
 		gb->gfxboard_bank_memory.bput = gfxboard_bput_mem;
 		gb->gfxboard_bank_memory.wput = gfxboard_wput_mem;
+		init_board(gb);
 		copyvrambank(&gb->gfxboard_bank_memory, gb->gfxmem_bank);
-		init_board (gb);
 		if (ISP4()) {
 			if (validate_banks_z3(&gb->gfxboard_bank_memory, gb->gfxmem_bank->start >> 16, expamem_board_size >> 16)) {
 				// main vram
@@ -2666,7 +2668,7 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	aci->direct_vram = true;
 	aci->addrbank = &gb->gfxboard_bank_memory;
 	if (gb->rbc->rtgmem_type == GFXBOARD_VGA) {
-		aci->zorro = 0;
+		aci->zorro = -1;
 	}
 	aci->parent = aci;
 	gb->configured_mem = -1;
