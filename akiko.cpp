@@ -31,8 +31,8 @@
 #include "debug.h"
 
 #define AKIKO_DEBUG_NVRAM 0
-#define AKIKO_DEBUG_IO 0
-#define AKIKO_DEBUG_IO_CMD 0
+#define AKIKO_DEBUG_IO 1
+#define AKIKO_DEBUG_IO_CMD 1
 
 int log_cd32 = 0;
 
@@ -895,7 +895,7 @@ static int cdrom_command_multi (void)
 				lsn2msf(seekpos), seekpos, lsn2msf(endpos), endpos, scan);
 #endif
 		// offset 10, bit 2 set: don't send subchannel data
-		if (seekpos < 150) {
+		if (seekpos < 0) {
 			cdrom_toc_counter = 0;
 		} else {
 			cdrom_toc_counter = -1;
