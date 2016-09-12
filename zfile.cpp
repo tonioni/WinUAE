@@ -1963,6 +1963,10 @@ struct zfile *zfile_dup (struct zfile *zf)
 	} else if (zf->data) {
 		nzf = zfile_create (zf, NULL);
 		nzf->data = xmalloc (uae_u8, zf->size);
+		if (!nzf->data) {
+			write_log(_T("Out of memory: %s\n"), zfile_getname(zf));
+			return NULL;
+		}
 		memcpy (nzf->data, zf->data, zf->size);
 		nzf->size = zf->size;
 		nzf->datasize = zf->datasize;
