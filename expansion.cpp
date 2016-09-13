@@ -1475,7 +1475,7 @@ static void fastmem_autoconfig(struct uae_prefs *p, struct autoconfig_info *aci,
 		for (int i = 0; i < 16; i++) {
 			ac[i] = forceac[i];
 			ac[0] &= ~7;
-			ac[0] |= type;
+			ac[0] |= type & 7;
 			if (flags)
 				ac[0x08 / 4] = flags;
 		}
