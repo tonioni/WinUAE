@@ -105,7 +105,7 @@ struct sound_dp
 	int wasapigoodsize;
 	
 	int pullmode;
-	HANDLE pullevent;
+	HANDLE pullevent, pullevent2;
 	uae_u8 *pullbuffer;
 	int pullbufferlen;
 	int pullbuffermaxlen;
@@ -678,8 +678,12 @@ static int _cdecl portAudioCallback (const void *inputBuffer, void *outputBuffer
 		return paContinue;
 
 	if (s->pullbufferlen <= 0) {
+		ResetEvent(s->pullevent2);
 		SetEvent(s->pullevent);
-		return paContinue;
+		WaitForSingleObject(s->pullevent2, 1);
+		if (s->pullbufferlen <= 0) {
+			return paContinue;
+		}
 	}
 
 	bytestocopy = framesPerBuffer * sd->samplesize;
@@ -701,6 +705,12 @@ static void close_audio_pa (struct sound_data *sd)
 
 	if (s->pastream)
 		Pa_CloseStream (s->pastream);
+	if (s->pullevent)
+		CloseHandle(s->pullevent);
+	s->pullevent = NULL;
+	if (s->pullevent2)
+		CloseHandle(s->pullevent2);
+	s->pullevent2 = NULL;
 	s->pastream = NULL;
 }
 
@@ -786,7 +796,8 @@ fixfreq:
 	}
 
 	s->pullevent = CreateEvent(NULL, TRUE, FALSE, NULL);
-	s->pullbuffermaxlen = sd->sndbufsize;
+	s->pullevent2 = CreateEvent(NULL, FALSE, FALSE, NULL);
+	s->pullbuffermaxlen = sd->sndbufsize * 2;
 	s->pullbuffer = xcalloc(uae_u8, s->pullbuffermaxlen);
 	s->pullbufferlen = 0;
 
@@ -1520,6 +1531,8 @@ void pause_sound_device (struct sound_data *sd)
 #endif
 	if (s->pullevent)
 		ResetEvent(s->pullevent);
+	if (s->pullevent2)
+		ResetEvent(s->pullevent2);
 }
 void resume_sound_device (struct sound_data *sd)
 {
@@ -1538,6 +1551,8 @@ void resume_sound_device (struct sound_data *sd)
 #endif
 	if (s->pullevent)
 		ResetEvent(s->pullevent);
+	if (s->pullevent2)
+		ResetEvent(s->pullevent2);
 	sd->paused = 0;
 }
 
@@ -2214,6 +2229,7 @@ static bool send_sound_do(struct sound_data *sd)
 	} else if (type == SOUND_DEVICE_PA) {
 		struct sound_dp *s = sd->data;
 		ResetEvent(s->pullevent);
+		SetEvent(s->pullevent2);
 	}
 	return false;
 }

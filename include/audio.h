@@ -49,11 +49,12 @@ bool audio_is_event_frame_possible(int);
 
 extern int sampleripper_enabled;
 
-extern int audio_enable_stream(bool, int, int);
-extern void audio_state_stream(int);
+typedef void(*CDA_CALLBACK)(int);
+typedef bool(*SOUND_STREAM_CALLBACK)(int);
+
+extern int audio_enable_stream(bool, int, int, SOUND_STREAM_CALLBACK);
 extern void audio_state_stream_state(int, int*, int, unsigned int);
 
-typedef void (*CDA_CALLBACK)(int);
 extern void audio_cda_new_buffer(uae_s16 *buffer, int length, int userdata, CDA_CALLBACK next_cd_audio_buffer_callback);
 extern void audio_cda_volume(int left, int right);
 

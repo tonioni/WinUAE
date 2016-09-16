@@ -98,6 +98,7 @@ struct audio_stream_data
 	bool active;
 	unsigned int evtime;
 	struct audio_channel_data2 data[AUDIO_CHANNEL_MAX_STREAM_CH];
+	SOUND_STREAM_CALLBACK cb;
 };
 
 struct audio_channel_data
@@ -1644,7 +1645,15 @@ static void audio_state_channel (int nr, bool perfin)
 		audio_state_channel2 (nr, perfin);
 		cdp->dat_written = false;
 	} else {
-		audio_state_stream(nr - AUDIO_CHANNELS_PAULA + 1);
+		bool ok = false;
+		int streamid = nr - AUDIO_CHANNELS_PAULA + 1;
+		struct audio_stream_data *asd = &audio_stream[nr - AUDIO_CHANNELS_PAULA];
+		if (asd->cb) {
+			ok = asd->cb(streamid);
+		}
+		if (!ok) {
+			audio_state_stream_state(streamid, NULL, 0, MAX_EV);
+		}
 	}
 }
 
@@ -2362,7 +2371,7 @@ static void audio_set_extra_channels(void)
 	set_extra_prehandler();
 }
 
-int audio_enable_stream(bool enable, int streamid, int ch)
+int audio_enable_stream(bool enable, int streamid, int ch, SOUND_STREAM_CALLBACK cb)
 {
 	if (streamid == 0)
 		return 0;
@@ -2386,6 +2395,7 @@ int audio_enable_stream(bool enable, int streamid, int ch)
 		}
 		audio_extra_streams[streamid] = ch;
 		struct audio_stream_data *asd = audio_stream + streamid;
+		asd->cb = cb;
 		asd->evtime = CYCLE_UNIT;
 		for (int i = 0; i < ch; i++) {
 			struct audio_channel_data2 *acd = &asd->data[i];
@@ -2409,7 +2419,7 @@ void audio_state_stream_state(int streamid, int *samplep, int highestch, unsigne
 	for (int i = 0; i < audio_extra_streams[streamid]; i++) {
 		struct audio_channel_data2 *acd = &asd->data[i];
 		acd->last_sample = acd->current_sample;
-		acd->current_sample = samplep[i];
+		acd->current_sample = samplep ? samplep[i] : 0;
 	}
 	asd->evtime = evt;
 }
@@ -2439,6 +2449,27 @@ void audio_cda_volume(int left, int right)
 	}
 }
 
+static bool audio_state_cda(int streamid)
+{
+	if (cda_bufptr >= dummy_buffer && cda_bufptr <= dummy_buffer + 4) {
+		audio_enable_stream(false, cda_streamid, 0, NULL);
+		cda_streamid = 0;
+		return false;
+	}
+	if (cda_streamid <= 0)
+		return false;
+	int samples[2];
+	samples[0] = cda_bufptr[0] * cda_volume[0] / 32768;
+	samples[1] = cda_bufptr[1] * cda_volume[1] / 32768;
+	audio_state_stream_state(streamid, samples, 2, cda_evt);
+	cda_bufptr += 2;
+	cda_length--;
+	if (cda_length <= 0 && cda_next_cd_audio_buffer_callback) {
+		cda_next_cd_audio_buffer_callback(cda_userdata);
+	}
+	return true;
+}
+
 void audio_cda_new_buffer(uae_s16 *buffer, int length, int userdata, CDA_CALLBACK next_cd_audio_buffer_callback)
 {
 	if (!buffer) {
@@ -2449,33 +2480,8 @@ void audio_cda_new_buffer(uae_s16 *buffer, int length, int userdata, CDA_CALLBAC
 		cda_length = length;
 		cda_userdata = userdata;
 		if (cda_streamid <= 0)
-			cda_streamid = audio_enable_stream(true, -1, 2);
+			cda_streamid = audio_enable_stream(true, -1, 2, audio_state_cda);
 	}
 	cda_next_cd_audio_buffer_callback = next_cd_audio_buffer_callback;
 	audio_activate();
-}
-
-static void audio_state_cda(void)
-{
-	if (cda_bufptr >= dummy_buffer && cda_bufptr <= dummy_buffer + 4) {
-		audio_enable_stream(false, cda_streamid, 0);
-		cda_streamid = 0;
-		return;	
-	}
-	if (cda_streamid <= 0)
-		return;
-	struct audio_stream_data *asd = audio_stream + cda_streamid;
-	asd->evtime = cda_evt;
-	struct audio_channel_data2 *acd;
-	acd = &asd->data[0];
-	acd->last_sample = acd->current_sample;
-	acd->current_sample = cda_bufptr[0] * cda_volume[0] / 32768;
-	acd = &asd->data[1];
-	acd->last_sample = acd->current_sample;
-	acd->current_sample = cda_bufptr[1] * cda_volume[1] / 32768;
-	cda_bufptr += 2;
-	cda_length--;
-	if (cda_length <= 0 && cda_next_cd_audio_buffer_callback) {
-		cda_next_cd_audio_buffer_callback(cda_userdata);
-	}
 }
