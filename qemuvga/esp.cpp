@@ -584,6 +584,7 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
 						scsiesp_req_continue(s->current_req);
 						// set ti_size back to 1, last byte is now in FIFO.
 						s->ti_size = 1;
+						s->fifo_on = 1;
 					} else {
 						esp_raise_irq(s);
 					}
@@ -612,11 +613,15 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
         return old_val;
 	case ESP_RFLAGS:
 	{
-		int v;
-		if (s->ti_size >= 16)
-			v = 16;
-		else
-			v = s->ti_size;
+		int v = 0;
+		if (s->fifo_on) {
+			if (s->ti_size >= 16)
+				v = 16;
+			else
+				v = s->ti_size;
+		}
+		if (!s->dma && v > 1)
+			v = 1;
 		return v | (s->rregs[ESP_RSEQ] << 5);
 	}
 	case ESP_RES4:
