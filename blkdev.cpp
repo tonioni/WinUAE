@@ -95,8 +95,14 @@ void tolongbcd (uae_u8 *p, int v)
 	p[2] = tobcd ((v >> 0) & 0xff);
 }
 
-static struct cd_toc *gettoc (struct cd_toc_head *th, int block)
+static struct cd_toc *gettoc (int unitnum, struct cd_toc_head *th, int block)
 {
+	if (th->lastaddress == 0) {
+		if (unitnum < 0)
+			return NULL;
+		if (!sys_command_cd_toc(unitnum, th))
+			return NULL;
+	}
 	for (int i = th->first_track_offset + 1; i <= th->last_track_offset; i++) {
 		struct cd_toc *t = &th->toc[i];
 		if (block < t->paddress)
@@ -107,7 +113,7 @@ static struct cd_toc *gettoc (struct cd_toc_head *th, int block)
 
 int isaudiotrack (struct cd_toc_head *th, int block)
 {
-	struct cd_toc *t = gettoc (th, block);
+	struct cd_toc *t = gettoc (-1, th, block);
 	if (!t)
 		return 0;
 	return (t->control & 0x0c) != 4;
@@ -1577,7 +1583,9 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				goto nodisk;
 			stopplay (unitnum);
 			offset = ((cmdbuf[1] & 31) << 16) | (cmdbuf[2] << 8) | cmdbuf[3];
-			struct cd_toc *t = gettoc (&di.toc, offset);
+			struct cd_toc *t = gettoc (unitnum, &di.toc, offset);
+			if (!t)
+				goto readerr;
 			v = scsi_read_cd_data (unitnum, scsi_data, offset, 0, &di, &scsi_len, t);
 			if (v == -1)
 				goto outofbounds;
@@ -1589,7 +1597,9 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			goto nodisk;
 		stopplay (unitnum);
 		offset = ((cmdbuf[1] & 31) << 16) | (cmdbuf[2] << 8) | cmdbuf[3];
-		struct cd_toc *t = gettoc (&di.toc, offset);
+		struct cd_toc *t = gettoc (unitnum, &di.toc, offset);
+		if (!t)
+			goto readerr;
 		if ((t->control & 0x0c) == 0x04) {
 			len = cmdbuf[4];
 			if (!len)
@@ -1612,7 +1622,9 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				goto nodisk;
 			stopplay (unitnum);
 			offset = rl (cmdbuf + 2);
-			struct cd_toc *t = gettoc (&di.toc, offset);
+			struct cd_toc *t = gettoc (unitnum, &di.toc, offset);
+			if (!t)
+				goto readerr;
 			v = scsi_read_cd_data (unitnum, scsi_data, offset, 0, &di, &scsi_len, t);
 			if (v == -1)
 				goto outofbounds;
@@ -1624,7 +1636,9 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			goto nodisk;
 		stopplay (unitnum);
 		offset = rl (cmdbuf + 2);
-		struct cd_toc *t = gettoc (&di.toc, offset);
+		struct cd_toc *t = gettoc (unitnum, &di.toc, offset);
+		if (!t)
+			goto readerr;
 		if ((t->control & 0x0c) == 0x04) {
 			len = rl (cmdbuf + 7 - 2) & 0xffff;
 			v = scsi_read_cd_data (unitnum, scsi_data, offset, len, &di, &scsi_len, t);
@@ -1645,7 +1659,9 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			goto nodisk;
 		stopplay (unitnum);
 		offset = rl (cmdbuf + 2);
-		struct cd_toc *t = gettoc (&di.toc, offset);
+		struct cd_toc *t = gettoc (unitnum, &di.toc, offset);
+		if (!t)
+			goto readerr;
 		if ((t->control & 0x0c) == 0x04) {
 			len = rl (cmdbuf + 6);
 			v = scsi_read_cd_data (unitnum, scsi_data, offset, len, &di, &scsi_len, t);
@@ -1701,7 +1717,9 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			} else {
 				lsn = rl (p + 2);
 			}
-			struct cd_toc *t = gettoc (toc, lsn);
+			struct cd_toc *t = gettoc (unitnum, toc, lsn);
+			if (!t)
+				goto readerr;
 			p[0] = 0;
 			p[1] = 28 - 2;
 			p[2] = t->track;
