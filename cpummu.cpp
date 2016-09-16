@@ -734,19 +734,17 @@ uae_u32 REGPARAM2 mmu_get_ilong_unaligned(uaecptr addr)
 {
 	uae_u32 res;
 
-	if (likely(!(addr & 1))) {
-		res = (uae_u32)mmu_get_iword(addr, sz_long) << 16;
-		SAVE_EXCEPTION;
-		TRY(prb) {
-			res |= mmu_get_iword(addr + 2, sz_long);
-			RESTORE_EXCEPTION;
-		}
-		CATCH(prb) {
-			RESTORE_EXCEPTION;
-			misalignednotfirst(addr);
-			THROW_AGAIN(prb);
-		} ENDTRY
+	res = (uae_u32)mmu_get_iword(addr, sz_long) << 16;
+	SAVE_EXCEPTION;
+	TRY(prb) {
+		res |= mmu_get_iword(addr + 2, sz_long);
+		RESTORE_EXCEPTION;
 	}
+	CATCH(prb) {
+		RESTORE_EXCEPTION;
+		misalignednotfirst(addr);
+		THROW_AGAIN(prb);
+	} ENDTRY
 	return res;
 }
 
