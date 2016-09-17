@@ -2428,14 +2428,19 @@ static void drive_write_data (drive * drv)
 	}
 	switch (drv->filetype) {
 	case ADF_NORMAL:
-		if (drive_write_adf_amigados (drv)) {
-			if (currprefs.floppy_auto_ext2) {
-				convert_adf_to_ext2 (drv, currprefs.floppy_auto_ext2);
-			} else {
-				static int warned;
-				if (!warned)
-					notify_user (NUMSG_NEEDEXT2);
-				warned = 1;
+		if (drv->ddhd > 1 && currprefs.floppyslots[drv - &floppy[0]].dfxtype != DRV_35_HD) {
+			// HD image in DD drive: ignore writing.
+			drv->buffered_side = 2;
+		} else {
+			if (drive_write_adf_amigados (drv)) {
+				if (currprefs.floppy_auto_ext2) {
+					convert_adf_to_ext2 (drv, currprefs.floppy_auto_ext2);
+				} else {
+					static int warned;
+					if (!warned)
+						notify_user (NUMSG_NEEDEXT2);
+					warned = 1;
+				}
 			}
 		}
 		return;
@@ -3956,6 +3961,7 @@ void DSKLEN (uae_u16 v, int hpos)
 		int done = 0;
 		for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 			drive *drv = &floppy[dr];
+			bool floppysupported = (drv->ddhd < 2) || (drv->ddhd > 1 && currprefs.floppyslots[dr].dfxtype == DRV_35_HD);
 			int pos, i;
 
 			if (drv->motoroff)
@@ -3970,7 +3976,7 @@ void DSKLEN (uae_u16 v, int hpos)
 
 			if (dskdmaen == DSKDMA_READ) { /* TURBO read */
 
-				if (adkcon & 0x400) {
+				if ((adkcon & 0x400) && floppysupported) {
 					for (i = 0; i < drv->tracklen; i += 16) {
 						pos += 16;
 						pos %= drv->tracklen;
@@ -3984,31 +3990,45 @@ void DSKLEN (uae_u16 v, int hpos)
 					if (i >= drv->tracklen)
 						return;
 				}
-				while (dsklength-- > 0) {
-					chipmem_wput_indirect (dskpt, drv->bigmfmbuf[pos >> 4]);
-					dskpt += 2;
-					pos += 16;
+				// read nothing if not supported and MFMSYNC is on.
+				if ((floppysupported) || (!floppysupported && !(adkcon & 0x400))) {
+					while (dsklength-- > 0) {
+						chipmem_wput_indirect (dskpt, floppysupported ? drv->bigmfmbuf[pos >> 4] : uaerand());
+						dskpt += 2;
+						pos += 16;
+						pos %= drv->tracklen;
+					}
+				} else {
+					pos += uaerand();
 					pos %= drv->tracklen;
 				}
 				drv->mfmpos = pos;
-				INTREQ (0x8000 | 0x1000);
+				if (floppysupported)
+					INTREQ (0x8000 | 0x1000);
 				done = 2;
 
 			} else if (dskdmaen == DSKDMA_WRITE) { /* TURBO write */
 
-				for (i = 0; i < dsklength; i++) {
-					uae_u16 w = chipmem_wget_indirect (dskpt + i * 2);
-					drv->bigmfmbuf[pos >> 4] = w;
-#ifdef AMAX
-					if (amax_enabled)
-						amax_diskwrite (w);
-#endif
-					pos += 16;
+				if (floppysupported) {
+					for (i = 0; i < dsklength; i++) {
+						uae_u16 w = chipmem_wget_indirect (dskpt + i * 2);
+						drv->bigmfmbuf[pos >> 4] = w;
+	#ifdef AMAX
+						if (amax_enabled)
+							amax_diskwrite (w);
+	#endif
+						pos += 16;
+						pos %= drv->tracklen;
+					}
+					drv->mfmpos = pos;
+					drive_write_data (drv);
+					done = 2;
+				} else {
+					pos += uaerand();
 					pos %= drv->tracklen;
+					drv->mfmpos = pos;
+					done = 2;
 				}
-				drv->mfmpos = pos;
-				drive_write_data (drv);
-				done = 2;
 			}
 		}
 		if (!done && noselected) {
