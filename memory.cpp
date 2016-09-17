@@ -1200,12 +1200,15 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
 	}
 
 	memset (mem, 0, size);
-	for (i = 0; i < 8; i++)
-		mem[size - 16 + i * 2 + 1] = 0x18 + i;
-	mem[size - 20] = size >> 24;
-	mem[size - 19] = size >> 16;
-	mem[size - 18] = size >>  8;
-	mem[size - 17] = size >>  0;
+	if (size >= 131072) {
+		for (i = 0; i < 8; i++) {
+			mem[size - 16 + i * 2 + 1] = 0x18 + i;
+		}
+		mem[size - 20] = size >> 24;
+		mem[size - 19] = size >> 16;
+		mem[size - 18] = size >>  8;
+		mem[size - 17] = size >>  0;
+	}
 
 	i = zfile_fread (mem, 1, size, f);
 
@@ -1231,6 +1234,10 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
 		if (!decode_rom (mem, size, cr, i))
 			return 0;
 	}
+
+	if (size <= 256)
+		return size;
+
 	if (currprefs.cs_a1000ram && i < ROM_SIZE_256) {
 		int off = 0;
 		if (!a1000_bootrom)
@@ -1439,40 +1446,49 @@ static bool load_kickstart_replacement (void)
 	return true;
 }
 
-static int load_kickstart (void)
+static struct zfile *get_kickstart_filehandle(struct uae_prefs *p)
 {
 	struct zfile *f;
 	TCHAR tmprom[MAX_DPATH], tmprom2[MAX_DPATH];
 
-	cloanto_rom = 0;
-	if (!_tcscmp (currprefs.romfile, _T(":AROS")))
-		return load_kickstart_replacement ();
-	f = read_rom_name (currprefs.romfile);
-	_tcscpy (tmprom, currprefs.romfile);
+	f = read_rom_name(p->romfile);
+	_tcscpy(tmprom, p->romfile);
 	if (f == NULL) {
-		_stprintf (tmprom2, _T("%s%s"), start_path_data, currprefs.romfile);
-		f = rom_fopen (tmprom2, _T("rb"), ZFD_NORMAL);
+		_stprintf(tmprom2, _T("%s%s"), start_path_data, p->romfile);
+		f = rom_fopen(tmprom2, _T("rb"), ZFD_NORMAL);
 		if (f == NULL) {
-			_stprintf (currprefs.romfile, _T("%sroms/kick.rom"), start_path_data);
-			f = rom_fopen (currprefs.romfile, _T("rb"), ZFD_NORMAL);
+			_stprintf(p->romfile, _T("%sroms/kick.rom"), start_path_data);
+			f = rom_fopen(p->romfile, _T("rb"), ZFD_NORMAL);
 			if (f == NULL) {
-				_stprintf (currprefs.romfile, _T("%skick.rom"), start_path_data);
-				f = rom_fopen (currprefs.romfile, _T("rb"), ZFD_NORMAL);
+				_stprintf(p->romfile, _T("%skick.rom"), start_path_data);
+				f = rom_fopen(p->romfile, _T("rb"), ZFD_NORMAL);
 				if (f == NULL) {
-					_stprintf (currprefs.romfile, _T("%s../shared/rom/kick.rom"), start_path_data);
-					f = rom_fopen (currprefs.romfile, _T("rb"), ZFD_NORMAL);
+					_stprintf(p->romfile, _T("%s../shared/rom/kick.rom"), start_path_data);
+					f = rom_fopen(p->romfile, _T("rb"), ZFD_NORMAL);
 					if (f == NULL) {
-						_stprintf (currprefs.romfile, _T("%s../System/rom/kick.rom"), start_path_data);
-						f = rom_fopen (currprefs.romfile, _T("rb"), ZFD_NORMAL);
+						_stprintf(p->romfile, _T("%s../System/rom/kick.rom"), start_path_data);
+						f = rom_fopen(p->romfile, _T("rb"), ZFD_NORMAL);
 						if (f == NULL)
-							f = read_rom_name_guess (tmprom);
+							f = read_rom_name_guess(tmprom);
 					}
 				}
 			}
 		} else {
-			_tcscpy (currprefs.romfile, tmprom2);
+			_tcscpy(p->romfile, tmprom2);
 		}
 	}
+	return f;
+}
+
+static int load_kickstart (void)
+{
+	TCHAR tmprom[MAX_DPATH];
+	cloanto_rom = 0;
+	if (!_tcscmp(currprefs.romfile, _T(":AROS"))) {
+		return load_kickstart_replacement();
+	}
+	_tcscpy(tmprom, currprefs.romfile);
+	struct zfile *f = get_kickstart_filehandle(&currprefs);
 	addkeydir (currprefs.romfile);
 	if (f == NULL) /* still no luck */
 		goto err;
@@ -1692,7 +1708,7 @@ bool mapped_malloc (addrbank *ab)
 	static int recurse;
 
 	if (ab->allocated_size) {
-		write_log(_T("mapped_malloc with memory bank '%s' already allocated!?"), ab->name);
+		write_log(_T("mapped_malloc with memory bank '%s' already allocated!?\n"), ab->name);
 	}
 	ab->allocated_size = 0;
 
@@ -2256,6 +2272,27 @@ static void restore_roms(void)
 	protect_roms (true);
 }
 
+bool read_kickstart_version(struct uae_prefs *p)
+{
+	kickstart_version = 0;
+	cloanto_rom = 0;
+	struct zfile *z = get_kickstart_filehandle(p);
+	if (!z)
+		return false;
+	uae_u8 mem[32] = { 0 };
+	read_kickstart(z, mem, sizeof mem, 0, 0);
+	zfile_fclose(z);
+	kickstart_version = (mem[12] << 8) | mem[13];
+	if (kickstart_version == 0xffff) {
+		// 1.0-1.1 and older
+		kickstart_version = (mem[16] << 8) | mem[17];
+		if (kickstart_version > 33)
+			kickstart_version = 0;
+	}
+	write_log(_T("KS ver = %04x\n"), kickstart_version);
+	return true;
+}
+
 void reload_roms(void)
 {
 	if (roms_modified)
@@ -2413,7 +2450,7 @@ void memory_reset (void)
 		a1000_handle_kickstart (1);
 
 #ifdef AUTOCONFIG
-	map_banks (&expamem_bank, 0xE8, 1, 0);
+	expansion_map();
 #endif
 
 	if (a3000_f0)

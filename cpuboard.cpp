@@ -239,7 +239,7 @@ bool ppc_interrupt(int new_m68k_ipl)
 
 static bool mapromconfigured(void)
 {
-	if (currprefs.maprom)
+	if (currprefs.maprom && !currprefs.cpuboard_type)
 		return true;
 	if (currprefs.cpuboard_settings & 1)
 		return true;
@@ -1965,6 +1965,7 @@ bool cpuboard_maprom(void)
 	}
 	return true;
 }
+
 bool cpuboard_jitdirectompatible(struct uae_prefs *p)
 {
 	if (cpuboard_memorytype(p) == BOARD_MEMORY_BLIZZARD_12xx || cpuboard_memorytype(p) == BOARD_MEMORY_BLIZZARD_PPC) {

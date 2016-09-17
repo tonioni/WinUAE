@@ -292,7 +292,6 @@ extern void inputdevice_joyport_config_store(struct uae_prefs *p, const TCHAR *v
 extern int inputdevice_getjoyportdevice (int port, int val);
 extern void inputdevice_validate_jports (struct uae_prefs *p, int changedport, bool *fixedports);
 extern void inputdevice_fix_prefs(struct uae_prefs *p, bool userconfig);
-extern void inputdevice_config_load_start(struct uae_prefs *p);
 
 extern void inputdevice_init (void);
 extern void inputdevice_close (void);

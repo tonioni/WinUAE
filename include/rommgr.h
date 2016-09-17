@@ -132,6 +132,9 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_BUDDHA		0x0010004f
 #define ROMTYPE_NE2KISA		0x00100050
 #define ROMTYPE_BLIZKIT3	0x00100051
+#define ROMTYPE_SCRAM5380	0x00100052
+#define ROMTYPE_SCRAM5394	0x00100053
+#define ROMTYPE_OSSI		0x00100054
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000

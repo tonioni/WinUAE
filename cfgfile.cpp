@@ -1292,7 +1292,7 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 		else
 			_stprintf(tmp1, _T("%s_options"), name);
 		if (!_tcsicmp(option, tmp1)) {
-			TCHAR *s;
+			TCHAR *s, *s1, *s2;
 			s = cfgfile_option_get(value, _T("order"));
 			if (s)
 				rb->device_order = _tstol(s);
@@ -1312,6 +1312,17 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 					TCHAR *endptr;
 					s[2] = 0;
 					rb->autoconfig[i] = (uae_u8)_tcstol(s2, &endptr, 16);
+				}
+			}
+			s1 = cfgfile_option_get(value, _T("start"));
+			s2 = cfgfile_option_get(value, _T("end"));
+			if (s1 && s2) {
+				TCHAR *endptr;
+				rb->start_address = _tcstol(s1, &endptr, 16);
+				rb->end_address = _tcstol(s2, &endptr, 16);
+				if (rb->start_address && rb->end_address > rb->start_address) {
+					rb->manual_config = true;
+					rb->autoconfig_inuse = false;
 				}
 			}
 			return true;
@@ -1349,6 +1360,13 @@ static void cfgfile_writeramboard(struct uae_prefs *prefs, struct zfile *f, cons
 			ac[0], ac[1], ac[2], ac[3], ac[4], ac[5], ac[6], ac[7],
 			ac[8], ac[9], ac[10], ac[11], ac[12], ac[13], ac[14], ac[15]);
 		p += _tcslen(p);
+	}
+	if (rb->manual_config && rb->start_address && rb->end_address) {
+		if (tmp2[0])
+			*p++ = ',';
+		_stprintf(p, _T("start=%08x,end=%08x"), rb->start_address, rb->end_address);
+		p += _tcslen(p);
+
 	}
 	if (tmp2[0]) {
 		cfgfile_write(f, tmp1, tmp2);

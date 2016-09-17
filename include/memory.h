@@ -469,6 +469,7 @@ extern void memory_clear (void);
 extern void free_fastmemory (int);
 extern void set_roms_modified (void);
 extern void reload_roms(void);
+extern bool read_kickstart_version(struct uae_prefs *p);
 
 #define longget(addr) (call_mem_get_func(get_mem_bank(addr).lget, addr))
 #define wordget(addr) (call_mem_get_func(get_mem_bank(addr).wget, addr))

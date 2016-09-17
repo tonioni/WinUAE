@@ -156,6 +156,7 @@ extern int expansion_autoconfig_move(struct uae_prefs *p, int index, int directi
 extern bool expansion_can_move(struct uae_prefs *p, int index);
 extern bool alloc_expansion_bank(addrbank *bank, struct autoconfig_info *aci);
 extern void free_expansion_bank(addrbank *bank);
+extern void expansion_map(void);
 
 extern void uaegfx_install_code (uaecptr);
 
@@ -260,6 +261,7 @@ struct memoryboardtype
 	const TCHAR *man;
 	const TCHAR *name;
 	uae_u8 z;
+	uae_u32 address;
 	uae_u16 manufacturer;
 	uae_u8 product;
 	uae_u8 autoconfig[16];

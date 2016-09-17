@@ -2665,6 +2665,8 @@ static int mouseedge (void)
 		y = get_word(ib + 68);
 	}
 
+	//write_log("%dx%d\n", x, y);
+
 	if (x || y)
 		isnonzero = 1;
 	if (!isnonzero)

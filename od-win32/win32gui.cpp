@@ -2821,6 +2821,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		case IDC_ROMFILE:
 			_tcscpy (workprefs.romfile, full_path);
 			fullpath (workprefs.romfile, MAX_DPATH);
+			read_kickstart_version(&workprefs);
 			break;
 		case IDC_ROMFILE2:
 			_tcscpy (workprefs.romextfile, full_path);
@@ -7958,6 +7959,9 @@ static struct ramboard *fastram_select_ramboard;
 static void enable_for_memorydlg (HWND hDlg)
 {
 	int z3 = workprefs.address_space_24 == false;
+	bool ac = fastram_select_ramboard && fastram_select_ramboard->autoconfig_inuse;
+	bool manual = fastram_select_ramboard && fastram_select_ramboard->manual_config;
+	bool size = fastram_select_ramboard && fastram_select_ramboard->size != 0;
 
 #ifndef AUTOCONFIG
 	z3 = FALSE;
@@ -7974,24 +7978,27 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_FASTTEXT, true);
 
 	bool isfast = fastram_select < 2 * MAX_RAM_BOARDS && fastram_select_ramboard && fastram_select_ramboard->size;
-	ew(hDlg, IDC_AUTOCONFIG_MANUFACTURER, isfast);
-	ew(hDlg, IDC_AUTOCONFIG_PRODUCT, isfast);
+	ew(hDlg, IDC_AUTOCONFIG_MANUFACTURER, isfast && !manual);
+	ew(hDlg, IDC_AUTOCONFIG_PRODUCT, isfast && !manual);
 	ew(hDlg, IDC_MEMORYBOARDSELECT, isfast);
-	ew(hDlg, IDC_AUTOCONFIG_DATA, fastram_select_ramboard && fastram_select_ramboard->autoconfig_inuse && fastram_select_ramboard->size);
+	ew(hDlg, IDC_AUTOCONFIG_DATA,  ac && size);
 	ew(hDlg, IDC_FASTMEMAUTOCONFIGUSE, isfast);
+	ew(hDlg, IDC_FASTMEMNOAUTOCONFIG, isfast);
 	ew(hDlg, IDC_MEMORYRAM, true);
 	ew(hDlg, IDC_MEMORYMEM, true);
+	ew(hDlg, IDC_RAM_ADDRESS, manual && size);
+	ew(hDlg, IDC_RAM_ADDRESS2, false);
 }
 
 static void setfastram_ramboard(HWND hDlg, int zram)
 {
 	if (!fastram_select_ramboard)
 		return;
-	int idx = 0;
+	int idx = 1;
 	for (int i = 0; memoryboards[i].name; i++) {
 		const struct memoryboardtype *mbt = &memoryboards[i];
 		if (mbt->z == zram) {
-			if (mbt->manufacturer == fastram_select_ramboard->manufacturer && mbt->product == fastram_select_ramboard->product) {
+			if ((mbt->manufacturer == fastram_select_ramboard->manufacturer && mbt->product == fastram_select_ramboard->product) || (mbt->address && mbt->address == fastram_select_ramboard->start_address)) {
 				SendDlgItemMessage(hDlg, IDC_MEMORYBOARDSELECT, CB_SETCURSEL, idx, 0);
 				break;
 			}
@@ -8088,11 +8095,20 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 
 	expansion_generate_autoconfig_info(&workprefs);
 	struct ramboard *rb = fastram_select_ramboard;
+	setchecked(hDlg, IDC_FASTMEMAUTOCONFIGUSE, rb && rb->autoconfig_inuse);
+	setchecked(hDlg, IDC_FASTMEMNOAUTOCONFIG, rb && rb->manual_config);
 	if (rb) {
+		if (rb->manual_config) {
+			rb->end_address = rb->start_address + rb->size - 1;
+		} else {
+			rb->start_address = 0;
+			rb->end_address = 0;
+		}
 		if (fastram_select_ramboard_old != fastram_select_ramboard || mode < 0) {
 			if (zram) {
 				ew(hDlg, IDC_MEMORYBOARDSELECT, TRUE);
 				SendDlgItemMessage(hDlg, IDC_MEMORYBOARDSELECT, CB_RESETCONTENT, 0, 0);
+				SendDlgItemMessage(hDlg, IDC_MEMORYBOARDSELECT, CB_ADDSTRING, 0, (LPARAM)_T("-"));
 				for (int i = 0; memoryboards[i].name; i++) {
 					const struct memoryboardtype *mbt = &memoryboards[i];
 					if (mbt->z == zram) {
@@ -8123,6 +8139,23 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 				}
 			}
 		}
+		if (mode != 3) {
+			if (aci && !rb->manual_config) {
+				_stprintf(tmp, _T("%08x"), aci->start);
+				SetDlgItemText(hDlg, IDC_RAM_ADDRESS, tmp);
+				_stprintf(tmp, _T("%08x"), aci->start + aci->size - 1);
+				SetDlgItemText(hDlg, IDC_RAM_ADDRESS2, tmp);
+			} else if (rb->manual_config) {
+				_stprintf(tmp, _T("%08x"), rb->start_address);
+				SetDlgItemText(hDlg, IDC_RAM_ADDRESS, tmp);
+				_stprintf(tmp, _T("%08x"), rb->end_address);
+				SetDlgItemText(hDlg, IDC_RAM_ADDRESS2, tmp);
+			} else {
+				SetDlgItemText(hDlg, IDC_RAM_ADDRESS, _T(""));
+				SetDlgItemText(hDlg, IDC_RAM_ADDRESS2, _T(""));
+			}
+		}
+
 		if (mode == 1 && rb->autoconfig_inuse) {
 			rb->autoconfig[1] = rb->product;
 			rb->autoconfig[4] = (rb->manufacturer >> 8) & 0xff;
@@ -9042,6 +9075,8 @@ static void values_to_expansion2_expansion_settings(HWND hDlg, int mode)
 		ew(hDlg, IDC_SCSIROMID, ert->id_jumper);
 		const struct expansionboardsettings *cbs = ert->settings;
 		create_expansionrom_gui(hDlg, &expansion_gui_item, cbs, brc ? brc->roms[index].device_settings : 0, IDC_EXPANSIONBOARDITEMSELECTOR, IDC_EXPANSIONBOARDSELECTOR, IDC_EXPANSIONBOARDCHECKBOX);
+	} else {
+		reset_expansionrom_gui(hDlg, &expansion_gui_item, IDC_EXPANSIONBOARDITEMSELECTOR, IDC_EXPANSIONBOARDSELECTOR, IDC_EXPANSIONBOARDCHECKBOX);
 	}
 
 
@@ -9205,7 +9240,7 @@ static void expansion2filebuttons(HWND hDlg, WPARAM wParam, TCHAR *path)
 static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	int v, val;
-	TCHAR tmp[100];
+	TCHAR tmp[MAX_DPATH];
 	static int recursive = 0;
 	static int enumerated;
 
@@ -9242,18 +9277,19 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 				SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_ADDSTRING, 0, (LPARAM) cpuboards[i].name);
 			}
 
+			WIN32GUI_LoadUIString(IDS_EXPANSION_CATEGORY, tmp, sizeof tmp / sizeof(TCHAR));
 			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_RESETCONTENT, 0, 0);
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("Built-in CD/HD Controllers"));
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("SCSI Controllers"));
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("IDE Controllers"));
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("SASI Controllers"));
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("Custom Controllers"));
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("PCI Bridgeboards"));
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("x86 Bridgeboards"));
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("RTG boards"));
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("Sound cards"));
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("Network adapters"));
-			SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)_T("Disk controllers"));
+			_tcscat(tmp, _T("\n"));
+			TCHAR *p1 = tmp;
+			for (;;) {
+				TCHAR *p2 = _tcschr(p1, '\n');
+				if (p2 && _tcslen(p2) > 0) {
+					*p2++ = 0;
+					SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_ADDSTRING, 0, (LPARAM)p1);
+					p1 = p2;
+				} else
+					break;
+			}
 
 			reset_expansionrom_gui(hDlg, &expansion_gui_item, IDC_EXPANSIONBOARDITEMSELECTOR, IDC_EXPANSIONBOARDSELECTOR, IDC_EXPANSIONBOARDCHECKBOX);
 			reset_expansionrom_gui(hDlg, &accelerator_gui_item, IDC_ACCELERATORBOARDITEMSELECTOR, IDC_ACCELERATORBOARDSELECTOR, IDC_ACCELERATORBOARDCHECKBOX);
@@ -10057,6 +10093,24 @@ static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	return FALSE;
 }
 
+static const struct memoryboardtype* getmemoryboardselect(HWND hDlg)
+{
+	int v = SendDlgItemMessage(hDlg, IDC_MEMORYBOARDSELECT, CB_GETCURSEL, 0, 0L);
+	if (v == CB_ERR)
+		return NULL;
+	int idx = 1;
+	for (int i = 0; memoryboards[i].name; i++) {
+		const struct memoryboardtype *mbt = &memoryboards[i];
+		if ((fastram_select < MAX_RAM_BOARDS && mbt->z == 2) || (fastram_select >= MAX_RAM_BOARDS && mbt->z == 3)) {
+			if (idx == v) {
+				return mbt;
+			}
+		}
+		idx++;
+	}
+	return NULL;
+}
+
 
 static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -10100,10 +10154,24 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			recursive++;
 			switch (LOWORD(wParam))
 			{
-				case IDC_FASTMEMAUTOCONFIGUSE:
+			case IDC_FASTMEMAUTOCONFIGUSE:
+			if (fastram_select_ramboard) {
+				struct ramboard *rb = fastram_select_ramboard;
+				rb->autoconfig_inuse = ischecked(hDlg, IDC_FASTMEMAUTOCONFIGUSE);
+				rb->manual_config = false;
+				setfastram_selectmenu(hDlg, 0);
+			}
+			break;
+				case IDC_FASTMEMNOAUTOCONFIG:
 				if (fastram_select_ramboard) {
 					struct ramboard *rb = fastram_select_ramboard;
-					rb->autoconfig_inuse = ischecked(hDlg, IDC_FASTMEMAUTOCONFIGUSE);
+					rb->manual_config = ischecked(hDlg, IDC_FASTMEMNOAUTOCONFIG);
+					rb->autoconfig_inuse = false;
+					const struct memoryboardtype *mbt = getmemoryboardselect(hDlg);
+					if (mbt && fastram_select_ramboard->manual_config && mbt->address) {
+						fastram_select_ramboard->start_address = mbt->address;
+						fastram_select_ramboard->end_address = mbt->address + fastram_select_ramboard->size - 1;
+					}
 					setfastram_selectmenu(hDlg, 0);
 				}
 				break;
@@ -10126,26 +10194,26 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 					break;
 					case IDC_MEMORYBOARDSELECT:
 					if (fastram_select_ramboard) {
-						v = SendDlgItemMessage(hDlg, IDC_MEMORYBOARDSELECT, CB_GETCURSEL, 0, 0L);
-						if (v != CB_ERR) {
-							int idx = 0;
-							for (int i = 0; memoryboards[i].name; i++) {
-								const struct memoryboardtype *mbt = &memoryboards[i];
-								if ((fastram_select < MAX_RAM_BOARDS && mbt->z == 2) || (fastram_select >= MAX_RAM_BOARDS && mbt->z == 3)) {
-									if (idx == v) {
-										fastram_select_ramboard->manufacturer = mbt->manufacturer;
-										fastram_select_ramboard->product = mbt->product;
-										setfastram_selectmenu(hDlg, 0);
-										break;
-									}
-									idx++;
-								}
+						const struct memoryboardtype *mbt = getmemoryboardselect(hDlg);
+						if (mbt) {
+							if (mbt->manufacturer != 0xffff) {
+								fastram_select_ramboard->manufacturer = mbt->manufacturer;
+								fastram_select_ramboard->product = mbt->product;
+							} else {
+								fastram_select_ramboard->autoconfig_inuse = false;
+								fastram_select_ramboard->manual_config = true;
 							}
+							if (fastram_select_ramboard->manual_config && mbt->address) {
+								fastram_select_ramboard->start_address = mbt->address;
+								fastram_select_ramboard->end_address = mbt->address + fastram_select_ramboard->size - 1;
+							}
+							setfastram_selectmenu(hDlg, 0);
+							break;
 						}
 					}
 					break;
 				}
-			} else if (HIWORD(wParam) == EN_CHANGE) {
+			} else if (HIWORD(wParam) == EN_CHANGE || HIWORD(wParam) == EN_KILLFOCUS) {
 				switch (LOWORD(wParam))
 				{
 					case IDC_AUTOCONFIG_MANUFACTURER:
@@ -10156,6 +10224,15 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 						GetDlgItemText(hDlg, IDC_AUTOCONFIG_PRODUCT, tmp, sizeof tmp / sizeof(TCHAR));
 						fastram_select_ramboard->product = _tstol(tmp);
 						setfastram_selectmenu(hDlg, 1);
+					}
+					break;
+					case IDC_RAM_ADDRESS:
+					case IDC_RAM_ADDRESS2:
+					if (fastram_select_ramboard) {
+						TCHAR *endptr;
+						GetDlgItemText(hDlg, IDC_RAM_ADDRESS, tmp, sizeof tmp / sizeof(TCHAR));
+						fastram_select_ramboard->start_address = _tcstol(tmp, &endptr, 16);
+						setfastram_selectmenu(hDlg, HIWORD(wParam) == EN_KILLFOCUS ? 0 : 3);
 					}
 					break;
 					case IDC_AUTOCONFIG_DATA:
@@ -10271,6 +10348,7 @@ static void values_from_kickstartdlg(HWND hDlg)
 	getromfile(hDlg, IDC_ROMFILE2, workprefs.romextfile, sizeof(workprefs.romextfile) / sizeof(TCHAR));
 	getromfile(hDlg, IDC_CARTFILE, workprefs.cartfile, sizeof(workprefs.cartfile) / sizeof(TCHAR));
 
+	read_kickstart_version(&workprefs);
 	int v = SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_GETCURSEL, 0, 0);
 	if (v > 0) {
 		workprefs.uaeboard = v - 1;
@@ -10283,9 +10361,7 @@ static void values_from_kickstartdlg(HWND hDlg)
 
 static void init_kickstart (HWND hDlg)
 {
-#if !defined(AUTOCONFIG)
-	ew (hDlg, IDC_MAPROM), FALSE);
-#endif
+	ew (hDlg, IDC_MAPROM, workprefs.cpuboard_type == 0);
 #if !defined (CDTV) && !defined (CD32)
 	ew (hDlg, IDC_FLASHFILE), FALSE);
 	ew (hDlg, IDC_ROMFILE2), FALSE);

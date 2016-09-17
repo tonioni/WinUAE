@@ -5,6 +5,29 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+- CD32 FMV ROM image was not loaded correctly from pre-3.4 config files.
+- CD32 first CD audio track play attempt from the beginning was confused with TOC subchannel read.
+- Z2/Z3 autoconfig data first byte's upper 5 bits was not editable. Only low 3 size bits should be forced (board size).
+- Implemented non-autoconfig RAM board definition support. Added DKB Insider I/II.
+- CD emulation didn't automatically load TOC when accessing the CD for the first time and program didn't request TOC previously. (Fixes
+  Buddha ATAPI device not reading CD in non-image mode)
+- Added manual (non-autoconfig) GUI memory board support. Any Z2 or Z3 board can be configured as manually mapped.
+- Pre-KS1.2 boot support works again. Now expansion tree is build before emulation starts but pre-KS1.2 boot support obviously needs
+  to know KS version before emulation starts but KS won't be loaded until emulation starts..
+- Fixed harmless "SCSI command xx, no direction specified!" messages when attempting to play audio CD using hardware SCSI/ATAPI emulation.
+- Fixed unstable Portaudio audio in vsync modes.
+- Tecmar T-Card RAM works again. First Z2 RAM is emulated as Tecmar autoconfig RAM board.
+- Shortcuts with SHIFT work again in optimized builds. It was buffer overflow (reading past end of buffer) very deep in input handling.
+- Both SCRAM 500/2000 SCSI board variants emulated (DP8490V = 53C80 and NCR53C94).
+- More ESP/NCR5394/FAS216 updates, FIFO in PIO mode only can contain max 1 byte. (SCRAM NCR53C94 fix)
+- Otronic Filecard 2000/OSSI 500 emulation. (Official ROM is MIA, Aminet replacement rom works but it needs to be merged first)
+- Automatically loaded default.uae with unplugged input device: set it to none, not layout A.
+- Include CD/FMV audio caused infinite loop when playing CD audio.
+- Disable ROM panel UAE MapROM option if accelerator board emulation is enabled. They are incompatible.
+- Accelerator boards that required ROM but nothing was selected: crashed during expansion tree building.
+- DD-only drive + turbo floppy mode + standard ADF HD floppy image: valid MFM was returned.
+- Ignore all write attempts if standard ADF HD image in DD-only flpppy drive.
+
 Beta 6:
 
 - Workaround for possible NCR53C720+ emulation bug when read is shorter than command's allocation size. CSPPC SCSI driver gets confused
@@ -18,7 +41,7 @@ Beta 6:
 - Compiled again with pre-release MSVC compiler. Does speed now match 3.3.0? (Few reported that 3.4 betas have slower performance)
   This breaks most SHIFT+<something> shortcuts.. (It appears to be optimizer bug related to 64-bit variables in 32-bit mode)
   Temporary change, either I'll add workaround or I'll use official version or final/fixed version will be released soon.
-  Only confirming if this helps with performance.
+  Only confirming if this helps with performance. (3.3.0 was accidentally compiled with pre-release version..)
 
 Beta 5:
 

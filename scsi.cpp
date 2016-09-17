@@ -56,13 +56,15 @@
 #define NCR5380_PHOENIXBOARD 25
 #define NCR5380_TRUMPCARDPRO 26
 #define NCR5380_IVSVECTOR 27 // nearly identical to trumpcard pro
-#define NCR_LAST 28
+#define NCR5380_SCRAM 28
+#define NCR5380_OSSI 29
+#define NCR_LAST 30
 
 extern int log_scsiemu;
 
 static const int outcmd[] = { 0x04, 0x0a, 0x0c, 0x2a, 0xaa, 0x15, 0x55, 0x0f, -1 };
 static const int incmd[] = { 0x01, 0x03, 0x08, 0x12, 0x1a, 0x5a, 0x25, 0x28, 0x34, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, 0xb9, 0xbd, 0xbe, -1 };
-static const int nonecmd[] = { 0x00, 0x05, 0x09, 0x0b, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1e, 0x2b, 0x35, 0xe0, 0xe3, 0xe4, -1 };
+static const int nonecmd[] = { 0x00, 0x05, 0x09, 0x0b, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1d, 0x1e, 0x2b, 0x35, 0x45, 0x47, 0x48, 0x49, 0x4b, 0x4e, 0xa5, 0xa9, 0xba, 0xbc, 0xe0, 0xe3, 0xe4, -1 };
 static const int scsicmdsizes[] = { 6, 10, 10, 12, 16, 12, 10, 6 };
 
 static void scsi_illegal_command(struct scsi_data *sd)
@@ -259,12 +261,15 @@ static void copysense(struct scsi_data *sd)
 		len = 4;
 	memset(sd->buffer, 0, len);
 	int tlen = sd->sense_len > len ? len : sd->sense_len;
-	if (log_scsiemu)
-		write_log(_T("REQUEST SENSE %d (%d -> %d)\n"), sd->cmd[4], sd->sense_len, tlen);
 	memcpy(sd->buffer, sd->sense, tlen);
 	if (!sasi && sd->sense_len == 0) {
+		// at least 0x12 bytes if SCSI and no sense
+		tlen = len > 0x12 ? 0x12 : len;
 		sd->buffer[0] = 0x70;
+		sd->sense_len = tlen;
 	}
+	if (log_scsiemu)
+		write_log(_T("REQUEST SENSE %d (%d -> %d)\n"), sd->cmd[4], sd->sense_len, tlen);
 	showsense (sd);
 	sd->data_len = tlen;
 	scsi_clear_sense(sd);
@@ -1451,10 +1456,10 @@ static void ncr5380_reset(struct soft_scsi *scsi)
 {
 	struct raw_scsi *r = &scsi->rscsi;
 
-	scsi->irq = true;
 	memset(scsi->regs, 0, sizeof scsi->regs);
 	raw_scsi_reset_bus(scsi);
 	scsi->regs[1] = 0x80;
+	ncr5380_set_irq(scsi);
 }
 
 uae_u8 ncr5380_bget(struct soft_scsi *scsi, int reg)
@@ -2114,6 +2119,19 @@ static int microforge_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
 	return reg;
 }
 
+static int ossi_reg(struct soft_scsi *ncr, uaecptr addr)
+{
+	int reg = -1;
+	if (!(addr & 1))
+		return -1;
+	if ((addr & 0x8020) == 0x8020)
+		return 8;
+	if ((addr & 0x8010) != 0x8010)
+		return -1;
+	reg = (addr >> 1) & 7;
+	return reg;
+}
+
 static int phoenixboard_reg(struct soft_scsi *ncr, uaecptr addr)
 {
 	if (addr & 1)
@@ -2638,6 +2656,32 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 			v = ncr->rom[addr];
 		}
 
+	} else if (ncr->type == NCR5380_SCRAM) {
+
+		if (addr < 0x4000 || addr >= 0xc000) {
+			v = 0xff;
+			if (!(addr & 1))
+				v = ncr->rom[(addr >> 1) & 8191];
+		} else if (addr >= 0x8000 && addr < 0xa000) {
+			if (!(addr & 1))
+				v = ncr5380_bget(ncr, 8);
+		} else if (addr >= 0x6000 && addr < 0x8000) {
+			if (!(addr & 1)) {
+				reg = (addr >> 1) & 7;
+				v = ncr5380_bget(ncr, reg);
+			}
+		}
+
+	} else if (ncr->type == NCR5380_OSSI) {
+
+		if (!(addr & 0x8000)) {
+			v = ncr->rom[addr & 16383];
+		} else {
+			reg = ossi_reg(ncr, addr);
+			if (reg >= 0)
+				v = ncr5380_bget(ncr, reg);
+		}
+
 	} else if (ncr->type == NCR5380_TRUMPCARDPRO || ncr->type == NCR5380_IVSVECTOR) {
 
 		reg = trumpcardpro_reg(ncr, addr, ncr->type == NCR5380_IVSVECTOR);
@@ -2860,6 +2904,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 			ncr->rom[addr] = val & (0x80 | 0x40 | 0x02);
 		} else if (addr == 0x1024) {
 			// memory board memory address reg
+			write_log(_T("TECMAR RAM %08x-%08x\n"), val << 16, (val << 16) + currprefs.fastmem[0].size);
 			if (currprefs.fastmem[0].size)
 				map_banks_z2(&fastmem_bank[0], val, currprefs.fastmem[0].size >> 16);
 		}
@@ -2928,6 +2973,24 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 		if (reg >= 0) {
 			ncr5380_bput(ncr, reg, val);
 		}
+
+	} else if (ncr->type == NCR5380_SCRAM) {
+
+		if (addr >= 0x6000 && addr < 0x8000) {
+			if (!(addr & 1)) {
+				reg = (addr >> 1) & 7;
+				ncr5380_bput(ncr, reg, val);
+			}
+		} else if (addr >= 0x8000 && addr < 0xc000) {
+			if (!(addr & 1))
+				ncr5380_bput(ncr, 8, val);
+		}
+
+	} else if (ncr->type == NCR5380_OSSI) {
+
+		reg = ossi_reg(ncr, addr);
+		if (reg >= 0)
+			ncr5380_bput(ncr, reg, val);
 
 	} else if (ncr->type == NCR5380_TRUMPCARDPRO || ncr->type == NCR5380_IVSVECTOR) {
 
@@ -3652,7 +3715,7 @@ static void expansion_add_protoautoconfig_board(uae_u8 *p, int board, uae_u16 ma
 
 bool tecmar_init(struct autoconfig_info *aci)
 {
-	static const uae_u8 ac[16] = { 0x40, 0xff, 0, 0, 1001 >> 8, (uae_u8)1001 };
+	static const uae_u8 ac[16] = { 0x40, 0x00, 0, 0, 1001 >> 8, (uae_u8)1001 };
 
 	aci->hardwired = true;
 	if (!aci->doinit) {
@@ -3975,4 +4038,62 @@ bool ivsvector_init(struct autoconfig_info *aci)
 	}
 
 	return true;
+}
+
+bool scram5380_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_SCRAM5380);
+	if (!aci->doinit) {
+		aci->autoconfigp = ert->autoconfig;
+		return true;
+	}
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	scsi->intena = true;
+
+	load_rom_rc(aci->rc, ROMTYPE_SCRAM5380, 8192, 0, scsi->rom, 8192, 0);
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = ert->autoconfig[i];
+		ew(scsi, i * 4, b);
+	}
+	aci->addrbank = scsi->bank;
+	return true;
+}
+
+void scram5380_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_SCRAM, 65536, 8192, ROMTYPE_SCRAM5380);
+}
+
+bool ossi_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_OSSI);
+	if (!aci->doinit) {
+		if (!load_rom_rc(aci->rc, ROMTYPE_OSSI, 32768, aci->rc->autoboot_disabled ? 16384 : 0, aci->autoconfig_raw, 128, 0))
+			aci->autoconfigp = ert->autoconfig;
+		return true;
+	}
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	if (load_rom_rc(aci->rc, ROMTYPE_OSSI, 32768, aci->rc->autoboot_disabled ? 16384 : 0, scsi->rom, 16384, 0)) {
+		memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
+	} else {
+		for (int i = 0; i < 16; i++) {
+			uae_u8 b = ert->autoconfig[i];
+			ew(scsi, i * 4, b);
+		}
+	}
+	aci->addrbank = scsi->bank;
+	return true;
+}
+
+void ossi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_OSSI, 65536, 16384, ROMTYPE_OSSI);
 }

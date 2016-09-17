@@ -340,6 +340,8 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 	cfgfile_compatibility_rtg(p);
 	cfgfile_compatibility_romtype(p);
 
+	read_kickstart_version(p);
+
 	if (p->cpuboard_type && p->cpuboardmem1_size > cpuboard_maxmemory(p)) {
 		error_log(_T("Unsupported accelerator board memory size %d (0x%x).\n"), p->cpuboardmem1_size, p->cpuboardmem1_size);
 		p->cpuboardmem1_size = cpuboard_maxmemory(p);
@@ -674,6 +676,11 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 	if (((p->maprom & 0xff000000) && p->address_space_24) || (p->maprom && p->mbresmem_high_size >= 0x08000000)) {
 		p->maprom = 0x00e00000;
 	}
+	if (p->maprom && p->cpuboard_type) {
+		error_log(_T("UAE Maprom and accelerator board emulation are not compatible."));
+		p->maprom = 0;
+	}
+
 	if (p->tod_hack && p->cs_ciaatod == 0)
 		p->cs_ciaatod = p->ntscmode ? 2 : 1;
 

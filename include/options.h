@@ -50,6 +50,17 @@ struct strlist {
 
 #define INTERNALEVENT_COUNT 1
 
+#if 0
+struct uae_input_device_event
+{
+	uae_s16 eventid[MAX_INPUT_SUB_EVENT_ALL];
+	TCHAR *custom[MAX_INPUT_SUB_EVENT_ALL];
+	uae_u64 flags[MAX_INPUT_SUB_EVENT_ALL];
+	uae_u8 port[MAX_INPUT_SUB_EVENT_ALL];
+	uae_s16 extra;
+};
+#endif
+
 struct uae_input_device {
 	TCHAR *name;
 	TCHAR *configname;
@@ -367,7 +378,10 @@ struct ramboard
 	uae_u8 product;
 	uae_u8 autoconfig[16];
 	bool autoconfig_inuse;
+	bool manual_config;
 	int device_order;
+	uae_u32 start_address;
+	uae_u32 end_address;
 };
 struct expansion_params
 {

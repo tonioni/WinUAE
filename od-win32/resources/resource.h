@@ -28,7 +28,6 @@
 #define IDS_CHIPSET2                    20
 #define IDS_GAMEPORTS                   21
 #define IDS_EXPANSION                   22
-#define IDS_STRING23                    23
 #define IDS_EXPANSION2                  23
 #define IDS_BOARD                       24
 #define IDS_EXTTEXT                     100
@@ -384,7 +383,6 @@
 #define IDS_SELECTTAPE                  391
 #define IDS_TAPE                        392
 #define IDS_SCREEN_NATIVE               392
-#define IDS_STRING393                   393
 #define IDS_SCREEN_RTG                  393
 #define IDS_DISPLAYMODE_NATIVE          394
 #define IDS_CURRENT_CONFIGURATION       395
@@ -393,7 +391,6 @@
 #define IDS_SLIRP                       398
 #define IDD_EXPANSION2                  398
 #define IDS_SLIRP_INBOUND               399
-#define IDD_DIALOG2                     399
 #define IDD_BOARDS                      399
 #define IDS_FILTER_PAL_EXTRA            400
 #define IDS_FILTER_3D_EXTRA             401
@@ -404,6 +401,7 @@
 #define IDS_AUTOSCALE_OVERSCAN_BLANK    408
 #define IDS_SCREEN_ADAPTIVE_SYNC        409
 #define IDS_NUMSG_NOMEMORY              410
+#define IDS_EXPANSION_CATEGORY          411
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -1212,6 +1210,7 @@
 #define IDC_RTG_DISPLAYSELECT           1809
 #define IDC_FASTMEMAUTOCONFIGUSE        1809
 #define IDC_MISCLIST                    1810
+#define IDC_FASTMEMNOAUTOCONFIG         1810
 #define IDC_STATENAME                   1811
 #define IDC_SAMPLER_STEREO              1812
 #define IDC_LISTDIALOG_LIST             1813
@@ -1262,7 +1261,9 @@
 #define IDC_AUTOCONFIG_DATA             1851
 #define IDC_AUTOCONFIGCUSTOMSORT        1851
 #define IDC_BOARDS_DOWN                 1852
+#define IDC_RAM_ADDRESS                 1852
 #define IDC_BOARDS_UP                   1853
+#define IDC_RAM_ADDRESS2                1853
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
