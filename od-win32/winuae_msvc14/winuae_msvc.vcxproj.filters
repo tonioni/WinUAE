@@ -820,6 +820,9 @@
     <ClCompile Include="..\..\support\time.cpp">
       <Filter>support</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\framebufferboards.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

@@ -382,7 +382,7 @@ static void setcursor (int oldx, int oldy)
 	if (windowmouse_max_h < 10)
 		windowmouse_max_h = 10;
 
-	if (currprefs.input_magic_mouse && currprefs.input_tablet > 0 && mousehack_alive () && isfullscreen () <= 0) {
+	if ((currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && currprefs.input_tablet > 0 && mousehack_alive () && isfullscreen () <= 0) {
 		mouseposx = mouseposy = 0;
 		return;
 	}
@@ -517,7 +517,7 @@ static void setmaintitle (HWND hwnd)
 	_tcscat (txt, _T("WinUAE"));
 	txt2[0] = 0;
 	if (mouseactive > 0) {
-		WIN32GUI_LoadUIString (currprefs.win32_middle_mouse ? IDS_WINUAETITLE_MMB : IDS_WINUAETITLE_NORMAL,
+		WIN32GUI_LoadUIString ((currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) ? IDS_WINUAETITLE_MMB : IDS_WINUAETITLE_NORMAL,
 			txt2, sizeof (txt2) / sizeof (TCHAR));
 	}
 	if (_tcslen (WINUAEBETA) > 0) {
@@ -560,7 +560,7 @@ void setpriority (struct threadpriorities *pri)
 
 static void setcursorshape (void)
 {
-	if (currprefs.input_tablet && currprefs.input_magic_mouse && currprefs.input_magic_mouse_cursor == MAGICMOUSE_NATIVE_ONLY) {
+	if (currprefs.input_tablet && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && currprefs.input_magic_mouse_cursor == MAGICMOUSE_NATIVE_ONLY) {
 		if (GetCursor () != NULL)
 			SetCursor (NULL);
 	}  else if (!picasso_setwincursor ()) {
@@ -672,7 +672,7 @@ static void setmouseactive2 (int active, bool allowpause)
 	if (mouseactive == active && active >= 0)
 		return;
 
-	if (!isrp && active == 1 && !currprefs.input_magic_mouse) {
+	if (!isrp && active == 1 && !(currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC)) {
 		HANDLE c = GetCursor ();
 		if (c != normalcursor)
 			return;
@@ -692,7 +692,7 @@ static void setmouseactive2 (int active, bool allowpause)
 	releasecapture ();
 	recapture = 0;
 
-	if (isfullscreen () <= 0 && currprefs.input_magic_mouse && currprefs.input_tablet > 0) {
+	if (isfullscreen () <= 0 && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && currprefs.input_tablet > 0) {
 		if (mousehack_alive ())
 			return;
 		SetCursor (normalcursor);
@@ -1029,7 +1029,7 @@ int isfocus (void)
 			return 2;
 		return 0;
 	}
-	if (currprefs.input_tablet >= TABLET_MOUSEHACK && currprefs.input_magic_mouse) {
+	if (currprefs.input_tablet >= TABLET_MOUSEHACK && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC)) {
 		if (mouseinside)
 			return 2;
 		if (focus)
@@ -1482,7 +1482,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		return 0;
 	case WM_LBUTTONDOWN:
 	case WM_LBUTTONDBLCLK:
-		if (!mouseactive && !gui_active && (!mousehack_alive () || currprefs.input_tablet != TABLET_MOUSEHACK || (currprefs.input_tablet == TABLET_MOUSEHACK && !currprefs.input_magic_mouse) || isfullscreen () > 0)) {
+		if (!mouseactive && !gui_active && (!mousehack_alive () || currprefs.input_tablet != TABLET_MOUSEHACK || (currprefs.input_tablet == TABLET_MOUSEHACK && !(currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC)) || isfullscreen () > 0)) {
 			// borderless = do not capture with single-click
 			if (ignorelbutton) {
 				ignorelbutton = 0;
@@ -1509,14 +1509,14 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			setmousebuttonstate (dinput_winmouse (), 1, 1);
 		return 0;
 	case WM_MBUTTONUP:
-		if (!currprefs.win32_middle_mouse) {
+		if (!(currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON)) {
 			if (dinput_winmouse () >= 0 && isfocus ())
 				setmousebuttonstate (dinput_winmouse (), 2, 0);
 		}
 		return 0;
 	case WM_MBUTTONDOWN:
 	case WM_MBUTTONDBLCLK:
-		if (currprefs.win32_middle_mouse) {
+		if (currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) {
 			activationtoggle(true);
 		} else {
 			if (dinput_winmouse () >= 0 && isfocus () > 0)
@@ -1678,7 +1678,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
 	case WM_SETCURSOR:
 		{
-			if ((HWND)wParam == hAmigaWnd && currprefs.input_tablet > 0 && currprefs.input_magic_mouse && isfullscreen () <= 0) {
+			if ((HWND)wParam == hAmigaWnd && currprefs.input_tablet > 0 && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && isfullscreen () <= 0) {
 				if (mousehack_alive ()) {
 					setcursorshape ();
 					return 1;
@@ -1912,12 +1912,12 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 				switch (nm->code)
 				{
 					/* status bar clicks */
-				case NM_CLICK:
-				case NM_RCLICK:
+					case NM_CLICK:
+					case NM_RCLICK:
 					{
 						LPNMMOUSE lpnm = (LPNMMOUSE) lParam;
 						int num = (int)lpnm->dwItemSpec;
-						int df0 = 8;
+						int df0 = 9;
 						if (num >= df0 && num <= df0 + 3) { // DF0-DF3
 							num -= df0;
 							if (nm->code == NM_RCLICK) {
@@ -3542,7 +3542,6 @@ void target_default_options (struct uae_prefs *p, int type)
 {
 	TCHAR buf[MAX_DPATH];
 	if (type == 2 || type == 0 || type == 3) {
-		p->win32_middle_mouse = 1;
 		p->win32_logfile = 0;
 		p->win32_active_nocapture_pause = 0;
 		p->win32_active_nocapture_nosound = 0;
@@ -3632,7 +3631,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 {
 	struct midiportinfo *midp;
 
-	cfgfile_target_dwrite_bool (f, _T("middle_mouse"), p->win32_middle_mouse);
+	cfgfile_target_dwrite_bool (f, _T("middle_mouse"), (p->input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) != 0);
 	cfgfile_target_dwrite_bool (f, _T("logfile"), p->win32_logfile);
 	cfgfile_target_dwrite_bool (f, _T("map_drives"), p->win32_automount_drives);
 	cfgfile_target_dwrite_bool (f, _T("map_drives_auto"), p->win32_automount_removable);
@@ -3798,8 +3797,12 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 	int i, v;
 	bool tbool;
 
-	if (cfgfile_yesno(option, value, _T("middle_mouse"), &p->win32_middle_mouse)
-		|| cfgfile_yesno(option, value, _T("map_drives"), &p->win32_automount_drives)
+	if (cfgfile_yesno(option, value, _T("middle_mouse"), &tbool)) {
+		p->input_mouse_untrap |= MOUSEUNTRAP_MIDDLEBUTTON;
+		return 1;
+	}
+
+	if (cfgfile_yesno(option, value, _T("map_drives"), &p->win32_automount_drives)
 		|| cfgfile_yesno(option, value, _T("map_drives_auto"), &p->win32_automount_removable)
 		|| cfgfile_yesno(option, value, _T("map_cd_drives"), &p->win32_automount_cddrives)
 		|| cfgfile_yesno(option, value, _T("map_net_drives"), &p->win32_automount_netdrives)

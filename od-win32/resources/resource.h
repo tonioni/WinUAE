@@ -451,6 +451,7 @@
 #define IDC_PARALLEL                    1033
 #define IDC_PORT0_AF                    1033
 #define IDC_PORT1_AF                    1034
+#define IDC_MOUSE_UNTRAPMODE            1035
 #define IDC_FOCUSMINIMIZE               1041
 #define IDC_FASTTEXT                    1043
 #define IDC_FASTRAM                     1044
@@ -852,7 +853,6 @@
 #define IDC_SCSIROMSELECTED             1612
 #define IDC_AVIOUTPUT_VIDEO             1613
 #define IDC_INPUTAUTOFIRE               1613
-#define IDC_PORT_MOUSETRICK             1613
 #define IDC_EXPANSIONBOARDCHECKBOX      1613
 #define IDC_AVIOUTPUT_AUDIO             1614
 #define IDC_INPUTCOPYFROM               1614

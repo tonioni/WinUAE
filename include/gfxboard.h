@@ -1,12 +1,14 @@
 #ifndef UAE_GFXBOARD_H
 #define UAE_GFXBOARD_H
 
+#include "picasso96.h"
+
 extern bool gfxboard_init_memory (struct autoconfig_info*);
 extern bool gfxboard_init_memory_p4_z2(struct autoconfig_info*);
 extern bool gfxboard_init_registers(struct autoconfig_info*);
 extern void gfxboard_free (void);
 extern void gfxboard_reset (void);
-extern bool gfxboard_vsync_handler (void);
+extern bool gfxboard_vsync_handler (bool);
 extern void gfxboard_hsync_handler(void);
 extern int gfxboard_get_configtype (struct rtgboardconfig*);
 extern bool gfxboard_is_registers (struct rtgboardconfig*);
@@ -22,17 +24,16 @@ extern uae_u32 gfxboard_get_romtype(struct rtgboardconfig*);
 extern const TCHAR *gfxboard_get_name(int);
 extern const TCHAR *gfxboard_get_manufacturername(int);
 extern const TCHAR *gfxboard_get_configname(int);
+extern struct gfxboard_func *gfxboard_get_func(struct rtgboardconfig *rbc);
+
 extern bool gfxboard_allocate_slot(int, int);
 extern void gfxboard_free_slot(int);
 extern bool gfxboard_rtg_enable_initial(int);
 extern void gfxboard_rtg_disable(int);
+extern bool gfxboard_init_board(struct autoconfig_info*);
 
-extern bool tms_init(struct autoconfig_info *aci);
-extern void tms_free(void);
-extern void tms_reset(void);
-extern void tms_hsync_handler(void);
-extern bool tms_vsync_handler(void);
-extern bool tms_toggle(int);
+extern struct gfxboard_func a2410_func;
+extern struct gfxboard_func harlequin_func;
 
 extern void vga_io_put(int board, int portnum, uae_u8 v);
 extern uae_u8 vga_io_get(int board, int portnum);
@@ -41,6 +42,8 @@ extern uae_u8 vga_ram_get(int board, int offset);
 
 void gfxboard_get_a8_vram(int index);
 void gfxboard_free_vram(int index);
+
+int gfxboard_get_devnum(struct uae_prefs *p, int index);
 
 #define GFXBOARD_UAE_Z2 0
 #define GFXBOARD_UAE_Z3 1
@@ -58,5 +61,33 @@ void gfxboard_free_vram(int index);
 #define GFXBOARD_PICASSO4_Z3 11
 #define GFXBOARD_A2410 12
 #define GFXBOARD_VGA 13
+
+struct gfxboard_mode
+{
+	int width;
+	int height;
+	RGBFTYPE mode;
+	bool redraw_required;
+};
+
+typedef bool(*GFXBOARD_INIT)(struct autoconfig_info*);
+typedef void(*GFXBOARD_FREE)(void*);
+typedef void(*GFXBOARD_RESET)(void*);
+typedef void(*GFXBOARD_HSYNC)(void*);
+typedef bool(*GFXBOARD_VSYNC)(void*, struct gfxboard_mode*);
+typedef bool(*GFXBOARD_TOGGLE)(void*, int);
+typedef void(*GFXBOARD_CONFIGURED)(void*, uae_u32);
+
+struct gfxboard_func
+{
+	GFXBOARD_INIT init;
+	GFXBOARD_FREE free;
+	GFXBOARD_RESET reset;
+	GFXBOARD_HSYNC hsync;
+	GFXBOARD_VSYNC vsync;
+	GFXBOARD_TOGGLE toggle;
+	GFXBOARD_CONFIGURED configured;
+};
+
 
 #endif /* UAE_GFXBOARD_H */

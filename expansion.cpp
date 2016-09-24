@@ -3231,10 +3231,11 @@ static void expansion_add_autoconfig(struct uae_prefs *p)
 		struct rtgboardconfig *rbc = &p->rtgboards[i];
 		if (rbc->rtgmem_size && rbc->rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_get_configtype(rbc) <= 2) {
 			cards_set[cardno].flags = 4 | (i << 16);
-			if (rbc->rtgmem_type == GFXBOARD_A2410) {
+			if (gfxboard_get_func(rbc)) {
 				cards_set[cardno].name = _T("Z2RTG");
 				cards_set[cardno].zorro = 2;
-				cards_set[cardno++].initnum = tms_init;
+				cards_set[cardno].flags = (i << 16);
+				cards_set[cardno++].initnum = gfxboard_init_board;
 			} else {
 				cards_set[cardno].name = _T("Z2RTG");
 				cards_set[cardno].zorro = 2;
@@ -3943,7 +3944,7 @@ static const struct expansionboardsettings ne2k_isa_settings[] = {
 static const struct expansionboardsettings toccata_soundcard_settings[] = {
 	{
 		_T("Paula/CD audio mixer"),
-		_T("mixer"),
+		_T("mixer")
 	},
 	{
 		NULL
@@ -3960,6 +3961,28 @@ static const struct expansionboardsettings x86_athdxt_settings[] = {
 		NULL
 	}
 };
+
+
+static const struct expansionboardsettings harlequin_settings[] = {
+	{
+		_T("Model\0") _T("Harlequin (PAL)\0") _T("Harlequin (NTSC)\0") _T("Harlequin Plus (PAL)\0") _T("Harlequin Plus (NTSC)\0"),
+		_T("model\0") _T("pal\0") _T("ntsc\0") _T("pluspal\0") _T("plusntsc\0"),
+		true
+	},
+	{
+		_T("VRAM\0") _T("1.5M\0") _T("2M\0") _T("3M\0") _T("4M\0"),
+		_T("vram\0") _T("1.5m\0") _T("2m\0") _T("3m\0") _T("4m\0"),
+		true
+	},
+	{
+		_T("Genlock"),
+		_T("genlock")
+	},
+	{
+		NULL
+	}
+};
+
 
 static void fastlane_memory_callback(struct romconfig *rc, uae_u8 *ac, int size)
 {
@@ -4192,9 +4215,15 @@ const struct expansionromtype expansionroms[] = {
 	},
 	{
 		_T("dataflyerscsiplus"), _T("DataFlyer SCSI+"), _T("Expansion Systems"),
-		dataflyer_init, NULL, dataflyer_add_scsi_unit, ROMTYPE_DATAFLYER | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		dataflyer_init, NULL, dataflyer_add_scsi_unit, ROMTYPE_DATAFLYERP | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI
+	},
+	{
+		_T("dataflyerplus"), _T("DataFlyer Plus"), _T("Expansion Systems"),
+		dataflyerplus_init, NULL, dataflyerplus_add_idescsi_unit, ROMTYPE_DATAFLYER, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE
 	},
 	{
 		_T("gvp1"), _T("GVP Series I"), _T("Great Valley Products"),
@@ -4282,7 +4311,7 @@ const struct expansionromtype expansionroms[] = {
 		true, EXPANSIONTYPE_SCSI,
 		4096, 4, 0, false, NULL,
 		false, 0, NULL,
-		{ 0xd1, 3, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x00 }
+		{ 0xd1, 3, 0x40, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x00 }
 	},
 	{
 		_T("scram5394"), _T("SCRAM (NCR53C94)"), _T("MegaMicro"),
@@ -4291,7 +4320,7 @@ const struct expansionromtype expansionroms[] = {
 		true, EXPANSIONTYPE_SCSI,
 		4096, 4, 0, false, NULL,
 		false, 0, NULL,
-		{ 0xd1, 7, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x00 }
+		{ 0xd1, 7, 0x40, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x00 }
 	},
 	{
 		_T("paradox"), _T("Paradox SCSI"), _T("Mainhattan Data"),
@@ -4515,7 +4544,7 @@ const struct expansionromtype expansionroms[] = {
 		false, 0, x86at386_bridge_settings
 	},
 
-	// only here for rom selection
+	// only here for rom selection and settings
 	{
 		_T("picassoiv"), _T("Picasso IV"), _T("Village Tronic"),
 		NULL, NULL, NULL, ROMTYPE_PICASSOIV | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, true,
@@ -4527,6 +4556,14 @@ const struct expansionromtype expansionroms[] = {
 		NULL, NULL, NULL, ROMTYPE_x86_VGA | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_RTG
+	},
+	{
+		_T("harlequin"), _T("Harlequin"), _T("ACS"),
+		NULL, NULL, NULL, ROMTYPE_HARLEQUIN | ROMTYPE_NOT, 0, 0, BOARD_IGNORE, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_RTG,
+		0, 0, 0, false, NULL,
+		false, 0, harlequin_settings
 	},
 
 	/* Sound Cards */

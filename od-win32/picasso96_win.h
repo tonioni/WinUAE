@@ -578,13 +578,15 @@ struct picasso_vidbuf_description {
 
 extern struct picasso_vidbuf_description picasso_vidinfo;
 
-extern void gfx_set_picasso_modeinfo (uae_u32 w, uae_u32 h, uae_u32 d, RGBFTYPE rgbfmt);
+extern void gfx_set_picasso_modeinfo (RGBFTYPE rgbfmt);
 extern void gfx_set_picasso_colors (RGBFTYPE rgbfmt);
 extern void gfx_set_picasso_baseaddr (uaecptr);
 extern void gfx_set_picasso_state (int on);
 extern uae_u8 *gfx_lock_picasso (bool, bool);
 extern void gfx_unlock_picasso (bool);
 extern int createwindowscursor (uaecptr src, int w, int h, int hiressprite, int doubledsprite, int chipset);
+
+void fb_copyrow(uae_u8 *src, uae_u8 *dst, int x, int y, int width, int srcpixbytes, int dy);
 
 extern int p96refresh_active;
 extern int p96hsync_counter;

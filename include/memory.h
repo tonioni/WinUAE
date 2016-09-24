@@ -155,6 +155,7 @@ struct autoconfig_info
 	bool hardwired;
 	bool (*get_params)(struct uae_prefs*, struct expansion_params*);
 	bool (*set_params)(struct uae_prefs*, struct expansion_params*);
+	void *userdata;
 };
 
 #define CE_MEMBANK_FAST32 0

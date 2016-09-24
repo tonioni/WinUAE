@@ -31,10 +31,15 @@ extern void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth
 extern void statusline_single_erase(uae_u8 *buf, int bpp, int y, int totalwidth);
 extern void statusline_getpos(int *x, int *y, int width, int height);
 
+#define STATUSTYPE_FLOPPY 1
+#define STATUSTYPE_DISPLAY 2
+#define STATUSTYPE_INPUT 3
+#define STATUSTYPE_CD 4
+
 extern bool createstatusline(void);
 extern void deletestatusline(void);
 extern void statusline_render(uae_u8 *buf, int bpp, int pitch, int width, int height, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *alpha);
-extern void statusline_add_message(const TCHAR *format, ...);
+extern void statusline_add_message(int statustype, const TCHAR *format, ...);
 extern void statusline_clear(void);
 extern void statusline_vsync(void);
 extern void statusline_updated(void);

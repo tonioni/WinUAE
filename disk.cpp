@@ -1077,9 +1077,9 @@ static void update_disk_statusline(int num)
 	if (!fname)
 		fname = _T("?");
 	if (disk_info_data.diskname[0])
-		statusline_add_message(_T("DF%d: [%s] %s"), num, disk_info_data.diskname, my_getfilepart(fname));
+		statusline_add_message(STATUSTYPE_FLOPPY, _T("DF%d: [%s] %s"), num, disk_info_data.diskname, my_getfilepart(fname));
 	else
-		statusline_add_message(_T("DF%d: %s"), num, my_getfilepart(fname));
+		statusline_add_message(STATUSTYPE_FLOPPY, _T("DF%d: %s"), num, my_getfilepart(fname));
 }
 
 static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR *fname, bool fake, bool forcedwriteprotect)
@@ -1614,7 +1614,7 @@ static void mfmcode (uae_u16 * mfm, int words)
 	}
 }
 
-static uae_u8 mfmencodetable[16] = {
+static const uae_u8 mfmencodetable[16] = {
 	0x2a, 0x29, 0x24, 0x25, 0x12, 0x11, 0x14, 0x15,
 	0x4a, 0x49, 0x44, 0x45, 0x52, 0x51, 0x54, 0x55
 };
@@ -2475,7 +2475,7 @@ static void drive_eject (drive * drv)
 		driveclick_insert (drv - floppy, 1);
 #endif
 	if (drv->diskfile || drv->filetype >= 0)
-		statusline_add_message(_T("DF%d: -"), drv - floppy);
+		statusline_add_message(STATUSTYPE_FLOPPY, _T("DF%d: -"), drv - floppy);
 	gui_disk_image_change(drv - floppy, NULL, drv->wrprot);
 	drive_image_free (drv);
 	drv->dskeject = false;
@@ -2729,7 +2729,6 @@ int disk_setwriteprotect (struct uae_prefs *p, int num, const TCHAR *name, bool 
 	if (!needwritefile)
 		diskfile_readonly (name, writeprotected);
 	diskfile_readonly (name2, writeprotected);
-	DISK_reinsert (num);
 	return 1;
 }
 

@@ -532,11 +532,10 @@ BEGIN
     COMBOBOX        IDC_PORT3_JOYS,45,178,342,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Remap / Test [] Remap or test Parallel port joystick port 2 configurarion.",IDC_PORT3_REMAP,310,194,78,14
     GROUPBOX        "Mouse extra settings",IDC_STATIC,1,219,393,68
-    RTEXT           "Mouse speed:",IDC_STATIC,19,237,82,10,SS_CENTERIMAGE
-    EDITTEXT        IDC_INPUTSPEEDM,115,237,25,13,ES_NUMBER
-    CONTROL         "Magic Mouse",IDC_PORT_MOUSETRICK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,235,160,11
-    RTEXT           "Magic Mouse cursor mode:",IDC_STATIC,45,254,138,10,SS_CENTERIMAGE
-    COMBOBOX        IDC_PORT_TABLET_CURSOR,195,251,119,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Mouse speed:",IDC_STATIC,13,237,70,10,SS_CENTERIMAGE
+    EDITTEXT        IDC_INPUTSPEEDM,97,237,25,13,ES_NUMBER
+    RTEXT           "Magic Mouse cursor mode:",IDC_STATIC,143,254,110,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_PORT_TABLET_CURSOR,268,251,119,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Install virtual mouse driver",IDC_PORT_TABLET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,9,270,116,11
     CONTROL         "Full tablet input emulation",IDC_PORT_TABLET_FULL,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,140,270,106,11
@@ -544,6 +543,8 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,267,271,117,11
     CONTROL         "Mouse/Joystick autoswitching [] Press button to automatically insert inactive input device in to joystick/mouse port",IDC_PORT_AUTOSWITCH,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,136,102,172,11
+    COMBOBOX        IDC_MOUSE_UNTRAPMODE,268,234,119,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Mouse untrap mode:",IDC_STATIC,143,239,110,10,SS_CENTERIMAGE
 END
 
 IDD_CONTRIBUTORS DIALOGEX 0, 0, 530, 345
@@ -1189,13 +1190,13 @@ BEGIN
     CONTROL         "",IDC_INPUTMAPLIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,1,1,418,257
     EDITTEXT        IDC_INPUTMAPOUT,1,261,418,14,ES_AUTOHSCROLL | ES_READONLY | WS_DISABLED
     EDITTEXT        IDC_INPUTMAPOUTM,1,277,418,29,ES_MULTILINE | ES_READONLY | WS_DISABLED
-    COMBOBOX        IDC_INPUTMAPADD,2,309,345,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Add",IDC_INPUTMAP_CUSTOM,351,308,66,14
-    PUSHBUTTON      "Test",IDC_INPUTMAP_TEST,2,324,80,14
-    PUSHBUTTON      "Remap",IDC_INPUTMAP_CAPTURE,86,324,80,14
-    PUSHBUTTON      "Delete",IDC_INPUTMAP_DELETE,170,324,80,14
-    PUSHBUTTON      "Delete all",IDC_INPUTMAP_DELETEALL,254,324,80,14
-    PUSHBUTTON      "Exit",IDC_INPUTMAP_EXIT,338,324,80,14
+    COMBOBOX        IDC_INPUTMAPADD,2,309,331,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Add Event",IDC_INPUTMAP_CUSTOM,338,309,79,14
+    PUSHBUTTON      "Test",IDC_INPUTMAP_TEST,1,325,80,14
+    PUSHBUTTON      "Remap",IDC_INPUTMAP_CAPTURE,85,325,80,14
+    PUSHBUTTON      "Delete",IDC_INPUTMAP_DELETE,169,325,80,14
+    PUSHBUTTON      "Delete all",IDC_INPUTMAP_DELETEALL,253,325,80,14
+    PUSHBUTTON      "Exit",IDC_INPUTMAP_EXIT,338,325,79,14
 END
 
 IDD_INFOBOX DIALOGEX 0, 0, 420, 68
@@ -2082,7 +2083,7 @@ BEGIN
     IDS_AUTOSCALE_OVERSCAN_BLANK "Overscan blanking"
     IDS_SCREEN_ADAPTIVE_SYNC "Variable Sync"
     IDS_NUMSG_NOMEMORY      "Out of memory or too much Z3 autoconfig space configured.\nIf 64-bit, make sure RTG board is first in board list."
-    IDS_EXPANSION_CATEGORY  "Built-in expansions\nSCSI controllers\nIDE controllers\nSASI controllers\nCustom controllers\nPCI bridgeboards\nx86 bridgeboards\nRTG boards\nSound cards\nNetwork adapters\nDisk controllers"
+    IDS_EXPANSION_CATEGORY  "Built-in expansions\nSCSI controllers\nIDE controllers\nSASI controllers\nCustom controllers\nPCI bridgeboards\nx86 bridgeboards\nGraphics boards\nSound cards\nNetwork adapters\nDisk controllers"
 END
 
 #endif    // English resources

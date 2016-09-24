@@ -5,6 +5,35 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 8:
+
+- Do not initiate disk eject+reinsert sequence when changing write protection state that requires saveimage and emulation has not
+  been started yet.
+- Window border DF0:<>N mouse hotspot offset fixed.
+- Do not reset HDF parameters when changing hardfile.
+- Some combo boxes (text box with select menu) didn't accept select menu selection without also selecting the text first.
+- Made "RTG board" support more modularized to enable easier implementation of new boards. END+F9 switching improved.
+- Implemented Harlequin frame buffer graphics board emulation. Multiple boards supported simultaneously. Plus revision features
+  only partially emulated, BT RAMDAC has lots of features that no known Harlequin software use.
+- Added show Prev/Next/Native/RTG 1/RTG 2/RTG 3/RTG 4 input events. Old toggle chipset/RTG was renamed to Next display.
+- -norawinput now only disables raw hid, keyboard and mouse always use rawinput since 3.3.0.
+- Windowed mode statusbar message was only randomly visible when switching modes.
+- Currently visible status bar message will be immediately overridden by new message if both messages have same type.
+- END+F9 mode switch to programmed mode custom mode was not correctly positioned.
+- Expansion Systems Dataflyer Plus SCSI/IDE controller emulated. (Not same as Dataflyer SCSI Plus which is A1200/A4000 IDE port SCSI adapter)
+- Moved middle button untrap and "magic mouse" untrap/mouse sync to single select menu in gameports panel. (Misc panel middle
+  button is kept because it is commonly used but now it only changes gameports option)
+
+Expansion Systems Dataflyer Plus:
+- SCSI-only, IDE-only or SCSI+IDE configuration.
+- SCSI is 5380 based, fake DMA (byte wide)
+- Boot ROM is basically only a small driver loader, main driver is stored in RDB blocks.
+- RDB compatible but can't autoboot from non-Dataflyer partitioned drive.
+- It seems IDE partitioned HDF does not work in SCSI controller and vice versa, probably something geometry related that
+  prevents boot rom to find RDB embedded driver.
+
+Beta 7:
+
 - CD32 FMV ROM image was not loaded correctly from pre-3.4 config files.
 - CD32 first CD audio track play attempt from the beginning was confused with TOC subchannel read.
 - Z2/Z3 autoconfig data first byte's upper 5 bits was not editable. Only low 3 size bits should be forced (board size).
@@ -26,7 +55,7 @@ JIT Direct current rules are less complex now. It automatically switches off onl
 - Disable ROM panel UAE MapROM option if accelerator board emulation is enabled. They are incompatible.
 - Accelerator boards that required ROM but nothing was selected: crashed during expansion tree building.
 - DD-only drive + turbo floppy mode + standard ADF HD floppy image: valid MFM was returned.
-- Ignore all write attempts if standard ADF HD image in DD-only flpppy drive.
+- Ignore all write attempts if standard ADF HD image in DD-only floppy drive.
 
 Beta 6:
 

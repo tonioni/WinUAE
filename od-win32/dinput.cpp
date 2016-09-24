@@ -2125,7 +2125,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			for (i = 0; i < (5 > did->buttons ? did->buttons : 5); i++) {
 				if (rm->usButtonFlags & (3 << (i * 2))) {
 					int state = (rm->usButtonFlags & (1 << (i * 2))) ? 1 : 0;
-					if (!istest && i == 2 && currprefs.win32_middle_mouse)
+					if (!istest && i == 2 && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON))
 						continue;
 					setmousebuttonstate (num, i, state);
 				}
@@ -2179,7 +2179,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		}
 		if (isfocus () && !istest) {
 			if (did->buttons >= 3 && (rm->usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)) {
-				if (currprefs.win32_middle_mouse) {
+				if (currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) {
 					if ((isfullscreen() < 0 && currprefs.win32_minimize_inactive) || isfullscreen() > 0)
 						minimizewindow ();
 					if (mouseactive)
@@ -2532,7 +2532,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 				return;
 			if (!isfocus ())
 				return;
-			if (isfocus () < 2 && currprefs.input_tablet >= TABLET_MOUSEHACK && currprefs.input_magic_mouse) 
+			if (isfocus () < 2 && currprefs.input_tablet >= TABLET_MOUSEHACK && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC))
 				return;
 			di_keycodes[num][scancode] = pressed;
 			if (stopoutput == 0) {
@@ -3141,13 +3141,9 @@ static int di_do_init (void)
 	IsXInputDevice(NULL);
 #endif
 
-	if (!no_rawinput) {
-		write_log (_T("RawInput enumeration..\n"));
-		if (!initialize_rawinput ())
-			rawinput_enabled_hid = 0;
-	} else {
+	write_log (_T("RawInput enumeration..\n"));
+	if (!initialize_rawinput ())
 		rawinput_enabled_hid = 0;
-	}
 
 	if (!rawinput_decided) {
 		rawinput_enabled_keyboard = true;
@@ -3492,13 +3488,13 @@ static void read_mouse (void)
 								if (k == 0)
 									uae_quit ();
 #endif
-								if ((currprefs.win32_middle_mouse && k != 2) || !currprefs.win32_middle_mouse || istest)
+								if (((currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) && k != 2) || !(currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) || istest)
 									setmousebuttonstate (i, k, state);
 							}
 						}
 					}
 				}
-				if (!istest && isfocus () && currprefs.win32_middle_mouse && dimofs == DIMOFS_BUTTON2 && state) {
+				if (!istest && isfocus () && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) && dimofs == DIMOFS_BUTTON2 && state) {
 					if ((isfullscreen() < 0 && currprefs.win32_minimize_inactive) || isfullscreen() > 0)
 						minimizewindow ();
 					if (mouseactive)

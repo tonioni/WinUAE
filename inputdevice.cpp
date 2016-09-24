@@ -2585,7 +2585,7 @@ static void mousehack_helper (uae_u32 buttonmask)
 
 	//write_log (_T("mousehack_helper %08X\n"), buttonmask);
 
-	if (currprefs.input_magic_mouse == 0 && currprefs.input_tablet < TABLET_MOUSEHACK)
+	if (!(currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && currprefs.input_tablet < TABLET_MOUSEHACK)
 		return;
 #if 0
 	if (kickstart_version >= 36) {
@@ -2640,7 +2640,7 @@ static int mouseedge (void)
 	static int melast_x, melast_y;
 	static int isnonzero;
 
-	if (currprefs.input_magic_mouse == 0 || currprefs.input_tablet > 0)
+	if (!(currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) || currprefs.input_tablet > 0)
 		return 0;
 	if (magicmouse_ibase == 0xffffffff)
 		return 0;
@@ -4012,9 +4012,6 @@ static bool inputdevice_handle_inputcode2 (int code, int state)
 	case AKS_TOGGLEMOUSEGRAB:
 		toggle_mousegrab();
 		break;
-	case AKS_TOGGLERTG:
-		toggle_rtg (newstate);
-		break;
 	case AKS_SWAPJOYPORTS:
 		if (state == 1)
 			inputdevice_swap_compa_ports(&changed_prefs, 0);
@@ -4095,6 +4092,19 @@ static bool inputdevice_handle_inputcode2 (int code, int state)
 	case AKS_DISK_NEXT2:
 	case AKS_DISK_NEXT3:
 		disk_prevnext (code - AKS_DISK_NEXT0, 1);
+		break;
+	case AKS_RTG_PREV:
+		toggle_rtg(-1);
+		break;
+	case AKS_RTG_NEXT:
+		toggle_rtg(MAX_RTG_BOARDS + 1);
+		break;
+	case AKS_RTG_C:
+	case AKS_RTG_0:
+	case AKS_RTG_1:
+	case AKS_RTG_2:
+	case AKS_RTG_3:
+		toggle_rtg(code - AKS_RTG_C);
 		break;
 #ifdef CDTV
 	case AKS_CDTV_FRONT_PANEL_STOP:
@@ -4773,9 +4783,9 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 			inputdevice_unacquire ();
 			if (fname) {
 				if (newslot >= 0) {
-					statusline_add_message(_T("Port %d: Custom %d"), newport, newslot + 1);
+					statusline_add_message(STATUSTYPE_INPUT, _T("Port %d: Custom %d"), newport, newslot + 1);
 				} else {
-					statusline_add_message(_T("Port %d: %s"), newport, fname);
+					statusline_add_message(STATUSTYPE_INPUT, _T("Port %d: %s"), newport, fname);
 				}
 			}
 
@@ -4919,7 +4929,7 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 		write_log (_T("inputdevice input change '%s':%d->%d\n"), name, num, newport);
 		inputdevice_unacquire ();
 		if (fname)
-			statusline_add_message(_T("Port %d: %s"), newport, fname);
+			statusline_add_message(STATUSTYPE_INPUT, _T("Port %d: %s"), newport, fname);
 		inputdevice_copyconfig (&currprefs, &changed_prefs);
 		inputdevice_validate_jports (&changed_prefs, -1, NULL);
 		inputdevice_copyconfig (&changed_prefs, &currprefs);

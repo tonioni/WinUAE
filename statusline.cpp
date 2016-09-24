@@ -303,7 +303,12 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 }
 
 #define MAX_STATUSLINE_QUEUE 8
-static TCHAR *statusline_text[MAX_STATUSLINE_QUEUE];
+struct statusline_struct
+{
+	TCHAR *text;
+	int type;
+};
+struct statusline_struct statusline_data[MAX_STATUSLINE_QUEUE];
 static TCHAR *statusline_text_active;
 static int statusline_delay;
 static bool statusline_had_changed;
@@ -326,8 +331,8 @@ void statusline_clear(void)
 	statusline_text_active = NULL;
 	statusline_delay = 0;
 	for (int i = 0; i < MAX_STATUSLINE_QUEUE; i++) {
-		xfree(statusline_text[i]);
-		statusline_text[i] = NULL;
+		xfree(statusline_data[i].text);
+		statusline_data[i].text = NULL;
 	}
 	statusline_update_notification();
 }
@@ -337,7 +342,7 @@ const TCHAR *statusline_fetch(void)
 	return statusline_text_active;
 }
 
-void statusline_add_message(const TCHAR *format, ...)
+void statusline_add_message(int statustype, const TCHAR *format, ...)
 {
 	va_list parms;
 	TCHAR buffer[256];
@@ -350,63 +355,77 @@ void statusline_add_message(const TCHAR *format, ...)
 	_vsntprintf(buffer + 1, 256 - 2, format, parms);
 	_tcscat(buffer, _T(" "));
 
-	if (statusline_text[1]) {
+	for (int i = 0; i < MAX_STATUSLINE_QUEUE; i++) {
+		if (statusline_data[i].text != NULL && statusline_data[i].type == statustype) {
+			xfree(statusline_data[i].text);
+			statusline_data[i].text = NULL;
+			for (int j = i + 1; j < MAX_STATUSLINE_QUEUE; j++) {
+				memcpy(&statusline_data[j - 1], &statusline_data[j], sizeof(struct statusline_struct));
+			}
+			statusline_data[MAX_STATUSLINE_QUEUE - 1].text = NULL;
+		}
+	}
+
+	if (statusline_data[1].text) {
 		for (int i = 0; i < MAX_STATUSLINE_QUEUE; i++) {
-			if (statusline_text[i] && !_tcscmp(statusline_text[i], buffer)) {
-				xfree(statusline_text[i]);
+			if (statusline_data[i].text && !_tcscmp(statusline_data[i].text, buffer)) {
+				xfree(statusline_data[i].text);
 				for (int j = i + 1; j < MAX_STATUSLINE_QUEUE; j++) {
-					statusline_text[j - 1] = statusline_text[j];
+					memcpy(&statusline_data[j - 1], &statusline_data[j], sizeof(struct statusline_struct));
 				}
-				statusline_text[MAX_STATUSLINE_QUEUE - 1] = NULL;
+				statusline_data[MAX_STATUSLINE_QUEUE - 1].text = NULL;
 				i = 0;
 			}
 		}
-	} else if (statusline_text[0]) {
-		if (!_tcscmp(statusline_text[0], buffer))
+	} else if (statusline_data[0].text) {
+		if (!_tcscmp(statusline_data[0].text, buffer))
 			return;
 	}
 
 	for (int i = 0; i < MAX_STATUSLINE_QUEUE; i++) {
-		if (statusline_text[i] == NULL) {
-			statusline_text[i] = my_strdup(buffer);
+		if (statusline_data[i].text == NULL) {
+			statusline_data[i].text = my_strdup(buffer);
+			statusline_data[i].type = statustype;
 			if (i == 0)
 				statusline_delay = STATUSLINE_MS * vblank_hz / (1000 * 1);
-			statusline_text_active = statusline_text[0];
+			statusline_text_active = statusline_data[0].text;
 			statusline_update_notification();
 			return;
 		}
 	}
 	statusline_text_active = NULL;
-	xfree(statusline_text[0]);
+	xfree(statusline_data[0].text);
 	for (int i = 1; i < MAX_STATUSLINE_QUEUE; i++) {
-		statusline_text[i - 1] = statusline_text[i];
+		memcpy(&statusline_data[i - 1], &statusline_data[i], sizeof(struct statusline_struct));
 	}
-	statusline_text[MAX_STATUSLINE_QUEUE - 1] = my_strdup(buffer);
-	statusline_text_active = statusline_text[0];
+	statusline_data[MAX_STATUSLINE_QUEUE - 1].text = my_strdup(buffer);
+	statusline_data[MAX_STATUSLINE_QUEUE - 1].type = statustype;
+	statusline_text_active = statusline_data[0].text;
 	statusline_update_notification();
+
 	va_end(parms);
 }
 
 void statusline_vsync(void)
 {
-	if (!statusline_text[0])
+	if (!statusline_data[0].text)
 		return;
 	if (statusline_delay == 0)
 		statusline_delay = STATUSLINE_MS * vblank_hz / (1000 * 1);
 	if (statusline_delay > STATUSLINE_MS * vblank_hz / (1000 * 1))
 		statusline_delay = STATUSLINE_MS * vblank_hz / (1000 * 1);
-	if (statusline_delay > STATUSLINE_MS * vblank_hz / (1000 * 3) && statusline_text[1])
+	if (statusline_delay > STATUSLINE_MS * vblank_hz / (1000 * 3) && statusline_data[1].text)
 		statusline_delay = STATUSLINE_MS * vblank_hz / (1000 * 3);
 	statusline_delay--;
 	if (statusline_delay)
 		return;
 	statusline_text_active = NULL;
-	xfree(statusline_text[0]);
+	xfree(statusline_data[0].text);
 	for (int i = 1; i < MAX_STATUSLINE_QUEUE; i++) {
-		statusline_text[i - 1] = statusline_text[i];
+		statusline_data[i - 1].text = statusline_data[i].text;
 	}
-	statusline_text[MAX_STATUSLINE_QUEUE - 1] = NULL;
-	statusline_text_active = statusline_text[0];
+	statusline_data[MAX_STATUSLINE_QUEUE - 1].text = NULL;
+	statusline_text_active = statusline_data[0].text;
 	statusline_update_notification();
 }
 

@@ -112,6 +112,11 @@ struct jport {
 #define CONFIG_TYPE_NORESET 4
 #define CONFIG_BLEN 2560
 
+#define MOUSEUNTRAP_NONE 0
+#define MOUSEUNTRAP_MIDDLEBUTTON 1
+#define MOUSEUNTRAP_MAGIC 2
+#define MOUSEUNTRAP_BOTH 3
+
 #define TABLET_OFF 0
 #define TABLET_MOUSEHACK 1
 #define TABLET_REAL 2
@@ -695,7 +700,6 @@ struct uae_prefs {
 
 	/* Target specific options */
 
-	bool win32_middle_mouse;
 	bool win32_logfile;
 	bool win32_notaskbarbutton;
 	bool win32_nonotificationicon;
@@ -774,7 +778,7 @@ struct uae_prefs {
 	int input_mouse_speed;
 	int input_tablet;
 	bool tablet_library;
-	bool input_magic_mouse;
+	int input_mouse_untrap;
 	int input_magic_mouse_cursor;
 	int input_keyboard_type;
 	int input_autoswitch;

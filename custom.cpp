@@ -6806,7 +6806,7 @@ static void cursorsprite (void)
 		sprite_0_colors[3] = xcolors[current_colors.color_regs_ecs[19]];
 	}
 	sprite_0_width = sprite_width;
-	if (currprefs.input_tablet && currprefs.input_magic_mouse) {
+	if (currprefs.input_tablet && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC)) {
 		if (currprefs.input_magic_mouse_cursor == MAGICMOUSE_HOST_ONLY && mousehack_alive ())
 			magic_sprite_mask &= ~1;
 		else

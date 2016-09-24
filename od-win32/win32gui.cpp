@@ -286,6 +286,18 @@ static void hide (HWND hDlg, DWORD id, int hide)
 
 static int scsiromselect_table[256];
 
+static bool getcomboboxtext(HWND hDlg, int id, TCHAR *out, int maxlen)
+{
+	out[0] = 0;
+	int posn = SendDlgItemMessage(hDlg, id, CB_GETCURSEL, 0, 0L);
+	if (posn == CB_ERR) {
+		GetDlgItemText(hDlg, id, out, maxlen);
+		return true;
+	}
+	SendDlgItemMessage(hDlg, id, CB_GETLBTEXT, posn, (LPARAM)out);
+	return true;
+}
+
 static void gui_add_string(int *table, HWND hDlg, int item, int id, const TCHAR *str)
 {
 	while (*table >= 0)
@@ -4048,8 +4060,10 @@ struct miscentry
 	int ival, imask;
 };
 
+static bool win32_middle_mouse_obsolete;
+
 static const struct miscentry misclist[] = { 
-	{ 0, 1, _T("Untrap = middle button"),  &workprefs.win32_middle_mouse },
+	{ 0, 1, _T("Untrap = middle button"),  &win32_middle_mouse_obsolete },
 	{ 0, 0, _T("Show GUI on startup"), &workprefs.start_gui },
 	{ 0, 1, _T("Use CTRL-F11 to quit"), &workprefs.win32_ctrl_F11_is_quit },
 	{ 0, 1, _T("Don't show taskbar button"), &workprefs.win32_notaskbarbutton },
@@ -4371,6 +4385,8 @@ void InitializeListView (HWND hDlg)
 			const struct miscentry *me = &misclist[i];
 			int type = me->type;
 			bool checked = false;
+
+			win32_middle_mouse_obsolete = (workprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) != 0;
 
 			if (me->b) {
 				checked = *me->b;
@@ -10908,6 +10924,9 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 						if (checked)
 							*me->i |= me->ival & me->imask;
 					}
+					workprefs.input_mouse_untrap &= ~MOUSEUNTRAP_MIDDLEBUTTON;
+					if (win32_middle_mouse_obsolete)
+						workprefs.input_mouse_untrap |= MOUSEUNTRAP_MIDDLEBUTTON;
 				}
 			}
 		}
@@ -12195,6 +12214,21 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 		break;
 
 	case WM_COMMAND:
+
+		if (HIWORD(wParam) == CBN_SELCHANGE || HIWORD(wParam) == CBN_KILLFOCUS) {
+			switch (LOWORD(wParam))
+			{
+			case IDC_PATH_NAME:
+			getcomboboxtext(hDlg, IDC_PATH_NAME, current_fsvdlg.ci.rootdir, sizeof current_fsvdlg.ci.rootdir / sizeof(TCHAR));
+			break;
+			case IDC_VOLUME_NAME:
+			GetDlgItemText(hDlg, IDC_VOLUME_NAME, current_fsvdlg.ci.volname, sizeof current_fsvdlg.ci.volname / sizeof(TCHAR));
+			break;
+			case IDC_VOLUME_DEVICE:
+			GetDlgItemText(hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.ci.devname, sizeof current_fsvdlg.ci.devname / sizeof(TCHAR));
+			break;
+			}
+		}
 		if (recursive)
 			break;
 		recursive++;
@@ -12204,15 +12238,19 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 			case IDC_FS_SELECT_EJECT:
 				SetDlgItemText (hDlg, IDC_PATH_NAME, _T(""));
 				SetDlgItemText (hDlg, IDC_VOLUME_NAME, _T(""));
+				current_fsvdlg.ci.rootdir[0] = 0;
+				current_fsvdlg.ci.volname[0] = 0;
 				CheckDlgButton (hDlg, IDC_FS_RW, TRUE);
 				ew (hDlg, IDC_FS_RW, TRUE);
 				archivehd = -1;
 				break;
 			case IDC_FS_SELECT_FILE:
 				volumeselectfile (hDlg);
+				getcomboboxtext(hDlg, IDC_PATH_NAME, current_fsvdlg.ci.rootdir, sizeof current_fsvdlg.ci.rootdir / sizeof(TCHAR));
 				break;
 			case IDC_FS_SELECT_DIR:
 				volumeselectdir (hDlg, 0);
+				getcomboboxtext(hDlg, IDC_PATH_NAME, current_fsvdlg.ci.rootdir, sizeof current_fsvdlg.ci.rootdir / sizeof(TCHAR));
 				break;
 			case IDOK:
 				EndDialog (hDlg, 1);
@@ -12222,9 +12260,6 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 				break;
 			}
 		}
-		GetDlgItemText (hDlg, IDC_PATH_NAME, current_fsvdlg.ci.rootdir, sizeof current_fsvdlg.ci.rootdir / sizeof (TCHAR));
-		GetDlgItemText (hDlg, IDC_VOLUME_NAME, current_fsvdlg.ci.volname, sizeof current_fsvdlg.ci.volname / sizeof (TCHAR));
-		GetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.ci.devname, sizeof current_fsvdlg.ci.devname / sizeof (TCHAR));
 		current_fsvdlg.ci.readonly = !ischecked (hDlg, IDC_FS_RW);
 		current_fsvdlg.ci.bootpri = GetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, NULL, TRUE);
 		if(LOWORD (wParam) == IDC_FS_AUTOBOOT) {
@@ -12631,20 +12666,18 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		customDlg = hDlg;
 		return TRUE;
 	case WM_COMMAND:
-		if (recursive)
-			break;
-		recursive++;
 		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
 			switch (LOWORD (wParam))
 			{
 			case IDC_PATH_NAME:
-				GetDlgItemText (hDlg, IDC_PATH_NAME, tmp, sizeof tmp / sizeof (TCHAR));
-				if (_tcscmp (tmp, current_tapedlg.ci.rootdir)) {
-					_tcscpy (current_tapedlg.ci.rootdir, tmp);
-					readonly = my_existsfile (current_tapedlg.ci.rootdir);
-					ew (hDlg, IDC_TAPE_RW, !readonly);
-					if (readonly)
-						CheckDlgButton (hDlg, IDC_TAPE_RW, FALSE);
+				if (getcomboboxtext(hDlg, IDC_PATH_NAME, tmp, sizeof tmp / sizeof(TCHAR))) {
+					if (_tcscmp (tmp, current_tapedlg.ci.rootdir)) {
+						_tcscpy (current_tapedlg.ci.rootdir, tmp);
+						readonly = my_existsfile (current_tapedlg.ci.rootdir);
+						ew (hDlg, IDC_TAPE_RW, !readonly);
+						if (readonly)
+							CheckDlgButton (hDlg, IDC_TAPE_RW, FALSE);
+					}
 				}
 				break;
 			case IDC_HDF_CONTROLLER:
@@ -12667,6 +12700,9 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				break;
 			}
 		}
+		if (recursive)
+			break;
+		recursive++;
 		switch (LOWORD (wParam))
 		{
 		case IDC_TAPE_EJECT:
@@ -12793,12 +12829,30 @@ static void set_phys_cyls(HWND hDlg)
 	}
 }
 
+static void restore_hd_geom(struct uaedev_config_info *dst, struct uaedev_config_info *src)
+{
+	_tcscpy(dst->filesys, src->filesys);
+	_tcscpy(dst->devname, src->devname);
+	dst->controller_type = src->controller_type;
+	dst->controller_type_unit = src->controller_type_unit;
+	dst->controller_unit = src->controller_unit;
+	dst->controller_media_type = src->controller_media_type;
+	dst->unit_feature_level = src->unit_feature_level;
+	dst->bootpri = src->bootpri;
+	dst->readonly = src->readonly;
+	dst->physical_geometry = src->physical_geometry;
+	if (src->physical_geometry) {
+		dst->pcyls = src->pcyls;
+		dst->pheads = src->pheads;
+		dst->psecs = src->psecs;
+	}
+}
+
 static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
 	LRESULT res, posn;
-	TCHAR tmp[MAX_DPATH], fs[MAX_DPATH], dev[MAX_DPATH];
-	int hdctrlr, hdunit;
+	TCHAR tmp[MAX_DPATH];
 	int v;
 	int *p;
 
@@ -12849,19 +12903,28 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		break;
 
 	case WM_COMMAND:
-		if (recursive)
-			break;
-		recursive++;
 
 		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
 			switch (LOWORD (wParam)) {
 			case IDC_PATH_NAME:
-				GetDlgItemText (hDlg, IDC_PATH_NAME, tmp, sizeof tmp / sizeof (TCHAR));
-				if (_tcscmp (tmp, current_hfdlg.ci.rootdir)) {
-					_tcscpy (current_hfdlg.ci.rootdir, tmp);
-					hardfileselecthdf (hDlg, NULL, false);
+				if (getcomboboxtext(hDlg, IDC_PATH_NAME, tmp, sizeof tmp / sizeof(TCHAR))) {
+					if (_tcscmp (tmp, current_hfdlg.ci.rootdir)) {
+						_tcscpy (current_hfdlg.ci.rootdir, tmp);
+						recursive++;
+						hardfileselecthdf (hDlg, NULL, false);
+						recursive--;
+					}
 				}
 				break;
+			}
+		}
+
+		if (recursive)
+			break;
+		recursive++;
+
+		if (HIWORD(wParam) == CBN_SELCHANGE || HIWORD(wParam) == CBN_KILLFOCUS) {
+			switch (LOWORD(wParam)) {
 			case IDC_HDF_CONTROLLER:
 				posn = gui_get_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER);
 				if (posn != CB_ERR) {
@@ -12895,8 +12958,12 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 					sethardfile(hDlg);
 				}
 				break;
+			case IDC_PATH_FILESYS:
+				getcomboboxtext(hDlg, IDC_PATH_FILESYS, current_hfdlg.ci.filesys, sizeof  current_hfdlg.ci.filesys / sizeof(TCHAR));
+				break;
 			}
 		}
+
 		switch (LOWORD (wParam)) {
 		case IDC_HF_SIZE:
 			ew (hDlg, IDC_HF_CREATE, CalculateHardfileSize (hDlg) > 0);
@@ -12907,32 +12974,26 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			ew (hDlg, IDC_HF_DOSTYPE, res >= 4);
 			break;
 		case IDC_HF_CREATE:
-			_tcscpy (fs, current_hfdlg.ci.filesys);
-			default_hfdlg (&current_hfdlg, false);
-			_tcscpy (current_hfdlg.ci.filesys, fs);
-			hardfilecreatehdf (hDlg, NULL);
+			{
+				struct uaedev_config_info citmp;
+				memcpy(&citmp, &current_hfdlg.ci, sizeof citmp);
+				default_hfdlg (&current_hfdlg, false);
+				restore_hd_geom(&current_hfdlg.ci, &citmp);
+				hardfilecreatehdf (hDlg, NULL);
+			}
 			break;
 		case IDC_SELECTOR:
 			{
-				_tcscpy (fs, current_hfdlg.ci.filesys);
-				_tcscpy (dev, current_hfdlg.ci.devname);
-				bool rw = current_hfdlg.ci.readonly;
-				int bootpri = current_hfdlg.ci.bootpri;
-				hdctrlr = current_hfdlg.ci.controller_type;
-				hdunit = current_hfdlg.ci.controller_unit;
+				struct uaedev_config_info citmp;
+				memcpy(&citmp, &current_hfdlg.ci, sizeof citmp);
 				default_hfdlg (&current_hfdlg, false);
-				_tcscpy (current_hfdlg.ci.filesys, fs);
-				_tcscpy (current_hfdlg.ci.devname, dev);
-				current_hfdlg.ci.controller_type = hdctrlr;
-				current_hfdlg.ci.controller_unit = hdunit;
-				current_hfdlg.ci.bootpri = bootpri;
-				current_hfdlg.ci.readonly = rw;
+				restore_hd_geom(&current_hfdlg.ci, &citmp);
 				hardfileselecthdf (hDlg, NULL, true);
 			}
 			break;
 		case IDC_FILESYS_SELECTOR:
 			DiskSelection (hDlg, IDC_PATH_FILESYS, 12, &workprefs, 0);
-			GetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.ci.filesys, sizeof current_hfdlg.ci.filesys / sizeof (TCHAR));
+			getcomboboxtext(hDlg, IDC_PATH_FILESYS, current_hfdlg.ci.filesys, sizeof  current_hfdlg.ci.filesys / sizeof(TCHAR));
 			DISK_history_add(current_hfdlg.ci.filesys, -1, HISTORY_FS, 1);
 			break;
 		case IDOK:
@@ -13019,9 +13080,6 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				current_hfdlg.ci.bootpri = -127;
 			if (current_hfdlg.ci.bootpri > 127)
 				current_hfdlg.ci.bootpri = 127;
-			break;
-		case IDC_PATH_FILESYS:
-			GetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.ci.filesys, sizeof current_hfdlg.ci.filesys / sizeof (TCHAR));
 			break;
 		case IDC_HARDFILE_DEVICE:
 			GetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, current_hfdlg.ci.devname, sizeof current_hfdlg.ci.devname / sizeof (TCHAR));
@@ -13978,7 +14036,10 @@ static void addallfloppies (HWND hDlg)
 static void floppysetwriteprotect (HWND hDlg, int n, bool writeprotected)
 {
 	if (!iscd (n)) {
-		disk_setwriteprotect (&workprefs, n, workprefs.floppyslots[n].df, writeprotected);
+		if (disk_setwriteprotect (&workprefs, n, workprefs.floppyslots[n].df, writeprotected)) {
+			if (!full_property_sheet)
+				DISK_reinsert(n);
+		}
 		addfloppytype (hDlg, n);
 	}
 }
@@ -13991,7 +14052,8 @@ static void deletesaveimage (HWND hDlg, int num)
 	p = DISK_get_saveimagepath(workprefs.floppyslots[num].df, -2);
 	if (zfile_exists (p)) {
 		DeleteFile (p);
-		DISK_reinsert (num);
+		if (!full_property_sheet)
+			DISK_reinsert (num);
 		addfloppytype (hDlg, num);
 	}
 	xfree(p);
@@ -14682,7 +14744,6 @@ static void updatejoyport (HWND hDlg, int changedport)
 	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
 
 	SetDlgItemInt (hDlg, IDC_INPUTSPEEDM, workprefs.input_mouse_speed, FALSE);
-	CheckDlgButton (hDlg, IDC_PORT_MOUSETRICK, workprefs.input_magic_mouse);
 	SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_SETCURSEL, workprefs.input_magic_mouse_cursor, 0);
 	CheckDlgButton (hDlg, IDC_PORT_TABLET, workprefs.input_tablet > 0);
 	CheckDlgButton (hDlg, IDC_PORT_TABLET_FULL, workprefs.input_tablet == TABLET_REAL);
@@ -14762,7 +14823,7 @@ static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 		if (success)
 			currprefs.input_mouse_speed = workprefs.input_mouse_speed = i;
 
-		currprefs.input_magic_mouse = workprefs.input_magic_mouse = ischecked (hDlg, IDC_PORT_MOUSETRICK);
+		workprefs.input_mouse_untrap = SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_GETCURSEL, 0, 0L);
 		workprefs.input_magic_mouse_cursor = SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_GETCURSEL, 0, 0L);
 		workprefs.input_autoswitch = ischecked (hDlg, IDC_PORT_AUTOSWITCH);
 		workprefs.input_tablet = 0;
@@ -15220,6 +15281,13 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)tmp);
 		WIN32GUI_LoadUIString (IDS_TABLET_HOST_CURSOR, tmp, MAX_DPATH);
 		SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)tmp);
+
+		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_RESETCONTENT, 0, 0L);
+		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_ADDSTRING, 0, (LPARAM)_T("None (Alt-Tab)"));
+		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_ADDSTRING, 0, (LPARAM)_T("Middle button"));
+		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_ADDSTRING, 0, (LPARAM)_T("Magic mouse"));
+		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_ADDSTRING, 0, (LPARAM)_T("Both"));
+		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_SETCURSEL, workprefs.input_mouse_untrap, 0);
 
 		for (i = 0; i < 2; i++) {
 			int id = i == 0 ? IDC_PORT0_JOYSMODE : IDC_PORT1_JOYSMODE;

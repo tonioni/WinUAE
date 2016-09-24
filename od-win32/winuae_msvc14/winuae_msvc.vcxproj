@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="packages\VisualCppTools.14.0.24515-Pre\build\native\VisualCppTools.props" Condition="Exists('packages\VisualCppTools.14.0.24515-Pre\build\native\VisualCppTools.props')" />
+  <Import Project="packages\VisualCppTools.14.0.24523-Pre\build\native\VisualCppTools.props" Condition="Exists('packages\VisualCppTools.14.0.24523-Pre\build\native\VisualCppTools.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -704,7 +704,7 @@
     </Midl>
     <ClCompile>
       <Optimization>Full</Optimization>
-      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
@@ -845,6 +845,7 @@
     <ClCompile Include="..\..\events.cpp" />
     <ClCompile Include="..\..\fake86_cpu.cpp" />
     <ClCompile Include="..\..\flashrom.cpp" />
+    <ClCompile Include="..\..\framebufferboards.cpp" />
     <ClCompile Include="..\..\gfxboard.cpp" />
     <ClCompile Include="..\..\hrtmon.rom.cpp" />
     <ClCompile Include="..\..\ide.cpp" />
@@ -1124,6 +1125,6 @@
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('packages\VisualCppTools.14.0.24515-Pre\build\native\VisualCppTools.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\VisualCppTools.14.0.24515-Pre\build\native\VisualCppTools.props'))" />
+    <Error Condition="!Exists('packages\VisualCppTools.14.0.24523-Pre\build\native\VisualCppTools.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\VisualCppTools.14.0.24523-Pre\build\native\VisualCppTools.props'))" />
   </Target>
 </Project>

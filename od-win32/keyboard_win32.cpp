@@ -423,7 +423,7 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate)
 
 	if (scancode == DIK_F9 && specialpressed ()) {
 		if (newstate)
-			toggle_rtg (-1);
+			toggle_rtg (MAX_RTG_BOARDS + 1);
 		return true;
 	}
 

@@ -419,9 +419,9 @@ static void cd_statusline_label(int unitnum)
 		struct device_info di;
 		const TCHAR *fname = my_getfilepart(p);
 		if (sys_command_info(unitnum, &di, 0) && di.volume_id[0])
-			statusline_add_message(_T("CD%d: [%s] %s"), unitnum, di.volume_id, fname);
+			statusline_add_message(STATUSTYPE_CD, _T("CD%d: [%s] %s"), unitnum, di.volume_id, fname);
 		else
-			statusline_add_message(_T("CD%d: %s"), unitnum, fname);
+			statusline_add_message(STATUSTYPE_CD, _T("CD%d: %s"), unitnum, fname);
 	}
 }
 
@@ -638,7 +638,7 @@ static void check_changes (int unitnum)
 		}
 		write_log (_T("CD: eject (%s) open=%d\n"), pollmode ? _T("slow") : _T("fast"), st->wasopen ? 1 : 0);
 		if (wasimage)
-			statusline_add_message(_T("CD%d: -"), unitnum);
+			statusline_add_message(STATUSTYPE_CD, _T("CD%d: -"), unitnum);
 
 #ifdef RETROPLATFORM
 		rp_cd_image_change (unitnum, NULL); 

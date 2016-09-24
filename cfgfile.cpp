@@ -1679,7 +1679,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, _T("parallel_autoflush"), _T("%d"), p->parallel_autoflush_time);
 	cfgfile_dwrite (f, _T("uae_hide"), _T("%d"), p->uae_hide);
 	cfgfile_dwrite_bool (f, _T("uae_hide_autoconfig"), p->uae_hide_autoconfig);
-	cfgfile_dwrite_bool (f, _T("magic_mouse"), p->input_magic_mouse);
+	cfgfile_dwrite_bool (f, _T("magic_mouse"), (p->input_mouse_untrap & MOUSEUNTRAP_MAGIC) != 0);
 	cfgfile_dwrite_str (f, _T("magic_mousecursor"), magiccursors[p->input_magic_mouse_cursor]);
 	cfgfile_dwrite_str (f, _T("absolute_mouse"), abspointers[p->input_tablet]);
 	cfgfile_dwrite_bool (f, _T("tablet_library"), p->tablet_library);
@@ -2840,7 +2840,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno(option, value, _T("gfx_flickerfixer"), &p->gfx_scandoubler)
 		|| cfgfile_yesno(option, value, _T("gfx_autoresolution_vga"), &p->gfx_autoresolution_vga)
 		|| cfgfile_yesno(option, value, _T("show_refresh_indicator"), &p->refresh_indicator)
-		|| cfgfile_yesno(option, value, _T("magic_mouse"), &p->input_magic_mouse)
 		|| cfgfile_yesno(option, value, _T("warp"), &p->turbo_emulation)
 		|| cfgfile_yesno(option, value, _T("headless"), &p->headless)
 		|| cfgfile_yesno(option, value, _T("clipboard_sharing"), &p->clipboard_sharing)
@@ -2877,6 +2876,12 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_strval (option, value, _T("magic_mousecursor"), &p->input_magic_mouse_cursor, magiccursors, 0)
 		|| cfgfile_strval (option, value, _T("absolute_mouse"), &p->input_tablet, abspointers, 0))
 		return 1;
+
+	if (cfgfile_yesno(option, value, _T("magic_mouse"), &vb)) {
+		p->input_mouse_untrap |= MOUSEUNTRAP_MAGIC;
+		return 1;
+	}
+
 
 #ifdef GFXFILTER
 	for (int j = 0; j < 2; j++) {
@@ -4563,12 +4568,12 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 	return false;
 }
 
-static void addbcromtype(struct uae_prefs *p, int romtype, bool add, const TCHAR *romfile)
+static void addbcromtype(struct uae_prefs *p, int romtype, bool add, const TCHAR *romfile, int devnum)
 {
 	if (!add) {
-		clear_device_rom(p, romtype, 0, true);
+		clear_device_rom(p, romtype, devnum, true);
 	} else {
-		struct boardromconfig *brc = get_device_rom_new(p, romtype, 0, NULL);
+		struct boardromconfig *brc = get_device_rom_new(p, romtype, devnum, NULL);
 		if (brc && !brc->roms[0].romfile[0]) {
 			_tcscpy(brc->roms[0].romfile, romfile ? romfile : _T(":ENABLED"));
 		}
@@ -4624,7 +4629,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 
 	if (cfgfile_string(option, value, _T("a2065"), p->a2065name, sizeof p->a2065name / sizeof(TCHAR))) {
 		if (p->a2065name[0])
-			addbcromtype(p, ROMTYPE_A2065, true, NULL);
+			addbcromtype(p, ROMTYPE_A2065, true, NULL, 0);
 		return 1;
 	}
 
@@ -4778,65 +4783,65 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 
 	if (cfgfile_yesno(option, value, _T("pcmcia"), &p->cs_pcmcia)) {
 		if (p->cs_pcmcia)
-			addbcromtype(p, ROMTYPE_MB_PCMCIA, true, NULL);
+			addbcromtype(p, ROMTYPE_MB_PCMCIA, true, NULL, 0);
 		return 1;
 	}
 	if (cfgfile_strval(option, value, _T("ide"), &p->cs_ide, idemode, 0)) {
 		if (p->cs_ide)
-			addbcromtype(p, ROMTYPE_MB_IDE, true, NULL);
+			addbcromtype(p, ROMTYPE_MB_IDE, true, NULL, 0);
 		return 1;
 	}
 	if (cfgfile_yesno(option, value, _T("scsi_a3000"), &dummybool)) {
 		if (dummybool) {
-			addbcromtype(p, ROMTYPE_SCSI_A3000, true, NULL);
+			addbcromtype(p, ROMTYPE_SCSI_A3000, true, NULL, 0);
 			p->cs_mbdmac = 1;
 		}
 		return 1;
 	}
 	if (cfgfile_yesno(option, value, _T("scsi_a4000t"), &dummybool)) {
 		if (dummybool) {
-			addbcromtype(p, ROMTYPE_SCSI_A4000T, true, NULL);
+			addbcromtype(p, ROMTYPE_SCSI_A4000T, true, NULL, 0);
 			p->cs_mbdmac = 2;
 		}
 		return 1;
 	}
 	if (cfgfile_yesno(option, value, _T("cd32fmv"), &p->cs_cd32fmv)) {
 		if (p->cs_cd32fmv) {
-			addbcromtype(p, ROMTYPE_CD32CART, true, p->cartfile);
+			addbcromtype(p, ROMTYPE_CD32CART, true, p->cartfile, 0);
 		}
 		return 1;
 	}
 	if (cfgfile_intval(option, value, _T("catweasel"), &p->catweasel, 1)) {
 		if (p->catweasel) {
-			addbcromtype(p, ROMTYPE_CATWEASEL, true, NULL);
+			addbcromtype(p, ROMTYPE_CATWEASEL, true, NULL, 0);
 		}
 		return 1;
 	}
 	if (cfgfile_yesno(option, value, _T("toccata"), &dummybool))
 	{
 		if (dummybool) {
-			addbcromtype(p, ROMTYPE_TOCCATA, true, NULL);
+			addbcromtype(p, ROMTYPE_TOCCATA, true, NULL, 0);
 		}
 		return 1;
 	}
 	if (cfgfile_yesno(option, value, _T("es1370_pci"), &dummybool))
 	{
 		if (dummybool) {
-			addbcromtype(p, ROMTYPE_ES1370, true, NULL);
+			addbcromtype(p, ROMTYPE_ES1370, true, NULL, 0);
 		}
 		return 1;
 	}
 	if (cfgfile_yesno(option, value, _T("fm801_pci"), &dummybool))
 	{
 		if (dummybool) {
-			addbcromtype(p, ROMTYPE_FM801, true, NULL);
+			addbcromtype(p, ROMTYPE_FM801, true, NULL, 0);
 		}
 		return 1;
 	}
 	if (cfgfile_yesno(option, value, _T("toccata_mixer"), &dummybool))
 	{
 		if (dummybool) {
-			addbcromtype(p, ROMTYPE_TOCCATA, true, NULL);
+			addbcromtype(p, ROMTYPE_TOCCATA, true, NULL, 0);
 		}
 		return 1;
 	}
@@ -5109,7 +5114,7 @@ static void romtype_restricted(struct uae_prefs *p, int *list)
 			while (list[i]) {
 				romtype = list[i];
 				if (cfgfile_board_enabled(p, romtype, 0)) {
-					addbcromtype(p, romtype, false, NULL);
+					addbcromtype(p, romtype, false, NULL, 0);
 				}
 				i++;
 				return;
@@ -5185,11 +5190,33 @@ void cfgfile_compatibility_rtg(struct uae_prefs *p)
 			}
 		}
 	}
+	int rtgs[MAX_RTG_BOARDS] = { 0 };
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
-		if (p->rtgboards[i].rtgmem_size) {
+		if (p->rtgboards[i].rtgmem_size && !rtgs[i]) {
 			uae_u32 romtype = gfxboard_get_romtype(&p->rtgboards[i]);
 			if (romtype) {
-				addbcromtype(p, romtype, true, NULL);
+				int devnum = 0;
+				for (int j = i; j < MAX_RTG_BOARDS; j++) {
+					rtgs[j] = 1;
+					if (gfxboard_get_romtype(&p->rtgboards[j]) == romtype) {
+						addbcromtype(p, romtype, true, NULL, devnum);
+						devnum++;
+					}
+				}
+				while (devnum < MAX_DUPLICATE_EXPANSION_BOARDS) {
+					addbcromtype(p, romtype, false, NULL, devnum);
+					devnum++;
+				}
+			}
+		}
+	}
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		if (!rtgs[i]) {
+			uae_u32 romtype = gfxboard_get_romtype(&p->rtgboards[i]);
+			if (romtype) {
+				for (int devnum = 0; devnum < MAX_DUPLICATE_EXPANSION_BOARDS; devnum++) {
+					addbcromtype(p, romtype, false, NULL, devnum);
+				}
 			}
 		}
 	}
@@ -5197,31 +5224,31 @@ void cfgfile_compatibility_rtg(struct uae_prefs *p)
 
 void cfgfile_compatibility_romtype(struct uae_prefs *p)
 {
-	addbcromtype(p, ROMTYPE_MB_PCMCIA, p->cs_pcmcia, NULL);
+	addbcromtype(p, ROMTYPE_MB_PCMCIA, p->cs_pcmcia, NULL, 0);	
 
-	addbcromtype(p, ROMTYPE_MB_IDE, p->cs_ide != 0, NULL);
+	addbcromtype(p, ROMTYPE_MB_IDE, p->cs_ide != 0, NULL, 0);
 
 	if (p->cs_mbdmac == 1) {
-		addbcromtype(p, ROMTYPE_SCSI_A4000T, false, NULL);
-		addbcromtype(p, ROMTYPE_SCSI_A3000, true, NULL);
+		addbcromtype(p, ROMTYPE_SCSI_A4000T, false, NULL, 0);
+		addbcromtype(p, ROMTYPE_SCSI_A3000, true, NULL, 0);
 	} else if (p->cs_mbdmac == 2) {
-		addbcromtype(p, ROMTYPE_SCSI_A3000, false, NULL);
-		addbcromtype(p, ROMTYPE_SCSI_A4000T, true, NULL);
+		addbcromtype(p, ROMTYPE_SCSI_A3000, false, NULL, 0);
+		addbcromtype(p, ROMTYPE_SCSI_A4000T, true, NULL, 0);
 	} else {
-		addbcromtype(p, ROMTYPE_SCSI_A3000, false, NULL);
-		addbcromtype(p, ROMTYPE_SCSI_A4000T, false, NULL);
+		addbcromtype(p, ROMTYPE_SCSI_A3000, false, NULL, 0);
+		addbcromtype(p, ROMTYPE_SCSI_A4000T, false, NULL, 0);
 	}
 
-	addbcromtype(p, ROMTYPE_CDTVDMAC, p->cs_cdtvcd && !p->cs_cdtvcr, NULL);
-	addbcromtype(p, ROMTYPE_CDTVSCSI, p->cs_cdtvscsi, NULL);
+	addbcromtype(p, ROMTYPE_CDTVDMAC, p->cs_cdtvcd && !p->cs_cdtvcr, NULL, 0);
+	addbcromtype(p, ROMTYPE_CDTVSCSI, p->cs_cdtvscsi, NULL, 0);
 
-	addbcromtype(p, ROMTYPE_CDTVCR, p->cs_cdtvcr, NULL);
+	addbcromtype(p, ROMTYPE_CDTVCR, p->cs_cdtvcr, NULL, 0);
 
-	addbcromtype(p, ROMTYPE_CD32CART, p->cs_cd32fmv, p->cartfile);
+	addbcromtype(p, ROMTYPE_CD32CART, p->cs_cd32fmv, p->cartfile,0);
 
-	addbcromtype(p, ROMTYPE_A2065, p->a2065name[0] != 0, NULL);
-	addbcromtype(p, ROMTYPE_NE2KPCMCIA, p->ne2000pcmcianame[0] != 0, NULL);
-	addbcromtype(p, ROMTYPE_NE2KPCI, p->ne2000pciname[0] != 0, NULL);
+	addbcromtype(p, ROMTYPE_A2065, p->a2065name[0] != 0, NULL, 0);
+	addbcromtype(p, ROMTYPE_NE2KPCMCIA, p->ne2000pcmcianame[0] != 0, NULL, 0);
+	addbcromtype(p, ROMTYPE_NE2KPCI, p->ne2000pciname[0] != 0, NULL, 0);
 
 	static int restricted_net[] = { ROMTYPE_A2065, ROMTYPE_NE2KPCMCIA, ROMTYPE_NE2KPCI, ROMTYPE_NE2KISA, 0 };
 	static int restricted_x86[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
@@ -6850,7 +6877,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 
 	p->input_tablet = TABLET_OFF;
 	p->tablet_library = false;
-	p->input_magic_mouse = 0;
+	p->input_mouse_untrap = MOUSEUNTRAP_NONE;
 	p->input_magic_mouse_cursor = 0;
 
 	inputdevice_default_prefs (p);

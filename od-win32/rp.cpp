@@ -1163,6 +1163,8 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				int num = HIBYTE(wParam);
 				if (lParam == RP_DEVICE_READONLY || lParam == RP_DEVICE_READWRITE) {
 					ret = disk_setwriteprotect (&currprefs, num, currprefs.floppyslots[num].df, lParam == RP_DEVICE_READONLY);
+					if (ret)
+						DISK_reinsert(num);
 				}
 			}
 			return ret ? (LPARAM)1 : 0;

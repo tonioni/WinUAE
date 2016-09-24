@@ -7,6 +7,8 @@
 * Copyright 1997-2000 Brian King
 */
 
+#define FORCE16BIT 0
+
 #include "sysconfig.h"
 
 #include <stdlib.h>
@@ -1724,7 +1726,11 @@ static void update_gfxparams (void)
 #ifdef PICASSO96
 	}
 #endif
+#if FORCE16BIT
+	currentmode->current_depth = 16;
+#else
 	currentmode->current_depth = currprefs.color_mode < 5 ? 16 : 32;
+#endif
 	if (screen_is_picasso && currprefs.win32_rtgmatchdepth && isfullscreen () > 0) {
 		int pbits = picasso96_state.BytesPerPixel * 8;
 		if (pbits <= 8) {
@@ -1785,7 +1791,7 @@ static void update_gfxparams (void)
 				if ((currprefs.gfx_size.width != picasso96_state.Width || currprefs.gfx_size.height != picasso96_state.Height) && currprefs.win32_rtgallowscaling) {
 					scalepicasso = 1;
 				} else if (currprefs.gfx_size.width < picasso96_state.Width || currprefs.gfx_size.height < picasso96_state.Height) {
-					// no always scaling and smaller? Back to normal size
+					// no always scaling and smaller? Back to normal size and set new configured max size
 					currentmode->current_width = changed_prefs.gfx_size_win.width = picasso96_state.Width;
 					currentmode->current_height = changed_prefs.gfx_size_win.height = picasso96_state.Height;
 				} else if (currprefs.gfx_size.width == picasso96_state.Width || currprefs.gfx_size.height == picasso96_state.Height) {
@@ -1818,8 +1824,10 @@ static int open_windows (bool mousecapture)
 
 	screen_is_initialized = 0;
 	inputdevice_unacquire ();
-	wait_keyrelease ();
 	reset_sound ();
+	if (hAmigaWnd == NULL)
+		wait_keyrelease();
+
 	in_sizemove = 0;
 
 	updatewinfsmode (&currprefs);
@@ -1897,6 +1905,8 @@ static int open_windows (bool mousecapture)
 
 	if (startpaused)
 		setpaused (1);
+
+	statusline_updated();
 
 	started = true;
 	return ret;
@@ -2276,8 +2286,8 @@ int check_prefs_changed_gfx (void)
 		currprefs.keyboard_leds[0] != changed_prefs.keyboard_leds[0] ||
 		currprefs.keyboard_leds[1] != changed_prefs.keyboard_leds[1] ||
 		currprefs.keyboard_leds[2] != changed_prefs.keyboard_leds[2] ||
+		currprefs.input_mouse_untrap != changed_prefs.input_mouse_untrap ||
 		currprefs.win32_minimize_inactive != changed_prefs.win32_minimize_inactive ||
-		currprefs.win32_middle_mouse != changed_prefs.win32_middle_mouse ||
 		currprefs.win32_active_capture_priority != changed_prefs.win32_active_capture_priority ||
 		currprefs.win32_inactive_priority != changed_prefs.win32_inactive_priority ||
 		currprefs.win32_iconified_priority != changed_prefs.win32_iconified_priority ||
@@ -2297,7 +2307,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.keyboard_leds[0] = changed_prefs.keyboard_leds[0];
 		currprefs.keyboard_leds[1] = changed_prefs.keyboard_leds[1];
 		currprefs.keyboard_leds[2] = changed_prefs.keyboard_leds[2];
-		currprefs.win32_middle_mouse = changed_prefs.win32_middle_mouse;
+		currprefs.input_mouse_untrap = changed_prefs.input_mouse_untrap;
 		currprefs.win32_active_capture_priority = changed_prefs.win32_active_capture_priority;
 		currprefs.win32_inactive_priority = changed_prefs.win32_inactive_priority;
 		currprefs.win32_iconified_priority = changed_prefs.win32_iconified_priority;
@@ -2764,7 +2774,7 @@ end:
 #endif
 }
 
-void gfx_set_picasso_modeinfo (uae_u32 w, uae_u32 h, uae_u32 depth, RGBFTYPE rgbfmt)
+void gfx_set_picasso_modeinfo (RGBFTYPE rgbfmt)
 {
 	int need;
 	if (!screen_is_picasso)
@@ -4653,6 +4663,11 @@ void updatewinfsmode (struct uae_prefs *p)
 
 int rtg_index = -1;
 
+// -2 = default
+// -1 = prev
+// 0 = chipset
+// 1..4 = rtg
+// 5 = next
 bool toggle_rtg (int mode)
 {
 	int old_index = rtg_index;
@@ -4661,15 +4676,23 @@ bool toggle_rtg (int mode)
 		return true;
 
 	for (;;) {
-		rtg_index++;
+		if (mode == -1) {
+			rtg_index--;
+		} else if (mode >= 0 && mode <= MAX_RTG_BOARDS) {
+			rtg_index = mode - 1;
+		} else {
+			rtg_index++;
+		}
 		if (rtg_index >= MAX_RTG_BOARDS) {
 			rtg_index = -1;
+		} else if (rtg_index < -1) {
+			rtg_index = MAX_RTG_BOARDS - 1;
 		}
 		if (rtg_index < 0) {
 			if (picasso_on) {
 				gfxboard_rtg_disable(old_index);
 				picasso_requested_on = false;
-				statusline_add_message(_T("Chipset display"));
+				statusline_add_message(STATUSTYPE_DISPLAY, _T("Chipset display"));
 				return false;
 			}
 			return false;
@@ -4691,21 +4714,26 @@ bool toggle_rtg (int mode)
 				if (mode < -1)
 					return true;
 				gfxboard_rtg_disable(old_index);
-				picasso_enablescreen(1);
 				// can always switch from RTG to custom
 				if (picasso_requested_on && picasso_on) {
 					picasso_requested_on = false;
+					rtg_index = -1;
 					return true;
 				}
 				if (picasso_on)
 					return false;
 				// can only switch from custom to RTG if there is some mode active
 				if (picasso_is_active ()) {
+					picasso_enablescreen(1);
 					picasso_requested_on = true;
-					statusline_add_message(_T("RTG %d: %s"), rtg_index + 1, _T("UAEGFX"));
+					statusline_add_message(STATUSTYPE_DISPLAY, _T("RTG %d: %s"), rtg_index + 1, _T("UAEGFX"));
 					return true;
 				}
 			}
+		}
+		if (mode >= 0 && mode <= MAX_RTG_BOARDS) {
+			rtg_index = old_index;
+			return false;
 		}
 	}
 	return false;
