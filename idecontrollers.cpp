@@ -45,7 +45,8 @@
 #define x86_AT_IDE (ROCHARD_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
 #define GOLEMFAST_IDE (x86_AT_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
 #define BUDDHA_IDE (GOLEMFAST_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
-#define TOTAL_IDE (BUDDHA_IDE + 3 * MAX_DUPLICATE_EXPANSION_BOARDS)
+#define DATAFLYERPLUS_IDE (BUDDHA_IDE + 3 * MAX_DUPLICATE_EXPANSION_BOARDS)
+#define TOTAL_IDE (DATAFLYERPLUS_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 
 #define ALF_ROM_OFFSET 0x0100
 #define GVP_IDE_ROM_OFFSET 0x8000
@@ -97,6 +98,7 @@ static struct ide_board *rochard_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *x86_at_ide_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *golemfast_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *buddha_board[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ide_board *dataflyerplus_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 
 static struct ide_hdf *idecontroller_drive[TOTAL_IDE * 2];
 static struct ide_thread_state idecontroller_its;
@@ -352,11 +354,11 @@ static void put_ide_reg_multi(struct ide_board *board, int reg, uae_u32 v, int p
 }
 static uae_u32 get_ide_reg(struct ide_board *board, int reg)
 {
-	return get_ide_reg_multi(board, reg, 0, 1);
+	return get_ide_reg_multi(board, reg, 0, reg == 0 ? 1 : 0);
 }
 static void put_ide_reg(struct ide_board *board, int reg, uae_u32 v)
 {
-	put_ide_reg_multi(board, reg, v, 0, 1);
+	put_ide_reg_multi(board, reg, v, 0, reg == 0 ? 1 : 0);
 }
 static uae_u32 get_ide_reg_8bitdata(struct ide_board *board, int reg)
 {
@@ -464,6 +466,15 @@ static int get_rochard_reg(uaecptr addr, struct ide_board *board, int *portnum)
 	reg = (addr >> 5) & 7;
 	if (addr & 0x2000)
 		reg |= IDE_SECONDARY;
+	return reg;
+}
+
+static int get_dataflyerplus_reg(uaecptr addr, struct ide_board *board)
+{
+	int reg = -1;
+	if (!(addr & 0x8000))
+		return -1;
+	reg = (addr / 0x40) & 7;
 	return reg;
 }
 
@@ -689,6 +700,22 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 
 		v = board->rom[addr & board->rom_mask];
 
+	} else if (board->type == DATAFLYERPLUS_IDE) {
+
+		v = board->rom[addr & board->rom_mask];
+		if (board->configured) {
+			if (addr == 0x10) {
+				v = ide_irq_check(board->ide[0], false) ? 0x08 : 0x00;
+			} else if (addr < 0x80) {
+				v = rochard_scsi_get(oaddr);
+			}
+		}
+		if (addr & 0x8000) {
+			int regnum = get_dataflyerplus_reg(addr, board);
+			if (regnum >= 0)
+				v = get_ide_reg(board, regnum);
+		}
+
 	} else if (board->type == ROCHARD_IDE) {
 
 		if (addr & 0x8000) {
@@ -730,6 +757,16 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 				v = board->rom[(addr + 0 - APOLLO_ROM_OFFSET) & board->rom_mask];
 				v <<= 8;
 				v |= board->rom[(addr + 1 - APOLLO_ROM_OFFSET) & board->rom_mask];
+			}
+		}
+
+	} else if (board->type == DATAFLYERPLUS_IDE) {
+
+		if (!(addr & 0x8000)) {
+			if (board->rom) {
+				v = board->rom[(addr + 0) & board->rom_mask];
+				v <<= 8;
+				v |= board->rom[(addr + 1) & board->rom_mask];
 			}
 		}
 
@@ -867,6 +904,14 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 					v = ide_read_byte(board, addr) << 8;
 			}
 
+		} else if (board->type == DATAFLYERPLUS_IDE) {
+
+			if (board->configured) {
+				int reg = get_dataflyerplus_reg(addr, board);
+				if (reg >= 0)
+					v = get_ide_reg_multi(board, reg, 0, 1);
+			}
+
 		} else if (board->type == ROCHARD_IDE) {
 
 			if (board->configured && (addr & 0x8020) == 0x8000) {
@@ -905,6 +950,8 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 				ncr_masoboshi_autoconfig_init(board->original_rc, board->baseaddress);
 			} else if (board->type == GOLEMFAST_IDE) {
 				ncr_golemfast_autoconfig_init(board->original_rc, board->baseaddress);
+			} else if (board->type == DATAFLYERPLUS_IDE) {
+				dataflyerplus_scsi_init(board->original_rc, board->baseaddress);
 			}
 			expamem_next(ab, NULL);
 			return;
@@ -1016,6 +1063,18 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 
 			if (board->configured && (addr & 0x8000)) {
 				put_ide_reg(board, (addr >> 8) & 7, v);
+			}
+
+		} else if (board->type == DATAFLYERPLUS_IDE) {
+
+			if (board->configured) {
+				if (addr & 0x8000) {
+					int regnum = get_dataflyerplus_reg(addr, board);
+					if (regnum >= 0)
+						put_ide_reg(board, regnum, v);
+				} else if (addr < 0x80) {
+					rochard_scsi_put(oaddr, v);
+				}
 			}
 
 		} else if (board->type == ROCHARD_IDE) {
@@ -1150,6 +1209,14 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 					put_ide_reg(board, regnum, v);
 				else
 					ide_write_byte(board, addr, v >> 8);
+			}
+
+		} else if (board->type == DATAFLYERPLUS_IDE) {
+
+			if (board->configured) {
+				int reg = get_dataflyerplus_reg(addr, board);
+				if (reg >= 0)
+					put_ide_reg_multi(board, reg, v, 0, 1);
 			}
 
 		} else if (board->type == ROCHARD_IDE) {
@@ -1784,6 +1851,54 @@ void golemfast_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct ro
 	}
 }
 
+bool dataflyerplus_init(struct autoconfig_info *aci)
+{
+	int rom_size = 16384;
+	uae_u8 *rom;
+
+	rom = xcalloc(uae_u8, rom_size);
+	memset(rom, 0xff, rom_size);
+	load_rom_rc(aci->rc, ROMTYPE_DATAFLYER, 32768, aci->rc->autoboot_disabled ? 8192 : 0, rom, 16384, LOADROM_EVENONLY_ODDONE);
+
+	if (!aci->doinit) {
+		memcpy(aci->autoconfig_raw, rom, sizeof aci->autoconfig_raw);
+		xfree(rom);
+		return true;
+	}
+
+	struct ide_board *ide = getide(aci->rc);
+
+	ide->rom = rom;
+	ide->configured = 0;
+	ide->bank = &ide_bank_generic;
+	ide->rom_size = rom_size;
+	ide->mask = 65536 - 1;
+	ide->keepautoconfig = false;
+
+	ide->rom_mask = ide->rom_size - 1;
+	memcpy(ide->acmemory, ide->rom, sizeof ide->acmemory);
+	aci->addrbank = ide->bank;
+
+	return true;
+}
+
+static void dataflyerplus_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	add_ide_standard_unit(ch, ci, rc, dataflyerplus_board, DATAFLYERPLUS_IDE, true, false, 2);
+}
+
+void dataflyerplus_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	if (ch < 0) {
+		dataflyerplus_add_ide_unit(ch, ci, rc);
+		dataflyerplus_add_scsi_unit(ch, ci, rc);
+	} else {
+		if (ci->controller_type < HD_CONTROLLER_TYPE_SCSI_FIRST)
+			dataflyerplus_add_ide_unit(ch, ci, rc);
+		else
+			dataflyerplus_add_scsi_unit(ch, ci, rc);
+	}
+}
 
 extern void x86_xt_ide_bios(struct zfile*, struct romconfig*);
 static bool x86_at_hd_init(struct autoconfig_info *aci, int type)

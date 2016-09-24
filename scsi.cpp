@@ -58,7 +58,8 @@
 #define NCR5380_IVSVECTOR 27 // nearly identical to trumpcard pro
 #define NCR5380_SCRAM 28
 #define NCR5380_OSSI 29
-#define NCR_LAST 30
+#define NCR5380_DATAFLYERPLUS 30
+#define NCR_LAST 31
 
 extern int log_scsiemu;
 
@@ -359,8 +360,9 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 		sd->cmd[1] |= lun << 5;
 	}
 #if SCSI_EMU_DEBUG
-	write_log (_T("CMD=%02x.%02x.%02x.%02x.%02x.%02x (%d,%d)\n"),
-		sd->cmd[0], sd->cmd[1], sd->cmd[2], sd->cmd[3], sd->cmd[4], sd->cmd[5], sd->device_type, sd->nativescsiunit);
+	write_log (_T("CMD=%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x (%d,%d)\n"),
+		sd->cmd[0], sd->cmd[1], sd->cmd[2], sd->cmd[3], sd->cmd[4], sd->cmd[5], sd->cmd[6], sd->cmd[7], sd->cmd[8], sd->cmd[9],
+		sd->device_type, sd->nativescsiunit);
 #endif
 	if (sd->device_type == UAEDEV_CD && sd->cd_emu_unit >= 0) {
 		uae_u32 ua = 0;
@@ -2157,6 +2159,18 @@ static int trumpcardpro_reg(struct soft_scsi *ncr, uaecptr addr, bool vector)
 	addr &= 7;
 	return addr;
 }
+
+static int dataflyerplus_reg(uaecptr addr)
+{
+	if (!(addr & 1))
+		return -1;
+	if (addr == 0x41)
+		return 8;
+	if (addr >= 0x10)
+		return -1;
+	return (addr >> 1) & 7;
+}
+
 static uae_u8 read_supra_dma(struct soft_scsi *ncr, uaecptr addr)
 {
 	uae_u8 val = 0;
@@ -2582,6 +2596,14 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		reg = addr & 0xff;
 		v = ncr5380_bget(ncr, reg);
 
+	} else if (ncr->type == NCR5380_DATAFLYERPLUS) {
+
+		if (addr < 0x80 && ncr->configured) {
+			reg = dataflyerplus_reg(addr);
+			if (reg >= 0)
+				v = ncr5380_bget(ncr, reg);
+		}
+
 	} else if (ncr->type == NONCR_TECMAR) {
 
 		v = ncr->rom[addr];
@@ -2725,7 +2747,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 	}
 
 #if NCR5380_DEBUG > 1
-	if (!(origaddr & 0x8000))
+	if (1 || origaddr >= 0x8000)
 		write_log(_T("GET %08x %02x %d %08x %d\n"), origaddr, v, reg, M68K_GETPC, regs.intmask);
 #endif
 
@@ -2736,7 +2758,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 {
 	int reg = -1;
 	int addresstype = -1;
-	uaecptr origddr = addr;
+	uaecptr origaddr = addr;
 
 	addr &= ncr->board_mask;
 
@@ -2814,7 +2836,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 	} else if (ncr->type == NONCR_KOMMOS) {
 
 		struct raw_scsi *rs = &ncr->rscsi;
-		if (!(addr & 0x8000) && (origddr & 0xf00000) != 0xf00000) {
+		if (!(addr & 0x8000) && (origaddr & 0xf00000) != 0xf00000) {
 			if (!(addr & 8)) {
 				raw_scsi_put_data(rs, val, true);
 			} else {
@@ -2891,6 +2913,15 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 
 		reg = addr & 0xff;
 		ncr5380_bput(ncr, reg, val);
+
+	} else if (ncr->type == NCR5380_DATAFLYERPLUS) {
+
+		if (ncr->configured && addr < 0x80) {
+			reg = dataflyerplus_reg(addr);
+			if (reg >= 0) {
+				ncr5380_bput(ncr, reg, val);
+			}
+		}
 
 	} else if (ncr->type == NONCR_TECMAR) {
 
@@ -3022,8 +3053,8 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 	}
 
 #if NCR5380_DEBUG > 1
-	if (1)
-		write_log(_T("PUT %08x %02x %d %08x %d\n"), origddr, val, reg, M68K_GETPC, regs.intmask);
+	if (1 || origaddr >= 0x8000)
+		write_log(_T("PUT %08x %02x %d %08x %d\n"), origaddr, val, reg, M68K_GETPC, regs.intmask);
 #endif
 }
 
@@ -3562,11 +3593,12 @@ void trumpcardpro_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct ro
 bool rochard_scsi_init(struct romconfig *rc, uaecptr baseaddress)
 {
 	struct soft_scsi *scsi = getscsi(rc);
-	scsi->configured = 1;
+	scsi->configured = true;
 	scsi->dma_controller = true;
 	scsi->baseaddress = baseaddress;
 	return scsi != NULL;
 }
+
 void rochard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_ROCHARD, 65536, -1, ROMTYPE_ROCHARD);
@@ -3659,7 +3691,7 @@ bool dataflyer_init(struct autoconfig_info *aci)
 
 void dataflyer_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	generic_soft_scsi_add(ch, ci, rc, NCR5380_DATAFLYER, 4096, 0, ROMTYPE_DATAFLYER);
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_DATAFLYER, 4096, 0, ROMTYPE_DATAFLYERP);
 }
 
 static void expansion_add_protoautoconfig_data(uae_u8 *p, uae_u16 manufacturer_id, uae_u8 product_id)
@@ -4096,4 +4128,18 @@ bool ossi_init(struct autoconfig_info *aci)
 void ossi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_OSSI, 65536, 16384, ROMTYPE_OSSI);
+}
+
+bool dataflyerplus_scsi_init(struct romconfig *rc, uaecptr baseaddress)
+{
+	struct soft_scsi *scsi = getscsi(rc);
+	scsi->configured = true;
+	scsi->baseaddress = baseaddress;
+	scsi->intena = true;
+	return scsi != NULL;
+}
+
+void dataflyerplus_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_DATAFLYERPLUS, 65536, -1, ROMTYPE_DATAFLYER);
 }

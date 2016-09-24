@@ -218,6 +218,9 @@ void ptnexus_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconf
 bool dataflyer_init(struct autoconfig_info *aci);
 void dataflyer_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
+bool dataflyerplus_scsi_init(struct romconfig *rc, uaecptr baseaddress);
+void dataflyerplus_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
 bool tecmar_init(struct autoconfig_info *aci);
 void tecmar_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 

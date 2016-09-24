@@ -79,7 +79,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_ROCHARD		0x0010001a
 #define ROMTYPE_CLTDSCSI	0x0010001b
 #define ROMTYPE_PTNEXUS		0x0010001c
-#define ROMTYPE_DATAFLYER	0x0010001d
+#define ROMTYPE_DATAFLYERP	0x0010001d
 #define ROMTYPE_SUPRADMA	0x0010001e
 #define ROMTYPE_GREX		0x0010001f
 #define ROMTYPE_PROMETHEUS	0x00100020
@@ -135,6 +135,8 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_SCRAM5380	0x00100052
 #define ROMTYPE_SCRAM5394	0x00100053
 #define ROMTYPE_OSSI		0x00100054
+#define ROMTYPE_HARLEQUIN	0x00100055
+#define ROMTYPE_DATAFLYER	0x00100056
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000
