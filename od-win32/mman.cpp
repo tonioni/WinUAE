@@ -416,7 +416,7 @@ static int doinit_shm (void)
 		addrbank *ab = aci->addrbank;
 		if (!ab)
 			continue;
-		if (aci->direct_vram) {
+		if (aci->direct_vram && aci->start != 0xffffffff) {
 			if (!start_rtg)
 				start_rtg = aci->start;
 			end_rtg = aci->start + aci->size;
