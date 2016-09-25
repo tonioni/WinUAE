@@ -206,8 +206,6 @@ void adscsi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 
 void rochard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 bool rochard_scsi_init(struct romconfig *rc, uaecptr baseaddress);
-uae_u8 rochard_scsi_get(uaecptr addr);
-void rochard_scsi_put(uaecptr addr, uae_u8 v);
 
 bool cltda1000scsi_init(struct autoconfig_info *aci);
 void cltda1000scsi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
@@ -259,6 +257,9 @@ void scram5380_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romco
 
 bool ossi_init(struct autoconfig_info*);
 void ossi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+uae_u8 idescsi_scsi_get(uaecptr addr);
+void idescsi_scsi_put(uaecptr addr, uae_u8 v);
 
 void x86_xt_hd_bput(int, uae_u8);
 uae_u8 x86_xt_hd_bget(int);

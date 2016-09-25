@@ -4100,7 +4100,16 @@ static const struct expansionboardsettings a4091_settings[] = {
 		NULL
 	}
 };
-
+static const struct expansionboardsettings dataflyersplus_settings[] = {
+	{
+		_T("Configuration\0") _T("SCSI+IDE\0") _T("SCSI\0") _T("IDE\0"),
+		_T("config\0") _T("scsiide") _T("scsi\0") _T("ide\0"),
+		true
+	},
+	{
+		NULL
+	}
+};
 
 const struct expansionromtype expansionroms[] = {
 	{
@@ -4223,7 +4232,9 @@ const struct expansionromtype expansionroms[] = {
 		_T("dataflyerplus"), _T("DataFlyer Plus"), _T("Expansion Systems"),
 		dataflyerplus_init, NULL, dataflyerplus_add_idescsi_unit, ROMTYPE_DATAFLYER, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
-		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE
+		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE,
+		0, 0, 0, false, NULL,
+		false, 0, dataflyersplus_settings
 	},
 	{
 		_T("gvp1"), _T("GVP Series I"), _T("Great Valley Products"),

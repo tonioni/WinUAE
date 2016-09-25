@@ -3604,12 +3604,12 @@ void rochard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconf
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_ROCHARD, 65536, -1, ROMTYPE_ROCHARD);
 }
 
-uae_u8 rochard_scsi_get(uaecptr addr)
+uae_u8 idescsi_scsi_get(uaecptr addr)
 {
 	return soft_generic_bget(addr);
 }
 
-void rochard_scsi_put(uaecptr addr, uae_u8 v)
+void idescsi_scsi_put(uaecptr addr, uae_u8 v)
 {
 	soft_generic_bput(addr, v);
 }

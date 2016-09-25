@@ -705,12 +705,18 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 		v = board->rom[addr & board->rom_mask];
 		if (board->configured) {
 			if (addr == 0x10) {
-				v = ide_irq_check(board->ide[0], false) ? 0x08 : 0x00;
+				if (board->subtype & 2) {
+					v = ide_irq_check(board->ide[0], false) ? 0x08 : 0x00;
+				}
 			} else if (addr < 0x80) {
-				v = rochard_scsi_get(oaddr);
+				if (board->subtype & 1) {
+					v = idescsi_scsi_get(oaddr);
+				} else {
+					v = 0xff;
+				}
 			}
 		}
-		if (addr & 0x8000) {
+		if ((addr & 0x8000) && (board->subtype & 2)) {
 			int regnum = get_dataflyerplus_reg(addr, board);
 			if (regnum >= 0)
 				v = get_ide_reg(board, regnum);
@@ -725,7 +731,7 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 				v = get_ide_reg_multi(board, regnum, portnum, 1);
 		} else if ((addr & 0x7c00) == 0x7000) {
 			if (board->subtype)
-				v = rochard_scsi_get(oaddr);
+				v = idescsi_scsi_get(oaddr);
 			else
 				v = 0;
 		} else {
@@ -762,7 +768,7 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 
 	} else if (board->type == DATAFLYERPLUS_IDE) {
 
-		if (!(addr & 0x8000)) {
+		if (!(addr & 0x8000) && (board->subtype & 2)) {
 			if (board->rom) {
 				v = board->rom[(addr + 0) & board->rom_mask];
 				v <<= 8;
@@ -907,9 +913,13 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 		} else if (board->type == DATAFLYERPLUS_IDE) {
 
 			if (board->configured) {
-				int reg = get_dataflyerplus_reg(addr, board);
-				if (reg >= 0)
-					v = get_ide_reg_multi(board, reg, 0, 1);
+				if (board->subtype & 2) {
+					int reg = get_dataflyerplus_reg(addr, board);
+					if (reg >= 0)
+						v = get_ide_reg_multi(board, reg, 0, 1);
+				} else {
+					v = 0xff;
+				}
 			}
 
 		} else if (board->type == ROCHARD_IDE) {
@@ -1069,11 +1079,15 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 
 			if (board->configured) {
 				if (addr & 0x8000) {
-					int regnum = get_dataflyerplus_reg(addr, board);
-					if (regnum >= 0)
-						put_ide_reg(board, regnum, v);
+					if  (board->subtype & 2) {
+						int regnum = get_dataflyerplus_reg(addr, board);
+						if (regnum >= 0)
+							put_ide_reg(board, regnum, v);
+					}
 				} else if (addr < 0x80) {
-					rochard_scsi_put(oaddr, v);
+					if (board->subtype & 1) {
+						idescsi_scsi_put(oaddr, v);
+					}
 				}
 			}
 
@@ -1087,7 +1101,7 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 						put_ide_reg_multi(board, regnum, v, portnum, 1);
 				} else if ((addr & 0x7c00) == 0x7000) {
 					if (board->subtype)
-						rochard_scsi_put(oaddr, v);
+						idescsi_scsi_put(oaddr, v);
 				}
 			}
 		}
@@ -1214,9 +1228,11 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 		} else if (board->type == DATAFLYERPLUS_IDE) {
 
 			if (board->configured) {
-				int reg = get_dataflyerplus_reg(addr, board);
-				if (reg >= 0)
-					put_ide_reg_multi(board, reg, v, 0, 1);
+				if (board->subtype & 2) {
+					int reg = get_dataflyerplus_reg(addr, board);
+					if (reg >= 0)
+						put_ide_reg_multi(board, reg, v, 0, 1);
+				}
 			}
 
 		} else if (board->type == ROCHARD_IDE) {
@@ -1874,6 +1890,8 @@ bool dataflyerplus_init(struct autoconfig_info *aci)
 	ide->rom_size = rom_size;
 	ide->mask = 65536 - 1;
 	ide->keepautoconfig = false;
+	ide->subtype = ((aci->rc->device_settings & 3) <= 1) ? 1 : 0; // scsi
+	ide->subtype |= ((aci->rc->device_settings & 3) != 1) ? 2 : 0; // ide
 
 	ide->rom_mask = ide->rom_size - 1;
 	memcpy(ide->acmemory, ide->rom, sizeof ide->acmemory);
