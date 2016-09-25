@@ -2947,7 +2947,7 @@ static uae_u8 *REGPARAM2 dmac_gvp_xlate(uaecptr addr)
 static const addrbank gvp_bank = {
 	dmac_gvp_lget, dmac_gvp_wget, dmac_gvp_bget,
 	dmac_gvp_lput, dmac_gvp_wput, dmac_gvp_bput,
-	dmac_gvp_xlate, dmac_gvp_check, NULL, NULL, _T("GVP"),
+	dmac_gvp_xlate, dmac_gvp_check, NULL, _T("*"), _T("GVP"),
 	dmac_gvp_lgeti, dmac_gvp_wgeti,
 	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
