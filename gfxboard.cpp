@@ -385,8 +385,9 @@ static void init_board (struct rtggfxboard *gb)
 	gb->vga_width = 0;
 	mapped_free(gb->gfxmem_bank);
 	gb->vram_start_offset = 0;
-	if (ISP4() && !gb->p4z2) // JIT direct compatibility hack
+	if (ISP4() && !gb->p4z2) { // JIT direct compatibility hack
 		gb->vram_start_offset = 0x01000000;
+	}
 	vramsize += gb->vram_start_offset;
 	xfree (gb->fakesurface_surface);
 	gb->fakesurface_surface = xmalloc (uae_u8, 4 * 10000);
@@ -408,7 +409,7 @@ static void init_board (struct rtggfxboard *gb)
 	gb->vramrealstart = gb->vram;
 	gb->vram += gb->vram_start_offset;
 	gb->vramend += gb->vram_start_offset;
-	gb->gfxmem_bank->baseaddr = gb->vram;
+	//gb->gfxmem_bank->baseaddr = gb->vram;
 	// restore original value because this is checked against
 	// configured size in expansion.cpp
 	gb->gfxmem_bank->allocated_size = rbc->rtgmem_size;
@@ -623,6 +624,7 @@ static bool gfxboard_setmode_qemu(struct rtggfxboard *gb)
 		RGBFTYPE t = (RGBFTYPE)i;
 		if (GetBytesPerPixel(t) == bpp / 8) {
 			mode.mode = t;
+			break;
 		}
 	}
 	gfxboard_setmode(gb, &mode);
@@ -1530,9 +1532,9 @@ static rtggfxboard *getgfxboard(uaecptr addr)
 	if (only_gfx_board)
 		return only_gfx_board;
 	if (lastgetgfxboard) {
-		if (addr >= lastgetgfxboard->io_start && addr < lastgetgfxboard->io_end)
-			return lastgetgfxboard;
 		if (addr >= lastgetgfxboard->mem_start[0] && addr < lastgetgfxboard->mem_end[0])
+			return lastgetgfxboard;
+		if (addr >= lastgetgfxboard->io_start && addr < lastgetgfxboard->io_end)
 			return lastgetgfxboard;
 		if (addr >= lastgetgfxboard->mem_start[1] && addr < lastgetgfxboard->mem_end[1])
 			return lastgetgfxboard;

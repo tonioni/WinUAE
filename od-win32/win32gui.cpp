@@ -264,6 +264,8 @@ static void setfocus (HWND hDlg, int id)
 }
 static void ew (HWND hDlg, DWORD id, int enable)
 {
+	if (id == -1)
+		return;
 	HWND w = GetDlgItem (hDlg, id);
 	if (!w)
 		return;
@@ -274,7 +276,7 @@ static void ew (HWND hDlg, DWORD id, int enable)
 static void hide (HWND hDlg, DWORD id, int hide)
 {
 	HWND w;
-	if (id < 0)
+	if (id == -1)
 		return;
 	w = GetDlgItem (hDlg, id);
 	if (!w)
@@ -3884,7 +3886,9 @@ static void update_listview_input (HWND hDlg)
 
 static int inputmap_port = -1, inputmap_port_remap = -1;
 static int inputmap_groupindex[MAX_COMPA_INPUTLIST + 1];
-static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, int *inputmap_portp, int *inputmap_indexp, int state, int *inputmap_itemindexp, int deleteindex)
+static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum,
+	int *inputmap_portp, int *inputmap_indexp,
+	int state, int *inputmap_itemindexp, int deleteindex, uae_u64 flags_or, uae_u64 flags_and, uae_u64 *inputmap_flagsp)
 {
 	int cntitem, cntgroup, portnum;
 	int mode;
@@ -3949,15 +3953,27 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 							for (int j = 0; j < inputdevice_get_widget_num (devnum); j++) {
 								for (int sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
 									int port;
-									int evtnum2 = inputdevice_get_mapping (devnum, j, &flags, &port, NULL, NULL, sub);
+									int evtnum2 = inputdevice_get_mapping (devnum, j, &flags, &port, name, NULL, sub);
 									if (evtnum2 == evtnum) {
 										if (port - 1 != portnum)
 											continue;
 										if (cntitem - 1 == deleteindex) {
-											inputdevice_set_mapping (devnum, j, NULL, NULL, 0, 0, sub);
-											deleteindex = -1;
-											found = true;
-											continue;
+											if (!flags_or && !flags_and && !inputmap_flagsp) {
+												inputdevice_set_mapping (devnum, j, NULL, NULL, 0, 0, sub);
+												deleteindex = -1;
+												found = true;
+												continue;
+											} else {
+												if (flags_or || flags_and) {
+													flags &= ~flags_and;
+													flags |= flags_or;
+													inputdevice_set_mapping(devnum, j, name, NULL, flags, port, sub);
+												} else {
+													*inputmap_flagsp = flags;
+												}
+												found = true;
+												found2 = true;
+											}
 										}
 										if (list) {
 											inputdevice_get_widget_type (devnum, j, name);
@@ -3965,20 +3981,32 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 											_tcscpy (target, name);
 											_tcscat (target, _T(", "));
 											_tcscat (target, inputdevice_get_device_name2 (devnum));
+
+											if (flags & IDEV_MAPPED_AUTOFIRE_SET) {
+												_tcscat(target, _T(" ["));
+												_tcscat(target, _T("Autofire"));
+												if (flags & IDEV_MAPPED_TOGGLE)
+													_tcscat(target, _T(" (toggle)"));
+												else if (flags & IDEV_MAPPED_INVERTTOGGLE)
+													_tcscat(target, _T(" (always)"));
+												_tcscat(target, _T("]"));
+											}
+
 											lvstruct.pszText = target;
 											lvstruct.iItem = cntgroup * 256 + cntitem;
-											item = ListView_InsertItem (list, &lvstruct);
+											item = ListView_InsertItem(list, &lvstruct);
+
 											if (inputmap_itemindexp && inputmap_itemindexp[cntgroup - 1] < 0)
 												inputmap_itemindexp[cntgroup - 1] = item;
-										} else if (currentdevnum == devnum) {
-											if (currentwidgetnum == j) {
+										} else if (currentdevnum == devnum && currentwidgetnum == j) {
+											if (inputmap_portp)
 												*inputmap_portp = portnum;
+											if (inputmap_indexp)
 												*inputmap_indexp = cntitem - 1;
-												found2 = true;
-												if (state < 0)
-													return 1;
-												state = -1;
-											}
+											found2 = true;
+											if (state < 0)
+												return 1;
+											state = -1;
 										}
 										cntitem++;
 										found = true;
@@ -4018,7 +4046,7 @@ static void update_listview_inputmap (HWND hDlg, int deleteindex)
 
 	ListView_EnableGroupView (list, TRUE);
 
-	inputmap_handle (list, -1, -1, NULL, NULL, 0, inputmap_groupindex, deleteindex);
+	inputmap_handle (list, -1, -1, NULL, NULL, 0, inputmap_groupindex, deleteindex, 0, 0, NULL);
 }
 
 static int clicked_entry = -1;
@@ -14810,6 +14838,8 @@ static void updatejoyport (HWND hDlg, int changedport)
 			SendDlgItemMessage (hDlg, joysaf[i], CB_SETCURSEL, workprefs.jports[i].autofire, 0);
 
 		ew(hDlg, joyremap[i], idx >= 2);
+		ew(hDlg, joysm[i], idx >= 2);
+		ew(hDlg, joysaf[i], !JSEM_ISCUSTOM(i, &workprefs) && idx >= 2);
 	}
 }
 
@@ -15841,6 +15871,7 @@ static int rawmode;
 static int inputmap_remap_counter, inputmap_view_offset;
 static int inputmap_remap_event;
 static int inputmap_mode_cnt;
+static int inputmap_selected;
 static bool inputmap_oneshot;
 
 #define INPUTMAP_F12 -1
@@ -16102,7 +16133,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				bool found = false;
 				HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
 				int op = inputmap_port;
-				if (inputmap_handle (NULL, input_selected_device, input_selected_widget, &op, &inputmap_index, state, NULL, -1)) {
+				if (inputmap_handle (NULL, input_selected_device, input_selected_widget, &op, &inputmap_index, state, NULL, -1, 0, 0, NULL)) {
 					if (op == inputmap_port) {
 						ListView_EnsureVisible (h, 1, FALSE);
 						ListView_EnsureVisible (h, inputmap_index, FALSE);
@@ -16354,13 +16385,153 @@ static void fillinputmapadd (HWND hDlg)
 	}
 }
 
+struct remapcustoms_s
+{
+	uae_u64 flags;
+	uae_u64 mask;
+	const TCHAR *name;
+};
+static const struct remapcustoms_s remapcustoms[] =
+{
+	{ 0, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	_T("No autofire") },
+	{ IDEV_MAPPED_AUTOFIRE_SET, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	_T("Autofire on") },
+	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	_T("Autofire on (toggle)") },
+	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_INVERTTOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	_T("Autofire on (always)") },
+	{ NULL }
+};
+
+static void remapspeciallistview(HWND list)
+{
+	uae_u64 flags = 0;
+	inputmap_handle(NULL, -1, -1, NULL, NULL, -1, NULL, inputmap_selected, 0, 0, &flags);
+
+	ListView_DeleteAllItems(list);
+
+	for (int i = 0; remapcustoms[i].name; i++) {
+		const struct remapcustoms_s *rc = &remapcustoms[i];
+		TCHAR tmp[MAX_DPATH];
+		_tcscpy(tmp, rc->name);
+		LV_ITEM lvi = { 0 };
+		lvi.mask = LVIF_TEXT | LVIF_PARAM;
+		lvi.pszText = tmp;
+		lvi.lParam = 0;
+		lvi.iItem = i;
+		lvi.iSubItem = 0;
+		ListView_InsertItem(list, &lvi);
+
+		tmp[0] = 0;
+		if ((flags & rc->mask) == rc->flags) {
+			_tcscpy(tmp, _T("*"));
+		}
+
+		ListView_SetItemText(list, i, 1, tmp);
+
+	}
+}
+
+static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	static int recursive = 0;
+	HWND list = GetDlgItem(hDlg, IDC_LISTDIALOG_LIST);
+
+
+	switch (msg)
+	{
+	case WM_INITDIALOG:
+	{
+		recursive++;
+
+		int lvflags = LVS_EX_DOUBLEBUFFER | LVS_EX_ONECLICKACTIVATE | LVS_EX_UNDERLINEHOT | LVS_EX_FULLROWSELECT;
+		ListView_SetExtendedListViewStyleEx(list, lvflags, lvflags);
+
+		LV_COLUMN lvc = { 0 };
+
+		lvc.mask = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
+		lvc.iSubItem = 0;
+		lvc.fmt = LVCFMT_LEFT;
+		lvc.pszText = _T("Option");
+		lvc.cx = 150;
+		ListView_InsertColumn(list, 0, &lvc);
+		lvc.mask = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
+		lvc.iSubItem = 1;
+		lvc.fmt = LVCFMT_LEFT;
+		lvc.pszText = _T("Selection");
+		lvc.cx = 150;
+		ListView_InsertColumn(list, 1, &lvc);
+
+
+		remapspeciallistview(list);
+
+		recursive--;
+	}
+	return TRUE;
+
+	case WM_NOTIFY:
+	if (((LPNMHDR)lParam)->idFrom == IDC_LISTDIALOG_LIST)
+	{
+		TCHAR name[256];
+		int column, entry;
+		NM_LISTVIEW *nmlistview = (NM_LISTVIEW *)lParam;
+		list = nmlistview->hdr.hwndFrom;
+		switch (nmlistview->hdr.code)
+		{
+		case NM_RCLICK:
+		case NM_CLICK:
+		{
+			entry = listview_entry_from_click(list, &column);
+			if (entry >= 0 && inputmap_selected >= 0) {
+				int devnum, num, sub;
+				if (inputmap_handle(NULL, -1, -1, NULL, NULL, -1, NULL, inputmap_selected,
+					remapcustoms[entry].flags, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE, NULL)) {
+					inputdevice_generate_jport_custom(&workprefs, inputmap_port);
+					EndDialog(hDlg, 1);
+				}
+			}
+		}
+		break;
+		}
+	}
+	break;
+	case WM_COMMAND:
+	if (recursive)
+		break;
+	recursive++;
+
+	switch (wParam)
+	{
+	case IDC_LISTDIALOG_CLEAR:
+	{
+		break;
+	}
+	case IDOK:
+	EndDialog(hDlg, 1);
+	break;
+	case IDCANCEL:
+	EndDialog(hDlg, 0);
+	break;
+	}
+	recursive--;
+	break;
+	}
+	return FALSE;
+}
+
+static void input_remapspecials(HWND hDlg)
+{
+	CustomDialogBox(IDD_LIST, hDlg, RemapSpecialsProc);
+}
+
 static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive;
-	static int inputmap_selected;
 	HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
 	TCHAR tmp[256];
 	int i;
+	int inputmapselected_old = inputmap_selected;
 
 	switch (msg)
 	{
@@ -16372,15 +16543,19 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		inputmap_port_remap = -1;
 		inputmap_remap_counter = -1;
 		inputmap_view_offset = 0;
+		inputmap_selected = -1;
 		pages[INPUTMAP_ID] = hDlg;
 		fillinputmapadd (hDlg);
 		inputdevice_updateconfig (NULL, &workprefs);
 		InitializeListView (hDlg);
+		ew(hDlg, IDC_INPUTMAP_SPECIALS, inputmap_selected >= 0);
 		if (!JSEM_ISCUSTOM(inputmap_port, &workprefs)) {
 			ew(hDlg, IDC_INPUTMAP_CAPTURE, FALSE);
 			ew(hDlg, IDC_INPUTMAP_DELETE, FALSE);
 			ew(hDlg, IDC_INPUTMAP_DELETEALL, FALSE);
 			ew(hDlg, IDC_INPUTMAP_CUSTOM, FALSE);
+			ew(hDlg, IDC_INPUTMAP_SPECIALS, FALSE);
+			ew(hDlg, IDC_INPUTMAPADD, FALSE);
 		}
 		break;
 	}
@@ -16405,6 +16580,8 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 						if (JSEM_ISCUSTOM(inputmap_port, &workprefs)) {
 							input_find (hDlg, hDlg, 1, true, true);
 						}
+						if (inputmapselected_old < 0)
+							ew(hDlg, IDC_INPUTMAP_SPECIALS, TRUE);
 					}
 				return TRUE;
 
@@ -16412,6 +16589,8 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 					if (lv->iItem >= 0) {
 						inputmap_selected = lv->iItem;
 						inputmap_remap_counter = getremapcounter (lv->iItem);
+						if (inputmapselected_old < 0)
+							ew(hDlg, IDC_INPUTMAP_SPECIALS, TRUE);
 					}
 				return TRUE;
 			}
@@ -16447,6 +16626,10 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
 			ListView_SetItemState (h, inputmap_remap_counter, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
 			input_find (hDlg, hDlg, 1, true, false);
+			break;
+			case IDC_INPUTMAP_SPECIALS:
+			input_remapspecials(hDlg);
+			InitializeListView(hDlg);
 			break;
 			case IDC_INPUTMAP_CUSTOM:
 			tmp[0] = 0;

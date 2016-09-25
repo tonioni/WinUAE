@@ -75,7 +75,7 @@
 int inputdevice_logging = 0;
 extern int tablet_log;
 
-#define COMPA_RESERVED_FLAGS ID_FLAG_INVERT
+#define COMPA_RESERVED_FLAGS (ID_FLAG_INVERT)
 
 #define ID_FLAG_CANRELEASE 0x1000
 #define ID_FLAG_TOGGLED 0x2000
@@ -1176,7 +1176,9 @@ static void setcompakbevent(struct uae_prefs *p, struct uae_input_device *uid, i
 	uid->port[l][0] = port + 1;
 	xfree(uid->custom[l][0]);
 	uid->custom[l][0] = NULL;
-	setautofireevent(uid, l, 0, af, port);
+	if (!JSEM_ISCUSTOM(port, p)) {
+		setautofireevent(uid, l, 0, af, port);
+	}
 }
 
 static int matchdevice(struct inputdevice_functions *inf, const TCHAR *configname, const TCHAR *name)
@@ -1729,6 +1731,8 @@ static void generate_jport_custom_item(struct uae_input_device *uid, int num, in
 							_stprintf(p, _T("%c.%d.a.%d"), type, num, i - ID_AXIS_OFFSET);
 						}
 					}
+					TCHAR *p3 = p + _tcslen(p);
+					_stprintf(p3, _T(".%d"), (int)(flags & (ID_FLAG_AUTOFIRE | ID_FLAG_TOGGLE | ID_FLAG_INVERTTOGGLE | ID_FLAG_INVERT)));
 					if (flags & ID_FLAG_SAVE_MASK_QUALIFIERS) {
 						TCHAR *p2 = p + _tcslen(p);
 						*p2++ = '.';
@@ -1866,6 +1870,11 @@ void inputdevice_parse_jport_custom(struct uae_prefs *pr, int index, int port, T
 			}
 		}
 
+		int flags = 0;
+		if (*bufp2 != '=') {
+			flags = getnum(&bufp2);
+		}
+
 		while (*bufp2 != '=' && *bufp2 != 0)
 			bufp2++;
 		if (*bufp2 == 0)
@@ -1901,13 +1910,13 @@ void inputdevice_parse_jport_custom(struct uae_prefs *pr, int index, int port, T
 						for (int i = 0; i < MAX_INPUT_DEVICES; i++) {
 							id = &pr->keyboard_settings[pr->input_selected_setting][i];
 							if (i == 0 || id->enabled) {
-								setcompakbevent(pr, id, num, evt, port, 0, ID_FLAG_GAMEPORTSCUSTOM_MASK);
+								setcompakbevent(pr, id, num, evt, port, 0, ID_FLAG_GAMEPORTSCUSTOM_MASK | flags);
 							}
 						}
 					}
 				} else {
 					if (port >= 0) {
-						inputdevice_set_gameports_mapping(pr, devnum, num, evt, IDEV_MAPPED_GAMEPORTSCUSTOM1 | IDEV_MAPPED_GAMEPORTSCUSTOM2, port, pr->input_selected_setting);
+						inputdevice_set_gameports_mapping(pr, devnum, num, evt, IDEV_MAPPED_GAMEPORTSCUSTOM1 | IDEV_MAPPED_GAMEPORTSCUSTOM2 | flags, port, pr->input_selected_setting);
 					}
 					if (evt == INPUTEVENT_JOY1_FIRE_BUTTON || evt == INPUTEVENT_JOY2_FIRE_BUTTON) {
 						if (joystick > 0)
@@ -6007,7 +6016,7 @@ static void cleardev (struct uae_input_device *uid, int num)
 		inputdevice_sparecopy (&uid[num], i, 0);
 		for (int j = 0; j < MAX_INPUT_SUB_EVENT; j++) {
 			uid[num].eventid[i][j] = 0;
-			uid[num].flags[i][j] = 0;
+			uid[num].flags[i][j] &= ID_FLAG_AUTOFIRE_MASK;
 			xfree (uid[num].custom[i][j]);
 			uid[num].custom[i][j] = NULL;
 		}
@@ -6113,6 +6122,8 @@ static void setautofires (struct uae_prefs *prefs, int port, int af)
 	if (rp_isactive ())
 		return;
 #endif
+	if (JSEM_ISCUSTOM(port, prefs))
+		return;
 	for (int l = 0; l < MAX_INPUT_DEVICES; l++) {
 		setautofire (&joysticks[l], port, af);
 		setautofire (&mice[l], port, af);

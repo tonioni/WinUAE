@@ -3798,7 +3798,8 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 	bool tbool;
 
 	if (cfgfile_yesno(option, value, _T("middle_mouse"), &tbool)) {
-		p->input_mouse_untrap |= MOUSEUNTRAP_MIDDLEBUTTON;
+		if (tbool)
+			p->input_mouse_untrap |= MOUSEUNTRAP_MIDDLEBUTTON;
 		return 1;
 	}
 

@@ -1229,6 +1229,7 @@
 #define IDC_INPUTMAP_EXIT               1824
 #define IDC_INPUTMAPADD                 1825
 #define IDC_TAPELIST                    1826
+#define IDC_INPUTMAP_SPECIALS           1826
 #define IDC_NEW_TAPEPATH                1827
 #define IDC_TAPEINFO                    1828
 #define IDC_TAPE_PATH_NAME              1829

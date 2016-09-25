@@ -5199,7 +5199,13 @@ void cfgfile_compatibility_rtg(struct uae_prefs *p)
 				for (int j = i; j < MAX_RTG_BOARDS; j++) {
 					rtgs[j] = 1;
 					if (gfxboard_get_romtype(&p->rtgboards[j]) == romtype) {
-						addbcromtype(p, romtype, true, NULL, devnum);
+						TCHAR *romname = NULL;
+						if (romtype == ROMTYPE_PICASSOIV) {
+							romname = p->picassoivromfile;
+						} else if (romtype == ROMTYPE_x86_VGA) {
+							romname = _T("");
+						}
+						addbcromtype(p, romtype, romname, NULL, devnum);
 						devnum++;
 					}
 				}
@@ -6877,7 +6883,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 
 	p->input_tablet = TABLET_OFF;
 	p->tablet_library = false;
-	p->input_mouse_untrap = MOUSEUNTRAP_NONE;
+	p->input_mouse_untrap = MOUSEUNTRAP_MIDDLEBUTTON;
 	p->input_magic_mouse_cursor = 0;
 
 	inputdevice_default_prefs (p);

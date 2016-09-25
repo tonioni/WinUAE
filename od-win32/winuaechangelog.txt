@@ -5,6 +5,20 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 9:
+
+- Untrap = middle mouse button default was wrong and setting was nearly always incorrectly loaded from config file. (b8)
+- Added SCSI+IDE, SCSI only and IDE only Dataflyer Plus options. (SCSI+IDE = default)
+- Game Ports panel Remap/test option now supports button-specific autofire configuration. Main Game Ports panel autofire option is
+  now ignored when any custom slot is selected. Other confusing Input panel options may be moved later here with more logical grouping.
+  Does not yet hide options that are not compatible with selected input event.
+- Orphaned (no bridgeboard configured) x86 VGA board caused bogus error message at starup.
+- Enabling Picasso IV added incorrectly "NOROM" ROM type to Expansions panel.
+- For some reason QEMU Cirrus Logic code only stored chip model when initialized for the first time, this caused graphics glitches
+  if any 4M board was initialized after 2M or smaller board. For example Picasso IV + x86 VGA.
+- JIT Direct + Picasso IV Z3 was broken in recent beta.
+- Added Expansion Systems Dataflyer Plus boot ROM v1.5 and v1.7 to ROM scanner. (v2.1 was added in b8)
+
 Beta 8:
 
 - Do not initiate disk eject+reinsert sequence when changing write protection state that requires saveimage and emulation has not
@@ -23,6 +37,7 @@ Beta 8:
 - Expansion Systems Dataflyer Plus SCSI/IDE controller emulated. (Not same as Dataflyer SCSI Plus which is A1200/A4000 IDE port SCSI adapter)
 - Moved middle button untrap and "magic mouse" untrap/mouse sync to single select menu in gameports panel. (Misc panel middle
   button is kept because it is commonly used but now it only changes gameports option)
+- Release all Amiga keys only when mode changes and window needs to be closed and opened (for example fullscreen<>windowed change)
 
 Expansion Systems Dataflyer Plus:
 - SCSI-only, IDE-only or SCSI+IDE configuration.
