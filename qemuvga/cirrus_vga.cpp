@@ -2930,14 +2930,15 @@ void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
         rop_to_index[CIRRUS_ROP_NOTSRC] = 13;
         rop_to_index[CIRRUS_ROP_NOTSRC_OR_DST] = 14;
         rop_to_index[CIRRUS_ROP_NOTSRC_AND_NOTDST] = 15;
-        s->device_id = device_id;
-        if (is_pci)
-            s->bustype = CIRRUS_BUSTYPE_PCI;
-        else
-            s->bustype = CIRRUS_BUSTYPE_ISA;
     }
 
-    /* Register ioport 0x3b0 - 0x3df */
+	s->device_id = device_id;
+	if (is_pci)
+		s->bustype = CIRRUS_BUSTYPE_PCI;
+	else
+		s->bustype = CIRRUS_BUSTYPE_ISA;
+	
+	/* Register ioport 0x3b0 - 0x3df */
     memory_region_init_io(&s->cirrus_vga_io, &cirrus_vga_io_ops, s,
                           "cirrus-io", 0x30);
     memory_region_add_subregion(system_io, 0x3b0, &s->cirrus_vga_io);
