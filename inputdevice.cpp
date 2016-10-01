@@ -1937,6 +1937,8 @@ void inputdevice_parse_jport_custom(struct uae_prefs *pr, int index, int port, T
 					}
 				}
 				_tcscat(outname, ps);
+				if (flags & ID_FLAG_AUTOFIRE)
+					_tcscat(outname, _T(" AF"));
 			}
 		} else {
 			write_log(_T("parse_custom missing event %s\n"), p);
