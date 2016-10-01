@@ -868,7 +868,7 @@ static bool psEffect_LoadEffect (const TCHAR *shaderfile, int full, struct shade
 			}
 			hr = D3DXCreateEffectCompiler (str, len, NULL, NULL, compileflags, &EffectCompiler, &Errors);
 			if (FAILED (hr)) {
-				write_log (_T("%s: D3DXCreateEffectCompilerFromResource failed: %s\n"), D3DHEAD, D3DX_ErrorString (hr, Errors));
+				write_log (_T("%s: D3DXCreateEffectCompiler failed: %s\n"), D3DHEAD, D3DX_ErrorString (hr, Errors));
 				goto end;
 			}
 		}
@@ -3079,8 +3079,10 @@ static void D3D_render2 (void)
 		hr = d3ddev->SetTexture (0, srctex);
 		hr = d3ddev->DrawPrimitive (D3DPT_TRIANGLESTRIP, 0, 2);
 		int bl = filterd3d->gfx_filter_bilinear ? D3DTEXF_LINEAR : D3DTEXF_POINT;
-		hr = d3ddev->SetSamplerState (0, D3DSAMP_MINFILTER, bl);
-		hr = d3ddev->SetSamplerState (0, D3DSAMP_MAGFILTER, bl);
+		hr = d3ddev->SetSamplerState(0, D3DSAMP_MINFILTER, bl);
+		hr = d3ddev->SetSamplerState(0, D3DSAMP_MAGFILTER, bl);
+		hr = d3ddev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+		hr = d3ddev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
 
 		if (sprite && sltexture) {
 			D3DXVECTOR3 v;
