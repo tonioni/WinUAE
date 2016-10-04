@@ -458,6 +458,7 @@ extern void memory_cleanup(void);
 extern void restore_banks(void);
 extern void map_banks (addrbank *bank, int first, int count, int realsize);
 extern void map_banks_z2(addrbank *bank, int first, int count);
+extern uae_u32 map_banks_z2_autosize(addrbank *bank, int first);
 extern void map_banks_z3(addrbank *bank, int first, int count);
 extern bool validate_banks_z2(addrbank *bank, int start, int size);
 extern bool validate_banks_z3(addrbank *bank, int start, int size);

@@ -157,6 +157,7 @@ extern bool expansion_can_move(struct uae_prefs *p, int index);
 extern bool alloc_expansion_bank(addrbank *bank, struct autoconfig_info *aci);
 extern void free_expansion_bank(addrbank *bank);
 extern void expansion_map(void);
+extern uae_u32 expansion_board_size(addrbank *ab);
 
 extern void uaegfx_install_code (uaecptr);
 

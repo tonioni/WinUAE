@@ -872,8 +872,8 @@ static void REGPARAM2 blizzarde8_bput(uaecptr addr, uae_u32 b)
 	b &= 0xff;
 	addr &= 65535;
 	if (addr == 0x48 && !configured) {
-		map_banks(&blizzardea_bank, b, blizzardea_bank.allocated_size >> 16, 0);
-		write_log(_T("Accelerator Z2 board autoconfigured at %02X0000\n"), b);
+		uae_u32 size = map_banks_z2_autosize(&blizzardea_bank, b);
+		write_log(_T("Accelerator Z2 board autoconfigured at %02X0000, size %08x\n"), b, size);
 		configured = 1;
 		expamem_next (&blizzardea_bank, NULL);
 		return;
@@ -2541,7 +2541,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 			blizzardea_bank.baseaddr[i * 2 + 0] = b;
 		}
 	} else if (is_csmk1(p)) {
-		earom_size = 131072;
+		earom_size = 131072; // really 64k but ea and f0 use same space
 		f0rom_size = 65536;
 		for (int i = 0; i < 32768; i++) {
 			uae_u8 b = 0xff;

@@ -2953,6 +2953,16 @@ void map_banks_z2 (addrbank *bank, int start, int size)
 	map_banks (bank, start, size, 0);
 }
 
+uae_u32 map_banks_z2_autosize(addrbank *bank, int start)
+{
+	uae_u32 size = expansion_board_size(bank);
+	if (!size) {
+		error_log(_T("Z2 map_banks(%s) %08x, invalid size!\n"), bank->name, start << 16);
+		return 0;
+	}
+	map_banks_z2(bank, start, size >> 16);
+	return size;
+}
 
 void map_banks_quick (addrbank *bank, int start, int size, int realsize)
 {
