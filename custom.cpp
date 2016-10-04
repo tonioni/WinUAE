@@ -7618,6 +7618,8 @@ static void vsync_handler_pre (void)
 			} else {
 				reset_cpu_idle();
 			}
+		} else {
+			reset_cpu_idle();
 		}
 	}
 	if (regs.halted < 0)
