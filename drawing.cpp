@@ -3301,7 +3301,6 @@ static void init_drawing_frame (void)
 										currprefs.gfx_autoresolution_minh, currprefs.gfx_autoresolution_minv,
 										gfxvidinfo.gfx_resolution_reserved, gfxvidinfo.gfx_vresolution_reserved);
 									set_config_changed ();
-									//activate_debugger ();
 								}
 								if (src->width > 0 && src->height > 0) {
 									if (memcmp (dst, src, sizeof *dst)) {

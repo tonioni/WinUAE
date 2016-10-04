@@ -1,9 +1,23 @@
 
-
 JIT Direct current rules are less complex now. It automatically switches off only in following situations:
   - Accelerator mirrored maprom address space is not JIT Direct compatible. (CyberStorm, Blizzards etc)
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
+
+Beta 10:
+
+- OpalVision emulation. Not fully supported yet, King of Karate does not work but for example OpalPaint mostly work with some glitches.
+- ColorBurst emulation, partial. Only existing software seems to be "CB Paint Update" in TOSEC. ColorBurst is functionally nearly
+  identical to OpalVision but has less features. Note: that most test programs are buggy and very CPU speed sensitive, the slower the
+  CPU the less you see..
+- It was not possible to edit directory harddrive volume or device name.
+- Current visible RTG display state was not fully re-initialized when system was reset.
+- Increased GUI max size limits to support very high resolution screens.
+- Some accelerator boards (for example CSMK1) mapped 128k board to Z2 autoconfig space when correct size was 64k. Caused validation
+  halt error and/or reset loop if it wasn't last Z2 board.
+
+OpalVision and ColorBurst note: Multiple per-pixel calculations are needed to render the output (priority/plane/genlock stencil masking,
+memory bank selection, color modes, copro line-based mode changes, etc..). If it is too slow: buy a new PC. I am not going to optimize it.
 
 Beta 9:
 
@@ -12,7 +26,7 @@ Beta 9:
 - Game Ports panel Remap/test option now supports button-specific autofire configuration. Main Game Ports panel autofire option is
   now ignored when any custom slot is selected. Other confusing Input panel options may be moved later here with more logical grouping.
   Does not yet hide options that are not compatible with selected input event.
-- Orphaned (no bridgeboard configured) x86 VGA board caused bogus error message at starup.
+- Orphaned (no bridgeboard configured) x86 VGA board caused bogus error message at startup.
 - Enabling Picasso IV added incorrectly "NOROM" ROM type to Expansions panel.
 - For some reason QEMU Cirrus Logic code only stored chip model when initialized for the first time, this caused graphics glitches
   if any 4M board was initialized after 2M or smaller board. For example Picasso IV + x86 VGA.
