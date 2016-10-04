@@ -409,7 +409,7 @@ void regclosetree (UAEREG *key)
 int reginitializeinit (TCHAR **pppath)
 {
 	UAEREG *r = NULL;
-	TCHAR path[MAX_DPATH], fpath[MAX_PATH];
+	TCHAR path[MAX_DPATH], fpath[MAX_DPATH];
 	FILE *f;
 	TCHAR *ppath = *pppath;
 

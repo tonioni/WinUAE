@@ -856,7 +856,7 @@ int load_keyring (struct uae_prefs *p, const TCHAR *path)
 {
 	uae_u8 *keybuf;
 	int keysize;
-	TCHAR tmp[MAX_PATH], *d;
+	TCHAR tmp[MAX_DPATH], *d;
 	int keyids[] = { 0, 48, 73, -1 };
 	int cnt, i;
 
@@ -938,7 +938,7 @@ void free_keyring (void)
 
 struct romdata *getromdatabyname (const TCHAR *name)
 {
-	TCHAR tmp[MAX_PATH];
+	TCHAR tmp[MAX_DPATH];
 	int i = 0;
 	while (roms[i].name) {
 		if (!roms[i].group) {
