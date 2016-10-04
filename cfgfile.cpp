@@ -209,7 +209,7 @@ static const TCHAR *dongles[] =
 static const TCHAR *cdmodes[] = { _T("disabled"), _T(""), _T("image"), _T("ioctl"), _T("spti"), _T("aspi"), 0 };
 static const TCHAR *cdconmodes[] = { _T(""), _T("uae"), _T("ide"), _T("scsi"), _T("cdtv"), _T("cd32"), 0 };
 static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a2024"), _T("graffiti"),
-_T("ham_e"), _T("ham_e_plus"), _T("videodac18"), _T("avideo12"), _T("avideo24"), _T("firecracker24"), _T("dctv"), 0 };
+_T("ham_e"), _T("ham_e_plus"), _T("videodac18"), _T("avideo12"), _T("avideo24"), _T("firecracker24"), _T("dctv"), _T("opalvision"), _T("colorburst"), 0 };
 static const TCHAR *genlockmodes[] = { _T("none"), _T("noise"), _T("testcard"), NULL };
 static const TCHAR *ppc_implementations[] = {
 	_T("auto"),

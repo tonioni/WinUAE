@@ -13,6 +13,8 @@
 #include "debug.h"
 #include "zfile.h"
 
+static int opal_debug = 1;
+
 static bool automatic;
 static int monitor;
 
@@ -2102,76 +2104,6 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 	return true;
 }
 
-static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *dst)
-{
-	automatic = false;
-	if (currprefs.monitoremu == MONITOREMU_AUTO) {
-		automatic = true;
-		bool v = a2024(src, dst);
-		if (!v)
-			v = graffiti(src, dst);
-		if (!v)
-			v = do_videodac18(src, dst);
-		if (!v) {
-			if (avideo_allowed)
-				v = do_avideo(src, dst);
-		}
-		return v;
-	} else if (currprefs.monitoremu == MONITOREMU_A2024) {
-		return a2024(src, dst);
-	} else if (currprefs.monitoremu == MONITOREMU_GRAFFITI) {
-		return graffiti(src, dst);
-	} else if (currprefs.monitoremu == MONITOREMU_DCTV) {
-		return do_dctv(src, dst);
-	} else if (currprefs.monitoremu == MONITOREMU_HAM_E || currprefs.monitoremu == MONITOREMU_HAM_E_PLUS) {
-		return do_hame(src, dst);
-	} else if (currprefs.monitoremu == MONITOREMU_VIDEODAC18) {
-		return do_videodac18(src, dst);
-	} else if (currprefs.monitoremu == MONITOREMU_AVIDEO12 || currprefs.monitoremu == MONITOREMU_AVIDEO24) {
-		avideo_allowed = -1;
-		return do_avideo(src, dst);
-	} else if (currprefs.monitoremu == MONITOREMU_FIRECRACKER24) {
-		return do_firecracker24(src, dst);
-	}
-	return false;
-}
-
-
-bool emulate_specialmonitors(struct vidbuffer *src, struct vidbuffer *dst)
-{
-	if (!emulate_specialmonitors2(src, dst)) {
-		if (monitor) {
-			clearmonitor(dst);
-			monitor = 0;
-			write_log (_T("Native mode\n"));
-		}
-		return false;
-	}
-	return true;
-}
-
-void specialmonitor_reset(void)
-{
-	if (!currprefs.monitoremu)
-		return;
-	specialmonitor_store_fmode(-1, -1, 0);
-	fc24_reset();
-}
-
-bool specialmonitor_need_genlock(void)
-{
-	switch (currprefs.monitoremu)
-	{
-		case MONITOREMU_FIRECRACKER24:
-		case MONITOREMU_HAM_E:
-		case MONITOREMU_HAM_E_PLUS:
-		return true;
-	}
-	if (currprefs.genlock_image && currprefs.genlock)
-		return true;
-	return false;
-}
-
 static uae_u8 *genlock_image;
 static int genlock_image_width, genlock_image_height, genlock_image_pitch;
 static uae_u8 noise_buffer[1024];
@@ -2520,4 +2452,770 @@ bool emulate_grayscale(struct vidbuffer *src, struct vidbuffer *dst)
 		}
 	}
 	return v;
+}
+
+/*
+ColorBurst control line:
+15	Reserved	Reserved for future expansion(Low)
+14	BWR2		Active high writes to Blue bank 2
+13	GWR2		Active high writes to Green bank 2
+12	RWR2		Active high writes to Red bank 2
+11	FIELD		Odd or Even field display
+10	BWR2		Active high writes to Blue bank 1
+ 9	GWR2		Active high writes to Green bank 1
+ 8	RWR2		Active high writes to Red bank 1
+ 7	S0			Video Mode Control
+ 6	AUTO		Auto display sync when high
+ 5	Col / Cop	Update(0)Palette or (1)Coprocessor
+ 4	WREN		Enable Write to Col / Cop when high
+ 3	VALID3		must be a 1 for a CBurst frame
+ 2	VALID2		must be a 0 for a CBurst frame
+ 1	VALID1		must be a 1 for a CBurst frame
+ 0	VALID0		must be a 0 for a CBurst frame
+ 
+ ColorBurst CoPro:
+ 7	AddressLoad*	loads the Video Address counters when low
+ 6	S1 				Video mode control
+ 5	LO/HI 			Low = Low resolution; High = Hi-res
+ 4	PM				Priority Mode, 1 = use stencil for priority
+ 3	PR 				Video Priority, 0 = Amiga, 1 = ColorBurst
+ 2	DD 				Dual display, 0 = active, 1 = single display
+ 1	DCBD 			Use stencil for Dual ColorBurst Display (1)
+ 0	BNK 			Bank to display 0 = Bank 1; 1 = Bank 2
+
+OpalVision control line:
+19  |*Freeze     | Frame Freezes Current frame in SRC
+18  |**VLSI_PROG | Program the Roaster chip if present.
+17  |BWR2 Enable | Blue Video RAM write Bank 2
+16  |BWR1 Enable | Blue Video RAM write Bank 1
+15  |GWR2 Enable | Green Video RAM write Bank 2
+14  |GWR1 Enable | Green Video RAM write Bank 1
+13  |RWR2 Enable | Red Video RAM write Bank 2
+12  |RWR1 Enable | Red Video RAM write Bank 1
+11  |FGrab Enable| Frame Grabbing to Video RAM
+10  |Latch       | Latch On OpalVision display
+ 9  |Field_Mode  | Enable Auto Field Display Toggle
+ 8  |FIELD       | Field Toggle value
+ 7  |Dual_Play   | Dual OpalVision Playfield stencil enable
+ 6  |AUTO Enable | Auto Line Start Sync
+ 5  |COL/CoPro   | Selects Palette update or CoPro Update
+ 4  |WREN        | Address Select for Register Updates
+ 3  |Valid_3     | Valid OpalVision Activation Code
+ 2  |Valid_2     | Valid OpalVision Activation Code
+ 1  |Valid_1     | Valid OpalVision Activation Code
+ 0  |Valid_0     | Valid OpalVision Activation Code
+
+OpalVision CoPro:
+ 7  | Add_Load   | Re-load the address registers.
+ 6  | Prior_Mode | Amiga/OpalVision priority stencil enable.
+ 5  | Priority   | Amiga/OpalVision priority.
+ 4  | Dual_Disp  | Mix Amiga/OpalVision graphics.
+ 3  | Lo/Hi      | Hi resolution enable.
+ 2  | Bank       | Video ram display bank selector
+ 1  | S1         | Video display mode bit 1
+ 0  | S0         | Video display mode bit 0
+
+ */
+
+
+#define OPAL_SEGMENT_SIZE (128 * 1024)
+#define OPAL_SEGMENTS 12
+#define OPAL_ROWBYTES 371
+#define COLORBURST_ROWBYTES 373
+#define OPAL_MAXLINES 290
+#define OPAL_CONTROL_LINE_LENGTH 20
+#define COLORBURST_CONTROL_LINE_LENGTH 16
+
+struct opals {
+	uae_u8 vram[OPAL_SEGMENTS * OPAL_SEGMENT_SIZE];
+	uae_u8 palette[4 * 256], copro[OPAL_MAXLINES];
+	uae_u8 video_command;
+	uae_u8 palette_load;
+	uae_u8 pixel_read_mask;
+	int color_offset;
+	int priority_stencil_mode;
+	bool latched;
+	bool dual_play;
+	bool wren;
+	bool colcopro;
+	bool auto_field;
+	bool v2;
+	bool opal;
+	int active_banks[6];
+	int bank_field;
+	int address_load;
+	int rowbytes;
+	uae_u8 control_line[OPAL_CONTROL_LINE_LENGTH];
+};
+static struct opals *opal;
+
+
+static void opal_pixel(struct opals *opal, uae_u8 *d, uae_u8 *d2, uae_u8 *s, uae_u8 *s2, uae_u8 *s_genlock, struct vidbuffer *src, struct vidbuffer *dst, uae_u8 r, uae_u8 g, uae_u8 b, uae_u8 pr, bool doublelines, bool hires, bool nextpix)
+{
+	bool oa;
+	switch (opal->priority_stencil_mode | pr)
+	{
+		case 0:
+		case 1:
+		case 2:
+		case 6:
+		// amiga on opal
+		oa = s_genlock && is_transparent(*s_genlock);
+		break;
+		case 8:
+		case 9:
+		case 10:
+		case 14:
+		// amiga only
+		oa = false;
+		break;
+		case 4:
+		case 5:
+		case 3:
+		case 7:
+		// opal on amiga
+		oa = !(r == 0 && g == 0 && b == 0);
+		break;
+		case 12:
+		case 13:
+		case 11:
+		case 15:
+		// opal only
+		oa = true;
+		break;
+		default:
+		return;
+	}
+	if (oa) {
+		if (nextpix) {
+			d += dst->pixbytes;
+			d2 += dst->pixbytes;
+		}
+		PUT_PRGB(d, d2, dst, r, g, b, 0, doublelines, hires);
+	} else {
+		if (nextpix) {
+			d += dst->pixbytes;
+			d2 += dst->pixbytes;
+			s += src->pixbytes;
+			s2 += src->pixbytes;
+		}
+		PUT_AMIGARGB(d, s, d2, s2, dst, 0, doublelines, hires);
+	}
+}
+
+#define OPAL_SWAP_BANK (opal->dual_play && pf && !copro_hires) || (opal->v2 && opal->opal && opal->dual_play && copro_hires && s_genlock && is_transparent(*s_genlock))
+
+static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines, bool isopal)
+{
+	int y, x, vdbl, hdbl;
+	int isntsc;
+	int xadd, xaddpix;
+	bool detected;
+	uae_u8 control_line_tmp[OPAL_CONTROL_LINE_LENGTH] = { 0 };
+
+	if (!opal) {
+		opal = xcalloc(struct opals, 1);
+		opal->v2 = true;
+	}
+	opal->opal = isopal;
+	opal->rowbytes = isopal ? OPAL_ROWBYTES : COLORBURST_ROWBYTES;
+
+	detected = opal->latched;
+
+	isntsc = (beamcon0 & 0x20) ? 0 : 1;
+	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+		isntsc = currprefs.ntscmode ? 1 : 0;
+
+	vdbl = gfxvidinfo.ychange;
+	hdbl = gfxvidinfo.xchange;
+
+	xaddpix = (1 << 1) / hdbl;
+	xadd = ((1 << 1) / hdbl) * src->pixbytes;
+
+	int ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
+	int yimgstart = ystart + 6;
+	int yend = (isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL) + 1;
+
+	int palcoprocnt = 0;
+
+	bool copro_hires = false;
+	int copro_bank_offset[2] = { 0, 0 };
+	int copro_vdm = 0;
+	bool copro_prior_mode = false;
+	bool copro_priority = false;
+	bool copro_dual_disp = false;
+	int address_load_sync = -1;
+	int vram_write_offset = 0;
+	int vram_read_offset = 0;
+	int control_y = 0;
+
+	for (y = ystart; y < yend; y++) {
+
+		uae_u8 *line = NULL;
+		uae_u8 *line_genlock = NULL;
+		uae_u8 *dstline = NULL;
+		int ydisp = -1;
+
+		int yoff = (((y * 2 + oddlines) - src->yoffset) / vdbl);
+		if (yoff >= 0 && yoff < src->inheight) {
+			line = src->bufmem + yoff * src->rowbytes;
+			line_genlock = row_map_genlock ? row_map_genlock[yoff] : NULL;
+			dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
+			if (y >= yimgstart) {
+				ydisp = y - yimgstart;
+			}
+		}
+
+		uae_u8 copro = opal->copro[y - ystart];
+		if (opal->opal) {
+			copro_prior_mode = (copro & 0x40) != 0;
+			copro_priority = (copro & 0x20) != 0;
+			copro_dual_disp = (copro & 0x10) != 0;
+			copro_hires = (copro & 8) != 0;
+			copro_bank_offset[0] = (copro & 4) ? 6 * OPAL_SEGMENT_SIZE : 0;
+			copro_bank_offset[1] = (copro & 4) ? 0 : 6 * OPAL_SEGMENT_SIZE;
+			copro_vdm = copro & 3;
+		} else {
+			copro_vdm = (((copro >> 6) & 1) << 1) | opal->control_line[7];
+			copro_hires = (copro & 0x20) != 0;
+			copro_prior_mode = (copro & 0x10) != 0;
+			copro_priority = (copro & 8) != 0;
+			copro_dual_disp = (copro & 4) != 0;
+			opal->dual_play = (copro & 2) != 0;
+			copro_bank_offset[0] = (copro & 1) ? 6 * OPAL_SEGMENT_SIZE : 0;
+			copro_bank_offset[1] = (copro & 1) ? 0 : 6 * OPAL_SEGMENT_SIZE;
+		}
+		opal->priority_stencil_mode = (copro_prior_mode ? 2 : 0) | (copro_priority ? 4 : 0) | (copro_dual_disp ? 8 : 0);
+		if (!(copro & 0x80)) {
+			// Add_Load
+			vram_read_offset = opal->address_load;
+		}
+
+
+		bool nonzero = false;
+
+		uae_u8 prevbyte = 0;
+		uae_u8 prev = 0;
+		int bitcount = 0;
+		int oddeven = 0;
+		int pixcnt = 0;
+		int controlcnt = 0;
+
+		if (!line)
+			continue;
+
+		int vram_write_pixel_offset = vram_write_offset;
+		int vram_read_pixel_offset = vram_read_offset;
+
+		// behavior not fully known
+		if ((!opal->auto_field && opal->bank_field) || (opal->auto_field && oddlines)) {
+			vram_read_pixel_offset += 3 * OPAL_SEGMENT_SIZE;
+			vram_write_pixel_offset += 3 * OPAL_SEGMENT_SIZE;
+		}
+
+		bool command_update = false;
+		bool hstart = false;
+
+		int ax = 5;
+		for (x = 0; x < src->inwidth; x++, ax++) {
+			uae_u8 *sa = line + ((x << 1) / hdbl) * src->pixbytes;
+			uae_u8 newval = FIRGB(src, sa);
+			uae_u8 val = prev | newval;
+
+			uae_u8 *d = dstline + ((x << 1) / hdbl) * dst->pixbytes;
+			uae_u8 *dh = dstline + (((x + 1) << 1) / hdbl) * dst->pixbytes;
+			uae_u8 *d2 = d + dst->rowbytes;
+			uae_u8 *dh2 = dh + dst->rowbytes;
+			uae_u8 *s = line + ((ax << 1) / hdbl) * src->pixbytes;
+			uae_u8 *s2 = s + src->rowbytes;
+			uae_u8 *s_genlock = line_genlock ? line_genlock + ((ax << 1) / hdbl) : NULL;
+
+			if (!oddeven) {
+
+				uae_u8 r, g, b;
+				uae_u8 pf, pr;
+				int bidx;
+
+				if (copro_vdm == 0) {
+					// 24-bit truecolor (palette)
+					uae_u8 m = opal->pixel_read_mask;
+
+					r = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 0 * OPAL_SEGMENT_SIZE] & m) + 0];
+					g = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE] & m) + 1];
+					b = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE] & m) + 2];
+					pf = g & 1;
+					pr = b & 1;
+					if (OPAL_SWAP_BANK) {
+						r = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 0 * OPAL_SEGMENT_SIZE] & m) + 0];
+						g = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 1 * OPAL_SEGMENT_SIZE] & m) + 1];
+						b = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 2 * OPAL_SEGMENT_SIZE] & m) + 2];
+						bidx = 0;
+					} else {
+						bidx = 1;
+					}
+					opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !copro_hires, false);
+
+					if (copro_hires) {
+						r = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 0 * OPAL_SEGMENT_SIZE] & m) + 0];
+						g = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 1 * OPAL_SEGMENT_SIZE] & m) + 1];
+						b = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 2 * OPAL_SEGMENT_SIZE] & m) + 2];
+						pr = b & 1;
+						opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, false, true);
+					}
+
+				} else if (copro_vdm == 1) {
+					// 24-bit truecolor (bypass palette)
+
+					r = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 0 * OPAL_SEGMENT_SIZE];
+					g = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE];
+					b = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE];
+					pf = g & 1;
+					pr = b & 1;
+					if (OPAL_SWAP_BANK) {
+						r = opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 0 * OPAL_SEGMENT_SIZE];
+						g = opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 1 * OPAL_SEGMENT_SIZE];
+						b = opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 2 * OPAL_SEGMENT_SIZE];
+						bidx = 0;
+					} else {
+						bidx = 1;
+					}
+					opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !copro_hires, false);
+
+					if (copro_hires) {
+						r = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 0 * OPAL_SEGMENT_SIZE];
+						g = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 1 * OPAL_SEGMENT_SIZE];
+						b = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 2 * OPAL_SEGMENT_SIZE];
+						pr = b & 1;
+						opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, false, true);
+					}
+
+				} else if (copro_vdm == 2) {
+					// 8-bit palette
+
+					uae_u8 v0 = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + opal->color_offset] & opal->pixel_read_mask;
+					pf = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE] & 1;
+					pr = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE] & 1;
+					if (OPAL_SWAP_BANK) {
+						v0 = opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + opal->color_offset] & opal->pixel_read_mask;
+						bidx = 0;
+					} else {
+						bidx = 1;
+					}
+					r = opal->palette[v0 * 4 + 0];
+					g = opal->palette[v0 * 4 + 1];
+					b = opal->palette[v0 * 4 + 2];
+					opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !copro_hires, false);
+
+					if (copro_hires) {
+						uae_u8 v1 = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + opal->color_offset] & opal->pixel_read_mask;
+						r = opal->palette[v1 * 4 + 0];
+						g = opal->palette[v1 * 4 + 1];
+						b = opal->palette[v1 * 4 + 2];
+						opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, false, true);
+					}
+
+				} else if (copro_vdm == 3) {
+
+					if (((opal->video_command >> 6) & 3) == 3) {
+						// 15 bit true color
+						uae_u8 v0 = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 0 * OPAL_SEGMENT_SIZE];
+						uae_u8 v1 = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE];
+						r = ((v0 >> 2) & 31) << (8 - 5);
+						g = (((v0 & 3) << 3) | ((v1 >> 5) &7)) << (8 - 5);
+						b = ((v1 & 31)) << (8 - 5);
+						pf = v1 & 1;
+						pr = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE] & 1;
+						if (OPAL_SWAP_BANK) {
+							v0 = opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 0 * OPAL_SEGMENT_SIZE];
+							v1 = opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 1 * OPAL_SEGMENT_SIZE];
+							bidx = 0;
+						} else {
+							bidx = 1;
+						}
+						opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !copro_hires, false);
+
+						if (copro_hires) {
+							v0 = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 0 * OPAL_SEGMENT_SIZE];
+							v1 = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 1 * OPAL_SEGMENT_SIZE];
+							pr = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 2 * OPAL_SEGMENT_SIZE] & 1;
+							r = ((v0 >> 2) & 31) << (8 - 5);
+							g = (((v0 & 3) << 3) | ((v1 >> 5) & 7)) << (8 - 5);
+							b = ((v1 & 31)) << (8 - 5);
+							opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, false, true);
+						}
+
+					} else {
+						// 8-bit true color
+						uae_u8 v0 = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + opal->color_offset];
+						r = ((v0 >> 5) & 7) << (8 - 3);
+						g = ((v0 >> 2) & 7) << (8 - 3);
+						b = ((v0 >> 0) & 3) << (8 - 2);
+						pf = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE] & 1;
+						pr = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE] & 1;
+						if (OPAL_SWAP_BANK) {
+							v0 = opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + opal->color_offset];
+							bidx = 0;
+						} else {
+							bidx = 1;
+						}
+						opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !copro_hires, false);
+
+						if (copro_hires) {
+							uae_u8 v1 = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + opal->color_offset] & opal->pixel_read_mask;
+							r = ((v0 >> 5) & 7) << (8 - 3);
+							g = ((v0 >> 2) & 7) << (8 - 3);
+							b = ((v0 >> 0) & 3) << (8 - 2);
+							pr = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 2 * OPAL_SEGMENT_SIZE] & 1;
+							opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, false, true);
+						}
+					}
+
+				}
+
+				vram_read_pixel_offset++;
+				vram_read_pixel_offset &= (OPAL_SEGMENT_SIZE - 1);
+			}
+
+			oddeven = oddeven ? 0 : 1;
+
+			if (!nonzero && !newval) {
+				prev = 0;
+				oddeven = false;
+				continue;
+			}
+
+			nonzero = true;
+			hstart = true;
+			prev = val << 4;
+
+			if (!oddeven) {
+
+				// control line
+				if (y < yimgstart && bitcount >= 0) {
+
+					int v = (val & 0x11) == 0x11;
+					if ((opal_debug & 4) && y == ystart) {
+						write_log(_T("%02x."), val);
+					}
+					if (opal->opal) {
+						if (bitcount < 8 && v == 0) {
+							bitcount = 0;
+						} else if (bitcount >= 8 && bitcount < 8 + 6 && v != 0) {
+							bitcount = 0;
+						} else if (bitcount == 8 + 6) {
+							if (controlcnt < OPAL_CONTROL_LINE_LENGTH) {
+								control_line_tmp[OPAL_CONTROL_LINE_LENGTH - controlcnt - 1] = v ? 0x00 : 0x01;
+								controlcnt++;
+							}
+						bitcount = 0;
+						} else {
+							bitcount++;
+						}
+					} else {
+						if (prevbyte == 0x11 && bitcount == 1) {
+							if (controlcnt < COLORBURST_CONTROL_LINE_LENGTH) {
+								control_line_tmp[COLORBURST_CONTROL_LINE_LENGTH - controlcnt - 1] = v ? 0x00 : 0x01;
+								controlcnt++;
+							}
+							bitcount = 2;
+						} else if (prevbyte == 0x00 && val == 0x11 && bitcount == 0) {
+							bitcount = 1;
+						} else if (bitcount >= 2) {
+							bitcount++;
+							if (bitcount > 8)
+								bitcount = 0;
+						}
+					}
+				}
+				
+				if (ydisp >= 0) {
+
+					if (pixcnt < opal->rowbytes) {
+						val ^= 0xff; // why is this needed?
+						for (int bnk = 0; bnk < 6; bnk++) {
+							if (opal->active_banks[bnk]) {
+								int offset = (bnk & 1) ? 6 * OPAL_SEGMENT_SIZE : 0;
+								opal->vram[vram_write_pixel_offset + offset + (bnk / 2) * OPAL_SEGMENT_SIZE] = val;
+							}
+						}
+						pixcnt++;
+
+						vram_write_pixel_offset++;
+						vram_write_pixel_offset &= (OPAL_SEGMENT_SIZE - 1);
+					}
+				}
+
+				if (control_y && y >= control_y) {
+				
+					if (opal_debug & 2)
+						write_log(_T("%02x."), val);
+
+					if (pixcnt >= 1 && pixcnt < 4) {
+
+						if (val != 0x00)
+							control_y = 0;
+
+					} else if (pixcnt > 0) {
+
+						// FF marker?
+						if ((pixcnt & 3) == 0 && val != 0xff) {
+
+							pixcnt = -1;
+
+						} else 	if (opal->colcopro) {
+
+							if ((pixcnt & 3) != 0) {
+								if (palcoprocnt < OPAL_MAXLINES) {
+									if (opal->wren)
+										opal->copro[palcoprocnt] = val;
+								} else if (palcoprocnt == OPAL_MAXLINES + 7) {
+									opal->video_command = val;
+									command_update = true;
+								} else if (val != 0x00) {
+									write_log(_T("COPRO %d = %02x\n"), palcoprocnt, val);
+								}
+								palcoprocnt++;
+							}
+
+						} else {
+
+							if (y == control_y) {
+	
+								if (pixcnt == 5) {
+									opal->palette_load = val;
+									if (val)
+										write_log(_T("PALETTELOAD=%02x\n"), val);
+								} else if (pixcnt == 6) {
+									opal->pixel_read_mask = val;
+									if (val != 0xff)
+										write_log(_T("PIXELMASK=%02x\n"), val);
+								} else if (pixcnt == 7) {
+									opal->video_command = val;
+									command_update = true;
+								}
+							}
+							if ((((y == control_y && pixcnt > 8) || (y > control_y)) && palcoprocnt < 4 * 256) && opal->wren) {
+								if (!(opal->video_command & 0x10)) {
+									// 6-bit palette (2 low bits are simply cleared)
+									val <<= 2;
+								}
+								opal->palette[(palcoprocnt + (opal->palette_load * 4)) & 1023] = val;
+								palcoprocnt++;
+							}
+						}
+
+					} else if (pixcnt < 0 && y == control_y + 2) {
+
+						if (address_load_sync < 0 && val == 0xff)
+							address_load_sync = 0;
+						if (address_load_sync > 0 && address_load_sync < 4) {
+							if (address_load_sync == 1 && (val & 0xfe))
+								write_log(_T("Address load %02x\n"), val);
+							opal->address_load <<= 8;
+							opal->address_load |= val;
+							opal->address_load &= (OPAL_SEGMENT_SIZE - 1);
+						}
+						if (address_load_sync >= 0)
+							address_load_sync++;
+					}
+					if (pixcnt >= 0)
+						pixcnt++;
+				
+				}
+				prevbyte = val;
+			}
+		}
+
+		if (command_update) {
+			opal->color_offset = ((opal->video_command >> 6) & 3) * OPAL_SEGMENT_SIZE;
+		}
+
+		vram_write_offset += opal->rowbytes;
+		vram_write_offset &= (OPAL_SEGMENT_SIZE - 1);
+
+		vram_read_offset += opal->rowbytes;
+		vram_read_offset &= (OPAL_SEGMENT_SIZE - 1);
+
+		if (control_y && y >= control_y && (opal_debug & 2)) {
+			write_log(_T("\n"));
+		}
+
+		if (y == ystart && (opal_debug & 4)) {
+			write_log(_T("\n"));
+		}
+
+		if (y == control_y + 3) {
+			control_y = 0;
+		}
+
+		if (opal->opal && controlcnt >= OPAL_CONTROL_LINE_LENGTH) {
+			memcpy(opal->control_line, control_line_tmp, OPAL_CONTROL_LINE_LENGTH);
+			detected = opal->control_line[0] && opal->control_line[2] && !opal->control_line[1] && !opal->control_line[3];
+			if (detected) {
+				palcoprocnt = 0;
+				control_y = y + 1;
+				uae_u8 *c = opal->control_line;
+				if (opal_debug & 1) {
+					write_log(_T("WREN=%d COPRO=%d AUTO=%d DP=%d FIELD=%d FM=%d Latch=%d FGrab=%d\n"),
+						c[4], c[5], c[6], c[7], c[8], c[9], c[10], c[11]);
+					write_log(_T("RWR1=%d RWR2=%d GWR1=%d GWR2=%d BWR1=%d BWR2=%d\n"),
+						c[12], c[13], c[14], c[15], c[16], c[17]);
+				}
+				if (c[18] || c[19] || c[11])
+						write_log(_T("UNIMPLEMENTED BITS!\n"));
+				opal->dual_play = c[7];
+				opal->latched = c[10];
+				opal->wren = c[4];
+				opal->colcopro = c[5];
+				opal->bank_field = c[8];
+				opal->auto_field = c[9];
+				opal->active_banks[0] = c[12];
+				opal->active_banks[1] = c[13];
+				opal->active_banks[2] = c[14];
+				opal->active_banks[3] = c[15];
+				opal->active_banks[4] = c[16];
+				opal->active_banks[5] = c[17];
+			}
+		} else if (!opal->opal && controlcnt >= COLORBURST_CONTROL_LINE_LENGTH) {
+			memcpy(opal->control_line, control_line_tmp, COLORBURST_CONTROL_LINE_LENGTH);
+			detected = !opal->control_line[0] && !opal->control_line[2] && opal->control_line[1] && opal->control_line[3];
+			if (detected) {
+				palcoprocnt = 0;
+				control_y = y + 1;
+				uae_u8 *c = opal->control_line;
+				if (opal_debug & 1) {
+					write_log(_T("WREN=%d COPRO=%d AUTO=%d S0=%d\n"),
+						c[4], c[5], c[6], c[7]);
+					write_log(_T("RWR1=%d GWR1=%d BWR1=%d FIELD=%d RWR2=%d GWR2=%d BWR2=%d\n"),
+						c[8], c[9], c[10], c[11], c[12], c[13], c[14]);
+				}
+				if (c[15])
+					write_log(_T("UNIMPLEMENTED BITS!\n"));
+				opal->wren = c[4];
+				opal->colcopro = c[5];
+				opal->bank_field = c[11];
+				opal->auto_field = false;
+				opal->active_banks[0] = c[8];
+				opal->active_banks[1] = c[9];
+				opal->active_banks[2] = c[10];
+				opal->active_banks[3] = c[12];
+				opal->active_banks[4] = c[13];
+				opal->active_banks[5] = c[14];
+			}
+		}
+
+		if (y >= yimgstart && !detected)
+			return false;
+
+	}
+
+	if (opal->opal && monitor != MONITOREMU_OPALVISION) {
+		monitor = MONITOREMU_OPALVISION;
+		write_log(_T("Opalvision control line detected\n"));
+	} else if (!opal->opal && monitor != MONITOREMU_COLORBURST) {
+		monitor = MONITOREMU_COLORBURST;
+		write_log(_T("Colorburst control line line detected\n"));
+	}
+	dst->nativepositioning = true;
+
+	return true;
+}
+
+static bool do_opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool opal)
+{
+	bool v;
+	if (interlace_seen) {
+		if (currprefs.gfx_iscanlines) {
+			v = opalvision(src, dst, false, lof_store ? 0 : 1, opal);
+			if (v && currprefs.gfx_iscanlines > 1)
+				blank_generic(src, dst, lof_store ? 1 : 0);
+		} else {
+			v = opalvision(src, dst, false, 0, opal);
+			v |= opalvision(src, dst, false, 1, opal);
+		}
+	} else {
+		v = opalvision(src, dst, true, 0, opal);
+	}
+	return v;
+}
+
+
+static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *dst)
+{
+	automatic = false;
+	if (currprefs.monitoremu == MONITOREMU_AUTO) {
+		automatic = true;
+		bool v = a2024(src, dst);
+		if (!v)
+			v = graffiti(src, dst);
+		if (!v)
+			v = do_videodac18(src, dst);
+		if (!v) {
+			if (avideo_allowed)
+				v = do_avideo(src, dst);
+		}
+		if (!v)
+			v = do_opalvision(src, dst, true);
+		if (!v)
+			v = do_opalvision(src, dst, false);
+		return v;
+	} else if (currprefs.monitoremu == MONITOREMU_A2024) {
+		return a2024(src, dst);
+	} else if (currprefs.monitoremu == MONITOREMU_GRAFFITI) {
+		return graffiti(src, dst);
+	} else if (currprefs.monitoremu == MONITOREMU_DCTV) {
+		return do_dctv(src, dst);
+	} else if (currprefs.monitoremu == MONITOREMU_HAM_E || currprefs.monitoremu == MONITOREMU_HAM_E_PLUS) {
+		return do_hame(src, dst);
+	} else if (currprefs.monitoremu == MONITOREMU_VIDEODAC18) {
+		return do_videodac18(src, dst);
+	} else if (currprefs.monitoremu == MONITOREMU_AVIDEO12 || currprefs.monitoremu == MONITOREMU_AVIDEO24) {
+		avideo_allowed = -1;
+		return do_avideo(src, dst);
+	} else if (currprefs.monitoremu == MONITOREMU_FIRECRACKER24) {
+		return do_firecracker24(src, dst);
+	} else if (currprefs.monitoremu == MONITOREMU_OPALVISION) {
+		return do_opalvision(src, dst, true);
+	} else if (currprefs.monitoremu == MONITOREMU_COLORBURST) {
+		return do_opalvision(src, dst, false);
+	}
+	return false;
+}
+
+
+bool emulate_specialmonitors(struct vidbuffer *src, struct vidbuffer *dst)
+{
+	if (!emulate_specialmonitors2(src, dst)) {
+		if (monitor) {
+			clearmonitor(dst);
+			monitor = 0;
+			write_log(_T("Native mode\n"));
+		}
+		return false;
+	}
+	return true;
+}
+
+void specialmonitor_reset(void)
+{
+	if (!currprefs.monitoremu)
+		return;
+	specialmonitor_store_fmode(-1, -1, 0);
+	fc24_reset();
+}
+
+bool specialmonitor_need_genlock(void)
+{
+	switch (currprefs.monitoremu)
+	{
+	case MONITOREMU_FIRECRACKER24:
+	case MONITOREMU_HAM_E:
+	case MONITOREMU_HAM_E_PLUS:
+	case MONITOREMU_OPALVISION:
+	case MONITOREMU_COLORBURST:
+	return true;
+	}
+	if (currprefs.genlock_image && currprefs.genlock)
+		return true;
+	return false;
 }
