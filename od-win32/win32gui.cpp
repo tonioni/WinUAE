@@ -3763,6 +3763,25 @@ static int input_selected_widget, input_total_devices;
 static int input_selected_event, input_selected_sub_num;
 static int input_copy_from;
 
+struct remapcustoms_s
+{
+	uae_u64 flags;
+	uae_u64 mask;
+	const TCHAR *name;
+};
+static struct remapcustoms_s remapcustoms[] =
+{
+	{ 0, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	NULL },
+	{ IDEV_MAPPED_AUTOFIRE_SET, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	NULL },
+	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	NULL },
+	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_INVERTTOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	NULL },
+	{ NULL }
+};
+
 static void getqualifiername (TCHAR *p, uae_u64 mask)
 {
 	*p = 0;
@@ -3984,11 +4003,12 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum,
 
 											if (flags & IDEV_MAPPED_AUTOFIRE_SET) {
 												_tcscat(target, _T(" ["));
-												_tcscat(target, _T("Autofire"));
 												if (flags & IDEV_MAPPED_TOGGLE)
-													_tcscat(target, _T(" (toggle)"));
+													_tcscat(target, remapcustoms[2].name);
 												else if (flags & IDEV_MAPPED_INVERTTOGGLE)
-													_tcscat(target, _T(" (always)"));
+													_tcscat(target, remapcustoms[3].name);
+												else
+													_tcscat(target, remapcustoms[1].name);
 												_tcscat(target, _T("]"));
 											}
 
@@ -7690,15 +7710,17 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("-"));
 		WIN32GUI_LoadUIString(IDS_AUTODETECT, buffer, sizeof buffer / sizeof (TCHAR));
 		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)buffer);
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Commodore A2024"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Individual Computers Graffiti"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Black Belt Systems HAM-E"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Black Belt Systems HAM-E Plus"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Newtronic Video DAC 18"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Archos AVideo 12"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Archos AVideo 24"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Impulse FireCracker 24"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Digital Creations DCTV"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("A2024 (Commodore)"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Graffiti (Individual Computers)"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("HAM-E (Black Belt Systems)"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("HAM-E Plus (Black Belt Systems)"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Video DAC 18 (Newtronic)"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("AVideo 12 (Archos)"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("AVideo 24 (Archos)"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("FireCracker 24 (Impulse)"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("DCTV (Digital Creations)"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("OpalVision (Opal Technologies)"));
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("ColorBurst (M.A.S.T.)"));
 
 #ifndef	AGA
 		ew (hDlg, IDC_AGA, FALSE);
@@ -12249,6 +12271,11 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 			case IDC_PATH_NAME:
 			getcomboboxtext(hDlg, IDC_PATH_NAME, current_fsvdlg.ci.rootdir, sizeof current_fsvdlg.ci.rootdir / sizeof(TCHAR));
 			break;
+			}
+		}
+		if (HIWORD(wParam) == EN_UPDATE || HIWORD(wParam) == EN_KILLFOCUS) {
+			switch (LOWORD(wParam))
+			{
 			case IDC_VOLUME_NAME:
 			GetDlgItemText(hDlg, IDC_VOLUME_NAME, current_fsvdlg.ci.volname, sizeof current_fsvdlg.ci.volname / sizeof(TCHAR));
 			break;
@@ -15295,12 +15322,20 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			int id = joysaf[i];
 			SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
 			WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE_NO, tmp, MAX_DPATH);
+			if (!remapcustoms[0].name)
+				remapcustoms[0].name = my_strdup(tmp);
 			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 			WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE, tmp, MAX_DPATH);
+			if (!remapcustoms[1].name)
+				remapcustoms[1].name = my_strdup(tmp);
 			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 			WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE_TOGGLE, tmp, MAX_DPATH);
+			if (!remapcustoms[2].name)
+				remapcustoms[2].name = my_strdup(tmp);
 			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 			WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE_ALWAYS, tmp, MAX_DPATH);
+			if (!remapcustoms[3].name)
+				remapcustoms[3].name = my_strdup(tmp);
 			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
 
@@ -16384,25 +16419,6 @@ static void fillinputmapadd (HWND hDlg)
 		evt++;
 	}
 }
-
-struct remapcustoms_s
-{
-	uae_u64 flags;
-	uae_u64 mask;
-	const TCHAR *name;
-};
-static const struct remapcustoms_s remapcustoms[] =
-{
-	{ 0, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
-	_T("No autofire") },
-	{ IDEV_MAPPED_AUTOFIRE_SET, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
-	_T("Autofire on") },
-	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
-	_T("Autofire on (toggle)") },
-	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_INVERTTOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
-	_T("Autofire on (always)") },
-	{ NULL }
-};
 
 static void remapspeciallistview(HWND list)
 {
@@ -19942,13 +19958,15 @@ static int GetSettings (int all_options, HWND hwnd)
 		freescaleresource (tres);
 		psresult = 0;
 		if (dhwnd != NULL) {
+			int dw = GetSystemMetrics(SM_CXSCREEN);
+			int dh = GetSystemMetrics(SM_CYSCREEN);
 			MSG msg;
 			DWORD v;
 			int w, h;
 
 			getguisize (dhwnd, &w, &h);
 			write_log (_T("Got GUI size = %dx%d\n"), w, h);
-			if (w < 100 || h < 100 || w > 4096 || h > 4096) {
+			if (w < 100 || h < 100 || (w > 8192 && w > dw + 500) || (h > 8192 && h > dh + 500)) {
 				write_log (_T("GUI size (%dx%d) out of range!\n"), w, h);
 				scaleresource_setdefaults ();
 				setdefaultguisize ();
