@@ -2251,6 +2251,7 @@ void gfxboard_reset (void)
 			}
 		}
 	}
+	rtg_visible = -1;
 }
 
 static uae_u32 REGPARAM2 gfxboards_lget_regs (uaecptr addr)
