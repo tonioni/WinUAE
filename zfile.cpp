@@ -2960,6 +2960,14 @@ static void addvolumesize (struct zvolume *zv, uae_s64 size)
 	}
 }
 
+static bool valid_zi(struct zarchive_info *zai)
+{
+	if (_tcslen(zai->name) == 0) {
+		return false;
+	}
+	return true;
+}
+
 struct znode *znode_adddir (struct znode *parent, const TCHAR *name, struct zarchive_info *zai)
 {
 	struct znode *zn;
@@ -2998,6 +3006,10 @@ struct znode *zvolume_adddir_abs (struct zvolume *zv, struct zarchive_info *zai)
 		if (last == '/' || last == '\\')
 			path[_tcslen (path) - 1] = 0;
 	}
+	if (!valid_zi(zai)) {
+		xfree(path);
+		return NULL;
+	}
 	zn2 = &zv->root;
 	p = p2 = path;
 	for (i = 0; path[i]; i++) {
@@ -3015,7 +3027,7 @@ struct znode *zvolume_addfile_abs (struct zvolume *zv, struct zarchive_info *zai
 {
 	struct znode *zn = NULL, *zn2;
 	int i;
-	TCHAR *path = my_strdup (zai->name);
+	TCHAR *path = my_strdup(zai->name);
 	TCHAR *p, *p2;
 
 	zn2 = &zv->root;
@@ -3028,7 +3040,7 @@ struct znode *zvolume_addfile_abs (struct zvolume *zv, struct zarchive_info *zai
 			p = p2 = &path[i + 1];
 		}
 	}
-	if (p2) {
+	if (p2 && _tcslen(p2) > 0) {
 		zn = znode_alloc_child (zn2, p2);
 		zn->size = zai->size;
 		zn->type = ZNODE_FILE;
