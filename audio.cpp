@@ -648,7 +648,8 @@ static void do_extra_channels(int i, int *data1, int *data2, int *data3, int *da
 		int datas[AUDIO_CHANNEL_MAX_STREAM_CH];
 		samplexx_anti_handler(datas, idx, 6);
 		get_extra_channels(data1, data2, datas[0], datas[1]);
-		get_extra_channels(data3, data4, datas[2], datas[3]);
+		if (data3 && data4)
+			get_extra_channels(data3, data4, datas[2], datas[3]);
 		if (data5 && data6)
 			get_extra_channels(data5, data6, datas[4], datas[5]);
 	}
