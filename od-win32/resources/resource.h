@@ -1265,6 +1265,8 @@
 #define IDC_RAM_ADDRESS                 1852
 #define IDC_BOARDS_UP                   1853
 #define IDC_RAM_ADDRESS2                1853
+#define IDC_GENLOCKFILE                 1853
+#define IDC_GENLOCKFILESELECT           1854
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1316,7 +1318,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        400
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1853
+#define _APS_NEXT_CONTROL_VALUE         1855
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

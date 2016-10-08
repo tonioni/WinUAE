@@ -93,6 +93,7 @@
 #include "inputrecord.h"
 #include "gfxboard.h"
 #include "statusline.h"
+#include "devices.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #include "cloanto/RetroPlatformIPC.h"
@@ -439,19 +440,13 @@ bool resumepaused (int priority)
 		return false;
 	if (!pause_emulation)
 		return false;
+	devices_unpause();
 	resumesoundpaused ();
-	blkdev_exitgui ();
 	if (pausemouseactive) {
 		pausemouseactive = 0;
 		setmouseactive (-1);
 	}
 	pause_emulation = 0;
-#ifdef RETROPLATFORM
-	rp_pause (pause_emulation);
-#endif
-#ifdef WITH_PPC
-	uae_ppc_pause(0);
-#endif
 	setsystime ();
 	return true;
 }
@@ -462,19 +457,13 @@ bool setpaused (int priority)
 		return false;
 	wait_keyrelease();
 	pause_emulation = priority;
-#ifdef WITH_PPC
-	uae_ppc_pause(1);
-#endif
+	devices_pause();
 	setsoundpaused ();
-	blkdev_entergui ();
 	pausemouseactive = 1;
 	if (isfullscreen () <= 0) {
 		pausemouseactive = mouseactive;
 		setmouseactive (0);
 	}
-#ifdef RETROPLATFORM
-	rp_pause (pause_emulation);
-#endif
 	return true;
 }
 

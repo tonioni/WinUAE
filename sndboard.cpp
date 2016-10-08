@@ -337,15 +337,6 @@ static bool uaesnd_validate(struct uaesndboard_stream *s)
 			write_log(_T("UAESND: invalid sample repeat pointer range %08x - %08x\n"), repeat, repeat + s->replen * s->framesize);
 			return false;
 		}
-	} else {
-		if (s->replen != 0) {
-			write_log(_T("UAESND: repeat count == 0: repeat length must be also zero.\n"));
-			return false;
-		}
-		if (s->repeat != 0) {
-			write_log(_T("UAESND: repeat count == 0: repeat address must be also zero.\n"));
-			return false;
-		}
 	}
 	uaesnd_setfreq(s);
 	for (int i = s->ch; i < MAX_UAE_CHANNELS; i++) {

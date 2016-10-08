@@ -2045,6 +2045,8 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.genlock_image != changed_prefs.genlock_image ? (2 | 8) : 0;
 	c |= currprefs.genlock != changed_prefs.genlock ? (2 | 8) : 0;
 	c |= currprefs.genlock_mix != changed_prefs.genlock_mix ? (1 | 256) : 0;
+	c |= _tcsicmp(currprefs.genlock_image_file, changed_prefs.genlock_image_file) ? (2 | 8) : 0;
+	c |= _tcsicmp(currprefs.genlock_video_file, changed_prefs.genlock_video_file) ? (2 | 8) : 0;
 
 	c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? (2 | 8) : 0;
 	c |= currprefs.gfx_scandoubler != changed_prefs.gfx_scandoubler ? (2 | 8) : 0;
@@ -2135,9 +2137,12 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_iscanlines = changed_prefs.gfx_iscanlines;
 		currprefs.gfx_pscanlines = changed_prefs.gfx_pscanlines;
 		currprefs.monitoremu = changed_prefs.monitoremu;
+
 		currprefs.genlock_image = changed_prefs.genlock_image;
 		currprefs.genlock = changed_prefs.genlock;
 		currprefs.genlock_mix = changed_prefs.genlock_mix;
+		_tcscpy(currprefs.genlock_image_file, changed_prefs.genlock_image_file);
+		_tcscpy(currprefs.genlock_video_file, changed_prefs.genlock_video_file);
 
 		currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
 		currprefs.gfx_scandoubler = changed_prefs.gfx_scandoubler;

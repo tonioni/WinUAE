@@ -4,6 +4,21 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+
+Beta 11:
+
+- Added generic Z2/Z3 autoconfig support to expansion.cpp. Previously each expansion type needed own separate autoconfig handling.
+- Ariadne II added but not yet working. Drivers require working 9346 EEPROM chip. (RTL8029 is NE2000 clone with some extra features)
+- Any archive mounted as a harddrive: skip files with zero length file names.
+- LZX archive mounted as a harddrive: archives inside LZX archive didn't always unpack and zero size files failed to open.
+- Genlock custom video file, capture device and image file support fully implemented. GUI support added. Uses obsolete DirectShow
+  SampleGrabber method which is not necessarily supported with all video files/capture devices. Image support requires png image files.
+  Scaling is simple integer scaling. Genlock display changes to blue if image, video or capture device fails to open. Capture option
+  uses default capture device. You may get few seconds of blue genlock screen before capture/video initializes fully.
+  Maximum pointlessness feature level reached!
+- uaesnd updates. It can play sound for the first time.
+- Test compilation with Visual Studio 15 Preview 5.
+
 Beta 10:
 
 - OpalVision emulation. Not fully supported yet, King of Karate does not work but for example OpalPaint mostly work with some glitches.

@@ -844,6 +844,7 @@
     <ClCompile Include="..\..\events.cpp" />
     <ClCompile Include="..\..\fake86_cpu.cpp" />
     <ClCompile Include="..\..\flashrom.cpp" />
+    <ClCompile Include="..\..\framebufferboards.cpp" />
     <ClCompile Include="..\..\gfxboard.cpp" />
     <ClCompile Include="..\..\hrtmon.rom.cpp" />
     <ClCompile Include="..\..\ide.cpp" />
@@ -941,6 +942,7 @@
     <ClCompile Include="..\win32gfx.cpp" />
     <ClCompile Include="..\win32gui.cpp" />
     <ClCompile Include="..\win32gui_extra.cpp" />
+    <ClCompile Include="..\win32_videograb.cpp" />
     <ClCompile Include="..\writelog.cpp" />
     <ClCompile Include="..\..\a2065.cpp" />
     <ClCompile Include="..\..\a2091.cpp" />

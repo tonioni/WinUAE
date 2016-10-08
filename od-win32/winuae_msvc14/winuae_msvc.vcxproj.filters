@@ -823,6 +823,9 @@
     <ClCompile Include="..\..\framebufferboards.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\win32_videograb.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">
@@ -923,7 +926,6 @@
     <None Include="..\resources\drive_spin.wav" />
     <None Include="..\resources\drive_spinnd.wav" />
     <None Include="..\resources\drive_startup.wav" />
-    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\resources\winuae.rc">

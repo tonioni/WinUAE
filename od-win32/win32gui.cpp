@@ -286,6 +286,21 @@ static void hide (HWND hDlg, DWORD id, int hide)
 	ShowWindow (w, hide ? SW_HIDE : SW_SHOW);
 }
 
+static void parsefilepath(TCHAR *path, int maxlen)
+{
+	TCHAR *tmp = xmalloc(TCHAR, maxlen + 1);
+	_tcscpy(tmp, path);
+	TCHAR *p1 = _tcsstr(tmp, _T(" { "));
+	TCHAR *p2 = _tcsstr(tmp, _T(" }"));
+	if (p1 && p2 && p2 > p1) {
+		*p1 = 0;
+		memset(path, 0, maxlen * sizeof(TCHAR));
+		memcpy(path, p1 + 3, (p2 - p1 - 3) * sizeof(TCHAR));
+		_tcscat(path, tmp);
+	}
+	xfree(tmp);
+}
+
 static int scsiromselect_table[256];
 
 static bool getcomboboxtext(HWND hDlg, int id, TCHAR *out, int maxlen)
@@ -630,7 +645,9 @@ static const TCHAR *historytypes[] =
 	_T("DirFileSysMRUList"),
 	_T("HardfileMRUList"),
 	_T("FileSysMRUList"),
-	_T("TapeImageMRUList")
+	_T("TapeImageMRUList"),
+	_T("GenlockImageMRUList"),
+	_T("GenlockVideoMRUList")
 };
 static int regread;
 
@@ -664,12 +681,14 @@ static void write_disk_history2 (int type)
 }
 void write_disk_history (void)
 {
-	write_disk_history2 (HISTORY_FLOPPY);
-	write_disk_history2 (HISTORY_CD);
-	write_disk_history2 (HISTORY_DIR);
-	write_disk_history2 (HISTORY_HDF);
-	write_disk_history2 (HISTORY_FS);
-	write_disk_history2 (HISTORY_TAPE);
+	write_disk_history2(HISTORY_FLOPPY);
+	write_disk_history2(HISTORY_CD);
+	write_disk_history2(HISTORY_DIR);
+	write_disk_history2(HISTORY_HDF);
+	write_disk_history2(HISTORY_FS);
+	write_disk_history2(HISTORY_TAPE);
+	write_disk_history2(HISTORY_GENLOCK_IMAGE);
+	write_disk_history2(HISTORY_GENLOCK_VIDEO);
 }
 
 void reset_disk_history (void)
@@ -677,12 +696,14 @@ void reset_disk_history (void)
 	int i, rrold;
 
 	for (i = 0; i < MAX_PREVIOUS_IMAGES; i++) {
-		DISK_history_add (NULL, i, HISTORY_FLOPPY, 0);
-		DISK_history_add (NULL, i, HISTORY_CD, 0);
-		DISK_history_add (NULL, i, HISTORY_DIR, 0);
-		DISK_history_add (NULL, i, HISTORY_HDF, 0);
-		DISK_history_add (NULL, i, HISTORY_FS, 0);
-		DISK_history_add (NULL, i, HISTORY_TAPE, 0);
+		DISK_history_add(NULL, i, HISTORY_FLOPPY, 0);
+		DISK_history_add(NULL, i, HISTORY_CD, 0);
+		DISK_history_add(NULL, i, HISTORY_DIR, 0);
+		DISK_history_add(NULL, i, HISTORY_HDF, 0);
+		DISK_history_add(NULL, i, HISTORY_FS, 0);
+		DISK_history_add(NULL, i, HISTORY_TAPE, 0);
+		DISK_history_add(NULL, i, HISTORY_GENLOCK_IMAGE, 0);
+		DISK_history_add(NULL, i, HISTORY_GENLOCK_VIDEO, 0);
 	}
 	rrold = regread;
 	regread = (1 << HISTORY_MAX) - 1;
@@ -2251,7 +2272,9 @@ static const GUID diskselectionguids[] = {
 	{ 0xe3741dff, 0x11f2, 0x445f, { 0x94, 0xb0, 0xa3, 0xe7, 0x58, 0xe2, 0xcb, 0xb5 } },
 	{ 0x2056d641, 0xba13, 0x4312, { 0xaa, 0x75, 0xc5, 0xeb, 0x52, 0xa8, 0x1c, 0xe3 } },
 	{ 0x05aa5db2, 0x470b, 0x4725, { 0x96, 0x03, 0xee, 0x61, 0x30, 0xfc, 0x54, 0x99 } },
-	{ 0x68366188, 0xa6d4, 0x4278, { 0xb7, 0x55, 0x6a, 0xb8, 0x17, 0xa6, 0x71, 0xd9 } }
+	{ 0x68366188, 0xa6d4, 0x4278, { 0xb7, 0x55, 0x6a, 0xb8, 0x17, 0xa6, 0x71, 0xd9 } },
+	{ 0xe990bee1, 0xd7cc, 0x4768, { 0xaf, 0x34, 0xef, 0x39, 0x87, 0x48, 0x09, 0x50 } },
+	{ 0x12c53317, 0xd99c, 0x4494, { 0x8d, 0x81, 0x00, 0x6d, 0x8c, 0x62, 0x7d, 0x83 } }
 };
 
 static void getfilter (int num, const TCHAR *name, int *filter, TCHAR *fname)
@@ -2434,6 +2457,46 @@ static void selectdisk (struct uae_prefs *prefs, HWND hDlg, int num, int id, con
 	DISK_history_add (prefs->floppyslots[num].df, -1, HISTORY_FLOPPY, 0);
 }
 
+static void selectgenlock(struct uae_prefs *prefs, HWND hDlg, int id, const TCHAR *full_path)
+{
+	SetDlgItemText(hDlg, id, full_path);
+	if (workprefs.genlock_image == 3) {
+		_tcscpy(prefs->genlock_image_file, full_path);
+		fullpath(prefs->genlock_image_file, sizeof prefs->genlock_image_file / sizeof(TCHAR));
+		DISK_history_add(prefs->genlock_image_file, -1, HISTORY_GENLOCK_IMAGE, 0);
+	} else if (workprefs.genlock_image == 4) {
+		_tcscpy(prefs->genlock_video_file, full_path);
+		fullpath(prefs->genlock_video_file, sizeof prefs->genlock_video_file / sizeof(TCHAR));
+		DISK_history_add(prefs->genlock_video_file, -1, HISTORY_GENLOCK_VIDEO, 0);
+	}
+}
+
+static void getcreatefloppytype(HWND hDlg, drive_type *atype, int *hd)
+{
+	*atype = DRV_NONE;
+	*hd = -1;
+	int type = SendDlgItemMessage(hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L);
+	switch (type)
+	{
+	case 0:
+		*atype = DRV_35_DD;
+		break;
+	case 1:
+		*atype = DRV_35_HD;
+		break;
+	case 2:
+		*atype = DRV_PC_ONLY_80;
+		break;
+	case 3:
+		*atype = DRV_PC_ONLY_80;
+		*hd = 1;
+		break;
+	case 4:
+		*atype = DRV_PC_ONLY_40;
+		break;
+	}
+}
+
 static void setdpath (const TCHAR *name, const TCHAR *path)
 {
 	TCHAR tmp[MAX_DPATH];
@@ -2457,6 +2520,8 @@ static void setdpath (const TCHAR *name, const TCHAR *path)
 // flag = 16 for recording input
 // flag = 17 for CD image
 // flag = 18 for Tape image
+// flag = 20 for genlock image
+// flag = 21 for genlock video
 int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, TCHAR *path_out, int *multi)
 {
 	static int previousfilter[20];
@@ -2555,6 +2620,14 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			getfilter (flag, _T("TapePath"), previousfilter, filtername);
 			fetch_path (_T("TapePath"), init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[7];
+			break;
+		case 20:
+			fetch_path(_T("GenlockImagePath"), init_path, sizeof(init_path) / sizeof(TCHAR));
+			guid = &diskselectionguids[8];
+			break;
+		case 21:
+			fetch_path(_T("GenlockVideoPath"), init_path, sizeof(init_path) / sizeof(TCHAR));
+			guid = &diskselectionguids[9];
 			break;
 		}
 	}
@@ -2687,6 +2760,12 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	case 18:
 		WIN32GUI_LoadUIString (IDS_SELECTTAPE, szTitle, MAX_DPATH);
 		break;
+	case 20:
+		_tcscpy(szTitle, _T("Select genlock image"));
+		break;
+	case 21:
+		_tcscpy(szTitle, _T("Select genlock video"));
+		break;
 	}
 	if (all) {
 		p = szFilter;
@@ -2771,6 +2850,9 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			}
 			SetDlgItemText (hDlg, wParam, full_path);
 			break;
+		case IDC_GENLOCKFILESELECT:
+			selectgenlock(prefs, hDlg, IDC_GENLOCKFILE, full_path);
+			break;
 		case IDC_CD_SELECT:
 			selectcd (prefs, hDlg, 0, IDC_CD_TEXT, full_path);
 			break;
@@ -2799,22 +2881,30 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			break;
 		case IDC_CREATE:
 			{
+				drive_type atype = DRV_NONE;
+				int hd = -1;
 				TCHAR disk_name[32];
 				disk_name[0] = 0; disk_name[31] = 0;
 				GetDlgItemText (hDlg, IDC_CREATE_NAME, disk_name, 30);
-				if (disk_creatediskfile (&workprefs, full_path, 0, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE), NULL)) {
+				getcreatefloppytype(hDlg, &atype, &hd);
+				if (disk_creatediskfile (&workprefs, full_path, 0, atype, hd, disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE), NULL)) {
 					fullpath (full_path, sizeof full_path / sizeof (TCHAR));
 					DISK_history_add (full_path, -1, HISTORY_FLOPPY, 0);
 				}
 			}
 			break;
 		case IDC_CREATE_RAW:
-			TCHAR disk_name[32];
-			disk_name[0] = 0; disk_name[31] = 0;
-			GetDlgItemText (hDlg, IDC_CREATE_NAME, disk_name, 30);
-			if (disk_creatediskfile (&workprefs, full_path, 1, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE), NULL)) {
-				fullpath (full_path, sizeof full_path / sizeof (TCHAR));
-				DISK_history_add (full_path, -1, HISTORY_FLOPPY, 0);
+			{
+				drive_type atype = DRV_NONE;
+				int hd = -1;
+				TCHAR disk_name[32];
+				disk_name[0] = 0; disk_name[31] = 0;
+				GetDlgItemText(hDlg, IDC_CREATE_NAME, disk_name, 30);
+				getcreatefloppytype(hDlg, &atype, &hd);
+				if (disk_creatediskfile(&workprefs, full_path, 1, atype, hd, disk_name, ischecked(hDlg, IDC_FLOPPY_FFS), ischecked(hDlg, IDC_FLOPPY_BOOTABLE), NULL)) {
+					fullpath(full_path, sizeof full_path / sizeof(TCHAR));
+					DISK_history_add(full_path, -1, HISTORY_FLOPPY, 0);
+				}
 			}
 			break;
 		case IDC_LOAD:
@@ -2904,6 +2994,18 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 				if (amiga_path && amiga_path != openFileName.lpstrFile) {
 					*amiga_path = 0;
 					setdpath (_T("TapePath"), openFileName.lpstrFile);
+				}
+			} else if (flag == 20) {
+				amiga_path = _tcsstr(openFileName.lpstrFile, openFileName.lpstrFileTitle);
+				if (amiga_path && amiga_path != openFileName.lpstrFile) {
+					*amiga_path = 0;
+					setdpath(_T("GenlockImagePath"), openFileName.lpstrFile);
+				}
+			} else if (flag == 21) {
+				amiga_path = _tcsstr(openFileName.lpstrFile, openFileName.lpstrFileTitle);
+				if (amiga_path && amiga_path != openFileName.lpstrFile) {
+					*amiga_path = 0;
+					setdpath(_T("GenlockVideoPath"), openFileName.lpstrFile);
 				}
 			}
 		}
@@ -6589,8 +6691,11 @@ static void enable_for_chipsetdlg (HWND hDlg)
 		CheckDlgButton (hDlg, IDC_BLITWAIT, FALSE);
 	}
 	ew (hDlg, IDC_BLITWAIT, workprefs.immediate_blits ? FALSE : TRUE);
+
 	ew(hDlg, IDC_GENLOCKMODE, workprefs.genlock ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCKMIX, workprefs.genlock ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCKFILE, workprefs.genlock && workprefs.genlock_image >= 3 && workprefs.genlock_image < 5 ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCKFILESELECT, workprefs.genlock && workprefs.genlock_image >= 3 && workprefs.genlock_image < 5 ? TRUE : FALSE);
 }
 
 static const int fakerefreshrates[] = { 50, 60, 100, 120, 0 };
@@ -7656,13 +7761,29 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		workprefs.monitoremu = nn;
 
 	nn = SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_GETCURSEL, 0, 0);
-	if (nn != CB_ERR)
+	if (nn != CB_ERR && nn != workprefs.genlock_image) {
 		workprefs.genlock_image = nn;
+		if (workprefs.genlock_image == 3) {
+			SendDlgItemMessage(hDlg, IDC_GENLOCKFILE, WM_SETTEXT, 0, (LPARAM)workprefs.genlock_image_file);
+		} else if (workprefs.genlock_image == 4) {
+			SendDlgItemMessage(hDlg, IDC_GENLOCKFILE, WM_SETTEXT, 0, (LPARAM)workprefs.genlock_video_file);
+		}
+	}
 	nn = SendDlgItemMessage(hDlg, IDC_GENLOCKMIX, CB_GETCURSEL, 0, 0);
 	if (nn != CB_ERR) {
 		workprefs.genlock_mix = nn * 25;
 		if (workprefs.genlock_mix >= 250)
 			workprefs.genlock_mix = 255;
+	}
+}
+
+static void setgenlock(HWND hDlg)
+{
+	setautocomplete(hDlg, IDC_GENLOCKFILE);
+	if (workprefs.genlock_image == 3) {
+		addhistorymenu(hDlg, workprefs.genlock_image_file, IDC_GENLOCKFILE, HISTORY_GENLOCK_IMAGE, true);
+	} else if (workprefs.genlock_image == 4) {
+		addhistorymenu(hDlg, workprefs.genlock_video_file, IDC_GENLOCKFILE, HISTORY_GENLOCK_VIDEO, true);
 	}
 }
 
@@ -7696,9 +7817,12 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("Velvet"));
 
 		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_RESETCONTENT, 0, 0);
-		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM) _T("-"));
-		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM) _T("Noise"));
-		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM) _T("Test card"));
+		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("-"));
+		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Noise (built-in)"));
+		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Test card (built-in)"));
+		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Image file (png)"));
+		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Video file"));
+		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Capture device"));
 
 		SendDlgItemMessage(hDlg, IDC_GENLOCKMIX, CB_RESETCONTENT, 0, 0);
 		for (int i = 0; i <= 10; i++) {
@@ -7726,6 +7850,8 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		ew (hDlg, IDC_AGA, FALSE);
 #endif
 
+		setgenlock(hDlg);
+
 	case WM_USER:
 		recursive++;
 		values_to_chipsetdlg (hDlg);
@@ -7733,8 +7859,39 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		recursive--;
 		break;
 
-	case WM_HSCROLL:
 	case WM_COMMAND:
+		if (recursive > 0)
+			break;
+		recursive++;
+
+		if (HIWORD(wParam) == CBN_SELCHANGE || HIWORD(wParam) == CBN_KILLFOCUS) {
+			switch (LOWORD(wParam))
+			{
+				case IDC_GENLOCKFILE:
+				{
+					TCHAR *p = workprefs.genlock_image == 3 ? workprefs.genlock_image_file : workprefs.genlock_video_file;
+					getcomboboxtext(hDlg, IDC_GENLOCKFILE, p, MAX_DPATH);
+					parsefilepath(p, MAX_DPATH);
+					addhistorymenu(hDlg, p, IDC_GENLOCKFILE, workprefs.genlock_image == 3 ? HISTORY_GENLOCK_IMAGE : HISTORY_GENLOCK_VIDEO, true);
+					break;
+				}
+			}
+		}
+		switch (LOWORD(wParam))
+		{
+			case IDC_GENLOCKFILESELECT:
+			{
+				TCHAR path[MAX_DPATH];
+				path[0] = 0;
+				DiskSelection(hDlg, IDC_GENLOCKFILESELECT, workprefs.genlock_image == 3 ? 20 : 21, &workprefs, path);
+				break;
+			}
+		}
+		values_from_chipsetdlg(hDlg, msg, wParam, lParam);
+		enable_for_chipsetdlg(hDlg);
+		recursive--;
+		break;
+	case WM_HSCROLL:
 		if (recursive > 0)
 			break;
 		recursive++;
@@ -14035,17 +14192,8 @@ static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen, int type
 	else
 		SendDlgItemMessage (hDlg, f_text, WM_GETTEXT, (WPARAM)maxlen, (LPARAM)out);
 
-	tmp = xmalloc (TCHAR, maxlen + 1);
-	_tcscpy (tmp, out);
-	p1 = _tcsstr(tmp, _T(" { "));
-	p2 = _tcsstr(tmp, _T(" }"));
-	if (p1 && p2 && p2 > p1) {
-		*p1 = 0;
-		memset (out, 0, maxlen * sizeof (TCHAR));
-		memcpy (out, p1 + 3, (p2 - p1 - 3) * sizeof (TCHAR));
-		_tcscat (out, tmp);
-	}
-	xfree (tmp);
+	parsefilepath(out, maxlen);
+
 	i = 0;
 	while ((p = DISK_history_get (i, type))) {
 		if (!_tcscmp (p, out)) {
