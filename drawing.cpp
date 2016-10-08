@@ -1103,6 +1103,8 @@ STATIC_INLINE void fill_line_32 (uae_u8 *buf, int start, int stop, bool blank)
 
 static void pfield_do_fill_line (int start, int stop, bool blank)
 {
+	if (stop <= start)
+		return;
 	switch (gfxvidinfo.drawbuffer.pixbytes) {
 	case 2: fill_line_16 (xlinebuffer, start, stop, blank); break;
 	case 4: fill_line_32 (xlinebuffer, start, stop, blank); break;
