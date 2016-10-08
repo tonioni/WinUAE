@@ -131,11 +131,13 @@ struct autoconfig_info
 {
 	struct uae_prefs *prefs;
 	bool doinit;
+	bool postinit;
 	int devnum;
 	uae_u8 autoconfig_raw[128];
 	uae_u8 autoconfig_bytes[16];
 	TCHAR name[128];
 	const uae_u8 *autoconfigp;
+	bool autoconfig_automatic;
 	uae_u32 start;
 	uae_u32 size;
 	int zorro;

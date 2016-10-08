@@ -44,6 +44,7 @@
 #include "pci.h"
 #include "x86.h"
 #include "filesys.h"
+#include "ethernet.h"
 
 
 #define CARD_FLAG_CAN_Z3 1
@@ -243,6 +244,8 @@ static bool ks11orolder(void)
 
 /* Autoconfig address space at 0xE80000 */
 static uae_u8 expamem[65536];
+#define AUTOMATIC_AUTOCONFIG_MAX_ADDRESS 0x80
+static int expamem_autoconfig_mode;
 static addrbank*(*expamem_map)(struct autoconfig_info*);
 
 static uae_u8 expamem_lo;
@@ -480,9 +483,29 @@ static void call_card_init(int index)
 	abe = ab;
 	if (!abe)
 		abe = &expamem_bank;
+	expamem_autoconfig_mode = 0;
 	if (abe != &expamem_bank) {
-		for (int i = 0; i < 16 * 4; i++)
-			expamem[i] = abe->bget(i);
+		if (aci->autoconfig_automatic) {
+			if (aci->autoconfigp) {
+				memset(expamem, 0xff, AUTOMATIC_AUTOCONFIG_MAX_ADDRESS);
+				for (int i = 0; i < 16; i++) {
+					expamem_write(i * 4, aci->autoconfig_bytes[i]);
+				}
+				expamem_autoconfig_mode = 1;
+			} else if (aci->autoconfig_bytes) {
+				memset(expamem, 0xff, AUTOMATIC_AUTOCONFIG_MAX_ADDRESS);
+				for (int i = 0; i < 16; i++) {
+					expamem_write(i * 4, aci->autoconfig_bytes[i]);
+				}
+				expamem_autoconfig_mode = 1;
+			} else if (aci->autoconfig_raw) {
+				memcpy(expamem, aci->autoconfig_raw, sizeof aci->autoconfig_raw);
+			}
+		} else {
+			for (int i = 0; i < 16 * 4; i++) {
+				expamem[i] = abe->bget(i);
+			}
+		}
 	}
 
 	if (ab) {
@@ -579,16 +602,24 @@ void expamem_next(addrbank *mapped, addrbank *next)
 
 static uae_u32 REGPARAM2 expamem_lget (uaecptr addr)
 {
-	if (expamem_bank_current && expamem_bank_current != &expamem_bank)
+	if (expamem_bank_current && expamem_bank_current != &expamem_bank) {
+		if (expamem_autoconfig_mode && (addr & 0xffff) < AUTOMATIC_AUTOCONFIG_MAX_ADDRESS) {
+			return (expamem_wget(addr) << 16) | expamem_wget(addr + 2);
+		}
 		return expamem_bank_current->lget(addr);
+	}
 	write_log (_T("warning: Z2 READ.L from address $%08x PC=%x\n"), addr, M68K_GETPC);
 	return (expamem_wget (addr) << 16) | expamem_wget (addr + 2);
 }
 
 static uae_u32 REGPARAM2 expamem_wget (uaecptr addr)
 {
-	if (expamem_bank_current && expamem_bank_current != &expamem_bank)
+	if (expamem_bank_current && expamem_bank_current != &expamem_bank) {
+		if (expamem_autoconfig_mode && (addr & 0xffff) < AUTOMATIC_AUTOCONFIG_MAX_ADDRESS) {
+			return (expamem_bget(addr) << 8) | expamem_bget(addr + 1);
+		}
 		return expamem_bank_current->wget(addr);
+	}
 	if (expamem_type() != zorroIII) {
 		if (expamem_bank_current && expamem_bank_current != &expamem_bank)
 			return expamem_bank_current->bget(addr) << 8;
@@ -610,8 +641,12 @@ static uae_u32 REGPARAM2 expamem_bget (uaecptr addr)
 		chipdone = true;
 		addextrachip (get_long (4));
 	}
-	if (expamem_bank_current && expamem_bank_current != &expamem_bank)
+	if (expamem_bank_current && expamem_bank_current != &expamem_bank) {
+		if (expamem_autoconfig_mode && (addr & 0xffff) < AUTOMATIC_AUTOCONFIG_MAX_ADDRESS) {
+			return expamem[addr & 0xffff];
+		}
 		return expamem_bank_current->bget(addr);
+	}
 	addr &= 0xFFFF;
 	b = expamem[addr];
 	if (cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype].e8) {
@@ -628,6 +663,9 @@ static uae_u32 REGPARAM2 expamem_bget (uaecptr addr)
 static void REGPARAM2 expamem_lput (uaecptr addr, uae_u32 value)
 {
 	if (expamem_bank_current && expamem_bank_current != &expamem_bank) {
+		if (expamem_autoconfig_mode && (addr & 0xffff) < AUTOMATIC_AUTOCONFIG_MAX_ADDRESS) {
+			return;
+		}
 		expamem_bank_current->lput(addr, value);
 		return;
 	}
@@ -646,8 +684,9 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 	}
 	if (ecard >= cardno)
 		return;
+	card_data *cd = cards[ecard];
 	if (!expamem_map)
-		expamem_map = cards[ecard]->map;
+		expamem_map = cd->map;
 	if (expamem_type () != zorroIII) {
 		write_log (_T("warning: WRITE.W to address $%08x : value $%x PC=%08x\n"), addr, value, M68K_GETPC);
 	}
@@ -659,7 +698,7 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 			expamem_hi = (value >> 8) & 0xff;
 			expamem_board_pointer = (expamem_hi | (expamem_lo >> 4)) << 16;
 			if (expamem_map) {
-				expamem_next(expamem_map(&cards[ecard]->aci), NULL);
+				expamem_next(expamem_map(&cd->aci), NULL);
 				return;
 			}
 			if (expamem_bank_current && expamem_bank_current != &expamem_bank) {
@@ -683,7 +722,14 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 			}
 		}
 		if (expamem_map) {
-			expamem_next(expamem_map(&cards[ecard]->aci), NULL);
+			expamem_next(expamem_map(&cd->aci), NULL);
+			return;
+		}
+		if (expamem_autoconfig_mode) {
+			map_banks_z2(cd->aci.addrbank, expamem_board_pointer >> 16, expamem_board_size >> 16);
+			cd->aci.postinit = true;
+			cd->initrc(&cd->aci);
+			expamem_next(cd->aci.addrbank, NULL);
 			return;
 		}
 		break;
@@ -710,15 +756,16 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 	}
 	if (ecard >= cardno)
 		return;
+	card_data *cd = cards[ecard];
 	if (!expamem_map)
-		expamem_map = cards[ecard]->map;
+		expamem_map = cd->map;
 	if (expamem_type() == protoautoconfig) {
 		switch (addr & 0xff) {
 		case 0x22:
 			expamem_hi = value & 0x7f;
 			expamem_board_pointer = AUTOCONFIG_Z2 | (expamem_hi * 4096);
 			if (expamem_map) {
-				expamem_next(expamem_map(&cards[ecard]->aci), NULL);
+				expamem_next(expamem_map(&cd->aci), NULL);
 				return;
 			}
 			break;
@@ -730,7 +777,14 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 				expamem_hi = value & 0xff;
 				expamem_board_pointer = (expamem_hi | (expamem_lo >> 4)) << 16;
 				if (expamem_map) {
-					expamem_next(expamem_map(&cards[ecard]->aci), NULL);
+					expamem_next(expamem_map(&cd->aci), NULL);
+					return;
+				}
+				if (expamem_autoconfig_mode) {
+					map_banks_z2(cd->aci.addrbank, expamem_board_pointer >> 16, expamem_board_size >> 16);
+					cd->aci.postinit = true;
+					cd->initrc(&cd->aci);
+					expamem_next(cd->aci.addrbank, NULL);
 					return;
 				}
 			} else {
@@ -739,15 +793,18 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 			break;
 
 		case 0x4a:
-			if (expamem_type () == zorroII)
+			if (expamem_type () == zorroII) {
 				expamem_lo = value & 0xff;
+			}
+			if (expamem_autoconfig_mode)
+				return;
 			break;
 
 		case 0x4c:
 			if (expamem_map) {
 				expamem_hi = expamem_lo = 0xff;
 				expamem_board_pointer = 0xffffffff;
-				addrbank *ab = expamem_map(&cards[ecard]->aci);
+				addrbank *ab = expamem_map(&cd->aci);
 				if (ab)
 					ab->start = 0xffffffff;
 				expamem_next(ab, NULL);
@@ -756,8 +813,9 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 			break;
 		}
 	}
-	if (expamem_bank_current && expamem_bank_current != &expamem_bank)
+	if (expamem_bank_current && expamem_bank_current != &expamem_bank) {
 		expamem_bank_current->bput(addr, value);
+	}
 }
 
 static uae_u32 REGPARAM2 expamemz3_bget (uaecptr addr)
@@ -4640,6 +4698,15 @@ const struct expansionromtype expansionroms[] = {
 		a2065_init, NULL, NULL, ROMTYPE_A2065 | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_NET
+	},
+	{
+		_T("ariadne2"), _T("Ariadne II"), _T("Village Tronic"),
+		ariadne2_init, NULL, NULL, ROMTYPE_ARIADNE2 | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_NET,
+		0, 0, 0, false, NULL,
+		false, 0, NULL,
+		{ 0xc1, 0xca, 0x00, 0x00, 2167 >> 8, 2167 & 255, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 	},
 	{
 		_T("ne2000_pcmcia"), _T("NE2000 PCMCIA"), NULL,
