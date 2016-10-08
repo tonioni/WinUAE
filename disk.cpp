@@ -26,7 +26,6 @@ int disk_debug_track = -1;
 #include "memory.h"
 #include "events.h"
 #include "custom.h"
-#include "ersatz.h"
 #include "disk.h"
 #include "gui.h"
 #include "zfile.h"
@@ -2377,7 +2376,7 @@ static bool convert_adf_to_ext2 (drive *drv, int mode)
 		if (!p)
 			p = name + _tcslen (name);
 		_tcscpy (p, _T(".extended.adf"));
-		if (!disk_creatediskfile (&currprefs, name, 1, hd ? DRV_35_HD : DRV_35_DD, NULL, false, false, drv->diskfile))
+		if (!disk_creatediskfile (&currprefs, name, 1, hd ? DRV_35_HD : DRV_35_DD, -1, NULL, false, false, drv->diskfile))
 			return false;
 	} else if (mode == 2) {
 		struct zfile *tmp = zfile_fopen_load_zfile (drv->diskfile);
@@ -2385,7 +2384,7 @@ static bool convert_adf_to_ext2 (drive *drv, int mode)
 			return false;
 		zfile_fclose (drv->diskfile);
 		drv->diskfile = NULL;
-		if (!disk_creatediskfile (&currprefs, name, 1, hd ? DRV_35_HD : DRV_35_DD, NULL, false, false, tmp)) {
+		if (!disk_creatediskfile (&currprefs, name, 1, hd ? DRV_35_HD : DRV_35_DD, -1, NULL, false, false, tmp)) {
 			zfile_fclose (tmp);
 			return false;
 		}
@@ -2492,15 +2491,6 @@ static void drive_eject (drive * drv)
 	inprec_recorddiskchange (drv - floppy, NULL, false);
 }
 
-/* We use this function if we have no Kickstart ROM.
-* No error checking - we trust our luck. */
-void DISK_ersatz_read (int tr, int sec, uaecptr dest)
-{
-	uae_u8 *dptr = get_real_address (dest);
-	zfile_fseek (floppy[0].diskfile, floppy[0].trackdata[tr].offs + sec * 512, SEEK_SET);
-	zfile_fread (dptr, 1, 512, floppy[0].diskfile);
-}
-
 static void floppy_get_bootblock (uae_u8 *dst, bool ffs, bool bootable)
 {
 	strcpy ((char*)dst, "DOS");
@@ -2508,7 +2498,7 @@ static void floppy_get_bootblock (uae_u8 *dst, bool ffs, bool bootable)
 	if (bootable)
 		memcpy (dst, ffs ? bootblock_ffs : bootblock_ofs, ffs ? sizeof bootblock_ffs : sizeof bootblock_ofs);
 }
-static void floppy_get_rootblock (uae_u8 *dst, int block, const TCHAR *disk_name, drive_type adftype)
+static void floppy_get_rootblock (uae_u8 *dst, int block, const TCHAR *disk_name, bool hd)
 {
 	dst[0+3] = 2;
 	dst[12+3] = 0x48;
@@ -2525,7 +2515,7 @@ static void floppy_get_rootblock (uae_u8 *dst, int block, const TCHAR *disk_name
 	disk_checksum (dst, dst + 20);
 	/* bitmap block */
 	memset (dst + 512 + 4, 0xff, 2 * block / 8);
-	if (adftype == 0)
+	if (!hd)
 		dst[512 + 0x72] = 0x3f;
 	else
 		dst[512 + 0xdc] = 0x3f;
@@ -2533,8 +2523,7 @@ static void floppy_get_rootblock (uae_u8 *dst, int block, const TCHAR *disk_name
 }
 
 /* type: 0=regular, 1=ext2adf */
-/* adftype: 0=DD,1=HD,2=DD PC,3=HD PC,4=525SD */
-bool disk_creatediskfile (struct uae_prefs *p, const TCHAR *name, int type, drive_type adftype, const TCHAR *disk_name, bool ffs, bool bootable, struct zfile *copyfrom)
+bool disk_creatediskfile (struct uae_prefs *p, const TCHAR *name, int type, drive_type adftype, int hd, const TCHAR *disk_name, bool ffs, bool bootable, struct zfile *copyfrom)
 {
 	int size = 32768;
 	struct zfile *f;
@@ -2550,7 +2539,7 @@ bool disk_creatediskfile (struct uae_prefs *p, const TCHAR *name, int type, driv
 		tracks = 2 * 80;
 	file_size = 880 * 1024;
 	sectors = 11;
-	if (adftype == 2 || adftype == 3) {
+	if (adftype == DRV_PC_ONLY_40 || adftype == DRV_PC_ONLY_80) {
 		file_size = 720 * 1024;
 		sectors = 9;
 	}
@@ -2558,11 +2547,11 @@ bool disk_creatediskfile (struct uae_prefs *p, const TCHAR *name, int type, driv
 	track_len = FLOPPY_WRITE_LEN_NTSC;
 	if (p->floppy_write_length > track_len && p->floppy_write_length < 2 * FLOPPY_WRITE_LEN_NTSC)
 		track_len = p->floppy_write_length;
-	if (adftype == 1 || adftype == 3) {
+	if (adftype == DRV_35_HD || hd > 0) {
 		file_size *= 2;
 		track_len *= 2;
 		ddhd = 2;
-	} else if (adftype == 4) {
+	} else if (adftype == DRV_PC_ONLY_40) {
 		file_size /= 2;
 		tracks /= 2;
 	}
@@ -2580,13 +2569,13 @@ bool disk_creatediskfile (struct uae_prefs *p, const TCHAR *name, int type, driv
 		if (type == 0) {
 			for (i = 0; i < file_size; i += cylsize) {
 				memset(chunk, 0, cylsize);
-				if (adftype <= 1) {
+				if (adftype == DRV_35_DD || adftype == DRV_35_HD) {
 					if (i == 0) {
 						/* boot block */
 						floppy_get_bootblock (chunk, ffs, bootable);
 					} else if (i == file_size / 2) {
 						/* root block */
-						floppy_get_rootblock (chunk, file_size / 1024, disk_name, adftype);
+						floppy_get_rootblock (chunk, file_size / 1024, disk_name, hd);
 					}
 				}
 				zfile_fwrite (chunk, cylsize, 1, f);
@@ -2624,7 +2613,7 @@ bool disk_creatediskfile (struct uae_prefs *p, const TCHAR *name, int type, driv
 						if (i == 0)
 							floppy_get_bootblock (chunk, ffs, bootable);
 						else if (i == 80)
-							floppy_get_rootblock (chunk, 80 * 11 * ddhd, disk_name, adftype);
+							floppy_get_rootblock (chunk, 80 * 11 * ddhd, disk_name, adftype == DRV_35_HD);
 					}
 				}
 				zfile_fwrite (chunk, l, 1, f);
@@ -2716,7 +2705,7 @@ int disk_setwriteprotect (struct uae_prefs *p, int num, const TCHAR *name, bool 
 	name2 = DISK_get_saveimagepath(name, -2);
 
 	if (needwritefile && zf2 == 0)
-		disk_creatediskfile (p, name2, 1, drvtype, NULL, false, false, NULL);
+		disk_creatediskfile (p, name2, 1, drvtype, -1, NULL, false, false, NULL);
 	zfile_fclose (zf2);
 	if (writeprotected && iswritefileempty (p, name)) {
 		for (i = 0; i < MAX_FLOPPY_DRIVES; i++) {
