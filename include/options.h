@@ -510,6 +510,7 @@ struct uae_prefs {
 	int genlock_image;
 	int genlock_mix;
 	TCHAR genlock_image_file[MAX_DPATH];
+	TCHAR genlock_video_file[MAX_DPATH];
 	int monitoremu;
 	double chipset_refreshrate;
 	struct chipset_refresh cr[MAX_CHIPSET_REFRESH + 2];

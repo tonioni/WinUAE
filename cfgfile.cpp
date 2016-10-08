@@ -210,7 +210,7 @@ static const TCHAR *cdmodes[] = { _T("disabled"), _T(""), _T("image"), _T("ioctl
 static const TCHAR *cdconmodes[] = { _T(""), _T("uae"), _T("ide"), _T("scsi"), _T("cdtv"), _T("cd32"), 0 };
 static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a2024"), _T("graffiti"),
 _T("ham_e"), _T("ham_e_plus"), _T("videodac18"), _T("avideo12"), _T("avideo24"), _T("firecracker24"), _T("dctv"), _T("opalvision"), _T("colorburst"), 0 };
-static const TCHAR *genlockmodes[] = { _T("none"), _T("noise"), _T("testcard"), NULL };
+static const TCHAR *genlockmodes[] = { _T("none"), _T("noise"), _T("testcard"), _T("image"), _T("video"), _T("stream"), NULL };
 static const TCHAR *ppc_implementations[] = {
 	_T("auto"),
 	_T("dummy"),
@@ -1833,9 +1833,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("immediate_blits"), p->immediate_blits);
 	cfgfile_dwrite_str (f, _T("waiting_blits"), waitblits[p->waiting_blits]);
 	cfgfile_write_bool (f, _T("ntsc"), p->ntscmode);
-	cfgfile_write_bool (f, _T("genlock"), p->genlock);
+	cfgfile_write_bool(f, _T("genlock"), p->genlock);
 	cfgfile_dwrite_str(f, _T("genlockmode"), genlockmodes[p->genlock_image]);
 	cfgfile_dwrite_str(f, _T("genlock_image"), p->genlock_image_file);
+	cfgfile_dwrite_str(f, _T("genlock_video"), p->genlock_video_file);
 	cfgfile_dwrite(f, _T("genlock_mix"), _T("%d"), p->genlock_mix);
 	cfgfile_dwrite_str(f, _T("monitoremu"), specialmonitors[p->monitoremu]);
 
@@ -4763,6 +4764,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_path (option, value, _T("rtc_file"), p->rtcfile, sizeof p->rtcfile / sizeof (TCHAR), &p->path_rom)
 		|| cfgfile_path(option, value, _T("picassoiv_rom_file"), p->picassoivromfile, sizeof p->picassoivromfile / sizeof(TCHAR), &p->path_rom)
 		|| cfgfile_string(option, value, _T("genlock_image"), p->genlock_image_file, sizeof p->genlock_image_file / sizeof(TCHAR))
+		|| cfgfile_string(option, value, _T("genlock_video"), p->genlock_video_file, sizeof p->genlock_video_file / sizeof(TCHAR))
 		|| cfgfile_string(option, value, _T ("pci_devices"), p->pci_devices, sizeof p->pci_devices / sizeof(TCHAR))
 		|| cfgfile_string (option, value, _T("ghostscript_parameters"), p->ghostscript_parameters, sizeof p->ghostscript_parameters / sizeof (TCHAR)))
 		return 1;
@@ -5256,7 +5258,7 @@ void cfgfile_compatibility_romtype(struct uae_prefs *p)
 	addbcromtype(p, ROMTYPE_NE2KPCMCIA, p->ne2000pcmcianame[0] != 0, NULL, 0);
 	addbcromtype(p, ROMTYPE_NE2KPCI, p->ne2000pciname[0] != 0, NULL, 0);
 
-	static int restricted_net[] = { ROMTYPE_A2065, ROMTYPE_NE2KPCMCIA, ROMTYPE_NE2KPCI, ROMTYPE_NE2KISA, 0 };
+	static int restricted_net[] = { ROMTYPE_A2065, ROMTYPE_NE2KPCMCIA, ROMTYPE_NE2KPCI, ROMTYPE_NE2KISA, ROMTYPE_ARIADNE2, 0 };
 	static int restricted_x86[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
 	static int restricted_pci[] = { ROMTYPE_GREX, ROMTYPE_MEDIATOR, ROMTYPE_PROMETHEUS, 0 };
 	romtype_restricted(p, restricted_net);
