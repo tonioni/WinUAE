@@ -32,4 +32,6 @@ extern int ethernet_open (struct netdriverdata *ndd, void*, void*, ethernet_gotf
 extern void ethernet_close (struct netdriverdata *ndd, void*);
 extern void ethernet_trigger (struct netdriverdata *ndd, void*);
 
+extern bool ariadne2_init(struct autoconfig_info *aci);
+
 #endif /* UAE_ETHERNET_H */

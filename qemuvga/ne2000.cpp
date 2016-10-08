@@ -27,6 +27,9 @@
 
 #include "options.h"
 #include "crc32.h"
+#include "memory.h"
+#include "autoconf.h"
+#include "rommgr.h"
 
 #include "qemuuaeglue.h"
 #include "queue.h"
@@ -159,6 +162,7 @@ static NE2000State ne2000state;
 #define EN2_STARTPG	0x21	/* Starting page of ring bfr RD */
 #define EN2_STOPPG	0x22	/* Ending page +1 of ring bfr RD */
 
+#define EN3_9346CR 0x31
 #define EN3_CONFIG0	0x33
 #define EN3_CONFIG1	0x34
 #define EN3_CONFIG2	0x35
@@ -475,6 +479,11 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 		case EN1_MULT + 7:
 		s->mult[offset - EN1_MULT] = val;
             break;
+		case EN3_9346CR:
+			// auto-load?
+			if ((val >> 6) == 1)
+				s->cmd = 0x21;
+			break;
         }
     }
 }
@@ -550,6 +559,10 @@ static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
 			break;
 		case EN3_CONFIG3:
 			ret = 0x40;		/* Full duplex */
+			break;
+		case EN3_9346CR:
+			ret = s->toggle ? 1 : 0;
+			s->toggle = !s->toggle;
 			break;
         default:
             ret = 0x00;
@@ -1110,3 +1123,95 @@ const struct pci_board ne2000_pci_board =
 		{ NULL },
 	}
 };
+
+static struct pci_board_state *ariadne2_board_state;
+
+static int toariadne2(uaecptr addr)
+{
+	addr &= 0xffff;
+	if (addr < 0x600 || addr >= 0x640)
+		return -1;
+	addr -= 0x600;
+	addr >>= 1;
+	addr &= 0x1f;
+	return addr;
+}
+
+static uae_u32 REGPARAM2 ariadne2_lget(uaecptr addr)
+{
+	uae_u32 v = 0;
+	int reg = toariadne2(addr);
+	if (reg >= 0)
+		v = ne2000_lget(ariadne2_board_state, reg);
+	return v;
+}
+static uae_u32 REGPARAM2 ariadne2_wget(uaecptr addr)
+{
+	uae_u32 v = 0;
+	int reg = toariadne2(addr);
+	if (reg >= 0)
+		v = ne2000_wget(ariadne2_board_state, reg);
+	return v;
+}
+static uae_u32 REGPARAM2 ariadne2_bget(uaecptr addr)
+{
+	uae_u32 v = 0;
+	int reg = toariadne2(addr);
+	if (reg >= 0)
+		v = ne2000_bget(ariadne2_board_state, reg);
+	write_log(_T("ARIADNE2 BGET %08x %02X\n"), addr, v);
+	return v;
+}
+
+static void REGPARAM2 ariadne2_bput(uaecptr addr, uae_u32 l)
+{
+	write_log(_T("ARIADNE2 BPUT %08x %02X\n"), addr, l & 0xff);
+	int reg = toariadne2(addr);
+	if (reg >= 0)
+		ne2000_bput(ariadne2_board_state, reg, l);
+}
+static void REGPARAM2 ariadne2_wput(uaecptr addr, uae_u32 l)
+{
+	int reg = toariadne2(addr);
+	if (reg >= 0)
+		ne2000_wput(ariadne2_board_state, reg, l);
+}
+static void REGPARAM2 ariadne2_lput(uaecptr addr, uae_u32 l)
+{
+	int reg = toariadne2(addr);
+	if (reg >= 0)
+		ne2000_lput(ariadne2_board_state, reg, l);
+}
+
+static void ariadne2_irq_callback(struct pci_board_state *pcibs, bool irq)
+{
+	write_log(_T("ariadne2_irq_callback %d\n"), irq);
+}
+
+static addrbank ariadne2_bank = {
+	ariadne2_lget, ariadne2_wget, ariadne2_bget,
+	ariadne2_lput, ariadne2_wput, ariadne2_bput,
+	default_xlate, default_check, NULL, _T("*"), _T("Ariadne II"),
+	ariadne2_wget, ariadne2_lget,
+	ABFLAG_IO | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
+};
+
+bool ariadne2_init(struct autoconfig_info *aci)
+{
+	if (aci->postinit) {
+		return true;
+	}
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_ARIADNE2);
+	aci->autoconfigp = ert->autoconfig;
+	aci->addrbank = &ariadne2_bank;
+	aci->autoconfig_automatic = true;
+	if (!aci->doinit)
+		return true;
+
+	ariadne2_board_state = xcalloc(pci_board_state, 1);
+	ariadne2_board_state->irq_callback = ariadne2_irq_callback;
+	if (!ne2000_pci_board.init(ariadne2_board_state))
+		return false;
+
+	return true;
+}

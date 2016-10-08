@@ -30,6 +30,7 @@ typedef struct NE2000State {
     NICConf c;
     uint8_t mem[NE2000_MEM_SIZE];
 	pci_dev_irq irq_callback;
+	bool toggle;
 } NE2000State;
 
 #if 0
