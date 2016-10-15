@@ -1,7 +1,9 @@
 /*
 * UAE - The Un*x Amiga Emulator
 *
-* Simple 29F010 flash ROM chip emulator
+* Simple 29Fxxx flash ROM chip emulator
+* I2C EEPROM (24C08)
+* MICROWIRE EEPROM (9346)
 *
 * (c) 2014 Toni Wilen
 */
@@ -19,6 +21,223 @@
 
 #define FLASH_LOG 0
 #define EEPROM_LOG 0
+
+/* MICROWIRE EEPROM */
+
+struct eeprom93xx_eeprom_t {
+	uint8_t  tick;
+	uint8_t  address;
+	uint8_t  command;
+	uint8_t  writeable;
+
+	uint8_t eecs;
+	uint8_t eesk;
+	uint8_t eedo;
+
+	uint8_t  addrbits;
+	uint16_t size;
+	uint16_t data;
+	uint16_t contents[256];
+
+	uae_u8 *memory;
+	struct zfile *zf;
+};
+
+static const char *opstring[] = { "extended", "write", "read", "erase" };
+
+void eeprom93xx_write(void *eepromp, int eecs, int eesk, int eedi)
+{
+	eeprom93xx_eeprom_t *eeprom = (eeprom93xx_eeprom_t*)eepromp;
+	uint8_t tick = eeprom->tick;
+	uint8_t eedo = eeprom->eedo;
+	uint16_t address = eeprom->address;
+	uint8_t command = eeprom->command;
+
+	//write_log("CS=%u SK=%u DI=%u DO=%u, tick = %u\n", eecs, eesk, eedi, eedo, tick);
+
+	if (!eeprom->eecs && eecs) {
+		/* Start chip select cycle. */
+		//write_log("Cycle start, waiting for 1st start bit (0)\n");
+		tick = 0;
+		command = 0x0;
+		address = 0x0;
+	}
+	else if (eeprom->eecs && !eecs) {
+		/* End chip select cycle. This triggers write / erase. */
+		if (eeprom->writeable) {
+			uint8_t subcommand = address >> (eeprom->addrbits - 2);
+			if (command == 0 && subcommand == 2) {
+				/* Erase all. */
+				for (address = 0; address < eeprom->size; address++) {
+					eeprom->contents[address] = 0xffff;
+				}
+			}
+			else if (command == 3) {
+				/* Erase word. */
+				eeprom->contents[address] = 0xffff;
+			}
+			else if (tick >= 2 + 2 + eeprom->addrbits + 16) {
+				if (command == 1) {
+					/* Write word. */
+					eeprom->contents[address] &= eeprom->data;
+				}
+				else if (command == 0 && subcommand == 1) {
+					/* Write all. */
+					for (address = 0; address < eeprom->size; address++) {
+						eeprom->contents[address] &= eeprom->data;
+					}
+				}
+			}
+		}
+		/* Output DO is tristate, read results in 1. */
+		eedo = 1;
+	}
+	else if (eecs && !eeprom->eesk && eesk) {
+		/* Raising edge of clock shifts data in. */
+		if (tick == 0) {
+			/* Wait for 1st start bit. */
+			if (eedi == 0) {
+				//write_log("Got correct 1st start bit, waiting for 2nd start bit (1)\n");
+				tick++;
+			}
+			else {
+				//write_log("wrong 1st start bit (is 1, should be 0)\n");
+				tick = 2;
+				//~ assert(!"wrong start bit");
+			}
+		}
+		else if (tick == 1) {
+			/* Wait for 2nd start bit. */
+			if (eedi != 0) {
+				//write_log("Got correct 2nd start bit, getting command + address\n");
+				tick++;
+			}
+			else {
+				;//write_log("1st start bit is longer than needed\n");
+			}
+		}
+		else if (tick < 2 + 2) {
+			/* Got 2 start bits, transfer 2 opcode bits. */
+			tick++;
+			command <<= 1;
+			if (eedi) {
+				command += 1;
+			}
+		}
+		else if (tick < 2 + 2 + eeprom->addrbits) {
+			/* Got 2 start bits and 2 opcode bits, transfer all address bits. */
+			tick++;
+			address = ((address << 1) | eedi);
+			if (tick == 2 + 2 + eeprom->addrbits) {
+				//write_log("%s command, address = 0x%02x (value 0x%04x)\n", opstring[command], address, eeprom->contents[address]);
+				if (command == 2) {
+					eedo = 0;
+				}
+				address = address % eeprom->size;
+				if (command == 0) {
+					/* Command code in upper 2 bits of address. */
+					switch (address >> (eeprom->addrbits - 2)) {
+					case 0:
+						//write_log("write disable command\n");
+						eeprom->writeable = 0;
+						break;
+					case 1:
+						//write_log("write all command\n");
+						break;
+					case 2:
+						//write_log("erase all command\n");
+						break;
+					case 3:
+						//write_log("write enable command\n");
+						eeprom->writeable = 1;
+						break;
+					}
+				}
+				else {
+					/* Read, write or erase word. */
+					eeprom->data = eeprom->contents[address];
+				}
+			}
+		}
+		else if (tick < 2 + 2 + eeprom->addrbits + 16) {
+			/* Transfer 16 data bits. */
+			tick++;
+			if (command == 2) {
+				/* Read word. */
+				eedo = ((eeprom->data & 0x8000) != 0);
+			}
+			eeprom->data <<= 1;
+			eeprom->data += eedi;
+		}
+		else {
+			;//write_log("additional unneeded tick, not processed\n");
+		}
+	}
+	/* Save status of EEPROM. */
+	eeprom->tick = tick;
+	eeprom->eecs = eecs;
+	eeprom->eesk = eesk;
+	eeprom->eedo = eedo;
+	eeprom->address = address;
+	eeprom->command = command;
+}
+
+uae_u16 eeprom93xx_read(void *eepromp)
+{
+	eeprom93xx_eeprom_t *eeprom = (eeprom93xx_eeprom_t*)eepromp;
+	/* Return status of pin DO (0 or 1). */
+	//write_log("CS=%u DO=%u\n", eeprom->eecs, eeprom->eedo);
+	return eeprom->eedo;
+}
+
+uae_u8 eeprom93xx_read_byte(void *eepromp, int offset)
+{
+	eeprom93xx_eeprom_t *eeprom = (eeprom93xx_eeprom_t*)eepromp;
+	if (offset & 1)
+		return eeprom->contents[offset / 2];
+	else
+		return eeprom->contents[offset / 2] >> 8;
+}
+
+void *eeprom93xx_new(const uae_u8 *memory, int nwords, struct zfile *zf)
+{
+	/* Add a new EEPROM (with 16, 64 or 256 words). */
+	eeprom93xx_eeprom_t *eeprom;
+	uint8_t addrbits;
+
+	switch (nwords) {
+	case 16:
+	case 64:
+		addrbits = 6;
+		break;
+	case 128:
+	case 256:
+		addrbits = 8;
+		break;
+	default:
+		return NULL;
+	}
+
+	eeprom = (eeprom93xx_eeprom_t *)xcalloc(eeprom93xx_eeprom_t, 1);
+	eeprom->size = nwords;
+	eeprom->addrbits = addrbits;
+	for (int i = 0; i < nwords; i++) {
+		eeprom->contents[i] = (memory[i * 2 + 0] << 8) | memory[i * 2 + 1];
+	}
+	/* Output DO is tristate, read results in 1. */
+	eeprom->eedo = 1;
+	write_log("eeprom = 0x%p, nwords = %u\n", eeprom, nwords);
+	return eeprom;
+}
+
+void eeprom93xx_free(void *eepromp)
+{
+	eeprom93xx_eeprom_t *eeprom = (eeprom93xx_eeprom_t*)eepromp;
+
+	/* Destroy EEPROM. */
+	write_log("eeprom = 0x%p\n", eeprom);
+	xfree(eeprom);
+}
 
 /* I2C EEPROM */
 
