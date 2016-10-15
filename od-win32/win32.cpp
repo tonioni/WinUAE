@@ -6417,6 +6417,9 @@ static void create_dump (struct _EXCEPTION_POINTERS *pExceptionPointers)
 					flush_log ();
 					savedump (dump, f, pExceptionPointers);
 					CloseHandle (f);
+					ClipCursor(NULL);
+					ReleaseCapture();
+					ShowCursor(TRUE);
 					if (isfullscreen () <= 0) {
 						_stprintf (msg, _T("Crash detected. MiniDump saved as:\n%s\n"), path3);
 						MessageBox (NULL, msg, _T("Crash"), MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND);

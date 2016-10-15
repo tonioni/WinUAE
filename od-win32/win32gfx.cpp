@@ -2044,6 +2044,7 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.monitoremu != changed_prefs.monitoremu ? (2 | 8) : 0;
 	c |= currprefs.genlock_image != changed_prefs.genlock_image ? (2 | 8) : 0;
 	c |= currprefs.genlock != changed_prefs.genlock ? (2 | 8) : 0;
+	c |= currprefs.genlock_alpha != changed_prefs.genlock_alpha ? (1 | 8) : 0;
 	c |= currprefs.genlock_mix != changed_prefs.genlock_mix ? (1 | 256) : 0;
 	c |= _tcsicmp(currprefs.genlock_image_file, changed_prefs.genlock_image_file) ? (2 | 8) : 0;
 	c |= _tcsicmp(currprefs.genlock_video_file, changed_prefs.genlock_video_file) ? (2 | 8) : 0;
@@ -2141,6 +2142,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.genlock_image = changed_prefs.genlock_image;
 		currprefs.genlock = changed_prefs.genlock;
 		currprefs.genlock_mix = changed_prefs.genlock_mix;
+		currprefs.genlock_alpha = changed_prefs.genlock_alpha;
 		_tcscpy(currprefs.genlock_image_file, changed_prefs.genlock_image_file);
 		_tcscpy(currprefs.genlock_video_file, changed_prefs.genlock_video_file);
 
@@ -2437,9 +2439,9 @@ void init_colors (void)
 	S2X_configure (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift);
 #endif
 #ifdef AVIOUTPUT
-	AVIOutput_RGBinfo (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift);
+	AVIOutput_RGBinfo (red_bits, green_bits, blue_bits, alpha_bits, red_shift, green_shift, blue_shift, alpha_shift);
 #endif
-	Screenshot_RGBinfo (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift);
+	Screenshot_RGBinfo (red_bits, green_bits, blue_bits, alpha_bits, red_shift, green_shift, blue_shift, alpha_shift);
 }
 
 #ifdef PICASSO96

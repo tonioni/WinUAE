@@ -509,6 +509,7 @@ struct uae_prefs {
 	bool genlock;
 	int genlock_image;
 	int genlock_mix;
+	bool genlock_alpha;
 	TCHAR genlock_image_file[MAX_DPATH];
 	TCHAR genlock_video_file[MAX_DPATH];
 	int monitoremu;

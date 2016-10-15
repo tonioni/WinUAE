@@ -2663,7 +2663,9 @@ void handle_rawinput (LPARAM lParam)
 		if (dwSize <= sizeof (lpb)) {
 			if (GetRawInputData ((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof (RAWINPUTHEADER)) == dwSize) {
 				raw = (RAWINPUT*)lpb;
-				handle_rawinput_2 (raw);
+				if (!isguiactive() || (inputdevice_istest() && isguiactive())) {
+					handle_rawinput_2 (raw);
+				}
 				DefRawInputProc (&raw, 1, sizeof (RAWINPUTHEADER));
 			} else {
 				write_log (_T("GetRawInputData(%d) failed, %d\n"), dwSize, GetLastError ());

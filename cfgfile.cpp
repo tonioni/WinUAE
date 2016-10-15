@@ -1834,6 +1834,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_str (f, _T("waiting_blits"), waitblits[p->waiting_blits]);
 	cfgfile_write_bool (f, _T("ntsc"), p->ntscmode);
 	cfgfile_write_bool(f, _T("genlock"), p->genlock);
+	cfgfile_dwrite_bool(f, _T("genlock_alpha"), p->genlock_alpha);
 	cfgfile_dwrite_str(f, _T("genlockmode"), genlockmodes[p->genlock_image]);
 	cfgfile_dwrite_str(f, _T("genlock_image"), p->genlock_image_file);
 	cfgfile_dwrite_str(f, _T("genlock_video"), p->genlock_video_file);
@@ -4670,7 +4671,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("ks_write_enabled"), &p->rom_readwrite)
 		|| cfgfile_yesno (option, value, _T("ntsc"), &p->ntscmode)
 		|| cfgfile_yesno (option, value, _T("sana2"), &p->sana2)
-		|| cfgfile_yesno (option, value, _T("genlock"), &p->genlock)
+		|| cfgfile_yesno(option, value, _T("genlock"), &p->genlock)
+		|| cfgfile_yesno(option, value, _T("genlock_alpha"), &p->genlock_alpha)
 		|| cfgfile_yesno(option, value, _T("cpu_compatible"), &p->cpu_compatible)
 		|| cfgfile_yesno(option, value, _T("cpu_threaded"), &p->cpu_thread)
 		|| cfgfile_yesno(option, value, _T("cpu_24bit_addressing"), &p->address_space_24)
@@ -5207,7 +5209,7 @@ void cfgfile_compatibility_rtg(struct uae_prefs *p)
 						} else if (romtype == ROMTYPE_x86_VGA) {
 							romname = _T("");
 						}
-						addbcromtype(p, romtype, romname, NULL, devnum);
+						addbcromtype(p, romtype, false, romname, devnum);
 						devnum++;
 					}
 				}
@@ -5258,7 +5260,7 @@ void cfgfile_compatibility_romtype(struct uae_prefs *p)
 	addbcromtype(p, ROMTYPE_NE2KPCMCIA, p->ne2000pcmcianame[0] != 0, NULL, 0);
 	addbcromtype(p, ROMTYPE_NE2KPCI, p->ne2000pciname[0] != 0, NULL, 0);
 
-	static int restricted_net[] = { ROMTYPE_A2065, ROMTYPE_NE2KPCMCIA, ROMTYPE_NE2KPCI, ROMTYPE_NE2KISA, ROMTYPE_ARIADNE2, 0 };
+	static int restricted_net[] = { ROMTYPE_A2065, ROMTYPE_NE2KPCMCIA, ROMTYPE_NE2KPCI, ROMTYPE_NE2KISA, ROMTYPE_ARIADNE2, ROMTYPE_XSURF, ROMTYPE_XSURF100Z2, ROMTYPE_XSURF100Z3, 0 };
 	static int restricted_x86[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
 	static int restricted_pci[] = { ROMTYPE_GREX, ROMTYPE_MEDIATOR, ROMTYPE_PROMETHEUS, 0 };
 	romtype_restricted(p, restricted_net);

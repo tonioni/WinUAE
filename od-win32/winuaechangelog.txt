@@ -5,6 +5,27 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+Beta 12:
+
+- If genlock is active, mode is not "-" and new genlock alpha option is checked, screenshots and avioutput videos
+  include alpha-channel generated from genlock transparency data. Only works in 32-bit mode and may not work if capture
+  before filtering is not set.
+- Added genlock video input events: restart, pause/unpause, next and previous frame.
+- WASAPI shared mode uses lower latency mode introduced in Windows 10 that allows sub-10ms latencies in shared mode (if sound driver
+  supports it). Buffers larger than 10ms and non-Windows 10 systems use "old" method.
+- "Min" (WASAPI only) sound buffer setting added. Selects smallest buffer size that driver supports.
+- WASAPI sound buffer size adjusted. All buffer size values now allocate smaller buffer than previously, pull (event) mode
+  is much more stable than previously used push mode, there is no need for very large buffer sizes anymore.
+- WASAPI sound automatically switches to default device if current device disappears (for example unplugged USB sound card/headset)
+- Added RTL8019 9346 EEPROM emulation.
+- Ariadne II NIC emulation. RTL8019AS based. (9346 contents are not correct but driver does not seem to care)
+- X-Surf NIC emulation, also RTL8019AS based. (Including ISA PNP emulation that driver needs...) No IDE support.
+- X-Surf 100 (Z2 and Z3) NIC emulation, uses RTL8019AS "compatible" chip. Does not emulate any AX88796B extra features (=only works
+  if driver assumes chip only supports NE2000/RTL8019AS features. Official driver does not seem to use any extra features.)
+- Ariadne II and X-Surfs are currently SLIRP-only, no configuration available. Multiple enabled NICs are still also not supported.
+- Disable horizontal/vertical filter configured blanking if display port adapter is active that needs RGBI control lines.
+- Try to uncapture mouse before showing crash report dialog.
+
 Beta 11:
 
 - Added generic Z2/Z3 autoconfig support to expansion.cpp. Previously each expansion type needed own separate autoconfig handling.

@@ -194,6 +194,7 @@ void devices_hsync(void)
 #ifdef WITH_TOCCATA
 	sndboard_hsync();
 #endif
+	ne2000_hsync();
 	DISK_hsync ();
 	audio_hsync ();
 	CIA_hsync_prehandler ();
@@ -205,6 +206,7 @@ void devices_hsync(void)
 #endif
 }
 
+// these really should be dynamically allocated..
 void devices_rethink(void)
 {
 	rethink_cias ();
@@ -238,6 +240,7 @@ void devices_rethink(void)
 #ifdef WITH_TOCCATA
 	sndboard_rethink();
 #endif
+	rethink_ne2000();
 	rethink_gayle ();
 	idecontroller_rethink();
 	rethink_uae_int();
@@ -303,6 +306,7 @@ void reset_all_systems (void)
 #if defined (PARALLEL_PORT)
 	initparallel ();
 #endif
+	ne2000_reset();
 	native2amiga_reset ();
 	dongle_reset ();
 	sampler_init ();
@@ -462,7 +466,7 @@ void devices_pause(void)
 #ifdef RETROPLATFORM
 	rp_pause(pause_emulation);
 #endif
-	pausevideograb(true);
+	pausevideograb(1);
 }
 
 void devices_unpause(void)
@@ -474,5 +478,5 @@ void devices_unpause(void)
 #ifdef WITH_PPC
 	uae_ppc_pause(0);
 #endif
-	pausevideograb(false);
+	pausevideograb(0);
 }

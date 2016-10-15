@@ -1409,7 +1409,7 @@ static const int msi_cpuboard[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
 #define MIN_REFRESH_RATE 1
 #define MAX_REFRESH_RATE 10
 #define MIN_SOUND_MEM 0
-#define MAX_SOUND_MEM 9
+#define MAX_SOUND_MEM 10
 
 struct romscandata {
 	UAEREG *fkey;
@@ -6694,6 +6694,7 @@ static void enable_for_chipsetdlg (HWND hDlg)
 
 	ew(hDlg, IDC_GENLOCKMODE, workprefs.genlock ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCKMIX, workprefs.genlock ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCK_ALPHA, workprefs.genlock ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCKFILE, workprefs.genlock && workprefs.genlock_image >= 3 && workprefs.genlock_image < 5 ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCKFILESELECT, workprefs.genlock && workprefs.genlock_image >= 3 && workprefs.genlock_image < 5 ? TRUE : FALSE);
 }
@@ -7684,6 +7685,7 @@ static void values_to_chipsetdlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_SETCURSEL, workprefs.monitoremu, 0);
 	SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_SETCURSEL, workprefs.genlock_image, 0);
 	SendDlgItemMessage(hDlg, IDC_GENLOCKMIX, CB_SETCURSEL, workprefs.genlock_mix / 25, 0);
+	CheckDlgButton(hDlg, IDC_GENLOCK_ALPHA, workprefs.genlock_alpha);
 }
 
 static int cs_compatible = CP_GENERIC;
@@ -7696,8 +7698,11 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	int id = LOWORD(wParam);
 
 	workprefs.genlock = ischecked (hDlg, IDC_GENLOCK);
+	workprefs.genlock_alpha = ischecked(hDlg, IDC_GENLOCK_ALPHA);
+
 	workprefs.immediate_blits = ischecked (hDlg, IDC_BLITIMM);
 	workprefs.waiting_blits = ischecked (hDlg, IDC_BLITWAIT) ? 1 : 0;
+
 	n2 = ischecked (hDlg, IDC_CYCLEEXACTMEMORY);
 	n1 = ischecked (hDlg, IDC_CYCLEEXACT);
 	if (workprefs.cpu_cycle_exact != n1 || workprefs.cpu_memory_cycle_exact != n2) {
@@ -11816,8 +11821,10 @@ static int sounddrivesel;
 static int getsoundbufsizeindex (int size)
 {
 	int idx;
+	if (size < sndbufsizes[0])
+		return 0;
 	for (idx = 0; sndbufsizes[idx] < size && sndbufsizes[idx + 1] >= 0 ; idx++);
-	return idx;
+	return idx + 1;
 }
 
 static void update_soundgui (HWND hDlg)
@@ -11825,8 +11832,12 @@ static void update_soundgui (HWND hDlg)
 	int bufsize;
 	TCHAR txt[20];
 
-	bufsize = getsoundbufsizeindex (workprefs.sound_maxbsiz) + 1;
-	_stprintf (txt, _T("%d"), bufsize);
+	bufsize = getsoundbufsizeindex (workprefs.sound_maxbsiz);
+	if (bufsize <= 0) {
+		_tcscpy(txt, _T("Min"));
+	} else {
+		_stprintf (txt, _T("%d"), bufsize);
+	}
 	SetDlgItemText (hDlg, IDC_SOUNDBUFFERMEM, txt);
 
 	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.sound_volume_master);
@@ -11958,7 +11969,7 @@ static void values_to_sounddlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_SOUND_CDPAULAMIX, workprefs.sound_cdaudio);
 
 	if (workprefs.sound_maxbsiz < SOUND_BUFFER_MULTIPLIER)
-		workprefs.sound_maxbsiz = SOUND_BUFFER_MULTIPLIER;
+		workprefs.sound_maxbsiz = 0;
 	SendDlgItemMessage (hDlg, IDC_SOUNDBUFFERRAM, TBM_SETPOS, TRUE, getsoundbufsizeindex (workprefs.sound_maxbsiz));
 
 	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 0);
@@ -12214,8 +12225,12 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	case WM_HSCROLL:
 		if ((HWND)lParam == GetDlgItem (hDlg, IDC_SOUNDBUFFERRAM)) {
 			int v = SendMessage (GetDlgItem (hDlg, IDC_SOUNDBUFFERRAM), TBM_GETPOS, 0, 0);
-			if (v >= 0)
-				workprefs.sound_maxbsiz = sndbufsizes[v];
+			if (v >= 0) {
+				if (v == 0)
+					workprefs.sound_maxbsiz = 0;
+				else
+					workprefs.sound_maxbsiz = sndbufsizes[v - 1];
+			}
 		}
 		workprefs.sound_volume_master = 100 - SendMessage (GetDlgItem (hDlg, IDC_SOUNDVOLUME), TBM_GETPOS, 0, 0);
 		(*volumeselection) = 100 - SendMessage (GetDlgItem (hDlg, IDC_SOUNDVOLUMEEXT), TBM_GETPOS, 0, 0);
@@ -14181,8 +14196,7 @@ static void getfloppytypeq (HWND hDlg, int n)
 static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen, int type)
 {
 	LRESULT val;
-	TCHAR *p1, *p2, *p;
-	TCHAR *tmp;
+	TCHAR *p;
 	int i;
 
 	out[0] = 0;
@@ -16637,7 +16651,6 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 	case WM_NOTIFY:
 	if (((LPNMHDR)lParam)->idFrom == IDC_LISTDIALOG_LIST)
 	{
-		TCHAR name[256];
 		int column, entry;
 		NM_LISTVIEW *nmlistview = (NM_LISTVIEW *)lParam;
 		list = nmlistview->hdr.hwndFrom;
@@ -16648,7 +16661,6 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 		{
 			entry = listview_entry_from_click(list, &column);
 			if (entry >= 0 && inputmap_selected >= 0) {
-				int devnum, num, sub;
 				if (inputmap_handle(NULL, -1, -1, NULL, NULL, -1, NULL, inputmap_selected,
 					remapcustoms[entry].flags, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE, NULL)) {
 					inputdevice_generate_jport_custom(&workprefs, inputmap_port);

@@ -47,6 +47,8 @@
 
 #define USE_XAUDIO 0
 
+#ifndef _WIN64
+
 // only in 8.1+ SDKs
 
 typedef enum _AUDIO_STREAM_CATEGORY {
@@ -104,6 +106,13 @@ public:
 		_Out_  REFERENCE_TIME *phnsMaxBufferDuration) = 0;
 
 };
+
+#else
+
+#define AudioCategory_Media 11
+#define AUDCLNT_STREAMOPTIONS_MATCH_FORMAT 0x2
+
+#endif
 
 EXTERN_C const IID IID_IAudioClient3;
 
@@ -1340,7 +1349,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 
 	if (s->AudioClientVersion >= 3) {
 		BOOL cap = FALSE;
-		hr = s->pAudioClient->IsOffloadCapable(AudioCategory_Media, &cap);
+		hr = s->pAudioClient->IsOffloadCapable((AUDIO_STREAM_CATEGORY)AudioCategory_Media, &cap);
 		write_log(_T("WASAPI: IsOffloadCapable() returned %d %08x\n"), cap, hr);
 	}
 
@@ -1352,8 +1361,8 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 			AudioClientProperties props;
 			props.bIsOffload = FALSE;
 			props.cbSize = sizeof props;
-			props.eCategory = AudioCategory_Media;
-			props.Options = AUDCLNT_STREAMOPTIONS_MATCH_FORMAT;
+			props.eCategory = (AUDIO_STREAM_CATEGORY)AudioCategory_Media;
+			props.Options = (AUDCLNT_STREAMOPTIONS)AUDCLNT_STREAMOPTIONS_MATCH_FORMAT;;
 			hr = s->pAudioClient->SetClientProperties(&props);
 			if (FAILED(hr)) {
 				write_log(_T("WASAPI: SetClientProperties() %08X\n"), hr);
