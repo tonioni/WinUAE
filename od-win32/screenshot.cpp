@@ -28,6 +28,14 @@ int screenshot_originalsize = 0;
 int screenshot_clipmode = 0;
 int screenshot_multi = 0;
 
+extern bool need_genlock_data;
+extern uae_u8 **row_map_genlock;
+
+static bool usealpha(void)
+{
+	return need_genlock_data != 0 && row_map_genlock && currprefs.genlock_image && currprefs.genlock_alpha;
+}
+
 static void namesplit (TCHAR *s)
 {
 	int l;
@@ -96,13 +104,14 @@ void screenshot_free (void)
 	screenshot_prepared = FALSE;
 }
 
-static int rgb_rb, rgb_gb, rgb_bb, rgb_rs, rgb_gs, rgb_bs;
+static int rgb_rb, rgb_gb, rgb_bb, rgb_rs, rgb_gs, rgb_bs, rgb_ab, rgb_as;
 
 static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 {
 	int width, height;
 	HGDIOBJ hgdiobj;
 	int bits;
+	int depth = usealpha() ? 32 : 24;
 
 	screenshot_free ();
 
@@ -116,8 +125,8 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 		uae_u8 *src, *dst, *mem;
 		bool needfree = false;
 		uae_u8 *palette = NULL;
-		int rgb_bb2, rgb_gb2, rgb_rb2;
-		int rgb_bs2, rgb_gs2, rgb_rs2;
+		int rgb_bb2, rgb_gb2, rgb_rb2, rgb_ab2;
+		int rgb_bs2, rgb_gs2, rgb_rs2, rgb_as2;
 		uae_u8 pal[256 * 3];
 		int screenshot_width = 0, screenshot_height = 0;
 		int screenshot_xoffset = -1, screenshot_yoffset = -1;
@@ -128,9 +137,11 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 			rgb_bb2 = 8;
 			rgb_gb2 = 8;
 			rgb_rb2 = 8;
+			rgb_ab2 = 8;
 			rgb_bs2 = 0;
 			rgb_gs2 = 8;
 			rgb_rs2 = 16;
+			rgb_as2 = 24;
 		} else if (vb) {
 			width = vb->outwidth;
 			height = vb->outheight;
@@ -140,18 +151,22 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 			rgb_bb2 = rgb_bb;
 			rgb_gb2 = rgb_gb;
 			rgb_rb2 = rgb_rb;
+			rgb_ab2 = rgb_ab;
 			rgb_bs2 = rgb_bs;
 			rgb_gs2 = rgb_gs;
 			rgb_rs2 = rgb_rs;
+			rgb_as2 = rgb_as;
 		} else {
 			src = mem = getfilterbuffer (&width, &height, &spitch, &bits);
 			needfree = true;
 			rgb_bb2 = rgb_bb;
 			rgb_gb2 = rgb_gb;
 			rgb_rb2 = rgb_rb;
+			rgb_ab2 = rgb_ab;
 			rgb_bs2 = rgb_bs;
 			rgb_gs2 = rgb_gs;
 			rgb_rs2 = rgb_rs;
+			rgb_as2 = rgb_as;
 		}
 		if (src == NULL)
 			goto donormal;
@@ -237,7 +252,7 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 		bi->bmiHeader.biWidth = screenshot_width * screenshot_xmult;
 		bi->bmiHeader.biHeight = screenshot_height * screenshot_ymult;
 		bi->bmiHeader.biPlanes = 1;
-		bi->bmiHeader.biBitCount = bits <= 8 ? 8 : 24;
+		bi->bmiHeader.biBitCount = bits <= 8 ? 8 : depth;
 		bi->bmiHeader.biCompression = BI_RGB;
 		dpitch = ((bi->bmiHeader.biWidth * bi->bmiHeader.biBitCount + 31) & ~31) / 8;
 		bi->bmiHeader.biSizeImage = dpitch * bi->bmiHeader.biHeight;
@@ -314,7 +329,7 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 				} else {
 					int shift;
 					uae_u32 v = 0;
-					uae_u32 v2, v2a, v2b, v2c;
+					uae_u32 v2, v2a, v2b, v2c, v2d;
 
 					if (bits == 16)
 						v = ((uae_u16*)s)[x];
@@ -342,12 +357,28 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 						v2 |= (v2 >> shift) & ((1 < shift) - 1);
 					v2c = v2;
 
+					if (depth == 32) {
+						shift = 8 - rgb_ab2;
+						v2 = (v >> rgb_as2) & ((1 << rgb_ab2) - 1);
+						v2 <<= (8 - rgb_ab2);
+						if (rgb_ab < 8)
+							v2 |= (v2 >> shift) & ((1 < shift) - 1);
+						v2d = v2;
+					}
+
 					uae_u8 *d2 = d;
 					for (int y2 = 0; y2 < ymult; y2++) {
 						for (int x2 = 0; x2 < xmult; x2++) {
-							d2[(xx + x2) * 3 + 0] = v2a;
-							d2[(xx + x2) * 3 + 1] = v2b;
-							d2[(xx + x2) * 3 + 2] = v2c;
+							if (depth == 32) {
+								d2[(xx + x2) * 4 + 0] = v2a;
+								d2[(xx + x2) * 4 + 1] = v2b;
+								d2[(xx + x2) * 4 + 2] = v2c;
+								d2[(xx + x2) * 4 + 3] = v2d;
+							} else {
+								d2[(xx + x2) * 3 + 0] = v2a;
+								d2[(xx + x2) * 3 + 1] = v2b;
+								d2[(xx + x2) * 3 + 2] = v2c;
+							}
 						}
 						d2 += dpitch2;
 					}
@@ -378,7 +409,7 @@ donormal:
 			if (s) {
 				hr = s->LockRect(&l, NULL, D3DLOCK_READONLY);
 				if (SUCCEEDED(hr)) {
-					int dpitch = (((w * 24 + 31) & ~31) / 8);
+					int dpitch = (((w * depth + 31) & ~31) / 8);
 					lpvBits = xmalloc(uae_u8, dpitch * h); 
 
 					ZeroMemory(bi, sizeof(bi));
@@ -386,7 +417,7 @@ donormal:
 					bi->bmiHeader.biWidth = w;
 					bi->bmiHeader.biHeight = h;
 					bi->bmiHeader.biPlanes = 1;
-					bi->bmiHeader.biBitCount = 24;
+					bi->bmiHeader.biBitCount = depth;
 					bi->bmiHeader.biCompression = BI_RGB;
 					bi->bmiHeader.biSizeImage = dpitch * bi->bmiHeader.biHeight;
 					bi->bmiHeader.biXPelsPerMeter = 0;
@@ -404,7 +435,12 @@ donormal:
 									d[0] = v >> 0;
 									d[1] = v >> 8;
 									d[2] = v >> 16;
-									d += 3;
+									if (depth == 32) {
+										d[3] = v >> 24;
+										d += 4;
+									} else {
+										d += 3;
+									}
 								}
 							}
 						} else if (bits == 16 || bits == 15) {
@@ -507,16 +543,18 @@ int screenshot_prepare (void)
 	return screenshot_prepare (-1);
 }
 
-void Screenshot_RGBinfo (int rb, int gb, int bb, int rs, int gs, int bs)
+void Screenshot_RGBinfo (int rb, int gb, int bb, int ab, int rs, int gs, int bs, int as)
 {
 	if (!bi)
 		bi = xcalloc (BITMAPINFO, sizeof(BITMAPINFO) + 256 * sizeof(RGBQUAD));
 	rgb_rb = rb;
 	rgb_gb = gb;
 	rgb_bb = rb;
+	rgb_ab = ab;
 	rgb_rs = rs;
 	rgb_gs = gs;
 	rgb_bs = bs;
+	rgb_as = as;
 }
 
 #if PNG_SCREENSHOTS > 0
@@ -532,7 +570,7 @@ static void _cdecl pngtest_blah (png_structp png_ptr, png_const_charp message)
 #endif
 }
 
-static int savepng (FILE *fp)
+static int savepng(FILE *fp, bool alpha)
 {
 	png_structp png_ptr;
 	png_infop info_ptr;
@@ -559,7 +597,7 @@ static int savepng (FILE *fp)
 	png_init_io (png_ptr, fp);
 	png_set_filter (png_ptr, 0, PNG_FILTER_NONE);
 	png_set_IHDR (png_ptr, info_ptr,
-		w, h, 8, d <= 8 ? PNG_COLOR_TYPE_PALETTE : PNG_COLOR_TYPE_RGB,
+		w, h, 8, d <= 8 ? PNG_COLOR_TYPE_PALETTE : (alpha ? PNG_COLOR_TYPE_RGB_ALPHA : PNG_COLOR_TYPE_RGB),
 		PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 	if (d <= 8) {
 		for (i = 0; i < (1 << d); i++) {
@@ -572,7 +610,7 @@ static int savepng (FILE *fp)
 	row_pointers = xmalloc (png_bytep, h);
 	for (i = 0; i < h; i++) {
 		int j = h - i - 1;
-		row_pointers[i] = (uae_u8*)lpvBits + j * (((w * (d <= 8 ? 8 : 24) + 31) & ~31) / 8);
+		row_pointers[i] = (uae_u8*)lpvBits + j * (((w * (d <= 8 ? 8 : (alpha ? 32 : 24)) + 31) & ~31) / 8);
 	}
 	png_set_rows (png_ptr, info_ptr, row_pointers);
 	png_write_png (png_ptr,info_ptr, PNG_TRANSFORM_BGR, NULL);
@@ -582,7 +620,7 @@ static int savepng (FILE *fp)
 }
 #endif
 
-static int savebmp (FILE *fp)
+static int savebmp (FILE *fp, bool alpha)
 {
 	BITMAPFILEHEADER bfh;
 	// write the file header, bitmap information and pixel data
@@ -622,6 +660,7 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode, str
 	int failed = 0;
 	int screenshot_max = 1000; // limit 999 iterations / screenshots
 	TCHAR *format = _T("%s%s%s%03d.%s");
+	bool alpha = usealpha();
 
 	HBITMAP offscreen_bitmap = NULL; // bitmap that is converted to a DIB
 	HDC offscreen_dc = NULL; // offscreen DC that we can select offscreen bitmap into
@@ -652,10 +691,10 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode, str
 			if (fp) {
 #if PNG_SCREENSHOTS > 0
 				if (screenshotmode)
-					failed = savepng (fp);
+					failed = savepng (fp, alpha);
 				else
 #endif
-					failed = savebmp (fp);
+					failed = savebmp (fp, alpha);
 				fclose(fp);
 				fp = NULL;
 				if (failed)
@@ -710,10 +749,10 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode, str
 				}
 #if PNG_SCREENSHOTS > 0
 				if (screenshotmode)
-					nok = savepng (fp);
+					nok = savepng (fp, alpha);
 				else
 #endif
-					nok = savebmp (fp);
+					nok = savebmp (fp, alpha);
 				fclose(fp);
 				if (nok && fp) {
 					_tunlink(filename);

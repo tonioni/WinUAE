@@ -136,6 +136,22 @@ STATIC_INLINE void PRGB(struct vidbuffer *dst, uae_u8 *dataline, uae_u8 r, uae_u
 	}
 }
 
+STATIC_INLINE void PRGBA(struct vidbuffer *dst, uae_u8 *dataline, uae_u8 r, uae_u8 g, uae_u8 b, uae_u8 a)
+{
+	if (dst->pixbytes == 4) {
+		dataline[0] = b;
+		dataline[1] = g;
+		dataline[2] = r;
+		dataline[3] = a;
+	} else {
+		r >>= 3;
+		g >>= 2;
+		b >>= 3;
+		((uae_u16*)dataline)[0] = (r << 11) | (g << 5) | b;
+	}
+}
+
+
 STATIC_INLINE void PUT_PRGB(uae_u8 *d, uae_u8 *d2, struct vidbuffer *dst, uae_u8 r, uae_u8 g, uae_u8 b, int xadd, int doublelines, bool hdouble)
 {
 	if (hdouble)
@@ -154,6 +170,28 @@ STATIC_INLINE void PUT_PRGB(uae_u8 *d, uae_u8 *d2, struct vidbuffer *dst, uae_u8
 			PRGB(dst, d2 + 1 * dst->pixbytes, r, g, b);
 			if (hdouble)
 				PRGB(dst, d2 + 2 * dst->pixbytes, r, g, b);
+		}
+	}
+}
+
+STATIC_INLINE void PUT_PRGBA(uae_u8 *d, uae_u8 *d2, struct vidbuffer *dst, uae_u8 r, uae_u8 g, uae_u8 b, uae_u8 a, int xadd, int doublelines, bool hdouble)
+{
+	if (hdouble)
+		PRGBA(dst, d - dst->pixbytes, r, g, b, a);
+	PRGBA(dst, d, r, g, b, a);
+	if (xadd >= 2) {
+		PRGBA(dst, d + 1 * dst->pixbytes, r, g, b, a);
+		if (hdouble)
+			PRGBA(dst, d + 2 * dst->pixbytes, r, g, b, a);
+	}
+	if (doublelines) {
+		if (hdouble)
+			PRGBA(dst, d2 - dst->pixbytes, r, g, b, a);
+		PRGBA(dst, d2, r, g, b, a);
+		if (xadd >= 2) {
+			PRGBA(dst, d2 + 1 * dst->pixbytes, r, g, b, a);
+			if (hdouble)
+				PRGBA(dst, d2 + 2 * dst->pixbytes, r, g, b, a);
 		}
 	}
 }
@@ -178,6 +216,30 @@ STATIC_INLINE void PUT_AMIGARGB(uae_u8 *d, uae_u8 *s, uae_u8 *d2, uae_u8 *s2, st
 			if (hdouble)
 				((uae_u16*)d2)[-1] = ((uae_u16*)s2)[-1];
 			((uae_u16*)d2)[0] = ((uae_u16*)s2)[0];
+		}
+	}
+}
+
+STATIC_INLINE void PUT_AMIGARGBA(uae_u8 *d, uae_u8 *s, uae_u8 *d2, uae_u8 *s2, struct vidbuffer *dst, int xadd, int doublelines, bool hdouble)
+{
+	if (dst->pixbytes == 4) {
+		if (hdouble)
+			((uae_u32*)d)[-1] = (((uae_u32*)s)[-1]) | 0xff000000;
+		((uae_u32*)d)[0] = (((uae_u32*)s)[0]) | 0xff000000;
+	} else {
+		if (hdouble)
+			((uae_u16*)d)[-1] = (((uae_u16*)s)[-1]) | 0xff000000;
+		((uae_u16*)d)[0] = (((uae_u16*)s)[0]) | 0xff000000;
+	}
+	if (doublelines) {
+		if (dst->pixbytes == 4) {
+			if (hdouble)
+				((uae_u32*)d2)[-1] = (((uae_u32*)s2)[-1]) | 0xff000000;
+			((uae_u32*)d2)[0] = (((uae_u32*)s2)[0]) | 0xff000000;
+		} else {
+			if (hdouble)
+				((uae_u16*)d2)[-1] = (((uae_u16*)s2)[-1]) | 0xff000000;
+			((uae_u16*)d2)[0] = (((uae_u16*)s2)[0]) | 0xff000000;
 		}
 	}
 }
@@ -2414,8 +2476,10 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		mix1 = 256 - currprefs.genlock_mix;
 		mix2 = currprefs.genlock_mix;
 	}
+	uae_u8 amix1 = 255 - (currprefs.genlock_mix > 255 ? 255 : 0);
+	uae_u8 amix2 = 255 - amix1;
 
-	uae_u8 r = 0, g = 0, b = 0;
+	uae_u8 r = 0, g = 0, b = 0, a = 0;
 	for (y = ystart; y < yend; y++) {
 		int yoff = (((y * 2 + oddlines) - src->yoffset) >> vdbl);
 		if (yoff < 0)
@@ -2430,7 +2494,8 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		if (genlock_image_upsidedown)
 			gy = (genlock_image_height - 1) - gy;
 		uae_u8 *image_genlock = genlock_image + gy * genlock_image_pitch;
-		r = g = b = 0;
+		r = g = b;
+		a = amix1;
 		noise_add = (quickrand() & 15) | 1;
 		for (x = 0; x < src->inwidth; x++) {
 			uae_u8 *s = line + x * src->pixbytes;
@@ -2440,6 +2505,7 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 			uae_u8 *d2 = d + dst->rowbytes;
 
 			if (is_transparent(*s_genlock)) {
+				a = amix2;
 				if (genlock_error) {
 					r = 0x00;
 					g = 0x00;
@@ -2462,9 +2528,9 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 					g = (mix1 * g + mix2 * FVG(src, s)) / 256;
 					b = (mix1 * b + mix2 * FVB(src, s)) / 256;
 				}
-				PUT_PRGB(d, d2, dst, r, g, b, 0, doublelines, false);
+				PUT_PRGBA(d, d2, dst, r, g, b, a, 0, doublelines, false);
 			} else {
-				PUT_AMIGARGB(d, s, d2, s2, dst, 0, doublelines, false);
+				PUT_AMIGARGBA(d, s, d2, s2, dst, 0, doublelines, false);
 			}
 		}
 	}
@@ -2669,6 +2735,19 @@ struct opals {
 	int address_load;
 	int rowbytes;
 	uae_u8 control_line[OPAL_CONTROL_LINE_LENGTH];
+
+	int palcoprocnt;
+	bool copro_hires;
+	int copro_bank_offset[2];
+	int copro_vdm;
+	bool copro_prior_mode;
+	bool copro_priority;
+	bool copro_dual_disp;
+	int address_load_sync;
+	int vram_write_offset;
+	int vram_read_offset;
+	int control_y;
+	bool detected;
 };
 static struct opals *opal;
 
@@ -2726,9 +2805,9 @@ static void opal_pixel(struct opals *opal, uae_u8 *d, uae_u8 *d2, uae_u8 *s, uae
 	}
 }
 
-#define OPAL_SWAP_BANK (opal->dual_play && pf && !copro_hires) || (opal->v2 && opal->opal && opal->dual_play && copro_hires && s_genlock && is_transparent(*s_genlock))
+#define OPAL_SWAP_BANK (opal->dual_play && pf && !opal->copro_hires) || (opal->v2 && opal->opal && opal->dual_play && opal->copro_hires && s_genlock && is_transparent(*s_genlock))
 
-static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines, bool isopal)
+static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines, int yline, bool isopal)
 {
 	int y, x, vdbl, hdbl;
 	int isntsc;
@@ -2759,20 +2838,27 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 	int yimgstart = ystart + 6;
 	int yend = (isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL) + 1;
 
-	int palcoprocnt = 0;
+	if (yline < 0 || yline == ystart) {
+		opal->address_load_sync = -1;
+		opal->vram_write_offset = 0;
+		opal->vram_read_offset = 0;
+		opal->control_y = 0;
+		opal->copro_prior_mode = false;
+		opal->copro_priority = false;
+		opal->copro_dual_disp = false;
+		opal->copro_vdm = 0;
+		opal->copro_hires = 0;
+		opal->palcoprocnt = 0;
+		opal->detected = opal->latched;
+	}
 
-	bool copro_hires = false;
-	int copro_bank_offset[2] = { 0, 0 };
-	int copro_vdm = 0;
-	bool copro_prior_mode = false;
-	bool copro_priority = false;
-	bool copro_dual_disp = false;
-	int address_load_sync = -1;
-	int vram_write_offset = 0;
-	int vram_read_offset = 0;
-	int control_y = 0;
+	if (yline < 0) {
+		y = ystart;
+	} else {
+		y = yline;
+	}
 
-	for (y = ystart; y < yend; y++) {
+	for (; y < yend; y++) {
 
 		uae_u8 *line = NULL;
 		uae_u8 *line_genlock = NULL;
@@ -2791,27 +2877,27 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 
 		uae_u8 copro = opal->copro[y - ystart];
 		if (opal->opal) {
-			copro_prior_mode = (copro & 0x40) != 0;
-			copro_priority = (copro & 0x20) != 0;
-			copro_dual_disp = (copro & 0x10) != 0;
-			copro_hires = (copro & 8) != 0;
-			copro_bank_offset[0] = (copro & 4) ? 6 * OPAL_SEGMENT_SIZE : 0;
-			copro_bank_offset[1] = (copro & 4) ? 0 : 6 * OPAL_SEGMENT_SIZE;
-			copro_vdm = copro & 3;
+			opal->copro_prior_mode = (copro & 0x40) != 0;
+			opal->copro_priority = (copro & 0x20) != 0;
+			opal->copro_dual_disp = (copro & 0x10) != 0;
+			opal->copro_hires = (copro & 8) != 0;
+			opal->copro_bank_offset[0] = (copro & 4) ? 6 * OPAL_SEGMENT_SIZE : 0;
+			opal->copro_bank_offset[1] = (copro & 4) ? 0 : 6 * OPAL_SEGMENT_SIZE;
+			opal->copro_vdm = copro & 3;
 		} else {
-			copro_vdm = (((copro >> 6) & 1) << 1) | opal->control_line[7];
-			copro_hires = (copro & 0x20) != 0;
-			copro_prior_mode = (copro & 0x10) != 0;
-			copro_priority = (copro & 8) != 0;
-			copro_dual_disp = (copro & 4) != 0;
+			opal->copro_vdm = (((copro >> 6) & 1) << 1) | opal->control_line[7];
+			opal->copro_hires = (copro & 0x20) != 0;
+			opal->copro_prior_mode = (copro & 0x10) != 0;
+			opal->copro_priority = (copro & 8) != 0;
+			opal->copro_dual_disp = (copro & 4) != 0;
 			opal->dual_play = (copro & 2) != 0;
-			copro_bank_offset[0] = (copro & 1) ? 6 * OPAL_SEGMENT_SIZE : 0;
-			copro_bank_offset[1] = (copro & 1) ? 0 : 6 * OPAL_SEGMENT_SIZE;
+			opal->copro_bank_offset[0] = (copro & 1) ? 6 * OPAL_SEGMENT_SIZE : 0;
+			opal->copro_bank_offset[1] = (copro & 1) ? 0 : 6 * OPAL_SEGMENT_SIZE;
 		}
-		opal->priority_stencil_mode = (copro_prior_mode ? 2 : 0) | (copro_priority ? 4 : 0) | (copro_dual_disp ? 8 : 0);
+		opal->priority_stencil_mode = (opal->copro_prior_mode ? 2 : 0) | (opal->copro_priority ? 4 : 0) | (opal->copro_dual_disp ? 8 : 0);
 		if (!(copro & 0x80)) {
 			// Add_Load
-			vram_read_offset = opal->address_load;
+			opal->vram_read_offset = opal->address_load;
 		}
 
 
@@ -2827,8 +2913,8 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		if (!line)
 			continue;
 
-		int vram_write_pixel_offset = vram_write_offset;
-		int vram_read_pixel_offset = vram_read_offset;
+		int vram_write_pixel_offset = opal->vram_write_offset;
+		int vram_read_pixel_offset = opal->vram_read_offset;
 
 		// behavior not fully known
 		if ((!opal->auto_field && opal->bank_field) || (opal->auto_field && oddlines)) {
@@ -2859,67 +2945,67 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 				uae_u8 pf, pr;
 				int bidx;
 
-				if (copro_vdm == 0) {
+				if (opal->copro_vdm == 0) {
 					// 24-bit truecolor (palette)
 					uae_u8 m = opal->pixel_read_mask;
 
-					r = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 0 * OPAL_SEGMENT_SIZE] & m) + 0];
-					g = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE] & m) + 1];
-					b = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE] & m) + 2];
+					r = opal->palette[4 * (opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + 0 * OPAL_SEGMENT_SIZE] & m) + 0];
+					g = opal->palette[4 * (opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE] & m) + 1];
+					b = opal->palette[4 * (opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE] & m) + 2];
 					pf = g & 1;
 					pr = b & 1;
 					if (OPAL_SWAP_BANK) {
-						r = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 0 * OPAL_SEGMENT_SIZE] & m) + 0];
-						g = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 1 * OPAL_SEGMENT_SIZE] & m) + 1];
-						b = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 2 * OPAL_SEGMENT_SIZE] & m) + 2];
+						r = opal->palette[4 * (opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[1] + 0 * OPAL_SEGMENT_SIZE] & m) + 0];
+						g = opal->palette[4 * (opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[1] + 1 * OPAL_SEGMENT_SIZE] & m) + 1];
+						b = opal->palette[4 * (opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[1] + 2 * OPAL_SEGMENT_SIZE] & m) + 2];
 						bidx = 0;
 					} else {
 						bidx = 1;
 					}
-					opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !copro_hires, false);
+					opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !opal->copro_hires, false);
 
-					if (copro_hires) {
-						r = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 0 * OPAL_SEGMENT_SIZE] & m) + 0];
-						g = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 1 * OPAL_SEGMENT_SIZE] & m) + 1];
-						b = opal->palette[4 * (opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 2 * OPAL_SEGMENT_SIZE] & m) + 2];
+					if (opal->copro_hires) {
+						r = opal->palette[4 * (opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[bidx] + 0 * OPAL_SEGMENT_SIZE] & m) + 0];
+						g = opal->palette[4 * (opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[bidx] + 1 * OPAL_SEGMENT_SIZE] & m) + 1];
+						b = opal->palette[4 * (opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[bidx] + 2 * OPAL_SEGMENT_SIZE] & m) + 2];
 						pr = b & 1;
 						opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, false, true);
 					}
 
-				} else if (copro_vdm == 1) {
+				} else if (opal->copro_vdm == 1) {
 					// 24-bit truecolor (bypass palette)
 
-					r = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 0 * OPAL_SEGMENT_SIZE];
-					g = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE];
-					b = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE];
+					r = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + 0 * OPAL_SEGMENT_SIZE];
+					g = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE];
+					b = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE];
 					pf = g & 1;
 					pr = b & 1;
 					if (OPAL_SWAP_BANK) {
-						r = opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 0 * OPAL_SEGMENT_SIZE];
-						g = opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 1 * OPAL_SEGMENT_SIZE];
-						b = opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 2 * OPAL_SEGMENT_SIZE];
+						r = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[1] + 0 * OPAL_SEGMENT_SIZE];
+						g = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[1] + 1 * OPAL_SEGMENT_SIZE];
+						b = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[1] + 2 * OPAL_SEGMENT_SIZE];
 						bidx = 0;
 					} else {
 						bidx = 1;
 					}
-					opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !copro_hires, false);
+					opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !opal->copro_hires, false);
 
-					if (copro_hires) {
-						r = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 0 * OPAL_SEGMENT_SIZE];
-						g = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 1 * OPAL_SEGMENT_SIZE];
-						b = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 2 * OPAL_SEGMENT_SIZE];
+					if (opal->copro_hires) {
+						r = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[bidx] + 0 * OPAL_SEGMENT_SIZE];
+						g = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[bidx] + 1 * OPAL_SEGMENT_SIZE];
+						b = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[bidx] + 2 * OPAL_SEGMENT_SIZE];
 						pr = b & 1;
 						opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, false, true);
 					}
 
-				} else if (copro_vdm == 2) {
+				} else if (opal->copro_vdm == 2) {
 					// 8-bit palette
 
-					uae_u8 v0 = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + opal->color_offset] & opal->pixel_read_mask;
-					pf = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE] & 1;
-					pr = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE] & 1;
+					uae_u8 v0 = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + opal->color_offset] & opal->pixel_read_mask;
+					pf = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE] & 1;
+					pr = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE] & 1;
 					if (OPAL_SWAP_BANK) {
-						v0 = opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + opal->color_offset] & opal->pixel_read_mask;
+						v0 = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[1] + opal->color_offset] & opal->pixel_read_mask;
 						bidx = 0;
 					} else {
 						bidx = 1;
@@ -2927,40 +3013,40 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 					r = opal->palette[v0 * 4 + 0];
 					g = opal->palette[v0 * 4 + 1];
 					b = opal->palette[v0 * 4 + 2];
-					opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !copro_hires, false);
+					opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !opal->copro_hires, false);
 
-					if (copro_hires) {
-						uae_u8 v1 = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + opal->color_offset] & opal->pixel_read_mask;
+					if (opal->copro_hires) {
+						uae_u8 v1 = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[bidx] + opal->color_offset] & opal->pixel_read_mask;
 						r = opal->palette[v1 * 4 + 0];
 						g = opal->palette[v1 * 4 + 1];
 						b = opal->palette[v1 * 4 + 2];
 						opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, false, true);
 					}
 
-				} else if (copro_vdm == 3) {
+				} else if (opal->copro_vdm == 3) {
 
 					if (((opal->video_command >> 6) & 3) == 3) {
 						// 15 bit true color
-						uae_u8 v0 = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 0 * OPAL_SEGMENT_SIZE];
-						uae_u8 v1 = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE];
+						uae_u8 v0 = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + 0 * OPAL_SEGMENT_SIZE];
+						uae_u8 v1 = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE];
 						r = ((v0 >> 2) & 31) << (8 - 5);
 						g = (((v0 & 3) << 3) | ((v1 >> 5) &7)) << (8 - 5);
 						b = ((v1 & 31)) << (8 - 5);
 						pf = v1 & 1;
-						pr = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE] & 1;
+						pr = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE] & 1;
 						if (OPAL_SWAP_BANK) {
-							v0 = opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 0 * OPAL_SEGMENT_SIZE];
-							v1 = opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + 1 * OPAL_SEGMENT_SIZE];
+							v0 = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[1] + 0 * OPAL_SEGMENT_SIZE];
+							v1 = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[1] + 1 * OPAL_SEGMENT_SIZE];
 							bidx = 0;
 						} else {
 							bidx = 1;
 						}
-						opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !copro_hires, false);
+						opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !opal->copro_hires, false);
 
-						if (copro_hires) {
-							v0 = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 0 * OPAL_SEGMENT_SIZE];
-							v1 = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 1 * OPAL_SEGMENT_SIZE];
-							pr = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 2 * OPAL_SEGMENT_SIZE] & 1;
+						if (opal->copro_hires) {
+							v0 = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[bidx] + 0 * OPAL_SEGMENT_SIZE];
+							v1 = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[bidx] + 1 * OPAL_SEGMENT_SIZE];
+							pr = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[bidx] + 2 * OPAL_SEGMENT_SIZE] & 1;
 							r = ((v0 >> 2) & 31) << (8 - 5);
 							g = (((v0 & 3) << 3) | ((v1 >> 5) & 7)) << (8 - 5);
 							b = ((v1 & 31)) << (8 - 5);
@@ -2969,26 +3055,26 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 
 					} else {
 						// 8-bit true color
-						uae_u8 v0 = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + opal->color_offset];
+						uae_u8 v0 = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + opal->color_offset];
 						r = ((v0 >> 5) & 7) << (8 - 3);
 						g = ((v0 >> 2) & 7) << (8 - 3);
 						b = ((v0 >> 0) & 3) << (8 - 2);
-						pf = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE] & 1;
-						pr = opal->vram[vram_read_pixel_offset + copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE] & 1;
+						pf = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + 1 * OPAL_SEGMENT_SIZE] & 1;
+						pr = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[0] + 2 * OPAL_SEGMENT_SIZE] & 1;
 						if (OPAL_SWAP_BANK) {
-							v0 = opal->vram[vram_read_pixel_offset + copro_bank_offset[1] + opal->color_offset];
+							v0 = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[1] + opal->color_offset];
 							bidx = 0;
 						} else {
 							bidx = 1;
 						}
-						opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !copro_hires, false);
+						opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, !opal->copro_hires, false);
 
-						if (copro_hires) {
-							uae_u8 v1 = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + opal->color_offset] & opal->pixel_read_mask;
+						if (opal->copro_hires) {
+							uae_u8 v1 = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[bidx] + opal->color_offset] & opal->pixel_read_mask;
 							r = ((v0 >> 5) & 7) << (8 - 3);
 							g = ((v0 >> 2) & 7) << (8 - 3);
 							b = ((v0 >> 0) & 3) << (8 - 2);
-							pr = opal->vram[vram_read_pixel_offset + copro_bank_offset[bidx] + 2 * OPAL_SEGMENT_SIZE] & 1;
+							pr = opal->vram[vram_read_pixel_offset + opal->copro_bank_offset[bidx] + 2 * OPAL_SEGMENT_SIZE] & 1;
 							opal_pixel(opal, d, d2, s, s2, s_genlock, src, dst, r, g, b, pr, doublelines, false, true);
 						}
 					}
@@ -3068,7 +3154,7 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 					}
 				}
 
-				if (control_y && y >= control_y) {
+				if (opal->control_y && y >= opal->control_y) {
 				
 					if (opal_debug & 2)
 						write_log(_T("%02x."), val);
@@ -3076,7 +3162,7 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 					if (pixcnt >= 1 && pixcnt < 4) {
 
 						if (val != 0x00)
-							control_y = 0;
+							opal->control_y = 0;
 
 					} else if (pixcnt > 0) {
 
@@ -3088,21 +3174,21 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 						} else 	if (opal->colcopro) {
 
 							if ((pixcnt & 3) != 0) {
-								if (palcoprocnt < OPAL_MAXLINES) {
+								if (opal->palcoprocnt < OPAL_MAXLINES) {
 									if (opal->wren)
-										opal->copro[palcoprocnt] = val;
-								} else if (palcoprocnt == OPAL_MAXLINES + 7) {
+										opal->copro[opal->palcoprocnt] = val;
+								} else if (opal->palcoprocnt == OPAL_MAXLINES + 7) {
 									opal->video_command = val;
 									command_update = true;
 								} else if (val != 0x00) {
-									write_log(_T("COPRO %d = %02x\n"), palcoprocnt, val);
+									write_log(_T("COPRO %d = %02x\n"), opal->palcoprocnt, val);
 								}
-								palcoprocnt++;
+								opal->palcoprocnt++;
 							}
 
 						} else {
 
-							if (y == control_y) {
+							if (y == opal->control_y) {
 	
 								if (pixcnt == 5) {
 									opal->palette_load = val;
@@ -3117,29 +3203,29 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 									command_update = true;
 								}
 							}
-							if ((((y == control_y && pixcnt > 8) || (y > control_y)) && palcoprocnt < 4 * 256) && opal->wren) {
+							if ((((y == opal->control_y && pixcnt > 8) || (y > opal->control_y)) && opal->palcoprocnt < 4 * 256) && opal->wren) {
 								if (!(opal->video_command & 0x10)) {
 									// 6-bit palette (2 low bits are simply cleared)
 									val <<= 2;
 								}
-								opal->palette[(palcoprocnt + (opal->palette_load * 4)) & 1023] = val;
-								palcoprocnt++;
+								opal->palette[(opal->palcoprocnt + (opal->palette_load * 4)) & 1023] = val;
+								opal->palcoprocnt++;
 							}
 						}
 
-					} else if (pixcnt < 0 && y == control_y + 2) {
+					} else if (pixcnt < 0 && y == opal->control_y + 2) {
 
-						if (address_load_sync < 0 && val == 0xff)
-							address_load_sync = 0;
-						if (address_load_sync > 0 && address_load_sync < 4) {
-							if (address_load_sync == 1 && (val & 0xfe))
+						if (opal->address_load_sync < 0 && val == 0xff)
+							opal->address_load_sync = 0;
+						if (opal->address_load_sync > 0 && opal->address_load_sync < 4) {
+							if (opal->address_load_sync == 1 && (val & 0xfe))
 								write_log(_T("Address load %02x\n"), val);
 							opal->address_load <<= 8;
 							opal->address_load |= val;
 							opal->address_load &= (OPAL_SEGMENT_SIZE - 1);
 						}
-						if (address_load_sync >= 0)
-							address_load_sync++;
+						if (opal->address_load_sync >= 0)
+							opal->address_load_sync++;
 					}
 					if (pixcnt >= 0)
 						pixcnt++;
@@ -3153,13 +3239,13 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 			opal->color_offset = ((opal->video_command >> 6) & 3) * OPAL_SEGMENT_SIZE;
 		}
 
-		vram_write_offset += opal->rowbytes;
-		vram_write_offset &= (OPAL_SEGMENT_SIZE - 1);
+		opal->vram_write_offset += opal->rowbytes;
+		opal->vram_write_offset &= (OPAL_SEGMENT_SIZE - 1);
 
-		vram_read_offset += opal->rowbytes;
-		vram_read_offset &= (OPAL_SEGMENT_SIZE - 1);
+		opal->vram_read_offset += opal->rowbytes;
+		opal->vram_read_offset &= (OPAL_SEGMENT_SIZE - 1);
 
-		if (control_y && y >= control_y && (opal_debug & 2)) {
+		if (opal->control_y && y >= opal->control_y && (opal_debug & 2)) {
 			write_log(_T("\n"));
 		}
 
@@ -3167,16 +3253,17 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 			write_log(_T("\n"));
 		}
 
-		if (y == control_y + 3) {
-			control_y = 0;
+		if (y == opal->control_y + 3) {
+			opal->control_y = 0;
 		}
 
 		if (opal->opal && controlcnt >= OPAL_CONTROL_LINE_LENGTH) {
 			memcpy(opal->control_line, control_line_tmp, OPAL_CONTROL_LINE_LENGTH);
 			detected = opal->control_line[0] && opal->control_line[2] && !opal->control_line[1] && !opal->control_line[3];
+			opal->detected |= detected;
 			if (detected) {
-				palcoprocnt = 0;
-				control_y = y + 1;
+				opal->palcoprocnt = 0;
+				opal->control_y = y + 1;
 				uae_u8 *c = opal->control_line;
 				if (opal_debug & 1) {
 					write_log(_T("WREN=%d COPRO=%d AUTO=%d DP=%d FIELD=%d FM=%d Latch=%d FGrab=%d\n"),
@@ -3202,9 +3289,10 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		} else if (!opal->opal && controlcnt >= COLORBURST_CONTROL_LINE_LENGTH) {
 			memcpy(opal->control_line, control_line_tmp, COLORBURST_CONTROL_LINE_LENGTH);
 			detected = !opal->control_line[0] && !opal->control_line[2] && opal->control_line[1] && opal->control_line[3];
+			opal->detected |= detected;
 			if (detected) {
-				palcoprocnt = 0;
-				control_y = y + 1;
+				opal->palcoprocnt = 0;
+				opal->control_y = y + 1;
 				uae_u8 *c = opal->control_line;
 				if (opal_debug & 1) {
 					write_log(_T("WREN=%d COPRO=%d AUTO=%d S0=%d\n"),
@@ -3227,10 +3315,16 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 			}
 		}
 
+		if (yline >= 0)
+			break;
+
 		if (y >= yimgstart && !detected)
 			return false;
 
 	}
+
+	if (!opal->detected && y == yend)
+		return false;
 
 	if (opal->opal && monitor != MONITOREMU_OPALVISION) {
 		monitor = MONITOREMU_OPALVISION;
@@ -3244,26 +3338,26 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 	return true;
 }
 
-static bool do_opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool opal)
+static bool do_opalvision(struct vidbuffer *src, struct vidbuffer *dst, int line, bool opal)
 {
 	bool v;
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
-			v = opalvision(src, dst, false, lof_store ? 0 : 1, opal);
+			v = opalvision(src, dst, false, lof_store ? 0 : 1, line, opal);
 			if (v && currprefs.gfx_iscanlines > 1)
 				blank_generic(src, dst, lof_store ? 1 : 0);
 		} else {
-			v = opalvision(src, dst, false, 0, opal);
-			v |= opalvision(src, dst, false, 1, opal);
+			v = opalvision(src, dst, false, 0, line, opal);
+			v |= opalvision(src, dst, false, 1, line, opal);
 		}
 	} else {
-		v = opalvision(src, dst, true, 0, opal);
+		v = opalvision(src, dst, true, 0, line, opal);
 	}
 	return v;
 }
 
 
-static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *dst)
+static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *dst, int line)
 {
 	automatic = false;
 	if (currprefs.monitoremu == MONITOREMU_AUTO) {
@@ -3278,9 +3372,9 @@ static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *ds
 				v = do_avideo(src, dst);
 		}
 		if (!v)
-			v = do_opalvision(src, dst, true);
+			v = do_opalvision(src, dst, line, true);
 		if (!v)
-			v = do_opalvision(src, dst, false);
+			v = do_opalvision(src, dst, line, false);
 		return v;
 	} else if (currprefs.monitoremu == MONITOREMU_A2024) {
 		return a2024(src, dst);
@@ -3298,9 +3392,9 @@ static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *ds
 	} else if (currprefs.monitoremu == MONITOREMU_FIRECRACKER24) {
 		return do_firecracker24(src, dst);
 	} else if (currprefs.monitoremu == MONITOREMU_OPALVISION) {
-		return do_opalvision(src, dst, true);
+		return do_opalvision(src, dst, line, true);
 	} else if (currprefs.monitoremu == MONITOREMU_COLORBURST) {
-		return do_opalvision(src, dst, false);
+		return do_opalvision(src, dst, line, false);
 	}
 	return false;
 }
@@ -3308,7 +3402,7 @@ static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *ds
 
 bool emulate_specialmonitors(struct vidbuffer *src, struct vidbuffer *dst)
 {
-	if (!emulate_specialmonitors2(src, dst)) {
+	if (!emulate_specialmonitors2(src, dst, -1)) {
 		if (monitor) {
 			clearmonitor(dst);
 			monitor = 0;
@@ -3317,6 +3411,11 @@ bool emulate_specialmonitors(struct vidbuffer *src, struct vidbuffer *dst)
 		return false;
 	}
 	return true;
+}
+
+bool emulate_specialmonitors_line(struct vidbuffer *src, struct vidbuffer *dst, int line)
+{
+	return emulate_specialmonitors2(src, dst, line);
 }
 
 void specialmonitor_reset(void)
@@ -3341,5 +3440,28 @@ bool specialmonitor_need_genlock(void)
 	}
 	if (currprefs.genlock_image && currprefs.genlock)
 		return true;
+	return false;
+}
+
+bool specialmonitor_uses_control_lines(void)
+{
+	switch (currprefs.monitoremu) {
+		case MONITOREMU_GRAFFITI:
+		case MONITOREMU_HAM_E:
+		case MONITOREMU_HAM_E_PLUS:
+		case MONITOREMU_OPALVISION:
+		case MONITOREMU_COLORBURST:
+		return true;
+	}
+	return false;
+}
+
+bool specialmonitor_linebased(void)
+{
+	switch (currprefs.monitoremu) {
+		case MONITOREMU_OPALVISION:
+		case MONITOREMU_COLORBURST:
+		return true;
+	}
 	return false;
 }

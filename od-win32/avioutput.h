@@ -32,11 +32,11 @@ extern void AVIOutput_End (void);
 extern void AVIOutput_Begin (void);
 extern void AVIOutput_Release (void);
 extern void AVIOutput_Initialize (void);
-extern void AVIOutput_RGBinfo (int,int,int,int,int,int);
+extern void AVIOutput_RGBinfo (int,int,int,int,int,int,int,int);
 extern void AVIOutput_GetSettings (void);
 extern void AVIOutput_SetSettings (void);
 
-extern void Screenshot_RGBinfo (int,int,int,int,int,int);
+extern void Screenshot_RGBinfo (int,int,int,int,int,int,int,int);
 
 #define AVIAUDIO_AVI 1
 #define AVIAUDIO_WAV 2

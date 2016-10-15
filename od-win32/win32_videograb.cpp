@@ -47,7 +47,9 @@ static CComPtr<ICaptureGraphBuilder2> graphBuilder;
 static CComPtr<IFilterGraph2> filterGraph;
 static CComPtr<ISampleGrabber> sampleGrabber;
 static CComPtr<IMediaControl> mediaControl;
+static CComPtr<IMediaSeeking> mediaSeeking;
 static bool videoInitialized;
+static bool videoPaused;
 static long *frameBuffer;
 static long bufferSize;
 static int videoWidth, videoHeight;
@@ -57,8 +59,10 @@ void uninitvideograb(void)
 	write_log(_T("uninitvideograb\n"));
 
 	videoInitialized = false;
+	videoPaused = false;
 
 	sampleGrabber.Release();
+	mediaSeeking.Release();
 	if (mediaControl) {
 		mediaControl->Stop();
 	}
@@ -242,6 +246,8 @@ bool initvideograb(const TCHAR *filename)
 		return false;
 	}
 
+	hr = filterGraph->QueryInterface(IID_IMediaSeeking, (void**)&mediaSeeking);
+
 	hr = filterGraph->QueryInterface(IID_IMediaControl, (void**)&mediaControl);
 	if (FAILED(hr)) {
 		uninitvideograb();
@@ -249,6 +255,7 @@ bool initvideograb(const TCHAR *filename)
 	}
 	if (SUCCEEDED(mediaControl->Run())) {
 		videoInitialized = true;
+		write_log(_T("Playing '%s'\n"), filename ? filename : _T("<capture>"));
 		return true;
 	} else {
 		uninitvideograb();
@@ -256,14 +263,46 @@ bool initvideograb(const TCHAR *filename)
 	}
 }
 
-void pausevideograb(bool pause)
+uae_s64 getsetpositionvideograb(uae_s64 framepos)
 {
+	if (!videoInitialized || !mediaSeeking)
+		return 0;
+	LONGLONG pos;
+	HRESULT hr = mediaSeeking->SetTimeFormat(&TIME_FORMAT_FRAME);
+	if (FAILED(hr))
+		write_log(_T("SetTimeFormat format %08x\n"), hr);
+	if (framepos < 0) {
+		LONGLONG stoppos;
+		hr = mediaSeeking->GetPositions(&pos, &stoppos);
+		if (FAILED(hr)) {
+			write_log(_T("GetPositions failed %08x\n"), hr);
+			pos = 0;
+		}
+		return pos;
+	} else {
+		LONGLONG pos = framepos;
+		hr = mediaSeeking->SetPositions(&pos, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
+		if (FAILED(hr)) {
+			write_log(_T("SetPositions %lld failed %08x\n"), framepos, hr);
+		}
+		return 0;
+	}
+}
+
+void pausevideograb(int pause)
+{
+	HRESULT hr;
 	if (!videoInitialized)
 		return;
-	if (pause) {
-		mediaControl->Pause();
-	} else {
-		mediaControl->Run();
+	if (pause < 0) {
+		pause = videoPaused ? 0 : 1;
+	}
+	if (pause > 0) {
+		hr = mediaControl->Pause();
+		videoPaused = true;
+	} else if (pause == 0) {
+		hr = mediaControl->Run();
+		videoPaused = false;
 	}
 }
 

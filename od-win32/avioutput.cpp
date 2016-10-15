@@ -128,6 +128,13 @@ static AVICOMPRESSOPTIONS FAR * aOptions[] = { &videoOptions }; // array of poin
 static LPBITMAPINFOHEADER lpbi;
 static PCOMPVARS pcompvars;
 
+extern bool need_genlock_data;
+extern uae_u8 **row_map_genlock;
+
+static bool usealpha(void)
+{
+	return need_genlock_data != 0 && row_map_genlock && currprefs.genlock_image && currprefs.genlock_alpha;
+}
 
 void avi_message (const TCHAR *format,...)
 {
@@ -568,6 +575,8 @@ static int AVIOutput_AllocateVideo (void)
 		avioutput_bits = 24;
 	if (avioutput_bits > 24)
 		avioutput_bits = 24;
+	if (usealpha() && avioutput_bits == 24)
+		avioutput_bits = 32;
 	lpbi = (LPBITMAPINFOHEADER)xcalloc (uae_u8, lpbisize ());
 	lpbi->biSize = sizeof (BITMAPINFOHEADER);
 	lpbi->biWidth = aviout_width_out;
@@ -951,7 +960,12 @@ static int getFromRenderTarget(struct avientry *avie)
 						d[0] = v >> 0;
 						d[1] = v >> 8;
 						d[2] = v >> 16;
-						d += 3;
+						if (avioutput_bits == 32) {
+							d[3] = v >> 24;
+							d += 4;
+						} else {
+							d += 3;
+						}
 					}
 				}
 			} else if (bits == 16 || bits == 15) {
@@ -1014,7 +1028,7 @@ static int getFromDC (struct avientry *avie)
 
 static int rgb_type;
 
-void AVIOutput_RGBinfo (int rb, int gb, int bb, int rs, int gs, int bs)
+void AVIOutput_RGBinfo (int rb, int gb, int bb, int ab, int rs, int gs, int bs, int as)
 {
 	if (bs == 0 && gs == 5 && rs == 11)
 		rgb_type = 1;

@@ -104,7 +104,8 @@ int detected_screen_resolution;
 static int can_use_lores = 0, frame_res, frame_res_lace;
 static int resolution_count[RES_MAX + 1], lines_count;
 static bool center_reset;
-static bool need_genlock_data, init_genlock_data;
+static bool init_genlock_data;
+bool need_genlock_data;
 
 /* Lookup tables for dual playfields.  The dblpf_*1 versions are for the case
 that playfield 1 has the priority, dbplpf_*2 are used if playfield 2 has
@@ -509,6 +510,11 @@ void set_custom_limits (int w, int h, int dx, int dy)
 	int vrs = visible_right_stop;
 	int vts = visible_top_start;
 	int vbs = visible_bottom_stop;
+
+	if (specialmonitor_uses_control_lines()) {
+		w = -1;
+		h = -1;
+	}
 
 	if (w <= 0 || dx < 0) {
 		visible_left_start = 0;
