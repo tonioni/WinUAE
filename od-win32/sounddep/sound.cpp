@@ -47,6 +47,100 @@
 
 #define USE_XAUDIO 0
 
+// only in 8.1+ SDKs
+
+typedef enum _AUDIO_STREAM_CATEGORY {
+	AudioCategory_Other = 0,
+	AudioCategory_ForegroundOnlyMedia = 1,
+	AudioCategory_Communications = 3,
+	AudioCategory_Alerts = 4,
+	AudioCategory_SoundEffects = 5,
+	AudioCategory_GameEffects = 6,
+	AudioCategory_GameMedia = 7,
+	AudioCategory_GameChat = 8,
+	AudioCategory_Speech = 9,
+	AudioCategory_Movie = 10,
+	AudioCategory_Media = 11,
+} AUDIO_STREAM_CATEGORY;
+
+typedef enum AUDCLNT_STREAMOPTIONS {
+	AUDCLNT_STREAMOPTIONS_NONE = 0,
+	AUDCLNT_STREAMOPTIONS_RAW = 0x1,
+	AUDCLNT_STREAMOPTIONS_MATCH_FORMAT = 0x2
+} 	AUDCLNT_STREAMOPTIONS;
+DEFINE_ENUM_FLAG_OPERATORS(AUDCLNT_STREAMOPTIONS);
+
+typedef struct AudioClientProperties {
+	UINT32 cbSize;
+	BOOL bIsOffload;
+	AUDIO_STREAM_CATEGORY eCategory;
+	AUDCLNT_STREAMOPTIONS Options;
+} AudioClientProperties;
+
+EXTERN_C const IID IID_IAudioClient2;
+
+MIDL_INTERFACE("726778CD-F60A-4eda-82DE-E47610CD78AA")
+IAudioClient2 : public IAudioClient
+{
+public:
+	virtual HRESULT STDMETHODCALLTYPE IsOffloadCapable(
+		/* [annotation][in] */
+		_In_  AUDIO_STREAM_CATEGORY Category,
+		/* [annotation][in] */
+		_Out_  BOOL *pbOffloadCapable) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE SetClientProperties(
+		/* [annotation][in] */
+		_In_  const AudioClientProperties *pProperties) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE GetBufferSizeLimits(
+		/* [annotation][in] */
+		_In_  const WAVEFORMATEX *pFormat,
+		/* [annotation][in] */
+		_In_  BOOL bEventDriven,
+		/* [annotation][in] */
+		_Out_  REFERENCE_TIME *phnsMinBufferDuration,
+		/* [annotation][in] */
+		_Out_  REFERENCE_TIME *phnsMaxBufferDuration) = 0;
+
+};
+
+EXTERN_C const IID IID_IAudioClient3;
+
+MIDL_INTERFACE("7ED4EE07-8E67-4CD4-8C1A-2B7A5987AD42")
+IAudioClient3 : public IAudioClient2
+{
+public:
+	virtual HRESULT STDMETHODCALLTYPE GetSharedModeEnginePeriod(
+		/* [annotation][in] */
+		_In_  const WAVEFORMATEX *pFormat,
+		/* [annotation][out] */
+		_Out_  UINT32 *pDefaultPeriodInFrames,
+		/* [annotation][out] */
+		_Out_  UINT32 *pFundamentalPeriodInFrames,
+		/* [annotation][out] */
+		_Out_  UINT32 *pMinPeriodInFrames,
+		/* [annotation][out] */
+		_Out_  UINT32 *pMaxPeriodInFrames) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE GetCurrentSharedModeEnginePeriod(
+		/* [unique][annotation][out] */
+		_Out_  WAVEFORMATEX **ppFormat,
+		/* [annotation][out] */
+		_Out_  UINT32 *pCurrentPeriodInFrames) = 0;
+
+	virtual HRESULT STDMETHODCALLTYPE InitializeSharedAudioStream(
+		/* [annotation][in] */
+		_In_  DWORD StreamFlags,
+		/* [annotation][in] */
+		_In_  UINT32 PeriodInFrames,
+		/* [annotation][in] */
+		_In_  const WAVEFORMATEX *pFormat,
+		/* [annotation][in] */
+		_In_opt_  LPCGUID AudioSessionGuid) = 0;
+
+};
+
 struct sound_dp
 {
 	// directsound
@@ -91,13 +185,13 @@ struct sound_dp
 	// wasapi
 
 	IMMDevice *pDevice;
-	IAudioClient *pAudioClient;
+	IAudioClient3 *pAudioClient;
+	int AudioClientVersion;
 	IAudioRenderClient *pRenderClient;
 	ISimpleAudioVolume *pAudioVolume;
 	IMMDeviceEnumerator *pEnumerator;
 	IAudioClock *pAudioClock;
 	UINT64 wasapiclock;
-	REFERENCE_TIME hnsRequestedDuration;
 	UINT32 bufferFrameCount;
 	UINT64 wasapiframes;
 	int wasapiexclusive;
@@ -343,12 +437,21 @@ static void resume_audio_xaudio2 (struct sound_data *sd)
 }
 #endif
 
+static void wasapi_check_state(struct sound_data *sd, HRESULT hr)
+{
+	// 0x26 = AUDCLNT_E_RESOURCES_INVALIDATED
+	if (hr == AUDCLNT_E_DEVICE_INVALIDATED || hr == AUDCLNT_ERR(0x026)) {
+		sd->reset = true;
+	}
+}
+
 static void pause_audio_wasapi (struct sound_data *sd)
 {
 	struct sound_dp *s = sd->data;
 	HRESULT hr;
 
 	hr = s->pAudioClient->Stop ();
+	wasapi_check_state(sd, hr);
 	if (FAILED (hr)) {
 		write_log (_T("WASAPI: Stop() %08X\n"), hr);
 	}
@@ -361,20 +464,24 @@ static void resume_audio_wasapi (struct sound_data *sd)
 	int framecnt;
 
 	hr = s->pAudioClient->Reset ();
+	wasapi_check_state(sd, hr);
 	if (FAILED (hr)) {
 		write_log (_T("WASAPI: Reset() %08X\n"), hr);
 	}
 	framecnt = s->wasapigoodsize;
 	hr = s->pRenderClient->GetBuffer (framecnt, &pData);
+	wasapi_check_state(sd, hr);
 	if (FAILED (hr)) {
 		write_log(_T("WASAPI: Resume GetBuffer() %08X\n"), hr);
 		return;
 	}
 	hr = s->pRenderClient->ReleaseBuffer (framecnt, AUDCLNT_BUFFERFLAGS_SILENT);
+	wasapi_check_state(sd, hr);
 	if (FAILED(hr)) {
 		write_log(_T("WASAPI: Resume ReleaseBuffer() %08X\n"), hr);
 	}
 	hr = s->pAudioClient->Start ();
+	wasapi_check_state(sd, hr);
 	if (FAILED (hr)) {
 		write_log (_T("WASAPI: Start() %08X\n"), hr);
 	}
@@ -524,6 +631,7 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 	} else if (sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE || sd->devicetype == SOUND_DEVICE_WASAPI) {
 		sd->softvolume = -1;
 		hr = s->pAudioVolume->SetMasterVolume (1.0, NULL);
+		wasapi_check_state(sd, hr);
 		if (FAILED (hr))
 			write_log (_T("AudioVolume->SetMasterVolume(1.0) failed: %08Xs\n"), hr);
 		if (volume < 100 && !mute) {
@@ -727,7 +835,9 @@ static int open_audio_pa (struct sound_data *sd, int index)
 	TCHAR *errtxt;
 	int defaultrate = 0;
 
-	s->paframesperbuffer = sd->sndbufsize; 
+	if (sd->sndbufsize < 0x80)
+		sd->sndbufsize = 0x80;
+	s->paframesperbuffer = sd->sndbufsize;
 	s->pasndbufsize = s->paframesperbuffer;
 	sd->sndbufsize = s->pasndbufsize * ch * 2;
 	if (sd->sndbufsize > SND_MAX_BUFFER)
@@ -843,12 +953,16 @@ static int open_audio_al (struct sound_data *sd, int index)
 	char *name;
 	int size;
 
+	if (sd->sndbufsize < 0x80)
+		sd->sndbufsize = 0x80;
 	size = sd->sndbufsize;
 	sd->devicetype = SOUND_DEVICE_AL;
 	size *= ch * 2;
 	sd->sndbufsize = size / 8;
 	if (sd->sndbufsize > SND_MAX_BUFFER)
 		sd->sndbufsize = SND_MAX_BUFFER;
+	if (size < 512)
+		size = 512;
 	s->al_bufsize = size;
 	s->al_bigbuffer = xcalloc (uae_u8, s->al_bufsize);
 	name = ua (sound_devices[index]->alname);
@@ -1031,6 +1145,7 @@ static void close_audio_wasapi (struct sound_data *sd)
 
 static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 {
+	static const GUID audioguid = { 0x6a009123, 0xa0d5, 0x4d06, { 0xad, 0xac, 0x20, 0x1b, 0xe7, 0x31, 0x31, 0xd7 } };
 	HRESULT hr;
 	struct sound_dp *s = sd->data;
 	WAVEFORMATEX *pwfx = NULL;
@@ -1040,6 +1155,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	LPWSTR name = NULL;
 	int rn[4], rncnt;
 	AUDCLNT_SHAREMODE sharemode;
+	REFERENCE_TIME phnsMinimumDevicePeriod, hnsDefaultDevicePeriod;
 	int v;
 
 	sd->devicetype = exclusive ? SOUND_DEVICE_WASAPI_EXCLUSIVE : SOUND_DEVICE_WASAPI;
@@ -1055,9 +1171,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 		s->pullevent = CreateEvent(NULL, TRUE, FALSE, NULL);
 	}
 
-	hr = CoCreateInstance (__uuidof(MMDeviceEnumerator), NULL,
-		CLSCTX_ALL, __uuidof(IMMDeviceEnumerator),
-		(void**)&s->pEnumerator);
+	hr = CoCreateInstance (__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&s->pEnumerator);
 	if (FAILED (hr)) {
 		write_log (_T("WASAPI: %d\n"), hr);
 		goto error;
@@ -1078,10 +1192,15 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 		goto error;
 	}
 
-	hr = s->pDevice->Activate (__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&s->pAudioClient);
-	if (FAILED (hr)) {
-		write_log (_T("WASAPI: Activate() %d\n"), hr);
-		goto error;
+	s->AudioClientVersion = 3;
+	hr = s->pDevice->Activate(__uuidof(IAudioClient3), CLSCTX_ALL, NULL, (void**)&s->pAudioClient);
+	if (FAILED(hr)) {
+		s->AudioClientVersion = 1;
+		hr = s->pDevice->Activate (__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&s->pAudioClient);
+		if (FAILED (hr)) {
+			write_log (_T("WASAPI: Activate() %d\n"), hr);
+			goto error;
+		}
 	}
 
 	hr = s->pAudioClient->GetMixFormat (&pwfx);
@@ -1090,7 +1209,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 		goto error;
 	}
 
-	hr = s->pAudioClient->GetDevicePeriod (NULL, &s->hnsRequestedDuration);
+	hr = s->pAudioClient->GetDevicePeriod (&hnsDefaultDevicePeriod, &phnsMinimumDevicePeriod);
 	if (FAILED (hr)) {
 		write_log (_T("WASAPI: GetDevicePeriod() %08X\n"), hr);
 		goto error;
@@ -1169,7 +1288,38 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 		sd->freq = pwfx_saved->nSamplesPerSec;
 	}
 
-	int tmp_sndbufsize = sd->sndbufsize;
+	UINT32 DefaultDevicePeriod = (UINT32)( // frames =
+		1.0 * hnsDefaultDevicePeriod * // hns *
+		wavfmt.Format.nSamplesPerSec / // (frames / s) /
+		1000 / // (ms / s) /
+		10000 // (hns / s) /
+		+ 0.5); // rounding
+	UINT32  RequestedDuration = (UINT32)( // frames =
+		1.0 * phnsMinimumDevicePeriod * // hns *
+		wavfmt.Format.nSamplesPerSec / // (frames / s) /
+		1000 / // (ms / s) /
+		10000 // (hns / s) /
+		+ 0.5); // rounding
+
+	UINT32 DefaultPeriodInFrames = 0, FundamentalPeriodInFrames = 0, MinPeriodInFrames = 0, MaxPeriodInFrames = 0;
+	if (s->AudioClientVersion >= 3 && sharemode == AUDCLNT_SHAREMODE_SHARED) {
+		UINT32 CurrentPeriodInFrames;
+		WAVEFORMATEX *outwfx;
+		hr = s->pAudioClient->GetCurrentSharedModeEnginePeriod(&outwfx, &CurrentPeriodInFrames);
+		if (SUCCEEDED(hr)) {
+			write_log(_T("WASAPI: GetCurrentSharedModeEnginePeriod() CH=%d FREQ=%d BITS=%d CurrentPeriodInFrames=%u\n"),
+				outwfx->nChannels, outwfx->nSamplesPerSec, outwfx->wBitsPerSample, CurrentPeriodInFrames);
+		}
+		hr = s->pAudioClient->GetSharedModeEnginePeriod(pwfx ? pwfx : &wavfmt.Format, &DefaultPeriodInFrames, &FundamentalPeriodInFrames, &MinPeriodInFrames, &MaxPeriodInFrames);
+		if (SUCCEEDED(hr)) {
+			write_log(_T("WASAPI: GetSharedModeEnginePeriod() DPIF=%u FPIF=%u MinPIF=%u MaxPIF=%d\n"),
+				DefaultPeriodInFrames, FundamentalPeriodInFrames, MinPeriodInFrames, MaxPeriodInFrames);
+		}
+	}
+
+
+	// magic adjustment
+	sd->sndbufsize = sd->sndbufsize * 2 / 3;
 
 	sd->samplesize = sd->channels * 16 / 8;
 	if (sd->sndbufsize > SND_MAX_BUFFER)
@@ -1177,52 +1327,113 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 
 	s->snd_configsize = sd->sndbufsize * sd->samplesize;
 
-	s->bufferFrameCount = (UINT32)( // frames =
-		1.0 * s->hnsRequestedDuration * // hns *
-		wavfmt.Format.nSamplesPerSec / // (frames / s) /
-		1000 / // (ms / s) /
-		10000 // (hns / s) /
-		+ 0.5); // rounding
+	s->bufferFrameCount = sd->sndbufsize;
+	REFERENCE_TIME hnsRequestedDuration = // hns =
+		(REFERENCE_TIME)(
+		10000.0 * // (hns / ms) *
+		1000 * // (ms / s) *
+		s->bufferFrameCount / // frames /
+		wavfmt.Format.nSamplesPerSec  // (frames / s)
+		+ 0.5 // rounding
+		);
 
-	if (s->bufferFrameCount < sd->sndbufsize) {
-		s->bufferFrameCount = sd->sndbufsize;
-		s->hnsRequestedDuration = // hns =
-			(REFERENCE_TIME)(
-			10000.0 * // (hns / ms) *
-			1000 * // (ms / s) *
-			s->bufferFrameCount / // frames /
-			wavfmt.Format.nSamplesPerSec  // (frames / s)
-			+ 0.5 // rounding
-			);
+
+	if (s->AudioClientVersion >= 3) {
+		BOOL cap = FALSE;
+		hr = s->pAudioClient->IsOffloadCapable(AudioCategory_Media, &cap);
+		write_log(_T("WASAPI: IsOffloadCapable() returned %d %08x\n"), cap, hr);
 	}
 
-	hr = s->pAudioClient->Initialize (sharemode, AUDCLNT_STREAMFLAGS_NOPERSIST | (s->pullmode ? AUDCLNT_STREAMFLAGS_EVENTCALLBACK : 0),
-		s->hnsRequestedDuration, s->wasapiexclusive ? s->hnsRequestedDuration : 0, pwfx ? pwfx : &wavfmt.Format, NULL);
-	if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED) {
-		hr = s->pAudioClient->GetBufferSize (&s->bufferFrameCount);
-		if (FAILED (hr)) {
-			write_log (_T("WASAPI: GetBufferSize() %08X\n"), hr);
-			goto error;
+	int loop = 0;
+	for (;;) {
+		loop++;
+
+		if (s->AudioClientVersion >= 3) {
+			AudioClientProperties props;
+			props.bIsOffload = FALSE;
+			props.cbSize = sizeof props;
+			props.eCategory = AudioCategory_Media;
+			props.Options = AUDCLNT_STREAMOPTIONS_MATCH_FORMAT;
+			hr = s->pAudioClient->SetClientProperties(&props);
+			if (FAILED(hr)) {
+				write_log(_T("WASAPI: SetClientProperties() %08X\n"), hr);
+			}
 		}
-		s->pAudioClient->Release ();
-		s->hnsRequestedDuration = // hns =
-			(REFERENCE_TIME)(
-			10000.0 * // (hns / ms) *
-			1000 * // (ms / s) *
-			s->bufferFrameCount / // frames /
-			wavfmt.Format.nSamplesPerSec  // (frames / s)
-			+ 0.5 // rounding
-			);
-		s->hnsRequestedDuration *= sd->sndbufsize / 512;
-		hr = s->pDevice->Activate (__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&s->pAudioClient);
+
+		hr = E_FAIL;
+		if (s->AudioClientVersion >= 3 && sharemode == AUDCLNT_SHAREMODE_SHARED && DefaultPeriodInFrames) {
+			// this InitializeSharedAudioStream when requesting shared mode buffer that is smaller than 10ms.
+			// default wasapi shared mode is min 10ms.
+			int p10ms = sd->freq / 100;
+			if (s->bufferFrameCount <= p10ms) {
+				UINT32 period = s->bufferFrameCount;
+				period /= FundamentalPeriodInFrames;
+				period *= FundamentalPeriodInFrames;
+				if (period < MinPeriodInFrames)
+					period = MinPeriodInFrames;
+				if (period > MaxPeriodInFrames)
+					period = MaxPeriodInFrames;
+				hr = s->pAudioClient->InitializeSharedAudioStream(AUDCLNT_STREAMFLAGS_EVENTCALLBACK, period, pwfx ? pwfx : &wavfmt.Format, &audioguid);
+				write_log(_T("WASAPI: InitializeSharedAudioStream() Period=%u. HRESULT=%08x\n"), period, hr);
+				if (SUCCEEDED(hr)) {
+					UINT32 CurrentPeriodInFrames;
+					WAVEFORMATEX *outwfx;
+					HRESULT hr2 = s->pAudioClient->GetCurrentSharedModeEnginePeriod(&outwfx, &CurrentPeriodInFrames);
+					if (SUCCEEDED(hr2)) {
+						write_log(_T("WASAPI: GetCurrentSharedModeEnginePeriod() CH=%d FREQ=%d BITS=%d CurrentPeriodInFrames=%u\n"),
+							outwfx->nChannels, outwfx->nSamplesPerSec, outwfx->wBitsPerSample, CurrentPeriodInFrames);
+					}
+				}
+			}
+		} else if (s->bufferFrameCount == 0) {
+			hnsRequestedDuration = phnsMinimumDevicePeriod;
+		}
+		if (FAILED(hr)) {
+			hr = s->pAudioClient->Initialize (sharemode, AUDCLNT_STREAMFLAGS_NOPERSIST | (s->pullmode ? AUDCLNT_STREAMFLAGS_EVENTCALLBACK : 0),
+				hnsRequestedDuration, s->wasapiexclusive ? hnsRequestedDuration : 0, pwfx ? pwfx : &wavfmt.Format, &audioguid);
+		}
+		if (SUCCEEDED(hr))
+			break;
+		if (loop > 1)
+			goto error;
+		if (hr == AUDCLNT_E_BUFFER_SIZE_ERROR) {
+			write_log(_T("WASAPI: AUDCLNT_E_BUFFER_SIZE_ERROR: %d\n"), s->bufferFrameCount);
+			hr = s->pAudioClient->GetDevicePeriod(NULL, &hnsRequestedDuration);
+			if (FAILED(hr)) {
+				write_log(_T("WASAPI: GetDevicePeriod() %08X\n"), hr);
+				goto error;
+			}
+			s->bufferFrameCount = (UINT32)( // frames =
+				1.0 * hnsRequestedDuration * // hns *
+				wavfmt.Format.nSamplesPerSec / // (frames / s) /
+				1000 / // (ms / s) /
+				10000 // (hns / s) /
+				+ 0.5); // rounding
+		} else if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED) {
+			UINT32 obfc = s->bufferFrameCount;
+			hr = s->pAudioClient->GetBufferSize (&s->bufferFrameCount);
+			if (FAILED (hr)) {
+				write_log (_T("WASAPI: GetBufferSize() %08X\n"), hr);
+				goto error;
+			}
+			write_log(_T("WASAPI: AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED: %d -> %d\n"), obfc, s->bufferFrameCount);
+			hnsRequestedDuration = // hns =
+				(REFERENCE_TIME)(
+				10000.0 * // (hns / ms) *
+				1000 * // (ms / s) *
+				s->bufferFrameCount / // frames /
+				wavfmt.Format.nSamplesPerSec  // (frames / s)
+				+ 0.5 // rounding
+				);
+		} else {
+			break;
+		}
+		s->pAudioClient->Release();
+		hr = s->pDevice->Activate (s->AudioClientVersion >= 3 ?__uuidof(IAudioClient3) : __uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&s->pAudioClient);
 		if (FAILED (hr)) {
 			write_log (_T("WASAPI: Activate() %08X\n"), hr);
 			goto error;
 		}
-		hr = s->pAudioClient->Initialize (sharemode, AUDCLNT_STREAMFLAGS_NOPERSIST | (s->pullmode ? AUDCLNT_STREAMFLAGS_EVENTCALLBACK : 0),
-			s->hnsRequestedDuration, s->wasapiexclusive ? s->hnsRequestedDuration : 0, pwfx ? pwfx : &wavfmt.Format, NULL);
-	} else if (hr == AUDCLNT_E_BUFFER_SIZE_ERROR) {
-		write_log(_T("AUDCLNT_E_BUFFER_SIZE_ERROR %d\n"), s->bufferFrameCount);
 	}
 	if (FAILED (hr)) {
 		write_log (_T("WASAPI: Initialize() %08X\n"), hr);
@@ -1242,15 +1453,6 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 		write_log (_T("WASAPI: GetBufferSize() %08X\n"), hr);
 		goto error;
 	}
-
-	s->hnsRequestedDuration = // hns =
-		(REFERENCE_TIME)(
-		10000.0 * // (hns / ms) *
-		1000 * // (ms / s) *
-		s->bufferFrameCount / // frames /
-		wavfmt.Format.nSamplesPerSec  // (frames / s)
-		+ 0.5 // rounding
-		);
 
 	hr = s->pAudioClient->GetService (__uuidof(IAudioRenderClient), (void**)&s->pRenderClient);
 	if (FAILED (hr)) {
@@ -1332,6 +1534,8 @@ static int open_audio_ds (struct sound_data *sd, int index)
 	int size;
 
 	sd->devicetype = SOUND_DEVICE_DS;
+	if (sd->sndbufsize < 0x80)
+		sd->sndbufsize = 0x80;
 	size = sd->sndbufsize * ch * 2;
 	s->snd_configsize = size;
 	sd->sndbufsize = size / 32;
@@ -1341,10 +1545,9 @@ static int open_audio_ds (struct sound_data *sd, int index)
 	s->max_sndbufsize = size * 4;
 	if (s->max_sndbufsize > SND_MAX_BUFFER2)
 		s->max_sndbufsize = SND_MAX_BUFFER2;
+
 	s->dsoundbuf = s->max_sndbufsize * 2;
 
-	if (s->dsoundbuf < DSBSIZE_MIN)
-		s->dsoundbuf = DSBSIZE_MIN;
 	if (s->dsoundbuf > DSBSIZE_MAX)
 		s->dsoundbuf = DSBSIZE_MAX;
 
@@ -1572,8 +1775,6 @@ static int open_sound (void)
 	two anyway).  */
 	size >>= 2;
 	size &= ~63;
-	if (size < 64)
-		size = 64;
 
 	sdp->softvolume = -1;
 	num = enumerate_sound_devices ();
@@ -1686,10 +1887,10 @@ static void disable_sound (void)
 	currprefs.produce_sound = changed_prefs.produce_sound = 1;
 }
 
-static void reopen_sound (void)
+static int reopen_sound (void)
 {
 	close_sound ();
-	open_sound ();
+	return open_sound ();
 }
 
 #define cf(x) if ((x) >= s->dsoundbuf) (x) -= s->dsoundbuf;
@@ -1919,6 +2120,7 @@ static void finish_sound_buffer_wasapi_push(struct sound_data *sd, uae_u16 *sndb
 
 	for (;;) {
 		hr = s->pAudioClient->GetCurrentPadding (&numFramesPadding);
+		wasapi_check_state(sd, hr);
 		if (FAILED (hr)) {
 			write_log (_T("WASAPI: GetCurrentPadding() %08X\n"), hr);
 			return;
@@ -1947,6 +2149,7 @@ static void finish_sound_buffer_wasapi_push(struct sound_data *sd, uae_u16 *sndb
 	docorrection (s, (s->wasapigoodsize - avail) * 1000 / s->wasapigoodsize, s->wasapigoodsize - avail, 100);
 
 	hr = s->pRenderClient->GetBuffer (sd->sndbufframes, &pData);
+	wasapi_check_state(sd, hr);
 	if (SUCCEEDED (hr)) {
 		if (silence)
 			memset(pData, 0, sd->sndbufsize);
@@ -1972,8 +2175,10 @@ static bool finish_sound_buffer_wasapi_pull_do(struct sound_data *sd)
 	if (!s->wasapiexclusive) {
 		UINT32 numFramesPadding;
 		hr = s->pAudioClient->GetCurrentPadding(&numFramesPadding);
+		wasapi_check_state(sd, hr);
 		if (FAILED(hr)) {
 			write_log(_T("WASAPI: GetCurrentPadding() %08X\n"), hr);
+			s->pullbufferlen = 0;
 			return false;
 		}
 		avail = s->bufferFrameCount - numFramesPadding;
@@ -1986,6 +2191,7 @@ static bool finish_sound_buffer_wasapi_pull_do(struct sound_data *sd)
 	ResetEvent(s->pullevent);
 
 	hr = s->pRenderClient->GetBuffer(avail, &pData);
+	wasapi_check_state(sd, hr);
 	if (SUCCEEDED(hr)) {
 		memcpy(pData, s->pullbuffer, avail * sd->samplesize);
 		hr = s->pRenderClient->ReleaseBuffer(avail, 0);
@@ -2349,10 +2555,37 @@ bool audio_finish_pull(void)
 	return false;
 }
 
+static void handle_reset(void)
+{
+	sdp->reset = false;
+	if (!reopen_sound() || sdp->reset) {
+		write_log(_T("Reopen sound failed. Retrying with default device.\n"));
+		close_sound();
+		int type = sound_devices[currprefs.win32_soundcard]->type;
+		int max = enumerate_sound_devices();
+		for (int i = 0; i < max; i++) {
+			if (sound_devices[i]->alname == NULL && sound_devices[i]->type == type) {
+				currprefs.win32_soundcard = changed_prefs.win32_soundcard = i;
+				if (open_sound())
+					return;
+				break;
+			}
+		}
+	}
+	currprefs.produce_sound = changed_prefs.produce_sound = 1;
+}
+
+
 void finish_sound_buffer (void)
 {
 	static unsigned long tframe;
 	int bufsize = (uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer;
+
+	if (sdp->reset) {
+		handle_reset();
+		paula_sndbufpt = paula_sndbuffer;
+		return;
+	}
 
 	if (currprefs.turbo_emulation) {
 		paula_sndbufpt = paula_sndbuffer;
