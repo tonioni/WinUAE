@@ -19,6 +19,7 @@ typedef struct NE2000State {
     uint32_t rsar;
     uint8_t rsr;
     uint8_t rxcr;
+	uint8_t txcr;
     uint8_t isr;
     uint8_t dcfg;
     uint8_t imr;
@@ -30,7 +31,13 @@ typedef struct NE2000State {
     NICConf c;
     uint8_t mem[NE2000_MEM_SIZE];
 	pci_dev_irq irq_callback;
-	bool toggle;
+	uint8_t e9346cr;
+	uint8_t config[4];
+	uint8_t fifo[8];
+	uint32_t fifo_offset;
+	void *eeprom;
+	bool byteswapsupported;
+	uae_u8 idbytes[2];
 } NE2000State;
 
 #if 0

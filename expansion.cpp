@@ -726,7 +726,7 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 			return;
 		}
 		if (expamem_autoconfig_mode) {
-			map_banks_z2(cd->aci.addrbank, expamem_board_pointer >> 16, expamem_board_size >> 16);
+			map_banks_z3(cd->aci.addrbank, expamem_board_pointer >> 16, expamem_board_size >> 16);
 			cd->aci.postinit = true;
 			cd->initrc(&cd->aci);
 			expamem_next(cd->aci.addrbank, NULL);
@@ -4707,6 +4707,33 @@ const struct expansionromtype expansionroms[] = {
 		0, 0, 0, false, NULL,
 		false, 0, NULL,
 		{ 0xc1, 0xca, 0x00, 0x00, 2167 >> 8, 2167 & 255, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
+	},
+	{
+		_T("xsurf"), _T("X-Surf"), _T("Individual Computers"),
+		xsurf_init, NULL, NULL, ROMTYPE_XSURF | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_NET,
+		0, 0, 0, false, NULL,
+		false, 0, NULL,
+		{ 0xc1, 0x17, 0x00, 0x00, 4626 >> 8, 4626 & 255, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
+	},
+	{
+		_T("xsurf100z2"), _T("X-Surf-100 Z2"), _T("Individual Computers"),
+		xsurf100_init, NULL, NULL, ROMTYPE_XSURF100Z2 | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_NET,
+		0, 0, 0, false, NULL,
+		false, 0, NULL,
+		{ 0xc1, 0x64, 0x10, 0x00, 4626 >> 8, 4626 & 255, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00 }
+	},
+	{
+		_T("xsurf100z3"), _T("X-Surf-100 Z3"), _T("Individual Computers"),
+		xsurf100_init, NULL, NULL, ROMTYPE_XSURF100Z3 | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z3, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_NET,
+		0, 0, 0, false, NULL,
+		false, 0, NULL,
+		{ 0x82, 0x64, 0x32, 0x00, 4626 >> 8, 4626 & 255, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00 }
 	},
 	{
 		_T("ne2000_pcmcia"), _T("NE2000 PCMCIA"), NULL,

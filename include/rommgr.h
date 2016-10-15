@@ -138,6 +138,9 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_HARLEQUIN	0x00100055
 #define ROMTYPE_DATAFLYER	0x00100056
 #define ROMTYPE_ARIADNE2	0x00100057
+#define ROMTYPE_XSURF		0x00100058
+#define ROMTYPE_XSURF100Z2	0x00100059
+#define ROMTYPE_XSURF100Z3	0x0010005a
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000

@@ -30,10 +30,16 @@
 #include "memory.h"
 #include "autoconf.h"
 #include "rommgr.h"
+#include "flashrom.h"
+#include "newcpu.h"
+#include "custom.h"
+#include "debug.h"
 
 #include "qemuuaeglue.h"
 #include "queue.h"
 #include "threaddep/thread.h"
+
+//#define DEBUG_NE2000
 
 struct NetClientState
 {
@@ -225,6 +231,14 @@ static void ne2000_reset2(NE2000State *s)
         s->mem[2 * i] = s->mem[i];
         s->mem[2 * i + 1] = s->mem[i];
     }
+
+	/* 10baseT media */
+	s->config[0] = 0;
+	/* 10baseT active */
+	s->config[2] = 0x40;
+	/* Full duplex */
+	s->config[3] = 0x40;
+	s->config[1] = 0;
 }
 
 static void ne2000_update_irq(NE2000State *s)
@@ -382,7 +396,7 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             s->isr &= ~ENISR_RESET;
             /* test specific case: zero length transfer */
             if ((val & (E8390_RREAD | E8390_RWRITE)) && s->tcnt == 0) {
-                s->isr |= ENISR_RDC;
+				s->isr |= ENISR_RDC;
                 ne2000_update_irq(s);
             }
             if (val & E8390_TRANS) {
@@ -401,7 +415,60 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 #ifdef DEBUG_NE2000
 					write_log("NE2000: %d byte transmit\n", s->tcnt);
 #endif
-					ethernet_trigger(td, sysdata);
+					// loop back special case
+					if (!(s->dcfg & 8)) {
+						uae_u8 *p;
+						int loopbackmode = (s->txcr >> 1) & 3;
+						bool crcmode = (s->txcr & 1) != 0;
+						uint32_t crc1, crc2;
+						// loopback mode uses 16-bit transfers but even bytes are ignored.
+						int byteoffset = s->byteswapsupported && (s->dcfg & 2)  ? 0 : 1;
+						int looplen = transmitlen / 2;
+						uae_u8 *loop = xmalloc(uae_u8, looplen + 4);
+						for (int i = 0; i < looplen; i++) {
+							loop[i] = transmitbuffer[i * 2 + byteoffset];
+						}
+						bool macmatch = memcmp(loop + 0, loop + 6, 6) == 0;
+						// transmit checksum handling
+						if (!crcmode) {
+							// append checksum
+							crc1 = get_crc32(loop, looplen);
+							loop[looplen + 3] = (crc1 >> 24) & 0xff;
+							loop[looplen + 2] = (crc1 >> 16) & 0xff;
+							loop[looplen + 1] = (crc1 >>  8) & 0xff;
+							loop[looplen + 0] = (crc1 >>  0) & 0xff;
+							looplen += 4;
+						}
+						p = loop;
+#ifdef DEBUG_NE2000
+						write_log(_T("SMAC %02x.%02x.%02x.%02x.%02x.%02x DMAC %02x.%02x.%02x.%02x.%02x.%02x\n"),
+							p[0], p[1], p[2], p[3], p[4], p[5],
+							p[6], p[7], p[8], p[9], p[10], p[11]);
+#endif
+
+						// receive checksum handling
+						crc1 = get_crc32(loop, looplen - 4);
+						p = loop + looplen - 4;
+						crc2 = (p[3] << 24) | (p[2] << 16) | (p[1] << 8) | (p[0]);
+						if (macmatch && (!crcmode || (crcmode && crc1 != crc2))) {
+							s->rsr = ENRSR_CRC;
+							s->isr |= ENISR_RX_ERR;
+						} else {
+							s->rsr = ENRSR_RXOK;
+						}
+						s->tsr = ENTSR_PTX | ENTSR_CDH;
+						if (loopbackmode == 1) {
+							s->tsr |= ENTSR_CRS;
+						}
+						s->fifo[3] = (crc1 >> 24) & 0xff;
+						s->fifo[2] = (crc1 >> 16) & 0xff;
+						s->fifo[1] = (crc1 >>  8) & 0xff;
+						s->fifo[0] = (crc1 >>  0) & 0xff;
+						s->fifo_offset = 0;
+						xfree(loop);
+					} else {
+						ethernet_trigger(td, sysdata);
+					}
 #if 0
 					qemu_send_packet(qemu_get_queue(s->nic), s->mem + index, s->tcnt);
 #endif
@@ -448,10 +515,13 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         case EN0_RCNTHI:
             s->rcnt = (s->rcnt & 0x00ff) | (val << 8);
             break;
-        case EN0_RXCR:
-            s->rxcr = val;
-            break;
-        case EN0_DCFG:
+		case EN0_RXCR:
+			s->rxcr = val;
+			break;
+		case EN0_TXCR:
+			s->txcr = val;
+			break;
+		case EN0_DCFG:
             s->dcfg = val;
             break;
         case EN0_ISR:
@@ -477,14 +547,37 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 		case EN1_MULT + 5:
 		case EN1_MULT + 6:
 		case EN1_MULT + 7:
-		s->mult[offset - EN1_MULT] = val;
+			s->mult[offset - EN1_MULT] = val;
             break;
 		case EN3_9346CR:
-			// auto-load?
-			if ((val >> 6) == 1)
+			s->e9346cr = val;
+			if ((val >> 6) == 1) {
+				// auto-load mode: end it immdiately.
+				s->config[0] = eeprom93xx_read_byte(s->eeprom, 0);
+				s->config[1] = eeprom93xx_read_byte(s->eeprom, 1);
+				s->config[2] = eeprom93xx_read_byte(s->eeprom, 2);
+				s->config[3] = eeprom93xx_read_byte(s->eeprom, 3);
 				s->cmd = 0x21;
+				write_log(_T("RTL8029 autoload: %02x %02x %02x %02x\n"),
+					s->config[0], s->config[1], s->config[2], s->config[3]);
+			} else if ((val >> 6) == 2) {
+				// 9346 programming
+				eeprom93xx_write(s->eeprom, (val >> 3) & 1, (val >> 2) & 1, (val >> 1) & 1);
+			}
 			break;
-        }
+		case EN3_CONFIG0:
+		case EN3_CONFIG1:
+		case EN3_CONFIG2:
+		case EN3_CONFIG3:
+			write_log(_T("CONFIG%d=%02x 9346CR=%02x\n"), offset - EN3_CONFIG0, val, s->e9346cr);
+			if ((s->e9346cr >> 6) == 3) {
+				s->config[offset - EN3_CONFIG0] = val;
+			}
+			break;
+		default:
+			write_log(_T("WRITE %02x\n"), offset);
+			break;
+		}
     }
 }
 
@@ -500,10 +593,15 @@ static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
         ret = s->cmd;
     } else {
         switch(offset) {
-        case EN0_TSR:
-            ret = s->tsr;
-            break;
-        case EN0_BOUNDARY:
+		case EN0_FIFO:
+			ret = s->fifo[s->fifo_offset];
+			s->fifo_offset++;
+			s->fifo_offset &= 7;
+			break;
+		case EN0_TSR:
+			ret = s->tsr;
+			break;
+		case EN0_BOUNDARY:
             ret = s->boundary;
             break;
         case EN0_ISR:
@@ -539,32 +637,55 @@ static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
         case EN0_RSR:
             ret = s->rsr;
             break;
-        case EN2_STARTPG:
-            ret = s->start >> 8;
-            break;
-        case EN2_STOPPG:
-            ret = s->stop >> 8;
-            break;
 		case EN0_RTL8029ID0:
-			ret = 0x50;
+			ret = s->idbytes[0]; // 0x50;
 			break;
 		case EN0_RTL8029ID1:
-			ret = 0x43;
+			ret = s->idbytes[1]; // 0x43;
 			break;
+
+		case EN2_STARTPG:
+			ret = s->start >> 8;
+			break;
+		case EN2_STOPPG:
+			ret = s->stop >> 8;
+			break;
+		case EN0_TPSR + 0x20:
+			ret = s->tpsr;
+			break;
+		case EN0_IMR + 0x20:
+			ret = s->imr;
+			break;
+		case EN0_DCFG + 0x20:
+			ret = s->dcfg;
+			break;
+		case EN0_TXCR + 0x20:
+			ret = s->txcr;
+			break;
+		case EN0_RXCR + 0x20:
+			ret = s->rxcr;
+			break;
+
 		case EN3_CONFIG0:
-			ret = 0;		/* 10baseT media */
+			ret = s->config[0];
+			break;
+		case EN3_CONFIG1:
+			ret = s->config[1];
 			break;
 		case EN3_CONFIG2:
-			ret = 0x40;		/* 10baseT active */
+			ret = s->config[2];
 			break;
 		case EN3_CONFIG3:
-			ret = 0x40;		/* Full duplex */
+			ret = s->config[3];
 			break;
+
 		case EN3_9346CR:
-			ret = s->toggle ? 1 : 0;
-			s->toggle = !s->toggle;
+			s->e9346cr &= ~1;
+			s->e9346cr |= eeprom93xx_read(s->eeprom) ? 1 : 0;
+			ret = s->e9346cr;
 			break;
         default:
+			write_log(_T("READ %02x\n"), offset);
             ret = 0x00;
             break;
         }
@@ -659,14 +780,19 @@ static void ne2000_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     NE2000State *s = (NE2000State*)opaque;
 
 #ifdef DEBUG_NE2000
-    write_log("NE2000: asic write val=0x%04x\n", val);
+    write_log("NE2000: asic write val=0x%04x addr=%08x cnt=%08x\n", val, s->rsar, s->rcnt, s->rcnt);
 #endif
     if (s->rcnt == 0)
         return;
     if (s->dcfg & 0x01) {
-        /* 16 bit access */
+		/* 16 bit access */
+		if (s->byteswapsupported && (s->dcfg & 0x02)) {
+			val &= 0xffff;
+			val = (val >> 8) | (val << 8);
+			val &= 0xffff;
+		}
 		ne2000_mem_writew(s, s->rsar, val);
-        ne2000_dma_update(s, 2);
+		ne2000_dma_update(s, 2);
     } else {
         /* 8 bit access */
         ne2000_mem_writeb(s, s->rsar, val);
@@ -678,18 +804,26 @@ static uint32_t ne2000_asic_ioport_read(void *opaque, uint32_t addr)
 {
     NE2000State *s = (NE2000State*)opaque;
     int ret;
+#ifdef DEBUG_NE2000
+	uint32_t rsasr = s->rsar;
+#endif
 
     if (s->dcfg & 0x01) {
         /* 16 bit access */
         ret = ne2000_mem_readw(s, s->rsar);
-        ne2000_dma_update(s, 2);
+		if (s->byteswapsupported && (s->dcfg & 0x02)) {
+			ret &= 0xffff;
+			ret = (ret >> 8) | (ret << 8);
+			ret &= 0xffff;
+		}
+		ne2000_dma_update(s, 2);
     } else {
         /* 8 bit access */
         ret = ne2000_mem_readb(s, s->rsar);
         ne2000_dma_update(s, 1);
     }
 #ifdef DEBUG_NE2000
-    write_log("NE2000: asic read val=0x%04x\n", ret);
+    write_log("NE2000: asic read val=0x%04x addr=%08x cnt=%08x\n", ret, rsasr, s->rcnt);
 #endif
     return ret;
 }
@@ -786,8 +920,7 @@ static const VMStateDescription vmstate_pci_ne2000 = {
 };
 #endif
 
-static uint64_t ne2000_read(void *opaque, hwaddr addr,
-                            unsigned size)
+static uint64_t ne2000_read(void *opaque, hwaddr addr, unsigned size)
 {
 	uint64_t v;
     NE2000State *s = (NE2000State*)opaque;
@@ -816,8 +949,7 @@ static uint64_t ne2000_read(void *opaque, hwaddr addr,
 	return v;
 }
 
-static void ne2000_write(void *opaque, hwaddr addr,
-                         uint64_t data, unsigned size)
+static void ne2000_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
     NE2000State *s = (NE2000State*)opaque;
 
@@ -1049,8 +1181,27 @@ static void ne2000_free(struct pci_board_state *pcibs)
 	sysdata = NULL;
 	xfree(receive_buffer);
 	receive_buffer = NULL;
+	if (ncs.ne2000state)
+		eeprom93xx_free(ncs.ne2000state->eeprom);
 	uae_sem_destroy(&ne2000_sem);
 }
+
+static void ne2000_setident(void *opaque, uae_u8 id0, uae_u8 id1)
+{
+	NE2000State *s = (NE2000State*)opaque;
+	s->idbytes[0] = id0;
+	s->idbytes[1] = id1;
+
+}
+static void ne2000_byteswapsupported(void *opaque)
+{
+	NE2000State *s = (NE2000State*)opaque;
+	s->byteswapsupported = true;
+}
+
+static uae_u8 e9346[128] = {
+	0x80, 0x00, 0x10, 0x00 // CONFIG1-4
+};
 
 static bool ne2000_init(struct pci_board_state *pcibs)
 {
@@ -1070,6 +1221,10 @@ static bool ne2000_init(struct pci_board_state *pcibs)
 	uae_u8 *m = ncs.ne2000state->c.macaddr.a;
 	const TCHAR *name = currprefs.ne2000pciname[0] ? currprefs.ne2000pciname : currprefs.ne2000pcmcianame; // hack!
 	memset(m, 0, 6);
+
+	if (name[0] == 0)
+		name = _T("slirp");
+
 	if (ethernet_enumerate(&td, name)) {
 		memcpy(m, td->mac, 6);
 		if (!m[0] && !m[1] && !m[2]) {
@@ -1100,6 +1255,18 @@ static bool ne2000_init(struct pci_board_state *pcibs)
 			return false;
 		}
 	}
+
+	ncs.ne2000state->idbytes[0] = 0x50;
+	ncs.ne2000state->idbytes[1] = 0x43;
+
+	e9346[4] = m[0];
+	e9346[5] = m[1];
+	e9346[6] = m[2];
+	e9346[7] = m[3];
+	e9346[8] = m[4];
+	e9346[9] = m[5];
+	ncs.ne2000state->eeprom = eeprom93xx_new(e9346, 64, NULL);
+
 	return true;
 }
 
@@ -1124,94 +1291,534 @@ const struct pci_board ne2000_pci_board =
 	}
 };
 
-static struct pci_board_state *ariadne2_board_state;
+static const uae_u8 rt_pnp_init_key[] =
+{
+	0xDA, 0x6D, 0x36, 0x1B, 0x8D, 0x46, 0x23, 0x91, 0x48, 0xA4, 0xD2, 0x69, 0x34, 0x9A, 0x4D, 0x26,
+	0x13, 0x89, 0x44, 0xA2, 0x51, 0x28, 0x94, 0xCA, 0x65, 0x32, 0x19, 0x0C, 0x86, 0x43, 0xA1, 0x50
+};
+static const uae_u8 pnp_init_key[] =
+{
+	0x6A, 0xB5, 0xDA, 0xED, 0xF6, 0xFB, 0x7D, 0xBE, 0xDF, 0x6F, 0x37, 0x1B, 0x0D, 0x86, 0xC3, 0x61,
+	0xB0, 0x58, 0x2C, 0x16, 0x8B, 0x45, 0xA2, 0xD1, 0xE8, 0x74, 0x3A, 0x9D, 0xCE, 0xE7, 0x73, 0x39
+};
 
-static int toariadne2(uaecptr addr)
+static const uae_u8 rtl8029as_pnpdata[] =
+{
+	0x4a, 0x8c, 0x80, 0x19,
+	0x0d, 0x00, 0x19, 0x00,
+
+	0x0a, 0x10, 0x10,
+	0x82, 0x22, 0x00, 'R', 'E','A','L','T','E','K',' ','P','L','U','G',' ','&',' ','P','L','A','Y',' ','E','T','H','E','R','N','E','T',' ','C','A','R','D', 0x00,
+	0x16, 0x4a, 0x8c, 0x80, 0x19,
+	0x02,
+	0x00,
+	0x1c, 0x41, 0xd0, 0x80, 0xd6,
+	0x47, 0x00, 0x20, 0x02, 0x80, 0x03, 0x20, 0x20,
+	0x23, 0x38, 0x9e, 0x01,
+	0x81, 0x09, 0x00, 0x40, 0x00, 0x0c, 0xc0, 0x0d, 0x00, 0x40, 0x40, 0x00,
+	0x79
+};
+
+#define ISAPNP_WAIT_FOR_KEY 0
+#define ISAPNP_SLEEP 1
+#define ISAPNP_ISOLATION 2
+#define ISAPNP_CONFIG 3
+
+struct isapnp
+{
+	int state;
+	int pnp_cnt;
+	uae_u8 address;
+	uae_u16 rd_data_port;
+	uae_u8 csn;
+	uae_u16 io_port;
+	uae_u16 io_port_size;
+	uae_u8 irq;
+	bool activated;
+	uae_u8 isapnp_data[256];
+	const uae_u8 *init_key;
+	const uae_u8 *isapnp_read_data;
+	int isapnp_read_data_size;
+};
+
+struct ne2000_s
+{
+	struct pci_board_state *ariadne2_board_state;
+	bool ariadne2_irq;
+	int ne2000_romtype;
+	uae_u32 flags;
+	struct isapnp pnp;
+};
+static struct ne2000_s ne2000_data;
+
+static uae_u8 isapnp_checksum(uae_u8 *data)
+{
+	int i, j;
+	uae_u8 checksum = 0x6a, bit, b;
+	for (i = 0; i < 8; i++) {
+		b = data[i];
+		for (j = 0; j < 8; j++) {
+			bit = 0;
+			if (b & (1 << j))
+				bit = 1;
+			checksum = ((((checksum ^ (checksum >> 1)) & 0x01) ^ bit) << 7) | (checksum >> 1);
+		}
+	}
+	return checksum;
+}
+
+static void isapnp_reset_state(struct isapnp *pnp)
+{
+	pnp->activated = false;
+	pnp->pnp_cnt = 0;
+	memcpy(pnp->isapnp_data, pnp->isapnp_read_data, 8);
+	pnp->isapnp_data[8] = isapnp_checksum(pnp->isapnp_data);
+	memcpy(pnp->isapnp_data + 9, pnp->isapnp_read_data + 9, pnp->isapnp_read_data_size - 9);
+}
+
+static void isapnp_init(struct isapnp  *pnp, const uae_u8 *pnpdata, int size, const uae_u8 *pnp_init_key, int port_size)
+{
+	pnp->isapnp_read_data = pnpdata;
+	pnp->isapnp_read_data_size = size + 1; // +1 = autogenerated checksum byte
+	pnp->init_key = pnp_init_key;
+	pnp->io_port_size = port_size;
+}
+
+static void isapnp_address(struct isapnp *pnp, uae_u8 v)
+{
+	switch (pnp->state)
+	{
+		case ISAPNP_WAIT_FOR_KEY:
+		if ((pnp->init_key && v == pnp->init_key[pnp->pnp_cnt]) || (v == pnp_init_key[pnp->pnp_cnt])) {
+			pnp->pnp_cnt++;
+			if (pnp->pnp_cnt == 32) {
+				pnp->state = ISAPNP_SLEEP;
+				pnp->pnp_cnt = 0;
+				isapnp_reset_state(pnp);
+			}
+		} else {
+			pnp->pnp_cnt = 0;
+		}
+		break;
+		default:
+		pnp->address = v;
+		break;
+	}
+}
+
+static void isapnp_write_data(struct isapnp *pnp, uae_u8 v)
+{
+	write_log(_T("ISAPNP WRITE REG %d = %02x\n"), pnp->address, v);
+	switch (pnp->address)
+	{
+		case 0: // Set RD_DATA Port
+		pnp->rd_data_port = (v << 2) | 3;
+		break;
+		case 2: // Config Control
+		if ((v & 4) && pnp->state != ISAPNP_WAIT_FOR_KEY)
+			pnp->csn = 0;
+		if (v & 2)
+			pnp->state = ISAPNP_WAIT_FOR_KEY;
+		break;
+		case 3: // Wake[CSN]
+		if (!v) {
+			if (!pnp->csn) {
+				isapnp_reset_state(pnp);
+				pnp->state = ISAPNP_ISOLATION;
+			}
+		} else if (v) {
+			if (pnp->csn == v)
+				pnp->state = ISAPNP_CONFIG;
+			else
+				pnp->state = ISAPNP_SLEEP;
+		}
+		break;
+		case 6: // CSN
+		if (pnp->state == ISAPNP_ISOLATION) {
+			pnp->csn = v;
+			pnp->state = ISAPNP_CONFIG;
+		}
+		break;
+		case 7: // Logical Device Number
+		break;
+		case 0x30: // Activate
+		pnp->activated = (v & 1) != 0;
+		break;
+		case 0x60: // IO Port
+		pnp->io_port &= 0x00ff;
+		pnp->io_port |= v << 8;
+		break;
+		case 0x61: // IO Port
+		pnp->io_port &= 0xff00;
+		pnp->io_port |= v << 0;
+		break;
+		case 0x70: // IRQ
+		pnp->irq = v & 15;
+		break;
+	}
+}
+
+static uae_u8 isapnp_read_data(struct isapnp *pnp)
+{
+	switch (pnp->address)
+	{
+		case 1: // Serial Isolation
+		{
+			int step = (pnp->pnp_cnt >> 0) & 1;
+			int offset = (pnp->pnp_cnt >> 4) & 255;
+			int bit = (pnp->pnp_cnt >> 1) & 7;
+			if (offset < pnp->isapnp_read_data_size) {
+				uae_u8 b = pnp->isapnp_data[offset];
+				uae_u8 v = (b & (1 << bit)) ? (step ? 0xaa : 0x55) : 0x00;
+				write_log(_T("ISAPNP Serial Isolation: %d %d %d %d %02x\n"), pnp->pnp_cnt, offset, bit, step, v);
+				pnp->pnp_cnt++;
+				return v;
+			}
+			return 0;
+		}
+		break;
+		case 4: // Resource Data
+		{
+			uae_u8 v = 0;
+			int offset = (pnp->pnp_cnt >> 4) & 255;
+			if (offset < pnp->isapnp_read_data_size) {
+				v = pnp->isapnp_data[offset];
+				pnp->pnp_cnt += 16;
+			}
+			return 0;
+		}
+		break;
+		case 5: // Status
+		return 1; // We are always ready.
+		default:
+		write_log(_T("ISAPNP READ REG %d\n"), pnp->address);
+		break;
+	}	
+	return 0;
+}
+
+#define ARIADNE2_LOG 0
+
+static int toariadne2(struct ne2000_s *ne, uaecptr addr, uae_u32 *vp, int size, bool *bs)
 {
 	addr &= 0xffff;
-	if (addr < 0x600 || addr >= 0x640)
-		return -1;
-	addr -= 0x600;
-	addr >>= 1;
-	addr &= 0x1f;
-	return addr;
+	*bs = false;
+	uae_u32 v = *vp;
+	if (ne->ne2000_romtype == ROMTYPE_ARIADNE2) {
+		if (addr < 0x600 || addr >= 0x640) {
+			write_log(_T("ARIADNE2 %08x\n"), addr);
+			return -1;
+		}
+		addr -= 0x600;
+		addr >>= 1;
+		addr &= 0x1f;
+		return addr;
+	} else if (ne->ne2000_romtype == ROMTYPE_XSURF) {
+		if (addr == 0x7e && size == -1) {
+			ne->flags &= ~1;
+			ne->flags |= (v & 0x80) ? 1 : 0;
+		} else if (addr == 0xf00) {
+			// driver uses this (undocumented) address to detect if X-Surf or X-Surf 100!
+			*vp = 0xff;
+			return -1;
+		} else if (addr >= 0x40 && addr < 0x8000) {
+			*vp = ne->ariadne2_irq ? ((1 << 5) | (1 << 7)) : 0;
+			return -1;
+		}
+		// ISA PNP! I didn't expect I need to emulate it in Amiga emulator..
+		uae_u32 isa_addr = ne->flags ? 0x1000 : 0x000;
+		if (addr >= 0x8000 && addr < 0x9000) {
+			isa_addr += addr - 0x8000;
+			if (isa_addr == 0x279 * 2 && size == -1) {
+				isapnp_address(&ne->pnp, v);
+			} else if (isa_addr == 0xa79 * 2 && size == -1) {
+				isapnp_write_data(&ne->pnp, v);
+			} else if (isa_addr == ne->pnp.rd_data_port * 2 && size == 1) {
+				*vp = isapnp_read_data(&ne->pnp);
+				return -1;
+			}
+			if (ne->pnp.activated && isa_addr >= ne->pnp.io_port * 2 && isa_addr < (ne->pnp.io_port + ne->pnp.io_port_size) * 2) {
+				isa_addr -= ne->pnp.io_port * 2;
+				isa_addr >>= 1;
+				return isa_addr;
+			}
+		}
+	} else if (ne->ne2000_romtype == ROMTYPE_XSURF100Z2 || ne->ne2000_romtype == ROMTYPE_XSURF100Z3) {
+		int bank = addr >> 8;
+		int baddr = addr & 255;
+		if ((bank & 0x88) == 0) {
+			if ((baddr & 0x7f) == 0x40) {
+				v = ne->ariadne2_irq ? (1 << 7) : 0;
+				v |= (v) << 8;
+				*vp = v;
+			} else {
+				*vp = 0x00;
+				write_log(_T("XSURF100 %s %08x = %02x\n"), size < 0 ? _T("WRITE") : _T("READ"), addr, v);
+			}
+			return -1;
+		}
+		if (bank >= 0x08 && bank < 0x10) {
+			*bs = true;
+			if (baddr >= 0x80)
+				return 16;
+			baddr >>= 2;
+			baddr &= 0x1f;
+			return baddr;
+		}
+		if (bank >= 0x18 && bank < 0x20) {
+			*bs = false;
+			if (baddr >= 0x80)
+				return 16;
+			baddr >>= 2;
+			baddr &= 0x1f;
+			return baddr;
+		}
+		if (bank >= 0x88 && bank < 0x90) {
+			*bs = true;
+			if (baddr >= 0x80)
+				return 16;
+			baddr >>= 2;
+			baddr &= 0x1f;
+			return baddr;
+		}
+		if (bank >= 0x90 && bank < 0xa0) {
+			*bs = false;
+			if (baddr >= 0x80)
+				return 16;
+			baddr >>= 2;
+			baddr &= 0x1f;
+			return baddr;
+		}
+
+		write_log(_T("XSURF100 %08x\n"), addr);
+	}
+	return -1;
+}
+
+static struct ne2000_s *getne2k(uaecptr addr)
+{
+	return &ne2000_data;
 }
 
 static uae_u32 REGPARAM2 ariadne2_lget(uaecptr addr)
 {
+	struct ne2000_s *ne = getne2k(addr);
+	bool bs;
 	uae_u32 v = 0;
-	int reg = toariadne2(addr);
-	if (reg >= 0)
-		v = ne2000_lget(ariadne2_board_state, reg);
+	int reg = toariadne2(ne, addr, &v, 4, &bs);
+	if (reg >= 0) {
+		uae_u16 w;
+		w = ne2000_wget(ne->ariadne2_board_state, reg);
+		if (bs) {
+			w = (w >> 8) | (w << 8);
+		}
+		v = w << 16;
+		w= ne2000_wget(ne->ariadne2_board_state, reg);
+		if (bs) {
+			w = (w >> 8) | (w << 8);
+		}
+		v |= w;
+	}
+#if ARIADNE2_LOG
+	write_log(_T("NE2000 LGET %08x %08X %d %08X\n"), addr, v, reg, M68K_GETPC);
+#endif
 	return v;
 }
 static uae_u32 REGPARAM2 ariadne2_wget(uaecptr addr)
 {
+	struct ne2000_s *ne = getne2k(addr);
+	bool bs;
 	uae_u32 v = 0;
-	int reg = toariadne2(addr);
+	int reg = toariadne2(ne, addr, &v, 2, &bs);
 	if (reg >= 0)
-		v = ne2000_wget(ariadne2_board_state, reg);
+		v = ne2000_wget(ne->ariadne2_board_state, reg);
+	if (bs) {
+		v = (v >> 8) | (v << 8);
+		v &= 0xffff;
+	}
+#if ARIADNE2_LOG
+	write_log(_T("NE2000 WGET %08x %04X %d %08X\n"), addr, v, reg, M68K_GETPC);
+#endif
 	return v;
 }
 static uae_u32 REGPARAM2 ariadne2_bget(uaecptr addr)
 {
+	struct ne2000_s *ne = getne2k(addr);
+	bool bs;
 	uae_u32 v = 0;
-	int reg = toariadne2(addr);
+	int reg = toariadne2(ne, addr, &v, 1, &bs);
 	if (reg >= 0)
-		v = ne2000_bget(ariadne2_board_state, reg);
-	write_log(_T("ARIADNE2 BGET %08x %02X\n"), addr, v);
+		v = ne2000_bget(ne->ariadne2_board_state, reg);
+#if ARIADNE2_LOG
+	write_log(_T("NE2000 BGET %08x %02X %d %08X\n"), addr, v, reg, M68K_GETPC);
+#endif
 	return v;
 }
 
 static void REGPARAM2 ariadne2_bput(uaecptr addr, uae_u32 l)
 {
-	write_log(_T("ARIADNE2 BPUT %08x %02X\n"), addr, l & 0xff);
-	int reg = toariadne2(addr);
+	struct ne2000_s *ne = getne2k(addr);
+	bool bs;
+	int reg = toariadne2(ne, addr, &l, -1, &bs);
+#if ARIADNE2_LOG
+	write_log(_T("NE2000 BPUT %08x %02X %d %08x\n"), addr, l & 0xff, reg, M68K_GETPC);
+#endif
 	if (reg >= 0)
-		ne2000_bput(ariadne2_board_state, reg, l);
+		ne2000_bput(ne->ariadne2_board_state, reg, l);
 }
 static void REGPARAM2 ariadne2_wput(uaecptr addr, uae_u32 l)
 {
-	int reg = toariadne2(addr);
+	struct ne2000_s *ne = getne2k(addr);
+	bool bs;
+	l &= 0xffff;
+	int reg = toariadne2(ne, addr, &l, -2, &bs);
+#if ARIADNE2_LOG
+	write_log(_T("NE2000 WPUT %08x %04X %d %08x\n"), addr, l, reg, M68K_GETPC);
+#endif
+	if (bs) {
+		l = (l >> 8) | (l << 8);
+		l &= 0xffff;
+	}
 	if (reg >= 0)
-		ne2000_wput(ariadne2_board_state, reg, l);
+		ne2000_wput(ne->ariadne2_board_state, reg, l);
 }
 static void REGPARAM2 ariadne2_lput(uaecptr addr, uae_u32 l)
 {
-	int reg = toariadne2(addr);
-	if (reg >= 0)
-		ne2000_lput(ariadne2_board_state, reg, l);
+	struct ne2000_s *ne = getne2k(addr);
+	bool bs;
+	int reg = toariadne2(ne, addr, &l, -4, &bs);
+#if ARIADNE2_LOG
+	write_log(_T("NE2000 LPUT %08x %08X %d %08x\n"), addr, l, reg, M68K_GETPC);
+#endif
+	if (reg >= 0) {
+		uae_u16 w = l >> 16;
+		if (bs) {
+			w = (w >> 8) | (w << 8);
+		}
+		ne2000_wput(ne->ariadne2_board_state, reg, w);
+		w = l & 65535;
+		if (bs) {
+			w = (w >> 8) | (w << 8);
+		}
+		ne2000_wput(ne->ariadne2_board_state, reg, w);
+	}
+}
+
+void rethink_ne2000(void)
+{
+	struct ne2000_s *ne = getne2k(0);
+	if (!ne->ariadne2_board_state)
+		return;
+	if (ne->ariadne2_irq)
+		INTREQ_0(0x8000 | 0x0008);
+}
+
+void ne2000_hsync(void)
+{
+	struct ne2000_s *ne = getne2k(0);
+	if (!ne->ariadne2_board_state)
+		return;
+	ne2000_pci_board.hsync(ne->ariadne2_board_state);
 }
 
 static void ariadne2_irq_callback(struct pci_board_state *pcibs, bool irq)
 {
+	struct ne2000_s *ne = getne2k(0);
+#if ARIADNE2_LOG
 	write_log(_T("ariadne2_irq_callback %d\n"), irq);
+#endif
+	ne->ariadne2_irq = irq;
+	rethink_ne2000();
 }
 
 static addrbank ariadne2_bank = {
 	ariadne2_lget, ariadne2_wget, ariadne2_bget,
 	ariadne2_lput, ariadne2_wput, ariadne2_bput,
-	default_xlate, default_check, NULL, _T("*"), _T("Ariadne II"),
+	default_xlate, default_check, NULL, _T("*"), _T("NE2000"),
 	ariadne2_wget, ariadne2_lget,
 	ABFLAG_IO | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
+void ne2000_reset(void)
+{
+	struct ne2000_s *ne = getne2k(0);
+	ne->ariadne2_irq = false;
+	if (ne->ariadne2_board_state)
+		ne2000_pci_board.free(ne->ariadne2_board_state);
+	xfree(ne->ariadne2_board_state);
+	ne->ariadne2_board_state = NULL;
+}
+
 bool ariadne2_init(struct autoconfig_info *aci)
 {
+	struct ne2000_s *ne = getne2k(0);
+	ne->ariadne2_irq = false;
 	if (aci->postinit) {
 		return true;
 	}
-	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_ARIADNE2);
+	ne->ne2000_romtype = ROMTYPE_ARIADNE2;
+	const struct expansionromtype *ert = get_device_expansion_rom(ne->ne2000_romtype);
 	aci->autoconfigp = ert->autoconfig;
 	aci->addrbank = &ariadne2_bank;
 	aci->autoconfig_automatic = true;
 	if (!aci->doinit)
 		return true;
 
-	ariadne2_board_state = xcalloc(pci_board_state, 1);
-	ariadne2_board_state->irq_callback = ariadne2_irq_callback;
-	if (!ne2000_pci_board.init(ariadne2_board_state))
+	ne->ariadne2_board_state = xcalloc(pci_board_state, 1);
+	ne->ariadne2_board_state->irq_callback = ariadne2_irq_callback;
+	if (!ne2000_pci_board.init(ne->ariadne2_board_state))
 		return false;
+	ne2000_byteswapsupported(&ne2000state);
+
+	return true;
+}
+
+bool xsurf_init(struct autoconfig_info *aci)
+{
+	struct ne2000_s *ne = getne2k(0);
+	ne->ariadne2_irq = false;
+	if (aci->postinit) {
+		return true;
+	}
+	ne->ne2000_romtype = ROMTYPE_XSURF;
+	const struct expansionromtype *ert = get_device_expansion_rom(ne->ne2000_romtype);
+	aci->autoconfigp = ert->autoconfig;
+	aci->addrbank = &ariadne2_bank;
+	aci->autoconfig_automatic = true;
+	if (!aci->doinit)
+		return true;
+
+	ne->ariadne2_board_state = xcalloc(pci_board_state, 1);
+	ne->ariadne2_board_state->irq_callback = ariadne2_irq_callback;
+	if (!ne2000_pci_board.init(ne->ariadne2_board_state))
+		return false;
+	isapnp_init(&ne->pnp, rtl8029as_pnpdata, sizeof rtl8029as_pnpdata, rt_pnp_init_key, 32);
+	ne2000_byteswapsupported(&ne2000state);
+	ne2000_setident(&ne2000state, 0x50, 0x70);
+
+	return true;
+}
+
+bool xsurf100_init(struct autoconfig_info *aci)
+{
+	struct ne2000_s *ne = getne2k(0);
+	ne->ariadne2_irq = false;
+	if (aci->postinit) {
+		return true;
+	}
+	ne->ne2000_romtype = aci->zorro == 3 ? ROMTYPE_XSURF100Z3 : ROMTYPE_XSURF100Z2;
+	const struct expansionromtype *ert = get_device_expansion_rom(ne->ne2000_romtype);
+	aci->autoconfigp = ert->autoconfig;
+	aci->addrbank = &ariadne2_bank;
+	aci->autoconfig_automatic = true;
+	if (!aci->doinit)
+		return true;
+
+	ne->ariadne2_board_state = xcalloc(pci_board_state, 1);
+	ne->ariadne2_board_state->irq_callback = ariadne2_irq_callback;
+	if (!ne2000_pci_board.init(ne->ariadne2_board_state))
+		return false;
+	ne2000_setident(&ne2000state, 0x50, 0x70);
 
 	return true;
 }
