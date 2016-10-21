@@ -861,19 +861,15 @@
 #define IDC_AVIOUTPUT_VIDEO_CODEC       1615
 #define IDC_INPUTDEVICEDISABLE          1615
 #define IDC_AVIOUTPUT_ACTIVATED         1615
-#define IDC_A2065                       1615
 #define IDC_AVIOUTPUT_AUDIO_CODEC       1616
 #define IDC_INPUTAMIGACNT               1616
 #define IDC_FILTERHZ                    1616
 #define IDC_SAMPLERIPPER_ACTIVATED      1616
-#define IDC_NE2000                      1616
 #define IDC_AVIOUTPUT_BORDER_TRIM       1617
 #define IDC_FILTERVZ                    1617
 #define IDC_ACCELERATORBOARDCHECKBOX    1617
 #define IDC_AVIOUTPUT_AUDIO_STATIC      1618
 #define IDC_FILTERHO                    1618
-#define IDC_NE2001                      1618
-#define IDC_NE2000PCMCIA                1618
 #define IDC_AVIOUTPUT_VIDEO_STATIC      1619
 #define IDC_FILTERVO                    1619
 #define IDC_AVIOUTPUT_8BIT              1620
@@ -1044,7 +1040,6 @@
 #define IDC_PROGRESSBAR_TEXT            1706
 #define IDC_LANGUAGE                    1706
 #define IDC_CREATE_NAME                 1707
-#define IDC_NETDEVICE                   1707
 #define IDC_SOUND_AUTO                  1709
 #define IDC_FILTERKEEPASPECT            1709
 #define IDC_CS_RTC                      1710

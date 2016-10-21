@@ -129,6 +129,7 @@ void *globalipc;
 
 int cpu_mmx = 1;
 int D3DEX = 1;
+int shaderon = -1;
 int d3ddebug = 0;
 int max_uae_width;
 int max_uae_height;
@@ -5683,8 +5684,12 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		// obsolete
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("nod3d9ex"))) {
+	if (!_tcscmp(arg, _T("nod3d9ex"))) {
 		D3DEX = 0;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("nod3d9shader"))) {
+		shaderon = 0;
 		return 1;
 	}
 	if (!_tcscmp (arg, _T("d3ddebug"))) {
@@ -6420,10 +6425,15 @@ static void create_dump (struct _EXCEPTION_POINTERS *pExceptionPointers)
 					ClipCursor(NULL);
 					ReleaseCapture();
 					ShowCursor(TRUE);
+					if (debugfile)
+						log_close(debugfile);
 					if (isfullscreen () <= 0) {
 						_stprintf (msg, _T("Crash detected. MiniDump saved as:\n%s\n"), path3);
 						MessageBox (NULL, msg, _T("Crash"), MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND);
 					}
+					HANDLE h = GetCurrentProcess();
+					TerminateProcess(h, 0);
+					WaitForSingleObject(h, INFINITE);
 				}
 			}
 			all_events_disabled = 0;

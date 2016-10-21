@@ -8837,7 +8837,9 @@ static void create_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg, cons
 	int bitcnt = 0;
 	for (int i = 0; i < item; i++) {
 		const struct expansionboardsettings *eb = &ebs[i];
-		if (eb->multiselect) {
+		if (eb->type == EXPANSIONBOARD_STRING) {
+			;
+		} else if (eb->type == EXPANSIONBOARD_MULTI) {
 			const TCHAR *p = eb->configname;
 			int itemcnt = -1;
 			while (p[0]) {
@@ -8867,7 +8869,11 @@ static void create_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg, cons
 	}
 	eb = &ebs[item];
 	bitcnt += eb->bitshift;
-	if (eb->multiselect) {
+	if (eb->type == EXPANSIONBOARD_STRING) {
+		hide(hDlg, selector, 1);
+		hide(hDlg, checkbox, 1);
+		eg->expansionrom_gui_settingsbits = 0;
+	} else if (eb->type == EXPANSIONBOARD_MULTI) {
 		SendDlgItemMessage(hDlg, selector, CB_RESETCONTENT, 0, 0);
 		int itemcnt = -1;
 		const TCHAR *p = eb->name;
@@ -8919,7 +8925,9 @@ static void get_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg)
 		return;
 	}
 	const struct expansionboardsettings *eb = &eg->expansionrom_gui_ebs[eg->expansionrom_gui_item];
-	if (eb->multiselect) {
+	if (eb->type == EXPANSIONBOARD_STRING) {
+		;
+	} else if (eb->type == EXPANSIONBOARD_MULTI) {
 		val = SendDlgItemMessage(hDlg, eg->expansionrom_gui_selector, CB_GETCURSEL, 0, 0);
 		if (val != CB_ERR) {
 			int mask = (1 << eg->expansionrom_gui_settingsbits) - 1;
@@ -8941,44 +8949,15 @@ static void get_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg)
 
 
 static struct netdriverdata *ndd[MAX_TOTAL_NET_DEVICES + 1];
+static int net_enumerated;
 
-static void expansion_net (HWND hDlg)
+struct netdriverdata **target_ethernet_enumerate(void)
 {
-	int i, cnt;
-	TCHAR tmp[MAX_DPATH];
-	bool notset = true;
-
-	SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_RESETCONTENT, 0, 0);
-	WIN32GUI_LoadUIString (IDS_NETDISCONNECTED, tmp, sizeof tmp / sizeof (TCHAR));
-	SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_ADDSTRING, 0, (LPARAM)tmp);
-	if (!_tcsicmp (workprefs.a2065name, _T("none")) && !_tcsicmp(workprefs.ne2000pciname, _T("none")) && !_tcsicmp(workprefs.ne2000pcmcianame, _T("none"))) {
-		SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_SETCURSEL, 0, 0);
-		notset = false;
-	}
-	cnt = 1;
-	for (i = 0; ndd && i < MAX_TOTAL_NET_DEVICES; i++) {
-		if (ndd[i]) {
-			TCHAR mac[20];
-			if (ndd[i]->type == UAENET_SLIRP || ndd[i]->type == UAENET_SLIRP_INBOUND) {
-				_stprintf(mac, _T("xx:xx:xx:%02X:%02X:%02X"),
-					ndd[i]->mac[3], ndd[i]->mac[4], ndd[i]->mac[5]);
-			} else {
-				_stprintf (mac, _T("%02X:%02X:%02X:%02X:%02X:%02X"),
-					ndd[i]->mac[0], ndd[i]->mac[1], ndd[i]->mac[2], ndd[i]->mac[3], ndd[i]->mac[4], ndd[i]->mac[5]);
-			}
-			_stprintf (tmp, _T("%s %s"), mac, ndd[i]->desc);
-			SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_ADDSTRING, 0, (LPARAM)tmp);
-			if (!_tcsicmp (workprefs.a2065name, mac) || !_tcsicmp (workprefs.a2065name, ndd[i]->name) ||
-				!_tcsicmp(workprefs.ne2000pciname, mac) || !_tcsicmp(workprefs.ne2000pciname, ndd[i]->name) ||
-				!_tcsicmp(workprefs.ne2000pcmcianame, mac) || !_tcsicmp(workprefs.ne2000pcmcianame, ndd[i]->name)) {
-				SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_SETCURSEL, cnt, 0);
-				notset = false;
-			}
-			cnt++;
-		}
-	}
-	if (notset)
-		SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_SETCURSEL, 0, 0);
+	if (net_enumerated)
+		return ndd;
+	ethernet_enumerate(ndd, 0);
+	net_enumerated = 1;
+	return ndd;
 }
 
 static const int scsiromselectedmask[] = {
@@ -9011,7 +8990,7 @@ static void init_expansion2(HWND hDlg, bool init)
 				continue;
 			int cnt = 0;
 			for (int j = 0; j < MAX_DUPLICATE_EXPANSION_BOARDS; j++) {
-				if (cfgfile_board_enabled(&workprefs, expansionroms[i].romtype, j)) {
+				if (is_board_enabled(&workprefs, expansionroms[i].romtype, j)) {
 					cnt++;
 				}
 			}
@@ -9026,33 +9005,39 @@ static void init_expansion2(HWND hDlg, bool init)
 		}
 		for (int j = 0; j < idcnt; j += 2) {
 			TCHAR *nameval = NULL;
+			TCHAR *cnameval = NULL;
 			int ididx = -1;
 			for (int i = 0; i < idcnt; i += 2) {
-				TCHAR name[256];
+				TCHAR name[256], cname[256];
 				int id = idtab[i];
 				int cnt = idtab[i + 1];
 				if (id < 0)
 					continue;
 				name[0] = 0;
+				cname[0] = 0;
 				if (cnt == 1)
 					_tcscat(name, _T("* "));
 				else if (cnt > 1)
 					_stprintf(name + _tcslen(name), _T("[%d] "), cnt);
 				_tcscat(name, expansionroms[id].friendlyname);
+				_tcscat(cname, expansionroms[id].friendlyname);
 				if (expansionroms[id].friendlymanufacturer) {
 					_tcscat(name, _T(" ("));
 					_tcscat(name, expansionroms[id].friendlymanufacturer);
 					_tcscat(name, _T(")"));
 				}
-				if (!nameval || _tcsicmp(nameval, name) > 0) {
+				if (!cnameval || _tcsicmp(cnameval, cname) > 0) {
 					xfree(nameval);
+					xfree(cnameval);
 					nameval = my_strdup(name);
+					cnameval = my_strdup(cname);
 					ididx = i;
 				}
 			}
 			gui_add_string(scsiromselect_table, hDlg, IDC_SCSIROMSELECT, idtab[ididx], nameval);
 			idtab[ididx] = -1;
 			xfree(nameval);
+			xfree(cnameval);
 		}
 		xfree(idtab);
 
@@ -9067,7 +9052,7 @@ static void init_expansion2(HWND hDlg, bool init)
 				continue;
 			if (scsiromselectedcatnum == 0 && (expansionroms[i].deviceflags & (EXPANSIONTYPE_SASI | EXPANSIONTYPE_CUSTOM)))
 				continue;
-			if (cfgfile_board_enabled(&workprefs, romtype, 0)) {
+			if (is_board_enabled(&workprefs, romtype, 0)) {
 				if (found == -1)
 					found = i;
 				else
@@ -9344,10 +9329,6 @@ static void enable_for_expansion2dlg (HWND hDlg)
 	ew(hDlg, IDC_SCSIDEVICE, en);
 	ew(hDlg, IDC_CATWEASEL, en);
 	ew(hDlg, IDC_SANA2, en);
-	ew(hDlg, IDC_A2065, en);
-	ew(hDlg, IDC_NE2000, en);
-	ew(hDlg, IDC_NE2000PCMCIA, en || workprefs.cs_pcmcia);
-	ew(hDlg, IDC_NETDEVICE, (workprefs.cs_pcmcia && workprefs.ne2000pcmcianame) || (en && (workprefs.a2065name[0] || workprefs.ne2000pciname[0])));
 
 	ew(hDlg, IDC_CS_CD32FMV, en);
 
@@ -9385,9 +9366,6 @@ static void values_to_expansion2dlg (HWND hDlg, int mode)
 	CheckDlgButton(hDlg, IDC_CATWEASEL, workprefs.catweasel);
 	CheckDlgButton(hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
 	CheckDlgButton(hDlg, IDC_SANA2, workprefs.sana2);
-	CheckDlgButton(hDlg, IDC_A2065, workprefs.a2065name[0] ? 1 : 0);
-	CheckDlgButton(hDlg, IDC_NE2000, workprefs.ne2000pciname[0] ? 1 : 0);
-	CheckDlgButton(hDlg, IDC_NE2000PCMCIA, workprefs.ne2000pcmcianame[0] ? 1 : 0);
 	CheckDlgButton(hDlg, IDC_CS_CD32FMV, workprefs.cs_cd32fmv);
 	cw = catweasel_detect ();
 	ew (hDlg, IDC_CATWEASEL, cw);
@@ -9470,7 +9448,6 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 	int v, val;
 	TCHAR tmp[MAX_DPATH];
 	static int recursive = 0;
-	static int enumerated;
 
 	switch (msg)
 	{
@@ -9482,8 +9459,8 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 			int ids[] = { IDC_SCSIROMFILE, IDC_CPUBOARDROMFILE, -1 };
 			setmultiautocomplete(hDlg, ids);
 
-			if (!enumerated) {
-				ethernet_enumerate(ndd, NULL);
+			if (!net_enumerated) {
+				target_ethernet_enumerate();
 				for (int i = 0; ndd[i]; i++) {
 					struct netdriverdata *n = ndd[i];
 					if (!n->active)
@@ -9497,7 +9474,8 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 						n->desc = my_strdup(tmp);
 					}
 				}
-				enumerated = 1;
+				ethernet_updateselection();
+				net_enumerated = 1;
 			}
 
 			SendDlgItemMessage(hDlg, IDC_CPUBOARD_TYPE, CB_RESETCONTENT, 0, 0);
@@ -9523,7 +9501,6 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 			reset_expansionrom_gui(hDlg, &accelerator_gui_item, IDC_ACCELERATORBOARDITEMSELECTOR, IDC_ACCELERATORBOARDSELECTOR, IDC_ACCELERATORBOARDCHECKBOX);
 
 			hide(hDlg, IDC_SCSIROMSELECTED, 1);
-			expansion_net(hDlg);
 			init_expansion2(hDlg, true);
 			updatecpuboardsubtypes(hDlg);
 			setcpuboardmemsize(hDlg);
@@ -9565,59 +9542,6 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 				break;
 				case IDC_SANA2:
 				workprefs.sana2 = ischecked(hDlg, IDC_SANA2);
-				break;
-				case IDC_A2065:
-				if (ischecked(hDlg, IDC_A2065)) {
-					_tcscpy(workprefs.a2065name, _T("none"));
-					workprefs.ne2000pciname[0] = 0;
-					workprefs.ne2000pcmcianame[0] = 0;
-					setchecked(hDlg, IDC_NE2000, false);
-					setchecked(hDlg, IDC_NE2000PCMCIA, false);
-					cfgfile_compatibility_romtype(&workprefs);
-					expansion_net(hDlg);
-					enable_for_expansion2dlg(hDlg);
-				} else {
-					if (!workprefs.ne2000pcmcianame[0] && !workprefs.ne2000pciname[0])
-						ew(hDlg, IDC_NETDEVICE, FALSE);
-					workprefs.a2065name[0] = 0;
-					cfgfile_compatibility_romtype(&workprefs);
-					enable_for_expansion2dlg(hDlg);
-				}
-				break;
-				case IDC_NE2000:
-				if (ischecked(hDlg, IDC_NE2000)) {
-					_tcscpy(workprefs.ne2000pciname, _T("none"));
-					workprefs.a2065name[0] = 0;
-					workprefs.ne2000pcmcianame[0] = 0;
-					setchecked(hDlg, IDC_A2065, false);
-					setchecked(hDlg, IDC_NE2000PCMCIA, false);
-					cfgfile_compatibility_romtype(&workprefs);
-					expansion_net(hDlg);
-					enable_for_expansion2dlg(hDlg);
-				} else {
-					if (!workprefs.a2065name[0] && !workprefs.ne2000pcmcianame[0])
-						ew(hDlg, IDC_NETDEVICE, FALSE);
-					workprefs.ne2000pciname[0] = 0;
-					cfgfile_compatibility_romtype(&workprefs);
-					enable_for_expansion2dlg(hDlg);
-				}
-				case IDC_NE2000PCMCIA:
-				if (ischecked(hDlg, IDC_NE2000PCMCIA)) {
-					_tcscpy(workprefs.ne2000pcmcianame, _T("none"));
-					workprefs.a2065name[0] = 0;
-					workprefs.ne2000pciname[0] = 0;
-					setchecked(hDlg, IDC_A2065, false);
-					setchecked(hDlg, IDC_NE2000, false);
-					cfgfile_compatibility_romtype(&workprefs);
-					expansion_net(hDlg);
-					enable_for_expansion2dlg(hDlg);
-				} else {
-					if (!workprefs.a2065name[0] && !workprefs.ne2000pciname[0])
-						ew(hDlg, IDC_NETDEVICE, FALSE);
-					workprefs.ne2000pcmcianame[0] = 0;
-					cfgfile_compatibility_romtype(&workprefs);
-					enable_for_expansion2dlg(hDlg);
-				}
 				break;
 				case IDC_CATWEASEL:
 				workprefs.catweasel = ischecked(hDlg, IDC_CATWEASEL) ? -1 : 0;
@@ -9718,40 +9642,6 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 						setcpuboardmemsize(hDlg);
 						enable_for_expansion2dlg(hDlg);
 						values_to_expansion2dlg(hDlg, 2);
-					}
-					break;
-					case IDC_NETDEVICE:
-					v = SendDlgItemMessage(hDlg, IDC_NETDEVICE, CB_GETCURSEL, 0, 0L);
-					if (v != CB_ERR) {
-						const TCHAR *s;
-						if (v == 0) {
-							s = _T("none");
-						}
-						else if (ndd) {
-							v--;
-							s = ndd[v]->name;
-						}
-						if (ischecked(hDlg, IDC_A2065)) {
-							_tcscpy(workprefs.a2065name, s);
-							workprefs.ne2000pciname[0] = 0;
-							workprefs.ne2000pcmcianame[0] = 0;
-							setchecked(hDlg, IDC_NE2000, false);
-							setchecked(hDlg, IDC_NE2000PCMCIA, false);
-						}
-						if (ischecked(hDlg, IDC_NE2000)) {
-							_tcscpy(workprefs.ne2000pciname, s);
-							workprefs.a2065name[0] = 0;
-							workprefs.ne2000pcmcianame[0] = 0;
-							setchecked(hDlg, IDC_A2065, false);
-							setchecked(hDlg, IDC_NE2000PCMCIA, false);
-						}
-						if (ischecked(hDlg, IDC_NE2000PCMCIA)) {
-							_tcscpy(workprefs.ne2000pcmcianame, s);
-							workprefs.a2065name[0] = 0;
-							workprefs.ne2000pciname[0] = 0;
-							setchecked(hDlg, IDC_A2065, false);
-							setchecked(hDlg, IDC_NE2000, false);
-						}
 					}
 					break;
 				}
@@ -11682,12 +11572,20 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			idx = 3;
 			workprefs.cpu_clock_multiplier = 0;
 			workprefs.cpu_frequency = 0;
+		} else {
+			if (!workprefs.cpu_frequency && (idx == 1 || idx == 2))
+				workprefs.cpu_clock_multiplier = (1 << idx) << 8;
 		}
 		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_SETCURSEL, idx, 0);
 		if (!workprefs.cpu_clock_multiplier) {
 			TCHAR txt[20];
 			_stprintf (txt, _T("%.6f"), workprefs.cpu_frequency / 1000000.0);
 			SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)txt);
+		} else {
+			TCHAR txt[20];
+			double f = getcpufreq(workprefs.cpu_clock_multiplier);
+			_stprintf(txt, _T("%.6f"), f / 1000000.0);
+			SendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)txt);
 		}
 		recursive--;
 
@@ -12584,7 +12482,7 @@ static void addhdcontroller(HWND hDlg, const struct expansionromtype *erc, int *
 	if (get_boardromconfig(&workprefs, erc->romtype, NULL) || get_boardromconfig(&workprefs, erc->romtype_extra, NULL)) {
 		gui_add_string(hdmenutable, hDlg, IDC_HDF_CONTROLLER, firstid, name);
 		for (int j = 1; j < MAX_DUPLICATE_EXPANSION_BOARDS; j++) {
-			if (cfgfile_board_enabled(&workprefs, erc->romtype, j)) {
+			if (is_board_enabled(&workprefs, erc->romtype, j)) {
 				TCHAR tmp[MAX_DPATH];
 				_stprintf(tmp, _T("%s [%d]"), name, j + 1);
 				gui_add_string(hdmenutable, hDlg, IDC_HDF_CONTROLLER, firstid + j * HD_CONTROLLER_NEXT_UNIT, tmp);
@@ -12991,8 +12889,8 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 	case WM_INITDIALOG:
 		recursive++;
 		if (current_cddlg.ci.controller_type == HD_CONTROLLER_TYPE_UAE)
-			current_cddlg.ci.controller_type = (cfgfile_board_enabled(&workprefs, ROMTYPE_A2091, 0) ||
-			cfgfile_board_enabled(&workprefs, ROMTYPE_GVPS2, 0) || cfgfile_board_enabled(&workprefs, ROMTYPE_A4091, 0) ||
+			current_cddlg.ci.controller_type = (is_board_enabled(&workprefs, ROMTYPE_A2091, 0) ||
+				is_board_enabled(&workprefs, ROMTYPE_GVPS2, 0) || is_board_enabled(&workprefs, ROMTYPE_A4091, 0) ||
 			workprefs.cs_cdtvscsi ||
 			(workprefs.cs_mbdmac & 3)) ? HD_CONTROLLER_TYPE_SCSI_AUTO : HD_CONTROLLER_TYPE_IDE_AUTO;
 		inithdcontroller(hDlg, current_cddlg.ci.controller_type, current_cddlg.ci.controller_type_unit, UAEDEV_CD);

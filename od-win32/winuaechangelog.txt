@@ -4,6 +4,28 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 12:
+
+- Fixed double free in RTL8019 9346 EEPROM emulation. Caused random crashes.
+- Implemented DP8390 NIC support (Same register set as NE2000 but without on board RAM "fake DMA" support)
+- Added DP8390 based NICs, ASDG LAN Rover/EB920 and Hydra AmigaNET.
+- Moved slirp/winpcap option to Expansions -> Network Adapters. Note: Still can't have more than 1 network device active.
+- Removed A2065, NE2000 PCMCIA and Realtek 8029 PCI GUI checkboxes. Everything is now under Network Adapters.
+- Expansion device select menu sorting fixed.
+- winpcap mode now by default uses generated local MAC address (aa-82-8a-xx-xx-xx xx=from physical NIC MAC), or if A2065, it uses real
+  A2065 00-80-10-xx-xx-xx MAC. This fixes conflicts with Windows' use of same physical NIC. Custom winpcap MAC address can be forced by
+  editing config file (*_rom_options=mac=xx.xx.xx.xx.xx.xx). GUI is not yet supported. Physical NIC is also switched to promiscous mode
+  automatically if NIC MAC does not match Amiga side MAC.
+- Ignore all received winpcap packets when emulation is paused.
+- FFS partition HDF (with WB 1.3 disk L:FastFileSystem) now fully boots under KS 1.0.
+
+WinPCap note: Use http://www.win10pcap.org/ if you have Windows 10. NOTE2: It has a bug that causes "FATAL Bad Memory Block."
+errors to appear in winuae's log. It is fortunately harmless. https://nmap.org/npcap/ may also work. (npcap DLL path
+locations are now supported)
+
+NOTE: Only 3.3 (and older) config files with old style A2065 or RTL8029 PCI config entries are loaded.
+3.4 beta created config files need manual A2065/RTL8029/NE2000 PCMCIA reconfiguration. Old config entries are still created
+for backwards compatibility but they are ignored when loading.
 
 Beta 12:
 
