@@ -21,6 +21,7 @@
 #include "crc32.h"
 #include "savestate.h"
 #include "autoconf.h"
+#include "rommgr.h"
 
 #define DUMPPACKET 0
 
@@ -162,6 +163,9 @@ static volatile int transmitlen;
 
 static int dofakemac (uae_u8 *packet)
 {
+	if (!memcmp(fakemac, realmac, 6)) {
+		return 1;
+	}
 	if (!memcmp (packet, fakemac, 6)) {
 		memcpy (packet, realmac, 6);
 		return 1;
@@ -185,6 +189,8 @@ static int mungepacket (uae_u8 *packet, int len)
 
 	if (len < 20)
 		return 0;
+	if (!memcmp(fakemac, realmac, 6))
+		return len;
 #if DUMPPACKET
 	dumppacket (_T("pre:"), packet, len);
 #endif
@@ -551,6 +557,7 @@ void rethink_a2065 (void)
 	if (csr[0] & (CSR0_BABL | CSR0_MISS | CSR0_MERR | CSR0_RINT | CSR0_TINT | CSR0_IDON))
 		csr[0] |= CSR0_INTR;
 	if ((csr[0] & (CSR0_INTR | CSR0_INEA)) == (CSR0_INTR | CSR0_INEA)) {
+		set_special_exter(SPCFLAG_UAEINT);
 		atomic_or(&uae_int_requested, 4);
 		if (!was && log_a2065 > 2)
 			write_log(_T("A2065 +IRQ\n"));
@@ -880,17 +887,19 @@ static bool a2065_config (struct autoconfig_info *aci)
 	ew (0x10, 0x02);
 	ew (0x14, 0x02);
 
+	// 0x00 0x80 0x10 = Commodore MAC range, A2065 drivers expect it.
+
 	td = NULL;
-	if (ethernet_enumerate (&td, currprefs.a2065name)) {
-		memcpy (realmac, td->mac, sizeof realmac);
-		if (!td->mac[0] && !td->mac[1] && !td->mac[2]) {
-			realmac[0] = 0x00;
-			realmac[1] = 0x80;
-			realmac[2] = 0x10;
+	if (ethernet_enumerate (&td, ROMTYPE_A2065)) {
+		if (!ethernet_getmac(realmac, aci->rc->configtext)) {
+			memcpy (realmac, td->mac, sizeof realmac);
 		}
+		realmac[0] = 0x00;
+		realmac[1] = 0x80;
+		realmac[2] = 0x10;
 		if (aci->doinit)
 			write_log (_T("A2065: '%s' %02X:%02X:%02X:%02X:%02X:%02X\n"),
-				td->name, td->mac[0], td->mac[1], td->mac[2], td->mac[3], td->mac[4], td->mac[5]);
+				td->name, realmac[0], realmac[1], realmac[2], realmac[3], realmac[4], realmac[5]);
 	} else {
 		realmac[0] = 0x00;
 		realmac[1] = 0x80;
@@ -930,7 +939,7 @@ uae_u8 *save_a2065 (int *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak,*dst;
 
-	if (currprefs.a2065name[0] == 0)
+	if (!is_board_enabled(&currprefs, ROMTYPE_A2065, 0))
 		return NULL;
 	if (dstptr)
 		dstbak = dst = dstptr;

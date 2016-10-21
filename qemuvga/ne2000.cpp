@@ -34,12 +34,15 @@
 #include "newcpu.h"
 #include "custom.h"
 #include "debug.h"
+#include "sana2.h"
 
 #include "qemuuaeglue.h"
 #include "queue.h"
 #include "threaddep/thread.h"
 
 //#define DEBUG_NE2000
+
+extern int log_a2065;
 
 struct NetClientState
 {
@@ -227,7 +230,7 @@ static void ne2000_reset2(NE2000State *s)
     s->mem[15] = 0x57;
 
     /* duplicate prom data */
-    for(i = 15;i >= 0; i--) {
+    for(i = 15; i >= 0; i--) {
         s->mem[2 * i] = s->mem[i];
         s->mem[2 * i + 1] = s->mem[i];
     }
@@ -279,50 +282,79 @@ static int ne2000_can_receive(NetClientState *nc)
 
 #define MIN_BUF_SIZE 60
 
+static bool ne2000_canreceive(NetClientState *nc, const uint8_t *buf)
+{
+	NE2000State *s = qemu_get_nic_opaque(nc);
+	unsigned int mcast_idx;
+	static const uint8_t broadcast_macaddr[6] =
+	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	/* XXX: check this */
+	if (s->rxcr & 0x10) {
+		/* promiscuous: receive all */
+	} else {
+		if (!memcmp(buf, broadcast_macaddr, 6)) {
+			/* broadcast address */
+			if (!(s->rxcr & 0x04))
+				return false;
+		} else if (buf[0] & 0x01) {
+			/* multicast */
+			if (!(s->rxcr & 0x08))
+				return false;
+			mcast_idx = compute_mcast_idx(buf);
+			if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
+				return false;
+		} else if (s->dp8390 &&
+			s->c.macaddr.a[0] == buf[0] &&
+			s->c.macaddr.a[1] == buf[1] &&
+			s->c.macaddr.a[2] == buf[2] &&
+			s->c.macaddr.a[3] == buf[3] &&
+			s->c.macaddr.a[4] == buf[4] &&
+			s->c.macaddr.a[5] == buf[5]) {
+			/* match */
+		} else if (!s->dp8390 &&
+			s->mem[0] == buf[0] &&
+			s->mem[2] == buf[1] &&
+			s->mem[4] == buf[2] &&
+			s->mem[6] == buf[3] &&
+			s->mem[8] == buf[4] &&
+			s->mem[10] == buf[5]) {
+			/* match */
+		} else {
+			return false;
+		}
+	}
+	return true;
+}
+
 static ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 {
     NE2000State *s = qemu_get_nic_opaque(nc);
     int size = size_;
     uint8_t *p;
-    unsigned int total_len, next, avail, len, index, mcast_idx;
+    unsigned int total_len, next, avail, len, index;
     uint8_t buf1[60];
-    static const uint8_t broadcast_macaddr[6] =
-        { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 #if defined(DEBUG_NE2000)
     write_log("NE2000: received len=%d\n", size);
 #endif
 
-    if (s->cmd & E8390_STOP || ne2000_buffer_full(s))
+    if (s->cmd & E8390_STOP)
+		return -1;
+
+	if (!ne2000_canreceive(nc, buf))
+		return -1;
+
+	if (ne2000_buffer_full(s))
         return -1;
 
-    /* XXX: check this */
-    if (s->rxcr & 0x10) {
-        /* promiscuous: receive all */
-    } else {
-        if (!memcmp(buf,  broadcast_macaddr, 6)) {
-            /* broadcast address */
-            if (!(s->rxcr & 0x04))
-                return size;
-        } else if (buf[0] & 0x01) {
-            /* multicast */
-            if (!(s->rxcr & 0x08))
-                return size;
-            mcast_idx = compute_mcast_idx(buf);
-            if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
-                return size;
-        } else if (s->mem[0] == buf[0] &&
-                   s->mem[2] == buf[1] &&
-                   s->mem[4] == buf[2] &&
-                   s->mem[6] == buf[3] &&
-                   s->mem[8] == buf[4] &&
-                   s->mem[10] == buf[5]) {
-            /* match */
-        } else {
-            return size;
-        }
-    }
-
+	if (log_a2065 > 1) {
+		const uae_u8 *dstmac = buf;
+		const uae_u8 *srcmac = buf + 6;
+		write_log(_T("NE2000<!DST:%02X.%02X.%02X.%02X.%02X.%02X SRC:%02X.%02X.%02X.%02X.%02X.%02X E=%04X S=%d\n"),
+			dstmac[0], dstmac[1], dstmac[2], dstmac[3], dstmac[4], dstmac[5],
+			srcmac[6], srcmac[7], srcmac[8], srcmac[9], srcmac[10], srcmac[11],
+			(buf[12] << 8) | buf[13], size);
+	}
 
     /* if too small buffer, then expand it */
     if (size < MIN_BUF_SIZE) {
@@ -345,10 +377,18 @@ static ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t siz
     /* XXX: check this */
     if (buf[0] & 0x01)
         s->rsr |= ENRSR_PHY;
-    p[0] = s->rsr;
-    p[1] = next >> 8;
-    p[2] = total_len;
-    p[3] = total_len >> 8;
+
+	if ((s->dcfg & 2) && s->dp8390) {
+		p[1] = s->rsr;
+		p[0] = next >> 8;
+		p[2] = total_len;
+		p[3] = total_len >> 8;
+	} else {
+	    p[0] = s->rsr;
+	    p[1] = next >> 8;
+	    p[2] = total_len;
+	    p[3] = total_len >> 8;
+	}
     index += 4;
 
     /* write packet data */
@@ -392,6 +432,9 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     if (addr == E8390_CMD) {
         /* control register */
         s->cmd = val;
+		if ((val & E8390_STOP) && s->dp8390) {
+			s->isr |= ENISR_RESET;
+		}
         if (!(val & E8390_STOP)) { /* START bit makes no sense on RTL8029... */
             s->isr &= ~ENISR_RESET;
             /* test specific case: zero length transfer */
@@ -467,6 +510,17 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 						s->fifo_offset = 0;
 						xfree(loop);
 					} else {
+
+						if (log_a2065 > 1) {
+							const uae_u8 *dstmac = transmitbuffer;
+							const uae_u8 *srcmac = transmitbuffer + 6;
+							write_log(_T("NE2000>!DST:%02X.%02X.%02X.%02X.%02X.%02X SRC:%02X.%02X.%02X.%02X.%02X.%02X E=%04X S=%d\n"),
+								dstmac[0], dstmac[1], dstmac[2], dstmac[3], dstmac[4], dstmac[5],
+								srcmac[6], srcmac[7], srcmac[8], srcmac[9], srcmac[10], srcmac[11],
+								(transmitbuffer[12] << 8) | transmitbuffer[13], transmitlen);
+						}
+
+
 						ethernet_trigger(td, sysdata);
 					}
 #if 0
@@ -696,30 +750,27 @@ static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
     return ret;
 }
 
-static inline void ne2000_mem_writeb(NE2000State *s, uint32_t addr,
-                                     uint32_t val)
+static inline void ne2000_mem_writeb(NE2000State *s, uint32_t addr, uint32_t val)
 {
-    if (addr < 32 ||
+    if (s->dp8390 || addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
         s->mem[addr] = val;
     }
 }
 
-static inline void ne2000_mem_writew(NE2000State *s, uint32_t addr,
-                                     uint32_t val)
+static inline void ne2000_mem_writew(NE2000State *s, uint32_t addr, uint32_t val)
 {
     addr &= ~1; /* XXX: check exact behaviour if not even */
-    if (addr < 32 ||
+    if (s->dp8390 || addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
         *(uint16_t *)(s->mem + addr) = cpu_to_le16(val);
     }
 }
 
-static inline void ne2000_mem_writel(NE2000State *s, uint32_t addr,
-                                     uint32_t val)
+static inline void ne2000_mem_writel(NE2000State *s, uint32_t addr, uint32_t val)
 {
     addr &= ~1; /* XXX: check exact behaviour if not even */
-    if (addr < 32 ||
+    if (s->dp8390 || addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
         stl_le_p(s->mem + addr, val);
     }
@@ -727,7 +778,7 @@ static inline void ne2000_mem_writel(NE2000State *s, uint32_t addr,
 
 static inline uint32_t ne2000_mem_readb(NE2000State *s, uint32_t addr)
 {
-    if (addr < 32 ||
+    if (s->dp8390 || addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
         return s->mem[addr];
     } else {
@@ -738,7 +789,7 @@ static inline uint32_t ne2000_mem_readb(NE2000State *s, uint32_t addr)
 static inline uint32_t ne2000_mem_readw(NE2000State *s, uint32_t addr)
 {
     addr &= ~1; /* XXX: check exact behaviour if not even */
-    if (addr < 32 ||
+    if (s->dp8390 || addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
         return le16_to_cpu(*(uint16_t *)(s->mem + addr));
     } else {
@@ -749,7 +800,7 @@ static inline uint32_t ne2000_mem_readw(NE2000State *s, uint32_t addr)
 static inline uint32_t ne2000_mem_readl(NE2000State *s, uint32_t addr)
 {
     addr &= ~1; /* XXX: check exact behaviour if not even */
-    if (addr < 32 ||
+    if (s->dp8390 || addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
         return ldl_le_p(s->mem + addr);
     } else {
@@ -1117,6 +1168,9 @@ static void gotfunc(void *devv, const uae_u8 *databuf, int len)
 #ifdef DEBUG_NE2000
 	write_log("NE2000: %d byte received (%d %d)\n", len, receive_buffer_read, receive_buffer_write);
 #endif
+	// immediately check if we don't need this packet. for better performance.
+	if (!ne2000_canreceive(&ncs, databuf))
+		return;
 	ne2000_receive_check();
 	if (len > MAX_PACKET_SIZE) 
 		return;
@@ -1181,8 +1235,10 @@ static void ne2000_free(struct pci_board_state *pcibs)
 	sysdata = NULL;
 	xfree(receive_buffer);
 	receive_buffer = NULL;
-	if (ncs.ne2000state)
+	if (ncs.ne2000state) {
 		eeprom93xx_free(ncs.ne2000state->eeprom);
+		ncs.ne2000state->eeprom = NULL;
+	}
 	uae_sem_destroy(&ne2000_sem);
 }
 
@@ -1198,12 +1254,18 @@ static void ne2000_byteswapsupported(void *opaque)
 	NE2000State *s = (NE2000State*)opaque;
 	s->byteswapsupported = true;
 }
+static void ne2000_setisdp8390(void *opaque)
+{
+	NE2000State *s = (NE2000State*)opaque;
+	s->dp8390 = true;
+}
 
-static uae_u8 e9346[128] = {
+
+static uae_u8 e9346[64 * 2] = {
 	0x80, 0x00, 0x10, 0x00 // CONFIG1-4
 };
 
-static bool ne2000_init(struct pci_board_state *pcibs)
+static bool ne2000_init_2(struct pci_board_state *pcibs, int romtype, const TCHAR *mac)
 {
 	ne2000_free(pcibs);
 	ncs.device = &ne2000_pci_board;
@@ -1219,21 +1281,19 @@ static bool ne2000_init(struct pci_board_state *pcibs)
 
 	td = NULL;
 	uae_u8 *m = ncs.ne2000state->c.macaddr.a;
-	const TCHAR *name = currprefs.ne2000pciname[0] ? currprefs.ne2000pciname : currprefs.ne2000pcmcianame; // hack!
+
 	memset(m, 0, 6);
-
-	if (name[0] == 0)
-		name = _T("slirp");
-
-	if (ethernet_enumerate(&td, name)) {
-		memcpy(m, td->mac, 6);
-		if (!m[0] && !m[1] && !m[2]) {
-			m[0] = 0x52;
-			m[1] = 0x54;
-			m[2] = 0x05;
+	if (ethernet_enumerate(&td, romtype)) {
+		if (!ethernet_getmac(m, mac)) {
+			memcpy(m, td->mac, 6);
+			if (!m[0] && !m[1] && !m[2]) {
+				m[0] = 0x52;
+				m[1] = 0x54;
+				m[2] = 0x05;
+			}
 		}
 		write_log(_T("NE2000: '%s' %02X:%02X:%02X:%02X:%02X:%02X\n"),
-				  td->name, td->mac[0], td->mac[1], td->mac[2], td->mac[3], td->mac[4], td->mac[5]);
+				  td->name, m[0], m[1], m[2], m[3], m[4], m[5]);
 	} else {
 		m[0] = 0x52;
 		m[1] = 0x54;
@@ -1270,6 +1330,10 @@ static bool ne2000_init(struct pci_board_state *pcibs)
 	return true;
 }
 
+static bool ne2000_init(struct pci_board_state *pcibs, struct autoconfig_info *aci)
+{
+	return ne2000_init_2(pcibs, ROMTYPE_NE2KPCI, aci->rc->configtext);
+}
 
 static const struct pci_config ne2000_pci_config =
 {
@@ -1302,7 +1366,7 @@ static const uae_u8 pnp_init_key[] =
 	0xB0, 0x58, 0x2C, 0x16, 0x8B, 0x45, 0xA2, 0xD1, 0xE8, 0x74, 0x3A, 0x9D, 0xCE, 0xE7, 0x73, 0x39
 };
 
-static const uae_u8 rtl8029as_pnpdata[] =
+static const uae_u8 rtl8019as_pnpdata[] =
 {
 	0x4a, 0x8c, 0x80, 0x19,
 	0x0d, 0x00, 0x19, 0x00,
@@ -1348,6 +1412,7 @@ struct ne2000_s
 	int ne2000_romtype;
 	uae_u32 flags;
 	struct isapnp pnp;
+	bool level6;
 };
 static struct ne2000_s ne2000_data;
 
@@ -1513,6 +1578,76 @@ static int toariadne2(struct ne2000_s *ne, uaecptr addr, uae_u32 *vp, int size, 
 		addr >>= 1;
 		addr &= 0x1f;
 		return addr;
+	} else if (ne->ne2000_romtype == ROMTYPE_LANROVER) {
+		if ((addr & 0xc000) == 0x8000) {
+			int maddr = addr & 16383;
+			// memory
+			if (size == -4) {
+				uae_u16 vv = v >> 16;
+				vv = (vv >> 8) | (vv << 8);
+				ne2000_mem_writew(ncs.ne2000state, maddr + 0, vv);
+				vv = v;
+				vv = (vv >> 8) | (vv << 8);
+				ne2000_mem_writew(ncs.ne2000state, maddr + 2, vv);
+			} else if (size == -2) {
+				v = (v >> 8) | (v << 8);
+				ne2000_mem_writew(ncs.ne2000state, maddr, v);
+			} else if (size == -1) {
+				ne2000_mem_writeb(ncs.ne2000state, maddr, v);
+			} else if (size == 4) {
+				*bs = true;
+				*vp = ne2000_mem_readw(ncs.ne2000state, maddr) << 16;
+				*vp |= ne2000_mem_readw(ncs.ne2000state, maddr + 2) << 0;
+			} else if (size == 2) {
+				*bs = true;
+				*vp = ne2000_mem_readw(ncs.ne2000state, maddr);
+			} else if (size == 1) {
+				*vp = ne2000_mem_readb(ncs.ne2000state, maddr);
+			}
+		} else if ((addr & 0x8101) == 0x0100) {
+			// mac rom
+			*vp = ncs.ne2000state->c.macaddr.a[(addr >> 1) & 7];
+		} else if ((addr & 0x8101) == 0x0001) {
+			// io
+			addr &= (15 << 1);
+			addr >>= 1;
+			return addr;
+		}
+	} else if (ne->ne2000_romtype == ROMTYPE_HYDRA) {
+		if (!(addr & 0xc000)) {
+			int maddr = addr;
+			// memory
+			if (size == -4) {
+				uae_u16 vv = v >> 16;
+				vv = (vv >> 8) | (vv << 8);
+				ne2000_mem_writew(ncs.ne2000state, maddr + 0, vv);
+				vv = v;
+				vv = (vv >> 8) | (vv << 8);
+				ne2000_mem_writew(ncs.ne2000state, maddr + 2, vv);
+			} else if (size == -2) {
+				v = (v >> 8) | (v << 8);
+				ne2000_mem_writew(ncs.ne2000state, maddr, v);
+			} else if (size == -1) {
+				ne2000_mem_writeb(ncs.ne2000state, maddr, v);
+			} else if (size == 4) {
+				*bs = true;
+				*vp = ne2000_mem_readw(ncs.ne2000state, maddr) << 16;
+				*vp |= ne2000_mem_readw(ncs.ne2000state, maddr + 2) << 0;
+			} else if (size == 2) {
+				*bs = true;
+				*vp = ne2000_mem_readw(ncs.ne2000state, maddr);
+			} else if (size == 1) {
+				*vp = ne2000_mem_readb(ncs.ne2000state, maddr);
+			}
+		} else if ((addr & 0xffe1) == 0xffc0) {
+			// mac rom
+			*vp = ncs.ne2000state->c.macaddr.a[(addr >> 1) & 7];
+		} else if ((addr & 0xffe1) == 0xffe1) {
+			// io
+			addr &= (15 << 1);
+			addr >>= 1;
+			return addr;
+		}
 	} else if (ne->ne2000_romtype == ROMTYPE_XSURF) {
 		if (addr == 0x7e && size == -1) {
 			ne->flags &= ~1;
@@ -1618,6 +1753,16 @@ static uae_u32 REGPARAM2 ariadne2_lget(uaecptr addr)
 			w = (w >> 8) | (w << 8);
 		}
 		v |= w;
+	} else {
+		if (bs) {
+			uae_u32 l = v;
+			uae_u16 w = l >> 16;
+			w = (w >> 8) | (w << 8);
+			v = w << 16;
+			w = l;
+			w = (w >> 8) | (w << 8);
+			v |= w;
+		}
 	}
 #if ARIADNE2_LOG
 	write_log(_T("NE2000 LGET %08x %08X %d %08X\n"), addr, v, reg, M68K_GETPC);
@@ -1709,8 +1854,12 @@ void rethink_ne2000(void)
 	struct ne2000_s *ne = getne2k(0);
 	if (!ne->ariadne2_board_state)
 		return;
-	if (ne->ariadne2_irq)
-		INTREQ_0(0x8000 | 0x0008);
+	if (ne->ariadne2_irq) {
+		if (ne->level6)
+			INTREQ_0(0x8000 | 0x2000);
+		else
+			INTREQ_0(0x8000 | 0x0008);
+	}
 }
 
 void ne2000_hsync(void)
@@ -1766,9 +1915,58 @@ bool ariadne2_init(struct autoconfig_info *aci)
 
 	ne->ariadne2_board_state = xcalloc(pci_board_state, 1);
 	ne->ariadne2_board_state->irq_callback = ariadne2_irq_callback;
-	if (!ne2000_pci_board.init(ne->ariadne2_board_state))
+	if (!ne2000_init_2(ne->ariadne2_board_state, ne->ne2000_romtype, aci->rc->configtext))
 		return false;
 	ne2000_byteswapsupported(&ne2000state);
+
+	return true;
+}
+
+bool hydra_init(struct autoconfig_info *aci)
+{
+	struct ne2000_s *ne = getne2k(0);
+	ne->ariadne2_irq = false;
+	if (aci->postinit) {
+		return true;
+	}
+	ne->ne2000_romtype = ROMTYPE_HYDRA;
+	const struct expansionromtype *ert = get_device_expansion_rom(ne->ne2000_romtype);
+	aci->autoconfigp = ert->autoconfig;
+	aci->addrbank = &ariadne2_bank;
+	aci->autoconfig_automatic = true;
+	if (!aci->doinit)
+		return true;
+
+	ne->ariadne2_board_state = xcalloc(pci_board_state, 1);
+	ne->ariadne2_board_state->irq_callback = ariadne2_irq_callback;
+	if (!ne2000_init_2(ne->ariadne2_board_state, ne->ne2000_romtype, aci->rc->configtext))
+		return false;
+	ne2000_setisdp8390(&ne2000state);
+
+	return true;
+}
+
+bool lanrover_init(struct autoconfig_info *aci)
+{
+	struct ne2000_s *ne = getne2k(0);
+	ne->ariadne2_irq = false;
+	if (aci->postinit) {
+		return true;
+	}
+	ne->ne2000_romtype = ROMTYPE_LANROVER;
+	const struct expansionromtype *ert = get_device_expansion_rom(ne->ne2000_romtype);
+	aci->autoconfigp = ert->autoconfig;
+	aci->addrbank = &ariadne2_bank;
+	aci->autoconfig_automatic = true;
+	if (!aci->doinit)
+		return true;
+
+	ne->ariadne2_board_state = xcalloc(pci_board_state, 1);
+	ne->ariadne2_board_state->irq_callback = ariadne2_irq_callback;
+	if (!ne2000_init_2(ne->ariadne2_board_state, ne->ne2000_romtype, aci->rc->configtext))
+		return false;
+	ne2000_setisdp8390(&ne2000state);
+	ne->level6 = (aci->rc->device_settings & 1) != 0;
 
 	return true;
 }
@@ -1790,9 +1988,9 @@ bool xsurf_init(struct autoconfig_info *aci)
 
 	ne->ariadne2_board_state = xcalloc(pci_board_state, 1);
 	ne->ariadne2_board_state->irq_callback = ariadne2_irq_callback;
-	if (!ne2000_pci_board.init(ne->ariadne2_board_state))
+	if (!ne2000_init_2(ne->ariadne2_board_state, ne->ne2000_romtype, aci->rc->configtext))
 		return false;
-	isapnp_init(&ne->pnp, rtl8029as_pnpdata, sizeof rtl8029as_pnpdata, rt_pnp_init_key, 32);
+	isapnp_init(&ne->pnp, rtl8019as_pnpdata, sizeof rtl8019as_pnpdata, rt_pnp_init_key, 32);
 	ne2000_byteswapsupported(&ne2000state);
 	ne2000_setident(&ne2000state, 0x50, 0x70);
 
@@ -1816,7 +2014,7 @@ bool xsurf100_init(struct autoconfig_info *aci)
 
 	ne->ariadne2_board_state = xcalloc(pci_board_state, 1);
 	ne->ariadne2_board_state->irq_callback = ariadne2_irq_callback;
-	if (!ne2000_pci_board.init(ne->ariadne2_board_state))
+	if (!ne2000_init_2(ne->ariadne2_board_state, ne->ne2000_romtype, aci->rc->configtext))
 		return false;
 	ne2000_setident(&ne2000state, 0x50, 0x70);
 

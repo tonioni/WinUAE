@@ -141,6 +141,8 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_XSURF		0x00100058
 #define ROMTYPE_XSURF100Z2	0x00100059
 #define ROMTYPE_XSURF100Z3	0x0010005a
+#define ROMTYPE_HYDRA		0x0010005b
+#define ROMTYPE_LANROVER	0x0010005c
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000
@@ -236,6 +238,8 @@ const struct expansionromtype *get_unit_expansion_rom(int hdunit);
 struct boardromconfig *get_device_rom_new(struct uae_prefs *p, int romtype, int devnum, int *index);
 void clear_device_rom(struct uae_prefs *p, int romtype, int devnum, bool deleteDevice);
 struct boardromconfig *get_boardromconfig(struct uae_prefs *p, int romtype, int *index);
+bool is_board_enabled(struct uae_prefs *p, int romtype, int devnum);
+void board_prefs_changed(int romtype, int devnum);
 
 #define LOADROM_FILL 1
 #define LOADROM_EVENONLY 2

@@ -11,6 +11,7 @@
 #include "sana2.h"
 #include "uae/slirp.h"
 #include "gui.h"
+#include "rommgr.h"
 
 #ifndef HAVE_INET_ATON
 static int inet_aton(const char *cp, struct in_addr *ia)
@@ -193,10 +194,17 @@ void ethernet_enumerate_free (void)
 #endif
 }
 
-bool ethernet_enumerate (struct netdriverdata **nddp, const TCHAR *name)
+bool ethernet_enumerate (struct netdriverdata **nddp, int romtype)
 {
 	int j;
 	struct netdriverdata *nd;
+	const TCHAR *name = NULL;
+	
+	if (romtype) {
+		struct romconfig *rc = get_device_romconfig(&currprefs, romtype, 0);
+		name = ethernet_getselectionname(rc ? rc->device_settings : 0);
+	}
+
 	gui_flicker_led(LED_NET, 0, 0);
 	if (name) {
 		netmode = 0;
@@ -259,4 +267,23 @@ int ethernet_getdatalenght (struct netdriverdata *ndd)
 #endif
 	}
 	return 0;
+}
+
+bool ethernet_getmac(uae_u8 *m, const TCHAR *mac)
+{
+	if (!mac)
+		return false;
+	if (_tcslen(mac) != 3 * 5 + 2)
+		return false;
+	for (int i = 0; i < 6; i++) {
+		TCHAR *endptr;
+		if (mac[0] == 0 || mac[1] == 0)
+			return false;
+		if (i < 5 && mac[2] != '.')
+			return false;
+		uae_u8 v = (uae_u8)_tcstol(mac, &endptr, 16);
+		mac += 3;
+		m[i] = v;
+	}
+	return true;
 }

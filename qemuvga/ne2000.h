@@ -38,6 +38,7 @@ typedef struct NE2000State {
 	void *eeprom;
 	bool byteswapsupported;
 	uae_u8 idbytes[2];
+	bool dp8390;
 } NE2000State;
 
 #if 0

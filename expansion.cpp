@@ -45,6 +45,7 @@
 #include "x86.h"
 #include "filesys.h"
 #include "ethernet.h"
+#include "sana2.h"
 
 
 #define CARD_FLAG_CAN_Z3 1
@@ -3997,23 +3998,6 @@ static const struct expansionboardsettings x86_bridge_sidecar_settings[] = {
 	}
 };
 
-static const struct expansionboardsettings ne2k_isa_settings[] = {
-	{
-		_T("IO\0") _T("240\0") _T("260\0") _T("280\0") _T("2A0\0") _T("300\0") _T("320\0") _T("340\0") _T("360\0"),
-		_T("io\0") _T("240\0") _T("260\0") _T("280\0") _T("2A0\0") _T("300\0") _T("320\0") _T("340\0") _T("360\0"),
-		true, false, 0
-	},
-	{
-		_T("IRQ\0") _T("3\0") _T("4\0") _T("5\0") _T("7\0") _T("9\0") _T("10\0") _T("11\0") _T("12\0") _T("15\0"),
-		_T("irq\0") _T("3\0") _T("4\0") _T("5\0") _T("7\0") _T("9\0") _T("10\0") _T("11\0") _T("12\0") _T("15\0"),
-		true, false, 0
-	},
-	{
-		NULL
-	}
-};
-
-
 static const struct expansionboardsettings toccata_soundcard_settings[] = {
 	{
 		_T("Paula/CD audio mixer"),
@@ -4056,6 +4040,133 @@ static const struct expansionboardsettings harlequin_settings[] = {
 	}
 };
 
+static struct expansionboardsettings ne2k_isa_settings[] = {
+	{
+		_T("IO\0") _T("240\0") _T("260\0") _T("280\0") _T("2A0\0") _T("300\0") _T("320\0") _T("340\0") _T("360\0"),
+		_T("io\0") _T("240\0") _T("260\0") _T("280\0") _T("2A0\0") _T("300\0") _T("320\0") _T("340\0") _T("360\0"),
+		true, false, 0
+	},
+	{
+		_T("IRQ\0") _T("3\0") _T("4\0") _T("5\0") _T("7\0") _T("9\0") _T("10\0") _T("11\0") _T("12\0") _T("15\0"),
+		_T("irq\0") _T("3\0") _T("4\0") _T("5\0") _T("7\0") _T("9\0") _T("10\0") _T("11\0") _T("12\0") _T("15\0"),
+		true, false, 0
+	},
+	{
+		NULL, NULL,
+		true, false, 4
+	},
+	{
+		NULL
+	}
+};
+
+static struct expansionboardsettings lanrover_settings[] ={
+	{
+		_T("Interrupt level\0") _T("2\0") _T("6\0"),
+		_T("irq\0") _T("2\0") _T("6\0"),
+		true, false, 0
+	},
+	{
+		_T("MAC\0"),
+		_T("mac\0"),
+		2, false, 0
+	},
+	{
+		NULL, NULL,
+		true, false, 15
+	},
+	{
+		NULL
+	}
+};
+static struct expansionboardsettings ethernet_settings[] = {
+	{
+		_T("MAC\0"),
+		_T("mac\0"),
+		2, false, 0
+	},
+	{
+		NULL, NULL,
+		true, false, 16
+	},
+	{
+		NULL
+	}
+};
+
+static struct expansionboardsettings *netsettings[] = {
+	ethernet_settings,
+	lanrover_settings,
+	ne2k_isa_settings,
+	NULL
+};
+
+struct netdriverdata **target_ethernet_enumerate(void);
+
+uae_u32 ethernet_getselection(const TCHAR *name)
+{
+	struct netdriverdata **ndd = target_ethernet_enumerate();
+	if (!ndd)
+		return 0;
+	for (int i = 0; ndd && i < MAX_TOTAL_NET_DEVICES; i++) {
+		if (ndd[i] && !_tcsicmp(ndd[i]->name, name))
+			return i << 16;
+	}
+	return 0;
+}
+
+const TCHAR *ethernet_getselectionname(uae_u32 settings)
+{
+	struct netdriverdata **ndd = target_ethernet_enumerate();
+	if (!ndd)
+		return 0;
+	settings = (settings >> 16) & 255;
+	for (int i = 0; ndd && i < MAX_TOTAL_NET_DEVICES; i++) {
+		if (i == settings)
+			return ndd[i]->name;
+	}
+	return _T("slirp");
+}
+
+void ethernet_updateselection(void)
+{
+	static int updated;
+	if (updated)
+		return;
+	updated = 1;
+	struct netdriverdata **ndd = target_ethernet_enumerate();
+	if (!ndd)
+		return;
+	static TCHAR tmp1[MAX_DPATH];
+	static TCHAR tmp2[MAX_DPATH];
+	_tcscpy(tmp1, _T("Network mode"));
+	_tcscpy(tmp2, _T("netmode"));
+	TCHAR *p1 = tmp1 + _tcslen(tmp1) + 1;
+	TCHAR *p2 = tmp2 + _tcslen(tmp2) + 1;
+	for (int i = 0; ndd && i < MAX_TOTAL_NET_DEVICES; i++) {
+		if (ndd[i]) {
+			TCHAR mac[20];
+			mac[0] = 0;
+			if (ndd[i]->type == UAENET_SLIRP || ndd[i]->type == UAENET_SLIRP_INBOUND) {
+				_stprintf(mac, _T(" xx:xx:xx:%02X:%02X:%02X"),
+					ndd[i]->mac[3], ndd[i]->mac[4], ndd[i]->mac[5]);
+			}
+			_stprintf(p1, _T("%s%s"), ndd[i]->desc, mac[0] ? mac : _T(""));
+			p1 += _tcslen(p1) + 1;
+			_tcscpy(p2, ndd[i]->name);
+			p2 += _tcslen(p2) + 1;
+		}
+	}
+	*p1 = 0;
+	*p2 = 0;
+	for (int i = 0; netsettings[i]; i++) {
+		struct expansionboardsettings *ebs = netsettings[i];
+		int j;
+		for (j = 0; ebs[j].name; j++);
+		ebs[j].name = tmp1;
+		ebs[j].configname = tmp2;
+	}
+}
 
 static void fastlane_memory_callback(struct romconfig *rc, uae_u8 *ac, int size)
 {
@@ -4697,7 +4808,9 @@ const struct expansionromtype expansionroms[] = {
 		_T("a2065"), _T("A2065"), _T("Commodore"),
 		a2065_init, NULL, NULL, ROMTYPE_A2065 | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_NET
+		false, EXPANSIONTYPE_NET,
+		0, 0, 0, false, NULL,
+		false, 0, ethernet_settings,
 	},
 	{
 		_T("ariadne2"), _T("Ariadne II"), _T("Village Tronic"),
@@ -4705,8 +4818,26 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_NET,
 		0, 0, 0, false, NULL,
-		false, 0, NULL,
+		false, 0, ethernet_settings,
 		{ 0xc1, 0xca, 0x00, 0x00, 2167 >> 8, 2167 & 255, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
+	},
+	{
+		_T("hydra"), _T("AmigaNet"), _T("Hydra Systems"),
+		hydra_init, NULL, NULL, ROMTYPE_HYDRA | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_NET,
+		0, 0, 0, false, NULL,
+		false, 0, ethernet_settings,
+		{ 0xc1, 0x01, 0x00, 0x00, 2121 >> 8, 2121 & 255, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
+	},
+	{
+		_T("eb920"), _T("LAN Rover/EB920"), _T("ASDG"),
+		lanrover_init, NULL, NULL, ROMTYPE_LANROVER | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_NET,
+		0, 0, 0, false, NULL,
+		false, 0, lanrover_settings,
+		{ 0xc1, 0xfe, 0x00, 0x00, 1023 >> 8, 1023 & 255, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 	},
 	{
 		_T("xsurf"), _T("X-Surf"), _T("Individual Computers"),
@@ -4714,7 +4845,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_NET,
 		0, 0, 0, false, NULL,
-		false, 0, NULL,
+		false, 0, ethernet_settings,
 		{ 0xc1, 0x17, 0x00, 0x00, 4626 >> 8, 4626 & 255, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 	},
 	{
@@ -4723,7 +4854,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_NET,
 		0, 0, 0, false, NULL,
-		false, 0, NULL,
+		false, 0, ethernet_settings,
 		{ 0xc1, 0x64, 0x10, 0x00, 4626 >> 8, 4626 & 255, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00 }
 	},
 	{
@@ -4732,23 +4863,27 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_NET,
 		0, 0, 0, false, NULL,
-		false, 0, NULL,
+		false, 0, ethernet_settings,
 		{ 0x82, 0x64, 0x32, 0x00, 4626 >> 8, 4626 & 255, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00 }
 	},
 	{
-		_T("ne2000_pcmcia"), _T("NE2000 PCMCIA"), NULL,
+		_T("ne2000_pcmcia"), _T("RTL8019 PCMCIA (NE2000 compatible)"), NULL,
 		gayle_init_ne2000_pcmcia, NULL, NULL, ROMTYPE_NE2KPCMCIA | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_NET
+		false, EXPANSIONTYPE_NET,
+		0, 0, 0, false, NULL,
+		false, 0, ethernet_settings,
 	},
 	{
-		_T("ne2000_pci"), _T("NE2000 PCI"), NULL,
+		_T("ne2000_pci"), _T("RTL8029 PCI (NE2000 compatible)"), NULL,
 		pci_expansion_init, NULL, NULL, ROMTYPE_NE2KPCI | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_NET
+		false, EXPANSIONTYPE_NET,
+		0, 0, 0, false, NULL,
+		false, 0, ethernet_settings,
 	},
 	{
-		_T("ne2000_isa"), _T("NE2000 ISA"), NULL,
+		_T("ne2000_isa"), _T("RTL8019 ISA (NE2000 compatible)"), NULL,
 		isa_expansion_init, NULL, NULL, ROMTYPE_NE2KISA | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_NET,

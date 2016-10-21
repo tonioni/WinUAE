@@ -33,6 +33,7 @@
 #include "pci_hw.h"
 #include "debug.h"
 #include "autoconf.h"
+#include "rommgr.h"
 
 #define PCMCIA_SRAM 1
 #define PCMCIA_IDE 2
@@ -1496,7 +1497,7 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, str
 		ne2000 = &ne2000_pci_board;
 		ne2000_board_state = xcalloc(pci_board_state, 1);
 		ne2000_board_state->irq_callback = ne2000_pcmcia_irq_callback;
-		if (!ne2000->init(ne2000_board_state)) {
+		if (!ne2000->init(ne2000_board_state, NULL)) {
 			write_log(_T("NE2000 init failed\n"));
 		} else {
 			pcmcia_readonly = true;
@@ -1879,15 +1880,17 @@ void gayle_reset (int hardreset)
 #endif
 	gayle_bank.name = bankname;
 	gayle_dataflyer_enable(false);
-	if (currprefs.ne2000pcmcianame[0])
+	if (is_board_enabled(&currprefs, ROMTYPE_NE2KPCMCIA, 0))
 		gayle_ne2000_unit(1);
 }
 
 void check_prefs_changed_gayle(void)
 {
-	if (_tcscmp(currprefs.ne2000pcmcianame, changed_prefs.ne2000pcmcianame)) {
-		_tcscpy(currprefs.ne2000pcmcianame, changed_prefs.ne2000pcmcianame);
-		gayle_ne2000_unit(currprefs.ne2000pcmcianame[0]);
+	if (!currprefs.cs_pcmcia)
+		return;
+	if (is_board_enabled(&currprefs, ROMTYPE_NE2KPCMCIA, 0) != is_board_enabled(&changed_prefs, ROMTYPE_NE2KPCMCIA, 0)) {
+		board_prefs_changed(ROMTYPE_NE2KPCMCIA, 0);
+		gayle_ne2000_unit(is_board_enabled(&currprefs, ROMTYPE_NE2KPCMCIA, 0));
 	}
 }
 
