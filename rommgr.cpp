@@ -1849,6 +1849,34 @@ struct romconfig *get_device_romconfig(struct uae_prefs *p, int romtype, int dev
 	return NULL;
 }
 
+void board_prefs_changed(int romtype, int devnum)
+{
+	int idx1, idx2;
+	struct boardromconfig *brc1 = get_device_rom(&currprefs, romtype, devnum, &idx1);
+	struct boardromconfig *brc2 = get_device_rom(&changed_prefs, romtype, devnum, &idx2);
+	if (brc1 && brc2) {
+		memcpy(brc1, brc2, sizeof(struct boardromconfig));
+	} else if (brc1 && !brc2) {
+		clear_device_rom(&currprefs, romtype, devnum, true);
+	} else if (!brc1 && brc2) {
+		brc1 = get_device_rom_new(&currprefs, romtype, devnum, &idx1);
+		if (brc1)
+			memcpy(brc1, brc2, sizeof(struct boardromconfig));
+	}
+}
+
+bool is_board_enabled(struct uae_prefs *p, int romtype, int devnum)
+{
+	int idx;
+	if (romtype == ROMTYPE_CPUBOARD && p->cpuboard_type) {
+		return devnum == 0;
+	}
+	struct boardromconfig *brc = get_device_rom(p, romtype, devnum, &idx);
+	if (!brc)
+		return false;
+	return brc->roms[idx].romfile[0] != 0;
+}
+
 static bool isspecialrom(const TCHAR *name)
 {
 	if (!_tcsicmp(name, _T(":NOROM")))

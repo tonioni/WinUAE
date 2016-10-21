@@ -1473,7 +1473,7 @@ static const uae_u8 alfplus_autoconfig[16] = { 0xd1, 38, 0x00, 0x00, 0x08, 0x2c,
 
 bool alf_init(struct autoconfig_info *aci)
 {
-	bool alfplus = cfgfile_board_enabled(&currprefs, ROMTYPE_ALFAPLUS, 0);
+	bool alfplus = is_board_enabled(&currprefs, ROMTYPE_ALFAPLUS, 0);
 	if (!aci->doinit) {
 		aci->autoconfigp = alfplus ? alfplus_autoconfig : alf_autoconfig;
 		return true;

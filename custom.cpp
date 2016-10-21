@@ -9800,8 +9800,8 @@ uae_u8 *save_custom_extra (int *len, uae_u8 *dstptr)
 	SB (currprefs.cs_a1000ram ? 1 : 0);
 	SB (currprefs.cs_slowmemisfast ? 1 : 0);
 
-	SB (cfgfile_board_enabled(&currprefs, ROMTYPE_A2091, 0) ? 1 : 0);
-	SB (cfgfile_board_enabled(&currprefs, ROMTYPE_A4091, 0) ? 1 : 0);
+	SB (is_board_enabled(&currprefs, ROMTYPE_A2091, 0) ? 1 : 0);
+	SB (is_board_enabled(&currprefs, ROMTYPE_A4091, 0) ? 1 : 0);
 	SB (currprefs.cs_cdtvscsi ? 1 : 0);
 
 	SB (currprefs.cs_pcmcia ? 1 : 0);

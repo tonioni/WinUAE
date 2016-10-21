@@ -900,7 +900,7 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			return;
 		}
 	} else if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1230IV) || ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1260)) {
-		if (!cfgfile_board_enabled(&currprefs, ROMTYPE_BLIZKIT4, 0))
+		if (!is_board_enabled(&currprefs, ROMTYPE_BLIZKIT4, 0))
 			return;
 		if (addr >= BLIZZARD_SCSI_KIT4_DMA_OFFSET) {
 			addr &= 0x18000;
@@ -1193,7 +1193,7 @@ static uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 			return ncr->led;
 		}
 	} else if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1230IV) || ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1260)) {
-		if (!cfgfile_board_enabled(&currprefs, ROMTYPE_BLIZKIT4, 0))
+		if (!is_board_enabled(&currprefs, ROMTYPE_BLIZKIT4, 0))
 			return 0;
 		if (addr >= BLIZZARD_SCSI_KIT4_DMA_OFFSET)
 			return 0;

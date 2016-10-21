@@ -184,11 +184,15 @@ typedef void(*DEVICE_MEMORY_CALLBACK)(struct romconfig*, uae_u8*, int);
 #define EXPANSIONTYPE_FALLBACK_DISABLE 0x8000
 #define EXPANSIONTYPE_HAS_FALLBACK 0x10000
 
+#define EXPANSIONBOARD_CHECKBOX 0
+#define EXPANSIONBOARD_MULTI 1
+#define EXPANSIONBOARD_STRING 2
+
 struct expansionboardsettings
 {
 	const TCHAR *name;
 	const TCHAR *configname;
-	bool multiselect;
+	int type;
 	bool invert;
 	int bitshift;
 };

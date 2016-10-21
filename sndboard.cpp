@@ -1764,7 +1764,7 @@ static void fm801_free(struct pci_board_state *pcibs)
 	fm801_stop(data);
 }
 
-static bool fm801_init(struct pci_board_state *pcibs)
+static bool fm801_init(struct pci_board_state *pcibs, struct autoconfig_info *aci)
 {
 	struct fm801_data *data = &fm801;
 	memset(data, 0, sizeof(struct fm801_data));
@@ -1820,7 +1820,7 @@ static void solo1_free(struct pci_board_state *pcibs)
 {
 }
 
-static bool solo1_init(struct pci_board_state *pcibs)
+static bool solo1_init(struct pci_board_state *pcibs, struct autoconfig_info *aci)
 {
 	return true;
 }

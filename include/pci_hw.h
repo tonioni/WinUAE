@@ -9,7 +9,7 @@
 typedef uae_u32(REGPARAM3 *pci_get_func)(struct pci_board_state*,uaecptr) REGPARAM;
 typedef void (REGPARAM3 *pci_put_func)(struct pci_board_state*,uaecptr,uae_u32) REGPARAM;
 typedef void (*pci_dev_irq)(struct pci_board_state*,bool);
-typedef bool(*pci_dev_init)(struct pci_board_state*);
+typedef bool(*pci_dev_init)(struct pci_board_state*,struct autoconfig_info*);
 typedef void(*pci_dev_reset)(struct pci_board_state*);
 typedef void(*pci_dev_hsync)(struct pci_board_state*);
 typedef void(*pci_dev_free)(struct pci_board_state*);

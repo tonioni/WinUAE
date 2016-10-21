@@ -359,6 +359,7 @@ struct romconfig
 	int device_settings;
 	int subtype;
 	void *unitdata;
+	TCHAR configtext[256];
 	struct boardromconfig *back;
 };
 #define MAX_BOARD_ROMS 2
@@ -869,7 +870,6 @@ extern int cfgfile_configuration_change (int);
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);
 extern void fixup_prefs (struct uae_prefs *prefs, bool userconfig);
 extern void fixup_cpu (struct uae_prefs *prefs);
-extern bool cfgfile_board_enabled(struct uae_prefs *p, int romtype, int devnum);
 extern void cfgfile_compatibility_romtype(struct uae_prefs *p);
 extern void cfgfile_compatibility_rtg(struct uae_prefs *p);
 

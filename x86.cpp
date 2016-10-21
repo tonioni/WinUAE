@@ -3397,7 +3397,7 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 		}
 	}
 
-	if (cfgfile_board_enabled(&currprefs, ROMTYPE_NE2KISA, 0)) {
+	if (is_board_enabled(&currprefs, ROMTYPE_NE2KISA, 0)) {
 		struct romconfig *rc = get_device_romconfig(&currprefs, ROMTYPE_NE2KISA, 0);
 		if (rc) {
 			xb->ne2000_isa = &ne2000_pci_board;
@@ -3462,7 +3462,7 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 				xb->ne2000_irq = 15;
 				break;
 			}
-			if (xb->ne2000_isa->init(xb->ne2000_isa_board_state)) {
+			if (xb->ne2000_isa->init(xb->ne2000_isa_board_state, NULL)) {
 				write_log(_T("NE2000 ISA configured, IO=%3X, IRQ=%d\n"), xb->ne2000_io, xb->ne2000_irq);
 			} else {
 				xb->ne2000_isa = NULL;

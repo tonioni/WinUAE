@@ -36,6 +36,7 @@
 #include "gfxboard.h"
 #include "cpuboard.h"
 #include "luascript.h"
+#include "ethernet.h"
 #include "native2amiga_api.h"
 
 #define cfgfile_warning write_log
@@ -1094,14 +1095,25 @@ static void write_resolution (struct zfile *f, const TCHAR *ws, const TCHAR *hs,
 	}
 }
 
-static int cfgfile_read_rom_settings(const struct expansionboardsettings *ebs, const TCHAR *buf)
+static int cfgfile_read_rom_settings(const struct expansionboardsettings *ebs, const TCHAR *buf, TCHAR *configtext)
 {
 	int settings = 0;
 	int bitcnt = 0;
+	int sstr = 0;
+	if (configtext)
+		configtext[0] = 0;
+	TCHAR *ct = configtext;
 	for (int i = 0; ebs[i].name; i++) {
 		const struct expansionboardsettings *eb = &ebs[i];
 		bitcnt += eb->bitshift;
-		if (eb->multiselect) {
+		if (eb->type == EXPANSIONBOARD_STRING) {
+			const TCHAR *p = cfgfile_option_get(buf, eb->configname);
+			if (p) {
+				_tcscpy(ct, p);
+				ct += _tcslen(ct);
+			}
+			*ct++ = 0;
+		} else if (eb->type == EXPANSIONBOARD_MULTI) {
 			int itemcnt = -1;
 			int itemfound = 0;
 			const TCHAR *p = eb->configname;
@@ -1142,13 +1154,25 @@ static int cfgfile_read_rom_settings(const struct expansionboardsettings *ebs, c
 	return settings;
 }
 
-static void cfgfile_write_rom_settings(const struct expansionboardsettings *ebs, TCHAR *buf, int settings)
+static void cfgfile_write_rom_settings(const struct expansionboardsettings *ebs, TCHAR *buf, int settings, const TCHAR *settingstring)
 {
 	int bitcnt = 0;
+	int sstr = 0;
 	for (int j = 0; ebs[j].name; j++) {
 		const struct expansionboardsettings *eb = &ebs[j];
 		bitcnt += eb->bitshift;
-		if (eb->multiselect) {
+		if (eb->type == EXPANSIONBOARD_STRING) {
+			if (settingstring) {
+				const TCHAR *p = settingstring;
+				for (int i = 0; i < sstr; i++) {
+					p += _tcslen(p) + 1;
+				}
+				if (buf[0])
+					_tcscat(buf, _T(","));
+				_stprintf(buf, _T("%s=%s"), eb->configname, p);
+				sstr++;
+			}
+		} else if (eb->type == EXPANSIONBOARD_MULTI) {
 			int itemcnt = -1;
 			const TCHAR *p = eb->configname;
 			while (p[0]) {
@@ -1247,7 +1271,7 @@ static void cfgfile_write_board_rom(struct uae_prefs *prefs, struct zfile *f, st
 					_tcscat(buf2, tmp);
 				}
 				if (br->roms[i].device_settings && ert->settings) {
-					cfgfile_write_rom_settings(ert->settings, buf2, br->roms[i].device_settings);
+					cfgfile_write_rom_settings(ert->settings, buf2, br->roms[i].device_settings, br->roms[i].configtext);
 				}
 				if (buf2[0])
 					cfgfile_dwrite_str (f, buf, buf2);
@@ -1627,12 +1651,27 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	}
 
 	cfgfile_write_bool (f, _T("bsdsocket_emu"), p->socket_emu);
-	if (p->a2065name[0])
-		cfgfile_write_str (f, _T("a2065"), p->a2065name);
-	if (p->ne2000pciname[0])
-		cfgfile_write_str(f, _T("ne2000_pci"), p->ne2000pciname);
-	if (p->ne2000pcmcianame[0])
-		cfgfile_write_str(f, _T("ne2000_pcmcia"), p->ne2000pcmcianame);
+
+	{
+		// backwards compatibility
+		const TCHAR *name;
+		struct romconfig *rc;
+		rc = get_device_romconfig(p, ROMTYPE_A2065, 0);
+		if (rc) {
+			name = ethernet_getselectionname(rc ? rc->device_settings : 0);
+			cfgfile_write_str(f, _T("a2065"), name);
+		}
+		rc = get_device_romconfig(p, ROMTYPE_NE2KPCMCIA, 0);
+		if (rc) {
+			name = ethernet_getselectionname(rc ? rc->device_settings : 0);
+			cfgfile_write_str(f, _T("ne2000_pcmcia"), name);
+		}
+		rc = get_device_romconfig(p, ROMTYPE_NE2KPCI, 0);
+		if (rc) {
+			name = ethernet_getselectionname(rc ? rc->device_settings : 0);
+			cfgfile_write_str(f, _T("ne2000_pci"), name);
+		}
+	}
 
 #ifdef WITH_SLIRP
 	tmp[0] = 0;
@@ -1975,22 +2014,22 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool(f, _T("color_burst"), p->cs_color_burst);
 	cfgfile_dwrite (f, _T("chipset_hacks"), _T("0x%x"), p->cs_hacks);
 
-	if (cfgfile_board_enabled(p, ROMTYPE_CD32CART, 0)) {
+	if (is_board_enabled(p, ROMTYPE_CD32CART, 0)) {
 		cfgfile_dwrite_bool(f, _T("cd32fmv"), true);
 	}
-	if (cfgfile_board_enabled(p, ROMTYPE_MB_IDE, 0) && p->cs_ide == 1) {
+	if (is_board_enabled(p, ROMTYPE_MB_IDE, 0) && p->cs_ide == 1) {
 		cfgfile_dwrite_str(f, _T("ide"), _T("a600/a1200"));
 	}
-	if (cfgfile_board_enabled(p, ROMTYPE_MB_IDE, 0) && p->cs_ide == 2) {
+	if (is_board_enabled(p, ROMTYPE_MB_IDE, 0) && p->cs_ide == 2) {
 		cfgfile_dwrite_str(f, _T("ide"), _T("a4000"));
 	}
-	if (cfgfile_board_enabled(p, ROMTYPE_CDTVSCSI, 0)) {
+	if (is_board_enabled(p, ROMTYPE_CDTVSCSI, 0)) {
 		cfgfile_dwrite_bool(f, _T("scsi_cdtv"), true);
 	}
-	if (cfgfile_board_enabled(p, ROMTYPE_SCSI_A3000, 0)) {
+	if (is_board_enabled(p, ROMTYPE_SCSI_A3000, 0)) {
 		cfgfile_dwrite_bool(f, _T("scsi_a3000"), true);
 	}
-	if (cfgfile_board_enabled(p, ROMTYPE_SCSI_A4000T, 0)) {
+	if (is_board_enabled(p, ROMTYPE_SCSI_A4000T, 0)) {
 		cfgfile_dwrite_bool(f, _T("scsi_a4000t"), true);
 	}
 
@@ -2034,7 +2073,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_dwrite_str(f, _T("cpuboard_type"), cbst->configname);
 		if (cbs && p->cpuboard_settings) {
 			tmp[0] = 0;
-			cfgfile_write_rom_settings(cbs, tmp, p->cpuboard_settings);
+			cfgfile_write_rom_settings(cbs, tmp, p->cpuboard_settings, NULL);
 			cfgfile_dwrite_str(f, _T("cpuboard_settings"), tmp);
 		}
 	} else {
@@ -4449,18 +4488,6 @@ invalid_fs:
 	return 0;
 }
 
-bool cfgfile_board_enabled(struct uae_prefs *p, int romtype, int devnum)
-{
-	int idx;
-	if (romtype == ROMTYPE_CPUBOARD && p->cpuboard_type) {
-		return devnum == 0;
-	}
-	struct boardromconfig *brc = get_device_rom(p, romtype, devnum, &idx);
-	if (!brc)
-		return false;
-	return brc->roms[idx].romfile[0] != 0;
-}
-
 static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, const TCHAR *value, struct multipath *mp)
 {
 	TCHAR buf[256], buf2[MAX_DPATH], buf3[MAX_DPATH];
@@ -4489,6 +4516,10 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 			_stprintf(buf, _T("%s_rom_file"), name);
 			if (cfgfile_path(option, value, buf, buf2, MAX_DPATH / sizeof (TCHAR), mp)) {
 				if (buf2[0]) {
+					if (ert->deviceflags & EXPANSIONTYPE_NET) {
+						// make sure network settings are available before parsing net "rom" entries
+						ethernet_updateselection();
+					}
 					brc = get_device_rom_new(p, ert->romtype, j, &idx);
 					_tcscpy(brc->roms[idx].romfile, buf2);
 				}
@@ -4530,7 +4561,7 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 						brc->device_order = _tstol(p);
 					}
 					if (ert->settings) {
-						brc->roms[idx].device_settings = cfgfile_read_rom_settings(ert->settings, buf2);
+						brc->roms[idx].device_settings = cfgfile_read_rom_settings(ert->settings, buf2, brc->roms[idx].configtext);
 					}
 					if (ert->id_jumper) {
 						p = cfgfile_option_get(buf2, _T("id"));
@@ -4578,6 +4609,23 @@ static void addbcromtype(struct uae_prefs *p, int romtype, bool add, const TCHAR
 		struct boardromconfig *brc = get_device_rom_new(p, romtype, devnum, NULL);
 		if (brc && !brc->roms[0].romfile[0]) {
 			_tcscpy(brc->roms[0].romfile, romfile ? romfile : _T(":ENABLED"));
+		}
+	}
+}
+
+static void addbcromtypenet(struct uae_prefs *p, int romtype, const TCHAR *netname, int devnum)
+{
+	if (netname == NULL || netname[0] == 0) {
+		clear_device_rom(p, romtype, devnum, true);
+	} else {
+		struct boardromconfig *brc = get_device_rom_new(p, romtype, devnum, NULL);
+		if (brc) {
+			if (!brc->roms[0].romfile[0]) {
+				_tcscpy(brc->roms[0].romfile, _T(":ENABLED"));
+			}
+			ethernet_updateselection();
+			if (!brc->roms[0].device_settings)
+				brc->roms[0].device_settings = ethernet_getselection(netname);
 		}
 	}
 }
@@ -4913,7 +4961,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		p->cpuboard_settings = 0;
 		const struct cpuboardsubtype *cbst = &cpuboards[p->cpuboard_type].subtypes[p->cpuboard_subtype];
 		if (cbst->settings) {
-			p->cpuboard_settings = cfgfile_read_rom_settings(cbst->settings, tmpbuf);
+			p->cpuboard_settings = cfgfile_read_rom_settings(cbst->settings, tmpbuf, NULL);
 		}
 		return 1;
 	}
@@ -5109,15 +5157,15 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 	return 0;
 }
 
-static void romtype_restricted(struct uae_prefs *p, int *list)
+static void romtype_restricted(struct uae_prefs *p, const int *list)
 {
 	for (int i = 0; list[i]; i++) {
 		int romtype = list[i];
-		if (cfgfile_board_enabled(p, romtype, 0)) {
+		if (is_board_enabled(p, romtype, 0)) {
 			i++;
 			while (list[i]) {
 				romtype = list[i];
-				if (cfgfile_board_enabled(p, romtype, 0)) {
+				if (is_board_enabled(p, romtype, 0)) {
 					addbcromtype(p, romtype, false, NULL, 0);
 				}
 				i++;
@@ -5256,13 +5304,20 @@ void cfgfile_compatibility_romtype(struct uae_prefs *p)
 
 	addbcromtype(p, ROMTYPE_CD32CART, p->cs_cd32fmv, p->cartfile,0);
 
-	addbcromtype(p, ROMTYPE_A2065, p->a2065name[0] != 0, NULL, 0);
-	addbcromtype(p, ROMTYPE_NE2KPCMCIA, p->ne2000pcmcianame[0] != 0, NULL, 0);
-	addbcromtype(p, ROMTYPE_NE2KPCI, p->ne2000pciname[0] != 0, NULL, 0);
+	if (p->config_version < ((3 << 16) | (4 << 8) | (0 << 0))) {
+		// 3.3.0 or older
+		addbcromtypenet(p, ROMTYPE_A2065, p->a2065name, 0);
+		addbcromtypenet(p, ROMTYPE_NE2KPCMCIA, p->ne2000pcmcianame, 0);
+		addbcromtypenet(p, ROMTYPE_NE2KPCI, p->ne2000pciname, 0);
+	}
 
-	static int restricted_net[] = { ROMTYPE_A2065, ROMTYPE_NE2KPCMCIA, ROMTYPE_NE2KPCI, ROMTYPE_NE2KISA, ROMTYPE_ARIADNE2, ROMTYPE_XSURF, ROMTYPE_XSURF100Z2, ROMTYPE_XSURF100Z3, 0 };
-	static int restricted_x86[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
-	static int restricted_pci[] = { ROMTYPE_GREX, ROMTYPE_MEDIATOR, ROMTYPE_PROMETHEUS, 0 };
+	static const int restricted_net[] = {
+		ROMTYPE_A2065, ROMTYPE_NE2KPCMCIA, ROMTYPE_NE2KPCI, ROMTYPE_NE2KISA,
+		ROMTYPE_ARIADNE2, ROMTYPE_XSURF, ROMTYPE_XSURF100Z2, ROMTYPE_XSURF100Z3,
+		ROMTYPE_HYDRA, ROMTYPE_LANROVER,
+		0 };
+	static const int restricted_x86[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
+	static const int restricted_pci[] = { ROMTYPE_GREX, ROMTYPE_MEDIATOR, ROMTYPE_PROMETHEUS, 0 };
 	romtype_restricted(p, restricted_net);
 	romtype_restricted(p, restricted_x86);
 	romtype_restricted(p, restricted_pci);

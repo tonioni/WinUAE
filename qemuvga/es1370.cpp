@@ -1183,7 +1183,7 @@ static void es1370_free(struct pci_board_state *pcibs)
 		return;
 }
 
-static bool es1370_init(struct pci_board_state *pcibs)
+static bool es1370_init(struct pci_board_state *pcibs, struct autoconfig_info *aci)
 {
 	init(pcibs);
 	es1370state.irq_callback = pcibs->irq_callback;

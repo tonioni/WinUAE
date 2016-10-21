@@ -105,7 +105,7 @@ static struct pci_board *pci_board_alloc(struct pci_config *config)
 	return pci;
 }
 
-static void pci_board_add(struct pci_bridge *pcib, const struct pci_board *pci, int slot, int func)
+static void pci_board_add(struct pci_bridge *pcib, const struct pci_board *pci, int slot, int func, struct autoconfig_info *aci)
 {
 	struct pci_board_state *pcibs = &pcib->boards[pcib->slot_cnt];
 	pcib->slot_cnt++;
@@ -119,7 +119,7 @@ static void pci_board_add(struct pci_bridge *pcib, const struct pci_board *pci, 
 		pcibs->bar_size[i] = pci->config->bars[i];
 	}
 	if (pci->init)
-		pci->init(pcibs);
+		pci->init(pcibs, aci);
 	if (pci->hsync) {
 		for (int i = 0; i < MAX_PCI_BOARDS; i++) {
 			if (hsyncs[i] == NULL) {
@@ -1465,27 +1465,23 @@ static const struct pci_board ncr_53c815_pci_board =
 	}
 };
 
-static void add_pci_devices(struct pci_bridge *pcib)
+static void add_pci_devices(struct pci_bridge *pcib, struct autoconfig_info *aci)
 {
 	int slot = 0;
 
-	if (currprefs.ne2000pciname[0]) {
-		pci_board_add(pcib, &ne2000_pci_board, slot++, 0);
+	if (is_device_rom(&currprefs, ROMTYPE_NE2KPCI, 0) >= 0) {
+		pci_board_add(pcib, &ne2000_pci_board, slot++, 0, aci);
 	}
 
 	if (is_device_rom(&currprefs, ROMTYPE_FM801, 0) >= 0) {
-		pci_board_add(pcib, &fm801_pci_board, slot, 0);
-		pci_board_add(pcib, &fm801_pci_board_func1, slot, 1);
+		pci_board_add(pcib, &fm801_pci_board, slot, 0, aci);
+		pci_board_add(pcib, &fm801_pci_board_func1, slot, 1, aci);
 		slot++;
 	}
 
 	if (is_device_rom(&currprefs, ROMTYPE_ES1370, 0) >= 0) {
-		pci_board_add(pcib, &es1370_pci_board, slot++, 0);
+		pci_board_add(pcib, &es1370_pci_board, slot++, 0, aci);
 	}
-
-	//pci_board_add(pcib, &solo1_pci_board, slot++, 0);
-
-	//pci_board_add(pcib, &ncr_53c815_pci_board, 1, 0);
 }
 
 // Wildfire
@@ -1513,7 +1509,7 @@ bool dkb_wildfire_pci_init(struct autoconfig_info *aci)
 	pcib->configured = -1;
 	pcib->pcipcidma = true;
 	pcib->amigapicdma = true;
-	pci_board_add(pcib, &ncr_53c815_pci_board, 0, 0);
+	pci_board_add(pcib, &ncr_53c815_pci_board, 0, 0, aci);
 	map_banks(&pci_config_bank, 0x80000000 >> 16, 0x10000000 >> 16, 0);
 	map_banks(&pci_mem_bank, 0x90000000 >> 16, 0x30000000 >> 16, 0);
 	map_banks(&pci_io_bank, 0xc0000000 >> 16, 0x30000000 >> 16, 0);
@@ -1577,7 +1573,7 @@ static bool prometheus_pci_init(struct autoconfig_info *aci)
 	if (rc->device_settings & 1)
 		pcib->amigapicdma = true;
 
-	add_pci_devices(pcib);
+	add_pci_devices(pcib, aci);
 
 	memset(pcib->acmemory, 0xff, sizeof pcib->acmemory);
 	for (int i = 0; i < sizeof prometheus_autoconfig; i++) {
@@ -1617,7 +1613,7 @@ static bool grex_pci_init(struct autoconfig_info *aci)
 	pcib->pcipcidma = true;
 	pcib->amigapicdma = true;
 
-	add_pci_devices(pcib);
+	add_pci_devices(pcib, aci);
 
 	map_banks(&pci_config_bank, 0xfffc0000 >> 16, 0x20000 >> 16, 0);
 	map_banks(&pci_mem_bank, 0x80000000 >> 16, 0x78000000 >> 16, 0);
@@ -1776,7 +1772,7 @@ static addrbank *mediator_pci_init_1200_1(struct autoconfig_info *aci, struct ro
 		if (!pcib)
 			return &expamem_null;
 		mediator_pci_init_1200(pcib);
-		add_pci_devices(pcib);
+		add_pci_devices(pcib, aci);
 	} else {
 		pcib = pci_bridge_get_zorro(rc);
 		if (!pcib)
@@ -1810,7 +1806,7 @@ static addrbank *mediator_pci_init_1200_2(struct autoconfig_info *aci, struct ro
 		if (!pcib)
 			return &expamem_null;
 		mediator_pci_init_1200(pcib);
-		add_pci_devices(pcib);
+		add_pci_devices(pcib, aci);
 	}
 	memset(pcib->acmemory, 0xff, sizeof pcib->acmemory);
 	const uae_u8 *ac = (rc->device_settings & 2) ? m_ac->mem_large : m_ac->mem_small;
@@ -1852,7 +1848,7 @@ static addrbank *mediator_pci_init_4000_1(struct autoconfig_info *aci, struct ro
 		if (!pcib)
 			return &expamem_null;
 		mediator_pci_init_4000(pcib);
-		add_pci_devices(pcib);
+		add_pci_devices(pcib, aci);
 	} else {
 		pcib = pci_bridge_get_zorro(rc);
 		if (!pcib)
@@ -1883,7 +1879,7 @@ static addrbank *mediator_pci_init_4000_2(struct autoconfig_info *aci, struct ro
 			return &expamem_null;
 
 		mediator_pci_init_4000(pcib);
-		add_pci_devices(pcib);
+		add_pci_devices(pcib, aci);
 	}
 	memset(pcib->acmemory, 0xff, sizeof pcib->acmemory);
 	const uae_u8 *ac = (rc->device_settings & 2) ? m_ac->mem_large : m_ac->mem_small;
