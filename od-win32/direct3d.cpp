@@ -33,7 +33,7 @@
 #include "uae.h"
 #include "threaddep\thread.h"
 
-extern int D3DEX, d3ddebug;
+extern int D3DEX, shaderon, d3ddebug;
 int forcedframelatency = -1;
 
 #include <d3d9.h>
@@ -42,7 +42,7 @@ int forcedframelatency = -1;
 #include "direct3d.h"
 
 static TCHAR *D3DHEAD = _T("-");
-static int psEnabled, psActive, shaderon;
+static int psEnabled, psActive;
 static struct gfx_filterdata *filterd3d;
 static int filterd3didx;
 
@@ -563,7 +563,8 @@ int D3D_goodenough (void)
 					d3d_good = 1;
 					if (d3dCaps.PixelShaderVersion >= D3DPS_VERSION(1, 0)) {
 						d3d_good = 2;
-						shaderon = 1;
+						if (shaderon < 0)
+							shaderon = 1;
 					}
 				}
 			}
@@ -573,6 +574,8 @@ int D3D_goodenough (void)
 #if SHADER == 0
 	shaderon = 0;
 #endif
+	if (shaderon < 0)
+		shaderon = 0;
 	return d3d_good > 0 ? d3d_good : 0;
 }
 
