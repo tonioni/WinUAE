@@ -856,7 +856,7 @@ static bool add_ide_unit(int type, int unit, struct uaedev_config_info *uci)
 		for (int i = 0; expansionroms[i].name; i++) {
 			if (i == type - HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST) {
 				const struct expansionromtype *ert = &expansionroms[i];
-				if ((ert->deviceflags & 2) && cfgfile_board_enabled(&currprefs, ert->romtype, uci->controller_type_unit)) {
+				if ((ert->deviceflags & 2) && is_board_enabled(&currprefs, ert->romtype, uci->controller_type_unit)) {
 					cpuboard_hd = 1;
 					if (ert->add) {
 						struct romconfig *rc = get_device_romconfig(&currprefs, ert->romtype, uci->controller_type_unit);
@@ -880,7 +880,7 @@ static bool add_scsi_unit(int type, int unit, struct uaedev_config_info *uci)
 		for (int i = 0; expansionroms[i].name; i++) {
 			if (i == type - HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST) {
 				const struct expansionromtype *ert = &expansionroms[i];
-				if ((ert->deviceflags & 1) && cfgfile_board_enabled(&currprefs, ert->romtype, uci->controller_type_unit)) {
+				if ((ert->deviceflags & 1) && is_board_enabled(&currprefs, ert->romtype, uci->controller_type_unit)) {
 					cpuboard_hd = 1;
 					if (ert->add) {
 						struct romconfig *rc = get_device_romconfig(&currprefs, ert->romtype, uci->controller_type_unit);
@@ -7699,6 +7699,12 @@ static uae_u32 REGPARAM2 filesys_bcpl_wrapper(TrapContext *ctx)
 		trap_put_long(ctx, seglist + offset + 2, patchfunc);
 		patchfunc += 4;
 	}
+	uae_u16 ver = trap_get_word(ctx, trap_get_areg(ctx, 6) + 20);
+	if (ver < 31) {
+		// OpenLibrary -> OldOpenLibrary
+		trap_put_word(ctx, seglist + 0x7f4, -0x198);
+		trap_put_word(ctx, seglist + 0x2a6e, -0x198);
+	}
 	write_log(_T("FFS pre-1.2 patched\n"));
 	return 0;
 }
@@ -8850,9 +8856,11 @@ void filesys_install (void)
 
 	org(rtarea_base + 0xFF68);
 	calltrap(deftrap2(filesys_bcpl_wrapper, 0, _T("filesys_bcpl_wrapper")));
+	dw(RTS);
 
 	org(rtarea_base + 0xFF78);
 	calltrap(deftrap2(debugger_helper, 0, _T("debugger_helper")));
+	dw(RTS);
 
 	org (loop);
 }
