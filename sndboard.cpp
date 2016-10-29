@@ -41,7 +41,7 @@ struct uaesndboard_stream
 	int streamid;
 	int play;
 	int ch;
-	int bits;
+	int bitmode;
 	int volume;
 	int freq;
 	int event_time;
@@ -50,6 +50,9 @@ struct uaesndboard_stream
 	uaecptr address;
 	uaecptr next;
 	uaecptr repeat;
+	uaecptr indirect_ptr;
+	uaecptr indirect_address;
+	int indirect_len;
 	int len;
 	int replen;
 	int repcnt;
@@ -89,15 +92,21 @@ static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
 	It is never modified by UAE. Must be long aligned.
 
 	 0.L sample address pointer
-	 4.L sample length (in frames, negative = play backwards, set address after last sample.). 0 = next set/repeat after single sample period.
+	 4.L sample length (in frames, negative=play backwards, set address after last sample.). 0=next set/repeat after single sample period.
+
+	If sample length equals 0x80000000, sample address pointer becomes pointer to array that has one or more sample pointer and sample length pairs.
+	All sample pointers will played sequentially, NULL pointer ends the chain.
+	(sample ptr1, sample len1, ptr2, len2, ptr3, len3, NULL)
+	If "scatter/gather" DMA support is needed by some non-AOS operating system without wasting memory for complete sample set structures.
+
 	 8.L playback frequency (Hz)
 	12.L repeat sample address pointer (ignored if repeat count=0)
-	16.L repeat sample length (ignored if repeat count=0, negative = play backwards)
-	20.W repeat count (0=no repeat, -1=forever)
+	16.L repeat sample length (ignored if repeat count=0, negative=play backwards)
+	20.W repeat count (0=no repeat, -1=repeat forever)
 	22.W volume (0 to 32768)
 	24.L next sample set address (0=end, this was last set)
 	28.B number of channels. (interleaved samples if 2 or more channels)
-	29.B bits per sample (8, 16, 24 or 32)
+	29.B sample type (bit 0: bits per sample, 0=8,1=16, bit 6=signed, bit 7=little-endian)
 	30.B bit 0: interrupt when set starts, bit 1: interrupt when set ends (last sample played), bit 2: interrupt when repeat starts, bit 3: after each sample.
 	31.B if mono stream, bit mask that selects output channels. (0=default, redirect to left and right channels)
 	(Can be used for example when playing tracker modules by using 4 single channel streams)
@@ -124,7 +133,7 @@ static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
 	$0080.L uae version (ver.rev.subrev)
 	$0084.W uae sndboard "hardware" version
 	$0086.W uae sndboard "hardware" revision
-	$0088.L preferred frequency (=configured mixing/resampling rate)
+	$0088.L preferred frequency (=user configured mixing/resampling rate)
 	$008C.B max number of channels/stream (>=6: 5.1 fully supported, 7.1 also supported but last 2 surround channels are currently muted)
 	$008D.B active number of channels (mirrors selected UAE sound mode. inactive channels are muted but can be still be used normally.)
 	$008E.B max number of simultaneous audio streams (currently 8)
@@ -133,7 +142,7 @@ static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
 		disable interrupts before allocating/freeing streams. If stream bit is not set, stream's address range is inactive.
 		byte access to $00E3 is also allowed.
 
-	$00F0.L stream enable bit mask. RW. Can be used to start or stop multiple streams simultaneously.
+	$00F0.L stream enable bit mask. RW. Can be used to start or stop multiple streams simultaneously. $00F3.B is also allowed.
 	Changing stream mask always clears stream's interrupt status register.
 
 	$0100 stream 1
@@ -141,7 +150,7 @@ static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
 	$0100-$011f: Current sample set structure. RW.
 	$0140-$015f: Latched sample set structure.
 		Reading from $0140.W/.L makes copy of current contents of $0100-$011f.
-		Writing to $0142.W/$0140.L copies back to $0100-$011f
+		Writing to $0142.W/$0140.L copies whole set back to $0100-$011f
 	$0180.L Current sample set pointer. RW.
 	$0184.B Reserved
 	$0185.B Reserved
@@ -166,7 +175,7 @@ static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
 	Long wide registers have special feature when read using word wide reads (68000/10 CPU), when high word is read,
 	low word is copied to internal register. Following low word read comes from register copy.
 	This prevents situation where sound emulation can modify the register between high and low word reads.
-	68020+ long accesses are always guaranteed safe.
+	68020+ aligned long accesses are always guaranteed safe.
 
 	Set structure is copied to emulator side internal address space when set starts.
 	This data can be always read and written in real time by accessing $0100-$011f space.
@@ -249,7 +258,7 @@ static struct uaesndboard_stream *uaesnd_get(uaecptr addr)
 	put_word_host(s->io + 22, s->volume);
 	put_long_host(s->io + 24, s->next);
 	put_byte_host(s->io + 28, s->ch);
-	put_byte_host(s->io + 29, s->bits);
+	put_byte_host(s->io + 29, s->bitmode);
 	put_byte_host(s->io + 30, s->intenamask);
 	put_byte_host(s->io + 31, s->chmode);
 	put_long_host(s->io + 0x80, s->setaddr);
@@ -293,17 +302,32 @@ static void uaesndboard_start(struct uaesndboard_stream *s)
 	}
 }
 
+static bool get_indirect(struct uaesndboard_stream *s, uaecptr saddr)
+{
+	if (!valid_address(saddr, 8)) {
+		write_log(_T("UAESND: invalid indirect pointer %08x\n"), saddr);
+		return false;
+	}
+	s->indirect_ptr = saddr;
+	s->indirect_address = get_long(saddr);
+	s->indirect_len = get_long(saddr + 4);
+	if (!s->indirect_address)
+		return true;
+	if (!valid_address(s->indirect_address, abs(s->indirect_len) * s->framesize)) {
+		write_log(_T("UAESND: invalid indirect sample pointer range %08x - %08x\n"), s->indirect_address, s->indirect_address + s->indirect_len * s->framesize);
+		return false;
+	}
+	return true;
+}
+
 static bool uaesnd_validate(struct uaesndboard_stream *s)
 {
+	int samplebits = (s->bitmode & 1) ? 16 : 8;
 
-	s->framesize = s->bits * s->ch / 8;
+	s->framesize = samplebits * s->ch / 8;
 
 	if (s->ch < 1 || s->ch > MAX_UAE_CHANNELS || s->ch == 3 || s->ch == 5 || s->ch == 7) {
 		write_log(_T("UAESND: unsupported number of channels %d\n"), s->ch);
-		return false;
-	}
-	if (s->bits != 8 && s->bits != 16 && s->bits != 24 && s->bits != 32) {
-		write_log(_T("UAESND: unsupported sample bits %d\n"), s->bits);
 		return false;
 	}
 	if (s->freq < 1 || s->freq > 96000) {
@@ -319,11 +343,16 @@ static bool uaesnd_validate(struct uaesndboard_stream *s)
 		return false;
 	}
 	uaecptr saddr = s->address;
-	if (s->len < 0)
-		saddr -= abs(s->len) * s->framesize;
-	if (!valid_address(saddr, abs(s->len) * s->framesize)) {
-		write_log(_T("UAESND: invalid sample pointer range %08x - %08x\n"), saddr, saddr + s->len * s->framesize);
-		return false;
+	if (s->len == 0x80000000) {
+		if (!get_indirect(s, saddr))
+			return false;
+	} else {
+		if (s->len < 0)
+			saddr -= abs(s->len) * s->framesize;
+		if (!valid_address(saddr, abs(s->len) * s->framesize)) {
+			write_log(_T("UAESND: invalid sample pointer range %08x - %08x\n"), saddr, saddr + s->len * s->framesize);
+			return false;
+		}
 	}
 	if (s->repcnt) {
 		if (s->replen == 0) {
@@ -356,7 +385,7 @@ static void uaesnd_load(struct uaesndboard_stream *s, uaecptr addr)
 	s->volume = get_word(addr + 22);
 	s->next = get_long(addr + 24);
 	s->ch = get_byte(addr + 28);
-	s->bits = get_byte(addr + 29);
+	s->bitmode = get_byte(addr + 29);
 	s->intenamask = get_byte(addr + 30);
 	s->chmode = get_byte(addr + 31);
 }
@@ -445,28 +474,37 @@ static bool audio_state_sndboard_uae(int streamid)
 	int highestch = s->ch;
 	int streamnum = s - data->stream;
 	if (s->play && (data->streammask & (1 << streamnum))) {
-		int len = s->repeating ? s->replen : s->len;
-		uaecptr addr = s->repeating ? s->repeat : s->address;
+		uaecptr addr;
+		int len;
+		if (s->indirect_ptr) {
+			addr = s->indirect_address;
+			len = s->indirect_len;
+		} else {
+			len = s->repeating ? s->replen : s->len;
+			addr = s->repeating ? s->repeat : s->address;
+		}
+		bool bit16 = (s->bitmode & 1) != 0;
+		bool le = (s->bitmode & 0x80) != 0;
+		bool sign = (s->bitmode & 0x40) != 0;
 		if (len != 0) {
 			if (len < 0)
 				addr -= s->framesize;
 			for (int i = 0; i < s->ch; i++) {
-				uae_s16 sample = 0;
-				if (s->bits == 16) {
+				uae_u16 sample = 0;
+				if (bit16) {
 					sample = get_word(addr);
+					if (le)
+						sample = (sample >> 8) | (sample << 8);
 					addr += 2;
-				} else if (s->bits == 8) {
+				} else {
 					sample = get_byte(addr);
 					sample = (sample << 8) | sample;
 					addr += 1;
-				} else if (s->bits == 24) {
-					sample = get_word(addr); // just drop lowest 8 bits for now
-					addr += 3;
-				} else if (s->bits == 32) {
-					sample = get_word(addr); // just drop lowest 16 bits for now
-					addr += 4;
 				}
-				s->sample[i] = sample * ((s->volume + 1) / 2 + (data->volume[i] + 1) / 2) / 32768;
+				if (sign)
+					sample -= 0x8000;
+				uae_s16 samples = (uae_s16)sample;
+				s->sample[i] = samples * ((s->volume + 1) / 2 + (data->volume[i] + 1) / 2) / 32768;
 			}
 			if (len < 0)
 				addr -= s->framesize;
@@ -479,11 +517,19 @@ static bool audio_state_sndboard_uae(int streamid)
 				len = s->replen;
 			} else {
 				s->address = addr;
-				if (s->len > 0)
-					s->len--;
-				else
-					s->len++;
-				len = s->len;
+				if (s->indirect_len) {
+					if (s->indirect_len > 0)
+						s->indirect_len--;
+					else
+						s->indirect_len++;
+					len = s->indirect_len;
+				} else {
+					if (s->len > 0)
+						s->len--;
+					else
+						s->len++;
+					len = s->len;
+				}
 			}
 			uaesnd_irq(s, 8);
 		}
@@ -492,6 +538,7 @@ static bool audio_state_sndboard_uae(int streamid)
 			s->first = false;
 		}
 		if (len == 0) {
+			bool end = true;
 			// sample ended
 			if (s->repcnt) {
 				if (s->repcnt != 0xffff)
@@ -500,7 +547,17 @@ static bool audio_state_sndboard_uae(int streamid)
 				s->replen = get_long(s->setaddr + 16);
 				s->repeating = true;
 				uaesnd_irq(s, 4);
-			} else {
+				end = false;
+			} else if (s->indirect_ptr) {
+				s->indirect_ptr += 8;
+				if (!get_indirect(s, s->indirect_ptr)) {
+					uaesndboard_stop(s);
+				}
+				if (!s->indirect_address) {
+					s->indirect_ptr = NULL;
+				}
+			}
+			if (end) {
 				// set ended
 				uaesnd_irq(s, 2);
 				s->next = get_long(s->setaddr + 24);
