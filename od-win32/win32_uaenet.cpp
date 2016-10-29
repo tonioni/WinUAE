@@ -237,12 +237,14 @@ void uaenet_trigger (void *vsd)
 // locally administered unicast MAC: U<<1, A<<1, E<<1
 static const uae_u8 uaemac[] = { 0xaa, 0x82, 0x8a, 0x00, 0x00, 0x00 };
 
-int uaenet_open (void *vsd, struct netdriverdata *tc, void *user, uaenet_gotfunc *gotfunc, uaenet_getfunc *getfunc, int promiscuous)
+int uaenet_open (void *vsd, struct netdriverdata *tc, void *user, uaenet_gotfunc *gotfunc, uaenet_getfunc *getfunc, int promiscuous, const uae_u8 *mac)
 {
 	struct uaenetdatawin32 *sd = (struct uaenetdatawin32*)vsd;
 	char *s;
 
 	s = ua (tc->name);
+	if (mac)
+		memcpy(tc->mac, mac, 6);
 	if (memcmp(tc->mac, tc->originalmac, 6)) {
 		promiscuous = 1;
 	}

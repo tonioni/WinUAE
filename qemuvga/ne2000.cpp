@@ -1310,7 +1310,7 @@ static bool ne2000_init_2(struct pci_board_state *pcibs, int romtype, const TCHA
 	if (td != NULL) {
 		if (!sysdata)
 			sysdata = xcalloc(uae_u8, ethernet_getdatalenght(td));
-		if (!ethernet_open(td, sysdata, NULL, gotfunc, getfunc, 0)) {
+		if (!ethernet_open(td, sysdata, NULL, gotfunc, getfunc, 0, m)) {
 			write_log(_T("NE2000: failed to initialize winpcap driver\n"));
 			return false;
 		}
