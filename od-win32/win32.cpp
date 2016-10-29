@@ -6962,6 +6962,20 @@ const TCHAR **uaenative_get_library_dirs (void)
 
 typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
 
+#ifndef NDEBUG
+typedef struct _PROCESS_MITIGATION_STRICT_HANDLE_CHECK_POLICY {
+	union {
+		DWORD  Flags;
+		struct {
+			DWORD RaiseExceptionOnInvalidHandleReference : 1;
+			DWORD HandleExceptionsPermanentlyEnabled : 1;
+			DWORD ReservedFlags : 30;
+		};
+	};
+} PROCESS_MITIGATION_STRICT_HANDLE_CHECK_POLICY;
+typedef BOOL (WINAPI* SETPROCESSMITIGATIONPOLICY)(DWORD, PVOID, SIZE_T);
+static SETPROCESSMITIGATIONPOLICY pSetProcessMitigationPolicy;
+#endif
 
 int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
@@ -6983,6 +6997,16 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	}
 #endif
 #endif
+
+#ifndef NDEBUG
+	PROCESS_MITIGATION_STRICT_HANDLE_CHECK_POLICY p = { 0 };
+	p.HandleExceptionsPermanentlyEnabled = 1;
+	p.RaiseExceptionOnInvalidHandleReference = 1;
+	//ProcessStrictHandleCheckPolicy = 3
+	pSetProcessMitigationPolicy = (SETPROCESSMITIGATIONPOLICY)GetProcAddress(GetModuleHandle(_T("kernel32.dll")), "SetProcessMitigationPolicy");
+	pSetProcessMitigationPolicy(3, &p, sizeof p);
+#endif
+
 	executable_path[0] = 0;
 	GetModuleFileName(NULL, executable_path, sizeof executable_path / sizeof(TCHAR));
 

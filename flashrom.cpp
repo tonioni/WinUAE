@@ -226,7 +226,7 @@ void *eeprom93xx_new(const uae_u8 *memory, int nwords, struct zfile *zf)
 	}
 	/* Output DO is tristate, read results in 1. */
 	eeprom->eedo = 1;
-	write_log("eeprom = 0x%p, nwords = %u\n", eeprom, nwords);
+//	write_log("eeprom = 0x%p, nwords = %u\n", eeprom, nwords);
 	return eeprom;
 }
 
@@ -235,7 +235,7 @@ void eeprom93xx_free(void *eepromp)
 	eeprom93xx_eeprom_t *eeprom = (eeprom93xx_eeprom_t*)eepromp;
 
 	/* Destroy EEPROM. */
-	write_log("eeprom = 0x%p\n", eeprom);
+//	write_log("eeprom = 0x%p\n", eeprom);
 	xfree(eeprom);
 }
 

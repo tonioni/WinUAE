@@ -3744,7 +3744,7 @@ fail:
 static TCHAR *getfrombstr(uaecptr pp)
 {
 	uae_u8 *p = get_real_address ((uaecptr)(pp << 2));
-	TCHAR *s = xmalloc (TCHAR, p[0] + 1);
+	TCHAR *s = xcalloc (TCHAR, p[0] + 1);
 	return au_copy (s, p[0] + 1, (char*)p + 1);
 }
 
@@ -3791,8 +3791,8 @@ static void show_exec_lists (TCHAR *t)
 			while (doslist) {
 				int type = get_long_debug (doslist + 4);
 				uaecptr msgport = get_long_debug (doslist + 8);
-				TCHAR *name = getfrombstr (get_long_debug (doslist + 40));
-				console_out_f (_T("%08x: %d %08x '%s'\n"), doslist, type, msgport, name);
+				TCHAR *name = getfrombstr(get_long_debug(doslist + 40));
+				console_out_f(_T("%08x: %d %08x '%s'\n"), doslist, type, msgport, name);
 				if (type == 0) {
 					uaecptr fssm = get_long_debug(doslist + 28) << 2;
 					console_out_f (_T(" - H=%08x Stack=%5d Pri=%2d Start=%08x Seg=%08x GV=%08x\n"),

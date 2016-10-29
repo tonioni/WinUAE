@@ -11939,8 +11939,8 @@ static void values_from_sounddlg (HWND hDlg)
 	}
 	if (workprefs.sound_freq < 8000)
 		workprefs.sound_freq = 8000;
-	if (workprefs.sound_freq > 96000)
-		workprefs.sound_freq = 96000;
+	if (workprefs.sound_freq > 192000)
+		workprefs.sound_freq = 192000;
 
 	workprefs.produce_sound = (ischecked (hDlg, IDC_SOUND0) ? 0
 		: ischecked (hDlg, IDC_SOUND1) ? 1 : 3);
@@ -12408,6 +12408,21 @@ STATIC_INLINE bool is_hdf_rdb (void)
 
 static int hdmenutable[256];
 
+static void sethardfiletypes(HWND hDlg)
+{
+	bool ide = current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_IDE_LAST;
+	bool scsi = current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_SCSI_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_SCSI_LAST;
+	ew(hDlg, IDC_HDF_CONTROLLER_TYPE, ide);
+	ew(hDlg, IDC_HDF_FEATURE_LEVEL, ide || scsi);
+	if (!ide) {
+		current_hfdlg.ci.controller_media_type = 0;
+	}
+	if (current_hfdlg.ci.controller_media_type && current_hfdlg.ci.unit_feature_level == 0)
+		current_hfdlg.ci.unit_feature_level = 1;
+	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_TYPE, CB_SETCURSEL, current_hfdlg.ci.controller_media_type, 0);
+	SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_SETCURSEL, current_hfdlg.ci.unit_feature_level, 0);
+}
+
 static void sethardfile (HWND hDlg)
 {
 	bool rdb = is_hdf_rdb ();
@@ -12451,15 +12466,7 @@ static void sethardfile (HWND hDlg)
 	hide(hDlg, IDC_CYLINDERS_TEXT, !rdb);
 	gui_set_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER, current_hfdlg.ci.controller_type +  current_hfdlg.ci.controller_type_unit * HD_CONTROLLER_NEXT_UNIT);
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_hfdlg.ci.controller_unit : current_hfdlg.ci.controller_type_unit, 0);
-	ew(hDlg, IDC_HDF_CONTROLLER_TYPE, ide);
-	ew(hDlg, IDC_HDF_FEATURE_LEVEL, ide || scsi);
-	if (!ide) {
-		current_hfdlg.ci.controller_media_type = 0;
-	}
-	if (current_hfdlg.ci.controller_media_type && current_hfdlg.ci.unit_feature_level == 0)
-		current_hfdlg.ci.unit_feature_level = 1;
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_TYPE, CB_SETCURSEL, current_hfdlg.ci.controller_media_type, 0);
-	SendDlgItemMessage (hDlg, IDC_HDF_FEATURE_LEVEL, CB_SETCURSEL, current_hfdlg.ci.unit_feature_level, 0);
+	sethardfiletypes(hDlg);
 }
 
 static void addhdcontroller(HWND hDlg, const struct expansionromtype *erc, int *hdmenutable, int firstid, int flags)
@@ -13232,6 +13239,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			oposn = -1;
 			hdf_init_target ();
 			recursive++;
+			sethardfiletypes(hDlg);
 			inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF);
 			CheckDlgButton (hDlg, IDC_HDF_RW, !current_hfdlg.ci.readonly);
 			SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_RESETCONTENT, 0, 0);
@@ -13251,7 +13259,8 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_SETCURSEL, index, 0);
 				gui_set_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER, current_hfdlg.ci.controller_type + current_hfdlg.ci.controller_type_unit * HD_CONTROLLER_NEXT_UNIT);
 				SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_hfdlg.ci.controller_unit : current_hfdlg.ci.controller_type_unit, 0);
-				SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_TYPE, CB_SETCURSEL, current_hfdlg.ci.controller_media_type, 0);
+				SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_TYPE, CB_SETCURSEL, current_hfdlg.ci.controller_media_type, 0);
+				SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_SETCURSEL, current_hfdlg.ci.unit_feature_level, 0);
 			}
 			recursive--;
 			return TRUE;
@@ -13301,8 +13310,6 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 					current_hfdlg.ci.blocksize = 512;
 					current_hfdlg.forcedcylinders = 0;
 					current_hfdlg.ci.cyls = current_hfdlg.ci.highcyl = current_hfdlg.ci.sectors = current_hfdlg.ci.surfaces = 0;
-					ew (hDlg, IDC_HDF_CONTROLLER, ena);
-					ew (hDlg, IDC_HDF_CONTROLLER_UNIT, ena);
 					SetDlgItemText (hDlg, IDC_HDFINFO, _T(""));
 					SetDlgItemText (hDlg, IDC_HDFINFO2, _T(""));
 					updatehdfinfo (hDlg, true, true);
@@ -13310,6 +13317,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 					SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_hfdlg.ci.controller_unit : current_hfdlg.ci.controller_type_unit, 0);
 					CheckDlgButton(hDlg, IDC_HDF_RW, !current_hfdlg.ci.readonly);
 					_tcscpy (current_hfdlg.ci.rootdir, hdf_getnameharddrive ((int)posn, 4, &current_hfdlg.ci.blocksize, NULL));
+					sethardfiletypes(hDlg);
 				}
 			}
 		} else if (LOWORD (wParam) == IDC_HDF_CONTROLLER) {
@@ -13324,6 +13332,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				updatehdfinfo (hDlg, true, true);
 				inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF);
 				SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_hfdlg.ci.controller_unit : current_hfdlg.ci.controller_type_unit, 0);
+				sethardfiletypes(hDlg);
 			}
 		} else if (LOWORD(wParam) == IDC_HDF_CONTROLLER_UNIT) {
 			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_GETCURSEL, 0, 0);
@@ -13337,6 +13346,11 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_TYPE, CB_GETCURSEL, 0, 0);
 			if (posn != CB_ERR) {
 				current_hfdlg.ci.controller_media_type = posn;
+			}
+		} else if (LOWORD(wParam) == IDC_HDF_FEATURE_LEVEL) {
+			posn = SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_GETCURSEL, 0, 0);
+			if (posn != CB_ERR) {
+				current_hfdlg.ci.unit_feature_level = posn;
 			}
 		}
 		recursive--;

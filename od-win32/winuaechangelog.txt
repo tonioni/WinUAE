@@ -4,7 +4,18 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
-Beta 12:
+
+Beta 14:
+
+- Ariadne network adapter emulation added. (Am79c960 based, improved Am79c90)
+- uaesnd update, sample format byte changed, added support for little-endian and signed samples.
+- Old NE2000 config entries overrode new style entries until config file was rewritten at least once.
+- Sound output frequency max limit increased from 96KHz to 192KHz. (Useless but if you really want to do it..)
+- Added missing drive type/feature level options to add harddrive dialog.
+- Opalvision updates, OpalPaint palette is now fully visible, interlace mode missing lines fixed.
+  King of Karate confirmed working. PlayAnim24 (which uses sort of polarity inverted control line) works. 
+
+Beta 13:
 
 - Fixed double free in RTL8019 9346 EEPROM emulation. Caused random crashes.
 - Implemented DP8390 NIC support (Same register set as NE2000 but without on board RAM "fake DMA" support)

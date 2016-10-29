@@ -4615,17 +4615,21 @@ static void addbcromtype(struct uae_prefs *p, int romtype, bool add, const TCHAR
 
 static void addbcromtypenet(struct uae_prefs *p, int romtype, const TCHAR *netname, int devnum)
 {
+	int is = is_device_rom(p, romtype, devnum);
 	if (netname == NULL || netname[0] == 0) {
-		clear_device_rom(p, romtype, devnum, true);
+		if (is < 0)
+			clear_device_rom(p, romtype, devnum, true);
 	} else {
-		struct boardromconfig *brc = get_device_rom_new(p, romtype, devnum, NULL);
-		if (brc) {
-			if (!brc->roms[0].romfile[0]) {
-				_tcscpy(brc->roms[0].romfile, _T(":ENABLED"));
+		if (is < 0) {
+			struct boardromconfig *brc = get_device_rom_new(p, romtype, devnum, NULL);
+			if (brc) {
+				if (!brc->roms[0].romfile[0]) {
+					_tcscpy(brc->roms[0].romfile, _T(":ENABLED"));
+				}
+				ethernet_updateselection();
+				if (!brc->roms[0].device_settings)
+					brc->roms[0].device_settings = ethernet_getselection(netname);
 			}
-			ethernet_updateselection();
-			if (!brc->roms[0].device_settings)
-				brc->roms[0].device_settings = ethernet_getselection(netname);
 		}
 	}
 }
@@ -5166,6 +5170,7 @@ static void romtype_restricted(struct uae_prefs *p, const int *list)
 			while (list[i]) {
 				romtype = list[i];
 				if (is_board_enabled(p, romtype, 0)) {
+					write_log(_T("ROMTYPE %08x removed\n"), romtype);
 					addbcromtype(p, romtype, false, NULL, 0);
 				}
 				i++;

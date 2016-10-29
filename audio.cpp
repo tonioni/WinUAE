@@ -1323,6 +1323,16 @@ STATIC_INLINE int is_audio_active (void)
 	return audio_work_to_do;
 }
 
+static void update_volume(int nr, uae_u16 v)
+{
+	struct audio_channel_data *cdp = audio_channel + nr;
+	// 7 bit register in Paula.
+	v &= 127;
+	if (v > 64)
+		v = 64;
+	cdp->data.vol = v;
+}
+
 uae_u16 audio_dmal (void)
 {
 	uae_u16 dmal = 0;
@@ -1403,10 +1413,7 @@ static void loaddat (int nr, bool modper)
 			else
 				cdp[1].per = PERIOD_MIN * CYCLE_UNIT;
 		} else	if (audav) {
-			cdp[1].data.vol = cdp->dat;
-			cdp[1].data.vol &= 127;
-			if (cdp[1].data.vol > 64)
-				cdp[1].data.vol = 64;
+			update_volume(nr + 1, cdp->dat);
 		}
 	} else {
 #if TEST_AUDIO > 0
@@ -2216,13 +2223,9 @@ void AUDxVOL (int nr, uae_u16 v)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
 
-	 // 7 bit register in Paula.
-	v &= 127;
-	if (v > 64)
-		v = 64;
 	audio_activate ();
 	update_audio ();
-	cdp->data.vol = v;
+	update_volume(nr, v);
 #if DEBUG_AUDIO > 0
 	if (debugchannel (nr))
 		write_log (_T("AUD%dVOL: %d %08X\n"), nr, v, M68K_GETPC);

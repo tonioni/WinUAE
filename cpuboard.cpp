@@ -2037,7 +2037,7 @@ bool cpuboard_io_special(int addr, uae_u32 *val, int size, bool write)
 		uae_u16 w = *val;
 		if (is_a2630(&currprefs)) {
 			if ((addr == 0x0040 && size == 2) || (addr == 0x0041 && size == 1)) {
-				write_log(_T("A2630 write %04x PC=%08x\n"), w, M68K_GETPC);
+				write_log(_T("A2630 write %04x s=%d PC=%08x\n"), w, size, M68K_GETPC);
 				a2630_io = w;
 				// bit 0: unmap 0x000000
 				// bit 1: unmap 0xf80000

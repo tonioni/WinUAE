@@ -2277,6 +2277,7 @@ static void add_expansions(struct uae_prefs *p, int zorro, int *fastmem_nump, in
 					cards_set[cardno].initrc = ert->init;
 					cards_set[cardno].rc = rc;
 					cards_set[cardno].zorro = zorro;
+					cards_set[cardno].ert = ert;
 					cards_set[cardno++].map = NULL;
 					if (ert->init2) {
 						cards_set[cardno].flags = CARD_FLAG_CHILD;
@@ -4811,6 +4812,16 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_NET,
 		0, 0, 0, false, NULL,
 		false, 0, ethernet_settings,
+		{ 0xc1, 0x70, 0x00, 0x00, 0x02, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
+	},
+	{
+		_T("ariadne"), _T("Ariadne"), _T("Village Tronic"),
+		ariadne_init, NULL, NULL, ROMTYPE_ARIADNE | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_NET,
+		0, 0, 0, false, NULL,
+		false, 0, ethernet_settings,
+		{ 0xc1, 0xc9, 0x00, 0x00, 2167 >> 8, 2167 & 255, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 	},
 	{
 		_T("ariadne2"), _T("Ariadne II"), _T("Village Tronic"),
@@ -5437,6 +5448,10 @@ const struct cpuboardtype cpuboards[] = {
 const struct memoryboardtype memoryboards[]
 {
 	// z2
+	{
+		_T("UAE"), _T("0xf00000 RAM"),
+		2, 0xf00000, 0xffff, 0xff
+	},
 	{
 		_T("DKB"), _T("Insider I/II"),
 		2, 0x800000, 0xffff, 0xff
