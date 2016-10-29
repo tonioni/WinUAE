@@ -17,7 +17,8 @@
 #define VIDEOGRAB 1
 
 
-static int opal_debug = 1;
+static int opal_debug = 0;
+static const int opal_video_debug = 0;
 
 static bool automatic;
 static int monitor;
@@ -2793,6 +2794,10 @@ static void opal_pixel(struct opals *opal, uae_u8 *d, uae_u8 *d2, uae_u8 *s, uae
 			d += dst->pixbytes;
 			d2 += dst->pixbytes;
 		}
+		if (opal_video_debug) {
+			r = b = 0xff;
+			g = 0;
+		}
 		PUT_PRGB(d, d2, dst, r, g, b, 0, doublelines, hires);
 	} else {
 		if (nextpix) {
@@ -2809,16 +2814,19 @@ static void opal_pixel(struct opals *opal, uae_u8 *d, uae_u8 *d2, uae_u8 *s, uae
 
 static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines, int yline, bool isopal)
 {
-	int y, x, vdbl, hdbl;
+	int y, x, vdbl, hdbl, hdbl_shift;
 	int isntsc;
 	int xadd, xaddpix;
 	bool detected;
-	uae_u8 control_line_tmp[OPAL_CONTROL_LINE_LENGTH] = { 0 };
+	uae_u8 control_line_tmp[OPAL_CONTROL_LINE_LENGTH];
 
 	if (!opal) {
 		opal = xcalloc(struct opals, 1);
 		opal->v2 = true;
 	}
+
+	memset(control_line_tmp, 0, OPAL_CONTROL_LINE_LENGTH);
+
 	opal->opal = isopal;
 	opal->rowbytes = isopal ? OPAL_ROWBYTES : COLORBURST_ROWBYTES;
 
@@ -2834,7 +2842,14 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 	xaddpix = (1 << 1) / hdbl;
 	xadd = ((1 << 1) / hdbl) * src->pixbytes;
 
+	hdbl_shift = 0;
+	if (hdbl == 2)
+		hdbl_shift = 1;
+	else if (hdbl == 4)
+		hdbl_shift = 2;
+
 	int ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
+	int ystartcopro = ystart + 4;
 	int yimgstart = ystart + 6;
 	int yend = (isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL) + 1;
 
@@ -2875,7 +2890,9 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 			}
 		}
 
-		uae_u8 copro = opal->copro[y - ystart];
+		uae_u8 copro = 0;
+		if (y - ystartcopro >= 0)
+			copro = opal->copro[y - ystartcopro];
 		if (opal->opal) {
 			opal->copro_prior_mode = (copro & 0x40) != 0;
 			opal->copro_priority = (copro & 0x20) != 0;
@@ -2909,35 +2926,42 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		int oddeven = 0;
 		int pixcnt = 0;
 		int controlcnt = 0;
+		int controlmode = -1;
 
 		if (!line)
 			continue;
 
 		int vram_write_pixel_offset = opal->vram_write_offset;
 		int vram_read_pixel_offset = opal->vram_read_offset;
+		int vram_read_pixel_offset2 = 0;
+		int vram_write_pixel_offset2 = 0;
 
 		// behavior not fully known
+#if 0
 		if ((!opal->auto_field && opal->bank_field) || (opal->auto_field && oddlines)) {
-			vram_read_pixel_offset += 3 * OPAL_SEGMENT_SIZE;
-			vram_write_pixel_offset += 3 * OPAL_SEGMENT_SIZE;
+#endif
+		if (opal->bank_field) {
+			vram_read_pixel_offset2 = 3 * OPAL_SEGMENT_SIZE;
+			vram_write_pixel_offset2 = 3 * OPAL_SEGMENT_SIZE;
 		}
+		vram_read_pixel_offset += vram_read_pixel_offset2;
+		vram_write_pixel_offset += vram_write_pixel_offset2;
 
 		bool command_update = false;
 		bool hstart = false;
 
-		int ax = 5;
+		int ax = 7;
 		for (x = 0; x < src->inwidth; x++, ax++) {
-			uae_u8 *sa = line + ((x << 1) / hdbl) * src->pixbytes;
+			uae_u8 *sa = line + ((x << 1) >> hdbl_shift) * src->pixbytes;
 			uae_u8 newval = FIRGB(src, sa);
 			uae_u8 val = prev | newval;
 
-			uae_u8 *d = dstline + ((x << 1) / hdbl) * dst->pixbytes;
-			uae_u8 *dh = dstline + (((x + 1) << 1) / hdbl) * dst->pixbytes;
+			uae_u8 *d = dstline + ((x << 1) >> hdbl_shift) * dst->pixbytes;
 			uae_u8 *d2 = d + dst->rowbytes;
-			uae_u8 *dh2 = dh + dst->rowbytes;
-			uae_u8 *s = line + ((ax << 1) / hdbl) * src->pixbytes;
+
+			uae_u8 *s = line + ((ax << 1) >> hdbl_shift) * src->pixbytes;
 			uae_u8 *s2 = s + src->rowbytes;
-			uae_u8 *s_genlock = line_genlock ? line_genlock + ((ax << 1) / hdbl) : NULL;
+			uae_u8 *s_genlock = line_genlock ? line_genlock + ((ax << 1) >> hdbl_shift) : NULL;
 
 			if (!oddeven) {
 
@@ -3081,8 +3105,10 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 
 				}
 
+				vram_read_pixel_offset -= vram_read_pixel_offset2;
 				vram_read_pixel_offset++;
 				vram_read_pixel_offset &= (OPAL_SEGMENT_SIZE - 1);
+				vram_read_pixel_offset += vram_read_pixel_offset2;
 			}
 
 			oddeven = oddeven ? 0 : 1;
@@ -3100,30 +3126,60 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 			if (!oddeven) {
 
 				// control line
-				if (y < yimgstart && bitcount >= 0) {
+				if (y == ystart) {
 
-					int v = (val & 0x11) == 0x11;
+					int vb = val == 0x11;
+
 					if ((opal_debug & 4) && y == ystart) {
 						write_log(_T("%02x."), val);
 					}
 					if (opal->opal) {
-						if (bitcount < 8 && v == 0) {
-							bitcount = 0;
-						} else if (bitcount >= 8 && bitcount < 8 + 6 && v != 0) {
-							bitcount = 0;
-						} else if (bitcount == 8 + 6) {
-							if (controlcnt < OPAL_CONTROL_LINE_LENGTH) {
-								control_line_tmp[OPAL_CONTROL_LINE_LENGTH - controlcnt - 1] = v ? 0x00 : 0x01;
-								controlcnt++;
+						if (!bitcount) {
+							if (vb)
+								bitcount = 1;
+							controlmode = -1;
+						}
+						if (bitcount > 0) {
+							uae_u8 *p = NULL;
+							controlcnt = (bitcount - 1) / 16;
+							bool phase = ((bitcount - 1) & 15) < 8;
+							int pos = (bitcount - 1) & 7;
+
+							if (controlcnt < OPAL_CONTROL_LINE_LENGTH && controlcnt >= 0)
+								p = &control_line_tmp[OPAL_CONTROL_LINE_LENGTH - controlcnt - 1];
+
+							if (pos == 0 && phase) {
+								if (controlmode <= 0) {
+									if (p)
+										*p = 0;
+								} else if (controlmode == 1) {
+									if (p)
+										*p = 1;
+								}
 							}
-						bitcount = 0;
-						} else {
+
+							if (phase == true && !vb && (controlmode < 0 || controlmode == 0)) {
+								if (p)
+									*p = 1;
+								controlmode = 0;
+								if (opal_debug & 4) {
+									write_log(_T("[1]."));
+								}
+							}
+							if (phase == false && vb && (controlmode < 0 || controlmode == 1)) {
+								if (p)
+									*p = 0;
+								controlmode = 1;
+								if (opal_debug & 4) {
+									write_log(_T("[0]."));
+								}
+							}
 							bitcount++;
 						}
 					} else {
 						if (prevbyte == 0x11 && bitcount == 1) {
 							if (controlcnt < COLORBURST_CONTROL_LINE_LENGTH) {
-								control_line_tmp[COLORBURST_CONTROL_LINE_LENGTH - controlcnt - 1] = v ? 0x00 : 0x01;
+								control_line_tmp[COLORBURST_CONTROL_LINE_LENGTH - controlcnt - 1] = vb ? 0x00 : 0x01;
 								controlcnt++;
 							}
 							bitcount = 2;
@@ -3149,8 +3205,10 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 						}
 						pixcnt++;
 
+						vram_write_pixel_offset -= vram_write_pixel_offset2;
 						vram_write_pixel_offset++;
 						vram_write_pixel_offset &= (OPAL_SEGMENT_SIZE - 1);
+						vram_write_pixel_offset += vram_write_pixel_offset2;
 					}
 				}
 
@@ -3236,14 +3294,19 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		}
 
 		if (command_update) {
-			opal->color_offset = ((opal->video_command >> 6) & 3) * OPAL_SEGMENT_SIZE;
+			int off = (opal->video_command >> 6) & 3;
+			if (off == 3)
+				off = 0;
+			opal->color_offset = off * OPAL_SEGMENT_SIZE;
 		}
 
-		opal->vram_write_offset += opal->rowbytes;
-		opal->vram_write_offset &= (OPAL_SEGMENT_SIZE - 1);
+		if (y - ystartcopro >= 0) {
+			opal->vram_write_offset += opal->rowbytes;
+			opal->vram_write_offset &= (OPAL_SEGMENT_SIZE - 1);
 
-		opal->vram_read_offset += opal->rowbytes;
-		opal->vram_read_offset &= (OPAL_SEGMENT_SIZE - 1);
+			opal->vram_read_offset += opal->rowbytes;
+			opal->vram_read_offset &= (OPAL_SEGMENT_SIZE - 1);
+		}
 
 		if (opal->control_y && y >= opal->control_y && (opal_debug & 2)) {
 			write_log(_T("\n"));
@@ -3259,6 +3322,11 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 
 		if (opal->opal && controlcnt >= OPAL_CONTROL_LINE_LENGTH) {
 			memcpy(opal->control_line, control_line_tmp, OPAL_CONTROL_LINE_LENGTH);
+#if 0
+			for (int i = 0; i < OPAL_CONTROL_LINE_LENGTH; i++) {
+				opal->control_line[i] = opal->control_line[i] ? 0 : 1;
+			}
+#endif
 			detected = opal->control_line[0] && opal->control_line[2] && !opal->control_line[1] && !opal->control_line[3];
 			opal->detected |= detected;
 			if (detected) {
@@ -3273,6 +3341,12 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 				}
 				if (c[18] || c[19] || c[11])
 						write_log(_T("UNIMPLEMENTED BITS!\n"));
+				if (opal_debug & 4) {
+					for (int i = 0; i < 20; i++) {
+						write_log(_T("%d."), opal->control_line[i]);
+					}
+					write_log(_T("\n"));
+				}
 				opal->dual_play = c[7] != 0;
 				opal->latched = c[10] != 0;
 				opal->wren = c[4] != 0;
