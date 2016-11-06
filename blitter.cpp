@@ -29,6 +29,7 @@
 // 4 = no D
 // 8 = instant
 // 16 = activate debugger if weird things
+// 32 = logging (no line)
 
 #if BLITTER_DEBUG
 int log_blitter = 1 | 16;
@@ -1525,7 +1526,7 @@ static void do_blitter2 (int hpos, int copper)
 		original_line = blitline;
 	}
 
-	if (log_blitter & 1) {
+	if ((log_blitter & 1) || ((log_blitter & 32) && !blitline)) {
 		blitter_dontdo = 0;
 		if (1) {
 			int ch = 0;
