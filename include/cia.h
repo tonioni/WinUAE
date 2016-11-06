@@ -36,4 +36,6 @@ extern int parallel_direct_read_status (uae_u8*);
 
 extern void rtc_hardreset (void);
 
+extern void keyboard_connected(void);
+
 #endif /* UAE_CIA_H */

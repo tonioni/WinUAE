@@ -795,28 +795,41 @@ void CIAB_tod_handler (int hoffset)
 	}
 }
 
+void keyboard_connected(void)
+{
+	kbstate = 0;
+	kblostsynccnt = 0;
+	resetwarning_phase = 0;
+}
+
 static void check_keyboard(void)
 {
-	if ((keys_available () || kbstate < 3) && !kblostsynccnt ) {
-		switch (kbstate)
-		{
-			case 0:
-				kbcode = 0; /* powerup resync */
-				kbstate++;
-				break;
-			case 1:
-				setcode (AK_INIT_POWERUP);
-				kbstate++;
-				break;
-			case 2:
-				setcode (AK_TERM_POWERUP);
-				kbstate++;
-				break;
-			case 3:
-				kbcode = ~get_next_key ();
-				break;
+	if (currprefs.keyboard_connected) {
+		if ((keys_available () || kbstate < 3) && !kblostsynccnt ) {
+			switch (kbstate)
+			{
+				case 0:
+					kbcode = 0; /* powerup resync */
+					kbstate++;
+					break;
+				case 1:
+					setcode (AK_INIT_POWERUP);
+					kbstate++;
+					break;
+				case 2:
+					setcode (AK_TERM_POWERUP);
+					kbstate++;
+					break;
+				case 3:
+					kbcode = ~get_next_key ();
+					break;
+			}
+			keyreq ();
 		}
-		keyreq ();
+	} else {
+		while (keys_available()) {
+			get_next_key();
+		}
 	}
 }
 
@@ -832,7 +845,7 @@ void CIA_hsync_posthandler (bool ciahsync, bool dotod)
 
 		if (currprefs.tod_hack && ciaatodon)
 			do_tod_hack (dotod);
-	} else {
+	} else if (currprefs.keyboard_connected) {
 		// custom hsync
 		if (resetwarning_phase) {
 			resetwarning_check ();

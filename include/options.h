@@ -506,6 +506,7 @@ struct uae_prefs {
 	bool immediate_blits;
 	int waiting_blits;
 	unsigned int chipset_mask;
+	bool keyboard_connected;
 	bool ntscmode;
 	bool genlock;
 	int genlock_image;

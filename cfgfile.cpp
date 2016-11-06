@@ -2187,6 +2187,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool(f, _T("fm801_pci"), p->obs_sound_fm801);
 #endif
 
+	cfgfile_dwrite_bool(f, _T("keyboard_connected"), p->keyboard_connected);
 	cfgfile_write_str (f, _T("kbd_lang"), (p->keyboard_lang == KBD_LANG_DE ? _T("de")
 		: p->keyboard_lang == KBD_LANG_DK ? _T("dk")
 		: p->keyboard_lang == KBD_LANG_ES ? _T("es")
@@ -3437,6 +3438,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		}
 		return 1;
 	}
+
 
 	if (_tcscmp (option, _T("kbd_lang")) == 0) {
 		KbdLang l;
@@ -4718,6 +4720,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("gfxcard_hardware_vblank"), &p->rtg_hardwareinterrupt)
 		|| cfgfile_yesno(option, value, _T("gfxcard_hardware_sprite"), &p->rtg_hardwaresprite)
 		|| cfgfile_yesno(option, value, _T("synchronize_clock"), &p->tod_hack)
+		|| cfgfile_yesno(option, value, _T("keyboard_connected"), &p->keyboard_connected)
 
 		|| cfgfile_yesno (option, value, _T("kickshifter"), &p->kickshifter)
 		|| cfgfile_yesno (option, value, _T("ks_write_enabled"), &p->rom_readwrite)
@@ -6718,6 +6721,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 		inputdevice_joyport_config_store(p, _T("kbd1"), 1, -1, 0);
 	}
 	p->keyboard_lang = KBD_LANG_US;
+	p->keyboard_connected = true;
 
 	p->produce_sound = 3;
 	p->sound_stereo = SND_STEREO;
@@ -7076,8 +7080,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->bogomem_size = 0x00080000;
 	p->z3chipmem_size = 0;
 	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
-		p->fastmem[i].size = 0;
-		p->z3fastmem[i].size = 0;
+		memset(p->fastmem, 0, sizeof(struct ramboard));
+		memset(p->z3fastmem, 0, sizeof(struct ramboard));
 	}
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		p->rtgboards[i].rtgmem_size = 0x00000000;
