@@ -504,7 +504,7 @@ static void call_card_init(int index)
 			}
 		} else {
 			for (int i = 0; i < 16 * 4; i++) {
-				expamem[i] = abe->bget(i);
+				expamem[i] = abe->sub_banks ? abe->sub_banks[0].bank->bget(i) : abe->bget(i);
 			}
 		}
 	}
@@ -607,7 +607,7 @@ static uae_u32 REGPARAM2 expamem_lget (uaecptr addr)
 		if (expamem_autoconfig_mode && (addr & 0xffff) < AUTOMATIC_AUTOCONFIG_MAX_ADDRESS) {
 			return (expamem_wget(addr) << 16) | expamem_wget(addr + 2);
 		}
-		return expamem_bank_current->lget(addr);
+		return expamem_bank_current->sub_banks ? expamem_bank_current->sub_banks[0].bank->lget(addr) : expamem_bank_current->lget(addr);
 	}
 	write_log (_T("warning: Z2 READ.L from address $%08x PC=%x\n"), addr, M68K_GETPC);
 	return (expamem_wget (addr) << 16) | expamem_wget (addr + 2);
@@ -619,7 +619,7 @@ static uae_u32 REGPARAM2 expamem_wget (uaecptr addr)
 		if (expamem_autoconfig_mode && (addr & 0xffff) < AUTOMATIC_AUTOCONFIG_MAX_ADDRESS) {
 			return (expamem_bget(addr) << 8) | expamem_bget(addr + 1);
 		}
-		return expamem_bank_current->wget(addr);
+		return expamem_bank_current->sub_banks ? expamem_bank_current->sub_banks[0].bank->wget(addr) : expamem_bank_current->wget(addr);
 	}
 	if (expamem_type() != zorroIII) {
 		if (expamem_bank_current && expamem_bank_current != &expamem_bank)
@@ -646,7 +646,7 @@ static uae_u32 REGPARAM2 expamem_bget (uaecptr addr)
 		if (expamem_autoconfig_mode && (addr & 0xffff) < AUTOMATIC_AUTOCONFIG_MAX_ADDRESS) {
 			return expamem[addr & 0xffff];
 		}
-		return expamem_bank_current->bget(addr);
+		return expamem_bank_current->sub_banks ? expamem_bank_current->sub_banks[0].bank->bget(addr) : expamem_bank_current->bget(addr);
 	}
 	addr &= 0xFFFF;
 	b = expamem[addr];
@@ -667,7 +667,7 @@ static void REGPARAM2 expamem_lput (uaecptr addr, uae_u32 value)
 		if (expamem_autoconfig_mode && (addr & 0xffff) < AUTOMATIC_AUTOCONFIG_MAX_ADDRESS) {
 			return;
 		}
-		expamem_bank_current->lput(addr, value);
+		expamem_bank_current->sub_banks ? expamem_bank_current->sub_banks[0].bank->lput(addr, value) : expamem_bank_current->lput(addr, value);
 		return;
 	}
 	write_log (_T("warning: Z2 WRITE.L to address $%08x : value $%08x\n"), addr, value);
@@ -703,7 +703,7 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 				return;
 			}
 			if (expamem_bank_current && expamem_bank_current != &expamem_bank) {
-				expamem_bank_current->bput(addr, value >> 8);
+				expamem_bank_current->sub_banks ? expamem_bank_current->sub_banks[0].bank->bput(addr, value >> 8) : expamem_bank_current->bput(addr, value >> 8);
 				return;
 			}
 		}
@@ -741,8 +741,9 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 		}
 		break;
 	}
-	if (expamem_bank_current && expamem_bank_current != &expamem_bank)
-		expamem_bank_current->wput(addr, value);
+	if (expamem_bank_current && expamem_bank_current != &expamem_bank) {
+		expamem_bank_current->sub_banks ? expamem_bank_current->sub_banks[0].bank->wput(addr, value) : expamem_bank_current->wput(addr, value);
+	}
 }
 
 static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
@@ -815,7 +816,7 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 		}
 	}
 	if (expamem_bank_current && expamem_bank_current != &expamem_bank) {
-		expamem_bank_current->bput(addr, value);
+		expamem_bank_current->sub_banks ? expamem_bank_current->sub_banks[0].bank->bput(addr, value) : expamem_bank_current->bput(addr, value);
 	}
 }
 
