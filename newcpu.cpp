@@ -1625,15 +1625,6 @@ void init_m68k (void)
 	do_merges ();
 
 	write_log (_T("%d CPU functions\n"), nr_cpuop_funcs);
-
-	build_cpufunctbl ();
-	set_x_funcs ();
-
-#ifdef JIT
-	/* We need to check whether NATMEM settings have changed
-	* before starting the CPU */
-	check_prefs_changed_comp(false);
-#endif
 }
 
 struct regstruct regs, mmu_backup_regs;
@@ -5450,6 +5441,8 @@ void m68k_go (int may_quit)
 			if (cpu_hardreset)
 				m68k_reset_restore();
 			prefs_changed_cpu();
+			build_cpufunctbl();
+			set_x_funcs();
 			set_cycles (start_cycles);
 			custom_reset (cpu_hardreset != 0, cpu_keyboardreset);
 			m68k_reset2 (cpu_hardreset != 0);
