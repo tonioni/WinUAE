@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 172
+#define NEXT_ROM_ID 173
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -411,8 +411,14 @@ static struct romdata roms[] = {
 	0x330254ce, 0xc91dd3b5,0x3f1986bd,0x94fba150,0xe753c2da,0x4dee78e7, NULL, NULL },
 	{ _T("AdIDE 40/44 v34"), 34, 0, 34, 0, _T("ADIDE\0"), 16384, 129, 0, 0, ROMTYPE_ADIDE, 0, 0, NULL,
 	0xedf84cbe, 0xabdbc01d,0xaa0b3aae,0xe4401ad7,0xe65525a9,0x6bfa2b27, NULL, NULL },
-	{ _T("Vector Falcon 8000"), 7, 1, 7, 1, _T("VECTOR\0"), 32768, 128, 0, 0, ROMTYPE_VECTOR, 0, 0, NULL,
-	0xa8120c55, 0x248935ab,0xf4d74036,0xefdafdbb,0x7817e232,0xfc13e0fa, NULL, NULL },
+	{ _T("Vector Falcon 8000 v7.1"), 7, 1, 7, 1, _T("VECTOR\0"), 32768, 128, 0, 0, ROMTYPE_VECTOR, 0, 0, NULL,
+	0xa8120c55, 0x248935ab, 0xf4d74036, 0xefdafdbb, 0x7817e232, 0xfc13e0fa, NULL, NULL },
+	ALTROMPN(128, 1, 1, 16384, ROMTYPE_ODD | ROMTYPE_8BIT, NULL, 0x798b1152, 0x603ba087,0xecee69ac,0x7ccf6e88,0x3e374fc8,0x808bcbb4)
+	ALTROMPN(128, 1, 2, 16384, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xd8b2f469, 0xbc600f99,0xa0ff7384,0xdabc7a04,0xb7bb0e71,0xad615db5)
+	{ _T("Vector Falcon 8000 v7.6"), 7, 6, 7, 6, _T("VECTOR\0"), 32768, 172, 0, 0, ROMTYPE_VECTOR, 0, 0, NULL,
+	0x2177a145, 0x8a7e617f,0xed566bb8,0xb33f6409, 0x05d9b946, 0xcee6d4bf, NULL, NULL },
+	ALTROMPN(172, 1, 1, 16384, ROMTYPE_ODD | ROMTYPE_8BIT, NULL, 0x6228a3e4,0x72fa4175,0x21731e91,0x6c6c8519,0x91110287,0x9f4c0cb9)
+	ALTROMPN(172, 1, 2, 16384, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xf0a0ab0d,0xd239405a,0x5c4983ce,0xeaff0fd2,0x36d42d82,0x5a0cafd1)
 	{ _T("Kommos A500/A2000 v1.8"), 1, 8, 1, 8, _T("KOMMOS\0"), 32768, 127, 0, 0, ROMTYPE_KOMMOS, 0, 0, NULL,
 	0xc1a5c848, 0x291310f1, 0x25455f2d, 0x8e114bcd, 0xe104ca4c, 0x9db51747, NULL, NULL },
 	ALTROMPN(127, 1, 1, 16384, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x1b86d2ed, 0x969995a1, 0x2ebf8c15, 0xab87e8d0, 0xddc837a1, 0xb90fbfa8)
