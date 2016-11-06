@@ -3159,6 +3159,7 @@ static void do_playfield_collisions (void)
 		clxdat |= 1;
 		return;
 	}
+	// collision bit already set?
 	if (clxdat & 1)
 		return;
 
@@ -3220,6 +3221,9 @@ static void do_sprite_collisions (void)
 
 	if (clxcon_bpl_enable == 0 && !nr_sprites)
 		return;
+	// all sprite to bitplane collision bits already set?
+	if ((clxdat & 0x1fe) == 0x1fe)
+		return;
 
 	for (i = 0; i < nr_sprites; i++) {
 		struct sprite_entry *e = curr_sprite_entries + first + i;
@@ -3248,6 +3252,10 @@ static void do_sprite_collisions (void)
 			offs = ((j << bplres) >> sprite_buffer_res) - ddf_left;
 			sprpix = sprite_ab_merge[sprpix & 255] | (sprite_ab_merge[sprpix >> 8] << 2);
 			sprpix <<= 1;
+
+			// both odd and even collision bits already set?
+			if ((clxdat & (sprpix << 0)) && (clxdat & (sprpix << 4)))
+				continue;
 
 			/* Loop over number of playfields.  */
 			for (k = 1; k >= 0; k--) {
@@ -9936,6 +9944,11 @@ void check_prefs_changed_custom (void)
 	currprefs.immediate_blits = changed_prefs.immediate_blits;
 	currprefs.waiting_blits = changed_prefs.waiting_blits;
 	currprefs.collision_level = changed_prefs.collision_level;
+	if (!currprefs.keyboard_connected && changed_prefs.keyboard_connected) {
+		// send powerup sync
+		keyboard_connected();
+	}
+	currprefs.keyboard_connected = changed_prefs.keyboard_connected;
 
 	currprefs.cs_ciaatod = changed_prefs.cs_ciaatod;
 	currprefs.cs_rtc = changed_prefs.cs_rtc;
