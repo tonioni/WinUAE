@@ -5,6 +5,24 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+Beta 15:
+
+- GUI created pre-formatted DD disks had wrong root block allocation in bitmap. (b7 or somewhere close)
+- Enabling Quickstart mode didn't reset all new memory parameters (autoconfig etc), only size.
+- Fixed WASAPI sound hang if sound device disappeared/changed modes when emulation was waiting for too full buffer to empty.
+- Handle AUDCLNT_E_INVALID_DEVICE_PERIOD and AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED, do not disable sound.
+- WASAPI sound attempts to re-open automatically if for example Windows sound control panel parameters have been changed.
+- Changing CPU config during reset (for example using reset input event) didn't always re-initialize all required CPU settings.
+- Added RAM to UAESND board. (8M if Z3, 32k if Z2) Can be used for 1:1 physical/logical mapped sample set or sample data storage.
+- UAESND sample type variable added, unused for now but if/when there needs to be compressed format support that can
+  be transparently uncompressed using Windows codecs. (mp3 etc..). Sample set structure is not compatible with old version anymore.
+- Added keyboard connected chipset option. Inserting keyboard on the fly does usual powerup keycode sequence like any real
+  removable keyboard (for example A1000). Logica diagnostics ROM uses this to detect connected keyboard. 
+- Sprite to bitplane collision optimization, skip the collision calculation if collision bit(s) are already set
+  (=program does not use collisions), previous fix removed (bad) optimization and unnecessarily increased CPU power requirements
+  when program uses lots of sprites and does not care about collisions.
+- Replaced Vector Falcon 8000 v7.1 ROM with correctly odd/even split version and added v7.6.
+
 Beta 14:
 
 - Ariadne network adapter emulation added. (Am79c960 based, improved Am79c90)

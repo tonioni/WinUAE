@@ -6690,7 +6690,7 @@ static void enable_for_chipsetdlg (HWND hDlg)
 		workprefs.waiting_blits = 0;
 		CheckDlgButton (hDlg, IDC_BLITWAIT, FALSE);
 	}
-	ew (hDlg, IDC_BLITWAIT, workprefs.immediate_blits ? FALSE : TRUE);
+	ew(hDlg, IDC_BLITWAIT, workprefs.immediate_blits ? FALSE : TRUE);
 
 	ew(hDlg, IDC_GENLOCKMODE, workprefs.genlock ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCKMIX, workprefs.genlock ? TRUE : FALSE);
@@ -7674,14 +7674,15 @@ static void values_to_chipsetdlg (HWND hDlg)
 		CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 4);
 		break;
 	}
-	CheckDlgButton (hDlg, IDC_NTSC, workprefs.ntscmode);
-	CheckDlgButton (hDlg, IDC_GENLOCK, workprefs.genlock);
-	CheckDlgButton (hDlg, IDC_BLITIMM, workprefs.immediate_blits);
-	CheckDlgButton (hDlg, IDC_BLITWAIT, workprefs.waiting_blits);
-	CheckRadioButton (hDlg, IDC_COLLISION0, IDC_COLLISION3, IDC_COLLISION0 + workprefs.collision_level);
-	CheckDlgButton (hDlg, IDC_CYCLEEXACT, workprefs.cpu_cycle_exact);
-	CheckDlgButton (hDlg, IDC_CYCLEEXACTMEMORY, workprefs.cpu_memory_cycle_exact);
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_SETCURSEL, workprefs.cs_compatible, 0);
+	CheckDlgButton(hDlg, IDC_NTSC, workprefs.ntscmode);
+	CheckDlgButton(hDlg, IDC_GENLOCK, workprefs.genlock);
+	CheckDlgButton(hDlg, IDC_BLITIMM, workprefs.immediate_blits);
+	CheckDlgButton(hDlg, IDC_BLITWAIT, workprefs.waiting_blits);
+	CheckDlgButton(hDlg, IDC_KEYBOARD_CONNECTED, workprefs.keyboard_connected);
+	CheckRadioButton(hDlg, IDC_COLLISION0, IDC_COLLISION3, IDC_COLLISION0 + workprefs.collision_level);
+	CheckDlgButton(hDlg, IDC_CYCLEEXACT, workprefs.cpu_cycle_exact);
+	CheckDlgButton(hDlg, IDC_CYCLEEXACTMEMORY, workprefs.cpu_memory_cycle_exact);
+	SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_SETCURSEL, workprefs.cs_compatible, 0);
 	SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_SETCURSEL, workprefs.monitoremu, 0);
 	SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_SETCURSEL, workprefs.genlock_image, 0);
 	SendDlgItemMessage(hDlg, IDC_GENLOCKMIX, CB_SETCURSEL, workprefs.genlock_mix / 25, 0);
@@ -7702,6 +7703,8 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 	workprefs.immediate_blits = ischecked (hDlg, IDC_BLITIMM);
 	workprefs.waiting_blits = ischecked (hDlg, IDC_BLITWAIT) ? 1 : 0;
+
+	workprefs.keyboard_connected = ischecked(hDlg, IDC_KEYBOARD_CONNECTED) ? 1 : 0;
 
 	n2 = ischecked (hDlg, IDC_CYCLEEXACTMEMORY);
 	n1 = ischecked (hDlg, IDC_CYCLEEXACT);

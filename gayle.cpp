@@ -955,7 +955,7 @@ static addrbank mbres_sub_bank = {
 	mbres_lput, mbres_wput, mbres_bput,
 	default_xlate, default_check, NULL, NULL, _T("Motherboard Resources"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO, S_READ, S_WRITE,
+	ABFLAG_IO, S_READ, S_WRITE
 };
 
 static struct addrbank_sub mbres_sub_banks[] = {

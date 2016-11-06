@@ -483,6 +483,7 @@
 #define IDC_BLITIMM                     1174
 #define IDC_BLITWAIT                    1175
 #define IDC_LORES                       1176
+#define IDC_KEYBOARD_CONNECTED          1176
 #define IDC_RATE2BOX                    1177
 #define IDC_AUTORESOLUTIONSELECT        1178
 #define IDC_LORES_SMOOTHED              1179

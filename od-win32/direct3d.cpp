@@ -2368,6 +2368,8 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 		xfree (s);
 	}
 
+	variablerefresh = ap.gfx_vsync < 0;
+
 	memset (&dpp, 0, sizeof (dpp));
 	dpp.Windowed = isfullscreen () <= 0;
 	dpp.BackBufferFormat = mode.Format;
@@ -2376,7 +2378,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 	dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
 	dpp.BackBufferWidth = w_w;
 	dpp.BackBufferHeight = w_h;
-	dpp.PresentationInterval = !ap.gfx_vflip ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
+	dpp.PresentationInterval = variablerefresh ? D3DPRESENT_INTERVAL_DEFAULT : (!ap.gfx_vflip ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE);
 
 	modeex.Width = w_w;
 	modeex.Height = w_h;
@@ -2385,7 +2387,6 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 	modeex.Format = mode.Format;
 
 	vsync2 = 0;
-	variablerefresh = ap.gfx_vsync < 0;
 	int hzmult = 0;
 	if (isfullscreen () > 0) {
 		dpp.FullScreen_RefreshRateInHz = getrefreshrate (modeex.Width, modeex.Height);
@@ -2603,7 +2604,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 	d3d_enabled = 1;
 	wasstilldrawing_broken = true;
 
-	if (vsync < 0 && ap.gfx_vflip == 0) {
+	if ((vsync < 0 || variablerefresh) && ap.gfx_vflip == 0) {
 		hr = d3ddev->CreateQuery(D3DQUERYTYPE_EVENT, &query);
 		if (FAILED (hr))
 			write_log (_T("%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
@@ -2619,7 +2620,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *fre
 		if (forcedframelatency >= 0)
 			hr = d3ddevex->SetMaximumFrameLatency (forcedframelatency);
 		else if (dpp.PresentationInterval == D3DPRESENT_INTERVAL_IMMEDIATE && (v > 1 || !vsync))
-			hr = d3ddevex->SetMaximumFrameLatency (vsync ? (hzmult < 0 && !ap.gfx_strobo && !variablerefresh ? 2 : 1) : 0);
+			hr = d3ddevex->SetMaximumFrameLatency ((vsync || variablerefresh) ? (hzmult < 0 && !ap.gfx_strobo && !variablerefresh ? 2 : 1) : 0);
 		if (FAILED (hr))
 			write_log (_T("%s: SetMaximumFrameLatency() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 	}

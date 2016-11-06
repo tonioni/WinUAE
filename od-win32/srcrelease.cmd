@@ -192,7 +192,9 @@ cd ..
 copy winuaesrc.7z e:\amiga\winuaepackets\winuaesrc%1.7z
 move winuaesrc.7z e:\amiga
 cd c:\projects\winuae\src\od-win32
-7z a winuaedebug%1 winuae_msvc14\fullrelease\winuae.pdb winuae_msvc14\x64\fullrelease\winuae.pdb
+7z a winuaedebug%1 winuae_msvc15\fullrelease\winuae.pdb winuae_msvc15\x64\fullrelease\winuae.pdb
 move winuaedebug%1.7z e:\amiga\winuaepackets\debug\
-copy winuae_msvc14\fullrelease\winuae.pdb winuae_msvc14\x64\fullrelease\winuae.pdb d:\amiga\dump
+copy winuae_msvc15\fullrelease\winuae.pdb d:\amiga\dump\winuae.pdb
+copy winuae_msvc15\x64\fullrelease\winuae.pdb  d:\amiga\dump\winuae64.pdb
 copy d:\amiga\winuae.exe d:\amiga\dump
+copy d:\amiga\winuae64.exe d:\amiga\dump

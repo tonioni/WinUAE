@@ -725,13 +725,13 @@ BEGIN
     COMBOBOX        IDC_CS_EXT,148,109,49,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Options",IDC_STATIC,221,0,173,137
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,32,150,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,47,150,10
     CONTROL         "Wait for Blitter [] Compatibility hack for programs that don't wait for the blitter correctly, causing graphics corruption if CPU is too fast.",IDC_BLITWAIT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,45,150,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,60,150,10
     CONTROL         "Genlock connected [] Allow boot sequence to detect genlock.",IDC_GENLOCK,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,209,150,10
-    LTEXT           "Video port display hardware:",IDC_STATIC,237,62,117,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_MONITOREMU,237,80,147,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Video port display hardware:",IDC_STATIC,237,91,117,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_MONITOREMU,237,109,147,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Collision Level",IDC_STATIC,1,141,393,48
     CONTROL         "None [] Collision hardware emulation disabled.",IDC_COLLISION0,
                     "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,47,157,101,10
@@ -750,6 +750,7 @@ BEGIN
     PUSHBUTTON      "...",IDC_GENLOCKFILESELECT,375,240,10,15
     CONTROL         "Include alpha channel in screenshots and video captures.",IDC_GENLOCK_ALPHA,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,226,214,10
+    CONTROL         "Keyboard connected",IDC_KEYBOARD_CONNECTED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,15,150,10
 END
 
 IDD_CHIPSET2 DIALOGEX 0, 0, 396, 305

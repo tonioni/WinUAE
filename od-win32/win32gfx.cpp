@@ -1177,6 +1177,7 @@ void show_screen_special (void)
 }
 static frame_time_t strobo_time;
 static volatile bool strobo_active;
+static volatile bool strobo_active2;
 
 static void CALLBACK blackinsertion_cb(
 	UINT      uTimerID,
@@ -1194,7 +1195,8 @@ static void CALLBACK blackinsertion_cb(
 				break;
 			}
 			if (diff <= 0) {
-				show_screen_special();
+				if (strobo_active2)
+					show_screen_special();
 				break;
 			}
 			if (diff > vsynctimebase / 4) {
@@ -1224,6 +1226,7 @@ double target_adjust_vblank_hz(double hz)
 void show_screen (int mode)
 {
 	strobo_active = false;
+	strobo_active2 = false;
 	gfx_lock();
 	if (mode == 2) {
 		if (currentmode->flags & DM_D3D) {
@@ -1267,6 +1270,7 @@ void show_screen (int mode)
 			}
 		}
 		D3D_showframe();
+		strobo_active2 = true;
 #ifdef GFXFILTER
 	} else if (currentmode->flags & DM_SWSCALE) {
 		if (!dx_islost () && !picasso_on)
