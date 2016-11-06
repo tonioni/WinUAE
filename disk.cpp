@@ -2500,18 +2500,17 @@ static void floppy_get_bootblock (uae_u8 *dst, bool ffs, bool bootable)
 }
 static void floppy_get_rootblock (uae_u8 *dst, int block, const TCHAR *disk_name, bool hd)
 {
-	dst[0+3] = 2;
-	dst[12+3] = 0x48;
-	dst[312] = dst[313] = dst[314] = dst[315] = (uae_u8)0xff;
-	dst[316+2] = (block + 1) >> 8; dst[316+3] = (block + 1) & 255;
+	dst[0+3] = 2; // primary type
+	dst[12+3] = 0x48; // size of hash table
+	dst[312] = dst[313] = dst[314] = dst[315] = (uae_u8)0xff; // bitmap valid
+	dst[316+2] = (block + 1) >> 8; dst[316+3] = (block + 1) & 255; // bitmap pointer
 	char *s = ua ((disk_name && _tcslen (disk_name) > 0) ? disk_name : _T("empty"));
-	dst[432] = strlen (s);
-	strcpy ((char*)dst + 433, s);
+	dst[432] = strlen (s); // name length
+	strcpy ((char*)dst + 433, s); // name
 	xfree (s);
-	dst[508 + 3] = 1;
-	disk_date (dst + 420);
-	memcpy (dst + 472, dst + 420, 3 * 4);
-	memcpy (dst + 484, dst + 420, 3 * 4);
+	dst[508 + 3] = 1; // secondary type
+	disk_date (dst + 420); // root modification date
+	disk_date(dst + 484); // creation date
 	disk_checksum (dst, dst + 20);
 	/* bitmap block */
 	memset (dst + 512 + 4, 0xff, 2 * block / 8);
@@ -2575,7 +2574,7 @@ bool disk_creatediskfile (struct uae_prefs *p, const TCHAR *name, int type, driv
 						floppy_get_bootblock (chunk, ffs, bootable);
 					} else if (i == file_size / 2) {
 						/* root block */
-						floppy_get_rootblock (chunk, file_size / 1024, disk_name, hd);
+						floppy_get_rootblock (chunk, file_size / 1024, disk_name, ddhd > 1);
 					}
 				}
 				zfile_fwrite (chunk, cylsize, 1, f);
