@@ -449,7 +449,7 @@ static void resume_audio_xaudio2 (struct sound_data *sd)
 static void wasapi_check_state(struct sound_data *sd, HRESULT hr)
 {
 	// 0x26 = AUDCLNT_E_RESOURCES_INVALIDATED
-	if (hr == AUDCLNT_E_DEVICE_INVALIDATED || hr == AUDCLNT_ERR(0x026)) {
+	if (hr == AUDCLNT_E_DEVICE_INVALIDATED || hr == AUDCLNT_E_OUT_OF_ORDER || hr == AUDCLNT_E_CPUUSAGE_EXCEEDED || hr == AUDCLNT_E_BUFFER_ERROR || hr == AUDCLNT_ERR(0x026)) {
 		sd->reset = true;
 	}
 }
@@ -1167,6 +1167,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	REFERENCE_TIME phnsMinimumDevicePeriod, hnsDefaultDevicePeriod;
 	int v;
 
+retry:
 	sd->devicetype = exclusive ? SOUND_DEVICE_WASAPI_EXCLUSIVE : SOUND_DEVICE_WASAPI;
 	s->wasapiexclusive = exclusive;
 	s->pullmode = sound_pull;
@@ -1182,7 +1183,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 
 	hr = CoCreateInstance (__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&s->pEnumerator);
 	if (FAILED (hr)) {
-		write_log (_T("WASAPI: %d\n"), hr);
+		write_log (_T("WASAPI: %08X\n"), hr);
 		goto error;
 	}
 
@@ -1207,7 +1208,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 		s->AudioClientVersion = 1;
 		hr = s->pDevice->Activate (__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&s->pAudioClient);
 		if (FAILED (hr)) {
-			write_log (_T("WASAPI: Activate() %d\n"), hr);
+			write_log (_T("WASAPI: Activate() %08X\n"), hr);
 			goto error;
 		}
 	}
@@ -1265,6 +1266,12 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 				pwfx_saved = NULL;
 			}
 			break;
+		}
+		if (hr == AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED) {
+			if (exclusive) {
+				exclusive = 0;
+				goto retry;
+			}
 		}
 		if (hr != AUDCLNT_E_UNSUPPORTED_FORMAT && hr != S_FALSE)
 			goto error;
@@ -1405,7 +1412,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 			break;
 		if (loop > 1)
 			goto error;
-		if (hr == AUDCLNT_E_BUFFER_SIZE_ERROR) {
+		if (hr == AUDCLNT_E_BUFFER_SIZE_ERROR || hr == AUDCLNT_E_INVALID_DEVICE_PERIOD) {
 			write_log(_T("WASAPI: AUDCLNT_E_BUFFER_SIZE_ERROR: %d\n"), s->bufferFrameCount);
 			hr = s->pAudioClient->GetDevicePeriod(NULL, &hnsRequestedDuration);
 			if (FAILED(hr)) {
@@ -1898,8 +1905,12 @@ static void disable_sound (void)
 
 static int reopen_sound (void)
 {
+	bool paused = sdp->paused != 0;
 	close_sound ();
-	return open_sound ();
+	int v = open_sound ();
+	if (v && !paused)
+		resume_sound_device(sdp);
+	return v;
 }
 
 #define cf(x) if ((x) >= s->dsoundbuf) (x) -= s->dsoundbuf;
@@ -2148,7 +2159,7 @@ static void finish_sound_buffer_wasapi_push(struct sound_data *sd, uae_u16 *sndb
 		if (oldpadding == numFramesPadding) {
 			if (stuck-- < 0) {
 				write_log (_T("WASAPI: sound stuck %d %d %d !?\n"), s->bufferFrameCount, numFramesPadding, sd->sndbufframes);
-				reopen_sound ();
+				sd->reset = true;
 				return;
 			}
 		}
@@ -2493,7 +2504,7 @@ HANDLE get_sound_event(void)
 bool audio_is_event_frame_possible(int ms)
 {
 	int type = sdp->devicetype;
-	if (sdp->paused || sdp->deactive)
+	if (sdp->paused || sdp->deactive || sdp->reset)
 		return false;
 	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE || type == SOUND_DEVICE_PA) {
 		struct sound_dp *s = sdp->data;
@@ -2509,6 +2520,8 @@ bool audio_is_event_frame_possible(int ms)
 int audio_is_pull(void)
 {
 	int type = sdp->devicetype;
+	if (sdp->reset)
+		return 0;
 	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE || type == SOUND_DEVICE_PA) {
 		struct sound_dp *s = sdp->data;
 		if (s && s->pullmode) {
@@ -2523,7 +2536,7 @@ int audio_pull_buffer(void)
 	int cnt = 0;
 	int type = sdp->devicetype;
 	
-	if (sdp->paused || sdp->deactive)
+	if (sdp->paused || sdp->deactive || sdp->reset)
 		return 0;
 	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE || type == SOUND_DEVICE_PA) {
 		struct sound_dp *s = sdp->data;
@@ -2540,7 +2553,7 @@ int audio_pull_buffer(void)
 bool audio_is_pull_event(void)
 {
 	int type = sdp->devicetype;
-	if (sdp->paused || sdp->deactive)
+	if (sdp->paused || sdp->deactive || sdp->reset)
 		return false;
 	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE || type == SOUND_DEVICE_PA) {
 		struct sound_dp *s = sdp->data;
@@ -2554,7 +2567,7 @@ bool audio_is_pull_event(void)
 bool audio_finish_pull(void)
 {
 	int type = sdp->devicetype;
-	if (sdp->paused || sdp->deactive)
+	if (sdp->paused || sdp->deactive || sdp->reset)
 		return false;
 	if (type != SOUND_DEVICE_WASAPI && type != SOUND_DEVICE_WASAPI_EXCLUSIVE && type != SOUND_DEVICE_PA)
 		return false;
@@ -2580,8 +2593,8 @@ static void handle_reset(void)
 				break;
 			}
 		}
+		currprefs.produce_sound = changed_prefs.produce_sound = 1;
 	}
-	currprefs.produce_sound = changed_prefs.produce_sound = 1;
 }
 
 
