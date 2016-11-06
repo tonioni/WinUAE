@@ -2813,24 +2813,24 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 
 		if (regno >= 0x1000) {
 			pfield_expand_dp_bplconx (regno, value);
-		} else if (regno >= 0) {
-			if (regno == 0 && (value & COLOR_CHANGE_BRDBLANK)) {
+		} else if (regno >= 0 && !(value & COLOR_CHANGE_MASK)) {
+			color_reg_set(&colors_for_drawing, regno, value);
+			colors_for_drawing.acolors[regno] = getxcolor(value);
+		} else if (regno == 0 && (value & COLOR_CHANGE_MASK)) {
+			if (value & COLOR_CHANGE_BRDBLANK) {
 				colors_for_drawing.extra &= ~(1 << CE_BORDERBLANK);
 				colors_for_drawing.extra &= ~(1 << CE_BORDERNTRANS);
 				colors_for_drawing.extra &= ~(1 << CE_BORDERSPRITE);
 				colors_for_drawing.extra |= (value & 1) != 0 ? (1 << CE_BORDERBLANK) : 0;
 				colors_for_drawing.extra |= (value & 3) == 2 ? (1 << CE_BORDERSPRITE) : 0;
 				colors_for_drawing.extra |= (value & 5) == 4 ? (1 << CE_BORDERNTRANS) : 0;
-			} else if (regno == 0 && (value & COLOR_CHANGE_SHRES_DELAY)) {
+			} else if (value & COLOR_CHANGE_SHRES_DELAY) {
 				colors_for_drawing.extra &= ~(1 << CE_SHRES_DELAY);
 				colors_for_drawing.extra &= ~(1 << (CE_SHRES_DELAY + 1));
 				colors_for_drawing.extra |= (value & 3) << CE_SHRES_DELAY;
 				pfield_expand_dp_bplcon();
-			} else if (regno == 0 && (value & COLOR_CHANGE_HSYNC_HACK)) {
+			} else if (value & COLOR_CHANGE_HSYNC_HACK) {
 				hsync_shift_hack = (uae_s8)value;
-			} else {
-				color_reg_set (&colors_for_drawing, regno, value);
-				colors_for_drawing.acolors[regno] = getxcolor (value);
 			}
 		}
 		if (lastpos >= endpos)
