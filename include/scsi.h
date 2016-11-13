@@ -258,6 +258,9 @@ void scram5380_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romco
 bool ossi_init(struct autoconfig_info*);
 void ossi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
+bool hardframe_init(struct autoconfig_info*);
+void hardframe_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
 uae_u8 idescsi_scsi_get(uaecptr addr);
 void idescsi_scsi_put(uaecptr addr, uae_u8 v);
 

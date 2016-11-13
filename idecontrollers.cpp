@@ -46,7 +46,8 @@
 #define GOLEMFAST_IDE (x86_AT_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
 #define BUDDHA_IDE (GOLEMFAST_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
 #define DATAFLYERPLUS_IDE (BUDDHA_IDE + 3 * MAX_DUPLICATE_EXPANSION_BOARDS)
-#define TOTAL_IDE (DATAFLYERPLUS_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define ATEAM_IDE (DATAFLYERPLUS_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define TOTAL_IDE (ATEAM_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 
 #define ALF_ROM_OFFSET 0x0100
 #define GVP_IDE_ROM_OFFSET 0x8000
@@ -99,6 +100,7 @@ static struct ide_board *x86_at_ide_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *golemfast_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *buddha_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *dataflyerplus_board[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ide_board *ateam_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 
 static struct ide_hdf *idecontroller_drive[TOTAL_IDE * 2];
 static struct ide_thread_state idecontroller_its;
@@ -489,6 +491,22 @@ static int get_golemfast_reg(uaecptr addr, struct ide_board *board)
 	return reg;
 }
 
+static int get_ateam_reg(uaecptr addr, struct ide_board *board)
+{
+	if (!(addr & 1))
+		return -1;
+	if ((addr & 0xf000) != 0xf000)
+		return -1;
+	addr >>= 7;
+	addr &= 15;
+	if (addr >= 8) {
+		addr &= 7;
+		addr |= IDE_SECONDARY;
+	}
+	return addr;
+}
+
+
 static int getidenum(struct ide_board *board, struct ide_board **arr)
 {
 	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
@@ -738,6 +756,18 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 			v = board->rom[addr & board->rom_mask];
 		}
 
+	} else if (board->type == ATEAM_IDE) {
+
+		if (addr == 1) {
+			v = ide_irq_check(board->ide[0], false) ? 0x00 : 0x80;
+		} else {
+			int reg = get_ateam_reg(addr, board);
+			if (reg >= 0) {
+				v = get_ide_reg(board, reg);
+			} else {
+				v = board->rom[addr & board->rom_mask];
+			}
+		}
 
 	}
 
@@ -928,6 +958,12 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 				v = get_ide_reg_multi(board, IDE_DATA, (addr & 0x4000) ? 1 : 0, 1);
 			}
 
+		} else if (board->type == ATEAM_IDE) {
+
+			if (board->configured && (addr & 0xf800) == 0xf800) {
+				v = get_ide_reg_multi(board, IDE_DATA, 0, 1);
+			}
+
 		}
 
 	}
@@ -1104,6 +1140,22 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 						idescsi_scsi_put(oaddr, v);
 				}
 			}
+
+		} else if (board->type == ATEAM_IDE) {
+
+			if ((addr & 0xff01) == 0x0101) {
+				// disable interrupt strobe address
+				board->intena = false;
+			} else if ((addr & 0xff01) == 0x0201) {
+				// enable interrupt strobe address
+				board->intena = true;
+			} else {
+				int reg = get_ateam_reg(addr, board);
+				if (reg >= 0) {
+					put_ide_reg(board, reg, v);
+				}
+			}
+
 		}
 
 	}
@@ -1241,6 +1293,12 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 				put_ide_reg_multi(board, IDE_DATA, v, (addr & 0x4000) ? 1 : 0, 1);
 			}
 
+		} else if (board->type == ATEAM_IDE) {
+		
+			if (board->configured && (addr & 0xf800) == 0xf800) {
+				put_ide_reg_multi(board, IDE_DATA, v, 0, 1);
+			}
+		
 		}
 	}
 }
@@ -1917,6 +1975,43 @@ void dataflyerplus_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struc
 			dataflyerplus_add_scsi_unit(ch, ci, rc);
 	}
 }
+
+bool ateam_init(struct autoconfig_info *aci)
+{
+	uae_u8 *rom;
+	int rom_size = 32768;
+
+	rom = xcalloc(uae_u8, rom_size);
+	memset(rom, 0xff, rom_size);
+	load_rom_rc(aci->rc, ROMTYPE_ATEAM, 16384, !aci->rc->autoboot_disabled ? 0xc000 : 0x8000, rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+
+	if (!aci->doinit) {
+		memcpy(aci->autoconfig_raw, rom, sizeof aci->autoconfig_raw);
+		xfree(rom);
+		return true;
+	}
+
+	struct ide_board *ide = getide(aci->rc);
+
+	ide->configured = 0;
+	ide->keepautoconfig = false;
+	ide->bank = &ide_bank_generic;
+	ide->mask = 65536 - 1;
+
+	ide->rom = rom;
+	ide->rom_size = rom_size;
+	ide->rom_mask = rom_size - 1;
+	memcpy(ide->acmemory, ide->rom, sizeof ide->acmemory);
+
+	aci->addrbank = ide->bank;
+	return true;
+}
+
+void ateam_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	add_ide_standard_unit(ch, ci, rc, ateam_board, ATEAM_IDE, true, false, 2);
+}
+
 
 extern void x86_xt_ide_bios(struct zfile*, struct romconfig*);
 static bool x86_at_hd_init(struct autoconfig_info *aci, int type)

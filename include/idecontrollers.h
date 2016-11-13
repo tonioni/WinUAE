@@ -42,6 +42,9 @@ void buddha_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig
 bool dataflyerplus_init(struct autoconfig_info *aci);
 void dataflyerplus_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
+bool ateam_init(struct autoconfig_info *aci);
+void ateam_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
 uae_u32 REGPARAM3 apollo_ide_lget (uaecptr addr) REGPARAM;
 uae_u32 REGPARAM3 apollo_ide_wget (uaecptr addr) REGPARAM;
 uae_u32 REGPARAM3 apollo_ide_bget (uaecptr addr) REGPARAM;

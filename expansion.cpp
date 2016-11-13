@@ -245,6 +245,7 @@ static bool ks11orolder(void)
 
 /* Autoconfig address space at 0xE80000 */
 static uae_u8 expamem[65536];
+static uae_u8 expamem_write_space[65536];
 #define AUTOMATIC_AUTOCONFIG_MAX_ADDRESS 0x80
 static int expamem_autoconfig_mode;
 static addrbank*(*expamem_map)(struct autoconfig_info*);
@@ -331,6 +332,14 @@ static void addextrachip (uae_u32 sysbase)
 
 addrbank expamem_null, expamem_none;
 
+DECLARE_MEMORY_FUNCTIONS(expamem_write);
+addrbank expamem_write_bank = {
+	expamem_write_lget, expamem_write_wget, expamem_write_bget,
+	expamem_write_lput, expamem_write_wput, expamem_write_bput,
+	default_xlate, default_check, NULL, NULL, _T("Autoconfig Z2 WRITE"),
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
+};
 DECLARE_MEMORY_FUNCTIONS(expamem);
 addrbank expamem_bank = {
 	expamem_lget, expamem_wget, expamem_bget,
@@ -509,6 +518,10 @@ static void call_card_init(int index)
 		}
 	}
 
+	if (aci->write_bank_address && aci->write_bank_address != 0xffffffff) {
+		map_banks(&expamem_write_bank, aci->write_bank_address >> 16, aci->size >> 16, 0);
+	}
+
 	if (ab) {
 		// non-NULL: not using expamem_bank
 		expamem_bank_current = ab;
@@ -599,6 +612,42 @@ void expamem_next(addrbank *mapped, addrbank *next)
 		expamem_init_clear2();
 		expamem_init_last();
 	}
+}
+
+// only for custom autoconfig device development purposes, not in use in any normal config
+static uae_u32 REGPARAM2 expamem_write_lget(uaecptr addr)
+{
+	addr &= 0xffff;
+	return (expamem_write_space[addr + 0] << 24) | (expamem_write_space[addr + 1] << 16) | (expamem_write_space[addr + 2] << 8) | (expamem_write_space[addr + 3] << 0);
+}
+static uae_u32 REGPARAM2 expamem_write_wget(uaecptr addr)
+{
+	addr &= 0xffff;
+	return (expamem_write_space[addr + 0] << 8) | (expamem_write_space[addr + 1] << 0);
+}
+static uae_u32 REGPARAM2 expamem_write_bget(uaecptr addr)
+{
+	addr &= 0xffff;
+	return expamem_write_space[addr];
+}
+static void REGPARAM2 expamem_write_lput(uaecptr addr, uae_u32 value)
+{
+	addr &= 0xffff;
+	expamem_write_space[addr + 0] = value >> 24;
+	expamem_write_space[addr + 1] = value >> 16;
+	expamem_write_space[addr + 2] = value >>  8;
+	expamem_write_space[addr + 3] = value >>  0;
+}
+static void REGPARAM2 expamem_write_wput(uaecptr addr, uae_u32 value)
+{
+	addr &= 0xffff;
+	expamem_write_space[addr + 0] = value >> 8;
+	expamem_write_space[addr + 1] = value;
+}
+static void REGPARAM2 expamem_write_bput(uaecptr addr, uae_u32 value)
+{
+	addr &= 0xffff;
+	expamem_write_space[addr] = value;
 }
 
 static uae_u32 REGPARAM2 expamem_lget (uaecptr addr)
@@ -1621,6 +1670,7 @@ static bool expamem_init_fastcard_2(struct autoconfig_info *aci, int zorro)
 		type |= Z2_MEM_8MB;
 
 	aci->addrbank = bank;
+	aci->write_bank_address = p->fastmem[aci->devnum].write_address;
 
 	if (aci->devnum == 0) {
 		if (ISCPUBOARDP(p, BOARD_COMMODORE, BOARD_COMMODORE_SUB_A26x0)) {
@@ -1637,6 +1687,11 @@ static bool expamem_init_fastcard_2(struct autoconfig_info *aci, int zorro)
 
 	if (!fastmem_autoconfig(p, aci, BOARD_AUTOCONFIG_Z2, type, 1, size)) {
 		aci->zorro = -1;
+	}
+
+	if (expamem_write_space[0] != 0x00 && expamem_write_space[0] != 0xff && aci->write_bank_address) {
+		memcpy(expamem, expamem_write_space, 65536);
+		memcpy(bank->baseaddr, expamem_write_space, 65536);
 	}
 
 	memcpy(aci->autoconfig_raw, expamem, sizeof aci->autoconfig_raw);
@@ -4526,6 +4581,12 @@ const struct expansionromtype expansionroms[] = {
 		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_PARALLEL_ADAPTER
 	},
 	{
+		_T("ateam"), _T("A-Team"), _T("Mainhattan Data"),
+		ateam_init, NULL, ateam_add_ide_unit, ROMTYPE_ATEAM, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_IDE
+	},
+	{
 		_T("mtecat"), _T("AT 500"), _T("M-Tec"),
 		mtec_init, NULL, mtec_add_ide_unit, ROMTYPE_MTEC, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
@@ -4536,6 +4597,14 @@ const struct expansionromtype expansionroms[] = {
 		masoboshi_init, NULL, masoboshi_add_idescsi_unit, ROMTYPE_MASOBOSHI | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		masoboshi_sub, 0,
 		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE
+	},
+	{
+		_T("hardframe"), _T("HardFrame"), _T("Microbotics"),
+		hardframe_init, NULL, hardframe_add_scsi_unit, ROMTYPE_HARDFRAME, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI,
+		0, 0, 0, false, NULL,
+		true
 	},
 	{
 		_T("stardrive"), _T("StarDrive"), _T("Microbotics"),
