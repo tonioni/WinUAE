@@ -143,6 +143,7 @@ struct autoconfig_info
 	int zorro;
 	const TCHAR *label;
 	addrbank *addrbank;
+	uaecptr write_bank_address;
 	struct romconfig *rc;
 	uae_u32 last_high_ram;
 	const struct cpuboardsubtype *cst;

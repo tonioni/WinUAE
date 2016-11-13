@@ -4,6 +4,29 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 16:
+
+- uaenet.device unit 0 and 1 (slirp units) didn't open (some previous beta)
+- Floppy drive sound volume labels were swapped.
+- HDF create size option now accepts decimal numbers. (4.5 = 4.5M. Size is always truncated to 512 byte boundary)
+- Microbotics HardFrame SCSI controller emulation. v1.5 ROM added.
+- Mainhattan A-Team IDE controller emulation. v1.8. ROM added.
+- Immediately free previously allocated screenshot data if screenshot parameters change. (No need to close and open GUI)
+- Improve floppy selection drop down behavior. Don't select image until drop down gets closed, sort history list only after
+  combo box loses focus to allow keyboard shortcuts to work properly, cursor up/down works without qualifiers.
+- GUI tab-key order updated.
+
+Microbotics HardFrame:
+- Adaptec AIC-6250 SCSI chip. Possibly only Amiga controller that uses this chip. Slightly more advanced than 5380.
+- True DMA! Off the self 68430 DMA controller.
+- v1.5 ROM ("MicroBotics HardFrame Driver 1.5")
+- Incomplete emulation, only driver required SCSI chip and DMA controller features are emulated.
+
+Mainhattan A-Team:
+- Yet another basic PIO IDE controller.
+- v1.8 ROM ("ateam at-bus device driver (romversion) V1.8 (19-Jun-92)"
+- "ateam.asm,v 1.8.1.1 92/05/20 20:44:21 ML Rel $ Copyright (c)92 by MAINHATTAN-Data. Written by Mike Lamm. All Rights reserved!"
+- Does not seem to support custom filesystems.
 
 Beta 15:
 

@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("15")
+#define WINUAEBETA _T("16")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2016, 11, 6)
+#define WINUAEDATE MAKEBD(2016, 11, 13)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -161,7 +161,8 @@ int isdllversion (const TCHAR *name, int version, int revision, int subver, int 
 
 extern int screenshot_prepare (void);
 extern int screenshot_prepare (int);
-extern void screenshot_free (void);
+extern void screenshot_free(void);
+extern void screenshot_reset(void);
 
 extern void rawinput_release(void);
 extern void rawinput_alloc(void);

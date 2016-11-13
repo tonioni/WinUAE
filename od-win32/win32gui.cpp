@@ -3048,7 +3048,7 @@ static int loopmulti (const TCHAR *s, TCHAR *out)
 	return 1;
 }
 
-static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, const TCHAR *dostype, TCHAR *newpath, TCHAR *outpath)
+static BOOL CreateHardFile (HWND hDlg, uae_s64 hfsize, const TCHAR *dostype, TCHAR *newpath, TCHAR *outpath)
 {
 	HANDLE hf;
 	int i = 0;
@@ -3056,7 +3056,6 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, const TCHAR *dostype, TCHAR
 	LONG highword = 0;
 	DWORD ret, written;
 	TCHAR init_path[MAX_DPATH] = _T("");
-	uae_u64 hfsize;
 	uae_u32 dt;
 	uae_u8 b;
 	int sparse, dynamic;
@@ -3065,7 +3064,6 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, const TCHAR *dostype, TCHAR
 	sparse = 0;
 	dynamic = 0;
 	dt = 0;
-	hfsize = (uae_u64)hfsizem * 1024 * 1024;
 	if (ischecked (hDlg, IDC_HF_SPARSE))
 		sparse = 1;
 	if (ischecked (hDlg, IDC_HF_DYNAMIC)) {
@@ -3135,16 +3133,23 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, const TCHAR *dostype, TCHAR
 	return result;
 }
 
-static int CalculateHardfileSize (HWND hDlg)
+static uae_s64 CalculateHardfileSize(HWND hDlg)
 {
-	BOOL Translated = FALSE;
-	UINT mbytes = 0;
+	uae_s64 mbytes = 0;
+	TCHAR tmp[100];
 
-	mbytes = GetDlgItemInt(hDlg, IDC_HF_SIZE, &Translated, FALSE);
+	tmp[0] = 0;
+	GetDlgItemText(hDlg, IDC_HF_SIZE, tmp, sizeof tmp / sizeof(TCHAR));
+	for (int i = 0; i < _tcslen(tmp); i++) {
+		if (tmp[i] == ',')
+			tmp[i] = '.';
+	}
+	double v = _tstof(tmp);
+	mbytes = (uae_s64)(v * 1024 * 1024);
+	mbytes &= ~511;
 	if (mbytes <= 0)
 		mbytes = 0;
-	if( !Translated )
-		mbytes = 0;
+
 	return mbytes;
 }
 
@@ -6539,7 +6544,7 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 		case IDC_DF1QENABLE:
 		case IDC_INFO0Q:
 		case IDC_INFO1Q:
-		if (currentpage == QUICKSTART_ID)
+			if (currentpage == QUICKSTART_ID)
 				ret = FloppyDlgProc (hDlg, msg, wParam, lParam);
 			break;
 		case IDC_QUICKSTART_SETCONFIG:
@@ -12762,7 +12767,7 @@ static void hardfilecreatehdf (HWND hDlg, TCHAR *newpath)
 {
 	TCHAR hdfpath[MAX_DPATH];
 	LRESULT res;
-	UINT setting = CalculateHardfileSize (hDlg);
+	uae_s64 setting = CalculateHardfileSize (hDlg);
 	TCHAR dostype[16];
 	GetDlgItemText (hDlg, IDC_HF_DOSTYPE, dostype, sizeof (dostype) / sizeof (TCHAR));
 	res = SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_GETCURSEL, 0, 0);
@@ -14245,6 +14250,7 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	static int recursive = 0;
 	int i;
 	static TCHAR diskname[40] = { _T("") };
+	static int dropopen;
 
 	switch (msg)
 	{
@@ -14287,6 +14293,7 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 				}
 			}
 			setmultiautocomplete (hDlg, df0texts);
+			dropopen = 0;
 		}
 	case WM_USER:
 		recursive++;
@@ -14309,30 +14316,43 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		if (recursive > 0)
 			break;
 		recursive++;
-		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
+		if (HIWORD(wParam) == CBN_DROPDOWN)
+			dropopen = 1;
+		if (HIWORD(wParam) == CBN_CLOSEUP)
+			dropopen = 0;
+		if ((HIWORD(wParam) == CBN_SELCHANGE && !dropopen) || HIWORD(wParam) == CBN_KILLFOCUS || HIWORD(wParam) == CBN_CLOSEUP)  {
+			bool upd = HIWORD(wParam) == CBN_KILLFOCUS || HIWORD(wParam) == CBN_CLOSEUP;
 			switch (LOWORD (wParam))
 			{
 			case IDC_DF0TEXT:
 			case IDC_DF0TEXTQ:
 				getfloppyname (hDlg, 0);
-				addfloppytype (hDlg, 0);
-				addfloppyhistory (hDlg);
+				if (upd) {
+					addfloppytype (hDlg, 0);
+					addfloppyhistory (hDlg);
+				}
 				break;
 			case IDC_DF1TEXT:
 			case IDC_DF1TEXTQ:
 				getfloppyname (hDlg, 1);
-				addfloppytype (hDlg, 1);
-				addfloppyhistory (hDlg);
+				if (upd) {
+					addfloppytype (hDlg, 1);
+					addfloppyhistory (hDlg);
+				}
 				break;
 			case IDC_DF2TEXT:
 				getfloppyname (hDlg, 2);
-				addfloppytype (hDlg, 2);
-				addfloppyhistory (hDlg);
+				if (upd) {
+					addfloppytype (hDlg, 2);
+					addfloppyhistory (hDlg);
+				}
 				break;
 			case IDC_DF3TEXT:
 				getfloppyname (hDlg, 3);
-				addfloppytype (hDlg, 3);
-				addfloppyhistory (hDlg);
+				if (upd) {
+					addfloppytype (hDlg, 3);
+					addfloppyhistory (hDlg);
+				}
 				break;
 			case IDC_DF0TYPE:
 				getfloppytype (hDlg, 0);
@@ -18448,10 +18468,12 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		case IDC_SCREENSHOT_ORIGINALSIZE:
 			screenshot_originalsize = ischecked(hDlg, IDC_SCREENSHOT_ORIGINALSIZE) ? 1 : 0;
 			regsetint(NULL, _T("Screenshot_Original"), screenshot_originalsize);
+			screenshot_reset();
 			break;
 		case IDC_SCREENSHOT_CLIP:
 			screenshot_clipmode = ischecked(hDlg, IDC_SCREENSHOT_CLIP) ? 1 : 0;
 			regsetint(NULL, _T("Screenshot_ClipMode"), screenshot_clipmode);
+			screenshot_reset();
 			break;
 		case IDC_STATEREC_SAVE:
 			if (input_record > INPREC_RECORD_NORMAL) {
@@ -19670,10 +19692,12 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	return FALSE;
 }
 
+#if 0
 static ACCEL EmptyAccel[] = {
 	{ FVIRTKEY, VK_UP, 20001 }, { FVIRTKEY, VK_DOWN, 20002 },
 	{ 0, 0, 0 }
 };
+#endif
 
 struct newresource *getresource (int tmpl)
 {
@@ -19756,7 +19780,6 @@ static int init_page (int tmpl, int icon, int title,
 {
 	LPTSTR lpstrTitle;
 	static int id = 0;
-	int i = -1;
 	struct newresource *res;
 
 	res = getresource (tmpl);
@@ -19776,10 +19799,15 @@ static int init_page (int tmpl, int icon, int title,
 	ppage[id].idx = id;
 	ppage[id].accel = NULL;
 	ppage[id].focusid = focusid;
+#if 0
 	if (!accels)
 		accels = EmptyAccel;
-	while (accels[++i].key);
-	ppage[id].accel = CreateAcceleratorTable (accels, i);
+#endif
+	if (accels) {
+		int i = -1;
+		while (accels[++i].key);
+		ppage[id].accel = CreateAcceleratorTable (accels, i);
+	}
 	if (tmpl == IDD_FRONTEND)
 		ppage[id].fullpanel = TRUE;
 	id++;

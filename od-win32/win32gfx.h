@@ -17,7 +17,6 @@ int WIN32GFX_GetDepth (int real);
 void WIN32GFX_DisplayChangeRequested (int);
 void DX_Invalidate (int x, int y, int width, int height);
 
-RGBFTYPE WIN32GFX_FigurePixelFormats (RGBFTYPE colortype);
 int WIN32GFX_AdjustScreenmode (struct MultiDisplay *md, int *pwidth, int *pheight, int *ppixbits);
 extern HCURSOR normalcursor;
 

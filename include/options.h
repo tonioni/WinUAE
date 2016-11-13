@@ -390,6 +390,7 @@ struct ramboard
 	int device_order;
 	uae_u32 start_address;
 	uae_u32 end_address;
+	uae_u32 write_address;
 };
 struct expansion_params
 {

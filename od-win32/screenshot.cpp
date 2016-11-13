@@ -820,3 +820,8 @@ void screenshot (int mode, int doprepare)
 	freevidbuffer (&vb);
 #endif
 }
+
+void screenshot_reset(void)
+{
+	screenshot_free();
+}

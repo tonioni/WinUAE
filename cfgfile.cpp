@@ -1349,6 +1349,11 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 					rb->autoconfig_inuse = false;
 				}
 			}
+			s1 = cfgfile_option_get(value, _T("write_address"));
+			if (s1) {
+				TCHAR *endptr;
+				rb->write_address = _tcstol(s1, &endptr, 16);
+			}
 			return true;
 		}
 	}
@@ -1390,7 +1395,10 @@ static void cfgfile_writeramboard(struct uae_prefs *prefs, struct zfile *f, cons
 			*p++ = ',';
 		_stprintf(p, _T("start=%08x,end=%08x"), rb->start_address, rb->end_address);
 		p += _tcslen(p);
-
+	}
+	if (rb->write_address) {
+		_stprintf(p, _T(",write_address=%08x"), rb->write_address);
+		p += _tcslen(p);
 	}
 	if (tmp2[0]) {
 		cfgfile_write(f, tmp1, tmp2);

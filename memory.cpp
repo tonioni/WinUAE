@@ -2080,7 +2080,8 @@ static void fill_ce_banks (void)
 	memset(ce_cachable + (a3000lmem_bank.start >> 16), 1 | 2, currprefs.mbresmem_low_size >> 16);
 	memset(ce_cachable + (mem25bit_bank.start >> 16), 1 | 2, currprefs.mem25bit_size >> 16);
 
-	if (get_mem_bank (0).flags & ABFLAG_CHIPRAM) {
+	addrbank *ab = &get_mem_bank(0);
+	if (ab && (ab->flags & ABFLAG_CHIPRAM)) {
 		for (i = 0; i < (0x200000 >> 16); i++) {
 			ce_banktype[i] = (currprefs.cs_mbdmac || (currprefs.chipset_mask & CSMASK_AGA)) ? CE_MEMBANK_CHIP32 : CE_MEMBANK_CHIP16;
 		}
@@ -2097,7 +2098,7 @@ static void fill_ce_banks (void)
 		addrbank *b;
 		ce_banktype[i] = CE_MEMBANK_CIA;
 		b = &get_mem_bank (i << 16);
-		if (!(b->flags & ABFLAG_CIA)) {
+		if (b && !(b->flags & ABFLAG_CIA)) {
 			ce_banktype[i] = CE_MEMBANK_FAST32;
 			ce_cachable[i] = 1;
 		}
