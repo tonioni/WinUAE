@@ -3743,9 +3743,14 @@ fail:
 
 static TCHAR *getfrombstr(uaecptr pp)
 {
-	uae_u8 *p = get_real_address ((uaecptr)(pp << 2));
-	TCHAR *s = xcalloc (TCHAR, p[0] + 1);
-	return au_copy (s, p[0] + 1, (char*)p + 1);
+	uae_u8 len = get_byte(pp << 2);
+	TCHAR *s = xcalloc (TCHAR, len + 1);
+	char data[256];
+	for (int i = 0; i < len; i++) {
+		data[i] = get_byte((pp << 2) + 1 + i);
+		data[i + 1] = 0;
+	}
+	return au_copy (s, len + 1, data);
 }
 
 // read one byte from expansion autoconfig ROM
