@@ -1016,6 +1016,8 @@ void uaesndboard_reset(void)
 		}
 		data->streammask = 0;
 	}
+	mapped_free(&uaesndboard_ram_bank);
+	sndboard_rethink();
 }
 
 
@@ -1664,6 +1666,8 @@ void sndboard_reset(void)
 	data->ch_sample[1] = 0;
 	audio_enable_stream(false, data->streamid, 0, NULL);
 	data->streamid = 0;
+	sndboard_rethink();
+	mapped_free(&toccata_bank);
 }
 
 struct fm801_data
