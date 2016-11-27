@@ -475,6 +475,7 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		if (p->address_space_24 && rbc->rtgmem_size && rbc->rtgmem_type == GFXBOARD_UAE_Z3) {
 			error_log (_T("Z3 RTG and 24bit address space are not compatible."));
 			rbc->rtgmem_type = GFXBOARD_UAE_Z2;
+			rbc->rtgmem_size = 0;
 		}
 	}
 
