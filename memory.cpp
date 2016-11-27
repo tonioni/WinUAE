@@ -884,6 +884,7 @@ static int extendedkickmem_type;
 #define EXTENDED_ROM_CDTV 2
 #define EXTENDED_ROM_KS 3
 #define EXTENDED_ROM_ARCADIA 4
+#define EXTENDED_ROM_ALG 5
 
 static void REGPARAM3 extendedkickmem_lput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 extendedkickmem_wput (uaecptr, uae_u32) REGPARAM;
@@ -1168,6 +1169,44 @@ void a3000_fakekick (int map)
 	protect_roms (true);
 }
 
+static bool is_alg_rom(const TCHAR *name)
+{
+	struct romdata *rd = getromdatabypath(name);
+	if (!rd)
+		return false;
+	return  (rd->type & ROMTYPE_ALG) != 0;
+}
+
+static void descramble_alg(uae_u8 *data, int size)
+{
+	uae_u8 *tbuf = xmalloc(uae_u8, size);
+	memcpy(tbuf, data, size);
+	for (int mode = 0; mode < 3; mode++) {
+		if ((data[8] == 0x4a && data[9] == 0xfc))
+			break;
+		for (int s = 0; s < size; s++) {
+			int d = s;
+			if (mode == 0) {
+				if (s & 0x2000)
+					d ^= 0x1000;
+				if (s & 0x8000)
+					d ^= 0x4000;
+			} else if (mode == 1) {
+				if (s & 0x2000)
+					d ^= 0x1000;
+			} else {
+				if ((~s) & 0x2000)
+					d ^= 0x1000;
+				if (s & 0x8000)
+					d ^= 0x4000;
+				d ^= 0x20000;
+			}
+			data[d] = tbuf[s];
+		}
+	}
+	xfree(tbuf);
+}
+
 static const uae_char *kickstring = "exec.library";
 
 static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int noalias)
@@ -1276,6 +1315,10 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 		extendedkickmem_type = EXTENDED_ROM_ARCADIA;
 		return false;
 	}
+	if (is_alg_rom(romextfile)) {
+		type = EXTENDED_ROM_ALG;
+
+	}
 	f = read_rom_name (romextfile);
 	if (!f) {
 		notify_user (NUMSG_NOEXTROM);
@@ -1311,9 +1354,16 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 			mapped_malloc (&extendedkickmem_bank);
 			extendedkickmem_bank.start = 0xe00000;
 			break;
+		case EXTENDED_ROM_ALG:
+			extendedkickmem_bank.label = _T("rom_f0");
+			mapped_malloc(&extendedkickmem_bank);
+			extendedkickmem_bank.start = 0xf00000;
+			break;
 		}
 		if (extendedkickmem_bank.baseaddr) {
 			read_kickstart (f, extendedkickmem_bank.baseaddr, extendedkickmem_bank.allocated_size, 0, 1);
+			if (extendedkickmem_type == EXTENDED_ROM_ALG)
+				descramble_alg(extendedkickmem_bank.baseaddr, 262144);
 			extendedkickmem_bank.mask = extendedkickmem_bank.allocated_size - 1;
 			ret = true;
 		}
@@ -2312,6 +2362,7 @@ void memory_reset (void)
 	int bnk, bnk_end;
 	bool gayleorfatgary;
 
+	alg_flag = 0;
 	need_hardreset = false;
 	rom_write_enabled = true;
 	/* Use changed_prefs, as m68k_reset is called later.  */
@@ -2474,6 +2525,10 @@ void memory_reset (void)
 		map_banks_set(&extendedkickmem_bank, 0xE0, 8, 0);
 		break;
 #endif
+	case EXTENDED_ROM_ALG:
+		map_banks_set(&extendedkickmem_bank, 0xF0, 4, 0);
+		alg_map_banks();
+		break;
 	}
 
 #ifdef AUTOCONFIG

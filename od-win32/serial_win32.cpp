@@ -23,6 +23,7 @@
 #include "cia.h"
 #include "serial.h"
 #include "enforcer.h"
+#include "arcadia.h"
 
 #include "parser.h"
 
@@ -385,6 +386,11 @@ static void checksend(void)
 	if (data_in_sershift != 1 && data_in_sershift != 2)
 		return;
 
+#ifdef ARCADIA
+	if (alg_flag) {
+		alg_serial_read(serdatshift);
+	}
+#endif
 #ifdef SERIAL_MAP
 	if (sermap_data && sermap_enabled)
 		shmem_serial_send(serdatshift);
@@ -513,6 +519,17 @@ void serial_hsynchandler (void)
 #ifdef AHI
 	extern void hsyncstuff(void);
 	hsyncstuff();
+#endif
+#ifdef ARCADIA
+	if (alg_flag && !data_in_serdatr) {
+		int ch = alg_serial_write();
+		if (ch >= 0) {
+			serdatr = ch | 0x100;
+			data_in_serdatr = 1;
+			serdatr_last_got = 0;
+			serial_check_irq ();
+		}
+	}
 #endif
 	if (seriallog && !data_in_serdatr && gotlogwrite) {
 		int ch = read_log();

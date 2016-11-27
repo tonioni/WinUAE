@@ -3014,6 +3014,7 @@ uae_u16 JOY0DAT (void)
 	readinput ();
 	v = getjoystate (0);
 	v = dongle_joydat (0, v);
+	v = alg_joydat(0, v);
 	return v;
 }
 
@@ -3023,6 +3024,7 @@ uae_u16 JOY1DAT (void)
 	readinput ();
 	v = getjoystate (1);
 	v = dongle_joydat (1, v);
+	v = alg_joydat(1, v);
 
 	if (inputrecord_debug & 2) {
 		if (input_record > 0)
@@ -3224,6 +3226,7 @@ static void cap_check (void)
 			* NOTE: 3rd party mice may not have pullups! */
 			if (dong < 0 && (is_mouse_pullup (joy) && mouse_port[joy] && digital_port[joy][i]) && charge == 0)
 				charge = 2;
+
 			/* emulate pullup resistor if button mapped because there too many broken
 			* programs that read second button in input-mode (and most 2+ button pads have
 			* pullups)
@@ -3334,12 +3337,15 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 			if (cd32_shifter[i] >= 2 && (joybutton[i] & ((1 << JOYBUTTON_CD32_PLAY) << (cd32_shifter[i] - 2))))
 				potgor &= ~p9dat;
 
-		} else  {
+		} else  if (alg_flag) {
+
+			potgor = alg_potgor(potgo_value);
+
+		} else {
 
 			potgor &= ~p5dat;
 			if (pot_cap[i][0] > 100)
 				potgor |= p5dat;
-
 
 			if (!cd32_pad_enabled[i] || !cd32padmode (p5dir, p5dat)) {
 				potgor &= ~p9dat;
@@ -3864,6 +3870,43 @@ static bool inputdevice_handle_inputcode2 (int code, int state)
 	case AKS_ARCADIACOIN2:
 		if (state)
 			arcadia_coin[1]++;
+		break;
+
+	case AKS_ALGSERVICE:
+		alg_flag &= ~2;
+		alg_flag |= state ? 2 : 0;
+		break;
+	case AKS_ALGLSTART:
+		alg_flag &= ~4;
+		alg_flag |= state ? 4 : 0;
+		break;
+	case AKS_ALGRSTART:
+		alg_flag &= ~8;
+		alg_flag |= state ? 8 : 0;
+		break;
+	case AKS_ALGLCOIN:
+		alg_flag &= ~16;
+		alg_flag |= state ? 16 : 0;
+		break;
+	case AKS_ALGRCOIN:
+		alg_flag &= ~32;
+		alg_flag |= state ? 32 : 0;
+		break;
+	case AKS_ALGLTRIGGER:
+		alg_flag &= ~64;
+		alg_flag |= state ? 64 : 0;
+		break;
+	case AKS_ALGRTRIGGER:
+		alg_flag &= ~128;
+		alg_flag |= state ? 128 : 0;
+		break;
+	case AKS_ALGLHOLSTER:
+		alg_flag &= ~256;
+		alg_flag |= state ? 256 : 0;
+		break;
+	case AKS_ALGRHOLSTER:
+		alg_flag &= ~512;
+		alg_flag |= state ? 512 : 0;
 		break;
 	}
 #endif
@@ -4641,7 +4684,7 @@ void inputdevice_vsync (void)
 	if (mouseedge_alive > 0)
 		mouseedge_alive--;
 #ifdef ARCADIA
-	if (arcadia_bios)
+	if (arcadia_bios || alg_flag)
 		arcadia_vsync ();
 #endif
 	if (mouseedge ())

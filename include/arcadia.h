@@ -3,12 +3,10 @@
 
 #ifdef ARCADIA
 
-extern void arcadia_init (void);
 extern int is_arcadia_rom (const TCHAR *path);
 extern int arcadia_map_banks (void);
 extern void arcadia_unmap (void);
 extern void arcadia_vsync (void);
-extern void arcadia_reset (void);
 extern uae_u8 arcadia_parport (int port, uae_u8 pra, uae_u8 dra);
 extern struct romdata *scan_arcadia_rom (TCHAR*, int);
 
@@ -27,6 +25,16 @@ extern int arcadia_flag, arcadia_coin[2];
 #define NO_ARCADIA_ROM 0
 #define ARCADIA_BIOS 1
 #define ARCADIA_GAME 2
+
+extern int alg_flag;
+extern void alg_map_banks(void);
+extern void alg_serial_read(uae_u16 v);
+extern int alg_serial_write(void);
+extern bool alg_ld_active(void);
+
+extern uae_u16 alg_potgor(uae_u16);
+extern uae_u16 alg_joydat(int, uae_u16);
+extern uae_u8 alg_joystick_buttons(uae_u8, uae_u8, uae_u8);
 
 #endif /* ARCADIA */
 

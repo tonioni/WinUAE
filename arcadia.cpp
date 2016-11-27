@@ -20,6 +20,7 @@
 #include "debug.h"
 #include "arcadia.h"
 #include "zfile.h"
+#include "videograb.h"
 
 /* supported roms
 *
@@ -490,18 +491,23 @@ int arcadia_map_banks (void)
 	return 1;
 }
 
+void alg_vsync(void);
 void arcadia_vsync (void)
 {
-	static int cnt;
+	if (alg_flag)
+		alg_vsync();
 
-	cnt--;
-	if (cnt > 0)
-		return;
-	cnt = 50;
-	if (!nvwrite)
-		return;
-	nvram_write ();
-	nvwrite = 0;
+	if (arcadia_bios) {
+		static int cnt;
+		cnt--;
+		if (cnt > 0)
+			return;
+		cnt = 50;
+		if (!nvwrite)
+			return;
+		nvram_write ();
+		nvwrite = 0;
+	}
 }
 
 uae_u8 arcadia_parport (int port, uae_u8 pra, uae_u8 dra)
@@ -544,4 +550,405 @@ struct romdata *scan_arcadia_rom (TCHAR *path, int cnt)
 		xfree (arc_rl);
 	}
 	return rd;
+}
+
+// American Laser Games
+
+/*
+
+Port 1:
+- Joy Up = Service mode
+- Joy Down = Start
+- Joy Left = Left Coin
+- Joy Right = Right Coin
+
+Port 2:
+- Light Gun
+- 2nd button = player select (output)
+- 3rd button = trigger
+- Joy Up = holster
+
+*/
+
+
+int alg_flag;
+
+#define ALG_NVRAM_SIZE 4096
+#define ALG_NVRAM_MASK (ALG_NVRAM_SIZE - 1)
+static uae_u8 algmemory[ALG_NVRAM_SIZE];
+static int algmemory_modified;
+static int algmemory_initialized;
+
+static void alg_nvram_write (void)
+{
+	struct zfile *f = zfile_fopen (currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
+	if (!f) {
+		f = zfile_fopen (currprefs.flashfile, _T("wb"), 0);
+		if (!f)
+			return;
+	}
+	zfile_fwrite (algmemory, ALG_NVRAM_SIZE, 1, f);
+	zfile_fclose (f);
+}
+
+static void alg_nvram_read (void)
+{
+	struct zfile *f;
+
+	f = zfile_fopen (currprefs.flashfile, _T("rb"), ZFD_NORMAL);
+	memset (algmemory, 0, ALG_NVRAM_SIZE);
+	if (!f)
+		return;
+	zfile_fread (algmemory, ALG_NVRAM_SIZE, 1, f);
+	zfile_fclose (f);
+}
+
+static uae_u32 REGPARAM2 alg_lget (uaecptr addr)
+{
+	return 0;
+}
+static uae_u32 REGPARAM2 alg_wget (uaecptr addr)
+{
+	return 0;
+}
+
+static uae_u32 REGPARAM2 alg_bget (uaecptr addr)
+{
+	uaecptr addr2 = addr;
+	addr >>= 1;
+	addr &= ALG_NVRAM_MASK;
+	uae_u8 v = algmemory[addr];
+	//write_log(_T("ALG BGET %08X %04X %02X %08X\n"), addr2, addr, v, M68K_GETPC);
+	return v;
+}
+
+static void REGPARAM2 alg_lput (uaecptr addr, uae_u32 l)
+{
+}
+static void REGPARAM2 alg_wput (uaecptr addr, uae_u32 w)
+{
+}
+
+static void REGPARAM2 alg_bput (uaecptr addr, uae_u32 b)
+{
+	uaecptr addr2 = addr;
+	addr >>= 1;
+	addr &= ALG_NVRAM_MASK;
+	//write_log(_T("ALG BPUT %08X %04X %02X %08X\n"), addr2, addr, b & 255, M68K_GETPC);
+	if (algmemory[addr] != b) {
+		algmemory[addr] = b;
+		algmemory_modified = 100;
+	}
+}
+
+static addrbank alg_ram_bank = {
+	alg_lget, alg_wget, alg_bget,
+	alg_lput, alg_wput, alg_bput,
+	default_xlate, default_check, NULL, NULL, _T("ALG RAM"),
+	dummy_lgeti, dummy_wgeti, ABFLAG_RAM | ABFLAG_SAFE, S_READ, S_WRITE,
+	NULL, 65536
+};
+
+static int ld_mode;
+static uae_u32 ld_address, ld_value;
+static int ld_direction;
+#define LD_MODE_SEARCH 1
+#define LD_MODE_PLAY 2
+#define LD_MODE_STILL 3
+#define LD_MODE_STOP 4
+
+#define ALG_SER_BUF_SIZE 16
+static uae_u8 alg_ser_buf[ALG_SER_BUF_SIZE];
+static int ser_buf_offset;
+static int ld_wait_ack;
+static int ld_audio;
+static int ld_vsync;
+
+static void sb(uae_u8 v)
+{
+	if (ser_buf_offset < ALG_SER_BUF_SIZE) {
+		alg_ser_buf[ser_buf_offset++] = v;
+	}
+}
+static void ack(void)
+{
+	ld_wait_ack = 1;
+	sb(0x0a); // ACK
+}
+
+void alg_serial_read(uae_u16 w)
+{
+	w &= 0xff;
+	switch (w)
+	{
+	case 0x30: // '0'
+	case 0x31:
+	case 0x32:
+	case 0x33:
+	case 0x34:
+	case 0x35:
+	case 0x36:
+	case 0x37:
+	case 0x38:
+	case 0x39: // '9'
+	{
+		uae_u8 v = w - 0x30;
+		ld_value *= 10;
+		ld_value += v;
+		ack();
+	}
+	break;
+	case 0x3a: // F-PLAY ':'
+	ld_mode = LD_MODE_PLAY;
+	ld_direction = 0;
+	pausevideograb(0);
+	ack();
+	break;
+	case 0x3b: // Fast foward play ';'
+	ld_mode = LD_MODE_PLAY;
+	ld_direction = 1;
+	ack();
+	break;
+	case 0x3f: // STOP '?'
+	pausevideograb(1);
+	ld_direction = 0;
+	ld_mode = LD_MODE_STOP;
+	ack();
+	break;
+	case 0x40: // '@'
+	if (ld_mode == LD_MODE_SEARCH) {
+		ld_address = ld_value;
+		getsetpositionvideograb(ld_address);
+		ld_mode = LD_MODE_STILL;
+		ld_direction = 0;
+		ack();
+		sb(0x01); // COMPLETION
+	}
+	break;
+	case 0x4a: // R-PLAY 'J'
+	ld_mode = LD_MODE_PLAY;
+	pausevideograb(1);
+	ld_direction = -1;
+	ack();
+	break;
+	case 0x4b: // Fast reverse play 'K'
+	ld_mode = LD_MODE_PLAY;
+	pausevideograb(1);
+	ld_direction = -2;
+	ack();
+	break;
+	case 0x4f: // STILL 'O'
+	ld_mode = LD_MODE_STILL;
+	ld_direction = 0;
+	pausevideograb(1);
+	ack();
+	break;
+	case 0x43: // SEARCH 'C'
+	ack();
+	ld_mode = LD_MODE_SEARCH;
+	ld_direction = 0;
+	pausevideograb(1);
+	ld_value = 0;
+	break;
+	case 0x46: // CH-1 ON 'F'
+	ack();
+	ld_audio |= 1;
+	setvolumevideograb(32768);
+	break;
+	case 0x48: // CH-2 ON 'H'
+	ack();
+	ld_audio |= 2;
+	setvolumevideograb(32768);
+	break;
+	case 0x47: // CH-1 OFF 'G'
+	ack();
+	ld_audio &= ~1;
+	if (!ld_audio)
+		setvolumevideograb(0);
+	break;
+	case 0x49: // CH-2 OFF 'I'
+	ack();
+	ld_audio &= ~2;
+	if (!ld_audio)
+		setvolumevideograb(0);
+	break;
+	case 0x50: // INDEX ON 'P'
+	ack();
+	break;
+	case 0x51: // INDEX OFF 'O'
+	ack();
+	break;
+	case 0x60: // ADDR INQ '`'
+	{
+		if (isvideograb() && ld_direction == 0) {
+			ld_address = (uae_u32)getsetpositionvideograb(-1);
+		}
+		uae_u32 v = ld_address;
+		uae_u32 m = 10000;
+		for (int i = 0; i < 5; i++) {
+			uae_u8 vv = ((v / m) % 10) + '0';
+			sb(vv);
+			m /= 10;
+		}
+	}
+	break;
+	case 0x67: // STATUS INQ 'g'
+	sb(0x80);
+	sb(0x00);
+	sb(0x40);
+	sb((ld_mode == LD_MODE_SEARCH ? 0x02 : 0x00));
+	sb((ld_mode == LD_MODE_PLAY ? 0x01 : 0x00) | (ld_mode == LD_MODE_STILL ? 0x20 : 0x00) | (ld_mode == LD_MODE_STOP ? 0x40 : 0x00) | (ld_direction < 0 ? 0x80 : 0x00));
+	break;
+	}
+}
+
+bool alg_ld_active(void)
+{
+	return ld_mode == LD_MODE_PLAY || ld_mode == LD_MODE_STILL;
+}
+
+static void alg_vsync(void)
+{
+	ld_wait_ack = 0;
+	ld_vsync++;
+	if (ld_mode == LD_MODE_PLAY) {
+		if (ld_direction < 0) {
+			if (ld_address > 0) {
+				ld_address -= (-ld_direction);
+				if ((ld_vsync & 15) == 0) {
+					if (isvideograb()) {
+						getsetpositionvideograb(ld_address);
+					}
+				}
+			}
+		} else {
+			ld_address += 1 + ld_direction;
+			if (ld_direction > 0) {
+				if ((ld_vsync & 15) == 0) {
+					if (isvideograb()) {
+						getsetpositionvideograb(ld_address);
+					}
+				}
+			}
+		}
+	}
+	if (algmemory_modified > 0) {
+		algmemory_modified--;
+		if (algmemory_modified == 0) {
+			alg_nvram_write();
+		}
+	}
+	if (isvideograb()) {
+		isvideograb_status();
+	}
+}
+
+int alg_serial_write(void)
+{
+	if (ser_buf_offset > 0) {
+		uae_u16 v = alg_ser_buf[0];
+		if (v == 0x0a && ld_wait_ack)
+			return -1;
+		ser_buf_offset--;
+		memmove(alg_ser_buf, alg_ser_buf + 1, ser_buf_offset);
+		return v;
+	}
+	return -1;
+}
+
+/*
+
+Port 1:
+
+- Joy Up = Service mode
+- Joy Down = Left Start
+- 3rd button = Right Start
+- Joy Left = Left Coin
+- Joy Right = Right Coin
+
+Port 2:
+
+- Light gun (player 0/1)
+- 2nd button = Player select (output)
+- 3rd button = Trigger (player 0/1)
+- Joy Up = Holster (player 0/1)
+
+*/
+
+static uae_u16 alg_potgo;
+
+uae_u16 alg_potgor(uae_u16 potgo)
+{
+	alg_potgo = potgo;
+
+	// 2nd button output and high = player 2.
+	int ply = (alg_potgo & 0x4000) && (alg_potgo & 0x8000) ? 1 : 0;
+
+	potgo |= (0x1000 | 0x0100);
+	// trigger
+	if (((alg_flag & 128) && ply == 1) || ((alg_flag & 64) && ply == 0))
+		potgo &= ~0x1000;
+	// right start
+	if (alg_flag & 8)
+		potgo &= ~0x0100;
+
+	return potgo;
+}
+uae_u16 alg_joydat(int joy, uae_u16 v)
+{
+	if (!alg_flag)
+		return v;
+	int ply = (alg_potgo & 0x4000) && (alg_potgo & 0x8000) ? 1 : 0;
+	v = 0;
+	if (joy == 0) {
+
+		// left coin
+		if (alg_flag & 16)
+			v |= 0x0200;
+		// right coin
+		if (alg_flag & 32)
+			v |= 0x0002;
+
+		// service
+		if (alg_flag & 2)
+			v |= (v & 0x0200) ? 0x0000 : 0x0100;
+		else
+			v |= (v & 0x0200) ? 0x0100 : 0x0000;
+		// start
+		if (alg_flag & 4)
+			v |= (v & 0x0002) ? 0x0000: 0x0001;
+		else
+			v |= (v & 0x0002) ? 0x0001: 0x0000;
+
+	} else if (joy == 1) {
+
+		// holster
+		if (((alg_flag & 512) && ply == 0) || ((alg_flag & 256) && ply == 1))
+			v |= (v & 0x0200) ? 0x0000 : 0x0100;
+		else
+			v |= (v & 0x0200) ? 0x0100 : 0x0000;
+
+	}
+	return v;
+}
+uae_u8 alg_joystick_buttons(uae_u8 pra, uae_u8 dra, uae_u8 v)
+{
+	return v;
+}
+
+
+void alg_map_banks(void)
+{
+	alg_flag = 1;
+	if (!algmemory_initialized) {
+		alg_nvram_read();
+		algmemory_initialized = 1;
+	}
+	map_banks(&alg_ram_bank, 0xf4, 4, 0);
+	pausevideograb(1);
+	ld_audio = 0;
+	ld_mode = 0;
+	ld_wait_ack = 0;
+	ld_direction = 0;
+	ser_buf_offset = 0;
 }

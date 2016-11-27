@@ -1018,26 +1018,29 @@ static uae_u8 ReadCIAA (unsigned int addr)
 
 	switch (reg) {
 	case 0:
+	{
 #ifdef ACTION_REPLAY
 		action_replay_cia_access(false);
 #endif
-		tmp = DISK_status_ciaa() & 0x3c;
-		tmp |= handle_joystick_buttons (ciaapra, ciaadra);
-		tmp |= (ciaapra | (ciaadra ^ 3)) & 0x03;
-		tmp = dongle_cia_read (0, reg, tmp);
+		uae_u8 v = DISK_status_ciaa() & 0x3c;
+		v |= handle_joystick_buttons (ciaapra, ciaadra);
+		v |= (ciaapra | (ciaadra ^ 3)) & 0x03;
+		v = dongle_cia_read (0, reg, v);
+		v = alg_joystick_buttons(ciaapra, ciaadra, v);
 #if DONGLE_DEBUG > 0
 		if (notinrom())
-			write_log (_T("BFE001 R %02X %s\n"), tmp, debuginfo(0));
+			write_log (_T("BFE001 R %02X %s\n"), v, debuginfo(0));
 #endif
 
 		if (inputrecord_debug & 2) {
 			if (input_record > 0)
-				inprec_recorddebug_cia (tmp, div10, m68k_getpc ());
+				inprec_recorddebug_cia (v, div10, m68k_getpc ());
 			else if (input_play > 0)
-				inprec_playdebug_cia (tmp, div10, m68k_getpc ());
+				inprec_playdebug_cia (v, div10, m68k_getpc ());
 		}
 
-		return tmp;
+		return v;
+	}
 	case 1:
 #ifdef PARALLEL_PORT
 		if (isprinter () > 0) {
