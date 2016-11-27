@@ -71,9 +71,9 @@ static void write_tdnumber (uae_u8 *buf, int bpp, int x, int y, int num, uae_u32
 	numptr = numbers + num * TD_NUM_WIDTH + NUMBERS_NUM * TD_NUM_WIDTH * y;
 	for (j = 0; j < TD_NUM_WIDTH; j++) {
 		if (*numptr == 'x')
-			putpixel (buf, bpp, x + j, c1, 1);
+			putpixel (buf, NULL, bpp, x + j, c1, 1);
 		else if (*numptr == '+')
-			putpixel (buf, bpp, x + j, c2, 0);
+			putpixel (buf, NULL, bpp, x + j, c2, 0);
 		numptr++;
 	}
 }
@@ -276,11 +276,11 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 
 		x = x_start + pos * TD_WIDTH;
 		if (!border)
-			putpixel (buf, bpp, x - 1, cb, 0);
+			putpixel (buf, NULL, bpp, x - 1, cb, 0);
 		for (j = 0; j < TD_LED_WIDTH; j++)
-			putpixel (buf, bpp, x + j, c, 0);
+			putpixel (buf, NULL, bpp, x + j, c, 0);
 		if (!border)
-			putpixel (buf, bpp, x + j, cb, 0);
+			putpixel (buf, NULL, bpp, x + j, cb, 0);
 
 		if (y >= TD_PADY && y - TD_PADY < TD_NUM_HEIGHT) {
 			if (num3 >= 0) {
