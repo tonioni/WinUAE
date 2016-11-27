@@ -387,6 +387,7 @@ struct ramboard
 	uae_u8 autoconfig[16];
 	bool autoconfig_inuse;
 	bool manual_config;
+	bool no_reset_unmap;
 	int device_order;
 	uae_u32 start_address;
 	uae_u32 end_address;
@@ -512,6 +513,8 @@ struct uae_prefs {
 	bool genlock;
 	int genlock_image;
 	int genlock_mix;
+	int genlock_scale;
+	int genlock_aspect;
 	bool genlock_alpha;
 	TCHAR genlock_image_file[MAX_DPATH];
 	TCHAR genlock_video_file[MAX_DPATH];

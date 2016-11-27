@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "zfile.h"
 #include "videograb.h"
+#include "arcadia.h"
 
 #define VIDEOGRAB 1
 
@@ -2177,7 +2178,7 @@ static int genlock_image_width, genlock_image_height, genlock_image_pitch;
 static TCHAR genlock_video_file[MAX_DPATH], genlock_image_file[MAX_DPATH];
 static uae_u8 noise_buffer[1024];
 static uae_u32 noise_seed, noise_add, noise_index;
-static bool genlock_error;
+static bool genlock_error, genlock_blank;
 
 static uae_u32 quickrand(void)
 {
@@ -2314,9 +2315,6 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 {
 	int y, x, vdbl, hdbl;
 	int ystart, yend, isntsc;
-	int gl_vdbl_l, gl_vdbl_r, gl_vdbl;
-	int gl_hdbl_l, gl_hdbl_r, gl_hdbl;
-	int gl_hcenter, gl_vcenter;
 	int mix1 = 0, mix2 = 0;
 
 	int genlock_image_pixbytes = 4;
@@ -2333,6 +2331,7 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 
 #if VIDEOGRAB
 	if (currprefs.genlock_image == 5) {
+		genlock_blank = false;
 		if ((!genlock_video && !genlock_error) || _tcsicmp(_T(":CAPTURE:"), genlock_video_file)) {
 			_tcscpy(genlock_video_file, _T(":CAPTURE:"));
 			genlock_video = initvideograb(NULL);
@@ -2359,14 +2358,24 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		else {
 			genlock_error = true;
 		}
-	} else if (currprefs.genlock_image == 4) {
+	} else if (currprefs.genlock_image == 4 || currprefs.genlock_image == 6) {
 		if (currprefs.genlock_video_file[0]) {
+			genlock_blank = false;
 			if ((!genlock_video && !genlock_error) || _tcsicmp(currprefs.genlock_video_file, genlock_video_file)) {
 				_tcscpy(genlock_video_file, currprefs.genlock_video_file);
 				genlock_video = initvideograb(currprefs.genlock_video_file);
 				if (!genlock_video) {
 					genlock_error = true;
 				}
+			}
+			if (currprefs.genlock_image == 6) {
+				if (!alg_ld_active()) {
+					genlock_blank = true;
+					if (!getpausevideograb())
+						pausevideograb(1);
+					goto skip;
+				}
+				genlock_blank = false;
 			}
 		} else {
 			genlock_error = true;
@@ -2388,16 +2397,20 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 			genlock_error = true;
 		}
 	}
+skip:
 #endif
 	if (currprefs.genlock_image == 1) {
+		genlock_blank = false;
 		genlock_error = false;
 	} else if (currprefs.genlock_image == 2) {
+		genlock_blank = false;
 		genlock_error = false;
 		if (!genlock_image_data) {
 			load_genlock_image();
 		}
 		genlock_image = genlock_image_data;
 	} else if (currprefs.genlock_image == 3) {
+		genlock_blank = false;
 		if (!currprefs.genlock_image_file[0]) {
 			genlock_error = true;
 		} else {
@@ -2414,17 +2427,22 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		genlock_image_data = NULL;
 	}
 #if VIDEOGRAB
-	if (genlock_video && currprefs.genlock_image != 4 && currprefs.genlock_image != 5) {
+	if (genlock_video && currprefs.genlock_image != 4 && currprefs.genlock_image != 5 && currprefs.genlock_image != 6) {
 		uninitvideograb();
 		genlock_video = false;
 	}
 #endif
-	if (currprefs.genlock_image != 4 && currprefs.genlock_image != 5) {
+	if (currprefs.genlock_image != 4 && currprefs.genlock_image != 5 && currprefs.genlock_image != 6) {
 		genlock_video_file[0] = 0;
 	}
 	if (currprefs.genlock_image != 3) {
 		genlock_image_file[0] = 0;
 	}
+
+	if (gfxvidinfo.ychange == 1)
+		vdbl = 0; // double
+	else
+		vdbl = 1; // single
 
 	if (gfxvidinfo.xchange == 1)
 		hdbl = 0; // shres
@@ -2433,43 +2451,8 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 	else
 		hdbl = 2; // lores
 
-	gl_hdbl_l = gl_hdbl_r = 0;
-	if (genlock_image_width < 600) {
-		gl_hdbl = 2;
-	} else if (genlock_image_width < 1300) {
-		gl_hdbl = 1;
-	} else {
-		gl_hdbl = 0;
-	}
-	if (hdbl >= gl_hdbl) {
-		gl_hdbl_l = hdbl - gl_hdbl;
-	} else {
-		gl_hdbl_r = gl_hdbl - hdbl;
-	}
-
-	if (gfxvidinfo.ychange == 1)
-		vdbl = 0; // double
-	else
-		vdbl = 1; // single
-
-	gl_vdbl_l = gl_vdbl_r = 0;
-	if (genlock_image_height < 400) {
-		gl_vdbl = 1;
-	} else {
-		gl_vdbl = 0;
-	}
-	if (vdbl >= gl_vdbl) {
-		gl_vdbl_l = vdbl - gl_vdbl;
-	} else {
-		gl_vdbl_r = gl_vdbl - vdbl;
-	}
-
-	gl_hcenter = (((genlock_image_width << gl_hdbl_r) >> gl_hdbl_l) - src->inwidth) / 2;
-
 	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
 	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
-
-	gl_vcenter = (((genlock_image_height << gl_vdbl_r) >> gl_vdbl_l) - (((yend - ystart) * 2))) / 2;
 
 	init_noise();
 
@@ -2480,18 +2463,45 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 	uae_u8 amix1 = 255 - (currprefs.genlock_mix > 255 ? 255 : 0);
 	uae_u8 amix2 = 255 - amix1;
 
+	int ah = (((yend - ystart) * 2) >> vdbl);
+	int aw = src->inwidth;
+
+	int deltax = genlock_image_width * 65536 / aw;
+	int deltay = genlock_image_height * 65536 / ah;
+
+	deltax -= currprefs.genlock_scale * 256;
+	deltay -= currprefs.genlock_scale * 256;
+
+	int offsetx = 0;
+	int offsety = 0;
+
+	if (deltax && deltay) {
+		offsetx = (aw - genlock_image_width * 65536 / deltax) / 2;
+		offsety = (ah - genlock_image_height * 65536 / deltay) / 2;
+	
+		if (currprefs.genlock_aspect) {
+			if (deltax < deltay) {
+				offsetx = (aw - genlock_image_width * 65536 / deltay) / 2;
+				deltax = deltay;
+			} else {
+				offsety = (ah - genlock_image_height * 65536 / deltax) / 2;
+				deltay = deltax;
+			}
+		}
+	}
+
 	uae_u8 r = 0, g = 0, b = 0, a = 0;
 	for (y = ystart; y < yend; y++) {
-		int yoff = (((y * 2 + oddlines) - src->yoffset) >> vdbl);
+		int yoff = (y * 2 + oddlines) - src->yoffset;
 		if (yoff < 0)
 			continue;
 		if (yoff >= src->inheight)
 			continue;
 
 		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
-		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) >> vdbl) * dst->rowbytes;
+		uae_u8 *dstline = dst->bufmem + ((y * 2 + oddlines) - dst->yoffset) * dst->rowbytes;
 		uae_u8 *line_genlock = row_map_genlock[yoff];
-		int gy = ((((y * 2 + oddlines) - dst->yoffset + gl_vcenter) >> gl_vdbl_r) << gl_vdbl_l);
+		int gy = ((y * 2 + oddlines) - src->yoffset - offsety) * deltay / 65536;
 		if (genlock_image_upsidedown)
 			gy = (genlock_image_height - 1) - gy;
 		uae_u8 *image_genlock = genlock_image + gy * genlock_image_pitch;
@@ -2511,8 +2521,10 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 					r = 0x00;
 					g = 0x00;
 					b = 0xdd;
+				} else if (genlock_blank) {
+					r = g = b = 0;
 				} else if (genlock_image) {
-					int gx = (((x + gl_hcenter) >> gl_hdbl_r) << gl_hdbl_l);
+					int gx = (x - offsetx) * deltax / 65536;
 					if (gx >= 0 && gx < genlock_image_width && gy >= 0 && gy < genlock_image_height) {
 						uae_u8 *s_genlock_image = image_genlock + gx * genlock_image_pixbytes;
 						r = s_genlock_image[genlock_image_red_index];
