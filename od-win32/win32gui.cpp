@@ -2464,7 +2464,7 @@ static void selectgenlock(struct uae_prefs *prefs, HWND hDlg, int id, const TCHA
 		_tcscpy(prefs->genlock_image_file, full_path);
 		fullpath(prefs->genlock_image_file, sizeof prefs->genlock_image_file / sizeof(TCHAR));
 		DISK_history_add(prefs->genlock_image_file, -1, HISTORY_GENLOCK_IMAGE, 0);
-	} else if (workprefs.genlock_image == 4) {
+	} else if (workprefs.genlock_image == 4 || workprefs.genlock_image == 6) {
 		_tcscpy(prefs->genlock_video_file, full_path);
 		fullpath(prefs->genlock_video_file, sizeof prefs->genlock_video_file / sizeof(TCHAR));
 		DISK_history_add(prefs->genlock_video_file, -1, HISTORY_GENLOCK_VIDEO, 0);
@@ -6700,8 +6700,9 @@ static void enable_for_chipsetdlg (HWND hDlg)
 	ew(hDlg, IDC_GENLOCKMODE, workprefs.genlock ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCKMIX, workprefs.genlock ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCK_ALPHA, workprefs.genlock ? TRUE : FALSE);
-	ew(hDlg, IDC_GENLOCKFILE, workprefs.genlock && workprefs.genlock_image >= 3 && workprefs.genlock_image < 5 ? TRUE : FALSE);
-	ew(hDlg, IDC_GENLOCKFILESELECT, workprefs.genlock && workprefs.genlock_image >= 3 && workprefs.genlock_image < 5 ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCK_KEEP_ASPECT, workprefs.genlock ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCKFILE, workprefs.genlock && (workprefs.genlock_image ==6 || (workprefs.genlock_image >= 3 && workprefs.genlock_image < 5)) ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCKFILESELECT, workprefs.genlock && (workprefs.genlock_image ==6 || (workprefs.genlock_image >= 3 && workprefs.genlock_image < 5)) ? TRUE : FALSE);
 }
 
 static const int fakerefreshrates[] = { 50, 60, 100, 120, 0 };
@@ -7692,6 +7693,7 @@ static void values_to_chipsetdlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_SETCURSEL, workprefs.genlock_image, 0);
 	SendDlgItemMessage(hDlg, IDC_GENLOCKMIX, CB_SETCURSEL, workprefs.genlock_mix / 25, 0);
 	CheckDlgButton(hDlg, IDC_GENLOCK_ALPHA, workprefs.genlock_alpha);
+	CheckDlgButton(hDlg, IDC_GENLOCK_KEEP_ASPECT, workprefs.genlock_aspect);
 }
 
 static int cs_compatible = CP_GENERIC;
@@ -7705,6 +7707,7 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 	workprefs.genlock = ischecked (hDlg, IDC_GENLOCK);
 	workprefs.genlock_alpha = ischecked(hDlg, IDC_GENLOCK_ALPHA);
+	workprefs.genlock_aspect = ischecked(hDlg, IDC_GENLOCK_KEEP_ASPECT);
 
 	workprefs.immediate_blits = ischecked (hDlg, IDC_BLITIMM);
 	workprefs.waiting_blits = ischecked (hDlg, IDC_BLITWAIT) ? 1 : 0;
@@ -7795,7 +7798,7 @@ static void setgenlock(HWND hDlg)
 	setautocomplete(hDlg, IDC_GENLOCKFILE);
 	if (workprefs.genlock_image == 3) {
 		addhistorymenu(hDlg, workprefs.genlock_image_file, IDC_GENLOCKFILE, HISTORY_GENLOCK_IMAGE, true);
-	} else if (workprefs.genlock_image == 4) {
+	} else if (workprefs.genlock_image == 4 || workprefs.genlock_image == 6) {
 		addhistorymenu(hDlg, workprefs.genlock_video_file, IDC_GENLOCKFILE, HISTORY_GENLOCK_VIDEO, true);
 	}
 }
@@ -7836,6 +7839,7 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Image file (png)"));
 		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Video file"));
 		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Capture device"));
+		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("American Laser Games LaserDisc Player"));
 
 		SendDlgItemMessage(hDlg, IDC_GENLOCKMIX, CB_RESETCONTENT, 0, 0);
 		for (int i = 0; i <= 10; i++) {
@@ -8223,7 +8227,7 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew(hDlg, IDC_MEMORYRAM, true);
 	ew(hDlg, IDC_MEMORYMEM, true);
 	ew(hDlg, IDC_RAM_ADDRESS, manual && size);
-	ew(hDlg, IDC_RAM_ADDRESS2, false);
+	ew(hDlg, IDC_RAM_ADDRESS2, manual && size);
 }
 
 static void setfastram_ramboard(HWND hDlg, int zram)
@@ -8335,7 +8339,8 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 	setchecked(hDlg, IDC_FASTMEMNOAUTOCONFIG, rb && rb->manual_config);
 	if (rb) {
 		if (rb->manual_config) {
-			rb->end_address = rb->start_address + rb->size - 1;
+			if (rb->end_address <= rb->start_address || rb->start_address + rb->size >= rb->end_address)
+				rb->end_address = rb->start_address + rb->size - 1;
 		} else {
 			rb->start_address = 0;
 			rb->end_address = 0;
@@ -10296,6 +10301,8 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 					const struct memoryboardtype *mbt = getmemoryboardselect(hDlg);
 					if (mbt && fastram_select_ramboard->manual_config && mbt->address) {
 						fastram_select_ramboard->start_address = mbt->address;
+						if (fastram_select_ramboard->end_address <= fastram_select_ramboard->start_address ||
+							fastram_select_ramboard->end_address >= fastram_select_ramboard->start_address + fastram_select_ramboard->size)
 						fastram_select_ramboard->end_address = mbt->address + fastram_select_ramboard->size - 1;
 					}
 					setfastram_selectmenu(hDlg, 0);
@@ -10358,6 +10365,8 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 						TCHAR *endptr;
 						GetDlgItemText(hDlg, IDC_RAM_ADDRESS, tmp, sizeof tmp / sizeof(TCHAR));
 						fastram_select_ramboard->start_address = _tcstol(tmp, &endptr, 16);
+						GetDlgItemText(hDlg, IDC_RAM_ADDRESS2, tmp, sizeof tmp / sizeof(TCHAR));
+						fastram_select_ramboard->end_address = _tcstol(tmp, &endptr, 16);
 						setfastram_selectmenu(hDlg, HIWORD(wParam) == EN_KILLFOCUS ? 0 : 3);
 					}
 					break;
@@ -10450,7 +10459,7 @@ static void values_to_kickstartdlg (HWND hDlg)
 	addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile,
 		ROMTYPE_KICK | ROMTYPE_KICKCD32, 0);
 	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile,
-		ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS, 0);
+		ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS | ROMTYPE_ALG, 0);
 	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile,
 		ROMTYPE_FREEZER | ROMTYPE_ARCADIAGAME | ROMTYPE_CD32CART, 0);
 
@@ -13506,7 +13515,6 @@ static void harddisk_edit (HWND hDlg)
 }
 
 static ACCEL HarddiskAccel[] = {
-	{ FVIRTKEY, VK_UP, 10001 }, { FVIRTKEY, VK_DOWN, 10002 },
 	{ FVIRTKEY|FSHIFT, VK_UP, IDC_UP }, { FVIRTKEY|FSHIFT, VK_DOWN, IDC_DOWN },
 	{ FVIRTKEY, VK_RETURN, IDC_EDIT }, { FVIRTKEY, VK_DELETE, IDC_REMOVE },
 	{ 0, 0, 0 }
@@ -14505,7 +14513,7 @@ static ACCEL SwapperAccel[] = {
 	{ FALT|FVIRTKEY, '6', 10006 }, { FALT|FVIRTKEY, '7', 10007 }, { FALT|FVIRTKEY, '8', 10008 }, { FALT|FVIRTKEY, '9', 10009 }, { FALT|FVIRTKEY, '0', 10010 },
 	{ FALT|FSHIFT|FVIRTKEY, '1', 10011 }, { FALT|FSHIFT|FVIRTKEY, '2', 10012 }, { FALT|FSHIFT|FVIRTKEY, '3', 10013 }, { FALT|FSHIFT|FVIRTKEY, '4', 10014 }, { FALT|FSHIFT|FVIRTKEY, '5', 10015 },
 	{ FALT|FSHIFT|FVIRTKEY, '6', 10016 }, { FALT|FSHIFT|FVIRTKEY, '7', 10017 }, { FALT|FSHIFT|FVIRTKEY, '8', 10018 }, { FALT|FSHIFT|FVIRTKEY, '9', 10019 }, { FALT|FSHIFT|FVIRTKEY, '0', 10020 },
-	{ FVIRTKEY, VK_UP, 10101 }, { FVIRTKEY, VK_DOWN, 10102 }, { FVIRTKEY, VK_RIGHT, 10104 },
+	{ FVIRTKEY, VK_RIGHT, 10104 },
 	{ FVIRTKEY|FSHIFT, VK_UP, IDC_UP }, { FVIRTKEY|FSHIFT, VK_DOWN, IDC_DOWN },
 	{ FVIRTKEY|FCONTROL, '1', 10201 }, { FVIRTKEY|FCONTROL, '2', 10202 }, { FVIRTKEY|FCONTROL, '3', 10203 }, { FVIRTKEY|FCONTROL, '4', 10204 },
 	{ FVIRTKEY|FCONTROL|FSHIFT, '1', 10205 }, { FVIRTKEY|FCONTROL|FSHIFT, '2', 10206 }, { FVIRTKEY|FCONTROL|FSHIFT, '3', 10207 }, { FVIRTKEY|FCONTROL|FSHIFT, '4', 10208 },
@@ -16326,7 +16334,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 	}
 }
 
-static HWND updatePanel (int id);
+static HWND updatePanel (int id, UINT action);
 
 static int rawdisable[] = {
 	IDC_INPUTTYPE, 0, 0, IDC_INPUTDEVICE, 0, 0, IDC_INPUTDEVICEDISABLE, 0, 0,
@@ -18854,7 +18862,7 @@ static void getguisize (HWND hDlg, int *width, int *height)
 	*height = r.bottom - r.top;
 }
 
-static HWND updatePanel (int id)
+static HWND updatePanel (int id, UINT action)
 {
 	HWND hDlg = guiDlg;
 	static HWND hwndTT;
@@ -18978,7 +18986,7 @@ static HWND updatePanel (int id)
 
 	hAccelTable = ppage[currentpage].accel;
 
-	if (ppage[id].focusid > 0) {
+	if (ppage[id].focusid > 0 && action != TVC_BYKEYBOARD) {
 		setfocus (panelDlg, ppage[id].focusid);
 	}
 
@@ -19471,7 +19479,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			} else {
 				rd = scan_arcadia_rom (file, 0);
 				if (rd) {
-					if (rd->type == ROMTYPE_ARCADIABIOS)
+					if (rd->type == ROMTYPE_ARCADIABIOS || ROMTYPE_ALG)
 						_tcscpy (prefs->romextfile, file);
 					else if (rd->type == ROMTYPE_ARCADIAGAME)
 						_tcscpy (prefs->cartfile, file);
@@ -19572,7 +19580,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			KillTimer(hDlg, 3);
 			devicechangetimer = 0;
 			inputdevice_devicechange (&workprefs);
-			updatePanel (currentpage);
+			updatePanel (currentpage, 0);
 			break;
 		}
 
@@ -19584,7 +19592,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			KillTimer(hDlg, 3);
 		devicechangetimer = 0;
 		addnotifications (hDlg, TRUE, TRUE);
-		updatePanel (-1);
+		updatePanel (-1, 0);
 		DestroyWindow(hDlg);
 		if (dialogreturn < 0) {
 			dialogreturn = 0;
@@ -19607,13 +19615,13 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		ShowWindow (GetDlgItem (guiDlg, IDC_ERRORLOG), is_error_log () ? SW_SHOW : SW_HIDE);
 		centerWindow (hDlg);
 		createTreeView (hDlg);
-		updatePanel (currentpage);
+		updatePanel (currentpage, 0);
 		addnotifications (hDlg, FALSE, TRUE);
 		return TRUE;
 	case WM_DROPFILES:
 		if (dragdrop (hDlg, (HDROP)wParam, (gui_active || full_property_sheet) ? &workprefs : &changed_prefs, currentpage))
 			SendMessage (hDlg, WM_COMMAND, IDOK, 0);
-		updatePanel (currentpage);
+		updatePanel (currentpage, 0);
 		return FALSE;
 	case WM_NOTIFY:
 		{
@@ -19629,7 +19637,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 					cf = (int)(tv->itemNew.lParam >> 16);
 					if (cp != currentpage || cf != configtype) {
 						configtypepanel = configtype = cf;
-						updatePanel (cp);
+						updatePanel (cp, tv->action);
 					}
 					return TRUE;
 				}
@@ -19664,14 +19672,14 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 					HtmlHelp (NULL, help_file, HH_DISPLAY_TOPIC, ppage[currentpage].help);
 				return TRUE;
 			case IDOK:
-				updatePanel (-1);
+				updatePanel (-1, 0);
 				dialogreturn = 1;
 				DestroyWindow (hDlg);
 				gui_to_prefs ();
 				guiDlg = NULL;
 				return TRUE;
 			case IDCANCEL:
-				updatePanel (-1);
+				updatePanel (-1, 0);
 				dialogreturn = 0;
 				DestroyWindow (hDlg);
 				if (allow_quit) {

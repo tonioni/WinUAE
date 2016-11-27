@@ -532,6 +532,7 @@
 #define IDC_FASTERRTG                   1221
 #define IDC_GENLOCK_ALPHA               1221
 #define IDC_COMPATIBLE24                1222
+#define IDC_GENLOCK_KEEP_ASPECT         1222
 #define IDC_SPEED                       1223
 #define IDC_FPU0                        1224
 #define IDC_FPU1                        1225

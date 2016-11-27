@@ -1695,6 +1695,11 @@ static bool expamem_init_fastcard_2(struct autoconfig_info *aci, int zorro)
 	}
 
 	memcpy(aci->autoconfig_raw, expamem, sizeof aci->autoconfig_raw);
+
+	if (p->fastmem[aci->devnum].no_reset_unmap && bank->allocated_size) {
+		map_banks_z2(bank, bank->start >> 16, size >> 16);
+	}
+
 	return true;
 }
 
@@ -1916,7 +1921,7 @@ static bool expamem_init_z3fastmem(struct autoconfig_info *aci)
 		return true;
 
 	uae_u32 start = bank->start;
-	bool alwaysmapz3 = aci->prefs->z3_mapping_mode != Z3MAPPING_REAL;
+	bool alwaysmapz3 = aci->prefs->z3_mapping_mode != Z3MAPPING_REAL || aci->prefs->z3fastmem[aci->devnum].no_reset_unmap;
 	if ((alwaysmapz3 || expamem_z3hack(aci->prefs)) && bank->allocated_size) {
 		map_banks_z3(bank, start >> 16, size >> 16);
 	}
@@ -3558,10 +3563,14 @@ void expansion_map(void)
 		struct ramboard *rb = &currprefs.fastmem[i];
 		if (rb->manual_config) {
 			map_banks(&fastmem_bank[i], rb->start_address >> 16, (rb->end_address - rb->start_address + 1) >> 16, 0);
+		} else if (rb->no_reset_unmap && rb->start_address) {
+			map_banks(&fastmem_bank[i], rb->start_address >> 16, rb->size >> 16, 0);
 		}
 		rb = &currprefs.z3fastmem[i];
 		if (rb->manual_config) {
 			map_banks(&z3fastmem_bank[i], rb->start_address >> 16, (rb->end_address - rb->start_address + 1) >> 16, 0);
+		} else if (rb->no_reset_unmap && rb->start_address) {
+			map_banks(&z3fastmem_bank[i], rb->start_address >> 16, rb->size >> 16, 0);
 		}
 	}
 	if (currprefs.z3chipmem_size) {

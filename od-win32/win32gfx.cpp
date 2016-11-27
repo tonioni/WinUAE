@@ -2050,6 +2050,8 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.genlock != changed_prefs.genlock ? (2 | 8) : 0;
 	c |= currprefs.genlock_alpha != changed_prefs.genlock_alpha ? (1 | 8) : 0;
 	c |= currprefs.genlock_mix != changed_prefs.genlock_mix ? (1 | 256) : 0;
+	c |= currprefs.genlock_aspect != changed_prefs.genlock_aspect ? (1 | 256) : 0;
+	c |= currprefs.genlock_scale != changed_prefs.genlock_scale ? (1 | 256) : 0;
 	c |= _tcsicmp(currprefs.genlock_image_file, changed_prefs.genlock_image_file) ? (2 | 8) : 0;
 	c |= _tcsicmp(currprefs.genlock_video_file, changed_prefs.genlock_video_file) ? (2 | 8) : 0;
 
@@ -2147,6 +2149,8 @@ int check_prefs_changed_gfx (void)
 		currprefs.genlock = changed_prefs.genlock;
 		currprefs.genlock_mix = changed_prefs.genlock_mix;
 		currprefs.genlock_alpha = changed_prefs.genlock_alpha;
+		currprefs.genlock_aspect = changed_prefs.genlock_aspect;
+		currprefs.genlock_scale = changed_prefs.genlock_scale;
 		_tcscpy(currprefs.genlock_image_file, changed_prefs.genlock_image_file);
 		_tcscpy(currprefs.genlock_video_file, changed_prefs.genlock_video_file);
 

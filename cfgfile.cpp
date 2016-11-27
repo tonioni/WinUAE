@@ -211,7 +211,7 @@ static const TCHAR *cdmodes[] = { _T("disabled"), _T(""), _T("image"), _T("ioctl
 static const TCHAR *cdconmodes[] = { _T(""), _T("uae"), _T("ide"), _T("scsi"), _T("cdtv"), _T("cd32"), 0 };
 static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a2024"), _T("graffiti"),
 _T("ham_e"), _T("ham_e_plus"), _T("videodac18"), _T("avideo12"), _T("avideo24"), _T("firecracker24"), _T("dctv"), _T("opalvision"), _T("colorburst"), 0 };
-static const TCHAR *genlockmodes[] = { _T("none"), _T("noise"), _T("testcard"), _T("image"), _T("video"), _T("stream"), NULL };
+static const TCHAR *genlockmodes[] = { _T("none"), _T("noise"), _T("testcard"), _T("image"), _T("video"), _T("stream"), _T("ld"), NULL };
 static const TCHAR *ppc_implementations[] = {
 	_T("auto"),
 	_T("dummy"),
@@ -1326,6 +1326,9 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 			s = cfgfile_option_get(value, _T("pid"));
 			if (s)
 				rb->product = _tstol(s);
+			s = cfgfile_option_get(value, _T("no_reset_unmap"));
+			if (s)
+				rb->no_reset_unmap = true;
 			s = cfgfile_option_get(value, _T("data"));
 			if (s && _tcslen(s) >= 3 * 16 - 1) {
 				rb->autoconfig_inuse = true;
@@ -1354,6 +1357,7 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 				TCHAR *endptr;
 				rb->write_address = _tcstol(s1, &endptr, 16);
 			}
+			
 			return true;
 		}
 	}
@@ -1379,6 +1383,12 @@ static void cfgfile_writeramboard(struct uae_prefs *prefs, struct zfile *f, cons
 		if (tmp2[0])
 			*p++ = ',';
 		_stprintf(p, _T("mid=%u,pid=%u"), rb->manufacturer, rb->product);
+		p += _tcslen(p);
+	}
+	if (rb->no_reset_unmap) {
+		if (tmp2[0])
+			*p++ = ',';
+		_tcscpy(p, _T("no_reset_unmap=true"));
 		p += _tcslen(p);
 	}
 	if (rb->autoconfig_inuse) {
@@ -1882,10 +1892,12 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("ntsc"), p->ntscmode);
 	cfgfile_write_bool(f, _T("genlock"), p->genlock);
 	cfgfile_dwrite_bool(f, _T("genlock_alpha"), p->genlock_alpha);
+	cfgfile_dwrite_bool(f, _T("genlock_aspect"), p->genlock_aspect);
 	cfgfile_dwrite_str(f, _T("genlockmode"), genlockmodes[p->genlock_image]);
 	cfgfile_dwrite_str(f, _T("genlock_image"), p->genlock_image_file);
 	cfgfile_dwrite_str(f, _T("genlock_video"), p->genlock_video_file);
 	cfgfile_dwrite(f, _T("genlock_mix"), _T("%d"), p->genlock_mix);
+	cfgfile_dwrite(f, _T("genlock_scale"), _T("%d"), p->genlock_scale);
 	cfgfile_dwrite_str(f, _T("monitoremu"), specialmonitors[p->monitoremu]);
 
 	cfgfile_dwrite_bool (f, _T("show_leds"), !!(p->leds_on_screen & STATUSLINE_CHIPSET));
@@ -4736,6 +4748,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("sana2"), &p->sana2)
 		|| cfgfile_yesno(option, value, _T("genlock"), &p->genlock)
 		|| cfgfile_yesno(option, value, _T("genlock_alpha"), &p->genlock_alpha)
+		|| cfgfile_yesno(option, value, _T("genlock_aspect"), &p->genlock_aspect)
 		|| cfgfile_yesno(option, value, _T("cpu_compatible"), &p->cpu_compatible)
 		|| cfgfile_yesno(option, value, _T("cpu_threaded"), &p->cpu_thread)
 		|| cfgfile_yesno(option, value, _T("cpu_24bit_addressing"), &p->address_space_24)
@@ -4795,6 +4808,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval (option, value, _T("uae_hide"), &p->uae_hide, 1)
 		|| cfgfile_intval (option, value, _T("cpu_frequency"), &p->cpu_frequency, 1)
 		|| cfgfile_intval(option, value, _T("kickstart_ext_rom_file2addr"), &p->romextfile2addr, 1)
+		|| cfgfile_intval(option, value, _T("genlock_scale"), &p->genlock_scale, 1)
 		|| cfgfile_intval(option, value, _T("genlock_mix"), &p->genlock_mix, 1))
 		return 1;
 
@@ -5273,7 +5287,7 @@ void cfgfile_compatibility_rtg(struct uae_prefs *p)
 						} else if (romtype == ROMTYPE_x86_VGA) {
 							romname = _T("");
 						}
-						addbcromtype(p, romtype, false, romname, devnum);
+						addbcromtype(p, romtype, true, romname, devnum);
 						devnum++;
 					}
 				}
