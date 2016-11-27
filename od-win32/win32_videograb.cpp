@@ -48,6 +48,8 @@ static CComPtr<IFilterGraph2> filterGraph;
 static CComPtr<ISampleGrabber> sampleGrabber;
 static CComPtr<IMediaControl> mediaControl;
 static CComPtr<IMediaSeeking> mediaSeeking;
+static CComPtr<IMediaEvent> mediaEvent;
+static CComPtr<IBasicAudio> audio;
 static bool videoInitialized;
 static bool videoPaused;
 static long *frameBuffer;
@@ -63,6 +65,8 @@ void uninitvideograb(void)
 
 	sampleGrabber.Release();
 	mediaSeeking.Release();
+	mediaEvent.Release();
+	audio.Release();
 	if (mediaControl) {
 		mediaControl->Stop();
 	}
@@ -139,17 +143,8 @@ bool initvideograb(const TCHAR *filename)
 	graphBuilder->SetFiltergraph(filterGraph);
 	CComPtr<IBaseFilter> sourceFilter;
 
-	if (filename != NULL && filename[0]) {
-		// This takes the absolute filename path and
-		// Loads the appropriate file reader and splitter
-		// Depending in the file type.
-		hr = filterGraph->AddSourceFilter(filename, L"Video Source", &sourceFilter);
-		if (FAILED(hr)) {
-			write_log(_T("AddSourceFilter failed %08x\n"), hr);
-			uninitvideograb();
-			return false;
-		}
-	} else {
+	if (filename == NULL || !filename[0]) {
+		filename = NULL;
 		// capture device mode
 		IMoniker *pMoniker;
 		CComPtr<ICreateDevEnum> pCreateDevEnum;
@@ -191,7 +186,7 @@ bool initvideograb(const TCHAR *filename)
 	grabberFilter.CoCreateInstance(CLSID_SampleGrabber);
 	grabberFilter->QueryInterface(IID_ISampleGrabber, reinterpret_cast<void**>(&sampleGrabber));
 
-	filterGraph->AddFilter(grabberFilter, L"Sample Grabber");
+	hr = filterGraph->AddFilter(grabberFilter, L"Sample Grabber");
 
 	// We have to set the 24-bit RGB desire here
 	// So that the proper conversion filters
@@ -202,15 +197,25 @@ bool initvideograb(const TCHAR *filename)
 	desiredType.subtype = MEDIASUBTYPE_RGB24;
 	desiredType.formattype = FORMAT_VideoInfo;
 
-	sampleGrabber->SetMediaType(&desiredType);
-	sampleGrabber->SetBufferSamples(TRUE);
+	hr = sampleGrabber->SetMediaType(&desiredType);
+	hr = sampleGrabber->SetBufferSamples(TRUE);
 
-	// Use pin connection methods instead of 
-	// ICaptureGraphBuilder::RenderStream because of
-	// the SampleGrabber setting we're using.
-	if (!ConnectPins(sourceFilter, 0, grabberFilter, 0)) {
-		uninitvideograb();
-		return false;
+	if (filename) {
+		hr = filterGraph->RenderFile(filename, NULL);
+		if (FAILED(hr)) {
+			uninitvideograb();
+			return false;
+		}
+	}
+
+	if (!filename) {
+		// Use pin connection methods instead of 
+		// ICaptureGraphBuilder::RenderStream because of
+		// the SampleGrabber setting we're using.
+		if (!ConnectPins(sourceFilter, 0, grabberFilter, 0)) {
+			uninitvideograb();
+			return false;
+		}
 	}
 
 	// A Null Renderer does not display the video
@@ -220,18 +225,25 @@ bool initvideograb(const TCHAR *filename)
 	CComPtr<IBaseFilter> nullRenderer;
 	nullRenderer.CoCreateInstance(CLSID_NullRenderer);
 
-	filterGraph->AddFilter(nullRenderer, L"Null Renderer");
-
-	if (!ConnectPins(grabberFilter, 0, nullRenderer, 0)) {
+	hr = filterGraph->AddFilter(nullRenderer, L"Null Renderer");
+	if (FAILED(hr)) {
 		uninitvideograb();
 		return false;
+	}
+
+	if (!filename) {
+		if (!ConnectPins(grabberFilter, 0, nullRenderer, 0)) {
+			uninitvideograb();
+			return false;
+		}
 	}
 
 	// Just a little trick so that we don't have to know
 	// The video resolution when calling this method.
 	bool mediaConnected = false;
 	AM_MEDIA_TYPE connectedType;
-	if (SUCCEEDED(sampleGrabber->GetConnectedMediaType(&connectedType))) {
+	hr = sampleGrabber->GetConnectedMediaType(&connectedType);
+	if (SUCCEEDED(hr)) {
 		if (connectedType.formattype == FORMAT_VideoInfo) {
 			VIDEOINFOHEADER* infoHeader = (VIDEOINFOHEADER*)connectedType.pbFormat;
 			videoWidth = infoHeader->bmiHeader.biWidth;
@@ -246,12 +258,69 @@ bool initvideograb(const TCHAR *filename)
 		return false;
 	}
 
+	if (filename) {
+		// based on ofDirectShowPlayer
+		IPin* pinIn = NULL;
+		IPin* pinOut = NULL;
+		IBaseFilter * m_pVideoRenderer;
+		hr = filterGraph->FindFilterByName(_T("Video Renderer"), &m_pVideoRenderer);
+		if (FAILED(hr)) {
+			write_log(_T("FindFilterByName failed: %08x\n"), hr);
+			uninitvideograb();
+			return false;
+		}
+		hr = grabberFilter->FindPin(_T("Out"), &pinOut);
+		if (FAILED(hr)) {
+			write_log(_T("FindPin Out failed: %08x\n"), hr);
+			m_pVideoRenderer->Release();
+			uninitvideograb();
+			return false;
+		}
+		hr = pinOut->Disconnect();
+		if (FAILED(hr)) {
+			write_log(_T("Disconnect failed: %08x\n"), hr);
+			m_pVideoRenderer->Release();
+			uninitvideograb();
+			return false;
+		}
+		hr = filterGraph->RemoveFilter(m_pVideoRenderer);
+		if (FAILED(hr)) {
+			write_log(_T("RemoveFilter failed: %08x\n"), hr);
+			m_pVideoRenderer->Release();
+			uninitvideograb();
+			return false;
+		}
+		m_pVideoRenderer->Release();
+		hr = nullRenderer->FindPin(_T("In"), &pinIn);
+		if (FAILED(hr)) {
+			write_log(_T("FindPin In failed: %08x\n"), hr);
+			uninitvideograb();
+			return false;
+		}
+		hr = pinOut->Connect(pinIn, NULL);
+		if (FAILED(hr)) {
+			write_log(_T("Connect In failed: %08x\n"), hr);
+			uninitvideograb();
+			return false;
+		}
+	}
+
 	hr = filterGraph->QueryInterface(IID_IMediaSeeking, (void**)&mediaSeeking);
+
+	hr = filterGraph->QueryInterface(IID_IMediaEvent, (void**)&mediaEvent);
+
+	hr = filterGraph->QueryInterface(IID_IBasicAudio, (void**)&audio);
+	setvolumevideograb(0);
 
 	hr = filterGraph->QueryInterface(IID_IMediaControl, (void**)&mediaControl);
 	if (FAILED(hr)) {
 		uninitvideograb();
 		return false;
+	}
+	if (mediaSeeking) {
+		hr = mediaSeeking->SetTimeFormat(&TIME_FORMAT_FRAME);
+		if (FAILED(hr))
+			write_log(_T("SetTimeFormat format %08x\n"), hr);
 	}
 	if (SUCCEEDED(mediaControl->Run())) {
 		videoInitialized = true;
@@ -268,9 +337,7 @@ uae_s64 getsetpositionvideograb(uae_s64 framepos)
 	if (!videoInitialized || !mediaSeeking)
 		return 0;
 	LONGLONG pos;
-	HRESULT hr = mediaSeeking->SetTimeFormat(&TIME_FORMAT_FRAME);
-	if (FAILED(hr))
-		write_log(_T("SetTimeFormat format %08x\n"), hr);
+	HRESULT hr;
 	if (framepos < 0) {
 		LONGLONG stoppos;
 		hr = mediaSeeking->GetPositions(&pos, &stoppos);
@@ -289,6 +356,19 @@ uae_s64 getsetpositionvideograb(uae_s64 framepos)
 	}
 }
 
+void setvolumevideograb(int volume)
+{
+	if (!audio)
+		return;
+	long vol = log10((float)volume / 32768.0) * 4000.0;
+	audio->put_Volume(vol);
+}
+
+bool getpausevideograb(void)
+{
+	return videoPaused != 0;
+}
+
 void pausevideograb(int pause)
 {
 	HRESULT hr;
@@ -299,10 +379,12 @@ void pausevideograb(int pause)
 	}
 	if (pause > 0) {
 		hr = mediaControl->Pause();
-		videoPaused = true;
+		if (SUCCEEDED(hr))
+			videoPaused = true;
 	} else if (pause == 0) {
 		hr = mediaControl->Run();
-		videoPaused = false;
+		if (SUCCEEDED(hr))
+			videoPaused = false;
 	}
 }
 
@@ -335,4 +417,26 @@ bool getvideograb(long **buffer, int *width, int *height)
 	}
 	write_log(_T("getvideograb get buffer %08x\n"), hr);
 	return false;
+}
+
+bool isvideograb(void)
+{
+	return videoInitialized != 0;
+}
+
+void isvideograb_status(void)
+{
+	if (!videoInitialized)
+		return;
+	if (mediaEvent == NULL)
+		return;
+	long EventCode;
+	LONG_PTR lParam1, lParam2;
+	for (;;) {
+		HRESULT hr = mediaEvent->GetEvent(&EventCode, &lParam1, &lParam2, 0);
+		if (FAILED(hr))
+			break;
+		mediaEvent->FreeEventParams(EventCode, lParam1, lParam2);
+		write_log(_T("VIDEOGRAB EVENT %08X %08X %08X\n"), EventCode, lParam1, lParam2);
+	}
 }
