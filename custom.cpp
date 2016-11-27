@@ -1240,7 +1240,7 @@ STATIC_INLINE void maybe_check (int hpos)
 static void bpldmainitdelay (int hpos)
 {
 	SET_LINE_CYCLEBASED;
-	if (hpos + BPLCON_AGNUS_DELAY < 0x14) {
+	if (!bitplane_overrun && hpos + BPLCON_AGNUS_DELAY < 0x14) {
 		BPLCON0_Denise (hpos, bplcon0, false);
 		setup_fmodes (hpos);
 		return;
