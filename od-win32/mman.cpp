@@ -575,6 +575,7 @@ static int doinit_shm (void)
 }
 
 static uae_u32 oz3fastmem_size[MAX_RAM_BOARDS];
+static uae_u32 ofastmem_size[MAX_RAM_BOARDS];
 static uae_u32 oz3chipmem_size;
 static uae_u32 ortgmem_size[MAX_RTG_BOARDS];
 static int ortgmem_type[MAX_RTG_BOARDS];
@@ -585,6 +586,8 @@ bool init_shm (void)
 
 	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
 		if (oz3fastmem_size[i] != changed_prefs.z3fastmem[i].size)
+			changed = true;
+		if (ofastmem_size[i] != changed_prefs.fastmem[i].size)
 			changed = true;
 	}
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
@@ -598,6 +601,7 @@ bool init_shm (void)
 
 	for (int i = 0; i < MAX_RAM_BOARDS;i++) {
 		oz3fastmem_size[i] = changed_prefs.z3fastmem[i].size;
+		ofastmem_size[i] = changed_prefs.fastmem[i].size;
 	}
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		ortgmem_size[i] = changed_prefs.rtgboards[i].rtgmem_size;
