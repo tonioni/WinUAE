@@ -3393,10 +3393,13 @@ static void init_drawing_frame (void)
 static int lightpen_y1, lightpen_y2;
 static int statusbar_y1, statusbar_y2;
 
-void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq)
+void putpixel(uae_u8 *buf, uae_u8 *genlockbuf, int bpp, int x, xcolnr c8, int opaq)
 {
 	if (x <= 0)
 		return;
+
+	if (genlockbuf)
+		genlockbuf[x] = 0xff;
 
 	switch (bpp) {
 	case 1:
@@ -3497,8 +3500,9 @@ static void draw_lightpen_cursor (int x, int y, int line, int onscreen)
 	p = lightpen_cursor + y * LIGHTPEN_WIDTH;
 	for (i = 0; i < LIGHTPEN_WIDTH; i++) {
 		int xx = x + i - LIGHTPEN_WIDTH / 2;
-		if (*p != '-' && xx >= 0 && xx < gfxvidinfo.drawbuffer.outwidth)
-			putpixel (xlinebuffer, gfxvidinfo.drawbuffer.pixbytes, xx, *p == 'x' ? xcolors[color1] : xcolors[color2], 1);
+		if (*p != '-' && xx >= 0 && xx < gfxvidinfo.drawbuffer.outwidth) {
+			putpixel (xlinebuffer, xlinebuffer_genlock, gfxvidinfo.drawbuffer.pixbytes, xx, *p == 'x' ? xcolors[color1] : xcolors[color2], 1);
+		}
 		p++;
 	}
 }
@@ -3597,10 +3601,10 @@ static void refresh_indicator_update(struct vidbuffer *vb)
 			color2 = refresh_indicator_colors[pixel - 5];
 		}
 		for (int x = 0; x < 8; x++) {
-			putpixel(xlinebuffer, gfxvidinfo.drawbuffer.pixbytes, x, xcolors[color1], 1);
+			putpixel(xlinebuffer, NULL, gfxvidinfo.drawbuffer.pixbytes, x, xcolors[color1], 1);
 		}
 		for (int x = 8; x < 16; x++) {
-			putpixel(xlinebuffer, gfxvidinfo.drawbuffer.pixbytes, x, xcolors[color2], 1);
+			putpixel(xlinebuffer, NULL, gfxvidinfo.drawbuffer.pixbytes, x, xcolors[color2], 1);
 		}
 	}
 }
