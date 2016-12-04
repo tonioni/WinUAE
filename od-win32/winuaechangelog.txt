@@ -4,6 +4,12 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 18:
+
+- Input device on the fly change support now ignores all non-input device change events.
+- On the fly switching from keyboard connected to disconnected did nothing.
+- Added MIDI out and Genlock video volume setting to Sound panel volume drop down menu.
+
 Beta 17:
 
 - Allow non-power of 2 manually configurable memory size, in 64k blocks. (Unsupported with JIT)

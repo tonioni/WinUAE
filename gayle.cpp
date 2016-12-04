@@ -214,6 +214,11 @@ static uae_u8 checkgayleideirq (void)
 	return irq ? GAYLE_IRQ_IDE : 0;
 }
 
+bool isideint(void)
+{
+	return checkgayleideirq() != 0;
+}
+
 void rethink_gayle (void)
 {
 	int lev2 = 0;

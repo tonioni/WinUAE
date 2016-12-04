@@ -8,6 +8,9 @@
 
 #define DEBUG_STUPID 0
 
+// don't touch
+#define ACA500x_DEVELOPMENT 0
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -226,6 +229,7 @@ void dummy_put (uaecptr addr, int size, uae_u32 val)
 	if (addr >= 0xf00000 && addr < 0xf80000 && size < 2)
 		flash_write(addr, val);
 #endif
+
 	if (gary_nonrange(addr) || (size > 1 && gary_nonrange(addr + size - 1))) {
 		if (gary_timeout)
 			gary_wait (addr, size, true);
@@ -278,7 +282,27 @@ uae_u32 dummy_get (uaecptr addr, int size, bool inst, uae_u32 defvalue)
 		return 8;
 	}
 #endif
-
+#if ACA500x_DEVELOPMENT
+	if (addr == 0xb03000) {
+		return 0xffff;
+	}
+	if (addr == 0xb07000) {
+		return 0x0000;
+	}
+	if (addr == 0xb2f800) {
+		return 0xffff;
+	}
+	if (addr == 0xb3b800) {
+		return 0x0000;
+	}
+	if (addr == 0xb3f800) {
+		return currprefs.cpu_model > 68000 ? 0x0000 : 0xffff;
+	}
+	if (addr == 0xb0b000) {
+		extern bool isideint(void);
+		return isideint() ? 0xffff : 0x0000;
+	}
+#endif
 	if (gary_nonrange(addr) || (size > 1 && gary_nonrange(addr + size - 1))) {
 		if (gary_timeout)
 			gary_wait (addr, size, false);
@@ -305,12 +329,6 @@ uae_u32 REGPARAM2 dummy_lgeti (uaecptr addr)
 
 static uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
 {
-#if 0
-	if (addr == 0xb0b000) {
-		extern uae_u16 isideint(void);
-		return isideint();
-	}
-#endif
 	if (currprefs.illegal_mem)
 		dummylog (0, addr, 2, 0, 0);
 	return dummy_get (addr, 2, false, NONEXISTINGDATA);

@@ -608,7 +608,7 @@ static struct romdata roms[] = {
 	ALTROMPN(184, 1, 2, 65536, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xedde1745, 0x573b79f8,0x808fedaa,0xbf3b7623,0x50a91579,0x2d26c1bc)
 	// wsjr151.bin,wsjr152.bin
 	{ _T("American Laser Games Who Shot Johnny Rock? v1.5"), 0, 0, 0, 0, _T("ALG\0"), 131072, 185, 0, 0, ROMTYPE_ALG, 0, 0, NULL,
-	0x50eb4827, 0x72568673,0x4163aa16,0xdad3177,0xbd720187,0x125a63ec },
+	0x50eb4827, 0x72568673,0x4163aa16,0xd0ad3177,0xbd720187,0x125a63ec },
 	ALTROMPN(185, 1, 1, 65536, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x8ab626dd, 0xe45561f7,0x7fc279b7,0x1dc1dd2e,0x15a0870c,0xb5c1cd89)
 	ALTROMPN(185, 1, 2, 65536, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x9beeb1d7, 0x3fe0265e,0x5d36103d,0x3d9557d7,0x5e5e3728,0xe0b30da7)
 	// gg_1.dat,gg_2.dat
