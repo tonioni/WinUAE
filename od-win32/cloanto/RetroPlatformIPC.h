@@ -2,14 +2,14 @@
  Name    : RetroPlatformIPC.h
  Project : RetroPlatform Player
  Support : http://www.retroplatform.com
- Legal   : Copyright 2007-2015 Cloanto Italia srl - All rights reserved. This
+ Legal   : Copyright 2007-2016 Cloanto Italia srl - All rights reserved. This
          : file is multi-licensed under the terms of the Mozilla Public License
          : version 2.0 as published by Mozilla Corporation and the GNU General
          : Public License, version 2 or later, as published by the Free
          : Software Foundation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2015-09-04 16:43:00
+ Updated : 2016-12-03 11:15:00
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -50,7 +50,6 @@
 #define RP_IPC_TO_HOST_TURBO               (WM_APP + 17)
 #define RP_IPC_TO_HOST_PING                (WM_APP + 18)
 #define RP_IPC_TO_HOST_VOLUME              (WM_APP + 19)
-#define RP_IPC_TO_HOST_ESCAPED             (WM_APP + 20)
 #define RP_IPC_TO_HOST_PARENT              (WM_APP + 21)
 #define RP_IPC_TO_HOST_DEVICESEEK          (WM_APP + 22)
 #define RP_IPC_TO_HOST_CLOSE               (WM_APP + 23)
@@ -58,8 +57,6 @@
 #define RP_IPC_TO_HOST_HOSTVERSION         (WM_APP + 25)
 #define RP_IPC_TO_HOST_INPUTDEVICE         (WM_APP + 26) // introduced in RetroPlatform API 3.0
 #define RP_IPC_TO_HOST_DEVICECONTENT       (WM_APP + 27) // extended in RetroPlatform API 3.0
-#define RP_IPC_TO_HOST_PREPROCESSKEY       (WM_APP + 28) // introduced in RetroPlatform API 7.1
-#define RP_IPC_TO_HOST_PROCESSKEY          (WM_APP + 29) // introduced in RetroPlatform API 7.1
 #define RP_IPC_TO_HOST_KEYBOARDLAYOUT      (WM_APP + 30) // introduced in RetroPlatform API 7.1
 
 
@@ -74,7 +71,6 @@
 #define RP_IPC_TO_GUEST_TURBO               (WM_APP + 207)
 #define RP_IPC_TO_GUEST_PING                (WM_APP + 208)
 #define RP_IPC_TO_GUEST_VOLUME              (WM_APP + 209)
-#define RP_IPC_TO_GUEST_ESCAPEKEY           (WM_APP + 210)
 #define RP_IPC_TO_GUEST_EVENT               (WM_APP + 211)
 #define RP_IPC_TO_GUEST_MOUSECAPTURE        (WM_APP + 212)
 #define RP_IPC_TO_GUEST_SAVESTATE           (WM_APP + 213)
@@ -85,6 +81,8 @@
 #define RP_IPC_TO_GUEST_GUESTAPIVERSION     (WM_APP + 218) // introduced in RetroPlatform API 3.0
 #define RP_IPC_TO_GUEST_DEVICECONTENT       (WM_APP + 219) // extended in RetroPlatform API 3.0
 #define RP_IPC_TO_GUEST_SCREENCAPTURE       (WM_APP + 220) // extended in RetroPlatform API 3.4
+#define	RP_IPC_TO_GUEST_DEVICEACTIVITY      (WM_APP + 221) // introduced in RetroPlatform API 7.1
+#define	RP_IPC_TO_GUEST_SHOWOPTIONS         (WM_APP + 222) // introduced in RetroPlatform API 7.1
 
 // ****************************************************************************
 //  Message Data Structures and Defines
@@ -276,47 +274,21 @@ typedef struct RPDeviceContent
 	BYTE btDeviceNumber;                // device number (range 0..31), e.g. Amiga floppy drive unit 0, C64 disk unit 8 or 9, etc.
     DWORD dwInputDevice;                // (guest-side) input device type (RP_INPUTDEVICE_MOUSE, RP_INPUTDEVICE_JOYSTICK, etc.); currently set to 0 if not RP_DEVICE_INPUTPORT
 	DWORD dwFlags;	                    // flags (or 0); e.g. see RP_DEVICEFLAGS_MOUSE_ (for "mouse hack"), RP_DEVICEFLAGS_RW_ (for read/write status)
-	WCHAR szContent[260];               // if RP_DEVICECATEGORY_INPUTPORT, then host device ID, otherwise full path and name of the media image file to load, if file content (not used for input devices, which only use szHostInputID); see comment for format of KeyboardJoystick string; szContent is ignored if btDeviceCategory == RP_DEVICECATEGORY_INPUTPORT and dwInputDevice == RP_INPUTDEVICE_EMPTY
+	WCHAR szContent[260];               // if RP_DEVICECATEGORY_INPUTPORT (mice only), then host device ID, otherwise full path and name of the media image file to load, if file content (not used for input devices, which only use szHostInputID); szContent is ignored if btDeviceCategory == RP_DEVICECATEGORY_INPUTPORT and dwInputDevice == RP_INPUTDEVICE_EMPTY
 } RPDEVICECONTENT;
 
 
-//
-// Keyboard layouts for joystick emulation
-//
-// These are virtual devices enumerated and named by the guest, rather than by the operating system. Any device name set by the guest will do, as long as it is unique and does not contain space characters. Each device is enumerated only once.
-//
-// In the initial device enumeration (guest to host), the szHostInputID strings are enumerated with names like
-// "KeyboardLayout1", "KeyboardLayout2", "KeyboardLayout3" and "KeyboardJoystick"
-//
-// In dwHostInputType:
-// - "KeyboardLayout1", "KeyboardLayout2", "KeyboardLayout3" are flagged
-//   RP_HOSTINPUT_KEYJOY_MAP1, RP_HOSTINPUT_KEYJOY_MAP2, RP_HOSTINPUT_KEYJOY_MAP3
-// - "KeyboardJoystick" is flagged RP_HOSTINPUT_KEYBOARD
-//
-// In RP_IPC_TO_GUEST_DEVICECONTENT (host to guest) messages for RP_HOSTINPUT_KEYBOARD, the key code strings are appended to the device string in szContent. Multiple joysticks can be set up in this way.
-//
-// For example:
-// "KeyboardJoystick Left=0x4B Right=0x4D Up=0x48 Down=0x50 Fire=0x4C Autofire=0x38 Fire2=0x52 Rewind=0xB5 Play=0x37 FastForward=0x4A Green=0x47 Yellow=0x49 Red=0x4F Blue=0x51"
-//
-// The example sets a layout based mostly on the numeric keyboard:
-// - 8, 2, 4, 6 for direction, 5 to fire
-// - an additional "Fire2" button (as on the X-Arcade), set to the 0 key
-// - an additional Autofire button, set to Left Alt
-// - additional CD32 Joypad buttons: Rewind, Play, Fast Forward, Green, Yellow, Red, Blue (set to /, *, -, 7, 9, 1, 3)
-//
-// Full set of button definitions: as in the above example, plus "Fire3" (currently not used)
-
-
 // Device Categories
-#define RP_DEVICECATEGORY_FLOPPY    0 // floppy disk drive
-#define RP_DEVICECATEGORY_HD        1 // hard disk drive
-#define RP_DEVICECATEGORY_CD        2 // CD/DVD drive
-#define RP_DEVICECATEGORY_NET       3 // network card
-#define RP_DEVICECATEGORY_TAPE      4 // cassette tape drive
-#define RP_DEVICECATEGORY_CARTRIDGE 5 // expansion cartridge
-#define RP_DEVICECATEGORY_INPUTPORT 6 // input port (hosts an INPUTDEVICE: mouse, joystick, joystick emulated via keyboard, etc.)
-#define RP_DEVICECATEGORY_KEYBOARD  7 // keyboard
-#define RP_DEVICECATEGORY_COUNT     8 // total number of device categories
+#define RP_DEVICECATEGORY_FLOPPY         0 // floppy disk drive
+#define RP_DEVICECATEGORY_HD             1 // hard disk drive
+#define RP_DEVICECATEGORY_CD             2 // CD/DVD drive
+#define RP_DEVICECATEGORY_NET            3 // network card
+#define RP_DEVICECATEGORY_TAPE           4 // cassette tape drive
+#define RP_DEVICECATEGORY_CARTRIDGE      5 // expansion cartridge
+#define RP_DEVICECATEGORY_INPUTPORT      6 // input port (hosts an INPUTDEVICE: mouse, joystick, etc.)
+#define RP_DEVICECATEGORY_KEYBOARD       7 // keyboard
+#define RP_DEVICECATEGORY_MULTITAPPORT   8 // multitap port (e.g. input port on Amiga parallel port joystick adapter)
+#define RP_DEVICECATEGORY_COUNT          9 // total number of device categories
 
 #define RP_ALL_DEVICES             32 // constant for the RP_IPC_TO_HOST_DEVICEACTIVITY message (to turn on/off all LEDs for a device category)
 
@@ -324,13 +296,13 @@ typedef struct RPDeviceContent
 // Host Input Device Types (used to enumerate host devices)
 #define RP_HOSTINPUT_MOUSE          0 // Mouse/trackball (supports relative moves)
 #define RP_HOSTINPUT_TABLET         1 // Pen tablet (no relative moves, only absolute positions)
-#define RP_HOSTINPUT_JOYSTICK       2 // PC joystick, gamepad, trackball, etc.
+#define RP_HOSTINPUT_JOYSTICK       2 // [LEGACY] PC joystick, gamepad, trackball, etc.
 #define RP_HOSTINPUT_KEYJOY_MAP1    3 // [LEGACY] Keyboard Layout 1; Amiga/C64: Keyboard Layout A for WinUAE/VICE (8, 2, 4, 6 on keypad, 0 to fire, etc.)
 #define RP_HOSTINPUT_KEYJOY_MAP2    4 // [LEGACY] Keyboard Layout 2; Amiga/C64: Keyboard Layout B for WinUAE/VICE (cursor keys, right Control to fire, etc.)
 #define RP_HOSTINPUT_KEYJOY_MAP3    5 // [LEGACY] Keyboard Layout 3; Amiga/C64: Keyboard Layout C for WinUAE/VICE (W, S, A, D keys, left Alt to fire, etc.)
 #define RP_HOSTINPUT_ARCADE_LEFT    6 // [LEGACY] Left part of arcade dual joystick input device ("player 1")
 #define RP_HOSTINPUT_ARCADE_RIGHT   7 // [LEGACY] Right part of arcade dual joystick input device ("player 2")
-#define RP_HOSTINPUT_KEYBOARD       8 // Keyboard Layout, using DirectInput keyboard scan codes (e.g. "KeyboardJoystick Left=0x4B Right=0x4D Up=0x48 Down=0x50 Fire=0x4C Autofire=0x38 Fire2=0x52 Rewind=0xB5 Play=0x37 FastForward=0x4A Green=0x47 Yellow=0x49 Red=0x4F Blue=0x51" set in szContent); introduced in RP API 3.3 to replace other keyboard layout modes
+#define RP_HOSTINPUT_KEYBOARD       8 // [LEGACY] Keyboard Layout, using DirectInput keyboard scan codes (e.g. "KeyboardJoystick Left=0x4B Right=0x4D Up=0x48 Down=0x50 Fire=0x4C Autofire=0x38 Fire2=0x52 Rewind=0xB5 Play=0x37 FastForward=0x4A Green=0x47 Yellow=0x49 Red=0x4F Blue=0x51" set in szContent); introduced in RP API 3.3 to replace other keyboard layout modes
 #define RP_HOSTINPUT_END            9 // "End of device enumeration" (dummy device used to terminate an input device set that began with the first input device)
 #define RP_HOSTINPUT_COUNT         10 // total number of device types
 
@@ -378,7 +350,6 @@ typedef struct RPDeviceContent
 #define RP_JOYSTICK_BUTTON6  0x00000200 // button 6 - CDTV/CD32 Reverse
 #define RP_JOYSTICK_BUTTON7  0x00000400 // button 7 - CDTV/CD32 Forward
 
-
 // Device Read/Write status (used in RP_IPC_TO_HOST_DEVICEREADWRITE, RP_IPC_TO_GUEST_DEVICEREADWRITE; used for device categories RP_DEVICECATEGORY_FLOPPY, RP_DEVICECATEGORY_HD, RP_DEVICECATEGORY_TAPE, RP_DEVICECATEGORY_CARTRIDGE)
 #define RP_DEVICE_READONLY   0 // the medium is write-protected
 #define RP_DEVICE_READWRITE  1 // the medium is read/write
@@ -393,12 +364,13 @@ typedef struct RPDeviceContent
 #define RP_RESET_HARD  1 // hard reset
 
 // RP_IPC_TO_HOST_MOUSECAPTURE/RP_IPC_TO_GUEST_MOUSECAPTURE
-#define RP_MOUSECAPTURE_CAPTURED     0x00000001
-#define RP_MOUSECAPTURE_INTEGRATED   0x00000002 // aka "magic mouse"
+#define RP_MOUSECAPTURE_CAPTURED     0x00000001 // "trapped" (host system pointer becomes hidden)
+#define RP_MOUSECAPTURE_INTEGRATED   0x00000002 // "force-push to untrap" aka "magic mouse" active
 
 // RP_IPC_TO_GUEST_EVENT
 //
-// KEY_RAW_<x>: <x> is a hex keycode that uniquely identifies the raw key on the guest system
+// KEY_RAW_DOWN <x>: <x> is a numeric keycode (e.g. 0x4F or 79) that uniquely identifies the raw key on the guest system
+// KEY_RAW_UP <x>: <x> is a numeric keycode (e.g. 0x4F or 79) that uniquely identifies the raw key on the guest system
 //
 
 // RP_IPC_TO_HOST_DEVICEACTIVITY
@@ -491,45 +463,6 @@ typedef struct RPScreenCapture
 #define RP_HOSTVERSION_BUILD(ver)    ((ver) & 0x3FF)
 #define RP_MAKE_HOSTVERSION(major,minor,build) ((LPARAM) (((LPARAM)((major) & 0xFFF)<<20) | ((LPARAM)((minor) & 0x3FF)<<10) | ((LPARAM)((build) & 0x3FF))))
 
-// RP_IPC_TO_HOST_PREPROCESSKEY flags
-#define RP_PREPROCESSKEY_SET_VKEY(f)		((f) & 0xFF)
-#define RP_PREPROCESSKEY_GET_VKEY(f)		((f) & 0xFF)
-#define RP_PREPROCESSKEY_SET_SCANCODE(f)	(((f) & 0xFF) << 8)
-#define RP_PREPROCESSKEY_GET_SCANCODE(f)	(((f) >> 8) & 0xFF)
-#define RP_PREPROCESSKEY_EXTENDED0			(1 << 16)
-#define RP_PREPROCESSKEY_EXTENDED1			(1 << 17)
-#define RP_PREPROCESSKEY_RAWINPUT			(1 << 18)
-#define RP_PREPROCESSKEY_CAPS_DOWN			(1 << 19)
-#define RP_PREPROCESSKEY_CAPS_TOGGLED		(1 << 20)
-#define RP_PREPROCESSKEY_SHIFT_DOWN			(1 << 21)
-#define RP_PREPROCESSKEY_LSHIFT_DOWN		(1 << 22)
-#define RP_PREPROCESSKEY_RSHIFT_DOWN		(1 << 23)
-#define RP_PREPROCESSKEY_ALT_DOWN			(1 << 24)
-#define RP_PREPROCESSKEY_LALT_DOWN			(1 << 25)
-#define RP_PREPROCESSKEY_RALT_DOWN			(1 << 26)
-#define RP_PREPROCESSKEY_CTRL_DOWN			(1 << 27)
-#define RP_PREPROCESSKEY_LCTRL_DOWN			(1 << 28)
-#define RP_PREPROCESSKEY_RCTRL_DOWN			(1 << 29)
-#define RP_PREPROCESSKEY_CHAR_KEY			(1 << 30)
-#define RP_PREPROCESSKEY_OK					(1 << 31) // out flag
-
-// RP_IPC_TO_HOST_PROCESSKEY flags
-#define RP_PROCESSKEY_SET_VKEY(f)		((f) & 0xFF)
-#define RP_PROCESSKEY_GET_VKEY(f)		((f) & 0xFF)
-#define RP_PROCESSKEY_SET_SCANCODE(f)	(((f) & 0xFF) << 8)
-#define RP_PROCESSKEY_GET_SCANCODE(f)	(((f) >> 8) & 0xFF)
-#define RP_PROCESSKEY_EXTENDED0			(1 << 16)
-#define RP_PROCESSKEY_EXTENDED1			(1 << 17)
-#define	RP_PROCESSKEY_RAWINPUT			(1 << 18)
-#define RP_PROCESSKEY_SET_CHARCOUNT(f)	(((f) & 0x03) << 19)
-#define RP_PROCESSKEY_GET_CHARCOUNT(f)	(((f) >> 19) & 0x03)
-#define RP_PROCESSKEY_KEYDOWN			(1 << 21)
-#define RP_PROCESSKEY_KEYMASK			0xFFFFFF  // returned key code mask
-#define RP_PROCESSKEY_MORE				(1 << 28) // in/out flag
-#define RP_PROCESSKEY_PRESSKEY			(1 << 29) // out flag
-#define RP_PROCESSKEY_RELEASEKEY		(1 << 30) // out flag
-#define RP_PROCESSKEY_OK				(1 << 31) // out flag
-
 
 // Legacy Compatibility
 #ifndef RP_NO_LEGACY
@@ -596,7 +529,6 @@ typedef struct RPDeviceContent_Legacy
 #define RPIPCGM_TURBO RP_IPC_TO_HOST_TURBO
 #define RPIPCGM_PING RP_IPC_TO_HOST_PING
 #define RPIPCGM_VOLUME RP_IPC_TO_HOST_VOLUME
-#define RPIPCGM_ESCAPED RP_IPC_TO_HOST_ESCAPED
 #define RPIPCGM_PARENT RP_IPC_TO_HOST_PARENT
 #define RPIPCGM_DEVICESEEK RP_IPC_TO_HOST_DEVICESEEK
 #define RPIPCGM_CLOSE RP_IPC_TO_HOST_CLOSE
@@ -612,7 +544,6 @@ typedef struct RPDeviceContent_Legacy
 #define RPIPCHM_TURBO RP_IPC_TO_GUEST_TURBO
 #define RPIPCHM_PING RP_IPC_TO_GUEST_PING
 #define RPIPCHM_VOLUME RP_IPC_TO_GUEST_VOLUME
-#define RPIPCHM_ESCAPEKEY RP_IPC_TO_GUEST_ESCAPEKEY
 #define RPIPCHM_EVENT RP_IPC_TO_GUEST_EVENT
 #define RPIPCHM_MOUSECAPTURE RP_IPC_TO_GUEST_MOUSECAPTURE
 #define RPIPCHM_SAVESTATE RP_IPC_TO_GUEST_SAVESTATE

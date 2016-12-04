@@ -9,7 +9,7 @@
          : assigned or transferred by contract.
  Authors : os, mcb
  Created : 2007-08-23 10:08:25
- Updated : 2016-06-17 15:07:10
+ Updated : 2016-12-03 11:15:00
  Comment : Reference for RetroPlatformIPC.h (RP Player interprocess communication include file)
  *****************************************************************************/
 
@@ -219,7 +219,7 @@ Description:
 Data sent:
    WPARAM = device category (RP_DEVICE_* value) and device number
             combined with the MAKEWORD macro;
-            e.g. MAKEWORD(RP_DEVICE_FLOPPY, 0);
+            e.g. MAKEWORD(RP_DEVICECATEGORY_FLOPPY, 0);
             the RP_ALL_DEVICES define may be used as device number
             to turn on or off all the activity LEDs for a device category
    LPARAM = for non-joystick devices, LED status and flags are combined
@@ -299,7 +299,13 @@ Description:
    (see the RP_IPC_TO_GUEST_PAUSE message) must not be notified,
    unless the guest returned the value 2 as RP_IPC_TO_GUEST_PAUSE response;
    note: when paused, the guest should release the mouse (if captured);
-   during pause mode, the mouse should never be captured
+   during pause mode, the mouse should never be captured;
+   starting with version 7.1 of the RetroPlatform API,
+   the host handles every keyboard input/shortcuts,
+   so the guest is not supposed to enter pause mode based on
+   its own keyboard shortcuts (e.f. the <Pause> key):
+   this notification message is therfore just used
+   in the RP_IPC_TO_GUEST_PAUSE scenario described above
 Data sent:
    WPARAM = non-zero when the guest enters pause mode
             or zero when the guest exits from pause mode
@@ -351,7 +357,7 @@ Description:
 Data sent:
    WPARAM = device category (RP_DEVICE_* value) and device number
             combined with the MAKEWORD macro;
-            e.g. MAKEWORD(RP_DEVICE_FLOPPY, 0)
+            e.g. MAKEWORD(RP_DEVICECATEGORY_FLOPPY, 0)
    LPARAM = current device read/write status flags (RP_DEVICE_READONLY/RP_DEVICE_READWRITE)
 Response:
    none
@@ -431,7 +437,7 @@ Description:
 Data sent:
    WPARAM = device category (RP_DEVICE_* value) and device number
             combined with the MAKEWORD macro;
-            e.g. MAKEWORD(RP_DEVICE_FLOPPY, 0)
+            e.g. MAKEWORD(RP_DEVICECATEGORY_FLOPPY, 0)
    LPARAM = device-dependant seek position (e.g. drive track position)
 Response:
    none
@@ -481,10 +487,13 @@ Message:
 Description:
    the guest sends this message to notify the host
    about a change of the guest keyboard layout
+   (e.g. Amiga SetMap/SetKeyboard)
 Data sent:
-   pData = keyboard layout name (null-terminated Unicode string)
+   pData = platform-dependent keyboard layout data
 Response:
    none
+
+
 
 
 
@@ -568,7 +577,7 @@ Description:
    the host sends a RP_IPC_TO_GUEST_DEVICECONTENT message
    to load an image file or a peripheral into an emulated device
    (e.g. an ADF floppy file into a floppy drive,
-   or a physical or keyboard-emulated joystick into an input port)
+   or a joystick into an input port)
    or to unload the currently loaded content from the device
 Data sent:
    pData = a RPDEVICECONTENT structure (see RetroPlatformIPC.h);
@@ -589,7 +598,7 @@ Description:
 Data sent:
    WPARAM = device category (RP_DEVICE_* value) and device number
             combined with the MAKEWORD macro;
-            e.g. MAKEWORD(RP_DEVICE_FLOPPY, 0)
+            e.g. MAKEWORD(RP_DEVICECATEGORY_FLOPPY, 0)
    LPARAM = current device read/write status flags (RP_DEVICE_READONLY/RP_DEVICE_READWRITE)
 Response:
    LRESULT = 1 if the guest successfully executed the command or 0 otherwise (for example, because the image file itself is read-only, so that writing is not possible)
@@ -744,6 +753,37 @@ Description:
    this message is used to ask the guest to send
    a RP_IPC_TO_HOST_SCREENMODE notification as soon as possible
    with updated screen mode and clipping information
+Data sent:
+   none
+Response:
+   LRESULT = 1 if the guest acknowledged the command or 0 otherwise
+
+
+Message:
+   RP_IPC_TO_GUEST_DEVICEACTIVITY
+Description:
+   this message is used to tell the guest about a device status change
+   (e.g. a button pressed or released on a joystick)
+Data sent:
+   WPARAM = device category (RP_DEVICE_* value) and device number
+            combined with the MAKEWORD macro;
+            e.g. MAKEWORD(RP_DEVICECATEGORY_INPUTPORT, 1);
+            the only categories used at the moment are
+            RP_DEVICECATEGORY_INPUTPORT and RP_DEVICECATEGORY_MULTITAPPORT
+   LPARAM = if the message references a RP_DEVICECATEGORY_INPUTPORT
+            or a RP_DEVICECATEGORY_MULTITAPPORT device
+            in which a joystick/gamepad/joypad is plugged,
+            then the data sent via LPARAM is a mask of RP_JOYSTICK_* values
+            reporting all the buttons that are pressed (more than one may be
+            pressed simultaneously)
+Response:
+   LRESULT = 1 if the guest acknowledged the command or 0 otherwise
+
+
+Message:
+   RP_IPC_TO_GUEST_SHOWOPTIONS
+Description:
+   this message is used to ask the guest to open its options/settings dialog
 Data sent:
    none
 Response:

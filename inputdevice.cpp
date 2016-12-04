@@ -4609,6 +4609,11 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 	return 1;
 }
 
+int send_input_event (int nr, int state, int max, int autofire)
+{
+	return handle_input_event(nr, state, max, autofire, false, false);
+}
+
 static void inputdevice_checkconfig (void)
 {
 	bool changed = false;

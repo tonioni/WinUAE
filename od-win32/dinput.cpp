@@ -554,11 +554,6 @@ static int keyhack (int scancode, int pressed, int num)
 {
 	static byte backslashstate, apostrophstate;
 
-#ifdef RETROPLATFORM
-	if (rp_checkesc (scancode, pressed, num))
-		return -1;
-#endif
-
 	//check ALT-F4
 	if (pressed && !di_keycodes[num][DIK_F4] && scancode == DIK_F4) {
 		if (di_keycodes[num][DIK_LALT] && !currprefs.win32_ctrl_F11_is_quit) {
@@ -2193,6 +2188,12 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		PRAWHID hid = &raw->data.hid;
 		HANDLE h = raw->header.hDevice;
 		PCHAR rawdata;
+
+#ifdef RETROPLATFORM
+		if (rp_isactive ())
+			return;
+#endif
+
 		if ((rawinput_log & 4) || RAWINPUT_DEBUG) {
 			static uae_u8 *oldbuf;
 			static int oldbufsize;
@@ -2546,7 +2547,7 @@ bool is_hid_rawinput(void)
 {
 	if (no_rawinput)
 		return false;
-	if (!rawinput_enabled_hid)
+	if (!rawinput_enabled_hid && !rawinput_enabled_hid_reset)
 		return false;
 	if (!os_vista)
 		return false;
@@ -4002,6 +4003,10 @@ static void read_joystick (void)
 
 	if (IGNOREEVERYTHING)
 		return;
+#ifdef RETROPLATFORM
+	if (rp_isactive ())
+		return;
+#endif
 
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 		struct didata *did = &di_joystick[i];

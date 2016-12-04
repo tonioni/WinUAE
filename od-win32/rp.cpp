@@ -32,6 +32,7 @@
 #include "drawing.h"
 #include "resource.h"
 #include "gui.h"
+#include "keyboard.h"
 #include "rp.h"
 
 static int initialized;
@@ -104,13 +105,14 @@ static const TCHAR *getmsg (int msg)
 	case RP_IPC_TO_HOST_TURBO: return _T("RP_IPC_TO_HOST_TURBO");
 	case RP_IPC_TO_HOST_PING: return _T("RP_IPC_TO_HOST_PING");
 	case RP_IPC_TO_HOST_VOLUME: return _T("RP_IPC_TO_HOST_VOLUME");
-	case RP_IPC_TO_HOST_ESCAPED: return _T("RP_IPC_TO_HOST_ESCAPED");
+//	case RP_IPC_TO_HOST_ESCAPED: return _T("RP_IPC_TO_HOST_ESCAPED");
 	case RP_IPC_TO_HOST_PARENT: return _T("RP_IPC_TO_HOST_PARENT");
 	case RP_IPC_TO_HOST_DEVICESEEK: return _T("RP_IPC_TO_HOST_DEVICESEEK");
 	case RP_IPC_TO_HOST_CLOSE: return _T("RP_IPC_TO_HOST_CLOSE");
 	case RP_IPC_TO_HOST_DEVICEREADWRITE: return _T("RP_IPC_TO_HOST_DEVICEREADWRITE");
 	case RP_IPC_TO_HOST_HOSTVERSION: return _T("RP_IPC_TO_HOST_HOSTVERSION");
 	case RP_IPC_TO_HOST_INPUTDEVICE: return _T("RP_IPC_TO_HOST_INPUTDEVICE");
+	case RP_IPC_TO_HOST_KEYBOARDLAYOUT: return _T("RP_IPC_TO_HOST_KEYBOARDLAYOUT");
 
 	case RP_IPC_TO_GUEST_CLOSE: return _T("RP_IPC_TO_GUEST_CLOSE");
 	case RP_IPC_TO_GUEST_SCREENMODE: return _T("RP_IPC_TO_GUEST_SCREENMODE");
@@ -121,7 +123,7 @@ static const TCHAR *getmsg (int msg)
 	case RP_IPC_TO_GUEST_TURBO: return _T("RP_IPC_TO_GUEST_TURBO");
 	case RP_IPC_TO_GUEST_PING: return _T("RP_IPC_TO_GUEST_PING");
 	case RP_IPC_TO_GUEST_VOLUME: return _T("RP_IPC_TO_GUEST_VOLUME");
-	case RP_IPC_TO_GUEST_ESCAPEKEY: return _T("RP_IPC_TO_GUEST_ESCAPEKEY");
+//	case RP_IPC_TO_GUEST_ESCAPEKEY: return _T("RP_IPC_TO_GUEST_ESCAPEKEY");
 	case RP_IPC_TO_GUEST_EVENT: return _T("RP_IPC_TO_GUEST_EVENT");
 	case RP_IPC_TO_GUEST_MOUSECAPTURE: return _T("RP_IPC_TO_GUEST_MOUSECAPTURE");
 	case RP_IPC_TO_GUEST_SAVESTATE: return _T("RP_IPC_TO_GUEST_SAVESTATE");
@@ -130,6 +132,8 @@ static const TCHAR *getmsg (int msg)
 	case RP_IPC_TO_GUEST_DEVICEREADWRITE: return _T("RP_IPC_TO_GUEST_DEVICEREADWRITE");
 	case RP_IPC_TO_GUEST_QUERYSCREENMODE: return _T("RP_IPC_TO_GUEST_QUERYSCREENMODE");
 	case RP_IPC_TO_GUEST_GUESTAPIVERSION : return _T("RP_IPC_TO_GUEST_GUESTAPIVERSION");
+	case RP_IPC_TO_GUEST_SHOWOPTIONS: return _T("RP_IPC_TO_GUEST_SHOWOPTIONS");
+	case RP_IPC_TO_GUEST_DEVICEACTIVITY: return _T("RP_IPC_TO_GUEST_DEVICEACTIVITY");
 	default: return _T("UNKNOWN");
 	}
 }
@@ -141,6 +145,140 @@ static void trimws (TCHAR *s)
 	while (len > 0 && _tcscspn (s + len - 1, _T("\t \r\n")) == 0)
 		s[--len] = '\0';
 }
+
+
+static uae_u32 dactmask[4];
+static uae_u32 dacttype[4];
+
+static const int rp0_joystick[] = {
+	INPUTEVENT_JOY1_RIGHT, INPUTEVENT_JOY1_LEFT,
+	INPUTEVENT_JOY1_DOWN, INPUTEVENT_JOY1_UP,
+	INPUTEVENT_JOY1_FIRE_BUTTON,
+	INPUTEVENT_JOY1_2ND_BUTTON,
+	-1
+};
+static const int rp0_pad[] = {
+	INPUTEVENT_JOY1_RIGHT, INPUTEVENT_JOY1_LEFT,
+	INPUTEVENT_JOY1_DOWN, INPUTEVENT_JOY1_UP,
+	INPUTEVENT_JOY1_FIRE_BUTTON,
+	INPUTEVENT_JOY1_2ND_BUTTON,
+	INPUTEVENT_JOY1_3RD_BUTTON,
+	-1
+};
+static const int rp0_cd32[] = {
+	INPUTEVENT_JOY1_RIGHT, INPUTEVENT_JOY1_LEFT,
+	INPUTEVENT_JOY1_DOWN, INPUTEVENT_JOY1_UP,
+	INPUTEVENT_JOY1_CD32_RED,
+	INPUTEVENT_JOY1_CD32_BLUE,
+	INPUTEVENT_JOY1_CD32_GREEN,
+	INPUTEVENT_JOY1_CD32_YELLOW,
+	INPUTEVENT_JOY1_CD32_PLAY,
+	INPUTEVENT_JOY1_CD32_RWD,
+	INPUTEVENT_JOY1_CD32_FFW
+	-1
+};
+static const int rp1_joystick[] = {
+	INPUTEVENT_JOY2_RIGHT, INPUTEVENT_JOY2_LEFT,
+	INPUTEVENT_JOY2_DOWN, INPUTEVENT_JOY2_UP,
+	INPUTEVENT_JOY2_FIRE_BUTTON,
+	INPUTEVENT_JOY2_2ND_BUTTON,
+	-1
+};
+static const int rp1_pad[] = {
+	INPUTEVENT_JOY2_RIGHT, INPUTEVENT_JOY2_LEFT,
+	INPUTEVENT_JOY2_DOWN, INPUTEVENT_JOY2_UP,
+	INPUTEVENT_JOY2_FIRE_BUTTON,
+	INPUTEVENT_JOY2_2ND_BUTTON,
+	INPUTEVENT_JOY2_3RD_BUTTON,
+	-1
+};
+static const int rp1_cd32[] = {
+	INPUTEVENT_JOY2_RIGHT, INPUTEVENT_JOY2_LEFT,
+	INPUTEVENT_JOY2_DOWN, INPUTEVENT_JOY2_UP,
+	INPUTEVENT_JOY2_CD32_RED,
+	INPUTEVENT_JOY2_CD32_BLUE,
+	INPUTEVENT_JOY2_CD32_GREEN,
+	INPUTEVENT_JOY2_CD32_YELLOW,
+	INPUTEVENT_JOY2_CD32_PLAY,
+	INPUTEVENT_JOY2_CD32_RWD,
+	INPUTEVENT_JOY2_CD32_FFW
+	-1
+};
+static const int rp2_joystick[] = {
+	INPUTEVENT_PAR_JOY1_RIGHT, INPUTEVENT_PAR_JOY1_LEFT,
+	INPUTEVENT_PAR_JOY1_DOWN, INPUTEVENT_PAR_JOY1_UP,
+	INPUTEVENT_PAR_JOY1_FIRE_BUTTON,
+	-1
+};
+static const int rp3_joystick[] = {
+	INPUTEVENT_PAR_JOY2_RIGHT, INPUTEVENT_PAR_JOY2_LEFT,
+	INPUTEVENT_PAR_JOY2_DOWN, INPUTEVENT_PAR_JOY2_UP,
+	INPUTEVENT_PAR_JOY2_FIRE_BUTTON,
+	-1
+};
+
+static LRESULT deviceactivity(WPARAM wParam, LPARAM lParam)
+{
+	int num = LOBYTE(wParam);
+	int cat = HIBYTE(wParam);
+	uae_u32 mask = lParam;
+	if (cat != RP_DEVICECATEGORY_INPUTPORT && cat != RP_DEVICECATEGORY_MULTITAPPORT)
+		return 0;
+	if (cat == RP_DEVICECATEGORY_MULTITAPPORT) {
+		if (num < 0 || num > 1)
+			return 0;
+		num += 2;
+	} else {
+		if (num < 0 || num > 1)
+			return 0;
+	}
+	if (dactmask[num] == mask)
+		return 1;
+	const int *map = NULL;
+	int type = dacttype[num];
+	switch(num)
+	{
+	case 0:
+		if (type == RP_INPUTDEVICE_JOYSTICK)
+			map = rp0_joystick;
+		else if (type == RP_INPUTDEVICE_GAMEPAD)
+			map = rp0_pad;
+		else if (type == RP_INPUTDEVICE_JOYPAD)
+			map = rp0_cd32;
+	break;
+	case 1:
+		if (type == RP_INPUTDEVICE_JOYSTICK)
+			map = rp1_joystick;
+		else if (type == RP_INPUTDEVICE_GAMEPAD)
+			map = rp1_pad;
+		else if (type == RP_INPUTDEVICE_JOYPAD)
+			map = rp1_cd32;
+	break;
+	case 2:
+		if (type == RP_INPUTDEVICE_JOYSTICK)
+			map = rp2_joystick;
+	break;
+	case 3:
+		if (type == RP_INPUTDEVICE_JOYSTICK)
+			map = rp3_joystick;
+	break;
+	}
+	if (!map)
+		return 0;
+	for (int i = 0; i < 16; i++) {
+		uae_u32 mask2 = 1 << i;
+		if (map[i] < 0)
+			break;
+		if ((dactmask[num] ^ mask) & mask2) {
+			int state = (mask & mask2) ? 1 : 0;
+			send_input_event(map[i], state, 1, 0);
+		}
+	}
+	dactmask[num] = mask;
+	return 1;
+}
+
+
 
 static const int inputdevmode[] = {
 	RP_INPUTDEVICE_MOUSE, JSEM_MODE_WHEELMOUSE,
@@ -371,6 +509,14 @@ static int port_insert (int inputmap_port, int devicetype, DWORD flags, const TC
 	int devicetype2;
 
 	write_log (L"port%d_insert type=%d flags=%d '%s'\n", inputmap_port, devicetype, flags, name);
+
+	if (devicetype == RP_INPUTDEVICE_JOYSTICK || devicetype == RP_INPUTDEVICE_GAMEPAD || devicetype == RP_INPUTDEVICE_JOYPAD) {
+		if (inputmap_port >= 0 && inputmap_port < 4) {
+			dacttype[inputmap_port] = devicetype;
+			return 1;
+		}
+		return 0;
+	}
 
 	if (inputmap_port < 0 || inputmap_port >= maxjports)
 		return FALSE;
@@ -1017,10 +1163,12 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		currprefs.sound_volume_cd = changed_prefs.sound_volume_cd = 100 - wParam;
 		set_volume (currprefs.sound_volume_master, 0);
 		return TRUE;
+#if 0
 	case RP_IPC_TO_GUEST_ESCAPEKEY:
 		rp_rpescapekey = wParam;
 		rp_rpescapeholdtime = lParam;
 		return TRUE;
+#endif
 	case RP_IPC_TO_GUEST_MOUSECAPTURE:
 		{
 			if (wParam & RP_MOUSECAPTURE_CAPTURED)
@@ -1046,6 +1194,11 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				break;
 			case RP_DEVICECATEGORY_INPUTPORT:
 				ok = port_insert (num, dc->dwInputDevice, dc->dwFlags, n);
+				if (ok)
+					inputdevice_updateconfig (&changed_prefs, &currprefs);
+				break;
+			case RP_DEVICECATEGORY_MULTITAPPORT:
+				ok = port_insert (num + 2, dc->dwInputDevice, dc->dwFlags, n);
 				if (ok)
 					inputdevice_updateconfig (&changed_prefs, &currprefs);
 				break;
@@ -1179,8 +1332,13 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		}
 	case RP_IPC_TO_GUEST_GUESTAPIVERSION:
 		{
-			return MAKELONG(3, 4);
+			return MAKELONG(7, 1);
 		}
+	case RP_IPC_TO_GUEST_SHOWOPTIONS:
+		inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+		return 1;
+	case RP_IPC_TO_GUEST_DEVICEACTIVITY:
+		return deviceactivity(wParam, lParam);
 	}
 	return FALSE;
 }
@@ -1232,6 +1390,10 @@ HRESULT rp_init (void)
 	}
 	xfree (rp_param);
 	rp_param = NULL;
+	for (int i = 0; i < 4; i++) {
+		dacttype[i] = -1;
+		dactmask[i] = 0;
+	}
 	mousecapture = 0;
 	return hr;
 }
@@ -1806,8 +1968,6 @@ static uae_u64 gett (void)
 
 void rp_vsync (void)
 {
-	uae_u64 t;
-
 	if (!initialized)
 		return;
 	if (hwndset_delay > 0) {
@@ -1827,6 +1987,8 @@ void rp_vsync (void)
 	}
 	if (magicmouse_alive () != mousemagic)
 		rp_mouse_magic (magicmouse_alive ());
+#if 0
+	uae_u64 t;
 	if (!esctime && !releasetime)
 		return;
 	t = gett ();
@@ -1840,6 +2002,7 @@ void rp_vsync (void)
 		releasetime = -1;
 		esctime = 0;
 	}
+#endif
 }
 
 int rp_checkesc (int scancode, int pressed, int num)
