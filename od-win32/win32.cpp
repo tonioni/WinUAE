@@ -102,6 +102,13 @@
 #include "fsdb.h"
 #include "uae/time.h"
 
+const static GUID GUID_DEVINTERFACE_HID =  { 0x4D1E55B2L, 0xF16F, 0x11CF,
+{ 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
+const static GUID GUID_DEVINTERFACE_KEYBOARD = { 0x884b96c3, 0x56ef, 0x11d1,
+{ 0xbc, 0x8c, 0x00, 0xa0, 0xc9, 0x14, 0x05, 0xdd } };
+const static GUID GUID_DEVINTERFACE_MOUSE = { 0x378de44c, 0x56ef, 0x11d1,
+{ 0xbc, 0x8c, 0x00, 0xa0, 0xc9, 0x14, 0x05, 0xdd } };
+
 extern int harddrive_dangerous, do_rdbdump;
 extern int no_rawinput, no_directinput, no_windowsmouse;
 extern int force_directsound;
@@ -1786,15 +1793,22 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			extern bool win32_ioctl_media_change (TCHAR driveletter, int insert);
 			DEV_BROADCAST_HDR *pBHdr = (DEV_BROADCAST_HDR *)lParam;
 			int devicechange = 0;
-
-			if (wParam == DBT_DEVNODES_CHANGED && lParam == 0) {
-				devicechange = 1;
-			} else if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
+			if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
+				bool ignore = false;
 				DEV_BROADCAST_DEVICEINTERFACE *dbd = (DEV_BROADCAST_DEVICEINTERFACE*)lParam;
-				if (wParam == DBT_DEVICEREMOVECOMPLETE)
-					devicechange = 1;
-				else if (wParam == DBT_DEVICEARRIVAL)
-					devicechange = 1;
+				GUID *g = &dbd->dbcc_classguid;
+				const GUID *ghid = &GUID_DEVINTERFACE_HID;
+				// if HID and rawhid active: ignore this event
+				if (!memcmp(g, ghid, sizeof(GUID))) {
+					if (is_hid_rawinput())
+						ignore = true;
+				}
+				if (!ignore) {
+					if (wParam == DBT_DEVICEREMOVECOMPLETE)
+						devicechange = 1;
+					else if (wParam == DBT_DEVICEARRIVAL)
+						devicechange = 1;
+				}
 			} else if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_VOLUME) {
 				DEV_BROADCAST_VOLUME *pBVol = (DEV_BROADCAST_VOLUME *)lParam;
 				if (wParam == DBT_DEVICEARRIVAL || wParam == DBT_DEVICEREMOVECOMPLETE) {
@@ -1839,7 +1853,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 					}
 				}
 			}
-			if (devicechange && !is_hid_rawinput()) {
+			if (devicechange) { // && !is_hid_rawinput()) {
 				if (device_change_timer)
 					KillTimer(hWnd, 4);
 				device_change_timer = 1;
@@ -6541,22 +6555,25 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 
 #endif
 
-const static GUID GUID_DEVINTERFACE_HID =  { 0x4D1E55B2L, 0xF16F, 0x11CF,
-{ 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
-
 void addnotifications (HWND hwnd, int remove, int isgui)
 {
 	static ULONG ret;
-	static HDEVNOTIFY hdn;
+	static HDEVNOTIFY hdn1, hdn2, hdn3;
 	static int wtson;
 
 	if (remove) {
 		if (ret > 0)
 			SHChangeNotifyDeregister (ret);
 		ret = 0;
-		if (hdn)
-			UnregisterDeviceNotification (hdn);
-		hdn = 0;
+		if (hdn1)
+			UnregisterDeviceNotification (hdn1);
+		if (hdn2)
+			UnregisterDeviceNotification (hdn2);
+		if (hdn3)
+			UnregisterDeviceNotification (hdn3);
+		hdn1 = 0;
+		hdn2 = 0;
+		hdn3 = 0;
 		if (wtson && !isgui)
 			WTSUnRegisterSessionNotification (hwnd);
 		wtson = 0;
@@ -6568,11 +6585,14 @@ void addnotifications (HWND hwnd, int remove, int isgui)
 		ret = SHChangeNotifyRegister (hwnd, SHCNRF_ShellLevel | SHCNRF_InterruptLevel | SHCNRF_NewDelivery,
 			SHCNE_MEDIAREMOVED | SHCNE_MEDIAINSERTED | SHCNE_DRIVEREMOVED | SHCNE_DRIVEADD,
 			WM_USER + 2, 1, &shCNE);
-		NotificationFilter.dbcc_size = 
-			sizeof(DEV_BROADCAST_DEVICEINTERFACE);
+		NotificationFilter.dbcc_size = sizeof(DEV_BROADCAST_DEVICEINTERFACE);
 		NotificationFilter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
+		NotificationFilter.dbcc_classguid = GUID_DEVINTERFACE_KEYBOARD;
+		hdn1 = RegisterDeviceNotification (hwnd,  &NotificationFilter, DEVICE_NOTIFY_WINDOW_HANDLE);
+		NotificationFilter.dbcc_classguid = GUID_DEVINTERFACE_MOUSE;
+		hdn2 = RegisterDeviceNotification (hwnd,  &NotificationFilter, DEVICE_NOTIFY_WINDOW_HANDLE);
 		NotificationFilter.dbcc_classguid = GUID_DEVINTERFACE_HID;
-		hdn = RegisterDeviceNotification (hwnd,  &NotificationFilter, DEVICE_NOTIFY_WINDOW_HANDLE |  DEVICE_NOTIFY_ALL_INTERFACE_CLASSES);
+		hdn3 = RegisterDeviceNotification (hwnd,  &NotificationFilter, DEVICE_NOTIFY_WINDOW_HANDLE);
 		if (!isgui)
 			wtson = WTSRegisterSessionNotification (hwnd, NOTIFY_FOR_THIS_SESSION);
 	}
