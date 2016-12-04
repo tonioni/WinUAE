@@ -76,6 +76,7 @@ static int outbufferselect = 0;
 static int out_allocated = 0;
 static volatile int exitin = 0;
 static CRITICAL_SECTION cs_proc;
+
 /*
 * FUNCTION:   getmidiouterr
 *
@@ -97,6 +98,21 @@ static TCHAR *getmidiouterr(TCHAR *txt, int err)
 {
 	midiOutGetErrorText(err, txt, MAX_DPATH);
 	return txt;
+}
+
+static void MidiSetVolume(HMIDIOUT oh)
+{
+	TCHAR err[MAX_DPATH];
+	MMRESULT verr;
+	DWORD vol = 0xffffffff;
+	if (currprefs.sound_volume_midi > 0) {
+		uae_u16 v = (uae_u16)(65535.0 - (65535.0 * currprefs.sound_volume_midi / 100.0));
+		vol = (v << 16) | v;
+	}
+	verr = midiOutSetVolume (oh, vol);
+	if (verr) {
+		write_log(_T("MIDI OUT: midiOutSetVolume error %s / %d\n"), getmidiouterr(err, verr), verr);
+	}
 }
 
 /*
@@ -638,6 +654,7 @@ int Midi_Open(void)
 		result = 0;
 	} else {
 		InitializeCriticalSection(&cs_proc);
+		MidiSetVolume(outHandle);
 		// We don't need input for output...
 		if((currprefs.win32_midiindev >= 0) &&
 			(result = midiInOpen(&inHandle, currprefs.win32_midiindev, (DWORD_PTR)MidiInProc, 0, CALLBACK_FUNCTION|MIDI_IO_STATUS))) {

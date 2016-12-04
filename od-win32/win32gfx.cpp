@@ -2385,10 +2385,12 @@ int check_prefs_changed_gfx (void)
 	}
 	if (currprefs.win32_midiindev != changed_prefs.win32_midiindev ||
 		currprefs.win32_midioutdev != changed_prefs.win32_midioutdev ||
+		currprefs.sound_volume_midi != changed_prefs.sound_volume_midi ||
 		currprefs.win32_midirouter != changed_prefs.win32_midirouter)
 	{
 		currprefs.win32_midiindev = changed_prefs.win32_midiindev;
 		currprefs.win32_midioutdev = changed_prefs.win32_midioutdev;
+		currprefs.sound_volume_midi = changed_prefs.sound_volume_midi;
 		currprefs.win32_midirouter = changed_prefs.win32_midirouter;
 #ifdef SERIAL_PORT
 		if (midi_ready) {

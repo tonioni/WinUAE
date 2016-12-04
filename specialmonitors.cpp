@@ -2431,6 +2431,7 @@ skip:
 		uninitvideograb();
 		genlock_video = false;
 	}
+	isvideograb_status();
 #endif
 	if (currprefs.genlock_image != 4 && currprefs.genlock_image != 5 && currprefs.genlock_image != 6) {
 		genlock_video_file[0] = 0;

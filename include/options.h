@@ -448,6 +448,8 @@ struct uae_prefs {
 	int sound_volume_paula;
 	int sound_volume_cd;
 	int sound_volume_board;
+	int sound_volume_midi;
+	int sound_volume_genlock;
 	bool sound_stereo_swap_paula;
 	bool sound_stereo_swap_ahi;
 	bool sound_auto;

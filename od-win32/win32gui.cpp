@@ -12018,12 +12018,16 @@ static void values_from_sounddlg (HWND hDlg)
 	idx = SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMESELECT, CB_GETCURSEL, 0, 0);
 	if (idx != volumeselectionindex) {
 		volumeselectionindex = idx;
-		if (volumeselectionindex < 0 || volumeselectionindex > 2)
+		if (volumeselectionindex < 0 || volumeselectionindex > 4)
 			volumeselectionindex = 0;
 		if (volumeselectionindex == 1)
 			volumeselection = &workprefs.sound_volume_cd;
 		else if (volumeselectionindex == 2)
 			volumeselection = &workprefs.sound_volume_board;
+		else if (volumeselectionindex == 3)
+			volumeselection = &workprefs.sound_volume_midi;
+		else if (volumeselectionindex == 4)
+			volumeselection = &workprefs.sound_volume_genlock;
 		else
 			volumeselection = &workprefs.sound_volume_paula;
 		update_soundgui (hDlg);
@@ -12098,6 +12102,8 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMESELECT, CB_ADDSTRING, 0, (LPARAM)_T("Paula"));
 			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMESELECT, CB_ADDSTRING, 0, (LPARAM)_T("CD"));
 			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMESELECT, CB_ADDSTRING, 0, (LPARAM)_T("AHI"));
+			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMESELECT, CB_ADDSTRING, 0, (LPARAM)_T("MIDI"));
+			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMESELECT, CB_ADDSTRING, 0, (LPARAM)_T("Genlock"));
 			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMESELECT, CB_SETCURSEL, volumeselectionindex, 0);
 
 			SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_RESETCONTENT, 0, 0L);

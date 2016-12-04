@@ -310,7 +310,7 @@ bool initvideograb(const TCHAR *filename)
 	hr = filterGraph->QueryInterface(IID_IMediaEvent, (void**)&mediaEvent);
 
 	hr = filterGraph->QueryInterface(IID_IBasicAudio, (void**)&audio);
-	setvolumevideograb(0);
+	setvolumevideograb(100 - currprefs.sound_volume_genlock);
 
 	hr = filterGraph->QueryInterface(IID_IMediaControl, (void**)&mediaControl);
 	if (FAILED(hr)) {
@@ -360,7 +360,7 @@ void setvolumevideograb(int volume)
 {
 	if (!audio)
 		return;
-	long vol = log10((float)volume / 32768.0) * 4000.0;
+	long vol = log10((float)volume / 100.0) * 4000.0;
 	audio->put_Volume(vol);
 }
 
@@ -428,6 +428,10 @@ void isvideograb_status(void)
 {
 	if (!videoInitialized)
 		return;
+	if (currprefs.sound_volume_genlock != changed_prefs.sound_volume_genlock) {
+		currprefs.sound_volume_genlock = changed_prefs.sound_volume_genlock;
+		setvolumevideograb(100 - currprefs.sound_volume_genlock);
+	}
 	if (mediaEvent == NULL)
 		return;
 	long EventCode;

@@ -1592,6 +1592,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_write (f, _T("sound_volume_cd"), _T("%d"), p->sound_volume_cd);
 	if (p->sound_volume_board >= 0)
 		cfgfile_write (f, _T("sound_volume_ahi"), _T("%d"), p->sound_volume_board);
+	if (p->sound_volume_midi >= 0)
+		cfgfile_write (f, _T("sound_volume_midi"), _T("%d"), p->sound_volume_midi);
+	if (p->sound_volume_genlock >= 0)
+		cfgfile_write (f, _T("sound_volume_genlock"), _T("%d"), p->sound_volume_genlock);
 	cfgfile_write_bool (f, _T("sound_auto"), p->sound_auto);
 	cfgfile_write_bool (f, _T("sound_cdaudio"), p->sound_cdaudio);
 	cfgfile_write_bool (f, _T("sound_stereo_swap_paula"), p->sound_stereo_swap_paula);
@@ -2819,6 +2823,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("sound_volume_paula"), &p->sound_volume_paula, 1)
 		|| cfgfile_intval (option, value, _T("sound_volume_cd"), &p->sound_volume_cd, 1)
 		|| cfgfile_intval (option, value, _T("sound_volume_ahi"), &p->sound_volume_board, 1)
+		|| cfgfile_intval (option, value, _T("sound_volume_midi"), &p->sound_volume_midi, 1)
+		|| cfgfile_intval (option, value, _T("sound_volume_genlock"), &p->sound_volume_genlock, 1)
 		|| cfgfile_intval (option, value, _T("sound_stereo_separation"), &p->sound_stereo_separation, 1)
 		|| cfgfile_intval (option, value, _T("sound_stereo_mixing_delay"), &p->sound_mixed_stereo_delay, 1)
 		|| cfgfile_intval (option, value, _T("sampler_frequency"), &p->sampler_freq, 1)

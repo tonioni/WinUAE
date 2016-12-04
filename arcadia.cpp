@@ -753,12 +753,12 @@ void alg_serial_read(uae_u16 w)
 	case 0x46: // CH-1 ON 'F'
 	ack();
 	ld_audio |= 1;
-	setvolumevideograb(32768);
+	setvolumevideograb(100 - currprefs.sound_volume_genlock);
 	break;
 	case 0x48: // CH-2 ON 'H'
 	ack();
 	ld_audio |= 2;
-	setvolumevideograb(32768);
+	setvolumevideograb(100 - currprefs.sound_volume_genlock);
 	break;
 	case 0x47: // CH-1 OFF 'G'
 	ack();
@@ -837,9 +837,6 @@ static void alg_vsync(void)
 		if (algmemory_modified == 0) {
 			alg_nvram_write();
 		}
-	}
-	if (isvideograb()) {
-		isvideograb_status();
 	}
 }
 
