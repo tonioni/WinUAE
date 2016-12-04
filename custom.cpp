@@ -9946,7 +9946,9 @@ void check_prefs_changed_custom (void)
 	currprefs.collision_level = changed_prefs.collision_level;
 	if (!currprefs.keyboard_connected && changed_prefs.keyboard_connected) {
 		// send powerup sync
-		keyboard_connected();
+		keyboard_connected(true);
+	} else if (currprefs.keyboard_connected && !changed_prefs.keyboard_connected) {
+		keyboard_connected(false);
 	}
 	currprefs.keyboard_connected = changed_prefs.keyboard_connected;
 

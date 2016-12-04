@@ -670,6 +670,8 @@ static void sendrw (void)
 
 int resetwarning_do (int canreset)
 {
+	if (!currprefs.keyboard_connected)
+		return 0;
 	if (resetwarning_phase || regs.halted > 0) {
 		/* just force reset if second reset happens during resetwarning */
 		if (canreset) {
@@ -795,8 +797,13 @@ void CIAB_tod_handler (int hoffset)
 	}
 }
 
-void keyboard_connected(void)
+void keyboard_connected(bool connect)
 {
+	if (connect) {
+		write_log(_T("Keyboard connected\n"));
+	} else {
+		write_log(_T("Keyboard disconnected\n"));
+	}
 	kbstate = 0;
 	kblostsynccnt = 0;
 	resetwarning_phase = 0;
@@ -854,6 +861,10 @@ void CIA_hsync_posthandler (bool ciahsync, bool dotod)
 		} else {
 			if ((hsync_counter & 15) == 0)
 				check_keyboard();
+		}
+	} else {
+		while (keys_available()) {
+			get_next_key();
 		}
 	}
 }
