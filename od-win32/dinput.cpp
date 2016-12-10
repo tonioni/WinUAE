@@ -2189,11 +2189,6 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		HANDLE h = raw->header.hDevice;
 		PCHAR rawdata;
 
-#ifdef RETROPLATFORM
-		if (rp_isactive ())
-			return;
-#endif
-
 		if ((rawinput_log & 4) || RAWINPUT_DEBUG) {
 			static uae_u8 *oldbuf;
 			static int oldbufsize;
@@ -2219,7 +2214,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 				break;
 		}
 
-#ifdef RAWINPUT_DEBUG
+#if RAWINPUT_DEBUG
 		if (num >= num_joystick) {
 			if (!rawinput_enabled_hid)
 				return;
@@ -2236,6 +2231,10 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		}
 #endif
 
+#ifdef RETROPLATFORM
+		if (rp_isactive ())
+			return;
+#endif
 		if (num < num_joystick) {
 
 			rawdata = (PCHAR)hid->bRawData;
@@ -2405,6 +2404,10 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 				rk->ExtraInformation,
 				scancode);
 
+#ifdef RETROPLATFORM
+		if (rp_isactive ())
+			return;
+#endif
 		// eat E1 extended keys
 		if (rk->Flags & (RI_KEY_E1))
 			return;

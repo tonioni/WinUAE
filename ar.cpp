@@ -588,17 +588,19 @@ STATIC_INLINE int ar3a (uaecptr addr, uae_u8 b, int writing)
 
 	if (!writing) {
 		//write_log(_T("READ %x\n"), addr);
-		if (addr == 1 || addr == 3) /* This is necessary because we don't update rom location 0 every time we change armode */
+		if (addr == 1 || addr == 3) { /* This is necessary because we don't update rom location 0 every time we change armode */
+			//write_log(_T("ARMODE READ %02x %08X\n"), armode_read, M68K_GETPC);
 			return armode_read | (regs.irc & ~3);
-		else if (addr < 4)
+		} else if (addr < 4) {
 			return (addr & 1) ? regs.irc : regs.irc >> 8;
+		}
 		return armemory_rom[addr];
 	} else {
 		//write_log(_T("WRITE %x\n"), addr);
 		if (addr == 1) {
 			armode_write = b;
 			armode_read = 0;
-			write_log(_T("ARMODE %02x written\n"), b);
+			//write_log(_T("ARMODE WRITE %02x %08X\n"), b, M68K_GETPC);
 			set_special (SPCFLAG_ACTION_REPLAY);
 			action_replay_flag = ACTION_REPLAY_HIDE;
 		} else if (addr == 6) {

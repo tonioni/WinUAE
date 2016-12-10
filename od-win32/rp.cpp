@@ -219,18 +219,25 @@ static const int rp3_joystick[] = {
 
 static LRESULT deviceactivity(WPARAM wParam, LPARAM lParam)
 {
-	int num = LOBYTE(wParam);
-	int cat = HIBYTE(wParam);
+	int num = HIBYTE(wParam);
+	int cat = LOBYTE(wParam);
 	uae_u32 mask = lParam;
-	if (cat != RP_DEVICECATEGORY_INPUTPORT && cat != RP_DEVICECATEGORY_MULTITAPPORT)
+	write_log(_T("DEVICEACTIVITY %04x %08x (%d,%d)\n"), wParam, lParam, num, cat);
+	if (cat != RP_DEVICECATEGORY_INPUTPORT && cat != RP_DEVICECATEGORY_MULTITAPPORT) {
+		write_log(_T("DEVICEACTIVITY Not RP_DEVICECATEGORY_INPUTPORT or RP_DEVICECATEGORY_MULTITAPPORT.\n"));
 		return 0;
+	}
 	if (cat == RP_DEVICECATEGORY_MULTITAPPORT) {
-		if (num < 0 || num > 1)
+		if (num < 0 || num > 1) {
+			write_log(_T("DEVICEACTIVITY invalid RP_DEVICECATEGORY_MULTITAPPORT %d.\n"), num);
 			return 0;
+		}
 		num += 2;
 	} else {
-		if (num < 0 || num > 1)
+		if (num < 0 || num > 1) {
+			write_log(_T("DEVICEACTIVITY invalid RP_DEVICECATEGORY_INPUTPORT %d.\n"), num);
 			return 0;
+		}
 	}
 	if (dactmask[num] == mask)
 		return 1;
@@ -263,8 +270,10 @@ static LRESULT deviceactivity(WPARAM wParam, LPARAM lParam)
 			map = rp3_joystick;
 	break;
 	}
-	if (!map)
+	if (!map) {
+		write_log(_T("DEVICEACTIVITY unsupported port (%d)/device (%d) combo.\n"), num, type);
 		return 0;
+	}
 	for (int i = 0; i < 16; i++) {
 		uae_u32 mask2 = 1 << i;
 		if (map[i] < 0)

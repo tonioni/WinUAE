@@ -4,6 +4,13 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+
+Beta 19:
+
+- Some WASAPI buffer size + frequency combinations caused immediate hang at startup.
+- Reset confused display vertical positioning in some situations (Incorrectly detected it as "fake" 60Hz-like hack).
+- Some adjustments to GUI panel tree view and main view tab order.
+
 Beta 18:
 
 - Input device on the fly change support now ignores all non-input device change events.
