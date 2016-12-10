@@ -1338,6 +1338,11 @@ retry:
 	sd->sndbufsize = sd->sndbufsize * 2 / 3;
 
 	sd->samplesize = sd->channels * 16 / 8;
+
+	// must be divisible by frame size
+	sd->sndbufsize += sd->samplesize - 1;
+	sd->sndbufsize = (sd->sndbufsize / sd->samplesize) * sd->samplesize;
+
 	if (sd->sndbufsize > SND_MAX_BUFFER)
 		sd->sndbufsize = SND_MAX_BUFFER;
 
