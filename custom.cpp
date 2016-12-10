@@ -8657,6 +8657,8 @@ void custom_reset (bool hardreset, bool keyboardreset)
 
 	dmal = 0;
 	init_hz_normal();
+	// init_hz sets vpos_count
+	vpos_count = 0;
 	vpos_lpen = -1;
 	lof_changing = 0;
 	lof_togglecnt_nlace = lof_togglecnt_lace = 0;
