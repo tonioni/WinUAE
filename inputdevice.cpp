@@ -190,6 +190,8 @@ int inputdevice_uaelib (const TCHAR *s, const TCHAR *parm)
 {
 	int i;
 
+	//write_log(_T("%s\n"), s);
+
 	if (!_tcsncmp(s, _T("KEY_RAW_"), 8)) {
 		// KEY_RAW_UP <code>
 		// KEY_RAW_DOWN <code>
@@ -3453,24 +3455,38 @@ struct delayed_event
 {
 	TCHAR *event_string;
 	int delay;
+	int append;
 	struct delayed_event *next;
 };
 static struct delayed_event *delayed_events;
 
-static int handle_custom_event (const TCHAR *custom)
+int handle_custom_event (const TCHAR *custom, int append)
 {
 	TCHAR *p, *buf, *nextp;
 	bool noquot = false;
+	bool first = true;
+	int adddelay = 0;
 
-	if (custom == NULL)
+	if (custom == NULL) {
 		return 0;
-	set_config_changed ();
-	write_log (_T("%s\n"), custom);
+	}
+	//write_log (_T("%s\n"), custom);
+
+	if (append) {
+		struct delayed_event *dee = delayed_events;
+		while (dee) {
+			if (dee->delay > 0 && dee->delay > adddelay && dee->append) {
+				adddelay = dee->delay;
+			}
+			dee = dee->next;
+		}
+	}
+
 	p = buf = my_strdup_trim (custom);
 	if (p[0] != '\"')
 		noquot = true;
 	while (p && *p) {
-		TCHAR *p2;
+		TCHAR *p2 = NULL;
 		if (!noquot) {
 			if (*p != '\"')
 				break;
@@ -3486,14 +3502,38 @@ static int handle_custom_event (const TCHAR *custom)
 			}
 		}
 		//write_log (L"-> '%s'\n", p);
-		if (!_tcsnicmp (p, _T("delay "), 6)) {
-			int delay = _tstol (p + 6);
+		if (!_tcsnicmp (p, _T("delay "), 6) || !_tcsnicmp (p, _T("vdelay "), 7) || !_tcsnicmp (p, _T("hdelay "), 7) || adddelay) {
+			TCHAR *next = NULL;
+			int delay = -1;
+			if (!_tcsnicmp (p, _T("delay "), 6)) {
+				next = p + 7;
+				delay = _tstol(p + 6) * maxvpos_nom;
+				if (!delay)
+					delay = maxvpos_nom;
+			} else if (!_tcsnicmp (p, _T("vdelay "), 7)) {
+				next = p + 8;
+				delay = _tstol(p + 7) * maxvpos_nom;
+				if (!delay)
+					delay = maxvpos_nom;
+			} else if (!_tcsnicmp (p, _T("hdelay "), 7)) {
+				next = p + 8;
+				delay = _tstol(p + 7);
+			}
+			if (adddelay > 0 && adddelay > delay)
+				delay = adddelay;
 			if (delay >= 0) {
+				if (!p2) {
+					if (!next)
+						p2 = p;
+					else
+						p2 = _tcschr(next, ' ');
+				}
 				struct delayed_event *de = delayed_events;
 				while (de) {
 					if (de->delay < 0) {
 						de->delay = delay;
-						de->event_string = my_strdup (p2);
+						de->event_string = p2 ? my_strdup (p2) : my_strdup(_T(""));
+						de->append = append;
 						break;
 					}
 					de = de->next;
@@ -3503,11 +3543,18 @@ static int handle_custom_event (const TCHAR *custom)
 					de->next = delayed_events;
 					delayed_events = de;
 					de->delay = delay;
-					de->event_string = my_strdup (p2);
+					de->append = append;
+					de->event_string = p2 ? my_strdup (p2) : my_strdup(_T(""));
 				}
 			}
 			break;
-		} else if (!_tcsicmp (p, _T("no_config_check"))) {
+		}
+		if (first) {
+			first = false;
+			if (!append)
+				set_config_changed ();
+		}
+		if (!_tcsicmp (p, _T("no_config_check"))) {
 			config_changed = 0;
 		} else if (!_tcsicmp (p, _T("do_config_check"))) {
 			set_config_changed ();
@@ -3523,6 +3570,18 @@ static int handle_custom_event (const TCHAR *custom)
 			if (pp)
 				*pp++ = 0;
 			inputdevice_uaelib (p, pp);
+		} else if (!_tcsnicmp(p, _T("key_raw_up "), 11)) {
+			TCHAR *pp = _tcschr (p + 10, ' ');
+			if (pp) {
+				*pp++ = 0;
+				inputdevice_uaelib (p, pp);
+			}
+		} else if (!_tcsnicmp(p, _T("key_raw_down "), 13)) {
+			TCHAR *pp = _tcschr (p + 12, ' ');
+			if (pp) {
+				*pp++ = 0;
+				inputdevice_uaelib (p, pp);
+			}
 		} else {
 			cfgfile_parse_line (&changed_prefs, p, 0);
 		}
@@ -3542,6 +3601,22 @@ void inputdevice_hsync (void)
 	catweasel_hsync ();
 #endif
 
+	struct delayed_event *de = delayed_events;
+	while (de) {
+		if (de->delay > 0)
+			de->delay--;
+		if (de->delay == 0) {
+			de->delay = -1;
+			if (de->event_string) {
+				TCHAR *s = de->event_string;
+				de->event_string = NULL;
+				handle_custom_event (s, 0);
+				xfree (s);
+			}
+		}
+		de = de->next;
+	}
+
 	for (int i = 0; i < INPUT_QUEUE_SIZE; i++) {
 		struct input_queue_struct *iq = &input_queue[i];
 		if (iq->linecnt > 0) {
@@ -3552,7 +3627,7 @@ void inputdevice_hsync (void)
 				else
 					iq->state = iq->storedstate;
 				if (iq->custom)
-					handle_custom_event (iq->custom);
+					handle_custom_event (iq->custom, 0);
 				if (iq->evt)
 					handle_input_event (iq->evt, iq->state, iq->max, 0, false, true);
 				iq->linecnt = iq->nextlinecnt;
@@ -4611,6 +4686,7 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 
 int send_input_event (int nr, int state, int max, int autofire)
 {
+	check_enable(nr);
 	return handle_input_event(nr, state, max, autofire, false, false);
 }
 
@@ -4669,22 +4745,6 @@ void inputdevice_vsync (void)
 	mouseupdate (0, true);
 	inputread = -1;
 
-	struct delayed_event *de = delayed_events;
-	while (de) {
-		if (de->delay > 0)
-			de->delay--;
-		if (de->delay == 0) {
-			de->delay = -1;
-			if (de->event_string) {
-				TCHAR *s = de->event_string;
-				de->event_string = NULL;
-				handle_custom_event (s);
-				xfree (s);
-			}
-		}
-		de = de->next;
-	}
-
 	inputdevice_handle_inputcode ();
 	if (mouseedge_alive > 0)
 		mouseedge_alive--;
@@ -4723,7 +4783,6 @@ void inputdevice_reset (void)
 		xfree (de->event_string);
 		xfree (de);
 	}
-
 }
 
 static int getoldport (struct uae_input_device *id)
@@ -5154,7 +5213,7 @@ static bool process_custom_event (struct uae_input_device *id, int offset, int s
 			if (state && custom) {
 				if (autofire)
 					queue_input_event (-1, custom, 1, 1, currprefs.input_autofire_linecnt, 1);
-				handle_custom_event (custom);
+				handle_custom_event (custom, 0);
 				return true;
 			}
 		}
@@ -5197,7 +5256,7 @@ static bool process_custom_event (struct uae_input_device *id, int offset, int s
 		if (autofire)
 			queue_input_event (-1, custom, 1, 1, currprefs.input_autofire_linecnt, 1);
 		if (custom)
-			handle_custom_event (custom);
+			handle_custom_event (custom, 0);
 	}
 
 	id->flags[offset][slotoffset] &= ~(ID_FLAG_CUSTOMEVENT_TOGGLED1 | ID_FLAG_CUSTOMEVENT_TOGGLED2);
