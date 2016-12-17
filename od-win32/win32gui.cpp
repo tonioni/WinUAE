@@ -311,7 +311,10 @@ static bool getcomboboxtext(HWND hDlg, int id, TCHAR *out, int maxlen)
 		GetDlgItemText(hDlg, id, out, maxlen);
 		return true;
 	}
-	SendDlgItemMessage(hDlg, id, CB_GETLBTEXT, posn, (LPARAM)out);
+	int len = SendDlgItemMessage(hDlg, id, CB_GETLBTEXTLEN, posn, 0);
+	if (len < maxlen) {
+		len = SendDlgItemMessage(hDlg, id, CB_GETLBTEXT, posn, (LPARAM)out);
+	}
 	return true;
 }
 
@@ -749,15 +752,18 @@ void exit_gui (int ok)
 	SendMessage (guiDlg, WM_COMMAND, ok ? IDOK : IDCANCEL, 0);
 }
 
-static int getcbn (HWND hDlg, int v, TCHAR *out, int len)
+static int getcbn (HWND hDlg, int v, TCHAR *out, int maxlen)
 {
 	LRESULT val = SendDlgItemMessage (hDlg, v, CB_GETCURSEL, 0, 0L);
 	out[0] = 0;
 	if (val == CB_ERR) {
-		SendDlgItemMessage (hDlg, v, WM_GETTEXT, (WPARAM)len, (LPARAM)out);
+		SendDlgItemMessage (hDlg, v, WM_GETTEXT, (WPARAM)maxlen, (LPARAM)out);
 		return 1;
 	} else {
-		val = SendDlgItemMessage (hDlg, v, CB_GETLBTEXT, (WPARAM)val, (LPARAM)out);
+		int len = SendDlgItemMessage(hDlg, v, CB_GETLBTEXTLEN, (WPARAM)val, 0);
+		if (len < maxlen) {
+			val = SendDlgItemMessage (hDlg, v, CB_GETLBTEXT, (WPARAM)val, (LPARAM)out);
+		}
 		return 0;
 	}
 }
@@ -5291,11 +5297,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 			LRESULT val;
 			TCHAR tmp[MAX_DPATH];
 			tmp[0] = 0;
-			val = SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_GETCURSEL, 0, 0L);
-			if (val == CB_ERR)
-				SendDlgItemMessage (hDlg, IDC_CONFIGLINK, WM_GETTEXT, (WPARAM)sizeof(tmp) / sizeof (TCHAR), (LPARAM)tmp);
-			else
-				SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_GETLBTEXT, (WPARAM)val, (LPARAM)tmp);
+			getcbn(hDlg, IDC_CONFIGLINK, tmp, sizeof(tmp) / sizeof (TCHAR));
 			_tcscpy (workprefs.config_host_path, tmp);
 		}
 		break;
@@ -12634,10 +12636,6 @@ static void inithardfile (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("SFS"));
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_SETCURSEL, 0, 0);
-	setautocomplete (hDlg, IDC_PATH_NAME);
-	setautocomplete (hDlg, IDC_PATH_FILESYS);
-	addhistorymenu(hDlg, current_hfdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_HDF, false);
-	addhistorymenu(hDlg, current_hfdlg.ci.filesys, IDC_PATH_FILESYS, HISTORY_FS, false);
 }
 
 static void sethfdostype (HWND hDlg, int idx)
@@ -13019,7 +13017,11 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	case WM_INITDIALOG:
 		recursive++;
 		setchecked(hDlg, IDC_HDF_PHYSGEOMETRY, current_hfdlg.ci.physical_geometry);
+		setautocomplete (hDlg, IDC_PATH_NAME);
+		setautocomplete (hDlg, IDC_PATH_FILESYS);
 		inithardfile (hDlg);
+		addhistorymenu(hDlg, current_hfdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_HDF, false);
+		addhistorymenu(hDlg, current_hfdlg.ci.filesys, IDC_PATH_FILESYS, HISTORY_FS, false);
 		updatehdfinfo (hDlg, true, false);
 		sethardfile (hDlg);
 		sethfdostype (hDlg, 0);
@@ -13066,9 +13068,12 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 					if (_tcscmp (tmp, current_hfdlg.ci.rootdir)) {
 						_tcscpy (current_hfdlg.ci.rootdir, tmp);
 						recursive++;
-						hardfileselecthdf (hDlg, NULL, false);
+						hardfileselecthdf (hDlg, NULL, false); 
 						recursive--;
 					}
+				}
+				if (HIWORD (wParam) == CBN_KILLFOCUS) {
+					addhistorymenu(hDlg, current_hfdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_HDF, false);
 				}
 				break;
 			}
@@ -13115,6 +13120,9 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				break;
 			case IDC_PATH_FILESYS:
 				getcomboboxtext(hDlg, IDC_PATH_FILESYS, current_hfdlg.ci.filesys, sizeof  current_hfdlg.ci.filesys / sizeof(TCHAR));
+				if (HIWORD (wParam) == CBN_KILLFOCUS) {
+					addhistorymenu(hDlg, current_hfdlg.ci.filesys, IDC_PATH_FILESYS, HISTORY_FS, false);
+				}
 				break;
 			}
 		}
@@ -14135,10 +14143,14 @@ static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen, int type
 
 	out[0] = 0;
 	val = SendDlgItemMessage (hDlg, f_text, CB_GETCURSEL, 0, 0L);
-	if (val != CB_ERR)
-		val = SendDlgItemMessage (hDlg, f_text, CB_GETLBTEXT, (WPARAM)val, (LPARAM)out);
-	else
+	if (val != CB_ERR) {
+		int len = SendDlgItemMessage(hDlg, f_text, CB_GETLBTEXTLEN, (WPARAM)val, 0);
+		if (len < maxlen) {
+			val = SendDlgItemMessage (hDlg, f_text, CB_GETLBTEXT, (WPARAM)val, (LPARAM)out);
+		}
+	} else {
 		SendDlgItemMessage (hDlg, f_text, WM_GETTEXT, (WPARAM)maxlen, (LPARAM)out);
+	}
 
 	parsefilepath(out, maxlen);
 
