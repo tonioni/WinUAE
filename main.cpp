@@ -106,6 +106,8 @@ TCHAR *my_strdup_trim (const TCHAR *s)
 	TCHAR *out;
 	int len;
 
+	if (s[0] == 0)
+		return my_strdup(s);
 	while (_tcscspn (s, _T("\t \r\n")) == 0)
 		s++;
 	len = _tcslen (s);
