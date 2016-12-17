@@ -4,6 +4,10 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 20:
+
+- Selecting item from HDF "history" drop down worked strangely depending on Windows version.
+- Custom event string delay handling fix if delay was last or single event. (But I don't think anyone uses it this way..)
 
 Beta 19:
 

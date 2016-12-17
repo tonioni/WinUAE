@@ -517,7 +517,7 @@ static int port_insert (int inputmap_port, int devicetype, DWORD flags, const TC
 	int ret = 0;
 	int devicetype2;
 
-	write_log (L"port%d_insert type=%d flags=%d '%s'\n", inputmap_port, devicetype, flags, name);
+	write_log (_T("port%d_insert type=%d flags=%d '%s'\n"), inputmap_port, devicetype, flags, name);
 
 	if (devicetype == RP_INPUTDEVICE_JOYSTICK || devicetype == RP_INPUTDEVICE_GAMEPAD || devicetype == RP_INPUTDEVICE_JOYPAD) {
 		if (inputmap_port >= 0 && inputmap_port < 4) {
@@ -1122,6 +1122,41 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 #endif
 }
 
+static int events_added;
+
+void parse_guest_event(const TCHAR *ss)
+{
+	TCHAR *s = my_strdup(ss);
+	if (s[0] != '\'') {
+		TCHAR *start = s;
+		for (;;) {
+			TCHAR *next;
+			TCHAR *space1 = _tcschr(start, ' ');
+			if (!space1)
+				break;
+			TCHAR *space2 = _tcschr(space1 + 1, ' ');
+			if (space2) {
+				*space2 = 0;
+				next = space2 + 1;
+			} else {
+				next = NULL;
+			}
+			events_added++;
+			if (events_added > 4) {
+				handle_custom_event(_T("hdelay 120"), 1);
+				events_added = 0;
+			}
+			handle_custom_event(start, 1);
+			if (!next)
+				break;
+			start = next;
+		}
+	} else {
+		handle_custom_event(s, 1);
+	}
+	xfree(s);
+}
+
 static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM lParam,
 	LPCVOID pData, DWORD dwDataSize, LPARAM lMsgFunctionParam)
 {
@@ -1226,16 +1261,8 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		}
 	case RP_IPC_TO_GUEST_EVENT:
 		{
-			TCHAR out[256];
 			TCHAR *s = (WCHAR*)pData;
-			int idx = -1;
-			for (;;) {
-				int ret;
-				out[0] = 0;
-				ret = cfgfile_modify (idx++, s, _tcslen (s), out, sizeof out / sizeof (TCHAR));
-				if (ret >= 0)
-					break;
-			}
+			parse_guest_event(s);
 			return TRUE;
 		}
 	case RP_IPC_TO_GUEST_SCREENCAPTURE:
@@ -1788,6 +1815,7 @@ void rp_update_leds (int led, int onoff, int brightness, int write)
 
 void rp_update_gameport (int port, int mask, int onoff)
 {
+#if 0
 	if (!cando ())
 		return;
 	if (port < 0 || port >= maxjports)
@@ -1803,6 +1831,7 @@ void rp_update_gameport (int port, int mask, int onoff)
 		RPPostMessagex (RP_IPC_TO_HOST_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_INPUTPORT, port),
 			gameportmask[port], &guestinfo);
 	}
+#endif
 }
 
 void rp_hd_activity (int num, int onoff, int write)
