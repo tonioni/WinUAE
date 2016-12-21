@@ -190,7 +190,7 @@ int inputdevice_uaelib (const TCHAR *s, const TCHAR *parm)
 {
 	int i;
 
-	//write_log(_T("%s\n"), s);
+	//write_log(_T("%s: %s\n"), s, parm);
 
 	if (!_tcsncmp(s, _T("KEY_RAW_"), 8)) {
 		// KEY_RAW_UP <code>
@@ -3473,11 +3473,12 @@ int handle_custom_event (const TCHAR *custom, int append)
 	//write_log (_T("%s\n"), custom);
 
 	if (append) {
-		struct delayed_event *dee = delayed_events;
+		struct delayed_event *dee = delayed_events, *prev = NULL;
 		while (dee) {
 			if (dee->delay > 0 && dee->delay > adddelay && dee->append) {
 				adddelay = dee->delay;
 			}
+			prev = dee;
 			dee = dee->next;
 		}
 	}
@@ -3519,8 +3520,11 @@ int handle_custom_event (const TCHAR *custom, int append)
 				next = p + 8;
 				delay = _tstol(p + 7);
 			}
-			if (adddelay > 0 && adddelay > delay)
+			if (adddelay && delay < 0) {
 				delay = adddelay;
+			} else if (adddelay > 0 && delay >= 0) {
+				delay += adddelay;
+			}
 			if (delay >= 0) {
 				if (!p2) {
 					if (!next)
@@ -3531,7 +3535,7 @@ int handle_custom_event (const TCHAR *custom, int append)
 				struct delayed_event *de = delayed_events;
 				while (de) {
 					if (de->delay < 0) {
-						de->delay = delay;
+						de->delay = delay + 1;
 						de->event_string = p2 ? my_strdup (p2) : my_strdup(_T(""));
 						de->append = append;
 						break;
@@ -3542,7 +3546,7 @@ int handle_custom_event (const TCHAR *custom, int append)
 					de = xcalloc (delayed_event, 1);
 					de->next = delayed_events;
 					delayed_events = de;
-					de->delay = delay;
+					de->delay = delay + 1;
 					de->append = append;
 					de->event_string = p2 ? my_strdup (p2) : my_strdup(_T(""));
 				}
@@ -3601,8 +3605,11 @@ void inputdevice_hsync (void)
 	catweasel_hsync ();
 #endif
 
-	struct delayed_event *de = delayed_events;
+	int cnt = 0;
+	struct delayed_event *de = delayed_events, *prev = NULL;
 	while (de) {
+		if (de->delay < 0)
+			cnt++;
 		if (de->delay > 0)
 			de->delay--;
 		if (de->delay == 0) {
@@ -3614,7 +3621,25 @@ void inputdevice_hsync (void)
 				xfree (s);
 			}
 		}
+		prev = de;
 		de = de->next;
+	}
+	if (cnt > 4) {
+		// too many, delete some
+		struct delayed_event *de_prev = NULL;
+		de = delayed_events;
+		while (de) {
+			if (de->delay < 0 && de != delayed_events) {
+				struct delayed_event *next = de->next;
+				de_prev->next = next;
+				xfree(de->event_string);
+				xfree(de);
+				de = next;
+			} else {
+				de_prev = de;
+				de = de->next;
+			}
+		}
 	}
 
 	for (int i = 0; i < INPUT_QUEUE_SIZE; i++) {

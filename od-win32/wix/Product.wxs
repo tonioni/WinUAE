@@ -1,6 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*" Name="WinUAE" Language="1033" Version="3.3.0.0" Manufacturer="Arabuusimiehet" UpgradeCode="88C6D045-E416-4AEA-9EE9-0B7A53EE0F16">
+
+  <?define ProductName = "WinUAE" ?>
+  <?define ProductVersion = "3.4.0" ?>
+  <?define ProductFullVersion = "3.4.0.0" ?>
+  <?define ProductAuthor = "Arabuusimiehet" ?>
+
+  <?if $(var.Platform) = x64 ?>
+  <?define ProductDisplayName = "$(var.ProductName) 64-bit" ?>
+  <?define ProductUpgradeCode = "F71425D0-9491-4273-BBC8-FED20F6492A2" ?>
+  <?define Win64 = "yes" ?>
+  <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+  <?define ProductExecutable = "winuae64.exe" ?>
+  <?else ?>
+  <?define ProductDisplayName = "$(var.ProductName)" ?>
+  <?define ProductUpgradeCode = "88C6D045-E416-4AEA-9EE9-0B7A53EE0F16" ?>
+  <?define Win64 = "no" ?>
+  <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+  <?define ProductExecutable = "winuae.exe" ?>
+  <?endif ?>
+
+    <Product Id="*" Name="$(var.ProductDisplayName) $(var.ProductVersion)" Language="1033" Version="$(var.ProductFullVersion)" Manufacturer="$(var.ProductAuthor)" UpgradeCode="$(var.ProductUpgradeCode)">
     <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
 
     <?define SRCDIST="$(var.winuae.ProjectDir)/../../../distribution/"?>
@@ -19,8 +39,8 @@
     <WixVariable Id="WixUIDialogBmp" Value="$(var.winuae.ProjectDir)/../graphics/amiga_welcome_2013.bmp" />
 
     <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="ProgramFilesFolder">
-        <Directory Id="APPLICATIONROOTDIRECTORY" Name="WinUAE">
+      <Directory Id="$(var.PlatformProgramFilesFolder)">
+        <Directory Id="APPLICATIONROOTDIRECTORY" Name="$(var.ProductName)">
           <Directory Id="CONFIGURATIONS" Name="Configurations">
             <Directory Id="CONFIGURATIONSHOST" Name="Host"/>
           </Directory>
@@ -29,46 +49,46 @@
         </Directory>
       </Directory>
       <Directory Id="ProgramMenuFolder">
-        <Directory Id="ApplicationProgramsFolder" Name="WinUAE"/>
+        <Directory Id="ApplicationProgramsFolder" Name="$(var.ProductName)"/>
       </Directory>
       <Directory Id="DesktopFolder" Name="Desktop">
       </Directory>
     </Directory>
 
     <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
-      <Component Id="winuae.exe" Guid="AE2CD6FB-A066-43B4-8C96-C75E3948367F">
-        <File Id="winuae.exe" Source="$(var.winuae.TargetPath)" KeyPath="yes" Checksum="yes"/>
+      <Component Id="winuae.exe" Guid="AE2CD6FB-A066-43B4-8C96-C75E3948367F" Win64="$(var.Win64)">
+        <File Id="$(var.ProductExecutable)" Source="$(var.winuae.TargetPath)" KeyPath="yes" Checksum="yes"/>
       </Component>
     </DirectoryRef>
 
     <DirectoryRef Id="DesktopFolder">
-      <Component Id="ApplicationDesktopShortcut" Guid="920BC800-12FC-4630-A612-39230FD4B4B7">
+      <Component Id="ApplicationDesktopShortcut" Guid="920BC800-12FC-4630-A612-39230FD4B4B7" Win64="$(var.Win64)">
         <Shortcut Id="ApplicationDesktopShortcut"
-          Name="WinUAE"
+          Name="$(var.ProductName)"
           Description="WinUAE Amiga emulator"
-          Target="[#winuae.exe]"
+          Target="[#$(var.ProductExecutable)]"
           WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
         <RegistryValue Root="HKCU" Key="Software\Arabuusimiehet\WinUAE" Name="InstalledApplicationDesktopShortcut" Type="integer" Value="1" KeyPath="yes"/>
       </Component>
     </DirectoryRef>
 
     <DirectoryRef Id="ApplicationProgramsFolder">
-      <Component Id="ApplicationShortcut" Guid="469F7AC3-E634-49EE-BDAF-DAAD2134D7E2">
+      <Component Id="ApplicationShortcut" Guid="469F7AC3-E634-49EE-BDAF-DAAD2134D7E2" Win64="$(var.Win64)">
         <Shortcut Id="ApplicationStartMenuShortcut"
-          Name="WinUAE"
+          Name="$(var.ProductName)"
           Description="WinUAE Amiga emulator"
-          Target="[#winuae.exe]"
+          Target="[#$(var.ProductExecutable)]"
           WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
         <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
         <RegistryValue Root="HKCU" Key="Software\Arabuusimiehet\WinUAE" Name="InstalledApplicationShortcut" Type="integer" Value="1" KeyPath="yes"/>
       </Component>
-      <Component Id="DocsShortcut" Guid="7677FF51-F357-4657-B5DD-49801175E66B">
+      <Component Id="DocsShortcut" Guid="7677FF51-F357-4657-B5DD-49801175E66B" Win64="$(var.Win64)">
         <Shortcut Id="DocsStartMenuShortcut"
                   Name="Documents"
                   Target="[DOCS]"/>
         <RegistryValue Root="HKCU" Key="Software\Arabuusimiehet\WinUAE" Name="InstalledDocsShortcut" Type="integer" Value="1" KeyPath="yes"/>
       </Component>
-      <Component Id="AdditionalShortcut" Guid="9CD64D3C-96DA-4862-8E9E-6329A6296AFA">
+      <Component Id="AdditionalShortcut" Guid="9CD64D3C-96DA-4862-8E9E-6329A6296AFA" Win64="$(var.Win64)">
         <Shortcut Id="AdditionalStartMenuShortcut"
                   Name="Amiga Programs"
                   Target="[AMIGAPROGRAMS]"/>
@@ -155,35 +175,35 @@
     </DirectoryRef>
 
     <DirectoryRef Id="DOCS">
-      <Component Id="Docs1" Guid="1C0D979E-5C00-45BD-8C08-A78AA7E58530">
+      <Component Id="Docs1" Guid="1C0D979E-5C00-45BD-8C08-A78AA7E58530" Win64="$(var.Win64)">
         <File Source="$(var.SRCDIST)/Docs/Readme.txt" KeyPath="yes"/>
       </Component>
-      <Component Id="Docs2" Guid="ABE181C5-547C-4D9D-A486-DCB17F72C1B0">
+      <Component Id="Docs2" Guid="ABE181C5-547C-4D9D-A486-DCB17F72C1B0" Win64="$(var.Win64)">
         <File Source="$(var.SRCDIST)/Docs/winuaechangelog.txt" KeyPath="yes"/>
       </Component>
-      <Component Id="Docs3" Guid="D27F0463-C878-46C8-8D02-028D14BDD4A0">
+      <Component Id="Docs3" Guid="D27F0463-C878-46C8-8D02-028D14BDD4A0" Win64="$(var.Win64)">
         <File Source="$(var.SRCDIST)/Docs/History_old.txt" KeyPath="yes"/>
       </Component>
-      <Component Id="Docs4" Guid="82556236-9A44-4894-84BB-4066820E1B35">
+      <Component Id="Docs4" Guid="82556236-9A44-4894-84BB-4066820E1B35" Win64="$(var.Win64)">
         <File Source="$(var.SRCDIST)/Docs/README.compemu.txt" KeyPath="yes"/>
       </Component>
-      <Component Id="Docs5" Guid="E7AE8546-62E0-4537-989C-02E10C62E06E">
+      <Component Id="Docs5" Guid="E7AE8546-62E0-4537-989C-02E10C62E06E" Win64="$(var.Win64)">
         <File Source="$(var.SRCDIST)/Docs/README.JIT.txt" KeyPath="yes"/>
       </Component>
-      <Component Id="Docs6" Guid="33C9D310-7722-48B4-845B-48933023D647">
+      <Component Id="Docs6" Guid="33C9D310-7722-48B4-845B-48933023D647" Win64="$(var.Win64)">
         <File Source="$(var.SRCDIST)/Docs/README.JIT-tuning.txt" KeyPath="yes"/>
       </Component>
     </DirectoryRef>
 
     <DirectoryRef Id="TARGETDIR">
-      <Component Id="RegistryEntries" Guid="9C6F7B8F-7A9E-45DC-BF16-85A034CCE1FB">
+      <Component Id="RegistryEntries" Guid="9C6F7B8F-7A9E-45DC-BF16-85A034CCE1FB" Win64="$(var.Win64)">
         <RegistryKey Root="HKCU" Key="Software\Arabuusimiehet\WinUAE">
           <RegistryValue Type="string" Name="InstallPath" Value="[TARGETDIR]" KeyPath="yes"/>
         </RegistryKey>
       </Component>
     </DirectoryRef>
     
-    <Feature Id="MainApplication" Title="WinUAE" Description="WinUAE executable" Level="1" ConfigurableDirectory="APPLICATIONROOTDIRECTORY" Absent="disallow" AllowAdvertise="no">
+    <Feature Id="MainApplication" Title="$(var.ProductName)" Description="WinUAE executable" Level="1" ConfigurableDirectory="APPLICATIONROOTDIRECTORY" Absent="disallow" AllowAdvertise="no">
       <ComponentRef Id="winuae.exe" />
       <ComponentRef Id="ApplicationShortcut" />
       <ComponentRef Id="ApplicationDesktopShortcut" />

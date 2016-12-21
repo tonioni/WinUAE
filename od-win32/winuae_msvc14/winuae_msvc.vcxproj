@@ -39,6 +39,7 @@
     <ProjectGuid>{4ADAA943-1AC8-4FB5-82E5-4FB753B6C2DA}</ProjectGuid>
     <RootNamespace>winuae</RootNamespace>
     <TargetPlatformVersion>8.1</TargetPlatformVersion>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'" Label="Configuration">

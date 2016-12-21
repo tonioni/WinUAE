@@ -1613,12 +1613,21 @@ void rp_fixup_options (struct uae_prefs *p)
 	}
 	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_FLOPPY, floppy_mask, NULL, 0, &guestinfo, NULL);
 
-	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_INPUTPORT, (1 << maxjports) - 1, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_INPUTPORT, (1 << 2) - 1, NULL, 0, &guestinfo, NULL);
 	rp_input_change (0);
 	rp_input_change (1);
-	rp_input_change (2);
-	rp_input_change (3);
 	gameportmask[0] = gameportmask[1] = gameportmask[2] = gameportmask[3] = 0;
+
+	int parportmask = 0;
+	for (i = 0; i < 2; i++) {
+		if (p->jports[i + 2].idc.configname[0] || p->jports[i + 2].idc.name[0] || p->jports[i + 2].idc.shortid[0])
+			parportmask |= 1 << i;
+	}
+	if (parportmask) {
+		RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_MULTITAPPORT, parportmask, NULL, 0, &guestinfo, NULL);
+		rp_input_change (2);
+		rp_input_change (3);
+	}
 
 	hd_mask = 0;
 	cd_mask = 0;
@@ -1716,7 +1725,11 @@ void rp_input_change (int num)
 	}
 	if (log_rp & 1)
 		write_log(_T("PORT%d: '%s':%d\n"), num, name, mode);
-	rp_device_change (RP_DEVICECATEGORY_INPUTPORT, num, mode, true, name);
+	if (num >= 2) {
+		rp_device_change (RP_DEVICECATEGORY_MULTITAPPORT, num - 2, mode, true, name);
+	} else {
+		rp_device_change (RP_DEVICECATEGORY_INPUTPORT, num, mode, true, name);
+	}
 }
 void rp_disk_image_change (int num, const TCHAR *name, bool writeprotected)
 {

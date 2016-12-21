@@ -17,9 +17,6 @@
       <UniqueIdentifier>{e76a708a-933c-4af4-bad2-0820d79b6a78}</UniqueIdentifier>
       <Extensions>cpp;c;cxx;rc;def;r;odl;idl;hpj;bat</Extensions>
     </Filter>
-    <Filter Include="prowizard">
-      <UniqueIdentifier>{dab2f6c7-d741-4002-b0c9-566a1536642a}</UniqueIdentifier>
-    </Filter>
     <Filter Include="unpackers">
       <UniqueIdentifier>{a88602d5-1980-49b2-a87a-79afa3ca7346}</UniqueIdentifier>
     </Filter>
@@ -64,6 +61,9 @@
     </Filter>
     <Filter Include="support">
       <UniqueIdentifier>{fe9d96c8-c5ef-4f92-b9dc-79b5d3e4145c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="qemu\prowizard">
+      <UniqueIdentifier>{dab2f6c7-d741-4002-b0c9-566a1536642a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -410,7 +410,7 @@
       <Filter>jit</Filter>
     </ClCompile>
     <ClCompile Include="..\..\moduleripper.cpp">
-      <Filter>prowizard</Filter>
+      <Filter>qemu\prowizard</Filter>
     </ClCompile>
     <ClCompile Include="..\win32_scaler.cpp">
       <Filter>win32</Filter>

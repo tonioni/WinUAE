@@ -404,11 +404,20 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate)
 #if 0
 	if (scancode == DIK_F1) {
 		if (newstate) {
-			extern int paska;
-			paska++;
+			char msg[20000];
+			FILE *f = fopen("test.txt", "rb");
+			memset(msg, 0, sizeof msg);
+			fread(msg, 1, sizeof msg, f);
+			void parse_guest_event(const TCHAR *ss);
+			TCHAR *txt = au(msg);
+			parse_guest_event(txt);
+			free(txt);
+			fclose(f);
 		}
-		return;
+		return true;
 	}
+#endif
+#if 0
 	if (scancode == DIK_F2) {
 		if (newstate) {
 			extern int paska;
