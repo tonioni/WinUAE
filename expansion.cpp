@@ -1755,6 +1755,8 @@ static addrbank *expamem_map_filesys (struct autoconfig_info *aci)
 	mapped_free(&filesys_bank);
 	filesys_bank.start = expamem_board_pointer;
 	filesys_bank.mask = filesys_bank.reserved_size - 1;
+	if (expamem_board_pointer == 0xffffffff)
+		return &filesys_bank;
 	mapped_malloc(&filesys_bank);
 	memcpy (filesys_bank.baseaddr, expamem, 0x3000);
 	uaeboard_ram_start = UAEBOARD_WRITEOFFSET;
