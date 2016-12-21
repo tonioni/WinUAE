@@ -1828,7 +1828,7 @@ bool rochard_init(struct autoconfig_info *aci)
 
 static void rochard_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	add_ide_standard_unit(ch, ci, rc, rochard_board, ROCHARD_IDE, false, false, 4);
+	add_ide_standard_unit(ch, ci, rc, rochard_board, ROCHARD_IDE, true, false, 4);
 }
 
 bool buddha_init(struct autoconfig_info *aci)
