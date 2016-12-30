@@ -671,7 +671,7 @@ static uae_u16 chip_wget (uaecptr addr)
 			break;
 			// chip id
 			case 88:
-			v = 1 << 28;
+			v = 1 << (28 - 16);
 			break;
 			case 89:
 			v = 0x3003;
