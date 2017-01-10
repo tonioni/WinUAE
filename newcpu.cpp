@@ -1788,7 +1788,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 			{
 				fpdata fp;
 				to_single(&fp, get_ilong_debug(pc));
-				_stprintf(buffer, _T("#%e"), fp.fp);
+				_stprintf(buffer, _T("#%s"), fp_print(&fp));
 				pc += 4;
 			}
 			break;
@@ -1796,7 +1796,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 			{
 				fpdata fp;
 				to_double(&fp, get_ilong_debug(pc), get_ilong_debug(pc + 4));
-				_stprintf(buffer, _T("#%e"), fp.fp);
+				_stprintf(buffer, _T("#%s"), fp_print(&fp));
 				pc += 8;
 			}
 			break;
@@ -1804,11 +1804,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 		{
 			fpdata fp;
 			to_exten(&fp, get_ilong_debug(pc), get_ilong_debug(pc + 4), get_ilong_debug(pc + 8));
-#if USE_LONG_DOUBLE
-			_stprintf(buffer, _T("#%Le"), fp.fp);
-#else
-			_stprintf(buffer, _T("#%e"), fp.fp);
-#endif
+			_stprintf(buffer, _T("#%s"), fp_print(&fp));
 			pc += 12;
 			break;
 		}
@@ -2040,6 +2036,12 @@ static void m68k_unset_stop(void)
 	cpu_last_stop_vpos = vpos;
 }
 
+static void activate_trace(void)
+{
+	unset_special (SPCFLAG_TRACE);
+	set_special (SPCFLAG_DOTRACE);
+}
+
 void REGPARAM2 MakeSR (void)
 {
 	regs.sr = ((regs.t1 << 15) | (regs.t0 << 14)
@@ -2061,10 +2063,12 @@ static void SetSR (uae_u16 sr)
 	SET_CFLG (regs.sr & 1);
 }
 
-void REGPARAM2 MakeFromSR (void)
+static void MakeFromSR_x(int t0trace)
 {
 	int oldm = regs.m;
 	int olds = regs.s;
+	int oldt0 = regs.t0;
+	int oldt1 = regs.t1;
 
 	SET_XFLG ((regs.sr >> 4) & 1);
 	SET_NFLG ((regs.sr >> 3) & 1);
@@ -2124,12 +2128,28 @@ void REGPARAM2 MakeFromSR (void)
 		mmu_set_super (regs.s != 0);
 
 	doint ();
-	if (regs.t1 || regs.t0)
+	if (regs.t1 || regs.t0) {
 		set_special (SPCFLAG_TRACE);
-	else
+	} else {
 		/* Keep SPCFLAG_DOTRACE, we still want a trace exception for
 		SR-modifying instructions (including STOP).  */
 		unset_special (SPCFLAG_TRACE);
+	}
+	// Stop SR-modification does not generate T0
+	// If this SR modification set Tx bit, no trace until next instruction.
+	if ((oldt0 && t0trace && currprefs.cpu_model >= 68020) || oldt1) {
+		// Always trace if Tx bits were already set, even if this SR modification cleared them.
+		activate_trace();
+	}
+}
+
+void REGPARAM2 MakeFromSR_T0(void)
+{
+	MakeFromSR_x(1);
+}
+void REGPARAM2 MakeFromSR(void)
+{
+	MakeFromSR_x(0);
 }
 
 static void exception_check_trace (int nr)
@@ -2972,6 +2992,15 @@ static void ExceptionX (int nr, uaecptr address)
 	}
 }
 
+void REGPARAM2 Exception_cpu(int nr)
+{
+	bool t0 = currprefs.cpu_model >= 68020 && regs.t0;
+	ExceptionX (nr, -1);
+	// check T0 trace
+	if (t0) {
+		activate_trace();
+	}
+}
 void REGPARAM2 Exception (int nr)
 {
 	ExceptionX (nr, -1);
@@ -3538,40 +3567,14 @@ void mmu_op (uae_u32 opcode, uae_u32 extra)
 
 #endif
 
-static uaecptr last_trace_ad = 0;
-
 static void do_trace (void)
 {
 	if (regs.t0 && currprefs.cpu_model >= 68020) {
-		uae_u16 opcode;
-		/* should also include TRAP, CHK, SR modification FPcc */
-		/* probably never used so why bother */
-		/* We can afford this to be inefficient... */
-		m68k_setpc_normal (m68k_getpc ());
-		fill_prefetch ();
-		opcode = x_get_word (regs.pc);
-		if (opcode == 0x4e73 			/* RTE */
-			|| opcode == 0x4e74 		/* RTD */
-			|| opcode == 0x4e75 		/* RTS */
-			|| opcode == 0x4e77 		/* RTR */
-			|| opcode == 0x4e76 		/* TRAPV */
-			|| (opcode & 0xffc0) == 0x4e80 	/* JSR */
-			|| (opcode & 0xffc0) == 0x4ec0 	/* JMP */
-			|| (opcode & 0xff00) == 0x6100	/* BSR */
-			|| ((opcode & 0xf000) == 0x6000	/* Bcc */
-			&& cctrue ((opcode >> 8) & 0xf))
-			|| ((opcode & 0xf0f0) == 0x5050	/* DBcc */
-			&& !cctrue ((opcode >> 8) & 0xf)
-			&& (uae_s16)m68k_dreg (regs, opcode & 7) != 0))
-		{
-			last_trace_ad = m68k_getpc ();
-			unset_special (SPCFLAG_TRACE);
-			set_special (SPCFLAG_DOTRACE);
-		}
-	} else if (regs.t1) {
-		last_trace_ad = m68k_getpc ();
-		unset_special (SPCFLAG_TRACE);
-		set_special (SPCFLAG_DOTRACE);
+		// this is obsolete
+		return;
+	}
+	if (regs.t1) {
+		activate_trace();
 	}
 }
 
@@ -7240,15 +7243,6 @@ static void pipeline_020(uae_u16 w, uaecptr pc)
 	}
 }
 
-// Not exactly right, requires logic analyzer checks.
-void continue_ce020_prefetch(void)
-{
-	fill_prefetch_020();
-}
-void continue_020_prefetch(void)
-{
-	fill_prefetch_020();
-}
 #endif
 
 uae_u32 get_word_ce020_prefetch (int o)
@@ -8238,7 +8232,15 @@ void flush_dcache (uaecptr addr, int size)
 	}
 }
 
-void fill_prefetch_030 (void)
+void check_t0_trace(void)
+{
+	if (regs.t0 && currprefs.cpu_model >= 68020) {
+		unset_special (SPCFLAG_TRACE);
+		set_special (SPCFLAG_DOTRACE);
+	}
+}
+
+void fill_prefetch_030_ntx (void)
 {
 	uaecptr pc = m68k_getpc ();
 	uaecptr pc2 = pc;
@@ -8272,7 +8274,7 @@ void fill_prefetch_030 (void)
 		regs.irc = get_word_030_prefetch(0);
 }
 
-void fill_prefetch_020 (void)
+void fill_prefetch_020_ntx(void)
 {
 	uaecptr pc = m68k_getpc ();
 	uaecptr pc2 = pc;
@@ -8307,6 +8309,29 @@ void fill_prefetch_020 (void)
 	else
 		regs.irc = get_word_020_prefetch (0);
 }
+
+// Not exactly right, requires logic analyzer checks.
+void continue_ce020_prefetch(void)
+{
+	fill_prefetch_020_ntx();
+}
+void continue_020_prefetch(void)
+{
+	fill_prefetch_020_ntx();
+}
+
+void fill_prefetch_020(void)
+{
+	fill_prefetch_020_ntx();
+	check_t0_trace();
+}
+
+void fill_prefetch_030(void)
+{
+	fill_prefetch_030_ntx();
+	check_t0_trace();
+}
+
 
 void fill_prefetch (void)
 {
