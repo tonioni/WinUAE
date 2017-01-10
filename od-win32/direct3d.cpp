@@ -63,6 +63,8 @@ struct shaderdata
 	int psPreProcess;
 	int worktex_width;
 	int worktex_height;
+	int targettex_width;
+	int targettex_height;
 	LPDIRECT3DTEXTURE9 lpWorkTexture1;
 	LPDIRECT3DTEXTURE9 lpWorkTexture2;
 	LPDIRECT3DTEXTURE9 lpTempTexture;
@@ -82,6 +84,7 @@ struct shaderdata
 	// Texture Handles
 	D3DXHANDLE m_SourceDimsEffectHandle;
 	D3DXHANDLE m_InputDimsEffectHandle;
+	D3DXHANDLE m_TargetDimsEffectHandle;
 	D3DXHANDLE m_TexelSizeEffectHandle;
 	D3DXHANDLE m_SourceTextureEffectHandle;
 	D3DXHANDLE m_WorkingTexture1EffectHandle;
@@ -409,6 +412,8 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DX
 					s->m_SourceDimsEffectHandle = hParam;
 				if (strcmpi(ParamDesc.Semantic, "inputdims") == 0)
 					s->m_InputDimsEffectHandle = hParam;
+				if (strcmpi(ParamDesc.Semantic, "targetdims") == 0)
+					s->m_TargetDimsEffectHandle = hParam;
 				else if (strcmpi(ParamDesc.Semantic, "texelsize") == 0)
 					s->m_TexelSizeEffectHandle = hParam;
 			} else if(ParamDesc.Class == D3DXPC_SCALAR && ParamDesc.Type == D3DXPT_FLOAT) {
@@ -1061,7 +1066,19 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, struct shaderdata 
 	if (s->m_InputDimsEffectHandle) {
 		hr = s->pEffect->SetVector(s->m_InputDimsEffectHandle, &fDims);
 		if (FAILED(hr)) {
-			write_log(_T("%s: SetTextures:SetVector:Source %s\n"), D3DHEAD, D3D_ErrorString(hr));
+			write_log(_T("%s: SetTextures:SetVector:Input %s\n"), D3DHEAD, D3D_ErrorString(hr));
+			return 0;
+		}
+	}
+	if (s->m_TargetDimsEffectHandle) {
+		D3DXVECTOR4 fDims2;
+		fDims2.x = s->targettex_width;
+		fDims2.y = s->targettex_height;
+		fDims2.z = 1;
+		fDims2.w = 1;
+		hr = s->pEffect->SetVector(s->m_TargetDimsEffectHandle, &fDims2);
+		if (FAILED(hr)) {
+			write_log(_T("%s: SetTextures:SetVector:Target %s\n"), D3DHEAD, D3D_ErrorString(hr));
 			return 0;
 		}
 	}
@@ -1271,6 +1288,8 @@ static int createtexture (int ow, int oh, int win_w, int win_h)
 				w = ow;
 				h = oh;
 			}
+			shaders[i].targettex_width = w2;
+			shaders[i].targettex_height = h2;
 			if (FAILED (hr = d3ddev->CreateTexture (w2, h2, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &shaders[i].lpTempTexture, NULL))) {
 				write_log (_T("%s: Failed to create working texture1: %s:%d:%d\n"), D3DHEAD, D3D_ErrorString (hr), i, shaders[i].type);
 				return 0;
