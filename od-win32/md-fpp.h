@@ -25,7 +25,9 @@
 extern void to_single(fpdata *fpd, uae_u32 value);
 extern void to_double(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2);
 extern void to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3);
+extern const TCHAR *fp_print(fpdata *fpd);
 
+#if 0
 STATIC_INLINE void exten_zeronormalize(uae_u32 *pwrd1, uae_u32 *pwrd2, uae_u32 *pwrd3)
 {
 	uae_u32 wrd1 = *pwrd1;
@@ -198,7 +200,6 @@ STATIC_INLINE void from_double_x(double src, uae_u32 * wrd1, uae_u32 * wrd2)
 }
 #endif
 
-static const double twoto32 = 4294967296.0;
 #ifndef HAVE_to_exten
 #define HAVE_to_exten
 STATIC_INLINE void to_exten_x(fptype *fp, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
@@ -247,4 +248,5 @@ STATIC_INLINE void from_exten_x(fptype fp, uae_u32 * wrd1, uae_u32 * wrd2, uae_u
 	*wrd2 = (uae_u32) (frac * twoto32);
 	*wrd3 = (uae_u32) ((frac * twoto32 - *wrd2) * twoto32);
 }
+#endif
 #endif

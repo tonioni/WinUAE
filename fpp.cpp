@@ -35,9 +35,7 @@
 #include "cpummu030.h"
 #include "debug.h"
 
-#ifdef WITH_SOFTFLOAT
-#include "softfloatx80.h"
-#endif
+#include "softfloat/softfloat.h"
 
 #define DEBUG_FPP 0
 #define EXCEPTION_FPP 1
@@ -119,6 +117,7 @@ static double *fp_1e4096 = (double *)dhex_inf;
 static double *fp_inf    = (double *)dhex_inf;
 static double *fp_nan    = (double *)dhex_nan;
 #endif
+static const double twoto32 = 4294967296.0;
 double fp_1e8 = 1.0e8;
 float  fp_1e0 = 1, fp_1e1 = 10, fp_1e2 = 100, fp_1e4 = 10000;
 static bool fpu_mmu_fixup;
@@ -128,12 +127,9 @@ static bool fpu_mmu_fixup;
 #define FFLAG_NAN   0x0400
 
 
-#ifdef WITH_SOFTFLOAT
 static floatx80 fxsizes[6] = { 0 };
 static floatx80 fxzero;
 static floatx80 fx_1e0, fx_1e1, fx_1e2, fx_1e4, fx_1e8;
-struct float_status_t fxstatus;
-#endif
 static const fptype fsizes[] = { -128.0, 127.0, -32768.0, 32767.0, -2147483648.0, 2147483647.0 };
 
 #define FP_INEXACT (1 << 9)
@@ -146,181 +142,409 @@ static const fptype fsizes[] = { -128.0, 127.0, -32768.0, 32767.0, -2147483648.0
 
 STATIC_INLINE void MAKE_FPSR (fptype *fp)
 {
-#ifdef WITH_SOFTFLOAT
-	if (currprefs.fpu_softfloat)
+	if (currprefs.fpu_softfloat) {
 		return;
-#endif
-	int status = fetestexcept (FE_ALL_EXCEPT);
-	if (status) {
-		if (status & FE_INEXACT)
-			regs.fp_result_status |= FP_INEXACT;
-		if (status & FE_DIVBYZERO)
-			regs.fp_result_status |= FP_DIVBYZERO;
-		if (status & FE_UNDERFLOW)
-			regs.fp_result_status |= FP_UNDERFLOW;
-		if (status & FE_OVERFLOW)
-			regs.fp_result_status |= FP_OVERFLOW;
-		if (status & FE_INVALID)
-			regs.fp_result_status |= FP_OPERAND;
+	} else {
+		int status = fetestexcept (FE_ALL_EXCEPT);
+		if (status) {
+			if (status & FE_INEXACT)
+				regs.fp_result_status |= FP_INEXACT;
+			if (status & FE_DIVBYZERO)
+				regs.fp_result_status |= FP_DIVBYZERO;
+			if (status & FE_UNDERFLOW)
+				regs.fp_result_status |= FP_UNDERFLOW;
+			if (status & FE_OVERFLOW)
+				regs.fp_result_status |= FP_OVERFLOW;
+			if (status & FE_INVALID)
+				regs.fp_result_status |= FP_OPERAND;
+		}
+		regs.fp_result.fp = *fp;
 	}
-	regs.fp_result.fp = *fp;
 }
 
-#ifdef WITH_SOFTFLOAT
 STATIC_INLINE void MAKE_FPSR_SOFTFLOAT(floatx80 fx)
 {
-	if (fxstatus.float_exception_flags & float_flag_invalid)
+	if (float_exception_flags & float_flag_invalid)
 		regs.fp_result_status |= FP_OPERAND;
-	if (fxstatus.float_exception_flags & float_flag_divbyzero)
+	if (float_exception_flags & float_flag_divbyzero)
 		regs.fp_result_status |= FP_DIVBYZERO;
-	if (fxstatus.float_exception_flags & float_flag_overflow)
+	if (float_exception_flags & float_flag_overflow)
 		regs.fp_result_status |= FP_OVERFLOW;
-	if (fxstatus.float_exception_flags & float_flag_underflow)
+	if (float_exception_flags & float_flag_underflow)
 		regs.fp_result_status |= FP_UNDERFLOW;
-	if (fxstatus.float_exception_flags & float_flag_inexact)
+	if (float_exception_flags & float_flag_inexact)
 		regs.fp_result_status |= FP_INEXACT;
 	regs.fp_result.fpx = fx;
 }
-#endif
 
-STATIC_INLINE void CLEAR_STATUS (void)
+static void CLEAR_STATUS (void)
 {
-#ifdef WITH_SOFTFLOAT
-	if (currprefs.fpu_softfloat)
+	if (currprefs.fpu_softfloat) {
+		float_exception_flags = 0;
 		return;
-#endif
+	}
 	feclearexcept (FE_ALL_EXCEPT);
 }
 
-#ifdef WITH_SOFTFLOAT
+static void fp_roundsgl(fpdata *fpd)
+{
+	if (currprefs.fpu_softfloat) {
+		fpd->fpx = floatx80_round32(fpd->fpx);
+	} else {
+		int expon;
+		float mant;
+#ifdef USE_LONG_DOUBLE
+		mant = (float)(frexpl(fpd->fp, &expon) * 2.0);
+		fpd->fp = ldexpl((fptype)mant, expon - 1);
+#else
+		mant = (float)(frexp(fpd->fp, &expon) * 2.0);
+		fpd->fp = ldexp((fptype)mant, expon - 1);
+#endif
+	}
+}
+static void fp_round32(fpdata *fpd)
+{
+	if (currprefs.fpu_softfloat) {
+		float32 f = floatx80_to_float32(fpd->fpx);
+		fpd->fpx = float32_to_floatx80(f);
+	} else {
+		fpd->fp = (float)fpd->fp;
+	}
+}
+static void fp_round64(fpdata *fpd)
+{
+	if (currprefs.fpu_softfloat) {
+		float64 f = floatx80_to_float64(fpd->fpx);
+		fpd->fpx = float64_to_floatx80(f);
+	} else {
+#ifdef USE_LONG_DOUBLE
+		fpd->fp = (double)fpd->fp;
+#else
+		;
+#endif
+	}
+}
+
+static void to_native(fptype *fp, fpdata *fpd)
+{
+	if (currprefs.fpu_softfloat) {
+		int expon;
+		fptype frac;
+		floatx80 *fpx = &fpd->fpx;
+    
+		expon = fpx->high & 0x7fff;
+    
+		if (floatx80_is_zero(*fpx)) {
+			*fp = floatx80_is_negative(*fpx) ? -0.0 : +0.0;
+			return;
+		}
+		if (floatx80_is_nan(*fpx)) {
+			*fp = sqrtl(-1);
+			return;
+		}
+		if (floatx80_is_infinity(*fpx)) {
+			*fp = floatx80_is_negative(*fpx) ? logl(0.0) : (1.0/0.0);
+			return;
+		}
+    
+		frac = (long double)fpx->low / (long double)(twoto32 * 2147483648.0);
+		if (floatx80_is_negative(*fpx))
+			frac = -frac;
+		*fp = ldexpl (frac, expon - 16383);
+	} else {
+		*fp = fpd->fp;
+	}
+}
+
+static void from_native(fptype fp, fpdata *fpd)
+{
+	if (currprefs.fpu_softfloat) {
+		int expon;
+		fptype frac;
+		floatx80 *fpx = &fpd->fpx;
+    
+		if (signbit(fp))
+			fpx->high = 0x8000;
+		else
+			fpx->high = 0x0000;
+    
+		if (isnan(fp)) {
+			fpx->high |= 0x7fff;
+			fpx->low = LIT64(0xffffffffffffffff);
+			return;
+		}
+		if (isinf(fp)) {
+			fpx->high |= 0x7fff;
+			fpx->low = LIT64(0x0000000000000000);
+			return;
+		}
+		if (fp == 0.0) {
+			fpx->low = LIT64(0x0000000000000000);
+			return;
+		}
+		if (fp < 0.0)
+			fp = -fp;
+    
+		frac = frexpl (fp, &expon);
+		frac += 0.5 / (twoto32 * twoto32);
+		if (frac >= 1.0) {
+			frac /= 2.0;
+			expon++;
+		}
+		fpx->high |= (expon + 16383 - 1) & 0x7fff;
+		fpx->low = (bits64)(frac * (long double)(twoto32 * twoto32));
+    
+		while (!(fpx->low & LIT64( 0x8000000000000000))) {
+			if (fpx->high == 0) {
+				float_raise( float_flag_denormal );
+				break;
+			}
+			fpx->low <<= 1;
+			fpx->high--;
+		}
+	} else {
+		fpd->fp = fp;
+	}
+}
+
 static void softfloat_set(floatx80 *fx, uae_u32 *f)
 {
-	fx->exp = (uae_u16)f[2];
-	fx->fraction = ((uae_u64)f[1] << 32) | f[0];
+	fx->high = (uae_u16)f[2];
+	fx->low = ((uae_u64)f[1] << 32) | f[0];
 }
 static void softfloat_get(floatx80 *fx, uae_u32 *f)
 {
-	f[2] = fx->exp;
-	f[1] = fx->fraction >> 32;
-	f[0] = (uae_u32)fx->fraction;
-}
-#endif
-
-static void fpnan (fpdata *fpd)
-{
-	fpd->fp = *fp_nan;
-#ifdef WITH_SOFTFLOAT
-	softfloat_set(&fpd->fpx, xhex_nan);
-#endif
+	f[2] = fx->high;
+	f[1] = fx->low >> 32;
+	f[0] = (uae_u32)fx->low;
 }
 
-static void fpclear (fpdata *fpd)
+static void to_single_xn(fpdata *fpd, uae_u32 wrd1)
 {
-	fpd->fp = 0;
-#ifdef WITH_SOFTFLOAT
-	fpd->fpx = int32_to_floatx80(0);
-#endif
-}
-static void fpset (fpdata *fpd, uae_s32 val)
-{
-	fpd->fp = (fptype)val;
-#ifdef WITH_SOFTFLOAT
-	fpd->fpx = int32_to_floatx80(val);
-#endif
-}
-
-void to_single(fpdata *fpd, uae_u32 value)
-{
-#ifdef WITH_SOFTFLOAT
 	if (currprefs.fpu_softfloat) {
-		float32 f = value;
-		fpd->fpx = float32_to_floatx80(f, fxstatus);
-	} else
-#endif
-		fpd->fp = to_single_x(value);
+	    float32 f = wrd1;
+	    fpd->fpx = float32_to_floatx80(f); // automatically fix denormals
+	} else {
+		union {
+			float f;
+			uae_u32 u;
+		} val;
+		val.u = wrd1;
+		fpd->fp = (fptype) val.f;
+	}
 }
-static uae_u32 from_single(fpdata *fpd)
+static void to_single_x(fpdata *fpd, uae_u32 wrd1)
 {
-#ifdef WITH_SOFTFLOAT
 	if (currprefs.fpu_softfloat) {
-		float32 f = floatx80_to_float32(fpd->fpx, fxstatus);
+	    float32 f = wrd1;
+	    fpd->fpx = float32_to_floatx80_allowunnormal(f);
+	} else {
+		union {
+			float f;
+			uae_u32 u;
+		} val;
+		val.u = wrd1;
+		fpd->fp = (fptype) val.f;
+	}
+}
+static uae_u32 from_single_x(fpdata *fpd)
+{
+ 	if (currprefs.fpu_softfloat) {
+		float32 f = floatx80_to_float32(fpd->fpx);
 		return f;
-	} else
-#endif
-		return from_single_x(fpd->fp);
+	} else {
+		union {
+			float f;
+			uae_u32 u;
+		} val;
+		val.f = (float)fpd->fp;
+		return val.u;
+	}
 }
-void to_double(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2)
+
+static void to_double_xn(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2)
 {
-#ifdef WITH_SOFTFLOAT
-	if (currprefs.fpu_softfloat) {
+ 	if (currprefs.fpu_softfloat) {
 		float64 f = ((float64)wrd1 << 32) | wrd2;
-		fpd->fpx = float64_to_floatx80(f, fxstatus);
-	} else
+		fpd->fpx = float64_to_floatx80(f); // automatically fix denormals
+	} else {
+		union {
+			double d;
+			uae_u32 u[2];
+		} val;
+#ifdef WORDS_BIGENDIAN
+		val.u[0] = wrd1;
+		val.u[1] = wrd2;
+#else
+		val.u[1] = wrd1;
+		val.u[0] = wrd2;
 #endif
-		fpd->fp = to_double_x(wrd1, wrd2);
+		fpd->fp = (fptype) val.d;
+	}
 }
-static void from_double(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2)
+static void to_double_x(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2)
 {
-#ifdef WITH_SOFTFLOAT
+ 	if (currprefs.fpu_softfloat) {
+		float64 f = ((float64)wrd1 << 32) | wrd2;
+		fpd->fpx = float64_to_floatx80_allowunnormal(f);
+	} else {
+		union {
+			double d;
+			uae_u32 u[2];
+		} val;
+#ifdef WORDS_BIGENDIAN
+		val.u[0] = wrd1;
+		val.u[1] = wrd2;
+#else
+		val.u[1] = wrd1;
+		val.u[0] = wrd2;
+#endif
+		fpd->fp = (fptype) val.d;
+	}
+}
+static void from_double_x(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2)
+{
 	if (currprefs.fpu_softfloat) {
-		float64 f = floatx80_to_float64(fpd->fpx, fxstatus);
+		float64 f = floatx80_to_float64(fpd->fpx);
 		*wrd1 = f >> 32;
 		*wrd2 = (uae_u32)f;
-		return;
-	} else
+	} else {
+		union {
+			double d;
+			uae_u32 u[2];
+		} val;
+		val.d = (double) fpd->fp;
+#ifdef WORDS_BIGENDIAN
+		*wrd1 = val.u[0];
+		*wrd2 = val.u[1];
+#else
+		*wrd1 = val.u[1];
+		*wrd2 = val.u[0];
 #endif
-		return from_double_x(fpd->fp, wrd1, wrd2);
+	}
 }
-void to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
+#ifdef USE_LONG_DOUBLE
+static void to_exten_x(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
-#ifdef WITH_SOFTFLOAT
 	if (currprefs.fpu_softfloat) {
-		fpd->fpx.exp = wrd1 >> 16;
-		fpd->fpx.fraction = ((uae_u64)wrd2 << 32) | wrd3;
-#if 0
-		if ((currprefs.fpu_model == 68881 || currprefs.fpu_model == 68882) || currprefs.fpu_no_unimplemented) {
-			// automatically fix denormals if 6888x or no implemented emulation
-			Bit64u Sig = extractFloatx80Frac(fpd->fpx);
-			Bit32s Exp = extractFloatx80Exp(fpd->fpx);
-			if (Exp == 0 && Sig != 0)
-				normalizeFloatx80Subnormal(Sig, &Exp, &Sig);
+		uae_u32 wrd[3] = { wrd1, wrd2, wrd3 };
+		softfloat_set(&fpd->fpx, wrd);
+	} else {
+		union {
+			fptype ld;
+			uae_u32 u[3];
+		} val;
+#if WORDS_BIGENDIAN
+		val.u[0] = (wrd1 & 0xffff0000) | ((wrd2 & 0xffff0000) >> 16);
+		val.u[1] = (wrd2 & 0x0000ffff) | ((wrd3 & 0xffff0000) >> 16);
+		val.u[2] = (wrd3 & 0x0000ffff) << 16;
+#else
+		val.u[0] = wrd3;
+		val.u[1] = wrd2;
+		val.u[2] = wrd1 >> 16;
+#endif
+		fpd->fp = val.ld;
+	}
+}
+static void from_exten_x(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3)
+{
+	if (currprefs.fpu_softfloat) {
+		uae_u32 wrd[3];
+		softfloat_get(&fpd->fpx, wrd);
+		*wrd1 = wrd[0];
+		*wrd2 = wrd[1];
+		*wrd3 = wrd[2];
+	} else {
+		union {
+			fptype ld;
+			uae_u32 u[3];
+		} val;
+		val.ld = *fp;
+#if WORDS_BIGENDIAN
+		*wrd1 = val.u[0] & 0xffff0000;
+		*wrd2 = ((val.u[0] & 0x0000ffff) << 16) | ((val.u[1] & 0xffff0000) >> 16);
+		*wrd3 = ((val.u[1] & 0x0000ffff) << 16) | ((val.u[2] & 0xffff0000) >> 16);
+#else
+		*wrd3 = val.u[0];
+		*wrd2 = val.u[1];
+		*wrd1 = val.u[2] << 16;
+#endif
+	}
+}
+#else // if !USE_LONG_DOUBLE
+static void to_exten_x(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
+{
+	if (currprefs.fpu_softfloat) {
+		uae_u32 wrd[3] = { wrd1, wrd2, wrd3 };
+		softfloat_set(&fpd->fpx, wrd);
+	} else {
+		fptype frac;
+		if ((wrd1 & 0x7fff0000) == 0 && wrd2 == 0 && wrd3 == 0) {
+			fpd->fp = (wrd1 & 0x80000000) ? -0.0 : +0.0;
+			return;
 		}
-#endif
-	} else
-#endif
-		to_exten_x(&fpd->fp, wrd1, wrd2, wrd3);
+		frac = ((fptype)wrd2 + ((fptype)wrd3 / twoto32)) / 2147483648.0;
+		if (wrd1 & 0x80000000)
+			frac = -frac;
+		fpd->fp = ldexp (frac, ((wrd1 >> 16) & 0x7fff) - 16383);
+	}
 }
-static void from_exten(fpdata *fpd, uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wrd3)
+static void from_exten_x(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3)
 {
-#ifdef WITH_SOFTFLOAT
 	if (currprefs.fpu_softfloat) {
-		*wrd1 = fpd->fpx.exp << 16;
-		*wrd2 = fpd->fpx.fraction >> 32;
-		*wrd3 = (uae_u32)fpd->fpx.fraction;
-	} else
-#endif
-		from_exten_x(fpd->fp, wrd1, wrd2, wrd3);
+		uae_u32 wrd[3];
+		softfloat_get(&fpd->fpx, wrd);
+		*wrd1 = wrd[0];
+		*wrd2 = wrd[1];
+		*wrd3 = wrd[2];
+	} else {
+		int expon;
+		fptype frac;
+		fptype v;
+
+		v = fpd->fp;
+		if (v == 0.0) {
+			*wrd1 = signbit(v) ? 0x80000000 : 0;
+			*wrd2 = 0;
+			*wrd3 = 0;
+			return;
+		}
+		if (v < 0) {
+			*wrd1 = 0x80000000;
+			v = -v;
+		} else {
+			*wrd1 = 0;
+		}
+		frac = frexp (v, &expon);
+		frac += 0.5 / (twoto32 * twoto32);
+		if (frac >= 1.0) {
+			frac /= 2.0;
+			expon++;
+		}
+		*wrd1 |= (((expon + 16383 - 1) & 0x7fff) << 16);
+		*wrd2 = (uae_u32) (frac * twoto32);
+		*wrd3 = (uae_u32) ((frac * twoto32 - *wrd2) * twoto32);
+	}
 }
+#endif // !USE_LONG_DOUBLE
 
-
-#if 0
-static void normalize(uae_u32 *pwrd1, uae_u32 *pwrd2, uae_u32 *pwrd3)
+static void normalize_exten(uae_u32 *pwrd1, uae_u32 *pwrd2, uae_u32 *pwrd3)
 {
 	uae_u32 wrd1 = *pwrd1;
 	uae_u32 wrd2 = *pwrd2;
 	uae_u32 wrd3 = *pwrd3;
-	int exp = (wrd1 >> 16) & 0x7fff;
+	uae_u16 exp = (wrd1 >> 16) & 0x7fff;
 	// Normalize if unnormal.
 	if (exp != 0 && exp != 0x7fff && !(wrd2 & 0x80000000)) {
 		while (!(wrd2 & 0x80000000) && (wrd2 || wrd3)) {
+			if (exp == 0)
+				break; // Result is denormal
 			wrd2 <<= 1;
 			if (wrd3 & 0x80000000)
 				wrd2 |= 1;
 			wrd3 <<= 1;
 			exp--;
 		}
-		if (exp < 0)
-			exp = 0;
 		if (!wrd2 && !wrd3)
 			exp = 0;
 		*pwrd1 = (wrd1 & 0x80000000) | (exp << 16);
@@ -328,7 +552,189 @@ static void normalize(uae_u32 *pwrd1, uae_u32 *pwrd2, uae_u32 *pwrd3)
 		*pwrd3 = wrd3;
 	}
 }
+
+static void from_int(fpdata *fpd, uae_s32 src)
+{
+	if (currprefs.fpu_softfloat) {
+	    fpd->fpx = int32_to_floatx80(src);
+	} else {
+		fpd->fp = (fptype)src;
+	}
+}
+
+static void fpclear (fpdata *fpd)
+{
+    from_int(fpd, 0);
+}
+static void fpset (fpdata *fpd, uae_s32 val)
+{
+    from_int(fpd, val);
+}
+
+void to_single(fpdata *fpd, uae_u32 wrd1)
+{
+    // automatically fix denormals if 6888x
+    if (currprefs.fpu_model == 68881 || currprefs.fpu_model == 68882)
+        to_single_xn(fpd, wrd1);
+    else
+        to_single_x(fpd, wrd1);
+}
+static uae_u32 from_single(fpdata *fpd)
+{
+    return from_single_x(fpd);
+}
+void to_double(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2)
+{
+    // automatically fix denormals if 6888x
+    if (currprefs.fpu_model == 68881 || currprefs.fpu_model == 68882)
+        to_double_xn(fpd, wrd1, wrd2);
+    else
+        to_double_x(fpd, wrd1, wrd2);
+}
+static void from_double(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2)
+{
+    from_double_x(fpd, wrd1, wrd2);
+}
+
+void to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
+{
+    // automatically fix unnormals if 6888x
+	if (currprefs.fpu_model == 68881 || currprefs.fpu_model == 68882) {
+		normalize_exten(&wrd1, &wrd2, &wrd3);
+	}
+	to_exten_x(fpd, wrd1, wrd2, wrd3);
+}
+static void to_exten_fmovem(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
+{
+	to_exten_x(fpd, wrd1, wrd2, wrd3);
+}
+static void from_exten(fpdata *fpd, uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wrd3)
+{
+	from_exten_x(fpd, wrd1, wrd2, wrd3);
+}
+
+/* Floating Point Control Register (FPCR)
+ *
+ * Exception Enable Byte
+ * x--- ---- ---- ----  bit 15: BSUN (branch/set on unordered)
+ * -x-- ---- ---- ----  bit 14: SNAN (signaling not a number)
+ * --x- ---- ---- ----  bit 13: OPERR (operand error)
+ * ---x ---- ---- ----  bit 12: OVFL (overflow)
+ * ---- x--- ---- ----  bit 11: UNFL (underflow)
+ * ---- -x-- ---- ----  bit 10: DZ (divide by zero)
+ * ---- --x- ---- ----  bit 9: INEX 2 (inexact operation)
+ * ---- ---x ---- ----  bit 8: INEX 1 (inexact decimal input)
+ *
+ * Mode Control Byte
+ * ---- ---- xx-- ----  bits 7 and 6: PREC (rounding precision)
+ * ---- ---- --xx ----  bits 5 and 4: RND (rounding mode)
+ * ---- ---- ---- xxxx  bits 3 to 0: all 0
+ */
+
+#define FPCR_PREC   0x00C0
+#define FPCR_RND    0x0030
+
+/* Floating Point Status Register (FPSR)
+ *
+ * Condition Code Byte
+ * xxxx ---- ---- ---- ---- ---- ---- ----  bits 31 to 28: all 0
+ * ---- x--- ---- ---- ---- ---- ---- ----  bit 27: N (negative)
+ * ---- -x-- ---- ---- ---- ---- ---- ----  bit 26: Z (zero)
+ * ---- --x- ---- ---- ---- ---- ---- ----  bit 25: I (infinity)
+ * ---- ---x ---- ---- ---- ---- ---- ----  bit 24: NAN (not a number or unordered)
+ *
+ * Quotient Byte (set and reset only by FMOD and FREM)
+ * ---- ---- x--- ---- ---- ---- ---- ----  bit 23: sign of quotient
+ * ---- ---- -xxx xxxx ---- ---- ---- ----  bits 22 to 16: 7 least significant bits of quotient
+ *
+ * Exception Status Byte
+ * ---- ---- ---- ---- x--- ---- ---- ----  bit 15: BSUN (branch/set on unordered)
+ * ---- ---- ---- ---- -x-- ---- ---- ----  bit 14: SNAN (signaling not a number)
+ * ---- ---- ---- ---- --x- ---- ---- ----  bit 13: OPERR (operand error)
+ * ---- ---- ---- ---- ---x ---- ---- ----  bit 12: OVFL (overflow)
+ * ---- ---- ---- ---- ---- x--- ---- ----  bit 11: UNFL (underflow)
+ * ---- ---- ---- ---- ---- -x-- ---- ----  bit 10: DZ (divide by zero)
+ * ---- ---- ---- ---- ---- --x- ---- ----  bit 9: INEX 2 (inexact operation)
+ * ---- ---- ---- ---- ---- ---x ---- ----  bit 8: INEX 1 (inexact decimal input)
+ *
+ * Accrued Exception Byte
+ * ---- ---- ---- ---- ---- ---- x--- ----  bit 7: IOP (invalid operation)
+ * ---- ---- ---- ---- ---- ---- -x-- ----  bit 6: OVFL (overflow)
+ * ---- ---- ---- ---- ---- ---- --x- ----  bit 5: UNFL (underflow)
+ * ---- ---- ---- ---- ---- ---- ---x ----  bit 4: DZ (divide by zero)
+ * ---- ---- ---- ---- ---- ---- ---- x---  bit 3: INEX (inexact)
+ * ---- ---- ---- ---- ---- ---- ---- -xxx  bits 2 to 0: all 0
+ */
+
+#define FPSR_ZEROBITS   0xF0000007
+
+#define FPSR_CC_N       0x08000000
+#define FPSR_CC_Z       0x04000000
+#define FPSR_CC_I       0x02000000
+#define FPSR_CC_NAN     0x01000000
+
+#define FPSR_QUOT_SIGN  0x00800000
+#define FPSR_QUOT_LSB   0x007F0000
+
+#define FPSR_BSUN       0x00008000
+#define FPSR_SNAN       0x00004000
+#define FPSR_OPERR      0x00002000
+#define FPSR_OVFL       0x00001000
+#define FPSR_UNFL       0x00000800
+#define FPSR_DZ         0x00000400
+#define FPSR_INEX2      0x00000200
+#define FPSR_INEX1      0x00000100
+
+#define FPSR_AE_IOP     0x00000080
+#define FPSR_AE_OVFL    0x00000040
+#define FPSR_AE_UNFL    0x00000020
+#define FPSR_AE_DZ      0x00000010
+#define FPSR_AE_INEX    0x00000008
+
+static void fpnan (fpdata *fpd)
+{
+    to_exten(fpd, xhex_nan[0], xhex_nan[1], xhex_nan[2]);
+}
+
+const TCHAR *fp_print(fpdata *fpd)
+{
+	static TCHAR fs[32];
+	if (currprefs.fpu_softfloat) {
+		bool n, u, d;
+		fptype result = 0.0;
+		int i;
+		floatx80 *fx = &fpd->fpx;
+
+		n = floatx80_is_negative(*fx);
+		u = floatx80_is_unnormal(*fx);
+		d = floatx80_is_denormal(*fx);
+    
+		if (floatx80_is_zero(*fx)) {
+			_stprintf(fs, _T("%c%#.17Le%s%s"), n?'-':'+', (fptype) 0.0, u ? _T("U") : _T(""), d ? _T("D") : _T(""));
+		} else if (floatx80_is_infinity(*fx)) {
+			_stprintf(fs, _T("%c%s"), n?'-':'+', _T("inf"));
+		} else if (floatx80_is_signaling_nan(*fx)) {
+			_stprintf(fs, _T("%c%s"), n?'-':'+', _T("snan"));
+		} else if (floatx80_is_nan(*fx)) {
+			_stprintf(fs, _T("%c%s"), n?'-':'+', _T("nan"));
+		} else {
+			for (i = 63; i >= 0; i--) {
+				if (fx->low & (((uae_u64)1)<<i)) {
+					result += (fptype) 1.0 / (((uae_u64)1)<<(63-i));
+				}
+			}
+			result *= powl(2.0, (fx->high&0x7FFF) - 0x3FFF);
+			_stprintf(fs, _T("%c%#.17Le%s%s"), n?'-':'+', result, u ? _T("U") : _T(""), d ? _T("D") : _T(""));
+		}
+	} else {
+#if USE_LONG_DOUBLE
+		_stprintf(fs, _T("#%Le"), fpd->fp);
+#else
+		_stprintf(fs, _T("#%e"), fpd->fp);
 #endif
+	}
+	return fs;
+}
 
 static bool fpu_get_constant_fp(fpdata *fp, int cr)
 {
@@ -408,7 +814,6 @@ static bool fpu_get_constant_fp(fpdata *fp, int cr)
 	return true;
 }
 
-#ifdef WITH_SOFTFLOAT
 static bool fpu_get_constant_softfloat(fpdata *fp, int cr)
 {
 	uae_u32 *f = NULL;
@@ -491,51 +896,35 @@ static bool fpu_get_constant_softfloat(fpdata *fp, int cr)
 		fp->fpx = fx;
 	return true;
 }
-#endif
 
 bool fpu_get_constant(fpdata *fp, int cr)
 {
-#ifdef WITH_SOFTFLOAT
-	if (currprefs.fpu_softfloat)
+	if (currprefs.fpu_softfloat) {
 		return fpu_get_constant_softfloat(fp, cr);
-#endif
-	return fpu_get_constant_fp(fp, cr);
+	} else {
+		return fpu_get_constant_fp(fp, cr);
+	}
 }
 
-#ifdef WITH_SOFTFLOAT
-
-static inline void set_fpucw_softfloat(uae_u32 m68k_cw)
+static void set_fpucw_softfloat(uae_u32 m68k_cw)
 {
-	switch((m68k_cw >> 6) & 3) {
-	case 0: // X
-	default: // undefined
-		fxstatus.float_rounding_precision = 80;
-		break;
-	case 1: // S
-		fxstatus.float_rounding_precision = 32;
-		break;
-	case 2: // D
-		fxstatus.float_rounding_precision = 64;
-		break;
-	}
+	floatx80_rounding_precision = 80;
 	switch((m68k_cw >> 4) & 3) {
-	case 0: // to neareset
-		fxstatus.float_rounding_precision = float_round_nearest_even;
+	case 0: // to nearest
+		float_rounding_mode = float_round_nearest_even;
 		break;
 	case 1: // to zero
-		fxstatus.float_rounding_mode = float_round_to_zero;
+		float_rounding_mode = float_round_to_zero;
 		break;
 	case 2: // to minus
-		fxstatus.float_rounding_mode = float_round_down;
+		float_rounding_mode = float_round_down;
 		break;
 	case 3: // to plus
-		fxstatus.float_rounding_mode = float_round_up;
+		float_rounding_mode = float_round_up;
 		break;
 	}
 	return;
 }
-
-#endif /* WITH_SOFTFLOAT */
 
 #if defined(CPU_i386) || defined(CPU_x86_64)
 
@@ -618,11 +1007,9 @@ static inline void set_fpucw_x87(uae_u32 m68k_cw)
 
 static void native_set_fpucw(uae_u32 m68k_cw)
 {
-#ifdef WITH_SOFTFLOAT
 	if (currprefs.fpu_softfloat) {
 		set_fpucw_softfloat(m68k_cw);
 	}
-#endif
 #if defined(CPU_i386) || defined(CPU_x86_64)
 	set_fpucw_x87(m68k_cw);
 #endif
@@ -989,24 +1376,21 @@ static void fpu_null (void)
 #define fp_round_to_zero(x)	((x) >= 0.0 ? floor(x) : ceil(x))
 #define fp_round_to_nearest(x) ((x) >= 0.0 ? (int)((x) + 0.5) : (int)((x) - 0.5))
 
-static tointtype toint(fpdata *src, int size)
+static tointtype to_int(fpdata *src, int size)
 {
-#ifdef WITH_SOFTFLOAT
 	if (currprefs.fpu_softfloat) {
-		if (floatx80_compare(src->fpx, fxsizes[size * 2 + 0], fxstatus) == float_relation_greater)
-			return floatx80_to_int32(fxsizes[size * 2 + 0], fxstatus);
-		if (floatx80_compare(src->fpx, fxsizes[size * 2 + 1], fxstatus) == float_relation_less)
-			return floatx80_to_int32(fxsizes[size * 2 + 1], fxstatus);
-		return floatx80_to_int32(src->fpx, fxstatus);
-	} else
-#endif
-	{
+		if (floatx80_lt(src->fpx, fxsizes[size * 2 + 0]))
+			return floatx80_to_int32(fxsizes[size * 2 + 0]);
+		if (floatx80_le(fxsizes[size * 2 + 1], src->fpx))
+			return floatx80_to_int32(fxsizes[size * 2 + 1]);
+		return floatx80_to_int32(src->fpx);
+	} else {
 		fptype fp = src->fp;
 		if (fp < fsizes[size * 2 + 0])
 			fp = fsizes[size * 2 + 0];
 		if (fp > fsizes[size * 2 + 1])
 			fp = fsizes[size * 2 + 1];
-	#if defined(X86_MSVC_ASSEMBLY_FPU)
+#if defined(X86_MSVC_ASSEMBLY_FPU)
 		{
 			fptype tmp_fp;
 			__asm {
@@ -1016,7 +1400,7 @@ static tointtype toint(fpdata *src, int size)
 			}
 			return (tointtype)tmp_fp;
 		}
-	#else /* no X86_MSVC */
+#else /* no X86_MSVC */
 		{
 			int result = (int)fp;
 			switch (regs.fpcr & 0x30)
@@ -1036,61 +1420,80 @@ static tointtype toint(fpdata *src, int size)
 			}
 			return result;
 		}
-	#endif
+#endif
 	}
 }
 
 static bool fp_is_snan(fpdata *fpd)
 {
-#ifdef WITH_SOFTFLOAT
-	if (currprefs.fpu_softfloat)
+	if (currprefs.fpu_softfloat) {
 		return floatx80_is_signaling_nan(fpd->fpx) != 0;
-#endif
-	return false;
+	} else {
+		return false;
+	}
+}
+static void fp_unset_snan(fpdata *fpd)
+{
+    fpd->fpx.low |= LIT64(0x4000000000000000);
 }
 static bool fp_is_nan (fpdata *fpd)
 {
-#ifdef WITH_SOFTFLOAT
-	if (currprefs.fpu_softfloat)
+	if (currprefs.fpu_softfloat) {
 		return floatx80_is_nan(fpd->fpx) != 0;
-#endif
+	} else {
 #ifdef HAVE_ISNAN
-	return isnan(fpd->fp) != 0;
+		return isnan(fpd->fp) != 0;
 #else
-	return false;
+		return false;
 #endif
+	}
 }
 static bool fp_is_infinity (fpdata *fpd)
 {
-#ifdef WITH_SOFTFLOAT
 	if (currprefs.fpu_softfloat) {
-		float_class_t fc = floatx80_class(fpd->fpx);
-		return fc == float_negative_inf || fc == float_positive_inf;
-	}
-#endif
+		return floatx80_is_infinity(fpd->fpx) != 0;
+	} else {
 #ifdef _MSC_VER
-	return !_finite (fpd->fp);
+		return !_finite (fpd->fp);
 #elif defined(HAVE_ISINF)
-	return isinf(fpd->fp);
+		return isinf(fpd->fp);
 #else
-	return false;
+		return false;
 #endif
+	}
 }
 static bool fp_is_zero(fpdata *fpd)
 {
-#ifdef WITH_SOFTFLOAT
-	if (currprefs.fpu_softfloat)
-		return floatx80_compare_quiet(fpd->fpx, fxzero, fxstatus) == float_relation_equal;
-#endif
-	return fpd->fp == 0.0;
+	if (currprefs.fpu_softfloat) {
+		return floatx80_is_zero(fpd->fpx) != 0;
+	} else {
+		return fpd->fp == 0.0;
+	}
 }
 static bool fp_is_neg(fpdata *fpd)
 {
-#ifdef WITH_SOFTFLOAT
-	if (currprefs.fpu_softfloat)
-		return extractFloatx80Sign(fpd->fpx) != 0;
-#endif
-	return fpd->fp < 0.0;
+	if (currprefs.fpu_softfloat) {
+		return floatx80_is_negative(fpd->fpx) != 0;
+	} else {
+		return fpd->fp < 0.0;
+	}
+}
+
+static bool fp_is_denormal(fpdata *fpd)
+{
+	if (currprefs.fpu_softfloat) {
+		return floatx80_is_denormal(fpd->fpx) != 0;
+	} else {
+		return false;
+	}
+}
+static bool fp_is_unnormal(fpdata *fpd)
+{
+	if (currprefs.fpu_softfloat) {
+	    return floatx80_is_unnormal(fpd->fpx) != 0;
+	} else {
+		return false;
+	}
 }
 
 uae_u32 fpp_get_fpsr (void)
@@ -1188,6 +1591,19 @@ static void to_pack (fpdata *fpd, uae_u32 *wrd)
 	char *cp;
 	char str[100];
 
+    if (((wrd[0] >> 16) & 0x7fff) == 0x7fff) {
+        // infinity has extended exponent and all 0 packed fraction
+        // nans are copies bit by bit
+        to_exten_fmovem(fpd, wrd[0], wrd[1], wrd[2]);
+        return;
+    }
+    if (!(wrd[0] & 0xf) && !wrd[1] && !wrd[2]) {
+        // exponent is not cared about, if mantissa is zero
+        wrd[0] &= 0x80000000;
+        to_exten_fmovem(fpd, wrd[0], wrd[1], wrd[2]);
+        return;
+    }
+
 	cp = str;
 	if (wrd[0] & 0x80000000)
 		*cp++ = '-';
@@ -1221,14 +1637,7 @@ static void to_pack (fpdata *fpd, uae_u32 *wrd)
 #else
 	sscanf (str, "%le", &d);
 #endif
-#ifdef WITH_SOFTFLOAT
-	if (currprefs.fpu_softfloat) {
-		uae_u32 wrd[3];
-		from_exten_x(d, &wrd[0], &wrd[1], &wrd[2]);
-		softfloat_set(&fpd->fpx, wrd);
-	} else
-#endif
-		fpd->fp = d;
+	from_native(d, fpd);
 }
 
 static void from_pack (fpdata *src, uae_u32 *wrd, int kfactor)
@@ -1240,23 +1649,21 @@ static void from_pack (fpdata *src, uae_u32 *wrd, int kfactor)
 	char str[100];
 	fptype fp;
 
+   if (fp_is_nan (src)) {
+        // copied bit by bit, no conversion
+        from_exten(src, &wrd[0], &wrd[1], &wrd[2]);
+        return;
+    }
+    if (fp_is_infinity (src)) {
+        // extended exponent and all 0 packed fraction
+        from_exten(src, &wrd[0], &wrd[1], &wrd[2]);
+        wrd[1] = wrd[2] = 0;
+        return;
+    }
+
 	wrd[0] = wrd[1] = wrd[2] = 0;
 
-	if (fp_is_nan (src) || fp_is_infinity (src)) {
-		wrd[0] |= (1 << 30) | (1 << 29) | (1 << 30); // YY=1
-		wrd[0] |= 0xfff << 16; // Exponent=FFF
-		// TODO: mantissa should be set if NAN
-		return;
-	}
-
-#ifdef WITH_SOFTFLOAT
-	if (currprefs.fpu_softfloat) {
-		uae_u32 out[3];
-		softfloat_get(&src->fpx, out);
-		to_exten_x(&fp, out[0], out[1], out[2]);
-	} else
-#endif
-		fp = src->fp;
+	to_native(&fp, src);
 
 #if USE_LONG_DOUBLE
 	sprintf (str, "%#.17Le", fp);
@@ -1382,30 +1789,26 @@ static void from_pack (fpdata *src, uae_u32 *wrd, int kfactor)
 // 68040/060 does not support denormals
 static bool fault_if_no_denormal_support_pre(uae_u16 opcode, uae_u16 extra, uaecptr ea, uaecptr oldpc, fpdata *fpd, int size)
 {
-#ifdef WITH_SOFTFLOAT
 	if (currprefs.cpu_model >= 68040 && currprefs.fpu_model && currprefs.fpu_no_unimplemented && currprefs.fpu_softfloat) {
-		Bit64u Sig = extractFloatx80Frac(fpd->fpx);
-		Bit32s Exp = extractFloatx80Exp(fpd->fpx);
+		bits64 Sig = extractFloatx80Frac(fpd->fpx);
+		bits32 Exp = extractFloatx80Exp(fpd->fpx);
 		if (Exp == 0 && Sig != 0) {
 			fpu_op_unimp(opcode, extra, ea, oldpc, FPU_EXP_UNIMP_DATATYPE_PRE, fpd, -1, size);
 			return true;
 		}
 	}
-#endif
 	return false;
 }
 static bool fault_if_no_denormal_support_post(uae_u16 opcode, uae_u16 extra, uaecptr ea, uaecptr oldpc, fpdata *fpd, int size)
 {
-#ifdef WITH_SOFTFLOAT
 	if (currprefs.fpu_softfloat && currprefs.cpu_model >= 68040 && currprefs.fpu_model && currprefs.fpu_no_unimplemented) {
-		Bit64u Sig = extractFloatx80Frac(fpd->fpx);
-		Bit32s Exp = extractFloatx80Exp(fpd->fpx);
+		bits64 Sig = extractFloatx80Frac(fpd->fpx);
+		bits32 Exp = extractFloatx80Exp(fpd->fpx);
 		if (Exp == 0 && Sig != 0) {
 			fpu_op_unimp(opcode, extra, ea, oldpc, FPU_EXP_UNIMP_DATATYPE_POST, fpd, -1, size);
 			return true;
 		}
 	}
-#endif
 	return false;
 }
 
@@ -1628,15 +2031,15 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 			switch (size)
 			{
 				case 6:
-					m68k_dreg (regs, reg) = (uae_u32)(((toint (value, 0) & 0xff)
+					m68k_dreg (regs, reg) = (uae_u32)(((to_int (value, 0) & 0xff)
 						| (m68k_dreg (regs, reg) & ~0xff)));
 					break;
 				case 4:
-					m68k_dreg (regs, reg) = (uae_u32)(((toint (value, 1) & 0xffff)
+					m68k_dreg (regs, reg) = (uae_u32)(((to_int (value, 1) & 0xffff)
 						| (m68k_dreg (regs, reg) & ~0xffff)));
 					break;
 				case 0:
-					m68k_dreg (regs, reg) = (uae_u32)toint (value, 2);
+					m68k_dreg (regs, reg) = (uae_u32)to_int (value, 2);
 					break;
 				case 1:
 					m68k_dreg (regs, reg) = from_single (value);
@@ -1703,7 +2106,7 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 		case 0:
 			if (fault_if_no_denormal_support_post(opcode, extra, ad, oldpc, value, 2))
 				return 1;
-			x_cp_put_long(ad, (uae_u32)toint(value, 2));
+			x_cp_put_long(ad, (uae_u32)to_int(value, 2));
 			break;
 		case 1:
 			if (fault_if_no_denormal_support_post(opcode, extra, ad, oldpc, value, 2))
@@ -1745,7 +2148,7 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 		case 4:
 			if (fault_if_no_denormal_support_post(opcode, extra, ad, oldpc, value, 2))
 				return 1;
-			x_cp_put_word(ad, (uae_s16)toint(value, 1));
+			x_cp_put_word(ad, (uae_s16)to_int(value, 1));
 			break;
 		case 5:
 			{
@@ -1761,7 +2164,7 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 		case 6:
 			if (fault_if_no_denormal_support_post(opcode, extra, ad, oldpc, value, 2))
 				return 1;
-			x_cp_put_byte(ad, (uae_s8)toint(value, 0));
+			x_cp_put_byte(ad, (uae_s8)to_int(value, 0));
 			break;
 		default:
 			return 0;
@@ -2468,18 +2871,6 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr, int regdir)
 	return ad;
 }
 
-// round to float
-static void fround (int reg)
-{
-#ifdef WITH_SOFTFLOAT
-	if (currprefs.fpu_softfloat) {
-		float32 f = floatx80_to_float32(regs.fp[reg].fpx, fxstatus);
-		regs.fp[reg].fpx = float32_to_floatx80(f, fxstatus);
-	} else
-#endif
-		regs.fp[reg].fp = (float)regs.fp[reg].fp;
-}
-
 static bool arithmetic_fp(fptype src, int reg, int extra)
 {
 	bool sgl = false;
@@ -2676,6 +3067,10 @@ static bool arithmetic_fp(fptype src, int reg, int extra)
 		case 0x37:
 			regs.fp[extra & 7].fp = cos (src);
 			regs.fp[reg].fp = sin (src);
+            if (((regs.fpcr >> 6) & 3) == 1)
+				fp_round32(&regs.fp[extra & 7]);
+            else if (((regs.fpcr >> 6) & 3) == 2)
+				fp_round64(&regs.fp[extra & 7]);
 			break;
 		case 0x38: /* FCMP */
 			{
@@ -2691,25 +3086,29 @@ static bool arithmetic_fp(fptype src, int reg, int extra)
 		default:
 			return false;
 	}
-	// round to float?
-	if (sgl || (extra & 0x44) == 0x40 || ((regs.fpcr >> 6) & 3) == 1)
-		fround (reg);
+
+	if (sgl) {
+        fp_roundsgl(&regs.fp[reg]);
+	} else if ((extra & 0x44) == 0x40 || ((regs.fpcr >> 6) & 3) == 1) {
+        fp_round32(&regs.fp[reg]);
+	} else if ((extra & 0x44) == 0x44 || ((regs.fpcr >> 6) & 3) == 2) {
+        fp_round64(&regs.fp[reg]);
+	}
+
 	MAKE_FPSR (&regs.fp[reg].fp);
 	return true;
 }
 
-#ifdef WITH_SOFTFLOAT
-static bool arithmetic_softfloat(floatx80 *srcd, int reg, int extra)
+static bool arithmetic_softfloat(fpdata *srcd, int reg, int extra)
 {
-	floatx80 fx = *srcd;
+	floatx80 fx = srcd->fpx;
 	floatx80 f = regs.fp[reg].fpx;
-	int float_rounding_mode;
+	int8 float_rounding_mode_temp;
 	bool sgl = false;
-	Bit64u q;
 
 	// SNAN -> QNAN if SNAN interrupt is not enabled
 	if (floatx80_is_signaling_nan(fx) && !(regs.fpcr & 0x4000)) {
-		fx.fraction |= 0x40000000;
+        fp_unset_snan(srcd);
 	}
 
 	switch (extra & 0x7f)
@@ -2720,18 +3119,18 @@ static bool arithmetic_softfloat(floatx80 *srcd, int reg, int extra)
 			regs.fp[reg].fpx = fx;	
 			break;
 		case 0x01: /* FINT */
-			regs.fp[reg].fpx = floatx80_round_to_int(fx, fxstatus);
+			regs.fp[reg].fpx = floatx80_round_to_int(fx);
 			break;
 		case 0x03: /* FINTRZ */
-			float_rounding_mode = fxstatus.float_rounding_mode;
-			fxstatus.float_rounding_mode = float_round_to_zero;
-			regs.fp[reg].fpx = floatx80_round_to_int(fx, fxstatus);
-			float_rounding_mode = fxstatus.float_rounding_mode;
+			float_rounding_mode_temp = float_rounding_mode;
+			float_rounding_mode = float_round_to_zero;
+			regs.fp[reg].fpx = floatx80_round_to_int(fx);
+			float_rounding_mode = float_rounding_mode_temp;
 			break;
 		case 0x04: /* FSQRT */
 		case 0x41: /* FSSQRT */
 		case 0x45: /* FDSQRT */
-			regs.fp[reg].fpx = floatx80_sqrt(fx, fxstatus);
+			regs.fp[reg].fpx = floatx80_sqrt(fx);
 			break;
 		case 0x18: /* FABS */
 		case 0x58: /* FSABS */
@@ -2747,54 +3146,54 @@ static bool arithmetic_softfloat(floatx80 *srcd, int reg, int extra)
 		case 0x20: /* FDIV */
 		case 0x60: /* FSDIV */
 		case 0x64: /* FDDIV */
-			regs.fp[reg].fpx = floatx80_div(f, fx, fxstatus);
+			regs.fp[reg].fpx = floatx80_div(f, fx);
 			break;
 		case 0x22: /* FADD */
 		case 0x62: /* FSADD */
 		case 0x66: /* FDADD */
-			regs.fp[reg].fpx = floatx80_add(f, fx, fxstatus);
+			regs.fp[reg].fpx = floatx80_add(f, fx);
 			break;
 		case 0x23: /* FMUL */
 		case 0x63: /* FSMUL */
 		case 0x67: /* FDMUL */
-			regs.fp[reg].fpx = floatx80_mul(f, fx, fxstatus);
+			regs.fp[reg].fpx = floatx80_mul(f, fx);
 			break;
 		case 0x24: /* FSGLDIV */
-			regs.fp[reg].fpx = floatx80_div(f, fx, fxstatus);
+			regs.fp[reg].fpx = floatx80_div(f, fx);
 			sgl = true;
 			break;
 		case 0x25: /* FREM */
-			floatx80_ieee754_remainder(f, fx, regs.fp[reg].fpx, q, fxstatus);
+			floatx80_rem(f, fx);
 			break;
 		case 0x27: /* FSGLMUL */
-			regs.fp[reg].fpx = floatx80_mul(f, fx, fxstatus);
+			regs.fp[reg].fpx = floatx80_mul(f, fx);
 			sgl = true;
 			break;
 		case 0x28: /* FSUB */
 		case 0x68: /* FSSUB */
 		case 0x6c: /* FDSUB */
-			regs.fp[reg].fpx = floatx80_sub(f, fx, fxstatus);
+			regs.fp[reg].fpx = floatx80_sub(f, fx);
 			break;
 		case 0x38: /* FCMP */
-			f = floatx80_sub(f, fx, fxstatus);
+			f = floatx80_sub(f, fx);
 			regs.fpsr = 0;
 			MAKE_FPSR_SOFTFLOAT(f);
 			return true;
 		case 0x3a: /* FTST */
 			regs.fpsr = 0;
-			MAKE_FPSR_SOFTFLOAT(f);
+			MAKE_FPSR_SOFTFLOAT(fx);
 			return true;
 
 		case 0x1d: /* FCOS */
-			fcos(f, fxstatus);
+			floatx80_fcos(&f);
 			regs.fp[reg].fpx = f;
 			break;
 		case 0x0e: /* FSIN */
-			fsin(f, fxstatus);
+			floatx80_fsin(&f);
 			regs.fp[reg].fpx = f;
 			break;
 		case 0x0f: /* FTAN */
-			ftan(f, fxstatus);
+			floatx80_ftan(&f);
 			regs.fp[reg].fpx = f;
 			break;
 		case 0x30: /* FSINCOS */
@@ -2805,11 +3204,31 @@ static bool arithmetic_softfloat(floatx80 *srcd, int reg, int extra)
 		case 0x35: /* FSINCOS */
 		case 0x36: /* FSINCOS */
 		case 0x37: /* FSINCOS */
-			fsincos(f, &regs.fp[extra & 7].fpx, &regs.fp[reg].fpx, fxstatus);
+			floatx80_fsincos(f, &regs.fp[extra & 7].fpx, &regs.fp[reg].fpx);
+            if (((regs.fpcr >> 6) & 3) == 1)
+				fp_round32(&regs.fp[extra & 7]);
+            else if (((regs.fpcr >> 6) & 3) == 2)
+				fp_round64(&regs.fp[extra & 7]);
+			break;
+		case 0x14: /* FLOGN */
+			regs.fp[reg].fpx = floatx80_flogn(f);
+			break;
+		case 0x15: /* FLOG10 */
+			regs.fp[reg].fpx = floatx80_flog10(f);
+			break;
+		case 0x16: /* FLOG2 */
+			regs.fp[reg].fpx = floatx80_flog2(f);
+			break;
+		case 0x06: /* FLOGNP1 */
+			regs.fp[reg].fpx = floatx80_flognp1(f);
+			break;
+		case 0x1e: /* FGETEXP */
+			regs.fp[reg].fpx = floatx80_getexp(f);
+			break;
+		case 0x1f: /* FGETMAN */
+			regs.fp[reg].fpx = floatx80_getman(f);
 			break;
 
-			// some of following are supported by softfloat, later..
-		case 0x06: /* FLOGNP1 */
 		case 0x08: /* FETOXM1 */
 		case 0x09: /* FTANH */
 		case 0x0a: /* FATAN */
@@ -2818,35 +3237,33 @@ static bool arithmetic_softfloat(floatx80 *srcd, int reg, int extra)
 		case 0x10: /* FETOX */
 		case 0x11: /* FTWOTOX */
 		case 0x12: /* FTENTOX */
-		case 0x14: /* FLOGN */
-		case 0x15: /* FLOG10 */
-		case 0x16: /* FLOG2 */
 		case 0x19: /* FCOSH */
 		case 0x1c: /* FACOS */
-		case 0x1e: /* FGETEXP */
-		case 0x1f: /* FGETMAN */
 			{
 				// This is horribly ineffective..
-				fptype fp;
-				uae_u32 out[3];
-				// convert softfloat to raw words
-				softfloat_get(&fx, out);
-				// convert to double/long double
-				to_exten_x(&fp, out[0], out[1], out[2]);
+				fptype fpa;
+				fpdata fpdx = { 0 };
+				fpdx.fpx = fx;
+				to_native(&fpa, &fpdx);
 				// emulate instruction using normal fpu code
-				if (!arithmetic_fp(fp, reg, extra))
+				if (!arithmetic_fp(fpa, reg, extra))
 					return false;
-				// convert back to raw
-				from_exten_x(regs.fp[reg].fp, &out[0], &out[1], &out[2]);
-				// convert to softfloat internal format
-				softfloat_set(&regs.fp[reg].fpx, out);
+				from_native(fpa, &regs.fp[reg]);
 				MAKE_FPSR_SOFTFLOAT(regs.fp[reg].fpx);
 			}
 			break;
 	}
+
+    if (sgl) {
+        fp_roundsgl(&regs.fp[reg]);
+	} else if ((extra & 0x44) == 0x40 || ((regs.fpcr >> 6) & 3) == 1) {
+        fp_round32(&regs.fp[reg]);
+	} else if ((extra & 0x44) == 0x44 || ((regs.fpcr >> 6) & 3) == 2) {
+        fp_round64(&regs.fp[reg]);
+	}
+
 	return true;
 }
-#endif
 
 static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 {
@@ -3102,11 +3519,9 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 			regs.fpiar =  pc;
 
 			CLEAR_STATUS ();
-#ifdef WITH_SOFTFLOAT
 			if (currprefs.fpu_softfloat)
-				v = arithmetic_softfloat(&srcd.fpx, reg, extra);
+				v = arithmetic_softfloat(&srcd, reg, extra);
 			else
-#endif
 				v = arithmetic_fp(srcd.fp, reg, extra);
 			if (!v)
 				fpu_noinst (opcode, pc);
@@ -3126,7 +3541,6 @@ void fpuop_arithmetic (uae_u32 opcode, uae_u16 extra)
 	if (fpu_mmu_fixup) {
 		mmufixup[0].reg = -1;
 	}
-#ifdef WITH_SOFTFLOAT
 	if (currprefs.fpu_softfloat) {
 		// Any exception status bit and matching exception enable bits set?
 		if ((regs.fpcr >> 8) & (regs.fpsr >> 8)) {
@@ -3144,7 +3558,6 @@ void fpuop_arithmetic (uae_u32 opcode, uae_u16 extra)
 			write_log (_T("FPU exception: %08x %d!\n"), regs.fpsr, vector);
 		}
 	}
-#endif
 }
 
 void fpu_reset (void)
@@ -3159,7 +3572,6 @@ void fpu_reset (void)
 	native_set_fpucw (regs.fpcr);
 	fpux_restore (NULL);
 
-#ifdef WITH_SOFTFLOAT
 	fxsizes[0] = int32_to_floatx80(-128);
 	fxsizes[1] = int32_to_floatx80(127);
 	fxsizes[2] = int32_to_floatx80(-32768);
@@ -3172,7 +3584,6 @@ void fpu_reset (void)
 	fx_1e2 = int32_to_floatx80(100);
 	fx_1e4 = int32_to_floatx80(10000);
 	fx_1e8 = int32_to_floatx80(100000000);
-#endif
 }
 
 uae_u8 *restore_fpu (uae_u8 *src)
