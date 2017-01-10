@@ -301,6 +301,7 @@ static void ide_data_ready (struct ide_hdf *ide)
 	memset (ide->secbuf, 0, ide->blocksize);
 	ide->data_offset = 0;
 	ide->data_size = ide->blocksize;
+	ide->buffer_offset = 0;
 	ide->data_multi = 1;
 	ide->intdrq = true;
 	ide_interrupt (ide);
