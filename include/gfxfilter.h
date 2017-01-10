@@ -20,9 +20,6 @@ extern void PAL_init (void);
 extern void PAL_1x1_32 (uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, int height);
 extern void PAL_1x1_16 (uae_u16 *src, int pitchs, uae_u16 *trg, int pitcht, int width, int height);
 
-typedef unsigned char uint8;
-typedef unsigned short uint16;
-typedef unsigned long uint32;
 #ifndef __cplusplus
 typedef int bool;
 #endif
@@ -31,12 +28,12 @@ extern "C"
 {
 	extern void S2X_configure (int rb, int gb, int bb, int rs, int gs, int bs);
 	extern int Init_2xSaI (int rb, int gb, int bb, int rs, int gs, int bs);
-	extern void Super2xSaI_16 (const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height);
-	extern void Super2xSaI_32 (const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height);
-	extern void SuperEagle_16 (const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height);
-	extern void SuperEagle_32 (const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height);
-	extern void _2xSaI_16 (const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height);
-	extern void _2xSaI_32 (const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height);
+	extern void Super2xSaI_16 (const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 dstPitch, int width, int height);
+	extern void Super2xSaI_32 (const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 dstPitch, int width, int height);
+	extern void SuperEagle_16 (const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 dstPitch, int width, int height);
+	extern void SuperEagle_32 (const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 dstPitch, int width, int height);
+	extern void _2xSaI_16 (const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 dstPitch, int width, int height);
+	extern void _2xSaI_32 (const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 dstPitch, int width, int height);
 	extern void AdMame2x (u8 *srcPtr, u32 srcPitch, /* u8 deltaPtr, */
 		      u8 *dstPtr, u32 dstPitch, int width, int height);
 	extern void AdMame2x32 (u8 *srcPtr, u32 srcPitch, /* u8 deltaPtr, */

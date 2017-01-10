@@ -25,14 +25,14 @@ extern "C"
 
 #include "gfxfilter.h"
 
-static uint32 colorMask;
-static uint32 lowPixelMask;
-static uint32 qcolorMask;
-static uint32 qlowpixelMask;
-static uint32 redblueMask;
-static uint32 redMask;
-static uint32 greenMask;
-static uint32 blueMask;
+static uae_u32 colorMask;
+static uae_u32 lowPixelMask;
+static uae_u32 qcolorMask;
+static uae_u32 qlowpixelMask;
+static uae_u32 redblueMask;
+static uae_u32 redMask;
+static uae_u32 greenMask;
+static uae_u32 blueMask;
 
 unsigned int LUT16to32[65536];
 unsigned int RGBtoYUV[65536];
@@ -64,7 +64,7 @@ int Init_2xSaI (int rb, int gb, int bb, int rs, int gs, int bs)
 	return 1;
 }
 
-static _inline int GetResult(uint32 A, uint32 B, uint32 C, uint32 D)
+static _inline int GetResult(uae_u32 A, uae_u32 B, uae_u32 C, uae_u32 D)
 {
 	const bool ac = (A==C);
 	const bool bc = (B==C);
@@ -84,38 +84,38 @@ static _inline int GetResult(uint32 A, uint32 B, uint32 C, uint32 D)
 	return rmap[y][x];
 }
 
-static _inline uint32 INTERPOLATE(uint32 A, uint32 B) {
+static _inline uae_u32 INTERPOLATE(uae_u32 A, uae_u32 B) {
 	if (A != B) {
 		return (((A & colorMask) >> 1) + ((B & colorMask) >> 1) + (A & B & lowPixelMask));
 	} else
 		return A;
 }
 
-static _inline uint32 Q_INTERPOLATE(uint32 A, uint32 B, uint32 C, uint32 D) {
-	register uint32 x = ((A & qcolorMask) >> 2) + ((B & qcolorMask) >> 2) + ((C & qcolorMask) >> 2) + ((D & qcolorMask) >> 2);
-	register uint32 y = ((A & qlowpixelMask) + (B & qlowpixelMask) + (C & qlowpixelMask) + (D & qlowpixelMask)) >> 2;
+static _inline uae_u32 Q_INTERPOLATE(uae_u32 A, uae_u32 B, uae_u32 C, uae_u32 D) {
+	register uae_u32 x = ((A & qcolorMask) >> 2) + ((B & qcolorMask) >> 2) + ((C & qcolorMask) >> 2) + ((D & qcolorMask) >> 2);
+	register uae_u32 y = ((A & qlowpixelMask) + (B & qlowpixelMask) + (C & qlowpixelMask) + (D & qlowpixelMask)) >> 2;
 
 	y &= qlowpixelMask;
 	return x + y;
 }
 
-void Super2xSaI_16(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
-	const uint16 *bP;
-	uint16 *dP;
-	const uint32 nextlineSrc = srcPitch >> 1;
+void Super2xSaI_16(const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 dstPitch, int width, int height) {
+	const uae_u16 *bP;
+	uae_u16 *dP;
+	const uae_u32 nextlineSrc = srcPitch >> 1;
 
 	while (height--) {
 		int i;
-		bP = (const uint16 *)srcPtr;
-		dP = (uint16 *)dstPtr;
+		bP = (const uae_u16 *)srcPtr;
+		dP = (uae_u16 *)dstPtr;
 
 		for (i = 0; i < width; ++i) {
-			uint32 color4, color5, color6;
-			uint32 color1, color2, color3;
-			uint32 colorA0, colorA1, colorA2, colorA3;
-			uint32 colorB0, colorB1, colorB2, colorB3;
-			uint32 colorS1, colorS2;
-			uint32 product1a, product1b, product2a, product2b;
+			uae_u32 color4, color5, color6;
+			uae_u32 color1, color2, color3;
+			uae_u32 colorA0, colorA1, colorA2, colorA3;
+			uae_u32 colorB0, colorB1, colorB2, colorB3;
+			uae_u32 colorS1, colorS2;
+			uae_u32 product1a, product1b, product2a, product2b;
 
 			//---------------------------------------    B1 B2
 			//                                         4  5  6 S2
@@ -192,10 +192,10 @@ void Super2xSaI_16(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 d
 			else
 				product1a = color5;
 
-			*(dP + 0) = (uint16) product1a;
-			*(dP + 1) = (uint16) product1b;
-			*(dP + dstPitch/2 + 0) = (uint16) product2a;
-			*(dP + dstPitch/2 + 1) = (uint16) product2b;
+			*(dP + 0) = (uae_u16) product1a;
+			*(dP + 1) = (uae_u16) product1b;
+			*(dP + dstPitch/2 + 0) = (uae_u16) product2a;
+			*(dP + dstPitch/2 + 1) = (uae_u16) product2b;
 
 			bP += 1;
 			dP += 2;
@@ -206,23 +206,23 @@ void Super2xSaI_16(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 d
 	}
 }
 
-void Super2xSaI_32(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
-	const uint16 *bP;
-	uint32 *dP;
-	const uint32 nextlineSrc = srcPitch >> 1;
+void Super2xSaI_32(const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 dstPitch, int width, int height) {
+	const uae_u16 *bP;
+	uae_u32 *dP;
+	const uae_u32 nextlineSrc = srcPitch >> 1;
 
 	while (height--) {
 		int i;
-		bP = (const uint16 *)srcPtr;
-		dP = (uint32 *)dstPtr;
+		bP = (const uae_u16 *)srcPtr;
+		dP = (uae_u32 *)dstPtr;
 
 		for (i = 0; i < width; ++i) {
-			uint32 color4, color5, color6;
-			uint32 color1, color2, color3;
-			uint32 colorA0, colorA1, colorA2, colorA3;
-			uint32 colorB0, colorB1, colorB2, colorB3;
-			uint32 colorS1, colorS2;
-			uint32 product1a, product1b, product2a, product2b;
+			uae_u32 color4, color5, color6;
+			uae_u32 color1, color2, color3;
+			uae_u32 colorA0, colorA1, colorA2, colorA3;
+			uae_u32 colorB0, colorB1, colorB2, colorB3;
+			uae_u32 colorS1, colorS2;
+			uae_u32 product1a, product1b, product2a, product2b;
 
 			//---------------------------------------    B1 B2
 			//                                         4  5  6 S2
@@ -299,10 +299,10 @@ void Super2xSaI_32(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 d
 			else
 				product1a = color5;
 
-			*(dP + 0) = LUT16to32[(uint16) product1a];
-			*(dP + 1) = LUT16to32[(uint16) product1b];
-			*(dP + dstPitch/4 + 0) = LUT16to32[(uint16) product2a];
-			*(dP + dstPitch/4 + 1) = LUT16to32[(uint16) product2b];
+			*(dP + 0) = LUT16to32[(uae_u16) product1a];
+			*(dP + 1) = LUT16to32[(uae_u16) product1b];
+			*(dP + dstPitch/4 + 0) = LUT16to32[(uae_u16) product2a];
+			*(dP + dstPitch/4 + 1) = LUT16to32[(uae_u16) product2b];
 
 			bP += 1;
 			dP += 2;
@@ -312,20 +312,20 @@ void Super2xSaI_32(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 d
 		dstPtr += dstPitch * 2;
 	}
 }
-void SuperEagle_16(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
-	const uint16 *bP;
-	uint16 *dP;
-	const uint32 nextlineSrc = srcPitch >> 1;
+void SuperEagle_16(const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 dstPitch, int width, int height) {
+	const uae_u16 *bP;
+	uae_u16 *dP;
+	const uae_u32 nextlineSrc = srcPitch >> 1;
 
 	while (height--) {
 		int i;
-		bP = (const uint16 *)srcPtr;
-		dP = (uint16 *)dstPtr;
+		bP = (const uae_u16 *)srcPtr;
+		dP = (uae_u16 *)dstPtr;
 		for (i = 0; i < width; ++i) {
-			uint32 color4, color5, color6;
-			uint32 color1, color2, color3;
-			uint32 colorA1, colorA2, colorB1, colorB2, colorS1, colorS2;
-			uint32 product1a, product1b, product2a, product2b;
+			uae_u32 color4, color5, color6;
+			uae_u32 color1, color2, color3;
+			uae_u32 colorA1, colorA2, colorB1, colorB2, colorS1, colorS2;
+			uae_u32 product1a, product1b, product2a, product2b;
 
 			colorB1 = *(bP - nextlineSrc);
 			colorB2 = *(bP - nextlineSrc + 1);
@@ -416,10 +416,10 @@ void SuperEagle_16(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 d
 				}
 			}
 
-			*(dP + 0) = (uint16) product1a;
-			*(dP + 1) = (uint16) product1b;
-			*(dP + dstPitch/2 + 0) = (uint16) product2a;
-			*(dP + dstPitch/2 + 1) = (uint16) product2b;
+			*(dP + 0) = (uae_u16) product1a;
+			*(dP + 1) = (uae_u16) product1b;
+			*(dP + dstPitch/2 + 0) = (uae_u16) product2a;
+			*(dP + dstPitch/2 + 1) = (uae_u16) product2b;
 
 			bP += 1;
 			dP += 2;
@@ -430,20 +430,20 @@ void SuperEagle_16(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 d
 	}
 }
 
-void SuperEagle_32(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
-	const uint16 *bP;
-	uint32 *dP;
-	const uint32 nextlineSrc = srcPitch >> 1;
+void SuperEagle_32(const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 dstPitch, int width, int height) {
+	const uae_u16 *bP;
+	uae_u32 *dP;
+	const uae_u32 nextlineSrc = srcPitch >> 1;
 
 	while (height--) {
 		int i;
-		bP = (const uint16 *)srcPtr;
-		dP = (uint32 *)dstPtr;
+		bP = (const uae_u16 *)srcPtr;
+		dP = (uae_u32 *)dstPtr;
 		for (i = 0; i < width; ++i) {
-			uint32 color4, color5, color6;
-			uint32 color1, color2, color3;
-			uint32 colorA1, colorA2, colorB1, colorB2, colorS1, colorS2;
-			uint32 product1a, product1b, product2a, product2b;
+			uae_u32 color4, color5, color6;
+			uae_u32 color1, color2, color3;
+			uae_u32 colorA1, colorA2, colorB1, colorB2, colorS1, colorS2;
+			uae_u32 product1a, product1b, product2a, product2b;
 
 			colorB1 = *(bP - nextlineSrc);
 			colorB2 = *(bP - nextlineSrc + 1);
@@ -534,10 +534,10 @@ void SuperEagle_32(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 d
 				}
 			}
 
-			*(dP + 0) = LUT16to32[(uint16) product1a];
-			*(dP + 1) = LUT16to32[(uint16) product1b];
-			*(dP + dstPitch/4 + 0) = LUT16to32[(uint16) product2a];
-			*(dP + dstPitch/4 + 1) = LUT16to32[(uint16) product2b];
+			*(dP + 0) = LUT16to32[(uae_u16) product1a];
+			*(dP + 1) = LUT16to32[(uae_u16) product1b];
+			*(dP + dstPitch/4 + 0) = LUT16to32[(uae_u16) product2a];
+			*(dP + dstPitch/4 + 1) = LUT16to32[(uae_u16) product2b];
 
 			bP += 1;
 			dP += 2;
@@ -547,22 +547,22 @@ void SuperEagle_32(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 d
 		dstPtr += dstPitch * 2;
 	}
 }
-void _2xSaI_16(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
-	const uint16 *bP;
-	uint16 *dP;
-	const uint32 nextlineSrc = srcPitch >> 1;
+void _2xSaI_16(const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 dstPitch, int width, int height) {
+	const uae_u16 *bP;
+	uae_u16 *dP;
+	const uae_u32 nextlineSrc = srcPitch >> 1;
 
 	while (height--) {
 		int i;
-		bP = (const uint16 *)srcPtr;
-		dP = (uint16 *)dstPtr;
+		bP = (const uae_u16 *)srcPtr;
+		dP = (uae_u16 *)dstPtr;
 
 		for (i = 0; i < width; ++i) {
 
-			register uint32 colorA, colorB;
-			uint32 colorC, colorD,
+			register uae_u32 colorA, colorB;
+			uae_u32 colorC, colorD,
 				colorE, colorF, colorG, colorH, colorI, colorJ, colorK, colorL, colorM, colorN, colorO, colorP;
-			uint32 product, product1, product2;
+			uae_u32 product, product1, product2;
 
 			//---------------------------------------
 			// Map of the pixels:                    I|E F|J
@@ -667,10 +667,10 @@ void _2xSaI_16(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPi
 				}
 			}
 
-			*(dP + 0) = (uint16) colorA;
-			*(dP + 1) = (uint16) product;
-			*(dP + dstPitch/2 + 0) = (uint16) product1;
-			*(dP + dstPitch/2 + 1) = (uint16) product2;
+			*(dP + 0) = (uae_u16) colorA;
+			*(dP + 1) = (uae_u16) product;
+			*(dP + dstPitch/2 + 0) = (uae_u16) product1;
+			*(dP + dstPitch/2 + 1) = (uae_u16) product2;
 
 			bP += 1;
 			dP += 2;
@@ -681,22 +681,22 @@ void _2xSaI_16(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPi
 	}
 }
 
-void _2xSaI_32(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
-	const uint16 *bP;
-	uint32 *dP;
-	const uint32 nextlineSrc = srcPitch >> 1;
+void _2xSaI_32(const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 dstPitch, int width, int height) {
+	const uae_u16 *bP;
+	uae_u32 *dP;
+	const uae_u32 nextlineSrc = srcPitch >> 1;
 
 	while (height--) {
 		int i;
-		bP = (const uint16 *)srcPtr;
-		dP = (uint32 *)dstPtr;
+		bP = (const uae_u16 *)srcPtr;
+		dP = (uae_u32 *)dstPtr;
 
 		for (i = 0; i < width; ++i) {
 
-			register uint32 colorA, colorB;
-			uint32 colorC, colorD,
+			register uae_u32 colorA, colorB;
+			uae_u32 colorC, colorD,
 				colorE, colorF, colorG, colorH, colorI, colorJ, colorK, colorL, colorM, colorN, colorO, colorP;
-			uint32 product, product1, product2;
+			uae_u32 product, product1, product2;
 
 			//---------------------------------------
 			// Map of the pixels:                    I|E F|J
@@ -801,10 +801,10 @@ void _2xSaI_32(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPi
 				}
 			}
 
-			*(dP + 0) = LUT16to32[(uint16) colorA];
-			*(dP + 1) = LUT16to32[(uint16) product];
-			*(dP + dstPitch/4 + 0) = LUT16to32[(uint16) product1];
-			*(dP + dstPitch/4 + 1) = LUT16to32[(uint16) product2];
+			*(dP + 0) = LUT16to32[(uae_u16) colorA];
+			*(dP + 1) = LUT16to32[(uae_u16) product];
+			*(dP + dstPitch/4 + 0) = LUT16to32[(uae_u16) product1];
+			*(dP + dstPitch/4 + 1) = LUT16to32[(uae_u16) product2];
 
 			bP += 1;
 			dP += 2;
