@@ -235,14 +235,16 @@ extern int8 floatx80_rounding_precision;
 | Software IEC/IEEE extended double-precision operations.
 *----------------------------------------------------------------------------*/
 floatx80 floatx80_round_to_int( floatx80 );
+floatx80 floatx80_round_to_int_toward_zero( floatx80 );
 floatx80 floatx80_round32( floatx80 );
 floatx80 floatx80_normalize( floatx80 );
 floatx80 floatx80_add( floatx80, floatx80 );
 floatx80 floatx80_sub( floatx80, floatx80 );
 floatx80 floatx80_mul( floatx80, floatx80 );
 floatx80 floatx80_div( floatx80, floatx80 );
-floatx80 floatx80_rem( floatx80, floatx80 );
+//floatx80 floatx80_rem( floatx80, floatx80 );
 floatx80 floatx80_sqrt( floatx80 );
+
 flag floatx80_eq( floatx80, floatx80 );
 flag floatx80_le( floatx80, floatx80 );
 flag floatx80_lt( floatx80, floatx80 );
@@ -271,6 +273,8 @@ floatx80 floatx80_flog10(floatx80 a);
 
 floatx80 floatx80_getman( floatx80 a );
 floatx80 floatx80_getexp( floatx80 a );
+floatx80 floatx80_rem( floatx80 a, floatx80 b, bits64 *q, flag *s );
+floatx80 floatx80_mod( floatx80 a, floatx80 b, bits64 *q, flag *s );
 
 // roundAndPackFloatx80 used to be in softfloat-round-pack, is now in softfloat.c
 floatx80 roundAndPackFloatx80(int8 roundingPrecision, flag zSign, int32 zExp, bits64 zSig0, bits64 zSig1);

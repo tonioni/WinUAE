@@ -3242,6 +3242,45 @@ floatx80 floatx80_round_to_int( floatx80 a )
 
 }
 
+// 09-01-2017: Added for Previous
+floatx80 floatx80_round_to_int_toward_zero( floatx80 a )
+{
+    flag aSign;
+    int32 aExp;
+    bits64 lastBitMask, roundBitsMask;
+    floatx80 z;
+    
+    aExp = extractFloatx80Exp( a );
+    if ( 0x403E <= aExp ) {
+        if ( ( aExp == 0x7FFF ) && (bits64) ( extractFloatx80Frac( a )<<1 ) ) {
+            return propagateFloatx80NaN( a, a );
+        }
+        return a;
+    }
+    if ( aExp < 0x3FFF ) {
+        if (    ( aExp == 0 )
+            && ( (bits64) ( extractFloatx80Frac( a )<<1 ) == 0 ) ) {
+            return a;
+        }
+        float_exception_flags |= float_flag_inexact;
+        aSign = extractFloatx80Sign( a );
+        return packFloatx80( aSign, 0, 0 );
+    }
+    lastBitMask = 1;
+    lastBitMask <<= 0x403E - aExp;
+    roundBitsMask = lastBitMask - 1;
+    z = a;
+    z.low &= ~ roundBitsMask;
+    if ( z.low == 0 ) {
+        ++z.high;
+        z.low = LIT64( 0x8000000000000000 );
+    }
+    if ( z.low != a.low ) float_exception_flags |= float_flag_inexact;
+    return z;
+    
+}
+// End of addition for Previous
+
 /*----------------------------------------------------------------------------
 | Returns the result of adding the absolute values of the extended double-
 | precision floating-point values `a' and `b'.  If `zSign' is 1, the sum is
@@ -3562,7 +3601,7 @@ floatx80 floatx80_div( floatx80 a, floatx80 b )
 | `a' with respect to the corresponding value `b'.  The operation is performed
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
-
+#if 0
 floatx80 floatx80_rem( floatx80 a, floatx80 b )
 {
 	flag aSign, zSign;
@@ -3653,6 +3692,195 @@ floatx80 floatx80_rem( floatx80 a, floatx80 b )
 			80, zSign, bExp + expDiff, aSig0, aSig1 );
 
 }
+#endif
+// 09-01-2017: Modified version for Previous
+floatx80 floatx80_rem( floatx80 a, floatx80 b, bits64 *q, flag *s )
+{
+    flag aSign, bSign, zSign;
+    int32 aExp, bExp, expDiff;
+    bits64 aSig0, aSig1, bSig;
+    bits64 qTemp, term0, term1, alternateASig0, alternateASig1;
+    floatx80 z;
+    
+    aSig0 = extractFloatx80Frac( a );
+    aExp = extractFloatx80Exp( a );
+    aSign = extractFloatx80Sign( a );
+    bSig = extractFloatx80Frac( b );
+    bExp = extractFloatx80Exp( b );
+    bSign = extractFloatx80Sign( b );
+    *q = 0;
+    *s = 0;
+    if ( aExp == 0x7FFF ) {
+        if (    (bits64) ( aSig0<<1 )
+            || ( ( bExp == 0x7FFF ) && (bits64) ( bSig<<1 ) ) ) {
+            return propagateFloatx80NaN( a, b );
+        }
+        goto invalid;
+    }
+    if ( bExp == 0x7FFF ) {
+        if ( (bits64) ( bSig<<1 ) ) return propagateFloatx80NaN( a, b );
+        return a;
+    }
+    if ( bExp == 0 ) {
+        if ( bSig == 0 ) {
+        invalid:
+            float_raise( float_flag_invalid );
+            z.low = floatx80_default_nan_low;
+            z.high = floatx80_default_nan_high;
+            return z;
+        }
+        normalizeFloatx80Subnormal( bSig, &bExp, &bSig );
+    }
+    if ( aExp == 0 ) {
+        if ( (bits64) ( aSig0<<1 ) == 0 ) return a;
+        normalizeFloatx80Subnormal( aSig0, &aExp, &aSig0 );
+    }
+    bSig |= LIT64( 0x8000000000000000 );
+    zSign = aSign;
+    expDiff = aExp - bExp;
+    *s = (aSign != bSign);
+    aSig1 = 0;
+    if ( expDiff < 0 ) {
+        if ( expDiff < -1 ) return a;
+        shift128Right( aSig0, 0, 1, &aSig0, &aSig1 );
+        expDiff = 0;
+    }
+    qTemp = ( bSig <= aSig0 );
+    if ( qTemp ) aSig0 -= bSig;
+    *q = ( expDiff > 63 ) ? 0 : ( qTemp<<expDiff );
+    expDiff -= 64;
+    while ( 0 < expDiff ) {
+        qTemp = estimateDiv128To64( aSig0, aSig1, bSig );
+        qTemp = ( 2 < qTemp ) ? qTemp - 2 : 0;
+        mul64To128( bSig, qTemp, &term0, &term1 );
+        sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
+        shortShift128Left( aSig0, aSig1, 62, &aSig0, &aSig1 );
+        *q += qTemp;
+        *q <<= 62;
+        expDiff -= 62;
+    }
+    expDiff += 64;
+    if ( 0 < expDiff ) {
+        qTemp = estimateDiv128To64( aSig0, aSig1, bSig );
+        qTemp = ( 2 < qTemp ) ? qTemp - 2 : 0;
+        qTemp >>= 64 - expDiff;
+        mul64To128( bSig, qTemp<<( 64 - expDiff ), &term0, &term1 );
+        sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
+        shortShift128Left( 0, bSig, 64 - expDiff, &term0, &term1 );
+        while ( le128( term0, term1, aSig0, aSig1 ) ) {
+            ++qTemp;
+            sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
+        }
+        *q += qTemp;
+    }
+    else {
+        term1 = 0;
+        term0 = bSig;
+    }
+    sub128( term0, term1, aSig0, aSig1, &alternateASig0, &alternateASig1 );
+    if (    lt128( alternateASig0, alternateASig1, aSig0, aSig1 )
+        || (    eq128( alternateASig0, alternateASig1, aSig0, aSig1 )
+            && ( qTemp & 1 ) )
+        ) {
+        aSig0 = alternateASig0;
+        aSig1 = alternateASig1;
+        zSign = ! zSign;
+        ++*q;
+    }
+    return
+    normalizeRoundAndPackFloatx80(
+                                  80, zSign, bExp + expDiff, aSig0, aSig1 );
+    
+}
+// End of modification
+
+// 08-01-2017: Added for Previous
+/*----------------------------------------------------------------------------
+ | Returns the modulo remainder of the extended double-precision floating-point
+ | value `a' with respect to the corresponding value `b'.
+ *----------------------------------------------------------------------------*/
+
+floatx80 floatx80_mod( floatx80 a, floatx80 b, bits64 *q, flag *s )
+{
+    flag aSign, bSign, zSign;
+    int32 aExp, bExp, expDiff;
+    bits64 aSig0, aSig1, bSig;
+    bits64 qTemp, term0, term1;
+    floatx80 z;
+    
+    aSig0 = extractFloatx80Frac( a );
+    aExp = extractFloatx80Exp( a );
+    aSign = extractFloatx80Sign( a );
+    bSig = extractFloatx80Frac( b );
+    bExp = extractFloatx80Exp( b );
+    bSign = extractFloatx80Sign( b );
+    *q = 0;
+    *s = 0;
+    if ( aExp == 0x7FFF ) {
+        if (    (bits64) ( aSig0<<1 )
+            || ( ( bExp == 0x7FFF ) && (bits64) ( bSig<<1 ) ) ) {
+            return propagateFloatx80NaN( a, b );
+        }
+        goto invalid;
+    }
+    if ( bExp == 0x7FFF ) {
+        if ( (bits64) ( bSig<<1 ) ) return propagateFloatx80NaN( a, b );
+        return a;
+    }
+    if ( bExp == 0 ) {
+        if ( bSig == 0 ) {
+        invalid:
+            float_raise( float_flag_invalid );
+            z.low = floatx80_default_nan_low;
+            z.high = floatx80_default_nan_high;
+            return z;
+        }
+        normalizeFloatx80Subnormal( bSig, &bExp, &bSig );
+    }
+    if ( aExp == 0 ) {
+        if ( (bits64) ( aSig0<<1 ) == 0 ) return a;
+        normalizeFloatx80Subnormal( aSig0, &aExp, &aSig0 );
+    }
+    bSig |= LIT64( 0x8000000000000000 );
+    zSign = aSign;
+    expDiff = aExp - bExp;
+    *s = (aSign != bSign);
+    aSig1 = 0;
+    if ( expDiff < 0 ) return a;
+    qTemp = ( bSig <= aSig0 );
+    if ( qTemp ) aSig0 -= bSig;
+    *q = ( expDiff > 63 ) ? 0 : ( qTemp<<expDiff );
+    expDiff -= 64;
+    while ( 0 < expDiff ) {
+        qTemp = estimateDiv128To64( aSig0, aSig1, bSig );
+        qTemp = ( 2 < qTemp ) ? qTemp - 2 : 0;
+        mul64To128( bSig, qTemp, &term0, &term1 );
+        sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
+        shortShift128Left( aSig0, aSig1, 62, &aSig0, &aSig1 );
+        *q += qTemp;
+        *q <<= 62;
+        expDiff -= 62;
+    }
+    expDiff += 64;
+    if ( 0 < expDiff ) {
+        qTemp = estimateDiv128To64( aSig0, aSig1, bSig );
+        qTemp = ( 2 < qTemp ) ? qTemp - 2 : 0;
+        qTemp >>= 64 - expDiff;
+        mul64To128( bSig, qTemp<<( 64 - expDiff ), &term0, &term1 );
+        sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
+        shortShift128Left( 0, bSig, 64 - expDiff, &term0, &term1 );
+        while ( le128( term0, term1, aSig0, aSig1 ) ) {
+            ++qTemp;
+            sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
+        }
+        *q += qTemp;
+    }
+    return
+        normalizeRoundAndPackFloatx80(
+            80, zSign, bExp + expDiff, aSig0, aSig1 );
+    
+}
+// end of addition for Previous
 
 /*----------------------------------------------------------------------------
 | Returns the square root of the extended double-precision floating-point
