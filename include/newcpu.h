@@ -142,8 +142,8 @@ extern struct mmufixup mmufixup[2];
 
 typedef struct
 {
-	fptype fp;
 	floatx80 fpx;
+	fptype fp;
 } fpdata;
 
 struct regstruct
@@ -562,7 +562,6 @@ extern int m68k_movec2 (int, uae_u32 *);
 extern bool m68k_divl (uae_u32, uae_u32, uae_u16);
 extern bool m68k_mull (uae_u32, uae_u32, uae_u16);
 extern void init_m68k (void);
-extern void init_m68k_full (void);
 extern void m68k_go (int);
 extern void m68k_dumpstate (uaecptr *);
 extern void m68k_dumpstate (uaecptr, uaecptr *);
@@ -570,7 +569,6 @@ extern void m68k_dumpcache (void);
 extern int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor);
 extern int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor);
 extern void divbyzero_special (bool issigned, uae_s32 dst);
-extern void m68k_do_rte (void);
 extern void protect_roms (bool);
 extern void unprotect_maprom (void);
 extern bool is_hardreset(void);
