@@ -2035,7 +2035,7 @@ static void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
 			WriteCIAA (r, value);
 		cia_wait_post (((cs & 2) == 0 ? 1 : 0) | ((cs & 1) == 0 ? 2 : 0), value);
 		if (((cs & 3) == 3) && (warned > 0 || currprefs.illegal_mem)) {
-			write_log (_T("cia_bput: unknown CIA address %08X=%082X PC=%08X\n"), addr, value & 0xff, M68K_GETPC);
+			write_log (_T("cia_bput: unknown CIA address %08X=%02X PC=%08X\n"), addr, value & 0xff, M68K_GETPC);
 			warned--;
 		}
 	}
