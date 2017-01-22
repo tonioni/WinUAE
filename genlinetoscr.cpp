@@ -142,7 +142,8 @@ static void out_linetoscr_do_srcpix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE_
 		if (aga && cmode != CMODE_DUALPF) {
 			if (spr)
 				outln (     "    sprpix_val = pixdata.apixels[spix];");
-			outln ( 	"    spix_val = (pixdata.apixels[spix] ^ xor_val) & and_val;");
+			if (cmode != CMODE_HAM)
+				outln ( 	"    spix_val = (pixdata.apixels[spix] ^ xor_val) & and_val;");
 		} else if (cmode != CMODE_HAM) {
 			outln ( 	"    spix_val = pixdata.apixels[spix];");
 			if (spr)
@@ -174,8 +175,8 @@ static void out_linetoscr_do_dstpix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE_
 	} else if (cmode == CMODE_DUALPF) {
 		outln (		"    dpix_val = p_acolors[lookup[spix_val]];");
 	} else if (aga && cmode == CMODE_EXTRAHB) {
-		outln (		"    if (spix_val >= 32 && spix_val < 64) {");
-		outln (		"        unsigned int c = (colors_for_drawing.color_regs_aga[spix_val - 32] >> 1) & 0x7F7F7F;");
+		outln (		"    if (pixdata.apixels[spix] & 0x20) {");
+		outln (		"        unsigned int c = (colors_for_drawing.color_regs_aga[spix_val & 0x1f] >> 1) & 0x7F7F7F;");
 		outln (		"        dpix_val = CONVERT_RGB (c);");
 		outln (		"    } else");
 		outln (		"        dpix_val = p_acolors[spix_val];");
