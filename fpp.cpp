@@ -2468,6 +2468,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 		case 3:
 			if (put_fp_value (&regs.fp[(extra >> 7) & 7], opcode, extra, pc) == 0)
 				fpu_noinst (opcode, pc);
+			fpsr_make_status();
 			return;
 
 		case 4:
@@ -2669,11 +2670,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 				if (fault_if_unimplemented_680x0 (opcode, extra, ad, pc, &srcd, reg))
 					return;
 				fpsr_clear_status();
-				if (!fpu_get_constant(&regs.fp[reg], extra)) {
-					fpu_noinst(opcode, pc);
-					return;
-				}
-                fpsr_set_result(&regs.fp[reg]);
+				fpu_get_constant(&regs.fp[reg], extra);
                 fpsr_make_status();
 				return;
 			}
@@ -2704,6 +2701,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 			v = arithmetic(&srcd, reg, extra);
 			if (!v)
 				fpu_noinst (opcode, pc);
+			fpsr_make_status();
 			return;
 		default:
 		break;
