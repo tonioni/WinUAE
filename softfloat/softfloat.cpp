@@ -1005,6 +1005,89 @@ static floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign,
 
 }
 
+#ifdef SOFTFLOAT_68K // 21-01-2017: Added for Previous
+floatx80 roundAndPackFloatx80Sgl( flag zSign, int32_t zExp, uint64_t zSig0, uint64_t zSig1, float_status *status )
+{
+    int8_t roundingMode;
+    flag roundNearestEven, isTiny;
+    int64_t roundIncrement, roundMask, roundBits;
+    
+    roundingMode = status->float_rounding_mode;
+    roundNearestEven = ( roundingMode == float_round_nearest_even );
+    roundIncrement = LIT64( 0x0000008000000000 );
+    roundMask = LIT64( 0x000000FFFFFFFFFF );
+    zSig0 |= ( zSig1 != 0 );
+    if ( ! roundNearestEven ) {
+        if ( roundingMode == float_round_to_zero ) {
+            roundIncrement = 0;
+        }
+        else {
+            roundIncrement = roundMask;
+            if ( zSign ) {
+                if ( roundingMode == float_round_up ) roundIncrement = 0;
+            }
+            else {
+                if ( roundingMode == float_round_down ) roundIncrement = 0;
+            }
+        }
+    }
+    roundBits = zSig0 & roundMask;
+    
+    if ( 0x7FFE <= (uint32_t) zExp ) {
+        if (    ( 0x7FFE < zExp )
+            || ( ( zExp == 0x7FFE ) && ( zSig0 + roundIncrement < zSig0 ) )
+            ) {
+            float_raise( float_flag_overflow | float_flag_inexact, status );
+            if (    ( roundingMode == float_round_to_zero )
+                || ( zSign && ( roundingMode == float_round_up ) )
+                || ( ! zSign && ( roundingMode == float_round_down ) )
+                ) {
+                return packFloatx80( zSign, 0x7FFE, LIT64( 0xFFFFFFFFFFFFFFFF ) );
+            }
+            return packFloatx80( zSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+        }
+        
+        if ( zExp < 0 ) {
+            isTiny =
+            ( status->float_detect_tininess == float_tininess_before_rounding )
+            || ( zExp < -1 )
+            || ( zSig0 <= zSig0 + roundIncrement );
+            shift64RightJamming( zSig0, -zExp, &zSig0 );
+            zExp = 0;
+            roundBits = zSig0 & roundMask;
+            if ( isTiny && roundBits ) float_raise( float_flag_underflow, status );
+            if ( roundBits ) status->float_exception_flags |= float_flag_inexact;
+            if ( ( zSig0 & ~roundMask ) == 0 ) {
+                zSig0 = ( roundIncrement != roundMask );
+                return packFloatx80( zSign, zExp, zSig0 );
+            }
+            zSig0 += roundIncrement;
+            roundIncrement = roundMask + 1;
+            if ( roundNearestEven && ( roundBits<<1 == roundIncrement ) ) {
+                roundMask |= roundIncrement;
+            }
+            zSig0 &= ~ roundMask;
+            return packFloatx80( zSign, zExp, zSig0 );
+        }
+    }
+    if ( roundBits ) status->float_exception_flags |= float_flag_inexact;
+    zSig0 += roundIncrement;
+    if ( zSig0 < roundIncrement ) {
+        ++zExp;
+        zSig0 = LIT64( 0x8000000000000000 );
+    }
+    roundIncrement = roundMask + 1;
+    if ( roundNearestEven && ( roundBits<<1 == roundIncrement ) ) {
+        roundMask |= roundIncrement;
+    }
+    zSig0 &= ~ roundMask;
+    if ( zSig0 == 0 ) zExp = 0;
+    return packFloatx80( zSign, zExp, zSig0 );
+    
+}
+#endif // End of Addition for Previous
+
+
 /*----------------------------------------------------------------------------
 | Takes an abstract floating-point value having sign `zSign', exponent
 | `zExp', and significand formed by the concatenation of `zSig0' and `zSig1',
@@ -5192,6 +5275,33 @@ floatx80 floatx80_round64( floatx80 a, float_status *status )
     return roundAndPackFloatx80(64, aSign, aExp, aSig, 0, status);
     
 }
+
+floatx80 floatx80_normalize( floatx80 a )
+{
+    flag aSign;
+    int16_t aExp;
+    uint64_t aSig;
+    int8_t shiftCount;
+    
+    aSig = extractFloatx80Frac( a );
+    aExp = extractFloatx80Exp( a );
+    aSign = extractFloatx80Sign( a );
+    
+    if ( aExp == 0x7FFF || aExp == 0 ) return a;
+    if ( aSig == 0 ) return packFloatx80(aSign, 0, 0);
+    
+    shiftCount = countLeadingZeros64( aSig );
+    
+    if ( shiftCount > aExp ) {
+        shiftCount = aExp;
+        aExp = 0;
+    } else {
+        aExp -= shiftCount;
+    }
+    aSig <<= shiftCount;
+    
+    return packFloatx80( aSign, aExp, aSig );
+}
 #endif // end of addition for Previous
 
 /*----------------------------------------------------------------------------
@@ -5360,11 +5470,9 @@ static floatx80 addFloatx80Sigs(floatx80 a, floatx80 b, flag zSign,
     bExp = extractFloatx80Exp( b );
 #ifdef SOFTFLOAT_68K
 	if ( aExp == 0 ) {
-		if ( aSig == 0 ) return b;
 		normalizeFloatx80Subnormal( aSig, &aExp, &aSig );
 	}
 	if ( bExp == 0 ) {
-		if ( bSig == 0 ) return a;
 		normalizeFloatx80Subnormal( bSig, &bExp, &bSig );
 	}
 #endif
@@ -5411,7 +5519,10 @@ static floatx80 addFloatx80Sigs(floatx80 a, floatx80 b, flag zSign,
 		}
 #endif
         zExp = aExp;
-        goto shiftRight1;
+#ifdef SOFTFLOAT_68K
+        if ( aSig == 0 || bSig == 0 ) goto roundAndPack;
+#endif
+		goto shiftRight1;
     }
     zSig0 = aSig + bSig;
     if ( (int64_t) zSig0 < 0 ) goto roundAndPack;
@@ -5608,6 +5719,62 @@ floatx80 floatx80_mul(floatx80 a, floatx80 b, float_status *status)
                                 zSign, zExp, zSig0, zSig1, status);
 }
 
+#ifdef SOFTFLOAT_68K // 21-01-2017: Added for Previous
+floatx80 floatx80_sglmul( floatx80 a, floatx80 b, float_status *status )
+{
+	flag aSign, bSign, zSign;
+	int32_t aExp, bExp, zExp;
+	uint64_t aSig, bSig, zSig0, zSig1;
+	floatx80 z;
+	
+	aSig = extractFloatx80Frac( a );
+	aExp = extractFloatx80Exp( a );
+	aSign = extractFloatx80Sign( a );
+	bSig = extractFloatx80Frac( b );
+	bExp = extractFloatx80Exp( b );
+	bSign = extractFloatx80Sign( b );
+	zSign = aSign ^ bSign;
+	if ( aExp == 0x7FFF ) {
+		if (    (uint64_t) ( aSig<<1 )
+			|| ( ( bExp == 0x7FFF ) && (uint64_t) ( bSig<<1 ) ) ) {
+			return propagateFloatx80NaN( a, b, status );
+		}
+		if ( ( bExp | bSig ) == 0 ) goto invalid;
+		return packFloatx80( zSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+	}
+	if ( bExp == 0x7FFF ) {
+		if ( (uint64_t) ( bSig<<1 ) ) return propagateFloatx80NaN( a, b, status );
+		if ( ( aExp | aSig ) == 0 ) {
+		invalid:
+			float_raise( float_flag_invalid, status );
+			z.low = floatx80_default_nan_low;
+			z.high = floatx80_default_nan_high;
+			return z;
+		}
+		return packFloatx80( zSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+	}
+	if ( aExp == 0 ) {
+		if ( aSig == 0 ) return packFloatx80( zSign, 0, 0 );
+		normalizeFloatx80Subnormal( aSig, &aExp, &aSig );
+	}
+	if ( bExp == 0 ) {
+		if ( bSig == 0 ) return packFloatx80( zSign, 0, 0 );
+		normalizeFloatx80Subnormal( bSig, &bExp, &bSig );
+	}
+	aSig &= LIT64( 0xFFFFFF0000000000 );
+	bSig &= LIT64( 0xFFFFFF0000000000 );
+	zExp = aExp + bExp - 0x3FFE;
+	mul64To128( aSig, bSig, &zSig0, &zSig1 );
+	if ( 0 < (uint64_t) zSig0 ) {
+		shortShift128Left( zSig0, zSig1, 1, &zSig0, &zSig1 );
+		--zExp;
+	}
+	return roundAndPackFloatx80Sgl( zSign, zExp, zSig0, zSig1, status );
+        
+}
+#endif // End of addition for Previous
+ 
+
 /*----------------------------------------------------------------------------
 | Returns the result of dividing the extended double-precision floating-point
 | value `a' by the corresponding value `b'.  The operation is performed
@@ -5692,6 +5859,83 @@ floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
     return roundAndPackFloatx80(status->floatx80_rounding_precision,
                                 zSign, zExp, zSig0, zSig1, status);
 }
+
+#ifdef SOFTFLOAT_68K // 21-01-2017: Addition for Previous
+floatx80 floatx80_sgldiv( floatx80 a, floatx80 b, float_status *status )
+{
+	flag aSign, bSign, zSign;
+	int32_t aExp, bExp, zExp;
+	uint64_t aSig, bSig, zSig0, zSig1;
+	uint64_t rem0, rem1, rem2, term0, term1, term2;
+	floatx80 z;
+	
+	aSig = extractFloatx80Frac( a );
+	aExp = extractFloatx80Exp( a );
+	aSign = extractFloatx80Sign( a );
+	bSig = extractFloatx80Frac( b );
+	bExp = extractFloatx80Exp( b );
+	bSign = extractFloatx80Sign( b );
+	zSign = aSign ^ bSign;
+	if ( aExp == 0x7FFF ) {
+		if ( (uint64_t) ( aSig<<1 ) ) return propagateFloatx80NaN( a, b, status );
+		if ( bExp == 0x7FFF ) {
+			if ( (uint64_t) ( bSig<<1 ) ) return propagateFloatx80NaN( a, b, status );
+			goto invalid;
+		}
+		return packFloatx80( zSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+	}
+	if ( bExp == 0x7FFF ) {
+		if ( (uint64_t) ( bSig<<1 ) ) return propagateFloatx80NaN( a, b, status );
+		return packFloatx80( zSign, 0, 0 );
+	}
+	if ( bExp == 0 ) {
+		if ( bSig == 0 ) {
+			if ( ( aExp | aSig ) == 0 ) {
+			invalid:
+				float_raise( float_flag_invalid, status );
+				z.low = floatx80_default_nan_low;
+				z.high = floatx80_default_nan_high;
+		        return z;
+			}
+			float_raise( float_flag_divbyzero, status );
+			return packFloatx80( zSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+		}
+		normalizeFloatx80Subnormal( bSig, &bExp, &bSig );
+	}
+	if ( aExp == 0 ) {
+		if ( aSig == 0 ) return packFloatx80( zSign, 0, 0 );
+		normalizeFloatx80Subnormal( aSig, &aExp, &aSig );
+	}
+    aSig &= LIT64( 0xFFFFFF0000000000 );
+    bSig &= LIT64( 0xFFFFFF0000000000 );
+	zExp = aExp - bExp + 0x3FFE;
+	rem1 = 0;
+	if ( bSig <= aSig ) {
+		shift128Right( aSig, 0, 1, &aSig, &rem1 );
+		++zExp;
+	}
+	zSig0 = estimateDiv128To64( aSig, rem1, bSig );
+	mul64To128( bSig, zSig0, &term0, &term1 );
+	sub128( aSig, rem1, term0, term1, &rem0, &rem1 );
+	while ( (int64_t) rem0 < 0 ) {
+		--zSig0;
+		add128( rem0, rem1, 0, bSig, &rem0, &rem1 );
+	}
+	zSig1 = estimateDiv128To64( rem1, 0, bSig );
+	if ( (uint64_t) ( zSig1<<1 ) <= 8 ) {
+		mul64To128( bSig, zSig1, &term1, &term2 );
+		sub128( rem1, 0, term1, term2, &rem1, &rem2 );
+		while ( (int64_t) rem1 < 0 ) {
+			--zSig1;
+			add128( rem1, rem2, 0, bSig, &rem1, &rem2 );
+		}
+		zSig1 |= ( ( rem1 | rem2 ) != 0 );
+	}
+	return roundAndPackFloatx80Sgl( zSign, zExp, zSig0, zSig1, status );
+        
+}
+#endif // End of addition for Previous
+   
 
 /*----------------------------------------------------------------------------
 | Returns the remainder of the extended double-precision floating-point value

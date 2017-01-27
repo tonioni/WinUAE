@@ -622,6 +622,8 @@ floatx80 floatx80_getexp( floatx80 a, float_status *status);
 floatx80 floatx80_rem( floatx80 a, floatx80 b, uint64_t *q, flag *s, float_status *status );
 floatx80 floatx80_mod( floatx80 a, floatx80 b, uint64_t *q, flag *s, float_status *status );
 floatx80 floatx80_scale(floatx80 a, floatx80 b, float_status *status);
+floatx80 floatx80_sglmul( floatx80 a, floatx80 b, float_status *status);
+floatx80 floatx80_sgldiv( floatx80 a, floatx80 b, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision operations.
@@ -650,6 +652,8 @@ floatx80 floatx80_scalbn(floatx80, int, float_status *status);
 
 //flag floatx80_is_unnormal( floatx80 a );
 //flag floatx80_is_denormal( floatx80 a );
+
+floatx80 floatx80_normalize(floatx80);
 
 static inline floatx80 floatx80_abs(floatx80 a)
 {

@@ -73,6 +73,8 @@ extern FPP_A fpp_rounddbl;
 extern FPP_A fpp_round32;
 extern FPP_A fpp_round64;
 
+extern FPP_A fpp_normalize;
+
 extern FPP_AB fpp_int;
 extern FPP_AB fpp_sinh;
 extern FPP_AB fpp_intrz;
@@ -105,3 +107,5 @@ extern FPP_AB fpp_mul;
 extern FPP_ABQS fpp_rem;
 extern FPP_AB fpp_scale;
 extern FPP_AB fpp_sub;
+extern FPP_AB fpp_sgldiv;
+extern FPP_AB fpp_sglmul;
