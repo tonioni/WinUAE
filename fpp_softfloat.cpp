@@ -41,7 +41,6 @@
 
 static floatx80 fxsizes[6];
 static floatx80 fxzero;
-static floatx80 fx_1e0, fx_1e1, fx_1e2, fx_1e4, fx_1e8;
 static struct float_status fs;
 
 /* Functions for setting host/library modes and getting status */
@@ -327,7 +326,26 @@ static void from_int(fpdata *fpd, uae_s32 src)
     fpd->fpx = int32_to_floatx80(src, &fs);
 }
 
+
+static inline int32_t extractFloatx80Exp( floatx80 a )
+{
+    return a.high & 0x7FFF;
+}
+static inline uint64_t extractFloatx80Frac( floatx80 a )
+{
+    return a.low;
+}
+
+
 /* Functions for rounding */
+
+static floatx80 fp_to_sgl(floatx80 a)
+{
+    floatx80 v = floatx80_round32(a, &fs);
+	v.high &= 0x7fff;
+	v.high |= a.high & 0x7fff;
+	return v;
+}
 
 // round to float with extended precision exponent
 static void fp_roundsgl(fpdata *fpd)
@@ -412,16 +430,6 @@ static void fp_log2(fpdata *a, fpdata *dst)
     fpa = log2(fpa);
     from_native(fpa, dst);
 }
-
-static inline int32_t extractFloatx80Exp( floatx80 a )
-{
-    return a.high & 0x7FFF;
-}
-static inline uint64_t extractFloatx80Frac( floatx80 a )
-{
-    return a.low;
-}
-
 
 static void fp_abs(fpdata *a, fpdata *dst)
 {

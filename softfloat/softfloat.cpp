@@ -740,7 +740,6 @@ static void
 #else
 	*zExpPtr = 1 - shiftCount;
 #endif
-	*zExpPtr = 1 - shiftCount;
 }
 
 /*----------------------------------------------------------------------------
@@ -5765,7 +5764,7 @@ floatx80 floatx80_sglmul( floatx80 a, floatx80 b, float_status *status )
 	bSig &= LIT64( 0xFFFFFF0000000000 );
 	zExp = aExp + bExp - 0x3FFE;
 	mul64To128( aSig, bSig, &zSig0, &zSig1 );
-	if ( 0 < (uint64_t) zSig0 ) {
+	if ( 0 < (int64_t) zSig0 ) {
 		shortShift128Left( zSig0, zSig1, 1, &zSig0, &zSig1 );
 		--zExp;
 	}
@@ -5906,8 +5905,7 @@ floatx80 floatx80_sgldiv( floatx80 a, floatx80 b, float_status *status )
 		if ( aSig == 0 ) return packFloatx80( zSign, 0, 0 );
 		normalizeFloatx80Subnormal( aSig, &aExp, &aSig );
 	}
-    aSig &= LIT64( 0xFFFFFF0000000000 );
-    bSig &= LIT64( 0xFFFFFF0000000000 );
+
 	zExp = aExp - bExp + 0x3FFE;
 	rem1 = 0;
 	if ( bSig <= aSig ) {

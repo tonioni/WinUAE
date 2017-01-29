@@ -2004,7 +2004,7 @@ void fpuop_save (uae_u32 opcode)
 				ad -= frame_size;
 		}
 	} else { /* 68881/68882 */
-		int frame_size_real = currprefs.fpu_model == 68882 ? 0x3c : 0x1c;;
+		int frame_size_real = currprefs.fpu_model == 68882 ? 0x3c : 0x1c;
 		int frame_size = regs.fpu_state == 0 ? 0 : frame_size_real;
 		uae_u32 frame_id = regs.fpu_state == 0 ? ((frame_size_real - 4) << 16) : (fpu_version << 24) | ((frame_size_real - 4) << 16);
 		
@@ -2420,7 +2420,10 @@ static bool arithmetic(fpdata *src, int reg, int extra)
 		case 0x38: /* FCMP */
 		{
 			fpdata t = *dst;
+			uae_u32 status = regs.fpsr;
 			fpp_sub(&t, src);
+			fpsr_clear_status();
+			fpp_set_fpsr(status);
 			fpsr_set_result(&t);
 			return true;
 		}
