@@ -180,7 +180,9 @@ struct regstruct
 
 #ifdef FPUEMU
 	fpdata fp[8];
+#ifdef JIT
 	fpdata fp_result;
+#endif
 	uae_u32 fp_result_status;
 	uae_u32 fpcr, fpsr, fpiar;
 	uae_u32 fpu_state;

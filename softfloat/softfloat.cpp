@@ -186,6 +186,87 @@ static int32_t roundAndPackInt32(flag zSign, uint64_t absZ, float_status *status
 
 }
 
+
+#ifdef SOFTFLOAT_68K // 30-01-2017: Added for Previous
+static int16_t roundAndPackInt16( flag zSign, uint64_t absZ, float_status *status )
+{
+    int8_t roundingMode;
+    flag roundNearestEven;
+    int8_t roundIncrement, roundBits;
+    int16_t z;
+    
+    roundingMode = status->float_rounding_mode;
+    roundNearestEven = ( roundingMode == float_round_nearest_even );
+    roundIncrement = 0x40;
+    if ( ! roundNearestEven ) {
+        if ( roundingMode == float_round_to_zero ) {
+            roundIncrement = 0;
+        }
+        else {
+            roundIncrement = 0x7F;
+            if ( zSign ) {
+                if ( roundingMode == float_round_up ) roundIncrement = 0;
+            }
+            else {
+                if ( roundingMode == float_round_down ) roundIncrement = 0;
+            }
+        }
+    }
+    roundBits = absZ & 0x7F;
+    absZ = ( absZ + roundIncrement )>>7;
+    absZ &= ~ ( ( ( roundBits ^ 0x40 ) == 0 ) & roundNearestEven );
+    z = absZ;
+    if ( zSign ) z = - z;
+    z = (int16_t) z;
+    if ( ( absZ>>16 ) || ( z && ( ( z < 0 ) ^ zSign ) ) ) {
+        float_raise( float_flag_invalid, status );
+        return zSign ? (int16_t) 0x8000 : 0x7FFF;
+    }
+    if ( roundBits ) status->float_exception_flags |= float_flag_inexact;
+    return z;
+    
+}
+
+static int8_t roundAndPackInt8( flag zSign, uint64_t absZ, float_status *status )
+{
+    int8_t roundingMode;
+    flag roundNearestEven;
+    int8_t roundIncrement, roundBits;
+    int8_t z;
+    
+    roundingMode = status->float_rounding_mode;
+    roundNearestEven = ( roundingMode == float_round_nearest_even );
+    roundIncrement = 0x40;
+    if ( ! roundNearestEven ) {
+        if ( roundingMode == float_round_to_zero ) {
+            roundIncrement = 0;
+        }
+        else {
+            roundIncrement = 0x7F;
+            if ( zSign ) {
+                if ( roundingMode == float_round_up ) roundIncrement = 0;
+            }
+            else {
+                if ( roundingMode == float_round_down ) roundIncrement = 0;
+            }
+        }
+    }
+    roundBits = absZ & 0x7F;
+    absZ = ( absZ + roundIncrement )>>7;
+    absZ &= ~ ( ( ( roundBits ^ 0x40 ) == 0 ) & roundNearestEven );
+    z = absZ;
+    if ( zSign ) z = - z;
+    z = (int8_t) z;
+    if ( ( absZ>>8 ) || ( z && ( ( z < 0 ) ^ zSign ) ) ) {
+        float_raise( float_flag_invalid, status );
+        return zSign ? (int8_t) 0x80 : 0x7F;
+    }
+    if ( roundBits ) status->float_exception_flags |= float_flag_inexact;
+    return z;
+    
+}
+#endif // End of addition for Previous
+
 /*----------------------------------------------------------------------------
 | Takes the 128-bit fixed-point value formed by concatenating `absZ0' and
 | `absZ1', with binary point between bits 63 and 64 (between the input words),
@@ -4995,13 +5076,65 @@ int32_t floatx80_to_int32(floatx80 a, float_status *status)
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
-    if ( ( aExp == 0x7FFF ) && (uint64_t) ( aSig<<1 ) ) aSign = 0;
+#ifdef SOFTFLOAT_68K
+    if ( aExp == 0x7FFF ) {
+        float_raise( float_flag_invalid, status );
+        if ( (uint64_t) ( aSig<<1 ) ) return (int32_t)(aSig>>32);
+        return aSign ? (int32_t) 0x80000000 : 0x7FFFFFFF;
+    }
+#else
+ 	if ( ( aExp == 0x7FFF ) && (bits64) ( aSig<<1 ) ) aSign = 0;
+#endif
     shiftCount = 0x4037 - aExp;
     if ( shiftCount <= 0 ) shiftCount = 1;
     shift64RightJamming( aSig, shiftCount, &aSig );
     return roundAndPackInt32(aSign, aSig, status);
 
 }
+
+#ifdef SOFTFLOAT_68K // 30-01-2017: Addition for Previous
+int16_t floatx80_to_int16( floatx80 a, float_status *status)
+{
+    flag aSign;
+    int32_t aExp, shiftCount;
+    uint64_t aSig;
+    
+    aSig = extractFloatx80Frac( a );
+    aExp = extractFloatx80Exp( a );
+    aSign = extractFloatx80Sign( a );
+    if ( aExp == 0x7FFF ) {
+        float_raise( float_flag_invalid, status );
+        if ( (uint64_t) ( aSig<<1 ) ) return (int16_t)(aSig>>48);
+        return aSign ? (int16_t) 0x8000 : 0x7FFF;
+    }
+    shiftCount = 0x4037 - aExp;
+    if ( shiftCount <= 0 ) shiftCount = 1;
+    shift64RightJamming( aSig, shiftCount, &aSig );
+    return roundAndPackInt16( aSign, aSig, status );
+    
+}
+int8_t floatx80_to_int8( floatx80 a, float_status *status)
+{
+    flag aSign;
+    int32_t aExp, shiftCount;
+    uint64_t aSig;
+    
+    aSig = extractFloatx80Frac( a );
+    aExp = extractFloatx80Exp( a );
+    aSign = extractFloatx80Sign( a );
+    if ( aExp == 0x7FFF ) {
+        float_raise( float_flag_invalid, status );
+        if ( (uint64_t) ( aSig<<1 ) ) return (int8_t)(aSig>>56);
+        return aSign ? (int8_t) 0x80 : 0x7F;
+    }
+    shiftCount = 0x4037 - aExp;
+    if ( shiftCount <= 0 ) shiftCount = 1;
+    shift64RightJamming( aSig, shiftCount, &aSig );
+    return roundAndPackInt8( aSign, aSig, status );
+    
+}
+#endif // End of addition for Previous
+
 
 /*----------------------------------------------------------------------------
 | Returns the result of converting the extended double-precision floating-
@@ -6100,8 +6233,7 @@ floatx80 floatx80_rem( floatx80 a, floatx80 b, uint64_t *q, flag *s, float_statu
         mul64To128( bSig, qTemp, &term0, &term1 );
         sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
         shortShift128Left( aSig0, aSig1, 62, &aSig0, &aSig1 );
-        *q += qTemp;
-        *q <<= 62;
+        *q = ( expDiff > 63 ) ? 0 : ( qTemp<<expDiff );
         expDiff -= 62;
     }
     expDiff += 64;
@@ -6207,9 +6339,8 @@ floatx80 floatx80_mod( floatx80 a, floatx80 b, uint64_t *q, flag *s, float_statu
         mul64To128( bSig, qTemp, &term0, &term1 );
         sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
         shortShift128Left( aSig0, aSig1, 62, &aSig0, &aSig1 );
-        *q += qTemp;
-        *q <<= 62;
-        expDiff -= 62;
+        *q = ( expDiff > 63 ) ? 0 : ( qTemp<<expDiff );
+		expDiff -= 62;
     }
     expDiff += 64;
     if ( 0 < expDiff ) {
@@ -6425,8 +6556,50 @@ floatx80 floatx80_scale(floatx80 a, floatx80 b, float_status *status)
                 status->floatx80_rounding_precision, aSign, aExp, aSig, 0, status);
     
 }
-#endif // End of addition for Previous
 
+/*----------------------------------------------------------------------------
+ | Returns the result of comparing the extended double-precision floating-
+ | point values `a' and `b'.  The result is abstracted for matching the
+ | corresponding condition codes.
+ *----------------------------------------------------------------------------*/
+    
+floatx80 floatx80_cmp( floatx80 a, floatx80 b, float_status *status )
+{
+    flag aSign, bSign;
+    int32_t aExp, bExp;
+    uint64_t aSig, bSig;
+    
+    aSig = extractFloatx80Frac( a );
+    aExp = extractFloatx80Exp( a );
+    aSign = extractFloatx80Sign( a );
+    bSig = extractFloatx80Frac( b );
+    bExp = extractFloatx80Exp( b );
+    bSign = extractFloatx80Sign( b );
+    
+    if ( ( aExp == 0x7FFF && (uint64_t) ( aSig<<1 ) ) ||
+         ( bExp == 0x7FFF && (uint64_t) ( bSig<<1 ) ) ) {
+		return packFloatx80(0, 0x7FFF, floatx80_default_nan_low);    }
+    
+    if ( bExp < aExp ) return packFloatx80( aSign, 0x3FFF, LIT64( 0x8000000000000000 ) );
+    if ( aExp < bExp ) return packFloatx80( bSign ^ 1, 0x3FFF, LIT64( 0x8000000000000000 ) );
+    
+    if ( aExp == 0x7FFF ) {
+        if ( aSign == bSign ) return packFloatx80( aSign, 0, 0 );
+        return packFloatx80( aSign, 0x3FFF, LIT64( 0x8000000000000000 ) );
+    }
+    
+    if ( bSig < aSig ) return packFloatx80( aSign, 0x3FFF, LIT64( 0x8000000000000000 ) );
+    if ( aSig < bSig ) return packFloatx80( bSign ^ 1, 0x3FFF, LIT64( 0x8000000000000000 ) );
+    
+    if ( aSig == 0 ) return packFloatx80( aSign, 0, 0 );
+    
+    if ( aSign == bSign ) return packFloatx80( 0, 0, 0 );
+    
+    return packFloatx80( aSign, 0x3FFF, LIT64( 0x8000000000000000 ) );
+    
+}
+    
+#endif // End of addition for Previous
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the extended double-precision floating-point value `a' is equal

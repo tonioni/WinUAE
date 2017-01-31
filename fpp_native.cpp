@@ -121,6 +121,8 @@ static const double twoto32 = 4294967296.0;
 #define	FPCR_PRECISION_DOUBLE	0x00000080
 #define FPCR_PRECISION_EXTENDED	0x00000000
 
+static struct float_status fs;
+
 #if defined(CPU_i386) || defined(CPU_x86_64)
 
 /* The main motivation for dynamically creating an x86(-64) function in
@@ -244,15 +246,15 @@ static void fp_get_status(uae_u32 *status)
     int exp_flags = fetestexcept(FE_ALL_EXCEPT);
     if (exp_flags) {
         if (exp_flags & FE_INEXACT)
-            *status |= 0x0200;
+            *status |= FPSR_INEX2;
         if (exp_flags & FE_DIVBYZERO)
-            *status |= 0x0400;
+            *status |= FPSR_DZ;
         if (exp_flags & FE_UNDERFLOW)
-            *status |= 0x0800;
+            *status |= FPSR_UNFL;
         if (exp_flags & FE_OVERFLOW)
-            *status |= 0x1000;
+            *status |= FPSR_OVFL;
         if (exp_flags & FE_INVALID)
-            *status |= 0x2000;
+            *status |= FPSR_OPERR;
     }
 }
 
@@ -300,11 +302,13 @@ static bool fp_is_neg(fpdata *fpd)
 }
 static bool fp_is_denormal(fpdata *fpd)
 {
-    return (isnormal(fpd->fp) == 0); /* FIXME: how to differ denormal/unnormal? */
+    return false;
+	//return (isnormal(fpd->fp) == 0); /* FIXME: how to differ denormal/unnormal? */
 }
 static bool fp_is_unnormal(fpdata *fpd)
 {
-    return (isnormal(fpd->fp) == 0); /* FIXME: how to differ denormal/unnormal? */
+	return false;
+    //return (isnormal(fpd->fp) == 0); /* FIXME: how to differ denormal/unnormal? */
 }
 
 /* Functions for converting between float formats */
@@ -438,6 +442,13 @@ static void fp_from_exten_x(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *
 #else // if !USE_LONG_DOUBLE
 static void fp_to_exten_x(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
+#if 1
+	floatx80 fx80;
+	fx80.high = wrd1 >> 16;
+	fx80.low = (((uae_u64)wrd2) << 32) | wrd3;
+	float64 f = floatx80_to_float64(fx80, &fs);
+	fp_to_double_x(fpd, f >> 32, (uae_u32)f);
+#else
     double frac;
     if ((wrd1 & 0x7fff0000) == 0 && wrd2 == 0 && wrd3 == 0) {
         fpd->fp = (wrd1 & 0x80000000) ? -0.0 : +0.0;
@@ -447,9 +458,18 @@ static void fp_to_exten_x(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
     if (wrd1 & 0x80000000)
         frac = -frac;
     fpd->fp = ldexp (frac, ((wrd1 >> 16) & 0x7fff) - 16383);
+#endif
 }
 static void fp_from_exten_x(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3)
 {
+#if 1
+	uae_u32 w1, w2;
+	fp_from_double_x(fpd, &w1, &w2);
+	floatx80 f = float64_to_floatx80(((uae_u64)w1 << 32) | w2, &fs);
+	*wrd1 = f.high << 16;
+	*wrd2 = f.low >> 32;
+	*wrd3 = (uae_u32)f.low;
+#else
     int expon;
     double frac;
     fptype v;
@@ -476,6 +496,7 @@ static void fp_from_exten_x(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *
     *wrd1 |= (((expon + 16383 - 1) & 0x7fff) << 16);
     *wrd2 = (uae_u32) (frac * twoto32);
     *wrd3 = (uae_u32) ((frac * twoto32 - *wrd2) * twoto32);
+#endif
 }
 #endif // !USE_LONG_DOUBLE
 
@@ -489,10 +510,34 @@ static uae_s64 fp_to_int(fpdata *src, int size)
     };
 
 	fptype fp = src->fp;
-	if (fp < fxsizes[size * 2 + 0])
+	if (fp_is_nan(src)) {
+		uae_u32 w1, w2, w3;
+		fp_from_exten_x(src, &w1, &w2, &w3);
+		uae_s64 v = 0;
+		fpsr_set_exception(FPSR_OPERR);
+		// return mantissa
+		switch (size)
+		{
+			case 0:
+			v = w2 >> 24;
+			break;
+			case 1:
+			v = w2 >> 16;
+			break;
+			case 2:
+			v = w2 >> 0;
+			break;
+		}
+		return v;
+	}
+	if (fp < fxsizes[size * 2 + 0]) {
 		fp = fxsizes[size * 2 + 0];
-	if (fp > fxsizes[size * 2 + 1])
+		fpsr_set_exception(FPSR_OPERR);
+	}
+	if (fp > fxsizes[size * 2 + 1]) {
 		fp = fxsizes[size * 2 + 1];
+		fpsr_set_exception(FPSR_OPERR);
+	}
 #ifdef USE_HOST_ROUNDING
 #ifdef USE_LONG_DOUBLE
 	return lrintl(fp);
@@ -830,8 +875,60 @@ static void fp_normalize(fpdata *a)
 {
 }
 
+static void fp_cmp(fpdata *a, fpdata *b)
+{
+	bool a_neg = fpp_is_neg(a);
+	bool b_neg = fpp_is_neg(b);
+	bool a_inf = fpp_is_infinity(a);
+	bool b_inf = fpp_is_infinity(b);
+	bool a_zero = fpp_is_zero(a);
+	bool b_zero = fpp_is_zero(b);
+	bool a_nan = fpp_is_nan(a);
+	bool b_nan = fpp_is_nan(b);
+	fptype v = 1.0;
+
+	if (a_nan || b_nan) {
+		// FCMP never returns N + NaN
+		v = *fp_nan;
+	} else if (a_zero && b_zero) {
+		if ((a_neg && b_neg) || (a_neg && !b_neg))
+			v = -0.0;
+		else
+			v = 0.0;
+	} else if (a_zero && b_inf) {
+		if (!b_neg)
+			v = -1.0;
+		else
+			v = 1.0;
+	} else if (a_inf && b_zero) {
+		if (!a_neg)
+			v = -1.0;
+		else
+			v = 1.0;
+	} else if (a_inf && b_inf) {
+		if (a_neg == b_neg)
+			v = 0.0;
+		if ((a_neg && b_neg) || (a_neg && !b_neg))
+			v = -v;
+	} else if (a_inf) {
+		if (a_neg)
+			v = -1.0;
+	} else if (b_inf) {
+		if (!b_neg)
+			v = -1.0;
+	} else {
+		fpp_sub(a, b);
+		v = a->fp;
+		fp_clear_status();
+	}
+	a->fp = v;
+}
+
 void fp_init_native(void)
 {
+	set_floatx80_rounding_precision(80, &fs);
+	set_float_rounding_mode(float_round_to_zero, &fs);
+
 	fpp_print = fp_print;
 	fpp_is_snan = fp_is_snan;
 	fpp_unset_snan = fp_unset_snan;
@@ -904,4 +1001,5 @@ void fp_init_native(void)
 	fpp_sub = fp_sub;
 	fpp_sgldiv = fp_sgldiv;
 	fpp_sglmul = fp_sglmul;
+	fpp_cmp = fp_cmp;
 }

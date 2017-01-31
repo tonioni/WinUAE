@@ -39,8 +39,6 @@
 #define	FPCR_PRECISION_DOUBLE	0x00000080
 #define FPCR_PRECISION_EXTENDED	0x00000000
 
-static floatx80 fxsizes[6];
-static floatx80 fxzero;
 static struct float_status fs;
 
 /* Functions for setting host/library modes and getting status */
@@ -172,6 +170,15 @@ static bool fp_is_unnormal(fpdata *fpd)
     return floatx80_is_unnormal(fpd->fpx) != 0;
 }
 
+static inline int32_t extractFloatx80Exp( floatx80 a )
+{
+    return a.high & 0x7FFF;
+}
+static inline uint64_t extractFloatx80Frac( floatx80 a )
+{
+    return a.low;
+}
+
 /* Functions for converting between float formats */
 static const fptype twoto32 = 4294967296.0;
 
@@ -212,6 +219,18 @@ static void to_native(fptype *fp, fpdata *fpd)
 #else
     *fp = ldexp (frac, expon - 16383);
 #endif
+}
+
+static bool to_native_checked(fptype *fp, fpdata *fpd, fpdata *dst)
+{
+    uint64_t aSig = extractFloatx80Frac(fpd->fpx);
+    int32_t aExp = extractFloatx80Exp(fpd->fpx);
+	if (aExp == 0x7FFF && (uint64_t)(aSig << 1)) {
+		dst->fpx = propagateFloatx80NaN(fpd->fpx, fpd->fpx, &fs);
+		return true;
+	}	
+	to_native(fp, fpd);
+	return false;
 }
 
 static void from_native(fptype fp, fpdata *fpd)
@@ -313,27 +332,16 @@ static void from_exten_x(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd
 
 static uae_s64 to_int(fpdata *src, int size)
 {
-    if (floatx80_lt(src->fpx, fxsizes[size * 2 + 0], &fs)) {
-        return floatx80_to_int32(fxsizes[size * 2 + 0], &fs);
-    }
-    if (floatx80_le(fxsizes[size * 2 + 1], src->fpx, &fs)) {
-        return floatx80_to_int32(fxsizes[size * 2 + 1], &fs);
-    }
-    return floatx80_to_int32(src->fpx, &fs);
+	switch (size) {
+		case 0: return floatx80_to_int8(src->fpx, &fs);
+		case 1: return floatx80_to_int16(src->fpx, &fs);
+		case 2: return floatx80_to_int32(src->fpx, &fs);
+		default: return 0;
+     }
 }
 static void from_int(fpdata *fpd, uae_s32 src)
 {
     fpd->fpx = int32_to_floatx80(src, &fs);
-}
-
-
-static inline int32_t extractFloatx80Exp( floatx80 a )
-{
-    return a.high & 0x7FFF;
-}
-static inline uint64_t extractFloatx80Frac( floatx80 a )
-{
-    return a.low;
 }
 
 
@@ -391,14 +399,16 @@ static void fp_sqrt(fpdata *a, fpdata *dst)
 static void fp_lognp1(fpdata *a, fpdata *dst)
 {
     fptype fpa;
-    to_native(&fpa, a);
+    if (to_native_checked(&fpa, a, dst))
+		return;
     fpa = log(a->fp + 1.0);
     from_native(fpa, dst);
 }
 static void fp_sin(fpdata *a, fpdata *dst)
 {
     fptype fpa;
-    to_native(&fpa, a);
+    if (to_native_checked(&fpa, a, dst))
+		return;
     fpa = sin(fpa);
     from_native(fpa, dst);
 }
@@ -502,7 +512,10 @@ static void fp_sub(fpdata *a, fpdata *b)
 {
     a->fpx = floatx80_sub(a->fpx, b->fpx, &fs);
 }
-
+static void fp_cmp(fpdata *a, fpdata *b)
+{
+    a->fpx = floatx80_cmp(a->fpx, b->fpx, &fs);
+}
 
 /* FIXME: create softfloat functions for following arithmetics */
 
@@ -594,12 +607,6 @@ void fp_init_softfloat(void)
 	float_status fsx = { 0 };
 	set_floatx80_rounding_precision(80, &fsx);
 	set_float_rounding_mode(float_round_to_zero, &fsx);
-	fxsizes[0] = int32_to_floatx80(-128, &fsx);
-	fxsizes[1] = int32_to_floatx80(127, &fsx);
-	fxsizes[2] = int32_to_floatx80(-32768, &fsx);
-	fxsizes[3] = int32_to_floatx80(32767, &fsx);
-	fxsizes[4] = int32_to_floatx80(-2147483648, &fsx);
-	fxsizes[5] = int32_to_floatx80(2147483647, &fsx);
 
 	fpp_print = fp_print;
 	fpp_is_snan = fp_is_snan;
@@ -673,5 +680,6 @@ void fp_init_softfloat(void)
 	fpp_sub = fp_sub;
 	fpp_sgldiv = fp_sgldiv;
 	fpp_sglmul = fp_sglmul;
+	fpp_cmp = fp_cmp;
 }
 

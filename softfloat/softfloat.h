@@ -596,6 +596,10 @@ float64 float64_default_nan(float_status *status);
 | Software IEC/IEEE extended double-precision conversion routines.
 *----------------------------------------------------------------------------*/
 int32_t floatx80_to_int32(floatx80, float_status *status);
+#ifdef SOFTFLOAT_68K
+int16_t floatx80_to_int16(floatx80, float_status *status);
+int8_t floatx80_to_int8(floatx80, float_status *status);
+#endif
 int32_t floatx80_to_int32_round_to_zero(floatx80, float_status *status);
 int64_t floatx80_to_int64(floatx80, float_status *status);
 int64_t floatx80_to_int64_round_to_zero(floatx80, float_status *status);
@@ -624,6 +628,7 @@ floatx80 floatx80_mod( floatx80 a, floatx80 b, uint64_t *q, flag *s, float_statu
 floatx80 floatx80_scale(floatx80 a, floatx80 b, float_status *status);
 floatx80 floatx80_sglmul( floatx80 a, floatx80 b, float_status *status);
 floatx80 floatx80_sgldiv( floatx80 a, floatx80 b, float_status *status);
+floatx80 floatx80_cmp( floatx80 a, floatx80 b, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision operations.

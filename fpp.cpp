@@ -105,6 +105,7 @@ FPP_AB fpp_scale;
 FPP_AB fpp_sub;
 FPP_AB fpp_sgldiv;
 FPP_AB fpp_sglmul;
+FPP_AB fpp_cmp;
 
 #define DEBUG_FPP 0
 #define EXCEPTION_FPP 1
@@ -308,15 +309,6 @@ static void from_exten(fpdata *fpd, uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wr
 #define FPSR_QUOT_SIGN  0x00800000
 #define FPSR_QUOT_LSB   0x007F0000
 
-#define FPSR_BSUN       0x00008000
-#define FPSR_SNAN       0x00004000
-#define FPSR_OPERR      0x00002000
-#define FPSR_OVFL       0x00001000
-#define FPSR_UNFL       0x00000800
-#define FPSR_DZ         0x00000400
-#define FPSR_INEX2      0x00000200
-#define FPSR_INEX1      0x00000100
-
 #define FPSR_AE_IOP     0x00000080
 #define FPSR_AE_OVFL    0x00000040
 #define FPSR_AE_UNFL    0x00000020
@@ -324,7 +316,7 @@ static void from_exten(fpdata *fpd, uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wr
 #define FPSR_AE_INEX    0x00000008
 
 
-static void fpsr_set_exception(uae_u32 exception)
+void fpsr_set_exception(uae_u32 exception)
 {
     regs.fpsr |= exception;
 }
@@ -347,26 +339,28 @@ static void fpsr_check_exception(void)
         write_log (_T("FPU exception: FPSR: %08x, FPCR: %04x (vector: %d)!\n"), regs.fpsr, regs.fpcr, vector);
     }
 }
+
+
 static void fpsr_set_result(fpdata *result)
 {
-    regs.fp_result = *result;
-    
-    // condition code byte
+#ifdef JIT
+	regs.fp_result = *result;
+#endif
+	// condition code byte
     regs.fpsr &= 0x00fffff8; // clear cc
-    if (fpp_is_nan (&regs.fp_result)) {
+    if (fpp_is_nan (result)) {
         regs.fpsr |= FPSR_CC_NAN;
+	    // check if result is signaling nan
+		if (fpp_is_snan(result))
+			regs.fpsr |= FPSR_SNAN;
     } else {
-        if (fpp_is_zero(&regs.fp_result))
+        if (fpp_is_zero(result))
             regs.fpsr |= FPSR_CC_Z;
-        if (fpp_is_infinity (&regs.fp_result))
+        if (fpp_is_infinity (result))
             regs.fpsr |= FPSR_CC_I;
     }
-    if (fpp_is_neg(&regs.fp_result))
+    if (fpp_is_neg(result))
         regs.fpsr |= FPSR_CC_N;
-    
-    // check if result is signaling nan
-    if (fpp_is_snan(&regs.fp_result))
-        regs.fpsr |= FPSR_SNAN;
 }
 static void fpsr_clear_status(void)
 {
@@ -929,8 +923,6 @@ static void fpu_null (void)
 	regs.fpcr = 0;
 	regs.fpsr = 0;
 	regs.fpiar = 0;
-	fpset(&regs.fp_result, 1);
-	fpclear (&regs.fp_result);
 	for (int i = 0; i < 8; i++)
 		fpnan (&regs.fp[i]);
 }
@@ -1607,11 +1599,9 @@ STATIC_INLINE int get_fp_ad (uae_u32 opcode, uae_u32 * ad)
 
 int fpp_cond (int condition)
 {
-	int NotANumber, Z, N;
-
-	NotANumber = fpp_is_nan(&regs.fp_result);
-	N = fpp_is_neg(&regs.fp_result);
-	Z = fpp_is_zero(&regs.fp_result);
+	int NotANumber = (regs.fpsr & FPSR_CC_NAN) != 0;
+	int N = (regs.fpsr & FPSR_CC_N) != 0;
+	int Z = (regs.fpsr & FPSR_CC_Z) != 0;
 
     if ((condition & 0x10) && NotANumber) {
         if (fpsr_set_bsun())
@@ -2419,12 +2409,9 @@ static bool arithmetic(fpdata *src, int reg, int extra)
 			break;
 		case 0x38: /* FCMP */
 		{
-			fpdata t = *dst;
-			uae_u32 status = regs.fpsr;
-			fpp_sub(&t, src);
-			fpsr_clear_status();
-			fpp_set_fpsr(status);
-			fpsr_set_result(&t);
+			fpdata v = *dst;
+			fpp_cmp(&v, src);
+			fpsr_set_result(&v);
 			return true;
 		}
 		case 0x3a: /* FTST */
@@ -2754,7 +2741,6 @@ void fpu_reset (void)
 
 	regs.fpcr = regs.fpsr = regs.fpiar = 0;
 	regs.fpu_exp_state = 0;
-	fpset (&regs.fp_result, 1);
 	fpsr_make_status();
 	fpux_restore (NULL);
 }
