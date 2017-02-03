@@ -7,7 +7,6 @@
 * Andreas Grabher and Toni Wilen
 *
 */
-
 #define __USE_ISOC9X  /* We might be able to pick up a NaN */
 
 #define SOFTFLOAT_FAST_INT64
@@ -64,16 +63,20 @@ static void fp_set_mode(uae_u32 mode_control)
 
 static void fp_get_status(uae_u32 *status)
 {
-    if (fs.float_exception_flags & float_flag_invalid)
-        *status |= 0x2000;
-    if (fs.float_exception_flags & float_flag_divbyzero)
-        *status |= 0x0400;
-    if (fs.float_exception_flags & float_flag_overflow)
-        *status |= 0x1000;
-    if (fs.float_exception_flags & float_flag_underflow)
-        *status |= 0x0800;
-    if (fs.float_exception_flags & float_flag_inexact)
-        *status |= 0x0200;
+	if (fs.float_exception_flags & float_flag_signaling) {
+		*status |= FPSR_SNAN;
+	} else {
+		if (fs.float_exception_flags & float_flag_invalid)
+			*status |= FPSR_OPERR;
+		if (fs.float_exception_flags & float_flag_divbyzero)
+			*status |= FPSR_DZ;
+		if (fs.float_exception_flags & float_flag_overflow)
+			*status |= FPSR_OVFL;
+		if (fs.float_exception_flags & float_flag_underflow)
+			*status |= FPSR_UNFL;
+		if (fs.float_exception_flags & float_flag_inexact)
+			*status |= FPSR_INEX2;
+	}
 }
 STATIC_INLINE void fp_clear_status(void)
 {
@@ -120,19 +123,6 @@ static const TCHAR *fp_print(fpdata *fpd)
 #endif
 	}
 	return fsout;
-}
-
-static void softfloat_set(fpdata *fpd, uae_u32 *f)
-{
-    fpd->fpx.high = (uae_u16)(f[0] >> 16);
-    fpd->fpx.low = ((uae_u64)f[1] << 32) | f[2];
-}
-
-static void softfloat_get(fpdata *fpd, uae_u32 *f)
-{
-    f[0] = (uae_u32)(fpd->fpx.high << 16);
-    f[1] = fpd->fpx.low >> 32;
-    f[2] = (uae_u32)fpd->fpx.low;
 }
 
 /* Functions for detecting float type */
@@ -283,52 +273,53 @@ static void from_native(fptype fp, fpdata *fpd)
     }
 }
 
-static void to_single_xn(fpdata *fpd, uae_u32 wrd1)
-{
-    float32 f = wrd1;
-    fpd->fpx = float32_to_floatx80(f, &fs); // automatically fix denormals
-}
-static void to_single_x(fpdata *fpd, uae_u32 wrd1)
+static void to_single(fpdata *fpd, uae_u32 wrd1)
 {
     float32 f = wrd1;
     fpd->fpx = float32_to_floatx80_allowunnormal(f, &fs);
 }
-static uae_u32 from_single_x(fpdata *fpd)
+static uae_u32 from_single(fpdata *fpd)
 {
     float32 f = floatx80_to_float32(fpd->fpx, &fs);
     return f;
 }
 
-static void to_double_xn(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2)
-{
-    float64 f = ((float64)wrd1 << 32) | wrd2;
-    fpd->fpx = float64_to_floatx80(f, &fs); // automatically fix denormals
-}
-static void to_double_x(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2)
+static void to_double(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2)
 {
     float64 f = ((float64)wrd1 << 32) | wrd2;
     fpd->fpx = float64_to_floatx80_allowunnormal(f, &fs);
 }
-static void from_double_x(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2)
+static void from_double(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2)
 {
     float64 f = floatx80_to_float64(fpd->fpx, &fs);
     *wrd1 = f >> 32;
     *wrd2 = (uae_u32)f;
 }
 
-static void to_exten_x(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
+static void to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
-    uae_u32 wrd[3] = { wrd1, wrd2, wrd3 };
-    softfloat_set(fpd, wrd);
+	fpd->fpx.high = (uae_u16)(wrd1 >> 16);
+	fpd->fpx.low = ((uae_u64)wrd2 << 32) | wrd3;
 }
-static void from_exten_x(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3)
+static void from_exten(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3)
 {
-    uae_u32 wrd[3];
-    softfloat_get(fpd, wrd);
-    *wrd1 = wrd[0];
-    *wrd2 = wrd[1];
-    *wrd3 = wrd[2];
+	floatx80 f = floatx80_to_floatx80(fpd->fpx, &fs);
+	*wrd1 = (uae_u32)(f.high << 16);
+	*wrd2 = f.low >> 32;
+	*wrd3 = (uae_u32)f.low;
 }
+
+static void to_exten_fmovem(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
+{
+	fpd->fpx.high = (uae_u16)(wrd1 >> 16);
+	fpd->fpx.low = ((uae_u64)wrd2 << 32) | wrd3;
+}
+static void from_exten_fmovem(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3)
+ {
+	*wrd1 = (uae_u32)(fpd->fpx.high << 16);
+	*wrd2 = fpd->fpx.low >> 32;
+	*wrd3 = (uae_u32)fpd->fpx.low;
+ }
 
 static uae_s64 to_int(fpdata *src, int size)
 {
@@ -370,6 +361,8 @@ static void fp_rounddbl(fpdata *fpd)
 // round to float
 static void fp_round32(fpdata *fpd)
 {
+	if (fp_is_nan(fpd))
+		return;
     float32 f = floatx80_to_float32(fpd->fpx, &fs);
     fpd->fpx = float32_to_floatx80(f, &fs);
 }
@@ -377,11 +370,18 @@ static void fp_round32(fpdata *fpd)
 // round to double
 static void fp_round64(fpdata *fpd)
 {
+	if (fp_is_nan(fpd))
+		return;
     float64 f = floatx80_to_float64(fpd->fpx, &fs);
     fpd->fpx = float64_to_floatx80(f, &fs);
 }
 
 /* Arithmetic functions */
+
+static void fp_move(fpdata *src, fpdata *dst)
+{
+    dst->fpx = floatx80_move(src->fpx, &fs);
+}
 
 static void fp_int(fpdata *a, fpdata *dst)
 {
@@ -516,6 +516,10 @@ static void fp_cmp(fpdata *a, fpdata *b)
 {
     a->fpx = floatx80_cmp(a->fpx, b->fpx, &fs);
 }
+static void fp_tst(fpdata *a, fpdata *b)
+{
+	a->fpx = floatx80_tst(b->fpx, &fs);
+}
 
 /* FIXME: create softfloat functions for following arithmetics */
 
@@ -628,16 +632,14 @@ void fp_init_softfloat(void)
 	fpp_to_int = to_int;
 	fpp_from_int = from_int;
 
-	fpp_to_single_xn = to_single_xn;
-	fpp_to_single_x = to_single_x;
-	fpp_from_single_x = from_single_x;
-
-	fpp_to_double_xn = to_double_xn;
-	fpp_to_double_x = to_double_x;
-	fpp_from_double_x = from_double_x;
-
-	fpp_to_exten_x = to_exten_x;
-	fpp_from_exten_x = from_exten_x;
+	fpp_to_single = to_single;
+	fpp_from_single = from_single;
+	fpp_to_double = to_double;
+	fpp_from_double = from_double;
+	fpp_to_exten = to_exten;
+	fpp_from_exten = from_exten;
+	fpp_to_exten_fmovem = to_exten_fmovem;
+	fpp_from_exten_fmovem = from_exten_fmovem;
 
 	fpp_roundsgl = fp_roundsgl;
 	fpp_rounddbl = fp_rounddbl;
@@ -681,5 +683,7 @@ void fp_init_softfloat(void)
 	fpp_sgldiv = fp_sgldiv;
 	fpp_sglmul = fp_sglmul;
 	fpp_cmp = fp_cmp;
+	fpp_tst = fp_tst;
+	fpp_move = fp_move;
 }
 

@@ -422,7 +422,7 @@ float32 float32_squash_input_denormal(float32 a, float_status *status)
 {
     if (status->flush_inputs_to_zero) {
         if (extractFloat32Exp(a) == 0 && extractFloat32Frac(a) != 0) {
-            float_raise(float_flag_input_denormal, status);
+            //float_raise(float_flag_input_denormal, status);
             return make_float32(float32_val(a) & 0x80000000);
         }
     }
@@ -527,7 +527,7 @@ static float32 roundAndPackFloat32(flag zSign, int zExp, uint32_t zSig,
         }
         if ( zExp < 0 ) {
             if (status->flush_to_zero) {
-                float_raise(float_flag_output_denormal, status);
+                //float_raise(float_flag_output_denormal, status);
                 return packFloat32(zSign, 0, 0);
             }
             isTiny =
@@ -615,7 +615,7 @@ float64 float64_squash_input_denormal(float64 a, float_status *status)
 {
     if (status->flush_inputs_to_zero) {
         if (extractFloat64Exp(a) == 0 && extractFloat64Frac(a) != 0) {
-            float_raise(float_flag_input_denormal, status);
+            //float_raise(float_flag_input_denormal, status);
             return make_float64(float64_val(a) & (1ULL << 63));
         }
     }
@@ -719,7 +719,7 @@ static float64 roundAndPackFloat64(flag zSign, int zExp, uint64_t zSig,
         }
         if ( zExp < 0 ) {
             if (status->flush_to_zero) {
-                float_raise(float_flag_output_denormal, status);
+                //float_raise(float_flag_output_denormal, status);
                 return packFloat64(zSign, 0, 0);
             }
             isTiny =
@@ -918,7 +918,7 @@ static floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign,
 		if ( zExp <= 0 ) {
 #endif
             if (status->flush_to_zero) {
-                float_raise(float_flag_output_denormal, status);
+                //float_raise(float_flag_output_denormal, status);
                 return packFloatx80(zSign, 0, 0);
             }
             isTiny =
@@ -1385,7 +1385,7 @@ static float128 roundAndPackFloat128(flag zSign, int32_t zExp,
         }
         if ( zExp < 0 ) {
             if (status->flush_to_zero) {
-                float_raise(float_flag_output_denormal, status);
+                //float_raise(float_flag_output_denormal, status);
                 return packFloat128(zSign, 0, 0, 0);
             }
             isTiny =
@@ -2069,10 +2069,8 @@ floatx80 float32_to_floatx80(float32 a, float_status *status)
     aExp = extractFloat32Exp( a );
     aSign = extractFloat32Sign( a );
     if ( aExp == 0xFF ) {
-        if (aSig) {
-            return commonNaNToFloatx80(float32ToCommonNaN(a, status), status);
-        }
-        return packFloatx80( aSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+        aSig |= 0x00800000;
+        return packFloatx80( aSign, 0x7FFF, ( (uint64_t) aSig )<<40 );
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloatx80( aSign, 0, 0 );
@@ -2283,9 +2281,9 @@ static float32 addFloat32Sigs(float32 a, float32 b, flag zSign,
         }
         if ( aExp == 0 ) {
             if (status->flush_to_zero) {
-                if (aSig | bSig) {
-                    float_raise(float_flag_output_denormal, status);
-                }
+//                if (aSig | bSig) {
+//                    float_raise(float_flag_output_denormal, status);
+//                }
                 return packFloat32(zSign, 0, 0);
             }
             return packFloat32( zSign, 0, ( aSig + bSig )>>6 );
@@ -2769,7 +2767,7 @@ float32 float32_muladd(float32 a, float32 b, float32 c, int flags,
             }
             /* Exact zero plus a denorm */
             if (status->flush_to_zero) {
-                float_raise(float_flag_output_denormal, status);
+                //float_raise(float_flag_output_denormal, status);
                 return packFloat32(cSign ^ signflip, 0, 0);
             }
         }
@@ -3874,10 +3872,7 @@ floatx80 float64_to_floatx80(float64 a, float_status *status)
     aExp = extractFloat64Exp( a );
     aSign = extractFloat64Sign( a );
     if ( aExp == 0x7FF ) {
-        if (aSig) {
-            return commonNaNToFloatx80(float64ToCommonNaN(a, status), status);
-        }
-        return packFloatx80( aSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+        return packFloatx80( aSign, 0x7FFF, ( aSig | LIT64( 0x0010000000000000 ) )<<11 );
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloatx80( aSign, 0, 0 );
@@ -4103,9 +4098,9 @@ static float64 addFloat64Sigs(float64 a, float64 b, flag zSign,
         }
         if ( aExp == 0 ) {
             if (status->flush_to_zero) {
-                if (aSig | bSig) {
-                    float_raise(float_flag_output_denormal, status);
-                }
+//                if (aSig | bSig) {
+//                    float_raise(float_flag_output_denormal, status);
+//                }
                 return packFloat64(zSign, 0, 0);
             }
             return packFloat64( zSign, 0, ( aSig + bSig )>>9 );
@@ -4580,7 +4575,7 @@ float64 float64_muladd(float64 a, float64 b, float64 c, int flags,
             }
             /* Exact zero plus a denorm */
             if (status->flush_to_zero) {
-                float_raise(float_flag_output_denormal, status);
+//                float_raise(float_flag_output_denormal, status);
                 return packFloat64(cSign ^ signflip, 0, 0);
             }
         }
@@ -5345,6 +5340,35 @@ float64 floatx80_to_float64(floatx80 a, float_status *status)
 
 }
 
+#ifdef SOFTFLOAT_68K // 31-01-2017
+/*----------------------------------------------------------------------------
+ | Returns the result of converting the extended double-precision floating-
+ | point value `a' to the extended double-precision floating-point format.
+ | The conversion is performed according to the IEC/IEEE Standard for Binary
+ | Floating-Point Arithmetic.
+ *----------------------------------------------------------------------------*/
+        
+floatx80 floatx80_to_floatx80( floatx80 a, float_status *status )
+{
+    flag aSign;
+    int32_t aExp;
+    uint64_t aSig;
+    
+    aSig = extractFloatx80Frac( a );
+    aExp = extractFloatx80Exp( a );
+    aSign = extractFloatx80Sign( a );
+    
+    if ( aExp == 0x7FFF && (uint64_t) ( aSig<<1 ) ) {
+        return propagateFloatx80NaN( a, a, status );
+    }
+    if ( aExp == 0 && aSig != 0 ) {
+        return normalizeRoundAndPackFloatx80( status->floatx80_rounding_precision, aSign, aExp, aSig, 0, status );
+    }
+    return a;
+    
+}
+#endif
+
 /*----------------------------------------------------------------------------
 | Returns the result of converting the extended double-precision floating-
 | point value `a' to the quadruple-precision floating-point format.  The
@@ -5424,12 +5448,9 @@ floatx80 floatx80_normalize( floatx80 a )
     
     shiftCount = countLeadingZeros64( aSig );
     
-    if ( shiftCount > aExp ) {
-        shiftCount = aExp;
-        aExp = 0;
-    } else {
-        aExp -= shiftCount;
-    }
+    if ( shiftCount > aExp ) shiftCount = aExp;
+    
+    aExp -= shiftCount;
     aSig <<= shiftCount;
     
     return packFloatx80( aSign, aExp, aSig );
@@ -6578,6 +6599,8 @@ floatx80 floatx80_cmp( floatx80 a, floatx80 b, float_status *status )
     
     if ( ( aExp == 0x7FFF && (uint64_t) ( aSig<<1 ) ) ||
          ( bExp == 0x7FFF && (uint64_t) ( bSig<<1 ) ) ) {
+        if ( floatx80_is_signaling_nan( a, status ) || floatx80_is_signaling_nan( b, status ) )
+            float_raise( float_flag_signaling, status );
 		return packFloatx80(0, 0x7FFF, floatx80_default_nan_low);    }
     
     if ( bExp < aExp ) return packFloatx80( aSign, 0x3FFF, LIT64( 0x8000000000000000 ) );
@@ -6598,7 +6621,35 @@ floatx80 floatx80_cmp( floatx80 a, floatx80 b, float_status *status )
     return packFloatx80( aSign, 0x3FFF, LIT64( 0x8000000000000000 ) );
     
 }
+
+floatx80 floatx80_tst( floatx80 a, float_status *status )
+{
+    if ( floatx80_is_signaling_nan( a, status ) )
+        float_raise( float_flag_signaling, status );
+    return a;
+}
+
+floatx80 floatx80_move( floatx80 a, float_status *status )
+{
+    flag aSign;
+    int32_t aExp;
+    uint64_t aSig;
     
+    aSig = extractFloatx80Frac( a );
+    aExp = extractFloatx80Exp( a );
+    aSign = extractFloatx80Sign( a );
+    
+    if ( aExp == 0x7FFF ) {
+        if ( (uint64_t) ( aSig<<1 ) ) return propagateFloatx80NaN( a, a, status );
+        return a;
+    }
+    if ( aExp == 0 ) {
+        if ( aSig == 0 ) return a;
+        normalizeRoundAndPackFloatx80( status->floatx80_rounding_precision, aSign, aExp, aSig, 0, status );
+    }
+    return a;
+}
+
 #endif // End of addition for Previous
 
 /*----------------------------------------------------------------------------

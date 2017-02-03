@@ -194,8 +194,9 @@ enum {
     float_flag_overflow  =  8,
     float_flag_underflow = 16,
     float_flag_inexact   = 32,
-    float_flag_input_denormal = 64,
-    float_flag_output_denormal = 128
+	float_flag_signaling = 64
+//    float_flag_input_denormal = 64,
+//    float_flag_output_denormal = 128
 };
 
 typedef struct float_status {
@@ -605,6 +606,9 @@ int64_t floatx80_to_int64(floatx80, float_status *status);
 int64_t floatx80_to_int64_round_to_zero(floatx80, float_status *status);
 float32 floatx80_to_float32(floatx80, float_status *status);
 float64 floatx80_to_float64(floatx80, float_status *status);
+#ifdef SOFTFLOAT_68K
+floatx80 floatx80_to_floatx80( floatx80, float_status *status);
+#endif
 float128 floatx80_to_float128(floatx80, float_status *status);
 
 floatx80 floatx80_round_to_int_toward_zero( floatx80 a, float_status *status);
@@ -629,6 +633,8 @@ floatx80 floatx80_scale(floatx80 a, floatx80 b, float_status *status);
 floatx80 floatx80_sglmul( floatx80 a, floatx80 b, float_status *status);
 floatx80 floatx80_sgldiv( floatx80 a, floatx80 b, float_status *status);
 floatx80 floatx80_cmp( floatx80 a, floatx80 b, float_status *status);
+floatx80 floatx80_tst( floatx80 a, float_status *status );
+floatx80 floatx80_move( floatx80 a, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision operations.

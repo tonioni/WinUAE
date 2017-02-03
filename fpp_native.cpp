@@ -323,7 +323,7 @@ static void fp_from_native(fptype fp, fpdata *fpd)
     fpd->fp = fp;
 }
 
-static void fp_to_single_xn(fpdata *fpd, uae_u32 wrd1)
+static void fp_to_single(fpdata *fpd, uae_u32 wrd1)
 {
     union {
         float f;
@@ -333,17 +333,7 @@ static void fp_to_single_xn(fpdata *fpd, uae_u32 wrd1)
     val.u = wrd1;
     fpd->fp = (fptype) val.f;
 }
-static void fp_to_single_x(fpdata *fpd, uae_u32 wrd1)
-{
-    union {
-        float f;
-        uae_u32 u;
-    } val;
-    
-    val.u = wrd1;
-    fpd->fp = (fptype) val.f;
-}
-static uae_u32 fp_from_single_x(fpdata *fpd)
+static uae_u32 fp_from_single(fpdata *fpd)
 {
     union {
         float f;
@@ -354,7 +344,7 @@ static uae_u32 fp_from_single_x(fpdata *fpd)
     return val.u;
 }
 
-static void fp_to_double_xn(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2)
+static void fp_to_double(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2)
 {
     union {
         double d;
@@ -370,23 +360,7 @@ static void fp_to_double_xn(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2)
 #endif
     fpd->fp = (fptype) val.d;
 }
-static void fp_to_double_x(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2)
-{
-    union {
-        double d;
-        uae_u32 u[2];
-    } val;
-    
-#ifdef WORDS_BIGENDIAN
-    val.u[0] = wrd1;
-    val.u[1] = wrd2;
-#else
-    val.u[1] = wrd1;
-    val.u[0] = wrd2;
-#endif
-    fpd->fp = (fptype) val.d;
-}
-static void fp_from_double_x(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2)
+static void fp_from_double(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2)
 {
     union {
         double d;
@@ -403,7 +377,7 @@ static void fp_from_double_x(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2)
 #endif
 }
 #ifdef USE_LONG_DOUBLE
-static void fp_to_exten_x(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
+static void fp_to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
     union {
         long double ld;
@@ -421,7 +395,7 @@ static void fp_to_exten_x(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 #endif
     fpd->fp = val.ld;
 }
-static void fp_from_exten_x(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3)
+static void fp_from_exten(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3)
 {
     union {
         long double ld;
@@ -440,14 +414,14 @@ static void fp_from_exten_x(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *
 #endif
 }
 #else // if !USE_LONG_DOUBLE
-static void fp_to_exten_x(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
+static void fp_to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
 #if 1
 	floatx80 fx80;
 	fx80.high = wrd1 >> 16;
 	fx80.low = (((uae_u64)wrd2) << 32) | wrd3;
 	float64 f = floatx80_to_float64(fx80, &fs);
-	fp_to_double_x(fpd, f >> 32, (uae_u32)f);
+	fp_to_double(fpd, f >> 32, (uae_u32)f);
 #else
     double frac;
     if ((wrd1 & 0x7fff0000) == 0 && wrd2 == 0 && wrd3 == 0) {
@@ -460,11 +434,11 @@ static void fp_to_exten_x(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
     fpd->fp = ldexp (frac, ((wrd1 >> 16) & 0x7fff) - 16383);
 #endif
 }
-static void fp_from_exten_x(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3)
+static void fp_from_exten(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3)
 {
 #if 1
 	uae_u32 w1, w2;
-	fp_from_double_x(fpd, &w1, &w2);
+	fp_from_double(fpd, &w1, &w2);
 	floatx80 f = float64_to_floatx80(((uae_u64)w1 << 32) | w2, &fs);
 	*wrd1 = f.high << 16;
 	*wrd2 = f.low >> 32;
@@ -512,7 +486,7 @@ static uae_s64 fp_to_int(fpdata *src, int size)
 	fptype fp = src->fp;
 	if (fp_is_nan(src)) {
 		uae_u32 w1, w2, w3;
-		fp_from_exten_x(src, &w1, &w2, &w3);
+		fp_from_exten(src, &w1, &w2, &w3);
 		uae_s64 v = 0;
 		fpsr_set_exception(FPSR_OPERR);
 		// return mantissa
@@ -924,6 +898,16 @@ static void fp_cmp(fpdata *a, fpdata *b)
 	a->fp = v;
 }
 
+static void fp_tst(fpdata *a, fpdata *b)
+{
+	a->fpx = b->fpx;
+}
+
+static void fp_move(fpdata *src, fpdata *dst)
+{
+	dst->fp = src->fp;
+}
+
 void fp_init_native(void)
 {
 	set_floatx80_rounding_precision(80, &fs);
@@ -949,16 +933,14 @@ void fp_init_native(void)
 	fpp_to_int = fp_to_int;
 	fpp_from_int = fp_from_int;
 
-	fpp_to_single_xn = fp_to_single_xn;
-	fpp_to_single_x = fp_to_single_x;
-	fpp_from_single_x = fp_from_single_x;
-
-	fpp_to_double_xn = fp_to_double_xn;
-	fpp_to_double_x = fp_to_double_x;
-	fpp_from_double_x = fp_from_double_x;
-
-	fpp_to_exten_x = fp_to_exten_x;
-	fpp_from_exten_x = fp_from_exten_x;
+	fpp_to_single = fp_to_single;
+	fpp_from_single = fp_from_single;
+	fpp_to_double = fp_to_double;
+	fpp_from_double = fp_from_double;
+	fpp_to_exten = fp_to_exten;
+	fpp_from_exten = fp_from_exten;
+	fpp_to_exten_fmovem = fp_to_exten;
+	fpp_from_exten_fmovem = fp_from_exten;
 
 	fpp_roundsgl = fp_roundsgl;
 	fpp_rounddbl = fp_rounddbl;
@@ -1002,4 +984,6 @@ void fp_init_native(void)
 	fpp_sgldiv = fp_sgldiv;
 	fpp_sglmul = fp_sglmul;
 	fpp_cmp = fp_cmp;
+	fpp_tst = fp_tst;
+	fpp_move = fp_move;
 }

@@ -16,10 +16,6 @@ extern void fpsr_set_exception(uae_u32 exception);
 extern void init_fpucw_x87(void);
 #endif
 
-void to_single(fpdata *fpd, uae_u32 wrd1);
-void to_double(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2);
-void to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3);
-
 typedef void (*FPP_ABQS)(fpdata*, fpdata*, uae_u64*, uae_u8*);
 typedef void (*FPP_AB)(fpdata*, fpdata*);
 typedef void (*FPP_A)(fpdata*);
@@ -67,16 +63,14 @@ extern FPP_TO_NATIVE fpp_to_native;
 extern FPP_TO_INT fpp_to_int;
 extern FPP_FROM_INT fpp_from_int;
 
-extern FPP_TO_SINGLE fpp_to_single_xn;
-extern FPP_TO_SINGLE fpp_to_single_x;
-extern FPP_FROM_SINGLE fpp_from_single_x;
-
-extern FPP_TO_DOUBLE fpp_to_double_xn;
-extern FPP_TO_DOUBLE fpp_to_double_x;
-extern FPP_FROM_DOUBLE fpp_from_double_x;
-
-extern FPP_TO_EXTEN fpp_to_exten_x;
-extern FPP_FROM_EXTEN fpp_from_exten_x;
+extern FPP_TO_SINGLE fpp_to_single;
+extern FPP_FROM_SINGLE fpp_from_single;
+extern FPP_TO_DOUBLE fpp_to_double;
+extern FPP_FROM_DOUBLE fpp_from_double;
+extern FPP_TO_EXTEN fpp_to_exten;
+extern FPP_FROM_EXTEN fpp_from_exten;
+extern FPP_TO_EXTEN fpp_to_exten_fmovem;
+extern FPP_FROM_EXTEN fpp_from_exten_fmovem;
 
 extern FPP_A fpp_roundsgl;
 extern FPP_A fpp_rounddbl;
@@ -120,3 +114,5 @@ extern FPP_AB fpp_sub;
 extern FPP_AB fpp_sgldiv;
 extern FPP_AB fpp_sglmul;
 extern FPP_AB fpp_cmp;
+extern FPP_AB fpp_tst;
+extern FPP_AB fpp_move;

@@ -54,16 +54,14 @@ FPP_TO_NATIVE fpp_to_native;
 FPP_TO_INT fpp_to_int;
 FPP_FROM_INT fpp_from_int;
 
-FPP_TO_SINGLE fpp_to_single_xn;
-FPP_TO_SINGLE fpp_to_single_x;
-FPP_FROM_SINGLE fpp_from_single_x;
-
-FPP_TO_DOUBLE fpp_to_double_xn;
-FPP_TO_DOUBLE fpp_to_double_x;
-FPP_FROM_DOUBLE fpp_from_double_x;
-
-FPP_TO_EXTEN fpp_to_exten_x;
-FPP_FROM_EXTEN fpp_from_exten_x;
+FPP_TO_SINGLE fpp_to_single;
+FPP_FROM_SINGLE fpp_from_single;
+FPP_TO_DOUBLE fpp_to_double;
+FPP_FROM_DOUBLE fpp_from_double;
+FPP_TO_EXTEN fpp_to_exten;
+FPP_FROM_EXTEN fpp_from_exten;
+FPP_TO_EXTEN fpp_to_exten_fmovem;
+FPP_FROM_EXTEN fpp_from_exten_fmovem;
 
 FPP_A fpp_normalize;
 
@@ -106,6 +104,8 @@ FPP_AB fpp_sub;
 FPP_AB fpp_sgldiv;
 FPP_AB fpp_sglmul;
 FPP_AB fpp_cmp;
+FPP_AB fpp_tst;
+FPP_AB fpp_move;
 
 #define DEBUG_FPP 0
 #define EXCEPTION_FPP 1
@@ -198,54 +198,6 @@ static void normalize_exten(uae_u32 *pwrd1, uae_u32 *pwrd2, uae_u32 *pwrd3)
     }
 }
 
-void to_single(fpdata *fpd, uae_u32 wrd1)
-{
-#if 0 // now done in get_fp_value
-	// automatically fix denormals if 6888x
-    if (currprefs.fpu_model == 68881 || currprefs.fpu_model == 68882)
-        fpp_to_single_xn(fpd, wrd1);
-    else
-#endif
-		fpp_to_single_x(fpd, wrd1);
-}
-static uae_u32 from_single(fpdata *fpd)
-{
-    return fpp_from_single_x(fpd);
-}
-void to_double(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2)
-{
-#if 0 // now done in get_fp_value
-    // automatically fix denormals if 6888x
-    if (currprefs.fpu_model == 68881 || currprefs.fpu_model == 68882)
-        fpp_to_double_xn(fpd, wrd1, wrd2);
-    else
-#endif
-		fpp_to_double_x(fpd, wrd1, wrd2);
-}
-static void from_double(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2)
-{
-    fpp_from_double_x(fpd, wrd1, wrd2);
-}
-
-void to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
-{
-#if 0 // now done in get_fp_value
-    // automatically fix unnormals if 6888x
-	if (currprefs.fpu_model == 68881 || currprefs.fpu_model == 68882) {
-		normalize_exten(&wrd1, &wrd2, &wrd3);
-	}
-#endif
-	fpp_to_exten_x(fpd, wrd1, wrd2, wrd3);
-}
-static void to_exten_fmovem(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
-{
-	fpp_to_exten_x(fpd, wrd1, wrd2, wrd3);
-}
-static void from_exten(fpdata *fpd, uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wrd3)
-{
-	fpp_from_exten_x(fpd, wrd1, wrd2, wrd3);
-}
-
 /* Floating Point Control Register (FPCR)
  *
  * Exception Enable Byte
@@ -329,7 +281,8 @@ static void fpsr_check_exception(void)
         int vector = 0;
         int vtable[8] = { 49, 49, 50, 51, 53, 52, 54, 48 };
         int i;
-        for (i = 7; i >= 0; i--) {
+		// BSUN is handled separately
+        for (i = 6; i >= 0; i--) {
             if (exception & (1 << i)) {
                 vector = vtable[i];
                 break;
@@ -340,7 +293,6 @@ static void fpsr_check_exception(void)
     }
 }
 
-
 static void fpsr_set_result(fpdata *result)
 {
 #ifdef JIT
@@ -350,14 +302,10 @@ static void fpsr_set_result(fpdata *result)
     regs.fpsr &= 0x00fffff8; // clear cc
     if (fpp_is_nan (result)) {
         regs.fpsr |= FPSR_CC_NAN;
-	    // check if result is signaling nan
-		if (fpp_is_snan(result))
-			regs.fpsr |= FPSR_SNAN;
-    } else {
-        if (fpp_is_zero(result))
-            regs.fpsr |= FPSR_CC_Z;
-        if (fpp_is_infinity (result))
-            regs.fpsr |= FPSR_CC_I;
+	} else if (fpp_is_zero(result)) {
+		regs.fpsr |= FPSR_CC_Z;
+	} else if (fpp_is_infinity (result)) {
+		regs.fpsr |= FPSR_CC_I;
     }
     if (fpp_is_neg(result))
         regs.fpsr |= FPSR_CC_N;
@@ -371,7 +319,7 @@ static void fpsr_clear_status(void)
     fpp_clear_status();
 }
 
-static void fpsr_make_status(void)
+static uae_u32 fpsr_make_status(void)
 {
     // get external status
     fpp_get_status(&regs.fpsr);
@@ -388,7 +336,7 @@ static void fpsr_make_status(void)
     if (regs.fpsr & (FPSR_OVFL | FPSR_INEX2 | FPSR_INEX1))
         regs.fpsr |= FPSR_AE_INEX; // INEX = INEX1 || INEX2 || OVFL
     
-    fpsr_check_exception();
+    return (regs.fpsr & regs.fpcr & (FPSR_SNAN | FPSR_OPERR | FPSR_DZ));
 }
 
 static int fpsr_set_bsun(void)
@@ -429,7 +377,7 @@ static void fpp_set_fpcr (uae_u32 val)
 
 static void fpnan (fpdata *fpd)
 {
-    to_exten(fpd, xhex_nan[0], xhex_nan[1], xhex_nan[2]);
+    fpp_to_exten(fpd, xhex_nan[0], xhex_nan[1], xhex_nan[2]);
 }
 
 static void fpclear (fpdata *fpd)
@@ -531,7 +479,7 @@ bool fpu_get_constant(fpdata *fpd, int cr)
         f[2] += fpp_cr[entry].rndoff[(regs.fpcr >> 4) & 3];
     }
 
-    to_exten_fmovem(fpd, f[0], f[1], f[2]);
+	fpp_to_exten_fmovem(fpd, f[0], f[1], f[2]);
     
     if (((regs.fpcr >> 6) & 3) == 1)
 		fpp_roundsgl(fpd);
@@ -967,13 +915,13 @@ static void to_pack (fpdata *fpd, uae_u32 *wrd)
     if (((wrd[0] >> 16) & 0x7fff) == 0x7fff) {
         // infinity has extended exponent and all 0 packed fraction
         // nans are copies bit by bit
-        to_exten_fmovem(fpd, wrd[0], wrd[1], wrd[2]);
+        fpp_to_exten_fmovem(fpd, wrd[0], wrd[1], wrd[2]);
         return;
     }
     if (!(wrd[0] & 0xf) && !wrd[1] && !wrd[2]) {
         // exponent is not cared about, if mantissa is zero
         wrd[0] &= 0x80000000;
-        to_exten_fmovem(fpd, wrd[0], wrd[1], wrd[2]);
+        fpp_to_exten_fmovem(fpd, wrd[0], wrd[1], wrd[2]);
         return;
     }
 
@@ -1024,12 +972,12 @@ static void from_pack (fpdata *src, uae_u32 *wrd, int kfactor)
 
    if (fpp_is_nan (src)) {
         // copied bit by bit, no conversion
-        from_exten(src, &wrd[0], &wrd[1], &wrd[2]);
+        fpp_from_exten_fmovem(src, &wrd[0], &wrd[1], &wrd[2]);
         return;
     }
     if (fpp_is_infinity (src)) {
         // extended exponent and all 0 packed fraction
-        from_exten(src, &wrd[0], &wrd[1], &wrd[2]);
+        fpp_from_exten_fmovem(src, &wrd[0], &wrd[1], &wrd[2]);
         wrd[1] = wrd[2] = 0;
         return;
     }
@@ -1222,7 +1170,7 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 					fpset(src, (uae_s32) m68k_dreg (regs, reg));
 					break;
 				case 1:
-					to_single (src, m68k_dreg (regs, reg));
+					fpp_to_single (src, m68k_dreg (regs, reg));
 					if (normalize_or_fault_if_no_denormal_support_pre(opcode, extra, 0, oldpc, src, 0))
 						return -1;
 					break;
@@ -1320,7 +1268,7 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 			fpset(src, (uae_s32) (doext ? exts[0] : x_cp_get_long (ad)));
 			break;
 		case 1:
-			to_single (src, (doext ? exts[0] : x_cp_get_long (ad)));
+			fpp_to_single (src, (doext ? exts[0] : x_cp_get_long (ad)));
 			if (normalize_or_fault_if_no_denormal_support_pre(opcode, extra, 0, oldpc, src, 0))
 				return -1;
 			break;
@@ -1332,7 +1280,7 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 				wrd2 = (doext ? exts[1] : x_cp_get_long (ad));
 				ad += 4;
 				wrd3 = (doext ? exts[2] : x_cp_get_long (ad));
-				to_exten (src, wrd1, wrd2, wrd3);
+				fpp_to_exten (src, wrd1, wrd2, wrd3);
 				if (normalize_or_fault_if_no_denormal_support_pre(opcode, extra, 0, oldpc, src, 2))
 					return -1;
 			}
@@ -1365,7 +1313,7 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 				wrd1 = (doext ? exts[0] : x_cp_get_long (ad));
 				ad += 4;
 				wrd2 = (doext ? exts[1] : x_cp_get_long (ad));
-				to_double (src, wrd1, wrd2);
+				fpp_to_double (src, wrd1, wrd2);
 				if (normalize_or_fault_if_no_denormal_support_pre(opcode, extra, 0, oldpc, src, 1))
 					return -1;
 			}
@@ -1417,7 +1365,7 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 					m68k_dreg (regs, reg) = (uae_u32)fpp_to_int (value, 2);
 					break;
 				case 1:
-					m68k_dreg (regs, reg) = from_single (value);
+					m68k_dreg (regs, reg) = fpp_from_single (value);
 					break;
 				default:
 					return 0;
@@ -1486,14 +1434,14 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 		case 1:
 			if (normalize_or_fault_if_no_denormal_support_pre(opcode, extra, ad, oldpc, value, 2))
 				return -1;
-			x_cp_put_long(ad, from_single(value));
+			x_cp_put_long(ad, fpp_from_single(value));
 			break;
 		case 2:
 			{
 				uae_u32 wrd1, wrd2, wrd3;
 				if (normalize_or_fault_if_no_denormal_support_pre(opcode, extra, ad, oldpc, value, 2))
 					return 1;
-				from_exten(value, &wrd1, &wrd2, &wrd3);
+				fpp_from_exten(value, &wrd1, &wrd2, &wrd3);
 				x_cp_put_long (ad, wrd1);
 				ad += 4;
 				x_cp_put_long (ad, wrd2);
@@ -1530,7 +1478,7 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 				uae_u32 wrd1, wrd2;
 				if (normalize_or_fault_if_no_denormal_support_pre(opcode, extra, ad, oldpc, value, 1))
 					return -1;
-				from_double(value, &wrd1, &wrd2);
+				fpp_from_double(value, &wrd1, &wrd2);
 				x_cp_put_long (ad, wrd1);
 				ad += 4;
 				x_cp_put_long (ad, wrd2);
@@ -1844,7 +1792,7 @@ void fpuop_save (uae_u32 opcode)
 		
 		if (regs.fpu_exp_state > 1) {
 			uae_u32 src1[3];
-			from_exten (&regs.exp_src1, &src1[0], &src1[1], &src1[2]);
+			fpp_from_exten_fmovem (&regs.exp_src1, &src1[0], &src1[1], &src1[2]);
 			frame_id = 0x0000e000 | src1[0];
 			frame_v1 = src1[1];
 			frame_v2 = src1[2];
@@ -1892,8 +1840,8 @@ void fpuop_save (uae_u32 opcode)
 			uae_u32 stag, dtag;
 			uae_u32 extra = regs.exp_extra;
 
-			from_exten(&regs.exp_src1, &src1[0], &src1[1], &src1[2]);
-			from_exten(&regs.exp_src2, &src2[0], &src2[1], &src2[2]);
+			fpp_from_exten_fmovem(&regs.exp_src1, &src1[0], &src1[1], &src1[2]);
+			fpp_from_exten_fmovem(&regs.exp_src2, &src2[0], &src2[1], &src2[2]);
 			stag = get_ftag(src1[0], src1[1], src1[2], regs.exp_size);
 			dtag = get_ftag(src2[0], src2[1], src2[2], -1);
 			if ((extra & 0x7f) == 4) // FSQRT 4->5
@@ -2106,7 +2054,7 @@ void fpuop_restore (uae_u32 opcode)
 			regs.fpu_exp_state = 0;
 		} else if (ff == 0xe0) {
 			regs.fpu_exp_state = 1;
-			to_exten (&regs.exp_src1, d & 0xffff0000, v1, v2);
+			fpp_to_exten (&regs.exp_src1, d & 0xffff0000, v1, v2);
 		} else if (ff) {
 			write_log (_T("FRESTORE invalid frame format %X!\n"), (d >> 8) & 0xff);
 		} else {
@@ -2145,7 +2093,7 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr, int regdir)
 			else
 				reg = r;
 			if (list & 0x80) {
-				from_exten(&regs.fp[reg], &wrd[0], &wrd[1], &wrd[2]);
+				fpp_from_exten_fmovem(&regs.fp[reg], &wrd[0], &wrd[1], &wrd[2]);
 				if (incr < 0)
 					ad -= 3 * 4;
 				for (int i = 0; i < 3; i++) {
@@ -2174,7 +2122,7 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr, int regdir)
 			else
 				reg = r;
 			if (list & 0x80) {
-				from_exten(&regs.fp[reg], &wrd1, &wrd2, &wrd3);
+				fpp_from_exten_fmovem(&regs.fp[reg], &wrd1, &wrd2, &wrd3);
 				if (incr < 0)
 					ad -= 3 * 4;
 				x_put_long(ad + 0, wrd1);
@@ -2222,7 +2170,7 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr, int regdir)
 							mmu030_fmovem_store[i] = wrd[i];
 						mmu030_state[0]++;
 						if (i == 2)
-							to_exten (&regs.fp[reg], mmu030_fmovem_store[0], mmu030_fmovem_store[1], wrd[2]);
+							fpp_to_exten (&regs.fp[reg], mmu030_fmovem_store[0], mmu030_fmovem_store[1], wrd[2]);
 					}
 				}
 				if (incr > 0)
@@ -2246,7 +2194,7 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr, int regdir)
 				wrd3 = x_get_long (ad + 8);
 				if (incr > 0)
 					ad += 3 * 4;
-				to_exten (&regs.fp[reg], wrd1, wrd2, wrd3);
+				fpp_to_exten (&regs.fp[reg], wrd1, wrd2, wrd3);
 			}
 			list <<= 1;
 		}
@@ -2254,23 +2202,17 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr, int regdir)
 	return ad;
 }
 
-static bool arithmetic(fpdata *src, int reg, int extra)
+static bool arithmetic(fpdata *src, fpdata *dst, int extra)
 {
 	uae_u64 q = 0;
 	uae_u8 s = 0;
-	fpdata *dst = &regs.fp[reg];
-
-	// SNAN -> QNAN if SNAN interrupt is not enabled
-	if (fpp_is_snan(src) && !(regs.fpcr & 0x4000)) {
-        fpp_unset_snan(src);
-	}
 
 	switch (extra & 0x7f)
 	{
 		case 0x00: /* FMOVE */
 		case 0x40:
 		case 0x44:
-			*dst = *src;
+			fpp_move(src, dst);
 			break;
 		case 0x01: /* FINT */
 			fpp_int(src, dst);
@@ -2360,6 +2302,8 @@ static bool arithmetic(fpdata *src, int reg, int extra)
 			break;
 		case 0x21: /* FMOD */
 			fpp_mod(dst, src, &q, &s);
+			if (fpsr_make_status())
+				return false;
 			fpsr_set_quotient(q, s);
 			break;
 		case 0x22: /* FADD */
@@ -2374,10 +2318,14 @@ static bool arithmetic(fpdata *src, int reg, int extra)
 			break;
 		case 0x24: /* FSGLDIV */
 			fpp_sgldiv(dst, src);
+			if (fpsr_make_status())
+				return false;
 			fpsr_set_result(dst);
 			return true;
 		case 0x25: /* FREM */
 			fpp_rem(dst, src, &q, &s);
+			if (fpsr_make_status())
+				return false;
 			fpsr_set_quotient(q, s);
 			break;
 		case 0x26: /* FSCALE */
@@ -2385,6 +2333,8 @@ static bool arithmetic(fpdata *src, int reg, int extra)
 			break;
 		case 0x27: /* FSGLMUL */
 			fpp_sglmul(dst, src);
+			if (fpsr_make_status())
+				return false;
 			fpsr_set_result(dst);
 			return true;
 		case 0x28: /* FSUB */
@@ -2400,26 +2350,32 @@ static bool arithmetic(fpdata *src, int reg, int extra)
 		case 0x35: /* FSINCOS */
 		case 0x36: /* FSINCOS */
 		case 0x37: /* FSINCOS */
-			fpp_cos(src, &regs.fp[extra & 7]);
-			fpp_sin(src, dst);
+			fpp_cos(src, dst);
             if (((regs.fpcr >> 6) & 3) == 1)
-				fpp_round32(&regs.fp[extra & 7]);
+				fpp_round32(dst);
             else if (((regs.fpcr >> 6) & 3) == 2)
-				fpp_round64(&regs.fp[extra & 7]);
+				fpp_round64(dst);
+			regs.fp[extra & 7] = *dst;
+			fpp_sin(src, dst);
 			break;
 		case 0x38: /* FCMP */
 		{
-			fpdata v = *dst;
-			fpp_cmp(&v, src);
-			fpsr_set_result(&v);
-			return true;
+			fpp_cmp(dst, src);
+			if (fpsr_make_status())
+				return false;
+			fpsr_set_result(dst);
+			return false;
 		}
 		case 0x3a: /* FTST */
 		{
-			fpsr_set_result(src);
-			return true;
+			fpp_tst(dst, src);
+			if (fpsr_make_status())
+				return false;
+			fpsr_set_result(dst);
+			return false;
 		}
 		default:
+			write_log (_T("Unknown FPU arithmetic function (%02x)\n"), extra & 0x7f);
 			return false;
 	}
 
@@ -2434,6 +2390,9 @@ static bool arithmetic(fpdata *src, int reg, int extra)
         fpp_round64(dst);
 	}
 
+	if (fpsr_make_status())
+		return false;
+
 	fpsr_set_result(dst);
 	return true;
 }
@@ -2442,7 +2401,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 {
 	int reg = -1;
 	int v;
-	fpdata srcd;
+	fpdata src, dst;
 	uaecptr pc = m68k_getpc () - 4;
 	uaecptr ad = 0;
 
@@ -2657,7 +2616,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 			if ((extra & 0xfc00) == 0x5c00) {
 				if (fault_if_no_fpu (opcode, extra, 0, pc))
 					return;
-				if (fault_if_unimplemented_680x0 (opcode, extra, ad, pc, &srcd, reg))
+				if (fault_if_unimplemented_680x0 (opcode, extra, ad, pc, &src, reg))
 					return;
 				fpsr_clear_status();
 				fpu_get_constant(&regs.fp[reg], extra);
@@ -2669,7 +2628,9 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 			if (fault_if_unimplemented_6888x (opcode, extra, pc))
 				return;
 
-			v = get_fp_value (opcode, extra, &srcd, pc, &ad);
+			fpsr_clear_status();
+
+			v = get_fp_value (opcode, extra, &src, pc, &ad);
 			if (v <= 0) {
 				if (v == 0)
 					fpu_noinst (opcode, pc);
@@ -2677,21 +2638,23 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 			}
 
 			// get_fp_value() checked this, but only if EA was nonzero (non-register)
-			if (fault_if_unimplemented_680x0 (opcode, extra, ad, pc, &srcd, reg))
+			if (fault_if_unimplemented_680x0 (opcode, extra, ad, pc, &src, reg))
 				return;
 
 			regs.fpiar =  pc;
 
+			dst = regs.fp[reg];
+
 			if((extra & 0x30) == 0x20 || (extra & 0x7f) == 0x38) { // dyadic operation
-				if(normalize_or_fault_if_no_denormal_support_pre(opcode, extra, ad, pc, &regs.fp[reg], 2))
+				if(normalize_or_fault_if_no_denormal_support_pre(opcode, extra, ad, pc, &dst, 2))
 					return;
 			}
 
 			fpsr_clear_status();
-			v = arithmetic(&srcd, reg, extra);
-			if (!v)
-				fpu_noinst (opcode, pc);
-			fpsr_make_status();
+			v = arithmetic(&src, &dst, extra);
+			if (v)
+				regs.fp[reg] = dst;
+			fpsr_check_exception();
 			return;
 		default:
 		break;
@@ -2758,7 +2721,7 @@ uae_u8 *restore_fpu (uae_u8 *src)
 		w1 = restore_u16 () << 16;
 		w2 = restore_u32 ();
 		w3 = restore_u32 ();
-		to_exten (&regs.fp[i], w1, w2, w3);
+		fpp_to_exten_fmovem(&regs.fp[i], w1, w2, w3);
 	}
 	regs.fpcr = restore_u32 ();
 	regs.fpsr = restore_u32 ();
@@ -2772,11 +2735,11 @@ uae_u8 *restore_fpu (uae_u8 *src)
 		w1 = restore_u16() << 16;
 		w2 = restore_u32();
 		w3 = restore_u32();
-		to_exten(&regs.exp_src1, w1, w2, w3);
+		fpp_to_exten_fmovem(&regs.exp_src1, w1, w2, w3);
 		w1 = restore_u16() << 16;
 		w2 = restore_u32();
 		w3 = restore_u32();
-		to_exten(&regs.exp_src2, w1, w2, w3);
+		fpp_to_exten_fmovem(&regs.exp_src2, w1, w2, w3);
 		regs.exp_pack[0] = restore_u32();
 		regs.exp_pack[1] = restore_u32();
 		regs.exp_pack[2] = restore_u32();
@@ -2808,7 +2771,7 @@ uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
 	save_u32 (currprefs.fpu_model);
 	save_u32 (0x80000000 | 0x40000000 | (regs.fpu_state == 0 ? 1 : 0) | (regs.fpu_exp_state ? 2 : 0) | (regs.fpu_exp_state > 1 ? 4 : 0));
 	for (i = 0; i < 8; i++) {
-		from_exten (&regs.fp[i], &w1, &w2, &w3);
+		fpp_from_exten_fmovem(&regs.fp[i], &w1, &w2, &w3);
 		save_u16 (w1 >> 16);
 		save_u32 (w2);
 		save_u32 (w3);
@@ -2820,11 +2783,11 @@ uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
 	save_u32 (-1);
 	save_u32 (0);
 
-	from_exten(&regs.exp_src1, &w1, &w2, &w3);
+	fpp_from_exten_fmovem(&regs.exp_src1, &w1, &w2, &w3);
 	save_u16(w1 >> 16);
 	save_u32(w2);
 	save_u32(w3);
-	from_exten(&regs.exp_src2, &w1, &w2, &w3);
+	fpp_from_exten_fmovem(&regs.exp_src2, &w1, &w2, &w3);
 	save_u16(w1 >> 16);
 	save_u32(w2);
 	save_u32(w3);
