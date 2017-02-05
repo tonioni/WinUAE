@@ -669,7 +669,7 @@ static uint32_t estimateSqrt32(int aExp, uint32_t a)
 | `a'.  If `a' is zero, 32 is returned.
 *----------------------------------------------------------------------------*/
 
-static int8_t countLeadingZeros32( uint32_t a )
+static inline int8_t countLeadingZeros32( uint32_t a )
 {
 #if SOFTFLOAT_GNUC_PREREQ(3, 4)
     if (a) {
@@ -717,7 +717,7 @@ static int8_t countLeadingZeros32( uint32_t a )
 | `a'.  If `a' is zero, 64 is returned.
 *----------------------------------------------------------------------------*/
 
-static int8_t countLeadingZeros64( uint64_t a )
+static inline int8_t countLeadingZeros64( uint64_t a )
 {
 #if SOFTFLOAT_GNUC_PREREQ(3, 4)
     if (a) {

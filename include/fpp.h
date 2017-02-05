@@ -72,8 +72,8 @@ extern FPP_FROM_EXTEN fpp_from_exten;
 extern FPP_TO_EXTEN fpp_to_exten_fmovem;
 extern FPP_FROM_EXTEN fpp_from_exten_fmovem;
 
-extern FPP_A fpp_roundsgl;
-extern FPP_A fpp_rounddbl;
+extern FPP_A fpp_round_single;
+extern FPP_A fpp_round_double;
 extern FPP_A fpp_round32;
 extern FPP_A fpp_round64;
 
