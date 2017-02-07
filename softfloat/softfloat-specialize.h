@@ -97,15 +97,9 @@ static inline flag floatx80_is_nan( floatx80 a )
 static floatx80 floatx80_default_nan(float_status *status)
 {
     floatx80 r;
-
-    if (status->snan_bit_is_one) {
-        r.low = LIT64(0xBFFFFFFFFFFFFFFF);
-        r.high = 0x7FFF;
-    } else {
-        r.low = LIT64(0xC000000000000000);
-        r.high = 0xFFFF;
-    }
-    return r;
+    r.high = 0x7FFF;
+    r.low = LIT64( 0xFFFFFFFFFFFFFFFF );
+	return r;
 }
 
 /*----------------------------------------------------------------------------

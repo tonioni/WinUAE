@@ -44,6 +44,7 @@ static struct float_status fs;
 static void fp_set_mode(uae_u32 mode_control)
 {
 	set_floatx80_rounding_precision(80, &fs);
+	set_float_detect_tininess(float_tininess_before_rounding, &fs);
     switch(mode_control & FPCR_ROUNDING_MODE) {
         case FPCR_ROUND_NEAR: // to neareset
             set_float_rounding_mode(float_round_nearest_even, &fs);
