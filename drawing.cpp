@@ -2960,11 +2960,19 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		/* The problem is that we must call decode_ham() BEFORE we do the sprites. */
 		if (dp_for_drawing->ham_seen) {
 			int ohposblank = hposblank;
+			uae_u8 b0 = dp_for_drawing->bplcon0;
+			uae_u8 b2 = dp_for_drawing->bplcon2;
+			uae_u8 b3 = dp_for_drawing->bplcon3;
+			uae_u8 b4 = dp_for_drawing->bplcon4;
 			init_ham_decoding ();
 			do_color_changes (dummy_worker, decode_ham, lineno);
 			if (have_color_changes) {
-				// do_color_changes() did color changes, reset colors back to original state
+				// do_color_changes() did color changes and register changes, restore them.
 				adjust_drawing_colors (dp_for_drawing->ctable, -1);
+				dp_for_drawing->bplcon0 = b0;
+				dp_for_drawing->bplcon2 = b2;
+				dp_for_drawing->bplcon3 = b3;
+				dp_for_drawing->bplcon4 = b4;
 				pfield_expand_dp_bplcon ();
 			}
 			hposblank = ohposblank;
