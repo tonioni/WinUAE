@@ -765,11 +765,11 @@ static void fp_sqrt(fpdata *a, fpdata *dst)
 }
 static void fp_lognp1(fpdata *a, fpdata *dst)
 {
-	dst->fp = logl(a->fp + 1.0);
+	dst->fp = log1pl(a->fp);
 }
 static void fp_etoxm1(fpdata *a, fpdata *dst)
 {
-	dst->fp = expl(a->fp) - 1.0;
+	dst->fp = expm1l(a->fp);
 }
 static void fp_tanh(fpdata *a, fpdata *dst)
 {
