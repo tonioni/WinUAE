@@ -2,6 +2,7 @@
 extern void fp_init_native(void);
 extern void fp_init_softfloat(void);
 extern void fpsr_set_exception(uae_u32 exception);
+extern void fpu_modechange(void);
 
 #define FPSR_BSUN       0x00008000
 #define FPSR_SNAN       0x00004000

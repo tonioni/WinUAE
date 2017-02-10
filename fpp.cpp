@@ -109,6 +109,7 @@ FPP_AB fpp_move;
 
 #define DEBUG_FPP 0
 #define EXCEPTION_FPP 1
+#define ARITHMETIC_EXCEPTIONS 0
 
 STATIC_INLINE int isinrom (void)
 {
@@ -349,7 +350,12 @@ static uae_u32 fpsr_make_status(void)
 	exception = regs.fpsr & regs.fpcr & (FPSR_SNAN | FPSR_OPERR | FPSR_DZ);
 	if (currprefs.cpu_model >= 68040 && currprefs.fpu_model)
 		exception |= regs.fpsr & (FPSR_OVFL | FPSR_UNFL);
+
+#if ARITHMETIC_EXCEPTIONS
 	return exception;
+#else
+	return 0;
+#endif
 }
 
 static int fpsr_set_bsun(void)
@@ -360,8 +366,10 @@ static int fpsr_set_bsun(void)
     if (regs.fpcr & FPSR_BSUN) {
         // logging only so far
         write_log (_T("FPU exception: BSUN! (FPSR: %08x, FPCR: %04x)\n"), regs.fpsr, regs.fpcr);
-        return 0; // return 1, once BSUN exception works
-    }
+#if ARITHMETIC_EXCEPTIONS
+		return 1;
+#endif
+	}
     return 0;
 }
 
@@ -1154,7 +1162,9 @@ static bool fault_if_68040_integer_nonmaskable(uae_u16 opcode, uae_u16 extra, ua
 		fpsr_make_status();
 		if (regs.fpsr & (FPSR_SNAN | FPSR_OPERR)) {
 			fpsr_check_exception(FPSR_SNAN | FPSR_OPERR);
-			//return true; FIXME: enable this once exception works
+#if ARITHMETIC_EXCEPTIONS
+			return true;
+#endif
 		}
 	}
 	return false;
@@ -2722,6 +2732,27 @@ void fpuop_arithmetic (uae_u32 opcode, uae_u16 extra)
 	fpuop_arithmetic2 (opcode, extra);
 	if (fpu_mmu_fixup) {
 		mmufixup[0].reg = -1;
+	}
+}
+
+void fpu_modechange(void)
+{
+	uae_u32 temp_ext[8][3];
+
+	if (currprefs.fpu_softfloat == changed_prefs.fpu_softfloat)
+		return;
+	currprefs.fpu_softfloat = changed_prefs.fpu_softfloat;
+
+	for (int i = 0; i < 8; i++) {
+		fpp_from_exten_fmovem(&regs.fp[i], &temp_ext[i][0], &temp_ext[i][1], &temp_ext[i][2]);
+	}
+	if (currprefs.fpu_softfloat && !changed_prefs.fpu_softfloat) {
+		fp_init_native();
+	} else if (!currprefs.fpu_softfloat && changed_prefs.fpu_softfloat) {
+		fp_init_softfloat();
+	}
+	for (int i = 0; i < 8; i++) {
+		fpp_to_exten_fmovem(&regs.fp[i], temp_ext[i][0], temp_ext[i][1], temp_ext[i][2]);
 	}
 }
 
