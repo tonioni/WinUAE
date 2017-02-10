@@ -1163,6 +1163,13 @@ void decide_blitter (int hpos)
 			// idle cycles require free bus.
 			// Final empty cycle does not, unless it is fill mode that requires extra idle cycle
 			// (CPU can still use this cycle)
+#if 1
+			if ((blit_cyclecounter < 0 || !blit_final || (blitfill && blit_cycle_diagram_fill[blit_ch][0])) && ((c == 0 && v == 0) || v < 0)) {
+				blit_misscyclecounter++;
+				blitter_nasty++;
+				break;
+			}
+#else
 			if ((c == 0 && v == 0) || v < 0) {
 				if (blit_cyclecounter < 0 || !blit_final) {
 					blit_misscyclecounter++;
@@ -1174,7 +1181,7 @@ void decide_blitter (int hpos)
 					break;
 				}
 			}
-
+#endif
 			if (blit_frozen) {
 				blit_misscyclecounter++;
 				break;
