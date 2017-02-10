@@ -1071,16 +1071,11 @@ floatx80 roundAndPackFloatx80Sgl( flag zSign, int32_t zExp, uint64_t zSig0, uint
             roundBits = zSig0 & roundMask;
             if ( isTiny ) float_raise( float_flag_underflow, status );
             if ( roundBits ) status->float_exception_flags |= float_flag_inexact;
-            if ( ( zSig0 & ~roundMask ) == 0 ) {
-                zSig0 = ( roundIncrement != roundMask );
-                return packFloatx80( zSign, zExp, zSig0 );
-            }
             zSig0 += roundIncrement;
-            roundIncrement = roundMask + 1;
-            if ( roundNearestEven && ( roundBits<<1 == roundIncrement ) ) {
-                roundMask |= roundIncrement;
+            if ( roundNearestEven && ( roundBits == roundIncrement ) ) {
+                roundMask |= roundIncrement<<1;
             }
-            zSig0 &= ~ roundMask;
+            zSig0 &= ~roundMask;
             return packFloatx80( zSign, zExp, zSig0 );
         }
     }
