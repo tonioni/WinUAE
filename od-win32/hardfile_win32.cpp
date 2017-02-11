@@ -36,12 +36,16 @@ static int usefloppydrives = 0;
 static int num_drives;
 static bool drives_enumerated;
 
+#define MAX_LOCKED_VOLUMES 8
+
 struct hardfilehandle
 {
 	int zfile;
 	struct zfile *zf;
 	HANDLE h;
 	BOOL firstwrite;
+	HANDLE locked_volumes[MAX_LOCKED_VOLUMES];
+	bool dismounted;
 };
 
 struct uae_driveinfo {
@@ -79,7 +83,7 @@ int harddrive_dangerous; // = 0x1234dead; // test only!
 int do_rdbdump;
 static struct uae_driveinfo uae_drives[MAX_FILESYSTEM_UNITS];
 
-#if 1
+#if 0
 static void fixdrive (struct hardfiledata *hfd)
 {
 	uae_u8 data[512];
@@ -195,7 +199,7 @@ static int ismounted (const TCHAR *name, HANDLE hd)
 		return 0;
 	mounted = 0;
 	h = FindFirstVolume (volname, sizeof volname / sizeof (TCHAR));
-	while (h && !mounted) {
+	while (h != INVALID_HANDLE_VALUE && !mounted) {
 		HANDLE d;
 		if (volname[_tcslen (volname) - 1] == '\\')
 			volname[_tcslen (volname) - 1] = 0;
@@ -243,7 +247,7 @@ static int ismounted (const TCHAR *name, HANDLE hd)
 			}
 			CloseHandle (d);
 		} else {
-			write_log (_T("'%s': %d\n"), volname, GetLastError ());
+			hdf_log2 (_T("'%s': %d\n"), volname, GetLastError ());
 		}
 		if (!FindNextVolume (h, volname, sizeof volname / sizeof (TCHAR)))
 			break;
@@ -548,6 +552,109 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 	return true;
 }
 
+static void lock_drive(struct hardfiledata *hfd, const TCHAR *name, HANDLE drvhandle)
+{
+	DWORD written;
+	TCHAR volname[MAX_DPATH];
+	DWORD sign, pstyle;
+	bool ntfs_found = false;
+
+	if (!hfd->ci.lock)
+		return;
+
+	// single partition FAT drives seem to lock this way, without need for administrator privileges
+	if (DeviceIoControl(drvhandle, FSCTL_LOCK_VOLUME, NULL, 0, NULL, 0, &written, NULL)) {
+		if (DeviceIoControl(drvhandle, FSCTL_DISMOUNT_VOLUME, NULL, 0, NULL, 0, &written, NULL)) {
+			write_log(_T("'%s' locked and dismounted successfully.\n"), name);
+			hfd->handle->dismounted = true;
+			return;
+		}
+	}
+
+	if (!getsignfromhandle (drvhandle, &sign, &pstyle))
+		return;
+	HANDLE h = FindFirstVolume (volname, sizeof volname / sizeof (TCHAR));
+	while (h != INVALID_HANDLE_VALUE) {
+		bool isntfs = false;
+		if (volname[_tcslen (volname) - 1] == '\\')
+			volname[_tcslen (volname) - 1] = 0;
+		HANDLE d = CreateFile (volname, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+			NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (d != INVALID_HANDLE_VALUE) {
+			if (DeviceIoControl (d, FSCTL_IS_VOLUME_MOUNTED, NULL, 0, NULL, 0, &written, NULL)) {
+				VOLUME_DISK_EXTENTS *vde;
+				NTFS_VOLUME_DATA_BUFFER ntfs;
+				if (DeviceIoControl (d, FSCTL_GET_NTFS_VOLUME_DATA, NULL, 0, &ntfs, sizeof ntfs, &written, NULL)) {
+					isntfs = true;
+				}
+				DWORD outsize = sizeof (VOLUME_DISK_EXTENTS) + sizeof (DISK_EXTENT) * 32;
+				vde = (VOLUME_DISK_EXTENTS*)xmalloc (uae_u8, outsize);
+				if (DeviceIoControl (d, IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, NULL, 0, vde, outsize, &written, NULL)) {
+					for (int i = 0; i < vde->NumberOfDiskExtents; i++) {
+						int mounted = 0;
+						TCHAR pdrv[MAX_DPATH];
+						_stprintf (pdrv, _T("\\\\.\\PhysicalDrive%d"), vde->Extents[i].DiskNumber);
+						HANDLE ph = CreateFile (pdrv, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+						if (ph != INVALID_HANDLE_VALUE) {
+							DWORD sign2, pstyle2;
+							if (getsignfromhandle (ph, &sign2, &pstyle2)) {
+								if (sign == sign2 && pstyle == PARTITION_STYLE_MBR) {
+									if (isntfs)
+										ntfs_found = true;
+									mounted = isntfs ? -1 : 1;
+								}
+							}
+							CloseHandle(ph);
+							if (mounted > 0) {
+								for (int j = 0; j < MAX_LOCKED_VOLUMES; j++) {
+									if (hfd->handle->locked_volumes[j] == INVALID_HANDLE_VALUE) {
+										write_log(_T("%d: Partition found: PhysicalDrive%d: Extent %d Start=%I64X Len=%I64X\n"), i,
+											j, vde->Extents[i].DiskNumber, vde->Extents[i].StartingOffset.QuadPart, vde->Extents[i].ExtentLength.QuadPart);
+										hfd->handle->locked_volumes[j] = d;
+										d = INVALID_HANDLE_VALUE;
+										break;
+									}
+								}
+							}
+						}
+					}
+				} else {
+					write_log (_T("IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS returned %08x\n"), GetLastError ());
+				}
+			}
+			if (d != INVALID_HANDLE_VALUE)
+				CloseHandle (d);
+		}
+		if (!FindNextVolume (h, volname, sizeof volname / sizeof (TCHAR)))
+			break;
+	}
+	FindVolumeClose(h);
+
+	if (ntfs_found) {
+		write_log(_T("Not locked: At least one NTFS partition detected.\n"));
+	}
+
+	for (int i = 0; i < MAX_LOCKED_VOLUMES; i++) {
+		HANDLE d = hfd->handle->locked_volumes[i];
+		if (d != INVALID_HANDLE_VALUE) {
+			if (ntfs_found) {
+				CloseHandle(d);
+				hfd->handle->locked_volumes[i] = INVALID_HANDLE_VALUE;
+			} else {
+				if (DeviceIoControl(d, FSCTL_LOCK_VOLUME, NULL, 0, NULL, 0, &written, NULL)) {
+					if (DeviceIoControl(d, FSCTL_DISMOUNT_VOLUME, NULL, 0, NULL, 0, &written, NULL)) {
+						write_log(_T("ID=%d locked and dismounted successfully.\n"), i, name);
+					} else {
+						write_log (_T("WARNING: ID=%d FSCTL_DISMOUNT_VOLUME returned %d\n"), i, GetLastError());
+					}
+				} else {
+					write_log (_T("WARNING: ID=%d FSCTL_LOCK_VOLUME returned %d\n"), i, GetLastError());
+				}
+			}
+		}
+	}
+}
+
 int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 {
 	HANDLE h = INVALID_HANDLE_VALUE;
@@ -569,6 +676,9 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 		goto end;
 	}
 	hfd->handle = xcalloc (struct hardfilehandle, 1);
+	for(int i = 0; i < MAX_LOCKED_VOLUMES; i++) {
+		hfd->handle->locked_volumes[i] = INVALID_HANDLE_VALUE;
+	}
 	hfd->handle->h = INVALID_HANDLE_VALUE;
 	hfd_log (_T("hfd attempting to open: '%s'\n"), name);
 	if (name[0] == ':') {
@@ -576,15 +686,15 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 		TCHAR *p = _tcschr (name + 1, ':');
 		if (p) {
 			*p++ = 0;
-			if (!drives_enumerated) {
-				// do not scan for drives if open succeeds and it is a harddrive
-				// to prevent spinup of sleeping drives
-				h = CreateFile (p,
-					GENERIC_READ,
-					FILE_SHARE_READ,
-					NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
-				DWORD err = GetLastError ();
-				if (h == INVALID_HANDLE_VALUE && err == ERROR_FILE_NOT_FOUND)
+			// do not scan for drives if open succeeds and it is a harddrive
+			// to prevent spinup of sleeping drives
+			h = CreateFile (p,
+				GENERIC_READ,
+				FILE_SHARE_READ,
+				NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
+			DWORD err = GetLastError ();
+			if (h == INVALID_HANDLE_VALUE && err == ERROR_FILE_NOT_FOUND) {
+				if (!drives_enumerated)
 					goto emptyreal;
 			}
 		}
@@ -612,7 +722,6 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 				udi = &uae_drives[drvnum];
 		}
 		if (udi != NULL) {
-			DWORD r;
 			hfd->flags = HFD_FLAGS_REALDRIVE;
 			if (udi) {
 				if (udi->nomedia)
@@ -646,8 +755,6 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 					ret = -1;
 				goto end;
 			}
-			if (!DeviceIoControl (h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &r, NULL))
-				write_log (_T("WARNING: '%s' FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n"), name, GetLastError ());
 
 			//queryidentifydevice (hfd);
 			_tcsncpy (hfd->vendor_id, udi->vendor_id, 8);
@@ -674,8 +781,6 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 					hfd->handle->h = h;
 					if (h == INVALID_HANDLE_VALUE)
 						goto end;
-					if (!DeviceIoControl(h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &r, NULL))
-						write_log (_T("WARNING: '%s' FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n"), name, GetLastError ());
 				}
 
 #if 0
@@ -695,6 +800,8 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 				hfd->warned = -1;
 #endif
 			}
+			lock_drive(hfd, name, h);
+
 			hfd->handle_valid = HDF_HANDLE_WIN32;
 			hfd->emptyname = my_strdup (name);
 
@@ -793,13 +900,23 @@ static void freehandle (struct hardfilehandle *h)
 {
 	if (!h)
 		return;
+	for (int i = 0; i < MAX_LOCKED_VOLUMES; i++) {
+		if (h->locked_volumes[i] != INVALID_HANDLE_VALUE) {
+			CloseHandle(h->locked_volumes[i]);
+		}
+	}
 	if (!h->zfile && h->h != INVALID_HANDLE_VALUE)
-		CloseHandle (h->h);
+		CloseHandle(h->h);
 	if (h->zfile && h->zf)
 		zfile_fclose (h->zf);
 	h->zf = NULL;
 	h->h = INVALID_HANDLE_VALUE;
 	h->zfile = 0;
+}
+
+HANDLE hdf_get_real_handle(struct hardfilehandle *h)
+{
+	return h->h;
 }
 
 void hdf_close_target (struct hardfiledata *hfd)
@@ -1239,7 +1356,7 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 		write_log (_T("too short STORAGE_DEVICE_DESCRIPTOR only %d bytes\n"), size);
 		return -2;
 	}
-	if (devDesc->DeviceType != INQ_DASD && devDesc->DeviceType != INQ_ROMD && devDesc->DeviceType != INQ_OPTD) {
+	if (devDesc->DeviceType != INQ_DASD && devDesc->DeviceType != INQ_ROMD && devDesc->DeviceType != INQ_OPTD && devDesc->DeviceType != INQ_OMEM) {
 		write_log (_T("not a direct access device, ignored (type=%d)\n"), devDesc->DeviceType);
 		return -2;
 	}
@@ -2038,6 +2155,7 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 	HWND hwnd, hwndprogress, hwndprogresstxt;
 	MSG msg;
 	int pct, cnt;
+	DWORD r;
 
 	cache = VirtualAlloc (NULL, COPY_CACHE_SIZE, MEM_COMMIT, PAGE_READWRITE);
 	if (!cache)
@@ -2056,6 +2174,12 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 		CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING, NULL);
 	if (hdst == INVALID_HANDLE_VALUE)
 		goto err;
+	if (!DeviceIoControl(h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &r, NULL)) {
+		write_log (_T("WARNING: '%s' FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n"), path, GetLastError ());
+	}
+	if (!DeviceIoControl(h, FSCTL_LOCK_VOLUME , NULL, 0, NULL, 0, &r, NULL)) {
+		write_log (_T("WARNING: '%s' FSCTL_LOCK_VOLUME returned %d\n"), path, GetLastError ());
+	}
 	li.QuadPart = size;
 	ret = SetFilePointer (hdst, li.LowPart, &li.HighPart, FILE_BEGIN);
 	if (ret == INVALID_SET_FILE_POINTER && GetLastError () != NO_ERROR)
@@ -2068,7 +2192,7 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 	SetFilePointer (h, 0, &li.HighPart, FILE_BEGIN);
 	progressdialogreturn = -1;
 	progressdialogactive = 1;
-	hwnd = CreateDialog (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_PROGRESSBAR), hDlg, ProgressDialogProc);
+	hwnd = CustomCreateDialog(IDD_PROGRESSBAR, hDlg, ProgressDialogProc);
 	if (hwnd == NULL)
 		goto err;
 	hwndprogress = GetDlgItem (hwnd, IDC_PROGRESSBAR);

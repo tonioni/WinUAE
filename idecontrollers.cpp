@@ -636,7 +636,7 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 				v = board->rom[(addr - APOLLO_ROM_OFFSET) & board->rom_mask];
 		} else if (board->configured) {
 			if ((addr & 0xc000) == 0x4000) {
-				v = apollo_scsi_bget(oaddr);
+				v = apollo_scsi_bget(oaddr, board->userdata);
 			} else if (addr < 0x4000) {
 				int regnum = get_apollo_reg(addr, board);
 				if (regnum >= 0) {
@@ -881,9 +881,9 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 		} else if (board->type == APOLLO_IDE) {
 
 			if ((addr & 0xc000) == 0x4000) {
-				v = apollo_scsi_bget(addr);
+				v = apollo_scsi_bget(addr, board->userdata);
 				v <<= 8;
-				v |= apollo_scsi_bget(addr + 1);
+				v |= apollo_scsi_bget(addr + 1, board->userdata);
 			} else if (addr < 0x4000) {
 				int regnum = get_apollo_reg(addr, board);
 				if (regnum == IDE_DATA) {
@@ -1074,7 +1074,7 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 		} else if (board->type == APOLLO_IDE) {
 
 			if ((addr & 0xc000) == 0x4000) {
-				apollo_scsi_bput(oaddr, v);
+				apollo_scsi_bput(oaddr, v, board->userdata);
 			} else if (addr < 0x4000) {
 				int regnum = get_apollo_reg(addr, board);
 				if (regnum >= 0) {
@@ -1225,8 +1225,8 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 		} else if (board->type == APOLLO_IDE) {
 
 			if ((addr & 0xc000) == 0x4000) {
-				apollo_scsi_bput(addr, v >> 8);
-				apollo_scsi_bput(addr + 1, v);
+				apollo_scsi_bput(addr, v >> 8, board->userdata);
+				apollo_scsi_bput(addr + 1, v, board->userdata);
 			} else if (addr < 0x4000) {
 				int regnum = get_apollo_reg(addr, board);
 				if (regnum == IDE_DATA) {
@@ -1618,6 +1618,12 @@ static bool apollo_init(struct autoconfig_info *aci, bool cpuboard)
 
 	if (!ide)
 		return false;
+
+	if (cpuboard) {
+		ide->userdata = currprefs.cpuboard_settings & 3;
+	} else {
+		ide->userdata = aci->rc->autoboot_disabled ? 2 : 0;
+	}
 
 	ide->configured = 0;
 	ide->bank = &ide_bank_generic;

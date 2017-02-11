@@ -39,6 +39,7 @@ struct uae_mman_data
 	uae_u32 readonlysize;
 	bool maprom;
 	bool directsupport;
+	bool hasbarrier;
 };
 bool uae_mman_info(addrbank *ab, struct uae_mman_data *md);
 

@@ -2325,7 +2325,7 @@ void mmu030_set_funcs(void)
 {
 	if (currprefs.mmu_model != 68030)
 		return;
-	if (currprefs.cpu_cycle_exact || currprefs.cpu_compatible) {
+	if (currprefs.cpu_memory_cycle_exact || currprefs.cpu_compatible) {
 		x_phys_get_iword = get_word_icache030;
 		x_phys_get_ilong = get_long_icache030;
 	} else {

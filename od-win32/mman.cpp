@@ -734,7 +734,9 @@ bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
 	} else if (!_tcscmp(ab->label, _T("chip"))) {
 		start = 0;
 		got = true;
-		if (!expansion_get_autoconfig_by_address(&currprefs, 0x00200000) || currprefs.chipmem_size < 2 * 1024 * 1024)
+		if (!expansion_get_autoconfig_by_address(&currprefs, 0x00200000) && currprefs.chipmem_size == 2 * 1024 * 1024)
+			barrier = true;
+		if (currprefs.chipmem_size > 2 * 1024 * 1024)
 			barrier = true;
 	} else if (!_tcscmp(ab->label, _T("kick"))) {
 		start = 0xf80000;
@@ -867,6 +869,7 @@ bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
 		md->readonly = readonly;
 		md->readonlysize = readonlysize;
 		md->maprom = maprom;
+		md->hasbarrier = barrier;
 
 		if (start_rtg && end_rtg) {
 			if (start < start_rtg || start + size > end_rtg)
@@ -876,7 +879,7 @@ bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
 			directsupport = false;
 		}
 		md->directsupport = directsupport;
-		if (barrier) {
+		if (md->hasbarrier) {
 			md->size += BARRIER;
 		}
 	}

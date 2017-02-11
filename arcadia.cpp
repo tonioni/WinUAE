@@ -572,6 +572,7 @@ Port 2:
 
 
 int alg_flag;
+int log_ld;
 
 #define ALG_NVRAM_SIZE 4096
 #define ALG_NVRAM_MASK (ALG_NVRAM_SIZE - 1)
@@ -676,7 +677,7 @@ static void ack(void)
 	sb(0x0a); // ACK
 }
 
-void alg_serial_read(uae_u16 w)
+static void sony_serial_read(uae_u16 w)
 {
 	w &= 0xff;
 	switch (w)
@@ -703,6 +704,8 @@ void alg_serial_read(uae_u16 w)
 	ld_direction = 0;
 	pausevideograb(0);
 	ack();
+	if (log_ld)
+		write_log(_T("LD: PLAY\n"));
 	break;
 	case 0x3b: // Fast foward play ';'
 	ld_mode = LD_MODE_PLAY;
@@ -714,6 +717,8 @@ void alg_serial_read(uae_u16 w)
 	ld_direction = 0;
 	ld_mode = LD_MODE_STOP;
 	ack();
+	if (log_ld)
+		write_log(_T("LD: STOP\n"));
 	break;
 	case 0x40: // '@'
 	if (ld_mode == LD_MODE_SEARCH) {
@@ -723,6 +728,8 @@ void alg_serial_read(uae_u16 w)
 		ld_direction = 0;
 		ack();
 		sb(0x01); // COMPLETION
+		if (log_ld)
+			write_log(_T("LD: SEARCH %d\n"), ld_value);
 	}
 	break;
 	case 0x4a: // R-PLAY 'J'
@@ -730,18 +737,24 @@ void alg_serial_read(uae_u16 w)
 	pausevideograb(1);
 	ld_direction = -1;
 	ack();
+	if (log_ld)
+		write_log(_T("LD: R-PLAY\n"));
 	break;
 	case 0x4b: // Fast reverse play 'K'
 	ld_mode = LD_MODE_PLAY;
 	pausevideograb(1);
 	ld_direction = -2;
 	ack();
+	if (log_ld)
+		write_log(_T("LD: FAST R-PLAY\n"));
 	break;
 	case 0x4f: // STILL 'O'
 	ld_mode = LD_MODE_STILL;
 	ld_direction = 0;
 	pausevideograb(1);
 	ack();
+	if (log_ld)
+		write_log(_T("LD: PAUSE\n"));
 	break;
 	case 0x43: // SEARCH 'C'
 	ack();
@@ -749,34 +762,48 @@ void alg_serial_read(uae_u16 w)
 	ld_direction = 0;
 	pausevideograb(1);
 	ld_value = 0;
+	if (log_ld)
+		write_log(_T("LD: SEARCH\n"));
 	break;
 	case 0x46: // CH-1 ON 'F'
 	ack();
 	ld_audio |= 1;
 	setvolumevideograb(100 - currprefs.sound_volume_genlock);
+	if (log_ld)
+		write_log(_T("LD: CH-1 ON\n"));
 	break;
 	case 0x48: // CH-2 ON 'H'
 	ack();
 	ld_audio |= 2;
 	setvolumevideograb(100 - currprefs.sound_volume_genlock);
+	if (log_ld)
+		write_log(_T("LD: CH-2 ON\n"));
 	break;
 	case 0x47: // CH-1 OFF 'G'
 	ack();
 	ld_audio &= ~1;
 	if (!ld_audio)
 		setvolumevideograb(0);
+	if (log_ld)
+		write_log(_T("LD: CH-1 OFF\n"));
 	break;
 	case 0x49: // CH-2 OFF 'I'
 	ack();
 	ld_audio &= ~2;
 	if (!ld_audio)
 		setvolumevideograb(0);
+	if (log_ld)
+		write_log(_T("LD: CH-2 OFF\n"));
 	break;
 	case 0x50: // INDEX ON 'P'
 	ack();
+	if (log_ld)
+		write_log(_T("LD: INDEX ON\n"));
 	break;
 	case 0x51: // INDEX OFF 'O'
 	ack();
+	if (log_ld)
+		write_log(_T("LD: INDEX OFF\n"));
 	break;
 	case 0x60: // ADDR INQ '`'
 	{
@@ -790,6 +817,8 @@ void alg_serial_read(uae_u16 w)
 			sb(vv);
 			m /= 10;
 		}
+		if (log_ld > 1)
+			write_log(_T("LD: ADDR INQ %d\n"), ld_address);
 	}
 	break;
 	case 0x67: // STATUS INQ 'g'
@@ -798,6 +827,8 @@ void alg_serial_read(uae_u16 w)
 	sb(0x40);
 	sb((ld_mode == LD_MODE_SEARCH ? 0x02 : 0x00));
 	sb((ld_mode == LD_MODE_PLAY ? 0x01 : 0x00) | (ld_mode == LD_MODE_STILL ? 0x20 : 0x00) | (ld_mode == LD_MODE_STOP ? 0x40 : 0x00) | (ld_direction < 0 ? 0x80 : 0x00));
+	if (log_ld > 1)
+		write_log(_T("LD: STATUS INQ\n"));
 	break;
 	}
 }
@@ -840,7 +871,7 @@ static void alg_vsync(void)
 	}
 }
 
-int alg_serial_write(void)
+static int sony_serial_write(void)
 {
 	if (ser_buf_offset > 0) {
 		uae_u16 v = alg_ser_buf[0];
@@ -849,6 +880,34 @@ int alg_serial_write(void)
 		ser_buf_offset--;
 		memmove(alg_ser_buf, alg_ser_buf + 1, ser_buf_offset);
 		return v;
+	}
+	return -1;
+}
+
+static void pioneer_serial_read(uae_u16 w)
+{
+	w &= 0xff;
+}
+static int pioneer_serial_write(void)
+{
+	return -1;
+}
+
+void ld_serial_read(uae_u16 w)
+{
+	if (alg_flag || currprefs.genlock_image == 7) {
+		sony_serial_read(w);
+	} else if (currprefs.genlock_image == 8) {
+		pioneer_serial_read(w);
+	}
+}
+
+int ld_serial_write(void)
+{
+	if (alg_flag || currprefs.genlock_image == 7) {
+		return sony_serial_write();
+	} else if (currprefs.genlock_image == 8) {
+		return pioneer_serial_write();
 	}
 	return -1;
 }
@@ -932,7 +991,6 @@ uae_u8 alg_joystick_buttons(uae_u8 pra, uae_u8 dra, uae_u8 v)
 {
 	return v;
 }
-
 
 void alg_map_banks(void)
 {

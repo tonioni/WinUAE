@@ -3664,6 +3664,18 @@ static void DISK_start (void)
 			int tr = drv->cyl * 2 + side;
 			trackid *ti = drv->trackdata + tr;
 
+			if (drv->dskchange_time == -1) {
+				drv->dskchange_time = -2;
+				write_log(_T("Accessing state restored non-existing disk '%s'!\n"), drv->newname);
+				if (gui_ask_disk(dr, drv->newname)) {
+					if (drive_insert(drv, &currprefs, dr, drv->newname, false, false)) {
+						write_log(_T("Replacement disk '%s' inserted.\n"), drv->newname);
+						drv->dskready_up_time = 0;
+						drv->dskchange_time = 0;
+					}
+				}
+			}
+
 			if (dskdmaen == DSKDMA_WRITE) {
 				word = 0;
 				drv->tracklen = longwritemode ? FLOPPY_WRITE_MAXLEN : FLOPPY_WRITE_LEN * drv->ddhd * 8 * 2;
@@ -4443,6 +4455,8 @@ uae_u8 *restore_disk (int num,uae_u8 *src)
 						drv->dskchange = true;
 				} else {
 					drv->dskchange_time = -1;
+					_tcscpy(drv->newname, changed_prefs.floppyslots[num].df);
+					write_log(_T("Disk image not found, faking inserted disk.\n"));
 				}
 			}
 		}

@@ -546,6 +546,7 @@
 #define IDC_16BIT                       1231
 #define IDC_PPC_CPUIDLE                 1231
 #define IDC_11KHZ                       1232
+#define IDC_FPU_SOFTFLOAT               1232
 #define IDC_22KHZ                       1233
 #define IDC_SPEED_x86                   1233
 #define IDC_44KHZ                       1234
@@ -1145,6 +1146,7 @@
 #define IDC_HDFINFO                     1779
 #define IDC_DBG_AUTOSET                 1780
 #define IDC_HF_SPARSE                   1780
+#define IDC_HDF_LOCK                    1780
 #define IDC_DBG_DASM2                   1781
 #define IDC_HF_DYNAMIC                  1781
 #define IDC_DBG_MEM2                    1782

@@ -1899,7 +1899,7 @@ static int scan_roms_2 (UAEREG *fkey, const TCHAR *path, bool deepscan, int leve
 				ret = 1;
 		} else if (deepscan && (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
 			if (recursiveromscan < 0 || recursiveromscan > level) {
-				if (_tcsicmp(find_data.cFileName, _T(".")) && _tcsicmp(find_data.cFileName, _T(".."))) {
+				if (find_data.cFileName[0] != '.') {
 					_tcscat(tmppath, _T("\\"));
 					scan_roms_2(fkey, tmppath, deepscan, level + 1);
 				}
@@ -2470,7 +2470,7 @@ static void selectgenlock(struct uae_prefs *prefs, HWND hDlg, int id, const TCHA
 		_tcscpy(prefs->genlock_image_file, full_path);
 		fullpath(prefs->genlock_image_file, sizeof prefs->genlock_image_file / sizeof(TCHAR));
 		DISK_history_add(prefs->genlock_image_file, -1, HISTORY_GENLOCK_IMAGE, 0);
-	} else if (workprefs.genlock_image == 4 || workprefs.genlock_image == 6) {
+	} else if (workprefs.genlock_image == 4 || workprefs.genlock_image >= 6) {
 		_tcscpy(prefs->genlock_video_file, full_path);
 		fullpath(prefs->genlock_video_file, sizeof prefs->genlock_video_file / sizeof(TCHAR));
 		DISK_history_add(prefs->genlock_video_file, -1, HISTORY_GENLOCK_VIDEO, 0);
@@ -2528,6 +2528,8 @@ static void setdpath (const TCHAR *name, const TCHAR *path)
 // flag = 18 for Tape image
 // flag = 20 for genlock image
 // flag = 21 for genlock video
+// flag = 22 for floppy replacement (missing statefile)
+
 int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, TCHAR *path_out, int *multi)
 {
 	static int previousfilter[20];
@@ -2560,6 +2562,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		{
 		case 0:
 		case 1:
+		case 22:
 			getfilter (flag, _T("FloppyPath"), previousfilter, filtername);
 			fetch_path (_T("FloppyPath"), init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[0];
@@ -2643,6 +2646,13 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	switch (flag) {
 	case 0:
 		WIN32GUI_LoadUIString (IDS_SELECTADF, szTitle, MAX_DPATH);
+		WIN32GUI_LoadUIString (IDS_ADF, szFormat, MAX_DPATH);
+		_stprintf (szFilter, _T("%s "), szFormat);
+		memcpy (szFilter + _tcslen (szFilter), DISK_FORMAT_STRING, sizeof (DISK_FORMAT_STRING) + sizeof (TCHAR));
+		defext = _T("adf");
+		break;
+	case 22:
+		_tcscpy(szTitle, prefs->floppyslots[wParam - IDC_DF0].df);
 		WIN32GUI_LoadUIString (IDS_ADF, szFormat, MAX_DPATH);
 		_stprintf (szFilter, _T("%s "), szFormat);
 		memcpy (szFilter + _tcslen (szFilter), DISK_FORMAT_STRING, sizeof (DISK_FORMAT_STRING) + sizeof (TCHAR));
@@ -2977,7 +2987,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			break;
 		}
 		if (!nosavepath || 1) {
-			if (flag == 0 || flag == 1) {
+			if (flag == 0 || flag == 1 || flag == 22) {
 				amiga_path = _tcsstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
 				if (amiga_path && amiga_path != openFileName.lpstrFile) {
 					*amiga_path = 0;
@@ -4108,7 +4118,7 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum,
 											}
 										}
 										if (list) {
-											inputdevice_get_widget_type (devnum, j, name);
+											inputdevice_get_widget_type (devnum, j, name, false);
 											TCHAR target[MAX_DPATH];
 											_tcscpy (target, name);
 											_tcscat (target, _T(", "));
@@ -4510,7 +4520,7 @@ void InitializeListView (HWND hDlg)
 
 		for (i = 0; input_total_devices && i < inputdevice_get_widget_num (input_selected_device); i++) {
 			TCHAR name[100];
-			inputdevice_get_widget_type (input_selected_device, i, name);
+			inputdevice_get_widget_type (input_selected_device, i, name, true);
 			lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
 			lvstruct.pszText  = name;
 			lvstruct.lParam   = 0;
@@ -6122,11 +6132,11 @@ static struct amigamodels amodels[] = {
 	{ 4, IDS_QS_MODEL_A500P }, // "Amiga 500+"
 	{ 4, IDS_QS_MODEL_A600 }, // "Amiga 600"
 	{ 4, IDS_QS_MODEL_A1000 }, // "Amiga 1000"
-	{ 4, IDS_QS_MODEL_A1200 }, // "Amiga 1200"
+	{ 5, IDS_QS_MODEL_A1200 }, // "Amiga 1200"
 	{ 2, IDS_QS_MODEL_A3000 }, // "Amiga 3000"
 	{ 1, IDS_QS_MODEL_A4000 }, // "Amiga 4000"
 	{ 0, }, //{ 1, IDS_QS_MODEL_A4000T }, // "Amiga 4000T"
-	{ 3, IDS_QS_MODEL_CD32 }, // "CD32"
+	{ 4, IDS_QS_MODEL_CD32 }, // "CD32"
 	{ 4, IDS_QS_MODEL_CDTV }, // "CDTV"
 	{ 4, IDS_QS_MODEL_ARCADIA }, // "Arcadia"
 	{ 1, IDS_QS_MODEL_UAE }, // "Expanded UAE example configuration"
@@ -6703,8 +6713,8 @@ static void enable_for_chipsetdlg (HWND hDlg)
 	ew(hDlg, IDC_GENLOCKMIX, workprefs.genlock ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCK_ALPHA, workprefs.genlock ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCK_KEEP_ASPECT, workprefs.genlock ? TRUE : FALSE);
-	ew(hDlg, IDC_GENLOCKFILE, workprefs.genlock && (workprefs.genlock_image ==6 || (workprefs.genlock_image >= 3 && workprefs.genlock_image < 5)) ? TRUE : FALSE);
-	ew(hDlg, IDC_GENLOCKFILESELECT, workprefs.genlock && (workprefs.genlock_image ==6 || (workprefs.genlock_image >= 3 && workprefs.genlock_image < 5)) ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCKFILE, workprefs.genlock && (workprefs.genlock_image >= 6 || (workprefs.genlock_image >= 3 && workprefs.genlock_image < 5)) ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCKFILESELECT, workprefs.genlock && (workprefs.genlock_image >= 6 || (workprefs.genlock_image >= 3 && workprefs.genlock_image < 5)) ? TRUE : FALSE);
 }
 
 static const int fakerefreshrates[] = { 50, 60, 100, 120, 0 };
@@ -7800,7 +7810,7 @@ static void setgenlock(HWND hDlg)
 	setautocomplete(hDlg, IDC_GENLOCKFILE);
 	if (workprefs.genlock_image == 3) {
 		addhistorymenu(hDlg, workprefs.genlock_image_file, IDC_GENLOCKFILE, HISTORY_GENLOCK_IMAGE, true);
-	} else if (workprefs.genlock_image == 4 || workprefs.genlock_image == 6) {
+	} else if (workprefs.genlock_image == 4 || workprefs.genlock_image >= 6) {
 		addhistorymenu(hDlg, workprefs.genlock_video_file, IDC_GENLOCKFILE, HISTORY_GENLOCK_VIDEO, true);
 	}
 }
@@ -7842,6 +7852,8 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Video file"));
 		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Capture device"));
 		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("American Laser Games LaserDisc Player"));
+		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Sony LaserDisc Player"));
+		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Pioneer LaserDisc Player"));
 
 		SendDlgItemMessage(hDlg, IDC_GENLOCKMIX, CB_RESETCONTENT, 0, 0);
 		for (int i = 0; i <= 10; i++) {
@@ -11300,6 +11312,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_memory_cycle_exact && !(workprefs.cachesize && workprefs.cpu_model >= 68040));
 	ew (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_model > 0);
 	ew (hDlg, IDC_FPU_UNIMPLEMENTED, workprefs.fpu_model && !workprefs.cachesize);
+	ew (hDlg, IDC_FPU_SOFTFLOAT, workprefs.fpu_model && (!workprefs.compfpu || !workprefs.cachesize));
 	ew (hDlg, IDC_CPU_UNIMPLEMENTED, workprefs.cpu_model == 68060 && !workprefs.cachesize);
 #if 0
 	ew (hDlg, IDC_CPU_MULTIPLIER, workprefs.cpu_cycle_exact);
@@ -11346,6 +11359,7 @@ static void values_to_cpudlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_COMPATIBLE24, workprefs.address_space_24);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_strict);
 	CheckDlgButton (hDlg, IDC_FPU_UNIMPLEMENTED, !workprefs.fpu_no_unimplemented || workprefs.cachesize);
+	CheckDlgButton (hDlg, IDC_FPU_SOFTFLOAT, workprefs.fpu_softfloat);
 	CheckDlgButton (hDlg, IDC_CPU_UNIMPLEMENTED, !workprefs.int_no_unimplemented || workprefs.cachesize);
 	SendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.cpu_idle == 0 ? 0 : 12 - workprefs.cpu_idle / 15);
 	SendDlgItemMessage (hDlg, IDC_PPC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.ppc_cpu_idle);
@@ -11405,6 +11419,7 @@ static void values_from_cpudlg (HWND hDlg)
 	workprefs.cpu_compatible = workprefs.cpu_memory_cycle_exact | (ischecked (hDlg, IDC_COMPATIBLE) ? 1 : 0);
 	workprefs.fpu_strict = ischecked (hDlg, IDC_COMPATIBLE_FPU) ? 1 : 0;
 	workprefs.fpu_no_unimplemented = ischecked (hDlg, IDC_FPU_UNIMPLEMENTED) ? 0 : 1;
+	workprefs.fpu_softfloat = ischecked (hDlg, IDC_FPU_SOFTFLOAT) ? 1 : 0;
 	workprefs.int_no_unimplemented = ischecked (hDlg, IDC_CPU_UNIMPLEMENTED) ? 0 : 1;
 	workprefs.address_space_24 = ischecked (hDlg, IDC_COMPATIBLE24) ? 1 : 0;
 	workprefs.m68k_speed = ischecked (hDlg, IDC_CS_HOST) ? -1 : 0;
@@ -11500,8 +11515,13 @@ static void values_from_cpudlg (HWND hDlg)
 		workprefs.comptrustlong = trust_prev;
 		workprefs.comptrustnaddr = trust_prev;
 	}
-	if (!workprefs.cachesize)
+	if (!workprefs.cachesize) {
 		setchecked (hDlg, IDC_JITENABLE, false);
+	}
+	if (workprefs.cachesize && workprefs.compfpu && workprefs.fpu_softfloat) {
+		workprefs.fpu_softfloat = false;
+		setchecked(hDlg, IDC_FPU_SOFTFLOAT, false);
+	}
 	if (oldcache == 0 && workprefs.cachesize > 0) {
 		canbang = 1;
 	}
@@ -12838,6 +12858,8 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				if (posn != CB_ERR) {
 					current_tapedlg.ci.controller_type = posn % HD_CONTROLLER_NEXT_UNIT;
 					current_tapedlg.ci.controller_type_unit = posn / HD_CONTROLLER_NEXT_UNIT;
+					if (current_tapedlg.ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA)
+						current_tapedlg.ci.controller_type_unit = 1;
 					inithdcontroller(hDlg, current_tapedlg.ci.controller_type, current_tapedlg.ci.controller_type_unit, UAEDEV_TAPE);
 					SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_tapedlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_tapedlg.ci.controller_unit : current_tapedlg.ci.controller_type_unit, 0);
 				}
@@ -12952,6 +12974,8 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 			if (posn != CB_ERR) {
 				current_cddlg.ci.controller_type = posn % HD_CONTROLLER_NEXT_UNIT;
 				current_cddlg.ci.controller_type_unit = posn / HD_CONTROLLER_NEXT_UNIT;
+				if (current_cddlg.ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA)
+					current_cddlg.ci.controller_type_unit = 1;
 				inithdcontroller(hDlg, current_cddlg.ci.controller_type, current_cddlg.ci.controller_type_unit, UAEDEV_CD);
 				SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_cddlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_cddlg.ci.controller_unit : current_cddlg.ci.controller_type_unit, 0);
 			}
@@ -13090,6 +13114,8 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				if (posn != CB_ERR) {
 					current_hfdlg.ci.controller_type = posn % HD_CONTROLLER_NEXT_UNIT;
 					current_hfdlg.ci.controller_type_unit = posn / HD_CONTROLLER_NEXT_UNIT;
+					if (current_hfdlg.ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA)
+						current_hfdlg.ci.controller_type_unit = 1;
 					inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF);
 					sethardfile(hDlg);
 				}
@@ -13273,6 +13299,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			sethardfiletypes(hDlg);
 			inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF);
 			CheckDlgButton (hDlg, IDC_HDF_RW, !current_hfdlg.ci.readonly);
+			CheckDlgButton (hDlg, IDC_HDF_LOCK, current_hfdlg.ci.lock);
 			SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_RESETCONTENT, 0, 0);
 			ew (hDlg, IDC_HARDDRIVE_IMAGE, FALSE);
 			ew (hDlg, IDOK, FALSE);
@@ -13319,6 +13346,14 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 					int dang = 1;
 					hdf_getnameharddrive (posn, 1, NULL, &dang);
 					current_hfdlg.ci.readonly = (ischecked (hDlg, IDC_HDF_RW) && !dang) ? false : true;
+				}
+				break;
+			case IDC_HDF_LOCK:
+				posn = SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
+				if (posn != CB_ERR) {
+					int dang = 1;
+					hdf_getnameharddrive (posn, 1, NULL, &dang);
+					current_hfdlg.ci.lock = ischecked (hDlg, IDC_HDF_LOCK);
 				}
 				break;
 			}
@@ -14163,6 +14198,14 @@ static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen, int type
 		i++;
 	}
 	return out[0] ? 1 : 0;
+}
+
+bool gui_ask_disk(int drv, TCHAR *name)
+{
+	_tcscpy(changed_prefs.floppyslots[drv].df, name);
+	DiskSelection (hAmigaWnd, IDC_DF0 + drv, 22, &changed_prefs, 0);
+	_tcscpy(name, changed_prefs.floppyslots[drv].df);
+	return true;
 }
 
 static void getfloppyname (HWND hDlg, int n, int cd, int f_text)
@@ -16110,7 +16153,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 			int od = input_selected_device;
 			input_selected_device = devnum;
 			input_selected_widget = wtype;
-			int type = inputdevice_get_widget_type (input_selected_device, input_selected_widget, NULL);
+			int type = inputdevice_get_widget_type (input_selected_device, input_selected_widget, NULL, false);
 
 			if (inputmap == 3) { // ports panel / add custom
 				int mode;
@@ -16170,7 +16213,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				found = 0;
 				for (int i = 0; i < wcnt; i++) {
 					input_selected_widget = widgets[i];
-					type = inputdevice_get_widget_type (input_selected_device, input_selected_widget, NULL);
+					type = inputdevice_get_widget_type (input_selected_device, input_selected_widget, NULL, false);
 					if (type == IDEV_WIDGET_BUTTONAXIS) {
 						found = 1;
 						break;
@@ -16179,7 +16222,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				if (!found) {
 					for (int i = 0; i < wcnt; i++) {
 						input_selected_widget = widgets[i];
-						type = inputdevice_get_widget_type (input_selected_device, input_selected_widget, NULL);
+						type = inputdevice_get_widget_type (input_selected_device, input_selected_widget, NULL, false);
 						if (type == IDEV_WIDGET_AXIS) {
 							found = 2;
 							break;
@@ -16188,7 +16231,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				}
 
 				for (int i = 0; i < wcnt; i++) {
-					int typex = inputdevice_get_widget_type (input_selected_device, widgets[i], NULL);
+					int typex = inputdevice_get_widget_type (input_selected_device, widgets[i], NULL, false);
 					if (typex == IDEV_WIDGET_AXIS) {
 						if (!found) {
 							found = 1;
@@ -16206,7 +16249,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				if (!found) {
 					for (int i = 0; i < wcnt; i++) {
 						input_selected_widget = widgets[i];
-						type = inputdevice_get_widget_type (input_selected_device, input_selected_widget, NULL);
+						type = inputdevice_get_widget_type (input_selected_device, input_selected_widget, NULL, false);
 						if (type == IDEV_WIDGET_BUTTON || type == IDEV_WIDGET_KEY) {
 							found = 1;
 							break;
@@ -16230,7 +16273,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 								(type == IDEV_WIDGET_AXIS && prevtype == IDEV_WIDGET_AXIS)) {
 								for (int i = 0; i < wcnt; i++) {
 									wtype = widgets[i];
-									if (inputdevice_get_widget_type (input_selected_device, wtype, NULL) == IDEV_WIDGET_AXIS) {
+									if (inputdevice_get_widget_type (input_selected_device, wtype, NULL, false) == IDEV_WIDGET_AXIS) {
 										inputdevice_set_gameports_mapping (&workprefs, input_selected_device, prevwidget, -1, 0, inputmap_port, workprefs.input_selected_setting);
 										inputdevice_set_gameports_mapping (&workprefs, input_selected_device, wtype, axistable2[0], 0, inputmap_port, workprefs.input_selected_setting);
 										evtnum = -1;
@@ -16261,7 +16304,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				ListView_SetItemState (h, inputmap_index, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
 				TCHAR tmp[256];
 				tmp[0] = 0;
-				inputdevice_get_widget_type (input_selected_device, input_selected_widget, tmp);
+				inputdevice_get_widget_type (input_selected_device, input_selected_widget, tmp, false);
 				_tcscat (tmp, _T(", "));
 				_tcscat (tmp, inputdevice_get_device_name2 (input_selected_device));
 				SetWindowText (GetDlgItem (hDlg, IDC_INPUTMAPOUT), tmp);
@@ -16307,7 +16350,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				}
 				TCHAR tmp[256];
 				tmp[0] = 0;
-				inputdevice_get_widget_type (input_selected_device, input_selected_widget, tmp);
+				inputdevice_get_widget_type (input_selected_device, input_selected_widget, tmp, false);
 				_tcscat (tmp, _T(", "));
 				_tcscat (tmp, inputdevice_get_device_name2 (input_selected_device));
 				SetWindowText (GetDlgItem (hDlg, IDC_INPUTMAPOUT), tmp);

@@ -116,6 +116,7 @@ struct uae_input_device2 {
 #define INPUT_MATCH_CONFIG_NAME_ONLY 1
 #define INPUT_MATCH_FRIENDLY_NAME_ONLY 2
 #define INPUT_MATCH_BOTH 4
+#define INPUT_MATCH_ALL 7
 
 static struct uae_input_device2 joysticks2[MAX_INPUT_DEVICES];
 static struct uae_input_device2 mice2[MAX_INPUT_DEVICES];
@@ -1933,7 +1934,7 @@ void inputdevice_parse_jport_custom(struct uae_prefs *pr, int index, int port, T
 				if (outname[0] != 0)
 					_tcscat(outname, _T(", "));
 				const TCHAR *ps = ie->shortname ? ie->shortname : ie->name;
-				if (inputdevice_get_widget_type(devnum, num, tmp)) {
+				if (inputdevice_get_widget_type(devnum, num, tmp, false)) {
 					if (tmp[0]) {
 						_tcscat(outname, tmp);
 						_tcscat(outname, _T("="));
@@ -6635,7 +6636,7 @@ static void disableifempty (struct uae_prefs *prefs)
 	prefs->internalevent_settings[0]->enabled = true;
 }
 
-static void matchdevices(struct uae_prefs *p, struct inputdevice_functions *inf, struct uae_input_device *uid)
+static void matchdevices(struct uae_prefs *p, struct inputdevice_functions *inf, struct uae_input_device *uid, int match_mask)
 {
 	int i, j;
 
@@ -6656,10 +6657,10 @@ static void matchdevices(struct uae_prefs *p, struct inputdevice_functions *inf,
 					if (fullmatch) {
 						if (!bname1 || aname1)
 							continue;
-						if (!(p->input_device_match_mask & INPUT_MATCH_BOTH))
+						if (!(match_mask & INPUT_MATCH_BOTH))
 							continue;
 					} else {
-						if (!(p->input_device_match_mask & INPUT_MATCH_CONFIG_NAME_ONLY))
+						if (!(match_mask & INPUT_MATCH_CONFIG_NAME_ONLY))
 							continue;
 					}
 
@@ -6698,7 +6699,7 @@ static void matchdevices(struct uae_prefs *p, struct inputdevice_functions *inf,
 				if (match == -2) {
 					for (j = 0; j < MAX_INPUT_DEVICES; j++) {
 						TCHAR *bname2 = uid[j].configname;
-						if (aname2 && bname2 && (p->input_device_match_mask & INPUT_MATCH_CONFIG_NAME_ONLY) && !_tcscmp (aname2, bname2)) {
+						if (aname2 && bname2 && (match_mask & INPUT_MATCH_CONFIG_NAME_ONLY) && !_tcscmp (aname2, bname2)) {
 							match = j;
 							break;
 						}
@@ -6708,7 +6709,7 @@ static void matchdevices(struct uae_prefs *p, struct inputdevice_functions *inf,
 					// no match, try friendly names only
 					for (j = 0; j < MAX_INPUT_DEVICES; j++) {
 						TCHAR *bname1 = uid[j].name;
-						if (aname1 && bname1 && (p->input_device_match_mask & INPUT_MATCH_FRIENDLY_NAME_ONLY) && !_tcscmp (aname1, bname1)) {
+						if (aname1 && bname1 && (match_mask & INPUT_MATCH_FRIENDLY_NAME_ONLY) && !_tcscmp (aname1, bname1)) {
 							match = j;
 							break;
 						}
@@ -6741,9 +6742,9 @@ static void matchdevices_all (struct uae_prefs *prefs)
 {
 	int i;
 	for (i = 0; i < MAX_INPUT_SETTINGS; i++) {
-		matchdevices(prefs, &idev[IDTYPE_MOUSE], prefs->mouse_settings[i]);
-		matchdevices(prefs, &idev[IDTYPE_JOYSTICK], prefs->joystick_settings[i]);
-		matchdevices(prefs, &idev[IDTYPE_KEYBOARD], prefs->keyboard_settings[i]);
+		matchdevices(prefs, &idev[IDTYPE_MOUSE], prefs->mouse_settings[i], prefs->input_device_match_mask);
+		matchdevices(prefs, &idev[IDTYPE_JOYSTICK], prefs->joystick_settings[i], prefs->input_device_match_mask);
+		matchdevices(prefs, &idev[IDTYPE_KEYBOARD], prefs->keyboard_settings[i], INPUT_MATCH_ALL);
 	}
 }
 
@@ -6774,7 +6775,7 @@ bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int
 	keyboards = prefs->keyboard_settings[input_selected_setting];
 
 	sub = 0;
-	if (inputdevice_get_widget_type (devnum, num, NULL) != IDEV_WIDGET_KEY) {
+	if (inputdevice_get_widget_type (devnum, num, NULL, false) != IDEV_WIDGET_KEY) {
 		for (sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
 			int port2 = 0;
 			int evt = inputdevice_get_mapping (devnum, num, NULL, &port2, NULL, NULL, sub);
@@ -6994,9 +6995,9 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 	idev[IDTYPE_JOYSTICK].init ();
 	idev[IDTYPE_MOUSE].init ();
 	idev[IDTYPE_KEYBOARD].init ();
-	matchdevices (prefs, &idev[IDTYPE_MOUSE], mice);
-	matchdevices (prefs, &idev[IDTYPE_JOYSTICK], joysticks);
-	matchdevices (prefs, &idev[IDTYPE_KEYBOARD], keyboards);
+	matchdevices (prefs, &idev[IDTYPE_MOUSE], mice, prefs->input_device_match_mask);
+	matchdevices (prefs, &idev[IDTYPE_JOYSTICK], joysticks, prefs->input_device_match_mask);
+	matchdevices (prefs, &idev[IDTYPE_KEYBOARD], keyboards, INPUT_MATCH_ALL);
 
 	// find out which one was removed or inserted
 	for (int j = 0; j <= IDTYPE_KEYBOARD; j++) {
@@ -7833,10 +7834,17 @@ int inputdevice_set_mapping (int devnum, int num, const TCHAR *name, TCHAR *cust
 	return 0;
 }
 
-int inputdevice_get_widget_type (int devnum, int num, TCHAR *name)
+int inputdevice_get_widget_type (int devnum, int num, TCHAR *name, bool inccode)
 {
+	uae_u32 code = 0;
 	const struct inputdevice_functions *idf = getidf (devnum);
-	return idf->get_widget_type (inputdevice_get_device_index (devnum), num, name, 0);
+	int r = idf->get_widget_type (inputdevice_get_device_index (devnum), num, name, &code);
+	if (r && inccode && &idev[IDTYPE_KEYBOARD] == idf) {
+		TCHAR *p = name + _tcslen(name);
+		if (_tcsncmp(name, _T("KEY_"), 4))
+			_stprintf(p, _T(" [0x%02X]"), code);
+	}
+	return r;
 }
 
 static int config_change;
@@ -8493,7 +8501,7 @@ void warpmode (int mode)
 		currprefs.turbo_emulation = fr;
 	}
 	if (currprefs.turbo_emulation) {
-		if (!currprefs.cpu_cycle_exact && !currprefs.blitter_cycle_exact)
+		if (!currprefs.cpu_memory_cycle_exact && !currprefs.blitter_cycle_exact)
 			changed_prefs.gfx_framerate = currprefs.gfx_framerate = 10;
 		pause_sound ();
 	} else {

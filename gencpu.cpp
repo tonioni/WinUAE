@@ -95,7 +95,7 @@ static const char *srcblrmw, *srcwlrmw, *srcllrmw;
 static const char *dstblrmw, *dstwlrmw, *dstllrmw;
 static const char *srcbrmw, *srcwrmw, *srclrmw;
 static const char *dstbrmw, *dstwrmw, *dstlrmw;
-static const char *prefetch_long, *prefetch_word;
+static const char *prefetch_long, *prefetch_word, *prefetch_opcode;
 static const char *srcli, *srcwi, *srcbi, *nextl, *nextw;
 static const char *srcld, *dstld;
 static const char *srcwd, *dstwd;
@@ -245,16 +245,23 @@ static void get_prefetch_020 (void)
 {
 	if (!isprefetch020() || no_prefetch_ce020)
 		return;
-	printf ("\tregs.irc = %s (%d);\n", prefetch_word, m68k_pc_offset);
+	printf ("\tregs.irc = %s (%d);\n", prefetch_opcode, m68k_pc_offset);
 }
 static void get_prefetch_020_continue(void)
 {
 	if (!isprefetch020())
 		return;
-	if (using_ce020)
-		printf("\tcontinue_ce020_prefetch();\n");
-	else
-		printf ("\tcontinue_020_prefetch();\n");
+	if (using_ce020) {
+		if (using_ce020 > 1)
+			printf("\tcontinue_ce030_prefetch();\n");
+		else
+			printf("\tcontinue_ce020_prefetch();\n");
+	} else {
+		if (using_prefetch_020 > 1)
+			printf ("\tcontinue_030_prefetch();\n");
+		else
+			printf ("\tcontinue_020_prefetch();\n");
+	}
 }
 
 static void returntail (bool iswrite)
@@ -289,7 +296,7 @@ static void returntail (bool iswrite)
 		if (total_ce020 > 0)
 			addcycles_ce020 (total_ce020);
 
-		//printf ("\tregs.irc = %s;\n", prefetch_word);
+		//printf ("\tregs.irc = %s;\n", prefetch_opcode);
 		if (0 && total_ce020 >= 2) {
 			printf ("\top_cycles = get_cycles () - op_cycles;\n");
 			printf ("\top_cycles /= cpucycleunit;\n");
@@ -926,10 +933,9 @@ static void addopcycles_ce20 (int h, int t, int c, int subhead)
 		}
 		if (1) {
 			if (h > 0) {
-				printf ("\tif (regs.ce020memcycles > %d * cpucycleunit)\n", h);
-				printf ("\t\tregs.ce020memcycles = %d * cpucycleunit;\n", h);
+				printf ("\tlimit_cycles_ce020(%d);\n", h);
 			} else {
-				printf ("\tregs.ce020memcycles = 0;\n");
+				printf ("\tlimit_all_cycles_ce020();\n");
 			}
 		}
 	}
@@ -974,7 +980,7 @@ static void addopcycles_ce20 (int h, int t, int c, int subhead)
 	if (h < 0)
 		h = 0;
 	
-	//c = 0;
+	c = 0; // HACK
 	
 	// c = internal cycles needed after head cycles and before tail cycles. Not total cycles.
 	addcycles_ce020 ("op", h, t, c - h - t, -subhead);
@@ -1018,7 +1024,7 @@ static void addcycles_ea_ce020 (const char *ea, int h, int t, int c, int oph)
 
 	c = c - h - t;
 
-	//c = 0;
+	c = 0; // HACK
 
 	if (!oph) {
 		printf ("\t/* ea H:%d,T:%d,C:%d %s */\n", h, t, c, ea);
@@ -1035,10 +1041,9 @@ static void addcycles_ea_ce020 (const char *ea, int h, int t, int c, int oph)
 	}
 
 	if (h) {
-		printf ("\tif (regs.ce020memcycles > %d * cpucycleunit)\n", h);
-		printf ("\t\tregs.ce020memcycles = %d * cpucycleunit;\n", h);
+		printf ("\tlimit_cycles_ce020(%d);\n", h);
 	} else {
-		printf ("\tregs.ce020memcycles = 0;\n");
+		printf ("\tlimit_all_cycles_ce020();\n");
 	}
 
 	if (1 && c > 0) {
@@ -2757,6 +2762,7 @@ static void resetvars (void)
 	got_ea_ce020 = false;
 	
 	prefetch_long = NULL;
+	prefetch_opcode = NULL;
 	srcli = NULL;
 	srcbi = NULL;
 	disp000 = "get_disp_ea_000";
@@ -2813,6 +2819,7 @@ static void resetvars (void)
 			disp020 = "x_get_disp_ea_ce020";
 			prefetch_word = "get_word_ce020_prefetch";
 			prefetch_long = "get_long_ce020_prefetch";
+			prefetch_opcode = "get_word_ce020_prefetch_opcode";
 			srcli = "x_get_ilong";
 			srcwi = "x_get_iword";
 			srcbi = "x_get_ibyte";
@@ -2830,6 +2837,7 @@ static void resetvars (void)
 			disp020 = "x_get_disp_ea_ce030";
 			prefetch_long = "get_long_ce030_prefetch";
 			prefetch_word = "get_word_ce030_prefetch";
+			prefetch_opcode = "get_word_ce030_prefetch_opcode";
 			srcli = "x_get_ilong";
 			srcwi = "x_get_iword";
 			srcbi = "x_get_ibyte";
@@ -3069,6 +3077,8 @@ static void resetvars (void)
 		dstwlrmw = dstw;
 		dstllrmw = dstl;
 	}
+	if (!prefetch_opcode)
+		prefetch_opcode = prefetch_word;
 
 }
 
@@ -3612,8 +3622,10 @@ static void gen_opcode (unsigned int opcode)
 				sync_m68k_pc ();
 
 			} else {
+
 				int prefetch_done = 0, flags;
 				int dualprefetch = curi->dmode == absl && (curi->smode != Dreg && curi->smode != Areg && curi->smode != imm);
+
 				genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 				flags = GF_MOVE | GF_APDI;
 				//if (curi->size == sz_long && (curi->smode == Dreg || curi->smode == Areg))

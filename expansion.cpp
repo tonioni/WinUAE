@@ -4884,6 +4884,17 @@ const struct expansionromtype expansionroms[] = {
 		false, 0, NULL,
 		{ 0x80, 2, 0x10, 0x00, 6502 >> 8, 6502 & 255, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 	},
+#if 0
+	{
+		_T("pmx"), _T("pmx"), NULL,
+		pmx_init, NULL, NULL, ROMTYPE_PMX | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SOUND,
+		0, 0, 0, false, NULL,
+		false, 0, NULL,
+		{ 0xc1, 0x30, 0x00, 0x00, 0x0e, 0x3b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
+	},
+#endif
 
 		/* Network */
 	{
@@ -5272,6 +5283,7 @@ static const struct cpuboardsubtype mtec_sub[] = {
 		NULL
 	}
 };
+
 static const struct expansionboardsettings ivsvector_settings[] = {
 	{
 		// 0/1
@@ -5391,6 +5403,16 @@ static const struct cpuboardsubtype ivs_sub[] = {
 	}
 };
 
+static const struct expansionboardsettings apollo_settings[] = {
+	{
+		_T("SCSI module installed"),
+		_T("scsi")
+	},
+	{
+		NULL
+	}
+};
+
 static const struct cpuboardsubtype apollo_sub[] = {
 	{
 		_T("Apollo 1240/1260"),
@@ -5400,7 +5422,8 @@ static const struct cpuboardsubtype apollo_sub[] = {
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024,
 		0,
-		apollo_init_cpu, NULL, 2, 0
+		apollo_init_cpu, NULL, 2, 0,
+		apollo_settings
 	},
 	{
 		NULL

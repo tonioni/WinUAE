@@ -17,5 +17,8 @@ bool uaesndboard_init_z3(struct autoconfig_info *aci);
 void uaesndboard_free(void);
 void uaesndboard_reset(void);
 
+bool pmx_init(struct autoconfig_info *aci);
+void pmx_free(void);
+void pmx_reset(void);
 
 #endif /* UAE_SNDBOARD_H */

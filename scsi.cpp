@@ -151,7 +151,7 @@ bool scsi_emulate_analyze (struct scsi_data *sd)
 		data_len = 8;
 	break;
 	case 0x08: // READ(6)
-		data_len2 = sd->cmd[4] * sd->blocksize;
+		data_len2 = (sd->cmd[4] == 0 ? 256 : sd->cmd[4]) * sd->blocksize;
 		scsi_grow_buffer(sd, data_len2);
 	break;
 	case 0x28: // READ(10)
@@ -169,7 +169,7 @@ bool scsi_emulate_analyze (struct scsi_data *sd)
 	case 0x0a: // WRITE(6)
 		if (sd->device_type == UAEDEV_CD)
 			goto nocmd;
-		data_len = sd->cmd[4] * sd->blocksize;
+		data_len = (sd->cmd[4] == 0 ? 256 : sd->cmd[4]) * sd->blocksize;
 		scsi_grow_buffer(sd, data_len);
 	break;
 	case 0x2a: // WRITE(10)
@@ -1271,7 +1271,7 @@ static void raw_scsi_set_ack(struct raw_scsi *rs, bool ack)
 
 // APOLLO SOFTSCSI
 
-void apollo_scsi_bput(uaecptr addr, uae_u8 v)
+void apollo_scsi_bput(uaecptr addr, uae_u8 v, uae_u32 config)
 {
 	struct soft_scsi *as = getscsiboard(addr);
 	if (!as)
@@ -1294,7 +1294,7 @@ void apollo_scsi_bput(uaecptr addr, uae_u8 v)
 	//write_log(_T("apollo scsi put %04x = %02x\n"), addr, v);
 }
 
-uae_u8 apollo_scsi_bget(uaecptr addr)
+uae_u8 apollo_scsi_bget(uaecptr addr, uae_u32 config)
 {
 	struct soft_scsi *as = getscsiboard(addr);
 	if (!as)
@@ -1307,7 +1307,9 @@ uae_u8 apollo_scsi_bget(uaecptr addr)
 		v = raw_scsi_get_data(rs, true);
 	} else if (bank == 0x800 && (addr & 1)) {
 		uae_u8 t = raw_scsi_get_signal_phase(rs);
-		v = 1; // disable switch off
+		v = 0;
+		if (config & 1) // scsi module installed
+			v |= 1;
 		if (t & SCSI_IO_BUSY)
 			v |= 128;
 		if (t & SCSI_IO_SEL)

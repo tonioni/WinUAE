@@ -32,12 +32,19 @@ STATIC_INLINE uae_u32 get_long_020_prefetch (int o)
 
 #ifdef CPUEMU_21
 
-#define CE020_INITCYCLES() \
-	int head = 0, tail = 0, cycles = 0; \
-	unsigned int cu = get_cycles ();
-#define CE020_SAVECYCLES(h,t,c) \
-	head = h; tail = t; cycles = c;
-#define CE020_COUNTCYCLES()
+STATIC_INLINE void limit_cycles_ce020(int clocks)
+{
+	int cycs = clocks * cpucycleunit;
+	int diff = regs.ce020endcycle - regs.ce020startcycle;
+	if (diff <= cycs)
+		return;
+	regs.ce020startcycle = regs.ce020endcycle - cycs;
+}
+
+STATIC_INLINE void limit_all_cycles_ce020(void)
+{
+	regs.ce020startcycle = regs.ce020endcycle;
+}
 
 // only for CPU internal cycles
 STATIC_INLINE void do_cycles_ce020_internal(int clocks)
@@ -47,6 +54,16 @@ STATIC_INLINE void do_cycles_ce020_internal(int clocks)
 		return;
 	}
 	int cycs = clocks * cpucycleunit;
+	int diff = regs.ce020endcycle - regs.ce020startcycle;
+	if (diff > 0) {
+		if (diff >= cycs) {
+			regs.ce020startcycle += cycs;
+			return;
+		}
+		regs.ce020startcycle = regs.ce020endcycle;
+		cycs -= diff;
+	}
+#if 0
 	if (regs.ce020memcycles > 0) {
 		if (regs.ce020memcycles >= cycs) {
 			regs.ce020memcycles -= cycs;
@@ -55,6 +72,7 @@ STATIC_INLINE void do_cycles_ce020_internal(int clocks)
 		cycs = cycs - regs.ce020memcycles;
 	}
 	regs.ce020memcycles = 0;
+#endif
 	x_do_cycles (cycs);
 }
 
@@ -115,6 +133,7 @@ STATIC_INLINE void put_byte_ce020 (uaecptr addr, uae_u32 v)
 
 extern void continue_ce020_prefetch(void);
 extern uae_u32 get_word_ce020_prefetch(int);
+extern uae_u32 get_word_ce020_prefetch_opcode(int);
 
 STATIC_INLINE uae_u32 get_long_ce020_prefetch (int o)
 {
@@ -157,6 +176,7 @@ STATIC_INLINE void m68k_do_rts_ce020 (void)
 
 #ifdef CPUEMU_22
 
+extern void continue_030_prefetch(void);
 extern uae_u32 get_word_030_prefetch(int);
 
 STATIC_INLINE void put_long_030(uaecptr addr, uae_u32 v)
@@ -221,7 +241,9 @@ STATIC_INLINE void m68k_do_rts_030(void)
 
 #ifdef CPUEMU_23
 
+extern void continue_ce030_prefetch(void);
 extern uae_u32 get_word_ce030_prefetch(int);
+extern uae_u32 get_word_ce030_prefetch_opcode(int);
 
 STATIC_INLINE void put_long_ce030 (uaecptr addr, uae_u32 v)
 {

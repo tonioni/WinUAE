@@ -845,6 +845,8 @@
     <ClCompile Include="..\..\events.cpp" />
     <ClCompile Include="..\..\fake86_cpu.cpp" />
     <ClCompile Include="..\..\flashrom.cpp" />
+    <ClCompile Include="..\..\fpp_native.cpp" />
+    <ClCompile Include="..\..\fpp_softfloat.cpp" />
     <ClCompile Include="..\..\framebufferboards.cpp" />
     <ClCompile Include="..\..\gfxboard.cpp" />
     <ClCompile Include="..\..\hrtmon.rom.cpp" />
@@ -892,6 +894,8 @@
     <ClCompile Include="..\..\slirp\udp.cpp" />
     <ClCompile Include="..\..\slirp_uae.cpp" />
     <ClCompile Include="..\..\sndboard.cpp" />
+    <ClCompile Include="..\..\softfloat\softfloat.cpp" />
+    <ClCompile Include="..\..\softfloat\softfloat_extension.cpp" />
     <ClCompile Include="..\..\specialmonitors.cpp" />
     <ClCompile Include="..\..\statusline.cpp" />
     <ClCompile Include="..\..\support\time.cpp" />

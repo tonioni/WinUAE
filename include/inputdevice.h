@@ -197,7 +197,7 @@ extern int inputdevice_get_device_status (int devnum);
 extern void inputdevice_set_device_status (int devnum, int enabled);
 extern int inputdevice_get_device_total (int type);
 extern int inputdevice_get_widget_num (int devnum);
-extern int inputdevice_get_widget_type (int devnum, int num, TCHAR *name);
+extern int inputdevice_get_widget_type (int devnum, int num, TCHAR *name, bool inccode);
 extern int send_input_event (int nr, int state, int max, int autofire);
 
 extern int input_get_default_mouse (struct uae_input_device *uid, int num, int port, int af, bool gp, bool wheel, bool joymouseswap);

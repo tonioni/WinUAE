@@ -3961,7 +3961,7 @@ void vsync_handle_redraw (int long_field, int lof_changed, uae_u16 bplcon0p, uae
 
 		if (framecnt == 0)
 			init_drawing_frame ();
-		else if (currprefs.cpu_cycle_exact)
+		else if (currprefs.cpu_memory_cycle_exact)
 			init_hardware_for_drawing_frame ();
 	} else {
 		if (isvsync_chipset ())

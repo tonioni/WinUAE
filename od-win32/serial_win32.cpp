@@ -387,8 +387,8 @@ static void checksend(void)
 		return;
 
 #ifdef ARCADIA
-	if (alg_flag) {
-		alg_serial_read(serdatshift);
+	if (alg_flag || currprefs.genlock_image >= 7) {
+		ld_serial_read(serdatshift);
 	}
 #endif
 #ifdef SERIAL_MAP
@@ -486,7 +486,7 @@ static void serdatcopy(void)
 	}
 
 	// if someone uses serial port as some kind of timer..
-	if (currprefs.cpu_cycle_exact) {
+	if (currprefs.cpu_memory_cycle_exact) {
 		int per;
 
 		bits = 16 + 1;
@@ -521,8 +521,8 @@ void serial_hsynchandler (void)
 	hsyncstuff();
 #endif
 #ifdef ARCADIA
-	if (alg_flag && !data_in_serdatr) {
-		int ch = alg_serial_write();
+	if ((alg_flag || currprefs.genlock_image >= 7) && !data_in_serdatr) {
+		int ch = ld_serial_write();
 		if (ch >= 0) {
 			serdatr = ch | 0x100;
 			data_in_serdatr = 1;

@@ -2599,12 +2599,14 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		// 1230 MK IV / 1240/60
 		f0rom_size = 65536;
 		earom_size = 131072;
-		// 12xx = 1x32k
-		for (int i = 0; i < 16384; i++) {
+		// 12xx = 1x32k but read full 64k.
+		for (int i = 0; i < 65536 / 2; i++) {
 			uae_u8 b = 0xff;
-			zfile_fread(&b, 1, 1, autoconfig_rom);
+			if (!zfile_fread(&b, 1, 1, autoconfig_rom))
+				break;
 			blizzardf0_bank.baseaddr[i] = b;
-			zfile_fread(&b, 1, 1, autoconfig_rom);
+			if (!zfile_fread(&b, 1, 1, autoconfig_rom))
+				break;
 			blizzardea_bank.baseaddr[i] = b;
 		}
 		zfile_fclose(autoconfig_rom);

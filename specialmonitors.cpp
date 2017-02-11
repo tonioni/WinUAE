@@ -2358,7 +2358,7 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		else {
 			genlock_error = true;
 		}
-	} else if (currprefs.genlock_image == 4 || currprefs.genlock_image == 6) {
+	} else if (currprefs.genlock_image == 4 || currprefs.genlock_image >= 6) {
 		if (currprefs.genlock_video_file[0]) {
 			genlock_blank = false;
 			if ((!genlock_video && !genlock_error) || _tcsicmp(currprefs.genlock_video_file, genlock_video_file)) {
@@ -2375,6 +2375,9 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 						pausevideograb(1);
 					goto skip;
 				}
+				genlock_blank = false;
+			}
+			if (currprefs.genlock_image >= 7) {
 				genlock_blank = false;
 			}
 		} else {
@@ -2427,13 +2430,13 @@ skip:
 		genlock_image_data = NULL;
 	}
 #if VIDEOGRAB
-	if (genlock_video && currprefs.genlock_image != 4 && currprefs.genlock_image != 5 && currprefs.genlock_image != 6) {
+	if (genlock_video && currprefs.genlock_image != 4 && currprefs.genlock_image != 5 && currprefs.genlock_image < 6) {
 		uninitvideograb();
 		genlock_video = false;
 	}
 	isvideograb_status();
 #endif
-	if (currprefs.genlock_image != 4 && currprefs.genlock_image != 5 && currprefs.genlock_image != 6) {
+	if (currprefs.genlock_image != 4 && currprefs.genlock_image != 5 && currprefs.genlock_image < 6) {
 		genlock_video_file[0] = 0;
 	}
 	if (currprefs.genlock_image != 3) {

@@ -826,6 +826,18 @@
     <ClCompile Include="..\win32_videograb.cpp">
       <Filter>win32</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\fpp_native.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\fpp_softfloat.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\softfloat\softfloat.cpp">
+      <Filter>qemu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\softfloat\softfloat_extension.cpp">
+      <Filter>qemu</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

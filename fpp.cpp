@@ -485,7 +485,7 @@ bool fpu_get_constant(fpdata *fpd, int cr)
             entry = FPP_CR_1E4096;
             break;
         default: // undefined, return 0.0
-            write_log (_T("Undocumented FPU constant access (index %02x\n"), entry);
+            write_log (_T("Undocumented FPU constant access (index %02x)\n"), cr);
             valid = false;
             entry = FPP_CR_ZERO;
             break;

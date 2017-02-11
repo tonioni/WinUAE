@@ -1809,8 +1809,11 @@ bool mapped_malloc (addrbank *ab)
 			return true;
 		}
 		ab->baseaddr = xcalloc (uae_u8, ab->reserved_size + 4);
-		if (ab->baseaddr)
+		if (ab->baseaddr) {
+			// fill end of ram with ILLEGAL to catch direct PC falling out of RAM.
+			put_long_host(ab->baseaddr + ab->reserved_size, 0x4afc4afc);
 			ab->allocated_size = ab->reserved_size;
+		}
 #if MAPPED_MALLOC_DEBUG
 		write_log(_T("mapped_malloc nodirect %s %p\n"), ab->name, ab->baseaddr);
 #endif
@@ -1846,8 +1849,13 @@ bool mapped_malloc (addrbank *ab)
 			x->next->prev = x;
 		shm_start = x;
 		ab->baseaddr = x->native_address;
-		if (ab->baseaddr)
+		if (ab->baseaddr) {
+			if (md.hasbarrier) {
+				// fill end of ram with ILLEGAL to catch direct PC falling out of RAM.
+				put_long_host(ab->baseaddr + ab->reserved_size, 0x4afc4afc);
+			}
 			ab->allocated_size = ab->reserved_size;
+		}
 		ab->flags |= ABFLAG_DIRECTMAP;
 #if MAPPED_MALLOC_DEBUG
 		write_log(_T("mapped_malloc direct %s %p\n"), ab->name, ab->baseaddr);
@@ -2222,7 +2230,10 @@ void map_overlay (int chip)
 					map_banks (&chipmem_dummy_bank, start, dummy, 0);
 				}
 			} else {
-				map_banks(cb, 0, 32, chipmem_bank.allocated_size);
+				int mapsize = 32;
+				if ((chipmem_bank.allocated_size >> 16) > mapsize)
+					mapsize = chipmem_bank.allocated_size >> 16;
+				map_banks(cb, 0, mapsize, chipmem_bank.allocated_size);
 			}
 		} else {
 			map_banks (cb, 0, chipmem_bank.allocated_size >> 16, 0);

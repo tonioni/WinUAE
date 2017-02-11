@@ -1021,6 +1021,150 @@ void uaesndboard_reset(void)
 }
 
 
+// PMX
+
+struct pmx_data
+{
+	bool enabled;
+	int configured;
+	uae_u8 acmemory[128];
+	int streamid;
+	struct romconfig *rc;
+	int reset_delay;
+	uae_u16 status;
+	bool dreq;
+	uae_u16 regs[16];
+};
+static struct pmx_data pmx[MAX_DUPLICATE_SOUND_BOARDS];
+
+static void pmx_reset_chip(struct pmx_data *data)
+{
+	for (int i = 0; i < 16; i++) {
+		data->regs[i] = 0;
+	}
+	data->regs[0] = 0x4000;
+	data->regs[1] = 0x000c;
+}
+
+static void REGPARAM2 pmx_bput(uaecptr addr, uae_u32 v)
+{
+	struct pmx_data *data = &pmx[0];
+	v &= 0xff;
+	write_log(_T("PMXBPUT %08x %02x %08x\n"), addr, v, M68K_GETPC);
+}
+
+static void REGPARAM2 pmx_wput(uaecptr addr, uae_u32 v)
+{
+	struct pmx_data *data = &pmx[0];
+	int reg = -1;
+	v &= 0xffff;
+	if (addr & 0x8000) {
+		reg = (addr >> 2) & 15;
+		data->regs[reg] = v;
+	} else {
+		data->status = v;
+		if (v & 0x8000) {
+			data->dreq = true;
+			data->reset_delay = 10;
+		}
+	}
+	write_log(_T("PMXWPUT %d %08x %04x %08x\n"), reg, addr, v, M68K_GETPC);
+}
+
+static void REGPARAM2 pmx_lput(uaecptr addr, uae_u32 v)
+{
+	write_log(_T("PMXLPUT %08x %08x %08x\n"), addr, v, M68K_GETPC);
+}
+
+static uae_u32 REGPARAM2 pmx_bget(uaecptr addr)
+{
+	struct pmx_data *data = &pmx[0];
+	uae_u8 v = 0;
+	data->dreq = !data->dreq;
+	if (!data->dreq)
+		v |= 1 << 3;
+	write_log(_T("PMXBGET %08x %02x %08x\n"), addr, v, M68K_GETPC);
+	return v;
+}
+static uae_u32 REGPARAM2 pmx_wget(uaecptr addr)
+{
+	struct pmx_data *data = &pmx[0];
+	uae_u16 v = 0;
+	int reg = -1;
+	if (addr & 0x8000) {
+		reg = (addr >> 2) & 15;
+		v = data->regs[reg];
+		if (reg == 1) {
+			v &= ~0x03f0;
+			v |= 0x0060; ;//revision
+		}
+	} else {
+		v = data->status;
+	}
+	write_log(_T("PMXWGET %d %08x %04x %08x\n"), reg, addr, v, M68K_GETPC);
+	return v;
+}
+static uae_u32 REGPARAM2 pmx_lget(uaecptr addr)
+{
+	write_log(_T("PMXLGET %08x %08x\n"), addr, M68K_GETPC);
+	return 0;
+}
+
+static addrbank pmx_bank = {
+	pmx_lget, pmx_wget, pmx_bget,
+	pmx_lput, pmx_wput, pmx_bput,
+	default_xlate, default_check, NULL, _T("*"), _T("PMX"),
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
+};
+
+bool pmx_init (struct autoconfig_info *aci)
+{
+	struct pmx_data *data = &pmx[0];
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_PMX);
+	if (!ert)
+		return false;
+
+	aci->addrbank = &pmx_bank;
+	aci->autoconfig_automatic = true;
+
+	if (!aci->doinit) {
+		aci->autoconfigp = ert->autoconfig;
+		return true;
+	}
+
+	data->configured = 0;
+	data->streamid = 0;
+	memset(data->acmemory, 0xff, sizeof data->acmemory);
+	data->rc = aci->rc;
+	data->enabled = true;
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = ert->autoconfig[i];
+		ew(data->acmemory, i * 4, b);
+	}
+	memcpy(aci->autoconfig_raw, data->acmemory, sizeof data->acmemory);
+	return true;
+}
+
+void pmx_free(void)
+{
+	for (int j = 0; j < MAX_DUPLICATE_SOUND_BOARDS; j++) {
+		struct pmx_data *data = &pmx[j];
+		data->enabled = false;
+	}
+	sndboard_rethink();
+}
+
+void pmx_reset(void)
+{
+	for (int j = 0; j < MAX_DUPLICATE_SOUND_BOARDS; j++) {
+		struct pmx_data *data = &pmx[j];
+		if (data->enabled) {
+		}
+	}
+	sndboard_rethink();
+}
+
 // TOCCATA
 
 #define DEBUG_TOCCATA 0

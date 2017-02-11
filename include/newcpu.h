@@ -218,7 +218,11 @@ struct regstruct
 	int pipeline_pos;
 	int pipeline_r8[2];
 	int pipeline_stop;
-	int ce020memcycles;
+
+	int ce020endcycle;
+	int ce020startcycle;
+	int ce020prefetchendcycle;
+
 	int ce020extracycles;
 	bool ce020memcycle_data;
 	int ce020_tail;

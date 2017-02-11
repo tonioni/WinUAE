@@ -120,11 +120,13 @@ static int getidfromhandle (HANDLE h)
 	return drvnum;
 }
 
+HANDLE hdf_get_real_handle(struct hardfilehandle *h);
+
 static int hfdcheck (TCHAR drive)
 {
 	HANDLE h;
 	TCHAR tmp[16];
-	int disknum, i;
+	int disknum;
 
 	_stprintf (tmp, _T("\\\\.\\%c:"), drive);
 	h = CreateFile (tmp, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -132,14 +134,19 @@ static int hfdcheck (TCHAR drive)
 		return 0;
 	disknum = getidfromhandle (h);
 	CloseHandle (h);
-	for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
+#if 0
+	for (int i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
 		struct hardfiledata *hfd = get_hardfile_data (i);
 		int reopen = 0;
 		if (!hfd || !(hfd->flags & HFD_FLAGS_REALDRIVE) || !hfd->handle_valid)
 			continue;
-		if (getidfromhandle (hfd->handle) == disknum)
-			return 1;
+		HANDLE h2 = hdf_get_real_handle(hfd->handle);
+		if (h2) {
+			if (getidfromhandle (h2) == disknum)
+				return 1;
+		}
 	}
+#endif
 	return 0;
 }
 

@@ -607,7 +607,7 @@ static void do_filter(int *data, int num)
 static void get_extra_channels(int *data1, int *data2, int sample1, int sample2)
 {
 	int d1 = *data1 + sample1;
-	int d2 = *data2 + sample2;
+	int d2 = (data2 ? *data2 : 0) + sample2;
 	if (d1 < -32768)
 		d1 = -32768;
 	if (d1 > 32767)
@@ -619,10 +619,12 @@ static void get_extra_channels(int *data1, int *data2, int sample1, int sample2)
 	int needswap = currprefs.sound_stereo_swap_paula ^ currprefs.sound_stereo_swap_ahi;
 	if (needswap) {
 		*data1 = d2;
-		*data2 = d1;
+		if (data2)
+			*data2 = d1;
 	} else {
 		*data1 = d1;
-		*data2 = d2;
+		if (data2)
+			*data2 = d2;
 	}
 }
 
@@ -1352,6 +1354,11 @@ static int isirq (int nr)
 	return INTREQR () & (0x80 << nr);
 }
 
+static void audio_setirq_event(uae_u32 nr)
+{
+	INTREQ_0 (0x8000 | (0x80 << nr));
+}
+
 static void setirq (int nr, int which)
 {
 #if DEBUG_AUDIO > 0
@@ -1359,7 +1366,12 @@ static void setirq (int nr, int which)
 	if (debugchannel (nr) && cdp->wlen > 1)
 		write_log (_T("SETIRQ%d (%d,%d) PC=%08X\n"), nr, which, isirq (nr) ? 1 : 0, M68K_GETPC);
 #endif
-	INTREQ_0 (0x8000 | (0x80 << nr));
+	// audio interrupts are delayed by 2 cycles
+	if (currprefs.cpu_memory_cycle_exact) {
+		event2_newevent_xx (-1, 2 * CYCLE_UNIT + CYCLE_UNIT / 2, nr, audio_setirq_event);
+	} else {
+		audio_setirq_event(nr);
+	}
 }
 
 static void newsample (int nr, sample8_t sample)
@@ -2183,7 +2195,7 @@ void AUDxPER (int nr, uae_u16 v)
 		/* smaller values would cause extremely high cpu usage */
 		per = PERIOD_MIN * CYCLE_UNIT;
 	}
-	if (per < PERIOD_MIN_NONCE * CYCLE_UNIT && !currprefs.cpu_cycle_exact && cdp->dmaenstore) {
+	if (per < PERIOD_MIN_NONCE * CYCLE_UNIT && !currprefs.cpu_memory_cycle_exact && cdp->dmaenstore) {
 		/* DMAL emulation and low period can cause very very high cpu usage on slow performance PCs
 		 * Only do this hack if audio DMA is active.
 		 */

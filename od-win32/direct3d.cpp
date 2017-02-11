@@ -1071,12 +1071,12 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, struct shaderdata 
 		}
 	}
 	if (s->m_TargetDimsEffectHandle) {
-		D3DXVECTOR4 fDims2;
-		fDims2.x = s->targettex_width;
-		fDims2.y = s->targettex_height;
-		fDims2.z = 1;
-		fDims2.w = 1;
-		hr = s->pEffect->SetVector(s->m_TargetDimsEffectHandle, &fDims2);
+		D3DXVECTOR4 fDimsTarget;
+		fDimsTarget.x = s->targettex_width;
+		fDimsTarget.y = s->targettex_height;
+		fDimsTarget.z = 1;
+		fDimsTarget.w = 1;
+		hr = s->pEffect->SetVector(s->m_TargetDimsEffectHandle, &fDimsTarget);
 		if (FAILED(hr)) {
 			write_log(_T("%s: SetTextures:SetVector:Target %s\n"), D3DHEAD, D3D_ErrorString(hr));
 			return 0;
@@ -3052,6 +3052,27 @@ static void D3D_render2 (void)
 
 		if (FAILED (hr = postEffect->SetTexture (postSourceTextureHandle, srctex)))
 			write_log (_T("%s: SetTexture(srctex) failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+
+		if (s->m_SourceDimsEffectHandle) {
+			D3DXVECTOR4 fDimsSource;
+			fDimsSource.x = (FLOAT)Desc.Width;
+			fDimsSource.y = (FLOAT)Desc.Height;
+			fDimsSource.z  = 1; fDimsSource.w = 1;
+			hr = postEffect->SetVector(s->m_SourceDimsEffectHandle, &fDimsSource);
+			if (FAILED(hr)) {
+				write_log(_T("%s: SetTextures:SetVector:Source %s\n"), D3DHEAD, D3D_ErrorString(hr));
+			}
+		}
+		if (s->m_TargetDimsEffectHandle) {
+			D3DXVECTOR4 fDimsTarget;
+			fDimsTarget.x = s->targettex_width;
+			fDimsTarget.y = s->targettex_height;
+			fDimsTarget.z = 1; fDimsTarget.w = 1;
+			hr = postEffect->SetVector(s->m_TargetDimsEffectHandle, &fDimsTarget);
+			if (FAILED(hr)) {
+				write_log(_T("%s: SetTextures:SetVector:Target %s\n"), D3DHEAD, D3D_ErrorString(hr));
+			}
+		}
 
 		if (after >= 0) {
 			if (FAILED (hr = d3ddev->GetRenderTarget (0, &lpRenderTarget)))

@@ -296,6 +296,10 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log (_T("JIT is not compatible with unimplemented CPU/FPU instruction emulation."));
 		p->fpu_no_unimplemented = p->int_no_unimplemented = false;
 	}
+	if (p->cachesize && p->compfpu && p->fpu_softfloat) {
+		error_log (_T("JIT FPU emulation is not compatible with softfloat FPU emulation."));
+		p->fpu_softfloat = false;
+	}
 
 #if 0
 	if (p->cpu_cycle_exact && p->m68k_speed < 0 && currprefs.cpu_model <= 68020)
@@ -652,7 +656,7 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 	p->uaeserial = 0;
 #endif
 #if defined (CPUEMU_13)
-	if (p->cpu_cycle_exact) {
+	if (p->cpu_memory_cycle_exact) {
 		if (p->gfx_framerate > 1) {
 			error_log (_T("Cycle-exact requires disabled frameskip."));
 			p->gfx_framerate = 1;

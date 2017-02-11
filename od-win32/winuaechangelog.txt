@@ -4,6 +4,63 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 1:
+
+- Quickstart Blizzard modes (except if JIT enabled) enabled 24-bit addressing which caused new autoconfig/fallback mode
+  support to think Blizzard is in 68020 fallback mode, disabling autoconfig.
+- Added Apollo 1240/1260 SCSI module installed on/off option.
+- IDE Identify drive command didn't reset multiple sector offset value. If previous read was partial multiple transfer,
+  identity drive returned previously read data block.
+- Added Lock drive option to real harddrive mount dialog. If checked, all partitions in selected drive will be locked
+  and unmounted when emulation is running, enabling full read/write access even if drive has Windows mounted FAT partition(s).
+  Lock will be ignored if drive has one or more NTFS partitions.
+- Lots of softfloat FPU mode and normal FPU mode fixes and updates. (Andreas Grabher and me)
+- Softfloat FPU mode added to GUI, supports on the fly switching.
+- Implemented accurate 68020+ T0 trace mode emulation. (Original one has not been changed for ages..)
+- Fixed crash when sound card audio play started and mono sound channel mode and "Include CD and FMV audio" was ticked.
+- 271b3 "Blitter final D write don't increase "nasty" count" That is not true, I think this was only added to fix demo
+  that randomly glitches on real hardware too.. Fixes intro Himalaya by Avalanche.
+- Added illegal instruction at the end of each memory bank allocation, just outside of last available byte to force
+  exception if execution falls of the edge of memory. This can happen if "more compatible" is not checked.
+  Currently this causes bus error exception. May become halt in the future.
+- Audio interrupts are delayed by 2 cycles, logic analyzer confirmed. Emulated only in cycle-exact mode. (Mission Elevator)
+- Emulated sprite special case when DMA mode sprite's start X-coordinate is less than sprite's DMA slot position.
+- Fixed AGA HAM6/8 behavior when BPLCON4 XOR value is non-zero. Planes 6 and 7 never affect palette selection if HAM8,
+  Planes 4 to 7 if HAM6. If HAM control bits select hold mode, selected direct R/G/B value bypasses XOR operation.
+  (Thanks to Dissident for test cases)
+- AGA EHB plane 6 half-brite selection bit is taken before BPLCON4 XOR adjustment. (Same)
+- HAM mode and BPLCON4 BPLAM bit changes or HAM mode and BPLCON4 sprite bank bit changes and sprites in same scanline
+  may have caused wrong sprite or HAM colors.
+- >2M chip RAM didn't work in non-JIT compatible modes.
+- Added -ldlog 1/2 command line parameter, logs all laserdisc commands.
+- Recursive mode ROM scanner now skips directories starting with dot.
+- HDF creator used old style dialog type.
+- 68030 CE/prefetch mode cache access fix.
+- JIT direct broke 512k and 1M chip RAM size detection.
+- If statefile is loaded with one or more floppy images that can't be opened: keep fake disk in drive (like previously)
+  and ask for new disk path when missing disk is accessed for the first time. (access = read or write attempt)
+  Old disk path is shown in disk dialog title bar.
+- SCSI emulation SCSI buffer re-sizing didn't handle READ(6) zero size length correctly.
+- Added memory cycle-exact Quickstart step for A1200 and CD32 configurations. Less CPU heavy than full cycle-exact and
+  usually not much more worse (or better). At least not until 68020 CE gets better.
+- Memory cycle exact mode incorrectly counted internal CPU cycles partially.
+- Memory cycle exact mode also enables more accurate custom chipset mode.
+- 68020 CE mode adjustments, fixed Chip RAM access speed (was too fast previously), removed all extra cycle
+  counting temporarily. Work in progress.
+- Include key scancode in Input panel key events.
+
+Softfloat FPU mode is now officially supported, Andreas Grabher (Previous) implemented required 6888x-specific
+features to softfloat support library. Only needed if "weird" features are required (denormals and unnormals, invalid
+operands) or extended precision (that WinUAE does not support due to MSVC not supporting it) or accurate status register
+flags or 100% accurate rounding/NaN handling, FMOD/FREM quotient etc.
+
+Arithmetic exceptions are not yet supported. Trigonometric and logarithmic functions are currently implemented
+using normal native C-library functions and won't return 100% same results as real 6888x.
+
+Not compatible with JIT FPU emulation.
+
+3.4.0
+
 Beta 20:
 
 - Selecting item from HDF "history" drop down worked strangely depending on Windows version.

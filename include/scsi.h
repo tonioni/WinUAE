@@ -161,8 +161,8 @@ uae_u32 soft_scsi_get(uaecptr addr, int size);
 
 void ncr80_rethink(void);
 
-void apollo_scsi_bput(uaecptr addr, uae_u8 v);
-uae_u8 apollo_scsi_bget(uaecptr addr);
+void apollo_scsi_bput(uaecptr addr, uae_u8 v, uae_u32 config);
+uae_u8 apollo_scsi_bget(uaecptr addr, uae_u32 config);
 void apollo_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 void ivsvector_scsi_bput(uaecptr addr, uae_u8 v);

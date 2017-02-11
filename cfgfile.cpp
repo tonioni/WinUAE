@@ -211,7 +211,7 @@ static const TCHAR *cdmodes[] = { _T("disabled"), _T(""), _T("image"), _T("ioctl
 static const TCHAR *cdconmodes[] = { _T(""), _T("uae"), _T("ide"), _T("scsi"), _T("cdtv"), _T("cd32"), 0 };
 static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a2024"), _T("graffiti"),
 _T("ham_e"), _T("ham_e_plus"), _T("videodac18"), _T("avideo12"), _T("avideo24"), _T("firecracker24"), _T("dctv"), _T("opalvision"), _T("colorburst"), 0 };
-static const TCHAR *genlockmodes[] = { _T("none"), _T("noise"), _T("testcard"), _T("image"), _T("video"), _T("stream"), _T("ld"), NULL };
+static const TCHAR *genlockmodes[] = { _T("none"), _T("noise"), _T("testcard"), _T("image"), _T("video"), _T("stream"), _T("ld"), _T("sony_ld"), _T("pioneer_ld"), NULL };
 static const TCHAR *ppc_implementations[] = {
 	_T("auto"),
 	_T("dummy"),
@@ -1007,6 +1007,11 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 				_tcscat(tmp, tmpx);
 				_tcscat(tmp3, tmpx);
 			}
+			if (ci->lock) {
+				_tcscat(tmp, _T(",lock"));
+				_tcscat(tmp3, _T(",lock"));
+			}
+
 			if (ci->type == UAEDEV_HDF)
 				cfgfile_write_str (f, _T("hardfile2"), tmp);
 #if 0
@@ -4296,6 +4301,9 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 					getintval(&pflags, &uci.unit_special_flags, 0);
 				}
 
+				if (cfgfile_option_find(tmpp2, _T("lock")))
+					uci.lock = true;
+					
 				if (cfgfile_option_find(tmpp2, _T("SCSI2")))
 					uci.unit_feature_level = HD_LEVEL_SCSI_2;
 				else if (cfgfile_option_find(tmpp2, _T("SCSI1")))
@@ -6979,7 +6987,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 
 	p->input_tablet = TABLET_OFF;
 	p->tablet_library = false;
-	p->input_mouse_untrap = MOUSEUNTRAP_MIDDLEBUTTON;
+	p->input_mouse_untrap = MOUSEUNTRAP_NONE;
 	p->input_magic_mouse_cursor = 0;
 
 	inputdevice_default_prefs (p);
@@ -7162,27 +7170,43 @@ static void set_68020_compa (struct uae_prefs *p, int compa, int cd32)
 	case 0:
 		p->blitter_cycle_exact = 1;
 		p->m68k_speed = 0;
-		if (p->cpu_model == 68020 && p->cachesize == 0) {
+		if ((p->cpu_model == 68020 || p->cpu_model == 68030) && p->cachesize == 0) {
 			p->cpu_cycle_exact = 1;
 			p->cpu_memory_cycle_exact = 1;
-			p->cpu_clock_multiplier = 4 << 8;
+			if (p->cpu_model == 68020)
+				p->cpu_clock_multiplier = 4 << 8;
+			else
+				p->cpu_clock_multiplier = 5 << 8;
 		}
 	break;
 	case 1:
+		p->blitter_cycle_exact = 1;
+		p->m68k_speed = 0;
+		if ((p->cpu_model == 68020 || p->cpu_model == 68030) && p->cachesize == 0) {
+			p->cpu_memory_cycle_exact = 1;
+			if (p->cpu_model == 68020)
+				p->cpu_clock_multiplier = 4 << 8;
+			else
+				p->cpu_clock_multiplier = 5 << 8;
+		}
+	break;
+	case 2:
 		p->cpu_compatible = true;
 		p->m68k_speed = 0;
 		break;
-	case 2:
+	case 3:
 		p->cpu_compatible = 0;
 		p->m68k_speed = -1;
 		p->address_space_24 = 0;
 		break;
-	case 3:
+	case 4:
 		p->cpu_compatible = 0;
 		p->address_space_24 = 0;
 		p->cachesize = MAX_JIT_CACHE;
 		break;
 	}
+	if (p->cpu_model >= 68030)
+		p->address_space_24 = 0;
 }
 
 /* 0: cycle-exact
