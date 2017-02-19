@@ -1870,6 +1870,7 @@ static floatx80 addFloatx80Sigs(floatx80 a, floatx80 b, flag zSign,
 #endif
         zExp = aExp;
 #ifdef SOFTFLOAT_68K
+		if ( aSig == 0 && bSig == 0 ) return packFloatx80( zSign, 0, 0 );
         if ( aSig == 0 || bSig == 0 ) goto roundAndPack;
 #endif
 		goto shiftRight1;

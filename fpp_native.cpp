@@ -922,6 +922,11 @@ static void fp_tst(fpdata *a, fpdata *b)
 	a->fp = b->fp;
 }
 
+/* Functions for returning exception state data */
+static void fp_get_exceptional_operand(uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3)
+{
+}
+
 void fp_init_native(void)
 {
 	set_floatx80_rounding_precision(80, &fs);
@@ -962,6 +967,7 @@ void fp_init_native(void)
 	fpp_round64 = fp_round64;
 
 	fpp_normalize = fp_normalize;
+	fpp_get_exceptional_operand = fp_get_exceptional_operand;
 
 	fpp_int = fp_int;
 	fpp_sinh = fp_sinh;

@@ -325,6 +325,12 @@ static void from_int(fpdata *fpd, uae_s32 src)
     fpd->fpx = int32_to_floatx80(src, &fs);
 }
 
+/* Functions for returning exception state data */
+static void fp_get_exceptional_operand(uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3)
+{
+    
+}
+
 /* Functions for rounding */
 
 static floatx80 fp_to_sgl(floatx80 a)
@@ -688,6 +694,7 @@ void fp_init_softfloat(void)
 	fpp_round64 = fp_round64;
 
 	fpp_normalize = fp_normalize;
+	fpp_get_exceptional_operand = fp_get_exceptional_operand;
 
 	fpp_int = fp_int;
 	fpp_sinh = fp_sinh;
