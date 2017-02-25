@@ -2709,15 +2709,18 @@ uae_u32 gfxboard_get_romtype(struct rtgboardconfig *rbc)
 	return gb->board->romtype;
 }
 
-static void gfxboard_init (struct uae_prefs *p, struct rtggfxboard *gb)
+static void gfxboard_init (struct autoconfig_info *aci, struct rtggfxboard *gb)
 {
+	struct uae_prefs *p = aci->prefs;
 	if (!gb->automemory)
 		gb->automemory = xmalloc (uae_u8, GFXBOARD_AUTOCONFIG_SIZE);
+	memset (gb->automemory, 0xff, GFXBOARD_AUTOCONFIG_SIZE);
 	struct rtgboardconfig *rbc = &p->rtgboards[gb->rtg_index];
 	gb->rbc = rbc;
+	if (!aci->doinit)
+		return;
 	gb->gfxmem_bank = gfxmem_banks[gb->rtg_index];
 	gb->gfxmem_bank->mask = gb->rbc->rtgmem_size - 1;
-	memset (gb->automemory, 0xff, GFXBOARD_AUTOCONFIG_SIZE);
 	gb->p4z2 = false;
 	zfile_fclose (gb->p4rom);
 	gb->p4rom = NULL;
@@ -2769,18 +2772,7 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	uae_u8 z2_flags, z3_flags, type;
 	struct uae_prefs *p = aci->prefs;
 
-	gb->rtg_index = aci->devnum;
-	gfxboard_init (aci->prefs, gb);
-
-	total_active_gfx_boards = 0;
-	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
-		if (p->rtgboards[i].rtgmem_size && p->rtgboards[i].rtgmem_type >= GFXBOARD_HARDWARE) {
-			total_active_gfx_boards++;
-		}
-	}
-	only_gfx_board = NULL;
-	if (total_active_gfx_boards == 1)
-		only_gfx_board = gb;
+	gfxboard_init (aci, gb);
 
 	memset (gb->automemory, 0xff, GFXBOARD_AUTOCONFIG_SIZE);
 	
@@ -2850,6 +2842,37 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 		}
 	}
 
+	aci->label = gb->board->name;
+	aci->direct_vram = true;
+	aci->addrbank = &gb->gfxboard_bank_memory;
+	if (gb->rbc->rtgmem_type == GFXBOARD_VGA) {
+		aci->zorro = -1;
+	}
+	aci->parent = aci;
+	if (!aci->doinit) {
+		if (gb->rbc->rtgmem_type == GFXBOARD_VGA) {
+			static const int parent[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
+			aci->parent_romtype = parent;
+		} else {
+			memcpy(aci->autoconfig_raw, gb->automemory, sizeof aci->autoconfig_raw);
+		}
+		return true;
+	}
+
+	gb->configured_mem = -1;
+	gb->rtg_index = aci->devnum;
+
+	total_active_gfx_boards = 0;
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		if (p->rtgboards[i].rtgmem_size && p->rtgboards[i].rtgmem_type >= GFXBOARD_HARDWARE) {
+			total_active_gfx_boards++;
+		}
+	}
+	only_gfx_board = NULL;
+	if (total_active_gfx_boards == 1)
+		only_gfx_board = gb;
+
+
 	_stprintf(gb->memorybankname, _T("%s VRAM"), gb->board->name);
 	_stprintf(gb->memorybanknamenojit, _T("%s VRAM NOJIT"), gb->board->name);
 	_stprintf(gb->wbsmemorybankname, _T("%s VRAM WORDSWAP"), gb->board->name);
@@ -2874,24 +2897,6 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	gb->gfxboard_bank_memory.bput = gfxboard_bput_mem_autoconfig;
 	gb->gfxboard_bank_memory.wput = gfxboard_wput_mem_autoconfig;
 
-	aci->label = gb->board->name;
-	aci->direct_vram = true;
-	aci->addrbank = &gb->gfxboard_bank_memory;
-	if (gb->rbc->rtgmem_type == GFXBOARD_VGA) {
-		aci->zorro = -1;
-	}
-	aci->parent = aci;
-	gb->configured_mem = -1;
-	if (!aci->doinit) {
-		if (gb->rbc->rtgmem_type == GFXBOARD_VGA) {
-			static const int parent[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
-			aci->parent_romtype = parent;
-		} else {
-			memcpy(aci->autoconfig_raw, gb->automemory, sizeof aci->autoconfig_raw);
-		}
-		return true;
-	}
-
 	gb->active = true;
 
 	if (gb->rbc->rtgmem_type == GFXBOARD_VGA) {
@@ -2911,15 +2916,20 @@ bool gfxboard_init_memory_p4_z2 (struct autoconfig_info *aci)
 		aci->addrbank = &expamem_null;
 		return true;
 	}
+
 	copyp4autoconfig (gb, 64);
-	memcpy(&gb->gfxboard_bank_memory, &tmpl_gfxboard_bank_memory, sizeof addrbank);
-	gb->gfxboard_bank_memory.bget = gfxboard_bget_mem_autoconfig;
-	gb->gfxboard_bank_memory.bput = gfxboard_bput_mem_autoconfig;
 	memcpy(aci->autoconfig_raw, gb->automemory, sizeof aci->autoconfig_raw);
 	aci->addrbank = &gb->gfxboard_bank_memory;
 	aci->label = gb->board->name;
 	aci->parent_of_previous = true;
 	aci->direct_vram = true;
+
+	if (!aci->doinit)
+		return true;
+
+	memcpy(&gb->gfxboard_bank_memory, &tmpl_gfxboard_bank_memory, sizeof addrbank);
+	gb->gfxboard_bank_memory.bget = gfxboard_bget_mem_autoconfig;
+	gb->gfxboard_bank_memory.bput = gfxboard_bput_mem_autoconfig;
 	return true;
 }
 
@@ -2943,24 +2953,30 @@ bool gfxboard_init_registers (struct autoconfig_info *aci)
 	ew (gb, 0x20, ser >>  8); /* ser.no. Byte 2 */
 	ew (gb, 0x24, ser >>  0); /* ser.no. Byte 3 */
 
-	gb->gfxboard_bank_registers.reserved_size = BOARD_REGISTERS_SIZE;
-	gb->configured_regs = -1;
-
 	if (ISP4()) {
 		uae_u8 v;
 		copyp4autoconfig (gb, 128);
 		loadp4rom (gb);
-		v = (((gb->automemory[0] & 0xf0) | (gb->automemory[2] >> 4)) & 3) - 1;
-		gb->gfxboard_bank_special.reserved_size = 0x10000 << v;
+		if (aci->doinit) {
+			v = (((gb->automemory[0] & 0xf0) | (gb->automemory[2] >> 4)) & 3) - 1;
+			gb->gfxboard_bank_special.reserved_size = 0x10000 << v;
+		}
 	}
-
-	gb->gfxboard_bank_registers.bget = gfxboard_bget_regs_autoconfig;
-	gb->gfxboard_bank_registers.bput = gfxboard_bput_regs_autoconfig;
 
 	memcpy(aci->autoconfig_raw, gb->automemory, sizeof aci->autoconfig_raw);
 	aci->label = gb->board->name;
 
 	aci->addrbank = &gb->gfxboard_bank_registers;
 	aci->parent_of_previous = true;
+
+	if (!aci->doinit)
+		return true;
+
+	gb->gfxboard_bank_registers.bget = gfxboard_bget_regs_autoconfig;
+	gb->gfxboard_bank_registers.bput = gfxboard_bput_regs_autoconfig;
+
+	gb->gfxboard_bank_registers.reserved_size = BOARD_REGISTERS_SIZE;
+	gb->configured_regs = -1;
+
 	return true;
 }

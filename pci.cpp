@@ -1496,6 +1496,10 @@ bool dkb_wildfire_pci_init(struct autoconfig_info *aci)
 {
 	struct pci_bridge *pcib = pci_bridge_alloc();
 
+	if (!aci->doinit) {
+		return true;
+	}
+
 	bridges[PCI_BRIDGE_WILDFIRE] = pcib;
 	pcib->label = _T("Wildfire");
 	pcib->endian_swap_config = 0;
@@ -1602,6 +1606,15 @@ static bool grex_pci_init(struct autoconfig_info *aci)
 {
 	struct pci_bridge *pcib = pci_bridge_alloc();
 
+	aci->zorro = 0;
+	aci->parent_of_previous = true;
+	aci->start = 0x80000000;
+	aci->size = 0x80000000;
+
+	if (!aci->doinit) {
+		return true;
+	}
+
 	bridges[PCI_BRIDGE_GREX] = pcib;
 	pcib->label = _T("G-REX");
 	pcib->intena = 0;
@@ -1621,10 +1634,6 @@ static bool grex_pci_init(struct autoconfig_info *aci)
 	map_banks(&pci_bridge_bank, 0xfffe0000 >> 16, 0x10000 >> 16, 0);
 	pcib->io_offset = 0xfffa0000;
 
-	aci->zorro = 0;
-	aci->parent_of_previous = true;
-	aci->start = 0x80000000;
-	aci->size = 0x80000000;
 	return true;
 }
 
