@@ -1889,11 +1889,13 @@ static bool audio_state_sndboard_fm801(int streamid)
 		uae_u8 sample[2 * 6] = { 0 };
 		pci_read_dma(data->pcibs, data->play_dma2[data->dmach], sample, data->bytesperframe);
 		for (int i = 0; i < data->ch; i++) {
-			int smp, vol;
-			if (data->bits == 8)
+			uae_s16 smp;
+			int vol;
+			if (data->bits == 8) {
 				smp = (sample[i] << 8) | (sample[i]);
-			else
-				smp = (sample[i * 2 + 1] << 8) | sample[i *2 + 0];
+			} else {
+				smp = (sample[i * 2 + 1] << 8) | sample[i * 2 + 0];
+			}
 			if (i == 0 || i == 4)
 				vol = data->left_volume;
 			else if (i == 1 || i == 5)
