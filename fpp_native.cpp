@@ -926,6 +926,9 @@ static void fp_tst(fpdata *a, fpdata *b)
 static void fp_get_exceptional_operand(uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3)
 {
 }
+static void fp_get_exceptional_operand_grs(uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3, uae_u32 *grs)
+{
+}
 
 void fp_init_native(void)
 {
@@ -968,6 +971,7 @@ void fp_init_native(void)
 
 	fpp_normalize = fp_normalize;
 	fpp_get_exceptional_operand = fp_get_exceptional_operand;
+	fpp_get_exceptional_operand_grs = fp_get_exceptional_operand_grs;
 
 	fpp_int = fp_int;
 	fpp_sinh = fp_sinh;

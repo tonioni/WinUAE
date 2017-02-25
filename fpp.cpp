@@ -65,6 +65,7 @@ FPP_FROM_EXTEN fpp_from_exten_fmovem;
 
 FPP_A fpp_normalize;
 FPP_PACK fpp_get_exceptional_operand;
+FPP_PACKG fpp_get_exceptional_operand_grs;
 
 FPP_A fpp_round_single;
 FPP_A fpp_round_double;
@@ -110,7 +111,6 @@ FPP_AB fpp_move;
 
 #define DEBUG_FPP 0
 #define EXCEPTION_FPP 1
-#define ARITHMETIC_EXCEPTIONS 0
 
 STATIC_INLINE int isinrom (void)
 {
@@ -174,31 +174,6 @@ static struct fpp_cr_entry fpp_cr[22] = {
 uae_u32 xhex_nan[]   ={0x7fff0000, 0xffffffff, 0xffffffff};
 
 static bool fpu_mmu_fixup;
-
-static void normalize_exten(uae_u32 *pwrd1, uae_u32 *pwrd2, uae_u32 *pwrd3)
-{
-    uae_u32 wrd1 = *pwrd1;
-    uae_u32 wrd2 = *pwrd2;
-    uae_u32 wrd3 = *pwrd3;
-    uae_u16 exp = (wrd1 >> 16) & 0x7fff;
-    // Normalize if unnormal.
-    if (exp != 0 && exp != 0x7fff && !(wrd2 & 0x80000000)) {
-        while (!(wrd2 & 0x80000000) && (wrd2 || wrd3)) {
-            if (exp == 0)
-                break; // Result is denormal
-            wrd2 <<= 1;
-            if (wrd3 & 0x80000000)
-                wrd2 |= 1;
-            wrd3 <<= 1;
-            exp--;
-        }
-        if (!wrd2 && !wrd3)
-            exp = 0;
-        *pwrd1 = (wrd1 & 0x80000000) | (exp << 16);
-        *pwrd2 = wrd2;
-        *pwrd3 = wrd3;
-    }
-}
 
 /* Floating Point Control Register (FPCR)
  *
@@ -311,42 +286,34 @@ static void reset_fsave_data(void)
 	fsave_data.grs = 0;
 }
 
-static uae_u32 get_ftag(uae_u32 w1, uae_u32 w2, uae_u32 w3, int size)
+static uae_u32 get_ftag(fpdata *src, int size)
 {
-	int exp = (w1 >> 16) & 0x7fff;
-
-	if (exp == 0) {
-		if (!w2 && !w3)
-			return 1; // ZERO
+	if (fpp_is_zero(src)) {
+		return 1; // ZERO
+	} else if (fpp_is_unnormal(src) || fpp_is_denormal(src)) {
 		if (size == 1 || size == 5)
 			return 5; // Single/double DENORMAL
 		return 4; // Extended DENORMAL or UNNORMAL
-	} else if (exp == 0x7fff) {
-		int s = w2 >> 30;
-		int z = (w2 & 0x3fffffff) == 0 && w3 == 0;
-		if ((s == 0 && !z) || (s == 2 && !z))
-			return 2; // INF
+	} else if  (fpp_is_nan(src)) {
 		return 3; // NAN
-	} else {
-		if (!(w2 & 0x80000000))
-			return 4; // Extended UNNORMAL
-		return 0; // NORMAL
+	} else if (fpp_is_infinity(src)) {
+		return 2; // INF
 	}
+	return 0; // NORMAL
 }
 
 static bool fp_arithmetic_exception(bool pre)
 {
 	// first check for pending arithmetic exceptions
-#if ARITHMETIC_EXCEPTIONS
-	if (regs.fp_exp_pend) {
-		regs.fpu_exp_pre = pre;
-		Exception(regs.fp_exp_pend);
-		if (currprefs.fpu_model != 68882)
-			regs.fp_exp_pend = 0;
-
-		return true;
+	if (currprefs.fpu_exceptions) {
+		if (regs.fp_exp_pend) {
+			regs.fpu_exp_pre = pre;
+			Exception(regs.fp_exp_pend);
+			if (currprefs.fpu_model != 68882)
+				regs.fp_exp_pend = 0;
+			return true;
+		}
 	}
-#endif
 	// no arithmetic exceptions pending, check for unimplemented
 	if (regs.fp_unimp_pend) {
 		write_log (_T("FPU UNIMPLEMENTED DATATYPE EXCEPTION\n"));
@@ -390,7 +357,9 @@ static uae_u32 fpsr_get_vector(uae_u32 exception)
 
 static void fpsr_check_exception(uae_u32 mask, fpdata *src, uae_u32 opcode, uae_u16 extra, uae_u32 ea)
 {
-#if ARITHMETIC_EXCEPTIONS
+	if (!currprefs.fpu_softfloat)
+		return;
+
 	bool nonmaskable;
 	uae_u32 exception;
 	// Any exception status bit and matching exception enable bits set?
@@ -404,6 +373,12 @@ static void fpsr_check_exception(uae_u32 mask, fpdata *src, uae_u32 opcode, uae_
 		nonmaskable = (regs.fp_exp_pend != fpsr_get_vector(regs.fpsr & regs.fpcr));
 		write_log(_T("FPU %s arithmetic exception pending: FPSR: %08x, FPCR: %04x (vector: %d)!\n"),
 			nonmaskable ? _T("nonmaskable") : _T(""), regs.fpsr, regs.fpcr, regs.fp_exp_pend);
+
+		if (!currprefs.fpu_exceptions) {
+			// log message and exit
+			regs.fp_exp_pend = 0;
+			return;
+		}
 
 		regs.fp_opword = opcode;
 		regs.fp_ea = ea;
@@ -432,8 +407,8 @@ static void fpsr_check_exception(uae_u32 mask, fpdata *src, uae_u32 opcode, uae_
 				fsave_data.cmdreg1b = extra;
 				fsave_data.e1 = 1;
 				fsave_data.t = 1;
-				fpp_from_exten(src, &fsave_data.et[0], &fsave_data.et[1], &fsave_data.et[2]);
-				fsave_data.stag = get_ftag(fsave_data.et[0], fsave_data.et[1], fsave_data.et[2], size);
+				fpp_from_exten_fmovem(src, &fsave_data.et[0], &fsave_data.et[1], &fsave_data.et[2]);
+				fsave_data.stag = get_ftag(src, size);
 			} else { // OPCLASS 000 and 010
 				if (regs.fp_exp_pend == 51 || regs.fp_exp_pend == 53 || regs.fp_exp_pend == 49) { // UNFL, OVFL, INEX
 					if((extra & 0x30) == 0x20 || (extra & 0x3f) == 0x04) { // FADD, FSUB, FMUL, FDIV, FSQRT
@@ -448,18 +423,17 @@ static void fpsr_check_exception(uae_u32 mask, fpdata *src, uae_u32 opcode, uae_
 				} else {
 					fsave_data.cmdreg1b = extra;
 					fsave_data.e1 = 1;
-					fpp_from_exten(src, &fsave_data.et[0], &fsave_data.et[1], &fsave_data.et[2]);
-					fsave_data.stag = get_ftag(fsave_data.et[0], fsave_data.et[1], fsave_data.et[2], size);
+					fpp_from_exten_fmovem(src, &fsave_data.et[0], &fsave_data.et[1], &fsave_data.et[2]);
+					fsave_data.stag = get_ftag(src, size);
 					if (dyadic) {
-						fpp_from_exten(&regs.fp[reg], &fsave_data.fpt[0], &fsave_data.fpt[1], &fsave_data.fpt[2]);
-						fsave_data.dtag = get_ftag(fsave_data.fpt[0], fsave_data.fpt[1], fsave_data.fpt[2], -1);
+						fpp_from_exten_fmovem(&regs.fp[reg], &fsave_data.fpt[0], &fsave_data.fpt[1], &fsave_data.fpt[2]);
+						fsave_data.dtag = get_ftag(&regs.fp[reg], -1);
 					}
 				}
 
 			}
 		}
 	}
-#endif
 }
 
 static void fpsr_set_result(fpdata *result)
@@ -512,11 +486,10 @@ static uae_u32 fpsr_make_status(void)
 	if (currprefs.cpu_model >= 68040 && currprefs.fpu_model)
 		exception |= regs.fpsr & (FPSR_OVFL | FPSR_UNFL);
 
-#if ARITHMETIC_EXCEPTIONS
-	return exception;
-#else
+	if (currprefs.fpu_exceptions)
+		return exception;
+
 	return 0;
-#endif
 }
 
 static int fpsr_set_bsun(void)
@@ -527,11 +500,11 @@ static int fpsr_set_bsun(void)
     if (regs.fpcr & FPSR_BSUN) {
         // logging only so far
         write_log (_T("FPU exception: BSUN! (FPSR: %08x, FPCR: %04x)\n"), regs.fpsr, regs.fpcr);
-#if ARITHMETIC_EXCEPTIONS
-		regs.fp_exp_pend = fpsr_get_vector(FPSR_BSUN);
-		fp_arithmetic_exception(true);
-		return 1;
-#endif
+		if (currprefs.fpu_exceptions) {
+			regs.fp_exp_pend = fpsr_get_vector(FPSR_BSUN);
+			fp_arithmetic_exception(true);
+			return 1;
+		}
 	}
     return 0;
 }
@@ -703,6 +676,8 @@ static void fpu_op_unimp_instruction(uae_u16 opcode, uae_u16 extra, uae_u32 ea, 
 {
 	static int warned = 20;
 
+	regs.fpiar = oldpc;
+
 	if ((extra & 0x7f) == 4) // FSQRT 4->5
 		extra |= 1;
 
@@ -718,12 +693,13 @@ static void fpu_op_unimp_instruction(uae_u16 opcode, uae_u16 extra, uae_u32 ea, 
 			// packed data has been saved by fp_check_unimp_datatype
 		} else {
 			reset_fsave_data();
+			fsave_data.cmdreg3b = (extra & 0x3C3) | ((extra & 0x038) >> 1) | ((extra & 0x004) << 3);
 			fsave_data.cmdreg1b = extra;
-			fpp_from_exten(src, &fsave_data.et[0], &fsave_data.et[1], &fsave_data.et[2]);
-			fsave_data.stag = get_ftag(fsave_data.et[0], fsave_data.et[1], fsave_data.et[2], size);
+			fpp_from_exten_fmovem(src, &fsave_data.et[0], &fsave_data.et[1], &fsave_data.et[2]);
+			fsave_data.stag = get_ftag(src, size);
 			if (reg >= 0) {
-				fpp_from_exten(&regs.fp[reg], &fsave_data.fpt[0], &fsave_data.fpt[1], &fsave_data.fpt[2]);
-				fsave_data.dtag = get_ftag(fsave_data.fpt[0], fsave_data.fpt[1], fsave_data.fpt[2], -1);
+				fpp_from_exten_fmovem(&regs.fp[reg], &fsave_data.fpt[0], &fsave_data.fpt[1], &fsave_data.fpt[2]);
+				fsave_data.dtag = get_ftag(&regs.fp[reg], -1);
 			}
 		}
 	}
@@ -753,6 +729,7 @@ static void fp_check_unimp_datatype(uae_u16 opcode, uae_u16 extra, uae_u32 ea, u
 	bool dyadic = ((extra & 0x30) == 0x20 || (extra & 0x7f) == 0x38);
 
 	regs.fpiar = oldpc;
+	regs.fp_ea = ea;
 
 	if((extra & 0x7f) == 4) // FSQRT 4->5
 		extra |= 1;
@@ -772,27 +749,30 @@ static void fp_check_unimp_datatype(uae_u16 opcode, uae_u16 extra, uae_u32 ea, u
 	} else if (currprefs.cpu_model == 68040) {
 		// fsave data for 68040
 		fsave_data.cmdreg1b = extra;
-		if (packed)
-			fsave_data.e1 = 1;
+		if (packed) {
+			fsave_data.e1 = 1; // used to distinguish packed operands
+		}
 		if (opclass == 3) { // OPCLASS 011
 			fsave_data.t = 1;
-			fpp_from_exten(src, &fsave_data.et[0], &fsave_data.et[1], &fsave_data.et[2]);
-			fsave_data.stag = get_ftag(fsave_data.et[0], fsave_data.et[1], fsave_data.et[2], size);
+			fpp_from_exten_fmovem(src, &fsave_data.et[0], &fsave_data.et[1], &fsave_data.et[2]);
+			fsave_data.stag = get_ftag(src, size);
 			if(reg >= 0) {
-				fpp_from_exten(&regs.fp[reg], &fsave_data.fpt[0], &fsave_data.fpt[1], &fsave_data.fpt[2]);
-				fsave_data.dtag = get_ftag(fsave_data.fpt[0], fsave_data.fpt[1], fsave_data.fpt[2], -1);
+				fpp_from_exten_fmovem(&regs.fp[reg], &fsave_data.fpt[0], &fsave_data.fpt[1], &fsave_data.fpt[2]);
+				fsave_data.dtag = get_ftag(&regs.fp[reg], -1);
 			}
 		} else { // OPCLASS 000 and 010
 			if (packed) {
-				fsave_data.fpt[2] = packed[0];
+				fsave_data.fpt[2] = packed[0]; // yes, this is correct.
+				fsave_data.fpt[1] = packed[1]; // undocumented
 				fsave_data.et[1] = packed[1];
 				fsave_data.et[2] = packed[2];
+				fsave_data.stag = 7; // undocumented
 			} else {
-				fpp_from_exten(src, &fsave_data.et[0], &fsave_data.et[1], &fsave_data.et[2]);
-				fsave_data.stag = get_ftag(fsave_data.et[0], fsave_data.et[1], fsave_data.et[2], size);
+				fpp_from_exten_fmovem(src, &fsave_data.et[0], &fsave_data.et[1], &fsave_data.et[2]);
+				fsave_data.stag = get_ftag(src, size);
 				if (dyadic) {
-					fpp_from_exten(&regs.fp[reg], &fsave_data.fpt[0], &fsave_data.fpt[1], &fsave_data.fpt[2]);
-					fsave_data.dtag = get_ftag(fsave_data.fpt[0], fsave_data.fpt[1], fsave_data.fpt[2], -1);
+					fpp_from_exten_fmovem(&regs.fp[reg], &fsave_data.fpt[0], &fsave_data.fpt[1], &fsave_data.fpt[2]);
+					fsave_data.dtag = get_ftag(&regs.fp[reg], -1);
 				}
 			}
 		}
@@ -1360,9 +1340,8 @@ static bool fault_if_68040_integer_nonmaskable(uae_u16 opcode, uae_u16 extra, ua
 		if (regs.fpsr & (FPSR_SNAN | FPSR_OPERR)) {
 			fpsr_check_exception(FPSR_SNAN | FPSR_OPERR, src, opcode, extra, ea);
 			fp_arithmetic_exception(false); // post
-#if ARITHMETIC_EXCEPTIONS
-		return true;
-#endif
+			if (currprefs.fpu_exceptions)
+				return true;
 		}
 	}
 	return false;
@@ -1703,7 +1682,7 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 			{
 				uae_u32 wrd[3];
 				int kfactor;
-				if (fault_if_4060 (opcode, extra, ad, oldpc, value, NULL))
+				if (fault_if_4060 (opcode, extra, ad, oldpc, value, wrd))
 					return 1; // for calling fp_arithmetic_exception
 				kfactor = size == 7 ? m68k_dreg (regs, (extra >> 4) & 7) : extra;
 				kfactor &= 127;
@@ -2406,11 +2385,31 @@ void fpuop_restore (uae_u32 opcode)
 				regs.fp_exp_pend = 48 + v;
 			}
 		} else if (ff) {
-			write_log (_T("FRESTORE invalid frame format %X!\n"), (d >> 8) & 0xff);
+			write_log (_T("FRESTORE invalid frame format %02X!\n"), ff);
 		} else {
-			fpu_null ();
+			fpu_null();
 		}
+
+	} else if (currprefs.fpu_model == 68040) {
+
+		int ff = (d >> 8) & 0xff;
+
+		if (ff == 0x00) { // null
+			fpu_null();
+		} else if (ff == 0x60 || ff == 0x30) { // busy or idle
+			// TODO: restore frame contents
+			if (incr < 0) {
+				ad -= ff;
+			} else {
+				ad += ff;
+			}
+		} else {
+			write_log (_T("FRESTORE invalid frame format %02X!\n"), ff);
+		}
+
 	} else {
+
+		// 6888x
 		if ((d & 0xff000000) != 0) { // not null frame
 			uae_u32 biu_flags;
 			uae_u32 frame_size = (d >> 16) & 0xff;
@@ -2425,10 +2424,8 @@ void fpuop_restore (uae_u32 opcode)
 				biu_flags = x_get_long(ad + biu_offset);
 				ad += 4;
 			}
-			if (currprefs.fpu_model == 68882) {
-				if ((biu_flags & 0x08000000) == 0x00000000) {
-					regs.fp_exp_pend = fpsr_get_vector(regs.fpsr & regs.fpcr & 0xff00);
-				}
+			if ((biu_flags & 0x08000000) == 0x00000000) {
+				regs.fp_exp_pend = fpsr_get_vector(regs.fpsr & regs.fpcr & 0xff00);
 			}
 		} else { // null frame
 			fpu_null();
@@ -3011,8 +3008,11 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 
 			v = get_fp_value (opcode, extra, &src, pc, &ad);
 			if (v <= 0) {
-				if (v == 0)
+				if (v == 0) {
 					fpu_noinst (opcode, pc);
+					return;
+				}
+				fault_if_unimplemented_680x0 (opcode, extra, ad, pc, &src, reg);
 				return;
 			}
 
@@ -3054,6 +3054,7 @@ void fpu_modechange(void)
 {
 	uae_u32 temp_ext[8][3];
 
+	currprefs.fpu_exceptions = changed_prefs.fpu_exceptions;
 	if (currprefs.fpu_softfloat == changed_prefs.fpu_softfloat)
 		return;
 	currprefs.fpu_softfloat = changed_prefs.fpu_softfloat;
