@@ -4,6 +4,21 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+
+- FM801 16-bit audio corruption fixed.
+- Some 68020 CE mode cycle-counting is back.
+- Clear button state mask when mouse capture state changes. If mouse or joystick button was kept pressed when mouse was
+  uncaptured, button was kept pressed when capture state was restored even if real button was already pressed.
+- G-REX and Cirrus Logic graphics board state was reset if autoconfig board info was re-scanned (entering RAM or HW Info panels)
+  and emulation was already running (3.4.0)
+- Middle mouse button default is back to enabled. (was changed in b1)
+- Magic mouse on the fly on change didn't work.
+- FPU exception handling rewrite, arithmetic exceptions partially implemented (Andreas Grabher), 68040 unimplemented FSAVE
+  exception frame compatibility improved. Arithmetic exceptions are not that useful in Amiga emulation, programs that use FPU
+  arithmetic exceptions are very rare. I don't know any, report if you find one :)
+- FPU arithmetic exceptions checkbox added to GUI for easier testing. Will be removed when exceptions are fully implemented.
+  Even when exceptions are disabled, they are still logged. Softfloat FPU only only.
+
 Beta 1:
 
 - Quickstart Blizzard modes (except if JIT enabled) enabled 24-bit addressing which caused new autoconfig/fallback mode
@@ -14,8 +29,10 @@ Beta 1:
 - Added Lock drive option to real harddrive mount dialog. If checked, all partitions in selected drive will be locked
   and unmounted when emulation is running, enabling full read/write access even if drive has Windows mounted FAT partition(s).
   Lock will be ignored if drive has one or more NTFS partitions.
+- Add harddrive didn't accept magneto-optical devices.
 - Lots of softfloat FPU mode and normal FPU mode fixes and updates. (Andreas Grabher and me)
 - Softfloat FPU mode added to GUI, supports on the fly switching.
+- Untrap middle mouse button option was stuck.
 - Implemented accurate 68020+ T0 trace mode emulation. (Original one has not been changed for ages..)
 - Fixed crash when sound card audio play started and mono sound channel mode and "Include CD and FMV audio" was ticked.
 - 271b3 "Blitter final D write don't increase "nasty" count" That is not true, I think this was only added to fix demo

@@ -53,6 +53,14 @@ extern bool aga_mode, direct_rgb;
 extern int visible_left_border, visible_right_border;
 extern int detected_screen_resolution;
 
+STATIC_INLINE int shres_coord_hw_to_window_x (int x)
+{
+	x -= DISPLAY_LEFT_SHIFT << 2;
+	x <<= lores_shift;
+	x >>= 2;
+	return x;
+}
+
 STATIC_INLINE int coord_hw_to_window_x (int x)
 {
 	x -= DISPLAY_LEFT_SHIFT;

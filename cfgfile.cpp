@@ -2198,6 +2198,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, _T("cpu_no_unimplemented"), p->int_no_unimplemented);
 	cfgfile_write_bool (f, _T("fpu_strict"), p->fpu_strict);
 	cfgfile_dwrite_bool (f, _T("fpu_softfloat"), p->fpu_softfloat);
+	cfgfile_dwrite_bool (f, _T("fpu_arithmetic_exceptions"), p->fpu_exceptions);
 
 	cfgfile_write_bool (f, _T("rtg_nocustom"), p->picasso96_nocustom);
 	cfgfile_write (f, _T("rtg_modes"), _T("0x%x"), p->picasso96_modeflags);
@@ -2951,7 +2952,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 
 	if (cfgfile_yesno(option, value, _T("magic_mouse"), &vb)) {
-		p->input_mouse_untrap |= MOUSEUNTRAP_MAGIC;
+		if (vb)
+			p->input_mouse_untrap |= MOUSEUNTRAP_MAGIC;
+		else
+			p->input_mouse_untrap &= ~MOUSEUNTRAP_MAGIC;
 		return 1;
 	}
 
@@ -4775,6 +4779,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("serial_direct"), &p->serial_direct)
 		|| cfgfile_yesno (option, value, _T("fpu_strict"), &p->fpu_strict)
 		|| cfgfile_yesno (option, value, _T("fpu_softfloat"), &p->fpu_softfloat)
+		|| cfgfile_yesno (option, value, _T("fpu_arithmetic_exceptions"), &p->fpu_exceptions)
 		|| cfgfile_yesno (option, value, _T("comp_nf"), &p->compnf)
 		|| cfgfile_yesno (option, value, _T("comp_constjump"), &p->comp_constjump)
 #ifdef USE_JIT_FPU
@@ -6928,6 +6933,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->int_no_unimplemented = false;
 	p->fpu_strict = 0;
 	p->fpu_softfloat = 0;
+	p->fpu_exceptions = 0;
 	p->m68k_speed = 0;
 	p->cpu_compatible = 1;
 	p->address_space_24 = 1;
@@ -6987,7 +6993,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 
 	p->input_tablet = TABLET_OFF;
 	p->tablet_library = false;
-	p->input_mouse_untrap = MOUSEUNTRAP_NONE;
+	p->input_mouse_untrap = MOUSEUNTRAP_MIDDLEBUTTON;
 	p->input_magic_mouse_cursor = 0;
 
 	inputdevice_default_prefs (p);

@@ -1041,9 +1041,10 @@ STATIC_INLINE void compute_delay_offset (void)
 
 static void record_color_change2 (int hpos, int regno, unsigned long value)
 {
-	int pos = hpos * 2;
-	if (regno == 0x1000 + 0x10c)
-		pos++; // BPLCON4 change needs 1 lores pixel delay
+	int pos = (hpos * 2) * 4;
+	if (regno == 0x1000 + 0x10c) {
+		pos += 4; // BPLCON4 change needs 1 lores pixel delay
+	}
 	curr_color_changes[next_color_change].linepos = pos;
 	curr_color_changes[next_color_change].regno = regno;
 	curr_color_changes[next_color_change].value = value;
@@ -3035,11 +3036,11 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 		}
 		pdip->last_color_change++;
 		pdip->nr_color_changes++;
-		curr_color_changes[idx].linepos = (hpos + maxhpos) * 2 + extrahpos;
+		curr_color_changes[idx].linepos = ((hpos + maxhpos) * 2 + extrahpos) * 4;
 		curr_color_changes[idx].regno = regno;
 		curr_color_changes[idx].value = value;
 		if (lastsync) {
-			curr_color_changes[idx + 1].linepos = hsyncstartpos * 2;
+			curr_color_changes[idx + 1].linepos = (hsyncstartpos * 2) * 4;
 			curr_color_changes[idx + 1].regno = 0xffff;
 			curr_color_changes[idx + 2].regno = -1;
 		} else {
@@ -7921,13 +7922,13 @@ static void hsync_scandoubler (void)
 	for (idx1 = dip1->first_color_change; idx1 < dip1->last_color_change; idx1++) {
 		struct color_change *cs2 = &curr_color_changes[idx1];
 		int regno = cs2->regno;
-		int hpos = cs2->linepos;
+		int hpos = cs2->linepos / 4;
 		if (regno < 0x1000 && hpos < HBLANK_OFFSET && !(beamcon0 & 0x80) && prev_lineno >= 0) {
 			struct draw_info *pdip = curr_drawinfo + next_lineno - 1;
 			int idx = pdip->last_color_change;
 			pdip->last_color_change++;
 			pdip->nr_color_changes++;
-			curr_color_changes[idx].linepos = hpos + maxhpos + 1;
+			curr_color_changes[idx].linepos = (hpos + maxhpos + 1) * 4;
 			curr_color_changes[idx].regno = regno;
 			curr_color_changes[idx].value = cs2->value;
 			curr_color_changes[idx + 1].regno = -1;

@@ -1137,7 +1137,6 @@ static void touch_release(struct touch_store *ts, const RECT *rcontrol)
 			inputdevice_uaelib(_T("JOY2_2ND_BUTTON"), 0, 1, false);
 	}
 	if (ts->axis >= 0) {
-		const RECT *r = &rcontrol[ts->port];
 		if (ts->port == 0) {
 			inputdevice_uaelib(_T("MOUSE1_HORIZ"), 0, -1, false);
 			inputdevice_uaelib(_T("MOUSE1_VERT"), 0, -1, false);
@@ -1294,6 +1293,10 @@ static void processtouch(HWND hwnd, WPARAM wParam, LPARAM lParam)
 {
 	RECT rgui, rcontrol[2];
 	int bottom;
+
+	if (currprefs.input_tablet)
+		return;
+
 	if (isfullscreen()) {
 		rgui.left = amigawin_rect.left;
 		rgui.top = amigawin_rect.top;
@@ -3635,7 +3638,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 {
 	struct midiportinfo *midp;
 
-	cfgfile_target_dwrite_bool (f, _T("middle_mouse"), (p->input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) != 0);
+	cfgfile_target_write_bool (f, _T("middle_mouse"), (p->input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) != 0);
 	cfgfile_target_dwrite_bool (f, _T("logfile"), p->win32_logfile);
 	cfgfile_target_dwrite_bool (f, _T("map_drives"), p->win32_automount_drives);
 	cfgfile_target_dwrite_bool (f, _T("map_drives_auto"), p->win32_automount_removable);
@@ -3804,6 +3807,8 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 	if (cfgfile_yesno(option, value, _T("middle_mouse"), &tbool)) {
 		if (tbool)
 			p->input_mouse_untrap |= MOUSEUNTRAP_MIDDLEBUTTON;
+		else
+			p->input_mouse_untrap &= ~MOUSEUNTRAP_MIDDLEBUTTON;
 		return 1;
 	}
 

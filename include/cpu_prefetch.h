@@ -34,16 +34,20 @@ STATIC_INLINE uae_u32 get_long_020_prefetch (int o)
 
 STATIC_INLINE void limit_cycles_ce020(int clocks)
 {
+#if 0
 	int cycs = clocks * cpucycleunit;
 	int diff = regs.ce020endcycle - regs.ce020startcycle;
 	if (diff <= cycs)
 		return;
 	regs.ce020startcycle = regs.ce020endcycle - cycs;
+#endif
 }
 
 STATIC_INLINE void limit_all_cycles_ce020(void)
 {
+#if 0
 	regs.ce020startcycle = regs.ce020endcycle;
+#endif
 }
 
 // only for CPU internal cycles

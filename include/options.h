@@ -472,6 +472,7 @@ struct uae_prefs {
 	bool fpu_strict;
 
 	bool fpu_softfloat;
+	bool fpu_exceptions;
 
 	int gfx_framerate, gfx_autoframerate;
 	struct wh gfx_size_win;

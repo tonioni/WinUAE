@@ -1561,7 +1561,8 @@ static int check_prefs_changed_cpu2(void)
 		|| currprefs.cpu_compatible != changed_prefs.cpu_compatible
 		|| currprefs.cpu_cycle_exact != changed_prefs.cpu_cycle_exact
 		|| currprefs.cpu_memory_cycle_exact != changed_prefs.cpu_memory_cycle_exact
-		|| currprefs.fpu_softfloat != changed_prefs.fpu_softfloat) {
+		|| currprefs.fpu_softfloat != changed_prefs.fpu_softfloat
+		|| currprefs.fpu_exceptions != changed_prefs.fpu_exceptions) {
 			cpu_prefs_changed_flag |= 1;
 	}
 	if (changed
