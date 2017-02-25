@@ -2772,7 +2772,7 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 		if (i == dip_for_drawing->last_color_change)
 			nextpos = endpos;
 		else
-			nextpos = coord_hw_to_window_x (curr_color_changes[i].linepos);
+			nextpos = shres_coord_hw_to_window_x (curr_color_changes[i].linepos);
 
 		nextpos_in_range = nextpos;
 		if (nextpos > endpos)
@@ -3747,7 +3747,7 @@ static void finish_drawing_frame (void)
 
 	if (currprefs.leds_on_screen && ((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !(currprefs.leds_on_screen & STATUSLINE_TARGET))) {
 		int slx, sly;
-		statusline_getpos(&slx, &sly, vb->outwidth, vb->outheight);
+		statusline_getpos(&slx, &sly, vb->outwidth, vb->outheight, 1, 1);
 		statusbar_y1 = sly + min_ypos_for_screen - 1;
 		statusbar_y2 = statusbar_y1 + TD_TOTAL_HEIGHT + 1;
 		draw_status_line(sly, -1);

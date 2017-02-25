@@ -19,8 +19,9 @@
 * Some code to put status information on the screen.
 */
 
-void statusline_getpos (int *x, int *y, int width, int height)
+void statusline_getpos (int *x, int *y, int width, int height, int hx, int vx)
 {
+	int total_height = TD_TOTAL_HEIGHT * vx;
 	if (currprefs.osd_pos.x >= 20000) {
 		if (currprefs.osd_pos.x >= 30000)
 			*y = width * (currprefs.osd_pos.x - 30000) / 1000;
@@ -34,12 +35,12 @@ void statusline_getpos (int *x, int *y, int width, int height)
 	}
 	if (currprefs.osd_pos.y >= 20000) {
 		if (currprefs.osd_pos.y >= 30000)
-			*y = (height - TD_TOTAL_HEIGHT) * (currprefs.osd_pos.y - 30000) / 1000;
+			*y = (height - total_height) * (currprefs.osd_pos.y - 30000) / 1000;
 		else
-			*y = (height - TD_TOTAL_HEIGHT) - ((height - TD_TOTAL_HEIGHT) * (30000 - currprefs.osd_pos.y) / 1000);
+			*y = (height - total_height) - ((height - total_height) * (30000 - currprefs.osd_pos.y) / 1000);
 	} else {
 		if (currprefs.osd_pos.y >= 0)
-			*y = height - TD_TOTAL_HEIGHT - currprefs.osd_pos.y;
+			*y = height - total_height - currprefs.osd_pos.y;
 		else
 			*y = -currprefs.osd_pos.y + 1;
 	}

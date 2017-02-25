@@ -721,7 +721,7 @@ static void statusline (void)
 
 	if (!(currprefs.leds_on_screen & STATUSLINE_CHIPSET) || !tempsurf)
 		return;
-	statusline_getpos (&slx, &sly, dst_width, dst_height);
+	statusline_getpos (&slx, &sly, dst_width, dst_height, 1, 1);
 	lx = dst_width;
 	ly = dst_height;
 	SetRect (&sr, slx, 0, slx + lx, TD_TOTAL_HEIGHT);

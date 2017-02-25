@@ -156,6 +156,7 @@ static int vsync2, guimode, maxscanline, variablerefresh;
 static int resetcount;
 static double cursor_x, cursor_y;
 static bool cursor_v, cursor_scale;
+static int statusbar_vx = 1, statusbar_hx = 1;
 
 #define NUMVERTICES 8
 #define D3DFVF_TLVERTEX D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1
@@ -1315,10 +1316,9 @@ static void updateleds (void)
 	HRESULT hr;
 	static uae_u32 rc[256], gc[256], bc[256], a[256];
 	static int done;
-	int i, y;
 
 	if (!done) {
-		for (i = 0; i < 256; i++) {
+		for (int i = 0; i < 256; i++) {
 			rc[i] = i << 16;
 			gc[i] = i << 8;
 			bc[i] = i << 0;
@@ -1331,15 +1331,21 @@ static void updateleds (void)
 		write_log (_T("%d: SL LockRect failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 		return;
 	}
-	for (y = 0; y < TD_TOTAL_HEIGHT; y++) {
+
+	for (int y = 0; y < TD_TOTAL_HEIGHT * statusbar_vx; y++) {
 		uae_u8 *buf = (uae_u8*)locked.pBits + y * locked.Pitch;
-		statusline_single_erase(buf, 32 / 8, y, ledwidth);
+		statusline_single_erase(buf, 32 / 8, y, ledwidth * statusbar_hx);
 	}
 	statusline_render((uae_u8*)locked.pBits, 32 / 8, locked.Pitch, ledwidth, ledheight, rc, gc, bc, a);
-	for (y = 0; y < TD_TOTAL_HEIGHT; y++) {
-		uae_u8 *buf = (uae_u8*)locked.pBits + y * locked.Pitch;
+
+	int y = 0;
+	for (int yy = 0; yy < statusbar_vx * TD_TOTAL_HEIGHT; yy++) {
+		uae_u8 *buf = (uae_u8*)locked.pBits + yy * locked.Pitch;
 		draw_status_line_single (buf, 32 / 8, y, ledwidth, rc, gc, bc, a);
+		if ((yy % statusbar_vx) == 0)
+			y++;
 	}
+
 	ledtexture->UnlockRect (0);
 }
 
@@ -1347,7 +1353,7 @@ static int createledtexture (void)
 {
 	ledwidth = window_w;
 	ledheight = TD_TOTAL_HEIGHT;
-	ledtexture = createtext (ledwidth, ledheight, D3DFMT_A8R8G8B8);
+	ledtexture = createtext (ledwidth * statusbar_hx, ledheight * statusbar_vx, D3DFMT_A8R8G8B8);
 	if (!ledtexture)
 		return 0;
 	return 1;
@@ -3240,7 +3246,7 @@ static void D3D_render2 (void)
 		}
 		if (ledtexture && (((currprefs.leds_on_screen & STATUSLINE_RTG) && WIN32GFX_IsPicassoScreen ()) || ((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !WIN32GFX_IsPicassoScreen ()))) {
 			int slx, sly;
-			statusline_getpos (&slx, &sly, window_w, window_h);
+			statusline_getpos (&slx, &sly, window_w, window_h, statusbar_hx, statusbar_vx);
 			v.x = slx;
 			v.y = sly;
 			v.z = 0;

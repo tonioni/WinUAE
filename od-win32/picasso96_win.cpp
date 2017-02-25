@@ -3985,7 +3985,7 @@ void picasso_statusline (uae_u8 *dst)
 	if (dst_width > picasso_vidinfo.width)
 		dst_width = picasso_vidinfo.width;
 	pitch = picasso_vidinfo.rowbytes;
-	statusline_getpos (&slx, &sly, picasso96_state.Width, dst_height);
+	statusline_getpos (&slx, &sly, picasso96_state.Width, dst_height, 1, 1);
 	if (currprefs.gfx_api)
 		statusline_render(dst + sly * pitch, picasso_vidinfo.pixbytes, pitch, dst_width, dst_height, p96rc, p96gc, p96bc, NULL);
 	yy = 0;
