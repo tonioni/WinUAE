@@ -307,6 +307,7 @@ static bool fp_arithmetic_exception(bool pre)
 	// first check for pending arithmetic exceptions
 	if (currprefs.fpu_exceptions) {
 		if (regs.fp_exp_pend) {
+			write_log (_T("FPU ARITHMETIC EXCEPTION (%d)\n"), regs.fp_exp_pend);
 			regs.fpu_exp_pre = pre;
 			Exception(regs.fp_exp_pend);
 			if (currprefs.fpu_model != 68882)
@@ -403,6 +404,8 @@ static void fpsr_check_exception(uae_u32 mask, fpdata *src, uae_u32 opcode, uae_
 			bool exp_e3 = false;
 
 			// fsave data for 68040
+			fsave_data.fpiarcu = regs.fpiar;
+
 			if (opclass == 3) { // OPCLASS 011
 				fsave_data.cmdreg1b = extra;
 				fsave_data.e1 = 1;
@@ -648,6 +651,7 @@ bool fpu_get_constant(fpdata *fpd, int cr)
     return valid;
 }
 
+#if 0
 static void fpu_format_error (void)
 {
 	uaecptr newpc;
@@ -671,6 +675,7 @@ static void fpu_format_error (void)
 #endif
 	regs.fp_exception = true;
 }
+#endif
 
 static void fpu_op_unimp_instruction(uae_u16 opcode, uae_u16 extra, uae_u32 ea, uaecptr oldpc, fpdata *src, int reg, int size)
 {
@@ -689,9 +694,9 @@ static void fpu_op_unimp_instruction(uae_u16 opcode, uae_u16 extra, uae_u32 ea, 
 		fpp_get_exceptional_operand(&fsave_data.eo[0], &fsave_data.eo[1], &fsave_data.eo[2]);
 	} else if(currprefs.cpu_model == 68040) {
 		// fsave data for 68040
-		if (regs.fp_unimp_pend & 2) {
-			// packed data has been saved by fp_check_unimp_datatype
-		} else {
+		fsave_data.fpiarcu = regs.fpiar;
+
+		if (!regs.fp_unimp_pend) { // else data has been saved by fp_check_unimp_datatype
 			reset_fsave_data();
 			fsave_data.cmdreg3b = (extra & 0x3C3) | ((extra & 0x038) >> 1) | ((extra & 0x004) << 3);
 			fsave_data.cmdreg1b = extra;
@@ -749,17 +754,16 @@ static void fp_check_unimp_datatype(uae_u16 opcode, uae_u16 extra, uae_u32 ea, u
 	} else if (currprefs.cpu_model == 68040) {
 		// fsave data for 68040
 		fsave_data.cmdreg1b = extra;
+		fsave_data.fpiarcu = regs.fpiar;
 		if (packed) {
 			fsave_data.e1 = 1; // used to distinguish packed operands
 		}
 		if (opclass == 3) { // OPCLASS 011
 			fsave_data.t = 1;
 			fpp_from_exten_fmovem(src, &fsave_data.et[0], &fsave_data.et[1], &fsave_data.et[2]);
-			fsave_data.stag = get_ftag(src, size);
-			if(reg >= 0) {
-				fpp_from_exten_fmovem(&regs.fp[reg], &fsave_data.fpt[0], &fsave_data.fpt[1], &fsave_data.fpt[2]);
-				fsave_data.dtag = get_ftag(&regs.fp[reg], -1);
-			}
+			fsave_data.stag = get_ftag(src, -1);
+			fpp_from_exten_fmovem(src, &fsave_data.fpt[0], &fsave_data.fpt[1], &fsave_data.fpt[2]); // undocumented
+            fsave_data.dtag = get_ftag(src, -1); // undocumented
 		} else { // OPCLASS 000 and 010
 			if (packed) {
 				fsave_data.fpt[2] = packed[0]; // yes, this is correct.
@@ -769,7 +773,10 @@ static void fp_check_unimp_datatype(uae_u16 opcode, uae_u16 extra, uae_u32 ea, u
 				fsave_data.stag = 7; // undocumented
 			} else {
 				fpp_from_exten_fmovem(src, &fsave_data.et[0], &fsave_data.et[1], &fsave_data.et[2]);
-				fsave_data.stag = get_ftag(src, size);
+				fsave_data.stag = get_ftag(src, (opclass == 0) ? -1 : size);
+				if (fsave_data.stag == 5) {
+					fsave_data.et[0] = (size == 1) ? 0x3f800000 : 0x3c000000; // exponent for denormalized single and double
+				}
 				if (dyadic) {
 					fpp_from_exten_fmovem(&regs.fp[reg], &fsave_data.fpt[0], &fsave_data.fpt[1], &fsave_data.fpt[2]);
 					fsave_data.dtag = get_ftag(&regs.fp[reg], -1);
@@ -2108,7 +2115,7 @@ void fpuop_save (uae_u32 opcode)
 				ad += 4;
 				x_put_long(ad, 0);
 				ad += 4;
-				x_put_long(ad, regs.fpiar); // FPIARCU (same as FPU PC or something else?)
+				x_put_long(ad, fsave_data.fpiarcu); // FPIARCU (same as FPU PC or something else?)
 				ad += 4;
 				x_put_long(ad, 0);
 				ad += 4;
@@ -2392,19 +2399,21 @@ void fpuop_restore (uae_u32 opcode)
 
 	} else if (currprefs.fpu_model == 68040) {
 
-		int ff = (d >> 8) & 0xff;
+		if ((d & 0xff000000) != 0) { // not null frame
+			uae_u32 frame_size = (d >> 16) & 0xff;
 
-		if (ff == 0x00) { // null
-			fpu_null();
-		} else if (ff == 0x60 || ff == 0x30) { // busy or idle
-			// TODO: restore frame contents
-			if (incr < 0) {
-				ad -= ff;
-			} else {
-				ad += ff;
+			if (frame_size == 0x60 || (frame_size == 0x30 || frame_size == 0x28)) { // busy or unimp
+				// TODO: restore frame contents
+				if (incr < 0) {
+					ad -= frame_size;
+				} else {
+					ad += frame_size;
+				}
+			} else if (frame_size != 0x00) { // not idle
+				write_log (_T("FRESTORE invalid frame format %02X!\n"), frame_size);
 			}
-		} else {
-			write_log (_T("FRESTORE invalid frame format %02X!\n"), ff);
+		} else { // null frame
+			fpu_null();
 		}
 
 	} else {
