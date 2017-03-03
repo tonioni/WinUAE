@@ -64,7 +64,8 @@ FPP_TO_EXTEN fpp_to_exten_fmovem;
 FPP_FROM_EXTEN fpp_from_exten_fmovem;
 
 FPP_A fpp_normalize;
-FPP_PACK fpp_get_exceptional_operand;
+FPP_A fpp_get_internal_overflow;
+FPP_A fpp_get_internal_underflow;
 FPP_PACKG fpp_get_exceptional_operand_grs;
 
 FPP_A fpp_round_single;
@@ -116,6 +117,8 @@ STATIC_INLINE int isinrom (void)
 {
 	return (munge24 (m68k_getpc ()) & 0xFFF80000) == 0xF80000 && !currprefs.mmu_model;
 }
+
+static int warned = 100;
 
 struct fpp_cr_entry {
     uae_u32 val[3];
@@ -246,6 +249,7 @@ static bool fpu_mmu_fixup;
 
 static struct {
 	// 6888x and 68060
+	uae_u32 ccr;
 	uae_u32 eo[3];
 	// 68060
 	uae_u32 v;
@@ -272,6 +276,7 @@ static void reset_fsave_data(void)
 		fsave_data.et[i] = 0;
 		fsave_data.wbt[i] = 0;
 	}
+	fsave_data.ccr = 0;
 	fsave_data.v = 0;
 	fsave_data.fpiarcu = 0;
 	fsave_data.cmdreg1b = 0;
@@ -302,12 +307,19 @@ static uae_u32 get_ftag(fpdata *src, int size)
 	return 0; // NORMAL
 }
 
-static bool fp_arithmetic_exception(bool pre)
+STATIC_INLINE bool fp_is_dyadic(uae_u16 extra)
+{
+    return ((extra & 0x30) == 0x20 || (extra & 0x7f) == 0x38);
+}
+
+static bool fp_exception_pending(bool pre)
 {
 	// first check for pending arithmetic exceptions
 	if (currprefs.fpu_exceptions) {
 		if (regs.fp_exp_pend) {
-			write_log (_T("FPU ARITHMETIC EXCEPTION (%d)\n"), regs.fp_exp_pend);
+			if (warned > 0) {
+				write_log (_T("FPU ARITHMETIC EXCEPTION (%d)\n"), regs.fp_exp_pend);
+			}
 			regs.fpu_exp_pre = pre;
 			Exception(regs.fp_exp_pend);
 			if (currprefs.fpu_model != 68882)
@@ -315,9 +327,11 @@ static bool fp_arithmetic_exception(bool pre)
 			return true;
 		}
 	}
-	// no arithmetic exceptions pending, check for unimplemented
+	// no arithmetic exceptions pending, check for unimplemented datatype
 	if (regs.fp_unimp_pend) {
-		write_log (_T("FPU UNIMPLEMENTED DATATYPE EXCEPTION\n"));
+		if (warned > 0) {
+			write_log (_T("FPU unimplemented datatype exception (%s)\n"), pre ? _T("pre") : _T("mid/post"));
+		}
 		regs.fpu_exp_pre = pre;
 		Exception(55);
 		regs.fp_unimp_pend = 0;
@@ -327,10 +341,12 @@ static bool fp_arithmetic_exception(bool pre)
 	return false;
 }
 
-static void fp_unimplemented_instruction_exception(void)
+static void fp_unimp_instruction_exception_pending(void)
 {
 	if (regs.fp_unimp_ins) {
-		write_log (_T("FPU UNIMPLEMENTED INSTRUCTION EXCEPTION\n"));
+		if (warned > 0) {
+			write_log (_T("FPU UNIMPLEMENTED INSTRUCTION EXCEPTION\n"));
+		}
 		regs.fpu_exp_pre = true;
 		Exception(11);
 		regs.fp_unimp_ins = false;
@@ -356,7 +372,7 @@ static uae_u32 fpsr_get_vector(uae_u32 exception)
 	return 0;
 }
 
-static void fpsr_check_exception(uae_u32 mask, fpdata *src, uae_u32 opcode, uae_u16 extra, uae_u32 ea)
+static void fpsr_check_arithmetic_exception(uae_u32 mask, fpdata *src, uae_u32 opcode, uae_u16 extra, uae_u32 ea)
 {
 	if (!currprefs.fpu_softfloat)
 		return;
@@ -372,8 +388,13 @@ static void fpsr_check_exception(uae_u32 mask, fpdata *src, uae_u32 opcode, uae_
 	if (exception) {
 		regs.fp_exp_pend = fpsr_get_vector(exception);
 		nonmaskable = (regs.fp_exp_pend != fpsr_get_vector(regs.fpsr & regs.fpcr));
-		write_log(_T("FPU %s arithmetic exception pending: FPSR: %08x, FPCR: %04x (vector: %d)!\n"),
-			nonmaskable ? _T("nonmaskable") : _T(""), regs.fpsr, regs.fpcr, regs.fp_exp_pend);
+		if (warned > 0) {
+			write_log(_T("FPU %s arithmetic exception pending: FPSR: %08x, FPCR: %04x (vector: %d)!\n"),
+				nonmaskable ? _T("nonmaskable") : _T(""), regs.fpsr, regs.fpcr, regs.fp_exp_pend);
+#if EXCEPTION_FPP == 0
+			warned--;
+#endif	
+		}
 
 		if (!currprefs.fpu_exceptions) {
 			// log message and exit
@@ -387,20 +408,45 @@ static void fpsr_check_exception(uae_u32 mask, fpdata *src, uae_u32 opcode, uae_
 		// data for FSAVE stack frame
 		regs.fpu_exp_state = 2; // 68060 EXCP frame, 68040 BUSY frame, 6888x IDLE frame
 
-		/* TODO: more FSAVE data */
+		uae_u32 opclass = (extra >> 13) & 7;
 
 		if (currprefs.fpu_model == 68881 || currprefs.fpu_model == 68882) {
 			// fsave data for 68881 and 68882
-			fpp_get_exceptional_operand(&fsave_data.eo[0], &fsave_data.eo[1], &fsave_data.eo[2]);
+			fpdata eo;
+
+			if (opclass == 3) { // 011
+				fsave_data.ccr = ((uae_u32)extra << 16) | extra;
+			} else { // 000 or 010
+				fsave_data.ccr = ((uae_u32)(opcode | 0x0080) << 16) | extra;
+			}
+			if (regs.fp_exp_pend == 54 || regs.fp_exp_pend == 52 || regs.fp_exp_pend == 50) { // SNAN, OPERR, DZ
+				fpp_from_exten_fmovem(src, &fsave_data.eo[0], &fsave_data.eo[1], &fsave_data.eo[2]);
+				if (regs.fp_exp_pend == 52 && opclass == 3) { // OPERR from move to integer or packed
+					fsave_data.eo[0] &= 0x4fff0000;
+					fsave_data.eo[1] = fsave_data.eo[2] = 0;
+				}
+			} else if (regs.fp_exp_pend == 53) { // OVFL
+				fpp_get_internal_overflow(&eo);
+				if (((regs.fpcr >> 6) & 3) == 1)
+					fpp_round32(&eo);
+				if (((regs.fpcr >> 6) & 3) >= 2)
+					fpp_round64(&eo);
+				fpp_from_exten_fmovem(&eo, &fsave_data.eo[0], &fsave_data.eo[1], &fsave_data.eo[2]);
+			} else if (regs.fp_exp_pend == 51) { // UNFL
+				fpp_get_internal_underflow(&eo);
+				if (((regs.fpcr >> 6) & 3) == 1)
+					fpp_round32(&eo);
+				if (((regs.fpcr >> 6) & 3) >= 2)
+					fpp_round64(&eo);
+				fpp_from_exten_fmovem(&eo, &fsave_data.eo[0], &fsave_data.eo[1], &fsave_data.eo[2]);
+			} // else INEX1, INEX2: do nothing
+
 		} else if (currprefs.cpu_model == 68060) {
 			// fsave data for 68060
 			fsave_data.v = regs.fp_exp_pend & 7;
-			fpp_get_exceptional_operand(&fsave_data.eo[0], &fsave_data.eo[1], &fsave_data.eo[2]);
 		} else {
 			uae_u32 reg = (extra >> 7) & 7;
 			uae_u32 size = (extra >> 10) & 7;
-			uae_u32 opclass = (extra >> 13) & 7;
-			bool dyadic = ((extra & 0x30) == 0x20 || (extra & 0x7f) == 0x38);
 			bool exp_e3 = false;
 
 			// fsave data for 68040
@@ -428,7 +474,7 @@ static void fpsr_check_exception(uae_u32 mask, fpdata *src, uae_u32 opcode, uae_
 					fsave_data.e1 = 1;
 					fpp_from_exten_fmovem(src, &fsave_data.et[0], &fsave_data.et[1], &fsave_data.et[2]);
 					fsave_data.stag = get_ftag(src, size);
-					if (dyadic) {
+					if (fp_is_dyadic(extra)) {
 						fpp_from_exten_fmovem(&regs.fp[reg], &fsave_data.fpt[0], &fsave_data.fpt[1], &fsave_data.fpt[2]);
 						fsave_data.dtag = get_ftag(&regs.fp[reg], -1);
 					}
@@ -505,7 +551,7 @@ static int fpsr_set_bsun(void)
         write_log (_T("FPU exception: BSUN! (FPSR: %08x, FPCR: %04x)\n"), regs.fpsr, regs.fpcr);
 		if (currprefs.fpu_exceptions) {
 			regs.fp_exp_pend = fpsr_get_vector(FPSR_BSUN);
-			fp_arithmetic_exception(true);
+			fp_exception_pending(true);
 			return 1;
 		}
 	}
@@ -677,12 +723,8 @@ static void fpu_format_error (void)
 }
 #endif
 
-static void fpu_op_unimp_instruction(uae_u16 opcode, uae_u16 extra, uae_u32 ea, uaecptr oldpc, fpdata *src, int reg, int size)
+static void fp_unimp_instruction(uae_u16 opcode, uae_u16 extra, uae_u32 ea, uaecptr oldpc, fpdata *src, int reg, int size)
 {
-	static int warned = 20;
-
-	regs.fpiar = oldpc;
-
 	if ((extra & 0x7f) == 4) // FSQRT 4->5
 		extra |= 1;
 
@@ -691,12 +733,12 @@ static void fpu_op_unimp_instruction(uae_u16 opcode, uae_u16 extra, uae_u32 ea, 
 
 	if (currprefs.cpu_model == 68060) {
 		// fsave data for 68060
-		fpp_get_exceptional_operand(&fsave_data.eo[0], &fsave_data.eo[1], &fsave_data.eo[2]);
+		fsave_data.v = 0; // really?
 	} else if(currprefs.cpu_model == 68040) {
 		// fsave data for 68040
 		fsave_data.fpiarcu = regs.fpiar;
 
-		if (!regs.fp_unimp_pend) { // else data has been saved by fp_check_unimp_datatype
+		if (regs.fp_unimp_pend == 0) { // else data has been saved by fp_unimp_datatype
 			reset_fsave_data();
 			fsave_data.cmdreg3b = (extra & 0x3C3) | ((extra & 0x038) >> 1) | ((extra & 0x004) << 3);
 			fsave_data.cmdreg1b = extra;
@@ -709,39 +751,32 @@ static void fpu_op_unimp_instruction(uae_u16 opcode, uae_u16 extra, uae_u32 ea, 
 		}
 	}
 	if (warned > 0) {
-		write_log(_T("FPU UNIMPLEMENTED INSTRUCTION EXCEPTION OP=%04X-%04X EA=%08X PC=%08X -> %08X\n"),
-			opcode, extra, ea, oldpc, m68k_getpc());
-#if EXCEPTION_FPP == 0
+		write_log (_T("FPU unimplemented instruction: OP=%04X-%04X EA=%08X PC=%08X\n"),
+			opcode, extra, ea, oldpc);
+ #if EXCEPTION_FPP == 0
 		warned--;
-#endif
+ #endif
 	}
     
-	// report exception immediately
 	regs.fp_ea = ea;
 	regs.fp_unimp_ins = true;
-	fp_unimplemented_instruction_exception();
+	fp_unimp_instruction_exception_pending();
 
 	regs.fp_exception = true;
 
 }
 
-static void fp_check_unimp_datatype(uae_u16 opcode, uae_u16 extra, uae_u32 ea, uaecptr oldpc, fpdata *src, uae_u32 *packed)
+static void fp_unimp_datatype(uae_u16 opcode, uae_u16 extra, uae_u32 ea, uaecptr oldpc, fpdata *src, uae_u32 *packed)
 {
-	static int warned = 20;
 	uae_u32 reg = (extra >> 7) & 7;
 	uae_u32 size = (extra >> 10) & 7;
 	uae_u32 opclass = (extra >> 13) & 7;
-	bool dyadic = ((extra & 0x30) == 0x20 || (extra & 0x7f) == 0x38);
 
-	regs.fpiar = oldpc;
 	regs.fp_ea = ea;
+	regs.fp_unimp_pend = packed ? 2 : 1;
 
 	if((extra & 0x7f) == 4) // FSQRT 4->5
 		extra |= 1;
-
-	regs.fp_unimp_pend = 1;
-	if (packed)
-		regs.fp_unimp_pend |= 2;
 
 	// data for fsave stack frame
 	reset_fsave_data();
@@ -750,7 +785,6 @@ static void fp_check_unimp_datatype(uae_u16 opcode, uae_u16 extra, uae_u32 ea, u
 	if (currprefs.cpu_model == 68060) {
 		// fsave data for 68060
 		fsave_data.v = 7; // vector & 0x7
-		fpp_get_exceptional_operand(&fsave_data.eo[0], &fsave_data.eo[1], &fsave_data.eo[2]);
 	} else if (currprefs.cpu_model == 68040) {
 		// fsave data for 68040
 		fsave_data.cmdreg1b = extra;
@@ -777,7 +811,7 @@ static void fp_check_unimp_datatype(uae_u16 opcode, uae_u16 extra, uae_u32 ea, u
 				if (fsave_data.stag == 5) {
 					fsave_data.et[0] = (size == 1) ? 0x3f800000 : 0x3c000000; // exponent for denormalized single and double
 				}
-				if (dyadic) {
+				if (fp_is_dyadic(extra)) {
 					fpp_from_exten_fmovem(&regs.fp[reg], &fsave_data.fpt[0], &fsave_data.fpt[1], &fsave_data.fpt[2]);
 					fsave_data.dtag = get_ftag(&regs.fp[reg], -1);
 				}
@@ -785,7 +819,8 @@ static void fp_check_unimp_datatype(uae_u16 opcode, uae_u16 extra, uae_u32 ea, u
 		}
 	}
 	if (warned > 0) {
-		write_log (_T("FPU EXCEPTION OP=%04X-%04X EA=%08X PC=%08X -> %08X\n"), opcode, extra, ea, oldpc, m68k_getpc());
+		write_log (_T("FPU unimplemented datatype (%s): OP=%04X-%04X EA=%08X PC=%08X\n"),
+			packed ? _T("packed") : _T("denormal"), opcode, extra, ea, oldpc);
 #if EXCEPTION_FPP == 0
 		warned--;
 #endif
@@ -799,7 +834,7 @@ static void fpu_op_illg(uae_u16 opcode, uae_u32 ea, uaecptr oldpc)
 		|| (currprefs.cpu_model == 68040 && currprefs.fpu_model == 0)) {
 			regs.fp_unimp_ins  = true;
 			regs.fp_ea = ea;
-			fp_unimplemented_instruction_exception();
+			fp_unimp_instruction_exception_pending();
 			return;
 	}
 	regs.fp_exception = true;
@@ -838,7 +873,7 @@ static bool fault_if_unimplemented_680x0 (uae_u16 opcode, uae_u16 extra, uaecptr
 			return false;
 		if ((extra & 0xfc00) == 0x5c00) {
 			// FMOVECR
-			fpu_op_unimp_instruction(opcode, extra, ea, oldpc, src, reg, -1);
+			fp_unimp_instruction(opcode, extra, ea, oldpc, src, reg, -1);
 			return true;
 		}
 		uae_u16 v = extra & 0x7f;
@@ -881,7 +916,7 @@ static bool fault_if_unimplemented_680x0 (uae_u16 opcode, uae_u16 extra, uaecptr
 				return false;
 			}
 			default:
-			fpu_op_unimp_instruction(opcode, extra, ea, oldpc, src, reg, -1);
+			fp_unimp_instruction(opcode, extra, ea, oldpc, src, reg, -1);
 			return true;
 		}
 	}
@@ -957,23 +992,15 @@ static bool fault_if_60 (void)
 	return false;
 }
 
-static bool fault_if_4060 (uae_u16 opcode, uae_u16 extra, uaecptr ea, uaecptr oldpc, fpdata *src, uae_u32 *packed)
-{
-	if (currprefs.cpu_model >= 68040 && currprefs.fpu_model && currprefs.fpu_no_unimplemented) {
-		fp_check_unimp_datatype(opcode, extra, ea, oldpc, src, packed);
-		//fpu_op_unimp (opcode, extra, ea, oldpc, type, src, -1, -1);
-		return true;
-	}
-	return false;
-}
-
 static bool fault_if_no_fpu_u (uae_u16 opcode, uae_u16 extra, uaecptr ea, uaecptr oldpc)
 {
 	if (fault_if_no_fpu (opcode, extra, ea, oldpc))
 		return true;
 	if (currprefs.cpu_model == 68060 && currprefs.fpu_model && currprefs.fpu_no_unimplemented) {
 		// 68060 FTRAP, FDBcc or FScc are not implemented.
-		fpu_op_unimp_instruction(opcode, extra, ea, oldpc, NULL, -1, -1);
+		regs.fp_unimp_ins = true;
+		regs.fp_ea = ea;
+		fp_unimp_instruction_exception_pending();
 		return true;
 	}
 	return false;
@@ -1196,15 +1223,21 @@ static void from_pack (fpdata *src, uae_u32 *wrd, int kfactor)
 	
 	// get exponent
 	cp = str;
-	while (*cp++ != 'e');
+	while (*cp != 'e') {
+		if (*cp == 0)
+			return;
+		cp++;
+	}
+	cp++;
 	if (*cp == '+')
 		cp++;
 	exp = atoi (cp);
 
 	// remove trailing zeros
 	cp = str;
-	while (*cp != 'e')
+	while (*cp != 'e') {
 		cp++;
+	}
 	cp[0] = 0;
 	cp--;
 	while (cp > str && *cp == '0') {
@@ -1315,12 +1348,10 @@ static bool normalize_or_fault_if_no_denormal_support(uae_u16 opcode, uae_u16 ex
 {
     if (fpp_is_unnormal(src) || fpp_is_denormal(src)) {
 		if (currprefs.cpu_model >= 68040 && currprefs.fpu_model && currprefs.fpu_no_unimplemented) {
-			fp_check_unimp_datatype(opcode, extra, ea, oldpc, src, NULL);
-			//fpu_op_unimp(opcode, extra, ea, oldpc, FP_EXP_UNIMP_DATATYPE_PRE, fpd, -1, size);
+			fp_unimp_datatype(opcode, extra, ea, oldpc, src, NULL);
 			return true;
 		} else {
 			fpp_normalize(src);
-			return false;
 		}
 	}
 	return false;
@@ -1329,24 +1360,33 @@ static bool normalize_or_fault_if_no_denormal_support_dst(uae_u16 opcode, uae_u1
 {
 	if (fpp_is_unnormal(dst) || fpp_is_denormal(dst)) {
 		if (currprefs.cpu_model >= 68040 && currprefs.fpu_model && currprefs.fpu_no_unimplemented) {
-			fp_check_unimp_datatype(opcode, extra, ea, oldpc, src, NULL);
-			//fpu_op_unimp(opcode, extra, ea, oldpc, FP_EXP_UNIMP_DATATYPE_POST, fpd, -1, size);
+			fp_unimp_datatype(opcode, extra, ea, oldpc, src, NULL);
 			return true;
 		} else {
 			fpp_normalize(dst);
-			return false;
 		}
 	}
 	return false;
 }
 
+// 68040/060 does not support packed decimal format
+static bool fault_if_no_packed_support(uae_u16 opcode, uae_u16 extra, uaecptr ea, uaecptr oldpc, fpdata *src, uae_u32 *packed)
+{
+	if (currprefs.cpu_model >= 68040 && currprefs.fpu_model) {
+		fp_unimp_datatype(opcode, extra, ea, oldpc, src, packed);
+		return true;
+	}
+	return false;
+ }
+
+// 68040 does not support move to integer format
 static bool fault_if_68040_integer_nonmaskable(uae_u16 opcode, uae_u16 extra, uaecptr ea, uaecptr oldpc, fpdata *src)
 {
 	if (currprefs.cpu_model == 68040 && currprefs.fpu_model) {
 		fpsr_make_status();
 		if (regs.fpsr & (FPSR_SNAN | FPSR_OPERR)) {
-			fpsr_check_exception(FPSR_SNAN | FPSR_OPERR, src, opcode, extra, ea);
-			fp_arithmetic_exception(false); // post
+			fpsr_check_arithmetic_exception(FPSR_SNAN | FPSR_OPERR, src, opcode, extra, ea);
+			fp_exception_pending(false); // post
 			if (currprefs.fpu_exceptions)
 				return true;
 		}
@@ -1367,8 +1407,7 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 		if (fault_if_no_fpu (opcode, extra, 0, oldpc))
 			return -1;
 		*src = regs.fp[(extra >> 10) & 7];
-		if (normalize_or_fault_if_no_denormal_support(opcode, extra, 0, oldpc, src))
-			return -1;
+		normalize_or_fault_if_no_denormal_support(opcode, extra, 0, oldpc, src);
 		return 1;
 	}
 	mode = (opcode >> 3) & 7;
@@ -1390,8 +1429,7 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 					break;
 				case 1:
 					fpp_to_single (src, m68k_dreg (regs, reg));
-					if (normalize_or_fault_if_no_denormal_support(opcode, extra, 0, oldpc, src))
-						return -1;
+					normalize_or_fault_if_no_denormal_support(opcode, extra, 0, oldpc, src);
 					break;
 				default:
 					return 0;
@@ -1477,9 +1515,13 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 	}
 
 	*adp = ad;
+	uae_u32 adold = ad;
 
-	if (currprefs.fpu_model == 68060 && fault_if_unimplemented_680x0 (opcode, extra, ad, oldpc, src, -1))
-		return -1;
+	if (currprefs.fpu_model == 68060) {
+		if (fault_if_unimplemented_680x0(opcode, extra, ad, oldpc, src, -1)) {
+			return -1;
+		}
+	}
 
 	switch (size)
 	{
@@ -1488,8 +1530,7 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 			break;
 		case 1:
 			fpp_to_single (src, (doext ? exts[0] : x_cp_get_long (ad)));
-			if (normalize_or_fault_if_no_denormal_support(opcode, extra, 0, oldpc, src))
-				return -1;
+			normalize_or_fault_if_no_denormal_support(opcode, extra, adold, oldpc, src);
 			break;
 		case 2:
 			{
@@ -1500,25 +1541,23 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 				ad += 4;
 				wrd3 = (doext ? exts[2] : x_cp_get_long (ad));
 				fpp_to_exten (src, wrd1, wrd2, wrd3);
-				if (normalize_or_fault_if_no_denormal_support(opcode, extra, 0, oldpc, src))
-					return -1;
+				normalize_or_fault_if_no_denormal_support(opcode, extra, adold, oldpc, src);
 			}
 			break;
 		case 3:
 			{
 				uae_u32 wrd[3];
-				uae_u32 adold = ad;
 				if (currprefs.cpu_model == 68060) {
-					if (fault_if_4060 (opcode, extra, adold, oldpc, NULL, wrd))
-						return -1;
+					if (fault_if_no_packed_support (opcode, extra, adold, oldpc, NULL, wrd))
+						return 1;
 				}
 				wrd[0] = (doext ? exts[0] : x_cp_get_long (ad));
 				ad += 4;
 				wrd[1] = (doext ? exts[1] : x_cp_get_long (ad));
 				ad += 4;
 				wrd[2] = (doext ? exts[2] : x_cp_get_long (ad));
-				if (fault_if_4060 (opcode, extra, adold, oldpc, NULL, wrd))
-					return -1;
+				if (fault_if_no_packed_support (opcode, extra, adold, oldpc, NULL, wrd))
+					return 1;
 				to_pack (src, wrd);
 				fpp_normalize(src);
 				return 1;
@@ -1534,8 +1573,7 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 				ad += 4;
 				wrd2 = (doext ? exts[1] : x_cp_get_long (ad));
 				fpp_to_double (src, wrd1, wrd2);
-				if (normalize_or_fault_if_no_denormal_support(opcode, extra, 0, oldpc, src))
-					return -1;
+				normalize_or_fault_if_no_denormal_support(opcode, extra, adold, oldpc, src);
 			}
 			break;
 		case 6:
@@ -1573,29 +1611,35 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 	switch (mode)
 	{
 		case 0:
-			if (normalize_or_fault_if_no_denormal_support(opcode, extra, ad, oldpc, value))
-				return -1;
 
 			switch (size)
 			{
 				case 6:
+					if (normalize_or_fault_if_no_denormal_support(opcode, extra, 0, oldpc, value))
+						return 1;
 					m68k_dreg (regs, reg) = (uae_u32)(((fpp_to_int (value, 0) & 0xff)
 						| (m68k_dreg (regs, reg) & ~0xff)));
 					if (fault_if_68040_integer_nonmaskable(opcode, extra, ad, oldpc, value))
 						return -1;
 					break;
 				case 4:
+					if (normalize_or_fault_if_no_denormal_support(opcode, extra, 0, oldpc, value))
+						return 1;
 					m68k_dreg (regs, reg) = (uae_u32)(((fpp_to_int (value, 1) & 0xffff)
 						| (m68k_dreg (regs, reg) & ~0xffff)));
 					if (fault_if_68040_integer_nonmaskable(opcode, extra, ad, oldpc, value))
 						return -1;
 					break;
 				case 0:
+					if (normalize_or_fault_if_no_denormal_support(opcode, extra, 0, oldpc, value))
+						return 1;
 					m68k_dreg (regs, reg) = (uae_u32)fpp_to_int (value, 2);
 					if (fault_if_68040_integer_nonmaskable(opcode, extra, ad, oldpc, value))
 						return -1;
 					break;
 				case 1:
+					if (normalize_or_fault_if_no_denormal_support(opcode, extra, 0, oldpc, value))
+						return 1;
 					m68k_dreg (regs, reg) = fpp_from_single (value);
 					break;
 				default:
@@ -1661,21 +1705,21 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 	{
 		case 0:
 			if (normalize_or_fault_if_no_denormal_support(opcode, extra, ad, oldpc, value))
-				return -1;
+				return 1;
 			x_cp_put_long(ad, (uae_u32)fpp_to_int(value, 2));
 			if (fault_if_68040_integer_nonmaskable(opcode, extra, ad, oldpc, value))
 				return -1;
 			break;
 		case 1:
 			if (normalize_or_fault_if_no_denormal_support(opcode, extra, ad, oldpc, value))
-				return -1;
+				return 1;
 			x_cp_put_long(ad, fpp_from_single(value));
 			break;
 		case 2:
 			{
-				uae_u32 wrd1, wrd2, wrd3;
 				if (normalize_or_fault_if_no_denormal_support(opcode, extra, ad, oldpc, value))
-					return -1;
+					return 1;
+				uae_u32 wrd1, wrd2, wrd3;
 				fpp_from_exten(value, &wrd1, &wrd2, &wrd3);
 				x_cp_put_long (ad, wrd1);
 				ad += 4;
@@ -1689,8 +1733,8 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 			{
 				uae_u32 wrd[3];
 				int kfactor;
-				if (fault_if_4060 (opcode, extra, ad, oldpc, value, wrd))
-					return 1; // for calling fp_arithmetic_exception
+				if (fault_if_no_packed_support (opcode, extra, ad, oldpc, value, wrd))
+					return 1;
 				kfactor = size == 7 ? m68k_dreg (regs, (extra >> 4) & 7) : extra;
 				kfactor &= 127;
 				if (kfactor & 64)
@@ -1706,16 +1750,16 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 			break;
 		case 4:
 			if (normalize_or_fault_if_no_denormal_support(opcode, extra, ad, oldpc, value))
-				return -1;
+				return 1;
 			x_cp_put_word(ad, (uae_s16)fpp_to_int(value, 1));
 			if (fault_if_68040_integer_nonmaskable(opcode, extra, ad, oldpc, value))
 				return -1;
 			break;
 		case 5:
 			{
-				uae_u32 wrd1, wrd2;
 				if (normalize_or_fault_if_no_denormal_support(opcode, extra, ad, oldpc, value))
-					return -1;
+					return 1;
+				uae_u32 wrd1, wrd2;
 				fpp_from_double(value, &wrd1, &wrd2);
 				x_cp_put_long (ad, wrd1);
 				ad += 4;
@@ -1724,7 +1768,7 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 			break;
 		case 6:
 			if (normalize_or_fault_if_no_denormal_support(opcode, extra, ad, oldpc, value))
-				return -1;
+				return 1;
 			x_cp_put_byte(ad, (uae_s8)fpp_to_int(value, 0));
 			if (fault_if_68040_integer_nonmaskable(opcode, extra, ad, oldpc, value))
 				return -1;
@@ -1880,7 +1924,7 @@ void fpuop_dbcc (uae_u32 opcode, uae_u16 extra)
 	uae_s32 disp;
 	int cc;
 
-	if (fp_arithmetic_exception(true))
+	if (fp_exception_pending(true))
 		return;
 
 	regs.fp_exception = false;
@@ -1919,7 +1963,7 @@ void fpuop_scc (uae_u32 opcode, uae_u16 extra)
 	int cc;
 	uaecptr pc = m68k_getpc () - 4;
 
-	if (fp_arithmetic_exception(true))
+	if (fp_exception_pending(true))
 		return;
 
 	regs.fp_exception = false;
@@ -1959,7 +2003,7 @@ void fpuop_trapcc (uae_u32 opcode, uaecptr oldpc, uae_u16 extra)
 {
 	int cc;
 
-	if (fp_arithmetic_exception(true))
+	if (fp_exception_pending(true))
 		return;
 
 	regs.fp_exception = false;
@@ -1986,7 +2030,7 @@ void fpuop_bcc (uae_u32 opcode, uaecptr oldpc, uae_u32 extra)
 {
 	int cc;
 
-	if (fp_arithmetic_exception(true))
+	if (fp_exception_pending(true))
 		return;
 
 	regs.fp_exception = false;
@@ -2152,13 +2196,15 @@ void fpuop_save (uae_u32 opcode)
 				ad -= frame_size;
 		}
 	} else { /* 68881/68882 */
-		uae_u32 biu_flags = 0x7000ffff;
+		uae_u32 biu_flags = 0x540effff;
 		int frame_size_real = currprefs.fpu_model == 68882 ? 0x3c : 0x1c;
 		uae_u32 frame_id = regs.fpu_state == 0 ? ((frame_size_real - 4) << 16) : (fpu_version << 24) | ((frame_size_real - 4) << 16);
 		
-		if (regs.fpu_state) { // not in null state
-			biu_flags |= regs.fp_exp_pend ? 0x00000000 : 0x08000000;
-			regs.fp_exp_pend = 0;
+		regs.fp_exp_pend = 0;
+		if (regs.fpu_exp_state) {
+			biu_flags |= 0x20000000;
+		} else {
+			biu_flags |= 0x08000000;
 		}
 
 		if (currprefs.mmu_model) {
@@ -2179,7 +2225,7 @@ void fpuop_save (uae_u32 opcode)
 					i++;
 					ad -= 4;
 					if (mmu030_state[0] == i) {
-						x_put_long (ad, fsave_data.eo[0]); // exceptional operand lo
+						x_put_long (ad, fsave_data.eo[2]); // exceptional operand lo
 						mmu030_state[0]++;
 					}
 					i++;
@@ -2191,7 +2237,7 @@ void fpuop_save (uae_u32 opcode)
 					i++;
 					ad -= 4;
 					if (mmu030_state[0] == i) {
-						x_put_long (ad, fsave_data.eo[2]); // exceptional operand hi
+						x_put_long (ad, fsave_data.eo[0]); // exceptional operand hi
 						mmu030_state[0]++;
 					}
 					i++;
@@ -2207,7 +2253,7 @@ void fpuop_save (uae_u32 opcode)
 					}
 					ad -= 4;
 					if (mmu030_state[0] == i) {
-						x_put_long(ad, 0x00000000); // command/condition register
+						x_put_long(ad, fsave_data.ccr); // command/condition register
 						mmu030_state[0]++;
 					}
 					i++;
@@ -2226,7 +2272,7 @@ void fpuop_save (uae_u32 opcode)
 				i++;
 				if (regs.fpu_state != 0) { // idle frame
 					if(mmu030_state[0] == i) {
-						x_put_long(ad, 0x00000000); // command/condition register
+						x_put_long(ad, fsave_data.ccr); // command/condition register
 						mmu030_state[0]++;
 					}
 					ad += 4;
@@ -2242,7 +2288,7 @@ void fpuop_save (uae_u32 opcode)
 						}
 					}
 					if (mmu030_state[0] == i) {
-						x_put_long (ad, fsave_data.eo[2]); // exceptional operand lo
+						x_put_long (ad, fsave_data.eo[0]); // exceptional operand lo
 						mmu030_state[0]++;
 					}
 					ad += 4;
@@ -2254,7 +2300,7 @@ void fpuop_save (uae_u32 opcode)
 					ad += 4;
 					i++;
 					if (mmu030_state[0] == i) {
-						x_put_long (ad, fsave_data.eo[0]); // exceptional operand hi
+						x_put_long (ad, fsave_data.eo[2]); // exceptional operand hi
 						mmu030_state[0]++;
 					}
 					ad += 4;
@@ -2280,11 +2326,11 @@ void fpuop_save (uae_u32 opcode)
 					ad -= 4;
 					x_put_long(ad, 0x00000000); // operand register
 					ad -= 4;
-					x_put_long(ad, fsave_data.eo[0]); // exceptional operand lo
+					x_put_long(ad, fsave_data.eo[2]); // exceptional operand lo
 					ad -= 4;
 					x_put_long(ad, fsave_data.eo[1]); // exceptional operand mid
 					ad -= 4;
-					x_put_long(ad, fsave_data.eo[2]); // exceptional operand hi
+					x_put_long(ad, fsave_data.eo[0]); // exceptional operand hi
 					if (currprefs.fpu_model == 68882) {
 						for (i = 0; i < 32; i += 4) {
 							ad -= 4;
@@ -2292,7 +2338,7 @@ void fpuop_save (uae_u32 opcode)
 						}
 					}
 					ad -= 4;
-					x_put_long(ad, 0x00000000); // command/condition register
+					x_put_long(ad, fsave_data.ccr); // command/condition register
 				}
 				ad -= 4;
 				x_put_long (ad, frame_id); // frame id
@@ -2300,7 +2346,7 @@ void fpuop_save (uae_u32 opcode)
 				x_put_long(ad, frame_id); // frame id
 				ad += 4;
 				if (regs.fpu_state != 0) { // idle frame
-					x_put_long(ad, 0x00000000); // command/condition register
+					x_put_long(ad, fsave_data.ccr); // command/condition register
 					ad += 4;
 					if(currprefs.fpu_model == 68882) {
 						for(i = 0; i < 32; i += 4) {
@@ -2308,11 +2354,11 @@ void fpuop_save (uae_u32 opcode)
 							ad += 4;
 						}
 					}
-					x_put_long(ad, fsave_data.eo[2]); // exceptional operand hi
+					x_put_long(ad, fsave_data.eo[0]); // exceptional operand hi
 					ad += 4;
 					x_put_long(ad, fsave_data.eo[1]); // exceptional operand mid
 					ad += 4;
-					x_put_long(ad, fsave_data.eo[0]); // exceptional operand lo
+					x_put_long(ad, fsave_data.eo[2]); // exceptional operand lo
 					ad += 4;
 					x_put_long(ad, 0x00000000); // operand register
 					ad += 4;
@@ -2434,6 +2480,7 @@ void fpuop_restore (uae_u32 opcode)
 				ad += 4;
 			}
 			if ((biu_flags & 0x08000000) == 0x00000000) {
+				regs.fpu_exp_state = 2;
 				regs.fp_exp_pend = fpsr_get_vector(regs.fpsr & regs.fpcr & 0xff00);
 			}
 		} else { // null frame
@@ -2687,9 +2734,9 @@ static bool arithmetic(fpdata *src, fpdata *dst, int extra)
 			break;
 		case 0x24: /* FSGLDIV */
 			fpp_sgldiv(dst, src);
+			fpsr_set_result(dst);
 			if (fpsr_make_status())
 				return false;
-			fpsr_set_result(dst);
 			return true;
 		case 0x25: /* FREM */
 			fpp_rem(dst, src, &q, &s);
@@ -2702,9 +2749,9 @@ static bool arithmetic(fpdata *src, fpdata *dst, int extra)
 			break;
 		case 0x27: /* FSGLMUL */
 			fpp_sglmul(dst, src);
+			fpsr_set_result(dst);
 			if (fpsr_make_status())
 				return false;
-			fpsr_set_result(dst);
 			return true;
 		case 0x28: /* FSUB */
 		case 0x68: /* FSSUB */
@@ -2730,17 +2777,17 @@ static bool arithmetic(fpdata *src, fpdata *dst, int extra)
 		case 0x38: /* FCMP */
 		{
 			fpp_cmp(dst, src);
+			fpsr_set_result(dst);
 			if (fpsr_make_status())
 				return false;
-			fpsr_set_result(dst);
 			return false;
 		}
 		case 0x3a: /* FTST */
 		{
 			fpp_tst(dst, src);
+			fpsr_set_result(dst);
 			if (fpsr_make_status())
 				return false;
-			fpsr_set_result(dst);
 			return false;
 		}
 		default:
@@ -2759,10 +2806,11 @@ static bool arithmetic(fpdata *src, fpdata *dst, int extra)
         fpp_round_double(dst);
 	}
 
+	fpsr_set_result(dst);
+
 	if (fpsr_make_status())
 		return false;
 
-	fpsr_set_result(dst);
 	return true;
 }
 
@@ -2784,7 +2832,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 	switch ((extra >> 13) & 0x7)
 	{
 		case 3:
-			if (fp_arithmetic_exception(true))
+			if (fp_exception_pending(true))
 				return;
 
             regs.fpiar = pc;
@@ -2797,8 +2845,8 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 				return;
 			}
 			fpsr_make_status();
-			fpsr_check_exception(0, &src, opcode, extra, ad);
-			fp_arithmetic_exception(false); // post/mid instruction
+			fpsr_check_arithmetic_exception(0, &src, opcode, extra, ad);
+			fp_exception_pending(false); // post/mid instruction
 			return;
 
 		case 4:
@@ -2992,7 +3040,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 
 		case 0:
 		case 2: /* Extremely common */
-			if (fp_arithmetic_exception(true))
+			if (fp_exception_pending(true))
 				return;
 
 			regs.fpiar = pc;
@@ -3005,7 +3053,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 				fpsr_clear_status();
 				fpu_get_constant(&regs.fp[reg], extra);
                 fpsr_make_status();
-				fpsr_check_exception(0, &src, opcode, extra, ad);
+				fpsr_check_arithmetic_exception(0, &src, opcode, extra, ad);
 				return;
 			}
 
@@ -3017,30 +3065,29 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 
 			v = get_fp_value (opcode, extra, &src, pc, &ad);
 			if (v <= 0) {
-				if (v == 0) {
+				if (v == 0)
 					fpu_noinst (opcode, pc);
-					return;
-				}
-				fault_if_unimplemented_680x0 (opcode, extra, ad, pc, &src, reg);
 				return;
 			}
-
-			// get_fp_value() checked this, but only if EA was nonzero (non-register)
-			if (fault_if_unimplemented_680x0 (opcode, extra, ad, pc, &src, reg))
-				return;
 
 			dst = regs.fp[reg];
 
-			if((extra & 0x30) == 0x20 || (extra & 0x7f) == 0x38) { // dyadic operation
-				if (normalize_or_fault_if_no_denormal_support_dst(opcode, extra, ad, pc, &dst, &src))
-					return;
-			}
+			if (fp_is_dyadic(extra))
+				normalize_or_fault_if_no_denormal_support_dst(opcode, extra, ad, pc, &dst, &src);
+
+			// check for 680x0 unimplemented instruction
+			if (fault_if_unimplemented_680x0 (opcode, extra, ad, pc, &src, reg))
+				return;
+
+			// unimplemented datatype was checked in get_fp_value
+			if (regs.fp_unimp_pend)
+				return;
 
 			v = arithmetic(&src, &dst, extra);
 			if (v)
 				regs.fp[reg] = dst;
 
-			fpsr_check_exception(0, &src, opcode, extra, ad);
+			fpsr_check_arithmetic_exception(0, &src, opcode, extra, ad);
 			return;
 		default:
 		break;

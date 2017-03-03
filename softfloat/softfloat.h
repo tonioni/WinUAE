@@ -199,6 +199,24 @@ enum {
 //    float_flag_output_denormal = 128
 };
 
+/*----------------------------------------------------------------------------
+ | Variables for storing sign, exponent and significand of overflowed or 
+ | underflowed extended double-precision floating-point value.
+ | Variables for storing sign, exponent and significand of internal extended 
+ | double-precision floating-point value for external use.
+ *----------------------------------------------------------------------------*/
+
+extern flag floatx80_internal_sign;
+extern uint32_t floatx80_internal_exp;
+extern uint64_t floatx80_internal_sig0;
+extern uint64_t floatx80_internal_sig1;
+
+/*----------------------------------------------------------------------------
+ | Function for storing sign, exponent and significand of extended 
+ | double-precision floating-point intermediate result for external use.
+ *----------------------------------------------------------------------------*/
+void saveFloatx80Internal( flag zSign, uint32_t zExp, uint64_t zSig0, uint64_t zSig1 );
+
 typedef struct float_status {
     signed char float_detect_tininess;
     signed char float_rounding_mode;

@@ -82,7 +82,8 @@ extern FPP_A fpp_round32;
 extern FPP_A fpp_round64;
 
 extern FPP_A fpp_normalize;
-extern FPP_PACK fpp_get_exceptional_operand;
+extern FPP_A fpp_get_internal_overflow;
+extern FPP_A fpp_get_internal_underflow;
 extern FPP_PACKG fpp_get_exceptional_operand_grs;
 
 extern FPP_AB fpp_int;
