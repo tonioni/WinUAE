@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 199
+#define NEXT_ROM_ID 200
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -405,7 +405,7 @@ static struct romdata roms[] = {
 	0x3f4e4a74, 0x9ed96fc0,0xd6381dc3,0x3192b0af,0xdfae4b74,0x576c3a69, NULL, NULL },
 	{ _T("Protar A500HD"), 1, 193, 1, 193, _T("PROTAR\0"), 32768, 131, 0, 0, ROMTYPE_PROTAR, 0, 0, NULL,
 	0x10c1b22c, 0x2b800cde,0x79fd559e,0xebd5e432,0xd711af3d,0x0b8ea7e9, NULL, NULL },
-	{ _T("M-Tec AT500"), 1, 33, 1, 33, _T("MTECAT\0"), 32768, 130, 0, 0, ROMTYPE_MTEC, 0, 0, NULL,
+	{ _T("M-Tec AT500 v1.33w"), 1, 33, 1, 33, _T("MTECAT\0"), 32768, 130, 0, 0, ROMTYPE_MTEC, 0, 0, NULL,
 	0x38b6b6b0, 0x8bb1093a,0xd592e7df,0x99c48f83,0xb9f842b2,0xb1a6e618, NULL, NULL },
 	{ _T("AdIDE 40/44 v33"), 33, 0, 33, 0, _T("ADIDE\0"), 16384, 141, 0, 0, ROMTYPE_ADIDE, 0, 0, NULL,
 	0x330254ce, 0xc91dd3b5,0x3f1986bd,0x94fba150,0xe753c2da,0x4dee78e7, NULL, NULL },
@@ -479,6 +479,8 @@ static struct romdata roms[] = {
 	0x8d144212, 0xc5a4f497, 0x5216c1b1, 0xe08760d0, 0x0bd579ef, 0xea226354, NULL, NULL },
 	{ _T("Mainhattan Data A-Team v1.8"), 1, 8, 1, 8, _T("ATEAM\0"), 65536, 174, 0, 0, ROMTYPE_ATEAM, 0, 0, NULL,
 	0x4fe08a5d, 0x007e5c61, 0x4048f598, 0x6d14011d, 0x23a41435, 0x5e0a2259, NULL, NULL },
+	{ _T("M-Tec AT500 Megabody v1.33"), 1, 33, 1, 33, _T("MTECAT\0"), 32768, 199, 0, 0, ROMTYPE_MTEC, 0, 0, NULL,
+	0x19715a2f, 0x124f9d10, 0x19f1b285, 0x16f33f4e, 0x2bf03ca0, 0x2f9ad772, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },
