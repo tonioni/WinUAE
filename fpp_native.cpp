@@ -122,6 +122,9 @@ static const double twoto32 = 4294967296.0;
 #define FPCR_PRECISION_EXTENDED	0x00000000
 
 static struct float_status fs;
+static uae_u32 fpu_mode_control = 0;
+static int fpu_prec;
+static int temp_prec;
 
 #if defined(CPU_i386) || defined(CPU_x86_64)
 
@@ -212,32 +215,44 @@ static void native_set_fpucw(uae_u32 m68k_cw)
 /* Functions for setting host/library modes and getting status */
 static void fp_set_mode(uae_u32 mode_control)
 {
+	if (mode_control == fpu_mode_control)
+		return;
     switch(mode_control & FPCR_ROUNDING_PRECISION) {
         case FPCR_PRECISION_EXTENDED: // X
+#ifdef USE_LONG_DOUBLE
+			fpu_prec = 80;
+#else
+			fpu_prec = 64;
+#endif
             break;
         case FPCR_PRECISION_SINGLE:   // S
+			fpu_prec = 32;
             break;
         case FPCR_PRECISION_DOUBLE:   // D
         default:                      // undefined
+			fpu_prec = 64;
             break;
     }
 #ifdef USE_HOST_ROUNDING
-    switch(mode_control & FPCR_ROUNDING_MODE) {
-        case FPCR_ROUND_NEAR: // to neareset
-            fesetround(FE_TONEAREST);
-            break;
-        case FPCR_ROUND_ZERO: // to zero
-            fesetround(FE_TOWARDZERO);
-            break;
-        case FPCR_ROUND_MINF: // to minus
-            fesetround(FE_DOWNWARD);
-            break;
-        case FPCR_ROUND_PINF: // to plus
-            fesetround(FE_UPWARD);
-            break;
-    }
+	if ((mode_control & FPCR_ROUNDING_MODE) != (fpu_mode_control & FPCR_ROUNDING_MODE)) {
+		switch(mode_control & FPCR_ROUNDING_MODE) {
+			case FPCR_ROUND_NEAR: // to neareset
+				fesetround(FE_TONEAREST);
+				break;
+			case FPCR_ROUND_ZERO: // to zero
+				fesetround(FE_TOWARDZERO);
+				break;
+			case FPCR_ROUND_MINF: // to minus
+				fesetround(FE_DOWNWARD);
+				break;
+			case FPCR_ROUND_PINF: // to plus
+				fesetround(FE_UPWARD);
+				break;
+		}
+	}
 	native_set_fpucw(mode_control);
 #endif
+	fpu_mode_control = mode_control;
 }
 
 
@@ -262,30 +277,6 @@ static void fp_get_status(uae_u32 *status)
 static void fp_clear_status(void)
 {
     feclearexcept (FE_ALL_EXCEPT);
-}
-
-static const TCHAR *fp_print(fpdata *fpd)
-{
-	static TCHAR fs[32];
-	bool n, d;
-
-	n = signbit(fpd->fp) ? 1 : 0;
-	d = isnormal(fpd->fp) ? 0 : 1;
-
-	if(isinf(fpd->fp)) {
-		_stprintf(fs, _T("%c%s"), n ? '-' : '+', _T("inf"));
-	} else if(isnan(fpd->fp)) {
-		_stprintf(fs, _T("%c%s"), n ? '-' : '+', _T("nan"));
-	} else {
-		if(n)
-			fpd->fp *= -1.0;
-#if USE_LONG_DOUBLE
-		_stprintf(fs, _T("#%Le"), fpd->fp);
-#else
-		_stprintf(fs, _T("#%e"), fpd->fp);
-#endif
-	}
-	return fs;
 }
 
 /* Functions for detecting float type */
@@ -602,19 +593,95 @@ static void fp_round_double(fpdata *fpd)
 #endif
 }
 
+static const TCHAR *fp_print(fpdata *fpd, int mode)
+{
+	static TCHAR fsout[32];
+	bool n, d;
+
+	if (mode < 0) {
+		uae_u32 w1, w2, w3;
+		fp_from_exten(fpd, &w1, &w2, &w3);
+		_stprintf(fsout, _T("%04X-%08X-%08X"), w1 >> 16, w2, w3);
+		return fsout;
+	}
+
+	n = signbit(fpd->fp) ? 1 : 0;
+	d = isnormal(fpd->fp) ? 0 : 1;
+
+	if(isinf(fpd->fp)) {
+		_stprintf(fsout, _T("%c%s"), n ? '-' : '+', _T("inf"));
+	} else if(isnan(fpd->fp)) {
+		_stprintf(fsout, _T("%c%s"), n ? '-' : '+', _T("nan"));
+	} else {
+		if(n)
+			fpd->fp *= -1.0;
+#if USE_LONG_DOUBLE
+		_stprintf(fsout, _T("#%Le"), fpd->fp);
+#else
+		_stprintf(fsout, _T("#%e"), fpd->fp);
+#endif
+	}
+	if (mode == 0 || mode > _tcslen(fsout))
+		return fsout;
+	fsout[mode] = 0;
+	return fsout;
+}
+
+static void fp_set_prec(int prec)
+{
+#if 0
+	temp_fpu_mode_control = fpu_mode_control;
+	if (prec && fpu_prec > prec) {
+		fpu_mode_control &= ~FPCR_ROUNDING_PRECISION;
+		switch (prec)
+		{
+			case 80:
+			fpu_mode_control |= FPCR_PRECISION_EXTENDED;
+			break;
+			case 64:
+			default:
+			fpu_mode_control |= FPCR_PRECISION_DOUBLE;
+			break;
+			case 32:
+			fpu_mode_control |= FPCR_PRECISION_SINGLE;
+			break;
+		}
+		fp_set_mode(fpu_mode_control);
+	}
+#endif
+	temp_prec = prec;
+}
+static void fp_reset_prec(fpdata *fpd)
+{
+#if 0
+	fp_set_mode(temp_fpu_mode_control);
+#else
+	int prec = temp_prec;
+	if (temp_prec == 0)
+		prec = fpu_prec;
+	if (prec == 64) {
+		fp_round_double(fpd);
+	} else if (prec == 32) {
+		fp_round_single(fpd);
+	}
+#endif
+}
+
 /* Arithmetic functions */
 
-static void fp_move(fpdata *src, fpdata *dst)
+static void fp_move(fpdata *a, fpdata *b, int prec)
 {
-	dst->fp = src->fp;
+	fp_set_prec(prec);
+	a->fp = b->fp;
+	fp_reset_prec(a);
 }
 
 #ifdef USE_LONG_DOUBLE
 
-STATIC_INLINE fptype fp_int(fpdata *a, fpdata *dst)
+STATIC_INLINE fptype fp_int(fpdata *a, fpdata *b)
 {
 #ifdef USE_HOST_ROUNDING
-    dst->fp = rintl(a->dst);
+    a->fp = rintl(b->dst);
 #else
     switch (regs.fpcr & FPCR_ROUNDING_MODE)
     {
@@ -668,42 +735,44 @@ STATIC_INLINE fptype fp_rem(fptype a, fptype b, uae_u64 *q, uae_s8 *s)
 
 #else // if !USE_LONG_DOUBLE
 
-static void fp_int(fpdata *fpd, fpdata *dst)
+static void fp_int(fpdata *a, fpdata *b)
 {
-	fptype a = fpd->fp;
+	fptype bb = b->fp;
 #ifdef USE_HOST_ROUNDING
-	dst->fp = rintl(a);
+	a->fp = rintl(bb);
 #else
     switch (regs.fpcr & FPCR_ROUNDING_MODE)
     {
         case FPCR_ROUND_NEAR:
-            dst->fp = fp_round_to_nearest(a);
+            a->fp = fp_round_to_nearest(bb);
         case FPCR_ROUND_ZERO:
-            dst->fp = fp_round_to_zero(a);
+            a->fp = fp_round_to_zero(bb);
         case FPCR_ROUND_MINF:
-            dst->fp = fp_round_to_minus_infinity(a);
+            a->fp = fp_round_to_minus_infinity(bb);
         case FPCR_ROUND_PINF:
-            dst->fp = fp_round_to_plus_infinity(a);
+            a->fp = fp_round_to_plus_infinity(bb);
         default: /* never reached */
 		break;
     }
 #endif
 }
 
-static void fp_getexp(fpdata *a, fpdata *dst)
+static void fp_getexp(fpdata *a, fpdata *b)
 {
     int expon;
-    frexpl(a->fp, &expon);
-    dst->fp = (double) (expon - 1);
+    frexpl(b->fp, &expon);
+    a->fp = (double) (expon - 1);
 }
-static void fp_getman(fpdata *a, fpdata *dst)
+static void fp_getman(fpdata *a, fpdata *b)
 {
     int expon;
-    dst->fp = frexpl(a->fp, &expon) * 2.0;
+    a->fp = frexpl(b->fp, &expon) * 2.0;
 }
-static void fp_div(fpdata *a, fpdata *b)
+static void fp_div(fpdata *a, fpdata *b, int prec)
 {
+	fp_set_prec(prec);
 	a->fp = a->fp / b->fp;
+	fp_reset_prec(b);
 }
 static void fp_mod(fpdata *a, fpdata *b, uae_u64 *q, uae_u8 *s)
 {
@@ -747,113 +816,124 @@ static void fp_scale(fpdata *a, fpdata *b)
 
 #endif // !USE_LONG_DOUBLE
 
-static void fp_sinh(fpdata *a, fpdata *dst)
+static void fp_sinh(fpdata *a, fpdata *b)
 {
-	dst->fp = sinhl(a->fp);
+	a->fp = sinhl(b->fp);
 }
-static void fp_intrz(fpdata *fpd, fpdata *dst)
+static void fp_intrz(fpdata *a, fpdata *b)
 {
 #ifdef USE_HOST_ROUNDING
-    dst->fp = truncl(fpd->fp);
+    a->fp = truncl(b->fp);
 #else
-    dst->fp = fp_round_to_zero (fpd->fp);
+    a->fp = fp_round_to_zero (b->fp);
 #endif
 }
-static void fp_sqrt(fpdata *a, fpdata *dst)
+static void fp_sqrt(fpdata *a, fpdata *b, int prec)
 {
-	dst->fp = sqrtl(a->fp);
+	fp_set_prec(prec);
+	a->fp = sqrtl(b->fp);
+	fp_reset_prec(b);
 }
-static void fp_lognp1(fpdata *a, fpdata *dst)
+static void fp_lognp1(fpdata *a, fpdata *b)
 {
-	dst->fp = log1pl(a->fp);
+	a->fp = log1pl(b->fp);
 }
-static void fp_etoxm1(fpdata *a, fpdata *dst)
+static void fp_etoxm1(fpdata *a, fpdata *b)
 {
-	dst->fp = expm1l(a->fp);
+	a->fp = expm1l(b->fp);
 }
-static void fp_tanh(fpdata *a, fpdata *dst)
+static void fp_tanh(fpdata *a, fpdata *b)
 {
-	dst->fp = tanhl(a->fp);
+	a->fp = tanhl(b->fp);
 }
-static void fp_atan(fpdata *a, fpdata *dst)
+static void fp_atan(fpdata *a, fpdata *b)
 {
-	dst->fp = atanl(a->fp);
+	a->fp = atanl(b->fp);
 }
-static void fp_atanh(fpdata *a, fpdata *dst)
+static void fp_atanh(fpdata *a, fpdata *b)
 {
-	dst->fp = atanhl(a->fp);
+	a->fp = atanhl(b->fp);
 }
-static void fp_sin(fpdata *a, fpdata *dst)
+static void fp_sin(fpdata *a, fpdata *b)
 {
-	dst->fp = sinl(a->fp);
+	a->fp = sinl(b->fp);
 }
-static void fp_asin(fpdata *a, fpdata *dst)
+static void fp_asin(fpdata *a, fpdata *b)
 {
-	dst->fp = asinl(a->fp);
+	a->fp = asinl(b->fp);
 }
-static void fp_tan(fpdata *a, fpdata *dst)
+static void fp_tan(fpdata *a, fpdata *b)
 {
-	dst->fp = tanl(a->fp);
+	a->fp = tanl(b->fp);
 }
-static void fp_etox(fpdata *a, fpdata *dst)
+static void fp_etox(fpdata *a, fpdata *b)
 {
-	dst->fp = expl(a->fp);
+	a->fp = expl(b->fp);
 }
-static void fp_twotox(fpdata *a, fpdata *dst)
+static void fp_twotox(fpdata *a, fpdata *b)
 {
-	dst->fp = powl(2.0, a->fp);
+	a->fp = powl(2.0, b->fp);
 }
-static void fp_tentox(fpdata *a, fpdata *dst)
+static void fp_tentox(fpdata *a, fpdata *b)
 {
-	dst->fp = powl(10.0, a->fp);
+	a->fp = powl(10.0, b->fp);
 }
-static void fp_logn(fpdata *a, fpdata *dst)
+static void fp_logn(fpdata *a, fpdata *b)
 {
-	dst->fp = logl(a->fp);
+	a->fp = logl(b->fp);
 }
-static void fp_log10(fpdata *a, fpdata *dst)
+static void fp_log10(fpdata *a, fpdata *b)
 {
-	dst->fp = log10l(a->fp);
+	a->fp = log10l(b->fp);
 }
-static void fp_log2(fpdata *a, fpdata *dst)
+static void fp_log2(fpdata *a, fpdata *b)
 {
-	dst->fp = log2l(a->fp);
+	a->fp = log2l(b->fp);
 }
-static void fp_abs(fpdata *a, fpdata *dst)
+static void fp_abs(fpdata *a, fpdata *b, int prec)
 {
-	dst->fp = a->fp < 0.0 ? -a->fp : a->fp;
+	fp_set_prec(prec);
+	a->fp = b->fp < 0.0 ? -b->fp : b->fp;
+	fp_reset_prec(a);
 }
-static void fp_cosh(fpdata *a, fpdata *dst)
+static void fp_cosh(fpdata *a, fpdata *b)
 {
-	dst->fp = coshl(a->fp);
+	a->fp = coshl(b->fp);
 }
-static void fp_neg(fpdata *a, fpdata *dst)
+static void fp_neg(fpdata *a, fpdata *b, int prec)
 {
-	dst->fp = -a->fp;
+	fp_set_prec(prec);
+	a->fp = -b->fp;
+	fp_reset_prec(a);
 }
-static void fp_acos(fpdata *a, fpdata *dst)
+static void fp_acos(fpdata *a, fpdata *b)
 {
-	dst->fp = acosl(a->fp);
+	a->fp = acosl(b->fp);
 }
-static void fp_cos(fpdata *a, fpdata *dst)
+static void fp_cos(fpdata *a, fpdata *b)
 {
-	dst->fp = cosl(a->fp);
+	a->fp = cosl(b->fp);
 }
-static void fp_sub(fpdata *a, fpdata *b)
+static void fp_sub(fpdata *a, fpdata *b, int prec)
 {
+	fp_set_prec(prec);
 	a->fp = a->fp - b->fp;
+	fp_reset_prec(a);
 }
-static void fp_add(fpdata *a, fpdata *b)
+static void fp_add(fpdata *a, fpdata *b, int prec)
 {
+	fp_set_prec(prec);
 	a->fp = a->fp + b->fp;
+	fp_reset_prec(a);
 }
-static void fp_mul(fpdata *a, fpdata *b)
+static void fp_mul(fpdata *a, fpdata *b, int prec)
 {
+	fp_set_prec(prec);
 	a->fp = a->fp * b->fp;
+	fp_reset_prec(a);
 }
 static void fp_sglmul(fpdata *a, fpdata *b)
 {
-	// not exact
 	a->fp = a->fp * b->fp;
 	fpp_round32(a);
 }
@@ -910,8 +990,7 @@ static void fp_cmp(fpdata *a, fpdata *b)
 		if (!b_neg)
 			v = -1.0;
 	} else {
-		fpp_sub(a, b);
-		v = a->fp;
+		v = a->fp - b->fp;
 		fp_clear_status();
 	}
 	a->fp = v;

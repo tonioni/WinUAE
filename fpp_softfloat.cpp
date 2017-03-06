@@ -43,9 +43,22 @@ static struct float_status fs;
 /* Functions for setting host/library modes and getting status */
 static void fp_set_mode(uae_u32 mode_control)
 {
-	set_floatx80_rounding_precision(80, &fs);
 	set_float_detect_tininess(float_tininess_before_rounding, &fs);
-    switch(mode_control & FPCR_ROUNDING_MODE) {
+
+	switch(mode_control & FPCR_ROUNDING_PRECISION) {
+		case FPCR_PRECISION_SINGLE: // single
+			set_floatx80_rounding_precision(32, &fs);
+			break;
+		default: // double
+		case FPCR_PRECISION_DOUBLE: // double
+			set_floatx80_rounding_precision(64, &fs);
+			break;
+		case FPCR_PRECISION_EXTENDED: // extended
+			set_floatx80_rounding_precision(80, &fs);
+			break;
+	}
+	
+	switch(mode_control & FPCR_ROUNDING_MODE) {
         case FPCR_ROUND_NEAR: // to neareset
             set_float_rounding_mode(float_round_nearest_even, &fs);
             break;
@@ -59,7 +72,6 @@ static void fp_set_mode(uae_u32 mode_control)
             set_float_rounding_mode(float_round_up, &fs);
             break;
     }
-    return;
 }
 
 static void fp_get_status(uae_u32 *status)
@@ -83,13 +95,18 @@ STATIC_INLINE void fp_clear_status(void)
 }
 
 
-static const TCHAR *fp_print(fpdata *fpd)
+static const TCHAR *fp_print(fpdata *fpd, int mode)
 {
 	static TCHAR fsout[32];
 	flag n, u, d;
 	fptype result = 0.0;
 	int i;
 	floatx80 *fx = &fpd->fpx;
+
+	if (mode < 0) {
+		_stprintf(fsout, _T("%04X-%08X-%08X"), fx->high, (uae_u32)(fx->low >> 32), (uae_u32)fx->low);
+		return fsout;
+	}
 
 	n = floatx80_is_negative(*fx);
 	u = floatx80_is_unnormal(*fx);
@@ -121,6 +138,9 @@ static const TCHAR *fp_print(fpdata *fpd)
 		_stprintf(fsout, _T("%c%#.17e%s%s"), n?'-':'+', result, u ? _T("U") : _T(""), d ? _T("D") : _T(""));
 #endif
 	}
+	if (mode == 0 || mode > _tcslen(fsout))
+		return fsout;
+	fsout[mode] = 0;
 	return fsout;
 }
 
@@ -334,7 +354,8 @@ static void fp_get_internal_overflow(fpdata *fpd)
 	}
 	
 	fpd->fpx.high = ((uint16_t)floatx80_internal_exp) & 0x7fff;
-	fpd->fpx.low = floatx80_internal_sig0;	
+	fpd->fpx.high |= ((uint16_t)floatx80_internal_sign) << 15;
+	fpd->fpx.low = floatx80_internal_sig;	
  }
 
 static void fp_get_internal_underflow(fpdata *fpd)
@@ -346,7 +367,8 @@ static void fp_get_internal_underflow(fpdata *fpd)
 	}
     
     fpd->fpx.high = ((uint16_t)floatx80_internal_exp) & 0x7fff;
-    fpd->fpx.low = floatx80_internal_sig0;
+	fpd->fpx.high |= ((uint16_t)floatx80_internal_sign) << 15;
+    fpd->fpx.low = floatx80_internal_sig;
 }
 
 static void fp_get_exceptional_operand_grs(uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3, uae_u32 *grs)
@@ -357,6 +379,26 @@ static void fp_get_exceptional_operand_grs(uae_u32 *wrd1, uae_u32 *wrd2, uae_u32
 	*wrd3 = (uae_u32) floatx80_internal_sig0;
 	*grs = floatx80_internal_sig1 >> 61;
 	*grs |= (floatx80_internal_sig1 & 0x3fffffffffffffffULL) ? 1 : 0;
+}
+
+static void fp_get_internal_unmodified(uae_u32 *grs, fpdata *fpd)
+{
+    uint64_t roundbits;
+
+    fpd->fpx.high = ((uint16_t)floatx80_internal_exp) & 0x7fff;
+    fpd->fpx.high |= ((uint16_t)floatx80_internal_sign) << 15;
+    fpd->fpx.low = floatx80_internal_sig0;
+    
+    shift64RightJamming(floatx80_internal_sig1, 61, &roundbits);
+    *grs = (uae_u32)roundbits;
+}
+
+static void fp_get_internal(fpdata *fpd)
+{
+
+	fpd->fpx.high = ((int16_t)floatx80_internal_exp) & 0x7fff;
+	fpd->fpx.high |= ((int16_t)floatx80_internal_sign) << 15;
+	fpd->fpx.low = floatx80_internal_sig;
 }
 
 /* Functions for rounding */
@@ -395,133 +437,104 @@ static void fp_round_double(fpdata *fpd)
 
 /* Arithmetic functions */
 
-static void fp_move(fpdata *src, fpdata *dst)
+static void fp_int(fpdata *a, fpdata *b)
 {
-    dst->fpx = floatx80_move(src->fpx, &fs);
+    a->fpx = floatx80_round_to_int(b->fpx, &fs);
 }
 
-static void fp_int(fpdata *a, fpdata *dst)
+static void fp_intrz(fpdata *a, fpdata *b)
 {
-    dst->fpx = floatx80_round_to_int(a->fpx, &fs);
+    a->fpx = floatx80_round_to_int_toward_zero(b->fpx, &fs);
 }
-
-static void fp_intrz(fpdata *a, fpdata *dst)
-{
-    dst->fpx = floatx80_round_to_int_toward_zero(a->fpx, &fs);
-}
-static void fp_sqrt(fpdata *a, fpdata *dst)
-{
-    dst->fpx = floatx80_sqrt(a->fpx, &fs);
-}
-static void fp_lognp1(fpdata *a, fpdata *dst)
+static void fp_lognp1(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_lognp1_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_lognp1_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = log(a->fp + 1.0);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_sin(fpdata *a, fpdata *dst)
+static void fp_sin(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_sin_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_sin_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = sin(fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_tan(fpdata *a, fpdata *dst)
+static void fp_tan(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_tan_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_tan_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = tan(fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_logn(fpdata *a, fpdata *dst)
+static void fp_logn(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_logn_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_logn_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = log(fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_log10(fpdata *a, fpdata *dst)
+static void fp_log10(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_log10_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_log10_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = log10(fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_log2(fpdata *a, fpdata *dst)
+static void fp_log2(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_log2_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_log2_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = log2(fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
 
-static void fp_abs(fpdata *a, fpdata *dst)
-{
-	dst->fpx = floatx80_abs(a->fpx, &fs);
-}
-static void fp_neg(fpdata *a, fpdata *dst)
-{
-	dst->fpx = floatx80_neg(a->fpx, &fs);
-}
-static void fp_cos(fpdata *a, fpdata *dst)
+static void fp_cos(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_sin_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_sin_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = cos(fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_getexp(fpdata *a, fpdata *dst)
+static void fp_getexp(fpdata *a, fpdata *b)
 {
-    dst->fpx = floatx80_getexp(a->fpx, &fs);
+    a->fpx = floatx80_getexp(b->fpx, &fs);
 }
-static void fp_getman(fpdata *a, fpdata *dst)
+static void fp_getman(fpdata *a, fpdata *b)
 {
-    dst->fpx = floatx80_getman(a->fpx, &fs);
-}
-static void fp_div(fpdata *a, fpdata *b)
-{
-    a->fpx = floatx80_div(a->fpx, b->fpx, &fs);
+    a->fpx = floatx80_getman(b->fpx, &fs);
 }
 static void fp_mod(fpdata *a, fpdata *b, uae_u64 *q, uae_u8 *s)
 {
     a->fpx = floatx80_mod(a->fpx, b->fpx, q, s, &fs);
-}
-static void fp_add(fpdata *a, fpdata *b)
-{
-    a->fpx = floatx80_add(a->fpx, b->fpx, &fs);
-}
-static void fp_mul(fpdata *a, fpdata *b)
-{
-    a->fpx = floatx80_mul(a->fpx, b->fpx, &fs);
 }
 static void fp_sgldiv(fpdata *a, fpdata *b)
 {
@@ -539,10 +552,6 @@ static void fp_scale(fpdata *a, fpdata *b)
 {
     a->fpx = floatx80_scale(a->fpx, b->fpx, &fs);
 }
-static void fp_sub(fpdata *a, fpdata *b)
-{
-    a->fpx = floatx80_sub(a->fpx, b->fpx, &fs);
-}
 static void fp_cmp(fpdata *a, fpdata *b)
 {
     a->fpx = floatx80_cmp(a->fpx, b->fpx, &fs);
@@ -552,128 +561,189 @@ static void fp_tst(fpdata *a, fpdata *b)
 	a->fpx = floatx80_tst(b->fpx, &fs);
 }
 
+#define SETPREC \
+    uint8_t oldprec = fs.floatx80_rounding_precision; \
+	if (prec > 0) \
+	    set_floatx80_rounding_precision(prec, &fs);
+
+#define RESETPREC \
+	if (prec > 0) \
+		set_floatx80_rounding_precision(oldprec, &fs);
+
+
+/* Functions with fixed precision */
+static void fp_move(fpdata *a, fpdata *b, int prec)
+{
+	SETPREC
+    a->fpx = floatx80_move(b->fpx, &fs);
+	RESETPREC
+}
+static void fp_abs(fpdata *a, fpdata *b, int prec)
+{
+	SETPREC
+    a->fpx = floatx80_abs(b->fpx, &fs);
+	RESETPREC
+}
+static void fp_neg(fpdata *a, fpdata *b, int prec)
+{
+	SETPREC
+    a->fpx = floatx80_neg(b->fpx, &fs);
+	RESETPREC
+}
+static void fp_add(fpdata *a, fpdata *b, int prec)
+{
+	SETPREC
+    a->fpx = floatx80_add(a->fpx, b->fpx, &fs);
+	RESETPREC
+}
+static void fp_sub(fpdata *a, fpdata *b, int prec)
+{
+	SETPREC
+    a->fpx = floatx80_sub(a->fpx, b->fpx, &fs);
+	RESETPREC
+}
+static void fp_mul(fpdata *a, fpdata *b, int prec)
+{
+	SETPREC
+    a->fpx = floatx80_mul(a->fpx, b->fpx, &fs);
+	RESETPREC
+}
+static void fp_div(fpdata *a, fpdata *b, int prec)
+{
+	SETPREC
+    a->fpx = floatx80_div(a->fpx, b->fpx, &fs);
+	RESETPREC
+}
+static void fp_sqrt(fpdata *a, fpdata *b, int prec)
+{
+	SETPREC
+    a->fpx = floatx80_sqrt(b->fpx, &fs);
+	RESETPREC
+}
+
+
 /* FIXME: create softfloat functions for following arithmetics */
 
-static void fp_sinh(fpdata *a, fpdata *dst)
+static void fp_sinh(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_sinh_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_sinh_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = sinhl(fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_etoxm1(fpdata *a, fpdata *dst)
+static void fp_etoxm1(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_etoxm1_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_etoxm1_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = expl(fpa) - 1.0;
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_tanh(fpdata *a, fpdata *dst)
+static void fp_tanh(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_tanh_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_tanh_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = tanhl(fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_atan(fpdata *a, fpdata *dst)
+static void fp_atan(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_atan_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_atan_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = atanl(fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_asin(fpdata *a, fpdata *dst)
+static void fp_asin(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_asin_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_asin_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = asinl(fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_atanh(fpdata *a, fpdata *dst)
+static void fp_atanh(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_atanh_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_atanh_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = atanhl(fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_etox(fpdata *a, fpdata *dst)
+static void fp_etox(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_etox_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_etox_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = expl(fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_twotox(fpdata *a, fpdata *dst)
+static void fp_twotox(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_twotox_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_twotox_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = powl(2.0, fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_tentox(fpdata *a, fpdata *dst)
+static void fp_tentox(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_tentox_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_tentox_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = powl(10.0, fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_cosh(fpdata *a, fpdata *dst)
+static void fp_cosh(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_cosh_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_cosh_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = coshl(fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
-static void fp_acos(fpdata *a, fpdata *dst)
+static void fp_acos(fpdata *a, fpdata *b)
 {
     fptype fpa;
 	flag e = 0;
-	dst->fpx = floatx80_acos_check(a->fpx, &e, &fs);
+	a->fpx = floatx80_acos_check(b->fpx, &e, &fs);
 	if (e)
 		return;
-    to_native(&fpa, a);
+    to_native(&fpa, b);
     fpa = acosl(fpa);
-    from_native(fpa, dst);
+    from_native(fpa, a);
 }
 
 static void fp_normalize(fpdata *a)

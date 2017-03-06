@@ -1790,7 +1790,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 			{
 				fpdata fp;
 				fpp_to_single(&fp, get_ilong_debug(pc));
-				_stprintf(buffer, _T("#%s"), fpp_print(&fp));
+				_stprintf(buffer, _T("#%s"), fpp_print(&fp, 0));
 				pc += 4;
 			}
 			break;
@@ -1798,7 +1798,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 			{
 				fpdata fp;
 				fpp_to_double(&fp, get_ilong_debug(pc), get_ilong_debug(pc + 4));
-				_stprintf(buffer, _T("#%s"), fpp_print(&fp));
+				_stprintf(buffer, _T("#%s"), fpp_print(&fp, 0));
 				pc += 8;
 			}
 			break;
@@ -1806,7 +1806,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 		{
 			fpdata fp;
 			fpp_to_exten(&fp, get_ilong_debug(pc), get_ilong_debug(pc + 4), get_ilong_debug(pc + 8));
-			_stprintf(buffer, _T("#%s"), fpp_print(&fp));
+			_stprintf(buffer, _T("#%s"), fpp_print(&fp, 0));
 			pc += 12;
 			break;
 		}
@@ -2570,13 +2570,13 @@ static void Exception_build_stack_frame_common (uae_u32 oldpc, uae_u32 currpc, u
 		Exception_build_stack_frame(oldpc, regs.instruction_pc, regs.mmu_ssw, nr, 0x0);
 	} else if (nr >= 48 && nr <= 55) {
 		if (regs.fpu_exp_pre) {
-			if (currprefs.cpu_model == 68060 && nr == 55 && (regs.fp_unimp_pend & 2)) { // packed decimal real
+			if (currprefs.cpu_model == 68060 && nr == 55 && regs.fp_unimp_pend == 2) { // packed decimal real
 				Exception_build_stack_frame(regs.fp_ea, regs.instruction_pc, 0, nr, 0x2);
 			} else {
 				Exception_build_stack_frame(oldpc, regs.instruction_pc, 0, nr, 0x0);
 			}
 		} else { /* post-instruction */
-			if (currprefs.cpu_model == 68060 && nr == 55 && (regs.fp_unimp_pend & 2)) { // packed decimal real
+			if (currprefs.cpu_model == 68060 && nr == 55 && regs.fp_unimp_pend == 2) { // packed decimal real
 				Exception_build_stack_frame(regs.fp_ea, currpc, 0, nr, 0x2);
 			} else {
 				Exception_build_stack_frame(oldpc, currpc, 0, nr, 0x3);
@@ -6336,13 +6336,16 @@ void m68k_dumpstate (uaecptr pc, uaecptr *nextpc)
 #ifdef FPUEMU
 	if (currprefs.fpu_model) {
 		uae_u32 fpsr;
-		for (i = 0; i < 8; i++){
-			console_out_f (_T("FP%d: %g "), i, regs.fp[i].fp);
-			if ((i & 3) == 3)
+		for (i = 0; i < 8; i++) {
+			if (!(i & 1))
+				console_out_f(_T("%d: "), i);
+			console_out_f (_T("%s "), fpp_print(&regs.fp[i], -1));
+			console_out_f (_T("%s "), fpp_print(&regs.fp[i], 0));
+			if (i & 1)
 				console_out_f (_T("\n"));
 		}
 		fpsr = fpp_get_fpsr ();
-		console_out_f (_T("FPSR: %04X FPCR: %08x FPIAR: %08x N=%d Z=%d I=%d NAN=%d\n"),
+		console_out_f (_T("FPSR: %08X FPCR: %08x FPIAR: %08x N=%d Z=%d I=%d NAN=%d\n"),
 			fpsr, regs.fpcr, regs.fpiar,
 			(fpsr & 0x8000000) != 0,
 			(fpsr & 0x4000000) != 0,

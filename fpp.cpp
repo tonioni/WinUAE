@@ -75,7 +75,7 @@ FPP_A fpp_round64;
 FPP_AB fpp_int;
 FPP_AB fpp_sinh;
 FPP_AB fpp_intrz;
-FPP_AB fpp_sqrt;
+FPP_ABP fpp_sqrt;
 FPP_AB fpp_lognp1;
 FPP_AB fpp_etoxm1;
 FPP_AB fpp_tanh;
@@ -90,28 +90,28 @@ FPP_AB fpp_tentox;
 FPP_AB fpp_logn;
 FPP_AB fpp_log10;
 FPP_AB fpp_log2;
-FPP_AB fpp_abs;
+FPP_ABP fpp_abs;
 FPP_AB fpp_cosh;
-FPP_AB fpp_neg;
+FPP_ABP fpp_neg;
 FPP_AB fpp_acos;
 FPP_AB fpp_cos;
 FPP_AB fpp_getexp;
 FPP_AB fpp_getman;
-FPP_AB fpp_div;
+FPP_ABP fpp_div;
 FPP_ABQS fpp_mod;
-FPP_AB fpp_add;
-FPP_AB fpp_mul;
+FPP_ABP fpp_add;
+FPP_ABP fpp_mul;
 FPP_ABQS fpp_rem;
 FPP_AB fpp_scale;
-FPP_AB fpp_sub;
+FPP_ABP fpp_sub;
 FPP_AB fpp_sgldiv;
 FPP_AB fpp_sglmul;
 FPP_AB fpp_cmp;
 FPP_AB fpp_tst;
-FPP_AB fpp_move;
+FPP_ABP fpp_move;
 
 #define DEBUG_FPP 0
-#define EXCEPTION_FPP 1
+#define EXCEPTION_FPP 0
 
 STATIC_INLINE int isinrom (void)
 {
@@ -427,17 +427,9 @@ static void fpsr_check_arithmetic_exception(uae_u32 mask, fpdata *src, uae_u32 o
 				}
 			} else if (regs.fp_exp_pend == 53) { // OVFL
 				fpp_get_internal_overflow(&eo);
-				if (((regs.fpcr >> 6) & 3) == 1)
-					fpp_round32(&eo);
-				if (((regs.fpcr >> 6) & 3) >= 2)
-					fpp_round64(&eo);
 				fpp_from_exten_fmovem(&eo, &fsave_data.eo[0], &fsave_data.eo[1], &fsave_data.eo[2]);
 			} else if (regs.fp_exp_pend == 51) { // UNFL
 				fpp_get_internal_underflow(&eo);
-				if (((regs.fpcr >> 6) & 3) == 1)
-					fpp_round32(&eo);
-				if (((regs.fpcr >> 6) & 3) >= 2)
-					fpp_round64(&eo);
 				fpp_from_exten_fmovem(&eo, &fsave_data.eo[0], &fsave_data.eo[1], &fsave_data.eo[2]);
 			} // else INEX1, INEX2: do nothing
 
@@ -558,11 +550,16 @@ static int fpsr_set_bsun(void)
     return 0;
 }
 
-void fpsr_set_quotient(uae_u64 quot, uae_s8 sign)
+static void fpsr_set_quotient(uae_u64 quot, uae_u8 sign)
 {
 	regs.fpsr &= 0x0f00fff8;
 	regs.fpsr |= (quot << 16) & FPSR_QUOT_LSB;
 	regs.fpsr |= sign ? FPSR_QUOT_SIGN : 0;
+}
+static void fpsr_get_quotient(uae_u64 *quot, uae_u8 *sign)
+{
+	*quot = (regs.fpsr & FPSR_QUOT_LSB) >> 16;
+	*sign = (regs.fpsr & FPSR_QUOT_SIGN) ? 1 : 0;
 }
 
 uae_u32 fpp_get_fpsr (void)
@@ -2618,7 +2615,7 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr, int regdir)
 	return ad;
 }
 
-static bool arithmetic(fpdata *src, fpdata *dst, int extra)
+static bool fp_arithmetic(fpdata *src, fpdata *dst, int extra)
 {
 	uae_u64 q = 0;
 	uae_u8 s = 0;
@@ -2626,122 +2623,145 @@ static bool arithmetic(fpdata *src, fpdata *dst, int extra)
 	switch (extra & 0x7f)
 	{
 		case 0x00: /* FMOVE */
-		case 0x40:
-		case 0x44:
-			fpp_move(src, dst);
+			fpp_move(dst, src, 0);
+			break;
+		case 0x40: /* FSMOVE */
+			fpp_move(dst, src, 32);
+			break;
+		case 0x44: /* FDMOVE */
+			fpp_move(dst, src, 64);
 			break;
 		case 0x01: /* FINT */
-			fpp_int(src, dst);
+			fpp_int(dst, src);
 			break;
 		case 0x02: /* FSINH */
-			fpp_sinh(src, dst);
+			fpp_sinh(dst, src);
 			break;
 		case 0x03: /* FINTRZ */
-			fpp_intrz(src, dst);
+			fpp_intrz(dst, src);
 			break;
 		case 0x04: /* FSQRT */
+			fpp_sqrt(dst, src, 0);
+			break;
 		case 0x41: /* FSSQRT */
+			fpp_sqrt(dst, src,  32);
+			break;
 		case 0x45: /* FDSQRT */
-			fpp_sqrt(src, dst);
+			fpp_sqrt(dst, src, 64);
 			break;
 		case 0x06: /* FLOGNP1 */
-			fpp_lognp1(src, dst);
+			fpp_lognp1(dst, src);
 			break;
 		case 0x08: /* FETOXM1 */
-			fpp_etoxm1(src, dst);
+			fpp_etoxm1(dst, src);
 			break;
 		case 0x09: /* FTANH */
-			fpp_tanh(src, dst);
+			fpp_tanh(dst, src);
 			break;
 		case 0x0a: /* FATAN */
-			fpp_atan(src, dst);
+			fpp_atan(dst, src);
 			break;
 		case 0x0c: /* FASIN */
-			fpp_asin(src, dst);
+			fpp_asin(dst, src);
 			break;
 		case 0x0d: /* FATANH */
-			fpp_atanh(src, dst);
+			fpp_atanh(dst, src);
 			break;
 		case 0x0e: /* FSIN */
-			fpp_sin(src, dst);
+			fpp_sin(dst, src);
 			break;
 		case 0x0f: /* FTAN */
-			fpp_tan(src, dst);
+			fpp_tan(dst, src);
 			break;
 		case 0x10: /* FETOX */
-			fpp_etox(src, dst);
+			fpp_etox(dst, src);
 			break;
 		case 0x11: /* FTWOTOX */
-			fpp_twotox(src, dst);
+			fpp_twotox(dst, src);
 			break;
 		case 0x12: /* FTENTOX */
-			fpp_tentox(src, dst);
+			fpp_tentox(dst, src);
 			break;
 		case 0x14: /* FLOGN */
-			fpp_logn(src, dst);
+			fpp_logn(dst, src);
 			break;
 		case 0x15: /* FLOG10 */
-			fpp_log10(src, dst);
+			fpp_log10(dst, src);
 			break;
 		case 0x16: /* FLOG2 */
-			fpp_log2(src, dst);
+			fpp_log2(dst, src);
 			break;
 		case 0x18: /* FABS */
+			fpp_abs(dst, src, 0);
+			break;
 		case 0x58: /* FSABS */
+			fpp_abs(dst, src, 32);
+			break;
 		case 0x5c: /* FDABS */
-			fpp_abs(src, dst);
+			fpp_abs(dst, src, 64);
 			break;
 		case 0x19: /* FCOSH */
-			fpp_cosh(src, dst);
+			fpp_cosh(dst, src);
 			break;
 		case 0x1a: /* FNEG */
+			fpp_neg(dst, src, 0);
+			break;
 		case 0x5a: /* FSNEG */
+			fpp_neg(dst, src, 32);
+			break;
 		case 0x5e: /* FDNEG */
-			fpp_neg(src, dst);
+			fpp_neg(dst, src, 64);
 			break;
 		case 0x1c: /* FACOS */
-			fpp_acos(src, dst);
+			fpp_acos(dst, src);
 			break;
 		case 0x1d: /* FCOS */
-			fpp_cos(src, dst);
+			fpp_cos(dst, src);
 			break;
 		case 0x1e: /* FGETEXP */
-			fpp_getexp(src, dst);
+			fpp_getexp(dst, src);
 			break;
 		case 0x1f: /* FGETMAN */
-			fpp_getman(src, dst);
+			fpp_getman(dst, src);
 			break;
 		case 0x20: /* FDIV */
+			fpp_div(dst, src, 0);
+			break;
 		case 0x60: /* FSDIV */
+			fpp_div(dst, src, 32);
+			break;
 		case 0x64: /* FDDIV */
-			fpp_div(dst, src);
+			fpp_div(dst, src, 64);
 			break;
 		case 0x21: /* FMOD */
+			fpsr_get_quotient(&q, &s);
 			fpp_mod(dst, src, &q, &s);
-			if (fpsr_make_status())
-				return false;
 			fpsr_set_quotient(q, s);
 			break;
 		case 0x22: /* FADD */
+			fpp_add(dst, src, 0);
+			break;
 		case 0x62: /* FSADD */
+			fpp_add(dst, src, 32);
+			break;
 		case 0x66: /* FDADD */
-			fpp_add(dst, src);
+			fpp_add(dst, src, 64);
 			break;
 		case 0x23: /* FMUL */
+			fpp_mul(dst, src, 0);
+			break;
 		case 0x63: /* FSMUL */
+			fpp_mul(dst, src, 32);
+			break;
 		case 0x67: /* FDMUL */
-			fpp_mul(dst, src);
+			fpp_mul(dst, src, 64);
 			break;
 		case 0x24: /* FSGLDIV */
 			fpp_sgldiv(dst, src);
-			fpsr_set_result(dst);
-			if (fpsr_make_status())
-				return false;
-			return true;
+			break;
 		case 0x25: /* FREM */
+			fpsr_get_quotient(&q, &s);
 			fpp_rem(dst, src, &q, &s);
-			if (fpsr_make_status())
-				return false;
 			fpsr_set_quotient(q, s);
 			break;
 		case 0x26: /* FSCALE */
@@ -2749,14 +2769,15 @@ static bool arithmetic(fpdata *src, fpdata *dst, int extra)
 			break;
 		case 0x27: /* FSGLMUL */
 			fpp_sglmul(dst, src);
-			fpsr_set_result(dst);
-			if (fpsr_make_status())
-				return false;
-			return true;
+			break;
 		case 0x28: /* FSUB */
+			fpp_sub(dst, src, 0);
+			break;
 		case 0x68: /* FSSUB */
+			fpp_sub(dst, src, 32);
+			break;
 		case 0x6c: /* FDSUB */
-			fpp_sub(dst, src);
+			fpp_sub(dst, src, 64);
 			break;
 		case 0x30: /* FSINCOS */
 		case 0x31: /* FSINCOS */
@@ -2766,44 +2787,27 @@ static bool arithmetic(fpdata *src, fpdata *dst, int extra)
 		case 0x35: /* FSINCOS */
 		case 0x36: /* FSINCOS */
 		case 0x37: /* FSINCOS */
-			fpp_cos(src, dst);
-            if (((regs.fpcr >> 6) & 3) == 1)
-				fpp_round_single(dst);
-            else if (((regs.fpcr >> 6) & 3) == 2)
-				fpp_round_double(dst);
+			fpp_cos(dst, src);
 			regs.fp[extra & 7] = *dst;
-			fpp_sin(src, dst);
+			fpp_sin(dst, src);
 			break;
 		case 0x38: /* FCMP */
 		{
 			fpp_cmp(dst, src);
+			fpsr_make_status();
 			fpsr_set_result(dst);
-			if (fpsr_make_status())
-				return false;
 			return false;
 		}
 		case 0x3a: /* FTST */
 		{
 			fpp_tst(dst, src);
+			fpsr_make_status();
 			fpsr_set_result(dst);
-			if (fpsr_make_status())
-				return false;
 			return false;
 		}
 		default:
 			write_log (_T("Unknown FPU arithmetic function (%02x)\n"), extra & 0x7f);
 			return false;
-	}
-
-	// must check instruction rounding overrides first
-	if ((extra & 0x44) == 0x40) {
-        fpp_round_single(dst);
-	} else if ((extra & 0x44) == 0x44) {
-        fpp_round_double(dst);
-	} else if (((regs.fpcr >> 6) & 3) == 1) {
-        fpp_round_single(dst);
-	} else if (((regs.fpcr >> 6) & 3) == 2) {
-        fpp_round_double(dst);
 	}
 
 	fpsr_set_result(dst);
@@ -3083,11 +3087,13 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 			if (regs.fp_unimp_pend)
 				return;
 
-			v = arithmetic(&src, &dst, extra);
+			v = fp_arithmetic(&src, &dst, extra);
+
+			fpsr_check_arithmetic_exception(0, &src, opcode, extra, ad);
+
 			if (v)
 				regs.fp[reg] = dst;
 
-			fpsr_check_arithmetic_exception(0, &src, opcode, extra, ad);
 			return;
 		default:
 		break;
@@ -3145,6 +3151,9 @@ void fpu_reset (void)
     fpp_set_fpcr (0);
     fpp_set_fpsr (0);
 	fpux_restore (NULL);
+	// reset precision
+	fpp_set_mode(0x00000080 | 0x00000010);
+	fpp_set_mode(0x00000000);
 }
 
 uae_u8 *restore_fpu (uae_u8 *src)

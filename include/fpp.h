@@ -19,6 +19,7 @@ extern void init_fpucw_x87(void);
 
 typedef void (*FPP_ABQS)(fpdata*, fpdata*, uae_u64*, uae_u8*);
 typedef void (*FPP_AB)(fpdata*, fpdata*);
+typedef void (*FPP_ABP)(fpdata*, fpdata*, int);
 typedef void (*FPP_A)(fpdata*);
 
 typedef bool (*FPP_IS)(fpdata*);
@@ -44,7 +45,7 @@ typedef void (*FPP_FROM_EXTEN)(fpdata*, uae_u32*, uae_u32*, uae_u32*);
 typedef void (*FPP_PACK)(uae_u32*, uae_u32*, uae_u32*);
 typedef void (*FPP_PACKG)(uae_u32*, uae_u32*, uae_u32*, uae_u32*);
 
-typedef const TCHAR* (*FPP_PRINT)(fpdata*);
+typedef const TCHAR* (*FPP_PRINT)(fpdata*,int);
 
 extern FPP_PRINT fpp_print;
 
@@ -89,7 +90,7 @@ extern FPP_PACKG fpp_get_exceptional_operand_grs;
 extern FPP_AB fpp_int;
 extern FPP_AB fpp_sinh;
 extern FPP_AB fpp_intrz;
-extern FPP_AB fpp_sqrt;
+extern FPP_ABP fpp_sqrt;
 extern FPP_AB fpp_lognp1;
 extern FPP_AB fpp_etoxm1;
 extern FPP_AB fpp_tanh;
@@ -104,22 +105,22 @@ extern FPP_AB fpp_tentox;
 extern FPP_AB fpp_logn;
 extern FPP_AB fpp_log10;
 extern FPP_AB fpp_log2;
-extern FPP_AB fpp_abs;
+extern FPP_ABP fpp_abs;
 extern FPP_AB fpp_cosh;
-extern FPP_AB fpp_neg;
+extern FPP_ABP fpp_neg;
 extern FPP_AB fpp_acos;
 extern FPP_AB fpp_cos;
 extern FPP_AB fpp_getexp;
 extern FPP_AB fpp_getman;
-extern FPP_AB fpp_div;
+extern FPP_ABP fpp_div;
 extern FPP_ABQS fpp_mod;
-extern FPP_AB fpp_add;
-extern FPP_AB fpp_mul;
+extern FPP_ABP fpp_add;
+extern FPP_ABP fpp_mul;
 extern FPP_ABQS fpp_rem;
 extern FPP_AB fpp_scale;
-extern FPP_AB fpp_sub;
+extern FPP_ABP fpp_sub;
 extern FPP_AB fpp_sgldiv;
 extern FPP_AB fpp_sglmul;
 extern FPP_AB fpp_cmp;
 extern FPP_AB fpp_tst;
-extern FPP_AB fpp_move;
+extern FPP_ABP fpp_move;
