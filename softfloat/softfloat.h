@@ -212,6 +212,8 @@ extern uint64_t floatx80_internal_sig;
 extern int32_t floatx80_internal_exp0;
 extern uint64_t floatx80_internal_sig0;
 extern uint64_t floatx80_internal_sig1;
+extern int8_t floatx80_internal_precision;
+extern int8_t floatx80_internal_mode;
 
 typedef struct float_status {
     signed char float_detect_tininess;
@@ -227,10 +229,16 @@ typedef struct float_status {
 } float_status;
 
 /*----------------------------------------------------------------------------
- | Function for storing sign, exponent and significand of extended 
+ | Function for getting sign, exponent and significand of extended
  | double-precision floating-point intermediate result for external use.
  *----------------------------------------------------------------------------*/
-void saveFloatx80Internal( flag zSign, int32_t zExp, uint64_t zSig0, uint64_t zSig1, float_status *status );
+floatx80 getFloatInternalOverflow( void );
+floatx80 getFloatInternalUnderflow( void );
+floatx80 getFloatInternalRoundedAll( void );
+floatx80 getFloatInternalRoundedSome( void );
+floatx80 getFloatInternalUnrounded( void );
+floatx80 getFloatInternalFloatx80( void );
+uint64_t getFloatInternalGRS( void );
 
 static inline void set_float_detect_tininess(int val, float_status *status)
 {
@@ -349,7 +357,8 @@ enum {
 | Software IEC/IEEE integer-to-floating-point conversion routines.
 *----------------------------------------------------------------------------*/
 
-floatx80 int32_to_floatx80(int32_t, float_status *status);
+floatx80 int32_to_floatx80(int32_t);
+floatx80 int64_to_floatx80(int64_t);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE single-precision conversion routines.
