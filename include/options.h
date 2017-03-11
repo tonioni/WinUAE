@@ -503,6 +503,7 @@ struct uae_prefs {
 	bool lightboost_strobo;
 	int lightboost_strobo_ratio;
 	bool gfx_grayscale;
+	bool lightpen_crosshair;
 
 	struct gfx_filterdata gf[2];
 

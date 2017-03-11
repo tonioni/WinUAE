@@ -654,6 +654,17 @@ bool ismouseactive (void)
 	return mouseactive > 0;
 }
 
+void target_inputdevice_unacquire(void)
+{
+	close_tablet(tablet);
+	tablet = NULL;
+}
+void target_inputdevice_acquire(void)
+{
+	target_inputdevice_unacquire();
+	tablet = open_tablet(hAmigaWnd);
+}
+
 static void setmouseactive2 (int active, bool allowpause)
 {
 #ifdef RETROPLATFORM
@@ -1109,6 +1120,7 @@ static void add_media_insert_queue(HWND hwnd, const TCHAR *drvname, int retrycnt
 }
 
 #if TOUCH_SUPPORT
+
 static int touch_touched;
 static DWORD touch_time;
 
@@ -1149,7 +1161,7 @@ static void touch_release(struct touch_store *ts, const RECT *rcontrol)
 	ts->axis = -1;
 }
 
-static void touch_event(DWORD id, int pressrel, int x, int y, const RECT *rcontrol)
+static void tablet_touch(DWORD id, int pressrel, int x, int y, const RECT *rcontrol)
 {
 	struct touch_store *ts = NULL;
 	int buttony = rcontrol->bottom - (rcontrol->bottom - rcontrol->top) / 4;
@@ -1286,6 +1298,19 @@ static void touch_event(DWORD id, int pressrel, int x, int y, const RECT *rcontr
 	}
 }
 
+static void touch_event(DWORD id, int pressrel, int x, int y, const RECT *rcontrol)
+{
+	if (is_touch_lightpen()) {
+
+		tablet_lightpen(x, y, -1, -1, pressrel, pressrel > 0, true, dinput_lightpen());
+
+	} else {
+
+		tablet_touch(id, pressrel, x, y, rcontrol);
+
+	}
+}
+
 static int touch_prev_x, touch_prev_y;
 static DWORD touch_prev_flags;
 
@@ -1294,7 +1319,7 @@ static void processtouch(HWND hwnd, WPARAM wParam, LPARAM lParam)
 	RECT rgui, rcontrol[2];
 	int bottom;
 
-	if (currprefs.input_tablet)
+	if (currprefs.input_tablet && !is_touch_lightpen())
 		return;
 
 	if (isfullscreen()) {
@@ -1343,9 +1368,9 @@ static void processtouch(HWND hwnd, WPARAM wParam, LPARAM lParam)
 					touch_prev_y = y;
 					touch_prev_flags = ti->dwFlags;
 #if TOUCH_DEBUG
-					write_log(_T("ID=%08x FLAGS=%08x MASK=%08x X=%d Y=%d \n"), ti->dwID, ti->dwFlags, ti->dwMask, x, y);
+//					write_log(_T("ID=%08x FLAGS=%08x MASK=%08x X=%d Y=%d \n"), ti->dwID, ti->dwFlags, ti->dwMask, x, y);
 #endif
-					if (currprefs.input_tablet == TABLET_OFF && dinput_winmouse() < 0) {
+					if (is_touch_lightpen() || (currprefs.input_tablet == TABLET_OFF && dinput_winmouse() < 0)) {
 						if (ti->dwFlags & TOUCHEVENTF_DOWN)
 							touch_event(ti->dwID, 1,  x, y, rcontrol);
 						if (ti->dwFlags & TOUCHEVENTF_UP)
@@ -1643,7 +1668,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		rp_set_hwnd (hWnd);
 #endif
 		DragAcceptFiles (hWnd, TRUE);
-		tablet = open_tablet (hWnd);
 		normalcursor = LoadCursor (NULL, IDC_ARROW);
 		hwndNextViewer = SetClipboardViewer (hWnd); 
 		clipboard_init (hWnd);
@@ -1654,7 +1678,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			KillTimer(hWnd, 4);
 		device_change_timer = 0;
 		ChangeClipboardChain (hWnd, hwndNextViewer); 
-		close_tablet (tablet);
 		wait_keyrelease ();
 		inputdevice_unacquire ();
 		dinput_window ();
@@ -1730,15 +1753,13 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 				}
 				if (!focus || !mouseactive)
 					return DefWindowProc (hWnd, message, wParam, lParam);
-				if (dinput_winmousemode () == 0) {
-					/* relative */
-					int mxx = (amigawinclip_rect.left - amigawin_rect.left) + (amigawinclip_rect.right - amigawinclip_rect.left) / 2;
-					int myy = (amigawinclip_rect.top - amigawin_rect.top) + (amigawinclip_rect.bottom - amigawinclip_rect.top) / 2;
-					mx = mx - mxx;
-					my = my - myy;
-					setmousestate (dinput_winmouse (), 0, mx, 0);
-					setmousestate (dinput_winmouse (), 1, my, 0);
-				}
+				/* relative */
+				int mxx = (amigawinclip_rect.left - amigawin_rect.left) + (amigawinclip_rect.right - amigawinclip_rect.left) / 2;
+				int myy = (amigawinclip_rect.top - amigawin_rect.top) + (amigawinclip_rect.bottom - amigawinclip_rect.top) / 2;
+				mx = mx - mxx;
+				my = my - myy;
+				setmousestate (dinput_winmouse (), 0, mx, 0);
+				setmousestate (dinput_winmouse (), 1, my, 0);
 			} else if (isfocus () < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
 				setmousestate (0, 0, mx, 1);
 				setmousestate (0, 1, my, 1);
@@ -1991,7 +2012,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			typedef BOOL(API* WTPACKET)(HCTX, UINT, LPVOID);
 			extern WTPACKET pWTPacket;
 			PACKET pkt;
-			if (inputdevice_is_tablet () <= 0 && !currprefs.tablet_library) {
+			if (inputdevice_is_tablet () <= 0 && !currprefs.tablet_library && !is_touch_lightpen()) {
 				close_tablet (tablet);
 				tablet = NULL;
 				return 0;
@@ -5102,7 +5123,7 @@ static int osdetect (void)
 	if (os_win7) {
 		int v = GetSystemMetrics(SM_DIGITIZER);
 		if (v & NID_READY) {
-			if (v & (NID_INTEGRATED_TOUCH | NID_INTEGRATED_PEN))
+			if (v & (NID_INTEGRATED_TOUCH | NID_INTEGRATED_PEN | NID_EXTERNAL_TOUCH | NID_EXTERNAL_PEN))
 				os_touch = 1;
 		}
 	}

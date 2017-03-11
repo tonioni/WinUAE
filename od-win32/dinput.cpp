@@ -161,7 +161,7 @@ static int dd_inited, mouse_inited, keyboard_inited, joystick_inited;
 static int stopoutput;
 static HANDLE kbhandle = INVALID_HANDLE_VALUE;
 static int originalleds, oldleds, newleds, disabledleds, ledstate;
-static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmousemode, winmousewheelbuttonstart;
+static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, lightpen, lightpennumber, winmousewheelbuttonstart;
 static int normalkb, superkb, rawkb;
 static bool rawinput_enabled_mouse, rawinput_enabled_keyboard;
 static bool rawinput_decided;
@@ -182,11 +182,11 @@ int dinput_wheelbuttonstart (void)
 {
 	return winmousewheelbuttonstart;
 }
-int dinput_winmousemode (void)
+int dinput_lightpen (void)
 {
-	if (winmouse)
-		return winmousemode;
-	return 0;
+	if (lightpen)
+		return lightpennumber;
+	return -1;
 }
 
 #if 0
@@ -676,7 +676,7 @@ static void tablet_send (void)
 	if (tablet_x < 0)
 		return;
 	inputdevice_tablet (tablet_x, tablet_y, tablet_z, tablet_pressure, tablet_buttons, tablet_proximity,
-		tablet_ax, tablet_ay, tablet_az);
+		tablet_ax, tablet_ay, tablet_az, dinput_lightpen());
 	tabletlib_tablet (tablet_x, tablet_y, tablet_z, tablet_pressure, maxpres, tablet_buttons, tablet_proximity,
 		tablet_ax, tablet_ay, tablet_az);
 }
@@ -749,7 +749,7 @@ void *open_tablet (HWND hwnd)
 
 	if (!tablet)
 		return 0;
-	if (inputdevice_is_tablet () <= 0)
+	if (inputdevice_is_tablet () <= 0 && !is_touch_lightpen())
 		return 0;
 	xmax = -1;
 	ymax = -1;
@@ -816,9 +816,14 @@ int close_tablet (void *ctx)
 	return 1;
 }
 
+int is_touch_lightpen(void)
+{
+	return dinput_lightpen() >= 0;
+}
+
 int is_tablet (void)
 {
-	return tablet ? 1 : 0;
+	return (tablet || os_touch) ? 1 : 0;
 }
 
 static int initialize_tablet (void)
@@ -2037,21 +2042,23 @@ static void initialize_windowsmouse (void)
 	int i, j;
 
 	did += num_mouse;
-	for (i = 0; i < 1; i++) {
+	for (i = 0; i < 2; i++) {
 		if (num_mouse >= MAX_INPUT_DEVICES)
 			return;
 		cleardid (did);
 		num_mouse++;
-		name = (i == 0) ? _T("Windows mouse") : _T("Mousehack mouse");
+		name = (i == 0) ? _T("Windows mouse") : _T("Touchscreen light pen");
 		did->connection = DIDC_WIN;
-		did->name = my_strdup (i ? _T("Mousehack mouse (Required for tablets)") : _T("Windows mouse"));
-		did->sortname = my_strdup (i ? _T("Windowsmouse2") : _T("Windowsmouse1"));
-		did->configname = my_strdup (i ? _T("WINMOUSE2") : _T("WINMOUSE1"));
+		did->name = my_strdup (i ? _T("Touchscreen light pen") : _T("Windows mouse"));
+		did->sortname = my_strdup (i ? _T("Lightpen1") : _T("Windowsmouse1"));
+		did->configname = my_strdup (i ? _T("LIGHTPEN1") : _T("WINMOUSE1"));
 		did->buttons = GetSystemMetrics (SM_CMOUSEBUTTONS);
 		if (did->buttons < 3)
 			did->buttons = 3;
 		if (did->buttons > 5)
 			did->buttons = 5; /* no non-direcinput support for >5 buttons */
+		if (i == 1)
+			did->buttons = 1;
 		did->buttons_real = did->buttons;
 		for (j = 0; j < did->buttons; j++) {
 			did->buttonsort[j] = j;
@@ -2059,24 +2066,30 @@ static void initialize_windowsmouse (void)
 			did->buttonname[j] = my_strdup (tmp);
 		}
 		winmousewheelbuttonstart = did->buttons;
-		did->axles = os_vista ? 4 : 3;
-		did->axissort[0] = 0;
-		did->axisname[0] = my_strdup (_T("X Axis"));
-		did->axissort[1] = 1;
-		did->axisname[1] = my_strdup (_T("Y Axis"));
-		if (did->axles > 2) {
-			did->axissort[2] = 2;
-			did->axisname[2] = my_strdup (_T("Wheel"));
-			addplusminus (did, 2);
+		if (i == 0) {
+			did->axles = os_vista ? 4 : 3;
+			did->axissort[0] = 0;
+			did->axisname[0] = my_strdup (_T("X Axis"));
+			did->axissort[1] = 1;
+			did->axisname[1] = my_strdup (_T("Y Axis"));
+			if (did->axles > 2) {
+				did->axissort[2] = 2;
+				did->axisname[2] = my_strdup (_T("Wheel"));
+				addplusminus (did, 2);
+			}
+			if (did->axles > 3) {
+				did->axissort[3] = 3;
+				did->axisname[3] = my_strdup (_T("HWheel"));
+				addplusminus (did, 3);
+			}
+			did->priority = 2;
+		} else {
+			did->priority = 1;
 		}
-		if (did->axles > 3) {
-			did->axissort[3] = 3;
-			did->axisname[3] = my_strdup (_T("HWheel"));
-			addplusminus (did, 3);
-		}
-		did->priority = 2;
 		did->wininput = i + 1;
 		did++;
+		if (!is_tablet())
+			break;
 	}
 }
 
@@ -3376,16 +3389,19 @@ static int acquire_mouse (int num, int flags)
 		did->acquired = 1;
 	}
 	if (did->acquired > 0) {
-		if (did->rawinput)
+		if (did->rawinput) {
 			rawmouse++;
-		else if (did->superdevice)
+		} else if (did->superdevice) {
 			supermouse++;
-		else if (did->wininput) {
+		} else if (did->wininput == 1) {
 			winmouse++;
 			winmousenumber = num;
-			winmousemode = did->wininput == 2;
-		} else
+		} else if (did->wininput == 2) {
+			lightpen++;
+			lightpennumber = num;
+		} else {
 			normalmouse++;
+		}
 	}
 	return did->acquired > 0 ? 1 : 0;
 }
@@ -3403,14 +3419,17 @@ static void unacquire_mouse (int num)
 
 	unacquire (did->lpdi, _T("mouse"));
 	if (did->acquired > 0) {
-		if (did->rawinput)
+		if (did->rawinput) {
 			rawmouse--;
-		else if (did->superdevice)
+		} else if (did->superdevice) {
 			supermouse--;
-		else if (did->wininput)
+		} else if (did->wininput == 1) {
 			winmouse--;
-		else
+		} else if (did->wininput == 2) {
+			lightpen--;
+		} else {
 			normalmouse--;
+		}
 		did->acquired = 0;
 	}
 }

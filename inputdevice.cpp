@@ -2149,6 +2149,48 @@ void input_mousehack_mouseoffset (uaecptr pointerprefs)
 	mouseoffset_y = (uae_s16)get_word (pointerprefs + 30);
 }
 
+static bool get_mouse_position(int *xp, int *yp, int inx, int iny)
+{
+	int x, y;
+	float fdy, fdx, fmx, fmy;
+	bool ob = false;
+
+	x = inx;
+	y = iny;
+
+	getgfxoffset (&fdx, &fdy, &fmx, &fmy);
+
+#ifdef PICASSO96
+	if (picasso_on) {
+		x -= picasso96_state.XOffset;
+		y -= picasso96_state.YOffset;
+		x = (int)(x * fmx);
+		y = (int)(y * fmy);
+		x -= (int)(fdx * fmx);
+		y -= (int)(fdy * fmy);
+	} else
+#endif
+	{
+		if (gfxvidinfo.outbuffer == NULL) {
+			*xp = 0;
+			*yp = 0;
+			return false;
+		}
+		x = (int)(x * fmx);
+		y = (int)(y * fmy);
+		x -= (int)(fdx * fmx) - 1;
+		y -= (int)(fdy * fmy) - 2;
+		x = coord_native_to_amiga_x(x);
+		if (y >= 0)
+			y = coord_native_to_amiga_y(y) * 2;
+		if (x < 0 || y < 0 || x >= gfxvidinfo.outbuffer->outwidth || y >= gfxvidinfo.outbuffer->outheight)
+			ob = true;
+	}
+	*xp = x;
+	*yp = y;
+	return ob == false;
+}
+
 void mousehack_wakeup(void)
 {
 	if (mousehack_alive_cnt == 0)
@@ -2215,104 +2257,183 @@ void inputdevice_tablet_strobe (void)
 		put_byte_host(mousehack_address + MH_CNT, get_byte_host(mousehack_address + MH_CNT) + 1);
 }
 
-void inputdevice_tablet (int x, int y, int z, int pressure, uae_u32 buttonbits, int inproximity, int ax, int ay, int az)
+void tablet_lightpen(int tx, int ty, int tmaxx, int tmaxy, int touch, int buttonmask, bool touchmode, int devid)
 {
-	uae_u8 *p;
-	uae_u8 tmp[MH_END];
+	if (picasso_on)
+		goto end;
 
-	mousehack_enable ();
-	if (inputdevice_is_tablet () <= 0 || !mousehack_address)
-		return;
-	//write_log (_T("%d %d %d %d %08X %d %d %d %d\n"), x, y, z, pressure, buttonbits, inproximity, ax, ay, az);
-	p = mousehack_address;
+	if (gfxvidinfo.outbuffer == NULL)
+		goto end;
 
-	memcpy (tmp, p + MH_START, MH_END - MH_START); 
-#if 0
-	if (currprefs.input_magic_mouse) {
-		int maxx, maxy, diffx, diffy;
-		int dw, dh, ax, ay, aw, ah;
-		float xmult, ymult;
-		float fx, fy;
+	if (touch < 0)
+		goto end;
 
-		fx = (float)x;
-		fy = (float)y;
-		desktop_coords (&dw, &dh, &ax, &ay, &aw, &ah);
-		xmult = (float)tablet_maxx / dw;
-		ymult = (float)tablet_maxy / dh;
+	int dw, dh, ax, ay, aw, ah;
+	float fx, fy;
+	float xmult, ymult;
 
-		diffx = 0;
-		diffy = 0;
-		if (picasso_on) {
-			maxx = gfxvidinfo.width;
-			maxy = gfxvidinfo.height;
-		} else {
-			get_custom_mouse_limits (&maxx, &maxy, &diffx, &diffy);
-		}
-		diffx += ax;
-		diffy += ah;
+	fx = (float)tx;
+	fy = (float)ty;
 
-		fx -= diffx * xmult;
-		if (fx < 0)
-			fx = 0;
-		if (fx >= aw * xmult)
-			fx = aw * xmult - 1;
-		fy -= diffy * ymult;
-		if (fy < 0)
-			fy = 0;
-		if (fy >= ah * ymult)
-			fy = ah * ymult - 1;
+	desktop_coords (&dw, &dh, &ax, &ay, &aw, &ah);
 
-		x = (int)(fx * (aw * xmult) / tablet_maxx + 0.5);
-		y = (int)(fy * (ah * ymult) / tablet_maxy + 0.5);
-
+	if (tmaxx < 0 || tmaxy < 0) {
+		tmaxx = dw;
+		tmaxy = dh;
 	}
-#endif
-	p[MH_X] = x >> 8;
-	p[MH_X + 1] = x;
-	p[MH_Y] = y >> 8;
-	p[MH_Y + 1] = y;
-	p[MH_Z] = z >> 8;
-	p[MH_Z + 1] = z;
 
-	p[MH_AX] = ax >> 8;
-	p[MH_AX + 1] = ax;
-	p[MH_AY] = ay >> 8;
-	p[MH_AY + 1] = ay;
-	p[MH_AZ] = az >> 8;
-	p[MH_AZ + 1] = az;
+	if (!touchmode) {
+		dw = aw;
+		dh = ah;
+		ax = 0;
+		ay = 0;
+	}
 
-	p[MH_PRESSURE] = pressure >> 8;
-	p[MH_PRESSURE + 1] = pressure;
+	xmult = (float)tmaxx / dw;
+	ymult = (float)tmaxy / dh;
 
-	p[MH_BUTTONBITS + 0] = buttonbits >> 24;
-	p[MH_BUTTONBITS + 1] = buttonbits >> 16;
-	p[MH_BUTTONBITS + 2] = buttonbits >>  8;
-	p[MH_BUTTONBITS + 3] = buttonbits >>  0;
+	fx = fx / xmult;
+	fy = fy / ymult;
 
-	if (inproximity < 0) {
-		p[MH_INPROXIMITY] = p[MH_INPROXIMITY + 1] = 0xff;
+	fx -= ax;
+	fy -= ay;
+
+	float fdx, fdy, fmx, fmy;
+	getgfxoffset (&fdx, &fdy, &fmx, &fmy);
+
+	int x = (int)(fx * fmx);
+	int y = (int)(fy * fmy);
+	x -= (int)(fdx * fmx) - 1;
+	y -= (int)(fdy * fmy) - 2;
+
+	if (x < 0 || y < 0 || x >= aw || y >= ah)
+		goto end;
+
+	lightpen_x = x;
+	lightpen_y = y;
+
+	if (touch >= 0)
+		lightpen_active = true;
+
+	if (touch > 0 && devid >= 0) {
+		setmousebuttonstate (devid, 0, 1);
+	}
+
+	lightpen_enabled = true;
+	return;
+
+end:
+	if (lightpen_active) {
+		lightpen_active = false;
+		setmousebuttonstate (devid, 0, 0);
+	}
+
+}
+
+void inputdevice_tablet (int x, int y, int z, int pressure, uae_u32 buttonbits, int inproximity, int ax, int ay, int az, int devid)
+{
+	if (is_touch_lightpen()) {
+
+		tablet_lightpen(x, y, tablet_maxx, tablet_maxy, inproximity ? 1 : -1, buttonbits, false, devid);
+
 	} else {
-		p[MH_INPROXIMITY] = 0;
-		p[MH_INPROXIMITY + 1] = inproximity ? 1 : 0;
-	}
+		uae_u8 *p;
+		uae_u8 tmp[MH_END];
 
-	if (!memcmp (tmp, p + MH_START, MH_END - MH_START))
-		return;
+		mousehack_enable ();
+		if (inputdevice_is_tablet () <= 0 || !mousehack_address)
+			return;
+		//write_log (_T("%d %d %d %d %08X %d %d %d %d\n"), x, y, z, pressure, buttonbits, inproximity, ax, ay, az);
+		p = mousehack_address;
 
-	if (tablet_log & 1) {
-		static int obuttonbits, oinproximity;
-		if (inproximity != oinproximity || buttonbits != obuttonbits) {
-			obuttonbits = buttonbits;
-			oinproximity = inproximity;
-			write_log (_T("TABLET: B=%08x P=%d\n"), buttonbits, inproximity);
+		memcpy (tmp, p + MH_START, MH_END - MH_START); 
+#if 0
+		if (currprefs.input_magic_mouse) {
+			int maxx, maxy, diffx, diffy;
+			int dw, dh, ax, ay, aw, ah;
+			float xmult, ymult;
+			float fx, fy;
+
+			fx = (float)x;
+			fy = (float)y;
+			desktop_coords (&dw, &dh, &ax, &ay, &aw, &ah);
+			xmult = (float)tablet_maxx / dw;
+			ymult = (float)tablet_maxy / dh;
+
+			diffx = 0;
+			diffy = 0;
+			if (picasso_on) {
+				maxx = gfxvidinfo.width;
+				maxy = gfxvidinfo.height;
+			} else {
+				get_custom_mouse_limits (&maxx, &maxy, &diffx, &diffy);
+			}
+			diffx += ax;
+			diffy += ah;
+
+			fx -= diffx * xmult;
+			if (fx < 0)
+				fx = 0;
+			if (fx >= aw * xmult)
+				fx = aw * xmult - 1;
+			fy -= diffy * ymult;
+			if (fy < 0)
+				fy = 0;
+			if (fy >= ah * ymult)
+				fy = ah * ymult - 1;
+
+			x = (int)(fx * (aw * xmult) / tablet_maxx + 0.5);
+			y = (int)(fy * (ah * ymult) / tablet_maxy + 0.5);
+
 		}
-	}
-	if (tablet_log & 2) {
-		write_log (_T("TABLET: X=%d Y=%d Z=%d AX=%d AY=%d AZ=%d\n"), x, y, z, ax, ay, az);
-	}
+#endif
+		p[MH_X] = x >> 8;
+		p[MH_X + 1] = x;
+		p[MH_Y] = y >> 8;
+		p[MH_Y + 1] = y;
+		p[MH_Z] = z >> 8;
+		p[MH_Z + 1] = z;
 
-	p[MH_E] = 0xc0 | 2;
-	p[MH_CNT]++;
+		p[MH_AX] = ax >> 8;
+		p[MH_AX + 1] = ax;
+		p[MH_AY] = ay >> 8;
+		p[MH_AY + 1] = ay;
+		p[MH_AZ] = az >> 8;
+		p[MH_AZ + 1] = az;
+
+		p[MH_PRESSURE] = pressure >> 8;
+		p[MH_PRESSURE + 1] = pressure;
+
+		p[MH_BUTTONBITS + 0] = buttonbits >> 24;
+		p[MH_BUTTONBITS + 1] = buttonbits >> 16;
+		p[MH_BUTTONBITS + 2] = buttonbits >>  8;
+		p[MH_BUTTONBITS + 3] = buttonbits >>  0;
+
+		if (inproximity < 0) {
+			p[MH_INPROXIMITY] = p[MH_INPROXIMITY + 1] = 0xff;
+		} else {
+			p[MH_INPROXIMITY] = 0;
+			p[MH_INPROXIMITY + 1] = inproximity ? 1 : 0;
+		}
+
+		if (!memcmp (tmp, p + MH_START, MH_END - MH_START))
+			return;
+
+		if (tablet_log & 1) {
+			static int obuttonbits, oinproximity;
+			if (inproximity != oinproximity || buttonbits != obuttonbits) {
+				obuttonbits = buttonbits;
+				oinproximity = inproximity;
+				write_log (_T("TABLET: B=%08x P=%d\n"), buttonbits, inproximity);
+			}
+		}
+		if (tablet_log & 2) {
+			write_log (_T("TABLET: X=%d Y=%d Z=%d AX=%d AY=%d AZ=%d\n"), x, y, z, ax, ay, az);
+		}
+
+		p[MH_E] = 0xc0 | 2;
+		p[MH_CNT]++;
+	}
 }
 
 void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay, int maxaz, int xres, int yres)
@@ -2596,51 +2717,13 @@ static void inputdevice_mh_abs_v36 (int x, int y)
 static void mousehack_helper (uae_u32 buttonmask)
 {
 	int x, y;
-	float fdy, fdx, fmx, fmy;
-
 	//write_log (_T("mousehack_helper %08X\n"), buttonmask);
 
 	if (!(currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && currprefs.input_tablet < TABLET_MOUSEHACK)
 		return;
-#if 0
-	if (kickstart_version >= 36) {
-		inputdevice_mh_abs_v36 (lastmx, lastmy);
-		return;
-	}
-#endif
-	x = lastmx;
-	y = lastmy;
 
-	getgfxoffset (&fdx, &fdy, &fmx, &fmy);
+	get_mouse_position(&x, &y, lastmx, lastmy);
 
-#ifdef PICASSO96
-	if (picasso_on) {
-		x -= picasso96_state.XOffset;
-		y -= picasso96_state.YOffset;
-		x = (int)(x * fmx);
-		y = (int)(y * fmy);
-		x -= (int)(fdx * fmx);
-		y -= (int)(fdy * fmy);
-	} else
-#endif
-	{
-		if (gfxvidinfo.outbuffer == NULL)
-			return;
-		x = (int)(x * fmx);
-		y = (int)(y * fmy);
-		x -= (int)(fdx * fmx) - 1;
-		y -= (int)(fdy * fmy) - 2;
-		if (x < 0)
-			x = 0;
-		if (x >= gfxvidinfo.outbuffer->outwidth)
-			x = gfxvidinfo.outbuffer->outwidth - 1;
-		if (y < 0)
-			y = 0;
-		if (y >= gfxvidinfo.outbuffer->outheight)
-			y = gfxvidinfo.outbuffer->outheight - 1;
-		x = coord_native_to_amiga_x (x);
-		y = coord_native_to_amiga_y (y) << 1;
-	}
 	inputdevice_mh_abs (x, y, buttonmask);
 }
 
@@ -8075,6 +8158,9 @@ static void clearpressmask(void)
 	}
 }
 
+void target_inputdevice_acquire(void);
+void target_inputdevice_unacquire(void);
+
 void inputdevice_acquire (int allmode)
 {
 	int i;
@@ -8111,6 +8197,8 @@ void inputdevice_acquire (int allmode)
 	idev[IDTYPE_MOUSE].acquire (-1, 0);
 	idev[IDTYPE_KEYBOARD].acquire (-1, 0);
 
+	target_inputdevice_acquire();
+
 	//    if (!input_acquired)
 	//	write_log (_T("input devices acquired (%s)\n"), allmode ? "all" : "selected only");
 	input_acquired = 1;
@@ -8141,6 +8229,8 @@ void inputdevice_unacquire(bool emulationactive, int inputmask)
 
 	if (!input_acquired)
 		return;
+
+	target_inputdevice_unacquire();
 
 	input_acquired = 0;
 	if (!(inputmask & 4))
