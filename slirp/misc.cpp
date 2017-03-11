@@ -17,10 +17,7 @@ int x_port = -1;
 int x_display = 0;
 int x_screen = 0;
 
-int
-show_x(buff, inso)
-	char *buff;
-	struct socket *inso;
+int show_x(char *buff, struct socket *inso)
 {
 	if (x_port < 0) {
 		lprint("X Redir: X not being redirected.\r\n");
@@ -40,12 +37,7 @@ show_x(buff, inso)
 /*
  * XXX Allow more than one X redirection?
  */
-void
-redir_x(inaddr, start_port, display, screen)
-	u_int32_t inaddr;
-	int start_port;
-	int display;
-	int screen;
+void redir_x(u_int32_t inaddr, int start_port, int display, int screen)
 {
 	int i;
 	
@@ -69,32 +61,34 @@ redir_x(inaddr, start_port, display, screen)
 #endif
 
 #ifndef HAVE_INET_ATON
-int
-inet_aton(const char *cp, struct in_addr *ia)
+int inet_aton(const char *cp, struct in_addr *ia)
 {
-	u_int32_t addr = inet_addr(cp);
-	if (addr == 0xffffffff)
-		return 0;
-	ia->s_addr = addr;
-	return 1;
+	return inet_pton(AF_INET, cp, &ia->s_addr);
 }
 #endif
 
 /*
  * Get our IP address and put it in our_addr
  */
-void
-getouraddr(void)
+void getouraddr(void)
 {
 	char buff[256];
-	struct hostent *he = NULL;
-	
-	if (gethostname(buff,256) == 0)
-            he = gethostbyname(buff);
-        if (he)
-            our_addr = *(struct in_addr *)he->h_addr;
-        if (our_addr.s_addr == 0)
-            our_addr.s_addr = loopback_addr.s_addr;
+
+	if (gethostname(buff, sizeof(buff)) == 0)
+	{
+		struct addrinfo hints = { 0 };
+		hints.ai_flags = AI_NUMERICHOST;
+		hints.ai_family = AF_INET;
+		struct addrinfo* ai;
+		if (getaddrinfo(buff, NULL, &hints, &ai) == 0)
+		{
+			our_addr = *(struct in_addr *)ai->ai_addr->sa_data;
+			freeaddrinfo(ai);
+		}
+	}
+	if (our_addr.s_addr == 0)
+		our_addr.s_addr = loopback_addr.s_addr;
+
 }
 
 
@@ -103,11 +97,10 @@ struct quehead {
 	struct quehead *qh_rlink;
 };
 
-void
-insque(void *a, void *b)
+void insque(void *a, void *b)
 {
-	register struct quehead *element = (struct quehead *) a;
-	register struct quehead *head = (struct quehead *) b;
+	struct quehead *element = (struct quehead *) a;
+	struct quehead *head = (struct quehead *) b;
 	element->qh_link = head->qh_link;
 	head->qh_link = (struct quehead *)element;
 	element->qh_rlink = (struct quehead *)head;
@@ -115,10 +108,9 @@ insque(void *a, void *b)
 	= (struct quehead *)element;
 }
 
-void
-remque(void *a)
+void remque(void *a)
 {
-  register struct quehead *element = (struct quehead *) a;
+  struct quehead *element = (struct quehead *) a;
   ((struct quehead *)(element->qh_link))->qh_rlink = element->qh_rlink;
   ((struct quehead *)(element->qh_rlink))->qh_link = element->qh_link;
   element->qh_rlink = NULL;
@@ -128,8 +120,7 @@ remque(void *a)
 /* #endif */
 
 
-int
-add_exec(struct ex_list **ex_ptr, int do_pty, char *exec, int addr, int port)
+int add_exec(struct ex_list **ex_ptr, int do_pty, char *exec, int addr, int port)
 {
 	struct ex_list *tmp_ptr;
 	
@@ -158,9 +149,7 @@ add_exec(struct ex_list **ex_ptr, int do_pty, char *exec, int addr, int port)
 extern int sys_nerr;
 extern char *sys_errlist[];
 
-char *
-strerror(error)
-	int error;
+char *strerror(int error)
 {
 	if (error < sys_nerr)
 	   return sys_errlist[error];
@@ -173,8 +162,7 @@ strerror(error)
 
 #ifdef _WIN32
 
-int
-fork_exec(struct socket *so, char *ex, int do_pty)
+int fork_exec(struct socket *so, char *ex, int do_pty)
 {
     /* not implemented */
     return 0;
@@ -182,8 +170,7 @@ fork_exec(struct socket *so, char *ex, int do_pty)
 
 #else
 
-int
-slirp_openpty(int *amaster, int *aslave)
+int slirp_openpty(int *amaster, int *aslave)
 {
 	register int master, slave;
 
@@ -257,8 +244,7 @@ slirp_openpty(int *amaster, int *aslave)
  * do_pty = 1   Fork/exec using slirp.telnetd
  * do_ptr = 2   Fork/exec using pty
  */
-int
-fork_exec(struct socket *so, char *ex, int do_pty)
+int fork_exec(struct socket *so, char *ex, int do_pty)
 {
 	int s;
 	struct sockaddr_in addr;
@@ -414,9 +400,7 @@ fork_exec(struct socket *so, char *ex, int do_pty)
 #endif
 
 #ifndef HAVE_STRDUP
-char *
-strdup(str)
-	const char *str;
+char *strdup(const char *str)
 {
 	char *bptr;
 	
@@ -428,9 +412,7 @@ strdup(str)
 #endif
 
 #if 0
-void
-snooze_hup(num)
-	int num;
+void snooze_hup(int num)
 {
 	int s, ret;
 #ifndef NO_UNIX_SOCKETS
@@ -470,8 +452,7 @@ snooze_hup(num)
 }
 	
 	
-void
-snooze()
+void snooze(void)
 {
 	sigset_t s;
 	int i;
@@ -495,9 +476,7 @@ snooze()
 	exit(255);
 }
 
-void
-relay(s)
-	int s;
+void relay(int s)
 {
 	char buf[8192];
 	int n;
@@ -557,25 +536,14 @@ relay(s)
 }
 #endif
 
-int (*lprint_print) _P((void *, const char *, va_list));
+int (*lprint_print)(void *, const char *, va_list);
 char *lprint_ptr, *lprint_ptr2, **lprint_arg;
 
-void
-#if defined(__STDC__) || defined(_MSC_VER)
-lprint(const char *format, ...)
-#else
-lprint(va_alist) va_dcl
-#endif
+void lprint(const char *format, ...)
 {
 	va_list args;
         
-#if defined(__STDC__) || defined(_MSC_VER)
         va_start(args, format);
-#else
-        char *format;
-        va_start(args);
-        format = va_arg(args, char *);
-#endif
 #if 0
 	/* If we're printing to an sbuf, make sure there's enough room */
 	/* XXX +100? */
@@ -624,8 +592,7 @@ lprint(va_alist) va_dcl
 	va_end(args);
 }
 
-void
-add_emu(char *buff)
+void add_emu(char *buff)
 {
 	u_int lport, fport;
 	u_int8_t tos = 0, emu = 0;
@@ -717,41 +684,18 @@ add_emu(char *buff)
  * Some BSD-derived systems have a sprintf which returns char *
  */
 
-int
-vsprintf_len(string, format, args)
-	char *string;
-	const char *format;
-	va_list args;
-{
-	vsprintf(string, format, args);
-	return strlen(string);
-}
-
-int
-#ifdef __STDC__
-sprintf_len(char *string, const char *format, ...)
-#else
-sprintf_len(va_alist) va_dcl
-#endif
+int sprintf_len(char *string, const char *format, ...)
 {
 	va_list args;
-#ifdef __STDC__
 	va_start(args, format);
-#else
-	char *string;
-	char *format;
-	va_start(args);
-	string = va_arg(args, char *);
-	format = va_arg(args, char *);
-#endif
 	vsprintf(string, format, args);
+	va_end(args);
 	return strlen(string);
 }
 
 #endif
 
-void
-u_sleep(int usec)
+void u_sleep(int usec)
 {
 	struct timeval t;
 	fd_set fdset;
@@ -768,8 +712,7 @@ u_sleep(int usec)
  * Set fd blocking and non-blocking
  */
 
-void
-fd_nonblock(SLIRP_SOCKET fd)
+void fd_nonblock(SLIRP_SOCKET fd)
 {
 #if defined USE_FIONBIO && defined FIONBIO
 	ioctlsockopt_t opt = 1;
@@ -784,8 +727,7 @@ fd_nonblock(SLIRP_SOCKET fd)
 #endif
 }
 
-void
-fd_block(SLIRP_SOCKET fd)
+void fd_block(SLIRP_SOCKET fd)
 {
 #if defined USE_FIONBIO && defined FIONBIO
 	ioctlsockopt_t opt = 0;
@@ -805,13 +747,8 @@ fd_block(SLIRP_SOCKET fd)
 /*
  * invoke RSH
  */
-int
-rsh_exec(so,ns, user, host, args)
-	struct socket *so;
-	struct socket *ns;
-	char *user;
-	char *host;
-	char *args;
+int rsh_exec(struct socket *so, struct socket *ns,
+	char *user, char *host, char *args)
 {
 	int fd[2];
 	int fd0[2];

@@ -2712,6 +2712,7 @@ uae_u32 gfxboard_get_romtype(struct rtgboardconfig *rbc)
 static void gfxboard_init (struct autoconfig_info *aci, struct rtggfxboard *gb)
 {
 	struct uae_prefs *p = aci->prefs;
+	gb->rtg_index = aci->devnum;
 	if (!gb->automemory)
 		gb->automemory = xmalloc (uae_u8, GFXBOARD_AUTOCONFIG_SIZE);
 	memset (gb->automemory, 0xff, GFXBOARD_AUTOCONFIG_SIZE);

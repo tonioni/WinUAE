@@ -11,6 +11,8 @@
 #include "sysconfig.h"
 #include "slirp_config.h"
 
+#define SLIRP_ICMP 0
+
 #ifdef _WIN32
 #include <stdint.h>
 
@@ -23,21 +25,23 @@ typedef u_int8_t uint8;
 typedef u_int16_t uint16;
 typedef u_int32_t uint32;
 
+typedef char *caddr_t;
+typedef int socklen_t;
+typedef unsigned long ioctlsockopt_t;
+
+/* Should be UINT_PTR but SLIRP code has <= 0 tests */
+#define SLIRP_SOCKET INT_PTR
+
 #ifdef _MSC_VER
 #define container_of(address, type, field) ((type *)( \
         (PCHAR)(address) - \
         (ULONG_PTR)(&((type *)0)->field)))
 #endif
 
-typedef char *caddr_t;
-typedef int socklen_t;
-typedef unsigned long ioctlsockopt_t;
-
-# include <winsock2.h>
-# include <windows.h>
-# include <sys/timeb.h>
-# include <iphlpapi.h>
-
+#include <winsock2.h>
+#include <Ws2tcpip.h>
+#include <sys/timeb.h>
+#include <iphlpapi.h>
 
 # define USE_FIONBIO 1
 
@@ -133,17 +137,6 @@ typedef u_int32_t uint32;
 
 #ifndef _WIN32
 #include <sys/uio.h>
-#endif
-
-#ifndef _P
-#ifndef NO_PROTOTYPES
-#  define   _P(x)   x
-#else
-#  define   _P(x)   ()
-#endif
-#endif
-
-#ifndef _WIN32
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #endif
@@ -154,17 +147,17 @@ typedef u_int32_t uint32;
 
 /* Systems lacking strdup() definition in <string.h>. */
 #if defined(ultrix)
-char *strdup _P((const char *));
+char *strdup(const char *);
 #endif
 
 /* Systems lacking malloc() definition in <stdlib.h>. */
 #if defined(ultrix) || defined(hcx)
-void *malloc _P((size_t arg));
-void free _P((void *ptr));
+void *malloc(size_t arg);
+void free(void *ptr);
 #endif
 
 #ifndef HAVE_INET_ATON
-int inet_aton _P((const char *cp, struct in_addr *ia));
+int inet_aton(const char *cp, struct in_addr *ia);
 #endif
 
 #include <fcntl.h>
@@ -216,25 +209,6 @@ int inet_aton _P((const char *cp, struct in_addr *ia));
 #include <sys/stropts.h>
 #endif
 
-#ifdef _WIN32
-#undef EWOULDBLOCK
-#undef EINPROGRESS
-#undef ENOTCONN
-#undef EHOSTUNREACH
-#undef ENETUNREACH
-#undef ECONNREFUSED
-
-# define EWOULDBLOCK WSAEWOULDBLOCK
-# define EINPROGRESS WSAEINPROGRESS
-# define ENOTCONN WSAENOTCONN
-# define EHOSTUNREACH WSAEHOSTUNREACH
-# define ENETUNREACH WSAENETUNREACH
-# define ECONNREFUSED WSAECONNREFUSED
-
-/* Should be UINT_PTR but SLIRP code has <= 0 tests */
-#define SLIRP_SOCKET INT_PTR
-#endif
-
 #include "debug.h"
 
 #if defined __GNUC__
@@ -280,38 +254,38 @@ extern struct ttys *ttys_unit[MAX_INTERFACES];
 #endif
 
 #ifndef FULL_BOLT
-void if_start _P((void));
+void if_start(void);
 #else
-void if_start _P((struct ttys *));
+void if_start(struct ttys *);
 #endif
 
 #ifdef BAD_SPRINTF
 # define vsprintf vsprintf_len
 # define sprintf sprintf_len
- extern int vsprintf_len _P((char *, const char *, va_list));
- extern int sprintf_len _P((char *, const char *, ...));
+ extern int vsprintf_len(char *, const char *, va_list);
+ extern int sprintf_len(char *, const char *, ...);
 #endif
 
 #ifdef DECLARE_SPRINTF
 # ifndef BAD_SPRINTF
- extern int vsprintf _P((char *, const char *, va_list));
+ extern int vsprintf(char *, const char *, va_list);
 # endif
- extern int vfprintf _P((FILE *, const char *, va_list));
+ extern int vfprintf(FILE *, const char *, va_list);
 #endif
 
 #ifndef HAVE_STRERROR
- extern char *strerror _P((int error));
+ extern char *strerror(int error);
 #endif
 
 #ifndef HAVE_INDEX
- char *index _P((const char *, int));
+ char *index(const char *, int);
 #endif
 
 #ifndef HAVE_GETHOSTID
- long gethostid _P((void));
+ long gethostid(void);
 #endif
 
-void lprint _P((const char *, ...));
+void lprint(const char *, ...);
 
 #ifndef _WIN32
 #include <netdb.h>
@@ -323,49 +297,49 @@ void lprint _P((const char *, ...));
 int cksum(struct mbuf *m, int len);
 
 /* if.c */
-void if_init _P((void));
-void if_output _P((struct socket *, struct mbuf *));
+void if_init(void);
+void if_output(struct socket *, struct mbuf *);
 
 /* ip_input.c */
-void ip_init _P((void));
-void ip_cleanup _P((void));
-void ip_input _P((struct mbuf *));
-struct ip * ip_reass _P((struct ip *, struct ipq *));
-void ip_freef _P((struct ipq *));
-void ip_enq _P((register struct ipasfrag *, register struct ipasfrag *));
-void ip_deq _P((register struct ipasfrag *));
-void ip_slowtimo _P((void));
-void ip_stripoptions _P((register struct mbuf *, struct mbuf *));
+void ip_init(void);
+void ip_cleanup(void);
+void ip_input(struct mbuf *);
+struct ip * ip_reass(struct ip *, struct ipq *);
+void ip_freef(struct ipq *);
+void ip_enq(struct ipasfrag *, struct ipasfrag *);
+void ip_deq(struct ipasfrag *);
+void ip_slowtimo(void);
+void ip_stripoptions(struct mbuf *, struct mbuf *);
 
 /* ip_output.c */
-int ip_output _P((struct socket *, struct mbuf *));
+int ip_output(struct socket *, struct mbuf *);
 
 /* tcp_input.c */
-int tcp_reass _P((register struct tcpcb *, register struct tcpiphdr *, struct mbuf *));
-void tcp_input _P((register struct mbuf *, int, struct socket *));
-void tcp_dooptions _P((struct tcpcb *, u_char *, int, struct tcpiphdr *));
-void tcp_xmit_timer _P((register struct tcpcb *, int));
-int tcp_mss _P((register struct tcpcb *, u_int));
+int tcp_reass(struct tcpcb *, struct tcpiphdr *, struct mbuf *);
+void tcp_input(struct mbuf *, int, struct socket *);
+void tcp_dooptions(struct tcpcb *, u_char *, int, struct tcpiphdr *);
+void tcp_xmit_timer(struct tcpcb *, int);
+u_int tcp_mss(struct tcpcb *, u_int);
 
 /* tcp_output.c */
-int tcp_output _P((register struct tcpcb *));
-void tcp_setpersist _P((register struct tcpcb *));
+int tcp_output(struct tcpcb *);
+void tcp_setpersist(struct tcpcb *);
 
 /* tcp_subr.c */
-void tcp_init _P((void));
-void tcp_cleanup _P((void));
-void tcp_template _P((struct tcpcb *));
-void tcp_respond _P((struct tcpcb *, register struct tcpiphdr *, register struct mbuf *, tcp_seq, tcp_seq, int));
-struct tcpcb * tcp_newtcpcb _P((struct socket *));
-struct tcpcb * tcp_close _P((register struct tcpcb *));
-void tcp_drain _P((void));
-void tcp_sockclosed _P((struct tcpcb *));
-int tcp_fconnect _P((struct socket *));
-void tcp_connect _P((struct socket *));
-int tcp_attach _P((struct socket *));
-u_int8_t tcp_tos _P((struct socket *));
-int tcp_emu _P((struct socket *, struct mbuf *));
-int tcp_ctl _P((struct socket *));
+void tcp_init(void);
+void tcp_cleanup(void);
+void tcp_template(struct tcpcb *);
+void tcp_respond(struct tcpcb *, struct tcpiphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
+struct tcpcb * tcp_newtcpcb(struct socket *);
+struct tcpcb * tcp_close(struct tcpcb *);
+void tcp_drain(void);
+void tcp_sockclosed(struct tcpcb *);
+int tcp_fconnect(struct socket *);
+void tcp_connect(struct socket *);
+int tcp_attach(struct socket *);
+u_int8_t tcp_tos(struct socket *);
+int tcp_emu(struct socket *, struct mbuf *);
+int tcp_ctl(struct socket *);
 struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
 
 #ifdef USE_PPP
@@ -379,11 +353,6 @@ struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
 #ifndef _MSC_VER
 #define min(x,y) ((x) < (y) ? (x) : (y))
 #define max(x,y) ((x) > (y) ? (x) : (y))
-#endif
-
-#ifdef _WIN32
-#undef errno
-#define errno (WSAGetLastError())
 #endif
 
 #endif

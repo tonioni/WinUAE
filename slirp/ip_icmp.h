@@ -155,12 +155,17 @@ struct icmp {
 	(type) == ICMP_IREQ || (type) == ICMP_IREQREPLY || \
 	(type) == ICMP_MASKREQ || (type) == ICMP_MASKREPLY)
 
+void icmp_input(struct mbuf *, int);
+void icmp_error(struct mbuf *, u_char, u_char, int, const char *);
+void icmp_reflect(struct mbuf *);
+
+#if SLIRP_ICMP
+
 void icmp_init(void);
 void icmp_cleanup(void);
-void icmp_input _P((struct mbuf *, int));
-void icmp_error _P((struct mbuf *, u_char, u_char, int, const char *));
-void icmp_reflect _P((struct mbuf *));
 void icmp_receive(struct socket *so);
 void icmp_detach(struct socket *so);
+
+#endif
 
 #endif

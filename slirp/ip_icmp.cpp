@@ -64,6 +64,8 @@ static int icmp_flush[19] = {
 /* ADDR MASK REPLY (18) */ 0 
 };
 
+#if SLIRP_ICMP
+
 void icmp_init(void)
 {
     icmp.so_next = icmp.so_prev = &icmp;
@@ -117,19 +119,21 @@ void icmp_detach(struct socket *so)
     sofree(so);
 }
 
+#endif
+
 /*
  * Process a received ICMP message.
  */
 void icmp_input(struct mbuf *m, int hlen)
 {
-  register struct icmp *icp;
-  register struct ip *ip=mtod(m, struct ip *);
+  struct icmp *icp;
+  struct ip *ip=mtod(m, struct ip *);
   int icmplen=ip->ip_len;
   /* int code; */
 	
   DEBUG_CALL("icmp_input");
   DEBUG_ARG("m = %p", m);
-  DEBUG_ARG("m_len = %d", m->m_len);
+  DEBUG_ARG("m_len = %zu", m->m_len);
 
   icmpstat.icps_received++;
 	
@@ -168,9 +172,11 @@ void icmp_input(struct mbuf *m, int hlen)
       struct socket *so;
       struct sockaddr_in addr;
       if ((so = socreate()) == NULL) goto freeit;
-      if (icmp_send(so, m, hlen) == 0)
+#if SLIRP_ICMP
+	  if (icmp_send(so, m, hlen) == 0)
         return;
-      if(udp_attach(so) == -1) {
+#endif
+	  if(udp_attach(so) == -1) {
 	DEBUG_MISC(("icmp_input udp_attach errno = %d-%s\n", 
 		    errno,strerror(errno)));
 	sofree(so);
@@ -257,13 +263,13 @@ end_error:
 void icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize, const char *message)
 {
   unsigned hlen, shlen, s_ip_len;
-  register struct ip *ip;
-  register struct icmp *icp;
-  register struct mbuf *m;
+  struct ip *ip;
+  struct icmp *icp;
+  struct mbuf *m;
 
   DEBUG_CALL("icmp_error");
   DEBUG_ARG("msrc = %p", msrc);
-  DEBUG_ARG("msrc_len = %d", msrc->m_len);
+  DEBUG_ARG("msrc_len = %zu", msrc->m_len);
 
   if(type!=ICMP_UNREACH && type!=ICMP_TIMXCEED) goto end_error;
 
@@ -271,9 +277,9 @@ void icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize, const 
   if(!msrc) goto end_error;
   ip = mtod(msrc, struct ip *);
 #if DEBUG  
-  { char bufa[20], bufb[20];
-    strcpy(bufa, inet_ntoa(ip->ip_src));
-    strcpy(bufb, inet_ntoa(ip->ip_dst));
+  { char bufa[INET_ADDRSTRLEN], bufb[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &ip->ip_src, bufa, sizeof(bufa));
+    inet_ntop(AF_INET, &ip->ip_dst, bufb, sizeof(bufb));
     DEBUG_MISC((" %.16s to %.16s\n", bufa, bufb));
   }
 #endif
@@ -292,7 +298,7 @@ void icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize, const 
 
   /* make a copy */
   if(!(m=m_get())) goto end_error;               /* get mbuf */
-  { int new_m_size;
+  { u_int new_m_size;
     new_m_size=sizeof(struct ip )+ICMP_MINLEN+msrc->m_len+ICMP_MAXDATALEN;
     if(new_m_size>m->m_size) m_inc(m, new_m_size);
   }
@@ -347,7 +353,7 @@ void icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize, const 
 
   /* fill in ip */
   ip->ip_hl = hlen >> 2;
-  ip->ip_len = m->m_len;
+  ip->ip_len = (u_int16_t)m->m_len;
   
   ip->ip_tos=((ip->ip_tos & 0x1E) | 0xC0);  /* high priority for errors */
 
@@ -370,10 +376,10 @@ end_error:
  */
 void icmp_reflect(struct mbuf *m)
 {
-  register struct ip *ip = mtod(m, struct ip *);
+  struct ip *ip = mtod(m, struct ip *);
   int hlen = ip->ip_hl << 2;
   int optlen = hlen - sizeof(struct ip );
-  register struct icmp *icp;
+  struct icmp *icp;
 
   /*
    * Send an icmp packet back to the ip level,
@@ -416,6 +422,8 @@ void icmp_reflect(struct mbuf *m)
   icmpstat.icps_reflect++;
 }
 
+#if SLIRP_ICMP
+
 void icmp_receive(struct socket *so)
 {
     struct mbuf *m = so->so_m;
@@ -451,3 +459,5 @@ void icmp_receive(struct socket *so)
     }
     icmp_detach(so);
 }
+
+#endif

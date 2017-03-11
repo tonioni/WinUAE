@@ -3506,6 +3506,9 @@ static void draw_lightpen_cursor (int x, int y, int line, int onscreen)
 	int color1 = onscreen ? 0xff0 : 0xf00;
 	int color2 = 0x000;
 
+	if (!currprefs.lightpen_crosshair)
+		return;
+
 	xlinebuffer = gfxvidinfo.drawbuffer.linemem;
 	if (xlinebuffer == 0)
 		xlinebuffer = row_map[line];

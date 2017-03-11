@@ -59,6 +59,8 @@
 
 #define SPRBORDER 0
 
+static int denise_resolution_min = 0;
+
 extern uae_u16 serper;
 
 STATIC_INLINE bool nocustom (void)
@@ -992,7 +994,7 @@ static uae_u64 fetched_aga[MAX_PLANES];
 #endif
 
 /* Expansions from bplcon0/bplcon1.  */
-static int toscr_res, toscr_res2p;
+static int toscr_res, toscr_res2p, toscr_res_mult;
 static int toscr_nr_planes, toscr_nr_planes2, toscr_nr_planes_agnus, toscr_nr_planes_shifter;
 static int fetchwidth;
 static int toscr_delay[2], toscr_delay_adjusted[2], toscr_delay_sh[2];
@@ -1371,7 +1373,7 @@ static void fetch (int nr, int fm, bool modulo, int hpos)
 #ifdef AGA
 		case 1:
 			fetched_aga[nr] = chipmem_lget_indirect (p);
-			last_custom_value1 = fetched_aga[nr];
+			last_custom_value1 = (uae_u32)fetched_aga[nr];
 			fetched[nr] = (uae_u16)fetched_aga[nr];
 			break;
 		case 2:
@@ -1807,6 +1809,11 @@ static void update_denise (int hpos)
 		flush_display (fetchmode);
 	toscr_res = GET_RES_DENISE (bplcon0d);
 	toscr_res2p = 2 << toscr_res;
+	if (toscr_res < denise_resolution_min) {
+		toscr_res_mult = denise_resolution_min - toscr_res;
+	} else {
+		toscr_res_mult = 0;
+	}
 	delay_cycles = (hpos * 2) << toscr_res;
 	if (bplcon0dd != bplcon0d) {
 		record_color_change2 (hpos, 0x100 + 0x1000, bplcon0d);
@@ -1926,7 +1933,7 @@ STATIC_INLINE void long_fetch_32 (int plane, int nwords, int weird_number_of_bit
 	int tmp_nbits = out_nbits;
 	uae_u64 shiftbuffer;
 	uae_u32 outval = outword[plane];
-	uae_u32 fetchval = fetched_aga[plane];
+	uae_u32 fetchval = (uae_u32)fetched_aga[plane];
 	uae_u32 *dataptr = (uae_u32 *)(line_data[next_lineno] + 2 * plane * MAX_WORDS_PER_LINE + 4 * out_offs);
 
 	if (dma) {
@@ -2071,10 +2078,10 @@ STATIC_INLINE void long_fetch_64 (int plane, int nwords, int weird_number_of_bit
 			t = (shiftbuffer >> shift) & 0xffff;
 #else
 			if (64 - shift > 0) {
-				t = shiftbuffer[1] << (64 - shift);
+				t = (uae_u32)(shiftbuffer[1] << (64 - shift));
 				t |= shiftbuffer[0] >> shift;
 			} else {
-				t = shiftbuffer[1] >> (shift - 64);
+				t = (uae_u32)(shiftbuffer[1] >> (shift - 64));
 			}
 			t &= 0xffff;
 #endif
@@ -2242,6 +2249,7 @@ static void maybe_finish_last_fetch (int pos, int fm)
 				bitplane_overrun = 0;
 			bitplane_overrun_hpos = left;
 		}
+		SET_LINE_CYCLEBASED;
 		bitplane_overrun_cycle_diagram_shift = fetchunit - (bitplane_overrun_fetch_cycle & fetchstart_mask);
 		finish_last_fetch(pos, fm, true);
 	}
@@ -2321,7 +2329,7 @@ static void do_overrun_fetch(int until, int fm)
 			flush_display(fm);
 #endif
 
-		if ((bitplane_overrun_fetch_cycle & fetchunit_mask) == 0) {
+		if ((bitplane_overrun_fetch_cycle & fetchunit_mask) == fetchunit_mask) {
 			bitplane_overrun--;
 			if (hit && warned > 0) {
 				warned--;
@@ -4277,9 +4285,9 @@ static void init_hz (bool checkvposw)
 		sprite_vblank_endline = VBLANK_SPRITE_PAL;
 		equ_vblank_endline = EQU_ENDLINE_PAL;
 		equ_vblank_toggle = true;
-		vblank_hz_shf = (double)clk / ((maxvpos + 0) * maxhpos);
-		vblank_hz_lof = (double)clk / ((maxvpos + 1) * maxhpos);
-		vblank_hz_lace = (double)clk / ((maxvpos + 0.5) * maxhpos);
+		vblank_hz_shf = (float)((double)clk / ((maxvpos + 0) * maxhpos));
+		vblank_hz_lof = (float)((double)clk / ((maxvpos + 1) * maxhpos));
+		vblank_hz_lace = (float)((double)clk / ((maxvpos + 0.5) * maxhpos));
 	} else {
 		maxvpos = MAXVPOS_NTSC;
 		maxhpos = MAXHPOS_NTSC;
@@ -4288,9 +4296,9 @@ static void init_hz (bool checkvposw)
 		sprite_vblank_endline = VBLANK_SPRITE_NTSC;
 		equ_vblank_endline = EQU_ENDLINE_NTSC;
 		equ_vblank_toggle = false;
-		vblank_hz_shf = (double)clk / ((maxvpos + 0) * (maxhpos + 0.5));
-		vblank_hz_lof = (double)clk / ((maxvpos + 1) * (maxhpos + 0.5));
-		vblank_hz_lace = (double)clk / ((maxvpos + 0.5) * (maxhpos + 0.5));
+		vblank_hz_shf = (float)((double)clk / ((maxvpos + 0) * (maxhpos + 0.5)));
+		vblank_hz_lof = (float)((double)clk / ((maxvpos + 1) * (maxhpos + 0.5)));
+		vblank_hz_lace = (float)((double)clk / ((maxvpos + 0.5) * (maxhpos + 0.5)));
 	}
 
 	maxvpos_nom = maxvpos;
@@ -4301,7 +4309,7 @@ static void init_hz (bool checkvposw)
 		if (vpos_count < 10)
 			vpos_count = 10;
 		vblank_hz = (isntsc ? 15734.0 : 15625.0) / vpos_count;
-		vblank_hz_nom = vblank_hz_shf = vblank_hz_lof = vblank_hz_lace = vblank_hz;
+		vblank_hz_nom = vblank_hz_shf = vblank_hz_lof = vblank_hz_lace = (float)vblank_hz;
 		maxvpos_nom = vpos_count - (lof_current ? 1 : 0);
 		if ((maxvpos_nom >= 256 && maxvpos_nom <= 313) || (beamcon0 & 0x80)) {
 			maxvpos_display = maxvpos_nom;
@@ -4328,9 +4336,9 @@ static void init_hz (bool checkvposw)
 			htotal = MAXHPOS - 1;
 		maxhpos = htotal + 1;
 		vblank_hz_nom = vblank_hz = 227.0 * 312.0 * 50.0 / (maxvpos * maxhpos);
-		vblank_hz_shf = vblank_hz;
-		vblank_hz_lof = 227.0 * 313.0 * 50.0 / (maxvpos * maxhpos);;
-		vblank_hz_lace = 227.0 * 312.5 * 50.0 / (maxvpos * maxhpos);;
+		vblank_hz_shf = (float)vblank_hz;
+		vblank_hz_lof = (float)(227.0 * 313.0 * 50.0 / (maxvpos * maxhpos));
+		vblank_hz_lace = (float)(227.0 * 312.5 * 50.0 / (maxvpos * maxhpos));
 
 		if ((beamcon0 & 0x1000) && (beamcon0 & 0x0200)) { // VARVBEN + VARVSYEN
 			minfirstline = vsstop > vbstop ? vsstop : vbstop;
@@ -8214,7 +8222,7 @@ static void hsync_handler_post (bool onvsync)
 		if (cia_hsync < maxhpos) {
 			int newcount;
 			CIAA_tod_inc (cia_hsync);
-			newcount = (vblank_hz * (2 * maxvpos + (interlace_seen ? 1 : 0)) * (2 * maxhpos + (islinetoggle () ? 1 : 0))) / ((currprefs.cs_ciaatod == 2 ? 60 : 50) * 4);
+			newcount = (int)((vblank_hz * (2 * maxvpos + (interlace_seen ? 1 : 0)) * (2 * maxhpos + (islinetoggle () ? 1 : 0))) / ((currprefs.cs_ciaatod == 2 ? 60 : 50) * 4));
 			cia_hsync += newcount;
 		} else {
 			cia_hsync -= maxhpos;

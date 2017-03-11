@@ -1327,10 +1327,10 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 				rb->device_order = _tstol(s);
 			s = cfgfile_option_get(value, _T("mid"));
 			if (s)
-				rb->manufacturer = _tstol(s);
+				rb->manufacturer = (uae_u16)_tstol(s);
 			s = cfgfile_option_get(value, _T("pid"));
 			if (s)
-				rb->product = _tstol(s);
+				rb->product = (uae_u8)_tstol(s);
 			s = cfgfile_option_get(value, _T("no_reset_unmap"));
 			if (s)
 				rb->no_reset_unmap = true;
@@ -1908,6 +1908,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite(f, _T("genlock_mix"), _T("%d"), p->genlock_mix);
 	cfgfile_dwrite(f, _T("genlock_scale"), _T("%d"), p->genlock_scale);
 	cfgfile_dwrite_str(f, _T("monitoremu"), specialmonitors[p->monitoremu]);
+	cfgfile_dwrite_bool(f, _T("lightpen_crosshair"), p->lightpen_crosshair);
 
 	cfgfile_dwrite_bool (f, _T("show_leds"), !!(p->leds_on_screen & STATUSLINE_CHIPSET));
 	cfgfile_dwrite_bool (f, _T("show_leds_rtg"), !!(p->leds_on_screen & STATUSLINE_RTG));
@@ -4759,6 +4760,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("gfxcard_hardware_sprite"), &p->rtg_hardwaresprite)
 		|| cfgfile_yesno(option, value, _T("synchronize_clock"), &p->tod_hack)
 		|| cfgfile_yesno(option, value, _T("keyboard_connected"), &p->keyboard_connected)
+		|| cfgfile_yesno(option, value, _T("lightpen_crosshair"), &p->lightpen_crosshair)
 
 		|| cfgfile_yesno (option, value, _T("kickshifter"), &p->kickshifter)
 		|| cfgfile_yesno (option, value, _T("ks_write_enabled"), &p->rom_readwrite)
@@ -6849,6 +6851,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->sana2 = 0;
 	p->clipboard_sharing = false;
 	p->native_code = false;
+	p->lightpen_crosshair = true;
 
 	p->cs_compatible = CP_GENERIC;
 	p->cs_rtc = 2;

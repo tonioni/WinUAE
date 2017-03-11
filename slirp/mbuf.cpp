@@ -24,7 +24,7 @@ int mbuf_alloced = 0;
 struct mbuf m_freelist, m_usedlist;
 int mbuf_thresh = 30;
 int mbuf_max = 0;
-int msize;
+size_t msize;
 
 void m_init(void)
 {

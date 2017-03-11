@@ -226,6 +226,7 @@ extern uae_u8 handle_joystick_buttons (uae_u8, uae_u8);
 
 extern int magicmouse_alive (void);
 extern int is_tablet (void);
+extern int is_touch_lightpen (void);
 extern int inputdevice_is_tablet (void);
 extern int input_mousehack_status(TrapContext *ctx, int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp, uae_u32 moffset);
 extern void input_mousehack_mouseoffset (uaecptr pointerprefs);
@@ -249,6 +250,7 @@ extern void inputdevice_devicechange (struct uae_prefs *prefs);
 
 #define INTERNALEVENT_CPURESET 0
 #define INTERNALEVENT_KBRESET 1
+#define INTERNALEVENT_TOUCHLIGHTPEN 2
 
 extern void send_internalevent (int eventid);
 
@@ -312,9 +314,11 @@ extern void inputdevice_handle_inputcode (void);
 
 extern void inputdevice_tablet (int x, int y, int z,
 	      int pressure, uae_u32 buttonbits, int inproximity,
-	      int ax, int ay, int az);
+	      int ax, int ay, int az, int devid);
 extern void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay, int maxaz, int xres, int yres);
 extern void inputdevice_tablet_strobe (void);
+extern void tablet_lightpen(int x, int y, int maxx, int maxy, int touch, int buttonmask, bool touchmode, int devid);
+
 
 extern uae_u64 input_getqualifiers (void);
 

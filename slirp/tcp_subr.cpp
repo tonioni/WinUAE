@@ -44,10 +44,10 @@
 
 /* patchable/settable parameters for tcp */
 int 	tcp_mssdflt = TCP_MSS;
-int 	tcp_rttdflt = TCPTV_SRTTDFLT / PR_SLOWHZ;
-int	tcp_do_rfc1323 = 0;	/* Don't do rfc1323 performance enhancements */
-int	tcp_rcvspace;	/* You may want to change this */
-int	tcp_sndspace;	/* Keep small if you have an error prone link */
+int		tcp_rttdflt = TCPTV_SRTTDFLT / PR_SLOWHZ;
+int		tcp_do_rfc1323 = 0;	/* Don't do rfc1323 performance enhancements */
+size_t	tcp_rcvspace;	/* You may want to change this */
+size_t	tcp_sndspace;	/* Keep small if you have an error prone link */
 
 /*
  * Tcp initialization
@@ -314,10 +314,7 @@ tcp_drain()
 
 #ifdef notdef
 
-void
-tcp_quench(i, errno)
-
-	int errno;
+void tcp_quench(int i, int errno)
 {
 	struct tcpcb *tp = intotcpcb(inp);
 
@@ -417,8 +414,10 @@ int tcp_fconnect(struct socket *so)
       addr.sin_addr = so->so_faddr;
     addr.sin_port = so->so_fport;
     
+	char addrstr[INET_ADDRSTRLEN];
     DEBUG_MISC((" connect()ing, addr.sin_port=%d, addr.sin_addr.s_addr=%.16s\n", 
-		ntohs(addr.sin_port), inet_ntoa(addr.sin_addr)));
+		ntohs(addr.sin_port), inet_ntop(AF_INET, &addr.sin_addr,
+			addrstr, sizeof(addrstr))));
     /* We don't care what port we get */
     ret = connect(s,(struct sockaddr *)&addr,sizeof (addr));
     /*
@@ -476,7 +475,7 @@ void tcp_connect(struct socket *inso)
 		so->so_lport = inso->so_lport;
 	}
 	
-	(void) tcp_mss(sototcpcb(so), 0);
+	(void)tcp_mss(sototcpcb(so), 0);
 
 	if ((s = accept(inso->s,(struct sockaddr *)&addr,&addrlen)) < 0) {
 		tcp_close(sototcpcb(so)); /* This will sofree() as well */
@@ -816,7 +815,7 @@ int tcp_emu(struct socket *so, struct mbuf *m)
 				ns->so_laddr=so->so_laddr;
 				ns->so_lport=htons(port);
 
-				(void) tcp_mss(sototcpcb(ns), 0);
+				(void)tcp_mss(sototcpcb(ns), 0);
 
 				ns->so_faddr=so->so_faddr;
 				ns->so_fport=htons(IPPORT_RESERVED-1); /* Use a fake port. */
@@ -1043,7 +1042,7 @@ do_prompt:
 		 * of the connection as a NUL-terminated decimal ASCII string.
 		 */
 		so->so_emu = 0;
-		for (lport = 0, i = 0; i < m->m_len-1; ++i) {
+		for (lport = 0, i = 0; i < (int)(m->m_len - 1); ++i) {
 			if (m->m_data[i] < '0' || m->m_data[i] > '9')
 				return 1;       /* invalid number */
 			lport *= 10;

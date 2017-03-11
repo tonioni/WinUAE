@@ -5,6 +5,8 @@
  * terms and conditions of the copyright.
  */
 
+#define SLIRP_DEBUG 1
+
 #define PRN_STDERR	1
 #define PRN_SPRINTF	2
 
@@ -18,13 +20,13 @@ extern int slirp_debug;
 #define DBG_ERROR 0x4
 #define DEBUG_DEFAULT DBG_CALL|DBG_MISC|DBG_ERROR
 
-#ifdef DEBUG
+#if SLIRP_DEBUG
+
 #define DEBUG_CALL(x) if (slirp_debug & DBG_CALL) { write_log(x); }
 #define DEBUG_ARG(x, y) if (slirp_debug & DBG_CALL) { write_log(" "); write_log(x, y); write_log("\n"); }
 #define DEBUG_ARGS(x) if (slirp_debug & DBG_CALL) { write_log x ;}
 #define DEBUG_MISC(x) if (slirp_debug & DBG_MISC) { write_log x ;}
 #define DEBUG_ERROR(x) if (slirp_debug & DBG_ERROR) {write_log x; }
-
 
 #else
 
@@ -36,15 +38,15 @@ extern int slirp_debug;
 
 #endif
 
-void debug_init _P((char *, int));
-//void ttystats _P((struct ttys *));
-void allttystats _P((void));
-void ipstats _P((void));
-void vjstats _P((void));
-void tcpstats _P((void));
-void udpstats _P((void));
-void icmpstats _P((void));
-void mbufstats _P((void));
-void sockstats _P((void));
-void slirp_exit _P((int));
+void debug_init(char *, int);
+//void ttystats(struct ttys *);
+void allttystats(void);
+void ipstats(void);
+void vjstats(void);
+void tcpstats(void);
+void udpstats(void);
+void icmpstats(void);
+void mbufstats(void);
+void sockstats(void);
+void slirp_exi(int);
 
