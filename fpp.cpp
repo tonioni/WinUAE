@@ -606,11 +606,6 @@ uae_u32 fpp_get_fpsr (void)
     return regs.fpsr;
 }
 
-static void fpp_set_fpsr (uae_u32 val)
-{
-    regs.fpsr = val;
-}
-
 static void fpp_set_fpcr (uae_u32 val)
 {
 	fpp_set_mode(val);
@@ -629,6 +624,25 @@ static void fpclear (fpdata *fpd)
 static void fpset (fpdata *fpd, uae_s32 val)
 {
     fpp_from_int(fpd, val);
+}
+
+static void fpp_set_fpsr (uae_u32 val)
+{
+    regs.fpsr = val;
+
+#ifdef JIT
+	// check comment in fpp_cond
+	if (currprefs.compfpu) {
+		if (val & 0x01000000)
+			fpnan(&regs.fp_result);
+		else if (val & 0x04000000)
+			fpset(&regs.fp_result, 0);
+		else if (val & 0x08000000)
+			fpset(&regs.fp_result, -1);
+		else
+			fpset(&regs.fp_result, 1);
+	}
+#endif
 }
 
 bool fpu_get_constant(fpdata *fpd, int cr)
@@ -1812,11 +1826,23 @@ static int get_fp_ad (uae_u32 opcode, uae_u32 * ad)
 
 int fpp_cond (int condition)
 {
-	int NotANumber = (regs.fpsr & FPSR_CC_NAN) != 0;
-	int N = (regs.fpsr & FPSR_CC_N) != 0;
-	int Z = (regs.fpsr & FPSR_CC_Z) != 0;
+	int NotANumber, N, Z;
 
-    if ((condition & 0x10) && NotANumber) {
+#ifdef JIT
+	if (currprefs.compfpu) {
+		// JIT reads and writes regs.fpu_result
+		NotANumber = fpp_is_nan(&regs.fp_result);
+		N = fpp_is_neg(&regs.fp_result);
+		Z = fpp_is_zero(&regs.fp_result);
+	} else
+#endif
+	{
+		NotANumber = (regs.fpsr & FPSR_CC_NAN) != 0;
+		N = (regs.fpsr & FPSR_CC_N) != 0;
+		Z = (regs.fpsr & FPSR_CC_Z) != 0;
+	}
+
+	if ((condition & 0x10) && NotANumber) {
         if (fpsr_set_bsun())
             return -2;
     }

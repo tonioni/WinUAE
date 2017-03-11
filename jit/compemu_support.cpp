@@ -2789,7 +2789,7 @@ void init_comp(void)
 		}
 		else if (i==FP_RESULT) {
 #ifdef UAE
-			live.fate[i].mem=(uae_u32*)(&regs.fp_result);
+			live.fate[i].mem=(uae_u32*)(&regs.fp_result.fp);
 #else
 			live.fate[i].mem=(uae_u32*)(&fpu.result);
 #endif
