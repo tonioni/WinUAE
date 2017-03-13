@@ -1183,6 +1183,17 @@ static void to_pack (fpdata *fpd, uae_u32 *wrd)
 
 #endif
 
+#if 1
+
+void from_pack_softfloat (fpdata *fp, uae_u32 *wrd, int kfactor);
+
+static void from_pack (fpdata *fpd, uae_u32 *wrd, int kfactor)
+{
+	from_pack_softfloat(fpd, wrd, kfactor);
+}
+
+#else
+
 static void from_pack (fpdata *src, uae_u32 *wrd, int kfactor)
 {
 	int i, j, t;
@@ -1334,6 +1345,8 @@ static void from_pack (fpdata *src, uae_u32 *wrd, int kfactor)
 	}
 	wrd[0] |= t << 16;
 }
+
+#endif
 
 // 68040/060 does not support denormals
 static bool normalize_or_fault_if_no_denormal_support(uae_u16 opcode, uae_u16 extra, uaecptr ea, uaecptr oldpc, fpdata *src)

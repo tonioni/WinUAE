@@ -3465,6 +3465,101 @@ floatx80 floatx80_move( floatx80 a, float_status *status )
 #endif // End of addition for Previous
 
 /*----------------------------------------------------------------------------
+| Returns 1 if the extended double-precision floating-point value `a' is
+| equal to the corresponding value `b', and 0 otherwise.  The comparison is
+| performed according to the IEC/IEEE Standard for Binary Floating-Point
+| Arithmetic.
+*----------------------------------------------------------------------------*/
+
+flag floatx80_eq( floatx80 a, floatx80 b, float_status *status )
+{
+	if (    (    ( extractFloatx80Exp( a ) == 0x7FFF )
+				&& (uint64_t) ( extractFloatx80Frac( a )<<1 ) )
+			|| (    ( extractFloatx80Exp( b ) == 0x7FFF )
+				&& (uint64_t) ( extractFloatx80Frac( b )<<1 ) )
+		) {
+		if (    floatx80_is_signaling_nan( a )
+				|| floatx80_is_signaling_nan( b ) ) {
+			float_raise( float_flag_invalid, status );
+		}
+		return 0;
+	}
+	return
+			( a.low == b.low )
+		&& (    ( a.high == b.high )
+				|| (    ( a.low == 0 )
+					&& ( (uint16_t) ( ( a.high | b.high )<<1 ) == 0 ) )
+			);
+
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the extended double-precision floating-point value `a' is
+| less than or equal to the corresponding value `b', and 0 otherwise.  The
+| comparison is performed according to the IEC/IEEE Standard for Binary
+| Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+flag floatx80_le( floatx80 a, floatx80 b, float_status *status )
+{
+	flag aSign, bSign;
+
+	if (    (    ( extractFloatx80Exp( a ) == 0x7FFF )
+				&& (uint64_t) ( extractFloatx80Frac( a )<<1 ) )
+			|| (    ( extractFloatx80Exp( b ) == 0x7FFF )
+				&& (uint64_t) ( extractFloatx80Frac( b )<<1 ) )
+		) {
+		float_raise( float_flag_invalid, status );
+		return 0;
+	}
+	aSign = extractFloatx80Sign( a );
+	bSign = extractFloatx80Sign( b );
+	if ( aSign != bSign ) {
+		return
+				aSign
+			|| (    ( ( (uint16_t) ( ( a.high | b.high )<<1 ) ) | a.low | b.low )
+					== 0 );
+	}
+	return
+			aSign ? le128( b.high, b.low, a.high, a.low )
+		: le128( a.high, a.low, b.high, b.low );
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the extended double-precision floating-point value `a' is
+| less than the corresponding value `b', and 0 otherwise.  The comparison
+| is performed according to the IEC/IEEE Standard for Binary Floating-Point
+| Arithmetic.
+*----------------------------------------------------------------------------*/
+
+flag floatx80_lt( floatx80 a, floatx80 b, float_status *status )
+{
+	flag aSign, bSign;
+
+	if (    (    ( extractFloatx80Exp( a ) == 0x7FFF )
+				&& (uint64_t) ( extractFloatx80Frac( a )<<1 ) )
+			|| (    ( extractFloatx80Exp( b ) == 0x7FFF )
+				&& (uint64_t) ( extractFloatx80Frac( b )<<1 ) )
+		) {
+		float_raise( float_flag_invalid, status );
+		return 0;
+	}
+	aSign = extractFloatx80Sign( a );
+	bSign = extractFloatx80Sign( b );
+	if ( aSign != bSign ) {
+		return
+				aSign
+			&& (    ( ( (uint16_t) ( ( a.high | b.high )<<1 ) ) | a.low | b.low )
+					!= 0 );
+	}
+	return
+			aSign ? lt128( b.high, b.low, a.high, a.low )
+		: lt128( a.high, a.low, b.high, b.low );
+
+}
+
+
+/*----------------------------------------------------------------------------
 | Returns the result of converting the 64-bit two's complement integer `a'
 | to the extended double-precision floating-point format.  The conversion
 | is performed according to the IEC/IEEE Standard for Binary Floating-Point

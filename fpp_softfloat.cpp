@@ -88,6 +88,8 @@ static void fp_get_status(uae_u32 *status)
 		*status |= FPSR_UNFL;
 	if (fs.float_exception_flags & float_flag_inexact)
 		*status |= FPSR_INEX2;
+	if (fs.float_exception_flags & float_flag_decimal)
+		*status |= FPSR_INEX1;
 }
 STATIC_INLINE void fp_clear_status(void)
 {
@@ -754,8 +756,6 @@ static void fp_normalize(fpdata *a)
 	a->fpx = floatx80_normalize(a->fpx);
 }
 
-static float_status fsp;
-
 void to_pack_softfloat (fpdata *fp, uae_u32 *wrd)
 {
 	uae_s32 exp = 0;
@@ -814,7 +814,8 @@ void to_pack_softfloat (fpdata *fp, uae_u32 *wrd)
 		mant += (pack_frac >> (60 - i * 4)) & 0xF;
 	}
 
-	
+#if 1
+
 	if (pack_sm) {
 		mant = -mant;
 	}
@@ -874,20 +875,20 @@ void to_pack_softfloat (fpdata *fp, uae_u32 *wrd)
 	
 	while (exp) {
 		if (exp & 1) {
-			a = floatx80_mul(a, m, &fsp);
+			a = floatx80_mul(a, m, &fs);
 		}
-		m = floatx80_mul(m, m, &fsp);
+		m = floatx80_mul(m, m, &fs);
 		exp >>= 1;
 	}
 
 	
 	if (pack_se) {
-		z = floatx80_div(z, a, &fsp);
+		z = floatx80_div(z, a, &fs);
 	} else {
-		z = floatx80_mul(z, a, &fsp);
+		z = floatx80_mul(z, a, &fs);
 	}
 
-	
+#if 0	
 	write_log(_T("z = %s\n"), fp_printx80(&z, 0));
 	write_log(_T("m = %s\n"), fp_printx80(&m, 0));
 	write_log(_T("a = %s\n"), fp_printx80(&a, 0));
@@ -895,15 +896,95 @@ void to_pack_softfloat (fpdata *fp, uae_u32 *wrd)
 	
 	write_log(_T("zerocount = %i\n"), zerocount);
 	write_log(_T("multiplier = %llu\n"), multiplier);
+#endif
 
 	fp->fpx = z;
+
+	/* TODO: set inex1 and restore rounding mode */
+	// if mul/div caused inex2 --> set inex1
+
+#else
+
+	floatx80 f;
+	f.high = exp & 0x3FFF;
+	f.high |= pack_se ? 0x4000 : 0;
+	f.high |= pack_sm ? 0x8000 : 0;
+	f.low = mant;
+	
+	fp->fpx = floatdecimal_to_floatx80(f, &fsp);
+
+#endif
+
 	if (!currprefs.fpu_softfloat) {
 		to_native(&fp->fp, fp);
 	}
 	
-	/* TODO: set inex1 and restore rounding mode */
-	// if mul/div caused inex2 --> set inex1
+}
 
+
+void from_pack_softfloat (fpdata *src, uae_u32 *wrd, int kfactor)
+{
+    floatx80 a;
+	fpdata fpd;
+
+	if (!currprefs.fpu_softfloat) {
+		from_native(src->fp, &fpd);
+	} else {
+		fpd.fpx = src->fpx;
+	}
+	a = fpd.fpx;
+   
+    floatx80 f = floatx80_to_floatdecimal(a, &kfactor, &fs);
+    
+    uae_u32 pack_exp = 0;   // packed exponent
+    uae_u32 pack_exp4 = 0;
+    uae_u32 pack_int = 0;   // packed integer part
+    uae_u64 pack_frac = 0;  // packed fraction
+    uae_u32 pack_se = 0;    // sign of packed exponent
+    uae_u32 pack_sm = 0;    // sign of packed significand
+    
+    uae_u32 exponent = f.high & 0x3FFF;
+    uae_u64 significand = f.low;
+
+    uae_s32 len = kfactor; // SoftFloat saved len to kfactor variable
+    
+    uae_u64 digit;
+    pack_frac = 0;
+    while (len > 0) {
+        len--;
+        digit = significand % 10;
+        significand /= 10;
+        if (len == 0) {
+            pack_int = digit;
+        } else {
+            pack_frac |= digit << (64 - len * 4);
+        }
+    }
+
+    digit = exponent / 1000;
+    exponent -= digit * 1000;
+    pack_exp4 = digit;
+    digit = exponent / 100;
+    exponent -= digit * 100;
+    pack_exp = digit << 8;
+    digit = exponent / 10;
+    exponent -= digit * 10;
+    pack_exp |= digit << 4;
+    pack_exp |= exponent;
+    
+    pack_se = f.high & 0x4000;
+    pack_sm = f.high & 0x8000;
+    
+    wrd[0] = pack_exp << 16;
+    wrd[0] |= pack_exp4 << 12;
+    wrd[0] |= pack_int;
+    wrd[0] |= pack_se ? 0x40000000 : 0;
+    wrd[0] |= pack_sm ? 0x80000000 : 0;
+    
+    wrd[1] = pack_frac >> 32;
+    wrd[2] = pack_frac & 0xffffffff;
+    
+    //printf("PACKED = %08x %08x %08x\n",wrd[0],wrd[1],wrd[2]);
 }
 
 void fp_init_softfloat(void)
@@ -911,8 +992,6 @@ void fp_init_softfloat(void)
 	float_status fsx = { 0 };
 	set_floatx80_rounding_precision(80, &fsx);
 	set_float_rounding_mode(float_round_to_zero, &fsx);
-	set_floatx80_rounding_precision(80, &fsp);
-	set_float_rounding_mode(float_round_to_zero, &fsp);
 
 	fpp_print = fp_print;
 	fpp_is_snan = fp_is_snan;

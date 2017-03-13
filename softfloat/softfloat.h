@@ -188,15 +188,14 @@ enum {
 | Software IEC/IEEE floating-point exception flags.
 *----------------------------------------------------------------------------*/
 enum {
-    float_flag_invalid   =  1,
-	float_flag_denormal = 2,
-    float_flag_divbyzero =  4,
-    float_flag_overflow  =  8,
-    float_flag_underflow = 16,
-    float_flag_inexact   = 32,
-	float_flag_signaling = 64
-//    float_flag_input_denormal = 64,
-//    float_flag_output_denormal = 128
+    float_flag_invalid   = 0x01,
+	float_flag_denormal  = 0x02,
+    float_flag_divbyzero = 0x04,
+    float_flag_overflow  = 0x08,
+    float_flag_underflow = 0x10,
+    float_flag_inexact   = 0x20,
+	float_flag_signaling = 0x40,
+	float_flag_decimal =   0x80
 };
 
 /*----------------------------------------------------------------------------
@@ -383,11 +382,12 @@ int8_t floatx80_to_int8(floatx80, float_status *status);
 #endif
 int32_t floatx80_to_int32_round_to_zero(floatx80, float_status *status);
 int64_t floatx80_to_int64(floatx80, float_status *status);
-int64_t floatx80_to_int64_round_to_zero(floatx80, float_status *status);
 float32 floatx80_to_float32(floatx80, float_status *status);
 float64 floatx80_to_float64(floatx80, float_status *status);
 #ifdef SOFTFLOAT_68K
 floatx80 floatx80_to_floatx80( floatx80, float_status *status);
+floatx80 floatdecimal_to_floatx80(floatx80, float_status *status);
+floatx80 floatx80_to_floatdecimal(floatx80, int32_t*, float_status *status);
 #endif
 
 uint64_t extractFloatx80Frac( floatx80 a );
@@ -399,6 +399,10 @@ floatx80 floatx80_round_to_float32( floatx80, float_status *status );
 floatx80 floatx80_round_to_float64( floatx80, float_status *status );
 floatx80 floatx80_round32( floatx80, float_status *status);
 floatx80 floatx80_round64( floatx80, float_status *status);
+
+flag floatx80_eq( floatx80, floatx80, float_status *status);
+flag floatx80_le( floatx80, floatx80, float_status *status);
+flag floatx80_lt( floatx80, floatx80, float_status *status);
 
 #ifdef SOFTFLOAT_68K
 flag floatx80_is_zero( floatx80 );
