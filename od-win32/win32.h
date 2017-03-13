@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("2")
+#define WINUAEBETA _T("3")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2017, 2, 25)
+#define WINUAEDATE MAKEBD(2017, 3, 13)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -133,8 +133,9 @@ extern void setpriority (struct threadpriorities *pri);
 
 extern int dinput_wmkey (uae_u32 key);
 extern int dinput_winmouse (void);
+extern int dinput_lightpen (void);
+extern int dinput_lightpen (void);
 extern int dinput_wheelbuttonstart (void);
-extern int dinput_winmousemode (void);
 extern void dinput_window (void);
 extern void *open_tablet (HWND hwnd);
 extern int close_tablet (void*);

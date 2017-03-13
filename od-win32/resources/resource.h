@@ -452,6 +452,7 @@
 #define IDC_PORT0_AF                    1033
 #define IDC_PORT1_AF                    1034
 #define IDC_MOUSE_UNTRAPMODE            1035
+#define IDC_PORT_TABLET_MODE            1036
 #define IDC_FOCUSMINIMIZE               1041
 #define IDC_FASTTEXT                    1043
 #define IDC_FASTRAM                     1044
@@ -1165,7 +1166,6 @@
 #define IDC_PATHS_RELATIVE              1789
 #define IDC_RTG_32BIT                   1790
 #define IDC_ASSOCIATE_OFF               1790
-#define IDC_PORT_TABLET_FULL            1790
 #define IDC_CPU_MULTIPLIER              1790
 #define IDC_CPU_FREQUENCY2              1790
 #define IDC_LOGENABLE                   1790

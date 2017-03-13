@@ -5304,7 +5304,6 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 		break;
 	case IDC_CONFIGLINK:
 		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
-			LRESULT val;
 			TCHAR tmp[MAX_DPATH];
 			tmp[0] = 0;
 			getcbn(hDlg, IDC_CONFIGLINK, tmp, sizeof(tmp) / sizeof (TCHAR));
@@ -11517,6 +11516,10 @@ static void values_from_cpudlg (HWND hDlg)
 		workprefs.comptrustword = trust_prev;
 		workprefs.comptrustlong = trust_prev;
 		workprefs.comptrustnaddr = trust_prev;
+		if (workprefs.fpu_softfloat) {
+			workprefs.compfpu = false;
+			setchecked(hDlg, IDC_JITFPU, false);
+		}
 	}
 	if (!workprefs.cachesize) {
 		setchecked (hDlg, IDC_JITENABLE, false);
@@ -14908,10 +14911,10 @@ static BOOL bNoMidiIn = FALSE;
 static void enable_for_gameportsdlg (HWND hDlg)
 {
 	int v = full_property_sheet;
-	ew (hDlg, IDC_PORT_TABLET_FULL, v && is_tablet () && workprefs.input_tablet > 0);
-	//ew (hDlg, IDC_PORT_TABLET_LIBRARY, v && is_tablet () && workprefs.input_tablet > 0);
+	ew (hDlg, IDC_PORT_TABLET, v && workprefs.input_tablet != TABLET_REAL);
+	ew (hDlg, IDC_PORT_TABLET_MODE, v && is_tablet());
+	ew (hDlg, IDC_PORT_TABLET_LIBRARY, v && is_tablet());
 	ew (hDlg, IDC_PORT_TABLET_CURSOR, v && workprefs.input_tablet > 0);
-	ew (hDlg, IDC_PORT_TABLET, v);
 }
 
 static void enable_for_portsdlg (HWND hDlg)
@@ -14971,7 +14974,7 @@ static void updatejoyport (HWND hDlg, int changedport)
 	SetDlgItemInt (hDlg, IDC_INPUTSPEEDM, workprefs.input_mouse_speed, FALSE);
 	SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_SETCURSEL, workprefs.input_magic_mouse_cursor, 0);
 	CheckDlgButton (hDlg, IDC_PORT_TABLET, workprefs.input_tablet > 0);
-	CheckDlgButton (hDlg, IDC_PORT_TABLET_FULL, workprefs.input_tablet == TABLET_REAL);
+	SendDlgItemMessage(hDlg, IDC_PORT_TABLET_MODE, CB_SETCURSEL, workprefs.input_tablet == TABLET_REAL ? 1 : 0, 0);
 	CheckDlgButton (hDlg, IDC_PORT_TABLET_LIBRARY, workprefs.tablet_library);
 	CheckDlgButton (hDlg, IDC_PORT_AUTOSWITCH, workprefs.input_autoswitch);
 
@@ -15054,9 +15057,13 @@ static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 		workprefs.input_magic_mouse_cursor = SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_GETCURSEL, 0, 0L);
 		workprefs.input_autoswitch = ischecked (hDlg, IDC_PORT_AUTOSWITCH);
 		workprefs.input_tablet = 0;
-		if (ischecked (hDlg, IDC_PORT_TABLET)) {
+		i = SendDlgItemMessage(hDlg, IDC_PORT_TABLET_MODE, CB_GETCURSEL, 0, 0L);
+		if (ischecked (hDlg, IDC_PORT_TABLET) || i == 1) {
+			if (!ischecked (hDlg, IDC_PORT_TABLET)) {
+				setchecked(hDlg, IDC_PORT_TABLET, TRUE);
+			}
 			workprefs.input_tablet = TABLET_MOUSEHACK;
-			if (ischecked (hDlg, IDC_PORT_TABLET_FULL))
+			if (i == 1)
 				workprefs.input_tablet = TABLET_REAL;
 		}
 		workprefs.tablet_library = ischecked (hDlg, IDC_PORT_TABLET_LIBRARY);
@@ -15523,6 +15530,11 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_ADDSTRING, 0, (LPARAM)_T("Magic mouse"));
 		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_ADDSTRING, 0, (LPARAM)_T("Both"));
 		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_SETCURSEL, workprefs.input_mouse_untrap, 0);
+
+		SendDlgItemMessage(hDlg, IDC_PORT_TABLET_MODE, CB_RESETCONTENT, 0, 0L);
+		SendDlgItemMessage(hDlg, IDC_PORT_TABLET_MODE, CB_ADDSTRING, 0, (LPARAM)_T("-"));
+		SendDlgItemMessage(hDlg, IDC_PORT_TABLET_MODE, CB_ADDSTRING, 0, (LPARAM)_T("Tablet emulation"));
+		SendDlgItemMessage(hDlg, IDC_PORT_TABLET_MODE, CB_SETCURSEL, workprefs.input_tablet == TABLET_REAL ? 1 : 0, 0);
 
 		for (i = 0; i < 2; i++) {
 			int id = i == 0 ? IDC_PORT0_JOYSMODE : IDC_PORT1_JOYSMODE;

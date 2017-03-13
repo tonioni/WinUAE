@@ -335,7 +335,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <FloatingPointModel>Precise</FloatingPointModel>
+      <FloatingPointModel>Fast</FloatingPointModel>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <PrecompiledHeader>
@@ -414,7 +414,7 @@
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <FloatingPointModel>Precise</FloatingPointModel>
+      <FloatingPointModel>Fast</FloatingPointModel>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <PrecompiledHeader>
@@ -493,7 +493,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
-      <FloatingPointModel>Precise</FloatingPointModel>
+      <FloatingPointModel>Fast</FloatingPointModel>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -567,7 +567,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
-      <FloatingPointModel>Precise</FloatingPointModel>
+      <FloatingPointModel>Fast</FloatingPointModel>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -640,7 +640,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <FloatingPointModel>Precise</FloatingPointModel>
+      <FloatingPointModel>Fast</FloatingPointModel>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <PrecompiledHeader>
@@ -718,7 +718,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
-      <FloatingPointModel>Precise</FloatingPointModel>
+      <FloatingPointModel>Fast</FloatingPointModel>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <PrecompiledHeader>
@@ -895,6 +895,7 @@
     <ClCompile Include="..\..\slirp_uae.cpp" />
     <ClCompile Include="..\..\sndboard.cpp" />
     <ClCompile Include="..\..\softfloat\softfloat.cpp" />
+    <ClCompile Include="..\..\softfloat\softfloat_decimal.cpp" />
     <ClCompile Include="..\..\softfloat\softfloat_extension.cpp" />
     <ClCompile Include="..\..\specialmonitors.cpp" />
     <ClCompile Include="..\..\statusline.cpp" />

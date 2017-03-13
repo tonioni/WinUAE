@@ -5458,7 +5458,10 @@ end:
 	did_prefetch = 0;
 	ipl_fetched = 0;
 	if (cpu_level >= 2 && !using_ce && !using_ce020) {
-		count_cycles = insn_n_cycles = curi->clocks;
+		int v = curi->clocks;
+		if (v < 4)
+			v = 4;
+		count_cycles = insn_n_cycles = v;
 	}
 }
 

@@ -204,7 +204,7 @@ bool preinit_shm (void)
 		natmem_size = 17 * 1024 * 1024;
 
 #if WIN32_NATMEM_TEST
-	natmem_size = 336 * 1024 * 1024;
+	natmem_size = WIN32_NATMEM_TEST * 1024 * 1024;
 #endif
 
 	if (natmem_size > 0x80000000) {

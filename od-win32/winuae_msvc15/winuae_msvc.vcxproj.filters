@@ -565,60 +565,6 @@
     <ClCompile Include="..\..\ethernet.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\slirp\bootp.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\cksum.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\if.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\ip_icmp.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\ip_input.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\ip_output.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\mbuf.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\misc.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\sbuf.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\slirp.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\slirpdebug.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\socket.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\tcp_input.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\tcp_output.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\tcp_subr.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\tcp_timer.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\tftp.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\udp.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\qemuvga\cirrus_vga.cpp">
       <Filter>qemu</Filter>
     </ClCompile>
@@ -808,9 +754,6 @@
     <ClCompile Include="..\..\fake86_cpu.cpp">
       <Filter>x86</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\slirp_uae.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\vm.cpp">
       <Filter>common</Filter>
     </ClCompile>
@@ -836,6 +779,66 @@
       <Filter>qemu</Filter>
     </ClCompile>
     <ClCompile Include="..\..\softfloat\softfloat_extension.cpp">
+      <Filter>qemu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp_uae.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\udp.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\tftp.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\tcp_timer.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\tcp_subr.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\tcp_output.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\tcp_input.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\socket.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\slirpdebug.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\slirp.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\sbuf.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\misc.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\mbuf.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\ip_output.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\ip_input.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\ip_icmp.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\if.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\cksum.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\bootp.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\softfloat\softfloat_decimal.cpp">
       <Filter>qemu</Filter>
     </ClCompile>
   </ItemGroup>

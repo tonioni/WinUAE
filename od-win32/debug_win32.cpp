@@ -30,6 +30,7 @@
 #include "win32.h"
 #include "registry.h"
 #include "win32gui.h"
+#include "fpp.h"
 
 #include "uae.h"
 
@@ -2182,7 +2183,7 @@ void update_debug_info(void)
 
 	hwnd = GetDlgItem(hDbgWnd, IDC_DBG_FPREG);
 	for (i = 0; i < 8; i++) {
-		_stprintf(out, _T("FP%d: %g"), i, regs.fp[i]);
+		_stprintf(out, _T("FP%d: %s"), i, fpp_print(&regs.fp[i], 0));
 		UpdateListboxString(hwnd, i, out, TRUE);
 	}
 
