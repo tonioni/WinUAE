@@ -7,6 +7,17 @@ Arithmetic Package, Release 2a.
 
 #include <stdint.h>
 
+#include "sysconfig.h"
+#include "sysdeps.h"
+
+#define DECIMAL_LOG 1
+
+#if DECIMAL_LOG
+#define decimal_log write_log
+#else
+#define decimal_log(fmt, ...)
+#endif
+
 #include "softfloat.h"
 #include "softfloat-macros.h"
 #include "softfloat/softfloat-specialize.h"
@@ -75,6 +86,145 @@ void div128by128(int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t bExp, 
     *aSig1 = zSig1;
 }
 
+void tentoint128(int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t scale)
+{
+    int32_t mExp;
+    uint64_t mSig0, mSig1;
+    
+    *aExp = 0x3FFF;
+    *aSig0 = LIT64(0x8000000000000000);
+    *aSig1 = 0;
+
+    mExp = 0x4002;
+    mSig0 = LIT64(0xA000000000000000);
+    mSig1 = 0;
+    
+    while (scale) {
+        if (scale & 1) {
+            mul128by128(aExp, aSig0, aSig1, mExp, mSig0, mSig1);
+        }
+        mul128by128(&mExp, &mSig0, &mSig1, mExp, mSig0, mSig1);
+        scale >>= 1;
+    }
+}
+
+void roundtoint128(flag aSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, float_status *status )
+{
+    int32_t zExp;
+    uint64_t zSig, lastBitMask, roundBitsMask;
+    
+    zExp = *aExp;
+    zSig = *aSig0;
+
+    if (0x403E <= zExp) return;
+    
+    if (*aSig1) {
+        zSig |= 1;
+        *aSig1 = 0;
+    }
+
+    if (zExp < 0x3FFF) {
+        if (zExp == 0 && zSig == 0) return;
+        
+        float_raise(float_flag_inexact, status);
+        
+        switch (status->float_rounding_mode) {
+            case float_round_nearest_even:
+                if ((zExp == 0x3FFE) && (uint64_t)(zSig<<1)) {
+                    *aExp = 0x3FFF;
+                    *aSig0 = LIT64(0x8000000000000000);
+                    return;
+                }
+                break;
+            case float_round_down:
+                if (aSign) {
+                    *aExp = 0x3FFF;
+                    *aSig0 = LIT64(0x8000000000000000);
+                    return;
+                }
+                break;
+            case float_round_up:
+                if (!aSign) {
+                    *aExp = 0x3FFF;
+                    *aSig0 = LIT64(0x8000000000000000);
+                    return;
+                }
+                break;
+        }
+        *aExp = 0;
+        *aSig0 = 0;
+        return;
+    }
+    lastBitMask = 1;
+    lastBitMask <<= 0x403E - zExp;
+    roundBitsMask = lastBitMask - 1;
+
+    if ( status->float_rounding_mode == float_round_nearest_even ) {
+        zSig += lastBitMask>>1;
+        if ((zSig & roundBitsMask) == 0 ) zSig &= ~ lastBitMask;
+    } else if (status->float_rounding_mode != float_round_to_zero) {
+        if (aSign ^ (status->float_rounding_mode == float_round_up)) {
+            zSig += roundBitsMask;
+        }
+    }
+    zSig &= ~ roundBitsMask;
+    if (zSig == 0) {
+        ++zExp;
+        zSig = LIT64( 0x8000000000000000 );
+    }
+    if ( zSig != *aSig0 ) float_raise(float_flag_inexact, status);
+    
+    *aExp = zExp;
+    *aSig0 = zSig;
+}
+
+int32_t getDecimalExponent(int32_t aExp, uint64_t aSig)
+{
+    flag zSign;
+    int32_t zExp, shiftCount;
+    uint64_t zSig0, zSig1;
+    
+    if (aSig == 0 || aExp == 0x3FFF) {
+        return 0;
+    }
+
+    aSig ^= LIT64(0x8000000000000000);
+    aExp -= 0x3FFF;
+    zSign = (aExp < 0);
+    aExp = zSign ? -aExp : aExp;
+    shiftCount = 31 - countLeadingZeros32(aExp);
+    zExp = 0x3FFF + shiftCount;
+    
+    if (shiftCount < 0) {
+        shortShift128Left(aSig, 0, -shiftCount, &zSig0, &zSig1);
+    } else {
+        shift128Right(aSig, 0, shiftCount, &zSig0, &zSig1);
+        aSig = (uint64_t)aExp << (63 - shiftCount);
+        if (zSign) {
+            sub128(aSig, 0, zSig0, zSig1, &zSig0, &zSig1);
+        } else {
+            add128(aSig, 0, zSig0, zSig1, &zSig0, &zSig1);
+        }
+    }
+    
+    shiftCount = countLeadingZeros64(zSig0);
+    shortShift128Left(zSig0, zSig1, shiftCount, &zSig0, &zSig1);
+    zExp -= shiftCount;
+    mul128by128(&zExp, &zSig0, &zSig1, 0x3FFD, LIT64(0x9A209A84FBCFF798), LIT64(0x8F8959AC0B7C9178));
+    
+    shiftCount = 0x403E - zExp;
+    shift128RightJamming(zSig0, zSig1, shiftCount, &zSig0, &zSig1);
+
+    if ((int64_t)zSig1 < 0) {
+        ++zSig0;
+        zSig0 &= ~(((int64_t)(zSig1<<1) == 0) & 1);
+    }
+    
+    zExp = zSign ? -zSig0 : zSig0;
+
+    return zExp;
+}
+
 /*----------------------------------------------------------------------------
 | Decimal to binary
 *----------------------------------------------------------------------------*/
@@ -82,8 +232,8 @@ void div128by128(int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t bExp, 
 floatx80 floatdecimal_to_floatx80(floatx80 a, float_status *status)
 {
     flag decSign, zSign, decExpSign, increment;
-    int32_t decExp, zExp, mExp, xExp, shiftCount;
-    uint64_t decSig, zSig0, zSig1, mSig0, mSig1, xSig0, xSig1;
+    int32_t decExp, zExp, xExp, shiftCount;
+    uint64_t decSig, zSig0, zSig1, xSig0, xSig1;
     
     decSign = extractFloatx80Sign(a);
     decExp = extractFloatx80Exp(a);
@@ -102,20 +252,8 @@ floatx80 floatdecimal_to_floatx80(floatx80 a, float_status *status)
     zSig1 = 0;
     zSign = decSign;
     
-    mExp = 0x4002;
-    mSig0 = LIT64(0xA000000000000000);
-	mSig1 = 0;
-    xExp = 0x3FFF;
-    xSig0 = LIT64(0x8000000000000000);
-    
-    while (decExp) {
-        if (decExp & 1) {
-            mul128by128(&xExp, &xSig0, &xSig1, mExp, mSig0, mSig1);
-        }
-        mul128by128(&mExp, &mSig0, &mSig1, mExp, mSig0, mSig1);
-        decExp >>= 1;
-    }
-    
+	tentoint128(&xExp, &xSig0, &xSig1, decExp);
+
     if (decExpSign) {
         div128by128(&zExp, &zSig0, &zSig1, xExp, xSig0, xSig1);
     } else {
@@ -157,273 +295,113 @@ floatx80 floatdecimal_to_floatx80(floatx80 a, float_status *status)
 
 floatx80 floatx80_to_floatdecimal(floatx80 a, int32_t *k, float_status *status)
 {
-    flag aSign;
-    int32_t aExp;
-    uint64_t aSig;
-    
-    flag decSign;
-    int32_t decExp, zExp, mExp, xExp;
-    uint64_t decSig, zSig0, zSig1, mSig0, mSig1, xSig0, xSig1;
-    
-    aSign = extractFloatx80Sign(a);
-    aExp = extractFloatx80Exp(a);
-    aSig = extractFloatx80Frac(a);
-    
-    if (aExp == 0x7FFF) {
-        if ((uint64_t) (aSig<<1)) return propagateFloatx80NaNOneArg(a, status);
-        return a;
-    }
-    
-    if (aExp == 0) {
-        if (aSig == 0) return packFloatx80(aSign, 0, 0);
-        normalizeFloatx80Subnormal(aSig, &aExp, &aSig);
-    }
+	flag aSign, decSign;
+	int32_t aExp, decExp, zExp, xExp;
+	uint64_t aSig, decSig, zSig0, zSig1, xSig0, xSig1;
+	flag ictr, lambda;
+	int32_t kfactor, ilog, iscale, len;
+	
+	aSign = extractFloatx80Sign(a);
+	aExp = extractFloatx80Exp(a);
+	aSig = extractFloatx80Frac(a);
+	
+	if (aExp == 0x7FFF) {
+		if ((uint64_t) (aSig<<1)) return propagateFloatx80NaNOneArg(a, status);
+		return a;
+	}
+	
+	if (aExp == 0) {
+		if (aSig == 0) return packFloatx80(aSign, 0, 0);
+		normalizeFloatx80Subnormal(aSig, &aExp, &aSig);
+	}
 
-    int32_t kfactor = *k;
-    
-    int32_t ilog, len;
-    
-    flag bSign;
-    
+	kfactor = *k;
 
-    
-    floatx80 b;
-    floatx80 c;
-    floatx80 one = int32_to_floatx80(1);
-    floatx80 log2 = packFloatx80(0, 0x3FFD, LIT64(0x9A209A84FBCFF798));
-    floatx80 log2up1 = packFloatx80(0, 0x3FFD, LIT64(0x9A209A84FBCFF799));
-    
-    
-    if (aExp < 0) {
-        ilog = -4933;
-    } else {
-        b = packFloatx80(0, 0x3FFF, aSig);
-        c = int32_to_floatx80(aExp - 0x3FFF);
-        b = floatx80_add(b, c, status);
-        b = floatx80_sub(b, one, status);
-        bSign = extractFloatx80Sign(b);
-        if (bSign) {
-            b = floatx80_mul(b, log2up1, status);
-        } else {
-            b = floatx80_mul(b, log2, status);
-        }
-        ilog = floatx80_to_int32(b, status);
-    }
-    
-    bool ictr = false;
-    
+	ilog = getDecimalExponent(aExp, aSig);
+	
+	ictr = 0;
+
 try_again:
-    //printf("ILOG = %i\n",ilog);
-    
-    if (kfactor > 0) {
-        if (kfactor > 17) {
-            kfactor = 17;
-            float_raise(float_flag_invalid, status);
+	decimal_log(_T("ILOG = %i\n"), ilog);
+	
+	if (kfactor > 0) {
+		if (kfactor > 17) {
+			kfactor = 17;
+			float_raise(float_flag_invalid, status);
+		}
+		len = kfactor;
+	} else {
+		len = ilog + 1 - kfactor;
+		if (len > 17) {
+			len = 17;
+		}
+		if (len < 1) {
+			len = 1;
+		}
+        if (kfactor > ilog) {
+            ilog = kfactor;
+            decimal_log(_T("ILOG is kfactor = %i\n"), ilog);
         }
-        len = kfactor;
-    } else {
-        len = ilog + 1 - kfactor;
-        if (len > 17) {
-            len = 17;
-        }
-        if (len < 1) {
-            len = 1;
-        }
-    }
-    
-    //printf("LEN = %i\n",len);
-    
-    if (kfactor <= 0 && kfactor > ilog) {
-        ilog = kfactor;
-        //printf("ILOG is kfactor = %i\n",ilog);
-    }
-    
-    flag lambda = 0;
-    int iscale = ilog + 1 - len;
-    
-    if (iscale < 0) {
-        lambda = 1;
-#if 0
-        if (iscale <= -4908) { // do we need this?
-            iscale += 24;
-            temp_for_a9 = 24;
-        }
-#endif
-        iscale = -iscale;
-    }
-    
-    //printf("ISCALE = %i, LAMDA = %i\n",iscale,lambda);
-    
-    mExp = 0x4002;
-    mSig0 = LIT64(0xA000000000000000);
-    mSig1 = 0;
-    xExp = 0x3FFF;
-    xSig0 = LIT64(0x8000000000000000);
-    xSig1 = 0;
-    
-    while (iscale) {
-        if (iscale & 1) {
-            mul128by128(&xExp, &xSig0, &xSig1, mExp, mSig0, mSig1);
-        }
-        mul128by128(&mExp, &mSig0, &mSig1, mExp, mSig0, mSig1);
-        iscale >>= 1;
-    }
-    
-    zExp = aExp;
-    zSig0 = aSig;
-    zSig1 = 0;
-    
-    if (lambda) {
-        mul128by128(&zExp, &zSig0, &zSig1, xExp, xSig0, xSig1);
-    } else {
-        div128by128(&zExp, &zSig0, &zSig1, xExp, xSig0, xSig1);
-    }
-    if (zSig1) zSig0 |= 1;
-    
-    floatx80 z = packFloatx80(aSign, zExp, zSig0);
-    z = floatx80_round_to_int(z, status);
-    zSig0 = extractFloatx80Frac(z);
-    zExp = extractFloatx80Exp(z);
-    zSig1 = 0;
-    
-    if (ictr == false) {
-        int lentemp = len - 1;
-        
-        mExp = 0x4002;
-        mSig0 = LIT64(0xA000000000000000);
-        mSig1 = 0;
-        xExp = 0x3FFF;
-        xSig0 = LIT64(0x8000000000000000);
-        xSig1 = 0;
-        
-        while (lentemp) {
-            if (lentemp & 1) {
-                mul128by128(&xExp, &xSig0, &xSig1, mExp, mSig0, mSig1);
-            }
-            mul128by128(&mExp, &mSig0, &mSig1, mExp, mSig0, mSig1);
-            lentemp >>= 1;
-        }
-        
-        zSig0 = extractFloatx80Frac(z);
-        zExp = extractFloatx80Exp(z);
-        
-        if (zExp < xExp || ((zExp == xExp) && lt128(zSig0, 0, xSig0, xSig1))) { // z < x
-            ilog -= 1;
-            ictr = true;
-            mul128by128(&xExp, &xSig0, &xSig1, 0x4002, LIT64(0xA000000000000000), 0);
-            goto try_again;
-        }
-        
-        mul128by128(&xExp, &xSig0, &xSig1, 0x4002, LIT64(0xA000000000000000), 0);
-        
-        if (zExp > xExp || ((zExp == xExp) && lt128(xSig0, xSig1, zSig0, 0))) { // z > x
-            ilog += 1;
-            ictr = true;
-            goto try_again;
-        }
-    } else {
-        int lentemp = len;
+	}
+	
+	decimal_log(_T("LEN = %i\n"),len);
+	
+	lambda = 0;
+	iscale = ilog + 1 - len;
 
-        mExp = 0x4002;
-        mSig0 = LIT64(0xA000000000000000);
-        mSig1 = 0;
-        xExp = 0x3FFF;
-        xSig0 = LIT64(0x8000000000000000);
-        xSig1 = 0;
-        
-        while (lentemp) {
-            if (lentemp & 1) {
-                mul128by128(&xExp, &xSig0, &xSig1, mExp, mSig0, mSig1);
-            }
-            mul128by128(&mExp, &mSig0, &mSig1, mExp, mSig0, mSig1);
-            lentemp >>= 1;
-        }
+	if (iscale < 0) {
+		lambda = 1;
+		iscale = -iscale;
+	}
+	
+	decimal_log(_T("ISCALE = %i, LAMBDA = %i\n"),iscale, lambda);
+	
+	tentoint128(&xExp, &xSig0, &xSig1, iscale);
 
-        if (eq128(zSig0, 0, xSig0, xSig1)) {
-            div128by128(&zExp, &zSig0, &zSig1, 0x4002, LIT64(0xA000000000000000), 0);
-            ilog += 1;
-            len += 1;
-            mul128by128(&xExp, &xSig0, &xSig1, 0x4002, LIT64(0xA000000000000000), 0);
-        }
-    }
-    
-    if (zSig1) zSig0 |= 1;
-    
-    z = packFloatx80(0, zExp, zSig0);
-    
-    decSign = aSign;
-    decSig = floatx80_to_int64(z, status);
-    decExp = (ilog < 0) ? -ilog : ilog;
-    if (decExp > 999) {
-        float_raise(float_flag_invalid, status);
-    }
-    if (ilog < 0) decExp |= 0x4000;
-    
-    *k = len;
-    
-    return packFloatx80(decSign, decExp, decSig);
-#if 0
-    printf("abs(Yint) = %s\n",fp_print(&zint));
-    
-    uae_u64 significand = floatx80_to_int64(zint);
-    
-    printf("Mantissa = %lli\n",significand);
-    
-    printf("Exponent = %i\n",ilog);
-    
-    uae_s32 exp = ilog;
-    
-    uae_u32 pack_exp = 0;   // packed exponent
-    uae_u32 pack_exp4 = 0;
-    uae_u32 pack_int = 0;   // packed integer part
-    uae_u64 pack_frac = 0;  // packed fraction
-    uae_u32 pack_se = 0;    // sign of packed exponent
-    uae_u32 pack_sm = 0;    // sign of packed significand
-    
-    if (exp < 0) {
-        exp = -exp;
-        pack_se = 1;
-    }
-    
-    uae_u64 digit;
-    pack_frac = 0;
-    while (len > 0) {
-        len--;
-        digit = significand % 10;
-        significand /= 10;
-        if (len == 0) {
-            pack_int = digit;
-        } else {
-            pack_frac |= digit << (64 - len * 4);
-        }
-    }
-    printf("PACKED FRACTION = %02x.%16llx\n",pack_int, pack_frac);
-    
-    if (exp > 999) {
-        digit = exp / 1000;
-        exp -= digit * 1000;
-        pack_exp4 = digit;
-        // OPERR
-    }
-    digit = exp / 100;
-    exp -= digit * 100;
-    pack_exp = digit << 8;
-    digit = exp / 10;
-    exp -= digit * 10;
-    pack_exp |= digit << 4;
-    pack_exp |= exp;
-    
-    pack_sm = aSign;
-    
-    wrd[0] = pack_exp << 16;
-    wrd[0] |= pack_exp4 << 12;
-    wrd[0] |= pack_int;
-    wrd[0] |= pack_se ? 0x40000000 : 0;
-    wrd[0] |= pack_sm ? 0x80000000 : 0;
-    
-    wrd[1] = pack_frac >> 32;
-    wrd[2] = pack_frac & 0xffffffff;
-    
-    printf("PACKED = %08x %08x %08x\n",wrd[0],wrd[1],wrd[2]);
-#endif
+	zExp = aExp;
+	zSig0 = aSig;
+	zSig1 = 0;
+	
+	if (lambda) {
+		mul128by128(&zExp, &zSig0, &zSig1, xExp, xSig0, xSig1);
+	} else {
+		div128by128(&zExp, &zSig0, &zSig1, xExp, xSig0, xSig1);
+	}
+
+    decimal_log(_T("BEFORE: zExp = %04x, zSig0 = %16llx, zSig1 = %16llx\n"),zExp,zSig0,zSig1);
+
+    roundtoint128(aSign, &zExp, &zSig0, &zSig1, status);
+
+    decimal_log(_T("AFTER: zExp = %04x, zSig0 = %16llx, zSig1 = %16llx\n"),zExp,zSig0,zSig1);
+
+	if (ictr == 0) {
+
+		tentoint128(&xExp, &xSig0, &xSig1, len - 1);
+
+		if (zExp < xExp || ((zExp == xExp) && lt128(zSig0, zSig1, xSig0, xSig1))) { // z < x
+			ilog -= 1;
+			ictr = 1;
+			goto try_again;
+		}
+		
+		mul128by128(&xExp, &xSig0, &xSig1, 0x4002, LIT64(0xA000000000000000), 0);
+		
+		if (zExp > xExp || ((zExp == xExp) && lt128(xSig0, xSig1, zSig0, zSig1))) { // z > x
+			ilog += 1;
+			ictr = 1;
+			goto try_again;
+		}
+	}
+	
+	decSign = aSign;
+	decSig = zSig0 >> (0x403E - zExp);
+	decExp = (ilog < 0) ? -ilog : ilog;
+	if (decExp > 999) {
+		float_raise(float_flag_invalid, status);
+	}
+	if (ilog < 0) decExp |= 0x4000;
+	
+	*k = len;
+	
+	return packFloatx80(decSign, decExp, decSig);
 }
