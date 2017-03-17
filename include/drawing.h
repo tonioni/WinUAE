@@ -267,7 +267,10 @@ struct decision {
 	bool ehb_seen;
 	bool ham_seen;
 	bool ham_at_start;
+#ifdef AGA
 	bool bordersprite_seen;
+	bool xor_seen;
+#endif
 };
 
 /* Anything related to changes in hw registers during the DDF for one

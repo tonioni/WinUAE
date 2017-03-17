@@ -1052,6 +1052,8 @@ static void record_color_change2 (int hpos, int regno, unsigned long value)
 	curr_color_changes[next_color_change].value = value;
 	next_color_change++;
 	curr_color_changes[next_color_change].regno = -1;
+	if (value & 0xff00)
+		thisline_decision.xor_seen = true;
 }
 
 static bool isehb (uae_u16 bplcon0, uae_u16 bplcon2)
@@ -3808,6 +3810,7 @@ static void reset_decisions (void)
 	thisline_decision.ehb_seen = !! isehb (bplcon0, bplcon2);
 	thisline_decision.ham_at_start = !! (bplcon0 & 0x800);
 	thisline_decision.bordersprite_seen = issprbrd (-1, bplcon0, bplcon3);
+	thisline_decision.xor_seen = (bplcon4 & 0xff00) != 0;
 
 	/* decided_res shouldn't be touched before it's initialized by decide_line(). */
 	thisline_decision.diwfirstword = -1;

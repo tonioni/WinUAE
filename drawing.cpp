@@ -868,6 +868,7 @@ static void pfield_init_linetoscr (bool border)
 	int ddf_right = dp_for_drawing->plfright * 2 + DIW_DDF_OFFSET;
 	int leftborderhidden;
 	int native_ddf_left2;
+	bool expanded = false;
 
 	hsync_shift_hack = 0;
 	
@@ -940,6 +941,13 @@ static void pfield_init_linetoscr (bool border)
 	}
 
 #ifdef AGA
+	// if BPLCON4 is non-zero: it will affect background color until end of DIW.
+	if (dp_for_drawing->xor_seen) {
+		if (playfield_end < linetoscr_diw_end && hblank_right_stop > playfield_end) {
+			playfield_end = linetoscr_diw_end;
+			expanded = true;
+		}
+	}
 	may_require_hard_way = false;
 	if (dp_for_drawing->bordersprite_seen && !ce_is_borderblank(colors_for_drawing.extra) && dip_for_drawing->nr_sprites) {
 		int min = visible_right_border, max = visible_left_border, i;
@@ -1002,10 +1010,10 @@ static void pfield_init_linetoscr (bool border)
 		leftborderhidden += hblank_left_start - playfield_start;
 	src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (leftborderhidden);
 
-	if (dip_for_drawing->nr_sprites == 0)
+	if (dip_for_drawing->nr_sprites == 0 && !expanded)
 		return;
 
-	if (aga_mode) {
+	if (dip_for_drawing->nr_sprites && aga_mode) {
 		int add = get_shdelay_add();
 		if (add) {
 			if (sprite_playfield_start > 0) {
