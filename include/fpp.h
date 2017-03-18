@@ -1,8 +1,11 @@
 
-extern void fp_init_native(void);
-extern void fp_init_softfloat(void);
-extern void fpsr_set_exception(uae_u32 exception);
-extern void fpu_modechange(void);
+/* single   : S  8*E 23*F */
+/* double   : S 11*E 52*F */
+/* extended : S 15*E 64*F */
+/* E = 0 & F = 0 -> 0 */
+/* E = MAX & F = 0 -> Infin */
+/* E = MAX & F # 0 -> NotANumber */
+/* E = biased by 127 (single) ,1023 (double) ,16383 (extended) */
 
 #define FPSR_BSUN       0x00008000
 #define FPSR_SNAN       0x00004000
@@ -12,6 +15,11 @@ extern void fpu_modechange(void);
 #define FPSR_DZ         0x00000400
 #define FPSR_INEX2      0x00000200
 #define FPSR_INEX1      0x00000100
+
+extern void fp_init_native(void);
+extern void fp_init_softfloat(void);
+extern void fpsr_set_exception(uae_u32 exception);
+extern void fpu_modechange(void);
 
 #if defined(CPU_i386) || defined(CPU_x86_64)
 extern void init_fpucw_x87(void);
@@ -42,8 +50,7 @@ typedef void (*FPP_FROM_DOUBLE)(fpdata*, uae_u32*, uae_u32*);
 typedef void (*FPP_TO_EXTEN)(fpdata*, uae_u32, uae_u32, uae_u32);
 typedef void (*FPP_FROM_EXTEN)(fpdata*, uae_u32*, uae_u32*, uae_u32*);
 
-typedef void (*FPP_PACK)(uae_u32*, uae_u32*, uae_u32*);
-typedef void (*FPP_PACKG)(uae_u32*, uae_u32*, uae_u32*, uae_u32*);
+typedef void (*FPP_PACK)(fpdata*, uae_u32*, int);
 
 typedef const TCHAR* (*FPP_PRINT)(fpdata*,int);
 typedef uae_u32 (*FPP_GET32)(void);
@@ -68,6 +75,9 @@ extern FPP_TO_NATIVE fpp_to_native;
 
 extern FPP_TO_INT fpp_to_int;
 extern FPP_FROM_INT fpp_from_int;
+
+extern FPP_PACK fpp_to_pack;
+extern FPP_PACK fpp_from_pack;
 
 extern FPP_TO_SINGLE fpp_to_single;
 extern FPP_FROM_SINGLE fpp_from_single;

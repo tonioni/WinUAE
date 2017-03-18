@@ -1031,6 +1031,214 @@ static uae_u32 fp_get_internal_grs(void)
 	return 0;
 }
 
+static void fp_from_pack (fpdata *src, uae_u32 *wrd, int kfactor)
+{
+	int i, j, t;
+	int exp;
+	int ndigits;
+	char *cp, *strp;
+	char str[100];
+	fptype fp;
+
+   if (fpp_is_nan (src)) {
+        // copy bit by bit, handle signaling nan
+        fpp_from_exten(src, &wrd[0], &wrd[1], &wrd[2]);
+        return;
+    }
+    if (fpp_is_infinity (src)) {
+        // extended exponent and all 0 packed fraction
+        fpp_from_exten(src, &wrd[0], &wrd[1], &wrd[2]);
+        wrd[1] = wrd[2] = 0;
+        return;
+    }
+
+	wrd[0] = wrd[1] = wrd[2] = 0;
+
+	fpp_to_native(&fp, src);
+
+#if USE_LONG_DOUBLE
+	sprintf (str, "%#.17Le", fp);
+#else
+	sprintf (str, "%#.17e", fp);
+#endif
+	
+	// get exponent
+	cp = str;
+	while (*cp != 'e') {
+		if (*cp == 0)
+			return;
+		cp++;
+	}
+	cp++;
+	if (*cp == '+')
+		cp++;
+	exp = atoi (cp);
+
+	// remove trailing zeros
+	cp = str;
+	while (*cp != 'e') {
+		cp++;
+	}
+	cp[0] = 0;
+	cp--;
+	while (cp > str && *cp == '0') {
+		*cp = 0;
+		cp--;
+	}
+
+	cp = str;
+	// get sign
+	if (*cp == '-') {
+		cp++;
+		wrd[0] = 0x80000000;
+	} else if (*cp == '+') {
+		cp++;
+	}
+	strp = cp;
+
+	if (kfactor <= 0) {
+		ndigits = abs (exp) + (-kfactor) + 1;
+	} else {
+		if (kfactor > 17) {
+			kfactor = 17;
+			fpsr_set_exception(FPSR_OPERR);
+		}
+		ndigits = kfactor;
+	}
+
+	if (ndigits < 0)
+		ndigits = 0;
+	if (ndigits > 16)
+		ndigits = 16;
+
+	// remove decimal point
+	strp[1] = strp[0];
+	strp++;
+	// add trailing zeros
+	i = strlen (strp);
+	cp = strp + i;
+	while (i < ndigits) {
+		*cp++ = '0';
+		i++;
+	}
+	i = ndigits + 1;
+	while (i < 17) {
+		strp[i] = 0;
+		i++;
+	}
+	*cp = 0;
+	i = ndigits - 1;
+	// need to round?
+	if (i >= 0 && strp[i + 1] >= '5') {
+		while (i >= 0) {
+			strp[i]++;
+			if (strp[i] <= '9')
+				break;
+			if (i == 0) {
+				strp[i] = '1';
+				exp++;
+			} else {
+				strp[i] = '0';
+			}
+			i--;
+		}
+	}
+	strp[ndigits] = 0;
+
+	// store first digit of mantissa
+	cp = strp;
+	wrd[0] |= *cp++ - '0';
+
+	// store rest of mantissa
+	for (j = 1; j < 3; j++) {
+		for (i = 0; i < 8; i++) {
+			wrd[j] <<= 4;
+			if (*cp >= '0' && *cp <= '9')
+				wrd[j] |= *cp++ - '0';
+		}
+	}
+
+	// exponent
+	if (exp < 0) {
+		wrd[0] |= 0x40000000;
+		exp = -exp;
+	}
+	if (exp > 9999) // ??
+		exp = 9999;
+	if (exp > 999) {
+		int d = exp / 1000;
+		wrd[0] |= d << 12;
+		exp -= d * 1000;
+		fpsr_set_exception(FPSR_OPERR);
+	}
+	i = 100;
+	t = 0;
+	while (i >= 1) {
+		int d = exp / i;
+		t <<= 4;
+		t |= d;
+		exp -= d * i;
+		i /= 10;
+	}
+	wrd[0] |= t << 16;
+}
+
+static void fp_to_pack (fpdata *fpd, uae_u32 *wrd, int dummy)
+{
+	fptype d;
+	char *cp;
+	char str[100];
+
+    if (((wrd[0] >> 16) & 0x7fff) == 0x7fff) {
+        // infinity has extended exponent and all 0 packed fraction
+        // nans are copies bit by bit
+        fpp_to_exten(fpd, wrd[0], wrd[1], wrd[2]);
+        return;
+    }
+    if (!(wrd[0] & 0xf) && !wrd[1] && !wrd[2]) {
+        // exponent is not cared about, if mantissa is zero
+        wrd[0] &= 0x80000000;
+        fpp_to_exten(fpd, wrd[0], wrd[1], wrd[2]);
+        return;
+    }
+
+	cp = str;
+	if (wrd[0] & 0x80000000)
+		*cp++ = '-';
+	*cp++ = (wrd[0] & 0xf) + '0';
+	*cp++ = '.';
+	*cp++ = ((wrd[1] >> 28) & 0xf) + '0';
+	*cp++ = ((wrd[1] >> 24) & 0xf) + '0';
+	*cp++ = ((wrd[1] >> 20) & 0xf) + '0';
+	*cp++ = ((wrd[1] >> 16) & 0xf) + '0';
+	*cp++ = ((wrd[1] >> 12) & 0xf) + '0';
+	*cp++ = ((wrd[1] >> 8) & 0xf) + '0';
+	*cp++ = ((wrd[1] >> 4) & 0xf) + '0';
+	*cp++ = ((wrd[1] >> 0) & 0xf) + '0';
+	*cp++ = ((wrd[2] >> 28) & 0xf) + '0';
+	*cp++ = ((wrd[2] >> 24) & 0xf) + '0';
+	*cp++ = ((wrd[2] >> 20) & 0xf) + '0';
+	*cp++ = ((wrd[2] >> 16) & 0xf) + '0';
+	*cp++ = ((wrd[2] >> 12) & 0xf) + '0';
+	*cp++ = ((wrd[2] >> 8) & 0xf) + '0';
+	*cp++ = ((wrd[2] >> 4) & 0xf) + '0';
+	*cp++ = ((wrd[2] >> 0) & 0xf) + '0';
+	*cp++ = 'E';
+	if (wrd[0] & 0x40000000)
+		*cp++ = '-';
+	*cp++ = ((wrd[0] >> 24) & 0xf) + '0';
+	*cp++ = ((wrd[0] >> 20) & 0xf) + '0';
+	*cp++ = ((wrd[0] >> 16) & 0xf) + '0';
+	*cp = 0;
+#if USE_LONG_DOUBLE
+	sscanf (str, "%Le", &d);
+#else
+	sscanf (str, "%le", &d);
+#endif
+	fpp_from_native(d, fpd);
+}
+
+
 void fp_init_native(void)
 {
 	set_floatx80_rounding_precision(80, &fs);
@@ -1055,6 +1263,9 @@ void fp_init_native(void)
 
 	fpp_to_int = fp_to_int;
 	fpp_from_int = fp_from_int;
+
+	fpp_to_pack = fp_to_pack;
+	fpp_from_pack = fp_from_pack;
 
 	fpp_to_single = fp_to_single;
 	fpp_from_single = fp_from_single;

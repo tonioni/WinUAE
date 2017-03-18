@@ -756,7 +756,7 @@ static void fp_normalize(fpdata *a)
 	a->fpx = floatx80_normalize(a->fpx);
 }
 
-void to_pack_softfloat (fpdata *fp, uae_u32 *wrd)
+static void fp_to_pack(fpdata *fp, uae_u32 *wrd, int dummy)
 {
 	uae_s32 exp = 0;
 	uae_s64 mant = 0;
@@ -776,8 +776,6 @@ void to_pack_softfloat (fpdata *fp, uae_u32 *wrd)
 
 	
 	int i;
-	int zerocount;
-	uae_s64 multiplier;
 
 	uae_u32 pack_exp = (wrd[0] >> 16) & 0xFFF;              // packed exponent
 	uae_u32 pack_int = wrd[0] & 0xF;                        // packed integer part
@@ -814,127 +812,19 @@ void to_pack_softfloat (fpdata *fp, uae_u32 *wrd)
 		mant += (pack_frac >> (60 - i * 4)) & 0xF;
 	}
 
-#if 1
-
-	if (pack_sm) {
-		mant = -mant;
-	}
-
-	
-	zerocount = 0;
-	multiplier = 10;
-	if (exp >= 27) {
-		if (pack_se) {
-			for (i = 0; i < 16; i++) {
-				if ((pack_frac >> (i * 4)) & 0xF) {
-					break;
-				}
-				zerocount++;
-			}
-
-			
-			exp -= zerocount;
-
-			while (zerocount) {
-				if (zerocount & 1) {
-					mant /= multiplier;
-				}
-				multiplier *= multiplier;
-				zerocount >>= 1;
-			}
-		} else {
-			if (pack_int == 0) {
-				zerocount++;
-				for (i = 0; i < 16; i++) {
-					if ((pack_frac >> (60 - i * 4)) & 0xF) {
-						break;
-					}
-					zerocount++;
-				}
-			}
-
-			
-			exp -= zerocount;
-
-			while (zerocount) {
-				if (zerocount & 1) {
-					mant *= multiplier;
-				}
-				multiplier *= multiplier;
-				zerocount >>= 1;
-			}
-		}
-	}
-
-	
-	/* TODO: calculate rounding mode */
-	floatx80 z = int64_to_floatx80(mant);
-	floatx80 m = int32_to_floatx80(10);
-	floatx80 a = int32_to_floatx80(1);
-
-	
-	while (exp) {
-		if (exp & 1) {
-			a = floatx80_mul(a, m, &fs);
-		}
-		m = floatx80_mul(m, m, &fs);
-		exp >>= 1;
-	}
-
-	
-	if (pack_se) {
-		z = floatx80_div(z, a, &fs);
-	} else {
-		z = floatx80_mul(z, a, &fs);
-	}
-
-#if 0	
-	write_log(_T("z = %s\n"), fp_printx80(&z, 0));
-	write_log(_T("m = %s\n"), fp_printx80(&m, 0));
-	write_log(_T("a = %s\n"), fp_printx80(&a, 0));
-
-	
-	write_log(_T("zerocount = %i\n"), zerocount);
-	write_log(_T("multiplier = %llu\n"), multiplier);
-#endif
-
-	fp->fpx = z;
-
-	/* TODO: set inex1 and restore rounding mode */
-	// if mul/div caused inex2 --> set inex1
-
-#else
-
 	floatx80 f;
 	f.high = exp & 0x3FFF;
 	f.high |= pack_se ? 0x4000 : 0;
 	f.high |= pack_sm ? 0x8000 : 0;
 	f.low = mant;
 	
-	fp->fpx = floatdecimal_to_floatx80(f, &fsp);
-
-#endif
-
-	if (!currprefs.fpu_softfloat) {
-		to_native(&fp->fp, fp);
-	}
-	
+	fp->fpx = floatdecimal_to_floatx80(f, &fs);
 }
 
 
-void from_pack_softfloat (fpdata *fp, uae_u32 *wrd, int kfactor)
+static void fp_from_pack(fpdata *fp, uae_u32 *wrd, int kfactor)
 {
-    floatx80 a;
-	fpdata fpd;
-
-	if (!currprefs.fpu_softfloat) {
-		from_native(fp->fp, &fpd);
-	} else {
-		fpd.fpx = fp->fpx;
-	}
-	a = fpd.fpx;
-   
-    floatx80 f = floatx80_to_floatdecimal(a, &kfactor, &fs);
+    floatx80 f = floatx80_to_floatdecimal(fp->fpx, &kfactor, &fs);
     
     uae_u32 pack_exp = 0;   // packed exponent
     uae_u32 pack_exp4 = 0;
@@ -950,9 +840,9 @@ void from_pack_softfloat (fpdata *fp, uae_u32 *wrd, int kfactor)
 	uae_u64 digit;
  
 	if ((f.high & 0x7FFF) == 0x7FFF) {
-		wrd[0] = (uae_u32)(a.high << 16);
-		wrd[1] = a.low >> 32;
-		wrd[2] = (uae_u32)a.low;
+		wrd[0] = (uae_u32)(f.high << 16);
+		wrd[1] = f.low >> 32;
+		wrd[2] = (uae_u32)f.low;
 	} else {
 		exponent = f.high & 0x3FFF;
 		significand = f.low;
@@ -1024,6 +914,9 @@ void fp_init_softfloat(void)
 
 	fpp_to_int = to_int;
 	fpp_from_int = from_int;
+
+	fpp_to_pack = fp_to_pack;
+	fpp_from_pack = fp_from_pack;
 
 	fpp_to_single = to_single;
 	fpp_from_single = from_single;

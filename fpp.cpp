@@ -54,6 +54,9 @@ FPP_TO_NATIVE fpp_to_native;
 FPP_TO_INT fpp_to_int;
 FPP_FROM_INT fpp_from_int;
 
+FPP_PACK fpp_to_pack;
+FPP_PACK fpp_from_pack;
+
 FPP_TO_SINGLE fpp_to_single;
 FPP_FROM_SINGLE fpp_from_single;
 FPP_TO_DOUBLE fpp_to_double;
@@ -546,9 +549,6 @@ static uae_u32 fpsr_make_status(void)
 {
 	uae_u32 exception;
 
-	if (!currprefs.fpu_exceptions)
-		return 0;
-
     // get external status
     fpp_get_status(&regs.fpsr);
     
@@ -564,6 +564,9 @@ static uae_u32 fpsr_make_status(void)
     if (regs.fpsr & (FPSR_OVFL | FPSR_INEX2 | FPSR_INEX1))
         regs.fpsr |= FPSR_AE_INEX; // INEX = INEX1 || INEX2 || OVFL
     
+	if (!currprefs.fpu_exceptions)
+		return 0;
+
     // return exceptions that interrupt calculation
 	exception = regs.fpsr & regs.fpcr & (FPSR_SNAN | FPSR_OPERR | FPSR_DZ);
 	if (currprefs.cpu_model >= 68040 && currprefs.fpu_model)
@@ -1106,248 +1109,6 @@ static void fpu_null (void)
 		fpnan (&regs.fp[i]);
 }
 
-/* single   : S  8*E 23*F */
-/* double   : S 11*E 52*F */
-/* extended : S 15*E 64*F */
-/* E = 0 & F = 0 -> 0 */
-/* E = MAX & F = 0 -> Infin */
-/* E = MAX & F # 0 -> NotANumber */
-/* E = biased by 127 (single) ,1023 (double) ,16383 (extended) */
-
-#if 1
-
-void to_pack_softfloat (fpdata *fp, uae_u32 *wrd);
-
-static void to_pack (fpdata *fpd, uae_u32 *wrd)
-{
-	to_pack_softfloat(fpd, wrd);
-}
-
-
-#else
-
-static void to_pack (fpdata *fpd, uae_u32 *wrd)
-{
-	fptype d;
-	char *cp;
-	char str[100];
-
-    if (((wrd[0] >> 16) & 0x7fff) == 0x7fff) {
-        // infinity has extended exponent and all 0 packed fraction
-        // nans are copies bit by bit
-        fpp_to_exten(fpd, wrd[0], wrd[1], wrd[2]);
-        return;
-    }
-    if (!(wrd[0] & 0xf) && !wrd[1] && !wrd[2]) {
-        // exponent is not cared about, if mantissa is zero
-        wrd[0] &= 0x80000000;
-        fpp_to_exten(fpd, wrd[0], wrd[1], wrd[2]);
-        return;
-    }
-
-	cp = str;
-	if (wrd[0] & 0x80000000)
-		*cp++ = '-';
-	*cp++ = (wrd[0] & 0xf) + '0';
-	*cp++ = '.';
-	*cp++ = ((wrd[1] >> 28) & 0xf) + '0';
-	*cp++ = ((wrd[1] >> 24) & 0xf) + '0';
-	*cp++ = ((wrd[1] >> 20) & 0xf) + '0';
-	*cp++ = ((wrd[1] >> 16) & 0xf) + '0';
-	*cp++ = ((wrd[1] >> 12) & 0xf) + '0';
-	*cp++ = ((wrd[1] >> 8) & 0xf) + '0';
-	*cp++ = ((wrd[1] >> 4) & 0xf) + '0';
-	*cp++ = ((wrd[1] >> 0) & 0xf) + '0';
-	*cp++ = ((wrd[2] >> 28) & 0xf) + '0';
-	*cp++ = ((wrd[2] >> 24) & 0xf) + '0';
-	*cp++ = ((wrd[2] >> 20) & 0xf) + '0';
-	*cp++ = ((wrd[2] >> 16) & 0xf) + '0';
-	*cp++ = ((wrd[2] >> 12) & 0xf) + '0';
-	*cp++ = ((wrd[2] >> 8) & 0xf) + '0';
-	*cp++ = ((wrd[2] >> 4) & 0xf) + '0';
-	*cp++ = ((wrd[2] >> 0) & 0xf) + '0';
-	*cp++ = 'E';
-	if (wrd[0] & 0x40000000)
-		*cp++ = '-';
-	*cp++ = ((wrd[0] >> 24) & 0xf) + '0';
-	*cp++ = ((wrd[0] >> 20) & 0xf) + '0';
-	*cp++ = ((wrd[0] >> 16) & 0xf) + '0';
-	*cp = 0;
-#if USE_LONG_DOUBLE
-	sscanf (str, "%Le", &d);
-#else
-	sscanf (str, "%le", &d);
-#endif
-	fpp_from_native(d, fpd);
-}
-
-#endif
-
-#if 1
-
-void from_pack_softfloat (fpdata *fp, uae_u32 *wrd, int kfactor);
-
-static void from_pack (fpdata *fpd, uae_u32 *wrd, int kfactor)
-{
-	from_pack_softfloat(fpd, wrd, kfactor);
-}
-
-#else
-
-static void from_pack (fpdata *src, uae_u32 *wrd, int kfactor)
-{
-	int i, j, t;
-	int exp;
-	int ndigits;
-	char *cp, *strp;
-	char str[100];
-	fptype fp;
-
-   if (fpp_is_nan (src)) {
-        // copy bit by bit, handle signaling nan
-        fpp_from_exten(src, &wrd[0], &wrd[1], &wrd[2]);
-        return;
-    }
-    if (fpp_is_infinity (src)) {
-        // extended exponent and all 0 packed fraction
-        fpp_from_exten(src, &wrd[0], &wrd[1], &wrd[2]);
-        wrd[1] = wrd[2] = 0;
-        return;
-    }
-
-	wrd[0] = wrd[1] = wrd[2] = 0;
-
-	fpp_to_native(&fp, src);
-
-#if USE_LONG_DOUBLE
-	sprintf (str, "%#.17Le", fp);
-#else
-	sprintf (str, "%#.17e", fp);
-#endif
-	
-	// get exponent
-	cp = str;
-	while (*cp != 'e') {
-		if (*cp == 0)
-			return;
-		cp++;
-	}
-	cp++;
-	if (*cp == '+')
-		cp++;
-	exp = atoi (cp);
-
-	// remove trailing zeros
-	cp = str;
-	while (*cp != 'e') {
-		cp++;
-	}
-	cp[0] = 0;
-	cp--;
-	while (cp > str && *cp == '0') {
-		*cp = 0;
-		cp--;
-	}
-
-	cp = str;
-	// get sign
-	if (*cp == '-') {
-		cp++;
-		wrd[0] = 0x80000000;
-	} else if (*cp == '+') {
-		cp++;
-	}
-	strp = cp;
-
-	if (kfactor <= 0) {
-		ndigits = abs (exp) + (-kfactor) + 1;
-	} else {
-		if (kfactor > 17) {
-			kfactor = 17;
-			fpsr_set_exception(FPSR_OPERR);
-		}
-		ndigits = kfactor;
-	}
-
-	if (ndigits < 0)
-		ndigits = 0;
-	if (ndigits > 16)
-		ndigits = 16;
-
-	// remove decimal point
-	strp[1] = strp[0];
-	strp++;
-	// add trailing zeros
-	i = strlen (strp);
-	cp = strp + i;
-	while (i < ndigits) {
-		*cp++ = '0';
-		i++;
-	}
-	i = ndigits + 1;
-	while (i < 17) {
-		strp[i] = 0;
-		i++;
-	}
-	*cp = 0;
-	i = ndigits - 1;
-	// need to round?
-	if (i >= 0 && strp[i + 1] >= '5') {
-		while (i >= 0) {
-			strp[i]++;
-			if (strp[i] <= '9')
-				break;
-			if (i == 0) {
-				strp[i] = '1';
-				exp++;
-			} else {
-				strp[i] = '0';
-			}
-			i--;
-		}
-	}
-	strp[ndigits] = 0;
-
-	// store first digit of mantissa
-	cp = strp;
-	wrd[0] |= *cp++ - '0';
-
-	// store rest of mantissa
-	for (j = 1; j < 3; j++) {
-		for (i = 0; i < 8; i++) {
-			wrd[j] <<= 4;
-			if (*cp >= '0' && *cp <= '9')
-				wrd[j] |= *cp++ - '0';
-		}
-	}
-
-	// exponent
-	if (exp < 0) {
-		wrd[0] |= 0x40000000;
-		exp = -exp;
-	}
-	if (exp > 9999) // ??
-		exp = 9999;
-	if (exp > 999) {
-		int d = exp / 1000;
-		wrd[0] |= d << 12;
-		exp -= d * 1000;
-		fpsr_set_exception(FPSR_OPERR);
-	}
-	i = 100;
-	t = 0;
-	while (i >= 1) {
-		int d = exp / i;
-		t <<= 4;
-		t |= d;
-		exp -= d * i;
-		i /= 10;
-	}
-	wrd[0] |= t << 16;
-}
-
-#endif
-
 // 68040/060 does not support denormals
 static bool normalize_or_fault_if_no_denormal_support(uae_u16 opcode, uae_u16 extra, uaecptr ea, uaecptr oldpc, fpdata *src)
 {
@@ -1566,7 +1327,7 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 				wrd[2] = (doext ? exts[2] : x_cp_get_long (ad));
 				if (fault_if_no_packed_support (opcode, extra, adold, oldpc, NULL, wrd))
 					return 1;
-				to_pack (src, wrd);
+				fpp_to_pack (src, wrd, 0);
 				fpp_normalize(src);
 				return 1;
 			}
@@ -1748,7 +1509,7 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 				if (kfactor & 64)
 					kfactor |= ~63;
 				fpp_normalize(value);
-				from_pack (value, wrd, kfactor);
+				fpp_from_pack(value, wrd, kfactor);
 				x_cp_put_long (ad, wrd[0]);
 				ad += 4;
 				x_cp_put_long (ad, wrd[1]);
@@ -3147,10 +2908,10 @@ void fpu_modechange(void)
 	for (int i = 0; i < 8; i++) {
 		fpp_from_exten_fmovem(&regs.fp[i], &temp_ext[i][0], &temp_ext[i][1], &temp_ext[i][2]);
 	}
-	if (currprefs.fpu_softfloat && !changed_prefs.fpu_softfloat) {
-		fp_init_native();
-	} else if (!currprefs.fpu_softfloat && changed_prefs.fpu_softfloat) {
+	if (currprefs.fpu_softfloat) {
 		fp_init_softfloat();
+	} else {
+		fp_init_native();
 	}
 	for (int i = 0; i < 8; i++) {
 		fpp_to_exten_fmovem(&regs.fp[i], temp_ext[i][0], temp_ext[i][1], temp_ext[i][2]);
