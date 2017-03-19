@@ -1302,7 +1302,7 @@ static void touch_event(DWORD id, int pressrel, int x, int y, const RECT *rcontr
 {
 	if (is_touch_lightpen()) {
 
-		tablet_lightpen(x, y, -1, -1, pressrel, pressrel > 0, true, dinput_lightpen());
+		tablet_lightpen(x, y, -1, -1, pressrel, pressrel > 0, true, dinput_lightpen(), -1);
 
 	} else {
 
@@ -1730,6 +1730,13 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
 			mx = (signed short) LOWORD (lParam);
 			my = (signed short) HIWORD (lParam);
+
+#if 0
+			setmousestate (0, 0, mx, 1);
+			setmousestate (0, 1, my, 1);
+			return 0;
+#endif
+
 			//write_log (_T("%d %d %d %d %d %d %dx%d %dx%d\n"), wm, mouseactive, focus, showcursor, recapture, isfullscreen (), mx, my, mouseposx, mouseposy);
 			mx -= mouseposx;
 			my -= mouseposy;

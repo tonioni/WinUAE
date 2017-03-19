@@ -317,8 +317,8 @@ extern void inputdevice_tablet (int x, int y, int z,
 	      int ax, int ay, int az, int devid);
 extern void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay, int maxaz, int xres, int yres);
 extern void inputdevice_tablet_strobe (void);
-extern void tablet_lightpen(int x, int y, int maxx, int maxy, int touch, int buttonmask, bool touchmode, int devid);
-
+extern void tablet_lightpen(int x, int y, int maxx, int maxy, int touch, int buttonmask, bool touchmode, int devid, int lpnum);
+extern int inputdevice_get_lightpen(void);
 
 extern uae_u64 input_getqualifiers (void);
 

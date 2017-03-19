@@ -30,6 +30,7 @@ extern int alg_flag;
 extern void alg_map_banks(void);
 extern bool alg_ld_active(void);
 
+extern int alg_get_player(uae_u16);
 extern uae_u16 alg_potgor(uae_u16);
 extern uae_u16 alg_joydat(int, uae_u16);
 extern uae_u8 alg_joystick_buttons(uae_u8, uae_u8, uae_u8);

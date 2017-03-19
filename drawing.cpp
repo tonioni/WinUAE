@@ -3532,24 +3532,22 @@ static void draw_lightpen_cursor (int x, int y, int line, int onscreen)
 	}
 }
 
-static void lightpen_update (struct vidbuffer *vb)
+static void lightpen_update (struct vidbuffer *vb, int lpnum)
 {
-	int i;
+	if (lightpen_x[lpnum] < LIGHTPEN_WIDTH + 1)
+		lightpen_x[lpnum] = LIGHTPEN_WIDTH + 1;
+	if (lightpen_x[lpnum] >= gfxvidinfo.drawbuffer.inwidth - LIGHTPEN_WIDTH - 1)
+		lightpen_x[lpnum] = gfxvidinfo.drawbuffer.inwidth - LIGHTPEN_WIDTH - 2;
+	if (lightpen_y[lpnum] < LIGHTPEN_HEIGHT + 1)
+		lightpen_y[lpnum] = LIGHTPEN_HEIGHT + 1;
+	if (lightpen_y[lpnum] >= gfxvidinfo.drawbuffer.inheight - LIGHTPEN_HEIGHT - 1)
+		lightpen_y[lpnum] = gfxvidinfo.drawbuffer.inheight - LIGHTPEN_HEIGHT - 2;
+	if (lightpen_y[lpnum] >= max_ypos_thisframe - LIGHTPEN_HEIGHT - 1)
+		lightpen_y[lpnum] = max_ypos_thisframe - LIGHTPEN_HEIGHT - 2;
 
-	if (lightpen_x < LIGHTPEN_WIDTH + 1)
-		lightpen_x = LIGHTPEN_WIDTH + 1;
-	if (lightpen_x >= gfxvidinfo.drawbuffer.inwidth - LIGHTPEN_WIDTH - 1)
-		lightpen_x = gfxvidinfo.drawbuffer.inwidth - LIGHTPEN_WIDTH - 2;
-	if (lightpen_y < LIGHTPEN_HEIGHT + 1)
-		lightpen_y = LIGHTPEN_HEIGHT + 1;
-	if (lightpen_y >= gfxvidinfo.drawbuffer.inheight - LIGHTPEN_HEIGHT - 1)
-		lightpen_y = gfxvidinfo.drawbuffer.inheight - LIGHTPEN_HEIGHT - 2;
-	if (lightpen_y >= max_ypos_thisframe - LIGHTPEN_HEIGHT - 1)
-		lightpen_y = max_ypos_thisframe - LIGHTPEN_HEIGHT - 2;
+	lightpen_cx = (((lightpen_x[lpnum] + visible_left_border) >> lores_shift) >> 1) + DISPLAY_LEFT_SHIFT - DIW_DDF_OFFSET;
 
-	lightpen_cx = (((lightpen_x + visible_left_border) >> lores_shift) >> 1) + DISPLAY_LEFT_SHIFT - DIW_DDF_OFFSET;
-
-	lightpen_cy = lightpen_y;
+	lightpen_cy = lightpen_y[lpnum];
 	lightpen_cy >>= linedbl;
 	lightpen_cy += minfirstline;
 
@@ -3562,15 +3560,15 @@ static void lightpen_update (struct vidbuffer *vb)
 	if (lightpen_cy >= maxvpos)
 		lightpen_cy = maxvpos - 1;
 
-	for (i = 0; i < LIGHTPEN_HEIGHT; i++) {
-		int line = lightpen_y + i - LIGHTPEN_HEIGHT / 2;
+	for (int i = 0; i < LIGHTPEN_HEIGHT; i++) {
+		int line = lightpen_y[lpnum] + i - LIGHTPEN_HEIGHT / 2;
 		if (line >= 0 || line < max_ypos_thisframe) {
 			if (lightpen_active > 0)
-				draw_lightpen_cursor (lightpen_x, i, line, lightpen_cx > 0);
+				draw_lightpen_cursor (lightpen_x[lpnum], i, line, lightpen_cx > 0);
 			flush_line (vb, line);
 		}
 	}
-	lightpen_y1 = lightpen_y - LIGHTPEN_HEIGHT / 2 - 1 + min_ypos_for_screen;
+	lightpen_y1 = lightpen_y[lpnum] - LIGHTPEN_HEIGHT / 2 - 1 + min_ypos_for_screen;
 	lightpen_y2 = lightpen_y1 + LIGHTPEN_HEIGHT + 2;
 
 	if (lightpen_active < 0)
@@ -3777,7 +3775,7 @@ static void finish_drawing_frame (void)
 	}
 
 	if (lightpen_active)
-		lightpen_update (vb);
+		lightpen_update (vb, inputdevice_get_lightpen());
 	if (refresh_indicator_buffer)
 		refresh_indicator_update(vb);
 

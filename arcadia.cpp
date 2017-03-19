@@ -933,12 +933,17 @@ Port 2:
 
 static uae_u16 alg_potgo;
 
+int alg_get_player(uae_u16 potgo)
+{
+	// 2nd button output and high = player 2.
+	return (potgo & 0x4000) && (potgo & 0x8000) ? 1 : 0;
+}
+
 uae_u16 alg_potgor(uae_u16 potgo)
 {
 	alg_potgo = potgo;
 
-	// 2nd button output and high = player 2.
-	int ply = (alg_potgo & 0x4000) && (alg_potgo & 0x8000) ? 1 : 0;
+	int ply = alg_get_player(alg_potgo);
 
 	potgo |= (0x1000 | 0x0100);
 	// trigger

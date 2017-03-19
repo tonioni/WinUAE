@@ -150,7 +150,12 @@ static int bouncy;
 static signed long bouncy_cycles;
 static int autopause;
 
-static int handle_input_event (int nr, int state, int max, int autofire, bool canstoprecord, bool playbackevent);
+#define HANDLE_IE_FLAG_CANSTOPPLAYBACK 1
+#define HANDLE_IE_FLAG_PLAYBACKEVENT 2
+#define HANDLE_IE_FLAG_AUTOFIRE 4
+#define HANDLE_IE_FLAG_ABSOLUTE 8
+
+static int handle_input_event (int nr, int state, int max, int flags);
 
 static struct inputdevice_functions idev[IDTYPE_MAX];
 
@@ -209,7 +214,7 @@ int inputdevice_uaelib (const TCHAR *s, const TCHAR *parm)
 			if (_tcsncmp(ie->confname, _T("KEY_"), 4))
 				continue;
 			if (ie->data == v) {
-				handle_input_event(i, state, 1, 0, false, false);
+				handle_input_event(i, state, 1, 0);
 				return 1;
 			}
 		}
@@ -219,7 +224,7 @@ int inputdevice_uaelib (const TCHAR *s, const TCHAR *parm)
 	for (i = 1; events[i].name; i++) {
 		if (!_tcscmp (s, events[i].confname)) {
 			check_enable(i);
-			handle_input_event (i, parm ? _tstol (parm) : 0, 1, 0, false, false);
+			handle_input_event (i, parm ? _tstol (parm) : 0, 1, 0);
 			return 1;
 		}
 	}
@@ -231,7 +236,7 @@ int inputdevice_uaelib(const TCHAR *s, int parm, int max, bool autofire)
 	for (int i = 1; events[i].name; i++) {
 		if (!_tcscmp(s, events[i].confname)) {
 			check_enable(i);
-			handle_input_event(i, parm, max, autofire, false, false);
+			handle_input_event(i, parm, max, autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0);
 			return 1;
 		}
 	}
@@ -320,8 +325,8 @@ static int oldm_axis[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
 static uae_s16 mouse_x[MAX_JPORTS], mouse_y[MAX_JPORTS];
 static uae_s16 mouse_delta[MAX_JPORTS][MOUSE_AXIS_TOTAL];
 static uae_s16 mouse_deltanoreset[MAX_JPORTS][MOUSE_AXIS_TOTAL];
-static uae_s16 lightpen_delta[2];
-static uae_s16 lightpen_deltanoreset[2];
+static uae_s16 lightpen_delta[2][2];
+static uae_s16 lightpen_deltanoreset[2][2];
 static int joybutton[MAX_JPORTS];
 static int joydir[MAX_JPORTS];
 static int joydirpot[MAX_JPORTS][2];
@@ -1954,6 +1959,7 @@ skip:
 
 static int mouseedge_alive, mousehack_alive_cnt;
 static int lastmx, lastmy;
+static int lastmxy_abs[2][2];
 static uaecptr magicmouse_ibase, magicmouse_gfxbase;
 static int dimensioninfo_width, dimensioninfo_height, dimensioninfo_dbl;
 static int vp_xoffset, vp_yoffset, mouseoffset_x, mouseoffset_y;
@@ -2257,7 +2263,14 @@ void inputdevice_tablet_strobe (void)
 		put_byte_host(mousehack_address + MH_CNT, get_byte_host(mousehack_address + MH_CNT) + 1);
 }
 
-void tablet_lightpen(int tx, int ty, int tmaxx, int tmaxy, int touch, int buttonmask, bool touchmode, int devid)
+int inputdevice_get_lightpen(void)
+{
+	if (!alg_flag)
+		return 0;
+	return alg_get_player(potgo_value);
+}
+
+void tablet_lightpen(int tx, int ty, int tmaxx, int tmaxy, int touch, int buttonmask, bool touchmode, int devid, int lpnum)
 {
 	if (picasso_on)
 		goto end;
@@ -2280,6 +2293,9 @@ void tablet_lightpen(int tx, int ty, int tmaxx, int tmaxy, int touch, int button
 	if (tmaxx < 0 || tmaxy < 0) {
 		tmaxx = dw;
 		tmaxy = dh;
+	} else if (tmaxx == 0 || tmaxy == 0) {
+		tmaxx = aw;
+		tmaxy = ah;
 	}
 
 	if (!touchmode) {
@@ -2309,8 +2325,15 @@ void tablet_lightpen(int tx, int ty, int tmaxx, int tmaxy, int touch, int button
 	if (x < 0 || y < 0 || x >= aw || y >= ah)
 		goto end;
 
-	lightpen_x = x;
-	lightpen_y = y;
+	if (lpnum < 0) {
+		lightpen_x[0] = x;
+		lightpen_y[0] = y;
+		lightpen_x[1] = x;
+		lightpen_y[1] = y;
+	} else {
+		lightpen_x[lpnum] = x;
+		lightpen_y[lpnum] = y;
+	}
 
 	if (touch >= 0)
 		lightpen_active = true;
@@ -2325,7 +2348,8 @@ void tablet_lightpen(int tx, int ty, int tmaxx, int tmaxy, int touch, int button
 end:
 	if (lightpen_active) {
 		lightpen_active = false;
-		setmousebuttonstate (devid, 0, 0);
+		if (devid >= 0)
+			setmousebuttonstate (devid, 0, 0);
 	}
 
 }
@@ -2334,7 +2358,7 @@ void inputdevice_tablet (int x, int y, int z, int pressure, uae_u32 buttonbits, 
 {
 	if (is_touch_lightpen()) {
 
-		tablet_lightpen(x, y, tablet_maxx, tablet_maxy, inproximity ? 1 : -1, buttonbits, false, devid);
+		tablet_lightpen(x, y, tablet_maxx, tablet_maxy, inproximity ? 1 : -1, buttonbits, false, devid, -1);
 
 	} else {
 		uae_u8 *p;
@@ -2972,15 +2996,17 @@ static void mouseupdate (int pct, bool vsync)
 
 	}
 
-	if (lightpen_delta[0]) {
-		lightpen_x += lightpen_delta[0];
-		if (!lightpen_deltanoreset[0])
-			lightpen_delta[0] = 0;
-	}
-	if (lightpen_delta[1]) {
-		lightpen_y += lightpen_delta[1];
-		if (!lightpen_deltanoreset[1])
-			lightpen_delta[1] = 0;
+	for (int i = 0; i < 2; i++) {
+		if (lightpen_delta[i][0]) {
+			lightpen_x[i] += lightpen_delta[i][0];
+			if (!lightpen_deltanoreset[i][0])
+				lightpen_delta[i][0] = 0;
+		}
+		if (lightpen_delta[i][1]) {
+			lightpen_y[i] += lightpen_delta[i][1];
+			if (!lightpen_deltanoreset[i][1])
+				lightpen_delta[i][1] = 0;
+		}
 	}
 
 
@@ -3738,7 +3764,7 @@ void inputdevice_hsync (void)
 				if (iq->custom)
 					handle_custom_event (iq->custom, 0);
 				if (iq->evt)
-					handle_input_event (iq->evt, iq->state, iq->max, 0, false, true);
+					handle_input_event (iq->evt, iq->state, iq->max, HANDLE_IE_FLAG_PLAYBACKEVENT);
 				iq->linecnt = iq->nextlinecnt;
 			}
 		}
@@ -3755,7 +3781,7 @@ void inputdevice_hsync (void)
 		inprec_playdiskchange ();
 		int nr, state, max, autofire;
 		while (inprec_playevent (&nr, &state, &max, &autofire))
-			handle_input_event (nr, state, max, autofire, false, true);
+			handle_input_event (nr, state, max, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_PLAYBACKEVENT);
 		if (vpos == 0)
 			handle_msgpump ();
 	}
@@ -3868,7 +3894,7 @@ static void queue_input_event (int evt, const TCHAR *custom, int state, int max,
 		iq->linecnt = -1;
 		iq->evt = 0;
 		if (iq->state == 0 && evt > 0)
-			handle_input_event (evt, 0, 1, 0, false, false);
+			handle_input_event (evt, 0, 1, 0);
 	} else if (state >= 0 && idx < 0) {
 		if (evt == 0 && custom == NULL)
 			return;
@@ -4421,11 +4447,12 @@ static uae_u64 isqual (int evt)
 	return ID_FLAG_QUALIFIER1 << (num * 2);
 }
 
-static int handle_input_event (int nr, int state, int max, int autofire, bool canstopplayback, bool playbackevent)
+static int handle_input_event2 (int nr, int state, int max, int flags, int extra)
 {
 	const struct inputevent *ie;
 	int joy;
 	bool isaks = false;
+	int autofire = (flags & HANDLE_IE_FLAG_AUTOFIRE) ? 1 : 0;
 
 	if (nr <= 0 || nr == INPUTEVENT_SPC_CUSTOM_EVENT)
 		return 0;
@@ -4446,13 +4473,13 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 	if (!isaks) {
 		if (input_record && input_record != INPREC_RECORD_PLAYING)
 			inprec_recordevent (nr, state, max, autofire);
-		if (input_play && state && canstopplayback) {
+		if (input_play && state && (flags & HANDLE_IE_FLAG_CANSTOPPLAYBACK)) {
 			if (inprec_realtime ()) {
 				if (input_record && input_record != INPREC_RECORD_PLAYING)
 					inprec_recordevent (nr, state, max, autofire);
 			}
 		}
-		if (!playbackevent && input_play)
+		if (!(flags & HANDLE_IE_FLAG_PLAYBACKEVENT) && input_play)
 			return 0;
 	}
 
@@ -4468,14 +4495,27 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 	{
 	case 5: /* lightpen/gun */
 		{
-			int unit = ie->data & 0x7f;
+			int unit = (ie->data & 1) ? 1 : 0;
+			int lpnum = (ie->data & 2) ? 1 : 0;
 			if (!lightpen_active) {
-				lightpen_x = gfxvidinfo.outbuffer->outwidth / 2;
-				lightpen_y = gfxvidinfo.outbuffer->outheight / 2;
+				for (int i = 0; i < 2; i++) {
+					lightpen_x[i] = gfxvidinfo.outbuffer->outwidth / 2;
+					lightpen_y[i] = gfxvidinfo.outbuffer->outheight / 2;
+				}
 			}
 			lightpen_active = true;
 			lightpen_enabled = true;
-			if (ie->type == 0) {
+			if (flags & HANDLE_IE_FLAG_ABSOLUTE) {
+				lastmxy_abs[lpnum][unit] = extra;
+				if (!unit)
+					return 1;
+				int x = lastmxy_abs[lpnum][0];
+				int y = lastmxy_abs[lpnum][1];
+				if (x <= 0 || x >= 65535 || y <= 0 || y >= 65535) {
+					x = y = -1;
+				}
+				tablet_lightpen(x, y, 65535, 65535, 0, 0, false, -1, lpnum);
+			} else if (ie->type == 0) {
 				int delta = 0;
 				if (max == 0) {
 					delta = state * currprefs.input_mouse_speed / 100;
@@ -4483,35 +4523,35 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 					int deadzone = currprefs.input_joymouse_deadzone * max / 100;
 					if (state <= deadzone && state >= -deadzone) {
 						state = 0;
-						lightpen_deltanoreset[unit] = 0;
+						lightpen_deltanoreset[lpnum][unit] = 0;
 					} else if (state < 0) {
 						state += deadzone;
-						lightpen_deltanoreset[unit] = 1;
+						lightpen_deltanoreset[lpnum][unit] = 1;
 					} else {
 						state -= deadzone;
-						lightpen_deltanoreset[unit] = 1;
+						lightpen_deltanoreset[lpnum][unit] = 1;
 					}
 					max -= deadzone;
 					delta = state * currprefs.input_joymouse_multiplier / (10 * max);
 				}
 				if (ie->data)
-					lightpen_y += delta;
+					lightpen_y[lpnum] += delta;
 				else
-					lightpen_x += delta;
+					lightpen_x[lpnum] += delta;
 				if (max)
-					lightpen_delta[unit] = delta;
+					lightpen_delta[lpnum][unit] = delta;
 				else
-					lightpen_delta[unit] += delta;
+					lightpen_delta[lpnum][unit] += delta;
 			} else {
 				int delta = currprefs.input_joymouse_speed;
 				if (ie->data & DIR_LEFT)
-					lightpen_x -= delta;
+					lightpen_x[lpnum] -= delta;
 				if (ie->data & DIR_RIGHT)
-					lightpen_x += delta;
+					lightpen_x[lpnum] += delta;
 				if (ie->data & DIR_UP)
-					lightpen_y -= delta;
+					lightpen_y[lpnum] -= delta;
 				if (ie->data & DIR_DOWN)
-					lightpen_y += delta;
+					lightpen_y[lpnum] += delta;
 			}
 		}
 		break;
@@ -4793,10 +4833,20 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 	return 1;
 }
 
+static int handle_input_event_extra(int nr, int state, int max, int flags, int extra)
+{
+	return handle_input_event2(nr, state, max, flags, extra);
+}
+
+static int handle_input_event(int nr, int state, int max, int flags)
+{
+	return handle_input_event2(nr, state, max, flags, 0);
+}
+
 int send_input_event (int nr, int state, int max, int autofire)
 {
 	check_enable(nr);
-	return handle_input_event(nr, state, max, autofire, false, false);
+	return handle_input_event(nr, state, max, autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0);
 }
 
 static void inputdevice_checkconfig (void)
@@ -4891,6 +4941,10 @@ void inputdevice_reset (void)
 		delayed_events = de->next;
 		xfree (de->event_string);
 		xfree (de);
+	}
+	for (int i = 0; i < 2; i++) {
+		lastmxy_abs[i][0] = 0;
+		lastmxy_abs[i][1] = 0;
 	}
 }
 
@@ -5467,15 +5521,15 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 			if (state < 0) {
 				if (!checkqualifiers (evt, flags, qualmask, NULL))
 					continue;
-				handle_input_event (evt, 1, 1, 0, true, false);
+				handle_input_event (evt, 1, 1, HANDLE_IE_FLAG_CANSTOPPLAYBACK);
 				didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, 0, i);
 			} else if (inverttoggle) {
 				/* pressed = firebutton, not pressed = autofire */
 				if (state) {
 					queue_input_event (evt, NULL, -1, 0, 0, 1);
-					handle_input_event (evt, 2, 1, 0, true, false);
+					handle_input_event (evt, 2, 1, HANDLE_IE_FLAG_CANSTOPPLAYBACK);
 				} else {
-					handle_input_event (evt, 2, 1, autofire, true, false);
+					handle_input_event (evt, 2, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
 				}
 				didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire, i);
 			} else if (toggle) {
@@ -5487,7 +5541,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 					continue;
 				*flagsp ^= ID_FLAG_TOGGLED;
 				int toggled = (*flagsp & ID_FLAG_TOGGLED) ? 2 : 0;
-				handle_input_event (evt, toggled, 1, autofire, true, false);
+				handle_input_event (evt, toggled, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
 				didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, toggled, qualmask, autofire, i);
 			} else {
 				if (!checkqualifiers (evt, flags, qualmask, NULL)) {
@@ -5503,7 +5557,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 				else
 					*flagsp |= ID_FLAG_CANRELEASE;
 				if ((omask ^ nmask) & mask) {
-					handle_input_event (evt, state, 1, autofire, true, false);
+					handle_input_event (evt, state, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
 					if (state)
 						didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire, i);
 				}
@@ -6907,8 +6961,10 @@ static void resetinput (void)
 		mouse_deltanoreset[i][2] = 0;
 		mouse_delta[i][2] = 0;
 	}
-	lightpen_delta[0] = lightpen_delta[1] = 0;
-	lightpen_deltanoreset[0] = lightpen_deltanoreset[1] = 0;
+	for (int i = 0; i < 2; i++) {
+		lightpen_delta[i][0] = lightpen_delta[i][1] = 0;
+		lightpen_deltanoreset[i][0] = lightpen_deltanoreset[i][1] = 0;
+	}
 	memset (keybuf, 0, sizeof keybuf);
 	for (int i = 0; i < INPUT_QUEUE_SIZE; i++)
 		input_queue[i].linecnt = input_queue[i].nextlinecnt = -1;
@@ -7314,7 +7370,7 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int keyst
 				if (qualifiercheckonly) {
 					if (!state && (flags & ID_FLAG_CANRELEASE)) {
 						*flagsp &= ~ID_FLAG_CANRELEASE;
-						handle_input_event (evt, state, 1, autofire, true, false);
+						handle_input_event (evt, state, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
 						if (k == 0) {
 							process_custom_event (na, j, state, qualmask, autofire, k);
 						}
@@ -7345,9 +7401,9 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int keyst
 					na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] &= ~ID_FLAG_TOGGLED;
 					if (state) {
 						queue_input_event (evt, NULL, -1, 0, 0, 1);
-						handled |= handle_input_event (evt, 2, 1, 0, true, false);
+						handled |= handle_input_event (evt, 2, 1, HANDLE_IE_FLAG_CANSTOPPLAYBACK);
 					} else {
-						handled |= handle_input_event (evt, 2, 1, autofire, true, false);
+						handled |= handle_input_event (evt, 2, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
 					}
 					didcustom |= process_custom_event (na, j, state, qualmask, autofire, k);
 				} else if (toggle) {
@@ -7357,7 +7413,7 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int keyst
 						continue;
 					*flagsp ^= ID_FLAG_TOGGLED;
 					toggled = (*flagsp & ID_FLAG_TOGGLED) ? 2 : 0;
-					handled |= handle_input_event (evt, toggled, 1, autofire, true, false);
+					handled |= handle_input_event (evt, toggled, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
 					if (k == 0) {
 						didcustom |= process_custom_event (na, j, state, qualmask, autofire, k);
 					}
@@ -7380,7 +7436,7 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int keyst
 							continue;
 						*flagsp &= ~ID_FLAG_CANRELEASE;
 					}
-					handled |= handle_input_event (evt, state, 1, autofire, true, false);
+					handled |= handle_input_event (evt, state, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
 					didcustom |= process_custom_event (na, j, state, qualmask, autofire, k);
 				}
 			}
@@ -8495,7 +8551,7 @@ void setjoystickstate (int joy, int axis, int state, int max)
 			state2 = -state2;
 		if (state2 != id2->states[axis][i]) {
 			//write_log(_T("-> %d %d\n"), i, state2);
-			handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], state2, max, flags & ID_FLAG_AUTOFIRE, true, false);
+			handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], state2, max, ((flags & ID_FLAG_AUTOFIRE) ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
 			id2->states[axis][i] = state2;
 		}
 	}
@@ -8511,6 +8567,7 @@ int getjoystickstate (int joy)
 void setmousestate (int mouse, int axis, int data, int isabs)
 {
 	int i, v, diff;
+	int extraflags = 0, extrastate = 0;
 	int *mouse_p, *oldm_p;
 	float d;
 	struct uae_input_device *id = &mice[mouse];
@@ -8546,13 +8603,16 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 		*mouse_p += data;
 		d = (*mouse_p - *oldm_p) * currprefs.input_mouse_speed / 100.0f;
 	} else {
+		extraflags |= HANDLE_IE_FLAG_ABSOLUTE;
+		extrastate = data;
 		d = data - *oldm_p;
 		*oldm_p = data;
 		*mouse_p += d;
-		if (axis == 0)
+		if (axis == 0) {
 			lastmx = data;
-		else
+		} else {
 			lastmy = data;
+		}
 		if (axis)
 			mousehack_helper (mice2[mouse].buttonmask);
 		if (currprefs.input_tablet == TABLET_MOUSEHACK && mousehack_alive () && axis < 2)
@@ -8567,7 +8627,7 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 		uae_u64 flags = id->flags[ID_AXIS_OFFSET + axis][i];
 		if (!isabs && (flags & ID_FLAG_INVERT))
 			v = -v;
-		handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], v, 0, 0, true, false);
+		handle_input_event_extra(id->eventid[ID_AXIS_OFFSET + axis][i], v, 0, HANDLE_IE_FLAG_CANSTOPPLAYBACK | extraflags, extrastate);
 	}
 }
 

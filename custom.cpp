@@ -158,7 +158,8 @@ static int lof_togglecnt_lace, lof_togglecnt_nlace; //, nlace_cnt;
 */
 static int vpos_previous, hpos_previous;
 static int vpos_lpen, hpos_lpen, lightpen_triggered;
-int lightpen_x = -1, lightpen_y = -1, lightpen_cx, lightpen_cy, lightpen_active, lightpen_enabled;
+int lightpen_x[2], lightpen_y[2];
+int lightpen_cx, lightpen_cy, lightpen_active, lightpen_enabled;
 
 static uae_u32 sprtaba[256],sprtabb[256];
 static uae_u32 sprite_ab_merge[256];
@@ -8603,6 +8604,10 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	lightpen_active = -1;
 	lightpen_triggered = 0;
 	lightpen_cx = lightpen_cy = -1;
+	lightpen_x[0] = -1;
+	lightpen_y[0] = -1;
+	lightpen_x[1] = -1;
+	lightpen_y[1] = -1;
 	nr_armed = 0;
 
 	if (!savestate_state) {
