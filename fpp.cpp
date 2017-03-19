@@ -10,6 +10,8 @@
 
 #define __USE_ISOC9X  /* We might be able to pick up a NaN */
 
+#define FPU_TEST 0
+
 #include <math.h>
 #include <float.h>
 #include <fenv.h>
@@ -2918,6 +2920,22 @@ void fpu_modechange(void)
 	}
 }
 
+#if FPU_TEST
+
+static void fpu_test(void)
+{
+	fpdata testp;
+	uae_u32 packed[3];
+
+	fpp_set_fpcr(0x30);
+	fpp_to_exten_fmovem(&testp, 0xB4000000, 0x80000000, 0x000003fc);
+    write_log(_T("INPUT: %s (%04x %16llx)\n"), fpp_print(&testp, -1), testp.fpx.high, testp.fpx.low);
+    fpp_from_pack(&testp, packed, 17);
+    fpp_to_pack(&testp, packed, 0);
+}
+
+#endif
+
 void fpu_reset (void)
 {
 	if (currprefs.fpu_softfloat) {
@@ -2938,6 +2956,11 @@ void fpu_reset (void)
 	// reset precision
 	fpp_set_mode(0x00000080 | 0x00000010);
 	fpp_set_mode(0x00000000);
+
+#if FPU_TEST
+	fpu_test();
+#endif
+
 }
 
 uae_u8 *restore_fpu (uae_u8 *src)
@@ -3035,6 +3058,4 @@ uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
 	return dstbak;
 }
 
-#ifdef _MSC_VER
-#pragma fenv_access(off)
-#endif
+

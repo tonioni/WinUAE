@@ -55,7 +55,7 @@ void round128to64(flag aSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, f
 			++zExp;
 			zSig0 = LIT64(0x8000000000000000);
 		} else {
-			zSig0 &= ~ (((int64_t) (zSig1<<1) == 0) & (status->float_rounding_mode == float_round_nearest_even));
+			zSig0 &= ~ (((uint64_t) (zSig1<<1) == 0) & (status->float_rounding_mode == float_round_nearest_even));
 		}
 	} else {
 		if ( zSig0 == 0 ) zExp = 0;
@@ -66,7 +66,7 @@ void round128to64(flag aSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, f
 	*aSig1 = 0;
 }
 
-void mul128by128round(flag aSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t bExp, uint64_t bSig0, uint64_t bSig1, float_status *status)
+void mul128by128round(int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t bExp, uint64_t bSig0, uint64_t bSig1, float_status *status)
 {
 	int32_t zExp;
 	uint64_t zSig0, zSig1, zSig2, zSig3;
@@ -75,7 +75,7 @@ void mul128by128round(flag aSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig
 	zSig0 = *aSig0;
 	zSig1 = *aSig1;
 	
-	round128to64(aSign, &bExp, &bSig0, &bSig1, status);
+	round128to64(0, &bExp, &bSig0, &bSig1, status);
 	
 	zExp += bExp - 0x3FFE;
 	mul128To256(zSig0, zSig1, bSig0, bSig1, &zSig0, &zSig1, &zSig2, &zSig3);
@@ -88,7 +88,7 @@ void mul128by128round(flag aSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig
 	*aSig0 = zSig0;
 	*aSig1 = zSig1;
 	
-	round128to64(aSign, aExp, aSig0, aSig1, status);
+	round128to64(0, aExp, aSig0, aSig1, status);
 }
 
 void mul128by128(int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t bExp, uint64_t bSig0, uint64_t bSig1)
@@ -150,11 +150,65 @@ void div128by128(int32_t *paExp, uint64_t *paSig0, uint64_t *paSig1, int32_t bEx
 	*paSig1 = zSig1;
 }
 
-void tentoint128(flag aSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t scale, float_status *status)
+#if 0
+
+void tentoint128(flag mSign, flag eSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t scale, float_status *status)
 {
-	int32_t mExp;
-	uint64_t mSig0, mSig1;
-	
+    int32_t mExp;
+    uint64_t mSig0, mSig1;
+
+    
+    *aExp = 0x3FFF;
+    *aSig0 = LIT64(0x8000000000000000);
+    *aSig1 = 0;
+
+    mExp = 0x4002;
+    mSig0 = LIT64(0xA000000000000000);
+    mSig1 = 0;
+
+    
+    while (scale) {
+        if (scale & 1) {
+            mul128by128round(aExp, aSig0, aSig1, mExp, mSig0, mSig1, status);
+        }
+        mul128by128(&mExp, &mSig0, &mSig1, mExp, mSig0, mSig1);
+        scale >>= 1;
+    }
+}
+
+#else
+
+void tentoint128(flag mSign, flag eSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t scale, float_status *status)
+ {
+    int8_t save_rounding_mode;
+    int32_t mExp;
+    uint64_t mSig0, mSig1;
+     
+    save_rounding_mode = status->float_rounding_mode;
+    switch (status->float_rounding_mode) {
+        case float_round_nearest_even:
+            break;
+        case float_round_down:
+            if (mSign != eSign) {
+                set_float_rounding_mode(float_round_up, status);
+            }
+            break;
+        case float_round_up:
+            if (mSign != eSign) {
+                set_float_rounding_mode(float_round_down, status);
+            }
+            break;
+        case float_round_to_zero:
+            if (eSign == 0) {
+                set_float_rounding_mode(float_round_down, status);
+            } else {
+                set_float_rounding_mode(float_round_up, status);
+            }
+            break;
+        default:
+            break;
+    }	
+
 	*aExp = 0x3FFF;
 	*aSig0 = LIT64(0x8000000000000000);
 	*aSig1 = 0;
@@ -165,12 +219,16 @@ void tentoint128(flag aSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, in
 	
 	while (scale) {
 		if (scale & 1) {
-			mul128by128round(aSign, aExp, aSig0, aSig1, mExp, mSig0, mSig1, status);
+			mul128by128round(aExp, aSig0, aSig1, mExp, mSig0, mSig1, status);
 		}
 		mul128by128(&mExp, &mSig0, &mSig1, mExp, mSig0, mSig1);
 		scale >>= 1;
 	}
+
+	set_float_rounding_mode(save_rounding_mode, status);
 }
+
+#endif
 
 int64_t tentointdec(int32_t scale)
 {
@@ -299,7 +357,7 @@ floatx80 floatdecimal_to_floatx80(floatx80 a, float_status *status)
 	zSig1 = 0;
 	zSign = decSign;
 	
-	tentoint128(zSign, &xExp, &xSig0, &xSig1, decExp, status);
+	tentoint128(decSign, decExpSign, &xExp, &xSig0, &xSig1, decExp, status);
 
 	if (decExpSign) {
 		div128by128(&zExp, &zSig0, &zSig1, xExp, xSig0, xSig1);
@@ -403,7 +461,9 @@ try_again:
 	
 	decimal_log(_T("ISCALE = %i, LAMBDA = %i\n"),iscale, lambda);
 	
-	tentoint128(0, &xExp, &xSig0, &xSig1, iscale, status);
+	tentoint128(lambda, 0, &xExp, &xSig0, &xSig1, iscale, status);
+
+	decimal_log(_T("AFTER tentoint128: zExp = %04x, zSig0 = %16llx, zSig1 = %16llx\n"), xExp, xSig0, xSig1);
 
 	zExp = aExp;
 	zSig0 = aSig;

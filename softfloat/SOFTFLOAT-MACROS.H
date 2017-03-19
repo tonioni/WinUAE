@@ -484,7 +484,7 @@ static inline void
  )
 {
     uint64_t z0, z1, z2;
-    int8_t borrow0, borrow1;
+    uint8_t borrow0, borrow1;
 
     z2 = a2 - b2;
     borrow1 = ( a2 < b2 );
