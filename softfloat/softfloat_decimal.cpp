@@ -336,7 +336,7 @@ int32_t getDecimalExponent(int32_t aExp, uint64_t aSig)
 
 floatx80 floatdecimal_to_floatx80(floatx80 a, float_status *status)
 {
-	flag decSign, zSign, decExpSign, increment;
+	flag decSign, zSign, decExpSign;
 	int32_t decExp, zExp, xExp, shiftCount;
 	uint64_t decSig, zSig0, zSig1, xSig0, xSig1;
 	
@@ -365,31 +365,9 @@ floatx80 floatdecimal_to_floatx80(floatx80 a, float_status *status)
 		mul128by128(&zExp, &zSig0, &zSig1, xExp, xSig0, xSig1);
 	}
 	
-	increment = ( (int64_t) zSig1 < 0 );
-	if (status->float_rounding_mode != float_round_nearest_even) {
-		if (status->float_rounding_mode == float_round_to_zero) {
-			increment = 0;
-		} else {
-			if (zSign) {
-				increment = (status->float_rounding_mode == float_round_down) && zSig1;
-			} else {
-				increment = (status->float_rounding_mode == float_round_up) && zSig1;
-			}
-		}
-	}
 	if (zSig1) float_raise(float_flag_decimal, status);
+	round128to64(zSign, &zExp, &zSig0, &zSig1, status);
 	
-	if (increment) {
-		++zSig0;
-		if (zSig0 == 0) {
-			++zExp;
-			zSig0 = LIT64(0x8000000000000000);
-		} else {
-			zSig0 &= ~ (((uint64_t) (zSig1<<1) == 0) & (status->float_rounding_mode == float_round_nearest_even));
-		}
-	} else {
-		if ( zSig0 == 0 ) zExp = 0;
-	}
 	return packFloatx80( zSign, zExp, zSig0 );
 	
 }
