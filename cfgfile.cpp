@@ -469,6 +469,19 @@ static TCHAR *cfgfile_escape (const TCHAR *s, const TCHAR *escstr, bool quote)
 	*p = 0;
 	return s2;
 }
+
+// escapy only , and "
+static TCHAR *cfgfile_escape_min(const TCHAR *s)
+{
+	for (int i = 0; s[i]; i++) {
+		TCHAR c = s[i];
+		if (c == ',' || c == '\"') {
+			return cfgfile_escape(s, _T(","), true);
+		}
+	}
+	return my_strdup(s);
+}
+
 static TCHAR *cfgfile_unescape (const TCHAR *s, const TCHAR **endpos, TCHAR separator)
 {
 	bool quoted = false;
@@ -889,7 +902,7 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 	for (int i = 0; i < p->mountitems; i++) {
 		struct uaedev_config_data *uci = &p->mountconfig[i];
 		struct uaedev_config_info *ci = &uci->ci;
-		TCHAR *str1, *str1b, *str2b;
+		TCHAR *str1, *str1b, *str1c, *str2b;
 		const TCHAR *str2;
 		int bp = ci->bootpri;
 
@@ -941,10 +954,11 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 			_stprintf(hdcs + _tcslen(hdcs), _T("-%d"), ci->controller_type_unit + 1);
 
 		str1b = cfgfile_escape (str1, _T(":,"), true);
+		str1c = cfgfile_escape_min(str1);
 		str2b = cfgfile_escape (str2, _T(":,"), true);
 		if (ci->type == UAEDEV_DIR) {
 			_stprintf (tmp, _T("%s,%s:%s:%s,%d"), ci->readonly ? _T("ro") : _T("rw"),
-				ci->devname ? ci->devname : _T(""), ci->volname, str1, bp);
+				ci->devname ? ci->devname : _T(""), ci->volname, str1c, bp);
 			cfgfile_write_str (f, _T("filesystem2"), tmp);
 			_tcscpy (tmp3, tmp);
 #if 0
@@ -955,7 +969,7 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 		} else if (ci->type == UAEDEV_HDF || ci->type == UAEDEV_CD || ci->type == UAEDEV_TAPE) {
 			_stprintf (tmp, _T("%s,%s:%s,%d,%d,%d,%d,%d,%s,%s"),
 				ci->readonly ? _T("ro") : _T("rw"),
-				ci->devname ? ci->devname : _T(""), str1,
+				ci->devname ? ci->devname : _T(""), str1c,
 				ci->sectors, ci->surfaces, ci->reserved, ci->blocksize,
 				bp, ci->filesys ? ci->filesys : _T(""), hdcs);
 			_stprintf (tmp3, _T("%s,%s:%s%s%s,%d,%d,%d,%d,%d,%s,%s"),
@@ -1040,6 +1054,7 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 			}
 		}
 		xfree (str1b);
+		xfree (str1c);
 		xfree (str2b);
 		xfree (str1);
 		
@@ -4241,11 +4256,23 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 		*tmpp++ = 0;
 		_tcscpy (volname, tmpp2);
 		tmpp2 = tmpp;
-		tmpp = _tcschr (tmpp, ',');
-		if (tmpp == 0)
-			goto empty_fs;
-		*tmpp++ = 0;
-		_tcscpy (uci.rootdir, tmpp2);
+		// quoted special case
+		if (tmpp2[0] == '\"') {
+			const TCHAR *end;
+			TCHAR *n = cfgfile_unescape (tmpp2, &end, 0);
+			if (!n)
+				goto invalid_fs;
+			_tcscpy (uci.rootdir, n);
+			xfree(n);
+			tmpp = (TCHAR*)end;
+			*tmpp++ = 0;
+		} else {
+			tmpp = _tcschr (tmpp, ',');
+			if (tmpp == 0)
+				goto empty_fs;
+			*tmpp++ = 0;
+			_tcscpy (uci.rootdir, tmpp2);
+		}
 		_tcscpy (uci.volname, volname);
 		_tcscpy (uci.devname, devname);
 		if (! getintval (&tmpp, &uci.bootpri, 0))
@@ -4257,11 +4284,23 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 		*tmpp++ = '\0';
 		_tcscpy (devname, value);
 		tmpp2 = tmpp;
-		tmpp = _tcschr (tmpp, ',');
-		if (tmpp == 0)
-			goto invalid_fs;
-		*tmpp++ = 0;
-		_tcscpy (uci.rootdir, tmpp2);
+		// quoted special case
+		if (tmpp2[0] == '\"') {
+			const TCHAR *end;
+			TCHAR *n = cfgfile_unescape (tmpp2, &end, 0);
+			if (!n)
+				goto invalid_fs;
+			_tcscpy (uci.rootdir, n);
+			xfree(n);
+			tmpp = (TCHAR*)end;
+			*tmpp++ = 0;
+		} else {
+			tmpp = _tcschr (tmpp, ',');
+			if (tmpp == 0)
+				goto invalid_fs;
+			*tmpp++ = 0;
+			_tcscpy (uci.rootdir, tmpp2);
+		}
 		if (uci.rootdir[0] != ':')
 			get_hd_geometry (&uci);
 		_tcscpy (uci.devname, devname);
@@ -4371,7 +4410,7 @@ static int cfgfile_parse_filesys (struct uae_prefs *p, const TCHAR *option, TCHA
 		_stprintf (tmp, _T("uaehf%d"), i);
 		if (_tcscmp (option, tmp) == 0) {
 			for (;;) {
-				int  type = -1;
+				int type = -1;
 				int unit = -1;
 				TCHAR *tmpp = _tcschr (value, ',');
 				if (tmpp == NULL)
