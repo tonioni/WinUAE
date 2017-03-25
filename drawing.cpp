@@ -1002,6 +1002,8 @@ static void pfield_init_linetoscr (bool border)
 
 	/* Now, compute some offsets.  */
 	ddf_left -= DISPLAY_LEFT_SHIFT;
+	if (ddf_left < 0)
+		ddf_left = 0;
 	pixels_offset = MAX_PIXELS_PER_LINE - (ddf_left << bplres);
 	ddf_left <<= bplres;
 
@@ -1033,8 +1035,11 @@ static void pfield_init_linetoscr (bool border)
 	if (linetoscr_diw_end > native_ddf_right) {
 		int pos = res_shift_from_window (native_ddf_right - native_ddf_left);
 		int size = res_shift_from_window (linetoscr_diw_end - native_ddf_right);
+		if (pos + size > MAX_PIXELS_PER_LINE)
+			size = MAX_PIXELS_PER_LINE - pos;
+		if (size > 0)
+			memset (pixdata.apixels + MAX_PIXELS_PER_LINE + pos, 0, size);
 		linetoscr_diw_start = native_ddf_left;
-		memset (pixdata.apixels + MAX_PIXELS_PER_LINE + pos, 0, size);
 	}
 }
 
@@ -1048,7 +1053,10 @@ static void pfield_erase_hborder_sprites (void)
 	if (sprite_last_x > native_ddf_right) {
 		int pos = res_shift_from_window (native_ddf_right - native_ddf_left);
 		int size = res_shift_from_window (sprite_last_x - native_ddf_right);
-		memset (pixdata.apixels + MAX_PIXELS_PER_LINE + pos, 0, size);
+		if (pos + size > MAX_PIXELS_PER_LINE)
+			size = MAX_PIXELS_PER_LINE - pos;
+		if (size > 0)
+			memset (pixdata.apixels + MAX_PIXELS_PER_LINE + pos, 0, size);
 	}
 }
 

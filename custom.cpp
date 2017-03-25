@@ -1301,8 +1301,9 @@ static void update_toscr_planes (int fm)
 
 STATIC_INLINE void maybe_first_bpl1dat (int hpos)
 {
-	if (thisline_decision.plfleft < 0)
+	if (thisline_decision.plfleft < 0) {
 		thisline_decision.plfleft = hpos;
+	}
 }
 
 static int fetch_warn (int nr, int hpos)
@@ -2364,6 +2365,9 @@ static void finish_final_fetch (void)
 	
 	// This is really the end of scanline, we can finally flush all remaining data.
 	thisline_decision.plfright += flush_plane_data (fetchmode);
+	// This can overflow if display setup is really bad.
+	if (out_offs > MAX_PIXELS_PER_LINE / 32)
+		out_offs = MAX_PIXELS_PER_LINE / 32;
 	thisline_decision.plflinelen = out_offs;
 
 	finish_playfield_line ();
@@ -2740,7 +2744,7 @@ static void decide_fetch (int hpos)
 
 STATIC_INLINE void decide_fetch_safe (int hpos)
 {
-	if (!blitter_dangerous_bpl) {
+	if (!blitter_dangerous_bpl && !bitplane_overrun) {
 		decide_fetch (hpos);
 		decide_blitter (hpos);
 	} else {
@@ -3700,6 +3704,10 @@ static void finish_decisions (void)
 	if (nodraw ())
 		return;
 
+	// if overrun at the beginning of scanline was not handled: do it here first.
+	if (bitplane_overrun) {
+		do_overrun_fetch(hpos, fetchmode);
+	}
 	decide_diw (hpos);
 	decide_line (hpos);
 	decide_fetch_safe (hpos);
