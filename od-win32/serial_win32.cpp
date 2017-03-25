@@ -227,6 +227,7 @@ void SERPER (uae_u16 w)
 	if (log_sercon) {
 		serial_period_hsyncs = 1;
 		seriallog = 1;
+		write_logx(_T("\n"));
 	}
 
 	serial_period_hsync_counter = 0;
@@ -476,7 +477,7 @@ static void serdatcopy(void)
 
 	if (seriallog) {
 		gotlogwrite = true;
-		write_log(_T("%c"), docharlog(serdatshift_masked));
+		write_logx(_T("%c"), docharlog(serdatshift_masked));
 	}
 
 	if (serper == 372) {

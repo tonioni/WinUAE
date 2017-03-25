@@ -68,6 +68,7 @@ int console_logging = 0;
 static int debugger_type = -1;
 extern BOOL debuggerinitializing;
 extern int lof_store;
+extern int seriallog;
 static int console_input_linemode = -1;
 int always_flush_log = 1;
 
@@ -550,6 +551,47 @@ void write_log (const char *format, ...)
 	va_end (parms);
 }
 
+void write_logx(const TCHAR *format, ...)
+{
+	int count;
+	TCHAR buffer[WRITE_LOG_BUF_SIZE];
+	int bufsize = WRITE_LOG_BUF_SIZE;
+	TCHAR *bufp;
+	va_list parms;
+
+	if (!cs_init)
+		return;
+
+	EnterCriticalSection (&cs);
+	va_start (parms, format);
+	bufp = buffer;
+	for (;;) {
+		count = _vsntprintf (bufp, bufsize - 1, format, parms);
+		if (count < 0) {
+			bufsize *= 10;
+			if (bufp != buffer)
+				xfree (bufp);
+			bufp = xmalloc (TCHAR, bufsize);
+			continue;
+		}
+		break;
+	}
+	bufp[bufsize - 1] = 0;
+	if (1) {
+		writeconsole (bufp);
+	}
+	if (debugfile) {
+		_ftprintf (debugfile, _T("%s"), bufp);
+	}
+	lfdetected = 0;
+	if (_tcslen (bufp) > 0 && bufp[_tcslen (bufp) - 1] == '\n')
+		lfdetected = 1;
+	va_end (parms);
+	if (bufp != buffer)
+		xfree (bufp);
+	LeaveCriticalSection (&cs);
+}
+
 void write_log (const TCHAR *format, ...)
 {
 	int count;
@@ -557,6 +599,9 @@ void write_log (const TCHAR *format, ...)
 	int bufsize = WRITE_LOG_BUF_SIZE;
 	TCHAR *bufp;
 	va_list parms;
+
+	if (!SHOW_CONSOLE && !console_logging && !debugfile)
+		return;
 
 	if (!cs_init)
 		return;
