@@ -5,6 +5,16 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+- BPLCON4 bitplane XOR values didn't affect background color between end of bitplanes and end of horizontal diw.
+- FPU packed decimal datatype conversions are now accurately emulated. (AG). Softfloat mode is now mostly complete.
+- -serlog command line parameter without -log now only logs serial output (and reads serial input).
+- Lightpen emulation absolute coordinate HID pointing device support. (For example Aimtrak Light Gun)
+  No extra configuration needed, absolute coordinates are automatically used in lightpen mode.
+- American Laser Games second player light gun support added. ALG #2 horizontal/vertical input event.
+- Fixed buffer overflow when screen was extremely wide internally with bitplane dma overrun.
+- Escape old style directory and hardfile paths if it contains "," (which is config file separator)
+- Bitplane overrun didn't work in lines that didn't have any other chip bus accesses or when mode was non-CE.
+
 Beta 3:
 
 - M-Tec AT-500 Megabody v1.33 ROM added. Slightly different than M-Tec AT-500 v1.33w ROM.
@@ -18,6 +28,7 @@ Beta 3:
 - Added lightpen_crosshair config entry, set it to false (true is default) to disable yellow lightpen targeting cursor.
 - Multiple gfxboards didn't work (b2).
 - Fastest possible mode was very slow in some situations (b2)
+- Slirp updates merged from Basilisk II.
 - Final MSVC 2017 compiled.
 
 M-Tec AT-500 v1.33 vs M-TEC AT-500 v1.33w:
@@ -32,7 +43,7 @@ Beta 2:
 - FM801 16-bit audio corruption fixed.
 - Some 68020 CE mode cycle-counting is back.
 - Clear button state mask when mouse capture state changes. If mouse or joystick button was kept pressed when mouse was
-  uncaptured, button was kept pressed when capture state was restored even if real button was already pressed.
+  uncaptured, button was kept pressed when capture state was restored even if real button was already released.
 - G-REX and Cirrus Logic graphics board state was reset if autoconfig board info was re-scanned (entering RAM or HW Info panels)
   and emulation was already running (3.4.0)
 - Middle mouse button default is back to enabled. (was changed in b1)
