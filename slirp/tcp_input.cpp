@@ -1072,7 +1072,7 @@ findso:
 			if (ti->ti_len == 0 && tiwin == tp->snd_wnd) {
 				tcpstat.tcps_rcvdupack++;
 				DEBUG_MISC((" dup ack  m = %p  so = %p \n",
-					(long)m, (long)so));
+					m, so));
 				/*
 				 * If we have outstanding data (other than
 				 * a window probe), this is a completely

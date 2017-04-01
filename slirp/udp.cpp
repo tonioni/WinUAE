@@ -341,7 +341,7 @@ SLIRP_SOCKET udp_attach(struct socket *so)
 		if(bind(so->s, (struct sockaddr *)&addr, sizeof(addr))<0) {
 			int error = WSAGetLastError();
 			closesocket(so->s);
-			so->s =- 1;
+			so->s = -1;
 			WSASetLastError(error);
 		} else {
 			/* success, insert in queue */

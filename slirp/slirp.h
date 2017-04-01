@@ -50,8 +50,20 @@ typedef unsigned long ioctlsockopt_t;
 # define write_udp slirp_write_udp
 # define init_udp slirp_init_udp
 # define final_udp slirp_final_udp
-#else
+#else //!_WIN32
 typedef int ioctlsockopt_t;
+
+# define WSAGetLastError() (int)(errno)
+# define WSASetLastError(e) (void)(errno = (e))
+# define WSAEWOULDBLOCK EWOULDBLOCK
+# define WSAEINPROGRESS EINPROGRESS
+# define WSAENOTCONN ENOTCONN
+# define WSAEHOSTUNREACH EHOSTUNREACH
+# define WSAENETUNREACH ENETUNREACH
+# define WSAECONNREFUSED ECONNREFUSED
+
+# define SLIRP_SOCKET int
+
 # define ioctlsocket ioctl
 # define closesocket(s) close(s)
 # define O_BINARY 0

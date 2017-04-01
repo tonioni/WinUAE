@@ -81,7 +81,7 @@ void ip_input(struct mbuf *m)
 	
 	DEBUG_CALL("ip_input");
 	DEBUG_ARG("m = %p", m);
-	DEBUG_ARG("m_len = %d", m->m_len);
+	DEBUG_ARG("m_len = %zu", m->m_len);
 
 	ipstat.ips_total++;
 	

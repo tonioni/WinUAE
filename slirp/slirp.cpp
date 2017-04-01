@@ -121,13 +121,13 @@ static int get_dns_addr(struct in_addr *pdns_addr)
 
 #endif
 
-static int inited;
-
 int slirp_init(void)
 {
     //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
     
 #ifdef _WIN32
+	static int inited;
+
 	if (!inited) {
         WSADATA Data;
         WSAStartup(MAKEWORD(2,0), &Data);
