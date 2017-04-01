@@ -3420,7 +3420,7 @@ static void init_drawing_frame (void)
 	drawing_color_matches = -1;
 }
 
-static int lightpen_y1, lightpen_y2;
+static int lightpen_y1[2], lightpen_y2[2];
 static int statusbar_y1, statusbar_y2;
 
 void putpixel(uae_u8 *buf, uae_u8 *genlockbuf, int bpp, int x, xcolnr c8, int opaq)
@@ -3515,15 +3515,11 @@ static const char *lightpen_cursor = {
 	"------.....------"
 };
 
-static void draw_lightpen_cursor (int x, int y, int line, int onscreen)
+static void draw_lightpen_cursor (int x, int y, int line, int onscreen, int lpnum)
 {
-	int i;
 	const char *p;
-	int color1 = onscreen ? 0xff0 : 0xf00;
+	int color1 = onscreen ? (lpnum ? 0x0ff : 0xff0) : (lpnum ? 0x0f0 : 0xf00);
 	int color2 = 0x000;
-
-	if (!currprefs.lightpen_crosshair)
-		return;
 
 	xlinebuffer = gfxvidinfo.drawbuffer.linemem;
 	if (xlinebuffer == 0)
@@ -3531,7 +3527,7 @@ static void draw_lightpen_cursor (int x, int y, int line, int onscreen)
 	xlinebuffer_genlock = row_map_genlock[line];
 
 	p = lightpen_cursor + y * LIGHTPEN_WIDTH;
-	for (i = 0; i < LIGHTPEN_WIDTH; i++) {
+	for (int i = 0; i < LIGHTPEN_WIDTH; i++) {
 		int xx = x + i - LIGHTPEN_WIDTH / 2;
 		if (*p != '-' && xx >= 0 && xx < gfxvidinfo.drawbuffer.outwidth) {
 			putpixel (xlinebuffer, xlinebuffer_genlock, gfxvidinfo.drawbuffer.pixbytes, xx, *p == 'x' ? xcolors[color1] : xcolors[color2], 1);
@@ -3542,6 +3538,9 @@ static void draw_lightpen_cursor (int x, int y, int line, int onscreen)
 
 static void lightpen_update (struct vidbuffer *vb, int lpnum)
 {
+	if (lightpen_x[lpnum] < 0 || lightpen_y[lpnum] < 0)
+		return;
+
 	if (lightpen_x[lpnum] < LIGHTPEN_WIDTH + 1)
 		lightpen_x[lpnum] = LIGHTPEN_WIDTH + 1;
 	if (lightpen_x[lpnum] >= gfxvidinfo.drawbuffer.inwidth - LIGHTPEN_WIDTH - 1)
@@ -3553,31 +3552,39 @@ static void lightpen_update (struct vidbuffer *vb, int lpnum)
 	if (lightpen_y[lpnum] >= max_ypos_thisframe - LIGHTPEN_HEIGHT - 1)
 		lightpen_y[lpnum] = max_ypos_thisframe - LIGHTPEN_HEIGHT - 2;
 
-	lightpen_cx = (((lightpen_x[lpnum] + visible_left_border) >> lores_shift) >> 1) + DISPLAY_LEFT_SHIFT - DIW_DDF_OFFSET;
+	int cx = (((lightpen_x[lpnum] + visible_left_border) >> lores_shift) >> 1) + DISPLAY_LEFT_SHIFT - DIW_DDF_OFFSET - 2;
 
-	lightpen_cy = lightpen_y[lpnum];
-	lightpen_cy >>= linedbl;
-	lightpen_cy += minfirstline;
+	int cy = lightpen_y[lpnum];
+	cy >>= linedbl;
+	cy += minfirstline;
 
-	if (lightpen_cx < 0x18)
-		lightpen_cx = 0x18;
-	if (lightpen_cx >= maxhpos)
-		lightpen_cx -= maxhpos;
-	if (lightpen_cy < minfirstline)
-		lightpen_cy = minfirstline;
-	if (lightpen_cy >= maxvpos)
-		lightpen_cy = maxvpos - 1;
+	cx += currprefs.lightpen_offset[0];
+	cy += currprefs.lightpen_offset[1];
+
+	if (cx < 0x18)
+		cx = 0x18;
+	if (cx >= maxhpos)
+		cx -= maxhpos;
+	if (cy < minfirstline)
+		cy = minfirstline;
+	if (cy >= maxvpos)
+		cy = maxvpos - 1;
 
 	for (int i = 0; i < LIGHTPEN_HEIGHT; i++) {
 		int line = lightpen_y[lpnum] + i - LIGHTPEN_HEIGHT / 2;
 		if (line >= 0 || line < max_ypos_thisframe) {
-			if (lightpen_active > 0)
-				draw_lightpen_cursor (lightpen_x[lpnum], i, line, lightpen_cx > 0);
-			flush_line (vb, line);
+			if (lightpen_active > 0 && currprefs.lightpen_crosshair) {
+				draw_lightpen_cursor (lightpen_x[lpnum], i, line, cx > 0, lpnum);
+				flush_line (vb, line);
+			}
 		}
 	}
-	lightpen_y1 = lightpen_y[lpnum] - LIGHTPEN_HEIGHT / 2 - 1 + min_ypos_for_screen;
-	lightpen_y2 = lightpen_y1 + LIGHTPEN_HEIGHT + 2;
+
+	lightpen_y1[lpnum] = lightpen_y[lpnum] - LIGHTPEN_HEIGHT / 2 - 1 + min_ypos_for_screen;
+	lightpen_y2[lpnum] = lightpen_y1[lpnum] + LIGHTPEN_HEIGHT + 2;
+
+	lightpen_cx[lpnum] = cx;
+	lightpen_cy[lpnum] = cy;
 
 	if (lightpen_active < 0)
 		lightpen_active = 0;
@@ -3782,8 +3789,11 @@ static void finish_drawing_frame (void)
 		}
 	}
 
-	if (lightpen_active)
-		lightpen_update (vb, inputdevice_get_lightpen());
+	if (lightpen_active) {
+		lightpen_update (vb, 0);
+		if (inputdevice_get_lightpen_id() >= 0)
+			lightpen_update (vb, 1);
+	}
 	if (refresh_indicator_buffer)
 		refresh_indicator_update(vb);
 
@@ -4001,7 +4011,8 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 
 	state = linestate + lineno;
 	changed |= frame_redraw_necessary != 0 || refresh_indicator_buffer != NULL ||
-		((lineno >= lightpen_y1 && lineno < lightpen_y2) ||
+		((lineno >= lightpen_y1[0] && lineno < lightpen_y2[0]) ||
+		(lineno >= lightpen_y1[1] && lineno < lightpen_y2[1]) ||
 		(lineno >= statusbar_y1 && lineno < statusbar_y2));
 
 	switch (how) {
@@ -4180,7 +4191,8 @@ void reset_drawing (void)
 
 	notice_screen_contents_lost ();
 	frame_res_cnt = currprefs.gfx_autoresolution_delay;
-	lightpen_y1 = lightpen_y2 = -1;
+	lightpen_y1[0] = lightpen_y2[0] = -1;
+	lightpen_y1[1] = lightpen_y2[1] = -1;
 
 	reset_custom_limits ();
 

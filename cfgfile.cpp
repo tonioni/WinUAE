@@ -737,6 +737,10 @@ end:
 	xfree (tmp2);
 	xfree (tmp1);
 }
+static void cfgfile_dwrite_coords(struct zfile *f, const TCHAR *option, int x, int y)
+{
+	cfgfile_dwrite(f, option, _T("%d,%d"), x, y);
+}
 static void cfg_dowrite (struct zfile *f, const TCHAR *option, const TCHAR *value, int d, int target)
 {
 	cfg_dowrite (f, option, NULL, value, d, target);
@@ -1923,6 +1927,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite(f, _T("genlock_mix"), _T("%d"), p->genlock_mix);
 	cfgfile_dwrite(f, _T("genlock_scale"), _T("%d"), p->genlock_scale);
 	cfgfile_dwrite_str(f, _T("monitoremu"), specialmonitors[p->monitoremu]);
+	cfgfile_dwrite_coords(f, _T("lightpen_offset"), p->lightpen_offset[0], p->lightpen_offset[1]);
 	cfgfile_dwrite_bool(f, _T("lightpen_crosshair"), p->lightpen_crosshair);
 
 	cfgfile_dwrite_bool (f, _T("show_leds"), !!(p->leds_on_screen & STATUSLINE_CHIPSET));
@@ -2265,6 +2270,21 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool(f, _T("harddrive_write_protect"), p->harddrive_read_only);
 
 	write_inputdevice_config (p, f);
+}
+
+static int cfgfile_coords(const TCHAR *option, const TCHAR *value, const TCHAR *name, int *x, int *y)
+{
+	if (name != NULL && _tcscmp (option, name) != 0)
+		return 0;
+	TCHAR tmp[MAX_DPATH];
+	_tcscpy(tmp, value);
+	TCHAR *p = _tcschr(tmp, ',');
+	if (!p)
+		return 0;
+	*p++ = 0;
+	*x = _tstol(tmp);
+	*y = _tstol(p);
+	return 1;
 }
 
 static int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location, bool numbercheck)
@@ -4799,6 +4819,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("gfxcard_hardware_sprite"), &p->rtg_hardwaresprite)
 		|| cfgfile_yesno(option, value, _T("synchronize_clock"), &p->tod_hack)
 		|| cfgfile_yesno(option, value, _T("keyboard_connected"), &p->keyboard_connected)
+		|| cfgfile_coords(option, value, _T("lightpen_offset"), &p->lightpen_offset[0], &p->lightpen_offset[1])
 		|| cfgfile_yesno(option, value, _T("lightpen_crosshair"), &p->lightpen_crosshair)
 
 		|| cfgfile_yesno (option, value, _T("kickshifter"), &p->kickshifter)

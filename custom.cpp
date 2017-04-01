@@ -159,7 +159,7 @@ static int lof_togglecnt_lace, lof_togglecnt_nlace; //, nlace_cnt;
 static int vpos_previous, hpos_previous;
 static int vpos_lpen, hpos_lpen, lightpen_triggered;
 int lightpen_x[2], lightpen_y[2];
-int lightpen_cx, lightpen_cy, lightpen_active, lightpen_enabled;
+int lightpen_cx[2], lightpen_cy[2], lightpen_active, lightpen_enabled, lightpen_enabled2;
 
 static uae_u32 sprtaba[256],sprtabb[256];
 static uae_u32 sprite_ab_merge[256];
@@ -4620,7 +4620,7 @@ STATIC_INLINE int islightpentriggered (void)
 {
 	if (beamcon0 & 0x2000) // LPENDIS
 		return 0;
-	return lightpen_triggered > 0;
+	return lightpen_triggered != 0;
 }
 STATIC_INLINE int issyncstopped (void)
 {
@@ -5462,8 +5462,20 @@ static void BPLCON0 (int hpos, uae_u16 v)
 		hpos_previous = hpos;
 	}
 
-	if (bplcon0 & 4)
+	if (v & 4) {
 		bplcon0_interlace_seen = true;
+	}
+
+	if ((v & 8) && !lightpen_triggered && vpos < sprite_vblank_endline) {
+		// setting lightpen bit immediately freezes VPOSR if inside vblank and not already frozen
+		lightpen_triggered = 1;
+		vpos_lpen = vpos;
+		hpos_lpen = hpos;
+	} 
+	if (!(v & 8)) {
+		// clearing lightpen bit immediately returns VPOSR back to normal
+		lightpen_triggered = 0;
+	}
 	
 	bplcon0 = v;
 
@@ -8078,6 +8090,13 @@ static void events_dmal_hsync (void)
 	events_dmal (7);
 }
 
+static void lightpen_trigger_func(uae_u32 v)
+{
+	vpos_lpen = vpos;
+	hpos_lpen = v;
+	lightpen_triggered = 1;
+}
+
 static bool is_custom_vsync (void)
 {
 	int vp = vpos + 1;
@@ -8125,15 +8144,27 @@ static void hsync_handler_pre (bool onvsync)
 				do_playfield_collisions ();
 		}
 		hsync_record_line_state (next_lineno, nextline_how, thisline_changed);
+
 		/* reset light pen latch */
 		if (vpos == sprite_vblank_endline) {
 			lightpen_triggered = 0;
 			sprite_0 = 0;
 		}
-		if (lightpen_enabled && lightpen_cx > 0 && (bplcon0 & 8) && !lightpen_triggered && lightpen_cy == vpos) {
-			vpos_lpen = vpos;
-			hpos_lpen = lightpen_cx;
-			lightpen_triggered = 1;
+
+		if (!lightpen_triggered && vpos >= sprite_vblank_endline && (bplcon0 & 8)) {
+			// lightpen always triggers at the beginning of the last line
+			if (vpos + 1 == maxvpos + lof_store) {
+				vpos_lpen = vpos;
+				hpos_lpen = 1;
+				lightpen_triggered = 1;
+			} else if (lightpen_enabled) {
+				int lpnum = inputdevice_get_lightpen_id();
+				if (lpnum < 0)
+					lpnum = 0;
+				if (lightpen_cx[lpnum] > 0 && lightpen_cy[lpnum] == vpos) {
+					event2_newevent_xx (-1, lightpen_cx[lpnum] * CYCLE_UNIT, lightpen_cx[lpnum], lightpen_trigger_func);
+				}
+			}
 		}
 		hardware_line_completed (next_lineno);
 		if (doflickerfix () && interlace_seen > 0)
@@ -8264,11 +8295,6 @@ static void hsync_handler_post (bool onvsync)
 
 	if (onvsync) {
 		// vpos_count >= MAXVPOS just to not crash if VPOSW writes prevent vsync completely
-		if ((bplcon0 & 8) && !lightpen_triggered) {
-			vpos_lpen = vpos - 1;
-			hpos_lpen = maxhpos;
-			lightpen_triggered = 1;
-		}
 		vpos = 0;
 		vsync_handler_post ();
 		vpos_count = 0;
@@ -8611,7 +8637,8 @@ void custom_reset (bool hardreset, bool keyboardreset)
 
 	lightpen_active = -1;
 	lightpen_triggered = 0;
-	lightpen_cx = lightpen_cy = -1;
+	lightpen_cx[0] = lightpen_cy[0] = -1;
+	lightpen_cx[1] = lightpen_cy[1] = -1;
 	lightpen_x[0] = -1;
 	lightpen_y[0] = -1;
 	lightpen_x[1] = -1;

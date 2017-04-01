@@ -327,6 +327,7 @@ static uae_s16 mouse_delta[MAX_JPORTS][MOUSE_AXIS_TOTAL];
 static uae_s16 mouse_deltanoreset[MAX_JPORTS][MOUSE_AXIS_TOTAL];
 static uae_s16 lightpen_delta[2][2];
 static uae_s16 lightpen_deltanoreset[2][2];
+static int lightpen_trigger2;
 static int joybutton[MAX_JPORTS];
 static int joydir[MAX_JPORTS];
 static int joydirpot[MAX_JPORTS][2];
@@ -346,6 +347,7 @@ static uae_u8 pot_dat[NORMAL_JPORTS][2];
 static int pot_dat_act[NORMAL_JPORTS][2];
 static int analog_port[NORMAL_JPORTS][2];
 static int digital_port[NORMAL_JPORTS][2];
+static int lightpen_port[NORMAL_JPORTS];
 #define POTDAT_DELAY_PAL 8
 #define POTDAT_DELAY_NTSC 7
 
@@ -2263,11 +2265,15 @@ void inputdevice_tablet_strobe (void)
 		put_byte_host(mousehack_address + MH_CNT, get_byte_host(mousehack_address + MH_CNT) + 1);
 }
 
-int inputdevice_get_lightpen(void)
+int inputdevice_get_lightpen_id(void)
 {
-	if (!alg_flag)
-		return 0;
-	return alg_get_player(potgo_value);
+	if (!alg_flag) {
+		if (lightpen_enabled2) 
+			return alg_get_player(potgo_value);
+		return -1;
+	} else {
+		return alg_get_player(potgo_value);
+	}
 }
 
 void tablet_lightpen(int tx, int ty, int tmaxx, int tmaxy, int touch, int buttonmask, bool touchmode, int devid, int lpnum)
@@ -3244,6 +3250,11 @@ static bool is_mouse_pullup (int joy)
 	return mouse_pullup;
 }
 
+static int lightpen_port_number(void)
+{
+	return currprefs.cs_dipagnus ? 0 : 1;
+}
+
 static void charge_cap (int joy, int idx, int charge)
 {
 	if (charge < -1 || charge > 1)
@@ -3277,6 +3288,10 @@ static void cap_check (void)
 				if (cd32padmode (p5dir, p5dat))
 					continue;
 			}
+
+			// two lightpens use multiplexer chip
+			if (lightpen_enabled2 && lightpen_port_number() == joy)
+				continue;
 
 			dong = dongle_analogjoy (joy, i);
 			if (dong >= 0) {
@@ -3334,17 +3349,23 @@ static void cap_check (void)
 			if (cd32_pad_enabled[joy] && i == 1 && charge == 0)
 				charge = 2;
 		
-			/* official Commodore mouse has pull-up resistors in button lines
-			* NOTE: 3rd party mice may not have pullups! */
-			if (dong < 0 && (is_mouse_pullup (joy) && mouse_port[joy] && digital_port[joy][i]) && charge == 0)
-				charge = 2;
+			if (dong < 0 && charge == 0) {
 
-			/* emulate pullup resistor if button mapped because there too many broken
-			* programs that read second button in input-mode (and most 2+ button pads have
-			* pullups)
-			*/
-			if (dong < 0 && (is_joystick_pullup (joy) && digital_port[joy][i]) && charge == 0)
-				charge = 2;
+				if (lightpen_port[joy])
+					charge = 2;
+
+				/* official Commodore mouse has pull-up resistors in button lines
+				* NOTE: 3rd party mice may not have pullups! */
+				if (is_mouse_pullup (joy) && mouse_port[joy] && digital_port[joy][i])
+					charge = 2;
+
+				/* emulate pullup resistor if button mapped because there too many broken
+				* programs that read second button in input-mode (and most 2+ button pads have
+				* pullups)
+				*/
+				if (is_joystick_pullup (joy) && digital_port[joy][i])
+					charge = 2;
+			}
 
 			charge_cap (joy, i, charge);
 		}
@@ -3452,6 +3473,19 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 		} else  if (alg_flag) {
 
 			potgor = alg_potgor(potgo_value);
+
+		} else if (lightpen_enabled2 && lightpen_port_number() == i) {
+
+			int button;
+
+			if (inputdevice_get_lightpen_id() == 1)
+				button = lightpen_trigger2;
+			else
+				button = getbuttonstate(i, JOYBUTTON_3);
+
+			potgor |= 0x1000;
+			if (button)
+				potgor &= ~0x1000;
 
 		} else {
 
@@ -4494,14 +4528,15 @@ static int handle_input_event2 (int nr, int state, int max, int flags, int extra
 	switch (ie->unit)
 	{
 	case 5: /* lightpen/gun */
+	case 6: /* lightpen/gun #2 */
 		{
 			int unit = (ie->data & 1) ? 1 : 0;
-			int lpnum = (ie->data & 2) ? 1 : 0;
-			if (!lightpen_active) {
-				for (int i = 0; i < 2; i++) {
-					lightpen_x[i] = gfxvidinfo.outbuffer->outwidth / 2;
-					lightpen_y[i] = gfxvidinfo.outbuffer->outheight / 2;
-				}
+			int lpnum = ie->unit - 5;
+			if (lightpen_active <= 0) {
+				lightpen_x[0] = gfxvidinfo.outbuffer->outwidth / 2;
+				lightpen_y[0] = gfxvidinfo.outbuffer->outheight / 2;
+				lightpen_x[1] = -1;
+				lightpen_y[1] = -1;
 			}
 			lightpen_active = true;
 			lightpen_enabled = true;
@@ -4542,16 +4577,20 @@ static int handle_input_event2 (int nr, int state, int max, int flags, int extra
 					lightpen_delta[lpnum][unit] = delta;
 				else
 					lightpen_delta[lpnum][unit] += delta;
+			} else if (ie->type == 2) {
+				lightpen_trigger2 = state;
 			} else {
-				int delta = currprefs.input_joymouse_speed;
-				if (ie->data & DIR_LEFT)
-					lightpen_x[lpnum] -= delta;
-				if (ie->data & DIR_RIGHT)
-					lightpen_x[lpnum] += delta;
-				if (ie->data & DIR_UP)
-					lightpen_y[lpnum] -= delta;
-				if (ie->data & DIR_DOWN)
-					lightpen_y[lpnum] += delta;
+				if (state) {
+					int delta = currprefs.input_joymouse_speed;
+					if (ie->data & DIR_LEFT)
+						lightpen_x[lpnum] -= delta;
+					if (ie->data & DIR_RIGHT)
+						lightpen_x[lpnum] += delta;
+					if (ie->data & DIR_UP)
+						lightpen_y[lpnum] -= delta;
+					if (ie->data & DIR_DOWN)
+						lightpen_y[lpnum] += delta;
+				}
 			}
 		}
 		break;
@@ -4946,6 +4985,7 @@ void inputdevice_reset (void)
 		lastmxy_abs[i][0] = 0;
 		lastmxy_abs[i][1] = 0;
 	}
+	lightpen_trigger2 = 0;
 }
 
 static int getoldport (struct uae_input_device *id)
@@ -5661,8 +5701,12 @@ static int isdigitalbutton (int ei)
 
 static int islightpen (int ei)
 {
+	if (ei >= INPUTEVENT_LIGHTPEN_HORIZ2 && ei < INPUTEVENT_LIGHTPEN_DOWN2) {
+		lightpen_enabled2 = true;
+	}
 	if (ei >= INPUTEVENT_LIGHTPEN_FIRST && ei < INPUTEVENT_LIGHTPEN_LAST) {
 		lightpen_enabled = true;
+		lightpen_port[lightpen_port_number()] = 1;
 		return 1;
 	}
 	return 0;
@@ -5702,6 +5746,7 @@ static void scanevents (struct uae_prefs *p)
 		}
 	}
 	lightpen_enabled = false;
+	lightpen_enabled2 = false;
 	if (lightpen_active > 0)
 		lightpen_active = -1;
 

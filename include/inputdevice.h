@@ -32,6 +32,8 @@
 #define JOYBUTTON_CD32_RED 8
 #define JOYBUTTON_CD32_BLUE 9
 
+#define JOYBUTTON_LIGHTPEN2 10
+
 #define IDTYPE_JOYSTICK 0
 #define IDTYPE_MOUSE 1
 #define IDTYPE_KEYBOARD 2
@@ -318,7 +320,7 @@ extern void inputdevice_tablet (int x, int y, int z,
 extern void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay, int maxaz, int xres, int yres);
 extern void inputdevice_tablet_strobe (void);
 extern void tablet_lightpen(int x, int y, int maxx, int maxy, int touch, int buttonmask, bool touchmode, int devid, int lpnum);
-extern int inputdevice_get_lightpen(void);
+extern int inputdevice_get_lightpen_id(void);
 
 extern uae_u64 input_getqualifiers (void);
 
