@@ -128,6 +128,7 @@ struct UAEBSDBase {
 /* socket properties */
 #define SF_BLOCKING 0x80000000
 #define SF_BLOCKINGINPROGRESS 0x40000000
+#define SF_DGRAM 0x20000000
 /* STBC_FDCALLBACK */
 #define FDCB_FREE  0
 #define FDCB_ALLOC 1
@@ -170,8 +171,8 @@ extern int host_socket (TrapContext *, SB, int, int, int);
 extern uae_u32 host_bind (TrapContext *, SB, uae_u32, uae_u32, uae_u32);
 extern uae_u32 host_listen (TrapContext *, SB, uae_u32, uae_u32);
 extern void host_accept (TrapContext *, SB, uae_u32, uae_u32, uae_u32);
-extern void host_sendto (TrapContext *, SB, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32);
-extern void host_recvfrom (TrapContext *, SB, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32);
+extern void host_sendto (TrapContext *, SB, uae_u32, uae_u32, uae_u8*, uae_u32, uae_u32, uae_u32, uae_u32);
+extern void host_recvfrom (TrapContext *, SB, uae_u32, uae_u32, uae_u8*, uae_u32, uae_u32, uae_u32, uae_u32);
 extern uae_u32 host_shutdown (SB, uae_u32, uae_u32);
 extern void host_setsockopt (SB, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32);
 extern uae_u32 host_getsockopt (TrapContext *, SB, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32);
