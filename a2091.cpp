@@ -284,7 +284,7 @@ static void freencrunit(struct wd_state *wd)
 		}
 	}
 	scsi_freenative(wd->scsis, MAX_SCSI_UNITS);
-	if (wd->bank.baseaddr == wd->rom)
+	if (wd->rom >= wd->bank.baseaddr && wd->rom < wd->bank.baseaddr + wd->bank.allocated_size)
 		free_expansion_bank(&wd->bank);
 	else
 		xfree (wd->rom);
@@ -2941,6 +2941,8 @@ static uae_u8 *REGPARAM2 dmac_gvp_xlate(uaecptr addr)
 	if (!wd)
 		return default_xlate(0);
 	addr &= 0xffff;
+	if (wd->rom >= wd->bank.baseaddr && wd->rom < wd->bank.baseaddr + wd->bank.allocated_size)
+		return wd->bank.baseaddr + addr;
 	return wd->rom + addr;
 }
 
@@ -3707,6 +3709,12 @@ static bool gvp_init(struct autoconfig_info *aci, bool series2, bool accel)
 		} else {
 			isscsi = false;
 		}
+	}
+
+	if (!wd->rombankswitcher) {
+		memcpy(wd->bank.baseaddr + 32768, wd->rom, 32768);
+		xfree(wd->rom);
+		wd->rom = wd->bank.baseaddr + 32768;
 	}
 
 	if (series2) {
