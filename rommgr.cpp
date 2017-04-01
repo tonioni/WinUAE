@@ -890,14 +890,32 @@ static int kickstart_checksum_do (uae_u8 *mem, int size)
 {
 	uae_u32 cksum = 0, prevck = 0;
 	int i;
-	for (i = 0; i < size; i+=4) {
-		uae_u32 data = mem[i]*65536*256 + mem[i+1]*65536 + mem[i+2]*256 + mem[i+3];
+	for (i = 0; i < size; i += 4) {
+		uae_u32 data = mem[i] * 65536 * 256 + mem[i + 1] * 65536 + mem[i + 2] * 256 + mem[i + 3];
 		cksum += data;
 		if (cksum < prevck)
 			cksum++;
 		prevck = cksum;
 	}
 	return cksum == 0xffffffff;
+}
+
+static int kickstart_checksum_more_do (uae_u8 *mem, int size)
+{
+	uae_u8 *p = mem + size - 20;
+	if (p[0] != ((size >> 24) & 0xff) || p[1] != ((size >> 16) & 0xff)
+		|| p[2] != ((size >> 8) & 0xff) || p[3] != ((size >> 0) & 0xff))
+		return 0;
+	if (size == 524288) {
+		if (mem[0] != 0x11 || mem[1] != 0x14)
+			return 0;
+	} else if (size == 262144) {
+		if (mem[0] != 0x11 || mem[1] != 0x11)
+			return 0;
+	} else {
+		return 0;
+	}
+	return kickstart_checksum_do(mem, size);
 }
 
 #define ROM_KEY_NUM 4
@@ -1679,12 +1697,71 @@ struct zfile *read_rom (struct romdata *prd)
 	return NULL;
 }
 
-struct zfile *rom_fopen (const TCHAR *name, const TCHAR *mode, int mask)
+struct zfile *rom_fopen(const TCHAR *name, const TCHAR *mode, int mask)
 {
-	struct zfile *f;
-	//write_log (_T("attempting to load '%s'\n"), name); 
-	f = zfile_fopen (name, mode, mask);
-	//write_log (_T("=%p\n"), f);
+	return zfile_fopen (name, mode, mask);
+}
+
+static struct zfile *rom_fopen2(const TCHAR *name, const TCHAR *mode, int mask)
+{
+	struct zfile *f2 = NULL;
+	struct zfile *f = rom_fopen(name, mode, mask);
+	if (f) {
+		int size = zfile_size(f);
+		if (size == 524288 * 2 || size == 524288 || size == 262144) {
+			uae_u8 *newrom = NULL;
+			uae_u8 *tmp1 = xcalloc(uae_u8, 524288 * 2);
+			uae_u8 *tmp2 = xcalloc(uae_u8, 524288 * 2);
+			zfile_fread(tmp1, 1, size, f);
+			for (;;) {
+				if (size == 524288 * 2) {
+					// Perhaps it is 1M interleaved ROM image?
+					mergecd32(tmp2, tmp1, 524288 * 2);
+					if (kickstart_checksum_more_do(tmp2, 524288) && kickstart_checksum_more_do(tmp2 + 524288, 524288)) {
+						newrom = tmp2;
+						break;
+					}
+					// byteswapped KS ROM?
+					byteswap(tmp1, 524288 * 2);
+					if (kickstart_checksum_more_do(tmp1, 524288) && kickstart_checksum_more_do(tmp1 + 524288, 524288)) {
+						newrom = tmp1;
+						break;
+					} else {
+						byteswap(tmp1, 524288 * 2);
+						wordbyteswap(tmp1, 524288 * 2);
+						if (kickstart_checksum_more_do(tmp1, 524288) && kickstart_checksum_more_do(tmp1 + 524288, 524288)) {
+							newrom = tmp1;
+							break;
+						}
+					}
+				} else {
+					// byteswapped KS ROM?
+					byteswap(tmp1, size);
+					if (kickstart_checksum_more_do(tmp1, size)) {
+						newrom = tmp1;
+						break;
+					} else {
+						byteswap(tmp1, size);
+						wordbyteswap(tmp1, size);
+						if (kickstart_checksum_more_do(tmp1, size)) {
+							newrom = tmp1;
+							break;
+						}
+					}
+				}
+				break;
+			}
+			if (newrom) {
+				f2 = zfile_fopen_data(zfile_getname(f), size, newrom);
+			}
+			xfree(tmp2);
+			xfree(tmp1);
+		}
+	}
+	if (f2) {
+		zfile_fclose(f);
+		f = f2;
+	}
 	return f;
 }
 
@@ -1701,7 +1778,7 @@ struct zfile *read_rom_name (const TCHAR *filename)
 				return f;
 		}
 	}
-	f = rom_fopen (filename, _T("rb"), ZFD_NORMAL);
+	f = rom_fopen2(filename, _T("rb"), ZFD_NORMAL);
 	if (f) {
 		uae_u8 tmp[11];
 		zfile_fread (tmp, sizeof tmp, 1, f);
