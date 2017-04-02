@@ -2340,6 +2340,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.keyboard_leds_in_use = changed_prefs.keyboard_leds_in_use = (currprefs.keyboard_leds[0] | currprefs.keyboard_leds[1] | currprefs.keyboard_leds[2]) != 0;
 		pause_sound ();
 		resume_sound ();
+		refreshtitle();
 		inputdevice_acquire (TRUE);
 #ifndef	_DEBUG
 		setpriority (&priorities[currprefs.win32_active_capture_priority]);

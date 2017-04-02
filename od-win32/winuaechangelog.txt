@@ -4,6 +4,21 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 5:
+
+- Added Actionware dual light gun adapter emulation. Second gun config entries added to Input panel.
+- More accurate lightpen emulation, if lightpen is enabled (bplcon0 bit 3), VPOSR is always stopped from beginning of last
+  line to end of vblank (last line really is special!). Beam detection is now cycle exact.
+- Light guns apparently have pull up resistor in trigger line, at least Capone requires it.
+- Added lightpen offset config entry ("lightpen_offset=x,y"). Offset is in Amiga hardware resolution, lores and non-laced.
+- Automatically de-interleave unknown (not in ROM scanner) but valid looking 1M interleaved CD32 ROM images.
+- Automatically byteswap unknown 256k, 512k and 1M KS ROM byteswapped images. ROM must have valid checksum, header and size fields.
+- Implemented previously completely unimplemented bsdsocket.library emulation sendmsg() and recvmsg().
+- Switching middle button = untrap on the fly didn't change windowed mode title bar text.
+- GVP SCSI emulation now supports boot roms that do not copy code to RAM first, without need for more compatible option.
+  Only if not banked. (not guru rom).
+
+Beta 4:
 
 - BPLCON4 bitplane XOR values didn't affect background color between end of bitplanes and end of horizontal diw.
 - FPU packed decimal datatype conversions are now accurately emulated. (AG). Softfloat mode is now mostly complete.

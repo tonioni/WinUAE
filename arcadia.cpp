@@ -936,7 +936,7 @@ static uae_u16 alg_potgo;
 int alg_get_player(uae_u16 potgo)
 {
 	// 2nd button output and high = player 2.
-	return (potgo & 0x4000) && (potgo & 0x8000) ? 1 : 0;
+	return (potgo & 0xc000) == 0xc000 ? 1 : 0;
 }
 
 uae_u16 alg_potgor(uae_u16 potgo)
