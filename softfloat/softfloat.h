@@ -95,7 +95,7 @@ this code that are retained.
  */
 typedef uint8_t flag;
 
-#define LIT64( a ) a##LL
+#define LIT64( a ) a##ULL
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point ordering relations
@@ -150,11 +150,9 @@ typedef uint64_t float64;
 #define const_float64(x) (x)
 #endif
 typedef struct {
-    uint64_t low;
     uint16_t high;
+    uint64_t low;
 } floatx80;
-#define make_floatx80(exp, mant) ((floatx80) { mant, exp })
-#define make_floatx80_init(exp, mant) { .low = mant, .high = exp }
 typedef struct {
 #ifdef HOST_WORDS_BIGENDIAN
     uint64_t high, low;
@@ -162,8 +160,6 @@ typedef struct {
     uint64_t low, high;
 #endif
 } float128;
-#define make_float128(high_, low_) ((float128) { .high = high_, .low = low_ })
-#define make_float128_init(high_, low_) { .high = high_, .low = low_ }
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point underflow tininess-detection mode.
@@ -426,25 +422,25 @@ floatx80 floatx80_sgldiv( floatx80 a, floatx80 b, float_status *status );
 floatx80 floatx80_cmp( floatx80 a, floatx80 b, float_status *status );
 floatx80 floatx80_tst( floatx80 a, float_status *status );
 
-// functions are in softfloat_extension.c
-floatx80 floatx80_acos_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_asin_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_atan_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_atanh_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_cos_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_cosh_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_etox_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_etoxm1_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_log10_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_log2_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_logn_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_lognp1_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_sin_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_sinh_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_tan_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_tanh_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_tentox_check(floatx80 a, flag *e, float_status *status);
-floatx80 floatx80_twotox_check(floatx80 a, flag *e, float_status *status);
+// functions are in softfloat_fpsp.c
+floatx80 floatx80_acos(floatx80 a, float_status *status);
+floatx80 floatx80_asin(floatx80 a, float_status *status);
+floatx80 floatx80_atan(floatx80 a, float_status *status);
+floatx80 floatx80_atanh(floatx80 a, float_status *status);
+floatx80 floatx80_cos(floatx80 a, float_status *status);
+floatx80 floatx80_cosh(floatx80 a, float_status *status);
+floatx80 floatx80_etox(floatx80 a, float_status *status);
+floatx80 floatx80_etoxm1(floatx80 a, float_status *status);
+floatx80 floatx80_log10(floatx80 a, float_status *status);
+floatx80 floatx80_log2(floatx80 a, float_status *status);
+floatx80 floatx80_logn(floatx80 a, float_status *status);
+floatx80 floatx80_lognp1(floatx80 a, float_status *status);
+floatx80 floatx80_sin(floatx80 a, float_status *status);
+floatx80 floatx80_sinh(floatx80 a, float_status *status);
+floatx80 floatx80_tan(floatx80 a, float_status *status);
+floatx80 floatx80_tanh(floatx80 a, float_status *status);
+floatx80 floatx80_tentox(floatx80 a, float_status *status);
+floatx80 floatx80_twotox(floatx80 a, float_status *status);
 #endif
 
 // functions originally internal to softfloat.c
