@@ -2091,6 +2091,7 @@ BEGIN
     IDS_SCREEN_ADAPTIVE_SYNC "Variable Sync"
     IDS_NUMSG_NOMEMORY      "Out of memory or too much Z3 autoconfig space configured.\nIf 64-bit, make sure RTG board is first in board list."
     IDS_EXPANSION_CATEGORY  "Built-in expansions\nSCSI controllers\nIDE controllers\nSASI controllers\nCustom controllers\nPCI bridgeboards\nx86 bridgeboards\nGraphics boards\nSound cards\nNetwork adapters\nDisk controllers"
+    IDS_WINUAETITLE_PAUSED  "[Paused]"
 END
 
 #endif    // English resources

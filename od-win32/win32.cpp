@@ -424,6 +424,50 @@ static void setcursor (int oldx, int oldy)
 	SetCursorPos (cx, cy);
 }
 
+static int showcursor;
+
+extern TCHAR config_filename[256];
+
+static void setmaintitle (HWND hwnd)
+{
+	TCHAR txt[1000], txt2[500];
+
+#ifdef RETROPLATFORM
+	if (rp_isactive ())
+		return;
+#endif
+	txt[0] = 0;
+	inprec_getstatus (txt);
+	if (currprefs.config_window_title[0]) {
+		_tcscat (txt, currprefs.config_window_title);
+		_tcscat (txt, _T(" - "));
+	} else if (config_filename[0]) {
+		_tcscat (txt, _T("["));
+		_tcscat (txt, config_filename);
+		_tcscat (txt, _T("] - "));
+	}
+	_tcscat (txt, _T("WinUAE"));
+	txt2[0] = 0;
+	if (pause_emulation) {
+		WIN32GUI_LoadUIString (IDS_WINUAETITLE_PAUSED, txt2, sizeof (txt2) / sizeof (TCHAR));
+	} else if (mouseactive > 0) {
+		WIN32GUI_LoadUIString ((currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) ? IDS_WINUAETITLE_MMB : IDS_WINUAETITLE_NORMAL,
+			txt2, sizeof (txt2) / sizeof (TCHAR));
+	}
+	if (_tcslen (WINUAEBETA) > 0) {
+		_tcscat (txt, BetaStr);
+		if (_tcslen (WINUAEEXTRA) > 0) {
+			_tcscat (txt, _T(" "));
+			_tcscat (txt, WINUAEEXTRA);
+		}
+	}
+	if (txt2[0]) {
+		_tcscat (txt, _T(" - "));
+		_tcscat (txt, txt2);
+	}
+	SetWindowText (hwnd, txt);
+}
+
 static int pausemouseactive;
 void resumesoundpaused (void)
 {
@@ -456,6 +500,7 @@ bool resumepaused (int priority)
 	}
 	pause_emulation = 0;
 	setsystime ();
+	setmaintitle(hMainWnd);
 	return true;
 }
 bool setpaused (int priority)
@@ -472,6 +517,7 @@ bool setpaused (int priority)
 		pausemouseactive = mouseactive;
 		setmouseactive (0);
 	}
+	setmaintitle(hMainWnd);
 	return true;
 }
 
@@ -487,48 +533,6 @@ void unsetminimized (void)
 		WIN32GFX_DisplayChangeRequested (2);
 	minimized = 0;
 	clear_inhibit_frame (IHF_WINDOWHIDDEN);
-}
-
-static int showcursor;
-
-extern TCHAR config_filename[256];
-
-static void setmaintitle (HWND hwnd)
-{
-	TCHAR txt[1000], txt2[500];
-
-#ifdef RETROPLATFORM
-	if (rp_isactive ())
-		return;
-#endif
-	txt[0] = 0;
-	inprec_getstatus (txt);
-	if (currprefs.config_window_title[0]) {
-		_tcscat (txt, currprefs.config_window_title);
-		_tcscat (txt, _T(" - "));
-	} else if (config_filename[0]) {
-		_tcscat (txt, _T("["));
-		_tcscat (txt, config_filename);
-		_tcscat (txt, _T("] - "));
-	}
-	_tcscat (txt, _T("WinUAE"));
-	txt2[0] = 0;
-	if (mouseactive > 0) {
-		WIN32GUI_LoadUIString ((currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) ? IDS_WINUAETITLE_MMB : IDS_WINUAETITLE_NORMAL,
-			txt2, sizeof (txt2) / sizeof (TCHAR));
-	}
-	if (_tcslen (WINUAEBETA) > 0) {
-		_tcscat (txt, BetaStr);
-		if (_tcslen (WINUAEEXTRA) > 0) {
-			_tcscat (txt, _T(" "));
-			_tcscat (txt, WINUAEEXTRA);
-		}
-	}
-	if (txt2[0]) {
-		_tcscat (txt, _T(" - "));
-		_tcscat (txt, txt2);
-	}
-	SetWindowText (hwnd, txt);
 }
 
 void refreshtitle (void)

@@ -402,6 +402,7 @@
 #define IDS_SCREEN_ADAPTIVE_SYNC        409
 #define IDS_NUMSG_NOMEMORY              410
 #define IDS_EXPANSION_CATEGORY          411
+#define IDS_WINUAETITLE_PAUSED          412
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
