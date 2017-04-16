@@ -739,7 +739,8 @@ end:
 }
 static void cfgfile_dwrite_coords(struct zfile *f, const TCHAR *option, int x, int y)
 {
-	cfgfile_dwrite(f, option, _T("%d,%d"), x, y);
+	if (x || y)
+		cfgfile_dwrite(f, option, _T("%d,%d"), x, y);
 }
 static void cfg_dowrite (struct zfile *f, const TCHAR *option, const TCHAR *value, int d, int target)
 {
@@ -1280,7 +1281,8 @@ static void cfgfile_write_board_rom(struct uae_prefs *prefs, struct zfile *f, st
 				if (br->device_order > 0 && prefs->autoconfig_custom_sort) {
 					if (buf2[0])
 						_tcscat(buf2, _T(","));
-					_stprintf(buf2, _T("order=%d"), br->device_order);
+					TCHAR *p2 = buf2 + _tcslen(buf2);
+					_stprintf(p2, _T("order=%d"), br->device_order);
 				}
 				if (br->roms[i].autoboot_disabled) {
 					if (buf2[0])
