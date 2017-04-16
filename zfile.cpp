@@ -2250,13 +2250,11 @@ size_t zfile_fwrite (const void *b, size_t l1, size_t l2, struct zfile *z)
 			return 0;
 		}
 		if (off > z->allocsize) {
-			if (z->allocsize < off)
-				z->allocsize = off;
-			z->allocsize += z->size / 2;
-			if (z->allocsize < 10000)
-				z->allocsize = 10000;
+			int inc = (z->size / 2 + l1 * l2 + 7) & ~3;
+			if (inc < 10000)
+				inc = 10000;
+			z->allocsize += inc;
 			z->data = xrealloc (uae_u8, z->data, z->allocsize);
-			z->datasize = z->size = off;
 		}
 		memcpy (z->data + z->seek, b, l1 * l2);
 		z->seek += l1 * l2;
