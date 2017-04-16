@@ -148,6 +148,8 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_HARDFRAME	0x0010005e
 #define ROMTYPE_ATEAM		0x0010005f
 #define ROMTYPE_PMX			0x00100060
+#define ROMTYPE_COMSPEC		0x00100061
+#define ROMTYPE_MALIBU		0x00100062
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000

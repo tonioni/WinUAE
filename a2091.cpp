@@ -17,6 +17,7 @@
 #define XT_DEBUG 0
 #define A3000_DEBUG 0
 #define A3000_DEBUG_IO 0
+
 #define WD33C93_DEBUG 0
 #define WD33C93_DEBUG_PIO 0
 
@@ -270,6 +271,7 @@ static struct wd_state *wd_a3000;
 static struct wd_state *wd_gvps1[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct wd_state *wd_gvps2[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct wd_state *wd_gvps2accel;
+static struct wd_state *wd_comspec[MAX_DUPLICATE_EXPANSION_BOARDS];
 struct wd_state *wd_cdtv;
 
 static struct wd_state *scsi_units[MAX_SCSI_UNITS + 1];
@@ -397,6 +399,12 @@ static bool isirq(struct wd_state *wd)
 			wd->cdmac.dmac_istr |= ISTR_INTS;
 		if ((wd->cdmac.dmac_cntr & CNTR_INTEN) && (wd->cdmac.dmac_istr & ISTR_INTS))
 			return true;
+		break;
+		case COMSPEC_CHIP:
+#if 0
+		if (wd->wc.auxstatus & ASR_INT)
+			return true;
+#endif
 		break;
 	}
 	return false;
@@ -555,7 +563,7 @@ static bool decreasetc(struct wd_chip_state *wd)
 	return tc == 0;
 }
 
-static bool canwddma(struct wd_state *wds)
+static int canwddma(struct wd_state *wds)
 {
 	struct wd_chip_state *wd = &wds->wc;
 	uae_u8 mode = wd->wdregs[WD_CONTROL] >> 5;
@@ -578,8 +586,10 @@ static bool canwddma(struct wd_state *wds)
 			write_log (_T("%s weird DMA mode %d!!\n"), WD33C93, mode);
 		}
 		return mode == 2;
+		case COMSPEC_CHIP:
+		return -1;
 		default:
-		return false;
+		return 0;
 	}
 }
 
@@ -987,6 +997,22 @@ static bool wd_do_transfer_in (struct wd_chip_state *wd, struct scsi_data *scsi,
 	return true;
 }
 
+static void set_pio_data_irq(struct wd_chip_state *wd, struct wd_state *wds)
+{
+	if (!wd->wd_data_avail)
+		return;
+	switch(wds->dmac_type)
+	{
+		case COMSPEC_CHIP:
+		if (wds->comspec.status & 0x10) {
+			wds->comspec.status |= 0x08;
+			INTREQ_0(0x8000 | 0x2000);
+		}
+		break;
+	}
+}
+
+
 static void wd_cmd_sel_xfer (struct wd_chip_state *wd, struct wd_state *wds, bool atn)
 {
 	int i, tmp_tc;
@@ -1100,7 +1126,7 @@ static void wd_cmd_sel_xfer (struct wd_chip_state *wd, struct wd_state *wds, boo
 				set_status (wd, wd->wd_phase, 1);
 				return;
 			}
-			if (canwddma (wds)) {
+			if (canwddma (wds) > 0) {
 				if (scsi->direction <= 0) {
 					do_dma(wds);
 					if (scsi->offset < scsi->data_len) {
@@ -1130,6 +1156,11 @@ static void wd_cmd_sel_xfer (struct wd_chip_state *wd, struct wd_state *wds, boo
 						scsi_emulate_cmd (scsi);
 					}
 				}
+			} else if (canwddma (wds) < 0) {
+				// pio
+				wd->wd_data_avail = 1;
+				set_pio_data_irq(wd, wds);
+				return;
 			} else {
 				// no dma = Service Request
 				wd->wd_phase = CSR_SRV_REQ;
@@ -1219,7 +1250,7 @@ static void wd_cmd_trans_info (struct wd_state *wds, struct scsi_data *scsi, boo
 		wd->scsi->direction = 0;
 		wd->wd_data_avail = 0;
 	} else {
-		if (canwddma (wds)) {
+		if (canwddma (wds) > 0) {
 			wd->wd_data_avail = -1;
 		} else {
 			wd->wd_data_avail = 1;
@@ -1310,7 +1341,8 @@ static void wd_cmd_reset (struct wd_chip_state *wd, bool irq)
 	wd->auxstatus = 0;
 	wd->wd_data_avail = 0;
 	if (irq) {
-		set_status (wd, (wd->wdregs[0] & 0x08) ? 1 : 0, 50);
+		uae_u8 status = (wd->wdregs[0] & 0x08) ? 1 : 0;
+		set_status (wd, status, 50);
 	}
 }
 
@@ -1402,6 +1434,13 @@ static void scsi_hsync2_gvp (struct wd_state *wds)
 	wd_check_interrupt(wds, false);
 }
 
+static void scsi_hsync2_comspec(struct wd_state *wds)
+{
+	if (!wds || !wds->enabled)
+		return;
+	wd_check_interrupt(wds, false);
+}
+
 void scsi_hsync (void)
 {
 	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
@@ -1409,6 +1448,7 @@ void scsi_hsync (void)
 		scsi_hsync2_a2091(wd_a2090[i]);
 		scsi_hsync2_gvp(wd_gvps1[i]);
 		scsi_hsync2_gvp(wd_gvps2[i]);
+		scsi_hsync2_comspec(wd_comspec[i]);
 	}
 	scsi_hsync2_gvp(wd_gvps2accel);
 	scsi_hsync2_a2091(wd_a3000);
@@ -1487,13 +1527,27 @@ void wdscsi_put (struct wd_chip_state *wd, struct wd_state *wds, uae_u8 d)
 			wd->wd_data_avail = 0;
 			write_comm_pipe_u32 (&wds->requests, makecmd (wd->scsi, 2, 0), 1);
 		}
+		set_pio_data_irq(wd, wds);
 	} else if (wd->sasr == WD_COMMAND) {
 		wd->wd_busy = true;
-		write_comm_pipe_u32(&wds->requests, makecmd(wds->scsis[wd->wdregs[WD_DESTINATION_ID] & 7], 0, d), 1);
+		if (wd->resetnodelay && d == WD_CMD_RESET) {
+			// stupid cpu loops that fail if CPU is too fast..
+			wd_master_reset(wds, true);
+		} else {
+			write_comm_pipe_u32(&wds->requests, makecmd(wds->scsis[wd->wdregs[WD_DESTINATION_ID] & 7], 0, d), 1);
+		}
 		if (wd->scsi && wd->scsi->cd_emu_unit >= 0)
 			gui_flicker_led (LED_CD, wd->scsi->id, 1);
 	}
 	incsasr (wd, 1);
+}
+
+static void wdscsi_put_data(struct wd_chip_state *wd, struct wd_state *wds, uae_u8 v)
+{
+	uae_u8 sasr = wd->sasr;
+	wd->sasr = WD_DATA;
+	wdscsi_put(wd, wds, v);
+	wd->sasr = sasr;
 }
 
 void wdscsi_sasr (struct wd_chip_state *wd, uae_u8 b)
@@ -1532,6 +1586,7 @@ uae_u8 wdscsi_get (struct wd_chip_state *wd, struct wd_state *wds)
 			wd->wd_data_avail = 0;
 			write_comm_pipe_u32 (&wds->requests, makecmd (wd->scsi, 3, 0), 1);
 		}
+		set_pio_data_irq(wd, wds);
 	} else if (wd->sasr == WD_SCSI_STATUS) {
 		wd->auxstatus &= ~0x80;
 		if (wds->cdtv)
@@ -1553,6 +1608,15 @@ uae_u8 wdscsi_get (struct wd_chip_state *wd, struct wd_state *wds)
 	if (WD33C93_DEBUG > 3 || osasr != WD_DATA)
 		write_log (_T("R %s REG %02X = %02X (%d) PC=%08X\n"), WD33C93, osasr, v, v, M68K_GETPC);
 #endif
+	return v;
+}
+
+uae_u8 wdscsi_get_data(struct wd_chip_state *wd, struct wd_state *wds)
+{
+	uae_u8 sasr = wd->sasr;
+	wd->sasr = WD_DATA;
+	uae_u8 v = wdscsi_get(wd, wds);
+	wd->sasr = sasr;
 	return v;
 }
 
@@ -2449,6 +2513,243 @@ static const addrbank dmaca2091_bank = {
 	dmac_a2091_lput, dmac_a2091_wput, dmac_a2091_bput,
 	dmac_a2091_xlate, dmac_a2091_check, NULL, _T("*"), _T("A2090/A2091/A590"),
 	dmac_a2091_lgeti, dmac_a2091_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
+};
+
+static bool comspec_wd_aux(uaecptr addr)
+{
+	return addr == 0xc1;
+}
+static bool comspec_wd_data(uaecptr addr)
+{
+	return addr == 0xc3;
+}
+static uae_u8 comspec_status(struct wd_state *wd)
+{
+	uae_u8 v = wd->comspec.status;
+	v &= ~0x80;
+	if (wd->wc.wd_data_avail)
+		v |= 0x80;
+	return v;
+}
+
+static uae_u8 comspec_read_byte(struct wd_state *wd, uaecptr addr)
+{
+	uae_u8 v = 0;
+	addr &= 65535;
+	if (!(addr & 0x8000)) {
+		v = wd->rom[addr];
+	} else {
+		addr &= 0x7fff;
+		if ((addr & 0xf1) == 0x80) {
+			v = comspec_status(wd);
+		} else if ((addr & 0xf1) == 0x81) {
+			v = wdscsi_get_data(&wd->wc, wd);
+		} else {
+			if (comspec_wd_aux(addr)) {
+				v = wdscsi_getauxstatus(&wd->wc);
+			} else if (comspec_wd_data(addr)) {
+				v = wdscsi_get (&wd->wc, wd);
+			}
+		}
+		//write_log(_T("COMSPEC BGET %08x %02x %08x\n"), addr, v, M68K_GETPC);
+	}
+	return v;
+}
+static void comspec_write_byte(struct wd_state *wd, uaecptr addr, uae_u8 v)
+{
+	if (addr & 0x8000) {
+		addr &= 0x7fff;
+		if ((addr & 0xf0) == 0x80) {
+			wd->comspec.status = v & 0x7f;
+			if (!(v & 0x40)) {
+				wd_master_reset(wd, true);
+			}
+		} else if ((addr & 0xf1) == 0xe1) {
+			wdscsi_put_data(&wd->wc, wd, v);
+		} else {
+			if (comspec_wd_aux(addr)) {
+				wdscsi_sasr(&wd->wc, v);
+			} else if (comspec_wd_data(addr)) {
+				wdscsi_put(&wd->wc, wd, v);
+			}
+		}
+	}
+	write_log(_T("COMSPEC BPUT %08x %02x %08x\n"), addr, v, M68K_GETPC);
+}
+
+static uae_u16 comspec_read_word(struct wd_state *wd, uaecptr addr)
+{
+	uae_u16 v = 0;
+	addr &= 65535;
+	if (!(addr & 0x8000)) {
+		v = (wd->rom[addr] << 8) | wd->rom[addr + 1];
+	} else {
+		addr &= 0x7fff;
+		if ((addr & 0xf0) == 0x80) {
+			v = comspec_status(wd) << 8;
+			v |= wdscsi_get_data(&wd->wc, wd);
+		}
+		//write_log(_T("COMSPEC WGET %08x %04x %08x\n"), addr, v, M68K_GETPC);
+	}
+	return v;
+}
+static void comspec_write_word(struct wd_state *wd, uaecptr addr, uae_u16 v)
+{
+	if (addr & 0x8000) {
+		write_log(_T("COMSPEC BWUT %08x %04x %08x\n"), addr, v, M68K_GETPC);
+	}
+}
+
+static int REGPARAM2 comspec_check(struct wd_state *wd, uaecptr addr, uae_u32 size)
+{
+	return 1;
+}
+
+static uae_u8 *REGPARAM2 comspec_xlate(struct wd_state *wd, uaecptr addr)
+{
+	addr &= 0xffff;
+	return wd->rom + addr;
+}
+
+static uae_u32 REGPARAM2 comspec_lget (struct wd_state *wd, uaecptr addr)
+{
+	uae_u32 v;
+	addr &= 65535;
+	v = comspec_read_word(wd, addr) << 16;
+	v |= comspec_read_word(wd, addr + 2) & 0xffff;
+	return v;
+}
+
+static uae_u32 REGPARAM2 comspec_wget(struct wd_state *wd, uaecptr addr)
+{
+	uae_u32 v;
+	addr &= 65535;
+	v = comspec_read_word(wd, addr);
+	return v;
+}
+
+static uae_u32 REGPARAM2 comspec_bget(struct wd_state *wd, uaecptr addr)
+{
+	uae_u32 v;
+	addr &= 65535;
+	v = comspec_read_byte(wd, addr);
+	return v;
+}
+
+static void REGPARAM2 comspec_lput(struct wd_state *wd, uaecptr addr, uae_u32 l)
+{
+	addr &= 65535;
+	comspec_write_word(wd, addr + 0, l >> 16);
+	comspec_write_word(wd, addr + 2, l);
+}
+
+static void REGPARAM2 comspec_wput(struct wd_state *wd, uaecptr addr, uae_u32 w)
+{
+	addr &= 65535;
+	comspec_write_word(wd, addr, w);
+}
+
+extern const addrbank dmaca2091_bank;
+
+static void REGPARAM2 comspec_bput(struct wd_state *wd, uaecptr addr, uae_u32 b)
+{
+	b &= 0xff;
+	addr &= 65535;
+	comspec_write_byte(wd, addr, b);
+}
+
+static uae_u32 REGPARAM2 comspec_wgeti(struct wd_state *wd, uaecptr addr)
+{
+	uae_u32 v = 0xffff;
+	addr &= 65535;
+	if (!(addr & 0x8000))
+		v = (wd->rom[addr] << 8) | wd->rom[addr + 1];
+	return v;
+}
+static uae_u32 REGPARAM2 comspec_lgeti(struct wd_state *wd, uaecptr addr)
+{
+	uae_u32 v;
+	addr &= 65535;
+	v = comspec_wgeti(wd, addr) << 16;
+	v |= comspec_wgeti(wd, addr + 2);
+	return v;
+}
+
+
+static uae_u8 *REGPARAM2 comspec_xlate (uaecptr addr)
+{
+	struct wd_state *wd = getscsiboard(addr);
+	if (wd)
+		return comspec_xlate(wd, addr);
+	return default_xlate(0);
+}
+static int REGPARAM2 comspec_check (uaecptr addr, uae_u32 size)
+{
+	struct wd_state *wd = getscsiboard(addr);
+	if (wd)
+		return comspec_check(wd, addr, size);
+	return 0;
+}
+static uae_u32 REGPARAM2 comspec_lgeti (uaecptr addr)
+{
+	struct wd_state *wd = getscsiboard(addr);
+	if (wd)
+		return comspec_lgeti(wd, addr);
+	return 0;
+}
+static uae_u32 REGPARAM2 comspec_wgeti (uaecptr addr)
+{
+	struct wd_state *wd = getscsiboard(addr);
+	if (wd)
+		return comspec_wgeti(wd, addr);
+	return 0;
+}
+static uae_u32 REGPARAM2 comspec_bget (uaecptr addr)
+{
+	struct wd_state *wd = getscsiboard(addr);
+	if (wd)
+		return comspec_bget(wd, addr);
+	return 0;
+}
+static uae_u32 REGPARAM2 comspec_wget (uaecptr addr)
+{
+	struct wd_state *wd = getscsiboard(addr);
+	if (wd)
+		return comspec_wget(wd, addr);
+	return 0;
+}
+static uae_u32 REGPARAM2 comspec_lget (uaecptr addr)
+{
+	struct wd_state *wd = getscsiboard(addr);
+	if (wd)
+		return comspec_lget(wd, addr);
+	return 0;
+}
+static void REGPARAM2 comspec_bput (uaecptr addr, uae_u32 b)
+{
+	struct wd_state *wd = getscsiboard(addr);
+	if (wd)
+		comspec_bput(wd, addr, b);
+}
+static void REGPARAM2 comspec_wput (uaecptr addr, uae_u32 b)
+{
+	struct wd_state *wd = getscsiboard(addr);
+	if (wd)
+		comspec_wput(wd, addr, b);
+}
+static void REGPARAM2 comspec_lput (uaecptr addr, uae_u32 b)
+{
+	struct wd_state *wd = getscsiboard(addr);
+	if (wd)
+		comspec_lput(wd, addr, b);
+}
+
+static const addrbank comspec_bank = {
+	comspec_lget, comspec_wget, comspec_bget,
+	comspec_lput, comspec_wput, comspec_bput,
+	comspec_xlate, comspec_check, NULL, _T("*"), _T("COMSPEC"),
+	comspec_lgeti, comspec_wgeti,
 	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
@@ -3758,6 +4059,71 @@ void cdtv_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig
 	if (!wd || ch < 0)
 		return;
 	add_scsi_device(&wd_cdtv->scsis[ch], ch, ci, rc);
+}
+
+bool comspec_init (struct autoconfig_info *aci)
+{
+	ew(aci->autoconfig_raw, 0x00, 0xc0 | 0x01 | 0x10);
+	ew(aci->autoconfig_raw, 0x04, 0x11);
+	ew(aci->autoconfig_raw, 0x10, 0x03);
+	ew(aci->autoconfig_raw, 0x14, 0xee);
+	/* rom vector */
+	ew(aci->autoconfig_raw, 0x28, 0x00);
+	ew(aci->autoconfig_raw, 0x2c, 0x10);
+	/* serial number */
+	ew(aci->autoconfig_raw, 0x18, 0x00);
+	ew(aci->autoconfig_raw, 0x1c, 0x00);
+	ew(aci->autoconfig_raw, 0x20, 0x00);
+	ew(aci->autoconfig_raw, 0x24, 0x00);
+
+	aci->label = _T("COMSPEC");
+	if (!aci->doinit)
+		return true;
+
+	struct wd_state *wd = getscsi(aci->rc);
+	int slotsize;
+
+	if (!wd)
+		return false;
+
+	init_wd_scsi(wd);
+
+	wd->configured = 0;
+	wd->dmac_type = COMSPEC_CHIP;
+	wd->autoconfig = true;
+	wd->board_mask = 65535;
+	wd->wc.resetnodelay = true;
+	memcpy(&wd->bank, &comspec_bank, sizeof addrbank);
+	memcpy(wd->dmacmemory, aci->autoconfig_raw, sizeof wd->dmacmemory);
+
+	alloc_expansion_bank(&wd->bank, aci);
+
+	wd->rombank = 0;
+	wd->rom_size = 16384;
+	slotsize = 65536;
+	wd->rom = xcalloc(uae_u8, slotsize);
+	memset(wd->rom, 0xff, slotsize);
+	wd->rom_mask = wd->rom_size - 1;
+	struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_COMSPEC);
+	if (z) {
+		wd->rom_size = zfile_size (z);
+		zfile_fread (wd->rom, wd->rom_size, 1, z);
+		zfile_fclose (z);
+		wd->rom_mask = wd->rom_size - 1;
+	}
+
+	if (!aci->rc->autoboot_disabled)
+		map_banks(&wd->bank, 0xf00000 >> 16, 1, 0);
+
+	return true;
+}
+
+void comspec_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	struct wd_state *wd = allocscsi(&wd_comspec[ci->controller_type_unit], rc, ch);
+	if (!wd || ch < 0)
+		return;
+	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
 }
 
 

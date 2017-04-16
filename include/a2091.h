@@ -19,6 +19,7 @@ struct wd_chip_state {
 	volatile int scsidelay_irq[WD_STATUS_QUEUE];
 	struct scsi_data *scsi;
 	int wd33c93_ver;// 0 or 1
+	bool resetnodelay;
 };
 
 #define COMMODORE_8727 0
@@ -26,6 +27,7 @@ struct wd_chip_state {
 #define COMMODORE_SDMAC 2
 #define GVP_DMAC_S2 3
 #define GVP_DMAC_S1 4
+#define COMSPEC_CHIP 6
 
 struct commodore_dmac
 {
@@ -69,6 +71,11 @@ struct gvp_dmac
 	int bufoffset;
 };
 
+struct comspec_chip
+{
+	uae_u8 status;
+};
+
 struct wd_state {
 	bool enabled;
 	int configured;
@@ -95,6 +102,7 @@ struct wd_state {
 	struct wd_chip_state wc;
 	struct commodore_dmac cdmac;
 	struct gvp_dmac gdmac;
+	struct comspec_chip comspec;
 	addrbank bank;
 };
 extern wd_state *wd_cdtv;
@@ -114,6 +122,8 @@ extern bool gvp_init_s2(struct autoconfig_info *aci);
 extern bool gvp_init_accelerator(struct autoconfig_info *aci);
 extern void gvp_free(void);
 extern void gvp_reset (void);
+
+extern bool comspec_init (struct autoconfig_info *aci);
 
 extern bool a3000scsi_init(struct autoconfig_info *aci);
 extern void a3000scsi_free (void);
@@ -140,6 +150,7 @@ extern void gvp_s1_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct r
 extern void gvp_s2_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void gvp_s2_add_accelerator_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void a3000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void comspec_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 extern int add_wd_scsi_hd (struct wd_state *wd, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level);
 extern int add_wd_scsi_cd (struct wd_state *wd, int ch, int unitnum);

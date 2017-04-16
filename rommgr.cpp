@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 200
+#define NEXT_ROM_ID 202
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -481,6 +481,12 @@ static struct romdata roms[] = {
 	0x4fe08a5d, 0x007e5c61, 0x4048f598, 0x6d14011d, 0x23a41435, 0x5e0a2259, NULL, NULL },
 	{ _T("M-Tec AT500 Megabody v1.33"), 1, 33, 1, 33, _T("MTECAT\0"), 32768, 199, 0, 0, ROMTYPE_MTEC, 0, 0, NULL,
 	0x19715a2f, 0x124f9d10, 0x19f1b285, 0x16f33f4e, 0x2bf03ca0, 0x2f9ad772, NULL, NULL },
+	{ _T("Comspec SA-1000 v34.805"), 34, 805, 34, 805, _T("COMSPEC\0"), 16384, 200, 0, 0, ROMTYPE_COMSPEC, 0, 0, NULL,
+	0x44458e28, 0x048b8232, 0xfe54252b, 0xb81e0d06, 0x83c9e92d, 0x880f3cbf, NULL, NULL },
+	ALTROMPN(200, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xd5838a35, 0xb3d83657, 0x661a9fe1, 0xd54e6e69, 0xc8b13878, 0x0960a107)
+	ALTROMPN(200, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x098c5529, 0x6f51827d, 0x40a79438, 0x69e2d0fb, 0x6e2e46e9, 0xb65c1244)
+	{ _T("California Access Malibu v1.0"), 1, 0, 1, 0, _T("MALIBU\0"), 8192, 201, 0, 0, ROMTYPE_MALIBU, 0, 0, NULL,
+	0xe60b1ce6, 0xa7c4b709, 0x494f4034, 0x42b8ec11, 0x090dc1d0, 0x18098ebc, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },
@@ -1712,8 +1718,9 @@ static struct zfile *rom_fopen2(const TCHAR *name, const TCHAR *mode, int mask)
 			uae_u8 *newrom = NULL;
 			uae_u8 *tmp1 = xcalloc(uae_u8, 524288 * 2);
 			uae_u8 *tmp2 = xcalloc(uae_u8, 524288 * 2);
-			zfile_fread(tmp1, 1, size, f);
 			for (;;) {
+				if (zfile_fread(tmp1, 1, size, f) != size)
+					break;
 				if (size == 524288 * 2) {
 					// Perhaps it is 1M interleaved ROM image?
 					mergecd32(tmp2, tmp1, 524288 * 2);
@@ -1762,15 +1769,17 @@ static struct zfile *rom_fopen2(const TCHAR *name, const TCHAR *mode, int mask)
 		zfile_fclose(f);
 		f = f2;
 	}
+	if (f) {
+		zfile_fseek(f, 0, SEEK_SET);
+	}
 	return f;
 }
 
 struct zfile *read_rom_name (const TCHAR *filename)
 {
-	int i;
 	struct zfile *f;
 
-	for (i = 0; i < romlist_cnt; i++) {
+	for (int i = 0; i < romlist_cnt; i++) {
 		if (my_issamepath(filename, rl[i].path)) {
 			struct romdata *rd = rl[i].rd;
 			f = read_rom (rd);
@@ -1780,7 +1789,7 @@ struct zfile *read_rom_name (const TCHAR *filename)
 	}
 	f = rom_fopen2(filename, _T("rb"), ZFD_NORMAL);
 	if (f) {
-		uae_u8 tmp[11];
+		uae_u8 tmp[11] = { 0 };
 		zfile_fread (tmp, sizeof tmp, 1, f);
 		if (!memcmp (tmp, "AMIROMTYPE1", sizeof tmp)) {
 			struct zfile *df;

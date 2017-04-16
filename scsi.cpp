@@ -60,7 +60,8 @@
 #define NCR5380_OSSI 29
 #define NCR5380_DATAFLYERPLUS 30
 #define NONCR_HARDFRAME 31
-#define NCR_LAST 32
+#define NCR5380_MALIBU 32
+#define NCR_LAST 33
 
 extern int log_scsiemu;
 
@@ -2435,6 +2436,20 @@ static int dataflyerplus_reg(uaecptr addr)
 	return (addr >> 1) & 7;
 }
 
+static int malibureg(uaecptr addr)
+{
+	if ((addr & 0xc000) == 0x8000)
+		return 8; // long read port
+	if ((addr & 0xc000) == 0xc000)
+		return 8; // long write port
+	if (!(addr & 1))
+		return -1;
+	if (addr & 0x4000)
+		return -1;
+	int reg = (addr & 0x0f) >> 1;
+	return reg;
+}
+
 static uae_u8 read_684xx_dma(struct soft_scsi *ncr, uaecptr addr)
 {
 	uae_u8 val = 0;
@@ -2579,7 +2594,18 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 
 	addr &= ncr->board_mask;
 
-	if (ncr->type == NONCR_HARDFRAME) {
+	if (ncr->type == NCR5380_MALIBU) {
+
+		if ((addr & 0xc000) == 0x4000) {
+			v = ncr->rom[addr & 0x3fff];
+		} else {
+			reg = malibureg(addr);
+			if (reg >= 0) {
+				v = ncr5380_bget(ncr, reg);
+			}
+		}
+
+	} else if (ncr->type == NONCR_HARDFRAME) {
 
 		if (addr == 0xc0) {
 			v = aic_bget_reg(ncr);
@@ -3030,7 +3056,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 	}
 
 #if NCR5380_DEBUG > 1
-	if (origaddr < 0x100)
+	if (origaddr < 0x4000 || origaddr >= 0x8000)
 		write_log(_T("GET %08x %02x %d %08x %d\n"), origaddr, v, reg, M68K_GETPC, regs.intmask);
 #endif
 
@@ -3045,7 +3071,14 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 
 	addr &= ncr->board_mask;
 
-	if (ncr->type == NONCR_HARDFRAME) {
+	if (ncr->type == NCR5380_MALIBU) {
+
+		reg = malibureg(addr);
+		if (reg >= 0) {
+			ncr5380_bput(ncr, reg, val);
+		}
+
+	} else if (ncr->type == NONCR_HARDFRAME) {
 		
 		if (addr == 0xc0) {
 			aic_bput_reg(ncr, val);
@@ -4461,4 +4494,32 @@ bool hardframe_init(struct autoconfig_info *aci)
 void hardframe_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, NONCR_HARDFRAME, 65536, 65536, ROMTYPE_HARDFRAME);
+}
+
+bool malibu_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_MALIBU);
+	if (!aci->doinit) {
+		aci->autoconfigp = ert->autoconfig;
+		return true;
+	}
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	load_rom_rc(aci->rc, ROMTYPE_MALIBU, 8192, 0, scsi->rom, 65536, LOADROM_EVENONLY_ODDONE);
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = ert->autoconfig[i];
+		if (aci->rc->autoboot_disabled && i == 0)
+			b = 0xc1;
+		ew(scsi, i * 4, b);
+	}
+	aci->addrbank = scsi->bank;
+	return true;
+}
+
+void malibu_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_MALIBU, 65536, 16384, ROMTYPE_MALIBU);
 }
