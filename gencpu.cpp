@@ -1628,8 +1628,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		}
 	} else {
 		// fetch
-		pc_68000_offset_fetch += 2;
-		exception_pc_offset = pc_68000_offset_fetch;
+		exception_pc_offset = pc_68000_offset + pc_68000_offset_fetch;
 	}
 
 	if ((using_prefetch || using_ce) && using_exception_3 && getv != 0 && size != sz_byte) {
