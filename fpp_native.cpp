@@ -1000,35 +1000,34 @@ static void fp_get_internal_overflow(fpdata *fpd)
 {
 	fpd->fp = 0;
 }
-
 static void fp_get_internal_underflow(fpdata *fpd)
 {
 	fpd->fp = 0;
 }
-
 static void fp_get_internal_round_all(fpdata *fpd)
 {
 	fpd->fp = 0;
 }
-
 static void fp_get_internal_round(fpdata *fpd)
 {
 	fpd->fp = 0;
 }
-
 static void fp_get_internal_round_exten(fpdata *fpd)
 {
 	fpd->fp = 0;
 }
-
 static void fp_get_internal(fpdata *fpd)
 {
 	fpd->fp = 0;
 }
-
 static uae_u32 fp_get_internal_grs(void)
 {
 	return 0;
+}
+
+/* Function for denormalizing */
+static void fp_denormalize(fpdata *fpd, int esign)
+{
 }
 
 static void fp_from_pack (fpdata *src, uae_u32 *wrd, int kfactor)
@@ -1282,6 +1281,7 @@ void fp_init_native(void)
 	fpp_round64 = fp_round64;
 
 	fpp_normalize = fp_normalize;
+	fpp_denormalize = fp_denormalize;
 	fpp_get_internal_overflow = fp_get_internal_overflow;
 	fpp_get_internal_underflow = fp_get_internal_underflow;
 	fpp_get_internal_round_all = fp_get_internal_round_all;

@@ -3462,6 +3462,29 @@ floatx80 floatx80_move( floatx80 a, float_status *status )
     return roundAndPackFloatx80( status->floatx80_rounding_precision, aSign, aExp, aSig, 0, status );
 }
 
+floatx80 floatx80_denormalize( floatx80 a, flag eSign)
+{
+	flag aSign;
+	int32_t aExp;
+	uint64_t aSig;
+	int32_t shiftCount;
+
+	aSig = extractFloatx80Frac( a );
+	aExp = extractFloatx80Exp( a );
+	aSign = extractFloatx80Sign( a );
+	
+	if ( eSign ) {
+		shiftCount = 0x8000 - aExp;
+		aExp = 0;
+		if (shiftCount > 63) {
+			aSig = 0;
+		} else {
+			aSig >>= shiftCount;
+		}
+	}
+	return packFloatx80(aSign, aExp, aSig);
+}
+
 #endif // End of addition for Previous
 
 /*----------------------------------------------------------------------------

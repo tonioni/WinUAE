@@ -55,6 +55,8 @@ typedef void (*FPP_PACK)(fpdata*, uae_u32*, int);
 typedef const TCHAR* (*FPP_PRINT)(fpdata*,int);
 typedef uae_u32 (*FPP_GET32)(void);
 
+typedef void (*FPP_DENORMALIZE)(fpdata*,int);
+
 extern FPP_PRINT fpp_print;
 
 extern FPP_IS fpp_is_snan;
@@ -94,6 +96,7 @@ extern FPP_A fpp_round32;
 extern FPP_A fpp_round64;
 
 extern FPP_A fpp_normalize;
+extern FPP_DENORMALIZE fpp_denormalize;
 extern FPP_A fpp_get_internal_overflow;
 extern FPP_A fpp_get_internal_underflow;
 extern FPP_A fpp_get_internal_round_all;

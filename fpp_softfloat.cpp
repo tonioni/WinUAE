@@ -277,6 +277,11 @@ static uae_u32 fp_get_internal_grs(void)
 {
 	return (uae_u32)getFloatInternalGRS();
 }
+/* Function for denormalizing */
+static void fp_denormalize(fpdata *fpd, int esign)
+{
+    fpd->fpx = floatx80_denormalize(fpd->fpx, esign);
+}
 
 /* Functions for rounding */
 
@@ -1001,6 +1006,7 @@ void fp_init_softfloat(void)
 	fpp_round64 = fp_round64;
 
 	fpp_normalize = fp_normalize;
+	fpp_denormalize = fp_denormalize;
 	fpp_get_internal_overflow = fp_get_internal_overflow;
 	fpp_get_internal_underflow = fp_get_internal_underflow;
 	fpp_get_internal_round_all = fp_get_internal_round_all;

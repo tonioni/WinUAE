@@ -462,6 +462,7 @@ floatx80 floatx80_div(floatx80, floatx80, float_status *status);
 floatx80 floatx80_sqrt(floatx80, float_status *status);
 flag floatx80_is_signaling_nan(floatx80);
 floatx80 floatx80_normalize(floatx80);
+floatx80 floatx80_denormalize(floatx80, flag);
 
 static inline int floatx80_is_zero_or_denormal(floatx80 a)
 {
