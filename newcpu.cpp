@@ -5571,6 +5571,14 @@ void m68k_go (int may_quit)
 		event_wait = true;
 		unset_special(SPCFLAG_MODE_CHANGE);
 
+		if (!regs.halted) {
+			// check that PC points to something that looks like memory.
+			uaecptr pc = m68k_getpc();
+			addrbank *ab = get_mem_bank_real(pc);
+			if (ab == NULL || ab == &dummy_bank || (!currprefs.cpu_compatible && !valid_address(pc, 2)) || (pc & 1)) {
+				cpu_halt(CPU_HALT_INVALID_START_ADDRESS);
+			}
+		}
 		if (regs.halted) {
 			cpu_halt (regs.halted);
 			if (regs.halted < 0) {
