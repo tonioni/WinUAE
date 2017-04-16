@@ -371,7 +371,7 @@ insert:
 	 */
 	if (m->m_flags & M_EXT) {
 	  int delta;
-	  delta = (char *)ip - m->m_dat;
+	  delta = (char *)q - m->m_dat;
 	  q = (struct ipasfrag *)(m->m_ext + delta);
 	}
 
