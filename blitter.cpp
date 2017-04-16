@@ -264,16 +264,8 @@ void build_blitfilltable (void)
 STATIC_INLINE void record_dma_blit (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos)
 {
 #ifdef DEBUGGER
-	int type;
-
-	if (blitline)
-		type = DMARECORD_BLITTER_LINE;
-	else if (blitfill)
-		type = DMARECORD_BLITTER_FILL;
-	else
-		type = DMARECORD_BLITTER;
 	if (debug_dma)
-		record_dma (reg, dat, addr, hpos, vpos, type);
+		record_dma (reg, dat, addr, hpos, vpos, DMARECORD_BLITTER, blitline ? 2 : (blitfill ? 1 : 0));
 	if (memwatch_enabled) {
 		if (reg == 0) {
 			uae_u32 mask = MW_MASK_BLITTER_D_N;

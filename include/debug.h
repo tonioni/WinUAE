@@ -177,7 +177,8 @@ struct dma_rec
     uae_u32 dat;
     uae_u32 addr;
     uae_u16 evt;
-    int type;
+    uae_s16 type;
+	uae_u16 extra;
 	uae_s8 intlev;
 };
 
@@ -189,22 +190,21 @@ struct dma_rec
 #define DMA_EVENT_CPUIRQ 32
 #define DMA_EVENT_INTREQ 64
 #define DMA_EVENT_COPPERWANTED 128
-#define DMA_EVENT_SPECIAL 256
+#define DMA_EVENT_NOONEGETS 256
+#define DMA_EVENT_SPECIAL 32768
 
 #define DMARECORD_REFRESH 1
-#define DMARECORD_CPU_I 2
-#define DMARECORD_CPU_D 3
-#define DMARECORD_COPPER 4
-#define DMARECORD_AUDIO 5
-#define DMARECORD_BLITTER 6
-#define DMARECORD_BLITTER_FILL 7
-#define DMARECORD_BLITTER_LINE 8
-#define DMARECORD_BITPLANE 9
-#define DMARECORD_SPRITE 10
-#define DMARECORD_DISK 11
-#define DMARECORD_MAX 12
+#define DMARECORD_CPU 2
+#define DMARECORD_COPPER 3
+#define DMARECORD_AUDIO 4
+#define DMARECORD_BLITTER 5
+#define DMARECORD_BITPLANE 6
+#define DMARECORD_SPRITE 7
+#define DMARECORD_DISK 8
+#define DMARECORD_MAX 9
 
-extern struct dma_rec *record_dma(uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos, int type);
+extern struct dma_rec *record_dma(uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos, int type, int extra);
+extern void record_dma_replace(int hpos, int vpos, int type, int extra);
 extern void record_dma_reset(void);
 extern void record_dma_event(int evt, int hpos, int vpos);
 extern void debug_draw(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors);

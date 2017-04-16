@@ -1292,33 +1292,61 @@ STATIC_INLINE void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8)
 }
 
 #define lc(x) ledcolor (x, xredcolors, xgreencolors, xbluecolors, NULL)
+#define DMARECORD_SUBITEMS 8
+struct dmadebug
+{
+	uae_u32 l[DMARECORD_SUBITEMS];
+	uae_u8 r, g, b;
+	bool enabled;
+	int max;
+	const TCHAR *name;
+};
 
 static uae_u32 intlevc[] = { 0x000000, 0x444444, 0x008800, 0xffff00, 0x000088, 0x880000, 0xff0000, 0xffffff };
-static uae_u8 debug_colors_rgb[DMARECORD_MAX * 4];
-static uae_u32 debug_colors_l[DMARECORD_MAX];
+static struct dmadebug debug_colors[DMARECORD_MAX];
+static bool debug_colors_set;
 
-static void set_dbg_color(int index, uae_u8 r, uae_u8 g, uae_u8 b)
+static void set_dbg_color(int index, int extra, uae_u8 r, uae_u8 g, uae_u8 b, int max, const TCHAR *name)
 {
-	debug_colors_rgb[index * 4 + 0] = r;
-	debug_colors_rgb[index * 4 + 1] = g;
-	debug_colors_rgb[index * 4 + 2] = b;
-	debug_colors_l[index] = lc((r << 16) | (g << 8) | (b << 0));
+	if (extra == 0) {
+		debug_colors[index].r = r;
+		debug_colors[index].g = g;
+		debug_colors[index].b = b;
+		debug_colors[index].enabled = true;
+	}
+	if (name != NULL)
+		debug_colors[index].name = name;
+	if (max > 0)
+		debug_colors[index].max = max;
+	debug_colors[index].l[extra] = lc((r << 16) | (g << 8) | (b << 0));
 }
 
-static void set_debug_colors(uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
+static void set_debug_colors(void)
 {
-	set_dbg_color(0,						0x22, 0x22, 0x22);
-	set_dbg_color(DMARECORD_REFRESH,		0x44, 0x44, 0x44);
-	set_dbg_color(DMARECORD_CPU_D,			0xa2, 0x53, 0x42);
-	set_dbg_color(DMARECORD_CPU_I,			0xad, 0x98, 0xd6);
-	set_dbg_color(DMARECORD_COPPER,			0xee, 0xee, 0x00);
-	set_dbg_color(DMARECORD_AUDIO,			0xff, 0x00, 0x00);
-	set_dbg_color(DMARECORD_BLITTER,		0x00, 0x88, 0x88);
-	set_dbg_color(DMARECORD_BLITTER_FILL,	0x00, 0x88, 0xff);
-	set_dbg_color(DMARECORD_BLITTER_LINE,	0x00, 0xff, 0x00);
-	set_dbg_color(DMARECORD_BITPLANE,		0x00, 0x00, 0xff);
-	set_dbg_color(DMARECORD_SPRITE,			0xff, 0x00, 0xff);
-	set_dbg_color(DMARECORD_DISK,			0xff, 0xff, 0xff);
+	if (debug_colors_set)
+		return;
+	debug_colors_set = true;
+	set_dbg_color(0,						0, 0x22, 0x22, 0x22, 1, _T("-"));
+	set_dbg_color(DMARECORD_REFRESH,		0, 0x44, 0x44, 0x44, 4, _T("Refresh"));
+	set_dbg_color(DMARECORD_CPU,			0, 0xa2, 0x53, 0x42, 2, _T("CPU")); // code
+	set_dbg_color(DMARECORD_COPPER,			0, 0xee, 0xee, 0x00, 3, _T("Copper"));
+	set_dbg_color(DMARECORD_AUDIO,			0, 0xff, 0x00, 0x00, 4, _T("Audio"));
+	set_dbg_color(DMARECORD_BLITTER,		0, 0x00, 0x88, 0x88, 2, _T("Blitter"));
+	set_dbg_color(DMARECORD_BITPLANE,		0, 0x00, 0x00, 0xff, 8, _T("Bitplane"));
+	set_dbg_color(DMARECORD_SPRITE,			0, 0xff, 0x00, 0xff, 8, _T("Sprite"));
+	set_dbg_color(DMARECORD_DISK,			0, 0xff, 0xff, 0xff, 3, _T("Disk"));
+
+	for (int i = 0; i < DMARECORD_MAX; i++) {
+		for (int j = 1; j < DMARECORD_SUBITEMS; j++) {
+			debug_colors[i].l[j] = debug_colors[i].l[0];
+		}
+	}
+
+	set_dbg_color(DMARECORD_CPU,			1, 0xad, 0x98, 0xd6, 0, NULL); // data
+	set_dbg_color(DMARECORD_COPPER,			1, 0xaa, 0xaa, 0x22, 0, NULL); // wait
+	set_dbg_color(DMARECORD_COPPER,			2, 0x66, 0x66, 0x44, 0, NULL); // special
+	set_dbg_color(DMARECORD_BLITTER,		1, 0x00, 0x88, 0xff, 0, NULL); // fill
+	set_dbg_color(DMARECORD_BLITTER,		2, 0x00, 0xff, 0x00, 0, NULL); // line
 }
 
 static void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
@@ -1327,11 +1355,15 @@ static void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int he
 	struct dma_rec *dr;
 	int t;
 
-	if (debug_dma >= 4)
+	if (debug_dma >= 5)
+		yplus = 3;
+	else if (debug_dma >= 4)
 		yplus = 2;
 	else
 		yplus = 1;
-	if (debug_dma >= 3)
+	if (debug_dma >= 5)
+		xplus = 3;
+	else if (debug_dma >= 3)
 		xplus = 2;
 	else
 		xplus = 1;
@@ -1350,17 +1382,22 @@ static void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int he
 
 	uae_s8 intlev = 0;
 	for (x = 0; x < maxhpos; x++) {
-		uae_u32 c = debug_colors_l[0];
+		uae_u32 c = debug_colors[0].l[0];
 		xx = x * xplus + dx;
 		dr = &dma_record[t][y * NR_DMA_REC_HPOS + x];
 		if (dr->reg != 0xffff) {
-			c = debug_colors_l[dr->type];
+			if (debug_colors[dr->type].enabled)
+				c = debug_colors[dr->type].l[dr->extra];
+			else
+				c = 0;
 		}
 		if (dr->intlev > intlev)
 			intlev = dr->intlev;
 		putpixel (buf, bpp, xx + 4, c);
 		if (xplus)
 			putpixel (buf, bpp, xx + 4 + 1, c);
+		if (debug_dma >= 6)
+			putpixel (buf, bpp, xx + 4 + 2, c);
 	}
 	putpixel (buf, bpp, dx + 0, 0);
 	putpixel (buf, bpp, dx + 1, lc(intlevc[intlev]));
@@ -1381,7 +1418,7 @@ struct memory_heatmap
 	uae_u32 mask;
 	uae_u32 cpucnt;
 	uae_u16 cnt;
-	uae_u16 type;
+	uae_u16 type, extra;
 };
 
 static void debug_draw_heatmap(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
@@ -1410,13 +1447,13 @@ void debug_draw(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *
 {
 	if (!heatmap_debug_colors) {
 		heatmap_debug_colors = xcalloc(uae_u32, DMARECORD_MAX * HEATMAP_COUNT);
-		set_debug_colors(xredcolors, xgreencolors, xbluecolors);
+		set_debug_colors();
 		for (int i = 0; i < HEATMAP_COUNT; i++) {
 			uae_u32 *cp = heatmap_debug_colors + i * DMARECORD_MAX;
 			for (int j = 0; j < DMARECORD_MAX; j++) {
-				uae_u8 r = debug_colors_rgb[j * 4 + 0];
-				uae_u8 g = debug_colors_rgb[j * 4 + 1];
-				uae_u8 b = debug_colors_rgb[j * 4 + 2];
+				uae_u8 r = debug_colors[j].r;
+				uae_u8 g = debug_colors[j].g;
+				uae_u8 b = debug_colors[j].b;
 				r = r * i / HEATMAP_COUNT;
 				g = g * i / HEATMAP_COUNT;
 				b = b * i / HEATMAP_COUNT;
@@ -1635,6 +1672,7 @@ static void memwatch_heatmap (uaecptr addr, int rwi, int size, uae_u32 accessmas
 	}
 	hm->cnt = HEATMAP_COUNT - 1;
 	int type = 0;
+	int extra = 0;
 	for (int i = 0; i < 32; i++) {
 		if (accessmask & (1 << i)) {
 			switch (1 << i)
@@ -1670,16 +1708,18 @@ static void memwatch_heatmap (uaecptr addr, int rwi, int size, uae_u32 accessmas
 				type = DMARECORD_DISK;
 				break;
 				case MW_MASK_CPU_I:
-				type = DMARECORD_CPU_I;
+				type = DMARECORD_CPU;
 				break;
 				case MW_MASK_CPU_D_R:
 				case MW_MASK_CPU_D_W:
-				type = DMARECORD_CPU_D;
+				type = DMARECORD_CPU;
+				extra = 1;
 				break;
 			}
 		}
 	}
 	hm->type = type;
+	hm->extra = extra;
 	hm->mask |= accessmask;
 }
 
@@ -1695,7 +1735,26 @@ void record_dma_event (int evt, int hpos, int vpos)
 	dr->evt |= evt;
 }
 
-struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos, int type)
+void record_dma_replace(int hpos, int vpos, int type, int extra)
+{
+	struct dma_rec *dr;
+	if (!dma_record[0])
+		return;
+	if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
+		return;
+	dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
+	if (dr->reg == 0xffff) {
+		write_log(_T("DMA record replace without old data!\n"));
+		return;
+	}
+	if (dr->type != type) {
+		write_log(_T("DMA record replace type change %d -> %d!\n"), dr->type, type);
+		return;
+	}
+	dr->extra = extra;
+}
+
+struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos, int type, int extra)
 {
 	struct dma_rec *dr;
 
@@ -1717,6 +1776,7 @@ struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, in
 	dr->dat = dat;
 	dr->addr = addr;
 	dr->type = type;
+	dr->extra = extra;
 	dr->intlev = regs.intmask;
 	return dr;
 }
@@ -1758,20 +1818,22 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 			const TCHAR *sr;
 
 			sr = _T("    ");
-			if (dr->type == DMARECORD_COPPER)
+			if (dr->type == DMARECORD_COPPER) {
 				sr = _T("COP ");
-			else if (dr->type == DMARECORD_BLITTER)
-				sr = _T("BLT ");
-			else if (dr->type == DMARECORD_BLITTER_LINE)
-				sr = _T("BLL ");
-			else if (dr->type == DMARECORD_REFRESH)
+			} else if (dr->type == DMARECORD_BLITTER) {
+				if (dr->extra == 2)
+					sr = _T("BLL ");
+				else
+					sr = _T("BLT ");
+			} else if (dr->type == DMARECORD_REFRESH) {
 				sr = _T("RFS ");
-			else if (dr->type == DMARECORD_AUDIO)
+			} else if (dr->type == DMARECORD_AUDIO) {
 				sr = _T("AUD ");
-			else if (dr->type == DMARECORD_DISK)
+			} else if (dr->type == DMARECORD_DISK) {
 				sr = _T("DSK ");
-			else if (dr->type == DMARECORD_SPRITE)
+			} else if (dr->type == DMARECORD_SPRITE) {
 				sr = _T("SPR ");
+			}
 			_stprintf (l1 + cl, _T("[%02X %3d]"), h, h);
 			_tcscpy (l4 + cl, _T("        "));
 			if (r != 0xffff) {
@@ -1809,8 +1871,11 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 				l3[cl2++] = 'p';
 			if (dr->evt & DMA_EVENT_COPPERWAKE)
 				l3[cl2++] = 'W';
-			if (dr->evt & DMA_EVENT_COPPERWANTED)
+			if (dr->evt & DMA_EVENT_NOONEGETS) {
+				l3[cl2++] = '#';
+			} else if (dr->evt & DMA_EVENT_COPPERWANTED) {
 				l3[cl2++] = 'c';
+			}
 			if (dr->evt & DMA_EVENT_CPUIRQ)
 				l3[cl2++] = 'I';
 			if (dr->evt & DMA_EVENT_INTREQ)
@@ -5153,6 +5218,46 @@ static bool debug_line (TCHAR *input)
 							heatmap_stats(&inptr);
 						}
 					}
+				} else if (*inptr == 'o') {
+					if (debug_dma) {
+						console_out_f (_T("DMA debugger disabled\n"), debug_dma);
+						record_dma_reset();
+						debug_dma = 0;
+					}
+				} else if (*inptr == 'm') {
+					set_debug_colors();
+					inptr++;
+					if (more_params(&inptr)) {
+						v1 = readint(&inptr);
+						if (v1 >= 0 && v1 < DMARECORD_MAX) {
+							v2 = readint(&inptr);
+							if (v2 >= 0 && v2 <= DMARECORD_SUBITEMS) {
+								if (more_params(&inptr)) {
+									uae_u32 rgb = readhex(&inptr);
+									if (v2 == 0) {
+										for (int i = 0; i < DMARECORD_SUBITEMS; i++) {
+											debug_colors[v1].l[i] = rgb;
+										}
+									} else {
+										v2--;
+										debug_colors[v1].l[v2] = rgb;
+									}
+									debug_colors[v1].enabled = true;
+								} else {
+									debug_colors[v1].enabled = !debug_colors[v1].enabled;
+								}
+								console_out_f(_T("%d,%d: %08x %s %s\n"), v1, v2, debug_colors[v1].l[v2], debug_colors[v1].enabled ? _T("*") : _T(" "), debug_colors[v1].name);
+							}
+						}
+					} else {
+						for (int i = 0; i < DMARECORD_MAX; i++) {
+							for (int j = 0; j < DMARECORD_SUBITEMS; j++) {
+								if (j < debug_colors[i].max) {
+									console_out_f(_T("%d,%d: %08x %s %s\n"), i, j, debug_colors[i].l[j], debug_colors[i].enabled ? _T("*") : _T(" "), debug_colors[i].name);
+								}
+							}
+						}
+					}
 				} else {
 					if (more_params(&inptr) && *inptr == '?') {
 						mw_help();
@@ -5162,9 +5267,11 @@ static bool debug_line (TCHAR *input)
 							v1 = readint (&inptr);
 						if (more_params (&inptr))
 							v2 = readint (&inptr);
-						if (debug_dma) {
+						if (debug_dma && v1 >= 0 && v2 >= 0) {
 							decode_dma_record (v2, v1, cmd == 'v', false);
 						} else {
+							if (debug_dma)
+								record_dma_reset();
 							debug_dma = v1 < 0 ? -v1 : 1;
 							console_out_f (_T("DMA debugger enabled, mode=%d.\n"), debug_dma);
 						}
