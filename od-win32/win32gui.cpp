@@ -11312,7 +11312,6 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_model > 0);
 	ew (hDlg, IDC_FPU_UNIMPLEMENTED, workprefs.fpu_model && !workprefs.cachesize);
 	ew (hDlg, IDC_FPU_SOFTFLOAT, workprefs.fpu_model && (!workprefs.compfpu || !workprefs.cachesize));
-	ew (hDlg, IDC_FPU_EXCEPTIONS, workprefs.fpu_model && (!workprefs.compfpu || !workprefs.cachesize) && workprefs.fpu_softfloat);
 	ew (hDlg, IDC_CPU_UNIMPLEMENTED, workprefs.cpu_model == 68060 && !workprefs.cachesize);
 #if 0
 	ew (hDlg, IDC_CPU_MULTIPLIER, workprefs.cpu_cycle_exact);
@@ -11360,7 +11359,6 @@ static void values_to_cpudlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_strict);
 	CheckDlgButton (hDlg, IDC_FPU_UNIMPLEMENTED, !workprefs.fpu_no_unimplemented || workprefs.cachesize);
 	CheckDlgButton (hDlg, IDC_FPU_SOFTFLOAT, workprefs.fpu_softfloat);
-	CheckDlgButton (hDlg, IDC_FPU_EXCEPTIONS, workprefs.fpu_exceptions);
 	CheckDlgButton (hDlg, IDC_CPU_UNIMPLEMENTED, !workprefs.int_no_unimplemented || workprefs.cachesize);
 	SendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.cpu_idle == 0 ? 0 : 12 - workprefs.cpu_idle / 15);
 	SendDlgItemMessage (hDlg, IDC_PPC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.ppc_cpu_idle);
@@ -11421,7 +11419,6 @@ static void values_from_cpudlg (HWND hDlg)
 	workprefs.fpu_strict = ischecked (hDlg, IDC_COMPATIBLE_FPU) ? 1 : 0;
 	workprefs.fpu_no_unimplemented = ischecked (hDlg, IDC_FPU_UNIMPLEMENTED) ? 0 : 1;
 	workprefs.fpu_softfloat = ischecked (hDlg, IDC_FPU_SOFTFLOAT) ? 1 : 0;
-	workprefs.fpu_exceptions = (ischecked (hDlg, IDC_FPU_EXCEPTIONS) ? 1 : 0) && workprefs.fpu_softfloat;
 	workprefs.int_no_unimplemented = ischecked (hDlg, IDC_CPU_UNIMPLEMENTED) ? 0 : 1;
 	workprefs.address_space_24 = ischecked (hDlg, IDC_COMPATIBLE24) ? 1 : 0;
 	workprefs.m68k_speed = ischecked (hDlg, IDC_CS_HOST) ? -1 : 0;
@@ -11526,7 +11523,6 @@ static void values_from_cpudlg (HWND hDlg)
 	}
 	if (workprefs.cachesize && workprefs.compfpu && workprefs.fpu_softfloat) {
 		workprefs.fpu_softfloat = false;
-		workprefs.fpu_exceptions = false;
 		setchecked(hDlg, IDC_FPU_SOFTFLOAT, false);
 	}
 	if (oldcache == 0 && workprefs.cachesize > 0) {

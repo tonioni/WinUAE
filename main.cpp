@@ -296,10 +296,9 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log (_T("JIT is not compatible with unimplemented CPU/FPU instruction emulation."));
 		p->fpu_no_unimplemented = p->int_no_unimplemented = false;
 	}
-	if (p->cachesize && p->compfpu && (p->fpu_softfloat || p->fpu_exceptions)) {
+	if (p->cachesize && p->compfpu && p->fpu_softfloat) {
 		error_log (_T("JIT FPU emulation is not compatible with softfloat FPU emulation."));
 		p->fpu_softfloat = false;
-		p->fpu_exceptions = false;
 	}
 
 #if 0
@@ -357,6 +356,8 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		p->fastmem[0].size = p->cpuboardmem1_size;
 	} else if (cpuboard_memorytype(p) == BOARD_MEMORY_25BITMEM) {
 		p->mem25bit_size = p->cpuboardmem1_size;
+	} else if (cpuboard_memorytype(p) == BOARD_MEMORY_CUSTOM_32) {
+		p->mem25bit_size = 0;
 	}
 
 	if (((p->chipmem_size & (p->chipmem_size - 1)) != 0 && p->chipmem_size != 0x180000)

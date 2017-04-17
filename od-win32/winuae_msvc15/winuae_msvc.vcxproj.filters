@@ -65,6 +65,9 @@
     <Filter Include="support">
       <UniqueIdentifier>{fe9d96c8-c5ef-4f92-b9dc-79b5d3e4145c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="softfloat">
+      <UniqueIdentifier>{b113952e-b596-4a9e-922f-8ccff5b915ed}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ahidsound_dsonly.cpp">
@@ -775,14 +778,11 @@
     <ClCompile Include="..\..\fpp_softfloat.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\softfloat\softfloat.cpp">
-      <Filter>qemu</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\softfloat\softfloat_extension.cpp">
-      <Filter>qemu</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\slirp_uae.cpp">
       <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\slirp.cpp">
+      <Filter>slirp</Filter>
     </ClCompile>
     <ClCompile Include="..\..\slirp\udp.cpp">
       <Filter>slirp</Filter>
@@ -806,9 +806,6 @@
       <Filter>slirp</Filter>
     </ClCompile>
     <ClCompile Include="..\..\slirp\slirpdebug.cpp">
-      <Filter>slirp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\slirp\slirp.cpp">
       <Filter>slirp</Filter>
     </ClCompile>
     <ClCompile Include="..\..\slirp\sbuf.cpp">
@@ -838,8 +835,17 @@
     <ClCompile Include="..\..\slirp\bootp.cpp">
       <Filter>slirp</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\softfloat\softfloat.cpp">
+      <Filter>softfloat</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\softfloat\softfloat_decimal.cpp">
-      <Filter>qemu</Filter>
+      <Filter>softfloat</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\softfloat\softfloat_extension.cpp">
+      <Filter>softfloat</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\softfloat\softfloat_fpsp.cpp">
+      <Filter>softfloat</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

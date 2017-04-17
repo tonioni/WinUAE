@@ -3563,16 +3563,20 @@ void expansion_map(void)
 	// map non-autoconfig ram boards
 	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
 		struct ramboard *rb = &currprefs.fastmem[i];
-		if (rb->manual_config) {
-			map_banks(&fastmem_bank[i], rb->start_address >> 16, (rb->end_address - rb->start_address + 1) >> 16, 0);
-		} else if (rb->no_reset_unmap && rb->start_address) {
-			map_banks(&fastmem_bank[i], rb->start_address >> 16, rb->size >> 16, 0);
+		if (rb->size) {
+			if (rb->manual_config) {
+				map_banks(&fastmem_bank[i], rb->start_address >> 16, (rb->end_address - rb->start_address + 1) >> 16, 0);
+			} else if (rb->no_reset_unmap && rb->start_address) {
+				map_banks(&fastmem_bank[i], rb->start_address >> 16, rb->size >> 16, 0);
+			}
 		}
 		rb = &currprefs.z3fastmem[i];
-		if (rb->manual_config) {
-			map_banks(&z3fastmem_bank[i], rb->start_address >> 16, (rb->end_address - rb->start_address + 1) >> 16, 0);
-		} else if (rb->no_reset_unmap && rb->start_address) {
-			map_banks(&z3fastmem_bank[i], rb->start_address >> 16, rb->size >> 16, 0);
+		if (rb->size) {
+			if (rb->manual_config) {
+				map_banks(&z3fastmem_bank[i], rb->start_address >> 16, (rb->end_address - rb->start_address + 1) >> 16, 0);
+			} else if (rb->no_reset_unmap && rb->start_address) {
+				map_banks(&z3fastmem_bank[i], rb->start_address >> 16, rb->size >> 16, 0);
+			}
 		}
 	}
 	if (currprefs.z3chipmem_size) {
@@ -4445,6 +4449,15 @@ const struct expansionromtype expansionroms[] = {
 		2092, 8, 0
 	},
 	{
+		_T("malibu"), _T("Malibu"), _T("California Access"),
+		malibu_init, NULL, malibu_add_scsi_unit, ROMTYPE_MALIBU, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI,
+		0, 0, 0, false, NULL,
+		false, 0, NULL,
+		{ 0xd1, 0x01, 0x00, 0x00, 0x08, 0x11, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00 },
+	},
+	{
 		_T("cltda1000scsi"), _T("A1000/A2000 SCSI"), _T("C-Ltd"),
 		cltda1000scsi_init, NULL, cltda1000scsi_add_scsi_unit, ROMTYPE_CLTDSCSI | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
@@ -4473,6 +4486,12 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SCSI,
 		0, 0, 0, false, NULL,
 		true, 0, a4091_settings
+	},
+	{
+		_T("comspec1000"), _T("SA-1000"), _T("Comspec"),
+		comspec_init, NULL, comspec_add_scsi_unit, ROMTYPE_COMSPEC, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI
 	},
 	{
 		_T("dataflyerscsiplus"), _T("DataFlyer SCSI+"), _T("Expansion Systems"),
@@ -5409,6 +5428,10 @@ static const struct expansionboardsettings apollo_settings[] = {
 		_T("scsi")
 	},
 	{
+		_T("Memory disable"),
+		_T("memory")
+	},
+	{
 		NULL
 	}
 };
@@ -5419,8 +5442,8 @@ static const struct cpuboardsubtype apollo_sub[] = {
 		_T("Apollo"),
 		ROMTYPE_CB_APOLLO, 0,
 		apollo_add_scsi_unit, EXPANSIONTYPE_SCSI,
-		BOARD_MEMORY_HIGHMEM,
-		128 * 1024 * 1024,
+		BOARD_MEMORY_CUSTOM_32,
+		64 * 1024 * 1024,
 		0,
 		apollo_init_cpu, NULL, 2, 0,
 		apollo_settings

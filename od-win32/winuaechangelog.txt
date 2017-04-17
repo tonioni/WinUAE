@@ -4,6 +4,44 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+
+Beta 6:
+
+- Comspec SA-1000 SCSI HD controller emulation. (Partially implemented only, don't have working install disk)
+- California Access Malibu SCSI HD controller emulation.
+- Stop immediately with halt code 11 if initial PC does not point to any valid address or is odd when CPU emulator starts.
+- Manually configured but disabled (size zero) Z2/Z3 banks were added to system.
+- Apollo 1240/1260 memory address space fixed. Memory disable jumper option added.
+- 68000 address error stacked PC was not correct in some read-modify-write instructions.
+- If Custom board order was enabled, expansion devices custom config setting(s) was not saved correctly.
+- Emulate rare 68040/060 FPU (with unimplemented instructions not emulated) fpsp (68040/060.library) software emulation case
+  correctly when both operands are denormals.
+- Show [Paused] in windowed mode title bar when in pause mode.
+- Transcendental functions added to softfloat emulation (Andreas Grabher). Not 100% identical results compared to
+  6888x but almost. Softfloat mode is now complete.
+- Removed Arithmetic exceptions option, it is now always enabled in softfloat mode. (It was only temporary option until
+  arithmetic exceptions are fully implemented)
+- Visual DMA debugger can be switched off, "vo".
+- Added visual DMA debugger -5 and -6 modes (-5 = larger overlay with "transparency" and -6 = no "transparency)
+- Added separate colors for visual DMA debugger copper wait and special cases (strobe extra cycle, 0xe0 cycle)
+- Added visual DMA debugger configuration: DMA channels can be disabled and colors can be changed.
+  "vm" = show status
+  "vm <channel> <sub index>" = enable/disable toggle. (sub index is not used but must be included)
+  "vm <channel> <sub index> <hex rgb>" = change color of channel. If sub index is zero: all sub index colors are changed.
+
+Comspec SA-1000:
+
+- Autobooting A1000 HD controller that also supports loading KS disk from HD!
+- Not RDB compatible.
+- WD33C93 based, PIO, handshake in hardware but still needs status register polling.
+- "ComspecHD.device 34.805 (17 Oct 1988)" added to ROM scanner.
+
+California Access Malibu:
+
+- 5380 SCSI, fake DMA (Long word)
+- "Malibu.device 1.0 (1 Jan 1991)" added to ROM scanner.
+
+
 Beta 5:
 
 - Added Actionware dual light gun adapter emulation. Second gun config entries added to Input panel.

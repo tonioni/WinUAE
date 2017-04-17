@@ -897,6 +897,7 @@
     <ClCompile Include="..\..\softfloat\softfloat.cpp" />
     <ClCompile Include="..\..\softfloat\softfloat_decimal.cpp" />
     <ClCompile Include="..\..\softfloat\softfloat_extension.cpp" />
+    <ClCompile Include="..\..\softfloat\softfloat_fpsp.cpp" />
     <ClCompile Include="..\..\specialmonitors.cpp" />
     <ClCompile Include="..\..\statusline.cpp" />
     <ClCompile Include="..\..\support\time.cpp" />
