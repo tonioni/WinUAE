@@ -1556,9 +1556,13 @@ void cpuboard_map(void)
 				map_banks(&cpuboardmem2_bank, cpuboardmem2_bank.start >> 16, (0x10000000 - cpuboardmem2_bank.start) >> 16, cpuboardmem2_bank.allocated_size);
 		}
 	}
-	if (is_mtec_ematrix530(&currprefs) || is_sx32pro(&currprefs)) {
+
+	if (is_mtec_ematrix530(&currprefs) || is_sx32pro(&currprefs) || is_apollo(&currprefs)) {
 		if (cpuboardmem1_bank.allocated_size) {
 			map_banks(&cpuboardmem1_bank, cpuboardmem1_bank.start >> 16, cpuboardmem1_bank.allocated_size >> 16, 0);
+		}
+		if (cpuboardmem2_bank.allocated_size) {
+			map_banks(&cpuboardmem2_bank, cpuboardmem2_bank.start >> 16, cpuboardmem2_bank.allocated_size >> 16, 0);
 		}
 	}
 }
@@ -1648,7 +1652,43 @@ void cpuboard_cleanup(void)
 
 	mapped_free(&cpuboardmem1_bank);
 	mapped_free(&cpuboardmem2_bank);
+	cpuboardmem1_bank.jit_read_flag = 0;
+	cpuboardmem1_bank.jit_write_flag = 0;
+	cpuboardmem2_bank.jit_read_flag = 0;
+	cpuboardmem2_bank.jit_write_flag = 0;
 }
+
+static void memory_mirror_bank(addrbank *bank, uaecptr end_addr)
+{
+	uaecptr addr = bank->start;
+	while (addr + bank->allocated_size < end_addr) {
+		map_banks(bank, (addr + bank->allocated_size) >> 16, bank->allocated_size >> 16, 0);
+		addr += bank->allocated_size;
+	}
+}
+
+static void cpuboard_custom_memory(uaecptr addr, int max, bool swap, bool alias)
+{
+	int size1 = swap ? currprefs.cpuboardmem2_size : currprefs.cpuboardmem1_size;
+	int size2 = swap ? currprefs.cpuboardmem1_size : currprefs.cpuboardmem2_size;
+	int size_low = size1;
+	max *= 1024 * 1024;
+	if (size_low > max)
+		size_low = max;
+	int size_high;
+	if (size2 == 0 && size1 > max) {
+		size_high = size1 - max;
+	} else {
+		size_high = size2;
+	}
+	if (!size_low && !size_high)
+		return;
+	cpuboardmem1_bank.start = addr - size_low;
+	cpuboardmem1_bank.reserved_size = size_low + size_high;
+	cpuboardmem1_bank.mask = cpuboardmem1_bank.reserved_size - 1;
+	mapped_malloc(&cpuboardmem1_bank);
+}
+
 
 static void cpuboard_init_2(void)
 {
@@ -1713,6 +1753,9 @@ static void cpuboard_init_2(void)
 		blizzardf0_bank.reserved_size = 131072;
 		blizzardf0_bank.mask = blizzardf0_bank.reserved_size - 1;
 		mapped_malloc(&blizzardf0_bank);
+
+		cpuboard_custom_memory(0x03000000, 32, false, true);
+
 
 	} else if (is_fusionforty(&currprefs)) {
 
@@ -1898,7 +1941,6 @@ void cpuboard_init(void)
 	cpuboard_cleanup();
 	cpuboard_init_2();
 }
-
 
 void cpuboard_overlay_override(void)
 {

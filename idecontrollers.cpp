@@ -1596,8 +1596,8 @@ void alf_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *r
 // prod 0x33 = IDE only
 
 const uae_u8 apollo_autoconfig[16] = { 0xd1, 0x22, 0x00, 0x00, 0x22, 0x22, 0x00, 0x00, 0x00, 0x00, APOLLO_ROM_OFFSET >> 8, APOLLO_ROM_OFFSET & 0xff };
-const uae_u8 apollo_autoconfig_cpuboard[16] = { 0xd2, 0x23, 0x00, 0x00, 0x22, 0x22, 0x00, 0x00, 0x00, 0x00, APOLLO_ROM_OFFSET >> 8, APOLLO_ROM_OFFSET & 0xff };
-const uae_u8 apollo_autoconfig_cpuboard_060[16] = { 0xd2, 0x23, 0x00, 0x00, 0x22, 0x22, 0x00, 0x00, 0x00, 0x02, APOLLO_ROM_OFFSET >> 8, APOLLO_ROM_OFFSET & 0xff };
+const uae_u8 apollo_autoconfig_cpuboard[16] = { 0xd2, 0x23, 0x40, 0x00, 0x22, 0x22, 0x00, 0x00, 0x00, 0x00, APOLLO_ROM_OFFSET >> 8, APOLLO_ROM_OFFSET & 0xff };
+const uae_u8 apollo_autoconfig_cpuboard_060[16] = { 0xd2, 0x23, 0x40, 0x00, 0x22, 0x22, 0x00, 0x00, 0x00, 0x02, APOLLO_ROM_OFFSET >> 8, APOLLO_ROM_OFFSET & 0xff };
 
 static bool apollo_init(struct autoconfig_info *aci, bool cpuboard)
 {
@@ -1620,7 +1620,9 @@ static bool apollo_init(struct autoconfig_info *aci, bool cpuboard)
 		return false;
 
 	if (cpuboard) {
-		ide->userdata = currprefs.cpuboard_settings & 3;
+		// bit 0: scsi enable
+		// bit 1: memory disable
+		ide->userdata = currprefs.cpuboard_settings & 1;
 	} else {
 		ide->userdata = aci->rc->autoboot_disabled ? 2 : 0;
 	}
@@ -1638,6 +1640,8 @@ static bool apollo_init(struct autoconfig_info *aci, bool cpuboard)
 	ide->keepautoconfig = false;
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = autoconfig[i];
+		if (cpuboard && i == 9 && (currprefs.cpuboard_settings & 2))
+			b |= 1; // memory disable (serial bit 0)
 		ew(ide, i * 4, b);
 	}
 	if (cpuboard) {
