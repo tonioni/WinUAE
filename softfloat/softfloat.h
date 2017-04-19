@@ -401,13 +401,6 @@ flag floatx80_le( floatx80, floatx80, float_status *status);
 flag floatx80_lt( floatx80, floatx80, float_status *status);
 
 #ifdef SOFTFLOAT_68K
-flag floatx80_is_zero( floatx80 );
-flag floatx80_is_infinity( floatx80 );
-flag floatx80_is_negative( floatx80 );
-flag floatx80_is_denormal( floatx80 );
-flag floatx80_is_unnormal( floatx80 );
-flag floatx80_is_normal( floatx80 );
-
 // functions are in softfloat.c
 floatx80 floatx80_move( floatx80 a, float_status *status );
 floatx80 floatx80_abs( floatx80 a, float_status *status );
@@ -448,9 +441,6 @@ void normalizeFloatx80Subnormal( uint64_t aSig, int32_t *zExpPtr, uint64_t *zSig
 floatx80 packFloatx80( flag zSign, int32_t zExp, uint64_t zSig );
 floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign, int32_t zExp, uint64_t zSig0, uint64_t zSig1, float_status *status);
 
-// functions are in softfloat-specialize.h
-floatx80 propagateFloatx80NaNOneArg( floatx80 a, float_status *status );
-floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b, float_status *status );
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision operations.
 *----------------------------------------------------------------------------*/
@@ -460,7 +450,6 @@ floatx80 floatx80_sub(floatx80, floatx80, float_status *status);
 floatx80 floatx80_mul(floatx80, floatx80, float_status *status);
 floatx80 floatx80_div(floatx80, floatx80, float_status *status);
 floatx80 floatx80_sqrt(floatx80, float_status *status);
-flag floatx80_is_signaling_nan(floatx80);
 floatx80 floatx80_normalize(floatx80);
 floatx80 floatx80_denormalize(floatx80, flag);
 
@@ -495,10 +484,5 @@ static inline bool floatx80_invalid_encoding(floatx80 a)
 #define floatx80_pi make_floatx80(0x4000, 0xc90fdaa22168c235LL)
 #define floatx80_half make_floatx80(0x3ffe, 0x8000000000000000LL)
 #define floatx80_infinity make_floatx80(0x7fff, 0x8000000000000000LL)
-
-/*----------------------------------------------------------------------------
-| The pattern for a default generated extended double-precision NaN.
-*----------------------------------------------------------------------------*/
-floatx80 floatx80_default_nan(float_status *status);
 
 #endif /* SOFTFLOAT_H */

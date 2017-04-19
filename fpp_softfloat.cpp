@@ -285,14 +285,6 @@ static void fp_denormalize(fpdata *fpd, int esign)
 
 /* Functions for rounding */
 
-static floatx80 fp_to_sgl(floatx80 a)
-{
-	floatx80 v = floatx80_round32(a, &fs);
-	v.high &= 0x7fff;
-	v.high |= a.high & 0x7fff;
-	return v;
-}
-
 // round to float with extended precision exponent
 static void fp_round32(fpdata *fpd)
 {
@@ -317,6 +309,7 @@ static void fp_round_double(fpdata *fpd)
 	fpd->fpx = floatx80_round_to_float64(fpd->fpx, &fs);
 }
 
+#if 0
 // round to selected precision
 static void fp_round(fpdata *a)
 {
@@ -331,6 +324,7 @@ static void fp_round(fpdata *a)
 		break;
 	}
 }
+#endif
 
 /* Arithmetic functions */
 
@@ -921,6 +915,7 @@ static void fp_from_pack(fpdata *fp, uae_u32 *wrd, int kfactor)
 		exponent = f.high & 0x3FFF;
 		significand = f.low;
 		
+		pack_int = 0;
 		pack_frac = 0;
 		len = kfactor; // SoftFloat saved len to kfactor variable
 		while (len > 0) {

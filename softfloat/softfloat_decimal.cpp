@@ -26,7 +26,7 @@ Arithmetic Package, Release 2a.
 | Methods for converting decimal floats to binary extended precision floats.
 *----------------------------------------------------------------------------*/
 
-void round128to64(flag aSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, float_status *status)
+static void round128to64(flag aSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, float_status *status)
 {
 	flag increment;
 	int32_t zExp;
@@ -66,7 +66,7 @@ void round128to64(flag aSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, f
 	*aSig1 = 0;
 }
 
-void mul128by128round(int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t bExp, uint64_t bSig0, uint64_t bSig1, float_status *status)
+static void mul128by128round(int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t bExp, uint64_t bSig0, uint64_t bSig1, float_status *status)
 {
 	int32_t zExp;
 	uint64_t zSig0, zSig1, zSig2, zSig3;
@@ -91,7 +91,7 @@ void mul128by128round(int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t b
 	round128to64(0, aExp, aSig0, aSig1, status);
 }
 
-void mul128by128(int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t bExp, uint64_t bSig0, uint64_t bSig1)
+static void mul128by128(int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t bExp, uint64_t bSig0, uint64_t bSig1)
 {
 	int32_t zExp;
 	uint64_t zSig0, zSig1, zSig2, zSig3;
@@ -112,7 +112,7 @@ void mul128by128(int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t bExp, 
 	*aSig1 = zSig1;
 }
 
-void div128by128(int32_t *paExp, uint64_t *paSig0, uint64_t *paSig1, int32_t bExp, uint64_t bSig0, uint64_t bSig1)
+static void div128by128(int32_t *paExp, uint64_t *paSig0, uint64_t *paSig1, int32_t bExp, uint64_t bSig0, uint64_t bSig1)
 {
 	int32_t zExp, aExp;
 	uint64_t zSig0, zSig1, aSig0, aSig1;
@@ -178,7 +178,7 @@ void tentoint128(flag mSign, flag eSign, int32_t *aExp, uint64_t *aSig0, uint64_
 
 #else
 
-void tentoint128(flag mSign, flag eSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t scale, float_status *status)
+static void tentoint128(flag mSign, flag eSign, int32_t *aExp, uint64_t *aSig0, uint64_t *aSig1, int32_t scale, float_status *status)
  {
     int8_t save_rounding_mode;
     int32_t mExp;
@@ -230,7 +230,7 @@ void tentoint128(flag mSign, flag eSign, int32_t *aExp, uint64_t *aSig0, uint64_
 
 #endif
 
-int64_t tentointdec(int32_t scale)
+static int64_t tentointdec(int32_t scale)
 {
 	uint64_t decM, decX;
 	 
@@ -249,7 +249,7 @@ int64_t tentointdec(int32_t scale)
 }
 
 
-int64_t float128toint64(flag zSign, int32_t zExp, uint64_t zSig0, uint64_t zSig1, float_status *status)
+static int64_t float128toint64(flag zSign, int32_t zExp, uint64_t zSig0, uint64_t zSig1, float_status *status)
 {
 	int8_t roundingMode;
 	flag roundNearestEven, increment;
@@ -280,7 +280,7 @@ int64_t float128toint64(flag zSign, int32_t zExp, uint64_t zSig0, uint64_t zSig1
 	return z;
 }
 
-int32_t getDecimalExponent(int32_t aExp, uint64_t aSig)
+static int32_t getDecimalExponent(int32_t aExp, uint64_t aSig)
 {
 	flag zSign;
 	int32_t zExp, shiftCount;

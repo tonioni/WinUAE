@@ -285,6 +285,24 @@ static float64 propagateFloat64NaN( float64 a, float64 b, float_status *status )
     }
 
 }
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the extended double-precision floating-point value `a' is a
+| signaling NaN; otherwise returns 0.
+*----------------------------------------------------------------------------*/
+
+static inline flag floatx80_is_signaling_nan( floatx80 a )
+{
+    uint64_t aLow;
+
+    aLow = a.low & ~ LIT64( 0x4000000000000000 );
+    return
+           ( ( a.high & 0x7FFF ) == 0x7FFF )
+        && (uint64_t) ( aLow<<1 )
+        && ( a.low == aLow );
+
+}
+
 /*----------------------------------------------------------------------------
 | Returns the result of converting the extended double-precision floating-
 | point NaN `a' to the canonical NaN format.  If `a' is a signaling NaN, the
@@ -369,23 +387,6 @@ static inline floatx80 propagateFloatx80NaNOneArg(floatx80 a, float_status *stat
     return a;
 }
 #endif
-
-/*----------------------------------------------------------------------------
-| Returns 1 if the extended double-precision floating-point value `a' is a
-| signaling NaN; otherwise returns 0.
-*----------------------------------------------------------------------------*/
-
-static flag floatx80_is_signaling_nan( floatx80 a )
-{
-    uint64_t aLow;
-
-    aLow = a.low & ~ LIT64( 0x4000000000000000 );
-    return
-           ( ( a.high & 0x7FFF ) == 0x7FFF )
-        && (uint64_t) ( aLow<<1 )
-        && ( a.low == aLow );
-
-}
 
 // 28-12-2016: Added for Previous:
 
