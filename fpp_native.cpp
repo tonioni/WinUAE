@@ -546,7 +546,7 @@ static void fp_round_double(fpdata *fpd)
 static const TCHAR *fp_print(fpdata *fpd, int mode)
 {
 	static TCHAR fsout[32];
-	bool n, d;
+	bool n;
 
 	if (mode < 0) {
 		uae_u32 w1, w2, w3;
@@ -556,7 +556,6 @@ static const TCHAR *fp_print(fpdata *fpd, int mode)
 	}
 
 	n = signbit(fpd->fp) ? 1 : 0;
-	d = isnormal(fpd->fp) ? 0 : 1;
 
 	if(isinf(fpd->fp)) {
 		_stprintf(fsout, _T("%c%s"), n ? '-' : '+', _T("inf"));

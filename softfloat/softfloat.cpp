@@ -822,27 +822,6 @@ static float32 roundAndPackFloat32(flag zSign, int zExp, uint32_t zSig,
 }
 
 /*----------------------------------------------------------------------------
-| Takes an abstract floating-point value having sign `zSign', exponent `zExp',
-| and significand `zSig', and returns the proper single-precision floating-
-| point value corresponding to the abstract input.  This routine is just like
-| `roundAndPackFloat32' except that `zSig' does not have to be normalized.
-| Bit 31 of `zSig' must be zero, and `zExp' must be 1 less than the ``true''
-| floating-point exponent.
-*----------------------------------------------------------------------------*/
-
-static float32
- normalizeRoundAndPackFloat32(flag zSign, int zExp, uint32_t zSig,
-                              float_status *status)
-{
-    int8_t shiftCount;
-
-    shiftCount = countLeadingZeros32( zSig ) - 1;
-    return roundAndPackFloat32(zSign, zExp - shiftCount, zSig<<shiftCount,
-                               status);
-
-}
-
-/*----------------------------------------------------------------------------
 | Returns the fraction bits of the double-precision floating-point value `a'.
 *----------------------------------------------------------------------------*/
 
@@ -1023,27 +1002,6 @@ static float64 roundAndPackFloat64(flag zSign, int zExp, uint64_t zSig,
     zSig &= ~ ( ( ( roundBits ^ 0x200 ) == 0 ) & roundNearestEven );
     if ( zSig == 0 ) zExp = 0;
     return packFloat64( zSign, zExp, zSig );
-
-}
-
-/*----------------------------------------------------------------------------
-| Takes an abstract floating-point value having sign `zSign', exponent `zExp',
-| and significand `zSig', and returns the proper double-precision floating-
-| point value corresponding to the abstract input.  This routine is just like
-| `roundAndPackFloat64' except that `zSig' does not have to be normalized.
-| Bit 63 of `zSig' must be zero, and `zExp' must be 1 less than the ``true''
-| floating-point exponent.
-*----------------------------------------------------------------------------*/
-
-static float64
- normalizeRoundAndPackFloat64(flag zSign, int zExp, uint64_t zSig,
-                              float_status *status)
-{
-    int8_t shiftCount;
-
-    shiftCount = countLeadingZeros64( zSig ) - 1;
-    return roundAndPackFloat64(zSign, zExp - shiftCount, zSig<<shiftCount,
-                               status);
 
 }
 
