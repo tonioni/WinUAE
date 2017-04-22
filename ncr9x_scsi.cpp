@@ -669,6 +669,9 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 	int reg_shift = 2;
 	uaecptr oldaddr = addr;
 
+	if (!ncr)
+		return;
+
 	addr &= ncr->board_mask;
 
 	if (isncr(ncr, ncr_scram5394_scsi)) {
@@ -1005,6 +1008,9 @@ static uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 	uae_u8 v = 0xff;
 	int reg_shift = 2;
 	uaecptr oldaddr = addr;
+
+	if (!ncr)
+		return v;
 
 	addr &= ncr->board_mask;
 
