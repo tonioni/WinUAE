@@ -83,7 +83,7 @@ struct wd_state {
 	uae_u8 dmacmemory[128];
 	uae_u8 *rom;
 	int board_mask;
-	uaecptr baseaddress;
+	uaecptr baseaddress, baseaddress2;
 	int rombankswitcher, rombank;
 	int rom_size, rom_mask;
 	struct romconfig *rc;
