@@ -841,9 +841,6 @@
     <ClCompile Include="..\..\softfloat\softfloat_decimal.cpp">
       <Filter>softfloat</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\softfloat\softfloat_extension.cpp">
-      <Filter>softfloat</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\softfloat\softfloat_fpsp.cpp">
       <Filter>softfloat</Filter>
     </ClCompile>

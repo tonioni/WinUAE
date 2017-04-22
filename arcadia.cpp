@@ -959,7 +959,7 @@ uae_u16 alg_joydat(int joy, uae_u16 v)
 {
 	if (!alg_flag)
 		return v;
-	int ply = (alg_potgo & 0x4000) && (alg_potgo & 0x8000) ? 1 : 0;
+	int ply = alg_get_player(alg_potgo);
 	v = 0;
 	if (joy == 0) {
 

@@ -4,6 +4,18 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 7:
+
+- Accessing accelerator board SCSI IO region without any added SCSI device caused crash.
+- winlaunch.lib native code use attempts are now internally "emulated". Library is not used or needed anymore.
+- Old style 0xf00000 boot rom is automatically mapped (if memory is not already in use and "new" rom mode) if it looks like
+  program is directly jumping to boot rom trap space instead of using uae.resource.
+- AGA FMODE>0 unaligned bitplane and sprite pointer behavior should be now accurately emulated. (It is not simple masking)
+  Sprites not tested (too boring) but both should use same DMA hardware.
+- Added A590 v4.6 boot ROM to ROM scanner.
+- Fixed A590 XT mode request sense handling (for example if out of bounds read).
+- 68040/060 without FPU or 68060 with FPU disabled exception had wrong PC OF FAULTED INSTRUCTION field in exception stack frame.
+- Comspec SA-1000 controller emulation remaining features implemented.
 
 Beta 6:
 
