@@ -415,6 +415,115 @@ static void *bswap_buffer = NULL;
 static uae_u32 bswap_buffer_size = 0;
 static double syncdivisor;
 
+#define FAKE_HANDLE_WINLAUNCH 0xfffffffe
+
+typedef uae_u32 (*fake_func_get)(struct fake_handle_struct*, const char*);
+typedef uae_u32 (*fake_func_exec)(struct fake_handle_struct*, TrapContext*);
+
+struct fake_handle_struct
+{
+	uae_u32 handle;
+	uae_u32 func_start;
+	uae_u32 func_end;
+	fake_func_get get;
+	fake_func_exec exec;
+};
+
+// "Emulate" winlaunch
+
+static uae_u32 fake_winlaunch_get(struct fake_handle_struct *me, const char *name)
+{
+	if (!stricmp(name, "_launch"))
+		return me->func_start;
+	return 0;
+}
+static const int fake_winlaunch_cmdval[] =
+{
+	SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWDEFAULT, SW_SHOWMAXIMIZED,
+	SW_SHOWMINIMIZED, SW_SHOWMINNOACTIVE, SW_SHOWNA, SW_SHOWNOACTIVATE, SW_SHOWNORMAL
+};
+static uae_u32 fake_winlaunch_exec(struct fake_handle_struct *me, TrapContext *ctx)
+{
+	uae_u32 file = m68k_dreg(regs, 1);
+	if (!valid_address(file, 2))
+		return 0;
+	uae_u32 parms = m68k_dreg(regs, 2);
+	uae_u8 *fileptr = get_real_address(file);
+	uae_u8 *parmsptr = NULL;
+	if (parms)
+		parmsptr = get_real_address(parms);
+	uae_u32 showcmdval = m68k_dreg(regs, 3);
+	if (showcmdval > 11)
+		return 0;
+	uae_u32 ret = (uae_u32)ShellExecuteA(NULL, NULL, (char*)fileptr, (char*)parmsptr, "", fake_winlaunch_cmdval[showcmdval]);
+	uae_u32 aret = 0;
+	switch (ret) {
+		case 0:
+			aret = 1;
+		break;
+		case ERROR_FILE_NOT_FOUND:
+			aret = 2;
+		break;
+		case ERROR_PATH_NOT_FOUND:
+			aret = 3;
+		break;
+		case ERROR_BAD_FORMAT:
+			aret = 4;
+		break;
+		case SE_ERR_ACCESSDENIED:
+			aret = 5;
+		break;
+		case SE_ERR_ASSOCINCOMPLETE:
+			aret = 6;
+		break;
+		case SE_ERR_DDEBUSY:
+			aret = 7;
+		break;
+		case SE_ERR_DDEFAIL:
+			aret = 8;
+		break;
+		case SE_ERR_DDETIMEOUT:
+			aret = 9;
+		break;
+		case SE_ERR_DLLNOTFOUND:
+			aret = 10;
+		break;
+		case SE_ERR_NOASSOC:
+			aret = 11;
+		break;
+		case SE_ERR_OOM:
+			aret = 12;
+		break;
+		case SE_ERR_SHARE:
+			aret = 13;
+		break;
+	}
+	return aret;
+}
+
+static struct fake_handle_struct fake_handles[] =
+{
+	{ FAKE_HANDLE_WINLAUNCH, 4, 4, fake_winlaunch_get, fake_winlaunch_exec, },
+	{ 0 }
+};
+
+
+static HMODULE native_override(const TCHAR *dllname, TrapContext *ctx)
+{
+	const TCHAR *s = _tcsrchr(dllname, '/');
+	if (!s)
+		s = _tcsrchr(dllname, '\\');
+	if (!s) {
+		s = dllname;
+	} else if (s) {
+		s++;
+	}
+	if (!_tcsicmp(s, _T("winlaunch.alib"))) {
+		return (HMODULE)FAKE_HANDLE_WINLAUNCH;
+	}
+	return 0;
+}
+
 uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 {
 	//use the extern int (6 #13)
@@ -636,8 +745,6 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 		flushprinter ();
 		return 0;
 
-#if defined(X86_MSVC_ASSEMBLY)
-
 	case 100: // open dll
 		{
 			if (!currprefs.native_code)
@@ -650,42 +757,43 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 			TCHAR newdllpath[MAX_DPATH];
 			int ok = 0;
 			TCHAR *filepart;
+			DWORD err = 0;
 
 			dllptr = m68k_areg (regs, 0);
+			if (!valid_address(dllptr, 2))
+				return 0;
 			dllname = au ((uae_char*)get_real_address (dllptr));
-			dpath[0] = 0;
-			GetFullPathName (dllname, sizeof dpath / sizeof (TCHAR), dpath, &filepart);
-			if (_tcslen (dpath) > _tcslen (start_path_data) && !_tcsncmp (dpath, start_path_data, _tcslen (start_path_data))) {
-				/* path really is relative to winuae directory */
-				ok = 1;
-				_tcscpy (newdllpath, dpath + _tcslen (start_path_data));
-				if (!_tcsncmp (newdllpath, dlldir, _tcslen (dlldir))) /* remove "winuae_dll" */
-					_tcscpy (newdllpath, dpath + _tcslen (start_path_data) + 1 + _tcslen (dlldir));
-				_stprintf (dpath, _T("%s%s%s"), start_path_data, WIN32_PLUGINDIR, newdllpath);
-				h = LoadLibrary (dpath);
-				if (h == NULL)
-					write_log (_T("native open: '%s' = %d\n"), dpath, GetLastError ());
-				if (h == NULL) {
-					_stprintf (dpath, _T("%s%s\\%s"), start_path_data, dlldir, newdllpath);
-					h = LoadLibrary (dllname);
-					if (h == NULL)
-						write_log (_T("fallback native open: '%s' = %d\n"), dpath, GetLastError ());
-				}
-			} else {
-				write_log (_T("native open outside of installation dir '%s'!\n"), dpath);
-			}
-			xfree (dllname);
-#if 0
-			if (h == NULL) {
-				h = LoadLibrary (filepart);
-				write_log (_T("native file open: '%s' = %p\n"), filepart, h);
-				if (h == NULL) {
-					_stprintf (dpath, "%s%s%s", start_path_data, WIN32_PLUGINDIR, filepart);
+			h = native_override(dllname, context);
+#if defined(X86_MSVC_ASSEMBLY)
+			if (h == 0) {
+				dpath[0] = 0;
+				GetFullPathName (dllname, sizeof dpath / sizeof (TCHAR), dpath, &filepart);
+				if (_tcslen (dpath) > _tcslen (start_path_data) && !_tcsncmp (dpath, start_path_data, _tcslen (start_path_data))) {
+					/* path really is relative to winuae directory */
+					ok = 1;
+					_tcscpy (newdllpath, dpath + _tcslen (start_path_data));
+					if (!_tcsncmp (newdllpath, dlldir, _tcslen (dlldir))) /* remove "winuae_dll" */
+						_tcscpy (newdllpath, dpath + _tcslen (start_path_data) + 1 + _tcslen (dlldir));
+					_stprintf (dpath, _T("%s%s%s"), start_path_data, WIN32_PLUGINDIR, newdllpath);
 					h = LoadLibrary (dpath);
-					write_log (_T("native path open: '%s' = %p\n"), dpath, h);
+					if (h == NULL)
+						err = GetLastError();
+					if (h == NULL) {
+						_stprintf (dpath, _T("%s%s\\%s"), start_path_data, dlldir, newdllpath);
+						h = LoadLibrary (dllname);
+						if (h == NULL) {
+							DWORD err2 = GetLastError();
+							if (h == NULL) {
+								write_log (_T("fallback native open: '%s' = %d, %d\n"), dpath, err2, err);
+							}
+						}
+					}
+				} else {
+					write_log (_T("native open outside of installation dir '%s'!\n"), dpath);
 				}
 			}
 #endif
+			xfree (dllname);
 			syncdivisor = (3580000.0 * CYCLE_UNIT) / (double)syncbase;
 			return (uae_u32)h;
 		}
@@ -693,13 +801,19 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	case 101:	//get dll label
 		{
 			if (currprefs.native_code) {
-				HMODULE m;
 				uaecptr funcaddr;
 				char *funcname;
-				m = (HMODULE) m68k_dreg (regs, 1);
+				uae_u32 m = m68k_dreg (regs, 1);
 				funcaddr = m68k_areg (regs, 0);
 				funcname = (char*)get_real_address (funcaddr);
-				return (uae_u32) GetProcAddress (m, funcname);
+				for (int i = 0; fake_handles[i].handle; i++) {
+					if (fake_handles[i].handle == m) {
+						return fake_handles[i].get(&fake_handles[i], funcname);
+					}
+				}
+#if defined(X86_MSVC_ASSEMBLY)
+				return (uae_u32) GetProcAddress ((HMODULE)m, funcname);
+#endif
 			}
 			return 0;
 		}
@@ -708,6 +822,13 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 		{
 			uae_u32 ret = 0;
 			if (currprefs.native_code) {
+				uaecptr funcptr = m68k_areg(regs, 0);
+				for (int i = 0; fake_handles[i].handle; i++) {
+					if (fake_handles[i].func_start >= funcptr && fake_handles[i].func_end <= funcptr) {
+						return fake_handles[i].exec(&fake_handles[i], context);
+					}
+				}
+#if defined(X86_MSVC_ASSEMBLY)
 				unsigned long rate1;
 				double v;
 				rate1 = read_processor_time ();
@@ -719,6 +840,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 						v = 1000000 * CYCLE_UNIT;
 					do_extra_cycles ((unsigned long)(syncdivisor * rate1)); //compensate the time stay in native func
 				}
+#endif
 			}
 			return ret;
 		}
@@ -726,13 +848,22 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	case 103:	//close dll
 		{
 			if (currprefs.native_code) {
-				HMODULE libaddr;
-				libaddr = (HMODULE) m68k_dreg (regs, 1);
-				FreeLibrary (libaddr);
+				uae_u32 addr = m68k_dreg (regs, 1);
+				for (int i = 0; fake_handles[i].handle; i++) {
+					if (addr == fake_handles[i].handle) {
+						addr = 0;
+						break;
+					}
+				}
+#if defined(X86_MSVC_ASSEMBLY)
+				if (addr) {
+					HMODULE libaddr = (HMODULE)addr;
+					FreeLibrary (libaddr);
+				}
+#endif
 			}
 			return 0;
 		}
-#endif
 
 	case 104:        //screenlost
 		{

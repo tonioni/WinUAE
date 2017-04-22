@@ -154,9 +154,64 @@ static void REGPARAM3 dummy_wput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 dummy_bput (uaecptr, uae_u32) REGPARAM;
 static int REGPARAM3 dummy_check (uaecptr addr, uae_u32 size) REGPARAM;
 
+/* fake UAE ROM */
+
+extern addrbank fakeuaebootrom_bank;
+MEMORY_FUNCTIONS(fakeuaebootrom);
+
 #define	MAX_ILG 1000
 #define NONEXISTINGDATA 0
 //#define NONEXISTINGDATA 0xffffffff
+
+static bool map_uae_boot_rom_direct(void)
+{
+	if (!fakeuaebootrom_bank.allocated_size) {
+		fakeuaebootrom_bank.start = 0xf00000;
+		fakeuaebootrom_bank.reserved_size = 65536;
+		fakeuaebootrom_bank.mask = fakeuaebootrom_bank.reserved_size - 1;
+		if (!mapped_malloc (&fakeuaebootrom_bank))
+			return false;
+		// create jump table to real uae boot rom
+		for (int i = 0xff00; i < 0xfff8; i += 8) {
+			uae_u8 *p = fakeuaebootrom_bank.baseaddr + i;
+			p[0] = 0x4e;
+			p[1] = 0xf9;
+			uaecptr p2 = rtarea_base + i;
+			p[2] = p2 >> 24;
+			p[3] = p2 >> 16;
+			p[4] = p2 >>  8;
+			p[5] = p2 >>  0;
+		}
+	}
+	map_banks(&fakeuaebootrom_bank, 0xf0, 1, 1);
+	write_log(_T("Mapped fake UAE Boot ROM jump table.\n"));
+	return true;
+}
+
+// if access looks like old style hook call and f00000 space is unused, redirect to UAE boot ROM.
+static bool maybe_map_boot_rom(uaecptr addr)
+{
+	if (currprefs.uaeboard >= 2 && get_mem_bank_real(0xf00000) == &dummy_bank) {
+		uae_u32 pc = M68K_GETPC;
+		if (addr >= 0xf0ff00 && addr <= 0xf0fff8 && (((valid_address(pc, 2) && (pc < 0xf00000 || pc >= 0x01000000) && !currprefs.cpu_compatible) || (pc == addr && currprefs.cpu_compatible)))) {
+			bool check2 = currprefs.cpu_compatible;
+			if (!check2) {
+				uae_u32 w = get_word(pc);
+				// JSR xxxxxxxx or JSR (an)
+				if (w == 0x4eb9 || w == 0x4eb9)
+					check2 = true;
+			}
+			if (check2) {
+				if (map_uae_boot_rom_direct()) {
+					if (get_mem_bank_real(0xf00000) == &fakeuaebootrom_bank) {
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
 
 static void dummylog (int rw, uaecptr addr, int size, uae_u32 val, int ins)
 {
@@ -303,6 +358,14 @@ uae_u32 dummy_get (uaecptr addr, int size, bool inst, uae_u32 defvalue)
 		return isideint() ? 0xffff : 0x0000;
 	}
 #endif
+
+	if ((size == 2 || size == 4) && inst && maybe_map_boot_rom(addr)) {
+		if (size == 2)
+			return get_word(addr);
+		return get_long(addr);
+	}
+
+
 	if (gary_nonrange(addr) || (size > 1 && gary_nonrange(addr + size - 1))) {
 		if (gary_timeout)
 			gary_wait (addr, size, false);
@@ -762,7 +825,6 @@ MEMORY_FUNCTIONS(a3000hmem);
 
 MEMORY_FUNCTIONS(mem25bit);
 
-
 /* Kick memory */
 
 uae_u16 kickstart_version;
@@ -974,7 +1036,10 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr addr)
 		cpu_halt(CPU_HALT_OPCODE_FETCH_FROM_NON_EXISTING_ADDRESS);
 		return kickmem_xlate(2);
 	}
-	recursive++;
+
+	if (maybe_map_boot_rom(addr))
+		return get_real_address(addr);
+
 	int size = currprefs.cpu_model >= 68020 ? 4 : 2;
 	if (quit_program == 0) {
 		/* do this only in 68010+ mode, there are some tricky A500 programs.. */
@@ -1127,6 +1192,13 @@ addrbank extendedkickmem2_bank = {
 	extendedkickmem2_lget, extendedkickmem2_wget,
 	ABFLAG_ROM | ABFLAG_THREADSAFE, 0, S_WRITE
 };
+addrbank fakeuaebootrom_bank = {
+	fakeuaebootrom_lget, fakeuaebootrom_wget, mem25bit_bget,
+	fakeuaebootrom_lput, fakeuaebootrom_wput, mem25bit_bput,
+	fakeuaebootrom_xlate, fakeuaebootrom_check, NULL, _T("*"), _T("fakeuaerom"),
+	fakeuaebootrom_lget, fakeuaebootrom_wget,
+	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
+};
 
 MEMORY_FUNCTIONS(custmem1);
 MEMORY_FUNCTIONS(custmem2);
@@ -1192,7 +1264,7 @@ static bool is_alg_rom(const TCHAR *name)
 	struct romdata *rd = getromdatabypath(name);
 	if (!rd)
 		return false;
-	return  (rd->type & ROMTYPE_ALG) != 0;
+	return (rd->type & ROMTYPE_ALG) != 0;
 }
 
 static void descramble_alg(uae_u8 *data, int size)
@@ -1899,6 +1971,8 @@ static void allocate_memory (void)
 
 	bool bogoreset = (bogomem_bank.flags & ABFLAG_NOALLOC) != 0 &&
 		(chipmem_bank.reserved_size != currprefs.chipmem_size || bogomem_bank.reserved_size != currprefs.bogomem_size);
+
+	mapped_free(&fakeuaebootrom_bank);
 
 	if (bogoreset) {
 		mapped_free(&chipmem_bank);
@@ -2681,8 +2755,9 @@ void memory_cleanup (void)
 		mapped_free (&cardmem_bank);
 	}
 #endif
-	mapped_free (&custmem1_bank);
-	mapped_free (&custmem2_bank);
+	mapped_free(&custmem1_bank);
+	mapped_free(&custmem2_bank);
+	mapped_free(&fakeuaebootrom_bank);
 
 	bogomem_bank.baseaddr = NULL;
 	kickmem_bank.baseaddr = NULL;
