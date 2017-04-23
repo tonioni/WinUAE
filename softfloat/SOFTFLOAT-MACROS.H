@@ -428,7 +428,7 @@ static inline void
  )
 {
     uint64_t z0, z1, z2;
-    int8_t carry0, carry1;
+    uint8_t carry0, carry1;
 
     z2 = a2 + b2;
     carry1 = ( z2 < a2 );
