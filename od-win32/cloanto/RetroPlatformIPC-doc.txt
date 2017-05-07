@@ -1,15 +1,15 @@
 /*****************************************************************************
  Name    : RetroPlatformIPC_doc.txt
  Project : RPSampleGuest
- Client  : Cloanto Italia srl
+ Client  : Cloanto Corporation
  Support : http://www.retroplatform.com
- Legal   : CONFIDENTIAL TRADE SECRET PROPERTY OF CLOANTO ITALIA SRL
-         : Copyright © Cloanto Italia srl 2007-2016.
+ Legal   : CONFIDENTIAL TRADE SECRET PROPERTY OF CLOANTO CORPORATION
+         : Copyright © Cloanto Corporation 2007-2017.
          : All rights reserved, except where licensed,
          : assigned or transferred by contract.
- Authors : os, mcb
+ Authors : os, m
  Created : 2007-08-23 10:08:25
- Updated : 2016-12-03 11:15:00
+ Updated : 2017-01-04 06:15:00
  Comment : Reference for RetroPlatformIPC.h (RP Player interprocess communication include file)
  *****************************************************************************/
 
@@ -109,8 +109,11 @@ Response:
 Message:
    RP_IPC_TO_HOST_ACTIVATED
 Description:
-   the guest sends this message to the host
-   when its window is being activated
+   the guest sends this message to the host when its window is being activated;
+   this is typically sent when its window receives the WM_ACTIVATEAPP
+   message with a non-zero WPARAM parameter
+   (or WM_SHOWWINDOW, with non-zero WPARAM and zero LPARAM,
+   i.e. at application startup)
 Data sent:
    LPARAM = identifier of the thread that owns the window being deactivated
 Response:
@@ -120,8 +123,9 @@ Response:
 Message:
    RP_IPC_TO_HOST_DEACTIVATED
 Description:
-   the guest sends this message to the host
-   when its window is being deactivated
+   the guest sends this message to the host when its window is being deactivated;
+   this is typically sent when its window receives the WM_ACTIVATEAPP
+   message with a zero WPARAM parameter
 Data sent:
    LPARAM = identifier of the thread that owns the window being activated
 Response:
@@ -671,7 +675,7 @@ Description:
    to simulate keyboard, mouse, joystick, tape button press/release
    and other guest-specific events
 Data sent:
-   pData = (Unicode) event string (guest-specific).
+   pData = (Unicode) event string.
    Keyboard events are "KEY_RAW_DOWN <x>" and "KEY_RAW_UP <x>" strings, where <x>
    is a keycode that uniquely identifies the raw key on the guest system,
    independently of higher-level layout (e.g. Amiga SetMap). On the Amiga, <x> would
@@ -679,13 +683,17 @@ Data sent:
    It is up to the host to do the appopriate mappings and request the correct raw guest
    event, taking into account host and guest layouts.
    Other events may be named as per cloanto.com/specs/ianames.
-LEGACY:
->>>
-   For keyboard events other than KEY_RAW_DOWN and KEY_RAW_UP, the string is followed
-   by a space and a "1"/"0" character (down/up).
-<<<
+   Multiple events are space-separated (e.g. "KEY_RAW_DOWN 0x60 KEY_RAW_UP 0x60").
+   The guest should stop parsing the event string and return 0,
+   if an unrecognized event is ecountered.
+   The guest should take care of not executing too many keyboard events
+   if the keyboard buffer of the emulated system may reach its limit.
+   In this case, the guest may asynchronously execute the event string
+   and merge additional incoming RP_IPC_TO_GUEST_EVENT event strings
+   to the waiting-to-be-executed event string (or the part of it that
+   remains to be executed).
 Response:
-   LRESULT = 1 if the guest successfully simulated the specified event or 0 otherwise
+   LRESULT = 1 if the guest successfully simulated the specified events or 0 otherwise
 
 
 Message:
@@ -768,10 +776,13 @@ Data sent:
    WPARAM = device category (RP_DEVICE_* value) and device number
             combined with the MAKEWORD macro;
             e.g. MAKEWORD(RP_DEVICECATEGORY_INPUTPORT, 1);
+            the macro LOBYTE(wParam) should be used to get the category value
+            and HIBYTE(wParam) should return the device number;
             the only categories used at the moment are
             RP_DEVICECATEGORY_INPUTPORT and RP_DEVICECATEGORY_MULTITAPPORT
+            (device number is the input port number)
    LPARAM = if the message references a RP_DEVICECATEGORY_INPUTPORT
-            or a RP_DEVICECATEGORY_MULTITAPPORT device
+            or a RP_DEVICECATEGORY_MULTITAPPORT port
             in which a joystick/gamepad/joypad is plugged,
             then the data sent via LPARAM is a mask of RP_JOYSTICK_* values
             reporting all the buttons that are pressed (more than one may be
@@ -783,7 +794,9 @@ Response:
 Message:
    RP_IPC_TO_GUEST_SHOWOPTIONS
 Description:
-   this message is used to ask the guest to open its options/settings dialog
+   This message is used to ask the guest to open its options/settings dialog.
+   Before opening the dialog, the guest should send RP_IPC_TO_HOST_PAUSE message to pause the emulation session.
+   After closing the dialog, the emulation should be resumed by sending another RP_IPC_TO_HOST_PAUSE message.
 Data sent:
    none
 Response:

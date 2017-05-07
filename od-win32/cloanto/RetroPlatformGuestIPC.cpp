@@ -2,14 +2,14 @@
  Name    : RetroPlatformGuestIPC.c
  Project : RetroPlatform Player
  Support : http://www.retroplatform.com
- Legal   : Copyright 2007-2016 Cloanto Italia srl - All rights reserved. This
+ Legal   : Copyright 2007-2017 Cloanto Corporation - All rights reserved. This
          : file is multi-licensed under the terms of the Mozilla Public License
          : version 2.0 as published by Mozilla Corporation and the GNU General
          : Public License, version 2 or later, as published by the Free
          : Software Foundation.
- Authors : os, mcb
+ Authors : os, m
  Created : 2007-08-24 15:28:48
- Updated : 2016-06-17 11:18:00
+ Updated : 2017-01-04 06:15:00
  Comment : RetroPlatform Player interprocess communication functions (guest side)
  Note    : Can be compiled both in Unicode and Multibyte projects
  *****************************************************************************/
@@ -106,8 +106,8 @@ HRESULT RPInitializeGuest(RPGUESTINFO *pInfo, HINSTANCE hInstance, LPCTSTR pszHo
 		return HRESULT_FROM_WIN32(ERROR_INVALID_ACCESS);
 	}
 	// disable system shortcuts (e.g. Windows-key shortcuts) while the guest is the foreground app
-	rid.usUsagePage = 0x01; 
-	rid.usUsage = 0x06; 
+	rid.usUsagePage = 0x01;
+	rid.usUsage = 0x06;
 	rid.dwFlags = RIDEV_NOHOTKEYS;
 	rid.hwndTarget = 0;
 	RegisterRawInputDevices(&rid, 1, sizeof(rid));
@@ -146,8 +146,8 @@ void RPUninitializeGuest(RPGUESTINFO *pInfo)
 		UnregisterClass(szGuestClass, pInfo->hInstance);
 		pInfo->bGuestClassRegistered = FALSE;
 	}
-	rid.usUsagePage = 0x01; 
-	rid.usUsage = 0x06; 
+	rid.usUsagePage = 0x01;
+	rid.usUsage = 0x06;
 	rid.dwFlags = RIDEV_REMOVE | RIDEV_NOHOTKEYS;
 	rid.hwndTarget = 0;
 	RegisterRawInputDevices(&rid, 1, sizeof(rid));
