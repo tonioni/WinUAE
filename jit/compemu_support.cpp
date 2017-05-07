@@ -3357,7 +3357,7 @@ void calc_disp_ea_020(int base, uae_u32 dp, int target, int tmp)
 void set_cache_state(int enabled)
 {
 	if (enabled!=letit)
-		flush_icache_hard(0, 3);
+		flush_icache_hard(3);
 	letit=enabled;
 }
 
@@ -3436,7 +3436,7 @@ static inline uint8 *alloc_code(uint32 size)
 void alloc_cache(void)
 {
 	if (compiled_code) {
-		flush_icache_hard(0, 3);
+		flush_icache_hard(3);
 		vm_release(compiled_code, cache_size * 1024);
 		compiled_code = 0;
 	}
@@ -4096,7 +4096,7 @@ static void flush_icache_none(int)
 	/* Nothing to do.  */
 }
 
-void flush_icache_hard(uaecptr ptr, int n)
+void flush_icache_hard(int n)
 {
 	blockinfo* bi, *dbi;
 
@@ -4132,13 +4132,13 @@ void flush_icache_hard(uaecptr ptr, int n)
    we simply mark everything as "needs to be checked".
 */
 
-void flush_icache(uaecptr ptr, int n)
+void flush_icache(int n)
 {
 	blockinfo* bi;
 	blockinfo* bi2;
 
 	if (currprefs.comp_hardflush) {
-		flush_icache_hard(ptr, n);
+		flush_icache_hard(n);
 		return;
 	}
 	soft_flush_count++;
@@ -4346,7 +4346,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 
 		redo_current_block=0;
 		if (current_compile_p >= MAX_COMPILE_PTR)
-			flush_icache_hard(0, 3);
+			flush_icache_hard(3);
 
 		alloc_blockinfos();
 
@@ -4829,7 +4829,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 
 		/* We will flush soon, anyway, so let's do it now */
 		if (current_compile_p >= MAX_COMPILE_PTR)
-			flush_icache_hard(0, 3);
+			flush_icache_hard(3);
 
 		bi->status=BI_ACTIVE;
 		if (redo_current_block)

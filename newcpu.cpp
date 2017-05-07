@@ -1257,7 +1257,7 @@ void set_cpu_caches (bool flush)
 		if (currprefs.cpu_model < 68040) {
 			set_cache_state (regs.cacr & 1);
 			if (regs.cacr & 0x08) {
-				flush_icache (0, 3);
+				flush_icache (3);
 			}
 		} else {
 			set_cache_state ((regs.cacr & 0x8000) ? 1 : 0);

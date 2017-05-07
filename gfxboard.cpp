@@ -987,7 +987,7 @@ static void jit_reset (void)
 {
 #ifdef JIT
 	if (currprefs.cachesize && (!currprefs.comptrustbyte || !currprefs.comptrustword || !currprefs.comptrustlong)) {
-		flush_icache (0, 3);
+		flush_icache (3);
 	}
 #endif
 }

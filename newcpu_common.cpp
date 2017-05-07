@@ -163,7 +163,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 				if (((opcr ^ regs.pcr) & 2) == 2) {
 					write_log (_T("68060 FPU state: %s\n"), regs.pcr & 2 ? _T("disabled") : _T("enabled"));
 					/* flush possible already translated FPU instructions */
-					flush_icache (0, 3);
+					flush_icache (3);
 				}
 			}
 			break;

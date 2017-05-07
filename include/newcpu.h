@@ -659,12 +659,12 @@ extern const struct cputbl op_smalltbl_14_ff[]; // CE
 extern cpuop_func *cpufunctbl[65536] ASM_SYM_FOR_FUNC ("cpufunctbl");
 
 #ifdef JIT
-extern void flush_icache(uaecptr, int);
-extern void flush_icache_hard(uaecptr, int);
+extern void flush_icache(int);
+extern void flush_icache_hard(int);
 extern void compemu_reset(void);
 #else
-#define flush_icache(uaecptr, int) do {} while (0)
-#define flush_icache_hard(uaecptr, int) do {} while (0)
+#define flush_icache(int) do {} while (0)
+#define flush_icache(int) do {} while (0)
 #endif
 bool check_prefs_changed_comp (bool);
 extern void flush_dcache (uaecptr, int);
