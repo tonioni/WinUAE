@@ -808,6 +808,7 @@ int sys_command_cd_play (int unitnum, int startlsn, int endlsn, int scan, play_s
 		return 0;
 	if (!getsem (unitnum))
 		return 0;
+	state[unitnum].play_end_pos = endlsn;
 	if (state[unitnum].device_func->play == NULL)
 		v = sys_command_cd_play (unitnum, startlsn, endlsn, scan);
 	else
