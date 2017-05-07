@@ -765,6 +765,54 @@ static void modesList (struct MultiDisplay *md)
 	}
 }
 
+#ifndef ABM_GETAUTOHIDEBAREX
+#define ABM_GETAUTOHIDEBAREX 0x0000000b
+#endif
+
+static void adjustappbar(RECT *monitor, RECT *workrect)
+{
+	if (!os_vista)
+		return;
+	APPBARDATA abd;
+	// Isn't this ugly API?
+	for (int i = 0; i < 4; i++) {
+		abd.cbSize = sizeof abd;
+		abd.rc = *monitor;
+		abd.uEdge = i; // ABE_LEFT, TOP, RIGHT, BOTTOM
+		HWND hwndAutoHide = (HWND) SHAppBarMessage(ABM_GETAUTOHIDEBAREX, &abd);
+		if (hwndAutoHide == NULL)
+			continue;
+		WINDOWINFO wi;
+		wi.cbSize = sizeof wi;
+		if (!GetWindowInfo(hwndAutoHide, &wi))
+			continue;
+		int edge;
+		switch (i)
+		{
+			case ABE_LEFT:
+			edge = monitor->left + (wi.rcWindow.right - wi.rcWindow.left);
+			if (edge > workrect->left && edge < workrect->right)
+				workrect->left = edge;
+			break;
+			case ABE_RIGHT:
+			edge = monitor->right - (wi.rcWindow.right - wi.rcWindow.left);
+			if (edge < workrect->right && edge > workrect->left)
+				workrect->right = edge;
+			break;
+			case ABE_TOP:
+			edge = monitor->top + (wi.rcWindow.bottom - wi.rcWindow.top);
+			if (edge > workrect->top && edge < workrect->bottom)
+				workrect->top = edge;
+			break;
+			case ABE_BOTTOM:
+			edge = monitor->bottom - (wi.rcWindow.bottom - wi.rcWindow.top);
+			if (edge < workrect->bottom && edge > workrect->top)
+				workrect->bottom = edge;
+			break;
+		}
+	}
+}
+
 static BOOL CALLBACK monitorEnumProc (HMONITOR h, HDC hdc, LPRECT rect, LPARAM data)
 {
 	struct MultiDisplay *md = Displays;
@@ -775,6 +823,8 @@ static BOOL CALLBACK monitorEnumProc (HMONITOR h, HDC hdc, LPRECT rect, LPARAM d
 		if (!_tcscmp (md->adapterid, lpmi.szDevice)) {
 			TCHAR tmp[1000];
 			md->rect = lpmi.rcMonitor;
+			md->workrect = lpmi.rcWork;
+			adjustappbar(&md->rect, &md->workrect);
 			if (md->rect.left == 0 && md->rect.top == 0)
 				_stprintf (tmp, _T("%s (%d*%d)"), md->monitorname, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top);
 			else
@@ -788,6 +838,30 @@ static BOOL CALLBACK monitorEnumProc (HMONITOR h, HDC hdc, LPRECT rect, LPARAM d
 		md++;
 	}
 	return TRUE;
+}
+
+static BOOL CALLBACK monitorEnumProc2(HMONITOR h, HDC hdc, LPRECT rect, LPARAM data)
+{
+	MONITORINFOEX lpmi;
+	lpmi.cbSize = sizeof lpmi;
+	GetMonitorInfo(h, (LPMONITORINFO)&lpmi);
+	for (int i = 0; i < MAX_DISPLAYS && Displays[i].monitorid; i++) {
+		struct MultiDisplay *md = &Displays[i];
+		if (!_tcscmp (md->adapterid, lpmi.szDevice) && !memcmp(&md->rect, &lpmi.rcMonitor, sizeof RECT)) {
+			md->workrect = lpmi.rcWork;
+			adjustappbar(&md->rect, &md->workrect);
+			return TRUE;
+		}
+	}
+	return TRUE;
+}
+void reenumeratemonitors(void)
+{
+	for (int i = 0; i < MAX_DISPLAYS; i++) {
+		struct MultiDisplay *md = &Displays[i];
+		memcpy(&md->workrect, &md->rect, sizeof RECT);
+	}
+	EnumDisplayMonitors (NULL, NULL, monitorEnumProc2, NULL);
 }
 
 static void getd3dmonitornames (void)
@@ -3371,7 +3445,8 @@ static bool vblanklaceskip_check (void)
 		return false;
 	}
 	getvblankpos (&vp, false);
-	write_log (_T("Interlaced frame type mismatch %d<>%d (%d,%d)\n"), vblankbaselace_chipset, vblankthread_oddeven, vp, prevvblankpos);
+	if (vp >= maxscanline / 20 && vp <= maxscanline - maxscanline / 20)
+		write_log (_T("Interlaced frame type mismatch %d<>%d (%d,%d)\n"), vblankbaselace_chipset, vblankthread_oddeven, vp, prevvblankpos);
 	return true;
 }
 

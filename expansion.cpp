@@ -4331,6 +4331,15 @@ static const struct expansionboardsettings warpengine_settings[] = {
 		NULL
 	}
 };
+static const struct expansionboardsettings comspec_settings[] = {
+	{
+		_T("RTC"),
+		_T("rtc"),
+	},
+	{
+		NULL
+	}
+};
 static const struct expansionboardsettings a4091_settings[] = {
 	{
 		_T("Fast Bus"),
@@ -4491,7 +4500,9 @@ const struct expansionromtype expansionroms[] = {
 		_T("comspec1000"), _T("SA-1000"), _T("Comspec"),
 		comspec_init, NULL, comspec_add_scsi_unit, ROMTYPE_COMSPEC, 0, 0, BOARD_AUTOCONFIG_Z2, true,
 		NULL, 0,
-		true, EXPANSIONTYPE_SCSI
+		true, EXPANSIONTYPE_SCSI,
+		0, 0, 0, false, NULL,
+		false, 0, comspec_settings
 	},
 	{
 		_T("dataflyerscsiplus"), _T("DataFlyer SCSI+"), _T("Expansion Systems"),

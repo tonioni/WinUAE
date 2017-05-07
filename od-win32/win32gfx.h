@@ -9,6 +9,7 @@
 
 extern void sortdisplays (void);
 extern void enumeratedisplays (void);
+extern void reenumeratemonitors(void);
 
 int WIN32GFX_IsPicassoScreen (void);
 int WIN32GFX_GetWidth (void);

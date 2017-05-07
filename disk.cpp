@@ -3338,7 +3338,7 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 
 static void update_jitter (void)
 {
-	if (currprefs.floppy_random_bits_max > 0)
+	if (currprefs.floppy_random_bits_max > 0 && currprefs.floppy_random_bits_max >= currprefs.floppy_random_bits_min)
 		disk_jitter = ((uaerand () >> 4) % (currprefs.floppy_random_bits_max - currprefs.floppy_random_bits_min + 1)) + currprefs.floppy_random_bits_min;
 	else
 		disk_jitter = 0;
@@ -3406,7 +3406,6 @@ static void disk_doupdate_predict (int startcycle)
 					diskevent_flag |= DISK_INDEXSYNC;
 			}
 			if (dskdmaen != DSKDMA_WRITE && mfmpos == drv->skipoffset) {
-				update_jitter ();
 				int skipcnt = disk_jitter;
 				while (skipcnt-- > 0) {
 					mfmpos++;
@@ -3564,7 +3563,6 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 				updatetrackspeed (drv, drv->mfmpos);
 		}
 		if (drv->mfmpos == drv->skipoffset) {
-			update_jitter ();
 			int skipcnt = disk_jitter;
 			while (skipcnt-- > 0) {
 				drv->mfmpos++;
@@ -3794,12 +3792,17 @@ void DISK_update (int tohpos)
 		drv->mfmpos %= drv->tracklen;
 	}
 	int didaccess = 0;
+	bool done_jitter = false;
 	for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 		drive *drv = &floppy[dr];
 		if (drv->motoroff || !drv->trackspeed)
 			continue;
 		if ((selected | disabled) & (1 << dr))
 			continue;
+		if (!done_jitter) {
+			update_jitter();
+			done_jitter = true;
+		}
 		/* write dma and wordsync enabled: read until wordsync match found */
 		if (dskdmaen == DSKDMA_WRITE && dma_enable)
 			disk_doupdate_write (drv, drv->floppybitcounter);
@@ -3818,6 +3821,10 @@ void DISK_update (int tohpos)
 	if (dskdmaen != DSKDMA_OFF && dma_enable && dsklength2 == 0 && dsklength == 0)
 		disk_dmafinished ();
 
+	if (!done_jitter) {
+		update_jitter();
+		done_jitter = true;
+	}
 	disk_doupdate_predict (disk_hpos);
 }
 

@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 203
+#define NEXT_ROM_ID 206
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -288,7 +288,7 @@ static struct romdata roms[] = {
 	ALTROM(116, 1, 1, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, 0x1909f7e9, 0x5abe9b9d,0xaae328c8,0x134e2b62,0x7b33b698,0xe342afc2)
 	ALTROM(116, 1, 2, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, 0xa3927c72, 0x7adc9352,0x2d112ae9,0x23b9a70d,0x951b1e7a,0xba800ea6)
 
-	{ _T("Freezer: HRTMon v2.36 (built-in)"), 0, 0, 0, 0, _T("HRTMON\0"), 0, 63, 0, 0, ROMTYPE_HRTMON, 0, 1, NULL,
+	{ _T("Freezer: HRTMon v2.37 (built-in)"), 0, 0, 0, 0, _T("HRTMON\0"), 0, 63, 0, 0, ROMTYPE_HRTMON, 0, 1, NULL,
 	0xffffffff, 0, 0, 0, 0, 0, _T("HRTMon") },
 
 	{ _T("A2090a"), 0, 0, 0, 0, _T("A2090A\0"), 16384, 122, 0, 0, ROMTYPE_A2090, 0, 0, NULL,
@@ -461,7 +461,7 @@ static struct romdata roms[] = {
 	ALTROMPN(146, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xc88843cb, 0x3d7eb1b6, 0x8139b81b, 0x0665684c, 0x536ab3d0, 0x52a5dd9d)
 	{ _T("Apollo 500/2000"), 0, 0, 0, 0, _T("APOLLOHD\0"), 16384, 145, 0, 0, ROMTYPE_APOLLOHD, 0, 0, NULL,
 	0x931bad25, 0x24b4ee4c,0x129c7a93,0xf83ad570,0x66afd80c,0x4179f39c, NULL, NULL },
-	{ _T("Multi Evolution 500/2000"), 3, 0, 3, 0, _T("MULTIEVOLUTION\0"), 65536, 156, 0, 0, ROMTYPE_MEVOLUTION, 0, 0, NULL,
+	{ _T("Multi Evolution 500/2000 v3.0"), 3, 0, 3, 0, _T("MULTIEVOLUTION\0"), 65536, 156, 0, 0, ROMTYPE_MEVOLUTION, 0, 0, NULL,
 	0xd13a2c89, 0xf9e38c4b,0xf5c6499d,0x486946ba,0x7b7636b8,0x0845265b, NULL, NULL },
 	ALTROMPN(156, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x339b3549, 0x74de857b, 0x42f9a8e0, 0xc1f3c29e, 0x06982622, 0x853d08fe)
 	ALTROMPN(156, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x3aca5d1f, 0x786f2197, 0xc614be91, 0xae7e87da, 0xb42c3290, 0xd7997763)
@@ -520,6 +520,10 @@ static struct romdata roms[] = {
 	0xf8e1ad83, 0x45a2b7db,0x6e86fe80,0x5cfef63c,0x65c331a7,0x16a6e9e8, NULL, NULL },
 	{ _T("A2088 BIOS 3.6.1"), 3, 61, 3, 61, _T("A2088\0"), 16384, 149, 0, 0, ROMTYPE_A2088, 0, 0, _T("380788-06"),
 	0x5fd93e56, 0xc1b707a8,0xa62907d7,0x5299f10a,0xa60efd1f,0x44514b26, NULL, NULL },
+	{ _T("A2088T BIOS 4.0 (09/11/89)"), 4, 10, 4, 10, _T("A2088T\0"), 32768, 203, 0, 0, ROMTYPE_A2088T, 0, 0, _T("390657-01"),
+	0x12545545, 0x54f7a99e,0x2e5dbc30,0x43f52001,0xa4abb3b6,0x8e4832fd, NULL, NULL },
+	{ _T("A2088T BIOS 4.0 (14/11/89)"), 4, 10, 4, 10, _T("A2088T\0"), 32768, 204, 0, 0, ROMTYPE_A2088T, 0, 0, _T("390657-01"),
+	0xb6b3b6f7, 0x7929a92f,0x25203cea,0xad302ddd,0x31db55cd,0x49b3020a, NULL, NULL },
 	{ _T("A2088T BIOS 4.10"), 4, 10, 4, 11, _T("A2088T\0"), 32768, 150, 0, 0, ROMTYPE_A2088T, 0, 0, _T("390657-02"),
 	0x20c5d1a9, 0x08e3fbb7,0x28dfc514,0x24083313,0x373ea7a5,0xa2c3e965, NULL, NULL },
 	{ _T("A2088T BIOS 4.11"), 4, 11, 4, 11, _T("A2088T\0"), 32768, 151, 0, 0, ROMTYPE_A2088T, 0, 0, _T("390547-02"),
@@ -534,8 +538,10 @@ static struct romdata roms[] = {
 	0xd572e205, 0x74fdf0f8,0x325fbc41,0x2b98c72d,0xf5095804,0x831c46b5, NULL, NULL },
 	ALTROMPN(154, 1, 1, 16384, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("380682-04"), 0xc23dcd55, 0x38dc24b7, 0x14427b15, 0xd5214cc9, 0xb9be0de7, 0x20bd6a34)
 	ALTROMPN(154, 1, 2, 16384, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("380683-04"), 0xdad80c0b, 0x12fe2916, 0x64f8c412, 0x3877a24e, 0x05837091, 0x44d8acd0)
-	{ _T("A2386SX BIOS 1.0"), 1, 0, 1, 0, _T("A2386SX\0"), 65536, 155, 0, 0, ROMTYPE_A2386, 0, 0, NULL,
+	{ _T("A2386SX BIOS 1.00"), 1, 0, 1, 0, _T("A2386SX\0"), 65536, 155, 0, 0, ROMTYPE_A2386, 0, 0, _T("391168-01"),
 	0x37003e0c, 0x2e127e9c,0x8581d30c,0x2e46404b,0x21608e3c,0xe935fa27, NULL, NULL },
+	{ _T("A2386SX BIOS 1.00.03"), 1, 0, 1, 0, _T("A2386SX\0"), 65536, 205, 0, 0, ROMTYPE_A2386, 0, 0, _T("391168-01"),
+	0x41041761, 0x78659be4,0x5755f8bd,0x004a101b,0x658ae75d,0xf142ddc9, NULL, NULL },
 
 	{ _T("Arcadia OnePlay 2.11"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 49, 0, 0, ROMTYPE_ARCADIABIOS, 0, 0 },
 	{ _T("Arcadia TenPlay 2.11"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 50, 0, 0, ROMTYPE_ARCADIABIOS, 0, 0 },
@@ -692,6 +698,19 @@ static struct romdata roms[] = {
 	{ NULL }
 
 };
+
+void dumpromlist(void)
+{
+	for (int i = 0; roms[i].name; i++) {
+		struct romdata *rd = &roms[i];
+		if (rd->name && rd->group == 0) {
+			write_log(_T("%s"), rd->name);
+			if (rd->size)
+				write_log (_T(" [%dk]"), rd->size >> 10);
+			write_log(_T("\n"));
+		}
+	}
+}
 
 void romlist_clear (void)
 {

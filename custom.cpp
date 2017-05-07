@@ -59,7 +59,7 @@
 
 #define SPRBORDER 0
 
-static int denise_resolution_min = 0;
+static int high_res_mode = 0;
 
 extern uae_u16 serper;
 
@@ -1470,7 +1470,7 @@ static void toscr_2_2 (int nbits) { toscr_3_aga (0, 1, nbits, 2); }
 static void toscr_2_2_oe (int oddeven, int step, int nbits) { toscr_3_aga (oddeven, step, nbits, 2); }
 #endif
 
-STATIC_INLINE void do_tosrc (int oddeven, int step, int nbits, int fm)
+static void do_tosrc (int oddeven, int step, int nbits, int fm)
 {
 	switch (fm) {
 	case 0:
@@ -1618,7 +1618,7 @@ static void do_delays_fast_2_2 (int nbits) { do_delays_fast_3_aga (nbits, 2); }
 
 
 // slower version, odd and even delays are different or crosses maxhpos
-STATIC_INLINE void do_delays (int nbits, int fm)
+static void do_delays (int nbits, int fm)
 {
 	switch (fm) {
 	case 0:
@@ -1636,7 +1636,7 @@ STATIC_INLINE void do_delays (int nbits, int fm)
 }
 
 // common optimized case: odd delay == even delay
-STATIC_INLINE void do_delays_fast (int nbits, int fm)
+static void do_delays_fast (int nbits, int fm)
 {
 	switch (fm) {
 	case 0:
@@ -1678,7 +1678,7 @@ static void toscr_right_edge (int nbits, int fm)
 	}
 }
 
-STATIC_INLINE void toscr_1 (int nbits, int fm)
+static void toscr_1 (int nbits, int fm)
 {
 	if (delay_cycles + nbits >= delay_lastcycle[lol]) {
 		toscr_right_edge (nbits, fm);
@@ -1706,6 +1706,38 @@ STATIC_INLINE void toscr_1 (int nbits, int fm)
 		}
 		out_offs++;
 		out_nbits = 0;
+	}
+}
+
+static void toscr_1_hires (int nbits_nres, int fm)
+{
+	int maxnbits = 16 >> toscr_res_mult;
+	while (nbits_nres >= 0) {
+		int nbits = nbits_nres >= maxnbits ? maxnbits : nbits_nres;
+		if (delay_cycles + nbits >= delay_lastcycle[lol]) {
+			toscr_right_edge(nbits, fm);
+		} else {
+			do_delays(nbits, fm);
+			delay_cycles += nbits;
+		}
+
+		out_nbits += nbits;
+		if (out_nbits == 32) {
+			int i;
+			uae_u8 *dataptr = line_data[next_lineno] + out_offs * 4;
+			for (i = 0; i < thisline_decision.nr_planes; i++) {
+				uae_u32 *dataptr32 = (uae_u32 *)dataptr;
+				if (*dataptr32 != outword[i]) {
+					thisline_changed = 1;
+					*dataptr32 = outword[i];
+				}
+				outword[i] = 0;
+				dataptr += MAX_WORDS_PER_LINE * 2;
+			}
+			out_offs++;
+			out_nbits = 0;
+		}
+		nbits_nres -= nbits;
 	}
 }
 
@@ -1844,8 +1876,8 @@ static void update_denise (int hpos)
 		flush_display (fetchmode);
 	toscr_res = GET_RES_DENISE (bplcon0d);
 	toscr_res2p = 2 << toscr_res;
-	if (toscr_res < denise_resolution_min) {
-		toscr_res_mult = denise_resolution_min - toscr_res;
+	if (high_res_mode && toscr_res < currprefs.gfx_resolution) {
+		toscr_res_mult = currprefs.gfx_resolution - toscr_res;
 	} else {
 		toscr_res_mult = 0;
 	}
@@ -2580,6 +2612,7 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int dma, int fm)
 		uae_abort (_T("toscr_nbits > 16 (%d)"), toscr_nbits);
 		toscr_nbits = 0;
 	}
+
 	if (toscr_nbits == 16)
 		flush_display (fm);
 
@@ -5782,11 +5815,15 @@ static void BLTBDAT (int hpos, uae_u16 v)
 {
 	maybe_blit (hpos, 0);
 
+	int shift = bltcon1 >> 12;
+
 	if (bltcon1 & 2)
-		blt_info.bltbhold = v << (bltcon1 >> 12);
+		blt_info.bltbhold = (((uae_u32)v << 16) | blt_info.bltbold) >> (16 - shift);
 	else
-		blt_info.bltbhold = v >> (bltcon1 >> 12);
+		blt_info.bltbhold = (((uae_u32)blt_info.bltbold << 16) | v) >> shift;
+
 	blt_info.bltbdat = v;
+	blt_info.bltbold = v;
 }
 static void BLTCDAT (int hpos, uae_u16 v) { maybe_blit (hpos, 0); blt_info.bltcdat = v; reset_blit (0); }
 

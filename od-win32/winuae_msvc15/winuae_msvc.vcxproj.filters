@@ -844,6 +844,9 @@
     <ClCompile Include="..\..\softfloat\softfloat_fpsp.cpp">
       <Filter>softfloat</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\rtc.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

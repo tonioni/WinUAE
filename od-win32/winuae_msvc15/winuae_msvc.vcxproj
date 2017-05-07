@@ -872,6 +872,7 @@
     <ClCompile Include="..\..\qemuvga\qemu.cpp" />
     <ClCompile Include="..\..\qemuvga\qemuuaeglue.cpp" />
     <ClCompile Include="..\..\qemuvga\vga.cpp" />
+    <ClCompile Include="..\..\rtc.cpp" />
     <ClCompile Include="..\..\scp.cpp" />
     <ClCompile Include="..\..\scsitape.cpp" />
     <ClCompile Include="..\..\slirp\bootp.cpp" />

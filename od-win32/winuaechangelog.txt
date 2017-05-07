@@ -4,6 +4,22 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 8:
+
+- Blitter BDAT register's old content was not preserved and shifted in when BDAT was rewritten with CPU or copper
+  and current B-shift was non-zero. (Probably never used by purpose but emulation still should be always correct)
+- 68010+ RTE didn't generate format error exception if frame was not supported by selected CPU but it was supported by
+  other 680x0 model and CPU emulation mode was not MMU or more compatible.
+- Added Comspec SA-1000 RTC emulation. Always returns current host time, time registers are not writable.
+- Built-in HRTMon 2.37 update.
+- Added two A2088T BIOS 4.0 (390657-01) ROM versions with different internal date (09/11/89 and 14/11/89).
+- Added A2386SX 1.00.03 ROM.
+- PC bridgeboard NE2000 boot crash fix. (Introduced when NIC specific MAC setting was added)
+- Adjusted windowed mode mouse clipping so that when winuae window is partially under taskbar (including auto hide taskbar)
+  or partially outside of monitor, Amiga mouse won't randomly hit hidden borders (if Windows Mouse mode) or become
+  unexpectedly uncaptured (any mode, window partially under taskbar).
+- Do not delay SCSI/ATAPI emulation audio CD play state change from startup to playing. Only CD32/CDTV require it.
+
 Beta 7:
 
 - Accessing accelerator board SCSI IO region without any added SCSI device caused crash.

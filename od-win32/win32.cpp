@@ -590,15 +590,76 @@ static void releasecapture (void)
 void updatemouseclip (void)
 {
 	if (showcursor) {
-		ClipCursor(NULL);
 		amigawinclip_rect = amigawin_rect;
-		if (0 && !isfullscreen()) {
-			RECT cliprect;
-			GetClipCursor(&cliprect);
-			IntersectRect(&amigawinclip_rect, &cliprect, &amigawin_rect);
-#if MOUSECLIP_LOG
-			write_log (_T("CLIPW %dx%d %dx%d %d\n"), amigawinclip_rect.left, amigawinclip_rect.top, amigawinclip_rect.right, amigawinclip_rect.bottom, isfullscreen ());
-#endif
+		if (!isfullscreen()) {
+			int idx = 0;
+			reenumeratemonitors();
+			while (Displays[idx].monitorname) {
+				RECT out;
+				struct MultiDisplay *md = &Displays[idx];
+				idx++;
+				if (md->rect.left == md->workrect.left && md->rect.right == md->workrect.right
+					&& md->rect.top == md->workrect.top && md->rect.bottom == md->workrect.bottom)
+					continue;
+				// not in this monitor?
+				if (!IntersectRect(&out, &md->rect, &amigawin_rect))
+					continue;
+				for (int e = 0; e < 4; e++) {
+					int v1, v2, x, y;
+					LONG *lp;
+					switch (e)
+					{
+						case 0:
+						default:
+						v1 = md->rect.left;
+						v2 = md->workrect.left;
+						lp = &amigawinclip_rect.left;
+						x = v1 - 1;
+						y = (md->rect.bottom - md->rect.top) / 2;
+						break;
+						case 1:
+						v1 = md->rect.top;
+						v2 = md->workrect.top;
+						lp = &amigawinclip_rect.top;
+						x = (md->rect.right - md->rect.left) / 2;
+						y = v1 - 1;
+						break;
+						case 2:
+						v1 = md->rect.right;
+						v2 = md->workrect.right;
+						lp = &amigawinclip_rect.right;
+						x = v1 + 1;
+						y = (md->rect.bottom - md->rect.top) / 2;
+						break;
+						case 3:
+						v1 = md->rect.bottom;
+						v2 = md->workrect.bottom;
+						lp = &amigawinclip_rect.bottom;
+						x = (md->rect.right - md->rect.left) / 2;
+						y = v1 + 1;
+						break;
+					}
+					// is there another monitor sharing this edge?
+					POINT pt;
+					pt.x = x;
+					pt.y = y;
+					if (MonitorFromPoint(pt, MONITOR_DEFAULTTONULL))
+						continue;
+					// restrict mouse clip bounding box to this edge
+					if (e >= 2) {
+						if (*lp > v2) {
+							*lp = v2;
+						}
+					} else {
+						if (*lp < v2) {
+							*lp = v2;
+						}
+					}
+				}
+			}
+			// Too small or invalid?
+			if (amigawinclip_rect.right <= amigawinclip_rect.left + 7 || amigawinclip_rect.bottom <= amigawinclip_rect.top + 7) 
+				amigawinclip_rect = amigawin_rect;
 		}
 #if MOUSECLIP_LOG
 		write_log (_T("CLIP %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, isfullscreen ());
@@ -5793,6 +5854,12 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		log_cd32 = 2;
 		return 1;
 	}
+	if (!_tcscmp(arg, _T("romlist"))) {
+		void dumpromlist(void);
+		dumpromlist();
+		return -1;
+	}
+
 
 	if (!np)
 		return 0;
