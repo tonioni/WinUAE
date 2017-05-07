@@ -43,6 +43,7 @@
 #include "uae/ppc.h"
 #include "rommgr.h"
 #include "scsi.h"
+#include "rtc.h"
 
 #define CIAA_DEBUG_R 0
 #define CIAA_DEBUG_W 0
@@ -102,8 +103,9 @@ static uae_u8 kbcode;
 
 static uae_u8 serbits;
 static int warned = 10;
-static int rtc_delayed_write;
 
+static struct rtc_msm_data rtc_msm;
+static struct rtc_ricoh_data rtc_ricoh;
 
 static void setclr (unsigned int *p, unsigned int val)
 {
@@ -914,13 +916,22 @@ void CIA_vsync_prehandler (void)
 {
 	if (heartbeat_cnt > 0)
 		heartbeat_cnt--;
-	if (rtc_delayed_write < 0) {
-		rtc_delayed_write = 50;
-	} else if (rtc_delayed_write > 0) {
-		rtc_delayed_write--;
-		if (rtc_delayed_write == 0)
+
+	if (rtc_msm.delayed_write < 0) {
+		rtc_msm.delayed_write = 50;
+	} else if (rtc_msm.delayed_write > 0) {
+		rtc_msm.delayed_write--;
+		if (rtc_msm.delayed_write == 0)
 			write_battclock ();
 	}
+	if (rtc_ricoh.delayed_write < 0) {
+		rtc_ricoh.delayed_write = 50;
+	} else if (rtc_ricoh.delayed_write > 0) {
+		rtc_ricoh.delayed_write--;
+		if (rtc_ricoh.delayed_write == 0)
+			write_battclock ();
+	}
+
 	led_vsync ();
 	CIA_handler ();
 	if (kblostsynccnt > 0) {
@@ -2092,80 +2103,14 @@ addrbank clock_bank = {
 	ABFLAG_IO, S_READ, S_WRITE, NULL, 0x3f, 0xd80000
 };
 
-static unsigned int clock_control_d;
-static unsigned int clock_control_e;
-static unsigned int clock_control_f;
-
-#define RF5C01A_RAM_SIZE 16
-static uae_u8 rtc_memory[RF5C01A_RAM_SIZE], rtc_alarm[RF5C01A_RAM_SIZE];
-
 static uae_u8 getclockreg (int addr, struct tm *ct)
 {
 	uae_u8 v = 0;
 
 	if (currprefs.cs_rtc == 1 || currprefs.cs_rtc == 3) { /* MSM6242B */
-		switch (addr) {
-		case 0x0: v = ct->tm_sec % 10; break;
-		case 0x1: v = ct->tm_sec / 10; break;
-		case 0x2: v = ct->tm_min % 10; break;
-		case 0x3: v = ct->tm_min / 10; break;
-		case 0x4: v = ct->tm_hour % 10; break;
-		case 0x5:
-			if (clock_control_f & 4) {
-				v = ct->tm_hour / 10; // 24h
-			} else {
-				v = (ct->tm_hour % 12) / 10; // 12h
-				v |= ct->tm_hour >= 12 ? 4 : 0; // AM/PM bit
-			}
-			break;
-		case 0x6: v = ct->tm_mday % 10; break;
-		case 0x7: v = ct->tm_mday / 10; break;
-		case 0x8: v = (ct->tm_mon + 1) % 10; break;
-		case 0x9: v = (ct->tm_mon + 1) / 10; break;
-		case 0xA: v = ct->tm_year % 10; break;
-		case 0xB: v = (ct->tm_year / 10) & 0x0f;  break;
-		case 0xC: v = ct->tm_wday; break;
-		case 0xD: v = clock_control_d; break;
-		case 0xE: v = clock_control_e; break;
-		case 0xF: v = clock_control_f; break;
-		}
+		return get_clock_msm(&rtc_msm, addr, ct);
 	} else if (currprefs.cs_rtc == 2) { /* RF5C01A */
-		int bank = clock_control_d & 3;
-		/* memory access */
-		if (bank >= 2 && addr < 0x0d)
-			return (rtc_memory[addr] >> ((bank == 2) ? 0 : 4)) & 0x0f;
-		/* alarm */
-		if (bank == 1 && addr < 0x0d) {
-			v = rtc_alarm[addr];
-#if CLOCK_DEBUG
-			write_log (_T("CLOCK ALARM R %X: %X\n"), addr, v);
-#endif
-			return v;
-		}
-		switch (addr) {
-		case 0x0: v = ct->tm_sec % 10; break;
-		case 0x1: v = ct->tm_sec / 10; break;
-		case 0x2: v = ct->tm_min % 10; break;
-		case 0x3: v = ct->tm_min / 10; break;
-		case 0x4: v = ct->tm_hour % 10; break;
-		case 0x5:
-			if (rtc_alarm[10] & 1)
-				v = ct->tm_hour / 10; // 24h
-			else
-				v = ((ct->tm_hour % 12) / 10) | (ct->tm_hour >= 12 ? 2 : 0); // 12h
-		break;
-		case 0x6: v = ct->tm_wday; break;
-		case 0x7: v = ct->tm_mday % 10; break;
-		case 0x8: v = ct->tm_mday / 10; break;
-		case 0x9: v = (ct->tm_mon + 1) % 10; break;
-		case 0xA: v = (ct->tm_mon + 1) / 10; break;
-		case 0xB: v = (ct->tm_year % 100) % 10; break;
-		case 0xC: v = (ct->tm_year % 100) / 10; break;
-		case 0xD: v = clock_control_d; break;
-		/* E and F = write-only, reads as zero */
-		case 0xE: v = 0; break;
-		case 0xF: v = 0; break;
-		}
+		return get_clock_ricoh(&rtc_ricoh, addr, ct);
 	}
 #if CLOCK_DEBUG
 	write_log(_T("CLOCK R: %X = %X, PC=%08x\n"), addr, v, M68K_GETPC);
@@ -2183,20 +2128,31 @@ static void write_battclock (void)
 		time_t t = time (0);
 		t += currprefs.cs_rtc_adjust;
 		ct = localtime (&t);
-		uae_u8 od = clock_control_d;
-		if (currprefs.cs_rtc == 2)
-			clock_control_d &= ~3;
+		uae_u8 od;
+		if (currprefs.cs_rtc == 2) {
+			od = rtc_ricoh.clock_control_d;
+			rtc_ricoh.clock_control_d &= ~3;
+		} else {
+			od = rtc_msm.clock_control_d;
+		}
 		for (int i = 0; i < 13; i++) {
 			uae_u8 v = getclockreg (i, ct);
 			zfile_fwrite (&v, 1, 1, f);
 		}
-		clock_control_d = od;
-		zfile_fwrite (&clock_control_d, 1, 1, f);
-		zfile_fwrite (&clock_control_e, 1, 1, f);
-		zfile_fwrite (&clock_control_f, 1, 1, f);
 		if (currprefs.cs_rtc == 2) {
-			zfile_fwrite (rtc_alarm, RF5C01A_RAM_SIZE, 1, f);
-			zfile_fwrite (rtc_memory, RF5C01A_RAM_SIZE, 1, f);
+			rtc_ricoh.clock_control_d = od;
+			zfile_fwrite (&rtc_ricoh.clock_control_d, 1, 1, f);
+			zfile_fwrite (&rtc_ricoh.clock_control_e, 1, 1, f);
+			zfile_fwrite (&rtc_ricoh.clock_control_f, 1, 1, f);
+		} else {
+			rtc_msm.clock_control_d = od;
+			zfile_fwrite (&rtc_msm.clock_control_d, 1, 1, f);
+			zfile_fwrite (&rtc_msm.clock_control_e, 1, 1, f);
+			zfile_fwrite (&rtc_msm.clock_control_f, 1, 1, f);
+		}
+		if (currprefs.cs_rtc == 2) {
+			zfile_fwrite (rtc_ricoh.rtc_alarm, RF5C01A_RAM_SIZE, 1, f);
+			zfile_fwrite (rtc_ricoh.rtc_memory, RF5C01A_RAM_SIZE, 1, f);
 		}
 		zfile_fclose (f);
 	}
@@ -2204,31 +2160,39 @@ static void write_battclock (void)
 
 void rtc_hardreset (void)
 {
-	rtc_delayed_write = 0;
 	if (currprefs.cs_rtc == 1 || currprefs.cs_rtc == 3) { /* MSM6242B */
 		clock_bank.name = currprefs.cs_rtc == 1 ? _T("Battery backed up clock (MSM6242B)") : _T("Battery backed up clock A2000 (MSM6242B)");
-		clock_control_d = 0x1;
-		clock_control_e = 0;
-		clock_control_f = 0x4; /* 24/12 */
+		rtc_msm.clock_control_d = 0x1;
+		rtc_msm.clock_control_e = 0;
+		rtc_msm.clock_control_f = 0x4; /* 24/12 */
+		rtc_msm.delayed_write = 0;
 	} else if (currprefs.cs_rtc == 2) { /* RF5C01A */
 		clock_bank.name = _T("Battery backed up clock (RF5C01A)");
-		clock_control_d = 0x8; /* Timer EN */
-		clock_control_e = 0;
-		clock_control_f = 0;
-		memset (rtc_memory, 0, RF5C01A_RAM_SIZE);
-		memset (rtc_alarm, 0, RF5C01A_RAM_SIZE);
-		rtc_alarm[10] = 1; /* 24H mode */
+		rtc_ricoh.clock_control_d = 0x8; /* Timer EN */
+		rtc_ricoh.clock_control_e = 0;
+		rtc_ricoh.clock_control_f = 0;
+		memset (rtc_ricoh.rtc_memory, 0, RF5C01A_RAM_SIZE);
+		memset (rtc_ricoh.rtc_alarm, 0, RF5C01A_RAM_SIZE);
+		rtc_ricoh.rtc_alarm[10] = 1; /* 24H mode */
+		rtc_ricoh.delayed_write = 0;
 	}
 	if (currprefs.rtcfile[0]) {
 		struct zfile *f = zfile_fopen (currprefs.rtcfile, _T("rb"));
 		if (f) {
 			uae_u8 empty[13];
 			zfile_fread (empty, 13, 1, f);
-			zfile_fread (&clock_control_d, 1, 1, f);
-			zfile_fread (&clock_control_e, 1, 1, f);
-			zfile_fread (&clock_control_f, 1, 1, f);
-			zfile_fread (rtc_alarm, RF5C01A_RAM_SIZE, 1, f);
-			zfile_fread (rtc_memory, RF5C01A_RAM_SIZE, 1, f);
+			uae_u8 v;
+			zfile_fread (&v, 1, 1, f);
+			rtc_ricoh.clock_control_d = v;
+			rtc_msm.clock_control_d = v;
+			zfile_fread (&v, 1, 1, f);
+			rtc_ricoh.clock_control_e = v;
+			rtc_msm.clock_control_d = v;
+			zfile_fread (&v, 1, 1, f);
+			rtc_ricoh.clock_control_f = v;
+			rtc_msm.clock_control_d = v;
+			zfile_fread (rtc_ricoh.rtc_alarm, RF5C01A_RAM_SIZE, 1, f);
+			zfile_fread (rtc_ricoh.rtc_memory, RF5C01A_RAM_SIZE, 1, f);
 			zfile_fclose (f);
 		}
 	}
@@ -2321,52 +2285,10 @@ static void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
 #if CLOCK_DEBUG
 		write_log (_T("CLOCK W %X: %X\n"), addr, value);
 #endif
-		switch (addr)
-		{
-		case 0xD: clock_control_d = value & (1|8); break;
-		case 0xE: clock_control_e = value; break;
-		case 0xF: clock_control_f = value; break;
-		}
+		put_clock_msm(&rtc_msm, addr, value);
 	} else if (currprefs.cs_rtc == 2) { /* RF5C01A */
-		int bank = clock_control_d & 3;
-		/* memory access */
-		if (bank >= 2 && addr < 0x0d) {
-			uae_u8 ov = rtc_memory[addr];
-			rtc_memory[addr] &= ((bank == 2) ? 0xf0 : 0x0f);
-			rtc_memory[addr] |= value << ((bank == 2) ? 0 : 4);
-			if (rtc_memory[addr] != ov)
-				rtc_delayed_write = -1;
-			return;
-		}
-		/* alarm */
-		if (bank == 1 && addr < 0x0d) {
-#if CLOCK_DEBUG
-			write_log (_T("CLOCK ALARM W %X: %X\n"), addr, value);
-#endif
-			uae_u8 ov = rtc_alarm[addr];
-			rtc_alarm[addr] = value;
-			rtc_alarm[0] = rtc_alarm[1] = rtc_alarm[9] = rtc_alarm[12] = 0;
-			rtc_alarm[3] &= ~0x8;
-			rtc_alarm[5] &= ~0xc;
-			rtc_alarm[6] &= ~0x8;
-			rtc_alarm[8] &= ~0xc;
-			rtc_alarm[10] &= ~0xe;
-			rtc_alarm[11] &= ~0xc;
-			if (rtc_alarm[addr] != ov)
-				rtc_delayed_write = -1;
-			return;
-		}
-#if CLOCK_DEBUG
-		write_log (_T("CLOCK W %X: %X\n"), addr, value);
-#endif
-		switch (addr)
-		{
-		case 0xD: clock_control_d = value; break;
-		case 0xE: clock_control_e = value; break;
-		case 0xF: clock_control_f = value; break;
-		}
+		put_clock_ricoh(&rtc_ricoh, addr, value);
 	}
-	rtc_delayed_write = -1;
 }
 
 #ifdef SAVESTATE

@@ -43,6 +43,7 @@
 #include "cdtv.h"
 #include "savestate.h"
 #include "cpuboard.h"
+#include "rtc.h"
 
 #define DMAC_8727_ROM_VECTOR 0x8000
 #define CDMAC_ROM_VECTOR 0x2000
@@ -291,6 +292,7 @@ static void freencrunit(struct wd_state *wd)
 		free_expansion_bank(&wd->bank);
 	else
 		xfree (wd->rom);
+	xfree(wd->userdata);
 	wd->rom = NULL;
 	if (wd->self_ptr)
 		*wd->self_ptr = NULL;
@@ -2568,6 +2570,11 @@ static uae_u8 comspec_read_byte(struct wd_state *wd, uaecptr addr)
 			v = comspec_status(wd);
 		} else if ((addr & 0xf1) == 0x81) {
 			v = wdscsi_get_data(&wd->wc, wd);
+		} else if ((addr & 0xa0) == 0xa0) {
+			if (wd->comspec.status & 1) {
+				int rtc = (addr >> 1) & 15;
+				v = get_clock_msm((struct rtc_msm_data*)wd->userdata, rtc, NULL);
+			}
 		} else {
 			if (comspec_wd_aux(addr)) {
 				v = wdscsi_getauxstatus(&wd->wc);
@@ -2597,6 +2604,11 @@ static void comspec_write_byte(struct wd_state *wd, uaecptr addr, uae_u8 v)
 #endif
 		} else if ((addr & 0xf1) == 0xe1) {
 			wdscsi_put_data(&wd->wc, wd, v);
+		} else if ((addr & 0xa0) == 0xa0) {
+			if (wd->comspec.status & 1) {
+				int rtc = (addr >> 1) & 15;
+				put_clock_msm((struct rtc_msm_data*)wd->userdata, rtc, v);
+			}
 		} else {
 			if (comspec_wd_aux(addr)) {
 				wdscsi_sasr(&wd->wc, v);
@@ -4122,7 +4134,7 @@ bool comspec_init (struct autoconfig_info *aci)
 	ew(aci->autoconfig_raw, 0x18, 0x00);
 	ew(aci->autoconfig_raw, 0x1c, 0x00);
 	ew(aci->autoconfig_raw, 0x20, 0x00);
-	ew(aci->autoconfig_raw, 0x24, 0x00);
+	ew(aci->autoconfig_raw, 0x24, (aci->rc->device_settings & 1) ? 0x00 : 0x01);
 
 	aci->label = _T("COMSPEC");
 	if (!aci->doinit)
@@ -4164,6 +4176,12 @@ bool comspec_init (struct autoconfig_info *aci)
 		map_banks(&wd->bank, 0xf00000 >> 16, 1, 0);
 		wd->baseaddress2 = 0xf00000;
 	}
+
+	wd->userdata = xcalloc(struct rtc_msm_data, 1);
+	struct rtc_msm_data *rtc = (struct rtc_msm_data*)wd->userdata;
+	rtc->clock_control_d = 1;
+	rtc->clock_control_f = 0x4; /* 24/12 */
+	rtc->yearmode = true;
 
 	return true;
 }

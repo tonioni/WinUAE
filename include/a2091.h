@@ -104,6 +104,7 @@ struct wd_state {
 	struct gvp_dmac gdmac;
 	struct comspec_chip comspec;
 	addrbank bank;
+	void *userdata;
 };
 extern wd_state *wd_cdtv;
 
