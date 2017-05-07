@@ -3884,13 +3884,15 @@ static void gen_opcode (unsigned int opcode)
 			} else if (cpu_level >= 4) {
 		    	printf ("\t\telse if (frame == 0x7) { m68k_areg (regs, 7) += offset + 52; break; }\n");
 			}
-			printf ("\t\telse if (frame == 0x9) { m68k_areg (regs, 7) += offset + 12; break; }\n");
-			if (using_mmu == 68030) {
-				printf ("\t\telse if (frame == 0xa) { m68k_do_rte_mmu030 (a); break; }\n");
-			    printf ("\t\telse if (frame == 0xb) { m68k_do_rte_mmu030 (a); break; }\n");
-			} else {
-				printf ("\t\telse if (frame == 0xa) { m68k_areg (regs, 7) += offset + 24; break; }\n");
-			    printf ("\t\telse if (frame == 0xb) { m68k_areg (regs, 7) += offset + 84; break; }\n");
+			if (cpu_level == 2 || cpu_level == 3) { // 68020/68030 only
+				printf ("\t\telse if (frame == 0x9) { m68k_areg (regs, 7) += offset + 12; break; }\n");
+				if (using_mmu == 68030) {
+					printf ("\t\telse if (frame == 0xa) { m68k_do_rte_mmu030 (a); break; }\n");
+				    printf ("\t\telse if (frame == 0xb) { m68k_do_rte_mmu030 (a); break; }\n");
+				} else {
+					printf ("\t\telse if (frame == 0xa) { m68k_areg (regs, 7) += offset + 24; break; }\n");
+				    printf ("\t\telse if (frame == 0xb) { m68k_areg (regs, 7) += offset + 84; break; }\n");
+				}
 			}
 		    printf ("\t\telse { m68k_areg (regs, 7) += offset; Exception_cpu(14); goto %s; }\n", endlabelstr);
 		    printf ("\t\tregs.sr = newsr;\n");
@@ -3913,6 +3915,7 @@ static void gen_opcode (unsigned int opcode)
 		tail_ce020_done = true;
 		fill_prefetch_full_ntx();
 		branch_inst = 1;
+		next_cpu_level = cpu_level - 1;
 		break;
 	case i_RTD:
 		addop_ce020 (curi, 0);
@@ -5351,7 +5354,7 @@ bccl_not68020:
 		if (using_mmu)
 			printf ("\tflush_mmu%s(m68k_areg (regs, opcode & 3), (opcode >> 6) & 3);\n", mmu_postfix);
 		printf ("\tif (opcode & 0x80)\n");
-		printf ("\t\tflush_icache(m68k_areg (regs, opcode & 3), (opcode >> 6) & 3);\n");
+		printf ("\t\tflush_icache((opcode >> 6) & 3);\n");
 		break;
 
 	case i_MOVE16:
