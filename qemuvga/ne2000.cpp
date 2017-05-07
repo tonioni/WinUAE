@@ -1332,7 +1332,7 @@ static bool ne2000_init_2(struct pci_board_state *pcibs, int romtype, const TCHA
 
 static bool ne2000_init(struct pci_board_state *pcibs, struct autoconfig_info *aci)
 {
-	return ne2000_init_2(pcibs, ROMTYPE_NE2KPCI, aci->rc->configtext);
+	return ne2000_init_2(pcibs, ROMTYPE_NE2KPCI, aci && aci->rc ? aci->rc->configtext : NULL);
 }
 
 static const struct pci_config ne2000_pci_config =
