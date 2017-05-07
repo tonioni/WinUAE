@@ -1679,7 +1679,6 @@ floatx80 float32_to_floatx80_allowunnormal(float32 a , float_status *status)
     aExp = extractFloat32Exp(a);
     aSign = extractFloat32Sign(a);
     if (aExp == 0xFF) {
-		aSig |= 0x00800000;
         return packFloatx80( aSign, 0x7FFF, ( (uint64_t) aSig )<<40 );
     }
     if (aExp == 0) {
@@ -1733,11 +1732,11 @@ floatx80 float64_to_floatx80_allowunnormal( float64 a, float_status *status )
     aExp = extractFloat64Exp( a );
     aSign = extractFloat64Sign( a );
     if ( aExp == 0x7FF ) {
-        return packFloatx80( aSign, 0x7FFF, ( aSig | LIT64( 0x0010000000000000 ) )<<11 );
+        return packFloatx80( aSign, 0x7FFF, aSig<<11 );
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloatx80( aSign, 0, 0 );
-        return packFloatx80( aSign, 0x3C01, aSig<<11);
+        return packFloatx80( aSign, 0x3C01, aSig<<11 );
     }
     return
     packFloatx80(

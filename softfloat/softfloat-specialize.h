@@ -303,8 +303,11 @@ static inline commonNaNT floatx80ToCommonNaN( floatx80 a, float_status *status )
 static inline floatx80 commonNaNToFloatx80(commonNaNT a, float_status *status)
 {
     floatx80 z;
+#ifdef SOFTFLOAT_68K
+    z.low = LIT64( 0x4000000000000000 ) | ( a.high>>1 );
+#else
     z.low = LIT64( 0xC000000000000000 ) | ( a.high>>1 );
-    z.high = ( ( (int16_t) a.sign )<<15 ) | 0x7FFF;
+#endif    z.high = ( ( (int16_t) a.sign )<<15 ) | 0x7FFF;
     return z;
 }
 
@@ -316,11 +319,13 @@ static inline floatx80 commonNaNToFloatx80(commonNaNT a, float_status *status)
 
 static inline floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b, float_status *status )
 {
-    flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN;
+    flag aIsNaN, aIsSignalingNaN, bIsSignalingNaN;
+#ifndef SOFTFLOAT_68K
+    flag bIsNaN;
+#endif 
 
-    aIsNaN = floatx80_is_nan( a );
+	aIsNaN = floatx80_is_nan( a );
     aIsSignalingNaN = floatx80_is_signaling_nan( a );
-    bIsNaN = floatx80_is_nan( b );
     bIsSignalingNaN = floatx80_is_signaling_nan( b );
 #ifdef SOFTFLOAT_68K
     a.low |= LIT64( 0x4000000000000000 );
@@ -328,6 +333,7 @@ static inline floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b, float_statu
     if ( aIsSignalingNaN | bIsSignalingNaN ) float_raise( float_flag_signaling, status );
     return aIsNaN ? a : b;
 #else
+    bIsNaN = floatx80_is_nan( b );
     a.low |= LIT64( 0xC000000000000000 );
     b.low |= LIT64( 0xC000000000000000 );
     if ( aIsSignalingNaN | bIsSignalingNaN ) float_raise( float_flag_signaling, status );
