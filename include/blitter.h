@@ -15,7 +15,7 @@ struct bltinfo {
     int blitzero;
     int blitashift, blitbshift, blitdownashift, blitdownbshift;
     uae_u16 bltadat, bltbdat, bltcdat, bltddat;
-    uae_u16 bltahold, bltbhold, bltafwm, bltalwm;
+    uae_u16 bltaold, bltahold, bltbold, bltbhold, bltafwm, bltalwm;
     int vblitsize, hblitsize;
     int bltamod, bltbmod, bltcmod, bltdmod;
     int got_cycle;

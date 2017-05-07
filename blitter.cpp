@@ -186,6 +186,28 @@ There is at least one demo that does this..
 
 */
 
+/* Copper pointer to Blitter register copy bug
+
+	1: -d = D (-D)
+	2: -c = C (-C)
+	3: - (-CD)
+	4: - (-B-)
+	5: - (-BD)
+	6: - (-BC)
+	7: -BcD = C, -BCd = D
+	8: - (A-)
+	9: - (AD)
+	A: - (AC)
+	B: A (ACD)
+	C: - (AB-)
+	D: - (ABD-)
+	E: - (ABC)
+	F: AxBxCxD = -, aBxCxD = A, 
+
+	1FE,8C,RGA,8C
+
+ */
+
 // 5 = internal "processing cycle"
 static const int blit_cycle_diagram_line[] =
 {
@@ -473,7 +495,6 @@ static void blitter_dofast (void)
 #endif
 	{
 		uae_u32 blitbhold = blt_info.bltbhold;
-		uae_u32 preva = 0, prevb = 0;
 		uaecptr dstp = 0;
 		int dodst = 0;
 
@@ -481,21 +502,21 @@ static void blitter_dofast (void)
 			blitfc = !!(bltcon1 & 0x4);
 			for (i = 0; i < blt_info.hblitsize; i++) {
 				uae_u32 bltadat, blitahold;
-				uae_u16 bltbdat;
 				if (bltadatptr) {
 					blt_info.bltadat = bltadat = chipmem_wget_indirect (bltadatptr);
 					bltadatptr += 2;
 				} else
 					bltadat = blt_info.bltadat;
 				bltadat &= blit_masktable[i];
-				blitahold = (((uae_u32)preva << 16) | bltadat) >> blt_info.blitashift;
-				preva = bltadat;
+				blitahold = (((uae_u32)blt_info.bltaold << 16) | bltadat) >> blt_info.blitashift;
+				blt_info.bltaold = bltadat;
 
 				if (bltbdatptr) {
-					blt_info.bltbdat = bltbdat = chipmem_wget_indirect (bltbdatptr);
+					uae_u16 bltbdat = chipmem_wget_indirect (bltbdatptr);
 					bltbdatptr += 2;
-					blitbhold = (((uae_u32)prevb << 16) | bltbdat) >> blt_info.blitbshift;
-					prevb = bltbdat;
+					blitbhold = (((uae_u32)blt_info.bltbold << 16) | bltbdat) >> blt_info.blitbshift;
+					blt_info.bltbold = bltbdat;
+					blt_info.bltbdat = bltbdat;
 				}
 
 				if (bltcdatptr) {
@@ -572,7 +593,6 @@ static void blitter_dofast_desc (void)
 #endif
 	{
 		uae_u32 blitbhold = blt_info.bltbhold;
-		uae_u32 preva = 0, prevb = 0;
 		uaecptr dstp = 0;
 		int dodst = 0;
 
@@ -580,21 +600,21 @@ static void blitter_dofast_desc (void)
 			blitfc = !!(bltcon1 & 0x4);
 			for (i = 0; i < blt_info.hblitsize; i++) {
 				uae_u32 bltadat, blitahold;
-				uae_u16 bltbdat;
 				if (bltadatptr) {
 					bltadat = blt_info.bltadat = chipmem_wget_indirect (bltadatptr);
 					bltadatptr -= 2;
 				} else
 					bltadat = blt_info.bltadat;
 				bltadat &= blit_masktable[i];
-				blitahold = (((uae_u32)bltadat << 16) | preva) >> blt_info.blitdownashift;
-				preva = bltadat;
+				blitahold = (((uae_u32)bltadat << 16) | blt_info.bltaold) >> blt_info.blitdownashift;
+				blt_info.bltaold = bltadat;
 
 				if (bltbdatptr) {
-					blt_info.bltbdat = bltbdat = chipmem_wget_indirect (bltbdatptr);
+					uae_u16 bltbdat = chipmem_wget_indirect (bltbdatptr);
 					bltbdatptr -= 2;
-					blitbhold = (((uae_u32)bltbdat << 16) | prevb) >> blt_info.blitdownbshift;
-					prevb = bltbdat;
+					blitbhold = (((uae_u32)bltbdat << 16) | blt_info.bltbold) >> blt_info.blitdownbshift;
+					blt_info.bltbold = bltbdat;
+					blt_info.bltbdat = bltbdat;
 				}
 
 				if (bltcdatptr) {
@@ -914,7 +934,6 @@ void blitter_handler (uae_u32 data)
 
 #ifdef CPUEMU_13
 
-static uae_u32 preva, prevb;
 STATIC_INLINE uae_u16 blitter_doblit (void)
 {
 	uae_u32 blitahold;
@@ -927,10 +946,10 @@ STATIC_INLINE uae_u16 blitter_doblit (void)
 	if (blitter_hcounter1 == blt_info.hblitsize - 1)
 		bltadat &= blt_info.bltalwm;
 	if (blitdesc)
-		blitahold = (((uae_u32)bltadat << 16) | preva) >> blt_info.blitdownashift;
+		blitahold = (((uae_u32)bltadat << 16) | blt_info.bltaold) >> blt_info.blitdownashift;
 	else
-		blitahold = (((uae_u32)preva << 16) | bltadat) >> blt_info.blitashift;
-	preva = bltadat;
+		blitahold = (((uae_u32)blt_info.bltaold << 16) | bltadat) >> blt_info.blitashift;
+	blt_info.bltaold = bltadat;
 
 	ddat = blit_func (blitahold, blt_info.bltbhold, blt_info.bltcdat, mt) & 0xFFFF;
 
@@ -1010,10 +1029,10 @@ STATIC_INLINE void blitter_dodma (int ch, int hpos)
 		addr = bltbpt;
 		bltbpt += blit_add;
 		if (blitdesc)
-			blt_info.bltbhold = (((uae_u32)blt_info.bltbdat << 16) | prevb) >> blt_info.blitdownbshift;
+			blt_info.bltbhold = (((uae_u32)blt_info.bltbdat << 16) | blt_info.bltbold) >> blt_info.blitdownbshift;
 		else
-			blt_info.bltbhold = (((uae_u32)prevb << 16) | blt_info.bltbdat) >> blt_info.blitbshift;
-		prevb = blt_info.bltbdat;
+			blt_info.bltbhold = (((uae_u32)blt_info.bltbold << 16) | blt_info.bltbdat) >> blt_info.blitbshift;
+		blt_info.bltbold = blt_info.bltbdat;
 		reg = 0x72;
 		alloc_cycle_blitter (hpos, &bltbpt, 2);
 		break;
@@ -1457,8 +1476,6 @@ static bool waitingblits (void)
 static void blitter_start_init (void)
 {
 	blt_info.blitzero = 1;
-	preva = 0;
-	prevb = 0;
 	blit_frozen = 0;
 	blitline_started = bltcon1 & 1;
 
@@ -1466,6 +1483,12 @@ static void blitter_start_init (void)
 	blit_modset ();
 	ddat1use = ddat2use = 0;
 	blit_interrupt = 0;
+
+	// A old is always cleared
+	blt_info.bltaold = 0;
+	// B old is cleared only if channel is enabled
+	if (blit_ch & 4)
+		blt_info.bltbold = 0;
 
 	if (blitline) {
 		blinea = blt_info.bltadat;
