@@ -5,6 +5,12 @@
 
 #define WD_STATUS_QUEUE 2
 
+struct status_data
+{
+	volatile uae_u8 status;
+	volatile int irq;
+};
+
 struct wd_chip_state {
 
 	volatile uae_u8 sasr, scmd, auxstatus;
@@ -14,9 +20,9 @@ struct wd_chip_state {
 	volatile int wd_dataoffset;
 	volatile uae_u8 wd_data[32];
 	uae_u8 wdregs[32];
-	volatile uae_u8 scsidelay_status[WD_STATUS_QUEUE];
 	volatile int queue_index;
-	volatile int scsidelay_irq[WD_STATUS_QUEUE];
+	volatile uae_u16 intmask;
+	struct status_data status[WD_STATUS_QUEUE];
 	struct scsi_data *scsi;
 	int wd33c93_ver;// 0 or 1
 	bool resetnodelay;

@@ -542,12 +542,17 @@ static void doscsistatus(struct wd_state *wd, uae_u8 status)
 #endif
 }
 
+static void set_status_intmask(struct wd_chip_state *wd, uae_u16 intmask)
+{
+	wd->intmask |= intmask;
+}
+
 static void set_status (struct wd_chip_state *wd, uae_u8 status, int delay)
 {
 	if (wd->queue_index >= WD_STATUS_QUEUE)
 		return;
-	wd->scsidelay_status[wd->queue_index] = status;
-	wd->scsidelay_irq[wd->queue_index] = delay == 0 ? 1 : (delay <= 2 ? 2 : delay);
+	wd->status[wd->queue_index].status = status;
+	wd->status[wd->queue_index].irq = delay == 0 ? 1 : (delay <= 2 ? 2 : delay);
 	wd->queue_index++;
 }
 
@@ -1019,7 +1024,7 @@ static void set_pio_data_irq(struct wd_chip_state *wd, struct wd_state *wds)
 		case COMSPEC_CHIP:
 		if (wds->comspec.status & 0x10) {
 			wds->comspec.status |= 0x08;
-			INTREQ_0(0x8000 | 0x2000);
+			set_status_intmask(wd, 0x2000);
 		}
 		break;
 	}
@@ -1336,20 +1341,19 @@ static void wd_cmd_sel (struct wd_chip_state *wd, struct wd_state *wds, bool atn
 
 static void wd_cmd_reset (struct wd_chip_state *wd, bool irq)
 {
-	int i;
-
 #if WD33C93_DEBUG > 0
 	if (irq)
 		write_log (_T("%s reset\n"), WD33C93);
 #endif
-	for (i = 1; i < 0x16; i++)
+	for (int i = 1; i < 0x16; i++)
 		wd->wdregs[i] = 0;
 	wd->wdregs[0x18] = 0;
 	wd->sasr = 0;
 	wd->wd_selected = false;
 	wd->scsi = NULL;
-	wd->scsidelay_irq[0] = 0;
-	wd->scsidelay_irq[1] = 0;
+	for (int j = 0; j < WD_STATUS_QUEUE; j++) {
+		memset(&wd->status[j], 0, sizeof status_data);
+	}
 	wd->queue_index = 0;
 	wd->auxstatus = 0;
 	wd->wd_data_avail = 0;
@@ -1363,8 +1367,12 @@ static void wd_master_reset(struct wd_state *wd, bool irq)
 {
 	memset(wd->wc.wdregs, 0, sizeof wd->wc.wdregs);
 	wd_cmd_reset(&wd->wc, false);
-	if (irq)
-		doscsistatus(wd, 0);
+	if (irq) {
+		// this needs to be fast but must not call INTREQ() directly.
+		wd->wc.wdregs[WD_SCSI_STATUS] = 0;
+		wd->wc.auxstatus |= ASR_INT;
+		set_status(&wd->wc, 0);
+	}
 }
 
 static void wd_cmd_abort (struct wd_chip_state *wd)
@@ -1379,23 +1387,27 @@ static void xt_command_done(struct wd_state *wd, uae_u8);
 static void wd_check_interrupt(struct wd_state *wds, bool checkonly)
 {
 	struct wd_chip_state *wd = &wds->wc;
+	if (wd->intmask) {
+		INTREQ_0(0x8000 | wd->intmask);
+		wd->intmask = 0;
+	}
 	if (wd->auxstatus & ASR_INT)
 		return;
 	if (wd->queue_index == 0)
 		return;
-	if (wd->scsidelay_irq[0] == 1) {
-		wd->scsidelay_irq[0] = 0;
-		doscsistatus(wds, wd->scsidelay_status[0]);
+	if (wd->status[0].irq == 1) {
+		wd->status[0].irq = 0;
+		doscsistatus(wds, wd->status[0].status);
 		wd->wd_busy = 0;
 		if (wd->queue_index == 2) {
-			wd->scsidelay_irq[0] = 1;
-			wd->scsidelay_status[0] = wd->scsidelay_status[1];
+			wd->status[0].irq = 1;
+			memcpy(&wd->status[0], &wd->status[1], sizeof status_data);
 			wd->queue_index = 1;
 		} else {
 			wd->queue_index = 0;
 		}
-	} else if (!checkonly && wd->scsidelay_irq[0] > 1) {
-		wd->scsidelay_irq[0]--;
+	} else if (!checkonly && wd->status[0].irq > 1) {
+		wd->status[0].irq--;
 	}
 }
 
