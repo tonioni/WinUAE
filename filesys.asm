@@ -178,6 +178,7 @@ filesys_init:
 FSIN_explibok:
 	move.l d0,a4
 
+	REM ; moved to early hwtrap_install
 	; create fake configdev
 	exg a4,a6
 	move.l a6,d0
@@ -200,6 +201,7 @@ FSIN_explibok:
 	jsr -$01e(a6) ;expansion/AddConfigDev
 .nocd
 	exg a4,a6
+	EREM
 
 	tst.l $10c(a5)
 	beq.w FSIN_none
@@ -3070,6 +3072,7 @@ debuggerproc
 	moveq #0,d0
 	lea doslibname(pc),a1
 	jsr -$0228(a6) ; OpenLibrary
+	move.l d0,a6
 	moveq #2,d1
 	move.w #$FF78,d0
 	bsr.w getrtbaselocal
@@ -3252,9 +3255,46 @@ copymem:
 	dc.l 2
 bcplwrapper_end:
 
+	; d0 bit 0 = install trap
+	; d0 bit 1 = add fake configdev
+
 hwtrap_install:
-	movem.l a2/a6,-(sp)
+	movem.l d2/a2/a6,-(sp)
+	move.l d0,d2
 	move.l 4.w,a6
+
+	btst #1,d2
+	beq.s .nocd2
+	; create fake configdev
+	lea.l explibname(pc),a1
+	moveq #0,d0
+	jsr  -552(a6) ; OpenLibrary
+	tst.l d0
+	beq.s .nocd2
+	move.l a6,a2
+	move.l d0,a6
+	jsr -$030(a6) ;expansion/AllocConfigDev
+	tst.l d0
+	beq.s .nocd1
+	move.l d0,a0
+	lea start(pc),a1
+	move.l a1,d0
+	clr.w d0
+	move.l d0,32(a0)
+	move.l #65536,36(a0)
+	move.w #$0104,16(a0) ;type + product
+	move.w #2011,16+4(a0) ;manufacturer
+	moveq #1,d0
+	move.l d0,22(a0) ;serial
+	jsr -$01e(a6) ;expansion/AddConfigDev
+.nocd1
+	move.l a6,a1
+	move.l a2,a6
+	jsr -$19e(a6)
+.nocd2
+	
+	btst #0,d2
+	beq.s .notrap
 	move.l #RTAREA_INTREQ,d0
 	bsr.w getrtbase
 	move.l a0,a2
@@ -3274,7 +3314,9 @@ hwtrap_install:
 	move.w #$027a,8(a1)
 	moveq #13,d0 ;EXTER
 	jsr -168(a6) ; AddIntServer
-	movem.l (sp)+,a2/a6
+.notrap
+
+	movem.l (sp)+,d2/a2/a6
 	rts
 
 hwtrap_entry:

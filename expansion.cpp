@@ -174,7 +174,7 @@ static bool chipdone;
 static int do_mount;
 
 #define FILESYS_DIAGPOINT 0x01e0
-#define FILESYS_BOOTPOINT 0x01e6
+#define FILESYS_BOOTPOINT 0x01f0
 #define FILESYS_DIAGAREA 0x2000
 
 /* ********************************************************** */
@@ -1398,15 +1398,14 @@ static bool expamem_init_uaeboard(struct autoconfig_info *aci)
 		bootpoint += diagoffset;
 
 		if (aci->doinit) {
-			if (p->uaeboard > 2) {
-				/* Call hwtrap_install */
-				put_word_host(expamem + diagpoint + 0, 0x4EB9); /* JSR */
-				put_long_host(expamem + diagpoint + 2, filesys_get_entry(9));
-				diagpoint += 6;
-			}
+			put_word_host(expamem + diagpoint + 0, 0x7000 |
+				(p->uaeboard > 2 ? 1 : 0) | (p->uae_hide_autoconfig || p->uaeboard > 1 ? 0 : 2)); // MOVEQ #x,D0
+			/* Call hwtrap_install */
+			put_word_host(expamem + diagpoint + 2, 0x4EB9); /* JSR */
+			put_long_host(expamem + diagpoint + 4, filesys_get_entry(9));
 			/* Call DiagEntry */
-			put_word_host(expamem + diagpoint + 0, 0x4EF9); /* JMP */
-			put_long_host(expamem + diagpoint + 2, ROM_filesys_diagentry);
+			put_word_host(expamem + diagpoint + 8, 0x4EF9); /* JMP */
+			put_long_host(expamem + diagpoint + 10, ROM_filesys_diagentry);
 
 			/* What comes next is a plain bootblock */
 			put_word_host(expamem + bootpoint + 0, 0x4EF9); /* JMP */
@@ -1858,9 +1857,14 @@ static bool expamem_init_filesys(struct autoconfig_info *aci)
 	/* Build a DiagArea */
 	memcpy (expamem + FILESYS_DIAGAREA, diagarea, sizeof diagarea);
 
+	put_word_host(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT + 0,
+		0x7000 | (currprefs.uaeboard > 2 ? 1 : 0) | (currprefs.uae_hide_autoconfig || currprefs.uaeboard > 1 ? 0 : 2)); // MOVEQ #x,D0
+	/* Call hwtrap_install */
+	put_word_host(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT + 2, 0x4EB9); /* JSR */
+	put_long_host(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT + 4, filesys_get_entry(9));
 	/* Call DiagEntry */
-	put_word_host(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT, 0x4EF9); /* JMP */
-	put_long_host(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT + 2, ROM_filesys_diagentry);
+	put_word_host(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT + 8, 0x4EF9); /* JMP */
+	put_long_host(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT + 10, ROM_filesys_diagentry);
 
 	/* What comes next is a plain bootblock */
 	put_word_host(expamem + FILESYS_DIAGAREA + FILESYS_BOOTPOINT, 0x4EF9); /* JMP */
