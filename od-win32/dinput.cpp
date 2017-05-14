@@ -23,6 +23,7 @@ int no_windowsmouse = 0;
 #define RAWINPUT_DEBUG 0
 #define DI_DEBUG 1
 #define IGNOREEVERYTHING 0
+#define DEBUG_SCANCODE 0
 
 #define NEGATIVEMINHACK 0
 
@@ -555,8 +556,8 @@ static int keyhack (int scancode, int pressed, int num)
 	static byte backslashstate, apostrophstate;
 
 	//check ALT-F4
-	if (pressed && !di_keycodes[num][DIK_F4] && scancode == DIK_F4) {
-		if (di_keycodes[num][DIK_LALT] && !currprefs.win32_ctrl_F11_is_quit) {
+	if (pressed && !(di_keycodes[num][DIK_F4] & 1) && scancode == DIK_F4) {
+		if ((di_keycodes[num][DIK_LALT] & 1) && !currprefs.win32_ctrl_F11_is_quit) {
 #ifdef RETROPLATFORM
 			if (rp_close ())
 				return -1;
@@ -573,7 +574,7 @@ static int keyhack (int scancode, int pressed, int num)
 #endif
 
 	// release mouse if TAB and ALT is pressed
-	if (pressed && di_keycodes[num][DIK_LALT] && scancode == DIK_TAB) {
+	if (pressed && (di_keycodes[num][DIK_LALT] & 1) && scancode == DIK_TAB) {
 		disablecapture ();
 		return -1;
 	}
@@ -588,48 +589,49 @@ static int keyhack (int scancode, int pressed, int num)
 	//is release
 	if (scancode == DIK_BACKSLASH) // The # key
 	{
-		if (di_keycodes[num][DIK_LSHIFT] || di_keycodes[num][DIK_RSHIFT] || apostrophstate)
+		if ((di_keycodes[num][DIK_LSHIFT] & 1) || (di_keycodes[num][DIK_RSHIFT] & 1) || apostrophstate)
 		{
 			if (pressed)
-			{   apostrophstate=1;
-			inputdevice_translatekeycode (num, DIK_RSHIFT, 0);
-			inputdevice_translatekeycode (num, DIK_LSHIFT, 0);
-			return 13;           // the german ' key
+			{
+				apostrophstate=1;
+				inputdevice_translatekeycode (num, DIK_RSHIFT, 0, false);
+				inputdevice_translatekeycode (num, DIK_LSHIFT, 0, false);
+				return 13;           // the german ' key
 			}
 			else
 			{
 				//best is add a real keystatecheck here but it still work so
 				apostrophstate = 0;
-				inputdevice_translatekeycode (num, DIK_LALT,0);
-				inputdevice_translatekeycode (num, DIK_LSHIFT,0);
-				inputdevice_translatekeycode (num, 4, 0);  // release also the # key
+				inputdevice_translatekeycode (num, DIK_LALT, 0, true);
+				inputdevice_translatekeycode (num, DIK_LSHIFT, 0, true);
+				inputdevice_translatekeycode (num, 4, 0, true);  // release also the # key
 				return 13;
 			}
 
 		}
 		if (pressed)
 		{
-			inputdevice_translatekeycode (num, DIK_LALT, 1);
-			inputdevice_translatekeycode (num, DIK_LSHIFT,1);
+			inputdevice_translatekeycode (num, DIK_LALT, 1, false);
+			inputdevice_translatekeycode (num, DIK_LSHIFT, 1, false);
 			return 4;           // the german # key
 		}
 		else
 		{
-			inputdevice_translatekeycode (num, DIK_LALT, 0);
-			inputdevice_translatekeycode (num, DIK_LSHIFT, 0);
+			inputdevice_translatekeycode (num, DIK_LALT, 0, true);
+			inputdevice_translatekeycode (num, DIK_LSHIFT, 0, true);
 			// Here is the same not nice but do the job
 			return 4;           // the german # key
 
 		}
 	}
-	if ((di_keycodes[num][DIK_RALT]) || (backslashstate)) {
+	if (((di_keycodes[num][DIK_RALT] & 1)) || (backslashstate)) {
 		switch (scancode)
 		{
 		case 12:
 			if (pressed)
 			{
 				backslashstate=1;
-				inputdevice_translatekeycode (num, DIK_RALT, 0);
+				inputdevice_translatekeycode (num, DIK_RALT, 0, true);
 				return DIK_BACKSLASH;
 			}
 			else
@@ -2544,16 +2546,26 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			}
 		} else {
 			scancode = keyhack (scancode, pressed, num);
-			//write_log (_T("%02X %d %d\n"), scancode, pressed, isfocus ());
+#if DEBUG_SCANCODE
+			write_log (_T("%02X %d %d\n"), scancode, pressed, isfocus ());
+#endif
 			if (scancode < 0)
 				return;
 			if (!isfocus ())
 				return;
 			if (isfocus () < 2 && currprefs.input_tablet >= TABLET_MOUSEHACK && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC))
 				return;
-			di_keycodes[num][scancode] = pressed;
+			if (pressed) {
+				di_keycodes[num][scancode] = 1;
+			} else {
+				if ((di_keycodes[num][scancode] & 1) && pause_emulation) {
+					di_keycodes[num][scancode] = 2;
+				} else {
+					di_keycodes[num][scancode] = 0;
+				}
+			}
 			if (stopoutput == 0) {
-				my_kbd_handler (num, scancode, pressed);
+				my_kbd_handler (num, scancode, pressed, false);
 			}
 		}
 	}
@@ -3659,7 +3671,7 @@ int ispressed (int key)
 		return 0;
 	int i;
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
-		if (di_keycodes[i][key])
+		if (di_keycodes[i][key] & 1)
 			return 1;
 	}
 	return 0;
@@ -3672,9 +3684,11 @@ static void release_keys (void)
 	for (j = 0; j < MAX_INPUT_DEVICES; j++) {
 		for (i = 0; i < MAX_KEYCODES; i++) {
 			if (di_keycodes[j][i]) {
-				my_kbd_handler (j, i, 0);
-				//write_log(_T("release %d:%02x\n"), j, i);
+#if DEBUG_SCANCODE
+				write_log(_T("release %d:%02x:%02x\n"), j, di_keycodes[j][i], i);
+#endif
 				di_keycodes[j][i] = 0;
+				my_kbd_handler(j, i, 0, true);
 			}
 		}
 	}
@@ -3799,10 +3813,10 @@ static int refresh_kb (LPDIRECTINPUTDEVICE8 lpdi, int num)
 				kc[i] = 1;
 			else
 				kc[i] = 0;
-			if (kc[i] != di_keycodes[num][i]) {
+			if (kc[i] != (di_keycodes[num][i] & 1)) {
 				write_log (_T("%d: %02X -> %d\n"), num, i, kc[i]);
 				di_keycodes[num][i] = kc[i];
-				my_kbd_handler (num, i, kc[i]);
+				my_kbd_handler (num, i, kc[i], true);
 			}
 		}
 	} else if (hr == DIERR_INPUTLOST) {
@@ -3861,7 +3875,15 @@ static void read_kb (void)
 					scancode = keyhack (scancode, pressed, i);
 				if (scancode < 0)
 					continue;
-				di_keycodes[i][scancode] = pressed;
+				if (pressed) {
+					di_keycodes[i][scancode] = 1;
+				} else {
+					if ((di_keycodes[i][scancode] & 1) && pause_emulation) {
+						di_keycodes[i][scancode] = 2;
+					} else {
+						di_keycodes[i][scancode] = 0;
+					}
+				}
 				if (istest) {
 					if (pressed && (scancode == DIK_F12))
 						return;
@@ -3873,7 +3895,7 @@ static void read_kb (void)
 					}
 				} else {
 					if (stopoutput == 0)
-						my_kbd_handler (i, scancode, pressed);
+						my_kbd_handler (i, scancode, pressed, false);
 				}
 			}
 		} else if (hr == DIERR_INPUTLOST) {

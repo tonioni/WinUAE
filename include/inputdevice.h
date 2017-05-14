@@ -256,7 +256,7 @@ extern void inputdevice_devicechange (struct uae_prefs *prefs);
 
 extern void send_internalevent (int eventid);
 
-extern int inputdevice_translatekeycode (int keyboard, int scancode, int state);
+extern int inputdevice_translatekeycode (int keyboard, int scancode, int state, bool alwaysrelease);
 extern void inputdevice_checkqualifierkeycode (int keyboard, int scancode, int state);
 extern void inputdevice_setkeytranslation (struct uae_input_device_kbr_default **trans, int **kbmaps);
 extern void inputdevice_do_keyboard (int code, int state);

@@ -501,6 +501,7 @@ bool resumepaused (int priority)
 	pause_emulation = 0;
 	setsystime ();
 	setmaintitle(hMainWnd);
+	wait_keyrelease();
 	return true;
 }
 bool setpaused (int priority)
@@ -508,7 +509,6 @@ bool setpaused (int priority)
 	//write_log (_T("pause %d (%d)\n"), priority, pause_emulation);
 	if (pause_emulation > priority)
 		return false;
-	wait_keyrelease();
 	pause_emulation = priority;
 	devices_pause();
 	setsoundpaused ();

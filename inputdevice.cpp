@@ -3957,18 +3957,6 @@ static uae_u8 keybuf[256];
 #define MAX_PENDING_EVENTS 20
 static int inputcode_pending[MAX_PENDING_EVENTS], inputcode_pending_state[MAX_PENDING_EVENTS];
 
-static void inputdevice_release_all_keys (void)
-{
-	int i;
-
-	for (i = 0; i < 0x80; i++) {
-		if (keybuf[i] != 0) {
-			keybuf[i] = 0;
-			record_key (i << 1|1);
-		}
-	}
-}
-
 static bool inputdevice_handle_inputcode_immediate(int code, int state)
 {
 	switch(code)
@@ -7321,7 +7309,7 @@ int inputdevice_synccapslock (int oldcaps, int *capstable)
 				if (na->extra[j] == capstable[i]) {
 					if (oldcaps != capstable[i + 1]) {
 						oldcaps = capstable[i + 1];
-						inputdevice_translatekeycode (0, capstable[i], oldcaps ? -1 : 0);
+						inputdevice_translatekeycode (0, capstable[i], oldcaps ? -1 : 0, false);
 					}
 					return i;
 				}
@@ -7364,7 +7352,7 @@ static void rqualifiers (uae_u64 flags, bool release)
 	}
 }
 
-static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int keystate, bool qualifiercheckonly)
+static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int keystate, bool qualifiercheckonly, bool ignorecanrelease)
 {
 	struct uae_input_device *na = &keyboards[keyboard];
 	int j, k;
@@ -7477,6 +7465,8 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int keyst
 						if (!invert)
 							*flagsp |= ID_FLAG_CANRELEASE;
 					} else {
+						if (ignorecanrelease)
+							flags |= ID_FLAG_CANRELEASE;
 						if (!(flags & ID_FLAG_CANRELEASE) && !invert)
 							continue;
 						*flagsp &= ~ID_FLAG_CANRELEASE;
@@ -7522,13 +7512,13 @@ static void sendmmcodes (int code, int newstate)
 }
 
 // main keyboard press/release entry point
-int inputdevice_translatekeycode (int keyboard, int scancode, int state)
+int inputdevice_translatekeycode (int keyboard, int scancode, int state, bool alwaysrelease)
 {
 	// if not default keyboard and all events are empty: use default keyboard
 	if (!input_get_default_keyboard(keyboard) && isemptykey(keyboard, scancode)) {
 		keyboard = input_get_default_keyboard(-1);
 	}
-	if (inputdevice_translatekeycode_2 (keyboard, scancode, state, false))
+	if (inputdevice_translatekeycode_2 (keyboard, scancode, state, false, alwaysrelease))
 		return 1;
 	if (currprefs.mmkeyboard && scancode > 0) {
 		sendmmcodes (scancode, state);
@@ -7538,7 +7528,7 @@ int inputdevice_translatekeycode (int keyboard, int scancode, int state)
 }
 void inputdevice_checkqualifierkeycode (int keyboard, int scancode, int state)
 {
-	inputdevice_translatekeycode_2 (keyboard, scancode, state, true);
+	inputdevice_translatekeycode_2 (keyboard, scancode, state, true, false);
 }
 
 static const TCHAR *internaleventlabels[] = {

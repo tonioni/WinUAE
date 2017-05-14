@@ -387,7 +387,7 @@ static const int np[] = {
 	DIK_NUMPAD3, 3, DIK_NUMPAD4, 4, DIK_NUMPAD5, 5, DIK_NUMPAD6, 6, DIK_NUMPAD7, 7,
 	DIK_NUMPAD8, 8, DIK_NUMPAD9, 9, -1 };
 
-bool my_kbd_handler (int keyboard, int scancode, int newstate)
+bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysrelease)
 {
 	int code = 0;
 	int scancode_new;
@@ -639,7 +639,7 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate)
 		return true;
 	}
 
-	return inputdevice_translatekeycode (keyboard, scancode, newstate) != 0;
+	return inputdevice_translatekeycode (keyboard, scancode, newstate, alwaysrelease) != 0;
 }
 
 void keyboard_settrans (void)

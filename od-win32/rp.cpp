@@ -2075,7 +2075,7 @@ int rp_checkesc (int scancode, int pressed, int num)
 		esctime = t + rp_rpescapeholdtime;
 		return 1;
 	}
-	my_kbd_handler (num, scancode, 1);
+	my_kbd_handler (num, scancode, 1, false);
 	releasetime = 10;
 	releasenum = num;
 	esctime = 0;
