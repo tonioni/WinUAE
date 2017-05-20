@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 206
+#define NEXT_ROM_ID 207
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -303,6 +303,10 @@ static struct romdata roms[] = {
 	0x8396cf4e, 0x5E03BC61,0x8C862ABE,0x7BF79723,0xB4EEF4D2,0x1859A0F2 },
 	ALTROMPN(53, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390389-03"), 0xb0b8cf24,0xfcf40175,0x05f4d441,0x814b45d5,0x59c19eab,0x43816b30)
 	ALTROMPN(53, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("390388-03"), 0x2e77bbff,0x8a098845,0x068f32cf,0xa4d34a27,0x8cd290f6,0x1d35a52c)
+	{ _T("A590/A2091 v6.1"), 6, 1, 6, 1, _T("A590\0A2091\0"), 16384, 206, 0, 0, ROMTYPE_A2091, 0, 0, NULL,
+	0xaccf6452, 0xf56061ab,0x37768281,0x94d89729,0x802ee7ae,0x1de9df90 },
+	ALTROMPN(206, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xc460cfdb,0x0de457da,0xec3b84f7,0x5e8fb344,0xdefe24ce,0x56cda3e0)
+	ALTROMPN(206, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x00dbf615,0x503940d0,0x4fb3b49e,0xaa61100f,0xd3a48701,0x8b35e25a)
 	{ _T("A590/A2091 v6.6"), 6, 6, 6, 6, _T("A590\0A2091\0"), 16384, 54, 0, 0, ROMTYPE_A2091, 0, 0, NULL,
 	0x33e00a7a, 0x739BB828,0xE874F064,0x9360F59D,0x26B5ED3F,0xBC99BB66 },
 	ALTROMPN(54, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390722-02"), 0xe536bbb2,0xfd7f8a6d,0xa18c1b02,0xd07eb990,0xc2467a24,0x183ede12)
