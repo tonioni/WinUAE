@@ -103,7 +103,11 @@ bool debug_enforcer(void)
 
 int firsthist = 0;
 int lasthist = 0;
-static struct regstruct history[MAX_HIST];
+struct cpuhistory {
+	struct regstruct regs;
+	int fp, vpos, hpos;
+};
+static struct cpuhistory history[MAX_HIST];
 
 static const TCHAR help[] = {
 	_T("          HELP for UAE Debugger\n")
@@ -1229,7 +1233,7 @@ static int nr_cop_records[2], curr_cop_set;
 #define NR_DMA_REC_HPOS 256
 #define NR_DMA_REC_VPOS 1000
 static struct dma_rec *dma_record[2];
-static int dma_record_toggle;
+static int dma_record_toggle, dma_record_frame[2];
 
 void record_dma_reset (void)
 {
@@ -1761,11 +1765,14 @@ struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, in
 		dma_record[1] = xmalloc (struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
 		dma_record_toggle = 0;
 		record_dma_reset ();
+		dma_record_frame[0] = -1;
+		dma_record_frame[1] = -1;
 	}
 	if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
 		return NULL;
 
 	dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
+	dma_record_frame[dma_record_toggle] = timeframes;
 	if (dr->reg != 0xffff) {
 		write_log (_T("DMA conflict: v=%d h=%d OREG=%04X NREG=%04X\n"), vpos, hpos, dr->reg, reg);
 		return dr;
@@ -1779,10 +1786,113 @@ struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, in
 	return dr;
 }
 
+
+static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 cycles, TCHAR *l1, TCHAR *l2, TCHAR *l3, TCHAR *l4, TCHAR *l5)
+{
+	bool longsize = false;
+	bool got = false;
+	int r = dr->reg;
+	const TCHAR *sr;
+
+	if (l1)
+		l1[0] = 0;
+	if (l2)
+		l2[0] = 0;
+	if (l3)
+		l3[0] = 0;
+	if (l4)
+		l4[0] = 0;
+	if (l5)
+		l5[0] = 0;
+
+	if (dr->type != 0 || dr->reg != 0xffff || dr->evt)
+		got = true;
+
+	sr = _T("    ");
+	if (dr->type == DMARECORD_COPPER) {
+		sr = _T("COP ");
+	} else if (dr->type == DMARECORD_BLITTER) {
+		if (dr->extra == 2)
+			sr = _T("BLL ");
+		else
+			sr = _T("BLT ");
+	} else if (dr->type == DMARECORD_REFRESH) {
+		sr = _T("RFS ");
+	} else if (dr->type == DMARECORD_AUDIO) {
+		sr = _T("AUD ");
+	} else if (dr->type == DMARECORD_DISK) {
+		sr = _T("DSK ");
+	} else if (dr->type == DMARECORD_SPRITE) {
+		sr = _T("SPR ");
+	}
+	_stprintf (l1, _T("[%02X %3d]"), hpos, hpos);
+	if (l4) {
+		_tcscpy (l4, _T("        "));
+	}
+	if (r != 0xffff) {
+		if (r & 0x1000) {
+			if ((r & 0x0100) == 0x0000)
+				_tcscpy (l2, _T("CPU-R "));
+			else if ((r & 0x0100) == 0x0100)
+				_tcscpy (l2, _T("CPU-W "));
+			if ((r & 0xff) == 4) {
+				l2[5] = 'L';
+				longsize = true;
+			}
+			if ((r & 0xff) == 2)
+				l2[5] = 'W';
+			if ((r & 0xff) == 1)
+				l2[5] = 'B';
+		} else {
+			_stprintf (l2, _T("%4s %03X"), sr, r);
+		}
+		if (l3) {
+			_stprintf (l3, longsize ? _T("%08X") : _T("    %04X"), dr->dat);
+		}
+		if (l4 && dr->addr != 0xffffffff)
+			_stprintf (l4, _T("%08X"), dr->addr & 0x00ffffff);
+	} else {
+		_tcscpy (l2, _T("        "));
+		if (l3) {
+			_tcscpy (l3, _T("        "));
+		}
+	}
+	if (l3) {
+		int cl2 = 0;
+		if (dr->evt & DMA_EVENT_BLITNASTY)
+			l3[cl2++] = 'N';
+		if (dr->evt & DMA_EVENT_BLITSTARTFINISH)
+			l3[cl2++] = 'B';
+		if (dr->evt & DMA_EVENT_BLITIRQ)
+			l3[cl2++] = 'b';
+		if (dr->evt & DMA_EVENT_BPLFETCHUPDATE)
+			l3[cl2++] = 'p';
+		if (dr->evt & DMA_EVENT_COPPERWAKE)
+			l3[cl2++] = 'W';
+		if (dr->evt & DMA_EVENT_NOONEGETS) {
+			l3[cl2++] = '#';
+		} else if (dr->evt & DMA_EVENT_COPPERWANTED) {
+			l3[cl2++] = 'c';
+		}
+		if (dr->evt & DMA_EVENT_CPUIRQ)
+			l3[cl2++] = 'I';
+		if (dr->evt & DMA_EVENT_INTREQ)
+			l3[cl2++] = 'i';
+		if (dr->evt & DMA_EVENT_SPECIAL)
+			l3[cl2++] = 'X';
+	}
+	if (l5) {
+		_stprintf (l5, _T("%08X"), cycles + (vpos * maxhpos + hpos) * CYCLE_UNIT);
+	}
+	return got;
+}
+
+
+
 static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 {
 	struct dma_rec *dr;
-	int h, i, maxh, cnt;
+	int h, i, maxh;
 	uae_u32 cycles;
 
 	if (!dma_record[0] || hpos < 0 || vpos < 0)
@@ -1800,7 +1910,6 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 	cycles = vsync_cycles;
 	if (toggle)
 		cycles -= maxvpos * maxhpos * CYCLE_UNIT;
-	cnt = 0;
 	while (h < maxh) {
 		int col = 9;
 		int cols = 8;
@@ -1809,86 +1918,26 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 		TCHAR l3[81];
 		TCHAR l4[81];
 		TCHAR l5[81];
+		l1[0] = 0;
+		l2[0] = 0;
+		l3[0] = 0;
+		l4[0] = 0;
+		l5[0] = 0;
 		for (i = 0; i < cols && h < maxh; i++, h++, dr++) {
-			int cl = i * col, cl2;
-			int r = dr->reg;
-			bool longsize = false;
-			const TCHAR *sr;
+			TCHAR l1l[16], l2l[16], l3l[16], l4l[16], l5l[16];
 
-			sr = _T("    ");
-			if (dr->type == DMARECORD_COPPER) {
-				sr = _T("COP ");
-			} else if (dr->type == DMARECORD_BLITTER) {
-				if (dr->extra == 2)
-					sr = _T("BLL ");
-				else
-					sr = _T("BLT ");
-			} else if (dr->type == DMARECORD_REFRESH) {
-				sr = _T("RFS ");
-			} else if (dr->type == DMARECORD_AUDIO) {
-				sr = _T("AUD ");
-			} else if (dr->type == DMARECORD_DISK) {
-				sr = _T("DSK ");
-			} else if (dr->type == DMARECORD_SPRITE) {
-				sr = _T("SPR ");
-			}
-			_stprintf (l1 + cl, _T("[%02X %3d]"), h, h);
-			_tcscpy (l4 + cl, _T("        "));
-			if (r != 0xffff) {
-				if (r & 0x1000) {
-					if ((r & 0x0100) == 0x0000)
-						_tcscpy (l2 + cl, _T("  CPU-R  "));
-					else if ((r & 0x0100) == 0x0100)
-						_tcscpy (l2 + cl, _T("  CPU-W  "));
-					if ((r & 0xff) == 4) {
-						l2[cl + 7] = 'L';
-						longsize = true;
-					}
-					if ((r & 0xff) == 2)
-						l2[cl + 7] = 'W';
-					if ((r & 0xff) == 1)
-						l2[cl + 7] = 'B';
-				} else {
-					_stprintf (l2 + cl, _T("%4s %03X"), sr, r);
-				}
-				_stprintf (l3 + cl, longsize ? _T("%08X") : _T("    %04X"), dr->dat);
-				if (dr->addr != 0xffffffff)
-					_stprintf (l4 + cl, _T("%08X"), dr->addr & 0x00ffffff);
-			} else {
-				_tcscpy (l2 + cl, _T("        "));
-				_tcscpy (l3 + cl, _T("        "));
-			}
-			cl2 = cl;
-			if (dr->evt & DMA_EVENT_BLITNASTY)
-				l3[cl2++] = 'N';
-			if (dr->evt & DMA_EVENT_BLITSTARTFINISH)
-				l3[cl2++] = 'B';
-			if (dr->evt & DMA_EVENT_BLITIRQ)
-				l3[cl2++] = 'b';
-			if (dr->evt & DMA_EVENT_BPLFETCHUPDATE)
-				l3[cl2++] = 'p';
-			if (dr->evt & DMA_EVENT_COPPERWAKE)
-				l3[cl2++] = 'W';
-			if (dr->evt & DMA_EVENT_NOONEGETS) {
-				l3[cl2++] = '#';
-			} else if (dr->evt & DMA_EVENT_COPPERWANTED) {
-				l3[cl2++] = 'c';
-			}
-			if (dr->evt & DMA_EVENT_CPUIRQ)
-				l3[cl2++] = 'I';
-			if (dr->evt & DMA_EVENT_INTREQ)
-				l3[cl2++] = 'i';
-			if (dr->evt & DMA_EVENT_SPECIAL)
-				l3[cl2++] = 'X';
-			_stprintf (l5 + cl, _T("%08X"), cycles + (vpos * maxhpos + (hpos + cnt)) * CYCLE_UNIT);
-			if (i < cols - 1 && h < maxh - 1) {
-				l1[cl + col - 1] = 32;
-				l2[cl + col - 1] = 32;
-				l3[cl + col - 1] = 32;
-				l4[cl + col - 1] = 32;
-				l5[cl + col - 1] = 32;
-			}
-			cnt++;
+			get_record_dma_info(dr, h, vpos, cycles, l1l, l2l, l3l, l4l, l5l);
+
+			TCHAR *p = l1 + _tcslen(l1);
+			_stprintf(p, _T("%9s "), l1l);
+			p = l2 + _tcslen(l2);
+			_stprintf(p, _T("%9s "), l2l);
+			p = l3 + _tcslen(l3);
+			_stprintf(p, _T("%9s "), l3l);
+			p = l4 + _tcslen(l4);
+			_stprintf(p, _T("%9s "), l4l);
+			p = l5 + _tcslen(l5);
+			_stprintf(p, _T("%9s "), l5l);
 		}
 		if (logfile) {
 			write_dlog (_T("%s\n"), l1);
@@ -1907,6 +1956,7 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 		}
 	}
 }
+
 void log_dma_record (void)
 {
 	if (!input_record && !input_play)
@@ -4870,6 +4920,39 @@ static void ppc_disasm(uaecptr addr, uaecptr *nextpc, int cnt)
 		*nextpc = addr;
 }
 
+static void dma_disasm(int frames, int vp, int hp, int frames_end, int vp_end, int hp_end)
+{
+	if (!dma_record[0] || frames < 0 || vp < 0 || hp < 0)
+		return;
+	for (;;) {
+		struct dma_rec *dr = NULL;
+		if (dma_record_frame[0] == frames)
+			dr = &dma_record[0][vp * NR_DMA_REC_HPOS + hp];
+		else if (dma_record_frame[1] == frames)
+			dr = &dma_record[1][vp * NR_DMA_REC_HPOS + hp];
+		if (!dr)
+			return;
+		TCHAR l1[16], l2[16], l3[16], l4[16];
+		if (get_record_dma_info(dr, hp, vp, 0, l1, l2, l3, l4, NULL)) {
+			console_out_f(_T(" - %02X %s %s %s\n"), hp, l2, l3, l4);
+		}
+		hp++;
+		if (hp >= maxhpos) {
+			hp = 0;
+			vp++;
+			if (vp >= maxvpos + 1) {
+				vp = 0;
+				frames++;
+				break;
+			}
+		}
+		if ((frames == frames_end && vp == vp_end && hp == hp_end) || frames > frames_end)
+			break;
+		if (vp_end < 0 || hp_end < 0 || frames_end < 0)
+			break;
+	}
+}
+
 static uaecptr nxdis, nxmem;
 static bool ppcmode;
 
@@ -5064,6 +5147,7 @@ static bool debug_line (TCHAR *input)
 				int count, temp, badly, skip;
 				uae_u32 addr = 0;
 				uae_u32 oldpc = m68k_getpc ();
+				int lastframes, lastvpos, lasthpos;
 				struct regstruct save_regs = regs;
 
 				badly = 0;
@@ -5093,17 +5177,24 @@ static bool debug_line (TCHAR *input)
 					else
 						temp--;
 				}
+				lastframes = lastvpos = lasthpos = -1;
 				while (temp != lasthist) {
-					regs = history[temp];
-					if (history[temp].pc == addr || addr == 0) {
-						m68k_setpc (history[temp].pc);
+					regs = history[temp].regs;
+					if (regs.pc == addr || addr == 0) {
+						m68k_setpc (regs.pc);
 						if (badly) {
 							m68k_dumpstate (NULL);
 						} else {
-							console_out_f(_T("%2d "), history[temp].intmask ? history[temp].intmask : (history[temp].s ? -1 : 0));
-							m68k_disasm (history[temp].pc, NULL, 1);
+							if (lastvpos >= 0) {
+								dma_disasm(lastframes, lastvpos, lasthpos, history[temp].fp, history[temp].vpos, history[temp].hpos);
+							}
+							lastframes = history[temp].fp;
+							lastvpos = history[temp].vpos;
+							lasthpos = history[temp].hpos;
+							console_out_f(_T("%2d "), regs.intmask ? regs.intmask : (regs.s ? -1 : 0));
+							m68k_disasm (regs.pc, NULL, 1);
 						}
-						if (addr && history[temp].pc == addr)
+						if (addr && regs.pc == addr)
 							break;
 					}
 					if (skip-- < 0)
@@ -5371,8 +5462,12 @@ static void addhistory (void)
 	uae_u32 pc = m68k_getpc ();
 	//    if (!notinrom())
 	//	return;
-	history[lasthist] = regs;
-	history[lasthist].pc = m68k_getpc ();
+	history[lasthist].regs = regs;
+	history[lasthist].regs.pc = m68k_getpc ();
+	history[lasthist].vpos = vpos;
+	history[lasthist].hpos = current_hpos();
+	history[lasthist].fp = timeframes;
+
 	if (++lasthist == MAX_HIST)
 		lasthist = 0;
 	if (lasthist == firsthist) {
