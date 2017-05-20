@@ -3264,8 +3264,10 @@ static void load_vga_bios(void)
 	x86_xrom_start[1] = 0xc0000;
 	x86_xrom_end[1] = x86_xrom_start[1];
 	if (zf) {
-		x86_xrom_end[1] += zfile_fread(xb->pc_rom + x86_xrom_start[1], 1, 65536, zf);
+		int size = zfile_fread(xb->pc_rom + x86_xrom_start[1], 1, 65536, zf);
+		write_log(_T("X86 VGA BIOS '%s' loaded, %08x %d bytes\n"), zfile_getname(zf), x86_xrom_start[1], size);
 		zfile_fclose(zf);
+		x86_xrom_end[1] += size;
 		x86_xrom_end[1] += 4095;
 		x86_xrom_end[1] &= ~4095;
 		memcpy(xb->pc_ram + x86_xrom_start[1], xb->pc_rom + x86_xrom_start[1], x86_xrom_end[1] - x86_xrom_start[1]);
