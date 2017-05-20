@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("8")
+#define WINUAEBETA _T("9")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2017, 5, 7)
+#define WINUAEDATE MAKEBD(2017, 5, 20)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -54,7 +54,7 @@ extern TCHAR start_path_exe[MAX_DPATH];
 extern TCHAR start_path_data[MAX_DPATH];
 extern TCHAR start_path_plugins[MAX_DPATH];
 
-extern bool my_kbd_handler (int, int, int);
+extern bool my_kbd_handler (int, int, int, bool);
 extern void clearallkeys (void);
 extern int getcapslock (void);
 

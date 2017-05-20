@@ -664,7 +664,7 @@ extern void flush_icache_hard(int);
 extern void compemu_reset(void);
 #else
 #define flush_icache(int) do {} while (0)
-#define flush_icache(int) do {} while (0)
+#define flush_icache_hard(int) do {} while (0)
 #endif
 bool check_prefs_changed_comp (bool);
 extern void flush_dcache (uaecptr, int);

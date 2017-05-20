@@ -4,6 +4,17 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 9:
+
+- Comspec emulation was very unstable in cycle-exact modes.
+- Amiga-side key(s) pressed when entering pause state was not correctly released when unpaused.
+- Add UAE boot ROM (if not 128k full autoconfig device) fake ConfigDev as earlier (in diag init) to make sure possible
+  rom configured MMU setup knows about the fake autoconfig device (for example m68k AROS with MMU enabled)
+- Updated AROS ROM.
+- Selecting built-in AROS ROM always opened console window (broke when console window serial input was added).
+- Added A590/A2091 v6.1 ROM.
+- H CPU history debugger command now also shows all DMA accesses if v DMA debugger is enabled.
+
 Beta 8:
 
 - Blitter BDAT register's old content was not preserved and shifted in when BDAT was rewritten with CPU or copper

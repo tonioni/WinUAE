@@ -10817,6 +10817,12 @@ static void misc_lang (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString (IDS_SELECT_MENU, tmp, sizeof tmp / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)tmp);
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("200%"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("190%"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("180%"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("170%"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("160%"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("150%"));
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("140%"));
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("130%"));
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("120%"));
@@ -11134,7 +11140,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 					v = GUI_SCALE_DEFAULT;
 				} else {
 					v--;
-					v = 140 - v * 10;
+					v = 200 - v * 10;
 				}
 				if (isfullscreen() <= 0)
 					scaleresource_getdpimult(&dpix, &dpiy, &previous_dpix, &previous_dpiy);
@@ -15471,7 +15477,7 @@ static void processport (HWND hDlg, bool reset, int port)
 /* Handle messages for the Joystick Settings page of our property-sheet */
 static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	TCHAR tmp[MAX_DPATH];
+	TCHAR tmp[MAX_DPATH], *tmp2;
 	static int recursive = 0;
 	static int first;
 	int temp, i;
@@ -15479,86 +15485,102 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	switch (msg)
 	{
 	case WM_INITDIALOG:
-		recursive++;
-		pages[GAMEPORTS_ID] = hDlg;
-		currentpage = GAMEPORTS_ID;
+		{
+			recursive++;
+			pages[GAMEPORTS_ID] = hDlg;
+			currentpage = GAMEPORTS_ID;
 
-		if (!first) {
-			first = 1;
-			joyxprevious[0] = -1;
-			joyxprevious[1] = -1;
-			joyxprevious[2] = -1;
-			joyxprevious[3] = -1;
+			if (!first) {
+				first = 1;
+				joyxprevious[0] = -1;
+				joyxprevious[1] = -1;
+				joyxprevious[2] = -1;
+				joyxprevious[3] = -1;
+			}
+
+			for (i = 0; joysaf[i] >= 0; i++) {
+				int id = joysaf[i];
+				SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
+				WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE_NO, tmp, MAX_DPATH);
+				if (!remapcustoms[0].name)
+					remapcustoms[0].name = my_strdup(tmp);
+				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE, tmp, MAX_DPATH);
+				if (!remapcustoms[1].name)
+					remapcustoms[1].name = my_strdup(tmp);
+				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE_TOGGLE, tmp, MAX_DPATH);
+				if (!remapcustoms[2].name)
+					remapcustoms[2].name = my_strdup(tmp);
+				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE_ALWAYS, tmp, MAX_DPATH);
+				if (!remapcustoms[3].name)
+					remapcustoms[3].name = my_strdup(tmp);
+				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+			}
+
+			SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_RESETCONTENT, 0, 0L);
+			WIN32GUI_LoadUIString (IDS_TABLET_BOTH_CURSORS, tmp, MAX_DPATH);
+			SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)tmp);
+			WIN32GUI_LoadUIString (IDS_TABLET_NATIVE_CURSOR, tmp, MAX_DPATH);
+			SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)tmp);
+			WIN32GUI_LoadUIString (IDS_TABLET_HOST_CURSOR, tmp, MAX_DPATH);
+			SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)tmp);
+
+			WIN32GUI_LoadUIString (IDS_MOUSE_UNTRAP_MODE, tmp, MAX_DPATH);
+			SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_RESETCONTENT, 0, 0L);
+			TCHAR *p1 = tmp;
+			for (;;) {
+				TCHAR *p2 = _tcschr (p1, '\n');
+				if (!p2)
+					break;
+				*p2++= 0;
+				SendDlgItemMessage (hDlg, IDC_MOUSE_UNTRAPMODE, CB_ADDSTRING, 0, (LPARAM)p1);
+				p1 = p2;
+			}
+			SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_SETCURSEL, workprefs.input_mouse_untrap, 0);
+
+			WIN32GUI_LoadUIString (IDS_TABLET_MODE, tmp, MAX_DPATH);
+			SendDlgItemMessage(hDlg, IDC_PORT_TABLET_MODE, CB_RESETCONTENT, 0, 0L);
+			p1 = tmp;
+			for (;;) {
+				TCHAR *p2 = _tcschr (p1, '\n');
+				if (!p2)
+					break;
+				*p2++= 0;
+				SendDlgItemMessage (hDlg, IDC_PORT_TABLET_MODE, CB_ADDSTRING, 0, (LPARAM)p1);
+				p1 = p2;
+			}
+			SendDlgItemMessage(hDlg, IDC_PORT_TABLET_MODE, CB_SETCURSEL, workprefs.input_tablet == TABLET_REAL ? 1 : 0, 0);
+
+			for (i = 0; i < 2; i++) {
+				int id = i == 0 ? IDC_PORT0_JOYSMODE : IDC_PORT1_JOYSMODE;
+				SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
+				WIN32GUI_LoadUIString (IDS_JOYMODE_DEFAULT, tmp, MAX_DPATH);
+				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				WIN32GUI_LoadUIString (IDS_JOYMODE_WHEELMOUSE, tmp, MAX_DPATH);
+				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				WIN32GUI_LoadUIString (IDS_JOYMODE_MOUSE, tmp, MAX_DPATH);
+				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICK, tmp, MAX_DPATH);
+				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				WIN32GUI_LoadUIString (IDS_JOYMODE_GAMEPAD, tmp, MAX_DPATH);
+				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICKANALOG, tmp, MAX_DPATH);
+				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				WIN32GUI_LoadUIString (IDS_JOYMODE_MOUSE_CDTV, tmp, MAX_DPATH);
+				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICK_CD32, tmp, MAX_DPATH);
+				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				WIN32GUI_LoadUIString (IDS_JOYMODE_LIGHTPEN, tmp, MAX_DPATH);
+				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+			}
+
+			inputdevice_updateconfig (NULL, &workprefs);
+			enable_for_gameportsdlg (hDlg);
+			updatejoyport (hDlg, -1);
+			recursive--;
 		}
-
-		for (i = 0; joysaf[i] >= 0; i++) {
-			int id = joysaf[i];
-			SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
-			WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE_NO, tmp, MAX_DPATH);
-			if (!remapcustoms[0].name)
-				remapcustoms[0].name = my_strdup(tmp);
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-			WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE, tmp, MAX_DPATH);
-			if (!remapcustoms[1].name)
-				remapcustoms[1].name = my_strdup(tmp);
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-			WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE_TOGGLE, tmp, MAX_DPATH);
-			if (!remapcustoms[2].name)
-				remapcustoms[2].name = my_strdup(tmp);
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-			WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE_ALWAYS, tmp, MAX_DPATH);
-			if (!remapcustoms[3].name)
-				remapcustoms[3].name = my_strdup(tmp);
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-		}
-
-		SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_RESETCONTENT, 0, 0L);
-		WIN32GUI_LoadUIString (IDS_TABLET_BOTH_CURSORS, tmp, MAX_DPATH);
-		SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)tmp);
-		WIN32GUI_LoadUIString (IDS_TABLET_NATIVE_CURSOR, tmp, MAX_DPATH);
-		SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)tmp);
-		WIN32GUI_LoadUIString (IDS_TABLET_HOST_CURSOR, tmp, MAX_DPATH);
-		SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)tmp);
-
-		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_RESETCONTENT, 0, 0L);
-		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_ADDSTRING, 0, (LPARAM)_T("None (Alt-Tab)"));
-		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_ADDSTRING, 0, (LPARAM)_T("Middle button"));
-		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_ADDSTRING, 0, (LPARAM)_T("Magic mouse"));
-		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_ADDSTRING, 0, (LPARAM)_T("Both"));
-		SendDlgItemMessage(hDlg, IDC_MOUSE_UNTRAPMODE, CB_SETCURSEL, workprefs.input_mouse_untrap, 0);
-
-		SendDlgItemMessage(hDlg, IDC_PORT_TABLET_MODE, CB_RESETCONTENT, 0, 0L);
-		SendDlgItemMessage(hDlg, IDC_PORT_TABLET_MODE, CB_ADDSTRING, 0, (LPARAM)_T("-"));
-		SendDlgItemMessage(hDlg, IDC_PORT_TABLET_MODE, CB_ADDSTRING, 0, (LPARAM)_T("Tablet emulation"));
-		SendDlgItemMessage(hDlg, IDC_PORT_TABLET_MODE, CB_SETCURSEL, workprefs.input_tablet == TABLET_REAL ? 1 : 0, 0);
-
-		for (i = 0; i < 2; i++) {
-			int id = i == 0 ? IDC_PORT0_JOYSMODE : IDC_PORT1_JOYSMODE;
-			SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
-			WIN32GUI_LoadUIString (IDS_JOYMODE_DEFAULT, tmp, MAX_DPATH);
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-			WIN32GUI_LoadUIString (IDS_JOYMODE_WHEELMOUSE, tmp, MAX_DPATH);
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-			WIN32GUI_LoadUIString (IDS_JOYMODE_MOUSE, tmp, MAX_DPATH);
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-			WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICK, tmp, MAX_DPATH);
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-			WIN32GUI_LoadUIString (IDS_JOYMODE_GAMEPAD, tmp, MAX_DPATH);
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-			WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICKANALOG, tmp, MAX_DPATH);
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-			WIN32GUI_LoadUIString (IDS_JOYMODE_MOUSE_CDTV, tmp, MAX_DPATH);
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-			WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICK_CD32, tmp, MAX_DPATH);
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-			WIN32GUI_LoadUIString (IDS_JOYMODE_LIGHTPEN, tmp, MAX_DPATH);
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-		}
-
-		inputdevice_updateconfig (NULL, &workprefs);
-		enable_for_gameportsdlg (hDlg);
-		updatejoyport (hDlg, -1);
-		recursive--;
 		break;
 	case WM_USER:
 		recursive++;

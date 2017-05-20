@@ -648,7 +648,7 @@ BEGIN
     RTEXT           "Block size:",IDC_BLOCKSIZE_TEXT,299,132,45,10
     EDITTEXT        IDC_BLOCKSIZE,347,130,40,15,ES_NUMBER
     LTEXT           "HD Controller:",IDC_STATIC,10,113,54,10,SS_CENTERIMAGE
-    PUSHBUTTON      "RDB mode",IDC_HDF_RDB,135,109,75,14
+    PUSHBUTTON      "Full drive/RDB mode",IDC_HDF_RDB,83,109,127,14
     COMBOBOX        IDC_HDF_FEATURE_LEVEL,214,109,75,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_HDF_CONTROLLER,6,131,152,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_HDF_CONTROLLER_UNIT,163,131,63,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
@@ -2063,7 +2063,7 @@ BEGIN
     IDS_WSTYLE_EXTENDED     "Extended"
     IDS_MISCLISTITEMS1      "Untrap = middle button\nShow GUI on startup\nUse CTRL-F11 to quit\nDon't show taskbar button\nDon't show notification icon\n"
     IDS_MISCLISTITEMS2      "Main window always on top\nGUI window always on top\nDisable screensaver\nSynchronize clock\nOne second reboot pause\nFaster RTG\nClipboard sharing\nAllow native code\n"
-    IDS_MISCLISTITEMS3      "Native on-screen display\nRTG on-screen display\nCreate winuaelog.txt log\nLog illegal memory accesses\nBlank unused displays\nStart mouse uncaptured\nStart minimized\nMinimize when focus is lost\nBlack frame insertion\nMaster floppy write protection\nMaster harddrive write protection\nHide all UAE autoconfig boards\n"
+    IDS_MISCLISTITEMS3      "Native on-screen display\nRTG on-screen display\nCreate winuaelog.txt log\nLog illegal memory accesses\nBlank unused displays\nStart mouse uncaptured\nStart minimized\nMinimize when focus is lost\nBlack frame insertion\nMaster floppy write protection\nMaster harddrive write protection\nHide all UAE autoconfig boards\nRight Control = Right Windows key\n"
     IDS_JOYMODE_WHEELMOUSE  "Wheel Mouse"
     IDS_NUMSG_KS68030PLUS   "The selected system ROM requires a 68030 or higher CPU."
     IDS_SELECTTAPE          "Select a Tape directory or archive file..."
@@ -2091,6 +2091,8 @@ BEGIN
     IDS_NUMSG_NOMEMORY      "Out of memory or too much Z3 autoconfig space configured.\nIf 64-bit, make sure RTG board is first in board list."
     IDS_EXPANSION_CATEGORY  "Built-in expansions\nSCSI controllers\nIDE controllers\nSASI controllers\nCustom controllers\nPCI bridgeboards\nx86 bridgeboards\nGraphics boards\nSound cards\nNetwork adapters\nDisk controllers"
     IDS_WINUAETITLE_PAUSED  "[Paused]"
+    IDS_MOUSE_UNTRAP_MODE   "None (Alt-Tab)\nMiddle button\nMagic mouse\nBoth\n"
+    IDS_TABLET_MODE         "-\nTablet emulation\n"
 END
 
 #endif    // English resources

@@ -403,6 +403,8 @@
 #define IDS_NUMSG_NOMEMORY              410
 #define IDS_EXPANSION_CATEGORY          411
 #define IDS_WINUAETITLE_PAUSED          412
+#define IDS_MOUSE_UNTRAP_MODE           413
+#define IDS_TABLET_MODE                 414
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -1317,7 +1319,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        400
+#define _APS_NEXT_RESOURCE_VALUE        407
 #define _APS_NEXT_COMMAND_VALUE         40050
 #define _APS_NEXT_CONTROL_VALUE         1855
 #define _APS_NEXT_SYMED_VALUE           101
