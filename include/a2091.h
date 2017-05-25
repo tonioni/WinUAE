@@ -46,7 +46,7 @@ struct commodore_dmac
 
 	uae_u8 xt_control;
 	uae_u8 xt_status;
-	uae_u16 xt_cyls, xt_heads, xt_sectors;
+	uae_u16 xt_cyls[2], xt_heads[2], xt_sectors[2];
 
 	bool xt_irq;
 	int xt_offset;

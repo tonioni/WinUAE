@@ -1649,10 +1649,10 @@ uae_u8 wdscsi_get_data(struct wd_chip_state *wd, struct wd_state *wds)
 
 static void xt_default_geometry(struct wd_state *wds)
 {
-	wds->cdmac.xt_cyls = wds->wc.scsi->hdhfd->cyls > 1023 ? 1023 : wds->wc.scsi->hdhfd->cyls;
-	wds->cdmac.xt_heads = wds->wc.scsi->hdhfd->heads > 31 ? 31 : wds->wc.scsi->hdhfd->heads;
-	wds->cdmac.xt_sectors = wds->wc.scsi->hdhfd->secspertrack;
-	write_log(_T("XT Default CHS %d %d %d\n"), wds->cdmac.xt_cyls, wds->cdmac.xt_heads, wds->cdmac.xt_sectors);
+	wds->cdmac.xt_cyls[0] = wds->wc.scsi->hdhfd->cyls > 1023 ? 1023 : wds->wc.scsi->hdhfd->cyls;
+	wds->cdmac.xt_heads[0] = wds->wc.scsi->hdhfd->heads > 31 ? 31 : wds->wc.scsi->hdhfd->heads;
+	wds->cdmac.xt_sectors[0] = wds->wc.scsi->hdhfd->secspertrack;
+	write_log(_T("XT Default CHS %d %d %d\n"), wds->cdmac.xt_cyls[0], wds->cdmac.xt_heads[0], wds->cdmac.xt_sectors[0]);
 }
 
 static void xt_set_status(struct wd_state *wds, uae_u8 state)
@@ -1680,11 +1680,11 @@ static void xt_command_done(struct wd_state *wds, uae_u8 status)
 	if (scsi->direction > 0) {
 		if (scsi->cmd[0] == 0x0c) {
 			xt_default_geometry(wds);
-			int size = wds->cdmac.xt_cyls * wds->cdmac.xt_heads * wds->cdmac.xt_sectors;
-			wds->cdmac.xt_heads = scsi->buffer[2] & 0x1f;
-			wds->cdmac.xt_cyls = (scsi->buffer[0] << 8) | scsi->buffer[1];
-			wds->cdmac.xt_sectors = size / (wds->cdmac.xt_cyls * wds->cdmac.xt_heads);
-			write_log(_T("XT_SETPARAM: Cyls=%d Heads=%d Sectors=%d\n"), wds->cdmac.xt_cyls, wds->cdmac.xt_heads, wds->cdmac.xt_sectors);
+			int size = wds->cdmac.xt_cyls[0] * wds->cdmac.xt_heads[0] * wds->cdmac.xt_sectors[0];
+			wds->cdmac.xt_heads[0] = scsi->buffer[2] & 0x1f;
+			wds->cdmac.xt_cyls[0] = (scsi->buffer[0] << 8) | scsi->buffer[1];
+			wds->cdmac.xt_sectors[0] = size / (wds->cdmac.xt_cyls[0] * wds->cdmac.xt_heads[0]);
+			write_log(_T("XT_SETPARAM: Cyls=%d Heads=%d Sectors=%d\n"), wds->cdmac.xt_cyls[0], wds->cdmac.xt_heads[0], wds->cdmac.xt_sectors[0]);
 			for (int i = 0; i < 8; i++) {
 				write_log(_T("%02X "), scsi->buffer[i]);
 			}
@@ -1952,40 +1952,98 @@ static void a2090_st506(struct wd_state *wd, uae_u8 b)
 	for (int i = 0; i < sizeof cb; i++) {
 		cb[i] = get_byte(cbp + i);
 	}
-	int unit = (cb[1] >> 5) & 1; 
-	// new command?
-	if (cb[12] != 0xff)
-		return;
+	int lun = cb[1] >> 5;
+	int unit = (lun & 1) ? 1 : 0;
 	uaecptr dmaaddr = (cb[6] << 16) | (cb[7] << 8) | cb[8];
 	memset(cb + 12, 0, 4);
 	struct scsi_data *scsi = wd->scsis[XT506_UNIT0 + unit];
 	if (scsi) {
+		uae_u8 cmd = cb[0];
 		memcpy(scsi->cmd, cb, 6);
-		// We handle LUN, not SCSI emulation.
-		scsi->cmd[1] &= ~0x20;
-		scsi->cmd_len = 6;
-		scsi_emulate_analyze(scsi);
-		if (scsi->direction < 0) {
-			scsi_emulate_cmd(scsi);
-			for (int i = 0; i < scsi->data_len; i++) {
-				put_byte(dmaaddr + i, scsi->buffer[i]);
+		write_log(_T("ST-506 CMD %08X %02x.%02x.%02x.%02x.%02x.%02x %02x.%02x.%02x\n"),
+			cbp,
+			cb[0], cb[1], cb[2], cb[3], cb[4], cb[5],
+			cb[6], cb[7], cb[8]);
+		// Set Drive Parameters? 0x0c = both drives, 0xcc = drive 1 only.
+		if (cmd == 0x0c || cmd == 0xcc) {
+			uae_u8 sdp[6];
+			for (int i = 0; i < sizeof sdp; i++) {
+				sdp[i] = get_byte(dmaaddr + i);
+			}
+			uae_u8 user_options = sdp[0] >> 4;
+			uae_u8 step_rate = sdp[0] & 15;
+			uae_u8 heads = (sdp[1] >> 4) & 15;
+			uae_u16 cyls = ((sdp[1] & 15) << 8) | sdp[2];
+			uae_u8 precomp = sdp[3];
+			uae_u8 reduce_write_current = sdp[4];
+			uae_u8 secs_per_track = sdp[5];
+			write_log(_T("ST-506 Set Drive Parameters %02X: CHS=%d,%d,%d %02x %02x %02x %02x\n"),
+				cmd, cyls, secs_per_track, heads,
+				user_options, step_rate, precomp, reduce_write_current);
+			wd->cdmac.xt_cyls[1] = cyls;
+			wd->cdmac.xt_heads[1] = heads;
+			wd->cdmac.xt_sectors[1] = secs_per_track;
+			if (cmd == 0x0c) {
+				wd->cdmac.xt_cyls[0] = cyls;
+				wd->cdmac.xt_heads[0] = heads;
+				wd->cdmac.xt_sectors[0] = secs_per_track;
+			}
+		} else if (cmd == 0x00 || cmd == 0x01 || cmd == 0x03 || cmd == 0x05 || cmd == 0x06 || cmd == 0x08 || cmd == 0x0a || cmd == 0x0b) {
+			bool outofbounds = false;
+			if (cmd == 0x05 || cmd == 0x06 || cmd == 0x08 || cmd == 0x0a) {
+				// limit check
+				uae_u32 lba = ((cb[1] & 31) << 16) | (cb[2] << 8) | cb[3];
+				uae_u32 maxlba = wd->cdmac.xt_cyls[unit] * wd->cdmac.xt_heads[unit] * wd->cdmac.xt_sectors[unit];
+				int blocks = cb[4] == 0 ? 256 : cb[4];
+				if (lba + blocks > maxlba) {
+					outofbounds = true;
+				}
+			}
+			if (!outofbounds) {
+				// We handle LUN, not SCSI emulation.
+				scsi->cmd[1] &= ~0x20;
+				scsi->cmd_len = 6;
+				scsi_emulate_analyze(scsi);
+				if (scsi->direction < 0) {
+					scsi_emulate_cmd(scsi);
+					for (int i = 0; i < scsi->data_len; i++) {
+						put_byte(dmaaddr + i, scsi->buffer[i]);
+					}
+				} else {
+					for (int i = 0; i < scsi->data_len; i++) {
+						scsi->buffer[i] = get_byte(dmaaddr + i);
+					}
+					scsi_emulate_cmd(scsi);
+				}
+				if (scsi->status && scsi->sense_len) {
+					memcpy(cb + 12, scsi->sense, 4);
+				}
+			} else {
+				cb[12] = 0x21; // invalid sector address
+			}
+			if (cmd == 0x05 || cmd == 0x06 || cmd == 0x08 || cmd == 0x0a) {
+				cb[12] |= 0x80; // ADV
+				// Calculate LBA of last transferred block
+				uae_u32 lba = ((cb[1] & 31) << 16) | (cb[2] << 8) | cb[3];
+				uae_u32 add;
+				if (cmd == 0x05 || cmd == 0x06)
+					add = cb[4];
+				else
+					add = scsi->data_len / 512;
+				if (add)
+					lba += add - 1;
+				cb[13] = ((lba >> 16) & 31) | (lun << 5);
+				cb[14] = lba >> 8;
+				cb[15] = lba >> 0;
 			}
 		} else {
-			for (int i = 0; i < scsi->data_len; i++) {
-				scsi->buffer[i] = get_byte(dmaaddr + i);
-			}
-			scsi_emulate_cmd(scsi);
-		}
-		if (scsi->status && scsi->sense_len) {
-			memcpy(cb + 12, scsi->sense, 4);
+			cb[12] = 0x20; // invalid command
 		}
 	} else {
-		cb[12] = 0x04; // Drive not ready
-		cb[13] = cb[1];
-		cb[14] = cb[2];
-		cb[15] = cb[3];
+		cb[12] = 0x04; // drive not ready
 	}
-	for (int i = 0; i < sizeof cb; i++) {
+	// return status bytes
+	for (int i = 12; i < sizeof cb; i++) {
 		put_byte(cbp + i, cb[i]);
 	}
 	set_dma_done(wd);
@@ -3712,6 +3770,12 @@ void a2090_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig
 	if (!wd || ch < 0)
 		return;
 	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
+	if (ch >= XT506_UNIT0) {
+		int unit = ch - XT506_UNIT0;
+		wd->cdmac.xt_cyls[unit] = ci->pcyls > 2047 ? 2047 : ci->pcyls;
+		wd->cdmac.xt_heads[unit] = ci->pheads > 15 ? 15 : ci->pheads;
+		wd->cdmac.xt_sectors[unit] = ci->psecs > 255 ? 255 : ci->psecs;
+	}
 }
 
 void a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
