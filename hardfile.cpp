@@ -1423,6 +1423,20 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			goto readprot;
 		scsi_len = 0;
 		break;
+	case 0x05: /* VERIFY TRACK */
+		// do nothing
+		if (nodisk (hfd))
+			goto nodisk;
+		scsi_len = 0;
+		break;
+	case 0x06: /* FORMAT TRACK */
+		// do nothing
+		if (nodisk (hfd))
+			goto nodisk;
+		if (is_writeprotected(hfd))
+			goto readprot;
+		scsi_len = 0;
+		break;
 	case 0x09: /* READ VERIFY */
 		if (nodisk(hfd))
 			goto nodisk;
