@@ -366,6 +366,7 @@ static addrbank *expamem_map_clear (void)
 static void expamem_init_clear (void)
 {
 	memset (expamem, 0xff, sizeof expamem);
+	expamem_hi = expamem_lo = 0;
 	expamem_map = NULL;
 }
 /* autoconfig area is "non-existing" after last device */
@@ -614,6 +615,19 @@ void expamem_next(addrbank *mapped, addrbank *next)
 	}
 }
 
+static void expamemz3_map(void)
+{
+	uaecptr addr = ((expamem_hi << 8) | expamem_lo) << 16;
+	if (!expamem_z3hack(&currprefs)) {
+		expamem_board_pointer = addr;
+	} else {
+		if (addr != expamem_board_pointer) {
+			put_word (regs.regs[11] + 0x20, expamem_board_pointer >> 16);
+			put_word (regs.regs[11] + 0x28, expamem_board_pointer >> 16);
+		}
+	}
+}
+
 // only for custom autoconfig device development purposes, not in use in any normal config
 static uae_u32 REGPARAM2 expamem_write_lget(uaecptr addr)
 {
@@ -756,20 +770,13 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 				return;
 			}
 		}
+		// Z3 = do nothing
 		break;
 	case 0x44:
 		if (expamem_type() == zorroIII) {
-			uaecptr addr;
-			expamem_hi = value & 0xff00;
-			addr = (expamem_hi | (expamem_lo >> 4)) << 16;
-			if (!expamem_z3hack(&currprefs)) {
-				expamem_board_pointer = addr;
-			} else {
-				if (addr != expamem_board_pointer) {
-					put_word (regs.regs[11] + 0x20, expamem_board_pointer >> 16);
-					put_word (regs.regs[11] + 0x28, expamem_board_pointer >> 16);
-				}
-			}
+			expamem_hi = (value & 0xff00) >> 8;
+			expamem_lo = value & 0x00ff;
+			expamemz3_map();
 		}
 		if (expamem_map) {
 			expamem_next(expamem_map(&cd->aci), NULL);
@@ -842,7 +849,23 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 				expamem_lo = value & 0xff;
 			}
 			break;
-
+		case 0x44:
+			if (expamem_type() == zorroIII) {
+				expamem_hi = value & 0xff;
+				expamemz3_map();
+				if (expamem_map) {
+					expamem_next(expamem_map(&cd->aci), NULL);
+					return;
+				}
+				if (expamem_autoconfig_mode) {
+					map_banks_z3(cd->aci.addrbank, expamem_board_pointer >> 16, expamem_board_size >> 16);
+					cd->aci.postinit = true;
+					cd->initrc(&cd->aci);
+					expamem_next(cd->aci.addrbank, NULL);
+					return;
+				}
+			}
+			break;
 		case 0x4a:
 			if (expamem_type () == zorroII) {
 				expamem_lo = value & 0xff;
@@ -906,6 +929,11 @@ static void REGPARAM2 expamemz3_bput (uaecptr addr, uae_u32 value)
 		} else {
 			expamem_lo = value & 0xff;
 		}
+	} else if (reg == 0x44) {
+		if (expamem_type() == zorroIII) {
+			expamem_hi = value & 0xff;
+			expamemz3_map();
+		}
 	} else if (reg == 0x4a) {
 		if (expamem_type() == zorroII)
 			expamem_lo = value & 0xff;
@@ -922,17 +950,9 @@ static void REGPARAM2 expamemz3_wput (uaecptr addr, uae_u32 value)
 		reg += 2;
 	if (reg == 0x44) {
 		if (expamem_type() == zorroIII) {
-			uaecptr addr;
-			expamem_hi = value & 0xff00;
-			addr = (expamem_hi | (expamem_lo >> 4)) << 16;;
-			if (!expamem_z3hack(&currprefs)) {
-				expamem_board_pointer = addr;
-			} else {
-				if (addr != expamem_board_pointer) {
-					put_word (regs.regs[11] + 0x20, expamem_board_pointer >> 16);
-					put_word (regs.regs[11] + 0x28, expamem_board_pointer >> 16);
-				}
-			}
+			expamem_hi = (value & 0xff00) >> 8;
+			expamem_lo = value & 0x00ff;
+			expamemz3_map();
 		}
 	}
 	expamem_bank_current->wput(reg, value);
