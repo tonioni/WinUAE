@@ -4364,6 +4364,15 @@ static const struct expansionboardsettings comspec_settings[] = {
 		NULL
 	}
 };
+static const struct expansionboardsettings a2090a_settings[] = {
+	{
+		_T("Disable ST-506 support"),
+		_T("nost506"),
+	},
+	{
+		NULL
+	}
+};
 static const struct expansionboardsettings a4091_settings[] = {
 	{
 		_T("Fast Bus"),
@@ -4503,7 +4512,9 @@ const struct expansionromtype expansionroms[] = {
 		_T("a2090a"), _T("A2090a"), _T("Commodore"),
 		a2090_init, NULL, a2090_add_scsi_unit, ROMTYPE_A2090 | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
-		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_CUSTOM_SECONDARY
+		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_CUSTOM_SECONDARY,
+		0, 0, 0, false, NULL,
+		false, 0, a2090a_settings
 	},
 	{
 		_T("a2091"), _T("A590/A2091"), _T("Commodore"),

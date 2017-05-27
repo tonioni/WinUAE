@@ -1940,6 +1940,9 @@ static void dmac8727_cbp(struct wd_state *wd)
 static void a2090_st506(struct wd_state *wd, uae_u8 b)
 {
 	uae_u8 cb[16];
+
+	if (wd->rc->device_settings & 1)
+		return;
 	if (!b) {
 		wd->cdmac.dmac_istr &= ~(ISTR_INT_F | ISTR_INTS);
 		return;
@@ -1988,6 +1991,14 @@ static void a2090_st506(struct wd_state *wd, uae_u8 b)
 				wd->cdmac.xt_heads[0] = heads;
 				wd->cdmac.xt_sectors[0] = secs_per_track;
 			}
+		} else if (cmd == 0x0f) { // change command block address
+			uae_u8 ccba[4];
+			for (int i = 0; i < sizeof ccba; i++) {
+				ccba[i] = get_byte(dmaaddr + i);
+			}
+			wd->cdmac.c8727_st506_cb = (ccba[1] << 16) | (ccba[2] << 8) | (ccba[3] << 0);
+			write_log(_T("ST-506 Change Command Block %02x.%02x.%02x.%02x\n"),
+				ccba[0], ccba[1], ccba[2], ccba[3]);
 		} else if (cmd == 0x00 || cmd == 0x01 || cmd == 0x03 || cmd == 0x05 || cmd == 0x06 || cmd == 0x08 || cmd == 0x0a || cmd == 0x0b) {
 			bool outofbounds = false;
 			if (cmd == 0x05 || cmd == 0x06 || cmd == 0x08 || cmd == 0x0a) {
@@ -3957,12 +3968,14 @@ bool a2090_init (struct autoconfig_info *aci)
 
 	init_wd_scsi(wd);
 
+	if (aci->rc->device_settings & 1)
+		ew(aci->autoconfig_raw, 0x30, 0x80); // SCSI only flag
+
 	wd->configured = 0;
 	wd->autoconfig = true;
 	wd->board_mask = 65535;
 	memcpy(&wd->bank, &dmaca2091_bank, sizeof addrbank);
 	memcpy(wd->dmacmemory, aci->autoconfig_raw, sizeof wd->dmacmemory);
-	//ew(wd, 0x30, 0x80); // SCSI only flag
 
 	alloc_expansion_bank(&wd->bank, aci);
 
