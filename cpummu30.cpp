@@ -228,7 +228,7 @@ bool mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
                 x_put_long (extra, tc_030);
             else {
                 tc_030 = x_get_long (extra);
-                if (mmu030_decode_tc(tc_030))
+                if (mmu030_decode_tc(tc_030, true))
 					return true;
             }
             break;
@@ -736,11 +736,11 @@ static void mmu030_do_fake_prefetch(void)
 	} ENDTRY
 }
 
-bool mmu030_decode_tc(uae_u32 TC)
+bool mmu030_decode_tc(uae_u32 TC, bool check)
 {
     /* Set MMU condition */    
     if (TC & TC_ENABLE_TRANSLATION) {
-		if (!mmu030.enabled)
+		if (!mmu030.enabled && check)
 			mmu030_do_fake_prefetch();
         mmu030.enabled = true;
     } else {
@@ -2309,10 +2309,12 @@ void mmu030_reset(int hardreset)
     /* A CPU reset causes the E-bits of TC and TT registers to be zeroed. */
     mmu030.enabled = false;
 	regs.mmu_page_size = 0;
-	tc_030 &= ~TC_ENABLE_TRANSLATION;
-	tt0_030 &= ~TT_ENABLE;
-	tt1_030 &= ~TT_ENABLE;
-	if (hardreset) {
+	if (hardreset >= 0) {
+		tc_030 &= ~TC_ENABLE_TRANSLATION;
+		tt0_030 &= ~TT_ENABLE;
+		tt1_030 &= ~TT_ENABLE;
+	}
+	if (hardreset > 0) {
 		srp_030 = crp_030 = 0;
 		tt0_030 = tt1_030 = tc_030 = 0;
         mmusr_030 = 0;

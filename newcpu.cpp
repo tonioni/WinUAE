@@ -1535,7 +1535,33 @@ static void prefs_changed_cpu (void)
 	check_prefs_changed_comp(false);
 	currprefs.cpu_model = changed_prefs.cpu_model;
 	currprefs.fpu_model = changed_prefs.fpu_model;
-	currprefs.mmu_model = changed_prefs.mmu_model;
+	if (currprefs.mmu_model != changed_prefs.mmu_model) {
+		int oldmmu = currprefs.mmu_model;
+		currprefs.mmu_model = changed_prefs.mmu_model;
+		if (currprefs.mmu_model >= 68040) {
+			uae_u32 tcr = regs.tcr;
+			mmu_reset();
+			mmu_set_tc(tcr);
+			mmu_set_super(regs.s != 0);
+			mmu_tt_modified();
+			mmu_dump_tables();
+		} else if (currprefs.mmu_model == 68030) {
+			mmu030_reset(-1);
+			mmu030_flush_atc_all();
+			tc_030 = fake_tc_030;
+			tt0_030 = fake_tt0_030;
+			tt1_030 = fake_tt1_030;
+			srp_030 = fake_srp_030;
+			crp_030 = fake_crp_030;
+			mmu030_decode_tc(tc_030, false);
+		} else if (oldmmu == 68030) {
+			fake_tc_030 = tc_030;
+			fake_tt0_030 = tt0_030;
+			fake_tt1_030 = tt1_030;
+			fake_srp_030 = srp_030;
+			fake_crp_030 = crp_030;
+		}
+	}
 	currprefs.cpu_compatible = changed_prefs.cpu_compatible;
 	currprefs.address_space_24 = changed_prefs.address_space_24;
 	currprefs.cpu_cycle_exact = changed_prefs.cpu_cycle_exact;
@@ -3185,7 +3211,7 @@ static void m68k_reset2(bool hardreset)
 	if (currprefs.cpu_model == 68060) {
 		regs.pcr = currprefs.fpu_model == 68060 ? MC68060_PCR : MC68EC060_PCR;
 		regs.pcr |= (currprefs.cpu060_revision & 0xff) << 8;
-		if (kickstart_rom)
+		if (currprefs.fpu_model == 0 || kickstart_rom)
 			regs.pcr |= 2; /* disable FPU */
 	}
 //	regs.ce020memcycles = 0;
@@ -3566,6 +3592,45 @@ bool mmu_op30 (uaecptr pc, uae_u32 opcode, uae_u16 extra, uaecptr extraa)
 	}
 }
 
+/* check if an address matches a ttr */
+static int fake_mmu_do_match_ttr(uae_u32 ttr, uaecptr addr, bool super)
+{
+	if (ttr & MMU_TTR_BIT_ENABLED)	{	/* TTR enabled */
+		uae_u8 msb, mask;
+
+		msb = ((addr ^ ttr) & MMU_TTR_LOGICAL_BASE) >> 24;
+		mask = (ttr & MMU_TTR_LOGICAL_MASK) >> 16;
+
+		if (!(msb & ~mask)) {
+
+			if ((ttr & MMU_TTR_BIT_SFIELD_ENABLED) == 0) {
+				if (((ttr & MMU_TTR_BIT_SFIELD_SUPER) == 0) != (super == 0)) {
+					return TTR_NO_MATCH;
+				}
+			}
+
+			return (ttr & MMU_TTR_BIT_WRITE_PROTECT) ? TTR_NO_WRITE : TTR_OK_MATCH;
+		}
+	}
+	return TTR_NO_MATCH;
+}
+
+static int fake_mmu_match_ttr(uaecptr addr, bool super, bool data)
+{
+	int res;
+
+	if (data) {
+		res = fake_mmu_do_match_ttr(regs.dtt0, addr, super);
+		if (res == TTR_NO_MATCH)
+			res = fake_mmu_do_match_ttr(regs.dtt1, addr, super);
+	} else {
+		res = fake_mmu_do_match_ttr(regs.itt0, addr, super);
+		if (res == TTR_NO_MATCH)
+			res = fake_mmu_do_match_ttr(regs.itt1, addr, super);
+	}
+	return res;
+}
+
 // 68040+ MMU instructions only
 void mmu_op (uae_u32 opcode, uae_u32 extra)
 {
@@ -3586,8 +3651,19 @@ void mmu_op (uae_u32 opcode, uae_u32 extra)
 	} else if ((opcode & 0x0FD8) == 0x548) {
 		if (currprefs.cpu_model < 68060) { /* PTEST not in 68060 */
 			/* PTEST */
+			int regno = opcode & 7;
+			uae_u32 addr = m68k_areg(regs, regno);
+			bool write = (opcode & 32) == 0;
+			bool super = (regs.dfc & 4) != 0;
+			bool data = (regs.dfc & 3) != 2;
+
+			regs.mmusr = 0;
+			if (fake_mmu_match_ttr(addr,super,data) != TTR_NO_MATCH) {
+				regs.mmusr = MMU_MMUSR_T | MMU_MMUSR_R;
+			}
+			regs.mmusr |= addr & 0xfffff000;
 #if MMUOP_DEBUG > 0
-			write_log (_T("PTEST\n"));
+			write_log (_T("PTEST%c %08x\n"), write ? 'W' : 'R', addr);
 #endif
 			return;
 		}
@@ -5506,7 +5582,7 @@ void m68k_go (int may_quit)
 				savestate_restore_finish ();
 				memory_map_dump ();
 				if (currprefs.mmu_model == 68030) {
-					mmu030_decode_tc (tc_030);
+					mmu030_decode_tc (tc_030, true);
 				} else if (currprefs.mmu_model >= 68040) {
 					mmu_set_tc (regs.tcr);
 				}

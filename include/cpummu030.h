@@ -57,7 +57,7 @@ typedef struct {
 } TT_info;
 
 TT_info mmu030_decode_tt(uae_u32 TT);
-bool mmu030_decode_tc(uae_u32 TC);
+bool mmu030_decode_tc(uae_u32 TC, bool);
 bool mmu030_decode_rp(uae_u64 RP);
 
 int mmu030_logical_is_in_atc(uaecptr addr, uae_u32 fc, bool write);
