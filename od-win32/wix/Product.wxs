@@ -2,8 +2,8 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 
   <?define ProductName = "WinUAE" ?>
-  <?define ProductVersion = "3.4.0" ?>
-  <?define ProductFullVersion = "3.4.0.0" ?>
+  <?define ProductVersion = "3.5.0" ?>
+  <?define ProductFullVersion = "3.5.0.0" ?>
   <?define ProductAuthor = "Arabuusimiehet" ?>
 
   <?if $(var.Platform) = x64 ?>

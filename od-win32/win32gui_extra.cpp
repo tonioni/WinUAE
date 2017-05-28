@@ -29,6 +29,7 @@ static int fontweight_list = FW_REGULAR;
 static int listviews[16];
 static int listviewcnt;
 static HFONT listviewfont;
+static TEXTMETRIC listview_tm;
 static const TCHAR *fontprefix;
 
 #include <pshpack2.h>
@@ -324,8 +325,18 @@ static void openfont (bool force)
 
 	size = -MulDiv (fontsize_list, GetDeviceCaps (hdc, LOGPIXELSY), 72);
 	listviewfont = CreateFont (size, 0, 0, 0, fontweight_list, (fontstyle_list & ITALIC_FONTTYPE) != 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, fontname_list);
+	HGDIOBJ o = SelectObject(hdc, listviewfont);
+	memset(&listview_tm, 0, sizeof listview_tm);
+	listview_tm.tmAveCharWidth = 8;
+	GetTextMetrics(hdc, &listview_tm);
+	SelectObject(hdc, o);
 
 	ReleaseDC (NULL, hdc);
+}
+
+void scalaresource_listview_font_info(int *w)
+{
+	*w = listview_tm.tmAveCharWidth;
 }
 
 void scaleresource_setfont (HWND hDlg)

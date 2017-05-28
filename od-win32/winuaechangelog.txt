@@ -4,6 +4,20 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 10:
+
+- Version bumped to 3.5.0. .x was only reserved for minor bug fix versions.
+- GUI listview column width calculation used default font size, not selected font.
+- Z3 autoconfig in Z3 space didn't support documented byte write to 0x44 config register. (KS ROM always uses word write)
+- Manual RAM configuration GUI end address validation was incorrect. Now end address can be smaller than total RAM board size.
+- Fixed A2090(a) ST-506 emulation, last accessed LBA status field must be always filled if read/write/format command, added disable
+  ST-506 option. (ROM driver checks bit in autoconfig data if ST-506 is available)
+- MMU emulation can be now switched on/off on the fly. (Of course AmigaOS will crash if MMU is switched off and MMU is used for Map ROM etc..)
+- MMU PTEST in 68040 mode without MMU emulation now checks transparent translation registers and returns correct physical address,
+  now Enforcer initializes correctly in non-MMU mode and does not cause crash due to wrong MMU tables if MMU is later switched on.
+- Fixed Blizzard accelerator crash if memory size was zero (don't map empty maprom space). Note that boot ROM chooses different
+  address space if 1M RAM + MapROM is configured. This does not work yet.
+   
 Beta 9:
 
 - Comspec emulation was very unstable in cycle-exact modes.

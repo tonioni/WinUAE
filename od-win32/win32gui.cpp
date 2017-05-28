@@ -4302,6 +4302,7 @@ void InitializeListView (HWND hDlg)
 	TCHAR tmp[10], tmp2[MAX_DPATH];
 	int listview_column_width[HARDDISK_COLUMNS];
 	DWORD extraflags = 0;
+	int listpadding;
 
 	if (cachedlist) {
 		if (lv_old_type >= 0) {
@@ -4391,6 +4392,8 @@ void InitializeListView (HWND hDlg)
 
 	}
 
+	scalaresource_listview_font_info(&listpadding);
+	listpadding *= 2;
 	int flags = LVS_EX_DOUBLEBUFFER | extraflags;
 	if (lv_type != LV_MISC1)
 		flags |= LVS_EX_ONECLICKACTIVATE | LVS_EX_UNDERLINEHOT | LVS_EX_FULLROWSELECT;
@@ -4401,7 +4404,7 @@ void InitializeListView (HWND hDlg)
 	cachedlist = list;
 
 	for(i = 0; i < listview_num_columns; i++)
-		listview_column_width[i] = ListView_GetStringWidth (list, column_heading[i]) + 15;
+		listview_column_width[i] = ListView_GetStringWidth (list, column_heading[i]) + listpadding;
 
 	// If there are no columns, then insert some
 	lvcolumn.mask = LVCF_WIDTH;
@@ -4527,7 +4530,7 @@ void InitializeListView (HWND hDlg)
 			lvstruct.iItem    = i;
 			lvstruct.iSubItem = 0;
 			result = ListView_InsertItem (list, &lvstruct);
-			width = ListView_GetStringWidth (list, lvstruct.pszText) + 15;
+			width = ListView_GetStringWidth (list, lvstruct.pszText) + listpadding;
 			if (width > listview_column_width[0])
 				listview_column_width[0] = width;
 			entry++;
@@ -4599,7 +4602,7 @@ void InitializeListView (HWND hDlg)
 			lvstruct.iSubItem = 0;
 			result = ListView_InsertItem (list, &lvstruct);
 			ListView_SetItemState (list, i, INDEXTOSTATEIMAGEMASK(type ? 0 : (checked ? 2 : 1)), LVIS_STATEIMAGEMASK);
-			width = ListView_GetStringWidth (list, lvstruct.pszText) + 30;
+			width = ListView_GetStringWidth (list, lvstruct.pszText) + listpadding;
 			if (width > listview_column_width[0])
 				listview_column_width[0] = width;
 			entry++;
@@ -4633,7 +4636,7 @@ void InitializeListView (HWND hDlg)
 			if (drv >= 0)
 				_stprintf (tmp, _T("DF%d:"), drv);
 			ListView_SetItemText (list, result, 2, tmp);
-			width = ListView_GetStringWidth (list, lvstruct.pszText) + 15;
+			width = ListView_GetStringWidth (list, lvstruct.pszText) + listpadding;
 			if (width > listview_column_width[0])
 				listview_column_width[0] = width;
 			entry++;
@@ -4661,7 +4664,7 @@ void InitializeListView (HWND hDlg)
 			result = ListView_InsertItem (list, &lvstruct);
 			ListView_SetItemText(list, result, 1, tmp);
 			ListView_SetItemText(list, result, 2, cds->name);
-			width = ListView_GetStringWidth(list, cds->name) + 10;
+			width = ListView_GetStringWidth(list, cds->name) + listpadding;
 			if (width > listview_column_width[2])
 				listview_column_width[2] = width;
 			break;
@@ -4811,38 +4814,38 @@ void InitializeListView (HWND hDlg)
 				listview_column_width[0] = 20;
 
 				ListView_SetItemText(list, result, 1, devname_str);
-				width = ListView_GetStringWidth(list, devname_str) + 10;
+				width = ListView_GetStringWidth(list, devname_str) + listpadding;
 				if(width > listview_column_width[1])
 					listview_column_width[1] = width;
 
 				ListView_SetItemText(list, result, 2, volname_str);
-				width = ListView_GetStringWidth(list, volname_str) + 10;
+				width = ListView_GetStringWidth(list, volname_str) + listpadding;
 				if(width > listview_column_width[2])
 					listview_column_width[2] = width;
 
 				listview_column_width[3] = 150;
 				ListView_SetItemText(list, result, 3, rootdirp);
-				width = ListView_GetStringWidth(list, rootdirp) + 10;
+				width = ListView_GetStringWidth(list, rootdirp) + listpadding;
 				if(width > listview_column_width[3])
 					listview_column_width[3] = width;
 
 				ListView_SetItemText(list, result, 4, readwrite_str);
-				width = ListView_GetStringWidth(list, readwrite_str) + 10;
+				width = ListView_GetStringWidth(list, readwrite_str) + listpadding;
 				if(width > listview_column_width[4])
 					listview_column_width[4] = width;
 
 				ListView_SetItemText(list, result, 5, blocksize_str);
-				width = ListView_GetStringWidth(list, blocksize_str) + 10;
+				width = ListView_GetStringWidth(list, blocksize_str) + listpadding;
 				if(width > listview_column_width[5])
 					listview_column_width[5] = width;
 
 				ListView_SetItemText(list, result, 6, size_str);
-				width = ListView_GetStringWidth(list, size_str) + 10;
+				width = ListView_GetStringWidth(list, size_str) + listpadding;
 				if(width > listview_column_width[6])
 					listview_column_width[6] = width;
 
 				ListView_SetItemText(list, result, 7, bootpri_str);
-				width = ListView_GetStringWidth(list, bootpri_str) + 10;
+				width = ListView_GetStringWidth(list, bootpri_str) + listpadding;
 				if(width > listview_column_width[7] )
 					listview_column_width[7] = width;
 			}
@@ -5324,6 +5327,7 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	{
 	case WM_INITDIALOG:
 		recursive++;
+		scaleresource_setfont (hDlg);
 		if (!configstore) {
 			DeleteConfigTree (hDlg);
 			CreateConfigStore (NULL, FALSE);
@@ -5859,6 +5863,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	{
 	case WM_INITDIALOG:
 		recursive++;
+		scaleresource_setfont (hDlg);
 		pages[PATHS_ID] = hDlg;
 		setac (hDlg, IDC_PATHS_ROM);
 		setac (hDlg, IDC_PATHS_CONFIG);
@@ -6414,6 +6419,7 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 	{
 	case WM_INITDIALOG:
 		{
+			scaleresource_setfont (hDlg);
 			int ids[] = { IDC_DF0TEXTQ, IDC_DF1TEXTQ, -1 };
 			pages[QUICKSTART_ID] = hDlg;
 			currentpage = QUICKSTART_ID;
@@ -6631,6 +6637,7 @@ static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	switch( msg )
 	{
 	case WM_INITDIALOG:
+		scaleresource_setfont (hDlg);
 		pages[ABOUT_ID] = hDlg;
 		currentpage = ABOUT_ID;
 		init_aboutdlg (hDlg);
@@ -7613,6 +7620,7 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	switch (msg)
 	{
 	case WM_INITDIALOG:
+		scaleresource_setfont (hDlg);
 		pages[DISPLAY_ID] = hDlg;
 		currentpage = DISPLAY_ID;
 		SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETPAGESIZE, 0, 1);
@@ -7821,6 +7829,7 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 
 	switch (msg) {
 	case WM_INITDIALOG:
+		scaleresource_setfont (hDlg);
 		pages[CHIPSET_ID] = hDlg;
 		currentpage = CHIPSET_ID;
 
@@ -8181,6 +8190,7 @@ static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPA
 
 	switch (msg) {
 	case WM_INITDIALOG:
+		scaleresource_setfont (hDlg);
 		pages[CHIPSET2_ID] = hDlg;
 		currentpage = CHIPSET2_ID;
 		cs_compatible = workprefs.cs_compatible;
@@ -8352,7 +8362,7 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 	setchecked(hDlg, IDC_FASTMEMNOAUTOCONFIG, rb && rb->manual_config);
 	if (rb) {
 		if (rb->manual_config) {
-			if (rb->end_address <= rb->start_address || rb->start_address + rb->size >= rb->end_address)
+			if (rb->end_address <= rb->start_address || rb->start_address + rb->size < rb->end_address)
 				rb->end_address = rb->start_address + rb->size - 1;
 		} else {
 			rb->start_address = 0;
@@ -9480,6 +9490,7 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 		case WM_INITDIALOG:
 		{
 			recursive++;
+			scaleresource_setfont (hDlg);
 			pages[EXPANSION2_ID] = hDlg;
 			currentpage = EXPANSION2_ID;
 			int ids[] = { IDC_SCSIROMFILE, IDC_CPUBOARDROMFILE, -1 };
@@ -9862,6 +9873,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	switch (msg)
 	{
 	case WM_INITDIALOG:
+		scaleresource_setfont (hDlg);
 		pages[EXPANSION_ID] = hDlg;
 		currentpage = EXPANSION_ID;
 
@@ -10139,6 +10151,7 @@ static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	{
 		case WM_INITDIALOG:
 		recursive++;
+		scaleresource_setfont (hDlg);
 		pages[BOARD_ID] = hDlg;
 		currentpage = BOARD_ID;
 		setchecked(hDlg, IDC_AUTOCONFIGCUSTOMSORT, workprefs.autoconfig_custom_sort);
@@ -10266,6 +10279,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	{
 	case WM_INITDIALOG:
 		recursive++;
+		scaleresource_setfont (hDlg);
 		pages[MEMORY_ID] = hDlg;
 		currentpage = MEMORY_ID;
 		SendDlgItemMessage (hDlg, IDC_CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CHIP_MEM, MAX_CHIP_MEM));
@@ -10575,6 +10589,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	{
 	case WM_INITDIALOG:
 		{
+			scaleresource_setfont (hDlg);
 			int ids[] = { IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, -1 };
 			pages[KICKSTART_ID] = hDlg;
 			currentpage = KICKSTART_ID;
@@ -11000,6 +11015,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	switch (msg)
 	{
 	case WM_INITDIALOG:
+		scaleresource_setfont (hDlg);
 		pages[currentpage] = hDlg;
 		InitializeListView (hDlg);
 		values_to_miscdlg (hDlg);
@@ -11587,6 +11603,7 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	switch (msg) {
 	case WM_INITDIALOG:
 		recursive++;
+		scaleresource_setfont (hDlg);
 		pages[CPU_ID] = hDlg;
 		currentpage = CPU_ID;
 		SendDlgItemMessage (hDlg, IDC_CACHE, TBM_SETRANGE, TRUE, MAKELONG (MIN_CACHE_SIZE, MAX_CACHE_SIZE));
@@ -12103,6 +12120,7 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	case WM_INITDIALOG:
 		{
 			recursive++;
+			scaleresource_setfont (hDlg);
 			sound_loaddrivesamples ();
 			SendDlgItemMessage (hDlg, IDC_SOUNDBUFFERRAM, TBM_SETRANGE, TRUE, MAKELONG (MIN_SOUND_MEM, MAX_SOUND_MEM));
 			SendDlgItemMessage (hDlg, IDC_SOUNDBUFFERRAM, TBM_SETPAGESIZE, 0, 1);
@@ -12485,9 +12503,15 @@ static void sethardfile (HWND hDlg)
 	bool disables = !rdb || (rdb && current_hfdlg.ci.controller_type == HD_CONTROLLER_TYPE_UAE);
 	bool ide = current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_IDE_LAST;
 	bool scsi = current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_SCSI_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_SCSI_LAST;
+	const struct expansionromtype *ert = get_unit_expansion_rom(current_hfdlg.ci.controller_type);
 
-	if (current_hfdlg.ci.controller_unit >= 8)
-		current_hfdlg.ci.unit_feature_level = HD_LEVEL_SASI_CHS;
+	if (ert && current_hfdlg.ci.controller_unit >= 8) {
+		if (!_tcscmp(ert->name, _T("a2091"))) {
+			current_hfdlg.ci.unit_feature_level = HD_LEVEL_SASI_CHS;
+		} else if (!_tcscmp(ert->name, _T("a2090a"))) {
+			current_hfdlg.ci.unit_feature_level = HD_LEVEL_SCSI_1;
+		}
+	}
 
 	if (!disables)
 		current_hfdlg.ci.bootpri = 0;
@@ -13747,6 +13771,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 {
 	switch (msg) {
 	case WM_INITDIALOG:
+		scaleresource_setfont (hDlg);
 		clicked_entry = 0;
 		pages[HARDDISK_ID] = hDlg;
 		currentpage = HARDDISK_ID;
@@ -14337,6 +14362,7 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			TCHAR ft35dd[20], ft35hd[20], ft35ddpc[20], ft35hdpc[20],  ft525sd[20], ftdis[20], ft35ddescom[20];
 			int df0texts[] = { IDC_DF0TEXT, IDC_DF1TEXT, IDC_DF2TEXT, IDC_DF3TEXT, -1 };
 
+			scaleresource_setfont (hDlg);
 			WIN32GUI_LoadUIString (IDS_FLOPPYTYPE35DD, ft35dd, sizeof ft35dd / sizeof (TCHAR));
 			WIN32GUI_LoadUIString (IDS_FLOPPYTYPE35HD, ft35hd, sizeof ft35hd / sizeof (TCHAR));
 			WIN32GUI_LoadUIString (IDS_FLOPPYTYPE35DDPC, ft35ddpc, sizeof ft35ddpc / sizeof (TCHAR));
@@ -14669,6 +14695,7 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	switch (msg)
 	{
 	case WM_INITDIALOG:
+		scaleresource_setfont (hDlg);
 		pages[DISK_ID] = hDlg;
 		currentpage = DISK_ID;
 		InitializeListView (hDlg);
@@ -15487,6 +15514,7 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	case WM_INITDIALOG:
 		{
 			recursive++;
+			scaleresource_setfont (hDlg);
 			pages[GAMEPORTS_ID] = hDlg;
 			currentpage = GAMEPORTS_ID;
 
@@ -15669,6 +15697,7 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	{
 	case WM_INITDIALOG:
 		recursive++;
+		scaleresource_setfont (hDlg);
 		pages[IOPORTS_ID] = hDlg;
 		currentpage = IOPORTS_ID;
 		init_portsdlg (hDlg);
@@ -16754,6 +16783,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		return TRUE;
 	case WM_INITDIALOG:
 	{
+		scaleresource_setfont (hDlg);
 		inputmap_port_remap = -1;
 		inputmap_remap_counter = -1;
 		inputmap_view_offset = 0;
@@ -17242,6 +17272,7 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	{
 	case WM_INITDIALOG:
 		recursive++;
+		scaleresource_setfont (hDlg);
 		pages[INPUT_ID] = hDlg;
 		currentpage = INPUT_ID;
 		inputdevice_updateconfig (NULL, &workprefs);
@@ -18109,7 +18140,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			}
 			firstinit = true;
 		}
-
+		scaleresource_setfont (hDlg);
 		pages[HW3D_ID] = hDlg;
 		currentpage = HW3D_ID;
 		SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_RESETCONTENT, 0, 0);
@@ -18492,6 +18523,7 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	switch(msg)
 	{
 	case WM_INITDIALOG:
+		scaleresource_setfont (hDlg);
 		pages[AVIOUTPUT_ID] = hDlg;
 		currentpage = AVIOUTPUT_ID;
 		AVIOutput_GetSettings ();
@@ -19034,7 +19066,6 @@ static HWND updatePanel (int id, UINT action)
 	tres = scaleresource (ppage[id].nres, hDlg, -1, 0, 0);
 	panelDlg = CreateDialogIndirectParam (tres->inst, tres->resource, hDlg, ppage[id].dlgproc, id);
 	freescaleresource(tres);
-	scaleresource_setfont (panelDlg);
 	
 	GetWindowRect (hDlg, &r3w);
 	GetClientRect (panelDlg, &r3c);
