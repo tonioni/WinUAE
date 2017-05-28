@@ -1463,18 +1463,21 @@ void cpuboard_map(void)
 	if (is_blizzard1230mk2(&currprefs) || is_blizzard1230mk3(&currprefs)) {
 		map_banks(&blizzardram_bank, blizzardram_bank.start >> 16, cpuboard_size >> 16, 0);
 		map_banks(&blizzardio_bank, BLIZZARD_MAPROM_ENABLE >> 16, 65536 >> 16, 0);
-		if (is_blizzard1230mk2 (&currprefs) && cpuboard_size < 64 * 1024 * 1024) {
+		if (is_blizzard1230mk2 (&currprefs) && cpuboard_size < 64 * 1024 * 1024 && cpuboard_size > 524288) {
 			map_banks(&blizzardmaprom_bank, BLIZZARDMK2_MAPROM_BASE >> 16, 524288 >> 16, 0);
 		}
-		if (is_blizzard1230mk3(&currprefs)) {
+		if (is_blizzard1230mk3(&currprefs) && cpuboard_size > 524288) {
 			map_banks(&blizzardmaprom_bank, BLIZZARDMK3_MAPROM_BASE >> 16, 524288 >> 16, 0);
 		}
 	}
 	if (is_blizzard(&currprefs) || is_blizzardppc(&currprefs)) {
 		if (!fallback_cpu) {
 			map_banks(&blizzardram_bank, blizzardram_bank.start >> 16, cpuboard_size >> 16, 0);
+			// 1M + maprom uses different RAM mirror for some reason
+			if (is_blizzard(&currprefs) && cpuboard_size == 2 * 524288)
+				map_banks(&blizzardram_bank, (0x58000000 - cpuboard_size) >> 16, cpuboard_size >> 16, 0);
 			if (!is_blizzardppc(&currprefs)) {
-				if (cpuboard_size < 256 * 1024 * 1024)
+				if (cpuboard_size < 256 * 1024 * 1024 && cpuboard_size > 524288)
 					map_banks(&blizzardmaprom_bank, BLIZZARDMK4_MAPROM_BASE >> 16, 524288 >> 16, 0);
 				map_banks(&blizzardf0_bank, 0xf00000 >> 16, 65536 >> 16, 0);
 				map_banks(&blizzardio_bank, BLIZZARD_MAPROM_ENABLE >> 16, 65536 >> 16, 0);
@@ -1507,13 +1510,14 @@ void cpuboard_map(void)
 	if (is_csmk1(&currprefs)) {
 		map_banks(&blizzardio_bank, 0x80f80000 >> 16, 65536 >> 16, 0);
 		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 65536 >> 16, 0);
-		map_banks(&blizzardmaprom_bank, 0x07f80000 >> 16, 524288 >> 16, 0);
+		if (cpuboard_size > 524288)
+			map_banks(&blizzardmaprom_bank, 0x07f80000 >> 16, 524288 >> 16, 0);
 	}
 	if (is_blizzard2060(&currprefs)) {
 		if (!fallback_cpu) {
 			map_banks(&blizzardf0_bank, 0xf00000 >> 16, 65536 >> 16, 0);
 			map_banks(&blizzardio_bank, 0x80000000 >> 16, 0x10000000 >> 16, 0);
-			if (mapromconfigured())
+			if (mapromconfigured() && cpuboard_size > 524288)
 				map_banks_nojitdirect(&blizzardmaprom_bank, (a3000hmem_bank.start + a3000hmem_bank.allocated_size - 524288) >> 16, 524288 >> 16, 0);
 		} else {
 			map_banks(&dummy_bank, 0xf00000 >> 16, 0x80000 >> 16, 0);
@@ -1854,7 +1858,7 @@ static void cpuboard_init_2(void)
 			mapped_malloc(&blizzardea_bank);
 		}
 
-		if (cpuboard_size > 2 * 524288) {
+		if (cpuboard_size > 524288) {
 			if (!is_blizzardppc(&currprefs)) {
 				blizzardmaprom_bank.baseaddr = blizzardram_bank.baseaddr + cpuboard_size - 524288;
 				blizzardmaprom_bank.start = BLIZZARDMK4_MAPROM_BASE;
