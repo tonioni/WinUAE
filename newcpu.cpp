@@ -3658,7 +3658,7 @@ void mmu_op (uae_u32 opcode, uae_u32 extra)
 			bool data = (regs.dfc & 3) != 2;
 
 			regs.mmusr = 0;
-			if (fake_mmu_match_ttr(addr,super,data) != TTR_NO_MATCH) {
+			if (fake_mmu_match_ttr(addr, super, data) != TTR_NO_MATCH) {
 				regs.mmusr = MMU_MMUSR_T | MMU_MMUSR_R;
 			}
 			regs.mmusr |= addr & 0xfffff000;
@@ -3670,6 +3670,15 @@ void mmu_op (uae_u32 opcode, uae_u32 extra)
 	} else if ((opcode & 0x0FB8) == 0x588) {
 		/* PLPA */
 		if (currprefs.cpu_model == 68060) {
+			int regno = opcode & 7;
+			uae_u32 addr = m68k_areg (regs, regno);
+			int write = (opcode & 0x40) == 0;
+			bool data = (regs.dfc & 3) != 2;
+			bool super = (regs.dfc & 4) != 0;
+
+			if (fake_mmu_match_ttr(addr, super, data) == TTR_NO_MATCH) {
+				m68k_areg (regs, regno) = addr;
+			}
 #if MMUOP_DEBUG > 0
 			write_log (_T("PLPA\n"));
 #endif
