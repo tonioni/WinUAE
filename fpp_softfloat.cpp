@@ -101,8 +101,6 @@ static const TCHAR *fp_printx80(floatx80 *fx, int mode)
 {
 	static TCHAR fsout[32];
 	flag n, u, d;
-	fptype result = 0.0;
-	int i;
 
 	if (mode < 0) {
 		_stprintf(fsout, _T("%04X-%08X-%08X"), fx->high, (uae_u32)(fx->low >> 32), (uae_u32)fx->low);
@@ -113,32 +111,24 @@ static const TCHAR *fp_printx80(floatx80 *fx, int mode)
 	u = floatx80_is_unnormal(*fx);
 	d = floatx80_is_denormal(*fx);
 	
-	if (floatx80_is_zero(*fx)) {
-#if USE_LONG_DOUBLE
-		_stprintf(fsout, _T("%c%#.17Le%s%s"), n?'-':'+', (fptype) 0.0, u ? _T("U") : _T(""), d ? _T("D") : _T(""));
-#else
-		_stprintf(fsout, _T("%c%#.17e%s%s"), n?'-':'+', (fptype) 0.0, u ? _T("U") : _T(""), d ? _T("D") : _T(""));
-#endif
-	} else if (floatx80_is_infinity(*fx)) {
-		_stprintf(fsout, _T("%c%s"), n?'-':'+', _T("inf"));
+	if (floatx80_is_infinity(*fx)) {
+		_stprintf(fsout, _T("%c%s"), n ? '-' : '+', _T("inf"));
 	} else if (floatx80_is_signaling_nan(*fx)) {
-		_stprintf(fsout, _T("%c%s"), n?'-':'+', _T("snan"));
-	} else if (floatx80_is_any_nan(*fx)) {
-		_stprintf(fsout, _T("%c%s"), n?'-':'+', _T("nan"));
+		_stprintf(fsout, _T("%c%s"), n ? '-' : '+', _T("snan"));
+	} else if (floatx80_is_nan(*fx)) {
+		_stprintf(fsout, _T("%c%s"), n ? '-' : '+', _T("nan"));
 	} else {
-		for (i = 63; i >= 0; i--) {
-			if (fx->low & (((uae_u64)1)<<i)) {
-				result += (fptype) 1.0 / (((uae_u64)1)<<(63-i));
-			}
-		}
-#if USE_LONG_DOUBLE
-		result *= powl(2.0, (fx->high&0x7FFF) - 0x3FFF);
-		_stprintf(fsout, _T("%c%#.17Le%s%s"), n?'-':'+', result, u ? _T("U") : _T(""), d ? _T("D") : _T(""));
-#else
-		result *= pow(2.0, (fx->high&0x7FFF) - 0x3FFF);
-		_stprintf(fsout, _T("%c%#.17e%s%s"), n?'-':'+', result, u ? _T("U") : _T(""), d ? _T("D") : _T(""));
-#endif
+		int32_t len = 17;
+		int8_t save_exception_flags = fs.float_exception_flags;
+		fs.float_exception_flags = 0;
+		floatx80 x = floatx80_to_floatdecimal(*fx, &len, &fs);
+		_stprintf(fsout, _T("%c%01lld.%016llde%c%04d%s%s"), n ? '-' : '+',
+				x.low / LIT64(10000000000000000), x.low % LIT64(10000000000000000),
+				(x.high & 0x4000) ? '-' : '+', x.high & 0x3FFF, d ? _T("D") : u ? _T("U") : _T(""),
+				(fs.float_exception_flags & float_flag_inexact) ? _T("~") : _T(""));
+		fs.float_exception_flags = save_exception_flags;
 	}
+
 	if (mode == 0 || mode > _tcslen(fsout))
 		return fsout;
 	fsout[mode] = 0;
