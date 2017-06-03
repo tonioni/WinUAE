@@ -4,6 +4,15 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+
+Beta 11:
+
+- 68060 PLPA MMU instruction now returns data that makes more sense in non-MMU mode. (Similar change as b10 68040 PTEST)
+  (Emulated 68030+ always appears as MMU capable from software point of view for compatibility reasons, even if MMU emulation is disabled)
+- Do not enable Logitech LCD support if init succeeds but no displays available.
+- Listview font width calculation was still wrong if font was same as GUI font.
+- Use softfloat routines (not normal doubles) to output debugger FPU register contents in softfloat mode. (AG)
+
 Beta 10:
 
 - Version bumped to 3.5.0. .x was only reserved for minor bug fix versions.
@@ -15,8 +24,7 @@ Beta 10:
 - MMU emulation can be now switched on/off on the fly. (Of course AmigaOS will crash if MMU is switched off and MMU is used for Map ROM etc..)
 - MMU PTEST in 68040 mode without MMU emulation now checks transparent translation registers and returns correct physical address,
   now Enforcer initializes correctly in non-MMU mode and does not cause crash due to wrong MMU tables if MMU is later switched on.
-- Fixed Blizzard accelerator crash if memory size was zero (don't map empty maprom space). Note that boot ROM chooses different
-  address space if 1M RAM + MapROM is configured. This does not work yet.
+- Fixed Blizzard accelerator crash if memory size was zero (don't map empty maprom space)
    
 Beta 9:
 
