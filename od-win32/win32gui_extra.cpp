@@ -341,11 +341,13 @@ void scalaresource_listview_font_info(int *w)
 
 void scaleresource_setfont (HWND hDlg)
 {
-	if (!listviewcnt || (!_tcscmp (fontname_gui, fontname_list) && fontsize_gui == fontsize_list && fontstyle_gui == fontstyle_list && fontweight_gui == fontweight_list))
+	if (!listviewcnt)
 		return;
-	openfont (false);
-	if (!listviewfont)
-		return;
+	if (!listviewfont) {
+		openfont (false);
+		if (!listviewfont)
+			return;
+	}
 	for (int i = 0; i < listviewcnt; i++) {
 		SendMessage (GetDlgItem (hDlg, listviews[i]), WM_SETFONT, WPARAM(listviewfont), FALSE);
 	}

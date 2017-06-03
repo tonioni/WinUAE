@@ -4860,6 +4860,8 @@ void InitializeListView (HWND hDlg)
 			if (listview_num_columns == 2) {
 				if ((temp = rect.right - rect.left - listview_column_width[0] - 30) > listview_column_width[1])
 					listview_column_width[1] = temp;
+			} else if (listview_num_columns == 1) {
+				listview_column_width[0] = rect.right - rect.left - 30;
 			}
 		}
 		// Adjust our column widths so that we can see the contents...
