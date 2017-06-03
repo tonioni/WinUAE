@@ -24,6 +24,7 @@ static const int numbers_width = 7, numbers_height = 10;
 static HMODULE lcdlib;
 static volatile int lcd_thread_active;
 static volatile bool lcd_updated;
+int logitech_lcd = 1;
 
 extern unsigned long timeframes;
 
@@ -77,6 +78,9 @@ static int lcd_init (void)
 	DWORD size = sizeof(path) / sizeof(TCHAR);
 	HKEY key;
 
+	if (!logitech_lcd)
+		return 0;
+
 	lcdlib = NULL;
 	ret = RegOpenKeyEx(HKEY_LOCAL_MACHINE, LOGITECH_LCD_DLL, 0, KEY_READ, &key);
 	if (ret != ERROR_SUCCESS)
@@ -100,6 +104,13 @@ static int lcd_init (void)
 	if (!pLogiLcdInit(_T("WinUAE"), LOGI_LCD_TYPE_MONO | LOGI_LCD_TYPE_COLOR))
 		goto err;
 
+	bool lcd_mono = pLogiLcdIsConnected(LOGI_LCD_TYPE_MONO);
+	bool lcd_color = pLogiLcdIsConnected(LOGI_LCD_TYPE_COLOR);
+	if (!lcd_mono && !lcd_color) {
+		pLogiLcdShutdown();
+		goto err;
+	}
+
 	bmp = LoadBitmap (hInst, MAKEINTRESOURCE(IDB_LCD160X43));
 	dc = CreateCompatibleDC (NULL);
 	SelectObject (dc, bmp);
@@ -118,7 +129,7 @@ static int lcd_init (void)
 	memcpy (origmbitmap, mbitmap, bm_width * bm_height);
 	DeleteDC (dc);
 
-	write_log (_T("LCD enabled\n"));
+	write_log (_T("LCD enabled. Mono=%d Color=%d\n"), lcd_mono, lcd_color);
 
 	lcd_thread_active = 1;
 	uae_start_thread(_T("lcd"), lcd_thread, 0, NULL);

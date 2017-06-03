@@ -5532,6 +5532,7 @@ extern float sound_sync_multiplier;
 extern int log_cd32;
 extern int scanline_adjust;
 extern int log_ld;
+extern int logitech_lcd;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -5852,6 +5853,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp(arg, _T("cd32log2"))) {
 		log_cd32 = 2;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("nolcd"))) {
+		logitech_lcd = 0;
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("romlist"))) {
