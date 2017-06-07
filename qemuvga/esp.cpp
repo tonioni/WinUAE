@@ -292,7 +292,7 @@ static void write_response(ESPState *s)
 	// sure wrong buffer is not read.
 	s->pio_on = 0;
 	s->async_buf = NULL;
-	s->fifo_on = 1;
+	s->fifo_on = 2;
 
 	s->ti_buf[0] = s->status;
     s->ti_buf[1] = 0;
@@ -620,7 +620,7 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
 			else
 				v = s->ti_size;
 		}
-		if (!s->dma && v > 1)
+		if (!s->dma && v > 1 && s->fifo_on != 2)
 			v = 1;
 		return v | (s->rregs[ESP_RSEQ] << 5);
 	}
