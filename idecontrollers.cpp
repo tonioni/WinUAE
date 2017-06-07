@@ -1703,23 +1703,19 @@ bool masoboshi_init(struct autoconfig_info *aci)
 		return false;
 
 	ide->configured = 0;
-
-	ide->configured = 0;
 	ide->bank = &ide_bank_generic;
 	ide->type = MASOBOSHI_IDE;
 	ide->rom_size = rom_size;
-	ide->mask = rom_size - 1;
-	ide->subtype = 0;
-
+	ide->rom_mask = ide->mask = rom_size - 1;
+	ide->rom = rom;
 	ide->subtype = aci->rc->subtype;
+
 	if (aci->rc && aci->rc->autoboot_disabled)
 		memcpy(ide->acmemory, ide->rom + 0x100, sizeof ide->acmemory);
 	else
 		memcpy(ide->acmemory, ide->rom + 0x000, sizeof ide->acmemory);
 
-	memset(ide->acmemory, 0xff, sizeof ide->acmemory);
-
-	aci->addrbank =ide->bank;
+	aci->addrbank = ide->bank;
 	return true;
 }
 
