@@ -401,7 +401,7 @@ static int filter (int input, struct filter_state *fs)
 
 	case FILTER_MODEL_A500:
 		fs->rc1 = a500e_filter1_a0 * input + (1 - a500e_filter1_a0) * fs->rc1 + DENORMAL_OFFSET;
-		fs->rc2 = a500e_filter2_a0 * fs->rc1 + (1-a500e_filter2_a0) * fs->rc2;
+		fs->rc2 = a500e_filter2_a0 * fs->rc1 + (1 - a500e_filter2_a0) * fs->rc2;
 		normal_output = fs->rc2;
 
 		fs->rc3 = filter_a0 * normal_output + (1 - filter_a0) * fs->rc3;
@@ -1747,6 +1747,8 @@ static int sound_prefs_changed (void)
 	return 0;
 }
 
+double softfloat_tan(double v);
+
 /* This computes the 1st order low-pass filter term b0.
 * The a1 term is 1.0 - b0. The center frequency marks the -3 dB point. */
 #ifndef M_PI
@@ -1763,8 +1765,9 @@ static float rc_calculate_a0 (int sample_rate, int cutoff_freq)
 	/* Compensate for the bilinear transformation. This allows us to specify the
 	* stop frequency more exactly, but the filter becomes less steep further
 	* from stopband. */
-	omega = tan (omega / 2) * 2;
-	return 1 / (1 + 1 / omega);
+	omega = softfloat_tan (omega / 2.0) * 2.0;
+	float out = 1.0 / (1.0 + 1.0 / omega);
+	return out;
 }
 
 void check_prefs_changed_audio (void)
@@ -1881,6 +1884,7 @@ void set_audio (void)
 	a500e_filter1_a0 = rc_calculate_a0 (currprefs.sound_freq, 6200);
 	a500e_filter2_a0 = rc_calculate_a0 (currprefs.sound_freq, 20000);
 	filter_a0 = rc_calculate_a0 (currprefs.sound_freq, 7000);
+	memset (sound_filter_state, 0, sizeof sound_filter_state);
 	led_filter_audio ();
 
 	/* Select the right interpolation method.  */
