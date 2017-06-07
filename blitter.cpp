@@ -1484,11 +1484,8 @@ static void blitter_start_init (void)
 	ddat1use = ddat2use = 0;
 	blit_interrupt = 0;
 
-	// A old is always cleared
 	blt_info.bltaold = 0;
-	// B old is cleared only if channel is enabled
-	if (blit_ch & 4)
-		blt_info.bltbold = 0;
+	blt_info.bltbold = 0;
 
 	if (blitline) {
 		blinea = blt_info.bltadat;
