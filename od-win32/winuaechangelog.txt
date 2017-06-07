@@ -5,6 +5,14 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+Beta 12:
+
+- Added workaround for sound filter emulation problem (no sound in A500 filter modes) if non-softfloat FPU emulation enabled
+  and program modifies FPU precision/rounding modes.
+- b8 blitter update was partially wrong. (Graphics corruption in Arte / Sanity)
+- Masoboshi Mastercard crash fix.
+- Masoboshi SCSI works again (3400b7 FIFO update missed special case, both status + message byte are in fifo, even in PIO mode)
+
 Beta 11:
 
 - 68060 PLPA MMU instruction now returns data that makes more sense in non-MMU mode. (Similar change as b10 68040 PTEST)

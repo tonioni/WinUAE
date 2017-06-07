@@ -4450,7 +4450,7 @@ void InitializeListView (HWND hDlg)
 				// movable
 				if (expansion_can_move(&workprefs, i))
 					lvstruct.lParam |= 1;
-				// outside or crosses of 2G "border"
+				// outside or crosses 2G "border"
 				if (aci->zorro == 3 && aci->start + aci->size > 0x80000000 || aci->start + aci->size < aci->start)
 					lvstruct.lParam |= 2;
 				// outside of crosses 4G "border"
@@ -18875,6 +18875,8 @@ static const int ignorewindows[] = {
 	IDD_EXPANSION, IDC_RTG_DISPLAYSELECT,
 	-1,
 	IDD_GAMEPORTS, IDC_PORT0_JOYS, IDC_PORT1_JOYS, IDC_PORT2_JOYS, IDC_PORT3_JOYS,
+	-1,
+	IDD_BOARDS, IDC_BOARDLIST,
 	-1,
 	0
 };
