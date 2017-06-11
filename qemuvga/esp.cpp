@@ -211,6 +211,7 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
     s->current_req = scsiesp_req_new(current_lun, 0, lun, buf, s);
     datalen = scsiesp_req_enqueue(s->current_req);
     s->ti_size = datalen;
+	s->transfer_complete = 0;
 	if (datalen != 0) {
 		s->rregs[ESP_RSTAT] = 0;
 		if (s->dma) {
@@ -299,23 +300,24 @@ static void write_response(ESPState *s)
     if (s->dma) {
         s->dma_memory_write(s->dma_opaque, s->ti_buf, 2);
         s->rregs[ESP_RSTAT] = STAT_TC | STAT_ST;
-        s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
+        s->rregs[ESP_RINTR] = INTR_FC;
         s->rregs[ESP_RSEQ] = SEQ_CD;
     } else {
         s->ti_size = 2;
         s->ti_rptr = 0;
         s->ti_wptr = 0;
-        //s->rregs[ESP_RFLAGS] = 2;
+		s->rregs[ESP_RSTAT] |= STAT_MI;
+        s->rregs[ESP_RINTR] = INTR_FC;
     }
     esp_raise_irq(s);
 }
 
 static void esp_dma_done(ESPState *s)
 {
+	s->transfer_complete = 1;
     s->rregs[ESP_RSTAT] |= STAT_TC;
     s->rregs[ESP_RINTR] = INTR_BS;
     s->rregs[ESP_RSEQ] = 0;
-    //s->rregs[ESP_RFLAGS] = 0;
     s->rregs[ESP_TCLO] = 0;
     s->rregs[ESP_TCMID] = 0;
     s->rregs[ESP_TCHI] = 0;
@@ -347,13 +349,28 @@ static int esp_do_dma(ESPState *s)
 	len2 = len;
 	s->dma_pending = len2;
     if (to_device) {
-        len = s->dma_memory_read(s->dma_opaque, s->async_buf, len2);
+		len = s->dma_memory_read(s->dma_opaque, s->async_buf, len2);
+		// if dma counter is larger than transfer size, fill the FIFO
+		// Masoboshi needs this.
+		if (len < 0) {
+			int diff = s->dma_counter - (len2 + s->dma_len);
+			if (diff > TI_BUFSZ)
+				diff = TI_BUFSZ;
+			if (diff > 0) {
+				s->dma_memory_read(s->dma_opaque, s->ti_buf, diff);
+				s->ti_rptr = 0;
+				s->ti_size = diff;
+				s->ti_wptr = diff;
+				s->fifo_on = 3;
+			}
+		}
     } else {
         len = s->dma_memory_write(s->dma_opaque, s->async_buf, len2);
     }
 	if (len < 0)
 		len = len2;
     s->dma_left -= len;
+	s->dma_len += len;
     s->async_buf += len;
     s->async_len -= len;
     if (to_device)
@@ -378,6 +395,21 @@ static int esp_do_dma(ESPState *s)
 	return 1;
 }
 
+void esp_fake_dma_put(void *opaque, uint8_t v)
+{
+	ESPState *s = (ESPState*)opaque;
+	if (s->transfer_complete) {
+		if (!s->fifo_on) {
+			s->fifo_on = 1;
+			s->ti_rptr = s->ti_wptr = 0;
+			s->ti_size = 0;
+		}
+		esp_reg_write(opaque, ESP_FIFO, v);
+	} else {
+		esp_dma_enable(opaque, 1);
+	}
+}
+
 void esp_fake_dma_done(void *opaque)
 {
 	ESPState *s = (ESPState*)opaque;
@@ -386,6 +418,7 @@ void esp_fake_dma_done(void *opaque)
 
 	s->dma_pending = 0;
 	s->dma_left -= len;
+	s->dma_len += len;
 	s->async_buf += len;
 	s->async_len -= len;
 	if (to_device)
@@ -403,9 +436,12 @@ void esp_command_complete(SCSIRequest *req, uint32_t status,
                                  size_t resid)
 {
 	ESPState *s = (ESPState*)req->hba_private;
+	bool dma = s->dma != 0;
 
-	s->fifo_on = 0;
-    s->ti_size = 0;
+	if (s->fifo_on != 3) {
+		s->fifo_on = 0;
+	    s->ti_size = 0;
+	}
     s->dma_left = 0;
 	s->dma_pending = 0;
     s->async_len = 0;
@@ -413,6 +449,9 @@ void esp_command_complete(SCSIRequest *req, uint32_t status,
 	fas408_check(s);
 	s->rregs[ESP_RSTAT] = STAT_ST;
     esp_dma_done(s);
+	// TC is not set if transfer stopped due to phase change, not counter becoming zero.
+	if (dma && s->dma_len < s->dma_counter)
+		s->rregs[ESP_RSTAT] &= ~STAT_TC;
     if (s->current_req) {
 		scsiesp_req_unref(s->current_req);
         s->current_req = NULL;
@@ -446,6 +485,7 @@ static int handle_ti(ESPState *s)
     uint32_t dmalen, minlen;
 
 	s->fifo_on = 1;
+	s->transfer_complete = 0;
 
 	fas408_check(s);
 
@@ -469,8 +509,10 @@ static int handle_ti(ESPState *s)
     else
         minlen = (dmalen < s->ti_size) ? dmalen : s->ti_size;
     if (s->dma) {
-		if (s->dma == 1)
+		if (s->dma == 1) {
 			s->dma_left = minlen;
+			s->dma_len = 0;
+		}
 		s->dma = 2;
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
         if (!esp_do_dma(s)) {
@@ -620,7 +662,7 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
 			else
 				v = s->ti_size;
 		}
-		if (!s->dma && v > 1 && s->fifo_on != 2)
+		if (!s->dma && v > 1 && s->fifo_on < 2)
 			v = 1;
 		return v | (s->rregs[ESP_RSEQ] << 5);
 	}
@@ -687,10 +729,12 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
         break;
     case ESP_FIFO:
         if (s->do_cmd) {
+			if (s->cmdlen >= TI_BUFSZ)
+				return;
             s->cmdbuf[s->cmdlen++] = val & 0xff;
-        } else if (s->ti_size == TI_BUFSZ - 1) {
-            ;
         } else {
+			if (s->ti_wptr >= TI_BUFSZ)
+				return;
             s->ti_size++;
             s->ti_buf[s->ti_wptr++] = val & 0xff;
         }
@@ -734,8 +778,6 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
             break;
         case CMD_ICCS:
             write_response(s);
-            s->rregs[ESP_RINTR] = INTR_FC;
-            s->rregs[ESP_RSTAT] |= STAT_MI;
             break;
         case CMD_MSGACC:
             s->rregs[ESP_RINTR] = INTR_DC;

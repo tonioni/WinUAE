@@ -27,6 +27,8 @@ struct ide_registers
 struct ide_thread_state;
 struct ide_hdf;
 
+typedef void (*hsync_func)(struct ide_board*);
+
 #define MAX_IDE_PORTS_BOARD 3
 struct ide_board
 {
@@ -45,10 +47,15 @@ struct ide_board
 	bool intena;
 	bool enabled;
 	int state;
+	uae_u8 state2[8];
 	int type;
 	int userdata;
 	int subtype;
 	uae_u16 data_latch;
+	uae_u32 dma_ptr;
+	uae_u32 dma_cnt;
+	int hsync_cnt;
+	hsync_func hsync_code;
 	struct romconfig *rc, *original_rc;
 	struct ide_board **self_ptr;
 };

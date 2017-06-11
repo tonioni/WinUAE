@@ -22,6 +22,7 @@ struct ESPState {
 	int irq_raised;
     uint8_t chip_id;
     int32_t ti_size;
+	int32_t dma_len;
     uint32_t ti_rptr, ti_wptr;
     uint32_t status;
     uint32_t dma;
@@ -42,6 +43,7 @@ struct ESPState {
     int dma_enabled;
 	int pio_on;
 	int fifo_on;
+	int transfer_complete;
 
     uint32_t async_len;
     uint8_t *async_buf;
@@ -203,6 +205,7 @@ void esp_reg_write(void *s, uint32_t saddr, uint64_t val);
 
 void esp_dma_enable(void *opaque, int level);
 void esp_fake_dma_done(void *opaque);
+void esp_fake_dma_put(void *opaque, uint8_t v);
 
 void esp_request_cancelled(SCSIRequest *req);
 void esp_command_complete(SCSIRequest *req, uint32_t status, size_t resid);
