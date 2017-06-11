@@ -4540,6 +4540,15 @@ const struct expansionromtype expansionroms[] = {
 		false, 0, comspec_settings
 	},
 	{
+		_T("rapidfire"), _T("RapidFire"), _T("DKB"),
+		ncr_rapidfire_init, NULL, rapidfire_add_scsi_unit, ROMTYPE_RAPIDFIRE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI,
+		2012, 16, 0, false, NULL,
+		true, 0, NULL,
+		{  0xd2, 0x0f ,0x00, 0x00, 0x07, 0xdc, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00 },
+	},
+	{
 		_T("dataflyerscsiplus"), _T("DataFlyer SCSI+"), _T("Expansion Systems"),
 		dataflyer_init, NULL, dataflyer_add_scsi_unit, ROMTYPE_DATAFLYERP | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
