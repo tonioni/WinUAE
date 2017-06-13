@@ -1340,7 +1340,7 @@ static uae_u8 *REGPARAM2 uaeboard_xlate(uaecptr addr)
 {
 	addr -= uaeboard_base & 65535;
 	addr &= 65535;
-	return filesys_bank.baseaddr + addr;
+	return uaeboard_bank.baseaddr + addr;
 }
 
 static addrbank *expamem_map_uaeboard(struct autoconfig_info *aci)
