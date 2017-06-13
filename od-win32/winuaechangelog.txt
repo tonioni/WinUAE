@@ -5,6 +5,16 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+Beta 13:
+
+- Masoboshi Mastercard fully emulated. SCSI fake DMA write and true SCSI and IDE DMA read/write support implemented.
+- DKB Rapidfire emulation. v1.31 rom image from flash update disk added to rom scanner.
+  ("dkbscsi.device (DKB SCSI Driver 1.31 - Copyright © 1996 by DKB Software.)").
+  Almost same hardware as DKB 12x0 accelerator board SCSI controller.
+- MOVEP C undefined behavior fix that caused wrong access order.
+- Fixed nasty JIT FPU bug, saved FPSR was not always correct. (b1)
+- Fixed 128k UAE Boot ROM crash in indirect JIT mode.
+
 Beta 12:
 
 - Added workaround for sound filter emulation problem (no sound in A500 filter modes) if non-softfloat FPU emulation enabled

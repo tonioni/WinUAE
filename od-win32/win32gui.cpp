@@ -1737,26 +1737,33 @@ static void show_rom_list (void)
 		49, 50, 75, 51, 76, 77, -1, 5, 4, -1, -2, // ARCADIA
 
 		53, 54, 55, 56, -1, -1, // A590/A2091
-		111, -1, -1, // GVP Series I
-		109, 110, -1, -1, // GVP Series II
 		57, 58, -1, -1, // A4091
-		102, -1, -1, // Fastlane
-		103, -1, -1, // Oktagon
-		117, -1, -1, // alf
-		118, -1, -1, // alf+
-		120, -1, -1, // masoboshi
-		121, 134, 135, 136, -1, -1, // supradrive
-		124, -1, -1, // kupke golem
-		131, -1, -1, // protar
-		130, -1, -1, // m-tec
+		174, -1, -1, // a-team
+		132, -1, -1, // add500
 		129, 141, -1, -1, // adide
 		133, -1, -1, // adscsi
-		161, -1, -1, // trumpcard pro
+		117, -1, -1, // alf
+		118, -1, -1, // alf+
+		200, -1, -1, // comspec
+		102, -1, -1, // Fastlane
+		111, -1, -1, // GVP Series I
+		109, 110, -1, -1, // GVP Series II
+		173, -1, -1, // hardframe
 		127, 140, -1, -1, // kommos
-		128, -1, -1, // vector falcon
-		132, -1, -1, // add500
+		124, -1, -1, // kupke golem
+		157, -1, -1, // golem fast
+		201, -1, -1, // malibu
+		130, 199, -1, -1, // m-tec
+		120, -1, -1, // masoboshi
+		156, -1, -1, // multi evolution
 		139, -1, -1, // nexus
-		138, 146, -1, -2, // roctec
+		103, -1, -1, // Oktagon
+		131, -1, -1, // protar
+		207, -1,-1, // Rapidfire
+		138, 146, -1, -1, // roctec
+		121, 134, 135, 136, -1, -1, // supradrive
+		161, -1, -1, // trumpcard pro
+		128, -1, -2, // vector falcon
 
 		18, -1, 19, -1, 74, 23, -1, -1,  // CD32 FMV
 		91, -1, -2, // Picasso IV
@@ -1768,7 +1775,10 @@ static void show_rom_list (void)
 		114, -1, -1, // A3001
 		126, -1, -1, // Golem 030
 		144, -1, -1, // E-Matrix 530
+		163, -1, -1, // 1230-II
+		162, -1, -1, // 1230-III
 		89, -1, -1, // 1230-IV
+		162, -1, 167, -1, -1, // 1230-III SCSI
 		89, -1, 94, -1, -1, // 1230-IV SCSI
 		90, -1, -1, // 1260
 		90, -1, 94, -1, -1, // 1260 SCSI
@@ -1799,19 +1809,34 @@ static void show_rom_list (void)
 	p1 = _T("A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A4000\0A4000T\0")
 		_T("CD32\0CDTV\0CDTV-CR\0Arcadia Multi Select\0")
 
-		_T("A590/A2091 SCSI/XT\0GVP Series I SCSI\0GVP Series II SCSI\0A4091 SCSI\0Fastlane SCSI\0Oktagon 2008 SCSI\0")
-		_T("AlfaPower/AT-BUS 508/2008 SCSI\0AlfaPower Plus SCSI\0Masoboshi MC-302/MC-702 IDE/SCSI\0SupraDrive SCSI\0")
-		_T("Golem SCSI\0")
-		_T("Protar A500HD SCSI\0")
-		_T("M-Tec AT500 IDE\0")
+		_T("A590/A2091 SCSI/XT\0")
+		_T("A4091 SCSI\0")
+		_T("Mainhattan A-Team IDE\0")
+		_T("Archos ADD-500\0")
 		_T("AdIDE\0")
 		_T("AdSCSI\0")
-		_T("IVS Trumpcard Pro/GrandSlam\0")
+		_T("AlfaPower/AT-BUS 508/2008 SCSI\0")
+		_T("AlfaPower Plus SCSI\0")
+		_T("Comspec SA-1000 SCSI\0")
+		_T("Fastlane SCSI\0")
+		_T("GVP Series I SCSI\0")
+		_T("GVP Series II SCSI\0")
+		_T("Microbotics HardFrame SCSI\0")
 		_T("Kommos A500/A2000 SCSI\0")
-		_T("Vector Falcon 8000 SCSI\0")
-		_T("Archos ADD-500\0")
+		_T("Golem SCSI\0")
+		_T("Golem Fast SCSI/IDE\0")
+		_T("Malibu SCSI\0")
+		_T("M-Tec AT500/Megabody IDE\0")
+		_T("Masoboshi MC-302/MC-702 IDE/SCSI\0")
+		_T("Multi Evolution SCSI\0")
 		_T("Preferred Technologies Nexus\0")
+		_T("Oktagon 2008 SCSI\0")
+		_T("Protar A500HD SCSI\0")
+		_T("DKB RapidFire SCSI\0")
 		_T("Roctec RH800C\0")
+		_T("SupraDrive SCSI\0")
+		_T("IVS Trumpcard Pro/GrandSlam\0")
+		_T("Vector Falcon 8000 SCSI\0")
 
 		_T("CD32 Full Motion Video\0")
 		_T("Picasso IV\0")
@@ -1823,12 +1848,24 @@ static void show_rom_list (void)
 		_T("GVP A3001 Series I\0")
 		_T("Kupke Golem 030\0")
 		_T("M-Tec E-Matrix 530\0")
-		_T("Blizzard 1230-IV\0Blizzard 1260\0")
-		_T("Blizzard 1230-IV/SCSI\0Blizzard 1260/SCSI\0")
-		_T("Blizzard 2060\0Warp Engine\0TekMagic 2040/2060\0")
-		_T("DKB 1230/1240\0DKB WildFire\0Fusion Forty\0")
-		_T("CyberStorm MK I\0CyberStorm MK II\0CyberStorm MK III\0")
-		_T("Blizzard PPC\0CyberStorm PPC\0")
+		_T("Blizzard 1230-II\0")
+		_T("Blizzard 1230-III\0")
+		_T("Blizzard 1230-IV\0")
+		_T("Blizzard 1260\0")
+		_T("Blizzard 1230-III/SCSI\0")
+		_T("Blizzard 1230-IV/SCSI\0")
+		_T("Blizzard 1260/SCSI\0")
+		_T("Blizzard 2060\0")
+		_T("Warp Engine\0")
+		_T("TekMagic 2040/2060\0")
+		_T("DKB 1230/1240\0")
+		_T("DKB WildFire\0")
+		_T("Fusion Forty\0")
+		_T("CyberStorm MK I\0")
+		_T("CyberStorm MK II\0")
+		_T("CyberStorm MK III\0")
+		_T("Blizzard PPC\0")
+		_T("CyberStorm PPC\0")
 		
 		_T("Nordic Power\0X-Power Professional 500\0Action Cartridge Super IV Professional\0")
 		_T("Pro Access\0")
@@ -15506,7 +15543,7 @@ static void processport (HWND hDlg, bool reset, int port)
 /* Handle messages for the Joystick Settings page of our property-sheet */
 static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	TCHAR tmp[MAX_DPATH], *tmp2;
+	TCHAR tmp[MAX_DPATH];
 	static int recursive = 0;
 	static int first;
 	int temp, i;
