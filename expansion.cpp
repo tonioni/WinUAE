@@ -4544,7 +4544,7 @@ const struct expansionromtype expansionroms[] = {
 		ncr_rapidfire_init, NULL, rapidfire_add_scsi_unit, ROMTYPE_RAPIDFIRE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
-		2012, 16, 0, false, NULL,
+		2012, 1, 0, true, NULL,
 		true, 0, NULL,
 		{  0xd2, 0x0f ,0x00, 0x00, 0x07, 0xdc, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00 },
 	},
