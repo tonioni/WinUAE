@@ -3526,11 +3526,14 @@ static void gen_opcode (unsigned int opcode)
 		printf ("\tuaecptr memp = m68k_areg (regs, srcreg) + (uae_s32)(uae_s16)%s;\n", gen_nextiword (0));
 		genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 2, 0, 0);
 		if (curi->size == sz_word) {
-			printf ("\tuae_u16 val = ((%s (memp) & 0xff) << 8) + (%s (memp + 2) & 0xff);\n", srcb, srcb);
+			printf ("\tuae_u16 val  = (%s (memp) & 0xff) << 8;\n", srcb);
+			printf ("\t        val |= (%s (memp + 2) & 0xff);\n", srcb);
 			count_read += 2;
 		} else {
-			printf ("\tuae_u32 val = ((%s (memp) & 0xff) << 24) + ((%s (memp + 2) & 0xff) << 16)\n", srcb, srcb);
-			printf ("              + ((%s (memp + 4) & 0xff) << 8) + (%s (memp + 6) & 0xff);\n", srcb, srcb);
+			printf ("\tuae_u32 val  = (%s (memp) & 0xff) << 24;\n", srcb);
+			printf ("\t        val |= (%s (memp + 2) & 0xff) << 16;\n", srcb);
+			printf ("\t        val |= (%s (memp + 4) & 0xff) << 8;\n", srcb);
+			printf ("\t        val |= (%s (memp + 6) & 0xff);\n", srcb);
 			count_read += 4;
 		}
 		fill_prefetch_next ();
