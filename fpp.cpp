@@ -609,6 +609,20 @@ static void fpsr_get_quotient(uae_u64 *quot, uae_u8 *sign)
 
 uae_u32 fpp_get_fpsr (void)
 {
+#ifdef JIT
+	if (currprefs.compfpu) {
+		regs.fpsr &= 0x00fffff8; // clear cc
+		if (fpp_is_nan (&regs.fp_result)) {
+			regs.fpsr |= FPSR_CC_NAN;
+		} else if (fpp_is_zero(&regs.fp_result)) {
+			regs.fpsr |= FPSR_CC_Z;
+		} else if (fpp_is_infinity (&regs.fp_result)) {
+			regs.fpsr |= FPSR_CC_I;
+		}
+		if (fpp_is_neg(&regs.fp_result))
+			regs.fpsr |= FPSR_CC_N;
+	}
+#endif
 	return regs.fpsr;
 }
 
