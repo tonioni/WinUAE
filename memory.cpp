@@ -191,7 +191,7 @@ static bool map_uae_boot_rom_direct(void)
 // if access looks like old style hook call and f00000 space is unused, redirect to UAE boot ROM.
 static bool maybe_map_boot_rom(uaecptr addr)
 {
-	if (currprefs.uaeboard >= 2 && get_mem_bank_real(0xf00000) == &dummy_bank) {
+	if (currprefs.uaeboard >= 2 && get_mem_bank_real(0xf00000) == &dummy_bank && !currprefs.mmu_model) {
 		uae_u32 pc = M68K_GETPC;
 		if (addr >= 0xf0ff00 && addr <= 0xf0fff8 && (((valid_address(pc, 2) && (pc < 0xf00000 || pc >= 0x01000000) && !currprefs.cpu_compatible) || (pc == addr && currprefs.cpu_compatible)))) {
 			bool check2 = currprefs.cpu_compatible;
@@ -1026,13 +1026,11 @@ int REGPARAM2 default_check (uaecptr a, uae_u32 b)
 	return 0;
 }
 
-static int be_cnt;
+static int be_cnt, be_recursive;
 
 uae_u8 *REGPARAM2 default_xlate (uaecptr addr)
 {
-	static int recursive;
-
-	if (recursive) {
+	if (be_recursive) {
 		cpu_halt(CPU_HALT_OPCODE_FETCH_FROM_NON_EXISTING_ADDRESS);
 		return kickmem_xlate(2);
 	}
@@ -1040,6 +1038,7 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr addr)
 	if (maybe_map_boot_rom(addr))
 		return get_real_address(addr);
 
+	be_recursive++;
 	int size = currprefs.cpu_model >= 68020 ? 4 : 2;
 	if (quit_program == 0) {
 		/* do this only in 68010+ mode, there are some tricky A500 programs.. */
@@ -1073,7 +1072,7 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr addr)
 			}
 		}
 	}
-	recursive--;
+	be_recursive--;
 	return kickmem_xlate (2); /* So we don't crash. */
 }
 
@@ -2476,7 +2475,7 @@ void memory_reset (void)
 	if (mem_hardreset > 2)
 		memory_init ();
 
-	be_cnt = 0;
+	be_cnt = be_recursive = 0;
 	currprefs.chipmem_size = changed_prefs.chipmem_size;
 	currprefs.bogomem_size = changed_prefs.bogomem_size;
 	currprefs.mbresmem_low_size = changed_prefs.mbresmem_low_size;
