@@ -5,6 +5,10 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+Beta 14:
+
+- Fixed MMU mode HALT3 errors (b7)
+
 Beta 13:
 
 - Masoboshi Mastercard fully emulated. SCSI fake DMA write and true SCSI and IDE DMA read/write support implemented.
