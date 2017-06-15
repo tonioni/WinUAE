@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.23107.0
+# Visual Studio 15
+VisualStudioVersion = 15.0.26430.12
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "winuae", "winuae_msvc.vcxproj", "{4ADAA943-1AC8-4FB5-82E5-4FB753B6C2DA}"
 EndProject
@@ -305,7 +305,7 @@ Global
 		{BE211CE1-3955-4674-A664-5038FC791980}.FullRelease|Mixed Platforms.ActiveCfg = Release|x86
 		{BE211CE1-3955-4674-A664-5038FC791980}.FullRelease|Mixed Platforms.Build.0 = Release|x86
 		{BE211CE1-3955-4674-A664-5038FC791980}.FullRelease|Win32.ActiveCfg = Release|x86
-		{BE211CE1-3955-4674-A664-5038FC791980}.FullRelease|x64.ActiveCfg = Release|x86
+		{BE211CE1-3955-4674-A664-5038FC791980}.FullRelease|x64.ActiveCfg = Release|x64
 		{BE211CE1-3955-4674-A664-5038FC791980}.Release|Mixed Platforms.ActiveCfg = Release|x86
 		{BE211CE1-3955-4674-A664-5038FC791980}.Release|Mixed Platforms.Build.0 = Release|x86
 		{BE211CE1-3955-4674-A664-5038FC791980}.Release|Win32.ActiveCfg = Release|x86

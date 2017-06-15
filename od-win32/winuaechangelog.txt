@@ -5,6 +5,8 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+3.5.0
+
 Beta 14:
 
 - Fixed MMU mode HALT3 errors (b7)
