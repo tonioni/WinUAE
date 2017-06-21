@@ -210,11 +210,6 @@ bool scsi_emulate_analyze (struct scsi_data *sd)
 			sd->direction = 0;
 		}
 		return true;
-	case 0x15: // MODE SELECT
-	case 0x55: 
-	if (sd->device_type != UAEDEV_CD && sd->device_type != UAEDEV_TAPE)
-		goto nocmd;
-	break;
 	}
 	if (data_len < 0) {
 		if (cmd_len == 6)

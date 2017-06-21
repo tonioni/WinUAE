@@ -1512,6 +1512,81 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			goto checkfail;
 		scsi_len = (uae_u32)cmd_writex(hfd, scsi_data, offset, len);
 		break;
+	case 0x55: // MODE SELECT(10)
+	case 0x15: // MODE SELECT(6)
+		{
+			bool select10 = cmdbuf[0] == 0x55;
+			bool sp = (cmdbuf[1] & 1) != 0;
+			bool pf = (cmdbuf[1] & 0x10) != 0;
+			int plen;
+			uae_u8 bd[8];
+
+			if (nodisk (hfd))
+				goto nodisk;
+			// we don't support save pages
+			if (pf)
+				goto errreq;
+
+			// assume error first
+			status = 2; /* CHECK CONDITION */
+			s[0] = 0x70;
+			s[2] = 5; /* ILLEGAL REQUEST */
+			s[12] = 0x26; /*  INVALID FIELD IN PARAMETER LIST */
+			ls = 0x12;
+
+			memset(bd, 0, sizeof bd);
+			uae_u8 *p = scsi_data;
+			if (select10) {
+				plen = (cmdbuf[7] << 8) | cmdbuf[8];
+				memcpy(bd, p, plen > 8 ? 8 : plen);
+				p += plen > 8 ? 8 : plen;
+			} else {
+				plen = cmdbuf[4];
+				if (plen > 0)
+					bd[0] = scsi_data[0];
+				if (plen > 1)
+					bd[2] = scsi_data[1]; // medium type
+				if (plen > 2)
+					bd[3] = scsi_data[2];
+				if (plen > 3)
+					bd[7] = scsi_data[3]; // bd len
+				p += plen > 4 ? 4 : plen;
+			}
+			if (bd[0] != 0 || bd[1] != 0 || bd[2] != 0 || bd[3] != 0 || bd[4] != 0 || bd[5] != 0)
+				goto scsi_done;
+			int bdlen = (bd[6] << 8) | bd[7];
+			if (bdlen != 0 && bdlen != 8)
+				goto scsi_done;
+			if (bdlen) {
+				int block = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | (p[7] << 0);
+				if (block != 512)
+					goto scsi_done;
+				p += bdlen;
+			}
+			for (;;) {
+				int rem = plen - (p - scsi_data);
+				if (!rem)
+					break;
+				if (rem < 2)
+					goto scsi_done;
+				uae_u8 pc = *p++;
+				if (pc >= 0x40)
+					goto scsi_done;
+				uae_u8 pagelen = *p++;
+				rem -= 2;
+				if (!pagelen || pagelen > rem)
+					goto scsi_done;
+				if (pc != 0 && pc != 1 && pc != 3 && pc != 4)
+					goto scsi_done;
+				if (pc == 0)
+					break;
+				p += pagelen;
+			}
+			status = 0;
+			ls = 0;
+			scsi_len = 0;
+			break;
+		}
 	case 0x5a: // MODE SENSE(10)
 	case 0x1a: /* MODE SENSE(6) */
 		{
