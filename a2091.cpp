@@ -549,8 +549,10 @@ static void set_status_intmask(struct wd_chip_state *wd, uae_u16 intmask)
 
 static void set_status (struct wd_chip_state *wd, uae_u8 status, int delay)
 {
-	if (wd->queue_index >= WD_STATUS_QUEUE)
+	if (wd->queue_index >= WD_STATUS_QUEUE) {
+		write_log(_T("WD int queue overflow!\n"));
 		return;
+	}
 	wd->status[wd->queue_index].status = status;
 	wd->status[wd->queue_index].irq = delay == 0 ? 1 : (delay <= 2 ? 2 : delay);
 	wd->queue_index++;
@@ -1034,7 +1036,6 @@ static void set_pio_data_irq(struct wd_chip_state *wd, struct wd_state *wds)
 static void wd_cmd_sel_xfer (struct wd_chip_state *wd, struct wd_state *wds, bool atn)
 {
 	int i, tmp_tc;
-	int delay = 0;
 	struct scsi_data *scsi;
 
 	wd->wd_data_avail = 0;
@@ -1212,15 +1213,12 @@ static void wd_cmd_sel_xfer (struct wd_chip_state *wd, struct wd_state *wds, boo
 	wd->wdregs[WD_COMMAND_PHASE] = 0x60;
 	if (!(wd->wdregs[WD_CONTROL] & CTL_EDI)) {
 		wd->wd_phase = CSR_SEL_XFER_DONE;
-		delay += 2;
-		set_status (wd, wd->wd_phase, delay);
-		delay += 2;
+		set_status (wd, wd->wd_phase, 2);
 		wd->wd_phase = CSR_DISC;
-		set_status (wd, wd->wd_phase, delay);
+		set_status (wd, wd->wd_phase, 0);
 	} else {
-		delay += 2;
 		wd->wd_phase = CSR_SEL_XFER_DONE;
-		set_status (wd, wd->wd_phase, delay);
+		set_status (wd, wd->wd_phase, 2);
 	}
 	wd->wd_selected = 0;
 }
@@ -1934,7 +1932,7 @@ static void dmac8727_cbp(struct wd_state *wd)
 	struct commodore_dmac *c = &wd->cdmac;
 
 	c->c8727_st506_cb >>= 8;
-	c->c8727_st506_cb |= c->c8727_wrcbp << 8;
+	c->c8727_st506_cb |= c->c8727_wrcbp << (8 + 9);
 }
 
 static void a2090_st506(struct wd_state *wd, uae_u8 b)
@@ -1947,7 +1945,7 @@ static void a2090_st506(struct wd_state *wd, uae_u8 b)
 		wd->cdmac.dmac_istr &= ~(ISTR_INT_F | ISTR_INTS);
 		return;
 	}
-	uaecptr cbp = wd->cdmac.c8727_st506_cb << 9;
+	uaecptr cbp = wd->cdmac.c8727_st506_cb & ~1;
 	if (!valid_address(cbp, 16)) {
 		write_log(_T("Invalid ST-506 command block address %08x\n"), cbp);
 		return;
@@ -1996,7 +1994,9 @@ static void a2090_st506(struct wd_state *wd, uae_u8 b)
 			for (int i = 0; i < sizeof ccba; i++) {
 				ccba[i] = get_byte(dmaaddr + i);
 			}
-			wd->cdmac.c8727_st506_cb = (ccba[1] << 16) | (ccba[2] << 8) | (ccba[3] << 0);
+			wd->cdmac.c8727_st506_cb = ((ccba[1] << 16) | (ccba[2] << 8) | (ccba[3] << 0)) & ~1;
+			// return code must be written to new address
+			cbp = wd->cdmac.c8727_st506_cb;
 			write_log(_T("ST-506 Change Command Block %02x.%02x.%02x.%02x\n"),
 				ccba[0], ccba[1], ccba[2], ccba[3]);
 		} else if (cmd == 0x00 || cmd == 0x01 || cmd == 0x03 || cmd == 0x05 || cmd == 0x06 || cmd == 0x08 || cmd == 0x0a || cmd == 0x0b) {
@@ -2011,7 +2011,7 @@ static void a2090_st506(struct wd_state *wd, uae_u8 b)
 				}
 			}
 			if (!outofbounds) {
-				// We handle LUN, not SCSI emulation.
+				// We handle LUN here, SCSI emulation always sees zero LUN.
 				scsi->cmd[1] &= ~0x20;
 				scsi->cmd_len = 6;
 				scsi_emulate_analyze(scsi);
@@ -2538,8 +2538,8 @@ static uae_u8 *REGPARAM2 dmac_a2091_xlate(struct wd_state *wd, uaecptr addr)
 {
 	addr &= 0xffff;
 	addr += wd->rombank * wd->rom_size;
-	if (addr >= 0x8000)
-		addr = 0x8000;
+	if (addr >= 0xc000)
+		addr = 0xc000;
 	return wd->rom + addr;
 }
 
