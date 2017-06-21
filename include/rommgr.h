@@ -22,7 +22,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_CB_A3001S1	0x00040001
 #define ROMTYPE_CB_APOLLO	0x00040002
 #define ROMTYPE_CB_FUSION	0x00040003
-#define ROMTYPE_CB_DKB12x0	0x00040004
+#define ROMTYPE_CB_DKB		0x00040004
 #define ROMTYPE_CB_WENGINE	0x00040005
 #define ROMTYPE_CB_TEKMAGIC	0x00040006
 #define ROMTYPE_CB_BLIZ1230	0x00040007
@@ -151,6 +151,8 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_COMSPEC		0x00100061
 #define ROMTYPE_MALIBU		0x00100062
 #define ROMTYPE_RAPIDFIRE	0x00100063
+#define ROMTYPE_UAEBOARDZ2	0x00100064
+#define ROMTYPE_UAEBOARDZ3	0x00100065
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000
@@ -256,6 +258,7 @@ void board_prefs_changed(int romtype, int devnum);
 #define LOADROM_ZEROFILL 8
 #define LOADROM_ODDFILL(x) ((x << 16) | LOADROM_EVENONLY)
 bool load_rom_rc(struct romconfig *rc, uae_u32 romtype, int maxfilesize, int fileoffset, uae_u8 *rom, int maxromsize, int flags);
+struct zfile *flashromfile_open(const TCHAR *name);
 
 #define EXPANSION_ORDER_MAX 10000
 

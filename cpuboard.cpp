@@ -1734,8 +1734,7 @@ static void cpuboard_init_2(void)
 		blizzardea_bank.mask = blizzardea_bank.reserved_size - 1;
 		mapped_malloc(&blizzardea_bank);
 
-	}
-	else if (is_dkb_12x0(&currprefs)) {
+	} else if (is_dkb_12x0(&currprefs)) {
 
 		blizzardram_bank.start = 0x10000000;
 		blizzardram_bank.reserved_size = cpuboard_size;
@@ -2180,49 +2179,6 @@ static void fixserial(struct uae_prefs *p, uae_u8 *rom, int size)
 		makefakeppcrom(rom, type);
 }
 
-static struct zfile *flashfile_open(const TCHAR *name)
-{
-	struct zfile *f;
-	TCHAR path[MAX_DPATH];
-	bool rw = true;
-
-	if (name == NULL || !name[0])
-		return NULL;
-	f = zfile_fopen(name, _T("rb"), ZFD_NORMAL);
-	if (f) {
-		if (zfile_iscompressed(f)) {
-			rw = false;
-		} else {
-			zfile_fclose(f);
-			f = NULL;
-		}
-	}
-	if (!f) {
-		rw = true;
-		f = zfile_fopen(name, _T("rb+"), ZFD_NONE);
-		if (!f) {
-			rw = false;
-			f = zfile_fopen(name, _T("rb"), ZFD_NORMAL);
-			if (!f) {
-				fetch_rompath(path, sizeof path / sizeof(TCHAR));
-				_tcscat(path, name);
-				rw = true;
-				f = zfile_fopen(path, _T("rb+"), ZFD_NONE);
-				if (!f) {
-					rw = false;
-					f = zfile_fopen(path, _T("rb"), ZFD_NORMAL);
-				}
-			}
-		}
-	}
-	if (f) {
-		write_log(_T("CPUBoard '%s' flash file '%s' loaded, %s.\n"),
-		cpuboards[currprefs.cpuboard_type].subtypes[currprefs.cpuboard_subtype].name,
-		name, rw ? _T("RW") : _T("RO"));
-	}
-	return f;
-}
-
 static struct zfile *board_rom_open(int *roms, const TCHAR *name)
 {
 	struct zfile *zf = NULL;
@@ -2464,12 +2420,12 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 				autoconfig_rom = read_rom(rl->rd);
 		}
 	} else {
-		autoconfig_rom = flashfile_open(romname);
+		autoconfig_rom = flashromfile_open(romname);
 		if (!autoconfig_rom) {
 			if (rl)
-				autoconfig_rom = flashfile_open(rl->path);
+				autoconfig_rom = flashromfile_open(rl->path);
 			if (!autoconfig_rom)
-				autoconfig_rom = flashfile_open(defaultromname);
+				autoconfig_rom = flashromfile_open(defaultromname);
 		}
 		if (!autoconfig_rom) {
 			if (aci->doinit)
@@ -2522,8 +2478,8 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 	} else if (is_dkb_wildfire(p)) {
 		f0rom_size = 65536;
 		zfile_fread(blizzardf0_bank.baseaddr, 1, f0rom_size, autoconfig_rom);
-		flashrom = flash_new(blizzardf0_bank.baseaddr + 0, 32768, 65536, 0x20, flashrom_file, FLASHROM_EVERY_OTHER_BYTE | FLASHROM_PARALLEL_EEPROM);
-		flashrom2 = flash_new(blizzardf0_bank.baseaddr + 1, 32768, 65536, 0x20, flashrom_file, FLASHROM_EVERY_OTHER_BYTE | FLASHROM_EVERY_OTHER_BYTE_ODD | FLASHROM_PARALLEL_EEPROM);
+		flashrom = flash_new(blizzardf0_bank.baseaddr + 0, 32768, 65536, 0x01, 0x20, flashrom_file, FLASHROM_EVERY_OTHER_BYTE | FLASHROM_PARALLEL_EEPROM);
+		flashrom2 = flash_new(blizzardf0_bank.baseaddr + 1, 32768, 65536, 0x01, 0x20, flashrom_file, FLASHROM_EVERY_OTHER_BYTE | FLASHROM_EVERY_OTHER_BYTE_ODD | FLASHROM_PARALLEL_EEPROM);
 		autoconf = false;
 		aci->start = 0xf00000;
 		aci->size = 65536;
@@ -2535,7 +2491,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 			flashrom_file = autoconfig_rom;
 			autoconfig_rom = NULL;
 		}
-		flashrom = flash_new(blizzardf0_bank.baseaddr, f0rom_size, f0rom_size, 0xa4, flashrom_file, 0);
+		flashrom = flash_new(blizzardf0_bank.baseaddr, f0rom_size, f0rom_size, 0x01, 0xa4, flashrom_file, 0);
 	} else if (is_a2630(p)) {
 		f0rom_size = 65536;
 		zfile_fread(blizzardf0_bank.baseaddr, 1, f0rom_size, autoconfig_rom);
@@ -2600,7 +2556,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 			flashrom_file = autoconfig_rom;
 			autoconfig_rom = NULL;
 		}
-		flashrom = flash_new(blizzardea_bank.baseaddr, earom_size, earom_size, 0x20, flashrom_file, 0);
+		flashrom = flash_new(blizzardea_bank.baseaddr, earom_size, earom_size, 0x01, 0x20, flashrom_file, 0);
 		memcpy(blizzardf0_bank.baseaddr, blizzardea_bank.baseaddr + 65536, 65536);
 	} else if (is_csmk2(p)) {
 		earom_size = 131072;
@@ -2610,7 +2566,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 			flashrom_file = autoconfig_rom;
 			autoconfig_rom = NULL;
 		}
-		flashrom = flash_new(blizzardea_bank.baseaddr, earom_size, earom_size, 0x20, flashrom_file, 0);
+		flashrom = flash_new(blizzardea_bank.baseaddr, earom_size, earom_size, 0x01, 0x20, flashrom_file, 0);
 		memcpy(blizzardf0_bank.baseaddr, blizzardea_bank.baseaddr + 65536, 65536);
 	} else if (is_csmk3(p) || is_blizzardppc(p)) {
 		uae_u8 flashtype;
@@ -2638,7 +2594,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 			autoconfig_rom = NULL;
 		}
 		fixserial(p, blizzardf0_bank.baseaddr, f0rom_size);
-		flashrom = flash_new(blizzardf0_bank.baseaddr, f0rom_size, f0rom_size, flashtype, flashrom_file, 0);
+		flashrom = flash_new(blizzardf0_bank.baseaddr, f0rom_size, f0rom_size, 0x01, flashtype, flashrom_file, 0);
 		aci->start = 0xf00000;
 		aci->size = 0x80000;
 	} else if (is_blizzard(p)) {

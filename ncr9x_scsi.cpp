@@ -83,6 +83,8 @@ struct ncr9x_state
 	uae_u32 board_mask;
 	uae_u32 board_mask2;
 	uae_u8 *rom;
+	void *flashrom;
+	struct zfile *flashrom_file;
 	uae_u8 acmemory[128];
 	int configured;
 	uaecptr baseaddress;
@@ -195,6 +197,8 @@ static void freencrunit(struct ncr9x_state *ncr)
 		freescsi(ncr->scsid[ch]);
 		ncr->scsid[ch] = NULL;
 	}
+	flash_free(ncr->flashrom);
+	zfile_fclose(ncr->flashrom_file);
 	xfree(ncr->rom);
 	if (ncr->self_ptr)
 		*ncr->self_ptr = NULL;
@@ -1004,6 +1008,8 @@ static void ncr9x_io_bput(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 			return;
 		}
 	} else if (ISCPUBOARD(BOARD_DKB, BOARD_DKB_SUB_12x0)) {
+		if (!(currprefs.cpuboard_settings & 1))
+			return;
 		if (addr == 0x10100) {
 			ncr->states[0] = val;
 			esp_dma_enable(ncr->devobject.lsistate, 1);
@@ -1295,6 +1301,8 @@ static uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 			return 0;
 		}
 	} else if (ISCPUBOARD(BOARD_DKB, BOARD_DKB_SUB_12x0)) {
+		if (!(currprefs.cpuboard_settings & 1))
+			return 0x00;
 		if (addr == 0x10100) {
 			uae_u8 v = 0;
 			if (ncr->chipirq || ncr->boardirq)
@@ -1365,12 +1373,21 @@ static uae_u32 ncr9x_io_bget(struct ncr9x_state *ncr, uaecptr addr)
 
 static uae_u8 read_rombyte(struct ncr9x_state *ncr, uaecptr addr)
 {
-	uae_u8 v = ncr->rom[addr];
-#if 0
-	if (addr == 0x104)
-		activate_debugger();
-#endif
+	uae_u8 v = 0xff;
+	if (ncr->flashrom) {
+		if ((!ncr->romisoddonly && !ncr->romisevenonly) || (ncr->romisoddonly && (addr & 1)) || (ncr->romisevenonly && !(addr & 1)))
+			v = flash_read(ncr->flashrom, addr >> 1);
+	} else {
+		v = ncr->rom[addr];
+	}
 	return v;
+}
+static void write_rombyte(struct ncr9x_state *ncr, uaecptr addr, uae_u8 v)
+{
+	if (!ncr->flashrom)
+		return;
+	if ((!ncr->romisoddonly && !ncr->romisevenonly) || (ncr->romisoddonly && (addr & 1)) || (ncr->romisevenonly && !(addr & 1)))
+		flash_write(ncr->flashrom, addr >> 1, v);
 }
 
 static uae_u32 ncr9x_bget2(struct ncr9x_state *ncr, uaecptr addr)
@@ -1379,7 +1396,7 @@ static uae_u32 ncr9x_bget2(struct ncr9x_state *ncr, uaecptr addr)
 
 	addr &= ncr->board_mask;
 	if (ncr->rom && addr >= ncr->rom_start && addr < ncr->rom_end) {
-		if (addr < ncr->io_start || (!ncr->romisoddonly && !ncr->romisevenonly) || (ncr->romisoddonly && (addr & 1)) || (ncr->romisevenonly && (addr & 1)))
+		if (addr < ncr->io_start || (!ncr->romisoddonly && !ncr->romisevenonly) || (ncr->romisoddonly && (addr & 1)) || (ncr->romisevenonly && !(addr & 1)))
 			return read_rombyte (ncr, addr - ncr->rom_offset);
 	}
 	if (ncr->io_end && (addr < ncr->io_start || addr >= ncr->io_end))
@@ -1403,6 +1420,12 @@ static void ncr9x_bput2(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 #endif
 
 	addr &= ncr->board_mask;
+	if (ncr->rom && addr >= ncr->rom_start && addr < ncr->rom_end) {
+		if (addr < ncr->io_start || (!ncr->romisoddonly && !ncr->romisevenonly) || (ncr->romisoddonly && (addr & 1)) || (ncr->romisevenonly && !(addr & 1))) {
+			write_rombyte(ncr, addr, val);
+			return;
+		}
+	}
 	if (ncr->io_end && (addr < ncr->io_start || addr >= ncr->io_end))
 		return;
 	ncr9x_io_bput(ncr, addr, val);
@@ -1826,20 +1849,17 @@ bool ncr_oktagon_autoconfig_init(struct autoconfig_info *aci)
 	return true;
 }
 
+static const uae_u8 dkb_autoconfig[16] = {
+	0xd2, 0x12, 0x40, 0x00, 0x07, 0xdc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80
+};
+
 bool ncr_dkb_autoconfig_init(struct autoconfig_info *aci)
 {
-	if (!aci->doinit) {
-		struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_CB_DKB12x0);
-		if (z) {
-			for (int i = 0; i < (sizeof aci->autoconfig_raw) / 2; i++) {
-				uae_u8 b;
-				zfile_fread(&b, 1, 1, z);
-				aci->autoconfig_raw[i * 2] = b;
-			}
-			zfile_fclose(z);
-		}
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_RAPIDFIRE);
+
+	aci->autoconfigp = dkb_autoconfig;
+	if (!aci->doinit)
 		return true;
-	}
 
 	struct ncr9x_state *ncr = getscsi(aci->rc);
 	if (!ncr)
@@ -1857,31 +1877,21 @@ bool ncr_dkb_autoconfig_init(struct autoconfig_info *aci)
 	ncr->io_end = 0x20000;
 	ncr->bank = &ncr9x_bank_generic;
 	ncr->board_mask = 131071;
+	ncr->romisevenonly = true;
 
 	ncr9x_reset_board(ncr);
 
-	struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_CB_DKB12x0);
-	ncr->rom = xcalloc (uae_u8, DKB_ROM_SIZE * 2);
-	if (z) {
-		// memory board at offset 0x100
-		int i;
-		memset(ncr->rom, 0xff, DKB_ROM_SIZE * 2);
-
-		zfile_fseek(z, 0, SEEK_SET);
-		for (i = 0; i < (sizeof ncr->acmemory) / 2; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			ncr->acmemory[i * 2] = b;
-		}
-		for (;;) {
-			uae_u8 b;
-			if (!zfile_fread(&b, 1, 1, z))
-				break;
-			ncr->rom[i * 2] = b;
-			i++;
-		}
-		zfile_fclose(z);
+	ncr->rom = xcalloc (uae_u8, DKB_ROM_SIZE);
+	load_rom_rc(aci->rc, ROMTYPE_CB_DKB, 32768, 0, ncr->rom, 32768, LOADROM_ONEFILL);
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = dkb_autoconfig[i];
+		ew(ncr, i * 4, b);
 	}
+	ncr->flashrom_file = flashromfile_open(aci->rc->romfile);
+	if (ncr->flashrom_file) {
+		zfile_fread(ncr->rom, 32768, 1, ncr->flashrom_file);
+	}
+	ncr->flashrom = flash_new(ncr->rom, 32768, 32768, 0x1f, 0xdc, ncr->flashrom_file, FLASHROM_PARALLEL_EEPROM);
 
 	aci->addrbank = ncr->bank;
 	return true;
@@ -2004,15 +2014,21 @@ bool ncr_rapidfire_init(struct autoconfig_info *aci)
 	ncr->io_end = 0x20000;
 	ncr->bank = &ncr9x_bank_generic;
 	ncr->board_mask = 131071;
+	ncr->romisevenonly = true;
 
 	ncr9x_reset_board(ncr);
 
-	ncr->rom = xcalloc (uae_u8, DKB_ROM_SIZE * 2);
-	load_rom_rc(aci->rc, ROMTYPE_RAPIDFIRE, 32768, 0, ncr->rom, 65536, LOADROM_EVENONLY | LOADROM_FILL);
+	ncr->rom = xcalloc (uae_u8, DKB_ROM_SIZE);
+	load_rom_rc(aci->rc, ROMTYPE_RAPIDFIRE, 32768, 0, ncr->rom, 32768, LOADROM_ONEFILL);
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = ert->autoconfig[i];
 		ew(ncr, i * 4, b);
 	}
+	ncr->flashrom_file = flashromfile_open(aci->rc->romfile);
+	if (ncr->flashrom_file) {
+		zfile_fread(ncr->rom, 32768, 1, ncr->flashrom_file);
+	}
+	ncr->flashrom = flash_new(ncr->rom, 32768, 32768, 0x1f, 0xdc, ncr->flashrom_file, FLASHROM_PARALLEL_EEPROM);
 
 	aci->addrbank = ncr->bank;
 	return true;

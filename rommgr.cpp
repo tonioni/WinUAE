@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 208
+#define NEXT_ROM_ID 209
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -380,10 +380,13 @@ static struct romdata roms[] = {
 	ALTROMPN(164, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, _T("390282-01"), 0xdf76493b, 0x331ede0a, 0x8ca995cc, 0x1917f592, 0x18718e5b, 0x3c7fac39)
 	ALTROMPN(164, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, _T("390283-01"), 0xd74187de, 0x681e4985, 0x4da64bf1, 0x6f2f99f7, 0x4b195f54, 0x0b8bd614)
 
-	{ _T("DKB 12x0"), 1, 23, 1, 23, _T("DKB\0"), 32768, 112, 0, 0, ROMTYPE_CB_DKB12x0, 0, 0, NULL,
-	0xf3b2b0b3, 0x1d539593,0xb1d7514e,0xeb214ab3,0x433a97fc,0x8a010366, NULL, NULL },
+	{ _T("DKB 1230/1240/Cobra"), 1, 23, 1, 23, _T("DKB\0"), 1460, 112, 0, 0, ROMTYPE_CB_DKB, 0, 0, NULL,
+	0x15ac5257, 0xf0431d02,0xac0f83d3,0x45db18c0,0x23f0cefb,0x33d17217, NULL, NULL },
+	{ _T("DKB 1230/1240//Cobra + Ferret v1.23"), 1, 23, 1, 23, _T("DKB\0"), 12060, 208, 0, 0, ROMTYPE_CB_DKB, 0, 0, NULL,
+	0xda878913, 0xb62a68ef,0xb9378d74,0x0be17452,0x1ad07d2e,0xa461a313, NULL, NULL },
 	{ _T("DKB Rapidfire v1.31"), 1, 31, 1, 31, _T("RAPIDFIRE\0"), 11284, 207, 0, 0, ROMTYPE_RAPIDFIRE, 0, 0, NULL,
 	0x68725e50, 0xa66f8ef6,0x901e0e41,0xf8b72bba,0x12165788,0xa452cf01, NULL, NULL },
+
 	{ _T("Fusion Forty"), 0, 0, 0, 0, _T("FUSIONFORTY\0"), 131072, 113, 0, 0, ROMTYPE_CB_FUSION, 0, 0, NULL,
 	0x48fcb5fd, 0x15674dac,0x90b6d8db,0xdda3a175,0x997184c2,0xa423d733, NULL, NULL },
 	ALTROMPN(113, 1, 1, 32768, ROMTYPE_QUAD | ROMTYPE_EVEN | ROMTYPE_8BIT, _T("U28"), 0x434a21a8, 0x472c1623, 0x02babd00, 0x7c1a77ff, 0x40dd12ab, 0x39c97f82)
@@ -2263,4 +2266,45 @@ bool load_rom_rc(struct romconfig *rc, uae_u32 romtype, int maxfilesize, int fil
 			oldpos = 0;
 	}
 	return true;
+}
+
+struct zfile *flashromfile_open(const TCHAR *name)
+{
+	struct zfile *f;
+	TCHAR path[MAX_DPATH];
+	bool rw = true;
+
+	if (name == NULL || !name[0])
+		return NULL;
+	f = zfile_fopen(name, _T("rb"), ZFD_NORMAL);
+	if (f) {
+		if (zfile_iscompressed(f)) {
+			rw = false;
+		} else {
+			zfile_fclose(f);
+			f = NULL;
+		}
+	}
+	if (!f) {
+		rw = true;
+		f = zfile_fopen(name, _T("rb+"), ZFD_NONE);
+		if (!f) {
+			rw = false;
+			f = zfile_fopen(name, _T("rb"), ZFD_NORMAL);
+			if (!f) {
+				fetch_rompath(path, sizeof path / sizeof(TCHAR));
+				_tcscat(path, name);
+				rw = true;
+				f = zfile_fopen(path, _T("rb+"), ZFD_NONE);
+				if (!f) {
+					rw = false;
+					f = zfile_fopen(path, _T("rb"), ZFD_NORMAL);
+				}
+			}
+		}
+	}
+	if (f) {
+		write_log(_T("Flash file '%s' loaded, %s.\n"), name, rw ? _T("RW") : _T("RO"));
+	}
+	return f;
 }

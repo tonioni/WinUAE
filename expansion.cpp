@@ -5126,6 +5126,21 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_INTERNAL
 	},
 
+	// misc
+
+	{
+		_T("uaeboard_z2"), _T("UAEBOARD Z2"), NULL,
+		uaesndboard_init_z2, NULL, NULL, ROMTYPE_UAEBOARDZ2 | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_CUSTOM
+	},
+	{
+		_T("uaeboard_z3"), _T("UAEBOARD Z3"), NULL,
+		uaesndboard_init_z3, NULL, NULL, ROMTYPE_UAEBOARDZ3 | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z3, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_CUSTOM
+	},
+
 
 	{
 		NULL
@@ -5421,16 +5436,27 @@ static const struct cpuboardsubtype commodore_sub[] = {
 		NULL
 	}
 };
+
+static const struct expansionboardsettings cpuboard_dkb_cobra_settings[] = {
+	{
+		_T("SCSI (Ferret)"),
+		_T("scsi")
+	},
+	{
+		NULL
+	}
+};
 static const struct cpuboardsubtype dbk_sub[] = {
 	{
-		_T("1230/1240"),
+		_T("1230/1240/Cobra"),
 		_T("DKB12x0"),
-		ROMTYPE_CB_DKB12x0, 0,
+		ROMTYPE_CB_DKB, 0,
 		cpuboard_dkb_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		0,
 		128 * 1024 * 1024,
 		0,
-		ncr_dkb_autoconfig_init, NULL, BOARD_AUTOCONFIG_Z2, 0
+		ncr_dkb_autoconfig_init, NULL, BOARD_AUTOCONFIG_Z2, 0,
+		cpuboard_dkb_cobra_settings
 	},
 	{
 		_T("Wildfire"),
