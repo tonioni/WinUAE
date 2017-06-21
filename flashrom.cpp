@@ -516,12 +516,12 @@ struct flashrom_data
 	int state;
 	int modified;
 	int sectorsize;
-	uae_u8 devicecode;
+	uae_u8 devicecode, mfgcode;
 	int flags;
 	struct zfile *zf;
 };
 
-void *flash_new(uae_u8 *rom, int flashsize, int allocsize, uae_u8 devicecode, struct zfile *zf, int flags)
+void *flash_new(uae_u8 *rom, int flashsize, int allocsize, uae_u8 mfgcode, uae_u8 devcode, struct zfile *zf, int flags)
 {
 	struct flashrom_data *fd = xcalloc(struct flashrom_data, 1);
 	fd->flashsize = flashsize;
@@ -530,8 +530,9 @@ void *flash_new(uae_u8 *rom, int flashsize, int allocsize, uae_u8 devicecode, st
 	fd->zf = zf;
 	fd->rom = rom;
 	fd->flags = flags;
-	fd->devicecode = devicecode;
-	fd->sectorsize = devicecode == 0x20 ? 16384 : 65536;
+	fd->devicecode = devcode;
+	fd->mfgcode = mfgcode;
+	fd->sectorsize = devcode == 0x20 ? 16384 : 65536;
 	return fd;
 }
 
@@ -595,7 +596,7 @@ bool flash_write(void *fdv, uaecptr addr, uae_u8 v)
 	addr &= fd->mask;
 	addr2 = addr & 0xffff;
 
-	if (fd->state == 7) {
+	if (fd->state >= 7 && fd->state < 7 + 64) {
 		if (!(fd->flags & FLASHROM_PARALLEL_EEPROM)) {
 			fd->state = 100;
 		} else {
@@ -691,7 +692,7 @@ uae_u32 flash_read(void *fdv, uaecptr addr)
 	if (fd->state == 3) {
 		uae_u8 a = addr & 0xff;
 		if (a == 0)
-			v = 0x01;
+			v = fd->mfgcode;
 		if (a == 1)
 			v = fd->devicecode;
 		if (a == 2)

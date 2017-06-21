@@ -5,7 +5,7 @@
 
 /* FLASH */
 
-void *flash_new(uae_u8 *rom, int flashsize, int allocsize, uae_u8 devicecode, struct zfile *zf, int flags);
+void *flash_new(uae_u8 *rom, int flashsize, int allocsize, uae_u8 mfgcode, uae_u8 devcode, struct zfile *zf, int flags);
 void flash_free(void *fdv);
 
 bool flash_write(void *fdv, uaecptr addr, uae_u8 v);
