@@ -12348,7 +12348,7 @@ static void default_rdb_hfdlg (struct hfdlg_vals *f, const TCHAR *filename)
 	hardfile_testrdb (f);
 }
 
-static void volumeselectfile (HWND hDlg)
+static void volumeselectfile (HWND hDlg, int setout)
 {
 	TCHAR directory_path[MAX_DPATH];
 	_tcscpy (directory_path, current_fsvdlg.ci.rootdir);
@@ -12371,9 +12371,11 @@ static void volumeselectfile (HWND hDlg)
 			regsetstr (NULL, _T("FilesystemFilePath"), directory_path);
 			p[1] = t;
 		}
+		if (setout)
+			_tcscpy (current_fsvdlg.ci.rootdir, directory_path);
 	}
 }
-static void volumeselectdir (HWND hDlg, int newdir)
+static void volumeselectdir (HWND hDlg, int newdir, int setout)
 {
 	const GUID volumeguid = { 0x1df05121, 0xcc08, 0x46ea, { 0x80, 0x3f, 0x98, 0x3c, 0x54, 0x88, 0x53, 0x76 } };
 	TCHAR szTitle[MAX_DPATH];
@@ -12396,6 +12398,8 @@ static void volumeselectdir (HWND hDlg, int newdir)
 		SetDlgItemText (hDlg, IDC_PATH_NAME, directory_path);
 		ew (hDlg, IDC_FS_RW, TRUE);
 		archivehd = 0;
+		if (setout)
+			_tcscpy(current_fsvdlg.ci.rootdir, directory_path);
 	}
 }
 
@@ -12432,14 +12436,14 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 			if (s) {
 				_tcscpy (current_fsvdlg.ci.rootdir, s);
 				xfree (s);
-				volumeselectfile (hDlg);
+				volumeselectfile (hDlg,  0);
 			}
 		} else if (GetDlgCtrlID ((HWND)wParam) == IDC_FS_SELECT_DIR) {
 			TCHAR *s = favoritepopup (hDlg);
 			if (s) {
 				_tcscpy (current_fsvdlg.ci.rootdir, s);
 				xfree (s);
-				volumeselectdir (hDlg, 1);
+				volumeselectdir (hDlg, 1, 0);
 			}
 		}
 		break;
@@ -12481,12 +12485,10 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 				archivehd = -1;
 				break;
 			case IDC_FS_SELECT_FILE:
-				volumeselectfile (hDlg);
-				getcomboboxtext(hDlg, IDC_PATH_NAME, current_fsvdlg.ci.rootdir, sizeof current_fsvdlg.ci.rootdir / sizeof(TCHAR));
+				volumeselectfile (hDlg, 1);
 				break;
 			case IDC_FS_SELECT_DIR:
-				volumeselectdir (hDlg, 0);
-				getcomboboxtext(hDlg, IDC_PATH_NAME, current_fsvdlg.ci.rootdir, sizeof current_fsvdlg.ci.rootdir / sizeof(TCHAR));
+				volumeselectdir (hDlg, 0, 1);
 				break;
 			case IDOK:
 				EndDialog (hDlg, 1);
@@ -12536,12 +12538,12 @@ static void sethardfiletypes(HWND hDlg)
 
 static void sethardfile (HWND hDlg)
 {
+	bool ide = current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_IDE_LAST;
+	bool scsi = current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_SCSI_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_SCSI_LAST;
 	bool rdb = is_hdf_rdb ();
 	bool physgeo = rdb && ischecked(hDlg, IDC_HDF_PHYSGEOMETRY);
 	bool enablegeo = !rdb || physgeo;
 	bool disables = !rdb || (rdb && current_hfdlg.ci.controller_type == HD_CONTROLLER_TYPE_UAE);
-	bool ide = current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_IDE_LAST;
-	bool scsi = current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_SCSI_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_SCSI_LAST;
 	const struct expansionromtype *ert = get_unit_expansion_rom(current_hfdlg.ci.controller_type);
 
 	if (ert && current_hfdlg.ci.controller_unit >= 8) {
@@ -12852,7 +12854,7 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 	}
 }
 
-static void hardfileselecthdf (HWND hDlg, TCHAR *newpath, bool ask)
+static void hardfileselecthdf (HWND hDlg, TCHAR *newpath, bool ask, bool newhd)
 {
 	if (ask) {
 		DiskSelection (hDlg, IDC_PATH_NAME, 2, &workprefs, newpath);
@@ -12860,6 +12862,12 @@ static void hardfileselecthdf (HWND hDlg, TCHAR *newpath, bool ask)
 		DISK_history_add(current_hfdlg.ci.rootdir, -1, HISTORY_HDF, 1);
 	}
 	fullpath (current_hfdlg.ci.rootdir, sizeof current_hfdlg.ci.rootdir / sizeof (TCHAR));
+	if (newhd) {
+		// Set RDB mode if IDE or SCSI
+		if (current_hfdlg.ci.controller_type > 0) {
+			current_hfdlg.ci.sectors = current_hfdlg.ci.reserved = current_hfdlg.ci.surfaces = 0;
+		}
+	}
 	inithardfile (hDlg);
 	hardfile_testrdb (&current_hfdlg);
 	updatehdfinfo (hDlg, true, true);
@@ -13091,6 +13099,7 @@ static void restore_hd_geom(struct uaedev_config_info *dst, struct uaedev_config
 	dst->readonly = src->readonly;
 	dst->physical_geometry = src->physical_geometry;
 	if (src->physical_geometry) {
+		dst->cyls = dst->sectors = dst->surfaces = dst->reserved = 0;
 		dst->pcyls = src->pcyls;
 		dst->pheads = src->pheads;
 		dst->psecs = src->psecs;
@@ -13134,7 +13143,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				TCHAR path[MAX_DPATH];
 				_tcscpy (path, s);
 				xfree (s);
-				hardfileselecthdf (hDlg, path, true);
+				hardfileselecthdf (hDlg, path, true, false);
 			}
 		} else if (GetDlgCtrlID ((HWND)wParam) == IDC_FILESYS_SELECTOR) {
 			TCHAR *s = favoritepopup (hDlg);
@@ -13164,7 +13173,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 					if (_tcscmp (tmp, current_hfdlg.ci.rootdir)) {
 						_tcscpy (current_hfdlg.ci.rootdir, tmp);
 						recursive++;
-						hardfileselecthdf (hDlg, NULL, false); 
+						hardfileselecthdf (hDlg, NULL, false, false); 
 						recursive--;
 					}
 				}
@@ -13245,11 +13254,12 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			break;
 		case IDC_SELECTOR:
 			{
+				bool newhd = current_hfdlg.ci.rootdir[0] == 0;
 				struct uaedev_config_info citmp;
 				memcpy(&citmp, &current_hfdlg.ci, sizeof citmp);
 				default_hfdlg (&current_hfdlg, false);
 				restore_hd_geom(&current_hfdlg.ci, &citmp);
-				hardfileselecthdf (hDlg, NULL, true);
+				hardfileselecthdf (hDlg, NULL, true, newhd);
 			}
 			break;
 		case IDC_FILESYS_SELECTOR:
