@@ -436,12 +436,12 @@ STATIC_INLINE uae_u32 next_iilongi (void)
 STATIC_INLINE void m68k_do_bsri(uaecptr oldpc, uae_s32 offset)
 {
 	m68k_areg(regs, 7) -= 4;
-	put_long(m68k_areg(regs, 7), oldpc);
+	x_put_long(m68k_areg(regs, 7), oldpc);
 	m68k_incpci(offset);
 }
 STATIC_INLINE void m68k_do_rtsi(void)
 {
-	uae_u32 newpc = get_long(m68k_areg(regs, 7));
+	uae_u32 newpc = x_get_long(m68k_areg(regs, 7));
 	m68k_setpci(newpc);
 	m68k_areg(regs, 7) += 4;
 }
