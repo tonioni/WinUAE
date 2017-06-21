@@ -10,6 +10,7 @@
 #define DEBUG_CD32CDTVIO 0
 #define EXCEPTION3_DEBUGGER 0
 #define CPUTRACE_DEBUG 0
+#define VALIDATE_68030_DATACACHE 0
 
 #define MORE_ACCURATE_68020_PIPELINE 1
 
@@ -778,6 +779,7 @@ static void set_x_funcs (void)
 {
 	if (currprefs.mmu_model) {
 		if (currprefs.cpu_model == 68060) {
+
 			x_prefetch = get_iword_mmu060;
 			x_get_ilong = get_ilong_mmu060;
 			x_get_iword = get_iword_mmu060;
@@ -790,7 +792,9 @@ static void set_x_funcs (void)
 			x_get_long = get_long_mmu060;
 			x_get_word = get_word_mmu060;
 			x_get_byte = get_byte_mmu060;
+
 		} else if (currprefs.cpu_model == 68040) {
+
 			x_prefetch = get_iword_mmu040;
 			x_get_ilong = get_ilong_mmu040;
 			x_get_iword = get_iword_mmu040;
@@ -803,7 +807,9 @@ static void set_x_funcs (void)
 			x_get_long = get_long_mmu040;
 			x_get_word = get_word_mmu040;
 			x_get_byte = get_byte_mmu040;
+
 		} else {
+
 			x_prefetch = get_iword_mmu030;
 			x_get_ilong = get_ilong_mmu030;
 			x_get_iword = get_iword_mmu030;
@@ -7775,6 +7781,45 @@ static void fill_icache030 (uae_u32 addr)
 	regs.cacheholdingdata020 = data;
 }
 
+
+#if VALIDATE_68030_DATACACHE
+static void validate_dcache030(void)
+{
+	for (int i = 0; i < CACHELINES030; i++) {
+		struct cache030 *c = &dcaches030[i];
+		uae_u32 addr = c->tag & ~((CACHELINES030 << 4) - 1);
+		addr |= i << 4;
+		for (int j = 0; j < 4; j++) {
+			if (c->valid[j]) {
+				uae_u32 v = get_long(addr);
+				if (v != c->data[j]) {
+					write_log(_T("Address %08x data cache mismatch %08x != %08x\n"), addr, v, c->data[j]);
+					activate_debugger();
+				}
+			}
+			addr += 4;
+		}
+	}
+}
+
+static void validate_dcache030_read(uae_u32 addr, uae_u32 ov, int size)
+{
+	uae_u32 ov2;
+	if (size == 2) {
+		ov2 = get_long(addr);
+	} else if (size == 1) {
+		ov2 = get_word(addr);
+		ov &= 0xffff;
+	} else {
+		ov2 = get_byte(addr);
+		ov &= 0xff;
+	}
+	if (ov2 != ov) {
+		write_log(_T("Address %08x data cache mismatch %08x != %08x\n"), addr, ov2, ov);
+	}
+}
+#endif
+
 STATIC_INLINE bool cancache030 (uaecptr addr)
 {
 	return ce_cachable[addr >> 16] != 0;
@@ -7867,6 +7912,9 @@ void write_dcache030(uaecptr addr, uae_u32 v, int size)
 		else
 			put_byte(addr, v);
 	}
+#if VALIDATE_68030_DATACACHE
+	validate_dcache030();
+#endif
 }
 
 uae_u32 read_dcache030 (uaecptr addr, int size)
@@ -7876,6 +7924,9 @@ uae_u32 read_dcache030 (uaecptr addr, int size)
 	uae_u32 tag1, tag2;
 	int aligned = addr & 3;
 	uae_u32 v1, v2;
+#if VALIDATE_68030_DATACACHE
+	uae_u32 addr2 = addr;
+#endif
 
 	if (!(regs.cacr & 0x100) || !cancache030 (addr)) { // data cache disabled?
 		if (currprefs.cpu_memory_cycle_exact) {
@@ -7895,10 +7946,13 @@ uae_u32 read_dcache030 (uaecptr addr, int size)
 		}
 	}
 	c1 = getcache030 (dcaches030, addr, &tag1, &lws1);
-	addr &= ~3;
+ 	addr &= ~3;
 	if (!c1->valid[lws1] || c1->tag != tag1) {
 		v1 = currprefs.cpu_memory_cycle_exact ? mem_access_delay_long_read_ce020 (addr) : get_long (addr);
 		update_cache030 (c1, v1, tag1, lws1);
+#if VALIDATE_68030_DATACACHE
+		validate_dcache030();
+#endif
 	} else {
 		v1 = c1->data[lws1];
 		if (uae_boot_rom_type > 0) {
@@ -7913,12 +7967,19 @@ uae_u32 read_dcache030 (uaecptr addr, int size)
 			}
 		}
 	}
+
 	// only one long fetch needed?
 	if (size == 0) {
 		v1 >>= (3 - aligned) * 8;
+#if VALIDATE_68030_DATACACHE
+		validate_dcache030_read(addr2, v1, size);
+#endif
 		return v1;
 	} else if (size == 1 && aligned <= 2) {
 		v1 >>= (2 - aligned) * 8;
+#if VALIDATE_68030_DATACACHE
+		validate_dcache030_read(addr2, v1, size);
+#endif
 		return v1;
 	} else if (size == 2 && aligned == 0) {
 		if ((regs.cacr & 0x1100) == 0x1100 && lws1 == 0 && !c1->valid[1] && !c1->valid[2] && !c1->valid[3] && ce_banktype[addr >> 16] == CE_MEMBANK_FAST32) {
@@ -7929,6 +7990,10 @@ uae_u32 read_dcache030 (uaecptr addr, int size)
 			do_cycles_ce020_mem (3 * (CPU020_MEM_CYCLE - 1), c1->data[3]);
 			c1->valid[1] = c1->valid[2] = c1->valid[3] = true;
 		}
+#if VALIDATE_68030_DATACACHE
+		validate_dcache030_read(addr2, v1, size);
+		validate_dcache030();
+#endif
 		return v1;
 	}
 	// no, need another one
@@ -7937,6 +8002,9 @@ uae_u32 read_dcache030 (uaecptr addr, int size)
 	if (!c2->valid[lws2] || c2->tag != tag2) {
 		v2 = currprefs.cpu_memory_cycle_exact ? mem_access_delay_long_read_ce020 (addr) : get_long (addr);
 		update_cache030 (c2, v2, tag2, lws2);
+#if VALIDATE_68030_DATACACHE
+		validate_dcache030();
+#endif
 	} else {
 		v2 = c2->data[lws2];
 		if (uae_boot_rom_type > 0) {
@@ -7948,17 +8016,24 @@ uae_u32 read_dcache030 (uaecptr addr, int size)
 			}
 		}
 	}
-	if (size == 1 && aligned == 3)
-		return (v1 << 8) | (v2 >> 24);
-	else if (size == 2 && aligned == 1)
-		return (v1 << 8) | (v2 >> 24);
-	else if (size == 2 && aligned == 2)
-		return (v1 << 16) | (v2 >> 16);
-	else if (size == 2 && aligned == 3)
-		return (v1 << 24) | (v2 >> 8);
 
-	write_log (_T("dcache030 weirdness!?\n"));
-	return 0;
+	uae_u32 ov;
+	if (size == 1 && aligned == 3) {
+		ov = (v1 << 8) | (v2 >> 24);
+	} else if (size == 2 && aligned == 1) {
+		ov = (v1 << 8) | (v2 >> 24);
+	} else if (size == 2 && aligned == 2) {
+		ov = (v1 << 16) | (v2 >> 16);
+	} else if (size == 2 && aligned == 3) {
+		ov =  (v1 << 24) | (v2 >> 8);
+	} else {
+		write_log (_T("dcache030 weirdness!?\n"));
+		ov = 0;
+	}
+#if VALIDATE_68030_DATACACHE
+	validate_dcache030_read(addr2, ov, size);
+#endif
+	return ov;
 }
 
 static uae_u32 get_word_ce030_prefetch_2 (int o)
