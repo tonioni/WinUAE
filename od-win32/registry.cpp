@@ -167,10 +167,12 @@ int regenumstr (UAEREG *root, int idx, TCHAR *name, int *nsize, TCHAR *str, int 
 			}
 			if (p[0]) {
 				p2 = _tcschr (p, '=');
-				*p2++ = 0;
-				_tcscpy_s (name, *nsize, p);
-				_tcscpy_s (str, *size, p2);
-				ret = 1;
+				if (p2) {
+					*p2++ = 0;
+					_tcscpy_s (name, *nsize, p);
+					_tcscpy_s (str, *size, p2);
+					ret = 1;
+				}
 			}
 		}
 		xfree (tmp);
