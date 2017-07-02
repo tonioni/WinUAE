@@ -311,7 +311,7 @@ extern void indicator_leds (int num, int state);
 extern void warpmode (int mode);
 extern void pausemode (int mode);
 
-extern void inputdevice_add_inputcode (int code, int state);
+extern void inputdevice_add_inputcode (int code, int state, const TCHAR *);
 extern void inputdevice_handle_inputcode (void);
 
 extern void inputdevice_tablet (int x, int y, int z,

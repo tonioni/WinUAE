@@ -102,6 +102,16 @@ static const struct inputevent events[] = {
 };
 #undef DEFEVENT
 #undef DEFEVENT2
+struct aksevent
+{
+	int aks;
+	const TCHAR *name;
+};
+#define AKS(A) { AKS_ ## A, _T("AKS_") _T(#A) },
+static const struct aksevent akss[] = {
+#include "aks.def"
+	{ 0, NULL }
+};
 
 static int sublevdir[2][MAX_INPUT_SUB_EVENT];
 
@@ -194,8 +204,6 @@ static void check_enable(int ei);
 
 int inputdevice_uaelib (const TCHAR *s, const TCHAR *parm)
 {
-	int i;
-
 	//write_log(_T("%s: %s\n"), s, parm);
 
 	if (!_tcsncmp(s, _T("KEY_RAW_"), 8)) {
@@ -209,7 +217,7 @@ int inputdevice_uaelib (const TCHAR *s, const TCHAR *parm)
 		if (value[0] == '0' && _totupper(value[1]) == 'X')
 			value += 2, base = 16;
 		v = _tcstol(value, &endptr, base);
-		for (i = 1; events[i].name; i++) {
+		for (int i = 1; events[i].name; i++) {
 			const struct inputevent *ie = &events[i];
 			if (_tcsncmp(ie->confname, _T("KEY_"), 4))
 				continue;
@@ -221,7 +229,21 @@ int inputdevice_uaelib (const TCHAR *s, const TCHAR *parm)
 		return 0;
 	}
 
-	for (i = 1; events[i].name; i++) {
+	if (!_tcsncmp(s, _T("AKS_"), 4)) {
+		for (int i = 0; akss[i].name; i++) {
+			if (!_tcscmp(s, akss[i].name)) {
+				int v = _tstol(parm);
+				if (!_tcscmp(parm, _T("0")) || !_tcscmp(parm, _T("1")))
+					parm = NULL;
+				else
+					v = 1;
+				inputdevice_add_inputcode(akss[i].aks, v, parm);
+				return 1;
+			}
+		}
+	}
+
+	for (int i = 1; events[i].name; i++) {
 		if (!_tcscmp (s, events[i].confname)) {
 			check_enable(i);
 			handle_input_event (i, parm ? _tstol (parm) : 0, 1, 0);
@@ -3955,7 +3977,13 @@ static void queue_input_event (int evt, const TCHAR *custom, int state, int max,
 
 static uae_u8 keybuf[256];
 #define MAX_PENDING_EVENTS 20
-static int inputcode_pending[MAX_PENDING_EVENTS], inputcode_pending_state[MAX_PENDING_EVENTS];
+struct inputcode
+{
+	int code;
+	int state;
+	TCHAR *s;
+};
+static struct inputcode inputcode_pending[MAX_PENDING_EVENTS];
 
 static bool inputdevice_handle_inputcode_immediate(int code, int state)
 {
@@ -3969,17 +3997,18 @@ static bool inputdevice_handle_inputcode_immediate(int code, int state)
 }
 
 
-void inputdevice_add_inputcode (int code, int state)
+void inputdevice_add_inputcode (int code, int state, const TCHAR *s)
 {
 	for (int i = 0; i < MAX_PENDING_EVENTS; i++) {
-		if (inputcode_pending[i] == code && inputcode_pending_state[i] == state)
+		if (inputcode_pending[i].code == code && inputcode_pending[i].state == state)
 			return;
 	}
 	for (int i = 0; i < MAX_PENDING_EVENTS; i++) {
-		if (inputcode_pending[i] == 0) {
+		if (inputcode_pending[i].code == 0) {
 			if (!inputdevice_handle_inputcode_immediate(code, state)) {
-				inputcode_pending[i] = code;
-				inputcode_pending_state[i] = state;
+				inputcode_pending[i].code = code;
+				inputcode_pending[i].state = state;
+				inputcode_pending[i].s = my_strdup(s);
 			}
 			return;
 		}
@@ -4019,7 +4048,7 @@ void inputdevice_do_keyboard (int code, int state)
 		}
 		return;
 	}
-	inputdevice_add_inputcode (code, state);
+	inputdevice_add_inputcode (code, state, NULL);
 }
 
 // these need cpu trace data
@@ -4047,11 +4076,14 @@ static bool needcputrace (int code)
 
 void target_paste_to_keyboard(void);
 
-static bool inputdevice_handle_inputcode2 (int code, int state)
+static bool inputdevice_handle_inputcode2 (int code, int state, const TCHAR *s)
 {
 	static int swapperslot;
 	static int tracer_enable;
 	int newstate;
+
+	if (s != NULL && s[0] == 0)
+		s = NULL;
 
 	if (code == 0)
 		goto end;
@@ -4180,20 +4212,44 @@ static bool inputdevice_handle_inputcode2 (int code, int state)
 		break;
 #endif
 	case AKS_FLOPPY0:
-		gui_display (0);
-		setsystime ();
+		if (s) {
+			_tcsncpy(changed_prefs.floppyslots[0].df, s, MAX_PATH);
+			changed_prefs.floppyslots[0].df[MAX_PATH - 1] = 0;
+			set_config_changed();
+		} else {
+			gui_display (0);
+			setsystime ();
+		}
 		break;
 	case AKS_FLOPPY1:
-		gui_display (1);
-		setsystime ();
+		if (s) {
+			_tcsncpy(changed_prefs.floppyslots[1].df, s, MAX_PATH);
+			changed_prefs.floppyslots[1].df[MAX_PATH - 1] = 0;
+			set_config_changed();
+		} else {
+			gui_display (1);
+			setsystime ();
+		}
 		break;
 	case AKS_FLOPPY2:
-		gui_display (2);
-		setsystime ();
+		if (s) {
+			_tcsncpy(changed_prefs.floppyslots[2].df, s, MAX_PATH);
+			changed_prefs.floppyslots[2].df[MAX_PATH - 1] = 0;
+			set_config_changed();
+		} else {
+			gui_display (2);
+			setsystime ();
+		}
 		break;
 	case AKS_FLOPPY3:
-		gui_display (3);
-		setsystime ();
+		if (s) {
+			_tcsncpy(changed_prefs.floppyslots[3].df, s, MAX_PATH);
+			changed_prefs.floppyslots[3].df[MAX_PATH - 1] = 0;
+			set_config_changed();
+		} else {
+			gui_display (3);
+			setsystime ();
+		}
 		break;
 	case AKS_EFLOPPY0:
 		disk_eject (0);
@@ -4318,10 +4374,20 @@ static bool inputdevice_handle_inputcode2 (int code, int state)
 		activate_debugger ();
 		break;
 	case AKS_STATESAVEDIALOG:
-		gui_display (5);
+		if (s) {
+			savestate_initsave (s, 1, true, true);
+			save_state (savestate_fname, _T("Description!"));
+		} else {
+			gui_display (5);
+		}
 		break;
 	case AKS_STATERESTOREDIALOG:
-		gui_display (4);
+		if (s) {
+			savestate_initsave (s, 1, true, false);
+			savestate_state = STATE_DORESTORE;
+		} else {
+			gui_display (4);
+		}
 		break;
 	case AKS_DECREASEREFRESHRATE:
 	case AKS_INCREASEREFRESHRATE:
@@ -4441,16 +4507,19 @@ void inputdevice_handle_inputcode (void)
 {
 	bool got = false;
 	for (int i = 0; i < MAX_PENDING_EVENTS; i++) {
-		int code = inputcode_pending[i];
-		int state = inputcode_pending_state[i];
+		int code = inputcode_pending[i].code;
+		int state = inputcode_pending[i].state;
+		const TCHAR *s = inputcode_pending[i].s;
 		if (code) {
-			if (!inputdevice_handle_inputcode2 (code, state))
-				inputcode_pending[i] = 0;
+			if (!inputdevice_handle_inputcode2 (code, state, s)) {
+				xfree(inputcode_pending[i].s);
+				inputcode_pending[i].code = 0;
+			}
 			got = true;
 		}
 	}
 	if (!got)
-		inputdevice_handle_inputcode2 (0, 0);
+		inputdevice_handle_inputcode2 (0, 0, NULL);
 }
 
 

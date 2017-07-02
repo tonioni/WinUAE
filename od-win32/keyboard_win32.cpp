@@ -449,13 +449,13 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 			if (scancode_new == defaultguikey && currprefs.win32_guikey != scancode_new) {
 				scancode = 0;
 				if (specialpressed () && ctrlpressed() && shiftpressed() && altpressed ())
-					inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+					inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 			} else if (scancode_new == currprefs.win32_guikey ) {
-				inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+				inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 				scancode = 0;
 			}
 		} else if (!specialpressed () && !ctrlpressed() && !shiftpressed() && !altpressed () && scancode_new == defaultguikey) {
-			inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+			inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 			scancode = 0;
 		}
 	}
@@ -613,7 +613,7 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 	}
 
 	if (code) {
-		inputdevice_add_inputcode (code, 1);
+		inputdevice_add_inputcode (code, 1, NULL);
 		return true;
 	}
 

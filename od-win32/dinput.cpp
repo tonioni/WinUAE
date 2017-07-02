@@ -2494,7 +2494,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			}
 			if (num == num_keyboard) {
 				if (!istest && scancode == DIK_F12 && pressed && isfocus ())
-					inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+					inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 				return;
 			}
 		}
