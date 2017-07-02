@@ -153,6 +153,8 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_RAPIDFIRE	0x00100063
 #define ROMTYPE_UAEBOARDZ2	0x00100064
 #define ROMTYPE_UAEBOARDZ3	0x00100065
+#define ROMTYPE_ADDHARD		0x00100066
+#define ROMTYPE_A2090B		0x00100067
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000

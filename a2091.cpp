@@ -292,6 +292,10 @@ static void freencrunit(struct wd_state *wd)
 		free_expansion_bank(&wd->bank);
 	else
 		xfree (wd->rom);
+	if (wd->rom2 >= wd->bank2.baseaddr && wd->rom2 < wd->bank2.baseaddr + wd->bank2.allocated_size)
+		mapped_free(&wd->bank2);
+	else
+		xfree (wd->rom2);
 	xfree(wd->userdata);
 	wd->rom = NULL;
 	if (wd->self_ptr)
@@ -2065,6 +2069,14 @@ static uae_u32 dmac_a2091_read_word (struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v = 0;
 
+	if (wd->configured == 0xf1) {
+		if (wd->rom && !(addr & 0x8000)) {
+			int off = addr & wd->rom_mask;
+			return (wd->rom[off] << 8) | wd->rom[off + 1];
+		}
+		return 0;
+	}
+
 	if (addr < 0x40)
 		return (wd->dmacmemory[addr] << 8) | wd->dmacmemory[addr + 1];
 
@@ -2179,6 +2191,14 @@ static uae_u32 dmac_a2091_read_byte (struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v = 0;
 
+	if (wd->configured == 0xf1) {
+		if (wd->rom && !(addr & 0x8000)) {
+			int off = addr & wd->rom_mask;
+			return wd->rom[off];
+		}
+		return 0;
+	}
+
 	if (addr < 0x40)
 		return wd->dmacmemory[addr];
 
@@ -2262,6 +2282,10 @@ static void dmac_a2091_write_word (struct wd_state *wd, uaecptr addr, uae_u32 b)
 #if A2091_DEBUG_IO > 0
 		write_log (_T("dmac_wput %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
 #endif
+
+	if (wd->configured == 0xf1) {
+		return;
+	}
 
 	if (addr < 0x40)
 		return;
@@ -2376,6 +2400,10 @@ static void dmac_a2091_write_byte (struct wd_state *wd, uaecptr addr, uae_u32 b)
 		write_log (_T("dmac_bput %04X=%02X PC=%08X\n"), addr, b & 255, M68K_GETPC);
 #endif
 	
+	if (wd->configured == 0xf1) {
+		return;
+	}
+
 	if (addr < 0x40)
 		return;
 
@@ -2514,7 +2542,7 @@ static uae_u32 REGPARAM2 dmac_a2091_wgeti(struct wd_state *wd, uaecptr addr)
 {
 	uae_u32 v = 0xffff;
 	addr &= 65535;
-	if (addr >= CDMAC_ROM_OFFSET)
+	if (addr >= CDMAC_ROM_OFFSET || wd->configured == 0xf1)
 		v = (wd->rom[addr & wd->rom_mask] << 8) | wd->rom[(addr + 1) & wd->rom_mask];
 	else
 		write_log(_T("Invalid DMAC instruction access %08x\n"), addr);
@@ -2616,6 +2644,58 @@ static const addrbank dmaca2091_bank = {
 	dmac_a2091_lput, dmac_a2091_wput, dmac_a2091_bput,
 	dmac_a2091_xlate, dmac_a2091_check, NULL, _T("*"), _T("A2090/A2091/A590"),
 	dmac_a2091_lgeti, dmac_a2091_wgeti,
+	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
+};
+
+static void REGPARAM2 combitec_put(uaecptr addr, uae_u32 b)
+{
+}
+static uae_u32 REGPARAM2 combitec_bget(uaecptr addr)
+{
+	struct wd_state *wd = getscsiboard(addr);
+	if (!wd)
+		return 0;
+	addr &= 65535;
+	uae_u32 v = wd->rom2[addr & wd->rom2_mask];
+	return v;
+}
+static uae_u32 REGPARAM2 combitec_wget(uaecptr addr)
+{
+	struct wd_state *wd = getscsiboard(addr);
+	if (!wd)
+		return 0;
+	addr &= 65535;
+	uae_u32 v = (wd->rom2[addr & wd->rom2_mask] << 8) | wd->rom2[(addr + 1) & wd->rom2_mask];
+	return v;
+}
+static uae_u32 REGPARAM2 combitec_lget(uaecptr addr)
+{
+	uae_u32 v;
+	addr &= 65535;
+	v = combitec_wget(addr) << 16;
+	v |= combitec_wget(addr + 2);
+	return v;
+}
+static int REGPARAM2 combitec_check(uaecptr addr, uae_u32 size)
+{
+	struct wd_state *wd = getscsiboard(addr);
+	if (!wd)
+		return 0;
+	return 1;
+}
+static uae_u8 *REGPARAM2 combitec_xlate(uaecptr addr)
+{
+	struct wd_state *wd = getscsiboard(addr);
+	if (!wd)
+		return NULL;
+	addr &= 0xffff;
+	return wd->rom + addr;
+}
+static const addrbank combitec_bank = {
+	combitec_lget, combitec_wget, combitec_bget,
+	combitec_put, combitec_put, combitec_put,
+	combitec_xlate, combitec_check, NULL, _T("*"), _T("A2090 Combitec"),
+	combitec_lget, combitec_wget,
 	ABFLAG_IO | ABFLAG_SAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
@@ -3939,7 +4019,7 @@ bool a2091_init (struct autoconfig_info *aci)
 	return true;
 }
 
-bool a2090_init (struct autoconfig_info *aci)
+static bool a2090x_init (struct autoconfig_info *aci, bool combitec)
 {
 	ew(aci->autoconfig_raw, 0x00, 0xc0 | 0x01 | 0x10);
 	/* A590/A2091 hardware id */
@@ -3957,8 +4037,9 @@ bool a2090_init (struct autoconfig_info *aci)
 	ew(aci->autoconfig_raw, 0x24, 0x00); /* ser.no. Byte 3 */
 
 	aci->label = _T("A2090");
-	if (!aci->doinit)
+	if (!aci->doinit) {
 		return true;
+	}
 
 	struct wd_state *wd = getscsi(aci->rc);
 	int slotsize;
@@ -3986,7 +4067,7 @@ bool a2090_init (struct autoconfig_info *aci)
 	memset(wd->rom, 0xff, slotsize);
 	wd->rom_size = 16384;
 	wd->rom_mask = wd->rom_size - 1;
-	if (!aci->rc->autoboot_disabled) {
+	if (!aci->rc->autoboot_disabled && !combitec) {
 		struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_A2090);
 		if (z) {
 			wd->rom_size = zfile_size (z);
@@ -3998,6 +4079,40 @@ bool a2090_init (struct autoconfig_info *aci)
 			wd->rom_mask = wd->rom_size - 1;
 		}
 	}
+
+	return true;
+}
+
+bool a2090_init (struct autoconfig_info *aci)
+{
+	return a2090x_init(aci, false);
+}
+bool a2090b_init (struct autoconfig_info *aci)
+{
+	return a2090x_init(aci, true);
+}
+bool a2090b_preinit (struct autoconfig_info *aci)
+{
+	struct wd_state *wd = getscsi(aci->rc);
+	if (!wd)
+		return false;
+	memcpy(&wd->bank2, &combitec_bank, sizeof addrbank);
+	wd->bank2.start = 0xf10000;
+	wd->bank2.reserved_size = 0x10000;
+	wd->bank2.mask = 0xffff;
+	mapped_malloc(&wd->bank2);
+
+	wd->rom2 = wd->bank2.baseaddr;
+	wd->rom2_size = 65536;
+	wd->rom2_mask = wd->rom2_size - 1;
+	struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_A2090B);
+	if (z) {
+		zfile_fread(wd->rom2, 1, wd->rom2_size, z);
+		zfile_fclose(z);
+	}
+	wd->baseaddress2 = 0xf10000;
+	map_banks(&wd->bank2, wd->baseaddress2 >> 16, 1, 1);
+
 	return true;
 }
 

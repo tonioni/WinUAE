@@ -61,7 +61,8 @@
 #define NCR5380_DATAFLYERPLUS 30
 #define NONCR_HARDFRAME 31
 #define NCR5380_MALIBU 32
-#define NCR_LAST 33
+#define NCR5380_ADDHARD 33
+#define NCR_LAST 34
 
 extern int log_scsiemu;
 
@@ -2437,6 +2438,22 @@ static int dataflyerplus_reg(uaecptr addr)
 	return (addr >> 1) & 7;
 }
 
+// this is clone of trumpcardpro!
+static int addhardreg(uaecptr addr)
+{
+	if (addr & 1)
+		return -1;
+	if (addr & 0x8000)
+		return -1;
+	if ((addr & 0xe0) == 0x60)
+		return 8;
+	if ((addr & 0xe0) != 0x40)
+		return -1;
+	addr >>= 1;
+	addr &= 7;
+	return addr;
+}
+
 static int malibureg(uaecptr addr)
 {
 	if ((addr & 0xc000) == 0x8000)
@@ -2603,6 +2620,21 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 			reg = malibureg(addr);
 			if (reg >= 0) {
 				v = ncr5380_bget(ncr, reg);
+			}
+		}
+
+	} else if (ncr->type == NCR5380_ADDHARD) {
+
+		if (addr & 0x8000) {
+			v = ncr->rom[addr & 0x7fff];
+		} else {
+			reg = addhardreg(addr);
+			if (reg >= 0) {
+				if (reg == 8 && !ncr->dma_active) {
+					v = 0;
+				} else {
+					v = ncr5380_bget(ncr, reg);
+				}
 			}
 		}
 
@@ -3077,6 +3109,17 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 		reg = malibureg(addr);
 		if (reg >= 0) {
 			ncr5380_bput(ncr, reg, val);
+		}
+
+	} else if (ncr->type == NCR5380_ADDHARD) {
+
+		reg = addhardreg(addr);
+		if (reg >= 0) {
+			if (reg == 8 && !ncr->dma_active) {
+				;
+			} else {
+				ncr5380_bput(ncr, reg, val);
+			}
 		}
 
 	} else if (ncr->type == NONCR_HARDFRAME) {
@@ -4523,4 +4566,31 @@ bool malibu_init(struct autoconfig_info *aci)
 void malibu_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_MALIBU, 65536, 16384, ROMTYPE_MALIBU);
+}
+
+bool addhard_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_ADDHARD);
+	if (!aci->doinit) {
+		aci->autoconfigp = ert->autoconfig;
+		return true;
+	}
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	load_rom_rc(aci->rc, ROMTYPE_ADDHARD, 16384, 0, scsi->rom, 65536, LOADROM_EVENONLY_ODDONE);
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = ert->autoconfig[i];
+		ew(scsi, i * 4, b);
+	}
+	aci->addrbank = scsi->bank;
+	scsi->intena = true;
+	return true;
+}
+
+void addhard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_ADDHARD, 65536, 32768, ROMTYPE_ADDHARD);
 }
