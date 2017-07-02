@@ -18,6 +18,7 @@
     <ProjectGuid>{6181E50C-5F32-42DC-BEF6-827AA8A5429D}</ProjectGuid>
     <RootNamespace>uaeunp</RootNamespace>
     <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
