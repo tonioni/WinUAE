@@ -1795,7 +1795,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 		break;
 	case absw:
 		addr = (uae_s32)(uae_s16)get_iword_debug (pc);
-		_stprintf (buffer, _T("$%08x"), addr);
+		_stprintf (buffer, _T("$%04x"), (uae_u16)addr);
 		pc += 2;
 		break;
 	case absl:
@@ -1870,7 +1870,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 		break;
 	case immi:
 		offset = (uae_s32)(uae_s8)(reg & 0xff);
-		_stprintf (buffer, _T("#$%08x"), (uae_u32)offset);
+		_stprintf (buffer, _T("#$%02x"), (uae_u8)offset);
 		addr = pc + offset;
 		break;
 	default:
@@ -5983,6 +5983,621 @@ static void disasm_size (TCHAR *instrname, struct instr *dp)
 		_tcscat (instrname, _T(" "));
 		break;
 	}
+}
+
+static void asm_add_extensions(uae_u16 *data, int *dcntp, int mode, uae_u32 v, uae_u16 *ext, uaecptr pc, int size)
+{
+	int dcnt = *dcntp;
+	if (mode < 0)
+		return;
+	if (mode == Ad16) {
+		data[dcnt++] = v;
+	}
+	if (mode == PC16) {
+		data[dcnt++] = v - (pc + 2);
+	}
+	if (mode == Ad8r || mode == PC8r) {
+		data[dcnt++] = ext[0];
+	}
+	if (mode == absw) {
+		data[dcnt++] = (uae_u16)v;
+	}
+	if (mode == absl) {
+		data[dcnt++] = (uae_u16)(v >> 16);
+		data[dcnt++] = (uae_u16)v;
+	}
+	if ((mode == imm && size == 0) || mode == imm0) {
+		data[dcnt++] = (uae_u8)v;
+	}
+	if ((mode == imm && size == 1) || mode == imm1) {
+		data[dcnt++] = (uae_u16)v;
+	}
+	if ((mode == imm && size == 2) || mode == imm2) {
+		data[dcnt++] = (uae_u16)(v >> 16);
+		data[dcnt++] = (uae_u16)v;
+	}
+	*dcntp = dcnt;
+}
+
+static int asm_isdreg(const TCHAR *s)
+{
+	if (s[0] == 'D' && s[1] >= '0' && s[1] <= '7')
+		return s[1] - '0';
+	return -1;
+}
+static int asm_isareg(const TCHAR *s)
+{
+	if (s[0] == 'A' && s[1] >= '0' && s[1] <= '7')
+		return s[1] - '0';
+	return -1;
+}
+static int asm_ispc(const TCHAR *s)
+{
+	if (s[0] == 'P' && s[1] == 'C')
+		return 1;
+	return 0;
+}
+
+static int asm_parse_mode(TCHAR *s, uae_u8 *reg, uae_u32 *v, uae_u16 *ext)
+{
+	TCHAR *ss = s;
+	*reg = -1;
+	*v = 0;
+	*ext = 0;
+	if (s[0] == 0)
+		return -1;
+	// Dn
+	if (asm_isdreg(s) >= 0 && s[2] == 0) {
+		*reg = asm_isdreg(s);
+		return Dreg;
+	}
+	// An
+	if (asm_isareg(s) >= 0 && s[2] == 0) {
+		*reg = asm_isareg(s);
+		return Areg;
+	}
+	// (An) and (An)+
+	if (s[0] == '(' && asm_isareg(s + 1) >= 0 && s[3] == ')') {
+		*reg = asm_isareg(s + 1);
+		if (s[4] == '+' && s[5] == 0)
+			return Aipi;
+		if (s[4] == 0)
+			return Aind;
+		return -1;
+	}
+	// -(An)
+	if (s[0] == '-' && s[1] == '(' && asm_isareg(s + 2) >= 0 && s[4] == ')' && s[5] == 0) {
+		*reg = asm_isareg(s + 2);
+		return Apdi;
+	}
+	// Immediate
+	if (s[0] == '#') {
+		if (s[1] == '!') {
+			*v = _tstol(s + 2);
+		} else {
+			TCHAR *endptr;
+			*v = _tcstol(s + 1, &endptr, 16);
+		}
+		return imm;
+	}
+	// Value
+	if (s[0] == '!') {
+		*v = _tstol(s + 1);
+	} else {
+		TCHAR *endptr;
+		*v = _tcstol(s, &endptr, 16);
+	}
+	int dots = 0;
+	for (int i = 0; i < _tcslen(s); i++) {
+		if (s[i] == ',')
+			dots++;
+	}
+	while (*s != 0) {
+		// d16(An)
+		if (dots == 0 && s[0] == '(' && asm_isareg(s + 1) >= 0 && s[3] == ')' && s[4] == 0) {
+			*reg = asm_isareg(s + 1);
+			return Ad16;
+		}
+		// d16(PC)
+		if (dots == 0 && s[0] == '(' && asm_ispc(s + 1) && s[3] == ')' && s[4] == 0) {
+			*reg = 2;
+			return PC16;
+		}
+		// (d16,An) / (d16,PC)
+		if (dots == 1 && s[0] == '(' && !asm_ispc(s + 1) && asm_isareg(s + 1) < 0 && asm_isdreg(s + 1) < 0) {
+			TCHAR *startptr, *endptr;
+			if (s[1] == '!') {
+				startptr = s + 2;
+				*v = _tcstol(startptr, &endptr, 10);
+			} else {
+				startptr = s + 1;
+				*v = _tcstol(startptr, &endptr, 16);
+			}
+			if (endptr == startptr || endptr[0] != ',')
+				return -1;
+			if (asm_ispc(endptr + 1) && endptr[3] == ')') {
+				*reg = 2;
+				return PC16;
+			}
+			if (asm_isareg(endptr + 1) >= 0 && endptr[3] == ')') {
+				*reg = asm_isareg(endptr + 1);
+				return Ad16;
+			}
+			return -1;
+		}
+		// Ad8r PC8r
+		if (s[0] == '(') {
+			TCHAR *s2 = s;
+			if (!asm_ispc(s + 1) && asm_isareg(s + 1) < 0 && asm_isdreg(s + 1) < 0) {
+				if (dots != 2)
+					return -1;
+				TCHAR *startptr, *endptr;
+				if (s[1] == '!') {
+					startptr = s + 2;
+					*v = _tcstol(startptr, &endptr, 10);
+				} else {
+					startptr = s + 1;
+					*v = _tcstol(startptr, &endptr, 16);
+				}
+				if (endptr == startptr || endptr[0] != ',')
+					return -1;
+				s2 = endptr + 1;
+			} else if ((asm_isareg(s + 1) >= 0 || asm_ispc(s + 1)) && s[3] == ',' || (asm_isdreg(s + 4) >= 0 || asm_isareg(s + 4) >= 0)) {
+				if (dots != 1)
+					return -1;
+				s2 = s + 1;
+			} else {
+				return -1;
+			}
+			uae_u8 reg2;
+			bool ispc = asm_ispc(s2);
+			if (ispc) {
+				*reg = 3;
+			} else {
+				*reg = asm_isareg(s2);
+			}
+			s2 += 2;
+			if (*s2 != ',')
+				return -1;
+			s2++;
+			if (asm_isdreg(s2) >= 0) {
+				reg2 = asm_isdreg(s2);
+			} else {
+				reg2 = asm_isareg(s2);
+				*ext |= 1 << 15;
+			}
+			s2 += 2;
+			*ext |= reg2 << 12;
+			*ext |= (*v) & 0xff;
+			if (s2[0] == '.' && s2[1] == 'W') {
+				s2 += 2;
+			} else if (s2[0] == '.' && s2[1] == 'L') {
+				*ext |= 1 << 11;
+				s2 += 2;
+			}
+			if (s2[0] == '*') {
+				TCHAR scale = s2[1];
+				if (scale == '2')
+					*ext |= 1 << 9;
+				else if (scale == '4')
+					*ext |= 2 << 9;
+				else if (scale == '8')
+					*ext |= 3 << 9;
+				else
+					return -1;
+				s2 += 2;
+			}
+			if (s2[0] == ')' && s2[1] == 0) {
+				return ispc ? PC8r : Ad8r;
+			}
+			return -1;
+		}
+		s++;
+	}
+	// abs.w
+	if (s - ss > 2 && s[-2] == '.' && s[-1] == 'W') {
+		*reg = 0;
+		return absw;
+	}
+	// abs.l
+	*reg = 1;
+	return absl;
+}
+
+static TCHAR *asm_parse_parm(TCHAR *parm, TCHAR *out)
+{
+	TCHAR *p = parm;
+	bool quote = false;
+
+	for (;;) {
+		if (*p == '(') {
+			quote = true;
+		}
+		if (*p == ')') {
+			if (!quote)
+				return NULL;
+			quote = false;
+		}
+		if ((*p == ',' || *p == 0) && !quote) {
+			TCHAR c = *p;
+			p[0] = 0;
+			_tcscpy(out, parm);
+			my_trim(out);
+			if (c)
+				p++;
+			return p;
+		}
+		p++;
+	}
+}
+
+static bool m68k_asm_parse_movec(TCHAR *s, TCHAR *d)
+{
+	for (int i = 0; m2cregs[i].regname; i++) {
+		if (!_tcscmp(s, m2cregs[i].regname)) {
+			uae_u16 v = m2cregs[i].regno;
+			if (asm_isareg(d) >= 0)
+				v |= 0x8000 | (asm_isareg(d) << 12);
+			else if (asm_isdreg(d) >= 0)
+				v |= (asm_isdreg(d) << 12);
+			else
+				return false;
+			_stprintf(s, _T("#%X"), v);
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool m68k_asm_parse_movem(TCHAR *s, int dir)
+{
+	TCHAR *d = s;
+	uae_u16 regmask = 0;
+	uae_u16 mask = dir ? 0x8000 : 0x0001;
+	bool ret = false;
+	while(*s) {
+		int dreg = asm_isdreg(s);
+		int areg = asm_isareg(s);
+		if (dreg < 0 && areg < 0)
+			break;
+		int reg = dreg >= 0 ? dreg : areg + 8;
+		regmask |= dir ? (mask >> reg) : (mask << reg);
+		s += 2;
+		if (*s == 0) {
+			ret = true;
+			break;
+		} else if (*s == '/') {
+			s++;
+			continue;
+		} else if (*s == '-') {
+			s++;
+			int dreg2 = asm_isdreg(s);
+			int areg2 = asm_isareg(s);
+			if (dreg2 < 0 && areg2 < 0)
+				break;
+			int reg2 = dreg2 >= 0 ? dreg2 : areg2 + 8;
+			if (reg2 < reg)
+				break;
+			while (reg2 >= reg) {
+				regmask |= dir ? (mask >> reg) : (mask << reg);
+				reg++;
+			}
+			s += 2;
+			if (*s == 0) {
+				ret = true;
+				break;
+			}
+		} else {
+			break;
+		}
+	}
+	if (ret)
+		_stprintf(d, _T("#%X"), regmask);
+	return ret;
+}
+
+int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
+{
+	TCHAR *p;
+	const TCHAR *cp1;
+	TCHAR ins[256], parms[256];
+	TCHAR line[256];
+	TCHAR srcea[256], dstea[256];
+	uae_u16 data[16], sexts[8], dexts[8];
+	int dcnt = 0;
+	int cc = -1;
+	int quick = 0;
+	bool immrelpc = false;
+
+	if (_tcslen(sline) > 100)
+		return -1;
+
+	srcea[0] = dstea[0] = 0;
+	parms[0] = 0;
+
+	// strip all white space except first space
+	p = line;
+	bool firstsp = true;
+	for (int i = 0; sline[i]; i++) {
+		TCHAR c = sline[i];
+		if (c == 32 && firstsp) {
+			firstsp = false;
+			*p++ = 32;
+		}
+		if (c <= 32)
+			continue;
+		*p++ = c;
+	}
+	*p = 0;
+
+	to_upper(line, _tcslen(line));
+
+	p = line;
+	while (*p && *p != ' ')
+		p++;
+	if (*p == ' ') {
+		*p = 0;
+		_tcscpy(parms, p + 1);
+		my_trim(parms);
+	}
+	_tcscpy(ins, line);
+	
+	if (_tcslen(ins) == 0)
+		return 0;
+
+	int size = 1;
+	int inssize = -1;
+	cp1 = _tcschr(line, '.');
+	if (cp1) {
+		size = cp1[1];
+		if (size == 'W')
+			size = 1;
+		else if (size == 'L')
+			size = 2;
+		else if (size == 'B')
+			size = 0;
+		else
+			return 0;
+		inssize = size;
+		line[cp1 - line] = 0;
+		_tcscpy(ins, line);
+	}
+
+	TCHAR *parmp = parms;
+	parmp = asm_parse_parm(parmp, srcea);
+	if (!parmp)
+		return 0;
+	if (srcea[0]) {
+		parmp = asm_parse_parm(parmp, dstea);
+		if (!parmp)
+			return 0;
+	}
+
+	int smode = -1;
+	int dmode = -1;
+	uae_u8 sreg = -1;
+	uae_u8 dreg = -1;
+	uae_u32 sval = 0;
+	uae_u32 dval = 0;
+	int ssize = -1;
+	int dsize = -1;
+
+	dmode = asm_parse_mode(dstea, &dreg, &dval, dexts);
+
+
+	// Common alias
+	if (!_tcscmp(ins, _T("BRA"))) {
+		_tcscpy(ins, _T("BT"));
+	} else if (!_tcscmp(ins, _T("MOVEM"))) {
+		if (dmode >= Aind && _tcschr(dstea, '-') == NULL && _tcschr(dstea, '/') == NULL) {
+			_tcscpy(ins, _T("MVMLE"));
+			if (!m68k_asm_parse_movem(srcea, dmode == Apdi))
+				return -1;
+		} else {
+			TCHAR tmp[256];
+			_tcscpy(ins, _T("MVMEL"));
+			_tcscpy(tmp, srcea);
+			_tcscpy(srcea, dstea);
+			_tcscpy(dstea, tmp);
+			if (!m68k_asm_parse_movem(srcea, 0))
+				return -1;
+			dmode = asm_parse_mode(dstea, &dreg, &dval, dexts);
+		}
+	} else if (!_tcscmp(ins, _T("MOVEC"))) {
+		if (dmode == Dreg || dmode == Areg) {
+			_tcscpy(ins, _T("MOVEC2"));
+			if (!m68k_asm_parse_movec(srcea, dstea))
+				return -1;
+		} else {
+			TCHAR tmp[256];
+			_tcscpy(ins, _T("MOVE2C"));
+			_tcscpy(tmp, srcea);
+			_tcscpy(srcea, dstea);
+			dstea[0] = 0;
+			if (!m68k_asm_parse_movec(srcea, tmp))
+				return -1;
+		}
+		dmode = -1;
+	}
+	
+	if (dmode == Areg) {
+		int l = _tcslen(ins);
+		if (l <= 2)
+			return -1;
+		TCHAR last = ins[l- 1];
+		if (last == 'Q') {
+			last = ins[l - 2];
+			if (last != 'A') {
+				ins[l - 1] = 'A';
+				ins[l] = 'Q';
+				ins[l + 1] = 0;
+			}
+		} else if (last != 'A') {
+			_tcscat(ins, _T("A"));
+		}
+	}
+
+	if (ins[_tcslen(ins) - 1] == 'Q') {
+		quick = 1;
+		ins[_tcslen(ins) - 1] = 0;
+	}
+
+	struct mnemolookup *lookup;
+	for (lookup = lookuptab; lookup->name; lookup++) {
+		if (!_tcscmp(ins, lookup->name))
+			break;
+	}
+	if (!lookup->name) {
+		// Check cc variants
+		bool fp = ins[0] == 'F';
+		for (lookup = lookuptab; lookup->name; lookup++) {
+			const TCHAR *ccp = _tcsstr(lookup->name, _T("cc"));
+			if (ccp) {
+				TCHAR tmp[256];
+				for (int i = 0; i < (fp ? 32 : 16); i++) {
+					const TCHAR *ccname = fp ? fpccnames[i] : ccnames[i];
+					_tcscpy(tmp, lookup->name);
+					_tcscpy(tmp + (ccp - lookup->name), ccname);
+					if (tmp[_tcslen(tmp) - 1] == ' ')
+						tmp[_tcslen(tmp) - 1] = 0;
+					if (!_tcscmp(tmp, ins)) {
+						_tcscpy(ins, lookup->name);
+						cc = i;
+						// Bcc.B uses same encoding mode as MOVEQ
+						if (size == 0) {
+							quick = 2;
+						}
+						immrelpc = true;
+						break;
+					}
+				}
+			}
+			if (cc >= 0)
+				break;
+		}
+	}
+
+	if (!lookup->name)
+		return 0;
+
+	int mnemo = lookup->mnemo;
+
+	int found = 0;
+	int sizemask = 0;
+	int tsize = size;
+	int unsized = 0;
+
+	for (int round = 0; round < 9; round++) {
+
+		if (!found && round == 8)
+			return 0;
+
+		if (round == 3) {
+			// Q is always LONG sized
+			if (quick == 1) {
+				tsize = 2;
+			}
+			bool isimm = srcea[0] == '#';
+			if (immrelpc && !isimm) {
+				TCHAR tmp[256];
+				_tcscpy(tmp, srcea);
+				srcea[0] = '#';
+				_tcscpy(srcea + 1, tmp);
+			}
+			smode = asm_parse_mode(srcea, &sreg, &sval, sexts);
+			if (immrelpc && !isimm) {
+				sval = sval - (pc + 2);
+			}
+			if (quick) {
+				smode = immi;
+				sreg = sval & 0xff;
+			}
+		}
+
+		if (round == 1) {
+			if (!quick && (sizemask == 1 || sizemask == 2 || sizemask == 4)) {
+				tsize = 0;
+				if (sizemask == 2)
+					tsize = 1;
+				else if (sizemask == 4)
+					tsize = 2;
+			} else {
+				continue;
+			}
+		}
+		if (round == 2 && !found) {
+			unsized = 1;
+		}
+
+		if (round == 4 && smode == imm) {
+			smode = imm0;
+		} else if (round == 5 && smode == imm0) {
+			smode = imm1;
+		} else if (round == 6 && smode == imm1) {
+			smode = imm2;
+		} else if (round == 7 && smode == imm2) {
+			smode = immi;
+			sreg = sval & 0xff;
+		} else if (round == 4) {
+			round += 5 - 1;
+		}
+
+		for (int opcode = 0; opcode < 65536; opcode++) {
+			struct instr *table = &table68k[opcode];
+			if (table->mnemo != mnemo)
+				continue;
+			if (cc >= 0 && table->cc != cc)
+				continue;
+
+#if 0
+			if (round == 0) {
+				console_out_f(_T("%s OP=%04x S=%d SR=%d SM=%d SU=%d SP=%d DR=%d DM=%d DU=%d DP=%d SDU=%d\n"), lookup->name, opcode, table->size,
+					table->sreg, table->smode, table->suse, table->spos,
+					table->dreg, table->dmode, table->duse, table->dpos,
+					table->sduse);
+			}
+#endif
+
+			if (table->duse && !(table->dmode == dmode || (dmode >= imm && dmode <= imm2 && table->dmode >= imm && table->dmode <= imm2)))
+				continue;
+			if (round == 0) {
+				sizemask |= 1 << table->size;
+			}
+			if (unsized > 0 && !table->unsized) {
+				continue;
+			}
+
+			found++;
+
+			if (round >= 3) {
+
+				if (
+					((table->size == tsize || table->unsized)) &&
+					((!table->suse && smode < 0) || (table->suse && table->smode == smode)) &&
+					((!table->duse && dmode < 0) || (table->duse && (table->dmode == dmode || (dmode == imm && (table->dmode >= imm && table->dmode <= imm2))))) &&
+					((table->sreg == sreg || (table->smode >= absw && table->smode != immi))) &&
+					((table->dreg == dreg || table->dmode >= absw))
+					)
+				{
+					if (inssize >= 0 && tsize != inssize)
+						continue;
+
+
+					data[dcnt++] = opcode;
+					asm_add_extensions(data, &dcnt, smode, sval, sexts, pc, tsize);
+					if (smode >= 0)
+						asm_add_extensions(data, &dcnt, dmode, dval, dexts, pc, tsize);
+					for (int i = 0; i < dcnt; i++) {
+						out[i] = data[i];
+					}
+					return dcnt;
+				}
+
+			}
+		}
+	}
+
+	return 0;
 }
 
 void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr, int safemode)
