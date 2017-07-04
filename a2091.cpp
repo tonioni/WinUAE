@@ -4009,7 +4009,21 @@ bool a2091_init (struct autoconfig_info *aci)
 					wd->rom[i * 2 + 1] = 0xff;
 				}
 			} else {
-				for (int i = 1; i < slotsize / wd->rom_size; i++)
+				int i;
+				if (wd->rom_size == 16384) {
+					for (i = 1; i <= 256; i++) {
+						if (wd->rom[wd->rom_size - i] != 0x00 && wd->rom[wd->rom_size - i] != 0xff)
+							break;
+					}
+					if (i > 256) {
+						// soft dumped rom without 0x2000 offset, fix it
+						uae_u8 tmp[0x2000];
+						memcpy(tmp, wd->rom + 0x2000, 0x2000);
+						memcpy(wd->rom + 0x2000, wd->rom, 0x2000);
+						memcpy(wd->rom, tmp, 0x2000);
+					}
+				}
+				for (i = 1; i < slotsize / wd->rom_size; i++)
 					memcpy (wd->rom + i * wd->rom_size, wd->rom, wd->rom_size);
 			}
 			wd->rom_mask = wd->rom_size - 1;
