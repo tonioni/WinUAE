@@ -281,7 +281,7 @@ static a_inode *aino_from_buf (a_inode *base, uae_u8 *buf, int *winmode)
 }
 
 /* Return nonzero for any name we can't create on the native filesystem.  */
-static int fsdb_name_invalid_2 (const TCHAR *n, int dir)
+static int fsdb_name_invalid_2x (const TCHAR *n, int dir)
 {
 	int i;
 	static char s1[MAX_DPATH];
@@ -310,6 +310,13 @@ static int fsdb_name_invalid_2 (const TCHAR *n, int dir)
 	if (c >= 'a' && c <= 'z')
 		c -= 32;
 
+	s1[0] = 0;
+	s2[0] = 0;
+	ua_fs_copy (s1, MAX_DPATH, n, -1);
+	au_fs_copy (s2, MAX_DPATH, s1);
+	if (_tcscmp (s2, n) != 0)
+		return 1;
+
 	if (currprefs.win32_filesystem_mangle_reserved_names) {
 		/* reserved dos devices */
 		ll = 0;
@@ -321,7 +328,7 @@ static int fsdb_name_invalid_2 (const TCHAR *n, int dir)
 		if (a == 'C' && b == 'O' && c == 'M'  && (d >= '0' && d <= '9')) ll = 4; /* COM# */
 		/* AUX.anything, CON.anything etc.. are also illegal names */
 		if (ll && (l == ll || (l > ll && n[ll] == '.')))
-			return 1;
+			return 3;
 
 		/* spaces and periods at the end are a no-no */
 		i = l - 1;
@@ -332,31 +339,48 @@ static int fsdb_name_invalid_2 (const TCHAR *n, int dir)
 	/* these characters are *never* allowed */
 	for (i = 0; i < NUM_EVILCHARS; i++) {
 		if (_tcschr (n, evilchars[i]) != 0)
-			return 1;
+			return 2;
 	}
-
-	s1[0] = 0;
-	s2[0] = 0;
-	ua_fs_copy (s1, MAX_DPATH, n, -1);
-	au_fs_copy (s2, MAX_DPATH, s1);
-	if (_tcscmp (s2, n) != 0)
-		return 1;
 
 	return 0; /* the filename passed all checks, now it should be ok */
 }
 
-int fsdb_name_invalid (const TCHAR *n)
+static int fsdb_name_invalid_2 (a_inode *aino, const TCHAR *n, int dir)
 {
-	int v = fsdb_name_invalid_2 (n, 0);
+	int v = fsdb_name_invalid_2x(n, dir);
+	if (v <= 1 || !aino)
+		return v;
+	TCHAR *p = build_nname (aino->nname, n);
+	HANDLE h = CreateFile(p, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	DWORD err = -1;
+	DWORD type = -1;
+	if (h != INVALID_HANDLE_VALUE) {
+		type = GetFileType(h);
+		CloseHandle(h);
+	} else {
+		err = GetLastError();
+	}
+	write_log(_T("H=%08x TYPE=%08x ERR=%08X '%s'\n"), h, type, err, p);
+	xfree(p);
+	if (h != INVALID_HANDLE_VALUE && type != FILE_TYPE_DISK)
+		return 1;
+	if (err == ERROR_INVALID_NAME)
+		return 1;
+	return 0;
+}
+
+int fsdb_name_invalid (a_inode *aino, const TCHAR *n)
+{
+	int v = fsdb_name_invalid_2 (aino, n, 0);
 	if (v <= 0)
 		return v;
 	write_log (_T("FILESYS: '%s' illegal filename\n"), n);
 	return v;
 }
 
-int fsdb_name_invalid_dir (const TCHAR *n)
+int fsdb_name_invalid_dir (a_inode *aino, const TCHAR *n)
 {
-	int v = fsdb_name_invalid_2 (n, 1);
+	int v = fsdb_name_invalid_2 (aino, n, 1);
 	if (v <= 0)
 		return v;
 	write_log (_T("FILESYS: '%s' illegal filename\n"), n);
