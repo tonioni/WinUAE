@@ -2179,10 +2179,10 @@ static void fixserial(struct uae_prefs *p, uae_u8 *rom, int size)
 		makefakeppcrom(rom, type);
 }
 
-static struct zfile *board_rom_open(int *roms, const TCHAR *name)
+static struct zfile *board_rom_open(int romtype, const TCHAR *name)
 {
 	struct zfile *zf = NULL;
-	struct romlist *rl = getromlistbyids(roms, name);
+	struct romlist *rl = getromlistbyromtype(romtype, name);
 	if (rl)
 		zf = read_rom(rl->rd);
 	if (!zf && name) {
@@ -2213,7 +2213,6 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 {
 	struct zfile *autoconfig_rom = NULL;
 	struct boardromconfig *brc;
-	int roms[4], roms2[4];
 	bool autoconf = true;
 	bool autoconf_stop = false;
 	const TCHAR *defaultromname = NULL;
@@ -2222,6 +2221,8 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 	struct romdata *rd = NULL;
 	const TCHAR *boardname;
 	struct uae_prefs *p = aci->prefs;
+	uae_u32 romtype = 0, romtype2 = 0;
+	bool cpucheck = false;
 
 	boardname = cpuboards[p->cpuboard_type].subtypes[p->cpuboard_subtype].name;
 	aci->label = boardname;
@@ -2231,10 +2232,6 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 	if (brc)
 		romname = brc->roms[idx].romfile;
 
-	for (int i = 0; i < 4; i++) {
-		roms[i] = -1;
-		roms2[i] = -1;
-	}
 	cpuboard_non_byte_ea = false;
 	int boardid = cpuboards[p->cpuboard_type].id;
 	switch (boardid)
@@ -2255,9 +2252,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		switch(p->cpuboard_subtype)
 		{
 			case BOARD_COMMODORE_SUB_A26x0:
-			roms[0] = 105;
-			roms[1] = 106;
-			roms[2] = 164;
+			romtype = ROMTYPE_CB_A26x0;
 			break;
 		}
 		break;
@@ -2266,7 +2261,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		switch(p->cpuboard_subtype)
 		{
 			case BOARD_ACT_SUB_APOLLO:
-			roms[0] = 119;
+			romtype = ROMTYPE_CB_APOLLO;
 			break;
 		}
 		break;
@@ -2275,7 +2270,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		switch (p->cpuboard_subtype)
 		{
 			case BOARD_MTEC_SUB_EMATRIX530:
-			roms[0] = 144;
+			romtype = ROMTYPE_CB_EMATRIX;
 			break;
 		}
 		break;
@@ -2296,7 +2291,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 			aci->addrbank = &expamem_null;
 			return true;
 			case BOARD_DKB_SUB_WILDFIRE:
-			roms[0] = 143;
+			romtype = ROMTYPE_CB_DBK_WF;
 			break;
 		}
 		break;
@@ -2305,7 +2300,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		switch(p->cpuboard_subtype)
 		{
 			case BOARD_RCS_SUB_FUSIONFORTY:
-			roms[0] = 113;
+			romtype = ROMTYPE_CB_FUSION;
 			break;
 		}
 		break;
@@ -2322,7 +2317,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 				aci->addrbank = &expamem_null;
 				return true;
 			case BOARD_GVP_SUB_TEKMAGIC:
-				roms[0] = 104;
+				romtype = ROMTYPE_CB_TEKMAGIC;
 			break;
 		}
 		break;
@@ -2331,19 +2326,20 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		switch(p->cpuboard_subtype)
 		{
 			case BOARD_CYBERSTORM_SUB_MK1:
-				roms[0] = p->cpu_model == 68040 ? 95 : 101;
+				romtype = ROMTYPE_CB_CSMK1;
+				cpucheck = true;
 				isflashrom = true;
 				break;
 			case BOARD_CYBERSTORM_SUB_MK2:
-				roms[0] = 96;
+				romtype = ROMTYPE_CB_CSMK2;
 				isflashrom = true;
 				break;
 			case BOARD_CYBERSTORM_SUB_MK3:
-				roms[0] = 97;
+				romtype = ROMTYPE_CB_CSMK3;
 				isflashrom = true;
 				break;
 			case BOARD_CYBERSTORM_SUB_PPC:
-				roms[0] = 98;
+				romtype = ROMTYPE_CB_CSPPC;
 				isflashrom = true;
 				break;
 		}
@@ -2353,37 +2349,37 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		switch(p->cpuboard_subtype)
 		{
 			case BOARD_BLIZZARD_SUB_1230II:
-				roms[0] = 163;
+				romtype = ROMTYPE_CB_B1230MK2;
 				break;
 			case BOARD_BLIZZARD_SUB_1230III:
-				roms[0] = 162;
-				roms2[0] = 167;
+				romtype = ROMTYPE_CB_B1230MK3;
+				romtype2 = ROMTYPE_BLIZKIT3;
 				break;
 			case BOARD_BLIZZARD_SUB_1230IV:
-				roms[0] = 89;
-				roms2[0] = 94;
+				romtype = ROMTYPE_CB_BLIZ1230;
+				romtype2 = ROMTYPE_BLIZKIT4;
 				break;
 			case BOARD_BLIZZARD_SUB_1260:
-				roms[0] = 90;
-				roms2[0] = 94;
+				romtype = ROMTYPE_CB_BLIZ1260;
+				romtype2 = ROMTYPE_BLIZKIT4;
 				break;
 			case BOARD_BLIZZARD_SUB_2060:
-				roms[0] = 92;
-				roms[1] = 168;
+				romtype = ROMTYPE_CB_BLIZ2060;
 				break;
 			case BOARD_BLIZZARD_SUB_PPC:
-				roms[0] = p->cpu_model == 68040 ? 99 : 100;
+				romtype = ROMTYPE_CB_BLIZPPC;
+				cpucheck = true;
 				isflashrom = true;
 				break;
 		}
 		break;
 
 		case BOARD_KUPKE:
-			roms[0] = 126;
+			romtype = ROMTYPE_CB_GOLEM030;
 		break;
 
 		case BOARD_DCE:
-			roms[0] = 160;
+			romtype = ROMTYPE_CB_SX32PRO;
 		break;
 
 		default:
@@ -2391,10 +2387,10 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 	}
 
 	struct romlist *rl = NULL;
-	if (roms[0] >= 0) {
-		rl = getromlistbyids(roms, romname);
+	if (romtype) {
+		rl = getromlistbyromtype(romtype, romname);
 		if (!rl) {
-			rd = getromdatabyids(roms);
+			rd = getromdatabytype(romtype);
 			if (!rd)
 				return false;
 		} else {
@@ -2409,7 +2405,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 			autoconfig_rom = zfile_fopen(defaultromname, _T("rb"));
 		if (rl) {
 			if (autoconfig_rom) {
-				struct romdata *rd2 = getromdatabyids(roms);
+				struct romdata *rd2 = getromdatabyid(romtype);
 				// Do not use image if it is not long enough (odd or even only?)
 				if (!rd2 || zfile_size(autoconfig_rom) < rd2->size) {
 					zfile_fclose(autoconfig_rom);
@@ -2429,16 +2425,16 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		}
 		if (!autoconfig_rom) {
 			if (aci->doinit)
-				romwarning(roms);
+				romwarning(romtype);
 			write_log(_T("Couldn't open CPUBoard '%s' rom '%s'\n"), boardname, defaultromname);
 			return false;
 		}
 	}
 	
-	if (!autoconfig_rom && roms[0] != -1) {
+	if (!autoconfig_rom && romtype) {
 		if (aci->doinit)
-			romwarning(roms);
-		write_log (_T("ROM id %d not found for CPUBoard '%s' emulation\n"), roms[0], boardname);
+			romwarning(romtype);
+		write_log (_T("ROM id %08X not found for CPUBoard '%s' emulation\n"), romtype, boardname);
 		return false;
 	}
 	if (!autoconfig_rom) {
@@ -2613,11 +2609,11 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		}
 		zfile_fclose(autoconfig_rom);
 		autoconfig_rom = NULL;
-		if (roms2[0] != -1) {
+		if (romtype2) {
 			int idx2;
-			struct boardromconfig *brc2 = get_device_rom(p, ROMTYPE_BLIZKIT4, 0, &idx2);
+			struct boardromconfig *brc2 = get_device_rom(p, romtype2, 0, &idx2);
 			if (brc2 && brc2->roms[idx2].romfile[0])
-				autoconfig_rom = board_rom_open(roms2, brc2->roms[idx2].romfile);
+				autoconfig_rom = board_rom_open(romtype2, brc2->roms[idx2].romfile);
 			if (autoconfig_rom) {
 				memset(blizzardea_bank.baseaddr + 0x10000, 0xff, 65536);
 				zfile_fread(blizzardea_bank.baseaddr + 0x10000, 32768, 1, autoconfig_rom);
@@ -2639,11 +2635,11 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		zfile_fread(blizzardea_bank.baseaddr, 65536, 1, autoconfig_rom);
 		zfile_fclose(autoconfig_rom);
 		autoconfig_rom = NULL;
-		if (roms2[0] != -1) {
+		if (romtype2) {
 			int idx2;
-			struct boardromconfig *brc2 = get_device_rom(p, ROMTYPE_BLIZKIT3, 0, &idx2);
+			struct boardromconfig *brc2 = get_device_rom(p, romtype2, 0, &idx2);
 			if (brc2 && brc2->roms[idx2].romfile[0])
-				autoconfig_rom = board_rom_open(roms2, brc2->roms[idx2].romfile);
+				autoconfig_rom = board_rom_open(romtype2, brc2->roms[idx2].romfile);
 			if (autoconfig_rom) {
 				zfile_fread(blizzardea_bank.baseaddr, 65536, 1, autoconfig_rom);
 				zfile_fclose(autoconfig_rom);
