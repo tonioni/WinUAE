@@ -1462,7 +1462,7 @@ static void processtouch(HWND hwnd, WPARAM wParam, LPARAM lParam)
 #if TOUCH_DEBUG
 									write_log(_T("TOUCHED GUI\n"), touch_time);
 #endif
-									inputdevice_add_inputcode(AKS_ENTERGUI, 1);
+									inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
 								}
 #if TOUCH_DEBUG
 								write_log(_T("RELEASED\n"));
@@ -1563,7 +1563,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
 	case WM_KEYDOWN:
 		if (dinput_wmkey ((uae_u32)lParam))
-			inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+			inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 		return 0;
 
 	case WM_LBUTTONUP:
@@ -2028,7 +2028,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 							}
 						} else if (num == 5) {
 							if (nm->code == NM_CLICK) // POWER
-								inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+								inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 							else
 								uae_reset (0, 1);
 						} else if (num == 4) {
@@ -2342,6 +2342,16 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	{
 		LPDRAWITEMSTRUCT lpDIS = (LPDRAWITEMSTRUCT)lParam;
 		if (lpDIS->hwndItem == hStatusWnd) {
+			HBRUSH b = (HBRUSH)(COLOR_3DFACE + 1);
+			if (hStatusBkgB == NULL) {
+				COLORREF c = GetPixel(lpDIS->hDC, lpDIS->rcItem.left + (lpDIS->rcItem.right - lpDIS->rcItem.left) / 2, lpDIS->rcItem.top + (lpDIS->rcItem.bottom - lpDIS->rcItem.top) / 2);
+				if (c != CLR_INVALID) {
+					hStatusBkgB = CreateSolidBrush(c);
+				}
+			}
+			if (hStatusBkgB != NULL) {
+				b = hStatusBkgB;
+			}
 			if (lpDIS->itemID == window_led_msg_start) {
 				COLORREF oc;
 				int x = lpDIS->rcItem.left + 1;
@@ -2349,7 +2359,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 				const TCHAR *txt = statusline_fetch();
 				int flags = DT_VCENTER | DT_SINGLELINE | DT_LEFT;
 
-				FillRect(lpDIS->hDC, &lpDIS->rcItem, (HBRUSH)(COLOR_3DFACE + 1));
+				FillRect(lpDIS->hDC, &lpDIS->rcItem, hStatusBkgB);
 				if (txt) {
 					SetBkMode(lpDIS->hDC, TRANSPARENT);
 					oc = SetTextColor(lpDIS->hDC, RGB(0x00, 0x00, 0x00));
@@ -2365,7 +2375,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 				r.right--;
 				r.top++;
 				r.bottom--;
-				FillRect (lpDIS->hDC, &r, (HBRUSH)(COLOR_3DFACE + 1));
+				FillRect (lpDIS->hDC, &r, hStatusBkgB);
 				for (int i = 0; i < 2; i++) {
 					int buttons = guijoybutton[port + i * 2];
 					int m = i == 0 ? 1 : 2;
@@ -2463,7 +2473,7 @@ static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam
 			break;
 		case WM_LBUTTONDBLCLK:
 			if (!gui_active)
-				inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+				inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 			break;
 		case WM_RBUTTONDOWN:
 			if (!gui_active)
@@ -2477,7 +2487,7 @@ static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam
 		switch (wParam & 0xffff)
 		{
 		case ID_ST_CONFIGURATION:
-			inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+			inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 			break;
 		case ID_ST_HELP:
 			if (pHtmlHelp)
@@ -5078,24 +5088,6 @@ static int betamessage (void)
 	return 1;
 }
 
-static int dxdetect (void)
-{
-#if !defined(WIN64)
-	/* believe or not but this is MS supported way of detecting DX8+ */
-	HMODULE h = LoadLibrary (_T("D3D8.DLL"));
-	TCHAR szWrongDXVersion[MAX_DPATH];
-	if (h) {
-		FreeLibrary (h);
-		return 1;
-	}
-	WIN32GUI_LoadUIString (IDS_WRONGDXVERSION, szWrongDXVersion, MAX_DPATH);
-	pre_gui_message (szWrongDXVersion);
-	return 0;
-#else
-	return 1;
-#endif
-}
-
 int os_admin, os_64bit, os_win7, os_vista, cpu_number, os_touch;
 BOOL os_dwm_enabled;
 
@@ -5646,6 +5638,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, _T("log"))) {
 		console_logging = 1;
+		return 1;
+	}
+	if (!_tcscmp (arg, _T("logfile"))) {
+		winuaelog_temporary_enable = true;
 		return 1;
 	}
 #ifdef FILESYS
@@ -6252,8 +6248,6 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	int argc, i;
 
 	if (!osdetect ())
-		return 0;
-	if (!dxdetect ())
 		return 0;
 
 	if (os_vista) {

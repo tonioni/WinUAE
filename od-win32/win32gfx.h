@@ -22,6 +22,7 @@ int WIN32GFX_AdjustScreenmode (struct MultiDisplay *md, int *pwidth, int *pheigh
 extern HCURSOR normalcursor;
 
 extern HWND hStatusWnd;
+extern HBRUSH hStatusBkgB;
 extern int default_freq;
 extern int normal_display_change_starting;
 extern int window_led_drives, window_led_drives_end;

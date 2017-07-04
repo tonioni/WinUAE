@@ -258,7 +258,8 @@ static BOOL doInit (void);
 
 int default_freq = 60;
 
-HWND hStatusWnd = NULL;
+HWND hStatusWnd;
+HBRUSH hStatusBkgB;
 
 static uae_u8 *scrlinebuf;
 
@@ -1714,6 +1715,9 @@ static void close_hwnds (void)
 		ShowWindow (hStatusWnd, SW_HIDE);
 		DestroyWindow (hStatusWnd);
 		hStatusWnd = 0;
+		if (hStatusBkgB)
+			DeleteObject(hStatusBkgB);
+		hStatusBkgB = NULL;
 	}
 	if (hAmigaWnd) {
 		addnotifications (hAmigaWnd, TRUE, FALSE);
