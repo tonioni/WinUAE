@@ -738,6 +738,8 @@ bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
 			barrier = true;
 		if (currprefs.chipmem_size > 2 * 1024 * 1024)
 			barrier = true;
+		if (currprefs.chipmem_size < 2 * 1024 * 1024 && !currprefs.cpu_compatible)
+			barrier = true;
 	} else if (!_tcscmp(ab->label, _T("kick"))) {
 		start = 0xf80000;
 		got = true;
