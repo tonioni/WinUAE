@@ -26,8 +26,12 @@ static int fontstyle_list = 0;
 static int fontweight_gui = FW_REGULAR;
 static int fontweight_list = FW_REGULAR;
 
-static int listviews[16];
 static int listviewcnt;
+static int listviews_id[16];
+
+static int setparamcnt;
+static int setparam_id[16];
+
 static HFONT listviewfont;
 static TEXTMETRIC listview_tm;
 static const TCHAR *fontprefix;
@@ -157,9 +161,6 @@ static void modifyitem (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, DLGITEMTEMPLATE
 	bool noyscale = false;
 	int wc = 0;
 
-	if (dt->windowClass[0] != 0xffff && (!_tcsicmp (dt->windowClass, WC_LISTVIEWW) || !_tcsicmp (dt->windowClass, WC_TREEVIEWW)))
-		listviews[listviewcnt++] = dt->id;
-
 	if (dt->windowClass[0] == 0xffff)
 		wc = dt->windowClass[1];
 
@@ -169,7 +170,7 @@ static void modifyitem (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, DLGITEMTEMPLATE
 			noyscale = true;
 		}
 		if (wc == 0x0085) {// combo box
-			noyscale = true;
+			noyscale = false;
 		}
 		if (wc == 0x0081 && dt->cy <= 20) { // edit box
 			noyscale = true;
@@ -182,6 +183,18 @@ static void modifyitem (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, DLGITEMTEMPLATE
 	dt->cx = mmx (dt->cx);
 	dt->y = mmy (dt->y);
 	dt->x = mmx (dt->x);
+
+	if (wc == 0x0085) {// combo box
+		setparam_id[setparamcnt] = dt->id;
+		setparamcnt++;
+	}
+
+	if (dt->windowClass[0] != 0xffff) {
+		if (!_tcsicmp (dt->windowClass, WC_LISTVIEWW) || !_tcsicmp (dt->windowClass, WC_TREEVIEWW)) {
+			listviews_id[listviewcnt] = dt->id;
+			listviewcnt++;
+		}
+	}
 
 }
 
@@ -213,6 +226,7 @@ static struct newresource *scaleresource2 (struct newresource *res, HWND parent,
 	struct newresource *ns;
 
 	listviewcnt = 0;
+	setparamcnt = 0;
 
 	d = (DLGTEMPLATEEX*)res->resource;
 	d2 = (DLGTEMPLATEEX_END*)res->resource;
@@ -341,15 +355,22 @@ void scalaresource_listview_font_info(int *w)
 
 void scaleresource_setfont (HWND hDlg)
 {
-	if (!listviewcnt)
-		return;
-	if (!listviewfont) {
-		openfont (false);
-		if (!listviewfont)
-			return;
+	if (listviewcnt) {
+		if (!listviewfont) {
+			openfont (false);
+			if (!listviewfont)
+				return;
+		}
+		for (int i = 0; i < listviewcnt; i++) {
+			SendMessage (GetDlgItem (hDlg, listviews_id[i]), WM_SETFONT, WPARAM(listviewfont), FALSE);
+		}
 	}
-	for (int i = 0; i < listviewcnt; i++) {
-		SendMessage (GetDlgItem (hDlg, listviews[i]), WM_SETFONT, WPARAM(listviewfont), FALSE);
+	if (os_vista) {
+		for (int i = 0; i < setparamcnt; i++) {
+			int v = SendMessage (GetDlgItem (hDlg, setparam_id[i]), CB_GETITEMHEIGHT , -1, NULL);
+			if (v > 0 && mmy(v) > v)
+				SendMessage (GetDlgItem (hDlg, setparam_id[i]), CB_SETITEMHEIGHT , -1, mmy(v));
+		}
 	}
 }
 
