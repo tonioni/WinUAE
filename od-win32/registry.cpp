@@ -6,266 +6,14 @@
 #include <shlwapi.h>
 #include "win32.h"
 #include "registry.h"
-#include "crc32.h"
+#include "ini.h"
 
 static int inimode = 0;
 static TCHAR *inipath;
 
 #define ROOT_TREE _T("WinUAE")
 
-static struct ini_line **inidata;
-static int inilines;
-
-struct ini_line
-{
-	int section_order;
-	TCHAR *section;
-	TCHAR *key;
-	TCHAR *value;
-};
-
-static TCHAR *initrim(TCHAR *s)
-{
-	while (*s != 0 && *s <= 32)
-		s++;
-	TCHAR *s2 = s;
-	while (*s2)
-		s2++;
-	while (s2 > s) {
-		s2--;
-		if (*s2 > 32)
-			break;
-		*s2 = 0;
-	}
-	return s;
-}
-
-static void ini_free(void)
-{
-	for(int c = 0; c < inilines; c++) {
-		struct ini_line *il = inidata[c];
-		xfree(il->section);
-		xfree(il->key);
-		xfree(il->value);
-		xfree(il);
-		inidata[c] = NULL;
-	}
-}
-
-static void ini_sort(void)
-{
-	for(int c1 = 0; c1 < inilines; c1++) {
-		struct ini_line *il1 = inidata[c1];
-		if (il1 == NULL)
-			continue;
-		for (int c2 = c1 + 1; c2 < inilines; c2++) {
-			struct ini_line *il2 = inidata[c2];
-			if (il2 == NULL)
-				continue;
-			int order = 0;
-			int sec = _tcsicmp(il1->section, il2->section);
-			if (sec) {
-				if (!il1->section_order && !il2->section_order)
-					order = sec;
-				else
-					order = il2->section_order - il1->section_order;
-			} else {
-				order = _tcsicmp(il1->key, il2->key);
-			}
-			if (order > 0) {
-				struct ini_line il;
-				memcpy(&il, il1, sizeof(struct ini_line));
-				memcpy(il1, il2, sizeof(struct ini_line));
-				memcpy(il2, &il, sizeof(struct ini_line));
-			}
-		}
-	}
-#if 0
-	for(int c1 = 0; c1 < inilines; c1++) {
-		struct ini_line *il1 = inidata[c1];
-		if (il1)
-			write_log(_T("[%s] %s %s\n"), il1->section, il1->key, il1->value);
-	}
-	write_log(_T("\n"));
-#endif
-}
-
-static void ini_addnewstring(const TCHAR *section, const TCHAR *key, const TCHAR *val)
-{
-	struct ini_line *il = xcalloc(struct ini_line, 1);
-	il->section = my_strdup(section);
-	if (!_tcsicmp(section, ROOT_TREE))
-		il->section_order = 1;
-	il->key = my_strdup(key);
-	il->value = my_strdup(val);
-	int cnt = 0;
-	while (cnt < inilines && inidata[cnt])
-		cnt++;
-	if (cnt == inilines) {
-		inilines += 10;
-		inidata = xrealloc(struct ini_line*, inidata, inilines);
-		int cnt2 = cnt;
-		while (cnt2 < inilines) {
-			inidata[cnt2++] = NULL;
-		}
-	}
-	inidata[cnt] = il;
-}
-
-static const uae_u8 bom[3] = { 0xef, 0xbb, 0xbf };
-
-static void ini_load(const TCHAR *path)
-{
-	bool utf8 = false;
-	TCHAR section[MAX_DPATH];
-	uae_u8 tmp[3];
-
-	ini_free();
-
-	FILE *f = _tfopen(path, _T("rb"));
-	if (!f)
-		return;
-	int v = fread(tmp, 1, sizeof tmp, f);
-	fclose (f);
-	if (v == 3 && tmp[0] == 0xef && tmp[1] == 0xbb && tmp[2] == 0xbf) {
-		f = _tfopen (path, _T("rt, ccs=UTF-8"));
-	} else {
-		f = _tfopen (path, _T("rt"));
-	}
-	section[0] = 0;
-	for (;;) {
-		TCHAR tbuffer[MAX_DPATH];
-		tbuffer[0] = 0;
-		if (!fgetws(tbuffer, MAX_DPATH, f))
-			break;
-		TCHAR *s = initrim(tbuffer);
-		if (_tcslen(s) < 3)
-			continue;
-		if (s[0] == '[' && s[_tcslen(s) - 1] == ']') {
-			s[_tcslen(s) - 1] = 0;
-			_tcscpy(section, s + 1);
-			continue;
-		}
-		if (section[0] == 0)
-			continue;
-		TCHAR *s1 = _tcschr(s, '=');
-		if (s1) {
-			*s1++ = 0;
-			TCHAR *s2 = initrim(tbuffer);
-			TCHAR *s3 = initrim(s1);
-			ini_addnewstring(section, s2, s3);
-		}
-	}
-	fclose(f);
-	ini_sort();
-}
-
-static void ini_save(const TCHAR *path)
-{
-	TCHAR section[MAX_DPATH];
-	TCHAR sep[2] = { '=', 0 };
-	TCHAR lf[2] = {  10, 0 };
-	TCHAR left[2] = { '[', 0 };
-	TCHAR right[2] = { ']', 0 };
-
-	ini_sort();
-	FILE *f = _tfopen(path, _T("wt, ccs=UTF-8"));
-	if (!f)
-		return;
-	section[0] = 0;
-	for (int c = 0; c < inilines; c++) {
-		TCHAR out[MAX_DPATH];
-		struct ini_line *il = inidata[c];
-		if (!il)
-			continue;
-		if (_tcscmp(il->section, section)) {
-			_tcscpy(out, lf);
-			_tcscat(out, left);
-			_tcscat(out, il->section);
-			_tcscat(out, right);
-			_tcscat(out, lf);
-			fputws(out, f);
-			_tcscpy(section, il->section);
-		}
-		_tcscpy(out, il->key);
-		_tcscat(out, sep);
-		_tcscat(out, il->value);
-		_tcscat(out, lf);
-		fputws(out, f);
-	}
-	fclose(f);
-}
-
-static bool ini_getstring(const TCHAR *section, const TCHAR *key, TCHAR *out, int *max)
-{
-	for (int c = 0; c < inilines; c++) {
-		struct ini_line *il = inidata[c];
-		if (il && !_tcscmp(section, il->section) && (key == NULL || !_tcscmp(key, il->key))) {
-			if (out) {
-				_tcsncpy(out, il->value, *max);
-				out[*max - 1] = 0;
-				*max = _tcslen(out);
-			}
-			return true;
-		}
-	}
-	return false;
-}
-
-static bool ini_getsectionstring(const TCHAR *section, int idx, TCHAR *keyout, int *keysize, TCHAR *valout, int *valsize)
-{
-	for (int c = 0; c < inilines; c++) {
-		struct ini_line *il = inidata[c];
-		if (il && !_tcscmp(section, il->section)) {
-			if (idx == 0) {
-				if (keyout) {
-					_tcsncpy(keyout, il->key, *keysize);
-					keyout[*keysize - 1] = 0;
-					*keysize = _tcslen(keyout);
-				}
-				if (valout) {
-					_tcsncpy(valout, il->value, *valsize);
-					valout[*valsize - 1] = 0;
-					*valsize = _tcslen(valout);
-				}
-				return true;
-			}
-			idx--;
-		}
-	}
-	return false;
-}
-
-static bool ini_addstring(const TCHAR *section, const TCHAR *key, const TCHAR *val)
-{
-	for (int c = 0; c < inilines; c++) {
-		struct ini_line *il = inidata[c];
-		if (il && !_tcscmp(section, il->section)) {
-			if (!_tcscmp(key, il->key)) {
-				xfree(il->value);
-				il->value = my_strdup(val);
-				return true;
-			}
-		}
-	}
-	ini_addnewstring(section, key, val);
-	return true;
-}
-
-static void ini_delete(const TCHAR *section, const TCHAR *key)
-{
-	for (int c = 0; c < inilines; c++) {
-		struct ini_line *il = inidata[c];
-		if (il && !_tcscmp(section, il->section) && (key == NULL || !_tcscmp(key, il->key))) {
-			xfree(il->section);
-			xfree(il->key);
-			xfree(il->value);
-			xfree(il);
-			inidata[c] = NULL;
-		}
-	}
-}
-
+static struct ini_data *inidata;
 
 static HKEY gr (UAEREG *root)
 {
@@ -293,7 +41,7 @@ static TCHAR *gsn (UAEREG *root, const TCHAR *name)
 int regsetstr (UAEREG *root, const TCHAR *name, const TCHAR *str)
 {
 	if (inimode) {
-		int ret = ini_addstring(gs(root), name, str);
+		int ret = ini_addstring(inidata, gs(root), name, str);
 		return ret;
 	} else {
 		HKEY rk = gr (root);
@@ -309,7 +57,7 @@ int regsetint (UAEREG *root, const TCHAR *name, int val)
 		int ret;
 		TCHAR tmp[100];
 		_stprintf (tmp, _T("%d"), val);
-		ret = ini_addstring(gs(root), name, tmp);
+		ret = ini_addstring(inidata, gs(root), name, tmp);
 		return ret;
 	} else {
 		DWORD v = val;
@@ -324,12 +72,13 @@ int regqueryint (UAEREG *root, const TCHAR *name, int *val)
 {
 	if (inimode) {
 		int ret = 0;
-		TCHAR tmp[100];
+		TCHAR *tmp = NULL;
 		int size = sizeof tmp / sizeof(TCHAR);
-		if (ini_getstring(gs(root), name, tmp, &size)) {
+		if (ini_getstring(inidata, gs(root), name, &tmp)) {
 			*val = _tstol (tmp);
 			ret = 1;
 		}
+		xfree(tmp);
 		return ret;
 	} else {
 		DWORD dwType = REG_DWORD;
@@ -347,7 +96,7 @@ int regsetlonglong (UAEREG *root, const TCHAR *name, ULONGLONG val)
 		int ret;
 		TCHAR tmp[100];
 		_stprintf (tmp, _T("%I64d"), val);
-		ret = ini_addstring(gs(root), name, tmp);
+		ret = ini_addstring(inidata, gs(root), name, tmp);
 		return ret;
 	} else {
 		ULONGLONG v = val;
@@ -363,12 +112,13 @@ int regquerylonglong (UAEREG *root, const TCHAR *name, ULONGLONG *val)
 	*val = 0;
 	if (inimode) {
 		int ret = 0;
-		TCHAR tmp[100];
+		TCHAR *tmp = NULL;
 		int size = sizeof tmp / sizeof(TCHAR);
-		if (ini_getstring(gs(root), name, tmp, &size)) {
+		if (ini_getstring(inidata, gs(root), name, &tmp)) {
 			*val = _tstoi64 (tmp);
 			ret = 1;
 		}
+		xfree(tmp);
 		return ret;
 	} else {
 		DWORD dwType = REG_QWORD;
@@ -384,9 +134,12 @@ int regquerystr (UAEREG *root, const TCHAR *name, TCHAR *str, int *size)
 {
 	if (inimode) {
 		int ret = 0;
-		TCHAR *tmp = xmalloc (TCHAR, (*size) + 1);
-		if (ini_getstring(gs(root), name, tmp, size)) {
+		TCHAR *tmp = NULL;
+		if (ini_getstring(inidata, gs(root), name, &tmp)) {
+			if (_tcslen(tmp) > *size)
+				tmp[*size] = 0;
 			_tcscpy (str, tmp);
+			*size = _tcslen(str);
 			ret = 1;
 		}
 		xfree (tmp);
@@ -407,7 +160,21 @@ int regenumstr (UAEREG *root, int idx, TCHAR *name, int *nsize, TCHAR *str, int 
 	name[0] = 0;
 	str[0] = 0;
 	if (inimode) {
-		int ret = ini_getsectionstring(gs(root), idx, name, nsize, str, size);
+		TCHAR *name2 = NULL;
+		TCHAR *str2 = NULL;
+		int ret = ini_getsectionstring(inidata, gs(root), idx, &name2, &str2);
+		if (ret) {
+			if (_tcslen(name2) >= *nsize) {
+				name2[*nsize] = 0;
+			}
+			if (_tcslen(str2) >= *size) {
+				str2[*size] = 0;
+			}
+			_tcscpy(name, name2);
+			_tcscpy(str, str2);
+		}
+		xfree(str2);
+		xfree(name2);
 		return ret;
 	} else {
 		DWORD nsize2 = *nsize;
@@ -453,7 +220,7 @@ int regsetdata (UAEREG *root, const TCHAR *name, const void *str, int size)
 		TCHAR *tmp = xmalloc (TCHAR, size * 2 + 1);
 		for (int i = 0; i < size; i++)
 			_stprintf (tmp + i * 2, _T("%02X"), in[i]); 
-		ret = ini_addstring(gs(root), name, tmp);
+		ret = ini_addstring(inidata, gs(root), name, tmp);
 		xfree (tmp);
 		return ret;
 	} else {
@@ -476,8 +243,8 @@ int regquerydata (UAEREG *root, const TCHAR *name, void *str, int *size)
 			goto err;
 		j = 0;
 		for (i = 0; i < _tcslen (tmp); i += 2) {
-			TCHAR c1 = toupper(tmp[i + 0]);
-			TCHAR c2 = toupper(tmp[i + 1]);
+			TCHAR c1 = _totupper(tmp[i + 0]);
+			TCHAR c2 = _totupper(tmp[i + 1]);
 			if (c1 >= 'A')
 				c1 -= 'A' - 10;
 			else if (c1 >= '0')
@@ -510,7 +277,7 @@ err:
 int regdelete (UAEREG *root, const TCHAR *name)
 {
 	if (inimode) {
-		ini_delete(gs(root), name);
+		ini_delete(inidata, gs(root), name);
 		return 1;
 	} else {
 		HKEY rk = gr (root);
@@ -523,9 +290,9 @@ int regdelete (UAEREG *root, const TCHAR *name)
 int regexists (UAEREG *root, const TCHAR *name)
 {
 	if (inimode) {
-		if (!inilines)
+		if (!inidata)
 			return 0;
-		int ret = ini_getstring(gs(root), name, NULL, NULL);
+		int ret = ini_getstring(inidata, gs(root), name, NULL);
 		return ret;
 	} else {
 		HKEY rk = gr (root);
@@ -541,7 +308,7 @@ void regdeletetree (UAEREG *root, const TCHAR *name)
 		TCHAR *s = gsn (root, name);
 		if (!s)
 			return;
-		ini_delete(s, NULL);
+		ini_delete(inidata, s, NULL);
 		xfree (s);
 	} else {
 		HKEY rk = gr (root);
@@ -558,7 +325,7 @@ int regexiststree (UAEREG *root, const TCHAR *name)
 		TCHAR *s = gsn (root, name);
 		if (!s)
 			return 0;
-		ret = ini_getstring(s, NULL, NULL, 0);
+		ret = ini_getstring(inidata, s, NULL, NULL);
 		xfree (s);
 		return ret;
 	} else {
@@ -617,7 +384,7 @@ void regclosetree (UAEREG *key)
 	if (!key)
 		return;
 	if (inimode)
-		ini_save(inipath);
+		ini_save(inidata, inipath);
 	if (key->fkey)
 		RegCloseKey (key->fkey);
 	xfree (key->inipath);
@@ -662,7 +429,7 @@ int reginitializeinit (TCHAR **pppath)
 
 	inimode = 1;
 	inipath = my_strdup (fpath);
-	ini_load(inipath);
+	inidata = ini_load(inipath);
 	if (!regexists (NULL, _T("Version")))
 		goto fail;
 	return 1;
