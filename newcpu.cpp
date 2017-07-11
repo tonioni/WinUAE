@@ -1232,6 +1232,7 @@ void flush_cpu_caches(bool force)
 			regs.cacr &= ~0x400;
 		}
 	} else if (currprefs.cpu_model >= 68040) {
+		mmu_flush_cache();
 		icachelinecnt = 0;
 		dcachelinecnt = 0;
 		if (doflush) {
@@ -1249,7 +1250,7 @@ void flush_cpu_caches_040(uae_u16 opcode)
 {
 	int cache = (opcode >> 6) & 3;
 	if (!(cache & 2))
-			return;
+		return;
 	flush_cpu_caches(true);
 }
 
@@ -2449,7 +2450,7 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
     }
 #endif
 
-    switch (format) {
+	switch (format) {
         case 0x0: // four word stack frame
         case 0x1: // throwaway four word stack frame
             break;
@@ -4806,7 +4807,7 @@ static void opcodedebug (uae_u32 pc, uae_u16 opcode, bool full)
 		;
 	fault = 0;
 	TRY(prb) {
-		addr = mmu_translate (pc, (regs.mmu_ssw & 4) ? 1 : 0, 0, 0);
+		addr = mmu_translate (pc, 0, (regs.mmu_ssw & 4) ? 1 : 0, 0, 0, sz_word, false);
 	} CATCH (prb) {
 		fault = 1;
 	} ENDTRY
@@ -7698,7 +7699,7 @@ void exception2 (uaecptr addr, bool read, int size, uae_u32 fc)
 			uae_u32 flags = size == 1 ? MMU030_SSW_SIZE_B : (size == 2 ? MMU030_SSW_SIZE_W : MMU030_SSW_SIZE_L);
 			mmu030_page_fault (addr, read, flags, fc);
 		} else {
-			mmu_bus_error (addr, fc, read == false, size, false, 0, true);
+			mmu_bus_error (addr, 0, fc, read == false, size, false, 0, true);
 		}
 	} else {
 		last_addr_for_exception_3 = m68k_getpc() + bus_error_offset;

@@ -5,6 +5,9 @@
 
 #include "mmu_common.h"
 
+#define MMU_DPAGECACHE030 1
+#define MMU_IPAGECACHE030 1
+
 extern uae_u64 srp_030, crp_030;
 extern uae_u32 tt0_030, tt1_030, tc_030;
 extern uae_u16 mmusr_030;
@@ -60,32 +63,10 @@ TT_info mmu030_decode_tt(uae_u32 TT);
 bool mmu030_decode_tc(uae_u32 TC, bool);
 bool mmu030_decode_rp(uae_u64 RP);
 
-int mmu030_logical_is_in_atc(uaecptr addr, uae_u32 fc, bool write);
-void mmu030_atc_handle_history_bit(int entry_num);
-
-void mmu030_put_long_atc(uaecptr addr, uae_u32 val, int l, uae_u32 fc);
-void mmu030_put_word_atc(uaecptr addr, uae_u16 val, int l, uae_u32 fc);
-void mmu030_put_byte_atc(uaecptr addr, uae_u8 val, int l, uae_u32 fc);
-uae_u32 mmu030_get_long_atc(uaecptr addr, int l, uae_u32 fc);
-uae_u16 mmu030_get_word_atc(uaecptr addr, int l, uae_u32 fc);
-uae_u8 mmu030_get_byte_atc(uaecptr addr, int l, uae_u32 fc);
-
-void mmu030_put_atc_generic(uaecptr addr, uae_u32 val, int l, uae_u32 fc, int size, int flags);
-uae_u32 mmu030_get_atc_generic(uaecptr addr, int l, uae_u32 fc, int size, int flags, bool checkwrite);
-
-void mmu030_flush_atc_fc(uae_u32 fc_base, uae_u32 fc_mask);
-void mmu030_flush_atc_page(uaecptr logical_addr);
-void mmu030_flush_atc_page_fc(uaecptr logical_addr, uae_u32 fc_base, uae_u32 fc_mask);
 void mmu030_flush_atc_all(void);
 void mmu030_reset(int hardreset);
 void mmu030_set_funcs(void);
 uaecptr mmu030_translate(uaecptr addr, bool super, bool data, bool write);
-
-int mmu030_match_ttr(uaecptr addr, uae_u32 fc, bool write);
-int mmu030_match_ttr_access(uaecptr addr, uae_u32 fc, bool write);
-int mmu030_match_lrmw_ttr_access(uaecptr addr, uae_u32 fc);
-int mmu030_do_match_ttr(uae_u32 tt, TT_info masks, uaecptr addr, uae_u32 fc, bool write);
-int mmu030_do_match_lrmw_ttr(uae_u32 tt, TT_info masks, uaecptr addr, uae_u32 fc);
 
 void mmu030_put_long(uaecptr addr, uae_u32 val, uae_u32 fc);
 void mmu030_put_word(uaecptr addr, uae_u16 val, uae_u32 fc);
