@@ -58,6 +58,7 @@ struct ide_board
 	hsync_func hsync_code;
 	struct romconfig *rc, *original_rc;
 	struct ide_board **self_ptr;
+	struct autoconfig_info *aci;
 };
 
 struct ide_hdf

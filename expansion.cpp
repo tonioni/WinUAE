@@ -4346,7 +4346,16 @@ static const struct expansionboardsettings buddha_settings[] = {
 		NULL
 	}
 };
-
+static const struct expansionboardsettings fastata_settings[] = {
+	{
+		_T("Model\0") _T("MK I\0") _T("MK II/III\0"),
+		_T("model\0") _T("mk1\0") _T("mk2\0"),
+		true, false, 0
+	},
+	{
+		NULL
+	}
+};
 static const struct expansionboardsettings adscsi2000_settings[] = {
 	{
 		_T("Cache (B)"),
@@ -4581,7 +4590,16 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SCSI,
 		2012, 1, 0, true, NULL,
 		true, 0, NULL,
-		{  0xd2, 0x0f ,0x00, 0x00, 0x07, 0xdc, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00 },
+		{ 0xd2, 0x0f ,0x00, 0x00, 0x07, 0xdc, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00 },
+	},
+	{
+		_T("fastata4000"), _T("FastATA 4000"), _T("Elbox"),
+		NULL, fastata4k_init, NULL, fastata4k_add_ide_unit, ROMTYPE_FASTATA4K, 0, 0, BOARD_AUTOCONFIG_Z3, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_IDE,
+		0, 0, 0, true, NULL,
+		true, 2, fastata_settings,
+		{ 0x90, 0, 0x10, 0x00, 0x08, 0x9e, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00 },
 	},
 	{
 		_T("dataflyerscsiplus"), _T("DataFlyer SCSI+"), _T("Expansion Systems"),
