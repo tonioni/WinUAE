@@ -336,14 +336,24 @@ void mmu_dump_tables(void)
 }
 /* }}} */
 
-static void flush_shortcut_cache(void)
+static void flush_shortcut_cache(uaecptr addr, bool super)
 {
 #if MMU_IPAGECACHE
 	atc_last_ins_laddr = mmu_pagemask;
 #endif
 #if MMU_DPAGECACHE
-	memset(&atc_data_cache_read, 0xff, sizeof atc_data_cache_read);
-	memset(&atc_data_cache_write, 0xff, sizeof atc_data_cache_write);
+	if (addr == 0xffffffff) {
+		memset(&atc_data_cache_read, 0xff, sizeof atc_data_cache_read);
+		memset(&atc_data_cache_write, 0xff, sizeof atc_data_cache_write);
+	} else {
+		for (int i = 0; i < MMUFASTCACHE_ENTRIES; i++) {
+			uae_u32 idx = ((addr & mmu_pagemaski) >> mmu_pageshift1m) | (super ? 1 : 0);
+			if (atc_data_cache_read[i].log == idx)
+				atc_data_cache_read[i].log = 0xffffffff;
+			if (atc_data_cache_write[i].log == idx)
+				atc_data_cache_write[i].log = 0xffffffff;
+		}
+	}
 #endif
 }
 
@@ -480,7 +490,6 @@ void mmu_bus_error(uaecptr addr, uae_u32 val, int fc, bool write, int size,uae_u
 	rmw_cycle = false;
 	locked_rmw_cycle = false;
 	regs.mmu_fault_addr = addr;
-	flush_shortcut_cache();
 
 #if 0
 	if (m68k_getpc () == 0x0004B0AC) {
@@ -743,7 +752,7 @@ static bool mmu_fill_atc(uaecptr addr, bool super, uae_u32 tag, bool write, stru
 		l->status = 0;
 		l->phys = 0;
 	}
-	 
+	flush_shortcut_cache(addr, super);
 	return (*status != MMU_FSLW_TWE); // FIXME: find a better way to report bus error during table search
 }
 
@@ -1317,7 +1326,7 @@ void REGPARAM2 mmu_flush_atc(uaecptr addr, bool super, bool global)
 			}
 		}
 	}	
-	flush_shortcut_cache();
+	flush_shortcut_cache(addr, super);
 	mmu_flush_cache();
 }
 
@@ -1334,7 +1343,7 @@ void REGPARAM2 mmu_flush_atc_all(bool global)
 			}
 		}
 	}
-	flush_shortcut_cache();
+	flush_shortcut_cache(0xffffffff, 0);
 	mmu_flush_cache();
 }
 
