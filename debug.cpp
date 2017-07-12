@@ -294,7 +294,11 @@ uae_u32 get_byte_debug (uaecptr addr)
 			if (currprefs.mmu_model == 68030) {
 				v = mmu030_get_generic (addr, debug_mmu_mode, sz_byte, sz_byte, 0);
 			} else {
-				v = mmu_get_user_byte (addr, regs.s != 0, (debug_mmu_mode & 1) ? true : false, false, sz_byte);
+				if (debug_mmu_mode & 1) {
+					v = mmu_get_iword(addr, sz_byte);
+				} else {
+					v = mmu_get_user_byte (addr, regs.s != 0, false, sz_byte);
+				}
 			}
 		} CATCH(p) {
 		} ENDTRY
@@ -314,7 +318,11 @@ uae_u32 get_word_debug (uaecptr addr)
 			if (currprefs.mmu_model == 68030) {
 				v = mmu030_get_generic (addr, debug_mmu_mode, sz_word, sz_word, 0);
 			} else {
-				v = mmu_get_user_word (addr, regs.s != 0, (debug_mmu_mode & 1) ? true : false, false, sz_word);
+				if (debug_mmu_mode & 1) {
+					v = mmu_get_iword(addr, sz_word);
+				} else {
+					v = mmu_get_user_word (addr, regs.s != 0, false, sz_word);
+				}
 			}
 		} CATCH(p) {
 		} ENDTRY
@@ -334,7 +342,11 @@ uae_u32 get_long_debug (uaecptr addr)
 			if (currprefs.mmu_model == 68030) {
 				v = mmu030_get_generic (addr, debug_mmu_mode, sz_long, sz_long, 0);
 			} else {
-				v = mmu_get_user_long (addr, regs.s != 0, (debug_mmu_mode & 1) ? true : false, false, sz_long);
+				if (debug_mmu_mode & 1) {
+					v = mmu_get_ilong(addr, sz_long);
+				} else {
+					v = mmu_get_user_long (addr, regs.s != 0, false, sz_long);
+				}
 			}
 		} CATCH(p) {
 		} ENDTRY
@@ -372,7 +384,7 @@ static int safe_addr (uaecptr addr, int size)
 		regs.s = (debug_mmu_mode & 4) != 0;
 		TRY(p) {
 			if (currprefs.mmu_model >= 68040)
-				addr = mmu_translate (addr, regs.s != 0, (debug_mmu_mode & 1), false);
+				addr = mmu_translate (addr, 0, regs.s != 0, (debug_mmu_mode & 1), false, size);
 			else
 				addr = mmu030_translate (addr, regs.s != 0, (debug_mmu_mode & 1), false);
 		} CATCH(p) {
@@ -3776,6 +3788,8 @@ static void memory_map_dump_3(UaeMemoryMap *map, int log)
 
 				if (a1 != &dummy_bank) {
 					for (int m = 0; m < mirrored2; m++) {
+						if (map->num_regions >= UAE_MEMORY_REGIONS_MAX)
+							break;
 						UaeMemoryRegion *r = &map->regions[map->num_regions];
 						r->start = (j << 16) + bankoffset + region_size * m;
 						r->size = region_size;
@@ -5575,13 +5589,13 @@ static bool debug_line (TCHAR *input)
 					console_out_f (_T("S%dD%d="), super, data);
 					TRY(prb) {
 						if (currprefs.mmu_model >= 68040)
-							addrp = mmu_translate (addrl, super, data, false);
+							addrp = mmu_translate (addrl, 0, super, data, false, sz_long);
 						else
 							addrp = mmu030_translate (addrl, super, data, false);
 						console_out_f (_T("%08X"), addrp);
 						TRY(prb2) {
 							if (currprefs.mmu_model >= 68040)
-								addrp = mmu_translate (addrl, super, data, true);
+								addrp = mmu_translate (addrl, 0, super, data, true, sz_long);
 							else
 								addrp = mmu030_translate (addrl, super, data, true);
 							console_out_f (_T(" RW"));

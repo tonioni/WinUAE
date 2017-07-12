@@ -4807,7 +4807,7 @@ static void opcodedebug (uae_u32 pc, uae_u16 opcode, bool full)
 		;
 	fault = 0;
 	TRY(prb) {
-		addr = mmu_translate (pc, 0, (regs.mmu_ssw & 4) ? 1 : 0, 0, 0, sz_word, false);
+		addr = mmu_translate (pc, 0, (regs.mmu_ssw & 4) ? 1 : 0, 0, 0, sz_word);
 	} CATCH (prb) {
 		fault = 1;
 	} ENDTRY
@@ -7699,7 +7699,7 @@ void exception2 (uaecptr addr, bool read, int size, uae_u32 fc)
 			uae_u32 flags = size == 1 ? MMU030_SSW_SIZE_B : (size == 2 ? MMU030_SSW_SIZE_W : MMU030_SSW_SIZE_L);
 			mmu030_page_fault (addr, read, flags, fc);
 		} else {
-			mmu_bus_error (addr, 0, fc, read == false, size, false, 0, true);
+			mmu_bus_error (addr, 0, fc, read == false, size, 0, true);
 		}
 	} else {
 		last_addr_for_exception_3 = m68k_getpc() + bus_error_offset;
