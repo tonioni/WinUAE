@@ -3401,22 +3401,35 @@ uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
 
 #ifdef CPUEMU_0
 
+static bool mmu_op30_invea(uae_u32 opcode)
+{
+	int eamode = (opcode >> 3) & 7;
+	int rreg = opcode & 7;
+
+	// Dn, An, (An)+, -(An), immediate and PC-relative not allowed
+	if (eamode == 0 || eamode == 1 || eamode == 3 || eamode == 4 || eamode == 6 || (eamode == 7 && rreg > 1))
+		return true;
+	return false;
+}
+
 static bool mmu_op30fake_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 {
-	int mode = (opcode >> 3) & 7;
-	int rreg = opcode & 7;
 	int preg = (next >> 10) & 31;
 	int rw = (next >> 9) & 1;
 	int fd = (next >> 8) & 1;
+	int unused = (next & 0xff);
 	const TCHAR *reg = NULL;
 	uae_u32 otc = fake_tc_030;
 	int siz;
 
-	// Dn, An, (An)+, -(An), immediate and PC-relative not allowed
-	if (mode == 0 || mode == 1 || mode == 3 || mode == 4 || mode == 6 || (mode == 7 && rreg > 1)) {
-		op_illg (opcode);
+	if (mmu_op30_invea(opcode))
 		return true;
-	}
+	// unused low 8 bits must be zeroed
+	if (unused)
+		return true;
+	// read and fd set?
+	if (rw && fd)
+		return true;
 
 	switch (preg)
 	{
@@ -3451,6 +3464,10 @@ static bool mmu_op30fake_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecpt
 		}
 		break;
 	case 0x18: // MMUSR
+		if (fd) {
+			// FD must be always zero when MMUSR read or write
+			return true;
+		}
 		reg = _T("MMUSR");
 		siz = 2;
 		if (rw)
@@ -3476,10 +3493,9 @@ static bool mmu_op30fake_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecpt
 		break;
 	}
 
-	if (!reg) {
-		op_illg (opcode);
+	if (!reg)
 		return true;
-	}
+
 #if MMUOP_DEBUG > 0
 	{
 		uae_u32 val;
@@ -3513,6 +3529,16 @@ static bool mmu_op30fake_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecpt
 
 static bool mmu_op30fake_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 {
+	int eamode = (opcode >> 3) & 7;
+ 	int rreg = opcode & 7;
+    int level = (next&0x1C00)>>10;
+    int a = (next >> 8) & 1;
+
+	if (mmu_op30_invea(opcode))
+		return true;
+    if (!level && a)
+		return true;
+
 #if MMUOP_DEBUG > 0
 	TCHAR tmp[10];
 
@@ -3526,33 +3552,44 @@ static bool mmu_op30fake_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecpt
 	return false;
 }
 
+static bool mmu_op30fake_pload (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
+{
+  	int unused = (next & (0x100 | 0x80 | 0x40 | 0x20));
+
+	if (mmu_op30_invea(opcode))
+		return true;
+	if (unused)
+		return true;
+	write_log(_T("PLOAD\n"));
+	return false;
+}
+
 static bool mmu_op30fake_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 {
-	int mode = (opcode >> 3) & 7;
-	int rreg = opcode & 7;
-	int flushmode = (next >> 10) & 7;
+	int flushmode = (next >> 8) & 31;
 	int fc = next & 31;
 	int mask = (next >> 5) & 3;
+	int fc_bits = next & 0x7f;
 	TCHAR fname[100];
 
 	switch (flushmode)
 	{
-	case 6:
-		// Dn, An, (An)+, -(An), immediate and PC-relative not allowed
-		if (mode == 0 || mode == 1 || mode == 3 || mode == 4 || mode == 6 || (mode == 7 && rreg > 1)) {
-			op_illg (opcode);
+	case 0x00:
+		return mmu_op30fake_pload(pc, opcode, next, extra);
+	case 0x18:
+		if (mmu_op30_invea(opcode))
 			return true;
-		}
 		_stprintf (fname, _T("FC=%x MASK=%x EA=%08x"), fc, mask, 0);
 		break;
-	case 4:
+	case 0x10:
 		_stprintf (fname, _T("FC=%x MASK=%x"), fc, mask);
 		break;
-	case 1:
+	case 0x04:
+		if (fc_bits)
+			return true;
 		_tcscpy (fname, _T("ALL"));
 		break;
 	default:
-		op_illg (opcode);
 		return true;
 	}
 #if MMUOP_DEBUG > 0
@@ -3564,39 +3601,37 @@ static bool mmu_op30fake_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecp
 // 68030 (68851) MMU instructions only
 bool mmu_op30 (uaecptr pc, uae_u32 opcode, uae_u16 extra, uaecptr extraa)
 {
-	if (currprefs.mmu_model) {
-		if (extra & 0x8000) {
-			return mmu_op30_ptest (pc, opcode, extra, extraa);
-		} else if ((extra&0xE000)==0x2000 && (extra & 0x1C00)) {
-			return mmu_op30_pflush (pc, opcode, extra, extraa);
-		} else if ((extra&0xE000)==0x2000 && !(extra & 0x1C00)) {
-	        return mmu_op30_pload (pc, opcode, extra, extraa);
-		} else {
-			return mmu_op30_pmove (pc, opcode, extra, extraa);
-		}
-		return false;
-	}
-
 	int type = extra >> 13;
+	bool fline = false;
 
 	switch (type)
 	{
 	case 0:
 	case 2:
 	case 3:
-		return mmu_op30fake_pmove (pc, opcode, extra, extraa);
+		if (currprefs.mmu_model)
+			fline = mmu_op30_pmove (pc, opcode, extra, extraa); 
+		else
+			fline = mmu_op30fake_pmove (pc, opcode, extra, extraa);
 	break;
 	case 1:
-		return mmu_op30fake_pflush (pc, opcode, extra, extraa);
+		if (currprefs.mmu_model)
+			fline = mmu_op30_pflush (pc, opcode, extra, extraa); 
+		else
+			fline = mmu_op30fake_pflush (pc, opcode, extra, extraa);
 	break;
 	case 4:
-		return mmu_op30fake_ptest (pc, opcode, extra, extraa);
-	break;
-	default:
-		op_illg (opcode);
-		return true;
+		if (currprefs.mmu_model)
+			fline = mmu_op30_ptest (pc, opcode, extra, extraa);
+		else
+			fline = mmu_op30fake_ptest (pc, opcode, extra, extraa);
 	break;
 	}
+	if (fline) {
+		m68k_setpc(pc);
+		op_illg(opcode);
+	}
+	return fline;	
 }
 
 /* check if an address matches a ttr */

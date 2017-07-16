@@ -281,12 +281,33 @@ void mmu030_flush_atc_all(void) {
 
 /* -- MMU instructions -- */
 
+static bool mmu_op30_invea(uae_u32 opcode)
+{
+	int eamode = (opcode >> 3) & 7;
+	int rreg = opcode & 7;
+
+	// Dn, An, (An)+, -(An), immediate and PC-relative not allowed
+	if (eamode == 0 || eamode == 1 || eamode == 3 || eamode == 4 || eamode == 6 || (eamode == 7 && rreg > 1))
+		return true;
+	return false;
+}
+
 bool mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 {
 	int preg = (next >> 10) & 31;
 	int rw = (next >> 9) & 1;
 	int fd = (next >> 8) & 1;
-    
+ 	int unused = (next & 0xff);
+   
+	if (mmu_op30_invea(opcode))
+		return true;
+	// unused low 8 bits must be zeroed
+	if (unused)
+		return true;
+	// read and fd set?
+	if (rw && fd)
+		return true;
+
 #if MMU030_OP_DBG_MSG
     switch (preg) {
         case 0x10:
@@ -357,6 +378,10 @@ bool mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
             }
             break;
         case 0x18: // MMUSR
+			if (fd) {
+				// FD must be always zero when MMUSR read or write
+				return true;
+			}
             if (rw)
                 x_put_word (extra, mmusr_030);
             else
@@ -380,11 +405,10 @@ bool mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
             break;
         default:
             write_log (_T("Bad PMOVE at %08x\n"),m68k_getpc());
-            op_illg (opcode);
             return true;
 	}
     
-    if (!fd && !rw && !(preg==0x18)) {
+    if (!fd && !rw) {
         mmu030_flush_atc_all();
     }
 	tt_enabled = (tt0_030 & TT_ENABLE) || (tt1_030 & TT_ENABLE);
@@ -400,19 +424,13 @@ bool mmu_op30_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
     int a = (next >> 8) & 1;
     int areg = (next&0xE0)>>5;
     uae_u32 fc = mmu_op30_helper_get_fc(next);
-        
     bool write = rw ? false : true;
-
     uae_u32 ret = 0;
-    
-    /* Check this - datasheet says:
-     * "When the instruction specifies an address translation cache search
-     *  with an address register operand, the MC68030 takes an F-line
-     *  unimplemented instruction exception."
-     */
-    if (!level && a) { /* correct ? */
+
+	if (mmu_op30_invea(opcode))
+		return true;
+    if (!level && a) {
         write_log(_T("PTEST: Bad instruction causing F-line unimplemented instruction exception!\n"));
-        Exception(11); /* F-line unimplemented instruction exception */
         return true;
     }
         
@@ -446,12 +464,17 @@ bool mmu_op30_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 	return false;
 }
 
-bool mmu_op30_pload (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
+static bool mmu_op30_pload (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 {
     int rw = (next >> 9) & 1;
-    uae_u32 fc = mmu_op30_helper_get_fc(next);
-    
+  	int unused = (next & (0x100 | 0x80 | 0x40 | 0x20));
+	uae_u32 fc = mmu_op30_helper_get_fc(next);
     bool write = rw ? false : true;
+
+	if (mmu_op30_invea(opcode))
+		return true;
+	if (unused)
+		return true;
 
 #if 0
     write_log (_T("PLOAD%c: Create ATC entry for %08X, FC = %i\n"), write?'W':'R', extra, fc);
@@ -464,9 +487,10 @@ bool mmu_op30_pload (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 
 bool mmu_op30_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 {
-    uae_u16 mode = (next&0x1C00)>>10;
-    uae_u32 fc_mask = (uae_u32)(next&0x00E0)>>5;
+	uae_u16 mode = (next >> 8) & 31;
+    uae_u32 fc_mask = (uae_u32)(next & 0x00E0) >> 5;
     uae_u32 fc_base = mmu_op30_helper_get_fc(next);
+	uae_u32 fc_bits = next & 0x7f;
     
 #if 0
     switch (mode) {
@@ -488,19 +512,24 @@ bool mmu_op30_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 #endif
     
     switch (mode) {
-        case 0x1:
+		case 0x00:
+			return mmu_op30_pload(pc, opcode, next, extra);
+        case 0x04:
+			if (fc_bits)
+				return true;
             mmu030_flush_atc_all();
             break;
-        case 0x4:
+        case 0x10:
             mmu030_flush_atc_fc(fc_base, fc_mask);
             break;
-        case 0x6:
+        case 0x18:
+			if (mmu_op30_invea(opcode))
+				return true;
             mmu030_flush_atc_page_fc(extra, fc_base, fc_mask);
             break;
-            
         default:
             write_log(_T("PFLUSH ERROR: bad mode! (%i)\n"),mode);
-            break;
+			return true;
     }
 	return false;
 }

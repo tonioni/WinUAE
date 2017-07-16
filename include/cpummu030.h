@@ -42,7 +42,6 @@ void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc);
 
 bool mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
 bool mmu_op30_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
-bool mmu_op30_pload (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
 bool mmu_op30_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
 
 uae_u32 mmu_op30_helper_get_fc(uae_u16 next);
