@@ -22,6 +22,7 @@ void ini_addnewdata(struct ini_data *ini, const TCHAR *section, const TCHAR *key
 void ini_addnewcomment(struct ini_data *ini, const TCHAR *section, const TCHAR *val);
 
 bool ini_getstring(struct ini_data *ini, const TCHAR *section, const TCHAR *key, TCHAR **out);
+bool ini_getval(struct ini_data *ini, const TCHAR *section, const TCHAR *key, int *v);
 bool ini_getsectionstring(struct ini_data *ini, const TCHAR *section, int idx, TCHAR **keyout, TCHAR **valout);
 bool ini_getdata(struct ini_data *ini, const TCHAR *section, const TCHAR *key, uae_u8 **out, int *size);
 bool ini_addstring(struct ini_data *ini, const TCHAR *section, const TCHAR *key, const TCHAR *val);

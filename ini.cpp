@@ -22,6 +22,8 @@ static TCHAR *initrim(TCHAR *s)
 
 void ini_free(struct ini_data *ini)
 {
+	if (!ini)
+		return;
 	for(int c = 0; c < ini->inilines; c++) {
 		struct ini_line *il = ini->inidata[c];
 		if (il) {
@@ -84,8 +86,13 @@ void ini_addnewstring(struct ini_data *ini, const TCHAR *section, const TCHAR *k
 	il->section = my_strdup(section);
 	if (!_tcsicmp(section, _T("WinUAE")))
 		il->section_order = 1;
-	il->key = my_strdup(key);
-	il->value = my_strdup(val);
+	if (key == NULL) {
+		il->key = my_strdup(_T(""));
+		il->value = my_strdup(_T(""));
+	} else {
+		il->key = my_strdup(key);
+		il->value = my_strdup(val);
+	}
 	int cnt = 0;
 	while (cnt < ini->inilines && ini->inidata[cnt])
 		cnt++;
@@ -134,6 +141,8 @@ struct ini_data *ini_load(const TCHAR *path)
 	uae_u8 tmp[3];
 	struct ini_data ini = { 0 };
 
+	if (path == NULL || path[0] == 0)
+		return NULL;
 	FILE *f = _tfopen(path, _T("rb"));
 	if (!f)
 		return NULL;
@@ -165,7 +174,7 @@ struct ini_data *ini_load(const TCHAR *path)
 		TCHAR *s1 = _tcschr(s, '=');
 		if (s1) {
 			*s1++ = 0;
-			TCHAR *s2 = initrim(tbuffer);
+			TCHAR *s2 = my_strdup(initrim(tbuffer));
 			TCHAR *s3 = initrim(s1);
 			if (s3[0] == '\\' && s3[1] == 0) {
 				// multiline
@@ -180,6 +189,11 @@ struct ini_data *ini_load(const TCHAR *path)
 					s3 = initrim(tbuffer);
 					if (s3[0] == 0)
 						break;
+					bool nl = s3[_tcslen(s3) - 1] == '\\';
+					if (nl) {
+						s3[_tcslen(s3) - 1] = 0;
+						initrim(s3);
+					}
 					if (_tcslen(otxt) + _tcslen(s3) + 1 >= len) {
 						len += MAX_DPATH;
 						otxt = xrealloc(TCHAR, otxt, len);
@@ -187,12 +201,15 @@ struct ini_data *ini_load(const TCHAR *path)
 					_tcscat(otxt, s3);
 					xfree(s3);
 					s3 = NULL;
+					if (!nl)
+						break;
 				}
 				xfree(s3);
 				ini_addnewstring(&ini, section, s2, otxt);
 			} else {
 				ini_addnewstring(&ini, section, s2, s3);
 			}
+			xfree(s2);
 		}
 	}
 	fclose(f);
@@ -232,14 +249,16 @@ bool ini_save(struct ini_data *ini, const TCHAR *path)
 			fputws(out, f);
 			_tcscpy(section, il->section);
 		}
-		if (il->key[0] == 0) {
-			fputws(com, f);
-		} else {
-			fputws(il->key, f);
-			fputws(sep, f);
+		if (il->key[0] != 0 || il->value[0] != 0) {
+			if (il->key[0] == 0) {
+				fputws(com, f);
+			} else {
+				fputws(il->key, f);
+				fputws(sep, f);
+			}
+			fputws(il->value, f);
+			fputws(lf, f);
 		}
-		fputws(il->value, f);
-		fputws(lf, f);
 	}
 	fclose(f);
 	return true;
@@ -247,9 +266,11 @@ bool ini_save(struct ini_data *ini, const TCHAR *path)
 
 bool ini_getstring(struct ini_data *ini, const TCHAR *section, const TCHAR *key, TCHAR **out)
 {
+	if (!ini)
+		return false;
 	for (int c = 0; c < ini->inilines; c++) {
 		struct ini_line *il = ini->inidata[c];
-		if (il && !_tcscmp(section, il->section) && (key == NULL || !_tcscmp(key, il->key))) {
+		if (il && !_tcsicmp(section, il->section) && (key == NULL || !_tcsicmp(key, il->key))) {
 			if (out) {
 				*out = my_strdup(il->value);
 			}
@@ -257,6 +278,16 @@ bool ini_getstring(struct ini_data *ini, const TCHAR *section, const TCHAR *key,
 		}
 	}
 	return false;
+}
+
+bool ini_getval(struct ini_data *ini, const TCHAR *section, const TCHAR *key, int *v)
+{
+	TCHAR *out2 = NULL;
+	if (!ini_getstring(ini, section, key, &out2))
+		return false;
+	*v = _tstol(out2);
+	xfree(out2);
+	return true;
 }
 
 bool ini_getdata(struct ini_data *ini, const TCHAR *section, const TCHAR *key, uae_u8 **out, int *size)
@@ -283,13 +314,13 @@ bool ini_getdata(struct ini_data *ini, const TCHAR *section, const TCHAR *key, u
 				outp[j++] = (uae_u8)c1;
 				i++;
 			} else {
-				if (c1 == ' ') {
+				TCHAR c2 = _totupper(out2[i + 1]);
+				if (c1 > 0 && c1 <= ' ') {
 					i++;
 					continue;
 				}
 				if (i + 1 >= len)
 					goto err;
-				TCHAR c2 = _totupper(out2[i + 1]);
 				if (c1 >= 'A')
 					c1 -= 'A' - 10;
 				else if (c1 >= '0')
@@ -322,7 +353,7 @@ bool ini_getsectionstring(struct ini_data *ini, const TCHAR *section, int idx, T
 {
 	for (int c = 0; c < ini->inilines; c++) {
 		struct ini_line *il = ini->inidata[c];
-		if (il && !_tcscmp(section, il->section)) {
+		if (il && !_tcsicmp(section, il->section)) {
 			if (idx == 0) {
 				if (keyout) {
 					*keyout = my_strdup(il->key);
@@ -342,10 +373,12 @@ bool ini_addstring(struct ini_data *ini, const TCHAR *section, const TCHAR *key,
 {
 	for (int c = 0; c < ini->inilines; c++) {
 		struct ini_line *il = ini->inidata[c];
-		if (il && !_tcscmp(section, il->section)) {
-			if (!_tcscmp(key, il->key)) {
+		if (il && !_tcsicmp(section, il->section)) {
+			if (il->key == NULL)
+				return true;
+			if (!_tcsicmp(key, il->key)) {
 				xfree(il->value);
-				il->value = my_strdup(val);
+				il->value = my_strdup(val ? val : _T(""));
 				return true;
 			}
 		}
@@ -358,7 +391,7 @@ bool ini_delete(struct ini_data *ini, const TCHAR *section, const TCHAR *key)
 {
 	for (int c = 0; c < ini->inilines; c++) {
 		struct ini_line *il = ini->inidata[c];
-		if (il && !_tcscmp(section, il->section) && (key == NULL || !_tcscmp(key, il->key))) {
+		if (il && !_tcsicmp(section, il->section) && (key == NULL || !_tcsicmp(key, il->key))) {
 			xfree(il->section);
 			xfree(il->key);
 			xfree(il->value);
