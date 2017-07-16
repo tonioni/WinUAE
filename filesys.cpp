@@ -8049,8 +8049,13 @@ static int pt_babe(TrapContext *ctx, uae_u8 *bufrdb, UnitInfo *uip, int unit_no,
 	struct uaedev_config_info *ci = &uip[unit_no].hf.ci;
 	uae_u32 bad;
 	
-	// blocksize != 128?
-	if (bufrdb[0x20] != 0 || bufrdb[0x21] != 0 || bufrdb[0x22] != 0 || bufrdb[0x23] != 0x80)
+	uae_u32 bs = (bufrdb[0x20] << 24) | (bufrdb[0x21] << 16) | (bufrdb[0x22] << 8) | (bufrdb[0x23] << 0);
+	int bscnt;
+	for (bscnt = 512; bscnt <= 32768; bscnt <<= 1) {
+		if (bs == (bscnt >> 2))
+			break;
+	}
+	if (bscnt > 32768)
 		return 0;
 
 	bad = rl(bufrdb + 4);

@@ -15,6 +15,7 @@
 #include "registry.h"
 #include "win32gui.h"
 #include "zfile.h"
+#include "ini.h"
 
 #define hfd_log write_log
 #define hdf_log2
@@ -65,6 +66,8 @@ struct uae_driveinfo {
 	bool partitiondrive;
 	int readonly;
 	int cylinders, sectors, heads;
+	int BusType;
+
 };
 
 #define HDF_HANDLE_WIN32 1
@@ -376,6 +379,107 @@ int isharddrive (const TCHAR *name)
 
 static TCHAR *hdz[] = { _T("hdz"), _T("zip"), _T("rar"), _T("7z"), NULL };
 
+static int progressdialogreturn;
+static int progressdialogactive;
+
+static INT_PTR CALLBACK ProgressDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	switch(msg)
+	{
+	case WM_DESTROY:
+		PostQuitMessage (0);
+		progressdialogactive = 0;
+		return TRUE;
+	case WM_CLOSE:
+		if (progressdialogreturn < 0)
+			progressdialogreturn = 0;
+		return TRUE;
+	case WM_INITDIALOG:
+		return TRUE;
+	case WM_COMMAND:
+		switch (LOWORD(wParam))
+		{
+		case IDCANCEL:
+			progressdialogreturn = 0;
+			return TRUE;
+		}
+		break;
+	}
+	return FALSE;
+}
+
+typedef struct _SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER {
+	SCSI_PASS_THROUGH_DIRECT spt;
+	ULONG Filler;
+	UCHAR SenseBuf[32];
+} SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER;
+
+static bool do_scsi_in(HANDLE h, const uae_u8 *cdb, int cdblen, uae_u8 *in, int insize)
+{
+	SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER swb;
+	DWORD status, returned;
+
+	memset(&swb, 0, sizeof swb);
+	swb.spt.Length = sizeof (SCSI_PASS_THROUGH);
+	swb.spt.CdbLength = cdblen;
+	swb.spt.DataIn = insize > 0 ? SCSI_IOCTL_DATA_IN : 0;
+	swb.spt.DataTransferLength = insize;
+	swb.spt.DataBuffer = in;
+	swb.spt.TimeOutValue = 2 * 60;
+	swb.spt.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, SenseBuf);
+	swb.spt.SenseInfoLength = 32;
+	memcpy(swb.spt.Cdb, cdb, cdblen);
+	status = DeviceIoControl (h, IOCTL_SCSI_PASS_THROUGH_DIRECT,
+		&swb, sizeof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER),
+		&swb, sizeof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER),
+		&returned, NULL);
+	if (!status) {
+		DWORD err = GetLastError();
+		write_log(_T("IOCTL_SCSI_PASS_THROUGH_DIRECT: "));
+		for (int i = 0; i < cdblen; i++) {
+			write_log(_T("%02X."), cdb[i]);
+		}
+		write_log(_T(" failed %08x\n"), err);
+		return false;
+	} else if (swb.spt.ScsiStatus) {
+		write_log(_T("IOCTL_SCSI_PASS_THROUGH_DIRECT: "));
+		for (int i = 0; i < cdblen; i++) {
+			write_log(_T("%02X."), cdb[i]);
+		}
+		write_log(_T("\n"));
+		write_log(_T("SENSE: "));
+		for (int i = 0; i < swb.spt.SenseInfoLength; i++) {
+			write_log(_T("%02X."), swb.SenseBuf[i]);
+		}
+		write_log(_T("\n"));
+		return false;
+	}
+	return true;
+}
+
+#if 0
+static const uae_u8 inquiry[] = { 0x12, 0x01, 0x81, 0, 0xf0, 0 };
+static const uae_u8 modesense[] = { 0x1a, 0x00, 0x3f, 0, 0xf0, 0 };
+
+static void scsidirect(HANDLE h)
+{
+	uae_u8 *inbuf;
+
+	inbuf = (uae_u8*)VirtualAlloc (NULL, 65536, MEM_COMMIT, PAGE_READWRITE);
+
+	do_scsi_in(h, modesense, 6, inbuf, 0xf0);
+	do_scsi_in(h, inquiry, 6, inbuf, 0xf0);
+	do_scsi_in(h, realtek_read, 6, inbuf, 0xff00);
+
+	FILE *f = fopen("c:\\temp\\identity.bin", "wb");
+	fwrite(inbuf, 1, 512, f);
+	fclose(f);
+
+	VirtualFree(inbuf, 65536, MEM_RELEASE);
+}
+
+#endif
+
 #if 0
 static void getserial (HANDLE h)
 {
@@ -383,12 +487,8 @@ static void getserial (HANDLE h)
 	DISK_GEOMETRY_EX *out;
 	VOLUME_DISK_EXTENTS *vde;
 
-	DWORD serial, mcl, fsflags;
-	if (GetVolumeInformationByHandleW (h, NULL, 0, &serial, &mcl, &fsflags, NULL, 0)) {
-	}
-
 	outsize = sizeof (DISK_GEOMETRY_EX) + 10 * (sizeof (DISK_DETECTION_INFO) + sizeof (DISK_PARTITION_INFO));
-	out = xmalloc (outsize);
+	out = (DISK_GEOMETRY_EX*)xmalloc(uae_u8, outsize);
 	if (DeviceIoControl (h, IOCTL_DISK_GET_DRIVE_GEOMETRY_EX, NULL, 0, out, outsize, &written, NULL)) {
 		DISK_DETECTION_INFO *ddi = DiskGeometryGetDetect (out);
 		DISK_PARTITION_INFO *dpi = DiskGeometryGetPartition (out);
@@ -398,7 +498,7 @@ static void getserial (HANDLE h)
 
 
 	outsize = sizeof (VOLUME_DISK_EXTENTS) + sizeof (DISK_EXTENT) * 10;
-	vde = xmalloc (outsize);
+	vde = (VOLUME_DISK_EXTENTS*)xmalloc(uae_u8, outsize);
 	if (DeviceIoControl (h, IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, NULL, 0, vde, outsize, &written, NULL)) {
 		if (vde->NumberOfDiskExtents > 0)
 			write_log(_T("%d\n"), vde->Extents[0].DiskNumber);
@@ -408,7 +508,7 @@ static void getserial (HANDLE h)
 #endif
 
 #if 0
-static void queryidentifydevice (struct hardfiledata *hfd)
+static void queryataidentity(HANDLE h)
 {
 	DWORD r, size;
 	uae_u8 *b;
@@ -417,21 +517,578 @@ static void queryidentifydevice (struct hardfiledata *hfd)
 	size = sizeof (ATA_PASS_THROUGH_EX) + 512;
 	b = xcalloc (uae_u8, size);
 	ata = (ATA_PASS_THROUGH_EX*)b;
+	uae_u8 *data = b + sizeof(ATA_PASS_THROUGH_EX);
 
-	ata->Length = sizeof ata;
+	ata->Length = sizeof(ATA_PASS_THROUGH_EX);
 	ata->DataTransferLength = 512;
 	ata->TimeOutValue = 10;
 	ata->AtaFlags = ATA_FLAGS_DRDY_REQUIRED | ATA_FLAGS_DATA_IN;
-	ata->CurrentTaskFile[6] = 0xec;
-	ata->DataBufferOffset = ata->Length;
+	IDEREGS* ir = (IDEREGS*)ata->CurrentTaskFile;
+	ir->bCommandReg = ID_CMD;
+	ata->DataBufferOffset = data - b;
 	
-	if (!DeviceIoControl (hfd->handle->h, IOCTL_ATA_PASS_THROUGH, b, size, b, size, &r, NULL)) {
+	if (!DeviceIoControl (h, IOCTL_ATA_PASS_THROUGH, b, size, b, size, &r, NULL)) {
 		write_log (_T("IOCTL_ATA_PASS_THROUGH_DIRECT Identify Device failed %d\n"), GetLastError ());
 	}
+
+	xfree(b);
 }
 #endif
 
 static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_driveinfo *udi, int ignoreduplicates);
+
+#if 0
+typedef enum _STORAGE_PROTOCOL_TYPE { 
+  ProtocolTypeUnknown      = 0x00,
+  ProtocolTypeScsi,
+  ProtocolTypeAta,
+  ProtocolTypeNvme,
+  ProtocolTypeSd,
+  ProtocolTypeProprietary  = 0x7E,
+  ProtocolTypeMaxReserved  = 0x7F
+} STORAGE_PROTOCOL_TYPE, *PSTORAGE_PROTOCOL_TYPE;
+
+typedef struct _STORAGE_PROTOCOL_SPECIFIC_DATA {
+  STORAGE_PROTOCOL_TYPE ProtocolType;
+  DWORD                 DataType;
+  DWORD                 ProtocolDataRequestValue;
+  DWORD                 ProtocolDataRequestSubValue;
+  DWORD                 ProtocolDataOffset;
+  DWORD                 ProtocolDataLength;
+  DWORD                 FixedProtocolReturnData;
+  DWORD                 Reserved[3];
+} STORAGE_PROTOCOL_SPECIFIC_DATA, *PSTORAGE_PROTOCOL_SPECIFIC_DATA;
+
+typedef enum _STORAGE_PROTOCOL_ATA_DATA_TYPE { 
+  AtaDataTypeUnknown   = 0,
+  AtaDataTypeIdentify,
+  AtaDataTypeLogPage
+} STORAGE_PROTOCOL_ATA_DATA_TYPE, *PSTORAGE_PROTOCOL_ATA_DATA_TYPE;
+
+static void getstorageproperty_ataidentity(HANDLE hDevice)
+{
+	DWORD returnedLength;
+	DWORD bufferLength = FIELD_OFFSET(STORAGE_PROPERTY_QUERY, AdditionalParameters) + sizeof(STORAGE_PROTOCOL_SPECIFIC_DATA) + 512;
+	uae_u8 *buffer = xcalloc(uae_u8, bufferLength);
+	PSTORAGE_PROPERTY_QUERY query = (PSTORAGE_PROPERTY_QUERY)buffer;
+	PSTORAGE_PROTOCOL_SPECIFIC_DATA protocolData = (PSTORAGE_PROTOCOL_SPECIFIC_DATA)query->AdditionalParameters;
+
+	query->PropertyId = (STORAGE_PROPERTY_ID)50;
+	query->QueryType = PropertyStandardQuery;
+
+	protocolData->ProtocolType = ProtocolTypeAta;
+	protocolData->DataType = AtaDataTypeIdentify;
+	protocolData->ProtocolDataOffset = sizeof(STORAGE_PROTOCOL_SPECIFIC_DATA);
+    protocolData->ProtocolDataLength = 512;
+
+	DWORD status = DeviceIoControl(
+		hDevice,
+		IOCTL_STORAGE_QUERY_PROPERTY,
+		query,
+		bufferLength,
+		query,
+		bufferLength,
+		&returnedLength,
+		NULL);
+
+	DWORD spqerr = GetLastError();
+
+	xfree(buffer);
+}
+#endif
+
+static void bintotextpart(TCHAR *out, uae_u8 *data, int size)
+{
+	for (int i = 0; i < size; i++) {
+		uae_u8 b = data[i];
+		if (b >= 32 && b < 127)
+			out[i] = (TCHAR)b;
+		else
+			out[i] = '.';
+	}
+	out[size] = 0;
+}
+
+static void bintotextline(TCHAR *out, uae_u8 *data, int size)
+{
+	TCHAR tmp2[MAX_DPATH];
+	int w = 32;
+	for (int i = 0; i < size; i += w) {
+		for (int j = 0; j < w + 1 + w / 2; j++) {
+			tmp2[j * 2 + 0] = ' ';
+			tmp2[j * 2 + 1] = ' ';
+		}
+		for (int j = 0; j < w && j + i < size; j++) {
+			uae_u8 b = data[i + j];
+			_stprintf (tmp2 + j * 2, _T("%02X"), b);
+			tmp2[j * 2 + 2] = ' ';
+			if (b >= 32 && b < 127)
+				tmp2[w * 2 + 1 + j] = (TCHAR)b;
+			else
+				tmp2[w * 2 + 1 + j] = '.';
+		}
+		tmp2[w * 2] = ' ';
+		tmp2[w * 2 + 1 + w] = 0;
+		_tcscat (out, tmp2);
+		_tcscat (out, _T("\r\n"));
+	}
+}
+
+void gui_infotextbox(HWND hDlg, const TCHAR *text);
+
+static bool hd_get_meta_ata(HWND hDlg, HANDLE h, uae_u8 *datap)
+{
+	DWORD r, size;
+	uae_u8 *b;
+	ATA_PASS_THROUGH_EX *ata;
+
+	size = sizeof (ATA_PASS_THROUGH_EX) + 512;
+	b = xcalloc (uae_u8, size);
+	ata = (ATA_PASS_THROUGH_EX*)b;
+	uae_u8 *data = b + sizeof(ATA_PASS_THROUGH_EX);
+	ata->Length = sizeof(ATA_PASS_THROUGH_EX);
+	ata->DataTransferLength = 512;
+	ata->TimeOutValue = 10;
+	ata->AtaFlags = ATA_FLAGS_DRDY_REQUIRED | ATA_FLAGS_DATA_IN;
+	IDEREGS* ir = (IDEREGS*)ata->CurrentTaskFile;
+	ir->bCommandReg = ID_CMD;
+	ata->DataBufferOffset = data - b;
+		if (!DeviceIoControl (h, IOCTL_ATA_PASS_THROUGH, b, size, b, size, &r, NULL)) {
+		write_log (_T("IOCTL_ATA_PASS_THROUGH_DIRECT ID_CMD failed %08x\n"), GetLastError());
+		return false;
+	}
+	memcpy(datap, data, 512);
+	xfree(b);
+	return true;
+}
+
+#define INQUIRY_LEN 240
+
+static const uae_u8 realtek_inquiry_0x83[] = { 0x12, 0x01, 0x83, 0, 0xf0, 0 };
+static const uae_u8 realtek_read[] = { 0xf0, 0x0d, 0xfa, 0x00, 0x02, 0x00 };
+
+static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq)
+{
+	uae_u8 cmd[16];
+
+	memset(data, 0, 512);
+	memcpy(cmd, realtek_inquiry_0x83, sizeof(realtek_inquiry_0x83));
+	if (!do_scsi_in(h, cmd, 6, data, 0xf0))
+		return false;
+	if (memcmp(data + 20, "realtek\0", 8)) {
+		memset(data, 0, 512);
+		return false;
+	}
+
+	memset(data, 0, 512);
+	memcpy(cmd, realtek_read, sizeof(realtek_read));
+	if (!do_scsi_in(h, cmd, 6, data, 512)) {
+		memset(data, 0, 512);
+		return false;
+	}
+
+	int state = 0;
+
+	memset(cmd, 0, 6); // TEST UNIT READY
+	TCHAR *infotxt;
+	if (!do_scsi_in(h, cmd, 6, data, 0)) {
+		state = 1;
+		infotxt = _T("Realtek hack, insert card.");
+	} else {
+		infotxt = _T("Realtek hack, remove and insert the card.");
+	}
+
+	progressdialogreturn = -1;
+	progressdialogactive = 1;
+	HWND hwnd = CustomCreateDialog(IDD_PROGRESSBAR, hDlg, ProgressDialogProc);
+	if (hwnd == NULL)
+		return false;
+	HWND hwndprogress = GetDlgItem (hwnd, IDC_PROGRESSBAR);
+	ShowWindow(hwndprogress, SW_HIDE);
+	HWND hwndprogresstxt = GetDlgItem (hwnd, IDC_PROGRESSBAR_TEXT);
+	ShowWindow(hwnd, SW_SHOW);
+
+	int tcnt = 0;
+	for (;;) {
+		if (progressdialogreturn >= 0)
+			break;
+		MSG msg;
+		SendMessage (hwndprogresstxt, WM_SETTEXT, 0, (LPARAM)infotxt);
+		while (PeekMessage (&msg, hwnd, 0, 0, PM_REMOVE)) {
+			if (!IsDialogMessage (hwnd, &msg)) {
+				TranslateMessage (&msg);
+				DispatchMessage (&msg);
+			}
+		}
+		Sleep(100);
+		tcnt++;
+		if (tcnt >= 10) {
+			memset(cmd, 0, 6);
+			if (do_scsi_in(h, cmd, 6, data, 0)) {
+				if (state != 0) {
+					break;
+				}
+			} else {
+				if (state == 0) {
+					state++;
+					infotxt = _T("Removed. Re-insert the card.");
+				}
+			}
+			tcnt = 0;
+		}
+	}
+
+	if (progressdialogactive) {
+		DestroyWindow (hwnd);
+		MSG msg;
+		while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
+			TranslateMessage (&msg);
+			DispatchMessage (&msg);
+		}
+	}
+
+	memset(data, 0, 512);
+	memcpy(cmd, realtek_read, sizeof(realtek_read));
+	if (do_scsi_in(h, cmd, 6, data, 512))
+		return true;
+
+	return false;
+}
+
+static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, struct ini_data *ini)
+{
+	uae_u8 cmd[16];
+	TCHAR cline[256];
+
+	memset(cmd, 0, sizeof(cmd));
+	cmd[0] = 0x12; // inquiry
+	cmd[4] = INQUIRY_LEN;
+	if (!do_scsi_in(h, cmd, 6, data, INQUIRY_LEN)) {
+		write_log(_T("SAT: INQUIRY failed\n"));
+		return false;
+	}
+
+	int type = data[0] & 0x3f;
+
+	_tcscat (text, _T("INQUIRY:\r\n"));
+	int len = INQUIRY_LEN;
+	while (len > 0) {
+		len--;
+		if (data[len] != 0)
+			break;
+	}
+	len += 3;
+	len &= ~3;
+	bintotextline(text, data, len);
+	_tcscat (text, _T("\r\n"));
+	bintotextpart(cline, data + 8, 44 - 8);
+	ini_addnewcomment(ini, _T("INQUIRY"), cline);
+	ini_addnewdata(ini, _T("INQUIRY"), _T("00"), data, len);
+
+	memset(data, 0, 512);
+	memset(cmd, 0, sizeof(cmd));
+	cmd[0] = 0x25;
+	if (do_scsi_in(h, cmd, 10, data, 8)) {
+		_tcscat (text, _T("READ CAPACITY:\r\n"));
+		bintotextline(text, data, 8);
+		_tcscat (text, _T("\r\n"));
+		ini_addnewdata(ini, _T("READ CAPACITY"), _T("DATA"), data, 8);
+	}
+
+	// get supported evpd pages
+	memset(data, 0, 512);
+	memset(cmd, 0, sizeof(cmd));
+	cmd[0] = 0x12; // inquiry
+	cmd[1] = 1;
+	cmd[4] = INQUIRY_LEN;
+	if (do_scsi_in(h, cmd, 6, data, INQUIRY_LEN)) {
+		uae_u8 evpd[256];
+		int cnt = 0;
+		uae_u8 pl = data[3];
+		uae_u8 *p = &data[4];
+		while (pl != 0) {
+			if (*p) {
+				evpd[cnt++] = *p;
+			}
+			p++;
+			pl--;
+		}
+		for (int i = 0; i < cnt; i++) {
+			for (int j = i + 1; j < cnt; j++) {
+				if (evpd[i] > evpd[j]) {
+					uae_u8 t = evpd[i];
+					evpd[i] = evpd[j];
+					evpd[j] = t;
+				}
+			}
+		}
+		for (int i = 0; i < cnt; i++) {
+			cmd[2] = evpd[i];
+			memset(data, 0, 512);
+			if (do_scsi_in(h, cmd, 6, data, INQUIRY_LEN)) {
+				TCHAR tmp[256];
+				_stprintf(tmp, _T("INQUIRY %02X:\r\n"), evpd[i]);
+				_tcscat (text, tmp);
+				int len = INQUIRY_LEN;
+				while (len > 0) {
+					len--;
+					if (data[len] != 0)
+						break;
+				}
+				len += 3;
+				len &= ~3;
+				bintotextline(text, data, len);
+				_tcscat (text, _T("\r\n"));
+				_stprintf(tmp, _T("%02X"), evpd[i]);
+				ini_addnewdata(ini, _T("INQUIRY"),tmp, data, len);
+			}
+		}
+	}
+
+	// get mode sense pages
+	memset(data, 0, 512);
+	memset(cmd, 0, sizeof(cmd));
+	cmd[0] = 0x5a;
+	cmd[2] = 0x80 | 0x3f;
+	cmd[7] = 0xff;
+	cmd[8] = 0;
+	if (do_scsi_in(h, cmd, 10, data, 0xff00)) {
+		TCHAR tmp[256];
+		int l = (data[0] << 8) | data[1];
+		_tcscat (text, _T("MODE SENSE:\r\n"));
+		bintotextline(text, data + 2, 4);
+		_tcscat (text, _T("\r\n"));
+		ini_addnewdata(ini, _T("MODE SENSE"),_T("PARAMETER LIST"), data + 2, 4);
+		uae_u16 dbd = (data[6] << 8) | data[7];
+		if (dbd) {
+			_tcscat (text, _T("MODE SENSE BLOCK DESCRIPTOR DATA:\r\n"));
+			bintotextline(text, data + 8, dbd);
+			_tcscat (text, _T("\r\n"));
+			ini_addnewdata(ini, _T("MODE SENSE"), _T("BLOCK DESCRIPTOR DATA"), data + 8, dbd);
+		}
+		l -= 8 + dbd;
+		uae_u8 *p = &data[8 + dbd];
+		while (l >= 2) {
+			uae_u8 page = p[0];
+			uae_u8 pl = p[1];
+			_stprintf(tmp, _T("MODE SENSE %02X:\r\n"), page);
+			_tcscat (text, tmp);
+			bintotextline(text, p, pl + 2);
+			_tcscat (text, _T("\r\n"));
+			_stprintf(tmp, _T("%02X"), page);
+			ini_addnewdata(ini, _T("MODE SENSE"), tmp, p, pl + 2);
+			p += 2 + pl;
+			l -= 2 + pl;
+		}
+	}
+
+	if (type != 0 && type != 05) {
+		write_log(_T("SAT: Not Direct access or CD device\n"));
+		return false;
+	}
+
+	if (type == 5) {
+
+		memset(cmd, 0, sizeof(cmd));
+		memset(data, 0, 512);
+		cmd[0] = 0x85; // SAT ATA PASSTHROUGH (16)
+		cmd[1] = 4 << 1; // PIO data-in
+		cmd[2] = 0x08 | 0x04 | 0x02; // dir = from device, 512 byte block, sector count = block cnt
+		cmd[6] = 1; // block count
+		cmd[14] = 0xa1; // identity packet device
+		if (do_scsi_in(h, cmd, 16, data, 512))
+			return true;
+		write_log(_T("SAT: ATA PASSTHROUGH(16) failed\n"));
+
+	} else {
+
+		memset(cmd, 0, sizeof(cmd));
+		memset(data, 0, 512);
+		cmd[0] = 0xa1; // SAT ATA PASSTHROUGH (12)
+		cmd[1] = 4 << 1; // PIO data-in
+		cmd[2] = 0x08 | 0x04 | 0x02; // dir = from device, 512 byte block, sector count = block cnt
+		cmd[4] = 1; // block count
+		cmd[9] = 0xec; // identity
+		if (do_scsi_in(h, cmd, 12, data, 512))
+			return true;
+		write_log(_T("SAT: ATA PASSTHROUGH(12) failed\n"));
+	}
+
+	return false;
+}
+
+static int stringboxdialogactive;
+static TCHAR geometry_file[MAX_DPATH];
+static struct ini_data *hdini;
+static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	switch(msg)
+	{
+	case WM_DESTROY:
+		PostQuitMessage (0);
+		return TRUE;
+	case WM_CLOSE:
+		stringboxdialogactive = 0;
+		DestroyWindow (hDlg);
+		return TRUE;
+	case WM_INITDIALOG:
+		geometry_file[0] = 0;
+		ShowWindow(GetDlgItem (hDlg, IDC_SAVEBOOTBLOCK), SW_SHOW);
+		SetWindowText(hDlg, _T("Harddrive information"));
+		return TRUE;
+	case WM_COMMAND:
+		switch (LOWORD (wParam))
+		{
+		case IDC_SAVEBOOTBLOCK:
+			if (DiskSelection(hDlg, 0, 24, &workprefs, geometry_file)) {
+				ini_save(hdini, geometry_file);
+			}
+			break;
+		case IDOK:
+			stringboxdialogactive = -1;
+			DestroyWindow (hDlg);
+			return TRUE;
+		case IDCANCEL:
+			stringboxdialogactive = 0;
+			DestroyWindow (hDlg);
+			return TRUE;
+		}
+		break;
+	}
+	return FALSE;
+}
+
+void ata_byteswapidentity(uae_u8 *d);
+
+void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
+{
+	struct uae_driveinfo *udi = &uae_drives[idx];
+	bool satl = false;
+	uae_u8 *data = NULL;
+	uae_u8 inq[INQUIRY_LEN + 4] = { 0 };
+	TCHAR *text;
+	struct ini_data *ini = NULL;
+
+	geometryfile[0] = 0;
+	text = xcalloc(TCHAR, 10000);
+
+	HANDLE h = CreateFile(udi->device_path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+		NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+	if (h == INVALID_HANDLE_VALUE) {
+		write_log(_T("CreateFile('%s') failed, err=%08x\n"), udi->device_path, GetLastError());
+		goto end;
+	}
+
+	ini = ini_new();
+	ini_addstring(ini, _T("GEOMETRY"), NULL, NULL);
+	data = (uae_u8*)VirtualAlloc (NULL, 65536, MEM_COMMIT, PAGE_READWRITE);
+	inq[0] = 0xff;
+
+	if (udi->BusType == BusTypeAta || udi->BusType == BusTypeSata) {
+		if (!_tcscmp(udi->vendor_id, _T("ATA     "))) {
+			satl = true;
+		}
+	}
+
+	_stprintf(text, _T("BusType: 0x%02x\r\nVendor: '%s'\r\nProduct: '%s'\r\nRevision: '%s'\r\nSerial: '%s'\r\nSize: %llu\r\n\r\n"),
+		 udi->BusType, udi->vendor_id, udi->product_id, udi->product_rev, udi->product_serial, udi->size);
+
+	if (satl || udi->BusType == BusTypeScsi || udi->BusType == BusTypeUsb || udi->BusType == BusTypeRAID) {
+		if (!hd_get_meta_satl(hDlg, h, data, text, ini)) {
+			write_log(_T("SAT Passthrough failed\n"));
+			memset(data, 0, 512);
+			if (udi->BusType == BusTypeUsb) {
+				hd_get_meta_hack(hDlg, h, data, inq);
+			}
+			if (text[0] == 0) {
+				_tcscpy(text, _T("SCSI ATA Passthrough error!"));
+				goto doout;
+			}
+		}
+	} else if (udi->BusType == BusTypeAta || udi->BusType == BusTypeSata) {
+		if (!hd_get_meta_ata(hDlg, h, data)) {
+			write_log(_T("ATA Passthrough failed\n"));
+			_tcscpy(text, _T("ATA Passthrough error!"));
+			goto doout;
+		}
+	} else {
+		_stprintf(text, _T("Unsupported bus type %02x\n"), udi->BusType);
+		goto doout;
+	}
+
+	bool empty = true;
+	for (int i = 0; i < 512; i++) {
+		if (data[i] != 0)
+			empty = false;
+	}
+
+	if (empty) {
+		write_log(_T("Nothing returned!\n"));
+		if (text[0] == 0) {
+			_tcscpy(text, _T("Nothing returned!"));
+			goto doout;
+		}
+	}
+
+	ata_byteswapidentity(data);
+
+	if (!empty) {
+		TCHAR cline[256];
+		_tcscat (text, _T("IDENTITY:\r\n"));
+		bintotextline(text, data, 512);
+
+		bintotextpart(cline, data + 27 * 2, 40);
+		ini_addnewcomment(ini, _T("IDENTITY"), cline);
+		bintotextpart(cline, data + 23 * 2, 8);
+		ini_addnewcomment(ini, _T("IDENTITY"), cline);
+		bintotextpart(cline, data + 10 * 2, 20);
+		ini_addnewcomment(ini, _T("IDENTITY"), cline);
+
+		ini_addnewdata(ini, _T("IDENTITY"), _T("DATA"), data, 512);
+	}
+
+doout:
+	stringboxdialogactive = 1;
+	hdini = ini;
+	HWND hwnd = CustomCreateDialog (IDD_DISKINFO, hDlg, StringBoxDialogProc);
+	if (hwnd != NULL) {
+		HFONT font = CreateFont (12, 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
+		if (font)
+			SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETFONT, WPARAM(font), FALSE);
+		SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETTEXT, 0, (LPARAM)text);
+		while (stringboxdialogactive == 1) {
+			MSG msg;
+			int ret;
+			WaitMessage ();
+			while ((ret = GetMessage (&msg, NULL, 0, 0))) {
+				if (ret == -1)
+					break;
+				if (!IsWindow (hwnd) || !IsDialogMessage (hwnd, &msg)) {
+					TranslateMessage (&msg);
+					DispatchMessage (&msg);
+				}
+			}
+			if (stringboxdialogactive == -1)
+				break;
+		}
+		DeleteObject (font);
+	}
+
+end:
+	if (ini)
+		ini_free(ini);
+
+	if (data)
+		VirtualFree(data, 65536, MEM_RELEASE);
+
+	if (h != INVALID_HANDLE_VALUE)
+		CloseHandle(h);
+
+	_tcscpy(geometryfile, geometry_file);
+
+	xfree(text);
+}
 
 static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 {
@@ -469,6 +1126,8 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 			}
 		}
 	}
+
+	//queryidentifydevice(hDevice);
 
 	udi->device_name[0] = 0;
 	memset (outBuf, 0, sizeof outBuf);
@@ -729,6 +1388,9 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 				if (udi->readonly)
 					hfd->ci.readonly = 1;
 			}
+
+			//hfd->ci.readonly = false;
+
 			flags = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
 			h = CreateFile (udi->device_path,
 				GENERIC_READ | (hfd->ci.readonly ? 0 : GENERIC_WRITE),
@@ -756,7 +1418,6 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 				goto end;
 			}
 
-			//queryidentifydevice (hfd);
 			_tcsncpy (hfd->vendor_id, udi->vendor_id, 8);
 			_tcsncpy (hfd->product_id, udi->product_id, 16);
 			_tcsncpy (hfd->product_rev, udi->product_rev, 4);
@@ -800,11 +1461,15 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 				hfd->warned = -1;
 #endif
 			}
+
 			lock_drive(hfd, name, h);
 
 			hfd->handle_valid = HDF_HANDLE_WIN32;
 			hfd->emptyname = my_strdup (name);
 
+			//getstorageproperty_ataidentity(h);
+			//queryataidentity(h);
+			//scsidirect(h);
 			//fixdrive (hfd);
 
 		} else {
@@ -827,7 +1492,7 @@ emptyreal:
 			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
 		if (h == INVALID_HANDLE_VALUE && !hfd->ci.readonly) {
 			DWORD err = GetLastError ();
-			if (err == ERROR_WRITE_PROTECT || err == ERROR_SHARING_VIOLATION) {
+			if (err == ERROR_WRITE_PROTECT || err == ERROR_ACCESS_DENIED || err == ERROR_SHARING_VIOLATION) {
 				h = CreateFile (name, GENERIC_READ, FILE_SHARE_READ, NULL,
 					OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
 				if (h != INVALID_HANDLE_VALUE)
@@ -1380,6 +2045,12 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 		for (i = devDesc->SerialNumberOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
 			udi->product_serial[j++] = p[i];
 	}
+
+	my_trim(udi->vendor_id);
+	my_trim(udi->product_id);
+	my_trim(udi->product_rev);
+	my_trim(udi->product_serial);
+
 	if (udi->vendor_id[0])
 		_tcscat (udi->device_name, udi->vendor_id);
 	if (udi->product_id[0]) {
@@ -1409,6 +2080,7 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 			udi->device_name[i] = '_';
 	}
 	write_log (_T("device id string: '%s'\n"), udi->device_name);
+	udi->BusType = devDesc->BusType;
 	if (ignoreduplicates) {
 		if (!udi->removablemedia) {
 			write_log (_T("drive letter not removable, ignored\n"));
@@ -2108,35 +2780,6 @@ int win32_hardfile_media_change (const TCHAR *drvname, int inserted)
 
 	//write_log (_T("win32_hardfile_media_change returned %d\n"), gotinsert);
 	return gotinsert;
-}
-
-static int progressdialogreturn;
-static int progressdialogactive;
-
-static INT_PTR CALLBACK ProgressDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	switch(msg)
-	{
-	case WM_DESTROY:
-		PostQuitMessage (0);
-		progressdialogactive = 0;
-		return TRUE;
-	case WM_CLOSE:
-		if (progressdialogreturn < 0)
-			progressdialogreturn = 0;
-		return TRUE;
-	case WM_INITDIALOG:
-		return TRUE;
-	case WM_COMMAND:
-		switch (LOWORD(wParam))
-		{
-		case IDCANCEL:
-			progressdialogreturn = 0;
-			return TRUE;
-		}
-		break;
-	}
-	return FALSE;
 }
 
 extern HMODULE hUIDLL;

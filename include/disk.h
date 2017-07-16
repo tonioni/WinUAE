@@ -21,7 +21,8 @@ typedef enum { DRV_NONE = -1, DRV_35_DD = 0, DRV_35_HD, DRV_525_SD, DRV_35_DD_ES
 #define HISTORY_TAPE 5
 #define HISTORY_GENLOCK_IMAGE 6
 #define HISTORY_GENLOCK_VIDEO 7
-#define HISTORY_MAX 8
+#define HISTORY_GEO 8
+#define HISTORY_MAX 9
 
 struct diskinfo
 {

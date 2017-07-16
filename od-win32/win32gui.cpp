@@ -96,6 +96,7 @@
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
+#include "ini.h"
 
 #define GUI_SCALE_DEFAULT 100
 #define MIN_GUI_INTERNAL_WIDTH 512
@@ -110,6 +111,7 @@
 #define HDF_FORMAT_STRING _T("(*.hdf;*.vhd;*.rdf;*.hdz;*.rdz;*.chd)\0*.hdf;*.vhd;*.rdf;*.hdz;*.rdz;*.chd\0")
 #define INP_FORMAT_STRING _T("(*.inp)\0*.inp\0")
 #define  CD_FORMAT_STRING _T("(*.cue;*.ccd;*.mds;*.iso;*.chd;*.nrg)\0*.cue;*.ccd;*.mds;*.iso;*.chd;*.nrg;") ARCHIVE_STRING _T("\0")
+#define GEO_FORMAT_STRING _T("(*.geo)\0*.geo\0")
 #define CONFIG_HOST _T("Host")
 #define CONFIG_HARDWARE _T("Hardware")
 
@@ -650,7 +652,8 @@ static const TCHAR *historytypes[] =
 	_T("FileSysMRUList"),
 	_T("TapeImageMRUList"),
 	_T("GenlockImageMRUList"),
-	_T("GenlockVideoMRUList")
+	_T("GenlockVideoMRUList"),
+	_T("GeometryMRUList")
 };
 static int regread;
 
@@ -692,6 +695,7 @@ void write_disk_history (void)
 	write_disk_history2(HISTORY_TAPE);
 	write_disk_history2(HISTORY_GENLOCK_IMAGE);
 	write_disk_history2(HISTORY_GENLOCK_VIDEO);
+	write_disk_history2(HISTORY_GEO);
 }
 
 void reset_disk_history (void)
@@ -707,6 +711,7 @@ void reset_disk_history (void)
 		DISK_history_add(NULL, i, HISTORY_TAPE, 0);
 		DISK_history_add(NULL, i, HISTORY_GENLOCK_IMAGE, 0);
 		DISK_history_add(NULL, i, HISTORY_GENLOCK_VIDEO, 0);
+		DISK_history_add(NULL, i, HISTORY_GEO, 0);
 	}
 	rrold = regread;
 	regread = (1 << HISTORY_MAX) - 1;
@@ -2262,7 +2267,7 @@ void gui_display (int shortcut)
 		inputdevice_acquire (TRUE);
 		setmouseactive (1);
 #ifdef AVIOUTPUT
-		AVIOutput_Begin ();
+		AVIOutput_Begin (true);
 #endif
 	}
 	flipgui(false);
@@ -2395,6 +2400,35 @@ static void eject_cd (void)
 			workprefs.cdslots[0].inuse = true;
 		}
 	}
+}
+
+void gui_infotextbox(HWND hDlg, const TCHAR *text)
+{
+	stringboxdialogactive = 1;
+	HWND hwnd = CustomCreateDialog (IDD_DISKINFO, hDlg ? hDlg : hGUIWnd, StringBoxDialogProc);
+	if (hwnd == NULL)
+		return;
+
+	HFONT font = CreateFont (12, 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
+	if (font)
+		SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETFONT, WPARAM(font), FALSE);
+	SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETTEXT, 0, (LPARAM)text);
+	while (stringboxdialogactive == 1) {
+		MSG msg;
+		int ret;
+		WaitMessage ();
+		while ((ret = GetMessage (&msg, NULL, 0, 0))) {
+			if (ret == -1)
+				break;
+			if (!IsWindow (hwnd) || !IsDialogMessage (hwnd, &msg)) {
+				TranslateMessage (&msg);
+				DispatchMessage (&msg);
+			}
+		}
+		if (stringboxdialogactive == -1)
+			break;
+	}
+	DeleteObject (font);
 }
 
 static void infofloppy (HWND hDlg, int n)
@@ -2566,6 +2600,8 @@ static void setdpath (const TCHAR *name, const TCHAR *path)
 // flag = 20 for genlock image
 // flag = 21 for genlock video
 // flag = 22 for floppy replacement (missing statefile)
+// fags = 23 for hdf geometry (load)
+// fags = 24 for hdf geometry (save)
 
 int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, TCHAR *path_out, int *multi)
 {
@@ -2606,6 +2642,8 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			break;
 		case 2:
 		case 3:
+		case 23:
+		case 24:
 			getfilter (flag, _T("hdfPath"), previousfilter, filtername);
 			fetch_path (_T("hdfPath"), init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[1];
@@ -2819,6 +2857,14 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	case 21:
 		_tcscpy(szTitle, _T("Select genlock video"));
 		break;
+	case 23:
+	case 24:
+		_tcscpy(szTitle, _T("Select geometry file"));
+		_stprintf (szFilter, _T("%s "), _T("Geometry files"));
+		memcpy (szFilter + _tcslen (szFilter),  GEO_FORMAT_STRING, sizeof (GEO_FORMAT_STRING) + sizeof (TCHAR));
+		defext = _T("geo");
+		break;
+		break;
 	}
 	if (all) {
 		p = szFilter;
@@ -2850,7 +2896,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 
 	if (multi)
 		openFileName.Flags |= OFN_ALLOWMULTISELECT;
-	if (flag == 1 || flag == 3 || flag == 5 || flag == 9 || flag == 16) {
+	if (flag == 1 || flag == 3 || flag == 5 || flag == 9 || flag == 16 || flag == 24) {
 		openFileName.Flags &= ~OFN_FILEMUSTEXIST;
 		if (!(result = GetSaveFileName_2 (hDlg, &openFileName, guid)))
 			write_log (_T("GetSaveFileNameX() failed, err=%d.\n"), GetLastError ());
@@ -2905,6 +2951,9 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			break;
 		case IDC_GENLOCKFILESELECT:
 			selectgenlock(prefs, hDlg, IDC_GENLOCKFILE, full_path);
+			break;
+		case IDC_PATH_GEOMETRY:
+			SetDlgItemText (hDlg, wParam, full_path);
 			break;
 		case IDC_CD_SELECT:
 			selectcd (prefs, hDlg, 0, IDC_CD_TEXT, full_path);
@@ -3030,7 +3079,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 					*amiga_path = 0;
 					setdpath (_T("FloppyPath"), openFileName.lpstrFile);
 				}
-			} else if (flag == 2 || flag == 3) {
+			} else if (flag == 2 || flag == 3 || flag == 23) {
 				amiga_path = _tcsstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
 				if (amiga_path && amiga_path != openFileName.lpstrFile) {
 					*amiga_path = 0;
@@ -4808,7 +4857,7 @@ void InitializeListView (HWND hDlg)
 				_stprintf (bootpri_str, _T("%d"), ci->bootpri);
 			} else if (type == FILESYS_HARDFILE_RDB || type == FILESYS_HARDDRIVE || ci->controller_type != HD_CONTROLLER_TYPE_UAE) {
 				_stprintf (blocksize_str, _T("%d"), ci->blocksize);
-				_tcscpy (devname_str, _T("UAE"));
+				_stprintf (devname_str, _T("UAE:%d"), ci->controller_unit);
 				_tcscpy (volname_str, _T("n/a"));
 				_tcscpy (bootpri_str, _T("n/a"));
 			} else if (type == FILESYS_TAPE) {
@@ -9163,10 +9212,19 @@ static void init_expansion2(HWND hDlg, bool init)
 	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_SETCURSEL, scsiromselectednum, 0);
 
 	SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_RESETCONTENT, 0, 0);
-	for (int i = 0; i < 8; i++) {
-		TCHAR tmp[10];
-		_stprintf(tmp, _T("%d"), i);
-		SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_ADDSTRING, 0, (LPARAM)tmp);
+	int index;
+	struct boardromconfig *brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index);
+	const struct expansionromtype *ert = &expansionroms[scsiromselected];
+	if (brc && ert && ert->id_jumper) {
+		for (int i = 0; i < 8; i++) {
+			TCHAR tmp[10];
+			_stprintf(tmp, _T("%d"), i);
+			SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_ADDSTRING, 0, (LPARAM)tmp);
+		}
+	} else {
+		SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_ADDSTRING, 0, (LPARAM)_T("-"));
+		SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, 0, 0);
+		ew(hDlg, IDC_SCSIROMID, 0);
 	}
 }
 
@@ -9189,8 +9247,7 @@ static void values_to_expansion2dlg_sub(HWND hDlg)
 	if (brc) {
 		SendDlgItemMessage(hDlg, IDC_SCSIROMSUBSELECT, CB_SETCURSEL, brc->roms[index].subtype, 0);
 		SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, brc->roms[index].device_id, 0);
-	}
-	else if (srt) {
+	} else if (srt) {
 		SendDlgItemMessage(hDlg, IDC_SCSIROMSUBSELECT, CB_SETCURSEL, 0, 0);
 		SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, 0, 0);
 	}
@@ -9207,11 +9264,14 @@ static void values_from_expansion2dlg(HWND hDlg)
 	struct boardromconfig *brc;
 	TCHAR tmp[MAX_DPATH];
 	bool changed = false;
+	bool isnew = false;
 
 	int checked = ischecked(hDlg, IDC_SCSIROMSELECTED);
 	getromfile(hDlg, IDC_SCSIROMFILE, tmp, MAX_DPATH / sizeof(TCHAR));
 	if (tmp[0] || checked) {
 		const struct expansionromtype *ert = &expansionroms[scsiromselected];
+		if (!get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index))
+			isnew = true;
 		brc = get_device_rom_new(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index);
 		if (checked) {
 			if (!brc->roms[index].romfile[0])
@@ -9224,9 +9284,8 @@ static void values_from_expansion2dlg(HWND hDlg)
 		brc->roms[index].autoboot_disabled = ischecked(hDlg, IDC_SCSIROMFILEAUTOBOOT);
 
 		int v = SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_GETCURSEL, 0, 0L);
-		if (v != CB_ERR)
+		if (v != CB_ERR && !isnew)
 			brc->roms[index].device_id = v;
-
 
 		const struct expansionboardsettings *cbs = ert->settings;
 		if (cbs) {
@@ -11383,6 +11442,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_FPU1, workprefs.cpu_model < 68040 && (workprefs.cpu_model >= 68020 || !workprefs.cpu_compatible));
 	ew (hDlg, IDC_FPU2, workprefs.cpu_model < 68040 && (workprefs.cpu_model >= 68020 || !workprefs.cpu_compatible));
 	ew (hDlg, IDC_FPU3, workprefs.cpu_model >= 68040);
+	ew (hDlg, IDC_MMUENABLEEC, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0);
 	ew (hDlg, IDC_MMUENABLE, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0);
 	ew (hDlg, IDC_CPU_PPC, workprefs.cpu_model >= 68040 && (workprefs.ppc_mode == 1 || (workprefs.ppc_mode == 0 && !is_ppc_cpu(&workprefs))));
 
@@ -11452,11 +11512,11 @@ static void values_to_cpudlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_HARDFLUSH, workprefs.comp_hardflush);
 	CheckDlgButton (hDlg, IDC_CONSTJUMP, workprefs.comp_constjump);
 	CheckDlgButton (hDlg, IDC_JITENABLE, workprefs.cachesize > 0);
-	CheckDlgButton (hDlg, IDC_MMUENABLE,
-		((workprefs.cpu_model == 68060 && workprefs.mmu_model == 68060) ||
+	bool mmu = ((workprefs.cpu_model == 68060 && workprefs.mmu_model == 68060) ||
 		(workprefs.cpu_model == 68040 && workprefs.mmu_model == 68040) ||
 		(workprefs.cpu_model == 68030 && workprefs.mmu_model == 68030)) &&
-		workprefs.cachesize == 0);
+		workprefs.cachesize == 0;
+	CheckRadioButton (hDlg, IDC_MMUENABLEOFF, IDC_MMUENABLE, mmu == 0 ? IDC_MMUENABLEOFF : (mmu && workprefs.mmu_ec) ? IDC_MMUENABLEEC : IDC_MMUENABLE);
 	CheckDlgButton(hDlg, IDC_CPU_PPC, workprefs.ppc_mode || is_ppc_cpu(&workprefs));
 
 	if (workprefs.cpu_cycle_exact) {
@@ -11505,6 +11565,7 @@ static void values_from_cpudlg (HWND hDlg)
 		newfpu = 0;
 	workprefs.cpu_model = newcpu;
 	workprefs.mmu_model = 0;
+	workprefs.mmu_ec = false;
 	switch(newcpu)
 	{
 	case 68000:
@@ -11522,19 +11583,22 @@ static void values_from_cpudlg (HWND hDlg)
 		if (newcpu != oldcpu)
 			workprefs.address_space_24 = 0;
 		workprefs.fpu_model = newfpu == 0 ? 0 : (newfpu == 2 ? 68882 : 68881);
-		workprefs.mmu_model = ischecked (hDlg, IDC_MMUENABLE) ? 68030 : 0;
+		workprefs.mmu_ec = ischecked(hDlg, IDC_MMUENABLEEC);
+		workprefs.mmu_model = workprefs.mmu_ec || ischecked (hDlg, IDC_MMUENABLE) ? 68030 : 0;
 		break;
 	case 68040:
 		workprefs.fpu_model = newfpu ? 68040 : 0;
 		workprefs.address_space_24 = 0;
 		if (workprefs.fpu_model)
 			workprefs.fpu_model = 68040;
-		workprefs.mmu_model = ischecked (hDlg, IDC_MMUENABLE) ? 68040 : 0;
+		workprefs.mmu_ec = ischecked(hDlg, IDC_MMUENABLEEC);
+		workprefs.mmu_model = workprefs.mmu_ec || ischecked (hDlg, IDC_MMUENABLE) ? 68040 : 0;
 		break;
 	case 68060:
 		workprefs.fpu_model = newfpu ? 68060 : 0;
 		workprefs.address_space_24 = 0;
-		workprefs.mmu_model = ischecked (hDlg, IDC_MMUENABLE) ? 68060 : 0;
+		workprefs.mmu_ec = ischecked(hDlg, IDC_MMUENABLEEC);
+		workprefs.mmu_model = workprefs.mmu_ec || ischecked (hDlg, IDC_MMUENABLE) ? 68060 : 0;
 		break;
 	}
 
@@ -12300,9 +12364,13 @@ static void hardfile_testrdb (struct hfdlg_vals *hdf)
 				hdf->ci.controller_type_unit = 0;
 				break;
 			}
-			if (!memcmp (id, "RDSK\0\0\0", 7) || !memcmp (id, "CDSK\0\0\0", 7) || !memcmp (id, "DRKS\0\0", 6) || (id[0] == 0x53 && id[1] == 0x10 && id[2] == 0x9b && id[3] == 0x13 && id[4] == 0 && id[5] == 0)) {
+			bool babe = id[0] == 0xBA && id[1] == 0xBE; // A2090
+			if (!memcmp (id, "RDSK\0\0\0", 7) || !memcmp (id, "CDSK\0\0\0", 7) || !memcmp (id, "DRKS\0\0", 6) ||
+				(id[0] == 0x53 && id[1] == 0x10 && id[2] == 0x9b && id[3] == 0x13 && id[4] == 0 && id[5] == 0) || babe) {
 				// RDSK or ADIDE "encoded" RDSK
-				int blocksize = (id[16] << 24)  | (id[17] << 16) | (id[18] << 8) | (id[19] << 0);
+				int blocksize = 512;
+				if (!babe)
+					blocksize = (id[16] << 24)  | (id[17] << 16) | (id[18] << 8) | (id[19] << 0);
 				hdf->ci.cyls = hdf->ci.highcyl = hdf->forcedcylinders = 0;
 				hdf->ci.sectors = 0;
 				hdf->ci.surfaces = 0;
@@ -12521,6 +12589,16 @@ STATIC_INLINE bool is_hdf_rdb (void)
 
 static int hdmenutable[256];
 
+static void sethardfilegeo(HWND hDlg)
+{
+	if (current_hfdlg.ci.geometry[0]) {
+		current_hfdlg.ci.physical_geometry = true;
+		setchecked(hDlg, IDC_HDF_PHYSGEOMETRY, TRUE);
+		ew (hDlg, IDC_HDF_PHYSGEOMETRY, FALSE);
+		get_hd_geometry(&current_hfdlg.ci);
+	}
+}
+
 static void sethardfiletypes(HWND hDlg)
 {
 	bool ide = current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_IDE_LAST;
@@ -12536,16 +12614,12 @@ static void sethardfiletypes(HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_SETCURSEL, current_hfdlg.ci.unit_feature_level, 0);
 }
 
-static void sethardfile (HWND hDlg)
+static void sethd(HWND hDlg)
 {
-	bool ide = current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_IDE_LAST;
-	bool scsi = current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_SCSI_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_SCSI_LAST;
 	bool rdb = is_hdf_rdb ();
 	bool physgeo = rdb && ischecked(hDlg, IDC_HDF_PHYSGEOMETRY);
-	bool enablegeo = !rdb || physgeo;
-	bool disables = !rdb || (rdb && current_hfdlg.ci.controller_type == HD_CONTROLLER_TYPE_UAE);
+	bool enablegeo = !rdb || (physgeo && current_hfdlg.ci.geometry[0] == 0);
 	const struct expansionromtype *ert = get_unit_expansion_rom(current_hfdlg.ci.controller_type);
-
 	if (ert && current_hfdlg.ci.controller_unit >= 8) {
 		if (!_tcscmp(ert->name, _T("a2091"))) {
 			current_hfdlg.ci.unit_feature_level = HD_LEVEL_SASI_CHS;
@@ -12553,11 +12627,39 @@ static void sethardfile (HWND hDlg)
 			current_hfdlg.ci.unit_feature_level = HD_LEVEL_SCSI_1;
 		}
 	}
-
-	if (!disables)
-		current_hfdlg.ci.bootpri = 0;
 	if (!physgeo)
 		current_hfdlg.ci.physical_geometry = false;
+	ew(hDlg, IDC_SECTORS, enablegeo);
+	ew(hDlg, IDC_HEADS, enablegeo);
+	ew(hDlg, IDC_RESERVED, enablegeo);
+	ew(hDlg, IDC_BLOCKSIZE, enablegeo);
+}
+
+static void setharddrive(HWND hDlg)
+{
+	sethardfilegeo(hDlg);
+	sethd(hDlg);
+	ew(hDlg,IDC_BLOCKSIZE, FALSE);
+	SetDlgItemInt (hDlg, IDC_SECTORS, current_hfdlg.ci.psecs, FALSE);
+	SetDlgItemInt (hDlg, IDC_HEADS, current_hfdlg.ci.pheads, FALSE);
+	SetDlgItemInt (hDlg, IDC_RESERVED, current_hfdlg.ci.pcyls, FALSE);
+	SetDlgItemInt (hDlg, IDC_BLOCKSIZE, current_hfdlg.ci.blocksize, FALSE);
+	sethardfiletypes(hDlg);
+}
+
+static void sethardfile (HWND hDlg)
+{
+	sethardfilegeo(hDlg);
+
+	bool ide = current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_IDE_LAST;
+	bool scsi = current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_SCSI_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_SCSI_LAST;
+	bool rdb = is_hdf_rdb ();
+	bool physgeo = rdb && ischecked(hDlg, IDC_HDF_PHYSGEOMETRY);
+	bool disables = !rdb || (rdb && current_hfdlg.ci.controller_type == HD_CONTROLLER_TYPE_UAE);
+
+	sethd(hDlg);
+	if (!disables)
+		current_hfdlg.ci.bootpri = 0;
 	SetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.ci.rootdir);
 	SetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.ci.filesys);
 	SetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, current_hfdlg.ci.devname);
@@ -12577,10 +12679,6 @@ static void sethardfile (HWND hDlg)
 	hide (hDlg, IDC_HARDFILE_BOOTPRI, !disables);
 	hide (hDlg, IDC_HARDFILE_BOOTPRI_TEXT, !disables);
 	hide (hDlg, IDC_HDF_PHYSGEOMETRY, !rdb);
-	ew(hDlg, IDC_SECTORS, enablegeo);
-	ew(hDlg, IDC_HEADS, enablegeo);
-	ew(hDlg, IDC_RESERVED, enablegeo);
-	ew(hDlg, IDC_BLOCKSIZE, enablegeo);
 	hide(hDlg, IDC_RESERVED_TEXT, rdb);
 	hide(hDlg, IDC_CYLINDERS_TEXT, !rdb);
 	gui_set_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER, current_hfdlg.ci.controller_type +  current_hfdlg.ci.controller_type_unit * HD_CONTROLLER_NEXT_UNIT);
@@ -12617,7 +12715,7 @@ static void addhdcontroller(HWND hDlg, const struct expansionromtype *erc, int *
 	}
 }
 
-static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype)
+static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype, bool media)
 {
 	hdmenutable[0] = -1;
 	
@@ -12667,7 +12765,8 @@ static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype)
 			_stprintf(tmp, _T("%d"), i + 1);
 			SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
-		ew(hDlg, IDC_HDF_CONTROLLER_UNIT, TRUE);
+		if (media)
+			ew(hDlg, IDC_HDF_CONTROLLER_UNIT, TRUE);
 	} else if (ctype >= HD_CONTROLLER_TYPE_SCSI_FIRST && ctype <= HD_CONTROLLER_TYPE_SCSI_LAST) {
 		const struct expansionromtype *ert = get_unit_expansion_rom(ctype);
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("0"));
@@ -12686,11 +12785,20 @@ static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype)
 				SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("ST-506 #2"));
 			}
 		}
-		ew(hDlg, IDC_HDF_CONTROLLER_UNIT, TRUE);
+		if (media)
+			ew(hDlg, IDC_HDF_CONTROLLER_UNIT, TRUE);
 	} else if (ctype == HD_CONTROLLER_TYPE_PCMCIA) {
 		SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("SRAM"));
 		SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)_T("IDE"));
 		ew(hDlg, IDC_HDF_CONTROLLER_UNIT, TRUE);
+	} else if (ctype == HD_CONTROLLER_TYPE_UAE) {
+		for (int i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
+			TCHAR tmp[100];
+			_stprintf(tmp, _T("%d"), i);
+			SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_ADDSTRING, 0, (LPARAM)tmp);
+		}
+		if (media)
+			ew(hDlg, IDC_HDF_CONTROLLER_UNIT, TRUE);
 	} else {
 		ew(hDlg, IDC_HDF_CONTROLLER_UNIT, FALSE);
 	}
@@ -12715,13 +12823,13 @@ static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype)
 	}
 }
 
-static void inithardfile (HWND hDlg)
+static void inithardfile (HWND hDlg, bool media)
 {
 	TCHAR tmp[MAX_DPATH];
 
 	ew (hDlg, IDC_HF_DOSTYPE, FALSE);
 	ew (hDlg, IDC_HF_CREATE, FALSE);
-	inithdcontroller (hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF);
+	inithdcontroller (hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF, media);
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString (IDS_HF_FS_CUSTOM, tmp, sizeof (tmp) / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("RDB/OFS/FFS"));
@@ -12818,6 +12926,9 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 	blocks = cyls * (secs * heads);
 	if (!blocks && current_hfdlg.ci.blocksize)
 		blocks = bsize / current_hfdlg.ci.blocksize;
+	if (current_hfdlg.ci.max_lba)
+		blocks = current_hfdlg.ci.max_lba;
+
 	for (i = 0; i < sizeof (idtmp) / sizeof (TCHAR) - 1; i++) {
 		TCHAR c = id[i];
 		if (c < 32 || c > 126)
@@ -12868,7 +12979,7 @@ static void hardfileselecthdf (HWND hDlg, TCHAR *newpath, bool ask, bool newhd)
 			current_hfdlg.ci.sectors = current_hfdlg.ci.reserved = current_hfdlg.ci.surfaces = 0;
 		}
 	}
-	inithardfile (hDlg);
+	inithardfile (hDlg, true);
 	hardfile_testrdb (&current_hfdlg);
 	updatehdfinfo (hDlg, true, true);
 	get_hd_geometry (&current_hfdlg.ci);
@@ -12907,7 +13018,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		recursive++;
 		if (current_tapedlg.ci.controller_type < HD_CONTROLLER_TYPE_SCSI_AUTO)
 			current_tapedlg.ci.controller_type = HD_CONTROLLER_TYPE_SCSI_AUTO;
-		inithdcontroller(hDlg, current_tapedlg.ci.controller_type, current_tapedlg.ci.controller_type_unit, UAEDEV_TAPE);
+		inithdcontroller(hDlg, current_tapedlg.ci.controller_type, current_tapedlg.ci.controller_type_unit, UAEDEV_TAPE, current_tapedlg.ci.rootdir[0] != 0);
 		SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_tapedlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_tapedlg.ci.controller_unit : current_tapedlg.ci.controller_type_unit, 0);
 		setautocomplete (hDlg, IDC_PATH_NAME);
 		addhistorymenu(hDlg, current_tapedlg.ci.rootdir, IDC_PATH_NAME, HISTORY_TAPE, false);
@@ -12940,7 +13051,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 					current_tapedlg.ci.controller_type_unit = posn / HD_CONTROLLER_NEXT_UNIT;
 					if (current_tapedlg.ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA)
 						current_tapedlg.ci.controller_type_unit = 1;
-					inithdcontroller(hDlg, current_tapedlg.ci.controller_type, current_tapedlg.ci.controller_type_unit, UAEDEV_TAPE);
+					inithdcontroller(hDlg, current_tapedlg.ci.controller_type, current_tapedlg.ci.controller_type_unit, UAEDEV_TAPE, current_tapedlg.ci.rootdir);
 					SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_tapedlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_tapedlg.ci.controller_unit : current_tapedlg.ci.controller_type_unit, 0);
 				}
 				break;
@@ -13023,7 +13134,7 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 				is_board_enabled(&workprefs, ROMTYPE_GVPS2, 0) || is_board_enabled(&workprefs, ROMTYPE_A4091, 0) ||
 			workprefs.cs_cdtvscsi ||
 			(workprefs.cs_mbdmac & 3)) ? HD_CONTROLLER_TYPE_SCSI_AUTO : HD_CONTROLLER_TYPE_IDE_AUTO;
-		inithdcontroller(hDlg, current_cddlg.ci.controller_type, current_cddlg.ci.controller_type_unit, UAEDEV_CD);
+		inithdcontroller(hDlg, current_cddlg.ci.controller_type, current_cddlg.ci.controller_type_unit, UAEDEV_CD, current_cddlg.ci.rootdir[0] != 0);
 		SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_cddlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_cddlg.ci.controller_unit : current_cddlg.ci.controller_type_unit, 0);
 		InitializeListView (hDlg);
 		recursive--;
@@ -13056,7 +13167,7 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 				current_cddlg.ci.controller_type_unit = posn / HD_CONTROLLER_NEXT_UNIT;
 				if (current_cddlg.ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA)
 					current_cddlg.ci.controller_type_unit = 1;
-				inithdcontroller(hDlg, current_cddlg.ci.controller_type, current_cddlg.ci.controller_type_unit, UAEDEV_CD);
+				inithdcontroller(hDlg, current_cddlg.ci.controller_type, current_cddlg.ci.controller_type_unit, UAEDEV_CD, current_cddlg.ci.rootdir[0] != 0);
 				SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_cddlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_cddlg.ci.controller_unit : current_cddlg.ci.controller_type_unit, 0);
 			}
 			break;
@@ -13124,7 +13235,9 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		setchecked(hDlg, IDC_HDF_PHYSGEOMETRY, current_hfdlg.ci.physical_geometry);
 		setautocomplete (hDlg, IDC_PATH_NAME);
 		setautocomplete (hDlg, IDC_PATH_FILESYS);
-		inithardfile (hDlg);
+		setautocomplete (hDlg, IDC_PATH_GEOMETRY);
+		addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false);
+		inithardfile (hDlg, current_hfdlg.ci.rootdir[0] != 0);
 		addhistorymenu(hDlg, current_hfdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_HDF, false);
 		addhistorymenu(hDlg, current_hfdlg.ci.filesys, IDC_PATH_FILESYS, HISTORY_FS, false);
 		updatehdfinfo (hDlg, true, false);
@@ -13197,7 +13310,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 					current_hfdlg.ci.controller_type_unit = posn / HD_CONTROLLER_NEXT_UNIT;
 					if (current_hfdlg.ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA)
 						current_hfdlg.ci.controller_type_unit = 1;
-					inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF);
+					inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF, current_hfdlg.ci.rootdir[0] != 0);
 					sethardfile(hDlg);
 				}
 				break;
@@ -13232,6 +13345,13 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				}
 				break;
 			}
+			case IDC_PATH_GEOMETRY:
+				getcomboboxtext(hDlg, IDC_PATH_GEOMETRY, current_hfdlg.ci.geometry, sizeof  current_hfdlg.ci.geometry / sizeof(TCHAR));
+				if (HIWORD (wParam) == CBN_KILLFOCUS) {
+					addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false);
+					sethardfile(hDlg);
+				}
+				break;
 		}
 
 		switch (LOWORD (wParam)) {
@@ -13307,6 +13427,12 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			current_hfdlg.ci.bootpri = 0;
 			sethardfile (hDlg);
 			break;
+		case IDC_PATH_GEOMETRY_SELECTOR:
+			DiskSelection (hDlg, IDC_PATH_GEOMETRY, 23, &workprefs, 0);
+			getcomboboxtext(hDlg, IDC_PATH_GEOMETRY, current_hfdlg.ci.geometry, sizeof  current_hfdlg.ci.geometry / sizeof(TCHAR));
+			DISK_history_add(current_hfdlg.ci.geometry, -1, HISTORY_GEO, 1);
+			sethardfile(hDlg);
+			break;
 		case IDC_SECTORS:
 			p = ischecked(hDlg, IDC_HDF_PHYSGEOMETRY) ? &current_hfdlg.ci.psecs : &current_hfdlg.ci.sectors;
 			v = *p;
@@ -13367,7 +13493,8 @@ extern int harddrive_to_hdf (HWND, struct uae_prefs*, int);
 static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
-	int i;
+	int v, i;
+	int *p;
 	LRESULT posn;
 	static int oposn;
 
@@ -13378,14 +13505,15 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			oposn = -1;
 			hdf_init_target ();
 			recursive++;
-			sethardfiletypes(hDlg);
-			inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF);
+			setautocomplete (hDlg, IDC_PATH_GEOMETRY);
+			addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false);
+			setchecked(hDlg, IDC_HDF_PHYSGEOMETRY, current_hfdlg.ci.physical_geometry);
+			setharddrive(hDlg);
+			inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF, current_hfdlg.ci.rootdir[0] != 0);
 			CheckDlgButton (hDlg, IDC_HDF_RW, !current_hfdlg.ci.readonly);
 			CheckDlgButton (hDlg, IDC_HDF_LOCK, current_hfdlg.ci.lock);
 			SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_RESETCONTENT, 0, 0);
 			ew (hDlg, IDC_HARDDRIVE_IMAGE, FALSE);
-			ew (hDlg, IDOK, FALSE);
-			ew (hDlg, IDC_HDF_RW, FALSE);
 			index = -1;
 			for (i = 0; i < hdf_getnumharddrives (); i++) {
 				SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_ADDSTRING, 0, (LPARAM)hdf_getnameharddrive (i, 1, NULL, NULL));
@@ -13409,6 +13537,19 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		if (recursive)
 			break;
 		recursive++;
+		if (HIWORD(wParam) == CBN_SELCHANGE || HIWORD(wParam) == CBN_KILLFOCUS) {
+			switch (LOWORD(wParam)) {
+				case IDC_PATH_GEOMETRY:
+					getcomboboxtext(hDlg, IDC_PATH_GEOMETRY, current_hfdlg.ci.geometry, sizeof  current_hfdlg.ci.geometry / sizeof(TCHAR));
+					if (HIWORD (wParam) == CBN_KILLFOCUS) {
+						addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false);
+						setharddrive(hDlg);
+						updatehdfinfo (hDlg, true, false);
+					}
+					break;
+			}
+		}
+
 		if (HIWORD (wParam) == BN_CLICKED) {
 			switch (LOWORD (wParam)) {
 			case IDOK:
@@ -13416,6 +13557,18 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				break;
 			case IDCANCEL:
 				EndDialog (hDlg, 0);
+				break;
+			case IDC_HDF_PHYSGEOMETRY:
+				current_hfdlg.ci.physical_geometry = ischecked(hDlg, IDC_HDF_PHYSGEOMETRY);
+				updatehdfinfo(hDlg, true, false);
+				setharddrive(hDlg);
+				break;
+			case IDC_HARDDRIVE_ID:
+				if (oposn >= 0) {
+					void hd_get_meta(HWND hDlg, int idx, TCHAR*);
+					hd_get_meta(hDlg, oposn, current_hfdlg.ci.geometry);
+					setharddrive(hDlg);
+				}
 				break;
 			case IDC_HARDDRIVE_IMAGE:
 				posn = SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
@@ -13440,66 +13593,121 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				break;
 			}
 		}
-		if (LOWORD (wParam) == IDC_HARDDRIVE) {
-			posn = SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
-			if (oposn != posn && posn != CB_ERR) {
-				oposn = posn;
-				if (posn >= 0) {
-					BOOL ena;
-					int dang = 1;
-					hdf_getnameharddrive (posn, 1, NULL, &dang);
-					_tcscpy (current_hfdlg.ci.rootdir, hdf_getnameharddrive (posn, 4, NULL, &dang));
-					ena = dang >= 0;
-					ew (hDlg, IDC_HARDDRIVE_IMAGE, ena);
-					ew (hDlg, IDOK, ena);
-					ew (hDlg, IDC_HDF_RW, !dang);
-					if (dang)
-						current_hfdlg.ci.readonly = true;
-					current_hfdlg.ci.blocksize = 512;
+		switch(LOWORD(wParam))
+		{
+			case IDC_HARDDRIVE:
+				posn = SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
+				if (oposn != posn && posn != CB_ERR) {
+					oposn = posn;
+					if (posn >= 0) {
+						BOOL ena;
+						int dang = 1;
+						hdf_getnameharddrive (posn, 1, NULL, &dang);
+						_tcscpy (current_hfdlg.ci.rootdir, hdf_getnameharddrive (posn, 4, NULL, &dang));
+						ena = dang >= 0;
+						ew (hDlg, IDC_HARDDRIVE_IMAGE, ena);
+						ew (hDlg, IDC_HARDDRIVE_ID, ena);
+						ew (hDlg, IDC_HDF_LOCK, ena);
+						ew (hDlg, IDOK, ena);
+						ew (hDlg, IDC_HDF_RW, !dang);
+						ew (hDlg, IDC_HDF_FEATURE_LEVEL, ena);
+						ew (hDlg, IDC_HDF_CONTROLLER, ena);
+						ew (hDlg, IDC_HDF_CONTROLLER_UNIT, ena);
+						ew (hDlg, IDC_HDF_CONTROLLER_TYPE, ena);
+						ew (hDlg, IDC_PATH_GEOMETRY, ena);
+						ew (hDlg, IDC_PATH_GEOMETRY_SELECTOR, ena);
+						ew (hDlg, IDC_HDF_PHYSGEOMETRY, ena && current_hfdlg.ci.geometry[0] == 0);
+						if (dang)
+							current_hfdlg.ci.readonly = true;
+						current_hfdlg.ci.blocksize = 512;
+						current_hfdlg.forcedcylinders = 0;
+						current_hfdlg.ci.cyls = current_hfdlg.ci.highcyl = current_hfdlg.ci.sectors = current_hfdlg.ci.surfaces = 0;
+						SetDlgItemText (hDlg, IDC_HDFINFO, _T(""));
+						SetDlgItemText (hDlg, IDC_HDFINFO2, _T(""));
+						updatehdfinfo (hDlg, true, current_hfdlg.ci.geometry[0] ? false : true);
+						gui_set_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER, current_hfdlg.ci.controller_type + current_hfdlg.ci.controller_type_unit * MAX_DUPLICATE_EXPANSION_BOARDS);
+						SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_hfdlg.ci.controller_unit : current_hfdlg.ci.controller_type_unit, 0);
+						CheckDlgButton(hDlg, IDC_HDF_RW, !current_hfdlg.ci.readonly);
+						_tcscpy (current_hfdlg.ci.rootdir, hdf_getnameharddrive ((int)posn, 4, &current_hfdlg.ci.blocksize, NULL));
+						setharddrive(hDlg);
+					}
+				}
+				break;
+			case IDC_HDF_CONTROLLER:
+				posn = gui_get_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER);
+				if (posn != CB_ERR && current_hfdlg.ci.controller_type != posn) {
+					current_hfdlg.ci.controller_type = posn % HD_CONTROLLER_NEXT_UNIT;
+					current_hfdlg.ci.controller_type_unit = posn / HD_CONTROLLER_NEXT_UNIT;
 					current_hfdlg.forcedcylinders = 0;
 					current_hfdlg.ci.cyls = current_hfdlg.ci.highcyl = current_hfdlg.ci.sectors = current_hfdlg.ci.surfaces = 0;
 					SetDlgItemText (hDlg, IDC_HDFINFO, _T(""));
 					SetDlgItemText (hDlg, IDC_HDFINFO2, _T(""));
 					updatehdfinfo (hDlg, true, true);
-					gui_set_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER, current_hfdlg.ci.controller_type + current_hfdlg.ci.controller_type_unit * MAX_DUPLICATE_EXPANSION_BOARDS);
+					inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF, current_hfdlg.ci.rootdir[0] != 0);
 					SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_hfdlg.ci.controller_unit : current_hfdlg.ci.controller_type_unit, 0);
-					CheckDlgButton(hDlg, IDC_HDF_RW, !current_hfdlg.ci.readonly);
-					_tcscpy (current_hfdlg.ci.rootdir, hdf_getnameharddrive ((int)posn, 4, &current_hfdlg.ci.blocksize, NULL));
 					sethardfiletypes(hDlg);
 				}
-			}
-		} else if (LOWORD (wParam) == IDC_HDF_CONTROLLER) {
-			posn = gui_get_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER);
-			if (posn != CB_ERR && current_hfdlg.ci.controller_type != posn) {
-				current_hfdlg.ci.controller_type = posn % HD_CONTROLLER_NEXT_UNIT;
-				current_hfdlg.ci.controller_type_unit = posn / HD_CONTROLLER_NEXT_UNIT;
-				current_hfdlg.forcedcylinders = 0;
-				current_hfdlg.ci.cyls = current_hfdlg.ci.highcyl = current_hfdlg.ci.sectors = current_hfdlg.ci.surfaces = 0;
-				SetDlgItemText (hDlg, IDC_HDFINFO, _T(""));
-				SetDlgItemText (hDlg, IDC_HDFINFO2, _T(""));
-				updatehdfinfo (hDlg, true, true);
-				inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF);
-				SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_hfdlg.ci.controller_unit : current_hfdlg.ci.controller_type_unit, 0);
-				sethardfiletypes(hDlg);
-			}
-		} else if (LOWORD(wParam) == IDC_HDF_CONTROLLER_UNIT) {
-			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_GETCURSEL, 0, 0);
-			if (posn != CB_ERR) {
-				if (current_hfdlg.ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA)
-					current_hfdlg.ci.controller_type_unit = posn;
-				else
-					current_hfdlg.ci.controller_unit = posn;
-			}
-		} else if (LOWORD(wParam) == IDC_HDF_CONTROLLER_TYPE) {
-			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_TYPE, CB_GETCURSEL, 0, 0);
-			if (posn != CB_ERR) {
-				current_hfdlg.ci.controller_media_type = posn;
-			}
-		} else if (LOWORD(wParam) == IDC_HDF_FEATURE_LEVEL) {
-			posn = SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_GETCURSEL, 0, 0);
-			if (posn != CB_ERR) {
-				current_hfdlg.ci.unit_feature_level = posn;
-			}
+				break;
+			case IDC_HDF_CONTROLLER_UNIT:
+				posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_GETCURSEL, 0, 0);
+				if (posn != CB_ERR) {
+					if (current_hfdlg.ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA)
+						current_hfdlg.ci.controller_type_unit = posn;
+					else
+						current_hfdlg.ci.controller_unit = posn;
+				}
+				break;
+			case IDC_HDF_CONTROLLER_TYPE:
+				posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_TYPE, CB_GETCURSEL, 0, 0);
+				if (posn != CB_ERR) {
+					current_hfdlg.ci.controller_media_type = posn;
+				}
+				break;
+			case IDC_HDF_FEATURE_LEVEL:
+				posn = SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_GETCURSEL, 0, 0);
+				if (posn != CB_ERR) {
+					current_hfdlg.ci.unit_feature_level = posn;
+				}
+			break;
+			case IDC_PATH_GEOMETRY_SELECTOR:
+				DiskSelection (hDlg, IDC_PATH_GEOMETRY, 23, &workprefs, 0);
+				getcomboboxtext(hDlg, IDC_PATH_GEOMETRY, current_hfdlg.ci.geometry, sizeof  current_hfdlg.ci.geometry / sizeof(TCHAR));
+				DISK_history_add(current_hfdlg.ci.geometry, -1, HISTORY_GEO, 1);
+				setharddrive(hDlg);
+				updatehdfinfo (hDlg, true, false);
+				break;
+			case IDC_SECTORS:
+				p = &current_hfdlg.ci.psecs;
+				v = *p;
+				*p = GetDlgItemInt (hDlg, IDC_SECTORS, NULL, FALSE);
+				if (v != *p) {
+					set_phys_cyls(hDlg);
+					updatehdfinfo (hDlg, true, false);
+					ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
+				}
+				break;
+			case IDC_RESERVED:
+				p = &current_hfdlg.ci.pcyls;
+				v = *p;
+				*p = GetDlgItemInt (hDlg, IDC_RESERVED, NULL, FALSE);
+				if (v != *p) {
+					if (ischecked(hDlg, IDC_HDF_PHYSGEOMETRY)) {
+						current_hfdlg.ci.physical_geometry = true;
+					}
+					updatehdfinfo (hDlg, true, false);
+					ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
+				}
+				break;
+			case IDC_HEADS:
+				p = &current_hfdlg.ci.pheads;
+				v = *p;
+				*p = GetDlgItemInt (hDlg, IDC_HEADS, NULL, FALSE);
+				if (v != *p) {
+					set_phys_cyls(hDlg);
+					updatehdfinfo (hDlg, true, false);
+					ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
+				}
+				break;
 		}
 		recursive--;
 		break;
@@ -20396,7 +20604,7 @@ int gui_init (void)
 	}
 	if (ret > 0) {
 #ifdef AVIOUTPUT
-		AVIOutput_Begin ();
+		AVIOutput_Begin (true);
 #endif
 	}
 	return ret;

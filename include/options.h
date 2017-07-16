@@ -16,7 +16,7 @@
 
 #define UAEMAJOR 3
 #define UAEMINOR 5
-#define UAESUBREV 0
+#define UAESUBREV 1
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -192,6 +192,7 @@ struct uaedev_config_info {
 	bool lock;
 	int bootpri;
 	TCHAR filesys[MAX_DPATH];
+	TCHAR geometry[MAX_DPATH];
 	int lowcyl;
 	int highcyl; // zero if detected from size
 	int cyls; // calculated/corrected highcyl
@@ -199,6 +200,7 @@ struct uaedev_config_info {
 	int sectors;
 	int reserved;
 	int blocksize;
+	uae_u64 max_lba;
 	int controller_type;
 	int controller_type_unit;
 	int controller_unit;
@@ -361,6 +363,9 @@ struct romconfig
 	int subtype;
 	void *unitdata;
 	TCHAR configtext[256];
+	uae_u16 manufacturer;
+	uae_u8 product;
+	uae_u8 autoconfig[16];
 	struct boardromconfig *back;
 };
 #define MAX_BOARD_ROMS 2
@@ -643,6 +648,7 @@ struct uae_prefs {
 	double x86_speed_throttle;
 	int cpu_model;
 	int mmu_model;
+	bool mmu_ec;
 	int cpu060_revision;
 	int fpu_model;
 	int fpu_revision;

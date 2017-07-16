@@ -29,6 +29,7 @@
 #include "zfile.h"
 #include "ide.h"
 #include "debug.h"
+#include "ini.h"
 
 #ifdef WITH_CHD
 #include "archivers/chd/chdtypes.h"
@@ -589,7 +590,12 @@ end:
 }
 int hdf_open (struct hardfiledata *hfd)
 {
-	return hdf_open (hfd, NULL);
+	int v = hdf_open (hfd, NULL);
+	if (!v)
+		return v;
+	get_hd_geometry(&hfd->ci);
+	hfd->geometry = ini_load(hfd->ci.geometry);
+	return v;
 }
 
 void hdf_close (struct hardfiledata *hfd)
@@ -608,6 +614,8 @@ void hdf_close (struct hardfiledata *hfd)
 		cf->close();
 		delete cf;
 	}
+	ini_free(hfd->geometry);
+	hfd->geometry = NULL;
 	hfd->chd_handle = NULL;
 #endif
 	hfd->hfd_type = 0;
@@ -1146,6 +1154,15 @@ static int checkbounds (struct hardfiledata *hfd, uae_u64 offset, uae_u64 len, i
 			(uae_u32)(max >> 32),(uae_u32)max);
 		return -1;
 	}
+	if (hfd->ci.max_lba) {
+		max = hfd->ci.max_lba * hfd->ci.blocksize;
+		if (offset >= max) {
+			write_log (_T("UAEHF SCSI: forced last lba out of bounds, %08X-%08X + %08X-%08X > %08X-%08X\n"),
+				(uae_u32)(offset >> 32),(uae_u32)offset,(uae_u32)(len >> 32),(uae_u32)len,
+				(uae_u32)(max >> 32),(uae_u32)max);
+			return -1;
+		}
+	}
 	if ((mode == 1 || mode == 2) && hfd->ci.badblock_num) {
 		offset /= hfd->ci.blocksize;
 		len /= hfd->ci.blocksize;
@@ -1368,16 +1385,12 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 				r[0] = 0x7f;
 			} else {
 				r[0] = 0;
-				if (hfd->drive_empty) {
-					r[1] |= 0x80; // removable..
-					r[0] |= 0x20; // not present
-				}
 			}
 			r[2] = 2; /* supports SCSI-2 */
 			r[3] = 2; /* response data format */
 			r[4] = 32; /* additional length */
 			r[7] = 0;
-			scsi_len = lr = alen < 36 ? alen : 36;
+			lr = alen < 36 ? alen : 36;
 			if (hdhfd) {
 				r[2] = hdhfd->ansi_version;
 				r[3] = hdhfd->ansi_version >= 2 ? 2 : 0;
@@ -1385,6 +1398,18 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			setdrivestring(hfd->vendor_id, r, 8, 8);
 			setdrivestring(hfd->product_id, r, 16, 16);
 			setdrivestring(hfd->product_rev, r, 32, 4);
+			uae_u8 *rr;
+			if (ini_getdata(hfd->geometry, _T("INQUIRY"), _T("00"), &rr, &lr)) {
+				if (lr > alen)
+					lr = alen;
+				memcpy(r, rr, lr);
+				xfree(rr);
+			}
+			if (lun == 0 && hfd->drive_empty) {
+				r[0] |= 0x20; // not present
+				r[1] |= 0x80; // removable..
+			}
+			scsi_len = lr;
 		}
 		goto scsi_done;
 	case 0x1b: /* START/STOP UNIT */
@@ -1725,6 +1750,8 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			if (nodisk (hfd))
 				goto nodisk;
 			blocks = (uae_u32)(hfd->virtsize / hfd->ci.blocksize);
+			if (hfd->ci.max_lba)
+				blocks = hfd->ci.max_lba;
 			if (hdhfd) {
 				cyl = hdhfd->cyls;
 				head = hdhfd->heads;

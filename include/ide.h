@@ -71,7 +71,6 @@ struct ide_hdf
 	struct ide_hdf *pair; // master<>slave
 	struct ide_thread_state *its;
 	bool byteswap;
-	int byteswapped_buffer;
 	bool adide;
 
 	uae_u8 *secbuf;
@@ -85,7 +84,9 @@ struct ide_hdf
 	bool lba48;
 	bool lba48cmd;
 	uae_u64 start_lba;
+	uae_u64 max_lba;
 	int start_nsec;
+	int max_multiple_mode;
 	uae_u8 multiple_mode;
 	int irq_delay;
 	int irq;
@@ -132,6 +133,10 @@ struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct
 void remove_ide_unit(struct ide_hdf **idetable, int ch);
 void alloc_ide_mem (struct ide_hdf **ide, int max, struct ide_thread_state *its);
 void ide_reset_device(struct ide_hdf *ide);
+
+void ata_byteswapidentity(uae_u8 *d);
+void ata_parse_identity(uae_u8 *out, struct uaedev_config_info *uci, bool *lba48, int *max_multiple);
+bool ata_get_identity(struct ini_data *ini, uae_u8 *out, bool overwrite);
 
 void start_ide_thread(struct ide_thread_state *its);
 void stop_ide_thread(struct ide_thread_state *its);
