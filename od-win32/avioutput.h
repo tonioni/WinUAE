@@ -29,7 +29,7 @@ extern int AVIOutput_ChooseVideoCodec (HWND hwnd, TCHAR*, int);
 extern int AVIOutput_GetVideoCodec (TCHAR*, int);
 extern void AVIOutput_Restart (void);
 extern void AVIOutput_End (void);
-extern void AVIOutput_Begin (void);
+extern void AVIOutput_Begin (bool);
 extern void AVIOutput_Release (void);
 extern void AVIOutput_Initialize (void);
 extern void AVIOutput_RGBinfo (int,int,int,int,int,int,int,int);

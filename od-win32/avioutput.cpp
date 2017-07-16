@@ -300,15 +300,17 @@ static int AVIOutput_AudioAllocated (void)
 	return pwfxDst && audio_validated;
 }
 
-static int AVIOutput_AllocateAudio (void)
+static int AVIOutput_AllocateAudio (bool immediate)
 {
+	struct uae_prefs *p = immediate ? &workprefs : &currprefs;
+
 	AVIOutput_ReleaseAudio ();
 
 	// set the source format
 	memset (&wfxSrc, 0, sizeof (wfxSrc));
 	wfxSrc.Format.wFormatTag = WAVE_FORMAT_PCM;
-	wfxSrc.Format.nChannels = get_audio_nativechannels (currprefs.sound_stereo) ? get_audio_nativechannels (currprefs.sound_stereo) : 2;
-	wfxSrc.Format.nSamplesPerSec = workprefs.sound_freq ? workprefs.sound_freq : 44100;
+	wfxSrc.Format.nChannels = get_audio_nativechannels (p->sound_stereo) ? get_audio_nativechannels (p->sound_stereo) : 2;
+	wfxSrc.Format.nSamplesPerSec = p->sound_freq ? p->sound_freq : 44100;
 	wfxSrc.Format.nBlockAlign = wfxSrc.Format.nChannels * 16 / 8;
 	wfxSrc.Format.nAvgBytesPerSec = wfxSrc.Format.nBlockAlign * wfxSrc.Format.nSamplesPerSec;
 	wfxSrc.Format.wBitsPerSample = 16;
@@ -438,7 +440,7 @@ int AVIOutput_GetAudioCodec (TCHAR *name, int len)
 	AVIOutput_Initialize ();
 	if (AVIOutput_AudioAllocated ())
 		return AVIOutput_GetAudioCodecName (pwfxDst, name, len);
-	if (!AVIOutput_AllocateAudio ())
+	if (!AVIOutput_AllocateAudio (true))
 		return 0;
 	if (AVIOutput_GetAudioFromRegistry (pwfxDst) > 0) {
 		if (AVIOutput_GetAudioCodecName (pwfxDst, name, len)) {
@@ -455,7 +457,7 @@ int AVIOutput_ChooseAudioCodec (HWND hwnd, TCHAR *s, int len)
 {
 	AVIOutput_Initialize ();
 	AVIOutput_End();
-	if (!AVIOutput_AllocateAudio ())
+	if (!AVIOutput_AllocateAudio (true))
 		return 0;
 
 	acmopt.hwndOwner = hwnd;
@@ -739,7 +741,7 @@ int AVIOutput_ChooseVideoCodec (HWND hwnd, TCHAR *s, int len)
 	}
 }
 
-static void AVIOutput_Begin2(bool fullstart);
+static void AVIOutput_Begin2(bool fullstart, bool immediate);
 
 static void checkAVIsize(int force)
 {
@@ -762,7 +764,7 @@ static void checkAVIsize(int force)
 	total_avi_size = 0;
 	avioutput_video = tmp_avioutput_video;
 	avioutput_audio = tmp_avioutput_audio;
-	AVIOutput_Begin2(false);
+	AVIOutput_Begin2(false, false);
 	_tcscpy (avioutput_filename_tmp, fn);
 	partcnt = tmp_partcnt;
 }
@@ -841,11 +843,11 @@ static int AVIOutput_AVIWriteAudio_Thread (struct avientry *ae)
 	}
 
 	if (FirstAudio) {
-		if ((err = acmStreamSize(has, currprefs.sound_freq, &dwAudioOutputBytes, ACM_STREAMSIZEF_SOURCE) != 0)) {
+		if ((err = acmStreamSize(has, wfxSrc.Format.nSamplesPerSec, &dwAudioOutputBytes, ACM_STREAMSIZEF_SOURCE) != 0)) {
 			gui_message (_T("acmStreamSize() FAILED (%X)\n"), err);
 			goto error;
 		}
-		dwAudioInputBytes = currprefs.sound_freq;
+		dwAudioInputBytes = wfxSrc.Format.nSamplesPerSec;
 		if (!(lpAudioSrc = xcalloc (uae_u8, dwAudioInputBytes)))
 			goto error;
 		if (!(lpAudioDst = xcalloc (uae_u8, dwAudioOutputBytes)))
@@ -1322,7 +1324,7 @@ void AVIOutput_End (void)
 
 static void *AVIOutput_worker (void *arg);
 
-static void AVIOutput_Begin2(bool fullstart)
+static void AVIOutput_Begin2(bool fullstart, bool immediate)
 {
 	AVISTREAMINFO avistreaminfo; // Structure containing information about the stream, including the stream type and its sample rate
 	int i, err;
@@ -1393,7 +1395,7 @@ static void AVIOutput_Begin2(bool fullstart)
 	}
 
 	if (avioutput_audio) {
-		if (!AVIOutput_AllocateAudio ())
+		if (!AVIOutput_AllocateAudio (immediate))
 			goto error;
 		memset (&avistreaminfo, 0, sizeof (AVISTREAMINFO));
 		avistreaminfo.fccType = streamtypeAUDIO;
@@ -1506,9 +1508,9 @@ error:
 	AVIOutput_End ();
 }
 
-void AVIOutput_Begin(void)
+void AVIOutput_Begin(bool immediate)
 {
-	AVIOutput_Begin2(true);
+	AVIOutput_Begin2(true, immediate);
 }
 
 void AVIOutput_Release (void)
@@ -1647,7 +1649,7 @@ void AVIOutput_Toggle (int mode, bool immediate)
 			avioutput_audio = AVIOutput_GetAudioCodec (tmp, sizeof tmp / sizeof (TCHAR));
 			avioutput_video = AVIOutput_GetVideoCodec (tmp, sizeof tmp / sizeof (TCHAR));
 		}
-		AVIOutput_Begin ();
+		AVIOutput_Begin (immediate);
 	} else if (!immediate && avioutput_requested) {
 		_tcscpy (avioutput_filename_inuse, avioutput_filename_gui);
 	}
@@ -1705,7 +1707,7 @@ void frame_drawn (void)
 			bytesperframe = wfxSrc.Format.nChannels * 2;
 			StreamSizeAudioGot += avi_sndbuffered / bytesperframe;
 			unsigned int lastexpected = (unsigned int)StreamSizeAudioExpected;
-			StreamSizeAudioExpected += ((double)currprefs.sound_freq) / avioutput_fps;
+			StreamSizeAudioExpected += ((double)wfxSrc.Format.nSamplesPerSec) / avioutput_fps;
 			if (avioutput_video) {
 				int idiff = StreamSizeAudioGot - StreamSizeAudioExpected;
 				if ((timeframes % 5) == 0)
