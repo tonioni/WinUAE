@@ -199,7 +199,6 @@ struct ini_data *ini_load(const TCHAR *path)
 						otxt = xrealloc(TCHAR, otxt, len);
 					}
 					_tcscat(otxt, s3);
-					xfree(s3);
 					s3 = NULL;
 					if (!nl)
 						break;

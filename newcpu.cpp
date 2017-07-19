@@ -6178,7 +6178,7 @@ static int asm_parse_mode(TCHAR *s, uae_u8 *reg, uae_u32 *v, uae_u16 *ext)
 				if (endptr == startptr || endptr[0] != ',')
 					return -1;
 				s2 = endptr + 1;
-			} else if ((asm_isareg(s + 1) >= 0 || asm_ispc(s + 1)) && s[3] == ',' || (asm_isdreg(s + 4) >= 0 || asm_isareg(s + 4) >= 0)) {
+			} else if (((asm_isareg(s + 1) >= 0 || asm_ispc(s + 1)) && s[3] == ',') || (asm_isdreg(s + 4) >= 0 || asm_isareg(s + 4) >= 0)) {
 				if (dots != 1)
 					return -1;
 				s2 = s + 1;
@@ -7110,9 +7110,11 @@ void m68k_dumpstate (uaecptr pc, uaecptr *nextpc)
 		struct instr *dp;
 		struct mnemolookup *lookup1, *lookup2;
 		dp = table68k + regs.irc;
-		for (lookup1 = lookuptab; lookup1->mnemo != dp->mnemo; lookup1++);
+		for (lookup1 = lookuptab; lookup1->mnemo != dp->mnemo; lookup1++)
+			;
 		dp = table68k + regs.ir;
-		for (lookup2 = lookuptab; lookup2->mnemo != dp->mnemo; lookup2++);
+		for (lookup2 = lookuptab; lookup2->mnemo != dp->mnemo; lookup2++)
+			;
 		console_out_f (_T("Prefetch %04x (%s) %04x (%s) Chip latch %08X\n"), regs.irc, lookup1->name, regs.ir, lookup2->name, regs.chipset_latch_rw);
 	}
 

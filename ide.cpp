@@ -72,7 +72,7 @@ void ata_parse_identity(uae_u8 *out, struct uaedev_config_info *uci, bool *lba48
 
 	v = (out[59 * 2 + 0] << 8) | (out[59 * 2 + 1] << 0);
 	if (v & 1) { // multiple mode?
-		*max_multiple = (out[47 * 2 + 0] << 8) | (out[47 * 2 + 1] << 0);
+		*max_multiple = ((out[47 * 2 + 0] << 8) | (out[47 * 2 + 1] << 0)) & 0xff;
 	}
 
 	v = (out[53 * 2 + 0] << 8) | (out[53 * 2 + 1] << 0);
@@ -463,7 +463,7 @@ static void ide_identity_buffer(struct ide_hdf *ide)
 
 	if (ata_get_identity(ide->hdhfd.hfd.geometry, ide->secbuf, true)) {
 
-		if (ide->byteswap)
+		if (!ide->byteswap)
 			ata_byteswapidentity(ide->secbuf);
 
 	} else {

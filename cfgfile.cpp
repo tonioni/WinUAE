@@ -4462,11 +4462,18 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 						uci.physical_geometry = false;
 					}
 					if (tmpp2[0]) {
-						n = cfgfile_unescape (tmpp2, &end, 0);
-						if (!n)
-							goto invalid_fs;
-						_tcscpy(uci.geometry, n);
-						xfree(n);
+						if (tmpp2[0] == '\"') {
+							n = cfgfile_unescape (tmpp2, &end, 0);
+							if (!n)
+								goto invalid_fs;
+							_tcscpy(uci.geometry, n);
+							xfree(n);
+						} else {
+							tmpp = _tcschr (tmpp2, ',');
+							if (tmpp)
+								*tmpp++ = 0;
+							_tcscpy (uci.geometry, tmpp2);
+						}
 					}
 				}
 			}

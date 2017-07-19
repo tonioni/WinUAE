@@ -735,7 +735,7 @@ static void reset_dbplh_all (int hpos)
 			reset_dbplh(hpos, num);
 		}
 		dbplpth_on2 = 0;
-	}	
+	}
 }
 
 static void reset_dbpll (int hpos, int num)
@@ -754,7 +754,7 @@ static void reset_dbpll_all (int hpos)
 			reset_dbpll(hpos, num);
 		}
 		dbplptl_on2 = 0;
-	}	
+	}
 }
 #endif
 
