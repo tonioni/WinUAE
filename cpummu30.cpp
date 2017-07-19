@@ -71,14 +71,14 @@ uae_u32 mmu030_fmovem_store[2];
 struct mmu030_access mmu030_ad[MAX_MMU030_ACCESS];
 
 #if MMU_DPAGECACHE030
-#define MMUFASTCACHE_ENTRIES 256
-struct mmufastcache
+#define MMUFASTCACHE_ENTRIES030 256
+struct mmufastcache030
 {
 	uae_u32 log;
 	uae_u32 phys;
 };
-extern struct mmufastcache atc_data_cache_read[MMUFASTCACHE_ENTRIES];
-extern struct mmufastcache atc_data_cache_write[MMUFASTCACHE_ENTRIES];
+static struct mmufastcache030 atc_data_cache_read[MMUFASTCACHE_ENTRIES030];
+static struct mmufastcache030 atc_data_cache_write[MMUFASTCACHE_ENTRIES030];
 #endif
 
 /* for debugging messages */
@@ -208,7 +208,7 @@ static void mmu030_flush_cache(uaecptr addr)
 		memset(&atc_data_cache_write, 0xff, sizeof atc_data_cache_write);
 	} else {
 		uae_u32 idx = ((addr & mmu030.translation.page.imask) >> mmu030.translation.page.size3m) | 7;
-		for (int i = 0; i < MMUFASTCACHE_ENTRIES; i++) {
+		for (int i = 0; i < MMUFASTCACHE_ENTRIES030; i++) {
 			if ((atc_data_cache_read[i].log | 7) == idx)
 				atc_data_cache_read[i].log = 0xffffffff;
 			if ((atc_data_cache_write[i].log | 7) == idx)
@@ -408,7 +408,7 @@ bool mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
             return true;
 	}
     
-    if (!fd && !rw) {
+    if (!fd && !rw && preg != 0x18) {
         mmu030_flush_atc_all();
     }
 	tt_enabled = (tt0_030 & TT_ENABLE) || (tt1_030 & TT_ENABLE);
@@ -1724,8 +1724,8 @@ static void mmu030_add_data_read_cache(uaecptr addr, uaecptr phys, uae_u32 fc)
 {
 #if MMU_DPAGECACHE030
 	uae_u32 idx1 = ((addr & mmu030.translation.page.imask) >>  mmu030.translation.page.size3m) | fc;
-	uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES - 1);
-	if (idx2 < MMUFASTCACHE_ENTRIES - 1) {
+	uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES030 - 1);
+	if (idx2 < MMUFASTCACHE_ENTRIES030 - 1) {
 		atc_data_cache_read[idx2].log = idx1;
 		atc_data_cache_read[idx2].phys = phys;
 	}
@@ -1736,8 +1736,8 @@ static void mmu030_add_data_write_cache(uaecptr addr, uaecptr phys, uae_u32 fc)
 {
 #if MMU_DPAGECACHE030
 	uae_u32 idx1 = ((addr & mmu030.translation.page.imask) >>  mmu030.translation.page.size3m) | fc;
-	uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES - 1);
-	if (idx2 < MMUFASTCACHE_ENTRIES - 1) {
+	uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES030 - 1);
+	if (idx2 < MMUFASTCACHE_ENTRIES030 - 1) {
 		atc_data_cache_write[idx2].log = idx1;
 		atc_data_cache_write[idx2].phys = phys;
 	}
@@ -1903,7 +1903,7 @@ void mmu030_put_long(uaecptr addr, uae_u32 val, uae_u32 fc)
     if (((fc != 7) || (!tt_enabled || !mmu030_match_ttr_access(addr,fc,true))) && (mmu030.enabled)) {
 #if MMU_DPAGECACHE030
 		uae_u32 idx1 = ((addr & mmu030.translation.page.imask) >> mmu030.translation.page.size3m) | fc;
-		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES - 1);
+		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES030 - 1);
 		if (atc_data_cache_write[idx2].log == idx1) {
 			addr = atc_data_cache_write[idx2].phys | (addr & mmu030.translation.page.mask);
 		} else
@@ -1926,7 +1926,7 @@ void mmu030_put_word(uaecptr addr, uae_u16 val, uae_u32 fc)
     if (((fc != 7) || (!tt_enabled || !mmu030_match_ttr_access(addr,fc,true))) && (mmu030.enabled)) {
 #if MMU_DPAGECACHE030
 		uae_u32 idx1 = ((addr & mmu030.translation.page.imask) >> mmu030.translation.page.size3m) | fc;
-		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES - 1);
+		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES030 - 1);
 		if (atc_data_cache_write[idx2].log == idx1) {
 			addr = atc_data_cache_write[idx2].phys | (addr & mmu030.translation.page.mask);
 		} else
@@ -1949,7 +1949,7 @@ void mmu030_put_byte(uaecptr addr, uae_u8 val, uae_u32 fc)
     if (((fc != 7) || (!tt_enabled || !mmu030_match_ttr_access(addr,fc,true))) && (mmu030.enabled)) {
 #if MMU_DPAGECACHE030
 		uae_u32 idx1 = ((addr & mmu030.translation.page.imask) >> mmu030.translation.page.size3m) | fc;
-		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES - 1);
+		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES030 - 1);
 		if (atc_data_cache_write[idx2].log == idx1) {
 			addr = atc_data_cache_write[idx2].phys | (addr & mmu030.translation.page.mask);
 		} else
@@ -1973,7 +1973,7 @@ uae_u32 mmu030_get_long(uaecptr addr, uae_u32 fc)
    if (((fc != 7) || (!tt_enabled || !mmu030_match_ttr_access(addr,fc,false))) && (mmu030.enabled)) {
 #if MMU_DPAGECACHE030
 		uae_u32 idx1 = ((addr & mmu030.translation.page.imask) >> mmu030.translation.page.size3m) | fc;
-		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES - 1);
+		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES030 - 1);
 		if (atc_data_cache_read[idx2].log == idx1) {
 			addr = atc_data_cache_read[idx2].phys | (addr & mmu030.translation.page.mask);
 		} else
@@ -1996,7 +1996,7 @@ uae_u16 mmu030_get_word(uaecptr addr, uae_u32 fc)
    if (((fc != 7) || (!tt_enabled || !mmu030_match_ttr_access(addr,fc,false))) && (mmu030.enabled)) {
 #if MMU_DPAGECACHE030
 		uae_u32 idx1 = ((addr & mmu030.translation.page.imask) >> mmu030.translation.page.size3m) | fc;
-		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES - 1);
+		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES030 - 1);
 		if (atc_data_cache_read[idx2].log == idx1) {
 			addr = atc_data_cache_read[idx2].phys | (addr & mmu030.translation.page.mask);
 		} else
@@ -2019,7 +2019,7 @@ uae_u8 mmu030_get_byte(uaecptr addr, uae_u32 fc)
    if (((fc != 7) || (!tt_enabled || !mmu030_match_ttr_access(addr,fc,false))) && (mmu030.enabled)) {
 #if MMU_DPAGECACHE030
 		uae_u32 idx1 = ((addr & mmu030.translation.page.imask) >> mmu030.translation.page.size3m) | fc;
-		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES - 1);
+		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES030 - 1);
 		if (atc_data_cache_read[idx2].log == idx1) {
 			addr = atc_data_cache_read[idx2].phys | (addr & mmu030.translation.page.mask);
 		} else
