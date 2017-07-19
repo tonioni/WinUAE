@@ -86,6 +86,7 @@ struct wd_state {
 	bool enabled;
 	int configured;
 	bool autoconfig;
+	bool threaded;
 	uae_u8 dmacmemory[128];
 	uae_u8 *rom, *rom2;
 	int board_mask;
@@ -135,6 +136,7 @@ extern void gvp_free(void);
 extern void gvp_reset (void);
 
 extern bool comspec_init (struct autoconfig_info *aci);
+extern bool comspec_preinit (struct autoconfig_info *aci);
 
 extern bool a3000scsi_init(struct autoconfig_info *aci);
 extern void a3000scsi_free (void);
