@@ -2667,6 +2667,8 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 	switch ((extra >> 13) & 0x7)
 	{
 		case 3:
+			if (fault_if_no_fpu (opcode, extra, 0, pc))
+				return;
 			if (fp_exception_pending(true))
 				return;
 
@@ -2881,8 +2883,6 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 			regs.fpiar = pc;
 			reg = (extra >> 7) & 7;
 			if ((extra & 0xfc00) == 0x5c00) {
-				if (fault_if_no_fpu (opcode, extra, 0, pc))
-					return;
 				if (fault_if_unimplemented_680x0 (opcode, extra, ad, pc, &src, reg))
 					return;
 				fpsr_clear_status();
@@ -2904,6 +2904,9 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 					fpu_noinst (opcode, pc);
 				return;
 			}
+
+			if (fault_if_no_fpu (opcode, extra, ad, pc))
+				return;
 
 			dst = regs.fp[reg];
 
