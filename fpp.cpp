@@ -935,6 +935,11 @@ static bool fault_if_no_fpu (uae_u16 opcode, uae_u16 extra, uaecptr ea, uaecptr 
 #if EXCEPTION_FPP
 		write_log (_T("no FPU: %04X-%04X PC=%08X\n"), opcode, extra, oldpc);
 #endif
+		if (fpu_mmu_fixup) {
+			m68k_areg (regs, mmufixup[0].reg) = mmufixup[0].value;
+			mmufixup[0].reg = -1;
+
+		}
 		fpu_op_illg(opcode, ea, oldpc);
 		return true;
 	}
@@ -1237,20 +1242,18 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 			ad = m68k_areg (regs, reg);
 			break;
 		case 3:
-			if (currprefs.mmu_model) {
-				mmufixup[0].reg = reg;
-				mmufixup[0].value = m68k_areg (regs, reg);
-				fpu_mmu_fixup = true;
-			}
+			// Also needed by fault_if_no_fpu 
+			mmufixup[0].reg = reg;
+			mmufixup[0].value = m68k_areg (regs, reg);
+			fpu_mmu_fixup = true;
 			ad = m68k_areg (regs, reg);
 			m68k_areg (regs, reg) += reg == 7 ? sz2[size] : sz1[size];
 			break;
 		case 4:
-			if (currprefs.mmu_model) {
-				mmufixup[0].reg = reg;
-				mmufixup[0].value = m68k_areg (regs, reg);
-				fpu_mmu_fixup = true;
-			}
+			// Also needed by fault_if_no_fpu 
+			mmufixup[0].reg = reg;
+			mmufixup[0].value = m68k_areg (regs, reg);
+			fpu_mmu_fixup = true;
 			m68k_areg (regs, reg) -= reg == 7 ? sz2[size] : sz1[size];
 			ad = m68k_areg (regs, reg);
 			break;
@@ -1277,6 +1280,8 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 					ad = x_cp_get_disp_ea_020 (m68k_getpc (), 0);
 					break;
 				case 4: // #imm
+					if (fault_if_no_fpu (opcode, extra, 0, oldpc))
+						return -1;
 					doext = 1;
 					switch (size)
 					{
@@ -1310,10 +1315,15 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 			}
 	}
 
+
+	if (fault_if_no_fpu (opcode, extra, ad, oldpc))
+		return -1;
+
 	*adp = ad;
 	uae_u32 adold = ad;
 
 	if (currprefs.fpu_model == 68060) {
+		// Skip if 68040 because FSAVE frame can store both src and dst
 		if (fault_if_unimplemented_680x0(opcode, extra, ad, oldpc, src, -1)) {
 			return -1;
 		}
