@@ -3756,7 +3756,7 @@ static void wd_execute_cmd(struct wd_state *wds, int cmd, int msg, int unit)
 	if (msg == 0) {
 		if (WD33C93_DEBUG > 0)
 			write_log (_T("%s command %02X\n"), WD33C93, cmd);
-		switch (cmd)
+		switch (cmd & 0x7f)
 		{
 		case WD_CMD_RESET:
 			wd_cmd_reset(wd, true);
