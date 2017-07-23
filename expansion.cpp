@@ -4801,6 +4801,12 @@ const struct expansionromtype expansionroms[] = {
 		false, 2, NULL
 	},
 	{
+		_T("inmate"), _T("InMate"), _T("Spirit Technology"),
+		NULL, inmate_init, NULL, inmate_add_scsi_unit, ROMTYPE_INMATE | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI
+	},
+	{
 		_T("supradrive"), _T("SupraDrive"), _T("Supra Corporation"),
 		NULL, supra_init, NULL, supra_add_scsi_unit, ROMTYPE_SUPRA | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		supra_sub, 0,
@@ -4842,7 +4848,7 @@ const struct expansionromtype expansionroms[] = {
 	},
 	{
 		_T("system2000"), _T("System 2000"), _T("Vortex"),
-		NULL, system2000_init, NULL, system2000_add_scsi_unit, ROMTYPE_SYSTEM2000 | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		system2000_preinit, system2000_init, NULL, system2000_add_scsi_unit, ROMTYPE_SYSTEM2000 | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
 	},

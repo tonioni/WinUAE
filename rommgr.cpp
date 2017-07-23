@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 218
+#define NEXT_ROM_ID 220
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -535,6 +535,10 @@ static struct romdata roms[] = {
 	0xe60b1ce6, 0xa7c4b709, 0x494f4034, 0x42b8ec11, 0x090dc1d0, 0x18098ebc, NULL, NULL },
 	{ _T("Ashcom Design AddHard v2.0"), 1, 0, 1, 0, _T("ADDHARD\0"), 16384, 209, 0, 0, ROMTYPE_ADDHARD, 0, 0, NULL,
 	0xe9ad804a, 0x9ebabbeb,0xc1e5ce9e,0xd8e43870,0xdd810524,0x770ba6b4, NULL, NULL },
+	{ _T("Spirite Technology InMate"), 1, 0, 1, 0, _T("INMATE\0"), 32768, 218, 0, 0, ROMTYPE_INMATE, 0, 0, NULL,
+	0xa2e0cfb8, 0xfa7199d2,0xea343b01,0x4b0f6eb6,0x992d2e95,0x40fce61b, NULL, NULL },
+	{ _T("Vortex System 2000"), 1, 0, 1, 0, _T("SYSTEM2000\0"), 32768, 219, 0, 0, ROMTYPE_SYSTEM2000, 0, 0, NULL,
+	0x053097c3, 0xee87f26c,0xf858b63a,0xd6bff74b,0x802cea03,0x97281fad, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

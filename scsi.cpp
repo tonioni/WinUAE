@@ -62,7 +62,8 @@
 #define NONCR_HARDFRAME 31
 #define NCR5380_MALIBU 32
 #define NCR5380_ADDHARD 33
-#define NCR_LAST 34
+#define NONCR_INMATE 34
+#define NCR_LAST 35
 
 extern int log_scsiemu;
 
@@ -213,10 +214,11 @@ bool scsi_emulate_analyze (struct scsi_data *sd)
 		return true;
 	}
 	if (data_len < 0) {
-		if (cmd_len == 6)
+		if (cmd_len == 6) {
 			sd->data_len = sd->cmd[4];
-		else
+		} else {
 			sd->data_len = (sd->cmd[7] << 8) | sd->cmd[8];
+		}
 	} else {
 		sd->data_len = data_len;
 	}
@@ -2654,6 +2656,18 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 			v = ncr->rom[addr];
 		}
 
+	} else if (ncr->type == NONCR_INMATE) {
+
+		if (!(addr & 0x8000)) {
+			if (addr == 0x80) {
+				v = aic_bget_reg(ncr);
+			} else if (addr == 0x82) {
+				v = aic_bget_data(ncr);
+			}
+		} else {
+			v = ncr->rom[addr];
+		}
+
 	} else if (ncr->type == NCR5380_SUPRA) {
 
 		if (ncr->subtype == 4) {
@@ -3132,6 +3146,14 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 			ncr->intena = (val & 0x10) != 0;
 		} else if (addr >= 0x80 && addr <= 0x9f) {
 			write_684xx_dma(ncr, addr & 31, val);
+		}
+
+	} else if (ncr->type == NONCR_INMATE) {
+		
+		if (addr == 0x80) {
+			aic_bput_reg(ncr, val);
+		} else if (addr == 0x82) {
+			aic_bput_data(ncr, val);
 		}
 
 	} else if (ncr->type == NCR5380_SUPRA) {
@@ -4320,6 +4342,16 @@ bool system2000_init(struct autoconfig_info *aci)
 
 	if (!scsi)
 		return false;
+	return true;
+}
+
+bool system2000_preinit(struct autoconfig_info *aci)
+{
+	struct soft_scsi *scsi = getscsi(aci->rc);
+
+	if (!scsi)
+		return false;
+
 	map_banks(scsi->bank, aci->start >> 16, aci->size >> 16, 0);
 	scsi->board_mask = aci->size - 1;
 	scsi->baseaddress = aci->start;
@@ -4538,6 +4570,28 @@ bool hardframe_init(struct autoconfig_info *aci)
 void hardframe_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, NONCR_HARDFRAME, 65536, 65536, ROMTYPE_HARDFRAME);
+}
+
+bool inmate_init(struct autoconfig_info *aci)
+{
+	if (!aci->doinit) {
+		load_rom_rc(aci->rc, ROMTYPE_INMATE, 32768, 0, aci->autoconfig_raw, 128, LOADROM_EVENONLY_ODDONE);
+		return true;
+	}
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	load_rom_rc(aci->rc, ROMTYPE_INMATE, 32768, 0, scsi->rom, 65536, LOADROM_EVENONLY_ODDONE);
+	memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
+	aci->addrbank = scsi->bank;
+	return true;
+}
+
+void inmate_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NONCR_INMATE, 65536, 65536, ROMTYPE_INMATE);
 }
 
 bool malibu_init(struct autoconfig_info *aci)

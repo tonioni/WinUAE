@@ -240,6 +240,7 @@ void alf1_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig 
 bool promigos_init(struct autoconfig_info *aci);
 void promigos_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
+bool system2000_preinit(struct autoconfig_info *aci);
 bool system2000_init(struct autoconfig_info *aci);
 void system2000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
@@ -266,6 +267,9 @@ void malibu_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 
 bool addhard_init(struct autoconfig_info*);
 void addhard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
+bool inmate_init(struct autoconfig_info*);
+void inmate_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 uae_u8 idescsi_scsi_get(uaecptr addr);
 void idescsi_scsi_put(uaecptr addr, uae_u8 v);

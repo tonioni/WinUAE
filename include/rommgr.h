@@ -156,6 +156,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_ADDHARD		0x00100066
 #define ROMTYPE_A2090B		0x00100067
 #define ROMTYPE_FASTATA4K	0x00100068
+#define ROMTYPE_INMATE		0x00100069
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000
