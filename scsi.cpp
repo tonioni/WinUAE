@@ -69,7 +69,7 @@ extern int log_scsiemu;
 
 static const int outcmd[] = { 0x04, 0x0a, 0x0c, 0x2a, 0xaa, 0x15, 0x55, 0x0f, -1 };
 static const int incmd[] = { 0x01, 0x03, 0x08, 0x12, 0x1a, 0x5a, 0x25, 0x28, 0x34, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, 0xb9, 0xbd, 0xbe, -1 };
-static const int nonecmd[] = { 0x00, 0x05, 0x06, 0x09, 0x0b, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1d, 0x1e, 0x2b, 0x35, 0x45, 0x47, 0x48, 0x49, 0x4b, 0x4e, 0xa5, 0xa9, 0xba, 0xbc, 0xe0, 0xe3, 0xe4, -1 };
+static const int nonecmd[] = { 0x00, 0x05, 0x06, 0x07, 0x09, 0x0b, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1d, 0x1e, 0x2b, 0x35, 0x45, 0x47, 0x48, 0x49, 0x4b, 0x4e, 0xa5, 0xa9, 0xba, 0xbc, 0xe0, 0xe3, 0xe4, -1 };
 static const int scsicmdsizes[] = { 6, 10, 10, 12, 16, 12, 10, 6 };
 
 static void scsi_illegal_command(struct scsi_data *sd)
@@ -149,6 +149,7 @@ bool scsi_emulate_analyze (struct scsi_data *sd)
 		}
 	break;
 	case 0x06: // FORMAT TRACK
+	case 0x07: // FORMAT BAD TRACK 
 		if (sd->device_type == UAEDEV_CD)
 			goto nocmd;
 		sd->direction = 0;
@@ -1479,11 +1480,19 @@ static uae_u8 aic_bget_reg(struct soft_scsi *scsi)
 static uae_u8 aic_bget_dma(struct soft_scsi *scsi, bool *phaseerr)
 {
 	struct raw_scsi *r = &scsi->rscsi;
+	if (!scsi->dma_direction)
+		return 0;
 	if (!aic_phase_match(scsi)) {
-		*phaseerr = true;
+		if (phaseerr)
+			*phaseerr = true;
+		if (!scsi->dmac_active) {
+			aic_int(scsi, 0x08); // COMMAND DONE
+		}
+		scsi->dma_direction = 0;
 		return 0;
 	}
-	*phaseerr = false;
+	if (phaseerr)
+		*phaseerr = false;
 	return raw_scsi_get_data(r, true);
 }
 
@@ -1581,11 +1590,19 @@ static void aic_bput_reg(struct soft_scsi *scsi, uae_u8 v)
 static void aic_bput_dma(struct soft_scsi *scsi, uae_u8 v, bool *phaseerr)
 {
 	struct raw_scsi *r = &scsi->rscsi;
+	if (!scsi->dma_direction)
+		return;
 	if (!aic_phase_match(scsi)) {
-		*phaseerr = true;
+		if (phaseerr)
+			*phaseerr = true;
+		if (!scsi->dmac_active) {
+			aic_int(scsi, 0x08); // COMMAND DONE
+		}
+		scsi->dma_direction = 0;
 		return;
 	}
-	*phaseerr = false;
+	if (phaseerr)
+		*phaseerr = false;
 	raw_scsi_put_data(r, v, true);
 }
 
@@ -1626,8 +1643,13 @@ static void aic_bput_data(struct soft_scsi *scsi, uae_u8 v)
 		case 5:
 		if (v & 1) { // DMA XFER EN
 			scsi->dma_direction = (v & 2) ? 1 : -1;
-			dma_check(scsi);
-			aic_int(scsi, 0x08); // COMMAND DONE
+			if (scsi->dmac_active) {
+				dma_check(scsi);
+				aic_int(scsi, 0x08); // COMMAND DONE
+				scsi->dma_direction = 0;
+			}
+		} else {
+			scsi->dma_direction = 0;
 		}
 		break;
 		case 8: // CONTROL
@@ -2663,6 +2685,12 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 				v = aic_bget_reg(ncr);
 			} else if (addr == 0x82) {
 				v = aic_bget_data(ncr);
+			} else if (addr == 0x84) {
+				v = (1 << 5) | (1 << 4) | (1 << 3);
+				if (ncr->dma_direction)
+					v |= 1 << 7;
+			} else if (addr == 0x88 || addr == 0x89) {
+				v = aic_bget_dma(ncr, NULL);
 			}
 		} else {
 			v = ncr->rom[addr];
@@ -3103,7 +3131,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 	}
 
 #if NCR5380_DEBUG > 1
-	if (origaddr < 0x4000 || origaddr >= 0x8000)
+	if (origaddr < 0x8000)
 		write_log(_T("GET %08x %02x %d %08x %d\n"), origaddr, v, reg, M68K_GETPC, regs.intmask);
 #endif
 
@@ -3154,6 +3182,8 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 			aic_bput_reg(ncr, val);
 		} else if (addr == 0x82) {
 			aic_bput_data(ncr, val);
+		} else if (addr == 0x88 || addr == 0x89) {
+			aic_bput_dma(ncr, val, NULL);
 		}
 
 	} else if (ncr->type == NCR5380_SUPRA) {
@@ -3447,7 +3477,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 	}
 
 #if NCR5380_DEBUG > 1
-	if (1 || origaddr >= 0x8000)
+	if (origaddr < 0x8000)
 		write_log(_T("PUT %08x %02x %d %08x %d\n"), origaddr, val, reg, M68K_GETPC, regs.intmask);
 #endif
 }

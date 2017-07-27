@@ -1455,6 +1455,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		scsi_len = 0;
 		break;
 	case 0x06: /* FORMAT TRACK */
+	case 0x07: /* FORMAT BAD TRACK */
 		// do nothing
 		if (nodisk (hfd))
 			goto nodisk;
