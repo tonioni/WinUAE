@@ -10,7 +10,7 @@
 #define CONFIG_DELETE 4
 
 void WIN32GUI_LoadUIString (DWORD id, TCHAR *string, DWORD dwStringLen);
-extern int DiskSelection (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, TCHAR *);
+extern int DiskSelection (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, TCHAR *, TCHAR *);
 void InitializeListView (HWND hDlg);
 extern void pre_gui_message (const TCHAR*,...);
 extern void gui_message_id (int id);

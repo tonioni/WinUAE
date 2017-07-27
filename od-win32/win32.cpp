@@ -2023,7 +2023,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 							if (nm->code == NM_RCLICK) {
 								disk_eject (num);
 							} else if (changed_prefs.floppyslots[num].dfxtype >= 0) {
-								DiskSelection (hWnd, IDC_DF0 + num, 0, &changed_prefs, 0);
+								DiskSelection (hWnd, IDC_DF0 + num, 0, &changed_prefs, NULL, NULL);
 								disk_insert (num, changed_prefs.floppyslots[num].df);
 							}
 						} else if (num == 5) {
@@ -2505,7 +2505,7 @@ static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam
 			changed_prefs.cdslots[0].inuse = false;
 			break;
 		case ID_ST_CD0:
-			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_CD_SELECT, 17, &changed_prefs, 0);
+			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_CD_SELECT, 17, &changed_prefs, NULL, NULL);
 			break;
 
 		case ID_ST_EJECTALL:
@@ -2515,19 +2515,19 @@ static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam
 			disk_eject (3);
 			break;
 		case ID_ST_DF0:
-			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF0, 0, &changed_prefs, 0);
+			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF0, 0, &changed_prefs, NULL, NULL);
 			disk_insert (0, changed_prefs.floppyslots[0].df);
 			break;
 		case ID_ST_DF1:
-			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF1, 0, &changed_prefs, 0);
+			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF1, 0, &changed_prefs, NULL, NULL);
 			disk_insert (1, changed_prefs.floppyslots[0].df);
 			break;
 		case ID_ST_DF2:
-			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF2, 0, &changed_prefs, 0);
+			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF2, 0, &changed_prefs, NULL, NULL);
 			disk_insert (2, changed_prefs.floppyslots[0].df);
 			break;
 		case ID_ST_DF3:
-			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF3, 0, &changed_prefs, 0);
+			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF3, 0, &changed_prefs, NULL, NULL);
 			disk_insert (3, changed_prefs.floppyslots[0].df);
 			break;
 

@@ -932,7 +932,6 @@ static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam,
 		DestroyWindow (hDlg);
 		return TRUE;
 	case WM_INITDIALOG:
-		geometry_file[0] = 0;
 		ShowWindow(GetDlgItem (hDlg, IDC_SAVEBOOTBLOCK), SW_SHOW);
 		SetWindowText(hDlg, _T("Harddrive information"));
 		return TRUE;
@@ -940,7 +939,7 @@ static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam,
 		switch (LOWORD (wParam))
 		{
 		case IDC_SAVEBOOTBLOCK:
-			if (DiskSelection(hDlg, 0, 24, &workprefs, geometry_file)) {
+			if (DiskSelection(hDlg, 0, 24, &workprefs, geometry_file, NULL)) {
 				ini_save(hdini, geometry_file);
 			}
 			break;
@@ -970,7 +969,7 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 	struct ini_data *ini = NULL;
 
 	geometryfile[0] = 0;
-	text = xcalloc(TCHAR, 10000);
+	text = xcalloc(TCHAR, 100000);
 
 	HANDLE h = CreateFile(udi->device_path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
 		NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -986,7 +985,7 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 	inq[0] = 0xff;
 
 	if (udi->BusType == BusTypeAta || udi->BusType == BusTypeSata) {
-		if (!_tcscmp(udi->vendor_id, _T("ATA     "))) {
+		if (!_tcscmp(udi->vendor_id, _T("ATA"))) {
 			satl = true;
 		}
 	}
@@ -1049,6 +1048,31 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 	}
 
 doout:
+
+	geometry_file[0] = 0;
+	if (udi->vendor_id[0]) {
+		_tcscat(geometry_file, udi->vendor_id);
+	}
+	if (udi->product_id[0]) {
+		if (geometry_file[0] && geometry_file[_tcslen(geometry_file) - 1] != ' ')
+			_tcscat(geometry_file, _T(" "));
+		_tcscat(geometry_file, udi->product_id);
+	}
+	if (udi->product_rev[0]) {
+		if (geometry_file[0] && geometry_file[_tcslen(geometry_file) - 1] != ' ')
+			_tcscat(geometry_file, _T(" "));
+		_tcscat(geometry_file, udi->product_rev);
+	}
+	if (udi->product_serial[0]) {
+		if (geometry_file[0] && geometry_file[_tcslen(geometry_file) - 1] != ' ')
+			_tcscat(geometry_file, _T(" "));
+		_tcscat(geometry_file, udi->product_serial);
+	}
+	if (udi->size)
+		_stprintf(geometry_file + _tcslen(geometry_file), _T(" %llX"), udi->size);
+	if (geometry_file[0])
+		_tcscat(geometry_file, _T(".geo"));
+
 	stringboxdialogactive = 1;
 	hdini = ini;
 	HWND hwnd = CustomCreateDialog (IDD_DISKINFO, hDlg, StringBoxDialogProc);
@@ -2809,7 +2833,7 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 		goto err;
 	size = uae_drives[idx].size;
 	path[0] = 0;
-	DiskSelection (hDlg, IDC_PATH_NAME, 3, p, 0);
+	DiskSelection (hDlg, IDC_PATH_NAME, 3, p, NULL, NULL);
 	GetDlgItemText (hDlg, IDC_PATH_NAME, path, MAX_DPATH);
 	if (*path == 0)
 		goto err;

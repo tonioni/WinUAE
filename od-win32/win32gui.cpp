@@ -2250,12 +2250,12 @@ void gui_display (int shortcut)
 			savestate_state = 0;
 		}
 	} else if (shortcut >= 0 && shortcut < 4) {
-		DiskSelection (hAmigaWnd, IDC_DF0 + shortcut, 0, &changed_prefs, 0);
+		DiskSelection (hAmigaWnd, IDC_DF0 + shortcut, 0, &changed_prefs, NULL, NULL);
 	} else if (shortcut == 5) {
-		if (DiskSelection (hAmigaWnd, IDC_DOSAVESTATE, 9, &changed_prefs, 0))
+		if (DiskSelection (hAmigaWnd, IDC_DOSAVESTATE, 9, &changed_prefs, NULL, NULL))
 			save_state (savestate_fname, _T("Description!"));
 	} else if (shortcut == 4) {
-		if (DiskSelection (hAmigaWnd, IDC_DOLOADSTATE, 10, &changed_prefs, 0))
+		if (DiskSelection (hAmigaWnd, IDC_DOLOADSTATE, 10, &changed_prefs, NULL, NULL))
 			savestate_state = STATE_DORESTORE;
 	}
 	manual_painting_needed--; /* So that WM_PAINT doesn't need to use custom refreshing */
@@ -2603,7 +2603,7 @@ static void setdpath (const TCHAR *name, const TCHAR *path)
 // fags = 23 for hdf geometry (load)
 // fags = 24 for hdf geometry (save)
 
-int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, TCHAR *path_out, int *multi)
+int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, TCHAR *infilename, TCHAR *path_out, int *multi)
 {
 	static int previousfilter[20];
 	TCHAR filtername[MAX_DPATH] = _T("");
@@ -2715,6 +2715,8 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			break;
 		}
 	}
+	if (infilename)
+		_tcscpy(full_path, infilename);
 
 	szFilter[0] = 0;
 	szFilter[1] = 0;
@@ -3118,14 +3120,14 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	}
 	return result;
 }
-int DiskSelection (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, TCHAR *path_out)
+int DiskSelection (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, TCHAR *file_in, TCHAR *path_out)
 {
-	return DiskSelection_2 (hDlg, wParam, flag, prefs, path_out, NULL);
+	return DiskSelection_2 (hDlg, wParam, flag, prefs, file_in, path_out, NULL);
 }
 int MultiDiskSelection (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, TCHAR *path_out)
 {
 	int multi = 0;
-	return DiskSelection_2 (hDlg, wParam, flag, prefs, path_out, &multi);
+	return DiskSelection_2 (hDlg, wParam, flag, prefs, NULL, path_out, &multi);
 }
 static int loopmulti (const TCHAR *s, TCHAR *out)
 {
@@ -3172,7 +3174,7 @@ static BOOL CreateHardFile (HWND hDlg, uae_s64 hfsize, const TCHAR *dostype, TCH
 		dynamic = 1;
 		sparse = 0;
 	}
-	if (!DiskSelection (hDlg, IDC_PATH_NAME, 3, &workprefs, newpath))
+	if (!DiskSelection (hDlg, IDC_PATH_NAME, 3, &workprefs, NULL, newpath))
 		return FALSE;
 	GetDlgItemText (hDlg, IDC_PATH_NAME, init_path, MAX_DPATH);
 	if (*init_path && hfsize) {
@@ -3843,13 +3845,13 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 	switch (flag)
 	{
 	case CONFIG_SAVE_FULL:
-		ok = DiskSelection(hDlg, IDC_SAVE, 5, &workprefs, newpath);
+		ok = DiskSelection(hDlg, IDC_SAVE, 5, &workprefs, NULL, newpath);
 		GetDlgItemText (hDlg, IDC_EDITNAME, name, MAX_DPATH);
 		_tcscpy (config_filename, name);
 		break;
 
 	case CONFIG_LOAD_FULL:
-		if ((ok = DiskSelection(hDlg, IDC_LOAD, 4, &workprefs, newpath))) {
+		if ((ok = DiskSelection(hDlg, IDC_LOAD, 4, &workprefs, NULL, newpath))) {
 			EnableWindow(GetDlgItem (hDlg, IDC_VIEWINFO), workprefs.info[0]);
 			GetDlgItemText (hDlg, IDC_EDITNAME, name, MAX_DPATH);
 			_tcscpy (config_filename, name);
@@ -5048,7 +5050,7 @@ static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		switch(wParam)
 		{
 		case IDC_SELECTOR:
-			DiskSelection (hDlg, IDC_PATH_NAME, 8, &workprefs, 0);
+			DiskSelection (hDlg, IDC_PATH_NAME, 8, &workprefs, NULL, NULL);
 			break;
 		case IDOK:
 			EndDialog (hDlg, 1);
@@ -8010,7 +8012,7 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			{
 				TCHAR path[MAX_DPATH];
 				path[0] = 0;
-				DiskSelection(hDlg, IDC_GENLOCKFILESELECT, workprefs.genlock_image == 3 ? 20 : 21, &workprefs, path);
+				DiskSelection(hDlg, IDC_GENLOCKFILESELECT, workprefs.genlock_image == 3 ? 20 : 21, &workprefs, NULL, path);
 				break;
 			}
 		}
@@ -9566,11 +9568,11 @@ static void expansion2filebuttons(HWND hDlg, WPARAM wParam, TCHAR *path)
 	switch (LOWORD(wParam))
 	{
 		case IDC_SCSIROMCHOOSER:
-		DiskSelection(hDlg, IDC_SCSIROMFILE, 6, &workprefs, path);
+		DiskSelection(hDlg, IDC_SCSIROMFILE, 6, &workprefs, NULL, path);
 		values_to_expansion2dlg(hDlg, 1);
 		break;
 		case IDC_CPUBOARDROMCHOOSER:
-		DiskSelection(hDlg, IDC_CPUBOARDROMFILE, 6, &workprefs, path);
+		DiskSelection(hDlg, IDC_CPUBOARDROMFILE, 6, &workprefs, NULL, path);
 		values_to_expansion2dlg(hDlg, 2);
 		break;
 	}
@@ -10656,23 +10658,23 @@ static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, TCHAR *path)
 	switch (LOWORD(wParam))
 	{
 	case IDC_KICKCHOOSER:
-		DiskSelection(hDlg, IDC_ROMFILE, 6, &workprefs, path);
+		DiskSelection(hDlg, IDC_ROMFILE, 6, &workprefs, NULL, path);
 		values_to_kickstartdlg (hDlg);
 		break;
 	case IDC_ROMCHOOSER2:
-		DiskSelection(hDlg, IDC_ROMFILE2, 6, &workprefs, path);
+		DiskSelection(hDlg, IDC_ROMFILE2, 6, &workprefs, NULL, path);
 		values_to_kickstartdlg (hDlg);
 		break;
 	case IDC_FLASHCHOOSER:
-		DiskSelection(hDlg, IDC_FLASHFILE, 11, &workprefs, path);
+		DiskSelection(hDlg, IDC_FLASHFILE, 11, &workprefs, NULL, path);
 		values_to_kickstartdlg (hDlg);
 		break;
 	case IDC_RTCCHOOSER:
-		DiskSelection(hDlg, IDC_RTCFILE, 19, &workprefs, path);
+		DiskSelection(hDlg, IDC_RTCFILE, 19, &workprefs, NULL, path);
 		values_to_kickstartdlg (hDlg);
 		break;
 	case IDC_CARTCHOOSER:
-		DiskSelection(hDlg, IDC_CARTFILE, 6, &workprefs, path);
+		DiskSelection(hDlg, IDC_CARTFILE, 6, &workprefs, NULL, path);
 		values_to_kickstartdlg (hDlg);
 		break;
 	}
@@ -11135,7 +11137,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 				TCHAR path[MAX_DPATH];
 				_tcscpy (path, s);
 				xfree (s);
-				if (DiskSelection(hDlg, wParam, 9, &workprefs, path))
+				if (DiskSelection(hDlg, wParam, 9, &workprefs, NULL, path))
 					save_state (savestate_fname, _T("Description!"));
 			}
 		} else if (GetDlgCtrlID((HWND)wParam) == IDC_DOLOADSTATE) {
@@ -11144,7 +11146,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 				TCHAR path[MAX_DPATH];
 				_tcscpy (path, s);
 				xfree (s);
-				if (DiskSelection(hDlg, wParam, 10, &workprefs, path))
+				if (DiskSelection(hDlg, wParam, 10, &workprefs, NULL, path))
 					savestate_state = STATE_DORESTORE;
 			}
 		}
@@ -11308,14 +11310,14 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			break;
 		case IDC_DOSAVESTATE:
 			workprefs.statefile[0] = 0;
-			if (DiskSelection(hDlg, wParam, 9, &workprefs, 0)) {
+			if (DiskSelection(hDlg, wParam, 9, &workprefs, NULL, NULL)) {
 				save_state (savestate_fname, _T("Description!"));
 				_tcscpy (workprefs.statefile, savestate_fname);
 			}
 			setstatefilename (hDlg);
 			break;
 		case IDC_DOLOADSTATE:
-			if (DiskSelection(hDlg, wParam, 10, &workprefs, 0))
+			if (DiskSelection(hDlg, wParam, 10, &workprefs, NULL, NULL))
 				savestate_state = STATE_DORESTORE;
 			_tcscpy (workprefs.statefile, savestate_fname);
 			setstatefilename (hDlg);
@@ -12424,7 +12426,7 @@ static void volumeselectfile (HWND hDlg, int setout)
 		int out = sizeof directory_path / sizeof (TCHAR);
 		regquerystr (NULL, _T("FilesystemFilePath"), directory_path, &out);
 	}
-	if (DiskSelection (hDlg, 0, 14, &workprefs, directory_path)) {
+	if (DiskSelection (hDlg, 0, 14, &workprefs, NULL, directory_path)) {
 		TCHAR *s = filesys_createvolname (NULL, directory_path, NULL, _T("Harddrive"));
 		SetDlgItemText (hDlg, IDC_PATH_NAME, directory_path);
 		SetDlgItemText (hDlg, IDC_VOLUME_NAME, s);
@@ -12596,6 +12598,8 @@ static void sethardfilegeo(HWND hDlg)
 		setchecked(hDlg, IDC_HDF_PHYSGEOMETRY, TRUE);
 		ew (hDlg, IDC_HDF_PHYSGEOMETRY, FALSE);
 		get_hd_geometry(&current_hfdlg.ci);
+	} else {
+		ew (hDlg, IDC_HDF_PHYSGEOMETRY, TRUE);
 	}
 }
 
@@ -12861,8 +12865,8 @@ static void sethfdostype (HWND hDlg, int idx)
 
 static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 {
-	static uae_u64 bsize;
-	static uae_u8 id[512];
+	uae_u8 id[512] = { 0 };
+	uae_u64 bsize;
 	uae_u32 blocks, cyls, i;
 	TCHAR tmp[200], tmp2[200];
 	TCHAR idtmp[17];
@@ -12954,7 +12958,9 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 				blocks, (int)(bsize / current_hfdlg.ci.blocksize),
 				(double)blocks * 1.0 * current_hfdlg.ci.blocksize / (1024.0 * 1024.0),
 				(double)bsize / (1024.0 * 1024.0));
-			if (cyls > 65535) {
+			if (cyls * heads * secs > bsize / current_hfdlg.ci.blocksize) {
+				_tcscat (tmp2, _T(" [Geometry larger than drive!]"));
+			} else if (cyls > 65535) {
 				_tcscat (tmp2, _T(" [Too many cyls]"));
 			}
 		}
@@ -12968,7 +12974,7 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 static void hardfileselecthdf (HWND hDlg, TCHAR *newpath, bool ask, bool newhd)
 {
 	if (ask) {
-		DiskSelection (hDlg, IDC_PATH_NAME, 2, &workprefs, newpath);
+		DiskSelection (hDlg, IDC_PATH_NAME, 2, &workprefs, NULL, newpath);
 		GetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.ci.rootdir, sizeof current_hfdlg.ci.rootdir / sizeof (TCHAR));
 		DISK_history_add(current_hfdlg.ci.rootdir, -1, HISTORY_HDF, 1);
 	}
@@ -13076,7 +13082,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			SetDlgItemText(hDlg, IDC_PATH_NAME, current_tapedlg.ci.rootdir);
 			break;
 		case IDC_TAPE_SELECT_FILE:
-			DiskSelection (hDlg, IDC_PATH_NAME, 18, &workprefs, NULL);
+			DiskSelection (hDlg, IDC_PATH_NAME, 18, &workprefs, NULL, NULL);
 			GetDlgItemText (hDlg, IDC_PATH_NAME, current_tapedlg.ci.rootdir, sizeof current_tapedlg.ci.rootdir / sizeof (TCHAR));
 			DISK_history_add(current_tapedlg.ci.rootdir, -1, HISTORY_TAPE, 1);
 			fullpath (current_tapedlg.ci.rootdir, sizeof current_tapedlg.ci.rootdir / sizeof (TCHAR));
@@ -13264,7 +13270,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				TCHAR path[MAX_DPATH];
 				_tcscpy (path, s);
 				xfree (s);
-				DiskSelection (hDlg, IDC_PATH_FILESYS, 12, &workprefs, path);
+				DiskSelection (hDlg, IDC_PATH_FILESYS, 12, &workprefs, NULL, path);
 			}
 		} else if (GetDlgCtrlID ((HWND)wParam) == IDC_HF_CREATE) {
 			TCHAR *s = favoritepopup (hDlg);
@@ -13281,6 +13287,14 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 
 		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
 			switch (LOWORD (wParam)) {
+			case IDC_PATH_GEOMETRY:
+				getcomboboxtext(hDlg, IDC_PATH_GEOMETRY, current_hfdlg.ci.geometry, sizeof  current_hfdlg.ci.geometry / sizeof(TCHAR));
+				if (HIWORD (wParam) == CBN_KILLFOCUS) {
+					addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false);
+					sethardfile(hDlg);
+					updatehdfinfo (hDlg, true, false);
+				}
+				break;
 			case IDC_PATH_NAME:
 				if (getcomboboxtext(hDlg, IDC_PATH_NAME, tmp, sizeof tmp / sizeof(TCHAR))) {
 					if (_tcscmp (tmp, current_hfdlg.ci.rootdir)) {
@@ -13302,7 +13316,8 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		recursive++;
 
 		if (HIWORD(wParam) == CBN_SELCHANGE || HIWORD(wParam) == CBN_KILLFOCUS) {
-			switch (LOWORD(wParam)) {
+			switch (LOWORD(wParam))
+			{
 			case IDC_HDF_CONTROLLER:
 				posn = gui_get_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER);
 				if (posn != CB_ERR) {
@@ -13345,13 +13360,6 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				}
 				break;
 			}
-			case IDC_PATH_GEOMETRY:
-				getcomboboxtext(hDlg, IDC_PATH_GEOMETRY, current_hfdlg.ci.geometry, sizeof  current_hfdlg.ci.geometry / sizeof(TCHAR));
-				if (HIWORD (wParam) == CBN_KILLFOCUS) {
-					addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false);
-					sethardfile(hDlg);
-				}
-				break;
 		}
 
 		switch (LOWORD (wParam)) {
@@ -13383,7 +13391,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			}
 			break;
 		case IDC_FILESYS_SELECTOR:
-			DiskSelection (hDlg, IDC_PATH_FILESYS, 12, &workprefs, 0);
+			DiskSelection (hDlg, IDC_PATH_FILESYS, 12, &workprefs, NULL, NULL);
 			getcomboboxtext(hDlg, IDC_PATH_FILESYS, current_hfdlg.ci.filesys, sizeof  current_hfdlg.ci.filesys / sizeof(TCHAR));
 			DISK_history_add(current_hfdlg.ci.filesys, -1, HISTORY_FS, 1);
 			break;
@@ -13428,10 +13436,11 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			sethardfile (hDlg);
 			break;
 		case IDC_PATH_GEOMETRY_SELECTOR:
-			DiskSelection (hDlg, IDC_PATH_GEOMETRY, 23, &workprefs, 0);
-			getcomboboxtext(hDlg, IDC_PATH_GEOMETRY, current_hfdlg.ci.geometry, sizeof  current_hfdlg.ci.geometry / sizeof(TCHAR));
-			DISK_history_add(current_hfdlg.ci.geometry, -1, HISTORY_GEO, 1);
-			sethardfile(hDlg);
+			if (DiskSelection (hDlg, IDC_PATH_GEOMETRY, 23, &workprefs, NULL, current_hfdlg.ci.geometry)) {
+				DISK_history_add(current_hfdlg.ci.geometry, -1, HISTORY_GEO, 1);
+				sethardfile(hDlg);
+				updatehdfinfo (hDlg, true, false);
+			}
 			break;
 		case IDC_SECTORS:
 			p = ischecked(hDlg, IDC_HDF_PHYSGEOMETRY) ? &current_hfdlg.ci.psecs : &current_hfdlg.ci.sectors;
@@ -13670,11 +13679,12 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				}
 			break;
 			case IDC_PATH_GEOMETRY_SELECTOR:
-				DiskSelection (hDlg, IDC_PATH_GEOMETRY, 23, &workprefs, 0);
-				getcomboboxtext(hDlg, IDC_PATH_GEOMETRY, current_hfdlg.ci.geometry, sizeof  current_hfdlg.ci.geometry / sizeof(TCHAR));
-				DISK_history_add(current_hfdlg.ci.geometry, -1, HISTORY_GEO, 1);
-				setharddrive(hDlg);
-				updatehdfinfo (hDlg, true, false);
+				if (DiskSelection (hDlg, IDC_PATH_GEOMETRY, 23, &workprefs, NULL, current_hfdlg.ci.geometry)) {
+					getcomboboxtext(hDlg, IDC_PATH_GEOMETRY, current_hfdlg.ci.geometry, sizeof  current_hfdlg.ci.geometry / sizeof(TCHAR));
+					DISK_history_add(current_hfdlg.ci.geometry, -1, HISTORY_GEO, 1);
+					setharddrive(hDlg);
+					updatehdfinfo (hDlg, true, false);
+				}
 				break;
 			case IDC_SECTORS:
 				p = &current_hfdlg.ci.psecs;
@@ -13881,7 +13891,7 @@ static int harddiskdlg_button (HWND hDlg, WPARAM wParam)
 	int button = LOWORD (wParam);
 	switch (button) {
 	case IDC_CD_SELECT:
-		DiskSelection (hDlg, wParam, 17, &workprefs, NULL);
+		DiskSelection (hDlg, wParam, 17, &workprefs, NULL, NULL);
 		quickstart_cdtype = 1;
 		workprefs.cdslots[0].inuse = true;
 		addcdtype (hDlg, IDC_CD_TYPE);
@@ -14320,10 +14330,30 @@ static void addcdtype (HWND hDlg, int id)
 	SendDlgItemMessage (hDlg, id, CB_SETCURSEL, cdtype, 0);
 }
 
+static int fromdfxtype(int dfx)
+{
+	if (dfx == 6)
+		dfx = 3;
+	else if (dfx >= 3)
+		dfx++;
+	dfx++;
+	return dfx;
+}
+
+static int todfxtype(int val)
+{
+	val--;
+	if (val == 3)
+		val = 6;
+	else if (val > 3)
+		val--;
+	return val;
+}
+
 static void addfloppytype (HWND hDlg, int n)
 {
 	int state, chk;
-	int nn = workprefs.floppyslots[n].dfxtype + 1;
+	int nn = fromdfxtype(workprefs.floppyslots[n].dfxtype);
 	int showcd = 0;
 	TCHAR *text;
 
@@ -14405,11 +14435,11 @@ static void addfloppytype (HWND hDlg, int n)
 		CheckDlgButton (hDlg, f_enable, state ? BST_CHECKED : BST_UNCHECKED);
 		TCHAR tmp[10];
 		tmp[0] = 0;
-		if (n < 2 || nn - 1 < DRV_PC_ONLY_40) {
+		if (n < 2 || ((nn - 1 != 5) && (nn  - 1 != 6))) {
 			if (!showcd || n != 1)
 				_stprintf(tmp, _T("DF%d:"), n);
 		} else {
-			int t = nn - 1 == DRV_PC_ONLY_40 ? 40 : 80;
+			int t = nn - 1 == 5 ? 40 : 80;
 			_stprintf(tmp, _T("%c: (%d)"), n == 2 ? 'A' : 'B', t);
 		}
 		if (tmp[0])
@@ -14433,8 +14463,8 @@ static void getfloppytype (HWND hDlg, int n)
 	int f_type = floppybuttons[n][3];
 	LRESULT val = SendDlgItemMessage (hDlg, f_type, CB_GETCURSEL, 0, 0L);
 
-	if (val != CB_ERR && workprefs.floppyslots[n].dfxtype != val - 1) {
-		workprefs.floppyslots[n].dfxtype = (int)val - 1;
+	if (val != CB_ERR && workprefs.floppyslots[n].dfxtype != todfxtype(val)) {
+		workprefs.floppyslots[n].dfxtype = todfxtype(val);
 		addfloppytype (hDlg, n);
 	}
 }
@@ -14494,7 +14524,7 @@ static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen, int type
 bool gui_ask_disk(int drv, TCHAR *name)
 {
 	_tcscpy(changed_prefs.floppyslots[drv].df, name);
-	DiskSelection (hAmigaWnd, IDC_DF0 + drv, 22, &changed_prefs, 0);
+	DiskSelection (hAmigaWnd, IDC_DF0 + drv, 22, &changed_prefs, NULL, NULL);
 	_tcscpy(name, changed_prefs.floppyslots[drv].df);
 	return true;
 }
@@ -14647,6 +14677,7 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35dd);
 				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35hd);
 				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft525sd);
+				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("5.25\" (80)"));
 				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35ddescom);
 				if (i >= 2) {
 					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("PC Bridge (40)"));
@@ -14835,11 +14866,11 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			deletesaveimage (hDlg, 3);
 			break;
 		case IDC_CREATE:
-			DiskSelection (hDlg, wParam, 1, &workprefs, 0);
+			DiskSelection (hDlg, wParam, 1, &workprefs, NULL, NULL);
 			addfloppyhistory (hDlg);
 			break;
 		case IDC_CREATE_RAW:
-			DiskSelection (hDlg, wParam, 1, &workprefs, 0);
+			DiskSelection (hDlg, wParam, 1, &workprefs, NULL, NULL);
 			addfloppyhistory (hDlg);
 			break;
 		}
@@ -18869,7 +18900,7 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			break;
 		case IDC_STATEREC_SAVE:
 			if (input_record > INPREC_RECORD_NORMAL) {
-				if (DiskSelection (hDlg, wParam, 16, &workprefs, NULL)) {
+				if (DiskSelection (hDlg, wParam, 16, &workprefs, NULL, NULL)) {
 					TCHAR tmp[MAX_DPATH];
 					_tcscpy (tmp, workprefs.inprecfile);
 					_tcscat (tmp, _T(".uss"));
@@ -18901,7 +18932,7 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				inprec_close (true);
 			} else {
 				inprec_close (true);
-				if (DiskSelection (hDlg, wParam, 15, &workprefs, NULL)) {
+				if (DiskSelection (hDlg, wParam, 15, &workprefs, NULL, NULL)) {
 					input_play = INPREC_PLAY_NORMAL;
 					_tcscpy (currprefs.inprecfile, workprefs.inprecfile);
 					set_special (SPCFLAG_MODE_CHANGE);

@@ -405,6 +405,7 @@
 #define IDS_WINUAETITLE_PAUSED          412
 #define IDS_MOUSE_UNTRAP_MODE           413
 #define IDS_TABLET_MODE                 414
+#define IDC_HARDDRIVE_ID                415
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -555,6 +556,7 @@
 #define IDC_SPEED_x86                   1233
 #define IDC_44KHZ                       1234
 #define IDC_48KHZ                       1235
+#define IDC_FPU4                        1235
 #define IDC_SOUNDSIZE                   1236
 #define IDC_FREQUENCY                   1237
 #define IDC_SOUND0                      1238
@@ -817,7 +819,9 @@
 #define IDC_JITENABLE                   1584
 #define IDC_SOUNDDRIVEVOLUMEX2          1584
 #define IDC_DISASSEMBLY                 1585
-#define IDC_MMUENABLE                   1585
+#define IDC_MMUENABLEOFF                1586
+#define IDC_MMUENABLEEC                 1587
+#define IDC_MMUENABLE                   1588
 #define IDC_COLLISION0                  1589
 #define IDC_COLLISION1                  1590
 #define IDC_AUDIOSYNC                   1590
@@ -1270,6 +1274,8 @@
 #define IDC_RAM_ADDRESS2                1853
 #define IDC_GENLOCKFILE                 1853
 #define IDC_GENLOCKFILESELECT           1854
+#define IDC_PATH_GEOMETRY               1855
+#define IDC_PATH_GEOMETRY_SELECTOR      1856
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1321,7 +1327,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        407
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1855
+#define _APS_NEXT_CONTROL_VALUE         1857
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
