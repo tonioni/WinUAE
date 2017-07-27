@@ -77,6 +77,9 @@ static int baseclock;
 int m68k_pc_indirect;
 bool m68k_interrupt_delay;
 static bool m68k_reset_delay;
+
+static bool dcache_complete_inhibit;
+
 static int cpu_prefs_changed_flag;
 
 int cpucycleunit;
@@ -246,15 +249,27 @@ static void set_x_cp_funcs(void)
 	x_cp_get_disp_ea_020 = x_get_disp_ea_020;
 
 	if (currprefs.mmu_model == 68030) {
-		x_cp_put_long = put_long_mmu030_state;
-		x_cp_put_word = put_word_mmu030_state;
-		x_cp_put_byte = put_byte_mmu030_state;
-		x_cp_get_long = get_long_mmu030_state;
-		x_cp_get_word = get_word_mmu030_state;
-		x_cp_get_byte = get_byte_mmu030_state;
-		x_cp_next_iword = next_iword_mmu030_state;
-		x_cp_next_ilong = next_ilong_mmu030_state;
-		x_cp_get_disp_ea_020 = get_disp_ea_020_mmu030;
+		if (currprefs.cpu_compatible) {
+			x_cp_put_long = put_long_mmu030c_state;
+			x_cp_put_word = put_word_mmu030c_state;
+			x_cp_put_byte = put_byte_mmu030c_state;
+			x_cp_get_long = get_long_mmu030c_state;
+			x_cp_get_word = get_word_mmu030c_state;
+			x_cp_get_byte = get_byte_mmu030c_state;
+			x_cp_next_iword = next_iword_mmu030c_state;
+			x_cp_next_ilong = next_ilong_mmu030c_state;
+			x_cp_get_disp_ea_020 = get_disp_ea_020_mmu030c;
+		} else {
+			x_cp_put_long = put_long_mmu030_state;
+			x_cp_put_word = put_word_mmu030_state;
+			x_cp_put_byte = put_byte_mmu030_state;
+			x_cp_get_long = get_long_mmu030_state;
+			x_cp_get_word = get_word_mmu030_state;
+			x_cp_get_byte = get_byte_mmu030_state;
+			x_cp_next_iword = next_iword_mmu030_state;
+			x_cp_next_ilong = next_ilong_mmu030_state;
+			x_cp_get_disp_ea_020 = get_disp_ea_020_mmu030;
+		}
 	}
 }
 
@@ -746,6 +761,20 @@ static void do_cycles_ce020_post (unsigned long cycles, uae_u32 v)
 	do_cycles_ce020 (cycles);
 }
 
+static bool dcache030_check_dummy(uaecptr addr, bool write, uae_u32 size)
+{
+	return true;
+}
+
+static uae_u32 (*icache_fetch)(uaecptr);
+static uae_u32 (*dcache030_lget)(uaecptr);
+static uae_u32 (*dcache030_wget)(uaecptr);
+static uae_u32 (*dcache030_bget)(uaecptr);
+static bool (*dcache030_check)(uaecptr, bool, uae_u32);
+static void (*dcache030_lput)(uaecptr, uae_u32);
+static void (*dcache030_wput)(uaecptr, uae_u32);
+static void (*dcache030_bput)(uaecptr, uae_u32);
+
 static void set_x_ifetches(void)
 {
 	if (m68k_pc_indirect) {
@@ -810,18 +839,53 @@ static void set_x_funcs (void)
 
 		} else {
 
-			x_prefetch = get_iword_mmu030;
-			x_get_ilong = get_ilong_mmu030;
-			x_get_iword = get_iword_mmu030;
-			x_get_ibyte = get_ibyte_mmu030;
-			x_next_iword = next_iword_mmu030;
-			x_next_ilong = next_ilong_mmu030;
-			x_put_long = put_long_mmu030;
-			x_put_word = put_word_mmu030;
-			x_put_byte = put_byte_mmu030;
-			x_get_long = get_long_mmu030;
-			x_get_word = get_word_mmu030;
-			x_get_byte = get_byte_mmu030;
+			if (currprefs.cpu_memory_cycle_exact) {
+				x_prefetch = get_iword_mmu030c_state;
+				x_get_ilong = get_ilong_mmu030c_state;
+				x_get_iword = get_iword_mmu030c_state;
+				x_get_ibyte = NULL;
+				x_next_iword = next_iword_mmu030c_state;
+				x_next_ilong = next_ilong_mmu030c_state;
+				x_put_long = put_long_ce030;
+				x_put_word = put_word_ce030;
+				x_put_byte = put_byte_ce030;
+				x_get_long = get_long_ce030;
+				x_get_word = get_word_ce030;
+				x_get_byte = get_byte_ce030;
+				x_do_cycles = do_cycles;
+				x_do_cycles_pre = do_cycles;
+				x_do_cycles_post = do_cycles_post;
+			} else if (currprefs.cpu_compatible) {
+				x_prefetch = get_iword_mmu030c_state;
+				x_get_ilong = get_ilong_mmu030c_state;
+				x_get_iword = get_iword_mmu030c_state;
+				x_get_ibyte = NULL;
+				x_next_iword = next_iword_mmu030c_state;
+				x_next_ilong = next_ilong_mmu030c_state;
+				x_put_long = put_long_ce030;
+				x_put_word = put_word_ce030;
+				x_put_byte = put_byte_ce030;
+				x_get_long = get_long_ce030;
+				x_get_word = get_word_ce030;
+				x_get_byte = get_byte_ce030;
+				x_do_cycles = do_cycles;
+				x_do_cycles_pre = do_cycles;
+				x_do_cycles_post = do_cycles_post;
+			} else {
+				x_prefetch = get_iword_mmu030;
+				x_get_ilong = get_ilong_mmu030;
+				x_get_iword = get_iword_mmu030;
+				x_get_ibyte = get_ibyte_mmu030;
+				x_next_iword = next_iword_mmu030;
+				x_next_ilong = next_ilong_mmu030;
+				x_put_long = put_long_mmu030;
+				x_put_word = put_word_mmu030;
+				x_put_byte = put_byte_mmu030;
+				x_get_long = get_long_mmu030;
+				x_get_word = get_word_mmu030;
+				x_get_byte = get_byte_mmu030;
+			}
+
 		}
 		x_do_cycles = do_cycles;
 		x_do_cycles_pre = do_cycles;
@@ -987,12 +1051,12 @@ static void set_x_funcs (void)
 				x_get_ibyte = NULL;
 				x_next_iword = next_iword_030_prefetch;
 				x_next_ilong = next_ilong_030_prefetch;
-				x_put_long = put_long;
-				x_put_word = put_word;
-				x_put_byte = put_byte;
-				x_get_long = get_long;
-				x_get_word = get_word;
-				x_get_byte = get_byte;
+				x_put_long = put_long_030;
+				x_put_word = put_word_030;
+				x_put_byte = put_byte_030;
+				x_get_long = get_long_030;
+				x_get_word = get_word_030;
+				x_get_byte = get_byte_030;
 				x_do_cycles = do_cycles;
 				x_do_cycles_pre = do_cycles;
 				x_do_cycles_post = do_cycles_post;
@@ -1154,6 +1218,47 @@ static void set_x_funcs (void)
 	mmu_set_funcs();
 	mmu030_set_funcs();
 
+	icache_fetch = get_longi;
+	dcache030_lput = put_long;
+	dcache030_wput = put_word;
+	dcache030_bput = put_byte;
+	dcache030_lget = get_long;
+	dcache030_wget = get_word;
+	dcache030_bget = get_byte;
+	dcache030_check = dcache030_check_dummy;
+	if (currprefs.cpu_cycle_exact) {
+		icache_fetch = mem_access_delay_longi_read_ce020;
+	}
+	if (currprefs.cpu_model == 68030) {
+		if (currprefs.mmu_model) {
+			if (currprefs.cpu_compatible) {
+				icache_fetch = uae_mmu030_get_ilong_fc;
+				dcache030_lput = uae_mmu030_put_long_fc;
+				dcache030_wput = uae_mmu030_put_word_fc;
+				dcache030_bput = uae_mmu030_put_byte_fc;
+				dcache030_lget = uae_mmu030_get_long_fc;
+				dcache030_wget = uae_mmu030_get_word_fc;
+				dcache030_bget = uae_mmu030_get_byte_fc;
+				dcache030_check = uae_mmu030_check_fc;
+			} else {
+				icache_fetch = uae_mmu030_get_ilong;
+				dcache030_lput = uae_mmu030_put_long;
+				dcache030_wput = uae_mmu030_put_word;
+				dcache030_bput = uae_mmu030_put_byte;
+				dcache030_lget = uae_mmu030_get_long;
+				dcache030_wget = uae_mmu030_get_word;
+				dcache030_bget = uae_mmu030_get_byte;
+			}
+		} else if (currprefs.cpu_memory_cycle_exact) {
+			icache_fetch = mem_access_delay_longi_read_ce020;
+			dcache030_lput = mem_access_delay_long_write_ce020;
+			dcache030_wput = mem_access_delay_word_write_ce020;
+			dcache030_bput = mem_access_delay_byte_write_ce020;
+			dcache030_lget = mem_access_delay_long_read_ce020;
+			dcache030_wget = mem_access_delay_word_read_ce020;
+			dcache030_bget = mem_access_delay_byte_read_ce020;
+		}
+	}
 }
 
 bool can_cpu_tracer (void)
@@ -1292,21 +1397,21 @@ static uae_u32 REGPARAM2 op_unimpl_1 (uae_u32 opcode)
 	return 4;
 }
 
-// generic+direct, generic+direct+jit, generic+indirect, more compatible, cycle-exact, mmu
-static const struct cputbl *cputbls[6][6] =
+// generic+direct, generic+direct+jit, generic+indirect, more compatible, cycle-exact, mmu, mm+more compatible
+static const struct cputbl *cputbls[6][7] =
 {
 	// 68000
-	{ op_smalltbl_5_ff, op_smalltbl_45_ff, op_smalltbl_55_ff, op_smalltbl_12_ff, op_smalltbl_14_ff, NULL },
+	{ op_smalltbl_5_ff, op_smalltbl_45_ff, op_smalltbl_55_ff, op_smalltbl_12_ff, op_smalltbl_14_ff, NULL, NULL },
 	// 68010
-	{ op_smalltbl_4_ff, op_smalltbl_44_ff, op_smalltbl_54_ff, op_smalltbl_11_ff, op_smalltbl_13_ff, NULL },
+	{ op_smalltbl_4_ff, op_smalltbl_44_ff, op_smalltbl_54_ff, op_smalltbl_11_ff, op_smalltbl_13_ff, NULL, NULL },
 	// 68020
-	{ op_smalltbl_3_ff, op_smalltbl_43_ff, op_smalltbl_53_ff, op_smalltbl_20_ff, op_smalltbl_21_ff, NULL },
+	{ op_smalltbl_3_ff, op_smalltbl_43_ff, op_smalltbl_53_ff, op_smalltbl_20_ff, op_smalltbl_21_ff, NULL, NULL },
 	// 68030
-	{ op_smalltbl_2_ff, op_smalltbl_42_ff, op_smalltbl_52_ff, op_smalltbl_22_ff, op_smalltbl_23_ff, op_smalltbl_32_ff },
+	{ op_smalltbl_2_ff, op_smalltbl_42_ff, op_smalltbl_52_ff, op_smalltbl_22_ff, op_smalltbl_23_ff, op_smalltbl_32_ff, op_smalltbl_34_ff },
 	// 68040
-	{ op_smalltbl_1_ff, op_smalltbl_41_ff, op_smalltbl_51_ff, op_smalltbl_25_ff, op_smalltbl_25_ff, op_smalltbl_31_ff },
+	{ op_smalltbl_1_ff, op_smalltbl_41_ff, op_smalltbl_51_ff, op_smalltbl_25_ff, op_smalltbl_25_ff, op_smalltbl_31_ff, NULL },
 	// 68060
-	{ op_smalltbl_0_ff, op_smalltbl_40_ff, op_smalltbl_50_ff, op_smalltbl_24_ff, op_smalltbl_24_ff, op_smalltbl_33_ff }
+	{ op_smalltbl_0_ff, op_smalltbl_40_ff, op_smalltbl_50_ff, op_smalltbl_24_ff, op_smalltbl_24_ff, op_smalltbl_33_ff, NULL }
 };
 
 static void build_cpufunctbl (void)
@@ -1317,14 +1422,18 @@ static void build_cpufunctbl (void)
 	int lvl, mode;
 
 	if (!currprefs.cachesize) {
-		if (currprefs.mmu_model)
-			mode = 5;
-		else if (currprefs.cpu_cycle_exact)
+		if (currprefs.mmu_model) {
+			if (currprefs.cpu_compatible)
+				mode = 6;
+			else
+				mode = 5;
+		} else if (currprefs.cpu_cycle_exact) {
 			mode = 4;
-		else if (currprefs.cpu_compatible)
+		} else if (currprefs.cpu_compatible) {
 			mode = 3;
-		else
+		} else {
 			mode = 0;
+		}
 		m68k_pc_indirect = mode != 0 ? 1 : 0;
 	} else {
 		mode = 1;
@@ -1569,6 +1678,7 @@ static void prefs_changed_cpu (void)
 			fake_crp_030 = crp_030;
 		}
 	}
+	currprefs.mmu_ec = changed_prefs.mmu_ec;
 	currprefs.cpu_compatible = changed_prefs.cpu_compatible;
 	currprefs.address_space_24 = changed_prefs.address_space_24;
 	currprefs.cpu_cycle_exact = changed_prefs.cpu_cycle_exact;
@@ -1589,6 +1699,7 @@ static int check_prefs_changed_cpu2(void)
 		|| currprefs.cpu_model != changed_prefs.cpu_model
 		|| currprefs.fpu_model != changed_prefs.fpu_model
 		|| currprefs.mmu_model != changed_prefs.mmu_model
+		|| currprefs.mmu_ec != changed_prefs.mmu_ec
 		|| currprefs.int_no_unimplemented != changed_prefs.int_no_unimplemented
 		|| currprefs.fpu_no_unimplemented != changed_prefs.fpu_no_unimplemented
 		|| currprefs.cpu_compatible != changed_prefs.cpu_compatible
@@ -2552,10 +2663,17 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
 			m68k_areg (regs, 7) -= 4;
 			x_put_long (m68k_areg (regs, 7), regs.mmu_fault_addr);
 			// 2xinternal
-			m68k_areg (regs, 7) -= 2;
-			x_put_word (m68k_areg (regs, 7), 0);
-			m68k_areg (regs, 7) -= 2;
-			x_put_word (m68k_areg (regs, 7), 0);
+			{
+				uae_u32 ps = (regs.prefetch020_valid[0] ? 1 : 0) | (regs.prefetch020_valid[1] ? 2 : 0) | (regs.prefetch020_valid[2] ? 4 : 0);
+				ps |= ((regs.pipeline_r8[0] & 7) << 8);
+				ps |= ((regs.pipeline_r8[1] & 7) << 11);
+				ps |= ((regs.pipeline_pos & 15) << 16);
+				ps |= ((regs.pipeline_stop & 15) << 20);
+				if (mmu030_opcode == -1)
+					ps |= 1 << 31;
+				m68k_areg (regs, 7) -= 4;
+				x_put_long (m68k_areg (regs, 7), ps);
+			}
 			// stage b address
 			m68k_areg (regs, 7) -= 4;
 			x_put_long (m68k_areg (regs, 7), mm030_stageb_address);
@@ -2570,13 +2688,13 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
 			 // Data output buffer = value that was going to be written
 			x_put_long (m68k_areg (regs, 7), (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) ? mmu030_data_buffer : mmu030_ad[mmu030_idx].val);
 			m68k_areg (regs, 7) -= 4;
-			x_put_long (m68k_areg (regs, 7), mmu030_opcode);  // Internal register (opcode storage)
+			x_put_long (m68k_areg (regs, 7), (mmu030_opcode & 0xffff) | (regs.prefetch020[0] << 16));  // Internal register (opcode storage)
 			m68k_areg (regs, 7) -= 4;
 			x_put_long (m68k_areg (regs, 7), regs.mmu_fault_addr); // data cycle fault address
 			m68k_areg (regs, 7) -= 2;
-			x_put_word (m68k_areg (regs, 7), 0);  // Instr. pipe stage B
+			x_put_word (m68k_areg (regs, 7), regs.prefetch020[2]);  // Instr. pipe stage B
 			m68k_areg (regs, 7) -= 2;
-			x_put_word (m68k_areg (regs, 7), 0);  // Instr. pipe stage C
+			x_put_word (m68k_areg (regs, 7), regs.prefetch020[1]);  // Instr. pipe stage C
 			m68k_areg (regs, 7) -= 2;
 			x_put_word (m68k_areg (regs, 7), ssw);
 			m68k_areg (regs, 7) -= 2;
@@ -2652,12 +2770,11 @@ static void Exception_mmu030 (int nr, uaecptr oldpc)
     }
 #endif
 
-#if 0
-	write_log (_T("Exception %d -> %08x\n", nr, newpc));
-#endif
-
-
     newpc = x_get_long (regs.vbr + 4 * nr);
+
+#if 0
+	write_log (_T("Exception %d -> %08x\n"), nr, newpc);
+#endif
 
 	if (regs.m && interrupt) { /* M + Interrupt */
         Exception_build_stack_frame (oldpc, currpc, regs.mmu_ssw, nr, 0x0);
@@ -3192,6 +3309,9 @@ static void m68k_reset2(bool hardreset)
 
 	mmufixup[0].reg = -1;
 	mmufixup[1].reg = -1;
+	mmu030_cache_inhibit = 0;
+	dcache_complete_inhibit = uae_boot_rom_type > 0;
+	//dcache_complete_inhibit = true;
 	if (currprefs.mmu_model >= 68040) {
 		mmu_reset ();
 		mmu_set_tc (regs.tcr);
@@ -5025,7 +5145,10 @@ insretry:
 					}
 					mmu030_fake_prefetch = -1;
 				} else if (mmu030_opcode_stageb < 0) {
-					regs.opcode = x_prefetch (0);
+					if (currprefs.cpu_compatible)
+						regs.opcode = regs.irc;
+					else
+						regs.opcode = x_prefetch (0);
 				} else {
 					regs.opcode = mmu030_opcode_stageb;
 					mmu030_opcode_stageb = -1;
@@ -5036,7 +5159,7 @@ insretry:
 
 				cnt = 50;
 				for (;;) {
-					regs.opcode = mmu030_opcode;
+					regs.opcode = regs.irc = mmu030_opcode;
 					mmu030_idx = 0;
 					count_instr (regs.opcode);
 					do_cycles (cpu_cycles);
@@ -5064,19 +5187,26 @@ insretry:
 			}
 		} CATCH (prb) {
 
-			regflags.cznv = f.cznv;
-			regflags.x = f.x;
+			if (mmu030_opcode == -1 && currprefs.cpu_compatible) {
+				// full prefetch fill access fault
+				// TODO: this should create shorter A-frame
+				mmufixup[0].reg = -1;
+				mmufixup[1].reg = -1;
+			} else {
+				regflags.cznv = f.cznv;
+				regflags.x = f.x;
+
+				if (mmufixup[0].reg >= 0) {
+					m68k_areg (regs, mmufixup[0].reg) = mmufixup[0].value;
+					mmufixup[0].reg = -1;
+				}
+				if (mmufixup[1].reg >= 0) {
+					m68k_areg (regs, mmufixup[1].reg) = mmufixup[1].value;
+					mmufixup[1].reg = -1;
+				}
+			}
 
 			m68k_setpci (regs.instruction_pc);
-
-			if (mmufixup[0].reg >= 0) {
-				m68k_areg (regs, mmufixup[0].reg) = mmufixup[0].value;
-				mmufixup[0].reg = -1;
-			}
-			if (mmufixup[1].reg >= 0) {
-				m68k_areg (regs, mmufixup[1].reg) = mmufixup[1].value;
-				mmufixup[1].reg = -1;
-			}
 
 			TRY (prb2) {
 				Exception (prb);
@@ -5191,7 +5321,7 @@ static void m68k_run_2ce (void)
 					r->cacheholdingdata020 = cputrace.cacheholdingdata020;
 					r->cacheholdingaddr020 = cputrace.cacheholdingaddr020;
 					r->prefetch020addr = cputrace.prefetch020addr;
-					memcpy (&r->prefetch020, &cputrace.prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u32));
+					memcpy (&r->prefetch020, &cputrace.prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u16));
 					memcpy (&caches020, &cputrace.caches020, sizeof caches020);
 
 					m68k_setpc (cputrace.pc);
@@ -5259,7 +5389,7 @@ static void m68k_run_2ce (void)
 					cputrace.cacheholdingdata020 = r->cacheholdingdata020;
 					cputrace.cacheholdingaddr020 = r->cacheholdingaddr020;
 					cputrace.prefetch020addr = r->prefetch020addr;
-					memcpy (&cputrace.prefetch020, &r->prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u32));
+					memcpy (&cputrace.prefetch020, &r->prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u16));
 					memcpy (&cputrace.caches020, &caches020, sizeof caches020);
 
 					cputrace.memoryoffset = 0;
@@ -5328,7 +5458,7 @@ static void m68k_run_2p (void)
 					r->cacheholdingdata020 = cputrace.cacheholdingdata020;
 					r->cacheholdingaddr020 = cputrace.cacheholdingaddr020;
 					r->prefetch020addr = cputrace.prefetch020addr;
-					memcpy (&r->prefetch020, &cputrace.prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u32));
+					memcpy (&r->prefetch020, &cputrace.prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u16));
 					memcpy (&caches020, &cputrace.caches020, sizeof caches020);
 
 					m68k_setpc (cputrace.pc);
@@ -5379,7 +5509,7 @@ static void m68k_run_2p (void)
 					cputrace.cacheholdingdata020 = r->cacheholdingdata020;
 					cputrace.cacheholdingaddr020 = r->cacheholdingaddr020;
 					cputrace.prefetch020addr = r->prefetch020addr;
-					memcpy (&cputrace.prefetch020, &r->prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u32));
+					memcpy (&cputrace.prefetch020, &r->prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u16));
 					memcpy (&cputrace.caches020, &caches020, sizeof caches020);
 
 					cputrace.memoryoffset = 0;
@@ -6740,7 +6870,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 		} else if (lookup->mnemo == i_MOVES) {
 			TCHAR *p;
 			pc += 2;
-			if (!(extra & 0x1000)) {
+			if (!(extra & 0x0800)) {
 				pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, safemode);
 				p = instrname + _tcslen(instrname);
 				_stprintf(p, _T(",%c%d"), (extra & 0x8000) ? 'A' : 'D', (extra >> 12) & 7);
@@ -7106,16 +7236,24 @@ void m68k_dumpstate (uaecptr pc, uaecptr *nextpc)
 		console_out_f (_T("SRP: %llX CRP: %llX\n"), srp_030, crp_030);
 		console_out_f (_T("TT0: %08X TT1: %08X TC: %08X\n"), tt0_030, tt1_030, tc_030);
 	}
-	if (currprefs.cpu_compatible && currprefs.cpu_model == 68000) {
-		struct instr *dp;
-		struct mnemolookup *lookup1, *lookup2;
-		dp = table68k + regs.irc;
-		for (lookup1 = lookuptab; lookup1->mnemo != dp->mnemo; lookup1++)
-			;
-		dp = table68k + regs.ir;
-		for (lookup2 = lookuptab; lookup2->mnemo != dp->mnemo; lookup2++)
-			;
-		console_out_f (_T("Prefetch %04x (%s) %04x (%s) Chip latch %08X\n"), regs.irc, lookup1->name, regs.ir, lookup2->name, regs.chipset_latch_rw);
+	if (currprefs.cpu_compatible) {
+		if (currprefs.cpu_model == 68000) {
+			struct instr *dp;
+			struct mnemolookup *lookup1, *lookup2;
+			dp = table68k + regs.irc;
+			for (lookup1 = lookuptab; lookup1->mnemo != dp->mnemo; lookup1++)
+				;
+			dp = table68k + regs.ir;
+			for (lookup2 = lookuptab; lookup2->mnemo != dp->mnemo; lookup2++)
+				;
+			console_out_f (_T("Prefetch %04x (%s) %04x (%s) Chip latch %08X\n"), regs.irc, lookup1->name, regs.ir, lookup2->name, regs.chipset_latch_rw);
+		} else if (currprefs.cpu_model == 68020 || currprefs.cpu_model == 68030) {
+			console_out_f (_T("Prefetch %08x %08x (%d) %04x (%d) %04x (%d) %04x (%d)\n"),
+				regs.cacheholdingaddr020, regs.cacheholdingdata020, regs.cacheholdingdata_valid,
+				regs.prefetch020[0], regs.prefetch020_valid[0],
+				regs.prefetch020[1], regs.prefetch020_valid[1],
+				regs.prefetch020[2], regs.prefetch020_valid[2]);
+		}
 	}
 
 	if (pc != 0xffffffff) {
@@ -7137,24 +7275,35 @@ void m68k_dumpcache (void)
 			for (int j = 0; j < 4; j++) {
 				int s = i + j;
 				uaecptr addr;
+				int fc;
 				struct cache020 *c = &caches020[s];
+				fc = c->tag & 1;
 				addr = c->tag & ~1;
 				addr |= s << 2;
-				console_out_f (_T("%08X:%08X%c "), addr, c->data, c->valid ? '*' : ' ');
+				console_out_f (_T("%08X%c:%08X%c"), addr, fc ? 'S' : 'U', c->data, c->valid ? '*' : ' ');
 			}
 			console_out_f (_T("\n"));
 		}
 	} else if (currprefs.cpu_model == 68030) {
-		for (int i = 0; i < CACHELINES030; i++) {
-			struct cache030 *c = &icaches030[i];
-			uaecptr addr;
-			addr = c->tag & ~1;
-			addr |= i << 4;
-			console_out_f (_T("%08X: "), addr);
-			for (int j = 0; j < 4; j++) {
-				console_out_f (_T("%08X%c "), c->data[j], c->valid[j] ? '*' : ' ');
+		for (int j = 0; j < 2; j++) {
+			console_out_f (_T("%s\n"), j == 0 ? _T("Instruction") : _T("Data"));
+			for (int i = 0; i < CACHELINES030; i++) {
+				struct cache030 *c = j ? &dcaches030[i] : &icaches030[i];
+				int fc;
+				uaecptr addr;
+				if (j == 0) {
+					fc = (c->tag & 1) ? 6 : 2;
+				} else {
+					fc = c->fc;
+				}
+				addr = c->tag & ~1;
+				addr |= i << 4;
+				console_out_f (_T("%08X %d: "), addr, fc);
+				for (int j = 0; j < 4; j++) {
+					console_out_f (_T("%08X%c "), c->data[j], c->valid[j] ? '*' : ' ');
+				}
+				console_out_f (_T("\n"));
 			}
-			console_out_f (_T("\n"));
 		}
 	}
 }
@@ -7943,13 +8092,14 @@ static void end_020_cycle_prefetch(bool opcode)
 }
 
 // this one is really simple and easy
-static void fill_icache020 (uae_u32 addr, uae_u32 (*fetch)(uaecptr), bool opcode)
+static void fill_icache020 (uae_u32 addr, bool opcode)
 {
 	int index;
 	uae_u32 tag;
 	uae_u32 data;
 	struct cache020 *c;
 
+	regs.fc030 = (regs.s ? 4 : 0) | 2;
 	addr &= ~3;
 	if (regs.cacheholdingaddr020 == addr)
 		return;
@@ -7960,8 +8110,10 @@ static void fill_icache020 (uae_u32 addr, uae_u32 (*fetch)(uaecptr), bool opcode
 		// cache hit
 		regs.cacheholdingaddr020 = addr;
 		regs.cacheholdingdata020 = c->data;
+		regs.cacheholdingdata_valid = true;
 		return;
 	}
+
 	// cache miss
 #if 0
 	// Prefetch apparently can be queued by bus controller
@@ -7976,7 +8128,7 @@ static void fill_icache020 (uae_u32 addr, uae_u32 (*fetch)(uaecptr), bool opcode
 #endif
 
 	start_020_cycle_prefetch(opcode);
-	data = fetch (addr);
+	data = icache_fetch(addr);
 	end_020_cycle_prefetch(opcode);
 
 	if (!(regs.cacr & 2)) {
@@ -7986,6 +8138,7 @@ static void fill_icache020 (uae_u32 addr, uae_u32 (*fetch)(uaecptr), bool opcode
 	}
 	regs.cacheholdingaddr020 = addr;
 	regs.cacheholdingdata020 = data;
+	regs.cacheholdingdata_valid = true;
 }
 
 #if MORE_ACCURATE_68020_PIPELINE
@@ -7993,8 +8146,13 @@ static void fill_icache020 (uae_u32 addr, uae_u32 (*fetch)(uaecptr), bool opcode
 #if PIPELINE_DEBUG
 static uae_u16 pipeline_opcode;
 #endif
-static void pipeline_020(uae_u16 w, uaecptr pc)
+static void pipeline_020(uaecptr pc)
 {
+	uae_u16 w = regs.prefetch020[1];
+	if (regs.prefetch020_valid[1] == 0) {
+		regs.pipeline_stop = -1;
+		return;
+	}
 	if (regs.pipeline_pos < 0)
 		return;
 	if (regs.pipeline_pos > 0) {
@@ -8080,26 +8238,23 @@ static uae_u32 get_word_ce020_prefetch_2 (int o, bool opcode)
 	uae_u32 pc = m68k_getpc () + o;
 	uae_u32 v;
 
-	if (pc & 2) {
-		v = regs.prefetch020[0] & 0xffff;
+	v = regs.prefetch020[0];
+	regs.prefetch020[0] = regs.prefetch020[1];
+	regs.prefetch020[1] = regs.prefetch020[2];
 #if MORE_ACCURATE_68020_PIPELINE
-		pipeline_020(regs.prefetch020[1], pc );
+	pipeline_020(pc);
 #endif
-		regs.prefetch020[0] = regs.prefetch020[1];
+	if (pc & 2) {
 		// branch instruction detected in pipeline: stop fetches until branch executed.
 		if (!MORE_ACCURATE_68020_PIPELINE || regs.pipeline_stop >= 0) {
-			fill_icache020 (pc + 2 + 4, mem_access_delay_longi_read_ce020, opcode);
-			regs.prefetch020[1] = regs.cacheholdingdata020;
+			fill_icache020 (pc + 2 + 4, opcode);
 		}
-		regs.db = regs.prefetch020[0] >> 16;
+		regs.prefetch020[2] = regs.cacheholdingdata020 >> 16;
 	} else {
-		v = regs.prefetch020[0] >> 16;
-#if MORE_ACCURATE_68020_PIPELINE
-		pipeline_020(regs.prefetch020[1] >> 16, pc);
-#endif
-		regs.db = regs.prefetch020[1] >> 16;
+		regs.prefetch020[2] = (uae_u16)regs.cacheholdingdata020;
 	}
 	do_cycles_ce020_internal (2);
+	regs.db = regs.prefetch020[0];
 	return v;
 }
 
@@ -8118,24 +8273,22 @@ uae_u32 get_word_020_prefetch (int o)
 	uae_u32 pc = m68k_getpc () + o;
 	uae_u32 v;
 
+	v = regs.prefetch020[0];
+	regs.prefetch020[0] = regs.prefetch020[1];
+	regs.prefetch020[1] = regs.prefetch020[2];
+#if MORE_ACCURATE_68020_PIPELINE
+	pipeline_020(pc);
+#endif
 	if (pc & 2) {
-		v = regs.prefetch020[0] & 0xffff;
-#if MORE_ACCURATE_68020_PIPELINE
-		pipeline_020(regs.prefetch020[1], pc);
-#endif
-		regs.prefetch020[0] = regs.prefetch020[1];
+		// branch instruction detected in pipeline: stop fetches until branch executed.
 		if (!MORE_ACCURATE_68020_PIPELINE || regs.pipeline_stop >= 0) {
-			fill_icache020 (pc + 2 + 4, currprefs.cpu_memory_cycle_exact ? mem_access_delay_longi_read_ce020 : get_longi, false);
-			regs.prefetch020[1] = regs.cacheholdingdata020;
+			fill_icache020 (pc + 2 + 4, false);
 		}
-		regs.db = regs.prefetch020[0] >> 16;
+		regs.prefetch020[2] = regs.cacheholdingdata020 >> 16;
 	} else {
-		v = regs.prefetch020[0] >> 16;
-#if MORE_ACCURATE_68020_PIPELINE
-		pipeline_020(regs.prefetch020[1] >> 16, pc);
-#endif
-		regs.db = regs.prefetch020[0];
+		regs.prefetch020[2] = (uae_u16)regs.cacheholdingdata020;
 	}
+	regs.db = regs.prefetch020[0];
 	return v;
 }
 
@@ -8220,6 +8373,37 @@ uae_u32 mem_access_delay_longi_read_ce020 (uaecptr addr)
 		v = get_longi (addr);
 		break;
 	}
+	return v;
+}
+
+uae_u32 mem_access_delay_wordi_read_ce020 (uaecptr addr)
+{
+	uae_u32 v;
+	start_020_cycle();
+	switch (ce_banktype[addr >> 16])
+	{
+	case CE_MEMBANK_CHIP16:
+	case CE_MEMBANK_CHIP32:
+		if ((addr & 3) == 3) {
+			v  = wait_cpu_cycle_read_ce020 (addr + 0, 0) << 8;
+			v |= wait_cpu_cycle_read_ce020 (addr + 1, 0) << 0;
+		} else {
+			v = wait_cpu_cycle_read_ce020 (addr, 1);
+		}
+		break;
+	case CE_MEMBANK_FAST16:
+	case CE_MEMBANK_FAST32:
+		v = get_wordi (addr);
+		if ((addr & 3) == 3)
+			do_cycles_ce020_mem (2 * CPU020_MEM_CYCLE, v);
+		else
+			do_cycles_ce020_mem (1 * CPU020_MEM_CYCLE, v);
+		 break;
+	default:
+		 v = get_wordi (addr);
+		break;
+	}
+	end_020_cycle();
 	return v;
 }
 
@@ -8364,7 +8548,8 @@ void mem_access_delay_long_write_ce020 (uaecptr addr, uae_u32 v)
 
 
 // 68030 caches aren't so simple as 68020 cache..
-STATIC_INLINE struct cache030 *getcache030 (struct cache030 *cp, uaecptr addr, uae_u32 *tagp, int *lwsp)
+
+STATIC_INLINE struct cache030 *geticache030 (struct cache030 *cp, uaecptr addr, uae_u32 *tagp, int *lwsp)
 {
 	int index, lws;
 	uae_u32 tag;
@@ -8380,11 +8565,37 @@ STATIC_INLINE struct cache030 *getcache030 (struct cache030 *cp, uaecptr addr, u
 	return c;
 }
 
-STATIC_INLINE void update_cache030 (struct cache030 *c, uae_u32 val, uae_u32 tag, int lws)
+STATIC_INLINE void update_icache030 (struct cache030 *c, uae_u32 val, uae_u32 tag, int lws)
 {
 	if (c->tag != tag)
 		c->valid[0] = c->valid[1] = c->valid[2] = c->valid[3] = false;
 	c->tag = tag;
+	c->valid[lws] = true;
+	c->data[lws] = val;
+}
+
+STATIC_INLINE struct cache030 *getdcache030 (struct cache030 *cp, uaecptr addr, uae_u32 *tagp, int *lwsp)
+{
+	int index, lws;
+	uae_u32 tag;
+	struct cache030 *c;
+
+	addr &= ~3;
+	index = (addr >> 4) & (CACHELINES030 - 1);
+	tag = addr & ~((CACHELINES030 << 4) - 1);
+	lws = (addr >> 2) & 3;
+	c = &cp[index];
+	*tagp = tag;
+	*lwsp = lws;
+	return c;
+}
+
+STATIC_INLINE void update_dcache030 (struct cache030 *c, uae_u32 val, uae_u32 tag, uae_u8 fc, int lws)
+{
+	if (c->tag != tag)
+		c->valid[0] = c->valid[1] = c->valid[2] = c->valid[3] = false;
+	c->tag = tag;
+	c->fc = fc;
 	c->valid[lws] = true;
 	c->data[lws] = val;
 }
@@ -8396,10 +8607,11 @@ static void fill_icache030 (uae_u32 addr)
 	uae_u32 data;
 	struct cache030 *c;
 
+	regs.fc030 = (regs.s ? 4 : 0) | 2;
 	addr &= ~3;
-	if (regs.cacheholdingaddr020 == addr)
+	if (regs.cacheholdingaddr020 == addr || regs.cacheholdingdata_valid == 0)
 		return;
-	c = getcache030 (icaches030, addr, &tag, &lws);
+	c = geticache030 (icaches030, addr, &tag, &lws);
 	if (c->valid[lws] && c->tag == tag) {
 		// cache hit
 		regs.cacheholdingaddr020 = addr;
@@ -8407,33 +8619,71 @@ static void fill_icache030 (uae_u32 addr)
 		return;
 	}
 
-	// cache miss
-	if (currprefs.cpu_cycle_exact) {
-		regs.ce020memcycle_data = false;
-		start_020_cycle_prefetch(false);
-		data = mem_access_delay_longi_read_ce020 (addr);
-		end_020_cycle_prefetch(false);
-	} else if (currprefs.cpu_memory_cycle_exact) {
-		data = mem_access_delay_longi_read_ce020 (addr);
-	} else {
-		data = get_longi (addr);
-	}
-	if ((regs.cacr & 3) == 1) { // not frozen and enabled
-		update_cache030 (c, data, tag, lws);
-	}
-	if ((regs.cacr & 0x11) == 0x11 && lws == 0 && !c->valid[1] && !c->valid[2] && !c->valid[3] && ce_banktype[addr >> 16] == CE_MEMBANK_FAST32) {
-		// do burst fetch if cache enabled, not frozen, all slots invalid, no chip ram
-		c->data[1] = get_longi (addr + 4);
-		c->data[2] = get_longi (addr + 8);
-		c->data[3] = get_longi (addr + 12);
-		if (currprefs.cpu_cycle_exact)
-			do_cycles_ce020_mem (3 * (CPU020_MEM_CYCLE - 1), c->data[3]);
-		c->valid[1] = c->valid[2] = c->valid[3] = true;
+	TRY (prb2) {
+		// cache miss
+		if (currprefs.cpu_cycle_exact) {
+			regs.ce020memcycle_data = false;
+			start_020_cycle_prefetch(false);
+			data = icache_fetch(addr);
+			end_020_cycle_prefetch(false);
+		} else {
+			data = icache_fetch(addr);
+		}
+	} CATCH (prb2) {
+		// Bus error/MMU access fault: Delayed exception.
+		regs.cacheholdingdata_valid = 0;
+		regs.cacheholdingaddr020 = 0xffffffff;
+		regs.cacheholdingdata020 = 0xffffffff;
+		return;
+	} ENDTRY
+
+	if (!mmu030_cache_inhibit) {
+		if ((regs.cacr & 0x03) == 0x01) {
+			// instruction cache not frozen and enabled
+			update_icache030 (c, data, tag, lws);
+		}
+		if ((regs.cacr & 0x11) == 0x11 && (c->valid[0] + c->valid[1] + c->valid[2] + c->valid[3] == 1) && ce_banktype[addr >> 16] == CE_MEMBANK_FAST32) {
+			// do burst fetch if cache enabled, not frozen, all slots invalid, no chip ram
+			int i;
+			for (i = 0; i < 4; i++) {
+				if (c->valid[i])
+					break;
+			}
+			uaecptr baddr = addr & ~15;
+			if (currprefs.mmu_model) {
+				if (currprefs.cpu_cycle_exact)
+					do_cycles_ce020(3 * (CPU020_MEM_CYCLE - 1));
+				TRY (prb) {
+					for (int j = 0; j < 3; j++) {
+						i++;
+						i &= 3;
+						c->data[i] = icache_fetch(baddr + i * 4);
+						c->valid[i] = true;
+					}
+				} CATCH (prb) {
+					; // abort burst fetch if bus error, do not report it.
+				} ENDTRY
+			} else {
+				for (int j = 0; j < 3; j++) {
+					i++;
+					i &= 3;
+					c->data[i] = icache_fetch(baddr + i * 4);
+					c->valid[i] = true;
+				}
+				if (currprefs.cpu_cycle_exact)
+					do_cycles_ce020_mem (3 * (CPU020_MEM_CYCLE - 1), c->data[3]);
+			}
+		}
 	}
 	regs.cacheholdingaddr020 = addr;
 	regs.cacheholdingdata020 = data;
 }
 
+STATIC_INLINE bool candcache030 (uaecptr addr)
+{
+	// mmu mode cacheability is checked in mmu030_get/mmu030_put routines
+	return currprefs.mmu_model || ce_cachable[addr >> 16] != 0;
+}
 
 #if VALIDATE_68030_DATACACHE
 static void validate_dcache030(void)
@@ -8447,7 +8697,6 @@ static void validate_dcache030(void)
 				uae_u32 v = get_long(addr);
 				if (v != c->data[j]) {
 					write_log(_T("Address %08x data cache mismatch %08x != %08x\n"), addr, v, c->data[j]);
-					activate_debugger();
 				}
 			}
 			addr += 4;
@@ -8473,220 +8722,258 @@ static void validate_dcache030_read(uae_u32 addr, uae_u32 ov, int size)
 }
 #endif
 
-STATIC_INLINE bool cancache030 (uaecptr addr)
-{
-	return ce_cachable[addr >> 16] != 0;
-}
-
 // and finally the worst part, 68030 data cache..
-static void write_dcache030x(uaecptr addr, uae_u32 val, int size)
+static void write_dcache030x(uaecptr addr, uae_u32 val, uae_u32 size, uae_u32 fc)
 {
-	struct cache030 *c1, *c2;
-	int lws1, lws2;
-	uae_u32 tag1, tag2;
-	int aligned = addr & 3;
-	int wa = regs.cacr & 0x2000;
-	int hit;
+	if (regs.cacr & 0x100) {
+		static const uae_u32 mask[3] = { 0xff000000, 0xffff0000, 0xffffffff };
+		struct cache030 *c1, *c2;
+		int lws1, lws2;
+		uae_u32 tag1, tag2;
+		int aligned = addr & 3;
+		int wa = regs.cacr & 0x2000;
+		int width = 8 << size;
+		int offset = 8 * aligned;
+		int hit;
 
-	if (!(regs.cacr & 0x100)) // data cache disabled?
-		return;
-	if (!cancache030(addr))
-		return;
+		c1 = getdcache030(dcaches030, addr, &tag1, &lws1);
+		hit = c1->tag == tag1 && c1->fc == fc && c1->valid[lws1];
 
-	c1 = getcache030(dcaches030, addr, &tag1, &lws1);
+		// Write-allocate can create new valid cache entry if
+		// long aligned long write and MMU CI is not active.
+		// All writes ignore external CIIN signal.
 
-	// easy one
-	if (size == 2 && aligned == 0 && wa) {
-		update_cache030(c1, val, tag1, lws1);
-		return;
-	}
-
-	hit = (c1->tag == tag1 && c1->valid[lws1]);
-	if (hit || wa) {
-		if (size == 2) {
-			if (hit) {
-				c1->data[lws1] &= ~(0xffffffff >> (aligned * 8));
-				c1->data[lws1] |= val >> (aligned * 8);
-			} else
+		if (width == 32 && offset == 0 && wa) {
+			if (mmu030_cache_inhibit <= 0) {
+				update_dcache030(c1, val, tag1, fc, lws1);
+#if VALIDATE_68030_DATACACHE
+				validate_dcache030();
+#endif
+			} else if (hit) {
+				// Does real 68030 do this if MMU cache inhibited?
 				c1->valid[lws1] = false;
-		} else if (size == 1) {
-			if (hit) {
-				c1->data[lws1] &= ~(0xffff0000 >> (aligned * 8));
-				c1->data[lws1] |= (val << 16) >> (aligned * 8);
-			} else
-				c1->valid[lws1] = false;
-		} else if (size == 0) {
-			if (hit) {
-				c1->data[lws1] &= ~(0xff000000 >> (aligned * 8));
-				c1->data[lws1] |= (val << 24) >> (aligned * 8);
-			} else
-				c1->valid[lws1] = false;
+			}
+			return;
 		}
-	}
 
-	// do we need to update a 2nd cache entry ?
-	if ((size == 0) || (size == 1 && aligned <= 2) || (size == 2 && aligned == 0))
-		return;
-
-	c2 = getcache030(dcaches030, addr + 4, &tag2, &lws2);
-	hit = (c2->tag == tag2 && c2->valid[lws2]);
-	if (hit || wa) {
-		if (size == 2) {
+		val <<= (32 - width);
+		if (hit || wa) {
 			if (hit) {
-				c2->data[lws2] &= 0xffffffff >> (aligned * 8);
-				c2->data[lws2] |= val << ((4 - aligned) * 8);
-			} else
-				c2->valid[lws2] = false;
-		} else if (size == 1) {
-			if (hit) {
-				c2->data[lws2] &= 0x00ffffff;
-				c2->data[lws2] |= val << 24;
-			} else
-				c2->valid[lws2] = false;
+				c1->data[lws1] &= ~(mask[size] >> offset);
+				c1->data[lws1] |= val >> offset;
+			} else {
+				c1->valid[lws1] = false;
+			}
 		}
+
+		// do we need to update a 2nd cache entry ?
+		if (width + offset > 32) {
+			c2 = getdcache030(dcaches030, addr + 4, &tag2, &lws2);
+			hit = c2->tag == tag2 && c2->fc == fc && c2->valid[lws2];
+			if (hit || wa) {
+				if (hit) {
+					c2->data[lws2] &= ~(mask[size] << (width + offset - 32));
+					c2->data[lws2] |= val << (width + offset - 32);
+				} else {
+					c2->valid[lws2] = false;
+				}
+			}
+		}
+#if VALIDATE_68030_DATACACHE
+		validate_dcache030();
+#endif
 	}
 }
 
-void write_dcache030(uaecptr addr, uae_u32 v, int size)
+void write_dcache030(uaecptr addr, uae_u32 v, uae_u32 size, uae_u32 fc)
 {
-	write_dcache030x(addr, v, size);
-	if (currprefs.cpu_memory_cycle_exact) {
-		if (size == 2)
-			mem_access_delay_long_write_ce020(addr, v);
-		else if (size == 1)
-			mem_access_delay_word_write_ce020(addr, v);
-		else
-			mem_access_delay_byte_write_ce020(addr, v);
-	} else {
-		if (size == 2)
-			put_long(addr, v);
-		else if (size == 1)
-			put_word(addr, v);
-		else
-			put_byte(addr, v);
-	}
-#if VALIDATE_68030_DATACACHE
-	validate_dcache030();
-#endif
+	regs.fc030 = fc;
+	if (size == 2)
+		dcache030_lput(addr, v);
+	else if (size == 1)
+		dcache030_wput(addr, v);
+	else
+		dcache030_bput(addr, v);
+	write_dcache030x(addr, v, size, fc);
 }
 
-uae_u32 read_dcache030 (uaecptr addr, int size)
+static void dcache030_maybe_burst(uaecptr addr, struct cache030 *c, int lws)
 {
-	struct cache030 *c1, *c2;
-	int lws1, lws2;
-	uae_u32 tag1, tag2;
-	int aligned = addr & 3;
-	uae_u32 v1, v2;
-#if VALIDATE_68030_DATACACHE
-	uae_u32 addr2 = addr;
-#endif
-
-	if (!(regs.cacr & 0x100) || !cancache030 (addr)) { // data cache disabled?
-		if (currprefs.cpu_memory_cycle_exact) {
-			if (size == 2)
-				return mem_access_delay_long_read_ce020 (addr);
-			else if (size == 1)
-				return mem_access_delay_word_read_ce020 (addr);
-			else
-				return mem_access_delay_byte_read_ce020 (addr);
+	if ((c->valid[0] + c->valid[1] + c->valid[2] + c->valid[3] == 1) && ce_banktype[addr >> 16] == CE_MEMBANK_FAST32) {
+		// do burst fetch if cache enabled, not frozen, all slots invalid, no chip ram
+		int i;
+		uaecptr baddr = addr & ~15;
+		for (i = 0; i < 4; i++) {
+			if (c->valid[i])
+				break;
+		}
+		if (currprefs.mmu_model) {
+			TRY (prb) {
+				if (currprefs.cpu_cycle_exact)
+					do_cycles_ce020(3 * (CPU020_MEM_CYCLE - 1));
+				for (int j = 0; j < 3; j++) {
+					i++;
+					i &= 3;
+					c->data[i] = dcache030_lget (baddr + i * 4);
+					c->valid[i] = true;
+				}
+			} CATCH (prb) {
+				; // abort burst fetch if bus error
+			} ENDTRY
 		} else {
-			if (size == 2)
-				return get_long (addr);
-			else if (size == 1)
-				return get_word (addr);
-			else
-				return get_byte (addr);
-		}
-	}
-	c1 = getcache030 (dcaches030, addr, &tag1, &lws1);
- 	addr &= ~3;
-	if (!c1->valid[lws1] || c1->tag != tag1) {
-		v1 = currprefs.cpu_memory_cycle_exact ? mem_access_delay_long_read_ce020 (addr) : get_long (addr);
-		update_cache030 (c1, v1, tag1, lws1);
-#if VALIDATE_68030_DATACACHE
-		validate_dcache030();
-#endif
-	} else {
-		v1 = c1->data[lws1];
-		if (uae_boot_rom_type > 0) {
-			// this check and fix is needed for UAE filesystem handler because it runs in host side and in
-			// separate thread. No way to access via cache without locking that would cause major slowdown
-			// and unneeded complexity
-			uae_u32 tv = get_long(addr);
-			if (tv != v1) {
-				write_log(_T("data cache mismatch %d %d %08x %08x != %08x %08x %d PC=%08x\n"),
-					size, aligned, addr, tv, v1, tag1, lws1, M68K_GETPC);
-				v1 = tv;
+			for (int j = 0; j < 3; j++) {
+				i++;
+				i &= 3;
+				c->data[i] = dcache030_lget (baddr + i * 4);
+				c->valid[i] = true;
 			}
+			if (currprefs.cpu_cycle_exact)
+				do_cycles_ce020_mem (3 * (CPU020_MEM_CYCLE - 1), c->data[i]);
 		}
-	}
-
-	// only one long fetch needed?
-	if (size == 0) {
-		v1 >>= (3 - aligned) * 8;
-#if VALIDATE_68030_DATACACHE
-		validate_dcache030_read(addr2, v1, size);
-#endif
-		return v1;
-	} else if (size == 1 && aligned <= 2) {
-		v1 >>= (2 - aligned) * 8;
-#if VALIDATE_68030_DATACACHE
-		validate_dcache030_read(addr2, v1, size);
-#endif
-		return v1;
-	} else if (size == 2 && aligned == 0) {
-		if ((regs.cacr & 0x1100) == 0x1100 && lws1 == 0 && !c1->valid[1] && !c1->valid[2] && !c1->valid[3] && ce_banktype[addr >> 16] == CE_MEMBANK_FAST32) {
-			// do burst fetch if cache enabled, not frozen, all slots invalid, no chip ram
-			c1->data[1] = get_long (addr + 4);
-			c1->data[2] = get_long (addr + 8);
-			c1->data[3] = get_long (addr + 12);
-			do_cycles_ce020_mem (3 * (CPU020_MEM_CYCLE - 1), c1->data[3]);
-			c1->valid[1] = c1->valid[2] = c1->valid[3] = true;
-		}
-#if VALIDATE_68030_DATACACHE
-		validate_dcache030_read(addr2, v1, size);
-		validate_dcache030();
-#endif
-		return v1;
-	}
-	// no, need another one
-	addr += 4;
-	c2 = getcache030 (dcaches030, addr, &tag2, &lws2);
-	if (!c2->valid[lws2] || c2->tag != tag2) {
-		v2 = currprefs.cpu_memory_cycle_exact ? mem_access_delay_long_read_ce020 (addr) : get_long (addr);
-		update_cache030 (c2, v2, tag2, lws2);
 #if VALIDATE_68030_DATACACHE
 		validate_dcache030();
 #endif
-	} else {
-		v2 = c2->data[lws2];
-		if (uae_boot_rom_type > 0) {
-			uae_u32 tv = get_long(addr);
-			if (tv != v2) {
-				write_log (_T("data cache mismatch %d %d %08x %08x != %08x %08x %d PC=%08x\n"),
-					size, aligned, addr, tv, v2, tag2, lws2, M68K_GETPC);
-				v2 = tv;
-			}
-		}
 	}
+}
 
-	uae_u32 ov;
-	if (size == 1 && aligned == 3) {
-		ov = (v1 << 8) | (v2 >> 24);
-	} else if (size == 2 && aligned == 1) {
-		ov = (v1 << 8) | (v2 >> 24);
-	} else if (size == 2 && aligned == 2) {
-		ov = (v1 << 16) | (v2 >> 16);
-	} else if (size == 2 && aligned == 3) {
-		ov =  (v1 << 24) | (v2 >> 8);
-	} else {
-		write_log (_T("dcache030 weirdness!?\n"));
-		ov = 0;
+#if 0
+static void uae_cache_check(uaecptr addr, uae_u32 *v, struct cache030 *c, int lws, int size)
+{
+	if (uae_boot_rom_type <= 0)
+		return;
+	// this check and fix is needed for UAE filesystem handler because it runs in host side and in
+	// separate thread. No way to access via cache without locking that would cause major slowdown
+	// and unneeded complexity
+	uae_u32 tv = get_long(addr);
+	if (tv != *v) {
+		write_log(_T("data cache mismatch %d %d %08x %08x != %08x %08x %d PC=%08x\n"),
+			size, addr, tv, v, c->tag, lws, M68K_GETPC);
+		*v = tv;
 	}
-#if VALIDATE_68030_DATACACHE
-	validate_dcache030_read(addr2, ov, size);
+}
 #endif
-	return ov;
+
+uae_u32 read_dcache030 (uaecptr addr, uae_u32 size, uae_u32 fc)
+{
+	uae_u32 addr_o = addr;
+	regs.fc030 = fc;
+	if ((regs.cacr & 0x100) && !dcache_complete_inhibit) { // data cache enabled?
+		static const uae_u32 mask[3] = { 0x000000ff, 0x0000ffff, 0xffffffff };
+		struct cache030 *c1, *c2;
+		int lws1, lws2;
+		uae_u32 tag1, tag2;
+		int aligned = addr & 3;
+		uae_u32 v1, v2;
+		int width = 8 << size;
+		int offset = 8 * aligned;
+		uae_u32 out;
+
+		c1 = getdcache030 (dcaches030, addr, &tag1, &lws1);
+ 		addr &= ~3;
+		if (!c1->valid[lws1] || c1->tag != tag1 || c1->fc != fc) {
+			// Cache miss and caching inhibited -> normal read
+			if (mmu030_cache_inhibit || !candcache030(addr))
+				goto end;
+			// MMU validate address, returns zero if valid but uncacheable
+			// throws bus error if invalid
+			if (!dcache030_check(addr_o, false, size))
+				goto end;
+			v1 = dcache030_lget(addr);
+			update_dcache030 (c1, v1, tag1, fc, lws1);
+			if (!mmu030_cache_inhibit && (regs.cacr & 0x1100) == 0x1100)
+				dcache030_maybe_burst(addr, c1, lws1);
+#if VALIDATE_68030_DATACACHE
+			validate_dcache030();
+#endif
+		} else {
+			// Cache hit, inhibited caching do not prevent read hits.
+			v1 = c1->data[lws1];
+#if 0
+			uae_cache_check(addr, &v1, c1, lws1, size);
+#endif
+		}
+
+		// only one long fetch needed?
+		if (width + offset <= 32) {
+			out = v1 >> (32 - (offset + width));
+			out &= mask[size];
+#if VALIDATE_68030_DATACACHE
+			validate_dcache030_read(addr_o, out, size);
+#endif
+			return out;
+		}
+
+		// no, need another one
+		addr += 4;
+		c2 = getdcache030 (dcaches030, addr, &tag2, &lws2);
+		if (!c2->valid[lws2] || c2->tag != tag2 || c2->fc != fc) {
+			if (mmu030_cache_inhibit || !candcache030(addr))
+				goto end;
+			if (!dcache030_check(addr, false, 2))
+				goto end;
+			v2 = dcache030_lget(addr);
+			update_dcache030 (c2, v2, tag2, fc, lws2);
+			if (!mmu030_cache_inhibit && (regs.cacr & 0x1100) == 0x1100)
+				dcache030_maybe_burst(addr, c2, lws2);
+#if VALIDATE_68030_DATACACHE
+			validate_dcache030();
+#endif
+		} else {
+			v2 = c2->data[lws2];
+#if 0
+			uae_cache_check(addr, &v2, c2, lws2, size);
+#endif
+		}
+
+		uae_u64 v64 = ((uae_u64)v1 << 32) | v2;
+		out = (uae_u32)(v64 >> (64 - (offset + width)));
+		out &= mask[size];
+
+#if VALIDATE_68030_DATACACHE
+		validate_dcache030_read(addr_o, out, size);
+#endif
+		return out;
+
+	}
+end:
+	// read from memory, data cache is disabled or inhibited.
+	if (size == 2)
+		return dcache030_lget (addr_o);
+	else if (size == 1)
+		return dcache030_wget (addr_o);
+	else
+		return dcache030_bget (addr_o);
+}
+
+uae_u32 read_dcache030_mmu(uaecptr addr, uae_u32 size)
+{
+	return read_dcache030(addr, size, (regs.s ? 4 : 0) | 1);
+}
+void write_dcache030_mmu(uaecptr addr, uae_u32 val, uae_u32 size)
+{
+	write_dcache030(addr, val, size, (regs.s ? 4 : 0) | 1);
+}
+
+uae_u32 read_dcache030_lrmw_mmu(uaecptr addr, uae_u32 size)
+{
+	mmu030_cache_inhibit = 1;
+	return read_dcache030(addr, size, (regs.s ? 4 : 0) | 1);
+}
+void write_dcache030_lrmw_mmu(uaecptr addr, uae_u32 val, uae_u32 size)
+{
+	mmu030_cache_inhibit = 1;
+	write_dcache030(addr, val, size, (regs.s ? 4 : 0) | 1);
+}
+
+static void do_access_or_bus_error(uaecptr pc, uaecptr pcnow)
+{
+	// TODO: handle external bus errors
+	if (!currprefs.mmu_model)
+		return;
+	if (pc != 0xffffffff)
+		regs.instruction_pc = pc;
+	mmu030_opcode = -1;
+	mmu030_page_fault(pcnow, true, -1, 0);
 }
 
 static uae_u32 get_word_ce030_prefetch_2 (int o)
@@ -8694,23 +8981,30 @@ static uae_u32 get_word_ce030_prefetch_2 (int o)
 	uae_u32 pc = m68k_getpc () + o;
 	uae_u32 v;
 
-	if (pc & 2) {
-		v = regs.prefetch020[0] & 0xffff;
+	v = regs.prefetch020[0];
+	regs.prefetch020[0] = regs.prefetch020[1];
+	regs.prefetch020[1] = regs.prefetch020[2];
 #if MORE_ACCURATE_68020_PIPELINE
-		pipeline_020(regs.prefetch020[1], pc);
+	pipeline_020(pc);
 #endif
-		regs.prefetch020[0] = regs.prefetch020[1];
+	if (pc & 2) {
 		// branch instruction detected in pipeline: stop fetches until branch executed.
 		if (!MORE_ACCURATE_68020_PIPELINE || regs.pipeline_stop >= 0) {
 			fill_icache030 (pc + 2 + 4);
-			regs.prefetch020[1] = regs.cacheholdingdata020;
+		} else {
+			if (regs.cacheholdingdata_valid > 0)
+				regs.cacheholdingdata_valid++;
 		}
+		regs.prefetch020[2] = regs.cacheholdingdata020 >> 16;
 	} else {
-		v = regs.prefetch020[0] >> 16;
-#if MORE_ACCURATE_68020_PIPELINE
-		pipeline_020(regs.prefetch020[1] >> 16, pc);
-#endif
+		pc += 4;
+		// cacheholdingdata020 may be invalid if RTE from bus error
+		if ((!MORE_ACCURATE_68020_PIPELINE || regs.pipeline_stop >= 0) && regs.cacheholdingaddr020 != pc) {
+			fill_icache030 (pc);
+		}
+		regs.prefetch020[2] = (uae_u16)regs.cacheholdingdata020;
 	}
+	regs.db = regs.prefetch020[0];
 	do_cycles_ce020_internal (2);
 	return v;
 }
@@ -8724,28 +9018,39 @@ uae_u32 get_word_ce030_prefetch_opcode (int o)
 	return get_word_ce030_prefetch_2(o);
 }
 
-uae_u32 get_word_030_prefetch(int o)
+uae_u32 get_word_030_prefetch (int o)
 {
-	uae_u32 pc = m68k_getpc() + o;
+	uae_u32 pc = m68k_getpc () + o;
 	uae_u32 v;
 
-	if (pc & 2) {
-		v = regs.prefetch020[0] & 0xffff;
+	v = regs.prefetch020[0];
+	regs.prefetch020[0] = regs.prefetch020[1];
+	regs.prefetch020[1] = regs.prefetch020[2];
+	if (!regs.prefetch020_valid[1]) {
+		do_access_or_bus_error(0xffffffff, pc);
+	}
 #if MORE_ACCURATE_68020_PIPELINE
-		pipeline_020(regs.prefetch020[1], pc);
+	pipeline_020(pc);
 #endif
-		regs.prefetch020[0] = regs.prefetch020[1];
+	if (pc & 2) {
 		// branch instruction detected in pipeline: stop fetches until branch executed.
 		if (!MORE_ACCURATE_68020_PIPELINE || regs.pipeline_stop >= 0) {
-			fill_icache030(pc + 2 + 4);
-			regs.prefetch020[1] = regs.cacheholdingdata020;
+			fill_icache030 (pc + 2 + 4);
+		} else {
+			if (regs.cacheholdingdata_valid > 0)
+				regs.cacheholdingdata_valid++;
 		}
+		regs.prefetch020[2] = regs.cacheholdingdata020 >> 16;
 	} else {
-		v = regs.prefetch020[0] >> 16;
-#if MORE_ACCURATE_68020_PIPELINE
-		pipeline_020(regs.prefetch020[1] >> 16, pc);
-#endif
+		pc += 4;
+		// cacheholdingdata020 may be invalid if RTE from bus error
+		if ((!MORE_ACCURATE_68020_PIPELINE || regs.pipeline_stop >= 0) && regs.cacheholdingaddr020 != pc) {
+			fill_icache030 (pc);
+		}
+		regs.prefetch020[2] = (uae_u16)regs.cacheholdingdata020;
 	}
+	regs.prefetch020_valid[2] = regs.cacheholdingdata_valid;
+	regs.db = regs.prefetch020[0];
 	return v;
 }
 
@@ -9150,69 +9455,165 @@ void check_t0_trace(void)
 	}
 }
 
-void fill_prefetch_030_ntx (void)
+static void reset_pipeline_state(void)
+{
+#if MORE_ACCURATE_68020_PIPELINE
+	regs.pipeline_pos = 0;
+	regs.pipeline_stop = 0;
+	regs.pipeline_r8[0] = regs.pipeline_r8[1] = -1;
+#endif
+}
+
+static int add_prefetch_030(int idx, uae_u16 w, uaecptr pc)
+{
+	regs.prefetch020[0] = regs.prefetch020[1];
+	regs.prefetch020_valid[0] = regs.prefetch020_valid[1];
+	regs.prefetch020[1] = regs.prefetch020[2];
+	regs.prefetch020_valid[1] = regs.prefetch020_valid[2];
+	regs.prefetch020[2] = w;
+	regs.prefetch020_valid[2] = regs.cacheholdingdata_valid;
+
+#if MORE_ACCURATE_68020_PIPELINE
+	if (idx >= 1) {
+		pipeline_020(pc);
+	}
+#endif
+
+	if  (!regs.prefetch020_valid[2]) {
+		if (idx == 0 || !regs.pipeline_stop) {
+			// Pipeline refill and first opcode word is invalid?
+			// Generate previously detected bus error/MMU fault
+			do_access_or_bus_error(pc, pc + idx * 2);
+		}
+	}
+	return idx + 1;
+}
+
+void fill_prefetch_030_ntx(void)
 {
 	uaecptr pc = m68k_getpc ();
 	uaecptr pc2 = pc;
+	int idx = 0;
+
 	pc &= ~3;
-	regs.pipeline_pos = 0;
-	regs.pipeline_stop = 0;
+	mmu030_idx = 0;
+	reset_pipeline_state();
+	regs.cacheholdingdata_valid = 1;
+	regs.cacheholdingaddr020 = 0xffffffff;
+	regs.prefetch020_valid[0] = regs.prefetch020_valid[1] = regs.prefetch020_valid[2] = 0;
 
-	fill_icache030 (pc);
+	fill_icache030(pc);
 	if (currprefs.cpu_cycle_exact)
 		do_cycles_ce020_internal(2);
-	regs.prefetch020[0] = regs.cacheholdingdata020;
-
-	fill_icache030 (pc + 4);
-	if (currprefs.cpu_cycle_exact)
-		do_cycles_ce020_internal(2);
-	regs.prefetch020[1] = regs.cacheholdingdata020;
-
-#if MORE_ACCURATE_68020_PIPELINE
 	if (pc2 & 2) {
-		pipeline_020(regs.prefetch020[0], pc);
-		pipeline_020(regs.prefetch020[1] >> 16, pc);
+		idx = add_prefetch_030(idx, regs.cacheholdingdata020, pc2);
 	} else {
-		pipeline_020(regs.prefetch020[0] >> 16, pc);
-		pipeline_020(regs.prefetch020[0], pc);
+		idx = add_prefetch_030(idx, regs.cacheholdingdata020 >>	16, pc2);
+		idx = add_prefetch_030(idx, regs.cacheholdingdata020, pc2);
 	}
-#endif
+
+	fill_icache030(pc + 4);
+	if (currprefs.cpu_cycle_exact)
+		do_cycles_ce020_internal(2);
+	if (pc2 & 2) {
+		idx = add_prefetch_030(idx, regs.cacheholdingdata020 >>	16, pc2);
+		idx = add_prefetch_030(idx, regs.cacheholdingdata020, pc2);
+	} else {
+		idx = add_prefetch_030(idx, regs.cacheholdingdata020 >>	16, pc2);
+	}
 
 	if (currprefs.cpu_cycle_exact)
 		regs.irc = get_word_ce030_prefetch_opcode (0);
 	else
-		regs.irc = get_word_030_prefetch(0);
+		regs.irc = get_word_030_prefetch (0);
+}
+
+void fill_prefetch_030_ntx_continue (void)
+{
+	uaecptr pc = m68k_getpc ();
+	uaecptr pc_orig = pc;
+	int idx = 0;
+
+	mmu030_idx = 0;
+	reset_pipeline_state();
+	regs.cacheholdingdata_valid = 1;
+	regs.cacheholdingaddr020 = 0xffffffff;
+
+	for (int i = 2; i >= 0; i--) {
+		if (!regs.prefetch020_valid[i])
+			break;
+#if MORE_ACCURATE_68020_PIPELINE
+		if (idx >= 1) {
+			pipeline_020(pc);
+		}
+#endif
+		pc += 2;
+		idx++;
+	}
+
+	if (idx < 3 && !regs.pipeline_stop) {
+		uaecptr pc2 = pc;
+		pc &= ~3;
+
+		fill_icache030(pc);
+		if (currprefs.cpu_cycle_exact)
+			do_cycles_ce020_internal(2);
+		if (pc2 & 2) {
+			idx = add_prefetch_030(idx, regs.cacheholdingdata020, pc_orig);
+		} else {
+			idx = add_prefetch_030(idx, regs.cacheholdingdata020 >> 16, pc_orig);
+			if (idx < 3)
+				idx = add_prefetch_030(idx, regs.cacheholdingdata020, pc_orig);
+		}
+
+		if (idx < 3) {
+			fill_icache030(pc + 4);
+			if (currprefs.cpu_cycle_exact)
+				do_cycles_ce020_internal(2);
+			if (pc2 & 2) {
+				idx = add_prefetch_030(idx, regs.cacheholdingdata020 >>	16, pc_orig);
+				if (idx < 3)
+					idx = add_prefetch_030(idx, regs.cacheholdingdata020, pc_orig);
+			} else {
+				idx = add_prefetch_030(idx, regs.cacheholdingdata020 >>	16, pc_orig);
+			}
+		}
+	}
+
+	if (currprefs.cpu_cycle_exact)
+		regs.irc = get_word_ce030_prefetch_opcode (0);
+	else
+		regs.irc = get_word_030_prefetch (0);
 }
 
 void fill_prefetch_020_ntx(void)
 {
 	uaecptr pc = m68k_getpc ();
 	uaecptr pc2 = pc;
+	int idx = 0;
+
 	pc &= ~3;
-	uae_u32 (*fetch)(uaecptr) = currprefs.cpu_memory_cycle_exact ? mem_access_delay_longi_read_ce020 : get_longi;
-	regs.pipeline_pos = 0;
-	regs.pipeline_stop = 0;
-	regs.pipeline_r8[0] = regs.pipeline_r8[1] = -1;
+	reset_pipeline_state();
 
-	fill_icache020 (pc, fetch, true);
+	fill_icache020 (pc, true);
 	if (currprefs.cpu_cycle_exact)
 		do_cycles_ce020_internal(2);
-	regs.prefetch020[0] = regs.cacheholdingdata020;
-
-	fill_icache020 (pc + 4, fetch, true);
-	if (currprefs.cpu_cycle_exact)
-		do_cycles_ce020_internal(2);
-	regs.prefetch020[1] = regs.cacheholdingdata020;
-
-#if MORE_ACCURATE_68020_PIPELINE
 	if (pc2 & 2) {
-		pipeline_020(regs.prefetch020[0], pc);
-		pipeline_020(regs.prefetch020[1] >> 16, pc);
+		idx = add_prefetch_030(idx, regs.cacheholdingdata020, pc);
 	} else {
-		pipeline_020(regs.prefetch020[0] >> 16, pc);
-		pipeline_020(regs.prefetch020[0], pc);
+		idx = add_prefetch_030(idx, regs.cacheholdingdata020 >>	16, pc);
+		idx = add_prefetch_030(idx, regs.cacheholdingdata020, pc);
 	}
-#endif
+
+	fill_icache020 (pc + 4, true);
+	if (currprefs.cpu_cycle_exact)
+		do_cycles_ce020_internal(2);
+	if (pc2 & 2) {
+		idx = add_prefetch_030(idx, regs.cacheholdingdata020 >>	16, pc);
+		idx = add_prefetch_030(idx, regs.cacheholdingdata020, pc);
+	} else {
+		idx = add_prefetch_030(idx, regs.cacheholdingdata020 >>	16, pc);
+	}
 
 	if (currprefs.cpu_cycle_exact)
 		regs.irc = get_word_ce020_prefetch_opcode (0);
@@ -9254,7 +9655,7 @@ void fill_prefetch_030(void)
 
 void fill_prefetch (void)
 {
-	regs.pipeline_pos = 0;
+	reset_pipeline_state();
 	if (currprefs.cachesize)
 		return;
 	if (!currprefs.cpu_compatible)

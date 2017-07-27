@@ -101,14 +101,6 @@ STATIC_INLINE void do_head_cycles_ce020 (int h)
 }
 #endif
 
-void mem_access_delay_long_write_ce020 (uaecptr addr, uae_u32 v);
-void mem_access_delay_word_write_ce020 (uaecptr addr, uae_u32 v);
-void mem_access_delay_byte_write_ce020 (uaecptr addr, uae_u32 v);
-uae_u32 mem_access_delay_byte_read_ce020 (uaecptr addr);
-uae_u32 mem_access_delay_word_read_ce020 (uaecptr addr);
-uae_u32 mem_access_delay_longi_read_ce020 (uaecptr addr);
-uae_u32 mem_access_delay_long_read_ce020 (uaecptr addr);
-
 STATIC_INLINE uae_u32 get_long_ce020 (uaecptr addr)
 {
 	return mem_access_delay_long_read_ce020 (addr);
@@ -185,27 +177,27 @@ extern uae_u32 get_word_030_prefetch(int);
 
 STATIC_INLINE void put_long_030(uaecptr addr, uae_u32 v)
 {
-	write_dcache030(addr, v, 2);
+	write_dcache030(addr, v, 2, (regs.s ? 4 : 0) | 1);
 }
 STATIC_INLINE void put_word_030(uaecptr addr, uae_u32 v)
 {
-	write_dcache030(addr, v, 1);
+	write_dcache030(addr, v, 1, (regs.s ? 4 : 0) | 1);
 }
 STATIC_INLINE void put_byte_030(uaecptr addr, uae_u32 v)
 {
-	write_dcache030(addr, v, 0);
+	write_dcache030(addr, v, 0, (regs.s ? 4 : 0) | 1);
 }
 STATIC_INLINE uae_u32 get_long_030(uaecptr addr)
 {
-	return read_dcache030(addr, 2);
+	return read_dcache030(addr, 2, (regs.s ? 4 : 0) | 1);
 }
 STATIC_INLINE uae_u32 get_word_030(uaecptr addr)
 {
-	return read_dcache030(addr, 1);
+	return read_dcache030(addr, 1, (regs.s ? 4 : 0) | 1);
 }
 STATIC_INLINE uae_u32 get_byte_030(uaecptr addr)
 {
-	return read_dcache030(addr, 0);
+	return read_dcache030(addr, 0, (regs.s ? 4 : 0) | 1);
 }
 
 STATIC_INLINE uae_u32 get_long_030_prefetch(int o)
@@ -251,27 +243,27 @@ extern uae_u32 get_word_ce030_prefetch_opcode(int);
 
 STATIC_INLINE void put_long_ce030 (uaecptr addr, uae_u32 v)
 {
-	write_dcache030 (addr, v, 2);
+	write_dcache030 (addr, v, 2, (regs.s ? 4 : 0) | 1);
 }
 STATIC_INLINE void put_word_ce030 (uaecptr addr, uae_u32 v)
 {
-	write_dcache030 (addr, v, 1);
+	write_dcache030 (addr, v, 1, (regs.s ? 4 : 0) | 1);
 }
 STATIC_INLINE void put_byte_ce030 (uaecptr addr, uae_u32 v)
 {
-	write_dcache030 (addr, v, 0);
+	write_dcache030 (addr, v, 0, (regs.s ? 4 : 0) | 1);
 }
 STATIC_INLINE uae_u32 get_long_ce030 (uaecptr addr)
 {
-	return read_dcache030 (addr, 2);
+	return read_dcache030 (addr, 2, (regs.s ? 4 : 0) | 1);
 }
 STATIC_INLINE uae_u32 get_word_ce030 (uaecptr addr)
 {
-	return read_dcache030 (addr, 1);
+	return read_dcache030 (addr, 1, (regs.s ? 4 : 0) | 1);
 }
 STATIC_INLINE uae_u32 get_byte_ce030 (uaecptr addr)
 {
-	return read_dcache030 (addr, 0);
+	return read_dcache030 (addr, 0, (regs.s ? 4 : 0) | 1);
 }
 
 STATIC_INLINE uae_u32 get_long_ce030_prefetch (int o)

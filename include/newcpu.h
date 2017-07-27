@@ -121,6 +121,7 @@ struct cache030
 	uae_u32 data[4];
 	bool valid[4];
 	uae_u32 tag;
+	uae_u8 fc;
 };
 
 #define CACHESETS040 64
@@ -211,13 +212,16 @@ struct regstruct
 	uae_u32 pcr;
 	uae_u32 address_space_mask;
 
-	uae_u32 prefetch020[CPU_PIPELINE_MAX];
+	uae_u16 prefetch020[CPU_PIPELINE_MAX];
+	uae_u8 prefetch020_valid[CPU_PIPELINE_MAX];
 	uae_u32 prefetch020addr;
 	uae_u32 cacheholdingdata020;
 	uae_u32 cacheholdingaddr020;
+	uae_u8 cacheholdingdata_valid;
 	int pipeline_pos;
 	int pipeline_r8[2];
 	int pipeline_stop;
+	uae_u8 fc030;
 
 	int ce020endcycle;
 	int ce020startcycle;
@@ -249,7 +253,8 @@ struct cputracestruct
 
 	uae_u32 msp, vbr;
 	uae_u32 cacr, caar;
-	uae_u32 prefetch020[CPU_PIPELINE_MAX];
+	uae_u16 prefetch020[CPU_PIPELINE_MAX];
+	uae_u8 prefetch030_valid[CPU_PIPELINE_MAX];
 	uae_u32 prefetch020addr;
 	uae_u32 cacheholdingdata020;
 	uae_u32 cacheholdingaddr020;
@@ -312,6 +317,15 @@ extern void(*x_cp_put_word)(uaecptr addr, uae_u32 v);
 extern void(*x_cp_put_long)(uaecptr addr, uae_u32 v);
 extern uae_u32(*x_cp_next_iword)(void);
 extern uae_u32(*x_cp_next_ilong)(void);
+
+void mem_access_delay_long_write_ce020 (uaecptr addr, uae_u32 v);
+void mem_access_delay_word_write_ce020 (uaecptr addr, uae_u32 v);
+void mem_access_delay_byte_write_ce020 (uaecptr addr, uae_u32 v);
+uae_u32 mem_access_delay_byte_read_ce020 (uaecptr addr);
+uae_u32 mem_access_delay_word_read_ce020 (uaecptr addr);
+uae_u32 mem_access_delay_long_read_ce020 (uaecptr addr);
+uae_u32 mem_access_delay_longi_read_ce020 (uaecptr addr);
+uae_u32 mem_access_delay_wordi_read_ce020 (uaecptr addr);
 
 extern uae_u32(REGPARAM3 *x_cp_get_disp_ea_020)(uae_u32 base, int idx) REGPARAM;
 
@@ -505,9 +519,15 @@ STATIC_INLINE void m68k_setpc_normal(uaecptr pc)
 	}
 }
 
+extern void write_dcache030(uaecptr, uae_u32, uae_u32, uae_u32);
+extern uae_u32 read_dcache030(uaecptr, uae_u32, uae_u32);
+
+extern void write_dcache030_mmu(uaecptr, uae_u32, uae_u32);
+extern uae_u32 read_dcache030_mmu(uaecptr, uae_u32);
+extern void write_dcache030_lrmw_mmu(uaecptr, uae_u32, uae_u32);
+extern uae_u32 read_dcache030_lrmw_mmu(uaecptr, uae_u32);
+
 extern void check_t0_trace(void);
-extern void write_dcache030(uaecptr, uae_u32, int);
-extern uae_u32 read_dcache030(uaecptr, int);
 extern uae_u32 get_word_icache030(uaecptr addr);
 extern uae_u32 get_long_icache030(uaecptr addr);
 
@@ -614,6 +634,7 @@ extern void cpu_fallback(int mode);
 extern void fill_prefetch (void);
 extern void fill_prefetch_020_ntx(void);
 extern void fill_prefetch_030_ntx(void);
+extern void fill_prefetch_030_ntx_continue(void);
 extern void fill_prefetch_020(void);
 extern void fill_prefetch_030(void);
 
@@ -638,6 +659,7 @@ extern const struct cputbl op_smalltbl_52_ff[];
 extern const struct cputbl op_smalltbl_22_ff[]; // prefetch
 extern const struct cputbl op_smalltbl_23_ff[]; // CE
 extern const struct cputbl op_smalltbl_32_ff[]; // MMU
+extern const struct cputbl op_smalltbl_34_ff[]; // MMU + cache
 /* 68020 */
 extern const struct cputbl op_smalltbl_3_ff[];
 extern const struct cputbl op_smalltbl_43_ff[];
