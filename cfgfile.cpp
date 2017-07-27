@@ -420,6 +420,8 @@ static TCHAR *cfgfile_escape (const TCHAR *s, const TCHAR *escstr, bool quote)
 			}
 		}
 	}
+	if (escstr == NULL && quote)
+		doquote = true;
 	TCHAR *s2 = xmalloc (TCHAR, _tcslen (s) + cnt * 4 + 1);
 	TCHAR *p = s2;
 	if (doquote)
@@ -975,7 +977,7 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 #endif
 		} else if (ci->type == UAEDEV_HDF || ci->type == UAEDEV_CD || ci->type == UAEDEV_TAPE) {
 			TCHAR *sfilesys = cfgfile_escape_min(ci->filesys);
-			TCHAR *sgeometry = cfgfile_escape_min(ci->geometry);
+			TCHAR *sgeometry = cfgfile_escape(ci->geometry, NULL, true);
 			_stprintf (tmp, _T("%s,%s:%s,%d,%d,%d,%d,%d,%s,%s"),
 				ci->readonly ? _T("ro") : _T("rw"),
 				ci->devname ? ci->devname : _T(""), str1c,
@@ -4043,8 +4045,13 @@ static void get_filesys_controller (const TCHAR *hdc, int *type, int *typenum, i
 		if (hdunit >= MAX_FILESYSTEM_UNITS)
 			hdunit = 0;
 	} else if (hdcv > HD_CONTROLLER_TYPE_UAE) {
+		TCHAR control[MAX_DPATH];
 		bool found = false;
-		const TCHAR *ext = _tcsrchr (hdc, '_');
+		_tcscpy(control, hdc);
+		TCHAR *extend = (TCHAR*)_tcschr(control, ',');
+		if (extend)
+			extend[0] = 0;
+		const TCHAR *ext = _tcsrchr (control, '_');
 		if (ext) {
 			ext++;
 			int len = _tcslen(ext);
@@ -4468,11 +4475,6 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 								goto invalid_fs;
 							_tcscpy(uci.geometry, n);
 							xfree(n);
-						} else {
-							tmpp = _tcschr (tmpp2, ',');
-							if (tmpp)
-								*tmpp++ = 0;
-							_tcscpy (uci.geometry, tmpp2);
 						}
 					}
 				}
