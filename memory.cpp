@@ -1822,7 +1822,7 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
 	y = xmalloc (shmpiece, 1);
 	*y = *x;
 	base = ((uae_u8 *) NATMEM_OFFSET) + start;
-	y->native_address = (uae_u8*)uae_shmat (what, y->id, base, 0);
+	y->native_address = (uae_u8*)uae_shmat (what, y->id, base, 0, NULL);
 	if (y->native_address == (void *) -1) {
 		write_log (_T("NATMEM: Failure to map existing at %08x (%p)\n"), start, base);
 		dumplist ();
@@ -1902,7 +1902,7 @@ bool mapped_malloc (addrbank *ab)
 		return ab->baseaddr != NULL;
 	}
 	if (!(ab->flags & ABFLAG_NOALLOC)) {
-		answer = uae_shmat (ab, id, 0, 0);
+		answer = uae_shmat (ab, id, NULL, 0, &md);
 		uae_shmctl (id, UAE_IPC_RMID, NULL);
 	} else {
 		write_log(_T("MMAN: mapped_malloc using existing baseaddr %p\n"), ab->baseaddr);
@@ -2216,18 +2216,25 @@ static void fill_ce_banks (void)
 	} else {
 		memset (ce_banktype, CE_MEMBANK_FAST32, sizeof ce_banktype);
 	}
-	// data cachable regions (2 = burst supported)
-	memset(ce_cachable, 0, sizeof ce_cachable);
-	memset(ce_cachable + (0x00c00000 >> 16), 1, currprefs.bogomem_size >> 16);
+
+	memset(ce_cachable, CACHE_ENABLE_INS, sizeof ce_cachable);
+	memset(ce_cachable + (0x00f80000 >> 16), CACHE_ENABLE_BOTH, 524288 >> 16);
+	memset(ce_cachable + (0x00c00000 >> 16), CACHE_ENABLE_BOTH, currprefs.bogomem_size >> 16);
 	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
 		if (fastmem_bank[i].start != 0xffffffff)
-			memset(ce_cachable + (fastmem_bank[i].start >> 16), 1 | 2, currprefs.fastmem[i].size >> 16);
+			memset(ce_cachable + (fastmem_bank[i].start >> 16), CACHE_ENABLE_BOTH, currprefs.fastmem[i].size >> 16);
 		if (z3fastmem_bank[i].start != 0xffffffff)
-			memset(ce_cachable + (z3fastmem_bank[i].start >> 16), 1 | 2, currprefs.z3fastmem[i].size >> 16);
+			memset(ce_cachable + (z3fastmem_bank[i].start >> 16), CACHE_ENABLE_ALL, currprefs.z3fastmem[i].size >> 16);
 	}
-	memset(ce_cachable + (a3000hmem_bank.start >> 16), 1 | 2, currprefs.mbresmem_high_size >> 16);
-	memset(ce_cachable + (a3000lmem_bank.start >> 16), 1 | 2, currprefs.mbresmem_low_size >> 16);
-	memset(ce_cachable + (mem25bit_bank.start >> 16), 1 | 2, currprefs.mem25bit_size >> 16);
+	memset(ce_cachable + (a3000hmem_bank.start >> 16), CACHE_ENABLE_ALL, currprefs.mbresmem_high_size >> 16);
+	memset(ce_cachable + (a3000lmem_bank.start >> 16), CACHE_ENABLE_ALL, currprefs.mbresmem_low_size >> 16);
+	memset(ce_cachable + (mem25bit_bank.start >> 16), CACHE_ENABLE_ALL, currprefs.mem25bit_size >> 16);
+
+	if (uae_boot_rom_type > 0) {
+		for (int i = 0; i < sizeof(ce_cachable); i++) {
+			ce_cachable[i] &= ~(CACHE_ENABLE_DATA | CACHE_ENABLE_DATA_BURST);
+		}
+	}
 
 	addrbank *ab = &get_mem_bank(0);
 	if (ab && (ab->flags & ABFLAG_CHIPRAM)) {

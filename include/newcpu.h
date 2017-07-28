@@ -125,6 +125,7 @@ struct cache030
 };
 
 #define CACHESETS040 64
+#define CACHESETS060 128
 #define CACHELINES040 4
 struct cache040
 {
@@ -222,6 +223,8 @@ struct regstruct
 	int pipeline_r8[2];
 	int pipeline_stop;
 	uae_u8 fc030;
+
+	uae_u32 prefetch040[CPU_PIPELINE_MAX];
 
 	int ce020endcycle;
 	int ce020startcycle;

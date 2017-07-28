@@ -23,7 +23,7 @@ extern uae_u16 mmu030_state[3];
 extern uae_u32 mmu030_data_buffer;
 extern uae_u32 mmu030_disp_store[2];
 extern uae_u32 mmu030_fmovem_store[2];
-extern int mmu030_cache_inhibit;
+extern uae_u8 mmu030_cache_state, mmu030_cache_state_default;
 
 #define MMU030_STATEFLAG1_FMOVEM 0x2000
 #define MMU030_STATEFLAG1_MOVEM1 0x4000
@@ -204,7 +204,7 @@ static ALWAYS_INLINE void uae_mmu030_put_byte_fc(uaecptr addr, uae_u32 val)
 {
 	mmu030_put_byte(addr, val, regs.fc030);
 }
-bool uae_mmu030_check_fc(uaecptr addr, bool write, uae_u32 size);
+uae_u8 uae_mmu030_check_fc(uaecptr addr, bool write, uae_u32 size);
 
 #define ACCESS_CHECK_PUT \
 	if (!mmu030_ad[mmu030_idx].done) { \
@@ -663,7 +663,6 @@ STATIC_INLINE uae_u32 get_iword_mmu030c_state (int o)
 	ACCESS_EXIT_GET
 	return v;
 }
-uae_u32 get_long_030_prefetch(int o);
 STATIC_INLINE uae_u32 get_ilong_mmu030c_state (int o)
 {
  	uae_u32 v;
