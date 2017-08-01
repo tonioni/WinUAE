@@ -4318,6 +4318,33 @@ static void nexus_memory_callback(struct romconfig *rc, uae_u8 *ac, int size)
 	else
 		ac[1] = 8;
 }
+static const struct expansionboardsettings inmate_settings[] = {
+	{
+		_T("M0"), _T("m0")
+	},
+	{
+		_T("M1"), _T("m1")
+	},
+	{
+		_T("AMEM"), _T("amem")
+	},
+	{
+		_T("BTIME"), _T("btime")
+	},
+	{
+		_T("ABOOT"), _T("aboot")
+	},
+	{
+		_T("FPU"), _T("fpu")
+	},
+	{
+		_T("MAP 4/8"), _T("map48")
+	},
+	{
+		NULL
+	}
+};
+
 static const struct expansionboardsettings golemfast_settings[] = {
 	{
 		_T("IDE"),
@@ -4804,7 +4831,9 @@ const struct expansionromtype expansionroms[] = {
 		_T("inmate"), _T("InMate"), _T("Spirit Technology"),
 		NULL, inmate_init, NULL, inmate_add_scsi_unit, ROMTYPE_INMATE | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
-		true, EXPANSIONTYPE_SCSI
+		true, EXPANSIONTYPE_SCSI,
+		0, 0, 0, false, NULL,
+		false, 0, inmate_settings
 	},
 	{
 		_T("supradrive"), _T("SupraDrive"), _T("Supra Corporation"),

@@ -2686,7 +2686,9 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 			} else if (addr == 0x82) {
 				v = aic_bget_data(ncr);
 			} else if (addr == 0x84) {
-				v = (1 << 5) | (1 << 4) | (1 << 3);
+				v = ncr->rc->device_settings & 0x7f;
+				if (!ncr->rc->autoboot_disabled)
+					v |= 1 << 4;
 				if (ncr->dma_direction)
 					v |= 1 << 7;
 			} else if (addr == 0x88 || addr == 0x89) {
