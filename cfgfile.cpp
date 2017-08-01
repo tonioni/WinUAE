@@ -3867,14 +3867,23 @@ static void decode_rom_ident (TCHAR *romfile, int maxlen, const TCHAR *ident, in
 				rl = getromlistbyident (ver, rev, subver, subrev, modelp, romflags, round > 0);
 				if (rl) {
 					for (i = 0; rl[i]; i++) {
-						if (round) {
-							TCHAR romname[MAX_DPATH];
-							getromname(rl[i]->rd, romname);
-							_tcscat (romtxt, romname);
-							_tcscat (romtxt, _T("\n"));
-						} else {
-							_tcsncpy (romfile, rl[i]->path, maxlen);
+						if (rl[i]->path && !_tcscmp(rl[i]->path, romfile)) {
+							xfree(rl);
+							round = 0;
 							goto end;
+						}
+					}
+					if (!rl[i]) {
+						for (i = 0; rl[i]; i++) {
+							if (round) {
+								TCHAR romname[MAX_DPATH];
+								getromname(rl[i]->rd, romname);
+								_tcscat (romtxt, romname);
+								_tcscat (romtxt, _T("\n"));
+							} else {
+								_tcsncpy (romfile, rl[i]->path, maxlen);
+								goto end;
+							}
 						}
 					}
 					xfree (rl);
