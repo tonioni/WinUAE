@@ -663,6 +663,7 @@ extern const struct cputbl op_smalltbl_22_ff[]; // prefetch
 extern const struct cputbl op_smalltbl_23_ff[]; // CE
 extern const struct cputbl op_smalltbl_32_ff[]; // MMU
 extern const struct cputbl op_smalltbl_34_ff[]; // MMU + cache
+extern const struct cputbl op_smalltbl_35_ff[]; // MMU + CE + cache
 /* 68020 */
 extern const struct cputbl op_smalltbl_3_ff[];
 extern const struct cputbl op_smalltbl_43_ff[];

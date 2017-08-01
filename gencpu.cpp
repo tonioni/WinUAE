@@ -2782,7 +2782,7 @@ static void resetvars (void)
 		// tracer
 		getpc = "m68k_getpci ()";
 		if (using_mmu == 68030) {
-			// 68030 cache MMU
+			// 68030 cache MMU / CE cache MMU
 			disp020 = "get_disp_ea_020_mmu030c";
 			prefetch_long = "get_ilong_mmu030c_state";
 			prefetch_word = "get_iword_mmu030c_state";
@@ -5511,7 +5511,7 @@ static void generate_includes (FILE * f, int id)
 	fprintf (f, "#include \"cputbl.h\"\n");
 	if (id == 31 || id == 33)
 		fprintf (f, "#include \"cpummu.h\"\n");
-	else if (id == 32 || id == 34)
+	else if (id == 32 || id == 34 || id == 35)
 		fprintf (f, "#include \"cpummu030.h\"\n");
 
 	fprintf (f, "#define CPUFUNC(x) x##_ff\n"
@@ -5880,7 +5880,7 @@ static void generate_cpu (int id, int mode)
 	postfix = id;
 	if (id == 0 || id == 11 || id == 13 ||
 		id == 20 || id == 21 || id == 22 || id == 23 || id == 24 ||
-		id == 31 || id == 32 || id == 33 || id == 34 ||
+		id == 31 || id == 32 || id == 33 || id == 34 || id == 35 ||
 		id == 40 || id == 50) {
 		if (generate_stbl)
 			fprintf (stblfile, "#ifdef CPUEMU_%d%s\n", postfix, extraup);
@@ -5996,6 +5996,15 @@ static void generate_cpu (int id, int mode)
 		read_counts ();
 		for (rp = 0; rp < nr_cpuop_funcs; rp++)
 			opcode_next_clev[rp] = cpu_level;
+	} else if (id == 35) { // 35 = 68030 MMU + caches + CE
+		mmu_postfix = "030c";
+		cpu_level = 3;
+		using_ce020 = 2;
+		using_prefetch_020 = 2;
+		using_mmu = 68030;
+		read_counts ();
+		for (rp = 0; rp < nr_cpuop_funcs; rp++)
+			opcode_next_clev[rp] = cpu_level;
 	} else if (id < 6) {
 		cpu_level = 5 - (id - 0); // "generic"
 		cpu_generic = true;
@@ -6060,7 +6069,7 @@ int main(int argc, char *argv[])
 	generate_includes (stblfile, 0);
 
 	for (i = 0; i <= 55; i++) {
-		if ((i >= 6 && i < 11) || (i > 14 && i < 20) || (i > 25 && i < 31) || (i > 34 && i < 40))
+		if ((i >= 6 && i < 11) || (i > 14 && i < 20) || (i > 25 && i < 31) || (i > 35 && i < 40))
 			continue;
 		generate_stbl = 1;
 		generate_cpu (i, 0);

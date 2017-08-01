@@ -48,6 +48,7 @@ uae_u32 mmu_tagmask, mmu_pagemask, mmu_pagemaski;
 struct mmu_atc_line mmu_atc_array[ATC_TYPE][ATC_SLOTS][ATC_WAYS];
 bool mmu_pagesize_8k;
 int mmu_pageshift, mmu_pageshift1m;
+uae_u8 mmu_cache_state;
 
 int mmu060_state;
 uae_u16 mmu_opcode;
@@ -68,6 +69,7 @@ struct mmu_icache mmu_icache_data[MMU_ICACHE_SZ];
 #endif
 #if MMU_IPAGECACHE
 uae_u32 atc_last_ins_laddr, atc_last_ins_paddr;
+uae_u8 atc_last_ins_cache;
 #endif
 #if MMU_DPAGECACHE
 struct mmufastcache atc_data_cache_read[MMUFASTCACHE_ENTRIES];
@@ -527,7 +529,8 @@ static int mmu_do_match_ttr(uae_u32 ttr, uaecptr addr, bool super)
 					return TTR_NO_MATCH;
 				}
 			}
-			
+			if (ttr & MMU_TTR_CACHE_DISABLE)
+				mmu_cache_state = CACHE_DISABLE_MMU;
 			return (ttr & MMU_TTR_BIT_WRITE_PROTECT) ? TTR_NO_WRITE : TTR_OK_MATCH;
 		}
 	}
@@ -726,6 +729,8 @@ fail:
 		    l->tag = tag;
 		}
         status = MMU_MMUSR_B;
+		*status060 |= MMU_FSLW_LK | MMU_FSLW_TWE;
+
 #if MMUDEBUG > 0
         write_log(_T("MMU: bus error during table search.\n"));
 #endif
@@ -747,6 +752,7 @@ static void mmu_add_cache(uaecptr addr, uaecptr phys, bool super, bool data, boo
 		uae_u32 laddr = (addr & mmu_pagemaski) | (super ? 1 : 0);
 		atc_last_ins_laddr = laddr;
 		atc_last_ins_paddr = phys;
+		atc_last_ins_cache = mmu_cache_state;
 #else
 	;
 #endif
@@ -813,6 +819,9 @@ atc_retry:
 
 				// save way for next access (likely in same page)
 				mmu_atc_ways[data] = way;
+
+				if (l->status & MMU_MMUSR_CM_DISABLE)
+					mmu_cache_state = CACHE_DISABLE_MMU;
 
 				mmu_add_cache(addr, l->phys, super, data, write);
 

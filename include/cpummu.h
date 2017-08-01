@@ -63,6 +63,7 @@ extern uae_u16 mmu_opcode;
 extern bool mmu_restart;
 extern bool mmu_ttr_enabled, mmu_ttr_enabled_ins, mmu_ttr_enabled_data;
 extern bool rmw_cycle;
+extern uae_u8 mmu_cache_state;
 
 extern void mmu_dump_tables(void);
 
@@ -76,6 +77,8 @@ extern void mmu_dump_tables(void);
 #define MMU_TTR_UX_SHIFT					8
 #define MMU_TTR_CACHE_MASK					((1 << 6) | (1 << 5))
 #define MMU_TTR_CACHE_SHIFT					5
+#define MMU_TTR_CACHE_DISABLE				(1 << 6)
+#define MMU_TTR_CACHE_MODE					(1 << 5)
 #define MMU_TTR_BIT_WRITE_PROTECT			(1 << 2)
 
 #define MMU_UDT_MASK	3
@@ -108,6 +111,8 @@ extern void mmu_dump_tables(void);
 #define MMU_MMUSR_Ux					(MMU_MMUSR_U1 | MMU_MMUSR_U0)
 #define MMU_MMUSR_S						(1 << 7)
 #define MMU_MMUSR_CM					((1 << 6) | ( 1 << 5))
+#define MMU_MMUSR_CM_DISABLE			(1 << 6)
+#define MMU_MMUSR_CM_MODE				(1 << 5)
 #define MMU_MMUSR_M						(1 << 4)
 #define MMU_MMUSR_W						(1 << 2)
 #define MMU_MMUSR_T						(1 << 1)
@@ -233,6 +238,7 @@ extern void mmu_put_move16(uaecptr addr, uae_u32 *val, bool data, int size);
 
 #if MMU_IPAGECACHE
 extern uae_u32 atc_last_ins_laddr, atc_last_ins_paddr;
+extern uae_u8 atc_last_ins_cache;
 #endif
 
 #if MMU_DPAGECACHE
@@ -252,8 +258,16 @@ extern int mmu_data_read_hit, mmu_data_read_miss;
 extern int mmu_data_write_hit, mmu_data_write_miss;
 #endif
 
+STATIC_INLINE void cacheablecheck(uaecptr addr)
+{
+	if (mmu_cache_state == CACHE_ENABLE_ALL) {
+		// MMU didn't inhibit caches, use hardware cache state
+		mmu_cache_state = ce_cachable[addr >> 16];
+	}
+}
 static ALWAYS_INLINE uae_u32 mmu_get_ilong(uaecptr addr, int size)
 {
+	mmu_cache_state = CACHE_ENABLE_ALL;
 	if ((!mmu_ttr_enabled_ins || mmu_match_ttr_ins(addr,regs.s!=0) == TTR_NO_MATCH) && regs.mmu_enabled) {
 #if MMU_IPAGECACHE
 		if (((addr & mmu_pagemaski) | regs.s) == atc_last_ins_laddr) {
@@ -261,6 +275,7 @@ static ALWAYS_INLINE uae_u32 mmu_get_ilong(uaecptr addr, int size)
 			mmu_ins_hit++;
 #endif
 			addr = atc_last_ins_paddr | (addr & mmu_pagemask);
+			mmu_cache_state = atc_last_ins_cache;
 		} else {
 #if CACHE_HIT_COUNT
 			mmu_ins_miss++;
@@ -271,11 +286,13 @@ static ALWAYS_INLINE uae_u32 mmu_get_ilong(uaecptr addr, int size)
 		}
 #endif
 	}
+	cacheablecheck(addr);
 	return x_phys_get_ilong(addr);
 }
 
 static ALWAYS_INLINE uae_u16 mmu_get_iword(uaecptr addr, int size)
 {
+	mmu_cache_state = CACHE_ENABLE_ALL;
 	if ((!mmu_ttr_enabled_ins || mmu_match_ttr_ins(addr,regs.s!=0) == TTR_NO_MATCH) && regs.mmu_enabled) {
 #if MMU_IPAGECACHE
 		if (((addr & mmu_pagemaski) | regs.s) == atc_last_ins_laddr) {
@@ -283,6 +300,7 @@ static ALWAYS_INLINE uae_u16 mmu_get_iword(uaecptr addr, int size)
 			mmu_ins_hit++;
 #endif
 			addr = atc_last_ins_paddr | (addr & mmu_pagemask);
+			mmu_cache_state = atc_last_ins_cache;
 		} else {
 #if CACHE_HIT_COUNT
 			mmu_ins_miss++;
@@ -293,6 +311,7 @@ static ALWAYS_INLINE uae_u16 mmu_get_iword(uaecptr addr, int size)
 		}
 #endif
 	}
+	cacheablecheck(addr);
 	return x_phys_get_iword(addr);
 }
 

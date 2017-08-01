@@ -66,6 +66,7 @@
 #define CPUEMU_32 /* Previous 68030 MMU */
 #define CPUEMU_33 /* 68060 MMU */
 #define CPUEMU_34 /* 68030 MMU + cache */
+#define CPUEMU_35 /* 68030 MMU + cache + CE */
 #define CPUEMU_40 /* generic 680x0 with JIT direct memory access */
 #define CPUEMU_50 /* generic 680x0 with indirect memory access */
 #define ACTION_REPLAY /* Action Replay 1/2/3 support */

@@ -316,30 +316,30 @@ bool mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
 #if MMU030_OP_DBG_MSG
     switch (preg) {
         case 0x10:
-            write_log(_T("PMOVE: %s TC %08X\n"), rw ? _T("read"):  _T("write"),
-                      rw ? tc_030 : x_get_long(extra));
+            write_log(_T("PMOVE: %s TC %08X PC=%08x\n"), rw ? _T("read"):  _T("write"),
+                      rw ? tc_030 : x_get_long(extra), m68k_getpc());
             break;
         case 0x12:
-            write_log(_T("PMOVE: %s SRP %08X%08X\n"), rw ? _T("read") : _T("write"),
+            write_log(_T("PMOVE: %s SRP %08X%08X PC=%08x\n"), rw ? _T("read") : _T("write"),
                       rw?(uae_u32)(srp_030>>32)&0xFFFFFFFF:x_get_long(extra),
-                      rw?(uae_u32)srp_030&0xFFFFFFFF:x_get_long(extra+4));
+                      rw?(uae_u32)srp_030&0xFFFFFFFF:x_get_long(extra+4), m68k_getpc());
             break;
         case 0x13:
-            write_log(_T("PMOVE: %s CRP %08X%08X\n"), rw ? _T("read") : _T("write"),
+            write_log(_T("PMOVE: %s CRP %08X%08X PC=%08x\n"), rw ? _T("read") : _T("write"),
                       rw?(uae_u32)(crp_030>>32)&0xFFFFFFFF:x_get_long(extra),
-                      rw?(uae_u32)crp_030&0xFFFFFFFF:x_get_long(extra+4));
+                      rw?(uae_u32)crp_030&0xFFFFFFFF:x_get_long(extra+4), m68k_getpc());
             break;
         case 0x18:
-            write_log(_T("PMOVE: %s MMUSR %04X\n"), rw ? _T("read") : _T("write"),
-                      rw?mmusr_030:x_get_word(extra));
+            write_log(_T("PMOVE: %s MMUSR %04X PC=%08x\n"), rw ? _T("read") : _T("write"),
+                      rw?mmusr_030:x_get_word(extra), m68k_getpc());
             break;
         case 0x02:
-            write_log(_T("PMOVE: %s TT0 %08X\n"), rw ? _T("read") : _T("write"),
-                      rw?tt0_030:x_get_long(extra));
+            write_log(_T("PMOVE: %s TT0 %08X PC=%08x\n"), rw ? _T("read") : _T("write"),
+                      rw?tt0_030:x_get_long(extra), m68k_getpc());
             break;
         case 0x03:
-            write_log(_T("PMOVE: %s TT1 %08X\n"), rw ? _T("read") : _T("write"),
-                      rw?tt1_030:x_get_long(extra));
+            write_log(_T("PMOVE: %s TT1 %08X PC=%08x\n"), rw ? _T("read") : _T("write"),
+                      rw?tt1_030:x_get_long(extra), m68k_getpc());
             break;
         default:
             break;
@@ -440,8 +440,8 @@ bool mmu_op30_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
     }
         
 #if MMU030_OP_DBG_MSG
-    write_log(_T("PTEST%c: addr = %08X, fc = %i, level = %i, "),
-              rw?'R':'W', extra, fc, level);
+    write_log(_T("PTEST%c: addr = %08X, fc = %i, level = %i, PC=%08x, "),
+              rw?'R':'W', extra, fc, level, m68k_getpc());
     if (a) {
         write_log(_T("return descriptor to register A%i\n"), areg);
     } else {
@@ -2144,9 +2144,38 @@ uae_u16 mmu030_get_iword(uaecptr addr, uae_u32 fc) {
 }
 
 /* Not commonly used access function */
+
+static void mmu030_put_generic_lrmw(uaecptr addr, uae_u32 val, uae_u32 fc, int size, int flags)
+{
+ 	mmu030_cache_state = CACHE_ENABLE_ALL;
+	if (fc != 7 && (!tt_enabled || !mmu030_match_lrmw_ttr_access(addr,fc)) && mmu030.enabled) {
+		int atc_line_num = mmu030_logical_is_in_atc(addr, fc, true);
+		if (atc_line_num>=0) {
+			addr = mmu030_put_atc_generic(addr, atc_line_num, fc, flags);
+		} else {
+			mmu030_table_search(addr, fc, true, 0);
+			atc_line_num = mmu030_logical_is_in_atc(addr, fc, true);
+			addr = mmu030_put_atc_generic(addr, atc_line_num, fc, flags);
+		}
+	}
+
+	cacheablecheck(addr);
+	if (size == sz_byte)
+		x_phys_put_byte(addr, val);
+	else if (size == sz_word)
+		x_phys_put_word(addr, val);
+	else
+		x_phys_put_long(addr, val);
+}
+
 void mmu030_put_generic(uaecptr addr, uae_u32 val, uae_u32 fc, int size, int flags)
 {
  	mmu030_cache_state = CACHE_ENABLE_ALL;
+
+	if (flags & MMU030_SSW_RM) {
+		return mmu030_put_generic_lrmw(addr, val, fc, size, flags);
+	}
+
 	if (fc != 7 && (!tt_enabled || !mmu030_match_ttr_access(addr,fc,true)) && mmu030.enabled) {
 		int atc_line_num = mmu030_logical_is_in_atc(addr, fc, true);
 		if (atc_line_num>=0) {
@@ -2170,7 +2199,7 @@ void mmu030_put_generic(uaecptr addr, uae_u32 val, uae_u32 fc, int size, int fla
 static uae_u32 mmu030_get_generic_lrmw(uaecptr addr, uae_u32 fc, int size, int flags)
 {
  	mmu030_cache_state = CACHE_ENABLE_ALL;
-	if (fc != 7 && (!tt_enabled || !mmu030_match_ttr_access(addr,fc,false)) && mmu030.enabled) {
+	if (fc != 7 && (!tt_enabled || !mmu030_match_lrmw_ttr_access(addr,fc)) && mmu030.enabled) {
 		int atc_line_num = mmu030_logical_is_in_atc(addr, fc, true);
 		if (atc_line_num>=0) {
 			addr = mmu030_get_atc_generic(addr, atc_line_num, fc, flags, true);
