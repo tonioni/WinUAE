@@ -63,7 +63,8 @@
 #define NCR5380_MALIBU 32
 #define NCR5380_ADDHARD 33
 #define NONCR_INMATE 34
-#define NCR_LAST 35
+#define NCR5380_EMPLANT 35
+#define NCR_LAST 36
 
 extern int log_scsiemu;
 
@@ -762,6 +763,7 @@ struct soft_scsi
 	int subtype;
 	int dma_direction;
 	bool dma_active;
+	bool dma_started;
 	bool dma_controller;
 	struct romconfig *rc;
 	struct soft_scsi **self_ptr;
@@ -1902,6 +1904,7 @@ void ncr5380_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 		if (scsi->regs[2] & 2) {
 			scsi->dma_direction = 1;
 			scsi->dma_active = true;
+			scsi->dma_started = true;
 		}
 #if NCR5380_DEBUG
 		write_log(_T("DMA target recv PC=%08x\n"), M68K_GETPC);
@@ -1911,6 +1914,7 @@ void ncr5380_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 		if (scsi->regs[2] & 2) {
 			scsi->dma_direction = -1;
 			scsi->dma_active = true;
+			scsi->dma_started = true;
 			dma_check(scsi);
 		}
 #if NCR5380_DEBUG
@@ -2478,6 +2482,19 @@ static int addhardreg(uaecptr addr)
 	return addr;
 }
 
+static int emplantreg(uaecptr addr)
+{
+	if (addr & 1)
+		return -1;
+	if ((addr & 0xf000) == 0x6000)
+		return 8;
+	if ((addr & 0xf000) != 0x5000)
+		return -1;
+	addr >>= 4;
+	addr &= 7;
+	return addr;
+}
+
 static int malibureg(uaecptr addr)
 {
 	if ((addr & 0xc000) == 0x8000)
@@ -2659,6 +2676,19 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 				} else {
 					v = ncr5380_bget(ncr, reg);
 				}
+			}
+		}
+
+	} else if (ncr->type == NCR5380_EMPLANT) {
+
+		if ((addr & 0xf000) >= 0xc000) {
+			v = ncr->rom[addr & 0x3fff];
+		} else {
+			reg = emplantreg(addr);
+			if (reg == 8 && !ncr->dma_active)
+				reg = -1;
+			if (reg >= 0) {
+				v = ncr5380_bget(ncr, reg);
 			}
 		}
 
@@ -3163,6 +3193,21 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 				;
 			} else {
 				ncr5380_bput(ncr, reg, val);
+			}
+		}
+
+	} else if (ncr->type == NCR5380_EMPLANT) {
+
+		reg = emplantreg(addr);
+		if (reg == 8 && !ncr->dma_active)
+			reg = -1;
+		if (reg >= 0) {
+			ncr5380_bput(ncr, reg, val);
+		} else if ((addr & 0xff00) == 0x3800) {
+			if ((val & 0x88) == 0x88) {
+				ncr->intena = true;
+			} else if ((val & 0x88) == 0x08) {
+				ncr->intena = false;
 			}
 		}
 
@@ -4679,4 +4724,30 @@ bool addhard_init(struct autoconfig_info *aci)
 void addhard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_ADDHARD, 65536, 32768, ROMTYPE_ADDHARD);
+}
+
+bool emplant_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_EMPLANT);
+	if (!aci->doinit) {
+		aci->autoconfigp = ert->autoconfig;
+		return true;
+	}
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	load_rom_rc(aci->rc, ROMTYPE_EMPLANT, 8192, 0, scsi->rom, 16384, LOADROM_EVENONLY_ODDONE);
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = ert->autoconfig[i];
+		ew(scsi, i * 4, b);
+	}
+	aci->addrbank = scsi->bank;
+	return true;
+}
+
+void emplant_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_EMPLANT, 65536, 16384, ROMTYPE_EMPLANT);
 }

@@ -4841,6 +4841,15 @@ const struct expansionromtype expansionroms[] = {
 		supra_sub, 0,
 		true, EXPANSIONTYPE_SCSI
 	},
+	{
+		_T("emplant"), _T("Emplant (SCSI only)"), _T("Utilities Unlimited"),
+		NULL, emplant_init, NULL, emplant_add_scsi_unit, ROMTYPE_EMPLANT | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI,
+		0, 0, 0, false, NULL,
+		false, 0, NULL,
+		{ 0xd1, 0x15, 0x40, 0x00, 0x08, 0x7b, 0x00, 0x00, 0x00, 0x03, 0xc0, 0x00 },
+	},
 #if 0 /* driver is MIA, 3rd party ScottDevice driver is not enough for full implementation. */
 	{
 		NULL, _T("microforge"), _T("Hard Disk"), _T("Micro Forge"),
