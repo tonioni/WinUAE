@@ -5215,13 +5215,23 @@ insretry:
 				for (;;) {
 					regs.opcode = regs.irc = mmu030_opcode;
 					mmu030_idx = 0;
-					if (!currprefs.cpu_cycle_exact) {
-						count_instr (regs.opcode);
-						do_cycles (cpu_cycles);
-					}
+
 					mmu030_retry = false;
 
-					cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode);
+					if (!currprefs.cpu_cycle_exact) {
+
+						count_instr (regs.opcode);
+						do_cycles (cpu_cycles);
+
+						cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode);
+
+					} else {
+						
+						(*cpufunctbl[regs.opcode])(regs.opcode);
+
+						wait_memory_cycles();
+					}
+
 					cnt--; // so that we don't get in infinite loop if things go horribly wrong
 					if (!mmu030_retry)
 						break;
@@ -5235,12 +5245,27 @@ insretry:
 
 				mmu030_opcode = -1;
 
-				cpu_cycles = adjust_cycles (cpu_cycles);
-				if (regs.spcflags) {
-					if (do_specialties (cpu_cycles))
-						return;
+				if (!currprefs.cpu_cycle_exact) {
+
+					cpu_cycles = adjust_cycles (cpu_cycles);
+					if (regs.spcflags) {
+						if (do_specialties (cpu_cycles))
+							return;
+					}
+
+				} else {
+
+					if (regs.spcflags || time_for_interrupt ()) {
+						if (do_specialties (0))
+							return;
+					}
+
+					regs.ipl = regs.ipl_pin;
+
 				}
+
 			}
+
 		} CATCH (prb) {
 
 			if (mmu030_opcode == -1 && currprefs.cpu_compatible) {
