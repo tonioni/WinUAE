@@ -1582,7 +1582,7 @@ static bool fastmem_autoconfig(struct uae_prefs *p, struct autoconfig_info *aci,
 						   : allocated == 0x400000 ? Z3_SS_MEM_4MB
 						   : allocated == 0x800000 ? Z3_SS_MEM_8MB
 						   : Z3_SS_MEM_SAME);
-			struct ramboard *rb = &p->z3fastmem[boardnum];
+			rb = &p->z3fastmem[boardnum];
 			if (rb->autoconfig[0]) {
 				forceac = rb->autoconfig;
 			} else if (rb->manufacturer) {
@@ -1938,7 +1938,8 @@ static bool expamem_init_z3fastmem(struct autoconfig_info *aci)
 		code = Z3_MEM_16MB; /* Z3 physical board size is always at least 16M */
 
 	expamem_init_clear ();
-	fastmem_autoconfig(aci->prefs, aci, BOARD_AUTOCONFIG_Z3, add_memory | zorroIII | code, 1, size);
+	if (!fastmem_autoconfig(aci->prefs, aci, BOARD_AUTOCONFIG_Z3, add_memory | zorroIII | code, 1, size))
+		aci->zorro = -1;
 
 	memcpy(aci->autoconfig_raw, expamem, sizeof aci->autoconfig_raw);
 	aci->addrbank = bank;
@@ -2129,25 +2130,35 @@ static void allocate_expamem (void)
 		}
 	}
 
-	if (z3fastmem_bank[0].reserved_size != currprefs.z3fastmem[0].size) {
+	if (z3fastmem_bank[0].reserved_size != currprefs.z3fastmem[0].size && !currprefs.z3fastmem[0].manual_config) {
 		mapped_free(&z3fastmem_bank[0]);
 		mapped_malloc_dynamic(&currprefs.z3fastmem[0].size, &changed_prefs.z3fastmem[0].size, &z3fastmem_bank[0], 1, _T("*"));
 		memory_hardreset(1);
 	}
-	for (int i = 1; i < MAX_RAM_BOARDS; i++) {
+	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
+
+		if (i == 0 && !currprefs.z3fastmem[i].manual_config)
+			continue;
+
 		if (currprefs.z3fastmem[i].size && z3fastmem_bank[i].start == 0xffffffff) {
 			z3fastmem_bank[i].start = expansion_startaddress(&currprefs, z3fastmem_bank[i - 1].start, currprefs.z3fastmem[i - 1].size);
 		}
 		if (z3fastmem_bank[i].reserved_size != currprefs.z3fastmem[i].size) {
 			mapped_free (&z3fastmem_bank[i]);
 
-			z3fastmem_bank[i].reserved_size = currprefs.z3fastmem[i].size;
-			z3fastmem_bank[i].mask = z3fastmem_bank[i].reserved_size - 1;
-
-			if (z3fastmem_bank[i].reserved_size) {
-				mapped_malloc(&z3fastmem_bank[i]);
-				if (z3fastmem_bank[i].baseaddr == 0) {
-					write_log (_T("Out of memory for 32 bit fast memory #%d.\n"), i);
+			if (z3fastmem_bank[i].start == 0xffffffff) {
+				z3fastmem_bank[i].reserved_size = 0;
+			} else {
+				z3fastmem_bank[i].reserved_size = currprefs.z3fastmem[i].size;
+				z3fastmem_bank[i].mask = z3fastmem_bank[i].reserved_size - 1;
+				if (currprefs.z3fastmem[i].manual_config) {
+					z3fastmem_bank[i].start = currprefs.z3fastmem[i].start_address;
+				}
+				if (z3fastmem_bank[i].reserved_size) {
+					mapped_malloc(&z3fastmem_bank[i]);
+					if (z3fastmem_bank[i].baseaddr == 0) {
+						write_log (_T("Out of memory for 32 bit fast memory #%d.\n"), i);
+					}
 				}
 			}
 			memory_hardreset (1);
