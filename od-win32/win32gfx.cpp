@@ -4004,9 +4004,14 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 			maxvpos = maxvpos1 > maxvpos2 ? maxvpos1 : maxvpos2;
 			// count two fields: works with interlaced modes too.
 			tval = (double)syncbase * 2.0 / (t2 - t1);
-			if (cnt == 0)
+			if (cnt == 0) {
 				tfirst = tval;
-			if (abs (tval - tfirst) > 1) {
+			}
+			if (tval > 1100 && maxcnt >= maxtotal - 1) {
+				write_log (_T("Out of range value %.6f, disabling low latency vsync..\n"), tval);
+				goto fail;
+			}
+			if (tval > 1100 || abs (tval - tfirst) > 1) {
 				write_log (_T("Very unstable vsync! %.6f vs %.6f, retrying..\n"), tval, tfirst);
 				break;
 			}
