@@ -136,7 +136,7 @@ struct fpp_cr_entry {
 	uae_s8 rndoff[4];
 };
 
-static struct fpp_cr_entry fpp_cr[22] = {
+static const struct fpp_cr_entry fpp_cr[22] = {
 	{ {0x40000000, 0xc90fdaa2, 0x2168c235}, 1, {0,-1,-1, 0} }, //  0 = pi
 	{ {0x3ffd0000, 0x9a209a84, 0xfbcff798}, 1, {0, 0, 0, 1} }, //  1 = log10(2)
 	{ {0x40000000, 0xadf85458, 0xa2bb4a9a}, 1, {0, 0, 0, 1} }, //  2 = e
@@ -157,7 +157,7 @@ static struct fpp_cr_entry fpp_cr[22] = {
 	{ {0x43510000, 0xaa7eebfb, 0x9df9de8e}, 1, {0,-1,-1, 0} }, // 17 = 1e256
 	{ {0x46a30000, 0xe319a0ae, 0xa60e91c7}, 1, {0,-1,-1, 0} }, // 18 = 1e512
 	{ {0x4d480000, 0xc9767586, 0x81750c17}, 1, {0, 0, 0, 1} }, // 19 = 1e1024
-	{ {0x5a920000, 0x9e8b3b5d, 0xc53d5de5}, 1, {0, 0, 0, 1} }, // 20 = 1e2048
+	{ {0x5a920000, 0x9e8b3b5d, 0xc53d5de5}, 1, {0,-1,-1, 0} }, // 20 = 1e2048
 	{ {0x75250000, 0xc4605202, 0x8a20979b}, 1, {0,-1,-1, 0} }  // 21 = 1e4094
 };
 
@@ -183,6 +183,27 @@ static struct fpp_cr_entry fpp_cr[22] = {
 #define FPP_CR_1E1024   19
 #define FPP_CR_1E2048   20
 #define FPP_CR_1E4096   21
+
+struct fpp_cr_entry_undef {
+	uae_u8 constant;
+	uae_u32 val[3];
+};
+
+// 68881 and 68882 have identical undefined fields
+static const struct fpp_cr_entry_undef fpp_cr_undef[] = {
+	{ 0xff, {0x40000000, 0x00000000, 0x00000000} },
+	{ 0x01, {0x40010000, 0xfe000682, 0x00000000} },
+	{ 0x02, {0x40010000, 0xffc00503, 0x80000000} },
+	{ 0x03, {0x20000000, 0x7fffffff, 0x00000000} },
+	{ 0x04, {0x00000000, 0xffffffff, 0xffffffff} },
+	{ 0x05, {0x3c000000, 0xffffffff, 0xfffff800} },
+	{ 0x06, {0x3f800000, 0xffffff00, 0x00000000} },
+	{ 0x07, {0x00010000, 0xf65d8d9c, 0x00000000} },
+	{ 0x08, {0x7fff0000, 0x001e0000, 0x00000000} },
+	{ 0x09, {0x43ff0000, 0x000e0000, 0x00000000} },
+	{ 0x0a, {0x407f0000, 0x00060000, 0x00000000} },
+	{ 0x00 }
+};
 
 uae_u32 xhex_nan[]   ={0x7fff0000, 0xffffffff, 0xffffffff};
 
@@ -667,8 +688,8 @@ static void fpp_set_fpsr (uae_u32 val)
 
 bool fpu_get_constant(fpdata *fpd, int cr)
 {
-	uae_u32 *f = NULL;
-	uae_u32 entry = 0;
+	uae_u32 f[3] = { 0, 0, };
+	int entry = -1;
 	bool valid = true;
 	
 	switch (cr & 0x7f)
@@ -739,20 +760,39 @@ bool fpu_get_constant(fpdata *fpd, int cr)
 		case 0x3f: // 1e4096
 			entry = FPP_CR_1E4096;
 			break;
-		default: // undefined, return 0.0
+		default: // undefined
+		{
+			const struct fpp_cr_entry_undef *fcr = fpp_cr_undef;
+			cr &= 0x7f;
 			write_log (_T("Undocumented FPU constant access (index %02x)\n"), cr);
+			// Most undefined fields contain this
+			f[0] = fcr[0].val[0];
+			f[1] = fcr[0].val[1];
+			f[2] = fcr[0].val[2];
+			// Other undefined fields
+			for (int i = 1; fcr[i].constant; i++) {
+				if (fcr[i].constant == cr) {
+					f[0] = fcr[i].val[0];
+					f[1] = fcr[i].val[1];
+					f[2] = fcr[i].val[2];
+					break;
+				}
+			}
 			valid = false;
-			entry = FPP_CR_ZERO;
 			break;
+		}
 	}
-	
-	f = fpp_cr[entry].val;
-	
-	// if constant is inexact, set inexact bit and round
-	// note: with valid constants, LSB never wraps
-	if (fpp_cr[entry].inexact) {
-		fpsr_set_exception(FPSR_INEX2);
-		f[2] += fpp_cr[entry].rndoff[(regs.fpcr >> 4) & 3];
+
+	if (entry >= 0) {
+		f[0] = fpp_cr[entry].val[0];
+		f[1] = fpp_cr[entry].val[1];
+		f[2] = fpp_cr[entry].val[2];
+		// if constant is inexact, set inexact bit and round
+		// note: with valid constants, LSB never wraps
+		if (fpp_cr[entry].inexact) {
+			fpsr_set_exception(FPSR_INEX2);
+			f[2] += fpp_cr[entry].rndoff[(regs.fpcr >> 4) & 3];
+		}
 	}
 
 	fpp_to_exten_fmovem(fpd, f[0], f[1], f[2]);
@@ -2907,6 +2947,11 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 			if ((extra & 0xfc00) == 0x5c00) {
 				if (fault_if_unimplemented_680x0 (opcode, extra, ad, pc, &src, reg))
 					return;
+				if (extra & 0x40) {
+					// 6888x and ROM constant 0x40 - 0x7f: f-line
+					fpu_noinst (opcode, pc);
+					return;
+				}
 				fpsr_clear_status();
 				fpu_get_constant(&regs.fp[reg], extra);
 				fpsr_make_status();
