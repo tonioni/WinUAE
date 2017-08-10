@@ -376,7 +376,7 @@ static void fp_unimp_instruction_exception_pending(void)
 {
 	if (regs.fp_unimp_ins) {
 		if (warned > 0) {
-			write_log (_T("FPU UNIMPLEMENTED INSTRUCTION/FPU DISABLED EXCEPTION\n"));
+			write_log (_T("FPU UNIMPLEMENTED INSTRUCTION/FPU DISABLED EXCEPTION PC=%08x\n"), M68K_GETPC);
 		}
 		regs.fpu_exp_pre = true;
 		Exception(11);
@@ -689,15 +689,12 @@ static void fpp_set_fpsr (uae_u32 val)
 bool fpu_get_constant(fpdata *fpd, int cr)
 {
 	uae_u32 f[3] = { 0, 0, 0 };
-	int entry = -1;
-	bool valid = true;
+	int entry = 0;
 	bool round = true;
-	int f1_adjust = 0;
-	uae_u32 sr = 0;
 	int mode = (regs.fpcr >> 4) & 3;
 	int prec = (regs.fpcr >> 6) & 3;
 	
-	switch (cr & 0x7f)
+	switch (cr)
 	{
 		case 0x00: // pi
 			entry = FPP_CR_PI;
@@ -768,19 +765,15 @@ bool fpu_get_constant(fpdata *fpd, int cr)
 		default: // undefined
 		{
 			bool check_f1_adjust = false;
-			const struct fpp_cr_entry_undef *fcr = fpp_cr_undef;
-			cr &= 0x7f;
+			int f1_adjust = 0;
+			uae_u32 sr = 0;
+
 			if (cr > FPP_CR_NUM_SPECIAL_UNDEFINED) {
-				// Most undefined fields contain this
-				cr = 0;
-				// Do not round or normalize
-				round = false;
-				// Zero
-				sr |= FPSR_CC_Z;
+				cr = 0; // Most undefined fields contain this
 			}
-			f[0] = fcr[cr].val[0];
-			f[1] = fcr[cr].val[1];
-			f[2] = fcr[cr].val[2];
+			f[0] = fpp_cr_undef[cr].val[0];
+			f[1] = fpp_cr_undef[cr].val[1];
+			f[2] = fpp_cr_undef[cr].val[2];
 			// Rounding mode and precision works very strangely here..
 			switch (cr)
 			{
@@ -801,9 +794,6 @@ bool fpu_get_constant(fpdata *fpd, int cr)
 				sr |= FPSR_CC_NAN;
 				check_f1_adjust = true;
 				break;
-				case 8:
-				round = false;
-				break;
 			}
 			if (check_f1_adjust) {
 				if (prec == 1) {
@@ -814,42 +804,44 @@ bool fpu_get_constant(fpdata *fpd, int cr)
 					}
 				}
 			}
-			valid = false;
-			break;
+			fpp_to_exten_fmovem(fpd, f[0], f[1], f[2]);
+			if (prec == 1)
+				fpp_round32(fpd);
+			if (prec >= 2)
+				fpp_round64(fpd);
+
+			if (f1_adjust) {
+				fpp_from_exten_fmovem(fpd, &f[0], &f[1], &f[2]);
+				f[1] += f1_adjust * 0x80;
+				fpp_to_exten_fmovem(fpd, f[0], f[1], f[2]);
+			}
+
+			fpsr_set_result(fpd);
+			regs.fpsr |= sr;
+			return false;
 		}
 	}
 
-	if (entry >= 0) {
-		f[0] = fpp_cr[entry].val[0];
-		f[1] = fpp_cr[entry].val[1];
-		f[2] = fpp_cr[entry].val[2];
-		// if constant is inexact, set inexact bit and round
-		// note: with valid constants, LSB never wraps
-		if (fpp_cr[entry].inexact) {
-			fpsr_set_exception(FPSR_INEX2);
-			f[2] += fpp_cr[entry].rndoff[mode];
-		}
+	f[0] = fpp_cr[entry].val[0];
+	f[1] = fpp_cr[entry].val[1];
+	f[2] = fpp_cr[entry].val[2];
+	// if constant is inexact, set inexact bit and round
+	// note: with valid constants, LSB never wraps
+	if (fpp_cr[entry].inexact) {
+		fpsr_set_exception(FPSR_INEX2);
+		f[2] += fpp_cr[entry].rndoff[mode];
 	}
 
 	fpp_to_exten_fmovem(fpd, f[0], f[1], f[2]);
 	
-	if (round) {
-		if (((regs.fpcr >> 6) & 3) == 1)
-			fpp_round32(fpd);
-		if (((regs.fpcr >> 6) & 3) >= 2)
-			fpp_round64(fpd);
-	}
+	if (prec == 1)
+		fpp_round32(fpd);
+	if (prec >= 2)
+		fpp_round64(fpd);
 	
-	if (f1_adjust) {
-		fpp_from_exten_fmovem(fpd, &f[0], &f[1], &f[2]);
-		f[1] += f1_adjust * 0x80;
-		fpp_to_exten_fmovem(fpd, f[0], f[1], f[2]);
-	}
-
 	fpsr_set_result(fpd);
-	regs.fpsr |= sr;
 
-	return valid;
+	return true;
 }
 
 #if 0
@@ -2998,7 +2990,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 					return;
 				}
 				fpsr_clear_status();
-				fpu_get_constant(&regs.fp[reg], extra);
+				fpu_get_constant(&regs.fp[reg], extra & 0x7f);
 				fpsr_make_status();
 				fpsr_check_arithmetic_exception(0, &src, opcode, extra, ad);
 				return;
