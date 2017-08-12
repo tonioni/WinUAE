@@ -353,7 +353,7 @@ static struct romdata roms[] = {
 	{ _T("SupraDrive AMAB3"), 0, 0, 0, 0, _T("SUPRA\0"), 8192, 136, 0, 0, ROMTYPE_SUPRA, 0, 0, _T("AMAB3"),
 	0x3ead39aa, 0x02fe79ee,0xef423098,0xec6add8c,0xb92f849f,0xc64bcd41 },
 
-	{ _T("Blizzard 1230-II"), 0, 0, 0, 0, _T("B1230MKII\0"), 32768, 163, 0, 0, ROMTYPE_CB_B1230MK2, 0, 0, NULL,
+	{ _T("Blizzard 1230-I/II"), 0, 0, 0, 0, _T("B1230MKII\0"), 32768, 163, 0, 0, ROMTYPE_CB_B1230MK2, 0, 0, NULL,
 	0xf307cd34, 0xd2f0bfe5, 0x6e84e9f2, 0x2dc11583, 0x30702fd7, 0xd59584ee },
 	{ _T("Blizzard 1230-III"), 0, 0, 0, 0, _T("B1230MKIII\0"), 32768, 162, 0, 0, ROMTYPE_CB_B1230MK3, 0, 0, NULL,
 	0x8412a22c, 0x3a4c55f3, 0xdaf62084, 0xd947e418, 0x137db019, 0xf13efc7d },
