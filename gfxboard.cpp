@@ -169,6 +169,14 @@ static const struct gfxboard boards[] =
 		0x00000000, 0x00200000, 0x00200000, 0x10000, 0, 0, 2, false,
 		0, 0xc1, &a2410_func
 	},
+#if 0
+	{
+		_T("Resolver"), _T("DMI"), _T("Resolver"),
+		2129, 1, 0,
+		0x00000000, 0x00200000, 0x00200000, 0x10000, 0, 0, 2, false,
+		0, 0xc1, &a2410_func
+	},
+#endif
 	{
 		_T("x86 bridgeboard VGA"), _T("x86"), _T("VGA"),
 		0, 0, 0,
@@ -278,7 +286,7 @@ static const addrbank tmpl_gfxboard_bank_memory = {
 	gfxboard_lput_mem, gfxboard_wput_mem, gfxboard_bput_mem,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
 	gfxboard_lget_mem, gfxboard_wget_mem,
-	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
 };
 
 static const addrbank tmpl_gfxboard_bank_memory_nojit = {
@@ -286,7 +294,7 @@ static const addrbank tmpl_gfxboard_bank_memory_nojit = {
 	gfxboard_lput_mem_nojit, gfxboard_wput_mem_nojit, gfxboard_bput_mem_nojit,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
 	gfxboard_lget_mem_nojit, gfxboard_wget_mem_nojit,
-	ABFLAG_RAM | ABFLAG_THREADSAFE, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, S_READ, S_WRITE
 };
 
 static const addrbank tmpl_gfxboard_bank_wbsmemory = {
@@ -294,7 +302,7 @@ static const addrbank tmpl_gfxboard_bank_wbsmemory = {
 	gfxboard_lput_wbsmem, gfxboard_wput_wbsmem, gfxboard_bput_wbsmem,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
 	gfxboard_lget_wbsmem, gfxboard_wget_wbsmem,
-	ABFLAG_RAM | ABFLAG_THREADSAFE, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, S_READ, S_WRITE
 };
 
 static const addrbank tmpl_gfxboard_bank_lbsmemory = {
@@ -302,7 +310,7 @@ static const addrbank tmpl_gfxboard_bank_lbsmemory = {
 	gfxboard_lput_lbsmem, gfxboard_wput_lbsmem, gfxboard_bput_lbsmem,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
 	gfxboard_lget_lbsmem, gfxboard_wget_lbsmem,
-	ABFLAG_RAM | ABFLAG_THREADSAFE, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, S_READ, S_WRITE
 };
 
 static const addrbank tmpl_gfxboard_bank_nbsmemory = {
@@ -310,7 +318,7 @@ static const addrbank tmpl_gfxboard_bank_nbsmemory = {
 	gfxboard_lput_nbsmem, gfxboard_wput_nbsmem, gfxboard_bput_bsmem,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("Picasso IV banked VRAM"),
 	gfxboard_lget_nbsmem, gfxboard_wget_nbsmem,
-	ABFLAG_RAM | ABFLAG_THREADSAFE, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, S_READ, S_WRITE
 };
 
 static const addrbank tmpl_gfxboard_bank_registers = {

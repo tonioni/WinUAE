@@ -131,6 +131,7 @@ struct cache040
 {
 	uae_u32 data[CACHELINES040][4];
 	bool dirty[CACHELINES040][4];
+	bool gdirty[CACHELINES040];
 	bool valid[CACHELINES040];
 	uae_u32 tag[CACHELINES040];
 };
@@ -330,6 +331,14 @@ uae_u32 mem_access_delay_long_read_ce020 (uaecptr addr);
 uae_u32 mem_access_delay_longi_read_ce020 (uaecptr addr);
 uae_u32 mem_access_delay_wordi_read_ce020 (uaecptr addr);
 
+void mem_access_delay_long_write_c040 (uaecptr addr, uae_u32 v);
+void mem_access_delay_word_write_c040 (uaecptr addr, uae_u32 v);
+void mem_access_delay_byte_write_c040 (uaecptr addr, uae_u32 v);
+uae_u32 mem_access_delay_byte_read_c040 (uaecptr addr);
+uae_u32 mem_access_delay_word_read_c040 (uaecptr addr);
+uae_u32 mem_access_delay_long_read_c040 (uaecptr addr);
+uae_u32 mem_access_delay_longi_read_c040 (uaecptr addr);
+
 extern uae_u32(REGPARAM3 *x_cp_get_disp_ea_020)(uae_u32 base, int idx) REGPARAM;
 
 /* direct (regs.pc_p) access */
@@ -522,11 +531,26 @@ STATIC_INLINE void m68k_setpc_normal(uaecptr pc)
 	}
 }
 
-extern void write_dcache030(uaecptr, uae_u32, uae_u32, uae_u32);
-extern uae_u32 read_dcache030(uaecptr, uae_u32, uae_u32);
+extern uae_u32(*read_data_030_bget)(uaecptr);
+extern uae_u32(*read_data_030_wget)(uaecptr);
+extern uae_u32(*read_data_030_lget)(uaecptr);
+extern void(*write_data_030_bput)(uaecptr,uae_u32);
+extern void(*write_data_030_wput)(uaecptr,uae_u32);
+extern void(*write_data_030_lput)(uaecptr,uae_u32);
 
-extern void write_dcache030_mmu(uaecptr, uae_u32, uae_u32);
-extern uae_u32 read_dcache030_mmu(uaecptr, uae_u32);
+extern void write_dcache030_bput(uaecptr, uae_u32, uae_u32);
+extern void write_dcache030_wput(uaecptr, uae_u32, uae_u32);
+extern void write_dcache030_lput(uaecptr, uae_u32, uae_u32);
+extern uae_u32 read_dcache030_bget(uaecptr, uae_u32);
+extern uae_u32 read_dcache030_wget(uaecptr, uae_u32);
+extern uae_u32 read_dcache030_lget(uaecptr, uae_u32);
+
+extern void write_dcache030_mmu_bput(uaecptr, uae_u32);
+extern void write_dcache030_mmu_wput(uaecptr, uae_u32);
+extern void write_dcache030_mmu_lput(uaecptr, uae_u32);
+extern uae_u32 read_dcache030_mmu_bget(uaecptr);
+extern uae_u32 read_dcache030_mmu_wget(uaecptr);
+extern uae_u32 read_dcache030_mmu_lget(uaecptr);
 extern void write_dcache030_lrmw_mmu(uaecptr, uae_u32, uae_u32);
 extern uae_u32 read_dcache030_lrmw_mmu(uaecptr, uae_u32);
 
@@ -595,7 +619,7 @@ extern void init_m68k (void);
 extern void m68k_go (int);
 extern void m68k_dumpstate (uaecptr *);
 extern void m68k_dumpstate (uaecptr, uaecptr *);
-extern void m68k_dumpcache (void);
+extern void m68k_dumpcache (bool);
 extern int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor);
 extern int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor);
 extern void divbyzero_special (bool issigned, uae_s32 dst);
@@ -694,7 +718,6 @@ extern void compemu_reset(void);
 #define flush_icache_hard(int) do {} while (0)
 #endif
 bool check_prefs_changed_comp (bool);
-extern void flush_dcache (uaecptr, int);
 
 extern int movec_illg (int regno);
 extern uae_u32 val_move2c (int regno);

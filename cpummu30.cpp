@@ -2444,27 +2444,27 @@ uaecptr mmu030_translate(uaecptr addr, bool super, bool data, bool write)
 
 static uae_u32 get_dcache_byte(uaecptr addr)
 {
-	return read_dcache030(addr, 0, (regs.s ? 4 : 0) | 1);
+	return read_dcache030_bget(addr, (regs.s ? 4 : 0) | 1);
 }
 static uae_u32 get_dcache_word(uaecptr addr)
 {
-	return read_dcache030(addr, 1, (regs.s ? 4 : 0) | 1);
+	return read_dcache030_wget(addr, (regs.s ? 4 : 0) | 1);
 }
 static uae_u32 get_dcache_long(uaecptr addr)
 {
-	return read_dcache030(addr, 2, (regs.s ? 4 : 0) | 1);
+	return read_dcache030_lget(addr, (regs.s ? 4 : 0) | 1);
 }
 static void put_dcache_byte(uaecptr addr, uae_u32 v)
 {
-	write_dcache030(addr, v, 0, (regs.s ? 4 : 0) | 1);
+	write_dcache030_bput(addr, v, (regs.s ? 4 : 0) | 1);
 }
 static void put_dcache_word(uaecptr addr, uae_u32 v)
 {
-	write_dcache030(addr, v, 1, (regs.s ? 4 : 0) | 1);
+	write_dcache030_wput(addr, v, (regs.s ? 4 : 0) | 1);
 }
 static void put_dcache_long(uaecptr addr, uae_u32 v)
 {
-	write_dcache030(addr, v, 2, (regs.s ? 4 : 0) | 1);
+	write_dcache030_lput(addr, v, (regs.s ? 4 : 0) | 1);
 }
 
 /* MMU Reset */
@@ -2514,7 +2514,6 @@ void mmu030_set_funcs(void)
 		x_phys_put_long = phys_put_long;
 	}
 }
-
 
 void m68k_do_rte_mmu030 (uaecptr a7)
 {

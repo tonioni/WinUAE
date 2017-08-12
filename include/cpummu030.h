@@ -513,7 +513,7 @@ static ALWAYS_INLINE uae_u32 sfc030c_get_long(uaecptr addr)
 #if MMUDEBUG > 2
 	write_log(_T("sfc030_get_long: FC = %i\n"),fc);
 #endif
-	return read_dcache030(addr, 2, regs.sfc);
+	return read_dcache030_lget(addr, regs.sfc);
 }
 
 static ALWAYS_INLINE uae_u16 sfc030c_get_word(uaecptr addr)
@@ -521,7 +521,7 @@ static ALWAYS_INLINE uae_u16 sfc030c_get_word(uaecptr addr)
 #if MMUDEBUG > 2
 	write_log(_T("sfc030_get_word: FC = %i\n"),fc);
 #endif
-	return read_dcache030(addr, 1, regs.sfc);
+	return read_dcache030_wget(addr, regs.sfc);
 }
 
 static ALWAYS_INLINE uae_u8 sfc030c_get_byte(uaecptr addr)
@@ -529,7 +529,7 @@ static ALWAYS_INLINE uae_u8 sfc030c_get_byte(uaecptr addr)
 #if MMUDEBUG > 2
 	write_log(_T("sfc030_get_byte: FC = %i\n"),fc);
 #endif
-	return read_dcache030(addr, 0, regs.sfc);
+	return read_dcache030_bget(addr, regs.sfc);
 }
 
 static ALWAYS_INLINE void dfc030c_put_long(uaecptr addr, uae_u32 val)
@@ -537,7 +537,7 @@ static ALWAYS_INLINE void dfc030c_put_long(uaecptr addr, uae_u32 val)
 #if MMUDEBUG > 2
 	write_log(_T("dfc030_put_long: %08X = %08X FC = %i\n"), addr, val, fc);
 #endif
-	write_dcache030(addr, val, 2, regs.dfc);
+	write_dcache030_lput(addr, val, regs.dfc);
 }
 
 static ALWAYS_INLINE void dfc030c_put_word(uaecptr addr, uae_u16 val)
@@ -545,7 +545,7 @@ static ALWAYS_INLINE void dfc030c_put_word(uaecptr addr, uae_u16 val)
 #if MMUDEBUG > 2
 	write_log(_T("dfc030_put_word: %08X = %04X FC = %i\n"), addr, val, fc);
 #endif
-	write_dcache030(addr, val, 1, regs.dfc);
+	write_dcache030_wput(addr, val, regs.dfc);
 }
 
 static ALWAYS_INLINE void dfc030c_put_byte(uaecptr addr, uae_u8 val)
@@ -553,7 +553,7 @@ static ALWAYS_INLINE void dfc030c_put_byte(uaecptr addr, uae_u8 val)
 #if MMUDEBUG > 2
 	write_log(_T("dfc030_put_byte: %08X = %02X FC = %i\n"), addr, val, fc);
 #endif
-	write_dcache030(addr, val, 0, regs.dfc);
+	write_dcache030_bput(addr, val, regs.dfc);
 }
 
 uae_u32 REGPARAM3 get_disp_ea_020_mmu030c (uae_u32 base, int idx) REGPARAM;
@@ -561,7 +561,7 @@ uae_u32 REGPARAM3 get_disp_ea_020_mmu030c (uae_u32 base, int idx) REGPARAM;
 STATIC_INLINE void put_byte_mmu030c_state (uaecptr addr, uae_u32 v)
 {
 	ACCESS_CHECK_PUT
-	write_dcache030_mmu(addr, v, 0);
+	write_data_030_bput(addr, v);
 	ACCESS_EXIT_PUT
 }
 STATIC_INLINE void put_lrmw_byte_mmu030c_state (uaecptr addr, uae_u32 v)
@@ -573,7 +573,7 @@ STATIC_INLINE void put_lrmw_byte_mmu030c_state (uaecptr addr, uae_u32 v)
 STATIC_INLINE void put_word_mmu030c_state (uaecptr addr, uae_u32 v)
 {
 	ACCESS_CHECK_PUT
-	write_dcache030_mmu(addr, v, 1);
+	write_data_030_wput(addr, v);
 	ACCESS_EXIT_PUT
 }
 STATIC_INLINE void put_lrmw_word_mmu030c_state (uaecptr addr, uae_u32 v)
@@ -585,7 +585,7 @@ STATIC_INLINE void put_lrmw_word_mmu030c_state (uaecptr addr, uae_u32 v)
 STATIC_INLINE void put_long_mmu030c_state (uaecptr addr, uae_u32 v)
 {
 	ACCESS_CHECK_PUT
-	write_dcache030_mmu(addr, v, 2);
+	write_data_030_lput(addr, v);
 	ACCESS_EXIT_PUT
 }
 STATIC_INLINE void put_lrmw_long_mmu030c_state (uaecptr addr, uae_u32 v)
@@ -599,7 +599,7 @@ STATIC_INLINE uae_u32 get_byte_mmu030c_state (uaecptr addr)
 {
 	uae_u32 v;
 	ACCESS_CHECK_GET
-    v = read_dcache030_mmu(addr, 0);
+    v = read_data_030_bget(addr);
 	ACCESS_EXIT_GET
 	return v;
 }
@@ -616,7 +616,7 @@ STATIC_INLINE uae_u32 get_word_mmu030c_state (uaecptr addr)
 {
  	uae_u32 v;
 	ACCESS_CHECK_GET
-    v = read_dcache030_mmu(addr, 1);
+    v = read_data_030_wget(addr);
 	ACCESS_EXIT_GET
 	return v;
 }
@@ -632,7 +632,7 @@ STATIC_INLINE uae_u32 get_long_mmu030c_state (uaecptr addr)
 {
  	uae_u32 v;
 	ACCESS_CHECK_GET
-    v = read_dcache030_mmu(addr, 2);
+    v = read_data_030_lget(addr);
 	ACCESS_EXIT_GET
 	return v;
 }
@@ -700,19 +700,19 @@ STATIC_INLINE uae_u32 next_ilong_mmu030c_state (void)
 
 STATIC_INLINE uae_u32 get_word_mmu030c (uaecptr addr)
 {
-	return read_dcache030_mmu(addr, 1);
+	return read_data_030_wget(addr);
 }
 STATIC_INLINE uae_u32 get_long_mmu030c (uaecptr addr)
 {
-	return read_dcache030_mmu(addr, 2);
+	return read_data_030_lget(addr);
 }
 STATIC_INLINE void put_word_mmu030c (uaecptr addr, uae_u32 v)
 {
-    write_dcache030_mmu(addr, v, 1);
+    write_data_030_wput(addr, v);
 }
 STATIC_INLINE void put_long_mmu030c (uaecptr addr, uae_u32 v)
 {
-    write_dcache030_mmu(addr, v, 2);
+    write_data_030_lput(addr, v);
 }
 
 extern void m68k_do_rts_mmu030c(void);

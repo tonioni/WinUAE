@@ -1099,7 +1099,7 @@ addrbank chipmem_bank = {
 	chipmem_lput, chipmem_wput, chipmem_bput,
 	chipmem_xlate, chipmem_check, NULL, _T("chip"), _T("Chip memory"),
 	chipmem_lget, chipmem_wget,
-	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CHIPRAM, 0, 0
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CHIPRAM | ABFLAG_CACHE_ENABLE_BOTH, 0, 0
 };
 
 addrbank chipmem_dummy_bank = {
@@ -1117,7 +1117,7 @@ addrbank chipmem_bank_ce2 = {
 	chipmem_lput_ce2, chipmem_wput_ce2, chipmem_bput_ce2,
 	chipmem_xlate, chipmem_check, NULL, NULL, _T("Chip memory (68020 'ce')"),
 	chipmem_lget_ce2, chipmem_wget_ce2,
-	ABFLAG_RAM | ABFLAG_CHIPRAM, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_CHIPRAM | ABFLAG_CACHE_ENABLE_BOTH, S_READ, S_WRITE
 };
 #endif
 
@@ -1126,7 +1126,7 @@ addrbank bogomem_bank = {
 	bogomem_lput, bogomem_wput, bogomem_bput,
 	bogomem_xlate, bogomem_check, NULL, _T("bogo"), _T("Slow memory"),
 	bogomem_lget, bogomem_wget,
-	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_BOTH, 0, 0
 };
 
 addrbank cardmem_bank = {
@@ -1142,7 +1142,7 @@ addrbank mem25bit_bank = {
 	mem25bit_lput, mem25bit_wput, mem25bit_bput,
 	mem25bit_xlate, mem25bit_check, NULL, _T("25bitmem"), _T("25bit memory"),
 	mem25bit_lget, mem25bit_wget,
-	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
 };
 
 addrbank a3000lmem_bank = {
@@ -1150,7 +1150,7 @@ addrbank a3000lmem_bank = {
 	a3000lmem_lput, a3000lmem_wput, a3000lmem_bput,
 	a3000lmem_xlate, a3000lmem_check, NULL, _T("ramsey_low"), _T("RAMSEY memory (low)"),
 	a3000lmem_lget, a3000lmem_wget,
-	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
 };
 
 addrbank a3000hmem_bank = {
@@ -1158,7 +1158,7 @@ addrbank a3000hmem_bank = {
 	a3000hmem_lput, a3000hmem_wput, a3000hmem_bput,
 	a3000hmem_xlate, a3000hmem_check, NULL, _T("ramsey_high"), _T("RAMSEY memory (high)"),
 	a3000hmem_lget, a3000hmem_wget,
-	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
 };
 
 addrbank kickmem_bank = {
@@ -1166,7 +1166,7 @@ addrbank kickmem_bank = {
 	kickmem_lput, kickmem_wput, kickmem_bput,
 	kickmem_xlate, kickmem_check, NULL, _T("kick"), _T("Kickstart ROM"),
 	kickmem_lget, kickmem_wget,
-	ABFLAG_ROM | ABFLAG_THREADSAFE, 0, S_WRITE
+	ABFLAG_ROM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, S_WRITE
 };
 
 addrbank kickram_bank = {
@@ -1174,7 +1174,7 @@ addrbank kickram_bank = {
 	kickmem2_lput, kickmem2_wput, kickmem2_bput,
 	kickmem_xlate, kickmem_check, NULL, NULL, _T("Kickstart Shadow RAM"),
 	kickmem_lget, kickmem_wget,
-	ABFLAG_UNK | ABFLAG_SAFE, 0, S_WRITE
+	ABFLAG_UNK | ABFLAG_SAFE | ABFLAG_CACHE_ENABLE_ALL, 0, S_WRITE
 };
 
 addrbank extendedkickmem_bank = {
@@ -1182,14 +1182,14 @@ addrbank extendedkickmem_bank = {
 	extendedkickmem_lput, extendedkickmem_wput, extendedkickmem_bput,
 	extendedkickmem_xlate, extendedkickmem_check, NULL, NULL, _T("Extended Kickstart ROM"),
 	extendedkickmem_lget, extendedkickmem_wget,
-	ABFLAG_ROM | ABFLAG_THREADSAFE, 0, S_WRITE
+	ABFLAG_ROM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, S_WRITE
 };
 addrbank extendedkickmem2_bank = {
 	extendedkickmem2_lget, extendedkickmem2_wget, extendedkickmem2_bget,
 	extendedkickmem2_lput, extendedkickmem2_wput, extendedkickmem2_bput,
 	extendedkickmem2_xlate, extendedkickmem2_check, NULL, _T("rom_a8"), _T("Extended 2nd Kickstart ROM"),
 	extendedkickmem2_lget, extendedkickmem2_wget,
-	ABFLAG_ROM | ABFLAG_THREADSAFE, 0, S_WRITE
+	ABFLAG_ROM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, S_WRITE
 };
 addrbank fakeuaebootrom_bank = {
 	fakeuaebootrom_lget, fakeuaebootrom_wget, mem25bit_bget,
@@ -1207,14 +1207,14 @@ addrbank custmem1_bank = {
 	custmem1_lput, custmem1_wput, custmem1_bput,
 	custmem1_xlate, custmem1_check, NULL, _T("custmem1"), _T("Non-autoconfig RAM #1"),
 	custmem1_lget, custmem1_wget,
-	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
 };
 addrbank custmem2_bank = {
 	custmem2_lget, custmem2_wget, custmem2_bget,
 	custmem2_lput, custmem2_wput, custmem2_bput,
 	custmem2_xlate, custmem2_check, NULL, _T("custmem2"), _T("Non-autoconfig RAM #2"),
 	custmem2_lget, custmem2_wget,
-	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
 };
 
 #define fkickmem_size ROM_SIZE_512
@@ -2217,25 +2217,6 @@ static void fill_ce_banks (void)
 		memset (ce_banktype, CE_MEMBANK_FAST32, sizeof ce_banktype);
 	}
 
-	memset(ce_cachable, CACHE_ENABLE_INS, sizeof ce_cachable);
-	memset(ce_cachable + (0x00f80000 >> 16), CACHE_ENABLE_BOTH, 524288 >> 16);
-	memset(ce_cachable + (0x00c00000 >> 16), CACHE_ENABLE_BOTH, currprefs.bogomem_size >> 16);
-	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
-		if (fastmem_bank[i].start != 0xffffffff)
-			memset(ce_cachable + (fastmem_bank[i].start >> 16), CACHE_ENABLE_BOTH, currprefs.fastmem[i].size >> 16);
-		if (z3fastmem_bank[i].start != 0xffffffff)
-			memset(ce_cachable + (z3fastmem_bank[i].start >> 16), CACHE_ENABLE_ALL, currprefs.z3fastmem[i].size >> 16);
-	}
-	memset(ce_cachable + (a3000hmem_bank.start >> 16), CACHE_ENABLE_ALL, currprefs.mbresmem_high_size >> 16);
-	memset(ce_cachable + (a3000lmem_bank.start >> 16), CACHE_ENABLE_ALL, currprefs.mbresmem_low_size >> 16);
-	memset(ce_cachable + (mem25bit_bank.start >> 16), CACHE_ENABLE_ALL, currprefs.mem25bit_size >> 16);
-
-	if (uae_boot_rom_type > 0) {
-		for (int i = 0; i < sizeof(ce_cachable); i++) {
-			ce_cachable[i] &= ~(CACHE_ENABLE_DATA | CACHE_ENABLE_DATA_BURST);
-		}
-	}
-
 	addrbank *ab = &get_mem_bank(0);
 	if (ab && (ab->flags & ABFLAG_CHIPRAM)) {
 		for (i = 0; i < (0x200000 >> 16); i++) {
@@ -2256,7 +2237,6 @@ static void fill_ce_banks (void)
 		b = &get_mem_bank (i << 16);
 		if (b && !(b->flags & ABFLAG_CIA)) {
 			ce_banktype[i] = CE_MEMBANK_FAST32;
-			ce_cachable[i] = 1;
 		}
 	}
 	// CD32 ROM is 16-bit
@@ -2481,6 +2461,8 @@ void memory_reset (void)
 
 	if (mem_hardreset > 2)
 		memory_init ();
+
+	memset(ce_cachable, CACHE_ENABLE_INS, sizeof ce_cachable);
 
 	be_cnt = be_recursive = 0;
 	currprefs.chipmem_size = changed_prefs.chipmem_size;
@@ -2943,6 +2925,7 @@ static void map_banks2 (addrbank *bank, int start, int size, int realsize, int q
 #endif
 			}
 			put_mem_bank (bnr << 16, bank, realstart << 16);
+			ce_cachable[bnr] = bank->flags >> ABFLAG_CACHE_SHIFT;
 #ifdef WITH_THREADED_CPU
 			if (currprefs.cpu_thread) {
 				if (orig_bank)
@@ -2974,6 +2957,7 @@ static void map_banks2 (addrbank *bank, int start, int size, int realsize, int q
 #endif
 			}
 			put_mem_bank ((bnr + hioffs) << 16, bank, realstart << 16);
+			ce_cachable[bnr + hioffs] = bank->flags >> ABFLAG_CACHE_SHIFT;
 #ifdef WITH_THREADED_CPU
 			if (currprefs.cpu_thread) {
 				if (orig_bank)

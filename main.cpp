@@ -324,6 +324,15 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log(_T("Cycle-exact mode requires at least Disabled but emulated sound setting."));
 	}
 
+	if (p->cpu_data_cache && (!p->cpu_compatible || p->cachesize || p->cpu_model < 68030)) {
+		p->cpu_data_cache = false;
+		error_log(_T("Data cache emulation requires More compatible, is not JIT compatible, 68030+ only."));
+	}
+	if (p->cpu_data_cache && (currprefs.uaeboard != 3 && uae_boot_rom_type > 0)) {
+		p->cpu_data_cache = false;
+		error_log(_T("Data cache emulation requires Indirect UAE Boot ROM."));
+	}
+
 #if 0
 	if (p->cachesize && p->cpuboard_type && !cpuboard_jitdirectompatible(p) && !p->comptrustbyte) {
 		error_log(_T("JIT direct is not compatible with emulated Blizzard accelerator boards."));

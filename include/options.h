@@ -516,6 +516,7 @@ struct uae_prefs {
 
 	bool immediate_blits;
 	int waiting_blits;
+	double blitter_speed_throttle;
 	unsigned int chipset_mask;
 	bool keyboard_connected;
 	bool ntscmode;
@@ -659,6 +660,7 @@ struct uae_prefs {
 	bool int_no_unimplemented;
 	bool fpu_no_unimplemented;
 	bool address_space_24;
+	bool cpu_data_cache;
 	bool picasso96_nocustom;
 	int picasso96_modeflags;
 	int cpu_model_fallback;

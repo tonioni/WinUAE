@@ -1953,6 +1953,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
 	cfgfile_write_bool (f, _T("immediate_blits"), p->immediate_blits);
 	cfgfile_dwrite_str (f, _T("waiting_blits"), waitblits[p->waiting_blits]);
+	cfgfile_dwrite (f, _T("blitter_throttle"), _T("%.8f"), p->blitter_speed_throttle);
 	cfgfile_write_bool (f, _T("ntsc"), p->ntscmode);
 	cfgfile_write_bool(f, _T("genlock"), p->genlock);
 	cfgfile_dwrite_bool(f, _T("genlock_alpha"), p->genlock_alpha);
@@ -2228,6 +2229,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	}
 	cfgfile_write_bool (f, _T("cpu_compatible"), p->cpu_compatible);
 	cfgfile_write_bool (f, _T("cpu_24bit_addressing"), p->address_space_24);
+	cfgfile_write_bool (f, _T("cpu_data_cache"), p->cpu_data_cache);
 	/* do not reorder end */
 	cfgfile_dwrite_bool(f, _T("cpu_reset_pause"), p->reset_delay);
 	cfgfile_dwrite_bool(f, _T("cpu_threaded"), p->cpu_thread);
@@ -4991,6 +4993,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("genlock_alpha"), &p->genlock_alpha)
 		|| cfgfile_yesno(option, value, _T("genlock_aspect"), &p->genlock_aspect)
 		|| cfgfile_yesno(option, value, _T("cpu_compatible"), &p->cpu_compatible)
+		|| cfgfile_yesno(option, value, _T("cpu_data_cache"), &p->cpu_data_cache)
 		|| cfgfile_yesno(option, value, _T("cpu_threaded"), &p->cpu_thread)
 		|| cfgfile_yesno(option, value, _T("cpu_24bit_addressing"), &p->address_space_24)
 		|| cfgfile_yesno(option, value, _T("cpu_reset_pause"), &p->reset_delay)
@@ -5404,6 +5407,9 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 			p->m68k_speed = -1;
 		return 1;
 	}
+	if (cfgfile_doubleval(option, value, _T("blitter_throttle"), &p->blitter_speed_throttle)) {
+		return 1;
+	}
 
 	if (cfgfile_intval (option, value, _T("dongle"), &p->dongle, 1)) {
 		if (p->dongle == 0)
@@ -5484,7 +5490,7 @@ void cfgfile_compatibility_rtg(struct uae_prefs *p)
 	int vga = -1;
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtgboardconfig *rbc = &p->rtgboards[i];
-		if (rbc->rtgmem_type == GFXBOARD_A2410  || rbc->rtgmem_type == GFXBOARD_RESOLVER) {
+		if (rbc->rtgmem_type == GFXBOARD_A2410) {
 			if (a2410 >= 0) {
 				rbc->rtgmem_size = 0;
 				rbc->rtgmem_type = 0;
