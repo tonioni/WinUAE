@@ -909,6 +909,16 @@ static void blitter_doit (void)
 	blitter_done (current_hpos ());
 }
 
+static int makebliteventtime(int delay)
+{
+	if (delay) {
+		delay += delay - (int)(delay * (1 + currprefs.blitter_speed_throttle) + 0.5);
+		if (delay <= 0)
+			delay = 1;
+	}
+	return delay;
+}
+
 void blitter_handler (uae_u32 data)
 {
 	static int blitter_stuck;
@@ -925,7 +935,7 @@ void blitter_handler (uae_u32 data)
 	}
 	blitter_stuck = 0;
 	if (blit_slowdown > 0 && !immediate_blits) {
-		event2_newevent (ev2_blitter, blit_slowdown, 0);
+		event2_newevent (ev2_blitter, makebliteventtime(blit_slowdown), 0);
 		blit_slowdown = -1;
 		return;
 	}
@@ -1626,8 +1636,8 @@ static void do_blitter2 (int hpos, int copper)
 		return;
 	}
 	
-	blit_cyclecounter = cycles * (blit_dmacount2 + (blit_nod ? 0 : 1)); 
-	event2_newevent (ev2_blitter, blit_cyclecounter, 0);
+	blit_cyclecounter = cycles * (blit_dmacount2 + (blit_nod ? 0 : 1));
+	event2_newevent (ev2_blitter, makebliteventtime(blit_cyclecounter), 0);
 
 	if (dmaen (DMA_BLITTER) && (currprefs.cpu_model >= 68020 || !currprefs.cpu_memory_cycle_exact)) {
 		if (currprefs.waiting_blits) {
