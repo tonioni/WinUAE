@@ -141,7 +141,7 @@ struct BitMap
 
 struct Settings {
     uae_u32			BoardType;
-    /* a value discribing assignment to nth board local to boardtype
+    /* a value describing assignment to nth board local to boardtype
      * to be used for reassignment when boards are added or removed.  */
     uae_u16			LocalOrdering;
     uae_s16			LastSelected;
@@ -536,7 +536,7 @@ struct picasso96_state_struct
     uae_u8		*HostAddress; /* Active screen address (PC-side) */
     // host address is need because Windows
     // support NO direct access all the time to gfx Card
-    // everytime windows can remove your surface from card so the mainrender place
+    // every time windows can remove your surface from card so the mainrender place
     // must be in memory
     long		XYOffset;
 };
