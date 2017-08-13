@@ -7716,11 +7716,20 @@ uae_u8 *restore_cpu (uae_u8 *src)
 						regs.prefetch020[i] = v >> 16;
 						regs.prefetch020_valid[i] = (v & 1) != 0;
 					}
-				}
-			} else {
-				for (int i = 0; i < CPU_PIPELINE_MAX; i++) {
-					regs.prefetch020[i] = restore_u16 ();
-					regs.prefetch020_valid[i] = false;
+				} else {
+					// old
+					uae_u32 v = restore_u32();
+					regs.prefetch020[0] = v >> 16;
+					regs.prefetch020[1] = (uae_u16)v;
+					v = restore_u32();
+					regs.prefetch020[2] = v >> 16;
+					regs.prefetch020[3] = (uae_u16)v;
+					restore_u32();
+					restore_u32();
+					regs.prefetch020_valid[0] = true;
+					regs.prefetch020_valid[1] = true;
+					regs.prefetch020_valid[2] = true;
+					regs.prefetch020_valid[3] = true;
 				}
 			}
 		} else if (model == 68030) {
@@ -7849,7 +7858,7 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 	else
 		dstbak = dst = xmalloc (uae_u8, 10000);
 
-	save_u32 (2 | 4 | 8);
+	save_u32 (2 | 4 | 16);
 	save_u16 (cputrace.opcode);
 	for (int i = 0; i < 16; i++)
 		save_u32 (cputrace.regs[i]);
@@ -7889,10 +7898,15 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 		save_u32 (cputrace.prefetch020addr);
 		save_u32 (cputrace.cacheholdingaddr020);
 		save_u32 (cputrace.cacheholdingdata020);
-		for (int i = 0; i < CPU_PIPELINE_MAX; i++)
+		for (int i = 0; i < CPU_PIPELINE_MAX; i++) {
 			save_u16 (cputrace.prefetch020[i]);
-		for (int i = 0; i < CPU_PIPELINE_MAX; i++)
+		}
+		for (int i = 0; i < CPU_PIPELINE_MAX; i++) {
 			save_u32 (cputrace.prefetch020[i]);
+		}
+		for (int i = 0; i < CPU_PIPELINE_MAX; i++) {
+			save_u8 (cputrace.prefetch030_valid[i]);
+		}
 	}
 
 	*len = dst - dstbak;
@@ -7942,11 +7956,27 @@ uae_u8 *restore_cpu_trace (uae_u8 *src)
 			cputrace.prefetch020addr = restore_u32 ();
 			cputrace.cacheholdingaddr020 = restore_u32 ();
 			cputrace.cacheholdingdata020 = restore_u32 ();
-			for (int i = 0; i < CPU_PIPELINE_MAX; i++)
+			for (int i = 0; i < CPU_PIPELINE_MAX; i++) {
 				cputrace.prefetch020[i] = restore_u16 ();
+			}
 			if (v & 8) {
-				for (int i = 0; i < CPU_PIPELINE_MAX; i++)
-					cputrace.prefetch020[i] = restore_u32 ();
+				uae_u32 v = restore_u32();
+				regs.prefetch020[0] = v >> 16;
+				regs.prefetch020[1] = (uae_u16)v;
+				v = restore_u32();
+				regs.prefetch020[2] = v >> 16;
+				regs.prefetch020[3] = (uae_u16)v;
+				restore_u32();
+				restore_u32();
+				regs.prefetch020_valid[0] = true;
+				regs.prefetch020_valid[1] = true;
+				regs.prefetch020_valid[2] = true;
+				regs.prefetch020_valid[3] = true;
+			}
+			if (v & 16) {
+				for (int i = 0; i < CPU_PIPELINE_MAX; i++) {
+					cputrace.prefetch030_valid[i] = restore_u8() != 0;
+				}
 			}
 		}
 	}
@@ -9469,9 +9499,10 @@ uae_u32 fill_icache040(uae_u32 addr)
 	}
 
 	if (regs.cacr & 0x8000) {
+		uae_u8 cs = mmu_cache_state;
 
 		if (!(ce_cachable[addr >> 16] & CACHE_ENABLE_INS))
-			mmu_cache_state = CACHE_DISABLE_MMU;
+			cs = CACHE_DISABLE_MMU;
 
 		index = (addr >> 4) & cacheisets04060mask;
 		tag = addr & cacheitag04060mask;
@@ -9479,7 +9510,7 @@ uae_u32 fill_icache040(uae_u32 addr)
 		for (int i = 0; i < CACHELINES040; i++) {
 			if (c->valid[cache_lastline] && c->tag[cache_lastline] == tag) {
 				// cache hit
-				if (!(mmu_cache_state & CACHE_ENABLE_INS) || (mmu_cache_state & CACHE_DISABLE_MMU)) {
+				if (!(cs & CACHE_ENABLE_INS) || (cs & CACHE_DISABLE_MMU)) {
 					c->valid[cache_lastline] = false;
 					goto end;
 				}
@@ -9499,7 +9530,7 @@ uae_u32 fill_icache040(uae_u32 addr)
 		regs.prefetch040[2] = icache_fetch(addr2 +  8);
 		regs.prefetch040[3] = icache_fetch(addr2 + 12);
 		regs.prefetch020addr = addr2;
-		if (!(mmu_cache_state & CACHE_ENABLE_INS) || (mmu_cache_state & CACHE_DISABLE_MMU))
+		if (!(cs & CACHE_ENABLE_INS) || (cs & CACHE_DISABLE_MMU))
 			goto end;
 		if (regs.cacr & 0x00004000) // 68060 NAI
 			goto end;
@@ -9842,6 +9873,7 @@ static uae_u32 read_dcache040(uae_u32 addr, int size, uae_u32 (*fetch)(uaecptr))
 	struct cache040 *c;
 	int line;
 	uae_u32 addr_o = addr;
+	uae_u8 cs = mmu_cache_state;
 
 	if (!(regs.cacr & 0x80000000))
 		goto nocache;
@@ -9852,7 +9884,7 @@ static uae_u32 read_dcache040(uae_u32 addr, int size, uae_u32 (*fetch)(uaecptr))
 
 	// Simple because 68040+ caches physical addresses (68030 caches logical addresses)
 	if (!(ce_cachable[addr >> 16] & CACHE_ENABLE_DATA))
-		mmu_cache_state = CACHE_DISABLE_MMU;
+		cs = CACHE_DISABLE_MMU;
 
 	addr &= ~15;
 	index = (addr >> 4) & cachedsets04060mask;
@@ -9863,7 +9895,7 @@ static uae_u32 read_dcache040(uae_u32 addr, int size, uae_u32 (*fetch)(uaecptr))
 			// cache hit
 			dcachelinecnt++;
 			// Cache hit but MMU disabled: do not cache, push and invalidate possible existing line
-			if (mmu_cache_state & CACHE_DISABLE_MMU) {
+			if (cs & CACHE_DISABLE_MMU) {
 				dcache040_push_line(index, line, false, true);
 				goto nocache;
 			}
@@ -9872,7 +9904,7 @@ static uae_u32 read_dcache040(uae_u32 addr, int size, uae_u32 (*fetch)(uaecptr))
 	}
 	// Cache miss
 	// 040+ always caches whole line
-	if ((mmu_cache_state & CACHE_DISABLE_MMU) || !(mmu_cache_state & CACHE_ENABLE_DATA) || (mmu_cache_state & CACHE_DISABLE_ALLOCATE) || (regs.cacr & 0x400000000)) {
+	if ((cs & CACHE_DISABLE_MMU) || !(cs & CACHE_ENABLE_DATA) || (cs & CACHE_DISABLE_ALLOCATE) || (regs.cacr & 0x400000000)) {
 nocache:
 		return fetch(addr_o);
 	}
@@ -9889,6 +9921,7 @@ static void write_dcache040(uae_u32 addr, uae_u32 val, int size, void (*store)(u
 	struct cache040 *c;
 	int line;
 	uae_u32 addr_o = addr;
+	uae_u8 cs = mmu_cache_state;
 
 	val &= mask[size];
 
@@ -9896,7 +9929,7 @@ static void write_dcache040(uae_u32 addr, uae_u32 val, int size, void (*store)(u
 		goto nocache;
 
 	if (!(ce_cachable[addr >> 16] & CACHE_ENABLE_DATA))
-		mmu_cache_state = CACHE_DISABLE_MMU;
+		cs = CACHE_DISABLE_MMU;
 
 	addr &= ~15;
 	index = (addr >> 4) & cachedsets04060mask;
@@ -9907,13 +9940,13 @@ static void write_dcache040(uae_u32 addr, uae_u32 val, int size, void (*store)(u
 			// cache hit
 			dcachelinecnt++;
 			// Cache hit but MMU disabled: do not cache, push and invalidate possible existing line
-			if (mmu_cache_state & CACHE_DISABLE_MMU) {
+			if (cs & CACHE_DISABLE_MMU) {
 				dcache040_push_line(index, line, false, true);
 				goto nocache;
 			}
 			dcache040_update(addr_o, c, line, val, size);
 			// If not copyback mode: push modifications immediately (write-through)
-			if (!(mmu_cache_state & CACHE_ENABLE_COPYBACK) || DISABLE_68040_COPYBACK) {
+			if (!(cs & CACHE_ENABLE_COPYBACK) || DISABLE_68040_COPYBACK) {
 				dcache040_push_line(index, line, true, false);
 			}
 			return;
@@ -9922,7 +9955,7 @@ static void write_dcache040(uae_u32 addr, uae_u32 val, int size, void (*store)(u
 	// Cache miss
 	// 040+ always caches whole line
 	// Writes misses in write-through mode don't allocate new cache lines
-	if (!(mmu_cache_state & CACHE_ENABLE_DATA) || (mmu_cache_state & CACHE_DISABLE_MMU) || (mmu_cache_state & CACHE_DISABLE_ALLOCATE) || !(mmu_cache_state & CACHE_ENABLE_COPYBACK) || (regs.cacr & 0x400000000)) {
+	if (!(cs & CACHE_ENABLE_DATA) || (cs & CACHE_DISABLE_MMU) || (cs & CACHE_DISABLE_ALLOCATE) || !(cs & CACHE_ENABLE_COPYBACK) || (regs.cacr & 0x400000000)) {
 nocache:
 		store(addr_o, val);
 		return;
