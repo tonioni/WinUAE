@@ -1316,7 +1316,7 @@ static void maybeaddop_ce020 (int flags)
 * the calling routine handles Apdi and Aipi modes.
 * gb-- movem == 2 means the same thing but for a MOVE16 instruction */
 
-/* fixup indicates if we want to fix up adress registers in pre decrement
+/* fixup indicates if we want to fix up address registers in pre decrement
 * or post increment mode now (0) or later (1). A value of 2 will then be
 * used to do the actual fix up. This allows to do all memory readings
 * before any register is modified, and so to rerun operation without

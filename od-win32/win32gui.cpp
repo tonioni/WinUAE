@@ -6792,18 +6792,11 @@ static void enable_for_chipsetdlg (HWND hDlg)
 #else
 	ew (hDlg, IDC_CYCLEEXACTMEMORY, workprefs.cpu_model >= 68020);
 #endif
-#if 0
-	ew (hDlg, IDC_BLITIMM, enable);
-	if (enable == FALSE) {
-		workprefs.immediate_blits = 0;
-		CheckDlgButton (hDlg, IDC_BLITIMM, FALSE);
-	}
-#endif
 	if (workprefs.immediate_blits && workprefs.waiting_blits) {
 		workprefs.waiting_blits = 0;
 		CheckDlgButton (hDlg, IDC_BLITWAIT, FALSE);
 	}
-	ew(hDlg, IDC_BLITWAIT, workprefs.immediate_blits ? FALSE : TRUE);
+	ew(hDlg, IDC_BLITIMM, !workprefs.cpu_cycle_exact);
 
 	ew(hDlg, IDC_GENLOCKMODE, workprefs.genlock ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCKMIX, workprefs.genlock ? TRUE : FALSE);
@@ -7858,11 +7851,15 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				workprefs.cpu_compatible = 1;
 			if (workprefs.cpu_model <= 68030)
 				workprefs.m68k_speed = 0;
-			workprefs.immediate_blits = 0;
+			if (workprefs.immediate_blits) {
+				workprefs.immediate_blits = false;
+				CheckDlgButton (hDlg, IDC_BLITIMM, FALSE);
+			}
 			workprefs.gfx_framerate = 1;
 			workprefs.cachesize = 0;
 		}
 	}
+
 	workprefs.collision_level = ischecked (hDlg, IDC_COLLISION0) ? 0
 		: ischecked (hDlg, IDC_COLLISION1) ? 1
 		: ischecked (hDlg, IDC_COLLISION2) ? 2 : 3;
@@ -8015,6 +8012,18 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 				DiskSelection(hDlg, IDC_GENLOCKFILESELECT, workprefs.genlock_image == 3 ? 20 : 21, &workprefs, NULL, path);
 				break;
 			}
+			case IDC_BLITWAIT:
+			if (workprefs.immediate_blits) {
+				workprefs.immediate_blits = false;
+				CheckDlgButton (hDlg, IDC_BLITIMM, FALSE);
+			}
+			break;
+			case IDC_BLITIMM:
+			if (workprefs.waiting_blits) {
+				workprefs.waiting_blits = false;
+				CheckDlgButton (hDlg, IDC_BLITWAIT, FALSE);
+			}
+			break;
 		}
 		values_from_chipsetdlg(hDlg, msg, wParam, lParam);
 		enable_for_chipsetdlg(hDlg);
@@ -11446,6 +11455,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_FPU3, workprefs.cpu_model >= 68040);
 	ew (hDlg, IDC_MMUENABLEEC, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0);
 	ew (hDlg, IDC_MMUENABLE, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0);
+	ew (hDlg, IDC_CPUDATACACHE, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0 && workprefs.cpu_compatible);
 	ew (hDlg, IDC_CPU_PPC, workprefs.cpu_model >= 68040 && (workprefs.ppc_mode == 1 || (workprefs.ppc_mode == 0 && !is_ppc_cpu(&workprefs))));
 
 	SendDlgItemMessage(hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, workprefs.m68k_speed < 0 ? MAKELONG(-9, 0) : MAKELONG(-9, 50));
@@ -11479,6 +11489,7 @@ static void values_to_cpudlg (HWND hDlg)
 	SetDlgItemText (hDlg, IDC_CPUTEXT, buffer);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE, workprefs.cpu_compatible);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE24, workprefs.address_space_24);
+	CheckDlgButton (hDlg, IDC_CPUDATACACHE, workprefs.cpu_data_cache);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_strict);
 	CheckDlgButton (hDlg, IDC_FPU_UNIMPLEMENTED, !workprefs.fpu_no_unimplemented || workprefs.cachesize);
 	CheckDlgButton (hDlg, IDC_FPU_SOFTFLOAT, workprefs.fpu_softfloat);
@@ -11568,6 +11579,7 @@ static void values_from_cpudlg (HWND hDlg)
 	workprefs.cpu_model = newcpu;
 	workprefs.mmu_model = 0;
 	workprefs.mmu_ec = false;
+	workprefs.cpu_data_cache = false;
 	switch(newcpu)
 	{
 	case 68000:
@@ -11587,6 +11599,8 @@ static void values_from_cpudlg (HWND hDlg)
 		workprefs.fpu_model = newfpu == 0 ? 0 : (newfpu == 2 ? 68882 : 68881);
 		workprefs.mmu_ec = ischecked(hDlg, IDC_MMUENABLEEC);
 		workprefs.mmu_model = workprefs.mmu_ec || ischecked (hDlg, IDC_MMUENABLE) ? 68030 : 0;
+		if (workprefs.cpu_compatible)
+			workprefs.cpu_data_cache = ischecked (hDlg, IDC_CPUDATACACHE);
 		break;
 	case 68040:
 		workprefs.fpu_model = newfpu ? 68040 : 0;
@@ -11595,12 +11609,16 @@ static void values_from_cpudlg (HWND hDlg)
 			workprefs.fpu_model = 68040;
 		workprefs.mmu_ec = ischecked(hDlg, IDC_MMUENABLEEC);
 		workprefs.mmu_model = workprefs.mmu_ec || ischecked (hDlg, IDC_MMUENABLE) ? 68040 : 0;
+		if (workprefs.cpu_compatible)
+			workprefs.cpu_data_cache = ischecked (hDlg, IDC_CPUDATACACHE);
 		break;
 	case 68060:
 		workprefs.fpu_model = newfpu ? 68060 : 0;
 		workprefs.address_space_24 = 0;
 		workprefs.mmu_ec = ischecked(hDlg, IDC_MMUENABLEEC);
 		workprefs.mmu_model = workprefs.mmu_ec || ischecked (hDlg, IDC_MMUENABLE) ? 68060 : 0;
+		if (workprefs.cpu_compatible)
+			workprefs.cpu_data_cache = ischecked (hDlg, IDC_CPUDATACACHE);
 		break;
 	}
 
@@ -12271,7 +12289,7 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_ADDSTRING, 0, (LPARAM)tmp);
 			}
 			if (numdevs == 0)
-				workprefs.produce_sound = 0; /* No sound card in system, enable_for_sounddlg will accomodate this */
+				workprefs.produce_sound = 0; /* No sound card in system, enable_for_sounddlg will accommodate this */
 
 			pages[SOUND_ID] = hDlg;
 			currentpage = SOUND_ID;
@@ -12725,7 +12743,7 @@ static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype,
 	
 	SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_RESETCONTENT, 0, 0);
 
-	gui_add_string(hdmenutable, hDlg, IDC_HDF_CONTROLLER, HD_CONTROLLER_TYPE_UAE, _T("UAE"));
+	gui_add_string(hdmenutable, hDlg, IDC_HDF_CONTROLLER, HD_CONTROLLER_TYPE_UAE, _T("UAE (uaehf.device)"));
 
 	gui_add_string(hdmenutable, hDlg, IDC_HDF_CONTROLLER, 0, _T(""));
 	gui_add_string(hdmenutable, hDlg, IDC_HDF_CONTROLLER, HD_CONTROLLER_TYPE_IDE_AUTO, _T("IDE (Auto)"));

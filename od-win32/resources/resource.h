@@ -555,6 +555,7 @@
 #define IDC_22KHZ                       1233
 #define IDC_SPEED_x86                   1233
 #define IDC_44KHZ                       1234
+#define IDC_CPUDATACACHE                1234
 #define IDC_48KHZ                       1235
 #define IDC_FPU4                        1235
 #define IDC_SOUNDSIZE                   1236

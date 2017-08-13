@@ -1465,7 +1465,7 @@ static int patch_shapeshifter (uae_u8 *kickmemory)
 {
 	/* Patch Kickstart ROM for ShapeShifter - from Christian Bauer.
 	* Changes 'lea $400,a0' and 'lea $1000,a0' to 'lea $3000,a0' for
-	* ShapeShifter compatability.
+	* ShapeShifter compatibility.
 	*/
 	int i, patched = 0;
 	uae_u8 kickshift1[] = { 0x41, 0xf8, 0x04, 0x00 };

@@ -1416,7 +1416,7 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 		}
 	}
 
-	write_log (_T("IOCTL: device '%s' (%s/%s/%s) opened succesfully (unit=%d,media=%d)\n"),
+	write_log (_T("IOCTL: device '%s' (%s/%s/%s) opened successfully (unit=%d,media=%d)\n"),
 		ciw->devname, ciw->di.vendorid, ciw->di.productid, ciw->di.revision,
 		unitnum, ciw->di.media_inserted);
 	if (!_tcsicmp (ciw->di.vendorid, _T("iomega")) && !_tcsicmp (ciw->di.productid, _T("rrd"))) {

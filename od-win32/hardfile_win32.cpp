@@ -1664,15 +1664,17 @@ static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset)
 		gui_message (_T("hd: hdf handle is not valid. bug."));
 		abort();
 	}
-	if (offset >= hfd->physsize - hfd->virtual_size) {
-		gui_message (_T("hd: tried to seek out of bounds! (%I64X >= %I64X - %I64X)\n"), offset, hfd->physsize, hfd->virtual_size);
-		abort ();
-	}
-	offset += hfd->offset;
-	if (offset & (hfd->ci.blocksize - 1)) {
-		gui_message (_T("hd: poscheck failed, offset=%I64X not aligned to blocksize=%d! (%I64X & %04X = %04X)\n"),
-			offset, hfd->ci.blocksize, offset, hfd->ci.blocksize, offset & (hfd->ci.blocksize - 1));
-		abort ();
+	if (hfd->physsize) {
+		if (offset >= hfd->physsize - hfd->virtual_size) {
+			gui_message (_T("hd: tried to seek out of bounds! (%I64X >= %I64X - %I64X)\n"), offset, hfd->physsize, hfd->virtual_size);
+			abort ();
+		}
+		offset += hfd->offset;
+		if (offset & (hfd->ci.blocksize - 1)) {
+			gui_message (_T("hd: poscheck failed, offset=%I64X not aligned to blocksize=%d! (%I64X & %04X = %04X)\n"),
+				offset, hfd->ci.blocksize, offset, hfd->ci.blocksize, offset & (hfd->ci.blocksize - 1));
+			abort ();
+		}
 	}
 	if (hfd->handle_valid == HDF_HANDLE_WIN32) {
 		LARGE_INTEGER fppos;
@@ -1895,7 +1897,8 @@ int hdf_read_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
 		if (hfd->physsize < CACHE_SIZE) {
 			hfd->cache_valid = 0;
 			hdf_seek (hfd, offset);
-			poscheck (hfd, len);
+			if (hfd->physsize)
+				poscheck (hfd, len);
 			if (hfd->handle_valid == HDF_HANDLE_WIN32) {
 				ReadFile (hfd->handle->h, hfd->cache, len, &ret, NULL);
 				memcpy (buffer, hfd->cache, ret);
@@ -1967,7 +1970,7 @@ int hdf_write_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, in
 	int got = 0;
 	uae_u8 *p = (uae_u8*)buffer;
 
-	if (hfd->drive_empty)
+	if (hfd->drive_empty || hfd->physsize == 0)
 		return 0;
 	if (offset < hfd->virtual_size)
 		return len;
@@ -2281,6 +2284,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	}
 
 	udi->offset = 0;
+	udi->size = 0;
 	if (geom_ok) {
 		udi->bytespersector = dg.BytesPerSector;
 		if (dg.BytesPerSector < 512) {
@@ -2303,11 +2307,6 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	}
 	if (gli_ok && gli.Length.QuadPart)
 		udi->size = gli.Length.QuadPart;
-	if (udi->size == 0) {
-		write_log (_T("device size is zero!\n"));
-		ret = 1;
-		goto end;
-	}
 	write_log (_T("device size %I64d (0x%I64x) bytes\n"), udi->size, udi->size);
 	trim (orgname);
 
@@ -2317,59 +2316,55 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	if (!status) {
 		DWORD err = GetLastError();
 		write_log (_T("IOCTL_DISK_GET_DRIVE_LAYOUT failed with error code %d.\n"), err);
-		if (err != ERROR_INVALID_FUNCTION) {
-			ret = 1;
-			goto end;
-		}
-		goto amipartfound;
-	}
-	dli = (DRIVE_LAYOUT_INFORMATION*)outBuf;
-	if (dli->PartitionCount) {
-		int nonzeropart = 0;
-		int gotpart = 0;
-		int safepart = 0;
-		write_log (_T("%d MBR partitions found\n"), dli->PartitionCount);
-		for (i = 0; i < dli->PartitionCount && (*index2) < MAX_FILESYSTEM_UNITS; i++) {
-			PARTITION_INFORMATION *pi = &dli->PartitionEntry[i];
-			if (pi->PartitionType == PARTITION_ENTRY_UNUSED)
-				continue;
-			write_log (_T("%d: num: %d type: %02X offset: %I64d size: %I64d, "), i,
-				pi->PartitionNumber, pi->PartitionType, pi->StartingOffset.QuadPart, pi->PartitionLength.QuadPart);
-			if (pi->RecognizedPartition == 0) {
-				write_log (_T("unrecognized\n"));
-				continue;
-			}
-			nonzeropart++;
-			if (pi->PartitionType != 0x76 && pi->PartitionType != 0x30) {
-				write_log (_T("type not 0x76 or 0x30\n"));
-				continue;
-			}
-			udi++;
-			(*index2)++;
-			memmove (udi, udi2, sizeof (*udi));
-			udi->device_name[0] = 0;
-			udi->offset = pi->StartingOffset.QuadPart;
-			udi->size = pi->PartitionLength.QuadPart;
-			write_log (_T("used\n"));
-			_stprintf (udi->device_name, _T(":P#%d_%s"), pi->PartitionNumber, orgname);
-			_stprintf(udi->device_full_path, _T("%s:%s"), udi->device_name, udi->device_path);
-			checkhdname(udi);
-			udi->dangerous = -5;
-			udi->partitiondrive = true;
-			safepart = 1;
-			gotpart = 1;
-		}
-		if (!nonzeropart) {
-			write_log (_T("empty MBR partition table detected, checking for RDB\n"));
-		} else if (!gotpart) {
-			write_log (_T("non-empty MBR partition table detected, doing RDB check anyway\n"));
-		} else if (safepart) {
-			goto amipartfound; /* ugly but bleh.. */
-		}
 	} else {
-		write_log (_T("no MBR partition table detected, checking for RDB\n"));
+		dli = (DRIVE_LAYOUT_INFORMATION*)outBuf;
+		if (dli->PartitionCount) {
+			int nonzeropart = 0;
+			int gotpart = 0;
+			int safepart = 0;
+			write_log (_T("%d MBR partitions found\n"), dli->PartitionCount);
+			for (i = 0; i < dli->PartitionCount && (*index2) < MAX_FILESYSTEM_UNITS; i++) {
+				PARTITION_INFORMATION *pi = &dli->PartitionEntry[i];
+				if (pi->PartitionType == PARTITION_ENTRY_UNUSED)
+					continue;
+				write_log (_T("%d: num: %d type: %02X offset: %I64d size: %I64d, "), i,
+					pi->PartitionNumber, pi->PartitionType, pi->StartingOffset.QuadPart, pi->PartitionLength.QuadPart);
+				if (pi->RecognizedPartition == 0) {
+					write_log (_T("unrecognized\n"));
+					continue;
+				}
+				nonzeropart++;
+				if (pi->PartitionType != 0x76 && pi->PartitionType != 0x30) {
+					write_log (_T("type not 0x76 or 0x30\n"));
+					continue;
+				}
+				udi++;
+				(*index2)++;
+				memmove (udi, udi2, sizeof (*udi));
+				udi->device_name[0] = 0;
+				udi->offset = pi->StartingOffset.QuadPart;
+				udi->size = pi->PartitionLength.QuadPart;
+				write_log (_T("used\n"));
+				_stprintf (udi->device_name, _T(":P#%d_%s"), pi->PartitionNumber, orgname);
+				_stprintf(udi->device_full_path, _T("%s:%s"), udi->device_name, udi->device_path);
+				checkhdname(udi);
+				udi->dangerous = -5;
+				udi->partitiondrive = true;
+				safepart = 1;
+				gotpart = 1;
+			}
+			if (!nonzeropart) {
+				write_log (_T("empty MBR partition table detected, checking for RDB\n"));
+			} else if (!gotpart) {
+				write_log (_T("non-empty MBR partition table detected, doing RDB check anyway\n"));
+			} else if (safepart) {
+				goto amipartfound; /* ugly but bleh.. */
+			}
+		} else {
+			write_log (_T("no MBR partition table detected, checking for RDB\n"));
+		}
 	}
-	if (udi->offset == 0) {
+	if (udi->offset == 0 && udi->size) {
 		udi->dangerous = safetycheck (hDevice, udi->device_path, 0, buffer, dg.BytesPerSector);
 		if (udi->dangerous > 0)
 			goto end;

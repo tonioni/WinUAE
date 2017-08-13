@@ -22,7 +22,7 @@ extern int log_bsd;
 extern int init_socket_layer (void);
 extern void deinit_socket_layer (void);
 
-/* inital size of per-process descriptor table (currently fixed) */
+/* initial size of per-process descriptor table (currently fixed) */
 #define DEFAULT_DTABLE_SIZE 64
 
 #define SCRATCHBUFSIZE 128

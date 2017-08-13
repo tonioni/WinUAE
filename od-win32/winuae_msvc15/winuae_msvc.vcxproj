@@ -39,7 +39,7 @@
     <ProjectGuid>{4ADAA943-1AC8-4FB5-82E5-4FB753B6C2DA}</ProjectGuid>
     <RootNamespace>winuae</RootNamespace>
     <TargetPlatformVersion>8.1</TargetPlatformVersion>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'" Label="Configuration">
@@ -84,13 +84,13 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -822,6 +822,8 @@
     <ClCompile Include="..\..\cpuemu_24.cpp" />
     <ClCompile Include="..\..\cpuemu_32.cpp" />
     <ClCompile Include="..\..\cpuemu_33.cpp" />
+    <ClCompile Include="..\..\cpuemu_34.cpp" />
+    <ClCompile Include="..\..\cpuemu_35.cpp" />
     <ClCompile Include="..\..\cpuemu_40.cpp" />
     <ClCompile Include="..\..\cpuemu_50.cpp" />
     <ClCompile Include="..\..\cpummu30.cpp" />
@@ -852,6 +854,7 @@
     <ClCompile Include="..\..\hrtmon.rom.cpp" />
     <ClCompile Include="..\..\ide.cpp" />
     <ClCompile Include="..\..\idecontrollers.cpp" />
+    <ClCompile Include="..\..\ini.cpp" />
     <ClCompile Include="..\..\inputrecord.cpp" />
     <ClCompile Include="..\..\isofs.cpp" />
     <ClCompile Include="..\..\logging.cpp" />

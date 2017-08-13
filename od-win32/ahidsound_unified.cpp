@@ -76,7 +76,7 @@ static LPDIRECTSOUNDCAPTUREBUFFER lpDSB2r = NULL;
 struct winuae	//this struct is put in a6 if you call
 		//execute native function
 {
-    HWND amigawnd;    //adress of amiga Window Windows Handle
+    HWND amigawnd;    //address of amiga Window Windows Handle
     unsigned int changenum;   //number to detect screen close/open
     unsigned int z3offset;    //the offset to add to acsess Z3 mem from Dll side
 };

@@ -133,7 +133,7 @@ static void state_incompatible_warn (void)
 }
 
 /* functions for reading/writing bytes, shorts and longs in big-endian
-* format independent of host machine's endianess */
+* format independent of host machine's endianness */
 
 static uae_u8 *storepos;
 void save_store_pos_func (uae_u8 **dstp)

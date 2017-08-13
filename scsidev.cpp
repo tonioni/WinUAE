@@ -36,7 +36,7 @@ typedef int BOOL;
 #include "scg/scsitransp.h"
 #include "scg/scsireg.h"
 
-/* our configure does not have a seperate UAE_SCSIDEV_THREADS */
+/* our configure does not have a separate UAE_SCSIDEV_THREADS */
 #if defined(UAE_FILESYS_THREADS) && !defined(SCSI_IS_NOT_THREAD_SAFE)
 #define UAE_SCSIDEV_THREADS
 #endif

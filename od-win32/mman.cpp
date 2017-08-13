@@ -888,13 +888,15 @@ bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
 	return got;
 }
 
-void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
+void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg, struct uae_mman_data *md)
 {
 	void *result = (void *)-1;
 	bool got = false, readonly = false, maprom = false;
 	int p96special = FALSE;
+	struct uae_mman_data md2;
 
 #ifdef NATMEM_OFFSET
+
 	unsigned int size = shmids[shmid].size;
 	unsigned int readonlysize = size;
 
@@ -908,25 +910,32 @@ void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg)
 	}
 
 	if ((uae_u8*)shmaddr < natmem_offset) {
-		struct uae_mman_data md;
-		if (uae_mman_info(ab, &md)) {
-			shmaddr = natmem_offset + md.start;
-			size = md.size;
-			readonlysize = md.readonlysize;
-			readonly = md.readonly;
-			maprom = md.maprom;
+		if (!md) {
+			if (!uae_mman_info(ab, &md2))
+				return NULL;
+			md = &md2;
+		}
+		if (!shmaddr) {
+			shmaddr = natmem_offset + md->start;
+			size = md->size;
+			readonlysize = md->readonlysize;
+			readonly = md->readonly;
+			maprom = md->maprom;
 			got = true;
 		}
 	}
-#endif
 
 	uintptr_t natmem_end = (uintptr_t) natmem_reserved + natmem_reserved_size;
-	if ((uintptr_t) shmaddr + size > natmem_end && (uintptr_t)shmaddr <= natmem_end) {
+	if (md && md->hasbarrier && (uintptr_t) shmaddr + size > natmem_end && (uintptr_t)shmaddr <= natmem_end) {
 		/* We cannot add a barrier beyond the end of the reserved memory. */
 		//assert((uintptr_t) shmaddr + size - natmem_end == BARRIER);
 		write_log(_T("NATMEM: Removing barrier (%d bytes) beyond reserved memory\n"), BARRIER);
 		size -= BARRIER;
+		md->size -= BARRIER;
+		md->hasbarrier = false;
 	}
+
+#endif
 
 	if (shmids[shmid].key == shmid && shmids[shmid].size) {
 		DWORD protect = readonly ? PAGE_READONLY : PAGE_READWRITE;

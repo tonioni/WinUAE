@@ -847,6 +847,15 @@
     <ClCompile Include="..\..\rtc.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\ini.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpuemu_34.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpuemu_35.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

@@ -632,7 +632,7 @@ static int savebmp (FILE *fp, bool alpha)
 	if (fwrite (&bfh, 1, sizeof (BITMAPFILEHEADER), fp) < sizeof (BITMAPFILEHEADER))
 		return 1; // failed to write bitmap file header
 	if (fwrite (bi, 1, sizeof (BITMAPINFOHEADER), fp) < sizeof (BITMAPINFOHEADER))
-		return 2; // failed to write bitmap infomation header
+		return 2; // failed to write bitmap information header
 	if (bi->bmiHeader.biClrUsed) {
 		if (fwrite (bi->bmiColors, 1, bi->bmiHeader.biClrUsed * sizeof(RGBQUAD), fp) < bi->bmiHeader.biClrUsed * sizeof(RGBQUAD))
 			return 3; // failed to write bitmap file header

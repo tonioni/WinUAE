@@ -2257,7 +2257,7 @@ static unsigned int thread_get2 (void *indexp)
 					if (bsd->threadGetargs_inuse[index] != GET_STATE_CANCEL) {
 						// No CTRL-C Signal
 						if (host == 0) {
-							// Error occured
+							// Error occurred
 							SETERRNO;
 							BSDTRACE((_T("tg2_0 failed %d:%d -> "), sb->sb_errno,wscnt));
 						} else {
@@ -2280,7 +2280,7 @@ static unsigned int thread_get2 (void *indexp)
 				proto = getprotobyname (name_rp);
 				if (bsd->threadGetargs_inuse[index] != GET_STATE_CANCEL) { // No CTRL-C Signal
 					if (proto == 0) {
-						// Error occured
+						// Error occurred
 						SETERRNO;
 						BSDTRACE((_T("tg2_1 failed %d:%d -> "), sb->sb_errno, wscnt));
 					} else {
@@ -2317,7 +2317,7 @@ static unsigned int thread_get2 (void *indexp)
 				if (bsd->threadGetargs_inuse[index] != GET_STATE_CANCEL) {
 					// No CTRL-C Signal
 					if (serv == 0) {
-						// Error occured
+						// Error occurred
 						SETERRNO;
 						BSDTRACE((_T("tg2_2 failed %d:%d -> "), sb->sb_errno, wscnt));
 					} else {

@@ -619,7 +619,7 @@ void comp_fbcc_opp (uae_u32 opcode)
 }
 
 /* Floating point conditions
-   The "NotANumber" part could be problematic; Howver, when NaN is
+   The "NotANumber" part could be problematic; However, when NaN is
    encountered, the ftst instruction sets bot N and Z to 1 on the x87,
    so quite often things just fall into place. This is probably not
    accurate wrt the 68k FPU, but it is *as* accurate as this was before.

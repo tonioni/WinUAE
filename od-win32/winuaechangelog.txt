@@ -5,6 +5,119 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+Beta 1:
+
+Big CPU emulation update. More compatible (instruction cache) and data cache is now supported with MMU emulation.
+Probably not that useful for normal users but developers may find it interesting.
+
+Multi window (One window / Amiga monitor/output) support may be coming later.
+
+Notes:
+- 68020 more compatible/CE mode statefiles may not load ("CPU tracer" error dialog)
+- Anything CPU related may have broken..
+- And more!
+
+- 68030 + memory cycle exact (without full CE): BSR didn't use data cache memory access routines.
+- Softfloat fix: 68040+ will convert unnormal zeros (zero mantissa, non-zero exponent) to normals without datatype exceptions.
+- 68040/060 MMU updates. MOVES was wrong in some situations, ATC status bit handling updated. (Originally Previous fix, first Next version that supported 68040 seems to do some strange things)
+- 68030/040/060 MMU emulation internal fast path translation cache added, performance improved noticeably.
+- Fully validate 68030 MMU instruction opcodes and generate F-line exception if unused but invalid bits are set. (Real 68030 confirmed)
+- 68030 MMU PLOAD was unsupported.
+- "EC" MMU option added, emulates access control registers only (renamed transparent translation registers in EC models).
+- 68030 MMU + prefetch + instruction + data cache emulation mode. (Enabled when "More compatible" is ticked) CPU caches are now correctly located between CPU and MMU and they cache logical addresses.
+- 68030 MMU + prefetch + instruction + data cache + "cycle-exact" emulation mode. (Same timing as 68030 non-MMU "CE" mode)
+- 68030 data cache emulation is now optional.
+- 68030 data cache emulation is internally disabled if UAE Boot ROM is active in non-indirect mode. It is not compatible with most UAE expansions because they access memory directly, bypassing the data cache and previous data cache hack made the cache mostly useless.
+- 68040/060 MMU + full instruction cache emulation (when more compatible is set).
+- 68040/060 data cache emulation (including write-through and copyback, MMU support), optionally available in more compatible mode.
+- 68040/060 without FPU: many FPU instructions generated incorrect F-line stack frame contents, usually wrong PC or EA field.
+- 68881/68882 FMOVECR undocumented ROM offsets are now 100% accurately emulated, offsets 0x40-0x7f return f-line exception.
+- Currently emulated hardware cache inhibit signal is always active when CPU accesses anything non-RAM.
+
+- It was not possible to change existing path with Select Directory/Select Archive or Plain File buttons.
+- Do not reset manual geometry HDF setting when changing hardfiles.
+- Automatically enable RDB mode if empty HDF is added and controller type is IDE or SCSI.
+- Replaced ReadProfileString/WriteProfileString based ini support with custom routines that don't have 65536 byte section size limits. (Long ROM paths can easily become longer than 32k wide characters)
+- SCSI expansion SCSI ID: don't show it when it is not selectable, also make sure it is 7 by default, previously in some situations it become 0.
+- Internal AKS input events are now available in custom event strings (for example statefile save and restore)
+- uaehf.device hardfiles/harddrives unit number is now user configurable.
+- Joyport setting was not fully reset before loading Host-only config.
+- Added UAE HD controller A2090 partition table support. RDB didn't exist when A2090 was released.
+- Added extra validation after Windows illegal name check, if name is illegal, check what CreateFile() returns, name is invalid if it returns ERROR_INVALID_NAME. If open succeeds, return also illegal name status if GetFileType() does not return FILE_TYPE_DISK.
+- Avioutput on the fly recording start used GUI sound frequency setting if recording was started with a shortcut. If GUI was never opened, sound recording rate become 44100Hz, creating video that had bad AV sync if real in use frequency was not 44100Hz.
+- Don't support 360k floppy images in Amiga drive unless it is configured as 5.25" drive. (Fixes 360k DS vs 720k SS misdetection)
+- Disable low latency vsync if calibration returns impossibly large values (>1000Hz). Seems to happen with some recent NVidia drivers.
+- Do not create hidden inactive uaegfx modes if none of color modes fit in VRAM.
+- Fixed uaegfx VRAM size check, some modes that almost filled the whole VRAM didn't appear in resolution list.
+- Z3 RAM in manual mode was completely broken.
+- Added blitter_speed_throttle config file entry, adjusts blitter speed if in non-ce/non immediate blitter mode. (0 = no change, 0.1 = 10% speedup and so on)
+- If JIT FPU was ticked but JIT was off: FPU emulation used simple JIT FPU compatible FPU status register calculations, even if softfloat mode was selected.
+- New undocumented feature emulated: Bitplane DMA can be restarted during last AGA FMODE>0 idle cycles after DDFSTOP.
+- Bitplane overrun condition triggered incorrectly in rare situation where bitplane DMA is enabled after DDFSTOP on OCS. (Scoopex crash landing cracktro, possibly others)
+- "Include CD and FMV Audio" and/or sound mode change when CD or FMV audio is playing is now supported.
+
+- DKB RapidFire flash rom chip emulated. Contains boot rom but is also used to store "advanced scsi config" settings. (ROM scanner still detects flash rom update file, scsi config is located at the end of flash chip, far away from boot rom data)
+- DKB 1230/1240/Cobra flash chip emulated, advanced scsi config utility config save supported. SCSI expansion is now optional.
+- A2090 boot ROM didn't work without more compatible enabled.
+- Hardfile SCSI emulator MODE SELECT (6) and (10) added, mostly does nothing, added because A2090 SCSI driver TD_FORMAT requires it.
+- Host side read-only hdf was supposed to also force read-only HDF in Amiga-side.
+- Automatically support software dumped A590/A2091 ROMs that don't have 0x2000 wraparound/offset.
+- Comspec SA1000 KS rom image loader compatibility fix.
+- Blizzard 1230 MK I appears to be functionally identical to MK II. Same boot ROM, same SCSI expansion.
+
+- Added debugger 'I' command, send custom event string, same as Input panel uses (inject keycodes, change config like uae-configuration does..).
+- Added debugger 'L' command, load data from file (same parameters as 'S')
+- Added debugger fill memory command 'Wf <addr> <eaddr> <bytes or string like W>, repeats byte/string writing until end address.
+- Added debugger assembler ('a') command! (Most 68020+ only special encoded opcodes are not supported)
+
+- Ashcom AddHard emulation.
+- A2090 Combitec ROM expansion support.
+- FastATA 4000 MK I/II.
+- Spirit Technology InMate SCSI controller.
+- Emplant SCSI controller (and only SCSI)
+
+Hardfile/drive geometry file support extended. (WIP)
+
+- Geometry data can now include full ATA identity (512 bytes) and SCSI Inquiry/Mode pages.
+- Data can be added to mounted IDE or SCSI emulated HDF or real harddrive to make drive appear exactly as drive which geometry data was read, exact same name appears in hdtoolbox, exact same logical CHS geometry and so on.
+- WARNING: Identity data has priority, even if drive is smaller than size information stored in identity data.
+- Added drive identity option to add harddrive panel. It tries to query ATA Identity data and all SCSI Inquiry and Mode pages. Note that USB uses SCSI protocol and if drive is ATA, ATA identity can be only read if USB adapter supports SCSI ATA Passthrough. Unfortunately most USB CF adapters don't support it. (USB SATA harddrives seem to commonly support it)
+- Includes hack that enables reading CF ATA identity with Realtek chip based USB card readers. Uses vendor specific command to read memory region that contains ATA identity, requires card reinsert. Confirmed working with Kingston FCR-HS3 and Transcend TS-RDF9K. Probably works with most Realtek chip based card readers.
+
+New ROMs:
+- A590 v5.92 ROM.
+- DataFlyer Plus v2.0 ROM. (This was stored in 16k ROM but because others were 32k and duplicated, I manually duplicated this one too)
+- A2620 -02 and -03 ROM. (-05 remaining)
+- Non-SCSI DKB 1230/1240/Cobra flash ROM update image.
+- Replaced old DKB Ferret SCSI expansion compatible DKB accelerator ROM image with flash ROM update image. (Official flasher will create identical ROM image, also some CPU speed specific firmware data gets written at the end of flash image)
+- Ashcom AddHard boot ROM.
+- A2090 Combitec A2090a update ROM and 2x A2090 combitec expansion board ROMs.
+- A2090 MacroSystem boot ROM.
+- Vortex System 2000 v1.02 ROM.
+- Spirit Technology InMate v1.0 ROM.
+
+Ashcom Addhard:
+- 5380 based, nothing special.
+- Clone of Trumpcard, even ROM driver is a copy, only names have been changed! Nybble-wide loader code at the beginning of ROM has original IVS_SCSI.device string visible after converting it to bytes! Someone (who didn't know what or why there is nybble-wide data?) simply used hex-editor to change all visible strings?
+- ADD_SCSI.device "ADDSCSI 2.0 (26 MAR 1992)". But driver version number is actually 4.9. (Original Trumpcard driver version?)
+
+A2090 Combitec:
+- A2090 ROM board that adds KS 1.2+ compatible autoboot support to original non-a variant of A2090. (Also works with A2090a if original ROMS are removed first)
+- Shows boot screen.
+- MacroSystem ROM uses same adapter. Different driver and boot screen.
+
+FastATA 4000 MK I/II:
+- Z3 ATA controller with 2 ports (Max 4 devices).
+- Only v3 Boot ROM tested. (FastATA 3.0 (10 NOV 03)). Proper ROM dumps needed.
+
+Sprit Technology InMate:
+- Emulated as SCSI autoconfig board, not an accelerator board because it is 68000 board and does not require special address spaces.
+- AIC-6250 SCSI chip.
+- Fake DMA, word wide data port. Not fully hardware implemented, needs DMA status polling after each word read or write.
+- It has worst RDB filesystem loader ever (at least in 1.0 ROM). Must be single hunk, no relocs, must have total length patched in first long word (I assume install disk patches it). Does not do any checks.
+- Jumpers emulated. (ABOOT jumper mirrors Autoboot disabled -checkbox)
+
+
 3.5.0
 
 Beta 14:

@@ -589,7 +589,7 @@ uae_u32 mmu_op30_helper_get_fc(uae_u16 next) {
  *
  */
 
-/* TT comparision results */
+/* TT comparison results */
 #define TT_NO_MATCH	0x1
 #define TT_OK_MATCH	0x2
 #define TT_NO_READ  0x4
@@ -1472,7 +1472,7 @@ uae_u32 mmu030_table_search(uaecptr addr, uae_u32 fc, bool write, int level) {
                     descr[0] |= DESCR_U;
                     descr_modified = true;
                 }
-                /* write modified descriptor if neccessary */
+                /* write modified descriptor if necessary */
                 if (descr_modified) {
                     phys_put_long(descr_addr[descr_num], descr[0]);
                 }
@@ -1538,7 +1538,7 @@ uae_u32 mmu030_table_search(uaecptr addr, uae_u32 fc, bool write, int level) {
     stop_search:
         ; /* Make compiler happy */
     } CATCH(prb) {
-        /* We jump to this place, if a bus error occured during table search.
+        /* We jump to this place, if a bus error occurred during table search.
          * bBusErrorReadWrite is set in m68000.c, M68000_BusError: read = 1 */
         if (bBusErrorReadWrite) {
             descr_num--;

@@ -1371,7 +1371,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			return MAKELONG(7, 1);
 		}
 	case RP_IPC_TO_GUEST_SHOWOPTIONS:
-		inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+		inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 		return 1;
 	case RP_IPC_TO_GUEST_DEVICEACTIVITY:
 		return deviceactivity(wParam, lParam);
@@ -1551,7 +1551,7 @@ static void sendfeatures (void)
 	RPSendMessagex (RP_IPC_TO_HOST_FEATURES, feat, 0, NULL, 0, &guestinfo, NULL);
 }
 
-static int gethdnum (int n)
+static bool ishd(int n)
 {
 	struct uaedev_config_data *uci = &currprefs.mountconfig[n];
 	int num = -1;
@@ -1562,7 +1562,7 @@ static int gethdnum (int n)
 	} else if (uci->ci.controller_type >= HD_CONTROLLER_TYPE_SCSI_FIRST && uci->ci.controller_type <= HD_CONTROLLER_TYPE_SCSI_LAST) {
 		num = uci->ci.controller_unit;
 	}
-	return num;
+	return num >= 0;
 }
 
 void rp_fixup_options (struct uae_prefs *p)
@@ -1632,17 +1632,15 @@ void rp_fixup_options (struct uae_prefs *p)
 	hd_mask = 0;
 	cd_mask = 0;
 	for (i = 0; i < currprefs.mountitems; i++) {
-		int num = gethdnum (i);
-		if (num >= 0)
-			hd_mask |= 1 << num;
+		if (ishd(i))
+			hd_mask |= 1 << i;
 	}
 	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_HD, hd_mask, NULL, 0, &guestinfo, NULL);
 	if (hd_mask) {
 		for (i = 0; i < currprefs.mountitems; i++) {
 			struct uaedev_config_data *uci = &currprefs.mountconfig[i];
-			int num = gethdnum (i);
-			if (num >= 0 && ((1 << num) & hd_mask))
-				rp_harddrive_image_change (num, uci->ci.readonly, uci->ci.rootdir);
+			if (ishd(i) && ((1 << i) & hd_mask))
+				rp_harddrive_image_change (i, uci->ci.readonly, uci->ci.rootdir);
 		}
 	}
 

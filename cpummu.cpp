@@ -509,7 +509,7 @@ void mmu_bus_error(uaecptr addr, uae_u32 val, int fc, bool write, int size,uae_u
  * mmu access is a 4 step process:
  * if mmu is not enabled just read physical
  * check transparent region, if transparent, read physical
- * check ATC (address translation cache), read immediatly if HIT
+ * check ATC (address translation cache), read immediately if HIT
  * read from mmu with the long path (and allocate ATC entry if needed)
  */
 

@@ -252,25 +252,25 @@ IDD_CPU DIALOGEX 0, 0, 396, 317
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    GROUPBOX        "CPU",IDC_STATIC,1,1,129,152,BS_LEFT
+    GROUPBOX        "CPU",IDC_STATIC,1,1,129,163,BS_LEFT
     CONTROL         "68000",IDC_CPU0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,8,19,63,10
     CONTROL         "68010",IDC_CPU1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,32,63,10
     CONTROL         "68020",IDC_CPU2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,45,63,10
     CONTROL         "68030",IDC_CPU3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,58,63,10
     CONTROL         "68040",IDC_CPU4,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,71,63,10
     CONTROL         "68060",IDC_CPU5,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,84,63,10
-    CONTROL         "24-bit addressing",IDC_COMPATIBLE24,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,99,119,12
-    CONTROL         "More compatible [] 68000: emulate prefetch. 68020+: emulate prefetch partially. More compatible but slower.",IDC_COMPATIBLE,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,112,118,11
+    CONTROL         "24-bit addressing",IDC_COMPATIBLE24,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,98,119,12
+    CONTROL         "More compatible [] 68000: emulate prefetch. 68020+: emulate prefetch and instruction cache. More compatible but slower.",IDC_COMPATIBLE,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,111,118,12
     CONTROL         "JIT [] Enable just-in-time CPU emulator. Significantly increases the speed of the CPU emulation. Requires 68020 or higher CPU.",IDC_JITENABLE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,124,120,11
-    CONTROL         "None",IDC_MMUENABLEOFF,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,8,166,87,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,136,120,12
+    CONTROL         "None",IDC_MMUENABLEOFF,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,8,181,87,10
     CONTROL         "EC [] 68EC030, 68EC040 and 68EC060 Transparent Translation Register emulation. Not compatible with JIT.",IDC_MMUENABLEEC,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,179,120,11
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,73,195,48,10
     CONTROL         "MMU [] 68030, 68040 and 68060 MMU emulation. Not compatible with JIT.",IDC_MMUENABLE,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,193,120,11
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,195,49,10
     CONTROL         "Unimplemented CPU emu [] Emulate 68060 unimplemented integer instructions",IDC_CPU_UNIMPLEMENTED,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,136,118,10
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,149,118,12
     GROUPBOX        "FPU",IDC_STATIC,1,212,129,103,BS_LEFT
     CONTROL         "None",IDC_FPU0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,8,223,87,10
     CONTROL         "68881",IDC_FPU1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,236,87,10
@@ -313,7 +313,9 @@ BEGIN
     CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,221,299,72,10
     CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,299,299,68,11
     CONTROL         "Softfloat FPU emulation",IDC_FPU_SOFTFLOAT,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,302,115,10
-    GROUPBOX        "MMU",IDC_STATIC,2,154,129,56,BS_LEFT
+    GROUPBOX        "MMU",IDC_STATIC,2,168,129,42,BS_LEFT
+    CONTROL         "Data cache emulation [] 68030, 040 and 060 optional data cache emulation. Requires More compatible option.",IDC_CPUDATACACHE,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,123,119,12
 END
 
 IDD_FLOPPY DIALOGEX 0, 0, 396, 261
@@ -1340,8 +1342,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,5,1,0
- PRODUCTVERSION 3,5,1,0
+ FILEVERSION 3,6,0,0
+ PRODUCTVERSION 3,6,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1357,12 +1359,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "3.5.1.0"
+            VALUE "FileVersion", "3.6.0.0"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2017 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "3.5.1.0"
+            VALUE "ProductVersion", "3.6.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1980,7 +1982,7 @@ BEGIN
     IDS_NUMSG_KICKREP       "You need to have a floppy disk (image file) in DF0: to use the system ROM replacement."
     IDS_NUMSG_KICKREPNO     "The floppy disk (image file) in DF0: is not compatible with the system ROM replacement functionality."
     IDS_NUMSG_NOROM         "Could not load system ROM, trying system ROM replacement."
-    IDS_HDCLONE_OK          "Hard drive image file created succesfully."
+    IDS_HDCLONE_OK          "Hard drive image file created successfully."
     IDS_HDCLONE_FAIL        "Hard drive image file creation failed.\nError %d:%d (%s)."
     IDS_NUMSG_KS68030       "The selected system ROM requires a 68030 CPU."
     IDS_NUMSG_EXPROMNEED    "One of the following expansion boot ROMs is required:\n\n%s\n\nCheck the System ROM path in the Paths panel and click Rescan ROMs."

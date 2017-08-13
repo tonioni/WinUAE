@@ -579,7 +579,7 @@ static __inline__ blockinfo* get_blockinfo_addr_new(void* addr, int setstate)
 
 static void prepare_block(blockinfo* bi);
 
-/* Managment of blockinfos.
+/* Management of blockinfos.
 
    A blockinfo struct is allocated whenever a new block has to be
    compiled. If the list of free blockinfos is empty, we allocate a new

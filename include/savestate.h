@@ -12,7 +12,7 @@
 #include "uae/types.h"
 
 /* functions to save byte,word or long word
- * independent of CPU's endianess */
+ * independent of CPU's endianness */
 
 extern void save_store_pos_func (uae_u8 **);
 extern void save_store_size_func (uae_u8 **);

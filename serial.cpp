@@ -163,7 +163,7 @@ void SERPER (uae_u16 w)
  *	 of an asynchronous read before switching blind
  *	 mode off again. It never gets there on UAE :-< )
  *
- *  -  RTS/CTS handshake, this is not really neccessary,
+ *  -  RTS/CTS handshake, this is not really necessary,
  *	 because you can use RTS/CTS "outside" without
  *	 passing it through to the emulated Amiga
  *
