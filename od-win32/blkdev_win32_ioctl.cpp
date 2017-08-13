@@ -503,9 +503,8 @@ void ioctl_next_cd_audio_buffer_callback(int bufnum)
 	uae_sem_post(&play_sem);
 }
 
-static void *cdda_play (void *v)
+static bool cdda_play2 (struct dev_info_ioctl *ciw, int *outpos)
 {
-	struct dev_info_ioctl *ciw = (struct dev_info_ioctl*)v;
 	int cdda_pos;
 	int bufnum;
 	int buffered;
@@ -515,6 +514,7 @@ static void *cdda_play (void *v)
 	int muteframes;
 	int readblocksize = 2352 + 96;
 	int mode = currprefs.sound_cdaudio;
+	bool restart = false;
 
 	while (ciw->cdda_play == 0)
 		sleep_millis(10);
@@ -589,20 +589,21 @@ static void *cdda_play (void *v)
 			}
 			cdda_pos -= idleframes;
 
-			_ftime (&tb2);
-			int diff = (tb2.time * (uae_s64)1000 + tb2.millitm) - (tb1.time * (uae_s64)1000 + tb1.millitm);
-			diff -= ciw->cdda_delay;
-			if (idleframes >= 0 && diff < 0 && ciw->cdda_play > 0)
-				sleep_millis(-diff);
-			if (diff > 0 && !seensub) {
-				int ch = diff / 7 + 25;
-				if (ch > idleframes)
-					ch = idleframes;
-				idleframes -= ch;
-				cdda_pos += ch;
+			if (*outpos < 0) {
+				_ftime (&tb2);
+				int diff = (tb2.time * (uae_s64)1000 + tb2.millitm) - (tb1.time * (uae_s64)1000 + tb1.millitm);
+				diff -= ciw->cdda_delay;
+				if (idleframes >= 0 && diff < 0 && ciw->cdda_play > 0)
+					sleep_millis(-diff);
+				if (diff > 0 && !seensub) {
+					int ch = diff / 7 + 25;
+					if (ch > idleframes)
+						ch = idleframes;
+					idleframes -= ch;
+					cdda_pos += ch;
+				}
+				setstate (ciw, AUDIO_STATUS_IN_PROGRESS, cdda_pos);
 			}
-
-			setstate (ciw, AUDIO_STATUS_IN_PROGRESS, cdda_pos);
 		}
 
 		if ((cdda_pos < ciw->cdda_end || ciw->cdda_end == 0xffffffff) && !ciw->cdda_paused && ciw->cdda_play) {
@@ -704,6 +705,11 @@ static void *cdda_play (void *v)
 		while (ciw->cdda_paused && ciw->cdda_play == oldplay)
 			sleep_millis(10);
 
+		if (cd_audio_mode_changed) {
+			restart = true;
+			goto end;
+		}
+
 		bufnum = 1 - bufnum;
 
 	}
@@ -712,16 +718,40 @@ end:
 
 	if (mode) {
 		ioctl_next_cd_audio_buffer_callback(-1);
+		if (restart)
+			audio_cda_new_buffer(NULL, -1, -1, NULL);
 	} else {
 		cda->wait (0);
 		cda->wait (1);
 	}
 
 	ciw->subcodevalid = false;
+	cd_audio_mode_changed = false;
 	delete cda;
 
-	ciw->cdda_play = 0;
 	write_log (_T("IOCTL CDDA: thread killed\n"));
+	return restart;
+}
+
+static void *cdda_play (void *v)
+{
+	int outpos = -1;
+	struct dev_info_ioctl *ciw = (struct dev_info_ioctl*)v;
+	cd_audio_mode_changed = false;
+	for (;;) {
+		if (!cdda_play2(ciw, &outpos)) {
+			break;
+		}
+		ciw->cdda_start = outpos;
+		if (ciw->cdda_start + 150 >= ciw->cdda_end) {
+			if (ciw->cdda_play >= 0)
+				setstate (ciw, AUDIO_STATUS_PLAY_COMPLETE, ciw->cdda_end + 1);
+			ciw->cdda_play = -1;
+			break;
+		}
+		ciw->cdda_play = 1;
+	}
+	ciw->cdda_play = 0;
 	return NULL;
 }
 

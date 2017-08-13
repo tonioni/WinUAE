@@ -458,7 +458,7 @@ static void next_cd_audio_buffer_callback(int bufnum)
 	uae_sem_post(&play_sem);
 }
 
-static void *cdda_play_func (void *v)
+static bool cdda_play_func2 (struct cdunit *cdu, int *outpos)
 {
 	int cdda_pos;
 	int bufnum;
@@ -466,9 +466,9 @@ static void *cdda_play_func (void *v)
 	int idleframes = 0;
 	int silentframes = 0;
 	bool foundsub;
-	struct cdunit *cdu = (struct cdunit*)v;
 	int oldtrack = -1;
 	int mode = currprefs.sound_cdaudio;
+	bool restart = false;
 
 	cdu->thread_active = true;
 
@@ -545,12 +545,14 @@ static void *cdda_play_func (void *v)
 			}
 			cdda_pos -= idleframes;
 
-			_ftime (&tb2);
-			diff = (tb2.time * (uae_s64)1000 + tb2.millitm) - (tb1.time * (uae_s64)1000 + tb1.millitm);
-			diff -= cdu->cdda_delay;
-			if (idleframes >= 0 && diff < 0 && cdu->cdda_play > 0)
-				sleep_millis(-diff);
-			setstate (cdu, AUDIO_STATUS_IN_PROGRESS, cdda_pos);
+			if (*outpos < 0) {
+				_ftime (&tb2);
+				diff = (tb2.time * (uae_s64)1000 + tb2.millitm) - (tb1.time * (uae_s64)1000 + tb1.millitm);
+				diff -= cdu->cdda_delay;
+				if (idleframes >= 0 && diff < 0 && cdu->cdda_play > 0)
+					sleep_millis(-diff);
+				setstate (cdu, AUDIO_STATUS_IN_PROGRESS, cdda_pos);
+			}
 
 			sector = cdda_pos;
 			struct cdtoc *t1 = findtoc (cdu, &sector, false);
@@ -568,8 +570,13 @@ static void *cdda_play_func (void *v)
 		}
 
 		if (mode) {
-			while (cda_bufon[bufnum] && cdu->cdda_play > 0)
+			while (cda_bufon[bufnum] && cdu->cdda_play > 0) {
+				if (cd_audio_mode_changed) {
+					restart = true;
+					goto end;
+				}
 				sleep_millis(10);
+			}
 		} else {
 			cda->wait(bufnum);
 		}
@@ -702,12 +709,20 @@ static void *cdda_play_func (void *v)
 				sleep_millis(10);
 		}
 
+		if (cd_audio_mode_changed) {
+			restart = true;
+			goto end;
+		}
+
 		bufnum = 1 - bufnum;
 	}
 
 end:
+	*outpos = cdda_pos;
 	if (mode) {
 		next_cd_audio_buffer_callback(-1);
+		if (restart)
+			audio_cda_new_buffer(NULL, -1, -1, NULL);
 	} else {
 		cda->wait (0);
 		cda->wait (1);
@@ -718,12 +733,33 @@ end:
 
 	delete cda;
 
-	cdu->cdda_play = 0;
-	write_log (_T("IMAGE CDDA: thread killed\n"));
+	write_log (_T("IMAGE CDDA: thread killed (%s)\n"), restart ? _T("restart") : _T("play end"));
+	cd_audio_mode_changed = false;
+	return restart;
+}
+
+static void *cdda_play_func (void *v)
+{
+	int outpos = -1;
+	struct cdunit *cdu = (struct cdunit*)v;
+	cd_audio_mode_changed = false;
+	for (;;) {
+		if (!cdda_play_func2(cdu, &outpos)) {
+			cdu->cdda_play = 0;
+			break;
+		}
+		cdu->cdda_start = outpos;
+		if (cdu->cdda_start + 150 >= cdu->cdda_end) {
+			if (cdu->cdda_play >= 0)
+				setstate (cdu, AUDIO_STATUS_PLAY_COMPLETE, cdu->cdda_end + 1);
+			cdu->cdda_play = -1;
+			break;
+		}
+		cdu->cdda_play = 1;
+	}
 	cdu->thread_active = false;
 	return NULL;
 }
-
 
 static void cdda_stop (struct cdunit *cdu)
 {

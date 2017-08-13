@@ -1404,6 +1404,17 @@ static void cd32_fmv_audio_handler(void)
 	if (!fmv_ram_bank.baseaddr)
 		return;
 
+	if (cd_audio_mode_changed) {
+		cd_audio_mode_changed = false;
+		if (cl450_play) {
+			if (audio_mode) {
+				audio_cda_new_buffer(NULL, -1, -1, NULL);
+			}
+			audio_mode = currprefs.sound_cdaudio;
+			fmv_bufon[0] = fmv_bufon[1] = 0;
+		}
+	}
+
 	if (cl450_buffer_offset == 0) {
 		if (cl450_buffer_empty_cnt >= 2)
 			cl450_set_status(CL_INT_UND);

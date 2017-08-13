@@ -53,6 +53,7 @@
 #define PERIOD_MIN_NONCE 60
 
 int audio_channel_mask = 15;
+volatile bool cd_audio_mode_changed;
 
 STATIC_INLINE bool isaudio (void)
 {
@@ -1946,6 +1947,7 @@ void set_audio (void)
 		events_schedule ();
 	}
 	set_config_changed ();
+	cd_audio_mode_changed = true;
 }
 
 void update_audio (void)
@@ -2492,6 +2494,11 @@ static bool audio_state_cda(int streamid)
 
 void audio_cda_new_buffer(uae_s16 *buffer, int length, int userdata, CDA_CALLBACK next_cd_audio_buffer_callback)
 {
+	if (length < 0 && cda_streamid > 0) {
+		audio_enable_stream(false, cda_streamid, 0, NULL);
+		cda_streamid = 0;
+		return;
+	}
 	if (!buffer) {
 		cda_bufptr = dummy_buffer;
 		cda_length = 0;

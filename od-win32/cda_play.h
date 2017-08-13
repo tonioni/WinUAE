@@ -3,6 +3,8 @@
 #include <dsound.h>
 #endif
 
+extern volatile bool cd_audio_mode_changed;
+
 class cda_audio
 {
 private:
