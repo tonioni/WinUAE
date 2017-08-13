@@ -1,4 +1,3 @@
-extern void D3D_resize (int width, int height);
 extern void D3D_free (bool immediate);
 extern const TCHAR *D3D_init (HWND ahwnd, int w_w, int h_h, int depth, int *freq, int mmult);
 extern bool D3D_alloctexture (int, int);
@@ -21,8 +20,8 @@ extern bool D3D_getvblankpos (int *vpos);
 extern double D3D_getrefreshrate (void);
 extern void D3D_vblank_reset (double freq);
 extern void D3D_restore (void);
-extern LPDIRECT3DTEXTURE9 cursorsurfaced3d;
 extern LPDIRECT3DSURFACE9 D3D_capture(int*,int*,int*);
+extern LPDIRECT3DTEXTURE9 D3D_getcursorsurface(void);
 
 #define CURSORMAXWIDTH 64
 #define CURSORMAXHEIGHT 64
