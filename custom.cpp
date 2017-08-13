@@ -399,7 +399,7 @@ static uae_u32 thisline_changed;
 
 static struct decision thisline_decision;
 static int fetch_cycle, fetch_modulo_cycle;
-static bool aga_plf_passed_stop2;
+static int aga_plf_passed_stop2;
 static int plf_start_hpos, plf_end_hpos;
 static int ddfstop_written_hpos;
 static int bitplane_off_delay;
@@ -2313,7 +2313,7 @@ static void reset_bpl_vars(void)
  */
 static void maybe_finish_last_fetch (int pos, int fm)
 {
-	if (plf_state > plf_passed_stop2 || plf_state < plf_passed_stop || (fetch_state != fetch_started && fetch_state != fetch_started_first) || !dmaen (DMA_BITPLANE)) {
+	if (plf_state > plf_passed_stop2 || plf_state < plf_passed_stop || (fetch_state != fetch_started && fetch_state != fetch_started_first) || !dmaen (DMA_BITPLANE) || bitplane_maybe_start_hpos >= 0x100) {
 		finish_last_fetch (pos, fm, true);
 	} else {
 		bitplane_overrun_fetch_cycle = fetch_cycle - 1;
@@ -2413,6 +2413,10 @@ static void do_overrun_fetch(int until, int fm)
 #endif
 
 		if ((bitplane_overrun_fetch_cycle & fetchunit_mask) == fetchunit_mask) {
+			if (bitplane_overrun < 0) {
+				bitplane_overrun = 0;
+				return;
+			}
 			bitplane_overrun--;
 			if (hit && warned > 0) {
 				warned--;
@@ -2555,8 +2559,8 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int dma, int fm)
 			// if AGA: consider plf_passed_stop2 already
 			// active when last plane has been written,
 			// even if there is still idle cycles left
-			if (plf_state == plf_passed_stop_act)
-				aga_plf_passed_stop2 = true;
+			if (!aga_plf_passed_stop2 && plf_state >= plf_passed_stop_act)
+				aga_plf_passed_stop2 = pos + ((8 << fetchmode) - cycle_start);
 			break;
 #endif
 			}
@@ -2569,8 +2573,8 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int dma, int fm)
 			case 3: fetch (0, fm, modulo, pos); break;
 #ifdef AGA
 			default:
-			if (plf_state == plf_passed_stop_act)
-				aga_plf_passed_stop2 = true;
+			if (!aga_plf_passed_stop2 && plf_state >= plf_passed_stop_act)
+				aga_plf_passed_stop2 = pos + ((8 << fetchmode) - cycle_start);
 			break;
 #endif
 			}
@@ -2581,8 +2585,8 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int dma, int fm)
 			case 1: fetch (0, fm, modulo, pos); break;
 #ifdef AGA
 			default:
-			if (plf_state == plf_passed_stop_act)
-				aga_plf_passed_stop2 = true;
+			if (!aga_plf_passed_stop2 && plf_state >= plf_passed_stop_act)
+				aga_plf_passed_stop2 = pos + ((8 << fetchmode) - cycle_start);
 			break;
 #endif
 			}
@@ -2883,6 +2887,14 @@ static void start_bpl_dma (int hstart)
 
 	} else {
 		
+		// Bitplane DMA restart during FMODE>0 idle cycles?
+		if (aga_plf_passed_stop2) {
+			if (aga_plf_passed_stop2 > hstart)
+				aga_plf_passed_stop2 = hstart;
+			thisline_decision.plfright = aga_plf_passed_stop2;
+			aga_plf_passed_stop2 = 0;
+		}
+
 		flush_display (fetchmode);
 		// Calculate difference between last end to new start
 		int diff = (hstart - thisline_decision.plfright) << (1 + toscr_res);
@@ -2895,6 +2907,7 @@ static void start_bpl_dma (int hstart)
 		if (diff)
 			toscr_1 (diff, fetchmode);
 
+		fetch_cycle = 0;
 		cycle_diagram_shift = hstart;
 		update_denise (last_fetch_hpos);
 		update_fetch_x (hstart, fetchmode);
@@ -2957,7 +2970,7 @@ static void decide_line (int hpos)
 		}
 	}
 
-	if (fetch_state == fetch_not_started) {
+	if (fetch_state == fetch_not_started || aga_plf_passed_stop2) {
 		bool strtpassed = false;
 		plfstate nextstate = plf_end;
 		int hstart;
@@ -3041,6 +3054,8 @@ static void decide_line (int hpos)
 						hstart = plfstop + DDF_OFFSET;
 						test = true;
 						nextstate = plf_passed_stop;
+						// inform overrun code that this won't overrun.
+						bitplane_maybe_start_hpos = 0x100;
 					}
 				}
 			}
@@ -3970,7 +3985,7 @@ static void reset_decisions (void)
 		memset (todisplay_aga, 0, sizeof todisplay_aga);
 		memset (todisplay2_aga, 0, sizeof todisplay2_aga);
 	}
-	aga_plf_passed_stop2 = false;
+	aga_plf_passed_stop2 = 0;
 #endif
 
 	if (bitplane_line_crossing) {
@@ -8037,6 +8052,7 @@ static void hsync_scandoubler (void)
 {
 	int i, idx1;
 	struct draw_info *dip1;
+	uae_u16 odmacon = dmacon;
 	uaecptr bpltmp[8], bpltmpx[8];
 
 	if (lof_store && vpos >= maxvpos_nom - 1)
@@ -8048,18 +8064,25 @@ static void hsync_scandoubler (void)
 	debug_dma = 0;
 #endif
 
+	if (lof_store && (vpos & 1) && vpos == plflastline - 1) {
+		// blank last line if it is odd line
+		dmacon &= ~DMA_BITPLANE;
+	}
+
 	for (i = 0; i < 8; i++) {
 		int diff;
 		bpltmp[i] = bplpt[i];
 		bpltmpx[i] = bplptx[i];
-		if (prevbpl[lof_store][vpos][i] && prevbpl[1 - lof_store][vpos][i]) {
-			diff = prevbpl[lof_store][vpos][i] - prevbpl[1 - lof_store][vpos][i];
+		uaecptr pb1 = prevbpl[lof_store][vpos][i];
+		uaecptr pb2 = prevbpl[1 - lof_store][vpos][i];
+		if (pb1 && pb2) {
+			diff = pb1 - pb2;
 			if (lof_store) {
 				if (bplcon0 & 4)
-					bplpt[i] = prevbpl[lof_store][vpos][i] - diff;
+					bplpt[i] = pb1 - diff;
 			} else {
 				if (bplcon0 & 4)
-					bplpt[i] = prevbpl[lof_store][vpos][i];
+					bplpt[i] = pb1;
 				else
 					bplpt[i] = bplpt[i] - diff;
 
@@ -8098,6 +8121,8 @@ static void hsync_scandoubler (void)
 	hsync_record_line_state (next_lineno, nln_normal, thisline_changed);
 	hardware_line_completed (next_lineno);
 	scandoubled_line = 0;
+
+	dmacon = odmacon;
 
 	for (i = 0; i < 8; i++) {
 		bplpt[i] = bpltmp[i];
