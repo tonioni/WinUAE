@@ -350,7 +350,9 @@ static int fsdb_name_invalid_2 (a_inode *aino, const TCHAR *n, int dir)
 	int v = fsdb_name_invalid_2x(n, dir);
 	if (v <= 1 || !aino)
 		return v;
-	TCHAR *p = build_nname (aino->nname, n);
+	if (!os_win7)
+		return 1;
+	TCHAR *p = build_nname(aino->nname, n);
 	HANDLE h = CreateFile(p, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	DWORD err = -1;
 	DWORD type = -1;
@@ -364,7 +366,7 @@ static int fsdb_name_invalid_2 (a_inode *aino, const TCHAR *n, int dir)
 	xfree(p);
 	if (h != INVALID_HANDLE_VALUE && type != FILE_TYPE_DISK)
 		return 1;
-	if (err == ERROR_INVALID_NAME)
+	if (err == ERROR_INVALID_NAME || err == ERROR_ACCESS_DENIED)
 		return 1;
 	return 0;
 }
