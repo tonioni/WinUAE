@@ -4,6 +4,15 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 2:
+
+- Read Identity and floppy drive bootblock font size ignored DPI setting.
+- Multiple 68030 non-MMU and MMU mode fixes.
+- 68030 data cache emulation was not compatible with indirect boot ROM. Note that this requires either 68030 CACR Write Allocate bit off or MMU setup that inhibits caching. (If write allocate is enabled and MMU does not inhibit caching: long aligned writes to cache inhibited regions will allocate data cache lines!)
+- Previously accidentally working 6888x <> 68040 on the fly switch is now a feature. If unimplemented fpu emu is ticked and FRESTORE frame matches other FPU, use matching FPU emulator to execute it and do not generate exception.
+- L debugger command fixed, also length is now optional (=read until end of file)
+- AGA bitplane special case missed a check and broke many AGA programs.
+- Windows illegal name check fix.
 
 Beta 1:
 

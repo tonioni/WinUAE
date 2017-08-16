@@ -755,10 +755,24 @@ static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq)
 	return false;
 }
 
+static bool do_scsi_read10_chs(HANDLE handle, int c, int h, int s, uae_u8 *data)
+{
+	uae_u8 cmd[10] = { 0 };
+	cmd[0] = 0x28;
+	cmd[2] = h & 15;
+	cmd[3] = c >> 8;
+	cmd[4] = c;
+	cmd[5] = s;
+	cmd[8] = 1;
+	return do_scsi_in(handle, cmd, 10, data, 512);
+}
+
 static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, struct ini_data *ini)
 {
 	uae_u8 cmd[16];
 	TCHAR cline[256];
+	bool invalidcapacity = false;
+	bool ret = false;
 
 	memset(cmd, 0, sizeof(cmd));
 	cmd[0] = 0x12; // inquiry
@@ -793,6 +807,8 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 		bintotextline(text, data, 8);
 		_tcscat (text, _T("\r\n"));
 		ini_addnewdata(ini, _T("READ CAPACITY"), _T("DATA"), data, 8);
+		if (data[0] == 0xff && data[1] == 0xff && data[2] == 0xff && data[3] == 0xff)
+			invalidcapacity = true;
 	}
 
 	// get supported evpd pages
@@ -897,7 +913,7 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 		cmd[6] = 1; // block count
 		cmd[14] = 0xa1; // identity packet device
 		if (do_scsi_in(h, cmd, 16, data, 512))
-			return true;
+			ret = true;
 		write_log(_T("SAT: ATA PASSTHROUGH(16) failed\n"));
 
 	} else {
@@ -910,11 +926,52 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 		cmd[4] = 1; // block count
 		cmd[9] = 0xec; // identity
 		if (do_scsi_in(h, cmd, 12, data, 512))
-			return true;
+			ret = true;
 		write_log(_T("SAT: ATA PASSTHROUGH(12) failed\n"));
 	}
 
-	return false;
+	if (0 && invalidcapacity) {
+		bool chs0 = do_scsi_read10_chs(h, 0, 0, 0, data);
+		bool chs1 = do_scsi_read10_chs(h, 0, 0, 1, data);
+		if (!chs0 && chs1) {
+			int cc, hh, ss;
+			for (ss = 1; ss < 256; ss++) {
+				if (!do_scsi_read10_chs(h, 0, 0, ss, data)) {
+					ss--;
+					break;
+				}
+			}
+			write_log(_T("Sectors=%d\n"), ss);
+			for (hh = 0; hh < 16; hh++) {
+				if (!do_scsi_read10_chs(h, 0, hh, 1, data)) {
+					hh--;
+					break;
+				}
+			}
+			write_log(_T("Heads=%d\n"), hh);
+			if (hh <= 0 || ss <= 1 || ss >= 256) {
+				write_log(_T("Invalid H and/or S value.\n"));
+				goto end;
+			}
+			for (cc = 0; cc < 10000; cc++) {
+				write_log(_T("%d "), cc);
+				for (int hhh = 0; hhh < hh; hhh++) {
+					for(int sss = 1; sss < ss; sss++) {
+						if (!do_scsi_read10_chs(h, cc, hhh, sss, data)) {
+							write_log("\n\n");
+							if (hhh != 0 || sss != 1) {
+								write_log(_T("Read error when not first head and sector! %d:%d:%d\n"), cc, hhh, sss);
+							}
+							goto end;
+						}
+					}
+				}
+			}
+			end:;
+		}
+	}
+
+	return ret;
 }
 
 static int stringboxdialogactive;
@@ -1077,7 +1134,7 @@ doout:
 	hdini = ini;
 	HWND hwnd = CustomCreateDialog (IDD_DISKINFO, hDlg, StringBoxDialogProc);
 	if (hwnd != NULL) {
-		HFONT font = CreateFont (12, 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
+		HFONT font = CreateFont (getscaledfontsize(-1), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
 		if (font)
 			SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETFONT, WPARAM(font), FALSE);
 		SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETTEXT, 0, (LPARAM)text);
