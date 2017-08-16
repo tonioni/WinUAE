@@ -328,7 +328,7 @@ void fixup_cpu (struct uae_prefs *p)
 		p->cpu_data_cache = false;
 		error_log(_T("Data cache emulation requires More compatible, is not JIT compatible, 68030+ only."));
 	}
-	if (p->cpu_data_cache && (currprefs.uaeboard != 3 && uae_boot_rom_type > 0)) {
+	if (p->cpu_data_cache && (p->uaeboard != 3 && need_uae_boot_rom(p))) {
 		p->cpu_data_cache = false;
 		error_log(_T("Data cache emulation requires Indirect UAE Boot ROM."));
 	}
