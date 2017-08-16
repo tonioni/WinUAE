@@ -47,5 +47,5 @@ extern void scaleresource_setdefaults (void);
 extern void scaleresource_setfont (HWND hDlg);
 extern void scaleresource_getdpimult (double*, double*, int*, int*);
 extern void scalaresource_listview_font_info(int*);
-
+extern int getscaledfontsize(int size);
 #endif

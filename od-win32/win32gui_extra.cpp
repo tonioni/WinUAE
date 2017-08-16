@@ -325,6 +325,16 @@ void freescaleresource (struct newresource *ns)
 	xfree (ns);
 }
 
+int getscaledfontsize(int size)
+{
+	HDC hdc = GetDC(NULL);
+	if (size <= 0)
+		size = fontsize_gui;
+	size = -MulDiv(size, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+	ReleaseDC(NULL, hdc);
+	return size;
+}
+
 static void openfont (bool force)
 {
 	HDC hdc;
