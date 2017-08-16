@@ -1184,11 +1184,11 @@ static bool fault_if_no_6888x (uae_u16 opcode, uae_u16 extra, uaecptr oldpc)
 	return false;
 }
 
-static int get_fpu_version (void)
+static int get_fpu_version (int model)
 {
 	int v = 0;
 
-	switch (currprefs.fpu_model)
+	switch (model)
 	{
 	case 68881:
 	case 68882:
@@ -1965,7 +1965,7 @@ void fpuop_save (uae_u32 opcode)
 {
 	uae_u32 ad, adp;
 	int incr = (opcode & 0x38) == 0x20 ? -1 : 1;
-	int fpu_version = get_fpu_version ();
+	int fpu_version = get_fpu_version (currprefs.fpu_model);
 	uaecptr pc = m68k_getpc () - 2;
 	int i;
 
@@ -2211,8 +2211,9 @@ static bool fp_arithmetic(fpdata *src, fpdata *dst, int extra);
 
 void fpuop_restore (uae_u32 opcode)
 {
-	int fpu_version = get_fpu_version();
+	int fpu_version;
 	int frame_version;
+	int fpu_model = currprefs.fpu_model;
 	uaecptr pc = m68k_getpc () - 2;
 	uae_u32 ad, ad_orig;
 	uae_u32 d;
@@ -2237,16 +2238,18 @@ void fpuop_restore (uae_u32 opcode)
 	ad_orig = ad;
 	regs.fpiar = pc;
 
-//	write_log(_T("FRESTORE %08x %08x\n"), M68K_GETPC, ad);
+	// write_log(_T("FRESTORE %08x %08x\n"), M68K_GETPC, ad);
 
 	// FRESTORE does not support predecrement
 
 	d = x_get_long (ad);
-	ad += 4;
 
 	frame_version = (d >> 24) & 0xff;
 
-	if (currprefs.fpu_model == 68060) {
+retry:
+	ad = ad_orig + 4;
+	fpu_version = get_fpu_version(fpu_model);
+	if (fpu_model == 68060) {
 		int ff = (d >> 8) & 0xff;
 		uae_u32 v = d & 0x7;
 		fsave_data.eo[0] = d & 0xffff0000;
@@ -2268,14 +2271,14 @@ void fpuop_restore (uae_u32 opcode)
 				regs.fp_exp_pend = 48 + v;
 			}
 		} else if (ff) {
-			write_log (_T("FRESTORE invalid frame format %02X! ADDR=%08x\n"), ff, ad_orig);
+			write_log (_T("FRESTORE invalid frame format %02x %08x ADDR=%08x\n"), ff, d, ad_orig);
 			Exception(14);
 			return;
 		} else {
 			fpu_null();
 		}
 
-	} else if (currprefs.fpu_model == 68040) {
+	} else if (fpu_model == 68040) {
 
 		 if (frame_version == fpu_version) { // not null frame
 			uae_u32 frame_size = (d >> 16) & 0xff;
@@ -2350,7 +2353,7 @@ void fpuop_restore (uae_u32 opcode)
 				regs.fpu_state = 1;
 				regs.fpu_exp_state = 0;
 			} else {
-				write_log (_T("FRESTORE invalid frame size %02X %08x\n"), frame_size, ad_orig);
+				write_log (_T("FRESTORE invalid frame size %02x %08x %08x\n"), frame_size, d, ad_orig);
 
 				Exception(14);
 				return;
@@ -2359,7 +2362,12 @@ void fpuop_restore (uae_u32 opcode)
 		} else if (frame_version == 0x00) { // null frame
 			fpu_null();
 		} else {
-			write_log (_T("FRESTORE invalid frame version %02X %08x\n"), frame_version, ad_orig);
+			if (!currprefs.fpu_no_unimplemented && frame_version == 0x1f && currprefs.fpu_model == fpu_model) {
+				// horrible hack to support on the fly 6888x <> 68040 FPU switching
+				fpu_model = 68881;
+				goto retry;
+			}
+			write_log (_T("FRESTORE 68040 (%d) invalid frame version %02x %08x %08x\n"), fpu_model, frame_version, d, ad_orig);
 			Exception(14);
 			return;
 		}
@@ -2400,14 +2408,19 @@ void fpuop_restore (uae_u32 opcode)
 				write_log (_T("FRESTORE of busy frame not supported %08x\n"), ad_orig);
 				ad += frame_size;
 			} else {
-				write_log (_T("FRESTORE invalid frame size %02X %08x\n"), frame_size, ad_orig);
+				write_log (_T("FRESTORE invalid frame size %02x %08x %08x\n"), frame_size, d, ad_orig);
 				Exception(14);
 				return;
 			}
 		} else if (frame_version == 0x00) { // null frame
 			fpu_null();
 		} else {
-			write_log (_T("FRESTORE invalid frame version %02X %08x\n"), frame_version, ad_orig);
+			if (!currprefs.fpu_no_unimplemented && (frame_version == 0x40 || frame_version == 0x41) && currprefs.fpu_model == fpu_model) {
+				// horrible hack to support on the fly 6888x <> 68040 FPU switching
+				fpu_model = 68040;
+				goto retry;
+			}
+			write_log (_T("FRESTORE 6888x (%d) invalid frame version %02x %08x %08x\n"), fpu_model, frame_version, d, ad_orig);
 			Exception(14);
 			return;
 		}
