@@ -241,27 +241,54 @@ extern void continue_ce030_prefetch(void);
 extern uae_u32 get_word_ce030_prefetch(int);
 extern uae_u32 get_word_ce030_prefetch_opcode(int);
 
-STATIC_INLINE void put_long_ce030 (uaecptr addr, uae_u32 v)
-{
-	write_dcache030_lput(addr, v, (regs.s ? 4 : 0) | 1);
-}
-STATIC_INLINE void put_word_ce030 (uaecptr addr, uae_u32 v)
-{
-	write_dcache030_wput(addr, v, (regs.s ? 4 : 0) | 1);
-}
-STATIC_INLINE void put_byte_ce030 (uaecptr addr, uae_u32 v)
-{
-	write_dcache030_bput(addr, v, (regs.s ? 4 : 0) | 1);
-}
 STATIC_INLINE uae_u32 get_long_ce030 (uaecptr addr)
 {
-	return read_dcache030_lget(addr, (regs.s ? 4 : 0) | 1);
+	return mem_access_delay_long_read_ce020 (addr);
 }
 STATIC_INLINE uae_u32 get_word_ce030 (uaecptr addr)
 {
-	return read_dcache030_wget(addr, (regs.s ? 4 : 0) | 1);
+	return mem_access_delay_word_read_ce020 (addr);
 }
 STATIC_INLINE uae_u32 get_byte_ce030 (uaecptr addr)
+{
+	return mem_access_delay_byte_read_ce020 (addr);
+}
+
+STATIC_INLINE void put_long_ce030 (uaecptr addr, uae_u32 v)
+{
+	mem_access_delay_long_write_ce020 (addr, v);
+}
+STATIC_INLINE void put_word_ce030 (uaecptr addr, uae_u32 v)
+{
+	mem_access_delay_word_write_ce020 (addr, v);
+}
+STATIC_INLINE void put_byte_ce030 (uaecptr addr, uae_u32 v)
+{
+	mem_access_delay_byte_write_ce020 (addr, v);
+}
+
+
+STATIC_INLINE void put_long_dc030 (uaecptr addr, uae_u32 v)
+{
+	write_dcache030_lput(addr, v, (regs.s ? 4 : 0) | 1);
+}
+STATIC_INLINE void put_word_dc030 (uaecptr addr, uae_u32 v)
+{
+	write_dcache030_wput(addr, v, (regs.s ? 4 : 0) | 1);
+}
+STATIC_INLINE void put_byte_dc030 (uaecptr addr, uae_u32 v)
+{
+	write_dcache030_bput(addr, v, (regs.s ? 4 : 0) | 1);
+}
+STATIC_INLINE uae_u32 get_long_dc030 (uaecptr addr)
+{
+	return read_dcache030_lget(addr, (regs.s ? 4 : 0) | 1);
+}
+STATIC_INLINE uae_u32 get_word_dc030 (uaecptr addr)
+{
+	return read_dcache030_wget(addr, (regs.s ? 4 : 0) | 1);
+}
+STATIC_INLINE uae_u32 get_byte_dc030 (uaecptr addr)
 {
 	return read_dcache030_bget(addr, (regs.s ? 4 : 0) | 1);
 }
@@ -290,12 +317,12 @@ STATIC_INLINE uae_u32 next_ilong_030ce (void)
 STATIC_INLINE void m68k_do_bsr_ce030 (uaecptr oldpc, uae_s32 offset)
 {
 	m68k_areg (regs, 7) -= 4;
-	put_long_ce030 (m68k_areg (regs, 7), oldpc);
+	x_put_long (m68k_areg (regs, 7), oldpc);
 	m68k_incpci (offset);
 }
 STATIC_INLINE void m68k_do_rts_ce030 (void)
 {
-	m68k_setpc (get_long_ce030 (m68k_areg (regs, 7)));
+	m68k_setpc (x_get_long (m68k_areg (regs, 7)));
 	m68k_areg (regs, 7) += 4;
 }
 

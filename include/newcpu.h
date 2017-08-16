@@ -538,6 +538,13 @@ extern void(*write_data_030_bput)(uaecptr,uae_u32);
 extern void(*write_data_030_wput)(uaecptr,uae_u32);
 extern void(*write_data_030_lput)(uaecptr,uae_u32);
 
+extern uae_u32(*read_data_030_fc_bget)(uaecptr, uae_u32);
+extern uae_u32(*read_data_030_fc_wget)(uaecptr, uae_u32);
+extern uae_u32(*read_data_030_fc_lget)(uaecptr, uae_u32);
+extern void(*write_data_030_fc_bput)(uaecptr, uae_u32, uae_u32);
+extern void(*write_data_030_fc_wput)(uaecptr, uae_u32, uae_u32);
+extern void(*write_data_030_fc_lput)(uaecptr, uae_u32, uae_u32);
+
 extern void write_dcache030_bput(uaecptr, uae_u32, uae_u32);
 extern void write_dcache030_wput(uaecptr, uae_u32, uae_u32);
 extern void write_dcache030_lput(uaecptr, uae_u32, uae_u32);

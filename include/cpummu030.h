@@ -242,7 +242,6 @@ uae_u8 uae_mmu030_check_fc(uaecptr addr, bool write, uae_u32 size);
 
 // non-cache
 
-
 static ALWAYS_INLINE uae_u32 sfc030_get_long(uaecptr addr)
 {
     uae_u32 fc = regs.sfc;
@@ -506,14 +505,39 @@ extern void m68k_do_rte_mmu030 (uaecptr a7);
 extern void flush_mmu030 (uaecptr, int);
 extern void m68k_do_bsr_mmu030 (uaecptr oldpc, uae_s32 offset);
 
-// cache
+// more compatible + optional cache
+
+static ALWAYS_INLINE uae_u32 mmu030_get_fc_byte(uaecptr addr, uae_u32 fc)
+{
+	return mmu030_get_byte(addr, fc);
+}
+static ALWAYS_INLINE uae_u32 mmu030_get_fc_word(uaecptr addr, uae_u32 fc)
+{
+	return mmu030_get_word(addr, fc);
+}
+static ALWAYS_INLINE uae_u32 mmu030_get_fc_long(uaecptr addr, uae_u32 fc)
+{
+	return mmu030_get_long(addr, fc);
+}
+static ALWAYS_INLINE void mmu030_put_fc_byte(uaecptr addr, uae_u32 val, uae_u32 fc)
+{
+	mmu030_put_byte(addr, val, fc);
+}
+static ALWAYS_INLINE void mmu030_put_fc_word(uaecptr addr, uae_u32 val, uae_u32 fc)
+{
+	mmu030_put_word(addr, val, fc);
+}
+static ALWAYS_INLINE void mmu030_put_fc_long(uaecptr addr, uae_u32 val, uae_u32 fc)
+{
+	mmu030_put_long(addr, val, fc);
+}
 
 static ALWAYS_INLINE uae_u32 sfc030c_get_long(uaecptr addr)
 {
 #if MMUDEBUG > 2
 	write_log(_T("sfc030_get_long: FC = %i\n"),fc);
 #endif
-	return read_dcache030_lget(addr, regs.sfc);
+	return read_data_030_fc_lget(addr, regs.sfc);
 }
 
 static ALWAYS_INLINE uae_u16 sfc030c_get_word(uaecptr addr)
@@ -521,7 +545,7 @@ static ALWAYS_INLINE uae_u16 sfc030c_get_word(uaecptr addr)
 #if MMUDEBUG > 2
 	write_log(_T("sfc030_get_word: FC = %i\n"),fc);
 #endif
-	return read_dcache030_wget(addr, regs.sfc);
+	return read_data_030_fc_wget(addr, regs.sfc);
 }
 
 static ALWAYS_INLINE uae_u8 sfc030c_get_byte(uaecptr addr)
@@ -529,7 +553,7 @@ static ALWAYS_INLINE uae_u8 sfc030c_get_byte(uaecptr addr)
 #if MMUDEBUG > 2
 	write_log(_T("sfc030_get_byte: FC = %i\n"),fc);
 #endif
-	return read_dcache030_bget(addr, regs.sfc);
+	return read_data_030_fc_bget(addr, regs.sfc);
 }
 
 static ALWAYS_INLINE void dfc030c_put_long(uaecptr addr, uae_u32 val)
@@ -537,7 +561,7 @@ static ALWAYS_INLINE void dfc030c_put_long(uaecptr addr, uae_u32 val)
 #if MMUDEBUG > 2
 	write_log(_T("dfc030_put_long: %08X = %08X FC = %i\n"), addr, val, fc);
 #endif
-	write_dcache030_lput(addr, val, regs.dfc);
+	write_data_030_fc_lput(addr, val, regs.dfc);
 }
 
 static ALWAYS_INLINE void dfc030c_put_word(uaecptr addr, uae_u16 val)
@@ -545,7 +569,7 @@ static ALWAYS_INLINE void dfc030c_put_word(uaecptr addr, uae_u16 val)
 #if MMUDEBUG > 2
 	write_log(_T("dfc030_put_word: %08X = %04X FC = %i\n"), addr, val, fc);
 #endif
-	write_dcache030_wput(addr, val, regs.dfc);
+	write_data_030_fc_wput(addr, val, regs.dfc);
 }
 
 static ALWAYS_INLINE void dfc030c_put_byte(uaecptr addr, uae_u8 val)
@@ -553,7 +577,7 @@ static ALWAYS_INLINE void dfc030c_put_byte(uaecptr addr, uae_u8 val)
 #if MMUDEBUG > 2
 	write_log(_T("dfc030_put_byte: %08X = %02X FC = %i\n"), addr, val, fc);
 #endif
-	write_dcache030_bput(addr, val, regs.dfc);
+	write_data_030_fc_bput(addr, val, regs.dfc);
 }
 
 uae_u32 REGPARAM3 get_disp_ea_020_mmu030c (uae_u32 base, int idx) REGPARAM;

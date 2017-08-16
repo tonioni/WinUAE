@@ -786,9 +786,17 @@ uae_u32(*read_data_030_wget)(uaecptr);
 uae_u32(*read_data_030_lget)(uaecptr);
 void(*write_data_030_bput)(uaecptr,uae_u32);
 void(*write_data_030_wput)(uaecptr,uae_u32);
- void(*write_data_030_lput)(uaecptr,uae_u32);
+void(*write_data_030_lput)(uaecptr,uae_u32);
 
-static void set_x_ifetches(void)
+uae_u32(*read_data_030_fc_bget)(uaecptr, uae_u32);
+uae_u32(*read_data_030_fc_wget)(uaecptr, uae_u32);
+uae_u32(*read_data_030_fc_lget)(uaecptr, uae_u32);
+void(*write_data_030_fc_bput)(uaecptr, uae_u32, uae_u32);
+void(*write_data_030_fc_wput)(uaecptr, uae_u32, uae_u32);
+void(*write_data_030_fc_lput)(uaecptr, uae_u32, uae_u32);
+
+ 
+ static void set_x_ifetches(void)
 {
 	if (m68k_pc_indirect) {
 		if (currprefs.cachesize) {
@@ -859,12 +867,6 @@ static void set_x_funcs (void)
 				x_get_ibyte = NULL;
 				x_next_iword = next_iword_mmu030c_state;
 				x_next_ilong = next_ilong_mmu030c_state;
-				x_put_long = put_long_ce030;
-				x_put_word = put_word_ce030;
-				x_put_byte = put_byte_ce030;
-				x_get_long = get_long_ce030;
-				x_get_word = get_word_ce030;
-				x_get_byte = get_byte_ce030;
 				x_do_cycles = do_cycles;
 				x_do_cycles_pre = do_cycles;
 				x_do_cycles_post = do_cycles_post;
@@ -875,12 +877,6 @@ static void set_x_funcs (void)
 				x_get_ibyte = NULL;
 				x_next_iword = next_iword_mmu030c_state;
 				x_next_ilong = next_ilong_mmu030c_state;
-				x_put_long = put_long_ce030;
-				x_put_word = put_word_ce030;
-				x_put_byte = put_byte_ce030;
-				x_get_long = get_long_ce030;
-				x_get_word = get_word_ce030;
-				x_get_byte = get_byte_ce030;
 				x_do_cycles = do_cycles;
 				x_do_cycles_pre = do_cycles;
 				x_do_cycles_post = do_cycles_post;
@@ -891,12 +887,20 @@ static void set_x_funcs (void)
 				x_get_ibyte = get_ibyte_mmu030;
 				x_next_iword = next_iword_mmu030;
 				x_next_ilong = next_ilong_mmu030;
-				x_put_long = put_long_mmu030;
-				x_put_word = put_word_mmu030;
-				x_put_byte = put_byte_mmu030;
-				x_get_long = get_long_mmu030;
-				x_get_word = get_word_mmu030;
-				x_get_byte = get_byte_mmu030;
+			}
+			x_put_long = put_long_mmu030;
+			x_put_word = put_word_mmu030;
+			x_put_byte = put_byte_mmu030;
+			x_get_long = get_long_mmu030;
+			x_get_word = get_word_mmu030;
+			x_get_byte = get_byte_mmu030;
+			if (currprefs.cpu_data_cache) {
+				x_put_long = put_long_dc030;
+				x_put_word = put_word_dc030;
+				x_put_byte = put_byte_dc030;
+				x_get_long = get_long_dc030;
+				x_get_word = get_word_dc030;
+				x_get_byte = get_byte_dc030;
 			}
 
 		}
@@ -1167,12 +1171,21 @@ static void set_x_funcs (void)
 		x_get_ibyte = NULL;
 		x_next_iword = next_iword_030ce;
 		x_next_ilong = next_ilong_030ce;
-		x_put_long = put_long_ce030;
-		x_put_word = put_word_ce030;
-		x_put_byte = put_byte_ce030;
-		x_get_long = get_long_ce030;
-		x_get_word = get_word_ce030;
-		x_get_byte = get_byte_ce030;
+		if (currprefs.cpu_data_cache) {
+			x_put_long = put_long_dc030;
+			x_put_word = put_word_dc030;
+			x_put_byte = put_byte_dc030;
+			x_get_long = get_long_dc030;
+			x_get_word = get_word_dc030;
+			x_get_byte = get_byte_dc030;
+		} else {
+			x_put_long = put_long_ce030;
+			x_put_word = put_word_ce030;
+			x_put_byte = put_byte_ce030;
+			x_get_long = get_long_ce030;
+			x_get_word = get_word_ce030;
+			x_get_byte = get_byte_ce030;
+		}
 		x_do_cycles = do_cycles_ce020;
 		x_do_cycles_pre = do_cycles_ce020;
 		x_do_cycles_post = do_cycles_ce020_post;
@@ -1289,6 +1302,13 @@ static void set_x_funcs (void)
 			write_data_030_bput = write_dcache030_mmu_bput;
 			write_data_030_wput = write_dcache030_mmu_wput;
 			write_data_030_lput = write_dcache030_mmu_lput;
+
+			read_data_030_fc_bget = read_dcache030_bget;
+			read_data_030_fc_wget = read_dcache030_wget;
+			read_data_030_fc_lget = read_dcache030_lget;
+			write_data_030_fc_bput = write_dcache030_bput;
+			write_data_030_fc_wput = write_dcache030_wput;
+			write_data_030_fc_lput = write_dcache030_lput;
 		} else {
 			read_data_030_bget = dcache_bget;
 			read_data_030_wget = dcache_wget;
@@ -1296,10 +1316,34 @@ static void set_x_funcs (void)
 			write_data_030_bput = dcache_bput;
 			write_data_030_wput = dcache_wput;
 			write_data_030_lput = dcache_lput;
+
+			read_data_030_fc_bget = mmu030_get_fc_byte;
+			read_data_030_fc_wget = mmu030_get_fc_word;
+			read_data_030_fc_lget = mmu030_get_fc_long;
+			write_data_030_fc_bput = mmu030_put_fc_byte;
+			write_data_030_fc_wput = mmu030_put_fc_word;
+			write_data_030_fc_lput = mmu030_put_fc_long;
 		}
+
 		if (currprefs.mmu_model) {
 			if (currprefs.cpu_compatible) {
 				icache_fetch = uae_mmu030_get_ilong_fc;
+			} else {
+				icache_fetch = uae_mmu030_get_ilong;
+			}
+			dcache_lput = uae_mmu030_put_long;
+			dcache_wput = uae_mmu030_put_word;
+			dcache_bput = uae_mmu030_put_byte;
+			dcache_lget = uae_mmu030_get_long;
+			dcache_wget = uae_mmu030_get_word;
+			dcache_bget = uae_mmu030_get_byte;
+			if (currprefs.cpu_data_cache) {
+				read_data_030_bget = read_dcache030_mmu_bget;
+				read_data_030_wget = read_dcache030_mmu_wget;
+				read_data_030_lget = read_dcache030_mmu_lget;
+				write_data_030_bput = write_dcache030_mmu_bput;
+				write_data_030_wput = write_dcache030_mmu_wput;
+				write_data_030_lput = write_dcache030_mmu_lput;
 				dcache_lput = uae_mmu030_put_long_fc;
 				dcache_wput = uae_mmu030_put_word_fc;
 				dcache_bput = uae_mmu030_put_byte_fc;
@@ -1308,37 +1352,12 @@ static void set_x_funcs (void)
 				dcache_bget = uae_mmu030_get_byte_fc;
 				dcache_check = uae_mmu030_check_fc;
 			} else {
-				icache_fetch = uae_mmu030_get_ilong;
-				dcache_lput = uae_mmu030_put_long;
-				dcache_wput = uae_mmu030_put_word;
-				dcache_bput = uae_mmu030_put_byte;
-				dcache_lget = uae_mmu030_get_long;
-				dcache_wget = uae_mmu030_get_word;
-				dcache_bget = uae_mmu030_get_byte;
-			}
-			if (currprefs.cpu_data_cache) {
-				read_data_030_bget = read_dcache030_mmu_bget;
-				read_data_030_wget = read_dcache030_mmu_wget;
-				read_data_030_lget = read_dcache030_mmu_lget;
-				write_data_030_bput = write_dcache030_mmu_bput;
-				write_data_030_wput = write_dcache030_mmu_wput;
-				write_data_030_lput = write_dcache030_mmu_lput;
-			} else {
-				if (currprefs.cpu_compatible) {
-					read_data_030_bget = uae_mmu030_get_byte_fc;
-					read_data_030_wget = uae_mmu030_get_word_fc;
-					read_data_030_lget = uae_mmu030_get_long_fc;
-					write_data_030_bput = uae_mmu030_put_byte_fc;
-					write_data_030_wput = uae_mmu030_put_word_fc;
-					write_data_030_lput = uae_mmu030_put_long_fc;
-				} else {
-					read_data_030_bget = uae_mmu030_get_byte;
-					read_data_030_wget = uae_mmu030_get_word;
-					read_data_030_lget = uae_mmu030_get_long;
-					write_data_030_bput = uae_mmu030_put_byte;
-					write_data_030_wput = uae_mmu030_put_word;
-					write_data_030_lput = uae_mmu030_put_long;
-				}
+				read_data_030_bget = uae_mmu030_get_byte;
+				read_data_030_wget = uae_mmu030_get_word;
+				read_data_030_lget = uae_mmu030_get_long;
+				write_data_030_bput = uae_mmu030_put_byte;
+				write_data_030_wput = uae_mmu030_put_word;
+				write_data_030_lput = uae_mmu030_put_long;
 			}
 		} else if (currprefs.cpu_memory_cycle_exact) {
 			icache_fetch = mem_access_delay_longi_read_ce020;
@@ -9359,22 +9378,39 @@ void write_dcache030_mmu_lput(uaecptr addr, uae_u32 val)
 
 uae_u32 read_dcache030_lrmw_mmu(uaecptr addr, uae_u32 size)
 {
-	mmu030_cache_state = CACHE_DISABLE_MMU;
-	if (size == 0)
-		return read_dcache030_bget(addr, (regs.s ? 4 : 0) | 1);
-	if (size == 1)
-		return read_dcache030_wget(addr, (regs.s ? 4 : 0) | 1);
-	return read_dcache030_lget(addr, (regs.s ? 4 : 0) | 1);
+	if (currprefs.cpu_data_cache) {
+		mmu030_cache_state = CACHE_DISABLE_MMU;
+		if (size == 0)
+			return read_dcache030_bget(addr, (regs.s ? 4 : 0) | 1);
+		if (size == 1)
+			return read_dcache030_wget(addr, (regs.s ? 4 : 0) | 1);
+		return read_dcache030_lget(addr, (regs.s ? 4 : 0) | 1);
+	} else {
+		if (size == 0)
+			return read_data_030_bget(addr);
+		if (size == 1)
+			return read_data_030_wget(addr);
+		return read_data_030_lget(addr);
+	}
 }
 void write_dcache030_lrmw_mmu(uaecptr addr, uae_u32 val, uae_u32 size)
 {
-	mmu030_cache_state = CACHE_DISABLE_MMU;
-	if (size == 0)
-		write_dcache030_bput(addr, val, (regs.s ? 4 : 0) | 1);
-	else if (size == 1)
-		write_dcache030_wput(addr, val, (regs.s ? 4 : 0) | 1);
-	else
-		write_dcache030_lput(addr, val, (regs.s ? 4 : 0) | 1);
+	if (currprefs.cpu_data_cache) {
+		mmu030_cache_state = CACHE_DISABLE_MMU;
+		if (size == 0)
+			write_dcache030_bput(addr, val, (regs.s ? 4 : 0) | 1);
+		else if (size == 1)
+			write_dcache030_wput(addr, val, (regs.s ? 4 : 0) | 1);
+		else
+			write_dcache030_lput(addr, val, (regs.s ? 4 : 0) | 1);
+	} else {
+		if (size == 0)
+			write_data_030_bput(addr, val);
+		else if (size == 1)
+			write_data_030_wput(addr, val);
+		else
+			write_data_030_lput(addr, val);
+	}
 }
 
 static void do_access_or_bus_error(uaecptr pc, uaecptr pcnow)

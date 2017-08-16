@@ -78,6 +78,7 @@ struct mmufastcache030
 {
 	uae_u32 log;
 	uae_u32 phys;
+	uae_u8 cs;
 };
 static struct mmufastcache030 atc_data_cache_read[MMUFASTCACHE_ENTRIES030];
 static struct mmufastcache030 atc_data_cache_write[MMUFASTCACHE_ENTRIES030];
@@ -1748,6 +1749,7 @@ static void mmu030_add_data_read_cache(uaecptr addr, uaecptr phys, uae_u32 fc)
 	if (idx2 < MMUFASTCACHE_ENTRIES030 - 1) {
 		atc_data_cache_read[idx2].log = idx1;
 		atc_data_cache_read[idx2].phys = phys;
+		atc_data_cache_read[idx2].cs = mmu030_cache_state;
 	}
 #endif
 }
@@ -1760,6 +1762,7 @@ static void mmu030_add_data_write_cache(uaecptr addr, uaecptr phys, uae_u32 fc)
 	if (idx2 < MMUFASTCACHE_ENTRIES030 - 1) {
 		atc_data_cache_write[idx2].log = idx1;
 		atc_data_cache_write[idx2].phys = phys;
+		atc_data_cache_write[idx2].cs = mmu030_cache_state;
 	}
 #endif
 }
@@ -1942,6 +1945,7 @@ void mmu030_put_long(uaecptr addr, uae_u32 val, uae_u32 fc)
 		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES030 - 1);
 		if (atc_data_cache_write[idx2].log == idx1) {
 			addr = atc_data_cache_write[idx2].phys | (addr & mmu030.translation.page.mask);
+			mmu030_cache_state = atc_data_cache_write[idx2].cs;
 		} else
 #endif
 		{
@@ -1967,6 +1971,7 @@ void mmu030_put_word(uaecptr addr, uae_u16 val, uae_u32 fc)
 		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES030 - 1);
 		if (atc_data_cache_write[idx2].log == idx1) {
 			addr = atc_data_cache_write[idx2].phys | (addr & mmu030.translation.page.mask);
+			mmu030_cache_state = atc_data_cache_write[idx2].cs;
 		} else
 #endif
 		{
@@ -1992,6 +1997,7 @@ void mmu030_put_byte(uaecptr addr, uae_u8 val, uae_u32 fc)
 		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES030 - 1);
 		if (atc_data_cache_write[idx2].log == idx1) {
 			addr = atc_data_cache_write[idx2].phys | (addr & mmu030.translation.page.mask);
+			mmu030_cache_state = atc_data_cache_write[idx2].cs;
 		} else
 #endif
 		{
@@ -2018,6 +2024,7 @@ uae_u32 mmu030_get_long(uaecptr addr, uae_u32 fc)
 		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES030 - 1);
 		if (atc_data_cache_read[idx2].log == idx1) {
 			addr = atc_data_cache_read[idx2].phys | (addr & mmu030.translation.page.mask);
+			mmu030_cache_state = atc_data_cache_read[idx2].cs;
 		} else
 #endif
 		{
@@ -2043,6 +2050,7 @@ uae_u16 mmu030_get_word(uaecptr addr, uae_u32 fc)
 		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES030 - 1);
 		if (atc_data_cache_read[idx2].log == idx1) {
 			addr = atc_data_cache_read[idx2].phys | (addr & mmu030.translation.page.mask);
+			mmu030_cache_state = atc_data_cache_read[idx2].cs;
 		} else
 #endif
 		{
@@ -2068,6 +2076,7 @@ uae_u8 mmu030_get_byte(uaecptr addr, uae_u32 fc)
 		uae_u32 idx2 = idx1 & (MMUFASTCACHE_ENTRIES030 - 1);
 		if (atc_data_cache_read[idx2].log == idx1) {
 			addr = atc_data_cache_read[idx2].phys | (addr & mmu030.translation.page.mask);
+			mmu030_cache_state = atc_data_cache_read[idx2].cs;
 		} else
 #endif
 		{
