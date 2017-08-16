@@ -2970,7 +2970,7 @@ static void decide_line (int hpos)
 		}
 	}
 
-	if (fetch_state == fetch_not_started || aga_plf_passed_stop2) {
+	if (fetch_state == fetch_not_started || (aga_plf_passed_stop2 && plfstrt >= last_decide_line_hpos)) {
 		bool strtpassed = false;
 		plfstate nextstate = plf_end;
 		int hstart;
