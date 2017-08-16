@@ -156,7 +156,7 @@ static const TCHAR help[] = {
 	_T("  w <num> <address> <length> <R/W/I/F/C> [<value>[.x]] (read/write/opcode/freeze/mustchange).\n")
 	_T("                        Add/remove memory watchpoints.\n")
 	_T("  wd [<0-1>]            Enable illegal access logger. 1 = enable break.\n")
-	_T("  L <file> <addr> <n>   Load a block of Amiga memory.\n")
+	_T("  L <file> <addr> [<n>] Load a block of Amiga memory.\n")
 	_T("  S <file> <addr> <n>   Save a block of Amiga memory.\n")
 	_T("  s \"<string>\"/<values> [<addr>] [<length>]\n")
 	_T("                        Search for string/bytes.\n")
@@ -4494,7 +4494,8 @@ static int process_breakpoint (TCHAR **c)
 static void saveloadmem (TCHAR **cc, bool save)
 {
 	uae_u8 b;
-	uae_u32 src, src2, len, len2;
+	uae_u32 src, src2;
+	int len, len2;
 	TCHAR *name;
 	FILE *fp;
 
@@ -4512,12 +4513,17 @@ static void saveloadmem (TCHAR **cc, bool save)
 	if (!more_params (cc))
 		goto S_argh;
 	src2 = src = readhex (cc);
-	if (!more_params (cc))
-		goto S_argh;
-	len2 = len = readhex (cc);
-	fp = uae_tfopen (name, _T("wb"));
+	if (save) {
+		if (!more_params(cc))
+			goto S_argh;
+	}
+	len2 = len = -1;
+	if (more_params(cc)) {
+		len2 = len = readhex (cc);
+	}
+	fp = uae_tfopen (name, save ? _T("wb") : _T("rb"));
 	if (fp == NULL) {
-		console_out_f (_T("Couldn't open file '%s'\n"), name);
+		console_out_f (_T("Couldn't open file '%s'.\n"), name);
 		return;
 	}
 	if (save) {
@@ -4526,31 +4532,36 @@ static void saveloadmem (TCHAR **cc, bool save)
 			src++;
 			len--;
 			if (fwrite (&b, 1, 1, fp) != 1) {
-				console_out (_T("Error writing file\n"));
+				console_out (_T("Error writing file.\n"));
 				break;
 			}
 		}
 		if (len == 0)
-			console_out_f (_T("Wrote %08X - %08X (%d bytes) to '%s'\n"),
+			console_out_f (_T("Wrote %08X - %08X (%d bytes) to '%s'.\n"),
 				src2, src2 + len2, len2, name);
 	} else {
-		while (len > 0) {
+		len2 = 0;
+		while (len != 0) {
 			if (fread(&b, 1, 1, fp) != 1) {
-				console_out (_T("Error reading file\n"));
+				if (len > 0)
+					console_out (_T("Unexpected end of file.\n"));
+				len = 0;
 				break;
 			}
 			put_byte (src, b);
 			src++;
-			len--;
+			if (len > 0)
+				len--;
+			len2++;
 		}
 		if (len == 0)
-			console_out_f (_T("Read %08X - %08X (%d bytes) to '%s'\n"),
+			console_out_f (_T("Read %08X - %08X (%d bytes) to '%s'.\n"),
 				src2, src2 + len2, len2, name);
 	}
 	fclose (fp);
 	return;
 S_argh:
-	console_out (_T("S-command needs more arguments!\n"));
+	console_out (_T("Command needs more arguments!\n"));
 }
 
 static void searchmem (TCHAR **cc)
