@@ -772,6 +772,38 @@ static uae_u8 dcache_check_nommu(uaecptr addr, bool write, uae_u32 size)
 	return ce_cachable[addr >> 16];
 }
 
+static void mem_access_delay_long_write_ce030_cicheck(uaecptr addr, uae_u32 v)
+{
+	mem_access_delay_long_write_ce020(addr, v);
+	mmu030_cache_state = ce_cachable[addr >> 16];
+}
+static void mem_access_delay_word_write_ce030_cicheck(uaecptr addr, uae_u32 v)
+{
+	mem_access_delay_word_write_ce020(addr, v);
+	mmu030_cache_state = ce_cachable[addr >> 16];
+}
+static void mem_access_delay_byte_write_ce030_cicheck(uaecptr addr, uae_u32 v)
+{
+	mem_access_delay_byte_write_ce020(addr, v);
+	mmu030_cache_state = ce_cachable[addr >> 16];
+}
+
+static void put_long030_cicheck(uaecptr addr, uae_u32 v)
+{
+	put_long(addr, v);
+	mmu030_cache_state = ce_cachable[addr >> 16];
+}
+static void put_word030_cicheck(uaecptr addr, uae_u32 v)
+{
+	put_word(addr, v);
+	mmu030_cache_state = ce_cachable[addr >> 16];
+}
+static void put_byte030_cicheck(uaecptr addr, uae_u32 v)
+{
+	put_byte(addr, v);
+	mmu030_cache_state = ce_cachable[addr >> 16];
+}
+
 static uae_u32 (*icache_fetch)(uaecptr);
 static uae_u32 (*dcache_lget)(uaecptr);
 static uae_u32 (*dcache_wget)(uaecptr);
@@ -1204,12 +1236,12 @@ static void set_x_funcs (void)
 			x_get_word = get_word_cache_040;
 			x_get_byte = get_byte_cache_040;
 		} else {
-			x_phys_get_byte = mem_access_delay_byte_read_c040;
-			x_phys_get_word = mem_access_delay_word_read_c040;
-			x_phys_get_long = mem_access_delay_long_read_c040;
-			x_phys_put_byte = mem_access_delay_byte_write_c040;
-			x_phys_put_word = mem_access_delay_word_write_c040;
-			x_phys_put_long = mem_access_delay_long_write_c040;
+			x_get_byte = mem_access_delay_byte_read_c040;
+			x_get_word = mem_access_delay_word_read_c040;
+			x_get_long = mem_access_delay_long_read_c040;
+			x_put_byte = mem_access_delay_byte_write_c040;
+			x_put_word = mem_access_delay_word_write_c040;
+			x_put_long = mem_access_delay_long_write_c040;
 		}
 		x_do_cycles = do_cycles_ce020;
 		x_do_cycles_pre = do_cycles_ce020;
@@ -1361,12 +1393,22 @@ static void set_x_funcs (void)
 			}
 		} else if (currprefs.cpu_memory_cycle_exact) {
 			icache_fetch = mem_access_delay_longi_read_ce020;
-			dcache_lput = mem_access_delay_long_write_ce020;
-			dcache_wput = mem_access_delay_word_write_ce020;
-			dcache_bput = mem_access_delay_byte_write_ce020;
 			dcache_lget = mem_access_delay_long_read_ce020;
 			dcache_wget = mem_access_delay_word_read_ce020;
 			dcache_bget = mem_access_delay_byte_read_ce020;
+			if (currprefs.cpu_data_cache) {
+				dcache_lput = mem_access_delay_long_write_ce030_cicheck;
+				dcache_wput = mem_access_delay_word_write_ce030_cicheck;
+				dcache_bput = mem_access_delay_byte_write_ce030_cicheck;
+			} else {
+				dcache_lput = mem_access_delay_long_write_ce020;
+				dcache_wput = mem_access_delay_word_write_ce020;
+				dcache_bput = mem_access_delay_byte_write_ce020;
+			}
+		} else if (currprefs.cpu_data_cache) {
+			dcache_lput = put_long030_cicheck;
+			dcache_wput = put_word030_cicheck;
+			dcache_bput = put_byte030_cicheck;
 		}
 	}
 }
@@ -9155,9 +9197,10 @@ static void write_dcache030x(uaecptr addr, uae_u32 val, uae_u32 size, uae_u32 fc
 		// Write-allocate can create new valid cache entry if
 		// long aligned long write and MMU CI is not active.
 		// All writes ignore external CIIN signal.
+		// CACHE_DISABLE_ALLOCATE = emulation only method to disable WA caching completely.
 
 		if (width == 32 && offset == 0 && wa) {
-			if (!(mmu030_cache_state & CACHE_DISABLE_MMU)) {
+			if (!(mmu030_cache_state & CACHE_DISABLE_MMU) && !(mmu030_cache_state & CACHE_DISABLE_ALLOCATE)) {
 				update_dcache030(c1, val, tag1, fc, lws1);
 #if VALIDATE_68030_DATACACHE
 				validate_dcache030();
