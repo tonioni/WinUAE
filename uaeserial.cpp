@@ -83,7 +83,7 @@ int log_uaeserial = 0;
 #define io_SerFlags	0x4f	/* UBYTE see SerFlags bit definitions below  */
 #define io_Status	0x50	/* UWORD */
 
-#define IOExtSerSize 48
+#define IOExtSerSize 82
 
 /* status of serial port, as follows:
 *		   BIT	ACTIVE	FUNCTION
@@ -438,6 +438,7 @@ void uaeser_signal (void *vdev, int sigmask)
 			case CMD_READ:
 				if (sigmask & 1) {
 					uae_u8 tmp[RTAREA_TRAP_DATA_EXTRA_SIZE];
+					io_done = 1;
 					while (io_length > 0) {
 						int size = io_length > sizeof(tmp) ? sizeof(tmp) : io_length;
 						if (uaeser_read(dev->sysdata, tmp, size)) {
@@ -445,9 +446,12 @@ void uaeser_signal (void *vdev, int sigmask)
 							io_actual += size;
 							io_data += size;
 							io_length -= size;
+						} else {
+							if (io_actual == 0)
+								io_done = 0;
+							break;
 						}
 					}
-					io_done = 1;
 				}
 				break;
 			case CMD_WRITE:
