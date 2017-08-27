@@ -1042,19 +1042,19 @@ STATIC_INLINE void compute_delay_offset (void)
 }
 #endif
 
-static void record_color_change2 (int hpos, int regno, unsigned long value)
+static void record_color_change2 (int hpos, int regno, uae_u32 value)
 {
 	int pos = (hpos * 2) * 4;
 	if (regno == 0x1000 + 0x10c) {
 		pos += 4; // BPLCON4 change needs 1 lores pixel delay
+		if (value & 0xff00)
+			thisline_decision.xor_seen = true;
 	}
 	curr_color_changes[next_color_change].linepos = pos;
 	curr_color_changes[next_color_change].regno = regno;
 	curr_color_changes[next_color_change].value = value;
 	next_color_change++;
 	curr_color_changes[next_color_change].regno = -1;
-	if (value & 0xff00)
-		thisline_decision.xor_seen = true;
 }
 
 static bool isehb (uae_u16 bplcon0, uae_u16 bplcon2)
