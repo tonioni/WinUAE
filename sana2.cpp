@@ -1822,18 +1822,14 @@ void uaenet_vsync(void)
 
 static void dev_reset (void)
 {
-	int i;
-	struct s2devstruct *dev;
-	int unitnum = 0;
-
 	write_log (_T("%s reset\n"), getdevname());
-	for (i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
+	for (int i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
 		if (td[i] && td[i]->active) {
 			write_log(_T("- %d: '%s'\n"), i, td[i]->name);
 		}
 	}
-	for (i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
-		dev = &devst[i];
+	for (int i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
+		struct s2devstruct *dev = &devst[i];
 		if (dev->opencnt) {
 			struct asyncreq *ar = dev->ar;
 			while (ar) {
@@ -1848,13 +1844,21 @@ static void dev_reset (void)
 			write_comm_pipe_u32 (&dev->requests, 0, 1);
 			uae_sem_post(&pipe_sem);
 			uae_sem_wait (&dev->sync_sem);
+			if (dev->td && dev->sysdata) {
+				ethernet_close(dev->td, dev->sysdata);
+				dev->td = NULL;
+			}
+			xfree(dev->sysdata);
+			dev->sysdata = NULL;
 		}
-		while (dev->mc)
-			delmulticastaddresses (dev, dev->mc->start, dev->mc->end);
+		while (dev->mc) {
+			delmulticastaddresses(dev, dev->mc->start, dev->mc->end);
+		}
 		memset (dev, 0, sizeof (struct s2devstruct));
 	}
-	for (i = 0; i < MAX_OPEN_DEVICES; i++)
-		memset (&pdevst[i], 0, sizeof (struct priv_s2devstruct));
+	for (int i = 0; i < MAX_OPEN_DEVICES; i++) {
+		memset(&pdevst[i], 0, sizeof(struct priv_s2devstruct));
+	}
 	irq_init = 0;
 
 }
