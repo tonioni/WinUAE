@@ -366,7 +366,7 @@ static int fsdb_name_invalid_2 (a_inode *aino, const TCHAR *n, int dir)
 	xfree(p);
 	if (h != INVALID_HANDLE_VALUE && type != FILE_TYPE_DISK)
 		return 1;
-	if (err == ERROR_INVALID_NAME || err == ERROR_ACCESS_DENIED)
+	if (err == ERROR_INVALID_NAME || err == ERROR_ACCESS_DENIED || err == ERROR_INVALID_HANDLE)
 		return 1;
 	return 0;
 }

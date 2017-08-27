@@ -2146,7 +2146,7 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_apmode[APMODE_RTG].gfx_backbuffers != changed_prefs.gfx_apmode[APMODE_RTG].gfx_backbuffers ? (2 | 8) : 0;
 
 	c |= currprefs.win32_main_alwaysontop != changed_prefs.win32_main_alwaysontop ? 32 : 0;
-	c |= currprefs.win32_gui_alwaysontop != changed_prefs.win32_gui_alwaysontop ? 32 : 0;
+	c |= currprefs.win32_gui_alwaysontop != changed_prefs.win32_gui_alwaysontop ? 2 : 0;
 	c |= currprefs.win32_notaskbarbutton != changed_prefs.win32_notaskbarbutton ? 32 : 0;
 	c |= currprefs.win32_nonotificationicon != changed_prefs.win32_nonotificationicon ? 32 : 0;
 	c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 32 : 0;

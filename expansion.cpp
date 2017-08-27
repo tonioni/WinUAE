@@ -1352,6 +1352,7 @@ static addrbank *expamem_map_uaeboard(struct autoconfig_info *aci)
 	if (currprefs.uaeboard > 1) {
 		rtarea_bank.start = uaeboard_base + 65536;
 		map_banks_z2(&rtarea_bank, (uaeboard_base + 65536) >> 16, 1);
+		ce_cachable[(uaeboard_base + 65536) >> 16] = CACHE_DISABLE_ALLOCATE;
 	}
 	return &uaeboard_bank;
 }

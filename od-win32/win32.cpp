@@ -12,6 +12,7 @@
 #define MOUSECLIP_HIDE 1
 #define TOUCH_SUPPORT 1
 #define TOUCH_DEBUG 1
+#define KBHOOK 0
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -145,6 +146,9 @@ HINSTANCE hInst = NULL;
 HMODULE hUIDLL = NULL;
 HWND (WINAPI *pHtmlHelp)(HWND, LPCWSTR, UINT, LPDWORD) = NULL;
 HWND hAmigaWnd, hMainWnd, hHiddenWnd, hGUIWnd;
+#if KBHOOK
+static HHOOK hhook;
+#endif
 RECT amigawin_rect, mainwin_rect;
 static RECT amigawinclip_rect;
 int setcursoroffset_x, setcursoroffset_y;
@@ -687,6 +691,30 @@ void updatewinrect (bool allowfullscreen)
 	}
 }
 
+#if KBHOOK
+static bool HasAltModifier(int flags)
+{
+	return (flags & 0x20) == 0x20;
+}
+
+static LRESULT CALLBACK captureKey(int nCode, WPARAM wp, LPARAM lp)
+{
+	if (nCode >= 0)
+	{
+		KBDLLHOOKSTRUCT *kbd = (KBDLLHOOKSTRUCT*)lp;
+		DWORD vk = kbd->vkCode;
+		DWORD flags = kbd->flags;
+
+		// Disabling Windows keys 
+
+		if (vk == VK_RWIN || vk == VK_LWIN || (vk == VK_TAB && HasAltModifier(flags))) {
+			return 1;
+		}
+	}
+	return CallNextHookEx(hhook, nCode, wp, lp);
+}
+#endif
+
 static bool iswindowfocus (void)
 {
 	bool donotfocus = false;
@@ -803,7 +831,19 @@ static void setmouseactive2 (int active, bool allowpause)
 			resumesoundpaused ();
 		}
 		setmaintitle (hMainWnd);
+#if KBHOOK
+		if (!hhook) {
+			hhook = SetWindowsHookEx(WH_KEYBOARD_LL, captureKey, GetModuleHandle(NULL), 0);
+		}
+#endif
+
 	} else {
+#if KBHOOK
+		if (hhook) {
+			UnhookWindowsHookEx(hhook);
+			hhook = NULL;
+		}
+#endif
 		inputdevice_acquire (FALSE);
 	}
 	if (!active && allowpause) {

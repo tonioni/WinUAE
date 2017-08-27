@@ -4,6 +4,22 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 3:
+
+- 68030 data cache + indirect UAE Boot ROM will now always work, even without MMU. UAE Boot ROM address space now forces all caching off, even if write-allocate is enabled.
+- 68030 hardware cache inhibit signal is now also emulated in non-MMU/EC modes, making data cache emulation usable in this mode.
+- Identity save option ignored user selected file name and path.
+- Read identity button didn't support ATAPI devices correctly, it only worked if ATAPI device appeared as SCSI or "RAID" device.
+- Activate DTR and RTS when uaeserial.device is opened to match serial.device behavior.
+- Serial port emulation to PC serial port reset DTR (and RTS state if RTS/CTS was unticked) when baud rate changed.
+- Disassembler now also shows data in memory, makes step by step tracing less annoying, for example "CMP.W (A4)+ [2f09],D2". Not shown if address is not plain RAM or ROM.
+- Assembler BSR fixed.
+- uaenet.device didn't close low level ethernet handles when Amiga was reset, causing duplicate packets.
+- 68020 CE statefiles created with 3.5 or older should load normally again.
+- UAE controller hardfile custom unit number selection didn't work if unit numbers had gaps.
+- Do not re-open main window when GUI on top option is changed.
+- uaeserial.device crash, broken when OS4 compatible trap system was added.
+
 Beta 2:
 
 - Read Identity and floppy drive bootblock font size ignored DPI setting.
