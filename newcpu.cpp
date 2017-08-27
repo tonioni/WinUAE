@@ -1073,12 +1073,12 @@ static void set_x_funcs (void)
 					x_get_word = get_word_cache_040;
 					x_get_byte = get_byte_cache_040;
 				} else {
-					x_phys_get_byte = mem_access_delay_byte_read_c040;
-					x_phys_get_word = mem_access_delay_word_read_c040;
-					x_phys_get_long = mem_access_delay_long_read_c040;
-					x_phys_put_byte = mem_access_delay_byte_write_c040;
-					x_phys_put_word = mem_access_delay_word_write_c040;
-					x_phys_put_long = mem_access_delay_long_write_c040;
+					x_get_byte = mem_access_delay_byte_read_c040;
+					x_get_word = mem_access_delay_word_read_c040;
+					x_get_long = mem_access_delay_long_read_c040;
+					x_put_byte = mem_access_delay_byte_write_c040;
+					x_put_word = mem_access_delay_word_write_c040;
+					x_put_long = mem_access_delay_long_write_c040;
 				}
 				x_do_cycles = do_cycles;
 				x_do_cycles_pre = do_cycles;
@@ -2090,11 +2090,85 @@ struct regstruct regs, mmu_backup_regs;
 struct flag_struct regflags;
 static int m68kpc_offset;
 
-#if 0
-#define get_ibyte_1(o) get_byte (regs.pc + (regs.pc_p - regs.pc_oldp) + (o) + 1)
-#define get_iword_1(o) get_word (regs.pc + (regs.pc_p - regs.pc_oldp) + (o))
-#define get_ilong_1(o) get_long (regs.pc + (regs.pc_p - regs.pc_oldp) + (o))
-#endif
+static const TCHAR *fpsizes[] = {
+	_T("L"),
+	_T("S"),
+	_T("X"),
+	_T("P"),
+	_T("W"),
+	_T("D"),
+	_T("B"),
+	_T("P")
+};
+static const int fpsizeconv[] = {
+	sz_long,
+	sz_single,
+	sz_extended,
+	sz_packed,
+	sz_word,
+	sz_double,
+	sz_byte,
+	sz_packed
+};
+static const int datasizes[] = {
+	1,
+	2,
+	4,
+	4,
+	8,
+	12,
+	12
+};
+
+static void showea_val(TCHAR *buffer, uae_u16 opcode, uaecptr addr, int size)
+{
+	struct mnemolookup *lookup;
+	instr *table = &table68k[opcode];
+
+	for (lookup = lookuptab; lookup->mnemo != table->mnemo; lookup++)
+		;
+	if (!(lookup->flags & 1))
+		return;
+	buffer += _tcslen(buffer);
+	if (debug_safe_addr(addr, datasizes[size])) {
+		switch (size)
+		{
+			case sz_byte:
+			_stprintf(buffer, _T(" [%02x]"), get_byte_debug(addr));
+			break;
+			case sz_word:
+			_stprintf(buffer, _T(" [%04x]"), get_word_debug(addr));
+			break;
+			case sz_long:
+			_stprintf(buffer, _T(" [%08x]"), get_long_debug(addr));
+			break;
+			case sz_single:
+			{
+				fpdata fp;
+				fpp_to_single(&fp, get_long_debug(addr));
+				_stprintf(buffer, _T("[%s]"), fpp_print(&fp, 0));
+			}
+			break;
+			case sz_double:
+			{
+				fpdata fp;
+				fpp_to_double(&fp, get_long_debug(addr), get_long_debug(addr + 4));
+				_stprintf(buffer, _T("[%s]"), fpp_print(&fp, 0));
+			}
+			break;
+			case sz_extended:
+			{
+				fpdata fp;
+				fpp_to_exten(&fp, get_long_debug(addr), get_long_debug(addr + 4), get_long_debug(addr + 8));
+				_stprintf(buffer, _T("[%s]"), fpp_print(&fp, 0));
+				break;
+			}
+			case sz_packed:
+				_stprintf(buffer, _T("[%08x%08x%08x]"), get_long_debug(addr), get_long_debug(addr + 4), get_long_debug(addr + 8));
+				break;
+		}
+	}
+}
 
 static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode, wordsizes size, TCHAR *buf, uae_u32 *eaddr, int safemode)
 {
@@ -2117,14 +2191,17 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 	case Aind:
 		_stprintf (buffer, _T("(A%d)"), reg);
 		addr = regs.regs[reg + 8];
+		showea_val(buffer, opcode, addr, size);
 		break;
 	case Aipi:
 		_stprintf (buffer, _T("(A%d)+"), reg);
 		addr = regs.regs[reg + 8];
+		showea_val(buffer, opcode, addr, size);
 		break;
 	case Apdi:
 		_stprintf (buffer, _T("-(A%d)"), reg);
 		addr = regs.regs[reg + 8];
+		showea_val(buffer, opcode, addr - datasizes[size], size);
 		break;
 	case Ad16:
 		{
@@ -2136,6 +2213,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 				_stprintf (offtxt, _T("$%04x"), disp16);
 			addr = m68k_areg (regs, reg) + disp16;
 			_stprintf (buffer, _T("(A%d, %s) == $%08x"), reg, offtxt, addr);
+			showea_val(buffer, opcode, addr, size);
 		}
 		break;
 	case Ad8r:
@@ -2175,11 +2253,13 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 				dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W',
 				1 << ((dp >> 9) & 3), disp8, addr);
 		}
+		showea_val(buffer, opcode, addr, size);
 		break;
 	case PC16:
 		disp16 = get_iword_debug (pc); pc += 2;
 		addr += (uae_s16)disp16;
 		_stprintf (buffer, _T("(PC,$%04x) == $%08x"), disp16 & 0xffff, addr);
+		showea_val(buffer, opcode, addr, size);
 		break;
 	case PC8r:
 		dp = get_iword_debug (pc); pc += 2;
@@ -2218,16 +2298,19 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 				(int)r, dp & 0x800 ? 'L' : 'W',  1 << ((dp >> 9) & 3),
 				disp8, addr);
 		}
+		showea_val(buffer, opcode, addr, size);
 		break;
 	case absw:
 		addr = (uae_s32)(uae_s16)get_iword_debug (pc);
 		_stprintf (buffer, _T("$%04x"), (uae_u16)addr);
 		pc += 2;
+		showea_val(buffer, opcode, addr, size);
 		break;
 	case absl:
 		addr = get_ilong_debug (pc);
 		_stprintf (buffer, _T("$%08x"), addr);
 		pc += 4;
+		showea_val(buffer, opcode, addr, size);
 		break;
 	case imm:
 		switch (size){
@@ -5683,8 +5766,9 @@ static void m68k_run_2ce (void)
 					r->cacheholdingdata020 = cputrace.cacheholdingdata020;
 					r->cacheholdingaddr020 = cputrace.cacheholdingaddr020;
 					r->prefetch020addr = cputrace.prefetch020addr;
-					memcpy (&r->prefetch020, &cputrace.prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u16));
-					memcpy (&caches020, &cputrace.caches020, sizeof caches020);
+					memcpy(&r->prefetch020, &cputrace.prefetch020, CPU_PIPELINE_MAX * sizeof(uae_u16));
+					memcpy(&r->prefetch020_valid, &cputrace.prefetch020_valid, CPU_PIPELINE_MAX * sizeof(uae_u8));
+					memcpy(&caches020, &cputrace.caches020, sizeof caches020);
 
 					m68k_setpc (cputrace.pc);
 					if (!r->stopped) {
@@ -5751,8 +5835,9 @@ static void m68k_run_2ce (void)
 					cputrace.cacheholdingdata020 = r->cacheholdingdata020;
 					cputrace.cacheholdingaddr020 = r->cacheholdingaddr020;
 					cputrace.prefetch020addr = r->prefetch020addr;
-					memcpy (&cputrace.prefetch020, &r->prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u16));
-					memcpy (&cputrace.caches020, &caches020, sizeof caches020);
+					memcpy(&cputrace.prefetch020, &r->prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u16));
+					memcpy(&cputrace.prefetch020_valid, &r->prefetch020_valid, CPU_PIPELINE_MAX * sizeof(uae_u8));
+					memcpy(&cputrace.caches020, &caches020, sizeof caches020);
 
 					cputrace.memoryoffset = 0;
 					cputrace.cyclecounter = cputrace.cyclecounter_pre = cputrace.cyclecounter_post = 0;
@@ -5820,8 +5905,9 @@ static void m68k_run_2p (void)
 					r->cacheholdingdata020 = cputrace.cacheholdingdata020;
 					r->cacheholdingaddr020 = cputrace.cacheholdingaddr020;
 					r->prefetch020addr = cputrace.prefetch020addr;
-					memcpy (&r->prefetch020, &cputrace.prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u16));
-					memcpy (&caches020, &cputrace.caches020, sizeof caches020);
+					memcpy(&r->prefetch020, &cputrace.prefetch020, CPU_PIPELINE_MAX * sizeof(uae_u16));
+					memcpy(&r->prefetch020_valid, &cputrace.prefetch020_valid, CPU_PIPELINE_MAX * sizeof(uae_u8));
+					memcpy(&caches020, &cputrace.caches020, sizeof caches020);
 
 					m68k_setpc (cputrace.pc);
 					if (!r->stopped) {
@@ -5871,8 +5957,9 @@ static void m68k_run_2p (void)
 					cputrace.cacheholdingdata020 = r->cacheholdingdata020;
 					cputrace.cacheholdingaddr020 = r->cacheholdingaddr020;
 					cputrace.prefetch020addr = r->prefetch020addr;
-					memcpy (&cputrace.prefetch020, &r->prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u16));
-					memcpy (&cputrace.caches020, &caches020, sizeof caches020);
+					memcpy(&cputrace.prefetch020, &r->prefetch020, CPU_PIPELINE_MAX * sizeof(uae_u16));
+					memcpy(&cputrace.prefetch020_valid, &r->prefetch020_valid, CPU_PIPELINE_MAX * sizeof(uae_u8));
+					memcpy(&cputrace.caches020, &caches020, sizeof caches020);
 
 					cputrace.memoryoffset = 0;
 					cputrace.cyclecounter = cputrace.cyclecounter_pre = cputrace.cyclecounter_post = 0;
@@ -6469,27 +6556,6 @@ static void movemout (TCHAR *out, uae_u16 mask, int mode, int fpmode)
 	addmovemreg(out, &prevreg, &lastreg, &first, -1, fpmode);
 }
 
-static const TCHAR *fpsizes[] = {
-	_T("L"),
-	_T("S"),
-	_T("X"),
-	_T("P"),
-	_T("W"),
-	_T("D"),
-	_T("B"),
-	_T("P")
-};
-static const int fpsizeconv[] = {
-	sz_long,
-	sz_single,
-	sz_extended,
-	sz_packed,
-	sz_word,
-	sz_double,
-	sz_byte,
-	sz_packed
-};
-
 static void disasm_size (TCHAR *instrname, struct instr *dp)
 {
 	if (dp->unsized) {
@@ -6916,6 +6982,8 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 	// Common alias
 	if (!_tcscmp(ins, _T("BRA"))) {
 		_tcscpy(ins, _T("BT"));
+	} else if (!_tcscmp(ins, _T("BSR"))) {
+		immrelpc = true;
 	} else if (!_tcscmp(ins, _T("MOVEM"))) {
 		if (dmode >= Aind && _tcschr(dstea, '-') == NULL && _tcschr(dstea, '/') == NULL) {
 			_tcscpy(ins, _T("MVMLE"));
@@ -7293,14 +7361,8 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			pc += 2;
 			if ((extra & 0xfc00) == 0x5c00) { // FMOVECR (=i_FPP with source specifier = 7)
 				fpdata fp;
-				if (fpu_get_constant(&fp, extra))
-#if USE_LONG_DOUBLE
-					_stprintf(instrname, _T("FMOVECR.X #%Le,FP%d"), fp.fp, (extra >> 7) & 7);
-#else
-					_stprintf(instrname, _T("FMOVECR.X #%e,FP%d"), fp.fp, (extra >> 7) & 7);
-#endif
-				else
-					_stprintf(instrname, _T("FMOVECR.X #?,FP%d"), (extra >> 7) & 7);
+				fpu_get_constant(&fp, extra);
+				_stprintf(instrname, _T("FMOVECR.X #0x%02x [%s],FP%d"), extra & 0x7f, fpp_print(&fp, 0), (extra >> 7) & 7);
 			} else if ((extra & 0x8000) == 0x8000) { // FMOVEM
 				int dr = (extra >> 13) & 1;
 				int mode;
@@ -7874,6 +7936,15 @@ uae_u8 *restore_cpu (uae_u8 *src)
 		regs.chipset_latch_write = restore_u32 ();
 	}
 
+	regs.pipeline_pos = -1;
+	regs.pipeline_stop = 0;
+	if (flags & 0x4000000 && currprefs.cpu_model == 68020) {
+		regs.pipeline_pos = restore_u16();
+		regs.pipeline_r8[0] = restore_u16();
+		regs.pipeline_r8[1] = restore_u16();
+		regs.pipeline_stop = restore_u16();
+	}
+
 	m68k_reset_sr();
 
 	write_log (_T("CPU: %d%s%03d, PC=%08X\n"),
@@ -7919,7 +7990,7 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 	else
 		dstbak = dst = xmalloc (uae_u8, 10000);
 
-	save_u32 (2 | 4 | 16);
+	save_u32 (2 | 4 | 16 | 32);
 	save_u16 (cputrace.opcode);
 	for (int i = 0; i < 16; i++)
 		save_u32 (cputrace.regs[i]);
@@ -7966,8 +8037,12 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 			save_u32 (cputrace.prefetch020[i]);
 		}
 		for (int i = 0; i < CPU_PIPELINE_MAX; i++) {
-			save_u8 (cputrace.prefetch030_valid[i]);
+			save_u8 (cputrace.prefetch020_valid[i]);
 		}
+		save_u16(cputrace.pipeline_pos);
+		save_u16(cputrace.pipeline_r8[0]);
+		save_u16(cputrace.pipeline_r8[1]);
+		save_u16(cputrace.pipeline_stop);
 	}
 
 	*len = dst - dstbak;
@@ -8021,23 +8096,35 @@ uae_u8 *restore_cpu_trace (uae_u8 *src)
 				cputrace.prefetch020[i] = restore_u16 ();
 			}
 			if (v & 8) {
+				// backwards compatibility
 				uae_u32 v = restore_u32();
-				regs.prefetch020[0] = v >> 16;
-				regs.prefetch020[1] = (uae_u16)v;
+				cputrace.prefetch020[0] = v >> 16;
+				cputrace.prefetch020[1] = (uae_u16)v;
 				v = restore_u32();
-				regs.prefetch020[2] = v >> 16;
-				regs.prefetch020[3] = (uae_u16)v;
+				cputrace.prefetch020[2] = v >> 16;
+				cputrace.prefetch020[3] = (uae_u16)v;
 				restore_u32();
 				restore_u32();
-				regs.prefetch020_valid[0] = true;
-				regs.prefetch020_valid[1] = true;
-				regs.prefetch020_valid[2] = true;
-				regs.prefetch020_valid[3] = true;
+				cputrace.prefetch020_valid[0] = true;
+				cputrace.prefetch020_valid[1] = true;
+				cputrace.prefetch020_valid[2] = true;
+				cputrace.prefetch020_valid[3] = true;
+
+				cputrace.prefetch020[0] = cputrace.prefetch020[1];
+				cputrace.prefetch020[1] = cputrace.prefetch020[2];
+				cputrace.prefetch020[2] = cputrace.prefetch020[3];
+				cputrace.prefetch020_valid[3] = false;
 			}
 			if (v & 16) {
 				for (int i = 0; i < CPU_PIPELINE_MAX; i++) {
-					cputrace.prefetch030_valid[i] = restore_u8() != 0;
+					cputrace.prefetch020_valid[i] = restore_u8() != 0;
 				}
+			}
+			if (v & 32) {
+				cputrace.pipeline_pos = restore_u16();
+				cputrace.pipeline_r8[0] = restore_u16();
+				cputrace.pipeline_r8[1] = restore_u16();
+				cputrace.pipeline_stop = restore_u16();
 			}
 		}
 	}
@@ -8256,6 +8343,12 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 	save_u32 (regs.chipset_latch_rw);
 	save_u32 (regs.chipset_latch_read);
 	save_u32 (regs.chipset_latch_write);
+	if (currprefs.cpu_model == 68020) {
+		save_u16(regs.pipeline_pos);
+		save_u16(regs.pipeline_r8[0]);
+		save_u16(regs.pipeline_r8[1]);
+		save_u16(regs.pipeline_stop);
+	}
 	*len = dst - dstbak;
 	return dstbak;
 }

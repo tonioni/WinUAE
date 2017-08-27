@@ -43,6 +43,7 @@ struct mnemolookup {
     instrmnem mnemo;
     const TCHAR *name;
     const TCHAR *friendlyname;
+	uae_u32 flags;
 };
 
 extern struct mnemolookup lookuptab[];

@@ -806,7 +806,7 @@ bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		return false;
 	}
 	if (src == 0) {
-		Exception (5);
+		Exception_cpu (5);
 		return false;
 	}
 #if defined (uae_s64)

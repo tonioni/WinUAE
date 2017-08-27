@@ -161,8 +161,8 @@ static const TCHAR help[] = {
 	_T("  s \"<string>\"/<values> [<addr>] [<length>]\n")
 	_T("                        Search for string/bytes.\n")
 	_T("  T or Tt               Show exec tasks and their PCs.\n")
-	_T("  Td,Tl,Tr,Tp,Ts,TS,Ti,TO,TM Show devs, libs, resources, ports, semaphores,\n")
-	_T("                        residents, interrupts, doslist and memorylist.\n")
+	_T("  Td,Tl,Tr,Tp,Ts,TS,Ti,TO,TM,Tf Show devs, libs, resources, ports, semaphores,\n")
+	_T("                        residents, interrupts, doslist, memorylist, fsres.\n")
 	_T("  b                     Step to previous state capture position.\n")
 	_T("  M<a/b/s> <val>        Enable or disable audio channels, bitplanes or sprites.\n")
 	_T("  sp <addr> [<addr2][<size>] Dump sprite information.\n")
@@ -378,7 +378,7 @@ uae_u32 get_ilong_debug (uaecptr addr)
 	}
 }
 
-static int safe_addr (uaecptr addr, int size)
+int debug_safe_addr (uaecptr addr, int size)
 {
 	if (debug_mmu_mode) {
 		flagtype olds = regs.s;
@@ -1089,7 +1089,7 @@ uaecptr dumpmem2 (uaecptr addr, TCHAR *out, int osize)
 	for (i = 0; i < cols; i++) {
 		uae_u8 b1, b2;
 		b1 = b2 = 0;
-		if (safe_addr (addr, 1)) {
+		if (debug_safe_addr (addr, 1)) {
 			b1 = get_byte_debug (addr + 0);
 			b2 = get_byte_debug (addr + 1);
 			_stprintf (out + 9 + i * 5, _T("%02X%02X "), b1, b2);
@@ -2592,8 +2592,12 @@ static int debug_mem_off (uaecptr *addrp)
 	ba = debug_mem_banks[offset];
 	if (!ba)
 		return offset;
-	if (ba->mask || ba->startmask)
-		addr = (addr & ba->mask) | ba->startmask;
+	if (ba->mask || ba->startmask) {
+		addr -= ba->start;
+		addr &= ba->mask;
+		addr += ba->start;
+		addr |= ba->startmask;
+	}
 	*addrp = addr;
 	return offset;
 }
@@ -4032,8 +4036,9 @@ static void show_exec_lists (TCHAR *t)
 			while (doslist) {
 				int type = get_long_debug (doslist + 4);
 				uaecptr msgport = get_long_debug (doslist + 8);
+				uaecptr lock = get_long_debug(doslist + 12);
 				TCHAR *name = getfrombstr(get_long_debug(doslist + 40));
-				console_out_f(_T("%08x: %d %08x '%s'\n"), doslist, type, msgport, name);
+				console_out_f(_T("%08x: Type=%d Port=%08x Lock=%08x '%s'\n"), doslist, type, msgport, lock, name);
 				if (type == 0) {
 					uaecptr fssm = get_long_debug(doslist + 28) << 2;
 					console_out_f (_T(" - H=%08x Stack=%5d Pri=%2d Start=%08x Seg=%08x GV=%08x\n"),
@@ -4065,6 +4070,11 @@ static void show_exec_lists (TCHAR *t)
 						}
 						xfree(unitname);
 					}
+				} else if (type == 2) {
+					console_out_f(_T(" - VolumeDate=%08x %08x %08x LockList=%08x DiskType=%08x\n"),
+						get_long_debug(doslist + 16), get_long_debug(doslist + 20), get_long_debug(doslist + 24),
+						get_long_debug(doslist + 28),
+						get_long_debug(doslist + 32));
 				}
 				xfree (name);
 				doslist = get_long_debug (doslist) << 2;

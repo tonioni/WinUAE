@@ -258,11 +258,14 @@ struct cputracestruct
 	uae_u32 msp, vbr;
 	uae_u32 cacr, caar;
 	uae_u16 prefetch020[CPU_PIPELINE_MAX];
-	uae_u8 prefetch030_valid[CPU_PIPELINE_MAX];
+	uae_u8 prefetch020_valid[CPU_PIPELINE_MAX];
 	uae_u32 prefetch020addr;
 	uae_u32 cacheholdingdata020;
 	uae_u32 cacheholdingaddr020;
 	struct cache020 caches020[CACHELINES020];
+	int pipeline_pos;
+	int pipeline_r8[2];
+	int pipeline_stop;
 
 	uae_u32 startcycles;
 	int needendcycles;
