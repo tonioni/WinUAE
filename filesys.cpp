@@ -1048,11 +1048,22 @@ static void free_mountinfo (void)
 	gayle_free_units ();
 }
 
+struct hardfiledata *get_hardfile_data_controller(int nr)
+{
+	UnitInfo *uip = mountinfo.ui;
+	for (int i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
+		if (uip[i].open == 0 || is_virtual(i))
+			continue;
+		if (uip[i].hf.ci.controller_unit == nr)
+			return &uip[i].hf;
+	}
+	return NULL;
+}
 struct hardfiledata *get_hardfile_data (int nr)
 {
 	UnitInfo *uip = mountinfo.ui;
 	if (nr < 0 || nr >= MAX_FILESYSTEM_UNITS || uip[nr].open == 0 || is_virtual (nr))
-		return 0;
+		return NULL;
 	return &uip[nr].hf;
 }
 
@@ -7599,6 +7610,45 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *ctx)
 	return 1;
 }
 
+#define FS_TEST_HACK 0
+#if FS_TEST_HACK
+static uae_u32 REGPARAM2 ks13patchstartup(TrapContext *ctx)
+{
+	uaecptr startup = trap_get_areg(ctx, 0);
+	uaecptr doslib = 0x00c06230;
+	uaecptr root = get_long(doslib + 34);
+	uaecptr node = (get_long(root + 24) << 2) + 4;
+	uaecptr dp_arg2 = get_long(startup + 24);
+	for (;;) {
+		node = get_long(node) << 2;
+		if (!node)
+			break;
+		if (get_long(node + 4) != 0)
+			continue;
+		if (get_long(node + 28) != dp_arg2)
+			continue;
+		put_long(startup + 20, get_long(node + 40)); // dp_Arg1 = dol_Node
+		put_long(startup + 28, node >> 2); // dp_Arg3 = dl
+		activate_debugger();
+		return dp_arg2 << 2;
+	}
+	return 0;
+}
+
+static void patchhackfs(uaecptr seg)
+{
+	int o = rtarea_base + 0xFEFA;
+	put_long(seg + 9806, 0x70ff70ff);
+	seg += 9632;
+	put_word(seg, 0x4eb9);
+	put_long(seg + 2, o);
+	put_word(seg + 6, 0x2440); // move.l d0,a2
+	org(o);
+	calltrap(deftrap2(ks13patchstartup, 0, _T("ks13patchstartup")));
+	dw(RTS);
+}
+#endif
+
 static uae_u32 REGPARAM2 filesys_dev_bootfilesys (TrapContext *ctx)
 {
 	uaecptr devicenode = trap_get_areg(ctx, 3);
@@ -7626,6 +7676,7 @@ static uae_u32 REGPARAM2 filesys_dev_bootfilesys (TrapContext *ctx)
 		return 0;
 	}
 
+	dostype = trap_get_long(ctx, parmpacket + 80);
 	if (trap_get_long(ctx, parmpacket + PP_FSPTR) && !trap_get_long(ctx, parmpacket + PP_ADDTOFSRES)) {
 		uaecptr fsptr = trap_get_long(ctx, parmpacket + PP_FSPTR);
 		uip->filesysseg = fsptr;
@@ -7641,9 +7692,9 @@ static uae_u32 REGPARAM2 filesys_dev_bootfilesys (TrapContext *ctx)
 			seglist = (trap_get_long(ctx, rtarea_base + bootrom_header + 4 + 6 * 4) + rtarea_base + bootrom_header) >> 2;
 		}
 		trap_put_long(ctx, devicenode + 4 + 7 * 4, seglist);
+		write_log(_T("Filesys %08x entry=%08x\n"), dostype, fsptr);
 		return 1;
 	}
-	dostype = trap_get_long(ctx, parmpacket + 80);
 	fsnode = trap_get_long(ctx, fsres + 18);
 	while (trap_get_long(ctx, fsnode)) {
 		dostype2 = trap_get_long(ctx, fsnode + 14);
@@ -7652,10 +7703,16 @@ static uae_u32 REGPARAM2 filesys_dev_bootfilesys (TrapContext *ctx)
 			for (int i = 0; i < 32; i++) {
 				if (pf & (1 << i)) {
 					uae_u32 data = trap_get_long(ctx, fsnode + 22 + 4 + i * 4);
-					if (i == 7 && bcplonlydos()) { // seglist
-						// point seglist to bcpl wrapper and put original seglist in dn_Handler
-						trap_put_long(ctx, devicenode + 4 + 3 * 4, trap_get_long(ctx, fsnode + 22 + 4 + 7 * 4));
-						data = (trap_get_long(ctx, rtarea_base + bootrom_header + 4 + 6 * 4) + rtarea_base + bootrom_header) >> 2;
+					if (i == 7) {
+						if (bcplonlydos()) { // seglist
+							// point seglist to bcpl wrapper and put original seglist in dn_Handler
+							trap_put_long(ctx, devicenode + 4 + 3 * 4, trap_get_long(ctx, fsnode + 22 + 4 + 7 * 4));
+							data = (trap_get_long(ctx, rtarea_base + bootrom_header + 4 + 6 * 4) + rtarea_base + bootrom_header) >> 2;
+						}
+						write_log(_T("Filesys %08x entry=%08x\n"), dostype, data << 2);
+#if FS_TEST_HACK
+						patchhackfs(data << 2);
+#endif
 					}
 					trap_put_long(ctx, devicenode + 4 + i * 4, data);
 				}
@@ -8448,7 +8505,7 @@ static int dofakefilesys (TrapContext *ctx, UnitInfo *uip, uaecptr parmpacket, s
 			trap_put_long(ctx, parmpacket + PP_FSSIZE, 0);
 			trap_put_long(ctx, parmpacket + PP_FSPTR, seg);
 			trap_put_long(ctx, parmpacket + PP_ADDTOFSRES, 0);
-			write_log (_T("RDB: faked RDB filesystem '%s' reused\n"), uip->filesysdir);
+			write_log (_T("RDB: faked RDB filesystem '%s' reused, entry=%08x\n"), uip->filesysdir, seg << 2);
 			return FILESYS_HARDFILE;
 		}
 	}

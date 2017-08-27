@@ -2045,7 +2045,7 @@ static int handle_scsi (TrapContext *ctx, uae_u8 *iobuf, uaecptr request, struct
 
 	trap_get_bytes(ctx, sd->cmd, scsi_cmd, sd->cmd_len);
 	for (int i = 0; i < sd->cmd_len; i++) {
-		scsi_log (_T("%02X%c"), cmdbuf[i], i < sd->cmd_len - 1 ? '.' : ' ');
+		scsi_log (_T("%02X%c"), sd->cmd[i], i < sd->cmd_len - 1 ? '.' : ' ');
 	}
 	scsi_log (_T("\n"));
 
@@ -2067,7 +2067,7 @@ static int handle_scsi (TrapContext *ctx, uae_u8 *iobuf, uaecptr request, struct
 		scsi_log (_T("RD:"));
 		int i = 0;
 		while (i < sd->reply_len && i < 24) {
-			scsi_log (_T("%02X%c"), reply[i], i < reply_len - 1 ? '.' : ' ');
+			scsi_log (_T("%02X%c"), sd->reply[i], i < sd->reply_len - 1 ? '.' : ' ');
 			i++;
 		}
 		scsi_log (_T("\n"));
@@ -2240,7 +2240,7 @@ static uae_u32 REGPARAM2 hardfile_open (TrapContext *ctx)
 	/* Check unit number */
 	if (unit >= 0 && unit < MAX_FILESYSTEM_UNITS) {
 		struct hardfileprivdata *hfpd = &hardfpd[unit];
-		struct hardfiledata *hfd = get_hardfile_data (unit);
+		struct hardfiledata *hfd = get_hardfile_data_controller(unit);
 		if (hfd && (hfd->handle_valid || hfd->drive_empty) && start_thread (ctx, unit)) {
 			trap_put_word(ctx, hfpd->base + 32, trap_get_word(ctx, hfpd->base + 32) + 1);
 			trap_put_long(ctx, ioreq + 24, unit); /* io_Unit */
@@ -2571,7 +2571,7 @@ static uae_u32 REGPARAM2 hardfile_abortio (TrapContext *ctx)
 {
 	uae_u32 request = trap_get_areg (ctx, 1);
 	int unit = mangleunit (trap_get_long(ctx, request + 24));
-	struct hardfiledata *hfd = get_hardfile_data (unit);
+	struct hardfiledata *hfd = get_hardfile_data_controller(unit);
 	struct hardfileprivdata *hfpd = &hardfpd[unit];
 
 	hf_log2 (_T("uaehf.device abortio "));
@@ -2627,7 +2627,7 @@ static uae_u32 REGPARAM2 hardfile_beginio (TrapContext *ctx)
 	int cmd = get_word_host(iobuf + 28);
 	int unit = mangleunit(get_long_host(iobuf + 24));
 
-	struct hardfiledata *hfd = get_hardfile_data(unit);
+	struct hardfiledata *hfd = get_hardfile_data_controller(unit);
 	struct hardfileprivdata *hfpd = &hardfpd[unit];
 
 	put_byte_host(iobuf + 8, NT_MESSAGE);
@@ -2682,7 +2682,7 @@ static void *hardfile_thread (void *devs)
 			uae_sem_post (&hfpd->sync_sem);
 			uae_sem_post (&change_sem);
 			return 0;
-		} else if (hardfile_do_io(ctx, get_hardfile_data (hfpd - &hardfpd[0]), hfpd, iobuf, request) == 0) {
+		} else if (hardfile_do_io(ctx, get_hardfile_data_controller(hfpd - &hardfpd[0]), hfpd, iobuf, request) == 0) {
 			put_byte_host(iobuf + 30, get_byte_host(iobuf + 30) & ~1);
 			trap_put_bytes(ctx, iobuf + 8, request + 8, 48 - 8);
 			release_async_request(hfpd, request);
