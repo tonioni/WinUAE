@@ -414,7 +414,7 @@ typedef struct _SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER {
 	UCHAR SenseBuf[32];
 } SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER;
 
-static bool do_scsi_in(HANDLE h, const uae_u8 *cdb, int cdblen, uae_u8 *in, int insize)
+static int do_scsi_in(HANDLE h, const uae_u8 *cdb, int cdblen, uae_u8 *in, int insize)
 {
 	SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER swb;
 	DWORD status, returned;
@@ -425,36 +425,34 @@ static bool do_scsi_in(HANDLE h, const uae_u8 *cdb, int cdblen, uae_u8 *in, int 
 	swb.spt.DataIn = insize > 0 ? SCSI_IOCTL_DATA_IN : 0;
 	swb.spt.DataTransferLength = insize;
 	swb.spt.DataBuffer = in;
-	swb.spt.TimeOutValue = 2 * 60;
+	swb.spt.TimeOutValue = 10;
 	swb.spt.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, SenseBuf);
 	swb.spt.SenseInfoLength = 32;
 	memcpy(swb.spt.Cdb, cdb, cdblen);
+	write_log(_T("IOCTL_SCSI_PASS_THROUGH_DIRECT: "));
+	for (int i = 0; i < cdblen; i++) {
+		write_log(_T("%02X."), cdb[i]);
+	}
 	status = DeviceIoControl (h, IOCTL_SCSI_PASS_THROUGH_DIRECT,
 		&swb, sizeof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER),
 		&swb, sizeof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER),
 		&returned, NULL);
 	if (!status) {
 		DWORD err = GetLastError();
-		write_log(_T("IOCTL_SCSI_PASS_THROUGH_DIRECT: "));
-		for (int i = 0; i < cdblen; i++) {
-			write_log(_T("%02X."), cdb[i]);
-		}
 		write_log(_T(" failed %08x\n"), err);
-		return false;
+		return -1;
 	} else if (swb.spt.ScsiStatus) {
-		write_log(_T("IOCTL_SCSI_PASS_THROUGH_DIRECT: "));
-		for (int i = 0; i < cdblen; i++) {
-			write_log(_T("%02X."), cdb[i]);
-		}
 		write_log(_T("\n"));
 		write_log(_T("SENSE: "));
 		for (int i = 0; i < swb.spt.SenseInfoLength; i++) {
 			write_log(_T("%02X."), swb.SenseBuf[i]);
 		}
 		write_log(_T("\n"));
-		return false;
+		return -1;
+	} else {
+		write_log(_T(" OK (%d bytes)\n"), swb.spt.DataTransferLength);
 	}
-	return true;
+	return swb.spt.DataTransferLength;
 }
 
 #if 0
@@ -636,7 +634,7 @@ static void bintotextline(TCHAR *out, uae_u8 *data, int size)
 
 void gui_infotextbox(HWND hDlg, const TCHAR *text);
 
-static bool hd_get_meta_ata(HWND hDlg, HANDLE h, uae_u8 *datap)
+static bool hd_get_meta_ata(HWND hDlg, HANDLE h, bool atapi, uae_u8 *datap)
 {
 	DWORD r, size;
 	uae_u8 *b;
@@ -651,12 +649,13 @@ static bool hd_get_meta_ata(HWND hDlg, HANDLE h, uae_u8 *datap)
 	ata->TimeOutValue = 10;
 	ata->AtaFlags = ATA_FLAGS_DRDY_REQUIRED | ATA_FLAGS_DATA_IN;
 	IDEREGS* ir = (IDEREGS*)ata->CurrentTaskFile;
-	ir->bCommandReg = ID_CMD;
+	ir->bCommandReg = atapi ? ATAPI_ID_CMD : ID_CMD;
 	ata->DataBufferOffset = data - b;
-		if (!DeviceIoControl (h, IOCTL_ATA_PASS_THROUGH, b, size, b, size, &r, NULL)) {
-		write_log (_T("IOCTL_ATA_PASS_THROUGH_DIRECT ID_CMD failed %08x\n"), GetLastError());
+	if (!DeviceIoControl (h, IOCTL_ATA_PASS_THROUGH, b, size, b, size, &r, NULL)) {
+		write_log (_T("IOCTL_ATA_PASS_THROUGH_DIRECT ID failed %08x\n"), GetLastError());
 		return false;
 	}
+	write_log(_T("IOCTL_ATA_PASS_THROUGH_DIRECT succeeded\n"));
 	memcpy(datap, data, 512);
 	xfree(b);
 	return true;
@@ -673,7 +672,7 @@ static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq)
 
 	memset(data, 0, 512);
 	memcpy(cmd, realtek_inquiry_0x83, sizeof(realtek_inquiry_0x83));
-	if (!do_scsi_in(h, cmd, 6, data, 0xf0))
+	if (do_scsi_in(h, cmd, 6, data, 0xf0) < 0)
 		return false;
 	if (memcmp(data + 20, "realtek\0", 8)) {
 		memset(data, 0, 512);
@@ -682,7 +681,7 @@ static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq)
 
 	memset(data, 0, 512);
 	memcpy(cmd, realtek_read, sizeof(realtek_read));
-	if (!do_scsi_in(h, cmd, 6, data, 512)) {
+	if (do_scsi_in(h, cmd, 6, data, 512) < 0) {
 		memset(data, 0, 512);
 		return false;
 	}
@@ -691,7 +690,7 @@ static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq)
 
 	memset(cmd, 0, 6); // TEST UNIT READY
 	TCHAR *infotxt;
-	if (!do_scsi_in(h, cmd, 6, data, 0)) {
+	if (do_scsi_in(h, cmd, 6, data, 0) < 0) {
 		state = 1;
 		infotxt = _T("Realtek hack, insert card.");
 	} else {
@@ -724,7 +723,7 @@ static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq)
 		tcnt++;
 		if (tcnt >= 10) {
 			memset(cmd, 0, 6);
-			if (do_scsi_in(h, cmd, 6, data, 0)) {
+			if (do_scsi_in(h, cmd, 6, data, 0) >= 0) {
 				if (state != 0) {
 					break;
 				}
@@ -749,7 +748,7 @@ static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq)
 
 	memset(data, 0, 512);
 	memcpy(cmd, realtek_read, sizeof(realtek_read));
-	if (do_scsi_in(h, cmd, 6, data, 512))
+	if (do_scsi_in(h, cmd, 6, data, 512) > 0)
 		return true;
 
 	return false;
@@ -764,20 +763,21 @@ static bool do_scsi_read10_chs(HANDLE handle, int c, int h, int s, uae_u8 *data)
 	cmd[4] = c;
 	cmd[5] = s;
 	cmd[8] = 1;
-	return do_scsi_in(handle, cmd, 10, data, 512);
+	return do_scsi_in(handle, cmd, 10, data, 512) > 0;
 }
 
-static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, struct ini_data *ini)
+static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, struct ini_data *ini, bool *atapi)
 {
 	uae_u8 cmd[16];
 	TCHAR cline[256];
 	bool invalidcapacity = false;
 	bool ret = false;
 
+	*atapi = false;
 	memset(cmd, 0, sizeof(cmd));
 	cmd[0] = 0x12; // inquiry
 	cmd[4] = INQUIRY_LEN;
-	if (!do_scsi_in(h, cmd, 6, data, INQUIRY_LEN)) {
+	if (do_scsi_in(h, cmd, 6, data, INQUIRY_LEN) < 0) {
 		write_log(_T("SAT: INQUIRY failed\n"));
 		return false;
 	}
@@ -802,7 +802,7 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 	memset(data, 0, 512);
 	memset(cmd, 0, sizeof(cmd));
 	cmd[0] = 0x25;
-	if (do_scsi_in(h, cmd, 10, data, 8)) {
+	if (do_scsi_in(h, cmd, 10, data, 8) >= 8) {
 		_tcscat (text, _T("READ CAPACITY:\r\n"));
 		bintotextline(text, data, 8);
 		_tcscat (text, _T("\r\n"));
@@ -817,7 +817,7 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 	cmd[0] = 0x12; // inquiry
 	cmd[1] = 1;
 	cmd[4] = INQUIRY_LEN;
-	if (do_scsi_in(h, cmd, 6, data, INQUIRY_LEN)) {
+	if (do_scsi_in(h, cmd, 6, data, INQUIRY_LEN) > 0) {
 		uae_u8 evpd[256];
 		int cnt = 0;
 		uae_u8 pl = data[3];
@@ -841,7 +841,7 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 		for (int i = 0; i < cnt; i++) {
 			cmd[2] = evpd[i];
 			memset(data, 0, 512);
-			if (do_scsi_in(h, cmd, 6, data, INQUIRY_LEN)) {
+			if (do_scsi_in(h, cmd, 6, data, INQUIRY_LEN) > 0) {
 				TCHAR tmp[256];
 				_stprintf(tmp, _T("INQUIRY %02X:\r\n"), evpd[i]);
 				_tcscat (text, tmp);
@@ -862,40 +862,52 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 	}
 
 	// get mode sense pages
-	memset(data, 0, 512);
+	memset(data, 0, 0xff00);
 	memset(cmd, 0, sizeof(cmd));
 	cmd[0] = 0x5a;
 	cmd[2] = 0x80 | 0x3f;
 	cmd[7] = 0xff;
 	cmd[8] = 0;
-	if (do_scsi_in(h, cmd, 10, data, 0xff00)) {
-		TCHAR tmp[256];
+	len = do_scsi_in(h, cmd, 10, data, 0xff00);
+	if (len > 0) {
+		TCHAR tmp[4000];
 		int l = (data[0] << 8) | data[1];
+		write_log(_T("MODE SENSE LEN %d\n"), l);
+		if (l > len)
+			l = len;
 		_tcscat (text, _T("MODE SENSE:\r\n"));
 		bintotextline(text, data + 2, 4);
 		_tcscat (text, _T("\r\n"));
 		ini_addnewdata(ini, _T("MODE SENSE"),_T("PARAMETER LIST"), data + 2, 4);
 		uae_u16 dbd = (data[6] << 8) | data[7];
-		if (dbd) {
-			_tcscat (text, _T("MODE SENSE BLOCK DESCRIPTOR DATA:\r\n"));
-			bintotextline(text, data + 8, dbd);
-			_tcscat (text, _T("\r\n"));
-			ini_addnewdata(ini, _T("MODE SENSE"), _T("BLOCK DESCRIPTOR DATA"), data + 8, dbd);
+		l -= 8;
+		write_log(_T("MODE SENSE DBD %d\n"), dbd);
+		if (dbd <= 8) {
+			l -= dbd;
+			if (dbd == 8) {
+				_tcscat(text, _T("MODE SENSE BLOCK DESCRIPTOR DATA:\r\n"));
+				bintotextline(text, data + 8, dbd);
+				_tcscat(text, _T("\r\n"));
+				ini_addnewdata(ini, _T("MODE SENSE"), _T("BLOCK DESCRIPTOR DATA"), data + 8, dbd);
+			}
+			uae_u8 *p = &data[8 + dbd];
+			while (l >= 2) {
+				uae_u8 page = p[0];
+				uae_u8 pl = p[1];
+				if (pl > l - 2)
+					break;
+				write_log(_T("MODE SENSE PAGE %02x LEN %d\n"), page, pl);
+				_stprintf(tmp, _T("MODE SENSE %02x:\r\n"), page);
+				_tcscat(text, tmp);
+				bintotextline(text, p, pl + 2);
+				_tcscat(text, _T("\r\n"));
+				_stprintf(tmp, _T("%02X"), page);
+				ini_addnewdata(ini, _T("MODE SENSE"), tmp, p, pl + 2);
+				p += 2 + pl;
+				l -= 2 + pl;
+			}
 		}
-		l -= 8 + dbd;
-		uae_u8 *p = &data[8 + dbd];
-		while (l >= 2) {
-			uae_u8 page = p[0];
-			uae_u8 pl = p[1];
-			_stprintf(tmp, _T("MODE SENSE %02X:\r\n"), page);
-			_tcscat (text, tmp);
-			bintotextline(text, p, pl + 2);
-			_tcscat (text, _T("\r\n"));
-			_stprintf(tmp, _T("%02X"), page);
-			ini_addnewdata(ini, _T("MODE SENSE"), tmp, p, pl + 2);
-			p += 2 + pl;
-			l -= 2 + pl;
-		}
+		write_log(_T("MODE SENSE END\n"));
 	}
 
 	if (type != 0 && type != 05) {
@@ -912,9 +924,12 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 		cmd[2] = 0x08 | 0x04 | 0x02; // dir = from device, 512 byte block, sector count = block cnt
 		cmd[6] = 1; // block count
 		cmd[14] = 0xa1; // identity packet device
-		if (do_scsi_in(h, cmd, 16, data, 512))
+		if (do_scsi_in(h, cmd, 16, data, 512) > 0) {
 			ret = true;
-		write_log(_T("SAT: ATA PASSTHROUGH(16) failed\n"));
+			*atapi = true;
+		} else {
+			write_log(_T("SAT: ATA PASSTHROUGH(16) failed\n"));
+		}
 
 	} else {
 
@@ -925,16 +940,19 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 		cmd[2] = 0x08 | 0x04 | 0x02; // dir = from device, 512 byte block, sector count = block cnt
 		cmd[4] = 1; // block count
 		cmd[9] = 0xec; // identity
-		if (do_scsi_in(h, cmd, 12, data, 512))
+		if (do_scsi_in(h, cmd, 12, data, 512) > 0) {
 			ret = true;
-		write_log(_T("SAT: ATA PASSTHROUGH(12) failed\n"));
+		} else {
+			write_log(_T("SAT: ATA PASSTHROUGH(12) failed\n"));
+		}
 	}
 
-	if (0 && invalidcapacity) {
+	if (invalidcapacity) {
 		bool chs0 = do_scsi_read10_chs(h, 0, 0, 0, data);
 		bool chs1 = do_scsi_read10_chs(h, 0, 0, 1, data);
+		write_log(_T("CHS0=%d CHS1=%d\n"), chs0, chs1);
 		if (!chs0 && chs1) {
-			int cc, hh, ss;
+			int hh, ss;
 			for (ss = 1; ss < 256; ss++) {
 				if (!do_scsi_read10_chs(h, 0, 0, ss, data)) {
 					ss--;
@@ -944,7 +962,6 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 			write_log(_T("Sectors=%d\n"), ss);
 			for (hh = 0; hh < 16; hh++) {
 				if (!do_scsi_read10_chs(h, 0, hh, 1, data)) {
-					hh--;
 					break;
 				}
 			}
@@ -953,6 +970,8 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 				write_log(_T("Invalid H and/or S value.\n"));
 				goto end;
 			}
+#if 0
+			int cc;
 			for (cc = 0; cc < 10000; cc++) {
 				write_log(_T("%d "), cc);
 				for (int hhh = 0; hhh < hh; hhh++) {
@@ -967,7 +986,8 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 					}
 				}
 			}
-			end:;
+#endif
+end:;
 		}
 	}
 
@@ -996,10 +1016,14 @@ static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam,
 		switch (LOWORD (wParam))
 		{
 		case IDC_SAVEBOOTBLOCK:
-			if (DiskSelection(hDlg, 0, 24, &workprefs, geometry_file, NULL)) {
-				ini_save(hdini, geometry_file);
+		{
+			TCHAR out[MAX_DPATH];
+			out[0] = 0;
+			if (DiskSelection(hDlg, 0, 24, &workprefs, geometry_file, out)) {
+				ini_save(hdini, out);
 			}
 			break;
+		}
 		case IDOK:
 			stringboxdialogactive = -1;
 			DestroyWindow (hDlg);
@@ -1024,6 +1048,7 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 	uae_u8 inq[INQUIRY_LEN + 4] = { 0 };
 	TCHAR *text;
 	struct ini_data *ini = NULL;
+	bool atapi = false;
 
 	geometryfile[0] = 0;
 	text = xcalloc(TCHAR, 100000);
@@ -1041,7 +1066,7 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 	data = (uae_u8*)VirtualAlloc (NULL, 65536, MEM_COMMIT, PAGE_READWRITE);
 	inq[0] = 0xff;
 
-	if (udi->BusType == BusTypeAta || udi->BusType == BusTypeSata) {
+	if (udi->BusType == BusTypeAta || udi->BusType == BusTypeSata || udi->BusType == BusTypeAtapi) {
 		if (!_tcscmp(udi->vendor_id, _T("ATA"))) {
 			satl = true;
 		}
@@ -1049,9 +1074,11 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 
 	_stprintf(text, _T("BusType: 0x%02x\r\nVendor: '%s'\r\nProduct: '%s'\r\nRevision: '%s'\r\nSerial: '%s'\r\nSize: %llu\r\n\r\n"),
 		 udi->BusType, udi->vendor_id, udi->product_id, udi->product_rev, udi->product_serial, udi->size);
+	write_log(_T("SATL=%d\n%s"), satl, text);
 
 	if (satl || udi->BusType == BusTypeScsi || udi->BusType == BusTypeUsb || udi->BusType == BusTypeRAID) {
-		if (!hd_get_meta_satl(hDlg, h, data, text, ini)) {
+		write_log(_T("SCSI ATA passthrough\n"));
+		if (!hd_get_meta_satl(hDlg, h, data, text, ini, &atapi)) {
 			write_log(_T("SAT Passthrough failed\n"));
 			memset(data, 0, 512);
 			if (udi->BusType == BusTypeUsb) {
@@ -1062,8 +1089,9 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 				goto doout;
 			}
 		}
-	} else if (udi->BusType == BusTypeAta || udi->BusType == BusTypeSata) {
-		if (!hd_get_meta_ata(hDlg, h, data)) {
+	} else if (udi->BusType == BusTypeAta || udi->BusType == BusTypeSata || udi->BusType == BusTypeAtapi) {
+		write_log(_T("ATA passthrough\n"));
+		if (!hd_get_meta_ata(hDlg, h, udi->BusType == BusTypeAtapi, data)) {
 			write_log(_T("ATA Passthrough failed\n"));
 			_tcscpy(text, _T("ATA Passthrough error!"));
 			goto doout;
@@ -1100,6 +1128,9 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 		ini_addnewcomment(ini, _T("IDENTITY"), cline);
 		bintotextpart(cline, data + 10 * 2, 20);
 		ini_addnewcomment(ini, _T("IDENTITY"), cline);
+
+		if (udi->BusType == BusTypeAtapi || atapi)
+			ini_addnewstring(ini, _T("IDENTITY"), _T("ATAPI"), _T("true"));
 
 		ini_addnewdata(ini, _T("IDENTITY"), _T("DATA"), data, 512);
 	}

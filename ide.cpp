@@ -463,8 +463,12 @@ static void ide_identity_buffer(struct ide_hdf *ide)
 
 	if (ata_get_identity(ide->hdhfd.hfd.geometry, ide->secbuf, true)) {
 
-		if (!ide->byteswap)
+		if (ini_getval(ide->hdhfd.hfd.geometry, _T("IDENTITY"), _T("atapi"), &v)) {
+			ide->atapi = v != 0;
+		}
+		if (!ide->byteswap) {
 			ata_byteswapidentity(ide->secbuf);
+		}
 
 	} else {
 
