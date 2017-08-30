@@ -533,7 +533,7 @@ static int mmu_do_match_ttr(uae_u32 ttr, uaecptr addr, bool super)
 				mmu_cache_state = CACHE_DISABLE_MMU;
 			} else {
 				mmu_cache_state = CACHE_ENABLE_ALL;
-				if (ttr && MMU_TTR_CACHE_MODE) {
+				if (ttr & MMU_TTR_CACHE_MODE) {
 					mmu_cache_state |= CACHE_ENABLE_COPYBACK;
 				}
 			}
