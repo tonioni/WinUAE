@@ -1843,11 +1843,12 @@ static void build_cpufunctbl (void)
 	build_comp ();
 #endif
 
-	write_log(_T("CPU=%d, FPU=%d, MMU=%d, JIT%s=%d."),
-			  currprefs.cpu_model, currprefs.fpu_model,
-			  currprefs.mmu_model,
-			  currprefs.cachesize ? (currprefs.compfpu ? _T("=CPU/FPU") : _T("=CPU")) : _T(""),
-			  currprefs.cachesize);
+	write_log(_T("CPU=%d, FPU=%d%s, MMU=%d, JIT%s=%d."),
+		currprefs.cpu_model,
+		currprefs.fpu_model, currprefs.fpu_model ? (currprefs.fpu_softfloat ? _T(" (softfloat)") : _T(" (host)")) : _T(""),
+		currprefs.mmu_model,
+		currprefs.cachesize ? (currprefs.compfpu ? _T("=CPU/FPU") : _T("=CPU")) : _T(""),
+		currprefs.cachesize);
 
 	regs.address_space_mask = 0xffffffff;
 	if (currprefs.cpu_compatible) {
@@ -9610,9 +9611,11 @@ uae_u32 get_word_030_prefetch (int o)
 	v = regs.prefetch020[0];
 	regs.prefetch020[0] = regs.prefetch020[1];
 	regs.prefetch020[1] = regs.prefetch020[2];
+	regs.prefetch020_valid[0] = regs.prefetch020_valid[1];
+	regs.prefetch020_valid[1] = regs.prefetch020_valid[2];
 	regs.prefetch020_valid[2] = false;
 	if (!regs.prefetch020_valid[1]) {
-		do_access_or_bus_error(0xffffffff, pc);
+		do_access_or_bus_error(0xffffffff, pc + 4);
 	}
 #if MORE_ACCURATE_68020_PIPELINE
 	pipeline_020(pc);
