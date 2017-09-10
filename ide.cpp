@@ -1068,6 +1068,7 @@ static void ide_do_command (struct ide_hdf *ide, uae_u8 cmd)
 	ide->regs.ide_error = 0;
 	ide->intdrq = false;
 	ide->lba48cmd = false;
+	ide->irq_delay = 0;
 
 	if (ide->atapi) {
 
@@ -1357,6 +1358,8 @@ uae_u32 ide_read_reg (struct ide_hdf *ide, int ide_reg)
 		v = ide->regs.ide_select;
 		break;
 	case IDE_STATUS:
+		if (ide->irq && IDE_LOG > 1)
+			write_log(_T("IDE IRQ CLEAR\n"));
 		ide->irq = 0;
 		ide->irq_new = false;
 		/* fall through */

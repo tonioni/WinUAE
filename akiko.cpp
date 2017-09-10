@@ -30,7 +30,6 @@
 #include "flashrom.h"
 #include "debug.h"
 
-#define AKIKO_DEBUG_NVRAM 0
 #define AKIKO_DEBUG_IO 1
 #define AKIKO_DEBUG_IO_CMD 1
 

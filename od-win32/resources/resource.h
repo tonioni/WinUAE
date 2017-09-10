@@ -1277,6 +1277,8 @@
 #define IDC_GENLOCKFILESELECT           1854
 #define IDC_PATH_GEOMETRY               1855
 #define IDC_PATH_GEOMETRY_SELECTOR      1856
+#define IDC_EDIT1                       1857
+#define IDC_EXPANSIONBOARDSTRINGBOX     1857
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1328,7 +1330,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        407
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1857
+#define _APS_NEXT_CONTROL_VALUE         1858
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

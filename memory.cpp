@@ -39,6 +39,7 @@
 #include "cpuboard.h"
 #include "uae/ppc.h"
 #include "devices.h"
+#include "inputdevice.h"
 
 bool canbang;
 static bool rom_write_enabled;
@@ -2657,6 +2658,7 @@ void memory_reset (void)
 		arcadia_map_banks ();
 	}
 #endif
+	inputdevice_map();
 
 #ifdef ACTION_REPLAY
 #ifdef ARCADIA

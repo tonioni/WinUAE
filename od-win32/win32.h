@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("3")
+#define WINUAEBETA _T("4")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2017, 8, 27)
+#define WINUAEDATE MAKEBD(2017, 9, 10)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -197,6 +197,7 @@ struct sound_device
     TCHAR *name;
     TCHAR *alname;
     TCHAR *cfgname;
+	TCHAR *prefix;
     int panum;
     int type;
 };

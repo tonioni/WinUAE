@@ -1311,11 +1311,14 @@ BEGIN
     PUSHBUTTON      "...",IDC_SCSIROMCHOOSER,376,42,10,15
     CONTROL         "Autoboot disabled",IDC_SCSIROMFILEAUTOBOOT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,62,99,12
     CONTROL         "",IDC_EXPANSIONBOARDCHECKBOX,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,76,99,12
+    EDITTEXT        IDC_EXPANSIONBOARDSTRINGBOX,202,76,172,14,ES_AUTOHSCROLL
+    COMBOBOX        IDC_EXPANSIONBOARDSELECTOR,202,76,171,75,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_SCSIROMFILE,202,42,171,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Accelerator Board Settings",IDC_STATIC,1,97,394,91
     COMBOBOX        IDC_CPUBOARD_TYPE,13,118,117,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_CPUBOARD_SUBTYPE,13,137,117,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_ACCELERATORBOARDITEMSELECTOR,12,169,157,75,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_ACCELERATORBOARDSELECTOR,202,169,171,75,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Accelerator board memory:",IDC_STATIC,155,145,104,15,SS_CENTERIMAGE
     LTEXT           "Accelerator board ROM file:",IDC_STATIC,203,105,170,15,SS_CENTERIMAGE
     COMBOBOX        IDC_CPUBOARDROMFILE,202,120,169,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
@@ -1325,14 +1328,12 @@ BEGIN
     CONTROL         "",IDC_ACCELERATORBOARDCHECKBOX,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,170,99,12
     GROUPBOX        "Miscellaneous Expansions",IDC_STATIC,1,192,394,51
     CONTROL         "bsdsocket.library [] bsdsocket network library emulation.",IDC_SOCKETS,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,207,187,11
-    CONTROL         "uaescsi.device",IDC_SCSIDEVICE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,223,147,11
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,207,179,11
+    CONTROL         "uaescsi.device",IDC_SCSIDEVICE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,223,180,11
     CONTROL         "uaenet.device [] Sana 2 compatible network device emulation.",IDC_SANA2,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,193,207,187,11
-    CONTROL         "CD32 Full Motion Video cartridge",IDC_CS_CD32FMV,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,193,223,151,11
+    CONTROL         "CD32 Full Motion Video cartridge",IDC_CS_CD32FMV,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,193,223,193,11
     CONTROL         "Enabled",IDC_SCSIROMSELECTED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,43,99,12
-    COMBOBOX        IDC_EXPANSIONBOARDSELECTOR,202,76,171,75,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_ACCELERATORBOARDSELECTOR,202,169,171,75,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
 END
 
 
@@ -1998,7 +1999,7 @@ BEGIN
     IDS_QS_MODEL_A600       "Basic non-expanded configuration\nThe A600 is smaller than the A500+ and has an updated 2.0 ROM.\n2 MB Chip RAM expanded configuration\n\n4 MB Fast RAM expanded configuration\n"
     IDS_QS_MODEL_A1000      "512 KB Chip RAM\nThe A1000 was the first model produced, with a configuration equivalent to that of an A500 with OCS chipset. You normally don't need to use this configuration, unless you are nostalgic and would like to hear the short A1000 boot tune\n""ICS"" Denise without EHB support\nVery first A1000 models had Denise without EHB capability.\n256 KB Chip RAM\n Unexpanded A1000. All later A1000 models were sold with a 256 KB RAM expansion built-in.\nA1000 ""Velvet"" Prototype\n"
     IDS_QS_MODEL_A1200      "Basic non-expanded configuration\nUse this configuration to run most AGA demos and games\n4 MB Fast RAM expanded configuration\nSome newer AGA games and demos need an expanded A1200 to run.\nBlizzard 1230 IV\n\nBlizzard 1240\n\nBlizzard 1260\n\nBlizzard PPC\n"
-    IDS_QS_MODEL_CD32       "CD32\nThe CD32 was one the first 32-bit consoles on the market. It is basically an A1200 with a built-in CD-ROM drive. Insert your CD32 or CDTV CD-ROM into a free CD-ROM drive before starting the emulation.\nCD32 with Full Motion Video cartridge\n"
+    IDS_QS_MODEL_CD32       "CD32\nThe CD32 was one the first 32-bit consoles on the market. It is basically an A1200 with a built-in CD-ROM drive. Insert your CD32 or CDTV CD-ROM into a free CD-ROM drive before starting the emulation.\nCD32 with Full Motion Video cartridge\n\nCubo CD32\n"
     IDS_QS_MODEL_CDTV       "CDTV\nThe CDTV was the first model with a built-in CD-ROM drive. Looking like a black CD player, it featured a configuration equivalent to that of an A500 with 1 MB RAM and an ECS chipset.\nFloppy drive and 64KB SRAM card expanded CDTV\n\nCDTV-CR\n"
 END
 

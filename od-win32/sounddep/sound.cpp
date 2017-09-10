@@ -2691,6 +2691,7 @@ static BOOL CALLBACK DSEnumProc (LPGUID lpGUID, LPCTSTR lpszDesc, LPCTSTR lpszDr
 	sd[i]->name = my_strdup (lpszDesc);
 	sd[i]->type = SOUND_DEVICE_DS;
 	sd[i]->cfgname = my_strdup (sd[i]->name);
+	sd[i]->prefix = my_strdup(_T("DS"));
 	return TRUE;
 }
 
@@ -2770,13 +2771,15 @@ static void wasapi_enum (struct sound_device **sdp)
 		TCHAR buf[1000];
 		_stprintf (buf, _T("WASAPIX:%s"), sdp[i]->cfgname);
 		sdp[cnt] = xcalloc (struct sound_device, 1);
-		sdp[cnt]->cfgname = my_strdup (buf);
+		sdp[cnt]->cfgname = my_strdup(buf);
+		sdp[cnt]->prefix = my_strdup(_T("WASAPIX"));
 		sdp[cnt]->name = my_strdup (sdp[i]->name);
 		sdp[cnt]->alname = sdp[i]->alname ? my_strdup (sdp[i]->alname) : NULL;
 		_stprintf (buf, _T("WASAPI:%s"), sdp[i]->cfgname);
 		sdp[cnt]->type = SOUND_DEVICE_WASAPI_EXCLUSIVE;
 		xfree (sdp[i]->cfgname);
 		sdp[i]->cfgname = my_strdup (buf);
+		sdp[i]->prefix = my_strdup(_T("WASAPI"));
 		cnt++;
 	}
 
@@ -2836,6 +2839,7 @@ static void OpenALEnumerate (struct sound_device **sds, const char *pDeviceNames
 			}
 			_stprintf (tmp, _T("OPENAL:%s"), sds[i]->alname);
 			sds[i]->cfgname = my_strdup (tmp);
+			sds[i]->prefix = my_strdup(_T("OPENAL"));
 		}
 		if (ppDefaultDevice)
 			ppDefaultDevice = NULL;
@@ -2921,6 +2925,7 @@ static void PortAudioEnumerate (struct sound_device **sds)
 		xfree (s1);
 		sds[i]->type = SOUND_DEVICE_PA;
 		sds[i]->name = my_strdup (tmp);
+		sds[i]->prefix = my_strdup(_T("PORTAUDIO"));
 		_stprintf (tmp2, _T("PORTAUDIO:%s"), tmp);
 		sds[i]->cfgname = my_strdup (tmp2);
 		sds[i]->panum = j;

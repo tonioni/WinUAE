@@ -4077,6 +4077,22 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 				}
 			}
 		}
+		if (p->win32_soundcard < 0) {
+			for (i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
+				if (!sound_devices[i]->prefix)
+					continue;
+				int prefixlen = _tcslen(sound_devices[i]->prefix);
+				int tmplen = _tcslen(tmpbuf);
+				if (prefixlen > 0 && tmplen >= prefixlen &&
+					!_tcsncmp(sound_devices[i]->prefix, tmpbuf, prefixlen) &&
+					((tmplen > prefixlen && tmpbuf[prefixlen] == ':')
+					|| tmplen == prefixlen)) {
+					p->win32_soundcard = i;
+					break;
+				}
+			}
+
+		}
 		if (p->win32_soundcard < 0)
 			p->win32_soundcard = num;
 		return 1;

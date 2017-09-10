@@ -2016,6 +2016,8 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 		return 0;
 	if (hfd->dangerous)
 		return 0;
+	if (len == 0)
+		return 0;
 	hfd->cache_valid = 0;
 	hdf_seek (hfd, offset);
 	poscheck (hfd, len);
@@ -2039,10 +2041,11 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 			int tmplen = 512;
 			tmp = (uae_u8*)VirtualAlloc (NULL, tmplen, MEM_COMMIT, PAGE_READWRITE);
 			if (tmp) {
+				int cmplen = tmplen > len ? len : tmplen;
 				memset (tmp, 0xa1, tmplen);
 				hdf_seek (hfd, offset);
 				ReadFile (hfd->handle->h, tmp, tmplen, &outlen2, NULL);
-				if (memcmp (hfd->cache, tmp, tmplen) != 0 || outlen != len)
+				if (memcmp (hfd->cache, tmp, cmplen) != 0 || outlen != len)
 					gui_message (_T("\"%s\"\n\nblock zero write failed! Make sure WinUAE has Windows Administrator privileges."), name);
 				VirtualFree (tmp, 0, MEM_RELEASE);
 			}

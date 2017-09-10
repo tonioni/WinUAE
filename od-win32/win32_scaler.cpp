@@ -837,15 +837,7 @@ bool S2X_init (int dw, int dh, int dd)
 		temp_height = dst_height * m;
 	} else {
 		temp_width = dst_width * 2;
-		if (temp_width > dxcaps.maxwidth)
-			temp_width = dxcaps.maxwidth;
 		temp_height = dst_height * 2;
-		if (temp_height > dxcaps.maxheight)
-			temp_height = dxcaps.maxheight;
-		if (temp_width < dst_width)
-			temp_width = dst_width;
-		if (temp_height < dst_height)
-			temp_height = dst_height;
 	}
 
 	if (usedfilter->type == UAE_FILTER_HQ2X || usedfilter->type == UAE_FILTER_HQ3X || usedfilter->type == UAE_FILTER_HQ4X) {
@@ -853,11 +845,37 @@ bool S2X_init (int dw, int dh, int dd)
 		int h = amiga_height > dst_height ? amiga_height : dst_height;
 		tempsurf2 = xmalloc (uae_u8, w * h * (amiga_depth / 8) * ((scale + 1) / 2));
 		tempsurf3 = xmalloc (uae_u8, w * h *(dst_depth / 8) * 4 * scale);
-		if (!d3d)
-			tempsurf = allocsystemsurface (temp_width, temp_height);
-	} else {
-		if (!d3d)
-			tempsurf = allocsurface (temp_width, temp_height);
+	}
+	if (!d3d) {
+		for (;;) {
+			if (temp_width > dxcaps.maxwidth)
+				temp_width = dxcaps.maxwidth;
+			if (temp_height > dxcaps.maxheight)
+				temp_height = dxcaps.maxheight;
+			if (temp_width < dst_width)
+				temp_width = dst_width;
+			if (temp_height < dst_height)
+				temp_height = dst_height;
+			tempsurf = allocsurface(temp_width, temp_height);
+			if (tempsurf)
+				break;
+			if (temp_width >= 2 * dst_width || temp_height >= 2 * dst_height) {
+				temp_width = dst_width * 3 / 2;
+				temp_height = dst_height * 3 / 2;
+				continue;
+			}
+			if (temp_width == dst_width * 3 / 2 || temp_height == dst_height * 2) {
+				temp_width = dst_width * 4 / 3;
+				temp_height = dst_height * 4 / 3;
+				continue;
+			}
+			if (temp_width > dst_width || temp_height > dst_height) {
+				temp_width = dst_width;
+				temp_height = dst_height;
+				continue;
+			}
+			break;
+		}
 	}
 	if (!tempsurf && !d3d) {
 		write_log (_T("DDRAW: failed to create temp surface (%dx%d)\n"), temp_width, temp_height);
@@ -1067,7 +1085,7 @@ end:
 			sr.left = 0;
 		if (sr.top < 0)
 			sr.top = 0;
-		if (sr.right < temp_width && sr.bottom < temp_height) {
+		if (sr.right <= temp_width && sr.bottom <= temp_height) {
 			if (sr.left < sr.right && sr.top < sr.bottom)
 				DirectDraw_BlitRect (NULL, &dr, tempsurf, &sr);
 		}
