@@ -249,6 +249,11 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 					break;
 				if (ret == NO_PROBLEM)
 					continue;
+				// ignore posible extra data at the end of archive if output file is already complete
+				if ((ret == ERR_SREAD || ret == ERR_NOTTRACK || ret == ERR_THCRC || ret == ERR_BIGTRACK) && zfile_size(fo) >= unpkfsize) {
+					ret = DMS_FILE_END;
+					break;
+				}
 				break;
 #if 0
 				int ok = 0;
@@ -313,12 +318,14 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 	}
 
 	/*  "TR" identifies a Track Header  */
-	if ((b1[0] != 'T')||(b1[1] != 'R')) return ERR_NOTTRACK;
+	if ((b1[0] != 'T')||(b1[1] != 'R'))
+		return ERR_NOTTRACK;
 
 	/*  Track Header CRC  */
 	hcrc = (USHORT)((b1[THLEN-2] << 8) | b1[THLEN-1]);
 
-	if (dms_CreateCRC(b1,(ULONG)(THLEN-2)) != hcrc) return ERR_THCRC;
+	if (dms_CreateCRC(b1,(ULONG)(THLEN-2)) != hcrc)
+		return ERR_THCRC;
 
 	number = (USHORT)((b1[2] << 8) | b1[3]);	/*  Number of track  */
 	pklen1 = (USHORT)((b1[6] << 8) | b1[7]);	/*  Length of packed track data as in archive  */
@@ -345,9 +352,11 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 		write_log (_T("%5d    %5d   %s  %04X  %04X  %04X    %0d\n"), pklen1, unpklen, modes[cmode], usum, hcrc, dcrc, flags);
 	}
 
-	if ((pklen1 > TRACK_BUFFER_LEN) || (pklen2 >TRACK_BUFFER_LEN) || (unpklen > TRACK_BUFFER_LEN)) return ERR_BIGTRACK;
+	if ((pklen1 > TRACK_BUFFER_LEN) || (pklen2 >TRACK_BUFFER_LEN) || (unpklen > TRACK_BUFFER_LEN))
+		return ERR_BIGTRACK;
 
-	if (zfile_fread(b1,1,(size_t)pklen1,fi) != pklen1) return ERR_SREAD;
+	if (zfile_fread(b1,1,(size_t)pklen1,fi) != pklen1)
+		return ERR_SREAD;
 
 	if (dms_CreateCRC(b1,(ULONG)pklen1) != dcrc) {
 		log_error (number);
