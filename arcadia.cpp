@@ -21,6 +21,8 @@
 #include "arcadia.h"
 #include "zfile.h"
 #include "videograb.h"
+#include "xwin.h"
+#include "drawing.h"
 
 /* supported roms
 *
@@ -1011,4 +1013,94 @@ void alg_map_banks(void)
 	ld_wait_ack = 0;
 	ld_direction = 0;
 	ser_buf_offset = 0;
+}
+
+#define TOUCH_BUFFER_SIZE 10
+static int touch_buf_offset, touch_write_buf_offset;
+static int touch_cmd_active;
+static uae_u8 touch_data[TOUCH_BUFFER_SIZE + 1];
+static uae_u8 touch_data_w[TOUCH_BUFFER_SIZE];
+static int touch_active;
+extern uae_u16 cubo_flag;
+
+int touch_serial_write(void)
+{
+	if (!touch_write_buf_offset && touch_active) {
+		if ((cubo_flag & 0x8000) && !(cubo_flag & 0x4000)) {
+			uae_u8 *p = touch_data_w;
+			int x = (lightpen_x[0] * 999) / gfxvidinfo.drawbuffer.inwidth;
+			int y = (lightpen_y[0] * 999) / gfxvidinfo.drawbuffer.inheight;
+
+			if (x < 0)
+				x = 0;
+			if (x > 999)
+				x = 999;
+			if (y < 0)
+				y = 0;
+			if (y > 999)
+				y = 999;
+
+			write_log(_T("%d*%d\n"), x, y);
+
+			*p++ = 0x01;
+			sprintf((char*)p, "%03d", x);
+			p += 3;
+			*p++ = ',';
+			sprintf((char*)p, "%03d", y);
+			p += 3;
+			*p++ = 0x0d;
+			touch_write_buf_offset = p - touch_data_w;
+
+			cubo_flag |= 0x4000;
+		}
+
+	}
+	if (touch_write_buf_offset > 0) {
+		uae_u16 v = touch_data_w[0];
+		touch_write_buf_offset--;
+		memmove(touch_data_w, touch_data_w + 1, touch_write_buf_offset);
+		return v;
+	}
+	return -1;
+}
+
+static void touch_command_do(void)
+{
+	TCHAR *s = au((char*)touch_data);
+	write_log(_T("Cubo touch screen command '%s'\n"), s);
+	xfree(s);
+
+	if (!memcmp(touch_data, "MDU", 3))
+		touch_active = 1;
+	if (!memcmp(touch_data, "MP", 2))
+		touch_active = 2;
+	if (!memcmp(touch_data, "MI", 2))
+		touch_active = 0;
+
+	// just respond "ok" to all commands..
+	touch_data_w[0] = 0x01;
+	touch_data_w[1] = '0';
+	touch_data_w[2] = 0x0d;
+	touch_write_buf_offset = 3;
+}
+
+void touch_serial_read(uae_u16 w)
+{
+	w &= 0xff;
+	if (!touch_cmd_active) {
+		if (w == 0x01) {
+			touch_cmd_active = 1;
+			touch_buf_offset = 0;
+		}
+	} else {
+		if (w == 0x0d) {
+			touch_command_do();
+			touch_cmd_active = 0;
+		} else {
+			if (touch_buf_offset < TOUCH_BUFFER_SIZE) {
+				touch_data[touch_buf_offset++] = (uae_u8)w;
+				touch_data[touch_buf_offset] = 0;
+			}
+		}
+	}
 }

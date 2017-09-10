@@ -370,6 +370,8 @@ static int pot_dat_act[NORMAL_JPORTS][2];
 static int analog_port[NORMAL_JPORTS][2];
 static int digital_port[NORMAL_JPORTS][2];
 static int lightpen_port[NORMAL_JPORTS];
+int cubo_enabled;
+uae_u16 cubo_flag;
 #define POTDAT_DELAY_PAL 8
 #define POTDAT_DELAY_NTSC 7
 
@@ -4136,6 +4138,30 @@ static bool inputdevice_handle_inputcode2 (int code, int state, const TCHAR *s)
 			arcadia_coin[1]++;
 		break;
 
+	case AKS_CUBO1:
+	case AKS_CUBO2:
+	case AKS_CUBO3:
+	case AKS_CUBO4:
+	case AKS_CUBO5:
+	case AKS_CUBO6:
+	case AKS_CUBO7:
+	case AKS_CUBO8:
+	{
+		int idx = code - AKS_CUBO1;
+		if (state) {
+			cubo_flag ^= 1 << idx;
+			write_log(_T("Cubo flag = %02x\n"), cubo_flag & 0xff);
+		}
+		break;
+	}
+	case AKS_CUBOTOUCH:
+		if (state)
+			cubo_flag |= 0x8000;
+		else
+			cubo_flag &= ~0x8000;
+		cubo_flag &= ~0x4000;
+		break;
+
 	case AKS_ALGSERVICE:
 		alg_flag &= ~2;
 		alg_flag |= state ? 2 : 0;
@@ -4649,6 +4675,17 @@ static int handle_input_event2 (int nr, int state, int max, int flags, int extra
 						lightpen_y[lpnum] += delta;
 				}
 			}
+			if (lightpen_x[lpnum] < -10)
+				lightpen_x[lpnum] = -10;
+			if (lightpen_x[lpnum] >= gfxvidinfo.drawbuffer.inwidth + 10)
+				lightpen_x[lpnum] = gfxvidinfo.drawbuffer.inwidth + 10;
+			if (lightpen_y[lpnum] < -10)
+				lightpen_y[lpnum] = -10;
+			if (lightpen_y[lpnum] >= gfxvidinfo.drawbuffer.inheight + 10)
+				lightpen_y[lpnum] = gfxvidinfo.drawbuffer.inheight + 10;
+#if 0
+			write_log(_T("%d*%d\n"), lightpen_x[0], lightpen_y[0]);
+#endif
 		}
 		break;
 	case 1: /* ->JOY1 */
@@ -5043,6 +5080,8 @@ void inputdevice_reset (void)
 		lastmxy_abs[i][1] = 0;
 	}
 	lightpen_trigger2 = 0;
+	cubo_flag = 0;
+	alg_flag = 0;
 }
 
 static int getoldport (struct uae_input_device *id)
@@ -5688,6 +5727,10 @@ static int iscd32 (int ei)
 	if (ei >= INPUTEVENT_JOY2_CD32_FIRST && ei <= INPUTEVENT_JOY2_CD32_LAST) {
 		cd32_pad_enabled[1] = 1;
 		return 2;
+	}
+	if (ei >= INPUTEVENT_SPC_CUBO_SW1 && ei <= INPUTEVENT_SPC_CUBO_TOUCH) {
+		cubo_enabled = 1;
+		return 3;
 	}
 	return 0;
 }
@@ -8362,6 +8405,8 @@ void inputdevice_acquire (int allmode)
 	//    if (!input_acquired)
 	//	write_log (_T("input devices acquired (%s)\n"), allmode ? "all" : "selected only");
 	input_acquired = 1;
+
+	inputdevice_map();
 }
 
 void inputdevice_unacquire(bool emulationactive, int inputmask)
@@ -9360,5 +9405,44 @@ void clear_inputstate (void)
 		horizclear[i] = 1;
 		vertclear[i] = 1;
 		relativecount[i][0] = relativecount[i][1] = 0;
+	}
+}
+
+#define CUBO_DEBUG 0
+
+static uae_u32 REGPARAM2 cubo_get(uaecptr addr)
+{
+	addr &= 0xffff;
+	if (addr == 3) {
+#if CUBO_DEBUG
+		write_log(("%08x %02x %08x\n"), addr, cubo_flag, M68K_GETPC);
+#endif
+		return cubo_flag;
+	}
+#if CUBO_DEBUG
+	write_log(("%08x %08x\n"), addr, M68K_GETPC);
+#endif
+	return 0;
+}
+static void REGPARAM2 cubo_put(uaecptr addr, uae_u32 v)
+{
+#if CUBO_DEBUG
+	write_log(("%08x %08x %08x\n"), addr, v, M68K_GETPC);
+#endif
+}
+
+static addrbank cubo_bank = {
+	cubo_get, cubo_get, cubo_get,
+	cubo_put, cubo_put, cubo_put,
+	default_xlate, default_check, NULL, NULL, _T("CUBO"),
+	dummy_lgeti, dummy_wgeti, ABFLAG_RAM, S_READ, S_WRITE,
+	NULL, 65536
+};
+
+void inputdevice_map(void)
+{
+	if ((cubo_enabled || currprefs.cs_cd32cubo) && get_mem_bank_real(0x00800000) == &dummy_bank) {
+		write_log(_T("Cubo CD32 enabled\n"));
+		map_banks(&cubo_bank, 0x00800000 >> 16, 1, 0);
 	}
 }

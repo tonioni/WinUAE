@@ -38,6 +38,10 @@ extern uae_u8 alg_joystick_buttons(uae_u8, uae_u8, uae_u8);
 extern void ld_serial_read(uae_u16 v);
 extern int ld_serial_write(void);
 
+extern int cubo_enabled;
+extern void touch_serial_read(uae_u16 w);
+extern int touch_serial_write(void);
+
 #endif /* ARCADIA */
 
 #endif /* UAE_ARCADIA_H */
