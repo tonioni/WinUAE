@@ -282,7 +282,7 @@ bool ethernet_getmac(uae_u8 *m, const TCHAR *mac)
 		TCHAR *endptr;
 		if (mac[0] == 0 || mac[1] == 0)
 			return false;
-		if (i < 5 && mac[2] != '.')
+		if (i < 5 && (mac[2] != '.' && mac[2] != ':'))
 			return false;
 		uae_u8 v = (uae_u8)_tcstol(mac, &endptr, 16);
 		mac += 3;

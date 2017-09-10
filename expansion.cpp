@@ -4193,7 +4193,7 @@ static struct expansionboardsettings lanrover_settings[] ={
 		true, false, 0
 	},
 	{
-		_T("MAC\0"),
+		_T("MAC (xx:xx:xx:xx:xx:xx)\0"),
 		_T("mac\0"),
 		2, false, 0
 	},
@@ -4207,7 +4207,7 @@ static struct expansionboardsettings lanrover_settings[] ={
 };
 static struct expansionboardsettings ethernet_settings[] = {
 	{
-		_T("MAC\0"),
+		_T("MAC (xx:xx:xx:xx:xx:xx)\0"),
 		_T("mac\0"),
 		2, false, 0
 	},

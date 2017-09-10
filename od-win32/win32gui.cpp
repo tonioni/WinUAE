@@ -8927,24 +8927,30 @@ struct expansionrom_gui
 	DWORD expansionrom_gui_itemselector;
 	DWORD expansionrom_gui_selector;
 	DWORD expansionrom_gui_checkbox;
+	DWORD expansionrom_gui_stringbox;
 	int expansionrom_gui_settingsbits;
 	int expansionrom_gui_settingsshift;
 	int expansionrom_gui_settings;
+	TCHAR expansionrom_gui_string[ROMCONFIG_CONFIGTEXT_LEN];
 };
 static struct expansionrom_gui expansion_gui_item;
 static struct expansionrom_gui accelerator_gui_item;
 
-static void reset_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg, DWORD itemselector, DWORD selector, DWORD checkbox)
+static void reset_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg, DWORD itemselector, DWORD selector, DWORD checkbox, DWORD stringbox)
 {
 	eg->expansionrom_gui_settings = NULL;
 	eg->expansionrom_gui_item = 0;
 	eg->expansionrom_gui_ebs = NULL;
+	eg->expansionrom_gui_string[0] = 0;
 	hide(hDlg, itemselector, 1);
 	hide(hDlg, selector, 1);
 	hide(hDlg, checkbox, 1);
+	hide(hDlg, stringbox, 1);
 }
 
-static void create_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg, const struct expansionboardsettings *ebs, int settings, DWORD itemselector, DWORD selector, DWORD checkbox)
+static void create_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg, const struct expansionboardsettings *ebs,
+	int settings, const TCHAR *settingsstring,
+	DWORD itemselector, DWORD selector, DWORD checkbox, DWORD stringbox)
 {
 	bool reset = false;
 	static int recursive;
@@ -8957,10 +8963,16 @@ static void create_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg, cons
 	eg->expansionrom_gui_itemselector = itemselector;
 	eg->expansionrom_gui_selector = selector;
 	eg->expansionrom_gui_checkbox = checkbox;
+	eg->expansionrom_gui_stringbox = stringbox;
 	eg->expansionrom_gui_settings = settings;
+	if (settingsstring != eg->expansionrom_gui_string) {
+		eg->expansionrom_gui_string[0] = 0;
+		if (settingsstring)
+			_tcscpy(eg->expansionrom_gui_string, settingsstring);
+	}
 
 	if (!ebs) {
-		reset_expansionrom_gui(hDlg, eg, itemselector, selector, checkbox);
+		reset_expansionrom_gui(hDlg, eg, itemselector, selector, checkbox, stringbox);
 		return;
 	}
 	if (recursive > 0)
@@ -9005,9 +9017,11 @@ static void create_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg, cons
 	eb = &ebs[item];
 	bitcnt += eb->bitshift;
 	if (eb->type == EXPANSIONBOARD_STRING) {
+		hide(hDlg, stringbox, 0);
 		hide(hDlg, selector, 1);
 		hide(hDlg, checkbox, 1);
 		eg->expansionrom_gui_settingsbits = 0;
+		SetDlgItemText(hDlg, stringbox, eg->expansionrom_gui_string);
 	} else if (eb->type == EXPANSIONBOARD_MULTI) {
 		SendDlgItemMessage(hDlg, selector, CB_RESETCONTENT, 0, 0);
 		int itemcnt = -1;
@@ -9032,10 +9046,12 @@ static void create_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg, cons
 		value >>= bitcnt;
 		value &= (1 << bits) - 1;
 		SendDlgItemMessage(hDlg, selector, CB_SETCURSEL, value, 0);
+		hide(hDlg, stringbox, 1);
 		hide(hDlg, selector, 0);
 		hide(hDlg, checkbox, 1);
 		eg->expansionrom_gui_settingsbits = bits;
 	} else {
+		hide(hDlg, stringbox, 1);
 		hide(hDlg, selector, 1);
 		hide(hDlg, checkbox, 0);
 		setchecked(hDlg, checkbox, ((settings >> bitcnt) ^ (eb->invert ? 1 : 0)) & 1);
@@ -9056,12 +9072,13 @@ static void get_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg)
 	val = SendDlgItemMessage(hDlg, eg->expansionrom_gui_itemselector, CB_GETCURSEL, 0, 0);
 	if (val != CB_ERR && val != eg->expansionrom_gui_item) {
 		eg->expansionrom_gui_item = val;
-		create_expansionrom_gui(hDlg, eg, eg->expansionrom_gui_ebs, eg->expansionrom_gui_settings, eg->expansionrom_gui_itemselector, eg->expansionrom_gui_selector, eg->expansionrom_gui_checkbox);
+		create_expansionrom_gui(hDlg, eg, eg->expansionrom_gui_ebs, eg->expansionrom_gui_settings, eg->expansionrom_gui_string,
+			eg->expansionrom_gui_itemselector, eg->expansionrom_gui_selector, eg->expansionrom_gui_checkbox, eg->expansionrom_gui_stringbox);
 		return;
 	}
 	const struct expansionboardsettings *eb = &eg->expansionrom_gui_ebs[eg->expansionrom_gui_item];
 	if (eb->type == EXPANSIONBOARD_STRING) {
-		;
+		GetDlgItemText(hDlg, eg->expansionrom_gui_stringbox, eg->expansionrom_gui_string, sizeof(eg->expansionrom_gui_string) / sizeof(TCHAR));
 	} else if (eb->type == EXPANSIONBOARD_MULTI) {
 		val = SendDlgItemMessage(hDlg, eg->expansionrom_gui_selector, CB_GETCURSEL, 0, 0);
 		if (val != CB_ERR) {
@@ -9301,6 +9318,7 @@ static void values_from_expansion2dlg(HWND hDlg)
 		const struct expansionboardsettings *cbs = ert->settings;
 		if (cbs) {
 			brc->roms[index].device_settings = expansion_gui_item.expansionrom_gui_settings;
+			_tcscpy(brc->roms[index].configtext, expansion_gui_item.expansionrom_gui_string);
 		}
 #if 0
 			for (int i = 0; cbs[i].name; i++) {
@@ -9432,9 +9450,13 @@ static void values_to_expansion2_expansion_settings(HWND hDlg, int mode)
 		}
 		ew(hDlg, IDC_SCSIROMID, ert->id_jumper);
 		const struct expansionboardsettings *cbs = ert->settings;
-		create_expansionrom_gui(hDlg, &expansion_gui_item, cbs, brc ? brc->roms[index].device_settings : 0, IDC_EXPANSIONBOARDITEMSELECTOR, IDC_EXPANSIONBOARDSELECTOR, IDC_EXPANSIONBOARDCHECKBOX);
+		create_expansionrom_gui(hDlg, &expansion_gui_item, cbs,
+			brc ? brc->roms[index].device_settings : 0,
+			brc ? brc->roms[index].configtext : NULL,
+			IDC_EXPANSIONBOARDITEMSELECTOR, IDC_EXPANSIONBOARDSELECTOR, IDC_EXPANSIONBOARDCHECKBOX, IDC_EXPANSIONBOARDSTRINGBOX);
 	} else {
-		reset_expansionrom_gui(hDlg, &expansion_gui_item, IDC_EXPANSIONBOARDITEMSELECTOR, IDC_EXPANSIONBOARDSELECTOR, IDC_EXPANSIONBOARDCHECKBOX);
+		reset_expansionrom_gui(hDlg, &expansion_gui_item,
+			IDC_EXPANSIONBOARDITEMSELECTOR, IDC_EXPANSIONBOARDSELECTOR, IDC_EXPANSIONBOARDCHECKBOX, IDC_EXPANSIONBOARDSTRINGBOX);
 	}
 
 
@@ -9550,7 +9572,8 @@ static void updatecpuboardsubtypes(HWND hDlg)
 
 
 	const struct expansionboardsettings *cbs = cpuboards[workprefs.cpuboard_type].subtypes[workprefs.cpuboard_subtype].settings;
-	create_expansionrom_gui(hDlg, &accelerator_gui_item, cbs, workprefs.cpuboard_settings, IDC_ACCELERATORBOARDITEMSELECTOR, IDC_ACCELERATORBOARDSELECTOR, IDC_ACCELERATORBOARDCHECKBOX);
+	create_expansionrom_gui(hDlg, &accelerator_gui_item, cbs, workprefs.cpuboard_settings, NULL,
+		IDC_ACCELERATORBOARDITEMSELECTOR, IDC_ACCELERATORBOARDSELECTOR, IDC_ACCELERATORBOARDCHECKBOX, -1);
 
 #if 0
 	int i = 0;
@@ -9643,8 +9666,8 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 					break;
 			}
 
-			reset_expansionrom_gui(hDlg, &expansion_gui_item, IDC_EXPANSIONBOARDITEMSELECTOR, IDC_EXPANSIONBOARDSELECTOR, IDC_EXPANSIONBOARDCHECKBOX);
-			reset_expansionrom_gui(hDlg, &accelerator_gui_item, IDC_ACCELERATORBOARDITEMSELECTOR, IDC_ACCELERATORBOARDSELECTOR, IDC_ACCELERATORBOARDCHECKBOX);
+			reset_expansionrom_gui(hDlg, &expansion_gui_item, IDC_EXPANSIONBOARDITEMSELECTOR, IDC_EXPANSIONBOARDSELECTOR, IDC_EXPANSIONBOARDCHECKBOX, IDC_EXPANSIONBOARDSTRINGBOX);
+			reset_expansionrom_gui(hDlg, &accelerator_gui_item, IDC_ACCELERATORBOARDITEMSELECTOR, IDC_ACCELERATORBOARDSELECTOR, IDC_ACCELERATORBOARDCHECKBOX, -1);
 
 			hide(hDlg, IDC_SCSIROMSELECTED, 1);
 			init_expansion2(hDlg, true);
@@ -9668,6 +9691,10 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 			recursive++;
 			switch (LOWORD(wParam))
 			{
+				case IDC_EXPANSIONBOARDSTRINGBOX:
+				get_expansionrom_gui(hDlg, &expansion_gui_item);
+				values_from_expansion2dlg(hDlg);
+				break;
 				case IDC_EXPANSIONBOARDCHECKBOX:
 				get_expansionrom_gui(hDlg, &expansion_gui_item);
 				values_from_expansion2dlg(hDlg);
