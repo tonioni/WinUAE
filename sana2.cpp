@@ -1825,7 +1825,7 @@ static void dev_reset (void)
 	write_log (_T("%s reset\n"), getdevname());
 	for (int i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
 		if (td[i] && td[i]->active) {
-			write_log(_T("- %d: '%s'\n"), i, td[i]->name);
+			write_log(_T("- %d: %s (%s)\n"), i, td[i]->desc, td[i]->name);
 		}
 	}
 	for (int i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
