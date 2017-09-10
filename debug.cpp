@@ -2593,10 +2593,10 @@ static int debug_mem_off (uaecptr *addrp)
 	if (!ba)
 		return offset;
 	if (ba->mask || ba->startmask) {
-		addr -= ba->start;
+		uae_u32 start = ba->startmask ? ba->startmask : ba->start;
+		addr -= start;
 		addr &= ba->mask;
-		addr += ba->start;
-		addr |= ba->startmask;
+		addr += start;
 	}
 	*addrp = addr;
 	return offset;
@@ -4138,41 +4138,57 @@ static void show_exec_lists (TCHAR *t)
 	} else if (c == 'e') { // expansion
 		uaecptr expbase = get_base("expansion.library", 378);
 		if (expbase) {
-			list = get_long_debug(expbase + 60);
-			while (list && get_long_debug(list)) {
-				uae_u32 addr = get_long_debug(list + 32);
-				uae_u16 rom_vector = get_word_debug(list + 16 + 10);
-				uae_u8 type = get_byte_debug(list + 16 + 0);
-				console_out_f(_T("%02x %02x %08x %08x %04x %02x %08x %04x (%u/%u)\n"),
-					type, get_byte_debug(list + 16 + 2),
-					addr, get_long_debug(list + 36),
-					get_word_debug(list + 16 + 4), get_byte_debug(list + 16 + 1),
-					get_long_debug(list + 16 + 6), rom_vector,
-					get_word_debug(list + 16 + 4), get_byte_debug(list + 16 + 1));
-				if ((type & 0x10)) {
-					uae_u8 diagarea[256];
-					uae_u16 nameoffset;
-					uaecptr rom = addr + rom_vector;
-					uae_u8 config = get_byte_debug(rom);
-					copyromdata(config, rom, 0, diagarea, 16);
-					nameoffset = (diagarea[8] << 8) | diagarea[9];
-					console_out_f(_T(" %02x %02x Size %04x Diag %04x Boot %04x Name %04x %04x %04x\n"),
-						diagarea[0], diagarea[1],
-						(diagarea[2] << 8) | diagarea[3],
-						(diagarea[4] << 8) | diagarea[5],
-						(diagarea[6] << 8) | diagarea[7],
-						nameoffset,
-						(diagarea[10] << 8) | diagarea[11],
-						(diagarea[12] << 8) | diagarea[13]);
-					if (nameoffset != 0 && nameoffset != 0xffff) {
-						copyromdata(config, rom, nameoffset, diagarea, 256);
-						diagarea[sizeof diagarea - 1] = 0;
-						TCHAR *str = au((char*)diagarea);
-						console_out_f(_T(" '%s'\n"), str);
-						xfree(str);
-					}
+			if (t[1] == 'm') {
+				uaecptr list = get_long_debug(expbase + 74);
+				while (list && get_long_debug(list)) {
+					uaecptr name = get_long(list + 10);
+					uae_s8 pri = get_byte(list + 9);
+					uae_u16 flags = get_word_debug(list + 14);
+					uae_u32 dn = get_long_debug(list + 16);
+					uae_u8 *addr = get_real_address(name);
+					TCHAR *name1 = addr ? au((char*)addr) : au("<null>");
+					my_trim(name1);
+					console_out_f(_T("%08x %04x %08x %d %s\n"), list, flags, dn, pri, name1);
+					xfree(name1);
+					list = get_long_debug(list);
 				}
-				list = get_long_debug(list);
+			} else {
+				list = get_long_debug(expbase + 60);
+				while (list && get_long_debug(list)) {
+					uae_u32 addr = get_long_debug(list + 32);
+					uae_u16 rom_vector = get_word_debug(list + 16 + 10);
+					uae_u8 type = get_byte_debug(list + 16 + 0);
+					console_out_f(_T("%02x %02x %08x %08x %04x %02x %08x %04x (%u/%u)\n"),
+						type, get_byte_debug(list + 16 + 2),
+						addr, get_long_debug(list + 36),
+						get_word_debug(list + 16 + 4), get_byte_debug(list + 16 + 1),
+						get_long_debug(list + 16 + 6), rom_vector,
+						get_word_debug(list + 16 + 4), get_byte_debug(list + 16 + 1));
+					if ((type & 0x10)) {
+						uae_u8 diagarea[256];
+						uae_u16 nameoffset;
+						uaecptr rom = addr + rom_vector;
+						uae_u8 config = get_byte_debug(rom);
+						copyromdata(config, rom, 0, diagarea, 16);
+						nameoffset = (diagarea[8] << 8) | diagarea[9];
+						console_out_f(_T(" %02x %02x Size %04x Diag %04x Boot %04x Name %04x %04x %04x\n"),
+							diagarea[0], diagarea[1],
+							(diagarea[2] << 8) | diagarea[3],
+							(diagarea[4] << 8) | diagarea[5],
+							(diagarea[6] << 8) | diagarea[7],
+							nameoffset,
+							(diagarea[10] << 8) | diagarea[11],
+							(diagarea[12] << 8) | diagarea[13]);
+						if (nameoffset != 0 && nameoffset != 0xffff) {
+							copyromdata(config, rom, nameoffset, diagarea, 256);
+							diagarea[sizeof diagarea - 1] = 0;
+							TCHAR *str = au((char*)diagarea);
+							console_out_f(_T(" '%s'\n"), str);
+							xfree(str);
+						}
+					}
+					list = get_long_debug(list);
+				}
 			}
 		}
 		return;
@@ -4333,17 +4349,21 @@ static int cycle_breakpoint(TCHAR **c)
 		int count = readint(c);
 		if (nc == 's') {
 			if (more_params(c)) {
+				int mvp = maxvpos + lof_store;
 				int hp = readint(c);
-				if (count >= vpos) {
-					count = vpos - count;
+				int chp = current_hpos();
+				if (count == vpos && chp < hp) {
+					count += mvp - vpos;
+				} else if (count >= vpos) {
+					count = count - vpos;
 				} else {
-					count += maxvpos - vpos;
+					count += mvp - vpos;
 				}
 				count *= maxhpos;
-				if (hp >= current_hpos()) {
-					count += hp - current_hpos();
+				if (hp >= chp) {
+					count += hp - chp;
 				} else {
-					count += maxhpos - current_hpos();
+					count += maxhpos - chp;
 				}
 			} else {
 				count *= maxhpos;

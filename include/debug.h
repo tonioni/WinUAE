@@ -168,6 +168,11 @@ uae_u32 get_long_debug (uaecptr addr);
 uae_u32 get_ilong_debug (uaecptr addr);
 uae_u32 get_iword_debug (uaecptr addr);
 
+uae_u32 get_byte_cache_debug(uaecptr addr, bool *cached);
+uae_u32 get_word_cache_debug(uaecptr addr, bool *cached);
+uae_u32 get_long_cache_debug(uaecptr addr, bool *cached);
+uae_u32 get_iword_cache_debug(uaecptr addr, bool *cached);
+uae_u32 get_ilong_cache_debug(uaecptr addr, bool *cached);
 
 enum debugtest_item { DEBUGTEST_BLITTER, DEBUGTEST_KEYBOARD, DEBUGTEST_FLOPPY, DEBUGTEST_MAX };
 void debugtest (enum debugtest_item, const TCHAR *, ...);
