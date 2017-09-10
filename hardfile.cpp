@@ -37,6 +37,11 @@
 #include "archivers/chd/harddisk.h"
 #endif
 
+#define HDF_SUPPORT_NSD 1
+#define HDF_SUPPORT_TD64 1
+#define HDF_SUPPORT_DS 1
+#define HDF_SUPPORT_DS_PARTITION 0
+
 #undef DEBUGME
 #define hf_log(fmt, ...)
 #define hf_log2(fmt, ...)
@@ -116,6 +121,13 @@ static void getchs2 (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head,
 	int heads;
 	int sectors = 63;
 
+	if (hfd->ci.physical_geometry) {
+		*cyl = hfd->ci.pcyls;
+		*tracksec = hfd->ci.psecs;
+		*head = hfd->ci.pheads;
+		*cylsec = (*head) * (*tracksec);
+		return;
+	}
 	/* do we have RDB values? */
 	if (hfd->rdbcylinders) {
 		*cyl = hfd->rdbcylinders;
@@ -1622,7 +1634,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			int pc = cmdbuf[2] >> 6;
 			int pcode = cmdbuf[2] & 0x3f;
 			int dbd = cmdbuf[1] & 8;
-			int cyl, cylsec, head, tracksec;
+			int cyl, head, tracksec;
 			int totalsize, bdsize, alen;
 
 			if (nodisk (hfd))
@@ -1631,8 +1643,8 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 				cyl = hdhfd->cyls;
 				head = hdhfd->heads;
 				tracksec = hdhfd->secspertrack;
-				cylsec = 0;
 			} else {
+				int cylsec;
 				getchsx (hfd, &cyl, &cylsec, &head, &tracksec);
 			}
 			//write_log (_T("MODE SENSE PC=%d CODE=%d DBD=%d\n"), pc, pcode, dbd);
@@ -1747,7 +1759,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			int pmi = cmdbuf[8] & 1;
 			uae_u32 lba = (cmdbuf[2] << 24) | (cmdbuf[3] << 16) | (cmdbuf[4] << 8) | cmdbuf[5];
 			uae_u32 blocks;
-			int cyl, cylsec, head, tracksec;
+			int cyl, head, tracksec;
 			if (nodisk (hfd))
 				goto nodisk;
 			blocks = (uae_u32)(hfd->virtsize / hfd->ci.blocksize);
@@ -1757,8 +1769,8 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 				cyl = hdhfd->cyls;
 				head = hdhfd->heads;
 				tracksec = hdhfd->secspertrack;
-				cylsec = 0;
 			} else {
+				int cylsec;
 				getchsx (hfd, &cyl, &cylsec, &head, &tracksec);
 			}
 			if (pmi == 0 && lba != 0)
@@ -2352,8 +2364,13 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 		actual = (uae_u32)cmd_read(ctx, hfd, dataptr, offset, len);
 		break;
 
+#if HDF_SUPPORT_TD64
 	case TD_READ64:
+#endif
+#if HDF_SUPPORT_NSD
 	case NSCMD_TD_READ64:
+#endif
+#if defined(HDF_SUPPORT_NSD) || defined(HDF_SUPPORT_TD64)
 		if (nodisk (hfd))
 			goto no_disk;
 		offset64 = get_long_host(iobuf + 44) | ((uae_u64)get_long_host(iobuf + 32) << 32);
@@ -2375,6 +2392,7 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 		}
 		actual = (uae_u32)cmd_read(ctx, hfd, dataptr, offset64, len);
 		break;
+#endif
 
 	case CMD_WRITE:
 	case CMD_FORMAT: /* Format */
@@ -2404,10 +2422,15 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 		}
 		break;
 
+#if HDF_SUPPORT_TD64
 	case TD_WRITE64:
 	case TD_FORMAT64:
+#endif
+#if HDF_SUPPORT_NSD
 	case NSCMD_TD_WRITE64:
 	case NSCMD_TD_FORMAT64:
+#endif
+#if defined(HDF_SUPPORT_NSD) || defined(HDF_SUPPORT_TD64)
 		if (nodisk (hfd))
 			goto no_disk;
 		if (is_writeprotected(hfd)) {
@@ -2433,7 +2456,9 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 			actual = (uae_u32)cmd_write(ctx, hfd, dataptr, offset64, len);
 		}
 		break;
+#endif
 
+#if HDF_SUPPORT_NSD
 	case NSCMD_DEVICEQUERY:
 		trap_put_long(ctx, dataptr + 0, 0);
 		trap_put_long(ctx, dataptr + 4, 16); /* size */
@@ -2442,6 +2467,7 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 		trap_put_long(ctx, dataptr + 12, nscmd_cmd);
 		actual = 16;
 		break;
+#endif
 
 	case CMD_GETDRIVETYPE:
 		actual = DRIVE_NEWSTYLE;
@@ -2512,14 +2538,16 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 		release_async_request (hfpd, request);
 		break;
 
+#if HDF_SUPPORT_DS
 	case HD_SCSICMD: /* SCSI */
-		if (!hfd->ci.sectors && !hfd->ci.surfaces && !hfd->ci.reserved) {
+		if (HDF_SUPPORT_DS_PARTITION || (!hfd->ci.sectors && !hfd->ci.surfaces && !hfd->ci.reserved)) {
 			error = handle_scsi(ctx, iobuf, request, hfd, hfpd->sd);
 		} else { /* we don't want users trashing their "partition" hardfiles with hdtoolbox */
 			error = IOERR_NOCMD;
 			write_log (_T("UAEHF: HD_SCSICMD tried on regular HDF, unit %d\n"), unit);
 		}
 		break;
+#endif
 
 	case CD_EJECT:
 		if (hfd->ci.sectors && hfd->ci.surfaces) {
@@ -2626,6 +2654,11 @@ static uae_u32 REGPARAM2 hardfile_beginio (TrapContext *ctx)
 	uae_u8 flags = get_byte_host(iobuf + 30);
 	int cmd = get_word_host(iobuf + 28);
 	int unit = mangleunit(get_long_host(iobuf + 24));
+
+#if 0
+	if (cmd == CMD_GETGEOMETRY)
+		activate_debugger();
+#endif
 
 	struct hardfiledata *hfd = get_hardfile_data_controller(unit);
 	struct hardfileprivdata *hfpd = &hardfpd[unit];
