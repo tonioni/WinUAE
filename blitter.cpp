@@ -1638,15 +1638,6 @@ static void do_blitter2 (int hpos, int copper)
 	
 	blit_cyclecounter = cycles * (blit_dmacount2 + (blit_nod ? 0 : 1));
 	event2_newevent (ev2_blitter, makebliteventtime(blit_cyclecounter), 0);
-
-	if (dmaen (DMA_BLITTER) && (currprefs.cpu_model >= 68020 || !currprefs.cpu_memory_cycle_exact)) {
-		if (currprefs.waiting_blits) {
-			// wait immediately if all cycles in use and blitter nastry
-			if (blit_dmacount == blit_diag[0] && (regs.spcflags & SPCFLAG_BLTNASTY)) {
-				waitingblits ();
-			}
-		}
-	}
 }
 
 void blitter_check_start (void)
