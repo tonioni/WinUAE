@@ -279,6 +279,7 @@ struct bitbang_i2c_interface {
     int device_out;
     uint8_t buffer;
     int current_addr;
+	uae_u8 device_address, device_address_mask;
 
 	eeprom_state estate;
 	int eeprom_addr;
@@ -287,6 +288,9 @@ struct bitbang_i2c_interface {
 	int addressbitmask;
 	uae_u8 *memory;
 	struct zfile *zf;
+
+	uae_u8(*read_func)(uae_u8 addr);
+	void(*write_func)(uae_u8 addr, uae_u8 v);
 };
 
 static void nvram_write (struct bitbang_i2c_interface *i2c, int offset, int len)
@@ -300,7 +304,7 @@ static void nvram_write (struct bitbang_i2c_interface *i2c, int offset, int len)
 static void bitbang_i2c_enter_stop(bitbang_i2c_interface *i2c)
 {
 #if EEPROM_LOG
-    write_log(_T("STOP\n"));
+    write_log(_T("I2C STOP\n"));
 #endif
 	if (i2c->write_offset >= 0)
 		nvram_write(i2c, i2c->write_offset, 16);
@@ -342,7 +346,7 @@ int eeprom_i2c_set(void *fdv, int line, int level)
         }
         if (level == 0) {
 #if EEPROM_LOG
-            write_log(_T("START\n"));
+            write_log(_T("I2C START\n"));
 #endif
 			/* START condition.  */
             i2c->state = SENDING_BIT7;
@@ -390,10 +394,10 @@ int eeprom_i2c_set(void *fdv, int line, int level)
 		if (i2c->estate == I2C_DEVICEADDR) {
             i2c->current_addr = i2c->buffer;
 #if EEPROM_LOG
-			write_log(_T("Device address 0x%02x\n"), i2c->current_addr);
+			write_log(_T("I2C device address 0x%02x\n"), i2c->current_addr);
 #endif
-			if ((i2c->current_addr & 0xf0) != 0xa0) {
-				write_log (_T("WARNING: I2C_DEVICEADDR: device address != 0xA0\n"));
+			if ((i2c->current_addr & i2c->device_address_mask) != i2c->device_address) {
+				write_log (_T("I2C WARNING: device address != %02x\n"), i2c->device_address);
 				i2c->state = STOPPED;
 				return bitbang_i2c_ret(i2c, 0);
 			}
@@ -408,17 +412,21 @@ int eeprom_i2c_set(void *fdv, int line, int level)
 			i2c->eeprom_addr &= i2c->addressbitmask << 8;
 			i2c->eeprom_addr |= i2c->buffer;
 #if EEPROM_LOG
-			write_log(_T("EEPROM address %04x\n"), i2c->eeprom_addr);
+			write_log(_T("I2C device address 0x%02x (Address %04x)\n"), i2c->buffer, i2c->eeprom_addr);
 #endif
 		} else if (!(i2c->current_addr & 1)) {
 #if EEPROM_LOG
-            write_log(_T("Sent %04x 0x%02x\n"), i2c->eeprom_addr, i2c->buffer);
+            write_log(_T("I2C sent %04x 0x%02x\n"), i2c->eeprom_addr, i2c->buffer);
 #endif
 			if (i2c->write_offset < 0)
 				i2c->write_offset = i2c->eeprom_addr;
-			i2c->memory[i2c->eeprom_addr] = i2c->buffer;
-			i2c->eeprom_addr = (i2c->eeprom_addr & ~(NVRAM_PAGE_SIZE - 1)) | (i2c->eeprom_addr + 1) & (NVRAM_PAGE_SIZE - 1);
-			gui_flicker_led (LED_MD, 0, 2);
+			if (i2c->write_func) {
+				i2c->write_func(i2c->eeprom_addr, i2c->buffer);
+			} else {
+				i2c->memory[i2c->eeprom_addr] = i2c->buffer;
+				i2c->eeprom_addr = (i2c->eeprom_addr & ~(NVRAM_PAGE_SIZE - 1)) | (i2c->eeprom_addr + 1) & (NVRAM_PAGE_SIZE - 1);
+				gui_flicker_led(LED_MD, 0, 2);
+			}
         }
         if (i2c->current_addr & 1) {
             i2c->state = RECEIVING_BIT7;
@@ -429,10 +437,14 @@ int eeprom_i2c_set(void *fdv, int line, int level)
 
 	// Reading from EEPROM
     case RECEIVING_BIT7:
-        i2c->buffer = i2c->memory[i2c->eeprom_addr];
+		if (i2c->read_func) {
+			i2c->buffer = i2c->read_func(i2c->eeprom_addr);
+		} else {
+			i2c->buffer = i2c->memory[i2c->eeprom_addr];
+		}
 		//i2c->buffer = i2c_recv(i2c->bus);
 #if EEPROM_LOG
-        write_log(_T("RX byte %04X 0x%02x\n"), i2c->eeprom_addr, i2c->buffer);
+        write_log(_T("I2C RX byte %04X 0x%02x\n"), i2c->eeprom_addr, i2c->buffer);
 #endif
 		i2c->eeprom_addr++;
 		i2c->eeprom_addr &= i2c->size - 1;
@@ -455,19 +467,24 @@ int eeprom_i2c_set(void *fdv, int line, int level)
         i2c->state = RECEIVING_BIT7;
         if (data != 0) {
 #if EEPROM_LOG > 1
-			write_log(_T("NACKED\n"));
+			write_log(_T("I2C NACKED\n"));
 #endif
 			i2c->state = SENT_NACK;
             //i2c_nack(i2c->bus);
         } else {
 			;
 #if EEPROM_LOG > 1
-            write_log(_T("ACKED\n"));
+            write_log(_T("I2C ACKED\n"));
 #endif
 		}
         return bitbang_i2c_ret(i2c, 1);
     }
     abort();
+}
+
+int i2c_set(void *i2c, int line, int level)
+{
+	return eeprom_i2c_set(i2c, line, level);
 }
 
 void eeprom_reset(void *fdv)
@@ -495,14 +512,47 @@ void *eeprom_new(uae_u8 *memory, int size, struct zfile *zf)
 	s->size = size;
 	s->zf = zf;
 	s->addressbitmask = (size / 256) - 1;
+	s->device_address = 0xa0;
+	s->device_address_mask = 0xf0;
 
     return s;
+}
+
+void *i2c_new(uae_u8 device_address, int size, uae_u8 (*read_func)(uae_u8 addr), void (*write_func)(uae_u8 addr, uae_u8 v))
+{
+	bitbang_i2c_interface *s;
+
+	s = xcalloc(bitbang_i2c_interface, 1);
+
+	eeprom_reset(s);
+
+	s->memory = NULL;
+	s->size = size;
+	s->zf = NULL;
+	s->addressbitmask = 0;
+	s->device_address = 0xa2;
+	s->device_address_mask = 0xff;
+
+	s->read_func = read_func;
+	s->write_func = write_func;
+	return s;
 }
 
 void eeprom_free(void *fdv)
 {
 	struct bitbang_i2c_interface *i2c = (bitbang_i2c_interface*)fdv;
 	xfree(i2c);
+}
+
+void i2c_free(void *fdv)
+{
+	eeprom_free(fdv);
+}
+
+void i2c_reset(void *fdv)
+{
+	struct bitbang_i2c_interface *i2c = (bitbang_i2c_interface*)fdv;
+	eeprom_reset(i2c);
 }
 
 /* FLASH */
