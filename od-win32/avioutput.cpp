@@ -56,7 +56,7 @@ static int avioutput_needs_restart;
 static int frame_start; // start frame
 static int frame_count; // current frame
 static int frame_skip;
-static unsigned int total_avi_size;
+static uae_u64 total_avi_size;
 static int partcnt;
 static int first_frame = 1;
 
@@ -116,9 +116,9 @@ static FILE *wavfile;
 static uae_u8 *lpAudioDst, *lpAudioSrc;
 static DWORD dwAudioOutputBytes, dwAudioInputBytes;
 
-static uae_u8 *avi_sndbuffer, *avi_sndbuffer2;
-static int avi_sndbufsize, avi_sndbufsize2;
-static int avi_sndbuffered, avi_sndbuffered2;
+static uae_u8 *avi_sndbuffer;
+static int avi_sndbufsize;
+static int avi_sndbuffered;
 
 /* video */
 
@@ -742,31 +742,33 @@ int AVIOutput_ChooseVideoCodec (HWND hwnd, TCHAR *s, int len)
 }
 
 static void AVIOutput_Begin2(bool fullstart, bool immediate);
+static void AVIOutput_End2(bool);
+
+uae_s64 max_avi_size = MAX_AVI_SIZE;
 
 static void checkAVIsize(int force)
 {
-	int tmp_partcnt = partcnt + 1;
 	int tmp_avioutput_video = avioutput_video;
 	int tmp_avioutput_audio = avioutput_audio;
 	TCHAR fn[MAX_DPATH];
 
-	if (!force && total_avi_size < MAX_AVI_SIZE)
+	if (!force && total_avi_size < max_avi_size)
 		return;
 	if (total_avi_size == 0)
 		return;
 	if (!avioutput_split_files)
 		return;
+	partcnt++;
 	_tcscpy (fn, avioutput_filename_tmp);
-	_stprintf (avioutput_filename_inuse, _T("%s_%d.avi"), fn, tmp_partcnt);
-	write_log (_T("AVI split %d at %d bytes, %d frames\n"),
-		tmp_partcnt, total_avi_size, frame_count);
-	AVIOutput_End ();
+	_stprintf (avioutput_filename_inuse, _T("%s_%d.avi"), fn, partcnt);
+	write_log (_T("AVI split %d at %lld bytes, %d frames\n"),
+		partcnt, total_avi_size, frame_count);
+	AVIOutput_End2(false);
 	total_avi_size = 0;
 	avioutput_video = tmp_avioutput_video;
 	avioutput_audio = tmp_avioutput_audio;
 	AVIOutput_Begin2(false, false);
 	_tcscpy (avioutput_filename_tmp, fn);
-	partcnt = tmp_partcnt;
 }
 
 static void dorestart (void)
@@ -1259,7 +1261,7 @@ void AVIOutput_Restart (void)
 	avioutput_needs_restart = 1;
 }
 
-void AVIOutput_End (void)
+static void AVIOutput_End2(bool fullrestart)
 {
 	first_frame = 1;
 	avioutput_enabled = 0;
@@ -1305,21 +1307,24 @@ void AVIOutput_End (void)
 	StreamSizeAudio = frame_count = 0;
 	StreamSizeAudioExpected = 0;
 	StreamSizeAudioGot = 0;
-	partcnt = 0;
-	avi_sndbuffered = 0;
-	avi_sndbuffered2 = 0;
-	xfree(avi_sndbuffer);
-	xfree(avi_sndbuffer2);
-	avi_sndbuffer = NULL;
-	avi_sndbuffer2 = NULL;
-	avi_sndbufsize = 0;
-	avi_sndbufsize2 = 0;
+	if (fullrestart) {
+		partcnt = 0;
+		avi_sndbuffered = 0;
+		xfree(avi_sndbuffer);
+		avi_sndbuffer = NULL;
+		avi_sndbufsize = 0;
+	}
 
 	if (wavfile) {
 		writewavheader (ftell (wavfile));
 		fclose (wavfile);
 		wavfile = 0;
 	}
+}
+
+void AVIOutput_End(void)
+{
+	AVIOutput_End2(true);
 }
 
 static void *AVIOutput_worker (void *arg);
@@ -1723,7 +1728,6 @@ void frame_drawn (void)
 			}
 		}
 		avi_sndbuffered = 0;
-		avi_sndbuffered2 = 0;
 	}
 
 	if (first_frame) {
