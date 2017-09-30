@@ -2158,7 +2158,8 @@ struct boardromconfig *get_device_rom(struct uae_prefs *p, int romtype, int devn
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(romtype);
 	if (!ert) {
-		*index = 0;
+		if (index)
+			*index = 0;
 		return NULL;
 	}
 	int parentrom = ert->parentromtype ? ert->parentromtype : romtype;

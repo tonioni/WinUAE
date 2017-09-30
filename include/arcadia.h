@@ -3,6 +3,8 @@
 
 #ifdef ARCADIA
 
+extern void arcadia_reset(void);
+
 extern int is_arcadia_rom (const TCHAR *path);
 extern int arcadia_map_banks (void);
 extern void arcadia_unmap (void);
@@ -41,6 +43,12 @@ extern int ld_serial_write(void);
 extern int cubo_enabled;
 extern void touch_serial_read(uae_u16 w);
 extern int touch_serial_write(void);
+
+extern bool cubo_init(struct autoconfig_info *aci);
+
+extern void check_arcadia_prefs_changed(void);
+
+extern void cubo_function(int);
 
 #endif /* ARCADIA */
 

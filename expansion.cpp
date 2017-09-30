@@ -46,6 +46,7 @@
 #include "filesys.h"
 #include "ethernet.h"
 #include "sana2.h"
+#include "arcadia.h"
 
 
 #define CARD_FLAG_CAN_Z3 1
@@ -3813,6 +3814,7 @@ static const struct expansionsubromtype a2090_sub[] = {
 	}
 };
 #endif
+
 static const struct expansionsubromtype a2091_sub[] = {
 	{
 		_T("DMAC-01"), _T("dmac01"), 0,
@@ -3926,6 +3928,7 @@ static const struct expansionsubromtype mediator_sub[] = {
 		NULL
 	}
 };
+
 static const struct expansionboardsettings mediator_settings[] = {
 	{
 		_T("Full PCI DMA"),
@@ -4160,6 +4163,93 @@ static const struct expansionboardsettings harlequin_settings[] = {
 	{
 		_T("Genlock"),
 		_T("genlock")
+	},
+	{
+		NULL
+	}
+};
+
+static const struct expansionboardsettings cubo_settings[] = {
+	{
+		_T("DIP1 #1"),
+		_T("dip_1_1")
+	},
+	{
+		_T("DIP1 #2"),
+		_T("dip_1_2")
+	},
+	{
+		_T("DIP1 #3"),
+		_T("dip_1_3")
+	},
+	{
+		_T("DIP1 #4"),
+		_T("dip_1_4")
+	},
+	{
+		_T("DIP1 #5"),
+		_T("dip_1_5")
+	},
+	{
+		_T("DIP1 #6"),
+		_T("dip_1_6")
+	},
+	{
+		_T("DIP1 #7"),
+		_T("dip_1_7")
+	},
+	{
+		_T("DIP1 #8"),
+		_T("dip_1_8")
+	},
+	{
+		_T("DIP2 #1"),
+		_T("dip_2_1")
+	},
+	{
+		_T("DIP2 #2"),
+		_T("dip_2_2")
+	},
+	{
+		_T("DIP2 #3"),
+		_T("dip_2_3")
+	},
+	{
+		_T("DIP2 #4"),
+		_T("dip_2_4")
+	},
+	{
+		_T("DIP2 #5"),
+		_T("dip_2_5")
+	},
+	{
+		_T("DIP2 #6)"),
+		_T("dip_2_6")
+	},
+	{
+		_T("DIP2 #7 "),
+		_T("dip_2_7")
+	},
+	{
+		_T("DIP2 #8"),
+		_T("dip_2_8")
+	},
+	{
+		_T("NVRAM installed"),
+		_T("nvram")
+	},
+	{
+		_T("RTC installed"),
+		_T("rtc")
+	},
+	{
+		_T("Touchscreen installed"),
+		_T("ts")
+	},
+	{
+		_T("PIC configuration (AB:KEY)\0"),
+		_T("pic\0"),
+		2, false, 0
 	},
 	{
 		NULL
@@ -5248,6 +5338,14 @@ const struct expansionromtype expansionroms[] = {
 		NULL, uaesndboard_init_z3, NULL, NULL, ROMTYPE_UAEBOARDZ3 | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z3, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_CUSTOM
+	},
+	{
+		_T("cubo"), _T("Cubo CD32"), NULL,
+		NULL, cubo_init, NULL, NULL, ROMTYPE_CUBO | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_CUSTOM,
+		0, 0, 0, false, NULL,
+		false, 0, cubo_settings,
 	},
 
 

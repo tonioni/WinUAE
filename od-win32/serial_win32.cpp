@@ -393,7 +393,7 @@ static void checksend(void)
 		ld_serial_read(serdatshift);
 	}
 #endif
-	if (currprefs.cs_cd32cubo || cubo_enabled) {
+	if (cubo_enabled) {
 		touch_serial_read(serdatshift);
 	}
 #ifdef SERIAL_MAP
@@ -536,7 +536,7 @@ void serial_hsynchandler (void)
 		}
 	}
 #endif
-	if ((currprefs.cs_cd32cubo || cubo_enabled) && !data_in_serdatr) {
+	if (cubo_enabled && !data_in_serdatr) {
 		int ch = touch_serial_write();
 		if (ch >= 0) {
 			serdatr = ch | 0x100;

@@ -60,6 +60,8 @@
 #include "ethernet.h"
 #include "drawing.h"
 #include "videograb.h"
+#include "arcadia.h"
+#include "rommgr.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -72,6 +74,7 @@ void device_check_config(void)
 	check_prefs_changed_cpu();
 	check_prefs_picasso();
 	check_prefs_changed_gayle();
+	check_arcadia_prefs_changed();
 }
 
 void devices_reset(int hardreset)
@@ -118,6 +121,9 @@ void devices_reset(int hardreset)
 #endif
 	ethernet_reset();
 	uae_int_requested = 0;
+#ifdef ARCADIA
+	arcadia_reset();
+#endif
 }
 
 

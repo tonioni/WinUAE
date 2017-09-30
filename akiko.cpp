@@ -29,6 +29,7 @@
 #include "newcpu.h"
 #include "flashrom.h"
 #include "debug.h"
+#include "rommgr.h"
 
 #define AKIKO_DEBUG_IO 1
 #define AKIKO_DEBUG_IO_CMD 1
@@ -57,33 +58,46 @@ static void irq (void)
 */
 
 static uae_u8 *cd32_nvram;
+static int cd32_nvram_size;
 static void *cd32_eeprom;
 static uae_u8 cd32_i2c_direction;
 static bool cd32_i2c_data_scl, cd32_i2c_data_sda;
-static struct zfile *flashfile;
+struct zfile *cd32_flashfile;
+extern uae_u8 *cubo_nvram;
 
 static void nvram_read (void)
 {
-	zfile_fclose(flashfile);
-	flashfile = NULL;
+	cubo_nvram = NULL;
+	zfile_fclose(cd32_flashfile);
+	cd32_flashfile = NULL;
 	eeprom_free(cd32_eeprom);
 	cd32_eeprom = NULL;
 	cd32_i2c_data_scl = cd32_i2c_data_sda = true;
 	cd32_i2c_direction = 0;
 	if (!currprefs.cs_cd32nvram)
 		return;
-	if (!cd32_nvram)
-		cd32_nvram = xmalloc(uae_u8, currprefs.cs_cd32nvram_size);
-	memset(cd32_nvram, 0, currprefs.cs_cd32nvram_size);
-	flashfile = zfile_fopen (currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
-	if (!flashfile)
-		flashfile = zfile_fopen (currprefs.flashfile, _T("wb"), 0);
-	if (flashfile) {
-		int size = zfile_fread(cd32_nvram, 1, currprefs.cs_cd32nvram_size, flashfile);
-		if (size < currprefs.cs_cd32nvram_size)
-			zfile_fwrite(cd32_nvram + size, 1, currprefs.cs_cd32nvram_size - size, flashfile);
+	int maxlen = currprefs.cs_cd32nvram_size;
+	if (is_board_enabled(&currprefs, ROMTYPE_CUBO, 0))
+		maxlen += 2048 + 16;
+	if (!cd32_nvram || cd32_nvram_size != maxlen) {
+		xfree(cd32_nvram);
+		cd32_nvram = xmalloc(uae_u8, maxlen);
 	}
-	cd32_eeprom = eeprom_new(cd32_nvram, currprefs.cs_cd32nvram_size, flashfile);
+	memset(cd32_nvram, 0, maxlen);
+	if (is_board_enabled(&currprefs, ROMTYPE_CUBO, 0)) {
+		cubo_nvram = cd32_nvram + currprefs.cs_cd32nvram_size;
+	}
+	cd32_flashfile = zfile_fopen (currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
+	if (!cd32_flashfile)
+		cd32_flashfile = zfile_fopen (currprefs.flashfile, _T("wb"), 0);
+	if (cd32_flashfile) {
+		int size = zfile_fread(cd32_nvram, 1, currprefs.cs_cd32nvram_size, cd32_flashfile);
+		if (size == currprefs.cs_cd32nvram_size && maxlen > currprefs.cs_cd32nvram_size)
+			size += zfile_fread(cubo_nvram, 1, maxlen - currprefs.cs_cd32nvram_size, cd32_flashfile);
+		if (size < maxlen)
+			zfile_fwrite(cd32_nvram + size, 1, maxlen - size, cd32_flashfile);
+	}
+	cd32_eeprom = eeprom_new(cd32_nvram, currprefs.cs_cd32nvram_size, cd32_flashfile);
 }
 
 static void akiko_nvram_write (int offset, uae_u32 v)
@@ -1267,7 +1281,7 @@ void AKIKO_hsync_handler (void)
 			cdrom_seek_delay--;
 		}
 		framecounter += (float)maxvpos * vblank_hz / (75.0 * cdrom_speed);
-		if (currprefs.cd_speed == 0)
+		if (currprefs.cd_speed == 0 || currprefs.turbo_emulation)
 			framecounter = 1;
 		framesync = true;
 	}

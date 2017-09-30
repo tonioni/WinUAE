@@ -325,7 +325,6 @@ extern int inputdevice_get_lightpen_id(void);
 extern uae_u64 input_getqualifiers (void);
 
 extern void setsystime (void);
-extern void inputdevice_map(void);
 
 #define JSEM_MODE_DEFAULT 0
 #define JSEM_MODE_WHEELMOUSE 1

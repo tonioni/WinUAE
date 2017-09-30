@@ -1868,7 +1868,7 @@ bool mapped_malloc (addrbank *ab)
 	if (!md.directsupport || (ab->flags & ABFLAG_ALLOCINDIRECT)) {
 		if (!(ab->flags & ABFLAG_ALLOCINDIRECT)) {
 			if (canbang) {
-				write_log(_T("JIT direct switched off: %s\n"), ab->name);
+				error_log(_T("JIT direct switched off: %s\n"), ab->name);
 			}
 			nocanbang();
 		}
@@ -2658,7 +2658,6 @@ void memory_reset (void)
 		arcadia_map_banks ();
 	}
 #endif
-	inputdevice_map();
 
 #ifdef ACTION_REPLAY
 #ifdef ARCADIA

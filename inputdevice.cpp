@@ -371,7 +371,7 @@ static int analog_port[NORMAL_JPORTS][2];
 static int digital_port[NORMAL_JPORTS][2];
 static int lightpen_port[NORMAL_JPORTS];
 int cubo_enabled;
-uae_u16 cubo_flag;
+uae_u32 cubo_flag;
 #define POTDAT_DELAY_PAL 8
 #define POTDAT_DELAY_NTSC 7
 
@@ -4138,28 +4138,34 @@ static bool inputdevice_handle_inputcode2 (int code, int state, const TCHAR *s)
 			arcadia_coin[1]++;
 		break;
 
-	case AKS_CUBO1:
-	case AKS_CUBO2:
-	case AKS_CUBO3:
-	case AKS_CUBO4:
-	case AKS_CUBO5:
-	case AKS_CUBO6:
-	case AKS_CUBO7:
-	case AKS_CUBO8:
-	{
-		int idx = code - AKS_CUBO1;
-		if (state) {
-			cubo_flag ^= 1 << idx;
-			write_log(_T("Cubo flag = %02x\n"), cubo_flag & 0xff);
-		}
-		break;
-	}
 	case AKS_CUBOTOUCH:
 		if (state)
-			cubo_flag |= 0x8000;
+			cubo_flag |= 0x80000000;
 		else
-			cubo_flag &= ~0x8000;
-		cubo_flag &= ~0x4000;
+			cubo_flag &= ~0x80000000;
+		cubo_flag &= ~0x40000000;
+		break;
+	case AKS_CUBOTEST:
+		if (state)
+			cubo_flag |= 0x00800000;
+		else
+			cubo_flag &= ~0x00800000;
+		break;
+	case AKS_CUBOCOIN1:
+		if (state)
+			cubo_function(0);
+		break;
+	case AKS_CUBOCOIN2:
+		if (state)
+			cubo_function(1);
+		break;
+	case AKS_CUBOCOIN3:
+		if (state)
+			cubo_function(2);
+		break;
+	case AKS_CUBOCOIN4:
+		if (state)
+			cubo_function(3);
 		break;
 
 	case AKS_ALGSERVICE:
@@ -5041,7 +5047,7 @@ void inputdevice_vsync (void)
 	if (mouseedge_alive > 0)
 		mouseedge_alive--;
 #ifdef ARCADIA
-	if (arcadia_bios || alg_flag)
+	if (arcadia_bios || alg_flag || cubo_enabled)
 		arcadia_vsync ();
 #endif
 	if (mouseedge ())
@@ -5727,10 +5733,6 @@ static int iscd32 (int ei)
 	if (ei >= INPUTEVENT_JOY2_CD32_FIRST && ei <= INPUTEVENT_JOY2_CD32_LAST) {
 		cd32_pad_enabled[1] = 1;
 		return 2;
-	}
-	if (ei >= INPUTEVENT_SPC_CUBO_SW1 && ei <= INPUTEVENT_SPC_CUBO_TOUCH) {
-		cubo_enabled = 1;
-		return 3;
 	}
 	return 0;
 }
@@ -8356,8 +8358,17 @@ void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int 
 static void clearpressmask(void)
 {
 	for (int i = 0; i < MAX_INPUT_DEVICES; i++) {
-		joysticks2[i].buttonmask = 0;
+		for (int j = 0; j < 32; j++) {
+			uae_u32 mask = 1 << j;
+			if (joysticks2[i].buttonmask & mask) {
+				setbuttonstateall(&joysticks[i], &joysticks2[i], j, 0);
+			}
+			if (mice2[i].buttonmask & mask) {
+				setbuttonstateall(&mice[i], &mice2[i], j, 0);
+			}
+		}
 		mice2[i].buttonmask = 0;
+		joysticks2[i].buttonmask = 0;
 	}
 }
 
@@ -8405,8 +8416,6 @@ void inputdevice_acquire (int allmode)
 	//    if (!input_acquired)
 	//	write_log (_T("input devices acquired (%s)\n"), allmode ? "all" : "selected only");
 	input_acquired = 1;
-
-	inputdevice_map();
 }
 
 void inputdevice_unacquire(bool emulationactive, int inputmask)
@@ -9405,44 +9414,5 @@ void clear_inputstate (void)
 		horizclear[i] = 1;
 		vertclear[i] = 1;
 		relativecount[i][0] = relativecount[i][1] = 0;
-	}
-}
-
-#define CUBO_DEBUG 0
-
-static uae_u32 REGPARAM2 cubo_get(uaecptr addr)
-{
-	addr &= 0xffff;
-	if (addr == 3) {
-#if CUBO_DEBUG
-		write_log(("%08x %02x %08x\n"), addr, cubo_flag, M68K_GETPC);
-#endif
-		return cubo_flag;
-	}
-#if CUBO_DEBUG
-	write_log(("%08x %08x\n"), addr, M68K_GETPC);
-#endif
-	return 0;
-}
-static void REGPARAM2 cubo_put(uaecptr addr, uae_u32 v)
-{
-#if CUBO_DEBUG
-	write_log(("%08x %08x %08x\n"), addr, v, M68K_GETPC);
-#endif
-}
-
-static addrbank cubo_bank = {
-	cubo_get, cubo_get, cubo_get,
-	cubo_put, cubo_put, cubo_put,
-	default_xlate, default_check, NULL, NULL, _T("CUBO"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_RAM, S_READ, S_WRITE,
-	NULL, 65536
-};
-
-void inputdevice_map(void)
-{
-	if ((cubo_enabled || currprefs.cs_cd32cubo) && get_mem_bank_real(0x00800000) == &dummy_bank) {
-		write_log(_T("Cubo CD32 enabled\n"));
-		map_banks(&cubo_bank, 0x00800000 >> 16, 1, 0);
 	}
 }

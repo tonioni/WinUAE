@@ -585,7 +585,6 @@ struct uae_prefs {
 	bool cs_cd32c2p;
 	bool cs_cd32nvram;
 	bool cs_cd32fmv;
-	bool cs_cd32cubo;
 	int cs_cd32nvram_size;
 	bool cs_cdtvcd;
 	bool cs_cdtvram;
