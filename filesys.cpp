@@ -6800,6 +6800,8 @@ end:
 
 static int handle_packet(TrapContext *ctx, Unit *unit, dpacket *pck, uae_u32 msg, int isvolume)
 {
+	bool noidle = false;
+	int ret = 1;
 	uae_s32 type = GET_PCK_TYPE (pck);
 	PUT_PCK_RES2 (pck, 0);
 
@@ -6827,13 +6829,13 @@ static int handle_packet(TrapContext *ctx, Unit *unit, dpacket *pck, uae_u32 msg
 	case ACTION_DISK_INFO: action_disk_info (ctx, unit, pck); break;
 	case ACTION_INFO: action_info (ctx, unit, pck); break;
 	case ACTION_EXAMINE_OBJECT: action_examine_object (ctx, unit, pck); break;
-	case ACTION_EXAMINE_NEXT: action_examine_next (ctx, unit, pck, false); break;
+	case ACTION_EXAMINE_NEXT: noidle = true; action_examine_next (ctx, unit, pck, false); break;
 	case ACTION_FIND_INPUT: action_find_input (ctx, unit, pck); break;
 	case ACTION_FIND_WRITE: action_find_write (ctx, unit, pck); break;
 	case ACTION_FIND_OUTPUT: action_find_output (ctx, unit, pck); break;
 	case ACTION_END: action_end (ctx, unit, pck); break;
-	case ACTION_READ: action_read (ctx, unit, pck); break;
-	case ACTION_WRITE: action_write (ctx, unit, pck); break;
+	case ACTION_READ: noidle = true; action_read(ctx, unit, pck); break;
+	case ACTION_WRITE: noidle = true; action_write (ctx, unit, pck); break;
 	case ACTION_SEEK: action_seek (ctx, unit, pck); break;
 	case ACTION_SET_PROTECT: action_set_protect (ctx, unit, pck); break;
 	case ACTION_SET_COMMENT: action_set_comment (ctx, unit, pck); break;
@@ -6860,9 +6862,9 @@ static int handle_packet(TrapContext *ctx, Unit *unit, dpacket *pck, uae_u32 msg
 	case ACTION_PARENT_FH: action_parent_fh (ctx, unit, pck); break;
 	case ACTION_ADD_NOTIFY: action_add_notify (ctx, unit, pck); break;
 	case ACTION_REMOVE_NOTIFY: action_remove_notify (ctx, unit, pck); break;
-	case ACTION_EXAMINE_ALL: return action_examine_all (ctx, unit, pck);
-	case ACTION_EXAMINE_ALL_END: return action_examine_all_end (ctx, unit, pck);
-	case ACTION_LOCK_RECORD: return action_lock_record (ctx, unit, pck, msg); break;
+	case ACTION_EXAMINE_ALL: noidle = true; ret = action_examine_all(ctx, unit, pck); break;
+	case ACTION_EXAMINE_ALL_END: ret = action_examine_all_end(ctx, unit, pck); break;
+	case ACTION_LOCK_RECORD: ret = action_lock_record (ctx, unit, pck, msg); break;
 	case ACTION_FREE_RECORD: action_free_record (ctx, unit, pck); break;
 	case ACTION_READ_LINK: action_read_link (ctx, unit, pck); break;
 	case ACTION_MAKE_LINK: action_make_link (ctx, unit, pck); break;
@@ -6878,9 +6880,9 @@ static int handle_packet(TrapContext *ctx, Unit *unit, dpacket *pck, uae_u32 msg
 	case ACTION_SEEK64: action_seek64(ctx, unit, pck); break;
 	case ACTION_SET_FILE_SIZE64: action_set_file_size64(ctx, unit, pck); break;
 	case ACTION_EXAMINE_OBJECT64: action_examine_object64(ctx, unit, pck); break;
-	case ACTION_EXAMINE_NEXT64: action_examine_next(ctx, unit, pck, true); break;
+	case ACTION_EXAMINE_NEXT64: noidle = true; action_examine_next(ctx, unit, pck, true); break;
 	case ACTION_EXAMINE_FH64: action_examine_fh(ctx, unit, pck, true); break;
-	case ACTION_LOCK_RECORD64: return action_lock_record64(ctx, unit, pck, msg); break;
+	case ACTION_LOCK_RECORD64: ret = action_lock_record64(ctx, unit, pck, msg); break;
 	case ACTION_FREE_RECORD64: action_free_record64(ctx, unit, pck); break;
 
 		/* unsupported packets */
@@ -6891,7 +6893,10 @@ static int handle_packet(TrapContext *ctx, Unit *unit, dpacket *pck, uae_u32 msg
 		write_log (_T("FILESYS: UNKNOWN PACKET %x\n"), type);
 		return 0;
 	}
-	return 1;
+	if (noidle) {
+		m68k_cancel_idle();
+	}
+	return ret;
 }
 
 #ifdef UAE_FILESYS_THREADS

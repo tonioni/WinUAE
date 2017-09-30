@@ -438,6 +438,7 @@ static int masoboshi_dma_read(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
 	if (ncr->dma_on) {
+		m68k_cancel_idle();
 		while (len > 0) {
 			uae_u16 v = get_word(ncr->dma_ptr & ~1);
 			*buf++ = v >> 8;
@@ -462,6 +463,7 @@ static int masoboshi_dma_write(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
 	if (ncr->dma_on) {
+		m68k_cancel_idle();
 		while (len > 0) {
 			uae_u16 v;
 			v = *buf++;
@@ -494,6 +496,7 @@ static int fastlane_dma_read(void *opaque, uint8_t *buf, int len)
 		write_log(_T("fastlane_dma_read mismatched direction!\n"));
 		return -1;
 	}
+	m68k_cancel_idle();
 	while (len > 0) {
 		uae_u16 v = get_word(ncr->dma_ptr & ~1);
 		*buf++ = v >> 8;
@@ -513,6 +516,7 @@ static int fastlane_dma_write(void *opaque, uint8_t *buf, int len)
 		write_log(_T("fastlane_dma_write mismatched direction!\n"));
 		return -1;
 	}
+	m68k_cancel_idle();
 	while (len > 0) {
 		uae_u16 v;
 		v = *buf++;
@@ -535,6 +539,7 @@ static int cyberstorm_mk1_mk2_dma_read(void *opaque, uint8_t *buf, int len)
 		write_log(_T("cyberstorm_dma_read mismatched direction!\n"));
 		return -1;
 	}
+	m68k_cancel_idle();
 	while (len > 0) {
 		uae_u16 v = get_word(ncr->dma_ptr & ~1);
 		*buf++ = v >> 8;
@@ -554,6 +559,7 @@ static int cyberstorm_mk1_mk2_dma_write(void *opaque, uint8_t *buf, int len)
 		write_log(_T("cyberstorm_dma_write mismatched direction!\n"));
 		return -1;
 	}
+	m68k_cancel_idle();
 	while (len > 0) {
 		uae_u16 v;
 		v = *buf++;
@@ -576,6 +582,7 @@ static int blizzard_dma_read(void *opaque, uint8_t *buf, int len)
 		write_log(_T("blizzard_dma_read mismatched direction!\n"));
 		return -1;
 	}
+	m68k_cancel_idle();
 	while (len > 0) {
 		uae_u16 v = get_word((ncr->dma_ptr & 0x7fffffff) * 2);
 		*buf++ = v >> 8;
@@ -595,6 +602,7 @@ static int blizzard_dma_write(void *opaque, uint8_t *buf, int len)
 		write_log(_T("blizzard_dma_write mismatched direction!\n"));
 		return -1;
 	}
+	m68k_cancel_idle();
 	while (len > 0) {
 		uae_u16 v;
 		v = *buf++;

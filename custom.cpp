@@ -7806,7 +7806,11 @@ static void vsync_handler_pre (void)
 #if 1
 	if (currprefs.m68k_speed < 0) {
 		if (regs.stopped) {
-			cpu_stopped_lines += maxvpos - cpu_last_stop_vpos;
+			if (cpu_last_stop_vpos >= 0) {
+				cpu_stopped_lines += maxvpos - cpu_last_stop_vpos;
+			} else {
+				cpu_stopped_lines = 0;
+			}
 		}
 		int mv = 12 - currprefs.cpu_idle / 15;
 		if (mv >= 1 && mv <= 11) {

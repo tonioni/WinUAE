@@ -1413,6 +1413,8 @@ static void dma_check(struct soft_scsi *ncr)
 {
 	if (ncr->dmac_active && ncr->dma_direction) {
 
+		m68k_cancel_idle();
+
 		if (ncr->type == NCR5380_SUPRA && ncr->subtype == 4) {
 			if (ncr->dmac_direction != ncr->dma_direction)  {
 				write_log(_T("SUPRADMA: mismatched direction\n"));

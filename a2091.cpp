@@ -889,6 +889,7 @@ static bool do_dma(struct wd_state *wd)
 {
 	struct scsi_data *scsi = wd->wc.scsi;
 	wd->wc.wd_data_avail = 0;
+	m68k_cancel_idle();
 	if (scsi->direction == 0)
 		write_log (_T("%s DMA but no data!?\n"), WD33C93);
 	switch (wd->dmac_type)

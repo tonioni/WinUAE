@@ -2593,21 +2593,30 @@ STATIC_INLINE int adjust_cycles (int cycles)
 	return cycles + mc;
 }
 
+void m68k_cancel_idle(void)
+{
+	cpu_last_stop_vpos = -1;
+}
+
 static void m68k_set_stop(void)
 {
 	if (regs.stopped)
 		return;
 	regs.stopped = 1;
 	set_special(SPCFLAG_STOP);
-	cpu_last_stop_vpos = vpos;
+	if (cpu_last_stop_vpos >= 0) {
+		cpu_last_stop_vpos = vpos;
+	}
 }
 
 static void m68k_unset_stop(void)
 {
 	regs.stopped = 0;
 	unset_special(SPCFLAG_STOP);
-	cpu_stopped_lines += vpos - cpu_last_stop_vpos;
-	cpu_last_stop_vpos = vpos;
+	if (cpu_last_stop_vpos >= 0) {
+		cpu_stopped_lines += vpos - cpu_last_stop_vpos;
+		cpu_last_stop_vpos = vpos;
+	}
 }
 
 static void activate_trace(void)
@@ -4622,7 +4631,7 @@ static int do_specialties (int cycles)
 	unset_special (SPCFLAG_END_COMPILE);   /* has done its job */
 #endif
 
-	while ((regs.spcflags & SPCFLAG_BLTNASTY) && dmaen (DMA_BLITTER) && cycles > 0 && !currprefs.blitter_cycle_exact) {
+	while ((regs.spcflags & SPCFLAG_BLTNASTY) && dmaen (DMA_BLITTER) && cycles > 0 && ((currprefs.waiting_blits && currprefs.cpu_model >= 68020) || !currprefs.blitter_cycle_exact)) {
 		int c = blitnasty ();
 		if (c < 0) {
 			break;
@@ -5438,8 +5447,8 @@ void cpu_halt (int id)
 			MakeSR ();
 			audio_deactivate ();
 		}
-		set_special(SPCFLAG_CHECK);
 	}
+	set_special(SPCFLAG_CHECK);
 }
 
 #ifdef CPUEMU_33

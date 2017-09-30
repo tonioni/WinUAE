@@ -595,6 +595,7 @@ extern void REGPARAM3 x_put_bitfield (uae_u32 dst, uae_u32 bdata[2], uae_u32 val
 
 extern void m68k_setstopped (void);
 extern void m68k_resumestopped (void);
+extern void m68k_cancel_idle(void);
 
 extern uae_u32 REGPARAM3 get_disp_ea_020 (uae_u32 base, int idx) REGPARAM;
 extern uae_u32 REGPARAM3 get_bitfield (uae_u32 src, uae_u32 bdata[2], uae_s32 offset, int width) REGPARAM;
