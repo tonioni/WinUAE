@@ -2578,6 +2578,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 		d3d->max_texture_w, d3d->max_texture_h
 	);
 
+#if 0
 	if ((d3dCaps.PixelShaderVersion < D3DPS_VERSION(2,0) || !d3d->psEnabled || d3d->max_texture_w < 2048 || d3d->max_texture_h < 2048 || (!shaderon && SHADER > 0)) && d3d->d3d_ex) {
 		D3DEX = 0;
 		write_log (_T("Disabling D3D9Ex\n"));
@@ -2592,6 +2593,8 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 		d3d->d3ddevex = NULL;
 		return D3D_init (ahwnd, w_w, w_h, depth, freq, mmult);
 	}
+#endif
+
 	if (!shaderon)
 		write_log (_T("Using non-shader version\n"));
 
