@@ -2995,6 +2995,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 			regs.fpiar = pc;
 			reg = (extra >> 7) & 7;
 			if ((extra & 0xfc00) == 0x5c00) {
+				// FMOVECR
 				if (fault_if_unimplemented_680x0 (opcode, extra, ad, pc, &src, reg))
 					return;
 				if (extra & 0x40) {

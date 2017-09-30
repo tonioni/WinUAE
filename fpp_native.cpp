@@ -457,7 +457,6 @@ static uae_s64 fp_to_int(fpdata *src, int size)
 		uae_u32 w1, w2, w3;
 		fp_from_exten(src, &w1, &w2, &w3);
 		uae_s64 v = 0;
-		fpsr_set_exception(FPSR_OPERR);
 		// return mantissa
 		switch (size)
 		{
@@ -475,11 +474,9 @@ static uae_s64 fp_to_int(fpdata *src, int size)
 	}
 	if (fp < fxsizes[size * 2 + 0]) {
 		fp = fxsizes[size * 2 + 0];
-		fpsr_set_exception(FPSR_OPERR);
 	}
 	if (fp > fxsizes[size * 2 + 1]) {
 		fp = fxsizes[size * 2 + 1];
-		fpsr_set_exception(FPSR_OPERR);
 	}
 #if USE_HOST_ROUNDING
 	return lrintl(fp);
@@ -629,6 +626,26 @@ static void fp_reset_prec(fpdata *fpd)
 #endif
 }
 
+// Use default precision/rounding mode when calling C-library math functions.
+static void fp_normal_prec(void)
+{
+	temp_prec = fpu_mode_control;
+#ifdef USE_LONG_DOUBLE
+	if ((fpu_mode_control & FPCR_ROUNDING_PRECISION) != FPCR_PRECISION_EXTENDED || (fpu_mode_control & FPCR_ROUNDING_MODE) != FPCR_ROUND_NEAR) {
+		fp_set_mode(FPCR_PRECISION_EXTENDED | FPCR_ROUND_NEAR);
+	}
+#else
+	if ((fpu_mode_control & FPCR_ROUNDING_PRECISION) == FPCR_PRECISION_SINGLE || (fpu_mode_control & FPCR_ROUNDING_MODE) != FPCR_ROUND_NEAR) {
+		fp_set_mode(FPCR_PRECISION_DOUBLE | FPCR_ROUND_NEAR);
+	}
+#endif
+}
+
+static void fp_reset_normal_prec(void)
+{
+	fp_set_mode(temp_prec);
+}
+
 /* Arithmetic functions */
 
 static void fp_move(fpdata *a, fpdata *b, int prec)
@@ -663,14 +680,18 @@ static void fp_int(fpdata *a, fpdata *b)
 static void fp_getexp(fpdata *a, fpdata *b)
 {
     int expon;
-    frexpl(b->fp, &expon);
+	fp_normal_prec();
+	frexpl(b->fp, &expon);
     a->fp = (fptype) (expon - 1);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_getman(fpdata *a, fpdata *b)
 {
     int expon;
-    a->fp = frexpl(b->fp, &expon) * 2.0;
+	fp_normal_prec();
+	a->fp = frexpl(b->fp, &expon) * 2.0;
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_div(fpdata *a, fpdata *b, int prec)
@@ -719,13 +740,18 @@ static void fp_rem(fpdata *a, fpdata *b, uae_u64 *q, uae_u8 *s)
 
 static void fp_scale(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = ldexpl(a->fp, (int)b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 
 static void fp_sinh(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = sinhl(b->fp);
+	fp_reset_normal_prec();
+	fp_round(a);
 }
 static void fp_intrz(fpdata *a, fpdata *b)
 {
@@ -744,72 +770,100 @@ static void fp_sqrt(fpdata *a, fpdata *b, int prec)
 }
 static void fp_lognp1(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = log1pl(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_etoxm1(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = expm1l(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_tanh(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = tanhl(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_atan(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = atanl(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_atanh(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = atanhl(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_sin(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = sinl(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_asin(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = asinl(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_tan(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = tanl(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_etox(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = expl(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_twotox(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = powl(2.0, b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_tentox(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = powl(10.0, b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_logn(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = logl(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_log10(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = log10l(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_log2(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = log2l(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_abs(fpdata *a, fpdata *b, int prec)
@@ -820,7 +874,9 @@ static void fp_abs(fpdata *a, fpdata *b, int prec)
 }
 static void fp_cosh(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = coshl(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_neg(fpdata *a, fpdata *b, int prec)
@@ -831,12 +887,16 @@ static void fp_neg(fpdata *a, fpdata *b, int prec)
 }
 static void fp_acos(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = acosl(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_cos(fpdata *a, fpdata *b)
 {
+	fp_normal_prec();
 	a->fp = cosl(b->fp);
+	fp_reset_normal_prec();
 	fp_round(a);
 }
 static void fp_sub(fpdata *a, fpdata *b, int prec)
