@@ -30,6 +30,7 @@
 #include "win32_uaenet.h"
 #include "win32.h"
 
+int log_ethernet;
 static struct netdriverdata tds[MAX_TOTAL_NET_DEVICES];
 static int enumerated;
 static int ethernet_paused;
@@ -212,6 +213,16 @@ static void *uaenet_trap_threadw (void *arg)
 		int towrite = sd->mtu;
 		uae_sem_wait (&sd->change_sem);
 		if (sd->getfunc ((struct s2devstruct*)sd->user, sd->writebuffer, &towrite)) {
+			if (log_ethernet & 1) {
+				TCHAR out[1600 * 2], *p;
+				p = out;
+				for (int i = 0; i < towrite && i < 1600; i++) {
+					_stprintf(p, _T("%02x"), sd->writebuffer[i]);
+					p += 2;
+					*p = 0;
+				}
+				write_log(_T("OUT %4d: %s\n"), towrite, out);
+			}
 			ppcap_sendpacket(sd->fp, sd->writebuffer, towrite);
 			donotwait = 1;
 		}
