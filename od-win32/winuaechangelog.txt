@@ -4,6 +4,27 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 5:
+
+- Do not fallback to standard D3D9 from D3D9Ex if -nod3dshader command line is used, removed also other now mostly useless fallbacks.
+- Reduce CPU Idle when DMA operation is active (directory filesystem/UAE HDF or true DMA SCSI controller).
+- If Wait for blitter was enabled, blit used all available cycles and statefile was saved when blit was active: CPU state was saved before PC was increased. Restoring statefile would incorrectly restart the blit.
+- Action Replay III CIA read/write internal NMI triggers need small delay (NMI must be delayed until following instruction completes). Fixes Virus Test "Boot" option hang.
+- 341b2 mouse/joystick button release when input is uncaptured didn't fully set the new state.
+- Include "JIT direct switched off: reason" message in error log.
+- Relative path mode ignored Filesys path.
+- Host FPU mode: set host FPU round to nearest mode temporarily (if needed) before calling any native C-library trigonometric functions, other rounding modes can return (very) wrong results.
+- AVI recording file splitting (2G limit) flushed sound buffers causing random sound glitches. Added -max_avi_size <bytes> -command line parameter to set split size.
+
+Cubo CD32 updates:
+
+- Cubo is now an expansion device under custom controllers, DIP switches and hardware feature enable/disable settings are also in expansion config. Cubo config needs to be made from scratch.
+- NVRAM (Only in some later models) emulated, saved with CD32 nvram file. (1024 byte CD32 NVRAM + 2048 bytes Cubo + 16 byte Cubo RTC)
+- PIC protection emulated (not used by all games), added configurable Cubo PIC language string (2 characters) and game specific security key string (4 characters).
+- RTC (Only in some later models) emulated. Saved at the end of CD32 NVRAM file (16 bytes), games use unused timer registers as non-volatile data storage.
+
+- TODO: emulate different hardware variants. (different coin counter bits etc.. Information needed!) Current emulation supports latest (Odeon Twister 1/2?) version, only coin and ticket dispenser ("hopper" and "suzo" in service menu) are not implemented.
+
 Beta 4:
 
 - If DirectDraw mode surface allocation fails, retry it with smaller size.

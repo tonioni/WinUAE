@@ -113,7 +113,7 @@ const static GUID GUID_DEVINTERFACE_MOUSE = { 0x378de44c, 0x56ef, 0x11d1,
 extern int harddrive_dangerous, do_rdbdump;
 extern int no_rawinput, no_directinput, no_windowsmouse;
 extern int force_directsound;
-extern int log_a2065, a2065_promiscuous;
+extern int log_a2065, a2065_promiscuous, log_ethernet;
 extern int rawinput_enabled_hid, rawinput_log;
 extern int log_filesys;
 extern int forcedframelatency;
@@ -5581,6 +5581,7 @@ extern int log_cd32;
 extern int scanline_adjust;
 extern int log_ld;
 extern int logitech_lcd;
+extern uae_s64 max_avi_size;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -5598,6 +5599,21 @@ static int getval (const TCHAR *s)
 		return 0;
 	return v;
 }
+
+static uae_s64 getval64(const TCHAR *s)
+{
+	int base = 10;
+	uae_s64 v;
+	TCHAR *endptr;
+
+	if (s[0] == '0' && _totupper(s[1]) == 'X')
+		s += 2, base = 16;
+	v = _wcstoui64(s, &endptr, base);
+	if (*endptr != '\0' || *s == '\0')
+		return 0;
+	return v;
+}
+
 #if 0
 static float getvalf (const TCHAR *s)
 {
@@ -5928,6 +5944,15 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 #endif
 
+	if (!_tcscmp(arg, _T("max_avi_size"))) {
+		max_avi_size = getval64(np);
+		return 2;
+	}
+
+	if (!_tcscmp(arg, _T("ethlog"))) {
+		log_ethernet = getval(np);
+		return 2;
+	}
 	if (!_tcscmp(arg, _T("scanlineadjust"))) {
 		scanline_adjust = getval(np);
 		return 2;

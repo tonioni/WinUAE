@@ -343,6 +343,72 @@ static const TCHAR *obsolete[] = {
 
 #define UNEXPANDED _T("$(FILE_PATH)")
 
+
+static TCHAR *cfgfile_unescape(const TCHAR *s, const TCHAR **endpos, TCHAR separator, bool min)
+{
+	bool quoted = false;
+	TCHAR *s2 = xmalloc(TCHAR, _tcslen(s) + 1);
+	TCHAR *p = s2;
+	if (s[0] == '\"') {
+		s++;
+		quoted = true;
+	}
+	int i;
+	for (i = 0; s[i]; i++) {
+		TCHAR c = s[i];
+		if (quoted && c == '\"') {
+			i++;
+			break;
+		}
+		if (c == separator) {
+			i++;
+			break;
+		}
+		if (c == '\\' && !min) {
+			char v = 0;
+			TCHAR c2;
+			c = s[i + 1];
+			switch (c)
+			{
+			case 'X':
+			case 'x':
+				c2 = _totupper(s[i + 2]);
+				v = ((c2 >= 'A') ? c2 - 'A' : c2 - '0') << 4;
+				c2 = _totupper(s[i + 3]);
+				v |= (c2 >= 'A') ? c2 - 'A' : c2 - '0';
+				*p++ = c2;
+				i += 2;
+				break;
+			case 'r':
+				*p++ = '\r';
+				break;
+			case '\n':
+				*p++ = '\n';
+				break;
+			default:
+				*p++ = c;
+				break;
+			}
+			i++;
+		}
+		else {
+			*p++ = c;
+		}
+	}
+	*p = 0;
+	if (endpos)
+		*endpos = &s[i];
+	return s2;
+}
+static TCHAR *cfgfile_unescape(const TCHAR *s, const TCHAR **endpos)
+{
+	return cfgfile_unescape(s, endpos, 0, false);
+}
+static TCHAR *cfgfile_unescape_min(const TCHAR *s)
+{
+	return cfgfile_unescape(s, NULL, 0, true);
+}
+
 static TCHAR *cfgfile_option_find_it(const TCHAR *s, const TCHAR *option, bool checkequals)
 {
 	TCHAR buf[MAX_DPATH];
@@ -363,8 +429,15 @@ static TCHAR *cfgfile_option_find_it(const TCHAR *s, const TCHAR *option, bool c
 				*tmpp2++ = 0;
 		}
 		if (!strcasecmp(p, option)) {
-			if (checkequals && tmpp2)
+			if (checkequals && tmpp2) {
+				if (tmpp2[0] == '"') {
+					TCHAR *n = cfgfile_unescape_min(tmpp2);
+					_tcscpy(tmpp2, n);
+					xfree(n);
+					return tmpp2;
+				}
 				return tmpp2;
+			}
 			return p;
 		}
 		p = tmpp;
@@ -486,66 +559,6 @@ static TCHAR *cfgfile_escape_min(const TCHAR *s)
 	return my_strdup(s);
 }
 
-static TCHAR *cfgfile_unescape (const TCHAR *s, const TCHAR **endpos, TCHAR separator)
-{
-	bool quoted = false;
-	TCHAR *s2 = xmalloc (TCHAR, _tcslen (s) + 1);
-	TCHAR *p = s2;
-	if (s[0] == '\"') {
-		s++;
-		quoted = true;
-	}
-	int i;
-	for (i = 0; s[i]; i++) {
-		TCHAR c = s[i];
-		if (quoted && c == '\"') {
-			i++;
-			break;
-		}
-		if (c == separator) {
-			i++;
-			break;
-		}
-		if (c == '\\') {
-			char v = 0;
-			TCHAR c2;
-			c = s[i + 1];
-			switch (c)
-			{
-				case 'X':
-				case 'x':
-				c2 = _totupper (s[i + 2]);
-				v = ((c2 >= 'A') ? c2 - 'A' : c2 - '0') << 4;
-				c2 = _totupper (s[i + 3]);
-				v |= (c2 >= 'A') ? c2 - 'A' : c2 - '0';
-				*p++ = c2;
-				i += 2;
-				break;
-				case 'r':
-				*p++ = '\r';
-				break;
-				case '\n':
-				*p++ = '\n';
-				break;
-				default:
-				*p++ = c;
-				break;
-			}
-			i++;
-		} else {
-			*p++ = c;
-		}
-	}
-	*p = 0;
-	if (endpos)
-		*endpos = &s[i];
-	return s2;
-}
-static TCHAR *cfgfile_unescape (const TCHAR *s, const TCHAR **endpos)
-{
-	return cfgfile_unescape (s, endpos, 0);
-}
-
 static TCHAR *getnextentry (const TCHAR **valuep, const TCHAR separator)
 {
 	TCHAR *s;
@@ -560,7 +573,7 @@ static TCHAR *getnextentry (const TCHAR **valuep, const TCHAR separator)
 		value++;
 		*valuep = value;
 	} else {
-		s = cfgfile_unescape (value, valuep, separator);
+		s = cfgfile_unescape (value, valuep, separator, false);
 	}
 	return s;
 }
@@ -904,6 +917,34 @@ static void cfgfile_dwrite_path (struct zfile *f, struct multipath *mp, const TC
 	xfree (s);
 }
 
+static void cfgfile_adjust_path(TCHAR *path, int maxsz, struct multipath *mp)
+{
+	if (path[0] == 0)
+		return;
+	TCHAR *s = target_expand_environment(path, NULL, 0);
+	_tcsncpy(path, s, maxsz - 1);
+	path[maxsz - 1] = 0;
+	if (mp) {
+		for (int i = 0; i < MAX_PATHS; i++) {
+			if (mp->path[i][0] && _tcscmp(mp->path[i], _T(".\\")) != 0 && _tcscmp(mp->path[i], _T("./")) != 0 && (path[0] != '/' && path[0] != '\\' && !_tcschr(path, ':'))) {
+				TCHAR np[MAX_DPATH];
+				_tcscpy(np, mp->path[i]);
+				fixtrailing(np);
+				_tcscat(np, s);
+				fullpath(np, sizeof np / sizeof(TCHAR));
+				if (zfile_exists(np)) {
+					_tcsncpy(path, np, maxsz - 1);
+					path[maxsz - 1] = 0;
+					break;
+				}
+			}
+		}
+	} else {
+		fullpath(path, maxsz);
+	}
+	xfree(s);
+}
+
 static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 {
 	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH], tmp3[MAX_DPATH], hdcs[MAX_DPATH];
@@ -976,7 +1017,10 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 			zfile_fputs (f, tmp2);
 #endif
 		} else if (ci->type == UAEDEV_HDF || ci->type == UAEDEV_CD || ci->type == UAEDEV_TAPE) {
-			TCHAR *sfilesys = cfgfile_escape_min(ci->filesys);
+			TCHAR filesyspath[MAX_DPATH];
+			_tcscpy(filesyspath, ci->filesys);
+			cfgfile_adjust_path(filesyspath, MAX_DPATH, NULL);
+			TCHAR *sfilesys = cfgfile_escape_min(filesyspath);
 			TCHAR *sgeometry = cfgfile_escape(ci->geometry, NULL, true);
 			_stprintf (tmp, _T("%s,%s:%s,%d,%d,%d,%d,%d,%s,%s"),
 				ci->readonly ? _T("ro") : _T("rw"),
@@ -1200,13 +1244,17 @@ static void cfgfile_write_rom_settings(const struct expansionboardsettings *ebs,
 		bitcnt += eb->bitshift;
 		if (eb->type == EXPANSIONBOARD_STRING) {
 			if (settingstring) {
+				TCHAR tmp[MAX_DPATH];
 				const TCHAR *p = settingstring;
 				for (int i = 0; i < sstr; i++) {
 					p += _tcslen(p) + 1;
 				}
 				if (buf[0])
 					_tcscat(buf, _T(","));
-				_stprintf(buf, _T("%s=%s"), eb->configname, p);
+				TCHAR *cs = cfgfile_escape_min(p);
+				_stprintf(tmp, _T("%s=%s"), eb->configname, cs);
+				_tcscat(buf, tmp);
+				xfree(cs);
 				sstr++;
 			}
 		} else if (eb->type == EXPANSIONBOARD_MULTI) {
@@ -1313,7 +1361,7 @@ static void cfgfile_write_board_rom(struct uae_prefs *prefs, struct zfile *f, st
 						_tcscat(buf2, _T(","));
 					_tcscat(buf2, tmp);
 				}
-				if (br->roms[i].device_settings && ert->settings) {
+				if ((br->roms[i].device_settings || br->roms[i].configtext[0]) && ert->settings) {
 					cfgfile_write_rom_settings(ert->settings, buf2, br->roms[i].device_settings, br->roms[i].configtext);
 				}
 				if (is_custom_romboard(br)) {
@@ -2081,7 +2129,6 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool(f, _T("cd32cd"), p->cs_cd32cd);
 	cfgfile_dwrite_bool(f, _T("cd32c2p"), p->cs_cd32c2p);
 	cfgfile_dwrite_bool(f, _T("cd32nvram"), p->cs_cd32nvram);
-	cfgfile_dwrite_bool(f, _T("cd32cubo"), p->cs_cd32cubo);
 	cfgfile_dwrite(f, _T("cd32nvram_size"), _T("%d"), p->cs_cd32nvram_size / 1024);
 	cfgfile_dwrite_bool(f, _T("cdtvcd"), p->cs_cdtvcd);
 	cfgfile_dwrite_bool(f, _T("cdtv-cr"), p->cs_cdtvcr);
@@ -2534,31 +2581,11 @@ static int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR 
 	return 1;
 }
 
-
 static int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz, struct multipath *mp)
 {
 	if (!cfgfile_string (option, value, name, location, maxsz))
 		return 0;
-	TCHAR *s = target_expand_environment (location, NULL, 0);
-	_tcsncpy (location, s, maxsz - 1);
-	location[maxsz - 1] = 0;
-	if (mp) {
-		for (int i = 0; i < MAX_PATHS; i++) {
-			if (mp->path[i][0] && _tcscmp (mp->path[i], _T(".\\")) != 0 && _tcscmp (mp->path[i], _T("./")) != 0 && (location[0] != '/' && location[0] != '\\' && !_tcschr(location, ':'))) {
-				TCHAR np[MAX_DPATH];
-				_tcscpy (np, mp->path[i]);
-				fixtrailing (np);
-				_tcscat (np, s);
-				fullpath (np, sizeof np / sizeof (TCHAR));
-				if (zfile_exists (np)) {
-					_tcsncpy (location, np, maxsz - 1);
-					location[maxsz - 1] = 0;
-					break;
-				}
-			}
-		}
-	}
-	xfree (s);
+	cfgfile_adjust_path(location, maxsz, mp);
 	return 1;
 }
 
@@ -4395,7 +4422,7 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 		// quoted special case
 		if (tmpp2[0] == '\"') {
 			const TCHAR *end;
-			TCHAR *n = cfgfile_unescape (tmpp2, &end, 0);
+			TCHAR *n = cfgfile_unescape (tmpp2, &end, 0, false);
 			if (!n)
 				goto invalid_fs;
 			_tcscpy (uci.rootdir, n);
@@ -4423,7 +4450,7 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 		// quoted special case
 		if (tmpp2[0] == '\"') {
 			const TCHAR *end;
-			TCHAR *n = cfgfile_unescape (tmpp2, &end, 0);
+			TCHAR *n = cfgfile_unescape (tmpp2, &end, 0, false);
 			if (!n)
 				goto invalid_fs;
 			_tcscpy (uci.rootdir, n);
@@ -4452,7 +4479,7 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 			// quoted special case
 			if (tmpp2[0] == '\"') {
 				const TCHAR *end;
-				TCHAR *n = cfgfile_unescape (tmpp2, &end, 0);
+				TCHAR *n = cfgfile_unescape (tmpp2, &end, 0, false);
 				if (!n)
 					goto invalid_fs;
 				_tcscpy (uci.filesys, n);
@@ -4482,7 +4509,7 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 					}
 					if (tmpp2[0]) {
 						if (tmpp2[0] == '\"') {
-							n = cfgfile_unescape (tmpp2, &end, 0);
+							n = cfgfile_unescape (tmpp2, &end, 0, false);
 							if (!n)
 								goto invalid_fs;
 							_tcscpy(uci.geometry, n);
@@ -4962,7 +4989,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("cd32cd"), &p->cs_cd32cd)
 		|| cfgfile_yesno(option, value, _T("cd32c2p"), &p->cs_cd32c2p)
 		|| cfgfile_yesno(option, value, _T("cd32nvram"), &p->cs_cd32nvram)
-		|| cfgfile_yesno(option, value, _T("cd32cubo"), &p->cs_cd32cubo)
 		|| cfgfile_yesno(option, value, _T("cdtvcd"), &p->cs_cdtvcd)
 		|| cfgfile_yesno(option, value, _T("cdtv-cr"), &p->cs_cdtvcr)
 		|| cfgfile_yesno(option, value, _T("cdtvram"), &p->cs_cdtvram)
@@ -7097,7 +7123,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->cs_agnusrev = -1;
 	p->cs_deniserev = -1;
 	p->cs_mbdmac = 0;
-	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = p->cs_cd32fmv = p->cs_cd32cubo = false;
+	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = p->cs_cd32fmv = false;
 	p->cs_cd32nvram_size = 1024;
 	p->cs_cdtvcd = p->cs_cdtvram = false;
 	p->cs_cdtvcard = 0;
@@ -7377,7 +7403,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->cs_agnusrev = -1;
 	p->cs_deniserev = -1;
 	p->cs_mbdmac = 0;
-	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = p->cs_cd32fmv = p->cs_cd32cubo = false;
+	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = p->cs_cd32fmv = false;
 	p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcard = false;
 	p->cs_ide = 0;
 	p->cs_pcmcia = 0;
@@ -7742,7 +7768,7 @@ static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
 		if (!configure_rom (p, roms, romcheck))
 			return 0;
 	} else if (config > 1) {
-		p->cs_cd32cubo = true;
+		addbcromtype(p, ROMTYPE_CUBO, true, NULL, 0);
 	}
 	return 1;
 }

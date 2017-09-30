@@ -35,6 +35,7 @@ extern void statusline_getpos(int *x, int *y, int width, int height, int hx, int
 #define STATUSTYPE_DISPLAY 2
 #define STATUSTYPE_INPUT 3
 #define STATUSTYPE_CD 4
+#define STATUSTYPE_OTHER 5
 
 extern bool createstatusline(void);
 extern void deletestatusline(void);

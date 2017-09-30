@@ -8939,7 +8939,6 @@ static struct expansionrom_gui accelerator_gui_item;
 static void reset_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg, DWORD itemselector, DWORD selector, DWORD checkbox, DWORD stringbox)
 {
 	eg->expansionrom_gui_settings = NULL;
-	eg->expansionrom_gui_item = 0;
 	eg->expansionrom_gui_ebs = NULL;
 	eg->expansionrom_gui_string[0] = 0;
 	hide(hDlg, itemselector, 1);
@@ -8956,7 +8955,8 @@ static void create_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg, cons
 	static int recursive;
 	const struct expansionboardsettings *eb;
 	if (eg->expansionrom_gui_ebs != ebs) {
-		eg->expansionrom_gui_item = 0;
+		if (eg->expansionrom_gui_ebs)
+			eg->expansionrom_gui_item = 0;
 		reset = true;
 	}
 	eg->expansionrom_gui_ebs = ebs;
@@ -8979,11 +8979,16 @@ static void create_expansionrom_gui(HWND hDlg, struct expansionrom_gui *eg, cons
 		return;
 	recursive++;
 
+retry:
 	int item = eg->expansionrom_gui_item;
 	hide(hDlg, itemselector, 0);
 	int bitcnt = 0;
 	for (int i = 0; i < item; i++) {
 		const struct expansionboardsettings *eb = &ebs[i];
+		if (eb->name == NULL) {
+			eg->expansionrom_gui_item = 0;
+			goto retry;
+		}
 		if (eb->type == EXPANSIONBOARD_STRING) {
 			;
 		} else if (eb->type == EXPANSIONBOARD_MULTI) {
