@@ -70,19 +70,19 @@ void osd_free(void *ptr)
 }
 osd_lock *osd_lock_alloc(void)
 {
-	uae_sem_t *t = xmalloc(uae_sem_t, 1);
-	uae_sem_init(t, 0, 1);
+	uae_sem_t t = NULL;
+	uae_sem_init(&t, 0, 1);
 	return (osd_lock*)t;
 }
 void osd_lock_free(osd_lock *lock)
 {
-	uae_sem_destroy((uae_sem_t*)lock);
+	uae_sem_destroy((uae_sem_t*)&lock);
 }
 void osd_lock_release(osd_lock *lock)
 {
-	uae_sem_post((uae_sem_t*)lock);
+	uae_sem_post((uae_sem_t*)&lock);
 }
 void osd_lock_acquire(osd_lock *lock)
 {
-	uae_sem_wait((uae_sem_t*)lock);
+	uae_sem_wait((uae_sem_t*)&lock);
 }
