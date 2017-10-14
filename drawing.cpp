@@ -3957,15 +3957,22 @@ void vsync_handle_redraw (int long_field, int lof_changed, uae_u16 bplcon0p, uae
 	if (lof_changed || interlace_seen <= 0 || (currprefs.gfx_iscanlines && interlace_seen > 0) || last_redraw_point >= 2 || long_field || doublescan < 0) {
 		last_redraw_point = 0;
 
-		if (framecnt == 0)
-			finish_drawing_frame ();
+		if (framecnt == 0) {
+			finish_drawing_frame();
+#ifdef AVIOUTPUT
+			if (!picasso_on) {
+				frame_drawn();
+			}
+#endif
+		}
 #if 0
 		if (interlace_seen > 0) {
 			interlace_seen = -1;
-		} else if (interlace_seen == -1) {
+		}
+		else if (interlace_seen == -1) {
 			interlace_seen = 0;
 			if (currprefs.gfx_scandoubler && currprefs.gfx_vresolution)
-				notice_screen_contents_lost ();
+				notice_screen_contents_lost();
 		}
 #endif
 
@@ -3973,33 +3980,31 @@ void vsync_handle_redraw (int long_field, int lof_changed, uae_u16 bplcon0p, uae
 #ifdef SAVESTATE
 			if (!savestate_state) {
 				if (currprefs.quitstatefile[0]) {
-					savestate_initsave (currprefs.quitstatefile, 1, 1, true); 
-					save_state (currprefs.quitstatefile, _T(""));
+					savestate_initsave(currprefs.quitstatefile, 1, 1, true);
+					save_state(currprefs.quitstatefile, _T(""));
 				}
 			}
 #endif
 			quit_program = -quit_program;
-			set_inhibit_frame (IHF_QUIT_PROGRAM);
+			set_inhibit_frame(IHF_QUIT_PROGRAM);
 			set_special(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
 			return;
 		}
 
-		count_frame ();
+		count_frame();
 
-		if (framecnt == 0)
-			init_drawing_frame ();
-		else if (currprefs.cpu_memory_cycle_exact)
-			init_hardware_for_drawing_frame ();
+		if (framecnt == 0) {
+			init_drawing_frame();
+		} else if (currprefs.cpu_memory_cycle_exact) {
+			init_hardware_for_drawing_frame();
+		}
 	} else {
-		if (isvsync_chipset ())
-			flush_screen (gfxvidinfo.inbuffer, 0, 0); /* vsync mode */
+		if (isvsync_chipset()) {
+			flush_screen(gfxvidinfo.inbuffer, 0, 0); /* vsync mode */
+		}
 	}
 
 	gui_flicker_led (-1, 0, 0);
-#ifdef AVIOUTPUT
-	if (!picasso_on)
-		frame_drawn ();
-#endif
 }
 
 void hsync_record_line_state (int lineno, enum nln_how how, int changed)

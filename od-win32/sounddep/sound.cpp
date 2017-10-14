@@ -2630,10 +2630,11 @@ void finish_sound_buffer (void)
 	// must be after driveclick_mix
 	paula_sndbufpt = paula_sndbuffer;
 #ifdef AVIOUTPUT
-	if (avioutput_enabled && avioutput_audio) {
-		AVIOutput_WriteAudio((uae_u8*)paula_sndbuffer, bufsize);
-		if (avioutput_nosoundsync)
-			sound_setadjust(0);
+	if (avioutput_audio) {
+		if (AVIOutput_WriteAudio((uae_u8*)paula_sndbuffer, bufsize)) {
+			if (avioutput_nosoundsync)
+				sound_setadjust(0);
+		}
 	}
 	if (avioutput_enabled && (!avioutput_framelimiter || avioutput_nosoundoutput))
 		return;

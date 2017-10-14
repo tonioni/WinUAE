@@ -42,6 +42,7 @@ Copyright(c) 2001 - 2002; §ane
 #include "fsdb.h"
 #include "threaddep/thread.h"
 #include "zfile.h"
+#include "savestate.h"
 
 #define MAX_AVI_SIZE (0x80000000 - 0x1000000)
 
@@ -58,7 +59,7 @@ static int frame_count; // current frame
 static int frame_skip;
 static uae_u64 total_avi_size;
 static int partcnt;
-static int first_frame = 1;
+static int first_frame;
 
 int avioutput_audio, avioutput_video, avioutput_enabled, avioutput_requested;
 static int videoallocated;
@@ -633,9 +634,10 @@ static int AVIOutput_GetCOMPVARSFromRegistry (COMPVARS *pcv)
 					regquerydata(avikey, _T("VideoConfigurationState"), state, &ss);
 				}
 				pcv->hic = ICOpen (pcv->fccType, pcv->fccHandler, ICMODE_COMPRESS);
-				if (pcv->hic) {
+				if (pcv->hic || (!pcv->hic && pcv->fccHandler == mmioFOURCC('D', 'I', 'B', ' '))) { // DIB = uncompressed
 					ok = 1;
-					ICSetState (pcv->hic, state, ss);
+					if (pcv->hic)
+						ICSetState (pcv->hic, state, ss);
 				}
 				xfree (state);
 			}
@@ -724,7 +726,7 @@ int AVIOutput_ChooseVideoCodec (HWND hwnd, TCHAR *s, int len)
 			ss = 0;
 		}
 		if (ss == 0)
-			state = xmalloc (uae_u8, 1);
+			state = xcalloc (uae_u8, 1);
 		avikey = openavikey ();
 		if (avikey) {
 			regsetdata (avikey, _T("VideoConfigurationState"), state, ss);
@@ -1263,7 +1265,7 @@ void AVIOutput_Restart (void)
 
 static void AVIOutput_End2(bool fullrestart)
 {
-	first_frame = 1;
+	first_frame = 0;
 	avioutput_enabled = 0;
 
 	if (alive) {
@@ -1372,7 +1374,9 @@ static void AVIOutput_Begin2(bool fullstart, bool immediate)
 	if (fullstart) {
 		reset_sound();
 		init_hz_normal();
-		first_frame = 1;
+		first_frame = 0;
+		if (savestate_state && !avioutput_originalsize)
+			first_frame = 1;
 	} else {
 		first_frame = 0;
 	}
@@ -1660,14 +1664,33 @@ void AVIOutput_Toggle (int mode, bool immediate)
 	}
 }
 
-void AVIOutput_WriteAudio(uae_u8 *sndbuffer, int sndbufsize)
+static void start_if_requested(void)
 {
+	if (!avioutput_requested)
+		return;
+	AVIOutput_Begin(true);
+}
+
+static bool can_record(void)
+{
+	if (savestate_state == STATE_DORESTORE || savestate_state == STATE_RESTORE)
+		return false;
+	return true;
+}
+
+bool AVIOutput_WriteAudio(uae_u8 *sndbuffer, int sndbufsize)
+{
+	if (!can_record())
+		return false;
+
+	start_if_requested();
+
 	if (!avioutput_audio || !avioutput_enabled)
-		return;
+		return false;
 	if (!sndbufsize)
-		return;
+		return false;
 	if (avioutput_failed)
-		return;
+		return false;
 
 	if (!avi_sndbuffer) {
 		avi_sndbufsize = sndbufsize * 2;
@@ -1680,10 +1703,16 @@ void AVIOutput_WriteAudio(uae_u8 *sndbuffer, int sndbufsize)
 	}
 	memcpy(avi_sndbuffer + avi_sndbuffered, sndbuffer, sndbufsize);
 	avi_sndbuffered += sndbufsize;
+	return true;
 }
 
-void frame_drawn (void)
+bool frame_drawn (void)
 {
+	if (!can_record())
+		return false;
+
+	start_if_requested();
+
 	if (screenshot_multi) {
 		screenshot(1, 1);
 		if (screenshot_multi > 0)
@@ -1691,9 +1720,9 @@ void frame_drawn (void)
 	}
 
 	if (!avioutput_enabled)
-		return;
+		return false;
 	if (avioutput_failed)
-		return;
+		return false;
 
 	if (avioutput_audio == AVIAUDIO_WAV) {
 		finish_sound_buffer();
@@ -1702,12 +1731,12 @@ void frame_drawn (void)
 		}
 		first_frame = 0;
 		avi_sndbuffered = 0;
-		return;
+		return true;
 	}
 
 	if (avioutput_audio) {
 		finish_sound_buffer();
-		if (!first_frame) {
+		if (first_frame == 0 || first_frame == -1) {
 			int bytesperframe;
 			bytesperframe = wfxSrc.Format.nChannels * 2;
 			StreamSizeAudioGot += avi_sndbuffered / bytesperframe;
@@ -1731,14 +1760,18 @@ void frame_drawn (void)
 	}
 
 	if (first_frame) {
-		first_frame = 0;
-		return;
+		if (first_frame > 0)
+			first_frame--;
+		else
+			first_frame++;
+		return true;
 	}
 
 	if (!avioutput_video)
-		return;
+		return false;
 
 	AVIOutput_WriteVideo ();
+	return true;
 }
 
 /* Resampler from:

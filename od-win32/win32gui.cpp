@@ -2266,9 +2266,6 @@ void gui_display (int shortcut)
 	if (resumepaused (7)) {
 		inputdevice_acquire (TRUE);
 		setmouseactive (1);
-#ifdef AVIOUTPUT
-		AVIOutput_Begin (true);
-#endif
 	}
 	flipgui(false);
 	fpscounter_reset ();
@@ -20682,11 +20679,6 @@ int gui_init (void)
 		if (!restart_requested)
 			break;
 		restart_requested = 0;
-	}
-	if (ret > 0) {
-#ifdef AVIOUTPUT
-		AVIOutput_Begin (true);
-#endif
 	}
 	return ret;
 }

@@ -21,8 +21,7 @@ extern TCHAR avioutput_filename_auto[MAX_DPATH];
 extern TCHAR avioutput_filename_inuse[MAX_DPATH];
 
 extern void AVIOutput_Toggle (int mode, bool immediate);
-extern void AVIOutput_WriteAudio (uae_u8 *sndbuffer, int sndbufsize);
-extern void AVIOutput_WriteVideo (void);
+extern bool AVIOutput_WriteAudio (uae_u8 *sndbuffer, int sndbufsize);
 extern int AVIOutput_ChooseAudioCodec (HWND hwnd, TCHAR*, int);
 extern int AVIOutput_GetAudioCodec (TCHAR*, int);
 extern int AVIOutput_ChooseVideoCodec (HWND hwnd, TCHAR*, int);

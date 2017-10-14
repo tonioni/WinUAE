@@ -318,7 +318,7 @@ extern void reset_drawing (void);
 extern void drawing_init (void);
 extern bool notice_interlace_seen (bool);
 extern void notice_resolution_seen (int, bool);
-extern void frame_drawn (void);
+extern bool frame_drawn (void);
 extern void redraw_frame (void);
 extern bool draw_frame (struct vidbuffer*);
 extern int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh);
