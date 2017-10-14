@@ -8725,9 +8725,11 @@ static void fill_icache020 (uae_u32 addr, bool opcode)
 	data = icache_fetch(addr);
 	end_020_cycle_prefetch(opcode);
 
-	if (!(regs.cacr & 2)) {
+	if (!(regs.cacr & 1)) {
+		c->valid = false;
+	} else if (!(regs.cacr & 2)) {
 		c->tag = tag;
-		c->valid = !!(regs.cacr & 1);
+		c->valid = true;
 		c->data = data;
 	}
 	regs.cacheholdingaddr020 = addr;
