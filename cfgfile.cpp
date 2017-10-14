@@ -4078,6 +4078,14 @@ static void get_filesys_controller (const TCHAR *hdc, int *type, int *typenum, i
 		hdunit = hdc[4] - '0';
 		if (hdunit < 0 || hdunit >= 8 + 2)
 			hdunit = 0;
+	} else if (_tcslen(hdc) >= 6 && !_tcsncmp(hdc, _T("scsram"), 6)) {
+		hdcv = HD_CONTROLLER_TYPE_PCMCIA;
+		hdunit = 0;
+		idx = 0;
+	} else if (_tcslen(hdc) >= 5 && !_tcsncmp(hdc, _T("scide"), 6)) {
+		hdcv = HD_CONTROLLER_TYPE_PCMCIA;
+		hdunit = 0;
+		idx = 1;
 	}
 	if (hdcv == HD_CONTROLLER_TYPE_UAE) {
 		hdunit = _tstol(hdc + 3);
@@ -4090,7 +4098,7 @@ static void get_filesys_controller (const TCHAR *hdc, int *type, int *typenum, i
 		TCHAR *extend = (TCHAR*)_tcschr(control, ',');
 		if (extend)
 			extend[0] = 0;
-		const TCHAR *ext = _tcsrchr (control, '_');
+		const TCHAR *ext = _tcsrchr(control, '_');
 		if (ext) {
 			ext++;
 			int len = _tcslen(ext);
@@ -4113,7 +4121,8 @@ static void get_filesys_controller (const TCHAR *hdc, int *type, int *typenum, i
 						}
 						if (hdcv == HD_CONTROLLER_TYPE_IDE_AUTO) {
 							hdcv = i;
-						} else if (hdcv == HD_CONTROLLER_TYPE_SCSI_AUTO) {
+						}
+						else if (hdcv == HD_CONTROLLER_TYPE_SCSI_AUTO) {
 							hdcv = i + HD_CONTROLLER_EXPANSION_MAX;
 						}
 						found = true;
@@ -4127,7 +4136,8 @@ static void get_filesys_controller (const TCHAR *hdc, int *type, int *typenum, i
 					if (_tcslen(ert->name) == len && !_tcsnicmp(ext, ert->name, len)) {
 						if (hdcv == HD_CONTROLLER_TYPE_IDE_AUTO) {
 							hdcv = HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST + i;
-						} else {
+						}
+						else {
 							hdcv = HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST + i;
 						}
 						break;
@@ -4136,14 +4146,6 @@ static void get_filesys_controller (const TCHAR *hdc, int *type, int *typenum, i
 
 			}
 		}
-	} else if (_tcslen (hdc) >= 6 && !_tcsncmp (hdc, _T("scsram"), 6)) {
-		hdcv = HD_CONTROLLER_TYPE_PCMCIA;
-		hdunit = 0;
-		idx = 0;
-	} else if (_tcslen (hdc) >= 5 && !_tcsncmp (hdc, _T("scide"), 6)) {
-		hdcv = HD_CONTROLLER_TYPE_PCMCIA;
-		hdunit = 0;
-		idx = 1;
 	}
 	if (idx >= MAX_DUPLICATE_EXPANSION_BOARDS)
 		idx = MAX_DUPLICATE_EXPANSION_BOARDS - 1;
@@ -6821,6 +6823,7 @@ uae_u32 cfgfile_modify (uae_u32 index, const TCHAR *parms, uae_u32 size, TCHAR *
 					}
 				}
 			}
+			inputdevice_fix_prefs(&changed_prefs, false);
 			set_config_changed ();
 			set_special(SPCFLAG_MODE_CHANGE);
 			i++;
