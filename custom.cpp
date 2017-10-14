@@ -8908,6 +8908,9 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	reset_decisions ();
 
 	bogusframe = 1;
+	vsync_rendered = false;
+	frame_shown = false;
+	frame_rendered = false;
 
 	if (isrestore ()) {
 		uae_u16 v;
