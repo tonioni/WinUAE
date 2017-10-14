@@ -845,6 +845,7 @@ static void setmouseactive2 (int active, bool allowpause)
 		}
 #endif
 		inputdevice_acquire (FALSE);
+		inputdevice_releasebuttons();
 	}
 	if (!active && allowpause) {
 		if (currprefs.win32_active_nocapture_pause) {

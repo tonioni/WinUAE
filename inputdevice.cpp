@@ -5087,7 +5087,7 @@ void inputdevice_reset (void)
 	}
 	lightpen_trigger2 = 0;
 	cubo_flag = 0;
-	alg_flag = 0;
+	alg_flag &= 1;
 }
 
 static int getoldport (struct uae_input_device *id)
@@ -8355,7 +8355,7 @@ void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int 
 	}
 }
 
-static void clearpressmask(void)
+void inputdevice_releasebuttons(void)
 {
 	for (int i = 0; i < MAX_INPUT_DEVICES; i++) {
 		for (int j = 0; j < 32; j++) {
@@ -8401,8 +8401,6 @@ void inputdevice_acquire (int allmode)
 		if (use_keyboards[i] || i == 0)
 			idev[IDTYPE_KEYBOARD].acquire (i, allmode < 0);
 	}
-
-	clearpressmask();
 
 	if (input_acquired)
 		return;
@@ -8453,8 +8451,6 @@ void inputdevice_unacquire(bool emulationactive, int inputmask)
 		idev[IDTYPE_MOUSE].unacquire(-1);
 	if (!(inputmask & 1))
 		idev[IDTYPE_KEYBOARD].unacquire(-1);
-
-	clearpressmask();
 }
 
 void inputdevice_unacquire(void)
@@ -9048,6 +9044,7 @@ void inputdevice_joyport_config_store(struct uae_prefs *p, const TCHAR *value, i
 	}
 	if (mode >= 0)
 		jp->mode = mode;
+	jp->changed = true;
 }
 
 int inputdevice_joyport_config (struct uae_prefs *p, const TCHAR *value1, const TCHAR *value2, int portnum, int mode, int type, bool candefault)
@@ -9244,10 +9241,15 @@ int inputdevice_getjoyportdevice (int port, int val)
 void inputdevice_fix_prefs(struct uae_prefs *p, bool userconfig)
 {
 	struct jport jport_config_store[MAX_JPORTS];
+	bool changed = false;
 
 	for (int i = 0; i < MAX_JPORTS; i++) {
 		memcpy(&jport_config_store[i], &p->jports[i], sizeof(struct jport));
+		changed |= p->jports[i].changed;
 	}
+
+	if (!changed)
+		return;
 
 	bool defaultports = userconfig == false;
 	// Convert old style custom mapping to new style
