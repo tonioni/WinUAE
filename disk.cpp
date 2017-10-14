@@ -1279,8 +1279,10 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 			drv->ddhd = 1;
 			sd = 0;
 
+			bool can40 = p->floppyslots[dnum].dfxtype == DRV_525_DD || p->floppyslots[dnum].dfxtype == DRV_PC_ONLY_40;
+
 			for (side = 2; side > 0; side--) {
-				if (drv->hard_num_cyls >= 80 && p->floppyslots[dnum].dfxtype != DRV_525_DD) {
+				if (drv->hard_num_cyls >= 80 && !can40) {
 					if (       size ==  9 * 80 * side * 512 || size ==  9 * 81 * side * 512 || size ==  9 * 82 * side * 512) {
 						drv->num_secs = 9;
 						drv->ddhd = 1;
@@ -1307,7 +1309,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 						break;
 					}
 				}
-				if (drv->hard_num_cyls == 40 || p->floppyslots[dnum].dfxtype == DRV_525_DD) {
+				if (drv->hard_num_cyls == 40 || can40) {
 					if (size == 9 * 40 * side * 512) {
 						drv->num_secs = 9;
 						drv->ddhd = 1;
