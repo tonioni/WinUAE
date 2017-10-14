@@ -90,6 +90,7 @@ struct jport {
 	int autofire;
 	struct inputdevconfig idc;
 	bool nokeyboardoverride;
+	bool changed;
 };
 #define JPORT_UNPLUGGED -2
 #define JPORT_NONE -1

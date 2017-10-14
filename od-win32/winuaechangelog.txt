@@ -4,6 +4,18 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 6:
+
+- "PC Bridge (40)" drive was missing from "Don't support 360k floppy images in Amiga drive unless it is configured as 5.25" drive" check.
+- American Laser Games work again (b3).
+- PCMCIA SRAM/IDE work again (b1?).
+- Previous button release update always released buttons when input devices were released but it should have only been done when mouse was uncaptured.
+- Delay avioutput init until first display frame or sound buffer recording request comes. Previously "before filtering" option may have used wrong display size in some situations.
+- Avioutput does not anymore forget uncompressed video selection.
+- First frame was not rendered (and also not recorded) if statefile was restored when emulation was already running.
+- If emulator state was changed (debugger breakpoint, statefile save etc..), last frame before state change was not recorded if avioutput recording was enabled.
+- uae-configuration joystick port (joyportx) modification only queued changes.
+
 Beta 5:
 
 - Do not fallback to standard D3D9 from D3D9Ex if -nod3dshader command line is used, removed also other now mostly useless fallbacks.
