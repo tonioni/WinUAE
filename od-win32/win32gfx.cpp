@@ -1902,6 +1902,7 @@ static int open_windows (bool mousecapture)
 	static bool started = false;
 	int ret, i;
 
+	d3d_select(&currprefs);
 	changevblankthreadmode (VBLANKTH_IDLE);
 
 	screen_is_initialized = 0;
@@ -2911,6 +2912,7 @@ static void gfxmode_reset (void)
 		}
 	}
 #endif
+	d3d_select(&currprefs);
 }
 
 int machdep_init (void)

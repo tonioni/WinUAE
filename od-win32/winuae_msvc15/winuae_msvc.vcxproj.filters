@@ -856,6 +856,9 @@
     <ClCompile Include="..\..\cpuemu_35.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\direct3d11.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

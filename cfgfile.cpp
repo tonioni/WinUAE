@@ -200,7 +200,7 @@ static const TCHAR *epsonprinter[] = { _T("none"), _T("ascii"), _T("epson_matrix
 static const TCHAR *aspects[] = { _T("none"), _T("vga"), _T("tv"), 0 };
 static const TCHAR *vsyncmodes[] = { _T("adaptive"), _T("false"), _T("true"), _T("autoswitch"), 0 };
 static const TCHAR *vsyncmodes2[] = { _T("normal"), _T("busywait"), 0 };
-static const TCHAR *filterapi[] = { _T("directdraw"), _T("direct3d"), 0 };
+static const TCHAR *filterapi[] = { _T("directdraw"), _T("direct3d"), _T("direct3d11"), 0 };
 static const TCHAR *dongles[] =
 {
 	_T("none"),
@@ -3336,7 +3336,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			if (s) {
 				*s++ = 0;
 				if (!_tcscmp (value, _T("D3D"))) {
-					p->gfx_api = 1;
+					if (!p->gfx_api)
+						p->gfx_api = 1;
 					if (_tcscmp (option, _T("gfx_filter_pre")) == 0 || _tcscmp (option, _T("gfx_filter_pre_rtg")) == 0) {
 						for (int i = 0; i < MAX_FILTERSHADERS; i++) {
 							if (gf->gfx_filtershader[i][0] == 0) {
@@ -3363,7 +3364,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			if (s) {
 				*s++ = 0;
 				if (!_tcscmp (value, _T("D3D"))) {
-					p->gfx_api = 1;
+					if (!p->gfx_api)
+						p->gfx_api = 1;
 					_tcscpy (gf->gfx_filtershader[2 * MAX_FILTERSHADERS], s);
 					for (int i = 0; i < 2 * MAX_FILTERSHADERS; i++) {
 						if (!_tcsicmp (gf->gfx_filtershader[i], s)) {
@@ -3380,7 +3382,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 					gf->gfx_filtermask[i][0] = 0;
 				}
 			} else if (!_tcscmp (value, _T("direct3d"))) {
-				p->gfx_api = 1; // forwards compatibiity
+				if (!p->gfx_api)
+					p->gfx_api = 1; // forwards compatibiity
 			} else {
 				int i = 0;
 				while(uaefilters[i].name) {

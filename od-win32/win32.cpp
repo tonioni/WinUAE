@@ -21,7 +21,7 @@
 #include "sysconfig.h"
 
 #define USETHREADCHARACTERICS 1
-#define _WIN32_WINNT 0x700 /* XButtons + MOUSEHWHEEL=XP, Jump List=Win7 */
+#define _WIN32_WINNT 0x0A00
 
 #include <windows.h>
 #include <commctrl.h>
@@ -3687,6 +3687,7 @@ void target_fixup_options (struct uae_prefs *p)
 		}
 
 	}
+	d3d_select(p);
 }
 
 void target_default_options (struct uae_prefs *p, int type)
@@ -7012,7 +7013,7 @@ int isdllversion (const TCHAR *name, int version, int revision, int subver, int 
 	DWORD  dwVersionHandle, dwFileVersionInfoSize;
 	LPVOID lpFileVersionData = NULL;
 	int ok = 0;
-
+	
 	dwFileVersionInfoSize = GetFileVersionInfoSize (name, &dwVersionHandle);
 	if (dwFileVersionInfoSize) {
 		if (lpFileVersionData = xcalloc (uae_u8, dwFileVersionInfoSize)) {
@@ -7173,17 +7174,7 @@ const TCHAR **uaenative_get_library_dirs (void)
 typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
 
 #ifndef NDEBUG
-typedef struct _PROCESS_MITIGATION_STRICT_HANDLE_CHECK_POLICY {
-	union {
-		DWORD  Flags;
-		struct {
-			DWORD RaiseExceptionOnInvalidHandleReference : 1;
-			DWORD HandleExceptionsPermanentlyEnabled : 1;
-			DWORD ReservedFlags : 30;
-		};
-	};
-} PROCESS_MITIGATION_STRICT_HANDLE_CHECK_POLICY;
-typedef BOOL (WINAPI* SETPROCESSMITIGATIONPOLICY)(DWORD, PVOID, SIZE_T);
+typedef BOOL(WINAPI* SETPROCESSMITIGATIONPOLICY)(DWORD, PVOID, SIZE_T);
 static SETPROCESSMITIGATIONPOLICY pSetProcessMitigationPolicy;
 #endif
 
