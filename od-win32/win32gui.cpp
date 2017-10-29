@@ -8102,6 +8102,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_1MCHIPJUMPER, workprefs.cs_1mchipjumper || workprefs.chipmem_size >= 0x100000);
 	CheckDlgButton(hDlg, IDC_CS_BYTECUSTOMWRITEBUG, workprefs.cs_bytecustomwritebug);
 	CheckDlgButton(hDlg, IDC_CS_COMPOSITECOLOR, workprefs.cs_color_burst);
+	CheckDlgButton(hDlg, IDC_CS_UNMAPPEDZERO, workprefs.cs_unmapped_zero);
 	txt[0] = 0;
 	_stprintf (txt, _T("%d"), workprefs.cs_rtc_adjust);
 	SetDlgItemText(hDlg, IDC_CS_RTCADJUST, txt);
@@ -8192,6 +8193,7 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_1mchipjumper = ischecked(hDlg, IDC_CS_1MCHIPJUMPER);
 	workprefs.cs_bytecustomwritebug = ischecked(hDlg, IDC_CS_BYTECUSTOMWRITEBUG);
 	workprefs.cs_color_burst = ischecked(hDlg, IDC_CS_COMPOSITECOLOR);
+	workprefs.cs_unmapped_zero = ischecked(hDlg, IDC_CS_UNMAPPEDZERO);
 
 	cfgfile_compatibility_romtype(&workprefs);
 
@@ -8278,6 +8280,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_1MCHIPJUMPER, e && workprefs.chipmem_size < 0x100000);
 	ew(hDlg, IDC_CS_BYTECUSTOMWRITEBUG, e);
 	ew(hDlg, IDC_CS_COMPOSITECOLOR, e);
+	ew(hDlg, IDC_CS_UNMAPPEDZERO, e);
 }
 
 static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -11250,7 +11253,8 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 					v = SendDlgItemMessage (hDlg, IDC_DXMODE, CB_GETCURSEL, 0, 0L);
 					if (v != CB_ERR) {
 						workprefs.gfx_api = v;
-						d3d_select(&workprefs);
+						if (full_property_sheet)
+							d3d_select(&workprefs);
 						enable_for_miscdlg (hDlg);
 					}
 				break;
@@ -15710,16 +15714,17 @@ static void init_portsdlg (HWND hDlg)
 		workprefs.parallel_postscript_emulation = 0;
 	}
 
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_RESETCONTENT, 0, 0L);
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("RoboCop 3"));
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Leader Board"));
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("B.A.T. II"));
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Italy '90 Soccer"));
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Dames Grand-Maître"));
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Rugby Coach"));
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Cricket Captain"));
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Leviathan"));
+	SendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_RESETCONTENT, 0, 0L);
+	SendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
+	SendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("RoboCop 3"));
+	SendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Leader Board"));
+	SendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("B.A.T. II"));
+	SendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Italy '90 Soccer"));
+	SendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Dames Grand-Maître"));
+	SendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Rugby Coach"));
+	SendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Cricket Captain"));
+	SendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Leviathan"));
+	SendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Music Master"));
 
 	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());

@@ -40,115 +40,13 @@
 #include <Functiondiscoverykeys_devpkey.h>
 #include <al.h>
 #include <alc.h>
+#include <ntverp.h>
 
 #include <portaudio.h>
 
 #include "sounddep/sound.h"
 
 #define USE_XAUDIO 0
-
-#ifndef _WIN64
-
-// only in 8.1+ SDKs
-
-typedef enum _AUDIO_STREAM_CATEGORY {
-	AudioCategory_Other = 0,
-	AudioCategory_ForegroundOnlyMedia = 1,
-	AudioCategory_Communications = 3,
-	AudioCategory_Alerts = 4,
-	AudioCategory_SoundEffects = 5,
-	AudioCategory_GameEffects = 6,
-	AudioCategory_GameMedia = 7,
-	AudioCategory_GameChat = 8,
-	AudioCategory_Speech = 9,
-	AudioCategory_Movie = 10,
-	AudioCategory_Media = 11,
-} AUDIO_STREAM_CATEGORY;
-
-typedef enum AUDCLNT_STREAMOPTIONS {
-	AUDCLNT_STREAMOPTIONS_NONE = 0,
-	AUDCLNT_STREAMOPTIONS_RAW = 0x1,
-	AUDCLNT_STREAMOPTIONS_MATCH_FORMAT = 0x2
-} 	AUDCLNT_STREAMOPTIONS;
-DEFINE_ENUM_FLAG_OPERATORS(AUDCLNT_STREAMOPTIONS);
-
-typedef struct AudioClientProperties {
-	UINT32 cbSize;
-	BOOL bIsOffload;
-	AUDIO_STREAM_CATEGORY eCategory;
-	AUDCLNT_STREAMOPTIONS Options;
-} AudioClientProperties;
-
-EXTERN_C const IID IID_IAudioClient2;
-
-MIDL_INTERFACE("726778CD-F60A-4eda-82DE-E47610CD78AA")
-IAudioClient2 : public IAudioClient
-{
-public:
-	virtual HRESULT STDMETHODCALLTYPE IsOffloadCapable(
-		/* [annotation][in] */
-		_In_  AUDIO_STREAM_CATEGORY Category,
-		/* [annotation][in] */
-		_Out_  BOOL *pbOffloadCapable) = 0;
-
-	virtual HRESULT STDMETHODCALLTYPE SetClientProperties(
-		/* [annotation][in] */
-		_In_  const AudioClientProperties *pProperties) = 0;
-
-	virtual HRESULT STDMETHODCALLTYPE GetBufferSizeLimits(
-		/* [annotation][in] */
-		_In_  const WAVEFORMATEX *pFormat,
-		/* [annotation][in] */
-		_In_  BOOL bEventDriven,
-		/* [annotation][in] */
-		_Out_  REFERENCE_TIME *phnsMinBufferDuration,
-		/* [annotation][in] */
-		_Out_  REFERENCE_TIME *phnsMaxBufferDuration) = 0;
-
-};
-
-#else
-
-#define AudioCategory_Media 11
-#define AUDCLNT_STREAMOPTIONS_MATCH_FORMAT 0x2
-
-#endif
-
-EXTERN_C const IID IID_IAudioClient3;
-
-MIDL_INTERFACE("7ED4EE07-8E67-4CD4-8C1A-2B7A5987AD42")
-IAudioClient3 : public IAudioClient2
-{
-public:
-	virtual HRESULT STDMETHODCALLTYPE GetSharedModeEnginePeriod(
-		/* [annotation][in] */
-		_In_  const WAVEFORMATEX *pFormat,
-		/* [annotation][out] */
-		_Out_  UINT32 *pDefaultPeriodInFrames,
-		/* [annotation][out] */
-		_Out_  UINT32 *pFundamentalPeriodInFrames,
-		/* [annotation][out] */
-		_Out_  UINT32 *pMinPeriodInFrames,
-		/* [annotation][out] */
-		_Out_  UINT32 *pMaxPeriodInFrames) = 0;
-
-	virtual HRESULT STDMETHODCALLTYPE GetCurrentSharedModeEnginePeriod(
-		/* [unique][annotation][out] */
-		_Out_  WAVEFORMATEX **ppFormat,
-		/* [annotation][out] */
-		_Out_  UINT32 *pCurrentPeriodInFrames) = 0;
-
-	virtual HRESULT STDMETHODCALLTYPE InitializeSharedAudioStream(
-		/* [annotation][in] */
-		_In_  DWORD StreamFlags,
-		/* [annotation][in] */
-		_In_  UINT32 PeriodInFrames,
-		/* [annotation][in] */
-		_In_  const WAVEFORMATEX *pFormat,
-		/* [annotation][in] */
-		_In_opt_  LPCGUID AudioSessionGuid) = 0;
-
-};
 
 struct sound_dp
 {

@@ -2493,17 +2493,28 @@ static void init_aspect_maps (void)
 {
 	int i, maxl, h;
 
-	h = gfxvidinfo.drawbuffer.height_allocated;
-
-	if (h == 0)
-		/* Do nothing if the gfx driver hasn't initialized the screen yet */
-		return;
-
 	linedbld = linedbl = currprefs.gfx_vresolution;
 	if (doublescan > 0 && interlace_seen <= 0) {
 		linedbl = 0;
 		linedbld = 1;
 	}
+	maxl = (MAXVPOS + 1) << linedbld;
+	min_ypos_for_screen = minfirstline << linedbl;
+	max_drawn_amiga_line = -1;
+
+	gfxvidinfo.xchange = 1 << (RES_MAX - currprefs.gfx_resolution);
+	gfxvidinfo.ychange = linedbl ? 1 : 2;
+
+	visible_left_start = 0;
+	visible_right_stop = MAX_STOP;
+	visible_top_start = 0;
+	visible_bottom_stop = MAX_STOP;
+	set_blanking_limits();
+
+	h = gfxvidinfo.drawbuffer.height_allocated;
+	if (h == 0)
+		/* Do nothing if the gfx driver hasn't initialized the screen yet */
+		return;
 
 	if (native2amiga_line_map)
 		xfree (native2amiga_line_map);
@@ -2514,9 +2525,6 @@ static void init_aspect_maps (void)
 	amiga2aspect_line_map = xmalloc (int, (MAXVPOS + 1) * 2 + 1);
 	native2amiga_line_map = xmalloc (int, h);
 
-	maxl = (MAXVPOS + 1) << linedbld;
-	min_ypos_for_screen = minfirstline << linedbl;
-	max_drawn_amiga_line = -1;
 	for (i = 0; i < maxl; i++) {
 		int v = i - min_ypos_for_screen;
 		if (v >= h && max_drawn_amiga_line < 0)
@@ -2538,15 +2546,6 @@ static void init_aspect_maps (void)
 		for (j = amiga2aspect_line_map[i]; j < h && native2amiga_line_map[j] == -1; j++)
 			native2amiga_line_map[j] = i >> linedbl;
 	}
-
-	gfxvidinfo.xchange = 1 << (RES_MAX - currprefs.gfx_resolution);
-	gfxvidinfo.ychange = linedbl ? 1 : 2;
-
-	visible_left_start = 0;
-	visible_right_stop = MAX_STOP;
-	visible_top_start = 0;
-	visible_bottom_stop = MAX_STOP;
-	set_blanking_limits ();
 }
 
 /*
@@ -4191,10 +4190,10 @@ void reset_drawing (void)
 	memset (spixels, 0, sizeof spixels);
 	memset (&spixstate, 0, sizeof spixstate);
 
+	notice_screen_contents_lost();
 	init_drawing_frame ();
 	pfield_set_linetoscr();
 
-	notice_screen_contents_lost ();
 	frame_res_cnt = currprefs.gfx_autoresolution_delay;
 	lightpen_y1[0] = lightpen_y2[0] = -1;
 	lightpen_y1[1] = lightpen_y2[1] = -1;

@@ -4,6 +4,45 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 7:
+
+- Added support for npcap without winpcap backwards compatibility option, fall back to winpcap if not found. (https://nmap.org/npcap/, fully Windows 10 1607+ compatible, original winpcap is not and win10pcap has at least one annoying bug.)
+- Fixed partially corrupted first avioutput recorded frame.
+- When saving state with avioutput active: last frame was not recorded.
+- Number of avioutput frames buffered (waiting for compression thread to process them) counter was reset periodically which caused lost frames (and leaked memory) in recorded video if CPU was not fast enough.
+- 680x0 STOP #X instruction undocumented feature emulated (documentation does not mention #X S-bit having any special conditions)
+  - 68000 (010?) X S-bit cleared and Trace not active: Updates SR, increases PC and then causes privilege violation exception. (Weird, isn't it?)
+  - 68000 (010?) exits after 4 idle cycles if trace was active, without trace it takes 8 cycles (or more if it needs to stop).
+  - 68020/030: works as documented, S-bit makes no difference.
+  - 68040/060 and X S-bit cleared: Does not modify SR, does not increase PC, causes immediate privilege violation exception. 
+- Added Kupke Golem HD3000 emulation. Uses existing OMTI adapter emulation, not tested, working install disk is MIA.
+- Added Music Master dongle emulation.
+- Added "unmapped zero" advanced chipset option. If set, all unmapped memory regions return zeros (previously always if non-ce 68020+). Added because B2000 (A2000 not tested) does this which is different than all other 68000 based Amigas, probably due to bus controller chip. This can change behavior of some badly coded programs.
+- Directory filesystem ACTION_SET_DATE failed to change datestamp if file was read-only.
+- Expansion device GUI changes are now activated after hard reset.
+
+Kupke Golem HD3000:
+- OMTI controller based. ("SASI CHS" HD mode)
+- Byte wide hardware handshake PIO.
+- v1.4 ROM added ("golem driver v1.4 (15 SEP 1989)")
+
+Very experimental Direct3D 11 mode (DXGI 1.2+). Work in progress!
+
+DXGI enables much better control of frame timing (not yet in use), allows windowed variable refresh rate support and more.
+
+- Only windowed/full-window/fullscreen option supported.
+- Multiple monitors supported.
+- Direct3D11 on the fly switching supported.
+- Filter settings are ignored.
+- Scaling can't be adjusted.
+- Enables (if available) windowed variable refresh rate mode (DXGI_FEATURE_PRESENT_ALLOW_TEARING, DXGI 1.5+). G-Sync confirmed working. Which is nice.
+- In theory may work with Windows 7 (must have all updates) but may also accidentally require 8 or 10 (at this point). Windows 10 16299 only tested.
+- Useless error message appears if things go wrong.
+- Still requires d3d9x (=June 2010 DX redistributable) for matrix calculations.
+- Calls SetMaximumFrameLatency(1) but I am not sure if it has any effect in windowed mode.
+- Quick and dirty hack of Direct3D11 2D example tutorial.
+- Shaders must be unpacked in plugins\filtershaders\direct3d11 (http://www.winuae.net/files/b/direct3d11_shaders.7z)
+
 Beta 6:
 
 - "PC Bridge (40)" drive was missing from "Don't support 360k floppy images in Amiga drive unless it is configured as 5.25" drive" check.

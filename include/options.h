@@ -612,6 +612,7 @@ struct uae_prefs {
 	bool cs_cia6526;
 	bool cs_bytecustomwritebug;
 	bool cs_color_burst;
+	bool cs_unmapped_zero;
 	int cs_hacks;
 
 	struct boardromconfig expansionboard[MAX_EXPANSION_BOARDS];

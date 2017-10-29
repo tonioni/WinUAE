@@ -306,8 +306,8 @@ uae_u32 dummy_get_safe(uaecptr addr, int size, bool inst, uae_u32 defvalue)
 		addr &= 0x00ffffff;
 	if (addr >= 0x10000000)
 		return v & mask;
-	// CD32 returns zeros from all unmapped addresses
-	if (currprefs.cs_cd32cd)
+	// CD32 and B2000
+	if (currprefs.cs_unmapped_zero)
 		return 0;
 	if ((currprefs.cpu_model <= 68010) || (currprefs.cpu_model == 68020 && (currprefs.chipset_mask & CSMASK_AGA) && currprefs.address_space_24)) {
 		if (size == 4) {

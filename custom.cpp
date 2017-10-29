@@ -7844,7 +7844,6 @@ static void vsync_handler_pre (void)
 	if (timehack_alive > 0)
 		timehack_alive--;
 
-	devices_vsync_pre();
 #ifdef PICASSO96
 	if (isvsync_rtg () >= 0)
 		rtg_vsync ();
@@ -7869,6 +7868,9 @@ static void vsync_handler_pre (void)
 			frame_shown = show_screen_maybe (isvsync_chipset () >= 0);
 		}
 	}
+
+	// GUI check here, must be after frame rendering
+	devices_vsync_pre();
 
 	fpscounter (frameok);
 
@@ -8054,7 +8056,6 @@ static void copper_check (int n)
 
 static void hsync_scandoubler (void)
 {
-	int i, idx1;
 	struct draw_info *dip1;
 	uae_u16 odmacon = dmacon;
 	uaecptr bpltmp[8], bpltmpx[8];
@@ -8073,7 +8074,7 @@ static void hsync_scandoubler (void)
 		dmacon &= ~DMA_BITPLANE;
 	}
 
-	for (i = 0; i < 8; i++) {
+	for (int i = 0; i < 8; i++) {
 		int diff;
 		bpltmp[i] = bplpt[i];
 		bpltmpx[i] = bplptx[i];
@@ -8100,7 +8101,7 @@ static void hsync_scandoubler (void)
 
 	// copy color changes
 	dip1 = curr_drawinfo + next_lineno - 1;
-	for (idx1 = dip1->first_color_change; idx1 < dip1->last_color_change; idx1++) {
+	for (int idx1 = dip1->first_color_change; idx1 < dip1->last_color_change; idx1++) {
 		struct color_change *cs2 = &curr_color_changes[idx1];
 		int regno = cs2->regno;
 		int hpos = cs2->linepos / 4;
@@ -8128,7 +8129,7 @@ static void hsync_scandoubler (void)
 
 	dmacon = odmacon;
 
-	for (i = 0; i < 8; i++) {
+	for (int i = 0; i < 8; i++) {
 		bplpt[i] = bpltmp[i];
 		bplptx[i] = bpltmpx[i];
 	}
@@ -8779,7 +8780,8 @@ void custom_prepare (void)
 
 void custom_reset (bool hardreset, bool keyboardreset)
 {
-	int i;
+	if (hardreset)
+		board_prefs_changed(-1, -1);
 
 	target_reset ();
 	reset_all_systems ();
@@ -8808,14 +8810,14 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		if (hardreset) {
 			if (!aga_mode) {
 				uae_u16 c = (((currprefs.chipset_mask & CSMASK_ECS_DENISE) && !(currprefs.chipset_mask & CSMASK_AGA)) || currprefs.cs_denisenoehb) ? 0xfff : 0x000;
-				for (i = 0; i < 32; i++) {
+				for (int i = 0; i < 32; i++) {
 					current_colors.color_regs_ecs[i] = c;
 					current_colors.acolors[i] = getxcolor (c);
 				}
 	#ifdef AGA
 			} else {
 				uae_u32 c = 0;
-				for (i = 0; i < 256; i++) {
+				for (int i = 0; i < 256; i++) {
 					current_colors.color_regs_aga[i] = c;
 					current_colors.acolors[i] = getxcolor (c);
 				}
@@ -8925,7 +8927,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		BPLCON0 (0, v);
 		FMODE (0, fmode);
 		if (!(currprefs.chipset_mask & CSMASK_AGA)) {
-			for(i = 0 ; i < 32 ; i++)  {
+			for(int i = 0 ; i < 32 ; i++)  {
 				vv = current_colors.color_regs_ecs[i];
 				current_colors.color_regs_ecs[i] = -1;
 				record_color_change (0, i, vv);
@@ -8935,7 +8937,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 			}
 #ifdef AGA
 		} else {
-			for(i = 0 ; i < 256 ; i++)  {
+			for(int i = 0 ; i < 256 ; i++)  {
 				vv = current_colors.color_regs_aga[i];
 				current_colors.color_regs_aga[i] = -1;
 				record_color_change (0, i, vv);
@@ -8951,7 +8953,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		v = serper;
 		serper = 0;
 		SERPER(v);
-		for (i = 0; i < 8; i++) {
+		for (int i = 0; i < 8; i++) {
 			SPRxCTLPOS (i);
 			nr_armed += spr[i].armed != 0;
 		}
@@ -9012,8 +9014,7 @@ void dumpcustom (void)
 
 static void gen_custom_tables (void)
 {
-	int i;
-	for (i = 0; i < 256; i++) {
+	for (int i = 0; i < 256; i++) {
 		sprtaba[i] = ((((i >> 7) & 1) << 0)
 			| (((i >> 6) & 1) << 2)
 			| (((i >> 5) & 1) << 4)
@@ -9026,7 +9027,7 @@ static void gen_custom_tables (void)
 		sprite_ab_merge[i] = (((i & 15) ? 1 : 0)
 			| ((i & 240) ? 2 : 0));
 	}
-	for (i = 0; i < 16; i++) {
+	for (int i = 0; i < 16; i++) {
 		clxmask[i] = (((i & 1) ? 0xF : 0x3)
 			| ((i & 2) ? 0xF0 : 0x30)
 			| ((i & 4) ? 0xF00 : 0x300)
@@ -9914,13 +9915,12 @@ uae_u8 *restore_custom_agacolors (uae_u8 *src)
 uae_u8 *save_custom_agacolors (int *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
-	int i;
 
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
 		dstbak = dst = xmalloc (uae_u8, 256 * 4);
-	for (i = 0; i < 256; i++)
+	for (int i = 0; i < 256; i++)
 #ifdef AGA
 		SL (current_colors.color_regs_aga[i] | (color_regs_genlock[i] ? 0x80000000 : 0));
 #else
