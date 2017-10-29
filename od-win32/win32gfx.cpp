@@ -1902,7 +1902,6 @@ static int open_windows (bool mousecapture)
 	static bool started = false;
 	int ret, i;
 
-	d3d_select(&currprefs);
 	changevblankthreadmode (VBLANKTH_IDLE);
 
 	screen_is_initialized = 0;
@@ -2171,12 +2170,10 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_autoresolution = changed_prefs.gfx_autoresolution;
 		currprefs.gfx_autoresolution_vga = changed_prefs.gfx_autoresolution_vga;
 		currprefs.color_mode = changed_prefs.color_mode;
-		currprefs.gfx_api = changed_prefs.gfx_api;
 		currprefs.lightboost_strobo = changed_prefs.lightboost_strobo;
 
-		if (changed_prefs.gfx_apmode[0].gfx_fullscreen == GFX_FULLSCREEN) { 
-			if (currprefs.gfx_api != changed_prefs.gfx_api)
-				display_change_requested = 1;
+		if (currprefs.gfx_api != changed_prefs.gfx_api) {
+			display_change_requested = 1;
 		}
 
 		if (c & 128) {
@@ -2300,6 +2297,10 @@ int check_prefs_changed_gfx (void)
 				unacquired = true;
 			}
 			close_windows ();
+			if (currprefs.gfx_api != changed_prefs.gfx_api) {
+				currprefs.gfx_api = changed_prefs.gfx_api;
+				d3d_select(&currprefs);
+			}
 			graphics_init (dontcapture ? false : true);
 			graphics_mode_changed = 1;
 		}
@@ -2912,7 +2913,6 @@ static void gfxmode_reset (void)
 		}
 	}
 #endif
-	d3d_select(&currprefs);
 }
 
 int machdep_init (void)
@@ -2939,7 +2939,8 @@ int graphics_init (bool mousecapture)
 {
 	systray (hHiddenWnd, TRUE);
 	systray (hHiddenWnd, FALSE);
-	gfxmode_reset ();
+	d3d_select(&currprefs);
+	gfxmode_reset();
 	graphics_mode_changed = 1;
 	return open_windows (mousecapture);
 }
@@ -4405,7 +4406,7 @@ static int create_windows_2 (void)
 			ShowWindow (hMainWnd, firstwindow ? (currprefs.win32_start_minimized ? SW_SHOWMINIMIZED : SW_SHOWDEFAULT) : SW_SHOWNORMAL);
 		UpdateWindow (hMainWnd);
 	}
-	if (!currprefs.headless && !rp_isactive ())
+	if (!currprefs.headless && !rp_isactive () && !D3D_resize)
 		ShowWindow (hAmigaWnd, SW_SHOWNORMAL);
 	UpdateWindow (hAmigaWnd);
 	firstwindow = false;
@@ -4878,6 +4879,8 @@ void toggle_fullscreen (int mode)
 			v = GFX_WINDOW;
 		else
 			v = GFX_FULLWINDOW;
+	} else if (mode == 10) {
+		v = GFX_WINDOW;
 	}
 	*p = v;
 	updatewinfsmode (&changed_prefs);

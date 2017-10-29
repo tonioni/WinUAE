@@ -1575,6 +1575,8 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			setminimized ();
 			winuae_inactive (hWnd, minimized);
 		}
+		if (D3D_resize)
+			D3D_resize(0);
 		break;
 	case WM_ACTIVATE:
 		//write_log (_T("active %d\n"), LOWORD(wParam));
@@ -1593,9 +1595,14 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		break;
 	case WM_ACTIVATEAPP:
 		D3D_restore ();
-		if (!wParam && isfullscreen () <= 0 && currprefs.win32_minimize_inactive)
-			minimizewindow ();
-
+		if (!wParam && isfullscreen() > 0 && D3D_resize) {
+			D3D_resize(-1);
+		} else if (wParam && isfullscreen() > 0 && D3D_resize) {
+			D3D_resize(1);
+		}
+		if (!wParam && isfullscreen() <= 0 && currprefs.win32_minimize_inactive) {
+			minimizewindow();
+		}
 #ifdef RETROPLATFORM
 		rp_activate (wParam, lParam);
 #endif
@@ -6812,6 +6819,7 @@ void registertouch(HWND hwnd)
 
 void systray (HWND hwnd, int remove)
 {
+	static const GUID iconguid = { 0xdac2e99b, 0xe8f6, 0x4150, { 0x98, 0x46, 0xd, 0x4a, 0x61, 0xfb, 0xdd, 0x03 } };
 	NOTIFYICONDATA nid;
 	BOOL v;
 
@@ -6837,8 +6845,11 @@ void systray (HWND hwnd, int remove)
 	nid.cbSize = sizeof (nid);
 	nid.hWnd = hwnd;
 	nid.hIcon = LoadIcon (hInst, (LPCWSTR)MAKEINTRESOURCE (IDI_APPICON));
-	nid.uFlags = NIF_ICON | NIF_MESSAGE;
+	nid.uFlags = NIF_ICON | NIF_MESSAGE | (os_win7 ? NIF_GUID : 0);
 	nid.uCallbackMessage = WM_USER + 1;
+	if (os_win7) {
+		nid.guidItem = iconguid;
+	}
 	v = Shell_NotifyIcon (remove ? NIM_DELETE : NIM_ADD, &nid);
 	//write_log (_T("notif: Shell_NotifyIcon returned %d\n"), v);
 	if (v) {

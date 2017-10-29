@@ -21,6 +21,7 @@ using Microsoft::WRL::ComPtr;
 #include "direct3d.h"
 #include "uae.h"
 #include "custom.h"
+#include "gfxfilter.h"
 
 void (*D3D_free)(bool immediate);
 const TCHAR* (*D3D_init)(HWND ahwnd, int w_w, int h_h, int depth, int *freq, int mmult);
@@ -43,11 +44,9 @@ bool (*D3D_getvblankpos)(int *vpos);
 double (*D3D_getrefreshrate)(void);
 void (*D3D_vblank_reset)(double freq);
 void(*D3D_restore)(void);
+void(*D3D_resize)(int);
 
 static HANDLE hd3d11, hdxgi, hd3dcompiler;
-
-static const float SCREEN_DEPTH = 1000.0f;
-static const float SCREEN_NEAR = 0.1f;
 
 struct d3d11struct
 {
@@ -56,7 +55,6 @@ struct d3d11struct
 	ID3D11DeviceContext* m_deviceContext;
 	ID3D11RenderTargetView* m_renderTargetView;
 	ID3D11RasterizerState* m_rasterState;
-	D3DXMATRIX m_projectionMatrix;
 	D3DXMATRIX m_worldMatrix;
 	D3DXMATRIX m_orthoMatrix;
 	ID3D11Buffer *m_vertexBuffer, *m_indexBuffer;
@@ -76,6 +74,14 @@ struct d3d11struct
 	int texturelocked;
 	DXGI_FORMAT format;
 	bool m_tearingSupport;
+	int dmult;
+	float xoffset, yoffset;
+	DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC  fsSwapChainDesc;
+	HWND ahwnd;
+	int fsmode;
+	bool fsmodechange;
+	bool invalidmode;
 };
 
 struct VertexType
@@ -107,6 +113,73 @@ typedef HRESULT (WINAPI* D3DCOMPILEFROMFILE)(LPCWSTR pFileName,
 static PFN_D3D11_CREATE_DEVICE pD3D11CreateDevice;
 static CREATEDXGIFACTORY1 pCreateDXGIFactory1;
 static D3DCOMPILEFROMFILE pD3DCompileFromFile;
+
+static D3DXMATRIX* MatrixOrthoOffCenterLH(D3DXMATRIXA16 *pOut, float l, float r, float b, float t, float zn, float zf)
+{
+	pOut->_11 = 2.0f / r; pOut->_12 = 0.0f;   pOut->_13 = 0.0f;  pOut->_14 = 0.0f;
+	pOut->_21 = 0.0f;   pOut->_22 = 2.0f / t; pOut->_23 = 0.0f;  pOut->_24 = 0.0f;
+	pOut->_31 = 0.0f;   pOut->_32 = 0.0f;   pOut->_33 = 1.0f;  pOut->_34 = 0.0f;
+	pOut->_41 = -1.0f;  pOut->_42 = -1.0f;  pOut->_43 = 0.0f;  pOut->_44 = 1.0f;
+	return pOut;
+}
+
+static D3DXMATRIX* MatrixScaling(D3DXMATRIXA16 *pOut, float sx, float sy, float sz)
+{
+	pOut->_11 = sx;     pOut->_12 = 0.0f;   pOut->_13 = 0.0f;  pOut->_14 = 0.0f;
+	pOut->_21 = 0.0f;   pOut->_22 = sy;     pOut->_23 = 0.0f;  pOut->_24 = 0.0f;
+	pOut->_31 = 0.0f;   pOut->_32 = 0.0f;   pOut->_33 = sz;    pOut->_34 = 0.0f;
+	pOut->_41 = 0.0f;   pOut->_42 = 0.0f;   pOut->_43 = 0.0f;  pOut->_44 = 1.0f;
+	return pOut;
+}
+
+static D3DXMATRIX* MatrixTranslation(D3DXMATRIXA16 *pOut, float tx, float ty, float tz)
+{
+	pOut->_11 = 1.0f;   pOut->_12 = 0.0f;   pOut->_13 = 0.0f;  pOut->_14 = 0.0f;
+	pOut->_21 = 0.0f;   pOut->_22 = 1.0f;   pOut->_23 = 0.0f;  pOut->_24 = 0.0f;
+	pOut->_31 = 0.0f;   pOut->_32 = 0.0f;   pOut->_33 = 1.0f;  pOut->_34 = 0.0f;
+	pOut->_41 = tx;     pOut->_42 = ty;     pOut->_43 = tz;    pOut->_44 = 1.0f;
+	return pOut;
+}
+
+static void setupscenecoords(void)
+{
+	struct d3d11struct *d3d = &d3d11data[0];
+
+	d3d->xoffset = 0;
+	d3d->yoffset = 0;
+
+	return;
+
+	RECT sr, dr, zr;
+	float w, h;
+	float dw, dh;
+	static RECT sr2, dr2, zr2;
+
+	d3d->dmult = 1;
+
+	getfilterrect2(&dr, &sr, &zr, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth / d3d->dmult, d3d->m_bitmapHeight / d3d->dmult, d3d->dmult, d3d->m_bitmapWidth, d3d->m_bitmapHeight);
+
+	if (memcmp(&sr, &sr2, sizeof RECT) || memcmp(&dr, &dr2, sizeof RECT) || memcmp(&zr, &zr2, sizeof RECT)) {
+		write_log(_T("POS (%d %d %d %d) - (%d %d %d %d)[%d,%d] (%d %d)\n"),
+			dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom,
+			sr.right - sr.left, sr.bottom - sr.top,
+			zr.left, zr.top);
+		sr2 = sr;
+		dr2 = dr;
+		zr2 = zr;
+	}
+
+	dw = dr.right - dr.left;
+	dh = dr.bottom - dr.top;
+	w = sr.right - sr.left;
+	h = sr.bottom - sr.top;
+
+	d3d->xoffset = -zr.left;
+	d3d->yoffset = -zr.top;
+
+	//write_log(_T("%.1f %.1f\n"), d3d->xoffset, d3d->yoffset);
+}
+
 
 static void FreeTexture(void)
 {
@@ -201,8 +274,10 @@ static bool TextureShaderClass_InitializeShader(ID3D11Device* device, HWND hwnd)
 	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
 
 	plugin_path = get_plugin_path(tmp, sizeof tmp / sizeof(TCHAR), _T("filtershaders\\direct3d11"));
-	if (!plugin_path)
+	if (!plugin_path) {
+		write_log(_T("Plugin path not found\n"));
 		return false;
+	}
 
 	// Initialize the pointers this function will use to null.
 	errorMessage = 0;
@@ -235,6 +310,7 @@ static bool TextureShaderClass_InitializeShader(ID3D11Device* device, HWND hwnd)
 	result = device->CreateVertexShader(vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), NULL, &d3d->m_vertexShader);
 	if (FAILED(result))
 	{
+		write_log(_T("ID3D11Device CreateVertexShader %08x\n"), result);
 		return false;
 	}
 
@@ -242,6 +318,7 @@ static bool TextureShaderClass_InitializeShader(ID3D11Device* device, HWND hwnd)
 	result = device->CreatePixelShader(pixelShaderBuffer->GetBufferPointer(), pixelShaderBuffer->GetBufferSize(), NULL, &d3d->m_pixelShader);
 	if (FAILED(result))
 	{
+		write_log(_T("ID3D11Device CreatePixelShader %08x\n"), result);
 		return false;
 	}
 
@@ -270,6 +347,7 @@ static bool TextureShaderClass_InitializeShader(ID3D11Device* device, HWND hwnd)
 	result = device->CreateInputLayout(polygonLayout, numElements, vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), &d3d->m_layout);
 	if (FAILED(result))
 	{
+		write_log(_T("ID3D11Device CreateInputLayout %08x\n"), result);
 		return false;
 	}
 
@@ -292,6 +370,7 @@ static bool TextureShaderClass_InitializeShader(ID3D11Device* device, HWND hwnd)
 	result = device->CreateBuffer(&matrixBufferDesc, NULL, &d3d->m_matrixBuffer);
 	if (FAILED(result))
 	{
+		write_log(_T("ID3D11Device CreateBuffer(matrix) %08x\n"), result);
 		return false;
 	}
 
@@ -314,6 +393,7 @@ static bool TextureShaderClass_InitializeShader(ID3D11Device* device, HWND hwnd)
 	result = device->CreateSamplerState(&samplerDesc, &d3d->m_sampleState);
 	if (FAILED(result))
 	{
+		write_log(_T("ID3D11Device CreateSamplerState %08x\n"), result);
 		return false;
 	}
 
@@ -378,6 +458,7 @@ static bool InitializeBuffers(ID3D11Device* device)
 	result = device->CreateBuffer(&vertexBufferDesc, &vertexData, &d3d->m_vertexBuffer);
 	if (FAILED(result))
 	{
+		write_log(_T("ID3D11Device CreateBuffer(vertex) %08x\n"), result);
 		return false;
 	}
 
@@ -398,6 +479,7 @@ static bool InitializeBuffers(ID3D11Device* device)
 	result = device->CreateBuffer(&indexBufferDesc, &indexData, &d3d->m_indexBuffer);
 	if (FAILED(result))
 	{
+		write_log(_T("ID3D11Device CreateBuffer(index) %08x\n"), result);
 		return false;
 	}
 
@@ -412,7 +494,7 @@ static bool InitializeBuffers(ID3D11Device* device)
 }
 
 
-static bool UpdateBuffers(ID3D11DeviceContext* deviceContext, int positionX, int positionY)
+static bool UpdateBuffers(ID3D11DeviceContext* deviceContext)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
 
@@ -421,19 +503,20 @@ static bool UpdateBuffers(ID3D11DeviceContext* deviceContext, int positionX, int
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
 	VertexType* verticesPtr;
 	HRESULT result;
+	float positionX, positionY;
 
-	positionX = (d3d->m_screenWidth - d3d->m_bitmapWidth) / 2;
-	positionY = (d3d->m_screenHeight - d3d->m_bitmapHeight) / 2;
+	positionX = (d3d->m_screenWidth - d3d->m_bitmapWidth) / 2.0 + d3d->xoffset;
+	positionY = (d3d->m_screenHeight - d3d->m_bitmapHeight) / 2.0 + d3d->yoffset;
 
 
 	// Calculate the screen coordinates of the left side of the bitmap.
-	left = (float)((d3d->m_screenWidth / 2) * -1) + (float)positionX;
+	left = (float)((d3d->m_screenWidth / 2) * -1) + positionX;
 
 	// Calculate the screen coordinates of the right side of the bitmap.
 	right = left + (float)d3d->m_bitmapWidth;
 
 	// Calculate the screen coordinates of the top of the bitmap.
-	top = (float)(d3d->m_screenHeight / 2) - (float)positionY;
+	top = (float)(d3d->m_screenHeight / 2) - positionY;
 
 	// Calculate the screen coordinates of the bottom of the bitmap.
 	bottom = top - (float)d3d->m_bitmapHeight;
@@ -470,6 +553,7 @@ static bool UpdateBuffers(ID3D11DeviceContext* deviceContext, int positionX, int
 	result = deviceContext->Map(d3d->m_vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 	if (FAILED(result))
 	{
+		write_log(_T("ID3D11DeviceContext map(vertex) %08x\n"), result);
 		return false;
 	}
 
@@ -489,211 +573,20 @@ static bool UpdateBuffers(ID3D11DeviceContext* deviceContext, int positionX, int
 	return true;
 }
 
-static const bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmult)
+static bool initd3d(struct d3d11struct *d3d)
 {
-	struct d3d11struct *d3d = &d3d11data[0];
-	struct apmode *apm = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
-
 	HRESULT result;
-	ComPtr<IDXGIFactory2> factory2;
-	ComPtr<IDXGIFactory4> factory4;
-	ComPtr<IDXGIFactory5> factory5;
-	IDXGIAdapter1* adapter;
-	IDXGIOutput* adapterOutput;
-	unsigned int numModes, i;
-	DXGI_MODE_DESC1* displayModeList;
-	DXGI_ADAPTER_DESC adapterDesc;
-	DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
-	DXGI_SWAP_CHAIN_FULLSCREEN_DESC  fsSwapChainDesc;
 	ID3D11Texture2D* backBufferPtr;
 	D3D11_RASTERIZER_DESC rasterDesc;
 	D3D11_VIEWPORT viewport;
-	float fieldOfView, screenAspect;
 
-	write_log(_T("D3D11 init start\n"));
-
-	if (!hd3d11)
-		hd3d11 = LoadLibrary(_T("D3D11.dll"));
-	if (!hdxgi)
-		hdxgi = LoadLibrary(_T("Dxgi.dll"));
-	if (!hd3dcompiler)
-		hd3dcompiler = LoadLibrary(_T("D3DCompiler_47.dll"));
-
-	pD3D11CreateDevice = (PFN_D3D11_CREATE_DEVICE)GetProcAddress(GetModuleHandle(_T("D3D11.dll")), "D3D11CreateDevice");
-	pCreateDXGIFactory1 = (CREATEDXGIFACTORY1)GetProcAddress(GetModuleHandle(_T("Dxgi.dll")), "CreateDXGIFactory1");
-	pD3DCompileFromFile = (D3DCOMPILEFROMFILE)GetProcAddress(GetModuleHandle(_T("D3DCompiler_47.dll")), "D3DCompileFromFile");
-
-	d3d->m_bitmapWidth = w_w;
-	d3d->m_bitmapHeight = w_h;
-	d3d->m_screenWidth = w_w;
-	d3d->m_screenHeight = w_h;
-	d3d->format = DXGI_FORMAT_B8G8R8A8_UNORM;
-
-	struct MultiDisplay *md = getdisplay(&currprefs);
-
-	// Create a DirectX graphics interface factory.
-	result = pCreateDXGIFactory1(__uuidof(IDXGIFactory4), (void**)&factory4);
-	if (FAILED(result))
-	{
-		write_log(_T("D3D11 CreateDXGIFactory4 %08x\n"), result);
-		result = pCreateDXGIFactory1(__uuidof(IDXGIFactory2), (void**)&factory2);
-		if (FAILED(result)) {
-			write_log(_T("D3D11 CreateDXGIFactory2 %08x\n"), result);
-			return false;
-		}
-		factory2 = factory4;
-	} else {
-		BOOL allowTearing = FALSE;
-		result = factory4.As(&factory5);
-		factory2 = factory5;
-		if (!d3d->m_tearingSupport) {
-			result = factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
-			d3d->m_tearingSupport = SUCCEEDED(result) && allowTearing;
-			write_log(_T("CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING) = %08x %d"), result, allowTearing);
-		}
-	}
-
-	// Use the factory to create an adapter for the primary graphics interface (video card).
-	result = factory2->EnumAdapters1(0, &adapter);
-	if (FAILED(result))
-	{
-		return false;
-	}
-
-
-	// Enumerate the primary adapter output (monitor).
-	result = adapter->EnumOutputs(0, &adapterOutput);
-	if (FAILED(result))
-	{
-		return false;
-	}
-
-	ComPtr<IDXGIOutput1> adapterOutput1;
-	result = adapterOutput->QueryInterface(__uuidof(IDXGIOutput1), &adapterOutput1);
-	if (FAILED(result)) {
-		write_log(_T("QueryInterface IDXGIOutput1 %08x\n"), result);
-	}
-
-
-	// Get the number of modes that fit the display format for the adapter output (monitor).
-	result = adapterOutput1->GetDisplayModeList1(d3d->format, DXGI_ENUM_MODES_INTERLACED, &numModes, NULL);
-	if (FAILED(result))
-	{
-		return false;
-	}
-
-	// Create a list to hold all the possible display modes for this monitor/video card combination.
-	displayModeList = new DXGI_MODE_DESC1[numModes];
-	if (!displayModeList)
-	{
-		return false;
-	}
-
-	// Now fill the display mode list structures.
-	result = adapterOutput1->GetDisplayModeList1(d3d->format, DXGI_ENUM_MODES_INTERLACED, &numModes, displayModeList);
-	if (FAILED(result))
-	{
-		return false;
-	}
-
-	ZeroMemory(&fsSwapChainDesc, sizeof(fsSwapChainDesc));
-
-	// Now go through all the display modes and find the one that matches the screen width and height.
-	// When a match is found store the numerator and denominator of the refresh rate for that monitor.
-	for (i = 0; i < numModes; i++)
-	{
-		DXGI_MODE_DESC1 *m = &displayModeList[i];
-		if (m->Format != d3d->format)
-			continue;
-		if (m->Width == md->rect.right - md->rect.left && m->Height == md->rect.bottom - md->rect.top) {
-			fsSwapChainDesc.RefreshRate.Denominator = m->RefreshRate.Denominator;
-			fsSwapChainDesc.RefreshRate.Numerator = m->RefreshRate.Numerator;
-			fsSwapChainDesc.ScanlineOrdering = m->ScanlineOrdering;
-			fsSwapChainDesc.Scaling = m->Scaling;
-			if (apm->gfx_interlaced && !(m->ScanlineOrdering & DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST))
-				continue;
-		}
-	}
-
-	// Get the adapter (video card) description.
-	result = adapter->GetDesc(&adapterDesc);
-	if (FAILED(result))
-	{
-		return false;
-	}
-
-	// Release the display mode list.
-	delete[] displayModeList;
-	displayModeList = 0;
-
-	// Release the adapter output.
-	adapterOutput->Release();
-	adapterOutput = 0;
-
-	// Release the adapter.
-	adapter->Release();
-	adapter = 0;
-
-	static const D3D_FEATURE_LEVEL levels[] = { D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0 };
-	result = pD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 2, D3D11_SDK_VERSION, &d3d->m_device, NULL, &d3d->m_deviceContext);
-	if (FAILED(result)) {
-		write_log(_T("D3D11CreateDevice failed %08x\n"), result);
-		return false;
-	}
-
-	ComPtr<IDXGIDevice1> dxgiDevice;
-	result = d3d->m_device->QueryInterface(__uuidof(IDXGIDevice1), &dxgiDevice);
-	if (FAILED(result)) {
-		write_log(_T("QueryInterface IDXGIDevice1 %08x\n"), result);
-	}
-	result = dxgiDevice->SetMaximumFrameLatency(1);
-
-	// Initialize the swap chain description.
-	ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
-
-	// Set the width and height of the back buffer.
-	swapChainDesc.Width = w_w;
-	swapChainDesc.Height = w_h;
-
-	// Set regular 32-bit surface for the back buffer.
-	swapChainDesc.Format = d3d->format;
-
-	// Turn multisampling off.
-	swapChainDesc.SampleDesc.Count = 1;
-	swapChainDesc.SampleDesc.Quality = 0;
-
-	// Set the usage of the back buffer.
-	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-
-	swapChainDesc.BufferCount = 2;
-
-	swapChainDesc.Scaling = DXGI_SCALING_NONE;
-
-	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
-
-	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-
-	// It is recommended to always use the tearing flag when it is supported.
-	swapChainDesc.Flags = d3d->m_tearingSupport ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
-
-	fsSwapChainDesc.Windowed = isfullscreen() <= 0;
-
-	// Create the swap chain, Direct3D device, and Direct3D device context.
-	result = factory2->CreateSwapChainForHwnd(d3d->m_device, ahwnd, &swapChainDesc, isfullscreen() > 0 ? &fsSwapChainDesc : NULL, NULL, &d3d->m_swapChain);
-
-	// Set the feature level to DirectX 11.
-	// featureLevel = D3D_FEATURE_LEVEL_11_0;
-	// result = pD3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, &featureLevel, 1, D3D11_SDK_VERSION, &swapChainDesc, &d3d->m_swapChain,
-	// &d3d->m_device, NULL, &d3d->m_deviceContext);
-	if (FAILED(result))
-	{
-		return false;
-	}
+	write_log(_T("D3D11 initd3d start\n"));
 
 	// Get the pointer to the back buffer.
 	result = d3d->m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&backBufferPtr);
 	if (FAILED(result))
 	{
+		write_log(_T("IDXGISwapChain1 GetBuffer %08x\n"), result);
 		return false;
 	}
 
@@ -701,6 +594,7 @@ static const bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *fre
 	result = d3d->m_device->CreateRenderTargetView(backBufferPtr, NULL, &d3d->m_renderTargetView);
 	if (FAILED(result))
 	{
+		write_log(_T("ID3D11Device CreateRenderTargetView %08x\n"), result);
 		return false;
 	}
 
@@ -725,6 +619,7 @@ static const bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *fre
 	result = d3d->m_device->CreateRasterizerState(&rasterDesc, &d3d->m_rasterState);
 	if (FAILED(result))
 	{
+		write_log(_T("ID3D11Device CreateRasterizerState %08x\n"), result);
 		return false;
 	}
 
@@ -732,8 +627,8 @@ static const bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *fre
 	d3d->m_deviceContext->RSSetState(d3d->m_rasterState);
 
 	// Setup the viewport for rendering.
-	viewport.Width = (float)w_w;
-	viewport.Height = (float)w_h;
+	viewport.Width = (float)d3d->m_screenWidth;
+	viewport.Height = (float)d3d->m_screenHeight;
 	viewport.MinDepth = 0.0f;
 	viewport.MaxDepth = 1.0f;
 	viewport.TopLeftX = 0.0f;
@@ -742,49 +637,311 @@ static const bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *fre
 	// Create the viewport.
 	d3d->m_deviceContext->RSSetViewports(1, &viewport);
 
-	// Setup the projection matrix.
-	fieldOfView = (float)D3DX_PI / 4.0f;
-	screenAspect = (float)w_w / (float)w_h;
-
-	// Create the projection matrix for 3D rendering.
-	D3DXMatrixPerspectiveFovLH(&d3d->m_projectionMatrix, fieldOfView, screenAspect, SCREEN_NEAR, SCREEN_DEPTH);
-
 	// Initialize the world matrix to the identity matrix.
 	D3DXMatrixIdentity(&d3d->m_worldMatrix);
 
 	// Create an orthographic projection matrix for 2D rendering.
-	D3DXMatrixOrthoLH(&d3d->m_orthoMatrix, (float)w_w, (float)w_h, SCREEN_NEAR, SCREEN_DEPTH);
+	D3DXMatrixOrthoLH(&d3d->m_orthoMatrix, (float)d3d->m_screenWidth, (float)d3d->m_bitmapHeight, 0.0f, 1.0f);
 
 	d3d->m_positionX = 0.0f;
 	d3d->m_positionY = 0.0f;
-	d3d->m_positionZ = -10.0f;
+	d3d->m_positionZ = 1.0f;
 
 	d3d->m_rotationX = 0.0f;
 	d3d->m_rotationY = 0.0f;
 	d3d->m_rotationZ = 0.0f;
 
-	if (!TextureShaderClass_InitializeShader(d3d->m_device, ahwnd))
+	if (!TextureShaderClass_InitializeShader(d3d->m_device, d3d->ahwnd))
 		return false;
 	if (!InitializeBuffers(d3d->m_device))
 		return false;
-	if (!UpdateBuffers(d3d->m_deviceContext, 0, 0))
+	if (!UpdateBuffers(d3d->m_deviceContext))
 		return false;
+
+	write_log(_T("D3D11 initd3d end\n"));
+	return true;
+}
+
+static void setswapchainmode(struct d3d11struct *d3d, int fs)
+{
+	// It is recommended to always use the tearing flag when it is supported.
+	d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+	d3d->swapChainDesc.Flags = d3d->m_tearingSupport ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+	d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+	if (fs) {
+		d3d->swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+	}
+	d3d->fsSwapChainDesc.Windowed = TRUE;
+}
+
+static const bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmult)
+{
+	struct d3d11struct *d3d = &d3d11data[0];
+	struct apmode *apm = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
+
+	HRESULT result;
+	ComPtr<IDXGIFactory2> factory2;
+	ComPtr<IDXGIFactory4> factory4;
+	ComPtr<IDXGIFactory5> factory5;
+	IDXGIAdapter1* adapter;
+	IDXGIOutput* adapterOutput;
+	DXGI_ADAPTER_DESC1 adesc;
+	DXGI_OUTPUT_DESC odesc;
+	unsigned int numModes;
+	DXGI_MODE_DESC1* displayModeList;
+	DXGI_ADAPTER_DESC adapterDesc;
+
+	write_log(_T("D3D11 init start\n"));
+
+	if (!hd3d11)
+		hd3d11 = LoadLibrary(_T("D3D11.dll"));
+	if (!hdxgi)
+		hdxgi = LoadLibrary(_T("Dxgi.dll"));
+	if (!hd3dcompiler)
+		hd3dcompiler = LoadLibrary(_T("D3DCompiler_47.dll"));
+
+	pD3D11CreateDevice = (PFN_D3D11_CREATE_DEVICE)GetProcAddress(GetModuleHandle(_T("D3D11.dll")), "D3D11CreateDevice");
+	pCreateDXGIFactory1 = (CREATEDXGIFACTORY1)GetProcAddress(GetModuleHandle(_T("Dxgi.dll")), "CreateDXGIFactory1");
+	pD3DCompileFromFile = (D3DCOMPILEFROMFILE)GetProcAddress(GetModuleHandle(_T("D3DCompiler_47.dll")), "D3DCompileFromFile");
+
+	d3d->m_bitmapWidth = w_w;
+	d3d->m_bitmapHeight = w_h;
+	d3d->m_screenWidth = w_w;
+	d3d->m_screenHeight = w_h;
+	d3d->ahwnd = ahwnd;
+	d3d->format = DXGI_FORMAT_B8G8R8A8_UNORM;
+
+	struct MultiDisplay *md = getdisplay(&currprefs);
+	POINT pt;
+	pt.x = (md->rect.right - md->rect.left) / 2 + md->rect.left;
+	pt.y = (md->rect.bottom - md->rect.top) / 2 + md->rect.top;
+	HMONITOR winmon = MonitorFromPoint(pt, MONITOR_DEFAULTTONEAREST);
+
+	// Create a DirectX graphics interface factory.
+	result = pCreateDXGIFactory1(__uuidof(IDXGIFactory4), (void**)&factory4);
+	if (FAILED(result))
+	{
+		write_log(_T("D3D11 CreateDXGIFactory4 %08x\n"), result);
+		result = pCreateDXGIFactory1(__uuidof(IDXGIFactory2), (void**)&factory2);
+		if (FAILED(result)) {
+			write_log(_T("D3D11 CreateDXGIFactory2 %08x\n"), result);
+			return false;
+		}
+		factory2 = factory4;
+	} else {
+		BOOL allowTearing = FALSE;
+		result = factory4.As(&factory5);
+		factory2 = factory5;
+		if (!d3d->m_tearingSupport) {
+			result = factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
+			d3d->m_tearingSupport = SUCCEEDED(result) && allowTearing;
+			write_log(_T("CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING) = %08x %d\n"), result, allowTearing);
+		}
+	}
+
+	// Use the factory to create an adapter for the primary graphics interface (video card).
+	result = factory2->EnumAdapters1(0, &adapter);
+	if (FAILED(result))
+	{
+		write_log(_T("IDXGIFactory2 EnumAdapters1 %08x\n"), result);
+		return false;
+	}
+	result = adapter->GetDesc1(&adesc);
+
+	UINT adapterNum = 0;
+	bool outputFound = false;
+	// Enumerate the primary adapter output (monitor).
+	while (adapter->EnumOutputs(adapterNum, &adapterOutput) != DXGI_ERROR_NOT_FOUND) {
+		result = adapterOutput->GetDesc(&odesc);
+		if (SUCCEEDED(result)) {
+			if (odesc.Monitor == winmon || !_tcscmp(odesc.DeviceName, md->adapterid)) {
+				outputFound = true;
+				break;
+			}
+		}
+		adapterNum++;
+	}
+	if (!outputFound) {
+		result = adapter->EnumOutputs(0, &adapterOutput);
+		if (FAILED(result)) {
+			write_log(_T("EnumOutputs %08x\n"), result);
+			return false;
+		}
+	}
+
+	ComPtr<IDXGIOutput1> adapterOutput1;
+	result = adapterOutput->QueryInterface(__uuidof(IDXGIOutput1), &adapterOutput1);
+	if (FAILED(result)) {
+		write_log(_T("IDXGIOutput QueryInterface %08x\n"), result);
+	}
+
+
+	// Get the number of modes that fit the display format for the adapter output (monitor).
+	result = adapterOutput1->GetDisplayModeList1(d3d->format, DXGI_ENUM_MODES_INTERLACED, &numModes, NULL);
+	if (FAILED(result))
+	{
+		write_log(_T("IDXGIOutput1 GetDisplayModeList1 %08x\n"), result);
+		return false;
+	}
+
+	// Create a list to hold all the possible display modes for this monitor/video card combination.
+	displayModeList = new DXGI_MODE_DESC1[numModes];
+	if (!displayModeList)
+	{
+		write_log(_T("IDXGIAdapter1 GetDesc %08x\n"), result);
+		return false;
+	}
+
+	// Now fill the display mode list structures.
+	result = adapterOutput1->GetDisplayModeList1(d3d->format, DXGI_ENUM_MODES_INTERLACED, &numModes, displayModeList);
+	if (FAILED(result))
+	{
+		write_log(_T("IDXGIAdapter1 GetDesc %08x\n"), result);
+		return false;
+	}
+
+	ZeroMemory(&d3d->fsSwapChainDesc, sizeof(d3d->fsSwapChainDesc));
+
+	int hz = getrefreshrate(w_w, w_h);
+
+	// Now go through all the display modes and find the one that matches the screen width and height.
+	// When a match is found store the numerator and denominator of the refresh rate for that monitor.
+	d3d->fsSwapChainDesc.RefreshRate.Denominator = 0;
+	d3d->fsSwapChainDesc.RefreshRate.Numerator = 0;
+	for (int i = 0; i < numModes; i++)
+	{
+		DXGI_MODE_DESC1 *m = &displayModeList[i];
+		if (m->Format != d3d->format)
+			continue;
+		if (apm->gfx_interlaced && !(m->ScanlineOrdering & DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST))
+			continue;
+		if (m->Width == w_w && m->Height == w_h) {
+			d3d->fsSwapChainDesc.ScanlineOrdering = m->ScanlineOrdering;
+			d3d->fsSwapChainDesc.Scaling = m->Scaling;
+			if (!hz)
+				break;
+			if (isfullscreen() > 0) {
+				double mhz = (double)m->RefreshRate.Numerator / m->RefreshRate.Denominator;
+				if ((int)(mhz + 0.5) == hz) {
+					d3d->fsSwapChainDesc.RefreshRate.Denominator = m->RefreshRate.Denominator;
+					d3d->fsSwapChainDesc.RefreshRate.Numerator = m->RefreshRate.Numerator;
+					break;
+				}
+			}
+		}
+	}
+	if (isfullscreen() > 0 && (hz == 0 || (d3d->fsSwapChainDesc.RefreshRate.Denominator == 0 && d3d->fsSwapChainDesc.RefreshRate.Numerator == 0))) {
+		DXGI_MODE_DESC1 md1 = { 0 }, md2;
+		md1.Format = d3d->format;
+		md1.Width = w_w;
+		md1.Height = w_h;
+		md1.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+		md1.ScanlineOrdering = apm->gfx_interlaced ? DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST : DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
+		result = adapterOutput1->FindClosestMatchingMode1(&md1, &md2, NULL);
+		if (FAILED(result)) {
+			write_log(_T("FindClosestMatchingMode1 %08x\n"), result);
+		} else {
+			d3d->fsSwapChainDesc.RefreshRate.Denominator = md2.RefreshRate.Denominator;
+			d3d->fsSwapChainDesc.RefreshRate.Numerator = md2.RefreshRate.Numerator;
+		}
+	}
+
+	// Get the adapter (video card) description.
+	result = adapter->GetDesc(&adapterDesc);
+	if (FAILED(result))
+	{
+		write_log(_T("IDXGIAdapter1 GetDesc %08x\n"), result);
+		return false;
+	}
+
+	// Release the display mode list.
+	delete[] displayModeList;
+	displayModeList = 0;
+
+	// Release the adapter output.
+	adapterOutput->Release();
+	adapterOutput = 0;
+
+	// Release the adapter.
+	adapter->Release();
+	adapter = 0;
+
+	static const D3D_FEATURE_LEVEL levels[] = { D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0 };
+	UINT cdflags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+#ifdef _DEBUG
+	cdflags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+	result = pD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, cdflags, levels, 2, D3D11_SDK_VERSION, &d3d->m_device, NULL, &d3d->m_deviceContext);
+	if (FAILED(result)) {
+		write_log(_T("D3D11CreateDevice %08x\n"), result);
+		return false;
+	}
+
+	ComPtr<IDXGIDevice1> dxgiDevice;
+	result = d3d->m_device->QueryInterface(__uuidof(IDXGIDevice1), &dxgiDevice);
+	if (FAILED(result)) {
+		write_log(_T("QueryInterface IDXGIDevice1 %08x\n"), result);
+	}
+	else {
+		result = dxgiDevice->SetMaximumFrameLatency(1);
+		if (FAILED(result))
+			write_log(_T("IDXGIDevice1 SetMaximumFrameLatency %08x\n"), result);
+	}
+
+	// Initialize the swap chain description.
+	ZeroMemory(&d3d->swapChainDesc, sizeof(d3d->swapChainDesc));
+
+	// Set the width and height of the back buffer.
+	d3d->swapChainDesc.Width = w_w;
+	d3d->swapChainDesc.Height = w_h;
+
+	// Set regular 32-bit surface for the back buffer.
+	d3d->swapChainDesc.Format = d3d->format;
+
+	// Turn multisampling off.
+	d3d->swapChainDesc.SampleDesc.Count = 1;
+	d3d->swapChainDesc.SampleDesc.Quality = 0;
+
+	// Set the usage of the back buffer.
+	d3d->swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+
+	d3d->swapChainDesc.BufferCount = 2;
+
+	d3d->swapChainDesc.Scaling = DXGI_SCALING_NONE;
+
+	d3d->swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+
+	d3d->swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+
+	setswapchainmode(d3d, isfullscreen() > 0);
+
+	// Create the swap chain, Direct3D device, and Direct3D device context.
+	result = factory2->CreateSwapChainForHwnd(d3d->m_device, ahwnd, &d3d->swapChainDesc, isfullscreen() > 0 ? &d3d->fsSwapChainDesc : NULL, NULL, &d3d->m_swapChain);
+	if (FAILED(result))
+	{
+		write_log(_T("IDXGIFactory2 CreateSwapChainForHwnd %08x\n"), result);
+		return false;
+	}
+
+	result = factory2->MakeWindowAssociation(ahwnd, DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER | DXGI_MWA_NO_PRINT_SCREEN);
+	if (FAILED(result)) {
+		write_log(_T("IDXGIFactory2 MakeWindowAssociation %08x\n"), result);
+	}
+
+	d3d->fsmode = 0;
+	if (isfullscreen() > 0)
+		D3D_resize(1);
+	D3D_resize(0);
 
 	write_log(_T("D3D11 init end\n"));
 	return true;
 }
 
-static void xD3D11_free(bool immediate)
+static void freed3d(struct d3d11struct *d3d)
 {
-	struct d3d11struct *d3d = &d3d11data[0];
-
-	write_log(_T("D3D11 free start\n"));
+	write_log(_T("D3D11 freed3d start\n"));
 
 	// Before shutting down set to windowed mode or when you release the swap chain it will throw an exception.
-	if (d3d->m_swapChain)
-	{
-		d3d->m_swapChain->SetFullscreenState(false, NULL);
-	}
 	if (d3d->m_rasterState)
 	{
 		d3d->m_rasterState->Release();
@@ -797,11 +954,6 @@ static void xD3D11_free(bool immediate)
 		d3d->m_renderTargetView = 0;
 	}
 
-	if (d3d->m_swapChain)
-	{
-		d3d->m_swapChain->Release();
-		d3d->m_swapChain = 0;
-	}
 	if (d3d->m_layout) {
 		d3d->m_layout->Release();
 		d3d->m_layout = NULL;
@@ -834,6 +986,27 @@ static void xD3D11_free(bool immediate)
 
 	FreeTexture();
 
+	if (d3d->m_deviceContext)
+	{
+		d3d->m_deviceContext->ClearState();
+	}
+	write_log(_T("D3D11 freed3d end\n"));
+}
+
+static void xD3D11_free(bool immediate)
+{
+	struct d3d11struct *d3d = &d3d11data[0];
+
+	write_log(_T("D3D11 free start\n"));
+
+	freed3d(d3d);
+
+	if (d3d->m_swapChain)
+	{
+		d3d->m_swapChain->SetFullscreenState(false, NULL);
+		d3d->m_swapChain->Release();
+		d3d->m_swapChain = 0;
+	}
 	if (d3d->m_deviceContext)
 	{
 		d3d->m_deviceContext->ClearState();
@@ -880,6 +1053,7 @@ static bool TextureShaderClass_SetShaderParameters(ID3D11DeviceContext* deviceCo
 	result = deviceContext->Map(d3d->m_matrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 	if (FAILED(result))
 	{
+		write_log(_T("ID3D11DeviceContext map(matrix) %08x\n"), result);
 		return false;
 	}
 
@@ -946,8 +1120,6 @@ static void BeginScene(float red, float green, float blue, float alpha)
 
 	// Clear the back buffer.
 	d3d->m_deviceContext->ClearRenderTargetView(d3d->m_renderTargetView, color);
-
-	return;
 }
 
 static void EndScene(void)
@@ -955,20 +1127,22 @@ static void EndScene(void)
 	struct d3d11struct *d3d = &d3d11data[0];
 
 	HRESULT hr;
+	UINT presentFlags = 0;
 
-	// Present the back buffer to the screen since rendering is complete.
 	struct apmode *apm = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
+	if (currprefs.turbo_emulation)
+		presentFlags |= DXGI_PRESENT_DO_NOT_WAIT;
 	if (isfullscreen() > 0) {
-		hr = d3d->m_swapChain->Present(apm->gfx_vflip == 0 ? 0 : 1, 0);
+		hr = d3d->m_swapChain->Present(apm->gfx_vflip == 0 ? 0 : 1, presentFlags);
 	} else {
-		UINT presentFlags = d3d->m_tearingSupport ? DXGI_PRESENT_ALLOW_TEARING : 0;
-		// Present as fast as possible.
-		hr = d3d->m_swapChain->Present(0, 0);
+		if (d3d->m_tearingSupport)
+			presentFlags |= DXGI_PRESENT_ALLOW_TEARING;
+		hr = d3d->m_swapChain->Present(0, presentFlags);
 	}
+	if (currprefs.turbo_emulation && hr == DXGI_ERROR_WAS_STILL_DRAWING)
+		return;
 	if (FAILED(hr))
 		write_log(_T("D3D11 Present %08x\n"), hr);
-
-	return;
 }
 
 static void TextureShaderClass_RenderShader(ID3D11DeviceContext* deviceContext, int indexCount)
@@ -987,8 +1161,6 @@ static void TextureShaderClass_RenderShader(ID3D11DeviceContext* deviceContext, 
 
 	// Render the triangle.
 	deviceContext->DrawIndexed(indexCount, 0, 0);
-
-	return;
 }
 
 static bool TextureShaderClass_Render(ID3D11DeviceContext* deviceContext, int indexCount, D3DXMATRIX worldMatrix, D3DXMATRIX viewMatrix,
@@ -1053,8 +1225,6 @@ static void CameraClass_Render()
 
 	// Finally create the view matrix from the three updated vectors.
 	D3DXMatrixLookAtLH(&d3d->m_viewMatrix, &position, &lookAt, &up);
-
-	return;
 }
 
 static bool GraphicsClass_Render(float rotation)
@@ -1066,6 +1236,9 @@ static bool GraphicsClass_Render(float rotation)
 
 	// Clear the buffers to begin the scene.
 	BeginScene(0.0f, 0.0f, 0.0f, 1.0f);
+
+	setupscenecoords();
+	UpdateBuffers(d3d->m_deviceContext);
 
 	// Generate the view matrix based on the camera's position.
 	CameraClass_Render();
@@ -1087,6 +1260,12 @@ static bool xD3D11_renderframe(bool immediate)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
 
+	if (d3d->fsmodechange)
+		D3D_resize(0);
+
+	if (d3d->invalidmode)
+		return false;
+
 	GraphicsClass_Render(0);
 
 	return true;
@@ -1095,26 +1274,37 @@ static bool xD3D11_renderframe(bool immediate)
 
 static void xD3D11_showframe(void)
 {
+	struct d3d11struct *d3d = &d3d11data[0];
+	if (d3d->invalidmode)
+		return;
 	// Present the rendered scene to the screen.
 	EndScene();
 }
 
 static void xD3D11_clear(void)
 {
+	struct d3d11struct *d3d = &d3d11data[0];
+	if (d3d->invalidmode)
+		return;
 	BeginScene(0, 0, 0, 0);
 }
 
 static void xD3D11_refresh(void)
 {
+	if (xD3D11_renderframe(true)) {
+		xD3D11_showframe();
+	}
 }
 
 static bool xD3D11_alloctexture(int w, int h)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
 
+	if (d3d->invalidmode)
+		return false;
 	d3d->m_bitmapWidth = w;
 	d3d->m_bitmapHeight = h;
-	UpdateBuffers(d3d->m_deviceContext, 0, 0);
+	UpdateBuffers(d3d->m_deviceContext);
 	return CreateTexture();
 }
 
@@ -1122,11 +1312,13 @@ static uae_u8 *xD3D11_locktexture(int *pitch, int *height, bool fullupdate)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
 
+	if (d3d->invalidmode)
+		return NULL;
 	D3D11_MAPPED_SUBRESOURCE map;
 	HRESULT hr = d3d->m_deviceContext->Map(d3d->texture2d, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
 	if (FAILED(hr)) {
 		write_log(_T("D3D11 Map() %08x\n"), hr);
-		return false;
+		return NULL;
 	}
 	*pitch = map.RowPitch;
 	if (height)
@@ -1139,7 +1331,7 @@ static void xD3D11_unlocktexture(void)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
 
-	if (!d3d->texturelocked)
+	if (!d3d->texturelocked || d3d->invalidmode)
 		return;
 	d3d->texturelocked--;
 
@@ -1175,6 +1367,64 @@ static int xD3D11_goodenough(void)
 	return 0;
 }
 
+static void xD3D11_resize(int activate)
+{
+	static int recursive;
+	HRESULT hr;
+	struct d3d11struct *d3d = &d3d11data[0];
+
+	if (activate) {
+		if (activate != d3d->fsmode) {
+			d3d->fsmode = activate;
+			d3d->fsmodechange = TRUE;
+		}
+		return;
+	}
+
+	if (recursive)
+		return;
+	recursive++;
+
+	if (d3d->m_swapChain) {
+		if (d3d->fsmodechange && d3d->fsmode > 0) {
+			ShowWindow(d3d->ahwnd, SW_SHOWNORMAL);
+			hr = d3d->m_swapChain->SetFullscreenState(TRUE, NULL);
+			if (FAILED(hr)) {
+				write_log(_T("SetFullscreenState(TRUE) failed %08X\n"), hr);
+				toggle_fullscreen(10);
+			} else {
+				d3d->fsmode = 1;
+			}
+			d3d->fsmodechange = 0;
+			d3d->invalidmode = false;
+		} else if (d3d->fsmodechange && d3d->fsmode < 0) {
+			hr = d3d->m_swapChain->SetFullscreenState(FALSE, NULL);
+			if (FAILED(hr))
+				write_log(_T("SetFullscreenState(FALSE) failed %08X\n"), hr);
+			ShowWindow(d3d->ahwnd, SW_MINIMIZE);
+			d3d->fsmode = 0;
+			d3d->invalidmode = true;
+			d3d->fsmodechange = 0;
+		}
+		if (!d3d->invalidmode) {
+			freed3d(d3d);
+			write_log(_T("D3D11 resize %d %d, %d %d\n"), d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth, d3d->m_bitmapHeight);
+			setswapchainmode(d3d, d3d->fsmode);
+			HRESULT hr = d3d->m_swapChain->ResizeBuffers(d3d->swapChainDesc.BufferCount, d3d->m_screenWidth, d3d->m_screenHeight, d3d->format, d3d->swapChainDesc.Flags);
+			if (FAILED(hr)) {
+				write_log(_T("ResizeBuffers %08x\n"), hr);
+				d3d->invalidmode = true;
+			}
+			if (!d3d->invalidmode) {
+				initd3d(d3d);
+				xD3D11_alloctexture(d3d->m_bitmapWidth, d3d->m_bitmapHeight);
+			}
+		}
+	}
+
+	recursive--;
+}
+
 void d3d11_select(void)
 {
 	D3D_free = xD3D11_free;
@@ -1200,6 +1450,7 @@ void d3d11_select(void)
 	D3D_getvblankpos = NULL;
 	D3D_getrefreshrate = NULL;
 	D3D_vblank_reset = xD3D11_vblank_reset;
+	D3D_resize = xD3D11_resize;
 }
 
 void d3d_select(struct uae_prefs *p)

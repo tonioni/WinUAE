@@ -3659,6 +3659,7 @@ void d3d9_select(void)
 	D3D_getrefreshrate = xD3D_getrefreshrate;
 	D3D_vblank_reset = xD3D_vblank_reset;
 	D3D_restore = xD3D_restore;
+	D3D_resize = NULL;
 }
 
 #endif
