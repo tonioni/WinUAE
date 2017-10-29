@@ -3809,27 +3809,44 @@ static void gen_opcode (unsigned int opcode)
 		fill_prefetch_next ();
 		break;
 	case i_STOP:
+		next_level_000();
 		if (using_prefetch) {
-			printf ("\tregs.sr = regs.irc;\n");
+			printf("\tuae_u16 sr = regs.irc;\n");
 			m68k_pc_offset += 2;
 		} else {
 			genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
-			printf ("\tregs.sr = src;\n");
+			printf("\tuae_u16 sr = src;\n");
 		}
-		addcycles000(2 * 4);
+		// STOP undocumented features:
+		// if SR is not set:
+		// 68000 (68010?): Update SR, increase PC and then cause privilege violation exception (handled in newcpu)
+		// 68000 (68010?): Traced STOP also runs 4 cycles faster.
+		// 68020 68030: STOP works normally
+		// 68040 68060: Immediate privilege violation exception
+		if ((cpu_level == 0 || cpu_level == 1) && using_ce) {
+			printf("\t%s(regs.t1 ? 4 : 8);\n", do_cycles);
+		}
+		if (cpu_level >= 4) {
+			printf("\tif (!(sr & 0x2000)) {\n");
+			incpc("%d", m68k_pc_offset);
+			printf("\t\tException(8); goto %s;\n", endlabelstr);
+			printf("\t}\n");
+		}
+		printf("\tregs.sr = sr;\n");
 		makefromsr();
 		printf ("\tm68k_setstopped ();\n");
 		sync_m68k_pc ();
 		// STOP does not prefetch anything
 		did_prefetch = -1;
+		next_cpu_level = cpu_level - 1;
 		break;
 	case i_LPSTOP: /* 68060 */
 		printf ("\tuae_u16 sw = %s (2);\n", srcwi);
-		printf ("\tuae_u16 sr;\n");
 		printf ("\tif (sw != (0x100|0x80|0x40)) { Exception (4); goto %s; }\n", endlabelstr);
-		printf ("\tsr = %s (4);\n", srcwi);
-		printf ("\tif (!(sr & 0x8000)) { Exception (8); goto %s; }\n", endlabelstr);
-		printf ("\tregs.sr = sr;\n");
+		printf("\tif (!(regs.sr & 0x2000)) {\n");
+		printf("\t\tException(8); goto %s;\n", endlabelstr);
+		printf("\t}\n");
+		printf("\tregs.sr = %s (4);\n", srcwi);
 		makefromsr();
 		printf ("\tm68k_setstopped();\n");
 		m68k_pc_offset += 4;
