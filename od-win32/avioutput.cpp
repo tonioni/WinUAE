@@ -213,8 +213,9 @@ static struct avientry *getavientry (void)
 static void freequeue (void)
 {
 	struct avientry *ae;
-	while ((ae = getavientry ()))
-		freeavientry (ae);
+	while ((ae = getavientry())) {
+		freeavientry(ae);
+	}
 }
 
 static void waitqueuefull (void)
@@ -1265,9 +1266,6 @@ void AVIOutput_Restart (void)
 
 static void AVIOutput_End2(bool fullrestart)
 {
-	first_frame = 0;
-	avioutput_enabled = 0;
-
 	if (alive) {
 		write_log (_T("killing worker thread\n"));
 		write_comm_pipe_u32 (&workindex, 0xfffffffe, 1);
@@ -1277,6 +1275,8 @@ static void AVIOutput_End2(bool fullrestart)
 			Sleep (10);
 		}
 	}
+	first_frame = 0;
+	avioutput_enabled = 0;
 	avioutput_failed = 0;
 	freequeue ();
 	destroy_comm_pipe (&workindex);
@@ -1340,7 +1340,6 @@ static void AVIOutput_Begin2(bool fullstart, bool immediate)
 
 	AVIOutput_Initialize ();
 
-	avientryindex = -1;
 	if (avioutput_enabled) {
 		if (!avioutput_requested)
 			AVIOutput_End ();
@@ -1373,7 +1372,6 @@ static void AVIOutput_Begin2(bool fullstart, bool immediate)
 
 	if (fullstart) {
 		reset_sound();
-		init_hz_normal();
 		first_frame = 0;
 		if (savestate_state && !avioutput_originalsize)
 			first_frame = 1;
@@ -1507,6 +1505,7 @@ static void AVIOutput_Begin2(bool fullstart, bool immediate)
 	freeavientry (ae);
 	init_comm_pipe (&workindex, 20, 1);
 	init_comm_pipe (&queuefull, 20, 1);
+	avientryindex = -1;
 	alive = -1;
 	uae_start_thread (_T("aviworker"), AVIOutput_worker, NULL, NULL);
 	write_log (_T("AVIOutput enabled: video=%d audio=%d path='%s'\n"), avioutput_video, avioutput_audio, avioutput_filename_inuse);
@@ -1547,7 +1546,6 @@ void AVIOutput_Release (void)
 
 void AVIOutput_Initialize (void)
 {
-
 	if (avioutput_init)
 		return;
 
@@ -1561,11 +1559,13 @@ void AVIOutput_Initialize (void)
 
 	AVIFileInit ();
 	avioutput_init = 1;
+	avientryindex = -1;
 }
 
 
 static void *AVIOutput_worker (void *arg)
 {
+	bool quit = false;
 	write_log (_T("AVIOutput worker thread started\n"));
 	alive = 1;
 	for (;;) {
@@ -1575,16 +1575,17 @@ static void *AVIOutput_worker (void *arg)
 		int r2 = 1;
 		if (idx == 0xffffffff)
 			break;
+		if (idx == 0xfffffffe)
+			quit = true;
 		for (;;) {
 			EnterCriticalSection (&AVIOutput_CriticalSection);
 			ae = getavientry ();
 			LeaveCriticalSection (&AVIOutput_CriticalSection);
-			if (ae == NULL) {
-				if (!avioutput_failed)
-					write_log (_T("AVIOutput worker thread: out of entries!?\n"));
+			if (ae == NULL)
 				break;
+			if (!quit) {
+				write_comm_pipe_u32(&queuefull, 0, 1);
 			}
-			write_comm_pipe_u32 (&queuefull, 0, 1);
 			if (!avioutput_failed) {
 				if (ae->lpAudio)
 					r1 = AVIOutput_AVIWriteAudio_Thread (ae);
@@ -1594,14 +1595,12 @@ static void *AVIOutput_worker (void *arg)
 					avioutput_failed = 1;
 			}
 			freeavientry (ae);
-			if (idx != 0xfffffffe)
-				break;
 		}
-		if (idx == 0xfffffffe || idx == 0xffffffff)
+		if (idx == 0xffffffff || quit || avioutput_failed)
 			break;
 	}
 	AVIOutput_AVIWriteAudio_Thread_End();
-	write_log (_T("AVIOutput worker thread killed\n"));
+	write_log (_T("AVIOutput worker thread killed. quit=%d\n"), quit);
 	alive = 0;
 	return 0;
 }
@@ -1776,7 +1775,7 @@ bool frame_drawn (void)
 
 /* Resampler from:
  * Digital Audio Resampling Home Page located at
- * http ://ccrma.stanford.edu/~jos/resample/.
+ * http://ccrma.stanford.edu/~jos/resample/.
  */
 
 #define Nhc       8
