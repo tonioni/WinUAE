@@ -24,6 +24,7 @@
 #define RUGBYCOACH 6
 #define CRICKETCAPTAIN 7
 #define LEVIATHAN 8
+#define MUSICMASTER 9
 #define LOGISTIX 10
 
 static int flag;
@@ -73,6 +74,10 @@ Logistix/SuperBase
 - POT1Y = 100k
 - POT1X * 10 / POT1Y must be between 12 and 33
 
+Music Master
+- sets joystick port 2 fire button output + low
+- first JOY1DAT AND 0x0303 must be zero.
+- following JOY1DAT AND 0x0303 reads must be nonzero.
 
 */
 
@@ -84,7 +89,7 @@ void dongle_reset (void)
 	memset (oldcia, 0, sizeof oldcia);
 }
 
-uae_u8 dongle_cia_read (int cia, int reg, uae_u8 val)
+uae_u8 dongle_cia_read (int cia, int reg, uae_u8 extra, uae_u8 val)
 {
 	if (!currprefs.dongle)
 		return val;
@@ -104,7 +109,7 @@ uae_u8 dongle_cia_read (int cia, int reg, uae_u8 val)
 	return val;
 }
 
-void dongle_cia_write (int cia, int reg, uae_u8 val)
+void dongle_cia_write (int cia, int reg, uae_u8 extra, uae_u8 val)
 {
 	if (!currprefs.dongle)
 		return;
@@ -118,6 +123,15 @@ void dongle_cia_write (int cia, int reg, uae_u8 val)
 		if (cia == 1 && reg == 0 && !(val & 0x80)) {
 			flag = 1;
 			cycles = get_cycles ();
+		}
+		break;
+	case MUSICMASTER:
+		if (cia == 0 && reg == 0) {
+			if (!(val & 0x80) && (extra & 0x80)) {
+				flag = 1;
+			} else {
+				flag = 0;
+			}
 		}
 		break;
 	}
@@ -165,6 +179,16 @@ uae_u16 dongle_joydat (int port, uae_u16 val)
 				val |= 0x0002;
 		}
 		flag ^= 1;
+		break;
+	case MUSICMASTER:
+		if (port == 1 && !flag) {
+			val = 0;
+		} else if (port == 1 && flag == 1) {
+			val = 0;
+			flag++;
+		} else if (port == 1 && flag == 2) {
+			val = 0x0303;
+		}
 		break;
 	}
 	return val;
