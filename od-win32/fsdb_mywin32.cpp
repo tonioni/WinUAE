@@ -701,7 +701,7 @@ static int setfiletime (const TCHAR *name, int days, int minute, int tick, int t
 		namep = name;
 	}
 
-	if ((hFile = CreateFile (namep, GENERIC_WRITE,FILE_SHARE_READ | FILE_SHARE_WRITE,NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL)) == INVALID_HANDLE_VALUE)
+	if ((hFile = CreateFile(namep, FILE_WRITE_ATTRIBUTES, FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL)) == INVALID_HANDLE_VALUE)
 		return 0;
 
 	for (;;) {
