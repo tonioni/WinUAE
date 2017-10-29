@@ -274,6 +274,9 @@ void inmate_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 bool emplant_init(struct autoconfig_info*);
 void emplant_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
+bool hd3000_init(struct autoconfig_info *aci);
+void hd3000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
 uae_u8 idescsi_scsi_get(uaecptr addr);
 void idescsi_scsi_put(uaecptr addr, uae_u8 v);
 

@@ -64,7 +64,8 @@
 #define NCR5380_ADDHARD 33
 #define NONCR_INMATE 34
 #define NCR5380_EMPLANT 35
-#define NCR_LAST 36
+#define OMTI_HD3000 36
+#define NCR_LAST 37
 
 extern int log_scsiemu;
 
@@ -2350,6 +2351,15 @@ static int xebec_reg(struct soft_scsi *ncr, uaecptr addr)
 	return -1;
 }
 
+static int hd3000_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
+{
+	if (!(addr & 1))
+		return -1;
+	if (!(addr & 0x4000))
+		return -1;
+	return (addr / 2) & 7;
+}
+
 static int hda506_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
 {
 	if ((addr & 0x7fe1) != 0x7fe0)
@@ -3053,6 +3063,16 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		if (reg >= 0)
 			v = sasi_microforge_bget(ncr, reg);
 
+	} else if (ncr->type == OMTI_HD3000) {
+
+		if (addr < 0x4000) {
+			v = ncr->rom[addr];
+		} else {
+			reg = hd3000_reg(ncr, addr, false);
+			if (reg >= 0)
+				v = omti_bget(ncr, reg);
+		}
+
 	} else if (ncr->type == OMTI_HDA506) {
 
 		reg = hda506_reg(ncr, addr, false);
@@ -3445,6 +3465,12 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 	} else if (ncr->type == OMTI_HDA506) {
 
 		reg = hda506_reg(ncr, addr, true);
+		if (reg >= 0)
+			omti_bput(ncr, reg, val);
+
+	} else if (ncr->type == OMTI_HD3000) {
+
+		reg = hd3000_reg(ncr, addr, true);
 		if (reg >= 0)
 			omti_bput(ncr, reg, val);
 
@@ -4752,4 +4778,28 @@ bool emplant_init(struct autoconfig_info *aci)
 void emplant_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_EMPLANT, 65536, 16384, ROMTYPE_EMPLANT);
+}
+
+bool hd3000_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_GOLEMHD3000);
+
+	if (!aci->doinit) {
+		load_rom_rc(aci->rc, ROMTYPE_GOLEMHD3000, 8192, aci->ert->autoboot_jumper ? 0 : 8192, aci->autoconfig_raw, 128, 0);
+		return true;
+	}
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	load_rom_rc(aci->rc, ROMTYPE_GOLEMHD3000, 8192, aci->ert->autoboot_jumper ? 0 : 8192, scsi->rom, 65536, 0);
+	memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
+	aci->addrbank = scsi->bank;
+	return true;
+}
+
+void hd3000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, OMTI_HD3000, 65536, 16384, ROMTYPE_GOLEMHD3000);
 }

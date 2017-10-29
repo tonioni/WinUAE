@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 220
+#define NEXT_ROM_ID 221
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -539,6 +539,10 @@ static struct romdata roms[] = {
 	0xa2e0cfb8, 0xfa7199d2,0xea343b01,0x4b0f6eb6,0x992d2e95,0x40fce61b, NULL, NULL },
 	{ _T("Vortex System 2000"), 1, 0, 1, 0, _T("SYSTEM2000\0"), 16384, 219, 0, 0, ROMTYPE_SYSTEM2000, 0, 0, NULL,
 	0x053097c3, 0xee87f26c,0xf858b63a,0xd6bff74b,0x802cea03,0x97281fad, NULL, NULL },
+	{ _T("Kupke Golem HD3000 v1.4"), 1, 4, 1, 4, _T("GOLEMHD3000\0"), 16384, 220, 0, 0, ROMTYPE_GOLEMHD3000, 0, 0, NULL,
+	0x93ba65c7, 0x33ba9d1e,0x27e9c210,0xa27ee6d3,0x855d3feb,0x1649ddc2, NULL, NULL },
+	ALTROMPN(220, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x2af75b4c, 0xe25be651, 0x56eef3bc, 0xa036d76c, 0xca3903a9, 0x469f0de5)
+	ALTROMPN(220, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x8283dc0c, 0xe3820358, 0x1d130b40, 0x9c333f41, 0xdfd6afcd, 0xf3fabb81)
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },
@@ -2186,17 +2190,26 @@ struct romconfig *get_device_romconfig(struct uae_prefs *p, int romtype, int dev
 
 void board_prefs_changed(int romtype, int devnum)
 {
-	int idx1, idx2;
-	struct boardromconfig *brc1 = get_device_rom(&currprefs, romtype, devnum, &idx1);
-	struct boardromconfig *brc2 = get_device_rom(&changed_prefs, romtype, devnum, &idx2);
-	if (brc1 && brc2) {
-		memcpy(brc1, brc2, sizeof(struct boardromconfig));
-	} else if (brc1 && !brc2) {
-		clear_device_rom(&currprefs, romtype, devnum, true);
-	} else if (!brc1 && brc2) {
-		brc1 = get_device_rom_new(&currprefs, romtype, devnum, &idx1);
-		if (brc1)
+	if (romtype != -1) {
+		int idx1, idx2;
+		struct boardromconfig *brc1 = get_device_rom(&currprefs, romtype, devnum, &idx1);
+		struct boardromconfig *brc2 = get_device_rom(&changed_prefs, romtype, devnum, &idx2);
+		if (brc1 && brc2) {
 			memcpy(brc1, brc2, sizeof(struct boardromconfig));
+		} else if (brc1 && !brc2) {
+			clear_device_rom(&currprefs, romtype, devnum, true);
+		} else if (!brc1 && brc2) {
+			brc1 = get_device_rom_new(&currprefs, romtype, devnum, &idx1);
+			if (brc1)
+				memcpy(brc1, brc2, sizeof(struct boardromconfig));
+		}
+	} else {
+		for (int i = 0; expansionroms[i].name; i++) {
+			const struct expansionromtype *ert = &expansionroms[i];
+			for (int j = 0; j < MAX_BOARD_ROMS; j++) {
+				board_prefs_changed(ert->romtype, j);
+			}
+		}
 	}
 }
 
