@@ -48,6 +48,9 @@ void(*D3D_resize)(int);
 
 static HANDLE hd3d11, hdxgi, hd3dcompiler;
 
+static struct gfx_filterdata *filterd3d;
+static int filterd3didx;
+
 struct d3d11struct
 {
 	IDXGISwapChain1* m_swapChain;
@@ -66,7 +69,7 @@ struct d3d11struct
 	float m_rotationX, m_rotationY, m_rotationZ;
 	D3DXMATRIX m_viewMatrix;
 	ID3D11ShaderResourceView *texture;
-	ID3D11Texture2D *texture2d;
+	ID3D11Texture2D *texture2d, *texture2dstaging;
 	ID3D11VertexShader* m_vertexShader;
 	ID3D11PixelShader* m_pixelShader;
 	ID3D11SamplerState* m_sampleState;
@@ -75,7 +78,7 @@ struct d3d11struct
 	DXGI_FORMAT format;
 	bool m_tearingSupport;
 	int dmult;
-	float xoffset, yoffset;
+	int xoffset, yoffset;
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
 	DXGI_SWAP_CHAIN_FULLSCREEN_DESC  fsSwapChainDesc;
 	HWND ahwnd;
@@ -174,8 +177,8 @@ static void setupscenecoords(void)
 	w = sr.right - sr.left;
 	h = sr.bottom - sr.top;
 
-	d3d->xoffset = -zr.left;
-	d3d->yoffset = -zr.top;
+	//d3d->xoffset = -zr.left;
+	//d3d->yoffset = -zr.top;
 
 	//write_log(_T("%.1f %.1f\n"), d3d->xoffset, d3d->yoffset);
 }
@@ -192,6 +195,9 @@ static void FreeTexture(void)
 	if (d3d->texture2d)
 		d3d->texture2d->Release();
 	d3d->texture2d = NULL;
+	if (d3d->texture2dstaging)
+		d3d->texture2dstaging->Release();
+	d3d->texture2dstaging = NULL;
 }
 
 static bool CreateTexture(void)
@@ -199,6 +205,7 @@ static bool CreateTexture(void)
 	struct d3d11struct *d3d = &d3d11data[0];
 
 	D3D11_TEXTURE2D_DESC desc;
+	HRESULT hr;
 
 	FreeTexture();
 
@@ -210,13 +217,31 @@ static bool CreateTexture(void)
 	desc.Format = d3d->format;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
-	desc.Usage = D3D11_USAGE_DYNAMIC;
+	desc.Usage = D3D11_USAGE_DEFAULT;
 	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	desc.CPUAccessFlags = 0;
+
+	hr = d3d->m_device->CreateTexture2D(&desc, NULL, &d3d->texture2d);
+	if (FAILED(hr)) {
+		write_log(_T("CreateTexture2D (main) failed: %08x\n"), hr);
+		return false;
+	}
+
+	memset(&desc, 0, sizeof desc);
+	desc.Width = d3d->m_bitmapWidth;
+	desc.Height = d3d->m_bitmapHeight;
+	desc.MipLevels = 1;
+	desc.ArraySize = 1;
+	desc.Format = d3d->format;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Usage = D3D11_USAGE_STAGING;
+	desc.BindFlags = 0;
 	desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-	HRESULT hr = d3d->m_device->CreateTexture2D(&desc, NULL, &d3d->texture2d);
+	hr = d3d->m_device->CreateTexture2D(&desc, NULL, &d3d->texture2dstaging);
 	if (FAILED(hr)) {
-		write_log(_T("CreateTexture2D failed: %08x\n"), hr);
+		write_log(_T("CreateTexture2D (staging) failed: %08x\n"), hr);
 		return false;
 	}
 
@@ -247,7 +272,11 @@ static void OutputShaderErrorMessage(ID3D10Blob* errorMessage, HWND hwnd, TCHAR*
 		// Get the length of the message.
 		bufferSize = errorMessage->GetBufferSize();
 
-		write_log(_T("D3D11 Shader error: %s"), compileErrors);
+		TCHAR *s = au(compileErrors);
+
+		write_log(_T("D3D11 Shader error: %s"), s);
+
+		xfree(s);
 
 		// Release the error message.
 		errorMessage->Release();
@@ -375,10 +404,10 @@ static bool TextureShaderClass_InitializeShader(ID3D11Device* device, HWND hwnd)
 	}
 
 	// Create a texture sampler state description.
-	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	samplerDesc.Filter = filterd3d->gfx_filter_bilinear ? D3D11_FILTER_MIN_MAG_MIP_LINEAR : D3D11_FILTER_MIN_MAG_MIP_POINT;
+	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.MipLODBias = 0.0f;
 	samplerDesc.MaxAnisotropy = 1;
 	samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
@@ -498,28 +527,27 @@ static bool UpdateBuffers(ID3D11DeviceContext* deviceContext)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
 
-	float left, right, top, bottom;
+	int left, right, top, bottom;
 	VertexType* vertices;
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
 	VertexType* verticesPtr;
 	HRESULT result;
-	float positionX, positionY;
+	int positionX, positionY;
 
-	positionX = (d3d->m_screenWidth - d3d->m_bitmapWidth) / 2.0 + d3d->xoffset;
-	positionY = (d3d->m_screenHeight - d3d->m_bitmapHeight) / 2.0 + d3d->yoffset;
-
+	positionX = (d3d->m_screenWidth - d3d->m_bitmapWidth) / 2 + d3d->xoffset;
+	positionY = (d3d->m_screenHeight - d3d->m_bitmapHeight) / 2 + d3d->yoffset;
 
 	// Calculate the screen coordinates of the left side of the bitmap.
-	left = (float)((d3d->m_screenWidth / 2) * -1) + positionX;
+	left = ((d3d->m_screenWidth + 1) / -2) + positionX;
 
 	// Calculate the screen coordinates of the right side of the bitmap.
-	right = left + (float)d3d->m_bitmapWidth;
+	right = left + d3d->m_bitmapWidth;
 
 	// Calculate the screen coordinates of the top of the bitmap.
-	top = (float)(d3d->m_screenHeight / 2) - positionY;
+	top = ((d3d->m_screenHeight + 1) / 2) - positionY;
 
 	// Calculate the screen coordinates of the bottom of the bitmap.
-	bottom = top - (float)d3d->m_bitmapHeight;
+	bottom = top - d3d->m_bitmapHeight;
 
 	// Create the vertex array.
 	vertices = new VertexType[d3d->m_vertexCount];
@@ -693,6 +721,9 @@ static const bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *fre
 
 	write_log(_T("D3D11 init start\n"));
 
+	filterd3didx = picasso_on;
+	filterd3d = &currprefs.gf[filterd3didx];
+
 	if (!hd3d11)
 		hd3d11 = LoadLibrary(_T("D3D11.dll"));
 	if (!hdxgi)
@@ -727,7 +758,6 @@ static const bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *fre
 			write_log(_T("D3D11 CreateDXGIFactory2 %08x\n"), result);
 			return false;
 		}
-		factory2 = factory4;
 	} else {
 		BOOL allowTearing = FALSE;
 		result = factory4.As(&factory5);
@@ -907,7 +937,7 @@ static const bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *fre
 
 	d3d->swapChainDesc.BufferCount = 2;
 
-	d3d->swapChainDesc.Scaling = DXGI_SCALING_NONE;
+	d3d->swapChainDesc.Scaling = os_vista ? DXGI_SCALING_NONE : DXGI_SCALING_STRETCH;
 
 	d3d->swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 
@@ -928,6 +958,7 @@ static const bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *fre
 		write_log(_T("IDXGIFactory2 MakeWindowAssociation %08x\n"), result);
 	}
 
+	d3d->invalidmode = false;
 	d3d->fsmode = 0;
 	if (isfullscreen() > 0)
 		D3D_resize(1);
@@ -1315,7 +1346,7 @@ static uae_u8 *xD3D11_locktexture(int *pitch, int *height, bool fullupdate)
 	if (d3d->invalidmode)
 		return NULL;
 	D3D11_MAPPED_SUBRESOURCE map;
-	HRESULT hr = d3d->m_deviceContext->Map(d3d->texture2d, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+	HRESULT hr = d3d->m_deviceContext->Map(d3d->texture2dstaging, 0, D3D11_MAP_WRITE, 0, &map);
 	if (FAILED(hr)) {
 		write_log(_T("D3D11 Map() %08x\n"), hr);
 		return NULL;
@@ -1335,7 +1366,16 @@ static void xD3D11_unlocktexture(void)
 		return;
 	d3d->texturelocked--;
 
-	d3d->m_deviceContext->Unmap(d3d->texture2d, 0);
+	d3d->m_deviceContext->Unmap(d3d->texture2dstaging, 0);
+
+	D3D11_BOX box;
+	box.front = 0;
+	box.back = 1;
+	box.left = 0;
+	box.right = d3d->m_bitmapWidth;
+	box.top = 0;
+	box.bottom = d3d->m_bitmapHeight;
+	d3d->m_deviceContext->CopySubresourceRegion(d3d->texture2d, 0, 0, 0, 0, d3d->texture2dstaging, 0, &box);
 }
 
 static void xD3D11_flushtexture(int miny, int maxy)
@@ -1416,8 +1456,13 @@ static void xD3D11_resize(int activate)
 				d3d->invalidmode = true;
 			}
 			if (!d3d->invalidmode) {
-				initd3d(d3d);
-				xD3D11_alloctexture(d3d->m_bitmapWidth, d3d->m_bitmapHeight);
+				if (!initd3d(d3d)) {
+					xD3D11_free(true);
+					changed_prefs.gfx_api = 1;
+					d3d->invalidmode = true;
+				} else {
+					xD3D11_alloctexture(d3d->m_bitmapWidth, d3d->m_bitmapHeight);
+				}
 			}
 		}
 	}
