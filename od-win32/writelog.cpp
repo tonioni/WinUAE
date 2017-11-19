@@ -352,15 +352,44 @@ static void console_put (const TCHAR *buffer)
 	}
 }
 
+static int console_buf_len = 100000;
+
 void console_out_f (const TCHAR *format,...)
 {
+	int len;
 	va_list parms;
+	TCHAR *pbuf;
 	TCHAR buffer[WRITE_LOG_BUF_SIZE];
+	TCHAR *bigbuf = NULL;
 
+	pbuf = buffer;
 	va_start (parms, format);
-	_vsntprintf (buffer, WRITE_LOG_BUF_SIZE - 1, format, parms);
+	len = _vsntprintf (pbuf, WRITE_LOG_BUF_SIZE - 1, format, parms);
+	if (!len)
+		return;
+	if (len < 0 || len >= WRITE_LOG_BUF_SIZE - 2) {
+		int buflen = console_buf_len;
+		for (;;) {
+			bigbuf = xmalloc(TCHAR, buflen);
+			if (!bigbuf)
+				return;
+			len = _vsntprintf(bigbuf, buflen - 1, format, parms);
+			if (!len)
+				return;
+			if (len > 0 && len < buflen - 2)
+				break;
+			xfree(bigbuf);
+			buflen += 100000;
+			if (buflen > 10000000)
+				return;
+		}
+		pbuf = bigbuf;
+		console_buf_len = buflen;
+	}
 	va_end (parms);
-	console_put (buffer);
+	console_put (pbuf);
+	if (bigbuf)
+		xfree(bigbuf);
 }
 void console_out (const TCHAR *txt)
 {
