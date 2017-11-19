@@ -947,6 +947,37 @@ static void AVIOuput_WAVWriteAudio (uae_u8 *sndbuffer, int sndbufsize)
 	fwrite (sndbuffer, 1, sndbufsize, wavfile);
 }
 
+static int getFromRenderTarget11(struct avientry *avie)
+{
+	int ok = 0;
+	int w, h, pitch, bits = 32;
+	void *data;
+
+	bool got = D3D11_capture(&data, &w, &h, &pitch);
+	if (got) {
+		int dpitch = ((aviout_width_out * avioutput_bits + 31) & ~31) / 8;
+		for (int y = 0; y < h; y++) {
+			uae_u8 *d = (uae_u8*)avie->lpVideo + (h - y - 1) * dpitch;
+			uae_u32 *s = (uae_u32*)((uae_u8*)data + y * pitch);
+			for (int x = 0; x < w; x++) {
+				uae_u32 v = *s++;
+				d[0] = v >> 0;
+				d[1] = v >> 8;
+				d[2] = v >> 16;
+				if (avioutput_bits == 32) {
+					d[3] = v >> 24;
+					d += 4;
+				} else {
+					d += 3;
+				}
+			}
+		}
+		D3D11_capture(NULL, NULL, NULL, NULL);
+		ok = 1;
+	}
+	return ok;
+}
+
 static int getFromRenderTarget(struct avientry *avie)
 {
 	int ok = 0;
@@ -1167,7 +1198,9 @@ void AVIOutput_WriteVideo (void)
 	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen ()) {
 		v = getFromBuffer (ae, 1);
 	} else {
-		if (D3D_isenabled()) {
+		if (D3D_isenabled() == 2) {
+			v = getFromRenderTarget11(ae);
+		} else if (D3D_isenabled() == 1) {
 			v = getFromRenderTarget(ae);
 		} else {
 			v = getFromDC (ae);
