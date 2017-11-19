@@ -1247,7 +1247,46 @@ static int scsiemudrv (int unitnum, uae_u8 *cmd)
 	return v;
 }
 
-static int scsi_read_cd (int unitnum, uae_u8 *cmd, uae_u8 *data, struct device_info *di)
+static int scsi_read_cd_da(int unitnum, uae_u8 *cmd, uae_u8 *data, struct device_info *di)
+{
+	struct blkdevstate *st = &state[unitnum];
+	int msf = cmd[0] == 0xd9;
+	int start = msf ? msf2lsn(rl(cmd + 2) & 0x00ffffff) : rl(cmd + 2);
+	int len = rl(cmd + 5) & 0x00ffffff;
+	int sectorsize;
+	uae_u8 subcode = cmd[10];
+	switch (subcode)
+	{
+	case 0:
+		sectorsize = 2352;
+		break;
+	case 1:
+		sectorsize = 2368;
+		break;
+	case 2:
+		sectorsize = 2448;
+		break;
+	case 3:
+		sectorsize = 96;
+		break;
+	default:
+		return -1;
+	}
+	if (msf) {
+		int end = msf2lsn(len);
+		len = end - start;
+		if (len < 0)
+			return -1;
+	}
+	if (len == 0)
+		return 0;
+	int v = sys_command_cd_rawread(unitnum, data, start, len, sectorsize);
+	if (v > 0)
+		st->current_pos = start + len;
+	return v;
+}
+
+static int scsi_read_cd(int unitnum, uae_u8 *cmd, uae_u8 *data, struct device_info *di)
 {
 	struct blkdevstate *st = &state[unitnum];
 	int msf = cmd[0] == 0xb9;
@@ -1395,11 +1434,21 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		}
 	}
 	break;
+	case 0xd8: // READ CD-DA
+	case 0xd9: // READ CD-DA MSF
+		if (nodisk(&di))
+			goto nodisk;
+		scsi_len = scsi_read_cd_da(unitnum, cmdbuf, scsi_data, &di);
+		if (scsi_len == -2)
+			goto notdatatrack;
+		if (scsi_len == -1)
+			goto errreq;
+		break;
 	case 0xbe: // READ CD
 	case 0xb9: // READ CD MSF
 		if (nodisk (&di))
 			goto nodisk;
-		scsi_len = scsi_read_cd (unitnum, cmdbuf, scsi_data, &di);
+		scsi_len = scsi_read_cd(unitnum, cmdbuf, scsi_data, &di);
 		if (scsi_len == -2)
 			goto notdatatrack;
 		if (scsi_len == -1)

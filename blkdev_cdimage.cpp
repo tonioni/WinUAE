@@ -912,7 +912,7 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 	ssize = t->size + t->skipsize;
 	cdda_stop (cdu);
 	if (sectorsize > 0) {
-		if (sectorsize == 2352 && t->size == 2336) {
+		if ((sectorsize == 2352 || sectorsize == 2368 || sectorsize == 2448) && t->size == 2336) {
 			// 2336 -> 2352
 			while (size-- > 0) {
 				int address = asector + 150;
@@ -927,8 +927,17 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 				asector++;
 				data += sectorsize;
 				ret += sectorsize;
+				if (sectorsize == 2448) {
+					// all subs
+					getsub_deinterleaved(data - SUB_CHANNEL_SIZE, cdu, t, sector);
+				} else if (sectorsize == 2368) {
+					// sub q only
+					uae_u8 subs[SUB_CHANNEL_SIZE];
+					getsub_deinterleaved(subs, cdu, t, sector);
+					memcpy(data - SUBQ_SIZE, subs + SUBQ_SIZE, SUBQ_SIZE);
+				}
 			}
-		} else if (sectorsize == 2352 && t->size == 2048) {
+		} else if ((sectorsize == 2352 || sectorsize == 2368 || sectorsize == 2448) && t->size == 2048) {
 			// 2048 -> 2352
 			while (size-- > 0) {
 				memset (data, 0, 16);
@@ -938,6 +947,15 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 				asector++;
 				data += sectorsize;
 				ret += sectorsize;
+				if (sectorsize == 2448) {
+					// all subs
+					getsub_deinterleaved(data - SUB_CHANNEL_SIZE, cdu, t, sector);
+				} else if (sectorsize == 2368) {
+					// sub q only
+					uae_u8 subs[SUB_CHANNEL_SIZE];
+					getsub_deinterleaved(subs, cdu, t, sector);
+					memcpy(data - SUBQ_SIZE, subs + SUBQ_SIZE, SUBQ_SIZE);
+				}
 			}
 		} else if (sectorsize == 2048 && t->size == 2352) {
 			// 2352 -> 2048
@@ -971,6 +989,14 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 				asector++;
 				data += sectorsize;
 				ret++;
+			}
+		} else if (sectorsize == 96) {
+			// subchannels only
+			while (size-- > 0) {
+				getsub_deinterleaved(data, cdu, t, sector);
+				data += SUB_CHANNEL_SIZE;
+				ret += SUB_CHANNEL_SIZE;
+				sector++;
 			}
 		}
 		cdu->cd_last_pos = asector;
