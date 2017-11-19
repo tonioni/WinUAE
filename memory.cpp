@@ -307,8 +307,10 @@ uae_u32 dummy_get_safe(uaecptr addr, int size, bool inst, uae_u32 defvalue)
 	if (addr >= 0x10000000)
 		return v & mask;
 	// CD32 and B2000
-	if (currprefs.cs_unmapped_zero)
+	if (currprefs.cs_unmapped_space == 1)
 		return 0;
+	if (currprefs.cs_unmapped_space == 2)
+		return 0xffffffff & mask;
 	if ((currprefs.cpu_model <= 68010) || (currprefs.cpu_model == 68020 && (currprefs.chipset_mask & CSMASK_AGA) && currprefs.address_space_24)) {
 		if (size == 4) {
 			v = regs.db & 0xffff;
@@ -2430,7 +2432,7 @@ bool read_kickstart_version(struct uae_prefs *p)
 		if (kickstart_version > 33)
 			kickstart_version = 0;
 	}
-	write_log(_T("KS ver = %04x\n"), kickstart_version);
+	write_log(_T("KS ver = %d (0x%02x)\n"), kickstart_version & 255, kickstart_version);
 	return true;
 }
 
@@ -2479,6 +2481,7 @@ void memory_reset (void)
 	currprefs.cs_ide = changed_prefs.cs_ide;
 	currprefs.cs_fatgaryrev = changed_prefs.cs_fatgaryrev;
 	currprefs.cs_ramseyrev = changed_prefs.cs_ramseyrev;
+	currprefs.cs_unmapped_space = changed_prefs.cs_unmapped_space;
 	cpuboard_reset();
 
 	gayleorfatgary = ((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cs_pcmcia || currprefs.cs_ide > 0 || currprefs.cs_mbdmac) && !currprefs.cs_cd32cd;

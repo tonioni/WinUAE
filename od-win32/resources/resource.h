@@ -1128,7 +1128,6 @@
 #define IDC_DBG_MEM                     1756
 #define IDC_CS_COMPOSITECOLOR           1756
 #define IDC_DBG_DASM                    1757
-#define IDC_CS_UNMAPPEDZERO             1757
 #define IDC_DBG_MEMDOWNFAST             1758
 #define IDC_DBG_MEMTOPC                 1759
 #define IDC_DBG_MEMUPFAST               1760
@@ -1280,6 +1279,7 @@
 #define IDC_PATH_GEOMETRY_SELECTOR      1856
 #define IDC_EDIT1                       1857
 #define IDC_EXPANSIONBOARDSTRINGBOX     1857
+#define IDC_CS_UNMAPPED                 1858
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1331,7 +1331,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        407
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1858
+#define _APS_NEXT_CONTROL_VALUE         1859
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

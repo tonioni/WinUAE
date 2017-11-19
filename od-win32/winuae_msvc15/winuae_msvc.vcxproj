@@ -171,8 +171,8 @@
     <EmbedManifest Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">true</EmbedManifest>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\dev\include;C:\Program Files %28x86%29\Microsoft DirectX SDK %28June 2010%29\Include;$(IncludePath)</IncludePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\dev\lib\x64;C:\Program Files %28x86%29\Microsoft DirectX SDK %28June 2010%29\Lib\x64;$(LibraryPath)</LibraryPath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\dev\include;$(IncludePath)</IncludePath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Test|x64'">C:\dev\include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\dev\include;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.16299.0\winrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.16299.0\um;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.16299.0\shared;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.16299.0\ucrt;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Test|x64'">C:\dev\include;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.16299.0\winrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.16299.0\shared;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.16299.0\ucrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.16299.0\um;$(IncludePath)</IncludePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Test|x64'">C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">C:\dev\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.16299.0\ucrt;C:\Program Files (x86)\Windows Kits\10\Include\10.0.16299.0\shared;C:\Program Files (x86)\Windows Kits\10\Include\10.0.16299.0\winrt;C:\Program Files (x86)\Windows Kits\10\Include\10.0.16299.0\um;$(IncludePath)</IncludePath>

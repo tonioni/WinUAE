@@ -612,7 +612,7 @@ struct uae_prefs {
 	bool cs_cia6526;
 	bool cs_bytecustomwritebug;
 	bool cs_color_burst;
-	bool cs_unmapped_zero;
+	int cs_unmapped_space;
 	int cs_hacks;
 
 	struct boardromconfig expansionboard[MAX_EXPANSION_BOARDS];
@@ -692,6 +692,7 @@ struct uae_prefs {
 	uae_u32 custom_memory_sizes[MAX_CUSTOM_MEMORY_ADDRS];
 	uae_u32 custom_memory_mask[MAX_CUSTOM_MEMORY_ADDRS];
 	int uaeboard;
+	bool uaeboard_nodiag;
 	int uaeboard_order;
 
 	bool kickshifter;

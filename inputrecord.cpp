@@ -845,7 +845,7 @@ static int savedisk (const TCHAR *path, const TCHAR *file, uae_u8 *data, uae_u8 
 			struct zfile *zfd = zfile_fopen (tmp, _T("wb"));
 			if (zfd) {
 				int size = zfile_size (zf);
-				uae_u8 *data = zfile_getdata (zf, 0, size);
+				uae_u8 *data = zfile_getdata (zf, 0, size, NULL);
 				zfile_fwrite (data, size, 1, zfd);
 				zfile_fclose (zfd);
 				xfree (data);
@@ -876,14 +876,14 @@ void inprec_save (const TCHAR *filename, const TCHAR *statefilename)
 	if (zf) {
 		TCHAR fn[MAX_DPATH];
 		uae_u8 *data;
-		data = zfile_getdata (inprec_zf, 0, header_end);
+		data = zfile_getdata (inprec_zf, 0, header_end, NULL);
 		zfile_fwrite (data, header_end, 1, zf);
 		xfree (data);
 		getfilepart (fn, MAX_DPATH, statefilename);
 		char *s = uutf8 (fn);
 		zfile_fwrite (s, strlen (s) + 1, 1, zf);
 		int len = zfile_size (inprec_zf) -  header_end2;
-		data = zfile_getdata (inprec_zf, header_end2, len);
+		data = zfile_getdata (inprec_zf, header_end2, len, NULL);
 		uae_u8 *p = data;
 		uae_u8 *end = data + len;
 		while (p < end) {
@@ -940,8 +940,8 @@ void inprec_getstatus (TCHAR *title)
 	p = title + _tcslen (title);
 	int mvp = current_maxvpos ();
 	_stprintf (p, _T("%03d %02d:%02d:%02d/%02d:%02d:%02d"), replaypos,
-		lasthsync / (vblank_hz * mvp * 60), ((int)(lasthsync / (vblank_hz * mvp)) % 60), (lasthsync / mvp) % (int)vblank_hz,
-		endhsync / (vblank_hz * mvp * 60), ((int)(endhsync / (vblank_hz * mvp)) % 60), (endhsync / mvp) % (int)vblank_hz);
+		(int)(lasthsync / (vblank_hz * mvp * 60)), ((int)(lasthsync / (vblank_hz * mvp)) % 60), (lasthsync / mvp) % (int)vblank_hz,
+		(int)(endhsync / (vblank_hz * mvp * 60)), ((int)(endhsync / (vblank_hz * mvp)) % 60), (endhsync / mvp) % (int)vblank_hz);
 	p += _tcslen (p);
 	_tcscat (p, _T("] "));
 

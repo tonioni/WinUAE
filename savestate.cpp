@@ -1792,7 +1792,7 @@ void statefile_save_recording (const TCHAR *filename)
 	struct zfile *zf = zfile_fopen (filename, _T("wb"), 0);
 	if (zf) {
 		int len = zfile_size (staterecord_statefile);
-		uae_u8 *data = zfile_getdata (staterecord_statefile, 0, len);
+		uae_u8 *data = zfile_getdata (staterecord_statefile, 0, len, NULL);
 		zfile_fwrite (data, len, 1, zf);
 		xfree (data);
 		zfile_fclose (zf);

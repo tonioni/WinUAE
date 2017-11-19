@@ -1040,7 +1040,7 @@ static struct zfile *dsq (struct zfile *z, int lzx, int *retcode)
 		zi = z;
 	}
 	if (zi) {
-		uae_u8 *buf = zfile_getdata (zi, 0, -1);
+		uae_u8 *buf = zfile_getdata (zi, 0, -1, NULL);
 		if (!memcmp (buf, "PKD\x13", 4) || !memcmp (buf, "PKD\x11", 4)) {
 			TCHAR *fn;
 			int sectors = buf[18];
@@ -2367,7 +2367,7 @@ int zfile_ferror (struct zfile *z)
 	return 0;
 }
 
-uae_u8 *zfile_getdata (struct zfile *z, uae_s64 offset, int len)
+uae_u8 *zfile_getdata (struct zfile *z, uae_s64 offset, int len, int *outlen)
 {
 	uae_s64 pos = zfile_ftell (z);
 	uae_u8 *b;
@@ -2380,6 +2380,8 @@ uae_u8 *zfile_getdata (struct zfile *z, uae_s64 offset, int len)
 	zfile_fseek (z, offset, SEEK_SET);
 	zfile_fread (b, len, 1, z);
 	zfile_fseek (z, pos, SEEK_SET);
+	if (outlen)
+		*outlen = len;
 	return b;
 }
 

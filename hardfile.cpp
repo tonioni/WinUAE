@@ -1470,11 +1470,16 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		break;
 	case 0x06: /* FORMAT TRACK */
 	case 0x07: /* FORMAT BAD TRACK */
-		// do nothing
 		if (nodisk (hfd))
 			goto nodisk;
 		if (is_writeprotected(hfd))
 			goto readprot;
+		// do nothing
+		if (cmdbuf[5] & 0x40) {
+			// data from sector buffer
+		} else {
+			// data is static 0x6c
+		}
 		scsi_len = 0;
 		break;
 	case 0x09: /* READ VERIFY */
@@ -1528,8 +1533,20 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			goto checkfail;
 		scsi_len = (uae_u32)cmd_readx(hfd, scsi_data, offset, len);
 		break;
+	case 0x0e: /* READ SECTOR BUFFER */
+		len = hfd->ci.blocksize;
+		scsi_len = len;
+		memset(scsi_data, 0, len);
+		if (len > sizeof(hfd->sector_buffer))
+			len = sizeof(hfd->sector_buffer);
+		memcpy(scsi_data, hfd->sector_buffer, len);
+		break;
 	case 0x0f: /* WRITE SECTOR BUFFER */
-		scsi_len = hfd->ci.blocksize;
+		len = hfd->ci.blocksize;
+		scsi_len = len;
+		if (len > sizeof(hfd->sector_buffer))
+			len = sizeof(hfd->sector_buffer);
+		memcpy(hfd->sector_buffer, scsi_data, len);
 		break;
 	case 0x0a: /* WRITE (6) */
 		if (nodisk (hfd))
@@ -2849,5 +2866,6 @@ void hardfile_install (void)
 	dl (functable);
 	dl (datatable);
 	filesys_initcode_ptr = here();
+	filesys_initcode_real = initcode;
 	dl (initcode);
 }

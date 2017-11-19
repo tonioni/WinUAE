@@ -4,6 +4,25 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 8:
+
+- Replaced b7 unmapped zero checkbox with a 3 option select menu. Different A2000/B2000 variants can have either pullup or pulldown resistors connected to CPU data lines.
+- CD SCSI emulator READ CD-DA and READ CD-DA MSF emulated.
+- Single console output max write size was limited to about 4000 characters. It truncated or corrupted for example 100+ line disassembly.
+- D3D11 RTG mode supported, D3D9X dependency should be gone, screenshots/recording supported, filter scaling/position options enabled, shaders are built-in, scanlines and masks/overlays supported.
+- D3D11 mode not yet supported: transparent OSD, low latency vsync (need totally different logic), custom shaders (won't be implemented in next official version).
+- D3D11 didn't restore back to fullscreen (or to blank fullscreen) from minimized state in certain situations.
+- D3D11 fullscreen mode + GUI can work strangely. (GUI may open on desktop with black background, exiting GUI may not restore fullscreen or cause mode to become minimized)
+- Fall back to D3D9 if D3D11 fails to init, only fall back to DirectDraw if D3D9 also fails to init.
+- GamePorts panel custom mapping incorrectly parsed joystick autofire state from config file.
+- On the fly switching from KS 1.2 to KS 1.3+ properly undoes possible previously added KS 1.2 autoboot UAE rom patches.
+- Added Reiter Software Wedge HD controller emulation.
+- Added 3.07 GVP Series I ROM.
+
+Reiter Software Wedge:
+- Simple XT adapter hardware. Emulation only supports OMTI controller based harddrives.
+- No autoconfig, no boot ROM, no interrupts.
+
 Beta 7:
 
 - Added support for npcap without winpcap backwards compatibility option, fall back to winpcap if not found. (https://nmap.org/npcap/, fully Windows 10 1607+ compatible, original winpcap is not and win10pcap has at least one annoying bug.)

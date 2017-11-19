@@ -127,7 +127,7 @@ struct uae_prefs workprefs;
 static int currentpage = -1;
 static int qs_request_reset;
 static int qs_override;
-int gui_active;
+int gui_active, gui_left;
 
 extern HWND (WINAPI *pHtmlHelp)(HWND, LPCWSTR, UINT, LPDWORD);
 
@@ -2198,13 +2198,14 @@ static void m (void)
 	mm++;
 }
 
-static void flipgui (bool opengui)
+static void flipgui (int opengui)
 {
 	D3D_guimode (opengui);
-	if (opengui)
-		DirectDraw_FlipToGDISurface ();
-	else
-		vblank_reset (-1);
+	if (opengui) {
+		DirectDraw_FlipToGDISurface();
+	} else {
+		vblank_reset(-1);
+	}
 }
 
 static int GetSettings (int all_options, HWND hwnd);
@@ -2221,7 +2222,7 @@ void gui_display (int shortcut)
 
 	if (isfullscreen() > 0 && currprefs.gfx_api == 0)
 		screenshot_prepare();
-	flipgui(true);
+	flipgui(1);
 
 	if (setpaused (7)) {
 		inputdevice_unacquire ();
@@ -2267,7 +2268,7 @@ void gui_display (int shortcut)
 		inputdevice_acquire (TRUE);
 		setmouseactive (1);
 	}
-	flipgui(false);
+	flipgui(0);
 	fpscounter_reset ();
 	screenshot_free ();
 	write_disk_history ();
@@ -8102,7 +8103,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_1MCHIPJUMPER, workprefs.cs_1mchipjumper || workprefs.chipmem_size >= 0x100000);
 	CheckDlgButton(hDlg, IDC_CS_BYTECUSTOMWRITEBUG, workprefs.cs_bytecustomwritebug);
 	CheckDlgButton(hDlg, IDC_CS_COMPOSITECOLOR, workprefs.cs_color_burst);
-	CheckDlgButton(hDlg, IDC_CS_UNMAPPEDZERO, workprefs.cs_unmapped_zero);
+	SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_SETCURSEL, workprefs.cs_unmapped_space, 0);
 	txt[0] = 0;
 	_stprintf (txt, _T("%d"), workprefs.cs_rtc_adjust);
 	SetDlgItemText(hDlg, IDC_CS_RTCADJUST, txt);
@@ -8193,7 +8194,9 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_1mchipjumper = ischecked(hDlg, IDC_CS_1MCHIPJUMPER);
 	workprefs.cs_bytecustomwritebug = ischecked(hDlg, IDC_CS_BYTECUSTOMWRITEBUG);
 	workprefs.cs_color_burst = ischecked(hDlg, IDC_CS_COMPOSITECOLOR);
-	workprefs.cs_unmapped_zero = ischecked(hDlg, IDC_CS_UNMAPPEDZERO);
+	LRESULT val = SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_GETCURSEL, 0, 0L);
+	if (val != CB_ERR)
+		workprefs.cs_unmapped_space = val;
 
 	cfgfile_compatibility_romtype(&workprefs);
 
@@ -8280,7 +8283,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_1MCHIPJUMPER, e && workprefs.chipmem_size < 0x100000);
 	ew(hDlg, IDC_CS_BYTECUSTOMWRITEBUG, e);
 	ew(hDlg, IDC_CS_COMPOSITECOLOR, e);
-	ew(hDlg, IDC_CS_UNMAPPEDZERO, e);
+	ew(hDlg, IDC_CS_UNMAPPED, e);
 }
 
 static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -8293,6 +8296,10 @@ static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		pages[CHIPSET2_ID] = hDlg;
 		currentpage = CHIPSET2_ID;
 		cs_compatible = workprefs.cs_compatible;
+		SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_RESETCONTENT, 0, 0L);
+		SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_ADDSTRING, 0, (LPARAM)_T("Floating"));
+		SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_ADDSTRING, 0, (LPARAM)_T("All zeros"));
+		SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_ADDSTRING, 0, (LPARAM)_T("All ones"));
 	case WM_USER:
 		recursive++;
 		values_to_chipsetdlg2 (hDlg);
@@ -18120,7 +18127,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 			TCHAR *ext = _tcsrchr (wfd.cFileName, '.');
 			if (ext && (
 				!_tcsicmp (ext, _T(".png")) ||
-				!_tcsicmp (ext, _T(".bmp"))))
+				(!_tcsicmp (ext, _T(".bmp")) && workprefs.gfx_api != 2)))
 			{
 				SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)wfd.cFileName);
 				if (!_tcsicmp (wfd.cFileName, overlaytype == 0 ? workprefs.gf[filter_nativertg].gfx_filteroverlay : workprefs.gf[filter_nativertg].gfx_filtermask[filterstackpos]))
@@ -20567,6 +20574,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			MapDialogRect (dhwnd, &dialog_rect);
 
 			hGUIWnd = dhwnd;
+			flipgui(2);
 
 			for (;;) {
 				HANDLE IPChandle;

@@ -89,7 +89,7 @@ static const TCHAR *getmsg (int msg)
 {
 	switch (msg)
 	{
-	case RP_IPC_TO_HOST_REGISTER: return _T("RP_IPC_TO_HOST_REGISTER");
+	case RP_IPC_TO_HOST_PRIVATE_REGISTER: return _T("RP_IPC_TO_HOST_PRIVATE_REGISTER");
 	case RP_IPC_TO_HOST_FEATURES: return _T("RP_IPC_TO_HOST_FEATURES");
 	case RP_IPC_TO_HOST_CLOSED: return _T("RP_IPC_TO_HOST_CLOSED");
 	case RP_IPC_TO_HOST_ACTIVATED: return _T("RP_IPC_TO_HOST_ACTIVATED");

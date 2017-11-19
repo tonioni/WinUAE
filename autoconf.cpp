@@ -364,6 +364,12 @@ void dl (uae_u32 data)
 	rtarea_bank.baseaddr[rt_addr++] = data;
 }
 
+void df(uae_u8 b, int len)
+{
+	memset(&rtarea_bank.baseaddr[rt_addr], b, len);
+	rt_addr += len;
+}
+
 uae_u8 dbg (uaecptr addr)
 {
 	addr -= rtarea_base;
@@ -392,6 +398,13 @@ uae_u32 ds (const TCHAR *str)
 	uae_u32 v = ds_ansi (s);
 	xfree (s);
 	return v;
+}
+
+uae_u32 dsf(uae_u8 b, int len)
+{
+	rt_straddr -= len;
+	memset(rtarea_bank.baseaddr + rt_straddr, b, len);
+	return addr(rt_straddr);
 }
 
 uae_u32 ds_bstr_ansi (const uae_char *str)

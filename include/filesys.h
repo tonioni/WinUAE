@@ -69,6 +69,7 @@ struct hardfiledata {
 
 	struct hdf_cache bcache[MAX_HDF_CACHE_BLOCKS];
 	uae_u8 scsi_sense[MAX_SCSI_SENSE];
+	uae_u8 sector_buffer[512];
 
 	struct uaedev_config_info delayedci;
 	int reinsertdelay;

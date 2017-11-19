@@ -241,6 +241,7 @@ static const int leds_order[] = { 3, 6, 7, 8, 9, 4, 5, 2, 1, 0, 9 };
 static const TCHAR *lacer[] = { _T("off"), _T("i"), _T("p"), 0 };
 /* another boolean to choice update.. */
 static const TCHAR *cycleexact[] = { _T("false"), _T("memory"), _T("true"), 0  };
+static const TCHAR *unmapped[] = { _T("floating"), _T("zero"), _T("one"), 0 };
 
 struct hdcontrollerconfig
 {
@@ -284,6 +285,13 @@ static const TCHAR *uaeboard[] = {
 	_T("min"),
 	_T("full"),
 	_T("full+indirect"),
+	NULL
+};
+static const TCHAR *uaeboard_off[] = {
+	_T("disabled_off"),
+	_T("min_off"),
+	_T("full_off"),
+	_T("full+indirect_off"),
 	NULL
 };
 
@@ -1838,7 +1846,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("synchronize_clock"), p->tod_hack);
 	cfgfile_write (f, _T("maprom"), _T("0x%x"), p->maprom);
 	cfgfile_dwrite_str (f, _T("boot_rom_uae"), uaebootrom[p->boot_rom]);
-	cfgfile_dwrite_str(f, _T("uaeboard"), uaeboard[p->uaeboard]);
+	if (p->uaeboard_nodiag)
+		cfgfile_write_str(f, _T("uaeboard"), uaeboard_off[p->uaeboard]);
+	else
+		cfgfile_dwrite_str(f, _T("uaeboard"), uaeboard[p->uaeboard]);
 	if (p->autoconfig_custom_sort)
 		cfgfile_dwrite(f, _T("uaeboard_options"), _T("order=%d"), p->uaeboard_order);
 	cfgfile_dwrite_str (f, _T("parallel_matrix_emulation"), epsonprinter[p->parallel_matrix_emulation]);
@@ -2147,7 +2158,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool(f, _T("z3_autoconfig"), p->cs_z3autoconfig);
 	cfgfile_dwrite_bool(f, _T("1mchipjumper"), p->cs_1mchipjumper);
 	cfgfile_dwrite_bool(f, _T("color_burst"), p->cs_color_burst);
-	cfgfile_dwrite_bool(f, _T("unmapped_zero"), p->cs_unmapped_zero);
+	cfgfile_dwrite_str(f, _T("unmapped_address_space"), unmapped[p->cs_unmapped_space]);
 	cfgfile_dwrite (f, _T("chipset_hacks"), _T("0x%x"), p->cs_hacks);
 
 	if (is_board_enabled(p, ROMTYPE_CD32CART, 0)) {
@@ -4163,7 +4174,7 @@ static void get_filesys_controller (const TCHAR *hdc, int *type, int *typenum, i
 static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struct hardfiledata *hfd, bool empty)
 {
 	int found = 0;
-	TCHAR section[200];
+	TCHAR tmp[200], section[200];
 	struct ini_data *ini;
 	bool ret = false;
 
@@ -4171,21 +4182,26 @@ static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struc
 	if (!ini)
 		return ret;
 
-	_tcscpy(section, _T("empty"));
-	if (empty && ini_getstring(ini, section, NULL, NULL)) {
+	_tcscpy(tmp, _T("empty"));
+	section[0] = 0;
+	if (empty && ini_getstring(ini, tmp, NULL, NULL)) {
+		_tcscpy(section, tmp);
 		found = 1;
 	}
-	_tcscpy(section, _T("default"));
-	if (!empty && ini_getstring(ini, section, NULL, NULL)) {
+	_tcscpy(tmp, _T("default"));
+	if (!empty && ini_getstring(ini, tmp, NULL, NULL)) {
+		_tcscpy(section, tmp);
 		found = 1;
 	}
-	_tcscpy(section, _T("geometry"));
-	if (ini_getstring(ini, section, NULL, NULL)) {
+	_tcscpy(tmp, _T("geometry"));
+	if (ini_getstring(ini, tmp, NULL, NULL)) {
+		_tcscpy(section, tmp);
 		found = 1;
 	}
 	if (hfd) {
-		_stprintf(section, _T("%llu"), hfd->virtsize);
-		if (ini_getstring(ini, section, NULL, NULL)) {
+		_stprintf(tmp, _T("%llu"), hfd->virtsize);
+		if (ini_getstring(ini, tmp, NULL, NULL)) {
+			_tcscpy(section, tmp);
 			found = 1;
 		}
 	}
@@ -4199,8 +4215,12 @@ static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struc
 		for (;;) {
 			TCHAR *key = NULL, *val = NULL;
 			int v;
+
 			if (!ini_getsectionstring(ini, section, idx, &key, &val))
 				break;
+
+			//write_log(_T("%s:%s\n"), key, val);
+
 			if (val[0] == '0' && _totupper (val[1]) == 'X') {
 				TCHAR *endptr;
 				v = _tcstol (val, &endptr, 16);
@@ -5010,7 +5030,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("ics_agnus"), &p->cs_dipagnus)
 		|| cfgfile_yesno(option, value, _T("z3_autoconfig"), &p->cs_z3autoconfig)
 		|| cfgfile_yesno(option, value, _T("color_burst"), &p->cs_color_burst)
-		|| cfgfile_yesno(option, value, _T("unmapped_zero"), &p->cs_unmapped_zero)
 		|| cfgfile_yesno(option, value, _T("1mchipjumper"), &p->cs_1mchipjumper)
 		|| cfgfile_yesno(option, value, _T("agnus_bltbusybug"), &p->cs_agnusbltbusybug)
 		|| cfgfile_yesno(option, value, _T("gfxcard_hardware_vblank"), &p->rtg_hardwareinterrupt)
@@ -5107,10 +5126,19 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_strval (option, value,  _T("z3mapping"), &p->z3_mapping_mode, z3mapping, 0)
 		|| cfgfile_strval (option, value,  _T("scsidev_mode"), &p->uaescsidevmode, uaescsidevmodes, 0)
 		|| cfgfile_strval(option, value, _T("boot_rom_uae"), &p->boot_rom, uaebootrom, 0)
-		|| cfgfile_strval(option, value, _T("uaeboard"), &p->uaeboard, uaeboard, 0)
 		|| cfgfile_strval (option, value,  _T("serial_translate"), &p->serial_crlf, serialcrlf, 0)
+		|| cfgfile_strval(option, value, _T("unmapped_address_space"), &p->cs_unmapped_space, unmapped, 0)
 		|| cfgfile_strboolval (option, value, _T("comp_flushmode"), &p->comp_hardflush, flushmode, 0))
 		return 1;
+
+	if (cfgfile_strval(option, value, _T("uaeboard"), &p->uaeboard, uaeboard_off, 1)) {
+		p->uaeboard_nodiag = true;
+		return 1;
+	}
+	if (cfgfile_strval(option, value, _T("uaeboard"), &p->uaeboard, uaeboard, 0)) {
+		p->uaeboard_nodiag = false;
+		return 1;
+	}
 
 	if (cfgfile_path (option, value, _T("kickstart_rom_file"), p->romfile, sizeof p->romfile / sizeof (TCHAR), &p->path_rom)
 		|| cfgfile_path (option, value, _T("kickstart_ext_rom_file"), p->romextfile, sizeof p->romextfile / sizeof (TCHAR), &p->path_rom)
@@ -7144,7 +7172,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->cs_slowmemisfast = 0;
 	p->cs_resetwarning = 1;
 	p->cs_ciatodbug = false;
-	p->cs_unmapped_zero = false;
+	p->cs_unmapped_space = 0;
 	p->cs_color_burst = false;
 
 	for (int i = APMODE_NATIVE; i <= APMODE_RTG; i++) {
@@ -7753,7 +7781,7 @@ static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->nr_floppies = 0;
 	p->floppyslots[0].dfxtype = DRV_NONE;
 	p->floppyslots[1].dfxtype = DRV_NONE;
-	p->cs_unmapped_zero = true;
+	p->cs_unmapped_space = 1;
 	set_68020_compa (p, compa, 1);
 	p->cs_compatible = CP_CD32;
 	built_in_chipset_prefs (p);
@@ -7976,7 +8004,7 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->cart_internal = 0;
 	p->picasso96_nocustom = 1;
 	p->cs_compatible = 1;
-	p->cs_unmapped_zero = true;
+	p->cs_unmapped_space = 1;
 	built_in_chipset_prefs (p);
 	p->cs_ide = -1;
 	p->cs_ciaatod = p->ntscmode ? 2 : 1;
@@ -8110,7 +8138,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_z3autoconfig = false;
 	p->cs_bytecustomwritebug = false;
 	p->cs_1mchipjumper = false;
-	p->cs_unmapped_zero = false;
+	p->cs_unmapped_space = 0;
 
 	switch (p->cs_compatible)
 	{
@@ -8122,7 +8150,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 			p->cs_ide = -1;
 			p->cs_mbdmac = 0;
 			p->cs_ramseyrev = 0x0f;
-			p->cs_unmapped_zero = true;
+			p->cs_unmapped_space = 1;
 		} else if (p->cpu_compatible) {
 			// very A500-like
 			p->cs_df0idhw = 0;
@@ -8161,7 +8189,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ksmirror_a8 = 1;
 		p->cs_ciaoverlay = 0;
 		p->cs_resetwarning = 0;
-		p->cs_unmapped_zero = true;
+		p->cs_unmapped_space = 1;
 		break;
 	case CP_A500: // A500
 		p->cs_df0idhw = 0;
@@ -8210,7 +8238,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_rtc = 1;
 		p->cs_ciaatod = p->ntscmode ? 2 : 1;
 		p->cs_ciatodbug = true;
-		p->cs_unmapped_zero = true;
+		p->cs_unmapped_space = 1;
 		break;
 	case CP_A3000: // A3000
 		p->cs_rtc = 2;
@@ -8220,7 +8248,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ksmirror_e0 = 0;
 		p->cs_ciaatod = p->ntscmode ? 2 : 1;
 		p->cs_z3autoconfig = true;
-		p->cs_unmapped_zero = true;
+		p->cs_unmapped_space = 1;
 		break;
 	case CP_A3000T: // A3000T
 		p->cs_rtc = 2;
@@ -8230,7 +8258,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ksmirror_e0 = 0;
 		p->cs_ciaatod = p->ntscmode ? 2 : 1;
 		p->cs_z3autoconfig = true;
-		p->cs_unmapped_zero = true;
+		p->cs_unmapped_space = 1;
 		break;
 	case CP_A4000: // A4000
 		p->cs_rtc = 2;
@@ -8242,7 +8270,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ksmirror_e0 = 0;
 		p->cs_ciaoverlay = 0;
 		p->cs_z3autoconfig = true;
-		p->cs_unmapped_zero = true;
+		p->cs_unmapped_space = 1;
 		break;
 	case CP_A4000T: // A4000T
 		p->cs_rtc = 2;
@@ -8254,7 +8282,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ksmirror_e0 = 0;
 		p->cs_ciaoverlay = 0;
 		p->cs_z3autoconfig = true;
-		p->cs_unmapped_zero = true;
+		p->cs_unmapped_space = 1;
 		break;
 	}
 	if (p->cpu_model >= 68040)

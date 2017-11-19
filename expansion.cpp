@@ -1369,6 +1369,24 @@ static bool set_params_filesys(struct uae_prefs *prefs, struct expansion_params 
 	return true;
 }
 
+static void add_rtarea_pointer(struct autoconfig_info *aci)
+{
+	if (aci->doinit) {
+		uaecptr addr = 0;
+		if (aci->prefs->uaeboard > 1) {
+			addr = aci->start + 0x10000;
+		} else if (aci->prefs->uaeboard == 1) {
+			addr = rtarea_base;
+		}
+		if (addr) {
+			expamem[0x48] = addr >> 24;
+			expamem[0x49] = addr >> 16;
+			expamem[0x4a] = addr >> 8;
+			expamem[0x4b] = addr >> 0;
+		}
+	}
+}
+
 static bool expamem_init_uaeboard(struct autoconfig_info *aci)
 {
 	bool ks12 = ks12orolder();
@@ -1382,7 +1400,7 @@ static bool expamem_init_uaeboard(struct autoconfig_info *aci)
 	aci->set_params = set_params_filesys;
 
 	expamem_init_clear();
-	expamem_write(0x00, (p->uaeboard > 1 ? Z2_MEM_128KB : Z2_MEM_64KB) | zorroII | (ks12 || !rom ? 0 : rom_card));
+	expamem_write(0x00, (p->uaeboard > 1 ? Z2_MEM_128KB : Z2_MEM_64KB) | zorroII | (ks12 || !rom || p->uaeboard_nodiag ? 0 : rom_card));
 
 	expamem_write(0x08, no_shutup);
 
@@ -1393,9 +1411,11 @@ static bool expamem_init_uaeboard(struct autoconfig_info *aci)
 	expamem_write(0x18, 0x00); /* ser.no. Byte 0 */
 	expamem_write(0x1c, 0x00); /* ser.no. Byte 1 */
 	expamem_write(0x20, p->uaeboard); /* ser.no. Byte 2 */
-	expamem_write(0x24, 0x02); /* ser.no. Byte 3 */
+	expamem_write(0x24, 0x03); /* ser.no. Byte 3 */
 
 	uae_u8 *ptr = uaeboard_bank.baseaddr;
+
+	add_rtarea_pointer(aci);
 
 	if (rom) {
 
@@ -1787,43 +1807,24 @@ static addrbank *expamem_map_filesys (struct autoconfig_info *aci)
 }
 
 #if KS12_BOOT_HACK
-static void add_ks12_boot_hack(void)
+extern uaecptr ks12_resident;
+static void set_ks12_boot_hack(bool enable)
 {
-	uaecptr name = ds(_T("UAE boot"));
-	align(2);
-	uaecptr code = here();
-	// allocate fake diagarea
-	dl(0x48e73f3e); // movem.l d2-d7/a2-a6,-(sp)
-	dw(0x203c); // move.l #x,d0
-	dl(0x0300);
-	dw(0x7201); // moveq #1,d1
-	dl(0x4eaeff3a); // jsr -0xc6(a6)
-	dw(0x2440); // move.l d0,a2 ;diag area
-	dw(0x9bcd); // sub.l a5,a5 ;expansionbase
-	dw(0x97cb); // sub.l a3,a3 ;configdev
-	dw(0x4eb9); // jsr
-	dl(ROM_filesys_diagentry);
-	dl(0x4cdf7cfc); // movem.l (sp)+,d2-d7/a2-a6
-	dw(0x4e75);
-	// struct Resident
-	uaecptr addr = here();
-	dw(0x4afc);
-	dl(addr);
-	dl(addr + 26);
-	db(1); // RTF_COLDSTART
-	db((uae_u8)kickstart_version); // version
-	db(0); // NT_UNKNOWN
-	db(1); // priority
-	dl(name);
-	dl(name);
-	dl(code);
+	uaecptr old = here();
+	org(ks12_resident);
+	dw(enable ? 0x4afc : 0x0000);
+	org(ks12_resident + 9);
+	db((uae_u8)kickstart_version);
+	org(old);
 }
 #endif
 
 static bool expamem_init_filesys(struct autoconfig_info *aci)
 {
+	struct uae_prefs *p = aci->prefs;
 	bool ks12 = ks12orolder();
-	bool hide = currprefs.uae_hide_autoconfig;
+	bool hide = p->uae_hide_autoconfig;
+	bool rom = !(ks12 || !do_mount || p->uaeboard_nodiag);
 
 	if (aci) {
 		aci->label = ks12 ? _T("Pre-KS 1.3 UAE FS ROM") : _T("UAE FS ROM");
@@ -1852,24 +1853,26 @@ static bool expamem_init_filesys(struct autoconfig_info *aci)
 	};
 
 	expamem_init_clear ();
-	expamem_write (0x00, Z2_MEM_64KB | zorroII | (ks12 || !do_mount ? 0 : rom_card));
+	expamem_write (0x00, Z2_MEM_64KB | zorroII | (rom ? rom_card : 0));
 
 	expamem_write (0x08, no_shutup);
 
-	expamem_write (0x04, currprefs.maprom && !currprefs.cpuboard_type ? 2 : 82);
+	expamem_write (0x04, p->maprom && !p->cpuboard_type ? 2 : 82);
 	expamem_write (0x10, uae_id >> 8);
 	expamem_write (0x14, uae_id & 0xff);
 
 	expamem_write (0x18, 0x00); /* ser.no. Byte 0 */
 	expamem_write (0x1c, 0x00); /* ser.no. Byte 1 */
 	expamem_write (0x20, 0x00); /* ser.no. Byte 2 */
-	expamem_write (0x24, 0x01); /* ser.no. Byte 3 */
+	expamem_write (0x24, 0x03); /* ser.no. Byte 3 */
 
 	/* er_InitDiagVec */
-	expamem_write (0x28, 0x20); /* ROM-Offset hi */
+	expamem_write (0x28, rom ? 0x20 : 0x00); /* ROM-Offset hi */
 	expamem_write (0x2c, 0x00); /* ROM-Offset lo */
 
 	expamem_write (0x40, 0x00); /* Ctrl/Statusreg.*/
+
+	add_rtarea_pointer(aci);
 
 	if (aci && !aci->doinit) {
 		memcpy(aci->autoconfig_raw, expamem, sizeof aci->autoconfig_raw);
@@ -1880,7 +1883,7 @@ static bool expamem_init_filesys(struct autoconfig_info *aci)
 	memcpy (expamem + FILESYS_DIAGAREA, diagarea, sizeof diagarea);
 
 	put_word_host(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT + 0,
-		0x7000 | (currprefs.uaeboard > 2 ? 1 : 0) | (currprefs.uae_hide_autoconfig || currprefs.uaeboard > 1 ? 0 : 2)); // MOVEQ #x,D0
+		0x7000 | (p->uaeboard > 2 ? 1 : 0) | (p->uae_hide_autoconfig || p->uaeboard > 1 ? 0 : 2)); // MOVEQ #x,D0
 	/* Call hwtrap_install */
 	put_word_host(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT + 2, 0x4EB9); /* JSR */
 	put_long_host(expamem + FILESYS_DIAGAREA + FILESYS_DIAGPOINT + 4, filesys_get_entry(9));
@@ -1892,8 +1895,7 @@ static bool expamem_init_filesys(struct autoconfig_info *aci)
 	put_word_host(expamem + FILESYS_DIAGAREA + FILESYS_BOOTPOINT, 0x4EF9); /* JMP */
 	put_long_host(expamem + FILESYS_DIAGAREA + FILESYS_BOOTPOINT + 2, EXPANSION_bootcode);
 
-	if (ks12)
-		add_ks12_boot_hack();
+	set_ks12_boot_hack(ks12);
 
 	return true;
 }
@@ -4982,6 +4984,12 @@ const struct expansionromtype expansionroms[] = {
 	{
 		_T("promigos"), _T("Promigos"), _T("Flesch und Hörnemann"),
 		NULL, promigos_init, NULL, promigos_add_scsi_unit, ROMTYPE_PROMIGOS | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
+	},
+	{
+		_T("wedge"), _T("Wedge"), _T("Reiter Software"),
+		wedge_preinit, wedge_init, NULL, wedge_add_scsi_unit, ROMTYPE_WEDGE | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
 	},
