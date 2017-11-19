@@ -65,12 +65,13 @@
 #define NONCR_INMATE 34
 #define NCR5380_EMPLANT 35
 #define OMTI_HD3000 36
-#define NCR_LAST 37
+#define OMTI_WEDGE 37
+#define NCR_LAST 38
 
 extern int log_scsiemu;
 
 static const int outcmd[] = { 0x04, 0x0a, 0x0c, 0x2a, 0xaa, 0x15, 0x55, 0x0f, -1 };
-static const int incmd[] = { 0x01, 0x03, 0x08, 0x12, 0x1a, 0x5a, 0x25, 0x28, 0x34, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, 0xb9, 0xbd, 0xbe, -1 };
+static const int incmd[] = { 0x01, 0x03, 0x08, 0x0e, 0x12, 0x1a, 0x5a, 0x25, 0x28, 0x34, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, 0xb9, 0xbd, 0xd8, 0xd9, 0xbe, -1 };
 static const int nonecmd[] = { 0x00, 0x05, 0x06, 0x07, 0x09, 0x0b, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1d, 0x1e, 0x2b, 0x35, 0x45, 0x47, 0x48, 0x49, 0x4b, 0x4e, 0xa5, 0xa9, 0xba, 0xbc, 0xe0, 0xe3, 0xe4, -1 };
 static const int scsicmdsizes[] = { 6, 10, 10, 12, 16, 12, 10, 6 };
 
@@ -198,6 +199,8 @@ bool scsi_emulate_analyze (struct scsi_data *sd)
 	break;
 	case 0xbe: // READ CD
 	case 0xb9: // READ CD MSF
+	case 0xd8: // READ CD-DA
+	case 0xd9: // READ CD-DA MSF
 		if (sd->device_type != UAEDEV_CD)
 			goto nocmd;
 		tmp_len = (sd->cmd[6] << 16) | (sd->cmd[7] << 8) | sd->cmd[8];
@@ -2162,14 +2165,19 @@ static void sasi_microforge_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 // OMTI 5510
 static void omti_irq(struct soft_scsi *scsi)
 {
-	if (scsi->intena && (scsi->chip_state & 2))
-		ncr5380_set_irq(scsi);
+	if (scsi->chip_state & 2) {
+		scsi->chip_state |= 0x100;
+		if (scsi->intena)
+			ncr5380_set_irq(scsi);
+	}
 }
 static void omti_check_state(struct soft_scsi *scsi)
 {
 	struct raw_scsi *rs = &scsi->rscsi;
 	if ((rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_IN || rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_OUT) && (scsi->chip_state & 1)) {
-		omti_irq(scsi);
+		if (scsi->intena && (scsi->chip_state & 2)) {
+			ncr5380_set_irq(scsi);
+		}
 	}
 }
 
@@ -2204,13 +2212,15 @@ static uae_u8 omti_bget(struct soft_scsi *scsi, int reg)
 			if (t & SCSI_IO_COMMAND)
 				v |= 4;
 		}
-		v |= 0x80 | 0x40;
+		v |= 0x80 | 0x40; // always one
 		if ((rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_IN || rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_OUT) && (scsi->chip_state & 1))
-			v |= 0x10;
-		if (scsi->irq)
-			v |= 0x20;
-		scsi->irq = false;
-		break;
+			v |= 0x10; // DREQ
+		if (scsi->chip_state & 0x100)
+			v |= 0x20; // IREQ
+		if (rs->bus_phase != SCSI_SIGNAL_PHASE_STATUS) {
+			scsi->chip_state &= ~0x100;
+			scsi->irq = false;
+		}
 		break;
 		case 2: // CONFIGURATION
 		v = 0xff;
@@ -2240,8 +2250,9 @@ static void omti_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 		raw_scsi_set_signal_phase(rs, false, true, false);
 		raw_scsi_set_signal_phase(rs, false, false, false);
 		break;
-		case 3: // MASK
-		scsi->chip_state = v;
+		case 3: // MASK (bit 1 = interrupt enable, bit 0 = DMA enable)
+		scsi->chip_state &= ~0xff;
+		scsi->chip_state |= v;
 		break;
 	}
 	omti_check_state(scsi);
@@ -2372,6 +2383,17 @@ static int hda506_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
 static int alf1_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
 {
 	if ((addr & 0x7ff9) != 0x0641)
+		return -1;
+	addr >>= 1;
+	addr &= 3;
+	return addr;
+}
+
+static int wedge_reg(struct soft_scsi *ncr, uaecptr addr, int size, bool write)
+{
+	if (size != 1)
+		return -1;
+	if ((addr & 0xFFF9) != 0x0641)
 		return -1;
 	addr >>= 1;
 	addr &= 3;
@@ -3091,6 +3113,13 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		if (reg >= 0)
 			v = omti_bget(ncr, reg);
 
+	} else if (ncr->type == OMTI_WEDGE) {
+
+		reg = wedge_reg(ncr, addr, size, false);
+		if (reg >= 0) {
+			v = omti_bget(ncr, reg);
+		}
+		
 	} else if (ncr->type == OMTI_SYSTEM2000) {
 
 		reg = system2000_reg(ncr, addr, size, false);
@@ -3485,6 +3514,13 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 		reg = promigos_reg(ncr, addr, size, true);
 		if (reg >= 0)
 			omti_bput(ncr, reg, val);
+
+	} else if (ncr->type == OMTI_WEDGE) {
+
+		reg = wedge_reg(ncr, addr, size, true);
+		if (reg >= 0) {
+			omti_bput(ncr, reg, val);
+		}
 
 	} else if (ncr->type == OMTI_SYSTEM2000) {
 
@@ -4471,6 +4507,41 @@ bool system2000_preinit(struct autoconfig_info *aci)
 void system2000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, OMTI_SYSTEM2000, 65536, 16384, ROMTYPE_SYSTEM2000);
+}
+
+bool wedge_init(struct autoconfig_info *aci)
+{
+	aci->start = 0xea0000;
+	aci->size = 0x10000;
+
+	if (!aci->doinit)
+		return true;
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+
+	if (!scsi)
+		return false;
+	return true;
+}
+
+bool wedge_preinit(struct autoconfig_info *aci)
+{
+	struct soft_scsi *scsi = getscsi(aci->rc);
+
+	if (!scsi)
+		return false;
+
+	map_banks(scsi->bank, aci->start >> 16, aci->size >> 16, 0);
+	scsi->board_mask = aci->size - 1;
+	scsi->baseaddress = aci->start;
+	scsi->configured = 1;
+	aci->addrbank = scsi->bank;
+	return true;
+}
+
+void wedge_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, OMTI_WEDGE, 65536, 0, ROMTYPE_WEDGE);
 }
 
 bool omtiadapter_init(struct autoconfig_info *aci)

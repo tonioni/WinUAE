@@ -160,6 +160,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_EMPLANT		0x0010006a
 #define ROMTYPE_CUBO		0x0010006b
 #define ROMTYPE_GOLEMHD3000	0x0010006c
+#define ROMTYPE_WEDGE		0x0010006d
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000
