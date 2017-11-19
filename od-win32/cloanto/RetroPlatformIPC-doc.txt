@@ -9,7 +9,7 @@
          : assigned or transferred by contract.
  Authors : os, m
  Created : 2007-08-23 10:08:25
- Updated : 2017-01-04 06:15:00
+ Updated : 2017-09-10 12:13:00
  Comment : Reference for RetroPlatformIPC.h (RP Player interprocess communication include file)
  *****************************************************************************/
 
@@ -498,6 +498,13 @@ Response:
    none
 
 
+Messages:
+	RP_IPC_TO_HOST_PRIVATE_SHAREDEVENT
+	RP_IPC_TO_HOST_PRIVATE_TYPECLIPDONE
+	RP_IPC_TO_HOST_PRIVATE_KEYEVENT
+	RP_IPC_TO_HOST_PRIVATE_GUESTEVENT
+Description:
+   these are private messages, sent by code in RPGuest.dll
 
 
 
@@ -798,6 +805,18 @@ Description:
    Before opening the dialog, the guest should send RP_IPC_TO_HOST_PAUSE message to pause the emulation session.
    After closing the dialog, the emulation should be resumed by sending another RP_IPC_TO_HOST_PAUSE message.
 Data sent:
-   none
+   None
 Response:
    LRESULT = 1 if the guest acknowledged the command or 0 otherwise
+
+
+Messages:
+	RP_IPC_TO_GUEST_PRIVATE_STARTUP
+	RP_IPC_TO_GUEST_PRIVATE_TYPECLIP
+	RP_IPC_TO_GUEST_PRIVATE_RELEASEKEYS
+	RP_IPC_TO_GUEST_PRIVATE_CANESCAPE
+	RP_IPC_TO_GUEST_PRIVATE_LOGGING
+	RP_IPC_TO_GUEST_PRIVATE_INPUTDEVICES
+Description:
+   these are private messages, received by code in RPGuest.dll;
+   they never reach the message function in guest code

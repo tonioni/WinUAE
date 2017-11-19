@@ -9,7 +9,7 @@
          : Software Foundation.
  Authors : os, m
  Created : 2007-08-27 13:55:49
- Updated : 2017-01-04 06:15:00
+ Updated : 2017-09-10 12:13:00
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -18,9 +18,9 @@
 
 #include <windows.h>
 
-#define RETROPLATFORM_API_VER       "7.1"
+#define RETROPLATFORM_API_VER       "7.2"
 #define RETROPLATFORM_API_VER_MAJOR  7
-#define RETROPLATFORM_API_VER_MINOR  1
+#define RETROPLATFORM_API_VER_MINOR  2
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -33,56 +33,65 @@
 //  Guest-to-Host Messages
 // ****************************************************************************
 
-#define RP_IPC_TO_HOST_REGISTER            (WM_APP + 0)
-#define RP_IPC_TO_HOST_FEATURES            (WM_APP + 1)
-#define RP_IPC_TO_HOST_CLOSED              (WM_APP + 2)
-#define RP_IPC_TO_HOST_ACTIVATED           (WM_APP + 3)
-#define RP_IPC_TO_HOST_DEACTIVATED         (WM_APP + 4)
-#define RP_IPC_TO_HOST_ENABLED             (WM_APP + 5)
-#define RP_IPC_TO_HOST_DISABLED            (WM_APP + 6)
-#define RP_IPC_TO_HOST_SCREENMODE          (WM_APP + 9)
-#define RP_IPC_TO_HOST_POWERLED            (WM_APP + 10)
-#define RP_IPC_TO_HOST_DEVICES             (WM_APP + 11)
-#define RP_IPC_TO_HOST_DEVICEACTIVITY      (WM_APP + 12)
-#define RP_IPC_TO_HOST_MOUSECAPTURE        (WM_APP + 13)
-#define RP_IPC_TO_HOST_HOSTAPIVERSION      (WM_APP + 14)
-#define RP_IPC_TO_HOST_PAUSE               (WM_APP + 15)
-#define RP_IPC_TO_HOST_TURBO               (WM_APP + 17)
-#define RP_IPC_TO_HOST_PING                (WM_APP + 18)
-#define RP_IPC_TO_HOST_VOLUME              (WM_APP + 19)
-#define RP_IPC_TO_HOST_PARENT              (WM_APP + 21)
-#define RP_IPC_TO_HOST_DEVICESEEK          (WM_APP + 22)
-#define RP_IPC_TO_HOST_CLOSE               (WM_APP + 23)
-#define RP_IPC_TO_HOST_DEVICEREADWRITE     (WM_APP + 24)
-#define RP_IPC_TO_HOST_HOSTVERSION         (WM_APP + 25)
-#define RP_IPC_TO_HOST_INPUTDEVICE         (WM_APP + 26) // introduced in RetroPlatform API 3.0
-#define RP_IPC_TO_HOST_DEVICECONTENT       (WM_APP + 27) // extended in RetroPlatform API 3.0
-#define RP_IPC_TO_HOST_KEYBOARDLAYOUT      (WM_APP + 30) // introduced in RetroPlatform API 7.1
-
+#define RP_IPC_TO_HOST_PRIVATE_REGISTER     (WM_APP + 0)
+#define RP_IPC_TO_HOST_FEATURES             (WM_APP + 1)
+#define RP_IPC_TO_HOST_CLOSED               (WM_APP + 2)
+#define RP_IPC_TO_HOST_ACTIVATED            (WM_APP + 3)
+#define RP_IPC_TO_HOST_DEACTIVATED          (WM_APP + 4)
+#define RP_IPC_TO_HOST_ENABLED              (WM_APP + 5)
+#define RP_IPC_TO_HOST_DISABLED             (WM_APP + 6)
+#define RP_IPC_TO_HOST_SCREENMODE           (WM_APP + 9)
+#define RP_IPC_TO_HOST_POWERLED             (WM_APP + 10)
+#define RP_IPC_TO_HOST_DEVICES              (WM_APP + 11)
+#define RP_IPC_TO_HOST_DEVICEACTIVITY       (WM_APP + 12)
+#define RP_IPC_TO_HOST_MOUSECAPTURE         (WM_APP + 13)
+#define RP_IPC_TO_HOST_HOSTAPIVERSION       (WM_APP + 14)
+#define RP_IPC_TO_HOST_PAUSE                (WM_APP + 15)
+#define RP_IPC_TO_HOST_TURBO                (WM_APP + 17)
+#define RP_IPC_TO_HOST_PING                 (WM_APP + 18)
+#define RP_IPC_TO_HOST_VOLUME               (WM_APP + 19)
+#define RP_IPC_TO_HOST_PARENT               (WM_APP + 21)
+#define RP_IPC_TO_HOST_DEVICESEEK           (WM_APP + 22)
+#define RP_IPC_TO_HOST_CLOSE                (WM_APP + 23)
+#define RP_IPC_TO_HOST_DEVICEREADWRITE      (WM_APP + 24)
+#define RP_IPC_TO_HOST_HOSTVERSION          (WM_APP + 25)
+#define RP_IPC_TO_HOST_INPUTDEVICE          (WM_APP + 26) // introduced in RetroPlatform API 3.0
+#define RP_IPC_TO_HOST_DEVICECONTENT	    (WM_APP + 27) // extended in RetroPlatform API 3.0
+#define RP_IPC_TO_HOST_KEYBOARDLAYOUT		(WM_APP + 30) // introduced in RetroPlatform API 7.1
+#define RP_IPC_TO_HOST_PRIVATE_SHAREDEVENT  (WM_APP + 31) // introduced in RetroPlatform API 7.2
+#define RP_IPC_TO_HOST_PRIVATE_TYPECLIPDONE (WM_APP + 32) // introduced in RetroPlatform API 7.2
+#define RP_IPC_TO_HOST_PRIVATE_KEYEVENT     (WM_APP + 33) // introduced in RetroPlatform API 7.2
+#define RP_IPC_TO_HOST_PRIVATE_GUESTEVENT   (WM_APP + 34) // introduced in RetroPlatform API 7.2
 
 // ****************************************************************************
 //  Host-to-Guest Messages
 // ****************************************************************************
 
-#define RP_IPC_TO_GUEST_CLOSE               (WM_APP + 200)
-#define RP_IPC_TO_GUEST_SCREENMODE          (WM_APP + 202)
-#define RP_IPC_TO_GUEST_PAUSE               (WM_APP + 204)
-#define RP_IPC_TO_GUEST_RESET               (WM_APP + 206)
-#define RP_IPC_TO_GUEST_TURBO               (WM_APP + 207)
-#define RP_IPC_TO_GUEST_PING                (WM_APP + 208)
-#define RP_IPC_TO_GUEST_VOLUME              (WM_APP + 209)
-#define RP_IPC_TO_GUEST_EVENT               (WM_APP + 211)
-#define RP_IPC_TO_GUEST_MOUSECAPTURE        (WM_APP + 212)
-#define RP_IPC_TO_GUEST_SAVESTATE           (WM_APP + 213)
-#define RP_IPC_TO_GUEST_LOADSTATE           (WM_APP + 214)
-#define RP_IPC_TO_GUEST_FLUSH               (WM_APP + 215)
-#define RP_IPC_TO_GUEST_DEVICEREADWRITE     (WM_APP + 216)
-#define RP_IPC_TO_GUEST_QUERYSCREENMODE     (WM_APP + 217)
-#define RP_IPC_TO_GUEST_GUESTAPIVERSION     (WM_APP + 218) // introduced in RetroPlatform API 3.0
-#define RP_IPC_TO_GUEST_DEVICECONTENT       (WM_APP + 219) // extended in RetroPlatform API 3.0
-#define RP_IPC_TO_GUEST_SCREENCAPTURE       (WM_APP + 220) // extended in RetroPlatform API 3.4
-#define	RP_IPC_TO_GUEST_DEVICEACTIVITY      (WM_APP + 221) // introduced in RetroPlatform API 7.1
-#define	RP_IPC_TO_GUEST_SHOWOPTIONS         (WM_APP + 222) // introduced in RetroPlatform API 7.1
+#define RP_IPC_TO_GUEST_CLOSE                (WM_APP + 200)
+#define RP_IPC_TO_GUEST_SCREENMODE           (WM_APP + 202)
+#define RP_IPC_TO_GUEST_PAUSE                (WM_APP + 204)
+#define RP_IPC_TO_GUEST_RESET                (WM_APP + 206)
+#define RP_IPC_TO_GUEST_TURBO                (WM_APP + 207)
+#define RP_IPC_TO_GUEST_PING                 (WM_APP + 208)
+#define RP_IPC_TO_GUEST_VOLUME               (WM_APP + 209)
+#define RP_IPC_TO_GUEST_EVENT                (WM_APP + 211)
+#define RP_IPC_TO_GUEST_MOUSECAPTURE         (WM_APP + 212)
+#define RP_IPC_TO_GUEST_SAVESTATE            (WM_APP + 213)
+#define RP_IPC_TO_GUEST_LOADSTATE            (WM_APP + 214)
+#define RP_IPC_TO_GUEST_FLUSH                (WM_APP + 215)
+#define RP_IPC_TO_GUEST_DEVICEREADWRITE      (WM_APP + 216)
+#define RP_IPC_TO_GUEST_QUERYSCREENMODE      (WM_APP + 217)
+#define RP_IPC_TO_GUEST_GUESTAPIVERSION      (WM_APP + 218) // introduced in RetroPlatform API 3.0
+#define RP_IPC_TO_GUEST_DEVICECONTENT        (WM_APP + 219) // extended in RetroPlatform API 3.0
+#define RP_IPC_TO_GUEST_SCREENCAPTURE        (WM_APP + 220) // extended in RetroPlatform API 3.4
+#define	RP_IPC_TO_GUEST_DEVICEACTIVITY       (WM_APP + 221) // introduced in RetroPlatform API 7.1
+#define	RP_IPC_TO_GUEST_SHOWOPTIONS          (WM_APP + 222) // introduced in RetroPlatform API 7.1
+#define	RP_IPC_TO_GUEST_PRIVATE_STARTUP      (WM_APP + 223) // introduced in RetroPlatform API 7.2
+#define	RP_IPC_TO_GUEST_PRIVATE_TYPECLIP     (WM_APP + 224) // introduced in RetroPlatform API 7.2
+#define	RP_IPC_TO_GUEST_PRIVATE_RELEASEKEYS  (WM_APP + 225) // introduced in RetroPlatform API 7.2
+#define	RP_IPC_TO_GUEST_PRIVATE_CANESCAPE    (WM_APP + 226) // introduced in RetroPlatform API 7.2
+#define	RP_IPC_TO_GUEST_PRIVATE_LOGGING      (WM_APP + 227) // introduced in RetroPlatform API 7.2
+#define	RP_IPC_TO_GUEST_PRIVATE_INPUTDEVICES (WM_APP + 228) // introduced in RetroPlatform API 7.2
 
 // ****************************************************************************
 //  Message Data Structures and Defines
@@ -464,6 +473,23 @@ typedef struct RPScreenCapture
 #define RP_MAKE_HOSTVERSION(major,minor,build) ((LPARAM) (((LPARAM)((major) & 0xFFF)<<20) | ((LPARAM)((minor) & 0x3FF)<<10) | ((LPARAM)((build) & 0x3FF))))
 
 
+// RP_IPC_TO_HOST_PRIVATE_SHAREDEVENT wParam
+#define RP_SHARED_EVENT_ESCAPE				1
+#define	RP_SHARED_EVENT_TURBO				2
+#define	RP_SHARED_EVENT_PAUSE				3
+#define	RP_SHARED_EVENT_SCREENCAPTURECLIP	4
+#define	RP_SHARED_EVENT_SCREENCAPTUREFILE	5
+#define	RP_SHARED_EVENT_PLUGINOPTIONS		6
+// RP_IPC_TO_HOST_PRIVATE_SHAREDEVENT lParam
+#define	RP_SHARED_EVENT_PRESSED			0x0000
+#define	RP_SHARED_EVENT_RELEASED		0x0001
+
+// RP_IPC_TO_GUEST_PRIVATE_TYPECLIP return code
+#define PRIVATETYPECLIP_NOTIMPL		0
+#define PRIVATETYPECLIP_FAILED		1
+#define PRIVATETYPECLIP_SUCCEDED	2
+#define PRIVATETYPECLIP_INPROGRESS	3 // a RP_IPC_TO_HOST_PRIVATE_TYPECLIPDONE will be sent when done
+
 // Legacy Compatibility
 #ifndef RP_NO_LEGACY
 // Changed in 7.0
@@ -512,7 +538,7 @@ typedef struct RPDeviceContent_Legacy
 #define RP_IPD_KEYBDL2   L"KeyboardLayout2" // \0\0-terminated second joystick emulation keyboard layout (e.g. Keyboard Layout B for WinUAE)
 #define RP_IPD_KEYBDL3   L"KeyboardLayout3" // \0\0-terminated third joystick emulation keyboard layout (e.g. Keyboard Layout C for WinUAE)
 // Messages
-#define RPIPCGM_REGISTER RP_IPC_TO_HOST_REGISTER
+#define RPIPCGM_REGISTER RP_IPC_TO_HOST_PRIVATE_REGISTER
 #define RPIPCGM_FEATURES RP_IPC_TO_HOST_FEATURES
 #define RPIPCGM_CLOSED RP_IPC_TO_HOST_CLOSED
 #define RPIPCGM_ACTIVATED RP_IPC_TO_HOST_ACTIVATED
