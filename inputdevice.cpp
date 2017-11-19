@@ -314,6 +314,32 @@ const struct inputevent *inputdevice_get_eventinfo(int evt)
 	return &events[evt];
 }
 
+static uae_u64 inputdevice_flag_to_idev(uae_u64 flag)
+{
+	uae_u64 flags = 0;
+	if (flag & ID_FLAG_AUTOFIRE)
+		flags |= IDEV_MAPPED_AUTOFIRE_SET;
+	if (flag & ID_FLAG_TOGGLE)
+		flags |= IDEV_MAPPED_TOGGLE;
+	if (flag & ID_FLAG_INVERTTOGGLE)
+		flags |= IDEV_MAPPED_INVERTTOGGLE;
+	if (flag & ID_FLAG_INVERT)
+		flags |= IDEV_MAPPED_INVERT;
+	if (flag & ID_FLAG_GAMEPORTSCUSTOM1)
+		flags |= IDEV_MAPPED_GAMEPORTSCUSTOM1;
+	if (flag & ID_FLAG_GAMEPORTSCUSTOM2)
+		flags |= IDEV_MAPPED_GAMEPORTSCUSTOM2;
+	if (flag & ID_FLAG_QUALIFIER_MASK)
+		flags |= flag & ID_FLAG_QUALIFIER_MASK;
+	if (flag & ID_FLAG_SET_ONOFF)
+		flags |= IDEV_MAPPED_SET_ONOFF;
+	if (flag & ID_FLAG_SET_ONOFF_VAL1)
+		flags |= IDEV_MAPPED_SET_ONOFF_VAL1;
+	if (flag & ID_FLAG_SET_ONOFF_VAL2)
+		flags |= IDEV_MAPPED_SET_ONOFF_VAL2;
+	return flags;
+}
+
 static struct uae_input_device *joysticks;
 static struct uae_input_device *mice;
 static struct uae_input_device *keyboards;
@@ -1951,7 +1977,8 @@ void inputdevice_parse_jport_custom(struct uae_prefs *pr, int index, int port, T
 					}
 				} else {
 					if (port >= 0) {
-						inputdevice_set_gameports_mapping(pr, devnum, num, evt, IDEV_MAPPED_GAMEPORTSCUSTOM1 | IDEV_MAPPED_GAMEPORTSCUSTOM2 | flags, port, pr->input_selected_setting);
+						uae_u64 iflags = IDEV_MAPPED_GAMEPORTSCUSTOM1 | IDEV_MAPPED_GAMEPORTSCUSTOM2 | inputdevice_flag_to_idev(flags);
+						inputdevice_set_gameports_mapping(pr, devnum, num, evt, iflags, port, pr->input_selected_setting);
 					}
 					if (evt == INPUTEVENT_JOY1_FIRE_BUTTON || evt == INPUTEVENT_JOY2_FIRE_BUTTON) {
 						if (joystick > 0)
