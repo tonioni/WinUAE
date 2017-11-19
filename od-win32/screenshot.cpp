@@ -401,7 +401,50 @@ donormal:
 		width = WIN32GFX_GetWidth ();
 		height = WIN32GFX_GetHeight ();
 
-		if (D3D_isenabled()) {
+		if (D3D_isenabled() == 2) {
+			int w, h, pitch, bits = 32;
+			void *data;
+			bool got = D3D11_capture(&data, &w, &h, &pitch);
+
+			int dpitch = (((w * depth + 31) & ~31) / 8);
+			lpvBits = xmalloc(uae_u8, dpitch * h);
+
+			ZeroMemory(bi, sizeof(bi));
+			bi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+			bi->bmiHeader.biWidth = w;
+			bi->bmiHeader.biHeight = h;
+			bi->bmiHeader.biPlanes = 1;
+			bi->bmiHeader.biBitCount = depth;
+			bi->bmiHeader.biCompression = BI_RGB;
+			bi->bmiHeader.biSizeImage = dpitch * bi->bmiHeader.biHeight;
+			bi->bmiHeader.biXPelsPerMeter = 0;
+			bi->bmiHeader.biYPelsPerMeter = 0;
+			bi->bmiHeader.biClrUsed = 0;
+			bi->bmiHeader.biClrImportant = 0;
+
+			if (got && lpvBits) {
+				for (int y = 0; y < h; y++) {
+					uae_u8 *d = (uae_u8*)lpvBits + (h - y - 1) * dpitch;
+					uae_u32 *s = (uae_u32*)((uae_u8*)data + y * pitch);
+					for (int x = 0; x < w; x++) {
+						uae_u32 v = *s++;
+						d[0] = v >> 0;
+						d[1] = v >> 8;
+						d[2] = v >> 16;
+						if (depth == 32) {
+							d[3] = v >> 24;
+							d += 4;
+						} else {
+							d += 3;
+						}
+					}
+				}
+			}
+			if (got)
+				D3D11_capture(NULL, NULL, NULL, NULL);
+			d3dcaptured = true;
+
+		} else if (D3D_isenabled() == 1) {
 			int w, h, bits;
 			HRESULT hr;
 			D3DLOCKED_RECT l;

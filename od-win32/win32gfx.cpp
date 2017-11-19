@@ -2092,7 +2092,7 @@ int check_prefs_changed_gfx (void)
 		c |= gf->gfx_filter_vert_zoom_mult != gfc->gfx_filter_vert_zoom_mult ? (1) : 0;
 
 		c |= gf->gfx_filter_filtermode != gfc->gfx_filter_filtermode ? (2|8) : 0;
-		c |= gf->gfx_filter_bilinear != gfc->gfx_filter_bilinear ? (2|8) : 0;
+		c |= gf->gfx_filter_bilinear != gfc->gfx_filter_bilinear ? (2|8|16) : 0;
 		c |= gf->gfx_filter_noise != gfc->gfx_filter_noise ? (1) : 0;
 		c |= gf->gfx_filter_blur != gfc->gfx_filter_blur ? (1) : 0;
 
@@ -3914,6 +3914,9 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	bool remembered = false;
 	bool lace = false;
 
+	if (currprefs.gfx_api == 2)
+		goto fail;
+
 	if (picasso_on) {
 		width = picasso96_state.Width;
 		height = picasso96_state.Height;
@@ -4648,15 +4651,22 @@ static BOOL doInit (void)
 	if (currentmode->flags & DM_D3D) {
 		const TCHAR *err = D3D_init (hAmigaWnd, currentmode->native_width, currentmode->native_height, currentmode->current_depth, &currentmode->freq, screen_is_picasso ? 1 : currprefs.gf[picasso_on].gfx_filter_filtermode + 1);
 		if (err) {
-			D3D_free (true);
-			gui_message (err);
-			changed_prefs.gfx_api = currprefs.gfx_api = 0;
-			changed_prefs.gf[picasso_on].gfx_filter = currprefs.gf[picasso_on].gfx_filter = 0;
-			currentmode->current_depth = currentmode->native_depth;
-			gfxmode_reset ();
-			DirectDraw_Start ();
-			ret = -1;
-			goto oops;
+			if (currprefs.gfx_api == 2) {
+				D3D_free(true);
+				changed_prefs.gfx_api = currprefs.gfx_api = 1;
+				err = D3D_init(hAmigaWnd, currentmode->native_width, currentmode->native_height, currentmode->current_depth, &currentmode->freq, screen_is_picasso ? 1 : currprefs.gf[picasso_on].gfx_filter_filtermode + 1);
+			}
+			if (err) {
+				D3D_free(true);
+				gui_message(err);
+				changed_prefs.gfx_api = currprefs.gfx_api = 0;
+				changed_prefs.gf[picasso_on].gfx_filter = currprefs.gf[picasso_on].gfx_filter = 0;
+				currentmode->current_depth = currentmode->native_depth;
+				gfxmode_reset();
+				DirectDraw_Start();
+				ret = -1;
+				goto oops;
+			}
 		}
 		target_graphics_buffer_update ();
 		updatewinrect (true);

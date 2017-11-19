@@ -9,7 +9,7 @@ extern void(*D3D_showframe_special)(int);
 extern uae_u8* (*D3D_locktexture)(int*, int*, bool);
 extern void(*D3D_unlocktexture)(void);
 extern void(*D3D_flushtexture)(int miny, int maxy);
-extern void(*D3D_guimode)(bool);
+extern void(*D3D_guimode)(int);
 extern HDC(*D3D_getDC)(HDC hdc);
 extern int(*D3D_isenabled)(void);
 extern void(*D3D_clear)(void);
@@ -21,9 +21,11 @@ extern double(*D3D_getrefreshrate)(void);
 extern void(*D3D_vblank_reset)(double freq);
 extern void(*D3D_restore)(void); 
 extern void(*D3D_resize)(int);
+extern void(*D3D_change)(int);
 
 extern LPDIRECT3DSURFACE9 D3D_capture(int*,int*,int*);
 extern LPDIRECT3DTEXTURE9 D3D_getcursorsurface(void);
+extern bool D3D11_capture(void**,int*, int*,int*);
 
 void D3D_getpixelformat(int depth, int *rb, int *gb, int *bb, int *rs, int *gs, int *bs, int *ab, int *as, int *a);
 

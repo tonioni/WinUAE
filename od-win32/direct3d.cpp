@@ -3553,10 +3553,13 @@ static double xD3D_getrefreshrate (void)
 	return dmode.RefreshRate;
 }
 
-static void xD3D_guimode (bool guion)
+static void xD3D_guimode (int guion)
 {
 	struct d3dstruct *d3d = &d3ddata[0];
 	HRESULT hr;
+
+	if (guion != 0 && guion != 1)
+		return;
 
 	waitfakemode (d3d);
 	if (!isd3d (d3d))
@@ -3627,11 +3630,13 @@ static HDC xD3D_getDC (HDC hdc)
 static int xD3D_isenabled(void)
 {
 	struct d3dstruct *d3d = &d3ddata[0];
-	return d3d->d3d_enabled;
+	return d3d->d3d_enabled ? 1 : 0;
 }
 
 LPDIRECT3DTEXTURE9 D3D_getcursorsurface(void)
 {
+	if (currprefs.gfx_api == 2)
+		return NULL;
 	struct d3dstruct *d3d = &d3ddata[0];
 	return d3d->cursorsurfaced3d;
 }
@@ -3660,6 +3665,7 @@ void d3d9_select(void)
 	D3D_vblank_reset = xD3D_vblank_reset;
 	D3D_restore = xD3D_restore;
 	D3D_resize = NULL;
+	D3D_change = NULL;
 }
 
 #endif

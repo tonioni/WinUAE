@@ -784,11 +784,12 @@ bool S2X_init (int dw, int dh, int dd)
 	amiga_height2 = vb->outheight;
 	amiga_depth2 = vb->pixbytes * 8;
 
-
 	S2X_free ();
 	d3d = currprefs.gfx_api;
-	changed_prefs.leds_on_screen |= STATUSLINE_TARGET;
-	currprefs.leds_on_screen |= STATUSLINE_TARGET;
+	if (d3d < 2) {
+		changed_prefs.leds_on_screen |= STATUSLINE_TARGET;
+		currprefs.leds_on_screen |= STATUSLINE_TARGET;
+	}
 
 	if (d3d)
 		dd = amiga_depth2;

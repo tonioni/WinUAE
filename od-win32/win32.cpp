@@ -530,7 +530,12 @@ void setminimized (void)
 	if (!minimized)
 		minimized = 1;
 	set_inhibit_frame (IHF_WINDOWHIDDEN);
+	if (isfullscreen() > 0 && D3D_resize) {
+		write_log(_T("setminimized\n"));
+		D3D_resize(-1);
+	}
 }
+
 void unsetminimized (void)
 {
 	if (minimized < 0)
@@ -1575,17 +1580,23 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			setminimized ();
 			winuae_inactive (hWnd, minimized);
 		}
-		if (D3D_resize)
+		if (D3D_resize)  {
+			if (isfullscreen() > 0 && wParam == SIZE_RESTORED) {
+				write_log(_T("WM_SIZE restored\n"));
+				D3D_resize(1);
+			}
+			write_log(_T("WM_SIZE\n"));
 			D3D_resize(0);
+		}
 		break;
 	case WM_ACTIVATE:
 		//write_log (_T("active %d\n"), LOWORD(wParam));
-		if (LOWORD (wParam) == WA_INACTIVE) {
-			if (HIWORD (wParam))
-				setminimized ();
+		if (LOWORD(wParam) == WA_INACTIVE) {
+			if (HIWORD(wParam))
+				setminimized();
 			else
-				unsetminimized ();
-			winuae_inactive (hWnd, minimized);
+				unsetminimized();
+			winuae_inactive(hWnd, minimized);
 		}
 		dx_check ();
 		break;
@@ -1595,9 +1606,11 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		break;
 	case WM_ACTIVATEAPP:
 		D3D_restore ();
-		if (!wParam && isfullscreen() > 0 && D3D_resize) {
+		if (!wParam && isfullscreen() > 0 && D3D_resize && !gui_active) {
+			write_log(_T("WM_ACTIVATEAPP inactive %p\n"), hWnd);
 			D3D_resize(-1);
-		} else if (wParam && isfullscreen() > 0 && D3D_resize) {
+		} else if (wParam && isfullscreen() > 0 && D3D_resize && !gui_active) {
+			write_log(_T("WM_ACTIVATEAPP active %p\n"), hWnd);
 			D3D_resize(1);
 		}
 		if (!wParam && isfullscreen() <= 0 && currprefs.win32_minimize_inactive) {
@@ -5153,7 +5166,7 @@ static int betamessage (void)
 	return 1;
 }
 
-int os_admin, os_64bit, os_win7, os_vista, cpu_number, os_touch;
+int os_admin, os_64bit, os_win7, os_win8, os_vista, cpu_number, os_touch;
 BOOL os_dwm_enabled;
 
 static int isadminpriv (void)
@@ -5235,6 +5248,8 @@ static int osdetect (void)
 			os_vista = 1;
 		if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 1))
 			os_win7 = 1;
+		if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 2))
+			os_win8 = 1;
 		if (SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
 			os_64bit = 1;
 	}
@@ -5286,7 +5301,8 @@ void create_afnewdir (int remove)
 		_tcscpy (tmp, tmp2);
 		_tcscat (tmp, _T("\\WinUAE"));
 		if (remove) {
-			if (GetFileAttributes (tmp) != INVALID_FILE_ATTRIBUTES) {
+			DWORD attrs = GetFileAttributes(tmp);
+			if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY) && !(attrs & FILE_ATTRIBUTE_REPARSE_POINT)) {
 				RemoveDirectory (tmp);
 				RemoveDirectory (tmp2);
 			}
