@@ -4654,6 +4654,7 @@ static BOOL doInit (void)
 			if (currprefs.gfx_api == 2) {
 				D3D_free(true);
 				changed_prefs.gfx_api = currprefs.gfx_api = 1;
+				d3d_select(&currprefs);
 				err = D3D_init(hAmigaWnd, currentmode->native_width, currentmode->native_height, currentmode->current_depth, &currentmode->freq, screen_is_picasso ? 1 : currprefs.gf[picasso_on].gfx_filter_filtermode + 1);
 			}
 			if (err) {

@@ -3288,9 +3288,12 @@ static void D3D_render2 (struct d3dstruct *d3d)
 		write_log (_T("%s: EndScene() %s\n"), D3DHEAD, D3D_ErrorString (hr));
 }
 
-static void xD3D_setcursor (int x, int y, int width, int height, bool visible, bool noscale)
+static bool xD3D_setcursor (int x, int y, int width, int height, bool visible, bool noscale)
 {
 	struct d3dstruct *d3d = &d3ddata[0];
+
+	if (width < 0 || height < 0)
+		return true;
 
 	if (width && height) {
 		d3d->cursor_offset2_x = d3d->cursor_offset_x * d3d->window_w / width;
@@ -3303,6 +3306,7 @@ static void xD3D_setcursor (int x, int y, int width, int height, bool visible, b
 	}
 	d3d->cursor_scale = !noscale;
 	d3d->cursor_v = visible;
+	return true;
 }
 
 static void xD3D_unlocktexture (void)

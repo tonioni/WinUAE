@@ -2418,7 +2418,7 @@ static void inituaegfx(TrapContext *ctx, uaecptr ABI)
 	}
 	flags |= BIF_NOMEMORYMODEMIX;
 	flags &= ~BIF_HARDWARESPRITE;
-	if (currprefs.gfx_api && D3D_goodenough () > 0 && USE_HARDWARESPRITE && currprefs.rtg_hardwaresprite) {
+	if (currprefs.gfx_api && D3D_goodenough () > 0 && D3D_setcursor(-1, -1, -1, -1, false, false) && USE_HARDWARESPRITE && currprefs.rtg_hardwaresprite) {
 		hwsprite = 1;
 		flags |= BIF_HARDWARESPRITE;
 		write_log (_T("P96: Hardware sprite support enabled\n"));

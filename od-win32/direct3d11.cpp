@@ -42,7 +42,7 @@ int (*D3D_isenabled)(void);
 void (*D3D_clear)(void);
 int (*D3D_canshaders)(void);
 int (*D3D_goodenough)(void);
-void (*D3D_setcursor)(int x, int y, int width, int height, bool visible, bool noscale);
+bool (*D3D_setcursor)(int x, int y, int width, int height, bool visible, bool noscale);
 bool (*D3D_getvblankpos)(int *vpos);
 double (*D3D_getrefreshrate)(void);
 void (*D3D_vblank_reset)(double freq);
@@ -371,8 +371,8 @@ static void setupscenecoords(struct d3d11struct *d3d)
 	float sw = dw / d3d->m_screenWidth;
 	float sh = dh / d3d->m_screenHeight;
 
-	int xshift = -zr.left - sr.left; // - (tin_w - 2 * zr.left - w),
-	int yshift = +zr.top + sr.top - (d3d->m_bitmapHeight - h);
+	int xshift = -zr.left - sr.left;
+	int yshift = -zr.top - sr.top;
 
 	xshift -= ((sr.right - sr.left) - d3d->m_screenWidth) / 2;
 	yshift -= ((sr.bottom - sr.top) - d3d->m_screenHeight) / 2;
@@ -1506,6 +1506,7 @@ static void setswapchainmode(struct d3d11struct *d3d, int fs)
 	}
 
 	d3d->fsSwapChainDesc.Windowed = TRUE;
+	//d3d->swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE;
 }
 
 bool can_D3D11(bool checkdevice)
@@ -1573,6 +1574,9 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 	filterd3didx = picasso_on;
 	filterd3d = &currprefs.gf[filterd3didx];
 
+	if (depth != 32 && depth != 16)
+		return false;
+
 	if (!can_D3D11(false))
 		return false;
 
@@ -1581,7 +1585,7 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 	d3d->m_screenWidth = w_w;
 	d3d->m_screenHeight = w_h;
 	d3d->ahwnd = ahwnd;
-	d3d->format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	d3d->format = depth == 32 ? DXGI_FORMAT_B8G8R8A8_UNORM : DXGI_FORMAT_B5G6R5_UNORM;
 
 	struct MultiDisplay *md = getdisplay(&currprefs);
 	POINT pt;
@@ -1745,7 +1749,6 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 	adapter->Release();
 	adapter = 0;
 
-
 	static const D3D_FEATURE_LEVEL levels1[] = { D3D_FEATURE_LEVEL_11_1 };
 	UINT cdflags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 #ifdef _DEBUG
@@ -1821,9 +1824,14 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 		return false;
 	}
 
-	result = factory2->MakeWindowAssociation(ahwnd, DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER | DXGI_MWA_NO_PRINT_SCREEN);
-	if (FAILED(result)) {
-		write_log(_T("IDXGIFactory2 MakeWindowAssociation %08x\n"), result);
+	IDXGIFactory1 *pFactory = NULL;
+	result = d3d->m_swapChain->GetParent(__uuidof (IDXGIFactory1), (void **)&pFactory);
+	if (SUCCEEDED(result)) {
+		result = pFactory->MakeWindowAssociation(ahwnd, DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER | DXGI_MWA_NO_PRINT_SCREEN);
+		if (FAILED(result)) {
+			write_log(_T("IDXGIFactory2 MakeWindowAssociation %08x\n"), result);
+		}
+		pFactory->Release();
 	}
 
 	d3d->invalidmode = false;
@@ -2386,6 +2394,15 @@ static void xD3D11_resize(int activate)
 		return;
 	}
 
+	if (d3d->m_swapChain && quit_program) {
+		d3d->m_swapChain->SetFullscreenState(FALSE, NULL);
+		FreeTexture(d3d);
+		d3d->fsmode = 0;
+		d3d->invalidmode = true;
+		d3d->fsmodechange = 0;
+		return;
+	}
+
 	if (recursive)
 		return;
 	recursive++;
@@ -2509,6 +2526,11 @@ bool D3D11_capture(void **data, int *w, int *h, int *pitch)
 	}
 }
 
+static bool xD3D_setcursor(int x, int y, int width, int height, bool visible, bool noscale)
+{
+	return false;
+}
+
 void d3d11_select(void)
 {
 	D3D_free = xD3D11_free;
@@ -2530,7 +2552,7 @@ void d3d11_select(void)
 	D3D_clear = xD3D11_clear;
 	D3D_canshaders = xD3D11_canshaders;
 	D3D_goodenough = xD3D11_goodenough;
-	D3D_setcursor = NULL;
+	D3D_setcursor = xD3D_setcursor;
 	D3D_getvblankpos = xD3D_getvblankpos;
 	D3D_getrefreshrate = NULL;
 	D3D_vblank_reset = xD3D11_vblank_reset;
