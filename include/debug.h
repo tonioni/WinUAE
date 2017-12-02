@@ -15,7 +15,7 @@
 #ifdef DEBUGGER
 
 #define	MAX_HIST 500
-#define MAX_LINEWIDTH 100
+#define MAX_LINEWIDTH 150
 
 extern int debugging;
 extern int memwatch_enabled;

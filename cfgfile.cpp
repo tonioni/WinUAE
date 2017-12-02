@@ -2158,6 +2158,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool(f, _T("z3_autoconfig"), p->cs_z3autoconfig);
 	cfgfile_dwrite_bool(f, _T("1mchipjumper"), p->cs_1mchipjumper);
 	cfgfile_dwrite_bool(f, _T("color_burst"), p->cs_color_burst);
+	cfgfile_dwrite_bool(f, _T("toshiba_gary"), p->cs_toshibagary);
+	cfgfile_dwrite_bool(f, _T("rom_is_slow"), p->cs_romisslow);
 	cfgfile_dwrite_str(f, _T("unmapped_address_space"), unmapped[p->cs_unmapped_space]);
 	cfgfile_dwrite (f, _T("chipset_hacks"), _T("0x%x"), p->cs_hacks);
 
@@ -3970,6 +3972,8 @@ struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, s
 		} else if (ci->type == UAEDEV_TAPE) {
 			if (ci->controller_type == HD_CONTROLLER_TYPE_UAE)
 				break;
+			if (ci->controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && ci->controller_type <= HD_CONTROLLER_TYPE_IDE_LAST)
+				break;
 			if (ci->controller_type >= HD_CONTROLLER_TYPE_SCSI_FIRST && ci->controller_type <= HD_CONTROLLER_TYPE_SCSI_LAST)
 				break;
 		} else {
@@ -5030,6 +5034,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("ics_agnus"), &p->cs_dipagnus)
 		|| cfgfile_yesno(option, value, _T("z3_autoconfig"), &p->cs_z3autoconfig)
 		|| cfgfile_yesno(option, value, _T("color_burst"), &p->cs_color_burst)
+		|| cfgfile_yesno(option, value, _T("toshiba_gary"), &p->cs_toshibagary)
+		|| cfgfile_yesno(option, value, _T("rom_is_slow"), &p->cs_romisslow)
 		|| cfgfile_yesno(option, value, _T("1mchipjumper"), &p->cs_1mchipjumper)
 		|| cfgfile_yesno(option, value, _T("agnus_bltbusybug"), &p->cs_agnusbltbusybug)
 		|| cfgfile_yesno(option, value, _T("gfxcard_hardware_vblank"), &p->rtg_hardwareinterrupt)
@@ -6073,11 +6079,55 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 			if (real) {
 				cfgfile_parse_separated_line (p, line1b, line2b, askedtype);
 			} else {
+				// metadata
 				cfgfile_string (line1b, line2b, _T("config_description"), p->description, sizeof p->description / sizeof (TCHAR));
 				cfgfile_path (line1b, line2b, _T("config_hardware_path"), p->config_hardware_path, sizeof p->config_hardware_path / sizeof (TCHAR));
 				cfgfile_path (line1b, line2b, _T("config_host_path"), p->config_host_path, sizeof p->config_host_path / sizeof(TCHAR));
 				cfgfile_path (line1b, line2b, _T("config_all_path"), p->config_all_path, sizeof p->config_all_path / sizeof(TCHAR));
 				cfgfile_string (line1b, line2b, _T("config_window_title"), p->config_window_title, sizeof p->config_window_title / sizeof (TCHAR));
+				// boxart checks
+				cfgfile_path(line1b, line2b, _T("floppy0"), p->floppyslots[0].df, sizeof p->floppyslots[0].df / sizeof(TCHAR));
+				TCHAR tmp[MAX_DPATH];
+				if (!p->mountitems && (cfgfile_string(line1b, line2b, _T("hardfile2"), tmp, sizeof tmp / sizeof(TCHAR)) || cfgfile_string(line1b, line2b, _T("filesystem2"), tmp, sizeof tmp / sizeof(TCHAR)))) {
+					const TCHAR *s = _tcschr(tmp, ':');
+					if (s) {
+						if (!_tcscmp(line1b, _T("filesystem2"))) {
+							s++;
+							s = _tcschr(s, ':');
+						}
+						if (s) {
+							s++;
+							bool quoted = false;
+							if (s[0] == '"') {
+								s++;
+								quoted = true;
+							}
+							const TCHAR *se = _tcschr(s, quoted ? '"' : ',');
+							if (se) {
+								tmp[se - tmp] = 0;
+								_tcscpy(p->mountconfig[0].ci.rootdir, s);
+								cfgfile_adjust_path(p->mountconfig[0].ci.rootdir, MAX_DPATH, NULL);
+								p->mountitems = 1;
+							}
+						}
+					}
+				}
+				if (!p->cdslots[0].inuse && cfgfile_path(line1b, line2b, _T("cdimage0"), tmp, sizeof tmp / sizeof(TCHAR))) {
+					TCHAR *s = tmp;
+					if (s[0] == '"') {
+						s++;
+						const TCHAR *se = _tcschr(s, '"');
+						if (se)
+							tmp[se - tmp] = 0;
+					} else {
+						const TCHAR *se = _tcschr(s, ',');
+						if (se)
+							tmp[se - tmp] = 0;
+					}
+					cfgfile_adjust_path(s, MAX_DPATH, NULL);
+					_tcscpy(p->cdslots[0].name, s);
+					p->cdslots[0].inuse = 1;
+				}
 			}
 		}
 	}
@@ -6182,25 +6232,82 @@ int cfgfile_save (struct uae_prefs *p, const TCHAR *filename, int type)
 	return 1;
 }
 
-int cfgfile_get_description (const TCHAR *filename, TCHAR *description, TCHAR *hostlink, TCHAR *hardwarelink, int *type)
+struct uae_prefs *cfgfile_open(const TCHAR *filename, int *type)
 {
-	int result = 0;
-	struct uae_prefs *p = xmalloc (struct uae_prefs, 1);
+	struct uae_prefs *p = xcalloc(struct uae_prefs, 1);
+	if (cfgfile_load_2(p, filename, false, type))
+		return p;
+	xfree(p);
+	return NULL;
+}
 
+void cfgfile_close(struct uae_prefs *p)
+{
+	xfree(p);
+}
+
+int cfgfile_get_description (struct uae_prefs *p, const TCHAR *filename, TCHAR *description, TCHAR *hostlink, TCHAR *hardwarelink, int *type)
+{
+	bool alloc = false;
+
+	if (!p) {
+		p = xmalloc(struct uae_prefs, 1);
+		alloc = true;
+	}
 	p->description[0] = 0;
 	p->config_host_path[0] = 0;
 	p->config_hardware_path[0] = 0;
-	if (cfgfile_load_2 (p, filename, 0, type)) {
-		result = 1;
-		if (description)
-			_tcscpy (description, p->description);
-		if (hostlink)
-			_tcscpy (hostlink, p->config_host_path);
-		if (hardwarelink)
-			_tcscpy (hardwarelink, p->config_hardware_path);
+	if (!p) {
+		alloc = true;
+		p = cfgfile_open(filename, type);
 	}
-	xfree (p);
-	return result;
+	if (!p)
+		return 0;
+	if (description)
+		_tcscpy (description, p->description);
+	if (hostlink)
+		_tcscpy (hostlink, p->config_host_path);
+	if (hardwarelink)
+		_tcscpy (hardwarelink, p->config_hardware_path);
+	if (alloc) {
+		cfgfile_close(p);
+	}
+	return 1;
+}
+
+bool cfgfile_detect_art_path(const TCHAR *path, TCHAR *outpath)
+{
+	TCHAR tmp[MAX_DPATH];
+	const TCHAR *p;
+	if (!path[0])
+		return false;
+	write_log(_T("Possible boxart path: '%s'\n"), path);
+	_tcscpy(tmp, path);
+	p = _tcsrchr(tmp, '\\');
+	if (!p)
+		p = _tcsrchr(tmp, '/');
+	if (!p)
+		return false;
+	tmp[p - tmp] = 0;
+	_tcscat(tmp, FSDB_DIR_SEPARATOR_S);
+	_tcscat(tmp, _T("___Title.png"));
+	if (!zfile_exists(tmp))
+		return false;
+	tmp[p - tmp + 1] = 0;
+	_tcscpy(outpath, tmp);
+	write_log(_T("Detected!\n"));
+	return true;
+}
+
+bool cfgfile_detect_art(struct uae_prefs *p, TCHAR *path)
+{
+	if (cfgfile_detect_art_path(p->floppyslots[0].df, path))
+		return true;
+	if (p->mountitems > 0 && cfgfile_detect_art_path(p->mountconfig[0].ci.rootdir, path))
+		return true;
+	if (p->cdslots[0].inuse && cfgfile_detect_art_path(p->cdslots[0].name, path))
+		return true;
+	return false;
 }
 
 int cfgfile_configuration_change (int v)

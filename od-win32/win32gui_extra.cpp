@@ -11,6 +11,7 @@
 #include "win32.h"
 #include "win32gui.h"
 #include "xwin.h"
+#include "zfile.h"
 
 #define MAX_GUI_FONTS 2
 #define DEFAULT_FONTSIZE  8
@@ -35,6 +36,13 @@ static int setparam_id[16];
 static HFONT listviewfont;
 static TEXTMETRIC listview_tm;
 static const TCHAR *fontprefix;
+
+#define BASEMULT 1000
+static int baseunitx, baseunity;
+static RECT baserect, baseclientrect;
+static int baseborderwidth, baseborderheight;
+static int basewidth, baseheight;
+static int baseclientwidth, baseclientheight;
 
 #include <pshpack2.h>
 typedef struct {
@@ -216,8 +224,10 @@ static INT_PTR CALLBACK DummyProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 
 extern int full_property_sheet;
 
-static struct newresource *scaleresource2 (struct newresource *res, HWND parent, int resize, int fullscreen, DWORD exstyle)
+static struct newresource *scaleresource2 (struct newresource *res, HWND parent, int resize, int fullscreen, DWORD exstyle, bool main)
 {
+	static int main_width, main_height;
+
 	DLGTEMPLATEEX *d, *s;
 	DLGTEMPLATEEX_END *d2, *s2;
 	DLGITEMTEMPLATEEX *dt;
@@ -314,9 +324,9 @@ static struct newresource *scaleresource2 (struct newresource *res, HWND parent,
 	return ns;
 }
 
-struct newresource *scaleresource (struct newresource *res, HWND parent, int resize, int fullscreen, DWORD exstyle)
+struct newresource *scaleresource (struct newresource *res, HWND parent, int resize, int fullscreen, DWORD exstyle, bool main)
 {
-	return scaleresource2(res, parent, resize, fullscreen, exstyle);
+	return scaleresource2(res, parent, resize, fullscreen, exstyle, main);
 }
 
 void freescaleresource (struct newresource *ns)
@@ -462,13 +472,6 @@ void scaleresource_setdefaults (void)
 	openfont (true);
 }
 
-#define BASEMULT 1000
-static int baseunitx, baseunity;
-static RECT baserect, baseclientrect;
-static int baseborderwidth, baseborderheight;
-static int basewidth, baseheight;
-static int baseclientwidth, baseclientheight;
-
 static INT_PTR CALLBACK TestProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	if (msg == WM_INITDIALOG) {
@@ -498,7 +501,7 @@ static void getbaseunits (int fullscreen)
 		write_log (_T("getbaseunits fail!\n"));
 		abort();
 	}
-	nr2 = scaleresource2(nr, NULL, -1, 0, 0);
+	nr2 = scaleresource2(nr, NULL, -1, 0, 0, false);
 	hwnd = CreateDialogIndirect (nr2->inst, nr2->resource, NULL, TestProc);
 	if (hwnd) {
 		DestroyWindow (hwnd);
@@ -685,7 +688,57 @@ int scaleresource_choosefont (HWND hDlg, int fonttype)
 
 	openfont (true);
 
-
 	return 1;
 }
 
+#include <gdiplus.h> 
+
+static bool boxart_inited;
+static ULONG_PTR gdiplusToken;
+
+static void boxart_init(void)
+{
+	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+	Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+}
+
+static const TCHAR *boxartnames[] = {
+	_T("Boxart"),
+	_T("SShot"),
+	_T("Title"),
+	NULL
+};
+
+bool show_box_art(const TCHAR *path)
+{
+	TCHAR tmp1[MAX_DPATH];
+
+	if (!path || !artcache)
+		return false;
+	if (!boxart_inited) {
+		boxart_init();
+		boxart_inited = true;
+	}
+
+	write_log(_T("Box art path '%s'\n"), path);
+	for (int i = 0; boxartnames[i]; i++) {
+		_tcscpy(tmp1, path);
+		_tcscat(tmp1, _T("___"));
+		_tcscat(tmp1, boxartnames[i]);
+		_tcscat(tmp1, _T(".png"));
+
+		Gdiplus::Image *image = Gdiplus::Image::FromFile(tmp1);
+		// above returns out of memory if file does not exist!
+		if (image->GetLastStatus() != Gdiplus::Ok) {
+			_tcscpy(tmp1 + _tcslen(tmp1) - 3, _T("jpg"));
+			image = Gdiplus::Image::FromFile(tmp1);
+		}
+		if (image->GetLastStatus() == Gdiplus::Ok) {
+			int w = image->GetWidth();
+			int h = image->GetHeight();
+			write_log(_T("Image '%s' loaded %d*%d\n"), tmp1, w, h);
+		}
+		delete image;
+	}
+	return true;
+}

@@ -33,7 +33,7 @@ struct newresource
 
 extern struct uae_prefs workprefs;
 
-extern struct newresource *scaleresource (struct newresource *res, HWND, int, int, DWORD);
+extern struct newresource *scaleresource (struct newresource *res, HWND, int, int, DWORD, bool);
 extern void freescaleresource (struct newresource*);
 extern void scaleresource_setmult (HWND hDlg, int w, int h, int fs);
 extern void scaleresource_getmult (int *mx, int *my);
@@ -48,4 +48,5 @@ extern void scaleresource_setfont (HWND hDlg);
 extern void scaleresource_getdpimult (double*, double*, int*, int*);
 extern void scalaresource_listview_font_info(int*);
 extern int getscaledfontsize(int size);
+extern bool show_box_art(const TCHAR*);
 #endif

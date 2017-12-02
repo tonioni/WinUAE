@@ -2972,27 +2972,34 @@ void DISK_select (uae_u8 data)
 
 	if (disk_debug_logging > 2) {
 		if (velvet) {
-			write_log (_T(" %d%d "), (selected & 1) ? 0 : 1, (selected & 2) ? 0 : 1);
+			write_log (_T(" %d%d"), (selected & 1) ? 0 : 1, (selected & 2) ? 0 : 1);
 			if ((prev_data & 0x08) != (data & 0x08))
-				write_log (_T(" dsksel0 %d "), (data & 0x08) ? 0 : 1);
+				write_log (_T(" dsksel0>%d"), (data & 0x08) ? 0 : 1);
 			if ((prev_data & 0x10) != (data & 0x10))
-				write_log (_T(" dsksel1 %d "), (data & 0x10) ? 0 : 1);
+				write_log (_T(" dsksel1>%d"), (data & 0x10) ? 0 : 1);
 			if ((prev_data & 0x20) != (data & 0x20))
-				write_log (_T(" dskmotor0 %d "), (data & 0x20) ? 0 : 1);
+				write_log (_T(" dskmotor0>%d"), (data & 0x20) ? 0 : 1);
 			if ((prev_data & 0x40) != (data & 0x40))
-				write_log (_T(" dskmotor1 %d "), (data & 0x40) ? 0 : 1);
+				write_log (_T(" dskmotor1>%d"), (data & 0x40) ? 0 : 1);
 			if ((prev_data & 0x02) != (data & 0x02))
-				write_log (_T(" direct %d "), (data & 0x02) ? 1 : 0);
+				write_log (_T(" direct>%d"), (data & 0x02) ? 1 : 0);
 			if ((prev_data & 0x04) != (data & 0x04))
-				write_log (_T(" side %d "), (data & 0x04) ? 1 : 0);
+				write_log (_T(" side>%d"), (data & 0x04) ? 1 : 0);
 		} else {
-			write_log (_T(" %d%d%d%d "), (selected & 1) ? 0 : 1, (selected & 2) ? 0 : 1, (selected & 4) ? 0 : 1, (selected & 8) ? 0 : 1);
+			write_log (_T(" %d%d%d%d"), (selected & 1) ? 0 : 1, (selected & 2) ? 0 : 1, (selected & 4) ? 0 : 1, (selected & 8) ? 0 : 1);
+			for (int i = 0; i < 4; i++) {
+				int im = 1 << i;
+				if ((selected & im) && !(prev_selected & im))
+					write_log(_T(" sel%d>0"), i);
+				if (!(selected & im) && (prev_selected & im))
+					write_log(_T(" sel%d>1"), i);
+			}
 			if ((prev_data & 0x80) != (data & 0x80))
-				write_log (_T(" dskmotor %d "), (data & 0x80) ? 1 : 0);
+				write_log (_T(" dskmotor>%d"), (data & 0x80) ? 1 : 0);
 			if ((prev_data & 0x02) != (data & 0x02))
-				write_log (_T(" direct %d "), (data & 0x02) ? 1 : 0);
+				write_log (_T(" direct>%d"), (data & 0x02) ? 1 : 0);
 			if ((prev_data & 0x04) != (data & 0x04))
-				write_log (_T(" side %d "), (data & 0x04) ? 1 : 0);
+				write_log (_T(" side>%d"), (data & 0x04) ? 1 : 0);
 		}
 	}
 

@@ -212,7 +212,7 @@ TCHAR bootlogpath[MAX_DPATH];
 TCHAR logpath[MAX_DPATH];
 bool winuaelog_temporary_enable;
 int af_path_2005;
-int quickstart = 1, configurationcache = 1, relativepaths = 0;
+int quickstart = 1, configurationcache = 1, relativepaths = 0, artcache = 0;
 int saveimageoriginalpath = 0;
 int recursiveromscan = 0;
 
@@ -5036,6 +5036,11 @@ static void WIN32_HandleRegistryStuff (void)
 		regqueryint (NULL, _T("ConfigurationCache"), &configurationcache);
 	else
 		regsetint (NULL, _T("ConfigurationCache"), configurationcache);
+
+	if (regexists(NULL, _T("ArtCache")))
+		regqueryint(NULL, _T("ArtCache"), &artcache);
+	else
+		regsetint(NULL, _T("ArtCache"), artcache);
 
 	if (regexists (NULL, _T("SaveImageOriginalPath")))
 		regqueryint (NULL, _T("SaveImageOriginalPath"), &saveimageoriginalpath);

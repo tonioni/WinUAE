@@ -357,18 +357,20 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;libpng16.lib;lglcd.lib;openal32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;lzmalib.lib;prowizard.lib;libFLAC_static.lib;hid.lib;zlibstat.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff.lib;softfloat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;libpng16.lib;lglcd.lib;openal32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;lzmalib.lib;prowizard.lib;libFLAC_static.lib;hid.lib;zlibstat.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff.lib;softfloat.lib;gdiplus.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <AdditionalManifestDependencies>%(AdditionalManifestDependencies)</AdditionalManifestDependencies>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;ddraw.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;ddraw.dll;Iphlpapi.dll;gdiplus.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\Release/winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
-      <StackReserveSize>2621440</StackReserveSize>
-      <StackCommitSize>2621440</StackCommitSize>
+      <StackReserveSize>
+      </StackReserveSize>
+      <StackCommitSize>
+      </StackCommitSize>
       <LargeAddressAware>true</LargeAddressAware>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -436,7 +438,7 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;libpng16.lib;lglcd.lib;openal32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;lzmalib.lib;prowizard.lib;libFLAC_static.lib;hid.lib;zlibstat.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff.lib;softfloat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;libpng16.lib;lglcd.lib;openal32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;lzmalib.lib;prowizard.lib;libFLAC_static.lib;hid.lib;zlibstat.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff.lib;softfloat.lib;gdiplus.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
@@ -446,8 +448,10 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\Test/winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
-      <StackReserveSize>2621440</StackReserveSize>
-      <StackCommitSize>2621440</StackCommitSize>
+      <StackReserveSize>
+      </StackReserveSize>
+      <StackCommitSize>
+      </StackCommitSize>
       <LargeAddressAware>true</LargeAddressAware>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -514,7 +518,7 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;openal32.lib;libpng16.lib;lglcd.lib;wtsapi32.lib;enet_x64.lib;prowizard_x64.lib;lzmalib.lib;libFLAC_static.lib;hid.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff.lib;softfloat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;openal32.lib;libpng16.lib;lglcd.lib;wtsapi32.lib;enet_x64.lib;prowizard_x64.lib;lzmalib.lib;libFLAC_static.lib;hid.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff.lib;softfloat.lib;gdiplus.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -524,8 +528,10 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(Platform)\$(Configuration)\winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
-      <StackReserveSize>0</StackReserveSize>
-      <StackCommitSize>0</StackCommitSize>
+      <StackReserveSize>
+      </StackReserveSize>
+      <StackCommitSize>
+      </StackCommitSize>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <LinkTimeCodeGeneration>
@@ -598,8 +604,10 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(Platform)\$(Configuration)\winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
-      <StackReserveSize>0</StackReserveSize>
-      <StackCommitSize>0</StackCommitSize>
+      <StackReserveSize>
+      </StackReserveSize>
+      <StackCommitSize>
+      </StackCommitSize>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <LinkTimeCodeGeneration>
@@ -662,18 +670,20 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;libpng16.lib;lglcd.lib;openal32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;prowizard.lib;lzmalib.lib;libFLAC_static.lib;hid.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff.lib;softfloat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;libpng16.lib;lglcd.lib;openal32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;prowizard.lib;lzmalib.lib;libFLAC_static.lib;hid.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff.lib;softfloat.lib;gdiplus.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <AdditionalManifestDependencies>%(AdditionalManifestDependencies)</AdditionalManifestDependencies>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;ddraw.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;ddraw.dll;Iphlpapi.dll;gdiplus.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\FullRelease/winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
-      <StackReserveSize>2621440</StackReserveSize>
-      <StackCommitSize>2621440</StackCommitSize>
+      <StackReserveSize>
+      </StackReserveSize>
+      <StackCommitSize>
+      </StackCommitSize>
       <LargeAddressAware>true</LargeAddressAware>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -740,18 +750,20 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;openal32.lib;libpng16.lib;lglcd.lib;wtsapi32.lib;enet_x64.lib;prowizard_x64.lib;lzmalib.lib;libFLAC_static.lib;hid.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff.lib;softfloat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;openal32.lib;libpng16.lib;lglcd.lib;wtsapi32.lib;enet_x64.lib;prowizard_x64.lib;lzmalib.lib;libFLAC_static.lib;hid.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff.lib;softfloat.lib;gdiplus.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries);MSVCRT</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;gdiplus.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\x64\FullRelease/winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
-      <StackReserveSize>0</StackReserveSize>
-      <StackCommitSize>0</StackCommitSize>
+      <StackReserveSize>
+      </StackReserveSize>
+      <StackCommitSize>
+      </StackCommitSize>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
@@ -761,6 +773,7 @@
       <TargetMachine>MachineX64</TargetMachine>
       <BaseAddress>0x10000000</BaseAddress>
       <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
+      <LargeAddressAware>true</LargeAddressAware>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>..\resources\winuae64.exe.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>

@@ -2088,6 +2088,7 @@ struct ConfigStruct {
 	TCHAR HostLink[MAX_DPATH];
 	TCHAR HardwareLink[MAX_DPATH];
 	TCHAR Description[CFG_DESCRIPTION_LENGTH];
+	TCHAR Artpath[MAX_DPATH];
 	int Type, Directory;
 	struct ConfigStruct *Parent, *Child;
 	int host, hardware;
@@ -2138,7 +2139,7 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 		qs_override = 1;
 	if (type < 0) {
 		type = 0;
-		cfgfile_get_description (fname, NULL, NULL, NULL, &type);
+		cfgfile_get_description(NULL, fname, NULL, NULL, NULL, &type);
 	}
 	if (type == 0 || type == 1) {
 		discard_prefs (p, 0);
@@ -2162,6 +2163,11 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 		return v;
 	if (type > 0)
 		return v;
+	if (cfgfile_detect_art(p, tmp1)) {
+		show_box_art(tmp1);
+	} else {
+		show_box_art(NULL);
+	}
 	for (i = 1; i <= 2; i++) {
 		if (type != i) {
 			size = sizeof (ct);
@@ -3341,6 +3347,16 @@ static void getconfigcache (TCHAR *dst, const TCHAR *path)
 	_tcsncat (dst, _T("configuration.cache"), MAX_DPATH);
 }
 
+static void deleteconfigcache(void)
+{
+	TCHAR path[MAX_DPATH], path2[MAX_DPATH];
+	GetConfigPath(path, NULL, FALSE);
+	if (!path[0])
+		return;
+	getconfigcache(path2, path);
+	_wunlink(path2);
+}
+
 static TCHAR *fgetsx (TCHAR *dst, FILE *f)
 {
 	TCHAR *s2;
@@ -3549,6 +3565,10 @@ static struct ConfigStruct *readconfigcache (const TCHAR *path)
 			fgetsx (buf, zcache);
 			lines--;
 			cs->Type = _tstol (buf);
+			if (lines > 0) {
+				fgetsx(cs->Artpath, zcache);
+				lines--;
+			}
 		}
 
 		setconfighosthard (cs);
@@ -3616,6 +3636,8 @@ static void writeconfigcacheentry (FILE *zcache, const TCHAR *relpath, struct Co
 		_stprintf (path2, _T("%d"), cs->Type);
 		fwrite (path2, _tcslen (path2), sizeof (TCHAR), zcache);
 		fwrite (&lf, 1, sizeof (TCHAR), zcache);
+		fwrite(cs->Artpath, _tcslen(cs->Artpath), sizeof(TCHAR), zcache);
+		fwrite(&lf, 1, sizeof(TCHAR), zcache);
 	}
 
 	fwrite (el, _tcslen (el), sizeof (TCHAR), zcache);
@@ -3623,12 +3645,10 @@ static void writeconfigcacheentry (FILE *zcache, const TCHAR *relpath, struct Co
 
 static void writeconfigcacherec (FILE *zcache, const TCHAR *relpath, struct ConfigStruct *cs)
 {
-	int i;
-
 	if (!cs->Directory)
 		return;
 	writeconfigcacheentry (zcache, relpath, cs);
-	for (i = 0; i < configstoresize; i++) {
+	for (int i = 0; i < configstoresize; i++) {
 		struct ConfigStruct *cs2 = configstore[i];
 		if (cs2->Parent == cs)
 			writeconfigcacherec (zcache, relpath, cs2);
@@ -3637,7 +3657,6 @@ static void writeconfigcacherec (FILE *zcache, const TCHAR *relpath, struct Conf
 
 static void writeconfigcache (const TCHAR *path)
 {
-	int i;
 	TCHAR lf = 10;
 	FILE *zcache;
 	TCHAR cachepath[MAX_DPATH];
@@ -3661,15 +3680,15 @@ static void writeconfigcache (const TCHAR *path)
 	fwrite (&lf, 1, sizeof (TCHAR), zcache);
 	ul.HighPart = t.dwHighDateTime;
 	ul.LowPart = t.dwLowDateTime;
-	_stprintf (path2, _T("3\n4\n7\n%I64u\n;\n"), ul.QuadPart);
+	_stprintf (path2, _T("3\n4\n8\n%I64u\n;\n"), ul.QuadPart);
 	fwrite (path2, _tcslen (path2), sizeof (TCHAR), zcache);
 	GetFullPathName (path, sizeof path2 / sizeof (TCHAR), path2, NULL);
-	for (i = 0; i < configstoresize; i++) {
+	for (int i = 0; i < configstoresize; i++) {
 		struct ConfigStruct *cs = configstore[i];
 		if (cs->Directory && cs->Parent == NULL)
 			writeconfigcacherec (zcache, path2, cs);
 	}
-	for (i = 0; i < configstoresize; i++) {
+	for (int i = 0; i < configstoresize; i++) {
 		struct ConfigStruct *cs = configstore[i];
 		if (!cs->Directory)
 			writeconfigcacheentry (zcache, path2, cs);
@@ -3755,8 +3774,15 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 				if (_tcslen (find_data.cFileName) > 4 && !strcasecmp (find_data.cFileName + _tcslen (find_data.cFileName) - 4, _T(".uae"))) {
 					_tcscpy (path3, path);
 					_tcsncat (path3, find_data.cFileName, MAX_DPATH);
-					if (cfgfile_get_description (path3, config->Description, config->HostLink, config->HardwareLink, &config->Type)) {
-						_tcscpy (config->Name, find_data.cFileName);
+					config->Artpath[0] = 0;
+					struct uae_prefs *p = cfgfile_open(path3, &config->Type);
+					if (p) {
+						cfgfile_get_description(p, NULL, config->Description, config->HostLink, config->HardwareLink, NULL);
+						_tcscpy(config->Name, find_data.cFileName);
+						if (artcache) {
+							cfgfile_detect_art(p, config->Artpath);
+						}
+						cfgfile_close(p);
 						ok = 1;
 					}
 				}
@@ -5191,6 +5217,7 @@ static void InitializeConfig (HWND hDlg, struct ConfigStruct *config)
 		}
 	}
 	SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_SETCURSEL, idx2, 0);
+	show_box_art(config && config->Artpath[0] ? config->Artpath : NULL);
 }
 
 static void DeleteConfigTree (HWND hDlg)
@@ -5753,29 +5780,30 @@ static void rewritepaths(void)
 
 static void resetregistry (void)
 {
-	regdeletetree (NULL, _T("DetectedROMs"));
-	regdelete (NULL, _T("QuickStartMode"));
-	regdelete (NULL, _T("ConfigFile"));
-	regdelete (NULL, _T("ConfigFileHardware"));
-	regdelete (NULL, _T("ConfigFileHost"));
-	regdelete (NULL, _T("ConfigFileHardware_Auto"));
-	regdelete (NULL, _T("ConfigFileHost_Auto"));
-	regdelete (NULL, _T("ConfigurationPath"));
-	regdelete (NULL, _T("SaveimagePath"));
-	regdelete (NULL, _T("ScreenshotPath"));
-	regdelete (NULL, _T("StatefilePath"));
-	regdelete (NULL, _T("VideoPath"));
-	regdelete (NULL, _T("RipperPath"));
-	regdelete (NULL, _T("QuickStartModel"));
-	regdelete (NULL, _T("QuickStartConfiguration"));
-	regdelete (NULL, _T("QuickStartCompatibility"));
-	regdelete (NULL, _T("QuickStartHostConfig"));
-	regdelete (NULL, _T("RecursiveROMScan"));
-	regdelete (NULL, _T("ConfigurationCache"));
-	regdelete (NULL, _T("SaveImageOriginalPath"));
-	regdelete (NULL, _T("RelativePaths"));
-	regdelete (NULL, _T("DirectDraw_Secondary"));
-	regdelete (NULL, _T("ShownsupportedModes"));
+	regdeletetree(NULL, _T("DetectedROMs"));
+	regdelete(NULL, _T("QuickStartMode"));
+	regdelete(NULL, _T("ConfigFile"));
+	regdelete(NULL, _T("ConfigFileHardware"));
+	regdelete(NULL, _T("ConfigFileHost"));
+	regdelete(NULL, _T("ConfigFileHardware_Auto"));
+	regdelete(NULL, _T("ConfigFileHost_Auto"));
+	regdelete(NULL, _T("ConfigurationPath"));
+	regdelete(NULL, _T("SaveimagePath"));
+	regdelete(NULL, _T("ScreenshotPath"));
+	regdelete(NULL, _T("StatefilePath"));
+	regdelete(NULL, _T("VideoPath"));
+	regdelete(NULL, _T("RipperPath"));
+	regdelete(NULL, _T("QuickStartModel"));
+	regdelete(NULL, _T("QuickStartConfiguration"));
+	regdelete(NULL, _T("QuickStartCompatibility"));
+	regdelete(NULL, _T("QuickStartHostConfig"));
+	regdelete(NULL, _T("RecursiveROMScan"));
+	regdelete(NULL, _T("ConfigurationCache"));
+	regdelete(NULL, _T("ArtCache"));
+	regdelete(NULL, _T("SaveImageOriginalPath"));
+	regdelete(NULL, _T("RelativePaths"));
+	regdelete(NULL, _T("DirectDraw_Secondary"));
+	regdelete(NULL, _T("ShownsupportedModes"));
 }
 
 #include "zip.h"
@@ -5962,6 +5990,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		setac (hDlg, IDC_PATHS_RIP);
 		CheckDlgButton(hDlg, IDC_PATHS_RECURSIVEROMS, recursiveromscan);
 		CheckDlgButton(hDlg, IDC_PATHS_CONFIGCACHE, configurationcache);
+		CheckDlgButton(hDlg, IDC_PATHS_ARTCACHE, artcache);
 		CheckDlgButton(hDlg, IDC_PATHS_SAVEIMAGEORIGINALPATH, saveimageoriginalpath);
 		CheckDlgButton(hDlg, IDC_PATHS_RELATIVE, relativepaths);
 		CheckDlgButton(hDlg, IDC_REGISTRYMODE, getregmode() != NULL);
@@ -6196,8 +6225,14 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				regsetint (NULL, _T("RecursiveROMScan"), recursiveromscan);
 				break;
 			case IDC_PATHS_CONFIGCACHE:
-				configurationcache = ischecked (hDlg, IDC_PATHS_CONFIGCACHE) ? 1 : 0;
-				regsetint (NULL, _T("ConfigurationCache"), configurationcache);
+				configurationcache = ischecked(hDlg, IDC_PATHS_CONFIGCACHE) ? 1 : 0;
+				regsetint(NULL, _T("ConfigurationCache"), configurationcache);
+				deleteconfigcache();
+				break;
+			case IDC_PATHS_ARTCACHE:
+				artcache = ischecked(hDlg, IDC_PATHS_ARTCACHE) ? 1 : 0;
+				regsetint(NULL, _T("ArtCache"), artcache);
+				deleteconfigcache();
 				break;
 			case IDC_PATHS_SAVEIMAGEORIGINALPATH:
 				saveimageoriginalpath = ischecked (hDlg, IDC_PATHS_SAVEIMAGEORIGINALPATH) ? 1 : 0;
@@ -8103,6 +8138,8 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_1MCHIPJUMPER, workprefs.cs_1mchipjumper || workprefs.chipmem_size >= 0x100000);
 	CheckDlgButton(hDlg, IDC_CS_BYTECUSTOMWRITEBUG, workprefs.cs_bytecustomwritebug);
 	CheckDlgButton(hDlg, IDC_CS_COMPOSITECOLOR, workprefs.cs_color_burst);
+	CheckDlgButton(hDlg, IDC_CS_TOSHIBAGARY, workprefs.cs_toshibagary);
+	CheckDlgButton(hDlg, IDC_CS_ROMISSLOW, workprefs.cs_romisslow);
 	SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_SETCURSEL, workprefs.cs_unmapped_space, 0);
 	txt[0] = 0;
 	_stprintf (txt, _T("%d"), workprefs.cs_rtc_adjust);
@@ -8194,6 +8231,8 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_1mchipjumper = ischecked(hDlg, IDC_CS_1MCHIPJUMPER);
 	workprefs.cs_bytecustomwritebug = ischecked(hDlg, IDC_CS_BYTECUSTOMWRITEBUG);
 	workprefs.cs_color_burst = ischecked(hDlg, IDC_CS_COMPOSITECOLOR);
+	workprefs.cs_toshibagary = ischecked(hDlg, IDC_CS_TOSHIBAGARY);
+	workprefs.cs_romisslow = ischecked(hDlg, IDC_CS_ROMISSLOW);
 	LRESULT val = SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_GETCURSEL, 0, 0L);
 	if (val != CB_ERR)
 		workprefs.cs_unmapped_space = val;
@@ -8283,6 +8322,8 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_1MCHIPJUMPER, e && workprefs.chipmem_size < 0x100000);
 	ew(hDlg, IDC_CS_BYTECUSTOMWRITEBUG, e);
 	ew(hDlg, IDC_CS_COMPOSITECOLOR, e);
+	ew(hDlg, IDC_CS_TOSHIBAGARY, e);
+	ew(hDlg, IDC_CS_ROMISSLOW, e);
 	ew(hDlg, IDC_CS_UNMAPPED, e);
 }
 
@@ -13082,13 +13123,11 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 
 	case WM_INITDIALOG:
 		recursive++;
-		if (current_tapedlg.ci.controller_type < HD_CONTROLLER_TYPE_SCSI_AUTO)
-			current_tapedlg.ci.controller_type = HD_CONTROLLER_TYPE_SCSI_AUTO;
 		inithdcontroller(hDlg, current_tapedlg.ci.controller_type, current_tapedlg.ci.controller_type_unit, UAEDEV_TAPE, current_tapedlg.ci.rootdir[0] != 0);
 		SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_tapedlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_tapedlg.ci.controller_unit : current_tapedlg.ci.controller_type_unit, 0);
 		setautocomplete (hDlg, IDC_PATH_NAME);
 		addhistorymenu(hDlg, current_tapedlg.ci.rootdir, IDC_PATH_NAME, HISTORY_TAPE, false);
-		readonly = my_existsfile (current_tapedlg.ci.rootdir);
+		readonly = !tape_can_write(current_tapedlg.ci.rootdir);
 		CheckDlgButton (hDlg, IDC_TAPE_RW, current_tapedlg.ci.readonly == 0 && !readonly);
 		ew (hDlg, IDC_TAPE_RW, !readonly);
 		recursive--;
@@ -13103,7 +13142,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				if (getcomboboxtext(hDlg, IDC_PATH_NAME, tmp, sizeof tmp / sizeof(TCHAR))) {
 					if (_tcscmp (tmp, current_tapedlg.ci.rootdir)) {
 						_tcscpy (current_tapedlg.ci.rootdir, tmp);
-						readonly = my_existsfile (current_tapedlg.ci.rootdir);
+						readonly = !tape_can_write(current_tapedlg.ci.rootdir);
 						ew (hDlg, IDC_TAPE_RW, !readonly);
 						if (readonly)
 							CheckDlgButton (hDlg, IDC_TAPE_RW, FALSE);
@@ -13146,7 +13185,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			GetDlgItemText (hDlg, IDC_PATH_NAME, current_tapedlg.ci.rootdir, sizeof current_tapedlg.ci.rootdir / sizeof (TCHAR));
 			DISK_history_add(current_tapedlg.ci.rootdir, -1, HISTORY_TAPE, 1);
 			fullpath (current_tapedlg.ci.rootdir, sizeof current_tapedlg.ci.rootdir / sizeof (TCHAR));
-			readonly = my_existsfile (current_tapedlg.ci.rootdir);
+			readonly = !tape_can_write(current_tapedlg.ci.rootdir);
 			ew (hDlg, IDC_TAPE_RW, !readonly);
 			if (readonly)
 				CheckDlgButton (hDlg, IDC_TAPE_RW, FALSE);
@@ -13166,7 +13205,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			}
 			_tcscpy (current_tapedlg.ci.rootdir, directory_path);
 			DISK_history_add(current_tapedlg.ci.rootdir, -1, HISTORY_TAPE, 1);
-			readonly = my_existsfile (current_tapedlg.ci.rootdir);
+			readonly = !tape_can_write(current_tapedlg.ci.rootdir);
 			ew (hDlg, IDC_TAPE_RW, !readonly);
 			if (readonly)
 				CheckDlgButton (hDlg, IDC_TAPE_RW, FALSE);
@@ -19336,8 +19375,8 @@ static void getguisize (HWND hDlg, int *width, int *height)
 	RECT r;
 
 	GetWindowRect (hDlg, &r);
-	*width = r.right - r.left;
-	*height = r.bottom - r.top;
+	*width = (r.right - r.left);
+	*height = (r.bottom - r.top);
 }
 
 static HWND updatePanel (int id, UINT action)
@@ -19414,7 +19453,7 @@ static HWND updatePanel (int id, UINT action)
 	gui_height = r2c.bottom;
 
 	fullpanel = ppage[id].fullpanel;
-	tres = scaleresource (ppage[id].nres, hDlg, -1, 0, 0);
+	tres = scaleresource (ppage[id].nres, hDlg, -1, 0, 0, false);
 	panelDlg = CreateDialogIndirectParam (tres->inst, tres->resource, hDlg, ppage[id].dlgproc, id);
 	freescaleresource(tres);
 	
@@ -19992,8 +20031,8 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				RECT *r = (RECT*)lParam;
 				previous_dpix = dx;
 				previous_dpiy = dy;
-				gui_width = r->right - r->left;
-				gui_height = r->bottom - r->top;
+				gui_width = (r->right - r->left);
+				gui_height = (r->bottom - r->top);
 				gui_size_changed = 1;
 			}
 		}
@@ -20232,7 +20271,7 @@ INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc)
 	res = getresource (templ);
 	if (!res)
 		return h;
-	r = scaleresource (res, hDlg, -1, 0, 0);
+	r = scaleresource (res, hDlg, -1, 0, 0, false);
 	if (r) {
 		h = DialogBoxIndirect (r->inst, r->resource, hDlg, proc);
 		freescaleresource (r);
@@ -20251,7 +20290,7 @@ HWND CustomCreateDialog (int templ, HWND hDlg, DLGPROC proc)
 	res = getresource (templ);
 	if (!res)
 		return h;
-	r = scaleresource (res, hDlg, -1, 0, 0);
+	r = scaleresource (res, hDlg, -1, 0, 0, false);
 	if (r) {
 		h = CreateDialogIndirect (r->inst, r->resource, hDlg, proc);
 		freescaleresource (r);
@@ -20538,7 +20577,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			}
 		}
 
-		tres = scaleresource (panelresource, hwnd, gui_resize_enabled, gui_fullscreen, workprefs.win32_gui_alwaysontop || workprefs.win32_main_alwaysontop ? WS_EX_TOPMOST : 0);
+		tres = scaleresource (panelresource, hwnd, gui_resize_enabled, gui_fullscreen, workprefs.win32_gui_alwaysontop || workprefs.win32_main_alwaysontop ? WS_EX_TOPMOST : 0, true);
 		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, isfullscreen () != 0 ? hwnd : NULL, DialogProc);
 		dialog_rect.top = dialog_rect.left = 0;
 		dialog_rect.right = tres->width;

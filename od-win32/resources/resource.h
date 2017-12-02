@@ -1129,7 +1129,9 @@
 #define IDC_CS_COMPOSITECOLOR           1756
 #define IDC_DBG_DASM                    1757
 #define IDC_DBG_MEMDOWNFAST             1758
+#define IDC_CS_TOSHIBAGARY              1758
 #define IDC_DBG_MEMTOPC                 1759
+#define IDC_CS_ROMISSLOW                1759
 #define IDC_DBG_MEMUPFAST               1760
 #define IDC_DA_RESET                    1761
 #define IDC_DBG_STATUS                  1762
@@ -1196,6 +1198,7 @@
 #define IDC_RTG_BUFFERCNT               1795
 #define IDC_PATHS_RECURSIVEROMS         1795
 #define IDC_RTG_VBINTERRUPT             1796
+#define IDC_PATHS_ARTCACHE              1796
 #define IDC_INPUTMAPLIST                1797
 #define IDC_RTG_HWSPRITE                1797
 #define IDC_PORT1_REMAP                 1798

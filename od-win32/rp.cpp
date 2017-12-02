@@ -1807,7 +1807,7 @@ void rp_update_leds (int led, int onoff, int brightness, int write)
 		if (ledstate == oldled[led])
 			return;
 		oldled[led] = ledstate;
-		RPSendMessage (RP_IPC_TO_HOST_POWERLED, ledstate, 0, NULL, 0, &guestinfo, NULL);
+		RPPostMessagex(RP_IPC_TO_HOST_POWERLED, ledstate, 0, &guestinfo);
 		break;
 	case LED_DF0:
 	case LED_DF1:
@@ -1818,7 +1818,7 @@ void rp_update_leds (int led, int onoff, int brightness, int write)
 		if (ledstate == oldled[led])
 			return;
 		oldled[led] = ledstate;
-		RPPostMessagex (RP_IPC_TO_HOST_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_FLOPPY, led - LED_DF0),
+		RPPostMessagex(RP_IPC_TO_HOST_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_FLOPPY, led - LED_DF0),
 			MAKELONG ((ledstate & 1) ? -1 : 0, (ledstate & 2) ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ) , &guestinfo);
 		break;
 	}

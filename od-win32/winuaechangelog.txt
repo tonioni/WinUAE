@@ -4,6 +4,27 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 9:
+
+- Added workaround that disables RTG HW sprite if enabled in D3D11 mode. (HW sprite is not yet supported in D3D11)
+- Fixed D3D11 position calculation bug that for example caused full window RTG to be partially off-screen.
+- 16-bit color depth is now supported in D3D11 mode.
+- D3D11 to D3D9 fall back didn't work correctly, it tried D3D11 twice and then selected DirectDraw.
+- READ CD-DA (MSF) really works now.
+- KS 1.2 autoboot didn't work without extra reset if UAE autoconfig board wasn't first board in autoconfig chain.
+- Fixed AdIDE emulation, AdIDE data line "scrambling" got broken in b1.
+- Added untested ATAPI tape drive support.
+- Selecting index.tape directly (instead of selecting directory where it is located) will also mount the tape in directory mode.
+- Tape emulation ignored new index file if tape was first written, rewound and read in same session.
+- Tape emulation accuracy improvements.
+- Added Toshiba Gary to Advanced chipset, if ticked, 0xe80000 to 0xf7ffff has chip ram access speed.
+- Added ROM is slow (Toshiba Gary without transistor fix), KS ROM space also has chip ram access speed.
+- 68030 data cache emulation didn't work correctly if write was cached and address was odd. (Bug found by Hatari developers)
+- ECS Denise BPLCON2 ECS-only bits were masked unless AGA was selected, ECS-specific KILLEHB linetoscr was not implemented. Seven Seas/Andromeda now shows correctly corrupted palette if ECS Denise.
+- IDE FORMAT TRACK fixed, it needs to transfer single block of data (and then toss it away). Fixes Gigatron Arriba installer.
+- Emulated Gigatron Arriba IDE controller. ROM dump not available.
+- 64-bit only bad stack linker setting correctded, caused random crashes and caused file dialogs to crash if certain shell extensions were installed. (Thanks mutetus!)
+
 Beta 8:
 
 - Replaced b7 unmapped zero checkbox with a 3 option select menu. Different A2000/B2000 variants can have either pullup or pulldown resistors connected to CPU data lines.
