@@ -2232,8 +2232,9 @@ static void fill_ce_banks (void)
 		for (i = (bogomem_bank.start >> 16); i < ((bogomem_bank.start + bogomem_bank.allocated_size) >> 16); i++)
 			ce_banktype[i] = ce_banktype[0];
 	}
-	for (i = (0xd00000 >> 16); i < (0xe00000 >> 16); i++)
+	for (i = (0xd00000 >> 16); i < (0xe00000 >> 16); i++) {
 		ce_banktype[i] = CE_MEMBANK_CHIP16;
+	}
 	for (i = (0xa00000 >> 16); i < (0xc00000 >> 16); i++) {
 		addrbank *b;
 		ce_banktype[i] = CE_MEMBANK_CIA;
@@ -2255,9 +2256,21 @@ static void fill_ce_banks (void)
 		ce_banktype[0xdd0000 >> 16] = CE_MEMBANK_FAST32;
 	}
 
+	if (currprefs.cs_toshibagary) {
+		for (i = (0xe80000 >> 16); i < (0xf80000 >> 16); i++)
+			ce_banktype[i] = CE_MEMBANK_CHIP16;
+	}
+
+	if (currprefs.cs_romisslow) {
+		for (i = (0xe00000 >> 16); i < (0xe80000 >> 16); i++)
+			ce_banktype[i] = CE_MEMBANK_CHIP16;
+		for (i = (0xf80000 >> 16); i < (0x100000 >> 16); i++)
+			ce_banktype[i] = CE_MEMBANK_CHIP16;
+	}
+
 	if (currprefs.address_space_24) {
 		for (i = 1; i < 256; i++)
-			memcpy (&ce_banktype[i * 256], &ce_banktype[0], 256);
+			memcpy(&ce_banktype[i * 256], &ce_banktype[0], 256);
 	}
 }
 
@@ -2627,7 +2640,7 @@ void memory_reset (void)
 	}
 
 #ifdef AUTOCONFIG
-	if (need_uae_boot_rom (&currprefs) && currprefs.uaeboard < 2)
+	if ((need_uae_boot_rom (&currprefs) && currprefs.uaeboard == 0) || currprefs.uaeboard == 1)
 		map_banks_set(&rtarea_bank, rtarea_base >> 16, 1, 0);
 #endif
 
