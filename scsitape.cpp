@@ -64,6 +64,7 @@ static void tape_init (int unit, struct scsi_data_tape *tape, const TCHAR *tape_
 
 	memset (tape, 0, sizeof (struct scsi_data_tape));
 	_tcscpy (tape->tape_dir, tape_directory);
+	path[0] = 0;
 
 	tape->blocksize = 512;
 	tape->wp = readonly;
@@ -74,18 +75,47 @@ static void tape_init (int unit, struct scsi_data_tape *tape, const TCHAR *tape_
 	if (my_existsdir (tape->tape_dir)) {
 		tape->realdir = true;
 	} else {
-		tape->zd = zfile_opendir_archive (tape_directory, ZFD_ARCHIVE | ZFD_NORECURSE);
-		if (!tape->zd)
-			tape->nomedia = true;
+		if (_tcslen(tape->tape_dir) > _tcslen(TAPE_INDEX) && !_tcsicmp(tape->tape_dir + _tcslen(tape->tape_dir) - _tcslen(TAPE_INDEX), TAPE_INDEX)) {
+			_tcscpy(path, tape->tape_dir);
+			tape->index = zfile_fopen(path, _T("rb"), ZFD_NORMAL);
+			tape->tape_dir[_tcslen(tape->tape_dir) - _tcslen(TAPE_INDEX) - 1] = 0;
+			if (my_existsdir(tape->tape_dir)) {
+				tape->realdir = true;
+			} else {
+				_tcscpy(tape->tape_dir, tape_directory);
+				zfile_fclose(tape->index);
+				tape->index = NULL;
+			}
+		} else {
+			tape->zd = zfile_opendir_archive(tape->tape_dir, ZFD_ARCHIVE | ZFD_NORECURSE);
+			if (!tape->zd) {
+				tape->nomedia = true;
+			}
+		}
 	}
 
-	_tcscpy (path, tape_directory);
-	_tcscat (path, FSDB_DIR_SEPARATOR_S);
-	_tcscat (path, TAPE_INDEX);
-	tape->index = zfile_fopen (path, _T("rb"), ZFD_NORMAL);
-	if (tape->index)
-		write_log (_T("TAPEEMU INDEX: '%s'\n"), path);
+	if (!tape->index) {
+		_tcscpy(path, tape_directory);
+		_tcscat(path, FSDB_DIR_SEPARATOR_S);
+		_tcscat(path, TAPE_INDEX);
+		tape->index = zfile_fopen(path, _T("rb"), ZFD_NORMAL);
+	}
+	write_log(_T("TAPEEMU MODE: %d,%d PATH: '%s' INDEX: '%s'\n"), tape->realdir, tape->nomedia, tape->tape_dir, tape->index ? path : _T("<none>"));
 	tapeunits[unit] = tape;
+}
+
+bool tape_can_write(const TCHAR *tape_directory)
+{
+	TCHAR tmp[MAX_DPATH];
+	if (my_existsdir(tape_directory))
+		return true;
+	_tcscpy(tmp, tape_directory);
+	if (_tcslen(tmp) > _tcslen(TAPE_INDEX) && !_tcsicmp(tmp + _tcslen(tmp) - _tcslen(TAPE_INDEX), TAPE_INDEX))
+		return true;
+	tmp[_tcslen(tmp) - _tcslen(TAPE_INDEX) - 1] = 0;
+	if (my_existsdir(tmp))
+		return true;
+	return false;
 }
 
 struct scsi_data_tape *tape_alloc (int unitnum, const TCHAR *tape_directory, bool readonly)
@@ -158,6 +188,13 @@ static bool next_file (struct scsi_data_tape *tape)
 	zfile_fclose (tape->zf);
 	tape->zf = NULL;
 	tape->file_offset = 0;
+	if (tape->beom > 0)
+		goto end;
+	if (!tape->index && tape->realdir) {
+		TCHAR tmp[MAX_DPATH];
+		_stprintf(tmp, _T("%s%s%s"), tape->tape_dir, FSDB_DIR_SEPARATOR_S, TAPE_INDEX);
+		tape->index = zfile_fopen(tmp, _T("rb"), ZFD_NORMAL);
+	}
 	if (tape->index) {
 		TCHAR path[MAX_DPATH];
 		TCHAR name[256];
@@ -204,7 +241,7 @@ static bool next_file (struct scsi_data_tape *tape)
 		return true;
 	}
 end:
-	write_log (_T("TAPEEMU: end of tape\n"));
+	write_log (_T("TAPEEMU: end of media\n"));
 	tape->beom = 1;
 	return false;
 }
@@ -225,7 +262,16 @@ static int tape_read (struct scsi_data_tape *tape, uae_u8 *scsi_data, int len, b
 			return -1;
 	}
 	zfile_fseek (tape->zf, tape->file_offset, SEEK_SET);
-	got = zfile_fread (scsi_data, 1, len, tape->zf);
+	if (scsi_data) {
+		got = zfile_fread(scsi_data, 1, len, tape->zf);
+	} else {
+		got = 0;
+		uae_u8 *data = xmalloc(uae_u8, len);
+		if (data) {
+			got = zfile_fread(data, 1, len, tape->zf);
+			xfree(data);
+		}
+	}
 	tape->file_offset += got;
 	if (got < len) {
 		*eof = true;
@@ -251,6 +297,10 @@ static int tape_write (struct scsi_data_tape *tape, uae_u8 *scsi_data, int len)
 	len = zfile_fwrite (scsi_data, 1, len, zf);
 	zfile_fclose (zf);
 	if (!exists) {
+		if (tape->index) {
+			zfile_fclose(tape->index);
+			tape->index = NULL;
+		}
 		_stprintf (path, _T("%s%s%s"), tape->tape_dir, FSDB_DIR_SEPARATOR_S, TAPE_INDEX);
 		zf = zfile_fopen (path, _T("a+b"));
 		if (zf) {
@@ -271,18 +321,20 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 	int status = 0;
 	int lun;
 	bool eof;
+	bool isinfo = false;
+	uae_u32 info = 0;
 
 	if (cmdbuf == NULL)
 		return 0;
 
 	if (log_tapeemu)
 		write_log (_T("TAPEEMU: %02X.%02X.%02X.%02X.%02X.%02X\n"),
-		cmdbuf[0], cmdbuf[1], cmdbuf[2], cmdbuf[3], cmdbuf[4], cmdbuf[5]);
+			cmdbuf[0], cmdbuf[1], cmdbuf[2], cmdbuf[3], cmdbuf[4], cmdbuf[5]);
 
 	if (cmdbuf[0] == 3) {
 		if (tape->beom == -1)
 			s[9] |= 0x8; // beginning of media
-		if (tape->beom == 1)
+		if (tape->beom == 2)
 			s[2] |= 0x40; // end of media
 		if (*sense_len < 0x12)
 			*sense_len = 0x12;
@@ -325,7 +377,7 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 			goto writeprot;
 		erase (tape);
 		rewind (tape);
-		tape->beom = 1;
+		tape->beom = 2;
 		scsi_len = 0;
 		break;
 
@@ -343,7 +395,7 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 		rewind (tape);
 		tape->unloaded = !load;
 		if (eot) {
-			tape->beom = 1;
+			tape->beom = 2;
 		} else {
 			tape->beom = -1;
 		}
@@ -374,9 +426,28 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 			goto unloaded;
 		if (code >= 2)
 			goto errreq;
+		if (count < 0)
+			goto errreq;
 		if (code == 1) {
-			if (!next_file (tape))
-				goto endoftape;
+			while (count > 0) {
+				if (!next_file(tape)) {
+					info = count;
+					isinfo = true;
+					goto endofdata;
+				}
+				count--;
+			}
+		} else {
+			while (count > 0) {
+				bool eof = false;
+				int got = tape_read(tape, NULL, tape->blocksize, &eof);
+				if (eof || got < tape->blocksize) {
+					info = count;
+					isinfo = true;
+					goto endofdata;
+				}
+				count--;
+			}
 		}
 		scsi_len = 0;
 	}
@@ -396,6 +467,8 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 			tape->file_number++;
 			tape_write (tape, scsi_data, 0);
 		}
+		if (tape->beom < 1)
+			tape->beom = 1;
 		scsi_len = 0;
 		break;
 
@@ -411,8 +484,8 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 			goto unloaded;
 		if (tape->wp)
 			goto writeprot;
-		if (tape->beom < 0)
-			tape->beom = 0;
+		if (tape->beom < 1)
+			tape->beom = 1;
 		scsi_len = tape_write (tape, scsi_data, len);
 		if (scsi_len < 0)
 			goto writeprot;
@@ -432,7 +505,7 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 			tape->beom = 0;
 		scsi_len = tape_read (tape, scsi_data, len, &eof);
 		if (log_tapeemu)
-			write_log (_T("-> READ %d bytes\n"), scsi_len);
+			write_log (_T("-> READ %d bytes, LEN=%d EOF=%d\n"), scsi_len, len, eof);
 		if ((cmdbuf[1] & 1) && scsi_len > 0 && scsi_len < len) {
 			int gap = tape->blocksize - (scsi_len & (tape->blocksize - 1));
 			if (gap > 0 && gap < tape->blocksize)
@@ -440,26 +513,32 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 			scsi_len += tape->blocksize - 1;
 			scsi_len &= ~(tape->blocksize - 1);
 		}
-		if (scsi_len < 0) {
-			tape->beom = 2;
+		if (scsi_len < 0 || tape->beom > 0) {
+			scsi_len = 0;
+			if (tape->beom <= 0)
+				tape->beom = 1;
 			status = SCSI_STATUS_CHECK_CONDITION;
-			s[0] = 0x80 | 0x70;
-			s[2] = 8; /* BLANK CHECK */
+			s[0] = 0x70; // code
+			s[2] = tape->beom == 1 ? 8 : 0; /* BLANK CHECK */
 			if (cmdbuf[1] & 1)
-				wl (&s[3], len / tape->blocksize);
+				info = len / tape->blocksize;
 			else
-				wl (&s[3], len);
+				info = len;
+			isinfo = true;
 			s[12] = 0;
-			s[13] = 2; /* End-of-partition/medium detected */
+			s[13] = tape->beom == 2 ? 2 : 5; /* End-of-media / End-of-data  */
 			ls = 0x12;
+			if (log_tapeemu)
+				write_log(_T("TAPEEMU READ DATA END, %lld remaining\n"), len - scsi_len);
 		} else if (eof) {
 			status = SCSI_STATUS_CHECK_CONDITION;
-			s[0] = 0x80 | 0x70; // Valid + code
+			s[0] = 0x70; // code
 			s[2] = 0x80 | 0; /* File Mark Detected + NO SENSE */
 			if (cmdbuf[1] & 1)
-				wl (&s[3], (len - scsi_len) / tape->blocksize);
+				info = (len - scsi_len) / tape->blocksize; // remaining blocks
 			else
-				wl (&s[3], len);
+				info = len; // request size
+			isinfo = true;
 			s[12] = 0;
 			s[13] = 1; /* File Mark detected */
 			ls = 0x12;
@@ -503,7 +582,10 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 		}
 		bdsize = 0;
 		if (!dbd) {
-			wl(p + 0, 0);
+			p[0] = 0x10; // density qic-150
+			p[1] = 0;
+			p[2] = 0;
+			p[3] = 0;
 			wl(p + 4, tape->blocksize);
 			bdsize = 8;
 			p += bdsize;
@@ -591,20 +673,19 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 			r[0] = INQ_SEQD;
 		}
 		r[1] |= 0x80; // removable
-		r[2] = 2; /* supports SCSI-2 */
-		r[3] = 2; /* response data format */
+		r[2] = 0x01; /* supports SCSI-1 */
+		r[3] = 0x00; /* response data format */
 		r[4] = 32; /* additional length */
+		r[6] = 0x10; /* Density */
 		r[7] = 0;
 		scsi_len = lr = len < 36 ? len : 36;
-		r[2] = 2;
-		r[3] = 2;
 		char *s = ua (_T("UAE"));
 		memcpy (r + 8, s, strlen (s));
 		xfree (s);
 		s = ua (_T("SCSI TAPE"));
 		memcpy (r + 16, s, strlen (s));
 		xfree (s);
-		s = ua (_T("0.1"));
+		s = ua (_T("0.2"));
 		memcpy (r + 32, s, strlen (s));
 		xfree (s);
 		for (int i = 8; i < 36; i++) {
@@ -625,7 +706,7 @@ err:
 writeprot:
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
-		s[2] = 7; /* DATA PROTECT */
+		s[2] = SCSI_SK_DATA_PROTECT;
 		s[12] = 0x27; /* WRITE PROTECTED */
 		ls = 0x12;
 		break;
@@ -637,12 +718,12 @@ errreq:
 		s[12] = SCSI_INVALID_FIELD;
 		ls = 0x12;
 		break;
-endoftape:
+endofdata:
 		status = SCSI_STATUS_CHECK_CONDITION;
 		s[0] = 0x70;
-		s[2] = SCSI_SK_MED_ERR;
+		s[2] = SCSI_SK_BLANK_CHECK;
 		s[12] = 0;
-		s[13] = 2; /* End-of-partition/medium detected */
+		s[13] = 5; /* End-of-data */
 		ls = 0x12;
 		break;
 unloaded:
@@ -673,7 +754,16 @@ end:
 		}
 	}
 	if (ls > 0) {
-		if (tape->beom == 1)
+		// SCSI-1
+		if (ls > 14)
+			ls = 14;
+		if (isinfo) {
+			s[0] |= 0x80;
+			wl(&s[3], info);
+		}
+		if (ls > 7)
+			s[7] = ls - 8;
+		if (tape->beom == 2)
 			s[2] |= 0x40;
 		if (tape->beom == -1)
 			s[9] |= 0x8;

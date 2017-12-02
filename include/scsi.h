@@ -85,6 +85,7 @@ int add_scsi_hd (struct scsi_data **sd, int ch, struct hd_hardfiledata *hfd, str
 int add_scsi_cd (struct scsi_data **sd, int ch, int unitnum);
 int add_scsi_tape (struct scsi_data **sd, int ch, const TCHAR *tape_directory, bool readonly);
 void free_scsi (struct scsi_data *sd);
+bool tape_can_write(const TCHAR *tape_directory);
 
 void scsi_freenative(struct scsi_data **sd, int max);
 void scsi_addnative(struct scsi_data **sd);
