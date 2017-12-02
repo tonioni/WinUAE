@@ -135,6 +135,7 @@ extern void filesys_vsync (void);
 
 extern void filesys_install (void);
 extern void filesys_install_code (void);
+extern void create_ks12_boot(void);
 extern uaecptr filesys_get_entry(int);
 extern void filesys_store_devinfo (uae_u8 *);
 extern void hardfile_install (void);

@@ -1807,15 +1807,49 @@ static addrbank *expamem_map_filesys (struct autoconfig_info *aci)
 }
 
 #if KS12_BOOT_HACK
-extern uaecptr ks12_resident;
-static void set_ks12_boot_hack(bool enable)
+static uaecptr ks12_resident;
+static void set_ks12_boot_hack(void)
 {
 	uaecptr old = here();
 	org(ks12_resident);
-	dw(enable ? 0x4afc : 0x0000);
-	org(ks12_resident + 9);
+	dw(ks12orolder() ? 0x4afc : 0x0000);
+	org(ks12_resident + 11);
 	db((uae_u8)kickstart_version);
 	org(old);
+}
+
+void create_ks12_boot(void)
+{
+	// KS 1.2 boot resident
+	uaecptr name = ds(_T("UAE boot"));
+	align(2);
+	uaecptr code = here();
+	// allocate fake diagarea
+	dl(0x48e73f3e); // movem.l d2-d7/a2-a6,-(sp)
+	dw(0x203c); // move.l #x,d0
+	dl(0x0300);
+	dw(0x7201); // moveq #1,d1
+	dl(0x4eaeff3a); // jsr -0xc6(a6)
+	dw(0x2440); // move.l d0,a2 ;diag area
+	dw(0x9bcd); // sub.l a5,a5 ;expansionbase
+	dw(0x97cb); // sub.l a3,a3 ;configdev
+	dw(0x4eb9); // jsr
+	dl(ROM_filesys_diagentry);
+	dl(0x4cdf7cfc); // movem.l (sp)+,d2-d7/a2-a6
+	dw(0x4e75);
+	// struct Resident
+	ks12_resident = here();
+	dw(0x0000);
+	dl(ks12_resident);
+	dl(ks12_resident + 26);
+	db(1); // RTF_COLDSTART
+	db((uae_u8)kickstart_version); // version
+	db(0); // NT_UNKNOWN
+	db(1); // priority
+	dl(name);
+	dl(name);
+	dl(code);
+	set_ks12_boot_hack();
 }
 #endif
 
@@ -1895,7 +1929,7 @@ static bool expamem_init_filesys(struct autoconfig_info *aci)
 	put_word_host(expamem + FILESYS_DIAGAREA + FILESYS_BOOTPOINT, 0x4EF9); /* JMP */
 	put_long_host(expamem + FILESYS_DIAGAREA + FILESYS_BOOTPOINT + 2, EXPANSION_bootcode);
 
-	set_ks12_boot_hack(ks12);
+	set_ks12_boot_hack();
 
 	return true;
 }
@@ -3540,6 +3574,7 @@ void expamem_reset (void)
 			}
 		}
 
+		set_ks12_boot_hack();
 		call_card_init(0);
 	}
 }
@@ -4225,11 +4260,11 @@ static const struct expansionboardsettings cubo_settings[] = {
 		_T("dip_2_5")
 	},
 	{
-		_T("DIP2 #6)"),
+		_T("DIP2 #6"),
 		_T("dip_2_6")
 	},
 	{
-		_T("DIP2 #7 "),
+		_T("DIP2 #7"),
 		_T("dip_2_7")
 	},
 	{
@@ -4745,6 +4780,15 @@ const struct expansionromtype expansionroms[] = {
 		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE,
 		0, 0, 0, false, NULL,
 		false, 0, dataflyersplus_settings
+	},
+	{
+		_T("arriba"), _T("Arriba"), _T("Gigatron"),
+		NULL, arriba_init, NULL, arriba_add_ide_unit, ROMTYPE_ARRIBA | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_IDE,
+		0, 0, 0, false, NULL,
+		false, 0, NULL,
+		{ 0xc1, 0x01, 0x00, 0x00, 0x08, 0x3d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
 	},
 	{
 		_T("gvp1"), _T("GVP Series I"), _T("Great Valley Products"),

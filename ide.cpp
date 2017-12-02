@@ -6,7 +6,7 @@
 * (c) 2006 - 2015 Toni Wilen
 */
 
-#define IDE_LOG 0
+#define IDE_LOG 1
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -122,7 +122,6 @@ bool ata_get_identity(struct ini_data *ini, uae_u8 *out, bool overwrite)
 
 	return true;
 }
-
 
 uae_u16 adide_decode_word(uae_u16 w)
 {
@@ -277,8 +276,6 @@ static void pw (struct ide_hdf *ide, int offset, uae_u16 w)
 	if (ide->byteswap) {
 		w = (w >> 8) | (w << 8);
 	}
-	if (ide->adide)
-		w = adide_decode_word(w);
 	ide->secbuf[offset * 2 + 0] = (uae_u8)w;
 	ide->secbuf[offset * 2 + 1] = w >> 8;
 }
@@ -288,8 +285,6 @@ static void pwand (struct ide_hdf *ide, int offset, uae_u16 w)
 	if (ide->byteswap) {
 		w = (w >> 8) | (w << 8);
 	}
-	if (ide->adide)
-		w = adide_decode_word(w);
 	ide->secbuf[offset * 2 + 0] &= ~((uae_u8)w);
 	ide->secbuf[offset * 2 + 1] &= ~(w >> 8);
 }
@@ -299,8 +294,6 @@ static void pwor (struct ide_hdf *ide, int offset, uae_u16 w)
 	if (ide->byteswap) {
 		w = (w >> 8) | (w << 8);
 	}
-	if (ide->adide)
-		w = adide_decode_word(w);
 	ide->secbuf[offset * 2 + 0] |= (uae_u8)w;
 	ide->secbuf[offset * 2 + 1] |= w >> 8;
 }
@@ -323,8 +316,6 @@ static void ps (struct ide_hdf *ide, int offset, const TCHAR *src, int max)
 		if (ide->byteswap) {
 			w = (w >> 8) | (w << 8);
 		}
-		if (ide->adide)
-			w = adide_decode_word(w);
 		ide->secbuf[offset * 2 + 0] = w >> 8;
 		ide->secbuf[offset * 2 + 1] = w >> 0;
 		offset++;
@@ -556,6 +547,14 @@ static void ide_identify_drive (struct ide_hdf *ide)
 	ide_data_ready (ide);
 	ide->direction = 0;
 	ide_identity_buffer(ide);
+	if (ide->adide) {
+		for (int i = 0; i < 256; i++) {
+			uae_u16 w = (ide->secbuf[i * 2 + 0] << 8) | (ide->secbuf[i * 2 + 1] << 0);
+			uae_u16 we = adide_decode_word(w);
+			ide->secbuf[i * 2 + 0] = we >> 8;
+			ide->secbuf[i * 2 + 1] = we >> 0;
+		}
+	}
 }
 
 static void set_signature (struct ide_hdf *ide)
@@ -912,9 +911,16 @@ static void do_process_rw_command (struct ide_hdf *ide)
 {
 	unsigned int cyl, head, sec, nsec, nsec_total;
 	uae_u64 lba;
-	bool last;
+	bool last = true;
 
 	ide->data_offset = 0;
+
+	if (ide->direction > 1) {
+		// FORMAT TRACK?
+		// Don't write anything
+		goto end;
+	}
+
 	nsec = get_nsec (ide);
 	get_lbachs (ide, &lba, &cyl, &head, &sec);
 	if (IDE_LOG > 1)
@@ -966,6 +972,7 @@ static void do_process_rw_command (struct ide_hdf *ide)
 		hdf_write (&ide->hdhfd.hfd, ide->secbuf, ide->start_lba * ide->blocksize, ide->start_nsec * ide->blocksize);
 	}
 
+end:
 	if (ide->direction) {
 		if (last) {
 			ide_fast_interrupt(ide);
@@ -1058,6 +1065,34 @@ static void ide_write_sectors (struct ide_hdf *ide, int flags)
 	ide->regs.ide_status &= ~IDE_STATUS_BSY;
 }
 
+static void ide_format_track(struct ide_hdf *ide)
+{
+	unsigned int cyl, head, sec;
+	uae_u64 lba;
+
+	gui_flicker_led(LED_HD, ide->num, 2);
+	cyl = (ide->regs.ide_hcyl << 8) | ide->regs.ide_lcyl;
+	head = ide->regs.ide_select & 15;
+	sec = ide->regs.ide_nsector;
+	lba = (((cyl) * ide->hdhfd.heads + (head)) * ide->hdhfd.secspertrack);
+	if (lba >= ide->max_lba) {
+		ide_interrupt(ide);
+		return;
+	}
+	if (IDE_LOG > 0)
+		write_log(_T("IDE%d format cyl=%d, head=%d, sectors=%d\n"), ide->num, cyl, head, sec);
+
+	ide->data_multi = 1;
+	ide->data_offset = 0;
+	ide->data_size = ide->blocksize;
+	ide->direction = 2;
+	ide->buffer_offset = 0;
+
+	// write start: set DRQ and clear BSY. No interrupt.
+	ide->regs.ide_status |= IDE_STATUS_DRQ;
+	ide->regs.ide_status &= ~IDE_STATUS_BSY;
+}
+
 static void ide_do_command (struct ide_hdf *ide, uae_u8 cmd)
 {
 	int lba48 = ide->lba48;
@@ -1072,7 +1107,9 @@ static void ide_do_command (struct ide_hdf *ide, uae_u8 cmd)
 
 	if (ide->atapi) {
 
-		gui_flicker_led (LED_CD, ide->num, 1);
+		if (ide->scsi->device_type == UAEDEV_CD) {
+			gui_flicker_led(LED_CD, ide->num, 1);
+		}
 		ide->atapi_drdy = true;
 		if (cmd == 0x00) { /* nop */
 			ide_interrupt (ide);
@@ -1121,8 +1158,8 @@ static void ide_do_command (struct ide_hdf *ide, uae_u8 cmd)
 			ide_write_sectors (ide, 1);
 		} else if (cmd == 0x39 && lba48) { /* write multiple ext */
 			ide_write_sectors (ide, 1|2);
-		} else if (cmd == 0x50) { /* format track (nop) */
-			ide_interrupt (ide);
+		} else if (cmd == 0x50) { /* format track */
+			ide_format_track (ide);
 		} else if (cmd == 0xef) { /* set features  */
 			ide_set_features (ide);
 		} else if (cmd == 0x00) { /* nop */
@@ -1557,10 +1594,10 @@ struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct
 		memcpy (&ide->hdhfd.hfd.ci, ci, sizeof (struct uaedev_config_info));
 	if (ci->type == UAEDEV_CD && ci->device_emu_unit >= 0) {
 
-		device_func_init (0);
-		ide->scsi = scsi_alloc_cd (ch, ci->device_emu_unit, true);
+		device_func_init(0);
+		ide->scsi = scsi_alloc_cd(ch, ci->device_emu_unit, true);
 		if (!ide->scsi) {
-			write_log (_T("IDE: CD EMU unit %d failed to open\n"), ide->cd_unit_num);
+			write_log(_T("IDE: CD EMU unit %d failed to open\n"), ide->cd_unit_num);
 			return NULL;
 		}
 
@@ -1568,9 +1605,25 @@ struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct
 		ide->cd_unit_num = ci->device_emu_unit;
 		ide->atapi = true;
 		ide->blocksize = 512;
-		gui_flicker_led (LED_CD, ch, -1);
+		gui_flicker_led(LED_CD, ch, -1);
 
-		write_log (_T("IDE%d CD %d\n"), ch, ide->cd_unit_num);
+		write_log(_T("IDE%d CD %d\n"), ch, ide->cd_unit_num);
+
+	} else if (ci->type == UAEDEV_TAPE) {
+
+		ide->scsi = scsi_alloc_tape(ch, ci->rootdir, ci->readonly);
+		if (!ide->scsi) {
+			write_log(_T("IDE: TAPE EMU unit %d failed to open\n"), ch);
+			return NULL;
+		}
+
+		ide_identity_buffer(ide);
+		ide->atapi = true;
+		ide->blocksize = 512;
+		ide->cd_unit_num = -1;
+
+		write_log(_T("IDE%d TAPE %d\n"), ch, ide->cd_unit_num);
+
 
 	} else if (ci->type == UAEDEV_HDF) {
 

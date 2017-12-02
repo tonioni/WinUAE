@@ -134,7 +134,6 @@ static void aino_test_init (a_inode *aino)
 #define UAEFS_VERSION "UAEfs 0.5"
 
 uaecptr filesys_initcode, filesys_initcode_ptr, filesys_initcode_real;
-uaecptr ks12_resident;
 static uaecptr bootrom_start;
 static uae_u32 fsdevname, fshandlername, filesys_configdev;
 static uae_u32 cdfs_devname, cdfs_handlername;
@@ -9044,35 +9043,7 @@ void filesys_install (void)
 
 	org (loop);
 
-	// KS 1.2 boot resident
-	uaecptr name = ds(_T("UAE boot"));
-	align(2);
-	uaecptr code = here();
-	// allocate fake diagarea
-	dl(0x48e73f3e); // movem.l d2-d7/a2-a6,-(sp)
-	dw(0x203c); // move.l #x,d0
-	dl(0x0300);
-	dw(0x7201); // moveq #1,d1
-	dl(0x4eaeff3a); // jsr -0xc6(a6)
-	dw(0x2440); // move.l d0,a2 ;diag area
-	dw(0x9bcd); // sub.l a5,a5 ;expansionbase
-	dw(0x97cb); // sub.l a3,a3 ;configdev
-	dw(0x4eb9); // jsr
-	dl(ROM_filesys_diagentry);
-	dl(0x4cdf7cfc); // movem.l (sp)+,d2-d7/a2-a6
-	dw(0x4e75);
-	// struct Resident
-	ks12_resident = here();
-	dw(0x0000);
-	dl(ks12_resident);
-	dl(ks12_resident + 26);
-	db(1); // RTF_COLDSTART
-	db((uae_u8)kickstart_version); // version
-	db(0); // NT_UNKNOWN
-	db(1); // priority
-	dl(name);
-	dl(name);
-	dl(code);
+	create_ks12_boot();
 }
 
 uaecptr filesys_get_entry(int index)
