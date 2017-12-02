@@ -1103,7 +1103,7 @@ static void set_x_funcs (void)
 				x_do_cycles_pre = do_cycles;
 				x_do_cycles_post = do_cycles_post;
 			} else if (currprefs.cpu_model == 68030 && !currprefs.cachesize) {
-				x_prefetch = get_word_020_prefetch;
+				x_prefetch = get_word_030_prefetch;
 				x_get_ilong = get_long_030_prefetch;
 				x_get_iword = get_word_030_prefetch;
 				x_get_ibyte = NULL;
@@ -2567,7 +2567,7 @@ STATIC_INLINE int in_rom (uaecptr pc)
 
 STATIC_INLINE int in_rtarea (uaecptr pc)
 {
-	return (munge24 (pc) & 0xFFFF0000) == rtarea_base && uae_boot_rom_type;
+	return (munge24 (pc) & 0xFFFF0000) == rtarea_base && (uae_boot_rom_type || currprefs.uaeboard > 0);
 }
 
 STATIC_INLINE void wait_memory_cycles (void)
@@ -9318,7 +9318,7 @@ static void validate_dcache030_read(uae_u32 addr, uae_u32 ov, int size)
 		ov &= 0xff;
 	}
 	if (ov2 != ov) {
-		write_log(_T("Address %08x data cache mismatch %08x != %08x\n"), addr, ov2, ov);
+		write_log(_T("Address read %08x data cache mismatch %08x != %08x\n"), addr, ov2, ov);
 	}
 }
 #endif
@@ -9358,11 +9358,11 @@ static void write_dcache030x(uaecptr addr, uae_u32 val, uae_u32 size, uae_u32 fc
 			return;
 		}
 
-		val <<= (32 - width);
 		if (hit || wa) {
 			if (hit) {
+				uae_u32 val_left_aligned = val << (32 - width);
 				c1->data[lws1] &= ~(mask[size] >> offset);
-				c1->data[lws1] |= val >> offset;
+				c1->data[lws1] |= val_left_aligned >> offset;
 			} else {
 				c1->valid[lws1] = false;
 			}
@@ -9374,8 +9374,8 @@ static void write_dcache030x(uaecptr addr, uae_u32 val, uae_u32 size, uae_u32 fc
 			hit = c2->tag == tag2 && c2->fc == fc && c2->valid[lws2];
 			if (hit || wa) {
 				if (hit) {
-					c2->data[lws2] &= ~(mask[size] << (width + offset - 32));
-					c2->data[lws2] |= val << (width + offset - 32);
+					c2->data[lws2] &= 0xffffffff >> (width + offset - 32);
+					c2->data[lws2] |= val << (32 - (width + offset - 32));
 				} else {
 					c2->valid[lws2] = false;
 				}
