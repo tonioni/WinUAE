@@ -1252,7 +1252,7 @@ static int scsi_read_cd_da(int unitnum, uae_u8 *cmd, uae_u8 *data, struct device
 	struct blkdevstate *st = &state[unitnum];
 	int msf = cmd[0] == 0xd9;
 	int start = msf ? msf2lsn(rl(cmd + 2) & 0x00ffffff) : rl(cmd + 2);
-	int len = rl(cmd + 5) & 0x00ffffff;
+	int len = rl(cmd + 6) & 0x00ffffff;
 	int sectorsize;
 	uae_u8 subcode = cmd[10];
 	switch (subcode)
@@ -1440,7 +1440,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			goto nodisk;
 		scsi_len = scsi_read_cd_da(unitnum, cmdbuf, scsi_data, &di);
 		if (scsi_len == -2)
-			goto notdatatrack;
+			goto wrongtracktype;
 		if (scsi_len == -1)
 			goto errreq;
 		break;
@@ -1450,7 +1450,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			goto nodisk;
 		scsi_len = scsi_read_cd(unitnum, cmdbuf, scsi_data, &di);
 		if (scsi_len == -2)
-			goto notdatatrack;
+			goto wrongtracktype;
 		if (scsi_len == -1)
 			goto errreq;
 		break;
@@ -1660,7 +1660,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			if (v == -2)
 				goto readerr;
 		} else {
-			goto notdatatrack;
+			goto wrongtracktype;
 		}
 	}
 	break;
@@ -1697,7 +1697,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			if (v == -2)
 				goto readerr;
 		} else {
-			goto notdatatrack;
+			goto wrongtracktype;
 		}
 	}
 	break;
@@ -1720,7 +1720,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			if (v == -2)
 				goto readerr;
 		} else {
-			goto notdatatrack;
+			goto wrongtracktype;
 		}
 	}
 	break;
@@ -1941,7 +1941,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		int end = etrack == toc->last_track ? toc->lastaddress : toc->toc[toc->first_track_offset + etrack - 1 + 1].paddress;
 		sys_command_cd_pause (unitnum, 0);
 		if (!sys_command_cd_play (unitnum, start, end, 0))
-			goto notdatatrack;
+			goto wrongtracktype;
 		scsi_len = 0;
 	}
 	break;
@@ -1963,7 +1963,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		if (len > 0) {
 			sys_command_cd_pause (unitnum, 0);
 			if (!sys_command_cd_play (unitnum, start, start + len, 0))
-				goto notdatatrack;
+				goto wrongtracktype;
 		}
 		scsi_len = 0;
 	}
@@ -1987,7 +1987,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		if (start < end)
 			sys_command_cd_pause (unitnum, 0);
 			if (!sys_command_cd_play (unitnum, start, end, 0))
-				goto notdatatrack;
+				goto wrongtracktype;
 		scsi_len = 0;
 	}
 	break;
@@ -2013,7 +2013,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				end = di.toc.lastaddress;
 			sys_command_cd_pause (unitnum, 0);
 			if (!sys_command_cd_play (unitnum, start, end, 0))
-				goto notdatatrack;
+				goto wrongtracktype;
 		}
 		scsi_len = 0;
 	}
@@ -2038,7 +2038,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		if (start < end) {
 			sys_command_cd_pause (unitnum, 0);
 			if (!sys_command_cd_play (unitnum, start, end, 0))
-				goto notdatatrack;
+				goto wrongtracktype;
 		}
 	}
 	break;
@@ -2083,7 +2083,7 @@ readerr:
 		s[12] = 0x11; /* UNRECOVERED READ ERROR */
 		ls = 0x12;
 	break;
-notdatatrack:
+wrongtracktype:
 		status = 2;
 		s[0] = 0x70;
 		s[2] = 5;

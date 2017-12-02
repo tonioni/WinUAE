@@ -916,13 +916,17 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 			// 2336 -> 2352
 			while (size-- > 0) {
 				int address = asector + 150;
-				data[0] = 0x00;
-				memset(data + 1, 0xff, 11);
-				data[12] = tobcd((uae_u8)(address / (60 * 75)));
-				data[13] = tobcd((uae_u8)((address / 75) % 60));
-				data[14] = tobcd((uae_u8)(address % 75));
-				data[15] = 2; /* MODE2 */
-				do_read(cdu, t, data + 16, sector, 0, t->size, false);
+				if (isaudiotrack(&cdu->di.toc, sector)) {
+					do_read(cdu, t, data, sector, 0, t->size, true);
+				} else {
+					data[0] = 0x00;
+					memset(data + 1, 0xff, 11);
+					data[12] = tobcd((uae_u8)(address / (60 * 75)));
+					data[13] = tobcd((uae_u8)((address / 75) % 60));
+					data[14] = tobcd((uae_u8)(address % 75));
+					data[15] = 2; /* MODE2 */
+					do_read(cdu, t, data + 16, sector, 0, t->size, false);
+				}
 				sector++;
 				asector++;
 				data += sectorsize;
@@ -935,7 +939,7 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 					uae_u8 subs[SUB_CHANNEL_SIZE];
 					getsub_deinterleaved(subs, cdu, t, sector);
 					memcpy(data - SUBQ_SIZE, subs + SUBQ_SIZE, SUBQ_SIZE);
-				}
+}
 			}
 		} else if ((sectorsize == 2352 || sectorsize == 2368 || sectorsize == 2448) && t->size == 2048) {
 			// 2048 -> 2352
@@ -984,7 +988,11 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 		} else if (sectorsize == t->size) {
 			// no change
 			while (size -- > 0) {
-				do_read (cdu, t, data, sector, 0, sectorsize, false);
+				if (sectorsize == 2352 && isaudiotrack(&cdu->di.toc, sector)) {
+					do_read(cdu, t, data, sector, 0, sectorsize, true);
+				} else {
+					do_read(cdu, t, data, sector, 0, sectorsize, false);
+				}
 				sector++;
 				asector++;
 				data += sectorsize;
