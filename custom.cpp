@@ -5597,8 +5597,11 @@ static void BPLCON1 (int hpos, uae_u16 v)
 static void BPLCON2(int hpos, uae_u16 v)
 {
 	if (!(currprefs.chipset_mask & CSMASK_AGA))
+		v &= ~(0x100 | 0x80); // RDRAM and SOGEN
+	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE))
 		v &= 0x7f;
-	if ((bplcon2 & 0x3fff) == (v & 0x3fff))
+	v &= ~0x8000; // unused
+	if (bplcon2 == v)
 		return;
 	decide_line (hpos);
 	bplcon2 = v;

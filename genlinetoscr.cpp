@@ -78,6 +78,7 @@ typedef enum
 	CMODE_NORMAL,
 	CMODE_DUALPF,
 	CMODE_EXTRAHB,
+	CMODE_EXTRAHB_ECS_KILLEHB,
 	CMODE_HAM
 } CMODE_T;
 #define CMODE_MAX CMODE_HAM
@@ -181,10 +182,12 @@ static void out_linetoscr_do_dstpix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE_
 		outln (		"    } else");
 		outln (		"        dpix_val = p_acolors[spix_val];");
 	} else if (cmode == CMODE_EXTRAHB) {
-		outln (		"    if (spix_val <= 31)");
-		outln (		"        dpix_val = p_acolors[spix_val];");
-		outln (		"    else");
-		outln (		"        dpix_val = p_xcolors[(colors_for_drawing.color_regs_ecs[spix_val - 32] >> 1) & 0x777];");
+		outln("    if (spix_val <= 31)");
+		outln("        dpix_val = p_acolors[spix_val];");
+		outln("    else");
+		outln("        dpix_val = p_xcolors[(colors_for_drawing.color_regs_ecs[spix_val - 32] >> 1) & 0x777];");
+	} else if (cmode == CMODE_EXTRAHB_ECS_KILLEHB) {
+		outln("    dpix_val = p_acolors[spix_val & 31];");
 	} else
 		outln (		"    dpix_val = p_acolors[spix_val];");
 }
@@ -540,14 +543,36 @@ static void out_linetoscr (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, int gen
 	outln  (	"");
 
 	if (spr >= 0) {
-		outln  (	"    if (bplham) {");
-		out_linetoscr_mode(bpp, hmode, aga, spr, CMODE_HAM, genlock);
-		outln  (	"    } else if (bpldualpf) {");
-		out_linetoscr_mode(bpp, hmode, aga, spr, CMODE_DUALPF, genlock);
-		outln  (	"    } else if (bplehb) {");
-		out_linetoscr_mode(bpp, hmode, aga, spr, CMODE_EXTRAHB, genlock);
-		outln  (	"    } else {");
+		outln("    switch(bplmode)");
+		outln("    {");
+		outln("    case CMODE_NORMAL:");
+		outln("    {");
 		out_linetoscr_mode(bpp, hmode, aga, spr, CMODE_NORMAL, genlock);
+		outln("    }");
+		outln("    break;");
+		outln("    case CMODE_HAM:");
+		outln("    {");
+		out_linetoscr_mode(bpp, hmode, aga, spr, CMODE_HAM, genlock);
+		outln("    }");
+		outln("    break;");
+		outln("    case CMODE_DUALPF:");
+		outln("    {");
+		out_linetoscr_mode(bpp, hmode, aga, spr, CMODE_DUALPF, genlock);
+		outln("    }");
+		outln("    break;");
+		outln("    case CMODE_EXTRAHB:");
+		outln("    {");
+		out_linetoscr_mode(bpp, hmode, aga, spr, CMODE_EXTRAHB, genlock);
+		outln("    }");
+		outln("    break;");
+		if (!aga) {
+			// ECS Denise with KILLEHB set
+			outln("    case CMODE_EXTRAHB_ECS_KILLEHB:");
+			outln("    {");
+			out_linetoscr_mode(bpp, hmode, aga, spr, CMODE_EXTRAHB_ECS_KILLEHB, genlock);
+			outln("    }");
+			outln("    break;");
+		}
 	} else {
 		outln  (	"    if (1) {");
 		out_linetoscr_mode(bpp, hmode, aga, spr, CMODE_NORMAL, genlock);
