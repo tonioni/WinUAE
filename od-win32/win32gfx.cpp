@@ -4655,11 +4655,12 @@ static BOOL doInit (void)
 				D3D_free(true);
 				changed_prefs.gfx_api = currprefs.gfx_api = 1;
 				d3d_select(&currprefs);
+				error_log(_T("Direct3D11 failed to initialize, falling back to Direct3D9."));
 				err = D3D_init(hAmigaWnd, currentmode->native_width, currentmode->native_height, currentmode->current_depth, &currentmode->freq, screen_is_picasso ? 1 : currprefs.gf[picasso_on].gfx_filter_filtermode + 1);
 			}
 			if (err) {
 				D3D_free(true);
-				gui_message(err);
+				error_log(_T("Direct3D failed to initialize, falling back to DirectDraw."));
 				changed_prefs.gfx_api = currprefs.gfx_api = 0;
 				changed_prefs.gf[picasso_on].gfx_filter = currprefs.gf[picasso_on].gfx_filter = 0;
 				currentmode->current_depth = currentmode->native_depth;

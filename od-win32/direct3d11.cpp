@@ -26,6 +26,11 @@ using Microsoft::WRL::ComPtr;
 
 #include "d3dx.h"
 
+#include "shaders/PixelShaderPlain.h"
+#include "shaders/PixelShaderAlpha.h"
+#include "shaders/PixelShaderMask.h"
+#include "shaders/VertexShader.h"
+
 void (*D3D_free)(bool immediate);
 const TCHAR* (*D3D_init)(HWND ahwnd, int w_w, int h_h, int depth, int *freq, int mmult);
 bool (*D3D_alloctexture)(int, int);
@@ -101,7 +106,8 @@ struct d3d11struct
 	ID3D11SamplerState *m_sampleState_point_wrap, *m_sampleState_linear_wrap;
 	ID3D11InputLayout *m_layout;
 	int texturelocked;
-	DXGI_FORMAT format;
+	DXGI_FORMAT scrformat;
+	DXGI_FORMAT texformat;
 	bool m_tearingSupport;
 	int dmult;
 	int xoffset, yoffset;
@@ -171,68 +177,6 @@ static PFN_D3D11_CREATE_DEVICE pD3D11CreateDevice;
 static CREATEDXGIFACTORY1 pCreateDXGIFactory1;
 static D3DCOMPILEFROMFILE pD3DCompileFromFile;
 static D3DCOMPILE ppD3DCompile;
-
-static const char *uae_shader_ps =
-{
-	"Texture2D shaderTexture;\n"
-	"Texture2D maskTexture;\n"
-	"SamplerState SampleTypeClamp;\n"
-	"SamplerState SampleTypeWrap;\n"
-	"struct PixelInputType\n"
-	"{\n"
-	"	float4 position : SV_POSITION;\n"
-	"	float2 tex : TEXCOORD0;\n"
-	"	float2 sl : TEXCOORD1;\n"
-	"};\n"
-	"float4 PS_PostPlain(PixelInputType input) : SV_TARGET\n"
-	"{\n"
-	"	float4 textureColor = shaderTexture.Sample(SampleTypeClamp, input.tex);\n"
-	"	return textureColor;\n"
-	"}\n"
-	"float4 PS_PostMask(PixelInputType input) : SV_TARGET\n"
-	"{\n"
-	"	float4 textureColor = shaderTexture.Sample(SampleTypeClamp, input.tex);\n"
-	"	float4 maskColor = maskTexture.Sample(SampleTypeWrap, input.sl);\n"
-	"	return textureColor * maskColor;\n"
-	"}\n"
-	"float4 PS_PostAlpha(PixelInputType input) : SV_TARGET\n"
-	"{\n"
-	"	float4 textureColor = shaderTexture.Sample(SampleTypeClamp, input.tex);\n"
-	"	float4 maskColor = maskTexture.Sample(SampleTypeWrap, input.sl);\n"
-	"	return textureColor * (1 - maskColor.a) + (maskColor * maskColor.a);\n"
-	"}\n"
-};
-static const char *uae_shader_vs =
-{
-	"cbuffer MatrixBuffer\n"
-	"{\n"
-	"	matrix worldMatrix;\n"
-	"	matrix viewMatrix;\n"
-	"	matrix projectionMatrix;\n"
-	"};\n"
-	"struct VertexInputType\n"
-	"{\n"
-	"	float4 position : POSITION;\n"
-	"	float2 tex : TEXCOORD0;\n"
-	"	float2 sl : TEXCOORD1;\n"
-	"};\n"
-	"struct PixelInputType\n"
-	"{\n"
-	"	float4 position : SV_POSITION;\n"
-	"	float2 tex : TEXCOORD0;\n"
-	"	float2 sl : TEXCOORD1;\n"
-	"};\n"
-	"PixelInputType TextureVertexShader(VertexInputType input)\n"
-	"{\n"
-	"	PixelInputType output;\n"
-	"	input.position.w = 1.0f;\n"
-	"	output.position = mul(input.position, projectionMatrix);\n"
-	"	output.position.z = 0.0f;\n"
-	"	output.tex = input.tex;\n"
-	"	output.sl = input.sl;\n"
-	"	return output;\n"
-	"}\n"
-};
 
 static int isfs(struct d3d11struct *d3d)
 {
@@ -468,7 +412,7 @@ static bool CreateTexture(struct d3d11struct *d3d)
 	desc.Height = d3d->m_bitmapHeight;
 	desc.MipLevels = 1;
 	desc.ArraySize = 1;
-	desc.Format = d3d->format;
+	desc.Format = d3d->texformat;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Usage = D3D11_USAGE_DEFAULT;
@@ -486,7 +430,7 @@ static bool CreateTexture(struct d3d11struct *d3d)
 	desc.Height = d3d->m_bitmapHeight;
 	desc.MipLevels = 1;
 	desc.ArraySize = 1;
-	desc.Format = d3d->format;
+	desc.Format = d3d->texformat;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Usage = D3D11_USAGE_STAGING;
@@ -503,7 +447,7 @@ static bool CreateTexture(struct d3d11struct *d3d)
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
-	srvDesc.Format = d3d->format;
+	srvDesc.Format = d3d->texformat;
 
 	hr = d3d->m_device->CreateShaderResourceView(d3d->texture2d, &srvDesc, &d3d->texture2drv);
 	if (FAILED(hr)) {
@@ -538,7 +482,7 @@ static bool CreateTexture(struct d3d11struct *d3d)
 	desc.Height = d3d->ledheight;
 	desc.MipLevels = 1;
 	desc.ArraySize = 1;
-	desc.Format = d3d->format;
+	desc.Format = d3d->scrformat;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -550,6 +494,11 @@ static bool CreateTexture(struct d3d11struct *d3d)
 		write_log(_T("CreateTexture2D (led) failed: %08x\n"), hr);
 		return false;
 	}
+
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = desc.MipLevels;
+	srvDesc.Format = d3d->scrformat;
 
 	hr = d3d->m_device->CreateShaderResourceView(d3d->ledtexture, &srvDesc, &d3d->ledtexturerv);
 	if (FAILED(hr)) {
@@ -573,7 +522,7 @@ static bool createsltexture(struct d3d11struct *d3d)
 	desc.Height = d3d->m_screenHeight;
 	desc.MipLevels = 1;
 	desc.ArraySize = 1;
-	desc.Format = d3d->format;
+	desc.Format = d3d->scrformat;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -590,7 +539,7 @@ static bool createsltexture(struct d3d11struct *d3d)
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
-	srvDesc.Format = d3d->format;
+	srvDesc.Format = d3d->scrformat;
 
 	hr = d3d->m_device->CreateShaderResourceView(d3d->sltexture, &srvDesc, &d3d->sltexturerv);
 	if (FAILED(hr)) {
@@ -1007,7 +956,7 @@ static int createmasktexture(struct d3d11struct *d3d, const TCHAR *filename, str
 	desc.Height = maskheight;
 	desc.MipLevels = 1;
 	desc.ArraySize = 1;
-	desc.Format = d3d->format;
+	desc.Format = d3d->scrformat;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -1050,7 +999,7 @@ static int createmasktexture(struct d3d11struct *d3d, const TCHAR *filename, str
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
-	srvDesc.Format = d3d->format;
+	srvDesc.Format = d3d->scrformat;
 
 	hr = d3d->m_device->CreateShaderResourceView(sd->masktexture, &srvDesc, &sd->masktexturerv);
 	if (FAILED(hr)) {
@@ -1105,16 +1054,16 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 	D3D11_SAMPLER_DESC samplerDesc;
 	unsigned int numElements;
 	D3D11_BUFFER_DESC matrixBufferDesc;
-	bool plugin_path;
-	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
-
-	plugin_path = get_plugin_path(tmp, sizeof tmp / sizeof(TCHAR), _T("filtershaders\\direct3d11"));
 
 	// Initialize the pointers this function will use to null.
 	errorMessage = 0;
 	vertexShaderBuffer = 0;
 
 	// Compile the vertex shader code.
+#if 0
+	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
+	bool plugin_path;
+	plugin_path = get_plugin_path(tmp, sizeof tmp / sizeof(TCHAR), _T("filtershaders\\direct3d11"));
 	result = E_FAIL;
 	if (plugin_path) {
 		_tcscpy(tmp2, tmp);
@@ -1134,9 +1083,10 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 			return false;
 		}
 	}
+#endif
 
 	// Create the vertex shader from the buffer.
-	result = d3d->m_device->CreateVertexShader(vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), NULL, &d3d->m_vertexShader);
+	result = d3d->m_device->CreateVertexShader(VertexShader, sizeof(VertexShader), NULL, &d3d->m_vertexShader);
 	if (FAILED(result))
 	{
 		write_log(_T("ID3D11Device CreateVertexShader %08x\n"), result);
@@ -1146,6 +1096,8 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 	for (int i = 0; i < 3; i++) {
 		ID3D10Blob* pixelShaderBuffer = NULL;
 		ID3D11PixelShader **ps = NULL;
+		const BYTE *Buffer = NULL;
+		int BufferSize = 0;
 		char *name;
 
 		switch (i)
@@ -1153,16 +1105,23 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 		case 0:
 			name = "PS_PostPlain";
 			ps = &d3d->m_pixelShader;
+			Buffer = PS_PostPlain;
+			BufferSize = sizeof(PS_PostPlain);
 			break;
 		case 1:
 			name = "PS_PostMask";
 			ps = &d3d->m_pixelShaderMask;
+			Buffer = PS_PostMask;
+			BufferSize = sizeof(PS_PostMask);
 			break;
 		case 2:
 			name = "PS_PostAlpha";
 			ps = &d3d->m_pixelShaderSL;
+			Buffer = PS_PostAlpha;
+			BufferSize = sizeof(PS_PostAlpha);
 			break;
 		}
+#if 0
 		// Compile the pixel shader code.
 		result = E_FAIL;
 		if (plugin_path) {
@@ -1182,19 +1141,23 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 				return false;
 			}
 		}
-
+#endif
 		// Create the pixel shader from the buffer.
-		result = d3d->m_device->CreatePixelShader(pixelShaderBuffer->GetBufferPointer(), pixelShaderBuffer->GetBufferSize(), NULL, ps);
+		result = d3d->m_device->CreatePixelShader(Buffer, BufferSize, NULL, ps);
 		if (FAILED(result))
 		{
 			write_log(_T("ID3D11Device CreatePixelShader %08x\n"), result);
-			pixelShaderBuffer->Release();
-			pixelShaderBuffer = 0;
+			if (pixelShaderBuffer) {
+				pixelShaderBuffer->Release();
+				pixelShaderBuffer = 0;
+			}
 			return false;
 		}
 
-		pixelShaderBuffer->Release();
-		pixelShaderBuffer = 0;
+		if (pixelShaderBuffer) {
+			pixelShaderBuffer->Release();
+			pixelShaderBuffer = 0;
+		}
 	}
 
 	// Create the vertex input layout description.
@@ -1227,16 +1190,18 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 	numElements = sizeof(polygonLayout) / sizeof(polygonLayout[0]);
 
 	// Create the vertex input layout.
-	result = d3d->m_device->CreateInputLayout(polygonLayout, numElements, vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), &d3d->m_layout);
+	result = d3d->m_device->CreateInputLayout(polygonLayout, numElements, VertexShader, sizeof(VertexShader), &d3d->m_layout);
 	if (FAILED(result))
 	{
 		write_log(_T("ID3D11Device CreateInputLayout %08x\n"), result);
 		return false;
 	}
 
-	// Release the vertex shader buffer and pixel shader buffer since they are no longer needed.
-	vertexShaderBuffer->Release();
-	vertexShaderBuffer = 0;
+	if (vertexShaderBuffer) {
+		// Release the vertex shader buffer and pixel shader buffer since they are no longer needed.
+		vertexShaderBuffer->Release();
+		vertexShaderBuffer = 0;
+	}
 
 	// Setup the description of the dynamic matrix constant buffer that is in the vertex shader.
 	matrixBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -1518,31 +1483,36 @@ bool can_D3D11(bool checkdevice)
 		hd3d11 = LoadLibrary(_T("D3D11.dll"));
 	if (!hdxgi)
 		hdxgi = LoadLibrary(_T("Dxgi.dll"));
+
+#if 0
 	if (!hd3dcompiler)
 		hd3dcompiler = LoadLibrary(_T("D3DCompiler_47.dll"));
+#endif
 
-	if (!hd3d11 || !hdxgi || !hd3dcompiler) {
-		write_log(_T("D3D11.dll=%p Dxgi.dll=%p D3DCompiler_47.dll=%p\n"), hd3d11, hdxgi, hd3dcompiler);
+	if (!hd3d11 || !hdxgi) {
+		write_log(_T("D3D11.dll=%p Dxgi.dll=%p\n"), hd3d11, hdxgi);
 		return false;
 	}
 
 	pD3D11CreateDevice = (PFN_D3D11_CREATE_DEVICE)GetProcAddress(GetModuleHandle(_T("D3D11.dll")), "D3D11CreateDevice");
 	pCreateDXGIFactory1 = (CREATEDXGIFACTORY1)GetProcAddress(GetModuleHandle(_T("Dxgi.dll")), "CreateDXGIFactory1");
-	pD3DCompileFromFile = (D3DCOMPILEFROMFILE)GetProcAddress(GetModuleHandle(_T("D3DCompiler_47.dll")), "D3DCompileFromFile");
-	ppD3DCompile = (D3DCOMPILE)GetProcAddress(GetModuleHandle(_T("D3DCompiler_47.dll")), "D3DCompile");
+	if (hd3dcompiler) {
+		pD3DCompileFromFile = (D3DCOMPILEFROMFILE)GetProcAddress(GetModuleHandle(_T("D3DCompiler_47.dll")), "D3DCompileFromFile");
+		ppD3DCompile = (D3DCOMPILE)GetProcAddress(GetModuleHandle(_T("D3DCompiler_47.dll")), "D3DCompile");
+	}
 
-	if (!pD3D11CreateDevice || !pCreateDXGIFactory1 || !pD3DCompileFromFile || !ppD3DCompile) {
+	if (!pD3D11CreateDevice || !pCreateDXGIFactory1 || (hd3dcompiler && !pD3DCompileFromFile) || (hd3dcompiler && !ppD3DCompile)) {
 		write_log(_T("pD3D11CreateDevice=%p pCreateDXGIFactory1=%p pD3DCompileFromFile=%p ppD3DCompile=%p\n"),
 			pD3D11CreateDevice, pCreateDXGIFactory1, pD3DCompileFromFile, ppD3DCompile);
 		return false;
 	}
 
 	if (checkdevice) {
-		static const D3D_FEATURE_LEVEL levels0[] = { D3D_FEATURE_LEVEL_11_0 };
+		static const D3D_FEATURE_LEVEL levels100[] = { D3D_FEATURE_LEVEL_10_0 };
 		UINT cdflags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 		ID3D11Device *m_device;
 		ID3D11DeviceContext *m_deviceContext;
-		HRESULT hr = pD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, cdflags, levels0, 1, D3D11_SDK_VERSION, &m_device, NULL, &m_deviceContext);
+		HRESULT hr = pD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, cdflags, levels100, 1, D3D11_SDK_VERSION, &m_device, NULL, &m_deviceContext);
 		if (FAILED(hr)) {
 			return false;
 		}
@@ -1585,7 +1555,8 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 	d3d->m_screenWidth = w_w;
 	d3d->m_screenHeight = w_h;
 	d3d->ahwnd = ahwnd;
-	d3d->format = depth == 32 ? DXGI_FORMAT_B8G8R8A8_UNORM : DXGI_FORMAT_B5G6R5_UNORM;
+	d3d->texformat = depth == 32 ? DXGI_FORMAT_B8G8R8A8_UNORM : DXGI_FORMAT_B5G6R5_UNORM;
+	d3d->scrformat = DXGI_FORMAT_B8G8R8A8_UNORM;
 
 	struct MultiDisplay *md = getdisplay(&currprefs);
 	POINT pt;
@@ -1652,7 +1623,7 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 
 
 	// Get the number of modes that fit the display format for the adapter output (monitor).
-	result = adapterOutput1->GetDisplayModeList1(d3d->format, DXGI_ENUM_MODES_INTERLACED, &numModes, NULL);
+	result = adapterOutput1->GetDisplayModeList1(d3d->scrformat, DXGI_ENUM_MODES_INTERLACED, &numModes, NULL);
 	if (FAILED(result))
 	{
 		write_log(_T("IDXGIOutput1 GetDisplayModeList1 %08x\n"), result);
@@ -1668,7 +1639,7 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 	}
 
 	// Now fill the display mode list structures.
-	result = adapterOutput1->GetDisplayModeList1(d3d->format, DXGI_ENUM_MODES_INTERLACED, &numModes, displayModeList);
+	result = adapterOutput1->GetDisplayModeList1(d3d->scrformat, DXGI_ENUM_MODES_INTERLACED, &numModes, displayModeList);
 	if (FAILED(result))
 	{
 		write_log(_T("IDXGIAdapter1 GetDesc %08x\n"), result);
@@ -1686,7 +1657,7 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 	for (int i = 0; i < numModes; i++)
 	{
 		DXGI_MODE_DESC1 *m = &displayModeList[i];
-		if (m->Format != d3d->format)
+		if (m->Format != d3d->scrformat)
 			continue;
 		if (apm->gfx_interlaced && !(m->ScanlineOrdering & DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST))
 			continue;
@@ -1707,7 +1678,7 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 	}
 	if (isfs(d3d) > 0 && (hz == 0 || (d3d->fsSwapChainDesc.RefreshRate.Denominator == 0 && d3d->fsSwapChainDesc.RefreshRate.Numerator == 0))) {
 		DXGI_MODE_DESC1 md1 = { 0 }, md2;
-		md1.Format = d3d->format;
+		md1.Format = d3d->scrformat;
 		md1.Width = w_w;
 		md1.Height = w_h;
 		md1.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
@@ -1749,20 +1720,25 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 	adapter->Release();
 	adapter = 0;
 
-	static const D3D_FEATURE_LEVEL levels1[] = { D3D_FEATURE_LEVEL_11_1 };
 	UINT cdflags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 #ifdef _DEBUG
 	cdflags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
-	result = pD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, cdflags, levels1, 1, D3D11_SDK_VERSION, &d3d->m_device, NULL, &d3d->m_deviceContext);
+	static const D3D_FEATURE_LEVEL levels111[] = { D3D_FEATURE_LEVEL_11_1 };
+	D3D_FEATURE_LEVEL outlevel;
+	result = pD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, cdflags, levels111, 1, D3D11_SDK_VERSION, &d3d->m_device, &outlevel, &d3d->m_deviceContext);
 	if (FAILED(result)) {
 		write_log(_T("D3D11CreateDevice LEVEL_11_1: %08x\n"), result);
 		if (result == E_INVALIDARG || result == DXGI_ERROR_UNSUPPORTED) {
-			static const D3D_FEATURE_LEVEL levels0[] = { D3D_FEATURE_LEVEL_11_0 };
-			result = pD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, cdflags, levels0, 1, D3D11_SDK_VERSION, &d3d->m_device, NULL, &d3d->m_deviceContext);
+			static const D3D_FEATURE_LEVEL levels110[] = { D3D_FEATURE_LEVEL_11_0 };
+			result = pD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, cdflags, levels110, 1, D3D11_SDK_VERSION, &d3d->m_device, &outlevel, &d3d->m_deviceContext);
+			if (result == E_INVALIDARG || result == DXGI_ERROR_UNSUPPORTED) {
+				write_log(_T("D3D11CreateDevice LEVEL_11_0: %08x\n"), result);
+				static const D3D_FEATURE_LEVEL levels100[] = { D3D_FEATURE_LEVEL_10_0 };
+				result = pD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, cdflags, levels100, 1, D3D11_SDK_VERSION, &d3d->m_device, &outlevel, &d3d->m_deviceContext);
+			}
 		}
 		if (FAILED(result)) {
-			D3D_FEATURE_LEVEL outlevel;
 			result = pD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, cdflags, NULL, 0, D3D11_SDK_VERSION, &d3d->m_device, &outlevel, &d3d->m_deviceContext);
 			if (FAILED(result)) {
 				write_log(_T("D3D11CreateDevice %08x\n"), result);
@@ -1771,11 +1747,12 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 				d3d->m_deviceContext = NULL;
 				d3d->m_device->Release();
 				d3d->m_device = NULL;
-				gui_message(_T("Direct3D11 Level 11 capable hardware required\nDetected hardware level is: %d.%d"), outlevel >> 12, (outlevel >> 8) & 15);
+				gui_message(_T("Direct3D11 Level 10 capable hardware required\nDetected hardware level is: %d.%d"), outlevel >> 12, (outlevel >> 8) & 15);
 			}
 			return false;
 		}
 	}
+	write_log(_T("D3D11CreateDevice succeeded with level %d.%d\n"), outlevel >> 12, (outlevel >> 8) & 15);
 
 	ComPtr<IDXGIDevice1> dxgiDevice;
 	result = d3d->m_device->QueryInterface(__uuidof(IDXGIDevice1), &dxgiDevice);
@@ -1796,7 +1773,7 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 	d3d->swapChainDesc.Height = w_h;
 
 	// Set regular 32-bit surface for the back buffer.
-	d3d->swapChainDesc.Format = d3d->format;
+	d3d->swapChainDesc.Format = d3d->scrformat;
 
 	// Turn multisampling off.
 	d3d->swapChainDesc.SampleDesc.Count = 1;
@@ -1955,7 +1932,7 @@ static void xD3D11_free(bool immediate)
 static const TCHAR *xD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmult)
 {
 	if (!can_D3D11(false))
-		return false;
+		return _T("D3D11 FAILED TO INIT");
 	if (xxD3D11_init(ahwnd, w_w, w_h, depth, freq, mmult))
 		return NULL;
 	xD3D11_free(true);
@@ -2184,6 +2161,9 @@ static bool xD3D11_renderframe(bool immediate)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
 
+	if (!d3d->m_swapChain)
+		return false;
+
 	if (d3d->fsmodechange)
 		D3D_resize(0);
 
@@ -2233,6 +2213,8 @@ static void xD3D11_showframe(void)
 	struct d3d11struct *d3d = &d3d11data[0];
 	if (d3d->invalidmode)
 		return;
+	if (!d3d->m_swapChain)
+		return;
 	// Present the rendered scene to the screen.
 	EndScene(d3d);
 }
@@ -2242,12 +2224,17 @@ static void xD3D11_clear(void)
 	struct d3d11struct *d3d = &d3d11data[0];
 	if (d3d->invalidmode)
 		return;
+	if (!d3d->m_swapChain)
+		return;
 	BeginScene(d3d, 0, 0, 0, 0);
 }
 
 static void xD3D11_refresh(void)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
+
+	if (!d3d->m_swapChain)
+		return;
 
 	createscanlines(d3d, 0);
 	if (xD3D11_renderframe(true)) {
@@ -2357,7 +2344,7 @@ static void resizemode(struct d3d11struct *d3d)
 		freed3d(d3d);
 		write_log(_T("D3D11 resize %d %d, %d %d\n"), d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth, d3d->m_bitmapHeight);
 		setswapchainmode(d3d, d3d->fsmode);
-		HRESULT hr = d3d->m_swapChain->ResizeBuffers(d3d->swapChainDesc.BufferCount, d3d->m_screenWidth, d3d->m_screenHeight, d3d->format, d3d->swapChainDesc.Flags);
+		HRESULT hr = d3d->m_swapChain->ResizeBuffers(d3d->swapChainDesc.BufferCount, d3d->m_screenWidth, d3d->m_screenHeight, d3d->scrformat, d3d->swapChainDesc.Flags);
 		if (FAILED(hr)) {
 			write_log(_T("ResizeBuffers %08x\n"), hr);
 			d3d->invalidmode = true;
@@ -2365,9 +2352,8 @@ static void resizemode(struct d3d11struct *d3d)
 		if (!d3d->invalidmode) {
 			if (!initd3d(d3d)) {
 				xD3D11_free(true);
-				currprefs.gfx_api = changed_prefs.gfx_api = 1;
+				gui_message(_T("D3D11 Resize failed."));
 				d3d->invalidmode = true;
-				d3d9_select();
 			} else {
 				xD3D11_alloctexture(d3d->m_bitmapWidth, d3d->m_bitmapHeight);
 			}
@@ -2442,17 +2428,18 @@ static void xD3D11_guimode(int guion)
 
 	if (isfullscreen() <= 0)
 		return;
-
-	write_log(_T("guimode %d\n"), guion);
+	
+	write_log(_T("fs guimode %d\n"), guion);
 	d3d->guimode = guion;
 	if (guion > 0) {
-		;
+		xD3D11_free(d3d);
+		ShowWindow(d3d->ahwnd, SW_HIDE);
 	} else if (guion == 0) {
-		d3d->fsmode = 0;
-		xD3D11_resize(1);
-		xD3D11_resize(0);
+		ShowWindow(d3d->ahwnd, SW_SHOWNORMAL);
+		if (!xxD3D11_init(d3d->ahwnd, d3d->m_screenWidth, d3d->m_screenHeight, 32, NULL, 1))
+			d3d->invalidmode = true;
 	}
-	write_log(_T("guimode end\n"));
+	write_log(_T("fs guimode end\n"));
 }
 
 static int xD3D_isenabled(void)
