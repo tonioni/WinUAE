@@ -1508,10 +1508,10 @@ void flush_cpu_caches(bool force)
 			regs.cacr &= ~0x400;
 		}
 	} else if (currprefs.cpu_model >= 68040) {
-		mmu_flush_cache();
-		icachelinecnt = 0;
-		icachehalfline = 0;
-		if (doflush || force) {
+		if (doflush && force) {
+			mmu_flush_cache();
+			icachelinecnt = 0;
+			icachehalfline = 0;
 			for (int i = 0; i < CACHESETS060; i++) {
 				for (int j = 0; j < CACHELINES040; j++) {
 					icaches040[i].valid[j] = false;
@@ -8710,7 +8710,7 @@ static void fill_icache020 (uae_u32 addr, bool opcode)
 	index = (addr >> 2) & (CACHELINES020 - 1);
 	tag = regs.s | (addr & ~((CACHELINES020 << 2) - 1));
 	c = &caches020[index];
-	if (c->valid && c->tag == tag) {
+	if ((regs.cacr & 1) && c->valid && c->tag == tag) {
 		// cache hit
 		regs.cacheholdingaddr020 = addr;
 		regs.cacheholdingdata020 = c->data;
@@ -8735,9 +8735,8 @@ static void fill_icache020 (uae_u32 addr, bool opcode)
 	data = icache_fetch(addr);
 	end_020_cycle_prefetch(opcode);
 
-	if (!(regs.cacr & 1)) {
-		c->valid = false;
-	} else if (!(regs.cacr & 2)) {
+	// enabled and not frozen
+	if ((regs.cacr & 1) && !(regs.cacr & 2)) {
 		c->tag = tag;
 		c->valid = true;
 		c->data = data;
@@ -9218,7 +9217,7 @@ static void fill_icache030 (uae_u32 addr)
 	if (regs.cacheholdingaddr020 == addr || regs.cacheholdingdata_valid == 0)
 		return;
 	c = geticache030 (icaches030, addr, &tag, &lws);
-	if (c->valid[lws] && c->tag == tag) {
+	if ((regs.cacr & 1) && c->valid[lws] && c->tag == tag) {
 		// cache hit
 		regs.cacheholdingaddr020 = addr;
 		regs.cacheholdingdata020 = c->data[lws];
