@@ -2033,7 +2033,7 @@ int configure_rom (struct uae_prefs *p, const int *rom, int msg)
 	}
 	if (rd->type & (ROMTYPE_KICK | ROMTYPE_KICKCD32))
 		_tcscpy (p->romfile, path);
-	if (rd->type & (ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS | ROMTYPE_ALG))
+	if ((rd->type & (ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS | ROMTYPE_ALG)) && !(rd->type & ROMTYPE_KICKCD32))
 		_tcscpy (p->romextfile, path);
 	if (rd->type & ROMTYPE_CD32CART) {
 		_tcscpy(p->cartfile, path);
