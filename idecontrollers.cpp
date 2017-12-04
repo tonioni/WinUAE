@@ -815,6 +815,9 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 		int reg = get_arriba_reg(addr, board);
 		if (reg >= 0) {
 			v = get_ide_reg(board, reg);
+		} else if (board->rom && !(addr & 0x8000)) {
+			int offset = addr & 0x7fff;
+			v = board->rom[offset];
 		}
 
 	} else if (board->type == FASTATA4K_IDE) {
@@ -1043,6 +1046,11 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 			int reg = get_arriba_reg(addr, board);
 			if (reg == 0) {
 				v = get_ide_reg_multi(board, IDE_DATA, 0, 1);
+			} else if (board->rom && !(addr & 0x8000)) {
+				int offset = addr & 0x7fff;
+				v = board->rom[(offset + 0) & board->rom_mask];
+				v <<= 8;
+				v |= board->rom[(offset + 1) & board->rom_mask];
 			}
 
 		} else if (board->type == FASTATA4K_IDE) {
@@ -1470,25 +1478,8 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 
 static uae_u32 ide_read_wordi(struct ide_board *board, uaecptr addr)
 {
-	uae_u16 v = 0;
-	if (board->type == GOLEMFAST_IDE) {
-
-		if (!(addr & 0x8000)) {
-			if (board->rom) {
-				v = board->rom[addr & board->rom_mask] << 8;
-				v |= board->rom[(addr + 1) & board->rom_mask];
-			}
-		}
-
-	} else {
-
-		v = dummy_wgeti(addr);
-
-	}
-	return v;
+	return ide_read_word(board, addr);
 }
-
-
 
 IDE_MEMORY_FUNCTIONS(ide_controller_gvp, ide, gvp_ide_controller_board);
 
@@ -1578,7 +1569,6 @@ static uae_u8 *REGPARAM2 ide_generic_xlate(uaecptr addr)
 		return NULL;
 	addr &= ide->rom_mask;
 	return ide->rom + addr;
-
 }
 static int REGPARAM2 ide_generic_check(uaecptr a, uae_u32 b)
 {
@@ -2244,9 +2234,16 @@ bool arriba_init(struct autoconfig_info *aci)
 
 	ide->bank = &ide_bank_generic;
 	ide->mask = 65536 - 1;
+	ide->rom_size = 32768;
+	ide->rom_mask = 32768 - 1;
+
+	ide->rom = xcalloc(uae_u8, 32768);
+	load_rom_rc(aci->rc, ROMTYPE_ARRIBA, 32768, 0, ide->rom, 32768, LOADROM_FILL);
 
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = ert->autoconfig[i];
+		if (i == 0 && aci->rc->autoboot_disabled)
+			b &= ~0x10;
 		ew(ide, i * 4, b);
 	}
 

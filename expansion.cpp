@@ -4783,12 +4783,12 @@ const struct expansionromtype expansionroms[] = {
 	},
 	{
 		_T("arriba"), _T("Arriba"), _T("Gigatron"),
-		NULL, arriba_init, NULL, arriba_add_ide_unit, ROMTYPE_ARRIBA | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, arriba_init, NULL, arriba_add_ide_unit, ROMTYPE_ARRIBA | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_IDE,
+		true, EXPANSIONTYPE_IDE,
 		0, 0, 0, false, NULL,
 		false, 0, NULL,
-		{ 0xc1, 0x01, 0x00, 0x00, 0x08, 0x3d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+		{ 0xd1, 0x01, 0x00, 0x00, 0x08, 0x3d, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00 },
 	},
 	{
 		_T("gvp1"), _T("GVP Series I"), _T("Great Valley Products"),
