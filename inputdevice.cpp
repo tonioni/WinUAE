@@ -3440,6 +3440,10 @@ uae_u8 handle_joystick_buttons (uae_u8 pra, uae_u8 dra)
 			if (!cd32padmode (p5dir, p5dat)) {
 				if (getbuttonstate (i, JOYBUTTON_CD32_RED) || getbuttonstate (i, JOYBUTTON_1))
 					but &= ~mask;
+				// always zero if output=1 and data=0
+				if ((dra & mask) && !(pra & mask)) {
+					but &= ~mask;
+				}
 			}
 		} else {
 			if (!getbuttonstate (i, JOYBUTTON_1))
@@ -3449,8 +3453,10 @@ uae_u8 handle_joystick_buttons (uae_u8 pra, uae_u8 dra)
 				if (uaerand () & 1)
 					but |= mask;
 			}
-			if (dra & mask)
-				but = (but & ~mask) | (pra & mask);
+			// always zero if output=1 and data=0
+			if ((dra & mask) && !(pra & mask)) {
+				but &= ~mask;
+			}
 		}
 	}
 
