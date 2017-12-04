@@ -1133,6 +1133,7 @@
 #define IDC_DBG_MEMTOPC                 1759
 #define IDC_CS_ROMISSLOW                1759
 #define IDC_DBG_MEMUPFAST               1760
+#define IDC_CS_CIA                      1760
 #define IDC_DA_RESET                    1761
 #define IDC_DBG_STATUS                  1762
 #define IDC_DBG_BRKPTS                  1763

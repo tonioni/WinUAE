@@ -68,6 +68,9 @@
     <Filter Include="softfloat">
       <UniqueIdentifier>{b113952e-b596-4a9e-922f-8ccff5b915ed}</UniqueIdentifier>
     </Filter>
+    <Filter Include="win32\Shaders">
+      <UniqueIdentifier>{34d75786-02bd-43a5-b45d-934eef34e96e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ahidsound_dsonly.cpp">
@@ -975,5 +978,22 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\resources\resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\shaders\VertexShader.hlsl">
+      <Filter>win32\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\PixelShaderPlain.hlsl">
+      <Filter>win32\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\PixelShader.hlsl">
+      <Filter>win32\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\PixelShaderAlpha.hlsl">
+      <Filter>win32\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\PixelShaderMask.hlsl">
+      <Filter>win32\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

@@ -8140,6 +8140,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_COMPOSITECOLOR, workprefs.cs_color_burst);
 	CheckDlgButton(hDlg, IDC_CS_TOSHIBAGARY, workprefs.cs_toshibagary);
 	CheckDlgButton(hDlg, IDC_CS_ROMISSLOW, workprefs.cs_romisslow);
+	CheckDlgButton(hDlg, IDC_CS_CIA, workprefs.cs_ciatype[0]);
 	SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_SETCURSEL, workprefs.cs_unmapped_space, 0);
 	txt[0] = 0;
 	_stprintf (txt, _T("%d"), workprefs.cs_rtc_adjust);
@@ -8233,6 +8234,7 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_color_burst = ischecked(hDlg, IDC_CS_COMPOSITECOLOR);
 	workprefs.cs_toshibagary = ischecked(hDlg, IDC_CS_TOSHIBAGARY);
 	workprefs.cs_romisslow = ischecked(hDlg, IDC_CS_ROMISSLOW);
+	workprefs.cs_ciatype[0] = workprefs.cs_ciatype[1] = ischecked(hDlg, IDC_CS_CIA);
 	LRESULT val = SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_GETCURSEL, 0, 0L);
 	if (val != CB_ERR)
 		workprefs.cs_unmapped_space = val;
@@ -8325,6 +8327,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_TOSHIBAGARY, e);
 	ew(hDlg, IDC_CS_ROMISSLOW, e);
 	ew(hDlg, IDC_CS_UNMAPPED, e);
+	ew(hDlg, IDC_CS_CIA, e);
 }
 
 static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -19646,6 +19649,8 @@ static bool dodialogmousemove (void)
 		return false;
 	if (isfullscreen () > 0 && currprefs.gfx_size_fs.width > gui_width && currprefs.gfx_size.height > gui_height)
 		return false;
+	if (currprefs.gfx_api == 2)
+		return false;
 	struct MultiDisplay *mdc = getdisplay (&currprefs);
 	for (int i = 0; Displays[i].monitorid; i++) {
 		struct MultiDisplay *md = &Displays[i];
@@ -20613,7 +20618,6 @@ static int GetSettings (int all_options, HWND hwnd)
 			MapDialogRect (dhwnd, &dialog_rect);
 
 			hGUIWnd = dhwnd;
-			flipgui(2);
 
 			for (;;) {
 				HANDLE IPChandle;

@@ -4,6 +4,23 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+
+Beta 10:
+
+Direct3D11 support should now work in any Windows 7SP1+ installation without extra manual updates (that D3D9 required) and also work with most older GPUs.
+
+- DIVS/DIVU overflow condition undefined flags emulated. 68000 was already correct (N is also always set). 68020/030 has weird extra conditions. 68040/060 never sets undefined flags.
+- Direct3D11 init failing due to missing DLLs caused a crash.
+- D3D11 mode now uses pre-compiled shaders, D3DCompiler_47.dll is not needed anymore, which is not system built-in in Windows 7 and 8.0.
+- D3D11 fullscreen now temporarily switches to desktop when opening GUI. Opening GUI on top of fullscreen is unreliable, causing random black screens, dropping to desktop with blank emulation window visible etc...
+- D3D11 16-bit mode is now working, only main texture should be 16-bit, everything else needs to be 32-bit (GPU does needed conversions internally).
+- Direct3D11 mode minimum supported hardware level is now 10.0 (was 11.0)
+- Gigatron Arriba boot ROM support added.
+- GUI OSD now ignores very quick floppy select/deselects (for example used to check diskchanges), floppy OSD only lights when drive is selected for more than 1 frames. Reduces number of useless OSD updates.
+- Added "CIA 391078-01" advanced chipset checkbox. This CIA revision has a bug, if IO port is in output mode, reading it will always read output mode data state. Other models, including original DIP 8520, 391078-02 and Akiko internal CIAs read IO pin external voltage level as documented. This can affect "bad" mouse left button/joystick fire button reading code if it uses output mode.
+- Joystick fire button/mouse left button CIA IO ports in output mode always used 391078-01 behavior.
+- 68020/030 instruction cache update, cache read hits were possible even if cache was disabled.
+
 Beta 9:
 
 - Added workaround that disables RTG HW sprite if enabled in D3D11 mode. (HW sprite is not yet supported in D3D11)

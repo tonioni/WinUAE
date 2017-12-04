@@ -10025,6 +10025,13 @@ uae_u8 *restore_custom_extra (uae_u8 *src)
 	currprefs.cs_resetwarning = changed_prefs.cs_resetwarning = RBB;
 	currprefs.cs_z3autoconfig = changed_prefs.cs_z3autoconfig = RBB;
 	currprefs.cs_1mchipjumper = changed_prefs.cs_1mchipjumper = RBB;
+	currprefs.cs_bytecustomwritebug = changed_prefs.cs_bytecustomwritebug = RBB;
+	currprefs.cs_color_burst = changed_prefs.cs_color_burst = RBB;
+	currprefs.cs_toshibagary = changed_prefs.cs_toshibagary = RBB;
+	currprefs.cs_romisslow = changed_prefs.cs_romisslow = RBB;
+
+	currprefs.cs_ciatype[0] = changed_prefs.cs_ciatype[0] = RBB;
+	currprefs.cs_ciatype[1] = changed_prefs.cs_ciatype[1] = RBB;
 
 	return src;
 }
@@ -10078,6 +10085,13 @@ uae_u8 *save_custom_extra (int *len, uae_u8 *dstptr)
 	SB (currprefs.cs_resetwarning ? 1 : 0);
 	SB (currprefs.cs_z3autoconfig ? 1 : 0);
 	SB (currprefs.cs_1mchipjumper ? 1 : 0);
+
+	SB(currprefs.cs_bytecustomwritebug ? 1 : 0);
+	SB(currprefs.cs_color_burst ? 1 : 0);
+	SB(currprefs.cs_toshibagary ? 1 : 0);
+	SB(currprefs.cs_ciatype[0]);
+	SB(currprefs.cs_ciatype[1]);
+
 
 	*len = dst - dstbak;
 	return dstbak;

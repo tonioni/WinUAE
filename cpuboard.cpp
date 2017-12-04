@@ -36,6 +36,7 @@
 // ROM expansion board diagrom call
 // 00F83B7C 3.1 A4000
 // 00F83C96 3.1 A1200
+// 00FC4E28 1.3
 
 #define MAPROM_DEBUG 0
 #define PPC_IRQ_DEBUG 0
