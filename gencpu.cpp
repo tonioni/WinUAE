@@ -4371,13 +4371,7 @@ bccl_not68020:
 		/* The N flag appears to be set each time there is an overflow.
 		 * Weird. but 68020 only sets N when dst is negative.. */
 		printf ("\t\tif (newv > 0xffff) {\n");
-		printf ("\t\t\tSET_VFLG (1);\n");
-#ifdef UNDEF68020
-		if (cpu_level >= 2)
-			printf ("\t\t\tif (currprefs.cpu_level == 0 || dst < 0) SET_NFLG (&regs, 1);\n");
-		else /* ??? some 68000 revisions may not set NFLG when overflow happens.. */
-#endif
-			printf ("\t\t\tSET_NFLG (1);\n");
+		printf ("\t\t\tsetdivuoverflowflags((uae_u32)dst, (uae_u16)src);\n");
 		printf ("\t\t} else {\n");
 		printf ("\t\t"); genflags (flag_logical, sz_word, "newv", "", "");
 		printf ("\t\t\tnewv = (newv & 0xffff) | ((uae_u32)rem << 16);\n");
@@ -4412,19 +4406,12 @@ bccl_not68020:
 		addcycles000_nonces("\t\t", "(getDivs68kCycles((uae_s32)dst, (uae_s16)src)) - 4");
 		fill_prefetch_next ();
 		printf ("\tif (dst == 0x80000000 && src == -1) {\n");
-		printf ("\t\tSET_VFLG (1);\n");
-		printf ("\t\tSET_NFLG (1);\n");
+		printf ("\t\tsetdivsoverflowflags((uae_s32)dst, (uae_s16)src);\n");
 		printf ("\t} else {\n");
 		printf ("\t\tuae_s32 newv = (uae_s32)dst / (uae_s32)(uae_s16)src;\n");
 		printf ("\t\tuae_u16 rem = (uae_s32)dst %% (uae_s32)(uae_s16)src;\n");
 		printf ("\t\tif ((newv & 0xffff8000) != 0 && (newv & 0xffff8000) != 0xffff8000) {\n");
-		printf ("\t\t\tSET_VFLG (1);\n");
-#ifdef UNDEF68020
-		if (cpu_level > 0)
-			printf ("\t\t\tif (currprefs.cpu_level == 0) SET_NFLG (&regs, 1);\n");
-		else
-#endif
-			printf ("\t\t\tSET_NFLG (1);\n");
+		printf ("\t\t\tsetdivsoverflowflags((uae_s32)dst, (uae_s16)src);\n");
 		printf ("\t\t} else {\n");
 		printf ("\t\t\tif (((uae_s16)rem < 0) != ((uae_s32)dst < 0)) rem = -rem;\n");
 		genflags (flag_logical, sz_word, "newv", "", "");
