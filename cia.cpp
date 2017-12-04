@@ -1047,6 +1047,13 @@ static uae_u8 ReadCIAA (unsigned int addr, uae_u32 *flags)
 		v |= (ciaapra | (ciaadra ^ 3)) & 0x03;
 		v = dongle_cia_read (0, reg, ciaadra, v);
 		v = alg_joystick_buttons(ciaapra, ciaadra, v);
+
+		// 391078-01 CIA: output mode bits always return PRA contents
+		if (currprefs.cs_ciatype[0]) {
+			v &= ~ciaadra;
+			v |= ciaapra & ciaadra;
+		}
+
 #if DONGLE_DEBUG > 0
 		if (notinrom())
 			write_log (_T("BFE001 R %02X %s\n"), v, debuginfo(0));
@@ -1104,6 +1111,12 @@ static uae_u8 ReadCIAA (unsigned int addr, uae_u32 *flags)
 			tmp &= ~0x40;
 			tmp |= pb6 ? 0x40 : 00;
 		}
+
+		if (currprefs.cs_ciatype[0]) {
+			tmp &= ~ciaadrb;
+			tmp |= ciaaprb & ciaadrb;
+		}
+
 		return tmp;
 	case 2:
 #if DONGLE_DEBUG > 0
@@ -1229,6 +1242,12 @@ static uae_u8 ReadCIAB (unsigned int addr, uae_u32 *flags)
 		if (notinrom ())
 			write_log (_T("BFD000 R %02X %s\n"), tmp, debuginfo(0));
 #endif
+
+		if (currprefs.cs_ciatype[1]) {
+			tmp &= ~ciabdra;
+			tmp |= ciabpra & ciabdra;
+		}
+
 		return tmp;
 	case 1:
 #if DONGLE_DEBUG > 0
@@ -1252,6 +1271,12 @@ static uae_u8 ReadCIAB (unsigned int addr, uae_u32 *flags)
 			tmp &= ~0x40;
 			tmp |= pb6 ? 0x40 : 00;
 		}
+
+		if (currprefs.cs_ciatype[1]) {
+			tmp &= ~ciabdrb;
+			tmp |= ciabprb & ciabdrb;
+		}
+
 		return tmp;
 	case 2:
 		return ciabdra;

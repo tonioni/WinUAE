@@ -616,6 +616,7 @@ struct uae_prefs {
 	bool cs_toshibagary;
 	int cs_unmapped_space;
 	int cs_hacks;
+	int cs_ciatype[2];
 
 	struct boardromconfig expansionboard[MAX_EXPANSION_BOARDS];
 
