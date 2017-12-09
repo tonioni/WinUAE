@@ -3284,7 +3284,7 @@ uae_u8 handle_parport_joystick (int port, uae_u8 pra, uae_u8 dra)
 	}
 }
 
-/* p5 is 1 or floating = cd32 2-button mode */
+/* p5 (3rd button) is 1 or floating = cd32 2-button mode */
 static bool cd32padmode (uae_u16 p5dir, uae_u16 p5dat)
 {
 	if (!(potgo_value & p5dir) || ((potgo_value & p5dat) && (potgo_value & p5dir)))
@@ -7253,7 +7253,7 @@ void inputdevice_updateconfig (struct uae_prefs *srcprefs, struct uae_prefs *dst
 * store old devices temporarily, enumerate all devices
 * restore old devices back (order may have changed)
 */
-void inputdevice_devicechange (struct uae_prefs *prefs)
+bool inputdevice_devicechange (struct uae_prefs *prefs)
 {
 	int acc = input_acquired;
 	int i, idx;
@@ -7262,6 +7262,7 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 	int jportskb[MAX_JPORTS], jportscustom[MAX_JPORTS];
 	int jportsmode[MAX_JPORTS];
 	int jportid[MAX_JPORTS], jportaf[MAX_JPORTS];
+	bool changed = false;
 
 	for (i = 0; i < MAX_JPORTS; i++) {
 		jportskb[i] = -1;
@@ -7343,12 +7344,14 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 			if (devcfg[i][j].name[0]) {
 				write_log(_T("REMOVED: %s (%s)\n"), devcfg[i][j].name, devcfg[i][j].configname);
 				inputdevice_store_unplugged_port(prefs, &devcfg[i][j]);
+				changed = true;
 			}
 			if (i < num && df[i] == false) {
 				struct inputdevconfig idc;
 				_tcscpy(idc.configname, inf->get_uniquename(i));
 				_tcscpy(idc.name, inf->get_friendlyname(i));
 				write_log(_T("INSERTED: %s (%s)\n"), idc.name, idc.configname);
+				changed = true;
 				int portnum = inputdevice_get_unplugged_device(&idc);
 				if (portnum >= 0) {
 					write_log(_T("Inserting to port %d\n"), portnum);
@@ -7395,6 +7398,9 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 		inputdevice_validate_jports(prefs, i, fixedports);
 	}
 
+	if (!changed)
+		return false;
+
 	if (prefs == &changed_prefs)
 		inputdevice_copyconfig (&changed_prefs, &currprefs);
 	if (acc)
@@ -7403,6 +7409,7 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 	rp_enumdevices ();
 #endif
 	set_config_changed ();
+	return true;
 }
 
 
