@@ -48,6 +48,7 @@ void (*D3D_clear)(void);
 int (*D3D_canshaders)(void);
 int (*D3D_goodenough)(void);
 bool (*D3D_setcursor)(int x, int y, int width, int height, bool visible, bool noscale);
+uae_u8* (*D3D_setcursorsurface)(int *pitch);
 bool (*D3D_getvblankpos)(int *vpos);
 double (*D3D_getrefreshrate)(void);
 void (*D3D_vblank_reset)(double freq);
@@ -76,17 +77,33 @@ struct shaderdata11
 };
 #define MAX_SHADERS (2 * MAX_FILTERSHADERS + 2)
 
+struct d3d11sprite
+{
+	ID3D11Texture2D *texture;
+	ID3D11ShaderResourceView *texturerv;
+	ID3D11VertexShader *vertexshader;
+	ID3D11PixelShader *pixelshader;
+	ID3D11InputLayout *layout;
+	ID3D11Buffer *vertexbuffer, *indexbuffer;
+	ID3D11Buffer *matrixbuffer;
+	int vertexcount, indexcount;
+	int width, height;
+	int x, y;
+	bool enabled;
+	bool alpha;
+};
+
 struct d3d11struct
 {
-	IDXGISwapChain1* m_swapChain;
-	ID3D11Device* m_device;
-	ID3D11DeviceContext* m_deviceContext;
-	ID3D11RenderTargetView* m_renderTargetView;
-	ID3D11RasterizerState* m_rasterState;
+	IDXGISwapChain1 *m_swapChain;
+	ID3D11Device *m_device;
+	ID3D11DeviceContext *m_deviceContext;
+	ID3D11RenderTargetView *m_renderTargetView;
+	ID3D11RasterizerState *m_rasterState;
 	D3DXMATRIX m_worldMatrix;
 	D3DXMATRIX m_orthoMatrix;
 	ID3D11Buffer *m_vertexBuffer, *m_indexBuffer;
-	ID3D11Buffer* m_matrixBuffer;
+	ID3D11Buffer *m_matrixBuffer;
 	int m_screenWidth, m_screenHeight;
 	int m_bitmapWidth, m_bitmapHeight;
 	int m_vertexCount, m_indexCount;
@@ -95,16 +112,16 @@ struct d3d11struct
 	D3DXMATRIX m_viewMatrix;
 	ID3D11ShaderResourceView *texture2drv;
 	ID3D11ShaderResourceView *sltexturerv;
-	ID3D11ShaderResourceView *ledtexturerv;
 	ID3D11Texture2D *texture2d, *texture2dstaging;
 	ID3D11Texture2D *sltexture, *mask2texture;
 	ID3D11Texture2D *screenshottexture;
-	ID3D11Texture2D *ledtexture;
 	ID3D11VertexShader *m_vertexShader;
 	ID3D11PixelShader *m_pixelShader, *m_pixelShaderSL, *m_pixelShaderMask;
 	ID3D11SamplerState *m_sampleState_point_clamp, *m_sampleState_linear_clamp;
 	ID3D11SamplerState *m_sampleState_point_wrap, *m_sampleState_linear_wrap;
 	ID3D11InputLayout *m_layout;
+	ID3D11BlendState *m_alphaEnableBlendingState;
+	ID3D11BlendState *m_alphaDisableBlendingState;
 	int texturelocked;
 	DXGI_FORMAT scrformat;
 	DXGI_FORMAT texformat;
@@ -120,6 +137,9 @@ struct d3d11struct
 	bool fsmodechange;
 	bool invalidmode;
 
+	struct d3d11sprite osd;
+	struct d3d11sprite hwsprite;
+
 	float mask2texture_w, mask2texture_h, mask2texture_ww, mask2texture_wh;
 	float mask2texture_wwx, mask2texture_hhx, mask2texture_minusx, mask2texture_minusy;
 	float mask2texture_multx, mask2texture_multy, mask2texture_offsetw;
@@ -131,6 +151,10 @@ struct d3d11struct
 	int guimode;
 	int ledwidth, ledheight;
 	int statusbar_hx, statusbar_vx;
+
+	int cursor_offset_x, cursor_offset_y, cursor_offset2_x, cursor_offset2_y;
+	float cursor_x, cursor_y;
+	bool cursor_v, cursor_scale;
 
 	struct shaderdata11 shaders[MAX_SHADERS];
 };
@@ -186,13 +210,79 @@ static int isfs(struct d3d11struct *d3d)
 	return fs;
 }
 
+static bool UpdateVertexArray(struct d3d11struct *d3d, ID3D11Buffer *vertexbuffer, int vertexcount,
+	float left, float top, float right, float bottom,
+	float slleft, float sltop, float slright, float slbottom)
+{
+	VertexType* verticesPtr;
+	VertexType* vertices;
+	D3D11_MAPPED_SUBRESOURCE mappedResource;
+	HRESULT result;
+
+	if (!vertexbuffer)
+		return false;
+
+	// Create the vertex array.
+	vertices = new VertexType[vertexcount];
+	if (!vertices)
+	{
+		return false;
+	}
+
+	// Load the vertex array with data.
+	// First triangle.
+	vertices[0].position = D3DXVECTOR3(left, top, 0.0f);  // Top left.
+	vertices[0].texture = D3DXVECTOR2(0.0f, 0.0f);
+	vertices[0].sltexture = D3DXVECTOR2(slleft, sltop);
+
+	vertices[1].position = D3DXVECTOR3(right, bottom, 0.0f);  // Bottom right.
+	vertices[1].texture = D3DXVECTOR2(1.0f, 1.0f);
+	vertices[1].sltexture = D3DXVECTOR2(slright, slbottom);
+
+	vertices[2].position = D3DXVECTOR3(left, bottom, 0.0f);  // Bottom left.
+	vertices[2].texture = D3DXVECTOR2(0.0f, 1.0f);
+	vertices[2].sltexture = D3DXVECTOR2(slleft, slbottom);
+
+	// Second triangle.
+	vertices[3].position = D3DXVECTOR3(left, top, 0.0f);  // Top left.
+	vertices[3].texture = D3DXVECTOR2(0.0f, 0.0f);
+	vertices[3].sltexture = D3DXVECTOR2(slleft, sltop);
+
+	vertices[4].position = D3DXVECTOR3(right, top, 0.0f);  // Top right.
+	vertices[4].texture = D3DXVECTOR2(1.0f, 0.0f);
+	vertices[4].sltexture = D3DXVECTOR2(slright, sltop);
+
+	vertices[5].position = D3DXVECTOR3(right, bottom, 0.0f);  // Bottom right.
+	vertices[5].texture = D3DXVECTOR2(1.0f, 1.0f);
+	vertices[5].sltexture = D3DXVECTOR2(slright, slbottom);
+
+	// Lock the vertex buffer so it can be written to.
+	result = d3d->m_deviceContext->Map(vertexbuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+	if (FAILED(result))
+	{
+		write_log(_T("ID3D11DeviceContext map(vertex) %08x\n"), result);
+		return false;
+	}
+
+	// Get a pointer to the data in the vertex buffer.
+	verticesPtr = (VertexType*)mappedResource.pData;
+
+	// Copy the data into the vertex buffer.
+	memcpy(verticesPtr, (void*)vertices, (sizeof(VertexType) * vertexcount));
+
+	// Unlock the vertex buffer.
+	d3d->m_deviceContext->Unmap(vertexbuffer, 0);
+
+	// Release the vertex array as it is no longer needed.
+	delete[] vertices;
+	vertices = 0;
+
+	return true;
+}
+
 static bool UpdateBuffers(struct d3d11struct *d3d)
 {
 	float left, right, top, bottom;
-	VertexType* vertices;
-	D3D11_MAPPED_SUBRESOURCE mappedResource;
-	VertexType* verticesPtr;
-	HRESULT result;
 	int positionX, positionY;
 
 	positionX = (d3d->m_screenWidth - d3d->m_bitmapWidth) / 2 + d3d->xoffset;
@@ -227,61 +317,7 @@ static bool UpdateBuffers(struct d3d11struct *d3d)
 
 	write_log(_T("-> %f %f %f %f %f %f\n"), left, top, right, bottom, d3d->xmult, d3d->ymult);
 
-	// Create the vertex array.
-	vertices = new VertexType[d3d->m_vertexCount];
-	if (!vertices)
-	{
-		return false;
-	}
-
-	// Load the vertex array with data.
-	// First triangle.
-	vertices[0].position = D3DXVECTOR3(left, top, 0.0f);  // Top left.
-	vertices[0].texture = D3DXVECTOR2(0.0f, 0.0f);
-	vertices[0].sltexture = D3DXVECTOR2(slleft, sltop);
-
-	vertices[1].position = D3DXVECTOR3(right, bottom, 0.0f);  // Bottom right.
-	vertices[1].texture = D3DXVECTOR2(1.0f, 1.0f);
-	vertices[1].sltexture = D3DXVECTOR2(slright, slbottom);
-
-	vertices[2].position = D3DXVECTOR3(left, bottom, 0.0f);  // Bottom left.
-	vertices[2].texture = D3DXVECTOR2(0.0f, 1.0f);
-	vertices[2].sltexture = D3DXVECTOR2(slleft, slbottom);
-
-	// Second triangle.
-	vertices[3].position = D3DXVECTOR3(left, top, 0.0f);  // Top left.
-	vertices[3].texture = D3DXVECTOR2(0.0f, 0.0f);
-	vertices[3].sltexture = D3DXVECTOR2(slleft, sltop);
-
-	vertices[4].position = D3DXVECTOR3(right, top, 0.0f);  // Top right.
-	vertices[4].texture = D3DXVECTOR2(1.0f, 0.0f);
-	vertices[4].sltexture = D3DXVECTOR2(slright, sltop);
-
-	vertices[5].position = D3DXVECTOR3(right, bottom, 0.0f);  // Bottom right.
-	vertices[5].texture = D3DXVECTOR2(1.0f, 1.0f);
-	vertices[5].sltexture = D3DXVECTOR2(slright, slbottom);
-
-	// Lock the vertex buffer so it can be written to.
-	result = d3d->m_deviceContext->Map(d3d->m_vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-	if (FAILED(result))
-	{
-		write_log(_T("ID3D11DeviceContext map(vertex) %08x\n"), result);
-		return false;
-	}
-
-	// Get a pointer to the data in the vertex buffer.
-	verticesPtr = (VertexType*)mappedResource.pData;
-
-	// Copy the data into the vertex buffer.
-	memcpy(verticesPtr, (void*)vertices, (sizeof(VertexType) * d3d->m_vertexCount));
-
-	// Unlock the vertex buffer.
-	d3d->m_deviceContext->Unmap(d3d->m_vertexBuffer, 0);
-
-	// Release the vertex array as it is no longer needed.
-	delete[] vertices;
-	vertices = 0;
-
+	UpdateVertexArray(d3d, d3d->m_vertexBuffer, d3d->m_vertexCount, left, top, right, bottom, slleft, sltop, slright, slbottom);
 	return true;
 }
 
@@ -349,7 +385,12 @@ static void updateleds(struct d3d11struct *d3d)
 		done = 1;
 	}
 
-	hr = d3d->m_deviceContext->Map(d3d->ledtexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+	if (!d3d->osd.texture)
+		return;
+
+	statusline_getpos(&d3d->osd.x, &d3d->osd.y, d3d->m_screenWidth, d3d->m_screenHeight, d3d->statusbar_hx, d3d->statusbar_vx);
+
+	hr = d3d->m_deviceContext->Map(d3d->osd.texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
 	if (FAILED(hr)) {
 		write_log(_T("Led Map failed %08x\n"), hr);
 		return;
@@ -368,7 +409,76 @@ static void updateleds(struct d3d11struct *d3d)
 			y++;
 	}
 
-	d3d->m_deviceContext->Unmap(d3d->ledtexture, 0);
+	d3d->m_deviceContext->Unmap(d3d->osd.texture, 0);
+}
+
+static bool createvertexshader(struct d3d11struct *d3d, ID3D11VertexShader **vertexshader, ID3D11Buffer **matrixbuffer, ID3D11InputLayout **layout)
+{
+	D3D11_INPUT_ELEMENT_DESC polygonLayout[3];
+	HRESULT hr;
+	unsigned int numElements;
+	D3D11_BUFFER_DESC matrixBufferDesc;
+
+	// Create the vertex shader from the buffer.
+	hr = d3d->m_device->CreateVertexShader(VertexShader, sizeof(VertexShader), NULL, vertexshader);
+	if (FAILED(hr))
+	{
+		write_log(_T("ID3D11Device CreateVertexShader %08x\n"), hr);
+		return false;
+	}
+	// Create the vertex input layout description.
+	// This setup needs to match the VertexType stucture in the ModelClass and in the shader.
+	polygonLayout[0].SemanticName = "POSITION";
+	polygonLayout[0].SemanticIndex = 0;
+	polygonLayout[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+	polygonLayout[0].InputSlot = 0;
+	polygonLayout[0].AlignedByteOffset = 0;
+	polygonLayout[0].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+	polygonLayout[0].InstanceDataStepRate = 0;
+
+	polygonLayout[1].SemanticName = "TEXCOORD";
+	polygonLayout[1].SemanticIndex = 0;
+	polygonLayout[1].Format = DXGI_FORMAT_R32G32_FLOAT;
+	polygonLayout[1].InputSlot = 0;
+	polygonLayout[1].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
+	polygonLayout[1].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+	polygonLayout[1].InstanceDataStepRate = 0;
+
+	polygonLayout[2].SemanticName = "TEXCOORD";
+	polygonLayout[2].SemanticIndex = 1;
+	polygonLayout[2].Format = DXGI_FORMAT_R32G32_FLOAT;
+	polygonLayout[2].InputSlot = 0;
+	polygonLayout[2].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
+	polygonLayout[2].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+	polygonLayout[2].InstanceDataStepRate = 0;
+
+	// Get a count of the elements in the layout.
+	numElements = sizeof(polygonLayout) / sizeof(polygonLayout[0]);
+
+	// Create the vertex input layout.
+	hr = d3d->m_device->CreateInputLayout(polygonLayout, numElements, VertexShader, sizeof(VertexShader), layout);
+	if (FAILED(hr))
+	{
+		write_log(_T("ID3D11Device CreateInputLayout %08x\n"), hr);
+		return false;
+	}
+
+	// Setup the description of the dynamic matrix constant buffer that is in the vertex shader.
+	matrixBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	matrixBufferDesc.ByteWidth = sizeof(MatrixBufferType);
+	matrixBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	matrixBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	matrixBufferDesc.MiscFlags = 0;
+	matrixBufferDesc.StructureByteStride = 0;
+
+	// Create the constant buffer pointer so we can access the vertex shader constant buffer from within this class.
+	hr = d3d->m_device->CreateBuffer(&matrixBufferDesc, NULL, matrixbuffer);
+	if (FAILED(hr))
+	{
+		write_log(_T("ID3D11Device CreateBuffer(matrix) %08x\n"), hr);
+		return false;
+	}
+	return true;
 }
 
 static void FreeTexture2D(ID3D11Texture2D **t, ID3D11ShaderResourceView **v)
@@ -383,12 +493,41 @@ static void FreeTexture2D(ID3D11Texture2D **t, ID3D11ShaderResourceView **v)
 	}
 }
 
+static void freesprite(struct d3d11sprite *s)
+{
+	FreeTexture2D(&s->texture, &s->texturerv);
+
+	if (s->pixelshader)
+		s->pixelshader->Release();
+	if (s->vertexshader)
+		s->vertexshader->Release();
+	if (s->layout)
+		s->layout->Release();
+	if (s->vertexbuffer)
+		s->vertexbuffer->Release();
+	if (s->indexbuffer)
+		s->indexbuffer->Release();
+	if (s->matrixbuffer)
+		s->matrixbuffer->Release();
+
+	s->pixelshader = NULL;
+	s->vertexshader = NULL;
+	s->layout = NULL;
+	s->vertexbuffer = NULL;
+	s->indexbuffer = NULL;
+	s->matrixbuffer = NULL;
+
+	memset(s, 0, sizeof(struct d3d11sprite));
+}
+
 static void FreeTexture(struct d3d11struct *d3d)
 {
 	FreeTexture2D(&d3d->texture2d, &d3d->texture2drv);
 	FreeTexture2D(&d3d->texture2dstaging, NULL);
 	FreeTexture2D(&d3d->screenshottexture, NULL);
-	FreeTexture2D(&d3d->ledtexture, &d3d->ledtexturerv);
+
+	freesprite(&d3d->osd);
+	freesprite(&d3d->hwsprite);
 
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		FreeTexture2D(&d3d->shaders[i].masktexture, &d3d->shaders[i].masktexturerv);
@@ -396,9 +535,170 @@ static void FreeTexture(struct d3d11struct *d3d)
 	}
 }
 
+static bool InitializeBuffers(struct d3d11struct *d3d, ID3D11Buffer **vertexBuffer, ID3D11Buffer **indexBuffer, int *vertexcountp, int *indexcountp)
+{
+	VertexType* vertices;
+	unsigned long* indices;
+	D3D11_BUFFER_DESC vertexBufferDesc, indexBufferDesc;
+	D3D11_SUBRESOURCE_DATA vertexData, indexData;
+	HRESULT result;
+
+
+	// Set the number of vertices in the vertex array.
+	int vertexcount = 6;
+
+	// Set the number of indices in the index array.
+	int indexcount = vertexcount;
+
+	// Create the vertex array.
+	vertices = new VertexType[vertexcount];
+	if (!vertices)
+	{
+		return false;
+	}
+
+	// Create the index array.
+	indices = new unsigned long[indexcount];
+	if (!indices)
+	{
+		delete[] vertices;
+		return false;
+	}
+
+	// Initialize vertex array to zeros at first.
+	memset(vertices, 0, (sizeof(VertexType) * vertexcount));
+
+	// Load the index array with data.
+	for (int i = 0; i < indexcount; i++)
+	{
+		indices[i] = i;
+	}
+
+	// Set up the description of the static vertex buffer.
+	vertexBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	vertexBufferDesc.ByteWidth = sizeof(VertexType) * vertexcount;
+	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vertexBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	vertexBufferDesc.MiscFlags = 0;
+	vertexBufferDesc.StructureByteStride = 0;
+
+	// Give the subresource structure a pointer to the vertex data.
+	vertexData.pSysMem = vertices;
+	vertexData.SysMemPitch = 0;
+	vertexData.SysMemSlicePitch = 0;
+
+	// Now create the vertex buffer.
+	result = d3d->m_device->CreateBuffer(&vertexBufferDesc, &vertexData, vertexBuffer);
+	if (FAILED(result))
+	{
+		write_log(_T("ID3D11Device CreateBuffer(vertex) %08x\n"), result);
+		return false;
+	}
+
+	// Set up the description of the static index buffer.
+	indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	indexBufferDesc.ByteWidth = sizeof(unsigned long) * indexcount;
+	indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	indexBufferDesc.CPUAccessFlags = 0;
+	indexBufferDesc.MiscFlags = 0;
+	indexBufferDesc.StructureByteStride = 0;
+
+	// Give the subresource structure a pointer to the index data.
+	indexData.pSysMem = indices;
+	indexData.SysMemPitch = 0;
+	indexData.SysMemSlicePitch = 0;
+
+	// Create the index buffer.
+	result = d3d->m_device->CreateBuffer(&indexBufferDesc, &indexData, indexBuffer);
+	if (FAILED(result))
+	{
+		write_log(_T("ID3D11Device CreateBuffer(index) %08x\n"), result);
+		return false;
+	}
+
+	// Release the arrays now that the vertex and index buffers have been created and loaded.
+	delete[] vertices;
+	vertices = 0;
+
+	delete[] indices;
+	indices = 0;
+
+	*vertexcountp = vertexcount;
+	*indexcountp = indexcount;
+
+	return true;
+}
+
+static void setsprite(struct d3d11struct *d3d, struct d3d11sprite *s, int x, int y)
+{
+	s->x = x;
+	s->y = y;
+	UpdateVertexArray(d3d, s->vertexbuffer, s->vertexcount, x, y, x + s->width, -(y + s->height), 0, 0, 0, 0);
+}
+
+static bool allocsprite(struct d3d11struct *d3d, struct d3d11sprite *s, int width, int height, bool alpha)
+{
+	D3D11_BUFFER_DESC matrixBufferDesc;
+	D3D11_TEXTURE2D_DESC desc;
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	HRESULT hr;
+
+	freesprite(s);
+	s->width = width;
+	s->height = height;
+	s->alpha = alpha;
+
+	if (!InitializeBuffers(d3d, &s->vertexbuffer, &s->indexbuffer, &s->vertexcount, &s->indexcount))
+		goto err;
+
+	hr = d3d->m_device->CreatePixelShader(PS_PostPlain, sizeof(PS_PostPlain), NULL, &s->pixelshader);
+	if (FAILED(hr))
+		goto err;
+
+	if (!createvertexshader(d3d, &s->vertexshader, &s->matrixbuffer, &s->layout))
+		goto err;
+
+	memset(&desc, 0, sizeof desc);
+	desc.Width = s->width;
+	desc.Height = s->height;
+	desc.MipLevels = 1;
+	desc.ArraySize = 1;
+	desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Usage = D3D11_USAGE_DYNAMIC;
+	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+	hr = d3d->m_device->CreateTexture2D(&desc, NULL, &s->texture);
+	if (FAILED(hr)) {
+		write_log(_T("CreateTexture2D (%dx%d) failed: %08x\n"), width, height, hr);
+		goto err;
+	}
+
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = desc.MipLevels;
+	srvDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+
+	hr = d3d->m_device->CreateShaderResourceView(s->texture, &srvDesc, &s->texturerv);
+	if (FAILED(hr)) {
+		write_log(_T("CreateShaderResourceView (%dx%d) failed: %08x\n"), width, height, hr);
+		goto err;
+	}
+
+	setsprite(d3d, s, 0, 0);
+
+	return true;
+err:
+	freesprite(s);
+	return false;
+}
+
 static bool CreateTexture(struct d3d11struct *d3d)
 {
 	D3D11_TEXTURE2D_DESC desc;
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	HRESULT hr;
 
 	memset(&d3d->sr2, 0, sizeof(RECT));
@@ -443,7 +743,6 @@ static bool CreateTexture(struct d3d11struct *d3d)
 		return false;
 	}
 
-	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
@@ -471,48 +770,29 @@ static bool CreateTexture(struct d3d11struct *d3d)
 		pSurface->Release();
 	}
 
-	memset(&desc, 0, sizeof desc);
+	UpdateVertexArray(d3d, d3d->m_vertexBuffer, d3d->m_vertexCount, 0, 0, 0, 0, 0, 0, 0, 0);
+
 	d3d->ledwidth = d3d->m_screenWidth;
 	d3d->ledheight = TD_TOTAL_HEIGHT;
 	if (d3d->statusbar_hx < 1)
 		d3d->statusbar_hx = 1;
 	if (d3d->statusbar_vx < 1)
 		d3d->statusbar_vx = 1;
-	desc.Width = d3d->ledwidth;
-	desc.Height = d3d->ledheight;
-	desc.MipLevels = 1;
-	desc.ArraySize = 1;
-	desc.Format = d3d->scrformat;
-	desc.SampleDesc.Count = 1;
-	desc.SampleDesc.Quality = 0;
-	desc.Usage = D3D11_USAGE_DYNAMIC;
-	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	allocsprite(d3d, &d3d->osd, d3d->ledwidth, d3d->ledheight, true);
+	d3d->osd.enabled = true;
 
-	hr = d3d->m_device->CreateTexture2D(&desc, NULL, &d3d->ledtexture);
-	if (FAILED(hr)) {
-		write_log(_T("CreateTexture2D (led) failed: %08x\n"), hr);
-		return false;
-	}
-
-	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.MipLevels = desc.MipLevels;
-	srvDesc.Format = d3d->scrformat;
-
-	hr = d3d->m_device->CreateShaderResourceView(d3d->ledtexture, &srvDesc, &d3d->ledtexturerv);
-	if (FAILED(hr)) {
-		write_log(_T("CreateShaderResourceView Led failed: %08x\n"), hr);
-		FreeTexture2D(&d3d->ledtexture, NULL);
-		return false;
-	}
+	d3d->cursor_v = false;
+	d3d->cursor_scale = false;
+	allocsprite(d3d, &d3d->hwsprite, CURSORMAXWIDTH, CURSORMAXHEIGHT, true);
 
 	return true;
 }
 
+
 static bool createsltexture(struct d3d11struct *d3d)
 {
 	D3D11_TEXTURE2D_DESC desc;
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	HRESULT hr;
 
 	FreeTexture2D(&d3d->sltexture, &d3d->sltexturerv);
@@ -535,7 +815,6 @@ static bool createsltexture(struct d3d11struct *d3d)
 		return false;
 	}
 
-	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
@@ -1018,6 +1297,7 @@ end:
 	return 0;
 }
 
+#if 0
 static void OutputShaderErrorMessage(ID3D10Blob* errorMessage, HWND hwnd, TCHAR* shaderFilename)
 {
 	char *compileErrors;
@@ -1044,23 +1324,16 @@ static void OutputShaderErrorMessage(ID3D10Blob* errorMessage, HWND hwnd, TCHAR*
 
 	}
 }
+#endif
 
 static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 {
 	HRESULT result;
-	ID3D10Blob* errorMessage;
-	ID3D10Blob* vertexShaderBuffer;
-	D3D11_INPUT_ELEMENT_DESC polygonLayout[3];
 	D3D11_SAMPLER_DESC samplerDesc;
-	unsigned int numElements;
-	D3D11_BUFFER_DESC matrixBufferDesc;
-
-	// Initialize the pointers this function will use to null.
-	errorMessage = 0;
-	vertexShaderBuffer = 0;
 
 	// Compile the vertex shader code.
 #if 0
+	ID3D10Blob* errorMessage = NULL;
 	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
 	bool plugin_path;
 	plugin_path = get_plugin_path(tmp, sizeof tmp / sizeof(TCHAR), _T("filtershaders\\direct3d11"));
@@ -1084,14 +1357,6 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 		}
 	}
 #endif
-
-	// Create the vertex shader from the buffer.
-	result = d3d->m_device->CreateVertexShader(VertexShader, sizeof(VertexShader), NULL, &d3d->m_vertexShader);
-	if (FAILED(result))
-	{
-		write_log(_T("ID3D11Device CreateVertexShader %08x\n"), result);
-		return false;
-	}
 
 	for (int i = 0; i < 3; i++) {
 		ID3D10Blob* pixelShaderBuffer = NULL;
@@ -1160,64 +1425,8 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 		}
 	}
 
-	// Create the vertex input layout description.
-	// This setup needs to match the VertexType stucture in the ModelClass and in the shader.
-	polygonLayout[0].SemanticName = "POSITION";
-	polygonLayout[0].SemanticIndex = 0;
-	polygonLayout[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;
-	polygonLayout[0].InputSlot = 0;
-	polygonLayout[0].AlignedByteOffset = 0;
-	polygonLayout[0].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
-	polygonLayout[0].InstanceDataStepRate = 0;
-
-	polygonLayout[1].SemanticName = "TEXCOORD";
-	polygonLayout[1].SemanticIndex = 0;
-	polygonLayout[1].Format = DXGI_FORMAT_R32G32_FLOAT;
-	polygonLayout[1].InputSlot = 0;
-	polygonLayout[1].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
-	polygonLayout[1].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
-	polygonLayout[1].InstanceDataStepRate = 0;
-
-	polygonLayout[2].SemanticName = "TEXCOORD";
-	polygonLayout[2].SemanticIndex = 1;
-	polygonLayout[2].Format = DXGI_FORMAT_R32G32_FLOAT;
-	polygonLayout[2].InputSlot = 0;
-	polygonLayout[2].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
-	polygonLayout[2].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
-	polygonLayout[2].InstanceDataStepRate = 0;
-
-	// Get a count of the elements in the layout.
-	numElements = sizeof(polygonLayout) / sizeof(polygonLayout[0]);
-
-	// Create the vertex input layout.
-	result = d3d->m_device->CreateInputLayout(polygonLayout, numElements, VertexShader, sizeof(VertexShader), &d3d->m_layout);
-	if (FAILED(result))
-	{
-		write_log(_T("ID3D11Device CreateInputLayout %08x\n"), result);
+	if (!createvertexshader(d3d, &d3d->m_vertexShader, &d3d->m_matrixBuffer, &d3d->m_layout))
 		return false;
-	}
-
-	if (vertexShaderBuffer) {
-		// Release the vertex shader buffer and pixel shader buffer since they are no longer needed.
-		vertexShaderBuffer->Release();
-		vertexShaderBuffer = 0;
-	}
-
-	// Setup the description of the dynamic matrix constant buffer that is in the vertex shader.
-	matrixBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	matrixBufferDesc.ByteWidth = sizeof(MatrixBufferType);
-	matrixBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	matrixBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	matrixBufferDesc.MiscFlags = 0;
-	matrixBufferDesc.StructureByteStride = 0;
-
-	// Create the constant buffer pointer so we can access the vertex shader constant buffer from within this class.
-	result = d3d->m_device->CreateBuffer(&matrixBufferDesc, NULL, &d3d->m_matrixBuffer);
-	if (FAILED(result))
-	{
-		write_log(_T("ID3D11Device CreateBuffer(matrix) %08x\n"), result);
-		return false;
-	}
 
 	// Create a texture sampler state description.
 	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
@@ -1274,97 +1483,6 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 	return true;
 }
 
-static bool InitializeBuffers(struct d3d11struct *d3d)
-{
-	VertexType* vertices;
-	unsigned long* indices;
-	D3D11_BUFFER_DESC vertexBufferDesc, indexBufferDesc;
-	D3D11_SUBRESOURCE_DATA vertexData, indexData;
-	HRESULT result;
-	int i;
-
-
-	// Set the number of vertices in the vertex array.
-	d3d->m_vertexCount = 6;
-
-	// Set the number of indices in the index array.
-	d3d->m_indexCount = d3d->m_vertexCount;
-
-	// Create the vertex array.
-	vertices = new VertexType[d3d->m_vertexCount];
-	if (!vertices)
-	{
-		return false;
-	}
-
-	// Create the index array.
-	indices = new unsigned long[d3d->m_indexCount];
-	if (!indices)
-	{
-		return false;
-	}
-
-	// Initialize vertex array to zeros at first.
-	memset(vertices, 0, (sizeof(VertexType) * d3d->m_vertexCount));
-
-	// Load the index array with data.
-	for (i = 0; i < d3d->m_indexCount; i++)
-	{
-		indices[i] = i;
-	}
-
-	// Set up the description of the static vertex buffer.
-	vertexBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	vertexBufferDesc.ByteWidth = sizeof(VertexType) * d3d->m_vertexCount;
-	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vertexBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	vertexBufferDesc.MiscFlags = 0;
-	vertexBufferDesc.StructureByteStride = 0;
-
-	// Give the subresource structure a pointer to the vertex data.
-	vertexData.pSysMem = vertices;
-	vertexData.SysMemPitch = 0;
-	vertexData.SysMemSlicePitch = 0;
-
-	// Now create the vertex buffer.
-	result = d3d->m_device->CreateBuffer(&vertexBufferDesc, &vertexData, &d3d->m_vertexBuffer);
-	if (FAILED(result))
-	{
-		write_log(_T("ID3D11Device CreateBuffer(vertex) %08x\n"), result);
-		return false;
-	}
-
-	// Set up the description of the static index buffer.
-	indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	indexBufferDesc.ByteWidth = sizeof(unsigned long) * d3d->m_indexCount;
-	indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	indexBufferDesc.CPUAccessFlags = 0;
-	indexBufferDesc.MiscFlags = 0;
-	indexBufferDesc.StructureByteStride = 0;
-
-	// Give the subresource structure a pointer to the index data.
-	indexData.pSysMem = indices;
-	indexData.SysMemPitch = 0;
-	indexData.SysMemSlicePitch = 0;
-
-	// Create the index buffer.
-	result = d3d->m_device->CreateBuffer(&indexBufferDesc, &indexData, &d3d->m_indexBuffer);
-	if (FAILED(result))
-	{
-		write_log(_T("ID3D11Device CreateBuffer(index) %08x\n"), result);
-		return false;
-	}
-
-	// Release the arrays now that the vertex and index buffers have been created and loaded.
-	delete[] vertices;
-	vertices = 0;
-
-	delete[] indices;
-	indices = 0;
-
-	return true;
-}
-
 static bool initd3d(struct d3d11struct *d3d)
 {
 	HRESULT result;
@@ -1394,7 +1512,6 @@ static bool initd3d(struct d3d11struct *d3d)
 	backBufferPtr->Release();
 	backBufferPtr = 0;
 
-
 	// Setup the raster description which will determine how and what polygons will be drawn.
 	rasterDesc.AntialiasedLineEnable = false;
 	rasterDesc.CullMode = D3D11_CULL_BACK;
@@ -1417,6 +1534,37 @@ static bool initd3d(struct d3d11struct *d3d)
 
 	// Now set the rasterizer state.
 	d3d->m_deviceContext->RSSetState(d3d->m_rasterState);
+
+	D3D11_BLEND_DESC blendStateDescription;
+	// Clear the blend state description.
+	ZeroMemory(&blendStateDescription, sizeof(D3D11_BLEND_DESC));
+	// Create an alpha enabled blend state description.
+	blendStateDescription.RenderTarget[0].BlendEnable = TRUE;
+	//blendStateDescription.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	blendStateDescription.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	blendStateDescription.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	blendStateDescription.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blendStateDescription.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blendStateDescription.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	blendStateDescription.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blendStateDescription.RenderTarget[0].RenderTargetWriteMask = 0x0f;
+
+	// Create the blend state using the description.
+	result = d3d->m_device->CreateBlendState(&blendStateDescription, &d3d->m_alphaEnableBlendingState);
+	if (FAILED(result))
+	{
+		write_log(_T("ID3D11Device CreateBlendState Alpha %08x\n"), result);
+		return false;
+	}
+	// Modify the description to create an alpha disabled blend state description.
+	blendStateDescription.RenderTarget[0].BlendEnable = FALSE;
+	// Create the blend state using the description.
+	result = d3d->m_device->CreateBlendState(&blendStateDescription, &d3d->m_alphaDisableBlendingState);
+	if (FAILED(result))
+	{
+		write_log(_T("ID3D11Device CreateBlendState NoAlpha %08x\n"), result);
+		return false;
+	}
 
 	// Setup the viewport for rendering.
 	viewport.Width = (float)d3d->m_screenWidth;
@@ -1445,7 +1593,7 @@ static bool initd3d(struct d3d11struct *d3d)
 
 	if (!TextureShaderClass_InitializeShader(d3d))
 		return false;
-	if (!InitializeBuffers(d3d))
+	if (!InitializeBuffers(d3d, &d3d->m_vertexBuffer, &d3d->m_indexBuffer, &d3d->m_vertexCount, &d3d->m_indexCount))
 		return false;
 	if (!UpdateBuffers(d3d))
 		return false;
@@ -1709,7 +1857,6 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 		odesc.DesktopCoordinates.left, odesc.DesktopCoordinates.top,
 		odesc.DesktopCoordinates.right, odesc.DesktopCoordinates.bottom);
 
-
 	// Release the display mode list.
 	delete[] displayModeList;
 	displayModeList = 0;
@@ -1721,7 +1868,7 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 	adapter = 0;
 
 	UINT cdflags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-#ifdef _DEBUG
+#ifndef NDEBUG
 	cdflags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 	static const D3D_FEATURE_LEVEL levels111[] = { D3D_FEATURE_LEVEL_11_1 };
@@ -1753,6 +1900,17 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 		}
 	}
 	write_log(_T("D3D11CreateDevice succeeded with level %d.%d\n"), outlevel >> 12, (outlevel >> 8) & 15);
+
+#ifndef NDEBUG
+	ID3D11InfoQueue* m_debugInfoQueue = 0;
+	d3d->m_device->QueryInterface(IID_ID3D11InfoQueue, (void**)&m_debugInfoQueue);
+	if (m_debugInfoQueue)
+	{
+		m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+		m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, TRUE);
+		m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, TRUE);
+	}
+#endif
 
 	ComPtr<IDXGIDevice1> dxgiDevice;
 	result = d3d->m_device->QueryInterface(__uuidof(IDXGIDevice1), &dxgiDevice);
@@ -1825,15 +1983,22 @@ static void freed3d(struct d3d11struct *d3d)
 {
 	write_log(_T("D3D11 freed3d start\n"));
 
-	// Before shutting down set to windowed mode or when you release the swap chain it will throw an exception.
 	if (d3d->m_rasterState) {
 		d3d->m_rasterState->Release();
-		d3d->m_rasterState = 0;
+		d3d->m_rasterState = NULL;
+	}
+	if (d3d->m_alphaEnableBlendingState) {
+		d3d->m_alphaEnableBlendingState->Release();
+		d3d->m_alphaEnableBlendingState = NULL;
+	}
+	if (d3d->m_alphaDisableBlendingState) {
+		d3d->m_alphaDisableBlendingState->Release();
+		d3d->m_alphaDisableBlendingState = NULL;
 	}
 
 	if (d3d->m_renderTargetView) {
 		d3d->m_renderTargetView->Release();
-		d3d->m_renderTargetView = 0;
+		d3d->m_renderTargetView = NULL;
 	}
 
 	if (d3d->m_layout) {
@@ -1905,6 +2070,7 @@ static void xD3D11_free(bool immediate)
 	freed3d(d3d);
 
 	if (d3d->m_swapChain) {
+		// Before shutting down set to windowed mode or when you release the swap chain it will throw an exception.
 		d3d->m_swapChain->SetFullscreenState(false, NULL);
 		d3d->m_swapChain->Release();
 		d3d->m_swapChain = 0;
@@ -1939,19 +2105,20 @@ static const TCHAR *xD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *fr
 	return _T("D3D11 ERROR!");
 }
 
-static bool TextureShaderClass_SetShaderParameters(struct d3d11struct *d3d, D3DXMATRIX worldMatrix, D3DXMATRIX viewMatrix,D3DXMATRIX projectionMatrix)
+static bool setmatrix(struct d3d11struct *d3d, ID3D11Buffer *matrixbuffer, D3DXMATRIX worldMatrix, D3DXMATRIX viewMatrix, D3DXMATRIX projectionMatrix)
 {
 	HRESULT result;
-	D3D11_MAPPED_SUBRESOURCE mappedResource;
+	D3DXMATRIX worldMatrix2, viewMatrix2, projectionMatrix2;
 	MatrixBufferType *dataPtr;
+	D3D11_MAPPED_SUBRESOURCE mappedResource;
 
 	// Transpose the matrices to prepare them for the shader.
-	xD3DXMatrixTranspose(&worldMatrix, &worldMatrix);
-	xD3DXMatrixTranspose(&viewMatrix, &viewMatrix);
-	xD3DXMatrixTranspose(&projectionMatrix, &projectionMatrix);
+	xD3DXMatrixTranspose(&worldMatrix2, &worldMatrix);
+	xD3DXMatrixTranspose(&viewMatrix2, &viewMatrix);
+	xD3DXMatrixTranspose(&projectionMatrix2, &projectionMatrix);
 
 	// Lock the constant buffer so it can be written to.
-	result = d3d->m_deviceContext->Map(d3d->m_matrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+	result = d3d->m_deviceContext->Map(matrixbuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 	if (FAILED(result))
 	{
 		write_log(_T("ID3D11DeviceContext map(matrix) %08x\n"), result);
@@ -1962,12 +2129,19 @@ static bool TextureShaderClass_SetShaderParameters(struct d3d11struct *d3d, D3DX
 	dataPtr = (MatrixBufferType*)mappedResource.pData;
 
 	// Copy the matrices into the constant buffer.
-	dataPtr->world = worldMatrix;
-	dataPtr->view = viewMatrix;
-	dataPtr->projection = projectionMatrix;
+	dataPtr->world = worldMatrix2;
+	dataPtr->view = viewMatrix2;
+	dataPtr->projection = projectionMatrix2;
 
 	// Unlock the constant buffer.
-	d3d->m_deviceContext->Unmap(d3d->m_matrixBuffer, 0);
+	d3d->m_deviceContext->Unmap(matrixbuffer, 0);
+	return true;
+}
+
+static bool TextureShaderClass_SetShaderParameters(struct d3d11struct *d3d, D3DXMATRIX worldMatrix, D3DXMATRIX viewMatrix,D3DXMATRIX projectionMatrix)
+{
+	if (!setmatrix(d3d, d3d->m_matrixBuffer, worldMatrix, viewMatrix, projectionMatrix))
+		return false;
 
 	// Now set the constant buffer in the vertex shader with the updated values.
 	d3d->m_deviceContext->VSSetConstantBuffers(0, 1, &d3d->m_matrixBuffer);
@@ -1987,7 +2161,7 @@ static bool TextureShaderClass_SetShaderParameters(struct d3d11struct *d3d, D3DX
 	return true;
 }
 
-static void RenderBuffers(struct d3d11struct *d3d)
+static void RenderBuffers(struct d3d11struct *d3d, ID3D11Buffer *vertexbuffer, ID3D11Buffer *indexbuffer)
 {
 	unsigned int stride;
 	unsigned int offset;
@@ -1997,10 +2171,10 @@ static void RenderBuffers(struct d3d11struct *d3d)
 	offset = 0;
 
 	// Set the vertex buffer to active in the input assembler so it can be rendered.
-	d3d->m_deviceContext->IASetVertexBuffers(0, 1, &d3d->m_vertexBuffer, &stride, &offset);
+	d3d->m_deviceContext->IASetVertexBuffers(0, 1, &vertexbuffer, &stride, &offset);
 
 	// Set the index buffer to active in the input assembler so it can be rendered.
-	d3d->m_deviceContext->IASetIndexBuffer(d3d->m_indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	d3d->m_deviceContext->IASetIndexBuffer(indexbuffer, DXGI_FORMAT_R32_UINT, 0);
 
 	// Set the type of primitive that should be rendered from this vertex buffer, in this case triangles.
 	d3d->m_deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -2041,8 +2215,13 @@ static void EndScene(struct d3d11struct *d3d)
 	}
 	if (currprefs.turbo_emulation && hr == DXGI_ERROR_WAS_STILL_DRAWING)
 		return;
-	if (FAILED(hr))
+	if (FAILED(hr)) {
+		if (hr == DXGI_STATUS_OCCLUDED)
+			return;
+		if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == E_OUTOFMEMORY)
+			d3d->invalidmode = true;
 		write_log(_T("D3D11 Present %08x\n"), hr);
+	}
 }
 
 static void TextureShaderClass_RenderShader(struct d3d11struct *d3d, int indexCount)
@@ -2074,6 +2253,73 @@ static void TextureShaderClass_RenderShader(struct d3d11struct *d3d, int indexCo
 	d3d->m_deviceContext->DrawIndexed(indexCount, 0, 0);
 }
 
+static void TurnOnAlphaBlending(struct d3d11struct *d3d)
+{
+	float blendFactor[4];
+
+	// Setup the blend factor.
+	blendFactor[0] = 0.0f;
+	blendFactor[1] = 0.0f;
+	blendFactor[2] = 0.0f;
+	blendFactor[3] = 0.0f;
+
+	// Turn on the alpha blending.
+	d3d->m_deviceContext->OMSetBlendState(d3d->m_alphaEnableBlendingState, blendFactor, 0xffffffff);
+}
+
+static void TurnOffAlphaBlending(struct d3d11struct *d3d)
+{
+	float blendFactor[4];
+
+	// Setup the blend factor.
+	blendFactor[0] = 0.0f;
+	blendFactor[1] = 0.0f;
+	blendFactor[2] = 0.0f;
+	blendFactor[3] = 0.0f;
+
+	// Turn off the alpha blending.
+	d3d->m_deviceContext->OMSetBlendState(d3d->m_alphaDisableBlendingState, blendFactor, 0xffffffff);
+}
+
+static void RenderSprite(struct d3d11struct *d3d, struct d3d11sprite *spr, D3DXMATRIX worldMatrix, D3DXMATRIX viewMatrix, D3DXMATRIX projectionMatrix)
+{
+	if (!spr->enabled)
+		return;
+	
+	int left = (d3d->m_screenWidth + 1) / -2;
+	left += spr->x;
+	int top = (d3d->m_screenHeight + 1) / 2;
+	top -= spr->y;
+
+	UpdateVertexArray(d3d, spr->vertexbuffer, spr->vertexcount, left, top, left + spr->width, top - spr->height, 0, 0, 0, 0);
+
+	RenderBuffers(d3d, spr->vertexbuffer, spr->indexbuffer);
+
+	if (!setmatrix(d3d, spr->matrixbuffer, worldMatrix, viewMatrix, projectionMatrix))
+		return;
+
+	if (spr->alpha)
+		TurnOnAlphaBlending(d3d);
+
+	// Now set the constant buffer in the vertex shader with the updated values.
+	d3d->m_deviceContext->VSSetConstantBuffers(0, 1, &spr->matrixbuffer);
+
+	d3d->m_deviceContext->PSSetShaderResources(0, 1, &spr->texturerv);
+	// Set the vertex input layout.
+	d3d->m_deviceContext->IASetInputLayout(spr->layout);
+	// Set the vertex and pixel shaders that will be used to render this triangle.
+	d3d->m_deviceContext->VSSetShader(spr->vertexshader, NULL, 0);
+	d3d->m_deviceContext->PSSetShader(spr->pixelshader, NULL, 0);
+	// Set the sampler state in the pixel shader.
+	d3d->m_deviceContext->PSSetSamplers(0, 1, &d3d->m_sampleState_point_clamp);
+	d3d->m_deviceContext->PSSetSamplers(1, 1, &d3d->m_sampleState_point_wrap);
+	// Render the triangle.
+	d3d->m_deviceContext->DrawIndexed(spr->indexcount, 0, 0);
+
+	if (spr->alpha)
+		TurnOffAlphaBlending(d3d);
+}
+
 static bool TextureShaderClass_Render(struct d3d11struct *d3d, int indexCount, D3DXMATRIX worldMatrix, D3DXMATRIX viewMatrix, D3DXMATRIX projectionMatrix)
 {
 	bool result;
@@ -2085,8 +2331,16 @@ static bool TextureShaderClass_Render(struct d3d11struct *d3d, int indexCount, D
 		return false;
 	}
 
+	TurnOffAlphaBlending(d3d);
+
 	// Now render the prepared buffers with the shader.
 	TextureShaderClass_RenderShader(d3d, indexCount);
+
+	RenderSprite(d3d, &d3d->hwsprite, worldMatrix, viewMatrix, projectionMatrix);
+
+	TurnOnAlphaBlending(d3d);
+	RenderSprite(d3d, &d3d->osd, worldMatrix, viewMatrix, projectionMatrix);
+	TurnOffAlphaBlending(d3d);
 
 	return true;
 }
@@ -2096,7 +2350,6 @@ static void CameraClass_Render(struct d3d11struct *d3d)
 	D3DXVECTOR3 up, position, lookAt;
 	float yaw, pitch, roll;
 	D3DXMATRIX rotationMatrix;
-
 
 	// Setup the vector that points upwards.
 	up.x = 0.0f;
@@ -2145,7 +2398,7 @@ static bool GraphicsClass_Render(struct d3d11struct *d3d, float rotation)
 	CameraClass_Render(d3d);
 
 	// Put the bitmap vertex and index buffers on the graphics pipeline to prepare them for drawing.
-	RenderBuffers(d3d);
+	RenderBuffers(d3d, d3d->m_vertexBuffer, d3d->m_indexBuffer);
 
 	// Render the bitmap with the texture shader.
 	result = TextureShaderClass_Render(d3d, d3d->m_indexCount, d3d->m_worldMatrix, d3d->m_viewMatrix, d3d->m_orthoMatrix);
@@ -2289,11 +2542,9 @@ static void xD3D11_unlocktexture(void)
 
 	d3d->m_deviceContext->Unmap(d3d->texture2dstaging, 0);
 
-#if 0
 	if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG)) {
 		updateleds(d3d);
 	}
-#endif
 
 	D3D11_BOX box;
 	box.front = 0;
@@ -2303,7 +2554,6 @@ static void xD3D11_unlocktexture(void)
 	box.top = 0;
 	box.bottom = d3d->m_bitmapHeight;
 	d3d->m_deviceContext->CopySubresourceRegion(d3d->texture2d, 0, 0, 0, 0, d3d->texture2dstaging, 0, &box);
-
 }
 
 static void xD3D11_flushtexture(int miny, int maxy)
@@ -2321,7 +2571,6 @@ static void xD3D11_restore(void)
 
 static void xD3D11_vblank_reset(double freq)
 {
-
 }
 
 static int xD3D11_canshaders(void)
@@ -2515,7 +2764,53 @@ bool D3D11_capture(void **data, int *w, int *h, int *pitch)
 
 static bool xD3D_setcursor(int x, int y, int width, int height, bool visible, bool noscale)
 {
-	return false;
+	struct d3d11struct *d3d = &d3d11data[0];
+
+	if (width < 0 || height < 0)
+		return true;
+
+	if (width && height) {
+		d3d->cursor_offset2_x = d3d->cursor_offset_x * d3d->m_screenWidth / width;
+		d3d->cursor_offset2_y = d3d->cursor_offset_y * d3d->m_screenHeight / height;
+		d3d->cursor_x = x * d3d->m_screenWidth / width;
+		d3d->cursor_y = y * d3d->m_screenHeight / height;
+	} else {
+		d3d->cursor_x = d3d->cursor_y = 0;
+		d3d->cursor_offset2_x = d3d->cursor_offset2_y = 0;
+	}
+
+	float multx = 1.0;
+	float multy = 1.0;
+	if (d3d->cursor_scale) {
+		multx = ((float)(d3d->m_screenWidth) / ((d3d->m_bitmapWidth * d3d->dmult) + 2 * d3d->cursor_offset2_x));
+		multy = ((float)(d3d->m_screenHeight) / ((d3d->m_bitmapHeight * d3d->dmult) + 2 * d3d->cursor_offset2_y));
+	}
+
+	d3d->hwsprite.x = (d3d->cursor_x + d3d->cursor_offset2_x) * multx;
+	d3d->hwsprite.y = (d3d->cursor_y + d3d->cursor_offset2_y) * multy;
+
+	d3d->cursor_scale = !noscale;
+	d3d->cursor_v = visible;
+	d3d->hwsprite.enabled = visible;
+	return true;
+}
+
+static uae_u8 *xD3D_setcursorsurface(int *pitch)
+{
+	struct d3d11struct *d3d = &d3d11data[0];
+	if (pitch) {
+		D3D11_MAPPED_SUBRESOURCE map;
+		HRESULT hr = d3d->m_deviceContext->Map(d3d->hwsprite.texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+		if (FAILED(hr)) {
+			write_log(_T("HWSprite Map failed %08x\n"), hr);
+			return NULL;
+		}
+		*pitch = map.RowPitch;
+		return (uae_u8*)map.pData;
+	} else {
+		d3d->m_deviceContext->Unmap(d3d->hwsprite.texture, 0);
+		return NULL;
+	}
 }
 
 void d3d11_select(void)
@@ -2540,6 +2835,7 @@ void d3d11_select(void)
 	D3D_canshaders = xD3D11_canshaders;
 	D3D_goodenough = xD3D11_goodenough;
 	D3D_setcursor = xD3D_setcursor;
+	D3D_setcursorsurface = xD3D_setcursorsurface;
 	D3D_getvblankpos = xD3D_getvblankpos;
 	D3D_getrefreshrate = NULL;
 	D3D_vblank_reset = xD3D11_vblank_reset;

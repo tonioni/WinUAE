@@ -645,40 +645,32 @@ static void do_fillrect_frame_buffer(struct RenderInfo *ri, int X, int Y, int Wi
 
 static void setupcursor (void)
 {
-	uae_u8 *dptr = NULL;
+	uae_u8 *dptr;
 	int bpp = 4;
-	DWORD pitch;
-	D3DLOCKED_RECT locked;
-	HRESULT hr;
+	int pitch;
 
 	if (currprefs.rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE)
 		return;
 	gfx_lock ();
 	setupcursor_needed = 1;
-	LPDIRECT3DTEXTURE9 cursorsurfaced3d = D3D_getcursorsurface();
-	if (cursorsurfaced3d) {
-		if (SUCCEEDED (hr = cursorsurfaced3d->LockRect (0, &locked, NULL, 0))) {
-			dptr = (uae_u8*)locked.pBits;
-			pitch = locked.Pitch;
-			for (int y = 0; y < CURSORMAXHEIGHT; y++) {
-				uae_u8 *p2 = dptr + pitch * y;
-				memset (p2, 0, CURSORMAXWIDTH * bpp);
-			}
-			if (cursordata && cursorwidth && cursorheight) {
-				dptr = (uae_u8*)locked.pBits;
-				pitch = locked.Pitch;
-				for (int y = 0; y < cursorheight; y++) {
-					uae_u8 *p1 = cursordata + cursorwidth * bpp * y;
-					uae_u8 *p2 = dptr + pitch * y;
-					memcpy (p2, p1, cursorwidth * bpp);
-				}
-			}
-			cursorsurfaced3d->UnlockRect (0);
-			setupcursor_needed = 0;
-			P96TRACE_SPR((_T("cursorsurface3d updated\n")));
-		} else {
-			P96TRACE_SPR((_T("cursorsurfaced3d LockRect() failed %08x\n"), hr));
+	dptr = D3D_setcursorsurface(&pitch);
+	if (dptr) {
+		for (int y = 0; y < CURSORMAXHEIGHT; y++) {
+			uae_u8 *p2 = dptr + pitch * y;
+			memset (p2, 0, CURSORMAXWIDTH * bpp);
 		}
+		if (cursordata && cursorwidth && cursorheight) {
+			for (int y = 0; y < cursorheight; y++) {
+				uae_u8 *p1 = cursordata + cursorwidth * bpp * y;
+				uae_u8 *p2 = dptr + pitch * y;
+				memcpy (p2, p1, cursorwidth * bpp);
+			}
+		}
+		D3D_setcursorsurface(NULL);
+		setupcursor_needed = 0;
+		P96TRACE_SPR((_T("cursorsurface3d updated\n")));
+	} else {
+		P96TRACE_SPR((_T("cursorsurfaced3d LockRect() failed %08x\n"), hr));
 	}
 	gfx_unlock ();
 }

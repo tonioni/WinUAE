@@ -3637,12 +3637,21 @@ static int xD3D_isenabled(void)
 	return d3d->d3d_enabled ? 1 : 0;
 }
 
-LPDIRECT3DTEXTURE9 D3D_getcursorsurface(void)
+static uae_u8 *xD3D_setcursorsurface(int *pitch)
 {
-	if (currprefs.gfx_api == 2)
-		return NULL;
 	struct d3dstruct *d3d = &d3ddata[0];
-	return d3d->cursorsurfaced3d;
+	if (pitch) {
+		D3DLOCKED_RECT locked;
+		LPDIRECT3DTEXTURE9 cursorsurfaced3d;
+		HRESULT hr = d3d->cursorsurfaced3d->LockRect(0, &locked, NULL, 0);
+		if (FAILED(hr))
+			return NULL;
+		*pitch = locked.Pitch;
+		return (uae_u8*)locked.pBits;
+	} else {
+		d3d->cursorsurfaced3d->UnlockRect(0);
+		return NULL;
+	}
 }
 
 void d3d9_select(void)
@@ -3664,6 +3673,7 @@ void d3d9_select(void)
 	D3D_canshaders = xD3D_canshaders;
 	D3D_goodenough = xD3D_goodenough;
 	D3D_setcursor = xD3D_setcursor;
+	D3D_setcursorsurface = xD3D_setcursorsurface;
 	D3D_getvblankpos = xD3D_getvblankpos;
 	D3D_getrefreshrate = xD3D_getrefreshrate;
 	D3D_vblank_reset = xD3D_vblank_reset;

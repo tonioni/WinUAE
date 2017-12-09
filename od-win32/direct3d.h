@@ -16,6 +16,7 @@ extern void(*D3D_clear)(void);
 extern int(*D3D_canshaders)(void);
 extern int(*D3D_goodenough)(void);
 extern bool(*D3D_setcursor)(int x, int y, int width, int height, bool visible, bool noscale);
+extern uae_u8* (*D3D_setcursorsurface)(int *pitch);
 extern bool(*D3D_getvblankpos)(int *vpos);
 extern double(*D3D_getrefreshrate)(void);
 extern void(*D3D_vblank_reset)(double freq);
@@ -24,7 +25,6 @@ extern void(*D3D_resize)(int);
 extern void(*D3D_change)(int);
 
 extern LPDIRECT3DSURFACE9 D3D_capture(int*,int*,int*);
-extern LPDIRECT3DTEXTURE9 D3D_getcursorsurface(void);
 extern bool D3D11_capture(void**,int*, int*,int*);
 
 void D3D_getpixelformat(int depth, int *rb, int *gb, int *bb, int *rs, int *gs, int *bs, int *ab, int *as, int *a);
