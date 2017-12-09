@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <windows.h>
 #include <commctrl.h>
+#include <Dwmapi.h>
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -693,8 +694,22 @@ int scaleresource_choosefont (HWND hDlg, int fonttype)
 
 #include <gdiplus.h> 
 
+#define MAX_BOX_ART_IMAGES 12
+
 static bool boxart_inited;
 static ULONG_PTR gdiplusToken;
+static HWND boxarthwnd;
+static int boxart_window_width;
+static int boxart_window_height;
+static const int box_art_width = 400;
+static const int hgap = 10;
+static const int wgap = 10;
+static Gdiplus::Image *images[MAX_BOX_ART_IMAGES];
+static int total_height;
+static int max_width;
+static int total_images;
+static int imagemode;
+static bool imagemodereset;
 
 static void boxart_init(void)
 {
@@ -702,32 +717,236 @@ static void boxart_init(void)
 	Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 }
 
-static const TCHAR *boxartnames[] = {
+static const TCHAR *boxartnames[MAX_BOX_ART_IMAGES + 1] = {
 	_T("Boxart"),
 	_T("SShot"),
 	_T("Title"),
+	_T("Misc1"),
+	_T("Misc2"),
+	_T("Misc3"),
+	_T("Misc4"),
+	_T("Misc5"),
+	_T("Misc6"),
+	_T("Misc7"),
+	_T("Misc8"),
+	_T("Misc9"),
 	NULL
 };
+
+typedef HRESULT(CALLBACK* DWMGETWINDOWATTRIBUTE)(HWND hwnd, DWORD dwAttribute, PVOID pvAttribute, DWORD cbAttribute);
+static DWMGETWINDOWATTRIBUTE pDwmGetWindowAttribute;
+static HMODULE dwmapihandle;
+
+static void getpos(RECT *r)
+{
+	RECT r1, r2;
+	if (!pDwmGetWindowAttribute && !dwmapihandle && os_vista) {
+		dwmapihandle = LoadLibrary(_T("dwmapi.dll"));
+		if (dwmapihandle)
+			pDwmGetWindowAttribute = (DWMGETWINDOWATTRIBUTE)GetProcAddress(dwmapihandle, "DwmGetWindowAttribute");
+	}
+
+	GetWindowRect(hGUIWnd, &r1);
+	r2 = r1;
+
+	if (pDwmGetWindowAttribute) {
+		pDwmGetWindowAttribute(hGUIWnd, DWMWA_EXTENDED_FRAME_BOUNDS, &r2, sizeof(r2));
+	}
+
+	r->left = r1.right - ((r2.left - r1.left) + (r1.right - r2.right));
+	r->top = r1.top;
+	r->bottom = r1.bottom;
+	r->right = r->left + box_art_width;
+}
+
+void move_box_art_window(void)
+{
+	RECT r;
+
+	if (!hGUIWnd || !boxarthwnd)
+		return;
+	getpos(&r);
+	SetWindowPos(boxarthwnd, HWND_TOPMOST, r.left, r.top, 0, 0, SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOZORDER | SWP_NOSIZE);
+}
+
+void close_box_art_window(void)
+{
+	for (int i = 0; boxartnames[i]; i++) {
+		if (images[i]) {
+			delete images[i];
+			images[i] = NULL;
+		}
+	}
+	if (!boxarthwnd)
+		return;
+	ShowWindow(boxarthwnd, SW_HIDE);
+	DestroyWindow(boxarthwnd);
+	boxarthwnd = NULL;
+}
+
+static bool open_box_art_window(void)
+{
+	RECT r;
+	
+	getpos(&r);
+	if (!boxarthwnd) {
+		DWORD exstyle = GetWindowLong(hGUIWnd, GWL_EXSTYLE);
+		DWORD style = GetWindowLong(hGUIWnd, GWL_STYLE);
+
+		style &= ~(WS_VISIBLE);
+
+		boxarthwnd = CreateWindowEx(exstyle | WS_EX_NOACTIVATE,
+			_T("BoxArt"), _T("WinUAE"),
+			style,
+			r.left, r.top,
+			box_art_width, r.bottom - r.top,
+			hGUIWnd, NULL, hInst, NULL);
+		if (boxarthwnd) {
+			RECT r;
+			GetClientRect(boxarthwnd, &r);
+			boxart_window_width = r.right - r.left;
+			boxart_window_height = r.bottom - r.top;
+		}
+	} else {
+		move_box_art_window();
+	}
+
+	return boxarthwnd != 0;
+}
+
+static void boxartpaint(HDC hdc, HWND hwnd)
+{
+	if (!total_images)
+		return;
+
+	int image_count = total_images;
+	int image_total_height = total_height;
+
+	if (imagemode) {
+		int round = 0;
+		if (imagemode > MAX_BOX_ART_IMAGES) {
+			if (imagemodereset) {
+				imagemode = 0;
+			} else {
+				imagemode = 1;
+			}
+		}
+		while (imagemode) {
+			if (images[imagemode - 1]) {
+				Gdiplus::Image *img = images[imagemode - 1];
+				image_count = 1;
+				image_total_height = img->GetHeight();
+				img = NULL;
+				break;
+			}
+			imagemode++;
+			if (imagemode > MAX_BOX_ART_IMAGES) {
+				if (imagemodereset) {
+					imagemode = 0;
+				} else {
+					imagemode = 1;
+				}
+				round++;
+			}
+			if (round > 1) {
+				imagemode = 0;
+			}
+		}
+	}
+
+	int window_w = boxart_window_width - 2 * wgap;
+	int window_h = boxart_window_height - (image_count + 1) * hgap;
+
+	float scale;
+	float scalex = (float)window_w / max_width;
+	float scaley = (float)window_h / image_total_height;
+	if (scalex > 1)
+		scalex = 1;
+	scale = scalex;
+	if (scale > scaley)
+		scale = scaley;
+
+	Gdiplus::Graphics graphics(hdc);
+	int y = hgap;
+
+	Gdiplus::Pen pen(Gdiplus::Color(170, 170, 0, 0), 1);
+
+	for (int i = 0; boxartnames[i]; i++) {
+		if (imagemode && imagemode - 1 != i)
+			continue;
+		if (images[i]) {
+			Gdiplus::Image *img = images[i];
+			int w = img->GetWidth();
+			int h = img->GetHeight();
+
+			w = (int)(w * scale + 0.5);
+			h = (int)(h * scale + 0.5);
+
+			int x1 = wgap + (window_w - w) / 2;
+			int x2 = w;
+			int y1 = y;
+			int y2 = h;
+
+			if (image_count == 1) {
+				y1 = hgap + (window_h - h) / 2;
+			}
+
+			Gdiplus::Rect d(x1, y1, x2, y2);
+			graphics.DrawImage(img, d);
+
+			Gdiplus::Rect d2(x1 - 1, y1 - 1, x2 + 2, y2 + 2);
+			graphics.DrawRectangle(&pen, d2);
+
+			y += h;
+			y += hgap;
+		}
+	}
+}
 
 bool show_box_art(const TCHAR *path)
 {
 	TCHAR tmp1[MAX_DPATH];
 
-	if (!path || !artcache)
+	for (int i = 0; boxartnames[i]; i++) {
+		if (images[i]) {
+			delete images[i];
+			images[i] = NULL;
+		}
+	}
+
+	if (!path) {
+		close_box_art_window();
 		return false;
+	}
+	if (!artcache) {
+		return false;
+	}
 	if (!boxart_inited) {
 		boxart_init();
 		boxart_inited = true;
 	}
 
+	if (isfullscreen() > 0 || !hGUIWnd) {
+		close_box_art_window();
+		return false;
+	}
+
+	if (!open_box_art_window())
+		return false;
+
+	total_height = 2 * hgap;
+	max_width = 0;
+	total_images = 0;
+
 	write_log(_T("Box art path '%s'\n"), path);
 	for (int i = 0; boxartnames[i]; i++) {
+		Gdiplus::Image *image;
 		_tcscpy(tmp1, path);
 		_tcscat(tmp1, _T("___"));
 		_tcscat(tmp1, boxartnames[i]);
 		_tcscat(tmp1, _T(".png"));
 
-		Gdiplus::Image *image = Gdiplus::Image::FromFile(tmp1);
+		image = Gdiplus::Image::FromFile(tmp1);
 		// above returns out of memory if file does not exist!
 		if (image->GetLastStatus() != Gdiplus::Ok) {
 			_tcscpy(tmp1 + _tcslen(tmp1) - 3, _T("jpg"));
@@ -737,8 +956,73 @@ bool show_box_art(const TCHAR *path)
 			int w = image->GetWidth();
 			int h = image->GetHeight();
 			write_log(_T("Image '%s' loaded %d*%d\n"), tmp1, w, h);
+			images[i] = image;
+			if (w > max_width)
+				max_width = w;
+			total_height += h;
+			total_images++;
+		} else {
+			delete image;
+			images[i] = NULL;
 		}
-		delete image;
+		image = NULL;
 	}
+
+	if (!total_images)
+		return false;
+
+	total_height += hgap * (total_images - 1);
+
+	ShowWindow(boxarthwnd, SW_SHOWNOACTIVATE);
+
 	return true;
+}
+
+LRESULT CALLBACK BoxArtWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)
+	{
+		case WM_LBUTTONDOWN:
+			imagemode++;
+			imagemodereset = false;
+			InvalidateRect(hWnd, NULL, TRUE);
+		break;
+		case WM_RBUTTONDOWN:
+			imagemode = imagemode ? 0 : 1;
+			imagemodereset = false;
+			InvalidateRect(hWnd, NULL, TRUE);
+		break;
+		case WM_PAINT:
+		{
+			PAINTSTRUCT ps;
+			HDC hDC = BeginPaint(hWnd, &ps);
+			boxartpaint(hDC, hWnd);
+			EndPaint(hWnd, &ps);
+		}
+		break;
+		case WM_CLOSE:
+			close_box_art_window();
+		return 0;
+		case WM_CHAR:
+			if (wParam == 27)
+				DestroyWindow(hWnd);
+			if (wParam == ' ') {
+				imagemode++;
+				imagemodereset = true;
+				InvalidateRect(hWnd, NULL, TRUE);
+			}
+			break;
+		case WM_SIZING:
+		case WM_MOVING:
+		{
+			RECT *r = (RECT*)lParam, r2;
+			getpos(&r2);
+			r->left = r2.left;
+			r->top = r2.top;
+			r->right = r2.right;
+			r->bottom = r2.bottom;
+		}
+		return FALSE;
+	}
+	return DefWindowProc(hWnd, message, wParam, lParam);
 }

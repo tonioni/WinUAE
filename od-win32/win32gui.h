@@ -40,7 +40,6 @@ extern void scaleresource_getmult (int *mx, int *my);
 extern HWND CustomCreateDialog (int templ, HWND hDlg, DLGPROC proc);
 extern INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc);
 extern struct newresource *getresource (int tmpl);
-extern struct newresource *resourcefont (struct newresource*, TCHAR *font, int size);
 extern void scaleresource_init (const TCHAR*, int);
 extern int scaleresource_choosefont (HWND hDlg, int fonttype);
 extern void scaleresource_setdefaults (void);
@@ -49,4 +48,7 @@ extern void scaleresource_getdpimult (double*, double*, int*, int*);
 extern void scalaresource_listview_font_info(int*);
 extern int getscaledfontsize(int size);
 extern bool show_box_art(const TCHAR*);
+extern void move_box_art_window(void);
+extern void close_box_art_window(void);
+extern LRESULT CALLBACK BoxArtWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 #endif

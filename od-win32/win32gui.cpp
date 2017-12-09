@@ -20019,10 +20019,10 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 #endif
 
 static int dialogreturn;
+static int devicechangetimer = -1;
 static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
-	static int devicechangetimer;
 	static int oldwidth, oldheight;
 
 	switch (msg)
@@ -20043,8 +20043,15 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		}
 	}
 	break;
+	case WM_MOVING:
+		move_box_art_window();
+		return FALSE;
+	case WM_MOVE:
+		move_box_art_window();
+		return TRUE;
 	case WM_SIZING:
 	{
+		close_box_art_window();
 		if (!recursive && gui_resize_enabled) {
 			RECT *r = (RECT*)lParam;
 			if (r->right - r->left < MIN_GUI_INTERNAL_WIDTH)
@@ -20089,6 +20096,8 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 					doit = 1;
 			}
 			if (doit) {
+				if (devicechangetimer < 0)
+					return TRUE;
 				if (devicechangetimer)
 					KillTimer(hDlg, 3);
 				devicechangetimer = 1;
@@ -20100,10 +20109,15 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		if (wParam == 3) {
 			KillTimer(hDlg, 3);
 			devicechangetimer = 0;
-			inputdevice_devicechange (&workprefs);
-			updatePanel (currentpage, 0);
-			break;
+			if (inputdevice_devicechange (&workprefs))
+				updatePanel (currentpage, 0);
 		}
+		if (wParam == 4) {
+			KillTimer(hDlg, 4);
+			if (devicechangetimer < 0)
+				devicechangetimer = 0;
+		}
+		break;
 
 	case WM_DESTROY:
 		PostQuitMessage (0);
@@ -20114,6 +20128,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		devicechangetimer = 0;
 		addnotifications (hDlg, TRUE, TRUE);
 		updatePanel (-1, 0);
+		show_box_art(NULL);
 		DestroyWindow(hDlg);
 		if (dialogreturn < 0) {
 			dialogreturn = 0;
@@ -20618,7 +20633,9 @@ static int GetSettings (int all_options, HWND hwnd)
 			MapDialogRect (dhwnd, &dialog_rect);
 
 			hGUIWnd = dhwnd;
-
+			if (devicechangetimer < 0)
+				SetTimer(dhwnd, 4, 2000, NULL);
+			
 			for (;;) {
 				HANDLE IPChandle;
 				IPChandle = geteventhandleIPC (globalipc);

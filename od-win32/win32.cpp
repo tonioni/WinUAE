@@ -2745,6 +2745,19 @@ static int WIN32_RegisterClasses (void)
 	if (!RegisterClass (&wc))
 		return 0;
 
+	wc.style = CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW;
+	wc.lpfnWndProc = BoxArtWindowProc;
+	wc.cbClsExtra = 0;
+	wc.cbWndExtra = DLGWINDOWEXTRA;
+	wc.hInstance = hInst;
+	wc.hIcon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_APPICON));
+	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wc.hbrBackground = CreateSolidBrush(g_dwBackgroundColor);
+	wc.lpszMenuName = 0;
+	wc.lpszClassName = _T("BoxArt");
+	if (!RegisterClass(&wc))
+		return 0;
+
 	wc.style = 0;
 	wc.lpfnWndProc = HiddenWindowProc;
 	wc.cbClsExtra = 0;
@@ -2770,7 +2783,6 @@ static int WIN32_RegisterClasses (void)
 	wc.lpszClassName = _T("Blank");
 	if (!RegisterClass (&wc))
 		return 0;
-
 
 	hHiddenWnd = CreateWindowEx (0,
 		_T("Useless"), _T("You don't see me"),
@@ -6866,9 +6878,9 @@ void systray (HWND hwnd, int remove)
 	nid.cbSize = sizeof (nid);
 	nid.hWnd = hwnd;
 	nid.hIcon = LoadIcon (hInst, (LPCWSTR)MAKEINTRESOURCE (IDI_APPICON));
-	nid.uFlags = NIF_ICON | NIF_MESSAGE | (os_win7 ? NIF_GUID : 0);
+	nid.uFlags = NIF_ICON | NIF_MESSAGE | (os_win8 ? NIF_GUID : 0);
 	nid.uCallbackMessage = WM_USER + 1;
-	if (os_win7) {
+	if (os_win8) {
 		nid.guidItem = iconguid;
 	}
 	v = Shell_NotifyIcon (remove ? NIM_DELETE : NIM_ADD, &nid);
