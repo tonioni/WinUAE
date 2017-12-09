@@ -10222,6 +10222,13 @@ void check_prefs_changed_custom (void)
 	currprefs.cs_dipagnus = changed_prefs.cs_dipagnus;
 	currprefs.cs_denisenoehb = changed_prefs.cs_denisenoehb;
 	currprefs.cs_z3autoconfig = changed_prefs.cs_z3autoconfig;
+	currprefs.cs_bytecustomwritebug = changed_prefs.cs_bytecustomwritebug;
+	currprefs.cs_color_burst = changed_prefs.cs_color_burst;
+	currprefs.cs_romisslow = changed_prefs.cs_romisslow;
+	currprefs.cs_toshibagary = changed_prefs.cs_toshibagary;
+	currprefs.cs_unmapped_space = changed_prefs.cs_unmapped_space;
+	currprefs.cs_ciatype[0] = changed_prefs.cs_ciatype[0];
+	currprefs.cs_ciatype[1] = changed_prefs.cs_ciatype[1];
 
 	if (currprefs.chipset_mask != changed_prefs.chipset_mask ||
 		currprefs.picasso96_nocustom != changed_prefs.picasso96_nocustom ||
