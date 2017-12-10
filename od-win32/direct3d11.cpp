@@ -106,6 +106,7 @@ struct d3d11struct
 	ID3D11Buffer *m_matrixBuffer;
 	int m_screenWidth, m_screenHeight;
 	int m_bitmapWidth, m_bitmapHeight;
+	int m_bitmapWidth2, m_bitmapHeight2;
 	int m_vertexCount, m_indexCount;
 	float m_positionX, m_positionY, m_positionZ;
 	float m_rotationX, m_rotationY, m_rotationZ;
@@ -125,6 +126,7 @@ struct d3d11struct
 	int texturelocked;
 	DXGI_FORMAT scrformat;
 	DXGI_FORMAT texformat;
+	DXGI_FORMAT intformat;
 	bool m_tearingSupport;
 	int dmult;
 	int xoffset, yoffset;
@@ -136,6 +138,7 @@ struct d3d11struct
 	int fsmode;
 	bool fsmodechange;
 	bool invalidmode;
+	int vblankintervals;
 
 	struct d3d11sprite osd;
 	struct d3d11sprite hwsprite;
@@ -331,10 +334,13 @@ static void setupscenecoords(struct d3d11struct *d3d)
 		return;
 	}
 	if (1) {
-		write_log(_T("POS (%d %d %d %d) - (%d %d %d %d)[%d,%d] (%d %d)\n"),
-			dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom,
+		write_log(_T("POS (%d %d %d %d) - (%d %d %d %d)[%d,%d] (%d %d) S=%d*%d B=%d*%d\n"),
+			dr.left, dr.top, dr.right, dr.bottom,
+			sr.left, sr.top, sr.right, sr.bottom,
 			sr.right - sr.left, sr.bottom - sr.top,
-			zr.left, zr.top);
+			zr.left, zr.top,
+			d3d->m_screenWidth, d3d->m_screenHeight,
+			d3d->m_bitmapWidth, d3d->m_bitmapHeight);
 	}
 	d3d->sr2 = sr;
 	d3d->dr2 = dr;
@@ -663,7 +669,7 @@ static bool allocsprite(struct d3d11struct *d3d, struct d3d11sprite *s, int widt
 	desc.Height = s->height;
 	desc.MipLevels = 1;
 	desc.ArraySize = 1;
-	desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	desc.Format = d3d->scrformat;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -679,7 +685,7 @@ static bool allocsprite(struct d3d11struct *d3d, struct d3d11sprite *s, int widt
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
-	srvDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	srvDesc.Format = d3d->scrformat;
 
 	hr = d3d->m_device->CreateShaderResourceView(s->texture, &srvDesc, &s->texturerv);
 	if (FAILED(hr)) {
@@ -730,7 +736,7 @@ static bool CreateTexture(struct d3d11struct *d3d)
 	desc.Height = d3d->m_bitmapHeight;
 	desc.MipLevels = 1;
 	desc.ArraySize = 1;
-	desc.Format = d3d->texformat;
+	desc.Format = d3d->scrformat;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Usage = D3D11_USAGE_STAGING;
@@ -746,7 +752,7 @@ static bool CreateTexture(struct d3d11struct *d3d)
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
-	srvDesc.Format = d3d->texformat;
+	srvDesc.Format = d3d->scrformat;
 
 	hr = d3d->m_device->CreateShaderResourceView(d3d->texture2d, &srvDesc, &d3d->texture2drv);
 	if (FAILED(hr)) {
@@ -1500,6 +1506,13 @@ static bool initd3d(struct d3d11struct *d3d)
 		return false;
 	}
 
+#if 0
+	D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
+	memset(&rtvDesc, 0, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
+	rtvDesc.Format = d3d->intformat;
+	rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+#endif
+
 	// Create the render target view with the back buffer pointer.
 	result = d3d->m_device->CreateRenderTargetView(backBufferPtr, NULL, &d3d->m_renderTargetView);
 	if (FAILED(result))
@@ -1607,25 +1620,32 @@ static void setswapchainmode(struct d3d11struct *d3d, int fs)
 	struct apmode *apm = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
 	// It is recommended to always use the tearing flag when it is supported.
 	d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
-	if (d3d->m_tearingSupport && (d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL || d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD)) {
+	if (d3d->m_tearingSupport && (d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL || d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) && !apm->gfx_vflip) {
 		d3d->swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 	}
 
 	d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	if (fs) {
 		d3d->swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-		if (apm->gfx_backbuffers > 0)
-			d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 	}
 
 	d3d->fsSwapChainDesc.Windowed = TRUE;
-	//d3d->swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE;
 }
 
-bool can_D3D11(bool checkdevice)
+int can_D3D11(bool checkdevice)
 {
+	static bool detected;
+	static int detected_val = 0;
+	HRESULT hr;
+	int ret = 0;
+
+	if (detected && !checkdevice)
+		return detected_val;
+
+	detected = true;
+
 	if (!os_win7)
-		return false;
+		return 0;
 
 	if (!hd3d11)
 		hd3d11 = LoadLibrary(_T("D3D11.dll"));
@@ -1639,7 +1659,7 @@ bool can_D3D11(bool checkdevice)
 
 	if (!hd3d11 || !hdxgi) {
 		write_log(_T("D3D11.dll=%p Dxgi.dll=%p\n"), hd3d11, hdxgi);
-		return false;
+		return 0;
 	}
 
 	pD3D11CreateDevice = (PFN_D3D11_CREATE_DEVICE)GetProcAddress(GetModuleHandle(_T("D3D11.dll")), "D3D11CreateDevice");
@@ -1652,7 +1672,20 @@ bool can_D3D11(bool checkdevice)
 	if (!pD3D11CreateDevice || !pCreateDXGIFactory1 || (hd3dcompiler && !pD3DCompileFromFile) || (hd3dcompiler && !ppD3DCompile)) {
 		write_log(_T("pD3D11CreateDevice=%p pCreateDXGIFactory1=%p pD3DCompileFromFile=%p ppD3DCompile=%p\n"),
 			pD3D11CreateDevice, pCreateDXGIFactory1, pD3DCompileFromFile, ppD3DCompile);
-		return false;
+		return 0;
+	}
+
+	// Create a DirectX graphics interface factory.
+	ComPtr<IDXGIFactory4> factory4;
+	hr = pCreateDXGIFactory1(__uuidof(IDXGIFactory4), (void**)&factory4);
+	if (SUCCEEDED(hr)) {
+		ComPtr<IDXGIFactory5> factory5;
+		BOOL allowTearing = FALSE;
+		hr = factory4.As(&factory5);
+		hr = factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
+		if (SUCCEEDED(hr) && allowTearing) {
+			ret |= 2;
+		}
 	}
 
 	if (checkdevice) {
@@ -1662,15 +1695,18 @@ bool can_D3D11(bool checkdevice)
 		ID3D11DeviceContext *m_deviceContext;
 		HRESULT hr = pD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, cdflags, levels100, 1, D3D11_SDK_VERSION, &m_device, NULL, &m_deviceContext);
 		if (FAILED(hr)) {
-			return false;
+			return 0;
 		}
 		m_deviceContext->Release();
 		m_device->Release();
 	}
-	return true;
+
+	ret |= 1;
+	detected_val = ret;
+	return ret;
 }
 
-static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmult)
+static bool xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth, int *freq, int mmult)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
 	struct apmode *apm = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
@@ -1698,12 +1734,13 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 	if (!can_D3D11(false))
 		return false;
 
-	d3d->m_bitmapWidth = w_w;
-	d3d->m_bitmapHeight = w_h;
+	d3d->m_bitmapWidth = t_w;
+	d3d->m_bitmapHeight = t_h;
 	d3d->m_screenWidth = w_w;
 	d3d->m_screenHeight = w_h;
 	d3d->ahwnd = ahwnd;
 	d3d->texformat = depth == 32 ? DXGI_FORMAT_B8G8R8A8_UNORM : DXGI_FORMAT_B5G6R5_UNORM;
+	d3d->intformat = DXGI_FORMAT_B8G8R8A8_UNORM; // _SRGB;
 	d3d->scrformat = DXGI_FORMAT_B8G8R8A8_UNORM;
 
 	struct MultiDisplay *md = getdisplay(&currprefs);
@@ -1952,6 +1989,15 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 
 	d3d->swapChainDesc.Scaling = d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL ? DXGI_SCALING_NONE : DXGI_SCALING_STRETCH;
 
+	d3d->vblankintervals = 1;
+	int vsync = isvsync();
+	if (vsync) {
+		int hzmult;
+		getvsyncrate(hz, &hzmult);
+		if (hzmult > 0)
+			d3d->vblankintervals = hzmult + 1;
+	}
+
 	// Create the swap chain, Direct3D device, and Direct3D device context.
 	result = factory2->CreateSwapChainForHwnd(d3d->m_device, ahwnd, &d3d->swapChainDesc, isfs(d3d) > 0 ? &d3d->fsSwapChainDesc : NULL, NULL, &d3d->m_swapChain);
 	if (FAILED(result)) {
@@ -1977,6 +2023,11 @@ static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int
 
 	write_log(_T("D3D11 init end\n"));
 	return true;
+}
+
+static bool xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmult)
+{
+	return xxD3D11_init2(ahwnd, w_w, w_h, w_w, w_h, depth, freq, mmult);
 }
 
 static void freed3d(struct d3d11struct *d3d)
@@ -2203,16 +2254,18 @@ static void EndScene(struct d3d11struct *d3d)
 	UINT presentFlags = 0;
 
 	struct apmode *apm = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
+	int vsync = isvsync();
 	if (currprefs.turbo_emulation)
 		presentFlags |= DXGI_PRESENT_DO_NOT_WAIT;
-	if (isfs(d3d) > 0) {
-		hr = d3d->m_swapChain->Present(apm->gfx_vflip == 0 ? 0 : 1, presentFlags);
-	} else {
-		if (d3d->m_tearingSupport && (d3d->swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING)) {
-			presentFlags |= DXGI_PRESENT_ALLOW_TEARING;
-		}
-		hr = d3d->m_swapChain->Present(0, presentFlags);
+	if (d3d->m_tearingSupport && (d3d->swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING)) {
+		presentFlags |= DXGI_PRESENT_ALLOW_TEARING;
 	}
+	UINT syncinterval = d3d->vblankintervals;
+	if (!vsync) {
+		if (apm->gfx_vflip == 0 || (presentFlags & DXGI_PRESENT_ALLOW_TEARING))
+			syncinterval = 0;
+	}
+	hr = d3d->m_swapChain->Present(syncinterval, presentFlags);
 	if (currprefs.turbo_emulation && hr == DXGI_ERROR_WAS_STILL_DRAWING)
 		return;
 	if (FAILED(hr)) {
@@ -2504,6 +2557,8 @@ static bool xD3D11_alloctexture(int w, int h)
 		return false;
 	d3d->m_bitmapWidth = w;
 	d3d->m_bitmapHeight = h;
+	d3d->m_bitmapWidth2 = d3d->m_bitmapWidth;
+	d3d->m_bitmapHeight2 = d3d->m_bitmapHeight;
 	d3d->dmult = S2X_getmult();
 	v = CreateTexture(d3d);
 	if (!v)
@@ -2685,7 +2740,7 @@ static void xD3D11_guimode(int guion)
 		ShowWindow(d3d->ahwnd, SW_HIDE);
 	} else if (guion == 0) {
 		ShowWindow(d3d->ahwnd, SW_SHOWNORMAL);
-		if (!xxD3D11_init(d3d->ahwnd, d3d->m_screenWidth, d3d->m_screenHeight, 32, NULL, 1))
+		if (!xxD3D11_init2(d3d->ahwnd, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth2, d3d->m_bitmapHeight2, 32, NULL, 1))
 			d3d->invalidmode = true;
 	}
 	write_log(_T("fs guimode end\n"));
