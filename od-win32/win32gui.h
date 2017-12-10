@@ -51,4 +51,6 @@ extern bool show_box_art(const TCHAR*);
 extern void move_box_art_window(void);
 extern void close_box_art_window(void);
 extern LRESULT CALLBACK BoxArtWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+extern int max_visible_boxart_images;
+extern int stored_boxart_window_width;
 #endif

@@ -2081,6 +2081,16 @@ end:
 	return ret;
 }
 
+static void box_art_check(struct uae_prefs *p)
+{
+	TCHAR tmp1[MAX_DPATH];
+	if (cfgfile_detect_art(p, tmp1)) {
+		show_box_art(tmp1);
+	} else {
+		show_box_art(NULL);
+	}
+}
+
 struct ConfigStruct {
 	TCHAR Name[MAX_DPATH];
 	TCHAR Path[MAX_DPATH];
@@ -2163,11 +2173,7 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 		return v;
 	if (type > 0)
 		return v;
-	if (cfgfile_detect_art(p, tmp1)) {
-		show_box_art(tmp1);
-	} else {
-		show_box_art(NULL);
-	}
+	box_art_check(p);
 	for (i = 1; i <= 2; i++) {
 		if (type != i) {
 			size = sizeof (ct);
@@ -5455,7 +5461,10 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		recursive--;
 		return TRUE;
 
-	case WM_USER:
+	case WM_USER + 1:
+		if (config) {
+			show_box_art(config && config->Artpath[0] ? config->Artpath : NULL);
+		}
 		break;
 
 	case WM_CONTEXTMENU:
@@ -5804,6 +5813,8 @@ static void resetregistry (void)
 	regdelete(NULL, _T("RelativePaths"));
 	regdelete(NULL, _T("DirectDraw_Secondary"));
 	regdelete(NULL, _T("ShownsupportedModes"));
+	regdelete(NULL, _T("ArtImageCount"));
+	regdelete(NULL, _T("ArtImageWidth"));
 }
 
 #include "zip.h"
@@ -6801,7 +6812,6 @@ static void enable_for_displaydlg (HWND hDlg)
 		CheckDlgButton (hDlg, IDC_AUTORESOLUTIONVGA, workprefs.gfx_autoresolution_vga);
 	}
 
-
 	bool isdouble = workprefs.gfx_vresolution > 0;
 
 	ew (hDlg, IDC_LM_NORMAL, !workprefs.gfx_autoresolution);
@@ -6814,6 +6824,9 @@ static void enable_for_displaydlg (HWND hDlg)
 	ew (hDlg, IDC_LM_IDOUBLED, !workprefs.gfx_autoresolution && isdouble);
 	ew (hDlg, IDC_LM_IDOUBLED2, !workprefs.gfx_autoresolution && isdouble);
 	ew (hDlg, IDC_LM_IDOUBLED3, !workprefs.gfx_autoresolution && isdouble);
+
+	hide(hDlg, IDC_DISPLAY_TEARING, TRUE);
+	//hide(hDlg, IDC_DISPLAY_TEARING, !(workprefs.gfx_api == 2 && (can_D3D11(false) & 2)));
 }
 
 static void enable_for_chipsetdlg (HWND hDlg)
@@ -7368,6 +7381,8 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_DISPLAY_BUFFERCNT, CB_ADDSTRING, 0, (LPARAM)buffer);
 	SendDlgItemMessage (hDlg, IDC_DISPLAY_BUFFERCNT, CB_SETCURSEL, workprefs.gfx_apmode[0].gfx_backbuffers, 0);
 
+	CheckDlgButton(hDlg, IDC_DISPLAY_TEARING, workprefs.gfx_apmode[0].gfx_tearing);
+
 	init_da (hDlg);
 }
 
@@ -7615,6 +7630,8 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 	workprefs.gfx_xcenter = ischecked (hDlg, IDC_XCENTER) ? 2 : 0; /* Smart centering */
 	workprefs.gfx_ycenter = ischecked (hDlg, IDC_YCENTER) ? 2 : 0; /* Smart centering */
+	workprefs.gfx_apmode[0].gfx_tearing = ischecked(hDlg, IDC_DISPLAY_TEARING);
+
 	LRESULT posn1 = SendDlgItemMessage (hDlg, IDC_AUTORESOLUTIONSELECT, CB_GETCURSEL, 0, 0);
 	if (posn1 != CB_ERR) {
 		if (posn1 == 0)
@@ -20633,6 +20650,10 @@ static int GetSettings (int all_options, HWND hwnd)
 			MapDialogRect (dhwnd, &dialog_rect);
 
 			hGUIWnd = dhwnd;
+			if (currentpage == LOADSAVE_ID) {
+				// update boxart
+				SendMessage(pages[LOADSAVE_ID], WM_USER + 1, 0, 0);
+			}
 			if (devicechangetimer < 0)
 				SetTimer(dhwnd, 4, 2000, NULL);
 			

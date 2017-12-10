@@ -759,6 +759,7 @@
 #define IDC_OCS                         1520
 #define IDC_HDFLOPPY                    1520
 #define IDC_SETTINGSTEXT3               1520
+#define IDC_DISPLAY_TEARING             1520
 #define IDC_ECS_AGNUS                   1521
 #define IDC_ECS_DENISE                  1522
 #define IDC_ECS                         1523

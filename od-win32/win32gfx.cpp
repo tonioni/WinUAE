@@ -4924,6 +4924,3 @@ void releasehdc (HDC hdc)
 #endif
 	DirectDraw_ReleaseDC (hdc);
 }
-
-
-

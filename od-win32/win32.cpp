@@ -3715,7 +3715,7 @@ void target_fixup_options (struct uae_prefs *p)
 			p->color_mode = 5;
 		if (p->ppc_model && !p->gfx_api) {
 			error_log (_T("Graphics board and PPC: Direct3D enabled."));
-			p->gfx_api = 1;
+			p->gfx_api = os_win7 ? 2 : 1;
 		}
 
 	}
@@ -3770,7 +3770,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_commandpathstart[0] = 0;
 		p->win32_commandpathend[0] = 0;
 		p->win32_statusbar = 1;
-		p->gfx_api = os_vista ? 1 : 0;
+		p->gfx_api = os_win7 ? 2 : (os_vista ? 1 : 0);
 		if (p->gf[APMODE_NATIVE].gfx_filter == 0 && p->gfx_api)
 			p->gf[APMODE_NATIVE].gfx_filter = 1;
 		if (p->gf[APMODE_RTG].gfx_filter == 0 && p->gfx_api)
@@ -5053,6 +5053,16 @@ static void WIN32_HandleRegistryStuff (void)
 		regqueryint(NULL, _T("ArtCache"), &artcache);
 	else
 		regsetint(NULL, _T("ArtCache"), artcache);
+
+	if (regexists(NULL, _T("ArtImageCount")))
+		regqueryint(NULL, _T("ArtImageCount"), &max_visible_boxart_images);
+	else
+		regsetint(NULL, _T("ArtImageCount"), max_visible_boxart_images);
+
+	if (regexists(NULL, _T("ArtImageWidth")))
+		regqueryint(NULL, _T("ArtImageWidth"), &stored_boxart_window_width);
+	else
+		regsetint(NULL, _T("ArtImageWidth"), stored_boxart_window_width);
 
 	if (regexists (NULL, _T("SaveImageOriginalPath")))
 		regqueryint (NULL, _T("SaveImageOriginalPath"), &saveimageoriginalpath);
@@ -6457,6 +6467,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 		WIN32_InitHtmlHelp ();
 		DirectDraw_Release ();
 		unicode_init ();
+		can_D3D11(false);
 		if (betamessage ()) {
 			keyboard_settrans ();
 #ifdef CATWEASEL

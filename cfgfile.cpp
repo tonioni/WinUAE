@@ -1882,6 +1882,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	write_resolution (f, _T("gfx_width_fullscreen"), _T("gfx_height_fullscreen"), &p->gfx_size_fs);
 	cfgfile_write (f, _T("gfx_refreshrate"), _T("%d"), p->gfx_apmode[0].gfx_refreshrate);
 	cfgfile_dwrite (f, _T("gfx_refreshrate_rtg"), _T("%d"), p->gfx_apmode[1].gfx_refreshrate);
+	cfgfile_write_bool(f, _T("gfx_tearing"), p->gfx_apmode[0].gfx_tearing);
+	cfgfile_write_bool(f, _T("gfx_tearing_rtg"), p->gfx_apmode[1].gfx_tearing);
+
 	cfgfile_write (f, _T("gfx_autoresolution"), _T("%d"), p->gfx_autoresolution);
 	cfgfile_dwrite (f, _T("gfx_autoresolution_delay"), _T("%d"), p->gfx_autoresolution_delay);
 	cfgfile_dwrite (f, _T("gfx_autoresolution_min_vertical"), vertmode[p->gfx_autoresolution_minv + 1]);
@@ -2968,7 +2971,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("gfx_backbuffers"), &p->gfx_apmode[APMODE_NATIVE].gfx_backbuffers, 1)
 		|| cfgfile_intval (option, value, _T("gfx_backbuffers_rtg"), &p->gfx_apmode[APMODE_RTG].gfx_backbuffers, 1)
 		|| cfgfile_yesno (option, value, _T("gfx_interlace"), &p->gfx_apmode[APMODE_NATIVE].gfx_interlaced)
-		|| cfgfile_yesno (option, value, _T("gfx_interlace_rtg"), &p->gfx_apmode[APMODE_RTG].gfx_interlaced)
+		|| cfgfile_yesno(option, value, _T("gfx_interlace_rtg"), &p->gfx_apmode[APMODE_RTG].gfx_interlaced)
+		|| cfgfile_yesno(option, value, _T("gfx_tearing"), &p->gfx_apmode[APMODE_NATIVE].gfx_tearing)
+		|| cfgfile_yesno(option, value, _T("gfx_tearing_rtg"), &p->gfx_apmode[APMODE_RTG].gfx_tearing)
 		|| cfgfile_intval(option, value, _T("gfx_black_frame_insertion_ratio"), &p->lightboost_strobo_ratio, 1)
 
 		|| cfgfile_intval (option, value, _T("gfx_center_horizontal_position"), &p->gfx_xcenter_pos, 1)
@@ -6259,9 +6264,6 @@ int cfgfile_get_description (struct uae_prefs *p, const TCHAR *filename, TCHAR *
 		p = xmalloc(struct uae_prefs, 1);
 		alloc = true;
 	}
-	p->description[0] = 0;
-	p->config_host_path[0] = 0;
-	p->config_hardware_path[0] = 0;
 	if (!p) {
 		alloc = true;
 		p = cfgfile_open(filename, type);

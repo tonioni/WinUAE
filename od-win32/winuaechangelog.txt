@@ -4,6 +4,16 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 11:
+
+- Updated to MSVC 2017 15.5
+- Config file Description field caching broke in b9.
+- Ignore WM_DEVICECHANGE messages during first 2 seconds when WinUAE GUI opens for the first time. Some systems seem to send spurious WM_DEVICECHANGE at program startup.
+- Simple box art/screenshot config file support. (See http://eab.abime.net/showthread.php?t=89014 for details.)
+- Direct3D11 mode OSD/RTG HW cursor support. All basic features are now implemented. Improved vsync and custom shaders to do.
+- D3D11 is now the default (=config file does not override it) if Windows 7 or newer.
+- Entering and exiting GUI in D3D11 fullscreen mode restored wrong texture size.
+- If Wait for Blitter is enabled and blit size makes no sense (larger than chip ram size), don't wait. (Fixes long delay in Vital / Mystic)
 
 Beta 10:
 
