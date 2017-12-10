@@ -1469,6 +1469,15 @@ static bool waitingblits (void)
 {
 	static int warned = 10;
 
+	// crazy large blit size? don't wait.. (Vital / Mystic)
+	if (blt_info.vblitsize * blt_info.hblitsize * 2 > 2 * 1024 * 1024) {
+		if (warned) {
+			warned--;
+			write_log(_T("Crazy waiting_blits detected PC=%08x W=%d H=%d\n"), M68K_GETPC, blt_info.vblitsize, blt_info.hblitsize);
+		}
+		return false;
+	}
+
 	bool waited = false;
 	while (bltstate != BLT_done && dmaen (DMA_BLITTER)) {
 		waited = true;
