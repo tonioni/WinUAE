@@ -6024,14 +6024,20 @@ static void m68k_run_2p (void)
 						inprec_playdebug_cpu (1);
 				}
 
+				if (cpu_cycles > 0)
+					x_do_cycles(cpu_cycles);
+
 				if (currprefs.cpu_memory_cycle_exact) {
 
 					(*cpufunctbl[r->opcode])(r->opcode);
-					cpu_cycles = 0;
+					// 0% = no extra cycles
+					cpu_cycles = 4 * CYCLE_UNIT * cycles_mult;
+					cpu_cycles /= CYCLES_DIV;
+					cpu_cycles -= CYCLE_UNIT;
+					if (cpu_cycles < 0)
+						cpu_cycles = 0;
 
 				} else {
-
-					x_do_cycles (cpu_cycles);
 
 					cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode);
 					cpu_cycles = adjust_cycles (cpu_cycles);
