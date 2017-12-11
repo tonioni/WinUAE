@@ -152,6 +152,7 @@ struct d3d11struct
 
 	RECT sr2, dr2, zr2;
 	int guimode;
+	bool delayedfs;
 	int ledwidth, ledheight;
 	int statusbar_hx, statusbar_vx;
 
@@ -1620,6 +1621,7 @@ static void setswapchainmode(struct d3d11struct *d3d, int fs)
 	struct apmode *apm = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
 	// It is recommended to always use the tearing flag when it is supported.
 	d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+	// tearing flag is not fullscreen compatible
 	if (d3d->m_tearingSupport && (d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL || d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) && !apm->gfx_vflip) {
 		d3d->swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 	}
@@ -1627,6 +1629,7 @@ static void setswapchainmode(struct d3d11struct *d3d, int fs)
 	d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	if (fs) {
 		d3d->swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+		d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 	}
 
 	d3d->fsSwapChainDesc.Windowed = TRUE;
@@ -1727,6 +1730,8 @@ static bool xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int de
 
 	filterd3didx = picasso_on;
 	filterd3d = &currprefs.gf[filterd3didx];
+
+	d3d->delayedfs = false;
 
 	if (depth != 32 && depth != 16)
 		return false;
@@ -2548,10 +2553,22 @@ static void xD3D11_refresh(void)
 	}
 }
 
+static void recheck(struct d3d11struct *d3d)
+{
+	if (d3d->delayedfs) {
+		d3d->delayedfs = false;
+		ShowWindow(d3d->ahwnd, SW_SHOWNORMAL);
+		if (!xxD3D11_init2(d3d->ahwnd, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth2, d3d->m_bitmapHeight2, 32, NULL, 1))
+			d3d->invalidmode = true;
+	}
+}
+
 static bool xD3D11_alloctexture(int w, int h)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
 	bool v;
+
+	recheck(d3d);
 
 	if (d3d->invalidmode)
 		return false;
@@ -2572,7 +2589,9 @@ static uae_u8 *xD3D11_locktexture(int *pitch, int *height, bool fullupdate)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
 
-	if (d3d->invalidmode)
+	recheck(d3d);
+
+	if (d3d->invalidmode || !d3d->texture2d)
 		return NULL;
 	D3D11_MAPPED_SUBRESOURCE map;
 	HRESULT hr = d3d->m_deviceContext->Map(d3d->texture2dstaging, 0, D3D11_MAP_WRITE, 0, &map);
@@ -2673,6 +2692,9 @@ static void xD3D11_resize(int activate)
 
 	write_log(_T("D3D11_resize %d %d %d (%d)\n"), activate, d3d->fsmodechange, d3d->fsmode, d3d->guimode);
 
+	if (d3d->delayedfs)
+		return;
+
 	if (d3d->guimode && isfullscreen() > 0)
 		return;
 
@@ -2739,9 +2761,7 @@ static void xD3D11_guimode(int guion)
 		xD3D11_free(d3d);
 		ShowWindow(d3d->ahwnd, SW_HIDE);
 	} else if (guion == 0) {
-		ShowWindow(d3d->ahwnd, SW_SHOWNORMAL);
-		if (!xxD3D11_init2(d3d->ahwnd, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth2, d3d->m_bitmapHeight2, 32, NULL, 1))
-			d3d->invalidmode = true;
+		d3d->delayedfs = true;
 	}
 	write_log(_T("fs guimode end\n"));
 }
@@ -2853,6 +2873,8 @@ static bool xD3D_setcursor(int x, int y, int width, int height, bool visible, bo
 static uae_u8 *xD3D_setcursorsurface(int *pitch)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
+	if (!d3d->hwsprite.texture)
+		return NULL;
 	if (pitch) {
 		D3D11_MAPPED_SUBRESOURCE map;
 		HRESULT hr = d3d->m_deviceContext->Map(d3d->hwsprite.texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
