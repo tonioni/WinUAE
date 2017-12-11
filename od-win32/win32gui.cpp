@@ -11508,7 +11508,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	BOOL enable = FALSE, jitenable = FALSE;
 	BOOL cpu_based_enable = FALSE;
 
-	ew(hDlg, IDC_SPEED, !workprefs.cpu_memory_cycle_exact);
+	ew(hDlg, IDC_SPEED, !workprefs.cpu_cycle_exact);
 	ew(hDlg, IDC_COMPATIBLE24, workprefs.cpu_model <= 68030);
 	//ew(hDlg, IDC_CS_HOST, !workprefs.cpu_cycle_exact);
 	//ew(hDlg, IDC_CS_68000, !workprefs.cpu_cycle_exact);

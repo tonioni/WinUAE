@@ -4,6 +4,12 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 12:
+
+- Direct3D11 fullscreen + DXGI 1.5 works again (b11)
+- D3D11 fullscreen -> GUI -> change resolution/display parameters -> exit GUI does not cause blank screen anymore.
+- 68020 memory cycle exact CPU speed slider is again partially working, CPU speed can be reduced but not increased.
+
 Beta 11:
 
 - Updated to MSVC 2017 15.5

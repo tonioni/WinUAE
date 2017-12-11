@@ -962,7 +962,7 @@ bool show_box_art(const TCHAR *path)
 	if (max_visible_boxart_images < 1 || max_visible_boxart_images > 3)
 		max_visible_boxart_images = 2;
 
-	total_height = 2 * hgap;
+	total_height = 0;
 	max_width = 0;
 	total_images = 0;
 	lastimage = 0;
@@ -1014,8 +1014,6 @@ bool show_box_art(const TCHAR *path)
 		close_box_art_window();
 		return false;
 	}
-
-	total_height += hgap * (total_images - 1);
 
 	InvalidateRect(boxarthwnd, NULL, TRUE);
 	ShowWindow(boxarthwnd, SW_SHOWNOACTIVATE);
