@@ -1553,6 +1553,7 @@ static bool fastmem_autoconfig(struct uae_prefs *p, struct autoconfig_info *aci,
 	struct romconfig *dmc_rc = NULL;
 	uae_u8 ac[16] = { 0 };
 	int boardnum = aci->devnum;
+	bool canforceac = false;
 
 	if (aci->cst) {
 		mid = aci->cst->memory_mid;
@@ -1571,6 +1572,7 @@ static bool fastmem_autoconfig(struct uae_prefs *p, struct autoconfig_info *aci,
 					type |= chainedconfig;
 			}
 		} else {
+			canforceac = true;
 			if (ert->memory_mid) {
 				mid = ert->memory_mid;
 				pid = ert->memory_pid;
@@ -1615,6 +1617,15 @@ static bool fastmem_autoconfig(struct uae_prefs *p, struct autoconfig_info *aci,
 				pid = p->maprom && !p->cpuboard_type ? 3 : 83;
 			}
 			flags |= care_addr | force_z3 | (allocated > 0x800000 ? ext_size : subsize);
+		}
+	} else if (canforceac) {
+		if (zorro <= 2) {
+			rb = &p->fastmem[boardnum];
+		} else if (zorro == 3) {
+			rb = &p->z3fastmem[boardnum];
+		}
+		if (rb && rb->autoconfig[0]) {
+			forceac = rb->autoconfig;
 		}
 	}
 	if (!mid) {
@@ -4766,6 +4777,13 @@ const struct expansionromtype expansionroms[] = {
 		0, 0, 0, true, NULL,
 		true, 2, fastata_settings,
 		{ 0x90, 0, 0x10, 0x00, 0x08, 0x9e, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00 },
+	},
+	{
+		_T("eveshamref"), _T("Reference 40/100"), _T("Evesham Micros"),
+		NULL, eveshamref_init, NULL, eveshamref_add_scsi_unit, ROMTYPE_EVESHAMREF, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI,
+		8504, 2, 0
 	},
 	{
 		_T("dataflyerscsiplus"), _T("DataFlyer SCSI+"), _T("Expansion Systems"),

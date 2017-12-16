@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 222
+#define NEXT_ROM_ID 223
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -547,6 +547,8 @@ static struct romdata roms[] = {
 	0x93ba65c7, 0x33ba9d1e,0x27e9c210,0xa27ee6d3,0x855d3feb,0x1649ddc2, NULL, NULL },
 	ALTROMPN(220, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x2af75b4c, 0xe25be651, 0x56eef3bc, 0xa036d76c, 0xca3903a9, 0x469f0de5)
 	ALTROMPN(220, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x8283dc0c, 0xe3820358, 0x1d130b40, 0x9c333f41, 0xdfd6afcd, 0xf3fabb81)
+	{ _T("Evesham Micros Reference"), 1, 1, 1, 1, _T("EVESHAMREF\0"), 65536, 221, 0, 0, ROMTYPE_EVESHAMREF, 0, 0, NULL,
+	0xb0225f48, 0x2b170b40, 0x2f60d28c, 0x344fc463, 0x7e99915f, 0x92e0e8f1, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

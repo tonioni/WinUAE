@@ -66,7 +66,8 @@
 #define NCR5380_EMPLANT 35
 #define OMTI_HD3000 36
 #define OMTI_WEDGE 37
-#define NCR_LAST 38
+#define NCR5380_EVESHAMREF 38
+#define NCR_LAST 39
 
 extern int log_scsiemu;
 
@@ -2543,6 +2544,17 @@ static int malibureg(uaecptr addr)
 	return reg;
 }
 
+static int eveshamref_reg(struct soft_scsi *ncr, uaecptr addr)
+{
+	if (!ncr->configured)
+		return -1;
+	if (addr < 0x40)
+		return (addr >> 1) & 7;
+	if (addr == 0x41)
+		return 8;
+	return -1;
+}
+
 static uae_u8 read_684xx_dma(struct soft_scsi *ncr, uaecptr addr)
 {
 	uae_u8 val = 0;
@@ -3211,6 +3223,15 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 				v = ncr5380_bget(ncr, 8);
 		}
 
+	} else if (ncr->type == NCR5380_EVESHAMREF) {
+
+		reg = eveshamref_reg(ncr, addr);
+		if (reg >= 0) {
+			v = ncr5380_bget(ncr, reg);
+		} else {
+			v = ncr->rom[addr & 0x7fff];
+		}
+
 	}
 
 #if NCR5380_DEBUG > 1
@@ -3585,6 +3606,12 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 			if (ncr->dma_active)
 				ncr5380_bput(ncr, 8, val);
 		}
+
+	} else if (ncr->type == NCR5380_EVESHAMREF) {
+
+		reg = eveshamref_reg(ncr, addr);
+		if (reg >= 0)
+			ncr5380_bput(ncr, reg, val);
 	}
 
 #if NCR5380_DEBUG > 1
@@ -4856,7 +4883,7 @@ bool hd3000_init(struct autoconfig_info *aci)
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_GOLEMHD3000);
 
 	if (!aci->doinit) {
-		load_rom_rc(aci->rc, ROMTYPE_GOLEMHD3000, 8192, aci->ert->autoboot_jumper ? 0 : 8192, aci->autoconfig_raw, 128, 0);
+		load_rom_rc(aci->rc, ROMTYPE_GOLEMHD3000, 8192, !aci->rc->autoboot_disabled ? 0 : 8192, aci->autoconfig_raw, 128, 0);
 		return true;
 	}
 
@@ -4864,7 +4891,7 @@ bool hd3000_init(struct autoconfig_info *aci)
 	if (!scsi)
 		return false;
 
-	load_rom_rc(aci->rc, ROMTYPE_GOLEMHD3000, 8192, aci->ert->autoboot_jumper ? 0 : 8192, scsi->rom, 65536, 0);
+	load_rom_rc(aci->rc, ROMTYPE_GOLEMHD3000, 8192, !aci->rc->autoboot_disabled ? 0 : 8192, scsi->rom, 65536, 0);
 	memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
 	aci->addrbank = scsi->bank;
 	return true;
@@ -4873,4 +4900,26 @@ bool hd3000_init(struct autoconfig_info *aci)
 void hd3000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, OMTI_HD3000, 65536, 16384, ROMTYPE_GOLEMHD3000);
+}
+
+bool eveshamref_init(struct autoconfig_info *aci)
+{
+	if (!aci->doinit) {
+		load_rom_rc(aci->rc, ROMTYPE_EVESHAMREF, 65536, aci->rc->autoboot_disabled ? 0x1000 : 0, aci->autoconfig_raw, 128, LOADROM_EVENONLY_ODDONE);
+		return true;
+	}
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	load_rom_rc(aci->rc, ROMTYPE_EVESHAMREF, 65536, aci->rc->autoboot_disabled ? 0x1000 : 0, scsi->rom, 65536, LOADROM_EVENONLY_ODDONE);
+	memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
+	aci->addrbank = scsi->bank;
+	return true;
+}
+
+void eveshamref_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_EVESHAMREF, 65536, 65536, ROMTYPE_EVESHAMREF);
 }
