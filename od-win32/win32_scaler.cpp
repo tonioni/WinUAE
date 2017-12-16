@@ -144,8 +144,6 @@ static void getmanualpos (int *cxp, int *cyp, int *cwp, int *chp)
 	*chp = ch;
 }
 
-extern bool getscalerect (float *mx, float *my, float *sx, float *sy);
-
 void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height, int aw, int ah, int scale, int temp_width, int temp_height)
 {
 	float srcratio, dstratio;
@@ -189,7 +187,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	extrah = -ahs * (filter_vert_zoom - currprefs.gf[picasso_on].gfx_filteroverlay_overscan * 10) / 2.0f;
 
 	extraw2 = 0;
-	if (getscalerect (&mrmx, &mrmy, &mrsx, &mrsy)) {
+	if (D3D_getscalerect && D3D_getscalerect(&mrmx, &mrmy, &mrsx, &mrsy)) {
 		extraw2 = mrmx;
 		//extrah -= mrmy;
 	}
@@ -642,7 +640,7 @@ cont:
 
 end:
 
-	if (getscalerect (&mrmx, &mrmy, &mrsx, &mrsy)) {
+	if (D3D_getscalerect && D3D_getscalerect(&mrmx, &mrmy, &mrsx, &mrsy)) {
 		sizeoffset (dr, zr, mrmx, mrmy);
 		OffsetRect (dr, mrsx, mrsy);
 	}

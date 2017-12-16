@@ -4660,7 +4660,7 @@ static BOOL doInit (void)
 			}
 			if (err) {
 				D3D_free(true);
-				error_log(_T("Direct3D failed to initialize, falling back to DirectDraw."));
+				error_log(_T("Direct3D9 failed to initialize, falling back to DirectDraw."));
 				changed_prefs.gfx_api = currprefs.gfx_api = 0;
 				changed_prefs.gf[picasso_on].gfx_filter = currprefs.gf[picasso_on].gfx_filter = 0;
 				currentmode->current_depth = currentmode->native_depth;

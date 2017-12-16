@@ -1762,7 +1762,7 @@ end:
 	return 0;
 }
 
-bool getscalerect (float *mx, float *my, float *sx, float *sy)
+static bool xD3D_getscalerect(float *mx, float *my, float *sx, float *sy)
 {
 	struct d3dstruct *d3d = &d3ddata[0];
 	if (!d3d->mask2texture)
@@ -3642,7 +3642,6 @@ static uae_u8 *xD3D_setcursorsurface(int *pitch)
 	struct d3dstruct *d3d = &d3ddata[0];
 	if (pitch) {
 		D3DLOCKED_RECT locked;
-		LPDIRECT3DTEXTURE9 cursorsurfaced3d;
 		HRESULT hr = d3d->cursorsurfaced3d->LockRect(0, &locked, NULL, 0);
 		if (FAILED(hr))
 			return NULL;
@@ -3680,6 +3679,7 @@ void d3d9_select(void)
 	D3D_restore = xD3D_restore;
 	D3D_resize = NULL;
 	D3D_change = NULL;
+	D3D_getscalerect = xD3D_getscalerect;
 }
 
 #endif

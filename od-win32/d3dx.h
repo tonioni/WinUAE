@@ -41,6 +41,21 @@ public:
 	}
 };
 
+class D3DXVECTOR4
+{
+public:
+	float x, y, z, w;
+	D3DXVECTOR4()
+	{
+	}
+	D3DXVECTOR4(float x, float y, float z, float w)
+	{
+		this->x = x;
+		this->y = y;
+		this->z = z;
+		this->w = w;
+	}
+};
 
 static D3DXVECTOR3 *xD3DXVec3Cross(D3DXVECTOR3 *pOut, const D3DXVECTOR3 *A, const D3DXVECTOR3 *B)
 {
@@ -292,4 +307,31 @@ static D3DXMATRIX *xD3DXMatrixRotationYawPitchRoll(D3DXMATRIX *pout, FLOAT yaw, 
 	xD3DXMatrixRotationY(&m, yaw);
 	xD3DXMatrixMultiply(pout, &pout1, &m);
 	return pout;
+}
+
+static D3DXMATRIX* xD3DXMatrixOrthoOffCenterLH(D3DXMATRIX *pOut, float l, float r, float b, float t, float zn, float zf)
+{
+	pOut->_11 = 2.0f / r; pOut->_12 = 0.0f;   pOut->_13 = 0.0f;  pOut->_14 = 0.0f;
+	pOut->_21 = 0.0f;   pOut->_22 = 2.0f / t; pOut->_23 = 0.0f;  pOut->_24 = 0.0f;
+	pOut->_31 = 0.0f;   pOut->_32 = 0.0f;   pOut->_33 = 1.0f;  pOut->_34 = 0.0f;
+	pOut->_41 = -1.0f;  pOut->_42 = -1.0f;  pOut->_43 = 0.0f;  pOut->_44 = 1.0f;
+	return pOut;
+}
+
+static D3DXMATRIX* xD3DXMatrixScaling(D3DXMATRIX *pOut, float sx, float sy, float sz)
+{
+	pOut->_11 = sx;     pOut->_12 = 0.0f;   pOut->_13 = 0.0f;  pOut->_14 = 0.0f;
+	pOut->_21 = 0.0f;   pOut->_22 = sy;     pOut->_23 = 0.0f;  pOut->_24 = 0.0f;
+	pOut->_31 = 0.0f;   pOut->_32 = 0.0f;   pOut->_33 = sz;    pOut->_34 = 0.0f;
+	pOut->_41 = 0.0f;   pOut->_42 = 0.0f;   pOut->_43 = 0.0f;  pOut->_44 = 1.0f;
+	return pOut;
+}
+
+static D3DXMATRIX* xD3DXMatrixTranslation(D3DXMATRIX *pOut, float tx, float ty, float tz)
+{
+	pOut->_11 = 1.0f;   pOut->_12 = 0.0f;   pOut->_13 = 0.0f;  pOut->_14 = 0.0f;
+	pOut->_21 = 0.0f;   pOut->_22 = 1.0f;   pOut->_23 = 0.0f;  pOut->_24 = 0.0f;
+	pOut->_31 = 0.0f;   pOut->_32 = 0.0f;   pOut->_33 = 1.0f;  pOut->_34 = 0.0f;
+	pOut->_41 = tx;     pOut->_42 = ty;     pOut->_43 = tz;    pOut->_44 = 1.0f;
+	return pOut;
 }
