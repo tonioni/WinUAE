@@ -11561,7 +11561,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_CPUDATACACHE, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0 && workprefs.cpu_compatible);
 	ew (hDlg, IDC_CPU_PPC, workprefs.cpu_model >= 68040 && (workprefs.ppc_mode == 1 || (workprefs.ppc_mode == 0 && !is_ppc_cpu(&workprefs))));
 
-	SendDlgItemMessage(hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, workprefs.m68k_speed < 0 ? MAKELONG(-9, 0) : MAKELONG(-9, 50));
+	SendDlgItemMessage(hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, workprefs.m68k_speed < 0 || (workprefs.cpu_memory_cycle_exact && !workprefs.cpu_cycle_exact) ? MAKELONG(-9, 0) : MAKELONG(-9, 50));
 	SendDlgItemMessage(hDlg, IDC_SPEED, TBM_SETPAGESIZE, 0, 1);
 	SendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETRANGE, TRUE, MAKELONG(-1, 100));
 	SendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETPAGESIZE, 0, 1);
