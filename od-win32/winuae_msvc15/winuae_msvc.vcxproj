@@ -246,7 +246,7 @@
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <IgnoreSpecificDefaultLibraries>LIBCMT;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;avrt.dll;ddraw.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;ddraw.dll;Iphlpapi.dll;gdiplus.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\Debug/winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -306,7 +306,7 @@
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <IgnoreSpecificDefaultLibraries>LIBCMT;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_43.dll;openal32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;avrt.dll;Dwmapi.lib;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(Platform)\$(Configuration)\winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -460,7 +460,7 @@
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <AdditionalManifestDependencies>%(AdditionalManifestDependencies)</AdditionalManifestDependencies>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;ddraw.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;ddraw.dll;Iphlpapi.dll;gdiplus.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\Test/winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -616,7 +616,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries);MSVCRT</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(Platform)\$(Configuration)\winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -772,7 +772,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries);MSVCRT</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;gdiplus.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\x64\FullRelease/winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -955,6 +955,12 @@
     <ClCompile Include="..\dxwrap.cpp" />
     <ClCompile Include="..\fsdb_mywin32.cpp" />
     <ClCompile Include="..\fsdb_win32.cpp" />
+    <ClCompile Include="..\FX11\d3dxGlobal.cpp" />
+    <ClCompile Include="..\FX11\EffectAPI.cpp" />
+    <ClCompile Include="..\FX11\EffectLoad.cpp" />
+    <ClCompile Include="..\FX11\EffectNonRuntime.cpp" />
+    <ClCompile Include="..\FX11\EffectReflection.cpp" />
+    <ClCompile Include="..\FX11\EffectRuntime.cpp" />
     <ClCompile Include="..\hardfile_win32.cpp" />
     <ClCompile Include="..\hq2x_d3d.cpp" />
     <ClCompile Include="..\ioport.cpp" />
@@ -1172,7 +1178,7 @@
     <FxCompile Include="..\shaders\PixelShaderAlpha.hlsl">
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostAlpha</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">4.0_level_9_1</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostAlpha</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">../Shaders/PixelShaderAlpha.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">
@@ -1193,23 +1199,23 @@
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostAlpha</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostAlpha</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PS_PostAlpha</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">PS_PostAlpha</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostAlpha</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostAlpha</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0_level_9_1</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PS_PostAlpha</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">../Shaders/PixelShaderAlpha.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -1230,17 +1236,17 @@
     <FxCompile Include="..\shaders\PixelShaderMask.hlsl">
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostMask</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">4.0_level_9_1</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostMask</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">../Shaders/PixelShaderMask.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">
       </ObjectFileOutput>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0_level_9_1</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">PS_PostMask</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../Shaders/PixelShaderMask.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -1274,31 +1280,31 @@
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostMask</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PS_PostMask</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">PS_PostMask</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostMask</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostMask</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0_level_9_1</ShaderModel>
     </FxCompile>
     <FxCompile Include="..\shaders\PixelShaderPlain.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Pixel</ShaderType>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostPlain</EntryPointName>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">4.0_level_9_1</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostPlain</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">../Shaders/PixelShaderPlain.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">
       </ObjectFileOutput>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0_level_9_1</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">PS_PostPlain</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../Shaders/PixelShaderPlain.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -1316,16 +1322,16 @@
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostPlain</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PS_PostPlain</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">PS_PostPlain</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostPlain</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostPlain</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0_level_9_1</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PS_PostPlain</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">../Shaders/PixelShaderPlain.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -1348,15 +1354,15 @@
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">TextureVertexShader</EntryPointName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">VertexShader</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">../Shaders/VertexShader.h</HeaderFileOutput>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">4.0_level_9_1</ShaderModel>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">
       </ObjectFileOutput>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0_level_9_1</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">VertexShader</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../Shaders/VertexShader.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -1390,16 +1396,16 @@
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">TextureVertexShader</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TextureVertexShader</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">TextureVertexShader</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|x64'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TextureVertexShader</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">TextureVertexShader</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0_level_9_1</ShaderModel>
     </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

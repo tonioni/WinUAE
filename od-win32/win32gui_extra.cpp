@@ -874,7 +874,7 @@ static void boxartpaint(HDC hdc, HWND hwnd)
 	Gdiplus::Graphics graphics(hdc);
 	Gdiplus::Pen pen(Gdiplus::Color(170, 170, 0, 0), 1);
 
-	int y = hgap;
+	float y = 0;
 	cnt = 0;
 	for (int i = 0; i < MAX_BOX_ART_IMAGES; i++) {
 		if (!imagemode && cnt >= max_visible_boxart_images)
@@ -887,7 +887,7 @@ static void boxartpaint(HDC hdc, HWND hwnd)
 		}
 	}
 
-	y = hgap + (window_h - (int)(y * scale + 0.5)) / 2;
+	y = hgap + (window_h - (y * scale)) / 2;
 
 	cnt = 0;
 	for (int i = 0; i < MAX_BOX_ART_IMAGES; i++) {
@@ -905,7 +905,7 @@ static void boxartpaint(HDC hdc, HWND hwnd)
 
 			int x1 = wgap + (window_w - w) / 2;
 			int x2 = w;
-			int y1 = y;
+			int y1 = (int)(y + 0.5);
 			int y2 = h;
 
 			if (image_count == 1) {
@@ -949,7 +949,7 @@ bool show_box_art(const TCHAR *path)
 		boxart_init();
 		boxart_inited = true;
 	}
-	if (isfullscreen() > 0 || !hGUIWnd) {
+	if ((!full_property_sheet && isfullscreen() > 0) || !hGUIWnd) {
 		close_box_art_window();
 		return false;
 	}

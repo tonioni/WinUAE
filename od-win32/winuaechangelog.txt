@@ -4,6 +4,22 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+- Memory cycle exact CPU speed slider scale fixed. (0 is max)
+- D3D11: monitor bezel overlays supported.
+- D3D11: RGB mask wrong colors fixed. (RGB<>BGR)
+- D3D11: fall back to D3D9 if 16-bit mode is selected but it is not supported. 16-bit is not required format in D3D11.
+- D3D11: minimum supported hardware level is now 9.1 (was 10.0).
+- Added Evesham Micros Reference SCSI controller emulation.
+- Kupke Golem HD3000 autoboot disabled option did nothing.
+- It was not possible to override Z2 RAM board autoconfig data if board had built-in manufacturer/product ID defaults (for example any Z2 HD controller with Z2 RAM)
+
+Evesham Micros Reference:
+- Basic 5380 based PIO controller.
+- Fake DMA, byte wide data port.
+- Driver has filesystem relocator but it seems to be broken, for example PFS3 crashes because all relocations point to invalid addresses.
+- "Evesham.device (Kemputa1/Evesham drive 13Mar93)", "(c)1993 Kemputa Systems,Pen-y-Gwaith,Ysbyty Ystwyth,Ystrad Meurig,Dyfed. UK"
+- It has strange fast RAM configuration, RAM can be disabled with a jumper but it only clears autoconfig "add to free list" bit. If you want to replicate this (board's custom memory test utility only runs in this mode), tick RAM panel edit autoconfig data and clear bit 5 of first byte (for example E4 -> C4)
+
 Beta 12:
 
 - Direct3D11 fullscreen + DXGI 1.5 works again (b11)

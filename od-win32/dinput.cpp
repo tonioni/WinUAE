@@ -24,6 +24,7 @@ int no_windowsmouse = 0;
 #define DI_DEBUG 1
 #define IGNOREEVERYTHING 0
 #define DEBUG_SCANCODE 0
+#define OUTPUTDEBUG 0
 
 #define NEGATIVEMINHACK 0
 
@@ -2114,8 +2115,8 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 					break;
 			}
 		}
-		if (rawinput_log & 2)
-			write_log (_T("%08x %04x %04x %04x %08x %3d %3d %08x M=%d F=%d\n"),
+		if (rawinput_log & 2) {
+			write_log(_T("%p %04x %04x %04x %08x %3d %3d %08x M=%d F=%d\n"),
 				raw->header.hDevice,
 				rm->usFlags,
 				rm->usButtonFlags,
@@ -2124,7 +2125,25 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 				rm->lLastX,
 				rm->lLastY,
 				rm->ulExtraInformation, num < num_mouse ? num + 1 : -1,
-				isfocus ());
+				isfocus());
+		}
+
+#if OUTPUTDEBUG
+		TCHAR xx[256];
+		_stprintf(xx, _T("%p %d %p %04x %04x %04x %08x %3d %3d %08x M=%d F=%d\n"),
+			GetCurrentProcess(), timeframes,
+			raw->header.hDevice,
+			rm->usFlags,
+			rm->usButtonFlags,
+			rm->usButtonData,
+			rm->ulRawButtons,
+			rm->lLastX,
+			rm->lLastY,
+			rm->ulExtraInformation, num < num_mouse ? num + 1 : -1,
+			isfocus());
+		OutputDebugString(xx);
+#endif
+
 
 		if (num == num_mouse)
 			return;

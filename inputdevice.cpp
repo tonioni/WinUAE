@@ -19,6 +19,7 @@
 #define DONGLE_DEBUG 0
 #define SWITCH_DEBUG 0
 #define INPUT_DEBUG 0
+#define OUTPUTDEBUG 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -2949,7 +2950,6 @@ static int getvelocity (int num, int subnum, int pct)
 
 static void mouseupdate (int pct, bool vsync)
 {
-	int v, i;
 	int max = 120;
 	static int mxd, myd;
 
@@ -2993,43 +2993,52 @@ static void mouseupdate (int pct, bool vsync)
 		myd = 0;
 	}
 
-	for (i = 0; i < 2; i++) {
+	for (int i = 0; i < 2; i++) {
 
 		if (mouse_port[i]) {
 
-			v = getvelocity (i, 0, pct);
-			mxd += v;
-			mouse_x[i] += v;
+			int v1 = getvelocity (i, 0, pct);
+			mxd += v1;
+			mouse_x[i] += v1;
 			if (mouse_x[i] < 0) {
 				mouse_x[i] += MOUSEXY_MAX;
-				mouse_frame_x[i] = mouse_x[i] - v;
+				mouse_frame_x[i] = mouse_x[i] - v1;
 			}
 			if (mouse_x[i] >= MOUSEXY_MAX) {
 				mouse_x[i] -= MOUSEXY_MAX;
-				mouse_frame_x[i] = mouse_x[i] - v;
+				mouse_frame_x[i] = mouse_x[i] - v1;
 			}
 
-			v = getvelocity (i, 1, pct);
-			myd += v;
-			mouse_y[i] += v;
+			int v2 = getvelocity (i, 1, pct);
+			myd += v2;
+			mouse_y[i] += v2;
 			if (mouse_y[i] < 0) {
 				mouse_y[i] += MOUSEXY_MAX;
-				mouse_frame_y[i] = mouse_y[i] - v;
+				mouse_frame_y[i] = mouse_y[i] - v2;
 			}
 			if (mouse_y[i] >= MOUSEXY_MAX) {
 				mouse_y[i] -= MOUSEXY_MAX;
-				mouse_frame_y[i] = mouse_y[i] - v;
+				mouse_frame_y[i] = mouse_y[i] - v2;
 			}
 
-			v = getvelocity (i, 2, pct);
+			int v3 = getvelocity (i, 2, pct);
 			/* if v != 0, record mouse wheel key presses
 			 * according to the NewMouse standard */
-			if (v > 0)
+			if (v3 > 0)
 				record_key (0x7a << 1);
-			else if (v < 0)
+			else if (v3 < 0)
 				record_key (0x7b << 1);
 			if (!mouse_deltanoreset[i][2])
 				mouse_delta[i][2] = 0;
+
+#if OUTPUTDEBUG
+			if (v1 || v2) {
+				TCHAR xx1[256];
+				_stprintf(xx1, _T("%p %d VX=%d VY=%d X=%d Y=%d DX=%d DY=%d VS=%d\n"),
+					GetCurrentProcess(), timeframes, v1, v2, mouse_x[i], mouse_y[i], mouse_frame_x[i] - mouse_x[i], mouse_frame_y[i] - mouse_y[i], vsync);
+				OutputDebugString(xx1);
+			}
+#endif
 
 			if (mouse_frame_x[i] - mouse_x[i] > max) {
 				mouse_x[i] = mouse_frame_x[i] - max;
@@ -8767,14 +8776,27 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 	struct uae_input_device *id = &mice[mouse];
 	static float fract[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
 
+#if OUTPUTDEBUG
+	TCHAR xx1[256];
+	_stprintf(xx1, _T("%p %d M=%d A=%d D=%d IA=%d\n"), GetCurrentProcess(), timeframes, mouse, axis, data, isabs);
+	OutputDebugString(xx1);
+#endif
+
 	if (testmode) {
 		inputdevice_testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_AXIS, axis, data, -1);
 		// fake "release" event
 		inputdevice_testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_AXIS, axis, 0, -1);
+#if OUTPUTDEBUG
+		OutputDebugString(_T("-> exit1\n"));
+#endif
 		return;
 	}
-	if (input_play)
+	if (input_play) {
+#if OUTPUTDEBUG
+		OutputDebugString(_T("-> exit5\n"));
+#endif
 		return;
+	}
 	if (!mice[mouse].enabled) {
 		if (isabs && currprefs.input_tablet > 0) {
 			if (axis == 0)
@@ -8784,6 +8806,9 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 			if (axis)
 				mousehack_helper (mice2[mouse].buttonmask);
 		}
+#if OUTPUTDEBUG
+		OutputDebugString(_T("-> exit2\n"));
+#endif
 		return;
 	}
 	d = 0;
@@ -8791,8 +8816,12 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 	oldm_p = &oldm_axis[mouse][axis];
 	if (!isabs) {
 		// eat relative movements while in mousehack mode
-		if (currprefs.input_tablet == TABLET_MOUSEHACK && mousehack_alive () && axis < 2)
+		if (currprefs.input_tablet == TABLET_MOUSEHACK && mousehack_alive() && axis < 2) {
+#if OUTPUTDEBUG
+			OutputDebugString(_T("-> exit3\n"));
+#endif
 			return;
+		}
 		*oldm_p = *mouse_p;
 		*mouse_p += data;
 		d = (*mouse_p - *oldm_p) * currprefs.input_mouse_speed / 100.0f;
@@ -8809,8 +8838,12 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 		}
 		if (axis)
 			mousehack_helper (mice2[mouse].buttonmask);
-		if (currprefs.input_tablet == TABLET_MOUSEHACK && mousehack_alive () && axis < 2)
+		if (currprefs.input_tablet == TABLET_MOUSEHACK && mousehack_alive() && axis < 2) {
+#if OUTPUTDEBUG
+			OutputDebugString(_T("-> exit4\n"));
+#endif
 			return;
+		}
 	}
 	v = (int)d;
 	fract[mouse][axis] += d - v;
@@ -8821,8 +8854,20 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 		uae_u64 flags = id->flags[ID_AXIS_OFFSET + axis][i];
 		if (!isabs && (flags & ID_FLAG_INVERT))
 			v = -v;
+
+#if OUTPUTDEBUG
+		if (id->eventid[ID_AXIS_OFFSET + axis][i]) {
+			TCHAR xx2[256];
+			_stprintf(xx2, _T("%p %d -> %d ID=%d\n"), GetCurrentProcess(), timeframes, v, id->eventid[ID_AXIS_OFFSET + axis][i]);
+			OutputDebugString(xx2);
+		}
+#endif
+
 		handle_input_event_extra(id->eventid[ID_AXIS_OFFSET + axis][i], v, 0, HANDLE_IE_FLAG_CANSTOPPLAYBACK | extraflags, extrastate);
 	}
+#if OUTPUTDEBUG
+	OutputDebugString(_T("-> exit0\n"));
+#endif
 }
 
 int getmousestate (int joy)

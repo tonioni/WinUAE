@@ -71,6 +71,9 @@
     <Filter Include="win32\Shaders">
       <UniqueIdentifier>{34d75786-02bd-43a5-b45d-934eef34e96e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="win32\FX11">
+      <UniqueIdentifier>{aacd260d-3fd9-43a0-9cac-463ddd009704}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ahidsound_dsonly.cpp">
@@ -861,6 +864,24 @@
     </ClCompile>
     <ClCompile Include="..\direct3d11.cpp">
       <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FX11\d3dxGlobal.cpp">
+      <Filter>win32\FX11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FX11\EffectLoad.cpp">
+      <Filter>win32\FX11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FX11\EffectNonRuntime.cpp">
+      <Filter>win32\FX11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FX11\EffectReflection.cpp">
+      <Filter>win32\FX11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FX11\EffectRuntime.cpp">
+      <Filter>win32\FX11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FX11\EffectAPI.cpp">
+      <Filter>win32\FX11</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
