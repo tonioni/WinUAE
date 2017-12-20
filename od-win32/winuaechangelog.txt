@@ -4,6 +4,25 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+
+Beta 14:
+
+- D3D11: lower hardware levels are supported again. (broke in previous beta)
+- D3D11: if Windows 7 and DXGI 1.1+ is not detected, show message that asks to install Platform Update (KB2670838). WinUAE requires DXGI 1.1. DXGI 1.0 won't be supported. (Confirmed on VM that Win7SP1 iso install + optional KB2670838 from Windows Update without installing any other updates is enough to use D3D11 mode)
+- D3D9 low latency vsync was reverted to normal vsync if default.uae was missing or default.uae enabled D3D11 mode.
+- D3D11 custom fx shader support implemented.
+- D3D11 supports most existing D3D9 fx shaders by in-memory string renaming: technique -> technique10 and ps_2_0/ps_3_0 -> ps_4_0_level_9_3 and vs_2_0/vs_3_0 -> vs_4_0_level_9_3. For some reason D3D11 effect compiler ignores D3D9 technique format but nearly everything else is supported. D3DCompiler_46.dll or D3DCompiler_47.dll required.
+- D3D9 and D3D11: if shader fx file does not have combineTechique but has at least one technique: automatically select first technique as combineTechique.
+- D3D11 mode GUI D3D shader list is only shown if D3DCompiler_46.dll or D3DCompiler_47.dll is available.
+- D3D11 in 16-bit mode but 16-bit not supported: switch to 32-bit instead of falling back to Direct3D 9.
+- DirectDraw + UAERTG caused crash (earlier betas)
+- Use 391078-01 CIA in A600 Quickstart. It seems most (all?) A600s have -01 revision, A1200/A4000 can have -01 or -02.
+- If Direct3D 11 is selected as default, also select 32-bit as default depth.
+
+D3D11 custom shader note: texture shaders (tx_1_0) are not implemented. D3D11 replacements for D3DXFillTextureTX()/D3DXFillCubeTextureTX()/D3DXFillVolumeTextureTX() D3D9X functions don't seem to exist. (But fx compiler supports "tx_1_0" shader target so perhaps they are hiding somewhere..)
+
+Beta 13:
+
 - Memory cycle exact CPU speed slider scale fixed. (0 is max)
 - D3D11: monitor bezel overlays supported.
 - D3D11: RGB mask wrong colors fixed. (RGB<>BGR)
