@@ -179,9 +179,20 @@ lExit:
     return hr;
 }
 
+typedef HRESULT(WINAPI* D3DCOMPILE)(LPCVOID pSrcData,
+	SIZE_T SrcDataSize,
+	LPCSTR pSourceName,
+	CONST D3D_SHADER_MACRO* pDefines,
+	ID3DInclude* pInclude,
+	LPCSTR pEntrypoint,
+	LPCSTR pTarget,
+	UINT Flags1,
+	UINT Flags2,
+	ID3DBlob** ppCode,
+	ID3DBlob** ppErrorMsgs);
+extern D3DCOMPILE ppD3DCompile;
 
 //--------------------------------------------------------------------------------------
-#if 0
 _Use_decl_annotations_
 HRESULT D3DX11CompileEffectFromMemory( LPCVOID pData, SIZE_T DataLength, LPCSTR srcName,
                                        const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, UINT HLSLFlags, UINT FXFlags,
@@ -197,7 +208,7 @@ HRESULT D3DX11CompileEffectFromMemory( LPCVOID pData, SIZE_T DataLength, LPCSTR 
     }
 
     ID3DBlob *blob = nullptr;
-    HRESULT hr = D3DCompile( pData, DataLength, srcName, pDefines, pInclude, "", "fx_5_0", HLSLFlags, FXFlags, &blob, ppErrors );
+    HRESULT hr = ppD3DCompile( pData, DataLength, srcName, pDefines, pInclude, "", "fx_5_0", HLSLFlags, FXFlags, &blob, ppErrors );
     if ( FAILED(hr) )
     {
         DPF(0, "D3DCompile of fx_5_0 profile failed: %08X", hr );
@@ -219,7 +230,6 @@ lExit:
     }
     return hr;
 }
-#endif
 //--------------------------------------------------------------------------------------
 
 typedef HRESULT(WINAPI* D3DCOMPILEFROMFILE)(LPCWSTR pFileName,

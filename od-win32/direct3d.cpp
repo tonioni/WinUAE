@@ -550,6 +550,11 @@ static int psEffect_ParseParameters (struct d3dstruct *d3d, LPD3DXEFFECTCOMPILER
 			}
 		}
 	}
+
+	if (!s->m_CombineTechniqueEffectHandle && EffectDesc.Techniques > 0) {
+		s->m_CombineTechniqueEffectHandle = effect->GetTechnique(0);
+	}
+
 	return 1;
 }
 
