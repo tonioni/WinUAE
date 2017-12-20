@@ -649,7 +649,7 @@ static void setupcursor (void)
 	int bpp = 4;
 	int pitch;
 
-	if (currprefs.rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE)
+	if (currprefs.rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE || !currprefs.gfx_api)
 		return;
 	gfx_lock ();
 	setupcursor_needed = 1;
