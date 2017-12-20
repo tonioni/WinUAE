@@ -8326,6 +8326,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ciaoverlay = 0;
 		p->cs_resetwarning = 0;
 		p->cs_ciatodbug = true;
+		p->cs_ciatype[0] = p->cs_ciatype[1] = 1;
 		break;
 	case CP_A1000: // A1000
 		p->cs_a1000ram = 1;
