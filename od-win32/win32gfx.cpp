@@ -4063,7 +4063,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 				vsdetect++;
 		}
 		if (vsdetect >= detectcnt / 2) {
-			write_log (L"Forced vsync detected, switching to double buffered\n");
+			write_log (_T("Forced vsync detected, switching to double buffered\n"));
 			changed_prefs.gfx_apmode[0].gfx_backbuffers = 1;
 		}
 	}
@@ -4490,6 +4490,7 @@ static BOOL doInit (void)
 	int tmp_depth;
 	int ret = 0;
 
+retry:
 	remembered_vblank = -1;
 	if (wasfullwindow_a == 0)
 		wasfullwindow_a = currprefs.gfx_apmode[0].gfx_fullscreen == GFX_FULLWINDOW ? 1 : -1;
@@ -4653,6 +4654,11 @@ static BOOL doInit (void)
 		if (err) {
 			if (currprefs.gfx_api == 2) {
 				D3D_free(true);
+				if (err[0] == 0 && currprefs.color_mode != 5) {
+					changed_prefs.color_mode = currprefs.color_mode = 5;
+					update_gfxparams();
+					goto retry;
+				}
 				changed_prefs.gfx_api = currprefs.gfx_api = 1;
 				d3d_select(&currprefs);
 				error_log(_T("Direct3D11 failed to initialize, falling back to Direct3D9."));
