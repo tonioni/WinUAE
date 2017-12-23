@@ -377,6 +377,20 @@ uae_u32 get_ilong_debug (uaecptr addr)
 		return 0xffffffff;
 	}
 }
+uae_u8 *get_real_address_debug(uaecptr addr)
+{
+	if (debug_mmu_mode) {
+		flagtype olds = regs.s;
+		TRY(p) {
+			if (currprefs.mmu_model >= 68040)
+				addr = mmu_translate(addr, 0, regs.s != 0, (debug_mmu_mode & 1), false, 0);
+			else
+				addr = mmu030_translate(addr, regs.s != 0, (debug_mmu_mode & 1), false);
+		} CATCH(p) {
+		} ENDTRY
+	}
+	return get_real_address(addr);
+}
 
 int debug_safe_addr (uaecptr addr, int size)
 {
@@ -3902,14 +3916,14 @@ static void print_task_info (uaecptr node, bool nonactive)
 	int process = get_byte_debug (node + 8) == 13 ? 1 : 0;
 
 	console_out_f (_T("%08X: "), node);
-	s = au ((char*)get_real_address (get_long_debug (node + 10)));
+	s = au ((char*)get_real_address_debug(get_long_debug (node + 10)));
 	console_out_f (process ? _T("PROCESS '%s'\n") : _T("TASK    '%s'\n"), s);
 	xfree (s);
 	if (process) {
 		uaecptr cli = BPTR2APTR (get_long_debug (node + 172));
 		int tasknum = get_long_debug (node + 140);
 		if (cli && tasknum) {
-			uae_u8 *command_bstr = get_real_address (BPTR2APTR (get_long_debug (cli + 16)));
+			uae_u8 *command_bstr = get_real_address_debug(BPTR2APTR (get_long_debug (cli + 16)));
 			TCHAR *command = BSTR2CSTR (command_bstr);
 			console_out_f (_T(" [%d, '%s']\n"), tasknum, command);
 			xfree (command);
@@ -4093,7 +4107,7 @@ static void show_exec_lists (TCHAR *t)
 				console_out_f (_T("  [H] %08X\n"), get_long_debug (list));
 				node = get_long_debug (list + 8);
 				if (node) {
-					uae_u8 *addr = get_real_address (get_long_debug (node + 10));
+					uae_u8 *addr = get_real_address_debug(get_long_debug (node + 10));
 					TCHAR *name = addr ? au ((char*)addr) : au("<null>");
 					console_out_f (_T("      %08X (C=%08X D=%08X) '%s'\n"), node, get_long_debug (list + 4), get_long_debug (list), name);
 					xfree (name);
@@ -4103,7 +4117,7 @@ static void show_exec_lists (TCHAR *t)
 				node = get_long_debug (list);
 				node = get_long_debug (node);
 				while (get_long_debug (node)) {
-					uae_u8 *addr = get_real_address (get_long_debug (node + 10));
+					uae_u8 *addr = get_real_address_debug(get_long_debug (node + 10));
 					TCHAR *name = addr ? au ((char*)addr) : au("<null>");
 					uae_s8 pri = get_byte_debug(node + 9);
 					console_out_f (_T("  [S] %08x %+03d (C=%08x D=%08X) '%s'\n"), node, pri, get_long_debug (node + 18), get_long_debug (node + 14), name);
@@ -4115,7 +4129,7 @@ static void show_exec_lists (TCHAR *t)
 								uaecptr ciap = get_long_debug (cia);
 								console_out_f (_T("        %5s: %08x"), ciai[j], ciap);
 								if (ciap) {
-									uae_u8 *addr2 = get_real_address (get_long_debug (ciap + 10));
+									uae_u8 *addr2 = get_real_address_debug(get_long_debug (ciap + 10));
 									TCHAR *name2 = addr ? au ((char*)addr2) : au("<null>");
 									console_out_f (_T(" (C=%08x D=%08X) '%s'"), get_long_debug (ciap + 18), get_long_debug (ciap + 14), name2);
 									xfree (name2);
@@ -4145,7 +4159,7 @@ static void show_exec_lists (TCHAR *t)
 					uae_s8 pri = get_byte(list + 9);
 					uae_u16 flags = get_word_debug(list + 14);
 					uae_u32 dn = get_long_debug(list + 16);
-					uae_u8 *addr = get_real_address(name);
+					uae_u8 *addr = get_real_address_debug(name);
 					TCHAR *name1 = addr ? au((char*)addr) : au("<null>");
 					my_trim(name1);
 					console_out_f(_T("%08x %04x %08x %d %s\n"), list, flags, dn, pri, name1);
@@ -4204,10 +4218,10 @@ static void show_exec_lists (TCHAR *t)
 				continue;
 			}
 			uae_u8 *addr;
-			addr = get_real_address (get_long_debug (resident + 14));
+			addr = get_real_address_debug(get_long_debug (resident + 14));
 			TCHAR *name1 = addr ? au ((char*)addr) : au("<null>");
 			my_trim (name1);
-			addr = get_real_address (get_long_debug (resident + 18));
+			addr = get_real_address_debug(get_long_debug (resident + 18));
 			TCHAR *name2 = addr ? au ((char*)addr) : au("<null>");
 			my_trim (name2);
 			console_out_f (_T("%08X %08X: %02X %3d %02X %+3.3d '%s' ('%s')\n"),
@@ -4238,14 +4252,14 @@ static void show_exec_lists (TCHAR *t)
 				_T("GlobalVec"),
 				NULL
 			};
-			uae_u8 *addr = get_real_address (get_long_debug (fs + 14));
+			uae_u8 *addr = get_real_address_debug(get_long_debug (fs + 14));
 			TCHAR *name = addr ? au ((char*)addr) : au ("<null>");
 			my_trim (name);
 			console_out_f (_T("%08x: '%s'\n"), fs, name);
 			xfree (name);
 			node = get_long_debug (fs + 18);
 			while (get_long_debug (node)) {
-				TCHAR *name = au ((char*)get_real_address (get_long_debug (node + 10)));
+				TCHAR *name = au ((char*)get_real_address_debug(get_long_debug (node + 10)));
 				my_trim (name);
 				console_out_f (_T("%08x: '%s'\n"), node, name);
 				xfree (name);
@@ -4265,7 +4279,7 @@ static void show_exec_lists (TCHAR *t)
 		list = execbase + 322;
 		node = get_long_debug (list);
 		while (get_long_debug (node)) {
-			TCHAR *name = au ((char*)get_real_address (get_long_debug (node + 10)));
+			TCHAR *name = au ((char*)get_real_address_debug(get_long_debug (node + 10)));
 			uae_u16 v = get_word_debug (node + 8);
 			console_out_f (_T("%08x %d %d %s\n"), node, (int)((v >> 8) & 0xff), (uae_s8)(v & 0xff), name);
 			xfree (name);
@@ -4310,7 +4324,7 @@ static void show_exec_lists (TCHAR *t)
 		return;
 	node = get_long_debug (list);
 	while (get_long_debug (node)) {
-		TCHAR *name = au ((char*)get_real_address (get_long_debug (node + 10)));
+		TCHAR *name = au ((char*)get_real_address_debug(get_long_debug (node + 10)));
 		uae_u16 v = get_word_debug (node + 8);
 		console_out_f (_T("%08x %d %d"), node, (int)((v >> 8) & 0xff), (uae_s8)(v & 0xff));
 		if (full) {
@@ -4324,7 +4338,7 @@ static void show_exec_lists (TCHAR *t)
 		if (full) {
 			uaecptr idstring = get_long_debug(node + 24);
 			if (idstring) {
-				name = au((char*)get_real_address(idstring));
+				name = au((char*)get_real_address_debug(idstring));
 				console_out_f(_T(" (%s)"), name);
 				xfree(name);
 			}
@@ -5483,12 +5497,12 @@ static bool debug_line (TCHAR *input)
 				}
 #endif
 				if (*inptr == 'm' && inptr[1] == 'u') {
-					if (currprefs.mmu_model) {
-						inptr += 2;
-						if (inptr[0] == 'd') {
-							if (currprefs.mmu_model >= 68040)
-								mmu_dump_tables();
-						} else {
+					inptr += 2;
+					if (inptr[0] == 'd') {
+						if (currprefs.mmu_model >= 68040)
+							mmu_dump_tables();
+					} else {
+						if (currprefs.mmu_model) {
 							if (more_params (&inptr))
 								debug_mmu_mode = readint (&inptr);
 							else
@@ -5813,7 +5827,7 @@ void debug (void)
 					uaecptr execbase = get_long_debug (4);
 					uaecptr activetask = get_long_debug (execbase + 276);
 					int process = get_byte_debug (activetask + 8) == 13 ? 1 : 0;
-					char *name = (char*)get_real_address (get_long_debug (activetask + 10));
+					char *name = (char*)get_real_address_debug(get_long_debug (activetask + 10));
 					if (process) {
 						uaecptr cli = BPTR2APTR(get_long_debug (activetask + 172));
 						uaecptr seglist = 0;
@@ -5821,7 +5835,7 @@ void debug (void)
 						uae_char *command = NULL;
 						if (cli) {
 							if (processname)
-								command = (char*)get_real_address (BPTR2APTR(get_long_debug (cli + 16)));
+								command = (char*)get_real_address_debug(BPTR2APTR(get_long_debug (cli + 16)));
 							seglist = BPTR2APTR(get_long_debug (cli + 60));
 						} else {
 							seglist = BPTR2APTR(get_long_debug (activetask + 128));
