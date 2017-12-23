@@ -139,8 +139,9 @@ void mmu_tt_modified (void)
 
 #define LEVELA_SIZE 7
 #define LEVELB_SIZE 7
-#define LEVELC_SIZE 6
-#define PAGE_SIZE 12 // = 1 << 12 = 4096
+#define LEVELC_SIZE (mmu_pagesize_8k ? 5 : 6)
+#define PAGE_SIZE_4k 12 // = 1 << 12 = 4096
+#define PAGE_SIZE_8k 13 // = 1 << 13 = 8192
 
 #define LEVELA_VAL(x) ((((uae_u32)(x)) >> (32 - (LEVELA_SIZE                            ))) & ((1 << LEVELA_SIZE) - 1))
 #define LEVELB_VAL(x) ((((uae_u32)(x)) >> (32 - (LEVELA_SIZE + LEVELB_SIZE              ))) & ((1 << LEVELB_SIZE) - 1))
@@ -171,23 +172,25 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 	ULONG startaddr;
 	ULONG odesc;
 	ULONG totalpages;
-	ULONG pagemask = (1 << PAGE_SIZE) - 1;
+	ULONG page_size = mmu_pagesize_8k ? PAGE_SIZE_8k : PAGE_SIZE_4k;
+	ULONG pagemask = (1 << page_size) - 1;
+	ULONG descmask = pagemask & ~(0x08 | 0x10); // mask out unused and M bits
 
-	console_out_f(_T("MMU dump start. Root = %08x\n"), root_ptr);
-	totalpages = 1 << (32 - PAGE_SIZE);
+	console_out_f(_T("MMU dump start. Root = %08x. Page = %d\n"), root_ptr, 1 << page_size);
+	totalpages = 1 << (32 - page_size);
 	startaddr = 0;
 	odesc = getdesc(root_ptr, startaddr);
 	for (i = 0; i <= totalpages; i++) {
-		ULONG addr = i << PAGE_SIZE;
+		ULONG addr = i << page_size;
 		ULONG desc = 0;
 		if (i < totalpages)
 			desc = getdesc(root_ptr, addr);
-		if ((desc & pagemask) != (odesc & pagemask) || i == totalpages) {
+		if ((desc & descmask) != (odesc & descmask) || i == totalpages) {
 			uae_u8 cm, sp;
 			cm = (odesc >> 5) & 3;
 			sp = (odesc >> 7) & 1;
 			console_out_f(_T("%08x - %08x: %08x WP=%d S=%d CM=%d (%08x)\n"),
-				startaddr, addr - 1, odesc & ~((1 << PAGE_SIZE) - 1),
+				startaddr, addr - 1, odesc & ~((1 << page_size) - 1),
 				(odesc & 4) ? 1 : 0, sp, cm, odesc);
 			startaddr = addr;
 			odesc = desc;
