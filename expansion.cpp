@@ -5761,8 +5761,8 @@ static const struct cpuboardsubtype fusionforty_sub[] = {
 		_T("FusionForty"),
 		ROMTYPE_CB_FUSION, 0,
 		NULL, 0,
-		BOARD_MEMORY_HIGHMEM,
-		128 * 1024 * 1024
+		0,
+		32 * 1024 * 1024
 	},
 	{
 		NULL

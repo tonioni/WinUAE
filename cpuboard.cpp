@@ -1396,7 +1396,7 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 static void REGPARAM2 blizzardio_wput(uaecptr addr, uae_u32 v)
 {
 	if (is_fusionforty(&currprefs)) {
-		write_log(_T("FusionForty IO WPUT %08x %04x\n"), addr, v);
+		write_log(_T("FusionForty IO WPUT %08x %04x %08x\n"), addr, v, M68K_GETPC);
 	} else if (is_blizzard(&currprefs)) {
 		write_log(_T("CS IO WPUT %08x %04x\n"), addr, v);
 		if((addr & 65535) == (BLIZZARD_BOARD_DISABLE & 65535)) {
@@ -2514,7 +2514,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		f0rom_size = 262144;
 		zfile_fread(blizzardf0_bank.baseaddr, 1, 131072, autoconfig_rom);
 		autoconf = false;
-		aci->start = 0xf00000;
+		aci->start = 0xf40000;
 		aci->size = f0rom_size;
 	} else if (is_tekmagic(p)) {
 		earom_size = 65536;
