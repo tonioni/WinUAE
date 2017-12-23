@@ -809,7 +809,7 @@ void setdivuoverflowflags(uae_u32 dividend, uae_u16 divisor)
  *
  */
 
-void setdivsoverflowflags(uae_s32 dividend, uae_u16 divisor)
+void setdivsoverflowflags(uae_s32 dividend, uae_s16 divisor)
 {
 	if (currprefs.cpu_model >= 68040) {
 		SET_VFLG(1);
