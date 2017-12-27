@@ -1244,6 +1244,8 @@ void show_screen_special (void)
 {
 	if (!screen_is_initialized)
 		return;
+	if (!D3D_showframe_special)
+		return;
 	if (currentmode->flags & DM_D3D) {
 		gfx_lock();
 		D3D_showframe_special (1);
@@ -1304,7 +1306,7 @@ void show_screen (int mode)
 	strobo_active2 = false;
 	gfx_lock();
 	if (mode == 2) {
-		if (currentmode->flags & DM_D3D) {
+		if ((currentmode->flags & DM_D3D) && D3D_showframe_special) {
 			D3D_showframe_special (1);
 		}
 		gfx_unlock();
@@ -1316,7 +1318,7 @@ void show_screen (int mode)
 	}
 	if (currentmode->flags & DM_D3D) {
 		struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
-		if (ap->gfx_vsync < 0 && ap->gfx_strobo) {
+		if (ap->gfx_vsync < 0 && ap->gfx_strobo && currprefs.gfx_api < 2) {
 			double vblank = vblank_hz;
 			if (WIN32GFX_IsPicassoScreen()) {
 				if (currprefs.win32_rtgvblankrate > 0)
@@ -2069,7 +2071,8 @@ int check_prefs_changed_gfx (void)
 #endif
 	c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (2|8|16) : 0;
 	c |= currprefs.gfx_autoresolution_vga != changed_prefs.gfx_autoresolution_vga ? (2|8|16) : 0;
-	c |= currprefs.gfx_api != changed_prefs.gfx_api ? (1|8|32) : 0;
+	c |= currprefs.gfx_api != changed_prefs.gfx_api ? (1 | 8 | 32) : 0;
+	c |= currprefs.gfx_api_options != changed_prefs.gfx_api_options ? (1 | 8 | 32) : 0;
 	c |= currprefs.lightboost_strobo != changed_prefs.lightboost_strobo ? (2|16) : 0;
 
 	for (int j = 0; j < 2; j++) {
@@ -2141,9 +2144,9 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_apmode[APMODE_NATIVE].gfx_display != changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_display ? (2|4|8) : 0;
 	c |= currprefs.gfx_apmode[APMODE_RTG].gfx_display != changed_prefs.gfx_apmode[APMODE_RTG].gfx_display ? (2|4|8) : 0;
 	c |= currprefs.gfx_blackerthanblack != changed_prefs.gfx_blackerthanblack ? (2 | 8) : 0;
-	c |= currprefs.gfx_apmode[APMODE_NATIVE].gfx_backbuffers != changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_backbuffers ? (2 | 8) : 0;
+	c |= currprefs.gfx_apmode[APMODE_NATIVE].gfx_backbuffers != changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_backbuffers ? (2 | 16) : 0;
 	c |= currprefs.gfx_apmode[APMODE_NATIVE].gfx_interlaced != changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_interlaced ? (2 | 8) : 0;
-	c |= currprefs.gfx_apmode[APMODE_RTG].gfx_backbuffers != changed_prefs.gfx_apmode[APMODE_RTG].gfx_backbuffers ? (2 | 8) : 0;
+	c |= currprefs.gfx_apmode[APMODE_RTG].gfx_backbuffers != changed_prefs.gfx_apmode[APMODE_RTG].gfx_backbuffers ? (2 | 16) : 0;
 
 	c |= currprefs.win32_main_alwaysontop != changed_prefs.win32_main_alwaysontop ? 32 : 0;
 	c |= currprefs.win32_gui_alwaysontop != changed_prefs.win32_gui_alwaysontop ? 2 : 0;
@@ -2297,8 +2300,9 @@ int check_prefs_changed_gfx (void)
 				unacquired = true;
 			}
 			close_windows ();
-			if (currprefs.gfx_api != changed_prefs.gfx_api) {
+			if (currprefs.gfx_api != changed_prefs.gfx_api || currprefs.gfx_api_options != changed_prefs.gfx_api_options) {
 				currprefs.gfx_api = changed_prefs.gfx_api;
+				currprefs.gfx_api_options = changed_prefs.gfx_api_options;
 				d3d_select(&currprefs);
 			}
 			graphics_init (dontcapture ? false : true);
@@ -3705,23 +3709,27 @@ bool vsync_isdone (void)
 {
 	if (isvsync () == 0)
 		return false;
-	if (!isthreadedvsync ()) {
-		int vp = -2;
-		getvblankpos (&vp, true);
-		if (!vblankthread_oddeven_got) {
-			// need to get odd/even state early
-			while (vp < 0) {
-				if (!getvblankpos (&vp, true))
-					break;
+	if (currprefs.gfx_api == 2) {
+		return d3d11_vsync_isdone();
+	} else {
+		if (!isthreadedvsync()) {
+			int vp = -2;
+			getvblankpos(&vp, true);
+			if (!vblankthread_oddeven_got) {
+				// need to get odd/even state early
+				while (vp < 0) {
+					if (!getvblankpos(&vp, true))
+						break;
+				}
+				vblankthread_oddeven = (vp & 1) != 0;
+				vblankthread_oddeven_got = true;
 			}
-			vblankthread_oddeven = (vp & 1) != 0;
-			vblankthread_oddeven_got = true;
 		}
+		if (dooddevenskip)
+			return true;
+		if (vblank_found_chipset)
+			return true;
 	}
-	if (dooddevenskip)
-		return true;
-	if (vblank_found_chipset)
-		return true;
 	return false;
 }
 
@@ -3746,6 +3754,11 @@ int vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 	frame_time_t t;
 	frame_time_t prevtime = vblank_prev_time;
 	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
+
+	if (currprefs.gfx_api == 2) {
+		show_screen(0);
+		return 1;
+	}
 
 	vblank_sync_started = true;
 	if (lace)
@@ -3914,8 +3927,13 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	bool remembered = false;
 	bool lace = false;
 
-	if (currprefs.gfx_api == 2)
-		goto fail;
+	if (currprefs.gfx_api == 2) {
+		double hz = d3d11_get_hz();
+		if (hz <= 0)
+			goto fail;
+		write_log(_T("VSync: %.6fHz\n"), hz);
+		return hz;
+	}
 
 	if (picasso_on) {
 		width = picasso96_state.Width;
@@ -4668,7 +4686,7 @@ retry:
 				D3D_free(true);
 				error_log(_T("Direct3D9 failed to initialize, falling back to DirectDraw."));
 				changed_prefs.gfx_api = currprefs.gfx_api = 0;
-				changed_prefs.gf[picasso_on].gfx_filter = currprefs.gf[picasso_on].gfx_filter = 0;
+				changed_prefs.gf[picasso_on].gfx_filter = currprefs.gf[picasso_on].gfx_filter = 1;
 				currentmode->current_depth = currentmode->native_depth;
 				gfxmode_reset();
 				DirectDraw_Start();

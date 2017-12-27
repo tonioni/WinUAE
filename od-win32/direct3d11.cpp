@@ -1,6 +1,4 @@
 
-#define CUSTOMSHADERS 1
-
 #include <windows.h>
 #include "resource.h"
 
@@ -36,6 +34,9 @@ using Microsoft::WRL::ComPtr;
 
 #include "FX11/d3dx11effect.h"
 
+#include <process.h>
+#include <Dwmapi.h>
+
 void (*D3D_free)(bool immediate);
 const TCHAR* (*D3D_init)(HWND ahwnd, int w_w, int h_h, int depth, int *freq, int mmult);
 bool (*D3D_alloctexture)(int, int);
@@ -62,7 +63,11 @@ void(*D3D_resize)(int);
 void (*D3D_change)(int);
 bool(*D3D_getscalerect)(float *mx, float *my, float *sx, float *sy);
 
-static HANDLE hd3d11, hdxgi, hd3dcompiler;
+static volatile int presentthread_mode, vblankthread_mode;
+static HMODULE hd3d11, hdxgi, hd3dcompiler, dwmapi;
+static HANDLE flipevent, flipevent2, vblankevent;
+static CRITICAL_SECTION present_cs;
+static bool present_cs_init;
 
 static struct gfx_filterdata *filterd3d;
 static int filterd3didx;
@@ -221,6 +226,13 @@ struct d3d11struct
 	bool fsmodechange;
 	bool invalidmode;
 	int vblankintervals;
+	bool blackscreen;
+	int framecount;
+	UINT syncinterval;
+	bool flipped;
+	double vblank;
+	DWM_FRAME_COUNT lastframe;
+	int frames_since_init;
 
 	struct d3d11sprite osd;
 	struct d3d11sprite hwsprite;
@@ -233,6 +245,7 @@ struct d3d11struct
 	RECT mask2rect;
 
 	IDXGISurface1 *hdc_surface;
+	HANDLE filenotificationhandle;
 
 	RECT sr2, dr2, zr2;
 	int guimode;
@@ -252,13 +265,10 @@ struct d3d11struct
 };
 
 #define NUMVERTICES 8
-#define TLVERTEX_DIFFUSE 1
 
 struct TLVERTEX {
 	D3DXVECTOR3 position;       // vertex position
-#if TLVERTEX_DIFFUSE
 	D3DCOLOR    diffuse;
-#endif
 	D3DXVECTOR2 texcoord;       // texture coords
 };
 
@@ -314,10 +324,13 @@ typedef HRESULT (WINAPI* D3DCOMPILE2)(LPCVOID pSrcData,
 	SIZE_T SecondaryDataSize,
 	ID3DBlob** ppCode,
 	ID3DBlob** ppErrorMsgs);
-typedef HRESULT(WINAPI* D3DREFLECT)(LPCVOID pSrcData, SIZE_T SrcDataSize, REFIID pInterface, void **ppReflector);
+typedef HRESULT(WINAPI *D3DREFLECT)(LPCVOID pSrcData, SIZE_T SrcDataSize, REFIID pInterface, void **ppReflector);
 typedef HRESULT(WINAPI *D3DGETBLOBPART)(LPCVOID pSrcData, SIZE_T SrcDataSize, D3D_BLOB_PART Part, UINT Flags, ID3DBlob** ppPart);
+typedef HRESULT(WINAPI *DWMGETCOMPOSITIONTIMINGINFO)(HWND hwnd, DWM_TIMING_INFO *pTimingInfo);
+
 static PFN_D3D11_CREATE_DEVICE pD3D11CreateDevice;
 static CREATEDXGIFACTORY1 pCreateDXGIFactory1;
+static DWMGETCOMPOSITIONTIMINGINFO pDwmGetCompositionTimingInfo;
 D3DCOMPILE ppD3DCompile;
 D3DCOMPILE2 ppD3DCompile2;
 D3DCOMPILEFROMFILE pD3DCompileFromFile;
@@ -359,8 +372,6 @@ static void TurnOffAlphaBlending(struct d3d11struct *d3d)
 	// Turn off the alpha blending.
 	d3d->m_deviceContext->OMSetBlendState(d3d->m_alphaDisableBlendingState, blendFactor, 0xffffffff);
 }
-
-#if CUSTOMSHADERS
 
 #define D3DX_DEFAULT ((UINT) -1)
 
@@ -672,49 +683,33 @@ static bool createfxvertices(struct d3d11struct *d3d, struct shaderdata11 *s)
 	//Setup vertices
 
 	vertices[0].position.x = -0.5f; vertices[0].position.y = -0.5f;
-#if TLVERTEX_DIFFUSE
 	vertices[0].diffuse = 0xFFFFFFFF;
-#endif
 	vertices[0].texcoord.x = 0.0f; vertices[0].texcoord.y = sizey;
 
 	vertices[1].position.x = -0.5f; vertices[1].position.y = 0.5f;
-#if TLVERTEX_DIFFUSE
 	vertices[1].diffuse = 0xFFFFFFFF;
-#endif
 	vertices[1].texcoord.x = 0.0f; vertices[1].texcoord.y = 0.0f;
 
 	vertices[2].position.x = 0.5f; vertices[2].position.y = -0.5f;
-#if TLVERTEX_DIFFUSE
 	vertices[2].diffuse = 0xFFFFFFFF;
-#endif
 	vertices[2].texcoord.x = sizex; vertices[2].texcoord.y = sizey;
 
 	vertices[3].position.x = 0.5f; vertices[3].position.y = 0.5f;
-#if TLVERTEX_DIFFUSE
 	vertices[3].diffuse = 0xFFFFFFFF;
-#endif
 	vertices[3].texcoord.x = sizex; vertices[3].texcoord.y = 0.0f;
 
 	// Additional vertices required for some PS effects
 	vertices[4].position.x = 0.0f; vertices[4].position.y = 0.0f;
-#if TLVERTEX_DIFFUSE
 	vertices[4].diffuse = 0xFFFFFF00;
-#endif
 	vertices[4].texcoord.x = 0.0f; vertices[4].texcoord.y = 1.0f;
 	vertices[5].position.x = 0.0f; vertices[5].position.y = 1.0f;
-#if TLVERTEX_DIFFUSE
 	vertices[5].diffuse = 0xFFFFFF00;
-#endif
 	vertices[5].texcoord.x = 0.0f; vertices[5].texcoord.y = 0.0f;
 	vertices[6].position.x = 1.0f; vertices[6].position.y = 0.0f;
-#if TLVERTEX_DIFFUSE
 	vertices[6].diffuse = 0xFFFFFF00;
-#endif
 	vertices[6].texcoord.x = 1.0f; vertices[6].texcoord.y = 1.0f;
 	vertices[7].position.x = 1.0f; vertices[7].position.y = 1.0f;
-#if TLVERTEX_DIFFUSE
 	vertices[7].diffuse = 0xFFFFFF00;
-#endif
 	vertices[7].texcoord.x = 1.0f; vertices[7].texcoord.y = 0.0f;
 
 	d3d->m_deviceContext->Unmap(s->vertexBuffer, 0);
@@ -755,7 +750,6 @@ static int createfxlayout(struct d3d11struct *d3d, struct shaderdata11 *s, ID3DX
 		polygonLayout[pidx].InstanceDataStepRate = 0;
 		pidx++;
 
-#if TLVERTEX_DIFFUSE
 		polygonLayout[pidx].SemanticName = "DIFFUSE";
 		polygonLayout[pidx].SemanticIndex = 0;
 		polygonLayout[pidx].Format = DXGI_FORMAT_R32_UINT;
@@ -764,7 +758,6 @@ static int createfxlayout(struct d3d11struct *d3d, struct shaderdata11 *s, ID3DX
 		polygonLayout[pidx].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
 		polygonLayout[pidx].InstanceDataStepRate = 0;
 		pidx++;
-#endif
 
 		polygonLayout[pidx].SemanticName = "TEXCOORD";
 		polygonLayout[pidx].SemanticIndex = 0;
@@ -796,6 +789,55 @@ static bool islf(char c)
 	return c == '\n' || c == '\r' || c == ';';
 }
 
+static bool fxneedconvert(char *s)
+{
+	char *t = s;
+	int len = strlen(s);
+	while (len > 0) {
+		if (t != s && isws(t[-1]) && (!strnicmp(t, "technique10", 11) || !strnicmp(t, "technique11", 11)) && isws(t[11])) {
+			return false;
+		}
+		len--;
+		t++;
+	}
+	return true;
+}
+
+static void fxspecials(char *s, char *dst)
+{
+	char *t = s;
+	char *d = dst;
+	*d = 0;
+	int len = strlen(s);
+	while (len > 0) {
+		bool found = false;
+		if (t != s && !strnicmp(t, "minfilter", 9) && (isws(t[9]) || t[9] == '=') && isws(t[-1])) {
+			found = true;
+			t += 10;
+			len -= 10;
+			while (!islf(*t) && len > 0) {
+				if (!strnicmp(t, "point", 5)) {
+					strcpy(d, "Filter=MIN_MAG_MIP_POINT");
+					d += strlen(d);
+					write_log("FX: 'minfilter' -> 'Filter=MIN_MAG_MIP_POINT'\n");
+				}
+				if (!strnicmp(t, "linear", 6)) {
+					strcpy(d, "Filter=MIN_MAG_MIP_LINEAR");
+					d += strlen(d);
+					write_log("FX: 'minfiler' -> 'Filter=MIN_MAG_MIP_LINEAR'\n");
+				}
+				t++;
+				len--;
+			}
+		}
+		if (!found) {
+			*d++ = *t++;
+			len--;
+		}
+	}
+	*d = 0;
+}
+
 static void fxconvert(char *s, char *dst, const char **convert1, const char **convert2)
 {
 	char *t = s;
@@ -807,12 +849,13 @@ static void fxconvert(char *s, char *dst, const char **convert1, const char **co
 			int slen = strlen(convert1[i]);
 			int dlen = strlen(convert2[i]);
 			if (len > slen && !strnicmp(t, convert1[i], slen)) {
-				if ((t == s || isws(t[-1])) || isws(t[slen])) {
+				if ((t == s || isws(t[-1])) && isws(t[slen])) {
 					memcpy(d, convert2[i], dlen);
 					t += slen;
 					d += dlen;
 					len -= slen;
 					found = true;
+					write_log("FX: '%s' -> '%s'\n", convert1[i], convert2[i]);
 				}
 			}
 		}
@@ -852,6 +895,7 @@ static void fxremoveline(char *s, char *dst, const char **lines)
 					len--;
 				}
 				found = true;
+				write_log("FX: '%s' line removed\n", lines[i]);
 			}
 		}
 		if (!found) {
@@ -884,9 +928,9 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 
 	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY;
 #ifndef NDEBUG
-	dwShaderFlags |= D3DCOMPILE_DEBUG;
+	//dwShaderFlags |= D3DCOMPILE_DEBUG;
 	//Disable optimizations to further improve shader debugging
-	dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+	//dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
 	GetCurrentDirectory(MAX_DPATH, tmp3);
@@ -894,6 +938,11 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 
 	plugin_path = get_plugin_path(tmp2, sizeof tmp2 / sizeof(TCHAR), _T("filtershaders\\direct3d"));
 	_tcscpy(tmp, tmp2);
+
+	d3d->frames_since_init = 0;
+	if (!d3d->filenotificationhandle)
+		d3d->filenotificationhandle = FindFirstChangeNotification(tmp, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE);
+
 	_tcscat(tmp, shaderfile);
 	write_log(_T("Direct3D11: Attempting to load '%s'\n"), tmp);
 	_tcscpy(s->loadedshader, shaderfile);
@@ -917,15 +966,22 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 	zfile_fclose(z);
 	z = NULL;
 
-	static const char *converts1[] = { "technique", "vs_3_0", "vs_2_0", "vs_1_1", "ps_3_0", "ps_2_0", NULL };
-	static const char *converts2[] = { "technique10", "vs_4_0_level_9_3", "vs_4_0_level_9_3", "vs_4_0_level_9_3", "ps_4_0_level_9_3", "ps_4_0_level_9_3", NULL };
-	fxconvert(fx1, fx2, converts1, converts2);
+	char *fx = fx1;
+	if (fxneedconvert(fx1)) {
+		static const char *converts1[] = { "technique", "vs_3_0", "vs_2_0", "vs_1_1", "ps_3_0", "ps_2_0", NULL };
+		static const char *converts2[] = { "technique10", "vs_4_0_level_9_3", "vs_4_0_level_9_3", "vs_4_0_level_9_3", "ps_4_0_level_9_3", "ps_4_0_level_9_3", NULL };
+		fxconvert(fx1, fx2, converts1, converts2);
 
-	static const char *lines[] = { "alphablendenable", "colorwriteenable", "srgbwriteenable", NULL };
-	fxremoveline(fx2, fx1, lines);
+		static const char *lines[] = { "alphablendenable", "colorwriteenable", "srgbwriteenable", "magfilter", NULL };
+		fxremoveline(fx2, fx1, lines);
+
+		fxspecials(fx1, fx2);
+		
+		fx = fx2;
+	}
 
 	SetCurrentDirectory(tmp2);
-	hr = D3DX11CompileEffectFromMemory(fx1, strlen(fx1), name, NULL, D3D_COMPILE_STANDARD_FILE_INCLUDE, dwShaderFlags, 0, d3d->m_device, &g_pEffect, &errors);
+	hr = D3DX11CompileEffectFromMemory(fx, strlen(fx), name, NULL, D3D_COMPILE_STANDARD_FILE_INCLUDE, dwShaderFlags, 0, d3d->m_device, &g_pEffect, &errors);
 
 #if 0
 	hr = D3DX11CompileEffectFromFile(tmp, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, dwShaderFlags, 0, d3d->m_device, &g_pEffect, &errors);
@@ -947,7 +1003,7 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 		errors->Release();
 	}
 
-	if (!psEffect_ParseParameters(d3d, g_pEffect, s, name, fx1, dwShaderFlags))
+	if (!psEffect_ParseParameters(d3d, g_pEffect, s, name, fx, dwShaderFlags))
 		goto end;
 
 	SetCurrentDirectory(tmp3);
@@ -1267,8 +1323,6 @@ pass2:
 
 	return true;
 }
-
-#endif
 
 static bool UpdateVertexArray(struct d3d11struct *d3d, ID3D11Buffer *vertexbuffer,
 	float left, float top, float right, float bottom,
@@ -2699,9 +2753,8 @@ static bool initd3d(struct d3d11struct *d3d)
 		return false;
 	if (!UpdateBuffers(d3d))
 		return false;
-#if CUSTOMSHADERS
+
 	settransform(d3d, NULL);
-#endif
 
 	write_log(_T("D3D11 initd3d end\n"));
 	return true;
@@ -2713,10 +2766,9 @@ static void setswapchainmode(struct d3d11struct *d3d, int fs)
 	// It is recommended to always use the tearing flag when it is supported.
 	d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 	// tearing flag is not fullscreen compatible
-	if (d3d->m_tearingSupport && (d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL || d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) && !apm->gfx_vflip) {
+	if (d3d->m_tearingSupport && (d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL || d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) && !apm->gfx_vflip && apm->gfx_backbuffers == 0) {
 		d3d->swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 	}
-
 	d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	if (fs) {
 		d3d->swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
@@ -2749,6 +2801,8 @@ int can_D3D11(bool checkdevice)
 		hd3d11 = LoadLibrary(_T("D3D11.dll"));
 	if (!hdxgi)
 		hdxgi = LoadLibrary(_T("Dxgi.dll"));
+	if (!dwmapi)
+		dwmapi = LoadLibrary(_T("Dwmapi.dll"));
 
 	if (!hd3dcompiler) {
 		d3dcompiler = d3dcompiler1;
@@ -2783,6 +2837,10 @@ int can_D3D11(bool checkdevice)
 		return 0;
 	}
 
+	if (!pDwmGetCompositionTimingInfo && dwmapi) {
+		pDwmGetCompositionTimingInfo = (DWMGETCOMPOSITIONTIMINGINFO)GetProcAddress(dwmapi, "DwmGetCompositionTimingInfo");
+	}
+
 	if (ppD3DCompile && pD3DReflect && pD3DGetBlobPart)
 		ret |= 4;
 
@@ -2805,7 +2863,8 @@ int can_D3D11(bool checkdevice)
 		UINT cdflags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 		ID3D11Device *m_device;
 		ID3D11DeviceContext *m_deviceContext;
-		HRESULT hr = pD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, cdflags, levels, 1, D3D11_SDK_VERSION, &m_device, NULL, &m_deviceContext);
+		HRESULT hr = pD3D11CreateDevice(NULL, currprefs.gfx_api_options == 0 ? D3D_DRIVER_TYPE_HARDWARE : D3D_DRIVER_TYPE_WARP,
+			NULL, cdflags, levels, 1, D3D11_SDK_VERSION, &m_device, NULL, &m_deviceContext);
 		if (FAILED(hr)) {
 			return 0;
 		}
@@ -2816,6 +2875,136 @@ int can_D3D11(bool checkdevice)
 	ret |= 1;
 	detected_val = ret;
 	return ret;
+}
+
+static void do_present(struct d3d11struct *d3d, int black)
+{
+	HRESULT hr;
+	UINT presentFlags = 0;
+
+	EnterCriticalSection(&present_cs);
+
+	if (black) {
+		float color[4];
+		color[0] = 0;
+		color[1] = 0;
+		color[2] = 0;
+		color[3] = 0;
+		// Clear the back buffer.
+		d3d->m_deviceContext->ClearRenderTargetView(d3d->m_renderTargetView, color);
+	}
+
+	struct apmode *apm = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
+	int vsync = isvsync();
+	if (currprefs.turbo_emulation)
+		presentFlags |= DXGI_PRESENT_DO_NOT_WAIT;
+	if (d3d->m_tearingSupport && (d3d->swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING)) {
+		presentFlags |= DXGI_PRESENT_ALLOW_TEARING;
+	}
+	UINT syncinterval = d3d->vblankintervals;
+	d3d->flipped = true;
+	if (!vsync) {
+		if (apm->gfx_backbuffers == 0 || (presentFlags & DXGI_PRESENT_ALLOW_TEARING) || (apm->gfx_vflip == 0 && isfs(d3d) <= 0) || (isfs(d3d) > 0 && apm->gfx_vsyncmode))
+			syncinterval = 0;
+	}
+	d3d->syncinterval = syncinterval;
+	hr = d3d->m_swapChain->Present(syncinterval, presentFlags);
+	SetEvent(flipevent2);
+	if (currprefs.turbo_emulation && hr == DXGI_ERROR_WAS_STILL_DRAWING)
+		hr = S_OK;
+	if (FAILED(hr) && hr != DXGI_STATUS_OCCLUDED) {
+		if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == E_OUTOFMEMORY)
+			d3d->invalidmode = true;
+		write_log(_T("D3D11 Present %08x\n"), hr);
+	}
+
+	LeaveCriticalSection(&present_cs);
+}
+
+static unsigned int __stdcall vblankthread(void *dummy)
+{
+	struct d3d11struct *d3d = &d3d11data[0];
+
+	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+	while (vblankthread_mode) {
+		HRESULT hr = d3d->outputAdapter->WaitForVBlank();
+		if (FAILED(hr)) {
+			Sleep(10);
+		} else {
+			if (d3d->blackscreen && (d3d->framecount & 1)) {
+				do_present(d3d, 1);
+			} else {
+				SetEvent(vblankevent);
+			}
+			d3d->framecount++;
+		}
+	}
+	vblankthread_mode = -1;
+	write_log(_T("vblankthread exited\n"));
+	return 0;
+}
+
+static unsigned int __stdcall presentthread(void *dummy)
+{
+	struct d3d11struct *d3d = &d3d11data[0];
+
+	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+	while (presentthread_mode) {
+		WaitForSingleObject(flipevent, INFINITE);
+		if (presentthread_mode == 0)
+			break;
+		do_present(d3d, 0);
+	}
+	presentthread_mode = -1;
+	write_log(_T("presentthread exited\n"));
+	return 0;
+}
+
+static void initthread(struct d3d11struct *d3d)
+{
+	unsigned int th;
+
+	if (!present_cs_init) {
+		present_cs_init = true;
+		InitializeCriticalSection(&present_cs);
+	}
+
+	if (!presentthread_mode) {
+		flipevent = CreateEvent(NULL, FALSE, FALSE, NULL);
+		flipevent2 = CreateEvent(NULL, FALSE, FALSE, NULL);
+		presentthread_mode = 1;
+		_beginthreadex(NULL, 0, presentthread, 0, 0, &th);
+	}
+	if (!vblankthread_mode && d3d->outputAdapter && (d3d->vblankintervals == 0 || d3d->blackscreen)) {
+		vblankevent = CreateEvent(NULL, TRUE, FALSE, NULL);
+		vblankthread_mode = 1;
+		_beginthreadex(NULL, 0, vblankthread, 0, 0, &th);
+	}
+}
+
+static void freethread(struct d3d11struct *d3d)
+{
+	if (presentthread_mode) {
+		presentthread_mode = 0;
+		while (presentthread_mode == 0) {
+			SetEvent(flipevent);
+			Sleep(10);
+		}
+		presentthread_mode = 0;
+		CloseHandle(flipevent);
+		CloseHandle(flipevent2);
+		flipevent = NULL;
+		flipevent2 = NULL;
+	}
+	if (vblankthread_mode) {
+		vblankthread_mode = 0;
+		while (vblankthread_mode == 0) {
+			Sleep(10);
+		}
+		vblankthread_mode = 0;
+		CloseHandle(vblankevent);
+		vblankevent = NULL;
+	}
 }
 
 static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth, int *freq, int mmult)
@@ -2974,6 +3163,7 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 				if ((int)(mhz + 0.5) == hz || (int)(mhz) == hz) {
 					d3d->fsSwapChainDesc.RefreshRate.Denominator = m->RefreshRate.Denominator;
 					d3d->fsSwapChainDesc.RefreshRate.Numerator = m->RefreshRate.Numerator;
+					*freq = hz;
 					break;
 				}
 			}
@@ -2992,7 +3182,12 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 		} else {
 			d3d->fsSwapChainDesc.RefreshRate.Denominator = md2.RefreshRate.Denominator;
 			d3d->fsSwapChainDesc.RefreshRate.Numerator = md2.RefreshRate.Numerator;
+			*freq = md2.RefreshRate.Numerator / md2.RefreshRate.Denominator;
 		}
+	}
+
+	if (isfs(d3d) <= 0) {
+		*freq = (int)d3d11_get_hz();
 	}
 
 	// Get the adapter (video card) description.
@@ -3028,18 +3223,20 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 #endif
 	static const D3D_FEATURE_LEVEL levels111[] = { D3D_FEATURE_LEVEL_11_1 };
 	D3D_FEATURE_LEVEL outlevel;
-	result = pD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, cdflags, levels111, 1, D3D11_SDK_VERSION, &d3d->m_device, &outlevel, &d3d->m_deviceContext);
+	D3D_DRIVER_TYPE dt = currprefs.gfx_api_options == 0 ? D3D_DRIVER_TYPE_HARDWARE : D3D_DRIVER_TYPE_WARP;
+	result = pD3D11CreateDevice(NULL, dt, NULL, cdflags, levels111, 1, D3D11_SDK_VERSION, &d3d->m_device, &outlevel, &d3d->m_deviceContext);
 	if (FAILED(result)) {
 		write_log(_T("D3D11CreateDevice LEVEL_11_1: %08x\n"), result);
 		if (result == E_INVALIDARG || result == DXGI_ERROR_UNSUPPORTED) {
-			result = pD3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, cdflags, NULL, 0, D3D11_SDK_VERSION, &d3d->m_device, &outlevel, &d3d->m_deviceContext);
+			result = pD3D11CreateDevice(NULL, dt, NULL, cdflags, NULL, 0, D3D11_SDK_VERSION, &d3d->m_device, &outlevel, &d3d->m_deviceContext);
 		}
 		if (FAILED(result)) {
 			write_log(_T("D3D11CreateDevice %08x. Hardware does not support Direct3D11 Level 9.1 or higher.\n"), result);
 			return 0;
 		}
 	}
-	write_log(_T("D3D11CreateDevice succeeded with level %d.%d\n"), outlevel >> 12, (outlevel >> 8) & 15);
+	write_log(_T("D3D11CreateDevice succeeded with level %d.%d. %s.\n"), outlevel >> 12, (outlevel >> 8) & 15,
+		currprefs.gfx_api_options ? _T("Software WARP driver") : _T("Hardware accelerated"));
 	d3d->feature_level = outlevel;
 
 	UINT flags = 0;
@@ -3098,21 +3295,48 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 	if (d3d->swapChainDesc.BufferCount < 2)
 		d3d->swapChainDesc.BufferCount = 2;
 
-	d3d->swapChainDesc.SwapEffect = os_win8 ? DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL : DXGI_SWAP_EFFECT_SEQUENTIAL;
+	if (apm->gfx_backbuffers == 0) {
+		d3d->swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+		if (os_win10 && d3d->m_tearingSupport && isfs(d3d) <= 0) {
+			d3d->swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		}
+	} else {
+		d3d->swapChainDesc.SwapEffect = os_win8 ? (os_win10 ? DXGI_SWAP_EFFECT_FLIP_DISCARD : DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL) : DXGI_SWAP_EFFECT_SEQUENTIAL;
+		if (apm->gfx_vsyncmode && isfs(d3d) > 0) {
+			d3d->swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+		}
+	}
 
 	d3d->swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
 	setswapchainmode(d3d, isfs(d3d) > 0);
 
-	d3d->swapChainDesc.Scaling = d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL ? DXGI_SCALING_NONE : DXGI_SCALING_STRETCH;
+	d3d->swapChainDesc.Scaling = (d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL || d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) ? DXGI_SCALING_NONE : DXGI_SCALING_STRETCH;
 
 	d3d->vblankintervals = 1;
+	d3d->blackscreen = false;
+	if (apm->gfx_backbuffers == 0) {
+		d3d->vblankintervals = 0;
+	} else {
+		int hzmult = 0;
+		getvsyncrate(*freq, &hzmult);
+		if (hzmult < 0) {
+			if (!apm->gfx_strobo) {
+				if (isfullscreen() > 0) {
+					d3d->vblankintervals++;
+				}
+			} else {
+				d3d->blackscreen = true;
+			}
+		}
+	}
 	int vsync = isvsync();
 	if (vsync) {
 		int hzmult;
 		getvsyncrate(hz, &hzmult);
-		if (hzmult > 0)
-			d3d->vblankintervals = hzmult + 1;
+		if (hzmult > 0) {
+			d3d->vblankintervals = hzmult + (d3d->blackscreen ? 0 : 1);
+		}
 	}
 
 	// Create the swap chain, Direct3D device, and Direct3D device context.
@@ -3134,6 +3358,9 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 
 	d3d->invalidmode = false;
 	d3d->fsmode = 0;
+
+	initthread(d3d);
+
 	if (isfs(d3d) > 0)
 		D3D_resize(1);
 	D3D_resize(0);
@@ -3255,6 +3482,9 @@ static void freed3d(struct d3d11struct *d3d)
 		memset(s, 0, sizeof(struct shaderdata11));
 	}
 
+	if (d3d->filenotificationhandle)
+		CloseHandle(d3d->filenotificationhandle);
+	d3d->filenotificationhandle = NULL;
 
 	if (d3d->m_deviceContext) {
 		d3d->m_deviceContext->ClearState();
@@ -3267,6 +3497,8 @@ static void xD3D11_free(bool immediate)
 	struct d3d11struct *d3d = &d3d11data[0];
 
 	write_log(_T("D3D11 free start\n"));
+
+	freethread(d3d);
 
 	freed3d(d3d);
 
@@ -3371,31 +3603,11 @@ static void RenderBuffers(struct d3d11struct *d3d, ID3D11Buffer *vertexbuffer, I
 
 static void EndScene(struct d3d11struct *d3d)
 {
-	HRESULT hr;
-	UINT presentFlags = 0;
-
-	struct apmode *apm = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
-	int vsync = isvsync();
-	if (currprefs.turbo_emulation)
-		presentFlags |= DXGI_PRESENT_DO_NOT_WAIT;
-	if (d3d->m_tearingSupport && (d3d->swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING)) {
-		presentFlags |= DXGI_PRESENT_ALLOW_TEARING;
+	if ((d3d->syncinterval || (d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_DISCARD)) && d3d->flipped) {
+		WaitForSingleObject(flipevent2, 100);
+		d3d->flipped = false;
 	}
-	UINT syncinterval = d3d->vblankintervals;
-	if (!vsync) {
-		if (apm->gfx_vflip == 0 || (presentFlags & DXGI_PRESENT_ALLOW_TEARING))
-			syncinterval = 0;
-	}
-	hr = d3d->m_swapChain->Present(syncinterval, presentFlags);
-	if (currprefs.turbo_emulation && hr == DXGI_ERROR_WAS_STILL_DRAWING)
-		return;
-	if (FAILED(hr)) {
-		if (hr == DXGI_STATUS_OCCLUDED)
-			return;
-		if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == E_OUTOFMEMORY)
-			d3d->invalidmode = true;
-		write_log(_T("D3D11 Present %08x\n"), hr);
-	}
+	SetEvent(flipevent);
 }
 
 static void TextureShaderClass_RenderShader(struct d3d11struct *d3d)
@@ -3528,7 +3740,7 @@ static void renderoverlay(struct d3d11struct *d3d)
 	}
 }
 
-static bool TextureShaderClass_Render(struct d3d11struct *d3d)
+static bool renderframe(struct d3d11struct *d3d)
 {
 	struct shadertex st;
 	st.tex = d3d->texture2d;
@@ -3537,7 +3749,6 @@ static bool TextureShaderClass_Render(struct d3d11struct *d3d)
 
 	TurnOffAlphaBlending(d3d);
 
-#if CUSTOMSHADERS
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		struct shaderdata11 *s = &d3d->shaders[i];
 		if (s->type == SHADERTYPE_BEFORE)
@@ -3553,7 +3764,6 @@ static bool TextureShaderClass_Render(struct d3d11struct *d3d)
 				return false;
 		}
 	}
-#endif
 
 	d3d->m_matProj = d3d->m_matProj_out;
 	d3d->m_matView = d3d->m_matView_out;
@@ -3630,6 +3840,12 @@ static bool TextureShaderClass_Render(struct d3d11struct *d3d)
 			}
 		}
 	}
+	return true;
+}
+
+static bool TextureShaderClass_Render(struct d3d11struct *d3d)
+{
+	renderframe(d3d);
 
 	RenderSprite(d3d, &d3d->hwsprite);
 
@@ -3689,12 +3905,15 @@ static bool GraphicsClass_Render(struct d3d11struct *d3d, float rotation)
 	// Generate the view matrix based on the camera's position.
 	CameraClass_Render(d3d);
 
+	EnterCriticalSection(&present_cs);
+
 	// Render the bitmap with the texture shader.
 	result = TextureShaderClass_Render(d3d);
+
+	LeaveCriticalSection(&present_cs);
+
 	if (!result)
-	{
 		return false;
-	}
 
 	return true;
 }
@@ -3712,7 +3931,6 @@ static struct shaderdata11 *allocshaderslot(struct d3d11struct *d3d, int type)
 
 static bool restore(struct d3d11struct *d3d)
 {
-#if CUSTOMSHADERS
 	for (int i = 0; i < MAX_FILTERSHADERS; i++) {
 		if (filterd3d->gfx_filtershader[i][0]) {
 			struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_BEFORE);
@@ -3749,24 +3967,7 @@ static bool restore(struct d3d11struct *d3d)
 			createmasktexture(d3d, filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS], s);
 		}
 	}
-#else
-	for (int i = 0; i < MAX_FILTERSHADERS; i++) {
-		if (filterd3d->gfx_filtermask[i][0]) {
-			struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_MASK_BEFORE);
-			createmasktexture(d3d, filterd3d->gfx_filtermask[i], s);
-		}
-	}
-	if (filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS][0]) {
-		struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_MASK_AFTER);
-		createmasktexture(d3d, filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS], s);
-	}
-	for (int i = 0; i < MAX_FILTERSHADERS; i++) {
-		if (filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS][0]) {
-			struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_MASK_AFTER);
-			createmasktexture(d3d, filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS], s);
-		}
-	}
-#endif
+
 
 	createscanlines(d3d, 1);
 	createmask2texture(d3d, filterd3d->gfx_filteroverlay);
@@ -3836,9 +4037,13 @@ static bool restore(struct d3d11struct *d3d)
 	return true;
 }
 
+static void resizemode(struct d3d11struct *d3d);
+
 static bool xD3D11_renderframe(bool immediate)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
+
+	d3d->frames_since_init++;
 
 	if (!d3d->m_swapChain)
 		return false;
@@ -3856,12 +4061,30 @@ static bool xD3D11_renderframe(bool immediate)
 
 	GraphicsClass_Render(d3d, 0);
 
+	if (d3d->filenotificationhandle != NULL) {
+		bool notify = false;
+		while (WaitForSingleObject(d3d->filenotificationhandle, 0) == WAIT_OBJECT_0) {
+			if (FindNextChangeNotification(d3d->filenotificationhandle)) {
+				if (d3d->frames_since_init > 50)
+					notify = true;
+			}
+		}
+		if (notify) {
+			write_log(_T("D3D11 shader file modification notification.\n"));
+			D3D_resize(0);
+		}
+	}
+
 	return true;
 }
 
 static void xD3D11_showframe(void)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
+
+	if (vblankevent)
+		ResetEvent(vblankevent);
+
 	if (d3d->invalidmode)
 		return;
 	if (!d3d->m_swapChain)
@@ -3908,7 +4131,8 @@ static void recheck(struct d3d11struct *d3d)
 	if (d3d->delayedfs) {
 		d3d->delayedfs = false;
 		ShowWindow(d3d->ahwnd, SW_SHOWNORMAL);
-		if (!xxD3D11_init2(d3d->ahwnd, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth2, d3d->m_bitmapHeight2, 32, NULL, d3d->dmultx))
+		int freq = 0;
+		if (!xxD3D11_init2(d3d->ahwnd, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth2, d3d->m_bitmapHeight2, 32, &freq, d3d->dmultx))
 			d3d->invalidmode = true;
 	}
 }
@@ -3957,8 +4181,14 @@ static uae_u8 *xD3D11_locktexture(int *pitch, int *height, bool fullupdate)
 
 	if (d3d->invalidmode || !d3d->texture2d)
 		return NULL;
+
+	EnterCriticalSection(&present_cs);
+
 	D3D11_MAPPED_SUBRESOURCE map;
 	HRESULT hr = d3d->m_deviceContext->Map(d3d->texture2dstaging, 0, D3D11_MAP_WRITE, 0, &map);
+
+	LeaveCriticalSection(&present_cs);
+
 	if (FAILED(hr)) {
 		write_log(_T("D3D11 Map() %08x\n"), hr);
 		return NULL;
@@ -3978,6 +4208,8 @@ static void xD3D11_unlocktexture(void)
 		return;
 	d3d->texturelocked--;
 
+	EnterCriticalSection(&present_cs);
+
 	d3d->m_deviceContext->Unmap(d3d->texture2dstaging, 0);
 
 	if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG)) {
@@ -3992,6 +4224,8 @@ static void xD3D11_unlocktexture(void)
 	box.top = 0;
 	box.bottom = d3d->m_bitmapHeight;
 	d3d->m_deviceContext->CopySubresourceRegion(d3d->texture2d, 0, 0, 0, 0, d3d->texture2dstaging, 0, &box);
+
+	LeaveCriticalSection(&present_cs);
 }
 
 static void xD3D11_flushtexture(int miny, int maxy)
@@ -4013,8 +4247,6 @@ static void xD3D11_vblank_reset(double freq)
 
 static int xD3D11_canshaders(void)
 {
-	if (!CUSTOMSHADERS)
-		return 0;
 	return (can_D3D11(false) & 4) != 0;
 }
 
@@ -4110,6 +4342,7 @@ static void xD3D11_resize(int activate)
 			d3d->fsmodechange = 0;
 		}
 		resizemode(d3d);
+		notice_screen_contents_lost();
 	}
 
 	recursive--;
@@ -4283,6 +4516,53 @@ static bool xD3D11_getscalerect(float *mx, float *my, float *sx, float *sy)
 	*sy /= myt;
 
 	return true;
+}
+
+double d3d11_get_hz(void)
+{
+	struct d3d11struct *d3d = &d3d11data[0];
+	d3d->lastframe = 0;
+	if (isfs(d3d) > 0) {
+		d3d->vblank = (double)d3d->fsSwapChainDesc.RefreshRate.Numerator / d3d->fsSwapChainDesc.RefreshRate.Denominator;
+		return d3d->vblank;
+	}
+	if (!pDwmGetCompositionTimingInfo)
+		return 0;
+	DWM_TIMING_INFO ti;
+	ti.cbSize = sizeof ti;
+	HRESULT hr = pDwmGetCompositionTimingInfo(NULL, &ti);
+	if (FAILED(hr)) {
+		write_log(_T("DwmGetCompositionTimingInfo1 %08x\n"), hr);
+		return 0;
+	}
+	d3d->vblank = (double)ti.rateRefresh.uiNumerator / ti.rateRefresh.uiDenominator;
+	return d3d->vblank;
+}
+
+bool d3d11_vsync_isdone(void)
+{
+	struct d3d11struct *d3d = &d3d11data[0];
+	if (vblankevent) {
+		if (WaitForSingleObject(vblankevent, 0) == WAIT_OBJECT_0)
+			return true;
+		return false;
+	}
+	if (!pDwmGetCompositionTimingInfo)
+		return false;
+	DWM_TIMING_INFO ti;
+	ti.cbSize = sizeof ti;
+	HRESULT hr = pDwmGetCompositionTimingInfo(NULL, &ti);
+	if (FAILED(hr)) {
+		write_log(_T("DwmGetCompositionTimingInfo2 %08x\n"), hr);
+		return false;
+	}
+	QPC_TIME qpc = ti.qpcVBlank + ti.qpcRefreshPeriod;
+	LARGE_INTEGER now;
+	QueryPerformanceCounter(&now);
+	if (now.QuadPart >= qpc) {
+		return true;
+	}
+	return false;
 }
 
 void d3d11_select(void)

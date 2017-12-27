@@ -34,6 +34,8 @@ void d3d9_select(void);
 void d3d11_select(void);
 void d3d_select(struct uae_prefs *p);
 int can_D3D11(bool checkdevice);
+bool d3d11_vsync_isdone(void);
+double d3d11_get_hz(void);
 
 #define CURSORMAXWIDTH 64
 #define CURSORMAXHEIGHT 64

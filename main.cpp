@@ -169,9 +169,6 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 		struct apmode *ap = &prefs->gfx_apmode[i];
 		ap->gfx_vflip = 0;
 		ap->gfx_strobo = false;
-		// no llvs support yet
-		if (prefs->gfx_api > 1)
-			ap->gfx_vsyncmode = 0;
 		if (ap->gfx_vsync < 0) {
 			// adaptive sync
 			ap->gfx_vsyncmode = 0;
@@ -194,6 +191,8 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 					ap->gfx_strobo = prefs->lightboost_strobo;
 			}
 		} else {
+			if (ap->gfx_backbuffers > 0 && prefs->gfx_api > 1)
+				ap->gfx_strobo = prefs->lightboost_strobo;
 			// no vsync: wait if triple bufferirng
 			if (ap->gfx_backbuffers >= 2)
 				ap->gfx_vflip = -1;
