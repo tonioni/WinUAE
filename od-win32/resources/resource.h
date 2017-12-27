@@ -1180,14 +1180,13 @@
 #define IDC_CPU_MULTIPLIER              1790
 #define IDC_CPU_FREQUENCY2              1790
 #define IDC_LOGENABLE                   1790
-#define IDC_DD_SURFACETYPE              1791
+#define IDC_DXMODE_OPTIONS              1791
 #define IDC_RTG_SCALE_ALLOW             1791
 #define IDC_CPU_FREQUENCY               1791
 #define IDC_LOGENABLE2                  1791
 #define IDC_PORT_TABLET_LIBRARY         1791
 #define IDC_RTG_SCALE_ASPECTRATIO       1792
 #define IDC_ASSOCIATE_ON                1792
-#define IDC_DD_SURFACETYPE2             1792
 #define IDC_DXMODE                      1792
 #define IDC_REGISTRYMODE                1792
 #define IDC_PORT_AUTOSWITCH             1792

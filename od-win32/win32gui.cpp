@@ -10885,7 +10885,7 @@ static void enable_for_miscdlg (HWND hDlg)
 	ew (hDlg, IDC_ASSOCIATELIST, !rp_isactive ());
 	ew (hDlg, IDC_ASSOCIATE_ON, !rp_isactive ());
 	ew (hDlg, IDC_ASSOCIATE_OFF, !rp_isactive ());
-	ew (hDlg, IDC_DD_SURFACETYPE, full_property_sheet && workprefs.gfx_api == 0);
+	ew (hDlg, IDC_DXMODE_OPTIONS, workprefs.gfx_api == 2 || (full_property_sheet && workprefs.gfx_api == 0));
 
 	bool paused = false;
 	bool nosound = false;
@@ -11094,6 +11094,22 @@ static void misc_gui_font (HWND hDlg, int fonttype)
 		gui_size_changed = 1;
 }
 
+static void values_to_miscdlg_dx(HWND hDlg)
+{
+	SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_RESETCONTENT, 0, 0);
+	if (workprefs.gfx_api == 0) {
+		SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("NonLocalVRAM"));
+		SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("DefaultRAM *"));
+		SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("LocalVRAM"));
+		SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("SystemRAM"));
+		SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_SETCURSEL, ddforceram, 0);
+	} else if (workprefs.gfx_api == 2) {
+		SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("Hardware D3D11"));
+		SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("Software D3D11"));
+		SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_SETCURSEL, workprefs.gfx_api_options, 0);
+	}
+}
+
 static void values_to_miscdlg (HWND hDlg)
 {
 	TCHAR tmp[MAX_DPATH];
@@ -11116,13 +11132,7 @@ static void values_to_miscdlg (HWND hDlg)
 		SendDlgItemMessage(hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)_T("Direct3D 9"));
 		SendDlgItemMessage(hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)_T("Direct3D 11"));
 		SendDlgItemMessage(hDlg, IDC_DXMODE, CB_SETCURSEL, workprefs.gfx_api, 0);
-
-		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_RESETCONTENT, 0, 0);
-		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)_T("NonLocalVRAM"));
-		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)_T("DefaultRAM *"));
-		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)_T("LocalVRAM"));
-		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)_T("SystemRAM"));
-		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_SETCURSEL, ddforceram, 0);
+		values_to_miscdlg_dx(hDlg);
 
 		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_RESETCONTENT, 0, 0);
 
@@ -11324,6 +11334,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 						if (full_property_sheet)
 							d3d_select(&workprefs);
 						enable_for_miscdlg (hDlg);
+						values_to_miscdlg_dx(hDlg);
 					}
 				break;
 				case IDC_WINDOWEDMODE:
@@ -11337,11 +11348,15 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 							workprefs.win32_statusbar = v - 1;
 					}
 				break;
-				case IDC_DD_SURFACETYPE:
-					v = SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_GETCURSEL, 0, 0L);
+				case IDC_DXMODE_OPTIONS:
+					v = SendDlgItemMessage (hDlg, IDC_DXMODE_OPTIONS, CB_GETCURSEL, 0, 0L);
 					if (v != CB_ERR) {
-						ddforceram = v;
-						regsetint (NULL, _T("DirectDraw_Secondary"), ddforceram);
+						if (workprefs.gfx_api == 2) {
+							workprefs.gfx_api_options = v;
+						} else if (!workprefs.gfx_api) {
+							ddforceram = v;
+							regsetint(NULL, _T("DirectDraw_Secondary"), ddforceram);
+						}
 					}
 					break;
 				case IDC_SCSIMODE:
@@ -17868,10 +17883,10 @@ static void enable_for_hw3ddlg (HWND hDlg)
 		workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_INTEGER_AUTOSCALE);
 }
 
-static TCHAR *filtermultnames[] = {
+static const TCHAR *filtermultnames[] = {
 	_T("FS"), _T("1/4x"), _T("1/2x"), _T("1x"), _T("1.5x"), _T("2x"), _T("2.5x"), _T("3x"), _T("3.5x"), _T("4x"), _T("6x"), _T("8x"), NULL
 };
-static float filtermults[] = { 0, 0.25f, 0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f, 6.0f, 8.0f };
+static const float filtermults[] = { 0, 0.25f, 0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f, 6.0f, 8.0f };
 struct filterxtra {
 	const TCHAR *label;
 	int *varw[2], *varc[2];
@@ -17899,7 +17914,7 @@ static struct filterxtra filter_3d_extra[] =
 	NULL
 };
 static int dummy_in, dummy_out;
-static int filtertypes[] = {
+static const int filtertypes[] = {
 	0, 0,
 	1, 1,
 	1, 1,
@@ -17946,7 +17961,7 @@ struct filterpreset {
 	TCHAR *name;
 	int conf[26];
 };
-static struct filterpreset filterpresets[] =
+static const struct filterpreset filterpresets[] =
 {
 	{ _T("PAL"),				UAE_FILTER_PAL,		0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 1, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30, 0,  0, 0, 0 },
 	{ _T("D3D Autoscale"),		UAE_FILTER_NULL,	0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 4, 0 },

@@ -1609,6 +1609,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		if (!wParam && isfullscreen() > 0 && D3D_resize && !gui_active) {
 			write_log(_T("WM_ACTIVATEAPP inactive %p\n"), hWnd);
 			D3D_resize(-1);
+			D3D_resize(0);
 		} else if (wParam && isfullscreen() > 0 && D3D_resize && !gui_active) {
 			write_log(_T("WM_ACTIVATEAPP active %p\n"), hWnd);
 			D3D_resize(1);
@@ -5195,7 +5196,7 @@ static int betamessage (void)
 	return 1;
 }
 
-int os_admin, os_64bit, os_win7, os_win8, os_vista, cpu_number, os_touch;
+int os_admin, os_64bit, os_win7, os_win8, os_win10, os_vista, cpu_number, os_touch;
 BOOL os_dwm_enabled;
 
 static int isadminpriv (void)
@@ -5279,6 +5280,8 @@ static int osdetect (void)
 			os_win7 = 1;
 		if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 2))
 			os_win8 = 1;
+		if (osVersion.dwMajorVersion >= 10)
+			os_win10 = 1;
 		if (SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
 			os_64bit = 1;
 	}
@@ -6441,7 +6444,6 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 		enumeratedisplays ();
 		write_log (_T("Sorting devices and modes..\n"));
 		sortdisplays ();
-		write_log (_T("Display buffer mode = %d\n"), ddforceram);
 		enumerate_sound_devices ();
 		for (i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
 			int type = sound_devices[i]->type;
