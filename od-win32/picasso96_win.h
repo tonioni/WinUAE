@@ -589,7 +589,6 @@ extern int createwindowscursor (uaecptr src, int w, int h, int hiressprite, int 
 void fb_copyrow(uae_u8 *src, uae_u8 *dst, int x, int y, int width, int srcpixbytes, int dy);
 
 extern int p96refresh_active;
-extern int p96hsync_counter;
 
 #define LIB_SIZE 34
 #define CARD_FLAGS LIB_SIZE

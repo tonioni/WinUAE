@@ -89,7 +89,7 @@ void mman_ResetWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize);
 int p96refresh_active;
 bool have_done_picasso = 1; /* For the JIT compiler */
 static int p96syncrate;
-int p96hsync_counter, full_refresh;
+static int p96hsync_counter, full_refresh;
 
 
 #define PICASSO_STATE_SETDISPLAY 1

@@ -3025,7 +3025,7 @@ static void createstatuswindow (void)
 		return;
 
 	hStatusWnd = CreateWindowEx (
-		0, STATUSCLASSNAME, (LPCTSTR) NULL, SBARS_TOOLTIPS | WS_CHILD | WS_VISIBLE,
+		WS_EX_COMPOSITED, STATUSCLASSNAME, (LPCTSTR) NULL, SBARS_TOOLTIPS | WS_CHILD | WS_VISIBLE,
 		0, 0, 0, 0, hMainWnd, (HMENU) 1, hInst, NULL);
 	if (!hStatusWnd)
 		return;
@@ -3709,7 +3709,7 @@ bool vsync_isdone (void)
 {
 	if (isvsync () == 0)
 		return false;
-	if (currprefs.gfx_api == 2) {
+	if (currprefs.gfx_api > 1) {
 		return d3d11_vsync_isdone();
 	} else {
 		if (!isthreadedvsync()) {

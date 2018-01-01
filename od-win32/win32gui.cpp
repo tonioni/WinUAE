@@ -20630,7 +20630,12 @@ static int GetSettings (int all_options, HWND hwnd)
 		}
 
 		tres = scaleresource (panelresource, hwnd, gui_resize_enabled, gui_fullscreen, workprefs.win32_gui_alwaysontop || workprefs.win32_main_alwaysontop ? WS_EX_TOPMOST : 0, true);
-		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, isfullscreen () != 0 ? hwnd : NULL, DialogProc);
+		HWND phwnd = hwnd;
+		if (isfullscreen() == 0)
+			phwnd = 0;
+		if (isfullscreen() > 0 && currprefs.gfx_api > 1)
+			phwnd = 0;
+		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, phwnd, DialogProc);
 		dialog_rect.top = dialog_rect.left = 0;
 		dialog_rect.right = tres->width;
 		dialog_rect.bottom = tres->height;

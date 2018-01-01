@@ -534,6 +534,8 @@ STATIC_INLINE void m68k_setpc_normal(uaecptr pc)
 	}
 }
 
+extern void cpu_invalidate_cache(uaecptr, int);
+
 extern uae_u32(*read_data_030_bget)(uaecptr);
 extern uae_u32(*read_data_030_wget)(uaecptr);
 extern uae_u32(*read_data_030_lget)(uaecptr);

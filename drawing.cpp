@@ -2295,21 +2295,29 @@ static void weird_bitplane_fix (int start, int end)
 
 	start >>= sh;
 	end >>= sh;
-	if (bplplanecnt == 5 && !bpldualpf) {
+	if (bplplanecnt == 5 && !bpldualpf && plf2pri > 5) {
 		/* emulate OCS/ECS only undocumented "SWIV" hardware feature */
 		for (int i = start; i < end; i++) {
 			if (p[i] & 16)
 				p[i] = 16;
 		}
-	} else if (bpldualpf && bpldualpfpri) {
+	} 
+	if (bpldualpf && bpldualpfpri && plf2pri > 4) {
 		/* in dualplayfield mode this feature is even more strange.. */
 		for (int i = start; i < end; i++) {
+			// running man / scoopex
 			if (p[i] & (2 | 8 | 32))
 				p[i] |= 0x40;
 		}
-	} else if (bpldualpf && !bpldualpfpri) {
+	}
+	if (bpldualpf && !bpldualpfpri && plf2pri > 4) {
 		for (int i = start; i < end; i++) {
 			p[i] &= ~(2 | 8 | 32);
+		}
+	}
+	if (bpldualpf && plf1pri > 4) {
+		for (int i = start; i < end; i++) {
+			p[i] = 0x40;
 		}
 	}
 }
@@ -2839,7 +2847,7 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 		// playfield
 		if (nextpos_in_range > lastpos && lastpos >= playfield_start && lastpos < playfield_end) {
 			int t = nextpos_in_range <= playfield_end ? nextpos_in_range : playfield_end;
-			if (plf2pri > 5 && !(currprefs.chipset_mask & CSMASK_AGA))
+			if ((plf2pri > 4 || plf1pri > 4) && !(currprefs.chipset_mask & CSMASK_AGA))
 				weird_bitplane_fix (lastpos, t);
 			if (bplxor && may_require_hard_way && worker_pfield != pfield_do_linetoscr_bordersprite_aga)
 				playfield_hard_way(worker_pfield, lastpos, t);

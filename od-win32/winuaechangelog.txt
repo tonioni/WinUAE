@@ -4,6 +4,31 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 16:
+
+- Fixed statefile memory corruption if CPU is 68060. (Introduced when 68040/060 data cache support was added)
+- Made SA-1000 and SA-2000 suboptions (like SupraDrives) SA-2000 is same as SA-1000 without $f0 ROM mapping. (Old SA-1000 configs must be re-created)
+- GUI opened in D3D11 fullscreen mode: GUI minimization fixed.
+- D3D11 mode fullscreen alt-tab, then clicking GUI reset button didn't restore fullscreen mode correctly.
+- D3D11 scaled RTG mode hardware mouse cursor position and scaling fixed.
+- D3D11 fullscreen RTG, enter GUI, exit GUI: there may have been long delay before fullscreen mode was restored.
+- Handle D3D11 mode possible DXGI_ERROR_DEVICE_REMOVED error by retrying mode setup instead of stopping screen updates.
+- Catweasel expansion caused hang (infinite autoconfig loop), it was not fully updated to new expansion system.
+- SA-1000 Amax driver hang fixed (WD reset command didn't clear busy in all situations)
+- Tape emulation now returns single file mark after last file before final end of file/blank state, no filemark returned if last file of index file does not have ending linefeed. Fixes Amix installation error if last file on tape (X11r5src) was selected for installation. When writing, multiple filemarks between files are supported.
+
+Beta 15:
+
+- Debugger 68040/060 MMU table dump command (mmud) didn't support 8k page size. Mask out page descriptor bit 3 (unused) and 4 (M) when checking for descriptor flag differences to generate more useful output from Fusion Forty boot ROM generated page tables.
+- Debugger memory string routines now also use MMU mapping mode if enabled.
+- Fusion Forty memory flag fixed (It does not use processor slot ram and it must not be enabled). Fixes boot crash if MMU emulation is enabled. Note that it will crash (nothing to do with emulation) if MMU is enabled and 32-bit RAM (except board's onboard RAM is enabled) or any Z3 boards are enabled. Real A2000 can't have those.
+- D3D11 no-buffer mode now selects blit model (instead of flip model) if DXGI 1.5+ allow tearing mode is not available.
+- D3D11 low latency vsync partially implemented. No calibration, it uses Windows reported value because they should be accurate (reported as fractional number)
+- D3D11 black frame insertion support implemented. (which probably isn't working very well..)
+- D3D11 mode will now reload shader(s) automatically on the fly if they are modified.
+- D3D11 mode D3D9 to D3D11 compatible shader conversion now also converts D3D9-only migfilter/magfilter lines.
+- D3D11 mode D3D9 to D3D11 compatible shader modification is completely skipped if technique10 or technique11 is found.
+- D3D11 mode fullscreen alt-tab reliability improved, it was still possible to get blank or partially blank window after alt-tab.
 
 Beta 14:
 
@@ -91,7 +116,7 @@ Beta 9:
 - ECS Denise BPLCON2 ECS-only bits were masked unless AGA was selected, ECS-specific KILLEHB linetoscr was not implemented. Seven Seas/Andromeda now shows correctly corrupted palette if ECS Denise.
 - IDE FORMAT TRACK fixed, it needs to transfer single block of data (and then toss it away). Fixes Gigatron Arriba installer.
 - Emulated Gigatron Arriba IDE controller. ROM dump not available.
-- 64-bit only bad stack linker setting correctded, caused random crashes and caused file dialogs to crash if certain shell extensions were installed. (Thanks mutetus!)
+- 64-bit only bad stack linker setting corrected, caused random crashes and caused file dialogs to crash if certain shell extensions were installed. (Thanks mutetus!)
 
 Beta 8:
 
