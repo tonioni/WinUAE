@@ -21,6 +21,9 @@ struct scsi_data_tape
 	bool wp;
 	bool nomedia;
 	bool unloaded;
+	bool init_loaded;
+	bool pending_filemark;
+	bool last_filemark;
 };
 
 struct scsi_data
