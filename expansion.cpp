@@ -1086,7 +1086,7 @@ static addrbank catweasel_bank = {
 	ABFLAG_IO, S_READ, S_WRITE
 };
 
-static addrbank *expamem_map_catweasel (int devnum)
+static addrbank *expamem_map_catweasel(struct autoconfig_info *aci)
 {
 	catweasel_start = expamem_board_pointer;
 	map_banks_z2(&catweasel_bank, catweasel_start >> 16, 1);
@@ -1122,6 +1122,8 @@ static bool expamem_init_catweasel (struct autoconfig_info *aci)
 	expamem_write (0x40, 0x00); /* Ctrl/Statusreg.*/
 
 	memcpy(aci->autoconfig_raw, expamem, sizeof aci->autoconfig_raw);
+
+	expamem_map = expamem_map_catweasel;
 
 	return true;
 }
@@ -3958,6 +3960,17 @@ static const struct expansionsubromtype supra_sub[] = {
 		NULL
 	}
 };
+static const struct expansionsubromtype comspec_sub[] = {
+	{
+		_T("Comspec SA-1000"), _T("comspec1000"), ROMTYPE_NONE | ROMTYPE_COMSPEC,
+	},
+	{
+		_T("Comspec SA-2000"), _T("comspec2000"), ROMTYPE_NONE | ROMTYPE_COMSPEC,
+	},
+	{
+		NULL
+	} 
+};
 
 static const struct expansionsubromtype mediator_sub[] = {
 	{
@@ -4753,9 +4766,9 @@ const struct expansionromtype expansionroms[] = {
 		true, 0, a4091_settings
 	},
 	{
-		_T("comspec1000"), _T("SA-1000"), _T("Comspec"),
+		_T("comspec"), _T("SA series"), _T("Comspec Communications"),
 		comspec_preinit, comspec_init, NULL, comspec_add_scsi_unit, ROMTYPE_COMSPEC, 0, 0, BOARD_AUTOCONFIG_Z2, true,
-		NULL, 0,
+		comspec_sub, 0,
 		true, EXPANSIONTYPE_SCSI,
 		0, 0, 0, false, NULL,
 		false, 0, comspec_settings

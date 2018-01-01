@@ -412,7 +412,7 @@ static int isirq(struct wd_state *wd)
 		case COMSPEC_CHIP:
 		{
 			int irq = 0;
-			if ((wd->comspec.status & 0x40) && (wd->wc.auxstatus & ASR_INT))
+			if ((wd->comspec.status & 0x20) && (wd->wc.auxstatus & ASR_INT))
 				irq |= 2;
 			if ((wd->comspec.status & 0x08) && wd->wc.wd_data_avail)
 				irq |= 1;
@@ -1376,6 +1376,8 @@ static void wd_cmd_reset (struct wd_chip_state *wd, bool irq)
 	if (irq) {
 		uae_u8 status = (wd->wdregs[0] & 0x08) ? 1 : 0;
 		set_status (wd, status, 50);
+	} else {
+		wd->wd_busy = false;
 	}
 }
 
@@ -1566,7 +1568,7 @@ void wdscsi_put (struct wd_chip_state *wd, struct wd_state *wds, uae_u8 d)
 		write_log (_T("%s WD_DATA WRITE %02x %d/%d\n"), WD33C93, d, wd->scsi->offset, wd->scsi->data_len);
 #endif
 		if (!wd->wd_data_avail) {
-			write_log (_T("%s WD_DATA WRITE without data request!?\n"), WD33C93);
+			write_log (_T("%s WD_DATA WRITE without data request!? %08x\n"), WD33C93, M68K_GETPC);
 			return;
 		}
 		if (wd->wd_dataoffset < sizeof wd->wd_data)
@@ -1620,7 +1622,7 @@ uae_u8 wdscsi_get (struct wd_chip_state *wd, struct wd_state *wds)
 	v = wd->wdregs[wd->sasr];
 	if (wd->sasr == WD_DATA) {
 		if (!wd->wd_data_avail) {
-			write_log (_T("%s WD_DATA READ without data request!?\n"), WD33C93);
+			write_log (_T("%s WD_DATA READ without data request!? %08x\n"), WD33C93, M68K_GETPC);
 			return 0;
 		}
 		int status = scsi_receive_data(wd->scsi, &v, true);
@@ -4373,7 +4375,7 @@ void cdtv_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig
 
 static void comspec_ac(struct autoconfig_info *aci)
 {
-	ew(aci->autoconfig_raw, 0x00, 0xc0 | 0x01 | (aci->rc->autoboot_disabled ? 0x00: 0x10));
+	ew(aci->autoconfig_raw, 0x00, 0xc0 | 0x01 | (aci->rc->subtype == 0 ? 0x00: 0x10));
 	ew(aci->autoconfig_raw, 0x04, 0x11);
 	ew(aci->autoconfig_raw, 0x10, 0x03);
 	ew(aci->autoconfig_raw, 0x14, 0xee);
@@ -4440,7 +4442,7 @@ bool comspec_preinit (struct autoconfig_info *aci)
 	rtc->yearmode = true;
 
 
-	if (!aci->rc->autoboot_disabled) {
+	if (!aci->rc->autoboot_disabled && aci->rc->subtype == 0) {
 		map_banks(&wd->bank, 0xf00000 >> 16, 1, 0);
 		wd->baseaddress2 = 0xf00000;
 	}
