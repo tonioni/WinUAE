@@ -67,11 +67,12 @@
 #define OMTI_HD3000 36
 #define OMTI_WEDGE 37
 #define NCR5380_EVESHAMREF 38
-#define NCR_LAST 39
+#define OMTI_PROFEX 39
+#define NCR_LAST 40
 
 extern int log_scsiemu;
 
-static const int outcmd[] = { 0x04, 0x0a, 0x0c, 0x2a, 0xaa, 0x15, 0x55, 0x0f, -1 };
+static const int outcmd[] = { 0x04, 0x0a, 0x0c, 0x11, 0x2a, 0xaa, 0x15, 0x55, 0x0f, -1 };
 static const int incmd[] = { 0x01, 0x03, 0x08, 0x0e, 0x12, 0x1a, 0x5a, 0x25, 0x28, 0x34, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, 0xb9, 0xbd, 0xd8, 0xd9, 0xbe, -1 };
 static const int nonecmd[] = { 0x00, 0x05, 0x06, 0x07, 0x09, 0x0b, 0x10, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1d, 0x1e, 0x2b, 0x35, 0x45, 0x47, 0x48, 0x49, 0x4b, 0x4e, 0xa5, 0xa9, 0xba, 0xbc, 0xe0, 0xe3, 0xe4, -1 };
 static const int scsicmdsizes[] = { 6, 10, 10, 12, 16, 12, 10, 6 };
@@ -168,6 +169,11 @@ bool scsi_emulate_analyze (struct scsi_data *sd)
 		data_len2 = (sd->cmd[4] == 0 ? 256 : sd->cmd[4]) * sd->blocksize;
 		scsi_grow_buffer(sd, data_len2);
 	break;
+	case 0x11: // ASSIGN ALTERNATE TRACK (SASI)
+		if (sd->hfd && sd->hfd->ci.unit_feature_level < HD_LEVEL_SASI)
+			goto nocmd;
+		data_len = 4;
+		break;
 	case 0x28: // READ(10)
 		data_len2 = ((sd->cmd[7] << 8) | (sd->cmd[8] << 0)) * (uae_s64)sd->blocksize;
 		scsi_grow_buffer(sd, data_len2);
@@ -903,7 +909,7 @@ static void ew(struct soft_scsi *scsi, int addr, uae_u32 value)
 	}
 }
 
-static void generic_soft_scsi_add(int ch, struct uaedev_config_info *ci, struct romconfig *rc, int type, int boardsize, int romsize, int romtype)
+static struct soft_scsi *generic_soft_scsi_add(int ch, struct uaedev_config_info *ci, struct romconfig *rc, int type, int boardsize, int romsize, int romtype)
 {
 	struct soft_scsi *ss = allocscsi(&soft_scsi_units[type * MAX_DUPLICATE_EXPANSION_BOARDS + ci->controller_type_unit], rc, ch);
 	ss->type = type;
@@ -946,8 +952,9 @@ static void generic_soft_scsi_add(int ch, struct uaedev_config_info *ci, struct 
 	}
 	raw_scsi_reset(&ss->rscsi);
 	if (ch < 0)
-		return;
+		return ss;
 	add_scsi_device(&ss->rscsi.device[ch], ch, ci, rc);
+	return ss;
 }
 
 static void raw_scsi_busfree(struct raw_scsi *rs)
@@ -2372,6 +2379,15 @@ static int hd3000_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
 	return (addr / 2) & 7;
 }
 
+static int profex_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
+{
+	if (addr & 1)
+		return -1;
+	if (!(addr & 0x8000))
+		return -1;
+	return (addr / 2) & 7;
+}
+
 static int hda506_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
 {
 	if ((addr & 0x7fe1) != 0x7fe0)
@@ -3107,6 +3123,16 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 				v = omti_bget(ncr, reg);
 		}
 
+	} else if (ncr->type == OMTI_PROFEX) {
+
+		if (addr < 0x4000) {
+			v = ncr->rom[addr];
+		} else {
+			reg = profex_reg(ncr, addr, false);
+			if (reg >= 0)
+				v = omti_bget(ncr, reg);
+		}
+
 	} else if (ncr->type == OMTI_HDA506) {
 
 		reg = hda506_reg(ncr, addr, false);
@@ -3235,7 +3261,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 	}
 
 #if NCR5380_DEBUG > 1
-	if (origaddr < 0x8000)
+	if (1 || origaddr < 0x8000)
 		write_log(_T("GET %08x %02x %d %08x %d\n"), origaddr, v, reg, M68K_GETPC, regs.intmask);
 #endif
 
@@ -3521,6 +3547,12 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 	} else if (ncr->type == OMTI_HD3000) {
 
 		reg = hd3000_reg(ncr, addr, true);
+		if (reg >= 0)
+			omti_bput(ncr, reg, val);
+
+	} else if (ncr->type == OMTI_PROFEX) {
+
+		reg = profex_reg(ncr, addr, true);
 		if (reg >= 0)
 			omti_bput(ncr, reg, val);
 
@@ -4922,4 +4954,37 @@ bool eveshamref_init(struct autoconfig_info *aci)
 void eveshamref_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_EVESHAMREF, 65536, 65536, ROMTYPE_EVESHAMREF);
+}
+
+bool profex_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_PROFEX);
+
+	if (!aci->doinit) {
+		load_rom_rc(aci->rc, ROMTYPE_PROFEX, 8192, 0, aci->autoconfig_raw, 128, LOADROM_EVENONLY_ODDONE);
+		if (aci->rc->autoboot_disabled)
+			aci->autoconfig_raw[0] &= ~0x10;
+		return true;
+	}
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	load_rom_rc(aci->rc, ROMTYPE_PROFEX, 8192, 0, scsi->rom, 65536, LOADROM_EVENONLY_ODDONE);
+	if (aci->rc->autoboot_disabled)
+		scsi->rom[0] &= ~0x10;
+	memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
+	aci->addrbank = scsi->bank;
+	return true;
+}
+
+void profex_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	struct soft_scsi *ss = generic_soft_scsi_add(ch, ci, rc, OMTI_PROFEX, 65536, 16384, ROMTYPE_PROFEX);
+	if (ss && ch >= 0) {
+		// Boot ROM requires OMTI-55 "55" identifier.
+		ss->rscsi.device[ch]->hfd->sector_buffer[0] = '5';
+		ss->rscsi.device[ch]->hfd->sector_buffer[1] = '5';
+	}
 }

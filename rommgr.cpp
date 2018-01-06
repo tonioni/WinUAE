@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 223
+#define NEXT_ROM_ID 224
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -549,6 +549,8 @@ static struct romdata roms[] = {
 	ALTROMPN(220, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x8283dc0c, 0xe3820358, 0x1d130b40, 0x9c333f41, 0xdfd6afcd, 0xf3fabb81)
 	{ _T("Evesham Micros Reference"), 1, 1, 1, 1, _T("EVESHAMREF\0"), 65536, 221, 0, 0, ROMTYPE_EVESHAMREF, 0, 0, NULL,
 	0xb0225f48, 0x2b170b40, 0x2f60d28c, 0x344fc463, 0x7e99915f, 0x92e0e8f1, NULL, NULL },
+	{ _T("Profex Electronics HD 3300"), 22, 0, 22, 0, _T("PROFEXHD3300\0"), 8192, 223, 0, 0, ROMTYPE_PROFEX, 0, 0, NULL,
+	0xfe4bf404, 0xc6c1e465, 0xc05e4794, 0xee76c9e2, 0x94def44d, 0x1c7560a1, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

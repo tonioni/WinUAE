@@ -4998,6 +4998,12 @@ const struct expansionromtype expansionroms[] = {
 		{ 0xd1, 0x01, 0x00, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
 	},
 	{
+		_T("profex"), _T("HD 3300"), _T("Profex Electronics"),
+		NULL, profex_init, NULL, profex_add_scsi_unit, ROMTYPE_PROFEX, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		true, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
+	},
+	{
 		_T("protar"), _T("A500 HD"), _T("Protar"),
 		NULL, protar_init, NULL, protar_add_ide_unit, ROMTYPE_PROTAR, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,

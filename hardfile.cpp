@@ -1362,6 +1362,12 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			}
 			write_log(_T("\n"));
 			goto scsi_done;
+			case 0x11: // ASSIGN ALTERNATE TRACK
+			if (nodisk(hfd))
+				goto nodisk;
+			// do nothing, swallow data
+			scsi_len = 4;
+			goto scsi_done;
 			case 0x12: /* INQUIRY */
 			{
 				int cyl, cylsec, head, tracksec;

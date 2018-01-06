@@ -288,6 +288,9 @@ void wedge_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig
 bool eveshamref_init(struct autoconfig_info *aci);
 void eveshamref_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
+bool profex_init(struct autoconfig_info *aci);
+void profex_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
 uae_u8 idescsi_scsi_get(uaecptr addr);
 void idescsi_scsi_put(uaecptr addr, uae_u8 v);
 
