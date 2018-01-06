@@ -5750,6 +5750,7 @@ static void m68k_run_3ce (void)
 {
 	struct regstruct *r = &regs;
 	bool exit = false;
+	int extracycles = 0;
 
 	while (!exit) {
 		TRY(prb) {
@@ -5765,6 +5766,13 @@ static void m68k_run_3ce (void)
 				if (r->spcflags) {
 					if (do_specialties (0))
 						exit = true;
+				}
+
+				// workaround for situation when all accesses are cached
+				extracycles++;
+				if (extracycles >= 8) {
+					extracycles = 0;
+					x_do_cycles(CYCLE_UNIT);
 				}
 			}
 		} CATCH(prb) {
