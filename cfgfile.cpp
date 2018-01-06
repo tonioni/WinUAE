@@ -4186,7 +4186,7 @@ static void get_filesys_controller (const TCHAR *hdc, int *type, int *typenum, i
 	*num = hdunit;
 }
 
-static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struct hardfiledata *hfd, bool empty)
+static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struct hardfiledata *hfd, bool empty, bool addgeom)
 {
 	int found = 0;
 	TCHAR tmp[200], section[200];
@@ -4224,7 +4224,9 @@ static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struc
 	if (found) {
 		ret = true;
 		write_log(_T("Geometry file '%s' section '%s' found\n"), tname, section);
-		_tcscpy(uci->geometry, tname);
+		if (addgeom) {
+			_tcscpy(uci->geometry, tname);
+		}
 
 		int idx = 0;
 		for (;;) {
@@ -4353,7 +4355,6 @@ static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struc
 		ata_parse_identity(ident, uci, &lba48, &max_multiple);
 		ret = true;
 	}
-	xfree(out);
 
 	ini_free(ini);
 	return ret;
@@ -4371,18 +4372,18 @@ bool get_hd_geometry (struct uaedev_config_info *uci)
 		hfd.ci.readonly = true;
 		hfd.ci.blocksize = 512;
 		if (hdf_open (&hfd, uci->rootdir) > 0) {
-			parse_geo (tname, uci, &hfd, false);
+			parse_geo (tname, uci, &hfd, false, false);
 			hdf_close (&hfd);
 		} else {
-			parse_geo (tname, uci, NULL, true);
+			parse_geo (tname, uci, NULL, true, false);
 		}
 	}
 	if (uci->geometry[0]) {
-		return parse_geo (uci->geometry, uci, NULL, false);
+		return parse_geo (uci->geometry, uci, NULL, false, true);
 	} else if (uci->rootdir[0]) {
 		_tcscpy (tname, uci->rootdir);
 		_tcscat (tname, _T(".geo"));
-		return parse_geo (tname, uci, NULL, false);
+		return parse_geo (tname, uci, NULL, false, true);
 	}
 	return false;
 }
@@ -4617,7 +4618,7 @@ empty_fs:
 		_tcscpy (uci.rootdir, str);
 	}
 	if (uci.geometry[0]) {
-		parse_geo(uci.geometry, &uci, NULL, false);
+		parse_geo(uci.geometry, &uci, NULL, false, true);
 	}
 #ifdef FILESYS
 	add_filesys_config (p, nr, &uci);
@@ -4745,7 +4746,7 @@ static int cfgfile_parse_filesys (struct uae_prefs *p, const TCHAR *option, TCHA
 		}
 		str = cfgfile_subst_path_load (UNEXPANDED, &p->path_hardfile, uci.rootdir, true);
 		if (uci.geometry[0])
-			parse_geo(uci.geometry, &uci, NULL, false);
+			parse_geo(uci.geometry, &uci, NULL, false, false);
 #ifdef FILESYS
 		uci.type = hdf ? UAEDEV_HDF : UAEDEV_DIR;
 		add_filesys_config (p, -1, &uci);
