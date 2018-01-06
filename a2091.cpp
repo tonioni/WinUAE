@@ -2893,11 +2893,17 @@ static void REGPARAM2 comspec_bput(struct wd_state *wd, uaecptr addr, uae_u32 b)
 			map_banks_z2 (&wd->bank, b, 0x10000 >> 16);
 			wd->baseaddress = b << 16;
 			wd->configured = 1;
+			if (!wd->rc->autoboot_disabled && wd->rc->subtype == 0) {
+				map_banks(&dummy_bank, 0xf00000 >> 16, 1, 0);
+			}
 			expamem_next (&wd->bank, NULL);
 			return;
 		}
 		if (addr == 0x4c && !wd->configured) {
 			wd->configured = 1;
+			if (!wd->rc->autoboot_disabled && wd->rc->subtype == 0) {
+				map_banks(&dummy_bank, 0xf00000 >> 16, 1, 0);
+			}
 			expamem_shutup(&wd->bank);
 			return;
 		}
