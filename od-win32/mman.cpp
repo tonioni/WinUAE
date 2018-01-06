@@ -736,9 +736,7 @@ bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
 		got = true;
 		if (!expansion_get_autoconfig_by_address(&currprefs, 0x00200000) && currprefs.chipmem_size == 2 * 1024 * 1024)
 			barrier = true;
-		if (currprefs.chipmem_size > 2 * 1024 * 1024)
-			barrier = true;
-		if (currprefs.chipmem_size < 2 * 1024 * 1024 && !currprefs.cpu_compatible)
+		if (currprefs.chipmem_size != 2 * 1024 * 1024)
 			barrier = true;
 	} else if (!_tcscmp(ab->label, _T("kick"))) {
 		start = 0xf80000;

@@ -754,16 +754,49 @@ static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq)
 	return false;
 }
 
-static bool do_scsi_read10_chs(HANDLE handle, int c, int h, int s, uae_u8 *data)
+static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, uae_u8 *data)
 {
 	uae_u8 cmd[10] = { 0 };
+
 	cmd[0] = 0x28;
-	cmd[2] = h & 15;
-	cmd[3] = c >> 8;
-	cmd[4] = c;
-	cmd[5] = s;
+	cmd[2] = 0;
+	cmd[3] = 0;
+	cmd[4] = 0;
+	cmd[5] = 1;
 	cmd[8] = 1;
-	return do_scsi_in(handle, cmd, 10, data, 512) > 0;
+	do_scsi_in(handle, cmd, 10, data, 512);
+
+	cmd[0] = 0x28;
+	if (lba != 0xffffffff) {
+		cmd[2] = lba >> 24;
+		cmd[3] = lba >> 16;
+		cmd[4] = lba >> 8;
+		cmd[5] = lba >> 0;
+	} else {
+		cmd[2] = h & 15;
+		cmd[3] = c >> 8;
+		cmd[4] = c;
+		cmd[5] = s;
+	}
+	cmd[8] = 1;
+	bool r = do_scsi_in(handle, cmd, 10, data, 512) > 0;
+	if (r) {
+		int s = 32;
+		int o = 0;
+		for (int i = 0; i < 512; i += s) {
+			for (int j = 0; j < s; j++) {
+				write_log(_T("%02x"), data[o + j]);
+			}
+			write_log(_T(" "));
+			for (int j = 0; j < s; j++) {
+				uae_u8 v = data[o + j];
+				write_log(_T("%c"), v >= 32 && v <= 126 ? v : '.');
+			}
+			write_log(_T("\n"));
+			o += s;
+		}
+	}
+	return r;
 }
 
 static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, struct ini_data *ini, bool *atapi)
@@ -948,47 +981,45 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 	}
 
 	if (invalidcapacity) {
-		bool chs0 = do_scsi_read10_chs(h, 0, 0, 0, data);
-		bool chs1 = do_scsi_read10_chs(h, 0, 0, 1, data);
+		bool chs0 = do_scsi_read10_chs(h, 0xffffffff, 0, 0, 0, data);
+		bool chs1 = do_scsi_read10_chs(h, 0xffffffff, 0, 0, 1, data);
 		write_log(_T("CHS0=%d CHS1=%d\n"), chs0, chs1);
-		if (!chs0 && chs1) {
-			int hh, ss;
-			for (ss = 1; ss < 256; ss++) {
-				if (!do_scsi_read10_chs(h, 0, 0, ss, data)) {
-					ss--;
-					break;
-				}
+		int hh, ss;
+		for (ss = 1; ss < 256; ss++) {
+			if (!do_scsi_read10_chs(h, 0xffffffff, 0, 0, ss, data)) {
+				ss--;
+				break;
 			}
-			write_log(_T("Sectors=%d\n"), ss);
-			for (hh = 0; hh < 16; hh++) {
-				if (!do_scsi_read10_chs(h, 0, hh, 1, data)) {
-					break;
-				}
+		}
+		write_log(_T("Sectors=%d\n"), ss);
+		for (hh = 0; hh < 16; hh++) {
+			if (!do_scsi_read10_chs(h, 0xffffffff, 0, hh, 1, data)) {
+				break;
 			}
-			write_log(_T("Heads=%d\n"), hh);
-			if (hh <= 0 || ss <= 1 || ss >= 256) {
-				write_log(_T("Invalid H and/or S value.\n"));
-				goto end;
-			}
+		}
+		write_log(_T("Heads=%d\n"), hh);
+		if (hh <= 0 || ss <= 1 || ss >= 256) {
+			write_log(_T("Invalid H and/or S value.\n"));
+			goto end;
+		}
 #if 0
-			int cc;
-			for (cc = 0; cc < 10000; cc++) {
-				write_log(_T("%d "), cc);
-				for (int hhh = 0; hhh < hh; hhh++) {
-					for(int sss = 1; sss < ss; sss++) {
-						if (!do_scsi_read10_chs(h, cc, hhh, sss, data)) {
-							write_log("\n\n");
-							if (hhh != 0 || sss != 1) {
-								write_log(_T("Read error when not first head and sector! %d:%d:%d\n"), cc, hhh, sss);
-							}
-							goto end;
+		int cc;
+		for (cc = 0; cc < 10000; cc++) {
+			write_log(_T("%d "), cc);
+			for (int hhh = 0; hhh < hh; hhh++) {
+				for (int sss = 1; sss < ss; sss++) {
+					if (!do_scsi_read10_chs(h, cc, hhh, sss, data)) {
+						write_log("\n\n");
+						if (hhh != 0 || sss != 1) {
+							write_log(_T("Read error when not first head and sector! %d:%d:%d\n"), cc, hhh, sss);
 						}
+						goto end;
 					}
 				}
 			}
+		}
 #endif
 end:;
-		}
 	}
 
 	return ret;

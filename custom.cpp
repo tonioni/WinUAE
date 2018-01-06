@@ -8072,7 +8072,8 @@ static void hsync_scandoubler (void)
 	debug_dma = 0;
 #endif
 
-	if (lof_store && (vpos & 1) && vpos == plflastline - 1) {
+	// this is not correct
+	if (0 && lof_store && (vpos & 1) && vpos == plflastline - 1) {
 		// blank last line if it is odd line
 		dmacon &= ~DMA_BITPLANE;
 	}
@@ -10089,9 +10090,9 @@ uae_u8 *save_custom_extra (int *len, uae_u8 *dstptr)
 	SB(currprefs.cs_bytecustomwritebug ? 1 : 0);
 	SB(currprefs.cs_color_burst ? 1 : 0);
 	SB(currprefs.cs_toshibagary ? 1 : 0);
+	SB(currprefs.cs_romisslow ? 1 : 0);
 	SB(currprefs.cs_ciatype[0]);
 	SB(currprefs.cs_ciatype[1]);
-
 
 	*len = dst - dstbak;
 	return dstbak;

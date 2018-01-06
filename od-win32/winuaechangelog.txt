@@ -4,6 +4,23 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+
+Beta 17:
+
+- Added Profex HD3300 emulation and boot ROM.
+- Fixed rounding issue in D3D11 mode screen position calculation. (Single pixel offset in some situations)
+- 68040+ "cycle exact" could have appear hung if all running code and data fit in caches.
+- Geometry file parsing memory free bug fix.
+- Interlace artifact removal last flickering line fixed (b1)
+- Allow JIT direct in CSPPC configuration. This disables CSPPC Map ROM address mapping completely.
+- D3D11 threaded Present() calls removed, it is not compatible with some systems. (Caused blank screens when switching modes)
+- Re-initialize D3D11 display mode if ResizeBuffers() return an error instead of showing blank screen.
+- End of chip ram didn't have safety barrier if chip ram size was less than 2M. Unaligned long or word access from the very end of chip ram could have caused crash.
+
+Profex HD3300:
+- Yet another basic OMTI based HD controller.
+- "omti55.device 22.0 (17-Apr-1989) (c) 1988,1989 by Thomas Rudloff for Intelligent Memory Frankfurt, W. Germany"
+
 Beta 16:
 
 - Fixed statefile memory corruption if CPU is 68060. (Introduced when 68040/060 data cache support was added)

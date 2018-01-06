@@ -63,11 +63,9 @@ void(*D3D_resize)(int);
 void (*D3D_change)(int);
 bool(*D3D_getscalerect)(float *mx, float *my, float *sx, float *sy);
 
-static volatile int presentthread_mode, vblankthread_mode;
+static volatile int vblankthread_mode;
 static HMODULE hd3d11, hdxgi, hd3dcompiler, dwmapi;
-static HANDLE flipevent, flipevent2, vblankevent;
-static CRITICAL_SECTION present_cs;
-static bool present_cs_init;
+static HANDLE vblankevent;
 
 static struct gfx_filterdata *filterd3d;
 static int filterd3didx;
@@ -234,6 +232,7 @@ struct d3d11struct
 	DWM_FRAME_COUNT lastframe;
 	int frames_since_init;
 	bool needvblankevent;
+	bool resizeretry;
 
 	struct d3d11sprite osd;
 	struct d3d11sprite hwsprite;
@@ -251,7 +250,7 @@ struct d3d11struct
 	RECT sr2, dr2, zr2;
 	int guimode;
 	int delayedfs;
-	int device_removed;
+	int device_errors;
 	bool delayedrestore;
 	bool reloadshaders;
 	int ledwidth, ledheight;
@@ -1447,8 +1446,8 @@ static void setupscenecoords(struct d3d11struct *d3d)
 	float w = sr.right - sr.left;
 	float h = sr.bottom - sr.top;
 
-	int tx = dw * d3d->m_bitmapWidth / d3d->m_screenWidth / 2;
-	int ty = dh * d3d->m_bitmapHeight / d3d->m_screenHeight / 2;
+	int tx = ((dr.right - dr.left) * d3d->m_bitmapWidth) / (d3d->m_screenWidth * 2);
+	int ty = ((dr.bottom - dr.top) * d3d->m_bitmapHeight) / (d3d->m_screenHeight * 2);
 
 	float sw = dw / d3d->m_screenWidth;
 	float sh = dh / d3d->m_screenHeight;
@@ -1621,17 +1620,43 @@ static void freesprite(struct d3d11sprite *s)
 	if (s->matrixbuffer)
 		s->matrixbuffer->Release();
 
-	s->pixelshader = NULL;
-	s->vertexshader = NULL;
-	s->layout = NULL;
-	s->vertexbuffer = NULL;
-	s->indexbuffer = NULL;
-	s->matrixbuffer = NULL;
-
 	memset(s, 0, sizeof(struct d3d11sprite));
 }
 
-static void FreeTexture(struct d3d11struct *d3d)
+static void FreeShaderTex(struct shadertex *t)
+{
+	FreeTexture2D(&t->tex, &t->rv);
+	if (t->rt)
+		t->rt->Release();
+	t->rt = NULL;
+}
+
+static void freeshaderdata(struct shaderdata11 *s)
+{
+	if (s->effect) {
+		s->effect->Release();
+		s->effect = NULL;
+	}
+	FreeTexture2D(&s->masktexture, &s->masktexturerv);
+	FreeShaderTex(&s->lpWorkTexture1);
+	FreeShaderTex(&s->lpWorkTexture2);
+	FreeShaderTex(&s->lpTempTexture);
+	if (s->lpHq2xLookupTexture)
+		s->lpHq2xLookupTexture->Release();
+	if (s->lpHq2xLookupTexturerv)
+		s->lpHq2xLookupTexturerv->Release();
+	for (int j = 0; j < MAX_TECHNIQUE_LAYOUTS; j++) {
+		if (s->layouts[j])
+			s->layouts[j]->Release();
+	}
+	if (s->vertexBuffer)
+		s->vertexBuffer->Release();
+	if (s->indexBuffer)
+		s->indexBuffer->Release();
+	memset(s, 0, sizeof(struct shaderdata11));
+}
+
+static void FreeTextures(struct d3d11struct *d3d)
 {
 	FreeTexture2D(&d3d->texture2d, &d3d->texture2drv);
 	FreeTexture2D(&d3d->texture2dstaging, NULL);
@@ -1643,8 +1668,7 @@ static void FreeTexture(struct d3d11struct *d3d)
 	freesprite(&d3d->blanksprite);
 
 	for (int i = 0; i < MAX_SHADERS; i++) {
-		FreeTexture2D(&d3d->shaders[i].masktexture, &d3d->shaders[i].masktexturerv);
-		memset(&d3d->shaders[i], 0, sizeof(struct shaderdata11));
+		freeshaderdata(&d3d->shaders[i]);
 	}
 }
 
@@ -1790,7 +1814,7 @@ static bool CreateTexture(struct d3d11struct *d3d)
 	memset(&d3d->dr2, 0, sizeof(RECT));
 	memset(&d3d->zr2, 0, sizeof(RECT));
 
-	FreeTexture(d3d);
+	FreeTextures(d3d);
 
 	memset(&desc, 0, sizeof desc);
 	desc.Width = d3d->m_bitmapWidth;
@@ -1869,6 +1893,8 @@ static bool CreateTexture(struct d3d11struct *d3d)
 	d3d->cursor_v = false;
 	d3d->cursor_scale = false;
 	allocsprite(d3d, &d3d->hwsprite, CURSORMAXWIDTH, CURSORMAXHEIGHT, true);
+
+	write_log(_T("D3D11: %dx%d main texture allocated\n"), d3d->m_bitmapWidth, d3d->m_bitmapHeight);
 
 	return true;
 }
@@ -2770,11 +2796,11 @@ static void setswapchainmode(struct d3d11struct *d3d, int fs)
 	struct apmode *apm = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
 	// It is recommended to always use the tearing flag when it is supported.
 	d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
-	// tearing flag is not fullscreen compatible
 	if (d3d->m_tearingSupport && (d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL || d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) && !apm->gfx_vflip && apm->gfx_backbuffers == 0) {
 		d3d->swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 	}
 	d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+	// tearing flag is not fullscreen compatible
 	if (fs) {
 		d3d->swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 		d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
@@ -2882,12 +2908,20 @@ int can_D3D11(bool checkdevice)
 	return ret;
 }
 
+static bool device_error(struct d3d11struct *d3d)
+{
+	d3d->device_errors++;
+	if (d3d->device_errors > 2) {
+		d3d->delayedfs = -1;
+		return true;
+	}
+	return false;
+}
+
 static void do_present(struct d3d11struct *d3d, int black)
 {
 	HRESULT hr;
 	UINT presentFlags = 0;
-
-	EnterCriticalSection(&present_cs);
 
 	if (black) {
 		float color[4];
@@ -2916,22 +2950,16 @@ static void do_present(struct d3d11struct *d3d, int black)
 	}
 	d3d->syncinterval = syncinterval;
 	hr = d3d->m_swapChain->Present(syncinterval, presentFlags);
-	SetEvent(flipevent2);
 	if (currprefs.turbo_emulation && hr == DXGI_ERROR_WAS_STILL_DRAWING)
 		hr = S_OK;
 	if (FAILED(hr) && hr != DXGI_STATUS_OCCLUDED) {
 		if (hr == DXGI_ERROR_DEVICE_REMOVED) {
-			d3d->device_removed++;
-			if (d3d->device_removed > 2) {
-				d3d->delayedfs = -1;
-			}
+			device_error(d3d);
 		} else if (hr == E_OUTOFMEMORY) {
 			d3d->invalidmode = true;
 		}
 		write_log(_T("D3D11 Present %08x\n"), hr);
 	}
-
-	LeaveCriticalSection(&present_cs);
 }
 
 static unsigned int __stdcall vblankthread(void *dummy)
@@ -2944,32 +2972,12 @@ static unsigned int __stdcall vblankthread(void *dummy)
 		if (FAILED(hr)) {
 			Sleep(10);
 		} else {
-			if (d3d->blackscreen && (d3d->framecount & 1)) {
-				do_present(d3d, 1);
-			} else {
-				SetEvent(vblankevent);
-			}
-			d3d->framecount++;
+			SetEvent(vblankevent);
 		}
+		d3d->framecount++;
 	}
 	vblankthread_mode = -1;
 	write_log(_T("vblankthread exited\n"));
-	return 0;
-}
-
-static unsigned int __stdcall presentthread(void *dummy)
-{
-	struct d3d11struct *d3d = &d3d11data[0];
-
-	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
-	while (presentthread_mode) {
-		WaitForSingleObject(flipevent, INFINITE);
-		if (presentthread_mode == 0)
-			break;
-		do_present(d3d, 0);
-	}
-	presentthread_mode = -1;
-	write_log(_T("presentthread exited\n"));
 	return 0;
 }
 
@@ -2977,17 +2985,6 @@ static void initthread(struct d3d11struct *d3d)
 {
 	unsigned int th;
 
-	if (!present_cs_init) {
-		present_cs_init = true;
-		InitializeCriticalSection(&present_cs);
-	}
-
-	if (!presentthread_mode) {
-		flipevent = CreateEvent(NULL, FALSE, FALSE, NULL);
-		flipevent2 = CreateEvent(NULL, FALSE, FALSE, NULL);
-		presentthread_mode = 1;
-		_beginthreadex(NULL, 0, presentthread, 0, 0, &th);
-	}
 	if (!vblankthread_mode && d3d->outputAdapter && d3d->needvblankevent) {
 		vblankevent = CreateEvent(NULL, FALSE, FALSE, NULL);
 		vblankthread_mode = 1;
@@ -2997,18 +2994,6 @@ static void initthread(struct d3d11struct *d3d)
 
 static void freethread(struct d3d11struct *d3d)
 {
-	if (presentthread_mode) {
-		presentthread_mode = 0;
-		while (presentthread_mode == 0) {
-			SetEvent(flipevent);
-			Sleep(10);
-		}
-		presentthread_mode = 0;
-		CloseHandle(flipevent);
-		CloseHandle(flipevent2);
-		flipevent = NULL;
-		flipevent2 = NULL;
-	}
 	if (vblankthread_mode) {
 		vblankthread_mode = 0;
 		while (vblankthread_mode == 0) {
@@ -3037,13 +3022,13 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 	DXGI_MODE_DESC1* displayModeList;
 	DXGI_ADAPTER_DESC adapterDesc;
 
-	write_log(_T("D3D11 init start\n"));
+	write_log(_T("D3D11: init start. (%d*%d) (%d*%d) RTG=%d Depth=%d.\n"), w_w, w_h, t_w, t_h, picasso_on, depth);
 
 	filterd3didx = picasso_on;
 	filterd3d = &currprefs.gf[filterd3didx];
 
 	d3d->delayedfs = 0;
-	d3d->device_removed = 0;
+	d3d->device_errors = 0;
 
 	if (depth != 32 && depth != 16)
 		return 0;
@@ -3375,20 +3360,14 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 
 	initthread(d3d);
 
+	write_log(_T("D3D11: %d %08x %08x\n"), d3d->swapChainDesc.BufferCount, d3d->swapChainDesc.Flags, d3d->swapChainDesc.Format);
+
 	if (isfs(d3d) > 0)
 		D3D_resize(1);
 	D3D_resize(0);
 
-	write_log(_T("D3D11 init end\n"));
+	write_log(_T("D3D11: init end\n"));
 	return 1;
-}
-
-static void FreeShaderTex(struct shadertex *t)
-{
-	FreeTexture2D(&t->tex, &t->rv);
-	if (t->rt)
-		t->rt->Release();
-	t->rt = NULL;
 }
 
 static void freed3d(struct d3d11struct *d3d)
@@ -3464,36 +3443,13 @@ static void freed3d(struct d3d11struct *d3d)
 		d3d->m_matrixBuffer = 0;
 	}
 
-	FreeTexture(d3d);
+	FreeTextures(d3d);
 	FreeTexture2D(&d3d->sltexture, &d3d->sltexturerv);
 	FreeShaderTex(&d3d->lpPostTempTexture);
 
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		struct shaderdata11 *s = &d3d->shaders[i];
-		if (s->effect) {
-			s->effect->Release();
-			s->effect = NULL;
-		}
-		if (s->masktexture) {
-			s->masktexture->Release();
-			s->masktexture = NULL;
-		}
-		FreeShaderTex(&s->lpWorkTexture1);
-		FreeShaderTex(&s->lpWorkTexture2);
-		FreeShaderTex(&s->lpTempTexture);
-		if (s->lpHq2xLookupTexture)
-			s->lpHq2xLookupTexture->Release();
-		if (s->lpHq2xLookupTexturerv)
-			s->lpHq2xLookupTexturerv->Release();
-		for (int j = 0; j < MAX_TECHNIQUE_LAYOUTS; j++) {
-			if (s->layouts[j])
-				s->layouts[j]->Release();
-		}
-		if (s->vertexBuffer)
-			s->vertexBuffer->Release();
-		if (s->indexBuffer)
-			s->indexBuffer->Release();
-		memset(s, 0, sizeof(struct shaderdata11));
+		freeshaderdata(s);
 	}
 
 	if (d3d->filenotificationhandle)
@@ -3510,7 +3466,7 @@ static void xD3D11_free(bool immediate)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
 
-	write_log(_T("D3D11 free start\n"));
+	write_log(_T("D3D11: free start\n"));
 
 	freethread(d3d);
 
@@ -3539,12 +3495,12 @@ static void xD3D11_free(bool immediate)
 		d3d->outputAdapter = NULL;
 	}
 
-	d3d->device_removed = 0;
+	d3d->device_errors = 0;
 
 	changed_prefs.leds_on_screen &= ~STATUSLINE_TARGET;
 	currprefs.leds_on_screen &= ~STATUSLINE_TARGET;
 
-	write_log(_T("D3D11 free end\n"));
+	write_log(_T("D3D11: free end\n"));
 }
 
 static int xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmult)
@@ -3619,11 +3575,14 @@ static void RenderBuffers(struct d3d11struct *d3d, ID3D11Buffer *vertexbuffer, I
 
 static void EndScene(struct d3d11struct *d3d)
 {
+#if 0
 	if ((d3d->syncinterval || (d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_DISCARD)) && d3d->flipped) {
 		WaitForSingleObject(flipevent2, 100);
 		d3d->flipped = false;
 	}
 	SetEvent(flipevent);
+#endif
+	do_present(d3d, 0);
 }
 
 static void TextureShaderClass_RenderShader(struct d3d11struct *d3d)
@@ -3921,12 +3880,8 @@ static bool GraphicsClass_Render(struct d3d11struct *d3d, float rotation)
 	// Generate the view matrix based on the camera's position.
 	CameraClass_Render(d3d);
 
-	EnterCriticalSection(&present_cs);
-
 	// Render the bitmap with the texture shader.
 	result = TextureShaderClass_Render(d3d);
-
-	LeaveCriticalSection(&present_cs);
 
 	if (!result)
 		return false;
@@ -4050,6 +4005,8 @@ static bool restore(struct d3d11struct *d3d)
 		}
 	}
 
+	write_log(_T("D3D11: Shader and extra textures restored\n"));
+
 	return true;
 }
 
@@ -4141,6 +4098,10 @@ static void xD3D11_refresh(void)
 
 static void recheck(struct d3d11struct *d3d)
 {
+	if (d3d->resizeretry) {
+		resizemode(d3d);
+		return;
+	}
 	if (!d3d->delayedfs)
 		return;
 	xD3D11_free(d3d);
@@ -4196,12 +4157,8 @@ static uae_u8 *xD3D11_locktexture(int *pitch, int *height, bool fullupdate)
 	if (d3d->invalidmode || !d3d->texture2d)
 		return NULL;
 
-	EnterCriticalSection(&present_cs);
-
 	D3D11_MAPPED_SUBRESOURCE map;
 	HRESULT hr = d3d->m_deviceContext->Map(d3d->texture2dstaging, 0, D3D11_MAP_WRITE, 0, &map);
-
-	LeaveCriticalSection(&present_cs);
 
 	if (FAILED(hr)) {
 		write_log(_T("D3D11 Map() %08x\n"), hr);
@@ -4222,8 +4179,6 @@ static void xD3D11_unlocktexture(void)
 		return;
 	d3d->texturelocked--;
 
-	EnterCriticalSection(&present_cs);
-
 	d3d->m_deviceContext->Unmap(d3d->texture2dstaging, 0);
 
 	if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG)) {
@@ -4238,8 +4193,6 @@ static void xD3D11_unlocktexture(void)
 	box.top = 0;
 	box.bottom = d3d->m_bitmapHeight;
 	d3d->m_deviceContext->CopySubresourceRegion(d3d->texture2d, 0, 0, 0, 0, d3d->texture2dstaging, 0, &box);
-
-	LeaveCriticalSection(&present_cs);
 }
 
 static void xD3D11_flushtexture(int miny, int maxy)
@@ -4249,10 +4202,6 @@ static void xD3D11_flushtexture(int miny, int maxy)
 
 static void xD3D11_restore(void)
 {
-	struct d3d11struct *d3d = &d3d11data[0];
-	if (!d3d->texture2d)
-		return;
-	createscanlines(d3d, 0);
 }
 
 static void xD3D11_vblank_reset(double freq)
@@ -4276,14 +4225,19 @@ static void xD3D11_change(int temp)
 
 static void resizemode(struct d3d11struct *d3d)
 {
+	d3d->resizeretry = false;
 	if (!d3d->invalidmode) {
 		freed3d(d3d);
-		write_log(_T("D3D11 resize %d %d, %d %d\n"), d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth, d3d->m_bitmapHeight);
-		setswapchainmode(d3d, d3d->fsmode);
+		int fs = isfs(d3d);
+		setswapchainmode(d3d, fs);
+		write_log(_T("D3D11 resize %dx%d, %dx%d %d %08x FS=%d\n"), d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth, d3d->m_bitmapHeight,
+			d3d->swapChainDesc.BufferCount, d3d->swapChainDesc.Flags, fs);
 		HRESULT hr = d3d->m_swapChain->ResizeBuffers(d3d->swapChainDesc.BufferCount, d3d->m_screenWidth, d3d->m_screenHeight, d3d->scrformat, d3d->swapChainDesc.Flags);
 		if (FAILED(hr)) {
 			write_log(_T("ResizeBuffers %08x\n"), hr);
-			d3d->invalidmode = true;
+			if (!device_error(d3d)) {
+				d3d->resizeretry = true;
+			}
 		}
 		if (!d3d->invalidmode) {
 			if (!initd3d(d3d)) {
@@ -4321,7 +4275,7 @@ static void xD3D11_resize(int activate)
 
 	if (d3d->m_swapChain && quit_program == -UAE_QUIT) {
 		d3d->m_swapChain->SetFullscreenState(FALSE, NULL);
-		FreeTexture(d3d);
+		FreeTextures(d3d);
 		d3d->fsmode = 0;
 		d3d->invalidmode = true;
 		d3d->fsmodechange = 0;

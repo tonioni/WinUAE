@@ -531,8 +531,10 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 		if (tape->wp)
 			goto writeprot;
 		// sanity check
-		if (len > 256)
+		if (len > 256) {
+			write_log(_T("TAPEEMU: WRITE FILEMARK too many filemarks (%d)\n"), len);
 			len = 256;
+		}
 		while (len > 0) {
 			tape_write_filemark(tape);
 			len--;
