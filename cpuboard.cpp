@@ -1049,6 +1049,10 @@ static void cyberstorm_maprom(void)
 {
 	if (a3000hmem_bank.reserved_size <= 2 * 524288)
 		return;
+	if (currprefs.cachesize && !currprefs.comptrustbyte) {
+		write_log(_T("JIT Direct enabled: CSPPC MAPROM not available.\n"));
+		return;
+	}
 
 	map_banks(&dummy_bank, CYBERSTORM_MAPROM_BASE >> 16, 524288 >> 16, 0);
 	if (blizzardmaprom_bank_mapped)
