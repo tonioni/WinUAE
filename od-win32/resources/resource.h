@@ -393,6 +393,7 @@
 #define IDS_SLIRP_INBOUND               399
 #define IDD_BOARDS                      399
 #define IDS_FILTER_PAL_EXTRA            400
+#define IDD_CHSQUERY                    400
 #define IDS_FILTER_3D_EXTRA             401
 #define IDS_ALWAYS_ON                   402
 #define IDS_DISPLAY_ATTRIBUTES          403
@@ -1284,6 +1285,9 @@
 #define IDC_EDIT1                       1857
 #define IDC_EXPANSIONBOARDSTRINGBOX     1857
 #define IDC_CS_UNMAPPED                 1858
+#define IDC_CHS_CYLINDERS               1859
+#define IDC_CHS_HEADS                   1860
+#define IDC_CHS_SECTORS                 1861
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1335,7 +1339,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        407
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1859
+#define _APS_NEXT_CONTROL_VALUE         1860
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

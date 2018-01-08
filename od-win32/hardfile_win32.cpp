@@ -754,10 +754,11 @@ static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq)
 	return false;
 }
 
-static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, uae_u8 *data)
+static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, uae_u8 *data, int cnt, bool log)
 {
 	uae_u8 cmd[10] = { 0 };
 
+#if 0
 	cmd[0] = 0x28;
 	cmd[2] = 0;
 	cmd[3] = 0;
@@ -765,6 +766,8 @@ static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, 
 	cmd[5] = 1;
 	cmd[8] = 1;
 	do_scsi_in(handle, cmd, 10, data, 512);
+#endif
+	memset(data, 0, 512 * cnt);
 
 	cmd[0] = 0x28;
 	if (lba != 0xffffffff) {
@@ -778,9 +781,9 @@ static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, 
 		cmd[4] = c;
 		cmd[5] = s;
 	}
-	cmd[8] = 1;
-	bool r = do_scsi_in(handle, cmd, 10, data, 512) > 0;
-	if (r) {
+	cmd[8] = cnt;
+	bool r = do_scsi_in(handle, cmd, 10, data, 512 * cnt) > 0;
+	if (r && log) {
 		int s = 32;
 		int o = 0;
 		for (int i = 0; i < 512; i += s) {
@@ -981,19 +984,19 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 	}
 
 	if (invalidcapacity) {
-		bool chs0 = do_scsi_read10_chs(h, 0xffffffff, 0, 0, 0, data);
-		bool chs1 = do_scsi_read10_chs(h, 0xffffffff, 0, 0, 1, data);
+		bool chs0 = do_scsi_read10_chs(h, 0xffffffff, 0, 0, 0, data, 1, true);
+		bool chs1 = do_scsi_read10_chs(h, 0xffffffff, 0, 0, 1, data, 1, true);
 		write_log(_T("CHS0=%d CHS1=%d\n"), chs0, chs1);
 		int hh, ss;
 		for (ss = 1; ss < 256; ss++) {
-			if (!do_scsi_read10_chs(h, 0xffffffff, 0, 0, ss, data)) {
+			if (!do_scsi_read10_chs(h, 0xffffffff, 0, 0, ss, data, 1, true)) {
 				ss--;
 				break;
 			}
 		}
 		write_log(_T("Sectors=%d\n"), ss);
 		for (hh = 0; hh < 16; hh++) {
-			if (!do_scsi_read10_chs(h, 0xffffffff, 0, hh, 1, data)) {
+			if (!do_scsi_read10_chs(h, 0xffffffff, 0, hh, 1, data, 1, true)) {
 				break;
 			}
 		}
@@ -1024,6 +1027,125 @@ end:;
 
 	return ret;
 }
+
+static int chsdialogactive, chs_secs, chs_cyls, chs_heads;
+static INT_PTR CALLBACK CHSDialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	switch (msg)
+	{
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return TRUE;
+	case WM_CLOSE:
+		chsdialogactive = 0;
+		DestroyWindow(hDlg);
+		return TRUE;
+	case WM_INITDIALOG:
+		chs_secs = chs_cyls = chs_heads = 0;
+		return TRUE;
+	case WM_COMMAND:
+		switch (LOWORD(wParam))
+		{
+		case IDC_CHS_SECTORS:
+			chs_secs = GetDlgItemInt(hDlg, IDC_CHS_SECTORS, NULL, FALSE);
+			break;
+		case IDC_CHS_CYLINDERS:
+			chs_cyls = GetDlgItemInt(hDlg, IDC_CHS_CYLINDERS, NULL, FALSE);
+			break;
+		case IDC_CHS_HEADS:
+			chs_heads = GetDlgItemInt(hDlg, IDC_CHS_HEADS, NULL, FALSE);
+			break;
+		case IDOK:
+			chsdialogactive = -1;
+			DestroyWindow(hDlg);
+			return TRUE;
+		case IDCANCEL:
+			chsdialogactive = 0;
+			DestroyWindow(hDlg);
+			return TRUE;
+		}
+		break;
+	}
+	return FALSE;
+}
+
+
+static int gethdfchs(HWND hDlg, HANDLE h, int *cylsp, int *headsp, int *secsp)
+{
+	uae_u8 cmd[10];
+	int cyls = 0, heads = 0, secs = 0;
+	uae_u8 *data = (uae_u8*)VirtualAlloc(NULL, 65536, MEM_COMMIT, PAGE_READWRITE);
+	DWORD err = 0;
+
+	memset(data, 0, 512);
+	memset(cmd, 0, sizeof(cmd));
+	cmd[0] = 0x25;
+	if (do_scsi_in(h, cmd, 10, data, 8) == 8) {
+#if 1
+		if (data[0] != 0xff || data[1] != 0xff || data[2] != 0xff || data[3] != 0xff) {
+			err = -11;
+			goto end;
+		}
+		if (data[4] != 0x00 || data[5] != 0x00 || data[6] != 0x02 || data[7] != 0x00) {
+			err = -12;
+			goto end;
+		}
+#endif
+	} else {
+		write_log(_T("READ_CAPACITY FAILED\n"));
+		err = -10;
+	}
+	if (!cylsp || !headsp || !secsp)
+		return err;
+	chsdialogactive = 1;
+	HWND hwnd = CustomCreateDialog(IDD_CHSQUERY, hDlg, CHSDialogProc);
+	if (hwnd == NULL) {
+		err = -15;
+		goto end;
+	}
+	HFONT font = CreateFont(getscaledfontsize(-1), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
+	if (font)
+		SendMessage(GetDlgItem(hwnd, IDD_CHSQUERY), WM_SETFONT, WPARAM(font), FALSE);
+	while (chsdialogactive == 1) {
+		MSG msg;
+		int ret;
+		WaitMessage();
+		while ((ret = GetMessage(&msg, NULL, 0, 0))) {
+			if (ret == -1)
+				break;
+			if (!IsWindow(hwnd) || !IsDialogMessage(hwnd, &msg)) {
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+		}
+	}
+	DeleteObject(font);
+	if (chsdialogactive == 0) {
+		err = -100;
+		goto end;
+	}
+	secs = chs_secs;
+	heads = chs_heads;
+	cyls = chs_cyls;
+	if (secs <= 0 || heads <= 0 || cyls <= 0) {
+		err = -13;
+		goto end;
+	}
+	if (secs >= 256 || heads >= 16 || cyls > 2048) {
+		err = -14;
+		goto end;
+	}
+end:
+	VirtualFree(data, 0, MEM_RELEASE);
+	if (cylsp)
+		*cylsp = cyls;
+	if (headsp)
+		*headsp = heads;
+	if (secsp)
+		*secsp = secs;
+	return err;
+}
+
 
 static int stringboxdialogactive;
 static TCHAR geometry_file[MAX_DPATH];
@@ -2940,15 +3062,43 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 	MSG msg;
 	int pct, cnt;
 	DWORD r;
+	bool chsmode = false;
+	DWORD erc = 0;
+	int cyls = 0, heads = 0, secs = 0;
+	int cyl = 0, head = 0;
 
 	cache = VirtualAlloc (NULL, COPY_CACHE_SIZE, MEM_COMMIT, PAGE_READWRITE);
 	if (!cache)
 		goto err;
-	h = CreateFile (uae_drives[idx].device_path, GENERIC_READ, FILE_SHARE_READ, NULL,
-		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING, NULL);
+
+	// Direct scsi for CHS check requires both READ and WRITE access.
+	h = CreateFile(uae_drives[idx].device_path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+		NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (h != INVALID_HANDLE_VALUE) {
+		if (!gethdfchs(hDlg, h, NULL, NULL, NULL)) {
+			chsmode = true;
+			erc = gethdfchs(hDlg, h, &cyls, &heads, &secs);
+			if (erc == -100) {
+				chsmode = false;
+				CloseHandle(h);
+				h = INVALID_HANDLE_VALUE;
+			} else if (erc) {
+				goto err;
+			} else {
+				size = (uae_u64)cyls * heads * secs * 512;
+			}
+		} else {
+			CloseHandle(h);
+		}
+	}
+	erc = 0;
+	if (!chsmode) {
+		size = uae_drives[idx].size;
+		h = CreateFile(uae_drives[idx].device_path, GENERIC_READ, FILE_SHARE_READ, NULL,
+			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING, NULL);
+	}
 	if (h == INVALID_HANDLE_VALUE)
 		goto err;
-	size = uae_drives[idx].size;
 	path[0] = 0;
 	DiskSelection (hDlg, IDC_PATH_NAME, 3, p, NULL, NULL);
 	GetDlgItemText (hDlg, IDC_PATH_NAME, path, MAX_DPATH);
@@ -2991,7 +3141,12 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 			break;
 		if (cnt > 0) {
 			SendMessage (hwndprogress, PBM_SETPOS, (WPARAM)pct, 0);
-			_stprintf (tmp, _T("%dM / %dM (%d%%)"), (int)(written >> 20), (int)(size >> 20), pct);
+			if (chsmode) {
+				_stprintf(tmp2, _T("Cyl %d/%d Head %d/%d"), cyl, cyls, head, heads);
+			} else {
+				_stprintf(tmp2, _T("LBA %lld/%lld"), written / 512, size / 512);
+			}
+			_stprintf (tmp, _T("%s %dM/%dM (%d%%)"), tmp2, (int)(written >> 20), (int)(size >> 20), pct);
 			SendMessage (hwndprogresstxt, WM_SETTEXT, 0, (LPARAM)tmp);
 			while (PeekMessage (&msg, hwnd, 0, 0, PM_REMOVE)) {
 				if (!IsDialogMessage (hwnd, &msg)) {
@@ -3010,12 +3165,23 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 				break;
 			}
 		}
-		get = COPY_CACHE_SIZE;
-		if (sizecnt + get > size)
-			get = size - sizecnt;
-		if (!ReadFile (h, cache, get, &got, NULL)) {
-			progressdialogreturn = 4;
-			break;
+		if (chsmode) {
+			do_scsi_read10_chs(h, -1, cyl, head, 1, (uae_u8*)cache, secs, false);
+			get = 512 * secs;
+			got = 512 * secs;
+			head++;
+			if (head >= heads) {
+				head = 0;
+				cyl++;
+			}
+		} else {
+			get = COPY_CACHE_SIZE;
+			if (sizecnt + get > size)
+				get = size - sizecnt;
+			if (!ReadFile(h, cache, get, &got, NULL)) {
+				progressdialogreturn = 4;
+				break;
+			}
 		}
 		if (get != got) {
 			progressdialogreturn = 5;
@@ -3032,7 +3198,7 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 			if (written == size)
 				break;
 		}
-		if (got != COPY_CACHE_SIZE) {
+		if (got != COPY_CACHE_SIZE && !chsmode) {
 			progressdialogreturn = 1;
 			break;
 		}
@@ -3059,12 +3225,13 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 	goto ok;
 
 err:
-	DWORD err = GetLastError ();
+	if (!erc)
+		erc = GetLastError ();
 	LPWSTR pBuffer = NULL;
 	WIN32GUI_LoadUIString (IDS_HDCLONE_FAIL, tmp, MAX_DPATH);
-	if (!FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&pBuffer, 0, NULL))
+	if (!FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, erc, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&pBuffer, 0, NULL))
 		pBuffer = NULL;
-	_stprintf (tmp2, tmp, progressdialogreturn, err, pBuffer ? _T("<unknown>") : pBuffer);
+	_stprintf (tmp2, tmp, progressdialogreturn, erc, pBuffer ? _T("<unknown>") : pBuffer);
 	gui_message (tmp2);
 	LocalFree (pBuffer);
 
