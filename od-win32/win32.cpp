@@ -5795,8 +5795,20 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		pngprint = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("norawinput"))) {
-		no_rawinput = 1;
+	if (!_tcscmp(arg, _T("norawinput"))) {
+		no_rawinput |= 4;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("norawinput_all"))) {
+		no_rawinput = 7;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("norawinput_keyboard"))) {
+		no_rawinput |= 1;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("norawinput_mouse"))) {
+		no_rawinput |= 2;
 		return 1;
 	}
 	if (!_tcscmp (arg, _T("nodirectinput"))) {

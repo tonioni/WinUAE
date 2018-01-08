@@ -2592,7 +2592,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 
 bool is_hid_rawinput(void)
 {
-	if (no_rawinput)
+	if (no_rawinput & 4)
 		return false;
 	if (!rawinput_enabled_hid && !rawinput_enabled_hid_reset)
 		return false;
@@ -2914,7 +2914,7 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 	}
 
 	if (pdidoi->dwType & DIDFT_BUTTON) {
-		if (did->buttons >= ID_BUTTON_TOTAL)
+		if (did->buttons >= ID_BUTTON_TOTAL && did->type != DID_KEYBOARD)
 			return DIENUM_CONTINUE;
 		TCHAR *bname = did->buttonname[did->buttons] = my_strdup (pdidoi->tszName);
 		if (did->type == DID_JOYSTICK) {
@@ -3196,8 +3196,10 @@ static int di_do_init (void)
 		rawinput_enabled_hid = 0;
 
 	if (!rawinput_decided) {
-		rawinput_enabled_keyboard = true;
-		rawinput_enabled_mouse = true;
+		if (!(no_rawinput & 1))
+			rawinput_enabled_keyboard = true;
+		if (!(no_rawinput & 2))
+			rawinput_enabled_mouse = true;
 		rawinput_decided = true;
 	}
 	if (!rawhid_found) {
