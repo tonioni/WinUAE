@@ -26,7 +26,8 @@
 
 #define BOOL_TYPE "int"
 /* Define the minimal 680x0 where NV flags are not affected by xBCD instructions.  */
-#define xBCD_KEEPS_NV_FLAGS 4
+#define xBCD_KEEPS_N_FLAG 4
+#define xBCD_KEEPS_V_FLAG 3
 
 static FILE *headerfile;
 static FILE *stblfile;
@@ -3277,13 +3278,18 @@ static void gen_opcode (unsigned int opcode)
 		printf ("\tif ((((dst & 0xFF) - (src & 0xFF) - (GET_XFLG () ? 1 : 0)) & 0x100) > 0xFF) { newv -= 0x60; }\n");
 		printf ("\tSET_CFLG ((((dst & 0xFF) - (src & 0xFF) - bcd - (GET_XFLG () ? 1 : 0)) & 0x300) > 0xFF);\n");
 		duplicate_carry (0);
-		/* Manual says bits NV are undefined though a real 68040/060 don't change them */
-		if (cpu_level >= xBCD_KEEPS_NV_FLAGS) {
-			if (next_cpu_level < xBCD_KEEPS_NV_FLAGS)
-				next_cpu_level = xBCD_KEEPS_NV_FLAGS - 1;
+		/* Manual says bits NV are undefined though a real 68030 doesn't change V and 68040/060 don't change both */
+		if (cpu_level >= xBCD_KEEPS_N_FLAG) {
+			if (next_cpu_level < xBCD_KEEPS_N_FLAG)
+				next_cpu_level = xBCD_KEEPS_N_FLAG - 1;
 			genflags (flag_z, curi->size, "newv", "", "");
 		} else {
 			genflags (flag_zn, curi->size, "newv", "", "");
+		}
+		if (cpu_level >= xBCD_KEEPS_V_FLAG) {
+			if (next_cpu_level < xBCD_KEEPS_V_FLAG)
+				next_cpu_level = xBCD_KEEPS_V_FLAG - 1;
+		} else {
 			printf ("\tSET_VFLG ((tmp_newv & 0x80) != 0 && (newv & 0x80) == 0);\n");
 		}
 		if (isreg (curi->smode)) {
@@ -3369,14 +3375,18 @@ static void gen_opcode (unsigned int opcode)
 		printf ("\tif (cflg) newv += 0x60;\n");
 		printf ("\tSET_CFLG (cflg);\n");
 		duplicate_carry (0);
-		/* Manual says bits NV are undefined though a real 68040 don't change them */
-		if (cpu_level >= xBCD_KEEPS_NV_FLAGS) {
-			if (next_cpu_level < xBCD_KEEPS_NV_FLAGS)
-				next_cpu_level = xBCD_KEEPS_NV_FLAGS - 1;
+		/* Manual says bits NV are undefined though a real 68030 doesn't change V and 68040/060 don't change both */
+		if (cpu_level >= xBCD_KEEPS_N_FLAG) {
+			if (next_cpu_level < xBCD_KEEPS_N_FLAG)
+				next_cpu_level = xBCD_KEEPS_N_FLAG - 1;
 			genflags (flag_z, curi->size, "newv", "", "");
-		}
-		else {
+		} else {
 			genflags (flag_zn, curi->size, "newv", "", "");
+		}
+		if (cpu_level >= xBCD_KEEPS_V_FLAG) {
+			if (next_cpu_level < xBCD_KEEPS_V_FLAG)
+				next_cpu_level = xBCD_KEEPS_V_FLAG - 1;
+		} else {
 			printf ("\tSET_VFLG ((tmp_newv & 0x80) == 0 && (newv & 0x80) != 0);\n");
 		}
 		if (isreg (curi->smode)) {
@@ -3414,20 +3424,25 @@ static void gen_opcode (unsigned int opcode)
 		printf ("\tuae_u16 newv_hi = - (src & 0xF0);\n");
 		printf ("\tuae_u16 newv;\n");
 		printf ("\tint cflg, tmp_newv;\n");
+		printf ("\ttmp_newv = newv_hi + newv_lo;\n");
 		printf ("\tif (newv_lo > 9) { newv_lo -= 6; }\n");
-		printf ("\ttmp_newv = newv = newv_hi + newv_lo;\n");
+		printf ("\tnewv = newv_hi + newv_lo;\n");
 		printf ("\tcflg = (newv & 0x1F0) > 0x90;\n");
 		printf ("\tif (cflg) newv -= 0x60;\n");
 		printf ("\tSET_CFLG (cflg);\n");
 		duplicate_carry(0);
-		/* Manual says bits NV are undefined though a real 68040 don't change them */
-		if (cpu_level >= xBCD_KEEPS_NV_FLAGS) {
-			if (next_cpu_level < xBCD_KEEPS_NV_FLAGS)
-				next_cpu_level = xBCD_KEEPS_NV_FLAGS - 1;
+		/* Manual says bits NV are undefined though a real 68030 doesn't change V and 68040/060 don't change both */
+		if (cpu_level >= xBCD_KEEPS_N_FLAG) {
+			if (next_cpu_level < xBCD_KEEPS_N_FLAG)
+				next_cpu_level = xBCD_KEEPS_N_FLAG - 1;
 			genflags (flag_z, curi->size, "newv", "", "");
-		}
-		else {
+		} else {
 			genflags (flag_zn, curi->size, "newv", "", "");
+		}
+		if (cpu_level >= xBCD_KEEPS_V_FLAG) {
+			if (next_cpu_level < xBCD_KEEPS_V_FLAG)
+				next_cpu_level = xBCD_KEEPS_V_FLAG - 1;
+		} else {
 			printf ("\tSET_VFLG ((tmp_newv & 0x80) != 0 && (newv & 0x80) == 0);\n");
 		}
 		genastore ("newv", curi->smode, "srcreg", curi->size, "src");
