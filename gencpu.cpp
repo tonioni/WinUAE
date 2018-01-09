@@ -3424,8 +3424,9 @@ static void gen_opcode (unsigned int opcode)
 		printf ("\tuae_u16 newv_hi = - (src & 0xF0);\n");
 		printf ("\tuae_u16 newv;\n");
 		printf ("\tint cflg, tmp_newv;\n");
+		printf ("\ttmp_newv = newv_hi + newv_lo;\n");
 		printf ("\tif (newv_lo > 9) { newv_lo -= 6; }\n");
-		printf ("\ttmp_newv = newv = newv_hi + newv_lo;\n");
+		printf ("\tnewv = newv_hi + newv_lo;\n");
 		printf ("\tcflg = (newv & 0x1F0) > 0x90;\n");
 		printf ("\tif (cflg) newv -= 0x60;\n");
 		printf ("\tSET_CFLG (cflg);\n");
