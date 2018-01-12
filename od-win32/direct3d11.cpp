@@ -163,6 +163,8 @@ struct d3d11sprite
 struct d3d11struct
 {
 	IDXGISwapChain1 *m_swapChain;
+	IDXGISwapChain2 *m_swapChain2;
+	HANDLE FrameLatencyHandle;
 	ID3D11Device *m_device;
 	ID3D11DeviceContext *m_deviceContext;
 	ID3D11RenderTargetView *m_renderTargetView;
@@ -390,7 +392,7 @@ static bool psEffect_ParseParameters(struct d3d11struct *d3d, ID3DX11Effect *eff
 		return false;
 
 	if (!effectDesc.Techniques) {
-		write_log(_T("D3D11: No techniques found!\n"));
+		write_log(_T("D3D11 No techniques found!\n"));
 		return false;
 	}
 
@@ -923,7 +925,7 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 	char *name = NULL;
 
 	if (!pD3DCompileFromFile || !ppD3DCompile) {
-		write_log(_T("D3D11: No shader compiler available (D3DCompiler_46.dll or D3DCompiler_47.dll).\n"));
+		write_log(_T("D3D11 No shader compiler available (D3DCompiler_46.dll or D3DCompiler_47.dll).\n"));
 		return false;
 	}
 
@@ -1132,7 +1134,7 @@ static int psEffect_SetTextures(ID3D11Texture2D *lpSourceTex, ID3D11ShaderResour
 	D3DXVECTOR4 fDims, fTexelSize;
 
 	if (!s->m_SourceTextureEffectHandle) {
-		write_log(_T("D3D11: Texture with SOURCETEXTURE semantic not found\n"));
+		write_log(_T("D3D11 Texture with SOURCETEXTURE semantic not found\n"));
 		return 0;
 	}
 	s->m_SourceTextureEffectHandle->SetResource(lpSourcerv);
@@ -1894,7 +1896,7 @@ static bool CreateTexture(struct d3d11struct *d3d)
 	d3d->cursor_scale = false;
 	allocsprite(d3d, &d3d->hwsprite, CURSORMAXWIDTH, CURSORMAXHEIGHT, true);
 
-	write_log(_T("D3D11: %dx%d main texture allocated\n"), d3d->m_bitmapWidth, d3d->m_bitmapHeight);
+	write_log(_T("D3D11 %dx%d main texture allocated\n"), d3d->m_bitmapWidth, d3d->m_bitmapHeight);
 
 	return true;
 }
@@ -1919,7 +1921,7 @@ static bool allocshadertex(struct d3d11struct *d3d, struct shadertex *t, int w, 
 
 	hr = d3d->m_device->CreateTexture2D(&desc, NULL, &t->tex);
 	if (FAILED(hr)) {
-		write_log(_T("D3D11: Failed to create working texture: %08x:%d\n"), hr, idx);
+		write_log(_T("D3D11 Failed to create working texture: %08x:%d\n"), hr, idx);
 		return 0;
 	}
 
@@ -1951,7 +1953,7 @@ static bool allocextratextures(struct d3d11struct *d3d, struct shaderdata11 *s, 
 	if (!allocshadertex(d3d, &s->lpWorkTexture2, w, h, s - &d3d->shaders[0]))
 		return false;
 
-	write_log(_T("D3D11: %d*%d working texture:%d\n"), w, h, s - &d3d->shaders[0]);
+	write_log(_T("D3D11 %d*%d working texture:%d\n"), w, h, s - &d3d->shaders[0]);
 	return true;
 }
 
@@ -1995,7 +1997,7 @@ static bool createextratextures(struct d3d11struct *d3d, int ow, int oh, int win
 			d3d->shaders[i].targettex_height = h2;
 			if (!allocshadertex(d3d, &s->lpTempTexture, w2, h2, s - &d3d->shaders[0]))
 				return false;
-			write_log(_T("D3D11: %d*%d temp texture:%d:%d\n"), w2, h2, i, d3d->shaders[i].type);
+			write_log(_T("D3D11 %d*%d temp texture:%d:%d\n"), w2, h2, i, d3d->shaders[i].type);
 			d3d->shaders[i].worktex_width = w;
 			d3d->shaders[i].worktex_height = h;
 		}
@@ -2003,7 +2005,7 @@ static bool createextratextures(struct d3d11struct *d3d, int ow, int oh, int win
 	if (haveafter) {
 		if (!allocshadertex(d3d, &d3d->lpPostTempTexture, d3d->m_screenWidth, d3d->m_screenHeight, -1))
 			return 0;
-		write_log(_T("D3D11: %d*%d after texture\n"), d3d->m_screenWidth, d3d->m_screenHeight);
+		write_log(_T("D3D11 %d*%d after texture\n"), d3d->m_screenWidth, d3d->m_screenHeight);
 	}
 	return 1;
 }
@@ -2799,9 +2801,12 @@ static void setswapchainmode(struct d3d11struct *d3d, int fs)
 	if (d3d->m_tearingSupport && (d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL || d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) && !apm->gfx_vflip && apm->gfx_backbuffers == 0) {
 		d3d->swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 	}
+	if (0 && os_win8 > 1 && fs <= 0) {
+		d3d->swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+	}
 	d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	// tearing flag is not fullscreen compatible
-	if (fs) {
+	if (fs > 0) {
 		d3d->swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 		d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 	}
@@ -2933,12 +2938,17 @@ static void do_present(struct d3d11struct *d3d, int black)
 		d3d->m_deviceContext->ClearRenderTargetView(d3d->m_renderTargetView, color);
 	}
 
+	if (d3d->FrameLatencyHandle) {
+		WaitForSingleObjectEx(d3d->FrameLatencyHandle, 100, TRUE);
+	}
+
 	struct apmode *apm = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
 	int vsync = isvsync();
+	UINT syncinterval = d3d->vblankintervals;
 	if (d3d->m_tearingSupport && (d3d->swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING)) {
 		presentFlags |= DXGI_PRESENT_ALLOW_TEARING;
+		syncinterval = 0;
 	}
-	UINT syncinterval = d3d->vblankintervals;
 	d3d->flipped = true;
 	if (!vsync) {
 		if (apm->gfx_backbuffers == 0 || (presentFlags & DXGI_PRESENT_ALLOW_TEARING) || (apm->gfx_vflip == 0 && isfs(d3d) <= 0) || (isfs(d3d) > 0 && apm->gfx_vsyncmode))
@@ -3022,7 +3032,7 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 	DXGI_MODE_DESC1* displayModeList;
 	DXGI_ADAPTER_DESC adapterDesc;
 
-	write_log(_T("D3D11: init start. (%d*%d) (%d*%d) RTG=%d Depth=%d.\n"), w_w, w_h, t_w, t_h, picasso_on, depth);
+	write_log(_T("D3D11 init start. (%d*%d) (%d*%d) RTG=%d Depth=%d.\n"), w_w, w_h, t_w, t_h, picasso_on, depth);
 
 	filterd3didx = picasso_on;
 	filterd3d = &currprefs.gf[filterd3didx];
@@ -3149,23 +3159,29 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 	// When a match is found store the numerator and denominator of the refresh rate for that monitor.
 	d3d->fsSwapChainDesc.RefreshRate.Denominator = 0;
 	d3d->fsSwapChainDesc.RefreshRate.Numerator = 0;
+	d3d->fsSwapChainDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
 	for (int i = 0; i < numModes; i++)
 	{
 		DXGI_MODE_DESC1 *m = &displayModeList[i];
 		if (m->Format != d3d->scrformat)
 			continue;
-		if (apm->gfx_interlaced && !(m->ScanlineOrdering & DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST))
+		if (apm->gfx_interlaced && m->ScanlineOrdering != DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST)
+			continue;
+		if (!apm->gfx_interlaced && m->ScanlineOrdering != DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE)
 			continue;
 		if (m->Width == w_w && m->Height == w_h) {
 			d3d->fsSwapChainDesc.ScanlineOrdering = m->ScanlineOrdering;
 			d3d->fsSwapChainDesc.Scaling = m->Scaling;
-			if (!hz)
+			if (!hz) {
+				write_log(_T("D3D11 found matching fullscreen mode. SLO=%d S=%d. Default refresh rate.\n"), m->ScanlineOrdering, m->Scaling);
 				break;
+			}
 			if (isfs(d3d) > 0) {
 				double mhz = (double)m->RefreshRate.Numerator / m->RefreshRate.Denominator;
 				if ((int)(mhz + 0.5) == hz || (int)(mhz) == hz) {
 					d3d->fsSwapChainDesc.RefreshRate.Denominator = m->RefreshRate.Denominator;
 					d3d->fsSwapChainDesc.RefreshRate.Numerator = m->RefreshRate.Numerator;
+					write_log(_T("D3D11 found matching fullscreen refresh rate %d/%d=%.2f. SLO=%d\n"), m->RefreshRate.Denominator, m->RefreshRate.Numerator, (float)mhz, m->ScanlineOrdering);
 					*freq = hz;
 					break;
 				}
@@ -3186,6 +3202,9 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 			d3d->fsSwapChainDesc.RefreshRate.Denominator = md2.RefreshRate.Denominator;
 			d3d->fsSwapChainDesc.RefreshRate.Numerator = md2.RefreshRate.Numerator;
 			*freq = md2.RefreshRate.Numerator / md2.RefreshRate.Denominator;
+			write_log(_T("D3D11 FindClosestMatchingMode1() %d/%d=%.2f SLO=%d W=%d H=%d\n"),
+				md2.RefreshRate.Denominator, md2.RefreshRate.Numerator, (float)md2.RefreshRate.Numerator / md2.RefreshRate.Denominator, md1.ScanlineOrdering,
+				md2.Width, md2.Height);
 		}
 	}
 
@@ -3300,6 +3319,7 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 	if (apm->gfx_vsyncmode && isfs(d3d) > 0 && !os_win10) {
 		d3d->swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	}
+
 	d3d->needvblankevent = false;
 	if (apm->gfx_vsyncmode && isfs(d3d) > 0) {
 		d3d->needvblankevent = true;
@@ -3307,15 +3327,13 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 
 	d3d->swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
-	setswapchainmode(d3d, isfs(d3d) > 0);
+	setswapchainmode(d3d, isfs(d3d));
 
 	d3d->swapChainDesc.Scaling = (d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL || d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) ? DXGI_SCALING_NONE : DXGI_SCALING_STRETCH;
 
 	d3d->vblankintervals = 1;
 	d3d->blackscreen = false;
-	if (apm->gfx_backbuffers == 0) {
-		d3d->vblankintervals = 0;
-	} else {
+	if (!apm->gfx_backbuffers) {
 		int hzmult = 0;
 		getvsyncrate(*freq, &hzmult);
 		if (hzmult < 0) {
@@ -3345,6 +3363,12 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 		return 0;
 	}
 
+	d3d->m_swapChain2 = NULL;
+	if (d3d->swapChainDesc.Flags & 	DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT) {
+		result = d3d->m_swapChain->QueryInterface(__uuidof(IDXGISwapChain2), (void**)&d3d->m_swapChain2);
+		d3d->FrameLatencyHandle = d3d->m_swapChain2->GetFrameLatencyWaitableObject();
+	}
+
 	IDXGIFactory1 *pFactory = NULL;
 	result = d3d->m_swapChain->GetParent(__uuidof (IDXGIFactory1), (void **)&pFactory);
 	if (SUCCEEDED(result)) {
@@ -3360,13 +3384,13 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 
 	initthread(d3d);
 
-	write_log(_T("D3D11: %d %08x %08x\n"), d3d->swapChainDesc.BufferCount, d3d->swapChainDesc.Flags, d3d->swapChainDesc.Format);
+	write_log(_T("D3D11 %d %08x %08x\n"), d3d->swapChainDesc.BufferCount, d3d->swapChainDesc.Flags, d3d->swapChainDesc.Format);
 
 	if (isfs(d3d) > 0)
 		D3D_resize(1);
 	D3D_resize(0);
 
-	write_log(_T("D3D11: init end\n"));
+	write_log(_T("D3D11 init end\n"));
 	return 1;
 }
 
@@ -3466,7 +3490,7 @@ static void xD3D11_free(bool immediate)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
 
-	write_log(_T("D3D11: free start\n"));
+	write_log(_T("D3D11 free start\n"));
 
 	freethread(d3d);
 
@@ -3477,6 +3501,10 @@ static void xD3D11_free(bool immediate)
 		d3d->m_swapChain->SetFullscreenState(false, NULL);
 		d3d->m_swapChain->Release();
 		d3d->m_swapChain = NULL;
+	}
+	if (d3d->m_swapChain2) {
+		d3d->m_swapChain2->Release();
+		d3d->m_swapChain2 = NULL;
 	}
 	if (d3d->m_deviceContext) {
 		d3d->m_deviceContext->ClearState();
@@ -3500,7 +3528,7 @@ static void xD3D11_free(bool immediate)
 	changed_prefs.leds_on_screen &= ~STATUSLINE_TARGET;
 	currprefs.leds_on_screen &= ~STATUSLINE_TARGET;
 
-	write_log(_T("D3D11: free end\n"));
+	write_log(_T("D3D11 free end\n"));
 }
 
 static int xxD3D11_init(HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmult)
@@ -3979,12 +4007,12 @@ static bool restore(struct d3d11struct *d3d)
 			desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 			hr = d3d->m_device->CreateTexture3D(&desc, NULL, &d3d->shaders[i].lpHq2xLookupTexture);
 			if (FAILED(hr)) {
-				write_log(_T("D3D11: Failed to create volume texture: %08x:%d\n"), hr, i);
+				write_log(_T("D3D11 Failed to create volume texture: %08x:%d\n"), hr, i);
 				return false;
 			}
 			hr = d3d->m_deviceContext->Map(d3d->shaders[i].lpHq2xLookupTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
 			if (FAILED(hr)) {
-				write_log(_T("D3D11: Failed to lock box of volume texture: %08x:%d\n"), hr, i);
+				write_log(_T("D3D11 Failed to lock box of volume texture: %08x:%d\n"), hr, i);
 				return false;
 			}
 			write_log(_T("HQ2X texture (%dx%d) (%dx%d):%d\n"), w2, h2, w, h, i);
@@ -3999,13 +4027,13 @@ static bool restore(struct d3d11struct *d3d)
 			srvDesc.Format = d3d->scrformat;
 			hr = d3d->m_device->CreateShaderResourceView(d3d->shaders[i].lpHq2xLookupTexture, &srvDesc, &d3d->shaders[i].lpHq2xLookupTexturerv);
 			if (FAILED(hr)) {
-				write_log(_T("D3D11: Failed to create volume texture resource view: %08x:%d\n"), hr, i);
+				write_log(_T("D3D11 Failed to create volume texture resource view: %08x:%d\n"), hr, i);
 				return false;
 			}
 		}
 	}
 
-	write_log(_T("D3D11: Shader and extra textures restored\n"));
+	write_log(_T("D3D11 Shader and extra textures restored\n"));
 
 	return true;
 }
@@ -4185,14 +4213,7 @@ static void xD3D11_unlocktexture(void)
 		updateleds(d3d);
 	}
 
-	D3D11_BOX box;
-	box.front = 0;
-	box.back = 1;
-	box.left = 0;
-	box.right = d3d->m_bitmapWidth;
-	box.top = 0;
-	box.bottom = d3d->m_bitmapHeight;
-	d3d->m_deviceContext->CopySubresourceRegion(d3d->texture2d, 0, 0, 0, 0, d3d->texture2dstaging, 0, &box);
+	d3d->m_deviceContext->CopyResource(d3d->texture2d, d3d->texture2dstaging);
 }
 
 static void xD3D11_flushtexture(int miny, int maxy)
@@ -4511,6 +4532,10 @@ double d3d11_get_hz(void)
 bool d3d11_vsync_isdone(void)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
+	if (d3d->FrameLatencyHandle) {
+		if (WaitForSingleObject(d3d->FrameLatencyHandle, 0) != WAIT_OBJECT_0)
+			return false;
+	}
 	if (vblankevent) {
 		if (WaitForSingleObject(vblankevent, 0) == WAIT_OBJECT_0)
 			return true;

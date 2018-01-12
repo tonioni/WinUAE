@@ -4378,6 +4378,7 @@ static const struct miscentry misclist[] = {
 	{ 0, 0, _T("Master harddrive write protection"), &workprefs.harddrive_read_only },
 	{ 0, 0, _T("Hide all UAE autoconfig boards"), &workprefs.uae_hide_autoconfig },
 	{ 0, 1, _T("Right Control = Right Windows key"), &workprefs.right_control_is_right_win_key },
+	{ 0, 0, _T("Windows shutdown/logoff notification"), &workprefs.win32_shutdown_notification },
 	{ 0, NULL }
 };
 

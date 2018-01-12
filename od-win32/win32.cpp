@@ -1545,6 +1545,15 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
 	switch (message)
 	{
+	case WM_QUERYENDSESSION:
+	{
+		if (hWnd == hMainWnd && currprefs.win32_shutdown_notification && !rp_isactive()) {
+			return FALSE;
+		}
+		return TRUE;
+	}
+	case WM_ENDSESSION:
+		return FALSE;
 	case WM_INPUT:
 		monitor_off = 0;
 		handle_rawinput (lParam);
@@ -1568,19 +1577,19 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	{
 
 	case WM_SETFOCUS:
-		winuae_active (hWnd, minimized);
-		unsetminimized ();
-		dx_check ();
+		winuae_active(hWnd, minimized);
+		unsetminimized();
+		dx_check();
 		break;
 	case WM_SIZE:
 		//write_log (_T("WM_SIZE %d\n"), wParam);
 		if (hStatusWnd)
-			SendMessage (hStatusWnd, WM_SIZE, wParam, lParam);
+			SendMessage(hStatusWnd, WM_SIZE, wParam, lParam);
 		if (wParam == SIZE_MINIMIZED && !minimized) {
-			setminimized ();
-			winuae_inactive (hWnd, minimized);
+			setminimized();
+			winuae_inactive(hWnd, minimized);
 		}
-		if (D3D_resize)  {
+		if (D3D_resize) {
 			if (isfullscreen() > 0 && wParam == SIZE_RESTORED) {
 				write_log(_T("WM_SIZE restored\n"));
 				D3D_resize(1);
@@ -1598,14 +1607,14 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 				unsetminimized();
 			winuae_inactive(hWnd, minimized);
 		}
-		dx_check ();
+		dx_check();
 		break;
 	case WM_MOUSEACTIVATE:
-		if (isfocus () == 0)
+		if (isfocus() == 0)
 			ignorelbutton = true;
 		break;
 	case WM_ACTIVATEAPP:
-		D3D_restore ();
+		D3D_restore();
 		if (!wParam && isfullscreen() > 0 && D3D_resize && !gui_active) {
 			write_log(_T("WM_ACTIVATEAPP inactive %p\n"), hWnd);
 			D3D_resize(-1);
@@ -1618,52 +1627,52 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			minimizewindow();
 		}
 #ifdef RETROPLATFORM
-		rp_activate (wParam, lParam);
+		rp_activate(wParam, lParam);
 #endif
-		dx_check ();
+		dx_check();
 		break;
 
 	case WM_KEYDOWN:
-		if (dinput_wmkey ((uae_u32)lParam))
-			inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
+		if (dinput_wmkey((uae_u32)lParam))
+			inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
 		return 0;
 
 	case WM_LBUTTONUP:
-		if (dinput_winmouse () >= 0 && isfocus ())
-			setmousebuttonstate (dinput_winmouse (), 0, 0);
+		if (dinput_winmouse() >= 0 && isfocus())
+			setmousebuttonstate(dinput_winmouse(), 0, 0);
 		return 0;
 	case WM_LBUTTONDOWN:
 	case WM_LBUTTONDBLCLK:
-		if (!mouseactive && !gui_active && (!mousehack_alive () || currprefs.input_tablet != TABLET_MOUSEHACK || (currprefs.input_tablet == TABLET_MOUSEHACK && !(currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC)) || isfullscreen () > 0)) {
+		if (!mouseactive && !gui_active && (!mousehack_alive() || currprefs.input_tablet != TABLET_MOUSEHACK || (currprefs.input_tablet == TABLET_MOUSEHACK && !(currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC)) || isfullscreen() > 0)) {
 			// borderless = do not capture with single-click
 			if (ignorelbutton) {
 				ignorelbutton = 0;
 				return 0;
 			}
-			if (message == WM_LBUTTONDOWN && isfullscreen () == 0 && currprefs.win32_borderless && !rp_isactive ()) {
+			if (message == WM_LBUTTONDOWN && isfullscreen() == 0 && currprefs.win32_borderless && !rp_isactive()) {
 				// full-window drag
-				SendMessage (hAmigaWnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+				SendMessage(hAmigaWnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
 				return 0;
 			}
 			if (!pause_emulation || currprefs.win32_active_nocapture_pause)
-				setmouseactive ((message == WM_LBUTTONDBLCLK || isfullscreen() > 0) ? 2 : 1);
-		} else if (dinput_winmouse () >= 0 && isfocus ()) {
-			setmousebuttonstate (dinput_winmouse (), 0, 1);
+				setmouseactive((message == WM_LBUTTONDBLCLK || isfullscreen() > 0) ? 2 : 1);
+		} else if (dinput_winmouse() >= 0 && isfocus()) {
+			setmousebuttonstate(dinput_winmouse(), 0, 1);
 		}
 		return 0;
 	case WM_RBUTTONUP:
-		if (dinput_winmouse () >= 0 && isfocus ())
-			setmousebuttonstate (dinput_winmouse (), 1, 0);
+		if (dinput_winmouse() >= 0 && isfocus())
+			setmousebuttonstate(dinput_winmouse(), 1, 0);
 		return 0;
 	case WM_RBUTTONDOWN:
 	case WM_RBUTTONDBLCLK:
-		if (dinput_winmouse () >= 0 && isfocus () > 0)
-			setmousebuttonstate (dinput_winmouse (), 1, 1);
+		if (dinput_winmouse() >= 0 && isfocus() > 0)
+			setmousebuttonstate(dinput_winmouse(), 1, 1);
 		return 0;
 	case WM_MBUTTONUP:
 		if (!(currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON)) {
-			if (dinput_winmouse () >= 0 && isfocus ())
-				setmousebuttonstate (dinput_winmouse (), 2, 0);
+			if (dinput_winmouse() >= 0 && isfocus())
+				setmousebuttonstate(dinput_winmouse(), 2, 0);
 		}
 		return 0;
 	case WM_MBUTTONDOWN:
@@ -1671,65 +1680,65 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		if (currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) {
 			activationtoggle(true);
 		} else {
-			if (dinput_winmouse () >= 0 && isfocus () > 0)
-				setmousebuttonstate (dinput_winmouse (), 2, 1);
+			if (dinput_winmouse() >= 0 && isfocus() > 0)
+				setmousebuttonstate(dinput_winmouse(), 2, 1);
 		}
 		return 0;
 	case WM_XBUTTONUP:
-		if (dinput_winmouse () >= 0 && isfocus ()) {
-			handleXbutton (wParam, 0);
+		if (dinput_winmouse() >= 0 && isfocus()) {
+			handleXbutton(wParam, 0);
 			return TRUE;
 		}
 		return 0;
 	case WM_XBUTTONDOWN:
 	case WM_XBUTTONDBLCLK:
-		if (dinput_winmouse () >= 0 && isfocus () > 0) {
-			handleXbutton (wParam, 1);
+		if (dinput_winmouse() >= 0 && isfocus() > 0) {
+			handleXbutton(wParam, 1);
 			return TRUE;
 		}
 		return 0;
 	case WM_MOUSEWHEEL:
-		if (dinput_winmouse () >= 0 && isfocus () > 0) {
-			int val = ((short)HIWORD (wParam));
-			setmousestate (dinput_winmouse (), 2, val, 0);
+		if (dinput_winmouse() >= 0 && isfocus() > 0) {
+			int val = ((short)HIWORD(wParam));
+			setmousestate(dinput_winmouse(), 2, val, 0);
 			if (val < 0)
-				setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 0, -1);
+				setmousebuttonstate(dinput_winmouse(), dinput_wheelbuttonstart() + 0, -1);
 			else if (val > 0)
-				setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 1, -1);
+				setmousebuttonstate(dinput_winmouse(), dinput_wheelbuttonstart() + 1, -1);
 			return TRUE;
 		}
 		return 0;
 	case WM_MOUSEHWHEEL:
-		if (dinput_winmouse () >= 0 && isfocus () > 0) {
-			int val = ((short)HIWORD (wParam));
-			setmousestate (dinput_winmouse (), 3, val, 0);
+		if (dinput_winmouse() >= 0 && isfocus() > 0) {
+			int val = ((short)HIWORD(wParam));
+			setmousestate(dinput_winmouse(), 3, val, 0);
 			if (val < 0)
-				setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 2, -1);
+				setmousebuttonstate(dinput_winmouse(), dinput_wheelbuttonstart() + 2, -1);
 			else if (val > 0)
-				setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 3, -1);
+				setmousebuttonstate(dinput_winmouse(), dinput_wheelbuttonstart() + 3, -1);
 			return TRUE;
 		}
 		return 0;
 
 	case WM_PAINT:
-		{
-			static int recursive = 0;
-			if (recursive == 0) {
-				PAINTSTRUCT ps;
-				recursive++;
-				notice_screen_contents_lost ();
-				hDC = BeginPaint (hWnd, &ps);
-				/* Check to see if this WM_PAINT is coming while we've got the GUI visible */
-				if (manual_painting_needed)
-					updatedisplayarea ();
-				EndPaint (hWnd, &ps);
-				recursive--;
-			}
+	{
+		static int recursive = 0;
+		if (recursive == 0) {
+			PAINTSTRUCT ps;
+			recursive++;
+			notice_screen_contents_lost();
+			hDC = BeginPaint(hWnd, &ps);
+			/* Check to see if this WM_PAINT is coming while we've got the GUI visible */
+			if (manual_painting_needed)
+				updatedisplayarea();
+			EndPaint(hWnd, &ps);
+			recursive--;
 		}
-		return 0;
+	}
+	return 0;
 
 	case WM_DROPFILES:
-		dragdrop (hWnd, (HDROP)wParam, &changed_prefs, -2);
+		dragdrop(hWnd, (HDROP)wParam, &changed_prefs, -2);
 		return 0;
 
 	case WM_TIMER:
@@ -1743,7 +1752,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 				for (int i = 0; i < MEDIA_INSERT_QUEUE_SIZE; i++) {
 					if (media_insert_queue[i]) {
 						TCHAR *drvname = media_insert_queue[i];
-						int r = my_getvolumeinfo (drvname);
+						int r = my_getvolumeinfo(drvname);
 						if (r < 0) {
 							if (media_insert_queue_type[i] > 0) {
 								write_log(_T("Mounting %s but drive is not ready, %d.. retrying %d..\n"), drvname, r, media_insert_queue_type[i]);
@@ -1758,7 +1767,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 							DWORD type = GetDriveType(drvname);
 							if (type == DRIVE_CDROM)
 								inserted = -1;
-							r = filesys_media_change (drvname, inserted, NULL);
+							r = filesys_media_change(drvname, inserted, NULL);
 							if (r < 0) {
 								write_log(_T("Mounting %s but previous media change is still in progress..\n"), drvname);
 								restart = true;
@@ -1781,254 +1790,254 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		} else if (wParam == 4) {
 			device_change_timer = 0;
 			KillTimer(hWnd, 4);
-			inputdevice_devicechange (&changed_prefs);
+			inputdevice_devicechange(&changed_prefs);
 			inputdevice_copyjports(&changed_prefs, &workprefs);
 		} else if (wParam == 1) {
 #ifdef PARALLEL_PORT
-			finishjob ();
+			finishjob();
 #endif
 		}
 		return 0;
 
 	case WM_CREATE:
 #ifdef RETROPLATFORM
-		rp_set_hwnd (hWnd);
+		rp_set_hwnd(hWnd);
 #endif
-		DragAcceptFiles (hWnd, TRUE);
-		normalcursor = LoadCursor (NULL, IDC_ARROW);
-		hwndNextViewer = SetClipboardViewer (hWnd); 
-		clipboard_init (hWnd);
+		DragAcceptFiles(hWnd, TRUE);
+		normalcursor = LoadCursor(NULL, IDC_ARROW);
+		hwndNextViewer = SetClipboardViewer(hWnd);
+		clipboard_init(hWnd);
 		return 0;
 
 	case WM_DESTROY:
 		if (device_change_timer)
 			KillTimer(hWnd, 4);
 		device_change_timer = 0;
-		ChangeClipboardChain (hWnd, hwndNextViewer); 
-		wait_keyrelease ();
-		inputdevice_unacquire ();
-		dinput_window ();
+		ChangeClipboardChain(hWnd, hwndNextViewer);
+		wait_keyrelease();
+		inputdevice_unacquire();
+		dinput_window();
 		return 0;
 
 	case WM_CLOSE:
-		uae_quit ();
+		uae_quit();
 		return 0;
 
 	case WM_WINDOWPOSCHANGED:
-		{
-			WINDOWPOS *wp = (WINDOWPOS*)lParam;
-			if (isfullscreen () <= 0) {
-				if (!IsIconic (hWnd) && hWnd == hAmigaWnd) {
-					updatewinrect (false);
-					updatemouseclip ();
-				}
+	{
+		WINDOWPOS *wp = (WINDOWPOS*)lParam;
+		if (isfullscreen() <= 0) {
+			if (!IsIconic(hWnd) && hWnd == hAmigaWnd) {
+				updatewinrect(false);
+				updatemouseclip();
+			}
+		}
+	}
+	break;
+
+	case WM_SETCURSOR:
+	{
+		if ((HWND)wParam == hAmigaWnd && currprefs.input_tablet > 0 && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && isfullscreen() <= 0) {
+			if (mousehack_alive()) {
+				setcursorshape();
+				return 1;
 			}
 		}
 		break;
-
-	case WM_SETCURSOR:
-		{
-			if ((HWND)wParam == hAmigaWnd && currprefs.input_tablet > 0 && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && isfullscreen () <= 0) {
-				if (mousehack_alive ()) {
-					setcursorshape ();
-					return 1;
-				}
-			}
-			break;
-		}
+	}
 
 	case WM_MOUSELEAVE:
 		mouseinside = false;
 		return 0;
 
 	case WM_MOUSEMOVE:
-		{
-			int wm = dinput_winmouse ();
-			
-			monitor_off = 0;
-			if (!mouseinside) {
-				TRACKMOUSEEVENT tme = { 0 };
-				mouseinside = true;
-				tme.cbSize = sizeof tme;
-				tme.dwFlags = TME_LEAVE;
-				tme.hwndTrack = hAmigaWnd;
-				TrackMouseEvent (&tme);
-			}
+	{
+		int wm = dinput_winmouse();
 
-			mx = (signed short) LOWORD (lParam);
-			my = (signed short) HIWORD (lParam);
+		monitor_off = 0;
+		if (!mouseinside) {
+			TRACKMOUSEEVENT tme = { 0 };
+			mouseinside = true;
+			tme.cbSize = sizeof tme;
+			tme.dwFlags = TME_LEAVE;
+			tme.hwndTrack = hAmigaWnd;
+			TrackMouseEvent(&tme);
+		}
+
+		mx = (signed short)LOWORD(lParam);
+		my = (signed short)HIWORD(lParam);
 
 #if 0
-			setmousestate (0, 0, mx, 1);
-			setmousestate (0, 1, my, 1);
-			return 0;
+		setmousestate(0, 0, mx, 1);
+		setmousestate(0, 1, my, 1);
+		return 0;
 #endif
 
-			//write_log (_T("%d %d %d %d %d %d %dx%d %dx%d\n"), wm, mouseactive, focus, showcursor, recapture, isfullscreen (), mx, my, mouseposx, mouseposy);
-			mx -= mouseposx;
-			my -= mouseposy;
+		//write_log (_T("%d %d %d %d %d %d %dx%d %dx%d\n"), wm, mouseactive, focus, showcursor, recapture, isfullscreen (), mx, my, mouseposx, mouseposy);
+		mx -= mouseposx;
+		my -= mouseposy;
 
-			if (recapture && isfullscreen () <= 0) {
-				enablecapture ();
-				return 0;
-			}
-			if (wm < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
-				/* absolute */
-				setmousestate (0, 0, mx, 1);
-				setmousestate (0, 1, my, 1);
-				return 0;
-			}
-			if (wm >= 0) {
-				if (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK) {
-					/* absolute */
-					setmousestate (dinput_winmouse (), 0, mx, 1);
-					setmousestate (dinput_winmouse (), 1, my, 1);
-					return 0;
-				}
-				if (!focus || !mouseactive)
-					return DefWindowProc (hWnd, message, wParam, lParam);
-				/* relative */
-				int mxx = (amigawinclip_rect.left - amigawin_rect.left) + (amigawinclip_rect.right - amigawinclip_rect.left) / 2;
-				int myy = (amigawinclip_rect.top - amigawin_rect.top) + (amigawinclip_rect.bottom - amigawinclip_rect.top) / 2;
-				mx = mx - mxx;
-				my = my - myy;
-				setmousestate (dinput_winmouse (), 0, mx, 0);
-				setmousestate (dinput_winmouse (), 1, my, 0);
-			} else if (isfocus () < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
-				setmousestate (0, 0, mx, 1);
-				setmousestate (0, 1, my, 1);
-			}
-			if (showcursor || mouseactive)
-				setcursor (LOWORD (lParam), HIWORD (lParam));
+		if (recapture && isfullscreen() <= 0) {
+			enablecapture();
 			return 0;
 		}
-		break;
+		if (wm < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
+			/* absolute */
+			setmousestate(0, 0, mx, 1);
+			setmousestate(0, 1, my, 1);
+			return 0;
+		}
+		if (wm >= 0) {
+			if (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK) {
+				/* absolute */
+				setmousestate(dinput_winmouse(), 0, mx, 1);
+				setmousestate(dinput_winmouse(), 1, my, 1);
+				return 0;
+			}
+			if (!focus || !mouseactive)
+				return DefWindowProc(hWnd, message, wParam, lParam);
+			/* relative */
+			int mxx = (amigawinclip_rect.left - amigawin_rect.left) + (amigawinclip_rect.right - amigawinclip_rect.left) / 2;
+			int myy = (amigawinclip_rect.top - amigawin_rect.top) + (amigawinclip_rect.bottom - amigawinclip_rect.top) / 2;
+			mx = mx - mxx;
+			my = my - myy;
+			setmousestate(dinput_winmouse(), 0, mx, 0);
+			setmousestate(dinput_winmouse(), 1, my, 0);
+		} else if (isfocus() < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
+			setmousestate(0, 0, mx, 1);
+			setmousestate(0, 1, my, 1);
+		}
+		if (showcursor || mouseactive)
+			setcursor(LOWORD(lParam), HIWORD(lParam));
+		return 0;
+	}
+	break;
 
 	case WM_MOVING:
-		{
-			LRESULT lr = DefWindowProc (hWnd, message, wParam, lParam);
-			return lr;
-		}
+	{
+		LRESULT lr = DefWindowProc(hWnd, message, wParam, lParam);
+		return lr;
+	}
 	case WM_MOVE:
 		return FALSE;
 
 	case WM_ENABLE:
-		rp_set_enabledisable (wParam ? 1 : 0);
+		rp_set_enabledisable(wParam ? 1 : 0);
 		return FALSE;
 
 #ifdef FILESYS
 	case WM_USER + 2:
-		{
-			LONG lEvent;
-			PIDLIST_ABSOLUTE *ppidl;
-			HANDLE lock = SHChangeNotification_Lock((HANDLE)wParam, (DWORD)lParam, &ppidl, &lEvent);
-			if (lock) {
-				if (lEvent == SHCNE_MEDIAINSERTED || lEvent == SHCNE_DRIVEADD || lEvent == SHCNE_MEDIAREMOVED || lEvent == SHCNE_DRIVEREMOVED) {
-					TCHAR drvpath[MAX_DPATH + 1];
-					if (SHGetPathFromIDList(ppidl[0], drvpath)) {
-						int inserted = (lEvent == SHCNE_MEDIAINSERTED || lEvent == SHCNE_DRIVEADD) ? 1 : 0;
-						write_log (_T("Shell Notification %d '%s'\n"), inserted, drvpath);
-						if (!win32_hardfile_media_change (drvpath, inserted)) {	
-							if (inserted) {
-								add_media_insert_queue(hWnd, drvpath, 5);
+	{
+		LONG lEvent;
+		PIDLIST_ABSOLUTE *ppidl;
+		HANDLE lock = SHChangeNotification_Lock((HANDLE)wParam, (DWORD)lParam, &ppidl, &lEvent);
+		if (lock) {
+			if (lEvent == SHCNE_MEDIAINSERTED || lEvent == SHCNE_DRIVEADD || lEvent == SHCNE_MEDIAREMOVED || lEvent == SHCNE_DRIVEREMOVED) {
+				TCHAR drvpath[MAX_DPATH + 1];
+				if (SHGetPathFromIDList(ppidl[0], drvpath)) {
+					int inserted = (lEvent == SHCNE_MEDIAINSERTED || lEvent == SHCNE_DRIVEADD) ? 1 : 0;
+					write_log(_T("Shell Notification %d '%s'\n"), inserted, drvpath);
+					if (!win32_hardfile_media_change(drvpath, inserted)) {
+						if (inserted) {
+							add_media_insert_queue(hWnd, drvpath, 5);
+						} else {
+							if (is_in_media_queue(drvpath) >= 0) {
+								write_log(_T("Insertion queued, removal event dropped\n"));
 							} else {
-								if (is_in_media_queue(drvpath) >= 0) {
-									write_log(_T("Insertion queued, removal event dropped\n"));
-								} else {
-									filesys_media_change (drvpath, inserted, NULL);
-								}
+								filesys_media_change(drvpath, inserted, NULL);
 							}
 						}
 					}
 				}
-				SHChangeNotification_Unlock(lock);
 			}
+			SHChangeNotification_Unlock(lock);
 		}
-		return TRUE;
+	}
+	return TRUE;
 	case WM_DEVICECHANGE:
-		{
-			extern bool win32_spti_media_change (TCHAR driveletter, int insert);
-			extern bool win32_ioctl_media_change (TCHAR driveletter, int insert);
-			DEV_BROADCAST_HDR *pBHdr = (DEV_BROADCAST_HDR *)lParam;
-			int devicechange = 0;
-			if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
-				bool ignore = false;
-				DEV_BROADCAST_DEVICEINTERFACE *dbd = (DEV_BROADCAST_DEVICEINTERFACE*)lParam;
-				GUID *g = &dbd->dbcc_classguid;
-				const GUID *ghid = &GUID_DEVINTERFACE_HID;
-				// if HID and rawhid active: ignore this event
-				if (!memcmp(g, ghid, sizeof(GUID))) {
-					if (is_hid_rawinput())
-						ignore = true;
-				}
-				if (!ignore) {
-					if (wParam == DBT_DEVICEREMOVECOMPLETE)
-						devicechange = 1;
-					else if (wParam == DBT_DEVICEARRIVAL)
-						devicechange = 1;
-				}
-			} else if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_VOLUME) {
-				DEV_BROADCAST_VOLUME *pBVol = (DEV_BROADCAST_VOLUME *)lParam;
-				if (wParam == DBT_DEVICEARRIVAL || wParam == DBT_DEVICEREMOVECOMPLETE) {
-					if (pBVol->dbcv_unitmask) {
-						int inserted, i;
-						TCHAR drive;
-						UINT errormode = SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
-						for (i = 0; i <= 'Z'-'A'; i++) {
-							if (pBVol->dbcv_unitmask & (1 << i)) {
-								TCHAR drvname[10];
-								int type;
+	{
+		extern bool win32_spti_media_change(TCHAR driveletter, int insert);
+		extern bool win32_ioctl_media_change(TCHAR driveletter, int insert);
+		DEV_BROADCAST_HDR *pBHdr = (DEV_BROADCAST_HDR *)lParam;
+		int devicechange = 0;
+		if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
+			bool ignore = false;
+			DEV_BROADCAST_DEVICEINTERFACE *dbd = (DEV_BROADCAST_DEVICEINTERFACE*)lParam;
+			GUID *g = &dbd->dbcc_classguid;
+			const GUID *ghid = &GUID_DEVINTERFACE_HID;
+			// if HID and rawhid active: ignore this event
+			if (!memcmp(g, ghid, sizeof(GUID))) {
+				if (is_hid_rawinput())
+					ignore = true;
+			}
+			if (!ignore) {
+				if (wParam == DBT_DEVICEREMOVECOMPLETE)
+					devicechange = 1;
+				else if (wParam == DBT_DEVICEARRIVAL)
+					devicechange = 1;
+			}
+		} else if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_VOLUME) {
+			DEV_BROADCAST_VOLUME *pBVol = (DEV_BROADCAST_VOLUME *)lParam;
+			if (wParam == DBT_DEVICEARRIVAL || wParam == DBT_DEVICEREMOVECOMPLETE) {
+				if (pBVol->dbcv_unitmask) {
+					int inserted, i;
+					TCHAR drive;
+					UINT errormode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+					for (i = 0; i <= 'Z' - 'A'; i++) {
+						if (pBVol->dbcv_unitmask & (1 << i)) {
+							TCHAR drvname[10];
+							int type;
 
-								drive = 'A' + i;
-								_stprintf (drvname, _T("%c:\\"), drive);
-								type = GetDriveType (drvname);
-								if (wParam == DBT_DEVICEARRIVAL)
-									inserted = 1;
-								else
-									inserted = 0;
-								if (pBVol->dbcv_flags & DBTF_MEDIA) {
-									bool matched = false;
-									matched |= win32_spti_media_change (drive, inserted);
-									matched |= win32_ioctl_media_change (drive, inserted);
-								}
-								if (type == DRIVE_REMOVABLE || type == DRIVE_CDROM || !inserted) {
-									write_log (_T("WM_DEVICECHANGE '%s' type=%d inserted=%d\n"), drvname, type, inserted);
-									if (!win32_hardfile_media_change (drvname, inserted)) {
-										if (inserted) {
-											add_media_insert_queue(hWnd, drvname, 0);
+							drive = 'A' + i;
+							_stprintf(drvname, _T("%c:\\"), drive);
+							type = GetDriveType(drvname);
+							if (wParam == DBT_DEVICEARRIVAL)
+								inserted = 1;
+							else
+								inserted = 0;
+							if (pBVol->dbcv_flags & DBTF_MEDIA) {
+								bool matched = false;
+								matched |= win32_spti_media_change(drive, inserted);
+								matched |= win32_ioctl_media_change(drive, inserted);
+							}
+							if (type == DRIVE_REMOVABLE || type == DRIVE_CDROM || !inserted) {
+								write_log(_T("WM_DEVICECHANGE '%s' type=%d inserted=%d\n"), drvname, type, inserted);
+								if (!win32_hardfile_media_change(drvname, inserted)) {
+									if (inserted) {
+										add_media_insert_queue(hWnd, drvname, 0);
+									} else {
+										if (is_in_media_queue(drvname) >= 0) {
+											write_log(_T("Insertion queued, removal event dropped\n"));
 										} else {
-											if (is_in_media_queue(drvname) >= 0) {
-												write_log(_T("Insertion queued, removal event dropped\n"));
-											} else {
-												filesys_media_change (drvname, inserted, NULL);
-											}
+											filesys_media_change(drvname, inserted, NULL);
 										}
 									}
 								}
 							}
 						}
-						SetErrorMode (errormode);
 					}
+					SetErrorMode(errormode);
 				}
 			}
-			if (devicechange) { // && !is_hid_rawinput()) {
-				if (device_change_timer)
-					KillTimer(hWnd, 4);
-				device_change_timer = 1;
-				SetTimer(hWnd, 4, 2000, NULL);
-			}
 		}
+		if (devicechange) { // && !is_hid_rawinput()) {
+			if (device_change_timer)
+				KillTimer(hWnd, 4);
+			device_change_timer = 1;
+			SetTimer(hWnd, 4, 2000, NULL);
+		}
+	}
 #endif
-		return TRUE;
+	return TRUE;
 
 	case WM_SYSCOMMAND:
 		switch (wParam & 0xfff0) // Check System Calls
 		{
-		// SetThreadExecutionState handles this now
+			// SetThreadExecutionState handles this now
 		case SC_SCREENSAVE: // Screensaver Trying To Start?
 			break;
 		case SC_MONITORPOWER: // Monitor Trying To Enter Powersave?
-			write_log (_T("SC_MONITORPOWER=%d"), lParam);
+			write_log(_T("SC_MONITORPOWER=%d"), lParam);
 			if ((int)lParam < 0)
 				monitor_off = 0;
 			else if ((int)lParam > 0)
@@ -2036,145 +2045,145 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			break;
 
 		default:
-			{
-				LRESULT lr;
+		{
+			LRESULT lr;
 
 #ifdef RETROPLATFORM
-				if ((wParam & 0xfff0) == SC_CLOSE) {
-					if (rp_close ())
-						return 0;
-				}
-#endif
-				lr = DefWindowProc (hWnd, message, wParam, lParam);
-				switch (wParam & 0xfff0)
-				{
-				case SC_MINIMIZE:
-					winuae_inactive (hWnd, 1);
-					break;
-				case SC_RESTORE:
-					break;
-				case SC_CLOSE:
-					PostQuitMessage (0);
-					break;
-				}
-				return lr;
+			if ((wParam & 0xfff0) == SC_CLOSE) {
+				if (rp_close())
+					return 0;
 			}
+#endif
+			lr = DefWindowProc(hWnd, message, wParam, lParam);
+			switch (wParam & 0xfff0)
+			{
+			case SC_MINIMIZE:
+				winuae_inactive(hWnd, 1);
+				break;
+			case SC_RESTORE:
+				break;
+			case SC_CLOSE:
+				PostQuitMessage(0);
+				break;
+			}
+			return lr;
+		}
 		}
 		break;
 
 	case WM_SYSKEYDOWN:
-		if(currprefs.win32_ctrl_F11_is_quit && wParam == VK_F4)
+		if (currprefs.win32_ctrl_F11_is_quit && wParam == VK_F4)
 			return 0;
 		break;
 
 	case WM_NOTIFY:
-		{
-			LPNMHDR nm = (LPNMHDR)lParam;
-			if (nm->hwndFrom == hStatusWnd) {
-				switch (nm->code)
-				{
-					/* status bar clicks */
-					case NM_CLICK:
-					case NM_RCLICK:
-					{
-						LPNMMOUSE lpnm = (LPNMMOUSE) lParam;
-						int num = (int)lpnm->dwItemSpec;
-						int df0 = 9;
-						if (num >= df0 && num <= df0 + 3) { // DF0-DF3
-							num -= df0;
-							if (nm->code == NM_RCLICK) {
-								disk_eject (num);
-							} else if (changed_prefs.floppyslots[num].dfxtype >= 0) {
-								DiskSelection (hWnd, IDC_DF0 + num, 0, &changed_prefs, NULL, NULL);
-								disk_insert (num, changed_prefs.floppyslots[num].df);
-							}
-						} else if (num == 5) {
-							if (nm->code == NM_CLICK) // POWER
-								inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
-							else
-								uae_reset (0, 1);
-						} else if (num == 4) {
-							if (pause_emulation) {
-								resumepaused (9);
-								setmouseactive (1);
-							}
-						}
-						return TRUE;
+	{
+		LPNMHDR nm = (LPNMHDR)lParam;
+		if (nm->hwndFrom == hStatusWnd) {
+			switch (nm->code)
+			{
+				/* status bar clicks */
+			case NM_CLICK:
+			case NM_RCLICK:
+			{
+				LPNMMOUSE lpnm = (LPNMMOUSE)lParam;
+				int num = (int)lpnm->dwItemSpec;
+				int df0 = 9;
+				if (num >= df0 && num <= df0 + 3) { // DF0-DF3
+					num -= df0;
+					if (nm->code == NM_RCLICK) {
+						disk_eject(num);
+					} else if (changed_prefs.floppyslots[num].dfxtype >= 0) {
+						DiskSelection(hWnd, IDC_DF0 + num, 0, &changed_prefs, NULL, NULL);
+						disk_insert(num, changed_prefs.floppyslots[num].df);
+					}
+				} else if (num == 5) {
+					if (nm->code == NM_CLICK) // POWER
+						inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
+					else
+						uae_reset(0, 1);
+				} else if (num == 4) {
+					if (pause_emulation) {
+						resumepaused(9);
+						setmouseactive(1);
 					}
 				}
+				return TRUE;
+			}
 			}
 		}
-		break;
+	}
+	break;
 
-	case WM_CHANGECBCHAIN: 
-		if ((HWND) wParam == hwndNextViewer) 
-			hwndNextViewer = (HWND) lParam; 
-		else if (hwndNextViewer != NULL) 
-			SendMessage (hwndNextViewer, message, wParam, lParam); 
+	case WM_CHANGECBCHAIN:
+		if ((HWND)wParam == hwndNextViewer)
+			hwndNextViewer = (HWND)lParam;
+		else if (hwndNextViewer != NULL)
+			SendMessage(hwndNextViewer, message, wParam, lParam);
 		return 0;
 	case WM_DRAWCLIPBOARD:
-		clipboard_changed (hWnd);
-		SendMessage (hwndNextViewer, message, wParam, lParam); 
+		clipboard_changed(hWnd);
+		SendMessage(hwndNextViewer, message, wParam, lParam);
 		return 0;
 
 	case WM_WTSSESSION_CHANGE:
+	{
+		static int wasactive;
+		switch (wParam)
 		{
-			static int wasactive;
-			switch (wParam)
-			{
-			case WTS_CONSOLE_CONNECT:
-			case WTS_SESSION_UNLOCK:
-				if (wasactive)
-					winuae_active (hWnd, 0);
-				wasactive = 0;
-				break;
-			case WTS_CONSOLE_DISCONNECT:
-			case WTS_SESSION_LOCK:
-				wasactive = mouseactive;
-				winuae_inactive (hWnd, 0);
-				break;
-			}
+		case WTS_CONSOLE_CONNECT:
+		case WTS_SESSION_UNLOCK:
+			if (wasactive)
+				winuae_active(hWnd, 0);
+			wasactive = 0;
+			break;
+		case WTS_CONSOLE_DISCONNECT:
+		case WTS_SESSION_LOCK:
+			wasactive = mouseactive;
+			winuae_inactive(hWnd, 0);
+			break;
 		}
+	}
 
 	case WT_PROXIMITY:
-		{
-			send_tablet_proximity (LOWORD (lParam) ? 1 : 0);
-			return 0;
-		}
+	{
+		send_tablet_proximity(LOWORD(lParam) ? 1 : 0);
+		return 0;
+	}
 	case WT_PACKET:
-		{
-			typedef BOOL(API* WTPACKET)(HCTX, UINT, LPVOID);
-			extern WTPACKET pWTPacket;
-			PACKET pkt;
-			if (inputdevice_is_tablet () <= 0 && !currprefs.tablet_library && !is_touch_lightpen()) {
-				close_tablet (tablet);
-				tablet = NULL;
-				return 0;
-			}
-			if (pWTPacket ((HCTX)lParam, wParam, &pkt)) {
-				int x, y, z, pres, proxi;
-				DWORD buttons;
-				ORIENTATION ori;
-				ROTATION rot;
-
-				x = pkt.pkX;
-				y = pkt.pkY;
-				z = pkt.pkZ;
-				pres = pkt.pkNormalPressure;
-				ori = pkt.pkOrientation;
-				rot = pkt.pkRotation;
-				buttons = pkt.pkButtons;
-				proxi = pkt.pkStatus;
-				send_tablet (x, y, z, pres, buttons, proxi, ori.orAzimuth, ori.orAltitude, ori.orTwist, rot.roPitch, rot.roRoll, rot.roYaw, &amigawin_rect);
-
-			}
+	{
+		typedef BOOL(API* WTPACKET)(HCTX, UINT, LPVOID);
+		extern WTPACKET pWTPacket;
+		PACKET pkt;
+		if (inputdevice_is_tablet() <= 0 && !currprefs.tablet_library && !is_touch_lightpen()) {
+			close_tablet(tablet);
+			tablet = NULL;
 			return 0;
 		}
+		if (pWTPacket((HCTX)lParam, wParam, &pkt)) {
+			int x, y, z, pres, proxi;
+			DWORD buttons;
+			ORIENTATION ori;
+			ROTATION rot;
+
+			x = pkt.pkX;
+			y = pkt.pkY;
+			z = pkt.pkZ;
+			pres = pkt.pkNormalPressure;
+			ori = pkt.pkOrientation;
+			rot = pkt.pkRotation;
+			buttons = pkt.pkButtons;
+			proxi = pkt.pkStatus;
+			send_tablet(x, y, z, pres, buttons, proxi, ori.orAzimuth, ori.orAltitude, ori.orTwist, rot.roPitch, rot.roRoll, rot.roYaw, &amigawin_rect);
+
+		}
+		return 0;
+	}
 
 #if TOUCH_SUPPORT
 	case WM_TOUCH:
-	processtouch(hWnd, wParam, lParam);
-	break;
+		processtouch(hWnd, wParam, lParam);
+		break;
 #endif
 
 	default:
@@ -2286,6 +2295,8 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 #if TOUCH_SUPPORT
 	case WM_TOUCH:
 #endif
+	case WM_QUERYENDSESSION:
+	case WM_ENDSESSION:
 		return AmigaWindowProc (hWnd, message, wParam, lParam);
 #if 0
 	case WM_DISPLAYCHANGE:
@@ -2534,10 +2545,13 @@ static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam
 			SetForegroundWindow (hGUIWnd ? hGUIWnd : hMainWnd);
 			break;
 		case WM_LBUTTONDBLCLK:
+		case NIN_SELECT:
 			if (!gui_active)
 				inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 			break;
 		case WM_RBUTTONDOWN:
+		case WM_CONTEXTMENU:
+		case NIN_KEYSELECT:
 			if (!gui_active)
 				systraymenu (hWnd);
 			else
@@ -3910,6 +3924,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_str (f, _T("gui_active_page"), p->win32_guiactivepage);
 	cfgfile_target_dwrite_bool(f, _T("filesystem_mangle_reserved_names"), p->win32_filesystem_mangle_reserved_names);
 	cfgfile_target_dwrite_bool(f, _T("right_control_is_right_win"), p->right_control_is_right_win_key);
+	cfgfile_target_dwrite_bool(f, _T("windows_shutdown_notification"), p->win32_shutdown_notification);
 
 	cfgfile_target_dwrite(f, _T("extraframewait"), _T("%d"), extraframewait);
 	cfgfile_target_dwrite(f, _T("extraframewait_us"), _T("%d"), extraframewait2);
@@ -4031,6 +4046,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_intval(option, value, _T("kbledmode"), &p->win32_kbledmode, 1)
 		|| cfgfile_yesno(option, value, _T("filesystem_mangle_reserved_names"), &p->win32_filesystem_mangle_reserved_names)
 		|| cfgfile_yesno(option, value, _T("right_control_is_right_win"), &p->right_control_is_right_win_key)
+		|| cfgfile_yesno(option, value, _T("windows_shutdown_notification"), &p->win32_shutdown_notification)
 		|| cfgfile_intval(option, value, _T("extraframewait"), &extraframewait, 1)
 		|| cfgfile_intval(option, value, _T("extraframewait_us"), &extraframewait2, 1)
 		|| cfgfile_intval(option, value, _T("framelatency"), &forcedframelatency, 1)
@@ -5280,6 +5296,8 @@ static int osdetect (void)
 			os_win7 = 1;
 		if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 2))
 			os_win8 = 1;
+		if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 3))
+			os_win8 = 2;
 		if (osVersion.dwMajorVersion >= 10)
 			os_win10 = 1;
 		if (SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
@@ -6562,7 +6580,7 @@ int execute_command (TCHAR *cmd)
 #endif
 
 #include "driveclick.h"
-static int drvsampleres[] = {
+static const int drvsampleres[] = {
 	IDR_DRIVE_CLICK_A500_1, DS_CLICK,
 	IDR_DRIVE_SPIN_A500_1, DS_SPIN,
 	IDR_DRIVE_SPINND_A500_1, DS_SPINND,
@@ -6905,16 +6923,29 @@ void systray (HWND hwnd, int remove)
 	nid.cbSize = sizeof (nid);
 	nid.hWnd = hwnd;
 	nid.hIcon = LoadIcon (hInst, (LPCWSTR)MAKEINTRESOURCE (IDI_APPICON));
-	nid.uFlags = NIF_ICON | NIF_MESSAGE | (os_win8 ? NIF_GUID : 0);
+	nid.uFlags = NIF_ICON | NIF_MESSAGE | (os_win7 ? NIF_GUID : 0);
 	nid.uCallbackMessage = WM_USER + 1;
-	if (os_win8) {
+	nid.uVersion = os_win7 ? NOTIFYICON_VERSION_4 : NOTIFYICON_VERSION;
+	nid.dwInfoFlags = NIIF_USER;
+	_tcscpy(nid.szInfo, _T("WinUAE"));
+	_tcscpy(nid.szInfoTitle, _T("WinUAE"));
+	nid.hBalloonIcon = nid.hIcon;
+	if (os_win7) {
 		nid.guidItem = iconguid;
+		if (!remove) {
+			// if guid identifier: always remove first.
+			// old icon may not have been removed due to crash etc
+			Shell_NotifyIcon(NIM_DELETE, &nid);
+		}
 	}
 	v = Shell_NotifyIcon (remove ? NIM_DELETE : NIM_ADD, &nid);
 	//write_log (_T("notif: Shell_NotifyIcon returned %d\n"), v);
 	if (v) {
-		if (remove)
+		if (remove) {
 			TaskbarRestartHWND = NULL;
+		} else {
+			v = Shell_NotifyIcon(NIM_SETVERSION, &nid);
+		}
 	} else {
 		DWORD err = GetLastError ();
 		write_log (_T("Notify error code = %x (%d)\n"),  err, err);

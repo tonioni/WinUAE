@@ -407,6 +407,8 @@
 #define IDS_MOUSE_UNTRAP_MODE           413
 #define IDS_TABLET_MODE                 414
 #define IDC_HARDDRIVE_ID                415
+#define IDS_MISCLISTITEMS4              416
+#define IDS_SHUTDOWN_NOTIFICATION       417
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002

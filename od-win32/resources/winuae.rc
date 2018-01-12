@@ -2131,6 +2131,12 @@ END
 
 STRINGTABLE
 BEGIN
+    IDS_MISCLISTITEMS4      "Windows shutdown/logoff notification\n"
+    IDS_SHUTDOWN_NOTIFICATION "Emulation session active"
+END
+
+STRINGTABLE
+BEGIN
     IDS_FILTER_PAL_EXTRA    "Brightness\nContrast\nSaturation\nGamma\nScanlines\nBlurriness\nNoise\n"
     IDS_FILTER_3D_EXTRA     "Point/Bilinear\nScanline opacity\nScanline level\n"
     IDS_ALWAYS_ON           "Always on"

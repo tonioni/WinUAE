@@ -4434,6 +4434,20 @@ static int create_windows_2 (void)
 	setDwmEnableMMCSS (true);
 	prevsbheight = sbheight;
 	rawinput_alloc();
+
+	if (currprefs.win32_shutdown_notification && !rp_isactive()) {
+		typedef BOOL(WINAPI *SHUTDOWNBLOCKREASONCREATE)(HWND, LPCWSTR);
+		SHUTDOWNBLOCKREASONCREATE pShutdownBlockReasonCreate;
+		pShutdownBlockReasonCreate = (SHUTDOWNBLOCKREASONCREATE)GetProcAddress(GetModuleHandle(_T("user32.dll")), "ShutdownBlockReasonCreate");
+		if (pShutdownBlockReasonCreate) {
+			TCHAR tmp[MAX_DPATH];
+			WIN32GUI_LoadUIString(IDS_SHUTDOWN_NOTIFICATION, tmp, MAX_DPATH);
+			if (!pShutdownBlockReasonCreate(hMainWnd, tmp)) {
+				write_log(_T("ShutdownBlockReasonCreate %08x\n"), GetLastError());
+			}
+		}
+	}
+
 	return 1;
 }
 

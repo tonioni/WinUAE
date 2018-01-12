@@ -5,6 +5,14 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+- Added real CHS-only IDE drive HDF imaging support that works with some (single? all?) USB adapters that don't natively support CHS only drives (Drive appears as having zero byte capacity in Windows Disk Manager and SCSI READ CAPACITY returns FFFFFFFF00000200) Imager first asks for drive's CHS geometry and then uses standard Direct SCSI mode READ (10) to read correct blocks. This works as long as adapter blindly copies SCSI LBA fields to ATA CHS/LBA registers internally.
+- Default D3D11 fullscreen refresh rate may have incorrectly chosen native interlaced mode if it was available.
+- D3D11 no buffer fullscreen vsync does not update as fast as possible anymore.
+- Restored norawinput keyboard and mouse modes (-norawinput_all disables all, -norawinput_keyboard and -norawinput_mouse to only disable mouse or keyboard rawinput mode). They were removed in 3.3 but apparently RDP does not support rawinput keyboard.
+- BCD instruction V-flag fix, 68020+ BCD instructions don't do undocumented V-flag modifications, only 68000/010, previously it was only done if 68040+.
+- Notification icon handling updated, previous Windows 7 workaround removed.
+- Added Misc panel option to show WinUAE in Windows shutdown/logoff screen (Vista or newer) if emulation session is active.
+
 Beta 17:
 
 - Added Profex HD3300 emulation and boot ROM.
