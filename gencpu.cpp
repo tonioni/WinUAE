@@ -27,7 +27,7 @@
 #define BOOL_TYPE "int"
 /* Define the minimal 680x0 where NV flags are not affected by xBCD instructions.  */
 #define xBCD_KEEPS_N_FLAG 4
-#define xBCD_KEEPS_V_FLAG 3
+#define xBCD_KEEPS_V_FLAG 2
 
 static FILE *headerfile;
 static FILE *stblfile;
