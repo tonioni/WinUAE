@@ -2290,18 +2290,14 @@ void gui_display (int shortcut)
 
 static void prefs_to_gui (struct uae_prefs *p)
 {
+	int st = savestate_state;
+	default_prefs(&workprefs, false, 0);
 	workprefs = *p;
 	/* filesys hack */
 	workprefs.mountitems = currprefs.mountitems;
 	memcpy (&workprefs.mountconfig, &currprefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
-
 	updatewinfsmode (&workprefs);
-#if 0
-#ifdef _DEBUG
-	if (workprefs.gfx_framerate < 5)
-		workprefs.gfx_framerate = 5;
-#endif
-#endif
+	savestate_state = st;
 }
 
 static void gui_to_prefs (void)
@@ -20490,7 +20486,6 @@ static int GetSettings (int all_options, HWND hwnd)
 	allow_quit = all_options;
 	pguiprefs = &currprefs;
 	memset (&workprefs, 0, sizeof (struct uae_prefs));
-	default_prefs (&workprefs, false, 0);
 
 	szNone = WIN32GUI_LoadUIString (IDS_NONE);
 	memsize_names[0] = szNone.c_str();
@@ -20787,8 +20782,7 @@ int gui_init (void)
 {
 	int ret;
 
-	read_rom_list ();
-	default_prefs(&workprefs, false, 0);
+	read_rom_list();
 	prefs_to_gui(&changed_prefs);
 	inputdevice_updateconfig(NULL, &workprefs);
 	for (;;) {
