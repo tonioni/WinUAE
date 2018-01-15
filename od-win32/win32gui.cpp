@@ -2297,7 +2297,8 @@ static void prefs_to_gui (struct uae_prefs *p)
 	workprefs.mountitems = currprefs.mountitems;
 	memcpy (&workprefs.mountconfig, &currprefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
 	updatewinfsmode (&workprefs);
-	savestate_state = st;
+	if (workprefs.statefile[0])
+		savestate_state = st;
 }
 
 static void gui_to_prefs (void)
@@ -4665,7 +4666,7 @@ void InitializeListView (HWND hDlg)
 
 	} else if (lv_type == LV_MISC1) {
 
-		int itemids[] = { IDS_MISCLISTITEMS1, IDS_MISCLISTITEMS2, IDS_MISCLISTITEMS3, -1 };
+		int itemids[] = { IDS_MISCLISTITEMS1, IDS_MISCLISTITEMS2, IDS_MISCLISTITEMS3, IDS_MISCLISTITEMS4 , -1 };
 		int itemoffset = 0;
 		int itemcnt = 0;
 		listview_column_width[0] = 150;

@@ -4,6 +4,12 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+Beta 19:
+
+- D3D11 fullscreen and GUI open: Quit/Restart did unnecessary fullscreen open and close. (Was working in some betas, broke later)
+- Loading new config file via GUI using "Load" button when emulation is already running and loaded config had statefile selected: statefile was not loaded automatically when emulation was started.
+
+Beta 18:
 
 - Added real CHS-only IDE drive HDF imaging support that works with some (single? all?) USB adapters that don't natively support CHS only drives (Drive appears as having zero byte capacity in Windows Disk Manager and SCSI READ CAPACITY returns FFFFFFFF00000200) Imager first asks for drive's CHS geometry and then uses standard Direct SCSI mode READ (10) to read correct blocks. This works as long as adapter blindly copies SCSI LBA fields to ATA CHS/LBA registers internally.
 - Default D3D11 fullscreen refresh rate may have incorrectly chosen native interlaced mode if it was available.

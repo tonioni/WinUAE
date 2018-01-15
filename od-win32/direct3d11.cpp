@@ -4111,6 +4111,21 @@ static void xD3D11_clear(void)
 	d3d->m_deviceContext->ClearRenderTargetView(d3d->m_renderTargetView, color);
 }
 
+
+static bool xD3D11_quit(struct d3d11struct *d3d)
+{
+	if (quit_program != -UAE_QUIT)
+		return false;
+	if (d3d->m_swapChain && !d3d->invalidmode) {
+		d3d->m_swapChain->SetFullscreenState(FALSE, NULL);
+		FreeTextures(d3d);
+		d3d->fsmode = 0;
+		d3d->invalidmode = true;
+		d3d->fsmodechange = 0;
+	}
+	return true;
+}
+
 static void xD3D11_refresh(void)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
@@ -4126,6 +4141,8 @@ static void xD3D11_refresh(void)
 
 static void recheck(struct d3d11struct *d3d)
 {
+	if (xD3D11_quit(d3d))
+		return;
 	if (d3d->resizeretry) {
 		resizemode(d3d);
 		return;
@@ -4294,12 +4311,8 @@ static void xD3D11_resize(int activate)
 		return;
 	}
 
-	if (d3d->m_swapChain && quit_program == -UAE_QUIT) {
-		d3d->m_swapChain->SetFullscreenState(FALSE, NULL);
-		FreeTextures(d3d);
-		d3d->fsmode = 0;
-		d3d->invalidmode = true;
-		d3d->fsmodechange = 0;
+	if (quit_program == -UAE_QUIT) {
+		xD3D11_quit(d3d);
 		return;
 	}
 
