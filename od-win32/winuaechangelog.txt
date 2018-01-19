@@ -4,6 +4,10 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+3.6.0
+
+- Main window was not activated early enough, it was possible to get logged D3D11 fullscreen error and automatic fallback to windowed mode in some situations.
+
 Beta 19:
 
 - D3D11 fullscreen and GUI open: Quit/Restart did unnecessary fullscreen open and close. (Was working in some betas, broke later)

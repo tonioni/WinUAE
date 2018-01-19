@@ -169,6 +169,12 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 		struct apmode *ap = &prefs->gfx_apmode[i];
 		ap->gfx_vflip = 0;
 		ap->gfx_strobo = false;
+#if 0
+		if (currprefs.gfx_api > 1 && ap->gfx_vsyncmode) {
+			ap->gfx_vsyncmode = false;
+			error_log(_T("Low latency vsync is not yet supported in Direct3D11 mode."));
+		}
+#endif
 		if (ap->gfx_vsync < 0) {
 			// adaptive sync
 			ap->gfx_vsyncmode = 0;

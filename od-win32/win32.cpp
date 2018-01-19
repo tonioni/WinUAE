@@ -1580,7 +1580,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		winuae_active(hWnd, minimized);
 		unsetminimized();
 		dx_check();
-		break;
+		return 0;
 	case WM_SIZE:
 		//write_log (_T("WM_SIZE %d\n"), wParam);
 		if (hStatusWnd)
@@ -1597,7 +1597,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			write_log(_T("WM_SIZE\n"));
 			D3D_resize(0);
 		}
-		break;
+		return 0;
 	case WM_ACTIVATE:
 		//write_log (_T("active %d\n"), LOWORD(wParam));
 		if (LOWORD(wParam) == WA_INACTIVE) {
@@ -1608,7 +1608,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			winuae_inactive(hWnd, minimized);
 		}
 		dx_check();
-		break;
+		return 0;
 	case WM_MOUSEACTIVATE:
 		if (isfocus() == 0)
 			ignorelbutton = true;
@@ -1630,7 +1630,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		rp_activate(wParam, lParam);
 #endif
 		dx_check();
-		break;
+		return 0;
 
 	case WM_KEYDOWN:
 		if (dinput_wmkey((uae_u32)lParam))
@@ -6900,6 +6900,7 @@ void systray (HWND hwnd, int remove)
 	static const GUID iconguid = { 0xdac2e99b, 0xe8f6, 0x4150, { 0x98, 0x46, 0xd, 0x4a, 0x61, 0xfb, 0xdd, 0x03 } };
 	NOTIFYICONDATA nid;
 	BOOL v;
+	static bool noguid;
 
 	if (!remove && currprefs.win32_nonotificationicon)
 		return;
@@ -6908,9 +6909,11 @@ void systray (HWND hwnd, int remove)
 	if (rp_isactive ())
 		return;
 #endif
+	bool canguid = !noguid && os_win7;
 	//write_log (_T("notif: systray(%x,%d)\n"), hwnd, remove);
 	if (!remove) {
-		TaskbarRestart = RegisterWindowMessage (_T("TaskbarCreated"));
+		if (!TaskbarRestart)
+			TaskbarRestart = RegisterWindowMessage (_T("TaskbarCreated"));
 		TaskbarRestartHWND = hwnd;
 		//write_log (_T("notif: taskbarrestart = %d\n"), TaskbarRestart);
 	} else {
@@ -6923,14 +6926,14 @@ void systray (HWND hwnd, int remove)
 	nid.cbSize = sizeof (nid);
 	nid.hWnd = hwnd;
 	nid.hIcon = LoadIcon (hInst, (LPCWSTR)MAKEINTRESOURCE (IDI_APPICON));
-	nid.uFlags = NIF_ICON | NIF_MESSAGE | (os_win7 ? NIF_GUID : 0);
+	nid.uFlags = NIF_ICON | NIF_MESSAGE | (canguid ? NIF_GUID : 0);
 	nid.uCallbackMessage = WM_USER + 1;
 	nid.uVersion = os_win7 ? NOTIFYICON_VERSION_4 : NOTIFYICON_VERSION;
 	nid.dwInfoFlags = NIIF_USER;
 	_tcscpy(nid.szInfo, _T("WinUAE"));
 	_tcscpy(nid.szInfoTitle, _T("WinUAE"));
 	nid.hBalloonIcon = nid.hIcon;
-	if (os_win7) {
+	if (canguid) {
 		nid.guidItem = iconguid;
 		if (!remove) {
 			// if guid identifier: always remove first.
@@ -6939,6 +6942,12 @@ void systray (HWND hwnd, int remove)
 		}
 	}
 	v = Shell_NotifyIcon (remove ? NIM_DELETE : NIM_ADD, &nid);
+	if (!remove && !v && !noguid) {
+		noguid = true;
+		write_log(_T("Notify error2 = %x %d\n"), GetLastError(), remove);
+		return systray(hwnd, remove);
+	}
+
 	//write_log (_T("notif: Shell_NotifyIcon returned %d\n"), v);
 	if (v) {
 		if (remove) {
@@ -6947,8 +6956,7 @@ void systray (HWND hwnd, int remove)
 			v = Shell_NotifyIcon(NIM_SETVERSION, &nid);
 		}
 	} else {
-		DWORD err = GetLastError ();
-		write_log (_T("Notify error code = %x (%d)\n"),  err, err);
+		write_log (_T("Notify error = %x %d\n"), GetLastError(), remove);
 	}
 }
 

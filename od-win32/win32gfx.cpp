@@ -4427,7 +4427,7 @@ static int create_windows_2 (void)
 			ShowWindow (hMainWnd, firstwindow ? (currprefs.win32_start_minimized ? SW_SHOWMINIMIZED : SW_SHOWDEFAULT) : SW_SHOWNORMAL);
 		UpdateWindow (hMainWnd);
 	}
-	if (!currprefs.headless && !rp_isactive () && !D3D_resize)
+	if (!currprefs.headless && !rp_isactive ())
 		ShowWindow (hAmigaWnd, SW_SHOWNORMAL);
 	UpdateWindow (hAmigaWnd);
 	firstwindow = false;

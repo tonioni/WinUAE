@@ -3181,7 +3181,7 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 				if ((int)(mhz + 0.5) == hz || (int)(mhz) == hz) {
 					d3d->fsSwapChainDesc.RefreshRate.Denominator = m->RefreshRate.Denominator;
 					d3d->fsSwapChainDesc.RefreshRate.Numerator = m->RefreshRate.Numerator;
-					write_log(_T("D3D11 found matching fullscreen refresh rate %d/%d=%.2f. SLO=%d\n"), m->RefreshRate.Denominator, m->RefreshRate.Numerator, (float)mhz, m->ScanlineOrdering);
+					write_log(_T("D3D11 found matching fullscreen refresh rate %d/%d=%.2f. SLO=%d\n"), m->RefreshRate.Numerator, m->RefreshRate.Denominator, (float)mhz, m->ScanlineOrdering);
 					*freq = hz;
 					break;
 				}
@@ -3203,7 +3203,7 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 			d3d->fsSwapChainDesc.RefreshRate.Numerator = md2.RefreshRate.Numerator;
 			*freq = md2.RefreshRate.Numerator / md2.RefreshRate.Denominator;
 			write_log(_T("D3D11 FindClosestMatchingMode1() %d/%d=%.2f SLO=%d W=%d H=%d\n"),
-				md2.RefreshRate.Denominator, md2.RefreshRate.Numerator, (float)md2.RefreshRate.Numerator / md2.RefreshRate.Denominator, md1.ScanlineOrdering,
+				md2.RefreshRate.Numerator, md2.RefreshRate.Denominator, (float)md2.RefreshRate.Numerator / md2.RefreshRate.Denominator, md1.ScanlineOrdering,
 				md2.Width, md2.Height);
 		}
 	}

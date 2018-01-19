@@ -437,49 +437,51 @@ static int doregister_rawinput (bool add)
 	num++;
 
 	/* keyboard */
-	rid[num].usUsagePage = 1;
-	rid[num].usUsage = 6;
-	if (!add) {
-		rid[num].dwFlags = RIDEV_REMOVE;
-	} else {
-		if (hMainWnd) {
-			rid[num].dwFlags = RIDEV_INPUTSINK;
-			rid[num].hwndTarget = hMainWnd;
+	if (!rp_isactive()) {
+		rid[num].usUsagePage = 1;
+		rid[num].usUsage = 6;
+		if (!add) {
+			rid[num].dwFlags = RIDEV_REMOVE;
+		} else {
+			if (hMainWnd) {
+				rid[num].dwFlags = RIDEV_INPUTSINK;
+				rid[num].hwndTarget = hMainWnd;
+			}
+			rid[num].dwFlags |= RIDEV_NOHOTKEYS | (os_vista ? RIDEV_DEVNOTIFY : 0);
 		}
-		rid[num].dwFlags |= RIDEV_NOHOTKEYS | (os_vista ? RIDEV_DEVNOTIFY : 0);
-	}
-	num++;
+		num++;
 
-	/* joystick */
-	int off = num;
+		/* joystick */
+		int off = num;
 
-	// game pad
-	rid[num].usUsagePage = 1;
-	rid[num].usUsage = 4;
-	if (!add) {
-		rid[num].dwFlags = RIDEV_REMOVE;
-	} else {
-		if (hMainWnd) {
-			rid[num].dwFlags = RIDEV_INPUTSINK;
-			rid[num].hwndTarget = hMainWnd;
+		// game pad
+		rid[num].usUsagePage = 1;
+		rid[num].usUsage = 4;
+		if (!add) {
+			rid[num].dwFlags = RIDEV_REMOVE;
+		} else {
+			if (hMainWnd) {
+				rid[num].dwFlags = RIDEV_INPUTSINK;
+				rid[num].hwndTarget = hMainWnd;
+			}
+			rid[num].dwFlags |= (os_vista ? RIDEV_DEVNOTIFY : 0);
 		}
-		rid[num].dwFlags |= (os_vista ? RIDEV_DEVNOTIFY : 0);
-	}
-	num++;
+		num++;
 
-	// joystick
-	rid[num].usUsagePage = 1;
-	rid[num].usUsage = 5;
-	if (!add) {
-		rid[num].dwFlags = RIDEV_REMOVE;
-	} else {
-		if (hMainWnd) {
-			rid[num].dwFlags = RIDEV_INPUTSINK;
-			rid[num].hwndTarget = hMainWnd;
+		// joystick
+		rid[num].usUsagePage = 1;
+		rid[num].usUsage = 5;
+		if (!add) {
+			rid[num].dwFlags = RIDEV_REMOVE;
+		} else {
+			if (hMainWnd) {
+				rid[num].dwFlags = RIDEV_INPUTSINK;
+				rid[num].hwndTarget = hMainWnd;
+			}
+			rid[num].dwFlags |= (os_vista ? RIDEV_DEVNOTIFY : 0);
 		}
-		rid[num].dwFlags |= (os_vista ? RIDEV_DEVNOTIFY : 0);
+		num++;
 	}
-	num++;
 
 #if 0
 	for (int i = 0; i < num_joystick; i++) {
