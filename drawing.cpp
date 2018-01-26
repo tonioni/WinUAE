@@ -2177,16 +2177,12 @@ static void gen_pfield_tables (void)
 
 		if (plane2 > 0)
 			plane2 += 8;
-		dblpf_ind1[i] = i >= 128 ? i & 0x7F : (plane1 == 0 ? plane2 : plane1);
-		dblpf_ind2[i] = i >= 128 ? i & 0x7F : (plane2 == 0 ? plane1 : plane2);
-
-		// Hack for OCS/ECS-only dualplayfield chipset bug.
-		// If PF2P2 is invalid (>5), playfield color becomes transparent but
-		// playfield still hides playfield under it! (if plfpri is set)
-		if (i & 64) {
-			dblpf_ind2[i] = 0;
-			dblpf_ind1[i] = 0;
-		}
+		// use OCS/ECS unused plane bits 6 and 7 for 
+		// dualplayfield BPLCON2 invalid value emulation.
+		int plane1x = (i & 0x40) ? 0 : plane1;
+		int plane2x = (i & 0x80) ? 0 : plane2;
+		dblpf_ind1[i] = plane1 == 0 ? plane2x : plane1x;
+		dblpf_ind2[i] = plane2 == 0 ? plane1x : plane2x;
 
 		sprite_offs[i] = (i & 15) ? 0 : 2;
 
@@ -2295,29 +2291,30 @@ static void weird_bitplane_fix (int start, int end)
 
 	start >>= sh;
 	end >>= sh;
-	if (bplplanecnt == 5 && !bpldualpf && plf2pri > 5) {
-		/* emulate OCS/ECS only undocumented "SWIV" hardware feature */
-		for (int i = start; i < end; i++) {
-			if (p[i] & 16)
-				p[i] = 16;
+	if (!bpldualpf) {
+		// HAM is unaffected (probably because plane 5 is HAM control bit)
+		if (bplham)
+			return;
+		if (bplplanecnt >= 5 && plf2pri >= 5) {
+			// Emulate OCS/ECS only undocumented "SWIV" hardware feature:
+			// PF2 >= 5 and bit in plane 5 set: other planes are ignored in color selection.
+			for (int i = start; i < end; i++) {
+				if (p[i] & 0x10)
+					p[i] = 0x10;
+			}
 		}
-	} 
-	if (bpldualpf && bpldualpfpri && plf2pri > 4) {
-		/* in dualplayfield mode this feature is even more strange.. */
+	} else if (plf1pri >= 5 || plf2pri >= 5) {
+		// If PFx is invalid (>=5), matching playfield's color becomes transparent
+		// (COLOR00). Priorities keep working normally: "transparent" playfield
+		// will still hide lower priority playfield behind it.
+		// Logo in Running man / Scoopex
+		uae_u8 mask1 = 0x01 | 0x04 | 0x10;
+		uae_u8 mask2 = 0x02 | 0x08 | 0x20;
 		for (int i = start; i < end; i++) {
-			// running man / scoopex
-			if (p[i] & (2 | 8 | 32))
+			if (plf1pri >= 5 && (p[i] & mask1))
 				p[i] |= 0x40;
-		}
-	}
-	if (bpldualpf && !bpldualpfpri && plf2pri > 4) {
-		for (int i = start; i < end; i++) {
-			p[i] &= ~(2 | 8 | 32);
-		}
-	}
-	if (bpldualpf && plf1pri > 4) {
-		for (int i = start; i < end; i++) {
-			p[i] = 0x40;
+			if (plf2pri >= 5 && (p[i] & mask2))
+				p[i] |= 0x80;
 		}
 	}
 }
@@ -2847,7 +2844,7 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 		// playfield
 		if (nextpos_in_range > lastpos && lastpos >= playfield_start && lastpos < playfield_end) {
 			int t = nextpos_in_range <= playfield_end ? nextpos_in_range : playfield_end;
-			if ((plf2pri > 4 || plf1pri > 4) && !(currprefs.chipset_mask & CSMASK_AGA))
+			if ((plf2pri >= 5 || plf1pri >= 5) && !(currprefs.chipset_mask & CSMASK_AGA))
 				weird_bitplane_fix (lastpos, t);
 			if (bplxor && may_require_hard_way && worker_pfield != pfield_do_linetoscr_bordersprite_aga)
 				playfield_hard_way(worker_pfield, lastpos, t);
@@ -3012,10 +3009,10 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		/* The problem is that we must call decode_ham() BEFORE we do the sprites. */
 		if (dp_for_drawing->ham_seen) {
 			int ohposblank = hposblank;
-			uae_u8 b0 = dp_for_drawing->bplcon0;
-			uae_u8 b2 = dp_for_drawing->bplcon2;
-			uae_u8 b3 = dp_for_drawing->bplcon3;
-			uae_u8 b4 = dp_for_drawing->bplcon4;
+			uae_u16 b0 = dp_for_drawing->bplcon0;
+			uae_u16 b2 = dp_for_drawing->bplcon2;
+			uae_u16 b3 = dp_for_drawing->bplcon3;
+			uae_u16 b4 = dp_for_drawing->bplcon4;
 			init_ham_decoding ();
 			do_color_changes (dummy_worker, decode_ham, lineno);
 			if (have_color_changes) {
