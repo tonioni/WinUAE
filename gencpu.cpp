@@ -64,6 +64,8 @@ static int optimized_flags;
 #define GF_NOFAULTPC 512
 #define GF_RMW 1024
 #define GF_OPCE020 2048
+#define GF_REVERSE 4096
+#define GF_REVERSE2 8192
 
 /* For the current opcode, the next lower level that will have different code.
 * Initialized to -1 for each opcode. If it remains unchanged, indicates we
@@ -1631,6 +1633,9 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		printf ("\tif (%sa & 1) {\n", name);
 		if (exception_pc_offset)
 			incpc("%d", exception_pc_offset);
+		// MOVE.L EA,-(An) causing address error: stacked value is original An - 2, not An - 4.
+		if ((flags & (GF_REVERSE | GF_REVERSE2)) && size == sz_long && mode == Apdi)
+			printf("\t\t%sa += %d;\n", name, flags & GF_REVERSE2 ? -2 : 2);
 		printf ("\t\texception3_%s(opcode, %sa);\n", getv == 2 ? "write" : "read", name);
 		printf ("\t\tgoto %s;\n", endlabelstr);
 		printf ("\t}\n");
@@ -1677,7 +1682,15 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			switch (size) {
 			case sz_byte: insn_n_cycles += 4; printf ("\tuae_s8 %s = %s (%sa);\n", name, srcb, name); count_read++; break;
 			case sz_word: insn_n_cycles += 4; printf ("\tuae_s16 %s = %s (%sa);\n", name, srcw, name); count_read++; break;
-			case sz_long: insn_n_cycles += 8; printf ("\tuae_s32 %s = %s (%sa) << 16; %s |= %s (%sa + 2);\n", name, srcw, name, name, srcw, name); count_read += 2; break;
+			case sz_long: {
+				insn_n_cycles += 8;
+				if ((flags & GF_REVERSE) && mode == Apdi)
+					printf("\tuae_s32 %s = %s (%sa + 2); %s |= %s (%sa) << 16;\n", name, srcw, name, name, srcw, name);
+				else
+					printf("\tuae_s32 %s = %s (%sa) << 16; %s |= %s (%sa + 2);\n", name, srcw, name, name, srcw, name);
+				count_read += 2;
+				break;
+			}
 			default: term ();
 			}
 		} else {
@@ -2350,22 +2363,22 @@ static void genmovemle_ce (uae_u16 opcode)
 	printf ("\tuae_u16 mask = %s;\n", gen_nextiword (0));
 	if (table68k[opcode].dmode == Ad8r || table68k[opcode].dmode == PC8r)
 		addcycles000 (2);
-	genamode (NULL, table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, 1, GF_AA | GF_MOVE);
+	genamode (NULL, table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, 1, GF_AA | GF_MOVE | GF_REVERSE | GF_REVERSE2);
 	start_brace ();
 	if (table68k[opcode].size == sz_long) {
 		if (table68k[opcode].dmode == Apdi) {
 			printf ("\tuae_u16 amask = mask & 0xff, dmask = (mask >> 8) & 0xff;\n");
 			printf ("\twhile (amask) {\n");
-			printf ("\t\tsrca -= %d;\n", size);
-			printf ("\t\t%s (srca, m68k_areg (regs, movem_index2[amask]) >> 16);\n", dstw);
-			printf ("\t\t%s (srca + 2, m68k_areg (regs, movem_index2[amask]));\n", dstw);
+			printf ("\t\t%s (srca - 2, m68k_areg (regs, movem_index2[amask]));\n", dstw);
+			printf ("\t\t%s (srca - 4, m68k_areg (regs, movem_index2[amask]) >> 16);\n", dstw);
+			printf("\t\tsrca -= %d;\n", size);
 			printf ("\t\tamask = movem_next[amask];\n");
 			addcycles000_nonce("\t\t", 8);
 			printf ("\t}\n");
 			printf ("\twhile (dmask) {\n");
-			printf ("\t\tsrca -= %d;\n", size);
-			printf ("\t\t%s (srca, m68k_dreg (regs, movem_index2[dmask]) >> 16);\n", dstw);
-			printf ("\t\t%s (srca + 2, m68k_dreg (regs, movem_index2[dmask]));\n", dstw);
+			printf ("\t\t%s (srca - 2, m68k_dreg (regs, movem_index2[dmask]));\n", dstw);
+			printf ("\t\t%s (srca - 4, m68k_dreg (regs, movem_index2[dmask]) >> 16);\n", dstw);
+			printf("\t\tsrca -= %d;\n", size);
 			printf ("\t\tdmask = movem_next[dmask];\n");
 			addcycles000_nonce("\t\t", 8);
 			printf ("\t}\n");
@@ -2374,15 +2387,17 @@ static void genmovemle_ce (uae_u16 opcode)
 			printf ("\tuae_u16 dmask = mask & 0xff, amask = (mask >> 8) & 0xff;\n");
 			printf ("\twhile (dmask) {\n");
 			printf ("\t\t%s (srca, m68k_dreg (regs, movem_index1[dmask]) >> 16);\n", dstw);
-			printf ("\t\t%s (srca + 2, m68k_dreg (regs, movem_index1[dmask]));\n", dstw);
-			printf ("\t\tsrca += %d;\n", size);
+			printf ("\t\tsrca += %d;\n", size / 2);
+			printf ("\t\t%s (srca, m68k_dreg (regs, movem_index1[dmask]));\n", dstw);
+			printf ("\t\tsrca += %d;\n", size / 2);
 			printf ("\t\tdmask = movem_next[dmask];\n");
 			addcycles000_nonce("\t\t", 8);
 			printf ("\t}\n");
 			printf ("\twhile (amask) {\n");
 			printf ("\t\t%s (srca, m68k_areg (regs, movem_index1[amask]) >> 16);\n", dstw);
-			printf ("\t\t%s (srca + 2, m68k_areg (regs, movem_index1[amask]));\n", dstw);
-			printf ("\t\tsrca += %d;\n", size);
+			printf ("\t\tsrca += %d;\n", size / 2);
+			printf ("\t\t%s (srca , m68k_areg (regs, movem_index1[amask]));\n", dstw);
+			printf ("\t\tsrca += %d;\n", size / 2);
 			printf ("\t\tamask = movem_next[amask];\n");
 			addcycles000_nonce("\t\t", 8);
 			printf ("\t}\n");
@@ -3251,8 +3266,8 @@ static void gen_opcode (unsigned int opcode)
 	case i_SUBX:
 		if (!isreg (curi->smode))
 			addcycles000 (2);
-		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
-		genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_AA | GF_RMW);
+		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA | GF_REVERSE);
+		genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_AA | GF_REVERSE | GF_RMW);
 		fill_prefetch_next ();
 		if (curi->size == sz_long && isreg (curi->smode))
 			addcycles000 (4);
@@ -3347,8 +3362,8 @@ static void gen_opcode (unsigned int opcode)
 	case i_ADDX:
 		if (!isreg (curi->smode))
 			addcycles000 (2);
-		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
-		genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_AA | GF_RMW);
+		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA | GF_REVERSE);
+		genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_AA | GF_REVERSE | GF_RMW);
 		fill_prefetch_next ();
 		if (curi->size == sz_long && isreg (curi->smode))
 			addcycles000 (4);
@@ -3675,6 +3690,8 @@ static void gen_opcode (unsigned int opcode)
 				//if (curi->size == sz_long && (curi->smode == Dreg || curi->smode == Areg))
 				//	flags &= ~GF_APDI;
 				flags |= dualprefetch ? GF_NOREFILL : 0;
+				if (curi->dmode == Apdi && curi->size == sz_long)
+					flags |= GF_REVERSE;
 				genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 2, 0, flags);
 				if (curi->mnemo == i_MOVEA && curi->size == sz_word)
 					printf ("\tsrc = (uae_s32)(uae_s16)src;\n");
@@ -3693,7 +3710,12 @@ static void gen_opcode (unsigned int opcode)
 						single_check_ipl();
 					}
 				}
-				genastore ("src", curi->dmode, "dstreg", curi->size, "dst");
+				// MOVE EA,-(An) long writes are always reversed. Reads are normal.
+				if (curi->dmode == Apdi && curi->size == sz_long) {
+					genastore_rev("src", curi->dmode, "dstreg", curi->size, "dst");
+				} else {
+					genastore("src", curi->dmode, "dstreg", curi->size, "dst");
+				}
 				sync_m68k_pc ();
 				if (dualprefetch) {
 					fill_prefetch_full_000 ();
