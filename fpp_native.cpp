@@ -403,14 +403,19 @@ static void fp_from_exten(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wr
     double frac;
     fptype v;
     
-    v = fpd->fp;
-    if (v == 0.0) {
-        *wrd1 = signbit(v) ? 0x80000000 : 0;
+    if (fp_is_zero(fpd)) {
+        *wrd1 = signbit(fpd->fp) ? 0x80000000 : 0;
         *wrd2 = 0;
         *wrd3 = 0;
         return;
-    }
-    if (v < 0) {
+	} else if (fp_is_nan(fpd)) {
+		*wrd1 = 0x7fff0000;
+		*wrd2 = 0xffffffff;
+		*wrd3 = 0xffffffff;
+		return;
+	}
+	v = fpd->fp;
+	if (v < 0) {
         *wrd1 = 0x80000000;
         v = -v;
     } else {
@@ -698,7 +703,7 @@ static void fp_div(fpdata *a, fpdata *b, int prec)
 {
 	fp_set_prec(prec);
 	a->fp = a->fp / b->fp;
-	fp_reset_prec(b);
+	fp_reset_prec(a);
 }
 static void fp_mod(fpdata *a, fpdata *b, uae_u64 *q, uae_u8 *s)
 {
@@ -766,7 +771,7 @@ static void fp_sqrt(fpdata *a, fpdata *b, int prec)
 {
 	fp_set_prec(prec);
 	a->fp = sqrtl(b->fp);
-	fp_reset_prec(b);
+	fp_reset_prec(a);
 }
 static void fp_lognp1(fpdata *a, fpdata *b)
 {
