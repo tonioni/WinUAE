@@ -286,17 +286,32 @@ static int handle_satn_stop(ESPState *s)
 	return 1;
 }
 
-static void write_response(ESPState *s)
+static void init_status_phase(ESPState *s, int st)
 {
 	// Multi Evolution driver reads FIFO after
 	// Message Accepted command. This makes
-	// sure wrong buffer is not read.
-	s->pio_on = 0;
+	// sure wrong buffer is not read.	s->pio_on = 0;
 	s->async_buf = NULL;
 	s->fifo_on = 2;
 
-	s->ti_buf[0] = s->status;
-    s->ti_buf[1] = 0;
+	if (st) {
+		// status + message
+		s->ti_buf[0] = s->status;
+		s->ti_buf[1] = 0;
+		s->ti_size = 2;
+	} else {
+		// message
+		s->ti_buf[0] = 0;
+		s->ti_size = 1;
+	}
+	s->ti_rptr = 0;
+	s->ti_wptr = 0;
+}
+
+static void write_response(ESPState *s)
+{
+	init_status_phase(s, 1);
+
     if (s->dma) {
         s->dma_memory_write(s->dma_opaque, s->ti_buf, 2);
         s->rregs[ESP_RSTAT] = STAT_TC | STAT_ST;
@@ -349,6 +364,14 @@ static int esp_do_dma(ESPState *s)
 	len2 = len;
 	s->dma_pending = len2;
     if (to_device) {
+		// if data in fifo, transfer it first
+		if (s->ti_wptr > 0) {
+			int l = s->ti_wptr > len ? len : s->ti_wptr;
+			memcpy(s->async_buf, s->ti_buf, l);
+			s->async_buf += l;
+			s->async_len -= l;
+			s->ti_wptr -= l;
+		}
 		len = s->dma_memory_read(s->dma_opaque, s->async_buf, len2);
 		// if dma counter is larger than transfer size, fill the FIFO
 		// Masoboshi needs this.
@@ -598,7 +621,7 @@ uint64_t fas408_read_fifo(void *opaque)
 	return 0;
 }
 
-uint64_t esp_reg_read(void *opaque, uint32_t saddr)
+static uint64_t esp_reg_read2(void *opaque, uint32_t saddr)
 {
 	ESPState *s = (ESPState*)opaque;
 	uint32_t old_val;
@@ -642,7 +665,10 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
 				s->fifo_on = 0;
 			}
 		}
-        break;
+#if	ESPLOG
+		write_log("<FIFO %02x %d %d %d\n", s->rregs[ESP_FIFO], s->pio_on, s->ti_size, s->ti_rptr);
+#endif		
+		break;
     case ESP_RINTR:
         /* Clear sequence step, interrupt register and all status bits
            except TC */
@@ -680,7 +706,7 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
 		return 0x58 | s->fas408sig;
 
 	default:
-#if	ESPLOG
+#if	ESPLOG > 1
 		write_log("read unknown 53c94 register %02x\n", saddr);
 #endif
 		break;
@@ -688,6 +714,14 @@ uint64_t esp_reg_read(void *opaque, uint32_t saddr)
     return s->rregs[saddr];
 }
 
+uint64_t esp_reg_read(void *opaque, uint32_t saddr)
+{
+	uint64_t v = esp_reg_read2(opaque, saddr);
+#if ESPLOG
+	write_log("ESP_READ  %02x %02x\n", saddr & 0xff, v & 0xff);
+#endif
+	return v;
+}
 
 void fas408_write_fifo(void *opaque, uint64_t val)
 {
@@ -721,6 +755,10 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
 		saddr += ESP_REGS;
 	}
 
+#if	ESPLOG
+	write_log("ESP_WRITE %02x %02x\n", saddr & 0xff, val & 0xff);
+#endif
+
 	switch (saddr) {
     case ESP_TCLO:
     case ESP_TCMID:
@@ -728,7 +766,10 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
         break;
     case ESP_FIFO:
-        if (s->do_cmd) {
+#if	ESPLOG
+		write_log("->FIFO %02x %d %d %d\n", val & 0xff, s->do_cmd, s->cmdlen, s->ti_wptr);
+#endif
+		if (s->do_cmd) {
 			if (s->cmdlen >= TI_BUFSZ)
 				return;
             s->cmdbuf[s->cmdlen++] = val & 0xff;
@@ -774,7 +815,16 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
             }
             break;
         case CMD_TI:
-            handle_ti(s);
+			// transfer info and status/message:
+			// make sure status/message byte is in buffer
+			if ((s->rregs[ESP_RSTAT] & 7) == STAT_ST) {
+				init_status_phase(s, 1);
+				s->rregs[ESP_RSTAT] &= ~7;
+				s->rregs[ESP_RSTAT] |= STAT_MI;
+			} else if ((s->rregs[ESP_RSTAT] & 7) == STAT_MI) {
+				init_status_phase(s, 0);
+			}
+			handle_ti(s);
             break;
         case CMD_ICCS:
             write_response(s);
@@ -866,7 +916,7 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
 		break;
 	
 	default:
-#if	ESPLOG
+#if	ESPLOG > 1
 		write_log("write unknown 53c94 register %02x\n", saddr);
 #endif
         return;
