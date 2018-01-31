@@ -2888,9 +2888,11 @@ int can_D3D11(bool checkdevice)
 		ComPtr<IDXGIFactory5> factory5;
 		BOOL allowTearing = FALSE;
 		hr = factory4.As(&factory5);
-		hr = factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
-		if (SUCCEEDED(hr) && allowTearing) {
-			ret |= 2;
+		if (SUCCEEDED(hr)) {
+			hr = factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
+			if (SUCCEEDED(hr) && allowTearing) {
+				ret |= 2;
+			}
 		}
 	}
 
@@ -4226,8 +4228,12 @@ static void xD3D11_unlocktexture(void)
 
 	d3d->m_deviceContext->Unmap(d3d->texture2dstaging, 0);
 
-	if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG)) {
+	bool rtg = WIN32GFX_IsPicassoScreen();
+	if (((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !rtg) || ((currprefs.leds_on_screen & STATUSLINE_RTG) && rtg)) {
+		d3d->osd.enabled = true;
 		updateleds(d3d);
+	} else {
+		d3d->osd.enabled = false;
 	}
 
 	d3d->m_deviceContext->CopyResource(d3d->texture2d, d3d->texture2dstaging);
@@ -4428,19 +4434,26 @@ bool D3D11_capture(void **data, int *w, int *h, int *pitch)
 		D3D11_MAPPED_SUBRESOURCE map;
 		ID3D11Resource* pSurface = NULL;
 		d3d->m_renderTargetView->GetResource(&pSurface);
-		d3d->m_deviceContext->CopyResource(d3d->screenshottexture, pSurface);
-		D3D11_TEXTURE2D_DESC desc;
-		d3d->screenshottexture->GetDesc(&desc);
-		hr = d3d->m_deviceContext->Map(d3d->screenshottexture, 0, D3D11_MAP_READ, 0, &map);
-		if (FAILED(hr))
-			return false;
-		pSurface->Release();
-		*data = map.pData;
-		*pitch = map.RowPitch;
-		*w = desc.Width;
-		*h = desc.Height;
-		return true;
+		if (pSurface) {
+			d3d->m_deviceContext->CopyResource(d3d->screenshottexture, pSurface);
+			D3D11_TEXTURE2D_DESC desc;
+			d3d->screenshottexture->GetDesc(&desc);
+			hr = d3d->m_deviceContext->Map(d3d->screenshottexture, 0, D3D11_MAP_READ, 0, &map);
+			if (FAILED(hr)) {
+				write_log(_T("Screenshot DeviceContext->Map() failed %08x\n"), hr);
+				return false;
+			}
+			pSurface->Release();
+			*data = map.pData;
+			*pitch = map.RowPitch;
+			*w = desc.Width;
+			*h = desc.Height;
+			return true;
+		} else {
+			write_log(_T("Screenshot RenderTargetView->GetResource() failed\n"));
+		}
 	}
+	return false;
 }
 
 static bool xD3D_setcursor(int x, int y, int width, int height, bool visible, bool noscale)
