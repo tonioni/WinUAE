@@ -161,15 +161,15 @@ void driveclick_free(void)
 
 void driveclick_init (void)
 {
-	int v, vv, i, j;
+	int v, vv;
 	TCHAR tmp[MAX_DPATH];
 
 	driveclick_fdrawcmd_detect ();
 	driveclick_close();
 	vv = 0;
-	for (i = 0; i < 4; i++) {
+	for (int i = 0; i < 4; i++) {
 		struct floppyslot *fs = &currprefs.floppyslots[i];
-		for (j = 0; j < CLICK_TRACKS; j++)  {
+		for (int j = 0; j < CLICK_TRACKS; j++)  {
 			drvs[i][DS_CLICK].indexes[j] = 0;
 			drvs[i][DS_CLICK].lengths[j] = 0;
 		}
@@ -181,7 +181,7 @@ void driveclick_init (void)
 				case 1:
 					if (driveclick_loadresource (drvs[i], fs->dfxclick))
 						v = 3;
-					for (j = 0; j < CLICK_TRACKS; j++)
+					for (int j = 0; j < CLICK_TRACKS; j++)
 						drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
 					wave_initialized = 1;
 					break;
@@ -193,7 +193,7 @@ void driveclick_init (void)
 			} else if (fs->dfxclick == -1) {
 				TCHAR path2[MAX_DPATH];
 				wave_initialized = 1;
-				for (j = 0; j < CLICK_TRACKS; j++)
+				for (int j = 0; j < CLICK_TRACKS; j++)
 					drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
 				get_plugin_path (path2, sizeof path2 / sizeof (TCHAR), _T("floppysounds"));
 				_stprintf (tmp, _T("%sdrive_click_%s"),
@@ -215,22 +215,22 @@ void driveclick_init (void)
 				v += loadsample (tmp, &drvs[i][DS_SNATCH]);
 			}
 			if (v == 0) {
-				int j;
-				for (j = 0; j < DS_END; j++)
+				for (int j = 0; j < DS_END; j++)
 					freesample (&drvs[i][j]);
 				fs->dfxclick = changed_prefs.floppyslots[i].dfxclick = 0;
 			} else {
 				vv++;
 			}
-			for (j = 0; j < DS_END; j++)
+			for (int j = 0; j < DS_END; j++)
 				drvs[i][j].len <<= DS_SHIFT;
 			drvs[i][DS_CLICK].pos = drvs[i][DS_CLICK].len;
 			drvs[i][DS_SNATCH].pos = drvs[i][DS_SNATCH].len;
 		}
 	}
 	driveclick_reset ();
-	if (vv > 0)
+	if (vv > 0) {
 		click_initialized = 1;
+	}
 }
 
 void driveclick_reset (void)
@@ -243,6 +243,8 @@ void driveclick_reset (void)
 		drv_spinning[i] = 0;
 		drv_has_spun[i] = 0;
 		drv_has_disk[i] = 0;
+		if (currprefs.floppyslots[i].df[0])
+			driveclick_insert(i, 0);
 	}
 	if (!wave_initialized)
 		return;
@@ -252,8 +254,7 @@ void driveclick_reset (void)
 
 static int driveclick_active (void)
 {
-	int i;
-	for (i = 0; i < 4; i++) {
+	for (int i = 0; i < 4; i++) {
 		if (currprefs.floppyslots[i].dfxclick) {
 			if (drv_spinning[i] || drv_starting[i])
 				return 1;
@@ -341,8 +342,6 @@ STATIC_INLINE uae_s16 limit (uae_s32 v)
 
 void driveclick_mix (uae_s16 *sndbuffer, int size, int channelmask)
 {
-	int i;
-
 	if (!wave_initialized)
 		return;
 	mix ();
@@ -350,7 +349,7 @@ void driveclick_mix (uae_s16 *sndbuffer, int size, int channelmask)
 	switch (get_audio_nativechannels (currprefs.sound_stereo))
 	{
 	case 6:
-		for (i = 0; i < size / 6; i++) {
+		for (int i = 0; i < size / 6; i++) {
 			uae_s16 s = clickbuffer[i];
 			if (channelmask & 1)
 				sndbuffer[0] = limit (((sndbuffer[0] + s) * 2) / 3);
@@ -380,7 +379,7 @@ void driveclick_mix (uae_s16 *sndbuffer, int size, int channelmask)
 		}
 		break;
 	case 4:
-		for (i = 0; i < size / 4; i++) {
+		for (int i = 0; i < size / 4; i++) {
 			uae_s16 s = clickbuffer[i];
 			if (channelmask & 1)
 				sndbuffer[0] = limit (((sndbuffer[0] + s) * 2) / 3);
@@ -402,7 +401,7 @@ void driveclick_mix (uae_s16 *sndbuffer, int size, int channelmask)
 		}
 		break;
 	case 2:
-		for (i = 0; i < size / 2; i++) {
+		for (int i = 0; i < size / 2; i++) {
 			uae_s16 s = clickbuffer[i];
 			if (channelmask & 1)
 				sndbuffer[0] = limit (((sndbuffer[0] + s) * 2) / 3);
@@ -416,7 +415,7 @@ void driveclick_mix (uae_s16 *sndbuffer, int size, int channelmask)
 		}
 		break;
 	case 1:
-		for (i = 0; i < size; i++) {
+		for (int i = 0; i < size; i++) {
 			uae_s16 s = clickbuffer[i];
 			if (channelmask & 1)
 				sndbuffer[0] = limit (((sndbuffer[0] + s) * 2) / 3);
@@ -500,8 +499,6 @@ void driveclick_insert (int drive, int eject)
 
 void driveclick_check_prefs (void)
 {
-	int i;
-
 	if (!config_changed)
 		return;
 	driveclick_fdrawcmd_vsync ();
@@ -525,7 +522,7 @@ void driveclick_check_prefs (void)
 		_tcscmp (currprefs.floppyslots[2].dfxclickexternal, changed_prefs.floppyslots[2].dfxclickexternal) ||
 		_tcscmp (currprefs.floppyslots[3].dfxclickexternal, changed_prefs.floppyslots[3].dfxclickexternal))
 	{
-		for (i = 0; i < 4; i++) {
+		for (int i = 0; i < 4; i++) {
 			currprefs.floppyslots[i].dfxclick = changed_prefs.floppyslots[i].dfxclick;
 			_tcscpy (currprefs.floppyslots[i].dfxclickexternal, changed_prefs.floppyslots[i].dfxclickexternal);
 			currprefs.dfxclickvolume_empty[i] = changed_prefs.dfxclickvolume_empty[i];
