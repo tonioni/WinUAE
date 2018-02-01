@@ -692,6 +692,7 @@ struct uae_prefs {
 	bool rtg_hardwareinterrupt;
 	bool rtg_hardwaresprite;
 	bool rtg_more_compatible;
+	bool rtg_multithread;
 	struct rtgboardconfig rtgboards[MAX_RTG_BOARDS];
 	uae_u32 custom_memory_addrs[MAX_CUSTOM_MEMORY_ADDRS];
 	uae_u32 custom_memory_sizes[MAX_CUSTOM_MEMORY_ADDRS];

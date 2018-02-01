@@ -34,6 +34,8 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#include <stdlib.h>
+
 #if defined(PICASSO96)
 
 #define MULTIDISPLAY 0
@@ -86,11 +88,15 @@ static int picasso96_PCT = PCT_Unknown;
 int mman_GetWriteWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize, PVOID *lpAddresses, PULONG_PTR lpdwCount, PULONG lpdwGranularity);
 void mman_ResetWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize);
 
+bool picasso_flushpixels(int index, uae_u8 *src, int offset);
+
 int p96refresh_active;
 bool have_done_picasso = 1; /* For the JIT compiler */
 static int p96syncrate;
 static int p96hsync_counter, full_refresh;
 
+static smp_comm_pipe *render_pipe;
+static CRITICAL_SECTION render_cs;
 
 #define PICASSO_STATE_SETDISPLAY 1
 #define PICASSO_STATE_SETPANNING 2
@@ -200,16 +206,27 @@ extern addrbank gfxmem_bank;
 extern addrbank *gfxmem_banks[MAX_RTG_BOARDS];
 extern int rtg_index;
 
+static void lockrtg(void)
+{
+	if (currprefs.rtg_multithread)
+		EnterCriticalSection(&render_cs);
+}
+
+static void unlockrtg(void)
+{
+	if (currprefs.rtg_multithread)
+		LeaveCriticalSection(&render_cs);
+}
+
 STATIC_INLINE void endianswap (uae_u32 *vp, int bpp)
 {
-	uae_u32 v = *vp;
 	switch (bpp)
 	{
 	case 2:
-		*vp = (((v >> 8) & 0x00ff) | (v << 8)) & 0xffff;
+		*vp = _byteswap_ushort(*vp);
 		break;
 	case 4:
-		*vp = ((v >> 24) & 0x000000ff) | ((v >> 8) & 0x0000ff00) | ((v << 8) & 0x00ff0000) | ((v << 24) & 0xff000000);
+		*vp = _byteswap_ulong(*vp);
 		break;
 	}
 }
@@ -612,34 +629,90 @@ static void do_fillrect_frame_buffer(struct RenderInfo *ri, int X, int Y, int Wi
 		for (lines = 0; lines < Height; lines++, dst += bpr) {
 			memset (dst, Pen, Width);
 		}
-		break;
+	break;
 	case 2:
+	{
+		uae_u32 * p;
 		Pen |= Pen << 16;
 		for (lines = 0; lines < Height; lines++, dst += bpr) {
 			uae_u32 *p = (uae_u32*)dst;
-			for (cols = 0; cols < Width / 2; cols++)
+			for (cols = 0; cols < Width & ~15; cols += 16) {
 				*p++ = Pen;
-			if (Width & 1)
+				*p++ = Pen;
+				*p++ = Pen;
+				*p++ = Pen;
+				*p++ = Pen;
+				*p++ = Pen;
+				*p++ = Pen;
+				*p++ = Pen;
+			}
+			while (cols < Width / 2) {
+				*p++ = Pen;
+				cols++;
+			}
+			if (Width & 1) {
 				((uae_u16*)p)[0] = Pen;
-		}
-		break;
-	case 3:
-		for (lines = 0; lines < Height; lines++, dst += bpr) {
-			uae_u8 *p = (uae_u8*)dst;
-			for (cols = 0; cols < Width; cols++) {
-				*p++ = Pen >> 0;
-				*p++ = Pen >> 8;
-				*p++ = Pen >> 16;
 			}
 		}
-		break;
+	}
+	break;
+	case 3:
+	{
+		uae_u16 Pen1 = Pen >> 8; // RG
+		uae_u16 Pen2 = (Pen << 8) | (Pen >> 16); // BR
+		uae_u16 Pen3 = Pen & 0xffff; // GB
+		bool same = (Pen & 0xff) == ((Pen >> 8) & 0xff) && (Pen & 0xff) == ((Pen >> 16) & 0xff);
+		for (lines = 0; lines < Height; lines++, dst += bpr) {
+			uae_u16 *p = (uae_u16*)dst;
+			if (same) {
+				memset(p, Pen & 0xff, Width * 3);
+			} else {
+				for (cols = 0; cols < Width & ~7; cols += 8) {
+					*p++ = Pen1;
+					*p++ = Pen2;
+					*p++ = Pen3;
+					*p++ = Pen1;
+					*p++ = Pen2;
+					*p++ = Pen3;
+					*p++ = Pen1;
+					*p++ = Pen2;
+					*p++ = Pen3;
+					*p++ = Pen1;
+					*p++ = Pen2;
+					*p++ = Pen3;
+				}
+				uae_u8 *p8 = (uae_u8*)p;
+				while (cols < Width) {
+					*p8++ = Pen >> 0;
+					*p8++ = Pen >> 8;
+					*p8++ = Pen >> 16;
+					cols++;
+				}
+			}
+		}
+	}
+	break;
 	case 4:
+	{
 		for (lines = 0; lines < Height; lines++, dst += bpr) {
 			uae_u32 *p = (uae_u32*)dst;
-			for (cols = 0; cols < Width; cols++)
+			for (cols = 0; cols < Width & ~7; cols += 8) {
 				*p++ = Pen;
+				*p++ = Pen;
+				*p++ = Pen;
+				*p++ = Pen;
+				*p++ = Pen;
+				*p++ = Pen;
+				*p++ = Pen;
+				*p++ = Pen;
+			}
+			while (cols < Width) {
+				*p++ = Pen;
+				cols++;
+			}
 		}
-		break;
+	}
+	break;
 	}
 }
 
@@ -743,7 +816,12 @@ static bool rtg_render (void)
 	} else {
 		bool full = full_refresh > 0;
 		if (uaegfx_active) {
-			flushed = picasso_flushpixels (rtg_index, gfxmem_banks[rtg_index]->start + natmem_offset, picasso96_state.XYOffset - gfxmem_banks[rtg_index]->start);
+			if (currprefs.rtg_multithread) {
+				write_comm_pipe_int(render_pipe, rtg_index, 0);
+				flushed = true;
+			} else {
+				flushed = picasso_flushpixels(rtg_index, gfxmem_banks[rtg_index]->start + natmem_offset, picasso96_state.XYOffset - gfxmem_banks[rtg_index]->start);
+			}
 		} else {
 			if (full_refresh < 0)
 				full_refresh = 0;
@@ -900,6 +978,7 @@ static void setconvert(void)
 {
 	static int ohost_mode, orgbformat;
 
+	lockrtg();
 	picasso_convert = getconvert(picasso96_state.RGBFormat, picasso_vidinfo.pixbytes);
 	if (currprefs.gfx_api) {
 		host_mode = picasso_vidinfo.pixbytes == 4 ? RGBFB_B8G8R8A8 : RGBFB_B5G6R5PC;
@@ -919,6 +998,7 @@ static void setconvert(void)
 		orgbformat = picasso96_state.RGBFormat;
 	}
 	full_refresh = 1;
+	unlockrtg();
 }
 
 bool picasso_is_active (void)
@@ -938,6 +1018,7 @@ void picasso_refresh (void)
 
 	if (!picasso_on || rtg_index < 0)
 		return;
+	lockrtg();
 	full_refresh = 1;
 	setconvert();
 	setupcursor();
@@ -945,6 +1026,7 @@ void picasso_refresh (void)
 
 	if (currprefs.rtgboards[rtg_index].rtgmem_type >= GFXBOARD_HARDWARE) {
 		gfxboard_refresh ();
+		unlockrtg();
 		return;
 	}
 
@@ -976,6 +1058,7 @@ void picasso_refresh (void)
 	} else {
 		write_log (_T("ERROR - picasso_refresh() can't refresh!\n"));
 	}
+	unlockrtg();
 }
 
 static void selectuaegfx(void)
@@ -993,6 +1076,8 @@ static void picasso_handle_vsync2(void)
 	bool uaegfx = currprefs.rtgboards[0].rtgmem_type < GFXBOARD_HARDWARE;
 
 	int state = picasso_state_change;
+	if (state)
+		lockrtg();
 	if (state & PICASSO_STATE_SETDAC) {
 		atomic_and(&picasso_state_change, ~PICASSO_STATE_SETDAC);
 		rtg_clear();
@@ -1025,6 +1110,8 @@ static void picasso_handle_vsync2(void)
 		init_picasso_screen();
 		set_panning_called = 0;
 	}
+	if (state)
+		unlockrtg();
 
 	if (picasso_on) {
 		if (vsync < 0) {
@@ -1146,7 +1233,7 @@ void picasso_handle_hsync(void)
 #define BLT_FUNC(s,d) *d = 0
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_NOR_32
-#define BLT_FUNC(s,d) *d = ~(*s | * d)
+#define BLT_FUNC(s,d) *d = ~((*s) | (*d))
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_ONLYDST_32
 #define BLT_FUNC(s,d) *d = (*d) & ~(*s)
@@ -1197,7 +1284,7 @@ void picasso_handle_hsync(void)
 #define BLT_FUNC(s,d) *d = 0
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_NOR_24
-#define BLT_FUNC(s,d) *d = ~(*s | * d)
+#define BLT_FUNC(s,d) *d = ~((*s) | (*d))
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_ONLYDST_24
 #define BLT_FUNC(s,d) *d = (*d) & ~(*s)
@@ -1248,7 +1335,7 @@ void picasso_handle_hsync(void)
 #define BLT_FUNC(s,d) *d = 0
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_NOR_16
-#define BLT_FUNC(s,d) *d = ~(*s | * d)
+#define BLT_FUNC(s,d) *d = ~((*s) | (*d))
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_ONLYDST_16
 #define BLT_FUNC(s,d) *d = (*d) & ~(*s)
@@ -1299,7 +1386,7 @@ void picasso_handle_hsync(void)
 #define BLT_FUNC(s,d) *d = 0
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_NOR_8
-#define BLT_FUNC(s,d) *d = ~(*s | * d)
+#define BLT_FUNC(s,d) *d = ~((*s) | (*d))
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_ONLYDST_8
 #define BLT_FUNC(s,d) *d = (*d) & ~(*s)
@@ -1936,7 +2023,7 @@ static uae_u32 REGPARAM2 picasso_FindCard (TrapContext *ctx)
 {
 	uaecptr AmigaBoardInfo = trap_get_areg(ctx, 0);
 	/* NOTES: See BoardInfo struct definition in Picasso96 dev info */
-	if (!uaegfx_active || !gfxmem_bank.start)
+	if (!uaegfx_active || !(gfxmem_bank.flags & ABFLAG_MAPPED))
 		return 0;
 	if (uaegfx_base) {
 		trap_put_long(ctx, uaegfx_base + CARD_BOARDINFO, AmigaBoardInfo);
@@ -2568,6 +2655,7 @@ static uae_u32 REGPARAM2 picasso_InitCard (TrapContext *ctx)
 */
 static uae_u32 REGPARAM2 picasso_SetSwitch (TrapContext *ctx)
 {
+	lockrtg();
 	uae_u16 flag = trap_get_dreg(ctx, 0) & 0xFFFF;
 
 	atomic_or(&picasso_state_change, PICASSO_STATE_SETSWITCH);
@@ -2582,6 +2670,7 @@ static uae_u32 REGPARAM2 picasso_SetSwitch (TrapContext *ctx)
 	write_log(_T("SetSwitch() - %s\n"), flag ? p96text : _T("amiga"));
 
 	/* Put old switch-state in D0 */
+	unlockrtg();
 	return !flag;
 }
 
@@ -2715,6 +2804,7 @@ static void init_picasso_screen (void)
 */
 static uae_u32 REGPARAM2 picasso_SetGC (TrapContext *ctx)
 {
+	lockrtg();
 	/* Fill in some static UAE related structure about this new ModeInfo setting */
 	uaecptr AmigaBoardInfo = trap_get_areg(ctx, 0);
 	uae_u32 border   = trap_get_dreg(ctx, 0);
@@ -2737,7 +2827,7 @@ static uae_u32 REGPARAM2 picasso_SetGC (TrapContext *ctx)
 	picasso96_state_uaegfx.HostAddress = NULL;
 
 	atomic_or(&picasso_state_change, PICASSO_STATE_SETGC);
-
+	unlockrtg();
 	return 1;
 }
 
@@ -2776,6 +2866,7 @@ static void picasso_SetPanningInit (void)
 
 static uae_u32 REGPARAM2 picasso_SetPanning (TrapContext *ctx)
 {
+	lockrtg();
 	uae_u16 Width = trap_get_dreg(ctx, 0);
 	uaecptr start_of_screen = trap_get_areg(ctx, 1);
 	uaecptr bi = trap_get_areg(ctx, 0);
@@ -2821,6 +2912,7 @@ static uae_u32 REGPARAM2 picasso_SetPanning (TrapContext *ctx)
 
 	atomic_or(&picasso_state_change, PICASSO_STATE_SETPANNING);
 
+	unlockrtg();
 	return 1;
 }
 
@@ -4352,7 +4444,7 @@ void picasso_invalidate (int x, int y, int w, int h)
 	DX_Invalidate (x, y, w, h);
 }
 
-bool picasso_flushpixels (int index, uae_u8 *src, int off)
+static bool picasso_flushpixels (int index, uae_u8 *src, int off)
 {
 	uae_u8 *src_start;
 	uae_u8 *src_end;
@@ -4521,6 +4613,19 @@ bool picasso_flushpixels (int index, uae_u8 *src, int off)
 		full_refresh = 0;
 	}
 	return lock != 0; 
+}
+
+static void *render_thread(void *v)
+{
+	for (;;) {
+		int idx = read_comm_pipe_int_blocking(render_pipe);
+		if (idx == -1)
+			break;
+		lockrtg();
+		picasso_flushpixels(idx, gfxmem_banks[idx]->start + natmem_offset, picasso96_state.XYOffset - gfxmem_banks[idx]->start);
+		unlockrtg();
+	}
+	return 0;
 }
 
 extern addrbank gfxmem_bank;
@@ -4904,6 +5009,13 @@ static void inituaegfxfuncs(TrapContext *ctx, uaecptr start, uaecptr ABI)
 
 void picasso_reset (void)
 {
+	if (!render_pipe && currprefs.rtg_multithread) {
+		InitializeCriticalSection(&render_cs);
+		render_pipe = xmalloc(smp_comm_pipe, 1);
+		init_comm_pipe(render_pipe, 10, 1);
+		uae_start_thread(_T("rtg"), render_thread, NULL, NULL);
+	}
+
 	rtg_index = -1;
 	if (savestate_state != STATE_RESTORE) {
 		uaegfx_base = 0;
@@ -4948,7 +5060,7 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
 	uaecptr findcardfunc, initcardfunc;
 	uaecptr exec = trap_get_long(ctx, 4);
 
-	if (uaegfx_old || !gfxmem_bank.start)
+	if (uaegfx_old || !(gfxmem_bank.flags & ABFLAG_MAPPED))
 		return 0;
 
 	uaegfx_resid = ds (_T("UAE Graphics Card 3.3"));
@@ -5038,6 +5150,7 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
 
 	write_log (_T("uaegfx.card %d.%d init @%08X\n"), UAEGFX_VERSION, UAEGFX_REVISION, uaegfx_base);
 	uaegfx_active = 1;
+
 	return uaegfx_base;
 }
 

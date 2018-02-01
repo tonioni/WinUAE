@@ -2239,7 +2239,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite(f, _T("cpuboardmem1_size"), _T("%d"), p->cpuboardmem1_size / 0x100000);
 	cfgfile_dwrite(f, _T("cpuboardmem2_size"), _T("%d"), p->cpuboardmem2_size / 0x100000);
 	cfgfile_write_bool(f, _T("gfxcard_hardware_vblank"), p->rtg_hardwareinterrupt);
-	cfgfile_write_bool (f, _T("gfxcard_hardware_sprite"), p->rtg_hardwaresprite);
+	cfgfile_write_bool(f, _T("gfxcard_hardware_sprite"), p->rtg_hardwaresprite);
+	cfgfile_write_bool(f, _T("gfxcard_multithread"), p->rtg_multithread);
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		TCHAR tmp2[100];
 		struct rtgboardconfig *rbc = &p->rtgboards[i];
@@ -5052,6 +5053,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("agnus_bltbusybug"), &p->cs_agnusbltbusybug)
 		|| cfgfile_yesno(option, value, _T("gfxcard_hardware_vblank"), &p->rtg_hardwareinterrupt)
 		|| cfgfile_yesno(option, value, _T("gfxcard_hardware_sprite"), &p->rtg_hardwaresprite)
+		|| cfgfile_yesno(option, value, _T("gfxcard_multithread"), &p->rtg_multithread)
 		|| cfgfile_yesno(option, value, _T("synchronize_clock"), &p->tod_hack)
 		|| cfgfile_yesno(option, value, _T("keyboard_connected"), &p->keyboard_connected)
 		|| cfgfile_coords(option, value, _T("lightpen_offset"), &p->lightpen_offset[0], &p->lightpen_offset[1])

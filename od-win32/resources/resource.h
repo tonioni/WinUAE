@@ -1212,6 +1212,7 @@
 #define IDC_RTG_Z2Z4                    1799
 #define IDC_RTG_NUM                     1799
 #define IDC_PORT2_REMAP                 1800
+#define IDC_RTG_THREAD                  1800
 #define IDC_PORT3_REMAP                 1801
 #define IDC_INPUTMAPOUT                 1801
 #define IDC_INFOBOX_TEXT2               1802
