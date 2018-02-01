@@ -290,7 +290,8 @@ static void init_status_phase(ESPState *s, int st)
 {
 	// Multi Evolution driver reads FIFO after
 	// Message Accepted command. This makes
-	// sure wrong buffer is not read.	s->pio_on = 0;
+	// sure wrong buffer is not read.
+	s->pio_on = 0;
 	s->async_buf = NULL;
 	s->fifo_on = 2;
 
