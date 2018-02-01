@@ -18,6 +18,7 @@ extern void multievolution_add_scsi_unit(int ch, struct uaedev_config_info *ci, 
 extern void golemfast_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void scram5394_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void rapidfire_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void alf3_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 extern bool ncr_fastlane_autoconfig_init(struct autoconfig_info *aci);
 extern bool ncr_oktagon_autoconfig_init(struct autoconfig_info *aci);
@@ -26,6 +27,7 @@ extern bool ncr_ematrix_autoconfig_init(struct autoconfig_info *aci);
 extern bool ncr_multievolution_init(struct autoconfig_info *aci);
 extern bool ncr_scram5394_init(struct autoconfig_info *aci);
 extern bool ncr_rapidfire_init(struct autoconfig_info *aci);
+extern bool ncr_alf3_autoconfig_init(struct autoconfig_info *aci);
 
 extern void cpuboard_ncr9x_scsi_put(uaecptr, uae_u32);
 extern uae_u32 cpuboard_ncr9x_scsi_get(uaecptr);

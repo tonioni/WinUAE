@@ -27,6 +27,7 @@
 #include "scsi.h"
 #include "ncr9x_scsi.h"
 #include "autoconf.h"
+#include "devices.h"
 
 #define DEBUG_IDE 0
 #define DEBUG_IDE_GVP 0
@@ -49,7 +50,8 @@
 #define DATAFLYERPLUS_IDE (BUDDHA_IDE + 3 * MAX_DUPLICATE_EXPANSION_BOARDS)
 #define ATEAM_IDE (DATAFLYERPLUS_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define FASTATA4K_IDE (ATEAM_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
-#define TOTAL_IDE (FASTATA4K_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
+#define ELSATHD_IDE (FASTATA4K_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
+#define TOTAL_IDE (ELSATHD_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 
 #define ALF_ROM_OFFSET 0x0100
 #define GVP_IDE_ROM_OFFSET 0x8000
@@ -105,6 +107,7 @@ static struct ide_board *dataflyerplus_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *ateam_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *arriba_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *fastata4k_board[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ide_board *elsathd_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 
 static struct ide_hdf *idecontroller_drive[TOTAL_IDE * 2];
 static struct ide_thread_state idecontroller_its;
@@ -281,7 +284,7 @@ void idecontroller_hsync(void)
 				}
 			}
 			if (ide_interrupt_check(board, false)) {
-				idecontroller_rethink();
+				devices_rethink_all(idecontroller_rethink);
 			}
 		}
 	}
@@ -530,6 +533,16 @@ static int get_arriba_reg(uaecptr addr, struct ide_board *board)
 	return reg;
 }
 
+static int get_elsathd_reg(uaecptr addr, struct ide_board *board)
+{
+	if (!(addr & 0x8000))
+		return -1;
+	if (!(addr & 1))
+		return -1;
+	int reg = ((addr & 0x0fff) >> 9) & 7;
+	return reg;
+}
+
 static int get_fastata4k_reg(uaecptr addr, struct ide_board *board, int *portnum)
 {
 	*portnum = 0;
@@ -564,7 +577,8 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 	addr &= board->mask;
 
 #if DEBUG_IDE
-	write_log(_T("IDE IO BYTE READ %08x %08x\n"), addr, M68K_GETPC);
+	if (0 || (addr & 0x8000))
+		write_log(_T("IDE IO BYTE READ %08x %08x\n"), addr, M68K_GETPC);
 #endif
 	
 	if (addr < 0x40 && (!board->configured || board->keepautoconfig))
@@ -820,6 +834,16 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 			v = board->rom[offset];
 		}
 
+	} else if (board->type == ELSATHD_IDE) {
+
+		int reg = get_elsathd_reg(addr, board);
+		if (reg >= 0) {
+			v = get_ide_reg(board, reg);
+		} else if (board->rom && !(addr & 0x8000)) {
+			int offset = addr & 0x7fff;
+			v = board->rom[offset];
+		}
+
 	} else if (board->type == FASTATA4K_IDE) {
 
 		int portnum;
@@ -1053,6 +1077,20 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 				v |= board->rom[(offset + 1) & board->rom_mask];
 			}
 
+		} else if (board->type == ELSATHD_IDE) {
+
+			int reg = get_elsathd_reg(addr | 1, board);
+			if (reg == 0) {
+				v = get_ide_reg_multi(board, IDE_DATA, 0, 1);
+			} else if (reg > 0) {
+				v = get_ide_reg(board, reg);
+			} else if (board->rom && !(addr & 0x8000)) {
+				int offset = addr & 0x7fff;
+				v = board->rom[(offset + 0) & board->rom_mask];
+				v <<= 8;
+				v |= board->rom[(offset + 1) & board->rom_mask];
+			}
+
 		} else if (board->type == FASTATA4K_IDE) {
 
 			int portnum;
@@ -1072,7 +1110,8 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 	}
 
 #if DEBUG_IDE
-	write_log(_T("IDE IO WORD READ %08x %04x %08x\n"), addr, v, M68K_GETPC);
+	if (0 || (addr & 0x8000))
+		write_log(_T("IDE IO WORD READ %08x %04x %08x\n"), addr, v, M68K_GETPC);
 #endif
 
 	return v;
@@ -1084,7 +1123,8 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 	addr &= board->mask;
 
 #if DEBUG_IDE
-	write_log(_T("IDE IO BYTE WRITE %08x=%02x %08x\n"), addr, v, M68K_GETPC);
+	if (0 || (addr & 0x8000))
+		write_log(_T("IDE IO BYTE WRITE %08x=%02x %08x\n"), addr, v, M68K_GETPC);
 #endif
 
 	if (!board->configured) {
@@ -1306,6 +1346,13 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 				put_ide_reg(board, reg, v);
 			}
 
+		} else if (board->type == ELSATHD_IDE) {
+
+			int reg = get_elsathd_reg(addr, board);
+			if (reg >= 0) {
+				put_ide_reg(board, reg, v);
+			}
+
 		} else if (board->type == FASTATA4K_IDE) {
 
 			int portnum;
@@ -1324,7 +1371,8 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 	addr &= board->mask;
 
 #if DEBUG_IDE
-	write_log(_T("IDE IO WORD WRITE %08x=%04x %08x\n"), addr, v, M68K_GETPC);
+	if (0 || (addr & 0x8000))
+		write_log(_T("IDE IO WORD WRITE %08x=%04x %08x\n"), addr, v, M68K_GETPC);
 #endif
 
 	if (board->configured) {
@@ -1463,6 +1511,15 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 			int reg = get_arriba_reg(addr, board);
 			if (!reg) {
 				put_ide_reg_multi(board, IDE_DATA, v, 0, 1);
+			}
+
+		} else if (board->type == ELSATHD_IDE) {
+
+			int reg = get_elsathd_reg(addr | 1, board);
+			if (!reg) {
+				put_ide_reg_multi(board, IDE_DATA, v, 0, 1);
+			} else if (reg > 0) {
+				put_ide_reg(board, reg, v & 0xff);
 			}
 
 		} else if (board->type == FASTATA4K_IDE) {
@@ -2256,6 +2313,43 @@ void arriba_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig
 	add_ide_standard_unit(ch, ci, rc, arriba_board, ARRIBA_IDE, false, false, 2);
 }
 
+bool elsathd_init(struct autoconfig_info *aci)
+{
+	uae_u8 *rom;
+	int rom_size = 16384;
+
+	rom = xcalloc(uae_u8, rom_size);
+	memset(rom, 0xff, rom_size);
+	load_rom_rc(aci->rc, ELSATHD_IDE, 16384, 0, rom, 16384, LOADROM_FILL);
+	if (aci->rc->autoboot_disabled)
+		rom[0] &= ~0x10;
+
+	if (!aci->doinit) {
+		memcpy(aci->autoconfig_raw, rom, sizeof aci->autoconfig_raw);
+		xfree(rom);
+		return true;
+	}
+
+	struct ide_board *ide = getide(aci);
+
+	ide->configured = 0;
+	ide->keepautoconfig = false;
+	ide->bank = &ide_bank_generic;
+	ide->mask = 65536 - 1;
+
+	ide->rom = rom;
+	ide->rom_size = rom_size;
+	ide->rom_mask = rom_size - 1;
+	memcpy(ide->acmemory, ide->rom, sizeof ide->acmemory);
+
+	aci->addrbank = ide->bank;
+	return true;
+}
+
+void elsathd_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	add_ide_standard_unit(ch, ci, rc, elsathd_board, ELSATHD_IDE, true, false, 2);
+}
 
 extern void x86_xt_ide_bios(struct zfile*, struct romconfig*);
 static bool x86_at_hd_init(struct autoconfig_info *aci, int type)

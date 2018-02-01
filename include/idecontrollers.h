@@ -51,6 +51,9 @@ void fastata4k_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romcon
 bool arriba_init(struct autoconfig_info *aci);
 void arriba_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
+bool elsathd_init(struct autoconfig_info *aci);
+void elsathd_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
 uae_u32 REGPARAM3 apollo_ide_lget (uaecptr addr) REGPARAM;
 uae_u32 REGPARAM3 apollo_ide_wget (uaecptr addr) REGPARAM;
 uae_u32 REGPARAM3 apollo_ide_bget (uaecptr addr) REGPARAM;

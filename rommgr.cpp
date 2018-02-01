@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 224
+#define NEXT_ROM_ID 225
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -551,6 +551,10 @@ static struct romdata roms[] = {
 	0xb0225f48, 0x2b170b40, 0x2f60d28c, 0x344fc463, 0x7e99915f, 0x92e0e8f1, NULL, NULL },
 	{ _T("Profex Electronics HD 3300"), 22, 0, 22, 0, _T("PROFEXHD3300\0"), 8192, 223, 0, 0, ROMTYPE_PROFEX, 0, 0, NULL,
 	0xfe4bf404, 0xc6c1e465, 0xc05e4794, 0xee76c9e2, 0x94def44d, 0x1c7560a1, NULL, NULL },
+	{ _T("Elsat Mega Ram HD"), 1, 0, 1, 0, _T("ELSATHD\0"), 16384, 224, 0, 0, ROMTYPE_ELSATHD, 0, 0, NULL,
+	0x1b854f6b, 0xc39d6202, 0xccb65f17, 0x63d1835e, 0x19d5b63d, 0x28f1b6a3, NULL, NULL },
+	ALTROMPN(224, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x3ba56b91, 0xef55760e, 0x8d5a5408, 0x7062f9ab, 0xc63ef067, 0x0b23f108)
+	ALTROMPN(224, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x20c2cbb6, 0xb83d7406, 0x6c335a77, 0x0acb30d6, 0xff79a00f, 0x629a6953)
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

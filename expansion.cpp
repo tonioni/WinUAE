@@ -4618,13 +4618,45 @@ static const struct expansionboardsettings a4091_settings[] = {
 static const struct expansionboardsettings dataflyersplus_settings[] = {
 	{
 		_T("Configuration\0") _T("SCSI+IDE\0") _T("SCSI\0") _T("IDE\0"),
-		_T("config\0") _T("scsiide") _T("scsi\0") _T("ide\0"),
+		_T("config\0") _T("scsiide\0") _T("scsi\0") _T("ide\0"),
 		true
 	},
 	{
 		NULL
 	}
 };
+static const struct expansionboardsettings alf3_settings[] = {
+	{
+		_T("Parity (J6)"),
+		_T("j6"),
+	},
+	{
+		_T("LUN (J7)"),
+		_T("j7"),
+	},
+	{
+		_T("Disconnect/Reconnect (J8)"),
+		_T("j8"),
+	},
+	{
+		_T("Login screen (J9)"),
+		_T("j9"),
+	},
+	{
+		_T("Login screen (J10)"),
+		_T("j10"),
+	},
+	{
+		_T("Interrupt level (J11)\0") _T("6\0") _T("2\0"),
+		_T("j11\0") _T("6\0") _T("2\0"),
+		true
+	},
+	{
+		NULL
+	}
+};
+
+
 
 const struct expansionromtype expansionroms[] = {
 	{
@@ -4790,6 +4822,13 @@ const struct expansionromtype expansionroms[] = {
 		0, 0, 0, true, NULL,
 		true, 2, fastata_settings,
 		{ 0x90, 0, 0x10, 0x00, 0x08, 0x9e, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00 },
+	},
+	{
+		_T("elsathd"), _T("Mega Ram HD"), _T("Elsat"),
+		NULL, elsathd_init, NULL, elsathd_add_ide_unit, ROMTYPE_ELSATHD, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		true, EXPANSIONTYPE_IDE,
+		17740, 1, 0
 	},
 	{
 		_T("eveshamref"), _T("Reference 40/100"), _T("Evesham Micros"),
@@ -5061,6 +5100,14 @@ const struct expansionromtype expansionroms[] = {
 		NULL, alf1_init, NULL, alf1_add_scsi_unit, ROMTYPE_ALF1 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
+	},
+	{
+		_T("alf3"), _T("A.L.F.3"), _T("Elaborate Bytes"),
+		NULL, ncr_alf3_autoconfig_init, NULL, alf3_add_scsi_unit, ROMTYPE_ALF3 | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI,
+		0, 0, 0, false, NULL,
+		true, 0, alf3_settings
 	},
 	{
 		_T("promigos"), _T("Promigos"), _T("Flesch und Hörnemann"),
