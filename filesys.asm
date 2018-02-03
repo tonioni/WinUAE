@@ -870,8 +870,7 @@ relocate: ;a0=pointer to executable, returns first segment in A0
 	addq.l #1,d7
 	move.l a2,a3
 	move.l d7,d0
-	add.l d0,d0
-	add.l d0,d0
+	lsl.l #2,d0
 	add.l d0,a3
 	move.l a2,a4
 
@@ -908,8 +907,7 @@ r18	addq.l #1,d6
 
 	moveq #0,d6
 r3	move.l d6,d1
-	add.l d1,d1
-	add.l d1,d1
+	lsl.l #2,d1
 	move.l 0(a4,d1.l),a0
 	addq.l #4,a0
 	move.l (a3)+,d3 ; hunk type
@@ -931,22 +929,20 @@ r5
 	cmp.l #$3eb,d3 ;bss
 	bne.s ree
 
-r7 ; scan for reloc32 or hunk_end
+r7 ; scan for reloc32, symbol, debug or hunk_end
 	move.l (a3)+,d3
 	cmp.l #$3ec,d3 ;reloc32
 	bne.s r13
 
 	; relocate
 	move.l d6,d1
-	add.l d1,d1
-	add.l d1,d1
+	lsl.l #2,d1
 	move.l 0(a4,d1.l),a0 ; current hunk
 	addq.l #4,a0
 r11	move.l (a3)+,d0 ;number of relocs
 	beq.s r7
 	move.l (a3)+,d1 ;hunk
-	add.l d1,d1
-	add.l d1,d1
+	lsl.l #2,d1
 	move.l 0(a4,d1.l),d3 ;hunk start address
 	addq.l #4,d3
 r9	move.l (a3)+,d2 ;offset
@@ -955,6 +951,25 @@ r9	move.l (a3)+,d2 ;offset
 	bne.s r9
 	bra.s r11
 r13
+	cmp.l #$3f0,d3 ;symbol
+	bne.s r20
+r21
+	move.l (a3)+,d0
+	beq.s r7
+	and.l #$ffffff,d0
+	addq.l #1,d0
+	lsl.l #2,d0
+	add.l d0,a3
+	bra.s r21
+r20
+	cmp.l #$3f1,d3 ;debug
+	bne.s r22
+	move.l (a3)+,d0
+	lsl.l #2,d0
+	add.l d0,a3
+	bra.s r7
+
+r22
 	cmp.l #$3f2,d3 ;end
 	bne.s ree
 	
