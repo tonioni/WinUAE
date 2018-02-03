@@ -448,6 +448,7 @@ static void ide_identity_buffer(struct ide_hdf *ide)
 	TCHAR tmp[100];
 	bool atapi = ide->atapi;
 	bool cf = ide->media_type > 0;
+	bool real = false;
 	int v;
 
 	memset(ide->secbuf, 0, 512);
@@ -460,6 +461,14 @@ static void ide_identity_buffer(struct ide_hdf *ide)
 		if (!ide->byteswap) {
 			ata_byteswapidentity(ide->secbuf);
 		}
+
+	} else if (ide->hdhfd.hfd.ci.loadidentity && (ide->hdhfd.hfd.identity[0] || ide->hdhfd.hfd.identity[1])) {
+
+		memcpy(ide->secbuf, ide->hdhfd.hfd.identity, 512);
+		if (ide->byteswap) {
+			ata_byteswapidentity(ide->secbuf);
+		}
+		real = true;
 
 	} else {
 
@@ -527,8 +536,10 @@ static void ide_identity_buffer(struct ide_hdf *ide)
 		ata_get_identity(ide->hdhfd.hfd.geometry, ide->secbuf, false);
 	}
 
-	v = ide->multiple_mode;
-	pwor(ide, 59, v > 0 ? 0x100 : 0);
+	if (!real) {
+		v = ide->multiple_mode;
+		pwor(ide, 59, v > 0 ? 0x100 : 0);
+	}
 	if (!atapi && cf) {
 		pw(ide, 0, 0x848a);
 	} else if (!atapi && !cf) {

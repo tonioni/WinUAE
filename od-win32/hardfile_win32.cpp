@@ -57,6 +57,7 @@ struct uae_driveinfo {
 	TCHAR device_name[1024];
 	TCHAR device_path[1024];
 	TCHAR device_full_path[2048];
+	uae_u8 identity[512];
 	uae_u64 size;
 	uae_u64 offset;
 	int bytespersector;
@@ -67,6 +68,8 @@ struct uae_driveinfo {
 	int readonly;
 	int cylinders, sectors, heads;
 	int BusType;
+	uae_u16 usb_vid, usb_pid;
+	int devicetype;
 
 };
 
@@ -534,6 +537,7 @@ static void queryataidentity(HANDLE h)
 #endif
 
 static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_driveinfo *udi, int ignoreduplicates);
+static bool getstorageinfo(uae_driveinfo *udi, STORAGE_DEVICE_NUMBER sdnp);
 
 #if 0
 typedef enum _STORAGE_PROTOCOL_TYPE { 
@@ -607,7 +611,7 @@ static void bintotextpart(TCHAR *out, uae_u8 *data, int size)
 	out[size] = 0;
 }
 
-static void bintotextline(TCHAR *out, uae_u8 *data, int size)
+static TCHAR *bintotextline(TCHAR *out, uae_u8 *data, int size)
 {
 	TCHAR tmp2[MAX_DPATH];
 	int w = 32;
@@ -630,6 +634,64 @@ static void bintotextline(TCHAR *out, uae_u8 *data, int size)
 		_tcscat (out, tmp2);
 		_tcscat (out, _T("\r\n"));
 	}
+	return out + _tcslen(out);
+}
+
+static int chsdialogactive, chs_secs, chs_cyls, chs_heads;
+static TCHAR *parse_identity(uae_u8 *data, struct ini_data *ini, TCHAR *s)
+{
+	uae_u16 v;
+
+	v = (data[1 * 2 + 0] << 8) | (data[1 * 2 + 1] << 0);
+	chs_cyls = v;
+	if (ini)
+		ini_addnewval(ini, _T("IDENTITY"), _T("Geometry_Cylinders"), v);
+	if (s) {
+		_stprintf(s, _T("Cylinders: %04X (%u)\r\n"), v, v);
+		s += _tcslen(s);
+	}
+	v = (data[3 * 2 + 0] << 8) | (data[3 * 2 + 1] << 0);
+	chs_heads = v;
+	if (ini)
+		ini_addnewval(ini, _T("IDENTITY"), _T("Geometry_Heads"), v);
+	if (s) {
+		_stprintf(s, _T("Heads: %04X (%u)\r\n"), v, v);
+		s += _tcslen(s);
+	}
+	v = (data[6 * 2 + 0] << 8) | (data[6 * 2 + 1] << 0);
+	chs_secs = v;
+	if (ini)
+		ini_addnewval(ini, _T("IDENTITY"), _T("Geometry_Surfaces"), v);
+	if (s) {
+		_stprintf(s, _T("Surfaces: %04X (%u)\r\n"), v, v);
+		s += _tcslen(s);
+	}
+
+	v = (data[49 * 2 + 0] << 8) | (data[49 * 2 + 1] << 0);
+	if (v & (1 << 9)) {
+		// LBA supported
+		uae_u32 lba = (data[60 * 2 + 0] << 24) | (data[60 * 2 + 1] << 16) | (data[61 * 2 + 0] << 8) | (data[61 * 2 + 1] << 0);
+		if (ini)
+			ini_addnewval(ini, _T("IDENTITY"), _T("LBA"), lba);
+		if (s) {
+			_stprintf(s, _T("LBA: %08X (%u)\r\n"), lba, lba);
+			s += _tcslen(s);
+		}
+	}
+	v = (data[83 * 2 + 0] << 8) | (data[83 * 2 + 1] << 0);
+	if ((v & 0xc000) == 0x4000 && (v & (1 << 10))) {
+		// LBA48 supported
+		uae_u64 lba = (data[100 * 2 + 0] << 24) | (data[100 * 2 + 1] << 16) | (data[101 * 2 + 0] << 8) | (data[101 * 2 + 1] << 0);
+		lba <<= 32;
+		lba |= (data[102 * 2 + 0] << 24) | (data[102 * 2 + 1] << 16) | (data[103 * 2 + 0] << 8) | (data[103 * 2 + 1] << 0);
+		if (ini)
+			ini_addnewval64(ini, _T("IDENTITY"), _T("LBA48"), lba);
+		if (s) {
+			_stprintf(s, _T("LBA48: %012llX (%llu)\r\n"), lba, lba);
+			s += _tcslen(s);
+		}
+	}
+	return s;
 }
 
 void gui_infotextbox(HWND hDlg, const TCHAR *text);
@@ -663,21 +725,66 @@ static bool hd_get_meta_ata(HWND hDlg, HANDLE h, bool atapi, uae_u8 *datap)
 
 #define INQUIRY_LEN 240
 
-static const uae_u8 realtek_inquiry_0x83[] = { 0x12, 0x01, 0x83, 0, 0xf0, 0 };
-static const uae_u8 realtek_read[] = { 0xf0, 0x0d, 0xfa, 0x00, 0x02, 0x00 };
-
-static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq)
+static bool hd_meta_hack_jmicron(HANDLE h, uae_u8 *data, uae_u8 *inq)
 {
 	uae_u8 cmd[16];
 
-	memset(data, 0, 512);
-	memcpy(cmd, realtek_inquiry_0x83, sizeof(realtek_inquiry_0x83));
-	if (do_scsi_in(h, cmd, 6, data, 0xf0) < 0)
-		return false;
-	if (memcmp(data + 20, "realtek\0", 8)) {
+	memset(cmd, 0, sizeof(cmd));
+	cmd[0] = 0xdf;
+	cmd[1] = 0x10;
+	cmd[4] = 1;
+	cmd[6] = 0x72;
+	cmd[7] = 0x0f;
+	cmd[11] = 0xfd;
+	if (do_scsi_in(h, cmd, 12, data + 32, 1) < 0) {
 		memset(data, 0, 512);
 		return false;
 	}
+	if (!(data[32] & 0x40) && !(data[32] & 0x04)) {
+		memset(data, 0, 512);
+		return false;
+	}
+#if 0
+	memset(cmd, 0, sizeof(cmd));
+	cmd[0] = 0xdf;
+	cmd[1] = 0x10;
+	cmd[4] = 16;
+	cmd[6] = 0x80;
+	cmd[11] = 0xfd;
+	if (do_scsi_in(h, cmd, 12, data, 16) < 0) {
+		memset(data, 0, 512);
+		return false;
+	}
+	memset(cmd, 0, sizeof(cmd));
+	cmd[0] = 0xdf;
+	cmd[1] = 0x10;
+	cmd[4] = 16;
+	cmd[6] = 0x90;
+	cmd[11] = 0xfd;
+	if (do_scsi_in(h, cmd, 12, data + 16, 16) < 0) {
+		memset(data, 0, 512);
+		return false;
+	}
+#endif	
+	memset(cmd, 0, sizeof(cmd));
+	cmd[0] = 0xdf;
+	cmd[1] = 0x10;
+	cmd[3] = 512 >> 8;
+	cmd[10] = 0xa0 | ((data[32] & 0x40) ? 0x10 : 0x00);
+	cmd[11] = ID_CMD;
+	if (do_scsi_in(h, cmd, 12, data, 512) < 0) {
+		memset(data, 0, 512);
+		return false;
+	}
+	return true;
+}
+
+static const uae_u8 realtek_inquiry_0x83[] = { 0x12, 0x01, 0x83, 0, 0xf0, 0 };
+static const uae_u8 realtek_read[] = { 0xf0, 0x0d, 0xfa, 0x00, 0x02, 0x00 };
+
+static bool hd_get_meta_hack_realtek(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq)
+{
+	uae_u8 cmd[16];
 
 	memset(data, 0, 512);
 	memcpy(cmd, realtek_read, sizeof(realtek_read));
@@ -754,6 +861,112 @@ static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq)
 	return false;
 }
 
+static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq, struct uae_driveinfo *udi)
+{
+	uae_u8 cmd[16];
+
+	memset(data, 0, 512);
+	if (udi->usb_vid == 0x152d && (udi->usb_pid == 0x2329 && udi->usb_pid == 0x2336 || udi->usb_pid == 0x2338 || udi->usb_pid == 0x2339)) {
+		return hd_meta_hack_jmicron(h, data, inq);
+	}
+	if (!hDlg)
+		return false;
+	memcpy(cmd, realtek_inquiry_0x83, sizeof(realtek_inquiry_0x83));
+	if (do_scsi_in(h, cmd, 6, data, 0xf0) >= 0 && !memcmp(data + 20, "realtek\0", 8)) {
+		return hd_get_meta_hack_realtek(hDlg, h, data, inq);
+	}
+	memset(data, 0, 512);
+	return false;
+}
+
+static bool readidentity(HANDLE h, struct uae_driveinfo *udi, struct hardfiledata *hfd)
+{
+	uae_u8 cmd[16];
+	uae_u8 *data = NULL;
+	bool ret = false;
+	bool satl = false;
+	bool handleopen = false;
+
+	memset(udi->identity, 0, 512);
+	if (hfd)
+		memset(hfd->identity, 0, 512);
+
+	data = (uae_u8*)VirtualAlloc(NULL, 65536, MEM_COMMIT, PAGE_READWRITE);
+	if (!data)
+		goto end;
+
+	if (h == INVALID_HANDLE_VALUE) {
+		DWORD flags = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
+		h = CreateFile(udi->device_path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, flags, NULL);
+		if (h == INVALID_HANDLE_VALUE)
+			goto end;
+		handleopen = true;
+	}
+
+	if (udi->BusType == BusTypeAta || udi->BusType == BusTypeSata || udi->BusType == BusTypeAtapi) {
+		if (!_tcscmp(udi->vendor_id, _T("ATA"))) {
+			satl = true;
+		}
+	}
+
+	if (satl || udi->BusType == BusTypeScsi || udi->BusType == BusTypeUsb || udi->BusType == BusTypeRAID) {
+
+		if (udi->devicetype == 5) {
+
+			memset(cmd, 0, sizeof(cmd));
+			memset(data, 0, 512);
+			cmd[0] = 0x85; // SAT ATA PASSTHROUGH (16)
+			cmd[1] = 4 << 1; // PIO data-in
+			cmd[2] = 0x08 | 0x04 | 0x02; // dir = from device, 512 byte block, sector count = block cnt
+			cmd[6] = 1; // block count
+			cmd[14] = 0xa1; // identity packet device
+			if (do_scsi_in(h, cmd, 16, data, 512) > 0) {
+				ret = true;
+			} else {
+				write_log(_T("SAT: ATA PASSTHROUGH(16) failed\n"));
+			}
+
+		} else {
+
+			memset(cmd, 0, sizeof(cmd));
+			memset(data, 0, 512);
+			cmd[0] = 0xa1; // SAT ATA PASSTHROUGH (12)
+			cmd[1] = 4 << 1; // PIO data-in
+			cmd[2] = 0x08 | 0x04 | 0x02; // dir = from device, 512 byte block, sector count = block cnt
+			cmd[4] = 1; // block count
+			cmd[9] = 0xec; // identity
+			if (do_scsi_in(h, cmd, 12, data, 512) > 0) {
+				ret = true;
+			} else {
+				write_log(_T("SAT: ATA PASSTHROUGH(12) failed\n"));
+			}
+		}
+	}
+
+	if (!ret) {
+		if (udi->BusType == BusTypeUsb) {
+			ret = hd_get_meta_hack(NULL, h, data, NULL, udi);
+		} else if (udi->BusType == BusTypeAta || udi->BusType == BusTypeSata || udi->BusType == BusTypeAtapi) {
+			ret = hd_get_meta_ata(NULL, h, udi->BusType == BusTypeAtapi, data);
+		}
+	}
+
+	if (ret) {
+		memcpy(udi->identity, data, 512);
+		if (hfd)
+			memcpy(hfd->identity, data, 512);
+		write_log(_T("Real harddrive IDENTITY read\n"));
+	}
+
+end:
+
+	if (handleopen && h != INVALID_HANDLE_VALUE)
+		CloseHandle(h);
+	if (data)
+		VirtualFree(data, 65536, MEM_RELEASE);
+	return ret;
+}
+
 static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, uae_u8 *data, int cnt, bool log)
 {
 	uae_u8 cmd[10] = { 0 };
@@ -806,7 +1019,6 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 {
 	uae_u8 cmd[16];
 	TCHAR cline[256];
-	bool invalidcapacity = false;
 	bool ret = false;
 
 	*atapi = false;
@@ -843,8 +1055,6 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 		bintotextline(text, data, 8);
 		_tcscat (text, _T("\r\n"));
 		ini_addnewdata(ini, _T("READ CAPACITY"), _T("DATA"), data, 8);
-		if (data[0] == 0xff && data[1] == 0xff && data[2] == 0xff && data[3] == 0xff)
-			invalidcapacity = true;
 	}
 
 	// get supported evpd pages
@@ -983,52 +1193,9 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 		}
 	}
 
-	if (invalidcapacity) {
-		bool chs0 = do_scsi_read10_chs(h, 0xffffffff, 0, 0, 0, data, 1, true);
-		bool chs1 = do_scsi_read10_chs(h, 0xffffffff, 0, 0, 1, data, 1, true);
-		write_log(_T("CHS0=%d CHS1=%d\n"), chs0, chs1);
-		int hh, ss;
-		for (ss = 1; ss < 256; ss++) {
-			if (!do_scsi_read10_chs(h, 0xffffffff, 0, 0, ss, data, 1, true)) {
-				ss--;
-				break;
-			}
-		}
-		write_log(_T("Sectors=%d\n"), ss);
-		for (hh = 0; hh < 16; hh++) {
-			if (!do_scsi_read10_chs(h, 0xffffffff, 0, hh, 1, data, 1, true)) {
-				break;
-			}
-		}
-		write_log(_T("Heads=%d\n"), hh);
-		if (hh <= 0 || ss <= 1 || ss >= 256) {
-			write_log(_T("Invalid H and/or S value.\n"));
-			goto end;
-		}
-#if 0
-		int cc;
-		for (cc = 0; cc < 10000; cc++) {
-			write_log(_T("%d "), cc);
-			for (int hhh = 0; hhh < hh; hhh++) {
-				for (int sss = 1; sss < ss; sss++) {
-					if (!do_scsi_read10_chs(h, cc, hhh, sss, data)) {
-						write_log("\n\n");
-						if (hhh != 0 || sss != 1) {
-							write_log(_T("Read error when not first head and sector! %d:%d:%d\n"), cc, hhh, sss);
-						}
-						goto end;
-					}
-				}
-			}
-		}
-#endif
-end:;
-	}
-
 	return ret;
 }
 
-static int chsdialogactive, chs_secs, chs_cyls, chs_heads;
 static INT_PTR CALLBACK CHSDialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (msg)
@@ -1041,7 +1208,9 @@ static INT_PTR CALLBACK CHSDialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		DestroyWindow(hDlg);
 		return TRUE;
 	case WM_INITDIALOG:
-		chs_secs = chs_cyls = chs_heads = 0;
+		SetDlgItemInt(hDlg, IDC_CHS_SECTORS, chs_secs, FALSE);
+		SetDlgItemInt(hDlg, IDC_CHS_CYLINDERS, chs_cyls, FALSE);
+		SetDlgItemInt(hDlg, IDC_CHS_HEADS, chs_heads, FALSE);
 		return TRUE;
 	case WM_COMMAND:
 		switch (LOWORD(wParam))
@@ -1070,7 +1239,7 @@ static INT_PTR CALLBACK CHSDialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 }
 
 
-static int gethdfchs(HWND hDlg, HANDLE h, int *cylsp, int *headsp, int *secsp)
+static int gethdfchs(HWND hDlg, struct uae_driveinfo *udi, HANDLE h, int *cylsp, int *headsp, int *secsp)
 {
 	uae_u8 cmd[10];
 	int cyls = 0, heads = 0, secs = 0;
@@ -1097,6 +1266,11 @@ static int gethdfchs(HWND hDlg, HANDLE h, int *cylsp, int *headsp, int *secsp)
 	}
 	if (!cylsp || !headsp || !secsp)
 		return err;
+
+	if (readidentity(h, udi, NULL)) {
+		parse_identity(udi->identity, NULL, NULL);
+	}
+
 	chsdialogactive = 1;
 	HWND hwnd = CustomCreateDialog(IDD_CHSQUERY, hDlg, CHSDialogProc);
 	if (hwnd == NULL) {
@@ -1199,12 +1373,13 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 	bool satl = false;
 	uae_u8 *data = NULL;
 	uae_u8 inq[INQUIRY_LEN + 4] = { 0 };
-	TCHAR *text;
+	TCHAR *text, *tptr;
 	struct ini_data *ini = NULL;
 	bool atapi = false;
 
 	geometryfile[0] = 0;
 	text = xcalloc(TCHAR, 100000);
+
 
 	HANDLE h = CreateFile(udi->device_path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
 		NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -1225,20 +1400,28 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 		}
 	}
 
-	_stprintf(text, _T("BusType: 0x%02x\r\nVendor: '%s'\r\nProduct: '%s'\r\nRevision: '%s'\r\nSerial: '%s'\r\nSize: %llu\r\n\r\n"),
+	_stprintf(text, _T("BusType: 0x%02x\r\nVendor: '%s'\r\nProduct: '%s'\r\nRevision: '%s'\r\nSerial: '%s'\r\nSize: %llu\r\n"),
 		 udi->BusType, udi->vendor_id, udi->product_id, udi->product_rev, udi->product_serial, udi->size);
+	tptr = text + _tcslen(text);
+	if (udi->BusType == BusTypeUsb && udi->usb_vid && udi->usb_pid) {
+		_stprintf(tptr, _T("VID: %04x PID: %04x\r\n"), udi->usb_vid, udi->usb_pid);
+		tptr += _tcslen(tptr);
+	}
+	_tcscpy(tptr, _T("\r\n"));
+	tptr += _tcslen(tptr);
+
 	write_log(_T("SATL=%d\n%s"), satl, text);
 
 	if (satl || udi->BusType == BusTypeScsi || udi->BusType == BusTypeUsb || udi->BusType == BusTypeRAID) {
 		write_log(_T("SCSI ATA passthrough\n"));
-		if (!hd_get_meta_satl(hDlg, h, data, text, ini, &atapi)) {
+		if (!hd_get_meta_satl(hDlg, h, data, tptr, ini, &atapi)) {
 			write_log(_T("SAT Passthrough failed\n"));
 			memset(data, 0, 512);
 			if (udi->BusType == BusTypeUsb) {
-				hd_get_meta_hack(hDlg, h, data, inq);
+				hd_get_meta_hack(hDlg, h, data, inq, udi);
 			}
-			if (text[0] == 0) {
-				_tcscpy(text, _T("SCSI ATA Passthrough error!"));
+			if (tptr[0] == 0) {
+				_tcscpy(tptr, _T("\r\nSCSI ATA Passthrough error."));
 				goto doout;
 			}
 		}
@@ -1246,11 +1429,11 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 		write_log(_T("ATA passthrough\n"));
 		if (!hd_get_meta_ata(hDlg, h, udi->BusType == BusTypeAtapi, data)) {
 			write_log(_T("ATA Passthrough failed\n"));
-			_tcscpy(text, _T("ATA Passthrough error!"));
+			_tcscpy(tptr, _T("\r\nATA Passthrough error."));
 			goto doout;
 		}
 	} else {
-		_stprintf(text, _T("Unsupported bus type %02x\n"), udi->BusType);
+		_stprintf(tptr, _T("Unsupported bus type %02x\n"), udi->BusType);
 		goto doout;
 	}
 
@@ -1262,8 +1445,8 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 
 	if (empty) {
 		write_log(_T("Nothing returned!\n"));
-		if (text[0] == 0) {
-			_tcscpy(text, _T("Nothing returned!"));
+		if (tptr[0] == 0) {
+			_tcscpy(tptr, _T("Nothing returned!"));
 			goto doout;
 		}
 	}
@@ -1272,8 +1455,11 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 
 	if (!empty) {
 		TCHAR cline[256];
-		_tcscat (text, _T("IDENTITY:\r\n"));
-		bintotextline(text, data, 512);
+		_tcscat (tptr, _T("IDENTITY:\r\n"));
+		tptr += _tcslen(tptr);
+		tptr = bintotextline(tptr, data, 512);
+		_tcscpy(tptr, _T("\r\n"));
+		tptr += _tcslen(tptr);
 
 		bintotextpart(cline, data + 27 * 2, 40);
 		ini_addnewcomment(ini, _T("IDENTITY"), cline);
@@ -1286,6 +1472,8 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 			ini_addnewstring(ini, _T("IDENTITY"), _T("ATAPI"), _T("true"));
 
 		ini_addnewdata(ini, _T("IDENTITY"), _T("DATA"), data, 512);
+
+		tptr = parse_identity(data, ini, tptr);
 	}
 
 doout:
@@ -1418,6 +1606,12 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 		write_log (_T("Non-enumeration mount: mismatched device names\n"));
 		return false;
 	}
+
+	STORAGE_DEVICE_NUMBER sdn;
+	if (DeviceIoControl(hDevice, IOCTL_STORAGE_GET_DEVICE_NUMBER, NULL, 0, &sdn, sizeof(sdn), &returnedLength, NULL)) {
+		getstorageinfo(udi, sdn);
+	}
+	readidentity(INVALID_HANDLE_VALUE, udi, NULL);
 
 	if (!DeviceIoControl (hDevice, IOCTL_DISK_GET_DRIVE_GEOMETRY, NULL, 0, (void*)&dg, sizeof (dg), &returnedLength, NULL)) {
 		DWORD err = GetLastError();
@@ -1653,8 +1847,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 				if (udi->readonly)
 					hfd->ci.readonly = 1;
 			}
-
-			//hfd->ci.readonly = false;
+			readidentity(INVALID_HANDLE_VALUE, udi, hfd);
 
 			flags = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
 			h = CreateFile (udi->device_path,
@@ -2296,6 +2489,7 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 		write_log (_T("not a direct access device, ignored (type=%d)\n"), devDesc->DeviceType);
 		return -2;
 	}
+	udi->devicetype = devDesc->DeviceType;
 	if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, VendorIdOffset) && validoffset(devDesc->VendorIdOffset, size2) && p[devDesc->VendorIdOffset]) {
 		j = 0;
 		for (i = devDesc->VendorIdOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
@@ -2370,6 +2564,93 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 		}
 	}
 	return -1;
+}
+
+static bool getstorageinfo(uae_driveinfo *udi, STORAGE_DEVICE_NUMBER sdnp)
+{
+	int idx;
+	const GUID *di = udi->devicetype == INQ_ROMD ? &GUID_DEVINTERFACE_CDROM : &GUID_DEVINTERFACE_DISK;
+	HDEVINFO hIntDevInfo;
+	DWORD vpm[3];
+
+	vpm[0] = 0xffffffff;
+	vpm[1] = 0xffffffff;
+	vpm[2] = 0xffffffff;
+	hIntDevInfo = SetupDiGetClassDevs(di, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+	if (!hIntDevInfo)
+		return false;
+	idx = -1;
+	for (;;) {
+		PSP_DEVICE_INTERFACE_DETAIL_DATA pInterfaceDetailData = NULL;
+		SP_DEVICE_INTERFACE_DATA interfaceData = { 0 };
+		SP_DEVINFO_DATA deviceInfoData = { 0 };
+		DWORD dwRequiredSize, returnedLength;
+
+		idx++;
+		interfaceData.cbSize = sizeof(interfaceData);
+		if (!SetupDiEnumDeviceInterfaces(hIntDevInfo, NULL, di, idx, &interfaceData))
+			break;
+		dwRequiredSize = 0;
+		if (!SetupDiGetDeviceInterfaceDetail(hIntDevInfo, &interfaceData, NULL, 0, &dwRequiredSize, NULL)) {
+			if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+				break;
+			if (dwRequiredSize <= 0)
+				break;
+		}
+		pInterfaceDetailData = (PSP_DEVICE_INTERFACE_DETAIL_DATA)LocalAlloc(LPTR, dwRequiredSize);
+		pInterfaceDetailData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
+		deviceInfoData.cbSize = sizeof(deviceInfoData);
+		if (!SetupDiGetDeviceInterfaceDetail(hIntDevInfo, &interfaceData, pInterfaceDetailData, dwRequiredSize, &dwRequiredSize, &deviceInfoData)) {
+			LocalFree(pInterfaceDetailData);
+			continue;
+		}
+		HANDLE hDev = CreateFile(pInterfaceDetailData->DevicePath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+		if (hDev == INVALID_HANDLE_VALUE) {
+			LocalFree(pInterfaceDetailData);
+			continue;
+		}
+		LocalFree(pInterfaceDetailData);
+		STORAGE_DEVICE_NUMBER sdn;
+		if (!DeviceIoControl(hDev, IOCTL_STORAGE_GET_DEVICE_NUMBER, NULL, 0, &sdn, sizeof(sdn), &returnedLength, NULL)) {
+			CloseHandle(hDev);
+			continue;
+		}
+		CloseHandle(hDev);
+		if (sdnp.DeviceType != sdn.DeviceType || sdnp.DeviceNumber != sdn.DeviceNumber) {
+			continue;
+		}
+		TCHAR pszDeviceInstanceId[1024];
+		DEVINST dnDevInstParent, dwDeviceInstanceIdSize;
+		dwDeviceInstanceIdSize = sizeof(pszDeviceInstanceId) / sizeof(TCHAR);
+		if (!SetupDiGetDeviceInstanceId(hIntDevInfo, &deviceInfoData, pszDeviceInstanceId, dwDeviceInstanceIdSize, &dwRequiredSize)) {
+			continue;
+		}
+		if (CM_Get_Parent(&dnDevInstParent, deviceInfoData.DevInst, 0) == CR_SUCCESS) {
+			TCHAR szDeviceInstanceID[MAX_DEVICE_ID_LEN];
+			if (CM_Get_Device_ID(dnDevInstParent, szDeviceInstanceID, MAX_DEVICE_ID_LEN, 0) == CR_SUCCESS) {
+				const static LPCTSTR arPrefix[3] = { TEXT("VID_"), TEXT("PID_"), TEXT("MI_") };
+				LPTSTR pszNextToken;
+				LPTSTR pszToken = _tcstok_s(szDeviceInstanceID, TEXT("\\#&"), &pszNextToken);
+				while (pszToken != NULL) {
+					for (int j = 0; j < 3; j++) {
+						if (_tcsncmp(pszToken, arPrefix[j], lstrlen(arPrefix[j])) == 0) {
+							wchar_t *endptr;
+							vpm[j] = _tcstol(pszToken + lstrlen(arPrefix[j]), &endptr, 16);
+						}
+					}
+					pszToken = _tcstok_s(NULL, TEXT("\\#&"), &pszNextToken);
+				}
+			}
+		}
+		if (vpm[0] != 0xffffffff && vpm[1] != 0xffffffff)
+			break;
+	}
+	SetupDiDestroyDeviceInfoList(hIntDevInfo);
+	if (vpm[0] == 0xffffffff || vpm[1] == 0xffffffff)
+		return false;
+	udi->usb_vid = vpm[0];
+	udi->usb_pid = vpm[1];
+	return true;
 }
 
 static void checkhdname(struct uae_driveinfo *udi)
@@ -2481,6 +2762,11 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			ret = 1;
 			goto end;
 		}
+		STORAGE_DEVICE_NUMBER sdn;
+		if (DeviceIoControl(hDevice, IOCTL_STORAGE_GET_DEVICE_NUMBER, NULL, 0, &sdn, sizeof(sdn), &returnedLength, NULL)) {
+			getstorageinfo(udi, sdn);
+		}
+		readidentity(INVALID_HANDLE_VALUE, udi, NULL);
 	}
 	udi = &uae_drives[udiindex < 0 ? *index2 : udiindex];
 	memcpy (udi, &tmpudi, sizeof (struct uae_driveinfo));
@@ -2816,7 +3102,7 @@ int hdf_getnumharddrives (void)
 	return num_drives;
 }
 
-TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangerousdrive)
+TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangerousdrive, uae_u32 *outflags)
 {
 	struct uae_driveinfo *udi = &uae_drives[index];
 	static TCHAR name[512];
@@ -2826,6 +3112,12 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 	TCHAR *dang = _T("?");
 	TCHAR *rw = _T("RW");
 	bool noaccess = false;
+
+	if (outflags) {
+		*outflags = 0;
+		if (udi->identity[0] || udi->identity[1])
+			*outflags = 1;
+	}
 
 	if (dangerousdrive)
 		*dangerousdrive = 0;
@@ -3075,9 +3367,9 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 	h = CreateFile(uae_drives[idx].device_path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
 		NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (h != INVALID_HANDLE_VALUE) {
-		if (!gethdfchs(hDlg, h, NULL, NULL, NULL)) {
+		if (!gethdfchs(hDlg, &uae_drives[idx], h, NULL, NULL, NULL)) {
 			chsmode = true;
-			erc = gethdfchs(hDlg, h, &cyls, &heads, &secs);
+			erc = gethdfchs(hDlg, &uae_drives[idx], h, &cyls, &heads, &secs);
 			if (erc == -100) {
 				chsmode = false;
 				CloseHandle(h);
@@ -3227,13 +3519,15 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 err:
 	if (!erc)
 		erc = GetLastError ();
-	LPWSTR pBuffer = NULL;
-	WIN32GUI_LoadUIString (IDS_HDCLONE_FAIL, tmp, MAX_DPATH);
-	if (!FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, erc, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&pBuffer, 0, NULL))
-		pBuffer = NULL;
-	_stprintf (tmp2, tmp, progressdialogreturn, erc, pBuffer ? _T("<unknown>") : pBuffer);
-	gui_message (tmp2);
-	LocalFree (pBuffer);
+	if (erc) {
+		LPWSTR pBuffer = NULL;
+		WIN32GUI_LoadUIString(IDS_HDCLONE_FAIL, tmp, MAX_DPATH);
+		if (!FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, erc, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&pBuffer, 0, NULL))
+			pBuffer = NULL;
+		_stprintf(tmp2, tmp, progressdialogreturn, erc, pBuffer ? _T("<unknown>") : pBuffer);
+		gui_message(tmp2);
+		LocalFree(pBuffer);
+	}
 
 ok:
 	if (h != INVALID_HANDLE_VALUE)

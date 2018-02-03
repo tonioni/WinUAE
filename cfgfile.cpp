@@ -1096,6 +1096,10 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 				_tcscat(tmp, _T(",lock"));
 				_tcscat(tmp3, _T(",lock"));
 			}
+			if (ci->loadidentity) {
+				_tcscat(tmp, _T(",identity"));
+				_tcscat(tmp3, _T(",identity"));
+			}
 
 			if (ci->type == UAEDEV_HDF)
 				cfgfile_write_str (f, _T("hardfile2"), tmp);
@@ -4585,7 +4589,9 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 
 			if (cfgfile_option_find(tmpp2, _T("lock")))
 				uci.lock = true;
-					
+			if (cfgfile_option_find(tmpp2, _T("identity")))
+				uci.loadidentity = true;
+
 			if (cfgfile_option_find(tmpp2, _T("SCSI2")))
 				uci.unit_feature_level = HD_LEVEL_SCSI_2;
 			else if (cfgfile_option_find(tmpp2, _T("SCSI1")))

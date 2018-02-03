@@ -12822,6 +12822,8 @@ static void sethardfile (HWND hDlg)
 	hide (hDlg, IDC_HARDFILE_BOOTPRI, !disables);
 	hide (hDlg, IDC_HARDFILE_BOOTPRI_TEXT, !disables);
 	hide (hDlg, IDC_HDF_PHYSGEOMETRY, !rdb);
+	if (!rdb)
+		setchecked(hDlg, IDC_HDF_PHYSGEOMETRY, false);
 	hide(hDlg, IDC_RESERVED_TEXT, rdb);
 	hide(hDlg, IDC_CYLINDERS_TEXT, !rdb);
 	gui_set_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER, current_hfdlg.ci.controller_type +  current_hfdlg.ci.controller_type_unit * HD_CONTROLLER_NEXT_UNIT);
@@ -13052,6 +13054,15 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 		} else {
 			current_hfdlg.forcedcylinders = current_hfdlg.ci.pcyls;
 		}
+		if (hDlg && (hfd.identity[0] || hfd.identity[1])) {
+			TCHAR ident[256];
+			int i;
+			for (i = 0; i < 11; i++) {
+				_stprintf(ident + i * 5, _T("%02X%02X."), hfd.identity[i * 2 + 1], hfd.identity[i * 2 + 0]);
+			}
+			ident[i * 5 - 1] = 0;
+			SetDlgItemText(hDlg, IDC_HDFINFO3, ident);
+		}
 		hdf_close (&hfd);
 	}
 
@@ -13104,8 +13115,8 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 			}
 		}
 		if (hDlg != NULL) {
-			SetDlgItemText (hDlg, IDC_HDFINFO, tmp);
-			SetDlgItemText (hDlg, IDC_HDFINFO2, tmp2);
+			SetDlgItemText(hDlg, IDC_HDFINFO, tmp);
+			SetDlgItemText(hDlg, IDC_HDFINFO2, tmp2);
 		}
 	}
 }
@@ -13657,15 +13668,16 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			setharddrive(hDlg);
 			inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF, current_hfdlg.ci.rootdir[0] != 0);
 			CheckDlgButton (hDlg, IDC_HDF_RW, !current_hfdlg.ci.readonly);
-			CheckDlgButton (hDlg, IDC_HDF_LOCK, current_hfdlg.ci.lock);
+			CheckDlgButton(hDlg, IDC_HDF_LOCK, current_hfdlg.ci.lock);
+			CheckDlgButton(hDlg, IDC_HDF_IDENTITY, current_hfdlg.ci.loadidentity);
 			SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_RESETCONTENT, 0, 0);
 			ew (hDlg, IDC_HARDDRIVE_IMAGE, FALSE);
 			index = -1;
 			for (i = 0; i < hdf_getnumharddrives (); i++) {
-				SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_ADDSTRING, 0, (LPARAM)hdf_getnameharddrive (i, 1, NULL, NULL));
-				TCHAR *name1 = hdf_getnameharddrive (i, 4, NULL, NULL);
-				TCHAR *name2 = hdf_getnameharddrive (i, 2, NULL, NULL);
-				TCHAR *name3 = hdf_getnameharddrive (i, 0, NULL, NULL);
+				SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_ADDSTRING, 0, (LPARAM)hdf_getnameharddrive (i, 1, NULL, NULL, NULL));
+				TCHAR *name1 = hdf_getnameharddrive (i, 4, NULL, NULL, NULL);
+				TCHAR *name2 = hdf_getnameharddrive (i, 2, NULL, NULL, NULL);
+				TCHAR *name3 = hdf_getnameharddrive (i, 0, NULL, NULL, NULL);
 				if (!_tcscmp (current_hfdlg.ci.rootdir, name1) || !_tcscmp (current_hfdlg.ci.rootdir, name2) || !_tcscmp (current_hfdlg.ci.rootdir, name3))
 					index = i;
 			}
@@ -13725,16 +13737,22 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				posn = SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
 				if (posn != CB_ERR) {
 					int dang = 1;
-					hdf_getnameharddrive (posn, 1, NULL, &dang);
+					hdf_getnameharddrive (posn, 1, NULL, &dang, NULL);
 					current_hfdlg.ci.readonly = (ischecked (hDlg, IDC_HDF_RW) && !dang) ? false : true;
 				}
 				break;
 			case IDC_HDF_LOCK:
-				posn = SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
+				posn = SendDlgItemMessage(hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
 				if (posn != CB_ERR) {
 					int dang = 1;
-					hdf_getnameharddrive (posn, 1, NULL, &dang);
-					current_hfdlg.ci.lock = ischecked (hDlg, IDC_HDF_LOCK);
+					hdf_getnameharddrive(posn, 1, NULL, &dang, NULL);
+					current_hfdlg.ci.lock = ischecked(hDlg, IDC_HDF_LOCK);
+				}
+				break;
+			case IDC_HDF_IDENTITY:
+				posn = SendDlgItemMessage(hDlg, IDC_HDF_IDENTITY, CB_GETCURSEL, 0, 0);
+				if (posn != CB_ERR) {
+					current_hfdlg.ci.loadidentity = ischecked(hDlg, IDC_HDF_IDENTITY);
 				}
 				break;
 			}
@@ -13747,34 +13765,40 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 					oposn = posn;
 					if (posn >= 0) {
 						BOOL ena;
+						uae_u32 flags;
 						int dang = 1;
-						hdf_getnameharddrive (posn, 1, NULL, &dang);
-						_tcscpy (current_hfdlg.ci.rootdir, hdf_getnameharddrive (posn, 4, NULL, &dang));
+						hdf_getnameharddrive (posn, 1, NULL, &dang, &flags);
+						_tcscpy (current_hfdlg.ci.rootdir, hdf_getnameharddrive (posn, 4, NULL, &dang, NULL));
 						ena = dang >= 0;
-						ew (hDlg, IDC_HARDDRIVE_IMAGE, ena);
-						ew (hDlg, IDC_HARDDRIVE_ID, ena);
-						ew (hDlg, IDC_HDF_LOCK, ena);
-						ew (hDlg, IDOK, ena);
-						ew (hDlg, IDC_HDF_RW, !dang);
-						ew (hDlg, IDC_HDF_FEATURE_LEVEL, ena);
-						ew (hDlg, IDC_HDF_CONTROLLER, ena);
-						ew (hDlg, IDC_HDF_CONTROLLER_UNIT, ena);
-						ew (hDlg, IDC_HDF_CONTROLLER_TYPE, ena);
-						ew (hDlg, IDC_PATH_GEOMETRY, ena);
-						ew (hDlg, IDC_PATH_GEOMETRY_SELECTOR, ena);
-						ew (hDlg, IDC_HDF_PHYSGEOMETRY, ena && current_hfdlg.ci.geometry[0] == 0);
+						ew(hDlg, IDC_HARDDRIVE_IMAGE, ena);
+						ew(hDlg, IDC_HARDDRIVE_ID, ena);
+						ew(hDlg, IDC_HDF_LOCK, ena);
+						ew(hDlg, IDOK, ena);
+						ew(hDlg, IDC_HDF_RW, !dang);
+						ew(hDlg, IDC_HDF_FEATURE_LEVEL, ena);
+						ew(hDlg, IDC_HDF_CONTROLLER, ena);
+						ew(hDlg, IDC_HDF_CONTROLLER_UNIT, ena);
+						ew(hDlg, IDC_HDF_CONTROLLER_TYPE, ena);
+						ew(hDlg, IDC_PATH_GEOMETRY, ena);
+						ew(hDlg, IDC_PATH_GEOMETRY_SELECTOR, ena);
+						ew(hDlg, IDC_HDF_PHYSGEOMETRY, ena && current_hfdlg.ci.geometry[0] == 0);
 						if (dang)
 							current_hfdlg.ci.readonly = true;
 						current_hfdlg.ci.blocksize = 512;
 						current_hfdlg.forcedcylinders = 0;
 						current_hfdlg.ci.cyls = current_hfdlg.ci.highcyl = current_hfdlg.ci.sectors = current_hfdlg.ci.surfaces = 0;
-						SetDlgItemText (hDlg, IDC_HDFINFO, _T(""));
-						SetDlgItemText (hDlg, IDC_HDFINFO2, _T(""));
+						SetDlgItemText(hDlg, IDC_HDFINFO, _T(""));
+						SetDlgItemText(hDlg, IDC_HDFINFO2, _T(""));
+						SetDlgItemText(hDlg, IDC_HDFINFO3, _T(""));
 						updatehdfinfo (hDlg, true, current_hfdlg.ci.geometry[0] ? false : true);
+						hdf_getnameharddrive(posn, 1, NULL, &dang, &flags);
+						ew(hDlg, IDC_HDF_IDENTITY, ena && (flags & 1));
+						if (!(flags & 1))
+							current_hfdlg.ci.loadidentity = false;
 						gui_set_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER, current_hfdlg.ci.controller_type + current_hfdlg.ci.controller_type_unit * MAX_DUPLICATE_EXPANSION_BOARDS);
 						SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_hfdlg.ci.controller_unit : current_hfdlg.ci.controller_type_unit, 0);
 						CheckDlgButton(hDlg, IDC_HDF_RW, !current_hfdlg.ci.readonly);
-						_tcscpy (current_hfdlg.ci.rootdir, hdf_getnameharddrive ((int)posn, 4, &current_hfdlg.ci.blocksize, NULL));
+						_tcscpy (current_hfdlg.ci.rootdir, hdf_getnameharddrive ((int)posn, 4, &current_hfdlg.ci.blocksize, NULL, NULL));
 						setharddrive(hDlg);
 					}
 				}
@@ -13786,8 +13810,9 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 					current_hfdlg.ci.controller_type_unit = posn / HD_CONTROLLER_NEXT_UNIT;
 					current_hfdlg.forcedcylinders = 0;
 					current_hfdlg.ci.cyls = current_hfdlg.ci.highcyl = current_hfdlg.ci.sectors = current_hfdlg.ci.surfaces = 0;
-					SetDlgItemText (hDlg, IDC_HDFINFO, _T(""));
-					SetDlgItemText (hDlg, IDC_HDFINFO2, _T(""));
+					SetDlgItemText(hDlg, IDC_HDFINFO, _T(""));
+					SetDlgItemText(hDlg, IDC_HDFINFO2, _T(""));
+					SetDlgItemText(hDlg, IDC_HDFINFO3, _T(""));
 					updatehdfinfo (hDlg, true, true);
 					inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF, current_hfdlg.ci.rootdir[0] != 0);
 					SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_hfdlg.ci.controller_unit : current_hfdlg.ci.controller_type_unit, 0);

@@ -70,6 +70,7 @@ struct hardfiledata {
 	struct hdf_cache bcache[MAX_HDF_CACHE_BLOCKS];
 	uae_u8 scsi_sense[MAX_SCSI_SENSE];
 	uae_u8 sector_buffer[512];
+	uae_u8 identity[512];
 
 	struct uaedev_config_info delayedci;
 	int reinsertdelay;
@@ -133,8 +134,7 @@ extern int hdf_read_rdb (struct hardfiledata *hfd, void *buffer, uae_u64 offset,
 extern int hdf_read(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len);
 extern int hdf_write(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len);
 extern int hdf_getnumharddrives (void);
-extern TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangerousdrive);
-extern int isspecialdrive(const TCHAR *name);
+extern TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangerousdrive, uae_u32 *outflags);
 extern int get_native_path(TrapContext *ctx, uae_u32 lock, TCHAR *out);
 extern void hardfile_do_disk_change (struct uaedev_config_data *uci, bool insert);
 extern void hardfile_send_disk_change (struct hardfiledata *hfd, bool insert);

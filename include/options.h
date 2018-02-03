@@ -191,6 +191,7 @@ struct uaedev_config_info {
 	TCHAR rootdir[MAX_DPATH];
 	bool readonly;
 	bool lock;
+	bool loadidentity;
 	int bootpri;
 	TCHAR filesys[MAX_DPATH];
 	TCHAR geometry[MAX_DPATH];
