@@ -4287,7 +4287,7 @@ void mmu_op (uae_u32 opcode, uae_u32 extra)
 		write_log (_T("PFLUSH\n"));
 #endif
 		return;
-	} else if ((opcode & 0x0FD8) == 0x548) {
+	} else if ((opcode & 0x0FD8) == 0x0548) {
 		if (currprefs.cpu_model < 68060) { /* PTEST not in 68060 */
 			/* PTEST */
 			int regno = opcode & 7;
@@ -4306,7 +4306,7 @@ void mmu_op (uae_u32 opcode, uae_u32 extra)
 #endif
 			return;
 		}
-	} else if ((opcode & 0x0FB8) == 0x588) {
+	} else if ((opcode & 0x0FB8) == 0x0588) {
 		/* PLPA */
 		if (currprefs.cpu_model == 68060) {
 			int regno = opcode & 7;
