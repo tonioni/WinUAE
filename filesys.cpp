@@ -7387,13 +7387,15 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *ctx)
 		resaddr += 0x10;
 	}
 
-	put_long_host(baseaddr + 0x2100, EXPANSION_explibname);
-	put_long_host(baseaddr + 0x2104, filesys_configdev);
-	put_long_host(baseaddr + 0x2108, EXPANSION_doslibname);
-	put_word_host(baseaddr + 0x210c, 0);
-	put_word_host(baseaddr + 0x210e, nr_units());
-	put_word_host(baseaddr + 0x2110, 0);
-	put_word_host(baseaddr + 0x2112, 1 | (currprefs.uae_hide_autoconfig || currprefs.uaeboard > 1 ? 16 : 0));
+	if (baseaddr) {
+		put_long_host(baseaddr + 0x2100, EXPANSION_explibname);
+		put_long_host(baseaddr + 0x2104, filesys_configdev);
+		put_long_host(baseaddr + 0x2108, EXPANSION_doslibname);
+		put_word_host(baseaddr + 0x210c, 0);
+		put_word_host(baseaddr + 0x210e, nr_units());
+		put_word_host(baseaddr + 0x2110, 0);
+		put_word_host(baseaddr + 0x2112, 1 | (currprefs.uae_hide_autoconfig || currprefs.uaeboard > 1 ? 16 : 0));
+	}
 
 	native2amiga_startup();
 
@@ -7484,7 +7486,7 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *ctx)
 	putmsg_hack_filesystemtask = 0;
 	ks12hack_deviceproc = 0;
 
-	if (KS12_BOOT_HACK && nr_units() && filesys_configdev == 0) {
+	if (KS12_BOOT_HACK && nr_units() && filesys_configdev == 0 && baseaddr) {
 		resaddr_hack = resaddr;
 		putmsg_hack_state = -1;
 		if (uip[0].bootpri > -128) {
