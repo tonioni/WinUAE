@@ -3530,7 +3530,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyport2")) == 0 || _tcscmp (option, _T("joyport3")) == 0) {
-		int port = _tcscmp (option, _T("joyport0")) == 0 ? 2 : 3;
+		int port = _tcscmp (option, _T("joyport2")) == 0 ? 2 : 3;
 		inputdevice_joyport_config_store(p, _T(""), port, -1, 1);
 		inputdevice_joyport_config_store(p, _T(""), port, -1, 2);
 		inputdevice_joyport_config_store(p, value, port, -1, 0);
