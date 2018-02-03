@@ -1730,12 +1730,14 @@ bool mapped_malloc (addrbank *ab)
 	ab->startmask = ab->start;
 	ab->baseaddr = xcalloc (uae_u8, ab->reserved_size + 4);
 	ab->allocated_size =  ab->baseaddr != NULL ? ab->reserved_size : 0;
+	ab->flags &= ~ABFLAG_MAPPED;
 	return ab->baseaddr != NULL;
 }
 
 void mapped_free (addrbank *ab)
 {
 	xfree(ab->baseaddr);
+	ab->flags &= ~ABFLAG_MAPPED;
 	ab->allocated_size = 0;
 	ab->baseaddr = NULL;
 }
@@ -1862,6 +1864,7 @@ bool mapped_malloc (addrbank *ab)
 		write_log(_T("mapped_malloc with memory bank '%s' already allocated!?\n"), ab->name);
 	}
 	ab->allocated_size = 0;
+	ab->flags &= ~ABFLAG_MAPPED;
 
 	if (ab->label && ab->label[0] == '*') {
 		if (ab->start == 0 || ab->start == 0xffffffff) {
@@ -2925,6 +2928,7 @@ static void map_banks2 (addrbank *bank, int start, int size, int realsize, int q
 	if (quick <= 0)
 		old = debug_bankchange (-1);
 	flush_icache_hard (3); /* Sure don't want to keep any old mappings around! */
+	bank->flags |= ABFLAG_MAPPED;
 #ifdef NATMEM_OFFSET
 	if (!quick)
 		delete_shmmaps (start << 16, size << 16);

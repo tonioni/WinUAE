@@ -633,6 +633,7 @@ void mapped_free (addrbank *ab)
 	shmpiece *x = shm_start;
 	bool rtgmem = (ab->flags & ABFLAG_RTG) != 0;
 
+	ab->flags &= ~ABFLAG_MAPPED;
 	if (ab->baseaddr == NULL)
 		return;
 
