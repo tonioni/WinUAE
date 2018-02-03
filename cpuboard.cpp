@@ -32,6 +32,7 @@
 #include "idecontrollers.h"
 #include "scsi.h"
 #include "cpummu030.h"
+#include "devices.h"
 
 // ROM expansion board diagrom call
 // 00F83B7C 3.1 A4000
@@ -983,12 +984,12 @@ void cpuboard_rethink(void)
 {
 	if (is_csmk3(&currprefs) || is_blizzardppc(&currprefs)) {
 		if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_SCSI_EN | P5_IRQ_SCSI))) {
-			INTREQ_0(0x8000 | 0x0008);
+			safe_interrupt_set(0x0008);
 			if (currprefs.cachesize)
 				atomic_or(&uae_int_requested, 0x010000);
 			uae_ppc_wakeup_main();
 		} else if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_PPC_1 | P5_IRQ_PPC_2))) {
-			INTREQ_0(0x8000 | 0x0008);
+			safe_interrupt_set(0x0008);
 			if (currprefs.cachesize)
 				atomic_or(&uae_int_requested, 0x010000);
 			uae_ppc_wakeup_main();
@@ -1078,22 +1079,30 @@ static void cyberstormmk2_maprom(void)
 		map_banks_nojitdirect(&blizzardmaprom_bank, blizzardmaprom_bank.start >> 16, 524288 >> 16, 0);
 }
 
+void cyberstorm_mk3_ppc_irq_setonly(int level)
+{
+	if (level)
+		io_reg[CSIII_REG_IRQ] &= ~P5_IRQ_SCSI;
+	else
+		io_reg[CSIII_REG_IRQ] |= P5_IRQ_SCSI;
+}
 void cyberstorm_mk3_ppc_irq(int level)
 {
-	if (level)
-		io_reg[CSIII_REG_IRQ] &= ~P5_IRQ_SCSI;
-	else
-		io_reg[CSIII_REG_IRQ] |= P5_IRQ_SCSI;
-	cpuboard_rethink();
+	cyberstorm_mk3_ppc_irq_setonly(level);
+	devices_rethink_all(cpuboard_rethink);
 }
 
-void blizzardppc_irq(int level)
+void blizzardppc_irq_setonly(int level)
 {
 	if (level)
 		io_reg[CSIII_REG_IRQ] &= ~P5_IRQ_SCSI;
 	else
 		io_reg[CSIII_REG_IRQ] |= P5_IRQ_SCSI;
-	cpuboard_rethink();
+}
+void blizzardppc_irq(int level)
+{
+	blizzardppc_irq_setonly(level);
+	devices_rethink_all(cpuboard_rethink);
 }
 
 static uae_u32 REGPARAM2 blizzardio_bget(uaecptr addr)

@@ -42,7 +42,7 @@ int log_cd32 = 0;
 static void irq (void)
 {
 	if (!(intreq & 8)) {
-		INTREQ_0 (0x8000 | 0x0008);
+		safe_interrupt_set(0x0008);
 	}
 }
 

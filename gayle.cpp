@@ -34,6 +34,7 @@
 #include "debug.h"
 #include "autoconf.h"
 #include "rommgr.h"
+#include "devices.h"
 
 #define PCMCIA_SRAM 1
 #define PCMCIA_IDE 2
@@ -228,7 +229,7 @@ void rethink_gayle (void)
 	if (currprefs.cs_ide == IDE_A4000) {
 		gayle_irq |= checkgayleideirq ();
 		if ((gayle_irq & GAYLE_IRQ_IDE) && !(intreq & 0x0008))
-			INTREQ_0 (0x8000 | 0x0008);
+			safe_interrupt_set(0x0008);
 		return;
 	}
 
@@ -255,9 +256,9 @@ void rethink_gayle (void)
 			lev2 = 1;
 	}
 	if (lev2 && !(intreq & 0x0008))
-		INTREQ_0 (0x8000 | 0x0008);
+		safe_interrupt_set(0x0008);
 	if (lev6 && !(intreq & 0x2000))
-		INTREQ_0 (0x8000 | 0x2000);
+		safe_interrupt_set(0x2000);
 }
 
 static void gayle_cs_change (uae_u8 mask, int onoff)
@@ -272,7 +273,7 @@ static void gayle_cs_change (uae_u8 mask, int onoff)
 	}
 	if (changed) {
 		gayle_irq |= mask;
-		rethink_gayle ();
+		devices_rethink_all(rethink_gayle);
 		if ((mask & GAYLE_CS_CCDET) && (gayle_irq & (GAYLE_IRQ_RESET | GAYLE_IRQ_BERR)) != (GAYLE_IRQ_RESET | GAYLE_IRQ_BERR)) {
 			if (gayle_irq & GAYLE_IRQ_RESET)
 				uae_reset (0, 0);
@@ -299,7 +300,7 @@ static void card_trigger (int insert)
 		gayle_cs_change (GAYLE_CS_WR, 0);
 		gayle_cs_change (GAYLE_CS_BSY, 0);
 	}
-	rethink_gayle ();
+	devices_rethink_all(rethink_gayle);
 }
 
 static void write_gayle_cfg (uae_u8 val)
@@ -990,7 +991,7 @@ void gayle_hsync(void)
 	if (ne2000)
 		ne2000->hsync(ne2000_board_state);
 	if (ide_interrupt_hsync(idedrive[0]) || ide_interrupt_hsync(idedrive[2]) || ide_interrupt_hsync(idedrive[4]) || checkpcmciane2000irq())
-		rethink_gayle();
+		devices_rethink_all(rethink_gayle);
 }
 
 static uaecptr from_gayle_pcmcmia(uaecptr addr)

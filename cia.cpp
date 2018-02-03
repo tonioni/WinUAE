@@ -124,7 +124,7 @@ static int cia_interrupt_delay;
 
 static void ICR (uae_u32 data)
 {
-	INTREQ_0 (0x8000 | data);
+	safe_interrupt_set(data);
 }
 
 static void ICRA (uae_u32 data)

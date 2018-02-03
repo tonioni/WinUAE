@@ -44,6 +44,7 @@
 #include "savestate.h"
 #include "cpuboard.h"
 #include "rtc.h"
+#include "devices.h"
 
 #define DMAC_8727_ROM_VECTOR 0x8000
 #define CDMAC_ROM_VECTOR 0x2000
@@ -275,6 +276,7 @@ static struct wd_state *wd_gvps2[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct wd_state *wd_gvps2accel;
 static struct wd_state *wd_comspec[MAX_DUPLICATE_EXPANSION_BOARDS];
 struct wd_state *wd_cdtv;
+static bool configured;
 
 static struct wd_state *scsi_units[MAX_SCSI_UNITS + 1];
 
@@ -325,6 +327,7 @@ static struct wd_state *allocscsi(struct wd_state **wd, struct romconfig *rc, in
 			}
 		}
 	}
+	configured = true;
 	return *wd;
 }
 
@@ -452,19 +455,21 @@ static bool is_dma_enabled(struct wd_state *wds)
 		case COMMODORE_8727:
 		return wds->cdmac.dmac_dma > 0;
 	}
-	return false;	
+	return false;
 }
 
 void rethink_a2091 (void)
 {
+	if (!configured)
+		return;
 	for (int i = 0; i < MAX_SCSI_UNITS; i++) {
 		if (scsi_units[i]) {
 			int irq = isirq(scsi_units[i]);
 			if (irq & 1)
-				INTREQ_0(0x8000 | 0x0008);
+				safe_interrupt_set(0x0008);
 			if (irq & 2)
-				INTREQ_0(0x8000 | 0x2000);
-#if A2091_DEBUG > 2 || A3000_DEBUG > 2
+				safe_interrupt_set(0x2000);
+#if DEBUG > 2 || A3000_DEBUG > 2
 			write_log (_T("Interrupt_RETHINK:%d\n"), irq);
 #endif
 		}
@@ -477,7 +482,7 @@ static void dmac_scsi_int(struct wd_state *wd)
 		return;
 	if (!(wd->wc.auxstatus & ASR_INT))
 		return;
-	rethink_a2091();
+	devices_rethink_all(rethink_a2091);
 }
 
 static void dmac_a2091_xt_int(struct wd_state *wd)
@@ -485,7 +490,7 @@ static void dmac_a2091_xt_int(struct wd_state *wd)
 	if (!wd->enabled)
 		return;
 	wd->cdmac.xt_irq = true;
-	rethink_a2091();
+	devices_rethink_all(rethink_a2091);
 }
 
 void scsi_dmac_a2091_start_dma (struct wd_state *wd)
@@ -524,7 +529,7 @@ static void incsasr (struct wd_chip_state *wd, int w)
 static void dmac_a2091_cint (struct wd_state *wd)
 {
 	wd->cdmac.dmac_istr = 0;
-	rethink_a2091 ();
+	devices_rethink_all(rethink_a2091);
 }
 
 static void doscsistatus(struct wd_state *wd, uae_u8 status)
@@ -1406,7 +1411,7 @@ static void wd_check_interrupt(struct wd_state *wds, bool checkonly)
 {
 	struct wd_chip_state *wd = &wds->wc;
 	if (wd->intmask) {
-		INTREQ_0(0x8000 | wd->intmask);
+		safe_interrupt_set(wd->intmask);
 		wd->intmask = 0;
 	}
 	if (wd->auxstatus & ASR_INT)

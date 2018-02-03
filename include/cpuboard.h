@@ -32,9 +32,10 @@ extern uae_u32 cyberstorm_scsi_ram_get(uaecptr addr);
 extern int REGPARAM3 cyberstorm_scsi_ram_check(uaecptr addr, uae_u32 size) REGPARAM;
 extern uae_u8 *REGPARAM3 cyberstorm_scsi_ram_xlate(uaecptr addr) REGPARAM;
 
-void cyberstorm_irq(int level);
 void cyberstorm_mk3_ppc_irq(int level);
 void blizzardppc_irq(int level);
+void cyberstorm_mk3_ppc_irq_setonly(int level);
+void blizzardppc_irq_setonly(int level);
 
 #define BOARD_MEMORY_Z2 1
 #define BOARD_MEMORY_Z3 2

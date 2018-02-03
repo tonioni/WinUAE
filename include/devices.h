@@ -6,6 +6,7 @@ void devices_vsync_pre(void);
 void devices_vsync_post(void);
 void devices_hsync(void);
 void devices_rethink(void);
+void devices_rethink_all(void func(void));
 void devices_syncchange(void);
 void devices_update_sound(double clk, double syncadjust);
 void devices_update_sync(double svpos, double syncadjust);

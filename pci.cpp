@@ -28,6 +28,7 @@
 #include "rommgr.h"
 #include "cpuboard.h"
 #include "autoconf.h"
+#include "devices.h"
 
 #include "qemuvga/qemuuaeglue.h"
 #include "qemuvga/queue.h"
@@ -156,7 +157,6 @@ void pci_hsync(void)
 
 void pci_rethink(void)
 {
-	atomic_and(&uae_int_requested, ~(0x10 | 0x100));
 	for (int i = 0; i < PCI_BRIDGE_MAX; i++) {
 		struct pci_bridge *pcib = bridges[i];
 		if (!pcib)
@@ -174,7 +174,7 @@ void pci_rethink(void)
 			}
 		}
 		if (pcib->irq & pcib->intena) {
-			atomic_or(&uae_int_requested, pcib->intreq_mask);
+			safe_interrupt_set(pcib->intreq_mask);
 		}
 	}
 }
@@ -184,7 +184,7 @@ static void set_pci_irq(struct pci_bridge *pcib, struct pci_board_state *pcibs, 
 	pcibs->config_data[5] &= ~(1 << 3);
 	if (active)
 		pcibs->config_data[5] |= (1 << 3);
-	pci_rethink();
+	devices_rethink_all(pci_rethink);
 }
 
 static void create_config_data(struct pci_board_state *s)
@@ -1506,7 +1506,7 @@ bool dkb_wildfire_pci_init(struct autoconfig_info *aci)
 	pcib->endian_swap_io = 0;
 	pcib->endian_swap_memory = 0;
 	pcib->intena = 0xff; // controlled by bridge config bits, bit unknown.
-	pcib->intreq_mask = 0x100;
+	pcib->intreq_mask = 0x2000;
 	pcib->get_index = dkb_wildfire_get_index;
 	pcib->baseaddress = 0x80000000;
 	pcib->baseaddress_end = 0xffffffff;
@@ -1569,7 +1569,7 @@ static bool prometheus_pci_init(struct autoconfig_info *aci)
 	pcib->endian_swap_io = -1;
 	pcib->endian_swap_memory = -1;
 	pcib->intena = 0xff;
-	pcib->intreq_mask = 0x10;
+	pcib->intreq_mask = 0x0008;
 	pcib->get_index = prometheus_get_index;
 	pcib->bank = &pci_bridge_bank;
 	pcib->bank_zorro = 3;
@@ -1618,7 +1618,7 @@ static bool grex_pci_init(struct autoconfig_info *aci)
 	bridges[PCI_BRIDGE_GREX] = pcib;
 	pcib->label = _T("G-REX");
 	pcib->intena = 0;
-	pcib->intreq_mask = 0x10;
+	pcib->intreq_mask = 0x0008;
 	pcib->get_index = grex_get_index;
 	pcib->baseaddress = 0x80000000;
 	pcib->baseaddress_end = 0xffffffff;
@@ -1654,7 +1654,7 @@ static bool cbvision(struct autoconfig_info *aci)
 	bridges[PCI_BRIDGE_XVISION] = pcib;
 	pcib->label = _T("CBVision");
 	pcib->intena = 0;
-	pcib->intreq_mask = 0x10;
+	pcib->intreq_mask = 0x0008;
 	pcib->get_index = xvision_get_index;
 	pcib->baseaddress = 0xe0000000;
 	pcib->baseaddress_end = 0xffffffff;
@@ -1754,7 +1754,7 @@ static void mediator_pci_init_1200(struct pci_bridge *pcib)
 	pcib->endian_swap_io = -1;
 	pcib->endian_swap_memory = -1;
 	pcib->intena = 0;
-	pcib->intreq_mask = 0x10;
+	pcib->intreq_mask = 0x0008;
 	pcib->get_index = mediator_get_index_1200;
 	pcib->bank = &pci_bridge_bank;
 	pcib->bank_2 = &pci_bridge_bank_2;
@@ -1832,7 +1832,7 @@ static void mediator_pci_init_4000(struct pci_bridge *pcib)
 	pcib->endian_swap_io = -1;
 	pcib->endian_swap_memory = -1;
 	pcib->intena = 0;
-	pcib->intreq_mask = 0x10;
+	pcib->intreq_mask = 0x0008;
 	pcib->get_index = mediator_get_index_4000;
 	pcib->bank = &pci_bridge_bank;
 	pcib->bank_2 = &pci_bridge_bank_2;

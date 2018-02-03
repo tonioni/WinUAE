@@ -263,8 +263,8 @@ void idecontroller_rethink(void)
 			irq |= ide_rethink(ide_boards[i], false);
 		}
 	}
-	if (irq && !(intreq & 0x0008)) {
-		INTREQ_0(0x8000 | 0x0008);
+	if (irq) {
+		safe_interrupt_set(0x0008);
 	}
 }
 

@@ -98,7 +98,7 @@ static void do_stch (void);
 static void INT2 (void)
 {
 	if (!(intreq & 8)) {
-		INTREQ_0 (0x8000 | 0x0008);
+		safe_interrupt_set(0x0008);
 	}
 	cd_led ^= LED_CD_ACTIVE2;
 }

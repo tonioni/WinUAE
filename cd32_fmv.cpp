@@ -288,7 +288,7 @@ static int isdebug(uaecptr addr)
 static void do_irq(void)
 {
 	if (!(intreq & 8)) {
-		INTREQ_0(0x8000 | 0x0008);
+		safe_interrupt_set(0x0008);
 	}
 }
 

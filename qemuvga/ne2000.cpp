@@ -35,6 +35,7 @@
 #include "custom.h"
 #include "debug.h"
 #include "sana2.h"
+#include "devices.h"
 
 #include "qemuuaeglue.h"
 #include "queue.h"
@@ -1856,9 +1857,9 @@ void rethink_ne2000(void)
 		return;
 	if (ne->ariadne2_irq) {
 		if (ne->level6)
-			INTREQ_0(0x8000 | 0x2000);
+			safe_interrupt_set(0x2000);
 		else
-			INTREQ_0(0x8000 | 0x0008);
+			safe_interrupt_set(0x0008);
 	}
 }
 
@@ -1877,7 +1878,7 @@ static void ariadne2_irq_callback(struct pci_board_state *pcibs, bool irq)
 	write_log(_T("ariadne2_irq_callback %d\n"), irq);
 #endif
 	ne->ariadne2_irq = irq;
-	rethink_ne2000();
+	devices_rethink_all(rethink_ne2000);
 }
 
 static addrbank ariadne2_bank = {

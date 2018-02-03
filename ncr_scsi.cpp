@@ -165,17 +165,17 @@ static struct ncr_state *ncr_wildfire;
 static void set_irq2(int level)
 {
 	if (level)
-		INTREQ(0x8000 | 0x0008);
+		safe_interrupt_set(0x0008);
 }
 
 void ncr_rethink(void)
 {
 	for (int i = 0; ncr_units[i]; i++) {
 		if (ncr_units[i] != ncr_cs && ncr_units[i]->irq)
-			INTREQ_0(0x8000 | 0x0008);
+			safe_interrupt_set(0x0008);
 	}
 	if (ncr_cs && ncr_cs->irq)
-		cyberstorm_mk3_ppc_irq(1);
+		cyberstorm_mk3_ppc_irq_setonly(1);
 }
 
 /* 720+ */

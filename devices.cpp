@@ -62,6 +62,7 @@
 #include "videograb.h"
 #include "arcadia.h"
 #include "rommgr.h"
+#include "newcpu.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -213,9 +214,19 @@ void devices_hsync(void)
 #endif
 }
 
+void devices_rethink_all(void func(void))
+{
+	if (ppc_state || 0) {
+		devices_rethink();
+	} else {
+		func();
+	}
+}
+
 // these really should be dynamically allocated..
 void devices_rethink(void)
 {
+	safe_interrupt_clear_all();
 	rethink_cias ();
 #ifdef A2065
 	rethink_a2065 ();

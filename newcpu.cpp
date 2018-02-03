@@ -4357,11 +4357,36 @@ static void check_uae_int_request(void)
 			irq = true;
 		}
 		if (uae_int_requested & 0xff0000) {
-			if (!cpuboard_is_ppcboard_irq())
+			if (!cpuboard_is_ppcboard_irq()) {
 				atomic_and(&uae_int_requested, ~0x010000);
+			}
 		}
-		if (irq)
+		if (irq) {
 			doint();
+		}
+	}
+}
+
+/* 0x0010 = generic expansion level 2
+ * 0x1000 = generic expansion level 6
+ */
+void safe_interrupt_clear_all(void)
+{
+	atomic_and(&uae_int_requested, ~(0x0010 | 0x1000));
+}
+
+void safe_interrupt_set(uae_u32 v)
+{
+	if (ppc_state || 0) {
+		set_special_exter(SPCFLAG_UAEINT);
+		if (v & 0x0008)
+			atomic_or(&uae_int_requested, 0x0010);
+		if (v & 0x2000)
+			atomic_or(&uae_int_requested, 0x1000);
+	} else {
+		if (currprefs.cpu_cycle_exact || (!(intreq & v) && !currprefs.cpu_cycle_exact)) {
+			INTREQ_0(0x8000 | v);
+		}
 	}
 }
 

@@ -285,6 +285,9 @@ extern int cpu_cycles;
 extern int cpucycleunit;
 extern int m68k_pc_indirect;
 
+extern void safe_interrupt_set(uae_u32 v);
+extern void safe_interrupt_clear_all(void);
+
 STATIC_INLINE void set_special_exter(uae_u32 x)
 {
 	atomic_or(&regs.spcflags, x);

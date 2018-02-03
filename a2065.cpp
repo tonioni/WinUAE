@@ -23,6 +23,7 @@
 #include "autoconf.h"
 #include "rommgr.h"
 #include "debug.h"
+#include "devices.h"
 
 #define DUMPPACKET 0
 
@@ -393,7 +394,7 @@ static void gotfunc (void *devv, const uae_u8 *databuf, int len)
 				csr[0] |= CSR0_MISS;
 			}
 			pword (p + 2, rmd1);
-			rethink_a2065 ();
+			devices_rethink_all(rethink_a2065);
 			return;
 		}
 
@@ -423,7 +424,7 @@ static void gotfunc (void *devv, const uae_u8 *databuf, int len)
 	}
 
 	csr[0] |= CSR0_RINT;
-	rethink_a2065 ();
+	devices_rethink_all(rethink_a2065);
 }
 
 static int getfunc (void *devv, uae_u8 *d, int *len)
@@ -543,7 +544,7 @@ static void do_transmit (void)
 		ethernet_trigger (td, sysdata);
 	}
 	csr[0] |= CSR0_TINT;
-	rethink_a2065 ();
+	devices_rethink_all(rethink_a2065);
 }
 
 static void check_transmit(bool tdmd)
@@ -571,8 +572,6 @@ void a2065_hsync_handler (void)
 
 void rethink_a2065 (void)
 {
-	bool was = (uae_int_requested & 4) != 0;
-	atomic_and(&uae_int_requested, ~4);
 	if (!configured)
 		return;
 	csr[0] &= ~CSR0_INTR;
@@ -582,12 +581,11 @@ void rethink_a2065 (void)
 	if (mask & (CSR0_BABL | CSR0_MISS | CSR0_MERR | CSR0_RINT | CSR0_TINT | CSR0_IDON))
 		csr[0] |= CSR0_INTR;
 	if ((csr[0] & (CSR0_INTR | CSR0_INEA)) == (CSR0_INTR | CSR0_INEA)) {
-		set_special_exter(SPCFLAG_UAEINT);
-		atomic_or(&uae_int_requested, 4);
-		if (!was && log_a2065 > 2)
+		safe_interrupt_set(0x0008);
+		if (log_a2065 > 2)
 			write_log(_T("7990 +IRQ\n"));
 	}
-	if (log_a2065 && was && !(uae_int_requested & 4)) {
+	if (log_a2065) {
 		write_log(_T("7990 -IRQ\n"));
 	}
 }
@@ -763,7 +761,7 @@ static void chip_wput (uaecptr addr, uae_u16 v)
 			}
 			csr[0] &= ~CSR0_TDMD;
 
-			rethink_a2065 ();
+			devices_rethink_all(rethink_a2065);
 			break;
 		case 1:
 			if (csr[0] & 4) {

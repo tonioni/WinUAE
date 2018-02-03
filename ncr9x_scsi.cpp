@@ -32,6 +32,7 @@
 #include "qemuvga/scsi/scsi.h"
 #include "qemuvga/scsi/esp.h"
 #include "gui.h"
+#include "devices.h"
 
 #define FASTLANE_BOARD_SIZE (2 * 16777216)
 #define FASTLANE_ROM_SIZE 32768
@@ -248,9 +249,9 @@ void ncr9x_rethink(void)
 	for (int i = 0; ncr_units[i]; i++) {
 		if (ncr_units[i]->boardirq) {
 			if (ncr_units[i]->irq6)
-				INTREQ_0(0x8000 | 0x2000);
+				safe_interrupt_set(0x2000);
 			else
-				INTREQ_0(0x8000 | 0x0008);
+				safe_interrupt_set(0x0008);
 			return;
 		}
 	}
@@ -260,7 +261,7 @@ static void set_irq2(struct ncr9x_state *ncr)
 {
 	if (ncr->chipirq && !ncr->boardirq) {
 		ncr->boardirq = true;
-		ncr9x_rethink();
+		devices_rethink_all(ncr9x_rethink);
 	}
 	if (!ncr->chipirq && ncr->boardirq) {
 		ncr->boardirq = false;
@@ -273,7 +274,7 @@ static void set_irq2_dkb1200(struct ncr9x_state *ncr)
 		ncr->boardirq = false;
 	if (ncr->chipirq && !ncr->boardirq && (ncr->states[0] & 0x40)) {
 		ncr->boardirq = true;
-		ncr9x_rethink();
+		devices_rethink_all(ncr9x_rethink);
 	}
 }
 
@@ -283,7 +284,10 @@ static void set_irq2_oktagon(struct ncr9x_state *ncr)
 		ncr->boardirq = false;
 	if (ncr->chipirq && !ncr->boardirq && (ncr->states[0] & 0x80)) {
 		ncr->boardirq = true;
-		ncr9x_rethink();
+		devices_rethink_all(ncr9x_rethink);
+	}
+}
+
 static void set_irq2_alf3(struct ncr9x_state *ncr)
 {
 	if (!(ncr->states[0] & 0x01))
@@ -306,7 +310,7 @@ static void set_irq2_fastlane(struct ncr9x_state *ncr)
 	if (ncr->states[0] & FLSC_PB_ESI) {
 		if (!ncr->boardirq) {
 			ncr->boardirq = true;
-			ncr9x_rethink();
+			devices_rethink_all(ncr9x_rethink);
 		}
 	}
 }
@@ -321,7 +325,7 @@ static void set_irq2_masoboshi(struct ncr9x_state *ncr)
 		ncr->boardirqlatch = true;
 		if (1 || ncr->intena) {
 			ncr->boardirq = true;
-			ncr9x_rethink();
+			devices_rethink_all(ncr9x_rethink);
 #if NCR_DEBUG > 1
 			write_log(_T("MASOBOSHI IRQ\n"));
 #endif
@@ -718,7 +722,8 @@ SCSIDevice *scsiesp_device_find(SCSIBus *bus, int channel, int target, int lun)
 }
 void scsiesp_req_cancel(SCSIRequest *req)
 {
-	write_log(_T("scsi_req_cancel\n"));
+	write_log(_T("scsi_req_cancel!?\n"));
+	esp_request_cancelled(req);
 }
 
 #define IO_MASK 0x3f

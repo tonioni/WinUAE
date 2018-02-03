@@ -22,6 +22,7 @@
 #include "pci_hw.h"
 #include "qemuvga/qemuaudio.h"
 #include "rommgr.h"
+#include "devices.h"
 
 static uae_u8 *sndboard_get_buffer(int *frames);
 static void sndboard_release_buffer(uae_u8 *buffer, int frames);
@@ -488,7 +489,7 @@ static void uaesnd_irq(struct uaesndboard_stream *s, uae_u8 mask)
 	s->intreqmask |= mask;
 	if ((s->intenamask & mask)) {
 		s->intreqmask |= 0x80;
-		sndboard_rethink();
+		devices_rethink_all(sndboard_rethink);
 	}
 }
 
@@ -1290,7 +1291,7 @@ static bool audio_state_sndboard_toccata(int streamid)
 			data->toccata_irq |= STATUS_READ_RECORD_HALF;
 		}
 		if (old != data->toccata_irq) {
-			sndboard_rethink();
+			devices_rethink_all(sndboard_rethink);
 #if DEBUG_TOCCATA > 2
 			write_log(_T("TOCCATA IRQ\n"));
 #endif
@@ -1423,10 +1424,11 @@ void sndboard_rethink(void)
 		irq |= uaesnd_rethink();
 	}
 	if (irq) {
-		atomic_or(&uae_int_requested, 0x200);
-		set_special_exter(SPCFLAG_UAEINT);
+		safe_interrupt_set(0x2000);
+		//atomic_or(&uae_int_requested, 0x200);
+		//set_special_exter(SPCFLAG_UAEINT);
 	} else {
-		atomic_and(&uae_int_requested, ~0x200);
+		//atomic_and(&uae_int_requested, ~0x200);
 	}
 }
 

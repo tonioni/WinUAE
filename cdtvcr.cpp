@@ -250,7 +250,7 @@ static void cdtvcr_4510_reset(uae_u8 v)
 void rethink_cdtvcr(void)
 {
 	if ((cdtvcr_4510_ram[CDTVCR_INTREQ] & cdtvcr_4510_ram[CDTVCR_INTENA]) && !cdtvcr_4510_ram[CDTVCR_INTDISABLE]) {
-		INTREQ_0 (0x8000 | 0x0008);
+		safe_interrupt_set(0x0008);
 		cd_led ^= LED_CD_ACTIVE2;
 	}
 }
