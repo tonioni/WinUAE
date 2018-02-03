@@ -107,6 +107,20 @@ void ini_addnewstring(struct ini_data *ini, const TCHAR *section, const TCHAR *k
 	ini->inidata[cnt] = il;
 }
 
+void ini_addnewval(struct ini_data *ini, const TCHAR *section, const TCHAR *key, uae_u32 v)
+{
+	TCHAR tmp[MAX_DPATH];
+	_stprintf(tmp, _T("%08X ; %u"), v, v);
+	ini_addnewstring(ini, section, key, tmp);
+}
+
+void ini_addnewval64(struct ini_data *ini, const TCHAR *section, const TCHAR *key, uae_u64 v)
+{
+	TCHAR tmp[MAX_DPATH];
+	_stprintf(tmp, _T("%016llX ; %llu"), v, v);
+	ini_addnewstring(ini, section, key, tmp);
+}
+
 void ini_addnewdata(struct ini_data *ini, const TCHAR *section, const TCHAR *key, const uae_u8 *data, int len)
 {
 	TCHAR *s = xcalloc(TCHAR, len * 3);

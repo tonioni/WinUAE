@@ -20,6 +20,8 @@ bool ini_save(struct ini_data *ini, const TCHAR *path);
 void ini_addnewstring(struct ini_data *ini, const TCHAR *section, const TCHAR *key, const TCHAR *val);
 void ini_addnewdata(struct ini_data *ini, const TCHAR *section, const TCHAR *key, const uae_u8 *data, int len);
 void ini_addnewcomment(struct ini_data *ini, const TCHAR *section, const TCHAR *val);
+void ini_addnewval(struct ini_data *ini, const TCHAR *section, const TCHAR *key, uae_u32 v);
+void ini_addnewval64(struct ini_data *ini, const TCHAR *section, const TCHAR *key, uae_u64 v);
 
 bool ini_getstring(struct ini_data *ini, const TCHAR *section, const TCHAR *key, TCHAR **out);
 bool ini_getval(struct ini_data *ini, const TCHAR *section, const TCHAR *key, int *v);
