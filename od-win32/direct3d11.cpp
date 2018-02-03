@@ -3290,7 +3290,7 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 	if (FAILED(result)) {
 		write_log(_T("QueryInterface IDXGIDevice1 %08x\n"), result);
 	} else {
-		result = dxgiDevice->SetMaximumFrameLatency(1);
+		result = dxgiDevice->SetMaximumFrameLatency(apm->gfx_backbuffers == 0 ? 1 : 2);
 		if (FAILED(result)) {
 			write_log(_T("IDXGIDevice1 SetMaximumFrameLatency %08x\n"), result);
 		}
