@@ -4178,6 +4178,12 @@ static void show_exec_lists (TCHAR *t)
 						get_word_debug(list + 16 + 4), get_byte_debug(list + 16 + 1),
 						get_long_debug(list + 16 + 6), rom_vector,
 						get_word_debug(list + 16 + 4), get_byte_debug(list + 16 + 1));
+					for (int i = 0; i < 16; i++) {
+						console_out_f(_T("%02x"), get_byte_debug(list + 16 + i));
+						if (i < 15)
+							console_out_f(_T("."));
+					}
+					console_out_f(_T("\n"));
 					if ((type & 0x10)) {
 						uae_u8 diagarea[256];
 						uae_u16 nameoffset;
