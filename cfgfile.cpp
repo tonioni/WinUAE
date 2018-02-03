@@ -2617,6 +2617,15 @@ static int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *n
 	return cfgfile_path (option, value, name, location, maxsz, NULL);
 }
 
+static int cfgfile_pathext(const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz)
+{
+	if (!cfgfile_string(option, value, name, location, maxsz))
+		return 0;
+	if (_tcschr(value, '/') || _tcschr(value, '\\') || _tcschr(value, ':'))
+		return cfgfile_path(option, value, name, location, maxsz, NULL);
+	return 1;
+}
+
 static int cfgfile_multipath (const TCHAR *option, const TCHAR *value, const TCHAR *name, struct multipath *mp)
 {
 	TCHAR tmploc[MAX_DPATH];
@@ -3017,10 +3026,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("floppy_channel_mask"), &p->dfxclickchannelmask, 1))
 		return 1;
 
-	if (cfgfile_path (option, value, _T("floppy0soundext"), p->floppyslots[0].dfxclickexternal, sizeof p->floppyslots[0].dfxclickexternal / sizeof (TCHAR))
-		|| cfgfile_path (option, value, _T("floppy1soundext"), p->floppyslots[1].dfxclickexternal, sizeof p->floppyslots[1].dfxclickexternal / sizeof (TCHAR))
-		|| cfgfile_path (option, value, _T("floppy2soundext"), p->floppyslots[2].dfxclickexternal, sizeof p->floppyslots[2].dfxclickexternal / sizeof (TCHAR))
-		|| cfgfile_path (option, value, _T("floppy3soundext"), p->floppyslots[3].dfxclickexternal, sizeof p->floppyslots[3].dfxclickexternal / sizeof (TCHAR))
+	if (cfgfile_pathext (option, value, _T("floppy0soundext"), p->floppyslots[0].dfxclickexternal, sizeof p->floppyslots[0].dfxclickexternal / sizeof (TCHAR))
+		|| cfgfile_pathext (option, value, _T("floppy1soundext"), p->floppyslots[1].dfxclickexternal, sizeof p->floppyslots[1].dfxclickexternal / sizeof (TCHAR))
+		|| cfgfile_pathext (option, value, _T("floppy2soundext"), p->floppyslots[2].dfxclickexternal, sizeof p->floppyslots[2].dfxclickexternal / sizeof (TCHAR))
+		|| cfgfile_pathext (option, value, _T("floppy3soundext"), p->floppyslots[3].dfxclickexternal, sizeof p->floppyslots[3].dfxclickexternal / sizeof (TCHAR))
 		|| cfgfile_string (option, value, _T("config_window_title"), p->config_window_title, sizeof p->config_window_title / sizeof (TCHAR))
 		|| cfgfile_string (option, value, _T("config_info"), p->info, sizeof p->info / sizeof (TCHAR))
 		|| cfgfile_string (option, value, _T("config_description"), p->description, sizeof p->description / sizeof (TCHAR)))
