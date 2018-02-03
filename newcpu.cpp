@@ -2153,6 +2153,11 @@ static void showea_val(TCHAR *buffer, uae_u16 opcode, uaecptr addr, int size)
 	struct mnemolookup *lookup;
 	instr *table = &table68k[opcode];
 
+	if (addr >= 0xe90000 && addr < 0xf00000)
+		return;
+	if (addr >= 0xdff000 && addr < 0xe00000)
+		return;
+
 	for (lookup = lookuptab; lookup->mnemo != table->mnemo; lookup++)
 		;
 	if (!(lookup->flags & 1))
