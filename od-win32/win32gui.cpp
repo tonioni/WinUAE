@@ -2232,7 +2232,7 @@ void gui_display (int shortcut)
 	here++;
 	gui_active++;
 
-	if (isfullscreen() > 0 && currprefs.gfx_api == 0)
+	if (isfullscreen() > 0 && currprefs.gfx_api != 1)
 		screenshot_prepare();
 	flipgui(1);
 
@@ -16052,7 +16052,7 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICK_CD32, tmp, MAX_DPATH);
 				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 				WIN32GUI_LoadUIString (IDS_JOYMODE_LIGHTPEN, tmp, MAX_DPATH);
-				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				SendDlgItemMessage(hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 			}
 
 			inputdevice_updateconfig (NULL, &workprefs);

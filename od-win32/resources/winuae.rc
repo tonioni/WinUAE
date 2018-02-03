@@ -1200,12 +1200,12 @@ BEGIN
     CONTROL         "",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,88,31,103,20
     EDITTEXT        IDC_P96RAM,201,34,40,12,ES_CENTER | ES_READONLY
     CONTROL         "Match host and RTG color depth if possible",IDC_RTG_MATCH_DEPTH,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,54,212,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,54,177,10
     CONTROL         "Scale if smaller than display size setting",IDC_RTG_SCALE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,67,212,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,67,175,10
     CONTROL         "Always scale in windowed mode",IDC_RTG_SCALE_ALLOW,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,80,212,10
-    CONTROL         "Always center",IDC_RTG_CENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,93,212,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,80,170,10
+    CONTROL         "Always center",IDC_RTG_CENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,93,169,10
     CONTROL         "Hardware vertical blank interrupt",IDC_RTG_VBINTERRUPT,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,106,157,10
     CONTROL         "Hardware sprite emulation",IDC_RTG_HWSPRITE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,207,106,148,10
@@ -1370,8 +1370,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,6,0,0
- PRODUCTVERSION 3,6,0,0
+ FILEVERSION 3,6,1,0
+ PRODUCTVERSION 3,6,1,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1387,12 +1387,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "3.6.0.0"
+            VALUE "FileVersion", "3.6.1.0"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2018 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "3.6.0.0"
+            VALUE "ProductVersion", "3.6.1.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1623,7 +1623,6 @@ BEGIN
     IDD_HARDDRIVE, DIALOG
     BEGIN
         RIGHTMARGIN, 396
-        BOTTOMMARGIN, 195
     END
 
     IDD_MISC2, DIALOG
@@ -1809,7 +1808,7 @@ BEGIN
     IDS_SELECTFILESYSROOT   "Please select the root directory of the file system..."
     IDS_DEFAULTMIDIOUT      "Default MIDI-Out Device"
     IDS_CONTRIBUTORS1       "Bernd Schmidt - The Grand-Master\nSam Jordan - Custom-chip, floppy-DMA, etc.\nMathias Ortmann - Original WinUAE Main Guy, BSD Socket support\nBrian King - Picasso96 Support, Integrated GUI for WinUAE, previous WinUAE Main Guy\nToni Wilen - Core updates, WinUAE Main Guy\nGustavo Goedert/Peter Remmers/Michael Sontheimer/Tomi Hakala/Tim Gunn/Nemo Pohle - DOS Port Stuff\nSamuel Devulder/Olaf Barthel/Sam Jordan - Amiga Ports\nKrister Bergman - XFree86 and OS/2 Port\nA. Blanchard/Ernesto Corvi - MacOS Port\nChristian Bauer - BeOS Port\nIan Stephenson - NextStep Port\nPeter Teichmann - Acorn/RiscOS Port\nStefan Reinauer - ZorroII/III AutoConfig, Serial Support\nChristian Schmitt/Chris Hames - Serial Support\nHerman ten Brugge - 68020/68881 Emulation Code\nTauno Taipaleenmaki - Various UAE-Control/UAE-Library Support\nBrett Eden/Tim Gunn/Paolo Besser/Nemo Pohle - Various Docs and Web-Sites\nGeorg Veichtlbauer - Help File coordinator, German GUI\nFulvio Leonardi - Italian translator for WinUAE\n"
-    IDS_CONTRIBUTORS2       "Arnljot Arntsen, Bill Panagouleas, Cloanto - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe and Christian Schindler - Freezer cartridge hardware support.\nMikko Nieminen - Demo compatibility testing.\nArabuusimiehet - [This information is on a need-to-know basis]"
+    IDS_CONTRIBUTORS2       "Arnljot Arntsen, Bill Panagouleas, Cloanto, Zak Jennings - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe and Christian Schindler - Freezer cartridge hardware support.\nMikko Nieminen - Demo compatibility testing.\nArabuusimiehet - [This information is on a need-to-know basis]"
     IDS_INVALIDPRTPORT      "The printer you have in this configuration is not valid on this machine.\n"
     IDS_RESTOREUSS          "Restore a WinUAE snapshot file"
     IDS_USS                 "WinUAE snapshot files"

@@ -13,7 +13,6 @@
 #define DRIVESOUND
 #define GFXFILTER
 #define X86_MSVC_ASSEMBLY
-#define X86_MSVC_ASSEMBLY_MEMACCESS
 #define OPTIMIZED_FLAGS
 #ifndef __i386__
 #define __i386__
@@ -134,7 +133,7 @@
 #define A_WRP
 
 #ifndef PATH_MAX
-#define PATH_MAX 256
+#define PATH_MAX MAX_DPATH
 #endif
 
 #define UAE_RAND_MAX RAND_MAX

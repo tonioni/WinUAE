@@ -1581,6 +1581,18 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		unsetminimized();
 		dx_check();
 		return 0;
+	case WM_EXITSIZEMOVE:
+		if (wParam == SC_MOVE) {
+			if (D3D_resize) {
+				if (isfullscreen() > 0 && wParam == SIZE_RESTORED) {
+					write_log(_T("WM_EXITSIZEMOVE restored\n"));
+					D3D_resize(1);
+				}
+				write_log(_T("WM_EXITSIZEMOVE\n"));
+				D3D_resize(0);
+			}
+		}
+		return 0;
 	case WM_SIZE:
 		//write_log (_T("WM_SIZE %d\n"), wParam);
 		if (hStatusWnd)
@@ -1588,14 +1600,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		if (wParam == SIZE_MINIMIZED && !minimized) {
 			setminimized();
 			winuae_inactive(hWnd, minimized);
-		}
-		if (D3D_resize) {
-			if (isfullscreen() > 0 && wParam == SIZE_RESTORED) {
-				write_log(_T("WM_SIZE restored\n"));
-				D3D_resize(1);
-			}
-			write_log(_T("WM_SIZE\n"));
-			D3D_resize(0);
 		}
 		return 0;
 	case WM_ACTIVATE:

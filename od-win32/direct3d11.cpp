@@ -265,6 +265,11 @@ struct d3d11struct
 	struct shaderdata11 shaders[MAX_SHADERS];
 	ID3DX11EffectTechnique *technique;
 	ID3DX11EffectPass *effectpass;
+
+#ifndef NDEBUG
+	ID3D11InfoQueue *m_debugInfoQueue;
+	ID3D11Debug *m_debug;
+#endif
 };
 
 #define NUMVERTICES 8
@@ -1319,6 +1324,7 @@ pass2:
 	}
 
 	if (rendertarget) {
+
 		d3d->m_deviceContext->OMSetRenderTargets(1, &lpRenderTarget, NULL);
 	}
 
@@ -3275,14 +3281,14 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 	}
 
 #ifndef NDEBUG
-	ID3D11InfoQueue* m_debugInfoQueue = 0;
-	d3d->m_device->QueryInterface(IID_ID3D11InfoQueue, (void**)&m_debugInfoQueue);
-	if (0 && m_debugInfoQueue)
+	d3d->m_device->QueryInterface(IID_ID3D11InfoQueue, (void**)&d3d->m_debugInfoQueue);
+	if (0 && d3d->m_debugInfoQueue)
 	{
-		m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-		m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, TRUE);
-		m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, TRUE);
+		d3d->m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+		d3d->m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, TRUE);
+		d3d->m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, TRUE);
 	}
+	d3d->m_device->QueryInterface(IID_ID3D11Debug, (void**)&d3d->m_debug);
 #endif
 
 	ComPtr<IDXGIDevice1> dxgiDevice;
@@ -3524,6 +3530,17 @@ static void xD3D11_free(bool immediate)
 		d3d->outputAdapter->Release();
 		d3d->outputAdapter = NULL;
 	}
+
+#ifndef NDEBUG
+	if (d3d->m_debugInfoQueue) {
+		d3d->m_debugInfoQueue->Release();
+		d3d->m_debugInfoQueue = NULL;
+	}
+	if (d3d->m_debug) {
+		d3d->m_debug->Release();
+		d3d->m_debug = NULL;
+	}
+#endif
 
 	d3d->device_errors = 0;
 
