@@ -3210,7 +3210,7 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 				continue;
 			if (!m->RefreshRate.Numerator || !m->RefreshRate.Denominator)
 				continue;
-			float nfreq = m->RefreshRate.Numerator / m->RefreshRate.Denominator;
+			float nfreq = (float)m->RefreshRate.Numerator / m->RefreshRate.Denominator;
 			if (nfreq > ffreq) {
 				ffreq = nfreq;
 				d3d->fsSwapChainDesc.RefreshRate.Denominator = m->RefreshRate.Denominator;
@@ -3239,7 +3239,8 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 			if (md2.RefreshRate.Denominator && md2.RefreshRate.Numerator)
 				*freq = md2.RefreshRate.Numerator / md2.RefreshRate.Denominator;
 			write_log(_T("D3D11 FindClosestMatchingMode1() %d/%d=%.2f SLO=%d W=%d H=%d\n"),
-				md2.RefreshRate.Numerator, md2.RefreshRate.Denominator, (float)md2.RefreshRate.Numerator / md2.RefreshRate.Denominator, md1.ScanlineOrdering,
+				md2.RefreshRate.Numerator, md2.RefreshRate.Denominator,
+				(float)md2.RefreshRate.Numerator / md2.RefreshRate.Denominator, md1.ScanlineOrdering,
 				md2.Width, md2.Height);
 		}
 	}

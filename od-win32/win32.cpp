@@ -1537,7 +1537,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	static bool ignorelbutton;
 
 #if MSGDEBUG > 1
-	write_log (_T("AWP: %x %x\n"), hWnd, message);
+	write_log (_T("AWP: %p %08x %08x %08x\n"), hWnd, message, wParam, lParam);
 #endif
 
 	if (all_events_disabled)
@@ -1594,7 +1594,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		}
 		return 0;
 	case WM_SIZE:
-		//write_log (_T("WM_SIZE %d\n"), wParam);
 		if (hStatusWnd)
 			SendMessage(hStatusWnd, WM_SIZE, wParam, lParam);
 		if (wParam == SIZE_MINIMIZED && !minimized) {
@@ -1603,7 +1602,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		}
 		return 0;
 	case WM_ACTIVATE:
-		//write_log (_T("active %d\n"), LOWORD(wParam));
 		if (LOWORD(wParam) == WA_INACTIVE) {
 			if (HIWORD(wParam))
 				setminimized();

@@ -4,6 +4,52 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
+
+Beta 2:
+
+- If D3D11 fullscreen refresh rate is default: prefer highest supported refresh rate.
+- Use pre-scaled values when calculating aspect ratio in integer scale modes. Note that integer scale value selection uses original values, not aspect ratio scaled values. (Fixing this is more complex)
+- Few Application Verifier detected bugs fixed. One could have caused random crash at startup or when saving config.
+- Fixed random crash when at least one Input panel custom event string was set, Restart was clicked and then emulation was started again.
+
+Beta 1:
+
+- Added Elsat Mega Ram HD controller emulation.
+- A.L.F.3 HD controller emulation
+- Rewritten expansion hardware interrupt handling to make it more compatible with PPC emulation.
+- Implemented experimental RTG mode background thread for Amiga side VRAM to host texture color space conversion/copy. Option in RTG Board panel.
+- Fixed crash at startup if DXGI 1.4 was highest available version (Windows 10 build 10240 only)
+- KS 1.2 boot hack caused a crash in some manually configured UAE boot rom configurations without at least one directory filesystem/harddrive.
+- OCS/ECS only BPLCON2 with "illegal" PF1 or PF2 value is now accurately emulated in dual playfield mode. (If BPLCON2 PFx>=5 and matching playfield is not transparent: playfield is drawn using COLOR0 with playfield priorities still working normally)
+- D3D11: switching off on screen leds on the fly left static led texture on screen.
+- Floppy sound type selection was not loaded correctly from config file (3.6)
+- Floppy sound empty drive volume level was used if disk was inserted before emulation was started. (old)
+- HDF filesystem loader now skips HUNK_DEBUG and HUNK_SYMBOL hunks instead of aborting filesystem initialization.
+- Direct3D11 fullscreen, enter GUI, press save screenshot button: nothing happened.
+- Direct3D11 window mouse drag resize now refreshes the display only after resizing ends.
+- Do not allow UAE RTG init to succeed if it is enabled but not autoconfigured. (Few versions ago introduced new autoconfig handling broke previous "is this configured test?")
+- Some 68000 instructions didn't use correct reversed memory access order in long -(An) addressing mode. (MOVE EA,-(an), MOVEM, ADDX, SUBX)
+- Reading real 68EC040 MMU enable/page size TC register always returns zero, emulation now does the same. (Real 68EC060 not yet tested)
+- 68040 SRP and URP registers are full 32-bit, 68060 masks out low 9 bits (which are ignored anyway when calculating descriptor table addresses)
+- NCR5394 emulation improved (A.L.F.3 compatibility), support use of "Transfer information" command to manually read status and message bytes instead of "Initiator command complete sequence" that was designed for this purpose and all previously emulated 5394 based controllers have used.
+- NCR5394 emulation didn't handle situation where data was written to FIFO before true DMA write was started. FIFO contents should be written before DMA transfer starts. (Blizzard SCSI Kit IV in some situations, possibly others)
+- Added "Identity" checkbox to Add harddrive panel. If ticked, real ATA identity data is used in emulated ATA device instead of generic UAE generated and drive appears exactly as it does in real hardware (identical name, geometry etc). If checkbox is disabled: used HD controller/adapter does not support reading ATA Identity or drive is not ATA or ATAPI.
+- Read Identity now also shows CHS geometry, LBA and LBA48 (if supported), parsed from identity data (if available)
+- kickstart_ext_rom and cart config entries support Arcadia and ALG ROM images.
+- joyport2 -config entry incorrectly used port 3 slot.
+
+Elsat Mega Ram HD:
+
+- Basic PIO IDE controller.
+- elsat.device "ElsatHD 1.0 (09 Oct 1992)"
+
+A.L.F.3:
+
+- SCSI, NCR5394 based.
+- Fake DMA, MOVEMs used in transfer loop.
+- No official ROM dump available, tested using loadable driver ROM hack.
+
+
 3.6.0
 
 - Main window was not activated early enough, it was possible to get logged D3D11 fullscreen error and automatic fallback to windowed mode in some situations.
