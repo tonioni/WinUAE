@@ -144,6 +144,80 @@ static void getmanualpos (int *cxp, int *cyp, int *cwp, int *chp)
 	*chp = ch;
 }
 
+static bool get_auto_aspect_ratio(int cw, int ch, int crealh, int scalemode, float *autoaspectratio)
+{
+	*autoaspectratio = 0;
+	if (currprefs.gf[picasso_on].gfx_filter_keep_autoscale_aspect && cw > 0 && ch > 0 && crealh > 0 && (scalemode == AUTOSCALE_NORMAL ||
+		scalemode == AUTOSCALE_INTEGER_AUTOSCALE || scalemode == AUTOSCALE_MANUAL)) {
+		float cw2 = cw;
+		float ch2 = ch;
+		int res = currprefs.gfx_resolution - currprefs.gfx_vresolution;
+
+		if (res < 0)
+			cw2 *= 1 << (-res);
+		else if (res > 0)
+			cw2 /= 1 << res;
+		*autoaspectratio = (cw2 / ch2) / (4.0 / 3.0);
+		return true;
+	}
+	return false;
+}
+
+static bool get_aspect(float *dstratiop, float *srcratiop, float *xmultp, float *ymultp, bool doautoaspect, float autoaspectratio)
+{
+	bool aspect = false;
+	float dstratio = *dstratiop;
+	float srcratio = *srcratiop;
+
+	*xmultp = 1.0;
+	*ymultp = 1.0;
+
+	if (currprefs.gf[picasso_on].gfx_filter_keep_aspect || currprefs.gf[picasso_on].gfx_filter_aspect != 0) {
+
+		if (currprefs.gf[picasso_on].gfx_filter_keep_aspect) {
+			if (isvga()) {
+				if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 1)
+					dstratio = dstratio * 0.93f;
+			} else {
+				if (currprefs.ntscmode) {
+					dstratio = dstratio * 1.21f;
+					if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 2 && ispal())
+						dstratio = dstratio * 0.93f;
+					else if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 1 && !ispal())
+						dstratio = dstratio * 0.98f;
+				} else {
+					if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 2 && ispal())
+						dstratio = dstratio * 0.95f;
+					else if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 1 && !ispal())
+						dstratio = dstratio * 0.95f;
+				}
+			}
+		}
+		aspect = true;
+
+	} else if (doautoaspect) {
+
+		aspect = true;
+
+	}
+
+	if (aspect) {
+
+		if (doautoaspect) {
+			srcratio *= autoaspectratio;
+		}
+
+		if (srcratio > dstratio) {
+			*ymultp = (*ymultp) * srcratio / dstratio;
+		} else {
+			*xmultp = (*xmultp) * dstratio / srcratio;
+		}
+	}
+	*dstratiop = dstratio;
+	*srcratiop = srcratio;
+	return aspect;
+}
+
 void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height, int aw, int ah, int scale, int temp_width, int temp_height)
 {
 	float srcratio, dstratio;
@@ -244,6 +318,9 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	}
 
 	bool scl = false;
+	int width_aspect = -1;
+	int height_aspect = -1;
+	bool autoaspect_done = false;
 
 	if (scalemode) {
 		int cw, ch, cx, cy, cv, crealh = 0;
@@ -301,6 +378,16 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					store_custom_limits (cw, ch, cx, cy);
 				}
 
+#if 0
+				doautoaspect = get_auto_aspect_ratio(cw, ch, crealh, scalemode, &autoaspectratio);
+				autoaspect_done = true;
+
+				if (get_aspect(&dstratio, &srcratio, &xmult, &ymult, doautoaspect, autoaspectratio)) {
+					cw += cw - cw * xmult;
+					ch += ch - ch * ymult;
+				}
+#endif
+
 				int cw2 = cw + cw * filter_horiz_zoom;
 				int ch2 = ch + ch * filter_vert_zoom;
 
@@ -325,6 +412,10 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					maxw = (maxw + mult - multadd) / mult;
 					maxh = (maxh + mult - multadd) / mult;
 				}
+
+				width_aspect = cw;
+				height_aspect = ch;
+
 				//write_log(_T("(%dx%d) (%dx%d) ww=%d hh=%d w=%d h=%d m=%d\n"), cx, cy, cw, ch, currprefs.gfx_size.width, currprefs.gfx_size.height, maxw, maxh, mult);
 				cx -= (maxw - cw) / 2;
 				cw = maxw;
@@ -372,19 +463,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 			set_custom_limits (-1, -1, -1, -1);
 		}
 	
-		autoaspectratio = 0;
-		if (currprefs.gf[picasso_on].gfx_filter_keep_autoscale_aspect && cw > 0 && ch > 0 && crealh > 0 && (scalemode == AUTOSCALE_NORMAL ||
-			scalemode == AUTOSCALE_INTEGER_AUTOSCALE || scalemode == AUTOSCALE_MANUAL)) {
-			float cw2 = cw;
-			float ch2 = ch;
-			int res = currprefs.gfx_resolution - currprefs.gfx_vresolution;
-
-			if (res < 0)
-				cw2 *= 1 << (-res);
-			else if (res > 0)
-				cw2 /= 1 << res;
-			autoaspectratio = (cw2 / ch2) / (4.0 / 3.0);
-			doautoaspect = true;
+		if (!autoaspect_done) {
+			doautoaspect = get_auto_aspect_ratio(cw, ch, crealh, scalemode, &autoaspectratio);
 		}
 
 		if (currprefs.gfx_api == 0) {
@@ -499,59 +579,27 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 			filteroffsety = -zr->top / scale;
 
 			bool aspect = false;
-			int diffx = dr->right - dr->left;
-			int diffy = dr->bottom - dr->top;
 
-			xmult = 1.0;
-			ymult = 1.0;
+			int diffx, diffy;
 
-			if (currprefs.gf[picasso_on].gfx_filter_keep_aspect || currprefs.gf[picasso_on].gfx_filter_aspect != 0) {
-
-				if (currprefs.gf[picasso_on].gfx_filter_keep_aspect) {
-					if (isvga()) {
-						if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 1)
-							dstratio = dstratio * 0.93f;
-					} else {
-						if (currprefs.ntscmode) {
-							dstratio = dstratio * 1.21f;
-							if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 2 && ispal ())
-								dstratio = dstratio * 0.93f;
-							else if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 1 && !ispal ())
-								dstratio = dstratio * 0.98f;
-						} else {
-							if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 2 && ispal ())
-								dstratio = dstratio * 0.95f;
-							else if (currprefs.gf[picasso_on].gfx_filter_keep_aspect == 1 && !ispal ())
-								dstratio = dstratio * 0.95f;
-						}
-					}
-				}
-				aspect = true;
-
-			} else if (doautoaspect) {
-
-				aspect = true;
-
+			if (width_aspect > 0) {
+				diffx = width_aspect;
+			} else {
+				diffx = dr->right - dr->left;
+			}
+			if (height_aspect > 0) {
+				diffy = height_aspect;
+			} else {
+				diffy = dr->bottom - dr->top;
 			}
 
-			if (aspect) {
-
-				if (doautoaspect) {
-					srcratio *= autoaspectratio;
-				}
-
-				if (srcratio > dstratio) {
-					ymult = ymult * srcratio / dstratio;
-				} else {
-					xmult = xmult * dstratio / srcratio;
-				}
-
+			if (get_aspect(&dstratio, &srcratio, &xmult, &ymult, doautoaspect, autoaspectratio)) {
 				diff = diffx - diffx * xmult;
-				sizeoffset (dr, zr, diff, 0);
+				sizeoffset(dr, zr, diff, 0);
 				filteroffsetx += diff / 2;
 
 				diff = diffy - diffy * ymult;
-				sizeoffset (dr, zr, 0, diff);
+				sizeoffset(dr, zr, 0, diff);
 				filteroffsety += diff / 2;
 			}
 
