@@ -2292,7 +2292,7 @@ static void prefs_to_gui (struct uae_prefs *p)
 {
 	int st = savestate_state;
 	default_prefs(&workprefs, false, 0);
-	workprefs = *p;
+	copy_prefs(p, &workprefs);
 	/* filesys hack */
 	workprefs.mountitems = currprefs.mountitems;
 	memcpy (&workprefs.mountconfig, &currprefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
@@ -2304,7 +2304,7 @@ static void prefs_to_gui (struct uae_prefs *p)
 static void gui_to_prefs (void)
 {
 	/* Always copy our prefs to changed_prefs, ... */
-	changed_prefs = workprefs;
+	copy_prefs(&workprefs, &changed_prefs);
 	/* filesys hack */
 	currprefs.mountitems = changed_prefs.mountitems;
 	memcpy (&currprefs.mountconfig, &changed_prefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
