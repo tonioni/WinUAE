@@ -3168,8 +3168,7 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 	d3d->fsSwapChainDesc.RefreshRate.Denominator = 0;
 	d3d->fsSwapChainDesc.RefreshRate.Numerator = 0;
 	d3d->fsSwapChainDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
-	for (int i = 0; i < numModes; i++)
-	{
+	for (int i = 0; i < numModes; i++) {
 		DXGI_MODE_DESC1 *m = &displayModeList[i];
 		if (m->Format != d3d->scrformat)
 			continue;
@@ -3184,8 +3183,8 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 				write_log(_T("D3D11 found matching fullscreen mode. SLO=%d S=%d. Default refresh rate.\n"), m->ScanlineOrdering, m->Scaling);
 				break;
 			}
-			if (isfs(d3d) > 0) {
-				double mhz = (double)m->RefreshRate.Numerator / m->RefreshRate.Denominator;
+			if (isfs(d3d) > 0 && m->RefreshRate.Numerator && m->RefreshRate.Denominator) {
+				float mhz = (float)m->RefreshRate.Numerator / m->RefreshRate.Denominator;
 				if ((int)(mhz + 0.5) == hz || (int)(mhz) == hz) {
 					d3d->fsSwapChainDesc.RefreshRate.Denominator = m->RefreshRate.Denominator;
 					d3d->fsSwapChainDesc.RefreshRate.Numerator = m->RefreshRate.Numerator;
@@ -3197,8 +3196,35 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 		}
 	}
 	if (isfs(d3d) > 0 && (hz == 0 || (d3d->fsSwapChainDesc.RefreshRate.Denominator == 0 && d3d->fsSwapChainDesc.RefreshRate.Numerator == 0))) {
+		// find highest frequency for selected mode
+		float ffreq = 0;
+		for (int i = 0; i < numModes; i++) {
+			DXGI_MODE_DESC1 *m = &displayModeList[i];
+			if (m->Format != d3d->scrformat)
+				continue;
+			if (apm->gfx_interlaced && m->ScanlineOrdering != DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST)
+				continue;
+			if (!apm->gfx_interlaced && m->ScanlineOrdering != DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE)
+				continue;
+			if (m->Width != w_w || m->Height != w_h)
+				continue;
+			if (!m->RefreshRate.Numerator || !m->RefreshRate.Denominator)
+				continue;
+			float nfreq = m->RefreshRate.Numerator / m->RefreshRate.Denominator;
+			if (nfreq > ffreq) {
+				ffreq = nfreq;
+				d3d->fsSwapChainDesc.RefreshRate.Denominator = m->RefreshRate.Denominator;
+				d3d->fsSwapChainDesc.RefreshRate.Numerator = m->RefreshRate.Numerator;
+				*freq = nfreq;
+			}
+		}
+		write_log(_T("D3D11 Highest freq: %d/%d=%.2f W=%d H=%d\n"),
+			d3d->fsSwapChainDesc.RefreshRate.Numerator, d3d->fsSwapChainDesc.RefreshRate.Denominator, ffreq, w_w, w_h);
+		// then re-confirm with FindClosestMatchingMode1()
 		DXGI_MODE_DESC1 md1 = { 0 }, md2;
 		md1.Format = d3d->scrformat;
+		md1.RefreshRate.Numerator = d3d->fsSwapChainDesc.RefreshRate.Numerator;
+		md1.RefreshRate.Denominator = d3d->fsSwapChainDesc.RefreshRate.Denominator;
 		md1.Width = w_w;
 		md1.Height = w_h;
 		md1.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
@@ -3209,7 +3235,9 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 		} else {
 			d3d->fsSwapChainDesc.RefreshRate.Denominator = md2.RefreshRate.Denominator;
 			d3d->fsSwapChainDesc.RefreshRate.Numerator = md2.RefreshRate.Numerator;
-			*freq = md2.RefreshRate.Numerator / md2.RefreshRate.Denominator;
+			*freq = 0;
+			if (md2.RefreshRate.Denominator && md2.RefreshRate.Numerator)
+				*freq = md2.RefreshRate.Numerator / md2.RefreshRate.Denominator;
 			write_log(_T("D3D11 FindClosestMatchingMode1() %d/%d=%.2f SLO=%d W=%d H=%d\n"),
 				md2.RefreshRate.Numerator, md2.RefreshRate.Denominator, (float)md2.RefreshRate.Numerator / md2.RefreshRate.Denominator, md1.ScanlineOrdering,
 				md2.Width, md2.Height);
