@@ -963,7 +963,7 @@ end:
 	if (handleopen && h != INVALID_HANDLE_VALUE)
 		CloseHandle(h);
 	if (data)
-		VirtualFree(data, 65536, MEM_RELEASE);
+		VirtualFree(data, 0, MEM_RELEASE);
 	return ret;
 }
 
@@ -1533,7 +1533,7 @@ end:
 		ini_free(ini);
 
 	if (data)
-		VirtualFree(data, 65536, MEM_RELEASE);
+		VirtualFree(data, 0, MEM_RELEASE);
 
 	if (h != INVALID_HANDLE_VALUE)
 		CloseHandle(h);
