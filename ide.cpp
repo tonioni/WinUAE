@@ -1197,7 +1197,7 @@ static uae_u16 ide_get_data_2(struct ide_hdf *ide, int bussize)
 
 	if (ide->data_size == 0) {
 		if (IDE_LOG > 0)
-			write_log (_T("IDE%d DATA but no data left!? %02X PC=%08X\n"), ide->num, ide->regs.ide_status, m68k_getpc ());
+			write_log (_T("IDE%d DATA but no data left!? %02X PC=%08X\n"), ide->num, ide->regs.ide_status, M68K_GETPC);
 		if (!ide_isdrive (ide))
 			return 0xffff;
 		return 0;
@@ -1209,7 +1209,7 @@ static uae_u16 ide_get_data_2(struct ide_hdf *ide, int bussize)
 			v = ide->secbuf[(ide->packet_data_offset + ide->data_offset)];
 		}
 		if (IDE_LOG > 4)
-			write_log (_T("IDE%d DATA read %04x\n"), ide->num, v);
+			write_log (_T("IDE%d DATA read %04x %08x\n"), ide->num, v, M68K_GETPC);
 		ide->data_offset += inc;
 		if (ide->data_size < 0)
 			ide->data_size += inc;
@@ -1235,7 +1235,7 @@ static uae_u16 ide_get_data_2(struct ide_hdf *ide, int bussize)
 			v = ide->secbuf[(ide->buffer_offset + ide->data_offset)];
 		}
 		if (IDE_LOG > 4)
-			write_log (_T("IDE%d DATA read %04x %d/%d\n"), ide->num, v, ide->data_offset, ide->data_size);
+			write_log (_T("IDE%d DATA read %04x %d/%d %08x\n"), ide->num, v, ide->data_offset, ide->data_size, M68K_GETPC);
 		ide->data_offset += inc;
 		if (ide->data_size < 0) {
 			ide->data_size += inc;
@@ -1275,10 +1275,10 @@ static void ide_put_data_2(struct ide_hdf *ide, uae_u16 v, int bussize)
 {
 	int inc = bussize ? 2 : 1;
 	if (IDE_LOG > 4)
-		write_log (_T("IDE%d DATA write %04x %d/%d\n"), ide->num, v, ide->data_offset, ide->data_size);
+		write_log (_T("IDE%d DATA write %04x %d/%d %08x\n"), ide->num, v, ide->data_offset, ide->data_size, M68K_GETPC);
 	if (ide->data_size == 0) {
 		if (IDE_LOG > 0)
-			write_log (_T("IDE%d DATA write without request!? %02X PC=%08X\n"), ide->num, ide->regs.ide_status, m68k_getpc ());
+			write_log (_T("IDE%d DATA write without request!? %02X PC=%08X\n"), ide->num, ide->regs.ide_status, M68K_GETPC);
 		return;
 	}
 	ide_grow_buffer(ide, ide->packet_data_offset + ide->data_offset + 2);
