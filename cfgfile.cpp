@@ -8303,6 +8303,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_a1000ram = 0;
 	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
 	p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvscsi = p->cs_cdtvcr = 0;
+	p->cs_cdtvcard = 0;
 	p->cs_fatgaryrev = -1;
 	p->cs_ide = 0;
 	p->cs_ramseyrev = -1;
@@ -8327,6 +8328,10 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_bytecustomwritebug = false;
 	p->cs_1mchipjumper = false;
 	p->cs_unmapped_space = 0;
+	p->cs_color_burst = false;
+	p->cs_romisslow = false;
+	p->cs_toshibagary = false;
+	p->cs_ciatype[0] = p->cs_ciatype[1] = 0;
 
 	switch (p->cs_compatible)
 	{
