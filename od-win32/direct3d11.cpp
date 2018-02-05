@@ -3086,11 +3086,15 @@ static int xxD3D11_init2(HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int dep
 	} else {
 		BOOL allowTearing = FALSE;
 		result = factory4.As(&factory5);
-		factory2 = factory5;
-		if (!d3d->m_tearingSupport) {
-			result = factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
-			d3d->m_tearingSupport = SUCCEEDED(result) && allowTearing;
-			write_log(_T("CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING) = %08x %d\n"), result, allowTearing);
+		if (SUCCEEDED(result)) {
+			factory2 = factory5;
+			if (!d3d->m_tearingSupport) {
+				result = factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
+				d3d->m_tearingSupport = SUCCEEDED(result) && allowTearing;
+				write_log(_T("CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING) = %08x %d\n"), result, allowTearing);
+			}
+		} else {
+			factory2 = factory4;
 		}
 	}
 
