@@ -5,6 +5,17 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+Beta 3:
+
+- Not all Advanced chipset options reset when compatible checkbox was ticked.
+- Windows 10 build 10240 fix (b1) was incomplete, it caused crash when starting emulation.
+- b1 interrupt handling update fix.
+- Floppy sound used empty drive volume level if disk was inserted and floppy sound settings was changed when emulation is running. (Different than b1 fix)
+- Some fixes to UAE generated emulated IDE identity data. Added CHS-only IDE drive emulation support. (LBA bit is cleared in identity data and setting LBA bit in IDE register does nothing)
+- Pre-filled CHS-only drive CHS geometry data query dialog used original non-byteswapped identity data.
+- CHS-only IDE drives can now be mounted in emulation and they appear with real size and geometry when using USB adapters that allow identity read but does not support CHS (like common JMicron based adapters). Writing is not allowed.
+- RTG background multithread thread safety fixes.
+
 Beta 2:
 
 - If D3D11 fullscreen refresh rate is default: prefer highest supported refresh rate.
