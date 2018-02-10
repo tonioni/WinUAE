@@ -5235,7 +5235,7 @@ void rethink_uae_int(void)
 
 	uae_u16 mask = (irq6 ? 0x2000 : 0) | (irq2 ? 0x0008 : 0);
 	if (mask)
-		INTREQ_0(0x8000 | mask);
+		safe_interrupt_set(mask);
 }
 
 static void rethink_intreq (void)
