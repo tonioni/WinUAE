@@ -81,6 +81,7 @@ struct ide_hdf
 	int data_multi;
 	int direction; // 0 = read, 1 = write
 	bool intdrq;
+	bool lba;
 	bool lba48;
 	bool lba48cmd;
 	uae_u64 start_lba;

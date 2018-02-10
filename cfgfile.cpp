@@ -4359,14 +4359,14 @@ static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struc
 		ret = true;
 	}
 
-	void ata_parse_identity(uae_u8 *out, struct uaedev_config_info *uci, bool *lba48, int *max_multiple);
+	void ata_parse_identity(uae_u8 *out, struct uaedev_config_info *uci, bool *lba, bool *lba48, int *max_multiple);
 	bool ata_get_identity(struct ini_data *ini, uae_u8 *out, bool overwrite);
 
 	uae_u8 ident[512];
 	if (ata_get_identity(ini, ident, true)) {
-		bool lba48;
+		bool lba, lba48;
 		int max_multiple;
-		ata_parse_identity(ident, uci, &lba48, &max_multiple);
+		ata_parse_identity(ident, uci, &lba, &lba48, &max_multiple);
 		ret = true;
 	}
 

@@ -73,9 +73,10 @@ struct uae_driveinfo {
 
 };
 
-#define HDF_HANDLE_WIN32 1
-#define HDF_HANDLE_ZFILE 2
-#define HDF_HANDLE_UNKNOWN 3
+#define HDF_HANDLE_WIN32_NORMAL 1
+#define HDF_HANDLE_WIN32_CHS 2
+#define HDF_HANDLE_ZFILE 3
+#define HDF_HANDLE_UNKNOWN 4
 
 #define CACHE_SIZE 16384
 #define CACHE_FLUSH_TIME 5
@@ -263,46 +264,97 @@ static int ismounted (const TCHAR *name, HANDLE hd)
 	return mounted;
 }
 
+static void tochs(uae_u8 *data, uae_s64 offset, int *cp, int *hp, int *sp)
+{
+	int c, h, s;
+	c = (data[1 * 2 + 0] << 8) | (data[1 * 2 + 1] << 0);
+	h = (data[3 * 2 + 0] << 8) | (data[3 * 2 + 1] << 0);
+	s = (data[6 * 2 + 0] << 8) | (data[6 * 2 + 1] << 0);
+	if (offset >= 0) {
+		offset /= 512;
+		c = offset / (h * s);
+		offset -= c * h * s;
+		h = offset / s;
+		offset -= h * s;
+		s = offset + 1;
+	}
+	*cp = c;
+	*hp = h;
+	*sp = s;
+}
+
+static bool ischs(uae_u8 *identity)
+{
+	if (!identity[0] && !identity[1])
+		return false;
+	uae_u8 *d = identity;
+	// C/H/S = zeros?
+	if ((!d[2] && !d[3]) || (!d[6] && !d[7]) || (!d[12] && !d[13]))
+		return false;
+	// LBA = zero?
+	if (d[60 * 2 + 0] || d[60 * 2 + 1] || d[61 * 2 + 0] || d[61 * 2 + 1])
+		return false;
+	uae_u16 v = (d[49 * 2 + 0] << 8) | (d[49 * 2 + 1] << 0);
+	if (!(v & (1 << 9))) { // LBA not supported?
+		return true;
+	}
+	return false;
+}
+
 #define CA "Commodore\0Amiga\0"
-static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf, int blocksize)
+static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, uae_u8 *data, int cnt, bool log);
+static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf, int blocksize, uae_u8 *identity)
 {
 	uae_u64 origoffset = offset;
 	int i, j, blocks = 63, empty = 1;
 	DWORD outlen;
 
 	for (j = 0; j < blocks; j++) {
-		LARGE_INTEGER fppos;
-		fppos.QuadPart = offset;
-		if (SetFilePointer (h, fppos.LowPart, &fppos.HighPart, FILE_BEGIN) == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
-			write_log (_T("hd ignored, SetFilePointer failed, error %d\n"), GetLastError ());
-			return 1;
+		memset(buf, 0xaa, blocksize);
+
+		if (ischs(identity)) {
+			int cc, hh, ss;
+			tochs(identity, j * 512, &cc, &hh, &ss);
+			if (!do_scsi_read10_chs(h, -1, cc, hh, ss, buf, 1, false)) {
+				write_log(_T("hd ignored, do_scsi_read10_chs failed\n"));
+				return 1;
+			}
+
+		} else {
+
+			LARGE_INTEGER fppos;
+			fppos.QuadPart = offset;
+			if (SetFilePointer(h, fppos.LowPart, &fppos.HighPart, FILE_BEGIN) == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
+				write_log(_T("hd ignored, SetFilePointer failed, error %d\n"), GetLastError());
+				return 1;
+			}
+			ReadFile(h, buf, blocksize, &outlen, NULL);
+			if (outlen != blocksize) {
+				write_log(_T("hd ignored, read error %d!\n"), GetLastError());
+				return 2;
+			}
 		}
-		memset (buf, 0xaa, blocksize);
-		ReadFile (h, buf, blocksize, &outlen, NULL);
-		if (outlen != blocksize) {
-			write_log (_T("hd ignored, read error %d!\n"), GetLastError ());
-			return 2;
-		}
+
 		if (j == 0 && offset > 0)
 			return -5;
 		if (j == 0 && buf[0] == 0x39 && buf[1] == 0x10 && buf[2] == 0xd3 && buf[3] == 0x12) {
 			// ADIDE "CPRM" hidden block..
 			if (do_rdbdump)
-				rdbdump (h, offset, buf, blocksize);
-			write_log (_T("hd accepted (adide rdb detected at block %d)\n"), j);
+				rdbdump(h, offset, buf, blocksize);
+			write_log(_T("hd accepted (adide rdb detected at block %d)\n"), j);
 			return -3;
 		}
-		if (!memcmp (buf, "RDSK", 4) || !memcmp (buf, "DRKS", 4)) {
+		if (!memcmp(buf, "RDSK", 4) || !memcmp(buf, "DRKS", 4)) {
 			if (do_rdbdump)
-				rdbdump (h, offset, buf, blocksize);
-			write_log (_T("hd accepted (rdb detected at block %d)\n"), j);
+				rdbdump(h, offset, buf, blocksize);
+			write_log(_T("hd accepted (rdb detected at block %d)\n"), j);
 			return -1;
 		}
 
-		if (!memcmp (buf + 2, "CIS@", 4) && !memcmp (buf + 16, CA, strlen (CA))) {
+		if (!memcmp(buf + 2, "CIS@", 4) && !memcmp(buf + 16, CA, strlen(CA))) {
 			if (do_rdbdump)
-				rdbdump (h, offset, NULL, blocksize);
-			write_log (_T("hd accepted (PCMCIA RAM)\n"));
+				rdbdump(h, offset, NULL, blocksize);
+			write_log(_T("hd accepted (PCMCIA RAM)\n"));
 			return -2;
 		}
 		if (j == 0) {
@@ -417,7 +469,8 @@ typedef struct _SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER {
 	UCHAR SenseBuf[32];
 } SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER;
 
-static int do_scsi_in(HANDLE h, const uae_u8 *cdb, int cdblen, uae_u8 *in, int insize)
+
+static int do_scsi_in(HANDLE h, const uae_u8 *cdb, int cdblen, uae_u8 *in, int insize, bool fast)
 {
 	SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER swb;
 	DWORD status, returned;
@@ -428,7 +481,7 @@ static int do_scsi_in(HANDLE h, const uae_u8 *cdb, int cdblen, uae_u8 *in, int i
 	swb.spt.DataIn = insize > 0 ? SCSI_IOCTL_DATA_IN : 0;
 	swb.spt.DataTransferLength = insize;
 	swb.spt.DataBuffer = in;
-	swb.spt.TimeOutValue = 10;
+	swb.spt.TimeOutValue = fast ? 2 : 10 * 60;
 	swb.spt.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, SenseBuf);
 	swb.spt.SenseInfoLength = 32;
 	memcpy(swb.spt.Cdb, cdb, cdblen);
@@ -736,7 +789,7 @@ static bool hd_meta_hack_jmicron(HANDLE h, uae_u8 *data, uae_u8 *inq)
 	cmd[6] = 0x72;
 	cmd[7] = 0x0f;
 	cmd[11] = 0xfd;
-	if (do_scsi_in(h, cmd, 12, data + 32, 1) < 0) {
+	if (do_scsi_in(h, cmd, 12, data + 32, 1, true) < 0) {
 		memset(data, 0, 512);
 		return false;
 	}
@@ -772,7 +825,7 @@ static bool hd_meta_hack_jmicron(HANDLE h, uae_u8 *data, uae_u8 *inq)
 	cmd[3] = 512 >> 8;
 	cmd[10] = 0xa0 | ((data[32] & 0x40) ? 0x10 : 0x00);
 	cmd[11] = ID_CMD;
-	if (do_scsi_in(h, cmd, 12, data, 512) < 0) {
+	if (do_scsi_in(h, cmd, 12, data, 512, true) < 0) {
 		memset(data, 0, 512);
 		return false;
 	}
@@ -788,7 +841,7 @@ static bool hd_get_meta_hack_realtek(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *
 
 	memset(data, 0, 512);
 	memcpy(cmd, realtek_read, sizeof(realtek_read));
-	if (do_scsi_in(h, cmd, 6, data, 512) < 0) {
+	if (do_scsi_in(h, cmd, 6, data, 512, true) < 0) {
 		memset(data, 0, 512);
 		return false;
 	}
@@ -797,7 +850,7 @@ static bool hd_get_meta_hack_realtek(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *
 
 	memset(cmd, 0, 6); // TEST UNIT READY
 	TCHAR *infotxt;
-	if (do_scsi_in(h, cmd, 6, data, 0) < 0) {
+	if (do_scsi_in(h, cmd, 6, data, 0, true) < 0) {
 		state = 1;
 		infotxt = _T("Realtek hack, insert card.");
 	} else {
@@ -830,7 +883,7 @@ static bool hd_get_meta_hack_realtek(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *
 		tcnt++;
 		if (tcnt >= 10) {
 			memset(cmd, 0, 6);
-			if (do_scsi_in(h, cmd, 6, data, 0) >= 0) {
+			if (do_scsi_in(h, cmd, 6, data, 0, true) >= 0) {
 				if (state != 0) {
 					break;
 				}
@@ -855,7 +908,7 @@ static bool hd_get_meta_hack_realtek(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *
 
 	memset(data, 0, 512);
 	memcpy(cmd, realtek_read, sizeof(realtek_read));
-	if (do_scsi_in(h, cmd, 6, data, 512) > 0)
+	if (do_scsi_in(h, cmd, 6, data, 512, true) > 0)
 		return true;
 
 	return false;
@@ -872,12 +925,14 @@ static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq, str
 	if (!hDlg)
 		return false;
 	memcpy(cmd, realtek_inquiry_0x83, sizeof(realtek_inquiry_0x83));
-	if (do_scsi_in(h, cmd, 6, data, 0xf0) >= 0 && !memcmp(data + 20, "realtek\0", 8)) {
+	if (do_scsi_in(h, cmd, 6, data, 0xf0, true) >= 0 && !memcmp(data + 20, "realtek\0", 8)) {
 		return hd_get_meta_hack_realtek(hDlg, h, data, inq);
 	}
 	memset(data, 0, 512);
 	return false;
 }
+
+void ata_byteswapidentity(uae_u8 *d);
 
 static bool readidentity(HANDLE h, struct uae_driveinfo *udi, struct hardfiledata *hfd)
 {
@@ -920,7 +975,7 @@ static bool readidentity(HANDLE h, struct uae_driveinfo *udi, struct hardfiledat
 			cmd[2] = 0x08 | 0x04 | 0x02; // dir = from device, 512 byte block, sector count = block cnt
 			cmd[6] = 1; // block count
 			cmd[14] = 0xa1; // identity packet device
-			if (do_scsi_in(h, cmd, 16, data, 512) > 0) {
+			if (do_scsi_in(h, cmd, 16, data, 512, true) > 0) {
 				ret = true;
 			} else {
 				write_log(_T("SAT: ATA PASSTHROUGH(16) failed\n"));
@@ -935,7 +990,7 @@ static bool readidentity(HANDLE h, struct uae_driveinfo *udi, struct hardfiledat
 			cmd[2] = 0x08 | 0x04 | 0x02; // dir = from device, 512 byte block, sector count = block cnt
 			cmd[4] = 1; // block count
 			cmd[9] = 0xec; // identity
-			if (do_scsi_in(h, cmd, 12, data, 512) > 0) {
+			if (do_scsi_in(h, cmd, 12, data, 512, true) > 0) {
 				ret = true;
 			} else {
 				write_log(_T("SAT: ATA PASSTHROUGH(12) failed\n"));
@@ -952,6 +1007,7 @@ static bool readidentity(HANDLE h, struct uae_driveinfo *udi, struct hardfiledat
 	}
 
 	if (ret) {
+		ata_byteswapidentity(data);
 		memcpy(udi->identity, data, 512);
 		if (hfd)
 			memcpy(hfd->identity, data, 512);
@@ -995,7 +1051,7 @@ static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, 
 		cmd[5] = s;
 	}
 	cmd[8] = cnt;
-	bool r = do_scsi_in(handle, cmd, 10, data, 512 * cnt) > 0;
+	bool r = do_scsi_in(handle, cmd, 10, data, 512 * cnt, false) > 0;
 	if (r && log) {
 		int s = 32;
 		int o = 0;
@@ -1025,7 +1081,7 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 	memset(cmd, 0, sizeof(cmd));
 	cmd[0] = 0x12; // inquiry
 	cmd[4] = INQUIRY_LEN;
-	if (do_scsi_in(h, cmd, 6, data, INQUIRY_LEN) < 0) {
+	if (do_scsi_in(h, cmd, 6, data, INQUIRY_LEN, true) < 0) {
 		write_log(_T("SAT: INQUIRY failed\n"));
 		return false;
 	}
@@ -1050,7 +1106,7 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 	memset(data, 0, 512);
 	memset(cmd, 0, sizeof(cmd));
 	cmd[0] = 0x25;
-	if (do_scsi_in(h, cmd, 10, data, 8) >= 8) {
+	if (do_scsi_in(h, cmd, 10, data, 8, true) >= 8) {
 		_tcscat (text, _T("READ CAPACITY:\r\n"));
 		bintotextline(text, data, 8);
 		_tcscat (text, _T("\r\n"));
@@ -1063,7 +1119,7 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 	cmd[0] = 0x12; // inquiry
 	cmd[1] = 1;
 	cmd[4] = INQUIRY_LEN;
-	if (do_scsi_in(h, cmd, 6, data, INQUIRY_LEN) > 0) {
+	if (do_scsi_in(h, cmd, 6, data, INQUIRY_LEN, true) > 0) {
 		uae_u8 evpd[256];
 		int cnt = 0;
 		uae_u8 pl = data[3];
@@ -1087,7 +1143,7 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 		for (int i = 0; i < cnt; i++) {
 			cmd[2] = evpd[i];
 			memset(data, 0, 512);
-			if (do_scsi_in(h, cmd, 6, data, INQUIRY_LEN) > 0) {
+			if (do_scsi_in(h, cmd, 6, data, INQUIRY_LEN, true) > 0) {
 				TCHAR tmp[256];
 				_stprintf(tmp, _T("INQUIRY %02X:\r\n"), evpd[i]);
 				_tcscat (text, tmp);
@@ -1114,7 +1170,7 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 	cmd[2] = 0x80 | 0x3f;
 	cmd[7] = 0xff;
 	cmd[8] = 0;
-	len = do_scsi_in(h, cmd, 10, data, 0xff00);
+	len = do_scsi_in(h, cmd, 10, data, 0xff00, true);
 	if (len > 0) {
 		TCHAR tmp[4000];
 		int l = (data[0] << 8) | data[1];
@@ -1170,7 +1226,7 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 		cmd[2] = 0x08 | 0x04 | 0x02; // dir = from device, 512 byte block, sector count = block cnt
 		cmd[6] = 1; // block count
 		cmd[14] = 0xa1; // identity packet device
-		if (do_scsi_in(h, cmd, 16, data, 512) > 0) {
+		if (do_scsi_in(h, cmd, 16, data, 512, true) > 0) {
 			ret = true;
 			*atapi = true;
 		} else {
@@ -1186,7 +1242,7 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 		cmd[2] = 0x08 | 0x04 | 0x02; // dir = from device, 512 byte block, sector count = block cnt
 		cmd[4] = 1; // block count
 		cmd[9] = 0xec; // identity
-		if (do_scsi_in(h, cmd, 12, data, 512) > 0) {
+		if (do_scsi_in(h, cmd, 12, data, 512, true) > 0) {
 			ret = true;
 		} else {
 			write_log(_T("SAT: ATA PASSTHROUGH(12) failed\n"));
@@ -1249,7 +1305,7 @@ static int gethdfchs(HWND hDlg, struct uae_driveinfo *udi, HANDLE h, int *cylsp,
 	memset(data, 0, 512);
 	memset(cmd, 0, sizeof(cmd));
 	cmd[0] = 0x25;
-	if (do_scsi_in(h, cmd, 10, data, 8) == 8) {
+	if (do_scsi_in(h, cmd, 10, data, 8, true) == 8) {
 #if 1
 		if (data[0] != 0xff || data[1] != 0xff || data[2] != 0xff || data[3] != 0xff) {
 			err = -11;
@@ -1635,6 +1691,17 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 	} else {
 		write_log (_T("IOCTL_DISK_GET_LENGTH_INFO returned size: %I64d (0x%I64x)\n"), gli.Length.QuadPart, gli.Length.QuadPart);
 	}
+
+	if (ischs(udi->identity)) {
+		int c, h, s;
+		tochs(udi->identity, -1, &c, &h, &s);
+		gli.Length.QuadPart = udi->size = c * h * s * 512;
+		udi->cylinders = c;
+		udi->heads = h;
+		udi->sectors = s;
+		geom_ok = true;
+	}
+
 	if (geom_ok == 0 && gli_ok == 0) {
 		write_log (_T("Can't detect size of device\n"));
 		return false;
@@ -1849,10 +1916,12 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			}
 			readidentity(INVALID_HANDLE_VALUE, udi, hfd);
 
+			bool chs = ischs(udi->identity);
+
 			flags = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
 			h = CreateFile (udi->device_path,
-				GENERIC_READ | (hfd->ci.readonly ? 0 : GENERIC_WRITE),
-				FILE_SHARE_READ | (hfd->ci.readonly ? 0 : FILE_SHARE_WRITE),
+				GENERIC_READ | (hfd->ci.readonly && !chs ? 0 : GENERIC_WRITE),
+				FILE_SHARE_READ | (hfd->ci.readonly && !chs ? 0 : FILE_SHARE_WRITE),
 				NULL, OPEN_EXISTING, flags, NULL);
 			hfd->handle->h = h;
 			if (h == INVALID_HANDLE_VALUE && !hfd->ci.readonly) {
@@ -1885,7 +1954,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			if (udi->partitiondrive)
 				hfd->flags |= HFD_FLAGS_REALDRIVEPARTITION;
 			if (hfd->offset == 0 && !hfd->drive_empty) {
-				int sf = safetycheck (hfd->handle->h, udi->device_path, 0, hfd->cache, hfd->ci.blocksize);
+				int sf = safetycheck (hfd->handle->h, udi->device_path, 0, hfd->cache, hfd->ci.blocksize, hfd->identity);
 				if (sf > 0)
 					goto end;
 				if (sf == 0 && !hfd->ci.readonly && harddrive_dangerous != 0x1234dead) {
@@ -1922,7 +1991,16 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 
 			lock_drive(hfd, name, h);
 
-			hfd->handle_valid = HDF_HANDLE_WIN32;
+			hfd->handle_valid = HDF_HANDLE_WIN32_NORMAL;
+			
+			if (ischs(hfd->identity)) {
+				hfd->handle_valid = HDF_HANDLE_WIN32_CHS;
+				hfd->ci.chs = true;
+				tochs(hfd->identity, -1, &hfd->ci.pcyls, &hfd->ci.pheads, &hfd->ci.psecs);
+			} else {
+				hfd->ci.chs = false;
+			}
+			
 			hfd->emptyname = my_strdup (name);
 
 			//getstorageproperty_ataidentity(h);
@@ -1985,7 +2063,7 @@ emptyreal:
 				write_log (_T("HDF '%s' is too small\n"), name);
 				goto end;
 			}
-			hfd->handle_valid = HDF_HANDLE_WIN32;
+			hfd->handle_valid = HDF_HANDLE_WIN32_NORMAL;
 			if (hfd->physsize < 64 * 1024 * 1024 && zmode) {
 				write_log (_T("HDF '%s' re-opened in zfile-mode\n"), name);
 				CloseHandle (h);
@@ -2066,12 +2144,12 @@ int hdf_dup_target (struct hardfiledata *dhfd, const struct hardfiledata *shfd)
 	if (!shfd->handle_valid)
 		return 0;
 	freehandle (dhfd->handle);
-	if (shfd->handle_valid == HDF_HANDLE_WIN32) {
+	if (shfd->handle_valid == HDF_HANDLE_WIN32_NORMAL || shfd->handle_valid == HDF_HANDLE_WIN32_CHS) {
 		HANDLE duphandle;
 		if (!DuplicateHandle (GetCurrentProcess (), shfd->handle->h, GetCurrentProcess () , &duphandle, 0, FALSE, DUPLICATE_SAME_ACCESS))
 			return 0;
 		dhfd->handle->h = duphandle;
-		dhfd->handle_valid = HDF_HANDLE_WIN32;
+		dhfd->handle_valid = shfd->handle_valid;
 	} else if (shfd->handle_valid == HDF_HANDLE_ZFILE) {
 		struct zfile *zf;
 		zf = zfile_dup (shfd->handle->zf);
@@ -2110,10 +2188,10 @@ static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset)
 			abort ();
 		}
 	}
-	if (hfd->handle_valid == HDF_HANDLE_WIN32) {
+	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
 		LARGE_INTEGER fppos;
 		fppos.QuadPart = offset;
-		ret = SetFilePointer (hfd->handle->h, fppos.LowPart, &fppos.HighPart, FILE_BEGIN);
+		ret = SetFilePointer(hfd->handle->h, fppos.LowPart, &fppos.HighPart, FILE_BEGIN);
 		if (ret == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
 			return -1;
 	} else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
@@ -2127,7 +2205,7 @@ static void poscheck (struct hardfiledata *hfd, int len)
 	DWORD err;
 	uae_s64 pos;
 
-	if (hfd->handle_valid == HDF_HANDLE_WIN32) {
+	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
 		LARGE_INTEGER fppos;
 		fppos.QuadPart = 0;
 		fppos.LowPart = SetFilePointer (hfd->handle->h, 0, &fppos.HighPart, FILE_CURRENT);
@@ -2141,6 +2219,8 @@ static void poscheck (struct hardfiledata *hfd, int len)
 		pos = fppos.QuadPart;
 	} else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
 		pos = zfile_ftell (hfd->handle->zf);
+	} else if (hfd->handle_valid == HDF_HANDLE_WIN32_CHS) {
+		pos = 0;
 	}
 	if (len < 0) {
 		gui_message (_T("hd: poscheck failed, negative length! (%d)"), len);
@@ -2292,10 +2372,11 @@ static int hdf_read_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 		hfd->cache_offset = hfd->offset + (hfd->physsize - hfd->virtual_size) - CACHE_SIZE;
 	hdf_seek (hfd, hfd->cache_offset);
 	poscheck (hfd, CACHE_SIZE);
-	if (hfd->handle_valid == HDF_HANDLE_WIN32)
-		ReadFile (hfd->handle->h, hfd->cache, CACHE_SIZE, &outlen, NULL);
-	else if (hfd->handle_valid == HDF_HANDLE_ZFILE)
-		outlen = zfile_fread (hfd->cache, 1, CACHE_SIZE, hfd->handle->zf);
+	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
+		ReadFile(hfd->handle->h, hfd->cache, CACHE_SIZE, &outlen, NULL);
+	} else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
+		outlen = zfile_fread(hfd->cache, 1, CACHE_SIZE, hfd->handle->zf);
+	}
 	hfd->cache_valid = 0;
 	if (outlen != CACHE_SIZE)
 		return 0;
@@ -2325,6 +2406,18 @@ int hdf_read_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
 		return len2;
 	}
 	offset -= hfd->virtual_size;
+
+	if (hfd->handle_valid == HDF_HANDLE_WIN32_CHS) {
+		int len2 = len;
+		while (len > 0) {
+			int c, h, s;
+			tochs(hfd->identity, offset, &c, &h, &s);
+			do_scsi_read10_chs(hfd->handle->h, -1, c, h, s, (uae_u8*)buffer, 1, false);
+			len -= 512;
+		}
+		return len2;
+	}
+
 	while (len > 0) {
 		int maxlen;
 		DWORD ret;
@@ -2333,7 +2426,7 @@ int hdf_read_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
 			hdf_seek (hfd, offset);
 			if (hfd->physsize)
 				poscheck (hfd, len);
-			if (hfd->handle_valid == HDF_HANDLE_WIN32) {
+			if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
 				ReadFile (hfd->handle->h, hfd->cache, len, &ret, NULL);
 				memcpy (buffer, hfd->cache, ret);
 			} else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
@@ -2364,11 +2457,12 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 		return 0;
 	if (len == 0)
 		return 0;
+
 	hfd->cache_valid = 0;
 	hdf_seek (hfd, offset);
 	poscheck (hfd, len);
 	memcpy (hfd->cache, buffer, len);
-	if (hfd->handle_valid == HDF_HANDLE_WIN32) {
+	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
 		TCHAR *name = hfd->emptyname == NULL ? _T("<unknown>") : hfd->emptyname;
 		if (offset == 0) {
 			if (!hfd->handle->firstwrite && (hfd->flags & HFD_FLAGS_REALDRIVE) && !(hfd->flags & HFD_FLAGS_REALDRIVEPARTITION)) {
@@ -2407,10 +2501,13 @@ int hdf_write_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, in
 	int got = 0;
 	uae_u8 *p = (uae_u8*)buffer;
 
+	if (hfd->handle_valid == HDF_HANDLE_WIN32_CHS)
+		return 0;
 	if (hfd->drive_empty || hfd->physsize == 0)
 		return 0;
 	if (offset < hfd->virtual_size)
 		return len;
+
 	offset -= hfd->virtual_size;
 	while (len > 0) {
 		int maxlen = len > CACHE_SIZE ? CACHE_SIZE : len;
@@ -2699,15 +2796,30 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 
 	_tcscpy (udi->device_path, DevicePath);
 	write_log (_T("opening device '%s'\n"), udi->device_path);
+
+	// try read-write first, direct scsi needs also write access
 	hDevice = CreateFile(
 		udi->device_path,    // device interface name
-		GENERIC_READ,       // dwDesiredAccess
+		GENERIC_READ | GENERIC_WRITE,       // dwDesiredAccess
 		FILE_SHARE_READ | FILE_SHARE_WRITE, // dwShareMode
 		NULL,                               // lpSecurityAttributes
 		OPEN_EXISTING,                      // dwCreationDistribution
 		0,                                  // dwFlagsAndAttributes
 		NULL                                // hTemplateFile
 		);
+
+
+	if (hDevice == INVALID_HANDLE_VALUE) {
+		hDevice = CreateFile(
+			udi->device_path,    // device interface name
+			GENERIC_READ,       // dwDesiredAccess
+			FILE_SHARE_READ | FILE_SHARE_WRITE, // dwShareMode
+			NULL,                               // lpSecurityAttributes
+			OPEN_EXISTING,                      // dwCreationDistribution
+			0,                                  // dwFlagsAndAttributes
+			NULL                                // hTemplateFile
+		);
+	}
 
 	//
 	// We have the handle to talk to the device.
@@ -2835,8 +2947,19 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 		udi->sectors = dg.SectorsPerTrack;
 		udi->heads = dg.TracksPerCylinder;
 	}
+
 	if (gli_ok && gli.Length.QuadPart)
 		udi->size = gli.Length.QuadPart;
+
+	if (ischs(udi->identity)) {
+		int c, h, s;
+		tochs(udi->identity, -1, &c, &h, &s);
+		udi->size = c * h * s * 512;
+		udi->cylinders = c;
+		udi->heads = h;
+		udi->sectors = s;
+	}
+
 	write_log (_T("device size %I64d (0x%I64x) bytes\n"), udi->size, udi->size);
 	trim (orgname);
 
@@ -2895,7 +3018,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 		}
 	}
 	if (udi->offset == 0 && udi->size) {
-		udi->dangerous = safetycheck (hDevice, udi->device_path, 0, buffer, dg.BytesPerSector);
+		udi->dangerous = safetycheck (hDevice, udi->device_path, 0, buffer, dg.BytesPerSector, udi->identity);
 		if (udi->dangerous > 0)
 			goto end;
 	}
@@ -3141,6 +3264,9 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 		break;
 	case -9:
 		dang = _T("[EMPTY]");
+		break;
+	case -4:
+		dang = _T("(CHS)");
 		break;
 	case -3:
 		dang = _T("(CPRM)");

@@ -12735,8 +12735,16 @@ static void sethardfilegeo(HWND hDlg)
 	if (current_hfdlg.ci.geometry[0]) {
 		current_hfdlg.ci.physical_geometry = true;
 		setchecked(hDlg, IDC_HDF_PHYSGEOMETRY, TRUE);
-		ew (hDlg, IDC_HDF_PHYSGEOMETRY, FALSE);
+		ew(hDlg, IDC_HDF_PHYSGEOMETRY, FALSE);
 		get_hd_geometry(&current_hfdlg.ci);
+	} else if (current_hfdlg.ci.chs) {
+		current_hfdlg.ci.physical_geometry = true;
+		setchecked(hDlg, IDC_HDF_PHYSGEOMETRY, TRUE);
+		ew(hDlg, IDC_HDF_PHYSGEOMETRY, FALSE);
+		ew(hDlg, IDC_SECTORS, FALSE);
+		ew(hDlg, IDC_SECTORS, FALSE);
+		ew(hDlg, IDC_RESERVED, FALSE);
+		ew(hDlg, IDC_BLOCKSIZE, FALSE);
 	} else {
 		ew (hDlg, IDC_HDF_PHYSGEOMETRY, TRUE);
 	}
@@ -12760,8 +12768,8 @@ static void sethardfiletypes(HWND hDlg)
 static void sethd(HWND hDlg)
 {
 	bool rdb = is_hdf_rdb ();
-	bool physgeo = rdb && ischecked(hDlg, IDC_HDF_PHYSGEOMETRY);
-	bool enablegeo = !rdb || (physgeo && current_hfdlg.ci.geometry[0] == 0);
+	bool physgeo = (rdb && ischecked(hDlg, IDC_HDF_PHYSGEOMETRY)) || current_hfdlg.ci.chs;
+	bool enablegeo = (!rdb || (physgeo && current_hfdlg.ci.geometry[0] == 0)) && !current_hfdlg.ci.chs;
 	const struct expansionromtype *ert = get_unit_expansion_rom(current_hfdlg.ci.controller_type);
 	if (ert && current_hfdlg.ci.controller_unit >= 8) {
 		if (!_tcscmp(ert->name, _T("a2091"))) {
@@ -13044,6 +13052,13 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 			if (blocksize > 512) {
 				hfd.ci.blocksize = blocksize;
 			}
+		}
+		if (hfd.ci.chs) {
+			current_hfdlg.ci.physical_geometry = true;
+			current_hfdlg.ci.chs = true;
+			current_hfdlg.ci.pcyls = hfd.ci.pcyls;
+			current_hfdlg.ci.pheads = hfd.ci.pheads;
+			current_hfdlg.ci.psecs = hfd.ci.psecs;
 		}
 		if (!current_hfdlg.ci.physical_geometry) {
 			if (current_hfdlg.ci.controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && current_hfdlg.ci.controller_type <= HD_CONTROLLER_TYPE_IDE_LAST) {
