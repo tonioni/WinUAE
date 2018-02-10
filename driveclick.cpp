@@ -227,10 +227,10 @@ void driveclick_init (void)
 			drvs[i][DS_SNATCH].pos = drvs[i][DS_SNATCH].len;
 		}
 	}
-	driveclick_reset ();
 	if (vv > 0) {
 		click_initialized = 1;
 	}
+	driveclick_reset();
 }
 
 void driveclick_reset (void)
