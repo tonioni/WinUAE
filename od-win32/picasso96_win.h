@@ -563,6 +563,7 @@ extern void picasso_getwritewatch (int index, int offset);
 extern bool picasso_is_vram_dirty (int index, uaecptr addr, int size);
 extern void picasso_statusline (uae_u8 *dst);
 extern void picasso_invalidate (int x, int y, int w, int h);
+extern void picasso_free(void);
 
 /* This structure describes the UAE-side framebuffer for the Picasso
  * screen.  */

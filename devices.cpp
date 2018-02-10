@@ -337,6 +337,7 @@ void do_leave_program (void)
 	// must be first
 	uae_ppc_free();
 #endif
+	picasso_free();
 	free_traps();
 	sampler_free ();
 	graphics_leave ();

@@ -96,6 +96,7 @@ static int p96syncrate;
 static int p96hsync_counter, full_refresh;
 
 static smp_comm_pipe *render_pipe;
+static volatile int render_thread_state;
 static CRITICAL_SECTION render_cs;
 
 #define PICASSO_STATE_SETDISPLAY 1
@@ -4617,14 +4618,18 @@ static bool picasso_flushpixels (int index, uae_u8 *src, int off)
 
 static void *render_thread(void *v)
 {
+	render_thread_state = 1;
 	for (;;) {
 		int idx = read_comm_pipe_int_blocking(render_pipe);
 		if (idx == -1)
 			break;
-		lockrtg();
-		picasso_flushpixels(idx, gfxmem_banks[idx]->start + natmem_offset, picasso96_state.XYOffset - gfxmem_banks[idx]->start);
-		unlockrtg();
+		if (picasso_on && picasso_requested_on) {
+			lockrtg();
+			picasso_flushpixels(idx, gfxmem_banks[idx]->start + natmem_offset, picasso96_state.XYOffset - gfxmem_banks[idx]->start);
+			unlockrtg();
+		}
 	}
+	render_thread_state = -1;
 	return 0;
 }
 
@@ -5009,11 +5014,16 @@ static void inituaegfxfuncs(TrapContext *ctx, uaecptr start, uaecptr ABI)
 
 void picasso_reset (void)
 {
-	if (!render_pipe && currprefs.rtg_multithread) {
-		InitializeCriticalSection(&render_cs);
-		render_pipe = xmalloc(smp_comm_pipe, 1);
-		init_comm_pipe(render_pipe, 10, 1);
-		uae_start_thread(_T("rtg"), render_thread, NULL, NULL);
+	if (currprefs.rtg_multithread) {
+		if (!render_pipe) {
+			InitializeCriticalSection(&render_cs);
+			render_pipe = xmalloc(smp_comm_pipe, 1);
+			init_comm_pipe(render_pipe, 10, 1);
+		}
+		if (render_thread_state <= 0) {
+			render_thread_state = 0;
+			uae_start_thread(_T("rtg"), render_thread, NULL, NULL);
+		}
 	}
 
 	rtg_index = -1;
@@ -5197,6 +5207,17 @@ uae_u32 picasso_demux (uae_u32 arg, TrapContext *ctx)
 	}
 
 	return 0;
+}
+
+void picasso_free(void)
+{
+	if (currprefs.rtg_multithread && render_thread_state > 0) {
+		write_comm_pipe_int(render_pipe, -1, 0);
+		while (render_thread_state >= 0) {
+			Sleep(10);
+		}
+		render_thread_state = 0;
+	}
 }
 
 void restore_p96_finish (void)
