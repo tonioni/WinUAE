@@ -44,21 +44,17 @@ STATIC_INLINE void glue(rop_32_,ROP_NAME)(uint32_t *dst, uint32_t src)
 
 static void
 glue(cirrus_bitblt_rop_fwd_, ROP_NAME)(CirrusVGAState *s,
-                             uint8_t *dst,const uint8_t *src,
-                             int dstpitch,int srcpitch,
-                             int bltwidth,int bltheight)
+                            uint8_t *dst, uint32_t dstaddr, uint32_t dstmask,
+							const uint8_t *src, uint32_t srcaddr, uint32_t srcmask,
+                            int dstpitch,int srcpitch,
+                            int bltwidth,int bltheight)
 {
     int x,y;
+
+	BLTCHECK_FWD
+
     dstpitch -= bltwidth;
     srcpitch -= bltwidth;
-
-#if 0
-	/* Invalid test! TW */
-    if (dstpitch < 0 || srcpitch < 0) {
-        /* is 0 valid? srcpitch == 0 could be useful */
-        return;
-    }
-#endif
 
     for (y = 0; y < bltheight; y++) {
   		for (x = 0; x < (bltwidth & ~3); x += 4) {
@@ -78,14 +74,19 @@ glue(cirrus_bitblt_rop_fwd_, ROP_NAME)(CirrusVGAState *s,
 
 static void
 glue(cirrus_bitblt_rop_bkwd_, ROP_NAME)(CirrusVGAState *s,
-                                        uint8_t *dst,const uint8_t *src,
-                                        int dstpitch,int srcpitch,
+										uint8_t *dst, uint32_t dstaddr, uint32_t dstmask,
+										const uint8_t *src, uint32_t srcaddr, uint32_t srcmask,
+										int dstpitch,int srcpitch,
                                         int bltwidth,int bltheight)
 {
-    int x,y;
-    dstpitch += bltwidth;
+	BLTCHECK_BKWD
+	
+	int x,y;
+
+	dstpitch += bltwidth;
     srcpitch += bltwidth;
-    for (y = 0; y < bltheight; y++) {
+
+	for (y = 0; y < bltheight; y++) {
   		for (x = 0; x < (bltwidth & ~3); x += 4) {
 			dst -= 3;
 			src -= 3;
@@ -105,15 +106,20 @@ glue(cirrus_bitblt_rop_bkwd_, ROP_NAME)(CirrusVGAState *s,
 
 static void
 glue(glue(cirrus_bitblt_rop_fwd_transp_, ROP_NAME),_8)(CirrusVGAState *s,
-						       uint8_t *dst,const uint8_t *src,
-						       int dstpitch,int srcpitch,
-						       int bltwidth,int bltheight)
+								uint8_t *dst, uint32_t dstaddr, uint32_t dstmask,
+								const uint8_t *src, uint32_t srcaddr, uint32_t srcmask,
+								int dstpitch,int srcpitch,
+								int bltwidth,int bltheight)
 {
-    int x,y;
+	BLTCHECK_FWD
+
+	int x,y;
     uint8_t p;
-    dstpitch -= bltwidth;
+
+	dstpitch -= bltwidth;
     srcpitch -= bltwidth;
-    for (y = 0; y < bltheight; y++) {
+    
+	for (y = 0; y < bltheight; y++) {
         for (x = 0; x < bltwidth; x++) {
 	    p = *dst;
             ROP_OP(&p, *src);
@@ -128,15 +134,20 @@ glue(glue(cirrus_bitblt_rop_fwd_transp_, ROP_NAME),_8)(CirrusVGAState *s,
 
 static void
 glue(glue(cirrus_bitblt_rop_bkwd_transp_, ROP_NAME),_8)(CirrusVGAState *s,
-							uint8_t *dst,const uint8_t *src,
+							uint8_t *dst, uint32_t dstaddr, uint32_t dstmask,
+							const uint8_t *src, uint32_t srcaddr, uint32_t srcmask,
 							int dstpitch,int srcpitch,
 							int bltwidth,int bltheight)
 {
-    int x,y;
+	BLTCHECK_BKWD
+	
+	int x,y;
     uint8_t p;
-    dstpitch += bltwidth;
+
+	dstpitch += bltwidth;
     srcpitch += bltwidth;
-    for (y = 0; y < bltheight; y++) {
+    
+	for (y = 0; y < bltheight; y++) {
         for (x = 0; x < bltwidth; x++) {
 	    p = *dst;
             ROP_OP(&p, *src);
@@ -151,15 +162,20 @@ glue(glue(cirrus_bitblt_rop_bkwd_transp_, ROP_NAME),_8)(CirrusVGAState *s,
 
 static void
 glue(glue(cirrus_bitblt_rop_fwd_transp_, ROP_NAME),_16)(CirrusVGAState *s,
-							uint8_t *dst,const uint8_t *src,
+							uint8_t *dst, uint32_t dstaddr, uint32_t dstmask,
+							const uint8_t *src, uint32_t srcaddr, uint32_t srcmask,
 							int dstpitch,int srcpitch,
 							int bltwidth,int bltheight)
 {
-    int x,y;
+	BLTCHECK_FWD
+		
+	int x,y;
     uint8_t p1, p2;
-    dstpitch -= bltwidth;
+    
+	dstpitch -= bltwidth;
     srcpitch -= bltwidth;
-    for (y = 0; y < bltheight; y++) {
+
+	for (y = 0; y < bltheight; y++) {
         for (x = 0; x < bltwidth; x+=2) {
 	    p1 = *dst;
 	    p2 = *(dst+1);
@@ -179,15 +195,20 @@ glue(glue(cirrus_bitblt_rop_fwd_transp_, ROP_NAME),_16)(CirrusVGAState *s,
 
 static void
 glue(glue(cirrus_bitblt_rop_bkwd_transp_, ROP_NAME),_16)(CirrusVGAState *s,
-							 uint8_t *dst,const uint8_t *src,
-							 int dstpitch,int srcpitch,
-							 int bltwidth,int bltheight)
+							uint8_t *dst, uint32_t dstaddr, uint32_t dstmask,
+							const uint8_t *src, uint32_t srcaddr, uint32_t srcmask,
+							int dstpitch,int srcpitch,
+							int bltwidth,int bltheight)
 {
-    int x,y;
+	BLTCHECK_BKWD
+
+	int x,y;
     uint8_t p1, p2;
-    dstpitch += bltwidth;
+    
+	dstpitch += bltwidth;
     srcpitch += bltwidth;
-    for (y = 0; y < bltheight; y++) {
+    
+	for (y = 0; y < bltheight; y++) {
         for (x = 0; x < bltwidth; x+=2) {
 	    p1 = *(dst-1);
 	    p2 = *dst;

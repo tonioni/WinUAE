@@ -242,11 +242,13 @@ void qemu_register_reset(QEMUResetHandler *func, void *opaque);
 typedef struct CirrusVGAState CirrusVGAState;
 
 typedef void (*cirrus_bitblt_rop_t) (CirrusVGAState *s,
-					 uint8_t * dst, const uint8_t * src,
-				     int dstpitch, int srcpitch,
-				     int bltwidth, int bltheight);
+					uint8_t *dst, uint32_t dstaddr, uint32_t dstmask,
+					const uint8_t *src, uint32_t srcaddr, uint32_t srcmask,
+				    int dstpitch, int srcpitch,
+				    int bltwidth, int bltheight);
 typedef void (*cirrus_fill_t)(CirrusVGAState *s,
-                              uint8_t *dst, int dst_pitch, int width, int height);
+					uint8_t *dst, uint32_t dstaddr, uint32_t dstmask,
+					int dst_pitch, int width, int height);
 
 struct CirrusVGAState {
     VGACommonState vga;
