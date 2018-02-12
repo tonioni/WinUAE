@@ -3797,12 +3797,15 @@ static void renderoverlay(struct d3d11struct *d3d)
 
 static bool renderframe(struct d3d11struct *d3d)
 {
+	ID3D11ShaderResourceView *empty = NULL;
 	struct shadertex st;
 	st.tex = d3d->texture2d;
 	st.rv = d3d->texture2drv;
 	st.rt = NULL;
 
 	TurnOffAlphaBlending(d3d);
+
+	d3d->m_deviceContext->PSSetShaderResources(0, 1, &empty);
 
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		struct shaderdata11 *s = &d3d->shaders[i];
