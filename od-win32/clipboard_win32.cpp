@@ -475,6 +475,8 @@ static void from_iff_ilbm(uae_u8 *saddr, uae_u32 len)
 	int bmhd, body;
 	RGBQUAD rgbx[256];
 
+	if (len < 12)
+		return;
 	bmih = NULL;
 	bmhd = 0, body = 0;
 	bmsize = 0;
@@ -483,6 +485,8 @@ static void from_iff_ilbm(uae_u8 *saddr, uae_u32 len)
 	addr = saddr;
 	eaddr = addr + len;
 	size = (addr[4] << 24) | (addr[5] << 16) | (addr[6] << 8) | (addr[7] << 0);
+	if (size > 0xffffff)
+		return;
 	if (memcmp ("ILBM", addr + 8, 4))
 		return;
 	camg = 0;
@@ -500,10 +504,15 @@ static void from_iff_ilbm(uae_u8 *saddr, uae_u32 len)
 		uae_u8 *paddr, *ceaddr;
 
 		paddr = addr;
+		if (paddr + 8 > eaddr)
+			return;
 		memcpy (chunk, addr, 4);
 		csize = (addr[4] << 24) | (addr[5] << 16) | (addr[6] << 8) | (addr[7] << 0);
 		addr += 8;
 		ceaddr = addr + csize;
+		// chunk end larger than end of data?
+		if (ceaddr > eaddr)
+			return;
 		if (!memcmp (chunk, "BMHD" ,4)) {
 			bmhd = 1;
 			w = (addr[0] << 8) | addr[1];
