@@ -70,6 +70,7 @@ struct uae_driveinfo {
 	int BusType;
 	uae_u16 usb_vid, usb_pid;
 	int devicetype;
+	bool scsi_direct_fail;
 
 };
 
@@ -496,6 +497,9 @@ static int do_scsi_in(HANDLE h, const uae_u8 *cdb, int cdblen, uae_u8 *in, int i
 	if (!status) {
 		DWORD err = GetLastError();
 		write_log(_T(" failed %08x\n"), err);
+		// stupid hardware
+		if (err == ERROR_SEM_TIMEOUT)
+			return -2;
 		return -1;
 	} else if (swb.spt.ScsiStatus) {
 		write_log(_T("\n"));
@@ -934,6 +938,12 @@ static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq, str
 
 void ata_byteswapidentity(uae_u8 *d);
 
+static const uae_u16 blacklist[]
+{
+	0x14cd, 0x125c,
+	0, 0
+};
+
 static bool readidentity(HANDLE h, struct uae_driveinfo *udi, struct hardfiledata *hfd)
 {
 	uae_u8 cmd[16];
@@ -941,10 +951,20 @@ static bool readidentity(HANDLE h, struct uae_driveinfo *udi, struct hardfiledat
 	bool ret = false;
 	bool satl = false;
 	bool handleopen = false;
+	int v;
 
 	memset(udi->identity, 0, 512);
 	if (hfd)
 		memset(hfd->identity, 0, 512);
+
+	if (udi->scsi_direct_fail)
+		return false;
+	if (udi->usb_vid) {
+		for (int i = 0; blacklist[i]; i += 2) {
+			if (udi->usb_vid == blacklist[i] && udi->usb_pid == blacklist[i + 1])
+				return false;
+		}
+	}
 
 	data = (uae_u8*)VirtualAlloc(NULL, 65536, MEM_COMMIT, PAGE_READWRITE);
 	if (!data)
@@ -975,10 +995,13 @@ static bool readidentity(HANDLE h, struct uae_driveinfo *udi, struct hardfiledat
 			cmd[2] = 0x08 | 0x04 | 0x02; // dir = from device, 512 byte block, sector count = block cnt
 			cmd[6] = 1; // block count
 			cmd[14] = 0xa1; // identity packet device
-			if (do_scsi_in(h, cmd, 16, data, 512, true) > 0) {
+			v = do_scsi_in(h, cmd, 16, data, 512, true);
+			if (v > 0) {
 				ret = true;
 			} else {
 				write_log(_T("SAT: ATA PASSTHROUGH(16) failed\n"));
+				if (v < -1)
+					udi->scsi_direct_fail = true;
 			}
 
 		} else {
@@ -990,10 +1013,13 @@ static bool readidentity(HANDLE h, struct uae_driveinfo *udi, struct hardfiledat
 			cmd[2] = 0x08 | 0x04 | 0x02; // dir = from device, 512 byte block, sector count = block cnt
 			cmd[4] = 1; // block count
 			cmd[9] = 0xec; // identity
-			if (do_scsi_in(h, cmd, 12, data, 512, true) > 0) {
+			v = do_scsi_in(h, cmd, 12, data, 512, true);
+			if (v > 0) {
 				ret = true;
 			} else {
 				write_log(_T("SAT: ATA PASSTHROUGH(12) failed\n"));
+				if (v < -1)
+					udi->scsi_direct_fail = true;
 			}
 		}
 	}
