@@ -48,6 +48,9 @@
 
 #define ATAPI_MAX_TRANSFER 32768
 
+// 1 = need soft reset before ATAPI signature appears
+#define ATAPIWEIRD 0
+
 void ata_parse_identity(uae_u8 *out, struct uaedev_config_info *uci, bool *lba, bool *lba48, int *max_multiple)
 {
 	struct uaedev_config_info uci2;
@@ -572,13 +575,18 @@ static void ide_identify_drive (struct ide_hdf *ide)
 	}
 }
 
-static void set_signature (struct ide_hdf *ide)
+static void set_signature (struct ide_hdf *ide, bool hard)
 {
 	if (ide->atapi) {
 		ide->regs.ide_sector = 1;
 		ide->regs.ide_nsector = 1;
-		ide->regs.ide_lcyl = 0x14;
-		ide->regs.ide_hcyl = 0xeb;
+		if (hard && ATAPIWEIRD) {
+			ide->regs.ide_lcyl = 0;
+			ide->regs.ide_hcyl = 0;
+		} else {
+			ide->regs.ide_lcyl = 0x14;
+			ide->regs.ide_hcyl = 0xeb;
+		}
 		ide->regs.ide_status = 0;
 		ide->atapi_drdy = false;
 	} else {
@@ -592,21 +600,21 @@ static void set_signature (struct ide_hdf *ide)
 	ide->packet_state = 0;
 }
 
-static void reset_device (struct ide_hdf *ide, bool both)
+static void reset_device (struct ide_hdf *ide, bool both, bool hard)
 {
-	set_signature (ide);
+	set_signature (ide, hard);
 	if (both)
-		set_signature (ide->pair);
+		set_signature (ide->pair, hard);
 }
 
 void ide_reset_device(struct ide_hdf *ide)
 {
-	reset_device(ide, true);
+	reset_device(ide, true, false);
 }
 
 static void ide_execute_drive_diagnostics (struct ide_hdf *ide, bool irq)
 {
-	reset_device (ide, irq);
+	reset_device (ide, irq, false);
 	if (irq)
 		ide_interrupt (ide);
 	else
@@ -1449,7 +1457,7 @@ void ide_write_reg (struct ide_hdf *ide, int ide_reg, uae_u32 val)
 		break;
 	case IDE_DEVCON:
 		if ((ide->regs.ide_devcon & 4) == 0 && (val & 4) != 0) {
-			reset_device (ide, true);
+			reset_device (ide, true, false);
 			if (IDE_LOG > 1)
 				write_log (_T("IDE%d: SRST\n"), ide->num);
 		}
@@ -1562,7 +1570,7 @@ void ide_initialize(struct ide_hdf **idetable, int chpair)
 	ide0->num = chpair * 2 + 0;
 	ide1->num = chpair * 2 + 1;
 
-	reset_device (ide0, true);
+	reset_device (ide0, true, true);
 }
 
 void alloc_ide_mem (struct ide_hdf **idetable, int max, struct ide_thread_state *its)
