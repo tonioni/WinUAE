@@ -1709,11 +1709,7 @@ void ncr80_rethink(void)
 			if (soft_scsi_devices[i] == x86_hd_data) {
 				x86_doirq(5);
 			} else {
-				if (soft_scsi_devices[i]->level6)
-					safe_interrupt_set(0x2000);
-				else
-					safe_interrupt_set(0x0008);
-				return;
+				safe_interrupt_set(IRQ_SOURCE_SCSI, i, soft_scsi_devices[i]->level6);
 			}
 		}
 	}

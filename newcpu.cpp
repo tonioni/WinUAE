@@ -48,6 +48,7 @@
 #include "threaddep/thread.h"
 #include "x86.h"
 #include "bsdsocket.h"
+#include "devices.h"
 #ifdef JIT
 #include "jit/compemu.h"
 #include <signal.h>
@@ -80,6 +81,10 @@ static int baseclock;
 int m68k_pc_indirect;
 bool m68k_interrupt_delay;
 static bool m68k_reset_delay;
+
+static volatile uae_atomic uae_interrupt;
+static volatile uae_atomic uae_interrupts2[IRQ_SOURCE_MAX];
+static volatile uae_atomic uae_interrupts6[IRQ_SOURCE_MAX];
 
 static int cacheisets04060, cacheisets04060mask, cacheitag04060mask;
 static int cachedsets04060, cachedsets04060mask, cachedtag04060mask;
@@ -3741,6 +3746,11 @@ static void m68k_reset2(bool hardreset)
 	regs.spcflags = 0;
 	m68k_reset_delay = 0;
 	regs.ipl = regs.ipl_pin = 0;
+	for (int i = 0; i < IRQ_SOURCE_MAX; i++) {
+		uae_interrupts2[i] = 0;
+		uae_interrupts6[i] = 0;
+		uae_interrupt = 0;
+	}
 
 #ifdef SAVESTATE
 	if (isrestore ()) {
@@ -4351,44 +4361,59 @@ static void do_trace (void)
 
 static void check_uae_int_request(void)
 {
-	if (uae_int_requested) {
-		bool irq = false;
-		if (uae_int_requested & 0x00ff) {
-			INTREQ_f(0x8000 | 0x0008);
-			irq = true;
+	bool irq2 = false;
+	bool irq6 = false;
+	if (atomic_and(&uae_interrupt, 0)) {
+		for (int i = 0; i < IRQ_SOURCE_MAX; i++) {
+			if (!irq2 && uae_interrupts2[i]) {
+				uae_atomic v = atomic_and(&uae_interrupts2[i], 0);
+				if (v) {
+					INTREQ_f(0x8000 | 0x0008);
+					irq2 = true;
+				}
+			}
+			if (!irq6 && uae_interrupts6[i]) {
+				uae_atomic v = atomic_and(&uae_interrupts6[i], 0);
+				if (v) {
+					INTREQ_f(0x8000 | 0x2000);
+					irq6 = true;
+				}
+			}
 		}
-		if (uae_int_requested & 0xff00) {
+	}
+	if (uae_int_requested) {
+		if (!irq2 && (uae_int_requested & 0x00ff)) {
+			INTREQ_f(0x8000 | 0x0008);
+			irq2 = true;
+		}
+		if (!irq6 && (uae_int_requested & 0xff00)) {
 			INTREQ_f(0x8000 | 0x2000);
-			irq = true;
+			irq6 = true;
 		}
 		if (uae_int_requested & 0xff0000) {
 			if (!cpuboard_is_ppcboard_irq()) {
 				atomic_and(&uae_int_requested, ~0x010000);
 			}
 		}
-		if (irq) {
-			doint();
-		}
+	}
+	if (irq2 || irq6) {
+		doint();
 	}
 }
 
-/* 0x0010 = generic expansion level 2
- * 0x1000 = generic expansion level 6
- */
-void safe_interrupt_clear_all(void)
+void safe_interrupt_set(int num, int id, bool i6)
 {
-	atomic_and(&uae_int_requested, ~(0x0010 | 0x1000));
-}
-
-void safe_interrupt_set(uae_u32 v)
-{
-	if (ppc_state || 0) {
+	if (!is_mainthread()) {
 		set_special_exter(SPCFLAG_UAEINT);
-		if (v & 0x0008)
-			atomic_or(&uae_int_requested, 0x0010);
-		if (v & 0x2000)
-			atomic_or(&uae_int_requested, 0x1000);
+		volatile uae_atomic *p;
+		if (i6)
+			p = &uae_interrupts6[num];
+		else
+			p = &uae_interrupts2[num];
+		atomic_or(p, 1 << id);
+		atomic_or(&uae_interrupt, 1);
 	} else {
+		uae_u16 v = i6 ? 0x2000 : 0x0008;
 		if (currprefs.cpu_cycle_exact || (!(intreq & v) && !currprefs.cpu_cycle_exact)) {
 			INTREQ_0(0x8000 | v);
 		}
@@ -6799,7 +6824,6 @@ static int asm_parse_mode(TCHAR *s, uae_u8 *reg, uae_u32 *v, uae_u16 *ext)
 		if (s[1] == '!') {
 			*v = _tstol(s + 2);
 		} else {
-			TCHAR *endptr;
 			*v = asmgetval(s + 1);
 		}
 		return imm;

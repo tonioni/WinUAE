@@ -30,6 +30,7 @@
 #include "qemuvga/scsi/scsi.h"
 #include "autoconf.h"
 #include "gui.h"
+#include "devices.h"
 
 #define BOARD_SIZE 16777216
 #define IO_MASK 0xff
@@ -54,6 +55,7 @@
 
 struct ncr_state
 {
+	int id;
 	bool newncr;
 	DeviceState devobject;
 	SCSIDevice *scsid[8];
@@ -71,7 +73,7 @@ struct ncr_state
 	int io_start, io_end;
 	addrbank *bank;
 	bool irq;
-	void (*irq_func)(int);
+	void (*irq_func)(int, int);
 	struct romconfig *rc;
 	struct ncr_state **self_ptr;
 };
@@ -162,20 +164,20 @@ static struct ncr_state *ncr_a4000t;
 static struct ncr_state *ncra4091[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr_state *ncr_wildfire;
 
-static void set_irq2(int level)
+static void set_irq2(int id, int level)
 {
 	if (level)
-		safe_interrupt_set(0x0008);
+		safe_interrupt_set(IRQ_SOURCE_NCR, 0, false);
 }
 
 void ncr_rethink(void)
 {
 	for (int i = 0; ncr_units[i]; i++) {
 		if (ncr_units[i] != ncr_cs && ncr_units[i]->irq)
-			safe_interrupt_set(0x0008);
+			safe_interrupt_set(IRQ_SOURCE_NCR, i + 1, false);
 	}
 	if (ncr_cs && ncr_cs->irq)
-		cyberstorm_mk3_ppc_irq_setonly(1);
+		cyberstorm_mk3_ppc_irq_setonly(0, 1);
 }
 
 /* 720+ */
@@ -184,7 +186,7 @@ void pci_set_irq(PCIDevice *pci_dev, int level)
 {
 	struct ncr_state *ncr = (struct ncr_state*)pci_dev;
 	ncr->irq = level != 0;
-	ncr->irq_func(ncr->irq);
+	ncr->irq_func(ncr->id, ncr->irq);
 }
 
 void scsi_req_continue(SCSIRequest *req)
@@ -278,7 +280,7 @@ void pci710_set_irq(PCIDevice *pci_dev, int level)
 {
 	struct ncr_state *ncr = (struct ncr_state*)pci_dev;
 	ncr->irq = level != 0;
-	ncr->irq_func(ncr->irq);
+	ncr->irq_func(ncr->id, ncr->irq);
 }
 
 void scsi710_req_continue(SCSIRequest *req)

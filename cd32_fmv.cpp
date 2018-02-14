@@ -21,6 +21,7 @@
 #include "debug.h"
 #include "custom.h"
 #include "audio.h"
+#include "devices.h"
 #include "threaddep/thread.h"
 
 #include "cda_play.h"
@@ -287,9 +288,7 @@ static int isdebug(uaecptr addr)
 
 static void do_irq(void)
 {
-	if (!(intreq & 8)) {
-		safe_interrupt_set(0x0008);
-	}
+	safe_interrupt_set(IRQ_SOURCE_CD32CDTV, 1, false);
 }
 
 static bool l64111_checkint(bool enabled)

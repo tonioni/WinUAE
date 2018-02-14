@@ -83,6 +83,7 @@ struct comspec_chip
 };
 
 struct wd_state {
+	int id;
 	bool enabled;
 	int configured;
 	bool autoconfig;

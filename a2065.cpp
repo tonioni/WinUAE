@@ -581,7 +581,7 @@ void rethink_a2065 (void)
 	if (mask & (CSR0_BABL | CSR0_MISS | CSR0_MERR | CSR0_RINT | CSR0_TINT | CSR0_IDON))
 		csr[0] |= CSR0_INTR;
 	if ((csr[0] & (CSR0_INTR | CSR0_INEA)) == (CSR0_INTR | CSR0_INEA)) {
-		safe_interrupt_set(0x0008);
+		safe_interrupt_set(IRQ_SOURCE_A2065, 0, false);
 		if (log_a2065 > 2)
 			write_log(_T("7990 +IRQ\n"));
 	}

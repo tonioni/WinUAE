@@ -260,11 +260,9 @@ void idecontroller_rethink(void)
 				x86_doirq(ide_boards[i] == x86_at_ide_board[0] ? 14 : 15);
 			}
 		} else {
-			irq |= ide_rethink(ide_boards[i], false);
+			if (ide_rethink(ide_boards[i], false))
+				safe_interrupt_set(IRQ_SOURCE_IDE, i, false);
 		}
-	}
-	if (irq) {
-		safe_interrupt_set(0x0008);
 	}
 }
 

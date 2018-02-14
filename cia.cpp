@@ -44,6 +44,7 @@
 #include "rommgr.h"
 #include "scsi.h"
 #include "rtc.h"
+#include "devices.h"
 
 #define CIAA_DEBUG_R 0
 #define CIAA_DEBUG_W 0
@@ -124,7 +125,7 @@ static int cia_interrupt_delay;
 
 static void ICR (uae_u32 data)
 {
-	safe_interrupt_set(data);
+	safe_interrupt_set(IRQ_SOURCE_CIA, 0, (data & 0x2000) != 0);
 }
 
 static void ICRA (uae_u32 data)

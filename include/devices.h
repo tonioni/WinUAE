@@ -18,5 +18,22 @@ void device_check_config(void);
 void devices_pause(void);
 void devices_unpause(void);
 
+#define IRQ_SOURCE_PCI 0
+#define IRQ_SOURCE_SOUND 1
+#define IRQ_SOURCE_NE2000 2
+#define IRQ_SOURCE_A2065 3
+#define IRQ_SOURCE_NCR 4
+#define IRQ_SOURCE_NCR9X 5
+#define IRQ_SOURCE_CPUBOARD 6
+#define IRQ_SOURCE_UAE 7
+#define IRQ_SOURCE_SCSI 8
+#define IRQ_SOURCE_WD 9
+#define IRQ_SOURCE_X86 10
+#define IRQ_SOURCE_GAYLE 11
+#define IRQ_SOURCE_CIA 12
+#define IRQ_SOURCE_CD32CDTV 13
+#define IRQ_SOURCE_IDE 14
+#define IRQ_SOURCE_MAX 15
+
 
 #endif /* UAE_DEVICES_H */

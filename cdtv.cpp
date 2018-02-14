@@ -31,6 +31,7 @@
 #include "uae.h"
 #include "savestate.h"
 #include "scsi.h"
+#include "devices.h"
 
 /* DMAC CNTR bits. */
 #define CNTR_TCEN               (1<<7)
@@ -97,9 +98,7 @@ static void do_stch (void);
 
 static void INT2 (void)
 {
-	if (!(intreq & 8)) {
-		safe_interrupt_set(0x0008);
-	}
+	safe_interrupt_set(IRQ_SOURCE_CD32CDTV, 0, false);
 	cd_led ^= LED_CD_ACTIVE2;
 }
 

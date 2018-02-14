@@ -260,13 +260,13 @@ void uae_set_thread_priority (uae_thread_id *tid, int pri)
 	}
 }
 
-void atomic_and(volatile uae_atomic *p, uae_u32 v)
+uae_atomic atomic_and(volatile uae_atomic *p, uae_u32 v)
 {
-	_InterlockedAnd(p, v);
+	return _InterlockedAnd(p, v);
 }
-void atomic_or(volatile uae_atomic *p, uae_u32 v)
+uae_atomic atomic_or(volatile uae_atomic *p, uae_u32 v)
 {
-	_InterlockedOr(p, v);
+	return _InterlockedOr(p, v);
 }
 void atomic_set(volatile uae_atomic *p, uae_u32 v)
 {

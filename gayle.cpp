@@ -228,8 +228,8 @@ void rethink_gayle (void)
 
 	if (currprefs.cs_ide == IDE_A4000) {
 		gayle_irq |= checkgayleideirq ();
-		if ((gayle_irq & GAYLE_IRQ_IDE) && !(intreq & 0x0008))
-			safe_interrupt_set(0x0008);
+		if ((gayle_irq & GAYLE_IRQ_IDE))
+			safe_interrupt_set(IRQ_SOURCE_GAYLE, 0, false);
 		return;
 	}
 
@@ -255,10 +255,10 @@ void rethink_gayle (void)
 		else
 			lev2 = 1;
 	}
-	if (lev2 && !(intreq & 0x0008))
-		safe_interrupt_set(0x0008);
-	if (lev6 && !(intreq & 0x2000))
-		safe_interrupt_set(0x2000);
+	if (lev2)
+		safe_interrupt_set(IRQ_SOURCE_GAYLE, 0, false);
+	if (lev6)
+		safe_interrupt_set(IRQ_SOURCE_GAYLE, 0, true);
 }
 
 static void gayle_cs_change (uae_u8 mask, int onoff)

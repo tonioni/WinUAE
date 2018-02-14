@@ -322,6 +322,7 @@ static struct wd_state *allocscsi(struct wd_state **wd, struct romconfig *rc, in
 					rc->unitdata = scsi;
 				scsi->rc = rc;
 				scsi->self_ptr = wd;
+				scsi->id = i;
 				*wd = scsi;
 				return scsi;
 			}
@@ -466,9 +467,9 @@ void rethink_a2091 (void)
 		if (scsi_units[i]) {
 			int irq = isirq(scsi_units[i]);
 			if (irq & 1)
-				safe_interrupt_set(0x0008);
+				safe_interrupt_set(IRQ_SOURCE_WD, i, false);
 			if (irq & 2)
-				safe_interrupt_set(0x2000);
+				safe_interrupt_set(IRQ_SOURCE_WD, i, true);
 #if DEBUG > 2 || A3000_DEBUG > 2
 			write_log (_T("Interrupt_RETHINK:%d\n"), irq);
 #endif
@@ -1411,7 +1412,7 @@ static void wd_check_interrupt(struct wd_state *wds, bool checkonly)
 {
 	struct wd_chip_state *wd = &wds->wc;
 	if (wd->intmask) {
-		safe_interrupt_set(wd->intmask);
+		safe_interrupt_set(IRQ_SOURCE_WD, wds->id, (wd->intmask & 0x2000) != 0);
 		wd->intmask = 0;
 	}
 	if (wd->auxstatus & ASR_INT)

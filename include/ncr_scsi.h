@@ -8,7 +8,7 @@ uae_u32 ncr710_io_bget_a4000t(uaecptr);
 
 void ncr815_io_bput_wildfire(uaecptr addr, uae_u32 v);
 uae_u32 ncr815_io_bget_wildfire(uaecptr addr);
-void wildfire_ncr815_irq(int v);
+void wildfire_ncr815_irq(int id, int v);
 
 extern addrbank ncr_bank_cyberstorm;
 extern addrbank ncr_bank_generic;

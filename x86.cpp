@@ -2969,7 +2969,7 @@ void x86_bridge_rethink(void)
 		uae_u8 intena = xb->amiga_io[IO_INTERRUPT_MASK];
 		uae_u8 status = intreq & ~intena;
 		if (status)
-			safe_interrupt_set(0x0008);
+			safe_interrupt_set(IRQ_SOURCE_X86, 0, false);
 	}
 }
 

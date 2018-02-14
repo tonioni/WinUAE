@@ -1415,20 +1415,18 @@ static void codec_stop(void)
 
 void sndboard_rethink(void)
 {
-	bool irq = false;
 	if (toccata[0].enabled) {
 		struct toccata_data *data = &toccata[0];
-		irq = data->toccata_irq != 0;
+		bool irq = data->toccata_irq != 0;
+		if (irq) {
+			safe_interrupt_set(IRQ_SOURCE_SOUND, 0, true);
+		}
 	}
 	if (uaesndboard[0].enabled) {
-		irq |= uaesnd_rethink();
-	}
-	if (irq) {
-		safe_interrupt_set(0x2000);
-		//atomic_or(&uae_int_requested, 0x200);
-		//set_special_exter(SPCFLAG_UAEINT);
-	} else {
-		//atomic_and(&uae_int_requested, ~0x200);
+		bool irq = uaesnd_rethink();
+		if (irq) {
+			safe_interrupt_set(IRQ_SOURCE_SOUND, 1, true);
+		}
 	}
 }
 

@@ -248,11 +248,7 @@ void ncr9x_rethink(void)
 {
 	for (int i = 0; ncr_units[i]; i++) {
 		if (ncr_units[i]->boardirq) {
-			if (ncr_units[i]->irq6)
-				safe_interrupt_set(0x2000);
-			else
-				safe_interrupt_set(0x0008);
-			return;
+			safe_interrupt_set(IRQ_SOURCE_NCR9X, i, ncr_units[i]->irq6);
 		}
 	}
 }

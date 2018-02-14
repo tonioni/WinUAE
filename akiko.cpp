@@ -30,6 +30,7 @@
 #include "flashrom.h"
 #include "debug.h"
 #include "rommgr.h"
+#include "devices.h"
 
 #define AKIKO_DEBUG_IO 1
 #define AKIKO_DEBUG_IO_CMD 1
@@ -41,9 +42,7 @@ int log_cd32 = 0;
 
 static void irq (void)
 {
-	if (!(intreq & 8)) {
-		safe_interrupt_set(0x0008);
-	}
+	safe_interrupt_set(IRQ_SOURCE_CD32CDTV, 0, false);
 }
 
 /*

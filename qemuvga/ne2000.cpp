@@ -1856,10 +1856,7 @@ void rethink_ne2000(void)
 	if (!ne->ariadne2_board_state)
 		return;
 	if (ne->ariadne2_irq) {
-		if (ne->level6)
-			safe_interrupt_set(0x2000);
-		else
-			safe_interrupt_set(0x0008);
+		safe_interrupt_set(IRQ_SOURCE_NE2000, 0, ne->level6);
 	}
 }
 

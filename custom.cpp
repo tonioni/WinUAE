@@ -5232,10 +5232,10 @@ void rethink_uae_int(void)
 		if (bsd_int_requested)
 			bsdsock_fake_int_handler();
 	}
-
-	uae_u16 mask = (irq6 ? 0x2000 : 0) | (irq2 ? 0x0008 : 0);
-	if (mask)
-		safe_interrupt_set(mask);
+	if (irq6)
+		safe_interrupt_set(IRQ_SOURCE_UAE, 0, true);
+	if (irq2)
+		safe_interrupt_set(IRQ_SOURCE_UAE, 0, false);
 }
 
 static void rethink_intreq (void)

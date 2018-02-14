@@ -43,6 +43,7 @@ extern void getpathpart (TCHAR *outpath, int size, const TCHAR *inpath);
 extern void getfilepart (TCHAR *out, int size, const TCHAR *path);
 extern uae_u32 getlocaltime (void);
 extern bool isguiactive(void);
+extern bool is_mainthread(void);
 
 extern int quit_program;
 extern bool console_emulation;

@@ -162,6 +162,7 @@ HCURSOR normalcursor;
 static HWND hwndNextViewer;
 HANDLE AVTask;
 static int all_events_disabled;
+static int mainthreadid;
 
 TCHAR VersionStr[256];
 TCHAR BetaStr[64];
@@ -7283,6 +7284,11 @@ const TCHAR **uaenative_get_library_dirs (void)
 	return nats;
 }
 
+bool is_mainthread(void)
+{
+	return GetCurrentThreadId() == mainthreadid;
+}
+
 typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
 
 #ifndef NDEBUG
@@ -7334,6 +7340,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	GetProcessAffinityMask (GetCurrentProcess (), &original_affinity, &sys_aff);
 
 	thread = GetCurrentThread ();
+	mainthreadid = GetCurrentThreadId();
 	//original_affinity = SetThreadAffinityMask(thread, 1);
 	fpucontrol = _controlfp (0, 0) & (_MCW_IC | _MCW_RC | _MCW_PC);
 	_tzset ();

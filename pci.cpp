@@ -140,7 +140,6 @@ void pci_free(void)
 	for (int i = 0; i < MAX_PCI_BOARDS; i++) {
 		hsyncs[i] = NULL;
 	}
-	atomic_and(&uae_int_requested, ~(0x10 | 0x100));
 }
 void pci_reset(void)
 {
@@ -168,13 +167,14 @@ void pci_rethink(void)
 				const struct pci_config *c = pcibs->board->config;
 				if (c->interruptpin) {
 					if ((pcibs->config_data[5] & (1 << 3)) && !(pcibs->config_data[6] & (1 << (10 - 8)))) {
-						pcib->irq |= 1 << (c->interruptpin - 1);
+						uae_u8 irq = 1 << (c->interruptpin - 1);;
+						pcib->irq |= irq;
+						if (irq & pcib->intena) {
+							safe_interrupt_set(IRQ_SOURCE_PCI, i, (pcib->intreq_mask & 0x2000) != 0);
+						}
 					}
 				}
 			}
-		}
-		if (pcib->irq & pcib->intena) {
-			safe_interrupt_set(pcib->intreq_mask);
 		}
 	}
 }
@@ -1486,7 +1486,7 @@ static void add_pci_devices(struct pci_bridge *pcib, struct autoconfig_info *aci
 
 // Wildfire
 
-void wildfire_ncr815_irq(int v)
+void wildfire_ncr815_irq(int id, int v)
 {
 	struct pci_board_state *pcibs = &bridges[PCI_BRIDGE_WILDFIRE]->boards[0];
 	set_pci_irq(bridges[PCI_BRIDGE_WILDFIRE], pcibs, v != 0);

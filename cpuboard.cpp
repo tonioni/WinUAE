@@ -984,12 +984,12 @@ void cpuboard_rethink(void)
 {
 	if (is_csmk3(&currprefs) || is_blizzardppc(&currprefs)) {
 		if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_SCSI_EN | P5_IRQ_SCSI))) {
-			safe_interrupt_set(0x0008);
+			safe_interrupt_set(IRQ_SOURCE_CPUBOARD, 0, false);
 			if (currprefs.cachesize)
 				atomic_or(&uae_int_requested, 0x010000);
 			uae_ppc_wakeup_main();
 		} else if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_PPC_1 | P5_IRQ_PPC_2))) {
-			safe_interrupt_set(0x0008);
+			safe_interrupt_set(IRQ_SOURCE_CPUBOARD, 1, false);
 			if (currprefs.cachesize)
 				atomic_or(&uae_int_requested, 0x010000);
 			uae_ppc_wakeup_main();
@@ -1079,16 +1079,16 @@ static void cyberstormmk2_maprom(void)
 		map_banks_nojitdirect(&blizzardmaprom_bank, blizzardmaprom_bank.start >> 16, 524288 >> 16, 0);
 }
 
-void cyberstorm_mk3_ppc_irq_setonly(int level)
+void cyberstorm_mk3_ppc_irq_setonly(int id, int level)
 {
 	if (level)
 		io_reg[CSIII_REG_IRQ] &= ~P5_IRQ_SCSI;
 	else
 		io_reg[CSIII_REG_IRQ] |= P5_IRQ_SCSI;
 }
-void cyberstorm_mk3_ppc_irq(int level)
+void cyberstorm_mk3_ppc_irq(int id, int level)
 {
-	cyberstorm_mk3_ppc_irq_setonly(level);
+	cyberstorm_mk3_ppc_irq_setonly(id, level);
 	devices_rethink_all(cpuboard_rethink);
 }
 
@@ -1099,7 +1099,7 @@ void blizzardppc_irq_setonly(int level)
 	else
 		io_reg[CSIII_REG_IRQ] |= P5_IRQ_SCSI;
 }
-void blizzardppc_irq(int level)
+void blizzardppc_irq(int id, int level)
 {
 	blizzardppc_irq_setonly(level);
 	devices_rethink_all(cpuboard_rethink);
