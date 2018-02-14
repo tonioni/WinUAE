@@ -205,7 +205,7 @@ static void check_blit(int32_t addr, uint32_t mask, int pitch, int width, int *h
 	dst += (dstaddr & dstmask);
 
 #define BLTCHECK_DST(skip) \
-	check_blit(dstaddr, dstmask, dstpitch, bltwidth - skip, &bltheight, DEPTH, 1);
+	check_blit(dstaddr + skip, dstmask, dstpitch, bltwidth - skip, &bltheight, DEPTH, 1);
 
 #define BLTCHECK_FWD \
 	check_blit(dstaddr, dstmask, dstpitch, bltwidth, &bltheight, 8, 1); \
