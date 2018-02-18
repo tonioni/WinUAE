@@ -8694,7 +8694,7 @@ static void hsync_handler_post (bool onvsync)
 			if (plfstop + 2 * f > ddflastword_total + 2 * f)
 				ddflastword_total = plfstop + 2 * f;
 		}
-		if ((plffirstline < plffirstline_total || (plffirstline_total == minfirstline && vpos > minfirstline)) && plffirstline < vpos / 2) {
+		if ((plffirstline < plffirstline_total || (plffirstline_total == minfirstline && vpos > minfirstline)) && plffirstline < maxvpos / 2) {
 			firstword_bplcon1 = bplcon1;
 			if (plffirstline < minfirstline)
 				plffirstline_total = minfirstline;
