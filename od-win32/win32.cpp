@@ -5865,6 +5865,11 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		log_scsiemu = 1;
 		return 1;
 	}
+	if (!_tcscmp (arg, _T("ds_partition_hdf"))) {
+		extern int enable_ds_partition_hdf;
+		enable_ds_partition_hdf = 1;
+		return 1;
+	}
 	if (!_tcscmp (arg, _T("filesyslog"))) {
 		log_filesys = 1;
 		return 1;

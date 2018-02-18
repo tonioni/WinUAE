@@ -2724,7 +2724,7 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 
 #if HDF_SUPPORT_DS
 	case HD_SCSICMD: /* SCSI */
-		if (HDF_SUPPORT_DS_PARTITION || (!hfd->ci.sectors && !hfd->ci.surfaces && !hfd->ci.reserved)) {
+		if (HDF_SUPPORT_DS_PARTITION || enable_ds_partition_hdf || (!hfd->ci.sectors && !hfd->ci.surfaces && !hfd->ci.reserved)) {
 			error = handle_scsi(ctx, iobuf, request, hfd, hfpd->sd);
 		} else { /* we don't want users trashing their "partition" hardfiles with hdtoolbox */
 			error = IOERR_NOCMD;
