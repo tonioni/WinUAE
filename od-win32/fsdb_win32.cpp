@@ -362,11 +362,13 @@ static int fsdb_name_invalid_2 (a_inode *aino, const TCHAR *n, int dir)
 	} else {
 		err = GetLastError();
 	}
-	write_log(_T("H=%08x TYPE=%08x ERR=%08X '%s'\n"), h, type, err, p);
+	write_log(_T("H=%p TYPE=%08x ERR=%08X '%s'\n"), h, type, err, p);
 	xfree(p);
 	if (h != INVALID_HANDLE_VALUE && type != FILE_TYPE_DISK)
 		return 1;
 	if (err == ERROR_INVALID_NAME || err == ERROR_ACCESS_DENIED || err == ERROR_INVALID_HANDLE)
+		return 1;
+	if (currprefs.win32_filesystem_mangle_reserved_names && err == ERROR_FILE_NOT_FOUND)
 		return 1;
 	return 0;
 }
