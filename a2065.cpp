@@ -127,20 +127,6 @@ static const uae_u8 broadcast[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 DECLARE_MEMORY_FUNCTIONS(a2065);
 
-static uae_u16 gword2 (uae_u8 *p)
-{
-	return (p[0] << 8) | p[1];
-}
-static uae_u16 gword (uae_u8 *p)
-{
-	return (p[0] << 8) | p[1];
-}
-static void pword (uae_u8 *p, uae_u16 v)
-{
-	p[0] = v >> 8;
-	p[1] = v;
-}
-
 #if DUMPPACKET
 static void dumppacket (const TCHAR *n, uae_u8 *packet, int len)
 {
@@ -257,12 +243,30 @@ static int mcfilter (const uae_u8 *data)
 	return 1; // just allow everything
 }
 
+static uae_u8 get_ram_byte(uae_u32 offset)
+{
+	return boardram[offset & RAM_MASK];
+}
+static uae_u16 get_ram_word(uae_u32 offset)
+{
+	return (get_ram_byte(offset) << 8) | get_ram_byte(offset + 1);
+}
+static void put_ram_byte(uae_u32 offset, uae_u8 v)
+{
+	boardram[offset & RAM_MASK] = v;
+}
+static void put_ram_word(uae_u32 offset, uae_u16 v)
+{
+	put_ram_byte(offset, v >> 8);
+	put_ram_byte(offset + 1, (uae_u8)v);
+}
+
 static void gotfunc (void *devv, const uae_u8 *databuf, int len)
 {
 	int i;
 	int size, insize, first;
-	uae_u32 addr;
-	uae_u8 *p, *d;
+	uae_u32 addr, off;
+	uae_u8 *d;
 	uae_u16 rmd0, rmd1, rmd2, rmd3;
 	uae_u32 crc32;
 	uae_u8 tmp[MAX_PACKET_SIZE], *data;
@@ -377,11 +381,11 @@ static void gotfunc (void *devv, const uae_u8 *databuf, int len)
 
 	for (;;) {
 		rdr_offset %= am_rdr_rlen;
-		p = boardram + ((am_rdr_rdra + rdr_offset * 8) & RAM_MASK);
-		rmd0 = gword (p + 0);
-		rmd1 = gword (p + 2);
-		rmd2 = gword (p + 4);
-		rmd3 = gword (p + 6);
+		off = am_rdr_rdra + rdr_offset * 8;
+		rmd0 = get_ram_word(off + 0);
+		rmd1 = get_ram_word(off + 2);
+		rmd2 = get_ram_word(off + 4);
+		rmd3 = get_ram_word(off + 6);
 		addr = rmd0 | ((rmd1 & 0xff) << 16);
 		addr &= RAM_MASK;
 
@@ -393,7 +397,7 @@ static void gotfunc (void *devv, const uae_u8 *databuf, int len)
 			} else {
 				csr[0] |= CSR0_MISS;
 			}
-			pword (p + 2, rmd1);
+			put_ram_word(off + 2, rmd1);
 			devices_rethink_all(rethink_a2065);
 			return;
 		}
@@ -416,8 +420,8 @@ static void gotfunc (void *devv, const uae_u8 *databuf, int len)
 			rmd3 = len;
 		}
 
-		pword (p + 2, rmd1);
-		pword (p + 6, rmd3);
+		put_ram_word(off + 2, rmd1);
+		put_ram_word(off + 6, rmd3);
 
 		if (insize >= len)
 			break;
@@ -451,8 +455,8 @@ static void do_transmit (void)
 	int size, outsize;
 	int err, add_fcs;
 	uae_u32 addr, bufaddr;
-	uae_u8 *p;
 	uae_u16 tmd0, tmd1, tmd2, tmd3;
+	uae_u32 off;
 
 	err = 0;
 	size = 0;
@@ -463,8 +467,8 @@ static void do_transmit (void)
 
 	tdr_offset %= am_tdr_tlen;
 	bufaddr = am_tdr_tdra + tdr_offset * 8;
-	p = boardram + (bufaddr & RAM_MASK);
-	tmd1 = gword (p + 2);
+	off = bufaddr;
+	tmd1 = get_ram_word(off + 2);
 	if (!(tmd1 & TX_OWN) || !(tmd1 & TX_STP)) {
 		tdr_offset++;
 		return;
@@ -476,11 +480,11 @@ static void do_transmit (void)
 
 	for (;;) {
 		tdr_offset %= am_tdr_tlen;
-		p = boardram + ((am_tdr_tdra + tdr_offset * 8) & RAM_MASK);
-		tmd0 = gword (p + 0);
-		tmd1 = gword (p + 2);
-		tmd2 = gword (p + 4);
-		tmd3 = gword (p + 6);
+		off = am_tdr_tdra + tdr_offset * 8;
+		tmd0 = get_ram_word(off + 0);
+		tmd1 = get_ram_word(off + 2);
+		tmd2 = get_ram_word(off + 4);
+		tmd3 = get_ram_word(off + 6);
 		addr = tmd0 | ((tmd1 & 0xff) << 16);
 		addr &= RAM_MASK;
 
@@ -507,8 +511,8 @@ static void do_transmit (void)
 			}
 			tdr_offset++;
 		}
-		pword (p + 2, tmd1);
-		pword (p + 6, tmd3);
+		put_ram_word(off + 2, tmd1);
+		put_ram_word(off + 6, tmd3);
 		if ((tmd1 & TX_ENP) || err)
 			break;
 	}
@@ -518,8 +522,8 @@ static void do_transmit (void)
 		csr[0] &= ~CSR0_TXON;
 		write_log (_T("7990: TRANSMIT UNDERFLOW %d\n"), outsize);
 		err = 1;
-		pword (p + 2, tmd1);
-		pword (p + 6, tmd3);
+		put_ram_word(off + 2, tmd1);
+		put_ram_word(off + 6, tmd3);
 	}
 
 	if (!err) {
@@ -624,29 +628,29 @@ static void chip_init2(void)
 static void chip_init (void)
 {
 	uae_u32 iaddr = ((csr[2] & 0xff) << 16) | csr[1];
-	uae_u8 *p = boardram + (iaddr & RAM_MASK);
+	int off = iaddr & RAM_MASK;
 
 	write_log (_T("7990: Initialization block2:\n"));
 	for (int i = 0; i < 24; i++)
-		write_log (_T(".%02X"), p[i]);
+		write_log (_T(".%02X"), get_ram_byte(off + i));
 	write_log (_T("\n"));
 
-	am_mode = gword2 (p + 0);
-	am_ladrf = (((uae_u64)gword2 (p + 14)) << 48) | (((uae_u64)gword2 (p + 12)) << 32) | (((uae_u64)gword2 (p + 10)) << 16) | gword2 (p + 8);
-	am_rdr = (gword2 (p + 18) << 16) | gword2 (p + 16);
-	am_tdr = (gword2 (p + 22) << 16) | gword2 (p + 20);
+	am_mode = get_ram_word(off + 0);
+	am_ladrf = (((uae_u64)get_ram_word(off + 14)) << 48) | (((uae_u64)get_ram_word(off + 12)) << 32) | (((uae_u64)get_ram_word(off + 10)) << 16) | get_ram_word(off + 8);
+	am_rdr = (get_ram_word(off + 18) << 16) | get_ram_word(off + 16);
+	am_tdr = (get_ram_word(off + 22) << 16) | get_ram_word(off + 20);
 
 	am_rdr_rlen = 1 << ((am_rdr >> 29) & 7);
 	am_tdr_tlen = 1 << ((am_tdr >> 29) & 7);
 	am_rdr_rdra = am_rdr & 0x00fffff8;
 	am_tdr_tdra = am_tdr & 0x00fffff8;
 
-	fakemac[0] = p[3];
-	fakemac[1] = p[2];
-	fakemac[2] = p[5];
-	fakemac[3] = p[4];
-	fakemac[4] = p[7];
-	fakemac[5] = p[6];
+	fakemac[0] = get_ram_byte(3);
+	fakemac[1] = get_ram_byte(2);
+	fakemac[2] = get_ram_byte(5);
+	fakemac[3] = get_ram_byte(4);
+	fakemac[4] = get_ram_byte(7);
+	fakemac[5] = get_ram_byte(6);
 
 	chip_init2();
 }
