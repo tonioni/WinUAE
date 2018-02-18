@@ -587,7 +587,8 @@ void uci_set_defaults (struct uaedev_config_info *uci, bool rdb)
 	uci->bufmemtype = 1;
 	uci->buffers = 50;
 	uci->stacksize = 4000;
-	uci->priority = -129;
+	uci->bootpri = -128;
+	uci->priority = 10;
 	uci->sectorsperblock = 1;
 	uci->device_emu_unit = -1;
 }
@@ -8472,8 +8473,8 @@ static void addfakefilesys (TrapContext *ctx, uaecptr parmpacket, uae_u32 dostyp
 	trap_put_long(ctx, parmpacket + PP_FSHDSTART + 12 + 4 * 4, ci->stacksize);
 	flags |= 0x10;
 
-	if (ci->priority != -129) {
-		trap_put_long(ctx, parmpacket + PP_FSHDSTART + 12 + 5 * 4, ci->priority);
+	if (ci->bootpri != -129) {
+		trap_put_long(ctx, parmpacket + PP_FSHDSTART + 12 + 5 * 4, ci->bootpri);
 		flags |= 0x20;
 	}
 	trap_put_long(ctx, parmpacket + PP_FSHDSTART + 12 + 8 * 4, dostype == DISK_TYPE_DOS || bcplonlydos() ? 0 : -1); // globvec
