@@ -1856,7 +1856,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			bdsize = 0;
 			if (!dbd) {
 				uae_u32 blocks = (uae_u32)(hfd->virtsize / hfd->ci.blocksize);
-				wl(p + 0, blocks < 0x01000000 ? blocks : 0);
+				wl(p + 0, blocks >= 0x00ffffff ? 0x00ffffff : blocks);
 				wl(p + 4, hfd->ci.blocksize);
 				bdsize = 8;
 				p += bdsize;
