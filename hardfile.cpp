@@ -61,6 +61,7 @@
 #endif
 
 extern int log_scsiemu;
+int enable_ds_partition_hdf;
 
 #define MAX_ASYNC_REQUESTS 50
 #define ASYNC_REQUEST_NONE 0
@@ -311,26 +312,95 @@ static void rdb_crc (uae_u8 *p)
 	pl (p, 2, sum);
 }
 
+static uae_u32 get_filesys_version(uae_u8 *fs, int size)
+{
+	int ver = -1, rev = -1;
+	for (int i = 0; i < size - 6; i++) {
+		uae_u8 *p = fs + i;
+		if (p[0] == 'V' && p[1] == 'E' && p[2] == 'R' && p[3] == ':' && p[4] == ' ') {
+			uae_u8 *p2;
+			p += 5;
+			p2 = p;
+			while (*p2 && p2 - fs < size)
+				p2++;
+			if (p2[0] == 0) {
+				while (*p && (ver < 0 || rev < 0)) {
+					if (*p == ' ') {
+						p++;
+						ver = atol((char*)p);
+						if (ver < 0)
+							ver = 0;
+						while (*p) {
+							if (*p == ' ')
+								break;
+							if (*p == '.') {
+								p++;
+								rev = atol((char*)p);
+								if (rev < 0)
+									rev = 0;
+							}
+							else {
+								p++;
+							}
+						}
+						break;
+					}
+					else {
+						p++;
+					}
+				}
+			}
+			break;
+		}
+	}
+	if (ver < 0)
+		return 0xffffffff;
+	if (rev < 0)
+		rev = 0;
+	return (ver << 16) | rev;
+}
+
 static void create_virtual_rdb (struct hardfiledata *hfd)
 {
-	uae_u8 *rdb, *part, *denv;
+	uae_u8 *rdb, *part, *denv, *fs;
 	int cyl = hfd->ci.surfaces * hfd->ci.sectors;
-	int cyls = 262144 / (cyl * 512);
+	int cyls = (262144 + (cyl * 512) - 1) / (cyl * 512);
 	int size = cyl * cyls * 512;
+	int idx = 0;
+	uae_u8 *filesys = NULL;
+	int filesyslen = 0;
+	uae_u32 fsver = 0;
+
+	write_log(_T("Creating virtual RDB\n"));
+
+	if (hfd->ci.filesys[0]) {
+		struct zfile *f = NULL;
+		filesys = zfile_load_file(hfd->ci.filesys, &filesyslen);
+		if (filesys) {
+			fsver = get_filesys_version(filesys, filesyslen);
+			if (fsver == 0xffffffff)
+				fsver = (99 << 16) | 99;
+			if (filesyslen & 3) {
+				xfree(filesys);
+				filesys = NULL;
+			}
+		}
+
+	}
 
 	rdb = xcalloc (uae_u8, size);
 	hfd->virtual_rdb = rdb;
 	hfd->virtual_size = size;
-	part = rdb + 512;
-	pl(rdb, 0, 0x5244534b);
-	pl(rdb, 1, 64);
+
+	pl(rdb, 0, 0x5244534b); // "RDSK"
+	pl(rdb, 1, 256 / 4);
 	pl(rdb, 2, 0); // chksum
 	pl(rdb, 3, 7); // hostid
 	pl(rdb, 4, 512); // blockbytes
 	pl(rdb, 5, 0); // flags
 	pl(rdb, 6, -1); // badblock
-	pl(rdb, 7, 1); // part
-	pl(rdb, 8, -1); // fs
+	pl(rdb, 7, idx + 1); // part
+	pl(rdb, 8, filesys ? idx + 2 : -1); // fs
 	pl(rdb, 9, -1); // driveinit
 	pl(rdb, 10, -1); // reserved
 	pl(rdb, 11, -1); // reserved
@@ -341,7 +411,7 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	pl(rdb, 16, hfd->ci.highcyl);
 	pl(rdb, 17, hfd->ci.sectors);
 	pl(rdb, 18, hfd->ci.surfaces);
-	pl(rdb, 19, hfd->ci.interleave); // interleave
+	pl(rdb, 19, hfd->ci.interleave);
 	pl(rdb, 20, 0); // park
 	pl(rdb, 21, -1); // res
 	pl(rdb, 22, -1); // res
@@ -366,21 +436,22 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	ua_copy ((char*)rdb + 42 * 4, 16, hfd->product_id);
 	ua_copy ((char*)rdb + 46 * 4, 4, _T("UAE"));
 	rdb_crc (rdb);
+	idx++;
 
-	pl(part, 0, 0x50415254);
-	pl(part, 1, 64);
-	pl(part, 2, 0);
-	pl(part, 3, 0);
-	pl(part, 4, -1);
-	pl(part, 5, 1); // bootable
+	part = rdb + 512 * idx;
+	pl(part, 0, 0x50415254); // "PART"
+	pl(part, 1, 256 / 4);
+	pl(part, 2, 0); // chksum
+	pl(part, 3, 7); // hostid
+	pl(part, 4, -1); // next
+	pl(part, 5, hfd->ci.bootpri < -128 ? 2 : hfd->ci.bootpri == -128 ? 0 : 1); // bootable/nomount
 	pl(part, 6, -1);
 	pl(part, 7, -1);
 	pl(part, 8, 0); // devflags
 	part[9 * 4] = _tcslen (hfd->ci.devname);
 	ua_copy ((char*)part + 9 * 4 + 1, 30, hfd->ci.devname);
-
 	denv = part + 128;
-	pl(denv, 0, 80);
+	pl(denv, 0, 16);
 	pl(denv, 1, 512 / 4);
 	pl(denv, 2, 0); // secorg
 	pl(denv, 3, hfd->ci.surfaces);
@@ -398,9 +469,53 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	pl(denv, 15, hfd->ci.bootpri);
 	pl(denv, 16, hfd->ci.dostype);
 	rdb_crc (part);
+	idx++;
+
+	if (!filesys)
+		return;
+	fs = rdb + 512 * idx;
+	pl(fs, 0, 0x46534844); // "FSHD"
+	pl(fs, 1, 512 / 4);
+	pl(fs, 2, 0); // chksum
+	pl(fs, 3, 7); // hostid
+	pl(fs, 4, -1); // next
+	pl(fs, 5, 0); // flags
+	pl(fs, 8, hfd->ci.dostype);
+	pl(fs, 9, fsver); // version
+	pl(fs, 10, 0x100 | 0x80 | 0x20 | 0x10); // patchflags: seglist + globvec + pri + stack
+	pl(fs, 15, hfd->ci.stacksize); // stack
+	pl(fs, 16, hfd->ci.priority); // priority
+	pl(fs, 18, idx + 1); // first lseg
+	pl(fs, 19, -1); // globvec
+	rdb_crc(fs);
+	idx++;
+
+	int offset = 0;
+	for (;;) {
+		uae_u8 *lseg = rdb + 512 * idx;
+		if (lseg + 512 > rdb + size)
+			break;
+		pl(lseg, 0, 0x4c534547); // "LSEG"
+		pl(lseg, 1, 512 / 4);
+		pl(lseg, 2, 0); // chksum
+		pl(lseg, 3, 7); // hostid
+		int v = filesyslen - offset;
+		if (v <= 123 * 4) {
+			memcpy(lseg + 5 * 4, filesys + offset, v);
+			pl(lseg, 4, -1);
+			pl(lseg, 1, 5 + v / 4);
+			rdb_crc(lseg);
+			break;
+		}
+		memcpy(lseg + 5 * 4, filesys + offset, 123 * 4);
+		offset += 123 * 4;
+		idx++;
+		pl(lseg, 4, idx); // next
+		rdb_crc(lseg);
+	}
+	xfree(filesys);
 
 	hfd->virtsize += size;
-
 }
 
 void hdf_hd_close (struct hd_hardfiledata *hfd)
@@ -490,6 +605,8 @@ int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 	hfd->adide = 0;
 	hfd->byteswap = 0;
 	hfd->hfd_type = 0;
+	hfd->virtual_size = 0;
+	hfd->virtual_rdb = NULL;
 	if (!pname)
 		pname = hfd->ci.rootdir;
 #ifdef WITH_CHD
@@ -626,6 +743,9 @@ void hdf_close (struct hardfiledata *hfd)
 		cf->close();
 		delete cf;
 	}
+	xfree(hfd->virtual_rdb);
+	hfd->virtual_rdb = 0;
+	hfd->virtual_size = 0;
 	ini_free(hfd->geometry);
 	hfd->geometry = NULL;
 	hfd->chd_handle = NULL;
@@ -928,16 +1048,32 @@ end:
 
 static int hdf_read2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
+	int ret = 0, extra = 0;
+	if (offset < hfd->virtual_size) {
+		uae_s64 len2 = offset + len <= hfd->virtual_size ? len : hfd->virtual_size - offset;
+		if (!hfd->virtual_rdb)
+			return 0;
+		memcpy(buffer, hfd->virtual_rdb + offset, len2);
+		len -= len2;
+		if (len <= 0)
+			return len2;
+		offset += len2;
+		buffer = (uae_u8*)buffer + len2;
+		extra = len2;
+	}
+	offset -= hfd->virtual_size;
+
 	if (hfd->hfd_type == HFD_VHD_DYNAMIC)
-		return vhd_read (hfd, buffer, offset, len);
+		ret = vhd_read (hfd, buffer, offset, len);
 	else if (hfd->hfd_type == HFD_VHD_FIXED)
-		return hdf_read_target (hfd, buffer, offset + 512, len);
+		ret = hdf_read_target (hfd, buffer, offset + 512, len);
 #ifdef WITH_CHD
 	else if (hfd->hfd_type == HFD_CHD_OTHER) {
 		chd_file *cf = (chd_file*)hfd->chd_handle;
 		if (cf->read_bytes(offset, buffer, len) == CHDERR_NONE)
-			return len;
-		return 0;
+			ret = len;
+		else
+			return 0;
 	} else if (hfd->hfd_type == HFD_CHD_HD) {
 		hard_disk_file *chdf = (hard_disk_file*)hfd->chd_handle;
 		hard_disk_info *chdi = hard_disk_get_info(chdf);
@@ -947,25 +1083,43 @@ static int hdf_read2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, in
 		offset /= chdi->sectorbytes;
 		while (len > 0) {
 			if (cf->read_units(offset, buf) != CHDERR_NONE)
-				return got;
+				break;
 			got += chdi->sectorbytes;
 			buf += chdi->sectorbytes;
 			len -= chdi->sectorbytes;
 			offset++;
 		}
-		return got;
+		ret = got;
 	}
 #endif
 	else
-		return hdf_read_target (hfd, buffer, offset, len);
+		ret = hdf_read_target (hfd, buffer, offset, len);
+
+	if (ret <= 0)
+		return ret;
+	ret += extra;
+	return ret;
 }
 
 static int hdf_write2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
+	int ret = 0, extra = 0;
+	// writes to virtual RDB are ignored
+	if (offset < hfd->virtual_size) {
+		uae_s64 len2 = offset + len <= hfd->virtual_size ? len : hfd->virtual_size - offset;
+		len -= len2;
+		if (len <= 0)
+			return len2;
+		offset += len2;
+		buffer = (uae_u8*)buffer + len2;
+		extra = len2;
+	}
+	offset -= hfd->virtual_size;
+
 	if (hfd->hfd_type == HFD_VHD_DYNAMIC)
-		return vhd_write (hfd, buffer, offset, len);
+		ret = vhd_write (hfd, buffer, offset, len);
 	else if (hfd->hfd_type == HFD_VHD_FIXED)
-		return hdf_write_target (hfd, buffer, offset + 512, len);
+		ret = hdf_write_target (hfd, buffer, offset + 512, len);
 #ifdef WITH_CHD
 	else if (hfd->hfd_type == HFD_CHD_OTHER)
 		return 0;
@@ -980,17 +1134,22 @@ static int hdf_write2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 		offset /= chdi->sectorbytes;
 		while (len > 0) {
 			if (cf->write_units(offset, buf) != CHDERR_NONE)
-				return got;
+				break;
 			got += chdi->sectorbytes;
 			buf += chdi->sectorbytes;
 			len -= chdi->sectorbytes;
 			offset++;
 		}
-		return got;
+		ret = got;
 	}
 #endif
 	else
-		return hdf_write_target (hfd, buffer, offset, len);
+		ret = hdf_write_target (hfd, buffer, offset, len);
+
+	if (ret <= 0)
+		return ret;
+	ret += extra;
+	return ret;
 }
 
 static void adide_decode (void *v, int len)

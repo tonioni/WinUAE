@@ -1880,8 +1880,6 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 	hdf_close (hfd);
 	hfd->cache = (uae_u8*)VirtualAlloc (NULL, CACHE_SIZE, MEM_COMMIT, PAGE_READWRITE);
 	hfd->cache_valid = 0;
-	hfd->virtual_size = 0;
-	hfd->virtual_rdb = NULL;
 	if (!hfd->cache) {
 		write_log (_T("VirtualAlloc(%d) failed, error %d\n"), CACHE_SIZE, GetLastError ());
 		goto end;
@@ -2156,9 +2154,6 @@ void hdf_close_target (struct hardfiledata *hfd)
 	hfd->handle_valid = 0;
 	if (hfd->cache)
 		VirtualFree (hfd->cache, 0, MEM_RELEASE);
-	xfree(hfd->virtual_rdb);
-	hfd->virtual_rdb = 0;
-	hfd->virtual_size = 0;
 	hfd->cache = 0;
 	hfd->cache_valid = 0;
 	hfd->drive_empty = 0;
@@ -2424,14 +2419,6 @@ int hdf_read_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
 
 	if (hfd->drive_empty)
 		return 0;
-	if (offset < hfd->virtual_size) {
-		uae_u64 len2 = offset + len <= hfd->virtual_size ? len : hfd->virtual_size - offset;
-		if (!hfd->virtual_rdb)
-			return 0;
-		memcpy (buffer, hfd->virtual_rdb + offset, len2);
-		return len2;
-	}
-	offset -= hfd->virtual_size;
 
 	if (hfd->handle_valid == HDF_HANDLE_WIN32_CHS) {
 		int len2 = len;
@@ -2531,10 +2518,7 @@ int hdf_write_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, in
 		return 0;
 	if (hfd->drive_empty || hfd->physsize == 0)
 		return 0;
-	if (offset < hfd->virtual_size)
-		return len;
 
-	offset -= hfd->virtual_size;
 	while (len > 0) {
 		int maxlen = len > CACHE_SIZE ? CACHE_SIZE : len;
 		int ret = hdf_write_2 (hfd, p, offset, maxlen);
