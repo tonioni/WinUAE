@@ -4434,16 +4434,14 @@ static void xD3D11_resize(int activate)
 	if (d3d->guimode && isfullscreen() > 0)
 		return;
 
+	if (quit_program == -UAE_QUIT)
+		return;
+
 	if (activate) {
 		d3d->fsmode = activate;
 		d3d->fsmodechange = true;
 		ShowWindow(d3d->ahwnd, d3d->fsmode > 0 ? SW_SHOWNORMAL : SW_MINIMIZE);
 		write_log(_T("D3D11 resize activate\n"));
-	}
-
-	if (quit_program == -UAE_QUIT) {
-		xD3D11_quit(d3d);
-		return;
 	}
 
 	d3d->fsresizedo = true;

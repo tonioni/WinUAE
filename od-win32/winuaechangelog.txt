@@ -5,6 +5,27 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+Beta 5:
+
+- Creating new file with "DOS" name (for example AUX) to directory filesystem drive returned error (got broken in 3.6.0, it added special handling for reading existing special named files in case if filesystem accepts them without mangling but creating new files was missed..)
+- Autoscale ignored small vertical display areas in very top of display in some situations.
+- A600/A1200/A4000 IDE missed doubler supported flag. (3.5.0+ only shows ports 2 and 3 if device is confirmed supporting IDE doubler)
+- Virtual RDB is now supported with dynamic (VHD) hardfiles. (Virtual RDB: if partition hardfile is mounted to any hardware emulated IDE or SCSI controller, virtual RDB is automatically added. This enables to boot/mount partition hardfiles even when using hardware emulated HD controllers)
+- Virtual RDB now also includes FSHD and LSEG blocks if hardfile FileSys path is non-empty. (Makes filesystem compatibility testing much faster and easier when using non-UAE controllers)
+- If D3D11 mode shader/mask loading failed (for example missing mask image file), not all allocated data was freed.
+- Remaining D3D11 alt-tab/F12 fullscreen<>windowed mode crashes should be fixed.
+- D3D11 fullscreen mode restore after alt-tab sometimes only showed blank screen.
+- Reverted 3.6.0b17 allow JIT direct in CSPPC mode. PPC can't boot without JIT-direct incompatible memory mapping. If you want JIT Direct with CSPPC and don't need PPC: Use CSMK3.
+
+Beta 4:
+
+- Cirrus Logic emulation blit out of bounds checks added, previously it usually caused a crash, for example OS4 + Picasso IV sometimes does small blits that cross end of VRAM. (Original QEMU blit checks were very broken)
+- Yet another interrupt handling rewrite to properly support cross thread interrupt activation (PPC emulation).
+- Added more validation to clipboard sharing IFF parsing to prevent crashes if data is truncated.
+- RTG multithread + hardware mouse cursor + no OSD: mouse cursor movement didn't re-draw the screen.
+- If SCSI ATA passtrough returns weird timeout error (instead of immediate failure like it is supposed to do), don't attempt it again to reduce delay when selecting real harddrive.
+- Fixed D3D 11 mode debug mode warning. Most likely it was harmless.
+
 Beta 3:
 
 - Not all Advanced chipset options reset when compatible checkbox was ticked.
