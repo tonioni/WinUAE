@@ -1050,8 +1050,8 @@ static void cyberstorm_maprom(void)
 {
 	if (a3000hmem_bank.reserved_size <= 2 * 524288)
 		return;
-	if (currprefs.cachesize && !currprefs.comptrustbyte) {
-		write_log(_T("JIT Direct enabled: CSPPC MAPROM not available.\n"));
+	if (currprefs.cachesize && !currprefs.comptrustbyte && ISCPUBOARDP(&currprefs, BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_MK3)) {
+		write_log(_T("JIT Direct enabled: CSMK3 MAPROM not available.\n"));
 		return;
 	}
 

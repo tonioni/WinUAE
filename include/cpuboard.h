@@ -45,7 +45,7 @@ void blizzardppc_irq_setonly(int id, int level);
 #define BOARD_MEMORY_25BITMEM 6
 #define BOARD_MEMORY_CUSTOM_32 7
 
-#define ISCPUBOARDP(p, type,subtype) (cpuboards[p->cpuboard_type].id == type && (type < 0 || p->cpuboard_subtype == subtype))
+#define ISCPUBOARDP(p, type,subtype) (cpuboards[(p)->cpuboard_type].id == type && (type < 0 || (p)->cpuboard_subtype == subtype))
 #define ISCPUBOARD(type,subtype) (cpuboards[currprefs.cpuboard_type].id == type && (type < 0 || currprefs.cpuboard_subtype == subtype))
 
 #define BOARD_ACT 1
