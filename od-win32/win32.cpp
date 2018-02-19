@@ -1598,12 +1598,15 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		if (hStatusWnd)
 			SendMessage(hStatusWnd, WM_SIZE, wParam, lParam);
 		if (wParam == SIZE_MINIMIZED && !minimized) {
+			write_log(_T("SIZE_MINIMIZED\n"));
 			setminimized();
 			winuae_inactive(hWnd, minimized);
 		}
 		return 0;
 	case WM_ACTIVATE:
+		write_log(_T("WM_ACTIVATE %p %x\n"), hWnd, wParam);
 		if (LOWORD(wParam) == WA_INACTIVE) {
+			write_log(_T("WM_ACTIVATE %x\n"), wParam);
 			if (HIWORD(wParam))
 				setminimized();
 			else
@@ -1618,10 +1621,10 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		break;
 	case WM_ACTIVATEAPP:
 		D3D_restore();
+		write_log(_T("WM_ACTIVATEAPP %08x\n"), wParam);
 		if (!wParam && isfullscreen() > 0 && D3D_resize && !gui_active) {
 			write_log(_T("WM_ACTIVATEAPP inactive %p\n"), hWnd);
 			D3D_resize(-1);
-			D3D_resize(0);
 		} else if (wParam && isfullscreen() > 0 && D3D_resize && !gui_active) {
 			write_log(_T("WM_ACTIVATEAPP active %p\n"), hWnd);
 			D3D_resize(1);
@@ -2669,6 +2672,8 @@ bool handle_events (void)
 			TranslateMessage (&msg);
 			DispatchMessage (&msg);
 		}
+		if (D3D_run)
+			D3D_run();
 		inputdevicefunc_keyboard.read ();
 		inputdevicefunc_mouse.read ();
 		inputdevicefunc_joystick.read ();
@@ -2708,6 +2713,8 @@ bool handle_events (void)
 			cnt2 = 5;
 		}
 	}
+	if (D3D_run)
+		D3D_run();
 	return pause_emulation != 0;
 }
 

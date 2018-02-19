@@ -24,6 +24,7 @@ extern void(*D3D_restore)(void);
 extern void(*D3D_resize)(int);
 extern void(*D3D_change)(int);
 extern bool(*D3D_getscalerect)(float *mx, float *my, float *sx, float *sy);
+extern void(*D3D_run)(void);
 
 extern LPDIRECT3DSURFACE9 D3D_capture(int*,int*,int*);
 extern bool D3D11_capture(void**,int*, int*,int*);

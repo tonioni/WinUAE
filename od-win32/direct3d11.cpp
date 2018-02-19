@@ -62,6 +62,7 @@ void(*D3D_restore)(void);
 void(*D3D_resize)(int);
 void (*D3D_change)(int);
 bool(*D3D_getscalerect)(float *mx, float *my, float *sx, float *sy);
+void(*D3D_run)(void);
 
 static volatile int vblankthread_mode;
 static HMODULE hd3d11, hdxgi, hd3dcompiler, dwmapi;
@@ -223,6 +224,7 @@ struct d3d11struct
 	IDXGIOutput *outputAdapter;
 	HWND ahwnd;
 	int fsmode;
+	bool fsresizedo;
 	bool fsmodechange;
 	bool invalidmode;
 	int vblankintervals;
@@ -235,6 +237,7 @@ struct d3d11struct
 	int frames_since_init;
 	bool needvblankevent;
 	bool resizeretry;
+	bool d3dinit_done;
 
 	struct d3d11sprite osd;
 	struct d3d11sprite hwsprite;
@@ -2569,6 +2572,7 @@ static void OutputShaderErrorMessage(ID3D10Blob* errorMessage, HWND hwnd, TCHAR*
 }
 #endif
 
+
 static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 {
 	HRESULT result;
@@ -2684,6 +2688,9 @@ static bool initd3d(struct d3d11struct *d3d)
 	ID3D11Texture2D* backBufferPtr;
 	D3D11_RASTERIZER_DESC rasterDesc;
 
+	if (d3d->d3dinit_done)
+		return true;
+
 	write_log(_T("D3D11 initd3d start\n"));
 
 	// Get the pointer to the back buffer.
@@ -2794,6 +2801,8 @@ static bool initd3d(struct d3d11struct *d3d)
 		return false;
 
 	settransform(d3d, NULL);
+
+	d3d->d3dinit_done = true;
 
 	write_log(_T("D3D11 initd3d end\n"));
 	return true;
@@ -3439,6 +3448,8 @@ static void freed3d(struct d3d11struct *d3d)
 {
 	write_log(_T("D3D11 freed3d start\n"));
 
+	d3d->d3dinit_done = false;
+
 	if (d3d->m_rasterState) {
 		d3d->m_rasterState->Release();
 		d3d->m_rasterState = NULL;
@@ -3989,36 +4000,45 @@ static bool restore(struct d3d11struct *d3d)
 		if (filterd3d->gfx_filtershader[i][0]) {
 			struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_BEFORE);
 			if (!psEffect_LoadEffect(d3d, filterd3d->gfx_filtershader[i], s, i)) {
+				freeshaderdata(s);
 				filterd3d->gfx_filtershader[i][0] = changed_prefs.gf[filterd3didx].gfx_filtershader[i][0] = 0;
 				break;
 			}
 		}
 		if (filterd3d->gfx_filtermask[i][0]) {
 			struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_MASK_BEFORE);
-			createmasktexture(d3d, filterd3d->gfx_filtermask[i], s);
+			if (!createmasktexture(d3d, filterd3d->gfx_filtermask[i], s)) {
+				freeshaderdata(s);
+			}
 		}
 	}
 	if (filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS][0]) {
 		struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_MIDDLE);
 		if (!psEffect_LoadEffect(d3d, filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS], s, 2 * MAX_FILTERSHADERS)) {
+			freeshaderdata(s);
 			filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS][0] = changed_prefs.gf[filterd3didx].gfx_filtershader[2 * MAX_FILTERSHADERS][0] = 0;
 		}
 	}
 	if (filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS][0]) {
 		struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_MASK_AFTER);
-		createmasktexture(d3d, filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS], s);
+		if (!createmasktexture(d3d, filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS], s)) {
+			freeshaderdata(s);
+		}
 	}
 	for (int i = 0; i < MAX_FILTERSHADERS; i++) {
 		if (filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS][0]) {
 			struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_AFTER);
 			if (!psEffect_LoadEffect(d3d, filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS], s, i + MAX_FILTERSHADERS)) {
+				freeshaderdata(s);
 				filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS][0] = changed_prefs.gf[filterd3didx].gfx_filtershader[i + MAX_FILTERSHADERS][0] = 0;
 				break;
 			}
 		}
 		if (filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS][0]) {
 			struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_MASK_AFTER);
-			createmasktexture(d3d, filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS], s);
+			if (!createmasktexture(d3d, filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS], s)) {
+				freeshaderdata(s);
+			}
 		}
 	}
 
@@ -4115,6 +4135,9 @@ static bool xD3D11_renderframe(bool immediate)
 		restore(d3d);
 	}
 
+	if (d3d->delayedfs || !d3d->texture2d || !d3d->d3dinit_done)
+		return false;
+
 	GraphicsClass_Render(d3d, 0);
 
 	if (d3d->filenotificationhandle != NULL) {
@@ -4138,7 +4161,7 @@ static void xD3D11_showframe(void)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
 
-	if (d3d->invalidmode)
+	if (d3d->invalidmode || d3d->delayedfs || !d3d->texture2d || !d3d->d3dinit_done)
 		return;
 	if (!d3d->m_swapChain)
 		return;
@@ -4194,10 +4217,57 @@ static void xD3D11_refresh(void)
 	}
 }
 
+
+static void D3D11_resize_do(struct d3d11struct *d3d)
+{
+	HRESULT hr;
+
+	if (!d3d->fsresizedo)
+		return;
+	if (!d3d->m_swapChain)
+		return;
+
+	d3d->fsresizedo = false;
+
+	write_log(_T("D3D11 resize do\n"));
+
+	if (d3d->fsmodechange && d3d->fsmode > 0) {
+		write_log(_T("D3D11_resize -> fullscreen\n"));
+		ShowWindow(d3d->ahwnd, SW_SHOWNORMAL);
+		hr = d3d->m_swapChain->SetFullscreenState(TRUE, d3d->outputAdapter);
+		if (FAILED(hr)) {
+			write_log(_T("SetFullscreenState(TRUE) failed %08X\n"), hr);
+			toggle_fullscreen(10);
+		} else {
+			d3d->fsmode = 0;
+		}
+		d3d->fsmodechange = 0;
+		d3d->invalidmode = false;
+	} else if (d3d->fsmodechange && d3d->fsmode < 0) {
+		write_log(_T("D3D11_resize -> window\n"));
+		hr = d3d->m_swapChain->SetFullscreenState(FALSE, NULL);
+		if (FAILED(hr))
+			write_log(_T("SetFullscreenState(FALSE) failed %08X\n"), hr);
+		ShowWindow(d3d->ahwnd, SW_MINIMIZE);
+		d3d->fsmode = 0;
+		d3d->invalidmode = true;
+		d3d->fsmodechange = 0;
+	} else {
+		write_log(_T("D3D11_resize -> none\n"));
+	}
+
+	resizemode(d3d);
+	notice_screen_contents_lost();
+
+	write_log(_T("D3D11 resize exit\n"));
+}
+
+
 static void recheck(struct d3d11struct *d3d)
 {
 	if (xD3D11_quit(d3d))
 		return;
+	D3D11_resize_do(d3d);
 	if (d3d->resizeretry) {
 		resizemode(d3d);
 		return;
@@ -4324,10 +4394,11 @@ static void resizemode(struct d3d11struct *d3d)
 {
 	d3d->resizeretry = false;
 	if (!d3d->invalidmode) {
+		write_log(_T("D3D11 resizemode start\n"));
 		freed3d(d3d);
 		int fs = isfs(d3d);
 		setswapchainmode(d3d, fs);
-		write_log(_T("D3D11 resize %dx%d, %dx%d %d %08x FS=%d\n"), d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth, d3d->m_bitmapHeight,
+		write_log(_T("D3D11 resizemode %dx%d, %dx%d %d %08x FS=%d\n"), d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth, d3d->m_bitmapHeight,
 			d3d->swapChainDesc.BufferCount, d3d->swapChainDesc.Flags, fs);
 		HRESULT hr = d3d->m_swapChain->ResizeBuffers(d3d->swapChainDesc.BufferCount, d3d->m_screenWidth, d3d->m_screenHeight, d3d->scrformat, d3d->swapChainDesc.Flags);
 		if (FAILED(hr)) {
@@ -4345,6 +4416,7 @@ static void resizemode(struct d3d11struct *d3d)
 				xD3D11_alloctexture(d3d->m_bitmapWidth, d3d->m_bitmapHeight);
 			}
 		}
+		write_log(_T("D3D11 resizemode end\n"));
 	}
 }
 
@@ -4363,11 +4435,10 @@ static void xD3D11_resize(int activate)
 		return;
 
 	if (activate) {
-		if (activate != d3d->fsmode) {
-			d3d->fsmode = activate;
-			d3d->fsmodechange = TRUE;
-		}
-		return;
+		d3d->fsmode = activate;
+		d3d->fsmodechange = true;
+		ShowWindow(d3d->ahwnd, d3d->fsmode > 0 ? SW_SHOWNORMAL : SW_MINIMIZE);
+		write_log(_T("D3D11 resize activate\n"));
 	}
 
 	if (quit_program == -UAE_QUIT) {
@@ -4375,38 +4446,7 @@ static void xD3D11_resize(int activate)
 		return;
 	}
 
-	if (recursive)
-		return;
-	recursive++;
-
-	if (d3d->m_swapChain) {
-		if (d3d->fsmodechange && d3d->fsmode > 0) {
-			write_log(_T("D3D11_resize -> fullscreen\n"));
-			ShowWindow(d3d->ahwnd, SW_SHOWNORMAL);
-			hr = d3d->m_swapChain->SetFullscreenState(TRUE, d3d->outputAdapter);
-			if (FAILED(hr)) {
-				write_log(_T("SetFullscreenState(TRUE) failed %08X\n"), hr);
-				toggle_fullscreen(10);
-			} else {
-				d3d->fsmode = 1;
-			}
-			d3d->fsmodechange = 0;
-			d3d->invalidmode = false;
-		} else if (d3d->fsmodechange && d3d->fsmode < 0) {
-			write_log(_T("D3D11_resize -> window\n"));
-			hr = d3d->m_swapChain->SetFullscreenState(FALSE, NULL);
-			if (FAILED(hr))
-				write_log(_T("SetFullscreenState(FALSE) failed %08X\n"), hr);
-			ShowWindow(d3d->ahwnd, SW_MINIMIZE);
-			d3d->fsmode = 0;
-			d3d->invalidmode = true;
-			d3d->fsmodechange = 0;
-		}
-		resizemode(d3d);
-		notice_screen_contents_lost();
-	}
-
-	recursive--;
+	d3d->fsresizedo = true;
 }
 
 static void xD3D11_guimode(int guion)
@@ -4637,6 +4677,14 @@ bool d3d11_vsync_isdone(void)
 	}
 	return false;
 }
+static void xD3D11_run(void)
+{
+	struct d3d11struct *d3d = &d3d11data[0];
+
+	if (xD3D11_quit(d3d))
+		return;
+	D3D11_resize_do(d3d);
+}
 
 void d3d11_select(void)
 {
@@ -4667,6 +4715,7 @@ void d3d11_select(void)
 	D3D_resize = xD3D11_resize;
 	D3D_change = xD3D11_change;
 	D3D_getscalerect = xD3D11_getscalerect;
+	D3D_run = xD3D11_run;
 }
 
 void d3d_select(struct uae_prefs *p)

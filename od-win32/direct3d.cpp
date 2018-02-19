@@ -3685,6 +3685,7 @@ void d3d9_select(void)
 	D3D_resize = NULL;
 	D3D_change = NULL;
 	D3D_getscalerect = xD3D_getscalerect;
+	D3D_run = NULL;
 }
 
 #endif
