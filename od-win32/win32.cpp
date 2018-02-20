@@ -2069,7 +2069,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			case SC_RESTORE:
 				break;
 			case SC_CLOSE:
-				PostQuitMessage(0);
+				uae_quit();
 				break;
 			}
 			return lr;
