@@ -363,9 +363,11 @@ static uae_u32 get_filesys_version(uae_u8 *fs, int size)
 static void create_virtual_rdb (struct hardfiledata *hfd)
 {
 	uae_u8 *rdb, *part, *denv, *fs;
+	int blocksize = hfd->ci.blocksize;
+	int minblocksize = blocksize >= 512 ? 512 : blocksize;
 	int cyl = hfd->ci.surfaces * hfd->ci.sectors;
-	int cyls = (262144 + (cyl * 512) - 1) / (cyl * 512);
-	int size = cyl * cyls * 512;
+	int cyls = (262144 + (cyl * blocksize) - 1) / (cyl * blocksize);
+	int size = cyl * cyls * blocksize;
 	int idx = 0;
 	uae_u8 *filesys = NULL;
 	int filesyslen = 0;
@@ -396,7 +398,7 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	pl(rdb, 1, 256 / 4);
 	pl(rdb, 2, 0); // chksum
 	pl(rdb, 3, 7); // hostid
-	pl(rdb, 4, 512); // blockbytes
+	pl(rdb, 4, blocksize); // blockbytes
 	pl(rdb, 5, 0); // flags
 	pl(rdb, 6, -1); // badblock
 	pl(rdb, 7, idx + 1); // part
@@ -438,7 +440,7 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	rdb_crc (rdb);
 	idx++;
 
-	part = rdb + 512 * idx;
+	part = rdb + blocksize * idx;
 	pl(part, 0, 0x50415254); // "PART"
 	pl(part, 1, 256 / 4);
 	pl(part, 2, 0); // chksum
@@ -471,49 +473,50 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	rdb_crc (part);
 	idx++;
 
-	if (!filesys)
-		return;
-	fs = rdb + 512 * idx;
-	pl(fs, 0, 0x46534844); // "FSHD"
-	pl(fs, 1, 512 / 4);
-	pl(fs, 2, 0); // chksum
-	pl(fs, 3, 7); // hostid
-	pl(fs, 4, -1); // next
-	pl(fs, 5, 0); // flags
-	pl(fs, 8, hfd->ci.dostype);
-	pl(fs, 9, fsver); // version
-	pl(fs, 10, 0x100 | 0x80 | 0x20 | 0x10); // patchflags: seglist + globvec + pri + stack
-	pl(fs, 15, hfd->ci.stacksize); // stack
-	pl(fs, 16, hfd->ci.priority); // priority
-	pl(fs, 18, idx + 1); // first lseg
-	pl(fs, 19, -1); // globvec
-	rdb_crc(fs);
-	idx++;
-
-	int offset = 0;
-	for (;;) {
-		uae_u8 *lseg = rdb + 512 * idx;
-		if (lseg + 512 > rdb + size)
-			break;
-		pl(lseg, 0, 0x4c534547); // "LSEG"
-		pl(lseg, 1, 512 / 4);
-		pl(lseg, 2, 0); // chksum
-		pl(lseg, 3, 7); // hostid
-		int v = filesyslen - offset;
-		if (v <= 123 * 4) {
-			memcpy(lseg + 5 * 4, filesys + offset, v);
-			pl(lseg, 4, -1);
-			pl(lseg, 1, 5 + v / 4);
-			rdb_crc(lseg);
-			break;
-		}
-		memcpy(lseg + 5 * 4, filesys + offset, 123 * 4);
-		offset += 123 * 4;
+	if (filesys) {
+		fs = rdb + blocksize * idx;
+		pl(fs, 0, 0x46534844); // "FSHD"
+		pl(fs, 1, minblocksize / 4);
+		pl(fs, 2, 0); // chksum
+		pl(fs, 3, 7); // hostid
+		pl(fs, 4, -1); // next
+		pl(fs, 5, 0); // flags
+		pl(fs, 8, hfd->ci.dostype);
+		pl(fs, 9, fsver); // version
+		pl(fs, 10, 0x100 | 0x80 | 0x20 | 0x10); // patchflags: seglist + globvec + pri + stack
+		pl(fs, 15, hfd->ci.stacksize); // stack
+		pl(fs, 16, hfd->ci.priority); // priority
+		pl(fs, 18, idx + 1); // first lseg
+		pl(fs, 19, -1); // globvec
+		rdb_crc(fs);
 		idx++;
-		pl(lseg, 4, idx); // next
-		rdb_crc(lseg);
+
+		int offset = 0;
+		for (;;) {
+			uae_u8 *lseg = rdb + blocksize * idx;
+			int lsegdatasize = minblocksize - 5 * 4;
+			if (lseg + blocksize > rdb + size)
+				break;
+			pl(lseg, 0, 0x4c534547); // "LSEG"
+			pl(lseg, 1, minblocksize / 4);
+			pl(lseg, 2, 0); // chksum
+			pl(lseg, 3, 7); // hostid
+			int v = filesyslen - offset;
+			if (v <= lsegdatasize) {
+				memcpy(lseg + 5 * 4, filesys + offset, v);
+				pl(lseg, 4, -1);
+				pl(lseg, 1, 5 + v / 4);
+				rdb_crc(lseg);
+				break;
+			}
+			memcpy(lseg + 5 * 4, filesys + offset, lsegdatasize);
+			offset += lsegdatasize;
+			idx++;
+			pl(lseg, 4, idx); // next
+			rdb_crc(lseg);
+		}
+		xfree(filesys);
 	}
-	xfree(filesys);
 
 	hfd->virtsize += size;
 }
