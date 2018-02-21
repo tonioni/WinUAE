@@ -4194,13 +4194,13 @@ static bool xD3D11_quit(struct d3d11struct *d3d)
 {
 	if (quit_program != -UAE_QUIT)
 		return false;
-	if (d3d->m_swapChain && !d3d->invalidmode) {
+	if (d3d->m_swapChain && (!d3d->invalidmode || d3d->fsmode > 0)) {
 		d3d->m_swapChain->SetFullscreenState(FALSE, NULL);
 		FreeTextures(d3d);
-		d3d->fsmode = 0;
-		d3d->invalidmode = true;
-		d3d->fsmodechange = 0;
 	}
+	d3d->fsmode = 0;
+	d3d->invalidmode = true;
+	d3d->fsmodechange = 0;
 	return true;
 }
 
