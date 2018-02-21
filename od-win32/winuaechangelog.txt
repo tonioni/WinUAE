@@ -5,6 +5,11 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+Beta 6:
+
+- Task bar icon -> close window (possibly also other "external" close methods) didn't always work in D3D11 fullscreen mode.
+- Virtual RDB non-512 byte block size support. Last update also broke it if filesystem field was empty.
+
 Beta 5:
 
 - Creating new file with "DOS" name (for example AUX) to directory filesystem drive returned error (got broken in 3.6.0, it added special handling for reading existing special named files in case if filesystem accepts them without mangling but creating new files was missed..)
