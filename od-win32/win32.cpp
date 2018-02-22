@@ -7184,6 +7184,12 @@ int get_guid_target (uae_u8 *out)
 typedef HRESULT (CALLBACK* SHCREATEITEMFROMPARSINGNAME)
 	(PCWSTR,IBindCtx*,REFIID,void**); // Vista+ only
 
+void target_getdate(int *y, int *m, int *d)
+{
+	*y = GETBDY(WINUAEDATE);
+	*m = GETBDM(WINUAEDATE);
+	*d = GETBDD(WINUAEDATE);
+}
 
 void target_addtorecent (const TCHAR *name, int t)
 {

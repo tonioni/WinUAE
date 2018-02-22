@@ -131,7 +131,7 @@ static void aino_test_init (a_inode *aino)
 #endif
 }
 
-#define UAEFS_VERSION "UAEfs 0.5"
+#define UAEFS_VERSION "UAE fs 0.6"
 
 uaecptr filesys_initcode, filesys_initcode_ptr, filesys_initcode_real;
 static uaecptr bootrom_start;
@@ -9070,6 +9070,35 @@ void filesys_install_code (void)
 	filesys_initcode = bootrom_start + dlg (b) + bootrom_header - 4;
 	afterdos_initcode = filesys_get_entry(8);
 	keymaphook_initcode = filesys_get_entry(11);
+
+	// Fill struct resident
+	TCHAR buf[256];
+	TCHAR *s = au(UAEFS_VERSION);
+	int y, m, d;
+	target_getdate(&y, &m, &d);
+	_stprintf(buf, _T("%s (%d.%d.%d)\r\n"), s, d, m, y);
+	uaecptr idstring = ds(buf);
+	xfree(s);
+
+	b = here();
+	items = dlg(bootrom_start) * 2;
+	for (int i = 0; i < items; i += 2) {
+		if (((dbg(bootrom_start + i + 0) << 8) | (dbg(bootrom_start + i + 1) << 0)) == 0x4afc) {
+			org(bootrom_start + i + 2);
+			dl(bootrom_start + i);
+			dl(dlg(here()) + bootrom_start + i); // endskip
+			db(0); // flags
+			db(1); // version
+			db(0); // type
+			db(0); // pri
+			dl(dlg(here()) + bootrom_start + i); // name
+			dl(idstring); // idstring
+			dl(dlg(here()) + bootrom_start + i); // init
+			break;
+		}
+	}
+	org(b);
+
 }
 
 #ifdef _WIN32

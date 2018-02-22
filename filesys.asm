@@ -83,7 +83,7 @@ NRF_NOTIFY_INITIAL = 16
 NRF_MAGIC = $80000000
 
 ; normal filehandler segment entrypoint
-	dc.l 16 								; 4
+	dc.l (rom_end-start)/4 					; 4
 our_seglist:
 	dc.l 0 									; 8 /* NextSeg */
 start:
@@ -129,6 +129,15 @@ bcpl_start:
 	dc.l 4
 	dc.l 2
 bcpl_end:
+
+resident
+	dc.w $4afc
+	dc.l 0
+	dc.l rom_end-resident
+	dc.b 0,1,0,0
+	dc.l exter_name-resident
+	dc.l 0
+	dc.l start-resident
 
 afterdos:
 	movem.l d2-d7/a2-a6,-(sp)
@@ -4010,9 +4019,8 @@ fsresname: dc.b 'FileSystem.resource',0
 fchipname: dc.b 'megachip memory',0
 bcplfsname: dc.b "File System",0
 shellexecname: dc.b "UAE shell execute",0
-hwtrap_name:
-	dc.b "UAE board",0
-		even
+hwtrap_name: dc.b "UAE board",0
+	cnop 0,4
 rom_end:
 
 	END
