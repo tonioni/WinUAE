@@ -1886,6 +1886,11 @@ static addrbank ariadne2_bank = {
 	ABFLAG_IO | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
+void ne2000_free(void)
+{
+	ne2000_reset();
+}
+
 void ne2000_reset(void)
 {
 	struct ne2000_s *ne = getne2k(0);

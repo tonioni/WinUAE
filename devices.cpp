@@ -359,6 +359,10 @@ void do_leave_program (void)
 #ifdef NCR9X
 	ncr9x_free();
 #endif
+#ifdef A2065
+	a2065_free();
+#endif
+	ne2000_free();
 #ifdef CD32
 	akiko_free ();
 	cd32_fmv_free();

@@ -1140,6 +1140,10 @@ bool ariadne_init(struct autoconfig_info *aci)
 	return a2065_config(aci);
 }
 
+void a2065_free(void)
+{
+	a2065_reset();
+}
 
 void a2065_reset(void)
 {
