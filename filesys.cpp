@@ -587,7 +587,7 @@ void uci_set_defaults (struct uaedev_config_info *uci, bool rdb)
 	uci->bufmemtype = 1;
 	uci->buffers = 50;
 	uci->stacksize = 4000;
-	uci->bootpri = -128;
+	uci->bootpri = 0;
 	uci->priority = 10;
 	uci->sectorsperblock = 1;
 	uci->device_emu_unit = -1;
