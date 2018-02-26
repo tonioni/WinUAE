@@ -9004,6 +9004,8 @@ static bool fixjport (struct jport *port, int add, bool always)
 			_tcscpy(port->idc.configname, inputdevice_get_device_unique_name (IDTYPE_MOUSE, vv - JSEM_MICE));
 		} else if (vv >= JSEM_KBDLAYOUT && vv < JSEM_CUSTOM) {
 			_stprintf(port->idc.shortid, _T("kbd%d"), vv - JSEM_KBDLAYOUT + 1);
+		} else if (vv >= JSEM_CUSTOM && vv < JSEM_JOYS) {
+			_stprintf(port->idc.shortid, _T("custom%d"), vv - JSEM_CUSTOM);
 		}
 		wasinvalid = true;
 #if 0
