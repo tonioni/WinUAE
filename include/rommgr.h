@@ -42,6 +42,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_CB_B1230MK2	0x00040015
 #define ROMTYPE_CB_B1230MK3	0x00040016
 #define ROMTYPE_CB_VECTOR	0x00040017
+#define ROMTYPE_CB_ZEUS040	0x00040018
 
 #define ROMTYPE_FREEZER		0x00080000
 #define ROMTYPE_AR			0x00080001

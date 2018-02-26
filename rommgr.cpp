@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 225
+#define NEXT_ROM_ID 226
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -385,6 +385,10 @@ static struct romdata roms[] = {
 	0x9e9781d5, 0xf65b60d1,0x4300c50f,0x2ed17cf4,0x4dcfdef9,0x16697bc9, NULL,  _T("tekmagic2060.rom") },
 	ALTROMPN(104, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x888da4cf, 0x6ae85f3a, 0x65331ba4, 0xaaba67ae, 0x34763d70, 0x2bde0495)
 	ALTROMPN(104, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xaf1f47db, 0x28d5bed0, 0xbc517d46, 0x500e8159, 0x723e0b64, 0x4733c26a)
+	{ _T("Zeus 040"), 2, 98, 2, 98, _T("ZEUS040\0"), 16384, 225, 0, 0, ROMTYPE_CB_ZEUS040, 0, 0, NULL,
+	0x2c609194, 0x9a91cf45,0x6816067a,0x943c18f1,0xbd30effe,0x482d4aaf, NULL, NULL },
+	ALTROMPN(225, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xc0bea5dd, 0x1540a755, 0x36066da4, 0x8bcb3dd4, 0xf13f179b, 0x9439f379)
+	ALTROMPN(225, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x7989684f, 0x9dc4d885, 0x242bf7eb, 0xe75a01b2, 0x483c9e3c, 0x8013896b)
 
 	{ _T("A2620/A2630 -07"), 0, 0, 0, 0, _T("A2620\0A2630\0"), 65536, 105, 0, 0, ROMTYPE_CB_A26x0, 0, 0, _T("390282-07/390283-07"),
 	0x169d80e9, 0x41f518cb,0x41c1dc1f,0xcc636383,0x20676af5,0x4969010c, NULL, NULL },

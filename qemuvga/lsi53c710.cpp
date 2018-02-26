@@ -1747,6 +1747,25 @@ static uint8_t lsi_reg_readb(LSIState710 *s, int offset)
 
 static void lsi_reg_writeb(LSIState710 *s, int offset, uint8_t val)
 {
+#if 0
+	switch (offset)
+	{
+		case 0x00:
+		case 0x01:
+		case 0x04:
+		case 0x05:
+		case 0x14:
+		case 0x18:
+		case 0x19:
+		case 0x1a:
+		case 0x1b:
+		case 0x22:
+		case 0x38:
+		write_log("710 config reg %02x = %02x\n", offset, val);
+		break;
+	}
+#endif
+
 #define CASE_SET_REG24(name, addr) \
     case addr    : s->name &= 0xffffff00; s->name |= val;       break; \
     case addr + 1: s->name &= 0xffff00ff; s->name |= val << 8;  break; \

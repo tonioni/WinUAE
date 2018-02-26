@@ -11,7 +11,7 @@
 
 #ifdef NCR
 
-#define NCR_DEBUG 2
+#define NCR_DEBUG 1
 
 #include "options.h"
 #include "uae.h"
@@ -33,7 +33,7 @@
 #include "devices.h"
 
 #define BOARD_SIZE 16777216
-#define IO_MASK 0xff
+#define IO_MASK 0x7f
 
 #define A4091_ROM_VECTOR 0x0200
 #define A4091_ROM_OFFSET 0x0000
@@ -73,6 +73,8 @@ struct ncr_state
 	int io_start, io_end;
 	addrbank *bank;
 	bool irq;
+	bool irqlevel;
+	bool z2;
 	void (*irq_func)(int, int);
 	struct romconfig *rc;
 	struct ncr_state **self_ptr;
@@ -163,18 +165,24 @@ static struct ncr_state *ncr_we;
 static struct ncr_state *ncr_a4000t;
 static struct ncr_state *ncra4091[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr_state *ncr_wildfire;
+static struct ncr_state *ncr_zeus040;
 
 static void set_irq2(int id, int level)
 {
 	if (level)
 		safe_interrupt_set(IRQ_SOURCE_NCR, 0, false);
 }
+static void set_irq6(int id, int level)
+{
+	if (level)
+		safe_interrupt_set(IRQ_SOURCE_NCR, 0, true);
+}
 
 void ncr_rethink(void)
 {
 	for (int i = 0; ncr_units[i]; i++) {
 		if (ncr_units[i] != ncr_cs && ncr_units[i]->irq)
-			safe_interrupt_set(IRQ_SOURCE_NCR, i + 1, false);
+			safe_interrupt_set(IRQ_SOURCE_NCR, i + 1, ncr_units[i]->irqlevel);
 	}
 	if (ncr_cs && ncr_cs->irq)
 		cyberstorm_mk3_ppc_irq_setonly(0, 1);
@@ -405,8 +413,15 @@ static void ncr_bput2 (struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 {
 	uae_u32 v = val;
 	addr &= ncr->board_mask;
-	if (ncr->io_end && (addr < ncr->io_start || addr >= ncr->io_end))
+	if (ncr->io_end && (addr < ncr->io_start || addr >= ncr->io_end)) {
+#if NCR_DEBUG > 1
+		write_log(_T("ncr_bput none %08x %02x %08x\n"), addr, v & 0xff, M68K_GETPC);
+#endif
 		return;
+	}
+#if NCR_DEBUG > 1
+	write_log(_T("ncr_bput %08x %02x %08x\n"), addr, v & 0xff, M68K_GETPC);
+#endif
 	if (ncr->newncr)
 		ncr_io_bput(ncr, addr, val);
 	else
@@ -446,12 +461,20 @@ static uae_u32 ncr_bget2 (struct ncr_state *ncr, uaecptr addr)
 		v ^= 0xff & ~7;
 		return v;
 	}
-	if (ncr->io_end && (addr < ncr->io_start || addr >= ncr->io_end))
+	if (ncr->io_end && (addr < ncr->io_start || addr >= ncr->io_end)) {
+#if NCR_DEBUG > 1
+		write_log(_T("ncr_bget none %08x %02x %08x\n"), addr, v, M68K_GETPC);
+#endif
 		return v;
+	}
 	if (ncr->newncr)
-		return ncr_io_bget(ncr, addr);
+		v = ncr_io_bget(ncr, addr);
 	else
-		return ncr710_io_bget(ncr, addr);
+		v = ncr710_io_bget(ncr, addr);
+#if NCR_DEBUG > 1
+	write_log(_T("ncr_bget %08x %02x %08x\n"), addr, v, M68K_GETPC);
+#endif
+	return v;
 }
 
 static uae_u32 REGPARAM2 ncr_lget (struct ncr_state *ncr, uaecptr addr)
@@ -459,18 +482,12 @@ static uae_u32 REGPARAM2 ncr_lget (struct ncr_state *ncr, uaecptr addr)
 	uae_u32 v = 0;
 	if (ncr) {
 		addr &= ncr->board_mask;
-		if (ncr == ncr_we) {
-			addr &= ~0x80;
-			v = (ncr_bget2(ncr, addr + 3) << 0) | (ncr_bget2(ncr, addr + 2) << 8) |
-				(ncr_bget2(ncr, addr + 1) << 16) | (ncr_bget2(ncr, addr + 0) << 24);
+		if (addr >= A4091_IO_ALT) {
+			v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
+				(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
 		} else {
-			if (addr >= A4091_IO_ALT) {
-				v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
-					(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
-			} else {
-				v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
-					(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
-			}
+			v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
+				(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
 		}
 	}
 	return v;
@@ -506,24 +523,16 @@ static void REGPARAM2 ncr_lput (struct ncr_state *ncr, uaecptr addr, uae_u32 l)
 	if (!ncr)
 		return;
 	addr &= ncr->board_mask;
-	if (ncr == ncr_we) {
-		addr &= ~0x80;
-		ncr_bput2(ncr, addr + 3, l >> 0);
-		ncr_bput2(ncr, addr + 2, l >> 8);
-		ncr_bput2(ncr, addr + 1, l >> 16);
-		ncr_bput2(ncr, addr + 0, l >> 24);
+	if (addr >= A4091_IO_ALT) {
+		ncr_bput2 (ncr, addr + 3, l >> 0);
+		ncr_bput2 (ncr, addr + 2, l >> 8);
+		ncr_bput2 (ncr, addr + 1, l >> 16);
+		ncr_bput2 (ncr, addr + 0, l >> 24);
 	} else {
-		if (addr >= A4091_IO_ALT) {
-			ncr_bput2 (ncr, addr + 3, l >> 0);
-			ncr_bput2 (ncr, addr + 2, l >> 8);
-			ncr_bput2 (ncr, addr + 1, l >> 16);
-			ncr_bput2 (ncr, addr + 0, l >> 24);
-		} else {
-			ncr_bput2 (ncr, addr + 3, l >> 0);
-			ncr_bput2 (ncr, addr + 2, l >> 8);
-			ncr_bput2 (ncr, addr + 1, l >> 16);
-			ncr_bput2 (ncr, addr + 0, l >> 24);
-		}
+		ncr_bput2 (ncr, addr + 3, l >> 0);
+		ncr_bput2 (ncr, addr + 2, l >> 8);
+		ncr_bput2 (ncr, addr + 1, l >> 16);
+		ncr_bput2 (ncr, addr + 0, l >> 24);
 	}
 }
 
@@ -559,15 +568,35 @@ static void REGPARAM2 ncr_bput (struct ncr_state *ncr, uaecptr addr, uae_u32 b)
 	addr &= ncr->board_mask;
 	if (!ncr->configured) {
 		addr &= 65535;
-		switch (addr)
-		{
-			case 0x4c:
-			ncr->configured = 1;
-			expamem_shutup(ncr->bank);
-			break;
-			case 0x48:
-			ncr->expamem_lo = b & 0xff;
-			break;
+		if (ncr->z2) {
+			switch (addr)
+			{
+				case 0x48:
+				ncr->expamem_hi = b & 0xff;
+				map_banks_z2(ncr->bank, expamem_board_pointer >> 16, expamem_board_size >> 16);
+				ncr->baseaddress = expamem_board_pointer;
+				ncr->configured = 1;
+				expamem_next(ncr->bank, NULL);
+				break;
+				case 0x4c:
+				ncr->configured = 1;
+				expamem_shutup(ncr->bank);
+				break;
+				case 0x4a:
+				ncr->expamem_lo = b & 0xff;
+				break;
+			}
+		} else {
+			switch (addr)
+			{
+				case 0x4c:
+				ncr->configured = 1;
+				expamem_shutup(ncr->bank);
+				break;
+				case 0x48:
+				ncr->expamem_lo = b & 0xff;
+				break;
+			}
 		}
 		return;
 	}
@@ -698,7 +727,7 @@ addrbank ncr_bank_generic = {
 	ncr_generic_lput, ncr_generic_wput, ncr_generic_bput,
 	default_xlate, default_check, NULL, NULL, _T("NCR53C700/800"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO | ABFLAG_THREADSAFE, S_READ, S_WRITE
+	ABFLAG_IO | ABFLAG_THREADSAFE | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 static void ew (struct ncr_state *ncr, int addr, uae_u8 value)
@@ -759,7 +788,6 @@ bool ncr710_warpengine_autoconfig_init(struct autoconfig_info *aci)
 	if (!ncr)
 		return false;
 
-	ncr_we = ncr;
 	xfree(ncr->rom);
 	ncr->rom = NULL;
 
@@ -847,6 +875,47 @@ bool ncr710_a4091_autoconfig_init (struct autoconfig_info *aci)
 	aci->addrbank = &ncr_bank_generic;
 	return true;
 }
+
+static const uae_u8 zeus040_autoconfig[16] = {
+	0xd1, 0x96, 0x40, 0x00, 0x07, 0xea, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+bool ncr710_zeus040_autoconfig_init(struct autoconfig_info *aci)
+{
+	aci->autoconfigp = zeus040_autoconfig;
+	if (!aci->doinit)
+		return true;
+
+	struct ncr_state *ncr = getscsi(aci->rc);
+	if (!ncr)
+		return false;
+
+	xfree(ncr->rom);
+	ncr->rom = NULL;
+
+	ncr->enabled = true;
+	memset(ncr->acmemory, 0xff, sizeof ncr->acmemory);
+	ncr->rom_start = 0x8000;
+	ncr->rom_offset = 0x8000;
+	ncr->rom_end = 0x10000;
+	ncr->io_start = 0x4000;
+	ncr->io_end = 0x8000;
+
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = zeus040_autoconfig[i];
+		if (i == 0 && (currprefs.cpuboard_settings & 1))
+			b &= ~0x10;
+		ew(ncr, i * 4, b);
+	}
+	ncr->rom = xcalloc(uae_u8, 32768);
+	load_rom_rc(aci->rc, ROMTYPE_CB_ZEUS040, 16384, 0, ncr->rom, 32768, 0);
+
+	ncr_reset_board(ncr);
+
+	aci->addrbank = &ncr_bank_generic;
+	return true;
+}
+
 
 void ncr_free(void)
 {
@@ -990,6 +1059,14 @@ void wildfire_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romcon
 	ncr_wildfire->enabled = true;
 	ncr_wildfire->irq_func = wildfire_ncr815_irq;
 	ncr_wildfire->bank = &ncr_bank_generic;
+}
+
+void zeus040_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	ncr_add_scsi_unit(&ncr_zeus040, ch, ci, rc, false);
+	ncr_zeus040->irq_func = set_irq6;
+	ncr_zeus040->irqlevel = true;
+	ncr_zeus040->z2 = true;
 }
 
 #endif

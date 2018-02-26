@@ -5853,6 +5853,33 @@ static const struct cpuboardsubtype ivs_sub[] = {
 	}
 };
 
+static const struct expansionboardsettings zeus040_settings[] = {
+	{
+		_T("Autoboot disable (A3)"),
+		_T("autoboot")
+	},
+	{
+		NULL
+	}
+};
+static const struct cpuboardsubtype pps_sub[] = {
+	{
+		_T("Zeus 040"),
+		_T("Zeus"),
+		ROMTYPE_CB_ZEUS040, 0,
+		zeus040_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		BOARD_MEMORY_HIGHMEM,
+		64 * 1024 * 1024,
+		0,
+		ncr710_zeus040_autoconfig_init, NULL, BOARD_AUTOCONFIG_Z2, 1,
+		zeus040_settings, NULL,
+		2016, 150, 0, false
+	},
+	{
+		NULL
+	}
+};
+
 static const struct expansionboardsettings apollo_settings[] = {
 	{
 		_T("SCSI module installed"),
@@ -5891,17 +5918,6 @@ static const struct cpuboardsubtype kupkeboard_sub[] = {
 		NULL, 0,
 		BOARD_MEMORY_25BITMEM,
 		16 * 1024 * 1024
-	},
-	{
-		NULL
-	}
-};
-static const struct cpuboardsubtype icboard_sub[] = {
-	{
-		_T("ACA 500"),
-		_T("aca500"),
-		ROMTYPE_CB_ACA500, 0,
-		NULL, EXPANSIONTYPE_24BIT
 	},
 	{
 		NULL
@@ -5991,13 +6007,11 @@ const struct cpuboardtype cpuboards[] = {
 		_T("Interactive Video Systems"),
 		ivs_sub, 0
 	},
-#if 0
 	{
-		BOARD_IC,
-		_T("Individual Computers"),
-		icboard_sub, 0
+		BOARD_PPS,
+		_T("Progressive Peripherals & Software"),
+		pps_sub, 0
 	},
-#endif
 	{
 		NULL
 	}

@@ -331,7 +331,7 @@ static bool is_ivsvector(struct uae_prefs *p)
 }
 static bool is_aca500(struct uae_prefs *p)
 {
-	return ISCPUBOARDP(p, BOARD_IC, BOARD_IC_ACA500);
+	return false; //return ISCPUBOARDP(p, BOARD_IC, BOARD_IC_ACA500);
 }
 
 extern addrbank cpuboardmem1_bank;
@@ -2250,8 +2250,8 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 	int boardid = cpuboards[p->cpuboard_type].id;
 	switch (boardid)
 	{
-		case BOARD_IC:
-		break;
+//		case BOARD_IC:
+//		break;
 
 		case BOARD_IVS:
 		switch (p->cpuboard_subtype)
@@ -2290,9 +2290,18 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		break;
 
 		case BOARD_MACROSYSTEM:
+		switch (p->cpuboard_subtype)
+		{
+		case BOARD_MACROSYSTEM_SUB_WARPENGINE_A4000:
+			aci->addrbank = &expamem_null;
+			return true;
+		}
+		break;
+
+		case BOARD_PPS:
 		switch(p->cpuboard_subtype)
 		{
-			case BOARD_MACROSYSTEM_SUB_WARPENGINE_A4000:
+		case BOARD_PPS_ZEUS040:
 			aci->addrbank = &expamem_null;
 			return true;
 		}
