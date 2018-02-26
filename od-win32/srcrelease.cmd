@@ -1,8 +1,8 @@
 
-cd ..
-
 copy d:\amiga\text\winuaechangelog.txt /y
 copy d:\amiga\text\winuaechangelog.txt ..\..\distribution\docs /y
+
+cd ..
 
 del ..\winuaesrc.7z
 

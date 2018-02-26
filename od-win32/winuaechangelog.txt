@@ -5,6 +5,17 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+Beta 7:
+
+- Added resident struct to UAE boot ROM filesystem, enables c:version <directory filesystem device name>: to report name and version.
+- Enabled hardware emulated network card was not fully freed when Restart was pressed, it was still listening for incoming packets.
+- Game Ports panel selected Custom input mapping reverted to none in some situations.
+- Added PP&S Zeus 040 emulation, SCSI supported, other possible special hardware features not implemented.
+
+PP&S Zeus 040 SCSI:
+- 53C710 based which has built-in DMA controller but for some unknown reason driver wastes all CPU time.
+- PPSscsi2.device ("PPS SCSI Device 2.98 (28 Aug 1992)")
+
 Beta 6:
 
 - Task bar icon -> close window (possibly also other "external" close methods) didn't always work in D3D11 fullscreen mode.

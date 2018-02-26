@@ -1604,9 +1604,9 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		}
 		return 0;
 	case WM_ACTIVATE:
-		write_log(_T("WM_ACTIVATE %p %x\n"), hWnd, wParam);
+		//write_log(_T("WM_ACTIVATE %p %x\n"), hWnd, wParam);
 		if (LOWORD(wParam) == WA_INACTIVE) {
-			write_log(_T("WM_ACTIVATE %x\n"), wParam);
+			//write_log(_T("WM_ACTIVATE %x\n"), wParam);
 			if (HIWORD(wParam))
 				setminimized();
 			else
@@ -1621,7 +1621,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		break;
 	case WM_ACTIVATEAPP:
 		D3D_restore();
-		write_log(_T("WM_ACTIVATEAPP %08x\n"), wParam);
+		//write_log(_T("WM_ACTIVATEAPP %08x\n"), wParam);
 		if (!wParam && isfullscreen() > 0 && D3D_resize && !gui_active) {
 			write_log(_T("WM_ACTIVATEAPP inactive %p\n"), hWnd);
 			D3D_resize(-1);
@@ -5667,6 +5667,7 @@ extern int scanline_adjust;
 extern int log_ld;
 extern int logitech_lcd;
 extern uae_s64 max_avi_size;
+extern int floppy_writemode;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -5774,52 +5775,52 @@ static TCHAR *getdefaultini (int *tempfile)
 	return my_strdup (orgpath);
 }
 
-static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
+static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 {
 	const TCHAR *arg = argx + 1;
 
 	if (argx[0] != '-' && argx[0] != '/')
 		return 0;
 
-	if (!_tcscmp (arg, _T("convert")) && np && np2) {
-		zfile_convertimage (np, np2);
+	if (!_tcscmp(arg, _T("convert")) && np && np2) {
+		zfile_convertimage(np, np2);
 		return -1;
 	}
-	if (!_tcscmp (arg, _T("console"))) {
+	if (!_tcscmp(arg, _T("console"))) {
 		console_started = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("cli"))) {
+	if (!_tcscmp(arg, _T("cli"))) {
 		console_emulation = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("log"))) {
+	if (!_tcscmp(arg, _T("log"))) {
 		console_logging = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("logfile"))) {
+	if (!_tcscmp(arg, _T("logfile"))) {
 		winuaelog_temporary_enable = true;
 		return 1;
 	}
 #ifdef FILESYS
-	if (!_tcscmp (arg, _T("rdbdump"))) {
+	if (!_tcscmp(arg, _T("rdbdump"))) {
 		do_rdbdump = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("hddump"))) {
+	if (!_tcscmp(arg, _T("hddump"))) {
 		do_rdbdump = 2;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("disableharddrivesafetycheck"))) {
+	if (!_tcscmp(arg, _T("disableharddrivesafetycheck"))) {
 		//harddrive_dangerous = 0x1234dead;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("noaspifiltering"))) {
+	if (!_tcscmp(arg, _T("noaspifiltering"))) {
 		//aspi_allow_all = 1;
 		return 1;
 	}
 #endif
-	if (!_tcscmp (arg, _T("pngprint"))) {
+	if (!_tcscmp(arg, _T("pngprint"))) {
 		pngprint = 1;
 		return 1;
 	}
@@ -5839,61 +5840,61 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		no_rawinput |= 2;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("nodirectinput"))) {
+	if (!_tcscmp(arg, _T("nodirectinput"))) {
 		no_directinput = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("nowindowsmouse"))) {
+	if (!_tcscmp(arg, _T("nowindowsmouse"))) {
 		no_windowsmouse = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("rawhid"))) {
+	if (!_tcscmp(arg, _T("rawhid"))) {
 		rawinput_enabled_hid = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("norawhid"))) {
+	if (!_tcscmp(arg, _T("norawhid"))) {
 		rawinput_enabled_hid = 0;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("rawkeyboard"))) {
+	if (!_tcscmp(arg, _T("rawkeyboard"))) {
 		// obsolete
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("directsound"))) {
+	if (!_tcscmp(arg, _T("directsound"))) {
 		force_directsound = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("scsilog"))) {
+	if (!_tcscmp(arg, _T("scsilog"))) {
 		log_scsi = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("scsiemulog"))) {
+	if (!_tcscmp(arg, _T("scsiemulog"))) {
 		extern int log_scsiemu;
 		log_scsiemu = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("ds_partition_hdf"))) {
+	if (!_tcscmp(arg, _T("ds_partition_hdf"))) {
 		extern int enable_ds_partition_hdf;
 		enable_ds_partition_hdf = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("filesyslog"))) {
+	if (!_tcscmp(arg, _T("filesyslog"))) {
 		log_filesys = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("filesyslog2"))) {
+	if (!_tcscmp(arg, _T("filesyslog2"))) {
 		log_filesys = 2;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("netlog"))) {
+	if (!_tcscmp(arg, _T("netlog"))) {
 		log_net = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("serlog"))) {
+	if (!_tcscmp(arg, _T("serlog"))) {
 		log_sercon = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("a2065log"))) {
+	if (!_tcscmp(arg, _T("a2065log"))) {
 		log_a2065 = 1;
 		return 1;
 	}
@@ -5905,66 +5906,66 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		log_a2065 = 3;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("a2065_promiscuous"))) {
+	if (!_tcscmp(arg, _T("a2065_promiscuous"))) {
 		a2065_promiscuous = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("seriallog"))) {
+	if (!_tcscmp(arg, _T("seriallog"))) {
 		log_uaeserial = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("vsynclog")) || !_tcscmp (arg, _T("vsynclog1"))) {
+	if (!_tcscmp(arg, _T("vsynclog")) || !_tcscmp(arg, _T("vsynclog1"))) {
 		log_vsync |= 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("vsynclog2"))) {
+	if (!_tcscmp(arg, _T("vsynclog2"))) {
 		log_vsync |= 2;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("bsdlog"))) {
+	if (!_tcscmp(arg, _T("bsdlog"))) {
 		log_bsd = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("clipboarddebug"))) {
+	if (!_tcscmp(arg, _T("clipboarddebug"))) {
 		clipboard_debug = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("rplog"))) {
+	if (!_tcscmp(arg, _T("rplog"))) {
 		log_rp = 3;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("nomultidisplay"))) {
+	if (!_tcscmp(arg, _T("nomultidisplay"))) {
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("legacypaths"))) {
+	if (!_tcscmp(arg, _T("legacypaths"))) {
 		start_data = -2;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("screenshotbmp"))) {
+	if (!_tcscmp(arg, _T("screenshotbmp"))) {
 		screenshotmode = 0;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("psprintdebug"))) {
+	if (!_tcscmp(arg, _T("psprintdebug"))) {
 		postscript_print_debugging = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("sounddebug"))) {
+	if (!_tcscmp(arg, _T("sounddebug"))) {
 		sound_debug = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("directcatweasel"))) {
+	if (!_tcscmp(arg, _T("directcatweasel"))) {
 		force_direct_catweasel = 1;
 		if (np) {
-			force_direct_catweasel = getval (np);
+			force_direct_catweasel = getval(np);
 			return 2;
 		}
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("forcerdtsc"))) {
+	if (!_tcscmp(arg, _T("forcerdtsc"))) {
 		uae_time_use_rdtsc(true);
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("ddsoftwarecolorkey"))) {
+	if (!_tcscmp(arg, _T("ddsoftwarecolorkey"))) {
 		// obsolete
 		return 1;
 	}
@@ -5976,44 +5977,44 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		shaderon = 0;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("d3ddebug"))) {
+	if (!_tcscmp(arg, _T("d3ddebug"))) {
 		d3ddebug = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("logflush"))) {
+	if (!_tcscmp(arg, _T("logflush"))) {
 		extern int always_flush_log;
 		always_flush_log = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("ahidebug"))) {
+	if (!_tcscmp(arg, _T("ahidebug"))) {
 		extern int ahi_debug;
 		ahi_debug = 2;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("ahidebug2"))) {
+	if (!_tcscmp(arg, _T("ahidebug2"))) {
 		extern int ahi_debug;
 		ahi_debug = 3;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("quittogui"))) {
+	if (!_tcscmp(arg, _T("quittogui"))) {
 		quit_to_gui = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("ini")) && np) {
-		inipath = my_strdup (np);
+	if (!_tcscmp(arg, _T("ini")) && np) {
+		inipath = my_strdup(np);
 		return 2;
 	}
-	if (!_tcscmp (arg, _T("portable"))) {
+	if (!_tcscmp(arg, _T("portable"))) {
 		int temp;
-		inipath = getdefaultini (&temp);
+		inipath = getdefaultini(&temp);
 		createbootlog = false;
 		return 2;
 	}
-	if (!_tcscmp (arg, _T("bootlog"))) {
+	if (!_tcscmp(arg, _T("bootlog"))) {
 		createbootlog = true;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("nobootlog"))) {
+	if (!_tcscmp(arg, _T("nobootlog"))) {
 		createbootlog = false;
 		return 1;
 	}
