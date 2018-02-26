@@ -476,7 +476,7 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	if (filesys) {
 		fs = rdb + blocksize * idx;
 		pl(fs, 0, 0x46534844); // "FSHD"
-		pl(fs, 1, minblocksize / 4);
+		pl(fs, 1, 256 / 4);
 		pl(fs, 2, 0); // chksum
 		pl(fs, 3, 7); // hostid
 		pl(fs, 4, -1); // next
