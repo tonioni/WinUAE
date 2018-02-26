@@ -58,7 +58,7 @@ int disk_debug_track = -1;
 
 #undef CATWEASEL
 
-static int longwritemode = 0;
+int floppy_writemode = 0;
 
 /* support HD floppies */
 #define FLOPPY_DRIVE_HD
@@ -2448,7 +2448,7 @@ static void drive_write_data (drive * drv)
 	}
 	if (drv->writediskfile) {
 		drive_write_ext2 (drv->bigmfmbuf, drv->writediskfile, &drv->writetrackdata[tr],
-			longwritemode ? dsklength2 * 8 : drv->tracklen);
+			floppy_writemode > 0 ? dsklength2 * 8 : drv->tracklen);
 	}
 	switch (drv->filetype) {
 	case ADF_NORMAL:
@@ -2471,12 +2471,12 @@ static void drive_write_data (drive * drv)
 	case ADF_EXT1:
 		break;
 	case ADF_EXT2:
-		if (!longwritemode)
+		if (!floppy_writemode)
 			ret = drive_write_adf_amigados (drv);
 		if (ret) {
 			write_log (_T("not an amigados track %d (error %d), writing as raw track\n"), drv->cyl * 2 + side, ret);
 			drive_write_ext2 (drv->bigmfmbuf, drv->diskfile, &drv->trackdata[drv->cyl * 2 + side],
-				longwritemode ? dsklength2 * 8 : drv->tracklen);
+				floppy_writemode > 0 ? dsklength2 * 8 : drv->tracklen);
 		}
 		return;
 	case ADF_IPF:
@@ -3232,7 +3232,8 @@ void dumpdisk (const TCHAR *name)
 static void disk_dmafinished (void)
 {
 	INTREQ (0x8000 | 0x0002);
-	longwritemode = 0;
+	if (floppy_writemode > 0)
+		floppy_writemode = 0;
 	dskdmaen = DSKDMA_OFF;
 	dsklength = 0;
 	dsklen = 0;
@@ -3721,7 +3722,7 @@ static void DISK_start (void)
 
 			if (dskdmaen == DSKDMA_WRITE) {
 				word = 0;
-				drv->tracklen = longwritemode ? FLOPPY_WRITE_MAXLEN : FLOPPY_WRITE_LEN * drv->ddhd * 8 * 2;
+				drv->tracklen = floppy_writemode > 0 ? FLOPPY_WRITE_MAXLEN : FLOPPY_WRITE_LEN * drv->ddhd * 8 * 2;
 				drv->trackspeed = get_floppy_speed ();
 				drv->skipoffset = -1;
 				updatemfmpos (drv);

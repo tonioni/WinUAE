@@ -6034,7 +6034,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		dumpromlist();
 		return -1;
 	}
-
+	if (!_tcscmp(arg, _T("rawextadf"))) {
+		floppy_writemode = -1;
+		return 1;
+	}
 
 	if (!np)
 		return 0;
