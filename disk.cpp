@@ -3886,7 +3886,7 @@ void DSKLEN (uae_u16 v, int hpos)
 	dsklength2 = dsklength = dsklen & 0x3fff;
 
 	if ((v & 0x8000) && (prev & 0x8000)) {
-		if (dskdmaen == DSKDMA_READ) {
+		if (dskdmaen == DSKDMA_READ && !(v & 0x4000)) {
 			// update only currently active DMA length, don't change DMA state
 			write_log(_T("warning: Disk read DMA length rewrite %d -> %d. (%04x) PC=%08x\n"), prev & 0x3fff, v & 0x3fff, v, M68K_GETPC);
 			return;
