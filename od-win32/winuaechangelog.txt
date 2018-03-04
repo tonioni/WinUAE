@@ -5,6 +5,10 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+3.6.1
+
+- 3200b15 "Support DSKLEN writes while disk DMA is active" didn't check if new DSKLEN write had write bit set. Fixes Amax II disk formatting.
+
 Beta 7:
 
 - Added resident struct to UAE boot ROM filesystem, enables c:version <directory filesystem device name>: to report name and version.

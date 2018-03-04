@@ -835,12 +835,14 @@ bool ncr710_a4091_autoconfig_init (struct autoconfig_info *aci)
 	uae_u8 *rom = NULL;
 	struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_A4091);
 	if (z) {
-		rom = xmalloc(uae_u8, A4091_ROM_SIZE * 4);
+		rom = xcalloc(uae_u8, A4091_ROM_SIZE * 4);
 		for (int i = 0; i < A4091_ROM_SIZE; i++) {
 			uae_u8 b;
 			zfile_fread(&b, 1, 1, z);
 			rom[i * 4 + 0] = b | 0x0f;
+			rom[i * 4 + 1] = 0xff;
 			rom[i * 4 + 2] = (b << 4) | 0x0f;
+			rom[i * 4 + 3] = 0xff;
 			if (i < 0x20) {
 				aci->autoconfig_raw[i * 4 + 0] = b;
 			} else if (i >= 0x40 && i < 0x60) {

@@ -4423,7 +4423,6 @@ static void resizemode(struct d3d11struct *d3d)
 static void xD3D11_resize(int activate)
 {
 	static int recursive;
-	HRESULT hr;
 	struct d3d11struct *d3d = &d3d11data[0];
 
 	write_log(_T("D3D11_resize %d %d %d (%d)\n"), activate, d3d->fsmodechange, d3d->fsmode, d3d->guimode);

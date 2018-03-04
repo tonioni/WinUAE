@@ -1,16 +1,17 @@
 del *.zip
-copy d:\amiga\winuae.exe c:\projects\winuae\distribution
-cd c:\projects\winuae\distribution
-copy docs\windows\translation.txt d:\amiga
+cd ..\..\distribution
+copy d:\amiga\winuae.exe /y
 zip -9 -r c:\projects\winuae\src\od-win32\winuae.zip *
 cd c:\projects\winuae\src\od-win32
 copy winuae.zip d:\amiga\WinUAE%1.zip
-copy c:\projects\winuae\src\od-win32\wix\bin\winuae.msi d:\amiga\InstallWinUAE%1.msi
-copy c:\projects\winuae\src\od-win32\wix\bin\winuae64.msi d:\amiga\InstallWinUAE%1_x64.msi
-#;copy resourcedll\release\resourcedll.dll d:\amiga\WinUAE_default.dll
-cdd d:\amiga
+copy resourcedll\release\resourcedll.dll bin\WinUAE_default.dll
+cd bin
+copy d:\amiga\winuae.exe /y
+copy d:\amiga\winuae64.exe /y
 zip -9 WinUAE%1_x64.zip winuae64.exe
-#;zip -9 WinUAE%1_translation WinUAE_default.dll translation.txt
-#;del translation.txt
-cdd c:\projects\winuae\src\od-win32
+zip -9 WinUAE%1_translation WinUAE_default.dll
+copy WinUAE%1_x64.zip d:\amiga
+copy WinUAE%1_translation d:\amiga
+del translation.txt
 del *.zip
+cd ..

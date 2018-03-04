@@ -1750,18 +1750,11 @@ static void lsi_reg_writeb(LSIState710 *s, int offset, uint8_t val)
 #if 0
 	switch (offset)
 	{
-		case 0x00:
-		case 0x01:
-		case 0x04:
-		case 0x05:
-		case 0x14:
-		case 0x18:
-		case 0x19:
-		case 0x1a:
-		case 0x1b:
-		case 0x22:
-		case 0x38:
+		case 0x05: // XFERP TP0=4, TP1=5, TP2=6
+		case 0x0b: // SSCF SSCF0=0 SSCF1=1
+		case 0x3b: // CF CF0=6, CF1=7
 		write_log("710 config reg %02x = %02x\n", offset, val);
+		//activate_debugger();
 		break;
 	}
 #endif
