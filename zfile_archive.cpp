@@ -984,7 +984,7 @@ struct zvolume *archive_directory_arcacc (struct zfile *z, unsigned int id)
 
 static struct zfile *archive_access_arcacc (struct znode *zn)
 {
-	struct zfile *zf;
+	struct zfile *zf = NULL;
 	struct zfile *z = zn->volume->archive;
 	int status, id_r, id_w;
 	aaHandle ah;

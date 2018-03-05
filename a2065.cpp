@@ -200,7 +200,7 @@ static int mungepacket (uae_u8 *packet, int len)
 			int udpcrc = 0;
 			int sp = (data[0] << 8) | data[1];
 			int dp = (data[2] << 8) | data[3];
-			int len = (data[4] << 8) | data[5];
+			int len2 = (data[4] << 8) | data[5];
 			if (sp == 67 || sp == 68 || dp == 67 || dp == 68)
 				udpcrc |= dofakemac (data + 36); // DHCP CHADDR
 			if (udpcrc && (data[6] || data[7])) {
@@ -208,16 +208,16 @@ static int mungepacket (uae_u8 *packet, int len)
 				int i;
 				uae_u32 sum;
 				data[6] = data[7] = 0;
-				data[len] = 0;
+				data[len2] = 0;
 				sum = 0;
-				for (i = 0; i < ((len + 1) & ~1); i += 2)
+				for (i = 0; i < ((len2 + 1) & ~1); i += 2)
 					sum += (data[i] << 8) | data[i + 1];
 				sum += (ipv4[12] << 8) | ipv4[13];
 				sum += (ipv4[14] << 8) | ipv4[15];
 				sum += (ipv4[16] << 8) | ipv4[17];
 				sum += (ipv4[18] << 8) | ipv4[19];
 				sum += 17;
-				sum += len;
+				sum += len2;
 				while (sum >> 16)
 					sum = (sum & 0xFFFF) + (sum >> 16);
 				sum = ~sum;
@@ -892,7 +892,7 @@ static void a2065_bput2 (uaecptr addr, uae_u32 v)
 
 static uae_u32 REGPARAM2 a2065_wget (uaecptr addr)
 {
-	uae_u16 v;
+	uae_u16 v = 0;
 	addr &= 65535;
 
 	switch (romtype) {

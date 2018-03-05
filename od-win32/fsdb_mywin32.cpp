@@ -385,7 +385,7 @@ struct my_openfile_s *my_open (const TCHAR *name, int flags)
 		CreationDisposition = OPEN_ALWAYS;
 	if (flags & O_WRONLY)
 		DesiredAccess = GENERIC_WRITE;
-	if (flags & O_RDONLY) {
+	if (flags == O_RDONLY) {
 		DesiredAccess = GENERIC_READ;
 		CreationDisposition = OPEN_EXISTING;
 	}
@@ -524,7 +524,7 @@ int my_getvolumeinfo (const TCHAR *root)
 	if (v & FILE_ATTRIBUTE_READONLY)
 	ret |= MYVOLUMEINFO_READONLY;
 	*/
-	if (GetVolumePathName (root, volume, sizeof (volume))) {
+	if (GetVolumePathName (root, volume, sizeof (volume) / sizeof(TCHAR))) {
 		TCHAR fsname[MAX_DPATH];
 		DWORD comlen;
 		DWORD flags;

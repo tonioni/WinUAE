@@ -1280,7 +1280,7 @@ static void cubo_write_pic(uae_u8 v)
 			cubo_pic_byte |= 1;
 		if ((cubo_pic_bit_cnt & 7) == 7) {
 			int offset = cubo_pic_bit_cnt / 8;
-			if (offset <= sizeof(cubo_pic_key)) {
+			if (offset < sizeof(cubo_pic_key)) {
 				cubo_pic_key[offset] = cubo_pic_byte;
 				write_log(_T("Cubo PIC received %02x (%d/%d)\n"), cubo_pic_byte, offset, sizeof(cubo_pic_key));
 			}

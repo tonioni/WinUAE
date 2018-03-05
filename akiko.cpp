@@ -1110,7 +1110,7 @@ static void cdrom_run_command_run (void)
 /* DMA transfer one CD sector */
 static void cdrom_run_read (void)
 {
-	int i, sector, inc;
+	int sector, inc;
 	int sec;
 	int seccnt;
 
@@ -1142,9 +1142,9 @@ static void cdrom_run_read (void)
 			buf[1] = 0;
 			buf[2] = 0;
 			buf[3] = cdrom_sector_counter & 31;
-			for (i = 0; i < 2352; i++)
+			for (int i = 0; i < 2352; i++)
 				put_byte (cdrom_addressdata + seccnt * 4096 + i, buf[i]);
-			for (i = 0; i < 73 * 2; i++)
+			for (int i = 0; i < 73 * 2; i++)
 				put_byte (cdrom_addressdata + seccnt * 4096 + 0xc00 + i, 0);
 			cdrom_pbx &= ~(1 << seccnt);
 			set_status (CDINTERRUPT_PBX);
@@ -1328,7 +1328,7 @@ void AKIKO_hsync_handler (void)
 /* cdrom data buffering thread */
 static void *akiko_thread (void *null)
 {
-	int i;
+	int secnum;
 	uae_u8 *tmp1;
 	uae_u8 *tmp2;
 	int tmp3;
@@ -1391,12 +1391,12 @@ static void *akiko_thread (void *null)
 
 		uae_sem_wait (&akiko_sem);
 		sector = cdrom_current_sector;
-		for (i = 0; i < SECTOR_BUFFER_SIZE; i++) {
-			if (sector_buffer_info_1[i] == 0xff)
+		for (secnum = 0; secnum < SECTOR_BUFFER_SIZE; secnum++) {
+			if (sector_buffer_info_1[secnum] == 0xff)
 				break;
 		}
 		if (sector >= 0 && is_valid_data_sector(sector) &&
-			(sector_buffer_sector_1 < 0 || sector < sector_buffer_sector_1 || sector >= sector_buffer_sector_1 + SECTOR_BUFFER_SIZE * 2 / 3 || i != SECTOR_BUFFER_SIZE)) {
+			(sector_buffer_sector_1 < 0 || sector < sector_buffer_sector_1 || sector >= sector_buffer_sector_1 + SECTOR_BUFFER_SIZE * 2 / 3 || secnum != SECTOR_BUFFER_SIZE)) {
 			int blocks;
 			memset (sector_buffer_info_2, 0, SECTOR_BUFFER_SIZE);
 #if AKIKO_DEBUG_IO_CMD
@@ -1417,10 +1417,10 @@ static void *akiko_thread (void *null)
 				if (!ok) {
 					int offset = 0;
 					while (offset < SECTOR_BUFFER_SIZE) {
-						int ok = 0;
+						int readok = 0;
 						if (is_valid_data_sector(sector))
-							ok = sys_command_cd_rawread (unitnum, sector_buffer_2 + offset * 2352, sector, 1, 2352);
-						sector_buffer_info_2[offset] = ok ? 3 : 0;
+							readok = sys_command_cd_rawread (unitnum, sector_buffer_2 + offset * 2352, sector, 1, 2352);
+						sector_buffer_info_2[offset] = readok ? 3 : 0;
 						offset++;
 						sector++;
 					}

@@ -721,12 +721,12 @@ static bool write_slot (TCHAR *p, struct uae_input_device *uid, int i, int j)
 	if (ok && (flags & ID_FLAG_SAVE_MASK_QUALIFIERS)) {
 		TCHAR *p2 = p + _tcslen (p);
 		*p2++ = '.';
-		for (int i = 0; i < MAX_INPUT_QUALIFIERS * 2; i++) {
-			if ((ID_FLAG_QUALIFIER1 << i) & flags) {
-				if (i & 1)
-					_stprintf (p2, _T("%c"), 'a' + i / 2);
+		for (int k = 0; k < MAX_INPUT_QUALIFIERS * 2; k++) {
+			if ((ID_FLAG_QUALIFIER1 << k) & flags) {
+				if (k & 1)
+					_stprintf (p2, _T("%c"), 'a' + k / 2);
 				else
-					_stprintf (p2, _T("%c"), 'A' + i / 2);
+					_stprintf (p2, _T("%c"), 'A' + k / 2);
 				p2++;
 			}
 		}
@@ -1798,12 +1798,12 @@ static void generate_jport_custom_item(struct uae_input_device *uid, int num, in
 					if (flags & ID_FLAG_SAVE_MASK_QUALIFIERS) {
 						TCHAR *p2 = p + _tcslen(p);
 						*p2++ = '.';
-						for (int i = 0; i < MAX_INPUT_QUALIFIERS * 2; i++) {
-							if ((ID_FLAG_QUALIFIER1 << i) & flags) {
-								if (i & 1)
-									_stprintf(p2, _T("%c"), 'a' + i / 2);
+						for (int k = 0; k < MAX_INPUT_QUALIFIERS * 2; k++) {
+							if ((ID_FLAG_QUALIFIER1 << k) & flags) {
+								if (k & 1)
+									_stprintf(p2, _T("%c"), 'a' + k / 2);
 								else
-									_stprintf(p2, _T("%c"), 'A' + i / 2);
+									_stprintf(p2, _T("%c"), 'A' + k / 2);
 								p2++;
 							}
 						}
@@ -7008,7 +7008,7 @@ static void matchdevices(struct uae_prefs *p, struct inputdevice_functions *inf,
 						if (bname[0] && !_tcscmp (bname2, bname))
 							matched = true;
 					}
-					if (matched && fullmatch && _tcscmp(aname1, bname1) != 0)
+					if (matched && fullmatch && aname1 && bname1 && _tcscmp(aname1, bname1) != 0)
 						matched = false;
 					if (matched) {
 						if (match >= 0)
@@ -7387,7 +7387,7 @@ bool inputdevice_devicechange (struct uae_prefs *prefs)
 			TCHAR tmp[10];
 			_stprintf(tmp, _T("custom%d"), jportscustom[i]);
 			found = inputdevice_joyport_config(prefs, tmp, NULL, i, jportsmode[i], 0, true) != 0;
-		} else if (jports_name[i][0] || jports_configname[i][0]) {
+		} else if ((jports_name[i] && jports_name[i][0]) || (jports_configname[i] && jports_configname[i][0])) {
 			if (!inputdevice_joyport_config (prefs, jports_name[i], jports_configname[i], i, jportsmode[i], 1, true)) {
 				found = inputdevice_joyport_config (prefs, jports_name[i], NULL, i, jportsmode[i], 1, true) != 0;
 			}

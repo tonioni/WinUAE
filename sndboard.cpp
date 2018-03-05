@@ -1287,7 +1287,7 @@ static bool audio_state_sndboard_toccata(int streamid)
 		if ((data->fifo_half & STATUS_FIFO_PLAY) && (data->toccata_status & STATUS_PLAY_INTENA) && (data->toccata_status & STATUS_FIFO_PLAY)) {
 			data->toccata_irq |= STATUS_READ_PLAY_HALF;
 		}
-		if ((data->fifo_half & STATUS_FIFO_RECORD) && (data->toccata_status & STATUS_FIFO_RECORD) && (data->toccata_status & STATUS_FIFO_RECORD)) {
+		if ((data->fifo_half & STATUS_FIFO_RECORD) && (data->toccata_status & STATUS_RECORD_INTENA) && (data->toccata_status & STATUS_FIFO_RECORD)) {
 			data->toccata_irq |= STATUS_READ_RECORD_HALF;
 		}
 		if (old != data->toccata_irq) {

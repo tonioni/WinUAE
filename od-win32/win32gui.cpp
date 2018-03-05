@@ -453,7 +453,7 @@ static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int mode)
 	if (isfullscreen () > 0)
 		guid = &fsdialogguid;
 
-	hr = -1;
+	hr = E_FAIL;
 	ret = 0;
 	pSHCreateItemFromParsingName = (SHCREATEITEMFROMPARSINGNAME)GetProcAddress (
 		GetModuleHandle (_T("shell32.dll")), "SHCreateItemFromParsingName");
@@ -2118,10 +2118,10 @@ static struct ConfigStruct *getconfigstorefrompath (TCHAR *path, TCHAR *out, int
 		if (((configstore[i]->Type == 0 || configstore[i]->Type == 3) && type == 0) || (configstore[i]->Type == type)) {
 			TCHAR path2[MAX_DPATH];
 			_tcscpy (path2, configstore[i]->Path);
-			_tcsncat (path2, configstore[i]->Name, MAX_DPATH);
+			_tcsncat (path2, configstore[i]->Name, MAX_DPATH - _tcslen(path2));
 			if (!_tcscmp (path, path2)) {
 				_tcscpy (out, configstore[i]->Fullpath);
-				_tcsncat (out, configstore[i]->Name, MAX_DPATH);
+				_tcsncat (out, configstore[i]->Name, MAX_DPATH - _tcslen(out));
 				return configstore[i];
 			}
 		}
@@ -3317,8 +3317,8 @@ static void GetConfigPath (TCHAR *path, struct ConfigStruct *parent, int noroot)
 	}
 	if (parent) {
 		GetConfigPath (path, parent->Parent, noroot);
-		_tcsncat (path, parent->Name, MAX_DPATH);
-		_tcsncat (path, _T("\\"), MAX_DPATH);
+		_tcsncat (path, parent->Name, MAX_DPATH - _tcslen(path));
+		_tcsncat (path, _T("\\"), MAX_DPATH - _tcslen(path));
 	}
 }
 
@@ -3347,7 +3347,7 @@ static void FreeConfigStore (void)
 static void getconfigcache (TCHAR *dst, const TCHAR *path)
 {
 	_tcscpy (dst, path);
-	_tcsncat (dst, _T("configuration.cache"), MAX_DPATH);
+	_tcsncat (dst, _T("configuration.cache"), MAX_DPATH - _tcslen(dst));
 }
 
 static void deleteconfigcache(void)
@@ -3718,7 +3718,7 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 	GetConfigPath (path, configparent, FALSE);
 	GetConfigPath (shortpath, configparent, TRUE);
 	_tcscpy (path2, path);
-	_tcsncat (path2, _T("*.*"), MAX_DPATH);
+	_tcsncat (path2, _T("*.*"), MAX_DPATH - _tcslen(path2));
 
 	if (*level == 0) {
 		if (flushcache) {
@@ -3776,7 +3776,7 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 				TCHAR path3[MAX_DPATH];
 				if (_tcslen (find_data.cFileName) > 4 && !strcasecmp (find_data.cFileName + _tcslen (find_data.cFileName) - 4, _T(".uae"))) {
 					_tcscpy (path3, path);
-					_tcsncat (path3, find_data.cFileName, MAX_DPATH);
+					_tcsncat (path3, find_data.cFileName, MAX_DPATH - _tcslen(path3));
 					config->Artpath[0] = 0;
 					struct uae_prefs *p = cfgfile_open(path3, &config->Type);
 					if (p) {
@@ -3867,7 +3867,7 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 	} else {
 		fetch_configurationpath (path, sizeof (path) / sizeof (TCHAR));
 	}
-	_tcsncat (path, name, MAX_DPATH);
+	_tcsncat (path, name, MAX_DPATH - _tcslen(path));
 	_tcscpy (full_path, path);
 	switch (flag)
 	{
@@ -5212,7 +5212,7 @@ static void InitializeConfig (HWND hDlg, struct ConfigStruct *config)
 			if ((j == 0 && cs->Type == CONFIG_TYPE_HOST) || (j == 1 && cs->Type == CONFIG_TYPE_HARDWARE)) {
 				TCHAR tmp2[MAX_DPATH];
 				_tcscpy (tmp2, configstore[i]->Path);
-				_tcsncat (tmp2, configstore[i]->Name, MAX_DPATH);
+				_tcsncat (tmp2, configstore[i]->Name, MAX_DPATH - _tcslen(tmp2));
 				SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_ADDSTRING, 0, (LPARAM)tmp2);
 				if (config && (!_tcsicmp (tmp2, config->HardwareLink) || !_tcsicmp (tmp2, config->HostLink)))
 					idx2 = idx1;
@@ -5262,7 +5262,7 @@ static void ConfigToRegistry (struct ConfigStruct *config, int type)
 	if (config) {
 		TCHAR path[MAX_DPATH];
 		_tcscpy (path, config->Path);
-		_tcsncat (path, config->Name, MAX_DPATH);
+		_tcsncat (path, config->Name, MAX_DPATH - _tcslen(path));
 		regsetstr (NULL, configreg[type], path);
 	}
 }
@@ -6440,7 +6440,7 @@ static void init_quickstartdlg (HWND hDlg)
 	for (i = 0; i < configstoresize; i++) {
 		if (configstore[i]->Type == CONFIG_TYPE_HOST) {
 			_tcscpy (tmp2, configstore[i]->Path);
-			_tcsncat (tmp2, configstore[i]->Name, MAX_DPATH);
+			_tcsncat (tmp2, configstore[i]->Name, MAX_DPATH - _tcslen(tmp2));
 			if (!_tcscmp (tmp2, hostconf))
 				idx = j;
 			SendDlgItemMessage (hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_ADDSTRING, 0, (LPARAM)tmp2);
@@ -11828,6 +11828,7 @@ static void values_from_cpudlg (HWND hDlg)
 			workprefs.cpu_clock_multiplier = (1 << 8) << idx;
 		} else {
 			TCHAR txt[20];
+			txt[0] = 0;
 			SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_GETTEXT, (WPARAM)sizeof (txt) / sizeof (TCHAR), (LPARAM)txt);
 			workprefs.cpu_clock_multiplier = 0;
 			workprefs.cpu_frequency = (int)(_tstof (txt) * 1000000.0);
@@ -12243,6 +12244,7 @@ static void values_from_sounddlg (HWND hDlg)
 	if (idx >= 0) {
 		workprefs.sound_freq = soundfreqs[idx];
 	} else {
+		txt[0] = 0;
 		SendDlgItemMessage (hDlg, IDC_SOUNDFREQ, WM_GETTEXT, (WPARAM)sizeof (txt) / sizeof (TCHAR), (LPARAM)txt);
 		workprefs.sound_freq = _tstol (txt);
 	}
@@ -13039,7 +13041,7 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 				bsize = hfd.virtsize;
 				current_hfdlg.size = hfd.virtsize;
 				if (!memcmp (id, "RDSK", 4) || !memcmp (id, "CDSK", 4)) {
-					int blocksize = (id[16] << 24)  | (id[17] << 16) | (id[18] << 8) | (id[19] << 0);
+					blocksize = (id[16] << 24)  | (id[17] << 16) | (id[18] << 8) | (id[19] << 0);
 					break;
 				}
 			}
@@ -17103,7 +17105,7 @@ static void fillinputmapadd (HWND hDlg)
 		for (int k = 0; axistable[k] >= 0; k += 3) {
 			if (evt == axistable[k] || evt == axistable[k + 1] || evt == axistable[k + 2]) {
 				for (int l = 0; inputlist[l] >= 0; l++) {
-					if (inputlist[l] == axistable[k] || inputlist[l] == axistable[k + 1] || inputlist[l] == axistable[k + 1]) {
+					if (inputlist[l] == axistable[k] || inputlist[l] == axistable[k + 1] || inputlist[l] == axistable[k + 2]) {
 						ignore = true;
 					}
 				}
@@ -18020,6 +18022,7 @@ static float getfiltermult (HWND hDlg, DWORD dlg)
 
 	if (v != CB_ERR)
 		return filtermults[v];
+	tmp[0] = 0;
 	SendDlgItemMessage (hDlg, dlg, WM_GETTEXT, (WPARAM)sizeof tmp / sizeof (TCHAR), (LPARAM)tmp);
 	if (!_tcsicmp (tmp, _T("FS")))
 		return 0.0f;
@@ -19151,7 +19154,7 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 					AVIOutput_End ();
 				if(ischecked (hDlg, IDC_AVIOUTPUT_VIDEO)) {
 					avioutput_video = AVIOutput_ChooseVideoCodec (hDlg, tmp, sizeof tmp / sizeof (TCHAR));
-					if (avioutput_audio = AVIAUDIO_WAV)
+					if (avioutput_audio == AVIAUDIO_WAV)
 						avioutput_audio = 0;
 					enable_for_avioutputdlg (hDlg);
 				} else {
@@ -19428,7 +19431,7 @@ static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
 		*p++ = 0;
 		*p++ = 0;
 		if (p[0] == ' ')
-			*p++;
+			*p++ = 0;
 		tmp[_tcslen (tmp) - 1] = 0;
 		SendMessage (hwnd, WM_SETTEXT, 0, (LPARAM)tmp);
 		ti.cbSize = sizeof (TOOLINFO);
@@ -20075,7 +20078,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			} else {
 				rd = scan_arcadia_rom (file, 0);
 				if (rd) {
-					if (rd->type == ROMTYPE_ARCADIABIOS || ROMTYPE_ALG)
+					if (rd->type == ROMTYPE_ARCADIABIOS || rd->type == ROMTYPE_ALG)
 						_tcscpy (prefs->romextfile, file);
 					else if (rd->type == ROMTYPE_ARCADIAGAME)
 						_tcscpy (prefs->cartfile, file);

@@ -84,7 +84,7 @@ static void parsemessage(TCHAR *in, struct uae_prefs *p, TCHAR *out, int outsize
 		for (;;) {
 			int ret;
 			tmpout[0] = 0;
-			ret = cfgfile_modify (index, in, _tcslen (in), tmpout, sizeof (tmpout) * sizeof (TCHAR));
+			ret = cfgfile_modify (index, in, _tcslen (in), tmpout, sizeof (tmpout) / sizeof (TCHAR));
 			index++;
 			if (_tcslen (tmpout) > 0) {
 				if (_tcslen (out) == 0)

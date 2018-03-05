@@ -131,7 +131,7 @@ static int mcierr (TCHAR *str, DWORD err)
 	TCHAR es[1000];
 	if (err == MMSYSERR_NOERROR)
 		return MMSYSERR_NOERROR;
-	if (mciGetErrorString (err, es, sizeof es))
+	if (mciGetErrorString (err, es, sizeof es / sizeof(TCHAR)))
 		write_log (_T("MCIErr: %s: %d = '%s'\n"), str, err, es);
 	return err;
 }

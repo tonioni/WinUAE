@@ -942,7 +942,7 @@ struct romdata *getarcadiarombyname (const TCHAR *name)
 {
 	int i;
 	for (i = 0; roms[i].name; i++) {
-		if (roms[i].group == 0 && (roms[i].type == ROMTYPE_ARCADIAGAME || roms[i].type == ROMTYPE_ARCADIAGAME)) {
+		if (roms[i].group == 0 && (roms[i].type == ROMTYPE_ARCADIABIOS || roms[i].type == ROMTYPE_ARCADIAGAME)) {
 			const TCHAR *p = roms[i].name;
 			p = p + _tcslen (p) + 1;
 			if (_tcslen (name) >= _tcslen (p) + 4) {

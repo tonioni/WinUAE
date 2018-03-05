@@ -637,7 +637,7 @@ static void do_fillrect_frame_buffer(struct RenderInfo *ri, int X, int Y, int Wi
 		Pen |= Pen << 16;
 		for (lines = 0; lines < Height; lines++, dst += bpr) {
 			uae_u32 *p = (uae_u32*)dst;
-			for (cols = 0; cols < Width & ~15; cols += 16) {
+			for (cols = 0; cols < (Width & ~15); cols += 16) {
 				*p++ = Pen;
 				*p++ = Pen;
 				*p++ = Pen;
@@ -668,7 +668,7 @@ static void do_fillrect_frame_buffer(struct RenderInfo *ri, int X, int Y, int Wi
 			if (same) {
 				memset(p, Pen & 0xff, Width * 3);
 			} else {
-				for (cols = 0; cols < Width & ~7; cols += 8) {
+				for (cols = 0; cols < (Width & ~7); cols += 8) {
 					*p++ = Pen1;
 					*p++ = Pen2;
 					*p++ = Pen3;
@@ -697,7 +697,7 @@ static void do_fillrect_frame_buffer(struct RenderInfo *ri, int X, int Y, int Wi
 	{
 		for (lines = 0; lines < Height; lines++, dst += bpr) {
 			uae_u32 *p = (uae_u32*)dst;
-			for (cols = 0; cols < Width & ~7; cols += 8) {
+			for (cols = 0; cols < (Width & ~7); cols += 8) {
 				*p++ = Pen;
 				*p++ = Pen;
 				*p++ = Pen;
@@ -2171,7 +2171,7 @@ static int AssignModeID (int w, int h, int *unkcnt)
 	}
 	(*unkcnt)++;
 	write_log (_T("P96: Non-unique mode %dx%d"), w, h);
-	if (256 - (*unkcnt) == mi[i - 1].id + 1) {
+	if (i > 0 && 256 - (*unkcnt) == mi[i - 1].id + 1) {
 		(*unkcnt) = 256 - 127;
 		write_log(_T(" (Skipped reserved)"));
 	} else if (256 - (*unkcnt) == 11) {

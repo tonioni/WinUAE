@@ -1277,7 +1277,7 @@ static void pci_dump_region(addrbank *bank, uaecptr *start, uaecptr *end)
 	*start = 0;
 	*end = 0;
 	for (int i = 0; i < 65536 + 1; i++) {
-		addrbank *a = mem_banks[i];
+		addrbank *a = i < 65536 ? mem_banks[i] : NULL;
 		if (*start == 0 && a == bank)
 			*start = i << 16;
 		if (*start && a != bank) {

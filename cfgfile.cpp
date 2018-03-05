@@ -6800,6 +6800,7 @@ int cmdlineparser (const TCHAR *s, TCHAR *outp[], int max)
 	prev = s;
 	j = 0;
 	outp[0] = 0;
+	tmp1[0] = 0;
 	while (cnt < max) {
 		TCHAR c = *s++;
 		if (!c)
@@ -6874,6 +6875,7 @@ int cfgfile_searchconfig(const TCHAR *in, int index, TCHAR *out, int outsize)
 	if (index < 0)
 		zfile_fseek(configstore, 0, SEEK_SET);
 
+	tmp[0] = 0;
 	for (;;) {
 		uae_u8 b = 0;
 

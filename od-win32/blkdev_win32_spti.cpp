@@ -236,8 +236,7 @@ static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 			as->sensedata[sactual] = swb.SenseBuf[sactual];
 		as->actual = 0; /* scsi_Actual */
 	} else {
-		int i;
-		for (i = 0; i < as->sense_len; i++)
+		for (int i = 0; i < as->sense_len; i++)
 			as->sensedata[i] = 0;
 		sactual = 0;
 		if (status == 0) {

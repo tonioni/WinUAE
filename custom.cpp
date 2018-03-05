@@ -77,7 +77,7 @@ static void uae_abort (const TCHAR *format,...)
 	TCHAR buffer[1000];
 
 	va_start (parms, format);
-	_vsntprintf (buffer, sizeof (buffer) - 1, format, parms );
+	_vsntprintf (buffer, sizeof (buffer) / sizeof(TCHAR) - 1, format, parms );
 	va_end (parms);
 	if (nomore) {
 		write_log (_T("%s\n"), buffer);
@@ -8162,7 +8162,7 @@ static void dmal_emu (uae_u32 v)
 		last_custom_value1 = dat;
 		AUDxDAT (nr, dat, pt);
 	} else {
-		uae_u16 dat;
+		uae_u16 dat = 0;
 		int w = v & 1;
 		uaecptr pt = disk_getpt ();
 		// disk_fifostatus() needed in >100% disk speed modes
@@ -9236,7 +9236,7 @@ static uae_u32 custom_wget2(uaecptr addr, bool byte)
 	v = custom_wget_1 (hpos, addr, 0, byte);
 #ifdef ACTION_REPLAY
 #ifdef ACTION_REPLAY_COMMON
-	addr &= 0x1ff;
+	addr &= 0x1fe;
 	ar_custom[addr + 0] = (uae_u8)(v >> 8);
 	ar_custom[addr + 1] = (uae_u8)(v);
 #endif

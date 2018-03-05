@@ -695,7 +695,7 @@ static bool do_dma_commodore_8727(struct wd_state *wd, struct scsi_data *scsi)
 			if (!status)
 				status = scsi_receive_data(scsi, &v2, true);
 			put_word((wd->cdmac.dmac_acr << 1) & 0xffffff, (v1 << 8) | v2);
-			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data) {
+			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data - 1) {
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v1;
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v2;
 			}
@@ -723,7 +723,7 @@ static bool do_dma_commodore_8727(struct wd_state *wd, struct scsi_data *scsi)
 		for (;;) {
 			int status;
 			uae_u16 v = get_word((wd->cdmac.dmac_acr << 1) & 0xffffff);
-			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data) {
+			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data - 1) {
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v >> 8;
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v;
 			}
@@ -4294,7 +4294,7 @@ static bool gvp_init(struct autoconfig_info *aci, bool series2, bool accel)
 			if (series2) {
 				int total = 0;
 				int seekpos = 0;
-				int size = zfile_size(z);
+				size = zfile_size(z);
 				if (size > 16384 + 4096) {
 					zfile_fread(wd->rom, 64, 1, z);
 					zfile_fseek(z, 16384, SEEK_SET);

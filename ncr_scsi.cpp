@@ -455,11 +455,11 @@ static uae_u32 ncr_bget2 (struct ncr_state *ncr, uaecptr addr)
 	if (ncr->rom && addr >= ncr->rom_start && addr < ncr->rom_end)
 		return read_rombyte (ncr, addr - ncr->rom_offset);
 	if (addr == A4091_DIP_OFFSET) {
-		uae_u8 v = 0;
-		v |= ncr->rc->device_id;
-		v |= ncr->rc->device_settings << 3;
-		v ^= 0xff & ~7;
-		return v;
+		uae_u8 v2 = 0;
+		v2 |= ncr->rc->device_id;
+		v2 |= ncr->rc->device_settings << 3;
+		v2 ^= 0xff & ~7;
+		return v2;
 	}
 	if (ncr->io_end && (addr < ncr->io_start || addr >= ncr->io_end)) {
 #if NCR_DEBUG > 1

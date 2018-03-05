@@ -605,7 +605,7 @@ static void updateFont(void)
 			vertPoints *= (Real64)10/(Real64)cpi;
 		}
 
-		if (!style & STYLE_PROP)
+		if (!(style & STYLE_PROP))
 		{
 			if (cpi == 10 && (style & STYLE_CONDENSED))
 			{

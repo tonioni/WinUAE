@@ -73,7 +73,6 @@ int regqueryint (UAEREG *root, const TCHAR *name, int *val)
 	if (inimode) {
 		int ret = 0;
 		TCHAR *tmp = NULL;
-		int size = sizeof tmp / sizeof(TCHAR);
 		if (ini_getstring(inidata, gs(root), name, &tmp)) {
 			*val = _tstol (tmp);
 			ret = 1;
@@ -113,7 +112,6 @@ int regquerylonglong (UAEREG *root, const TCHAR *name, ULONGLONG *val)
 	if (inimode) {
 		int ret = 0;
 		TCHAR *tmp = NULL;
-		int size = sizeof tmp / sizeof(TCHAR);
 		if (ini_getstring(inidata, gs(root), name, &tmp)) {
 			*val = _tstoi64 (tmp);
 			ret = 1;

@@ -13,7 +13,7 @@
 
 uae_u8 get_clock_msm(struct rtc_msm_data *data, int addr, struct tm *ct)
 {
-	uae_u8 v;
+	uae_u8 v = 0;
 	int year;
 
 	if (!ct) {

@@ -606,6 +606,7 @@ static struct zfile *zfile_gunzip (struct zfile *z, int *retcode)
 	zs.next_out = z2->data;
 	zs.avail_out = size;
 	first = 1;
+	ret = Z_STREAM_ERROR;
 	do {
 		zs.next_in = buffer;
 		zs.avail_in = zfile_fread (buffer, 1, sizeof (buffer), z);

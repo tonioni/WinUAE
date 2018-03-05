@@ -199,7 +199,7 @@ static bool maybe_map_boot_rom(uaecptr addr)
 			if (!check2) {
 				uae_u32 w = get_word(pc);
 				// JSR xxxxxxxx or JSR (an)
-				if (w == 0x4eb9 || w == 0x4eb9)
+				if (w == 0x4eb9 || (w & 0xfff8) == 0x4e90)
 					check2 = true;
 			}
 			if (check2) {
@@ -2276,7 +2276,7 @@ static void fill_ce_banks (void)
 	if (currprefs.cs_romisslow) {
 		for (i = (0xe00000 >> 16); i < (0xe80000 >> 16); i++)
 			ce_banktype[i] = CE_MEMBANK_CHIP16;
-		for (i = (0xf80000 >> 16); i < (0x100000 >> 16); i++)
+		for (i = (0xf80000 >> 16); i < (0x1000000 >> 16); i++)
 			ce_banktype[i] = CE_MEMBANK_CHIP16;
 	}
 
