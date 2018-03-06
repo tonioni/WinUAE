@@ -147,8 +147,8 @@ mp3decoder::mp3decoder(struct zfile *zf)
 {
 	MMRESULT mmr;
 	LPWAVEFORMATEX waveFormat, inwave;
-	LPMPEGLAYER3WAVEFORMAT mp3format;
-	LPMPEG1WAVEFORMAT mp2format;
+	LPMPEGLAYER3WAVEFORMAT mp3format = NULL;
+	LPMPEG1WAVEFORMAT mp2format = NULL;
 	DWORD maxFormatSize;
 	struct mpegaudio_header head;
 

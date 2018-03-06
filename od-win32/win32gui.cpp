@@ -2732,14 +2732,14 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		WIN32GUI_LoadUIString (IDS_SELECTADF, szTitle, MAX_DPATH);
 		WIN32GUI_LoadUIString (IDS_ADF, szFormat, MAX_DPATH);
 		_stprintf (szFilter, _T("%s "), szFormat);
-		memcpy (szFilter + _tcslen (szFilter), DISK_FORMAT_STRING, sizeof (DISK_FORMAT_STRING) + sizeof (TCHAR));
+		memcpy (szFilter + _tcslen (szFilter), DISK_FORMAT_STRING, sizeof (DISK_FORMAT_STRING));
 		defext = _T("adf");
 		break;
 	case 22:
 		_tcscpy(szTitle, prefs->floppyslots[wParam - IDC_DF0].df);
 		WIN32GUI_LoadUIString (IDS_ADF, szFormat, MAX_DPATH);
 		_stprintf (szFilter, _T("%s "), szFormat);
-		memcpy (szFilter + _tcslen (szFilter), DISK_FORMAT_STRING, sizeof (DISK_FORMAT_STRING) + sizeof (TCHAR));
+		memcpy (szFilter + _tcslen (szFilter), DISK_FORMAT_STRING, sizeof (DISK_FORMAT_STRING));
 		defext = _T("adf");
 		break;
 	case 1:
@@ -2754,7 +2754,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		WIN32GUI_LoadUIString (IDS_SELECTHDF, szTitle, MAX_DPATH);
 		WIN32GUI_LoadUIString (IDS_HDF, szFormat, MAX_DPATH);
 		_stprintf (szFilter, _T("%s "), szFormat);
-		memcpy (szFilter + _tcslen (szFilter),  HDF_FORMAT_STRING, sizeof (HDF_FORMAT_STRING) + sizeof (TCHAR));
+		memcpy (szFilter + _tcslen (szFilter),  HDF_FORMAT_STRING, sizeof (HDF_FORMAT_STRING));
 		defext = _T("hdf");
 		break;
 	case 4:
@@ -2769,7 +2769,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		WIN32GUI_LoadUIString (IDS_SELECTROM, szTitle, MAX_DPATH);
 		WIN32GUI_LoadUIString (IDS_ROM, szFormat, MAX_DPATH);
 		_stprintf (szFilter, _T("%s "), szFormat);
-		memcpy (szFilter + _tcslen (szFilter), ROM_FORMAT_STRING, sizeof (ROM_FORMAT_STRING) + sizeof (TCHAR));
+		memcpy (szFilter + _tcslen (szFilter), ROM_FORMAT_STRING, sizeof (ROM_FORMAT_STRING));
 		defext = _T("rom");
 		break;
 	case 7:
@@ -2784,7 +2784,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		WIN32GUI_LoadUIString (flag == 15 ? IDS_RESTOREINP : IDS_SAVEINP, szTitle, MAX_DPATH);
 		WIN32GUI_LoadUIString (IDS_INP, szFormat, MAX_DPATH);
 		_stprintf (szFilter, _T("%s "), szFormat);
-		memcpy (szFilter + _tcslen (szFilter), INP_FORMAT_STRING, sizeof (INP_FORMAT_STRING) + sizeof (TCHAR));
+		memcpy (szFilter + _tcslen (szFilter), INP_FORMAT_STRING, sizeof (INP_FORMAT_STRING));
 		defext = _T("inp");
 		break;
 	case 9:
@@ -2793,11 +2793,11 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		WIN32GUI_LoadUIString (IDS_USS, szFormat, MAX_DPATH);
 		_stprintf (szFilter, _T("%s "), szFormat);
 		if (flag == 10) {
-			memcpy (szFilter + _tcslen (szFilter), USS_FORMAT_STRING_RESTORE, sizeof (USS_FORMAT_STRING_RESTORE) + sizeof (TCHAR));
+			memcpy (szFilter + _tcslen (szFilter), USS_FORMAT_STRING_RESTORE, sizeof (USS_FORMAT_STRING_RESTORE));
 			all = 1;
 		} else {
 			TCHAR tmp[MAX_DPATH];
-			memcpy (szFilter + _tcslen (szFilter), USS_FORMAT_STRING_SAVE, sizeof (USS_FORMAT_STRING_SAVE) + sizeof (TCHAR));
+			memcpy (szFilter + _tcslen (szFilter), USS_FORMAT_STRING_SAVE, sizeof (USS_FORMAT_STRING_SAVE));
 			p = szFilter;
 			while (p[0] != 0 || p[1] !=0 ) p++;
 			p++;
@@ -5088,7 +5088,7 @@ static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			break;
 		}
 
-		GetDlgItemText(hDlg, IDC_PATH_NAME, workprefs.info, sizeof workprefs.info);
+		GetDlgItemText(hDlg, IDC_PATH_NAME, workprefs.info, sizeof workprefs.info / sizeof(TCHAR));
 		recursive--;
 		break;
 	}
@@ -19381,7 +19381,7 @@ static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
 		*p++ = 0;
 		*p++ = 0;
 		if (p[0] == ' ')
-			*p++;
+			*p++ = 0;
 		if (p[0] == '#')
 			imageid = _tstol (p + 1);
 		tmp[_tcslen (tmp) - 1] = 0;

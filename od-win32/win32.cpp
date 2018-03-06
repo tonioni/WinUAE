@@ -5766,7 +5766,7 @@ static TCHAR *getdefaultini (int *tempfile)
 	int v = GetTempPath (sizeof path / sizeof (TCHAR), path);
 	if (v == 0 || v > sizeof path / sizeof (TCHAR))
 		return my_strdup (orgpath);
-	_tcsncat (path, _T("winuae.ini"), sizeof path / sizeof (TCHAR));
+	_tcsncat (path, _T("winuae.ini"), sizeof path / sizeof (TCHAR) - _tcslen(path));
 	f = _tfopen (path, _T("w"));
 	if (f) {
 		fclose (f);

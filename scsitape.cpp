@@ -51,11 +51,11 @@ void tape_free (struct scsi_data_tape *tape)
 	zfile_fclose (tape->zf);
 	zfile_fclose (tape->index);
 	zfile_closedir_archive (tape->zd);
-	xfree(tape);
 	for (int i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
 		if (tapeunits[i] == tape)
 			tapeunits[i] = NULL;
 	}
+	xfree(tape);
 }
 
 static void tape_init (int unit, struct scsi_data_tape *tape, const TCHAR *tape_directory, bool readonly)

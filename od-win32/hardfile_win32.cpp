@@ -923,7 +923,7 @@ static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq, str
 	uae_u8 cmd[16];
 
 	memset(data, 0, 512);
-	if (udi->usb_vid == 0x152d && (udi->usb_pid == 0x2329 && udi->usb_pid == 0x2336 || udi->usb_pid == 0x2338 || udi->usb_pid == 0x2339)) {
+	if (udi->usb_vid == 0x152d && (udi->usb_pid == 0x2329 || udi->usb_pid == 0x2336 || udi->usb_pid == 0x2338 || udi->usb_pid == 0x2339)) {
 		return hd_meta_hack_jmicron(h, data, inq);
 	}
 	if (!hDlg)
