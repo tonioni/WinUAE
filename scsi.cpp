@@ -73,10 +73,11 @@
 
 extern int log_scsiemu;
 
-static const int outcmd[] = { 0x04, 0x0a, 0x0c, 0x11, 0x2a, 0xaa, 0x15, 0x55, 0x0f, -1 };
-static const int incmd[] = { 0x01, 0x03, 0x08, 0x0e, 0x12, 0x1a, 0x5a, 0x25, 0x28, 0x34, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, 0xb9, 0xbd, 0xd8, 0xd9, 0xbe, -1 };
-static const int nonecmd[] = { 0x00, 0x05, 0x06, 0x07, 0x09, 0x0b, 0x10, 0x16, 0x17, 0x19, 0x1b, 0x1d, 0x1e, 0x2b, 0x35, 0x45, 0x47, 0x48, 0x49, 0x4b, 0x4e, 0xa5, 0xa9, 0xba, 0xbc, 0xe0, 0xe3, 0xe4, -1 };
-static const int scsicmdsizes[] = { 6, 10, 10, 12, 16, 12, 10, 6 };
+static const uae_s16 outcmd[] = { 0x04, 0x0a, 0x0c, 0x11, 0x2a, 0xaa, 0x15, 0x55, 0x0f, -1 };
+static const uae_s16 incmd[] = { 0x01, 0x03, 0x08, 0x0e, 0x12, 0x1a, 0x5a, 0x25, 0x28, 0x34, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, 0xb9, 0xbd, 0xd8, 0xd9, 0xbe, -1 };
+static const uae_s16 nonecmd[] = { 0x00, 0x05, 0x06, 0x07, 0x09, 0x0b, 0x10, 0x16, 0x17, 0x19, 0x1b, 0x1d, 0x1e, 0x2b, 0x35, 0x45, 0x47, 0x48, 0x49, 0x4b, 0x4e, 0xa5, 0xa9, 0xba, 0xbc, 0xe0, 0xe3, 0xe4, -1 };
+static const uae_s16 dirscsi[] = { 0x00, 0x01, 0x03, 0x0e, 0x0f, 0x12, 0x1a, 0x1b, 0x25, 0x35, 0x5a, -1 };
+static const uae_s16 scsicmdsizes[] = { 6, 10, 10, 12, 16, 12, 10, 6 };
 
 static void scsi_illegal_command(struct scsi_data *sd)
 {
@@ -385,6 +386,7 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 		sd->device_type, sd->nativescsiunit);
 #endif
 	if (sd->device_type == UAEDEV_CD && sd->cd_emu_unit >= 0) {
+
 		uae_u32 ua = 0;
 		ua = scsi_cd_emulate(sd->cd_emu_unit, NULL, 0, 0, 0, 0, 0, 0, 0, sd->atapi);
 		if (ua)
@@ -398,7 +400,9 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 				copyreply(sd);
 			}
 		}
+
 	} else if (sd->device_type == UAEDEV_HDF && sd->nativescsiunit < 0) {
+
 		uae_u32 ua = 0;
 		ua = scsi_hd_emulate(sd->hfd, sd->hdhfd, NULL, 0, 0, 0, 0, 0, 0, 0);
 		if (ua)
@@ -413,7 +417,9 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 				copyreply(sd);
 			}
 		}
+
 	} else if (sd->device_type == UAEDEV_TAPE && sd->nativescsiunit < 0) {
+
 		uae_u32 ua = 0;
 		ua = scsi_tape_emulate(sd->tape, NULL, 0, 0, 0, 0, 0, 0, 0);
 		if (ua)
@@ -428,6 +434,40 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 				copyreply(sd);
 			}
 		}
+
+	} else if (sd->device_type == UAEDEV_DIR) {
+
+		uae_u32 ua = 0;
+		ua = scsi_hd_emulate(sd->hfd, sd->hdhfd, NULL, 0, 0, 0, 0, 0, 0, 0);
+		if (ua)
+			sd->unit_attention = ua;
+		if (handle_ca(sd)) {
+			bool allowed = false;
+			for (int i = 0; dirscsi[i] >= 0; i++) {
+				if (dirscsi[i] == sd->cmd[0]) {
+					allowed = true;
+					break;
+				}
+			}
+			if (allowed) {
+				if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
+					scsi_hd_emulate(sd->hfd, sd->hdhfd, sd->cmd, 0, 0, 0, 0, 0, sd->sense, &sd->sense_len);
+					copysense(sd);
+				} else {
+					sd->status = scsi_hd_emulate(sd->hfd, sd->hdhfd,
+						sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
+					copyreply(sd);
+				}
+			} else {
+				sd->sense[0] = 0x70;
+				sd->sense[2] = 5; /* Illegal Request */
+				sd->sense[12] = 0x20; /* Invalid/unsupported command code */
+				sd->sense_len = 18;
+				sd->status = 2;
+				copyreply(sd);
+			}
+		}
+
 	} else if (sd->nativescsiunit >= 0) {
 		struct amigascsi as;
 

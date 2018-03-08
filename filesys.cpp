@@ -593,6 +593,61 @@ void uci_set_defaults (struct uaedev_config_info *uci, bool rdb)
 	uci->device_emu_unit = -1;
 }
 
+static void get_usedblocks(struct fs_usage *fsu, bool fs, int *pblocksize, uae_s64 *pnumblocks, uae_s64 *pinuse)
+{
+	uae_s64 numblocks = 0, inuse;
+	int blocksize = *pblocksize;
+
+	if (fs && currprefs.filesys_limit) {
+		if (fsu->total > (uae_s64)currprefs.filesys_limit * 1024) {
+			uae_s64 oldtotal = fsu->total;
+			fsu->total = currprefs.filesys_limit * 1024;
+			fsu->avail = ((fsu->avail / 1024) * (fsu->total / 1024)) / (oldtotal / 1024);
+			fsu->avail *= 1024;
+		}
+	}
+	while (blocksize < 32768 || numblocks == 0) {
+		numblocks = fsu->total / blocksize;
+		if (numblocks <= 10)
+			numblocks = 10;
+		if (numblocks <= 0x7fffffff)
+			break;
+		blocksize *= 2;
+	}
+	inuse = (numblocks * blocksize - fsu->avail) / blocksize;
+	if (inuse > numblocks)
+		inuse = numblocks;
+	if (pnumblocks)
+		*pnumblocks = numblocks;
+	if (pinuse)
+		*pinuse = inuse;
+	if (pblocksize)
+		*pblocksize = blocksize;
+}
+
+static bool get_blocks(const TCHAR *rootdir, int unit, int flags, int *pblocksize, uae_s64 *pnumblocks, uae_s64 *pinuse)
+{
+	struct fs_usage fsu;
+	int ret;
+	bool fs = false;
+	int blocksize;
+
+	blocksize = 512;
+	if (flags & MYVOLUMEINFO_ARCHIVE) {
+		ret = zfile_fs_usage_archive(rootdir, 0, &fsu);
+		fs = true;
+	} else {
+		ret = get_fs_usage(rootdir, 0, &fsu);
+		fs = true;
+	}
+	if (ret)
+		return false;
+	get_usedblocks(&fsu, fs, &blocksize, pnumblocks, pinuse);
+	if (pblocksize)
+		*pblocksize = blocksize;
+	return ret == 0;
+}
+
 static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 {
 	UnitInfo *ui;
@@ -668,6 +723,8 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 		c.readonly = true;
 	} else if (c.volname[0]) {
 		int flags = 0;
+		uae_s64 numblocks;
+
 		emptydrive = 1;
 		if (c.rootdir[0]) {
 			if (set_filesys_volume (c.rootdir, &flags, &c.readonly, &emptydrive, &ui->zarchive) < 0)
@@ -675,6 +732,25 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 		}
 		ui->volname = filesys_createvolname (c.volname, c.rootdir, ui->zarchive, _T("harddrive"));
 		ui->volflags = flags;
+		TCHAR *vs = au(UAEFS_VERSION);
+		TCHAR *vsp = vs + _tcslen(vs) - 1;
+		while (vsp != vs) {
+			if (*vsp == ' ') {
+				*vsp++ = 0;
+				break;
+			}
+			vsp--;
+		}
+		_tcscpy(ui->hf.vendor_id, _T("UAE"));
+		_tcscpy(ui->hf.product_id, vs);
+		_tcscpy(ui->hf.product_rev, vsp);
+		xfree(vs);
+		ui->hf.ci.unit_feature_level = HD_LEVEL_SCSI_2;
+		if (get_blocks(c.rootdir, nr, flags, &ui->hf.ci.blocksize, &numblocks, NULL))
+			ui->hf.ci.max_lba = numblocks > 0xffffffff ? 0xffffffff : numblocks;
+		else
+			ui->hf.ci.max_lba = 0x00ffffff;
+
 	} else {
 		ui->unit_type = UNIT_FILESYSTEM;
 		ui->hf.unitnum = nr;
@@ -1053,7 +1129,7 @@ struct hardfiledata *get_hardfile_data_controller(int nr)
 {
 	UnitInfo *uip = mountinfo.ui;
 	for (int i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
-		if (uip[i].open == 0 || is_virtual(i))
+		if (uip[i].open == 0)
 			continue;
 		if (uip[i].hf.ci.controller_unit == nr)
 			return &uip[i].hf;
@@ -3301,26 +3377,8 @@ static void	do_info(TrapContext *ctx, Unit *unit, dpacket *packet, uaecptr info,
 		put_long_host(buf + 24, -1); /* ID_NO_DISK_PRESENT */
 		put_long_host(buf + 28, 0);
 	} else {
-		if (fs && currprefs.filesys_limit) {
-			if (fsu.total > (uae_s64)currprefs.filesys_limit * 1024) {
-				uae_s64 oldtotal = fsu.total;
-				fsu.total = currprefs.filesys_limit * 1024;
-				fsu.avail = ((fsu.avail / 1024) * (fsu.total / 1024)) / (oldtotal / 1024);
-				fsu.avail *= 1024;
-			}
-		}
-		uae_s64 numblocks = 0;
-		while (blocksize < 32768 || numblocks == 0) {
-			numblocks = fsu.total / blocksize;
-			if (numblocks <= 10)
-				numblocks = 10;
-			if (numblocks <= 0x7fffffff)
-				break;
-			blocksize *= 2;
-		}
-		uae_s64 inuse = (numblocks * blocksize - fsu.avail) / blocksize;
-		if (inuse > numblocks)
-			inuse = numblocks;
+		uae_s64 numblocks, inuse;
+		get_usedblocks(&fsu, fs, &blocksize, &numblocks, &inuse);
 		//write_log(_T("total %lld avail %lld Blocks %lld Inuse %lld blocksize %d\n"), fsu.total, fsu.avail, numblocks, inuse, blocksize);
 		put_long_host(buf + 12, (uae_u32)numblocks); /* numblocks */
 		put_long_host(buf + 16, (uae_u32)inuse); /* inuse */
@@ -8964,7 +9022,7 @@ void filesys_install (void)
 	ROM_filesys_resname = ds_ansi ("UAEfs.resource");
 	ROM_filesys_resid = ds_ansi (UAEFS_VERSION);
 
-	fsdevname = ds_ansi ("uae.device"); /* does not really exist */
+	fsdevname = ROM_hardfile_resname;
 	fshandlername = ds_bstr_ansi ("uaefs");
 
 	cdfs_devname = ds_ansi ("uaescsi.device");

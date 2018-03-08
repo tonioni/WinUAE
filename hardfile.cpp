@@ -80,6 +80,7 @@ struct hardfileprivdata {
 	int changenum;
 	uaecptr changeint;
 	struct scsi_data *sd;
+	bool directorydrive;
 };
 
 #define HFD_CHD_OTHER 5
@@ -2440,18 +2441,35 @@ static uae_u32 REGPARAM2 hardfile_open (TrapContext *ctx)
 	if (unit >= 0 && unit < MAX_FILESYSTEM_UNITS) {
 		struct hardfileprivdata *hfpd = &hardfpd[unit];
 		struct hardfiledata *hfd = get_hardfile_data_controller(unit);
-		if (hfd && (hfd->handle_valid || hfd->drive_empty) && start_thread (ctx, unit)) {
-			trap_put_word(ctx, hfpd->base + 32, trap_get_word(ctx, hfpd->base + 32) + 1);
-			trap_put_long(ctx, ioreq + 24, unit); /* io_Unit */
-			trap_put_byte(ctx, ioreq + 31, 0); /* io_Error */
-			trap_put_byte(ctx, ioreq + 8, 7); /* ln_type = NT_REPLYMSG */
-			if (!hfpd->sd)
-				hfpd->sd = scsi_alloc_generic(hfd, UAEDEV_HDF);
-			hf_log (_T("hardfile_open, unit %d (%d), OK\n"), unit, trap_get_dreg (ctx, 0));
-			return 0;
+		if (hfd) {
+			if (is_hardfile(hfd->ci.controller_type_unit) == FILESYS_VIRTUAL) {
+				if (start_thread(ctx, unit)) {
+					hfpd->directorydrive = true;
+					trap_put_word(ctx, hfpd->base + 32, trap_get_word(ctx, hfpd->base + 32) + 1);
+					trap_put_long(ctx, ioreq + 24, unit); /* io_Unit */
+					trap_put_byte(ctx, ioreq + 31, 0); /* io_Error */
+					trap_put_byte(ctx, ioreq + 8, 7); /* ln_type = NT_REPLYMSG */
+					if (!hfpd->sd)
+						hfpd->sd = scsi_alloc_generic(hfd, UAEDEV_DIR);
+					hf_log(_T("virtual hardfile_open, unit %d (%d), OK\n"), unit, trap_get_dreg(ctx, 0));
+					return 0;
+				}
+			} else {
+				if ((hfd->handle_valid || hfd->drive_empty) && start_thread(ctx, unit)) {
+					hfpd->directorydrive = false;
+					trap_put_word(ctx, hfpd->base + 32, trap_get_word(ctx, hfpd->base + 32) + 1);
+					trap_put_long(ctx, ioreq + 24, unit); /* io_Unit */
+					trap_put_byte(ctx, ioreq + 31, 0); /* io_Error */
+					trap_put_byte(ctx, ioreq + 8, 7); /* ln_type = NT_REPLYMSG */
+					if (!hfpd->sd)
+						hfpd->sd = scsi_alloc_generic(hfd, UAEDEV_HDF);
+					hf_log(_T("hardfile_open, unit %d (%d), OK\n"), unit, trap_get_dreg(ctx, 0));
+					return 0;
+				}
+			}
 		}
 	}
-	if (unit < 1000 || is_hardfile (unit) == FILESYS_VIRTUAL || is_hardfile (unit) == FILESYS_CD)
+	if (unit < 1000)
 		err = 50; /* HFERR_NoBoard */
 	hf_log (_T("hardfile_open, unit %d (%d), ERR=%d\n"), unit, trap_get_dreg(ctx, 0), err);
 	trap_put_long(ctx, ioreq + 20, (uae_u32)err);
@@ -2514,6 +2532,11 @@ static bool isbadblock(struct hardfiledata *hfd, uae_u64 offset, uae_u64 len)
 	return false;
 }
 
+static bool vdisk(struct hardfileprivdata *hfdp)
+{
+	return hfdp->directorydrive;
+}
+
 static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struct hardfileprivdata *hfpd, uae_u8 *iobuf, uaecptr request)
 {
 	uae_u32 dataptr, offset, actual = 0, cmd;
@@ -2541,14 +2564,24 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 			unaligned (cmd, offset, len, hfd->ci.blocksize);
 			goto bad_len;
 		}
-		if (len + offset > hfd->virtsize) {
-			outofbounds (cmd, offset, len, hfd->virtsize);
-			goto bad_len;
+		if (vdisk(hfpd)) {
+			for (int i = 0; i < len; i++) {
+				put_byte(dataptr + i, 0);
+			}
+			if (offset == 0) {
+				put_long(dataptr, 0x444f5301);
+			}
+			actual = len;
+		} else {
+			if (len + offset > hfd->virtsize) {
+				outofbounds(cmd, offset, len, hfd->virtsize);
+				goto bad_len;
+			}
+			if (isbadblock(hfd, offset, len)) {
+				goto bad_block;
+			}
+			actual = (uae_u32)cmd_read(ctx, hfd, dataptr, offset, len);
 		}
-		if (isbadblock(hfd, offset, len)) {
-			goto bad_block;
-		}
-		actual = (uae_u32)cmd_read(ctx, hfd, dataptr, offset, len);
 		break;
 
 #if HDF_SUPPORT_TD64
@@ -2560,6 +2593,8 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 #if defined(HDF_SUPPORT_NSD) || defined(HDF_SUPPORT_TD64)
 		if (nodisk (hfd))
 			goto no_disk;
+		if (vdisk(hfpd))
+			goto v_disk;
 		offset64 = get_long_host(iobuf + 44) | ((uae_u64)get_long_host(iobuf + 32) << 32);
 		len = get_long_host(iobuf + 36); /* io_Length */
 		if (offset64 & bmask) {
@@ -2585,6 +2620,8 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 	case CMD_FORMAT: /* Format */
 		if (nodisk (hfd))
 			goto no_disk;
+		if (vdisk(hfpd))
+			goto v_disk;
 		if (is_writeprotected(hfd)) {
 			error = 28; /* write protect */
 		} else {
@@ -2620,6 +2657,8 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 #if defined(HDF_SUPPORT_NSD) || defined(HDF_SUPPORT_TD64)
 		if (nodisk (hfd))
 			goto no_disk;
+		if (vdisk(hfpd))
+			goto v_disk;
 		if (is_writeprotected(hfd)) {
 			error = 28; /* write protect */
 		} else {
@@ -2647,6 +2686,8 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 
 #if HDF_SUPPORT_NSD
 	case NSCMD_DEVICEQUERY:
+		if (vdisk(hfpd))
+			goto v_disk;
 		trap_put_long(ctx, dataptr + 0, 0);
 		trap_put_long(ctx, dataptr + 4, 16); /* size */
 		trap_put_word(ctx, dataptr + 8, NSDEVTYPE_TRACKDISK);
@@ -2657,8 +2698,14 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 #endif
 
 	case CMD_GETDRIVETYPE:
+		if (vdisk(hfpd))
+			goto v_disk;
+#if HDF_SUPPORT_NSD
 		actual = DRIVE_NEWSTYLE;
 		break;
+#else
+		goto no_cmd;
+#endif
 
 	case CMD_GETNUMTRACKS:
 		{
@@ -2704,9 +2751,20 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 	case CMD_CLEAR:
 	case CMD_MOTOR:
 	case CMD_SEEK:
-	case TD_SEEK64:
-	case NSCMD_TD_SEEK64:
 		break;
+
+#if HDF_SUPPORT_TD64
+	case TD_SEEK64:
+		if (vdisk(hfpd))
+			goto v_disk;
+		break;
+#endif
+#ifdef HDF_SUPPORT_NSD
+	case NSCMD_TD_SEEK64:
+		if (vdisk(hfpd))
+			goto v_disk;
+		break;
+#endif
 
 	case CMD_REMOVE:
 		hfpd->changeint = get_long (request + 40);
@@ -2717,17 +2775,23 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 		break;
 
 	case CMD_ADDCHANGEINT:
+		if (vdisk(hfpd))
+			goto v_disk;
 		error = add_async_request (hfpd, iobuf, request, ASYNC_REQUEST_CHANGEINT, get_long_host(iobuf + 40));
 		if (!error)
 			async = 1;
 		break;
 	case CMD_REMCHANGEINT:
+		if (vdisk(hfpd))
+			goto v_disk;
 		release_async_request (hfpd, request);
 		break;
 
 #if HDF_SUPPORT_DS
 	case HD_SCSICMD: /* SCSI */
-		if (HDF_SUPPORT_DS_PARTITION || enable_ds_partition_hdf || (!hfd->ci.sectors && !hfd->ci.surfaces && !hfd->ci.reserved)) {
+		if (vdisk(hfpd)) {
+			error = handle_scsi(ctx, iobuf, request, hfd, hfpd->sd);
+		} else if (HDF_SUPPORT_DS_PARTITION || enable_ds_partition_hdf || (!hfd->ci.sectors && !hfd->ci.surfaces && !hfd->ci.reserved)) {
 			error = handle_scsi(ctx, iobuf, request, hfd, hfpd->sd);
 		} else { /* we don't want users trashing their "partition" hardfiles with hdtoolbox */
 			error = IOERR_NOCMD;
@@ -2737,6 +2801,8 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 #endif
 
 	case CD_EJECT:
+		if (vdisk(hfpd))
+			goto v_disk;
 		if (hfd->ci.sectors && hfd->ci.surfaces) {
 			int len = get_long_host(iobuf + 36);
 			if (len) {
@@ -2764,11 +2830,15 @@ bad_command:
 bad_len:
 		error = IOERR_BADLENGTH;
 		break;
+v_disk:
+		error = IOERR_BadDriveType;
+		break;
 no_disk:
 		error = 29; /* no disk */
 		break;
 
 	default:
+no_cmd:
 		/* Command not understood. */
 		error = IOERR_NOCMD;
 		break;
