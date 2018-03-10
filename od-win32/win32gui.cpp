@@ -2134,9 +2134,10 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 	int v, i, type2;
 	int ct, ct2, size;
 	TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
-	TCHAR fname[MAX_DPATH];
+	TCHAR fname[MAX_DPATH], cname[MAX_DPATH];
 
 	_tcscpy (fname, filename);
+	cname[0] = 0;
 	if (!zfile_exists (fname)) {
 		fetch_configurationpath (fname, sizeof (fname) / sizeof (TCHAR));
 		if (_tcsncmp (fname, filename, _tcslen (fname)))
@@ -2150,6 +2151,13 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 	if (type < 0) {
 		type = 0;
 		cfgfile_get_description(NULL, fname, NULL, NULL, NULL, &type);
+		if (!isdefault) {
+			const TCHAR *p = _tcsrchr(fname, '\\');
+			if (!p)
+				p = _tcsrchr(fname, '/');
+			if (p)
+				_tcscpy(cname, p + 1);
+		}
 	}
 	if (type == 0 || type == 1) {
 		discard_prefs (p, 0);
@@ -2173,6 +2181,8 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 		return v;
 	if (type > 0)
 		return v;
+	if (cname[0])
+		_tcscpy(config_filename, cname);
 	box_art_check(p);
 	for (i = 1; i <= 2; i++) {
 		if (type != i) {
@@ -3298,6 +3308,8 @@ static void setguititle (HWND phwnd)
 		if (name && _tcslen (name) > 0) {
 			_tcscat (title2, _T("["));
 			_tcscat (title2, name);
+			if (_tcslen(title2) > 4 && !_tcsicmp(title2 + _tcslen(title2) - 4, _T(".uae")))
+				title2[_tcslen(title2) - 4] = 0;
 			_tcscat (title2, _T("] - "));
 		}
 	}
