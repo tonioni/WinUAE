@@ -313,6 +313,7 @@ static struct wd_state *allocscsi(struct wd_state **wd, struct romconfig *rc, in
 		freencrunit(*wd);
 		*wd = NULL;
 	}
+	configured = true;
 	if ((*wd) == NULL) {
 		scsi = xcalloc(struct wd_state, 1);
 		for (int i = 0; i < MAX_SCSI_UNITS; i++) {
@@ -328,7 +329,6 @@ static struct wd_state *allocscsi(struct wd_state **wd, struct romconfig *rc, in
 			}
 		}
 	}
-	configured = true;
 	return *wd;
 }
 
