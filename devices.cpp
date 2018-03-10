@@ -145,6 +145,7 @@ void devices_vsync_pre(void)
 	cd32_fmv_vsync_handler();
 #endif
 	cpuboard_vsync();
+	ncr_vsync();
 	statusline_vsync();
 #ifdef WITH_X86
 	x86_bridge_vsync();

@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 226
+#define NEXT_ROM_ID 227
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -389,6 +389,8 @@ static struct romdata roms[] = {
 	0x2c609194, 0x9a91cf45,0x6816067a,0x943c18f1,0xbd30effe,0x482d4aaf, NULL, NULL },
 	ALTROMPN(225, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xc0bea5dd, 0x1540a755, 0x36066da4, 0x8bcb3dd4, 0xf13f179b, 0x9439f379)
 	ALTROMPN(225, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x7989684f, 0x9dc4d885, 0x242bf7eb, 0xe75a01b2, 0x483c9e3c, 0x8013896b)
+	{ _T("CSA Magnum 040"), 0, 0, 0, 0, _T("MAGNUM040\0"), 65536, 226, 0, 0, ROMTYPE_CB_MAGNUM40, 0, 0, NULL,
+	0xb94e805b, 0x4c1859ba,0x7ea2cedb,0xf5251bed,0xfbb76e6c,0x0617300e },
 
 	{ _T("A2620/A2630 -07"), 0, 0, 0, 0, _T("A2620\0A2630\0"), 65536, 105, 0, 0, ROMTYPE_CB_A26x0, 0, 0, _T("390282-07/390283-07"),
 	0x169d80e9, 0x41f518cb,0x41c1dc1f,0xcc636383,0x20676af5,0x4969010c, NULL, NULL },

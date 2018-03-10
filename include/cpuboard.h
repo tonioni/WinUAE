@@ -98,5 +98,7 @@ void blizzardppc_irq_setonly(int id, int level);
 #define BOARD_PPS 13
 #define BOARD_PPS_ZEUS040 0
 
+#define BOARD_CSA 14
+#define BOARD_CSA_MAGNUM40 0
 
 #endif /* UAE_CPUBOARD_H */

@@ -5882,6 +5882,23 @@ static const struct cpuboardsubtype pps_sub[] = {
 	}
 };
 
+static const struct cpuboardsubtype csa_sub[] = {
+	{
+		_T("Magnum 40/4"),
+		_T("Magnum40"),
+		ROMTYPE_CB_MAGNUM40, 0,
+		magnum40_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		BOARD_MEMORY_HIGHMEM,
+		128 * 1024 * 1024,
+		0,
+		ncr710_magnum40_autoconfig_init, NULL, BOARD_AUTOCONFIG_Z2, 1,
+		NULL, NULL
+	},
+	{
+		NULL
+	}
+};
+
 static const struct expansionboardsettings apollo_settings[] = {
 	{
 		_T("SCSI module installed"),
@@ -6013,6 +6030,11 @@ const struct cpuboardtype cpuboards[] = {
 		BOARD_PPS,
 		_T("Progressive Peripherals & Software"),
 		pps_sub, 0
+	},
+	{
+		BOARD_CSA,
+		_T("Computer System Associates"),
+		csa_sub, 0
 	},
 	{
 		NULL

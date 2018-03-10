@@ -329,6 +329,10 @@ static bool is_ivsvector(struct uae_prefs *p)
 {
 	return ISCPUBOARDP(p, BOARD_IVS, BOARD_IVS_VECTOR);
 }
+static bool is_magnum40(struct uae_prefs *p)
+{
+	return ISCPUBOARDP(p, BOARD_CSA, BOARD_CSA_MAGNUM40);
+}
 static bool is_aca500(struct uae_prefs *p)
 {
 	return false; //return ISCPUBOARDP(p, BOARD_IC, BOARD_IC_ACA500);
@@ -739,7 +743,7 @@ static uae_u32 REGPARAM2 blizzardea_wget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 blizzardea_bget(uaecptr addr)
 {
-	uae_u8 v;
+	uae_u8 v = 0;
 
 	addr &= blizzardea_bank.mask;
 	if (is_tekmagic(&currprefs)) {
@@ -947,7 +951,7 @@ static void cyberstorm_copymaprom(void)
 }
 static void cyberstormmk2_copymaprom(void)
 {
-	if (blizzardmaprom_bank.baseaddr) {
+	if (a3000hmem_bank.baseaddr) {
 		uae_u8 *src = a3000hmem_bank.baseaddr + a3000hmem_bank.allocated_size - 524288;
 		uae_u8 *dst = kickmem_bank.baseaddr;
 		protect_roms(false);
@@ -960,6 +964,20 @@ static void cyberstormmk1_copymaprom(void)
 {
 	if (blizzardmaprom_bank.baseaddr) {
 		uae_u8 *src = blizzardmaprom_bank.baseaddr;
+		uae_u8 *dst = kickmem_bank.baseaddr;
+		protect_roms(false);
+		memcpy(dst, src, 524288);
+		protect_roms(true);
+		set_roms_modified();
+	}
+}
+
+static void csamagnum40_domaprom(void)
+{
+	if (!maprom_state) {
+		reload_roms();
+	} else if (a3000hmem_bank.baseaddr && a3000hmem_bank.allocated_size >= 0x1000000) {
+		uae_u8 *src = a3000hmem_bank.baseaddr + 0xf80000;
 		uae_u8 *dst = kickmem_bank.baseaddr;
 		protect_roms(false);
 		memcpy(dst, src, 524288);
@@ -1109,7 +1127,17 @@ static uae_u32 REGPARAM2 blizzardio_bget(uaecptr addr)
 {
 	uae_u8 v = 0;
 	//write_log(_T("CS IO XBGET %08x=%02X PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
-	if (is_csmk3(&currprefs) || is_blizzardppc(&currprefs)) {
+	if (is_magnum40(&currprefs)) {
+		if (regs.s && (addr & 0xff0f) == 0x0c0c) {
+			int reg = (addr >> 4) & 7;
+			v = io_reg[reg];
+			if (reg >= 0 && reg <= 3)
+				v &= ~0x04; // REV0 to REV3
+			if (reg == 0)
+				v |= 0x04; // REV0=1
+			write_log(_T("CSA Magnum40 read reg %0d = %d %08x\n"), reg, v, M68K_GETPC);
+		}
+	} else if (is_csmk3(&currprefs) || is_blizzardppc(&currprefs)) {
 		uae_u32 bank = addr & 0x10000;
 		if (bank == 0) {
 			int reg = (addr & 0xff) / 8;
@@ -1207,7 +1235,18 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 #if CPUBOARD_IO_LOG > 1
 	write_log(_T("CS IO XBPUT %08x %02x PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
 #endif
-	if (is_fusionforty(&currprefs)) {
+	if (is_magnum40(&currprefs)) {
+		if (regs.s && (addr & 0xff0f) == 0x0c0c) {
+			int reg = (addr >> 4) & 7;
+			if (reg == 3 && ((v ^ io_reg[reg]) & 1)) {
+				maprom_state = v & 1;
+				write_log(_T("CSA Magnum40 MAPROM=%d\n"), maprom_state);
+				csamagnum40_domaprom();
+			}
+			io_reg[reg] = (uae_u8)v;
+			write_log(_T("CSA Magnum40 write reg %0d = %02x %08x\n"), reg, v & 0xff, M68K_GETPC);
+		}
+	} else if (is_fusionforty(&currprefs)) {
 		write_log(_T("FusionForty IO XBPUT %08x %02x PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
 	} else if (is_csmk2(&currprefs)) {
 		csmk2_flashaddressing = addr & 3;
@@ -1473,6 +1512,10 @@ void cpuboard_map(void)
 		return;
 
 	bool fallback_cpu = currprefs.cpu_model < 68020;
+
+	if (is_magnum40(&currprefs)) {
+		map_banks(&blizzardio_bank, 0x0c0c0000 >> 16, 0x10000 >> 16, 0);
+	}
 
 	if (is_blizzard1230mk2(&currprefs) || is_blizzard1230mk3(&currprefs)) {
 		map_banks(&blizzardram_bank, blizzardram_bank.start >> 16, cpuboard_size >> 16, 0);
@@ -2302,6 +2345,15 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		switch(p->cpuboard_subtype)
 		{
 		case BOARD_PPS_ZEUS040:
+			aci->addrbank = &expamem_null;
+			return true;
+		}
+		break;
+
+		case BOARD_CSA:
+		switch(p->cpuboard_subtype)
+		{
+		case BOARD_CSA_MAGNUM40:
 			aci->addrbank = &expamem_null;
 			return true;
 		}

@@ -1190,8 +1190,10 @@ again:
                 s->scntl1 |= LSI_SCNTL1_CON;
                 if (insn & (1 << 24)) {
                     s->socl |= LSI_SOCL_ATN;
-                }
-                lsi_set_phase(s, PHASE_MO);
+					lsi_set_phase(s, PHASE_MO);
+				} else {
+					lsi_set_phase(s, PHASE_CMD);
+				}
                 break;
             case 1: /* Disconnect */
                 DPRINTF("Wait Disconnect\n");
@@ -1880,7 +1882,12 @@ static void lsi_reg_writeb(LSIState710 *s, int offset, uint8_t val)
             lsi_execute_script(s);
 		}
         break;
-    CASE_SET_REG32(scratch, 0x34)
+	case 0x30:
+	case 0x31:
+	case 0x32:
+	case 0x33:
+		break;
+	CASE_SET_REG32(scratch, 0x34)
 	case 0x38: /* DMODE */
 #if 0
 		if (val & (LSI_DMODE_SIOM | LSI_DMODE_DIOM)) {

@@ -71,6 +71,7 @@ struct ncr_state
 	bool enabled;
 	int rom_start, rom_end, rom_offset;
 	int io_start, io_end;
+	uae_u8 state[8];
 	addrbank *bank;
 	bool irq;
 	bool irqlevel;
@@ -166,6 +167,7 @@ static struct ncr_state *ncr_a4000t;
 static struct ncr_state *ncra4091[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr_state *ncr_wildfire;
 static struct ncr_state *ncr_zeus040;
+static struct ncr_state *ncr_magnum40;
 
 static void set_irq2(int id, int level)
 {
@@ -376,6 +378,34 @@ int pci710_dma_rw(PCIDevice *dev, dma_addr_t addr, void *buf, dma_addr_t len, DM
 	return 0;
 }
 
+void ncr_vsync(void)
+{
+	for (int i = 0; ncr_units[i]; i++) {
+		if (ncr_units[i] == ncr_magnum40) {
+			struct ncr_state *ncr = ncr_units[i];
+			if (ncr->state[1] & 1) {
+				int v = (ncr->state[5] << 16) | (ncr->state[6] << 8) | (ncr->state[7]);
+				if (v > 0) {
+					v -= 2304;
+					ncr->state[5] = (v >> 16) & 0xff;
+					ncr->state[6] = (v >> 8) & 0xff;
+					ncr->state[7] = (v >> 0) & 0xff;
+				}
+				if (v <= 0) {
+					ncr->state[0] |= 1;
+					ncr->state[5] = ncr->state[2];
+					ncr->state[6] = ncr->state[3];
+					ncr->state[7] = ncr->state[4];
+				}
+			}
+			if (ncr->state[0] & 1) {
+				set_irq2(ncr->id, 1);
+			}
+		}
+	}
+
+}
+
 static uae_u8 read_rombyte(struct ncr_state *ncr, uaecptr addr)
 {
 	uae_u8 v = ncr->rom[addr];
@@ -413,6 +443,38 @@ static void ncr_bput2 (struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 {
 	uae_u32 v = val;
 	addr &= ncr->board_mask;
+
+	if (ncr == ncr_magnum40 && addr >= 0xa000 && addr <= 0xa200) {
+		int reg = (addr >> 4) & 31;
+		switch (reg)
+		{
+			case 0x10: // timer control
+			ncr->state[1] = (uae_u8)v;
+			if (ncr->state[1] & 1) {
+				ncr->state[5] = ncr->state[2];
+				ncr->state[6] = ncr->state[3];
+				ncr->state[7] = ncr->state[4];
+			}
+			break;
+			case 0x13: // timer hi
+			ncr->state[2] = (uae_u8)v;
+			break;
+			case 0x14: // timer med
+			ncr->state[3] = (uae_u8)v;
+			break;
+			case 0x15: // timer lo
+			ncr->state[4] = (uae_u8)v;
+			break;
+			case 0x1a: // timer ZDS
+			if (ncr->state[0] & 1)
+				set_irq2(ncr->id, 0);
+			ncr->state[0] &= ~1;
+			break;
+		}
+		return;
+	}
+
+
 	if (ncr->io_end && (addr < ncr->io_start || addr >= ncr->io_end)) {
 #if NCR_DEBUG > 1
 		write_log(_T("ncr_bput none %08x %02x %08x\n"), addr, v & 0xff, M68K_GETPC);
@@ -447,6 +509,11 @@ uae_u32 cpuboard_ncr710_io_bget(uaecptr addr)
 	return ncr710_io_bget(ncr_cpuboard, addr);
 }
 
+static bool isncrboard(struct ncr_state *ncr, struct ncr_state **ncrb)
+{
+	return ncr == ncrb[0] || ncr == ncrb[1] || ncr == ncrb[2] || ncr == ncrb[3];
+}
+
 static uae_u32 ncr_bget2 (struct ncr_state *ncr, uaecptr addr)
 {
 	uae_u32 v = 0;
@@ -454,13 +521,28 @@ static uae_u32 ncr_bget2 (struct ncr_state *ncr, uaecptr addr)
 	addr &= ncr->board_mask;
 	if (ncr->rom && addr >= ncr->rom_start && addr < ncr->rom_end)
 		return read_rombyte (ncr, addr - ncr->rom_offset);
-	if (addr == A4091_DIP_OFFSET) {
-		uae_u8 v2 = 0;
-		v2 |= ncr->rc->device_id;
-		v2 |= ncr->rc->device_settings << 3;
-		v2 ^= 0xff & ~7;
-		return v2;
+
+	if (isncrboard(ncr, ncra4091)) {
+		if (addr == A4091_DIP_OFFSET) {
+			uae_u8 v2 = 0;
+			v2 |= ncr->rc->device_id;
+			v2 |= ncr->rc->device_settings << 3;
+			v2 ^= 0xff & ~7;
+			return v2;
+		}
 	}
+
+	if (ncr == ncr_magnum40 && addr >= 0xa000 && addr <= 0xa200) {
+		int reg = (addr >> 4) & 31;
+		switch(reg)
+		{
+			case 0x0c: // jumpers (68230 port C)
+			return 0x00;
+			case 0x1a: // timer ZDS
+			return ncr->state[0] & 1;
+		}
+	}
+
 	if (ncr->io_end && (addr < ncr->io_start || addr >= ncr->io_end)) {
 #if NCR_DEBUG > 1
 		write_log(_T("ncr_bget none %08x %02x %08x\n"), addr, v, M68K_GETPC);
@@ -482,13 +564,8 @@ static uae_u32 REGPARAM2 ncr_lget (struct ncr_state *ncr, uaecptr addr)
 	uae_u32 v = 0;
 	if (ncr) {
 		addr &= ncr->board_mask;
-		if (addr >= A4091_IO_ALT) {
-			v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
-				(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
-		} else {
-			v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
-				(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
-		}
+		v = (ncr_bget2 (ncr, addr + 3) << 0) | (ncr_bget2 (ncr, addr + 2) << 8) |
+			(ncr_bget2 (ncr, addr + 1) << 16) | (ncr_bget2 (ncr, addr + 0) << 24);
 	}
 	return v;
 }
@@ -523,17 +600,10 @@ static void REGPARAM2 ncr_lput (struct ncr_state *ncr, uaecptr addr, uae_u32 l)
 	if (!ncr)
 		return;
 	addr &= ncr->board_mask;
-	if (addr >= A4091_IO_ALT) {
-		ncr_bput2 (ncr, addr + 3, l >> 0);
-		ncr_bput2 (ncr, addr + 2, l >> 8);
-		ncr_bput2 (ncr, addr + 1, l >> 16);
-		ncr_bput2 (ncr, addr + 0, l >> 24);
-	} else {
-		ncr_bput2 (ncr, addr + 3, l >> 0);
-		ncr_bput2 (ncr, addr + 2, l >> 8);
-		ncr_bput2 (ncr, addr + 1, l >> 16);
-		ncr_bput2 (ncr, addr + 0, l >> 24);
-	}
+	ncr_bput2 (ncr, addr + 3, l >> 0);
+	ncr_bput2 (ncr, addr + 2, l >> 8);
+	ncr_bput2 (ncr, addr + 1, l >> 16);
+	ncr_bput2 (ncr, addr + 0, l >> 24);
 }
 
 static void REGPARAM2 ncr_wput (struct ncr_state *ncr, uaecptr addr, uae_u32 w)
@@ -918,6 +988,38 @@ bool ncr710_zeus040_autoconfig_init(struct autoconfig_info *aci)
 	return true;
 }
 
+bool ncr710_magnum40_autoconfig_init(struct autoconfig_info *aci)
+{
+	if (!aci->doinit) {
+		load_rom_rc(aci->rc, ROMTYPE_CB_MAGNUM40, 65536, 0, aci->autoconfig_raw, 128, 0);
+		return true;
+	}
+
+	struct ncr_state *ncr = getscsi(aci->rc);
+	if (!ncr)
+		return false;
+
+	xfree(ncr->rom);
+	ncr->rom = NULL;
+
+	ncr->enabled = true;
+	memset(ncr->acmemory, 0xff, sizeof ncr->acmemory);
+	ncr->rom_start = 0;
+	ncr->rom_offset = 0;
+	ncr->rom_end = 0x8000;
+	ncr->io_start = 0x8000;
+	ncr->io_end = 0x9000;
+
+
+	ncr->rom = xcalloc(uae_u8, 32768);
+	load_rom_rc(aci->rc, ROMTYPE_CB_MAGNUM40, 65536, 0, ncr->rom, 32768, 0);
+	memcpy(ncr->acmemory, ncr->rom, sizeof ncr->acmemory);
+
+	ncr_reset_board(ncr);
+
+	aci->addrbank = &ncr_bank_generic;
+	return true;
+}
 
 void ncr_free(void)
 {
@@ -1069,6 +1171,14 @@ void zeus040_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconf
 	ncr_zeus040->irq_func = set_irq6;
 	ncr_zeus040->irqlevel = true;
 	ncr_zeus040->z2 = true;
+}
+
+void magnum40_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	ncr_add_scsi_unit(&ncr_magnum40, ch, ci, rc, false);
+	ncr_magnum40->irq_func = set_irq6;
+	ncr_magnum40->irqlevel = true;
+	ncr_magnum40->z2 = true;
 }
 
 #endif

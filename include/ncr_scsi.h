@@ -17,10 +17,12 @@ extern void ncr_init(void);
 extern void ncr_free(void);
 extern void ncr_reset(void);
 extern void ncr_rethink(void);
+extern void ncr_vsync(void);
 
 extern bool ncr710_a4091_autoconfig_init(struct autoconfig_info *aci);
 extern bool ncr710_warpengine_autoconfig_init(struct autoconfig_info *aci);
 extern bool ncr710_zeus040_autoconfig_init(struct autoconfig_info *aci);
+extern bool ncr710_magnum40_autoconfig_init(struct autoconfig_info *aci);
 
 void cpuboard_ncr710_io_bput(uaecptr addr, uae_u32 v);
 uae_u32 cpuboard_ncr710_io_bget(uaecptr addr);
@@ -36,5 +38,6 @@ extern void blizzardppc_add_scsi_unit(int ch, struct uaedev_config_info *ci, str
 extern void a4091_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void wildfire_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void zeus040_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void magnum40_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 #endif /* UAE_NCR_SCSI_H */
