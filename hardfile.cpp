@@ -2442,7 +2442,7 @@ static uae_u32 REGPARAM2 hardfile_open (TrapContext *ctx)
 		struct hardfileprivdata *hfpd = &hardfpd[unit];
 		struct hardfiledata *hfd = get_hardfile_data_controller(unit);
 		if (hfd) {
-			if (is_hardfile(hfd->ci.controller_type_unit) == FILESYS_VIRTUAL) {
+			if (is_hardfile(unit) == FILESYS_VIRTUAL) {
 				if (start_thread(ctx, unit)) {
 					hfpd->directorydrive = true;
 					trap_put_word(ctx, hfpd->base + 32, trap_get_word(ctx, hfpd->base + 32) + 1);
