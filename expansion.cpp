@@ -5855,6 +5855,15 @@ static const struct cpuboardsubtype ivs_sub[] = {
 	}
 };
 
+static const struct expansionboardsettings magnum40_settings[] = {
+	{
+		_T("Autoboot disable"),
+		_T("autoboot")
+	},
+	{
+		NULL
+	}
+};
 static const struct expansionboardsettings zeus040_settings[] = {
 	{
 		_T("Autoboot disable (A3)"),
@@ -5892,7 +5901,7 @@ static const struct cpuboardsubtype csa_sub[] = {
 		128 * 1024 * 1024,
 		0,
 		ncr710_magnum40_autoconfig_init, NULL, BOARD_AUTOCONFIG_Z2, 1,
-		NULL, NULL
+		magnum40_settings, NULL
 	},
 	{
 		NULL

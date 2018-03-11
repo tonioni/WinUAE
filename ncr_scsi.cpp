@@ -378,29 +378,33 @@ int pci710_dma_rw(PCIDevice *dev, dma_addr_t addr, void *buf, dma_addr_t len, DM
 	return 0;
 }
 
+static void check_timer(struct ncr_state *ncr)
+{
+	if (ncr->state[1] & 1) {
+		int v = (ncr->state[5] << 16) | (ncr->state[6] << 8) | (ncr->state[7]);
+		if (v > 0) {
+			v -= 2304;
+			ncr->state[5] = (v >> 16) & 0xff;
+			ncr->state[6] = (v >> 8) & 0xff;
+			ncr->state[7] = (v >> 0) & 0xff;
+		}
+		if (v <= 0) {
+			ncr->state[0] |= 1;
+			ncr->state[5] = ncr->state[2];
+			ncr->state[6] = ncr->state[3];
+			ncr->state[7] = ncr->state[4];
+		}
+	}
+	if (ncr->state[0] & 1) {
+		set_irq2(ncr->id, 1);
+	}
+}
+
 void ncr_vsync(void)
 {
 	for (int i = 0; ncr_units[i]; i++) {
 		if (ncr_units[i] == ncr_magnum40) {
-			struct ncr_state *ncr = ncr_units[i];
-			if (ncr->state[1] & 1) {
-				int v = (ncr->state[5] << 16) | (ncr->state[6] << 8) | (ncr->state[7]);
-				if (v > 0) {
-					v -= 2304;
-					ncr->state[5] = (v >> 16) & 0xff;
-					ncr->state[6] = (v >> 8) & 0xff;
-					ncr->state[7] = (v >> 0) & 0xff;
-				}
-				if (v <= 0) {
-					ncr->state[0] |= 1;
-					ncr->state[5] = ncr->state[2];
-					ncr->state[6] = ncr->state[3];
-					ncr->state[7] = ncr->state[4];
-				}
-			}
-			if (ncr->state[0] & 1) {
-				set_irq2(ncr->id, 1);
-			}
+			check_timer(ncr_magnum40);
 		}
 	}
 
@@ -537,7 +541,9 @@ static uae_u32 ncr_bget2 (struct ncr_state *ncr, uaecptr addr)
 		switch(reg)
 		{
 			case 0x0c: // jumpers (68230 port C)
-			return 0x00;
+			if (currprefs.cpuboard_settings & 1)
+				v |= 0x80;
+			return v;
 			case 0x1a: // timer ZDS
 			return ncr->state[0] & 1;
 		}

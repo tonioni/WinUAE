@@ -1128,7 +1128,7 @@ static uae_u32 REGPARAM2 blizzardio_bget(uaecptr addr)
 	uae_u8 v = 0;
 	//write_log(_T("CS IO XBGET %08x=%02X PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
 	if (is_magnum40(&currprefs)) {
-		if (regs.s && (addr & 0xff0f) == 0x0c0c) {
+		if ((addr & 0xff0f) == 0x0c0c) {
 			int reg = (addr >> 4) & 7;
 			v = io_reg[reg];
 			if (reg >= 0 && reg <= 3)
@@ -1236,7 +1236,7 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 	write_log(_T("CS IO XBPUT %08x %02x PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
 #endif
 	if (is_magnum40(&currprefs)) {
-		if (regs.s && (addr & 0xff0f) == 0x0c0c) {
+		if ((addr & 0xff0f) == 0x0c0c) {
 			int reg = (addr >> 4) & 7;
 			if (reg == 3 && ((v ^ io_reg[reg]) & 1)) {
 				maprom_state = v & 1;
