@@ -821,6 +821,7 @@ struct soft_scsi
 	bool dma_active;
 	bool dma_started;
 	bool dma_controller;
+	bool dma_drq;
 	struct romconfig *rc;
 	struct soft_scsi **self_ptr;
 
@@ -1850,7 +1851,8 @@ uae_u8 ncr5380_bget(struct soft_scsi *scsi, int reg)
 			if (scsi->irq) {
 				v |= 1 << 4;
 			}
-			if (scsi->dma_active && !scsi->dma_controller && r->bus_phase == (scsi->regs[3] & 7)) {
+			if (scsi->dma_drq || (scsi->dma_active && !scsi->dma_controller && r->bus_phase == (scsi->regs[3] & 7))) {
+				scsi->dma_drq = true;
 				v |= 1 << 6;
 			}
 			if (scsi->regs[2] & 4) {
@@ -1942,6 +1944,7 @@ void ncr5380_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 			scsi->regs[5] &= ~(0x80 | 0x40);
 			scsi->dma_direction = 0;
 			scsi->dma_active = false;
+			scsi->dma_drq = false;
 		}
 		break;
 		case 5:
