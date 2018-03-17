@@ -238,7 +238,10 @@ bool scsi_emulate_analyze (struct scsi_data *sd)
 	} else {
 		sd->data_len = data_len;
 	}
-	sd->direction = scsi_data_dir (sd);
+	sd->direction = scsi_data_dir(sd);
+	if (sd->direction > 0 && sd->data_len == 0) {
+		sd->direction = 0;
+	}
 	return true;
 nocmd:
 	sd->status = SCSI_STATUS_CHECK_CONDITION;
