@@ -69,7 +69,8 @@
 #define OMTI_WEDGE 37
 #define NCR5380_EVESHAMREF 38
 #define OMTI_PROFEX 39
-#define NCR_LAST 40
+#define NCR5380_FASTTRAK 40
+#define NCR_LAST 41
 
 extern int log_scsiemu;
 
@@ -2608,6 +2609,15 @@ static int eveshamref_reg(struct soft_scsi *ncr, uaecptr addr)
 	return -1;
 }
 
+static int fasttrak_reg(struct soft_scsi *ncr, uaecptr addr)
+{
+	if ((addr & 0xc010) == 0x4000)
+		return (addr >> 1) & 7;
+	if ((addr & 0xc010) == 0x4010)
+		return 8;
+	return -1;
+}
+
 static uae_u8 read_684xx_dma(struct soft_scsi *ncr, uaecptr addr)
 {
 	uae_u8 val = 0;
@@ -3295,6 +3305,15 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 			v = ncr->rom[addr & 0x7fff];
 		}
 
+	} else if (ncr->type == NCR5380_FASTTRAK) {
+
+		reg = fasttrak_reg(ncr, addr);
+		if (reg >= 0) {
+			v = ncr5380_bget(ncr, reg);
+		} else {
+			v = ncr->rom[addr & 0x7fff];
+		}
+
 	}
 
 #if NCR5380_DEBUG > 1
@@ -3679,6 +3698,12 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 	} else if (ncr->type == NCR5380_EVESHAMREF) {
 
 		reg = eveshamref_reg(ncr, addr);
+		if (reg >= 0)
+			ncr5380_bput(ncr, reg, val);
+
+	} else if (ncr->type == NCR5380_FASTTRAK) {
+
+		reg = fasttrak_reg(ncr, addr);
 		if (reg >= 0)
 			ncr5380_bput(ncr, reg, val);
 	}
@@ -5024,4 +5049,27 @@ void profex_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 		ss->rscsi.device[ch]->hfd->sector_buffer[0] = '5';
 		ss->rscsi.device[ch]->hfd->sector_buffer[1] = '5';
 	}
+}
+
+
+bool fasttrak_init(struct autoconfig_info *aci)
+{
+	if (!aci->doinit) {
+		load_rom_rc(aci->rc, ROMTYPE_FASTTRAK, 65536, aci->rc->autoboot_disabled ? 0x4000 : 0x6000, aci->autoconfig_raw, 128, LOADROM_EVENONLY_ODDONE);
+		return true;
+	}
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	load_rom_rc(aci->rc, ROMTYPE_FASTTRAK, 65536, aci->rc->autoboot_disabled ? 0x4000 : 0x6000, scsi->rom, 0x4000, LOADROM_EVENONLY_ODDONE);
+	memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
+	aci->addrbank = scsi->bank;
+	return true;
+}
+
+void fasttrak_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_FASTTRAK, 65536, 65536, ROMTYPE_FASTTRAK);
 }

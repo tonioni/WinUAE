@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 227
+#define NEXT_ROM_ID 228
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -561,6 +561,8 @@ static struct romdata roms[] = {
 	0x1b854f6b, 0xc39d6202, 0xccb65f17, 0x63d1835e, 0x19d5b63d, 0x28f1b6a3, NULL, NULL },
 	ALTROMPN(224, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x3ba56b91, 0xef55760e, 0x8d5a5408, 0x7062f9ab, 0xc63ef067, 0x0b23f108)
 	ALTROMPN(224, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x20c2cbb6, 0xb83d7406, 0x6c335a77, 0x0acb30d6, 0xff79a00f, 0x629a6953)
+	{ _T("Xetec FastTrak"), 1, 42, 1, 42, _T("FASTTRACK\0"), 32768, 227, 0, 0, ROMTYPE_FASTTRAK, 0, 0, NULL,
+	0xc5ae45d4, 0x8d682bc1,0x72bd2d35,0x4ba2db5c,0x9f6745a4,0x8937782c, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

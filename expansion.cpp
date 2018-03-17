@@ -5162,6 +5162,13 @@ const struct expansionromtype expansionroms[] = {
 		{ 0xc1, 0x04, 0x00, 0x00, 0x07, 0xf2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 	},
 	{
+		_T("fasttrak"), _T("FastTrak"), _T("Xetec"),
+		NULL, fasttrak_init, NULL, fasttrak_add_scsi_unit, ROMTYPE_FASTTRAK, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI,
+		2022, 2, 0
+	},
+	{
 		_T("amax"), _T("AMAX ROM dongle"), _T("ReadySoft"),
 		NULL, NULL, NULL, NULL, ROMTYPE_AMAX | ROMTYPE_NONE, 0, 0, 0, false
 	},
