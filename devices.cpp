@@ -324,6 +324,7 @@ void reset_all_systems (void)
 	native2amiga_reset ();
 	dongle_reset ();
 	sampler_init ();
+	device_func_reset();
 	uae_int_requested = 0;
 }
 
@@ -390,7 +391,7 @@ void do_leave_program (void)
 #endif
 	gayle_free ();
 	idecontroller_free();
-	device_func_reset ();
+	device_func_free();
 #ifdef WITH_LUA
 	uae_lua_free ();
 #endif

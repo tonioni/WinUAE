@@ -160,6 +160,7 @@ struct device_functions {
 };
 
 extern int device_func_init(int flags);
+extern void device_func_free(void);
 extern void device_func_reset(void);
 extern int sys_command_open (int unitnum);
 extern int sys_command_open_tape (int unitnum, const TCHAR *tape_directory, bool readonly);
