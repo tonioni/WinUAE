@@ -3676,6 +3676,7 @@ int handle_custom_event (const TCHAR *custom, int append)
 	bool noquot = false;
 	bool first = true;
 	int adddelay = 0;
+	bool maybe_config_changed = false;
 
 	if (custom == NULL) {
 		return 0;
@@ -3766,10 +3767,11 @@ int handle_custom_event (const TCHAR *custom, int append)
 		if (first) {
 			first = false;
 			if (!append)
-				set_config_changed ();
+				maybe_config_changed = true;
 		}
 		if (!_tcsicmp (p, _T("no_config_check"))) {
 			config_changed = 0;
+			maybe_config_changed = false;
 		} else if (!_tcsicmp (p, _T("do_config_check"))) {
 			set_config_changed ();
 		} else if (!_tcsnicmp(p, _T("shellexec "), 10)) {
@@ -3803,6 +3805,8 @@ int handle_custom_event (const TCHAR *custom, int append)
 			break;
 		p = nextp;
 	}
+	if (maybe_config_changed)
+		set_config_changed();
 	xfree (buf);
 	return 0;
 }

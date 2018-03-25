@@ -6020,6 +6020,7 @@ static bool createconfigstore (struct uae_prefs *p)
 	cfgfile_save_options (configstore, p, 0);
 	uaeconfig--;
 	zfile_fwrite (zeros, 1, sizeof zeros, configstore);
+	zfile_truncate(configstore, zfile_ftell(configstore));
 	zfile_fseek (configstore, 0, SEEK_SET);
 	return true;
 }
@@ -6876,8 +6877,14 @@ int cfgfile_searchconfig(const TCHAR *in, int index, TCHAR *out, int outsize)
 	if (!configstore)
 		return 20;
 
-	if (index < 0)
+	if (index < 0) {
+		index = 0;
 		zfile_fseek(configstore, 0, SEEK_SET);
+	} else {
+		// if seek position==0: configstore was reset, always start from the beginning.
+		if (zfile_ftell(configstore) > 0)
+			index = 0;
+	}
 
 	tmp[0] = 0;
 	for (;;) {
@@ -6899,23 +6906,27 @@ int cfgfile_searchconfig(const TCHAR *in, int index, TCHAR *out, int outsize)
 		}
 		if (b == '\n') {
 			if (!_tcsncmp (tmp, in, inlen) && ((inlen > 0 && _tcslen (tmp) > inlen && tmp[inlen] == '=') || (joker))) {
-				TCHAR *p;
-				if (joker)
-					p = tmp - 1;
-				else
-					p = _tcschr (tmp, '=');
-				if (p) {
-					for (int i = 0; out && i < outsize - 1; i++) {
-						TCHAR b = *++p;
-						out[i] = b;
-						out[i + 1] = 0;
-						if (!b)
-							break;
+				if (index <= 0) {
+					TCHAR *p;
+					if (joker)
+						p = tmp - 1;
+					else
+						p = _tcschr(tmp, '=');
+					if (p) {
+						for (int i = 0; out && i < outsize - 1; i++) {
+							TCHAR b = *++p;
+							out[i] = b;
+							out[i + 1] = 0;
+							if (!b)
+								break;
+						}
 					}
+					err = 0xffffffff;
+					configsearchfound = true;
+					goto end;
+				} else {
+					index--;
 				}
-				err = 0xffffffff;
-				configsearchfound = true;
-				goto end;
 			}
 			j = 0;
 		} else {
@@ -8559,7 +8570,7 @@ void set_config_changed (void)
 void config_check_vsync (void)
 {
 	if (config_changed) {
-#ifdef WITH_LUA
+#if 0
 		if (config_changed == 1) {
 			createconfigstore (&currprefs);
 			uae_lua_run_handler ("on_uae_config_changed");
