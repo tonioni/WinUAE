@@ -346,12 +346,22 @@ uae_u32 mem_access_delay_longi_read_c040 (uaecptr addr);
 
 extern uae_u32(REGPARAM3 *x_cp_get_disp_ea_020)(uae_u32 base, int idx) REGPARAM;
 
+extern bool debugmem_trace;
+extern void branch_stack_push(uaecptr, uaecptr);
+extern void branch_stack_pop_rte(uaecptr);
+extern void branch_stack_pop_rts(uaecptr);
+
 /* direct (regs.pc_p) access */
 
 STATIC_INLINE void m68k_setpc(uaecptr newpc)
 {
 	regs.pc_p = regs.pc_oldp = get_real_address(newpc);
 	regs.instruction_pc = regs.pc = newpc;
+}
+STATIC_INLINE void m68k_setpc_j(uaecptr newpc)
+{
+	regs.pc_p = regs.pc_oldp = get_real_address(newpc);
+	regs.pc = newpc;
 }
 STATIC_INLINE uaecptr m68k_getpc(void)
 {
@@ -410,6 +420,10 @@ STATIC_INLINE void m68k_do_rts(void)
 STATIC_INLINE void m68k_setpci(uaecptr newpc)
 {
 	regs.instruction_pc = regs.pc = newpc;
+}
+STATIC_INLINE void m68k_setpci_j(uaecptr newpc)
+{
+	regs.pc = newpc;
 }
 STATIC_INLINE uaecptr m68k_getpci(void)
 {
@@ -605,10 +619,10 @@ extern uae_u32 REGPARAM3 get_disp_ea_020 (uae_u32 base, int idx) REGPARAM;
 extern uae_u32 REGPARAM3 get_bitfield (uae_u32 src, uae_u32 bdata[2], uae_s32 offset, int width) REGPARAM;
 extern void REGPARAM3 put_bitfield (uae_u32 dst, uae_u32 bdata[2], uae_u32 val, uae_s32 offset, int width) REGPARAM;
 
-extern void m68k_disasm_ea (uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr);
-extern void m68k_disasm (uaecptr addr, uaecptr *nextpc, int cnt);
-extern void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr, int safemode);
-extern void sm68k_disasm (TCHAR*, TCHAR*, uaecptr addr, uaecptr *nextpc);
+extern void m68k_disasm_ea (uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr, uaecptr lastpc);
+extern void m68k_disasm (uaecptr addr, uaecptr *nextpc, uaecptr lastpc, int cnt);
+extern void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr, uaecptr lastpc, int safemode);
+extern void sm68k_disasm (TCHAR*, TCHAR*, uaecptr addr, uaecptr *nextpc, uaecptr lastpc);
 extern int m68k_asm(TCHAR *buf, uae_u16 *out, uaecptr pc);
 extern int get_cpu_model (void);
 
@@ -632,8 +646,7 @@ extern bool m68k_divl (uae_u32, uae_u32, uae_u16);
 extern bool m68k_mull (uae_u32, uae_u32, uae_u16);
 extern void init_m68k (void);
 extern void m68k_go (int);
-extern void m68k_dumpstate (uaecptr *);
-extern void m68k_dumpstate (uaecptr, uaecptr *);
+extern void m68k_dumpstate(uaecptr *, uaecptr);
 extern void m68k_dumpcache (bool);
 extern int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor);
 extern int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor);

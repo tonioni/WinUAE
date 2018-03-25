@@ -6807,7 +6807,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 					int got = 0;
 					uaecptr opc = m68k_getpc ();
 					void *ps = get_real_address (0);
-					m68k_dumpstate (0);
+					m68k_dumpstate(NULL, 0xffffffff);
 					efix (&ctx->Eax, p, ps, &got);
 					efix (&ctx->Ebx, p, ps, &got);
 					efix (&ctx->Ecx, p, ps, &got);

@@ -336,7 +336,7 @@ static void enforcer_display_hit (const TCHAR *addressmode, uae_u32 pc, uaecptr 
 		if (bestpc_idxs[i] == -1) {
 			for (j = 0; j < 5; j++) {
 				pospc -= 2;
-				sm68k_disasm (buf, NULL, pospc, &nextpc);
+				sm68k_disasm (buf, NULL, pospc, &nextpc, 0xffffffff);
 				if (nextpc == temppc) {
 					bestpc_idxs[i] = j;
 					bestpc_array[i][j] = bestpc = pospc;
@@ -383,7 +383,7 @@ static void enforcer_display_hit (const TCHAR *addressmode, uae_u32 pc, uaecptr 
 			continue;
 		}
 
-		sm68k_disasm (buf, instrcode, bestpc, NULL);
+		sm68k_disasm (buf, instrcode, bestpc, NULL, 0xffffffff);
 		_stprintf (lines[i], _T("%08x :   %-20s %s\n"), bestpc, instrcode, buf);
 		temppc = bestpc;
 	}
@@ -397,7 +397,7 @@ static void enforcer_display_hit (const TCHAR *addressmode, uae_u32 pc, uaecptr 
 	/* Now the instruction after the pc including the pc */
 	temppc = pc;
 	for (i = 0; i < (INSTRUCTIONLINES + 1) / 2; i++) {
-		sm68k_disasm (buf, instrcode, temppc, &nextpc);
+		sm68k_disasm (buf, instrcode, temppc, &nextpc, 0xffffffff);
 		_stprintf (enforcer_buf_ptr, _T("%08x : %s %-20s %s\n"), temppc,
 			(i == 0 ? _T("*") : _T(" ")), instrcode, buf);
 		enforcer_buf_ptr += _tcslen (enforcer_buf_ptr);

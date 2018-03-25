@@ -65,6 +65,7 @@
 #include "cpuboard.h"
 #include "rommgr.h"
 #include "debug.h"
+#include "debugmem.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -8914,6 +8915,43 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *ctx)
 	} else if (mode == 102) {
 		uaecptr ret = consolehook_beginio(ctx, trap_get_areg(ctx, 1));
 		trap_put_long(ctx, trap_get_areg(ctx, 7) + 4 * 4, ret);
+	} else if (mode == 200) {
+		uae_u32 v;
+		// a0 = data, d0 = length, a1 = task, d2 = stack size (in), stack ptr (out)
+		uae_u32 stack = trap_get_dreg(ctx, 2);
+		v = debugmem_reloc(trap_get_areg(ctx, 0), trap_get_dreg(ctx, 0), trap_get_areg(ctx, 1), &stack);
+		trap_set_dreg(ctx, 2, stack);
+		return v;
+	} else if (mode == 201) {
+		debugmem_break(8);
+		return 1;
+	} else if (mode == 202) {
+		// a0 = segment, a1 = name, d2 = lock
+		debugmem_addsegs(ctx, trap_get_areg(ctx, 0), trap_get_areg(ctx, 1), trap_get_dreg(ctx, 2));
+		return 1;
+	} else if (mode == 203) {
+		debugmem_remsegs(trap_get_areg(ctx, 0));
+		return 1;
+	} else if (mode == 204 || mode == 206) {
+		// d0 = size, a1 = flags
+		uae_u32 v = debugmem_allocmem(mode == 206, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 1), trap_get_areg(ctx, 0));
+		if (v) {
+			trap_set_areg(ctx, 0, v);
+			return v;
+		} else {
+			trap_set_areg(ctx, 0, 0);
+			return trap_get_dreg(ctx, 0);
+		}
+	} else if (mode == 205 || mode == 207) {
+		return debugmem_freemem(mode == 207, trap_get_areg(ctx, 1), trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0));
+	} else if (mode == 208) {
+		// enable segtrack: bit 0 set
+		return currprefs.debugging_features ? 1 : 0;
+	} else if (mode == 209) {
+		// called if segtrack was enabled
+		return 0;
+	} else if (mode == 299) {
+		return debugmem_exit();
 	} else {
 		write_log (_T("Unknown mousehack hook %d\n"), mode);
 	}
@@ -9075,7 +9113,7 @@ void filesys_install (void)
 	dw (RTS);
 
 	org (rtarea_base + 0xFF38);
-	calltrap (deftrap2 (mousehack_done, 0, _T("mousehack_done")));
+	calltrap (deftrapres(mousehack_done, 0, _T("misc_funcs")));
 	dw (RTS);
 
 	org (rtarea_base + 0xFF40);

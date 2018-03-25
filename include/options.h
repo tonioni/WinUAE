@@ -442,6 +442,7 @@ struct uae_prefs {
 	bool socket_emu;
 
 	bool start_debugger;
+	bool debugging_features;
 	bool start_gui;
 
 	KbdLang keyboard_lang;
@@ -685,6 +686,8 @@ struct uae_prefs {
 	uae_u32 mbresmem_low_size;
 	uae_u32 mbresmem_high_size;
 	uae_u32 mem25bit_size;
+	uae_u32 debugmem_start;
+	uae_u32 debugmem_size;
 	int cpuboard_type;
 	int cpuboard_subtype;
 	int cpuboard_settings;

@@ -4977,7 +4977,9 @@ static void immediate_copper (int num)
 			pos = oldpos;
 		if (!dmaen(DMA_COPPER))
 			break;
-		if (cop_state.ip >= currprefs.chipmem_size && (cop_state.ip < currprefs.z3chipmem_start || cop_state.ip >= currprefs.z3chipmem_start + currprefs.z3chipmem_size))
+		if (cop_state.ip >= currprefs.chipmem_size &&
+			(cop_state.ip < currprefs.z3chipmem_start || cop_state.ip >= currprefs.z3chipmem_start + currprefs.z3chipmem_size) &&
+			(cop_state.ip < debugmem_bank.start || cop_state.ip >= debugmem_bank.start + debugmem_bank.allocated_size))
 			break;
 		pos++;
 		oldpos = pos;

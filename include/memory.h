@@ -189,6 +189,26 @@ struct autoconfig_info
 #define CE_MEMBANK_FAST16 4
 //#define CE_MEMBANK_FAST16_EXTRA_ACCURACY 5
 
+#define MEMORY_LGETI(name) \
+static uae_u32 REGPARAM3 name ## _lgeti (uaecptr) REGPARAM; \
+static uae_u32 REGPARAM2 name ## _lgeti (uaecptr addr) \
+{ \
+	uae_u8 *m; \
+	addr -= name ## _bank.start & name ## _bank.mask; \
+	addr &= name ## _bank.mask; \
+	m = name ## _bank.baseaddr + addr; \
+	return do_get_mem_long ((uae_u32 *)m); \
+}
+#define MEMORY_WGETI(name) \
+static uae_u32 REGPARAM3 name ## _wgeti (uaecptr) REGPARAM; \
+static uae_u32 REGPARAM2 name ## _wgeti (uaecptr addr) \
+{ \
+	uae_u8 *m; \
+	addr -= name ## _bank.start & name ## _bank.mask; \
+	addr &= name ## _bank.mask; \
+	m = name ## _bank.baseaddr + addr; \
+	return do_get_mem_word ((uae_u16 *)m); \
+}
 #define MEMORY_LGET(name) \
 static uae_u32 REGPARAM3 name ## _lget (uaecptr) REGPARAM; \
 static uae_u32 REGPARAM2 name ## _lget (uaecptr addr) \
@@ -404,6 +424,7 @@ extern addrbank bogomem_bank;
 extern addrbank z3fastmem_bank[MAX_RAM_BOARDS];
 extern addrbank z3chipmem_bank;
 extern addrbank mem25bit_bank;
+extern addrbank debugmem_bank;
 extern addrbank a3000lmem_bank;
 extern addrbank a3000hmem_bank;
 extern addrbank extendedkickmem_bank;
@@ -496,6 +517,7 @@ extern void free_fastmemory (int);
 extern void set_roms_modified (void);
 extern void reload_roms(void);
 extern bool read_kickstart_version(struct uae_prefs *p);
+extern void chipmem_setindirect(void);
 
 #define longget(addr) (call_mem_get_func(get_mem_bank(addr).lget, addr))
 #define wordget(addr) (call_mem_get_func(get_mem_bank(addr).wget, addr))

@@ -15,7 +15,7 @@
 #ifdef DEBUGGER
 
 #define	MAX_HIST 500
-#define MAX_LINEWIDTH 150
+#define MAX_LINEWIDTH 10000
 
 extern int debugging;
 extern int memwatch_enabled;
@@ -30,7 +30,8 @@ extern uae_u64 debug_illegal_mask;
 
 extern void debug (void);
 extern void debugger_change (int mode);
-extern void activate_debugger (void);
+extern void activate_debugger(void);
+extern void activate_debugger_new(void);
 extern void deactivate_debugger (void);
 extern int notinrom (void);
 extern const TCHAR *debuginfo (int);
