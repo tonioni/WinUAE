@@ -26,6 +26,7 @@ struct wd_chip_state {
 	struct scsi_data *scsi;
 	int wd33c93_ver;// 0 or 1
 	bool resetnodelay;
+	bool resetnodelay_active;
 };
 
 #define COMMODORE_8727 0
@@ -64,7 +65,7 @@ struct gvp_dmac
 	uae_u16 cntr;
 	uae_u32 addr;
 	uae_u16 len;
-	uae_u16 bank;
+	uae_u8 bank;
 	int dma_on;
 	uae_u8 version;
 	bool use_version;
@@ -75,6 +76,7 @@ struct gvp_dmac
 	int s1_rammask;
 	uae_u8 *buffer;
 	int bufoffset;
+	uae_u8 *bank_ptr;
 };
 
 struct comspec_chip

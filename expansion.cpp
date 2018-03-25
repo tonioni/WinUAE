@@ -4808,7 +4808,7 @@ const struct expansionromtype expansionroms[] = {
 		false, 0, comspec_settings
 	},
 	{
-		_T("rapidfire"), _T("RapidFire"), _T("DKB"),
+		_T("rapidfire"), _T("RapidFire/SpitFire"), _T("DKB"),
 		NULL, ncr_rapidfire_init, NULL, rapidfire_add_scsi_unit, ROMTYPE_RAPIDFIRE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
@@ -5530,6 +5530,22 @@ static const struct expansionboardsettings blizzardboard_settings_mk2[] = {
 	}
 };
 
+static const struct expansionboardsettings gvpa1230s2_settings[] = {
+	{
+		_T("Board disable (J5)"),
+		_T("disabled")
+	},
+	{
+		_T("SCSI Disable (J6)"),
+		_T("scsidisabled")
+	},
+	{
+		NULL
+	}
+};
+
+
+
 static const struct cpuboardsubtype gvpboard_sub[] = {
 	{
 		_T("A3001 Series I"),
@@ -5580,6 +5596,18 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 		tekmagic_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024
+	},
+	{
+		_T("A1230 Turbo+ Series II"),
+		_T("A1230SII"),
+		ROMTYPE_CB_A1230S2, 0,
+		gvp_s2_add_accelerator_scsi_unit, EXPANSIONTYPE_SCSI,
+		BOARD_MEMORY_25BITMEM,
+		128 * 1024 * 1024,
+		0,
+		gvp_init_accelerator, NULL, BOARD_AUTOCONFIG_Z2, 1,
+		gvpa1230s2_settings, NULL,
+		2017, 9, 0, false
 	},
 	{
 		NULL
@@ -5690,7 +5718,7 @@ static const struct cpuboardsubtype cyberstormboard_sub[] = {
 		NULL
 	}
 };
-static const struct cpuboardsubtype warpengine_sub[] = {
+static const struct cpuboardsubtype macrosystem_sub[] = {
 	{
 		_T("Warp Engine A4000"),
 		_T("WarpEngineA4000"),
@@ -5701,6 +5729,14 @@ static const struct cpuboardsubtype warpengine_sub[] = {
 		0x01000000,
 		ncr710_warpengine_autoconfig_init, NULL, BOARD_AUTOCONFIG_Z3, 1,
 		warpengine_settings
+	},
+	{
+		_T("Falcon 040"),
+		_T("Falcon040"),
+		ROMTYPE_CB_FALCON40, 0,
+		NULL, 0,
+		0,
+		128 * 1024 * 1024,
 	},
 	{
 		NULL
@@ -5831,6 +5867,20 @@ static const struct cpuboardsubtype dbk_sub[] = {
 		NULL
 	}
 };
+static const struct cpuboardsubtype hardital_sub[] = {
+	{
+		_T("TQM"),
+		_T("tqm"),
+		ROMTYPE_CB_TQM, 0,
+		NULL, 0,
+		BOARD_MEMORY_HIGHMEM,
+		128 * 1024 * 1024,
+	},
+	{
+		NULL
+	}
+};
+
 static const struct cpuboardsubtype fusionforty_sub[] = {
 	{
 		_T("Fusion Forty"),
@@ -6015,7 +6065,7 @@ const struct cpuboardtype cpuboards[] = {
 	{
 		BOARD_MACROSYSTEM,
 		_T("MacroSystem"),
-		warpengine_sub, 0
+		macrosystem_sub, 0
 	},
 	{
 		BOARD_MTEC,
@@ -6051,6 +6101,11 @@ const struct cpuboardtype cpuboards[] = {
 		BOARD_CSA,
 		_T("Computer System Associates"),
 		csa_sub, 0
+	},
+	{
+		BOARD_HARDITAL,
+		_T("Hardital"),
+		hardital_sub, 0
 	},
 	{
 		NULL

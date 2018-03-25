@@ -66,11 +66,13 @@ void blizzardppc_irq_setonly(int id, int level);
 #define BOARD_GVP_SUB_A530 2
 #define BOARD_GVP_SUB_GFORCE030 3
 #define BOARD_GVP_SUB_TEKMAGIC 4
+#define BOARD_GVP_SUB_A1230SII 5
 
 #define BOARD_KUPKE 6
 
 #define BOARD_MACROSYSTEM 7
 #define BOARD_MACROSYSTEM_SUB_WARPENGINE_A4000 0
+#define BOARD_MACROSYSTEM_SUB_FALCON040 1
 
 #define BOARD_MTEC 8
 #define BOARD_MTEC_SUB_EMATRIX530 0
@@ -93,12 +95,15 @@ void blizzardppc_irq_setonly(int id, int level);
 #define BOARD_RCS_SUB_FUSIONFORTY 0
 
 #define BOARD_IVS 12
-#define BOARD_IVS_VECTOR 0
+#define BOARD_IVS_SUB_VECTOR 0
 
 #define BOARD_PPS 13
-#define BOARD_PPS_ZEUS040 0
+#define BOARD_PPS_SUB_ZEUS040 0
 
 #define BOARD_CSA 14
-#define BOARD_CSA_MAGNUM40 0
+#define BOARD_CSA_SUB_MAGNUM40 0
+
+#define BOARD_HARDITAL 15
+#define BOARD_HARDITAL_SUB_TQM 0
 
 #endif /* UAE_CPUBOARD_H */
