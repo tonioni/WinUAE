@@ -611,7 +611,8 @@ static void get_usedblocks(struct fs_usage *fsu, bool fs, int *pblocksize, uae_s
 		numblocks = fsu->total / blocksize;
 		if (numblocks <= 10)
 			numblocks = 10;
-		if (numblocks <= 0x7fffffff)
+		// Value that does not overflow when multiplied by 100 (uses 128 to keep it simple)
+		if (numblocks < 0x02000000)
 			break;
 		blocksize *= 2;
 	}
