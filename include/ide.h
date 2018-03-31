@@ -99,6 +99,7 @@ struct ide_hdf
 	int ide_drv;
 	int media_type;
 	bool mode_8bit;
+	int uae_unitnum;
 
 	bool atapi;
 	bool atapi_drdy;

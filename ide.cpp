@@ -1023,7 +1023,7 @@ static void ide_read_sectors (struct ide_hdf *ide, int flags)
 		return;
 	}
 	check_maxtransfer (ide, 1);
-	gui_flicker_led (LED_HD, ide->num, 1);
+	gui_flicker_led (LED_HD, ide->uae_unitnum, 1);
 	nsec = get_nsec (ide);
 	get_lbachs (ide, &lba, &cyl, &head, &sec);
 	if (lba >= ide->max_lba) {
@@ -1061,7 +1061,7 @@ static void ide_write_sectors (struct ide_hdf *ide, int flags)
 		return;
 	}
 	check_maxtransfer (ide, 1);
-	gui_flicker_led (LED_HD, ide->num, 2);
+	gui_flicker_led (LED_HD, ide->uae_unitnum, 2);
 	nsec = get_nsec (ide);
 	get_lbachs (ide, &lba, &cyl, &head, &sec);
 	if (lba >= ide->max_lba) {
@@ -1093,7 +1093,7 @@ static void ide_format_track(struct ide_hdf *ide)
 	unsigned int cyl, head, sec;
 	uae_u64 lba;
 
-	gui_flicker_led(LED_HD, ide->num, 2);
+	gui_flicker_led(LED_HD, ide->uae_unitnum, 2);
 	cyl = (ide->regs.ide_hcyl << 8) | ide->regs.ide_lcyl;
 	head = ide->regs.ide_select & 15;
 	sec = ide->regs.ide_nsector;
@@ -1131,7 +1131,7 @@ static void ide_do_command (struct ide_hdf *ide, uae_u8 cmd)
 	if (ide->atapi) {
 
 		if (ide->scsi->device_type == UAEDEV_CD) {
-			gui_flicker_led(LED_CD, ide->num, 1);
+			gui_flicker_led(LED_CD, ide->uae_unitnum, 1);
 		}
 		ide->atapi_drdy = true;
 		if (cmd == 0x00) { /* nop */
@@ -1618,7 +1618,7 @@ struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct
 	if (ci->type == UAEDEV_CD && ci->device_emu_unit >= 0) {
 
 		device_func_init(0);
-		ide->scsi = scsi_alloc_cd(ch, ci->device_emu_unit, true);
+		ide->scsi = scsi_alloc_cd(ch, ci->device_emu_unit, true, ci->uae_unitnum);
 		if (!ide->scsi) {
 			write_log(_T("IDE: CD EMU unit %d failed to open\n"), ide->cd_unit_num);
 			return NULL;
@@ -1628,13 +1628,14 @@ struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct
 		ide->cd_unit_num = ci->device_emu_unit;
 		ide->atapi = true;
 		ide->blocksize = 512;
-		gui_flicker_led(LED_CD, ch, -1);
+		ide->uae_unitnum = ci->uae_unitnum;
+		gui_flicker_led(LED_CD, ci->uae_unitnum, -1);
 
 		write_log(_T("IDE%d CD %d\n"), ch, ide->cd_unit_num);
 
 	} else if (ci->type == UAEDEV_TAPE) {
 
-		ide->scsi = scsi_alloc_tape(ch, ci->rootdir, ci->readonly);
+		ide->scsi = scsi_alloc_tape(ch, ci->rootdir, ci->readonly, ci->uae_unitnum);
 		if (!ide->scsi) {
 			write_log(_T("IDE: TAPE EMU unit %d failed to open\n"), ch);
 			return NULL;
@@ -1644,6 +1645,7 @@ struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct
 		ide->atapi = true;
 		ide->blocksize = 512;
 		ide->cd_unit_num = -1;
+		ide->uae_unitnum = ci->uae_unitnum;
 
 		write_log(_T("IDE%d TAPE %d\n"), ch, ide->cd_unit_num);
 
@@ -1658,7 +1660,8 @@ struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct
 		ide->max_lba = ide->hdhfd.size / ide->blocksize;
 		ide->lba48 = (ide->hdhfd.hfd.ci.unit_special_flags & 1) || ide->hdhfd.size >= 128 * (uae_u64)0x40000000 ? 1 : 0;
 		ide->lba = true;
-		gui_flicker_led (LED_HD, ch, -1);
+		ide->uae_unitnum = ci->uae_unitnum;
+		gui_flicker_led (LED_HD, ide->uae_unitnum, -1);
 		ide->cd_unit_num = -1;
 		ide->media_type = ci->controller_media_type;
 		ide->ata_level = ci->unit_feature_level;

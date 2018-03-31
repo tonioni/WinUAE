@@ -673,7 +673,7 @@ int32_t scsiesp_req_enqueue(SCSIRequest *req)
 	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
 
 	if (sd->device_type == UAEDEV_CD)
-		gui_flicker_led (LED_CD, sd->id, 1);
+		gui_flicker_led (LED_CD, sd->uae_unitnum, 1);
 
 	sd->data_len = 0;
 	scsi_start_transfer(sd);
@@ -2210,15 +2210,16 @@ void ncr9x_init(void)
 {
 }
 
-static void allocscsidevice(struct ncr9x_state *ncr, int ch, struct scsi_data *handle)
+static void allocscsidevice(struct ncr9x_state *ncr, int ch, struct scsi_data *handle, int uae_unitnum)
 {
 	handle->privdata = ncr;
 	ncr->scsid[ch] = xcalloc (SCSIDevice, 1);
 	ncr->scsid[ch]->id = ch;
 	ncr->scsid[ch]->handle = handle;
+	handle->uae_unitnum = uae_unitnum;
 }
 
-static void add_ncr_scsi_hd(struct ncr9x_state *ncr, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci)
+static void add_ncr_scsi_hd(struct ncr9x_state *ncr, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int uae_unitnum)
 {
 	struct scsi_data *handle = NULL;
 
@@ -2226,11 +2227,11 @@ static void add_ncr_scsi_hd(struct ncr9x_state *ncr, int ch, struct hd_hardfiled
 	ncr->scsid[ch] = NULL;
 	if (!add_scsi_hd(&handle, ch, hfd, ci))
 		return;
-	allocscsidevice(ncr, ch, handle);
+	allocscsidevice(ncr, ch, handle, uae_unitnum);
 	ncr->enabled = true;
 }
 
-static void add_ncr_scsi_cd(struct ncr9x_state *ncr, int ch, int unitnum)
+static void add_ncr_scsi_cd(struct ncr9x_state *ncr, int ch, int unitnum, int uae_unitnum)
 {
 	struct scsi_data *handle = NULL;
 
@@ -2238,11 +2239,11 @@ static void add_ncr_scsi_cd(struct ncr9x_state *ncr, int ch, int unitnum)
 	ncr->scsid[ch] = NULL;
 	if (!add_scsi_cd(&handle, ch, unitnum))
 		return;
-	allocscsidevice(ncr, ch, handle);
+	allocscsidevice(ncr, ch, handle, uae_unitnum);
 	ncr->enabled = true;
 }
 
-static void add_ncr_scsi_tape(struct ncr9x_state *ncr, int ch, const TCHAR *tape_directory, bool readonly)
+static void add_ncr_scsi_tape(struct ncr9x_state *ncr, int ch, const TCHAR *tape_directory, bool readonly, int uae_unitnum)
 {
 	struct scsi_data *handle = NULL;
 
@@ -2250,7 +2251,7 @@ static void add_ncr_scsi_tape(struct ncr9x_state *ncr, int ch, const TCHAR *tape
 	ncr->scsid[ch] = NULL;
 	if (!add_scsi_tape(&handle, ch, tape_directory, readonly))
 		return;
-	allocscsidevice(ncr, ch, handle);
+	allocscsidevice(ncr, ch, handle, uae_unitnum);
 	ncr->enabled = true;
 }
 
@@ -2259,11 +2260,11 @@ static void ncr9x_add_scsi_unit(struct ncr9x_state **ncrp, int ch, struct uaedev
 	struct ncr9x_state *ncr = allocscsi(ncrp, rc, ch);
 	if (ch >= 0 && ncr) {
 		if (ci->type == UAEDEV_CD)
-			add_ncr_scsi_cd (ncr, ch, ci->device_emu_unit);
+			add_ncr_scsi_cd (ncr, ch, ci->device_emu_unit, ci->uae_unitnum);
 		else if (ci->type == UAEDEV_TAPE)
-			add_ncr_scsi_tape (ncr, ch, ci->rootdir, ci->readonly);
+			add_ncr_scsi_tape (ncr, ch, ci->rootdir, ci->readonly, ci->uae_unitnum);
 		else if (ci->type == UAEDEV_HDF)
-			add_ncr_scsi_hd (ncr, ch, NULL, ci);
+			add_ncr_scsi_hd (ncr, ch, NULL, ci, ci->uae_unitnum);
 	}
 }
 

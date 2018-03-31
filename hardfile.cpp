@@ -534,6 +534,7 @@ int hdf_hd_open (struct hd_hardfiledata *hfd)
 	struct uaedev_config_info *ci = &hfd->hfd.ci;
 	if (hdf_open (&hfd->hfd) <= 0)
 		return 0;
+	hfd->hfd.unitnum = ci->uae_unitnum;
 	if (ci->physical_geometry) {
 		hfd->cyls = ci->pcyls;
 		hfd->heads = ci->pheads;
@@ -2450,7 +2451,7 @@ static uae_u32 REGPARAM2 hardfile_open (TrapContext *ctx)
 					trap_put_byte(ctx, ioreq + 31, 0); /* io_Error */
 					trap_put_byte(ctx, ioreq + 8, 7); /* ln_type = NT_REPLYMSG */
 					if (!hfpd->sd)
-						hfpd->sd = scsi_alloc_generic(hfd, UAEDEV_DIR);
+						hfpd->sd = scsi_alloc_generic(hfd, UAEDEV_DIR, unit);
 					hf_log(_T("virtual hardfile_open, unit %d (%d), OK\n"), unit, trap_get_dreg(ctx, 0));
 					return 0;
 				}
@@ -2462,7 +2463,7 @@ static uae_u32 REGPARAM2 hardfile_open (TrapContext *ctx)
 					trap_put_byte(ctx, ioreq + 31, 0); /* io_Error */
 					trap_put_byte(ctx, ioreq + 8, 7); /* ln_type = NT_REPLYMSG */
 					if (!hfpd->sd)
-						hfpd->sd = scsi_alloc_generic(hfd, UAEDEV_HDF);
+						hfpd->sd = scsi_alloc_generic(hfd, UAEDEV_HDF, unit);
 					hf_log(_T("hardfile_open, unit %d (%d), OK\n"), unit, trap_get_dreg(ctx, 0));
 					return 0;
 				}

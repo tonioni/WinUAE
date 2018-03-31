@@ -1562,7 +1562,7 @@ static bool ishd(int n)
 	} else if (uci->ci.controller_type >= HD_CONTROLLER_TYPE_SCSI_FIRST && uci->ci.controller_type <= HD_CONTROLLER_TYPE_SCSI_LAST) {
 		num = uci->ci.controller_unit;
 	}
-	return num >= 0;
+	return num >= 0 && uci->ci.type == UAEDEV_HDF;
 }
 
 void rp_fixup_options (struct uae_prefs *p)
@@ -1662,6 +1662,8 @@ void rp_fixup_options (struct uae_prefs *p)
 	for (i = 0; i <= 4; i++)
 		rp_update_leds (i, 0, -1, 0);
 	set_config_changed ();
+
+	write_log(_T("rp_fixup_options end\n"));
 }
 
 static void rp_device_writeprotect (int dev, int num, bool writeprotected)

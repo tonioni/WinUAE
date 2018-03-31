@@ -503,7 +503,7 @@ static void allocscsibuf(struct scsi_data *sd)
 	sd->buffer = xcalloc(uae_u8, sd->buffer_size);
 }
 
-struct scsi_data *scsi_alloc_generic(struct hardfiledata *hfd, int type)
+struct scsi_data *scsi_alloc_generic(struct hardfiledata *hfd, int type, int uae_unitnum)
 {
 	struct scsi_data *sd = xcalloc(struct scsi_data, 1);
 	sd->hfd = hfd;
@@ -512,11 +512,12 @@ struct scsi_data *scsi_alloc_generic(struct hardfiledata *hfd, int type)
 	sd->cd_emu_unit = -1;
 	sd->blocksize = hfd->ci.blocksize;
 	sd->device_type = type;
+	sd->uae_unitnum = uae_unitnum;
 	allocscsibuf(sd);
 	return sd;
 }
 
-struct scsi_data *scsi_alloc_hd(int id, struct hd_hardfiledata *hfd)
+struct scsi_data *scsi_alloc_hd(int id, struct hd_hardfiledata *hfd, int uae_unitnum)
 {
 	struct scsi_data *sd = xcalloc (struct scsi_data, 1);
 	sd->hdhfd = hfd;
@@ -526,11 +527,12 @@ struct scsi_data *scsi_alloc_hd(int id, struct hd_hardfiledata *hfd)
 	sd->cd_emu_unit = -1;
 	sd->blocksize = hfd->hfd.ci.blocksize;
 	sd->device_type = UAEDEV_HDF;
+	sd->uae_unitnum = uae_unitnum;
 	allocscsibuf(sd);
 	return sd;
 }
 
-struct scsi_data *scsi_alloc_cd(int id, int unitnum, bool atapi)
+struct scsi_data *scsi_alloc_cd(int id, int unitnum, bool atapi, int uae_unitnum)
 {
 	struct scsi_data *sd;
 	if (!sys_command_open (unitnum)) {
@@ -544,11 +546,12 @@ struct scsi_data *scsi_alloc_cd(int id, int unitnum, bool atapi)
 	sd->atapi = atapi;
 	sd->blocksize = 2048;
 	sd->device_type = UAEDEV_CD;
+	sd->uae_unitnum = uae_unitnum;
 	allocscsibuf(sd);
 	return sd;
 }
 
-struct scsi_data *scsi_alloc_tape(int id, const TCHAR *tape_directory, bool readonly)
+struct scsi_data *scsi_alloc_tape(int id, const TCHAR *tape_directory, bool readonly, int uae_unitnum)
 {
 	struct scsi_data_tape *tape;
 	tape = tape_alloc (id, tape_directory, readonly);
@@ -561,6 +564,7 @@ struct scsi_data *scsi_alloc_tape(int id, const TCHAR *tape_directory, bool read
 	sd->blocksize = tape->blocksize;
 	sd->tape = tape;
 	sd->device_type = UAEDEV_TAPE;
+	sd->uae_unitnum = uae_unitnum;
 	allocscsibuf(sd);
 	return sd;
 }
@@ -670,7 +674,7 @@ int add_scsi_hd (struct scsi_data **sd, int ch, struct hd_hardfiledata *hfd, str
 	if (!hdf_hd_open (hfd))
 		return 0;
 	hfd->ansi_version = ci->unit_feature_level + 1;
-	*sd = scsi_alloc_hd (ch, hfd);
+	*sd = scsi_alloc_hd (ch, hfd, ci->uae_unitnum);
 	return *sd ? 1 : 0;
 }
 
@@ -678,14 +682,14 @@ int add_scsi_cd (struct scsi_data **sd, int ch, int unitnum)
 {
 	device_func_init (0);
 	free_scsi (*sd);
-	*sd = scsi_alloc_cd (ch, unitnum, false);
+	*sd = scsi_alloc_cd (ch, unitnum, false, unitnum);
 	return *sd ? 1 : 0;
 }
 
 int add_scsi_tape (struct scsi_data **sd, int ch, const TCHAR *tape_directory, bool readonly)
 {
 	free_scsi (*sd);
-	*sd = scsi_alloc_tape (ch, tape_directory, readonly);
+	*sd = scsi_alloc_tape (ch, tape_directory, readonly, ch);
 	return *sd ? 1 : 0;
 }
 

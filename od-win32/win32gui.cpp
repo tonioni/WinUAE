@@ -20926,10 +20926,11 @@ static void gui_flicker_led2 (int led, int unitnum, int status)
 	}
 #ifdef RETROPLATFORM
 	if (unitnum >= 0) {
-		if (led == LED_HD)
-			rp_hd_activity (unitnum, status ? 1 : 0, status == 2 ? 1 : 0);
-		else if (led == LED_CD)
-			rp_cd_activity (unitnum, status);
+		if (led == LED_HD) {
+			rp_hd_activity(unitnum, status ? 1 : 0, status == 2 ? 1 : 0);
+		} else if (led == LED_CD) {
+			rp_cd_activity(unitnum, status);
+		}
 	}
 #endif
 	*p = status;

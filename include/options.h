@@ -228,6 +228,7 @@ struct uaedev_config_info {
 	bool inject_icons;
 	int badblock_num;
 	struct uaedev_badblock badblocks[MAX_UAEDEV_BADBLOCKS];
+	int uae_unitnum; // mountunit nr
 };
 
 struct uaedev_config_data

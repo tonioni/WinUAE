@@ -55,12 +55,13 @@ struct scsi_data
 	int cd_emu_unit;
 	bool atapi;
 	uae_u32 unit_attention;
+	int uae_unitnum;
 };
 
-extern struct scsi_data *scsi_alloc_generic(struct hardfiledata *hfd, int type);
-extern struct scsi_data *scsi_alloc_hd(int, struct hd_hardfiledata*);
-extern struct scsi_data *scsi_alloc_cd(int, int, bool);
-extern struct scsi_data *scsi_alloc_tape(int id, const TCHAR *tape_directory, bool readonly);
+extern struct scsi_data *scsi_alloc_generic(struct hardfiledata *hfd, int type, int);
+extern struct scsi_data *scsi_alloc_hd(int, struct hd_hardfiledata*, int);
+extern struct scsi_data *scsi_alloc_cd(int, int, bool, int);
+extern struct scsi_data *scsi_alloc_tape(int id, const TCHAR *tape_directory, bool readonly, int);
 extern struct scsi_data *scsi_alloc_native(int, int);
 extern void scsi_free(struct scsi_data*);
 extern void scsi_reset(void);

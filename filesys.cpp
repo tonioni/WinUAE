@@ -831,19 +831,23 @@ static int set_filesys_unit (int nr, struct uaedev_config_info *ci)
 
 static int add_filesys_unit (struct uaedev_config_info *ci)
 {
-	int ret;
+	int nr;
 
 	if (nr_units () >= MAX_FILESYSTEM_UNITS)
 		return -1;
 
-	ret = set_filesys_unit_1 (-1, ci);
+	nr = set_filesys_unit_1 (-1, ci);
 #ifdef RETROPLATFORM
-	if (ret >= 0) {
-		rp_hd_device_enable (ret, true);
-		rp_harddrive_image_change (ret, ci->readonly, ci->rootdir);
+	if (nr >= 0) {
+		UnitInfo *ui = &mountinfo.ui[nr];
+		rp_hd_device_enable (nr, true);
+		if (ui->unit_type == UNIT_CDFS)
+			rp_cd_image_change(nr, ci->rootdir);
+		else
+			rp_harddrive_image_change(nr, ci->readonly, ci->rootdir);
 	}
 #endif
-	return ret;
+	return nr;
 }
 
 int kill_filesys_unitconfig (struct uae_prefs *p, int nr)
@@ -1071,6 +1075,7 @@ static void initialize_mountinfo (void)
 		int type = uci->controller_type;
 		int unit = uci->controller_unit;
 		bool added = false;
+		uci->uae_unitnum = nr;
 		if (type == HD_CONTROLLER_TYPE_UAE) {
 			continue;
 		} else if (type != HD_CONTROLLER_TYPE_IDE_AUTO && type >= HD_CONTROLLER_TYPE_IDE_FIRST && type <= HD_CONTROLLER_TYPE_IDE_LAST) {
