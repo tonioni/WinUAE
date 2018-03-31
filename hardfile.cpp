@@ -2217,7 +2217,7 @@ scsi_done:
 	return status;
 }
 
-static int handle_scsi (TrapContext *ctx, uae_u8 *iobuf, uaecptr request, struct hardfiledata *hfd, struct scsi_data *sd)
+static int handle_scsi (TrapContext *ctx, uae_u8 *iobuf, uaecptr request, struct hardfiledata *hfd, struct scsi_data *sd, bool safeonly)
 {
 	int ret = 0;
 
@@ -2250,15 +2250,23 @@ static int handle_scsi (TrapContext *ctx, uae_u8 *iobuf, uaecptr request, struct
 	}
 	scsi_log (_T("\n"));
 
-	scsi_emulate_analyze(sd);
-	scsi_start_transfer(sd);
-	if (sd->direction > 0) {
-		trap_get_bytes(ctx, sd->buffer, scsi_data, sd->data_len);
-		scsi_emulate_cmd(sd);
+	if (safeonly && !scsi_cmd_is_safe(sd->cmd[0])) {
+		sd->status = 2;
+		sd->sense_len = 18;
+		sd->sense[0] = 0x70;
+		sd->sense[2] = 5; /* ILLEGAL REQUEST */
+		sd->sense[12] = 0x30; /* INCOMPATIBLE MEDIUM INSERTED */
 	} else {
-		scsi_emulate_cmd(sd);
-		if (sd->direction < 0)
-			trap_put_bytes(ctx, sd->buffer, scsi_data, sd->data_len);
+		scsi_emulate_analyze(sd);
+		scsi_start_transfer(sd);
+		if (sd->direction > 0) {
+			trap_get_bytes(ctx, sd->buffer, scsi_data, sd->data_len);
+			scsi_emulate_cmd(sd);
+		} else {
+			scsi_emulate_cmd(sd);
+			if (sd->direction < 0)
+				trap_put_bytes(ctx, sd->buffer, scsi_data, sd->data_len);
+		}
 	}
 
 	put_word_host(scsicmd + 18, sd->status != 0 ? 0 : sd->cmd_len); /* fake scsi_CmdActual */
@@ -2791,12 +2799,11 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 #if HDF_SUPPORT_DS
 	case HD_SCSICMD: /* SCSI */
 		if (vdisk(hfpd)) {
-			error = handle_scsi(ctx, iobuf, request, hfd, hfpd->sd);
+			error = handle_scsi(ctx, iobuf, request, hfd, hfpd->sd, false);
 		} else if (HDF_SUPPORT_DS_PARTITION || enable_ds_partition_hdf || (!hfd->ci.sectors && !hfd->ci.surfaces && !hfd->ci.reserved)) {
-			error = handle_scsi(ctx, iobuf, request, hfd, hfpd->sd);
+			error = handle_scsi(ctx, iobuf, request, hfd, hfpd->sd, false);
 		} else { /* we don't want users trashing their "partition" hardfiles with hdtoolbox */
-			error = IOERR_NOCMD;
-			write_log (_T("UAEHF: HD_SCSICMD tried on regular HDF, unit %d\n"), unit);
+			error = handle_scsi(ctx, iobuf, request, hfd, hfpd->sd, true);
 		}
 		break;
 #endif
