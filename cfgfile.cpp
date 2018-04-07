@@ -244,6 +244,7 @@ static const TCHAR *lacer[] = { _T("off"), _T("i"), _T("p"), 0 };
 static const TCHAR *cycleexact[] = { _T("false"), _T("memory"), _T("true"), 0  };
 static const TCHAR *unmapped[] = { _T("floating"), _T("zero"), _T("one"), 0 };
 static const TCHAR *ciatype[] = { _T("default"), _T("391078-01"), 0 };
+static const TCHAR *debugfeatures[] = { _T("segtracker"), _T("fsdebug"), 0 };
 
 struct hdcontrollerconfig
 {
@@ -927,6 +928,26 @@ static void cfgfile_dwrite_path (struct zfile *f, struct multipath *mp, const TC
 	xfree (s);
 }
 
+static void cfgfile_write_multichoice(struct zfile *f, const TCHAR *option, const TCHAR *table[], int value)
+{
+	TCHAR tmp[MAX_DPATH];
+	if (!value)
+		return;
+	tmp[0] = 0;
+	int i = 0;
+	while (value && table[i]) {
+		if (value & (1 << i) && table[i][0] && table[i][0] != '|') {
+			if (tmp[0])
+				_tcscat(tmp, _T(","));
+			_tcscat(tmp, table[i]);
+		}
+		i++;
+	}
+	if (tmp[0])
+		cfgfile_write(f, option, tmp);
+}
+
+
 static void cfgfile_adjust_path(TCHAR *path, int maxsz, struct multipath *mp)
 {
 	if (path[0] == 0)
@@ -1595,7 +1616,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
 	cfgfile_write_str (f, _T("use_gui"), guimode1[p->start_gui]);
 	cfgfile_write_bool (f, _T("use_debugger"), p->start_debugger);
-	cfgfile_dwrite_bool(f, _T("debugging_features"), p->debugging_features);
+	cfgfile_write_multichoice(f, _T("debugging_features"), debugfeatures, p->debugging_features);
 
 	cfgfile_write_rom (f, &p->path_rom, p->romfile, _T("kickstart_rom_file"));
 	cfgfile_write_rom (f, &p->path_rom, p->romextfile, _T("kickstart_ext_rom_file"));
@@ -2611,6 +2632,20 @@ static int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR 
 	return 1;
 }
 
+static bool cfgfile_multichoice(const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location, const TCHAR *table[])
+{
+	if (_tcscmp(option, name) != 0)
+		return false;
+	int v = 0;
+	for (int i = 0; table[i]; i++) {
+		if (cfgfile_option_find(value, table[i])) {
+			v |= 1 << i;
+		}
+	}
+	*location = v;
+	return true;
+}
+
 static int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz, struct multipath *mp)
 {
 	if (!cfgfile_string (option, value, name, location, maxsz))
@@ -3043,7 +3078,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 
 	if (cfgfile_yesno(option, value, _T("use_debugger"), &p->start_debugger)
-		|| cfgfile_yesno(option, value, _T("debugging_features"), &p->debugging_features)
 		|| cfgfile_yesno(option, value, _T("floppy0wp"), &p->floppyslots[0].forcedwriteprotect)
 		|| cfgfile_yesno(option, value, _T("floppy1wp"), &p->floppyslots[1].forcedwriteprotect)
 		|| cfgfile_yesno(option, value, _T("floppy2wp"), &p->floppyslots[2].forcedwriteprotect)
@@ -3097,6 +3131,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_strval(option, value, _T("gfx_atari_palette_fix"), &p->gfx_threebitcolors, threebitcolors, 0)
 		|| cfgfile_strval (option, value, _T("magic_mousecursor"), &p->input_magic_mouse_cursor, magiccursors, 0)
 		|| cfgfile_strval (option, value, _T("absolute_mouse"), &p->input_tablet, abspointers, 0))
+		return 1;
+
+	if (cfgfile_multichoice(option, value, _T("debugging_features"), &p->debugging_features, debugfeatures))
 		return 1;
 
 	if (cfgfile_yesno(option, value, _T("magic_mouse"), &vb)) {

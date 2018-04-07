@@ -151,6 +151,7 @@ static uaecptr ROM_filesys_putmsg, ROM_filesys_putmsg_original;
 static uaecptr ROM_filesys_putmsg_return;
 static uaecptr ROM_filesys_hack_remove;
 static smp_comm_pipe shellexecute_pipe;
+static uae_u32 segtrack_mode = 0;
 
 #define FS_STARTUP 0
 #define FS_GO_DOWN 1
@@ -7904,6 +7905,10 @@ static uae_u32 REGPARAM2 filesys_dev_remember (TrapContext *ctx)
 	if (trap_get_long(ctx, parmpacket + PP_FSPTR)) {
 		uaecptr addr = trap_get_long(ctx, parmpacket + PP_FSPTR);
 		trap_put_bytes(ctx, fs, addr, fssize);
+		// filesystem debugging, negative FSSIZE = debug mode.
+		if (segtrack_mode & 2) {
+			trap_put_long(ctx, parmpacket + PP_FSSIZE, -trap_get_long(ctx, parmpacket + PP_FSSIZE));
+		}
 	}
 
 	xfree (fs);
@@ -8951,8 +8956,10 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *ctx)
 	} else if (mode == 205 || mode == 207) {
 		return debugmem_freemem(mode == 207, trap_get_areg(ctx, 1), trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0));
 	} else if (mode == 208) {
-		// enable segtrack: bit 0 set
-		return currprefs.debugging_features ? 1 : 0;
+		// segtrack: bit 0
+		// fsdebug: bit 1
+		segtrack_mode = currprefs.debugging_features;
+		return segtrack_mode;
 	} else if (mode == 209) {
 		// called if segtrack was enabled
 		return 0;

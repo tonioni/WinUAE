@@ -883,6 +883,12 @@
     <ClCompile Include="..\FX11\EffectAPI.cpp">
       <Filter>win32\FX11</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\debugmem.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\casablanca.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

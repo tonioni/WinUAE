@@ -46,6 +46,7 @@
 #include "uae/ppc.h"
 #include "drawing.h"
 #include "devices.h"
+#include "blitter.h"
 
 #define TRACE_SKIP_INS 1
 #define TRACE_MATCH_PC 2
@@ -96,6 +97,9 @@ void deactivate_debugger (void)
 
 void activate_debugger (void)
 {
+	if (isfullscreen() > 0)
+		return;
+
 	debugger_load_libraries();
 
 	debug_pc = 0xffffffff;
@@ -317,7 +321,11 @@ uae_u32 get_byte_debug (uaecptr addr)
 				v = mmu030_get_generic (addr, debug_mmu_mode, sz_byte, MMU030_SSW_SIZE_B);
 			} else {
 				if (debug_mmu_mode & 1) {
+					bool odd = (addr & 1) != 0;
+					addr &= ~1;
 					v = mmu_get_iword(addr, sz_byte);
+					if (!odd)
+						v >>= 8;
 				} else {
 					v = mmu_get_user_byte (addr, regs.s != 0, false, sz_byte, false);
 				}
@@ -820,9 +828,14 @@ static int checkvaltype2 (TCHAR **c, uae_u32 *val, TCHAR def)
 		name[i] = nc;
 		name[i + 1] = 0;
 	}
-	if (name[0] && debugmem_get_symbol_value(name, val)) {
-		(*c) += _tcslen(name);
-		return 1;
+	if (name[0]) {
+		TCHAR *np = name;
+		if (*np == '#')
+			np++;
+		if (debugmem_get_symbol_value(np, val)) {
+			(*c) += _tcslen(name);
+			return 1;
+		}
 	}
 	if (def == '!') {
 		return readintx (c, val) ? -1 : 0;
@@ -2961,7 +2974,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 					mask <<= shift;
 				}
 				*valp = (sval & mask) | ((*valp) & ~mask);
-				write_log (_T("%08x %08x %08x %08x %d\n"), addr, m->addr, *valp, mask, shift);
+				//write_log (_T("%08x %08x %08x %08x %d\n"), addr, m->addr, *valp, mask, shift);
 				return 1;
 			}
 			return 0;
@@ -3030,15 +3043,6 @@ static void REGPARAM2 mmu_bput (uaecptr addr, uae_u32 v)
 	if (!mmu_hit (addr, 1, 1, &v))
 		debug_mem_banks[off]->bput (addr, v);
 }
-
-static uae_u32 REGPARAM2 debug_lget (uaecptr addr)
-{
-	uae_u32 off = debug_mem_off (&addr);
-	uae_u32 v;
-	v = debug_mem_banks[off]->lget (addr);
-	memwatch_func (addr, 1, 4, &v, MW_MASK_CPU_D_R, 0);
-	return v;
-}
 static uae_u32 REGPARAM2 mmu_lgeti (uaecptr addr)
 {
 	int off = debug_mem_off (&addr);
@@ -3056,6 +3060,14 @@ static uae_u32 REGPARAM2 mmu_wgeti (uaecptr addr)
 	return v;
 }
 
+static uae_u32 REGPARAM2 debug_lget(uaecptr addr)
+{
+	uae_u32 off = debug_mem_off(&addr);
+	uae_u32 v;
+	v = debug_mem_banks[off]->lget(addr);
+	memwatch_func(addr, 1, 4, &v, MW_MASK_CPU_D_R, 0);
+	return v;
+}
 static uae_u32 REGPARAM2 debug_wget (uaecptr addr)
 {
 	int off = debug_mem_off (&addr);
@@ -5996,6 +6008,9 @@ void debug (void)
 				console_out_f (_T("%s (%03x)\n"), memwatch_access_masks[i].name, mwhit.reg);
 		}
 		memwatch_triggered = 0;
+		if (mwhit.access_mask & (MW_MASK_BLITTER_A | MW_MASK_BLITTER_B | MW_MASK_BLITTER_C | MW_MASK_BLITTER_D_N | MW_MASK_BLITTER_D_L | MW_MASK_BLITTER_D_F)) {
+			blitter_debugdump();
+		}
 	}
 
 	wasactive = ismouseactive ();

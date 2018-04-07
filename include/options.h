@@ -443,7 +443,7 @@ struct uae_prefs {
 	bool socket_emu;
 
 	bool start_debugger;
-	bool debugging_features;
+	int debugging_features;
 	bool start_gui;
 
 	KbdLang keyboard_lang;

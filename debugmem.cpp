@@ -280,10 +280,10 @@ static void debugreportalloc(struct debugmemallocs *a)
 		console_out_f(_T("Segment %d: %08x %08x - %08x (%d)\n"),
 			a->id, a->idtype, a->start + off, a->start + off + a->size - 1, a->size);
 	} else if (a->type == DEBUGALLOC_ALLOCMEM) {
-		console_out_f(_T("AllocMem ID=%d: %08x %08x - %08x (%d) AllocFlags: %08x PC: %08x\n"),
+		console_out_f(_T("AllocMem ID=%4d: %08x %08x - %08x (%d) AllocFlags: %08x PC: %08x\n"),
 			a->id, a->idtype, a->start + off, a->start + off + a->size - 1, a->size, a->data, a->pc);
 	} else if (a->type == DEBUGALLOC_ALLOCVEC) {
-		console_out_f(_T("AllocVec allocation ID=%d: %08x %08x - %08x (%d) AllocFlags: %08x PC: %08x\n"),
+		console_out_f(_T("AllocVec ID=%4d: %08x %08x - %08x (%d) AllocFlags: %08x PC: %08x\n"),
 			a->id, a->idtype, a->start + off, a->start + off + a->size - 1, a->size, a->data, a->pc);
 	} else if (a->type == DEBUGALLOC_SEG) {
 		static int lastsegment;
@@ -934,6 +934,7 @@ uaecptr debugmem_allocmem(int mode, uae_u32 size, uae_u32 flags, uae_u32 caller)
 		return 0;
 	dm->type = mode ? DEBUGALLOC_ALLOCVEC : DEBUGALLOC_ALLOCMEM;
 	dm->pc = caller;
+	dm->data = flags;
 	debugreportalloc(dm);
 	uaecptr mem = dm->start + debugmem_bank.start;
 	if (mode) {
@@ -1125,14 +1126,18 @@ static void parse_stabs(void)
 			if (!cf) {
 				cf = loadcodefile(path, s->string);
 				if (!cf) {
-					if (!_tcsnicmp(path, _T("/cygdrive/"), 10)) {
+					if (!_tcsnicmp(path, _T("/mnt/"), 5)) {
+						TCHAR path2[MAX_DPATH];
+						_stprintf(path2, _T("%c:/%s"), path[5], path + 7);
+						cf = loadcodefile(path2, s->string);
+					} else if (!_tcsnicmp(path, _T("/cygdrive/"), 10)) {
 						TCHAR path2[MAX_DPATH];
 						_stprintf(path2, _T("%c:/%s"), path[10], path + 12);
 						cf = loadcodefile(path2, s->string);
-						if (!cf) {
-							console_out_f(_T("Failed to load '%s'\n"), s->string);
-							continue;
-						}
+					}
+					if (!cf) {
+						console_out_f(_T("Failed to load '%s'\n"), s->string);
+						continue;
 					}
 				}
 			}
@@ -1163,10 +1168,12 @@ static void parse_stabs(void)
 							console_out_f(_T("Line address larger than segment size!? %08x >= %08x\n"), s->val, linemapsize);
 							return;
 						}
-						linemap[s->val].file = cf;
-						linemap[s->val].line = s->desc;
-						//write_log(_T("%08x %d %s\n"), s->val, s->desc, cf->name);
-						linecnt++;
+						if (cf) {
+							linemap[s->val].file = cf;
+							linemap[s->val].line = s->desc;
+							//write_log(_T("%08x %d %s\n"), s->val, s->desc, cf->name);
+							linecnt++;
+						}
 					break;
 					case N_FUN:
 					case N_STSYM:
@@ -1210,7 +1217,7 @@ static void parse_stabs(void)
 						const TCHAR *ts = _tcschr(s->string, '=');
 						if (ts) {
 							const TCHAR *tts = _tcschr(s->string, ':');
-							if (tts) {
+							if (tts && cf) {
 								int tid = _tstol(tts + 2);
 								if (tid > 0) {
 									if (!cf->stabtypes) {
@@ -1291,10 +1298,10 @@ uaecptr debugmem_reloc(uaecptr exeaddress, uae_u32 len, uaecptr task, uae_u32 *s
 		return 0;
 	}
 	p += 4;
-	int hunkcnt = gl(p);
+	int hunktotal = gl(p);
 	int first = gl(p + 4);
 	int last = gl(p + 8);
-	if (hunkcnt > 1000 || (last - first + 1) > 1000) {
+	if (hunktotal > 1000 || (last - first + 1) > 1000) {
 		console_out_f(_T("Too many hunks.\n"));
 		return 0;
 	}
@@ -1332,154 +1339,164 @@ uaecptr debugmem_reloc(uaecptr exeaddress, uae_u32 len, uaecptr task, uae_u32 *s
 		}
 		linemapsize += lens[i];
 	}
-	for (int i = first; i <= last; i++) {
-		struct debugmemallocs *memdm = hunks[i];
-		uae_u32 len = lens[i];
+	int hunkcnt = first - 1;
+	for (;;) {
 		uae_u32 hunktype = gl(p) & ~0xc0000000;
-		uae_u32 hunklen = gl(p + 4);
-		hunklen *= 4;
-		p += 8;
-		uae_u32 memflags = 0;
-		if (hunktype != 0x3e9 && hunktype != 0x3ea && hunktype != 0x3eb) {
-			console_out_f(_T("Unknown hunk #%d %08x.\n"), i, hunktype);
-			return 0;
-		}
-		memdm->idtype = hunktype | memtypes[i];
-		if (hunklen > len) {
-			console_out_f(_T("Hunk #%d contents (%d) larger than allocation (%d)!\n"), i, hunklen, len);
-			return 0;
-		}
-		uae_u8 *mem = memdm->start + debugmem_bank.baseaddr;
-		uaecptr memaddr = memdm->start + debugmem_bank.start;
-		if (hunktype != 0x3eb) {
-			for (int c = 0; c < hunklen; c++) {
-				put_byte_host(mem + 8 + c, *p++);
-			}
-		}
-		put_long_host(mem, len / 4);
-		if (lastptr) {
-			put_long_host(lastptr, memaddr / 4 + 1);
-		}
-		lastptr = mem + 4;
-		if (gl(p) == 0x3ec) { // hunk reloc
-			if (hunktype == 0x3eb) {
-				console_out_f(_T("HUNK_BSS with HUNK_RELOC32!\n"));
+
+		if (hunktype == 0x3e9 || hunktype == 0x3ea || hunktype == 0x3eb) {
+			hunkcnt++;
+			if (hunkcnt > last) {
+				console_out_f(_T("Header hunk count does not match hunk count\n"));
 				return 0;
 			}
-			p += 4;
-			for (;;) {
-				int reloccnt = gl(p);
-				p += 4;
-				if (!reloccnt)
-					break;
-				int relochunk = gl(p);
-				p += 4;
-				if (relochunk > last) {
-					console_out_f(_T("HUNK_RELOC hunk #%d is larger than last hunk (%d)!\n"), relochunk, last);
-					return 0;
-				}
-				uaecptr hunkptr = hunks[relochunk]->start + debugmem_bank.start + 8;
-				uae_u8 *currenthunk = mem + 8;
-				for (int j = 0; j < reloccnt; j++) {
-					uae_u32 reloc = gl(p);
-					p += 4;
-					if (reloc >= len - 3) {
-						console_out_f(_T("HUNK_RELOC hunk #%d offset %d larger than hunk lenght %d!\n"), i, reloc, len);
-						return 0;
-					}
-					put_long_host(currenthunk + reloc, get_long_host(currenthunk + reloc) + hunkptr);
+
+			struct debugmemallocs *memdm = hunks[hunkcnt];
+			uae_u32 len = lens[hunkcnt];
+			uae_u32 hunklen = gl(p + 4);
+			hunklen *= 4;
+			p += 8;
+			uae_u32 memflags = 0;
+			memdm->idtype = hunktype | memtypes[hunkcnt];
+			if (hunklen > len) {
+				console_out_f(_T("Hunk #%d contents (%d) larger than allocation (%d)!\n"), hunkcnt, hunklen, len);
+				return 0;
+			}
+			uae_u8 *mem = memdm->start + debugmem_bank.baseaddr;
+			uaecptr memaddr = memdm->start + debugmem_bank.start;
+			if (hunktype != 0x3eb) {
+				for (int c = 0; c < hunklen; c++) {
+					put_byte_host(mem + 8 + c, *p++);
 				}
 			}
-		}
-
-		for (;;) {
-
-			if (gl(p) == 0x3f0) { // hunk symbol
-
-				int symcnt = 0;
+			put_long_host(mem, len / 4);
+			if (lastptr) {
+				put_long_host(lastptr, memaddr / 4 + 1);
+			}
+			lastptr = mem + 4;
+			if (gl(p) == 0x3ec) { // hunk reloc
+				if (hunktype == 0x3eb) {
+					console_out_f(_T("HUNK_BSS with HUNK_RELOC32!\n"));
+					return 0;
+				}
 				p += 4;
 				for (;;) {
-					int size = gl(p);
+					int reloccnt = gl(p);
 					p += 4;
-					if (!size)
+					if (!reloccnt)
 						break;
+					int relochunk = gl(p);
+					p += 4;
+					if (relochunk > last) {
+						console_out_f(_T("HUNK_RELOC hunk #%d is larger than last hunk (%d)!\n"), relochunk, last);
+						return 0;
+					}
+					uaecptr hunkptr = hunks[relochunk]->start + debugmem_bank.start + 8;
+					uae_u8 *currenthunk = mem + 8;
+					for (int j = 0; j < reloccnt; j++) {
+						uae_u32 reloc = gl(p);
+						p += 4;
+						if (reloc >= len - 3) {
+							console_out_f(_T("HUNK_RELOC hunk #%d offset %d larger than hunk lenght %d!\n"), hunkcnt, reloc, len);
+							return 0;
+						}
+						put_long_host(currenthunk + reloc, get_long_host(currenthunk + reloc) + hunkptr);
+					}
+				}
+			}
+			continue;
+		}
+
+		if (hunktype == 0x3f0) { // hunk symbol
+
+			int symcnt = 0;
+			p += 4;
+			for (;;) {
+				int size = gl(p);
+				p += 4;
+				if (!size)
+					break;
+				if (hunkcnt >= 0) {
 					struct debugsymbol *ds = symbols[symbolcnt++];
 					ds->name = au((char*)p);
 					p += 4 * size;
-					ds->value = gl(p) + hunks[i]->start + 8 + debugmem_bank.start;
-					ds->allocid = hunks[i]->id;
-					ds->section = hunks[i];
+					ds->value = gl(p) + hunks[hunkcnt]->start + 8 + debugmem_bank.start;
+					ds->allocid = hunks[hunkcnt]->id;
+					ds->section = hunks[hunkcnt];
 					ds->flags = SYMBOL_GLOBAL;
 					p += 4;
 					symcnt++;
+				} else {
+					p += 4 * size + 4;
 				}
-				console_out_f(_T("Hunk %d: %d symbols loaded.\n"), i, symcnt);
-
-			} else if (gl(p) == 0x3f1) { // hunk debug
-
-				p += 4;
-				int size = gl(p);
-				p += 4;
-				uae_u8 *p2 = p;
-				if (size >= 12) {
-					if (gl(p) == 0x0000010b) { // "ZMAGIC"
-						p += 4;
-						int symtab_size = gl(p);
-						p += 4;
-						int stringtab_size = gl(p);
-						p += 4;
-						uae_u8 *stringtab = p + symtab_size;
-						if (!stabs) {
-							stabs = xcalloc(struct stab, symtab_size / 12);
-						} else {
-							stabs = xrealloc(struct stab, stabs, stabscount + symtab_size / 12);
-						}
-						for (int i = 0; i <= symtab_size - 12; i += 12, p += 12) {
-							struct stab *s = &stabs[stabscount++];
-							TCHAR *str = NULL;
-							int string_idx = gl(p);
-							uae_u8 type = p[4];
-							uae_u8 other = p[5];
-							uae_u16 desc = (p[6] << 8) | p[7];
-							uae_u32 value = gl(p + 8);
-							if (string_idx) {
-								uae_char *s = (uae_char*)stringtab + string_idx;
-								str = au(s);
-							}
-							s->type = type;
-							s->other = other;
-							s->desc = desc;
-							s->val = value;
-							s->string = str;
-						}
-						console_out_f(_T("%d stabs loaded.\n"), symtab_size / 12);
-					} else {
-						console_out_f(_T("HUNK_DEBUG is not in expected format\n"));
-					}
-				}
-				p = p2 + 4 * size;
-
-			} else if (gl(p) == 0x3f2) {
-
-				p += 4;
-
-			} else {
-
-				break;
-
 			}
+			console_out_f(_T("Hunk %d: %d symbols loaded.\n"), hunkcnt, symcnt);
+
+		} else if (hunktype == 0x3f1) { // hunk debug
+
+			p += 4;
+			int size = gl(p);
+			p += 4;
+			uae_u8 *p2 = p;
+			if (size >= 12) {
+				if (gl(p) == 0x0000010b) { // "ZMAGIC"
+					p += 4;
+					int symtab_size = gl(p);
+					p += 4;
+					int stringtab_size = gl(p);
+					p += 4;
+					uae_u8 *stringtab = p + symtab_size;
+					if (!stabs) {
+						stabs = xcalloc(struct stab, symtab_size / 12);
+					} else {
+						stabs = xrealloc(struct stab, stabs, stabscount + symtab_size / 12);
+					}
+					for (int i = 0; i <= symtab_size - 12; i += 12, p += 12) {
+						struct stab *s = &stabs[stabscount++];
+						TCHAR *str = NULL;
+						int string_idx = gl(p);
+						uae_u8 type = p[4];
+						uae_u8 other = p[5];
+						uae_u16 desc = (p[6] << 8) | p[7];
+						uae_u32 value = gl(p + 8);
+						if (string_idx) {
+							uae_char *s = (uae_char*)stringtab + string_idx;
+							str = au(s);
+						}
+						s->type = type;
+						s->other = other;
+						s->desc = desc;
+						s->val = value;
+						s->string = str;
+					}
+					console_out_f(_T("%d stabs loaded.\n"), symtab_size / 12);
+				} else {
+					console_out_f(_T("HUNK_DEBUG is not in expected format\n"));
+				}
+			}
+			p = p2 + 4 * size;
+
+		} else if (hunktype == 0x3f2) {
+
+			p += 4;
+
+		} else {
+
+			break;
+
 		}
 	}
 	if (gl(p - 4) != 0x3f2) {
 		console_out_f(_T("HUNK_END not found, got %08x\n"), gl(p - 4));
 		return 0;
 	}
-	struct debugmemallocs *stackmem = debugmem_allocate(*stack, DEBUGMEM_READ | DEBUGMEM_WRITE | DEBUGMEM_INITIALIZED | DEBUGMEM_STACK, parentid);
-	if (!stackmem)
-		return 0;
-	stackmem->type = DEBUGALLOC_HUNK;
-	stackmem->idtype = 0xffff;
-	*stack = stackmem->start + debugmem_bank.start;
+	if (*stack) {
+		struct debugmemallocs *stackmem = debugmem_allocate(*stack, DEBUGMEM_READ | DEBUGMEM_WRITE | DEBUGMEM_INITIALIZED | DEBUGMEM_STACK, parentid);
+		if (!stackmem)
+			return 0;
+		stackmem->type = DEBUGALLOC_HUNK;
+		stackmem->idtype = 0xffff;
+		*stack = stackmem->start + debugmem_bank.start;
+	}
 	executable_last_segment = alloccnt;
 
 	linemap = xcalloc(struct linemapping, linemapsize + 1);
@@ -1595,6 +1612,14 @@ bool debugger_get_library_symbol(uaecptr base, uaecptr addr, TCHAR *out)
 	return false;
 }
 
+static void addlvo(struct libname *lvo, const char *name, uae_u32 bias)
+{
+	struct libsymbol *ls = &libsymbols[libsymbolcnt++];
+	ls->name = au(name);
+	ls->value = -(uae_s32)bias;
+	ls->lib = lvo;
+}
+
 static bool debugger_load_fd(void)
 {
 	TCHAR plugin_path[MAX_DPATH];
@@ -1673,11 +1698,7 @@ static bool debugger_load_fd(void)
 			char *p3 = strchr(line, '(');
 			if (p3)
 				*p3 = 0;
-			TCHAR *name2 = au(line);
-			struct libsymbol *ls = &libsymbols[libsymbolcnt++];
-			ls->name = name2;
-			ls->value = -bias;
-			ls->lib = lvo;
+			addlvo(lvo, line, bias);
 			bias += 6;
 			cnt++;
 		}
@@ -1686,6 +1707,35 @@ static bool debugger_load_fd(void)
 		zfile_fclose(zf);
 	}
 	my_closedir(h);
+
+
+	for (int i = 0; i < libnamecnt; i++) {
+		struct libname *libname = &libnames[i];
+		bool open = false, close = false, expunge = false, reserved = false;
+		for (int j = 0; j < libsymbolcnt; j++) {
+			struct libsymbol *lvo = &libsymbols[j];
+			if (lvo->lib == libname) {
+				if (lvo->value == -6 * 1)
+					open = true;
+				if (lvo->value == -6 * 2)
+					close = true;
+				if (lvo->value == -6 * 3)
+					expunge = true;
+				if (lvo->value == -6 * 4)
+					reserved = true;
+			}
+		}
+		if (!open)
+			addlvo(libname, "open", 6 * 1);
+		if (!close)
+			addlvo(libname, "close", 6 * 2);
+		if (!expunge)
+			addlvo(libname, "expunge", 6 * 3);
+		if (!reserved)
+			addlvo(libname, "reserved", 6 * 4);
+	}
+
+
 	return true;
 }
 
@@ -2260,6 +2310,27 @@ static struct debugmemallocs *ismysegment(uaecptr addr)
 
 bool debugmem_get_symbol_value(const TCHAR *name, uae_u32 *valp)
 {
+	for (int i = 0; i < libnamecnt; i++) {
+		struct libname *libname = &libnames[i];
+		int lnlen = _tcslen(libname->name);
+		// "libname/lvoname"?
+		if (!_tcsnicmp(name, libname->name, lnlen) && _tcslen(name) > lnlen + 1 && name[lnlen] == '/') {
+			for (int j = 0; j < libsymbolcnt; j++) {
+				struct libsymbol *lvo = &libsymbols[j];
+				if (lvo->lib == libname) {
+					if (!_tcsicmp(name + lnlen + 1, lvo->name)) {
+						uaecptr addr = libname->base + lvo->value;
+						// JMP xxxxxxxx?
+						if (get_word_debug(addr) == 0x4ef9)
+							addr = get_long_debug(addr + 2);
+						*valp = addr;
+						return true;
+					}
+				}
+			}
+			break;
+		}
+	}
 	for (int i = 0; i < symbolcnt; i++) {
 		struct debugsymbol *ds = symbols[i];
 		if (!_tcscmp(ds->name, name)) {
@@ -2504,7 +2575,7 @@ uae_u32 debugmem_chiphit(uaecptr addr, uae_u32 v, int size)
 	recursive++;
 	bool dbg = false;
 	if (size > 0) {
-		if (debugmem_active) {
+		if (debugmem_active && debugmem_mapped) {
 			console_out_f(_T("%s write to %08x, value = %08x\n"), size == 4 ? _T("Long") : (size == 2 ? _T("Word") : _T("Byte")), addr, v);
 			dbg = debugmem_break(6);
 		}
@@ -2523,12 +2594,12 @@ uae_u32 debugmem_chiphit(uaecptr addr, uae_u32 v, int size)
 				return do_get_mem_long((uae_u32*)(chipmem_bank.baseaddr + addr));
 			}
 		}
-		if (debugmem_active) {
+		if (debugmem_active && debugmem_mapped) {
 			console_out_f(_T("%s read from %08x\n"), size == 4 ? _T("Long") : (size == 2 ? _T("Word") : _T("Byte")), addr);
 			dbg = debugmem_break(7);
 		}
 	}
-	if (debugmem_active) {
+	if (debugmem_active && debugmem_mapped) {
 		if (!dbg)
 			m68k_dumpstate(0, 0xffffffff);
 	}
@@ -2603,5 +2674,15 @@ bool debugmem_list_stackframe(bool super)
 		memcpy(regs.regs, sregs, sizeof(uae_u32) * 16);
 		console_out_f(_T("\n"));
 	}
+	return true;
+}
+
+bool debugmem_illg(uae_u16 opcode)
+{
+	if (!debugmem_active)
+		return false;
+	if (opcode != 0x4afc)
+		return false;
+	debugmem_break(12);
 	return true;
 }
