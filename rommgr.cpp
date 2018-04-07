@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 231
+#define NEXT_ROM_ID 232
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -189,6 +189,11 @@ static struct romdata roms[] = {
 	ALTROMPN(17, 1, 2, 262144, ROMTYPE_ODD , _T("391658-01"), 0xdfe03120,0xcd7a706c,0x431b04d8,0x7814d3a2,0xd8b39710,0x0cf44c0c)
 	{ _T("KS ROM v3.X (A4000)(Cloanto)"), 3, 10, 45, 57, _T("A4000\0"), 524288, 46, 2 | 4, 1, ROMTYPE_KICK, 0, 0, NULL,
 	0x3ac99edc, 0x3cbfc9e1,0xfe396360,0x157bd161,0xde74fc90,0x1abee7ec },
+
+	{ _T("Casablanca 74095 - 00 717 - 02"), 3, 1, 0, 0, _T("CASABLANCA\0"), 524288 * 2, 231, 2 | 4, 0, ROMTYPE_KICK, 0, 0, NULL,
+	0x2ec384e3,0x47f9ee6d, 0x0f8ac5a6,0x5c6eddc3,0x0bcd47c8,0x574d8725 },
+	ALTROMPN(231, 1, 1, 524288, ROMTYPE_EVEN, _T("74095 00 717 02 01 U4"), 0x1bdcd18c, 0xabc7b734,0x1f8df24d,0xd4f1d062,0xfc0f7680,0x4d1053b9)
+	ALTROMPN(231, 1, 2, 524288, ROMTYPE_ODD , _T("74095 00 717 02 02 U5"), 0x6ccb0431, 0xa2a43444,0xbeda38be,0x1fa5cabe,0x75fc4def,0x063bcd7a)
 
 	{ _T("CD32 KS ROM v3.1"), 3, 1, 40, 60, _T("CD32\0"), 524288, 18, 1, 0, ROMTYPE_KICKCD32, 0, 0, NULL,
 	0x1e62d4a5, 0x3525BE88,0x87F79B59,0x29E017B4,0x2380A79E,0xDFEE542D },

@@ -177,7 +177,7 @@ static const TCHAR *ksmirrortype[] = { _T("none"), _T("e0"), _T("a8+e0"), 0 };
 static const TCHAR *cscompa[] = {
 	_T("-"), _T("Generic"), _T("CDTV"), _T("CDTV-CR"), _T("CD32"), _T("A500"), _T("A500+"), _T("A600"),
 	_T("A1000"), _T("A1200"), _T("A2000"), _T("A3000"), _T("A3000T"), _T("A4000"), _T("A4000T"),
-	_T("Velvet"),
+	_T("Velvet"), _T("Casablanca"),
 	NULL
 };
 static const TCHAR *qsmodes[] = {
@@ -8256,6 +8256,41 @@ static int bip_arcadia (struct uae_prefs *p, int config, int compa, int romcheck
 	return 1;
 }
 
+static int bip_casablanca(struct uae_prefs *p, int config, int compa, int romcheck)
+{
+	int roms[8];
+
+	roms[0] = 231;
+	roms[1] = -1;
+
+	p->bogomem_size = 0;
+	p->chipmem_size = 0x200000;
+	switch (config)
+	{
+	default:
+	case 1:
+		p->cpu_model = 68040;
+		p->fpu_model = 68040;
+		p->mmu_model = 68040;
+		break;
+	case 2:
+		p->cpu_model = 68060;
+		p->fpu_model = 68060;
+		p->mmu_model = 68040;
+		break;
+	}
+	p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
+	p->cpu_compatible = p->address_space_24 = 0;
+	p->m68k_speed = -1;
+	p->immediate_blits = 0;
+	p->produce_sound = 2;
+	p->floppyslots[0].dfxtype = DRV_NONE;
+	p->floppyslots[1].dfxtype = DRV_NONE;
+	p->cs_compatible = CP_CASABLANCA;
+	built_in_chipset_prefs(p);
+	return configure_rom(p, roms, romcheck);
+}
+
 int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck)
 {
 	int v = 0;
@@ -8294,9 +8329,12 @@ int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int r
 		v = bip_cdtv (p, config, compa, romcheck);
 		break;
 	case 10:
-		v = bip_arcadia (p, config , compa, romcheck);
+		v = bip_arcadia(p, config, compa, romcheck);
 		break;
 	case 11:
+		v = bip_casablanca(p, config, compa, romcheck);
+		break;
+	case 12:
 		v = bip_super (p, config, compa, romcheck);
 		break;
 	}
@@ -8494,6 +8532,8 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ciaoverlay = 0;
 		p->cs_z3autoconfig = true;
 		p->cs_unmapped_space = 1;
+		break;
+	case CP_CASABLANCA:
 		break;
 	}
 	if (p->cpu_model >= 68040)

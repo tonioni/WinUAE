@@ -41,6 +41,7 @@
 #include "uae/ppc.h"
 #include "devices.h"
 #include "inputdevice.h"
+#include "casablanca.h"
 
 bool canbang;
 static bool rom_write_enabled;
@@ -2375,6 +2376,11 @@ void map_overlay (int chip)
 	int size;
 	addrbank *cb;
 
+	if (currprefs.cs_compatible == CP_CASABLANCA) {
+		casablanca_map_overlay();
+		return;
+	}
+
 	size = chipmem_bank.allocated_size >= 0x180000 ? (chipmem_bank.allocated_size >> 16) : 32;
 	if (bogomem_aliasing)
 		size = 8;
@@ -3505,3 +3511,4 @@ uaecptr strcpyha_safe (uaecptr dst, const uae_char *src)
 	} while (b);
 	return res;
 }
+
