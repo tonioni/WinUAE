@@ -188,9 +188,15 @@ static void check_blit(int32_t addr, uint32_t mask, int pitch, int width, int *h
 		off -= width * (depth / 8);
 	}
 	if (off > mask + 1) {
-		h -= (off - (mask + 1) + pitch - 1) / pitch;
+		if (pitch)
+			h -= (off - (mask + 1) + pitch - 1) / pitch;
+		else
+			h = 0;
 	} else if (off < 0) {
-		h -= ((-off) + pitch - 1) / pitch;
+		if (pitch)
+			h -= ((-off) + pitch - 1) / pitch;
+		else
+			h = 0;
 	}
 	if (h < 0)
 		h = 0;
