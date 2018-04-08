@@ -7141,11 +7141,36 @@ uae_u32 cfgfile_uaelib(TrapContext *ctx, int mode, uae_u32 name, uae_u32 dst, ua
 
 uae_u8 *restore_configuration (uae_u8 *src)
 {
-	TCHAR *s = au ((char*)src);
-	//write_log (s);
-	xfree (s);
-	src += strlen ((char*)src) + 1;
-	return src;
+	struct uae_prefs *p = &currprefs;
+	TCHAR *sp = au ((char*)src);
+	TCHAR *s = sp;
+	for (;;) {
+		TCHAR option[MAX_DPATH];
+		TCHAR value[MAX_DPATH];
+		TCHAR tmp[MAX_DPATH];
+
+		TCHAR *ss = s;
+		while (*s && *s != 10 && *s != 13)
+			s++;
+		if (*s == 0) {
+			xfree(sp);
+			return src += strlen((char*)src) + 1;
+		}
+		*s++ = 0;
+		while (*s == 10 || *s == 13)
+			s++;
+		if (cfgfile_separate_line(ss, option, value)) {
+			if (!_tcsncmp(option, _T("diskimage"), 9)) {
+				for (int i = 0; i < MAX_SPARE_DRIVES; i++) {
+					_stprintf(tmp, _T("diskimage%d"), i);
+					if (!_tcscmp(option, tmp)) {
+						cfgfile_path(option, value, tmp, p->dfxlist[i], sizeof p->dfxlist[i] / sizeof(TCHAR), &p->path_floppy);
+						break;
+					}
+				}
+			}
+		}
+	}
 }
 
 uae_u8 *save_configuration (int *len, bool fullconfig)

@@ -514,6 +514,7 @@ void restore_state (const TCHAR *filename)
 	unsigned int len, totallen;
 	size_t filepos, filesize;
 	int z3num, z2num;
+	bool end_found = false;
 
 	chunk = 0;
 	f = zfile_fopen (filename, _T("rb"), ZFD_NORMAL);
@@ -542,11 +543,10 @@ void restore_state (const TCHAR *filename)
 		chunk = end = restore_chunk (f, name, &len, &totallen, &filepos);
 		write_log (_T("Chunk '%s' size %u (%u)\n"), name, len, totallen);
 		if (!_tcscmp (name, _T("END "))) {
-#ifdef _DEBUG
-			if (filesize > filepos + 8)
-				continue;
-#endif
-			break;
+			if (end_found)
+				break;
+			end_found = true;
+			continue;
 		}
 		if (!_tcscmp (name, _T("CRAM"))) {
 			restore_cram (totallen, filepos);
