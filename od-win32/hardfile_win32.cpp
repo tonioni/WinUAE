@@ -3536,11 +3536,18 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 		CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING, NULL);
 	if (hdst == INVALID_HANDLE_VALUE)
 		goto err;
+
+	if (DeviceIoControl(h, FSCTL_LOCK_VOLUME, NULL, 0, NULL, 0, &r, NULL)) {
+		if (DeviceIoControl(h, FSCTL_DISMOUNT_VOLUME, NULL, 0, NULL, 0, &r, NULL)) {
+			write_log(_T("Volume locked and dismounted\n"));
+		} else {
+			write_log(_T("WARNING: '%s' FSCTL_DISMOUNT_VOLUME returned %d\n"), path, GetLastError());
+		}
+	} else {
+		write_log(_T("WARNING: '%s' FSCTL_LOCK_VOLUME returned %d\n"), path, GetLastError());
+	}
 	if (!DeviceIoControl(h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &r, NULL)) {
 		write_log (_T("WARNING: '%s' FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n"), path, GetLastError ());
-	}
-	if (!DeviceIoControl(h, FSCTL_LOCK_VOLUME , NULL, 0, NULL, 0, &r, NULL)) {
-		write_log (_T("WARNING: '%s' FSCTL_LOCK_VOLUME returned %d\n"), path, GetLastError ());
 	}
 	li.QuadPart = size;
 	ret = SetFilePointer (hdst, li.LowPart, &li.HighPart, FILE_BEGIN);
