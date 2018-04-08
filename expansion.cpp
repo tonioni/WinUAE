@@ -4888,11 +4888,11 @@ const struct expansionromtype expansionroms[] = {
 		true, EXPANSIONTYPE_IDE
 	},
 	{
-		_T("adscsi2000"), _T("AdSCSI Advantage 2000"), _T("ICD"),
+		_T("adscsi2000"), _T("AdSCSI Advantage 2000/2080"), _T("ICD"),
 		NULL, adscsi_init, NULL, adscsi_add_scsi_unit, ROMTYPE_ADSCSI, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
-		0, 0, 0, false, NULL,
+		2071, 4, 0, false, NULL,
 		true, 0, adscsi2000_settings
 	},
 	{
