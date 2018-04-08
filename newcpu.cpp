@@ -10429,7 +10429,7 @@ static uae_u32 read_dcache040(uae_u32 addr, int size, uae_u32 (*fetch)(uaecptr))
 	}
 	// Cache miss
 	// 040+ always caches whole line
-	if ((cs & CACHE_DISABLE_MMU) || !(cs & CACHE_ENABLE_DATA) || (cs & CACHE_DISABLE_ALLOCATE) || (regs.cacr & 0x400000000)) {
+	if ((cs & CACHE_DISABLE_MMU) || !(cs & CACHE_ENABLE_DATA) || (cs & CACHE_DISABLE_ALLOCATE) || (regs.cacr & 0x40000000)) {
 nocache:
 		return fetch(addr_o);
 	}
